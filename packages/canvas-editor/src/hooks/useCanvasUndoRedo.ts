@@ -4,6 +4,8 @@ import { useStore } from 'zustand';
 
 import { useCanvasStore } from '../stores/CanvasStoreProvider';
 
+import { useAnnounce } from './useAnnounce';
+
 import type { CanvasEditorStoreState } from '../stores/createCanvasEditorStore';
 
 interface UseCanvasUndoRedoReturn<
@@ -52,6 +54,9 @@ export function useCanvasUndoRedo<
   readState?: () => TComponentState
 ): UseCanvasUndoRedoReturn<TComponentState> {
   const store = useCanvasStore();
+  const announce = useAnnounce();
+  const announceRef = useRef(announce);
+  announceRef.current = announce;
   // Use individual selectors to avoid subscribing to entire store
   const canUndo = useStore(store, selectCanUndo);
   const canRedo = useStore(store, selectCanRedo);
@@ -119,14 +124,18 @@ export function useCanvasUndoRedo<
   const undo = useCallback(() => {
     flushImmediateSave();
     flushDebouncedSave();
+    if (!getStore().canUndo()) return;
     getStore().undo();
+    announceRef.current('Rückgängig gemacht');
   }, [flushDebouncedSave, flushImmediateSave]);
 
   // Stable redo function
   const redo = useCallback(() => {
     flushImmediateSave();
     flushDebouncedSave();
+    if (!getStore().canRedo()) return;
     getStore().redo();
+    announceRef.current('Wiederhergestellt');
   }, [flushDebouncedSave, flushImmediateSave]);
 
   // Stable saveToHistory function - flushes any pending debounce first
@@ -183,6 +192,7 @@ export function useCanvasUndoRedo<
         const store = getStore();
         if (store.canUndo()) {
           store.undo();
+          announceRef.current('Rückgängig gemacht');
         }
       }
 
@@ -197,6 +207,7 @@ export function useCanvasUndoRedo<
         const store = getStore();
         if (store.canRedo()) {
           store.redo();
+          announceRef.current('Wiederhergestellt');
         }
       }
     };

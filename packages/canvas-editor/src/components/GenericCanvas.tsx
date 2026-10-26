@@ -34,12 +34,14 @@ import {
   useFontGeneration,
   useFontLoader,
 } from '../hooks';
+import { useAnnounce } from '../hooks/useAnnounce';
 import { useCanvasAutoSave } from '../hooks/useCanvasAutoSave';
 import { useCanvasElementHandlers } from '../hooks/useCanvasElementHandlers';
 import { useCanvasKeyboardHandlers } from '../hooks/useCanvasKeyboardHandlers';
 import { useContextPress } from '../hooks/useContextPress';
 import { useDeepSelect } from '../hooks/useDeepSelect';
 import { floatingModuleFor } from '../hooks/useFloatingModuleState';
+import { useSelectionAnnouncement } from '../hooks/useSelectionAnnouncement';
 import { CanvasStage, SnapGuidelines } from '../primitives';
 import {
   CanvasStoreProvider,
@@ -63,7 +65,7 @@ import {
 import { itemBodyRect } from '../utils/deepSelect';
 import { ensureFontsReady } from '../utils/ensureFontsReady';
 import { MAX_ICON_SELECTIONS, selectedCatalogIconIds } from '../utils/iconInstances';
-import { pageLayerLabels, stageSummary } from '../utils/layerLabels';
+import { layerLabel, pageLayerLabels, stageSummary } from '../utils/layerLabels';
 import { applyLayerSelection, type LayerSelectionChange } from '../utils/layerSelection';
 import { locateDrop, type ElementDragPayload, type MediaDragPayload } from '../utils/mediaDrop';
 import { selectableItemIds } from '../utils/multiSelect';
@@ -742,6 +744,7 @@ function GenericCanvasWithRef<
     commandInputsRef.current = { layout, sortedRenderList, actions };
   }, [layout, sortedRenderList, actions]);
   const logicalScale = stageWidth / referenceWidth;
+  const announce = useAnnounce();
   const commands = useMemo(
     () =>
       createCanvasCommands<TState>({
@@ -766,6 +769,7 @@ function GenericCanvasWithRef<
         getLayout: () => commandInputsRef.current.layout,
         isReadOnly: () => !interactive,
         getPageSize: () => ({ width: referenceWidth, height: referenceHeight }),
+        announce,
       }),
     [
       store,
@@ -777,8 +781,15 @@ function GenericCanvasWithRef<
       interactive,
       referenceWidth,
       referenceHeight,
+      announce,
     ]
   );
+
+  // Selection changes are announced from the page's own store (debounced).
+  useSelectionAnnouncement(store, (id) => {
+    const item = commandInputsRef.current.sortedRenderList.find((entry) => entry.id === id);
+    return item ? layerLabel(item, committedStateRef.current) : null;
+  });
 
   // The multi-selection transformer asks this when the selection changes, so a
   // selection change never re-renders the canvas.

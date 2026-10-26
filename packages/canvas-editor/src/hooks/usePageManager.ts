@@ -67,6 +67,8 @@ export interface UsePageManagerOptions {
   formatId?: string;
   initialProps: Record<string, unknown>;
   maxPages?: number;
+  /** Sagt Seitenänderungen an (`useAnnounce`); ohne Angabe bleibt der Hook stumm. */
+  announce?: (text: string) => void;
   /** Pre-populated pages — when provided, overrides single-page initialization from initialProps */
   initialPages?: InitialPageDef[];
   /**
@@ -160,7 +162,10 @@ export function usePageManager({
   maxPages = 10,
   initialPages,
   collaborative,
+  announce,
 }: UsePageManagerOptions): UsePageManagerReturn {
+  const announceRef = useRef(announce);
+  announceRef.current = announce;
   // Config cache - loaded configs are stored here to avoid re-fetching
   const configCacheRef = useRef<Map<CanvasConfigId, FullCanvasConfig>>(new Map());
   const [isLoadingConfig, setIsLoadingConfig] = useState(false);
@@ -359,6 +364,7 @@ export function usePageManager({
       const id = uuid();
       yjsPages.addPage({ id, configId, state: newPageState });
       setCurrentPageId(id);
+      announceRef.current?.(`Seite ${liveViews.length + 1} hinzugefügt`);
     },
     [canAddMore, yjsPages, ydoc, currentPageId, getConfigForPage]
   );
@@ -377,7 +383,11 @@ export function usePageManager({
     const { canAddMore: canAdd, yjsPages: api } = liveRef.current;
     if (!canAdd || !api) return;
     const newId = api.duplicatePage(id);
-    if (newId) setCurrentPageId(newId);
+    if (newId) {
+      setCurrentPageId(newId);
+      const at = liveRef.current.pages.findIndex((p) => p.id === id);
+      if (at >= 0) announceRef.current?.(`Seite ${at + 1} dupliziert`);
+    }
   }, []);
 
   const duplicateCurrentPage = useCallback(() => {
@@ -401,6 +411,8 @@ export function usePageManager({
     const nextId = nextPageIdAfterRemoval(livePages, id, liveCurrentId);
     api.removePage(id);
     setCurrentPageId(nextId);
+    const at = livePages.findIndex((p) => p.id === id);
+    if (at >= 0) announceRef.current?.(`Seite ${at + 1} entfernt`);
   }, []);
 
   /**
@@ -443,8 +455,16 @@ export function usePageManager({
   const loadedConfigs = useMemo(() => configCacheRef.current, []);
 
   const noopUndo = useCallback(() => {}, []);
-  const undoPageOp = yjsPages?.undoPageOp ?? noopUndo;
-  const redoPageOp = yjsPages?.redoPageOp ?? noopUndo;
+  const undoPageOp = useCallback(() => {
+    if (!yjsPages) return;
+    yjsPages.undoPageOp();
+    if (yjsPages.canUndoPageOp) announceRef.current?.('Rückgängig gemacht');
+  }, [yjsPages]);
+  const redoPageOp = useCallback(() => {
+    if (!yjsPages) return;
+    yjsPages.redoPageOp();
+    if (yjsPages.canRedoPageOp) announceRef.current?.('Wiederhergestellt');
+  }, [yjsPages]);
   const discardReplaceDeck = yjsPages?.discardReplaceDeck ?? noopUndo;
   const replaceDeck = yjsPages?.replaceDeck ?? null;
   const canUndoPageOp = yjsPages?.canUndoPageOp ?? false;

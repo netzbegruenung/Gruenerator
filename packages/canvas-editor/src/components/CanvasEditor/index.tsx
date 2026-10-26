@@ -65,6 +65,7 @@ import {
   isSlideFormat,
 } from '../../formats';
 import { usePageManager, useMultiPageExport, usePageThumbnails } from '../../hooks';
+import { AnnouncerContext, useLiveAnnouncer } from '../../hooks/useAnnounce';
 import { useDeckAutoSave } from '../../hooks/useDeckAutoSave';
 import { useIsCanvasMobile } from '../../hooks/useIsCanvasMobile';
 import { useZoomGestures } from '../../hooks/useZoomGestures';
@@ -91,6 +92,7 @@ import { ensureFontsReady } from '../../utils/ensureFontsReady';
 import { sameLayerEntries } from '../../utils/layerLabels';
 import { pagePhotoCredits } from '../../utils/photoCredits';
 import { getCategoryForTemplate } from '../../utils/templateRegistry';
+import { CanvasAnnouncer } from '../CanvasAnnouncer';
 import { CanvasContextMenu } from '../CanvasContextMenu/CanvasContextMenu';
 import { CanvasPageSkeleton, CanvasTabRailSkeleton } from '../CanvasEditorSkeleton';
 import { CanvasMetaBar, CanvasZoomIndicator } from '../CanvasMetaBar';
@@ -196,6 +198,7 @@ function CanvasEditorInner({
   // subscription dies with the unmount, losing tokens that resolve after the
   // editor closes (flush save, in-flight save) and re-creating duplicates.
   const isMobileWeb = useIsCanvasMobile();
+  const { announcer, message: liveMessage } = useLiveAnnouncer();
   const {
     pages,
     addPage,
@@ -226,6 +229,7 @@ function CanvasEditorInner({
     maxPages,
     initialPages,
     collaborative,
+    announce: announcer.announce,
   });
 
   // Store loaded configs for rendering
@@ -1556,169 +1560,174 @@ function CanvasEditorInner({
   );
 
   return (
-    <BlockInsertProvider
-      pages={pages}
-      currentPageIndex={currentPageIndex}
-      formatId={formatId}
-      canvasRefsRef={canvasRefsRef}
-    >
-      <UserUploadsProvider>
-        {/* Die Text-Bearbeitung sitzt an der Wurzel des Editors, nicht je Seite:
-          nur so liegt sie über der Kontextleiste, die ihre Formatierungsknöpfe
-          zeigt. Der Provider in `CanvasStage` merkt, dass er einen über sich
-          hat, und reicht durch. Ob die Leiste die Knöpfe wirklich übernimmt,
-          meldet sie selbst an — wo wir sie nicht rendern, zeigt das Overlay
-          wieder seine eigene Karte. */}
-        <CanvasTextEditorProvider>
-          {!isPreview && !readOnly && (
-            // Der erste Tab-Halt des Editors: unsichtbar, bis er den Fokus hat.
-            <button
-              type="button"
-              onClick={handleSkipToLayers}
-              className="sr-only focus:not-sr-only focus:fixed focus:left-2 focus:top-2 focus:z-[400] focus:flex focus:min-h-8 focus:items-center focus:rounded-md focus:border focus:border-[var(--editor-border-strong)] focus:bg-[var(--editor-surface)] focus:px-3 focus:text-[length:var(--font-size-small)] focus:font-semibold focus:text-[var(--editor-text)] focus:shadow-md outline-none kbd:focus-visible:outline-2 kbd:focus-visible:outline-solid kbd:focus-visible:outline-offset-2 kbd:focus-visible:outline-[var(--editor-accent)]"
+    <AnnouncerContext.Provider value={announcer}>
+      <CanvasAnnouncer message={liveMessage} />
+      <BlockInsertProvider
+        pages={pages}
+        currentPageIndex={currentPageIndex}
+        formatId={formatId}
+        canvasRefsRef={canvasRefsRef}
+      >
+        <UserUploadsProvider>
+          {/* Die Text-Bearbeitung sitzt an der Wurzel des Editors, nicht je Seite:
+            nur so liegt sie über der Kontextleiste, die ihre Formatierungsknöpfe
+            zeigt. Der Provider in `CanvasStage` merkt, dass er einen über sich
+            hat, und reicht durch. Ob die Leiste die Knöpfe wirklich übernimmt,
+            meldet sie selbst an — wo wir sie nicht rendern, zeigt das Overlay
+            wieder seine eigene Karte. */}
+          <CanvasTextEditorProvider>
+            {!isPreview && !readOnly && (
+              // Der erste Tab-Halt des Editors: unsichtbar, bis er den Fokus hat.
+              <button
+                type="button"
+                onClick={handleSkipToLayers}
+                className="sr-only focus:not-sr-only focus:fixed focus:left-2 focus:top-2 focus:z-[400] focus:flex focus:min-h-8 focus:items-center focus:rounded-md focus:border focus:border-[var(--editor-border-strong)] focus:bg-[var(--editor-surface)] focus:px-3 focus:text-[length:var(--font-size-small)] focus:font-semibold focus:text-[var(--editor-text)] focus:shadow-md outline-none kbd:focus-visible:outline-2 kbd:focus-visible:outline-solid kbd:focus-visible:outline-offset-2 kbd:focus-visible:outline-[var(--editor-accent)]"
+              >
+                Zu den Ebenen
+              </button>
+            )}
+            <CanvasEditorLayout
+              // Vorschau vor dem Sync: zeigen, aber nichts anbieten, was schreibt —
+              // die Seiten hängen noch an keinem Y.Map, jede Änderung ginge verloren.
+              // Ein Viewer ebenso: der Server verwirft seine Schreibzugriffe.
+              sidebar={
+                isPreview || readOnly ? null : hasPendingSuggestion ? (
+                  <div inert className="contents">
+                    {panel}
+                  </div>
+                ) : (
+                  panel
+                )
+              }
+              tabBar={isPreview || readOnly ? null : tabBar}
+              actions={null}
+              toolbar={toolbarElement}
+              contextBar={isPreview || readOnly ? null : contextBarElement}
+              // Die Desktop-Leiste ist auf dem Handy per CSS ausgeblendet; gar
+              // nicht erst mitgeben, sonst hinge der Streifen zweimal im Baum.
+              bottomBar={isMobileWeb || isPreview ? null : bottomBar}
+              // Auf dem Handy scrollt ein Finger auf dem Sharepic nicht (wie in
+              // Canva) — die Seiten wechselt dort dieser Streifen.
+              mobilePageStrip={isMobileWeb && !isMobileSheetOpen && !isPreview ? pageStrip : null}
+              mobileZoomControl={
+                isMobileWeb && !isMobileSheetOpen && !isPreview ? (
+                  <CanvasZoomIndicator zoom={zoom} onZoomChange={setZoom} />
+                ) : null
+              }
+              mobileSheetOpen={isMobileSheetOpen}
+              onCanvasBackdropPointerDown={isMobileSheetOpen ? handlePanelClose : undefined}
             >
-              Zu den Ebenen
-            </button>
-          )}
-          <CanvasEditorLayout
-            // Vorschau vor dem Sync: zeigen, aber nichts anbieten, was schreibt —
-            // die Seiten hängen noch an keinem Y.Map, jede Änderung ginge verloren.
-            // Ein Viewer ebenso: der Server verwirft seine Schreibzugriffe.
-            sidebar={
-              isPreview || readOnly ? null : hasPendingSuggestion ? (
-                <div inert className="contents">
-                  {panel}
-                </div>
-              ) : (
-                panel
-              )
-            }
-            tabBar={isPreview || readOnly ? null : tabBar}
-            actions={null}
-            toolbar={toolbarElement}
-            contextBar={isPreview || readOnly ? null : contextBarElement}
-            // Die Desktop-Leiste ist auf dem Handy per CSS ausgeblendet; gar
-            // nicht erst mitgeben, sonst hinge der Streifen zweimal im Baum.
-            bottomBar={isMobileWeb || isPreview ? null : bottomBar}
-            // Auf dem Handy scrollt ein Finger auf dem Sharepic nicht (wie in
-            // Canva) — die Seiten wechselt dort dieser Streifen.
-            mobilePageStrip={isMobileWeb && !isMobileSheetOpen && !isPreview ? pageStrip : null}
-            mobileZoomControl={
-              isMobileWeb && !isMobileSheetOpen && !isPreview ? (
-                <CanvasZoomIndicator zoom={zoom} onZoomChange={setZoom} />
-              ) : null
-            }
-            mobileSheetOpen={isMobileSheetOpen}
-            onCanvasBackdropPointerDown={isMobileSheetOpen ? handlePanelClose : undefined}
-          >
-            <div
-              inert={isPreview || hasPendingSuggestion}
-              aria-busy={isPreview}
-              ref={pagesContainerCallbackRef}
-              onPointerDown={handleWorkAreaPointerDown}
-              className={cn(
-                'heterogeneous-multipage__pages-container has-bottom-bar flex flex-col items-center gap-md p-sm pb-lg w-full max-canvas-mobile:gap-sm max-canvas-mobile:p-xs',
-                hasPendingSuggestion && 'opacity-60 transition-opacity duration-200'
-              )}
-            >
-              {pages.map((page, index) => {
-                const config = loadedConfigs.get(page.configId);
-                if (!config) return null;
+              <div
+                inert={isPreview || hasPendingSuggestion}
+                aria-busy={isPreview}
+                ref={pagesContainerCallbackRef}
+                onPointerDown={handleWorkAreaPointerDown}
+                className={cn(
+                  'heterogeneous-multipage__pages-container has-bottom-bar flex flex-col items-center gap-md p-sm pb-lg w-full max-canvas-mobile:gap-sm max-canvas-mobile:p-xs',
+                  hasPendingSuggestion && 'opacity-60 transition-opacity duration-200'
+                )}
+              >
+                {pages.map((page, index) => {
+                  const config = loadedConfigs.get(page.configId);
+                  if (!config) return null;
 
-                const isActive = index === currentPageIndex;
-                const canDelete = pageCount > 1;
+                  const isActive = index === currentPageIndex;
+                  const canDelete = pageCount > 1;
 
-                return (
-                  <PageWrapper
-                    key={page.id}
-                    page={page}
-                    index={index}
-                    pageCount={pageCount}
-                    config={config}
-                    formatId={formatId}
-                    isActive={isActive}
-                    canDelete={canDelete}
-                    canvasRef={canvasRefsRef.current[index]}
-                    pageRef={pageDomRefsRef.current[index]}
-                    onSelect={handlePageSelect}
-                    onDelete={removePage}
-                    onMovePage={movePage}
-                    onDuplicatePage={duplicatePage}
-                    onChangeTemplate={handleOpenTemplateChange}
-                    onDropVorlage={showVorlagen && !readOnly ? handleDropVorlage : undefined}
-                    onExport={handleExport}
-                    onCancel={onCancel}
-                    callbacks={getCallbacksForPage(page.id, page.configId)}
-                    multiPageExport={index === 0 ? multiPageExportProps : undefined}
-                    onStateChange={handlePageStateChange}
-                    onObservedState={needsImpressum(printFormat) ? handleObservedState : undefined}
-                    onToolbarStateChange={
-                      isActive && !isPreview ? handleToolbarStateChange : undefined
-                    }
-                    onAutoSaveShareToken={onAutoSaveShareToken}
-                    autoSave={false}
-                    pageBinding={pageBindingAt(index, page.id, isActive)}
-                    readOnly={readOnly}
-                  />
-                );
-              })}
+                  return (
+                    <PageWrapper
+                      key={page.id}
+                      page={page}
+                      index={index}
+                      pageCount={pageCount}
+                      config={config}
+                      formatId={formatId}
+                      isActive={isActive}
+                      canDelete={canDelete}
+                      canvasRef={canvasRefsRef.current[index]}
+                      pageRef={pageDomRefsRef.current[index]}
+                      onSelect={handlePageSelect}
+                      onDelete={removePage}
+                      onMovePage={movePage}
+                      onDuplicatePage={duplicatePage}
+                      onChangeTemplate={handleOpenTemplateChange}
+                      onDropVorlage={showVorlagen && !readOnly ? handleDropVorlage : undefined}
+                      onExport={handleExport}
+                      onCancel={onCancel}
+                      callbacks={getCallbacksForPage(page.id, page.configId)}
+                      multiPageExport={index === 0 ? multiPageExportProps : undefined}
+                      onStateChange={handlePageStateChange}
+                      onObservedState={
+                        needsImpressum(printFormat) ? handleObservedState : undefined
+                      }
+                      onToolbarStateChange={
+                        isActive && !isPreview ? handleToolbarStateChange : undefined
+                      }
+                      onAutoSaveShareToken={onAutoSaveShareToken}
+                      autoSave={false}
+                      pageBinding={pageBindingAt(index, page.id, isActive)}
+                      readOnly={readOnly}
+                    />
+                  );
+                })}
 
-              {noPageRenderable && <CanvasPageSkeleton aspectRatio={pageAspectRatio} />}
+                {noPageRenderable && <CanvasPageSkeleton aspectRatio={pageAspectRatio} />}
 
-              {templateChangePage && (
-                <TemplatePickerFlyout
-                  isOpen
-                  mode="replace"
-                  anchorRef={pageDomRefsRef.current[templateChangePage.index]}
-                  onSelectTemplate={handleSelectTemplateChange}
-                  onClose={handleCloseTemplateChange}
-                  currentTemplateId={templateChangePage.configId}
-                  templateFilter={categoryFilter}
-                  formatId={formatId}
-                />
-              )}
-
-              {isSlideFormat(format) && !isPreview && pages[currentPageIndex] && (
-                <SlideNotesPanel
-                  value={
-                    typeof pages[currentPageIndex].state.notes === 'string'
-                      ? pages[currentPageIndex].state.notes
-                      : ''
-                  }
-                  onChange={(notes) => updatePageState(pages[currentPageIndex].id, { notes })}
-                  readOnly={readOnly}
-                />
-              )}
-              {/* Seite hinzufügen unter der Fläche — für den Fall, in dem die
-                untere Leiste den Knopf nicht trägt: unterhalb von 900 px, wo
-                `CanvasEditorLayout` sie per `max-canvas-mobile:hidden`
-                ausblendet. Die Breakpoint-Bedingung steht hier gespiegelt, weil
-                nur CSS sie kennt. Er liegt im skalierten Seiten-Container und
-                skaliert sich mobil zurück, sonst schrumpfte er mit Fit und Zoom
-                unter 44 pt. */}
-              {canAddPages && !showPageStrip && (
-                <div className="w-full max-w-[28rem] pt-sm max-canvas-mobile:pt-xs max-canvas-mobile:px-xs max-canvas-mobile:origin-top max-canvas-mobile:[scale:calc(1/var(--canvas-total-scale,1))] canvas-mobile:hidden">
-                  <AddPageButton
-                    onSelectTemplate={handleAddPage}
-                    onDuplicateCurrent={duplicateCurrentPage}
-                    currentTemplateId={currentTemplateId}
-                    disabled={!canAddMore}
-                    onAddSliderVariant={sliderVariantHandler}
+                {templateChangePage && (
+                  <TemplatePickerFlyout
+                    isOpen
+                    mode="replace"
+                    anchorRef={pageDomRefsRef.current[templateChangePage.index]}
+                    onSelectTemplate={handleSelectTemplateChange}
+                    onClose={handleCloseTemplateChange}
+                    currentTemplateId={templateChangePage.configId}
                     templateFilter={categoryFilter}
                     formatId={formatId}
-                    onAddSlideLayout={handleAddSlideLayout}
                   />
-                </div>
-              )}
-            </div>
-          </CanvasEditorLayout>
-          {selectionPill}
-          {!isMobileWeb && !isPreview && !readOnly && (
-            <CanvasContextMenu handleRef={contextMenuRef} closeKey={zoom} />
-          )}
-        </CanvasTextEditorProvider>
-      </UserUploadsProvider>
-    </BlockInsertProvider>
+                )}
+
+                {isSlideFormat(format) && !isPreview && pages[currentPageIndex] && (
+                  <SlideNotesPanel
+                    value={
+                      typeof pages[currentPageIndex].state.notes === 'string'
+                        ? pages[currentPageIndex].state.notes
+                        : ''
+                    }
+                    onChange={(notes) => updatePageState(pages[currentPageIndex].id, { notes })}
+                    readOnly={readOnly}
+                  />
+                )}
+                {/* Seite hinzufügen unter der Fläche — für den Fall, in dem die
+                  untere Leiste den Knopf nicht trägt: unterhalb von 900 px, wo
+                  `CanvasEditorLayout` sie per `max-canvas-mobile:hidden`
+                  ausblendet. Die Breakpoint-Bedingung steht hier gespiegelt, weil
+                  nur CSS sie kennt. Er liegt im skalierten Seiten-Container und
+                  skaliert sich mobil zurück, sonst schrumpfte er mit Fit und Zoom
+                  unter 44 pt. */}
+                {canAddPages && !showPageStrip && (
+                  <div className="w-full max-w-[28rem] pt-sm max-canvas-mobile:pt-xs max-canvas-mobile:px-xs max-canvas-mobile:origin-top max-canvas-mobile:[scale:calc(1/var(--canvas-total-scale,1))] canvas-mobile:hidden">
+                    <AddPageButton
+                      onSelectTemplate={handleAddPage}
+                      onDuplicateCurrent={duplicateCurrentPage}
+                      currentTemplateId={currentTemplateId}
+                      disabled={!canAddMore}
+                      onAddSliderVariant={sliderVariantHandler}
+                      templateFilter={categoryFilter}
+                      formatId={formatId}
+                      onAddSlideLayout={handleAddSlideLayout}
+                    />
+                  </div>
+                )}
+              </div>
+            </CanvasEditorLayout>
+            {selectionPill}
+            {!isMobileWeb && !isPreview && !readOnly && (
+              <CanvasContextMenu handleRef={contextMenuRef} closeKey={zoom} />
+            )}
+          </CanvasTextEditorProvider>
+        </UserUploadsProvider>
+      </BlockInsertProvider>
+    </AnnouncerContext.Provider>
   );
 }
 
