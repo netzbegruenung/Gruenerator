@@ -9,10 +9,12 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import type { QdrantFilter } from './types.js';
 
+const performTextSearch = vi.hoisted(() => vi.fn(async (..._args: unknown[]) => []));
 const qdrant = vi.hoisted(() => ({
   client: {} as unknown,
   isConnected: true,
   init: vi.fn(async () => {}),
+  operations: { performTextSearch },
 }));
 
 vi.mock('../../../database/services/QdrantService.js', () => ({
@@ -22,13 +24,6 @@ vi.mock('../../../database/services/QdrantService.js', () => ({
 vi.mock('../trashedDocuments.js', () => ({
   trashedDocumentIds: vi.fn(async () => new Set()),
   withoutTrashedDocuments: vi.fn(async (ids: string[]) => ids),
-}));
-
-const performTextSearch = vi.fn(async (..._args: unknown[]) => []);
-vi.mock('../../../database/services/QdrantOperations.js', () => ({
-  QdrantOperations: class {
-    performTextSearch = performTextSearch;
-  },
 }));
 
 const { DocumentSearchService } = await import('./DocumentSearchService.js');
