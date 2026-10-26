@@ -8,6 +8,8 @@
 
 import { lazy } from 'react';
 
+import { lazyWithPreload } from './lazyWithPreload';
+
 // =============================================================================
 // STATIC EXPORTS - Lightweight sections loaded immediately
 // =============================================================================
@@ -48,7 +50,6 @@ export const UploadsSection = lazy(() =>
 );
 export type { UploadsSectionProps } from './UploadsSection';
 
-export const ToolsSection = lazy(() =>
-  import('./tools').then((m) => ({ default: m.ToolsSection }))
-);
+// Preloaded while the editor is idle (usePreloadTools), so the first open is instant.
+export const ToolsSection = lazyWithPreload(() => import('./tools').then((m) => m.ToolsSection));
 export type { ToolsSectionProps } from './tools';

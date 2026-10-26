@@ -5,6 +5,10 @@ import { useCanvasEditorServices } from '../../CanvasEditorProvider';
 import { ICON_CATALOG_QUERY_KEY } from '../../hooks/useIconCatalog';
 import { DEFAULT_ICON_SET, loadIconSetCatalog } from '../../utils/canvasIcons';
 
+import { whenIdle } from './whenIdle';
+
+import { ToolsSection } from './index';
+
 /**
  * Warms the Elemente tab while the editor is idle: its code chunk, the default
  * icon set and the stock photo catalogue. The first open then shows covers and
@@ -27,11 +31,14 @@ export function usePreloadElements(enabled: boolean) {
       });
       if (fetchStockImages) void chunk.then((m) => m.prefetchStockPhotos(client, fetchStockImages));
     };
-    if (typeof requestIdleCallback === 'function') {
-      const handle = requestIdleCallback(warm, { timeout: 4000 });
-      return () => cancelIdleCallback(handle);
-    }
-    const timer = setTimeout(warm, 2000);
-    return () => clearTimeout(timer);
+    return whenIdle(warm);
   }, [enabled, client, fetchStockImages]);
+}
+
+/** Warms the Tools tab's code chunk, so its tiles show on the first open. */
+export function usePreloadTools(enabled: boolean) {
+  useEffect(() => {
+    if (!enabled) return;
+    return whenIdle(() => void ToolsSection.preload());
+  }, [enabled]);
 }
