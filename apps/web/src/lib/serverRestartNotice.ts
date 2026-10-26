@@ -2,6 +2,7 @@ import { reportServerBack, subscribeServerRestart } from '@gruenerator/shared/ap
 import { toast } from '@gruenerator/ui';
 
 import apiClient from '../components/utils/apiClient';
+import { isE2EBypassAllowedHost } from '../hooks/useAuth';
 
 import type { QueryClient } from '@tanstack/react-query';
 
@@ -15,7 +16,7 @@ const SLOW_AFTER_MS = 60_000;
  * Dort bleibt der Hinweis stumm; Abfrage und Neuladen laufen weiter, sonst
  * bliebe das Signal auf „down" und schluckte jeden späteren Fehler-Toast.
  */
-const SILENT = import.meta.env.VITE_E2E_AUTH_BYPASS === 'true';
+const SILENT = import.meta.env.VITE_E2E_AUTH_BYPASS === 'true' && isE2EBypassAllowedHost();
 
 /**
  * Zeigt während eines Backend-Neustarts einen einzigen Hinweis statt vieler
