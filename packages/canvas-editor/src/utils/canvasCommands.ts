@@ -231,18 +231,22 @@ export function createCanvasCommands<TState extends Partial<BaseCanvasState>>(
 
   /** Löscht die Auswahl; false, wenn nichts davon entfernbar war. `lead`/`verb` wählen die Ansage. */
   const removeSelection = (lead: string, verb: string): boolean => {
-    const ids = selection();
-    const label = describe(ids);
     const state = ctx.getState();
     const actions = ctx.getActions();
-    const removers = selection()
-      .map((id) => findElementRemover(state, actions, id))
-      .filter((remove) => remove !== null);
-    if (removers.length === 0) return false;
-    if (removers.length === 1) removers[0]!();
-    else ctx.runHistoryBatch(() => removers.forEach((remove) => remove()));
+    const removable = selection().flatMap((id) => {
+      const remove = findElementRemover(state, actions, id);
+      return remove ? [{ id, remove }] : [];
+    });
+    if (removable.length === 0) return false;
+    // Nur was wirklich geht, wird angesagt: ein Vorlagen-Balken in der
+    // Auswahl bleibt stehen und zählt nicht mit. Vor dem Löschen benannt,
+    // danach fehlt der Eintrag in der Render-Liste.
+    const removedIds = removable.map((entry) => entry.id);
+    const label = describe(removedIds);
+    if (removable.length === 1) removable[0]!.remove();
+    else ctx.runHistoryBatch(() => removable.forEach((entry) => entry.remove()));
     ctx.store.getState().setSelectedElement(null);
-    if (label) ctx.announce?.(ids.length === 1 ? `${lead}: ${label}` : `${label} ${verb}`);
+    if (label) ctx.announce?.(removedIds.length === 1 ? `${lead}: ${label}` : `${label} ${verb}`);
     return true;
   };
 

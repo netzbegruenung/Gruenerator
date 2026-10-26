@@ -215,6 +215,42 @@ describe('Entf auf einem Element der Vorlage', () => {
     expect(p.announce).not.toHaveBeenCalled();
   });
 
+  it('nennt bei gemischter Auswahl nur, was wirklich gelöscht wurde', () => {
+    const extra = { id: 'b2', texts: ['Wärme', 'für', 'alle'] };
+    const state = {
+      balkenInstances: [balken, extra],
+      lockedLayerIds: [],
+    } as unknown as BaseCanvasState;
+    const removeBalken = vi.fn();
+    const announce = vi.fn<(text: string) => void>();
+    const store = createCanvasEditorStore();
+    const commands = createCanvasCommands<BaseCanvasState>({
+      store,
+      getState: () => state,
+      setState: vi.fn(),
+      saveToHistory: vi.fn(),
+      runHistoryBatch: (fn) => fn(),
+      getActions: () => ({ removeBalken, isTemplateBound: (id: string) => id === 'b1' }),
+      template: () => null,
+      getRenderList: () =>
+        [
+          { id: 'b1', type: 'balken', data: balken },
+          { id: 'b2', type: 'balken', data: extra },
+        ] as unknown as CanvasItem[],
+      getStage: () => null,
+      logicalScale: () => 1,
+      getElements: () => [],
+      getLayout: () => ({}) as LayoutResult,
+      isReadOnly: () => false,
+      getPageSize: () => ({ width: 1000, height: 500 }),
+      announce,
+    });
+    store.getState().setSelectedLayers(['b1', 'b2']);
+    commands.remove();
+    expect(removeBalken).toHaveBeenCalledExactlyOnceWith('b2');
+    expect(announce).toHaveBeenCalledExactlyOnceWith('Gelöscht: Balken: Wärme / für / alle');
+  });
+
   it('sagt beim Ausschneiden nichts zur Vorlage', () => {
     const p = templatePage();
     p.select('b1');
