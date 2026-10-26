@@ -33,9 +33,44 @@ function rotaterPoint(tr: Konva.Transformer, angle: number): { x: number; y: num
 }
 
 /**
+ * Der sichtbare Teil der Bühne, in Bühnen-px: Fenster und jeder abschneidende
+ * Vorfahr kappen, was darüber hinausragt. Gezoomt reicht die Seite am Handy
+ * unter die Werkzeugleiste — dort endet die scrollende Seitenfläche, und ein
+ * Griff darunter ist nicht greifbar. Ohne Layout (Test-DOM) die ganze Bühne.
+ */
+function visibleStageBox(stage: Konva.Stage): Box {
+  const container = stage.container();
+  const c = container.getBoundingClientRect();
+  if (c.width === 0 || c.height === 0) {
+    return { x: 0, y: 0, width: stage.width(), height: stage.height() };
+  }
+  let left = Math.max(c.left, 0);
+  let top = Math.max(c.top, 0);
+  let right = Math.min(c.right, window.innerWidth);
+  let bottom = Math.min(c.bottom, window.innerHeight);
+  for (let el = container.parentElement; el; el = el.parentElement) {
+    const style = getComputedStyle(el);
+    if (style.overflowX === 'visible' && style.overflowY === 'visible') continue;
+    const r = el.getBoundingClientRect();
+    left = Math.max(left, r.left);
+    top = Math.max(top, r.top);
+    right = Math.min(right, r.right);
+    bottom = Math.min(bottom, r.bottom);
+  }
+  // Die Bühne kann per CSS skaliert sein (Zoom, Sheet).
+  const k = c.width / stage.width();
+  return {
+    x: (left - c.left) / k,
+    y: (top - c.top) / k,
+    width: (right - left) / k,
+    height: (bottom - top) / k,
+  };
+}
+
+/**
  * Seite des Drehgriffs: die bevorzugte (sichtbar oben bzw. unten), sonst die
- * andere, sonst eine Seite — die erste, deren Griff ganz auf der Bühne liegt.
- * Die Bühne ist die Seite; was darüber hinausragt, ist nicht greifbar.
+ * andere, sonst eine Seite — die erste, deren Griff ganz im sichtbaren Teil
+ * der Bühne liegt (`visibleStageBox`); was darüber hinausragt, ist nicht greifbar.
  * „Oben" wird auf der Bühne gemessen, nicht in der Box: Konva dreht die Box
  * eines horizontal gespiegelten Knotens um 180°.
  */
@@ -43,13 +78,14 @@ export function chooseRotaterAngle(tr: Konva.Transformer, prefer: RotaterPrefere
   const stage = tr.getStage();
   if (!stage) return tr.rotateAnchorAngle();
   const margin = tr.anchorSize();
+  const visible = visibleStageBox(stage);
   const fits = (angle: number) => {
     const p = rotaterPoint(tr, angle);
     return (
-      p.x >= margin &&
-      p.y >= margin &&
-      p.x <= stage.width() - margin &&
-      p.y <= stage.height() - margin
+      p.x >= visible.x + margin &&
+      p.y >= visible.y + margin &&
+      p.x <= visible.x + visible.width - margin &&
+      p.y <= visible.y + visible.height - margin
     );
   };
   const [upper, lower] =
