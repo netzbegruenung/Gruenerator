@@ -71,6 +71,20 @@ describe('jsonBody', () => {
     expect(parsed).toBe(before);
   });
 
+  // A UTF-16 body would be decoded for JSON.parse while the scan reads its raw
+  // bytes: an escaped quote desyncs the string tracking and the count drops.
+  it('rejects charsets other than UTF-8 instead of counting their raw bytes', async () => {
+    const before = parsed;
+    const text = JSON.stringify({ note: '"', tags: new Array(MAX_JSON_VALUES + 1).fill(1) });
+    const res = await fetch(`${base}/tags`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json; charset=utf-16le' },
+      body: Buffer.from(text, 'utf16le'),
+    });
+    expect(res.status).toBe(415);
+    expect(parsed).toBe(before);
+  });
+
   it('passes a body below the cap on to validation', async () => {
     const res = await post('/tags', JSON.stringify({ tags: new Array(1000).fill('a') }));
     expect(res.status).toBe(200);

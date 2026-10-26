@@ -57,7 +57,20 @@ export function countJsonValues(body: Uint8Array, stopAt: number): number {
   return count;
 }
 
-function verifyValueCount(req: IncomingMessage, _res: unknown, body: Buffer): void {
+function verifyValueCount(
+  req: IncomingMessage,
+  _res: unknown,
+  body: Buffer,
+  encoding: string
+): void {
+  // `body` is the raw bytes, decoded only after this check. express.json also
+  // takes utf-16/utf-32, where the byte scan would miscount: an escaped quote
+  // desyncs it and the count drops below the cap. Our clients send UTF-8.
+  if (encoding !== 'utf-8') {
+    throw createError(415, `unsupported charset "${encoding.toUpperCase()}"`, {
+      type: 'charset.unsupported',
+    });
+  }
   const count = countJsonValues(body, MAX_JSON_VALUES);
   if (count > MAX_JSON_VALUES) {
     log.warn(
