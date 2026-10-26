@@ -119,6 +119,8 @@ export interface ToolbarStateReport {
   cropAspect: CropAspectId;
   /** Begradigungs-Winkel des Fotos im laufenden Zuschneide-Modus (Grad, 0 ohne). */
   cropRotation: number;
+  /** Läuft auf dieser Seite gerade ein „Erweitern"? */
+  isExpanding: boolean;
   /** Wie viele Elemente ausgewählt sind; bei mehr als einem ist `selectedElement` null. */
   selectionCount: number;
   /** Lässt sich mindestens ein ausgewähltes Element kopieren? */
@@ -327,6 +329,8 @@ export interface GenericCanvasRef {
   handleCropRotation?: (deg: number) => void;
   /** „Automatisch" im Zuschneide-Modus: wählt den Ausschnitt per smartcrop. */
   handleSmartCrop?: () => void;
+  /** „Erweitern" im Zuschneide-Modus: die KI ergänzt das Foto auf das Rahmenformat. */
+  handleExpandImage?: () => void;
   handleGradientSelect?: (gradient: GradientFill | null) => void;
   handleTextAlignChange?: (id: string, align: TextAlign) => void;
 }
@@ -1065,6 +1069,7 @@ function GenericCanvasWithRef<
       handleCropAspect: (id) => bridgeRef.current?.handleCropAspect(id),
       handleCropRotation: (deg) => bridgeRef.current?.handleCropRotation(deg),
       handleSmartCrop: () => bridgeRef.current?.handleSmartCrop(),
+      handleExpandImage: () => bridgeRef.current?.handleExpandImage(),
       handleGradientSelect: (gradient) => bridgeRef.current?.handleGradientSelect(gradient),
       handleTextAlignChange: (id, align) => bridgeRef.current?.handleTextAlignChange(id, align),
     }),
@@ -1139,6 +1144,7 @@ function GenericCanvasWithRef<
         canRedo={canRedo}
         readOnly={!interactive}
         saveToHistory={saveToHistory}
+        runHistoryBatch={runHistoryBatch}
         getStage={getStage}
         onToolbarStateChange={onToolbarStateChange}
       />

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { PiCopy, PiLockSimple, PiLockSimpleOpen, PiTrash } from 'react-icons/pi';
 
+import { useCanvasEditorServices } from '../../CanvasEditorProvider';
 import { type BackgroundControls } from '../../configs/types';
 import { type ShadowPatch } from '../../hooks/useFloatingModuleHandlers';
 import { type FloatingModuleState } from '../../hooks/useFloatingModuleState';
@@ -45,6 +46,8 @@ export interface ContextControlsProps {
   cropAspect?: CropAspectId;
   /** Begradigungs-Winkel des Fotos im Zuschneide-Modus (Grad). */
   cropRotation?: number;
+  /** Läuft ein „Erweitern" (KI): der Knopf wartet. */
+  isExpanding?: boolean;
   /** Gesperrt: nicht ziehen, skalieren, ausrichten, löschen — gestalten geht weiter. */
   lockState?: LockState;
   canLock?: boolean;
@@ -74,6 +77,7 @@ export interface ContextControlsProps {
     handleCropAspect?: (id: CropAspectId) => void;
     handleCropRotation?: (deg: number) => void;
     handleSmartCrop?: () => void;
+    handleExpandImage?: () => void;
     handleGradientSelect?: (gradient: GradientFill | null) => void;
     /** Ausrichtung des Textes in seiner Box — freie und Vorlagen-Texte. */
     handleTextAlignChange?: (id: string, align: TextAlign) => void;
@@ -134,6 +138,7 @@ export function ContextControls({
   isCropping = false,
   cropAspect = 'free',
   cropRotation = 0,
+  isExpanding = false,
   lockState = 'none',
   canLock = false,
   canAlign = false,
@@ -151,6 +156,8 @@ export function ContextControls({
   // Fett/Kursiv/… nur, solange wirklich getippt wird: die Knöpfe bedienen die
   // Auswahl IM Text, und ohne offenen Editor gibt es keine.
   const formatting = useCanvasTextFormatting();
+  // Ohne Dienst des Hosts kein „Erweitern".
+  const canExpand = !!useCanvasEditorServices().expandImage;
 
   if (showsCropModeBar({ isCropping, handlers })) {
     const handleCropAspect = handlers.handleCropAspect;
@@ -168,6 +175,11 @@ export function ContextControls({
           handleCropRotation ? { value: cropRotation, onChange: handleCropRotation } : null
         }
         onAuto={handlers.handleSmartCrop ?? null}
+        expand={
+          canExpand && handlers.handleExpandImage
+            ? { onExpand: handlers.handleExpandImage, busy: isExpanding }
+            : null
+        }
       />
     );
   }

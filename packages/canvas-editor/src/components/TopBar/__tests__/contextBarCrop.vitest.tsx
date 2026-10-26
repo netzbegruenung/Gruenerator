@@ -2,6 +2,7 @@ import { fireEvent, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 
+import { CanvasEditorProvider } from '../../../CanvasEditorProvider';
 import { axe } from '../../../test-utils';
 import { ContextControls } from '../ContextControls';
 import { MobileSelectionBar } from '../MobileSelectionBar';
@@ -278,6 +279,69 @@ describe('photo crop toolbar', () => {
         await userEvent.click(button);
         expect(auto).toHaveBeenCalledOnce();
         expect(await axe(container)).toHaveNoViolations();
+        unmount();
+      }
+    }
+  });
+  it('offers Erweitern only with the host service, desktop and mobile, and waits while it runs', async () => {
+    const expand = vi.fn();
+    const handlers = {
+      handleMoveLayer: () => {},
+      handleDuplicate: () => {},
+      handleColorSelect: () => {},
+      handleOpacityChange: () => {},
+      handleFontSizeChange: () => {},
+      handleCancelCrop: () => {},
+      handleFinishCrop: () => {},
+      handleExpandImage: expand,
+    };
+    const modules = [
+      {
+        type: 'user-image' as const,
+        data: { id: 'photo', src: '/photo.jpg', width: 600, height: 400 },
+      },
+      {
+        type: 'image' as const,
+        data: { id: 'background-image', isPhoto: true, canCrop: true },
+      },
+    ];
+    const services = { expandImage: async (file: File) => file };
+    for (const module of modules) {
+      for (const Bar of [ContextControls, MobileSelectionBar]) {
+        const bar = (busy: boolean) => (
+          <Bar
+            selectedElement={module.data.id}
+            activeFloatingModule={module}
+            canMoveUp={false}
+            canMoveDown={false}
+            canDuplicate={false}
+            isCropping
+            isExpanding={busy}
+            handlers={handlers}
+            onDone={() => {}}
+          />
+        );
+        // Ohne Dienst kein Knopf.
+        const bare = render(bar(false));
+        expect(screen.queryByRole('button', { name: /Erweitern/ })).toBeNull();
+        bare.unmount();
+
+        expand.mockClear();
+        const { container, rerender, unmount } = render(
+          <CanvasEditorProvider services={services}>{bar(false)}</CanvasEditorProvider>
+        );
+        const button = screen.getByRole('button', { name: 'Erweitern' });
+        expect(button).toBeEnabled();
+        await userEvent.click(button);
+        expect(expand).toHaveBeenCalledOnce();
+        expect(await axe(container)).toHaveNoViolations();
+
+        rerender(<CanvasEditorProvider services={services}>{bar(true)}</CanvasEditorProvider>);
+        const busy = screen.getByRole('button', { name: 'Erweitern' });
+        expect(busy).toBeDisabled();
+        expect(busy).toHaveAttribute('aria-busy', 'true');
+        await userEvent.click(busy);
+        expect(expand).toHaveBeenCalledOnce();
         unmount();
       }
     }

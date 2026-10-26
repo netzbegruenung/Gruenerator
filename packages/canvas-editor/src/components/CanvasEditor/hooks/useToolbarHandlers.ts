@@ -88,6 +88,7 @@ export function useToolbarHandlers({
       handleCropAspect: (id: CropAspectId) => page()?.handleCropAspect?.(id),
       handleCropRotation: (deg: number) => page()?.handleCropRotation?.(deg),
       handleSmartCrop: () => page()?.handleSmartCrop?.(),
+      handleExpandImage: () => page()?.handleExpandImage?.(),
       handleGradientSelect: (gradient: GradientFill | null) =>
         page()?.handleGradientSelect?.(gradient),
       handleTextAlignChange: (id: string, align: TextAlign) =>

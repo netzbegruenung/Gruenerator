@@ -11,16 +11,20 @@
  */
 
 import { toast } from '@gruenerator/ui';
-import { useCallback, useEffect, useRef, type MutableRefObject } from 'react';
+import { useCallback, useEffect, useRef, useState, type MutableRefObject } from 'react';
 
+import { useCanvasEditorServices } from '../CanvasEditorProvider';
 import { useFloatingModuleHandlers } from '../hooks/useFloatingModuleHandlers';
 import { useFloatingModuleState } from '../hooks/useFloatingModuleState';
+import { useOptionalUserUploads } from '../sidebar/UserUploadsProvider';
 import {
   useCanvasStore,
   useCanvasStoreSelector,
   useCanvasStoreShallow,
 } from '../stores/CanvasStoreProvider';
 import { cropRotationOf, cropRotationUpdate } from '../utils/cropSession';
+import { cropImageSrc, expandResetPatch, expandTarget } from '../utils/expandImage';
+import { buildPlacementUrl, fetchShareImageFile } from '../utils/mediaPlacement';
 import { findOrientationDoor } from '../utils/orientElement';
 import { selectionCapabilities } from '../utils/selectionCapabilities';
 import {
@@ -61,9 +65,12 @@ export interface ToolbarBridgeState {
   handleCropRotation: (deg: number) => void;
   /** „Automatisch" im Zuschneide-Modus: smartcrop wählt den Ausschnitt. */
   handleSmartCrop: () => void;
+  /** „Erweitern" im Zuschneide-Modus: die KI ergänzt das Foto auf das Rahmenformat. */
+  handleExpandImage: () => void;
 }
 
 const SMART_CROP_FAILED = 'Automatischer Ausschnitt nicht möglich';
+const EXPAND_FAILED = 'Erweitern hat nicht geklappt. Bitte versuche es noch einmal.';
 
 interface ToolbarStateBridgeProps<
   TState extends Record<string, unknown> & Partial<BaseCanvasState>,
@@ -82,6 +89,8 @@ interface ToolbarStateBridgeProps<
   /** Lesemodus: Drehen & Spiegeln werden nicht angeboten. */
   readOnly: boolean;
   saveToHistory: (state: TState) => void;
+  /** Mehrere Speicherungen als ein Verlaufsschritt (Erweitern: neue Quelle und Zuschnitt). */
+  runHistoryBatch: (fn: () => void) => void;
   /** Die Bühne der Seite: „Automatisch" liest dort das geladene Foto. */
   getStage: () => Konva.Stage | null;
   onToolbarStateChange?: (state: ToolbarStateReport) => void;
@@ -103,10 +112,16 @@ export function ToolbarStateBridge<
   canRedo,
   readOnly,
   saveToHistory,
+  runHistoryBatch,
   getStage,
   onToolbarStateChange,
 }: ToolbarStateBridgeProps<TState, TActions>) {
   const store = useCanvasStore();
+  const { expandImage } = useCanvasEditorServices();
+  const uploads = useOptionalUserUploads();
+  // Je Seite höchstens ein Erweitern zugleich; es kostet KI-Budget.
+  const [isExpanding, setIsExpanding] = useState(false);
+  const expandingRef = useRef(false);
   const selectedElement = useCanvasStoreSelector((s) => s.selectedElement);
 
   const activeFloatingModule = useFloatingModuleState({
@@ -170,7 +185,10 @@ export function ToolbarStateBridge<
   });
 
   // Nach dem Warten auf smartcrop schreibt der Stand der letzten Darstellung, nicht der beim Klick.
-  const applySmartCropRef = useRef<(id: string, image: HTMLImageElement, region: Rect) => void>(
+  const applySmartCropRef = useRef<
+    (id: string, src: string | null, image: HTMLImageElement, region: Rect) => void
+  >(() => {});
+  const applyExpandRef = useRef<(id: string, src: string, file: File, url: string) => void>(
     () => {}
   );
 
@@ -218,17 +236,57 @@ export function ToolbarStateBridge<
           toast.error(SMART_CROP_FAILED);
           return;
         }
+        const src = cropImageSrc(state, config.elements as readonly CanvasElementConfig[], id);
         suggestSmartCrop(image, view).then(
           (region) => {
             // Inzwischen beendet oder gewechselt: nichts mehr schreiben.
             if (store.getState().croppingElement !== id) return;
-            applySmartCropRef.current(id, image, region);
+            applySmartCropRef.current(id, src, image, region);
           },
           () => toast.error(SMART_CROP_FAILED)
         );
       },
+      handleExpandImage: () => {
+        const id = cropTarget;
+        if (!id || !expandImage || expandingRef.current) return;
+        const target = expandTarget(
+          state,
+          config.elements as readonly CanvasElementConfig[],
+          layout,
+          id
+        );
+        if (!target || !uploads) {
+          toast.error(EXPAND_FAILED);
+          return;
+        }
+        expandingRef.current = true;
+        setIsExpanding(true);
+        const run = async () => {
+          const source = await fetchShareImageFile(target.src, target.fileName);
+          const file = await expandImage(source, target.aspect);
+          // Wie „Ersetzen": erst hochladen, damit keine `blob:`/data-URL gespeichert wird.
+          const item = await uploads.upload(file, 'canvas-element');
+          const url = item ? buildPlacementUrl(item) : null;
+          if (!url) throw new Error(EXPAND_FAILED);
+          return { file, url };
+        };
+        run()
+          .then(
+            ({ file, url }) => applyExpandRef.current(id, target.src, file, url),
+            (error: unknown) =>
+              toast.error(error instanceof Error && error.message ? error.message : EXPAND_FAILED)
+          )
+          .finally(() => {
+            expandingRef.current = false;
+            setIsExpanding(false);
+          });
+      },
     };
-    applySmartCropRef.current = (id, image, region) => {
+    applySmartCropRef.current = (id, src, image, region) => {
+      // Inzwischen ersetzt (Erweitern, Ersetzen): der Vorschlag gilt für das alte Foto.
+      if (cropImageSrc(state, config.elements as readonly CanvasElementConfig[], id) !== src) {
+        return;
+      }
       const update = smartCropUpdate(
         {
           id,
@@ -248,6 +306,28 @@ export function ToolbarStateBridge<
       setState((prev) => ({ ...prev, ...update.patch }) as TState);
       debouncedSaveToHistory(next);
     };
+    applyExpandRef.current = (id, src, file, url) => {
+      const elements = config.elements as readonly CanvasElementConfig[];
+      // Gelöscht oder inzwischen ersetzt: das Ergebnis gehört zum alten Foto.
+      if (cropImageSrc(state, elements, id) !== src) return;
+      const reset = expandResetPatch(state, elements, id);
+      if (!reset) return;
+      // „Fertig" vor dem Ersetzen: die Sitzung wird ihr eigener Schritt, das Erweitern der nächste.
+      if (store.getState().croppingElement === id) store.getState().setCroppingElement(null);
+      if (reset.kind === 'user-image') {
+        // Ein Aufruf, ein Schritt; der Nachweis (`attribution`) bleibt am Bild.
+        actions.updateUserImage?.(id, { ...reset.patch, src: url, fileName: file.name });
+        return;
+      }
+      const background = config.background?.(state, actions);
+      const onImageChange = background?.onImageChange;
+      if (!onImageChange) return;
+      runHistoryBatch(() => {
+        setState((prev) => ({ ...prev, ...reset.patch }) as TState);
+        // Ein erweitertes Stockfoto ist eine Bearbeitung desselben Fotos: der Nachweis bleibt.
+        onImageChange(file, url, background.imageAttribution ?? null);
+      });
+    };
   });
 
   // Report toolbar state to CanvasEditor
@@ -264,6 +344,7 @@ export function ToolbarStateBridge<
       isCropping,
       cropAspect,
       cropRotation,
+      isExpanding,
       selectionCount: capabilities.count,
       canCopy: capabilities.canCopy,
       lockState: capabilities.lock,
@@ -276,6 +357,7 @@ export function ToolbarStateBridge<
     isCropping,
     cropAspect,
     cropRotation,
+    isExpanding,
     selectedElement,
     activeFloatingModule,
     canUndo,

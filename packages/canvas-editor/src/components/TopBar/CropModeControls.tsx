@@ -25,6 +25,7 @@ export function CropModeControls({
   aspect = null,
   straighten = null,
   onAuto = null,
+  expand = null,
 }: {
   onCancel: () => void;
   onDone: () => void;
@@ -34,9 +35,29 @@ export function CropModeControls({
   straighten?: { value: number; onChange: (deg: number) => void } | null;
   /** „Automatisch": Hintergrundfoto und eigene Bilder. */
   onAuto?: (() => void) | null;
+  /** „Erweitern" (KI): Hintergrundfoto und eigene Bilder, nur mit Dienst des Hosts. */
+  expand?: { onExpand: () => void; busy: boolean } | null;
 }) {
   return (
     <div className="flex items-center gap-1">
+      {expand && (
+        <button
+          type="button"
+          className={`${TEXT_BTN} bg-transparent text-[var(--editor-text)] hover:bg-[var(--editor-surface-hover)] disabled:opacity-60 disabled:cursor-wait`}
+          onClick={() => expand.onExpand()}
+          disabled={expand.busy}
+          aria-busy={expand.busy}
+          title="Foto per KI auf das Format des Rahmens erweitern"
+        >
+          {expand.busy && (
+            <span
+              aria-hidden="true"
+              className="mr-1.5 size-3.5 rounded-full border-2 border-current border-t-transparent motion-safe:animate-spin"
+            />
+          )}
+          Erweitern
+        </button>
+      )}
       {onAuto && (
         <button
           type="button"
