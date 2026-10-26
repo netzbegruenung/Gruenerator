@@ -62,7 +62,7 @@ Der Editor zeichnet seine Fläche auf eine Leinwand. Damit er trotzdem ohne Maus
 
 **Was per Tastatur geht:**
 
-- **Sprunglink „Zu den Ebenen":** Er ist früh in der Tab-Reihenfolge und öffnet die Ebenen-Liste.
+- **Sprunglink „Zu den Ebenen":** Er ist per Tab erreichbar (nach der Chatliste und dem Feedback-Knopf) und öffnet die Ebenen-Liste.
 - **Ebenen-Liste:** Sie führt alle Elemente der Seite, vorn zuerst. Pfeiltasten, Pos1 und Ende wählen, Leertaste schaltet die Auswahl um, Umschalt erweitert sie. **Enter** oder **F2** bearbeitet den Text beziehungsweise tauscht das Bild eines Rahmens.
 - **Textbearbeitung:** Der Texteditor trägt einen Namen, **Escape** schließt ihn, und der Fokus kehrt an die Stelle zurück, an der die Bearbeitung begann.
 - **Balken (zum Beispiel im Dreizeiler):** **Enter** oder **F2** auf dem Eintrag öffnet die erste Zeile („Zeile 1 bearbeiten"), **Tab** springt zur nächsten Zeile, **Umschalt+Tab** zur vorigen; hinter der letzten Zeile geht der Fokus an den Eintrag zurück. Störer und Badges öffnen ihren Text genauso.
@@ -70,7 +70,7 @@ Der Editor zeichnet seine Fläche auf eine Leinwand. Damit er trotzdem ohne Maus
 - **Foto zuschneiden:** Ausschnitt mit den Pfeiltasten verschieben und zoomen, Enter beendet.
 - **Löschen, Rückgängig, Kopieren, Duplizieren, Alles auswählen** laufen über die üblichen Tastenkürzel und über die Leiste. Ist eine Aktion ohne sichtbare Rückmeldung geschehen, sagt eine Statusmeldung sie an („Gelöscht: …", „Rückgängig gemacht").
 - **Alternativtext** für das fertige Bild lässt sich im Bereich Herunterladen und Teilen und im Teilen-Menü der Kopfleiste eintragen.
-- **Mobil (unter 900 px)** hat dieselben Wege: Bereichsleiste, Auswahl-Leiste und Elementleiste sind benannte Werkzeugleisten.
+- **Mobil (unter 900 px)** hat dieselben Wege: die Bereichsleiste ist eine benannte Navigation („Editor-Bereiche“), die Auswahl-Leiste und die Leiste am Objekt sind benannte Werkzeugleisten.
 
 **Bekannte Grenzen:**
 
