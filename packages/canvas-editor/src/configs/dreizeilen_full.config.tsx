@@ -30,6 +30,7 @@ import {
   getColorScheme,
   DREIZEILEN_CONFIG,
 } from '../utils/dreizeilenLayout';
+import { straightenResetFor } from '../utils/straighten';
 
 import { DEFAULT_PHOTO_BACKGROUND_DE, PHOTO_BACKGROUND_COLORS_DE } from './backgroundPalettes';
 import { chatTab, createCommonSectionEntries, toolsTab, uploadsTab } from './commonSections';
@@ -993,12 +994,14 @@ export const dreizeilenFullConfig: FullCanvasConfig<DreizeilenFullState, Dreizei
         attribution?: StockImageAttribution | null
       ) => {
         const src = file ? objectUrl : undefined;
+        const reset = straightenResetFor(getState());
         setState((prev) => ({
           ...prev,
           currentImageSrc: src,
           backgroundImageFile: file,
           imageAttribution: attribution ?? null,
           hasBackgroundImage: !!src,
+          ...reset,
         }));
         callbacks.onImageChange?.(file);
         saveToHistory({
@@ -1007,6 +1010,7 @@ export const dreizeilenFullConfig: FullCanvasConfig<DreizeilenFullState, Dreizei
           backgroundImageFile: file,
           imageAttribution: attribution ?? null,
           hasBackgroundImage: !!src,
+          ...reset,
         });
       },
 

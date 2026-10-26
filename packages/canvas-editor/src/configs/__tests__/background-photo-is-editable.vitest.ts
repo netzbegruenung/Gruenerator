@@ -60,3 +60,40 @@ describe.each(TEMPLATES)('%s: the background photo has a Bearbeiten panel', (typ
     expect(state.backgroundImageAdjustments).toEqual({ vignette: 0.5 });
   });
 });
+
+describe.each(TEMPLATES)('%s: a new background photo starts unstraightened', (type) => {
+  let config: Awaited<ReturnType<typeof loadCanvasConfig>>;
+  beforeAll(async () => {
+    config = await loadCanvasConfig(type);
+  }, 120_000);
+
+  const replacePhoto = (start: Record<string, unknown>) => {
+    let state: Record<string, unknown> = { ...config.createInitialState({}), ...start };
+    const setState = (next: unknown) => {
+      state =
+        typeof next === 'function'
+          ? (next as (s: typeof state) => typeof state)(state)
+          : { ...state, ...(next as typeof state) };
+    };
+    const noop = () => {};
+    const actions = config.createActions(() => state as never, setState as never, noop, noop, {});
+    const file = new File(['x'], 'neu.jpg', { type: 'image/jpeg' });
+    const background = config.background?.(state as never, actions);
+    expect(background?.onImageChange, `${type}: no photo door`).toBeTypeOf('function');
+    background!.onImageChange(file, 'https://example.org/neu.jpg', null);
+    return state;
+  };
+
+  it('resets a stored angle to 0', () => {
+    const state = replacePhoto({
+      currentImageSrc: 'https://example.org/alt.jpg',
+      backgroundImageRotation: 20,
+    });
+    expect(state.backgroundImageRotation).toBe(0);
+  });
+
+  it('adds no angle where none was stored', () => {
+    const state = replacePhoto({ currentImageSrc: 'https://example.org/alt.jpg' });
+    expect('backgroundImageRotation' in state).toBe(false);
+  });
+});

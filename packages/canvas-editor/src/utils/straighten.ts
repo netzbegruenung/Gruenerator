@@ -337,3 +337,8 @@ export function straightScaleCrop(natural: Size, photo: Rect, box: Rect): Rect {
     height,
   };
 }
+
+/** Ein neues Hintergrundfoto beginnt ungedreht; 0 statt Löschen hält ein gedreht verschobenes Fenster auf Deckung. */
+export function straightenResetFor(state: Record<string, unknown>): Record<string, number> {
+  return backgroundStraighten(state) !== null ? { [BACKGROUND_STRAIGHTEN_KEY]: 0 } : {};
+}
