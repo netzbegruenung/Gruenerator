@@ -76,6 +76,7 @@ describe('AdminPage', () => {
       'Rezepte',
       'Agenten',
       'Rollen',
+      'App-Updates',
       'Glossar',
       'Vorlagen',
       'Meldungen',
@@ -93,6 +94,7 @@ describe('AdminPage', () => {
       'Rezepte',
       'Agenten',
       'Rollen',
+      'App-Updates',
       'Glossar',
       'Meldungen',
     ]);

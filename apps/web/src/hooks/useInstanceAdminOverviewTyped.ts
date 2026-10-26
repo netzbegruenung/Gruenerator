@@ -33,3 +33,12 @@ export async function setInstanceAdminUserPanda(userId: string, enabled: boolean
   }
   return result.body.data;
 }
+
+export async function fetchInstanceAdminAppBundles() {
+  const client = getContractsClient();
+  const result = await client.instanceAdminOverview.listAppBundles();
+  if (result.status !== 200) {
+    throw new ApiError(result.status, `Failed to fetch app bundles (HTTP ${result.status})`);
+  }
+  return result.body.data;
+}

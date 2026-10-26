@@ -51,6 +51,33 @@ export const instanceAdminRolesResponseSchema = z.object({
   data: z.array(instanceAdminUserRoleSummarySchema),
 });
 
+export const appBundlePlatformSchema = z.enum(['ios', 'android']);
+
+/**
+ * One app bundle as the mobile app names it in its request headers, with the
+ * number of distinct accounts that used it. Counted per UTC day in redis
+ * (HyperLogLog, so only an estimate and no account ids are stored).
+ */
+export const instanceAdminAppBundleSchema = z.object({
+  platform: appBundlePlatformSchema,
+  appVersion: z.string(),
+  /** null = the bundle shipped inside the store build. */
+  updateId: z.string().nullable(),
+  /** Build day of the OTA update (YYYY-MM-DD), null for the store build. */
+  updateDate: z.string().nullable(),
+  usersToday: z.number().int(),
+  usersLast7Days: z.number().int(),
+  firstSeen: z.string(),
+  lastSeen: z.string(),
+});
+
+export type InstanceAdminAppBundle = z.infer<typeof instanceAdminAppBundleSchema>;
+
+export const instanceAdminAppBundlesResponseSchema = z.object({
+  success: z.boolean(),
+  data: z.array(instanceAdminAppBundleSchema),
+});
+
 export const instanceAdminOverviewErrorResponseSchema = z.object({
   success: z.boolean(),
   message: z.string(),

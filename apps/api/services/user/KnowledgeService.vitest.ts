@@ -32,7 +32,8 @@ vi.mock('../../database/services/QdrantService.js', () => ({
     init: async () => {},
     isAvailableSync: () => true,
     collections: { user_knowledge: 'user_knowledge' },
-    client: { delete: qdrantDelete, query: qdrantQuery },
+    readClient: () => ({ delete: qdrantDelete, query: qdrantQuery }),
+    writeClient: () => ({ delete: qdrantDelete, query: qdrantQuery }),
   }),
 }));
 vi.mock('../mistral/index.js', () => ({
