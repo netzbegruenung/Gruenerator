@@ -17,7 +17,6 @@ import {
   ARROW_ICON,
   FOOTER,
   KI_LABEL,
-  KLEE,
   type LOGO,
   MARGIN,
 } from './sharepicLayoutConstants';
@@ -458,16 +457,13 @@ export function drawSlideChrome(ctx: SlideCtx, inputs: ChromeInputs): void {
     out.layerOrder.push('sc-ki-label');
   }
 
-  // Hand marks: the AT yellow on dark ground and photos, white in DE; green on light.
+  // Hand marks: a white one takes the brand's mark colour, a green one its green.
+  const { handMarks } = ctx.brand;
   placeHandMarks(out, measure, (fill) =>
     fill.toUpperCase() === '#FFFFFF'
-      ? isAt
-        ? theme.colors.accent
-        : '#FFFFFF'
-      : isAt
-        ? theme.colors.accentOnLight
-        : onGrass
-          ? SHAREPIC_COLOR_HEX.tanne
-          : KLEE
+      ? handMarks.white
+      : onGrass
+        ? (handMarks.greenOnGrass ?? handMarks.green)
+        : handMarks.green
   );
 }

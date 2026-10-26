@@ -1,3 +1,4 @@
+import { type ComposerBrand, onGround } from '../brand/composerBrand';
 import { type BrandTheme } from '../brand/theme';
 import { type TextAccent, type TextMarker } from '../utils/textUtils';
 
@@ -19,6 +20,7 @@ export function slideInk({
   locale,
   isAt,
   theme,
+  brand,
   surface,
   darkText,
   kopfband,
@@ -29,6 +31,7 @@ export function slideInk({
   locale: SharepicCreatorLocale;
   isAt: boolean;
   theme: BrandTheme;
+  brand: ComposerBrand;
   surface: SharepicColor | 'foto';
   darkText: string;
   kopfband: SharepicColor | null;
@@ -102,20 +105,9 @@ export function slideInk({
     fill: onGrass ? '#FFFFFF' : onLight ? SHAREPIC_COLOR_HEX.grasgruen : LIME,
     ink: SHAREPIC_COLOR_HEX.dunkeltanne,
   };
-  // A topic icon in a circle — DE Klee on light ground, Tanne on grass green,
-  // lime on dark ground and photos; AT the yellow accent, its dark green on white.
-  const badgeColors =
-    def?.badge?.[side] ??
-    (isAt
-      ? onLight
-        ? { fill: theme.colors.primary, ink: '#FFFFFF' }
-        : { fill: theme.colors.accent, ink: theme.colors.primary }
-      : onLight
-        ? { fill: KLEE, ink: '#FFFFFF' }
-        : onGrass
-          ? { fill: SHAREPIC_COLOR_HEX.tanne, ink: '#FFFFFF' }
-          : { fill: LIME, ink: SHAREPIC_COLOR_HEX.dunkeltanne });
-  const cardAccentFill = def?.cardAccent ?? (isAt ? theme.colors.accentOnLight : KLEE);
+  // A topic icon in a circle, unless the theme recolours it.
+  const badgeColors = def?.badge?.[side] ?? { ...onGround(brand.badge, { onLight, onGrass }) };
+  const cardAccentFill = def?.cardAccent ?? brand.cardAccent;
   const cardAccent: TextAccent = isAt
     ? { ...accent, fill: cardAccentFill }
     : { fill: cardAccentFill };

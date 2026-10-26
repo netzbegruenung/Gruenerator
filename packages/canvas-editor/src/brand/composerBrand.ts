@@ -35,4 +35,34 @@ export interface ComposerBrand {
     infografikTitel: boolean;
     datum: boolean;
   };
+  /** A topic icon on its circle. */
+  badge: ByGround<{ fill: string; ink: string }>;
+  /** Accent on a white card: figures and list markers. */
+  cardAccent: string;
+  /** The large pale numeral behind a point. */
+  ghostNumeral: { fill: ByGround<string>; opacity: number };
+  /** The digit inside a countdown circle. */
+  countdownInk: ByGround<string>;
+  /**
+   * What a hand mark drawn white becomes, and what a green one becomes; a
+   * green one on grass green takes `greenOnGrass` when the brand sets one.
+   */
+  handMarks: { white: string; green: string; greenOnGrass?: string };
+}
+
+/**
+ * A value per kind of ground: light colours, dark colours and photos, and
+ * grass green, which a brand may set with dark ink. `grass` falls back to
+ * `dark`.
+ */
+export interface ByGround<T> {
+  light: T;
+  dark: T;
+  grass?: T;
+}
+
+/** The value for a slide's ground; `onLight` and `onGrass` never hold together. */
+export function onGround<T>(value: ByGround<T>, ground: { onLight: boolean; onGrass: boolean }): T {
+  if (ground.onLight) return value.light;
+  return ground.onGrass ? (value.grass ?? value.dark) : value.dark;
 }

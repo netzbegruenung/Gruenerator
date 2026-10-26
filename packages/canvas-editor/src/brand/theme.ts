@@ -82,6 +82,17 @@ export const HELLGRUEN_GLOW = ['#318437', '#287A35', '#1B6630'] as const;
  */
 type GruenePack = BrandPack & { quoteMark: { src: string }; composer: ComposerBrand };
 
+// DE composer inks. Literal on purpose: the composer's SHAREPIC_COLOR_HEX,
+// KLEE and LIME import this module, so importing them back would be a cycle.
+const DE_TANNE = '#005538';
+const DE_DUNKELTANNE = '#00261A';
+const DE_GRASGRUEN = '#00CC4F';
+const DE_KLEE = '#008939';
+const DE_LIME = '#BEFF60';
+// AT colours that both `colors` and `composer` name.
+const AT_DUNKELGRUEN = '#257639';
+const AT_GELB = '#FCEC00';
+
 export const GRUENE_DE: GruenePack = {
   id: 'gruene-de',
   name: 'Bündnis 90/Die Grünen',
@@ -120,6 +131,16 @@ export const GRUENE_DE: GruenePack = {
     },
     absatzGap: 0.6,
     headlineFace: { absatz: false, infografikTitel: false, datum: false },
+    // Klee on light ground, Tanne on grass green, lime on dark ground and photos.
+    badge: {
+      light: { fill: DE_KLEE, ink: '#FFFFFF' },
+      grass: { fill: DE_TANNE, ink: '#FFFFFF' },
+      dark: { fill: DE_LIME, ink: DE_DUNKELTANNE },
+    },
+    cardAccent: DE_KLEE,
+    ghostNumeral: { fill: { light: DE_GRASGRUEN, dark: DE_LIME }, opacity: 0.2 },
+    countdownInk: { light: '#FFFFFF', dark: DE_DUNKELTANNE },
+    handMarks: { white: '#FFFFFF', green: DE_KLEE, greenOnGrass: DE_TANNE },
   },
 };
 
@@ -127,10 +148,10 @@ export const GRUENE_AT: GruenePack = {
   id: 'gruene-at',
   name: 'Die Grünen Österreich',
   colors: {
-    primary: '#257639', // Dunkelgrün — Hauptfarbe
+    primary: AT_DUNKELGRUEN, // Hauptfarbe
     secondary: '#56af31', // Hellgrün
-    accent: '#FCEC00', // Gelb — Headline-Hervorhebung
-    accentOnLight: '#257639', // Dunkelgrün, 5.63:1 on white (Hellgrün: 2.77:1)
+    accent: AT_GELB, // Headline-Hervorhebung
+    accentOnLight: AT_DUNKELGRUEN, // 5.63:1 on white (Hellgrün: 2.77:1)
     attention: '#E4007C', // Magenta — Störer
     textOnDark: '#ffffff',
     textOnLight: '#257639',
@@ -170,6 +191,16 @@ export const GRUENE_AT: GruenePack = {
     // Gotham Book has no bold cut; AT sets the whole date circle in the
     // poster face (Dc_L5vriG5z), where a synthetic bold would only smear it.
     headlineFace: { absatz: true, infografikTitel: true, datum: true },
+    // The yellow accent on dark ground, its dark green on white.
+    badge: {
+      light: { fill: AT_DUNKELGRUEN, ink: '#FFFFFF' },
+      dark: { fill: AT_GELB, ink: AT_DUNKELGRUEN },
+    },
+    cardAccent: AT_DUNKELGRUEN,
+    // A third light green beside #56af31 and BILD_TINT's #56AF31, kept as found.
+    ghostNumeral: { fill: { light: '#56AE33', dark: '#56AE33' }, opacity: 0.55 },
+    countdownInk: { light: '#FFFFFF', dark: AT_DUNKELGRUEN },
+    handMarks: { white: AT_GELB, green: AT_DUNKELGRUEN },
   },
 };
 

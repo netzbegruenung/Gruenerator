@@ -26,6 +26,7 @@ import {
   type SharepicThema,
 } from '@gruenerator/contracts';
 
+import { onGround } from '../brand/composerBrand';
 import { getBrandPack, getBrandTheme } from '../brand/theme';
 import { DEFAULT_FORMAT_ID, getCanvasFormatOrDefault, type CanvasFormat } from '../formats';
 import { ASSET_TARGET_SIZE } from '../utils/canvasAssets';
@@ -395,7 +396,7 @@ function composeSlide(
     contrastPanel,
     footerGround,
     topGround,
-  } = slideInk({ locale, isAt, theme, surface, darkText, kopfband, bg, bild, thema });
+  } = slideInk({ locale, isAt, theme, brand, surface, darkText, kopfband, bg, bild, thema });
   /** The widest size `value` can take on one line of `width`, up to `cap`. */
   const fitLine = (value: string, cap: number, width: number, family: string) =>
     Math.max(
@@ -1243,8 +1244,8 @@ function composeSlide(
       fontSize: size,
       fontFamily: headFamily,
       fontStyle: 'normal',
-      fill: isAt ? '#56AE33' : onLight ? SHAREPIC_COLOR_HEX.grasgruen : LIME,
-      opacity: isAt ? 0.55 : 0.2,
+      fill: onGround(brand.ghostNumeral.fill, { onLight, onGrass }),
+      opacity: brand.ghostNumeral.opacity,
       align: 'left',
       lineHeight: 1,
     });

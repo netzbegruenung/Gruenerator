@@ -3,7 +3,7 @@ import { createShape } from '../utils/shapes';
 
 import { type IconlisteItem, type ListeItem, type Placed } from './composeTypes';
 import { SHAREPIC_ICON_IDS } from './sharepicIcons';
-import { CARD_MARKER, GAP, KLEE } from './sharepicLayoutConstants';
+import { CARD_MARKER, GAP } from './sharepicLayoutConstants';
 import { type BuildPass, type SlideCtx } from './slideContext';
 import { largestSizeWordsFit } from './textFit';
 
@@ -11,6 +11,7 @@ export function layoutListe(ctx: SlideCtx, item: ListeItem, id: string, pass: Bu
   const {
     measure,
     theme,
+    brand,
     headFamily,
     isAt,
     out,
@@ -60,7 +61,7 @@ export function layoutListe(ctx: SlideCtx, item: ListeItem, id: string, pass: Bu
       measure(w, sz, theme.fonts.body, 'bold')
     );
     const ink = onCard ? darkText : textColor;
-    const markerInk = onCard ? (isAt ? theme.colors.accentOnLight : KLEE) : accentInk;
+    const markerInk = onCard ? brand.cardAccent : accentInk;
     const rowAccent = onCard ? cardAccent : accent;
     const textOffset = zeichen ? Math.max(0, (emojiSize - size * 1.25) / 2) : 0;
     const rows = item.items.map((point) =>
