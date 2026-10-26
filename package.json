@@ -18,11 +18,11 @@
     "cross-env": "^10.1.0",
     "eslint": "^9.39.5",
     "husky": "^9.1.7",
-    "knip": "^6.41.0",
+    "knip": "^6.42.1",
     "lint-staged": "^17.6.0",
     "prettier": "3.9.10",
     "semver": "^7.8.5",
-    "turbo": "^2.11.8",
+    "turbo": "^2.11.10",
     "typescript": "^6.0.3",
     "wait-on": "^9.5.1"
   },
