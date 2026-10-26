@@ -6,6 +6,7 @@ import { type ShadowPatch } from '../../hooks/useFloatingModuleHandlers';
 import { type FloatingModuleState } from '../../hooks/useFloatingModuleState';
 import { formatShortcut, isMacPlatform, shortcutOf } from '../../utils/canvasCommandRegistry';
 import { type SelectionGeometry } from '../../utils/canvasCommands';
+import { type CropAspectId } from '../../utils/cropAspect';
 import { type GradientFill } from '../../utils/gradientFill';
 import { type LockState } from '../../utils/layerLock';
 import { BRAND_COLORS, FONT_COLORS, STROKE_ONLY_SHAPES } from '../../utils/shapes';
@@ -40,6 +41,8 @@ export interface ContextControlsProps {
   canDuplicate: boolean;
   /** The selected framed photo is in Ausschnitt mode. */
   isCropping?: boolean;
+  /** Seitenverhältnis-Vorgabe im Zuschneide-Modus (nur eigene Bilder). */
+  cropAspect?: CropAspectId;
   /** Gesperrt: nicht ziehen, skalieren, ausrichten, löschen — gestalten geht weiter. */
   lockState?: LockState;
   canLock?: boolean;
@@ -66,6 +69,7 @@ export interface ContextControlsProps {
     /** Im Zuschneide-Modus: zurück zum Stand beim Betreten bzw. übernehmen. */
     handleCancelCrop?: () => void;
     handleFinishCrop?: () => void;
+    handleCropAspect?: (id: CropAspectId) => void;
     handleGradientSelect?: (gradient: GradientFill | null) => void;
     /** Ausrichtung des Textes in seiner Box — freie und Vorlagen-Texte. */
     handleTextAlignChange?: (id: string, align: TextAlign) => void;
@@ -124,6 +128,7 @@ export function ContextControls({
   canMoveDown,
   canDuplicate,
   isCropping = false,
+  cropAspect = 'free',
   lockState = 'none',
   canLock = false,
   canAlign = false,
@@ -143,10 +148,16 @@ export function ContextControls({
   const formatting = useCanvasTextFormatting();
 
   if (showsCropModeBar({ isCropping, handlers })) {
+    const handleCropAspect = handlers.handleCropAspect;
     return (
       <CropModeControls
         onCancel={() => handlers.handleCancelCrop?.()}
         onDone={() => handlers.handleFinishCrop?.()}
+        aspect={
+          activeFloatingModule?.type === 'user-image' && handleCropAspect
+            ? { value: cropAspect, onChange: handleCropAspect }
+            : null
+        }
       />
     );
   }

@@ -19,6 +19,7 @@ import { createStore } from 'zustand/vanilla';
 
 import { DEFAULT_FORMAT_ID } from '../formats';
 
+import type { CropAspectId } from '../utils/cropAspect';
 import type { SnapTarget, SnapLine } from '../utils/snapping';
 import type { CanvasEditorConfig, CanvasHistoryEntry } from '@gruenerator/shared/canvas-editor';
 
@@ -80,6 +81,8 @@ export interface CanvasEditorState<
   pendingAiSuggestion: PendingAiSuggestion | null;
   /** The framed photo in Ausschnitt mode (its photo moves inside the frame); null otherwise. */
   croppingElement: string | null;
+  /** Seitenverhältnis-Vorgabe im laufenden Zuschneide-Modus; jede neue Sitzung beginnt mit „Freiform". */
+  cropAspect: CropAspectId;
 }
 
 export interface CanvasEditorActions<
@@ -121,6 +124,7 @@ export interface CanvasEditorActions<
 
   setPendingAiSuggestion: (pending: PendingAiSuggestion | null) => void;
   setCroppingElement: (id: string | null) => void;
+  setCropAspect: (id: CropAspectId) => void;
 }
 
 /**
@@ -155,6 +159,7 @@ function applySelection(
     selectedLayerIds: string[];
     selectedElement: string | null;
     croppingElement: string | null;
+    cropAspect: CropAspectId;
   },
   ids: readonly string[]
 ): void {
@@ -165,7 +170,10 @@ function applySelection(
   if (current.length === unique.length && current.every((id, i) => id === unique[i])) return;
   state.selectedLayerIds = unique;
   state.selectedElement = unique.length === 1 ? unique[0] : null;
-  if (state.croppingElement !== state.selectedElement) state.croppingElement = null;
+  if (state.croppingElement !== state.selectedElement) {
+    state.croppingElement = null;
+    state.cropAspect = 'free';
+  }
 }
 
 // =============================================================================
@@ -197,6 +205,7 @@ function createInitialState<
     stateRestorationCallback: null,
     pendingAiSuggestion: null,
     croppingElement: null,
+    cropAspect: 'free',
   };
 }
 
@@ -434,7 +443,14 @@ export function createCanvasEditorStore<
 
       setCroppingElement: (id) =>
         set((state) => {
-          state.croppingElement = id !== null && id === state.selectedElement ? id : null;
+          const next = id !== null && id === state.selectedElement ? id : null;
+          if (next !== state.croppingElement) state.cropAspect = 'free';
+          state.croppingElement = next;
+        }),
+
+      setCropAspect: (id) =>
+        set((state) => {
+          if (state.croppingElement !== null) state.cropAspect = id;
         }),
     }))
   );

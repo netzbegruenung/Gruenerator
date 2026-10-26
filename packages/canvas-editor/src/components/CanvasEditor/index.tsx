@@ -520,6 +520,7 @@ function CanvasEditorInner({
           prev.canDuplicate === report.canDuplicate &&
           prev.canDelete === report.canDelete &&
           prev.isCropping === report.isCropping &&
+          prev.cropAspect === report.cropAspect &&
           prev.selectionCount === report.selectionCount &&
           prev.canCopy === report.canCopy &&
           prev.lockState === report.lockState &&
@@ -1317,6 +1318,7 @@ function CanvasEditorInner({
         canMoveDown: toolbarState.canMoveDown ?? false,
         canDuplicate: toolbarState.canDuplicate ?? false,
         isCropping: toolbarState.isCropping ?? false,
+        cropAspect: toolbarState.cropAspect,
         lockState: toolbarState.lockState,
         canLock: toolbarState.canLock,
         canAlign: toolbarState.canAlign,

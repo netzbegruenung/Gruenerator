@@ -238,6 +238,7 @@ function CanvasRenderLayerInner<
 }: CanvasRenderLayerProps<TState, TActions>) {
   const croppingElement = useCanvasStoreSelector((s) => s.croppingElement);
   const setCroppingElement = useCanvasStoreSelector((s) => s.setCroppingElement);
+  const cropAspect = useCanvasStoreSelector((s) => s.cropAspect);
   const iconCarrier = state as TState & Partial<OptionalCanvasStateProperties>;
   useIconSetsFor(iconCarrier.selectedIcons, iconCarrier.iconStates);
 
@@ -524,6 +525,7 @@ function CanvasRenderLayerInner<
             handlers.handleUserImageCropEnd(userImage.id, patch)
           }
           isCropping={croppingElement === userImage.id}
+          cropAspect={croppingElement === userImage.id ? cropAspect : 'free'}
           onCroppingChange={(on: boolean) => setCroppingElement(on ? userImage.id : null)}
           stageWidth={stageWidth}
           stageHeight={stageHeight}

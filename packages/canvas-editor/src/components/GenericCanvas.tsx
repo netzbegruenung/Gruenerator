@@ -61,6 +61,7 @@ import {
   rasterizeStageElement,
   visibleStageTexts,
 } from '../utils/captureStage';
+import { type CropAspectId } from '../utils/cropAspect';
 import { itemBodyRect } from '../utils/deepSelect';
 import { ensureFontsReady } from '../utils/ensureFontsReady';
 import { MAX_ICON_SELECTIONS, selectedCatalogIconIds } from '../utils/iconInstances';
@@ -114,6 +115,8 @@ export interface ToolbarStateReport {
   canDelete: boolean;
   /** The selected framed photo is in Ausschnitt mode. */
   isCropping: boolean;
+  /** Seitenverhältnis-Vorgabe des laufenden Zuschneide-Modus. */
+  cropAspect: CropAspectId;
   /** Wie viele Elemente ausgewählt sind; bei mehr als einem ist `selectedElement` null. */
   selectionCount: number;
   /** Lässt sich mindestens ein ausgewähltes Element kopieren? */
@@ -317,6 +320,7 @@ export interface GenericCanvasRef {
   /** Zuschneide-Modus: zurück zum Stand beim Betreten bzw. mit dem aktuellen Stand beenden. */
   handleCancelCrop?: () => void;
   handleFinishCrop?: () => void;
+  handleCropAspect?: (id: CropAspectId) => void;
   handleGradientSelect?: (gradient: GradientFill | null) => void;
   handleTextAlignChange?: (id: string, align: TextAlign) => void;
 }
@@ -1052,6 +1056,7 @@ function GenericCanvasWithRef<
       handleCropImage: () => bridgeRef.current?.handleCropImage(),
       handleCancelCrop: cropSession.cancel,
       handleFinishCrop: cropSession.finish,
+      handleCropAspect: (id) => bridgeRef.current?.handleCropAspect(id),
       handleGradientSelect: (gradient) => bridgeRef.current?.handleGradientSelect(gradient),
       handleTextAlignChange: (id, align) => bridgeRef.current?.handleTextAlignChange(id, align),
     }),

@@ -26,6 +26,7 @@ import type { OptionalCanvasActions } from '../hooks/useCanvasElementHandlers';
 import type { ShadowPatch } from '../hooks/useFloatingModuleHandlers';
 import type { FloatingModuleState } from '../hooks/useFloatingModuleState';
 import type { CanvasItem } from '../utils/canvasLayerManager';
+import type { CropAspectId } from '../utils/cropAspect';
 import type { GradientFill } from '../utils/gradientFill';
 import type { TextAlign } from '../utils/textAlign';
 
@@ -40,6 +41,8 @@ export interface ToolbarBridgeState {
   handleTextAlignChange: (id: string, align: TextAlign) => void;
   /** Ausschnitt mode for the selected framed photo. */
   handleCropImage: () => void;
+  /** Seitenverhältnis-Vorgabe im Zuschneide-Modus eines eigenen Bildes. */
+  handleCropAspect: (id: CropAspectId) => void;
 }
 
 interface ToolbarStateBridgeProps<
@@ -94,6 +97,8 @@ export function ToolbarStateBridge<
   const isCropping = useCanvasStoreSelector(
     (s) => s.croppingElement !== null && s.croppingElement === s.selectedElement
   );
+  const cropAspect = useCanvasStoreSelector((s) => s.cropAspect);
+  const setCropAspect = useCanvasStoreSelector((s) => s.setCropAspect);
 
   /**
    * Vorlagen-Grafiken liegen in keiner Sammlung des Zustands — gefunden werden
@@ -150,6 +155,7 @@ export function ToolbarStateBridge<
       handleGradientSelect: floatingHandlers.handleGradientSelect,
       handleTextAlignChange: floatingHandlers.handleTextAlignChange,
       handleCropImage: () => setCroppingElement(isCropping ? null : selectedElement),
+      handleCropAspect: setCropAspect,
     };
   });
 
@@ -165,6 +171,7 @@ export function ToolbarStateBridge<
       canDuplicate: capabilities.canCopy,
       canDelete: capabilities.canDelete,
       isCropping,
+      cropAspect,
       selectionCount: capabilities.count,
       canCopy: capabilities.canCopy,
       lockState: capabilities.lock,
@@ -175,6 +182,7 @@ export function ToolbarStateBridge<
     });
   }, [
     isCropping,
+    cropAspect,
     selectedElement,
     activeFloatingModule,
     canUndo,

@@ -258,3 +258,39 @@ describe('Zuschneide-Modus: jedes andere Ende ist Fertig', () => {
     expect(canvas.live.state.imageScale).toBe(after);
   }, 90_000);
 });
+
+describe('Zuschneide-Modus: Seitenverhältnis (eigenes Bild)', () => {
+  const cropTransformer = (canvas: Canvas) =>
+    canvas.stage
+      .find<Konva.Transformer>('Transformer')
+      .find((t) => t.nodes()[0]?.name() === 'selection-chrome')!;
+
+  it('setzt den Rahmen auf die Vorgabe, hält sie an den Ecken, Abbrechen nimmt sie zurück', async () => {
+    const canvas = await mount();
+    await enterUserImageCrop(canvas);
+    await canvas.run(() => canvas.ref.current!.handleCropAspect!('1:1'));
+
+    expect(canvas.store.getState().cropAspect).toBe('1:1');
+    await waitFor(() =>
+      expect(canvas.userImage()).toMatchObject({ x: 150, y: 80, width: 400, height: 400 })
+    );
+    expect(cropTransformer(canvas).keepRatio()).toBe(true);
+    expect(cropTransformer(canvas).enabledAnchors()).toHaveLength(4);
+
+    await canvas.run(() => canvas.ref.current!.handleCancelCrop!());
+    expect(canvas.userImage()).toEqual(PHOTO);
+    expect(canvas.store.getState().cropAspect).toBe('free');
+  }, 90_000);
+
+  it('Freiform löst das Verhältnis und lässt den Rahmen stehen', async () => {
+    const canvas = await mount();
+    await enterUserImageCrop(canvas);
+    await canvas.run(() => canvas.ref.current!.handleCropAspect!('16:9'));
+    await waitFor(() => expect(canvas.userImage().height).toBeCloseTo(337.5));
+    await canvas.run(() => canvas.ref.current!.handleCropAspect!('free'));
+
+    expect(cropTransformer(canvas).keepRatio()).toBe(false);
+    expect(cropTransformer(canvas).enabledAnchors()).toHaveLength(8);
+    expect(canvas.userImage().height).toBeCloseTo(337.5);
+  }, 90_000);
+});

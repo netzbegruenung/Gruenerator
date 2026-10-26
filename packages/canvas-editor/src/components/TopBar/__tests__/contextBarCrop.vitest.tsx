@@ -118,6 +118,66 @@ describe('photo crop toolbar', () => {
       'Fertig',
     ]);
   });
+  it('offers the aspect presets for an own image while cropping, not for the background', async () => {
+    const aspect = vi.fn();
+    const handlers = {
+      handleMoveLayer: () => {},
+      handleDuplicate: () => {},
+      handleColorSelect: () => {},
+      handleOpacityChange: () => {},
+      handleFontSizeChange: () => {},
+      handleCancelCrop: () => {},
+      handleFinishCrop: () => {},
+      handleCropAspect: aspect,
+    };
+    const { container, unmount } = render(
+      <ContextControls
+        selectedElement="photo"
+        activeFloatingModule={{
+          type: 'user-image',
+          data: { id: 'photo', src: '/photo.jpg', width: 600, height: 400 },
+        }}
+        canMoveUp={false}
+        canMoveDown={false}
+        canDuplicate
+        isCropping
+        cropAspect="4:5"
+        handlers={handlers}
+      />
+    );
+    const select = screen.getByRole('combobox', { name: 'Seitenverhältnis' });
+    expect(select).toHaveValue('4:5');
+    expect(screen.getAllByRole('option').map((o) => o.textContent)).toEqual([
+      'Freiform',
+      'Original',
+      '1:1',
+      '4:5',
+      '9:16',
+      '16:9',
+      '4:3',
+      '3:4',
+    ]);
+    await userEvent.selectOptions(select, '16:9');
+    expect(aspect).toHaveBeenCalledWith('16:9');
+    expect(await axe(container)).toHaveNoViolations();
+    unmount();
+
+    render(
+      <ContextControls
+        selectedElement="background-image"
+        activeFloatingModule={{
+          type: 'image',
+          data: { id: 'background-image', isPhoto: true, canCrop: true },
+        }}
+        canMoveUp={false}
+        canMoveDown={false}
+        canDuplicate={false}
+        isCropping
+        handlers={handlers}
+      />
+    );
+    expect(screen.queryByRole('combobox')).toBeNull();
+  });
   it('disables cropping for locked photos', () => {
     setup(false, true);
     expect(screen.getByRole('button', { name: 'Zuschneiden' })).toBeDisabled();
