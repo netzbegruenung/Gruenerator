@@ -10,6 +10,7 @@ import { useState, useEffect, useRef, memo } from 'react';
 import { Image, Group, Rect, Transformer } from 'react-konva';
 
 import { LOCKED_TRANSFORMER, useIsItemLocked } from '../components/canvasItemLock';
+import { useAnnounce } from '../hooks/useAnnounce';
 import { useBoxSnap, type SnapProps } from '../hooks/useBoxSnap';
 import {
   clampPan,
@@ -23,6 +24,7 @@ import {
   hasActiveImageFilters,
   imageFilterAttrs,
 } from '../utils/imageFilters';
+import { isWidgetOwnedKey } from '../utils/keyboardOwnership';
 import { ELEMENT_TRANSFORMER } from '../utils/orientation';
 import { useTrackPendingImage } from '../utils/pendingImages';
 import { recacheNextFrame } from '../utils/recacheNextFrame';
@@ -32,6 +34,13 @@ import { userImageCropUpdate } from '../utils/userImageCrop';
 import { USER_PHOTO_NODE_NAME, type UserImageInstance } from '../utils/userImageUtils';
 
 import type Konva from 'konva';
+
+const PAN_KEYS: Record<string, [number, number]> = {
+  ArrowUp: [0, -1],
+  ArrowDown: [0, 1],
+  ArrowLeft: [-1, 0],
+  ArrowRight: [1, 0],
+};
 
 export interface UserImagePrimitiveProps extends SnapProps {
   userImage: UserImageInstance;
@@ -61,6 +70,7 @@ function UserImagePrimitiveInner({
 }: UserImagePrimitiveProps) {
   const locked = useIsItemLocked();
   const snap = useBoxSnap({ id: userImage.id, ...snapProps }, userImageBox(userImage));
+  const announce = useAnnounce();
   const panStartRef = useRef<Box | null>(null);
   const cropFrameRef = useRef<Konva.Rect>(null);
   const cropTransformerRef = useRef<Konva.Transformer>(null);
@@ -139,6 +149,67 @@ function UserImagePrimitiveInner({
     userImage.panY,
     userImage.mask,
   ]);
+
+  const keyCropRef = useRef({ image, userImage, onCropEnd });
+  useEffect(() => {
+    keyCropRef.current = { image, userImage, onCropEnd };
+  });
+  const keyCropActive = cropping && isSelected && !locked;
+
+  useEffect(() => {
+    if (keyCropActive) announce('Ausschnitt: Pfeiltasten verschieben, Enter beendet');
+  }, [keyCropActive, announce]);
+
+  // Keyboard crop: arrows pan the photo inside the frame (Shift = 10 px),
+  // +/- zoom. Same commit as the drag (`onCropEnd`), so one update per key.
+  useEffect(() => {
+    if (!keyCropActive) return undefined;
+    const onKeyDown = (e: KeyboardEvent) => {
+      const current = keyCropRef.current;
+      if (!current.image || e.defaultPrevented || e.ctrlKey || e.metaKey) return;
+      const target = e.target;
+      if (
+        target instanceof HTMLInputElement ||
+        target instanceof HTMLTextAreaElement ||
+        (target instanceof HTMLElement && target.isContentEditable) ||
+        (target instanceof Element && target.closest('[role="menu"]')) ||
+        isWidgetOwnedKey(e)
+      ) {
+        return;
+      }
+      const frame = {
+        x: 0,
+        y: 0,
+        width: current.userImage.width,
+        height: current.userImage.height,
+      };
+      const photo = framedPhotoRect(
+        { width: current.image.naturalWidth, height: current.image.naturalHeight },
+        frame,
+        { x: current.userImage.panX ?? 0, y: current.userImage.panY ?? 0 },
+        current.userImage.cropZoom ?? 1
+      );
+      const step = e.shiftKey ? 10 : 1;
+      const arrow = PAN_KEYS[e.key];
+      if (arrow) {
+        e.preventDefault();
+        const { dx, dy } = clampPan(photo, arrow[0] * step, arrow[1] * step, frame);
+        if (dx === 0 && dy === 0) return;
+        const pan = panOfFramedPhoto({ ...photo, x: photo.x + dx, y: photo.y + dy }, frame);
+        current.onCropEnd?.({ fit: 'cover', panX: pan.x, panY: pan.y });
+        return;
+      }
+      const zoomFactor = e.key === '+' || e.key === '=' ? 1.1 : e.key === '-' ? 1 / 1.1 : null;
+      if (zoomFactor) {
+        e.preventDefault();
+        const from = current.userImage.cropZoom ?? 1;
+        const cropZoom = Math.max(1, from * zoomFactor);
+        if (cropZoom !== from) current.onCropEnd?.({ fit: 'cover', cropZoom });
+      }
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [keyCropActive]);
 
   if (!image) return null;
 
