@@ -24,6 +24,7 @@ export function CropModeControls({
   onDone,
   aspect = null,
   straighten = null,
+  onAuto = null,
 }: {
   onCancel: () => void;
   onDone: () => void;
@@ -31,9 +32,22 @@ export function CropModeControls({
   aspect?: { value: CropAspectId; onChange: (id: CropAspectId) => void } | null;
   /** Begradigen (Grad, −45 … 45): Hintergrundfoto und eigene Bilder. */
   straighten?: { value: number; onChange: (deg: number) => void } | null;
+  /** „Automatisch": Hintergrundfoto und eigene Bilder. */
+  onAuto?: (() => void) | null;
 }) {
   return (
     <div className="flex items-center gap-1">
+      {onAuto && (
+        <button
+          type="button"
+          className={`${TEXT_BTN} bg-transparent text-[var(--editor-text)] hover:bg-[var(--editor-surface-hover)]`}
+          onClick={() => onAuto()}
+          aria-label="Ausschnitt automatisch wählen"
+          title="Ausschnitt automatisch wählen"
+        >
+          Automatisch
+        </button>
+      )}
       {straighten && (
         <div className="flex items-center gap-1">
           <input

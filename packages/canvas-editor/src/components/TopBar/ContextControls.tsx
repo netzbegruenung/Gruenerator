@@ -73,6 +73,7 @@ export interface ContextControlsProps {
     handleFinishCrop?: () => void;
     handleCropAspect?: (id: CropAspectId) => void;
     handleCropRotation?: (deg: number) => void;
+    handleSmartCrop?: () => void;
     handleGradientSelect?: (gradient: GradientFill | null) => void;
     /** Ausrichtung des Textes in seiner Box — freie und Vorlagen-Texte. */
     handleTextAlignChange?: (id: string, align: TextAlign) => void;
@@ -166,6 +167,7 @@ export function ContextControls({
         straighten={
           handleCropRotation ? { value: cropRotation, onChange: handleCropRotation } : null
         }
+        onAuto={handlers.handleSmartCrop ?? null}
       />
     );
   }

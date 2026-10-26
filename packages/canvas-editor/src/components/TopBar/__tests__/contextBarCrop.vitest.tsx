@@ -236,6 +236,52 @@ describe('photo crop toolbar', () => {
       }
     }
   });
+  it('offers Automatisch for an own image and the background photo, desktop and mobile', async () => {
+    const auto = vi.fn();
+    const handlers = {
+      handleMoveLayer: () => {},
+      handleDuplicate: () => {},
+      handleColorSelect: () => {},
+      handleOpacityChange: () => {},
+      handleFontSizeChange: () => {},
+      handleCancelCrop: () => {},
+      handleFinishCrop: () => {},
+      handleSmartCrop: auto,
+    };
+    const modules = [
+      {
+        type: 'user-image' as const,
+        data: { id: 'photo', src: '/photo.jpg', width: 600, height: 400 },
+      },
+      {
+        type: 'image' as const,
+        data: { id: 'background-image', isPhoto: true, canCrop: true },
+      },
+    ];
+    for (const module of modules) {
+      for (const Bar of [ContextControls, MobileSelectionBar]) {
+        auto.mockClear();
+        const { container, unmount } = render(
+          <Bar
+            selectedElement={module.data.id}
+            activeFloatingModule={module}
+            canMoveUp={false}
+            canMoveDown={false}
+            canDuplicate={false}
+            isCropping
+            handlers={handlers}
+            onDone={() => {}}
+          />
+        );
+        const button = screen.getByRole('button', { name: 'Ausschnitt automatisch wählen' });
+        expect(button).toHaveTextContent(/^Automatisch$/);
+        await userEvent.click(button);
+        expect(auto).toHaveBeenCalledOnce();
+        expect(await axe(container)).toHaveNoViolations();
+        unmount();
+      }
+    }
+  });
   it('disables cropping for locked photos', () => {
     setup(false, true);
     expect(screen.getByRole('button', { name: 'Zuschneiden' })).toBeDisabled();

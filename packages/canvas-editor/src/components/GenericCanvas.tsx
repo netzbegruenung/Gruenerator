@@ -325,6 +325,8 @@ export interface GenericCanvasRef {
   handleCropAspect?: (id: CropAspectId) => void;
   /** Begradigen im Zuschneide-Modus (Hintergrundfoto oder eigenes Bild), Grad. */
   handleCropRotation?: (deg: number) => void;
+  /** „Automatisch" im Zuschneide-Modus: wählt den Ausschnitt per smartcrop. */
+  handleSmartCrop?: () => void;
   handleGradientSelect?: (gradient: GradientFill | null) => void;
   handleTextAlignChange?: (id: string, align: TextAlign) => void;
 }
@@ -1062,6 +1064,7 @@ function GenericCanvasWithRef<
       handleFinishCrop: cropSession.finish,
       handleCropAspect: (id) => bridgeRef.current?.handleCropAspect(id),
       handleCropRotation: (deg) => bridgeRef.current?.handleCropRotation(deg),
+      handleSmartCrop: () => bridgeRef.current?.handleSmartCrop(),
       handleGradientSelect: (gradient) => bridgeRef.current?.handleGradientSelect(gradient),
       handleTextAlignChange: (id, align) => bridgeRef.current?.handleTextAlignChange(id, align),
     }),
@@ -1136,6 +1139,7 @@ function GenericCanvasWithRef<
         canRedo={canRedo}
         readOnly={!interactive}
         saveToHistory={saveToHistory}
+        getStage={getStage}
         onToolbarStateChange={onToolbarStateChange}
       />
     </PendingImagesContext.Provider>

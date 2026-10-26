@@ -10,14 +10,25 @@
  * exposes bridge handlers via a mutable ref for GenericCanvasInner's useImperativeHandle.
  */
 
-import { useCallback, useEffect, type MutableRefObject } from 'react';
+import { toast } from '@gruenerator/ui';
+import { useCallback, useEffect, useRef, type MutableRefObject } from 'react';
 
 import { useFloatingModuleHandlers } from '../hooks/useFloatingModuleHandlers';
 import { useFloatingModuleState } from '../hooks/useFloatingModuleState';
-import { useCanvasStoreSelector, useCanvasStoreShallow } from '../stores/CanvasStoreProvider';
+import {
+  useCanvasStore,
+  useCanvasStoreSelector,
+  useCanvasStoreShallow,
+} from '../stores/CanvasStoreProvider';
 import { cropRotationOf, cropRotationUpdate } from '../utils/cropSession';
 import { findOrientationDoor } from '../utils/orientElement';
 import { selectionCapabilities } from '../utils/selectionCapabilities';
+import {
+  smartCropSource,
+  smartCropUpdate,
+  smartCropView,
+  suggestSmartCrop,
+} from '../utils/smartCrop';
 import { findTemplateEntry } from '../utils/templateElementInstance';
 
 import type { ToolbarStateReport } from './GenericCanvas';
@@ -27,9 +38,11 @@ import type { OptionalCanvasActions } from '../hooks/useCanvasElementHandlers';
 import type { ShadowPatch } from '../hooks/useFloatingModuleHandlers';
 import type { FloatingModuleState } from '../hooks/useFloatingModuleState';
 import type { CanvasItem } from '../utils/canvasLayerManager';
+import type { Rect } from '../utils/coverFit';
 import type { CropAspectId } from '../utils/cropAspect';
 import type { GradientFill } from '../utils/gradientFill';
 import type { TextAlign } from '../utils/textAlign';
+import type Konva from 'konva';
 
 export interface ToolbarBridgeState {
   activeFloatingModule: FloatingModuleState | null;
@@ -46,7 +59,11 @@ export interface ToolbarBridgeState {
   handleCropAspect: (id: CropAspectId) => void;
   /** Begradigen im Zuschneide-Modus, Grad. */
   handleCropRotation: (deg: number) => void;
+  /** „Automatisch" im Zuschneide-Modus: smartcrop wählt den Ausschnitt. */
+  handleSmartCrop: () => void;
 }
+
+const SMART_CROP_FAILED = 'Automatischer Ausschnitt nicht möglich';
 
 interface ToolbarStateBridgeProps<
   TState extends Record<string, unknown> & Partial<BaseCanvasState>,
@@ -65,6 +82,8 @@ interface ToolbarStateBridgeProps<
   /** Lesemodus: Drehen & Spiegeln werden nicht angeboten. */
   readOnly: boolean;
   saveToHistory: (state: TState) => void;
+  /** Die Bühne der Seite: „Automatisch" liest dort das geladene Foto. */
+  getStage: () => Konva.Stage | null;
   onToolbarStateChange?: (state: ToolbarStateReport) => void;
 }
 
@@ -84,8 +103,10 @@ export function ToolbarStateBridge<
   canRedo,
   readOnly,
   saveToHistory,
+  getStage,
   onToolbarStateChange,
 }: ToolbarStateBridgeProps<TState, TActions>) {
+  const store = useCanvasStore();
   const selectedElement = useCanvasStoreSelector((s) => s.selectedElement);
 
   const activeFloatingModule = useFloatingModuleState({
@@ -148,6 +169,11 @@ export function ToolbarStateBridge<
     debouncedSaveToHistory,
   });
 
+  // Nach dem Warten auf smartcrop schreibt der Stand der letzten Darstellung, nicht der beim Klick.
+  const applySmartCropRef = useRef<(id: string, image: HTMLImageElement, region: Rect) => void>(
+    () => {}
+  );
+
   // Write bridge state for GenericCanvasInner's useImperativeHandle.
   // Uses useEffect (not render-time assignment) for React 19 concurrent mode safety.
   useEffect(() => {
@@ -175,6 +201,52 @@ export function ToolbarStateBridge<
         setState((prev) => ({ ...prev, ...update.patch }) as TState);
         debouncedSaveToHistory(next);
       },
+      handleSmartCrop: () => {
+        const id = cropTarget;
+        if (!id) return;
+        const image = smartCropSource(getStage(), id);
+        const view = image
+          ? smartCropView({
+              id,
+              state,
+              elements: config.elements as readonly CanvasElementConfig[],
+              layout,
+              natural: { width: image.naturalWidth, height: image.naturalHeight },
+            })
+          : null;
+        if (!image || !view) {
+          toast.error(SMART_CROP_FAILED);
+          return;
+        }
+        suggestSmartCrop(image, view).then(
+          (region) => {
+            // Inzwischen beendet oder gewechselt: nichts mehr schreiben.
+            if (store.getState().croppingElement !== id) return;
+            applySmartCropRef.current(id, image, region);
+          },
+          () => toast.error(SMART_CROP_FAILED)
+        );
+      },
+    };
+    applySmartCropRef.current = (id, image, region) => {
+      const update = smartCropUpdate(
+        {
+          id,
+          state,
+          elements: config.elements as readonly CanvasElementConfig[],
+          layout,
+          natural: { width: image.naturalWidth, height: image.naturalHeight },
+        },
+        region
+      );
+      if (!update) return;
+      if (update.kind === 'user-image') {
+        actions.updateUserImage?.(id, update.patch);
+        return;
+      }
+      const next = { ...state, ...update.patch } as TState;
+      setState((prev) => ({ ...prev, ...update.patch }) as TState);
+      debouncedSaveToHistory(next);
     };
   });
 
