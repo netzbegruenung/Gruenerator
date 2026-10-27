@@ -216,7 +216,30 @@ const COMPONENT_EXPANSIONS = {
           const rows = Object.values(m.rows)
             .filter((r) => r.tab === tab.value)
             .map((r) => `${r.title}: ${r.description}`);
-          return [`${tab.label}.`, note?.intro, ...rows, ...(note?.extras ?? [])]
+          // Same tab-specific extras the component renders.
+          const choices =
+            tab.value === 'allgemein'
+              ? [
+                  ['Aussehen', m.choices.theme],
+                  ['Sprache & Region', m.choices.locale],
+                  ['Startseite', m.choices.startPage],
+                ].map(([title, items]) => `${title}: ${items.map((c) => c.label).join(', ')}`)
+              : [];
+          const notifications =
+            tab.value === 'benachrichtigungen'
+              ? [
+                  ...m.notifications.levels.map((l) => `${l.label}: ${l.description}`),
+                  ...m.notifications.types.map((t) => `${t.label}: ${t.description}`),
+                ]
+              : [];
+          return [
+            `${tab.label}.`,
+            note?.intro,
+            ...rows,
+            ...choices,
+            ...notifications,
+            ...(note?.extras ?? []),
+          ]
             .filter(Boolean)
             .join(' ');
         })
@@ -243,8 +266,11 @@ const COMPONENT_EXPANSIONS = {
   },
   ChatCapabilities: {
     manifest: 'chat-capabilities.json',
-    expand: () =>
+    // Only intents the code still has — the component filters the same way,
+    // so a retired capability drops out of the page AND the index.
+    expand: (m) =>
       (NOTES.examples ?? [])
+        .filter((e) => m.intents.includes(e.intent))
         .map((e) => `${e.label}${e.hint ? ` — ${e.hint}` : ''}: ${e.questions.join(' ')}`)
         .join('\n\n'),
   },
