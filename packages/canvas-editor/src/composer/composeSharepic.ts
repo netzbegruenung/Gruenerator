@@ -1318,7 +1318,6 @@ function composeSlide(
     areaTop,
     blockTop,
     total,
-    surface,
     circle,
     ortInColumn,
     ortBesideCircle,
