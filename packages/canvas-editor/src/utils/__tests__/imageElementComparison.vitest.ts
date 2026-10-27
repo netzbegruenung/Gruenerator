@@ -1,8 +1,7 @@
+import { imageRenderInputsAreEqual } from '@ggraphic/editor/utils/imageElementComparison';
 import { describe, it, expect } from 'vitest';
 
-import { imageRenderInputsAreEqual } from '../imageElementComparison';
-
-import type { ImageElementConfig, LayoutResult } from '../../configs/types';
+import type { ImageElementConfig, LayoutResult } from '@ggraphic/editor/configs/types';
 
 type State = Record<string, unknown>;
 

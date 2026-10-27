@@ -1,6 +1,5 @@
+import { withSelectionChromeHidden } from '@ggraphic/editor/utils/captureStage';
 import { describe, expect, it, vi } from 'vitest';
-
-import { withSelectionChromeHidden } from './captureStage';
 
 import type Konva from 'konva';
 

@@ -1,15 +1,14 @@
-import { describe, expect, it } from 'vitest';
-
 import {
   isListedLayer,
   layerLabel,
   pageLayerLabels,
   sameLayerEntries,
   stageSummary,
-} from './layerLabels';
+} from '@ggraphic/editor/utils/layerLabels';
+import { describe, expect, it } from 'vitest';
 
-import type { CanvasItem } from './canvasLayerManager';
-import type { CanvasElementConfig } from '../configs/types';
+import type { CanvasElementConfig } from '@ggraphic/editor/configs/types';
+import type { CanvasItem } from '@ggraphic/editor/utils/canvasLayerManager';
 
 /** Nur die Felder, die die Namen lesen; der Rest der Instanzen spielt keine Rolle. */
 const item = (value: unknown) => value as CanvasItem;

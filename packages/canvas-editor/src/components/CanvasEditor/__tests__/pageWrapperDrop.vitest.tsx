@@ -10,7 +10,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { BlockInsertContext, type BlockInsertApi } from '../blockInsert';
 import { PageWrapper } from '../PageWrapper';
 
-vi.mock('../../GenericCanvas', () => ({ GenericCanvas: () => <canvas /> }));
+vi.mock('@ggraphic/editor/components/GenericCanvas', () => ({ GenericCanvas: () => <canvas /> }));
 vi.mock('../../PageToolbar', () => ({ PageToolbar: () => null }));
 vi.mock('../../ZoomableViewport', () => ({
   ZoomableViewport: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,

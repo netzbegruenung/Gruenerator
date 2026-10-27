@@ -1,6 +1,8 @@
+import {
+  canCropBackgroundPhoto,
+  imageElementInteraction,
+} from '@ggraphic/editor/utils/backgroundPhotoCrop';
 import { describe, expect, it } from 'vitest';
-
-import { canCropBackgroundPhoto, imageElementInteraction } from './backgroundPhotoCrop';
 
 const photo = { id: 'background-image', draggable: true, transformable: true };
 

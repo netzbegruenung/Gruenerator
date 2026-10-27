@@ -22,7 +22,7 @@ import {
   type MouseEvent,
 } from 'react';
 
-import type { LayerEntry } from '../../utils/layerLabels';
+import type { LayerEntry } from '@ggraphic/editor/utils/layerLabels';
 import type { LayerSelectionChange } from '@ggraphic/editor/utils/layerSelection';
 
 export interface LayersSectionProps {

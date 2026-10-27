@@ -1,10 +1,10 @@
 import fs from 'node:fs';
 import path from 'node:path';
 
+import { getAssetById, resolveAssetInstanceSrc } from '@ggraphic/editor/utils/canvasAssets';
 import { describe, expect, it } from 'vitest';
 
 import { EMOJI_ASSETS } from '../../brand/grueneAssetCatalog';
-import { getAssetById, resolveAssetInstanceSrc } from '../canvasAssets';
 
 import { loadEmojiCatalog, withTone } from './emojiCatalog';
 

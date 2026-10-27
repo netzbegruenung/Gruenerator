@@ -15,7 +15,7 @@ vi.mock('@tanstack/react-query', () => ({
     isLoading: false,
   }),
 }));
-vi.mock('../UserUploadsProvider', () => ({
+vi.mock('@ggraphic/editor/sidebar/UserUploadsProvider', () => ({
   useUserUploads: () => ({
     items: [],
     isLoading: false,

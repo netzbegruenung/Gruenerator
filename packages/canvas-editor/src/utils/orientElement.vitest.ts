@@ -1,8 +1,7 @@
+import { findOrientationDoor } from '@ggraphic/editor/utils/orientElement';
 import { describe, expect, it, vi } from 'vitest';
 
-import { findOrientationDoor } from './orientElement';
-
-import type { LayoutResult } from '../configs/types';
+import type { LayoutResult } from '@ggraphic/editor/configs/types';
 
 const layout = { centerX: 500, centerY: 500 } as unknown as LayoutResult;
 

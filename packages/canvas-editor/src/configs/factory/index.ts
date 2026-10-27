@@ -31,8 +31,11 @@ export type { AiTextField, CreateAiCapabilitiesOptions } from './createAiCapabil
 export { fromLayout } from './layoutAccessors';
 export { createPrimaryText, createSecondaryText } from './createTextElement';
 export { makeSectionDefiner } from './defineSection';
-export { carryInstanceState, CARRIED_INSTANCE_KEYS } from './carryInstanceState';
-export type { CarriedInstanceState } from './carryInstanceState';
+export {
+  carryInstanceState,
+  CARRIED_INSTANCE_KEYS,
+} from '@ggraphic/editor/configs/factory/carryInstanceState';
+export type { CarriedInstanceState } from '@ggraphic/editor/configs/factory/carryInstanceState';
 
 export type {
   BaseCanvasState,
@@ -40,4 +43,4 @@ export type {
   IconState,
   CanvasFeatures,
   CanvasDimensions,
-} from './baseTypes';
+} from '@ggraphic/editor/configs/factory/baseTypes';

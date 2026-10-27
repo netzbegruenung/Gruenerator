@@ -1,11 +1,14 @@
+import { useCanvasEditorServices } from '@ggraphic/editor/CanvasEditorProvider';
 import { useAnnounce } from '@ggraphic/editor/hooks/useAnnounce';
 import { useMemo } from 'react';
 
 import { filterAssetOptionsForLocale } from '../../ai/assetCapability';
-import { useCanvasEditorServices } from '../../CanvasEditorProvider';
 import { SIDEBAR_HINT } from '../sidebarStyles';
 
-import type { CanvasAiEditBridge, CanvasSpecEditBridge } from '../../CanvasEditorProvider';
+import type {
+  CanvasAiEditBridge,
+  CanvasSpecEditBridge,
+} from '@ggraphic/editor/CanvasEditorProvider';
 
 export interface ChatSectionProps {
   /** Canvas template id (e.g. 'zitat', 'simple'). */

@@ -5,6 +5,14 @@
  * Ein Fehlschlag ändert nichts. Dazu: „Automatisch" verwirft seinen Vorschlag,
  * wenn das Foto während der Analyse ersetzt wurde.
  */
+import { CanvasEditorProvider } from '@ggraphic/editor/CanvasEditorProvider';
+import {
+  GenericCanvas,
+  type GenericCanvasRef,
+  type ToolbarStateReport,
+} from '@ggraphic/editor/components/GenericCanvas';
+import { loadCanvasConfig } from '@ggraphic/editor/configs/configLoader';
+import { plainImageUrls, type CanvasImageUrlService } from '@ggraphic/editor/hostServices';
 import { AutoSaveStoreProvider } from '@ggraphic/editor/stores/AutoSaveStoreProvider';
 import { registerToast } from '@ggraphic/editor/utils/editorToast';
 import { userFacingError } from '@ggraphic/editor/utils/userFacingError';
@@ -13,11 +21,6 @@ import { act, cleanup, render, waitFor } from '@testing-library/react';
 import Konva from 'konva';
 import { createRef } from 'react';
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
-
-import { CanvasEditorProvider } from '../../CanvasEditorProvider';
-import { loadCanvasConfig } from '../../configs/configLoader';
-import { plainImageUrls, type CanvasImageUrlService } from '../../hostServices';
-import { GenericCanvas, type GenericCanvasRef, type ToolbarStateReport } from '../GenericCanvas';
 
 import type * as StoreModule from '@ggraphic/editor/stores/createCanvasEditorStore';
 import type { CanvasEditorStoreApi } from '@ggraphic/editor/stores/createCanvasEditorStore';
@@ -37,11 +40,11 @@ vi.mock('smartcrop', () => ({ default: { crop: mocks.crop } }));
 // The editor reports through its toast seam; the host's registration is replaced by the spy.
 registerToast(Object.assign(vi.fn(), { error: mocks.toastError }));
 
-vi.mock('../../sidebar/UserUploadsProvider', () => ({
+vi.mock('@ggraphic/editor/sidebar/UserUploadsProvider', () => ({
   useOptionalUserUploads: () => ({ upload: mocks.upload }),
 }));
 
-vi.mock('../../utils/mediaPlacement', async (importOriginal) => {
+vi.mock('@ggraphic/editor/utils/mediaPlacement', async (importOriginal) => {
   const original = await importOriginal<Record<string, unknown>>();
   return { ...original, fetchShareImageFile: mocks.fetchFile };
 });

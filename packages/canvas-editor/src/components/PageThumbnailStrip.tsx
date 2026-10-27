@@ -4,10 +4,10 @@ import { PiCaretDown, PiPlus } from 'react-icons/pi';
 
 import { TemplatePickerFlyout } from './TemplatePickerFlyout';
 
-import type { FullCanvasConfig, HeterogeneousPage } from '../configs/types';
 import type { SlideLayoutId } from '../slides/slideLayouts';
 import type { CanvasConfigId } from '../templates/registry';
 import type { TemplateCategory } from '../utils/templateRegistry';
+import type { FullCanvasConfig, HeterogeneousPage } from '@ggraphic/editor/configs/types';
 
 interface PageThumbnailStripProps {
   pages: HeterogeneousPage<CanvasConfigId>[];

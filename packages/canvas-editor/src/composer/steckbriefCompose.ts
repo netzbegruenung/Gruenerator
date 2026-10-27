@@ -1,11 +1,10 @@
+import { ASSET_TARGET_SIZE } from '@ggraphic/editor/utils/canvasAssets';
 import { createShape } from '@ggraphic/editor/utils/shapes';
 import {
   type SharepicColor,
   type SharepicSlide,
   type SharepicTextSide,
 } from '@gruenerator/contracts';
-
-import { ASSET_TARGET_SIZE } from '../utils/canvasAssets';
 
 import { SHAREPIC_COLOR_HEX } from './chromeParts';
 import { type BildItem, type SteckbriefItem } from './composeTypes';

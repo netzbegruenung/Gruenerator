@@ -3,17 +3,16 @@
  * the mounted canvas of such a page must hear about it, or its next
  * dual-write puts the stale chrome straight back.
  */
+import { CanvasEditorProvider } from '@ggraphic/editor/CanvasEditorProvider';
 import { updatePageStateById } from '@ggraphic/editor/collab/pagesDoc';
+import { useYjsPages, PAGES_STATE_ORIGIN } from '@ggraphic/editor/collab/useYjsPages';
+import { useYjsPageStateSync } from '@ggraphic/editor/collab/useYjsPageStateSync';
 import { act, renderHook } from '@testing-library/react';
 import React from 'react';
 import { describe, expect, it, vi } from 'vitest';
 import * as Y from 'yjs';
 
-import { CanvasEditorProvider } from '../CanvasEditorProvider';
 import { grueneratorCarousel } from '../composer/sharepicServices';
-
-import { useYjsPages, PAGES_STATE_ORIGIN } from './useYjsPages';
-import { useYjsPageStateSync } from './useYjsPageStateSync';
 
 const label = (text: string) => ({
   id: 'sc-seite',

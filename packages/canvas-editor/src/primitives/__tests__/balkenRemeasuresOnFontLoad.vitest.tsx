@@ -6,12 +6,12 @@
  * Schnitt danach ein, muss der Balken NEU gerechnet werden, nicht erst beim
  * nächsten Regler-Griff.
  */
+import { CanvasStage, type CanvasStageRef } from '@ggraphic/editor/primitives/CanvasStage';
 import { render, act } from '@testing-library/react';
 import { createRef } from 'react';
 import { describe, expect, it, vi } from 'vitest';
 
 import { BalkenGroup } from '../BalkenGroup';
-import { CanvasStage, type CanvasStageRef } from '../CanvasStage';
 
 import type * as TextUtils from '@ggraphic/editor/utils/textUtils';
 

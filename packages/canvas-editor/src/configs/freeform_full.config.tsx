@@ -8,6 +8,7 @@
  * balkens, badges, frames — all features the config system offers.
  */
 
+import { carryInstanceState } from '@ggraphic/editor/configs/factory/carryInstanceState';
 import { insertScaleFor, isSlideFormat, type CanvasFormat } from '@ggraphic/editor/formats/index';
 import { zoomBackground } from '@ggraphic/editor/utils/coverFit';
 import { COMPOSER_PLANE_IDS, photoStripBeside } from '@ggraphic/editor/utils/shapes';
@@ -28,20 +29,23 @@ import { FrameSettingsSection } from '../sidebar/sections/FrameSettingsSection';
 
 import { chatTab, createCommonSectionEntries, toolsTab, uploadsTab } from './commonSections';
 import { createBaseActions } from './factory/actionFactories';
-import { carryInstanceState } from './factory/carryInstanceState';
 import { makeSectionDefiner } from './factory/defineSection';
 import { injectFeatureProps } from './featureInjector';
 import { createShareSection } from './shareSection';
 
 import type { SharepicAiCapabilities } from './aiCapabilities';
+import type { BackgroundColorOption } from '../sidebar/types';
+import type { StockImageAttribution } from '@ggraphic/editor/common/imageSourceTypes';
 import type {
   BaseCanvasState,
   ImageBackgroundState,
   ColorBackgroundState,
-} from './factory/baseTypes';
-import type { FullCanvasConfig, LayoutResult, AdditionalText } from './types';
-import type { BackgroundColorOption } from '../sidebar/types';
-import type { StockImageAttribution } from '@ggraphic/editor/common/imageSourceTypes';
+} from '@ggraphic/editor/configs/factory/baseTypes';
+import type {
+  FullCanvasConfig,
+  LayoutResult,
+  AdditionalText,
+} from '@ggraphic/editor/configs/types';
 import type { ShapeInstance } from '@ggraphic/editor/utils/shapes';
 import type { CanvasAiSnapshot } from '@gruenerator/contracts';
 

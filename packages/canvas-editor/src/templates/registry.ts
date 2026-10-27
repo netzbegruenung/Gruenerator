@@ -30,8 +30,8 @@ import {
 } from '@ggraphic/editor/templates/registry';
 
 import type { BrandLocale } from '../brand/theme';
-import type { AnyCanvasConfig } from '../configs/types';
 import type { StockImageAttribution } from '@ggraphic/editor/common/imageSourceTypes';
+import type { AnyCanvasConfig } from '@ggraphic/editor/configs/types';
 
 // Re-exported from here so the package entry evaluates the catalogue (and
 // registers it) before a host can register its own templates.

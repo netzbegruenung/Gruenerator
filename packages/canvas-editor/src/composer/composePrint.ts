@@ -62,7 +62,7 @@ import {
 import { plakatAt } from './printPlakatAt';
 import { plakatDe } from './printPlakatDe';
 
-import type { AdditionalText } from '../configs/types';
+import type { AdditionalText } from '@ggraphic/editor/configs/types';
 
 export { PRINT_IMPRESSUM_ID } from './printFrame';
 

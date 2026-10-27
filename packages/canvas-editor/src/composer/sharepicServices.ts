@@ -10,7 +10,7 @@ import { refreshCarouselChromeInDoc } from './carouselChrome';
 import { blockGround, liftBlock } from './liftBlock';
 
 import type { CanvasBlockService } from '../grueneratorHostServices';
-import type { CanvasCarouselService } from '../hostServices';
+import type { CanvasCarouselService } from '@ggraphic/editor/hostServices';
 
 export const grueneratorBlocks: CanvasBlockService = {
   ground: blockGround,

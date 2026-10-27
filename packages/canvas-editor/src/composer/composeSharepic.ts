@@ -18,6 +18,7 @@ import {
   getCanvasFormatOrDefault,
   type CanvasFormat,
 } from '@ggraphic/editor/formats/index';
+import { ASSET_TARGET_SIZE } from '@ggraphic/editor/utils/canvasAssets';
 import { createPillBadgeInstance } from '@ggraphic/editor/utils/pillBadgeUtils';
 import { createShape, type ShapeInstance } from '@ggraphic/editor/utils/shapes';
 import { type TextAccent } from '@ggraphic/editor/utils/textUtils';
@@ -36,7 +37,6 @@ import {
 } from '@gruenerator/contracts';
 
 import { getBrandPack, getBrandTheme } from '../brand/theme';
-import { ASSET_TARGET_SIZE } from '../utils/canvasAssets';
 import { VERANSTALTUNG_CONFIG } from '../utils/veranstaltungLayout';
 
 import { layoutAufruf } from './aufrufLayout';
@@ -105,7 +105,7 @@ import { balancedWrap, largestSizeWordsFit, STOERER_RADII, wrapWords } from './t
 import { layoutFaktencheck, layoutVergleich } from './vergleichLayout';
 import { layoutFrage, layoutZitat } from './zitatLayout';
 
-import type { AdditionalText } from '../configs/types';
+import type { AdditionalText } from '@ggraphic/editor/configs/types';
 
 export { SHAREPIC_COLOR_HEX, type MeasureText };
 export { SCRIM_MAX } from './sharepicGround';

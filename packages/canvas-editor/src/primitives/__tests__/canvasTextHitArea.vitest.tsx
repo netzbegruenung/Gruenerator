@@ -16,12 +16,11 @@
  * Auswahl gibt es auch keinen Transformer mehr, über den man es noch fassen
  * könnte.
  */
+import { CanvasStage, type CanvasStageRef } from '@ggraphic/editor/primitives/CanvasStage';
+import { CanvasText } from '@ggraphic/editor/primitives/CanvasText';
 import { render, act } from '@testing-library/react';
 import { createRef } from 'react';
 import { describe, expect, it } from 'vitest';
-
-import { CanvasStage, type CanvasStageRef } from '../CanvasStage';
-import { CanvasText } from '../CanvasText';
 
 /** Was Konva unter dem Punkt findet — der echte Weg eines Klicks. */
 function treffer(text: string): string | null {

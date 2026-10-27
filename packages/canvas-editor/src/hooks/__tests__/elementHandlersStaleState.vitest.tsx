@@ -3,13 +3,12 @@
  * Zustand (#4909). Er darf deshalb nicht aus seinem Render-`state` den ganzen
  * nächsten Zustand bauen — sonst überschreibt er, was seither committet wurde.
  */
+import { useCanvasElementHandlers } from '@ggraphic/editor/hooks/useCanvasElementHandlers';
 import { renderHook } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 
-import { useCanvasElementHandlers } from '../useCanvasElementHandlers';
-
-import type { FullCanvasConfig, LayoutResult } from '../../configs/types';
-import type { OptionalCanvasActions } from '../useCanvasElementHandlers';
+import type { FullCanvasConfig, LayoutResult } from '@ggraphic/editor/configs/types';
+import type { OptionalCanvasActions } from '@ggraphic/editor/hooks/useCanvasElementHandlers';
 
 type State = Record<string, unknown>;
 

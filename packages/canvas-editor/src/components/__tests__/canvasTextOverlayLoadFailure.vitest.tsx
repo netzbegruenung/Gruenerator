@@ -2,12 +2,11 @@
  * Lädt der Editor nicht, versucht es das Öffnen noch einmal; scheitert auch
  * das, schließt die Sitzung ohne Änderung und sagt, warum (#4384).
  */
+import { CanvasStage, type CanvasStageRef } from '@ggraphic/editor/primitives/CanvasStage';
+import { CanvasText } from '@ggraphic/editor/primitives/CanvasText';
 import { act, cleanup, render, screen } from '@testing-library/react';
 import { createRef } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-
-import { CanvasStage, type CanvasStageRef } from '../../primitives/CanvasStage';
-import { CanvasText } from '../../primitives/CanvasText';
 
 const attempts = vi.hoisted(() => ({ count: 0 }));
 

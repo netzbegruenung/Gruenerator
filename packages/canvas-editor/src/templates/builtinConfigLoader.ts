@@ -6,4 +6,4 @@
  * built-in templates before the first lookup.
  */
 export { isValidCanvasType } from './registry';
-export { loadCanvasConfig, preloadCanvasTemplate } from '../configs/configLoader';
+export { loadCanvasConfig, preloadCanvasTemplate } from '@ggraphic/editor/configs/configLoader';

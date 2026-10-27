@@ -1,7 +1,6 @@
+import { visibleStageTexts } from '@ggraphic/editor/utils/captureStage';
 import Konva from 'konva';
 import { afterEach, describe, expect, it } from 'vitest';
-
-import { visibleStageTexts } from '../captureStage';
 
 let stage: Konva.Stage | null = null;
 

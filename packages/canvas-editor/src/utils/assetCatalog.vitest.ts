@@ -1,7 +1,3 @@
-import { describe, expect, it } from 'vitest';
-
-import { GRUENE_ASSET_CATALOG } from '../brand/grueneAssetCatalog';
-
 import {
   type CanvasAssetCatalog,
   createStickerInstance,
@@ -11,7 +7,10 @@ import {
   registerAssetCatalog,
   resolveAssetInstanceSrc,
   type UniversalAsset,
-} from './canvasAssets';
+} from '@ggraphic/editor/utils/canvasAssets';
+import { describe, expect, it } from 'vitest';
+
+import { GRUENE_ASSET_CATALOG } from '../brand/grueneAssetCatalog';
 
 const NO_HOST: CanvasAssetCatalog = { assets: [], isInstanceSrc: () => false };
 const SHOP_ID = 'asset:0b6f3c1e-8a4d-4f5e-9c2a-7d1e5b3a9f10';

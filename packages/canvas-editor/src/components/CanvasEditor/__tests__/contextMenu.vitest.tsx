@@ -3,6 +3,8 @@
  * für die Auswahl, ein Eintrag läuft über dieselbe Tür wie Taste und Leiste,
  * und Strg+Z nimmt ihn zurück.
  */
+import { loadCanvasConfig } from '@ggraphic/editor/configs/configLoader';
+import { CanvasClipboard } from '@ggraphic/editor/utils/canvasClipboard';
 import { createShape } from '@ggraphic/editor/utils/shapes';
 import { act, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
@@ -10,12 +12,10 @@ import Konva from 'konva';
 import React from 'react';
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 
-import { loadCanvasConfig } from '../../../configs/configLoader';
 import { axe } from '../../../test-utils';
-import { CanvasClipboard } from '../../../utils/canvasClipboard';
 import { CanvasEditor } from '../index';
 
-vi.mock('../../../sidebar/UserUploadsProvider', () => ({
+vi.mock('@ggraphic/editor/sidebar/UserUploadsProvider', () => ({
   // ToolbarStateBridge liest die Uploads optional (Erweitern).
   useOptionalUserUploads: () => null,
   UserUploadsProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,

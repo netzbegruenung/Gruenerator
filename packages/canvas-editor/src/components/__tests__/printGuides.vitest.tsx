@@ -8,12 +8,11 @@ import {
   printGeometry,
   type PrintCanvasFormat,
 } from '@ggraphic/editor/formats/index';
+import { CanvasStage, type CanvasStageRef } from '@ggraphic/editor/primitives/CanvasStage';
+import { withSelectionChromeHidden } from '@ggraphic/editor/utils/captureStage';
 import { render } from '@testing-library/react';
 import { createRef } from 'react';
 import { describe, expect, it } from 'vitest';
-
-import { CanvasStage, type CanvasStageRef } from '../../primitives/CanvasStage';
-import { withSelectionChromeHidden } from '../../utils/captureStage';
 
 import type Konva from 'konva';
 

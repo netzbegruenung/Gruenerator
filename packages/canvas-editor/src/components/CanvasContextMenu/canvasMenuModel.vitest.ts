@@ -1,14 +1,13 @@
-import { formatShortcut, shortcutOf } from '@ggraphic/editor/utils/canvasCommandRegistry';
-import { describe, expect, it } from 'vitest';
-
 import {
   buildCanvasMenu,
   type CanvasMenuEntry,
   type CanvasMenuEnv,
   type CanvasMenuSnapshot,
-} from './canvasMenuModel';
+} from '@ggraphic/editor/components/CanvasContextMenu/canvasMenuModel';
+import { formatShortcut, shortcutOf } from '@ggraphic/editor/utils/canvasCommandRegistry';
+import { describe, expect, it } from 'vitest';
 
-import type { SelectionCapabilities } from '../../utils/selectionCapabilities';
+import type { SelectionCapabilities } from '@ggraphic/editor/utils/selectionCapabilities';
 
 const CAPS: SelectionCapabilities = {
   count: 1,

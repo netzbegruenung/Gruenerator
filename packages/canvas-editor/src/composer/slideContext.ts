@@ -1,11 +1,11 @@
 import { type ComposerBrand } from '@ggraphic/editor/brand/composerBrand';
+import { type AdditionalText } from '@ggraphic/editor/configs/types';
 import { type CanvasFormat } from '@ggraphic/editor/formats/index';
 import { type ShapeInstance } from '@ggraphic/editor/utils/shapes';
 import { type TextAccent } from '@ggraphic/editor/utils/textUtils';
 import { type SharepicCreatorLocale, type SharepicThema } from '@gruenerator/contracts';
 
 import { type BrandTheme } from '../brand/theme';
-import { type AdditionalText } from '../configs/types';
 
 import { type MeasureText } from './chromeParts';
 import { type Column, type ComposedSlide, type ComposeOptions } from './composeTypes';

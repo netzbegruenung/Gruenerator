@@ -1,7 +1,10 @@
+import {
+  ASSET_TARGET_SIZE,
+  type AssetInstance,
+  resolveAssetInstanceSrc,
+} from '@ggraphic/editor/utils/canvasAssets';
 import { type SavedProfilbildSticker } from '@gruenerator/contracts';
 import { isAssetStickerId } from '@gruenerator/contracts';
-
-import { ASSET_TARGET_SIZE, type AssetInstance, resolveAssetInstanceSrc } from './canvasAssets';
 
 export { type AssetInstance };
 

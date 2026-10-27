@@ -3,13 +3,12 @@
  * step) only feeds auto-save. With `autoSave={false}` — collab and multi-page
  * decks — it used to run anyway: a wasted main-thread encode after every edit.
  */
+import { GenericCanvas } from '@ggraphic/editor/components/GenericCanvas';
+import { loadCanvasConfig } from '@ggraphic/editor/configs/configLoader';
 import { AutoSaveStoreProvider } from '@ggraphic/editor/stores/AutoSaveStoreProvider';
+import { captureStageImage } from '@ggraphic/editor/utils/captureStage';
 import { act, render } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-
-import { loadCanvasConfig } from '../../configs/configLoader';
-import { captureStageImage } from '../../utils/captureStage';
-import { GenericCanvas } from '../GenericCanvas';
 
 import type * as StoreModule from '@ggraphic/editor/stores/createCanvasEditorStore';
 import type { CanvasEditorStoreApi } from '@ggraphic/editor/stores/createCanvasEditorStore';
@@ -26,11 +25,11 @@ vi.mock('@ggraphic/editor/stores/createCanvasEditorStore', async (importOriginal
     },
   };
 });
-vi.mock('../../utils/captureStage', () => ({
+vi.mock('@ggraphic/editor/utils/captureStage', () => ({
   captureStageImage: vi.fn(() => 'data:image/png;base64,AAAA'),
 }));
 // Das eigentliche Speichern (Share-Store, Netz) ist nicht Gegenstand hier.
-vi.mock('../../hooks/useCanvasAutoSave', () => ({
+vi.mock('@ggraphic/editor/hooks/useCanvasAutoSave', () => ({
   useCanvasAutoSave: () => ({ status: 'idle', shareToken: null, retry: async () => {} }),
 }));
 

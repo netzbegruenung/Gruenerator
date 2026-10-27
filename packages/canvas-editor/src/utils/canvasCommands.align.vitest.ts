@@ -1,13 +1,12 @@
 import { createCanvasEditorStore } from '@ggraphic/editor/stores/createCanvasEditorStore';
+import { createCanvasCommands } from '@ggraphic/editor/utils/canvasCommands';
 import { CANVAS_ITEM_ID_ATTR, CANVAS_ITEM_NAME } from '@ggraphic/editor/utils/deepSelect';
 import { axisAlignedBounds, readNodeFrame } from '@ggraphic/editor/utils/orientation';
 import Konva from 'konva';
 import { describe, expect, it, vi } from 'vitest';
 
-import { createCanvasCommands } from './canvasCommands';
-
-import type { BaseCanvasState } from '../configs/factory/baseTypes';
-import type { LayoutResult } from '../configs/types';
+import type { BaseCanvasState } from '@ggraphic/editor/configs/factory/baseTypes';
+import type { LayoutResult } from '@ggraphic/editor/configs/types';
 
 /**
  * Ausrichten, Verteilen und Position über die Befehls-Türen — dieselbe

@@ -6,7 +6,7 @@ import { PiDropHalfBottom } from 'react-icons/pi';
 
 import { colorName } from '../../../utils/colorNames';
 
-import type { ShadowPatch } from '../../../hooks/useFloatingModuleHandlers';
+import type { ShadowPatch } from '@ggraphic/editor/hooks/useFloatingModuleHandlers';
 
 interface FloatingShadowControlProps {
   shadowColor?: string;

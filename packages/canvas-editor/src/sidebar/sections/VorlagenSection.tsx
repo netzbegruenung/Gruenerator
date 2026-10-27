@@ -22,6 +22,7 @@
  * Vorlage there; on content it asks first — open the Vorlage as a new design,
  * or replace with it (one undo step, offered back through the top bar banner).
  */
+import { useCanvasEditorServices } from '@ggraphic/editor/CanvasEditorProvider';
 import {
   getCanvasFormat,
   isPrintFormat,
@@ -66,7 +67,6 @@ import {
 } from 'react';
 import { v4 as uuid } from 'uuid';
 
-import { useCanvasEditorServices } from '../../CanvasEditorProvider';
 import {
   carryImpressum,
   isDeckEmpty,
@@ -87,13 +87,13 @@ import { rankVorlagen } from '../../utils/vorlagenRelevance';
 import { GalleryTabs } from './StudioGallery';
 
 import type { BrandLocale } from '../../brand/theme';
-import type { CanvasSpecEditBridge } from '../../CanvasEditorProvider';
-import type { HeterogeneousPage } from '../../configs/types';
 import type {
   CanvasPrintService,
   CanvasVorlagenService,
   VorlagePage,
 } from '../../grueneratorHostServices';
+import type { CanvasSpecEditBridge } from '@ggraphic/editor/CanvasEditorProvider';
+import type { HeterogeneousPage } from '@ggraphic/editor/configs/types';
 
 /** Lets the editor hand a tile dropped on a page to the tab. */
 export interface VorlagenSectionHandle {

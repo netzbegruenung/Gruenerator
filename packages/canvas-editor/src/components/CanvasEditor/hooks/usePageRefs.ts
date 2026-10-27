@@ -1,6 +1,6 @@
 import React, { useMemo, useRef } from 'react';
 
-import type { GenericCanvasRef } from '../../GenericCanvas';
+import type { GenericCanvasRef } from '@ggraphic/editor/components/GenericCanvas';
 
 export interface PageRefs {
   /** One GenericCanvas ref per page (imperative handle). */

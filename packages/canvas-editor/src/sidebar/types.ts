@@ -1,4 +1,4 @@
-import type { AdditionalText } from '../configs/types';
+import type { AdditionalText } from '@ggraphic/editor/configs/types';
 import type { SidebarTab, SidebarTabId } from '@ggraphic/editor/sidebar/tabTypes';
 
 export type {

@@ -5,9 +5,9 @@ import { describe, expect, it, vi } from 'vitest';
 
 import { ContextControls } from '../ContextControls';
 
-import type { BackgroundControls } from '../../../configs/types';
-import type { FloatingModuleState } from '../../../hooks/useFloatingModuleState';
-import type * as MediaPlacement from '../../../utils/mediaPlacement';
+import type { BackgroundControls } from '@ggraphic/editor/configs/types';
+import type { FloatingModuleState } from '@ggraphic/editor/hooks/useFloatingModuleState';
+import type * as MediaPlacement from '@ggraphic/editor/utils/mediaPlacement';
 
 /**
  * Die Hintergrund-Knöpfe der Kontextleiste: Farbfläche und Foto ersetzen den
@@ -15,7 +15,7 @@ import type * as MediaPlacement from '../../../utils/mediaPlacement';
  * wie sie `config.background` liefert.
  */
 
-vi.mock('../../../sidebar/UserUploadsProvider', () => {
+vi.mock('@ggraphic/editor/sidebar/UserUploadsProvider', () => {
   const uploads = {
     items: [],
     isLoading: false,
@@ -198,7 +198,7 @@ describe('Foto ausgewählt', () => {
   });
 });
 
-vi.mock('../../../utils/mediaPlacement', async (importOriginal) => ({
+vi.mock('@ggraphic/editor/utils/mediaPlacement', async (importOriginal) => ({
   ...(await importOriginal<typeof MediaPlacement>()),
   fetchShareImageFile: async () => new File(['x'], 'foto.jpg'),
 }));

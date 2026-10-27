@@ -23,6 +23,8 @@
  * - useToolbarHandlers     — bundled toolbar actions for the active page
  */
 
+import { useCanvasEditorServices } from '@ggraphic/editor/CanvasEditorProvider';
+import { PAGE_PERSISTED_STATE_KEYS } from '@ggraphic/editor/collab/pageElementStateKeys';
 import { serializeDeck } from '@ggraphic/editor/collab/pagesDoc';
 import { createPageSyncedCallbacks } from '@ggraphic/editor/collab/wrapCallbacksWithPageSync';
 import { CanvasTextEditorProvider } from '@ggraphic/editor/components/CanvasTextOverlay';
@@ -32,12 +34,22 @@ import {
   isPrintFormat,
   isSlideFormat,
 } from '@ggraphic/editor/formats/index';
+import {
+  usePageManager,
+  useMultiPageExport,
+  usePageThumbnails,
+  type InitialPageDef,
+} from '@ggraphic/editor/hooks/index';
 import { AnnouncerContext, useLiveAnnouncer } from '@ggraphic/editor/hooks/useAnnounce';
+import { useDeckAutoSave } from '@ggraphic/editor/hooks/useDeckAutoSave';
+import { browserFileDelivery } from '@ggraphic/editor/hostServices';
+import { UserUploadsProvider } from '@ggraphic/editor/sidebar/UserUploadsProvider';
 import { useCanvasStoreSelector } from '@ggraphic/editor/stores/CanvasStoreProvider';
 import { AutoSaveStoreProvider } from '@ggraphic/editor/stores/useAutoSaveStore';
 import { Skeleton } from '@ggraphic/editor/ui/skeleton';
 import { cn } from '@ggraphic/editor/utils/cn';
 import { ensureFontsReady } from '@ggraphic/editor/utils/ensureFontsReady';
+import { sameLayerEntries } from '@ggraphic/editor/utils/layerLabels';
 import Konva from 'konva';
 import React, {
   useCallback,
@@ -50,8 +62,6 @@ import React, {
   startTransition,
 } from 'react';
 
-import { useCanvasEditorServices } from '../../CanvasEditorProvider';
-import { PAGE_PERSISTED_STATE_KEYS } from '../../collab/pageElementStateKeys';
 import { shareImageText } from '../../configs/shareSection';
 import { exportPptxDeck } from '../../export/pptx/exportPptxDeck';
 import {
@@ -62,17 +72,9 @@ import {
   type PrintExportPage,
 } from '../../export/printExport';
 import { exportSlidesPdf } from '../../export/slidesPdf';
-import {
-  usePageManager,
-  useMultiPageExport,
-  usePageThumbnails,
-  type InitialPageDef,
-} from '../../hooks';
-import { useDeckAutoSave } from '../../hooks/useDeckAutoSave';
 import { useIsCanvasMobile } from '../../hooks/useIsCanvasMobile';
 import { useZoomGestures } from '../../hooks/useZoomGestures';
 import { HOST_CALLBACK_KEYS } from '../../hostCallbackKeys';
-import { browserFileDelivery } from '../../hostServices';
 import { CanvasEditorLayout } from '../../layouts';
 import { SidebarTabBar, SidebarPanel } from '../../sidebar';
 import { LayersSection } from '../../sidebar/sections/LayersSection';
@@ -81,7 +83,6 @@ import {
   VorlagenSection,
   type VorlagenSectionHandle,
 } from '../../sidebar/sections/VorlagenSection';
-import { UserUploadsProvider } from '../../sidebar/UserUploadsProvider';
 import {
   buildSlideLayout,
   slideLayoutConfigId,
@@ -89,7 +90,6 @@ import {
 } from '../../slides/slideLayouts';
 import { type CanvasConfigId } from '../../templates/registry';
 import { collectAltTextPages as collectCapturedAltTextPages } from '../../utils/collectAltTextPages';
-import { sameLayerEntries } from '../../utils/layerLabels';
 import { photoCreditLine } from '../../utils/photoCredit';
 import { pagePhotoCredits } from '../../utils/photoCredits';
 import { scrollBehavior } from '../../utils/scrollBehavior';
@@ -130,9 +130,13 @@ import { PageWrapper } from './PageWrapper';
 import { formatHasVorlagen, vorlagenTab, withVorlagenTab } from './vorlagenTab';
 
 import type { CanvasEditorProps, PageWrapperProps } from './types';
-import type { AltTextPage, AltTextScope, CanvasSpecEditBridge } from '../../CanvasEditorProvider';
 import type { SidebarTabId } from '../../sidebar/types';
-import type { ToolbarStateReport } from '../GenericCanvas';
+import type {
+  AltTextPage,
+  AltTextScope,
+  CanvasSpecEditBridge,
+} from '@ggraphic/editor/CanvasEditorProvider';
+import type { ToolbarStateReport } from '@ggraphic/editor/components/GenericCanvas';
 import type { ExportOptions } from '@ggraphic/editor/types/editorTypes';
 import type { LayerSelectionChange } from '@ggraphic/editor/utils/layerSelection';
 

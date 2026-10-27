@@ -1,13 +1,12 @@
 import { CanvasItemLockContext } from '@ggraphic/editor/components/canvasItemLock';
 import { AnnouncerContext } from '@ggraphic/editor/hooks/useAnnounce';
+import { CanvasStage, type CanvasStageRef } from '@ggraphic/editor/primitives/CanvasStage';
 import { UserImagePrimitive } from '@ggraphic/editor/primitives/UserImagePrimitive';
 import { createCanvas } from '@napi-rs/canvas';
 import { act, fireEvent, render, waitFor } from '@testing-library/react';
 import { type default as Konva } from 'konva';
 import { createRef } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-
-import { CanvasStage, type CanvasStageRef } from '../CanvasStage';
 
 beforeEach(() => {
   vi.spyOn(window, 'Image').mockImplementation(function () {

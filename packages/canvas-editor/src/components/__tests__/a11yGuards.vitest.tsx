@@ -12,13 +12,13 @@ import {
   CanvasTextEditorProvider,
   preloadRichText,
 } from '@ggraphic/editor/components/CanvasTextOverlay';
+import { CanvasStage, type CanvasStageRef } from '@ggraphic/editor/primitives/CanvasStage';
+import { CanvasText } from '@ggraphic/editor/primitives/CanvasText';
 import { CanvasStoreProvider } from '@ggraphic/editor/stores/CanvasStoreProvider';
 import { act, cleanup, render, screen } from '@testing-library/react';
 import { createRef } from 'react';
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 
-import { CanvasStage, type CanvasStageRef } from '../../primitives/CanvasStage';
-import { CanvasText } from '../../primitives/CanvasText';
 import { SidebarPanel } from '../../sidebar/SidebarPanel';
 import { SidebarTabBar } from '../../sidebar/SidebarTabBar';
 import { axe } from '../../test-utils';
@@ -26,8 +26,8 @@ import { MobileSelectionPill } from '../MobileSelectionPill';
 import { ContextControls } from '../TopBar/ContextControls';
 import { MobileSelectionBar } from '../TopBar/MobileSelectionBar';
 
-import type { FloatingModuleState } from '../../hooks/useFloatingModuleState';
 import type { SidebarTab } from '../../sidebar/types';
+import type { FloatingModuleState } from '@ggraphic/editor/hooks/useFloatingModuleState';
 
 vi.hoisted(() => {
   const target = new EventTarget() as EventTarget & {

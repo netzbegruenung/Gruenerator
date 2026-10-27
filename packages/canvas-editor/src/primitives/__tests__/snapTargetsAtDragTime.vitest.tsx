@@ -6,12 +6,11 @@
  * verschoben wurde, war für ihn also noch an der alten Stelle — die linke
  * Kante eines verschobenen Textes zog nicht an.
  */
+import { CanvasStage, type CanvasStageRef } from '@ggraphic/editor/primitives/CanvasStage';
+import { CanvasText } from '@ggraphic/editor/primitives/CanvasText';
 import { act, render } from '@testing-library/react';
 import { createRef } from 'react';
 import { describe, expect, it } from 'vitest';
-
-import { CanvasStage, type CanvasStageRef } from '../CanvasStage';
-import { CanvasText } from '../CanvasText';
 
 import type { SnapTarget } from '@ggraphic/editor/utils/snapping';
 import type Konva from 'konva';

@@ -6,13 +6,12 @@
  * gerechnet werden; und weil Safari über ein Canvas allein nichts lädt, muss
  * die Messung den Schnitt selbst anfordern, sonst käme `loadingdone` nie.
  */
+import { CanvasRichText } from '@ggraphic/editor/primitives/CanvasRichText';
+import { CanvasStage, type CanvasStageRef } from '@ggraphic/editor/primitives/CanvasStage';
 import { measureTextWidthWithFont } from '@ggraphic/editor/utils/textUtils';
 import { act, render } from '@testing-library/react';
 import { createRef } from 'react';
 import { describe, expect, it, vi } from 'vitest';
-
-import { CanvasRichText } from '../CanvasRichText';
-import { CanvasStage, type CanvasStageRef } from '../CanvasStage';
 
 import type * as TextUtils from '@ggraphic/editor/utils/textUtils';
 import type Konva from 'konva';

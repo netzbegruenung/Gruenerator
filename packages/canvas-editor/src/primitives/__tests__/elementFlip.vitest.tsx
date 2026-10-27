@@ -1,4 +1,7 @@
+import { AssetPrimitive } from '@ggraphic/editor/primitives/AssetPrimitive';
+import { CanvasStage, type CanvasStageRef } from '@ggraphic/editor/primitives/CanvasStage';
 import { IconPrimitive } from '@ggraphic/editor/primitives/IconPrimitive';
+import { IllustrationPrimitive } from '@ggraphic/editor/primitives/IllustrationPrimitive';
 import { ShapePrimitive } from '@ggraphic/editor/primitives/ShapePrimitive';
 import { createShape, type ShapeInstance } from '@ggraphic/editor/utils/shapes';
 import { act, render } from '@testing-library/react';
@@ -6,20 +9,16 @@ import Konva from 'konva';
 import { createRef, useState } from 'react';
 import { beforeAll, describe, expect, it, vi } from 'vitest';
 
-import { AssetPrimitive } from '../AssetPrimitive';
-import { CanvasStage, type CanvasStageRef } from '../CanvasStage';
-import { IllustrationPrimitive } from '../IllustrationPrimitive';
-
 vi.mock('@ggraphic/editor/utils/canvasIcons', () => ({
   generateIconDataUrl: vi.fn(() => Promise.resolve('data:image/png;base64,AA==')),
 }));
-vi.mock('../../utils/illustrations/registry', () => ({
+vi.mock('@ggraphic/editor/utils/illustrations/registry', () => ({
   findIllustrationById: vi.fn(() =>
     Promise.resolve({ id: 'ill', name: 'ill', filename: 'ill.svg', source: 'undraw', tags: [] })
   ),
   getIllustrationPath: vi.fn(() => '/ill.svg'),
 }));
-vi.mock('../../utils/illustrations/svgCache', () => ({
+vi.mock('@ggraphic/editor/utils/illustrations/svgCache', () => ({
   getCachedSVG: vi.fn(() => 'data:image/png;base64,AA=='),
   getSVG: vi.fn(() => Promise.resolve('data:image/png;base64,AA==')),
 }));
