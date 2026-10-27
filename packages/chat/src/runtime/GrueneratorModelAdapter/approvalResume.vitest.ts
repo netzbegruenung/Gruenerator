@@ -114,4 +114,79 @@ describe('approval resume runs client tools', () => {
       result: { ergebnis: 42 },
     });
   });
+
+  it('stops at a follow-up approval after the client tool and keeps it pending', async () => {
+    const bodies: Array<Record<string, unknown>> = [];
+    const clientToolInterrupt: SseEvent[] = [
+      {
+        event: 'interrupt',
+        data: {
+          interruptType: 'client_tool',
+          toolName: 'run_python',
+          args: { code: 'print(1)' },
+          threadId: THREAD_ID,
+        },
+      },
+      { event: 'done', data: { interrupted: true } },
+    ];
+    // Der Wiederholungsversuch nach einem Fehler braucht wieder eine Freigabe.
+    const followUpApproval: SseEvent[] = [
+      {
+        event: 'interrupt',
+        data: {
+          interruptType: 'tool_approval',
+          approvalTurnId: 'turn-2',
+          calls: [
+            {
+              toolCallId: 'call-tabelle-2',
+              toolName: 'tabelle_auswerten',
+              args: { auftrag: 'Nochmal', modus: 'auswerten' },
+            },
+          ],
+        },
+      },
+      { event: 'done', data: { interrupted: true } },
+    ];
+    const fetchMock = vi.fn(async (_url: string, init?: RequestInit) => {
+      bodies.push(JSON.parse(String(init?.body)) as Record<string, unknown>);
+      const events =
+        bodies.length === 1
+          ? clientToolInterrupt
+          : bodies.length === 2
+            ? followUpApproval
+            : [{ event: 'done', data: { citations: [] } }];
+      return new Response(sseBody(events), { status: 200 });
+    });
+    useChatConfigStore.setState({ fetch: fetchMock as unknown as typeof fetch });
+
+    const adapter = createGrueneratorModelAdapter(() => config, {});
+    await drain(adapter);
+
+    expect(runPython).toHaveBeenCalledTimes(1);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+
+    // Die neue Freigabe ist offen: die nächste Entscheidung trägt ihren Zug.
+    const secondDecision = {
+      ...options,
+      unstable_getMessage: () => ({
+        role: 'assistant',
+        content: [
+          {
+            type: 'tool-call',
+            toolCallId: 'call-tabelle-2',
+            toolName: 'tabelle_auswerten',
+            args: {},
+            argsText: '{}',
+            approval: { id: 'call-tabelle-2', approved: false, optionId: 'reject-once' },
+          },
+        ],
+      }),
+    } as unknown as ChatModelRunOptions;
+    const stream = adapter.run(secondDecision) as AsyncGenerator<ChatModelRunResult, void>;
+    for await (const _ of stream) {
+      // nur der POST zählt
+    }
+    expect(bodies[2]).toMatchObject({ approvalTurnId: 'turn-2' });
+    expect(runPython).toHaveBeenCalledTimes(1);
+  });
 });

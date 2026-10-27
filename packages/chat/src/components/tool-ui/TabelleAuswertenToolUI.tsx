@@ -1,5 +1,6 @@
 'use client';
 
+import { Loader2 } from 'lucide-react';
 import { memo } from 'react';
 
 import { RunPythonToolUI } from './RunPythonToolUI';
@@ -24,10 +25,21 @@ export const TabelleAuswertenToolUI = memo(function TabelleAuswertenToolUI({
       ? String((result as { code: unknown }).code ?? '')
       : '';
 
+  // Solange kein Ergebnis da ist, gibt es auch keinen Code — nur die Statuszeile.
+  // Ein Fehlschlag ist ein Ergebnis und zeigt die Karte mit der Meldung.
+  const done = result !== undefined;
+
   return (
     <div className="my-2">
-      {auftrag && <p className="px-1 text-xs text-foreground-muted">{auftrag}</p>}
-      <RunPythonToolUI args={{ code }} result={result} />
+      {(auftrag || !done) && (
+        <p className="flex items-center gap-1.5 px-1 text-xs text-foreground-muted">
+          {!done && (
+            <Loader2 aria-hidden className="h-3 w-3 flex-shrink-0 animate-spin text-primary" />
+          )}
+          <span>{auftrag || 'Tabelle wird ausgewertet…'}</span>
+        </p>
+      )}
+      {done && <RunPythonToolUI args={{ code }} result={result} />}
     </div>
   );
 });

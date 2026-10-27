@@ -40,7 +40,10 @@ export async function setToolDecision(input: {
   }
 }
 
-/** Eigene Werkzeuge mit Freigabe-Gate: der Werkzeugname allein sagt Nutzer*innen nichts. */
+/**
+ * Eigene Werkzeuge mit Freigabe-Gate: der Werkzeugname allein sagt Nutzer*innen nichts.
+ * Neues internes Werkzeug → auch `INTERNAL_APPROVAL_DISPLAY` in packages/chat/src/lib/toolApproval.ts.
+ */
 const INTERNAL_TOOL_LABELS: Record<string, string> = {
   'internal/tabelle_auswerten': 'Tabellen auswerten (Python im Browser)',
 };
@@ -51,4 +54,20 @@ export function toolNameFromScopeKey(scopeKey: string): string {
   if (internal) return internal;
   const slash = scopeKey.indexOf('/');
   return slash >= 0 ? scopeKey.slice(slash + 1) : scopeKey;
+}
+
+/**
+ * Anzeigename einer gespeicherten Freigabe. Für eigene Werkzeuge speichert der
+ * Server den Katalognamen als `toolLabel` (kein Dienst, kein Titel) — dort gewinnt
+ * der deutsche Name; Konnektor-Labels bleiben, wie der Server sie liefert.
+ */
+export function approvalDisplayLabel(approval: {
+  scopeKey: string;
+  toolLabel: string | null;
+}): string {
+  return (
+    INTERNAL_TOOL_LABELS[approval.scopeKey] ??
+    approval.toolLabel ??
+    toolNameFromScopeKey(approval.scopeKey)
+  );
 }

@@ -10,7 +10,8 @@ describe('TabelleAuswertenToolUI', () => {
   it('zeigt den Auftrag und läuft, solange kein Ergebnis da ist', () => {
     render(<TabelleAuswertenToolUI args={args} />);
     expect(screen.getByText('Summe der Spenden je Kreisverband')).toBeInTheDocument();
-    expect(screen.getByText('wird ausgeführt…')).toBeInTheDocument();
+    // Ohne Ergebnis gibt es noch keinen Code — also auch keine Code-Karte.
+    expect(screen.queryByText('Tabellen-Berechnung')).not.toBeInTheDocument();
   });
 
   it('legt den erzeugten Code aus dem Ergebnis hinter „Code anzeigen"', async () => {

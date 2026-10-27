@@ -59,6 +59,7 @@ export function approvalDecidedLabel(approval: ToolApprovalState): string {
 /**
  * Eigene Werkzeuge mit Freigabe-Gate: der Server schickt für sie weder Titel
  * noch Dienst, der Katalogname allein sagt Nutzer*innen nichts.
+ * Neues internes Werkzeug → auch `INTERNAL_TOOL_LABELS` in apps/web/src/features/mcp/lib/toolApprovalsApi.ts.
  */
 const INTERNAL_APPROVAL_DISPLAY: Record<string, { title: string; description: string }> = {
   tabelle_auswerten: {
