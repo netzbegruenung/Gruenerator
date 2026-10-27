@@ -220,6 +220,10 @@ allowBuilds:
 # 72-125 ms of JS in it while the UI thread mounted the rows. The patch skips
 # the emit on mount and whenever the serialized props are unchanged. Still
 # unfixed upstream in 58.0.19. Guarded by apps/mobile/test/domPropsEmit.test.tsx.
+# Since SDK 58 the `exports` map sends `expo/dom` to `build/`; `src/` is only
+# read under Expo's internal `expo-source` condition, which neither Metro nor
+# jest sets. The patch therefore changes both files — patching `src/` alone
+# applied cleanly and did nothing.
 # Lockfile: `expo` depends on packages that peer-depend on `expo`, a peer
 # cycle. pnpm writes the ~140 peer suffixes that close it as a bare
 # `(expo@58.0.19)`, without the patch hash, by design; the importer and the
