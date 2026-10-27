@@ -80,11 +80,19 @@ export function shouldForceFirstToolCall(input: {
   /** Der Vorab-Abruf hat für DIESEN Turn Passagen aus den angehängten
    *  Dokumenten in die Quellenregistry gelegt (`seedAttachedDocuments`). */
   attachedSeedDelivered?: boolean;
+  /** Der Zug wird fortgesetzt (Freigabe, Client-Werkzeug, Rückfrage —
+   *  `resumeApproval`): sein erster Schritt lief schon vor der Pause. */
+  resumesSuspendedTurn?: boolean;
 }): ForceReason | null {
   // Der Bann vetoed alles. `toolChoice: 'required'` ist kein Vorschlag, den das
   // Modell gegen den Satz des Nutzers abwägen kann — unter „ohne neue Recherche"
   // sind die verbleibenden Werkzeuge die falschen.
   if (input.researchBanned) return null;
+
+  // Eine Fortsetzung hat ihren ersten Schritt schon hinter sich. Erneut zu
+  // zwingen kostete je Pause eine zusätzliche Suche plus Planer-Runde (live
+  // 27.10.2026: „erzwungener erster Aufruf (named_intent)" nach jeder Freigabe).
+  if (input.resumesSuspendedTurn) return null;
 
   // Fünfter Weg: die Person hat ein Werkzeug BENANNT. Er steht neben dem
   // Intent-Weg unten und nicht in ihm, weil ein Pin keinen Intent mehr braucht —

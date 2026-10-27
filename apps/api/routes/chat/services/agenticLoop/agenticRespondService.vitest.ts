@@ -563,6 +563,20 @@ describe('streamAgenticResponse — Zuschnitt des erzwungenen ersten Schritts (#
     expect(p.firstStepTools).toEqual(['gruenerator_search']);
   });
 
+  it('Fortsetzung desselben Zuges: kein erneuter Zwang auf den ersten Schritt', async () => {
+    const p = await loopParams(fakeState({ intent: 'search' }), 'Frage?', catalogWith(MOUNTED), {
+      resumeApproval: {
+        priorSteps: [
+          { toolCallId: 'c0', toolName: 'gruenerator_search', args: {}, result: {} },
+        ] satisfies PersistedStep[],
+        approved: [],
+        denied: [],
+      },
+    });
+    expect(p.forceFirstToolCall).toBe(false);
+    expect(p.firstStepTools).toBeNull();
+  });
+
   it('named_intent mit Anhang ohne Vorab-Treffer: nur die angehängten Dokumente (#3888)', async () => {
     // Ohne `searchQuery`/`lastUserTextNoMentions` hat der Vorab-Abruf keine
     // Anfrage und liefert nichts — der Fall, in dem der Zwang stehen bleibt.

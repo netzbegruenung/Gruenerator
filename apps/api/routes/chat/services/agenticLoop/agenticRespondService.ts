@@ -668,6 +668,7 @@ export async function streamAgenticResponse(
       sharepicOrder: await isSharepicOrder(),
       artifactEditOrder: finalState.artifactEditOrder === true,
       attachedSeedDelivered: seeded.delivered,
+      resumesSuspendedTurn: resumeApproval != null,
     });
     const forceFirstToolCall = forceReason !== null;
 

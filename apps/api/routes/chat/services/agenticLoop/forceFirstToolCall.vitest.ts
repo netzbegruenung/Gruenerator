@@ -28,6 +28,7 @@ const base = {
   hasAttachedDocuments: false,
   summaryAsk: false,
   attachedSeedDelivered: false,
+  resumesSuspendedTurn: false,
 };
 
 const force = (over: Partial<typeof base> = {}) => shouldForceFirstToolCall({ ...base, ...over });
@@ -35,6 +36,23 @@ const force = (over: Partial<typeof base> = {}) => shouldForceFirstToolCall({ ..
 describe('shouldForceFirstToolCall', () => {
   it('erzwingt nichts, wenn kein Weg zutrifft', () => {
     expect(force()).toBeNull();
+  });
+
+  // Eine Fortsetzung (Freigabe, Client-Werkzeug, Rückfrage) setzt einen Zug fort,
+  // dessen erster Schritt schon lief. Live 27.10.2026: nach jedem „Einmal
+  // erlauben" erneut „erzwungener erster Aufruf (named_intent)" — eine zusätzliche
+  // gruenerator_search plus Planer-Runde je Fortsetzung.
+  it('erzwingt bei einer Fortsetzung desselben Zuges nichts mehr', () => {
+    expect(force({ intent: 'search', resumesSuspendedTurn: true })).toBeNull();
+    expect(force({ pinnedTool: 'web_search', resumesSuspendedTurn: true })).toBeNull();
+    expect(
+      force({ hasAttachedDocuments: true, summaryAsk: true, resumesSuspendedTurn: true })
+    ).toBeNull();
+  });
+
+  it('ein frischer Zug bleibt unverändert', () => {
+    expect(force({ intent: 'search' })).toBe('named_intent');
+    expect(force({ pinnedTool: 'web_search' })).toBe('pinned');
   });
 
   // Achter Weg. Der gemessene Ausfall (23.08.2026): ein 21.785-Zeichen-PDF war
