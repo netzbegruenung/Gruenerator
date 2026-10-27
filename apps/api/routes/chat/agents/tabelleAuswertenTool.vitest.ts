@@ -21,6 +21,7 @@ vi.mock('../services/attachmentPersistenceService.js', () => ({
 import {
   clientCanUseTabularToolFrom,
   isTabelleAuswertenMountable,
+  makeTabelleAuswertenTool,
   tabelleAuswertenClientTool,
   TABELLE_AUSWERTEN_TOOL,
 } from './tabelleAuswertenTool.js';
@@ -79,6 +80,17 @@ describe('tabelle_auswerten: Client-Fähigkeit', () => {
         clientCanUseTabularTool: clientCanUseTabularToolFrom(['run_python', 'tabelle_auswerten']),
       })
     ).toBe(true);
+  });
+});
+
+// Live 27.10.2026: statt zu rufen schrieb das Modell „Bitte bestätige den Aufruf
+// des Analyse-Werkzeugs" bzw. „Dazu rufe ich nun das entsprechende Werkzeug auf."
+describe('tabelle_auswerten Beschreibung', () => {
+  it('verlangt den direkten Aufruf — die Freigabe fragt das System', () => {
+    const description = makeTabelleAuswertenTool().description ?? '';
+    expect(description).toContain('Rufe es direkt auf');
+    expect(description).toContain('Freigabe fragt das System selbst');
+    expect(description).toContain('nie im Text um Bestätigung');
   });
 });
 

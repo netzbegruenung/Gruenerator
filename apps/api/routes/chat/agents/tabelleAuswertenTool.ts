@@ -93,6 +93,8 @@ export function makeTabelleAuswertenTool(): Tool {
 
 NUTZE WENN eine Antwort aus den Tabellendaten berechnet werden muss — jede Summe, jeder Durchschnitt, jede Zählung, Filterung, Sortierung, Datumslogik oder das Ausfüllen der Datei (\`modus: "ausfuellen"\`). Rechne NIE selbst aus dem Tabellentext und schreibe NIE einen Python-Block in die Antwort.
 
+Rufe es direkt auf — die Freigabe fragt das System selbst ab. Bitte nie im Text um Bestätigung und kündige den Aufruf nie nur an.
+
 Bei einem Fehler (\`error\`) rufe es mit einem präzisierten \`auftrag\` erneut auf (z. B. mit dem richtigen Spaltennamen) — höchstens zweimal. Hat die Person die Ausführung abgelehnt, antworte ohne Rechnung aus dem Kontext und sag deutlich, dass die Zahlen nicht berechnet wurden.`,
     inputSchema: tabelleAuswertenInputSchema,
     execute: async () => ({ error: 'tabelle_auswerten wird nie direkt ausgeführt.' }),

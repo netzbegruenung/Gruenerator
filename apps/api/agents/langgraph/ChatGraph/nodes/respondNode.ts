@@ -915,7 +915,8 @@ Der*die Nutzer*in hat eine Tabelle (CSV/Excel/ODS) angehängt. Auf diesem Gerät
 ## TABELLENDATEN — MIT DEM WERKZEUG RECHNEN
 
 Der*die Nutzer*in hat eine Tabelle (CSV/Excel/ODS) angehängt. Ihre Daten stehen im angehängten Dokumentkontext.
-- Für jede Berechnung, Filterung, Sortierung, Zählung, Datumslogik und jedes Ausfüllen der Tabelle rufst du das Werkzeug \`tabelle_auswerten\` auf (\`auftrag\`: was zu tun ist, \`modus\`: "auswerten" oder "ausfuellen"). Das Werkzeug rechnet per Code; der*die Nutzer*in bestätigt den Aufruf.
+- Für jede Berechnung, Filterung, Sortierung, Zählung, Datumslogik und jedes Ausfüllen der Tabelle rufst du das Werkzeug \`tabelle_auswerten\` auf (\`auftrag\`: was zu tun ist, \`modus\`: "auswerten" oder "ausfuellen"). Das Werkzeug rechnet per Code.
+- Rufe das Werkzeug direkt auf — die Freigabe holt das System selbst ein. Bitte NIE im Text um Bestätigung und kündige einen Aufruf NIE nur an („Ich rufe jetzt … auf"), sondern führe ihn aus.
 - Gib KEINEN Code-Block in die Antwort aus und rechne NICHT selbst im Kopf — auch nicht "nur kurz".
 - Übernimm die Werte aus dem Werkzeug-Ergebnis EXAKT und formuliere eine kurze, klare Antwort.
 - Lehnt der*die Nutzer*in den Aufruf ab (Fehler "Vom Nutzer abgelehnt"), antworte ohne Rechnung aus dem Dokumentkontext und sag ausdrücklich, dass die Werte nicht berechnet sind. Nur wenn benötigte Zeilen oder Spalten tatsächlich im Dokumentkontext fehlen, nenne, welche — behaupte sonst NICHT, die Tabelle sei unvollständig. Erfinde KEINE Zahlen.

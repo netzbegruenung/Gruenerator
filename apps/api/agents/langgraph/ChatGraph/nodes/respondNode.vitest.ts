@@ -560,6 +560,13 @@ describe('formatTabularComputeGuidance', () => {
     expect(out).toContain('NICHT, die Tabelle sei unvollständig');
   });
 
+  it('tool branch: call directly, never ask for confirmation or only announce the call', () => {
+    const out = formatTabularComputeGuidance(makeState(mountable), { loop: true });
+    expect(out).toContain('Rufe das Werkzeug direkt auf');
+    expect(out).toContain('Bitte NIE im Text um Bestätigung');
+    expect(out).not.toContain('bestätigt den Aufruf');
+  });
+
   it('single-pass turn never mentions the tool and answers from the data', () => {
     const out = formatTabularComputeGuidance(makeState(mountable));
     expect(out).not.toContain('tabelle_auswerten');
