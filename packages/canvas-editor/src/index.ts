@@ -18,8 +18,10 @@ export type {
 } from './CanvasEditorProvider';
 
 export { StandaloneCanvas } from './components/StandaloneCanvas';
+export { ConfigCanvas } from './components/ConfigCanvas';
 export { commitOpenTextEdit } from './components/CanvasTextOverlay';
 export type { StandaloneCanvasProps } from './components/StandaloneCanvas';
+export type { ConfigCanvasProps } from './components/ConfigCanvas';
 export { GenericCanvas } from './components/GenericCanvas';
 export type { GenericCanvasProps, GenericCanvasRef } from './components/GenericCanvas';
 export { defineTemplate, registerTemplates } from './templates/registry';

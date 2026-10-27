@@ -233,6 +233,18 @@ export function pinnedFormatId(templateId: string): string | null {
   return PINNED_TEMPLATE_FORMATS[templateId] ?? null;
 }
 
+/**
+ * The digital format of exactly this size, for a template that comes without
+ * one: the stage scales the template's space onto its format per axis, so the
+ * default 4:5 format would stretch any other size.
+ */
+export function formatIdForSize(width: number, height: number): string | null {
+  return (
+    CANVAS_FORMATS.find((f) => !isPrintFormat(f) && f.width === width && f.height === height)?.id ??
+    null
+  );
+}
+
 export function getCanvasFormat(id: string): CanvasFormat | null {
   return CANVAS_FORMATS.find((f) => f.id === id) ?? null;
 }
