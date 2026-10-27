@@ -9,6 +9,8 @@
  * Ids in `layerOrder`, dann der Rest in der Standardreihenfolge der Arten.
  */
 
+import { carryInstanceState } from '@ggraphic/editor/configs/factory/carryInstanceState';
+import { ASSET_TARGET_SIZE } from '@ggraphic/editor/utils/canvasAssets';
 import {
   chartInk,
   chartLegendPosition,
@@ -20,9 +22,6 @@ import {
 import { ICON_TARGET_SIZE, ILLUSTRATION_TARGET_SIZE } from '@ggraphic/editor/utils/motifSizes';
 import { photoStripBeside, type ShapeInstance } from '@ggraphic/editor/utils/shapes';
 import { backgroundStraighten } from '@ggraphic/editor/utils/straighten';
-
-import { carryInstanceState } from '../../configs/factory/carryInstanceState';
-import { ASSET_TARGET_SIZE } from '../../utils/canvasAssets';
 
 import {
   estimateMeasure,
@@ -42,7 +41,7 @@ import type {
   PptxShapeKind,
   PptxSlideModel,
 } from './types';
-import type { AdditionalText } from '../../configs/types';
+import type { AdditionalText } from '@ggraphic/editor/configs/types';
 import type { CanvasFormat } from '@ggraphic/editor/formats/index';
 import type { CircleBadgeInstance } from '@ggraphic/editor/utils/circleBadgeUtils';
 import type { PillBadgeInstance } from '@ggraphic/editor/utils/pillBadgeUtils';

@@ -1,3 +1,4 @@
+import { useCanvasKeyboardHandlers } from '@ggraphic/editor/hooks/useCanvasKeyboardHandlers';
 import { useCanvasUndoRedo } from '@ggraphic/editor/hooks/useCanvasUndoRedo';
 import { CanvasStoreProvider, useCanvasStore } from '@ggraphic/editor/stores/CanvasStoreProvider';
 import { createCanvasEditorStore } from '@ggraphic/editor/stores/createCanvasEditorStore';
@@ -8,11 +9,10 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { usePageUndoRedoShortcuts } from '../../components/CanvasEditor/hooks/usePageUndoRedoShortcuts';
 import { SidebarSlider } from '../../sidebar/components/SidebarSlider';
-import { useCanvasKeyboardHandlers } from '../useCanvasKeyboardHandlers';
 
-import type { BaseCanvasState } from '../../configs/factory/baseTypes';
-import type { CanvasCommands } from '../../utils/canvasCommands';
+import type { BaseCanvasState } from '@ggraphic/editor/configs/factory/baseTypes';
 import type { CanvasEditorStoreApi } from '@ggraphic/editor/stores/createCanvasEditorStore';
+import type { CanvasCommands } from '@ggraphic/editor/utils/canvasCommands';
 
 /**
  * Steht der Fokus in der Formatleiste des offenen Texteditors (Tab aus dem

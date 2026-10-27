@@ -1,9 +1,9 @@
+import { useCanvasEditorServices } from '@ggraphic/editor/CanvasEditorProvider';
+import { useUserUploads } from '@ggraphic/editor/sidebar/UserUploadsProvider';
 import { useCallback, useState } from 'react';
 import { HiPencilSquare } from 'react-icons/hi2';
 
-import { useCanvasEditorServices } from '../../../CanvasEditorProvider';
 import { MOBILE_INPUT_TEXT } from '../../sidebarStyles';
-import { useUserUploads } from '../../UserUploadsProvider';
 
 import { ImageInputPicker } from './ImageInputPicker';
 import { ToolPanel, type ToolPanelSuccess } from './ToolPanel';

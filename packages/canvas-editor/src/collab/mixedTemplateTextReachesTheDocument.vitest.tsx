@@ -31,7 +31,7 @@ window.matchMedia = (query: string) =>
 
 const pageCallbacks = new Map<string, Callbacks>();
 
-vi.mock('../components/GenericCanvas', () => ({
+vi.mock('@ggraphic/editor/components/GenericCanvas', () => ({
   GenericCanvas: ({
     initialProps,
     callbacks,
@@ -45,7 +45,7 @@ vi.mock('../components/GenericCanvas', () => ({
 }));
 
 // Pulls react-query (a second React copy in this lane); irrelevant here.
-vi.mock('../sidebar/UserUploadsProvider', () => ({
+vi.mock('@ggraphic/editor/sidebar/UserUploadsProvider', () => ({
   UserUploadsProvider: ({ children }: { children: ReactNode }) => children,
 }));
 

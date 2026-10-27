@@ -1,10 +1,18 @@
+import { useCanvasEditorServices } from '@ggraphic/editor/CanvasEditorProvider';
 import { useAllIconsCatalog, useIconCatalog } from '@ggraphic/editor/hooks/useIconCatalog';
+import { useNoStudioAssets } from '@ggraphic/editor/hostServices';
+import {
+  hasDarkPreview,
+  type AssetAudience,
+  type UniversalAsset,
+} from '@ggraphic/editor/utils/canvasAssets';
 import { CHART_TYPE_DEFS } from '@ggraphic/editor/utils/chartUtils';
 import {
   FRAME_CATEGORY_ORDER,
   FRAME_PRESETS,
   getFramePreset,
 } from '@ggraphic/editor/utils/frameUtils';
+import { getAllIllustrations } from '@ggraphic/editor/utils/illustrations/registry';
 import { getShapeDef } from '@ggraphic/editor/utils/shapes';
 import {
   shareThumbnailPreviewUrl,
@@ -17,18 +25,10 @@ import { PiImageFill } from 'react-icons/pi';
 
 import { EMOJI_ASSETS, stickerAssetsForLocale } from '../../../brand/grueneAssetCatalog';
 import { ALL_ASSETS, sortLogoAssets } from '../../../brand/grueneAssets';
-import { useCanvasEditorServices } from '../../../CanvasEditorProvider';
 import { useBlockInsert, type BlockInsertApi } from '../../../components/CanvasEditor/blockInsert';
 import { useEmojiCatalog } from '../../../hooks/useEmojiCatalog';
-import { useNoStudioAssets } from '../../../hostServices';
-import {
-  hasDarkPreview,
-  type AssetAudience,
-  type UniversalAsset,
-} from '../../../utils/canvasAssets';
 import { withTone } from '../../../utils/emoji/emojiCatalog';
 import { KAWAII_ILLUSTRATIONS } from '../../../utils/illustrations/kawaii';
-import { getAllIllustrations } from '../../../utils/illustrations/registry';
 import { UNDRAW_FEATURED } from '../../../utils/illustrations/undraw';
 import { ALL_PALETTE_SHAPES, getShapeVariant } from '../FormenSection';
 

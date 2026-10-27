@@ -1,7 +1,7 @@
+import { ASSET_TARGET_SIZE } from '@ggraphic/editor/utils/canvasAssets';
 import { createShape } from '@ggraphic/editor/utils/shapes';
 
 import { emojiAssetId } from '../brand/grueneAssetCatalog';
-import { ASSET_TARGET_SIZE } from '../utils/canvasAssets';
 
 import { type IconlisteItem, type ListeItem, type Placed } from './composeTypes';
 import { SHAREPIC_ICON_IDS } from './sharepicIcons';

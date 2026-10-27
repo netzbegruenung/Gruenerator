@@ -2,13 +2,12 @@
  * Der Rahmen speichert seine Drehung wie jedes andere Element in (−180, 180]
  * — auch wenn eine Gruppendrehung den Knoten über ±180° hinaus dreht.
  */
+import { CanvasStage, type CanvasStageRef } from '@ggraphic/editor/primitives/CanvasStage';
 import { FramePrimitive } from '@ggraphic/editor/primitives/FramePrimitive';
 import { createFrameInstance } from '@ggraphic/editor/utils/frameUtils';
 import { render } from '@testing-library/react';
 import { createRef } from 'react';
 import { describe, expect, it, vi } from 'vitest';
-
-import { CanvasStage, type CanvasStageRef } from '../CanvasStage';
 
 describe('FramePrimitive', () => {
   it('normalises a rotation past 180° on transform end', () => {

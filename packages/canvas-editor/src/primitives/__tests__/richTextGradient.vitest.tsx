@@ -3,13 +3,12 @@
  * einen eigenen Knoten. Ohne Weitergabe ging der Verlauf dort still verloren,
  * sobald ein Wort fett war.
  */
+import { CanvasStage, type CanvasStageRef } from '@ggraphic/editor/primitives/CanvasStage';
+import { CanvasText } from '@ggraphic/editor/primitives/CanvasText';
 import { render } from '@testing-library/react';
 import Konva from 'konva';
 import { createRef } from 'react';
 import { describe, expect, it } from 'vitest';
-
-import { CanvasStage, type CanvasStageRef } from '../CanvasStage';
-import { CanvasText } from '../CanvasText';
 
 import type { GradientFill } from '@ggraphic/editor/utils/gradientFill';
 

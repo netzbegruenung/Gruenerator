@@ -1,8 +1,7 @@
+import { selectionCapabilities } from '@ggraphic/editor/utils/selectionCapabilities';
 import { describe, expect, it } from 'vitest';
 
-import { selectionCapabilities } from './selectionCapabilities';
-
-import type { CanvasItem } from './canvasLayerManager';
+import type { CanvasItem } from '@ggraphic/editor/utils/canvasLayerManager';
 
 const renderList = [
   { id: 'headline', type: 'element', data: { id: 'headline', type: 'text', editable: true } },

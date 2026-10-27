@@ -682,9 +682,9 @@ importers:
       '@ggraphic/core':
         specifier: workspace:*
         version: link:../../packages/ggraphic-core
-      '@gruenerator/canvas-editor':
+      '@ggraphic/editor':
         specifier: workspace:*
-        version: link:../../packages/canvas-editor
+        version: link:../../packages/ggraphic-editor
       '@tanstack/react-query':
         specifier: ^5.104.3
         version: 5.104.5(@types/react@19.3.0)(react@19.3.0)

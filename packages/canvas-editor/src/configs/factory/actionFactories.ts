@@ -5,6 +5,7 @@
  * These eliminate the need to duplicate action logic across configs.
  */
 
+import { createAssetInstance, createStickerInstance } from '@ggraphic/editor/utils/canvasAssets';
 import {
   createChartInstance,
   type ChartInstance,
@@ -12,7 +13,10 @@ import {
 } from '@ggraphic/editor/utils/chartUtils';
 import { createCircleBadgeInstance } from '@ggraphic/editor/utils/circleBadgeUtils';
 import { brandColors } from '@ggraphic/editor/utils/colorOptions';
+import { duplicateElementInState } from '@ggraphic/editor/utils/duplicateElement';
 import { createFrameInstance } from '@ggraphic/editor/utils/frameUtils';
+import { iconInstanceIdsFor } from '@ggraphic/editor/utils/iconInstances';
+import { createIllustration } from '@ggraphic/editor/utils/illustrations/registry';
 import { createPillBadgeInstance } from '@ggraphic/editor/utils/pillBadgeUtils';
 import { createShape } from '@ggraphic/editor/utils/shapes';
 import {
@@ -28,15 +32,11 @@ import {
   balkenExtent,
   fitBalkenAfterTextEdit,
 } from '../../utils/balkenBounds';
-import { createAssetInstance, createStickerInstance } from '../../utils/canvasAssets';
-import { duplicateElementInState } from '../../utils/duplicateElement';
-import { iconInstanceIdsFor } from '../../utils/iconInstances';
-import { createIllustration } from '../../utils/illustrations/registry';
 
-import type { IconState, BaseCanvasState } from './baseTypes';
-import type { AssetInstance } from '../../utils/canvasAssets';
-import type { AdditionalText } from '../types';
+import type { IconState, BaseCanvasState } from '@ggraphic/editor/configs/factory/baseTypes';
+import type { AdditionalText } from '@ggraphic/editor/configs/types';
 import type { BalkenInstance, BalkenMode } from '@ggraphic/editor/utils/balkenUtils';
+import type { AssetInstance } from '@ggraphic/editor/utils/canvasAssets';
 import type { CircleBadgeInstance } from '@ggraphic/editor/utils/circleBadgeUtils';
 import type { FrameClipType, FrameInstance } from '@ggraphic/editor/utils/frameUtils';
 import type { IllustrationInstance } from '@ggraphic/editor/utils/illustrations/types';

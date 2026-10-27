@@ -1,9 +1,9 @@
 import { type ComposerBrand, onGround } from '@ggraphic/editor/brand/composerBrand';
+import { ASSET_TARGET_SIZE } from '@ggraphic/editor/utils/canvasAssets';
 import { createCircleBadgeInstance } from '@ggraphic/editor/utils/circleBadgeUtils';
 import { createShape } from '@ggraphic/editor/utils/shapes';
 import { type SharepicSeitenzahl, type SharepicSlide } from '@gruenerator/contracts';
 
-import { ASSET_TARGET_SIZE } from '../utils/canvasAssets';
 import { COLORS } from '../utils/dreizeilenLayout';
 import { VERANSTALTUNG_CONFIG } from '../utils/veranstaltungLayout';
 

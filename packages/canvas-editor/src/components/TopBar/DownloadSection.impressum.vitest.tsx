@@ -1,7 +1,7 @@
+import { CanvasEditorProvider } from '@ggraphic/editor/CanvasEditorProvider';
 import { fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 
-import { CanvasEditorProvider } from '../../CanvasEditorProvider';
 import { grueneratorPrint } from '../../composer/printService';
 import { axe } from '../../test-utils';
 

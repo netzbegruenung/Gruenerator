@@ -1,15 +1,15 @@
+import { type AssetInstance } from '@ggraphic/editor/utils/canvasAssets';
+import { prefetchBackground } from '@ggraphic/editor/utils/illustrations/svgCache';
 import { type ShapeInstance, type ShapeType } from '@ggraphic/editor/utils/shapes';
 import { type UserImagePlacement } from '@ggraphic/editor/utils/userImageUtils';
 import { useEffect } from 'react';
 
-import { type AssetInstance } from '../../../utils/canvasAssets';
-import { prefetchBackground } from '../../../utils/illustrations/svgCache';
 import { UNDRAW_FEATURED } from '../../../utils/illustrations/undraw';
 
 import { ElementsPanel } from './ElementsPanel';
 
-import type { BackgroundControls } from '../../../configs/types';
-import type { BalkenInstance, BalkenMode } from '../../../primitives';
+import type { BackgroundControls } from '@ggraphic/editor/configs/types';
+import type { BalkenInstance, BalkenMode } from '@ggraphic/editor/primitives/index';
 import type { ChartInstance, ChartType } from '@ggraphic/editor/utils/chartUtils';
 import type { FrameClipType, FrameInstance } from '@ggraphic/editor/utils/frameUtils';
 import type { IllustrationInstance } from '@ggraphic/editor/utils/illustrations/types';

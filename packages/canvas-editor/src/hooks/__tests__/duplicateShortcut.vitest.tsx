@@ -1,13 +1,12 @@
+import { useCanvasKeyboardHandlers } from '@ggraphic/editor/hooks/useCanvasKeyboardHandlers';
 import { createCanvasEditorStore } from '@ggraphic/editor/stores/createCanvasEditorStore';
+import { createCanvasCommands } from '@ggraphic/editor/utils/canvasCommands';
 import { renderHook } from '@testing-library/react';
 import { act } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { createCanvasCommands } from '../../utils/canvasCommands';
-import { useCanvasKeyboardHandlers } from '../useCanvasKeyboardHandlers';
-
-import type { BaseCanvasState } from '../../configs/factory/baseTypes';
-import type { LayoutResult } from '../../configs/types';
+import type { BaseCanvasState } from '@ggraphic/editor/configs/factory/baseTypes';
+import type { LayoutResult } from '@ggraphic/editor/configs/types';
 
 /**
  * Strg+D am lebenden Hook.

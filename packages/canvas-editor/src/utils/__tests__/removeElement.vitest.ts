@@ -1,6 +1,5 @@
+import { findElementRemover } from '@ggraphic/editor/utils/removeElement';
 import { describe, expect, it, vi } from 'vitest';
-
-import { findElementRemover } from '../removeElement';
 
 describe('findElementRemover', () => {
   it('löscht eine Instanz über ihre Aktion', () => {

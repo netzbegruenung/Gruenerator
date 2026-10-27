@@ -1,17 +1,16 @@
 import { createHash } from 'node:crypto';
 
-import { describe, expect, it } from 'vitest';
-
-import { GRUENE_ASSET_CATALOG } from '../../brand/grueneAssetCatalog';
-import { registerAssetCatalog } from '../canvasAssets';
-
+import { registerAssetCatalog } from '@ggraphic/editor/utils/canvasAssets';
 import {
   findIllustrationById,
   getAllIllustrations,
   getIllustrationPath,
   getIllustrationThumbPath,
   type SvgDef,
-} from './registry';
+} from '@ggraphic/editor/utils/illustrations/registry';
+import { describe, expect, it } from 'vitest';
+
+import { GRUENE_ASSET_CATALOG } from '../../brand/grueneAssetCatalog';
 
 const OWN: SvgDef = {
   id: 'own-wave',

@@ -1,11 +1,10 @@
 import { createCanvasEditorStore } from '@ggraphic/editor/stores/createCanvasEditorStore';
+import { createCanvasCommands } from '@ggraphic/editor/utils/canvasCommands';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { createCanvasCommands } from './canvasCommands';
-
-import type { CanvasItem } from './canvasLayerManager';
-import type { BaseCanvasState } from '../configs/factory/baseTypes';
-import type { LayoutResult } from '../configs/types';
+import type { BaseCanvasState } from '@ggraphic/editor/configs/factory/baseTypes';
+import type { LayoutResult } from '@ggraphic/editor/configs/types';
+import type { CanvasItem } from '@ggraphic/editor/utils/canvasLayerManager';
 
 /**
  * Jeder Befehl sagt genau einmal an, was er getan hat (WCAG 4.1.3) — geprüft

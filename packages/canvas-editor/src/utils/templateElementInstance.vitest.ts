@@ -1,11 +1,17 @@
+import { ASSET_TARGET_SIZE } from '@ggraphic/editor/utils/canvasAssets';
+import { duplicateElementInState } from '@ggraphic/editor/utils/duplicateElement';
+import {
+  findTemplateEntry,
+  templateElementToEntry,
+} from '@ggraphic/editor/utils/templateElementInstance';
 import { describe, expect, it } from 'vitest';
 
-import { ASSET_TARGET_SIZE } from './canvasAssets';
-import { duplicateElementInState } from './duplicateElement';
-import { findTemplateEntry, templateElementToEntry } from './templateElementInstance';
-
-import type { BaseCanvasState } from '../configs/factory/baseTypes';
-import type { CanvasElementConfig, ImageElementConfig, LayoutResult } from '../configs/types';
+import type { BaseCanvasState } from '@ggraphic/editor/configs/factory/baseTypes';
+import type {
+  CanvasElementConfig,
+  ImageElementConfig,
+  LayoutResult,
+} from '@ggraphic/editor/configs/types';
 
 type S = Record<string, unknown>;
 

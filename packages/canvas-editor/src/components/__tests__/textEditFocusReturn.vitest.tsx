@@ -5,6 +5,8 @@
  * Gilt für den Text-Editor (`CanvasTextOverlay`) und die Zeilen-Editoren
  * von Balken, Pille und Kreis-Badge.
  */
+import { CanvasStage, type CanvasStageRef } from '@ggraphic/editor/primitives/CanvasStage';
+import { CanvasText } from '@ggraphic/editor/primitives/CanvasText';
 import { CircleBadge } from '@ggraphic/editor/primitives/CircleBadge';
 import { PillBadge } from '@ggraphic/editor/primitives/PillBadge';
 import { defaultCanvasEditorStore } from '@ggraphic/editor/stores/createCanvasEditorStore';
@@ -14,8 +16,6 @@ import { createRef, type ReactNode } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { BalkenGroup } from '../../primitives/BalkenGroup';
-import { CanvasStage, type CanvasStageRef } from '../../primitives/CanvasStage';
-import { CanvasText } from '../../primitives/CanvasText';
 
 import type Konva from 'konva';
 

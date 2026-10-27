@@ -1,9 +1,9 @@
+import { useCanvasEditorServices } from '@ggraphic/editor/CanvasEditorProvider';
+import { type CanvasStudioAssetItem } from '@ggraphic/editor/hostServices';
 import { assetStickerId, type StickerRef, type StudioAssetScope } from '@gruenerator/contracts';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { HiPlus } from 'react-icons/hi2';
 
-import { useCanvasEditorServices } from '../../../CanvasEditorProvider';
-import { type CanvasStudioAssetItem } from '../../../hostServices';
 import { GALLERY_SCOPES, GalleryTabs, StudioGalleryGrid, type GalleryTab } from '../StudioGallery';
 
 import { elementDragProps } from './ElementTile';

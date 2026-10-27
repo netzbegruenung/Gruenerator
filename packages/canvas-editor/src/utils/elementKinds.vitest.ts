@@ -1,13 +1,11 @@
+import { CARRIED_INSTANCE_KEYS } from '@ggraphic/editor/configs/factory/carryInstanceState';
+import { buildCanvasItems } from '@ggraphic/editor/utils/canvasLayerManager';
+import { ELEMENT_KINDS } from '@ggraphic/editor/utils/elementKinds';
+import { findElementRemover } from '@ggraphic/editor/utils/removeElement';
 import { describe, expect, it, vi } from 'vitest';
 
-import { CARRIED_INSTANCE_KEYS } from '../configs/factory/carryInstanceState';
-
-import { buildCanvasItems } from './canvasLayerManager';
-import { ELEMENT_KINDS } from './elementKinds';
-import { findElementRemover } from './removeElement';
-
-import type { FullCanvasConfig } from '../configs/types';
-import type { OptionalCanvasActions } from '../hooks/useCanvasElementHandlers';
+import type { FullCanvasConfig } from '@ggraphic/editor/configs/types';
+import type { OptionalCanvasActions } from '@ggraphic/editor/hooks/useCanvasElementHandlers';
 
 /** One instance of every kind; ids are unique, as `createInstanceId` makes them. */
 const STATE = {

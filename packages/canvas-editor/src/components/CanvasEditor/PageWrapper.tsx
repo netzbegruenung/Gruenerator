@@ -1,3 +1,4 @@
+import { GenericCanvas } from '@ggraphic/editor/components/GenericCanvas';
 import { cn } from '@ggraphic/editor/utils/cn';
 import {
   isElementDrag,
@@ -11,7 +12,6 @@ import {
 import React, { useCallback, useState, memo } from 'react';
 
 import { useTrackUnsplashDownload } from '../../hooks/useTrackUnsplashDownload';
-import { GenericCanvas } from '../GenericCanvas';
 import { PageToolbar } from '../PageToolbar';
 import { ZoomableViewport } from '../ZoomableViewport';
 

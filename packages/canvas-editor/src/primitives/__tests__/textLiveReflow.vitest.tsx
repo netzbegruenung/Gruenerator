@@ -6,14 +6,13 @@
  * Eckgriffe (scaleY ≠ 1) skalieren weiter und ändern beim Loslassen die
  * Schriftgröße.
  */
+import { CanvasRichText } from '@ggraphic/editor/primitives/CanvasRichText';
+import { CanvasStage, type CanvasStageRef } from '@ggraphic/editor/primitives/CanvasStage';
+import { CanvasText, isWidthOnlyScale } from '@ggraphic/editor/primitives/CanvasText';
 import { act, render } from '@testing-library/react';
 import Konva from 'konva';
 import { createRef } from 'react';
 import { describe, expect, it, vi } from 'vitest';
-
-import { CanvasRichText } from '../CanvasRichText';
-import { CanvasStage, type CanvasStageRef } from '../CanvasStage';
-import { CanvasText, isWidthOnlyScale } from '../CanvasText';
 
 const LONG_TEXT =
   'Klimaschutz braucht Mut und Zusammenhalt in jeder Gemeinde unseres Landes jetzt sofort';

@@ -1,6 +1,6 @@
+import { loadCanvasConfig } from '@ggraphic/editor/configs/configLoader';
 import { describe, it, expect, beforeAll } from 'vitest';
 
-import { loadCanvasConfig } from '../configs/configLoader';
 import { TEMPLATE_REGISTRY } from './templateRegistry';
 
 /**

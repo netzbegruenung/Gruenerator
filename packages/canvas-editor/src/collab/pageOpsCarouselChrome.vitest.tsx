@@ -5,20 +5,22 @@
  * templates count towards n and are left alone; converting a page and state
  * writes do not touch the chrome.
  */
+import {
+  CanvasEditorProvider,
+  type CanvasEditorServices,
+} from '@ggraphic/editor/CanvasEditorProvider';
 import { readPages } from '@ggraphic/editor/collab/pagesDoc';
+import { useYjsPages } from '@ggraphic/editor/collab/useYjsPages';
 import { type SharepicSlide } from '@gruenerator/contracts';
 import { act, renderHook } from '@testing-library/react';
 import React from 'react';
 import { describe, expect, it } from 'vitest';
 import * as Y from 'yjs';
 
-import { CanvasEditorProvider, type CanvasEditorServices } from '../CanvasEditorProvider';
 import { composeSharepic } from '../composer/composeSharepic';
 import { grueneratorCarousel } from '../composer/sharepicServices';
 
-import { useYjsPages } from './useYjsPages';
-
-import type { AdditionalText } from '../configs/types';
+import type { AdditionalText } from '@ggraphic/editor/configs/types';
 
 /** What the editor host passes in apps/web. */
 const HOST: CanvasEditorServices = { carousel: grueneratorCarousel };

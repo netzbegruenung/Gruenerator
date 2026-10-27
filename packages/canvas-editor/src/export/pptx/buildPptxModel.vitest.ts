@@ -19,7 +19,7 @@ import type {
   PptxShapeItem,
   PptxTextItem,
 } from './types';
-import type { AdditionalText } from '../../configs/types';
+import type { AdditionalText } from '@ggraphic/editor/configs/types';
 import type { ChartInstance } from '@ggraphic/editor/utils/chartUtils';
 import type { ShapeInstance } from '@ggraphic/editor/utils/shapes';
 import type { UserImageInstance } from '@ggraphic/editor/utils/userImageUtils';

@@ -1,9 +1,8 @@
+import { CanvasStage, type CanvasStageRef } from '@ggraphic/editor/primitives/CanvasStage';
 import { render, act } from '@testing-library/react';
 import { createRef } from 'react';
 import { Rect, Transformer } from 'react-konva';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-
-import { CanvasStage, type CanvasStageRef } from '../CanvasStage';
 
 import type Konva from 'konva';
 

@@ -16,7 +16,7 @@ import {
 } from './liftBlock';
 import { farbe, options } from './sharepicSpecFixtures';
 
-import type { AdditionalText } from '../configs/types';
+import type { AdditionalText } from '@ggraphic/editor/configs/types';
 import type { ShapeInstance } from '@ggraphic/editor/utils/shapes';
 import type { SharepicSlide } from '@gruenerator/contracts';
 

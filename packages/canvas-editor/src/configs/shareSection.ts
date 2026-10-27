@@ -7,7 +7,7 @@ import { pagePhotoCredits } from '../utils/photoCredits';
 
 import { makeSectionDefiner } from './factory/defineSection';
 
-import type { SectionConfig } from './types';
+import type { SectionConfig } from '@ggraphic/editor/configs/types';
 
 export const shareTab = {
   id: 'share' as const,

@@ -5,7 +5,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { axe } from '../../../test-utils';
 import { FloatingPositionControl } from '../modules/FloatingPositionControl';
 
-import type { SelectionGeometry } from '../../../utils/canvasCommands';
+import type { SelectionGeometry } from '@ggraphic/editor/utils/canvasCommands';
 
 const GEOMETRY: SelectionGeometry = { x: 10.4, y: 20, width: 300, height: 100, resize: 'width' };
 

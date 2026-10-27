@@ -34,7 +34,7 @@ import type {
   LayoutResult,
   RectElementConfig,
   TextElementConfig,
-} from './types';
+} from '@ggraphic/editor/configs/types';
 
 const AT = getBrandTheme('de-AT');
 const O = OVERLAY_AT_CONFIG;

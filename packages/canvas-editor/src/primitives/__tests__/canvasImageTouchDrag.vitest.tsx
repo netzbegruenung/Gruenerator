@@ -1,11 +1,10 @@
 import { CanvasImage } from '@ggraphic/editor/primitives/CanvasImage';
+import { CanvasStage, type CanvasStageRef } from '@ggraphic/editor/primitives/CanvasStage';
 import { createCanvas } from '@napi-rs/canvas';
 import { render, act } from '@testing-library/react';
 import Konva from 'konva';
 import { createRef } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-
-import { CanvasStage, type CanvasStageRef } from '../CanvasStage';
 
 beforeEach(() => {
   vi.spyOn(Konva.Image.prototype, 'cache').mockReturnThis();

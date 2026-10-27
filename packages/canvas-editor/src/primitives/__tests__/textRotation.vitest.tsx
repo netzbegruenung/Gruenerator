@@ -4,14 +4,13 @@
  * (Text, Pille, Kreis-Badge) öffnet sich gedreht an Ort und Stelle.
  */
 import { overlayBoxForNode } from '@ggraphic/editor/components/CanvasTextOverlay';
+import { CanvasStage, type CanvasStageRef } from '@ggraphic/editor/primitives/CanvasStage';
+import { CanvasText } from '@ggraphic/editor/primitives/CanvasText';
 import { CircleBadge } from '@ggraphic/editor/primitives/CircleBadge';
 import { PillBadge } from '@ggraphic/editor/primitives/PillBadge';
 import { act, cleanup, render } from '@testing-library/react';
 import { createRef } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-
-import { CanvasStage, type CanvasStageRef } from '../CanvasStage';
-import { CanvasText } from '../CanvasText';
 
 import type Konva from 'konva';
 

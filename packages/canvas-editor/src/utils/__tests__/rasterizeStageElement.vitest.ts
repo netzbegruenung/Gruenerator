@@ -1,6 +1,5 @@
+import { rasterizeStageElement } from '@ggraphic/editor/utils/captureStage';
 import { describe, expect, it } from 'vitest';
-
-import { rasterizeStageElement } from '../captureStage';
 
 import type Konva from 'konva';
 
