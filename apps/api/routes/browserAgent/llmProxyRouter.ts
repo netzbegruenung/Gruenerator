@@ -19,6 +19,7 @@
 import { randomUUID } from 'crypto';
 
 import { Router, type NextFunction, type Request, type Response } from 'express';
+import rateLimit from 'express-rate-limit';
 import { z } from 'zod';
 
 import { jsonBody } from '../../middleware/jsonBody.js';
@@ -183,10 +184,29 @@ function schemaInstruction(schema: Record<string, unknown>): string {
   ].join('\n');
 }
 
+/**
+ * Grober Deckel über alle Läufe, vor der Token-Prüfung: im Betrieb kommt jeder
+ * Aufruf vom Container `browser-gateway`, der Schlüssel (IP) ist also das ganze
+ * Feature. Zwei parallele Läufe brauchen je höchstens ~10 Aufrufe pro Minute;
+ * der Speicher ist je Cluster-Worker, der Deckel deshalb großzügig. Fein
+ * begrenzt wird pro Lauf (`MAX_LLM_CALLS_PER_RUN`).
+ */
+const gatewayLimiter =
+  process.env.DISABLE_RATE_LIMITS === 'true'
+    ? (_req: Request, _res: Response, next: NextFunction) => next()
+    : rateLimit({
+        windowMs: 60 * 1000,
+        max: 120,
+        standardHeaders: true,
+        legacyHeaders: false,
+        message: { error: { message: 'Too many requests', type: 'rate_limit_error' } },
+      });
+
 const router: Router = Router();
 
 router.post(
   '/v1/chat/completions',
+  gatewayLimiter,
   requireRunToken,
   requireRunBudget,
   // Erst nach dem Token: ein Fremder bringt uns nicht dazu, 20 MB zu parsen.
