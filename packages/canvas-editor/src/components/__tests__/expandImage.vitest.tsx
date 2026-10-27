@@ -13,6 +13,7 @@ import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vite
 
 import { CanvasEditorProvider } from '../../CanvasEditorProvider';
 import { loadCanvasConfig } from '../../configs/configLoader';
+import { plainImageUrls, type CanvasImageUrlService } from '../../hostServices';
 import { AutoSaveStoreProvider } from '../../stores/AutoSaveStoreProvider';
 import { userFacingError } from '../../utils/userFacingError';
 import { GenericCanvas, type GenericCanvasRef, type ToolbarStateReport } from '../GenericCanvas';
@@ -25,7 +26,7 @@ const mocks = vi.hoisted(() => ({
   stores: [] as unknown[],
   expand: vi.fn<(image: File, aspect: number) => Promise<File>>(),
   upload: vi.fn<(file: File, source?: string) => Promise<unknown>>(),
-  fetchFile: vi.fn<(url: string, name: string) => Promise<File>>(),
+  fetchFile: vi.fn<(url: string, name: string, urls: unknown) => Promise<File>>(),
   crop: vi.fn<() => Promise<unknown>>(),
   toastError: vi.fn(),
 }));
@@ -73,6 +74,14 @@ Object.defineProperty(document, 'fonts', {
 });
 
 const EXPANDED = new File(['x'], 'outpaint.jpg', { type: 'image/jpeg' });
+/** A host that stores uploads as shares and places them from the share download link. */
+const shareHost: CanvasImageUrlService = {
+  ...plainImageUrls,
+  placementUrl: (item) =>
+    item.mediaUrl ||
+    (item.shareToken ? `/api/share/${item.shareToken}/download` : item.thumbnailUrl),
+};
+
 const DURABLE = '/api/share/tok-1/download';
 const CREDIT = {
   photographer: 'Ada',
@@ -130,7 +139,7 @@ async function mount() {
   mocks.stores.length = 0;
   await act(async () => {
     render(
-      <CanvasEditorProvider services={{ expandImage: mocks.expand }}>
+      <CanvasEditorProvider services={{ expandImage: mocks.expand, imageUrls: shareHost }}>
         <AutoSaveStoreProvider>
           <GenericCanvas
             forwardedRef={ref}
@@ -201,7 +210,11 @@ describe('Zuschneide-Modus: Erweitern', () => {
     await canvas.run(() => canvas.ref.current!.handleExpandImage!());
     await canvas.settle();
 
-    expect(mocks.fetchFile).toHaveBeenCalledWith('https://example.org/foto.png', 'hintergrund');
+    expect(mocks.fetchFile).toHaveBeenCalledWith(
+      'https://example.org/foto.png',
+      'hintergrund',
+      shareHost
+    );
     const [, aspect] = mocks.expand.mock.calls[0]!;
     expect(aspect).toBeCloseTo(
       (config as { canvas: { width: number; height: number } }).canvas.width /

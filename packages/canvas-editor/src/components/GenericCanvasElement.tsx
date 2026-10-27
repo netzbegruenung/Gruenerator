@@ -12,7 +12,9 @@ import { Group, Rect, Circle, Text } from 'react-konva';
 import useImage from 'use-image';
 
 import { surfaceGlow } from '../brand/theme';
+import { useCanvasEditorServices } from '../CanvasEditorProvider';
 import { type GeometryReporter } from '../hooks/useGeometryReporter';
+import { plainImageUrls } from '../hostServices';
 import { CanvasText, CanvasImage, CanvasBackground } from '../primitives';
 import {
   useCanvasStore,
@@ -287,6 +289,7 @@ const MemoizedImageElement = memo(function MemoizedImageElement<
   onSnapLinesChange,
   getSnapTargets,
 }: MemoizedImageProps<TState>) {
+  const { imageUrls = plainImageUrls } = useCanvasEditorServices();
   // Resolve image source
   let imageSrc: string | undefined;
   if (config.srcKey) {
@@ -300,12 +303,11 @@ const MemoizedImageElement = memo(function MemoizedImageElement<
   // beim naechsten Neuzeichnen zurueck.
   const { x, y, width, height, opacity } = resolveImageElementBox(config, state, layout);
 
-  // Render the server's working-size WebP variant instead of the raw original:
-  // the original is kept on disk for the gallery, but loading multi-MB
-  // full-resolution bytes made background swaps feel endless. The variant is
-  // only export-quality while the element draws narrow enough; wider (zoomed
-  // or resized) elements load the stored original instead.
-  const sourceUrl = canvasImageSourceUrl(imageSrc, width) ?? '';
+  // Render the host's working-size variant instead of the raw original:
+  // loading multi-MB full-resolution bytes made background swaps feel endless.
+  // The variant is only export-quality while the element draws narrow enough;
+  // wider (zoomed or resized) elements load the stored original instead.
+  const sourceUrl = canvasImageSourceUrl(imageSrc, width, imageUrls) ?? '';
   const [image, status] = useImage(sourceUrl, 'anonymous');
   useTrackPendingImage(config.id, sourceUrl, status);
 

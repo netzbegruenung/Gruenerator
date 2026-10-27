@@ -10,6 +10,7 @@ import type {
   CanvasCarouselService,
   CanvasFileDeliveryService,
   CanvasImageShareService,
+  CanvasImageUrlService,
   CanvasMediaLibraryService,
   CanvasPrintService,
   UseCanvasStudioAssets,
@@ -26,7 +27,7 @@ import type {
   SharepicColor,
   SharepicSeite,
 } from '@gruenerator/contracts';
-import type { ComponentType, ReactNode } from 'react';
+import type { ComponentType, PropsWithChildren } from 'react';
 
 /**
  * Bridge between the canvas-editor's typed state/actions/capabilities and the
@@ -235,6 +236,13 @@ export interface CanvasEditorServices {
   imageShares?: CanvasImageShareService;
 
   /**
+   * Where stored images are drawn and fetched from (`CanvasImageUrlService` in
+   * `hostServices.ts`). When omitted, every image loads from the URL it has
+   * (`plainImageUrls`).
+   */
+  imageUrls?: CanvasImageUrlService;
+
+  /**
    * Hands exports to the user. When omitted, the editor uses a plain browser
    * download and the Web Share API (`browserFileDelivery`).
    */
@@ -272,10 +280,7 @@ const CanvasEditorContext = createContext<CanvasEditorServices>({});
 export function CanvasEditorProvider({
   services,
   children,
-}: {
-  services: CanvasEditorServices;
-  children: ReactNode;
-}) {
+}: PropsWithChildren<{ services: CanvasEditorServices }>) {
   return <CanvasEditorContext.Provider value={services}>{children}</CanvasEditorContext.Provider>;
 }
 

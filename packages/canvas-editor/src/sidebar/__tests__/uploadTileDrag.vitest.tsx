@@ -2,6 +2,8 @@ import { fireEvent, render, screen } from '@testing-library/react';
 import React from 'react';
 import { describe, expect, it, vi } from 'vitest';
 
+import { CanvasEditorProvider } from '../../CanvasEditorProvider';
+import { plainImageUrls, type CanvasImageUrlService } from '../../hostServices';
 import { MEDIA_DRAG_TYPE } from '../../utils/mediaDrop';
 import { UploadsSection } from '../sections/UploadsSection';
 
@@ -49,9 +51,21 @@ vi.stubGlobal(
   }))
 );
 
+/** A host that stores uploads as shares and places them from the share download link. */
+const shareHost: CanvasImageUrlService = {
+  ...plainImageUrls,
+  placementUrl: (item) =>
+    item.mediaUrl ||
+    (item.shareToken ? `/api/share/${item.shareToken}/download` : item.thumbnailUrl),
+};
+
 describe('Upload-Kachel ziehen', () => {
   it('gibt die dauerhafte URL und den Dateinamen mit', () => {
-    render(<UploadsSection onPlaceFromUrl={() => {}} />);
+    render(
+      <CanvasEditorProvider services={{ imageUrls: shareHost }}>
+        <UploadsSection onPlaceFromUrl={() => {}} />
+      </CanvasEditorProvider>
+    );
     const tile = screen.getByTitle('Wiese');
     expect(tile).toHaveAttribute('draggable', 'true');
 

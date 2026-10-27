@@ -4,6 +4,8 @@
  */
 import { describe, expect, it } from 'vitest';
 
+import { plainImageUrls, type CanvasImageUrlService } from '../hostServices';
+
 import {
   createSlideThumbnailCache,
   MAX_THUMBNAIL_PX,
@@ -114,6 +116,21 @@ describe('slide thumbnail cache', () => {
     await tick();
     await tick();
     expect(f.calls).toEqual(['de-DE:titel', 'de-DE:bildfolie']);
+  });
+
+  it("draws with the host's image URLs, and without a host with plain ones", async () => {
+    const seen: CanvasImageUrlService[] = [];
+    const cache = createSlideThumbnailCache({
+      prepare: () => Promise.resolve(),
+      render: (_id, _locale, _width, urls) => {
+        seen.push(urls);
+        return Promise.resolve('data:x');
+      },
+    });
+    const host: CanvasImageUrlService = { ...plainImageUrls, previewWidth: 2160 };
+    await cache.get('titel', 'de-DE', 200, host);
+    await cache.get('zitat', 'de-DE', 200);
+    expect(seen).toEqual([host, plainImageUrls]);
   });
 
   it('sizes the image to the tile in device pixels, capped', () => {

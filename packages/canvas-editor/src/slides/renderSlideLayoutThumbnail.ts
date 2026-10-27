@@ -7,6 +7,7 @@
 import { createElement } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 
+import { CanvasEditorProvider } from '../CanvasEditorProvider';
 import { ensureFontsReady } from '../utils/ensureFontsReady';
 
 import {
@@ -18,6 +19,7 @@ import {
 
 import type { BrandLocale } from '../brand/theme';
 import type { GenericCanvasRef } from '../components/GenericCanvas';
+import type { CanvasImageUrlService } from '../hostServices';
 
 const SLIDE_FORMAT_ID = 'slide-16-9';
 const SLIDE_WIDTH = 1920;
@@ -53,11 +55,15 @@ export function preloadSlideLayoutPhoto(id: SlideLayoutId, locale: BrandLocale):
   });
 }
 
-/** Null, wenn kein Bild entsteht; wirft nie. */
+/**
+ * Null, wenn kein Bild entsteht; wirft nie. Die eigene Wurzel erbt keinen
+ * Kontext, deshalb kommen die Bildadressen des Hosts als Argument.
+ */
 export async function renderSlideLayoutThumbnail(
   id: SlideLayoutId,
   locale: BrandLocale,
-  widthPx: number
+  widthPx: number,
+  imageUrls: CanvasImageUrlService
 ): Promise<string | null> {
   if (typeof document === 'undefined') return null;
   // Vor dem Mount: Konva misst Text beim ersten Zeichnen.
@@ -74,15 +80,19 @@ export async function renderSlideLayoutThumbnail(
   let handle: GenericCanvasRef | null = null;
 
   root.render(
-    createElement(StandaloneCanvas, {
-      configId: slideLayoutConfigId(locale),
-      formatId: SLIDE_FORMAT_ID,
-      initialProps: layoutState(id, locale),
-      preview: true,
-      canvasRef: (ref: GenericCanvasRef | null) => {
-        handle = ref;
-      },
-    })
+    createElement(
+      CanvasEditorProvider,
+      { services: { imageUrls } },
+      createElement(StandaloneCanvas, {
+        configId: slideLayoutConfigId(locale),
+        formatId: SLIDE_FORMAT_ID,
+        initialProps: layoutState(id, locale),
+        preview: true,
+        canvasRef: (ref: GenericCanvasRef | null) => {
+          handle = ref;
+        },
+      })
+    )
   );
 
   return new Promise<string | null>((resolve) => {
