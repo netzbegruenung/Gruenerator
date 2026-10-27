@@ -87,13 +87,13 @@ import { rankVorlagen } from '../../utils/vorlagenRelevance';
 import { GalleryTabs } from './StudioGallery';
 
 import type { BrandLocale } from '../../brand/theme';
+import type { CanvasSpecEditBridge } from '../../CanvasEditorProvider';
+import type { HeterogeneousPage } from '../../configs/types';
 import type {
-  CanvasSpecEditBridge,
+  CanvasPrintService,
   CanvasVorlagenService,
   VorlagePage,
-} from '../../CanvasEditorProvider';
-import type { HeterogeneousPage } from '../../configs/types';
-import type { CanvasPrintService } from '../../hostServices';
+} from '../../grueneratorHostServices';
 
 /** Lets the editor hand a tile dropped on a page to the tab. */
 export interface VorlagenSectionHandle {

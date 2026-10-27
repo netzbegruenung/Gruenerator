@@ -5,7 +5,8 @@ import { SharedMediaPicture, type SharedMediaUrlOptions } from './SharedMediaPic
 import type { MediaItem } from '../types.js';
 
 export interface MediaThumbProps extends SharedMediaUrlOptions {
-  item: MediaItem;
+  /** Only what the thumb reads, so the canvas editor can hand back its own view of an item. */
+  item: Pick<MediaItem, 'shareToken' | 'imageMetadata'>;
   alt: string;
   /** Layout hint for the browser's variant choice. Defaults to a ~200px column. */
   sizes?: string;
