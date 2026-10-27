@@ -278,6 +278,19 @@ describe('buildToolPayloadNote', () => {
     expect(note).toContain('KEINE nummerierten Quellen');
   });
 
+  it('gibt dem Schreiber die Antwortregel mit — er sieht das tool-result nicht', () => {
+    const note = buildToolPayloadNote([
+      step({
+        toolName: 'tabelle_auswerten',
+        result: {
+          ergebnis: 'KS-Reise: 47.050,28',
+          antwortregel: 'Schreibe nur, was in `ergebnis` steht.',
+        },
+      }),
+    ]);
+    expect(note).toContain('KS-Reise: 47.050,28\n\nRegel für dieses Ergebnis: Schreibe nur');
+  });
+
   /**
    * Eine benannte Liste, keine Pauschalregel. Wer registriert, trägt seine
    * Nutzlast schon im Quellenblock — eine zweite Kopie verdoppelte sie im

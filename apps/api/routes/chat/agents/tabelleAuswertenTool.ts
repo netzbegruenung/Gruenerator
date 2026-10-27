@@ -39,12 +39,14 @@ const MAX_ERROR_CHARS = 1500;
 const MAX_FAILED_RUNS = 3;
 const MAX_OUTPUT_CHARS = 4000;
 /**
- * Reist mit jedem Erfolg im tool-result — dort liest auch der Split-Writer,
- * der die Werkzeugbeschreibung nie sieht. Live (#5043) nannte die Antwort
- * Namen, die in keiner Ausgabe standen, und schrieb „2114.23 EUR".
+ * Reist mit jedem Erfolg im tool-result (für den Planer) und im Nutzlast-Block
+ * des Split-Writers (`toolOutcome.ts`), der weder die Werkzeugbeschreibung noch
+ * das tool-result sieht. Live (#5043) nannte die Antwort Namen, die in keiner
+ * Ausgabe standen, und schrieb „2114.23 EUR"; am 27.10.2026 behauptete sie
+ * „in diesem Jahr" über eine Summe aller Jahre.
  */
 export const TABELLE_ANTWORTREGEL =
-  'Schreibe nur, was in `ergebnis` steht: keine Namen, Listen, Zuordnungen oder Zahlen, die dort fehlen — fehlt etwas, rufe tabelle_auswerten mit präzisiertem auftrag erneut auf. Zahlen und Daten in deutscher Schreibweise (2.114,23 €, 31.01.2004).';
+  'Schreibe nur, was in `ergebnis` steht: keine Namen, Listen, Zuordnungen oder Zahlen, die dort fehlen, und keinen Zeitraum oder Filter, den das Ergebnis nicht nennt — fehlt etwas, rufe tabelle_auswerten mit präzisiertem auftrag erneut auf. Zahlen und Daten in deutscher Schreibweise (2.114,23 €, 31.01.2004).';
 
 export const tabelleAuswertenInputSchema = z.object({
   auftrag: z
