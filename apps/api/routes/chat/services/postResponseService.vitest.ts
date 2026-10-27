@@ -43,7 +43,8 @@ vi.mock('./attachmentPersistenceService.js', () => ({
   RAG_ATTACHMENT_THRESHOLD_CHARS: 20_000,
 }));
 
-const { persistResumedResponse } = await import('./postResponseService.js');
+const { persistAssistantResponse, persistResumedResponse } =
+  await import('./postResponseService.js');
 
 // Minimal ChatGraphState-shaped stub — persistResumedResponse only reads
 // intent/searchCount/citations/searchResults/computedResult(+Fresh) off it.
@@ -242,5 +243,49 @@ describe('persistResumedResponse keeps a created artifact', () => {
     await persistResumedResponse(base);
 
     expect(setThreadToolContext).not.toHaveBeenCalled();
+  });
+});
+
+describe('persistAssistantResponse — browser session', () => {
+  const session = (status: 'running' | 'done' | 'failed') => ({
+    id: 'b1',
+    startUrl: 'https://example.org/',
+    status,
+    steps: [],
+    screenshots: [],
+    summary: '',
+  });
+  const persistWith = (status: 'running' | 'done' | 'failed') =>
+    persistAssistantResponse({
+      threadId: 'thread-1',
+      userId: 'user-1',
+      fullText: 'Die Antwort.',
+      finalState: { ...finalState, browserSession: session(status) },
+      classifiedState: finalState,
+      generatedImage: null,
+      sharepicVariants: [],
+      isNewThread: false,
+      lastUserMessage: { role: 'user', content: 'x' },
+      processedMeta: [],
+      requestId: 'r1',
+      pendingMessageId: 'pending-1',
+    });
+
+  it('stores a session that never got its end as failed, not running', async () => {
+    // A turn cut mid-run leaves `running` on the state; persisted as is, a
+    // reload would show a browser run that never ends.
+    await persistWith('running');
+    const metadata = finalizeAssistantMessage.mock.calls[0]![2] as {
+      browserSession?: { status: string };
+    };
+    expect(metadata.browserSession?.status).toBe('failed');
+  });
+
+  it('keeps a finished session as it is', async () => {
+    await persistWith('done');
+    const metadata = finalizeAssistantMessage.mock.calls[0]![2] as {
+      browserSession?: { status: string };
+    };
+    expect(metadata.browserSession?.status).toBe('done');
   });
 });

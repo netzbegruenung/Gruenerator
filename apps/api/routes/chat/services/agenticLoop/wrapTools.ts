@@ -652,10 +652,18 @@ export function wrapToolsForLoop(tools: ToolSet, ctx: WrapToolsContext): ToolSet
         ctx.toolActivity?.begin();
         try {
           const timeoutMs = ctx.perCallTimeoutOverridesMs?.[toolName] ?? ctx.perCallTimeoutMs;
+          // The turn's own signal (Stop, disconnect, turn ceiling) must reach
+          // the tool too — `abandoned` alone fires only on the per-call
+          // timeout, so a long tool (website_erkunden) ran on after a Stop.
+          // The timeout aborts with a `TimeoutError` reason so a tool can tell
+          // "time limit" from "user stopped".
+          const toolSignal = options.abortSignal
+            ? AbortSignal.any([options.abortSignal, abandoned.signal])
+            : abandoned.signal;
           output = await withTimeout(
-            Promise.resolve(original(input, { ...options, abortSignal: abandoned.signal })),
+            Promise.resolve(original(input, { ...options, abortSignal: toolSignal })),
             timeoutMs,
-            () => abandoned.abort()
+            () => abandoned.abort(new DOMException('Tool call timed out', 'TimeoutError'))
           );
         } catch (err) {
           const message = err instanceof Error ? err.message : String(err);

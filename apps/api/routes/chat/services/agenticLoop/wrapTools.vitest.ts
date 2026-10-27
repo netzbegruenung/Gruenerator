@@ -133,6 +133,58 @@ describe('wrapToolsForLoop', () => {
     expect(seen?.aborted).toBe(true);
   });
 
+  it('passes the turn abort through to the tool', async () => {
+    // A Stop/disconnect aborts the TURN signal. The wrapper used to replace it
+    // with its own timeout-only signal, so a long tool ran on after a Stop.
+    const { ctx } = makeCtx({ perCallTimeoutMs: 5_000 });
+    const turn = new AbortController();
+    let seen: AbortSignal | undefined;
+    const tools = wrapToolsForLoop(
+      {
+        slow: {
+          execute: (_i: unknown, o: { abortSignal?: AbortSignal }) => {
+            seen = o.abortSignal;
+            return new Promise((resolve) => {
+              o.abortSignal?.addEventListener('abort', () => resolve({ stopped: true }));
+            });
+          },
+        },
+      } as unknown as ToolSet,
+      ctx
+    );
+    const exec = (
+      tools.slow as {
+        execute: (
+          i: unknown,
+          o: { toolCallId: string; abortSignal: AbortSignal }
+        ) => Promise<unknown>;
+      }
+    ).execute;
+    const pending = exec({}, { toolCallId: 'c1', abortSignal: turn.signal });
+    turn.abort();
+    await expect(pending).resolves.toEqual({ stopped: true });
+    expect(seen?.aborted).toBe(true);
+    expect((seen?.reason as Error | undefined)?.name).not.toBe('TimeoutError');
+  });
+
+  it('marks a per-call timeout with a TimeoutError reason', async () => {
+    const { ctx } = makeCtx({ perCallTimeoutMs: 20 });
+    let seen: AbortSignal | undefined;
+    const tools = wrapToolsForLoop(
+      {
+        hang: {
+          execute: (_i: unknown, o: { abortSignal?: AbortSignal }) => {
+            seen = o.abortSignal;
+            return new Promise(() => {});
+          },
+        },
+      } as unknown as ToolSet,
+      ctx
+    );
+    await run(tools, 'hang', {});
+    expect((seen?.reason as Error | undefined)?.name).toBe('TimeoutError');
+  });
+
   it('leaves the signal untouched when the tool returns in time', async () => {
     const { ctx } = makeCtx({ perCallTimeoutMs: 200 });
     let seen: AbortSignal | undefined;

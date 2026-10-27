@@ -190,6 +190,25 @@ describe('website_erkunden', () => {
     expect(sent[sent.length - 1]?.payload.status).toBe('failed');
   });
 
+  it('reports a wrapper timeout as Teilergebnis, not as a user abort', async () => {
+    const controller = new AbortController();
+    runBrowserAgent.mockImplementation(async function* () {
+      yield step(1);
+      controller.abort(new DOMException('Tool call timed out', 'TimeoutError'));
+      await Promise.resolve();
+      const err = new Error('aborted');
+      err.name = 'AbortError';
+      throw err;
+    });
+    const { ctx, sent, state } = makeCtx();
+    const result = await run(makeWebsiteErkundenTool(ctx), INPUT, controller.signal);
+    expect(result.abgebrochen).toBe(false);
+    expect(String(result.summary)).toMatch(/Teilergebnis.*Zeitlimit/);
+    expect(state.browserSession?.summary).toMatch(/Teilergebnis/);
+    expect(state.browserSession?.status).toBe('done');
+    expect(String(sent[sent.length - 1]?.payload.summary)).toMatch(/Teilergebnis/);
+  });
+
   it('refuses with a German message when the rate limit is exhausted', async () => {
     incrementCount.mockResolvedValue({ success: false, limitReached: true, canGenerate: false });
     const { ctx, sent } = makeCtx();

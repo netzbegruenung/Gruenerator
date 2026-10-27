@@ -49,6 +49,15 @@ function isAbort(error: unknown, signal: AbortSignal | undefined): boolean {
   return signal?.aborted === true || (error instanceof Error && error.name === 'AbortError');
 }
 
+/** The loop's per-call timeout aborts with a `TimeoutError` reason (wrapTools);
+ *  a Stop/disconnect does not. */
+function isTimeout(signal: AbortSignal | undefined): boolean {
+  const reason: unknown = signal?.reason;
+  return reason instanceof Error && reason.name === 'TimeoutError';
+}
+
+const TIMEOUT_PREFIX = 'Teilergebnis (Zeitlimit erreicht, der Browser wurde vorzeitig gestoppt)';
+
 export function makeWebsiteErkundenTool(ctx: WebsiteErkundenToolCtx): Tool {
   return tool({
     description: `Bedient eine Website in einem echten Browser: klicken, suchen, durch Seiten navigieren, Cookie-Banner ablehnen und Screenshots speichern. Die Person sieht live zu.
@@ -153,9 +162,7 @@ Sendet keine Formulare ab, kauft nichts und meldet sich nirgends an.`,
             sse.send('browser_session_update', { id, screenshot: shot });
           } else if (event.type === 'done') {
             status = 'done';
-            summary = event.timed_out
-              ? `Teilergebnis (Zeitlimit erreicht, der Browser wurde vorzeitig gestoppt): ${event.summary}`
-              : event.summary;
+            summary = event.timed_out ? `${TIMEOUT_PREFIX}: ${event.summary}` : event.summary;
           } else {
             log.warn(`[website_erkunden] service error: ${event.message}`);
             status = 'failed';
@@ -169,7 +176,11 @@ Sendet keine Formulare ab, kauft nichts und meldet sich nirgends an.`,
         }
       } catch (err) {
         status = 'failed';
-        if (isAbort(err, abortSignal)) {
+        if (isAbort(err, abortSignal) && isTimeout(abortSignal)) {
+          // Time limit, not a Stop: what was seen so far is a partial result.
+          status = 'done';
+          summary = `${TIMEOUT_PREFIX} nach ${steps.length} Schritten.`;
+        } else if (isAbort(err, abortSignal)) {
           abgebrochen = true;
           summary = 'Abgebrochen.';
         } else if (err instanceof BrowserAgentBusyError) {
