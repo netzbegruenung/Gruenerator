@@ -297,7 +297,7 @@
           "className": "Text",
           "attrs": {
            "text": "Klimaschutz ",
-           "x": 282.07000160217285,
+           "x": 323.40000000000003,
            "y": 0,
            "fontSize": 42,
            "fontFamily": "PT Sans",
@@ -320,7 +320,7 @@
           "className": "Text",
           "attrs": {
            "text": "vor Ort.",
-           "x": 512.6000089645386,
+           "x": 600.6,
            "y": 0,
            "fontSize": 42,
            "fontFamily": "PT Sans",
@@ -368,7 +368,7 @@
           "attrs": {
            "x": 0,
            "y": 0,
-           "width": 485.2900085449219,
+           "width": 580.2,
            "height": 80,
            "fill": "#BEFF60",
            "cornerRadius": 60
@@ -1089,7 +1089,7 @@
           "className": "Text",
           "attrs": {
            "text": "Saubere Luft",
-           "x": 50.33000183105469,
+           "x": 77,
            "y": 0,
            "fontSize": 70,
            "fontFamily": "PT Sans",
@@ -1122,7 +1122,7 @@
           "className": "Text",
           "attrs": {
            "text": "Günstiger ",
-           "x": 50.33000183105469,
+           "x": 77,
            "y": 91,
            "fontSize": 70,
            "fontFamily": "PT Sans",
@@ -1140,7 +1140,7 @@
           "className": "Text",
           "attrs": {
            "text": "Strom",
-           "x": 356.7899913787842,
+           "x": 462,
            "y": 91,
            "fontSize": 70,
            "fontFamily": "PT Sans",
@@ -1173,7 +1173,7 @@
           "className": "Text",
           "attrs": {
            "text": "Jobs vor Ort",
-           "x": 50.33000183105469,
+           "x": 77,
            "y": 182,
            "fontSize": 70,
            "fontFamily": "PT Sans",
@@ -7616,7 +7616,7 @@
           "className": "Text",
           "attrs": {
            "text": "im SZ-Interview",
-           "x": 92.80000114440918,
+           "x": 104.50000000000001,
            "y": 0,
            "fontSize": 38,
            "fontFamily": "PT Sans",
@@ -8242,7 +8242,7 @@
           "className": "Text",
           "attrs": {
            "text": "Warum Wind?",
-           "x": 78.10000038146973,
+           "x": 110,
            "y": 0,
            "fontSize": 50,
            "fontFamily": "PT Sans",
@@ -8311,7 +8311,7 @@
          "x": 70,
          "y": 665.04,
          "width": 940,
-         "height": 104.92,
+         "height": 209.84,
          "rotation": 0,
          "opacity": 1,
          "draggable": true,
@@ -8322,7 +8322,7 @@
           "className": "Rect",
           "attrs": {
            "width": 940,
-           "height": 104.92,
+           "height": 209.84,
            "fill": "transparent"
           }
          },
@@ -8347,8 +8347,8 @@
          {
           "className": "Text",
           "attrs": {
-           "text": "günstig ",
-           "x": 285.25,
+           "text": "günstig",
+           "x": 378.40000000000003,
            "y": 0,
            "fontSize": 86,
            "fontFamily": "PT Sans",
@@ -8366,8 +8366,8 @@
           "className": "Text",
           "attrs": {
            "text": "ist.",
-           "x": 582.380012512207,
-           "y": 0,
+           "x": 0,
+           "y": 104.92,
            "fontSize": 86,
            "fontFamily": "PT Sans",
            "fontStyle": "bold",
@@ -8949,7 +8949,7 @@
           "attrs": {
            "x": 0,
            "y": 0,
-           "width": 440.2900085449219,
+           "width": 527.4000000000001,
            "height": 82,
            "fill": "#BEFF60",
            "cornerRadius": 60

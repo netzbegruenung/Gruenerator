@@ -108,7 +108,7 @@
          "x": 70,
          "y": 243.22500000000002,
          "width": 940,
-         "height": 364.79999999999995,
+         "height": 486.4,
          "rotation": 0,
          "opacity": 1,
          "draggable": true,
@@ -119,14 +119,14 @@
           "className": "Rect",
           "attrs": {
            "width": 940,
-           "height": 364.79999999999995,
+           "height": 486.4,
            "fill": "transparent"
           }
          },
          {
           "className": "Text",
           "attrs": {
-           "text": "Der Rechtsruck",
+           "text": "Der",
            "x": 0,
            "y": 0,
            "fontSize": 128,
@@ -144,7 +144,7 @@
          {
           "className": "Text",
           "attrs": {
-           "text": "macht dir",
+           "text": "Rechtsruck",
            "x": 0,
            "y": 121.6,
            "fontSize": 128,
@@ -162,9 +162,27 @@
          {
           "className": "Text",
           "attrs": {
-           "text": "Sorgen?",
+           "text": "macht dir",
            "x": 0,
            "y": 243.2,
+           "fontSize": 128,
+           "fontFamily": "GothamNarrow-Ultra",
+           "fontStyle": "normal",
+           "textDecoration": "",
+           "fill": "#FFFFFF",
+           "fillAfterStrokeEnabled": false,
+           "lineJoin": "round",
+           "lineHeight": 0.95,
+           "wrap": "none",
+           "listening": false
+          }
+         },
+         {
+          "className": "Text",
+          "attrs": {
+           "text": "Sorgen?",
+           "x": 0,
+           "y": 364.79999999999995,
            "fontSize": 128,
            "fontFamily": "Vollkorn",
            "fontStyle": "bold italic",
@@ -632,7 +650,7 @@
          "x": 70,
          "y": 666.45,
          "width": 940,
-         "height": 364.79999999999995,
+         "height": 486.4,
          "rotation": 0,
          "opacity": 1,
          "draggable": true,
@@ -643,14 +661,14 @@
           "className": "Rect",
           "attrs": {
            "width": 940,
-           "height": 364.79999999999995,
+           "height": 486.4,
            "fill": "transparent"
           }
          },
          {
           "className": "Text",
           "attrs": {
-           "text": "Der Rechtsruck",
+           "text": "Der",
            "x": 0,
            "y": 0,
            "fontSize": 128,
@@ -668,7 +686,7 @@
          {
           "className": "Text",
           "attrs": {
-           "text": "macht dir",
+           "text": "Rechtsruck",
            "x": 0,
            "y": 121.6,
            "fontSize": 128,
@@ -686,9 +704,27 @@
          {
           "className": "Text",
           "attrs": {
-           "text": "Sorgen?",
+           "text": "macht dir",
            "x": 0,
            "y": 243.2,
+           "fontSize": 128,
+           "fontFamily": "GothamNarrow-Ultra",
+           "fontStyle": "normal",
+           "textDecoration": "",
+           "fill": "#257639",
+           "fillAfterStrokeEnabled": false,
+           "lineJoin": "round",
+           "lineHeight": 0.95,
+           "wrap": "none",
+           "listening": false
+          }
+         },
+         {
+          "className": "Text",
+          "attrs": {
+           "text": "Sorgen?",
+           "x": 0,
+           "y": 364.79999999999995,
            "fontSize": 128,
            "fontFamily": "Vollkorn",
            "fontStyle": "bold italic",

@@ -255,7 +255,7 @@
           "className": "Text",
           "attrs": {
            "text": "Klimaschutz ",
-           "x": 282.07000160217285,
+           "x": 323.40000000000003,
            "y": 0,
            "fontSize": 42,
            "fontFamily": "PT Sans",
@@ -278,7 +278,7 @@
           "className": "Text",
           "attrs": {
            "text": "vor Ort.",
-           "x": 512.6000089645386,
+           "x": 600.6,
            "y": 0,
            "fontSize": 42,
            "fontFamily": "PT Sans",
@@ -326,7 +326,7 @@
           "attrs": {
            "x": 0,
            "y": 0,
-           "width": 485.2900085449219,
+           "width": 580.2,
            "height": 80,
            "fill": "#BEFF60",
            "cornerRadius": 60

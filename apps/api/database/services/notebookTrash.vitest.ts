@@ -218,6 +218,8 @@ describe('every notebook_collections reader filters liveOnly (source guard)', ()
     'scrollTrashed',
     'purgeNotebookCollection',
     'listAllNotebookIdsOfUser',
+    // Admin statistics count what was created, trashed notebooks included.
+    'listCreationStamps',
   ]);
 
   /** The argument text of every read call on the notebook_collections collection. */

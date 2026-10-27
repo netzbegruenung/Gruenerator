@@ -94,6 +94,14 @@ export const TOOL_THEME = {
     gradient:
       'bg-[image:radial-gradient(ellipse_55%_45%_at_50%_50%,#FBEDF2_0%,#FDF7FA_55%,#FFFFFF_100%)] dark:bg-[image:radial-gradient(ellipse_55%_45%_at_50%_50%,#22141A_0%,#170E12_55%,#0F090C_100%)]',
   },
+  'studio-videoeditor': {
+    tile: 'bg-[#F5DEE6] dark:bg-[#2B1620]',
+    icon: 'text-[#8A3E5C] dark:text-[#CB8AA6]',
+    title: 'text-[#6E2E48] dark:text-[#E4B0C6]',
+    desc: 'text-[#85576A] dark:text-[#AB7E94]',
+    gradient:
+      'bg-[image:radial-gradient(ellipse_55%_45%_at_50%_50%,#FBEDF2_0%,#FDF7FA_55%,#FFFFFF_100%)] dark:bg-[image:radial-gradient(ellipse_55%_45%_at_50%_50%,#22141A_0%,#170E12_55%,#0F090C_100%)]',
+  },
   // Studio "Weitere Tools" menu — green / coral / blue / violet, distinct from the strip above.
   profilbild: {
     tile: 'bg-[#DFEBD9] dark:bg-[#1A2B16]',

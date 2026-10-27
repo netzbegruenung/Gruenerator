@@ -85,9 +85,9 @@
          {
           "className": "Rect",
           "attrs": {
-           "x": 375.15199546813966,
+           "x": 448.2,
            "y": 10.790000000000006,
-           "width": 559.3480243682861,
+           "width": 427.45000000000005,
            "height": 86.32,
            "fill": "#FFFFFF",
            "listening": false
@@ -98,7 +98,7 @@
           "attrs": {
            "x": -8.3,
            "y": 118.69000000000001,
-           "width": 146.74800300598145,
+           "width": 381.80000000000007,
            "height": 86.32,
            "fill": "#FFFFFF",
            "listening": false
@@ -125,8 +125,8 @@
          {
           "className": "Text",
           "attrs": {
-           "text": "Wohnungen für",
-           "x": 381.7999954223633,
+           "text": "Wohnungen",
+           "x": 456.5,
            "y": 0,
            "fontSize": 83,
            "fontFamily": "PT Sans",
@@ -142,7 +142,7 @@
          {
           "className": "Text",
           "attrs": {
-           "text": "alle ",
+           "text": "für alle ",
            "x": 0,
            "y": 107.9,
            "fontSize": 83,
@@ -160,7 +160,7 @@
           "className": "Text",
           "attrs": {
            "text": "und lassen",
-           "x": 153.96000289916992,
+           "x": 410.85,
            "y": 107.9,
            "fontSize": 83,
            "fontFamily": "PT Sans",
@@ -720,9 +720,9 @@
          {
           "className": "Rect",
           "attrs": {
-           "x": 352.5610013961792,
+           "x": 421.2,
            "y": 10.14,
-           "width": 525.6490060806274,
+           "width": 401.70000000000005,
            "height": 81.12,
            "fill": "#FFFFFF",
            "listening": false
@@ -733,7 +733,7 @@
           "attrs": {
            "x": -7.800000000000001,
            "y": 111.54,
-           "width": 137.9090005874634,
+           "width": 358.80000000000007,
            "height": 81.12,
            "fill": "#FFFFFF",
            "listening": false
@@ -765,8 +765,8 @@
          {
           "className": "Text",
           "attrs": {
-           "text": "Wohnungen für",
-           "x": 358.810001373291,
+           "text": "Wohnungen",
+           "x": 429,
            "y": 0,
            "fontSize": 78,
            "fontFamily": "PT Sans",
@@ -782,7 +782,7 @@
          {
           "className": "Text",
           "attrs": {
-           "text": "alle ",
+           "text": "für alle ",
            "x": 0,
            "y": 101.4,
            "fontSize": 78,
@@ -799,8 +799,8 @@
          {
           "className": "Text",
           "attrs": {
-           "text": "und lassen niemanden",
-           "x": 144.69000053405762,
+           "text": "und lassen",
+           "x": 386.1,
            "y": 101.4,
            "fontSize": 78,
            "fontFamily": "PT Sans",
@@ -822,7 +822,7 @@
          {
           "className": "Text",
           "attrs": {
-           "text": "zurück.",
+           "text": "niemanden zurück.",
            "x": 0,
            "y": 202.8,
            "fontSize": 78,
@@ -1308,7 +1308,7 @@
          "x": 70,
          "y": 110,
          "width": 940,
-         "height": 687.36,
+         "height": 859.2,
          "rotation": 0,
          "opacity": 1,
          "draggable": true,
@@ -1319,7 +1319,7 @@
           "className": "Rect",
           "attrs": {
            "width": 940,
-           "height": 687.36,
+           "height": 859.2,
            "fill": "transparent"
           }
          },
@@ -1327,8 +1327,8 @@
           "className": "Rect",
           "attrs": {
            "x": -17.900000000000002,
-           "y": 343.68,
-           "width": 682.8399780273437,
+           "y": 515.52,
+           "width": 724.95,
            "height": 171.84,
            "fill": "#BEFF60",
            "listening": false
@@ -1355,7 +1355,7 @@
          {
           "className": "Text",
           "attrs": {
-           "text": "vernichten",
+           "text": "vernichte",
            "x": 0,
            "y": 171.84,
            "fontSize": 179,
@@ -1373,9 +1373,27 @@
          {
           "className": "Text",
           "attrs": {
-           "text": "186.600",
+           "text": "n",
            "x": 0,
            "y": 343.68,
+           "fontSize": 179,
+           "fontFamily": "GrueneTypeNeue",
+           "fontStyle": "normal",
+           "textDecoration": "",
+           "fill": "#00261A",
+           "fillAfterStrokeEnabled": false,
+           "lineJoin": "round",
+           "lineHeight": 0.96,
+           "wrap": "none",
+           "listening": false
+          }
+         },
+         {
+          "className": "Text",
+          "attrs": {
+           "text": "186.600",
+           "x": 0,
+           "y": 515.52,
            "fontSize": 179,
            "fontFamily": "GrueneTypeNeue",
            "fontStyle": "normal",
@@ -1392,7 +1410,7 @@
           "attrs": {
            "text": "Jobs",
            "x": 0,
-           "y": 515.52,
+           "y": 687.36,
            "fontSize": 179,
            "fontFamily": "GrueneTypeNeue",
            "fontStyle": "normal",
