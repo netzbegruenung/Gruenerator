@@ -2,17 +2,17 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { CanvasEditorProvider, type CanvasEditorServices } from '../../../CanvasEditorProvider';
 import { AnnouncerContext } from '../../../hooks/useAnnounce';
+import { browserFileDelivery } from '../../../hostServices';
 import { AutoSaveStoreProvider } from '../../../stores/AutoSaveStoreProvider';
 import { axe } from '../../../test-utils';
 import { GenericShareSection } from '../GenericShareSection';
 
-import type * as shared from '@gruenerator/shared';
-
-vi.mock('@gruenerator/shared', async (importOriginal) => ({
-  ...(await importOriginal<typeof shared>()),
-  pickShareRoute: () => 'web-share',
-}));
+// The host's file delivery says the page can use the Web Share API.
+const services: CanvasEditorServices = {
+  fileDelivery: { ...browserFileDelivery, pickShareRoute: () => 'web-share' },
+};
 
 const share = vi.fn().mockResolvedValue(undefined);
 const writeText = vi.fn().mockResolvedValue(undefined);
@@ -21,18 +21,20 @@ const announce = vi.fn();
 function setup(imageText = 'Klimaschutz jetzt handeln') {
   return render(
     <AnnouncerContext.Provider value={{ announce, lastAnnouncedAt: { current: 0 } }}>
-      <AutoSaveStoreProvider>
-        <GenericShareSection
-          exportedImage="data:image/png;base64,AAAA"
-          shareToken={null}
-          onCaptureCanvas={() => {}}
-          onDownload={() => {}}
-          onNavigateToGallery={() => {}}
-          canvasText="Klimaschutz jetzt handeln\nFoto: A / Unsplash"
-          imageText={imageText}
-          canvasType="freeform"
-        />
-      </AutoSaveStoreProvider>
+      <CanvasEditorProvider services={services}>
+        <AutoSaveStoreProvider>
+          <GenericShareSection
+            exportedImage="data:image/png;base64,AAAA"
+            shareToken={null}
+            onCaptureCanvas={() => {}}
+            onDownload={() => {}}
+            onNavigateToGallery={() => {}}
+            canvasText="Klimaschutz jetzt handeln\nFoto: A / Unsplash"
+            imageText={imageText}
+            canvasType="freeform"
+          />
+        </AutoSaveStoreProvider>
+      </CanvasEditorProvider>
     </AnnouncerContext.Provider>
   );
 }
@@ -142,7 +144,9 @@ describe('Alt-Text beim Teilen und Herunterladen', () => {
       />
     );
     const tree = (show: boolean) => (
-      <AutoSaveStoreProvider>{show ? section : <p>anderer Tab</p>}</AutoSaveStoreProvider>
+      <CanvasEditorProvider services={services}>
+        <AutoSaveStoreProvider>{show ? section : <p>anderer Tab</p>}</AutoSaveStoreProvider>
+      </CanvasEditorProvider>
     );
     const { rerender } = render(tree(true));
     const field = () => screen.getByRole('textbox', { name: 'Bildbeschreibung (Alt-Text)' });

@@ -5,18 +5,7 @@ import { TextField } from '../components/TextFieldPrimitives';
 import { ElementsPanel } from '../sections/assets/ElementsPanel';
 import { UploadsSection } from '../sections/UploadsSection';
 
-vi.mock('@gruenerator/shared/studio-assets', async (importOriginal) => ({
-  ...(await importOriginal<object>()),
-  useStudioAssets: () => ({
-    items: [],
-    isLoading: false,
-    isError: false,
-    hasNextPage: false,
-    isFetchingNextPage: false,
-    fetchNextPage: async () => {},
-    refetch: () => {},
-  }),
-}));
+// No host services: the galleries fall back to an empty list (hostServices.ts).
 vi.mock('@iconify/react', () => ({
   Icon: ({ icon }: { icon: string }) => <span data-icon={icon} />,
 }));

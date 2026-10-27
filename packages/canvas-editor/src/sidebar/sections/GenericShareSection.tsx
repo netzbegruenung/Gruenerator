@@ -1,12 +1,12 @@
-import { pickShareRoute, shareDataUrlViaNativeHost } from '@gruenerator/shared';
-import { shareApi } from '@gruenerator/shared/share';
 import { Skeleton } from '@gruenerator/ui';
 import { useCallback, useState, useMemo, useRef, useEffect, type CSSProperties } from 'react';
 import { createPortal } from 'react-dom';
 import { FaDownload, FaImages, FaSave, FaCheck, FaFileArchive, FaFileImage } from 'react-icons/fa';
 import { IoCheckmarkOutline, IoShareOutline } from 'react-icons/io5';
 
+import { useCanvasEditorServices } from '../../CanvasEditorProvider';
 import { DownloadNotice } from '../../components/DownloadNotice';
+import { browserFileDelivery } from '../../hostServices';
 import { useAutoSaveStore, useAutoSaveStoreApi } from '../../stores/useAutoSaveStore';
 import { downloadErrorMessage } from '../../utils/downloadError';
 import {
@@ -132,19 +132,20 @@ function DownloadShareSubsection({
 
   const autoSaveStoreApi = useAutoSaveStoreApi();
   const autoSaveStatus = useAutoSaveStore((s) => s.autoSaveStatus);
-  const shareRoute = pickShareRoute();
+  const { fileDelivery = browserFileDelivery, imageShares } = useCanvasEditorServices();
+  const shareRoute = fileDelivery.pickShareRoute();
   const isMultiPage = pageCount > 1 && onDownloadAllZip;
 
   const publishDraftIfNeeded = useCallback(async () => {
     const token = shareToken || autoSaveStoreApi.getState().autoSavedShareToken;
-    if (token) {
+    if (token && imageShares) {
       try {
-        await shareApi.publishShare(token);
+        await imageShares.publishShare(token);
       } catch (err) {
         console.warn('[DownloadShareSubsection] Failed to publish draft:', err);
       }
     }
-  }, [shareToken, autoSaveStoreApi]);
+  }, [shareToken, autoSaveStoreApi, imageShares]);
 
   // Remembers the last export attempt so a failed export can be retried
   const lastExportOpRef = useRef<(() => Promise<void> | void) | null>(null);
@@ -197,7 +198,7 @@ function DownloadShareSubsection({
     setIsSharing(true);
     try {
       if (shareRoute === 'native-host') {
-        shareDataUrlViaNativeHost(imageToShare, 'gruenerator.png', {
+        fileDelivery.shareDataUrlViaNativeHost(imageToShare, 'gruenerator.png', {
           title: 'Grünerator Share',
           text: withAltText(canvasText, captionAltText),
         });
@@ -236,6 +237,7 @@ function DownloadShareSubsection({
     shareDropdown,
     publishDraftIfNeeded,
     shareRoute,
+    fileDelivery,
   ]);
 
   const handleShareAllPages = useCallback(async () => {

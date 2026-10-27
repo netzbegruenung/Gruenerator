@@ -1,4 +1,4 @@
-import { UnsplashLimitError } from '@gruenerator/shared/image-studio';
+import { UnsplashLimitError, useUnsplashSearch } from '@gruenerator/shared/image-studio';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -36,6 +36,8 @@ function setup(total = 3) {
     searchUnsplashImages,
     trackUnsplashDownloadLive,
     uploadImage,
+    // The host's search-state hook, as apps/web passes it.
+    useUnsplashSearch,
   };
   const view = render(
     <CanvasEditorProvider services={services}>
@@ -152,5 +154,20 @@ describe('ToolsSection', () => {
       </CanvasEditorProvider>
     );
     expect(screen.queryByRole('button', { name: 'Unsplash-Fotos' })).toBeNull();
+  });
+});
+
+describe('UnsplashTool without the host search hook', () => {
+  it('finds nothing and never calls the search', async () => {
+    const searchUnsplashImages = vi.fn();
+    render(
+      <CanvasEditorProvider services={{ searchUnsplashImages }}>
+        <UnsplashTool onPlaceImageUrl={vi.fn()} />
+      </CanvasEditorProvider>
+    );
+    await userEvent.type(screen.getByRole('searchbox'), 'wald');
+    await new Promise((resolve) => setTimeout(resolve, 600));
+    expect(searchUnsplashImages).not.toHaveBeenCalled();
+    expect(screen.queryByRole('button', { name: /hinzufügen/ })).toBeNull();
   });
 });

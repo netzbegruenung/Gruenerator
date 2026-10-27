@@ -97,6 +97,6 @@ export type {
   CanvasEditorActions,
   CanvasEditorGetters,
 } from './stores/createCanvasEditorStore';
-export type { CanvasHistoryEntry } from '@gruenerator/shared/canvas-editor';
+export type { CanvasHistoryEntry } from './types/editorTypes';
 
 export * from './collab';

@@ -1,4 +1,15 @@
-import { useCanvasEditorServices } from '@gruenerator/canvas-editor';
+import { useCanvasEditorServices, type CanvasEditorServices } from '@gruenerator/canvas-editor';
+import {
+  downloadBlob,
+  downloadDataUrl,
+  pickShareRoute,
+  shareDataUrlViaNativeHost,
+} from '@gruenerator/shared';
+import { useUnsplashSearch } from '@gruenerator/shared/image-studio';
+import { useMediaLibrary, useMediaUpload } from '@gruenerator/shared/media-library';
+import { MediaThumb } from '@gruenerator/shared/media-library/ui';
+import { shareApi } from '@gruenerator/shared/share';
+import { useStudioAssets } from '@gruenerator/shared/studio-assets';
 import { describe, expect, it } from 'vitest';
 
 import { renderWithProviders, screen } from '../../test-utils';
@@ -30,7 +41,34 @@ function ExpandImage() {
   return <span data-testid="expand">{expandImage ? 'ja' : 'nein'}</span>;
 }
 
+let seen: CanvasEditorServices | null = null;
+function Capture() {
+  seen = useCanvasEditorServices();
+  return null;
+}
+
 describe('WebCanvasEditorProvider', () => {
+  it.each([
+    ['Image Studio', {}],
+    ['/mobile-editor', { allowStickerCreator: false, allowVorlagen: false }],
+  ])('reicht in %s die Dienste aus @gruenerator/shared in den Editor', (_host, props) => {
+    renderWithProviders(
+      <WebCanvasEditorProvider {...props}>
+        <Capture />
+      </WebCanvasEditorProvider>
+    );
+    expect(seen?.mediaLibrary).toEqual({ useMediaLibrary, useMediaUpload, MediaThumb });
+    expect(seen?.fileDelivery).toEqual({
+      downloadBlob,
+      downloadDataUrl,
+      pickShareRoute,
+      shareDataUrlViaNativeHost,
+    });
+    expect(seen?.imageShares?.publishShare).toBe(shareApi.publishShare);
+    expect(seen?.useStudioAssets).toBe(useStudioAssets);
+    expect(seen?.useUnsplashSearch).toBe(useUnsplashSearch);
+  });
+
   it('reicht „Erweitern" in den Editor, auch im WebView-Host /mobile-editor', () => {
     const { rerender } = renderWithProviders(
       <WebCanvasEditorProvider>

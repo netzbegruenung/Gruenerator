@@ -41,7 +41,7 @@ import { runFont, runMeasurer } from '../utils/textUtils';
 
 import { type CanvasTextProps, isWidthOnlyScale } from './CanvasText';
 
-import type { TransformAnchor } from '@gruenerator/shared/canvas-editor';
+import type { TransformAnchor } from '../types/editorTypes';
 import type Konva from 'konva';
 
 // Rahmen für Snap und Geometrie-Meldung, pro Aufruf neu beschrieben (synchron, ohne Allokation).

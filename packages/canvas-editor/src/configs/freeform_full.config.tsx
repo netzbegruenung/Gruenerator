@@ -8,7 +8,7 @@
  * balkens, badges, frames — all features the config system offers.
  */
 
-import { CANVAS_COLORS } from '@gruenerator/shared/canvas-editor';
+import { CANVAS_COLORS } from '@gruenerator/contracts';
 import { PiFrameCornersFill, PiSquaresFourFill, PiTextAa } from 'react-icons/pi';
 
 import { buildAssetCapability } from '../ai/assetCapability';

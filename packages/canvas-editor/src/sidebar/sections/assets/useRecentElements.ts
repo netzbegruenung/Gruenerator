@@ -1,4 +1,4 @@
-import { isShareSrc } from '@gruenerator/shared/stickers';
+import { isShareSrc } from '@gruenerator/contracts';
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
 

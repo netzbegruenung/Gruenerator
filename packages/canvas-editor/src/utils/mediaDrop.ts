@@ -3,7 +3,7 @@ import type { FrameClipType } from './frameUtils';
 import type { ShapeType } from './shapes';
 import type { StockImageAttribution } from '../common/imageSourceTypes';
 import type { BalkenMode } from '../primitives/BalkenGroup';
-import type { StickerRef } from '@gruenerator/shared/stickers';
+import type { StickerRef } from '@gruenerator/contracts';
 import type Konva from 'konva';
 
 /** Drag type of an upload or photo tile; the payload is `MediaDragPayload` as JSON. */

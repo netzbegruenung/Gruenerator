@@ -1,4 +1,4 @@
-import { shareCanvasPreviewUrl, shareThumbnailPreviewUrl } from '@gruenerator/shared/media-library';
+import { shareCanvasPreviewUrl, shareThumbnailPreviewUrl } from '@gruenerator/contracts';
 import { Icon } from '@iconify/react';
 
 import { cn } from '../../../utils/cn';

@@ -1,4 +1,3 @@
-import { useMediaLibrary, useMediaUpload } from '@gruenerator/shared/media-library';
 import { toast } from '@gruenerator/ui';
 import {
   createContext,
@@ -10,8 +9,11 @@ import {
   useState,
 } from 'react';
 
-import type { MediaItem, UploadSource } from '@gruenerator/shared/media-library';
-import type { ReactNode } from 'react';
+import { useCanvasEditorServices } from '../CanvasEditorProvider';
+import { mediaLibraryOrFallback, type CanvasMediaThumbProps } from '../hostServices';
+
+import type { MediaItem, UploadSource } from '@gruenerator/contracts';
+import type { ComponentType, ReactNode } from 'react';
 
 const SEARCH_DEBOUNCE_MS = 300;
 // Auf dem Handy ist das Löschen eine dauerhafte 44-px-Ecke jeder Kachel, die
@@ -38,6 +40,8 @@ interface UserUploadsContextValue {
   uploadError: string | null;
   hasMore: boolean;
   loadMore: () => Promise<void>;
+  /** The host's responsive image for an item of `items`. */
+  MediaThumb: ComponentType<CanvasMediaThumbProps>;
 }
 
 const UserUploadsContext = createContext<UserUploadsContextValue | null>(null);
@@ -46,6 +50,10 @@ export function UserUploadsProvider({ children }: { children: ReactNode }) {
   const [search, setSearchState] = useState('');
   const lastAppliedSearchRef = useRef('');
 
+  // Host hooks: fixed for the lifetime of the editor (see hostServices.ts).
+  const { useMediaLibrary, useMediaUpload, MediaThumb } = mediaLibraryOrFallback(
+    useCanvasEditorServices().mediaLibrary
+  );
   const library = useMediaLibrary({
     initialFilters: { type: 'image', sort: 'newest' },
   });
@@ -167,6 +175,7 @@ export function UserUploadsProvider({ children }: { children: ReactNode }) {
       uploadError: uploader.error,
       hasMore: library.pagination.hasMore,
       loadMore: library.loadMore,
+      MediaThumb,
     }),
     [
       visibleItems,
@@ -180,6 +189,7 @@ export function UserUploadsProvider({ children }: { children: ReactNode }) {
       uploader.isUploading,
       uploader.progress,
       uploader.error,
+      MediaThumb,
     ]
   );
 

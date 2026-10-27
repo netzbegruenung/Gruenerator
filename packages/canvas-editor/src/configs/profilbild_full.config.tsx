@@ -11,12 +11,8 @@
  * route through the FullCanvasConfig pipeline and gain `aiEdit` parity.
  */
 
-import {
-  CANVAS_COLORS,
-  DEFAULT_BACKGROUND_COLOR,
-  DEFAULT_CANVAS_SIZE,
-  INITIAL_SCALE,
-} from '@gruenerator/shared/canvas-editor';
+import { CANVAS_COLORS, DEFAULT_CANVAS_SIZE } from '@gruenerator/contracts';
+import { DEFAULT_BACKGROUND_COLOR, INITIAL_SCALE } from '../types/editorTypes';
 import { PiSquaresFourFill } from 'react-icons/pi';
 
 import { AssetsSection } from '../sidebar/sections';

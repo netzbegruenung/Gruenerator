@@ -24,7 +24,7 @@ import { CanvasRichText } from './CanvasRichText';
 
 import type { SnapTarget, SnapLine } from '../utils/snapping';
 import type { TextAccent, TextMarker } from '../utils/textUtils';
-import type { TransformConfig, TransformAnchor } from '@gruenerator/shared/canvas-editor';
+import type { TransformConfig, TransformAnchor } from '../types/editorTypes';
 import type Konva from 'konva';
 
 // Rahmen für Snap und Geometrie-Meldung, pro Aufruf neu beschrieben (synchron, ohne Allokation).

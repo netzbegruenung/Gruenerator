@@ -8,15 +8,8 @@ import type {
 } from './image-source-types.js';
 import type { AxiosInstance } from 'axios';
 
-export const STOCK_CATEGORY_LABELS: Record<string, string> = {
-  all: 'Alle',
-  environment: 'Umwelt',
-  transport: 'Mobilit\u00e4t',
-  social: 'Gesellschaft',
-  nature: 'Natur',
-  politics: 'Politik',
-  education: 'Bildung',
-};
+// Lives in @gruenerator/contracts, which the canvas editor also reads.
+export { STOCK_CATEGORY_LABELS } from '@gruenerator/contracts';
 
 export async function fetchStockImages(
   client: AxiosInstance,

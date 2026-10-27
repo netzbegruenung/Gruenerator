@@ -1,4 +1,4 @@
-import type { StockImageAttribution } from './image-source-types.js';
+import type { StockImageAttribution } from '@gruenerator/contracts';
 
 /**
  * Bildnachweis für den Beitragstext. Unsplash verlangt ihn im Post selbst,

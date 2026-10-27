@@ -61,37 +61,8 @@ export const MEDIA_LIMITS = {
   maxAltTextLength: 500,
 } as const;
 
-/**
- * Canonical provenance values accepted by the media upload endpoint. Single
- * source of truth: the `UploadSource` type derives from this, and the backend's
- * `mediaUploadSchema` Zod enum imports it. Every caller's `uploadSource` string
- * must appear here or the upload 400s (which silently drops e.g. a minted
- * canvas's chosen background image).
- */
-export const UPLOAD_SOURCES = [
-  'upload',
-  'ai_generated',
-  'stock',
-  'camera',
-  'canvas-mint',
-  'canvas-editor',
-  'canvas-element',
-  'canvas-mint-thumbnail',
-  'canvas-thumbnail',
-  'chat-sharepic-thumbnail',
-  'gruenerator-vorlage',
-  'template-upload',
-  // Generated speech from Grünerator Voice — a creation, never quota-gated.
-  'voice',
-  // A photo attached in the free-text sharepic creator — kept in the Mediathek.
-  'sharepic-creator',
-  // A Profilbild's own background photo, kept so the saved Profilbild reopens as it was.
-  'profilbild-background',
-  // A user-uploaded Sticker/Hintergrund of the Studio shop; the studio_assets row owns it.
-  'studio-asset',
-  // An infographic's FLUX spot illustration — one per point, so never a library item.
-  'sharepic-illustration',
-] as const;
+// Lives in @gruenerator/contracts, which the canvas editor also reads.
+export { UPLOAD_SOURCES } from '@gruenerator/contracts';
 
 /**
  * Upload sources whose rows never become a standalone library entry — they only

@@ -13,7 +13,7 @@ import type { BalkenInstance, BalkenMode } from '../../../primitives';
 import type { ChartInstance, ChartType } from '../../../utils/chartUtils';
 import type { FrameClipType, FrameInstance } from '../../../utils/frameUtils';
 import type { IllustrationInstance } from '../../../utils/illustrations/types';
-import type { StickerRef } from '@gruenerator/shared/stickers';
+import type { StickerRef } from '@gruenerator/contracts';
 
 export interface ExtendedAssetsSectionProps {
   recommendedAssetIds?: string[];

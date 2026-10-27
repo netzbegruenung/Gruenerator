@@ -1,7 +1,6 @@
-import { SHAREPIC_PHOTO_URL } from '@gruenerator/contracts';
+import { SHAREPIC_PHOTO_URL, type SavedProfilbildSticker } from '@gruenerator/contracts';
 
 import {
-  type AssetStickerId,
   isAssetStickerId,
   isShareSrc,
   SYSTEM_STICKERS,
@@ -17,6 +16,9 @@ export const PROFILBILD_IMAGE_TYPE = 'profilbild';
 /** Editor key in `image_metadata` that carries the reopenable editor state. */
 export const PROFILBILD_METADATA_KEY = 'profilbild';
 
+// Moved to @gruenerator/contracts so the canvas editor can read it without this package.
+export type { SavedProfilbildSticker };
+
 export type SavedProfilbildBackground =
   /** A swatch or preset id; an id the viewer's locale lacks falls back to its first colour. */
   | { kind: 'id'; id: string }
@@ -27,17 +29,6 @@ export type SavedProfilbildBackground =
    * than that read a Profilbild with it as not reopenable.
    */
   | { kind: 'free'; background: FreeBackground };
-
-export interface SavedProfilbildSticker {
-  id: SystemSticker['id'] | AssetStickerId;
-  /** Only for shop stickers (`asset:<uuid>`): the `/api/share/<token>/download` path. */
-  src?: string;
-  x: number;
-  y: number;
-  width: number;
-  height: number;
-  rotation: number;
-}
 
 /**
  * Everything needed to reopen a Profilbild, on the 1080 sheet. The cutout itself

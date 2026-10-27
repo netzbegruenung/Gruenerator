@@ -1,17 +1,16 @@
 import {
+  galleryScopeEmptyText,
+  shareThumbnailPreviewUrl,
+  STUDIO_ASSET_PLURAL,
+  STUDIO_ASSET_SCOPES,
   type StudioAssetItem,
   type StudioAssetKind,
   type StudioAssetScope,
 } from '@gruenerator/contracts';
-import { shareThumbnailPreviewUrl } from '@gruenerator/shared/media-library';
-import {
-  STUDIO_ASSET_PLURAL,
-  STUDIO_ASSET_SCOPES,
-  galleryScopeEmptyText,
-  useStudioAssets,
-} from '@gruenerator/shared/studio-assets';
 import { useEffect, useRef, type ButtonHTMLAttributes } from 'react';
 
+import { useCanvasEditorServices } from '../../CanvasEditorProvider';
+import { useNoStudioAssets } from '../../hostServices';
 import { cn } from '../../utils/cn';
 
 export const GALLERY_SCOPES: readonly GalleryTab<StudioAssetScope>[] = STUDIO_ASSET_SCOPES.map(
@@ -98,6 +97,8 @@ export function StudioGalleryGrid({
   ) => Pick<ButtonHTMLAttributes<HTMLButtonElement>, 'draggable' | 'onDragStart' | 'onDragEnd'>;
 }) {
   const q = query.trim().slice(0, MAX_QUERY);
+  // Host hook, fixed for the lifetime of the editor (see hostServices.ts).
+  const { useStudioAssets = useNoStudioAssets } = useCanvasEditorServices();
   const { items, isLoading, isError, hasNextPage, isFetchingNextPage, fetchNextPage, refetch } =
     useStudioAssets({ kind, scope, q, sort: 'new' });
   const noun = STUDIO_ASSET_PLURAL[kind];

@@ -34,8 +34,7 @@ import { BLOCK_GRUPPEN, canRun, useElementCatalog, type CategoryId } from './use
 import { useRecentElements } from './useRecentElements';
 
 import type { ExtendedAssetsSectionProps } from './AssetsSection';
-import type { SharepicBlock } from '@gruenerator/contracts';
-import type { StickerRef } from '@gruenerator/shared/stickers';
+import type { SharepicBlock, StickerRef } from '@gruenerator/contracts';
 
 /**
  * Entrance (element-enter in both CSS twins): tiles 0–7 start 30 ms apart, the

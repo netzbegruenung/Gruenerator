@@ -23,13 +23,6 @@
  * - useToolbarHandlers     — bundled toolbar actions for the active page
  */
 
-import {
-  downloadBlob,
-  downloadDataUrl,
-  pickShareRoute,
-  shareDataUrlViaNativeHost,
-} from '@gruenerator/shared';
-import { photoCreditLine } from '@gruenerator/shared/image-studio';
 import { Skeleton } from '@gruenerator/ui';
 import Konva from 'konva';
 import React, {
@@ -71,6 +64,7 @@ import { useDeckAutoSave } from '../../hooks/useDeckAutoSave';
 import { useIsCanvasMobile } from '../../hooks/useIsCanvasMobile';
 import { useZoomGestures } from '../../hooks/useZoomGestures';
 import { HOST_CALLBACK_KEYS } from '../../hostCallbackKeys';
+import { browserFileDelivery } from '../../hostServices';
 import { CanvasEditorLayout } from '../../layouts';
 import { SidebarTabBar, SidebarPanel } from '../../sidebar';
 import { LayersSection } from '../../sidebar/sections/LayersSection';
@@ -91,6 +85,7 @@ import { cn } from '../../utils/cn';
 import { collectAltTextPages as collectCapturedAltTextPages } from '../../utils/collectAltTextPages';
 import { ensureFontsReady } from '../../utils/ensureFontsReady';
 import { sameLayerEntries } from '../../utils/layerLabels';
+import { photoCreditLine } from '../../utils/photoCredit';
 import { pagePhotoCredits } from '../../utils/photoCredits';
 import { scrollBehavior } from '../../utils/scrollBehavior';
 import { getCategoryForTemplate } from '../../utils/templateRegistry';
@@ -133,9 +128,9 @@ import { formatHasVorlagen, vorlagenTab, withVorlagenTab } from './vorlagenTab';
 import type { CanvasEditorProps, PageWrapperProps } from './types';
 import type { AltTextPage, AltTextScope, CanvasSpecEditBridge } from '../../CanvasEditorProvider';
 import type { SidebarTabId } from '../../sidebar/types';
+import type { ExportOptions } from '../../types/editorTypes';
 import type { LayerSelectionChange } from '../../utils/layerSelection';
 import type { ToolbarStateReport } from '../GenericCanvas';
-import type { ExportOptions } from '@gruenerator/shared/canvas-editor';
 
 // Hoisted static JSX elements (Rule 6.3: avoids re-creation every render)
 const sidebarLoadingFallback = (
@@ -589,7 +584,8 @@ function CanvasEditorInner({
   );
 
   // The Vorlagen tab changes the deck, so it needs the synced pages doc.
-  const { vorlagen: vorlagenService } = useCanvasEditorServices();
+  const { vorlagen: vorlagenService, fileDelivery = browserFileDelivery } =
+    useCanvasEditorServices();
   const showVorlagen =
     vorlagenService !== undefined && hasReplaceDeck && formatHasVorlagen(formatId);
   // A tile dropped on a page goes to the open Vorlagen tab: a Seite lands
@@ -885,11 +881,14 @@ function CanvasEditorInner({
       });
       if (dataUrl) {
         const ext = format === 'jpeg' ? 'jpg' : format;
-        await downloadDataUrl(dataUrl, `gruenerator-seite-${currentPageIndex + 1}.${ext}`);
+        await fileDelivery.downloadDataUrl(
+          dataUrl,
+          `gruenerator-seite-${currentPageIndex + 1}.${ext}`
+        );
         onDownload?.(dataUrl);
       }
     },
-    [currentPageIndex, canvasRefsRef, onDownload]
+    [currentPageIndex, canvasRefsRef, onDownload, fileDelivery]
   );
 
   // Each poster page's live state for the impressum warning. The ref dedupes
@@ -930,17 +929,17 @@ function CanvasEditorInner({
     }
     const pdf = await exportPrintPdf({ format: printFormat, pages });
     const blob = new Blob([pdf as BlobPart], { type: 'application/pdf' });
-    await downloadBlob(blob, printPdfFilename(documentTitle ?? null));
-  }, [printFormat, printPages, canvasRefsRef, documentTitle]);
+    await fileDelivery.downloadBlob(blob, printPdfFilename(documentTitle ?? null));
+  }, [printFormat, printPages, canvasRefsRef, documentTitle, fileDelivery]);
 
   const isSlideDeck = useMemo(() => isSlideFormat(getCanvasFormatOrDefault(formatId)), [formatId]);
   const handleDownloadPptx = useCallback(
     async (onProgress: (done: number, total: number) => void) => {
       const blob = await buildPptx(onProgress);
       const filename = printPdfFilename(documentTitle ?? 'Präsentation').replace(/\.pdf$/, '.pptx');
-      await downloadBlob(blob, filename);
+      await fileDelivery.downloadBlob(blob, filename);
     },
-    [buildPptx, documentTitle]
+    [buildPptx, documentTitle, fileDelivery]
   );
 
   const handleDownloadSlidesPdf = useCallback(async () => {
@@ -948,8 +947,8 @@ function CanvasEditorInner({
     const images = await exportAllPages({ pixelRatio: SLIDES_PDF_PIXEL_RATIO });
     const pdf = await exportSlidesPdf(images);
     const blob = new Blob([pdf as BlobPart], { type: 'application/pdf' });
-    await downloadBlob(blob, printPdfFilename(documentTitle ?? 'Präsentation'));
-  }, [exportAllPages, documentTitle]);
+    await fileDelivery.downloadBlob(blob, printPdfFilename(documentTitle ?? 'Präsentation'));
+  }, [exportAllPages, documentTitle, fileDelivery]);
 
   // Every poster page should carry a filled-in V.i.S.d.P. / Impressum, whichever
   // page is active; the download warns (never blocks) once every page has reported.
@@ -1047,7 +1046,7 @@ function CanvasEditorInner({
 
   // Share all pages via native share (Web Share API with multiple files)
   const shareAllPages = useCallback(async () => {
-    const route = pickShareRoute();
+    const route = fileDelivery.pickShareRoute();
     if (route === null) return;
     let dataUrls: string[];
     try {
@@ -1060,7 +1059,7 @@ function CanvasEditorInner({
 
     if (route === 'native-host') {
       dataUrls.forEach((dataUrl, i) =>
-        shareDataUrlViaNativeHost(dataUrl, `gruenerator-seite-${i + 1}.png`, {
+        fileDelivery.shareDataUrlViaNativeHost(dataUrl, `gruenerator-seite-${i + 1}.png`, {
           title: 'Grünerator Share',
         })
       );
@@ -1079,7 +1078,7 @@ function CanvasEditorInner({
     } else {
       await navigator.share({ title: 'Grünerator Share' });
     }
-  }, [exportAllPages]);
+  }, [exportAllPages, fileDelivery]);
 
   // Share props for sidebar (used by share section)
   const shareProps = useMemo(
@@ -1099,7 +1098,10 @@ function CanvasEditorInner({
           await ensureFontsReady();
           const dataUrl = ref.current.toDataURL({ pixelRatio: 1 });
           if (dataUrl) {
-            await downloadDataUrl(dataUrl, `gruenerator-slider-seite-${currentPageIndex + 1}.png`);
+            await fileDelivery.downloadDataUrl(
+              dataUrl,
+              `gruenerator-slider-seite-${currentPageIndex + 1}.png`
+            );
           }
         }
       },
@@ -1127,6 +1129,7 @@ function CanvasEditorInner({
       handleCaptureCanvasForAi,
       collectAltTextPages,
       onSaveAsTemplate,
+      fileDelivery,
     ]
   );
 

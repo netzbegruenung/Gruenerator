@@ -1,4 +1,4 @@
-import { shareCanvasPreviewUrl, type MediaItem } from '@gruenerator/shared/media-library';
+import { shareCanvasPreviewUrl, type MediaItem } from '@gruenerator/contracts';
 
 import { downscaleImageForUpload } from './userImageUtils';
 
