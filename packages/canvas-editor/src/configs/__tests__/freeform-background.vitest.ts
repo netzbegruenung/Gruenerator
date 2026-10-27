@@ -7,9 +7,9 @@ import { getBrandTheme } from '../../brand/theme';
 import { SHAREPIC_COLOR_HEX } from '../../composer/composeSharepic';
 import { loadCanvasConfig } from '../configLoader';
 
-import type { TemplateAiCapabilities } from '../../ai/types';
-import type { StockImageAttribution } from '../../common/imageSourceTypes';
 import type { BackgroundControls } from '../types';
+import type { TemplateAiCapabilities } from '@ggraphic/editor/ai/types';
+import type { StockImageAttribution } from '@ggraphic/editor/common/imageSourceTypes';
 
 /**
  * Freeform shows EITHER the photo OR the colour plane (`backgroundMode`). A

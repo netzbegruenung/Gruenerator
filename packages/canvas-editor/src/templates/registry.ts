@@ -19,8 +19,8 @@
 import { getCanvasFormatOrDefault } from '@ggraphic/editor/formats/index';
 
 import type { BrandLocale } from '../brand/theme';
-import type { StockImageAttribution } from '../common/imageSourceTypes';
 import type { FullCanvasConfig } from '../configs/types';
+import type { StockImageAttribution } from '@ggraphic/editor/common/imageSourceTypes';
 
 // Configs differ in state/action types; the loader hands them out untyped.
 // eslint-disable-next-line @typescript-eslint/no-explicit-any

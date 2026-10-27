@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 import type { StockImageAttribution } from '../common/imageSourceTypes';
 import type { BalkenMode } from '../utils/balkenUtils';
 import type { ChartType } from '@ggraphic/editor/utils/chartTypes';

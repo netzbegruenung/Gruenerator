@@ -1,9 +1,8 @@
+import { buildChartElement } from '@ggraphic/editor/primitives/ChartPrimitive';
 import { createChartInstance } from '@ggraphic/editor/utils/chartUtils';
 import { render } from '@testing-library/react';
 import * as recharts from 'recharts';
 import { beforeAll, describe, expect, it, vi } from 'vitest';
-
-import { buildChartElement } from '../ChartPrimitive';
 
 const RANKING = [
   { name: 'Gas', value: 41 },

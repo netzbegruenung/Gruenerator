@@ -1,10 +1,10 @@
+import { MEDIA_DRAG_TYPE } from '@ggraphic/editor/utils/mediaDrop';
 import { fireEvent, render, screen } from '@testing-library/react';
 import React from 'react';
 import { describe, expect, it, vi } from 'vitest';
 
 import { CanvasEditorProvider } from '../../CanvasEditorProvider';
 import { plainImageUrls, type CanvasImageUrlService } from '../../hostServices';
-import { MEDIA_DRAG_TYPE } from '../../utils/mediaDrop';
 import { UploadsSection } from '../sections/UploadsSection';
 
 /**

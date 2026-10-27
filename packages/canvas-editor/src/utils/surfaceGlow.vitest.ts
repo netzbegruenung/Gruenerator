@@ -1,10 +1,9 @@
 import { brandDefault } from '@ggraphic/core';
 import { registerBrandPacks } from '@ggraphic/editor/brand/brandRegistry';
+import { surfaceGlow } from '@ggraphic/editor/utils/surfaceGlow';
 import { afterEach, describe, expect, it } from 'vitest';
 
 import { GRUENE_BRAND_PACKS } from '../brand/grueneBrandPacks';
-
-import { surfaceGlow } from './surfaceGlow';
 
 const GLOW = ['#111111', '#222222'] as const;
 

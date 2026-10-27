@@ -16,6 +16,7 @@ import {
   type Delta,
 } from '@ggraphic/editor/utils/alignment';
 import { itemBodyRect } from '@ggraphic/editor/utils/deepSelect';
+import { locateDrop } from '@ggraphic/editor/utils/mediaDrop';
 import { findDragNodes, selectableItemIds } from '@ggraphic/editor/utils/multiSelect';
 import {
   axisAlignedBounds,
@@ -41,7 +42,6 @@ import {
 } from './duplicateElement';
 import { layerLabel } from './layerLabels';
 import { lockedIdsOf, toggledLocks } from './layerLock';
-import { locateDrop } from './mediaDrop';
 import {
   findOrientationDoor,
   type OrientableKind,

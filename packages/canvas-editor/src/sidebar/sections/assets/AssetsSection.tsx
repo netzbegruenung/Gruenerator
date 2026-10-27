@@ -1,10 +1,10 @@
 import { type ShapeInstance, type ShapeType } from '@ggraphic/editor/utils/shapes';
+import { type UserImagePlacement } from '@ggraphic/editor/utils/userImageUtils';
 import { useEffect } from 'react';
 
 import { type AssetInstance } from '../../../utils/canvasAssets';
 import { prefetchBackground } from '../../../utils/illustrations/svgCache';
 import { UNDRAW_FEATURED } from '../../../utils/illustrations/undraw';
-import { type UserImagePlacement } from '../../../utils/userImageUtils';
 
 import { ElementsPanel } from './ElementsPanel';
 

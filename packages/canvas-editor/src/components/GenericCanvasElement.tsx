@@ -13,6 +13,7 @@ import {
   useCanvasStoreSelector,
   useIsElementSelected,
 } from '@ggraphic/editor/stores/CanvasStoreProvider';
+import { backgroundAdjustments } from '@ggraphic/editor/utils/imageFilters';
 import { useTrackPendingImage } from '@ggraphic/editor/utils/pendingImages';
 import {
   assertAsString,
@@ -23,6 +24,7 @@ import {
   getOptionalStateValue,
 } from '@ggraphic/editor/utils/stateTypeAssertions';
 import { backgroundStraighten } from '@ggraphic/editor/utils/straighten';
+import { surfaceGlow } from '@ggraphic/editor/utils/surfaceGlow';
 import { templateTextAlignOf } from '@ggraphic/editor/utils/textAlign';
 import React, { memo, useCallback, useMemo } from 'react';
 import { Group, Rect, Circle, Text } from 'react-konva';
@@ -34,7 +36,6 @@ import { CanvasText, CanvasImage, CanvasBackground } from '../primitives';
 import { canCropBackgroundPhoto, imageElementInteraction } from '../utils/backgroundPhotoCrop';
 import { canvasImageSourceUrl } from '../utils/canvasImageSource';
 import { imageRenderInputsAreEqual } from '../utils/imageElementComparison';
-import { backgroundAdjustments } from '../utils/imageFilters';
 import { BACKGROUND_IMAGE_NODE_ID } from '../utils/printImageInfo';
 import {
   coverFitSlot,
@@ -42,7 +43,7 @@ import {
   resolveImageElementBox,
   resolveValue,
 } from '../utils/resolveElementValue';
-import { surfaceGlow } from '../utils/surfaceGlow';
+
 // Die Aufloesung von x/y/width/height/opacity steht seit #3403 ausserhalb:
 // `templateElementToEntry` braucht dieselbe Rechnung, und zwei Fassungen
 // derselben Arithmetik driften auseinander.

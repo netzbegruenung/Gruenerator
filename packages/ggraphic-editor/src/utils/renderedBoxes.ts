@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /**
  * Die gerenderte Box je Elementart, aus ihren Props — Grundlage für Snap und
  * Snap-Ziel (`useBoxSnap`). Kein Knoten, keine Messung.

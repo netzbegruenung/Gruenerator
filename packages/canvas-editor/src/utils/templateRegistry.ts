@@ -91,18 +91,3 @@ export function templateFitsFormat(configId: CanvasConfigId, formatId?: string):
 export function getCategoryForTemplate(configId: CanvasConfigId): TemplateCategory | undefined {
   return TEMPLATE_REGISTRY[configId]?.category;
 }
-
-/**
- * Check if a template supports image backgrounds
- * Used to determine if background can be inherited
- */
-export function templateSupportsImageBackground(configId: CanvasConfigId): boolean {
-  return ['zitat', 'simple', 'veranstaltung', 'dreizeilen', 'freeform'].includes(configId);
-}
-
-/**
- * Check if a template supports solid color backgrounds
- */
-export function templateSupportsSolidBackground(configId: CanvasConfigId): boolean {
-  return ['info', 'zitat-pure', 'slider', 'slider-at', 'freeform'].includes(configId);
-}

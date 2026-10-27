@@ -9,8 +9,8 @@ import { unsplashThumbnailUrl } from '../assets/useStockPhotos';
 
 import { UnsplashLimitNotice, UnsplashRemaining } from './UnsplashLimitNotice';
 
-import type { StockImage } from '../../../common/imageSourceTypes';
-import type { UserImagePlacement } from '../../../utils/userImageUtils';
+import type { StockImage } from '@ggraphic/editor/common/imageSourceTypes';
+import type { UserImagePlacement } from '@ggraphic/editor/utils/userImageUtils';
 
 export interface UnsplashToolProps {
   onPlaceImageUrl?: (url: string, fileName: string, options?: UserImagePlacement) => void;

@@ -7,8 +7,8 @@ import {
   takeCropSnapshot,
 } from './cropSession';
 
-import type { UserImageInstance } from './userImageUtils';
 import type { CanvasElementConfig } from '../configs/types';
+import type { UserImageInstance } from '@ggraphic/editor/utils/userImageUtils';
 
 const elements: CanvasElementConfig[] = [
   {

@@ -1,4 +1,4 @@
-import { downscaleImageForUpload } from './userImageUtils';
+import { downscaleImageForUpload } from '@ggraphic/editor/utils/userImageUtils';
 
 import type { CanvasImageUrlService } from '../hostServices';
 

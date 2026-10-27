@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /**
  * Balken — the data of a bar group on the canvas: one or three skewed bars
  * with a text each. The kind's slot (`balkenInstances`, its actions) is the

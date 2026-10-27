@@ -387,7 +387,7 @@ export const BRAND_THEMES: Record<BrandLocale, BrandTheme> = {
 };
 
 /** Read from the registered packs, which apps/web installs from these two. */
-export { surfaceGlow } from '../utils/surfaceGlow';
+export { surfaceGlow } from '@ggraphic/editor/utils/surfaceGlow';
 
 /** Resolve a brand pack, falling back to de-DE for unknown/undefined locales. */
 export function getBrandPack(locale?: BrandLocale | string | null): GruenePack {

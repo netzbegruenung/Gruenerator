@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /**
  * Per-template AI capability declaration.
  *
@@ -23,6 +24,29 @@ import type { CoreCanvasAiOperation, CoreCanvasAiSnapshot } from '@ggraphic/sche
 export type ApplyResult = { ok: true } | { ok: false; reason: string };
 
 export type CanvasAiNamedOption = { id: string; label: string };
+
+/**
+ * The operation union and snapshot a host's templates use. Empty in the core;
+ * a host augments it (`declare module`) with `operation` and `snapshot` to bind
+ * its own vocabulary, and `HostCanvasAiCapabilities` picks them up.
+ */
+// eslint-disable-next-line @typescript-eslint/no-empty-object-type
+export interface CanvasAiHostTypes {}
+
+export type HostCanvasAiOperation = CanvasAiHostTypes extends {
+  operation: infer TOp extends { kind: string };
+}
+  ? TOp
+  : CoreCanvasAiOperation;
+export type HostCanvasAiSnapshot = CanvasAiHostTypes extends { snapshot: infer TSnapshot }
+  ? TSnapshot
+  : CoreCanvasAiSnapshot;
+
+/** The capability declaration bound to the host's operation union and snapshot. */
+export type HostCanvasAiCapabilities<
+  TState = Record<string, unknown>,
+  TActions = Record<string, unknown>,
+> = TemplateAiCapabilities<TState, TActions, HostCanvasAiOperation, HostCanvasAiSnapshot>;
 
 /**
  * Per-operation override invoked by `applyOperation` when present.

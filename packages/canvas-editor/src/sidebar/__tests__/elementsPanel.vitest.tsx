@@ -1,3 +1,8 @@
+import {
+  ELEMENT_DRAG_TYPE,
+  MEDIA_DRAG_TYPE,
+  markDropPlaced,
+} from '@ggraphic/editor/utils/mediaDrop';
 import { UnsplashLimitError, useUnsplashSearch } from '@gruenerator/shared/image-studio';
 import {
   fireEvent,
@@ -14,7 +19,6 @@ import { CanvasEditorProvider, type CanvasEditorServices } from '../../CanvasEdi
 import { BlockInsertContext, type BlockInsertApi } from '../../components/CanvasEditor/blockInsert';
 import { useTrackUnsplashDownload } from '../../hooks/useTrackUnsplashDownload';
 import { axe } from '../../test-utils';
-import { ELEMENT_DRAG_TYPE, MEDIA_DRAG_TYPE, markDropPlaced } from '../../utils/mediaDrop';
 import { ElementsPanel } from '../sections/assets/ElementsPanel';
 import { ElementTile } from '../sections/assets/ElementTile';
 import { dragDataFor } from '../sections/assets/elementTypes';

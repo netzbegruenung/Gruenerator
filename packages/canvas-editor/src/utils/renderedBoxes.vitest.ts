@@ -1,3 +1,10 @@
+import {
+  chartBox,
+  frameBox,
+  illustrationBox,
+  shapeBox,
+  userImageBox,
+} from '@ggraphic/editor/utils/renderedBoxes';
 import { PATH_OFFSETS, PATH_VIEWBOX } from '@ggraphic/editor/utils/shapeTransform';
 import {
   boxFrame,
@@ -9,14 +16,12 @@ import {
 import Konva from 'konva';
 import { describe, expect, it } from 'vitest';
 
-import { chartBox, frameBox, illustrationBox, shapeBox, userImageBox } from './renderedBoxes';
-
-import type { UserImageInstance } from './userImageUtils';
 import type { RenderedBox } from '@ggraphic/editor/hooks/useBoxSnap';
 import type { ChartInstance } from '@ggraphic/editor/utils/chartUtils';
 import type { FrameInstance } from '@ggraphic/editor/utils/frameUtils';
 import type { IllustrationInstance } from '@ggraphic/editor/utils/illustrations/types';
 import type { ShapeInstance } from '@ggraphic/editor/utils/shapes';
+import type { UserImageInstance } from '@ggraphic/editor/utils/userImageUtils';
 
 // Ziel mit linker Kante bei x = 600, weit weg von der Seitenmitte (540).
 const EDGE: SnapTarget[] = [{ id: 'edge', x: 600, y: 900, width: 200, height: 200 }];

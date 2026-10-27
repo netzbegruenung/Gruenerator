@@ -40,8 +40,8 @@ import type {
   ColorBackgroundState,
 } from './factory/baseTypes';
 import type { FullCanvasConfig, LayoutResult, AdditionalText } from './types';
-import type { StockImageAttribution } from '../common/imageSourceTypes';
 import type { BackgroundColorOption } from '../sidebar/types';
+import type { StockImageAttribution } from '@ggraphic/editor/common/imageSourceTypes';
 import type { ShapeInstance } from '@ggraphic/editor/utils/shapes';
 import type { CanvasAiSnapshot } from '@gruenerator/contracts';
 

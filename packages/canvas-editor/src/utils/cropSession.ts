@@ -3,12 +3,12 @@ import {
   backgroundStraighten,
   clampStraighten,
 } from '@ggraphic/editor/utils/straighten';
+import { type UserImageInstance } from '@ggraphic/editor/utils/userImageUtils';
 
 import { type CanvasElementConfig } from '../configs/types';
 
 import { cropTargetOf, type CropUpdate } from './cropTarget';
 import { BACKGROUND_IMAGE_NODE_ID } from './printImageInfo';
-import { type UserImageInstance } from './userImageUtils';
 
 /** Was ein Zuschnitt an einem eigenen Bild ändert: Rahmen und Lage des Fotos darin. */
 const USER_IMAGE_CROP_FIELDS = [

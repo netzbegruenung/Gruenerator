@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 
 import { createBalkenActions, createIllustrationActions } from './actionFactories';
 
-import type { BalkenInstance } from '../../utils/balkenUtils';
+import type { BalkenInstance } from '@ggraphic/editor/utils/balkenUtils';
 import type { IllustrationInstance } from '@ggraphic/editor/utils/illustrations/types';
 
 /**

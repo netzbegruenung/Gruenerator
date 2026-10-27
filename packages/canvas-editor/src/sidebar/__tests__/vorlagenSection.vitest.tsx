@@ -1,4 +1,5 @@
 import { defaultCanvasEditorStore } from '@ggraphic/editor/stores/createCanvasEditorStore';
+import { VORLAGE_DRAG_TYPE } from '@ggraphic/editor/utils/mediaDrop';
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { createRef } from 'react';
@@ -7,7 +8,6 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { CanvasEditorProvider } from '../../CanvasEditorProvider';
 import { grueneratorPrint } from '../../composer/printService';
 import { axe } from '../../test-utils';
-import { VORLAGE_DRAG_TYPE } from '../../utils/mediaDrop';
 import { VorlagenSection, type VorlagenSectionHandle } from '../sections/VorlagenSection';
 
 import type { HeterogeneousPage } from '../../configs/types';

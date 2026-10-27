@@ -66,16 +66,16 @@ import type {
   LayoutResult as GenericLayoutResult,
   AdditionalText,
 } from './types';
-import type { StockImageAttribution } from '../common/imageSourceTypes';
-import type { BalkenInstance } from '../utils/balkenUtils';
 import type { AssetInstance } from '../utils/canvasAssets';
-import type { UserImageInstance } from '../utils/userImageUtils';
+import type { StockImageAttribution } from '@ggraphic/editor/common/imageSourceTypes';
+import type { BalkenInstance } from '@ggraphic/editor/utils/balkenUtils';
 import type { ChartInstance } from '@ggraphic/editor/utils/chartUtils';
 import type { CircleBadgeInstance } from '@ggraphic/editor/utils/circleBadgeUtils';
 import type { FrameInstance } from '@ggraphic/editor/utils/frameUtils';
 import type { IllustrationInstance } from '@ggraphic/editor/utils/illustrations/types';
 import type { PillBadgeInstance } from '@ggraphic/editor/utils/pillBadgeUtils';
 import type { ShapeInstance } from '@ggraphic/editor/utils/shapes';
+import type { UserImageInstance } from '@ggraphic/editor/utils/userImageUtils';
 
 // ============================================================================
 // CONSTANTS
