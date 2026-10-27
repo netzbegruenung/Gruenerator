@@ -105,7 +105,10 @@ export async function getMarketplaceFrontpage(
 }
 
 /** The pinned items one by one (each through its source's visibility), the fills as lists. */
-async function resolveCollection(ctx: MarketplaceContext, collection: MarketplaceCollection) {
+export async function resolveCollection(
+  ctx: MarketplaceContext,
+  collection: MarketplaceCollection
+) {
   const pinned = Promise.all(collection.pinned.map((t) => getMarketplaceItem(ctx, t.kind, t.ref)));
   const fills = collection.fill.flatMap((fill) =>
     fill.kinds.map(async (kind) => {

@@ -43,6 +43,28 @@ vi.mock('../../services/connections/canva/canvaOAuthState.js', () => ({
   createPkceState: vi.fn(),
 }));
 
+// Only `admin-1` is an instance admin.
+vi.mock('../../utils/adminAuthz.js', () => ({
+  requireInstanceAdmin: vi.fn(async (userId: string) => userId === 'admin-1'),
+}));
+const exportCollectionToCanva = vi.fn();
+vi.mock('../../services/connections/canva/canvaStickerExport.js', () => ({
+  exportCollectionToCanva: (...a: unknown[]) => exportCollectionToCanva(...a),
+}));
+const autofillDesign = vi.fn();
+const getAutofillFields = vi.fn();
+vi.mock('../../services/connections/canva/canvaAutofill.js', () => ({
+  autofillDesign: (...a: unknown[]) => autofillDesign(...a),
+  getAutofillFields: (...a: unknown[]) => getAutofillFields(...a),
+  getAutofillSources: vi.fn(),
+}));
+vi.mock('../../services/marketplace/context.js', () => ({
+  buildMarketplaceContext: (p: { userId: string }) => ({ userId: p.userId }),
+}));
+vi.mock('../../services/localization/index.js', () => ({
+  extractLocaleFromRequest: () => 'de-DE',
+}));
+
 const { default: canvaApiRouter } = await import('./canvaApi.js');
 
 let baseUrl = '';
@@ -50,6 +72,7 @@ let close: () => void = () => {};
 
 beforeAll(async () => {
   const app = express();
+  app.use(express.json());
   app.use('/api/canva', canvaApiRouter);
   const server = app.listen(0);
   await new Promise<void>((resolve) => server.once('listening', resolve));
@@ -88,5 +111,109 @@ describe('GET /api/canva/auth/callback', () => {
 
     expect(res.status).toBe(200);
     expect(save).toHaveBeenCalledWith('user-1', expect.anything(), 'Canva User');
+  });
+});
+
+describe('admin gate', () => {
+  it.each([
+    ['GET', '/status'],
+    ['GET', '/auth/start'],
+    ['POST', '/collections/queer/export'],
+    ['GET', '/autofill/sources'],
+    ['GET', '/autofill/fields?kind=design&id=DAF1'],
+    ['POST', '/autofill'],
+  ])('refuses %s %s to a user who is no instance admin', async (method, path) => {
+    const res = await fetch(`${baseUrl}/api/canva${path}`, {
+      method,
+      headers: { 'x-test-user': 'user-1' },
+      redirect: 'manual',
+    });
+
+    expect(res.status).toBe(403);
+    expect(exportCollectionToCanva).not.toHaveBeenCalled();
+  });
+});
+
+describe('POST /api/canva/collections/:collectionId/export', () => {
+  const post = (collectionId: string) =>
+    fetch(`${baseUrl}/api/canva/collections/${collectionId}/export`, {
+      method: 'POST',
+      headers: { 'x-test-user': 'admin-1' },
+    });
+
+  beforeEach(() => exportCollectionToCanva.mockReset());
+
+  it('rejects a collection id that does not exist', async () => {
+    const res = await post('gibt-es-nicht');
+
+    expect(res.status).toBe(400);
+    expect(exportCollectionToCanva).not.toHaveBeenCalled();
+  });
+
+  it('exports the collection for the signed-in admin', async () => {
+    const value = { folderName: 'Queer und sichtbar', uploaded: 3, failed: [] };
+    exportCollectionToCanva.mockResolvedValue({ ok: true, value });
+
+    const res = await post('queer');
+
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual(value);
+    expect(exportCollectionToCanva).toHaveBeenCalledWith({ userId: 'admin-1' }, 'queer');
+  });
+
+  it('passes a 404 for a collection without stickers through', async () => {
+    exportCollectionToCanva.mockResolvedValue({ ok: false, status: 404, message: 'leer' });
+
+    expect((await post('starter')).status).toBe(404);
+  });
+});
+
+describe('autofill routes', () => {
+  const admin = { 'x-test-user': 'admin-1', 'content-type': 'application/json' };
+
+  beforeEach(() => {
+    autofillDesign.mockReset();
+    getAutofillFields.mockReset();
+  });
+
+  it('rejects a source id that is not a Canva id', async () => {
+    const res = await fetch(`${baseUrl}/api/canva/autofill/fields?kind=design&id=..%2Fx`, {
+      headers: admin,
+    });
+
+    expect(res.status).toBe(400);
+    expect(getAutofillFields).not.toHaveBeenCalled();
+  });
+
+  it('rejects a body without texts', async () => {
+    const res = await fetch(`${baseUrl}/api/canva/autofill`, {
+      method: 'POST',
+      headers: admin,
+      body: JSON.stringify({ source: { kind: 'design', id: 'DAF1' } }),
+    });
+
+    expect(res.status).toBe(400);
+    expect(autofillDesign).not.toHaveBeenCalled();
+  });
+
+  it('turns Canva’s missing-capability 403 into a plan hint, without echoing Canva’s body', async () => {
+    const { AxiosError } = await import('axios');
+    autofillDesign.mockRejectedValue(
+      new AxiosError('Request failed', '403', undefined, undefined, {
+        status: 403,
+        data: { message: 'requires one of capabilities ["autofill"]', access_token: 'secret' },
+      } as never)
+    );
+
+    const res = await fetch(`${baseUrl}/api/canva/autofill`, {
+      method: 'POST',
+      headers: admin,
+      body: JSON.stringify({ source: { kind: 'design', id: 'DAF1' }, texts: { TITEL: 'x' } }),
+    });
+    const body = await res.text();
+
+    expect(res.status).toBe(403);
+    expect(body).toContain('Canva Pro');
+    expect(body).not.toContain('secret');
   });
 });

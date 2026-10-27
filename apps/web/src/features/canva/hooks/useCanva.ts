@@ -1,9 +1,15 @@
+import { type CanvaAutofillSource } from '@gruenerator/contracts';
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import {
+  createCanvaAutofill,
   disconnectCanva,
+  exportCollectionToCanva,
+  fetchCanvaAutofillFields,
+  fetchCanvaAutofillSources,
   fetchCanvaDesigns,
   fetchCanvaStatus,
+  suggestCanvaAutofill,
   type CanvaDesignsPage,
   type CanvaStatus,
 } from '../lib/canvaApi';
@@ -11,10 +17,12 @@ import {
 const CANVA_STATUS_KEY = ['canva', 'status'] as const;
 const CANVA_DESIGNS_KEY = ['canva', 'designs'] as const;
 
-export function useCanvaStatus() {
+/** Canva is open to instance admins only (the server answers everyone else with 403). */
+export function useCanvaStatus(enabled = true) {
   return useQuery<CanvaStatus>({
     queryKey: CANVA_STATUS_KEY,
     queryFn: fetchCanvaStatus,
+    enabled,
     staleTime: 5 * 60 * 1000,
     refetchOnWindowFocus: false,
   });
@@ -51,4 +59,38 @@ export function useCanvaDesigns(enabled: boolean) {
     staleTime: 60 * 1000,
     refetchOnWindowFocus: false,
   });
+}
+
+export function useExportCollectionToCanva() {
+  return useMutation({ mutationFn: exportCollectionToCanva });
+}
+
+/** Plan capabilities and the team's brand templates with data fields. */
+export function useCanvaAutofillSources(enabled: boolean) {
+  return useQuery({
+    queryKey: ['canva', 'autofill', 'sources'],
+    queryFn: fetchCanvaAutofillSources,
+    enabled,
+    staleTime: 5 * 60 * 1000,
+    refetchOnWindowFocus: false,
+  });
+}
+
+export function useCanvaAutofillFields(source: CanvaAutofillSource | null) {
+  return useQuery({
+    queryKey: ['canva', 'autofill', 'fields', source?.kind, source?.id],
+    queryFn: () =>
+      source ? fetchCanvaAutofillFields(source) : Promise.reject(new Error('Keine Vorlage')),
+    enabled: source !== null,
+    staleTime: 60 * 1000,
+    refetchOnWindowFocus: false,
+  });
+}
+
+export function useCreateCanvaAutofill() {
+  return useMutation({ mutationFn: createCanvaAutofill });
+}
+
+export function useSuggestCanvaAutofill() {
+  return useMutation({ mutationFn: suggestCanvaAutofill });
 }

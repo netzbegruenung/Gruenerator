@@ -4,7 +4,8 @@
  * notebooks live in Qdrant, `entity_likes` and `entity_comments` have no FK to
  * the item at all, `user_agents` and `user_text_forms` have no FK to the
  * profile (#4723), and the OAuth
- * tokens of connected accounts (Microsoft, Google, …) live in Nango. Account
+ * tokens of connected accounts (Microsoft, Google, …) live in Nango, and a
+ * Canva grant stays valid at Canva until it is revoked. Account
  * deletion stays hard — nothing here goes through the Papierkorb.
  *
  * Every step is best-effort: a failure is reported and the rest goes on, so
@@ -15,6 +16,7 @@ import { NotebookQdrantHelper } from '../../database/services/NotebookQdrantHelp
 import { getPostgresInstance } from '../../database/services/PostgresService.js';
 import { createLogger } from '../../utils/logger.js';
 import { reportBackgroundError } from '../../utils/reportBackgroundError.js';
+import { CanvaConnectionManager } from '../connections/canva/CanvaConnectionManager.js';
 import { ConnectionService } from '../connections/ConnectionService.js';
 import { purgeSoleOwnedCollaborativeDocuments } from '../docs/CollaborativeDocumentService.js';
 import {
@@ -114,6 +116,14 @@ export async function cleanUpBeforeProfileDelete(userId: string): Promise<void> 
     } catch (error) {
       reportBackgroundError(error, { job: 'account-deletion', store: 'nango' });
     }
+  }
+
+  // The profile row (and the stored tokens with it) goes anyway; this revokes
+  // the grant at Canva, so the refresh token stops working there too.
+  try {
+    await CanvaConnectionManager.disconnect(userId);
+  } catch (error) {
+    reportBackgroundError(error, { job: 'account-deletion', store: 'canva' });
   }
 
   log.info(

@@ -21,6 +21,14 @@ import { cn } from '@/utils/cn';
 const ICON_SRC = '/brand/canva/canva-icon.svg';
 const SCRIPT_SRC = '/brand/canva/canva-logo.svg';
 
+/**
+ * Border for the outlined Canva buttons. The default outline border (grey-200 /
+ * grey-700) measured 1.37:1 light and 1.84:1 dark; grey-500 is theme-aware
+ * (`--grey-text-val`) and clears 3:1 in both, so the button reads as a button
+ * on its own and not only through its label.
+ */
+export const CANVA_BUTTON_BORDER = 'border-grey-500 dark:border-grey-500';
+
 /** Minimum clear space mandated by Canva's brand guidelines. */
 export const CANVA_LOGO_CLEAR_SPACE_PX = 8;
 
@@ -32,6 +40,8 @@ export interface CanvaLogoProps {
   variant?: 'icon' | 'script';
   /** Wrap with the mandated 8px clear space. */
   withClearSpace?: boolean;
+  /** Next to a text that already says „Canva" (a button label): hidden from screen readers. */
+  decorative?: boolean;
 }
 
 export function CanvaLogo({
@@ -39,6 +49,7 @@ export function CanvaLogo({
   className,
   variant,
   withClearSpace = false,
+  decorative = false,
 }: CanvaLogoProps): JSX.Element {
   const [failed, setFailed] = useState(false);
   const useScript = variant ? variant === 'script' : size >= 50;
@@ -52,8 +63,7 @@ export function CanvaLogo({
     // Asset not yet added — show a neutral placeholder, never an unapproved mark.
     return (
       <span
-        role="img"
-        aria-label="Canva"
+        {...(decorative ? { 'aria-hidden': true } : { role: 'img', 'aria-label': 'Canva' })}
         title="Canva-Logo fehlt – siehe public/brand/canva/README.md"
         style={{ height: size, ...wrapperStyle }}
         className={cn(
@@ -71,7 +81,7 @@ export function CanvaLogo({
       {/* eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions -- onError ist ein technischer Ladefehler-Fallback, keine Bedienung */}
       <img
         src={src}
-        alt="Canva"
+        alt={decorative ? '' : 'Canva'}
         height={size}
         onError={() => setFailed(true)}
         style={{ height: size, width: 'auto', display: 'inline-block' }}
@@ -104,7 +114,7 @@ export const CanvaLogoIcon: IconType = ({ className, size }: IconBaseProps) => {
  */
 export function PoweredByCanva({ className }: { className?: string }): JSX.Element {
   return (
-    <span className={cn('inline-flex items-center gap-1 text-xs text-grey-400', className)}>
+    <span className={cn('inline-flex items-center gap-1 text-xs text-foreground-muted', className)}>
       Powered by
       <CanvaLogo size={14} variant="script" />
     </span>

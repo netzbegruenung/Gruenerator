@@ -137,6 +137,9 @@ export const AI_LANES = {
   doc_generation: { provider: 'greenpt', model: GEMMA_4_GREENPT, structuredMode: 'tool' },
   board_generation: { provider: 'mistral', model: MISTRAL_LARGE, structuredMode: 'tool' },
   canvas_ai_suggest: { provider: 'mistral', model: MISTRAL_LARGE, structuredMode: 'tool' },
+  // Canva-Autofill im Studio: kurze Plakat-/Postzeilen in benannte Vorlagenfelder,
+  // dieselbe Textsorte wie die Sharepic-Lanes und deshalb wie sie auf Mistral.
+  canva_autofill: { provider: 'mistral', model: MISTRAL_LARGE, structuredMode: 'tool' },
   // — Editor-Op-Planer (board/sheet/presentation), der `edit_document`-
   //   Werkzeug im agentischen Loop (#3426). Erzwungener Tool-Call wie die
   //   Zeilen darüber; alle drei planten vorher auf einer privaten Kette

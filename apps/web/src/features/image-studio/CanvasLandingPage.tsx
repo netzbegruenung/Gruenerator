@@ -15,6 +15,7 @@ import {
 } from '../../config/workplaceToolsConfig';
 import { useFirstName } from '../../hooks/useFirstName';
 import { useAuthStore } from '../../stores/authStore';
+import { type CanvaStudioHandoff } from '../canva/canvaStudioHandoff';
 import { DocsComposer } from '../docs/DocsComposer';
 import { detectDocType } from '../docs/docTypeMeta';
 import { useFeatureIndex } from '../global-search/useFeatureIndex';
@@ -47,7 +48,7 @@ interface LandingPhoto {
   file: File;
 }
 
-type StudioMode = 'auto' | 'sharepic' | 'bild';
+type StudioMode = 'auto' | 'sharepic' | 'bild' | 'canva';
 
 interface StudioModeDef extends ComposerOption<StudioMode> {
   placeholder?: string;
@@ -70,7 +71,20 @@ const STUDIO_MODES: readonly StudioModeDef[] = [
     description: 'Neues KI-Bild aus Text – mit hochgeladenem Bild: Bild per Anweisung ändern',
   },
   // „Boxen bearbeiten" is gone until the editor has room for it again (#4364).
+  {
+    id: 'canva',
+    name: 'Canva',
+    description: 'Eigene Canva-Vorlage mit deinem Text befüllen – neues Design in Canva',
+    placeholder: 'Was soll auf das Design? z. B. Plakat für den Infostand am Samstag …',
+  },
 ];
+
+/**
+ * Canva-Autofill is for instance admins until Canva has reviewed the app; the
+ * API refuses everyone else too. „Auto" never resolves to it — Canva is a
+ * deliberate choice, not something read from the text.
+ */
+const MEMBER_MODES: readonly StudioModeDef[] = STUDIO_MODES.filter((m) => m.id !== 'canva');
 
 // Sharepic-specific placeholder rotation (the composer otherwise shows the
 // office doc/board/sheet examples). The long examples come from the country's
@@ -151,8 +165,10 @@ const CanvasLandingContent = () => {
   const [photos, setPhotos] = useState<LandingPhoto[]>([]);
   const [photoError, setPhotoError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const isInstanceAdmin = useAuthStore((s) => s.user?.is_admin === true);
+  const modes = isInstanceAdmin ? STUDIO_MODES : MEMBER_MODES;
   const [modeId, setModeId] = useState<StudioMode>('auto');
-  const picked = STUDIO_MODES.find((m) => m.id === modeId) ?? STUDIO_MODES[0]!;
+  const picked = modes.find((m) => m.id === modeId) ?? modes[0]!;
   // „Bild" works on one image; „Auto" and „Sharepic" take several photos.
   const singleImage = picked.id === 'bild';
   const hasImage = photos.length > 0;
@@ -226,6 +242,12 @@ const CanvasLandingContent = () => {
         }
       };
 
+      if (target.id === 'canva') {
+        const handoff: CanvaStudioHandoff = { prompt: description };
+        open('/studio/canva', handoff, handoff);
+        return;
+      }
+
       if (editorMode) {
         const mode = editorMode;
         const dataUrl = image ? await fileToDownscaledDataUrl(image).catch(() => null) : null;
@@ -287,7 +309,7 @@ const CanvasLandingContent = () => {
             toolbarSlot={(query) => (
               <span data-tour="studio-mode" className="flex dark:[&_button]:text-grey-300">
                 <ComposerOptionPicker
-                  options={STUDIO_MODES}
+                  options={modes}
                   value={picked.id}
                   onChange={changeMode}
                   sheetTitle="Was möchtest du machen?"

@@ -1,10 +1,19 @@
+import {
+  type CanvaAutofillFieldsResponse,
+  type CanvaAutofillRequest,
+  type CanvaAutofillResponse,
+  type CanvaAutofillSource,
+  type CanvaAutofillSourcesResponse,
+  type CanvaAutofillSuggestRequest,
+  type CanvaAutofillSuggestResponse,
+  type CanvaCollectionExportResponse,
+  type CanvaStatus,
+  type MarketplaceCollectionId,
+} from '@gruenerator/contracts';
+
 import apiClient from '@/components/utils/apiClient';
 
-export interface CanvaStatus {
-  connected: boolean;
-  displayName: string | null;
-  connectedAt: string | null;
-}
+export type { CanvaStatus };
 
 const API_BASE = (import.meta.env.VITE_API_BASE_URL as string | undefined) ?? '/api';
 
@@ -19,6 +28,16 @@ export async function fetchCanvaStatus(): Promise<CanvaStatus> {
 
 export async function disconnectCanva(): Promise<void> {
   await apiClient.delete('/canva');
+}
+
+/** The stickers and backgrounds of one Marktplatz collection, into a new Canva folder. */
+export async function exportCollectionToCanva(
+  collectionId: MarketplaceCollectionId
+): Promise<CanvaCollectionExportResponse> {
+  const response = await apiClient.post<CanvaCollectionExportResponse>(
+    `/canva/collections/${collectionId}/export`
+  );
+  return response.data;
 }
 
 export interface CanvaDesign {
@@ -46,5 +65,38 @@ export async function fetchCanvaDesigns(params: {
       limit: 24,
     },
   });
+  return response.data;
+}
+
+export async function fetchCanvaAutofillSources(): Promise<CanvaAutofillSourcesResponse> {
+  const response = await apiClient.get<CanvaAutofillSourcesResponse>('/canva/autofill/sources');
+  return response.data;
+}
+
+export async function fetchCanvaAutofillFields(
+  source: CanvaAutofillSource
+): Promise<CanvaAutofillFieldsResponse> {
+  const response = await apiClient.get<CanvaAutofillFieldsResponse>('/canva/autofill/fields', {
+    params: source,
+  });
+  return response.data;
+}
+
+/** A NEW design from the source with its text fields filled; the source stays as it is. */
+export async function createCanvaAutofill(
+  request: CanvaAutofillRequest
+): Promise<CanvaAutofillResponse> {
+  const response = await apiClient.post<CanvaAutofillResponse>('/canva/autofill', request);
+  return response.data;
+}
+
+/** The text fields, filled by the AI from a Studio request — a proposal, nothing reaches Canva. */
+export async function suggestCanvaAutofill(
+  request: CanvaAutofillSuggestRequest
+): Promise<CanvaAutofillSuggestResponse> {
+  const response = await apiClient.post<CanvaAutofillSuggestResponse>(
+    '/canva/autofill/suggest',
+    request
+  );
   return response.data;
 }

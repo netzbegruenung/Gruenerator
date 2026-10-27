@@ -27,6 +27,7 @@ import { type JSX, useId } from 'react';
 import { PiCheck } from 'react-icons/pi';
 
 import { GalleryEmptyState, GallerySkeleton } from '../../components/common/Gallery/parts';
+import { AddCollectionToCanvaButton } from '../canva/components/AddCollectionToCanvaButton';
 
 import { CollectionStory } from './CollectionStory';
 import { viewOf } from './kindViews';
@@ -277,6 +278,10 @@ export function MarketplaceCollectionView({
   const select = (item: MarketplaceItem) =>
     isSampleItem(item) ? openSample(item) : onSelect(item);
   const { addable, missing, label: addLabel } = collectionAddState(items);
+  // The collection's stickers and backgrounds are its Canva package; samples are only pictures.
+  const hasCanvaPackage = items.some(
+    (item) => (item.kind === 'sticker' || item.kind === 'background') && !isSampleItem(item)
+  );
 
   return (
     <div className="flex flex-col gap-xl">
@@ -314,21 +319,28 @@ export function MarketplaceCollectionView({
             </span>
           )}
         </div>
-        {addable.length > 0 &&
-          (addLabel ? (
-            <Button
-              size="lg"
-              className="rounded-full dark:bg-primary-700 dark:hover:bg-primary-800"
-              onClick={() => missing.forEach((item) => actions.toggleSave(item))}
-            >
-              {addLabel}
-            </Button>
-          ) : (
-            <span className="flex items-center gap-1.5 text-sm font-semibold text-foreground-muted">
-              <PiCheck aria-hidden />
-              Alle bei deinen Grüneratoren
-            </span>
-          ))}
+        {(addable.length > 0 || hasCanvaPackage) && (
+          <div className="flex flex-wrap items-center gap-sm">
+            {hasCanvaPackage && (
+              <AddCollectionToCanvaButton collectionId={id} folderName={def.title} />
+            )}
+            {addable.length > 0 &&
+              (addLabel ? (
+                <Button
+                  size="lg"
+                  className="rounded-full dark:bg-primary-700 dark:hover:bg-primary-800"
+                  onClick={() => missing.forEach((item) => actions.toggleSave(item))}
+                >
+                  {addLabel}
+                </Button>
+              ) : (
+                <span className="flex items-center gap-1.5 text-sm font-semibold text-foreground-muted">
+                  <PiCheck aria-hidden />
+                  Alle bei deinen Grüneratoren
+                </span>
+              ))}
+          </div>
+        )}
       </header>
       {story ? (
         <>
