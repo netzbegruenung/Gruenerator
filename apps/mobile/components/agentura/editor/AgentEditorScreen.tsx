@@ -18,7 +18,7 @@ import {
 } from '@gruenerator/shared/grueneratoren';
 import { useAuth } from '@gruenerator/shared/hooks';
 import { getRandomBytes } from 'expo-crypto';
-import { router, Stack, useLocalSearchParams, useNavigation } from 'expo-router';
+import { router, Stack, useLocalSearchParams, usePreventRemove } from 'expo-router';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import {
   ActivityIndicator,
@@ -223,7 +223,6 @@ function EditorForm({
 }) {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
-  const navigation = useNavigation();
   const { user } = useAuth();
   const patch = useAgentEditorStore((s) => s.patch);
   const reset = useAgentEditorStore((s) => s.reset);
@@ -247,36 +246,38 @@ function EditorForm({
   const missing = missingForSave(form);
   const canSave = missing === null && !saving && !deleteMut.isPending;
 
-  // Ungespeicherte Änderungen: vor dem Verlassen nachfragen.
-  useEffect(() => {
-    return navigation.addListener('beforeRemove', (e) => {
-      if (leavingRef.current || !useAgentEditorStore.getState().dirty) return;
-      e.preventDefault();
-      Alert.alert(
-        'Ungespeicherte Änderungen',
-        'Dein Entwurf bleibt auf diesem Gerät, bis du ihn speicherst oder verwirfst.',
-        [
-          { text: 'Weiter bearbeiten', style: 'cancel' },
-          {
-            text: 'Entwurf behalten',
-            onPress: () => {
-              leavingRef.current = true;
-              navigation.dispatch(e.data.action);
-            },
+  // Ungespeicherte Änderungen: vor dem Verlassen nachfragen. Wer schon geht
+  // (gespeichert, gelöscht, verworfen), wird nur durchgelassen.
+  const dirty = useAgentEditorStore((s) => s.dirty);
+  usePreventRemove(dirty, ({ repeat }) => {
+    if (leavingRef.current) {
+      repeat();
+      return;
+    }
+    Alert.alert(
+      'Ungespeicherte Änderungen',
+      'Dein Entwurf bleibt auf diesem Gerät, bis du ihn speicherst oder verwirfst.',
+      [
+        { text: 'Weiter bearbeiten', style: 'cancel' },
+        {
+          text: 'Entwurf behalten',
+          onPress: () => {
+            leavingRef.current = true;
+            repeat();
           },
-          {
-            text: 'Verwerfen',
-            style: 'destructive',
-            onPress: () => {
-              leavingRef.current = true;
-              useAgentEditorStore.getState().reset();
-              navigation.dispatch(e.data.action);
-            },
+        },
+        {
+          text: 'Verwerfen',
+          style: 'destructive',
+          onPress: () => {
+            leavingRef.current = true;
+            useAgentEditorStore.getState().reset();
+            repeat();
           },
-        ]
-      );
-    });
-  }, [navigation, leavingRef]);
+        },
+      ]
+    );
+  });
 
   const leave = (go: () => void) => {
     leavingRef.current = true;
