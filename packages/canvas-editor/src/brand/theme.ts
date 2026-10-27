@@ -386,22 +386,8 @@ export const BRAND_THEMES: Record<BrandLocale, BrandTheme> = {
   'de-AT': themeOf('de-AT', GRUENE_AT),
 };
 
-const SURFACE_GLOWS: Record<string, readonly string[]> = Object.fromEntries(
-  [GRUENE_DE, GRUENE_AT].flatMap((pack) =>
-    pack.backgrounds.flatMap((ground) =>
-      ground.glow ? [[ground.color.toLowerCase(), ground.glow] as const] : []
-    )
-  )
-);
-
-/**
- * The radial glow a stored plane colour is drawn as, centre first — null when
- * it is drawn flat. The stored value stays what documents, descriptors and
- * swatches carry; only the paint changes.
- */
-export function surfaceGlow(color: string): readonly string[] | null {
-  return SURFACE_GLOWS[color.toLowerCase()] ?? null;
-}
+/** Read from the registered packs, which apps/web installs from these two. */
+export { surfaceGlow } from '../utils/surfaceGlow';
 
 /** Resolve a brand pack, falling back to de-DE for unknown/undefined locales. */
 export function getBrandPack(locale?: BrandLocale | string | null): GruenePack {
