@@ -236,7 +236,7 @@ async function* runClientToolResumes(params: {
 
     let result: unknown;
     try {
-      result = await execute(args);
+      result = await execute(args, { threadId });
     } catch (err) {
       result = { error: err instanceof Error ? err.message : String(err) };
     }

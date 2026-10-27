@@ -18,7 +18,9 @@ import type {
   ChatModelRunResult,
 } from '@assistant-ui/react';
 
-const runPython = vi.fn(async (_args: Record<string, unknown>) => ({ ergebnis: 42 }));
+const runPython = vi.fn(async (_args: Record<string, unknown>, _ctx?: { threadId: string }) => ({
+  ergebnis: 42,
+}));
 
 vi.mock('../clientTools', () => ({
   getClientToolExecutor: (name: string) => (name === 'run_python' ? runPython : null),
@@ -105,7 +107,8 @@ describe('approval resume runs client tools', () => {
 
     await drain(createGrueneratorModelAdapter(() => config, {}));
 
-    expect(runPython).toHaveBeenCalledWith({ code: 'print(1)' });
+    // Mit dem Thread: ein leerer Pyodide-Speicher holt sich die Tabelle von dort.
+    expect(runPython).toHaveBeenCalledWith({ code: 'print(1)' }, { threadId: THREAD_ID });
     expect(fetchMock).toHaveBeenCalledTimes(2);
     expect(bodies[0]).toMatchObject({ threadId: THREAD_ID, toolApprovals: [{ approved: true }] });
     expect(bodies[1]).toEqual({
