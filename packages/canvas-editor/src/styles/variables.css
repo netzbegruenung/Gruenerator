@@ -173,6 +173,13 @@
     --editor-danger-bg: #FEF2F2;
     /* Formen-Vorschau in Tanne: auf dunkler Fläche unlesbar, dort Eukalyptus. */
     --editor-tanne-preview: #005538;
+    --editor-control-border: var(--grey-200);
+    --editor-control-bg: transparent;
+    --editor-control-bg-hover: transparent;
+    --editor-icon-button-bg: var(--background-color-pure);
+    --editor-icon-button-bg-hover: var(--grey-50);
+    --editor-icon-button-fg: var(--secondary-600);
+    --editor-icon-button-shadow: var(--shadow-md);
 }
 
 [data-theme="dark"] {
@@ -227,6 +234,13 @@
     --editor-danger-fg: #F87171;
     --editor-danger-bg: #450A0A;
     --editor-tanne-preview: var(--secondary-300);
+    --editor-control-border: var(--grey-700);
+    --editor-control-bg: rgba(55, 65, 81, 0.3);
+    --editor-control-bg-hover: rgba(55, 65, 81, 0.5);
+    --editor-icon-button-bg: var(--grey-700);
+    --editor-icon-button-bg-hover: var(--grey-600);
+    --editor-icon-button-fg: var(--grey-200);
+    --editor-icon-button-shadow: none;
 }
 
 body {

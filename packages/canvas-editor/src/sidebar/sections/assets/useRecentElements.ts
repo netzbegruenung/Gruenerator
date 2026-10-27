@@ -1,3 +1,4 @@
+import { getHostStorageKey, onHostStorageKeysChange } from '@ggraphic/editor/utils/hostStorageKeys';
 import { isShareSrc } from '@gruenerator/contracts';
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
@@ -5,9 +6,6 @@ import { createJSONStorage, persist } from 'zustand/middleware';
 import type { ElementItem } from './elementTypes';
 
 export const RECENT_ELEMENTS_LIMIT = 12;
-
-/** F0: persisted in every browser that opened the editor. */
-const STORAGE_KEY = 'gruenerator-canvas-recent-elements';
 
 interface RecentElementsState {
   items: ElementItem[];
@@ -63,7 +61,7 @@ export const useRecentElements = create<RecentElementsState>()(
         })),
     }),
     {
-      name: STORAGE_KEY,
+      name: getHostStorageKey('recentElements'),
       version: 1,
       storage: createJSONStorage(() => localStorage),
       partialize: (state) => ({ items: state.items }),
@@ -77,3 +75,11 @@ export const useRecentElements = create<RecentElementsState>()(
     }
   )
 );
+
+// A host registers its key at start-up, possibly after this module ran: follow it.
+onHostStorageKeysChange(() => {
+  const key = getHostStorageKey('recentElements');
+  if (useRecentElements.persist.getOptions().name === key) return;
+  useRecentElements.persist.setOptions({ name: key });
+  void useRecentElements.persist.rehydrate();
+});
