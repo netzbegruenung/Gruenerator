@@ -4,6 +4,7 @@ import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest
 
 import { composeSharepic } from '../composer/composeSharepic';
 import { MORE_SPECS, SPECS } from '../composer/sharepicSpecFixtures';
+import { DEFAULT_FORMAT_ID } from '../formats';
 import { loadAllIcons } from '../utils/canvasIcons';
 
 import { StandaloneCanvas } from './StandaloneCanvas';
@@ -346,7 +347,7 @@ describe('editor scene golden, every element kind', () => {
   });
 
   it('freeform', async () => {
-    const scene = await sceneOf('freeform', EVERY_KIND);
+    const scene = await sceneOf('freeform', DEFAULT_FORMAT_ID, EVERY_KIND);
     await expect(`${JSON.stringify([scene], null, 1)}\n`).toMatchFileSnapshot(
       '__golden__/scene/everyKind.json'
     );
