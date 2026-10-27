@@ -19,6 +19,8 @@ import { localizePlaceholders } from '../localization/index.js';
 import { type Locale } from '../localization/types.js';
 import { getManagedConnectors, isSourceGermanOnly } from '../mcp/systemMcpServers.js';
 
+import { formatGlossaryDefinitions } from './productGlossary.js';
+
 // Meta questions are short; longer texts (pasted documents) are never product
 // meta questions, and skipping them keeps the per-turn regex scan bounded.
 const MAX_META_QUESTION_LENGTH = 400;
@@ -202,6 +204,9 @@ ${formatAgentLines(locale, hiddenAgentIdentifiers)}
 
 ### Werkzeuge
 ${STATIC_TOOL_LINES.join('\n')}
+
+### Begriffe des Grünerators
+${formatGlossaryDefinitions()}
 
 ### Wissenssammlungen (durchsuchbar in Chat & Notebooks)
 ${formatCollectionLine()}

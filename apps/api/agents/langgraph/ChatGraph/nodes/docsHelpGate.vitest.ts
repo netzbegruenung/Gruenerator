@@ -50,6 +50,32 @@ describe('looksLikeDocsHelpQuestion', () => {
     }
   });
 
+  it('catches questions ABOUT a product term (live 27.10.2026)', () => {
+    for (const text of [
+      'Was ist Panda und wie bekomme ich das?',
+      'Was ist der Unterschied zwischen Klein, Mittel und Ultra?',
+      'Was ist ein Explainable?',
+      'Gibt es den Grünerator als App fürs Handy?',
+      'Wie lösche ich mein Konto?',
+      'Was macht der Öko-Modus bei der Transkription?',
+      'Kann ich aus einer Notebook-Antwort einen Podcast machen?',
+      'Welche Rezepte gibt es für Instagram?',
+    ]) {
+      expect(looksLikeDocsHelpQuestion(text), text).toBe(true);
+    }
+  });
+
+  it('does NOT turn an order that names a product term into a question', () => {
+    for (const text of [
+      'Erstelle einen Podcast über die Verkehrswende',
+      'Schreib einen kurzen Instagram-Post über die Pandas im Tiergarten Schönbrunn',
+      'Mach ein Explainable zur Wärmepumpe',
+      'Erstelle ein Sharepic mit Steckbrief für unsere Kandidatin',
+    ]) {
+      expect(looksLikeDocsHelpQuestion(text), text).toBe(false);
+    }
+  });
+
   it('handles empty input', () => {
     expect(looksLikeDocsHelpQuestion('')).toBe(false);
     expect(looksLikeDocsHelpQuestion('   ')).toBe(false);

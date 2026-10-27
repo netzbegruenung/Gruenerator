@@ -20,6 +20,7 @@ import { isSummaryAsk } from '../../../../agents/langgraph/ChatGraph/nodes/class
 import { forbidsNewResearch } from '../../../../agents/langgraph/ChatGraph/nodes/fastPathGuards.js';
 import { isModelSlow, recordSlowVerdict } from '../../../../services/ai/modelHealth.js';
 import { promptCacheKeyForThread } from '../../../../services/ai/promptCacheKey.js';
+import { buildGlossaryVocabularyNote } from '../../../../services/chat/productGlossary.js';
 import { looksLikeMemoryRequest } from '../../../../services/memory/memoryRequest.js';
 import { createLogger } from '../../../../utils/logger.js';
 import { deriveImplicitRecipeMention } from '../../agents/implicitRecipe.js';
@@ -532,8 +533,15 @@ export async function streamAgenticResponse(
       finalState.notebookIds?.[0] ?? finalState.threadNotebookId,
       finalState.userLocale ?? null
     );
+    // The product vocabulary — names only, so the model recognises a question
+    // about the Grünerator itself and decides to look it up. Only when a tool
+    // to look it up with is mounted.
+    const glossaryNote =
+      'product_knowledge' in wrapped || 'gruenerator_docs_search' in wrapped
+        ? buildGlossaryVocabularyNote()
+        : '';
     const toolSystem = withInstructionHierarchy(
-      `${systemMessage}\n\n${buildToolUsageBlock(budget.maxSteps, researchBanned, mode === 'unified', Object.keys(wrapped), sourceRegistry.carriedSize > 0, promptNotebook)}${mcpNote}${systemNote}${connectorCatalogNote}${carriedNote}${preLoopEditNotes}${renderRecipeCatalog(recipeCatalog)}`
+      `${systemMessage}\n\n${buildToolUsageBlock(budget.maxSteps, researchBanned, mode === 'unified', Object.keys(wrapped), sourceRegistry.carriedSize > 0, promptNotebook)}${mcpNote}${systemNote}${connectorCatalogNote}${carriedNote}${preLoopEditNotes}${glossaryNote}${renderRecipeCatalog(recipeCatalog)}`
     );
     const { abortSignal, writeAbortSignal, toolBudgetDeadline } = createTurnClocks(
       budget,
