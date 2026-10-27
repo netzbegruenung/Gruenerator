@@ -1,0 +1,3563 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`built-in templates: config loader > dreizeilen loads the same config fingerprint per format 1`] = `
+{
+  "(none)": {
+    "canvas": {
+      "height": 1350,
+      "width": 1080,
+    },
+    "elements": [
+      "background-color",
+      "background-image",
+      "sunflower",
+    ],
+    "id": "dreizeilen",
+    "multiPage": {
+      "enabled": true,
+      "maxPages": 10,
+    },
+    "tabs": [
+      "settings",
+      "frame-settings",
+      "text",
+      "assets",
+      "tools",
+      "uploads",
+      "chat",
+    ],
+  },
+  "post-portrait": {
+    "canvas": {
+      "height": 1350,
+      "width": 1080,
+    },
+    "elements": [
+      "background-color",
+      "background-image",
+      "sunflower",
+    ],
+    "id": "dreizeilen",
+    "multiPage": {
+      "enabled": true,
+      "maxPages": 10,
+    },
+    "tabs": [
+      "settings",
+      "frame-settings",
+      "text",
+      "assets",
+      "tools",
+      "uploads",
+      "chat",
+    ],
+  },
+  "post-portrait-tall": {
+    "canvas": {
+      "height": 1350,
+      "width": 1080,
+    },
+    "elements": [
+      "background-color",
+      "background-image",
+      "sunflower",
+    ],
+    "id": "dreizeilen",
+    "multiPage": {
+      "enabled": true,
+      "maxPages": 10,
+    },
+    "tabs": [
+      "settings",
+      "frame-settings",
+      "text",
+      "assets",
+      "tools",
+      "uploads",
+      "chat",
+    ],
+  },
+  "print-a4-hoch": {
+    "canvas": {
+      "height": 1350,
+      "width": 1080,
+    },
+    "elements": [
+      "background-color",
+      "background-image",
+      "sunflower",
+    ],
+    "id": "dreizeilen",
+    "multiPage": {
+      "enabled": true,
+      "maxPages": 10,
+    },
+    "tabs": [
+      "settings",
+      "frame-settings",
+      "text",
+      "assets",
+      "tools",
+      "uploads",
+      "chat",
+    ],
+  },
+  "profile-square": {
+    "canvas": {
+      "height": 1350,
+      "width": 1080,
+    },
+    "elements": [
+      "background-color",
+      "background-image",
+      "sunflower",
+    ],
+    "id": "dreizeilen",
+    "multiPage": {
+      "enabled": true,
+      "maxPages": 10,
+    },
+    "tabs": [
+      "settings",
+      "frame-settings",
+      "text",
+      "assets",
+      "tools",
+      "uploads",
+      "chat",
+    ],
+  },
+  "slide-16-9": {
+    "canvas": {
+      "height": 1350,
+      "width": 1080,
+    },
+    "elements": [
+      "background-color",
+      "background-image",
+      "sunflower",
+    ],
+    "id": "dreizeilen",
+    "multiPage": {
+      "enabled": true,
+      "maxPages": 10,
+    },
+    "tabs": [
+      "settings",
+      "frame-settings",
+      "text",
+      "assets",
+      "tools",
+      "uploads",
+      "chat",
+    ],
+  },
+}
+`;
+
+exports[`built-in templates: config loader > dreizeilen-overlay-at loads the same config fingerprint per format 1`] = `
+{
+  "(none)": {
+    "canvas": {
+      "height": 1350,
+      "width": 1080,
+    },
+    "elements": [
+      "background-color",
+      "background-image",
+      "overlay-box",
+      "line1-text",
+      "accent-text",
+      "line3-text",
+      "subline-text",
+      "logo",
+    ],
+    "id": "dreizeilen-overlay-at",
+    "multiPage": {
+      "enabled": true,
+      "maxPages": 10,
+    },
+    "tabs": [
+      "text",
+      "assets",
+      "frame-settings",
+      "tools",
+      "uploads",
+      "chat",
+    ],
+  },
+  "post-portrait": {
+    "canvas": {
+      "height": 1350,
+      "width": 1080,
+    },
+    "elements": [
+      "background-color",
+      "background-image",
+      "overlay-box",
+      "line1-text",
+      "accent-text",
+      "line3-text",
+      "subline-text",
+      "logo",
+    ],
+    "id": "dreizeilen-overlay-at",
+    "multiPage": {
+      "enabled": true,
+      "maxPages": 10,
+    },
+    "tabs": [
+      "text",
+      "assets",
+      "frame-settings",
+      "tools",
+      "uploads",
+      "chat",
+    ],
+  },
+  "post-portrait-tall": {
+    "canvas": {
+      "height": 1350,
+      "width": 1080,
+    },
+    "elements": [
+      "background-color",
+      "background-image",
+      "overlay-box",
+      "line1-text",
+      "accent-text",
+      "line3-text",
+      "subline-text",
+      "logo",
+    ],
+    "id": "dreizeilen-overlay-at",
+    "multiPage": {
+      "enabled": true,
+      "maxPages": 10,
+    },
+    "tabs": [
+      "text",
+      "assets",
+      "frame-settings",
+      "tools",
+      "uploads",
+      "chat",
+    ],
+  },
+  "print-a4-hoch": {
+    "canvas": {
+      "height": 1350,
+      "width": 1080,
+    },
+    "elements": [
+      "background-color",
+      "background-image",
+      "overlay-box",
+      "line1-text",
+      "accent-text",
+      "line3-text",
+      "subline-text",
+      "logo",
+    ],
+    "id": "dreizeilen-overlay-at",
+    "multiPage": {
+      "enabled": true,
+      "maxPages": 10,
+    },
+    "tabs": [
+      "text",
+      "assets",
+      "frame-settings",
+      "tools",
+      "uploads",
+      "chat",
+    ],
+  },
+  "profile-square": {
+    "canvas": {
+      "height": 1350,
+      "width": 1080,
+    },
+    "elements": [
+      "background-color",
+      "background-image",
+      "overlay-box",
+      "line1-text",
+      "accent-text",
+      "line3-text",
+      "subline-text",
+      "logo",
+    ],
+    "id": "dreizeilen-overlay-at",
+    "multiPage": {
+      "enabled": true,
+      "maxPages": 10,
+    },
+    "tabs": [
+      "text",
+      "assets",
+      "frame-settings",
+      "tools",
+      "uploads",
+      "chat",
+    ],
+  },
+  "slide-16-9": {
+    "canvas": {
+      "height": 1350,
+      "width": 1080,
+    },
+    "elements": [
+      "background-color",
+      "background-image",
+      "overlay-box",
+      "line1-text",
+      "accent-text",
+      "line3-text",
+      "subline-text",
+      "logo",
+    ],
+    "id": "dreizeilen-overlay-at",
+    "multiPage": {
+      "enabled": true,
+      "maxPages": 10,
+    },
+    "tabs": [
+      "text",
+      "assets",
+      "frame-settings",
+      "tools",
+      "uploads",
+      "chat",
+    ],
+  },
+}
+`;
+
+exports[`built-in templates: config loader > freeform loads the same config fingerprint per format 1`] = `
+{
+  "(none)": {
+    "canvas": {
+      "height": 1350,
+      "width": 1080,
+    },
+    "elements": [
+      "background-color",
+      "background-image",
+    ],
+    "id": "freeform",
+    "multiPage": {
+      "enabled": true,
+      "maxPages": 10,
+    },
+    "tabs": [
+      "text",
+      "elements",
+      "frame-settings",
+      "tools",
+      "uploads",
+      "chat",
+    ],
+  },
+  "post-portrait": {
+    "canvas": {
+      "height": 1350,
+      "width": 1080,
+    },
+    "elements": [
+      "background-color",
+      "background-image",
+    ],
+    "id": "freeform",
+    "multiPage": {
+      "enabled": true,
+      "maxPages": 10,
+    },
+    "tabs": [
+      "text",
+      "elements",
+      "frame-settings",
+      "tools",
+      "uploads",
+      "chat",
+    ],
+  },
+  "post-portrait-tall": {
+    "canvas": {
+      "height": 1440,
+      "width": 1080,
+    },
+    "elements": [
+      "background-color",
+      "background-image",
+    ],
+    "id": "freeform",
+    "multiPage": {
+      "enabled": true,
+      "maxPages": 10,
+    },
+    "tabs": [
+      "text",
+      "elements",
+      "frame-settings",
+      "tools",
+      "uploads",
+      "chat",
+    ],
+  },
+  "print-a4-hoch": {
+    "canvas": {
+      "height": 2000,
+      "width": 1426,
+    },
+    "elements": [
+      "background-color",
+      "background-image",
+    ],
+    "id": "freeform",
+    "multiPage": {
+      "enabled": true,
+      "maxPages": 10,
+    },
+    "tabs": [
+      "text",
+      "elements",
+      "frame-settings",
+      "tools",
+      "uploads",
+      "chat",
+    ],
+  },
+  "profile-square": {
+    "canvas": {
+      "height": 1080,
+      "width": 1080,
+    },
+    "elements": [
+      "background-color",
+      "background-image",
+    ],
+    "id": "freeform",
+    "multiPage": {
+      "enabled": true,
+      "maxPages": 10,
+    },
+    "tabs": [
+      "text",
+      "elements",
+      "frame-settings",
+      "tools",
+      "uploads",
+      "chat",
+    ],
+  },
+  "slide-16-9": {
+    "canvas": {
+      "height": 1080,
+      "width": 1920,
+    },
+    "elements": [
+      "background-color",
+      "background-image",
+    ],
+    "id": "freeform",
+    "multiPage": {
+      "enabled": true,
+      "maxPages": 60,
+    },
+    "tabs": [
+      "text",
+      "elements",
+      "frame-settings",
+      "tools",
+      "uploads",
+      "chat",
+    ],
+  },
+}
+`;
+
+exports[`built-in templates: config loader > freeform-at loads the same config fingerprint per format 1`] = `
+{
+  "(none)": {
+    "canvas": {
+      "height": 1350,
+      "width": 1080,
+    },
+    "elements": [
+      "background-color",
+      "background-image",
+    ],
+    "id": "freeform-at",
+    "multiPage": {
+      "enabled": true,
+      "maxPages": 10,
+    },
+    "tabs": [
+      "text",
+      "elements",
+      "frame-settings",
+      "tools",
+      "uploads",
+      "chat",
+    ],
+  },
+  "post-portrait": {
+    "canvas": {
+      "height": 1350,
+      "width": 1080,
+    },
+    "elements": [
+      "background-color",
+      "background-image",
+    ],
+    "id": "freeform-at",
+    "multiPage": {
+      "enabled": true,
+      "maxPages": 10,
+    },
+    "tabs": [
+      "text",
+      "elements",
+      "frame-settings",
+      "tools",
+      "uploads",
+      "chat",
+    ],
+  },
+  "post-portrait-tall": {
+    "canvas": {
+      "height": 1440,
+      "width": 1080,
+    },
+    "elements": [
+      "background-color",
+      "background-image",
+    ],
+    "id": "freeform-at",
+    "multiPage": {
+      "enabled": true,
+      "maxPages": 10,
+    },
+    "tabs": [
+      "text",
+      "elements",
+      "frame-settings",
+      "tools",
+      "uploads",
+      "chat",
+    ],
+  },
+  "print-a4-hoch": {
+    "canvas": {
+      "height": 2000,
+      "width": 1426,
+    },
+    "elements": [
+      "background-color",
+      "background-image",
+    ],
+    "id": "freeform-at",
+    "multiPage": {
+      "enabled": true,
+      "maxPages": 10,
+    },
+    "tabs": [
+      "text",
+      "elements",
+      "frame-settings",
+      "tools",
+      "uploads",
+      "chat",
+    ],
+  },
+  "profile-square": {
+    "canvas": {
+      "height": 1080,
+      "width": 1080,
+    },
+    "elements": [
+      "background-color",
+      "background-image",
+    ],
+    "id": "freeform-at",
+    "multiPage": {
+      "enabled": true,
+      "maxPages": 10,
+    },
+    "tabs": [
+      "text",
+      "elements",
+      "frame-settings",
+      "tools",
+      "uploads",
+      "chat",
+    ],
+  },
+  "slide-16-9": {
+    "canvas": {
+      "height": 1080,
+      "width": 1920,
+    },
+    "elements": [
+      "background-color",
+      "background-image",
+    ],
+    "id": "freeform-at",
+    "multiPage": {
+      "enabled": true,
+      "maxPages": 60,
+    },
+    "tabs": [
+      "text",
+      "elements",
+      "frame-settings",
+      "tools",
+      "uploads",
+      "chat",
+    ],
+  },
+}
+`;
+
+exports[`built-in templates: config loader > info loads the same config fingerprint per format 1`] = `
+{
+  "(none)": {
+    "canvas": {
+      "height": 1350,
+      "width": 1080,
+    },
+    "elements": [
+      "background",
+      "background-image",
+      "gradient-overlay",
+      "sunflower",
+      "header-text",
+      "arrow",
+      "body-text",
+    ],
+    "id": "info",
+    "multiPage": {
+      "enabled": true,
+      "maxPages": 10,
+    },
+    "tabs": [
+      "text",
+      "assets",
+      "frame-settings",
+      "tools",
+      "uploads",
+      "chat",
+    ],
+  },
+  "post-portrait": {
+    "canvas": {
+      "height": 1350,
+      "width": 1080,
+    },
+    "elements": [
+      "background",
+      "background-image",
+      "gradient-overlay",
+      "sunflower",
+      "header-text",
+      "arrow",
+      "body-text",
+    ],
+    "id": "info",
+    "multiPage": {
+      "enabled": true,
+      "maxPages": 10,
+    },
+    "tabs": [
+      "text",
+      "assets",
+      "frame-settings",
+      "tools",
+      "uploads",
+      "chat",
+    ],
+  },
+  "post-portrait-tall": {
+    "canvas": {
+      "height": 1350,
+      "width": 1080,
+    },
+    "elements": [
+      "background",
+      "background-image",
+      "gradient-overlay",
+      "sunflower",
+      "header-text",
+      "arrow",
+      "body-text",
+    ],
+    "id": "info",
+    "multiPage": {
+      "enabled": true,
+      "maxPages": 10,
+    },
+    "tabs": [
+      "text",
+      "assets",
+      "frame-settings",
+      "tools",
+      "uploads",
+      "chat",
+    ],
+  },
+  "print-a4-hoch": {
+    "canvas": {
+      "height": 1350,
+      "width": 1080,
+    },
+    "elements": [
+      "background",
+      "background-image",
+      "gradient-overlay",
+      "sunflower",
+      "header-text",
+      "arrow",
+      "body-text",
+    ],
+    "id": "info",
+    "multiPage": {
+      "enabled": true,
+      "maxPages": 10,
+    },
+    "tabs": [
+      "text",
+      "assets",
+      "frame-settings",
+      "tools",
+      "uploads",
+      "chat",
+    ],
+  },
+  "profile-square": {
+    "canvas": {
+      "height": 1350,
+      "width": 1080,
+    },
+    "elements": [
+      "background",
+      "background-image",
+      "gradient-overlay",
+      "sunflower",
+      "header-text",
+      "arrow",
+      "body-text",
+    ],
+    "id": "info",
+    "multiPage": {
+      "enabled": true,
+      "maxPages": 10,
+    },
+    "tabs": [
+      "text",
+      "assets",
+      "frame-settings",
+      "tools",
+      "uploads",
+      "chat",
+    ],
+  },
+  "slide-16-9": {
+    "canvas": {
+      "height": 1350,
+      "width": 1080,
+    },
+    "elements": [
+      "background",
+      "background-image",
+      "gradient-overlay",
+      "sunflower",
+      "header-text",
+      "arrow",
+      "body-text",
+    ],
+    "id": "info",
+    "multiPage": {
+      "enabled": true,
+      "maxPages": 10,
+    },
+    "tabs": [
+      "text",
+      "assets",
+      "frame-settings",
+      "tools",
+      "uploads",
+      "chat",
+    ],
+  },
+}
+`;
+
+exports[`built-in templates: config loader > info-at loads the same config fingerprint per format 1`] = `
+{
+  "(none)": {
+    "canvas": {
+      "height": 1350,
+      "width": 1080,
+    },
+    "elements": [
+      "background",
+      "background-image",
+      "gradient-overlay",
+      "logo",
+      "introline-text",
+      "text-text",
+      "accent-text",
+    ],
+    "id": "info-at",
+    "multiPage": {
+      "enabled": true,
+      "maxPages": 10,
+    },
+    "tabs": [
+      "text",
+      "assets",
+      "frame-settings",
+      "tools",
+      "uploads",
+      "chat",
+    ],
+  },
+  "post-portrait": {
+    "canvas": {
+      "height": 1350,
+      "width": 1080,
+    },
+    "elements": [
+      "background",
+      "background-image",
+      "gradient-overlay",
+      "logo",
+      "introline-text",
+      "text-text",
+      "accent-text",
+    ],
+    "id": "info-at",
+    "multiPage": {
+      "enabled": true,
+      "maxPages": 10,
+    },
+    "tabs": [
+      "text",
+      "assets",
+      "frame-settings",
+      "tools",
+      "uploads",
+      "chat",
+    ],
+  },
+  "post-portrait-tall": {
+    "canvas": {
+      "height": 1350,
+      "width": 1080,
+    },
+    "elements": [
+      "background",
+      "background-image",
+      "gradient-overlay",
+      "logo",
+      "introline-text",
+      "text-text",
+      "accent-text",
+    ],
+    "id": "info-at",
+    "multiPage": {
+      "enabled": true,
+      "maxPages": 10,
+    },
+    "tabs": [
+      "text",
+      "assets",
+      "frame-settings",
+      "tools",
+      "uploads",
+      "chat",
+    ],
+  },
+  "print-a4-hoch": {
+    "canvas": {
+      "height": 1350,
+      "width": 1080,
+    },
+    "elements": [
+      "background",
+      "background-image",
+      "gradient-overlay",
+      "logo",
+      "introline-text",
+      "text-text",
+      "accent-text",
+    ],
+    "id": "info-at",
+    "multiPage": {
+      "enabled": true,
+      "maxPages": 10,
+    },
+    "tabs": [
+      "text",
+      "assets",
+      "frame-settings",
+      "tools",
+      "uploads",
+      "chat",
+    ],
+  },
+  "profile-square": {
+    "canvas": {
+      "height": 1350,
+      "width": 1080,
+    },
+    "elements": [
+      "background",
+      "background-image",
+      "gradient-overlay",
+      "logo",
+      "introline-text",
+      "text-text",
+      "accent-text",
+    ],
+    "id": "info-at",
+    "multiPage": {
+      "enabled": true,
+      "maxPages": 10,
+    },
+    "tabs": [
+      "text",
+      "assets",
+      "frame-settings",
+      "tools",
+      "uploads",
+      "chat",
+    ],
+  },
+  "slide-16-9": {
+    "canvas": {
+      "height": 1350,
+      "width": 1080,
+    },
+    "elements": [
+      "background",
+      "background-image",
+      "gradient-overlay",
+      "logo",
+      "introline-text",
+      "text-text",
+      "accent-text",
+    ],
+    "id": "info-at",
+    "multiPage": {
+      "enabled": true,
+      "maxPages": 10,
+    },
+    "tabs": [
+      "text",
+      "assets",
+      "frame-settings",
+      "tools",
+      "uploads",
+      "chat",
+    ],
+  },
+}
+`;
+
+exports[`built-in templates: config loader > profilbild loads the same config fingerprint per format 1`] = `
+{
+  "(none)": {
+    "canvas": {
+      "height": 1080,
+      "width": 1080,
+    },
+    "elements": [
+      "background",
+      "avatar",
+    ],
+    "id": "profilbild",
+    "multiPage": {
+      "enabled": true,
+      "maxPages": 10,
+    },
+    "tabs": [
+      "elements",
+      "tools",
+      "uploads",
+      "chat",
+    ],
+  },
+  "post-portrait": {
+    "canvas": {
+      "height": 1080,
+      "width": 1080,
+    },
+    "elements": [
+      "background",
+      "avatar",
+    ],
+    "id": "profilbild",
+    "multiPage": {
+      "enabled": true,
+      "maxPages": 10,
+    },
+    "tabs": [
+      "elements",
+      "tools",
+      "uploads",
+      "chat",
+    ],
+  },
+  "post-portrait-tall": {
+    "canvas": {
+      "height": 1080,
+      "width": 1080,
+    },
+    "elements": [
+      "background",
+      "avatar",
+    ],
+    "id": "profilbild",
+    "multiPage": {
+      "enabled": true,
+      "maxPages": 10,
+    },
+    "tabs": [
+      "elements",
+      "tools",
+      "uploads",
+      "chat",
+    ],
+  },
+  "print-a4-hoch": {
+    "canvas": {
+      "height": 1080,
+      "width": 1080,
+    },
+    "elements": [
+      "background",
+      "avatar",
+    ],
+    "id": "profilbild",
+    "multiPage": {
+      "enabled": true,
+      "maxPages": 10,
+    },
+    "tabs": [
+      "elements",
+      "tools",
+      "uploads",
+      "chat",
+    ],
+  },
+  "profile-square": {
+    "canvas": {
+      "height": 1080,
+      "width": 1080,
+    },
+    "elements": [
+      "background",
+      "avatar",
+    ],
+    "id": "profilbild",
+    "multiPage": {
+      "enabled": true,
+      "maxPages": 10,
+    },
+    "tabs": [
+      "elements",
+      "tools",
+      "uploads",
+      "chat",
+    ],
+  },
+  "slide-16-9": {
+    "canvas": {
+      "height": 1080,
+      "width": 1080,
+    },
+    "elements": [
+      "background",
+      "avatar",
+    ],
+    "id": "profilbild",
+    "multiPage": {
+      "enabled": true,
+      "maxPages": 10,
+    },
+    "tabs": [
+      "elements",
+      "tools",
+      "uploads",
+      "chat",
+    ],
+  },
+}
+`;
+
+exports[`built-in templates: config loader > simple loads the same config fingerprint per format 1`] = `
+{
+  "(none)": {
+    "canvas": {
+      "height": 1350,
+      "width": 1080,
+    },
+    "elements": [
+      "background-color",
+      "background-image",
+      "gradient-overlay",
+      "headline-text",
+      "subtext-text",
+    ],
+    "id": "simple",
+    "multiPage": {
+      "enabled": true,
+      "maxPages": 10,
+    },
+    "tabs": [
+      "text",
+      "assets",
+      "frame-settings",
+      "tools",
+      "uploads",
+      "chat",
+    ],
+  },
+  "post-portrait": {
+    "canvas": {
+      "height": 1350,
+      "width": 1080,
+    },
+    "elements": [
+      "background-color",
+      "background-image",
+      "gradient-overlay",
+      "headline-text",
+      "subtext-text",
+    ],
+    "id": "simple",
+    "multiPage": {
+      "enabled": true,
+      "maxPages": 10,
+    },
+    "tabs": [
+      "text",
+      "assets",
+      "frame-settings",
+      "tools",
+      "uploads",
+      "chat",
+    ],
+  },
+  "post-portrait-tall": {
+    "canvas": {
+      "height": 1350,
+      "width": 1080,
+    },
+    "elements": [
+      "background-color",
+      "background-image",
+      "gradient-overlay",
+      "headline-text",
+      "subtext-text",
+    ],
+    "id": "simple",
+    "multiPage": {
+      "enabled": true,
+      "maxPages": 10,
+    },
+    "tabs": [
+      "text",
+      "assets",
+      "frame-settings",
+      "tools",
+      "uploads",
+      "chat",
+    ],
+  },
+  "print-a4-hoch": {
+    "canvas": {
+      "height": 1350,
+      "width": 1080,
+    },
+    "elements": [
+      "background-color",
+      "background-image",
+      "gradient-overlay",
+      "headline-text",
+      "subtext-text",
+    ],
+    "id": "simple",
+    "multiPage": {
+      "enabled": true,
+      "maxPages": 10,
+    },
+    "tabs": [
+      "text",
+      "assets",
+      "frame-settings",
+      "tools",
+      "uploads",
+      "chat",
+    ],
+  },
+  "profile-square": {
+    "canvas": {
+      "height": 1350,
+      "width": 1080,
+    },
+    "elements": [
+      "background-color",
+      "background-image",
+      "gradient-overlay",
+      "headline-text",
+      "subtext-text",
+    ],
+    "id": "simple",
+    "multiPage": {
+      "enabled": true,
+      "maxPages": 10,
+    },
+    "tabs": [
+      "text",
+      "assets",
+      "frame-settings",
+      "tools",
+      "uploads",
+      "chat",
+    ],
+  },
+  "slide-16-9": {
+    "canvas": {
+      "height": 1350,
+      "width": 1080,
+    },
+    "elements": [
+      "background-color",
+      "background-image",
+      "gradient-overlay",
+      "headline-text",
+      "subtext-text",
+    ],
+    "id": "simple",
+    "multiPage": {
+      "enabled": true,
+      "maxPages": 10,
+    },
+    "tabs": [
+      "text",
+      "assets",
+      "frame-settings",
+      "tools",
+      "uploads",
+      "chat",
+    ],
+  },
+}
+`;
+
+exports[`built-in templates: config loader > slider loads the same config fingerprint per format 1`] = `
+{
+  "(none)": {
+    "canvas": {
+      "height": 1350,
+      "width": 1080,
+    },
+    "elements": [
+      "background",
+      "background-image",
+      "gradient-overlay",
+      "sunflower",
+      "headline-text",
+      "subtext-text",
+      "subtext2-text",
+    ],
+    "id": "slider",
+    "multiPage": {
+      "enabled": true,
+      "maxPages": 10,
+    },
+    "tabs": [
+      "text",
+      "assets",
+      "frame-settings",
+      "tools",
+      "uploads",
+      "chat",
+    ],
+  },
+  "post-portrait": {
+    "canvas": {
+      "height": 1350,
+      "width": 1080,
+    },
+    "elements": [
+      "background",
+      "background-image",
+      "gradient-overlay",
+      "sunflower",
+      "headline-text",
+      "subtext-text",
+      "subtext2-text",
+    ],
+    "id": "slider",
+    "multiPage": {
+      "enabled": true,
+      "maxPages": 10,
+    },
+    "tabs": [
+      "text",
+      "assets",
+      "frame-settings",
+      "tools",
+      "uploads",
+      "chat",
+    ],
+  },
+  "post-portrait-tall": {
+    "canvas": {
+      "height": 1350,
+      "width": 1080,
+    },
+    "elements": [
+      "background",
+      "background-image",
+      "gradient-overlay",
+      "sunflower",
+      "headline-text",
+      "subtext-text",
+      "subtext2-text",
+    ],
+    "id": "slider",
+    "multiPage": {
+      "enabled": true,
+      "maxPages": 10,
+    },
+    "tabs": [
+      "text",
+      "assets",
+      "frame-settings",
+      "tools",
+      "uploads",
+      "chat",
+    ],
+  },
+  "print-a4-hoch": {
+    "canvas": {
+      "height": 1350,
+      "width": 1080,
+    },
+    "elements": [
+      "background",
+      "background-image",
+      "gradient-overlay",
+      "sunflower",
+      "headline-text",
+      "subtext-text",
+      "subtext2-text",
+    ],
+    "id": "slider",
+    "multiPage": {
+      "enabled": true,
+      "maxPages": 10,
+    },
+    "tabs": [
+      "text",
+      "assets",
+      "frame-settings",
+      "tools",
+      "uploads",
+      "chat",
+    ],
+  },
+  "profile-square": {
+    "canvas": {
+      "height": 1350,
+      "width": 1080,
+    },
+    "elements": [
+      "background",
+      "background-image",
+      "gradient-overlay",
+      "sunflower",
+      "headline-text",
+      "subtext-text",
+      "subtext2-text",
+    ],
+    "id": "slider",
+    "multiPage": {
+      "enabled": true,
+      "maxPages": 10,
+    },
+    "tabs": [
+      "text",
+      "assets",
+      "frame-settings",
+      "tools",
+      "uploads",
+      "chat",
+    ],
+  },
+  "slide-16-9": {
+    "canvas": {
+      "height": 1350,
+      "width": 1080,
+    },
+    "elements": [
+      "background",
+      "background-image",
+      "gradient-overlay",
+      "sunflower",
+      "headline-text",
+      "subtext-text",
+      "subtext2-text",
+    ],
+    "id": "slider",
+    "multiPage": {
+      "enabled": true,
+      "maxPages": 10,
+    },
+    "tabs": [
+      "text",
+      "assets",
+      "frame-settings",
+      "tools",
+      "uploads",
+      "chat",
+    ],
+  },
+}
+`;
+
+exports[`built-in templates: config loader > slider-at loads the same config fingerprint per format 1`] = `
+{
+  "(none)": {
+    "canvas": {
+      "height": 1350,
+      "width": 1080,
+    },
+    "elements": [
+      "background",
+      "background-image",
+      "gradient-overlay",
+      "logo",
+      "headline-text",
+      "subtext-text",
+      "subtext2-text",
+    ],
+    "id": "slider-at",
+    "multiPage": {
+      "enabled": true,
+      "maxPages": 10,
+    },
+    "tabs": [
+      "text",
+      "assets",
+      "frame-settings",
+      "tools",
+      "uploads",
+      "chat",
+    ],
+  },
+  "post-portrait": {
+    "canvas": {
+      "height": 1350,
+      "width": 1080,
+    },
+    "elements": [
+      "background",
+      "background-image",
+      "gradient-overlay",
+      "logo",
+      "headline-text",
+      "subtext-text",
+      "subtext2-text",
+    ],
+    "id": "slider-at",
+    "multiPage": {
+      "enabled": true,
+      "maxPages": 10,
+    },
+    "tabs": [
+      "text",
+      "assets",
+      "frame-settings",
+      "tools",
+      "uploads",
+      "chat",
+    ],
+  },
+  "post-portrait-tall": {
+    "canvas": {
+      "height": 1350,
+      "width": 1080,
+    },
+    "elements": [
+      "background",
+      "background-image",
+      "gradient-overlay",
+      "logo",
+      "headline-text",
+      "subtext-text",
+      "subtext2-text",
+    ],
+    "id": "slider-at",
+    "multiPage": {
+      "enabled": true,
+      "maxPages": 10,
+    },
+    "tabs": [
+      "text",
+      "assets",
+      "frame-settings",
+      "tools",
+      "uploads",
+      "chat",
+    ],
+  },
+  "print-a4-hoch": {
+    "canvas": {
+      "height": 1350,
+      "width": 1080,
+    },
+    "elements": [
+      "background",
+      "background-image",
+      "gradient-overlay",
+      "logo",
+      "headline-text",
+      "subtext-text",
+      "subtext2-text",
+    ],
+    "id": "slider-at",
+    "multiPage": {
+      "enabled": true,
+      "maxPages": 10,
+    },
+    "tabs": [
+      "text",
+      "assets",
+      "frame-settings",
+      "tools",
+      "uploads",
+      "chat",
+    ],
+  },
+  "profile-square": {
+    "canvas": {
+      "height": 1350,
+      "width": 1080,
+    },
+    "elements": [
+      "background",
+      "background-image",
+      "gradient-overlay",
+      "logo",
+      "headline-text",
+      "subtext-text",
+      "subtext2-text",
+    ],
+    "id": "slider-at",
+    "multiPage": {
+      "enabled": true,
+      "maxPages": 10,
+    },
+    "tabs": [
+      "text",
+      "assets",
+      "frame-settings",
+      "tools",
+      "uploads",
+      "chat",
+    ],
+  },
+  "slide-16-9": {
+    "canvas": {
+      "height": 1350,
+      "width": 1080,
+    },
+    "elements": [
+      "background",
+      "background-image",
+      "gradient-overlay",
+      "logo",
+      "headline-text",
+      "subtext-text",
+      "subtext2-text",
+    ],
+    "id": "slider-at",
+    "multiPage": {
+      "enabled": true,
+      "maxPages": 10,
+    },
+    "tabs": [
+      "text",
+      "assets",
+      "frame-settings",
+      "tools",
+      "uploads",
+      "chat",
+    ],
+  },
+}
+`;
+
+exports[`built-in templates: config loader > sticker loads the same config fingerprint per format 1`] = `
+{
+  "(none)": {
+    "canvas": {
+      "height": 1080,
+      "width": 1080,
+    },
+    "elements": [],
+    "id": "sticker",
+    "multiPage": {
+      "enabled": true,
+      "maxPages": 1,
+    },
+    "tabs": [
+      "text",
+      "elements",
+      "frame-settings",
+      "tools",
+      "uploads",
+    ],
+  },
+  "post-portrait": {
+    "canvas": {
+      "height": 1080,
+      "width": 1080,
+    },
+    "elements": [],
+    "id": "sticker",
+    "multiPage": {
+      "enabled": true,
+      "maxPages": 1,
+    },
+    "tabs": [
+      "text",
+      "elements",
+      "frame-settings",
+      "tools",
+      "uploads",
+    ],
+  },
+  "post-portrait-tall": {
+    "canvas": {
+      "height": 1080,
+      "width": 1080,
+    },
+    "elements": [],
+    "id": "sticker",
+    "multiPage": {
+      "enabled": true,
+      "maxPages": 1,
+    },
+    "tabs": [
+      "text",
+      "elements",
+      "frame-settings",
+      "tools",
+      "uploads",
+    ],
+  },
+  "print-a4-hoch": {
+    "canvas": {
+      "height": 1080,
+      "width": 1080,
+    },
+    "elements": [],
+    "id": "sticker",
+    "multiPage": {
+      "enabled": true,
+      "maxPages": 1,
+    },
+    "tabs": [
+      "text",
+      "elements",
+      "frame-settings",
+      "tools",
+      "uploads",
+    ],
+  },
+  "profile-square": {
+    "canvas": {
+      "height": 1080,
+      "width": 1080,
+    },
+    "elements": [],
+    "id": "sticker",
+    "multiPage": {
+      "enabled": true,
+      "maxPages": 1,
+    },
+    "tabs": [
+      "text",
+      "elements",
+      "frame-settings",
+      "tools",
+      "uploads",
+    ],
+  },
+  "slide-16-9": {
+    "canvas": {
+      "height": 1080,
+      "width": 1080,
+    },
+    "elements": [],
+    "id": "sticker",
+    "multiPage": {
+      "enabled": true,
+      "maxPages": 1,
+    },
+    "tabs": [
+      "text",
+      "elements",
+      "frame-settings",
+      "tools",
+      "uploads",
+    ],
+  },
+}
+`;
+
+exports[`built-in templates: config loader > veranstaltung loads the same config fingerprint per format 1`] = `
+{
+  "(none)": {
+    "canvas": {
+      "height": 1350,
+      "width": 1080,
+    },
+    "elements": [
+      "band-background",
+      "background-image",
+      "green-section",
+      "event-title",
+      "beschreibung",
+    ],
+    "id": "veranstaltung",
+    "multiPage": {
+      "enabled": true,
+      "maxPages": 10,
+    },
+    "tabs": [
+      "text",
+      "assets",
+      "frame-settings",
+      "tools",
+      "uploads",
+      "chat",
+    ],
+  },
+  "post-portrait": {
+    "canvas": {
+      "height": 1350,
+      "width": 1080,
+    },
+    "elements": [
+      "band-background",
+      "background-image",
+      "green-section",
+      "event-title",
+      "beschreibung",
+    ],
+    "id": "veranstaltung",
+    "multiPage": {
+      "enabled": true,
+      "maxPages": 10,
+    },
+    "tabs": [
+      "text",
+      "assets",
+      "frame-settings",
+      "tools",
+      "uploads",
+      "chat",
+    ],
+  },
+  "post-portrait-tall": {
+    "canvas": {
+      "height": 1350,
+      "width": 1080,
+    },
+    "elements": [
+      "band-background",
+      "background-image",
+      "green-section",
+      "event-title",
+      "beschreibung",
+    ],
+    "id": "veranstaltung",
+    "multiPage": {
+      "enabled": true,
+      "maxPages": 10,
+    },
+    "tabs": [
+      "text",
+      "assets",
+      "frame-settings",
+      "tools",
+      "uploads",
+      "chat",
+    ],
+  },
+  "print-a4-hoch": {
+    "canvas": {
+      "height": 1350,
+      "width": 1080,
+    },
+    "elements": [
+      "band-background",
+      "background-image",
+      "green-section",
+      "event-title",
+      "beschreibung",
+    ],
+    "id": "veranstaltung",
+    "multiPage": {
+      "enabled": true,
+      "maxPages": 10,
+    },
+    "tabs": [
+      "text",
+      "assets",
+      "frame-settings",
+      "tools",
+      "uploads",
+      "chat",
+    ],
+  },
+  "profile-square": {
+    "canvas": {
+      "height": 1350,
+      "width": 1080,
+    },
+    "elements": [
+      "band-background",
+      "background-image",
+      "green-section",
+      "event-title",
+      "beschreibung",
+    ],
+    "id": "veranstaltung",
+    "multiPage": {
+      "enabled": true,
+      "maxPages": 10,
+    },
+    "tabs": [
+      "text",
+      "assets",
+      "frame-settings",
+      "tools",
+      "uploads",
+      "chat",
+    ],
+  },
+  "slide-16-9": {
+    "canvas": {
+      "height": 1350,
+      "width": 1080,
+    },
+    "elements": [
+      "band-background",
+      "background-image",
+      "green-section",
+      "event-title",
+      "beschreibung",
+    ],
+    "id": "veranstaltung",
+    "multiPage": {
+      "enabled": true,
+      "maxPages": 10,
+    },
+    "tabs": [
+      "text",
+      "assets",
+      "frame-settings",
+      "tools",
+      "uploads",
+      "chat",
+    ],
+  },
+}
+`;
+
+exports[`built-in templates: config loader > zitat loads the same config fingerprint per format 1`] = `
+{
+  "(none)": {
+    "canvas": {
+      "height": 1350,
+      "width": 1080,
+    },
+    "elements": [
+      "background-color",
+      "background-image",
+      "gradient-overlay",
+      "quote-mark",
+      "quote-text",
+      "name-text",
+    ],
+    "id": "zitat",
+    "multiPage": {
+      "enabled": true,
+      "maxPages": 10,
+    },
+    "tabs": [
+      "text",
+      "assets",
+      "frame-settings",
+      "tools",
+      "uploads",
+      "chat",
+    ],
+  },
+  "post-portrait": {
+    "canvas": {
+      "height": 1350,
+      "width": 1080,
+    },
+    "elements": [
+      "background-color",
+      "background-image",
+      "gradient-overlay",
+      "quote-mark",
+      "quote-text",
+      "name-text",
+    ],
+    "id": "zitat",
+    "multiPage": {
+      "enabled": true,
+      "maxPages": 10,
+    },
+    "tabs": [
+      "text",
+      "assets",
+      "frame-settings",
+      "tools",
+      "uploads",
+      "chat",
+    ],
+  },
+  "post-portrait-tall": {
+    "canvas": {
+      "height": 1350,
+      "width": 1080,
+    },
+    "elements": [
+      "background-color",
+      "background-image",
+      "gradient-overlay",
+      "quote-mark",
+      "quote-text",
+      "name-text",
+    ],
+    "id": "zitat",
+    "multiPage": {
+      "enabled": true,
+      "maxPages": 10,
+    },
+    "tabs": [
+      "text",
+      "assets",
+      "frame-settings",
+      "tools",
+      "uploads",
+      "chat",
+    ],
+  },
+  "print-a4-hoch": {
+    "canvas": {
+      "height": 1350,
+      "width": 1080,
+    },
+    "elements": [
+      "background-color",
+      "background-image",
+      "gradient-overlay",
+      "quote-mark",
+      "quote-text",
+      "name-text",
+    ],
+    "id": "zitat",
+    "multiPage": {
+      "enabled": true,
+      "maxPages": 10,
+    },
+    "tabs": [
+      "text",
+      "assets",
+      "frame-settings",
+      "tools",
+      "uploads",
+      "chat",
+    ],
+  },
+  "profile-square": {
+    "canvas": {
+      "height": 1350,
+      "width": 1080,
+    },
+    "elements": [
+      "background-color",
+      "background-image",
+      "gradient-overlay",
+      "quote-mark",
+      "quote-text",
+      "name-text",
+    ],
+    "id": "zitat",
+    "multiPage": {
+      "enabled": true,
+      "maxPages": 10,
+    },
+    "tabs": [
+      "text",
+      "assets",
+      "frame-settings",
+      "tools",
+      "uploads",
+      "chat",
+    ],
+  },
+  "slide-16-9": {
+    "canvas": {
+      "height": 1350,
+      "width": 1080,
+    },
+    "elements": [
+      "background-color",
+      "background-image",
+      "gradient-overlay",
+      "quote-mark",
+      "quote-text",
+      "name-text",
+    ],
+    "id": "zitat",
+    "multiPage": {
+      "enabled": true,
+      "maxPages": 10,
+    },
+    "tabs": [
+      "text",
+      "assets",
+      "frame-settings",
+      "tools",
+      "uploads",
+      "chat",
+    ],
+  },
+}
+`;
+
+exports[`built-in templates: config loader > zitat-at loads the same config fingerprint per format 1`] = `
+{
+  "(none)": {
+    "canvas": {
+      "height": 1350,
+      "width": 1080,
+    },
+    "elements": [
+      "background-color",
+      "background-image",
+      "gradient-overlay",
+      "quote-mark",
+      "quote-text",
+      "name-text",
+    ],
+    "id": "zitat-at",
+    "multiPage": {
+      "enabled": true,
+      "maxPages": 10,
+    },
+    "tabs": [
+      "text",
+      "assets",
+      "frame-settings",
+      "tools",
+      "uploads",
+      "chat",
+    ],
+  },
+  "post-portrait": {
+    "canvas": {
+      "height": 1350,
+      "width": 1080,
+    },
+    "elements": [
+      "background-color",
+      "background-image",
+      "gradient-overlay",
+      "quote-mark",
+      "quote-text",
+      "name-text",
+    ],
+    "id": "zitat-at",
+    "multiPage": {
+      "enabled": true,
+      "maxPages": 10,
+    },
+    "tabs": [
+      "text",
+      "assets",
+      "frame-settings",
+      "tools",
+      "uploads",
+      "chat",
+    ],
+  },
+  "post-portrait-tall": {
+    "canvas": {
+      "height": 1350,
+      "width": 1080,
+    },
+    "elements": [
+      "background-color",
+      "background-image",
+      "gradient-overlay",
+      "quote-mark",
+      "quote-text",
+      "name-text",
+    ],
+    "id": "zitat-at",
+    "multiPage": {
+      "enabled": true,
+      "maxPages": 10,
+    },
+    "tabs": [
+      "text",
+      "assets",
+      "frame-settings",
+      "tools",
+      "uploads",
+      "chat",
+    ],
+  },
+  "print-a4-hoch": {
+    "canvas": {
+      "height": 1350,
+      "width": 1080,
+    },
+    "elements": [
+      "background-color",
+      "background-image",
+      "gradient-overlay",
+      "quote-mark",
+      "quote-text",
+      "name-text",
+    ],
+    "id": "zitat-at",
+    "multiPage": {
+      "enabled": true,
+      "maxPages": 10,
+    },
+    "tabs": [
+      "text",
+      "assets",
+      "frame-settings",
+      "tools",
+      "uploads",
+      "chat",
+    ],
+  },
+  "profile-square": {
+    "canvas": {
+      "height": 1350,
+      "width": 1080,
+    },
+    "elements": [
+      "background-color",
+      "background-image",
+      "gradient-overlay",
+      "quote-mark",
+      "quote-text",
+      "name-text",
+    ],
+    "id": "zitat-at",
+    "multiPage": {
+      "enabled": true,
+      "maxPages": 10,
+    },
+    "tabs": [
+      "text",
+      "assets",
+      "frame-settings",
+      "tools",
+      "uploads",
+      "chat",
+    ],
+  },
+  "slide-16-9": {
+    "canvas": {
+      "height": 1350,
+      "width": 1080,
+    },
+    "elements": [
+      "background-color",
+      "background-image",
+      "gradient-overlay",
+      "quote-mark",
+      "quote-text",
+      "name-text",
+    ],
+    "id": "zitat-at",
+    "multiPage": {
+      "enabled": true,
+      "maxPages": 10,
+    },
+    "tabs": [
+      "text",
+      "assets",
+      "frame-settings",
+      "tools",
+      "uploads",
+      "chat",
+    ],
+  },
+}
+`;
+
+exports[`built-in templates: config loader > zitat-pure loads the same config fingerprint per format 1`] = `
+{
+  "(none)": {
+    "canvas": {
+      "height": 1350,
+      "width": 1080,
+    },
+    "elements": [
+      "background",
+      "background-image",
+      "gradient-overlay",
+      "sunflower",
+      "quote-mark",
+      "quote-text",
+      "name-text",
+    ],
+    "id": "zitat-pure",
+    "multiPage": {
+      "enabled": true,
+      "maxPages": 10,
+    },
+    "tabs": [
+      "text",
+      "assets",
+      "frame-settings",
+      "tools",
+      "uploads",
+      "chat",
+    ],
+  },
+  "post-portrait": {
+    "canvas": {
+      "height": 1350,
+      "width": 1080,
+    },
+    "elements": [
+      "background",
+      "background-image",
+      "gradient-overlay",
+      "sunflower",
+      "quote-mark",
+      "quote-text",
+      "name-text",
+    ],
+    "id": "zitat-pure",
+    "multiPage": {
+      "enabled": true,
+      "maxPages": 10,
+    },
+    "tabs": [
+      "text",
+      "assets",
+      "frame-settings",
+      "tools",
+      "uploads",
+      "chat",
+    ],
+  },
+  "post-portrait-tall": {
+    "canvas": {
+      "height": 1350,
+      "width": 1080,
+    },
+    "elements": [
+      "background",
+      "background-image",
+      "gradient-overlay",
+      "sunflower",
+      "quote-mark",
+      "quote-text",
+      "name-text",
+    ],
+    "id": "zitat-pure",
+    "multiPage": {
+      "enabled": true,
+      "maxPages": 10,
+    },
+    "tabs": [
+      "text",
+      "assets",
+      "frame-settings",
+      "tools",
+      "uploads",
+      "chat",
+    ],
+  },
+  "print-a4-hoch": {
+    "canvas": {
+      "height": 1350,
+      "width": 1080,
+    },
+    "elements": [
+      "background",
+      "background-image",
+      "gradient-overlay",
+      "sunflower",
+      "quote-mark",
+      "quote-text",
+      "name-text",
+    ],
+    "id": "zitat-pure",
+    "multiPage": {
+      "enabled": true,
+      "maxPages": 10,
+    },
+    "tabs": [
+      "text",
+      "assets",
+      "frame-settings",
+      "tools",
+      "uploads",
+      "chat",
+    ],
+  },
+  "profile-square": {
+    "canvas": {
+      "height": 1350,
+      "width": 1080,
+    },
+    "elements": [
+      "background",
+      "background-image",
+      "gradient-overlay",
+      "sunflower",
+      "quote-mark",
+      "quote-text",
+      "name-text",
+    ],
+    "id": "zitat-pure",
+    "multiPage": {
+      "enabled": true,
+      "maxPages": 10,
+    },
+    "tabs": [
+      "text",
+      "assets",
+      "frame-settings",
+      "tools",
+      "uploads",
+      "chat",
+    ],
+  },
+  "slide-16-9": {
+    "canvas": {
+      "height": 1350,
+      "width": 1080,
+    },
+    "elements": [
+      "background",
+      "background-image",
+      "gradient-overlay",
+      "sunflower",
+      "quote-mark",
+      "quote-text",
+      "name-text",
+    ],
+    "id": "zitat-pure",
+    "multiPage": {
+      "enabled": true,
+      "maxPages": 10,
+    },
+    "tabs": [
+      "text",
+      "assets",
+      "frame-settings",
+      "tools",
+      "uploads",
+      "chat",
+    ],
+  },
+}
+`;
+
+exports[`built-in templates: config loader > zitat-pure-at loads the same config fingerprint per format 1`] = `
+{
+  "(none)": {
+    "canvas": {
+      "height": 1350,
+      "width": 1080,
+    },
+    "elements": [
+      "background",
+      "background-image",
+      "gradient-overlay",
+      "quote-mark",
+      "quote-text",
+      "name-text",
+    ],
+    "id": "zitat-pure-at",
+    "multiPage": {
+      "enabled": true,
+      "maxPages": 10,
+    },
+    "tabs": [
+      "text",
+      "assets",
+      "frame-settings",
+      "tools",
+      "uploads",
+      "chat",
+    ],
+  },
+  "post-portrait": {
+    "canvas": {
+      "height": 1350,
+      "width": 1080,
+    },
+    "elements": [
+      "background",
+      "background-image",
+      "gradient-overlay",
+      "quote-mark",
+      "quote-text",
+      "name-text",
+    ],
+    "id": "zitat-pure-at",
+    "multiPage": {
+      "enabled": true,
+      "maxPages": 10,
+    },
+    "tabs": [
+      "text",
+      "assets",
+      "frame-settings",
+      "tools",
+      "uploads",
+      "chat",
+    ],
+  },
+  "post-portrait-tall": {
+    "canvas": {
+      "height": 1350,
+      "width": 1080,
+    },
+    "elements": [
+      "background",
+      "background-image",
+      "gradient-overlay",
+      "quote-mark",
+      "quote-text",
+      "name-text",
+    ],
+    "id": "zitat-pure-at",
+    "multiPage": {
+      "enabled": true,
+      "maxPages": 10,
+    },
+    "tabs": [
+      "text",
+      "assets",
+      "frame-settings",
+      "tools",
+      "uploads",
+      "chat",
+    ],
+  },
+  "print-a4-hoch": {
+    "canvas": {
+      "height": 1350,
+      "width": 1080,
+    },
+    "elements": [
+      "background",
+      "background-image",
+      "gradient-overlay",
+      "quote-mark",
+      "quote-text",
+      "name-text",
+    ],
+    "id": "zitat-pure-at",
+    "multiPage": {
+      "enabled": true,
+      "maxPages": 10,
+    },
+    "tabs": [
+      "text",
+      "assets",
+      "frame-settings",
+      "tools",
+      "uploads",
+      "chat",
+    ],
+  },
+  "profile-square": {
+    "canvas": {
+      "height": 1350,
+      "width": 1080,
+    },
+    "elements": [
+      "background",
+      "background-image",
+      "gradient-overlay",
+      "quote-mark",
+      "quote-text",
+      "name-text",
+    ],
+    "id": "zitat-pure-at",
+    "multiPage": {
+      "enabled": true,
+      "maxPages": 10,
+    },
+    "tabs": [
+      "text",
+      "assets",
+      "frame-settings",
+      "tools",
+      "uploads",
+      "chat",
+    ],
+  },
+  "slide-16-9": {
+    "canvas": {
+      "height": 1350,
+      "width": 1080,
+    },
+    "elements": [
+      "background",
+      "background-image",
+      "gradient-overlay",
+      "quote-mark",
+      "quote-text",
+      "name-text",
+    ],
+    "id": "zitat-pure-at",
+    "multiPage": {
+      "enabled": true,
+      "maxPages": 10,
+    },
+    "tabs": [
+      "text",
+      "assets",
+      "frame-settings",
+      "tools",
+      "uploads",
+      "chat",
+    ],
+  },
+}
+`;
+
+exports[`built-in templates: host callback keys > dreizeilen 1`] = `
+[
+  "line1",
+  "line2",
+  "line3",
+  "currentImageSrc",
+  "imageOffset",
+  "imageScale",
+  "backgroundImageOpacity",
+  "imageAttribution",
+]
+`;
+
+exports[`built-in templates: host callback keys > dreizeilen-overlay-at 1`] = `
+[
+  "line1",
+  "accent",
+  "line3",
+  "subline",
+  "currentImageSrc",
+  "imageOffset",
+  "imageScale",
+  "backgroundImageOpacity",
+  "imageAttribution",
+]
+`;
+
+exports[`built-in templates: host callback keys > freeform 1`] = `
+[
+  "backgroundMode",
+  "currentImageSrc",
+  "imageOffset",
+  "imageScale",
+  "backgroundImageOpacity",
+  "imageAttribution",
+]
+`;
+
+exports[`built-in templates: host callback keys > freeform-at 1`] = `
+[
+  "backgroundMode",
+  "backgroundColor",
+  "currentImageSrc",
+  "imageOffset",
+  "imageScale",
+  "backgroundImageOpacity",
+  "imageAttribution",
+]
+`;
+
+exports[`built-in templates: host callback keys > info 1`] = `
+[
+  "header",
+  "body",
+  "currentImageSrc",
+  "imageOffset",
+  "imageScale",
+  "backgroundImageOpacity",
+  "imageAttribution",
+]
+`;
+
+exports[`built-in templates: host callback keys > info-at 1`] = `
+[
+  "introline",
+  "text",
+  "accent",
+  "currentImageSrc",
+  "imageOffset",
+  "imageScale",
+  "backgroundImageOpacity",
+  "imageAttribution",
+]
+`;
+
+exports[`built-in templates: host callback keys > profilbild 1`] = `[]`;
+
+exports[`built-in templates: host callback keys > simple 1`] = `
+[
+  "headline",
+  "subtext",
+  "currentImageSrc",
+  "imageOffset",
+  "imageScale",
+  "backgroundImageOpacity",
+  "imageAttribution",
+]
+`;
+
+exports[`built-in templates: host callback keys > slider 1`] = `
+[
+  "label",
+  "headline",
+  "subtext",
+  "currentImageSrc",
+  "imageOffset",
+  "imageScale",
+  "backgroundImageOpacity",
+  "imageAttribution",
+]
+`;
+
+exports[`built-in templates: host callback keys > slider-at 1`] = `
+[
+  "label",
+  "headline",
+  "subtext",
+  "currentImageSrc",
+  "imageOffset",
+  "imageScale",
+  "backgroundImageOpacity",
+  "imageAttribution",
+]
+`;
+
+exports[`built-in templates: host callback keys > sticker 1`] = `
+[
+  "backgroundMode",
+  "currentImageSrc",
+  "imageOffset",
+  "imageScale",
+  "backgroundImageOpacity",
+  "imageAttribution",
+]
+`;
+
+exports[`built-in templates: host callback keys > veranstaltung 1`] = `
+[
+  "eventTitle",
+  "beschreibung",
+  "currentImageSrc",
+  "imageOffset",
+  "imageScale",
+  "backgroundImageOpacity",
+  "imageAttribution",
+]
+`;
+
+exports[`built-in templates: host callback keys > zitat 1`] = `
+[
+  "quote",
+  "name",
+  "currentImageSrc",
+  "imageOffset",
+  "imageScale",
+  "backgroundImageOpacity",
+  "imageAttribution",
+]
+`;
+
+exports[`built-in templates: host callback keys > zitat-at 1`] = `
+[
+  "quote",
+  "name",
+  "currentImageSrc",
+  "imageOffset",
+  "imageScale",
+  "backgroundImageOpacity",
+  "imageAttribution",
+]
+`;
+
+exports[`built-in templates: host callback keys > zitat-pure 1`] = `
+[
+  "quote",
+  "name",
+  "currentImageSrc",
+  "imageOffset",
+  "imageScale",
+  "backgroundImageOpacity",
+  "imageAttribution",
+]
+`;
+
+exports[`built-in templates: host callback keys > zitat-pure-at 1`] = `
+[
+  "quote",
+  "name",
+  "currentImageSrc",
+  "imageOffset",
+  "imageScale",
+  "backgroundImageOpacity",
+  "imageAttribution",
+]
+`;
+
+exports[`built-in templates: picker registry > dreizeilen: info, category, format fit 1`] = `
+{
+  "category": "sharepic",
+  "fits": {
+    "(none)": true,
+    "post-portrait": true,
+    "post-portrait-tall": false,
+    "print-a4-hoch": false,
+    "profile-square": false,
+    "slide-16-9": false,
+  },
+}
+`;
+
+exports[`built-in templates: picker registry > dreizeilen-overlay-at: info, category, format fit 1`] = `
+{
+  "category": "sharepic",
+  "fits": {
+    "(none)": true,
+    "post-portrait": true,
+    "post-portrait-tall": false,
+    "print-a4-hoch": false,
+    "profile-square": false,
+    "slide-16-9": false,
+  },
+}
+`;
+
+exports[`built-in templates: picker registry > freeform: info, category, format fit 1`] = `
+{
+  "category": "sharepic",
+  "fits": {
+    "(none)": true,
+    "post-portrait": true,
+    "post-portrait-tall": true,
+    "print-a4-hoch": true,
+    "profile-square": true,
+    "slide-16-9": true,
+  },
+}
+`;
+
+exports[`built-in templates: picker registry > freeform-at: info, category, format fit 1`] = `
+{
+  "category": "sharepic",
+  "fits": {
+    "(none)": true,
+    "post-portrait": true,
+    "post-portrait-tall": true,
+    "print-a4-hoch": true,
+    "profile-square": true,
+    "slide-16-9": true,
+  },
+}
+`;
+
+exports[`built-in templates: picker registry > info: info, category, format fit 1`] = `
+{
+  "category": "sharepic",
+  "fits": {
+    "(none)": true,
+    "post-portrait": true,
+    "post-portrait-tall": false,
+    "print-a4-hoch": false,
+    "profile-square": false,
+    "slide-16-9": false,
+  },
+}
+`;
+
+exports[`built-in templates: picker registry > info-at: info, category, format fit 1`] = `
+{
+  "category": "sharepic",
+  "fits": {
+    "(none)": true,
+    "post-portrait": true,
+    "post-portrait-tall": false,
+    "print-a4-hoch": false,
+    "profile-square": false,
+    "slide-16-9": false,
+  },
+}
+`;
+
+exports[`built-in templates: picker registry > keeps registry order and entries 1`] = `
+{
+  "dreizeilen": {
+    "category": "sharepic",
+    "description": "Drei Textzeilen auf Foto oder Farbfläche",
+    "id": "dreizeilen",
+    "label": "3 Zeilen",
+    "previewImage": "/imagine/previews/dreizeilen-preview.webp",
+  },
+  "dreizeilen-overlay-at": {
+    "audience": "de-AT",
+    "category": "sharepic",
+    "description": "Dreizeilige Headline auf Farbfläche über einem Foto (Österreich)",
+    "id": "dreizeilen-overlay-at",
+    "label": "3 Zeilen",
+    "previewImage": "/imagine/previews/dreizeilen-overlay-at-preview.webp",
+  },
+  "freeform": {
+    "category": "sharepic",
+    "description": "Leere Leinwand zum freien Gestalten",
+    "followsFormat": true,
+    "id": "freeform",
+    "label": "Freies Design",
+    "previewImage": "/imagine/previews/freeform-preview.webp",
+  },
+  "freeform-at": {
+    "audience": "de-AT",
+    "category": "sharepic",
+    "description": "Leere Leinwand mit österreichischem CI",
+    "followsFormat": true,
+    "id": "freeform-at",
+    "label": "Freies Design",
+    "previewImage": "/imagine/previews/freeform-preview.webp",
+  },
+  "info": {
+    "category": "sharepic",
+    "description": "Überschrift und Text auf Farbfläche oder Foto",
+    "id": "info",
+    "label": "Info",
+    "previewImage": "/imagine/previews/info-preview.webp",
+  },
+  "info-at": {
+    "audience": "de-AT",
+    "category": "sharepic",
+    "description": "Introline, Infotext und gelbe Schlusszeile auf Farbfläche oder Foto (Österreich)",
+    "id": "info-at",
+    "label": "Info",
+    "previewImage": "/imagine/previews/info-at-preview.webp",
+  },
+  "profilbild": {
+    "category": "profilbild",
+    "description": "Profilbild mit transparentem Vordergrund auf farbigem Hintergrund",
+    "id": "profilbild",
+    "label": "Profilbild",
+    "previewImage": "/imagine/previews/profilbild-preview.webp",
+  },
+  "simple": {
+    "category": "sharepic",
+    "description": "Überschrift und Unterzeile auf Foto oder Farbfläche",
+    "id": "simple",
+    "label": "Einfach",
+    "previewImage": "/imagine/previews/simple-preview.webp",
+  },
+  "slider": {
+    "category": "slider",
+    "description": "Slider-Post mit Pill-Badge und Pfeil",
+    "id": "slider",
+    "label": "Slider",
+    "previewImage": "/imagine/previews/slider-preview.webp",
+  },
+  "slider-at": {
+    "audience": "de-AT",
+    "category": "slider",
+    "description": "Slider-Post mit Label, Pfeil und Logo (Österreich)",
+    "id": "slider-at",
+    "label": "Slider",
+    "previewImage": "/imagine/previews/slider-preview.webp",
+  },
+  "sticker": {
+    "audience": "all",
+    "category": "profilbild",
+    "description": "Transparente Fläche für einen Sticker",
+    "hiddenFromPicker": true,
+    "id": "sticker",
+    "label": "Sticker",
+    "previewImage": "/imagine/previews/freeform-preview.webp",
+  },
+  "veranstaltung": {
+    "category": "sharepic",
+    "description": "Veranstaltungsankündigung",
+    "id": "veranstaltung",
+    "label": "Event",
+    "previewImage": "/imagine/previews/veranstaltung-preview.webp",
+  },
+  "zitat": {
+    "category": "sharepic",
+    "description": "Zitat auf Foto oder Farbfläche",
+    "id": "zitat",
+    "label": "Zitat",
+    "previewImage": "/imagine/previews/zitat-preview.webp",
+  },
+  "zitat-at": {
+    "audience": "de-AT",
+    "category": "sharepic",
+    "description": "Zitat auf Foto oder Farbfläche (Österreich)",
+    "id": "zitat-at",
+    "label": "Zitat",
+    "previewImage": "/imagine/previews/zitat-at-preview.webp",
+  },
+  "zitat-pure": {
+    "category": "sharepic",
+    "description": "Zitat auf Farbfläche oder Foto",
+    "id": "zitat-pure",
+    "label": "Zitat Pur",
+    "previewImage": "/imagine/previews/zitat-pure-preview.webp",
+  },
+  "zitat-pure-at": {
+    "audience": "de-AT",
+    "category": "sharepic",
+    "description": "Zitat auf Farbfläche oder Foto (Österreich)",
+    "id": "zitat-pure-at",
+    "label": "Zitat Pur",
+    "previewImage": "/imagine/previews/zitat-pure-at-preview.webp",
+  },
+}
+`;
+
+exports[`built-in templates: picker registry > keeps registry order and entries 2`] = `
+[
+  "dreizeilen",
+  "zitat",
+  "zitat-pure",
+  "simple",
+  "info",
+  "veranstaltung",
+  "slider",
+  "freeform",
+  "profilbild",
+  "sticker",
+  "zitat-at",
+  "zitat-pure-at",
+  "dreizeilen-overlay-at",
+  "info-at",
+  "freeform-at",
+  "slider-at",
+]
+`;
+
+exports[`built-in templates: picker registry > offers per locale 1`] = `
+[
+  "dreizeilen",
+  "zitat",
+  "zitat-pure",
+  "simple",
+  "info",
+  "veranstaltung",
+  "slider",
+  "freeform",
+  "profilbild",
+]
+`;
+
+exports[`built-in templates: picker registry > offers per locale 2`] = `
+[
+  "zitat-at",
+  "zitat-pure-at",
+  "dreizeilen-overlay-at",
+  "info-at",
+  "freeform-at",
+  "slider-at",
+]
+`;
+
+exports[`built-in templates: picker registry > profilbild: info, category, format fit 1`] = `
+{
+  "category": "profilbild",
+  "fits": {
+    "(none)": false,
+    "post-portrait": false,
+    "post-portrait-tall": false,
+    "print-a4-hoch": false,
+    "profile-square": true,
+    "slide-16-9": false,
+  },
+}
+`;
+
+exports[`built-in templates: picker registry > simple: info, category, format fit 1`] = `
+{
+  "category": "sharepic",
+  "fits": {
+    "(none)": true,
+    "post-portrait": true,
+    "post-portrait-tall": false,
+    "print-a4-hoch": false,
+    "profile-square": false,
+    "slide-16-9": false,
+  },
+}
+`;
+
+exports[`built-in templates: picker registry > slider: info, category, format fit 1`] = `
+{
+  "category": "slider",
+  "fits": {
+    "(none)": true,
+    "post-portrait": true,
+    "post-portrait-tall": false,
+    "print-a4-hoch": false,
+    "profile-square": false,
+    "slide-16-9": false,
+  },
+}
+`;
+
+exports[`built-in templates: picker registry > slider-at: info, category, format fit 1`] = `
+{
+  "category": "slider",
+  "fits": {
+    "(none)": true,
+    "post-portrait": true,
+    "post-portrait-tall": false,
+    "print-a4-hoch": false,
+    "profile-square": false,
+    "slide-16-9": false,
+  },
+}
+`;
+
+exports[`built-in templates: picker registry > sticker: info, category, format fit 1`] = `
+{
+  "category": "profilbild",
+  "fits": {
+    "(none)": false,
+    "post-portrait": false,
+    "post-portrait-tall": false,
+    "print-a4-hoch": false,
+    "profile-square": true,
+    "slide-16-9": false,
+  },
+}
+`;
+
+exports[`built-in templates: picker registry > veranstaltung: info, category, format fit 1`] = `
+{
+  "category": "sharepic",
+  "fits": {
+    "(none)": true,
+    "post-portrait": true,
+    "post-portrait-tall": false,
+    "print-a4-hoch": false,
+    "profile-square": false,
+    "slide-16-9": false,
+  },
+}
+`;
+
+exports[`built-in templates: picker registry > zitat: info, category, format fit 1`] = `
+{
+  "category": "sharepic",
+  "fits": {
+    "(none)": true,
+    "post-portrait": true,
+    "post-portrait-tall": false,
+    "print-a4-hoch": false,
+    "profile-square": false,
+    "slide-16-9": false,
+  },
+}
+`;
+
+exports[`built-in templates: picker registry > zitat-at: info, category, format fit 1`] = `
+{
+  "category": "sharepic",
+  "fits": {
+    "(none)": true,
+    "post-portrait": true,
+    "post-portrait-tall": false,
+    "print-a4-hoch": false,
+    "profile-square": false,
+    "slide-16-9": false,
+  },
+}
+`;
+
+exports[`built-in templates: picker registry > zitat-pure: info, category, format fit 1`] = `
+{
+  "category": "sharepic",
+  "fits": {
+    "(none)": true,
+    "post-portrait": true,
+    "post-portrait-tall": false,
+    "print-a4-hoch": false,
+    "profile-square": false,
+    "slide-16-9": false,
+  },
+}
+`;
+
+exports[`built-in templates: picker registry > zitat-pure-at: info, category, format fit 1`] = `
+{
+  "category": "sharepic",
+  "fits": {
+    "(none)": true,
+    "post-portrait": true,
+    "post-portrait-tall": false,
+    "print-a4-hoch": false,
+    "profile-square": false,
+    "slide-16-9": false,
+  },
+}
+`;
+
+exports[`built-in templates: router > dreizeilen mounts the editor with the seeded props 1`] = `
+{
+  "callbacks": [
+    "onLine1Change",
+    "onLine2Change",
+    "onLine3Change",
+    "onCurrentImageSrcChange",
+    "onImageOffsetChange",
+    "onImageScaleChange",
+    "onBackgroundImageOpacityChange",
+    "onImageAttributionChange",
+  ],
+  "initialConfigId": "dreizeilen",
+  "initialProps": {
+    "backgroundImageOpacity": 0.7,
+    "currentImageSrc": "/bg.jpg",
+    "imageAttribution": null,
+    "imageOffset": {
+      "x": 1,
+      "y": 2,
+    },
+    "imageScale": 1.5,
+    "line1": "L1",
+    "line2": "L2",
+    "line3": "L3",
+  },
+  "maxPages": 10,
+}
+`;
+
+exports[`built-in templates: router > dreizeilen-overlay-at mounts the editor with the seeded props 1`] = `
+{
+  "callbacks": [
+    "onLine1Change",
+    "onAccentChange",
+    "onLine3Change",
+    "onSublineChange",
+    "onCurrentImageSrcChange",
+    "onImageOffsetChange",
+    "onImageScaleChange",
+    "onBackgroundImageOpacityChange",
+    "onImageAttributionChange",
+  ],
+  "initialConfigId": "dreizeilen-overlay-at",
+  "initialProps": {
+    "accent": "AC",
+    "backgroundImageOpacity": 0.7,
+    "currentImageSrc": "/bg.jpg",
+    "imageAttribution": null,
+    "imageOffset": {
+      "x": 1,
+      "y": 2,
+    },
+    "imageScale": 1.5,
+    "line1": "L1",
+    "line3": "L3",
+    "subline": "SL",
+  },
+  "maxPages": 10,
+}
+`;
+
+exports[`built-in templates: router > freeform mounts the editor with the seeded props 1`] = `
+{
+  "callbacks": [
+    "onBackgroundModeChange",
+    "onCurrentImageSrcChange",
+    "onImageOffsetChange",
+    "onImageScaleChange",
+    "onBackgroundImageOpacityChange",
+    "onImageAttributionChange",
+  ],
+  "initialConfigId": "freeform",
+  "initialProps": {
+    "backgroundColor": "#123456",
+    "backgroundImageOpacity": 0.7,
+    "backgroundMode": "image",
+    "currentImageSrc": "/bg.jpg",
+    "imageAttribution": null,
+    "imageOffset": {
+      "x": 1,
+      "y": 2,
+    },
+    "imageScale": 1.5,
+  },
+  "maxPages": 10,
+}
+`;
+
+exports[`built-in templates: router > freeform-at mounts the editor with the seeded props 1`] = `
+{
+  "callbacks": [
+    "onBackgroundModeChange",
+    "onBackgroundColorChange",
+    "onCurrentImageSrcChange",
+    "onImageOffsetChange",
+    "onImageScaleChange",
+    "onBackgroundImageOpacityChange",
+    "onImageAttributionChange",
+  ],
+  "initialConfigId": "freeform-at",
+  "initialProps": {
+    "backgroundColor": "#123456",
+    "backgroundImageOpacity": 0.7,
+    "backgroundMode": "image",
+    "currentImageSrc": "/bg.jpg",
+    "imageAttribution": null,
+    "imageOffset": {
+      "x": 1,
+      "y": 2,
+    },
+    "imageScale": 1.5,
+  },
+  "maxPages": 10,
+}
+`;
+
+exports[`built-in templates: router > info mounts the editor with the seeded props 1`] = `
+{
+  "callbacks": [
+    "onHeaderChange",
+    "onBodyChange",
+    "onCurrentImageSrcChange",
+    "onImageOffsetChange",
+    "onImageScaleChange",
+    "onBackgroundImageOpacityChange",
+    "onImageAttributionChange",
+  ],
+  "initialConfigId": "info",
+  "initialProps": {
+    "body": "B",
+    "header": "H",
+  },
+  "maxPages": 10,
+}
+`;
+
+exports[`built-in templates: router > info-at mounts the editor with the seeded props 1`] = `
+{
+  "callbacks": [
+    "onIntrolineChange",
+    "onTextChange",
+    "onAccentChange",
+    "onCurrentImageSrcChange",
+    "onImageOffsetChange",
+    "onImageScaleChange",
+    "onBackgroundImageOpacityChange",
+    "onImageAttributionChange",
+  ],
+  "initialConfigId": "info-at",
+  "initialProps": {
+    "accent": "AC",
+    "introline": "IL",
+    "text": "TX",
+  },
+  "maxPages": 10,
+}
+`;
+
+exports[`built-in templates: router > profilbild mounts the editor with the seeded props 1`] = `
+{
+  "callbacks": [],
+  "initialConfigId": "profilbild",
+  "initialProps": {
+    "backgroundColor": "#123456",
+    "transparentImage": "/fg.png",
+  },
+  "maxPages": 10,
+}
+`;
+
+exports[`built-in templates: router > simple mounts the editor with the seeded props 1`] = `
+{
+  "callbacks": [
+    "onHeadlineChange",
+    "onSubtextChange",
+    "onCurrentImageSrcChange",
+    "onImageOffsetChange",
+    "onImageScaleChange",
+    "onBackgroundImageOpacityChange",
+    "onImageAttributionChange",
+  ],
+  "initialConfigId": "simple",
+  "initialProps": {
+    "backgroundImageOpacity": 0.7,
+    "headline": "HL",
+    "imageAttribution": null,
+    "imageOffset": {
+      "x": 1,
+      "y": 2,
+    },
+    "imageScale": 1.5,
+    "imageSrc": "/bg.jpg",
+    "subtext": "ST",
+  },
+  "maxPages": 10,
+}
+`;
+
+exports[`built-in templates: router > slider mounts the editor with the seeded props 1`] = `
+{
+  "callbacks": [
+    "onLabelChange",
+    "onHeadlineChange",
+    "onSubtextChange",
+    "onCurrentImageSrcChange",
+    "onImageOffsetChange",
+    "onImageScaleChange",
+    "onBackgroundImageOpacityChange",
+    "onImageAttributionChange",
+  ],
+  "initialConfigId": "slider",
+  "initialProps": {
+    "headline": "HL",
+    "label": "L",
+    "subtext": "ST",
+  },
+  "maxPages": 10,
+}
+`;
+
+exports[`built-in templates: router > slider-at mounts the editor with the seeded props 1`] = `
+{
+  "callbacks": [
+    "onLabelChange",
+    "onHeadlineChange",
+    "onSubtextChange",
+    "onCurrentImageSrcChange",
+    "onImageOffsetChange",
+    "onImageScaleChange",
+    "onBackgroundImageOpacityChange",
+    "onImageAttributionChange",
+  ],
+  "initialConfigId": "slider-at",
+  "initialProps": {
+    "headline": "HL",
+    "label": "L",
+    "subtext": "ST",
+  },
+  "maxPages": 10,
+}
+`;
+
+exports[`built-in templates: router > sticker mounts the editor with the seeded props 1`] = `
+{
+  "callbacks": [
+    "onBackgroundModeChange",
+    "onCurrentImageSrcChange",
+    "onImageOffsetChange",
+    "onImageScaleChange",
+    "onBackgroundImageOpacityChange",
+    "onImageAttributionChange",
+  ],
+  "initialConfigId": "sticker",
+  "initialProps": {
+    "accent": "AC",
+    "address": "A",
+    "backgroundColor": "#123456",
+    "backgroundImageOpacity": 0.7,
+    "backgroundMode": "image",
+    "beschreibung": "BE",
+    "body": "B",
+    "currentImageSrc": "/bg.jpg",
+    "date": "D",
+    "eventTitle": "ET",
+    "header": "H",
+    "headline": "HL",
+    "imageAttribution": null,
+    "imageOffset": {
+      "x": 1,
+      "y": 2,
+    },
+    "imageScale": 1.5,
+    "introline": "IL",
+    "label": "L",
+    "line1": "L1",
+    "line2": "L2",
+    "line3": "L3",
+    "locationName": "LN",
+    "name": "N",
+    "quote": "Q",
+    "subline": "SL",
+    "subtext": "ST",
+    "text": "TX",
+    "time": "T",
+    "transparentImage": "/fg.png",
+    "weekday": "WD",
+  },
+  "maxPages": 1,
+}
+`;
+
+exports[`built-in templates: router > veranstaltung mounts the editor with the seeded props 1`] = `
+{
+  "callbacks": [
+    "onEventTitleChange",
+    "onBeschreibungChange",
+    "onCurrentImageSrcChange",
+    "onImageOffsetChange",
+    "onImageScaleChange",
+    "onBackgroundImageOpacityChange",
+    "onImageAttributionChange",
+  ],
+  "initialConfigId": "veranstaltung",
+  "initialProps": {
+    "address": "A",
+    "backgroundImageOpacity": 0.7,
+    "beschreibung": "BE",
+    "date": "D",
+    "eventTitle": "ET",
+    "imageAttribution": null,
+    "imageOffset": {
+      "x": 1,
+      "y": 2,
+    },
+    "imageScale": 1.5,
+    "imageSrc": "/bg.jpg",
+    "locationName": "LN",
+    "time": "T",
+    "weekday": "WD",
+  },
+  "maxPages": 10,
+}
+`;
+
+exports[`built-in templates: router > zitat mounts the editor with the seeded props 1`] = `
+{
+  "callbacks": [
+    "onQuoteChange",
+    "onNameChange",
+    "onCurrentImageSrcChange",
+    "onImageOffsetChange",
+    "onImageScaleChange",
+    "onBackgroundImageOpacityChange",
+    "onImageAttributionChange",
+  ],
+  "initialConfigId": "zitat",
+  "initialProps": {
+    "backgroundImageOpacity": 0.7,
+    "imageAttribution": null,
+    "imageOffset": {
+      "x": 1,
+      "y": 2,
+    },
+    "imageScale": 1.5,
+    "imageSrc": "/bg.jpg",
+    "name": "N",
+    "quote": "Q",
+  },
+  "maxPages": 10,
+}
+`;
+
+exports[`built-in templates: router > zitat-at mounts the editor with the seeded props 1`] = `
+{
+  "callbacks": [
+    "onQuoteChange",
+    "onNameChange",
+    "onCurrentImageSrcChange",
+    "onImageOffsetChange",
+    "onImageScaleChange",
+    "onBackgroundImageOpacityChange",
+    "onImageAttributionChange",
+  ],
+  "initialConfigId": "zitat-at",
+  "initialProps": {
+    "backgroundImageOpacity": 0.7,
+    "imageAttribution": null,
+    "imageOffset": {
+      "x": 1,
+      "y": 2,
+    },
+    "imageScale": 1.5,
+    "imageSrc": "/bg.jpg",
+    "name": "N",
+    "quote": "Q",
+  },
+  "maxPages": 10,
+}
+`;
+
+exports[`built-in templates: router > zitat-pure mounts the editor with the seeded props 1`] = `
+{
+  "callbacks": [
+    "onQuoteChange",
+    "onNameChange",
+    "onCurrentImageSrcChange",
+    "onImageOffsetChange",
+    "onImageScaleChange",
+    "onBackgroundImageOpacityChange",
+    "onImageAttributionChange",
+  ],
+  "initialConfigId": "zitat-pure",
+  "initialProps": {
+    "name": "N",
+    "quote": "Q",
+  },
+  "maxPages": 10,
+}
+`;
+
+exports[`built-in templates: router > zitat-pure-at mounts the editor with the seeded props 1`] = `
+{
+  "callbacks": [
+    "onQuoteChange",
+    "onNameChange",
+    "onCurrentImageSrcChange",
+    "onImageOffsetChange",
+    "onImageScaleChange",
+    "onBackgroundImageOpacityChange",
+    "onImageAttributionChange",
+  ],
+  "initialConfigId": "zitat-pure-at",
+  "initialProps": {
+    "name": "N",
+    "quote": "Q",
+  },
+  "maxPages": 10,
+}
+`;
