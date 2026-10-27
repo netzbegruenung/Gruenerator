@@ -3,7 +3,7 @@ import { describe, it, expect, vi } from 'vitest';
 import { createToolLoopGuards } from './loopGuards.js';
 import { createToolActivity } from './toolActivity.js';
 import { createToolApprovalGate } from './toolApprovalGate.js';
-import { type PersistedStep } from './types.js';
+import { NEAR_DUPLICATE_EXEMPT_TOOLS, type PersistedStep } from './types.js';
 import { wrapToolsForLoop, type WrapToolsContext } from './wrapTools.js';
 
 import type { SSEWriter } from '../sseHelpers.js';
@@ -549,6 +549,25 @@ describe('wrapToolsForLoop', () => {
       tools,
       'boards_tasks',
       { action: 'add_card', boardId: 'b1', title: 'Karte B' },
+      'call_2'
+    )) as { error?: string };
+    expect(out.error).toBeUndefined();
+  });
+
+  // Live 27.10.2026: „tabelle_auswerten blockiert (near_duplicate)". Ein
+  // korrigierter Wiederholungsauftrag ähnelt dem gescheiterten naturgemäss; die
+  // Wiederholungen begrenzt MAX_FAILED_RUNS im Werkzeug selbst.
+  it('tabelle_auswerten: ein präzisierter Wiederholungsauftrag wird nicht als Duplikat geblockt', async () => {
+    const { ctx } = makeCtx({ nearDuplicateExemptTools: NEAR_DUPLICATE_EXEMPT_TOOLS });
+    const tools = wrapToolsForLoop(
+      { tabelle_auswerten: { execute: async () => ({ ok: true }) } } as unknown as ToolSet,
+      ctx
+    );
+    await run(tools, 'tabelle_auswerten', { auftrag: 'Summe der Beträge pro Monat' });
+    const out = (await run(
+      tools,
+      'tabelle_auswerten',
+      { auftrag: 'Summe der Beträge pro Monat aus Spalte Betrag' },
       'call_2'
     )) as { error?: string };
     expect(out.error).toBeUndefined();

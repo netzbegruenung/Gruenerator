@@ -298,4 +298,7 @@ export const NEAR_DUPLICATE_EXEMPT_TOOLS: ReadonlySet<string> = new Set([
   'user_agents',
   // get → update → add_examples → delete auf dieselbe mention: nur die action unterscheidet sie.
   'recipes',
+  // Ein korrigierter Wiederholungsauftrag ähnelt dem gescheiterten naturgemäss;
+  // die Wiederholungen begrenzt MAX_FAILED_RUNS im Werkzeug selbst.
+  'tabelle_auswerten',
 ]);
