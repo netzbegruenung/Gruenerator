@@ -70,6 +70,7 @@
     "./stores/createAutoSaveStore": "./src/stores/createAutoSaveStore.ts",
     "./stores/createCanvasEditorStore": "./src/stores/createCanvasEditorStore.ts",
     "./stores/useAutoSaveStore": "./src/stores/useAutoSaveStore.ts",
+    "./templates/registry": "./src/templates/registry.ts",
     "./types/editorTypes": "./src/types/editorTypes.ts",
     "./ui/dialog": "./src/ui/dialog.tsx",
     "./ui/masonry-grid": "./src/ui/masonry-grid.tsx",

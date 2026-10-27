@@ -14,20 +14,20 @@
 
 import { readPages } from '@ggraphic/editor/collab/pagesDoc';
 import { extractInheritablePageState } from '@ggraphic/editor/configs/pageInheritance';
+import { getTemplate, type TemplateId } from '@ggraphic/editor/templates/registry';
 import { useState, useCallback, useMemo, useRef, useEffect } from 'react';
 import { v4 as uuid } from 'uuid';
 import * as Y from 'yjs';
 
 import { HOST_EMITTED_STATE_KEYS } from '../collab/pageElementStateKeys';
 import { useYjsPages, type NormalizeEcho, type YjsPagesApi } from '../collab/useYjsPages';
-import { loadCanvasConfig, isValidCanvasType } from '../configs/configLoader';
+import { loadCanvasConfig } from '../configs/configLoader';
 
 import type { HeterogeneousPage, FullCanvasConfig } from '../configs/types';
-import type { CanvasConfigId } from '../templates/registry';
 
 /** Pre-populated page definition for initializing multi-page with content */
-export interface InitialPageDef {
-  configId: CanvasConfigId;
+export interface InitialPageDef<TId extends string = TemplateId> {
+  configId: TId;
   state: Record<string, unknown>;
   /**
    * Stable page id. Keep it when the source already addresses pages by id
@@ -51,7 +51,7 @@ export function parseInitialPages(raw: unknown): InitialPageDef[] | undefined {
     const p = entry as Record<string, unknown>;
     if (typeof p.configId !== 'string' || !p.state || typeof p.state !== 'object') continue;
     pages.push({
-      configId: p.configId as CanvasConfigId,
+      configId: p.configId,
       state: p.state as Record<string, unknown>,
       ...(typeof p.id === 'string' ? { id: p.id } : {}),
       ...(p.config && typeof p.config === 'object'
@@ -62,8 +62,8 @@ export function parseInitialPages(raw: unknown): InitialPageDef[] | undefined {
   return pages.length > 0 ? pages : undefined;
 }
 
-export interface UsePageManagerOptions {
-  initialConfigId: CanvasConfigId;
+export interface UsePageManagerOptions<TId extends string = TemplateId> {
+  initialConfigId: TId;
   /** The canvas document's format; freeform pages are laid out on it. */
   formatId?: string;
   initialProps: Record<string, unknown>;
@@ -71,7 +71,7 @@ export interface UsePageManagerOptions {
   /** Sagt Seitenänderungen an (`useAnnounce`); ohne Angabe bleibt der Hook stumm. */
   announce?: (text: string) => void;
   /** Pre-populated pages — when provided, overrides single-page initialization from initialProps */
-  initialPages?: InitialPageDef[];
+  initialPages?: InitialPageDef<TId>[];
   /**
    * When provided, the pages list is backed by the host's collaborative
    * Y.Doc. Pages from the Y.Doc shadow `initialProps`/`initialPages` — those
@@ -97,13 +97,13 @@ export interface UsePageManagerOptions {
   };
 }
 
-export interface UsePageManagerReturn {
-  pages: HeterogeneousPage<CanvasConfigId>[];
+export interface UsePageManagerReturn<TId extends string = TemplateId> {
+  pages: HeterogeneousPage<TId>[];
   currentPageIndex: number;
   setCurrentPageIndex: (index: number) => void;
-  currentPage: HeterogeneousPage<CanvasConfigId> | undefined;
+  currentPage: HeterogeneousPage<TId> | undefined;
   addPage: (
-    configId: CanvasConfigId,
+    configId: TId,
     inheritBackground?: boolean,
     stateOverrides?: Record<string, unknown>
   ) => Promise<void>;
@@ -113,11 +113,11 @@ export interface UsePageManagerReturn {
   removePage: (id: string) => void;
   updatePageState: (id: string, partial: Record<string, unknown>) => void;
   /** Convert an existing page to another template (keeps id, position). */
-  setPageConfig: (id: string, configId: CanvasConfigId) => Promise<void>;
+  setPageConfig: (id: string, configId: TId) => Promise<void>;
   canAddMore: boolean;
   pageCount: number;
-  getConfigForPage: (configId: CanvasConfigId) => Promise<FullCanvasConfig>;
-  loadedConfigs: Map<CanvasConfigId, FullCanvasConfig>;
+  getConfigForPage: (configId: TId) => Promise<FullCanvasConfig>;
+  loadedConfigs: Map<TId, FullCanvasConfig>;
   isLoadingConfig: boolean;
   /** The Y.Doc backing the pages list (host's in collab mode, local otherwise). */
   pagesDoc: Y.Doc;
@@ -156,7 +156,7 @@ export function nextPageIdAfterRemoval(
   return survivors[fallbackIndex].id;
 }
 
-export function usePageManager({
+export function usePageManager<TId extends string = TemplateId>({
   initialConfigId,
   formatId,
   initialProps,
@@ -164,11 +164,11 @@ export function usePageManager({
   initialPages,
   collaborative,
   announce,
-}: UsePageManagerOptions): UsePageManagerReturn {
+}: UsePageManagerOptions<TId>): UsePageManagerReturn<TId> {
   const announceRef = useRef(announce);
   announceRef.current = announce;
   // Config cache - loaded configs are stored here to avoid re-fetching
-  const configCacheRef = useRef<Map<CanvasConfigId, FullCanvasConfig>>(new Map());
+  const configCacheRef = useRef<Map<TId, FullCanvasConfig>>(new Map());
   const [isLoadingConfig, setIsLoadingConfig] = useState(false);
 
   // Non-collab editors own a local Y.Doc so page structure, undo and page
@@ -187,7 +187,7 @@ export function usePageManager({
   // rebuilds it through createInitialState, useEmitHostStateChanges re-emits
   // these keys) — lets a deck undo tell that echo from a real edit.
   const normalizeEcho = useCallback<NormalizeEcho>((configId, state) => {
-    const config = configCacheRef.current.get(configId as CanvasConfigId);
+    const config = configCacheRef.current.get(configId as TId);
     if (!config) return null;
     const rebuilt = config.createInitialState(state) as Record<string, unknown>;
     return Object.fromEntries(
@@ -219,22 +219,20 @@ export function usePageManager({
 
   // View identity is preserved by useYjsPages for untouched pages; mirror
   // that here so memo'd PageWrappers only re-render for pages that changed.
-  const pageCacheRef = useRef(
-    new Map<string, { view: unknown; page: HeterogeneousPage<CanvasConfigId> }>()
-  );
-  const prevPagesRef = useRef<HeterogeneousPage<CanvasConfigId>[]>([]);
+  const pageCacheRef = useRef(new Map<string, { view: unknown; page: HeterogeneousPage<TId> }>());
+  const prevPagesRef = useRef<HeterogeneousPage<TId>[]>([]);
   const cachedViews = useMemo(
     () => (!yjsPages && collaborative?.isLocalLoaded ? readPages(ydoc) : []),
     [yjsPages, collaborative?.isLocalLoaded, ydoc]
   );
   const isPreview =
     !yjsPages && (collaborative?.previewBeforeSync === true || cachedViews.length > 0);
-  const previewPages = useMemo((): HeterogeneousPage<CanvasConfigId>[] => {
+  const previewPages = useMemo((): HeterogeneousPage<TId>[] => {
     if (!isPreview) return [];
     if (cachedViews.length > 0) {
       return cachedViews.map((view, i) => ({
         id: `preview-${i}`,
-        configId: view.configId as CanvasConfigId,
+        configId: view.configId as TId,
         state: view.state,
       }));
     }
@@ -250,15 +248,15 @@ export function usePageManager({
     }));
   }, [isPreview, cachedViews, initialPages, initialConfigId, initialProps]);
 
-  const docPages: HeterogeneousPage<CanvasConfigId>[] = useMemo(() => {
+  const docPages: HeterogeneousPage<TId>[] = useMemo(() => {
     if (!yjsPages) return [];
     const cache = pageCacheRef.current;
     const next = yjsPages.pages.map((view) => {
       const cached = cache.get(view.id);
       if (cached && cached.view === view) return cached.page;
-      const page: HeterogeneousPage<CanvasConfigId> = {
+      const page: HeterogeneousPage<TId> = {
         id: view.id,
-        configId: view.configId as CanvasConfigId,
+        configId: view.configId as TId,
         state: view.state,
       };
       cache.set(view.id, { view, page });
@@ -309,13 +307,13 @@ export function usePageManager({
    * Load a config by ID, using cache if available
    */
   const getConfigForPage = useCallback(
-    async (configId: CanvasConfigId): Promise<FullCanvasConfig> => {
+    async (configId: TId): Promise<FullCanvasConfig> => {
       const cached = configCacheRef.current.get(configId);
       if (cached) {
         return cached;
       }
 
-      if (!isValidCanvasType(configId)) {
+      if (getTemplate(configId) === undefined) {
         throw new Error(`Invalid config type: ${configId}`);
       }
 
@@ -338,11 +336,7 @@ export function usePageManager({
    * @param inheritBackground - Whether to copy background/scheme from current page
    */
   const addPage = useCallback(
-    async (
-      configId: CanvasConfigId,
-      inheritBackground = true,
-      stateOverrides?: Record<string, unknown>
-    ) => {
+    async (configId: TId, inheritBackground = true, stateOverrides?: Record<string, unknown>) => {
       if (!canAddMore || !yjsPages) return;
 
       const config = await getConfigForPage(configId);
@@ -430,7 +424,7 @@ export function usePageManager({
    * from the new config with the shared inheritance contract applied.
    */
   const setPageConfig = useCallback(
-    async (id: string, configId: CanvasConfigId) => {
+    async (id: string, configId: TId) => {
       if (!yjsPages) return;
       const source = readPages(ydoc).find((p) => p.id === id);
       if (!source || source.configId === configId) return;

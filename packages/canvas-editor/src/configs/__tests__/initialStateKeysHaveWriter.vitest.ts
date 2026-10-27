@@ -4,6 +4,8 @@ import { PAGE_PERSISTED_STATE_KEYS } from '../../collab/pageElementStateKeys';
 import { HOST_CALLBACK_KEYS } from '../../hostCallbackKeys';
 import { loadCanvasConfig } from '../configLoader';
 
+import type { CanvasConfigId } from '../../templates/registry';
+
 /**
  * Guard for the "kept edit gone after reload" class (#4248).
  *
@@ -15,7 +17,7 @@ import { loadCanvasConfig } from '../configLoader';
  * mints one (PAGE_PERSISTED_STATE_KEYS).
  */
 
-type CanvasConfigType = Parameters<typeof loadCanvasConfig>[0];
+type CanvasConfigType = CanvasConfigId;
 
 const TEMPLATES = Object.keys(HOST_CALLBACK_KEYS) as CanvasConfigType[];
 

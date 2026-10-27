@@ -39,7 +39,6 @@ vi.mock('../components/CanvasEditor', () => ({
 
 import { ControllableCanvasWrapper } from '../CanvasEditorRouter';
 import { StandaloneCanvas } from '../components/StandaloneCanvas';
-import { isValidCanvasType, loadCanvasConfig } from '../configs/configLoader';
 import { HOST_CALLBACK_KEYS } from '../hostCallbackKeys';
 import {
   TEMPLATE_REGISTRY,
@@ -49,6 +48,8 @@ import {
   getTemplatesForLocale,
   templateFitsFormat,
 } from '../utils/templateRegistry';
+
+import { isValidCanvasType, loadCanvasConfig } from './builtinConfigLoader';
 
 import type { CanvasConfigId } from './registry';
 

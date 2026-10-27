@@ -5,7 +5,8 @@
   "type": "module",
   "sideEffects": [
     "**/*.css",
-    "./src/index.ts"
+    "./src/index.ts",
+    "./src/templates/registry.ts"
   ],
   "main": "./src/index.ts",
   "types": "./src/index.ts",
@@ -78,9 +79,9 @@
       "types": "./src/components/CanvasEditorSkeleton.tsx"
     },
     "./config-loader": {
-      "import": "./src/configs/configLoader.ts",
-      "require": "./src/configs/configLoader.ts",
-      "types": "./src/configs/configLoader.ts"
+      "import": "./src/templates/builtinConfigLoader.ts",
+      "require": "./src/templates/builtinConfigLoader.ts",
+      "types": "./src/templates/builtinConfigLoader.ts"
     }
   },
   "scripts": {

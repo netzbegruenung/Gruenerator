@@ -15,7 +15,7 @@ import { memo, useRef } from 'react';
 import { GenericCanvas } from './GenericCanvas';
 
 import type { GenericCanvasRef } from './GenericCanvas';
-import type { AnyCanvasConfig } from '../templates/registry';
+import type { AnyCanvasConfig } from '../configs/types';
 import type React from 'react';
 
 export interface ConfigCanvasProps {

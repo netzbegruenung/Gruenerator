@@ -538,6 +538,10 @@ export interface FullCanvasConfig<
   ai?: HostCanvasAiCapabilities<TState, TActions>;
 }
 
+// Configs differ in state/action types; the loader hands them out untyped.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export type AnyCanvasConfig = FullCanvasConfig<any, any>;
+
 // ============================================================================
 // LEGACY SIDEBAR-ONLY CONFIG (for backward compatibility with older templates)
 // ============================================================================
