@@ -30,7 +30,8 @@ vi.mock('dns', () => ({
   },
 }));
 
-const { validateUrlForFetch, isPrivateAddress, safeFetch } = await import('./urlSecurity.js');
+const { validateUrlForFetch, validateUrlSync, isPrivateAddress, safeFetch } =
+  await import('./urlSecurity.js');
 
 beforeEach(() => {
   lookupRecords.mockReset();
@@ -102,15 +103,77 @@ describe('validateUrlForFetch — checks that need no resolver', () => {
 });
 
 describe('isPrivateAddress', () => {
-  it.each(['127.0.0.1', '10.1.2.3', '172.16.0.1', '192.168.1.1', '169.254.169.254', '::1'])(
-    '%s is private',
-    (ip) => expect(isPrivateAddress(ip)).toBe(true)
+  it.each([
+    '127.0.0.1',
+    '10.1.2.3',
+    '172.16.0.1',
+    '192.168.1.1',
+    '169.254.169.254',
+    '0.0.0.0',
+    '100.64.0.1', // carrier-grade NAT, both ends
+    '100.127.255.255',
+    '224.0.0.1',
+    '255.255.255.255',
+    '::1',
+    '::',
+    'fd12::1', // unique local fc00::/7 beyond the literal fc00:/fd00: prefixes
+    'fc00::1',
+    'fc01::1',
+    'FD12:0:0::1',
+    'fe80::1',
+    'fe90::1', // link-local fe80::/10 beyond the literal fe80: prefix
+    'fe80::1%eth0',
+    'fec0::1',
+    'ff02::1',
+    '::ffff:169.254.169.254',
+    '::ffff:a9fe:a9fe', // IPv4-mapped in hex
+    '::ffff:7f00:1',
+    '64:ff9b::a9fe:a9fe', // NAT64 of a private IPv4 address
+    '64:ff9b::10.0.0.1',
+  ])('%s is private', (ip) => expect(isPrivateAddress(ip)).toBe(true));
+
+  it.each([
+    '93.184.216.34',
+    '8.8.8.8',
+    '100.63.255.255',
+    '100.128.0.1',
+    '2606:2800:220:1:248:1893:25c8:1946',
+    '2001:4860:4860::8888',
+    '::ffff:808:808',
+    '64:ff9b::808:808', // NAT64 of a public IPv4 address
+    'example.com',
+  ])('%s is public', (ip) => expect(isPrivateAddress(ip)).toBe(false));
+});
+
+describe('validateUrlForFetch — IPv6 literals', () => {
+  it.each(['http://[fd12::1]/', 'http://[fe90::1]/', 'http://[::]/', 'http://[::ffff:a9fe:a9fe]/'])(
+    'rejects %s without asking DNS',
+    async (url) => {
+      await expect(validateUrlForFetch(url)).resolves.toMatchObject({
+        isValid: false,
+        error: 'Private IP addresses are not allowed',
+      });
+      await expect(validateUrlForFetch(url, { skipDnsCheck: true })).resolves.toMatchObject({
+        isValid: false,
+      });
+      expect(validateUrlSync(url)).toMatchObject({ isValid: false });
+      expect(lookupRecords).not.toHaveBeenCalled();
+    }
   );
 
-  it.each(['93.184.216.34', '8.8.8.8', '2606:2800:220:1:248:1893:25c8:1946'])(
-    '%s is public',
-    (ip) => expect(isPrivateAddress(ip)).toBe(false)
-  );
+  it('accepts a public IPv6 literal without asking DNS', async () => {
+    await expect(validateUrlForFetch('http://[2001:4860:4860::8888]/')).resolves.toMatchObject({
+      isValid: true,
+    });
+    expect(lookupRecords).not.toHaveBeenCalled();
+  });
+
+  it('rejects a CGNAT IPv4 literal', async () => {
+    await expect(validateUrlForFetch('http://100.64.0.1/')).resolves.toMatchObject({
+      isValid: false,
+      error: 'Private IP addresses are not allowed',
+    });
+  });
 });
 
 describe('safeFetch — DNS rebinding', () => {
