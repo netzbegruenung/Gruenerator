@@ -80,6 +80,7 @@ import {
   connectorTestContract,
   skillVisibilityContract,
   instanceAdminOverviewContract,
+  adminStatsContract,
   appReleaseContract,
   translationContract,
   lvAdminAssignmentContract,
@@ -347,6 +348,7 @@ const _chunkInspectorClient = () => initClient(chunkInspectorContract, CLIENT_OP
 const _connectorTestClient = () => initClient(connectorTestContract, CLIENT_OPTS);
 const _skillVisibilityClient = () => initClient(skillVisibilityContract, CLIENT_OPTS);
 const _instanceAdminOverviewClient = () => initClient(instanceAdminOverviewContract, CLIENT_OPTS);
+const _adminStatsClient = () => initClient(adminStatsContract, CLIENT_OPTS);
 const _appReleaseClient = () => initClient(appReleaseContract, CLIENT_OPTS);
 const _translationClient = () => initClient(translationContract, CLIENT_OPTS);
 const _lvAdminAssignmentClient = () => initClient(lvAdminAssignmentContract, CLIENT_OPTS);
@@ -438,6 +440,7 @@ export interface ContractsClient {
   connectorTest: ReturnType<typeof _connectorTestClient>;
   skillVisibility: ReturnType<typeof _skillVisibilityClient>;
   instanceAdminOverview: ReturnType<typeof _instanceAdminOverviewClient>;
+  adminStats: ReturnType<typeof _adminStatsClient>;
   appRelease: ReturnType<typeof _appReleaseClient>;
   lvAdminAssignment: ReturnType<typeof _lvAdminAssignmentClient>;
   landesverbandAdmin: ReturnType<typeof _landesverbandAdminClient>;
@@ -541,6 +544,7 @@ export function getContractsClient(): ContractsClient {
     connectorTest: _connectorTestClient(),
     skillVisibility: _skillVisibilityClient(),
     instanceAdminOverview: _instanceAdminOverviewClient(),
+    adminStats: _adminStatsClient(),
     appRelease: _appReleaseClient(),
     lvAdminAssignment: _lvAdminAssignmentClient(),
     landesverbandAdmin: _landesverbandAdminClient(),

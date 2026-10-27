@@ -65,6 +65,11 @@ interface UnsplashSearchResponse {
 export interface StockImage {
   filename: string;
   url: string;
+  /** Original photo size, for placing it at its real aspect ratio. */
+  width: number;
+  height: number;
+  /** Unsplash's 400px rendition, for result grids. */
+  thumb_url: string;
   alt_text: string;
   attribution: UnsplashAttribution;
   category?: string;
@@ -213,6 +218,9 @@ function transformPhotoToStockImage(photo: UnsplashPhoto): StockImage {
   return {
     filename: createFilename(photo),
     url: photo.urls.regular,
+    width: photo.width,
+    height: photo.height,
+    thumb_url: photo.urls.small,
     alt_text: photo.alt_description || photo.description || 'Unsplash photo',
     attribution: {
       photographer: photographerName,

@@ -11,7 +11,6 @@ import type { AdditionalText, CanvasElementConfig, FullCanvasConfig } from '../c
 import type { BalkenInstance } from '../primitives/BalkenGroup';
 import type { CircleBadgeInstance } from '../utils/circleBadgeUtils';
 
-
 /**
  * Canvas Layer Manager - Utilities for managing layer ordering
  *

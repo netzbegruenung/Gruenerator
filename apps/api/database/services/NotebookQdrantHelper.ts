@@ -202,6 +202,21 @@ function liveOnly(filter: QdrantFilter): QdrantFilter {
 
 export type NotebookTrashResult = 'ok' | 'not_found' | 'forbidden';
 
+/**
+ * Notebooks live in Qdrant, where no trigger sees them — the one create path
+ * that feeds `platform_creation_daily` from the app. A failing tally is logged,
+ * never thrown: the notebook is already stored.
+ */
+async function countNotebookCreation(userId: string): Promise<void> {
+  try {
+    await getPostgresInstance().query("SELECT count_platform_creation('notebooks', '', $1)", [
+      userId,
+    ]);
+  } catch (error) {
+    logger.warn(`platform_creation_daily (notebooks): ${(error as Error).message}`);
+  }
+}
+
 class NotebookQdrantHelper {
   private qdrant: QdrantService;
 
@@ -304,6 +319,9 @@ class NotebookQdrantHelper {
       };
 
       await this.qdrantOps!.batchUpsert(this.qdrant.collections.notebook_collections, [point]);
+
+      // Creates arrive without an id; updates and the system collection carry one.
+      if (!collectionData.id) await countNotebookCreation(collectionData.user_id);
 
       logger.info(`Stored Notebook collection: ${collectionId}`);
       // The suffix is minted here, so it has to travel back out: the create
@@ -838,6 +856,26 @@ class NotebookQdrantHelper {
   }
 
   /** Every notebook of `userId`, trashed ones included — for account deletion. */
+  /**
+   * Creation time and owner of every notebook, trashed ones included — the
+   * admin statistics count what was created (services/usage/adminContentStats.ts).
+   * Reads these two payload fields and nothing else.
+   */
+  async listCreationStamps(): Promise<{ createdAt: string; userId: string }[]> {
+    await this.ensureInitialized();
+    const points = await this.qdrantOps!.scrollDocuments(
+      this.qdrant.collections.notebook_collections,
+      {},
+      { limit: 100_000, withPayload: ['created_at', 'user_id'] }
+    );
+    return points.flatMap((point) => {
+      const { created_at: createdAt, user_id: userId } = point.payload;
+      return typeof createdAt === 'string' && typeof userId === 'string'
+        ? [{ createdAt, userId }]
+        : [];
+    });
+  }
+
   async listAllNotebookIdsOfUser(userId: string): Promise<string[]> {
     await this.ensureInitialized();
     const points = await this.qdrantOps!.scrollDocuments(

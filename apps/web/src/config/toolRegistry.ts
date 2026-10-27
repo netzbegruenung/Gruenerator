@@ -371,7 +371,7 @@ const TOOLS = [
   },
   {
     id: 'reels-untertitel',
-    title: 'Reels',
+    title: 'Simple Reel',
     path: '/studio/video',
     icon: { navigation: 'reel' },
     tile: { group: 'studio', description: 'Untertitel für Clips' },
@@ -380,6 +380,20 @@ const TOOLS = [
       title: 'Reel',
       subtitle: 'Social-Clips untertiteln',
       keywords: ['reel', 'video', 'untertitel', 'subtitle', 'clip', 'social', 'tiktok', 'story'],
+    },
+    theme: true,
+  },
+  {
+    id: 'studio-videoeditor',
+    title: 'Video Editor',
+    path: '/studio/videoeditor',
+    icon: { navigation: 'videoEditor' },
+    tile: { group: 'studio', description: 'Clips schneiden & gestalten' },
+    search: {
+      id: 'tool-videoeditor',
+      title: 'Video Editor',
+      subtitle: 'Videos schneiden, Text & Musik',
+      keywords: ['video', 'editor', 'schneiden', 'timeline', 'reel', 'musik', 'clip'],
     },
     theme: true,
   },
@@ -651,6 +665,7 @@ const MENU_ORDER = [
 // contradicts the studio tile order — no single TOOLS ordering can serve both.
 const SEARCH_ORDER = [
   'tool-reel',
+  'tool-videoeditor',
   'tool-studio',
   'tool-imagine',
   'tool-profilbild',

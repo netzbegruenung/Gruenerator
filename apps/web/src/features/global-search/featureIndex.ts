@@ -14,6 +14,7 @@ import {
 import { foldUmlauts } from '@gruenerator/shared/utils';
 
 import { getDirectMenuItems, getFooterLinks } from '../../components/layout/Header/menuData';
+import { isToolVisibleTo } from '../../config/adminOnlyTools';
 import { CURRENT_INSTANCE } from '../../config/instance';
 import FAVOURITE_ITEMS from '../../config/sidebarFavouritesConfig';
 
@@ -50,6 +51,8 @@ export interface BuildFeatureIndexArgs {
   userAgents: Agent[];
   /** Vom Admin ausgeblendete System-Agenten. Weglassen = nichts ausgeblendet. */
   hiddenAgentIdentifiers?: readonly string[];
+  /** Instanz-Admin: sieht auch die Werkzeuge aus config/adminOnlyTools.ts. */
+  isAdmin?: boolean;
 }
 
 interface FeatureSource {
@@ -66,13 +69,14 @@ export function buildFeatureIndex({
   locale,
   userAgents,
   hiddenAgentIdentifiers = [],
+  isAdmin = false,
 }: BuildFeatureIndexArgs): FeatureHit[] {
   const hits: FeatureHit[] = [];
   const seen = new Set<string>();
 
   const push = (source: FeatureSource) => {
     const key = `${source.id}:${source.path}`;
-    if (seen.has(key)) return;
+    if (seen.has(key) || !isToolVisibleTo(source.path, isAdmin)) return;
     seen.add(key);
     hits.push({
       key,
