@@ -1,16 +1,15 @@
-import { describe, expect, it } from 'vitest';
-
-import { buildCanvasItems, type CanvasItem } from './canvasLayerManager';
+import { buildCanvasItems, type CanvasItem } from '@ggraphic/editor/utils/canvasLayerManager';
 import {
   DUPLICABLE_TYPES,
   canDuplicateElement,
   duplicateElementInState,
   insertInstance,
   type DuplicableType,
-} from './duplicateElement';
+} from '@ggraphic/editor/utils/duplicateElement';
+import { describe, expect, it } from 'vitest';
 
-import type { BaseCanvasState } from '../configs/factory/baseTypes';
-import type { FullCanvasConfig } from '../configs/types';
+import type { BaseCanvasState } from '@ggraphic/editor/configs/factory/baseTypes';
+import type { FullCanvasConfig } from '@ggraphic/editor/configs/types';
 
 /**
  * Ein Zustand mit genau einem Eintrag je Instanz-Sammlung. Die Felder sind so

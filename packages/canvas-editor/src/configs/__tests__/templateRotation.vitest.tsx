@@ -4,19 +4,18 @@
  * beides zurück, und der Wiederaufbau über `createInitialState` behält die
  * Drehung. Hintergrundfoto und cover-gefüllte Bilder bekommen keinen Drehgriff.
  */
+import { GenericCanvas, type GenericCanvasRef } from '@ggraphic/editor/components/GenericCanvas';
+import { loadCanvasConfig } from '@ggraphic/editor/configs/configLoader';
+import { carryInstanceState } from '@ggraphic/editor/configs/factory/carryInstanceState';
 import { AutoSaveStoreProvider } from '@ggraphic/editor/stores/AutoSaveStoreProvider';
+import { templateElementToEntry } from '@ggraphic/editor/utils/templateElementInstance';
+import { isTemplateElementRotatable } from '@ggraphic/editor/utils/templateRotation';
 import { act, cleanup, render } from '@testing-library/react';
 import Konva from 'konva';
 import { createRef } from 'react';
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 
-import { GenericCanvas, type GenericCanvasRef } from '../../components/GenericCanvas';
-import { templateElementToEntry } from '../../utils/templateElementInstance';
-import { isTemplateElementRotatable } from '../../utils/templateRotation';
-import { loadCanvasConfig } from '../configLoader';
-import { carryInstanceState } from '../factory/carryInstanceState';
-
-import type { ImageElementConfig, TextElementConfig } from '../types';
+import type { ImageElementConfig, TextElementConfig } from '@ggraphic/editor/configs/types';
 
 vi.mock('use-image', async () => {
   // Der 2D-Kontext kommt von @napi-rs/canvas (vitest.setup.ts); ein jsdom-<img>

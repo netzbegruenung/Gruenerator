@@ -1,21 +1,20 @@
+import { useCanvasKeyboardHandlers } from '@ggraphic/editor/hooks/useCanvasKeyboardHandlers';
 import { createCanvasEditorStore } from '@ggraphic/editor/stores/createCanvasEditorStore';
+import { CanvasClipboard } from '@ggraphic/editor/utils/canvasClipboard';
 import {
   CANVAS_COMMAND_IDS,
   shortcutOf,
   type CanvasCommandId,
 } from '@ggraphic/editor/utils/canvasCommandRegistry';
+import { createCanvasCommands, type CanvasCommands } from '@ggraphic/editor/utils/canvasCommands';
 import { CANVAS_ITEM_ID_ATTR, CANVAS_ITEM_NAME } from '@ggraphic/editor/utils/deepSelect';
 import { renderHook } from '@testing-library/react';
 import Konva from 'konva';
 import { act } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { CanvasClipboard } from '../../utils/canvasClipboard';
-import { createCanvasCommands, type CanvasCommands } from '../../utils/canvasCommands';
-import { useCanvasKeyboardHandlers } from '../useCanvasKeyboardHandlers';
-
-import type { BaseCanvasState } from '../../configs/factory/baseTypes';
-import type { LayoutResult } from '../../configs/types';
+import type { BaseCanvasState } from '@ggraphic/editor/configs/factory/baseTypes';
+import type { LayoutResult } from '@ggraphic/editor/configs/types';
 
 /**
  * Die Kürzel im Menü und die, auf die die Tastatur hört, kommen aus derselben

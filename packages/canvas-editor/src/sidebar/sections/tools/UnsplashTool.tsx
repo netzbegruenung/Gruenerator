@@ -1,9 +1,9 @@
+import { useCanvasEditorServices } from '@ggraphic/editor/CanvasEditorProvider';
+import { useNoUnsplashSearch, type UnsplashSearchFn } from '@ggraphic/editor/hostServices';
 import { useCallback, useEffect, useState } from 'react';
 import { HiMagnifyingGlass } from 'react-icons/hi2';
 
-import { useCanvasEditorServices } from '../../../CanvasEditorProvider';
 import { useTrackUnsplashDownload } from '../../../hooks/useTrackUnsplashDownload';
-import { useNoUnsplashSearch, type UnsplashSearchFn } from '../../../hostServices';
 import { MOBILE_INPUT_TEXT } from '../../sidebarStyles';
 import { unsplashThumbnailUrl } from '../assets/useStockPhotos';
 

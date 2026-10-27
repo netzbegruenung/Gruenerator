@@ -1,9 +1,8 @@
 import { cn } from '@ggraphic/editor/utils/cn';
+import { onThumbnailHover } from '@ggraphic/editor/utils/illustrations/svgCache';
 import { takeDropPlaced } from '@ggraphic/editor/utils/mediaDrop';
 import { memo, type CSSProperties, type DragEvent } from 'react';
 import { FaCheck } from 'react-icons/fa';
-
-import { onThumbnailHover } from '../../../utils/illustrations/svgCache';
 
 import { ElementThumb, thumbFillsTile, thumbNeedsDarkTile } from './ElementThumb';
 import { dragDataFor, type ElementItem } from './elementTypes';

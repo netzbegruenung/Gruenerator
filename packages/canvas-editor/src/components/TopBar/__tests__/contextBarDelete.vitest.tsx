@@ -4,7 +4,7 @@ import { describe, expect, it, vi } from 'vitest';
 
 import { ContextControls } from '../ContextControls';
 
-import type { FloatingModuleState } from '../../../hooks/useFloatingModuleState';
+import type { FloatingModuleState } from '@ggraphic/editor/hooks/useFloatingModuleState';
 
 /**
  * Löschen und Sperren in der Desktop-Leiste. Ein Element zu löschen ging am

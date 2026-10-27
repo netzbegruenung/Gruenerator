@@ -1,3 +1,4 @@
+import { CanvasEditorProvider } from '@ggraphic/editor/CanvasEditorProvider';
 import {
   downloadBlob,
   downloadDataUrl,
@@ -9,7 +10,6 @@ import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { CanvasEditorProvider } from '../../../CanvasEditorProvider';
 import { ShareDropdown } from '../ShareDropdown';
 
 /**

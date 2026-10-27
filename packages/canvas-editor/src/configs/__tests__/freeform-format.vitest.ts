@@ -1,8 +1,8 @@
+import { loadCanvasConfig } from '@ggraphic/editor/configs/configLoader';
 import { CANVAS_FORMATS, DEFAULT_FORMAT_ID } from '@ggraphic/editor/formats/index';
 import { describe, it, expect, beforeAll } from 'vitest';
 
 import { TEMPLATE_REGISTRY, templateFitsFormat } from '../../utils/templateRegistry';
-import { loadCanvasConfig } from '../configLoader';
 
 /**
  * Freeform legt sich auf das Format der Leinwand, statt eine 4:5-Seite auf

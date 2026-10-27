@@ -1,12 +1,17 @@
+import {
+  isLockable,
+  isLayerLocked,
+  lockedIdsOf,
+  lockStateOf,
+  toggledLocks,
+} from '@ggraphic/editor/utils/layerLock';
+import { findElementRemover } from '@ggraphic/editor/utils/removeElement';
+import { selectionCapabilities } from '@ggraphic/editor/utils/selectionCapabilities';
 import { describe, expect, it } from 'vitest';
 
-import { isLockable, isLayerLocked, lockedIdsOf, lockStateOf, toggledLocks } from './layerLock';
-import { findElementRemover } from './removeElement';
-import { selectionCapabilities } from './selectionCapabilities';
-
-import type { CanvasItem } from './canvasLayerManager';
-import type { BaseCanvasState } from '../configs/factory/baseTypes';
-import type { CanvasElementConfig } from '../configs/types';
+import type { BaseCanvasState } from '@ggraphic/editor/configs/factory/baseTypes';
+import type { CanvasElementConfig } from '@ggraphic/editor/configs/types';
+import type { CanvasItem } from '@ggraphic/editor/utils/canvasLayerManager';
 
 const element = (id: string, extra: Record<string, unknown>): CanvasItem => ({
   id,

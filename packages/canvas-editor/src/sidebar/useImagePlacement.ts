@@ -1,9 +1,7 @@
+import { useCanvasEditorServices } from '@ggraphic/editor/CanvasEditorProvider';
+import { plainImageUrls, type CanvasUploadSource } from '@ggraphic/editor/hostServices';
+import { useUserUploads } from '@ggraphic/editor/sidebar/UserUploadsProvider';
 import { useCallback } from 'react';
-
-import { useCanvasEditorServices } from '../CanvasEditorProvider';
-import { plainImageUrls, type CanvasUploadSource } from '../hostServices';
-
-import { useUserUploads } from './UserUploadsProvider';
 
 export interface PlacedImage {
   /** Durable, placeable URL for the uploaded file (null if none could be resolved). */

@@ -4,10 +4,10 @@
  * teilen sich einen Lauf. Fehlschläge werden nicht gemerkt — beim nächsten
  * Öffnen wird es noch einmal versucht.
  */
-import { useLayoutEffect, useRef, useState } from 'react';
 
-import { useCanvasEditorServices } from '../CanvasEditorProvider';
-import { plainImageUrls, type CanvasImageUrlService } from '../hostServices';
+import { useCanvasEditorServices } from '@ggraphic/editor/CanvasEditorProvider';
+import { plainImageUrls, type CanvasImageUrlService } from '@ggraphic/editor/hostServices';
+import { useLayoutEffect, useRef, useState } from 'react';
 
 import { preloadSlideLayoutPhoto, renderSlideLayoutThumbnail } from './renderSlideLayoutThumbnail';
 

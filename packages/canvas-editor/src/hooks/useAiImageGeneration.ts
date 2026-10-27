@@ -1,6 +1,5 @@
+import { useCanvasEditorServices } from '@ggraphic/editor/CanvasEditorProvider';
 import { useCallback, useEffect, useState } from 'react';
-
-import { useCanvasEditorServices } from '../CanvasEditorProvider';
 
 export type AiVariant = 'illustration' | 'realistic' | 'pixel';
 

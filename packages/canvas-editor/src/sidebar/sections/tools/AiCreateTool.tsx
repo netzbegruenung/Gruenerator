@@ -1,10 +1,10 @@
+import { useCanvasEditorServices } from '@ggraphic/editor/CanvasEditorProvider';
+import { useUserUploads } from '@ggraphic/editor/sidebar/UserUploadsProvider';
 import { useCallback, useState } from 'react';
 import { HiSparkles } from 'react-icons/hi';
 
-import { useCanvasEditorServices } from '../../../CanvasEditorProvider';
 import { useAiImageGeneration, type AiVariant } from '../../../hooks/useAiImageGeneration';
 import { MOBILE_INPUT_TEXT } from '../../sidebarStyles';
-import { useUserUploads } from '../../UserUploadsProvider';
 
 import { ToolPanel, type ToolPanelSuccess } from './ToolPanel';
 

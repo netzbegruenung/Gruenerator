@@ -7,7 +7,7 @@ import { SidebarHint } from '../components/SidebarHint';
 import { TextField } from '../components/TextFieldPrimitives';
 import { MOBILE_INPUT_TEXT, SIDEBAR_SECTION } from '../sidebarStyles';
 
-import type { AdditionalText } from '../../configs/types';
+import type { AdditionalText } from '@ggraphic/editor/configs/types';
 import type { TextFieldConfig } from '@ggraphic/editor/configs/unifiedTabs';
 
 export interface CombinedTextSectionProps {

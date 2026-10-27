@@ -1,10 +1,10 @@
+import { CanvasEditorProvider } from '@ggraphic/editor/CanvasEditorProvider';
+import { plainImageUrls, type CanvasImageUrlService } from '@ggraphic/editor/hostServices';
 import { MEDIA_DRAG_TYPE } from '@ggraphic/editor/utils/mediaDrop';
 import { fireEvent, render, screen } from '@testing-library/react';
 import React from 'react';
 import { describe, expect, it, vi } from 'vitest';
 
-import { CanvasEditorProvider } from '../../CanvasEditorProvider';
-import { plainImageUrls, type CanvasImageUrlService } from '../../hostServices';
 import { UploadsSection } from '../sections/UploadsSection';
 
 /**
@@ -12,7 +12,7 @@ import { UploadsSection } from '../sections/UploadsSection';
  * an). Mitgegeben wird die dauerhafte URL, nie eine blob:-Vorschau.
  */
 
-vi.mock('../UserUploadsProvider', () => ({
+vi.mock('@ggraphic/editor/sidebar/UserUploadsProvider', () => ({
   useUserUploads: () => ({
     items: [
       {

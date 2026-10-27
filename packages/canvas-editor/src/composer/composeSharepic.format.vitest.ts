@@ -3,6 +3,7 @@
  * follows the taller canvas, the footer stays on the bottom edge.
  */
 import { getCanvasFormat } from '@ggraphic/editor/formats/index';
+import { ASSET_TARGET_SIZE } from '@ggraphic/editor/utils/canvasAssets';
 import {
   sharepicFormatSchema,
   sharepicSpecSchema,
@@ -10,8 +11,6 @@ import {
   type SharepicSpec,
 } from '@gruenerator/contracts';
 import { describe, expect, it } from 'vitest';
-
-import { ASSET_TARGET_SIZE } from '../utils/canvasAssets';
 
 import { composeSharepic, type ComposedSlide } from './composeSharepic';
 

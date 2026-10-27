@@ -7,14 +7,13 @@
  * so the tick only recaptures pages whose state changed, never mid-gesture,
  * and — where the browser offers it — inside an idle callback.
  */
+import { usePageThumbnails } from '@ggraphic/editor/hooks/usePageThumbnails';
 import { act, renderHook } from '@testing-library/react';
 import Konva from 'konva';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { usePageThumbnails } from '../usePageThumbnails';
-
-import type { GenericCanvasRef } from '../../components/GenericCanvas';
-import type { HeterogeneousPage } from '../../configs/types';
+import type { GenericCanvasRef } from '@ggraphic/editor/components/GenericCanvas';
+import type { HeterogeneousPage } from '@ggraphic/editor/configs/types';
 
 const shown = new Map<string, string>();
 const loadingImages = new Set<string>();

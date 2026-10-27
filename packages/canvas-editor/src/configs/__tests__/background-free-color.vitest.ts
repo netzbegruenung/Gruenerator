@@ -1,6 +1,5 @@
+import { loadCanvasConfig } from '@ggraphic/editor/configs/configLoader';
 import { beforeAll, describe, expect, it } from 'vitest';
-
-import { loadCanvasConfig } from '../configLoader';
 
 /**
  * The colour templates derive the font colour from the background colour via a

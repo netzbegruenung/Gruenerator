@@ -1,12 +1,12 @@
-import { render } from '@testing-library/react';
-import { describe, expect, it } from 'vitest';
-
-import { buildAssetCapability } from '../../../ai/assetCapability';
 import {
   CanvasEditorProvider,
   type CanvasAiEditBridge,
   type ChatSectionContentProps,
-} from '../../../CanvasEditorProvider';
+} from '@ggraphic/editor/CanvasEditorProvider';
+import { render } from '@testing-library/react';
+import { describe, expect, it } from 'vitest';
+
+import { buildAssetCapability } from '../../../ai/assetCapability';
 import { ChatSection } from '../ChatSection';
 
 function sentAssetIds(userLocale: 'de-DE' | 'de-AT'): string[] {

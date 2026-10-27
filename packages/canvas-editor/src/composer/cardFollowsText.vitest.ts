@@ -15,7 +15,7 @@ import { composeSharepic } from './composeSharepic';
 import { fingerprint, liftPage, recomposePage } from './liftSharepicPage';
 import { farbe, options } from './sharepicSpecFixtures';
 
-import type { AdditionalText } from '../configs/types';
+import type { AdditionalText } from '@ggraphic/editor/configs/types';
 import type { ShapeInstance } from '@ggraphic/editor/utils/shapes';
 
 const specOf = (headline: string, items: string[]): SharepicSpec => ({

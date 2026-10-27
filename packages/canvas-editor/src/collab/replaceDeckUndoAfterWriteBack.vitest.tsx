@@ -6,12 +6,11 @@
  * but keep every real edit made since, whoever made it and however soon.
  */
 import { getPagesMap } from '@ggraphic/editor/collab/pagesDoc';
+import { useYjsPages, type NormalizeEcho } from '@ggraphic/editor/collab/useYjsPages';
 import { YDOC_KEYS } from '@ggraphic/editor/collab/ydocKeys';
 import { act, renderHook } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import * as Y from 'yjs';
-
-import { useYjsPages, type NormalizeEcho } from './useYjsPages';
 
 const PAGE_1 = {
   headline: 'Eins',

@@ -1,13 +1,13 @@
+import { useCanvasEditorServices } from '@ggraphic/editor/CanvasEditorProvider';
+import { plainImageUrls, type CanvasStudioAssetItem } from '@ggraphic/editor/hostServices';
+import { fetchShareImageFile } from '@ggraphic/editor/utils/mediaPlacement';
 import { type StudioAssetScope } from '@gruenerator/contracts';
 import { isShareSrc } from '@gruenerator/contracts';
 import { useRef, useState } from 'react';
 
-import { useCanvasEditorServices } from '../../../CanvasEditorProvider';
-import { plainImageUrls, type CanvasStudioAssetItem } from '../../../hostServices';
-import { fetchShareImageFile } from '../../../utils/mediaPlacement';
 import { GALLERY_SCOPES, GalleryTabs, StudioGalleryGrid } from '../StudioGallery';
 
-import type { BackgroundControls } from '../../../configs/types';
+import type { BackgroundControls } from '@ggraphic/editor/configs/types';
 
 type ImageChange = NonNullable<BackgroundControls['onImageChange']>;
 

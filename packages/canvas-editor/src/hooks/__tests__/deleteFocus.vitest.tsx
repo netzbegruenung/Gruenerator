@@ -3,15 +3,14 @@
  * er auf dem Knopf der Seite, nicht auf `<body>`. Aus der Ebenen-Liste heraus
  * übernimmt die Liste selbst (nächster Eintrag), siehe `layersSection.vitest.tsx`.
  */
+import { useCanvasKeyboardHandlers } from '@ggraphic/editor/hooks/useCanvasKeyboardHandlers';
 import { createCanvasEditorStore } from '@ggraphic/editor/stores/createCanvasEditorStore';
 import { renderHook, waitFor } from '@testing-library/react';
 import { act } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { useCanvasKeyboardHandlers } from '../useCanvasKeyboardHandlers';
-
-import type { BaseCanvasState } from '../../configs/factory/baseTypes';
-import type { CanvasCommands } from '../../utils/canvasCommands';
+import type { BaseCanvasState } from '@ggraphic/editor/configs/factory/baseTypes';
+import type { CanvasCommands } from '@ggraphic/editor/utils/canvasCommands';
 
 function setup() {
   document.body.innerHTML = `

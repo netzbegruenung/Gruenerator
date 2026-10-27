@@ -7,7 +7,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { axe } from '../../../test-utils';
 import { PageWrapper } from '../PageWrapper';
 
-vi.mock('../../GenericCanvas', () => ({
+vi.mock('@ggraphic/editor/components/GenericCanvas', () => ({
   GenericCanvas: () => (
     <div role="img" aria-label="Seite 2: Text: Klimaschutz">
       <canvas />

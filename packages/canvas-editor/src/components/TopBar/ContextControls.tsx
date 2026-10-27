@@ -1,25 +1,24 @@
+import { useCanvasEditorServices } from '@ggraphic/editor/CanvasEditorProvider';
 import { useCanvasTextFormatting } from '@ggraphic/editor/components/CanvasTextOverlay';
+import { type BackgroundControls } from '@ggraphic/editor/configs/types';
+import { type ShadowPatch } from '@ggraphic/editor/hooks/useFloatingModuleHandlers';
+import { type FloatingModuleState } from '@ggraphic/editor/hooks/useFloatingModuleState';
+import { useOptionalUserUploads } from '@ggraphic/editor/sidebar/UserUploadsProvider';
 import {
   formatShortcut,
   isMacPlatform,
   shortcutOf,
 } from '@ggraphic/editor/utils/canvasCommandRegistry';
+import { type SelectionGeometry } from '@ggraphic/editor/utils/canvasCommands';
 import { brandColors, fontColors } from '@ggraphic/editor/utils/colorOptions';
 import { type CropAspectId } from '@ggraphic/editor/utils/cropAspect';
 import { focusPage, isKeyboardModality } from '@ggraphic/editor/utils/editorFocus';
 import { type GradientFill } from '@ggraphic/editor/utils/gradientFill';
+import { type LockState } from '@ggraphic/editor/utils/layerLock';
 import { STROKE_ONLY_SHAPES } from '@ggraphic/editor/utils/shapes';
 import { type TextAlign } from '@ggraphic/editor/utils/textAlign';
 import React, { useState } from 'react';
 import { PiCopy, PiLockSimple, PiLockSimpleOpen, PiTrash } from 'react-icons/pi';
-
-import { useCanvasEditorServices } from '../../CanvasEditorProvider';
-import { type BackgroundControls } from '../../configs/types';
-import { type ShadowPatch } from '../../hooks/useFloatingModuleHandlers';
-import { type FloatingModuleState } from '../../hooks/useFloatingModuleState';
-import { useOptionalUserUploads } from '../../sidebar/UserUploadsProvider';
-import { type SelectionGeometry } from '../../utils/canvasCommands';
-import { type LockState } from '../../utils/layerLock';
 
 import { CropModeControls } from './CropModeControls';
 import {

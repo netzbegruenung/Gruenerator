@@ -1,3 +1,5 @@
+import { useCanvasEditorServices } from '@ggraphic/editor/CanvasEditorProvider';
+import { browserFileDelivery } from '@ggraphic/editor/hostServices';
 import { useAutoSaveStoreApi } from '@ggraphic/editor/stores/useAutoSaveStore';
 import { stripInlineMarks } from '@ggraphic/schema';
 import {
@@ -17,9 +19,7 @@ import { FaCheck, FaDownload, FaSave, FaUserPlus } from 'react-icons/fa';
 import { IoShareOutline } from 'react-icons/io5';
 import { PiArrowLeft, PiMegaphone } from 'react-icons/pi';
 
-import { useCanvasEditorServices } from '../../CanvasEditorProvider';
 import { useIsCanvasMobile } from '../../hooks/useIsCanvasMobile';
-import { browserFileDelivery } from '../../hostServices';
 import {
   AltTextField,
   useCaptionAltText,

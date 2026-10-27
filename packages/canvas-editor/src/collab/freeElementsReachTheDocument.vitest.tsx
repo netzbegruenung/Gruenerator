@@ -18,20 +18,18 @@
  *    Illustrationen und Uploads laden im Browser nach, und jsdom rastert
  *    nichts, also fuehrt keine echte Aktion dort hin.
  */
+import { PAGE_ELEMENT_STATE_KEYS } from '@ggraphic/editor/collab/pageElementStateKeys';
 import { readPages, seedPagesIfEmpty, updatePageStateById } from '@ggraphic/editor/collab/pagesDoc';
 import { useEmitHostStateChanges } from '@ggraphic/editor/collab/useEmitHostStateChanges';
+import { PAGES_STATE_ORIGIN } from '@ggraphic/editor/collab/useYjsPages';
 import { createPageSyncedCallbacks } from '@ggraphic/editor/collab/wrapCallbacksWithPageSync';
+import { GenericCanvas } from '@ggraphic/editor/components/GenericCanvas';
+import { loadCanvasConfig } from '@ggraphic/editor/configs/configLoader';
 import { AutoSaveStoreProvider } from '@ggraphic/editor/stores/AutoSaveStoreProvider';
 import { act, render } from '@testing-library/react';
 import React, { useState } from 'react';
 import { describe, expect, it, vi } from 'vitest';
 import * as Y from 'yjs';
-
-import { GenericCanvas } from '../components/GenericCanvas';
-import { loadCanvasConfig } from '../configs/configLoader';
-
-import { PAGE_ELEMENT_STATE_KEYS } from './pageElementStateKeys';
-import { PAGES_STATE_ORIGIN } from './useYjsPages';
 
 // `useFontLoader` fragt `document.fonts`; jsdom laedt keine Schriften und
 // kennt die FontFaceSet nicht, das Mounten stirbt sonst im Effekt.

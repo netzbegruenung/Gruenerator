@@ -1,4 +1,4 @@
-import type { LayoutElementResult, PositionValue } from '../types';
+import type { LayoutElementResult, PositionValue } from '@ggraphic/editor/configs/types';
 
 type LayoutNumericField = keyof LayoutElementResult;
 

@@ -1,13 +1,12 @@
-import { describe, expect, it } from 'vitest';
-
 import {
   buildSortedRenderList,
   canMoveLayer,
   moveLayerTo,
   type CanvasItem,
-} from './canvasLayerManager';
+} from '@ggraphic/editor/utils/canvasLayerManager';
+import { describe, expect, it } from 'vitest';
 
-import type { CanvasElementConfig } from '../configs/types';
+import type { CanvasElementConfig } from '@ggraphic/editor/configs/types';
 
 function element(id: string, order?: number): CanvasItem {
   return {

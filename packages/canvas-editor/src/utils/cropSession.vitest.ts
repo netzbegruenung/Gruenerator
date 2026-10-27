@@ -1,13 +1,12 @@
-import { describe, expect, it } from 'vitest';
-
 import {
   cropRotationOf,
   cropRotationUpdate,
   restoreCropSnapshot,
   takeCropSnapshot,
-} from './cropSession';
+} from '@ggraphic/editor/utils/cropSession';
+import { describe, expect, it } from 'vitest';
 
-import type { CanvasElementConfig } from '../configs/types';
+import type { CanvasElementConfig } from '@ggraphic/editor/configs/types';
 import type { UserImageInstance } from '@ggraphic/editor/utils/userImageUtils';
 
 const elements: CanvasElementConfig[] = [

@@ -4,12 +4,16 @@
  * removes them; the package entry (`src/index.ts`) installs their look
  * (`registerKindRenderers`).
  */
-import { createSelectableWrapper, type HostKindRenderers } from '../components/kindRenderers';
+import {
+  createSelectableWrapper,
+  type HostKindRenderers,
+} from '@ggraphic/editor/components/kindRenderers';
+
 import { BalkenGroup } from '../primitives/BalkenGroup';
 
 import type { SnapLine } from '@ggraphic/editor/utils/snapping';
 
-export { registerKindRenderers } from '../components/kindRenderers';
+export { registerKindRenderers } from '@ggraphic/editor/components/kindRenderers';
 
 const SelectableBalkenGroup = createSelectableWrapper(BalkenGroup);
 

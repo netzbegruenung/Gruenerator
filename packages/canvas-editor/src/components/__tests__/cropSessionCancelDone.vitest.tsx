@@ -3,6 +3,8 @@
  * Abbrechen stellt den Zuschnitt vom Betreten her und hinterlässt keinen
  * Schritt, der ihn zurückbrächte; jedes andere Ende behält ihn als einen Schritt.
  */
+import { GenericCanvas, type GenericCanvasRef } from '@ggraphic/editor/components/GenericCanvas';
+import { loadCanvasConfig } from '@ggraphic/editor/configs/configLoader';
 import { AutoSaveStoreProvider } from '@ggraphic/editor/stores/AutoSaveStoreProvider';
 import { straightPhotoCovers, type StraightDraw } from '@ggraphic/editor/utils/straighten';
 import { createCanvas } from '@napi-rs/canvas';
@@ -10,9 +12,6 @@ import { act, cleanup, render, waitFor } from '@testing-library/react';
 import Konva from 'konva';
 import { createRef } from 'react';
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
-
-import { loadCanvasConfig } from '../../configs/configLoader';
-import { GenericCanvas, type GenericCanvasRef } from '../GenericCanvas';
 
 import type * as StoreModule from '@ggraphic/editor/stores/createCanvasEditorStore';
 import type { CanvasEditorStoreApi } from '@ggraphic/editor/stores/createCanvasEditorStore';

@@ -5,16 +5,14 @@
  * followed the registry; a refactor must leave every expectation unchanged.
  */
 
+import { floatingModuleFor } from '@ggraphic/editor/hooks/useFloatingModuleState';
+import { duplicateElementInState } from '@ggraphic/editor/utils/duplicateElement';
+import { ELEMENT_KINDS } from '@ggraphic/editor/utils/elementKinds';
+import { findOrientationDoor } from '@ggraphic/editor/utils/orientElement';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { floatingModuleFor } from '../hooks/useFloatingModuleState';
-
-import { duplicateElementInState } from './duplicateElement';
-import { ELEMENT_KINDS } from './elementKinds';
-import { findOrientationDoor } from './orientElement';
-
-import type { BaseCanvasState } from '../configs/factory/baseTypes';
-import type { FullCanvasConfig, LayoutResult } from '../configs/types';
+import type { BaseCanvasState } from '@ggraphic/editor/configs/factory/baseTypes';
+import type { FullCanvasConfig, LayoutResult } from '@ggraphic/editor/configs/types';
 
 const layout = { centerX: 500, centerY: 500 } as unknown as LayoutResult;
 

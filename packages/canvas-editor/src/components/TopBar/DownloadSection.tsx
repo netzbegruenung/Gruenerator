@@ -1,3 +1,4 @@
+import { useCanvasEditorServices } from '@ggraphic/editor/CanvasEditorProvider';
 import { downloadErrorMessage } from '@ggraphic/editor/utils/downloadError';
 import { PRINT_UNGETESTET_HINWEIS } from '@gruenerator/contracts';
 import {
@@ -15,7 +16,6 @@ import {
 import { useId, useState, type FormEvent } from 'react';
 import { FaDownload } from 'react-icons/fa';
 
-import { useCanvasEditorServices } from '../../CanvasEditorProvider';
 import { MOBILE_INPUT_TEXT } from '../../sidebar/sidebarStyles';
 import { DownloadNotice } from '../DownloadNotice';
 
@@ -23,7 +23,7 @@ import type {
   CanvasImpressumLocale,
   CanvasImpressumParts,
   CanvasImpressumService,
-} from '../../hostServices';
+} from '@ggraphic/editor/hostServices';
 
 export type CanvasDownloadChoice = 'png' | 'jpeg' | 'webp';
 

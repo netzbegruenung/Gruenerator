@@ -5,13 +5,12 @@
  * schon ausgewähltes Element auch nicht (dort steht der Transformer). Der
  * Rahmen heißt `selection-chrome`, also darf er in keinem Export landen.
  */
+import { CanvasStage, type CanvasStageRef } from '@ggraphic/editor/primitives/CanvasStage';
 import { render } from '@testing-library/react';
 import Konva from 'konva';
 import { createRef } from 'react';
 import { Group, Rect } from 'react-konva';
 import { describe, expect, it, vi } from 'vitest';
-
-import { CanvasStage, type CanvasStageRef } from '../../primitives/CanvasStage';
 
 function mount(listening = true) {
   const stageRef = createRef<CanvasStageRef>();

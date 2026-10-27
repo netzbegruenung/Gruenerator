@@ -4,11 +4,10 @@
  * Umbrüche und Grafiken wie auf der Seite. Gleiches Muster wie
  * `renderSharepicToImage` in apps/web.
  */
+import { CanvasEditorProvider } from '@ggraphic/editor/CanvasEditorProvider';
 import { ensureFontsReady } from '@ggraphic/editor/utils/ensureFontsReady';
 import { createElement } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
-
-import { CanvasEditorProvider } from '../CanvasEditorProvider';
 
 import {
   buildSlideLayout,
@@ -18,8 +17,8 @@ import {
 } from './slideLayouts';
 
 import type { BrandLocale } from '../brand/theme';
-import type { GenericCanvasRef } from '../components/GenericCanvas';
-import type { CanvasImageUrlService } from '../hostServices';
+import type { GenericCanvasRef } from '@ggraphic/editor/components/GenericCanvas';
+import type { CanvasImageUrlService } from '@ggraphic/editor/hostServices';
 
 const SLIDE_FORMAT_ID = 'slide-16-9';
 const SLIDE_WIDTH = 1920;

@@ -10,8 +10,8 @@ import {
   createShapeActions,
 } from './actionFactories';
 
-import type { AssetInstance } from '../../utils/canvasAssets';
 import type { BalkenInstance } from '@ggraphic/editor/utils/balkenUtils';
+import type { AssetInstance } from '@ggraphic/editor/utils/canvasAssets';
 import type { ChartInstance } from '@ggraphic/editor/utils/chartUtils';
 import type { FrameInstance } from '@ggraphic/editor/utils/frameUtils';
 import type { ShapeInstance } from '@ggraphic/editor/utils/shapes';

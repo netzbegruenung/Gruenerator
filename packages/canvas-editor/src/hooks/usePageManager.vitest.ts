@@ -1,6 +1,5 @@
+import { nextPageIdAfterRemoval } from '@ggraphic/editor/hooks/usePageManager';
 import { describe, it, expect } from 'vitest';
-
-import { nextPageIdAfterRemoval } from './usePageManager';
 
 const pages = [{ id: 'a' }, { id: 'b' }, { id: 'c' }, { id: 'd' }];
 
