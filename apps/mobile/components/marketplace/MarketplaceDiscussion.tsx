@@ -347,7 +347,7 @@ export function MarketplaceDiscussion({
     return (
       <Pressable
         key={c.id}
-        onLongPress={actions.length > 0 ? () => setMenuFor(c) : null}
+        onLongPress={actions.length > 0 ? () => setMenuFor(c) : undefined}
         style={({ pressed }) => [
           styles.comment,
           isReply && styles.reply,
