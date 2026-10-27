@@ -1,9 +1,9 @@
-import { type StudioAssetItem, type StudioAssetScope } from '@gruenerator/contracts';
+import { type StudioAssetScope } from '@gruenerator/contracts';
 import { isShareSrc } from '@gruenerator/contracts';
 import { useRef, useState } from 'react';
 
 import { useCanvasEditorServices } from '../../../CanvasEditorProvider';
-import { plainImageUrls } from '../../../hostServices';
+import { plainImageUrls, type CanvasStudioAssetItem } from '../../../hostServices';
 import { fetchShareImageFile } from '../../../utils/mediaPlacement';
 import { GALLERY_SCOPES, GalleryTabs, StudioGalleryGrid } from '../StudioGallery';
 
@@ -21,7 +21,7 @@ function useBackgroundPick(onImageChange: ImageChange) {
   const [pendingId, setPendingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const pick = async (item: StudioAssetItem) => {
+  const pick = async (item: CanvasStudioAssetItem) => {
     if (!isShareSrc(item.src)) return;
     const seq = ++seqRef.current;
     setError(null);

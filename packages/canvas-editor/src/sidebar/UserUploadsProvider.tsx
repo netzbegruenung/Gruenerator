@@ -10,9 +10,13 @@ import {
 } from 'react';
 
 import { useCanvasEditorServices } from '../CanvasEditorProvider';
-import { mediaLibraryOrFallback, type CanvasMediaThumbProps } from '../hostServices';
+import {
+  mediaLibraryOrFallback,
+  type CanvasMediaItem,
+  type CanvasMediaThumbProps,
+  type CanvasUploadSource,
+} from '../hostServices';
 
-import type { MediaItem, UploadSource } from '@gruenerator/contracts';
 import type { ComponentType, ReactNode } from 'react';
 
 const SEARCH_DEBOUNCE_MS = 300;
@@ -22,7 +26,7 @@ const SEARCH_DEBOUNCE_MS = 300;
 const UNDO_WINDOW_MS = 5000;
 
 interface UserUploadsContextValue {
-  items: MediaItem[];
+  items: CanvasMediaItem[];
   isLoading: boolean;
   error: string | null;
   search: string;
@@ -32,7 +36,7 @@ interface UserUploadsContextValue {
    * the Uploads tab); pass 'canvas-element' for tool-generated images that are
    * placed straight onto the canvas and must stay out of the library.
    */
-  upload: (file: File, uploadSource?: UploadSource) => Promise<MediaItem | null>;
+  upload: (file: File, uploadSource?: CanvasUploadSource) => Promise<CanvasMediaItem | null>;
   /** Hides the item at once and deletes it after an undo window (toast). */
   deleteFromLibrary: (id: string) => void;
   isUploading: boolean;
@@ -70,23 +74,19 @@ export function UserUploadsProvider({ children }: { children: ReactNode }) {
   }, [search, library]);
 
   const upload = useCallback(
-    async (file: File, uploadSource: UploadSource = 'upload'): Promise<MediaItem | null> => {
+    async (
+      file: File,
+      uploadSource: CanvasUploadSource = 'upload'
+    ): Promise<CanvasMediaItem | null> => {
       const result = await uploader.upload(file, { uploadSource });
       if (!result) return null;
       return {
         id: result.id,
         shareToken: result.shareToken,
-        mediaType: result.mediaType,
         title: null,
         thumbnailUrl: null,
-        fileSize: file.size,
-        mimeType: file.type,
         altText: null,
-        uploadSource,
         originalFilename: file.name,
-        downloadCount: 0,
-        viewCount: 0,
-        createdAt: result.createdAt,
       };
     },
     [uploader]

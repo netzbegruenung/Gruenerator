@@ -81,7 +81,7 @@ export interface ComposedPrint {
 
 /** The impressum element of a poster in `formatId`, at its standard position (for re-adding a deleted one). */
 export function composePrintImpressum(
-  formatId: PrintFormatId,
+  formatId: string,
   isAt: boolean,
   text: string
 ): AdditionalText {

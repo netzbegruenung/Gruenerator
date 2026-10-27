@@ -13,7 +13,7 @@ import {
   parseImpressumLine,
 } from './printImpressum';
 
-import type { CanvasPrintService } from '../hostServices';
+import type { CanvasPrintService } from '../grueneratorHostServices';
 
 export const grueneratorPrint: CanvasPrintService = {
   impressum: {
