@@ -1,6 +1,13 @@
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 
+import { AutoSaveIndicator } from '@ggraphic/editor/components/TopBar/AutoSaveIndicator';
+import { FloatingColorPicker } from '@ggraphic/editor/components/TopBar/modules/FloatingColorPicker';
+import { FloatingFontSizeControl } from '@ggraphic/editor/components/TopBar/modules/FloatingFontSizeControl';
+import { FloatingHistoryControls } from '@ggraphic/editor/components/TopBar/modules/FloatingHistoryControls';
+import { FloatingLayerControls } from '@ggraphic/editor/components/TopBar/modules/FloatingLayerControls';
+import { SidebarHint } from '@ggraphic/editor/sidebar/components/SidebarHint';
+import { FontSizeStepper } from '@ggraphic/editor/sidebar/components/TextFieldPrimitives';
 import {
   AutoSaveStoreProvider,
   useAutoSaveStoreApi,
@@ -10,17 +17,10 @@ import { useLayoutEffect } from 'react';
 import { PiTextAa } from 'react-icons/pi';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { SidebarHint } from '@ggraphic/editor/sidebar/components/SidebarHint';
-import { FontSizeStepper } from '@ggraphic/editor/sidebar/components/TextFieldPrimitives';
 import { CombinedTextSection } from '../../sidebar/sections/CombinedTextSection';
 import { SidebarPanel } from '../../sidebar/SidebarPanel';
 import { SubsectionTabBar } from '../../sidebar/SubsectionTabBar';
-import { AutoSaveIndicator } from '@ggraphic/editor/components/TopBar/AutoSaveIndicator';
 import { ContextControls } from '../TopBar/ContextControls';
-import { FloatingColorPicker } from '@ggraphic/editor/components/TopBar/modules/FloatingColorPicker';
-import { FloatingFontSizeControl } from '@ggraphic/editor/components/TopBar/modules/FloatingFontSizeControl';
-import { FloatingHistoryControls } from '@ggraphic/editor/components/TopBar/modules/FloatingHistoryControls';
-import { FloatingLayerControls } from '@ggraphic/editor/components/TopBar/modules/FloatingLayerControls';
 
 import type { FloatingModuleState } from '@ggraphic/editor/hooks/useFloatingModuleState';
 
@@ -219,7 +219,14 @@ describe('44pt-Ziele', () => {
     'sidebar/sections/tools/BlobCreatorTool.tsx',
     'components/TopBar/CropModeControls.tsx',
   ])('Range-Regler %s ist auf dem Handy 44 px hoch', (file) => {
-    const source = readFileSync(path.resolve(import.meta.dirname, '../..', file), 'utf8');
+    // the file may already live in the core package after a move
+    const source = readFileSync(
+      [
+        path.resolve(import.meta.dirname, '../..', file),
+        path.resolve(import.meta.dirname, '../../../../ggraphic-editor/src', file),
+      ].find(existsSync) ?? file,
+      'utf8'
+    );
     const ranges = [...source.matchAll(/type="range"[\s\S]*?className="([^"]*)"/g)];
     expect(ranges.length).toBeGreaterThan(0);
     for (const [, cls] of ranges) expect(cls).toContain('max-canvas-mobile:h-11');
