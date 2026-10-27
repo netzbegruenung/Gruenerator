@@ -39,6 +39,7 @@ vi.mock('./documentIngestWorker.js', () => ({ kickIngestWorker: vi.fn() }));
 const { reindexDocument, REINDEX_UNAVAILABLE_MESSAGE } = await import('./reindex.js');
 const { reindexOrigin, isReindexable } = await import('./reindexOrigin.js');
 const { processUploadedDocument } = await import('./fileProcessing.js');
+const { INGEST_RETRY_DELAYS_MS } = await import('./ingestRetry.js');
 
 const OWNER = 'owner-1';
 const EDITOR = 'editor-2';
@@ -462,5 +463,71 @@ describe('gescheiterter Upload — das Original bleibt, „Neu indexieren" geht'
     });
     expect(updates).toEqual(['doc-5']);
     expect(deps.kick).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('vorübergehender Fehler — der Worker versucht es von selbst wieder', () => {
+  let dir: string;
+  let filePath: string;
+  const updateDocumentMetadata = vi.fn(async () => undefined);
+  beforeEach(() => {
+    dir = fs.mkdtempSync(path.join(os.tmpdir(), 'ingest-retry-'));
+    filePath = path.join(dir, 'antrag.pdf');
+    fs.writeFileSync(filePath, '%PDF');
+    updateDocumentMetadata.mockClear();
+    extractDocumentFromFile
+      .mockReset()
+      .mockRejectedValue(Object.assign(new Error('Service unavailable'), { statusCode: 503 }));
+  });
+  afterEach(() => fs.rmSync(dir, { recursive: true, force: true }));
+
+  const runWith = (ingestRetries: number) =>
+    processUploadedDocument(
+      {
+        updateDocumentMetadata,
+        getDocumentById: vi.fn(async () => ({
+          id: 'doc-6',
+          title: 'Antrag',
+          filename: 'antrag.pdf',
+          metadata: { filePath, mimetype: 'application/pdf', ingest_retries: ingestRetries },
+        })),
+      } as never,
+      { storeDocumentVectors: vi.fn(), deleteDocumentVectors: vi.fn() } as never,
+      'doc-6',
+      OWNER,
+      { ingestRetries }
+    );
+
+  it('reiht das Dokument mit Wartezeit wieder ein, statt es aufzugeben', async () => {
+    const before = Date.now();
+    await expect(runWith(1)).rejects.toThrow('Service unavailable');
+
+    const last = updateDocumentMetadata.mock.calls.at(-1) as unknown as [
+      string,
+      string,
+      { status: string; processingAttempts: number; additionalMetadata: Record<string, unknown> },
+    ];
+    expect(last[2].status).toBe('uploaded');
+    // Die Wiederholung ist gewollt — sie zählt nicht gegen den Absturzschutz.
+    expect(last[2].processingAttempts).toBe(0);
+    expect(last[2].additionalMetadata.ingest_retries).toBe(2);
+    const retryAt = Date.parse(last[2].additionalMetadata.retry_after as string);
+    expect(retryAt).toBeGreaterThanOrEqual(before + INGEST_RETRY_DELAYS_MS[1]!);
+    expect(fs.existsSync(filePath)).toBe(true);
+  });
+
+  it('gibt auf, wenn keine Wiederholung mehr zusteht — und räumt die Zähler ab', async () => {
+    await expect(runWith(INGEST_RETRY_DELAYS_MS.length)).rejects.toThrow('Service unavailable');
+    expect(updateDocumentMetadata).toHaveBeenLastCalledWith(
+      'doc-6',
+      OWNER,
+      expect.objectContaining({
+        status: 'failed',
+        additionalMetadata: expect.objectContaining({
+          retry_after: undefined,
+          ingest_retries: undefined,
+        }),
+      })
+    );
   });
 });

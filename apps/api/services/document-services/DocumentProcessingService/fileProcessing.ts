@@ -8,6 +8,7 @@ import fs from 'fs';
 import { hasAiConsent } from '../../../middleware/requireAiConsent.js';
 
 import { chunkAndEmbedText } from './chunkingPipeline.js';
+import { ingestRetryDelayMs } from './ingestRetry.js';
 import { fetchOriginal, wolkeOrigin, type WolkeOrigin } from './reindexOrigin.js';
 import {
   capStoredText,
@@ -112,6 +113,12 @@ const REINDEX_DONE = {
   queued_at: undefined,
 } as const;
 
+/** Die Wiederholungszähler des Workers (`ingestRetry.ts`) — weg, sobald ein Lauf endet. */
+const RETRY_DONE = {
+  retry_after: undefined,
+  ingest_retries: undefined,
+} as const;
+
 /**
  * Was ein Neu-Indexieren aus der alten Nutzlast mitnehmen muss, weil es die
  * Punkte löscht und neu schreibt: Datum und Gremium, sobald der
@@ -137,7 +144,15 @@ export async function processUploadedDocument(
   postgresDocumentService: PostgresDocumentServiceLike,
   qdrantDocumentService: QdrantDocumentServiceLike,
   documentId: string,
-  userId: string
+  userId: string,
+  opts: {
+    /**
+     * Vom Worker: wie oft dieses Dokument schon wegen eines vorübergehenden
+     * Fehlers wiederholt wurde (`metadata.ingest_retries`). Nur mit dieser
+     * Angabe wird überhaupt wiederholt (`ingestRetry.ts`).
+     */
+    ingestRetries?: number;
+  } = {}
 ): Promise<FileUploadResult> {
   console.log(`[DocumentProcessingService] Deferred processing for document: ${documentId}`);
 
@@ -305,6 +320,7 @@ export async function processUploadedDocument(
         // jemand anderes schrieb, nicht vom Schnappschuss überschrieben werden.
         filePath: undefined,
         ...REINDEX_DONE,
+        ...RETRY_DONE,
         content_preview: generateContentPreview(extractedText),
         ...(extraction.extractionMethod ? { extractionMethod: extraction.extractionMethod } : {}),
       },
@@ -339,14 +355,34 @@ export async function processUploadedDocument(
       error
     );
 
+    const retryInMs =
+      opts.ingestRetries === undefined ? null : ingestRetryDelayMs(error, opts.ingestRetries);
     try {
-      if (reindex && !vectorsReplaced && prevSearchable) {
+      if (retryInMs !== null) {
+        // Vorübergehend (Anbieter-Ausfall): zurück in die Warteschlange, nicht
+        // vor `retry_after`. Die Markierungen eines Neu-Indexierens bleiben —
+        // der nächste Lauf muss das Original wieder holen. Die Versuchszählung
+        // fängt neu an: sie schützt vor Abstürzen, nicht vor Ausfällen, und
+        // die Wiederholungen sind über `ingest_retries` begrenzt.
+        await postgresDocumentService.updateDocumentMetadata(documentId, userId, {
+          status: 'uploaded',
+          processingAttempts: 0,
+          additionalMetadata: {
+            retry_after: new Date(Date.now() + retryInMs).toISOString(),
+            ingest_retries: (opts.ingestRetries ?? 0) + 1,
+            processing_error: error instanceof Error ? error.message : 'unbekannter Fehler',
+            processing_stage: null,
+            processing_progress: null,
+          },
+        });
+      } else if (reindex && !vectorsReplaced && prevSearchable) {
         // Das Original war nicht zu holen oder nicht zu lesen, die alten Punkte
         // stehen noch: die Quelle bleibt durchsuchbar, der Grund steht dabei.
         await postgresDocumentService.updateDocumentMetadata(documentId, userId, {
           status: 'completed',
           additionalMetadata: {
             ...REINDEX_DONE,
+            ...RETRY_DONE,
             processing_error: `Neu indexieren fehlgeschlagen: ${
               error instanceof Error ? error.message : 'unbekannter Fehler'
             } Die bisherige Fassung bleibt durchsuchbar.`,
@@ -364,6 +400,7 @@ export async function processUploadedDocument(
             // Auch ein neu eingereihter Upload (Datei auf der Platte, `reindex`
             // bleibt null) trägt die Markierungen — sie gehen in jedem Fall weg.
             ...REINDEX_DONE,
+            ...RETRY_DONE,
             processing_error: reindex
               ? `Neu indexieren fehlgeschlagen: ${error instanceof Error ? error.message : 'unbekannter Fehler'}`
               : error instanceof Error

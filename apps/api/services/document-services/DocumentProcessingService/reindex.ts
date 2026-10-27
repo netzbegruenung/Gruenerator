@@ -82,6 +82,10 @@ async function enqueue(
               metadata = COALESCE(metadata, '{}'::jsonb) || jsonb_build_object(
                 'reindex_origin', $2::text,
                 'processing_error', NULL,
+                -- Von Hand ausgelöst: sofort, mit vollem Kontingent an
+                -- automatischen Wiederholungen (ingestRetry.ts).
+                'retry_after', NULL,
+                'ingest_retries', NULL,
                 -- War die Quelle vorher durchsuchbar? Nur dann darf ein
                 -- gescheiterter Lauf auf die alte Fassung zurückfallen.
                 'reindex_prev_searchable',
