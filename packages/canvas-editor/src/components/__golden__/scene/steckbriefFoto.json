@@ -2,10 +2,10 @@
  {
   "className": "Stage",
   "attrs": {
-   "width": 518,
+   "width": 486,
    "height": 648,
-   "scaleX": 0.47962962962962963,
-   "scaleY": 0.47962962962962963,
+   "scaleX": 0.45,
+   "scaleY": 0.45,
    "listening": false
   },
   "children": [
