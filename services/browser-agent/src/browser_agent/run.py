@@ -2,6 +2,7 @@
 
 import asyncio
 import logging
+import os
 import shutil
 import tempfile
 import time
@@ -42,6 +43,19 @@ CHROMIUM_ARGS = [
 ]
 
 
+def build_profile(workdir: Path) -> BrowserProfile:
+    return BrowserProfile(
+        headless=True,
+        user_data_dir=str(Path(workdir) / "profile"),
+        args=CHROMIUM_ARGS,
+        # Erweiterungen würde browser-use beim Start aus dem Netz laden — am Proxy vorbei.
+        enable_default_extensions=False,
+        # Im Image liegt Chromium an einem festen Pfad (Env); lokal sucht browser-use selbst.
+        # Die Sandbox schaltet browser-use im Container selbst ab (IN_DOCKER) – siehe Dockerfile.
+        executable_path=os.environ.get("BROWSER_CHROMIUM_PATH") or None,
+    )
+
+
 def _guard_screenshot_names(tools: Tools) -> None:
     """Die `screenshot`-Aktion überschreibt gleichnamige Dateien; vorher eindeutig machen."""
     action = tools.registry.registry.actions["screenshot"]
@@ -70,15 +84,7 @@ def build_agent(
 ) -> Agent:
     workdir = Path(workdir)
     llm = ChatOpenAI(model="browser_agent", base_url=llm_base_url, api_key=llm_token, timeout=120.0)
-    session = BrowserSession(
-        browser_profile=BrowserProfile(
-            headless=True,
-            user_data_dir=str(workdir / "profile"),
-            args=CHROMIUM_ARGS,
-            # Erweiterungen würde browser-use beim Start aus dem Netz laden — am Proxy vorbei.
-            enable_default_extensions=False,
-        )
-    )
+    session = BrowserSession(browser_profile=build_profile(workdir))
     tools = Tools(exclude_actions=["save_as_pdf"])
     _guard_screenshot_names(tools)
     return Agent(

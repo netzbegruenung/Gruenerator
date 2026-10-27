@@ -589,6 +589,41 @@ jobs:
       - name: Run tests
         run: pytest
 
+  # Like the NLP service, the browser agent is Python outside the pnpm
+  # workspace. The tests need neither internet nor Chromium: browser-use is
+  # driven through a fake agent factory and the egress proxy against a local
+  # stub resolver. The image itself is built by browser-agent-image.yml.
+  browser-agent:
+    name: Browser Agent (Python)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: services/browser-agent
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      # Same rule as for nlp: the interpreter is named once, in the Dockerfile.
+      - name: Read Python version from the Dockerfile
+        id: python-version
+        run: |
+          version=$(grep -m1 -oE '^FROM python:[0-9]+\.[0-9]+' Dockerfile | cut -d: -f2)
+          test -n "$version" || { echo "::error::no 'FROM python:<x.y>' line in services/browser-agent/Dockerfile"; exit 1; }
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+      - name: Setup Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: ${{ steps.python-version.outputs.version }}
+          cache: 'pip'
+          cache-dependency-path: services/browser-agent/requirements-dev.txt
+
+      - name: Install dependencies
+        run: pip install -r requirements-dev.txt
+
+      - name: Run tests
+        run: pytest
+
   build:
     name: Build ${{ matrix.app }}
     needs: plan
