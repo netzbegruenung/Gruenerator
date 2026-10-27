@@ -53,6 +53,7 @@ import { resolveAbortOutcome } from '../turnAbortOutcome.js';
 import { turnMaterialChars } from '../turnMaterial.js';
 import { withInstructionHierarchy } from '../untrustedContent.js';
 
+import { approvalGateEnabled } from './approvalPolicy.js';
 import { buildPreLoopEditNotes, editOutcomeAfterPreamble } from './artifactNotes.js';
 import { createAskHumanGate, type AskHumanGate } from './askHumanGate.js';
 import { ATTACHED_DOCS_TOOL, retrievableAttachedSources } from './attachedDocuments.js';
@@ -396,8 +397,13 @@ export async function streamAgenticResponse(
     const approvalUserId = agentConfig.userId ?? null;
     // `disableMcp` (headless): ohne Connectoren kann das Gate nicht feuern —
     // der Allowlist-Read wäre bei jedem Hintergrundlauf reine Kosten, und eine
-    // Karte, die niemand sieht, hielte den Lauf für immer an.
-    const approvalEnabled = !disableMcp && approvalUserId != null;
+    // Karte, die niemand sieht, hielte den Lauf für immer an. Ausnahme: ein
+    // internes Pflichtwerkzeug im Katalog (`tabelle_auswerten`) fragt trotzdem.
+    const approvalEnabled = approvalGateEnabled({
+      disableMcp: disableMcp === true,
+      userId: approvalUserId,
+      toolNames: Object.keys(tools),
+    });
     approvalGate = createToolApprovalGate({
       enabled: approvalEnabled,
       allowlist: approvalEnabled

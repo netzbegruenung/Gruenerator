@@ -155,6 +155,17 @@ export async function runToolApprovalResume(params: {
         handled: true as const,
       };
     }
+    // Die entschiedene Freigabe als eigene Größe: der Client-Suspend schreibt
+    // sie in die pausierte Nachricht (sonst verschwindet die Karte beim
+    // Reload), das reguläre Ende in die fertige.
+    const resolvedPause = {
+      pendingApproval: {
+        approvalTurnId: stored.approvalTurnId,
+        calls: stored.calls,
+        resolved: true,
+        decisions,
+      },
+    };
     if (outcome.pendingClientTool) {
       await toolApprovalStateStore.delete(threadId);
       return {
@@ -168,6 +179,7 @@ export async function runToolApprovalResume(params: {
           priorSteps: outcome.steps,
           pendingId: stored.pausedMessageId,
           startTime: Date.now(),
+          resolvedPause,
         })),
         handled: true as const,
       };
@@ -185,14 +197,7 @@ export async function runToolApprovalResume(params: {
       fullText: mergedText,
       pausedMessageId: stored.pausedMessageId,
       requestId,
-      resolvedPause: {
-        pendingApproval: {
-          approvalTurnId: stored.approvalTurnId,
-          calls: stored.calls,
-          resolved: true,
-          decisions,
-        },
-      },
+      resolvedPause,
     });
     return { ...result, handled: true as const };
   } catch (err) {

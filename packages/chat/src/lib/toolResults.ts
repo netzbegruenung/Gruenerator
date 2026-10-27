@@ -581,6 +581,12 @@ const TOOL_METADATA: Record<string, ToolMeta> = {
     iconKey: 'image',
     accent: 'create',
   },
+  tabelle_auswerten: {
+    label: 'Tabelle ausgewertet',
+    activeLabel: 'Werte die Tabelle aus',
+    iconKey: 'sparkles',
+    accent: 'neutral',
+  },
   vertonen: {
     label: 'Vertonung',
     activeLabel: 'Vertone den Text',

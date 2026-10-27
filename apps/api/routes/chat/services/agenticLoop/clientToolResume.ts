@@ -49,7 +49,7 @@ export async function runClientToolLoopResume(params: {
   const stored = await loopClientToolStateStore.get(threadId);
   if (!stored) {
     return fail(
-      'Die Prüfung ist abgelaufen. Bitte stelle die Anfrage noch einmal.',
+      'Dieser Schritt ist abgelaufen. Bitte stelle die Anfrage noch einmal.',
       'invalid_request'
     );
   }
@@ -61,7 +61,7 @@ export async function runClientToolLoopResume(params: {
   // weiterlaufen lassen. Fail-closed, wenn Redis nicht antwortet.
   const claimed = await loopClientToolStateStore.claim(threadId, stored.clientToolTurnId);
   if (!claimed) {
-    return fail('Diese Prüfung wurde bereits fortgesetzt.', 'invalid_request');
+    return fail('Dieser Schritt wurde bereits fortgesetzt.', 'invalid_request');
   }
 
   const { classifiedState, requestContext } = stored;
@@ -140,6 +140,7 @@ export async function runClientToolLoopResume(params: {
           priorSteps: outcome.steps,
           pendingId: stored.pausedMessageId,
           startTime: Date.now(),
+          ...(stored.resolvedPause ? { resolvedPause: stored.resolvedPause } : {}),
         })),
         handled: true as const,
       };
@@ -181,8 +182,8 @@ export async function runClientToolLoopResume(params: {
 
     await loopClientToolStateStore.delete(threadId);
 
-    // Ab hier derselbe Weg wie ein ungebrochener Zug (#4369). Es gibt keine
-    // Karte, die als „aufgelöst" markiert werden müsste.
+    // Ab hier derselbe Weg wie ein ungebrochener Zug (#4369). Die Pause selbst
+    // hat keine Karte; eine vorher entschiedene Freigabe reist mit.
     const finished = await finishResumedLoopTurn({
       sse,
       req,
@@ -193,7 +194,7 @@ export async function runClientToolLoopResume(params: {
       fullText: mergedText,
       pausedMessageId: stored.pausedMessageId,
       requestId,
-      resolvedPause: {},
+      resolvedPause: stored.resolvedPause ?? {},
     });
     return { ...finished, handled: true as const };
   } catch (err) {

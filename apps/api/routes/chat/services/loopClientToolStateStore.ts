@@ -29,6 +29,9 @@ export interface StoredLoopClientToolState {
   pausedMessageId: string | null;
   classifiedState: ChatGraphState;
   requestContext: StoredRequestContext;
+  /** Die vor dieser Pause aufgelöste Pause (z. B. die entschiedene Freigabe) —
+   *  wird in jede weitere Persistenz des Zuges übernommen. */
+  resolvedPause?: Record<string, unknown>;
   createdAt: number;
 }
 

@@ -844,6 +844,60 @@ describe('toolCatalog: Formularwerkzeuge hängen am Formular, nicht am MIME-Typ'
 });
 
 /**
+ * `tabelle_auswerten` lässt Code im Browser laufen: nur mit Tabelle, mit einer
+ * Oberfläche, die Python kann, und in einem Thread (die Pause braucht ihn).
+ */
+describe('toolCatalog: tabelle_auswerten', () => {
+  const catalogFor = (state: Record<string, unknown>, threadId: string | null = 't1') => {
+    const sourceRegistry = createSourceRegistry();
+    const sse = { send: () => {} } as unknown as NonNullable<
+      Parameters<typeof buildChatToolCatalog>[0]['loop']
+    >['sse'];
+    const { toolNames } = buildChatToolCatalog({
+      agentConfig,
+      sourceRegistry,
+      loop: {
+        sse,
+        state: { intent: 'search', ...state } as unknown as ChatGraphState,
+        ...(threadId ? { threadId } : {}),
+      },
+    });
+    return toolNames;
+  };
+
+  it('fehlt ohne Python im Browser', () => {
+    expect(catalogFor({ hasTabularAttachment: true, clientCanRunPython: false })).not.toContain(
+      'tabelle_auswerten'
+    );
+  });
+
+  it('fehlt ohne Tabelle', () => {
+    expect(catalogFor({ hasTabularAttachment: false, clientCanRunPython: true })).not.toContain(
+      'tabelle_auswerten'
+    );
+  });
+
+  it('ist da mit Tabelle und Python', () => {
+    expect(catalogFor({ hasTabularAttachment: true, clientCanRunPython: true })).toContain(
+      'tabelle_auswerten'
+    );
+  });
+
+  it('fehlt ohne Thread und wenn die Agentin es abgeschaltet hat', () => {
+    expect(
+      catalogFor({ hasTabularAttachment: true, clientCanRunPython: true }, null)
+    ).not.toContain('tabelle_auswerten');
+    expect(
+      catalogFor({
+        hasTabularAttachment: true,
+        clientCanRunPython: true,
+        enabledTools: { tabelle_auswerten: false },
+      })
+    ).not.toContain('tabelle_auswerten');
+  });
+});
+
+/**
  * `vertonen` erzeugt eine NEUE Datei. In einer Editor-Seitenleiste ist das
  * falsch — dort wird das offene Dokument bearbeitet, nichts Neues angelegt.
  */

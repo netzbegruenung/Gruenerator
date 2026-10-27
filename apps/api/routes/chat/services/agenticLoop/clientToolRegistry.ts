@@ -16,6 +16,7 @@ import {
   resolveCheckSharepicRender,
   reviewRenderedSharepic,
 } from '../../agents/sharepicCheckTool.js';
+import { tabelleAuswertenClientTool } from '../../agents/tabelleAuswertenTool.js';
 
 import type { PersistedStep } from './types.js';
 import type { ChatGraphState } from '../../../../agents/langgraph/ChatGraph/types.js';
@@ -86,7 +87,7 @@ const checkSharepic: LoopClientTool = {
 };
 
 export const LOOP_CLIENT_TOOLS: ReadonlyMap<string, LoopClientTool> = new Map(
-  [checkSharepic].map((t) => [t.loopToolName, t])
+  [checkSharepic, tabelleAuswertenClientTool].map((t) => [t.loopToolName, t])
 );
 
 export function loopClientToolForClientName(name: string): LoopClientTool | null {
@@ -103,13 +104,20 @@ const PRE_LOOP_CLIENT_TOOLS = new Set(['run_python']);
 /**
  * Gehört eine `client_tool`-Antwort der Loop-Fortsetzung? Entschieden am
  * gespeicherten Loop-Zustand: liegt einer für genau diesen Browser-Namen vor,
- * ja. Ohne Zustand nur für registrierte Werkzeuge ohne Pre-Loop-Pfad — die
- * Fortsetzung meldet dann „abgelaufen" statt „nicht unterstützt".
+ * ja — es sei denn, das Werkzeug kennt auch die Pre-Loop-Pause und die ist
+ * JÜNGER (Stale-Shadowing wie bei `ask_human`: der ältere Zustand ist dann
+ * überholt). Ohne Zustand nur für registrierte Werkzeuge ohne Pre-Loop-Pfad —
+ * die Fortsetzung meldet dann „abgelaufen" statt „nicht unterstützt".
  */
 export function routesToLoopClientToolResume(
   toolName: string,
-  storedClientToolName: string | null
+  storedLoop: { clientToolName: string; createdAt: number } | null,
+  preLoopPausedAt: number | null
 ): boolean {
-  if (storedClientToolName != null) return storedClientToolName === toolName;
+  if (storedLoop != null) {
+    if (storedLoop.clientToolName !== toolName) return false;
+    if (!PRE_LOOP_CLIENT_TOOLS.has(toolName) || preLoopPausedAt == null) return true;
+    return storedLoop.createdAt >= preLoopPausedAt;
+  }
   return !PRE_LOOP_CLIENT_TOOLS.has(toolName) && loopClientToolForClientName(toolName) != null;
 }

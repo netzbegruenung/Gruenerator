@@ -153,14 +153,28 @@ export async function runChatGraphResume({
     // Browser-Werkzeug eines Loop-Zuges (`LOOP_CLIENT_TOOLS`, z. B.
     // `check_sharepic` → `render_sharepic`): eigener Zustand, eigene agentische
     // Fortsetzung — wie die Loop-Rückfrage. Entschieden am gespeicherten
-    // Loop-Zustand, und VOR dem `run_python`-Altzweig der Pre-Loop-Pause.
-    if (
-      resumeInput.kind === 'client_tool' &&
-      routesToLoopClientToolResume(
+    // Loop-Zustand, und VOR dem `run_python`-Altzweig der Pre-Loop-Pause. Kennen
+    // beide Pausen das Werkzeug (`run_python`: `tabelle_auswerten` und die
+    // Pre-Loop-Berechnung), gewinnt die jüngere; ein überholter Loop-Zustand
+    // muss dann WEG (unten, nach der Nutzerprüfung), sonst trifft eine spätere
+    // Antwort die falsche Pause.
+    let routesToLoop = false;
+    let staleLoopClientTool = false;
+    if (resumeInput.kind === 'client_tool') {
+      const storedLoop = (await loopClientToolStateStore.get(threadId)) ?? null;
+      const sameTool = storedLoop?.clientToolName === resumeInput.toolName;
+      const preLoopPausedAt =
+        sameTool && resumeInput.toolName === 'run_python'
+          ? ((await pipelineStateStore.get(threadId))?.createdAt ?? null)
+          : null;
+      routesToLoop = routesToLoopClientToolResume(
         resumeInput.toolName,
-        (await loopClientToolStateStore.get(threadId))?.clientToolName ?? null
-      )
-    ) {
+        storedLoop,
+        preLoopPausedAt
+      );
+      staleLoopClientTool = sameTool && !routesToLoop;
+    }
+    if (resumeInput.kind === 'client_tool' && routesToLoop) {
       const clientToolUser = getUser(req);
       if (!clientToolUser?.id) {
         return sseFail(sse, PROGRESS_MESSAGES.unauthorized, { code: 'unauthorized' });
@@ -189,6 +203,7 @@ export async function runChatGraphResume({
     if (!user?.id) {
       return sseFail(sse, PROGRESS_MESSAGES.unauthorized, { code: 'unauthorized' });
     }
+    if (staleLoopClientTool) await loopClientToolStateStore.delete(threadId);
 
     // Eine ask_human-Antwort hat zwei mögliche Absender-Zustände: die
     // Pre-Loop-Klärung (pipelineStateStore, Single-Pass-Fortsetzung unten) und
