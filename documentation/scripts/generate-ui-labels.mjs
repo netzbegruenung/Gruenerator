@@ -109,7 +109,7 @@ function generate() {
   // Command ids are object keys rather than `id` properties. Keep the docs
   // tied to the same registry as keyboard shortcuts and the context menu.
   const commands = findDeclaration(
-    parse('packages/canvas-editor/src/utils/canvasCommandRegistry.ts'),
+    parse('packages/ggraphic-editor/src/utils/canvasCommandRegistry.ts'),
     'CANVAS_COMMANDS'
   );
   if (!commands || !ts.isObjectLiteralExpression(commands)) {
