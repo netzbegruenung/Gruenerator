@@ -125,18 +125,26 @@ export function importReport({ root }: { root: string }): Plugin {
         if (info) edges.set(id, [...info.importedIds, ...info.dynamicallyImportedIds]);
       }
 
-      // Does `id` lead, without leaving its package, to a module in the bundle?
-      const live = new Map<string, boolean>();
-      const isLive = (id: string): boolean => {
-        const known = live.get(id);
-        if (known !== undefined) return known;
-        live.set(id, false);
-        const pkg = owner(id);
-        const result =
-          bytes.has(id) || (edges.get(id) ?? []).some((to) => owner(to) === pkg && isLive(to));
-        live.set(id, result);
-        return result;
-      };
+      // Modules that lead, without leaving their package, to a module in the
+      // bundle. Walked backwards from the bundled ones, so a barrel cycle
+      // cannot cut a path short.
+      const importersOf = new Map<string, string[]>();
+      for (const [from, targets] of edges) {
+        for (const to of targets) {
+          if (owner(to) === owner(from))
+            importersOf.set(to, [...(importersOf.get(to) ?? []), from]);
+        }
+      }
+      const live = new Set(bundled);
+      const stack = [...bundled];
+      for (let id = stack.pop(); id; id = stack.pop()) {
+        for (const from of importersOf.get(id) ?? []) {
+          if (live.has(from)) continue;
+          live.add(from);
+          stack.push(from);
+        }
+      }
+      const isLive = (id: string): boolean => live.has(id);
 
       // Breadth-first from the entry chunks: the first parent of every module.
       const parent = new Map<string, string | null>();
