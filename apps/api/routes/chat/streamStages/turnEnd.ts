@@ -7,6 +7,7 @@
  */
 
 import { pipelineStateStore } from '../services/pipelineStateStore.js';
+import { persistSuspendedTurnAttachments } from '../services/postResponseService.js';
 import { type SSEEventPayloads, type SSEWriter } from '../services/sseHelpers.js';
 
 import { type CleanupPending, type StreamBody, type StreamHandlerResult } from './types.js';
@@ -77,6 +78,8 @@ export async function suspendTurn({
   rawDocumentIds,
   startTime,
 }: SuspendTurnParams): Promise<StreamHandlerResult> {
+  // Before the client acts: it refills its Pyodide store from these rows.
+  await persistSuspendedTurnAttachments(threadId, { userId, processedMeta, userMessageId });
   sse.send('interrupt', interrupt);
 
   await pipelineStateStore.store(threadId, {

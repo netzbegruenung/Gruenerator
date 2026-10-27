@@ -2,7 +2,8 @@ import { describe, it, expect, vi } from 'vitest';
 
 import { createToolLoopGuards } from './loopGuards.js';
 import { createToolActivity } from './toolActivity.js';
-import { type PersistedStep } from './types.js';
+import { createToolApprovalGate } from './toolApprovalGate.js';
+import { NEAR_DUPLICATE_EXEMPT_TOOLS, type PersistedStep } from './types.js';
 import { wrapToolsForLoop, type WrapToolsContext } from './wrapTools.js';
 
 import type { SSEWriter } from '../sseHelpers.js';
@@ -131,6 +132,69 @@ describe('wrapToolsForLoop', () => {
     );
     await run(tools, 'hang', {});
     expect(seen?.aborted).toBe(true);
+  });
+
+  function runWithTurn(name: string, turn: AbortSignal) {
+    const { ctx } = makeCtx({ perCallTimeoutMs: 5_000 });
+    let seen: AbortSignal | undefined;
+    const tools = wrapToolsForLoop(
+      {
+        [name]: {
+          execute: (_i: unknown, o: { abortSignal?: AbortSignal }) => {
+            seen = o.abortSignal;
+            return Promise.resolve({ ok: true });
+          },
+        },
+      } as unknown as ToolSet,
+      ctx
+    );
+    const exec = (
+      tools[name] as {
+        execute: (
+          i: unknown,
+          o: { toolCallId: string; abortSignal: AbortSignal }
+        ) => Promise<unknown>;
+      }
+    ).execute;
+    return { pending: exec({}, { toolCallId: 'c1', abortSignal: turn }), seen: () => seen };
+  }
+
+  it('does not pass the turn abort to a tool that has not opted in', async () => {
+    // The turn signal also fires when a SIBLING call pauses for approval or a
+    // question; a generation tool seeing it would skip its commit mid-run.
+    const turn = new AbortController();
+    const { pending, seen } = runWithTurn('create_document', turn.signal);
+    await pending;
+    turn.abort();
+    expect(seen()?.aborted).toBe(false);
+  });
+
+  it('passes the turn abort to website_erkunden (TURN_ABORTABLE_TOOLS)', async () => {
+    // A Stop must end the browser run instead of letting it bill on to the cap.
+    const turn = new AbortController();
+    const { pending, seen } = runWithTurn('website_erkunden', turn.signal);
+    await pending;
+    turn.abort();
+    expect(seen()?.aborted).toBe(true);
+    expect((seen()?.reason as Error | undefined)?.name).not.toBe('TimeoutError');
+  });
+
+  it('marks a per-call timeout with a TimeoutError reason', async () => {
+    const { ctx } = makeCtx({ perCallTimeoutMs: 20 });
+    let seen: AbortSignal | undefined;
+    const tools = wrapToolsForLoop(
+      {
+        hang: {
+          execute: (_i: unknown, o: { abortSignal?: AbortSignal }) => {
+            seen = o.abortSignal;
+            return new Promise(() => {});
+          },
+        },
+      } as unknown as ToolSet,
+      ctx
+    );
+    await run(tools, 'hang', {});
+    expect((seen?.reason as Error | undefined)?.name).toBe('TimeoutError');
   });
 
   it('leaves the signal untouched when the tool returns in time', async () => {
@@ -553,6 +617,25 @@ describe('wrapToolsForLoop', () => {
     expect(out.error).toBeUndefined();
   });
 
+  // Live 27.10.2026: „tabelle_auswerten blockiert (near_duplicate)". Ein
+  // korrigierter Wiederholungsauftrag ähnelt dem gescheiterten naturgemäss; die
+  // Wiederholungen begrenzt MAX_FAILED_RUNS im Werkzeug selbst.
+  it('tabelle_auswerten: ein präzisierter Wiederholungsauftrag wird nicht als Duplikat geblockt', async () => {
+    const { ctx } = makeCtx({ nearDuplicateExemptTools: NEAR_DUPLICATE_EXEMPT_TOOLS });
+    const tools = wrapToolsForLoop(
+      { tabelle_auswerten: { execute: async () => ({ ok: true }) } } as unknown as ToolSet,
+      ctx
+    );
+    await run(tools, 'tabelle_auswerten', { auftrag: 'Summe der Beträge pro Monat' });
+    const out = (await run(
+      tools,
+      'tabelle_auswerten',
+      { auftrag: 'Summe der Beträge pro Monat aus Spalte Betrag' },
+      'call_2'
+    )) as { error?: string };
+    expect(out.error).toBeUndefined();
+  });
+
   it('a tool NOT in nearDuplicateExemptTools still gets blocked as near-duplicate', async () => {
     const { ctx } = makeCtx({ nearDuplicateExemptTools: new Set(['boards_tasks']) });
     const tools = wrapToolsForLoop(
@@ -742,6 +825,69 @@ describe('wrapToolsForLoop — Browser-Werkzeug-Gate (check_sharepic)', () => {
     );
 
     expect(await run(tools, 'check_sharepic', {})).toEqual({ error: 'Es gibt kein Sharepic.' });
+  });
+});
+
+/**
+ * `tabelle_auswerten` steht hinter BEIDEN Gates: erst die Freigabe, dann das
+ * Browser-Gate, dessen `hold` den Codegen startet. Ohne Freigabe darf kein Code
+ * erzeugt werden — die echte Gate-Reihenfolge, nicht zwei Attrappen.
+ */
+describe('wrapToolsForLoop — tabelle_auswerten: Freigabe vor Codegen', () => {
+  const setup = (allowlist: ReadonlySet<string>) => {
+    const clientHold = vi.fn(async () => null);
+    const { ctx } = makeCtx({
+      approvalGate: createToolApprovalGate({ enabled: true, allowlist, originFor: () => null }),
+      clientToolGate: { hold: clientHold },
+    });
+    const tools = wrapToolsForLoop(
+      { tabelle_auswerten: { execute: vi.fn() } } as unknown as ToolSet,
+      ctx
+    );
+    return { tools, clientHold };
+  };
+
+  it('ohne Freigabe: wartet auf die Freigabe, der Codegen-Hold läuft nie', async () => {
+    const { tools, clientHold } = setup(new Set());
+
+    const out = (await run(tools, 'tabelle_auswerten', { auftrag: 'Summe' })) as {
+      error?: string;
+    };
+
+    expect(out.error).toContain('Warte auf die Freigabe');
+    expect(clientHold).not.toHaveBeenCalled();
+  });
+
+  it('freigegeben (internal/tabelle_auswerten): das Browser-Gate übernimmt', async () => {
+    const { tools, clientHold } = setup(new Set(['internal/tabelle_auswerten']));
+
+    await run(tools, 'tabelle_auswerten', { auftrag: 'Summe' }, 'call_t');
+
+    expect(clientHold).toHaveBeenCalledWith({
+      toolName: 'tabelle_auswerten',
+      stepId: 'call_t',
+      args: { auftrag: 'Summe' },
+    });
+  });
+});
+
+describe('wrapToolsForLoop — reine Entscheidung (direkt_antworten, #5042)', () => {
+  it('läuft ohne Karte, ohne Schritt und ohne Freigabe-Gate', async () => {
+    const { ctx, events, steps } = makeCtx({
+      approvalGate: createToolApprovalGate({
+        enabled: true,
+        allowlist: new Set(),
+        originFor: () => null,
+      }),
+    });
+    const tools = wrapToolsForLoop(
+      { direkt_antworten: { execute: async () => ({ ok: true }) } } as unknown as ToolSet,
+      ctx
+    );
+
+    expect(await run(tools, 'direkt_antworten', {})).toEqual({ ok: true });
+    expect(events).toEqual([]);
+    expect(steps).toEqual([]);
   });
 });
 

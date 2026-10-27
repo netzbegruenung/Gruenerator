@@ -33,7 +33,8 @@ export type ForceReason =
   | 'followup'
   | 'named_intent'
   | 'sharepic_order'
-  | 'artifact_edit_order';
+  | 'artifact_edit_order'
+  | 'tabular_decision';
 
 /**
  * Darf der Loop dem Planer einen Werkzeugaufruf ABVERLANGEN (`toolChoice: required`)?
@@ -80,11 +81,21 @@ export function shouldForceFirstToolCall(input: {
   /** Der Vorab-Abruf hat für DIESEN Turn Passagen aus den angehängten
    *  Dokumenten in die Quellenregistry gelegt (`seedAttachedDocuments`). */
   attachedSeedDelivered?: boolean;
+  /** Der Zug wird fortgesetzt (Freigabe, Client-Werkzeug, Rückfrage —
+   *  `resumeApproval`): sein erster Schritt lief schon vor der Pause. */
+  resumesSuspendedTurn?: boolean;
+  /** `tabelle_auswerten` hängt im Katalog: der Turn rechnet über eine Tabelle. */
+  tabularToolMounted?: boolean;
 }): ForceReason | null {
   // Der Bann vetoed alles. `toolChoice: 'required'` ist kein Vorschlag, den das
   // Modell gegen den Satz des Nutzers abwägen kann — unter „ohne neue Recherche"
   // sind die verbleibenden Werkzeuge die falschen.
   if (input.researchBanned) return null;
+
+  // Eine Fortsetzung hat ihren ersten Schritt schon hinter sich. Erneut zu
+  // zwingen kostete je Pause eine zusätzliche Suche plus Planer-Runde (live
+  // 27.10.2026: „erzwungener erster Aufruf (named_intent)" nach jeder Freigabe).
+  if (input.resumesSuspendedTurn) return null;
 
   // Fünfter Weg: die Person hat ein Werkzeug BENANNT. Er steht neben dem
   // Intent-Weg unten und nicht in ihm, weil ein Pin keinen Intent mehr braucht —
@@ -221,6 +232,13 @@ export function shouldForceFirstToolCall(input: {
   //
   // Eigenes Material sticht auch hier, aus demselben Grund wie beim
   // Demotions-Zweig.
+  // Ein Tabellen-Turn holt nichts nach: die Daten liegen im Anhang, gerechnet
+  // wird mit `tabelle_auswerten`. Ein Zwang auf die Suchwerkzeuge liess den
+  // Planer hängen oder im Web suchen (live 27.10.2026, named_intent/followup).
+  // Ganz ohne Zwang schwieg er dagegen bei Anschlussfragen, und der Schreiber
+  // rechnete aus dem Auszug (#5042) — also eine Wahl zwischen zwei Werkzeugen.
+  if (input.tabularToolMounted) return 'tabular_decision';
+
   if (
     input.priorTurnRetrieved &&
     input.intent === 'agentic' &&
@@ -397,6 +415,9 @@ export function forcedFirstStepTools(input: {
       break;
     case 'sharepic_order':
       candidates = ['edit_sharepic', 'read_sharepic', 'check_sharepic'];
+      break;
+    case 'tabular_decision':
+      candidates = ['tabelle_auswerten', 'direkt_antworten'];
       break;
     case 'artifact_edit_order':
       candidates = [

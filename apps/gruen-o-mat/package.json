@@ -12,13 +12,13 @@
     "lint:fix": "eslint . --fix"
   },
   "dependencies": {
-    "@assistant-ui/react": "^0.15.28",
+    "@assistant-ui/react": "^0.15.31",
     "@gruenerator/chat": "workspace:*",
-    "lucide-react": "^1.57.0",
+    "lucide-react": "^1.61.0",
     "react": "19.3.0",
     "react-dom": "19.3.0",
     "react-router-dom": "^7.18.4",
-    "zustand": "5.0.15"
+    "zustand": "5.0.16"
   },
   "devDependencies": {
     "@babel/core": "7.29.7",
@@ -32,6 +32,6 @@
     "eslint": "^9.39.5",
     "tailwindcss": "^4.3.3",
     "typescript": "^6.0.3",
-    "vite": "^8.3.4"
+    "vite": "^8.3.5"
   }
 }

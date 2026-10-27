@@ -5,6 +5,7 @@ import {
   loopClarificationStateStore,
   type StoredLoopClarificationState,
 } from '../services/loopClarificationStateStore.js';
+import { persistSuspendedTurnAttachments } from '../services/postResponseService.js';
 import {
   createMessage,
   finalizeAssistantMessage,
@@ -82,6 +83,10 @@ export async function suspendForLoopClarification({
     sse.end();
     return { status: 200 as const, body: undefined };
   }
+
+  // Erst die Anhänge des Turns sichern, dann fragen: der Browser holt die
+  // Tabellen-Bytes für Pyodide aus diesen Zeilen (auch nach einem Reload).
+  await persistSuspendedTurnAttachments(threadId, requestContext);
 
   const metadata: Record<string, unknown> = {
     intent: classifiedState.intent,

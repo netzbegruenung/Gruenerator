@@ -381,6 +381,26 @@ describe('decideRunAgentic', () => {
     expect(decide({ ...ask, isReisekostenTurn: true, loopEnabled: false })).toBe(false);
   });
 
+  it('lets a turn with an attached table into the loop, whatever the intent', () => {
+    const ask = { lastUserText: 'Wie viele Zeilen hat die Tabelle?', hasOwnMaterial: true };
+    for (const intent of ['compute', 'direct', 'search']) {
+      expect(decide({ ...ask, intent, isTabularAnalysisTurn: true })).toBe(true);
+    }
+    // `compute` is single-pass without the flag.
+    expect(decide({ ...ask, intent: 'compute', isTabularAnalysisTurn: false })).toBe(false);
+    expect(decide({ ...ask, intent: 'compute' })).toBe(false);
+    // Kill-switches still win.
+    expect(
+      decide({ ...ask, intent: 'compute', isTabularAnalysisTurn: true, forcedTool: true })
+    ).toBe(false);
+    expect(
+      decide({ ...ask, intent: 'compute', isTabularAnalysisTurn: true, loopEnabled: false })
+    ).toBe(false);
+    expect(
+      decide({ ...ask, intent: 'compute', isTabularAnalysisTurn: true, hasSelectedNotebook: true })
+    ).toBe(false);
+  });
+
   it('rescues a research turn the classifier contradicted itself about (B7)', () => {
     // A statement, not a question: no question mark, no interrogative, so the
     // `direct` rescue by phrasing cannot see it. The classifier CAN — it

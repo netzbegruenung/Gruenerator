@@ -4,7 +4,7 @@
  */
 
 import * as dns from 'dns';
-import { type LookupFunction } from 'net';
+import { BlockList, isIP, type LookupFunction } from 'net';
 import { URL } from 'url';
 import { promisify } from 'util';
 
@@ -12,21 +12,59 @@ import { Agent, fetch as undiciFetch, type RequestInit as UndiciRequestInit } fr
 
 const dnsLookup = promisify(dns.lookup);
 
-const PRIVATE_IP_RANGES = [
-  /^127\./,
-  /^10\./,
-  /^172\.(1[6-9]|2[0-9]|3[0-1])\./,
-  /^192\.168\./,
-  /^169\.254\./,
-  /^0\./,
-  /^224\./,
-  /^240\./,
-  /^255\./,
-  /^::1$/,
-  /^fe80:/i,
-  /^fc00:/i,
-  /^fd00:/i,
-];
+/**
+ * Ranges we never open a socket to. A `BlockList` instead of string-prefix
+ * regexes because IPv6 has many spellings of one address (`fd12::1`,
+ * `FD12:0:0::1`, `fd12:0000::0001`); `BlockList` compares the parsed bits, so
+ * a range covers every notation, and it matches IPv4-mapped IPv6
+ * (`::ffff:a9fe:a9fe`, `::ffff:169.254.169.254`) against the IPv4 ranges.
+ */
+const PRIVATE_RANGES = new BlockList();
+for (const [network, prefix] of [
+  ['0.0.0.0', 8], // "this network"
+  ['10.0.0.0', 8],
+  ['100.64.0.0', 10], // carrier-grade NAT
+  ['127.0.0.0', 8],
+  ['169.254.0.0', 16], // link-local, cloud metadata
+  ['172.16.0.0', 12],
+  ['192.168.0.0', 16],
+  ['224.0.0.0', 3], // multicast 224/4 + reserved 240/4 incl. broadcast
+] as const) {
+  PRIVATE_RANGES.addSubnet(network, prefix, 'ipv4');
+}
+for (const [network, prefix] of [
+  ['::', 96], // unspecified, loopback, deprecated IPv4-compatible
+  ['fc00::', 7], // unique local
+  ['fe80::', 10], // link-local
+  ['fec0::', 10], // deprecated site-local
+  ['ff00::', 8], // multicast
+] as const) {
+  PRIVATE_RANGES.addSubnet(network, prefix, 'ipv6');
+}
+
+/** NAT64 well-known prefix: the low 32 bits are an IPv4 address. */
+const NAT64 = new BlockList();
+NAT64.addSubnet('64:ff9b::', 96, 'ipv6');
+
+/** The IPv4 address in the low 32 bits of an IPv6 address. */
+function lowIpv4(ipv6: string): string {
+  // WHATWG URL canonicalises IPv6 to lower-case hex groups (no dotted quad),
+  // so expanding `::` is all that is left to do.
+  const canonical = new URL(`http://[${ipv6}]/`).hostname.slice(1, -1);
+  const [head, tail = ''] = canonical.split('::');
+  const headGroups = head ? head.split(':') : [];
+  const tailGroups = tail ? tail.split(':') : [];
+  const groups = canonical.includes('::')
+    ? [
+        ...headGroups,
+        ...Array<string>(8 - headGroups.length - tailGroups.length).fill('0'),
+        ...tailGroups,
+      ]
+    : headGroups;
+  const high = parseInt(groups[6], 16);
+  const low = parseInt(groups[7], 16);
+  return [high >> 8, high & 0xff, low >> 8, low & 0xff].join('.');
+}
 
 const BLOCKED_HOSTNAMES = [
   'localhost',
@@ -58,14 +96,27 @@ export interface UrlValidationOptions {
  * connection to the address it checked — check and connect have to share one
  * range list, and a second copy would drift away from this one.
  *
- * IPv4-mapped IPv6 (`::ffff:169.254.169.254`) is normalised to dotted-quad
- * first: every range below is written for that notation, so without the
- * normalisation an AAAA record could carry a link-local address past all of
- * them.
+ * IPv4-mapped IPv6 (`::ffff:169.254.169.254`, `::ffff:a9fe:a9fe`) is checked
+ * against the IPv4 ranges, so an AAAA record cannot carry a link-local address
+ * past them; NAT64 (`64:ff9b::/96`) is checked by its embedded IPv4 address.
+ * Anything that is not an IP address is not private by this check (names go
+ * through DNS).
  */
 export function isPrivateAddress(ip: string): boolean {
-  const mapped = /^::ffff:(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})$/i.exec(ip);
-  return PRIVATE_IP_RANGES.some((range) => range.test(mapped?.[1] ?? ip));
+  // A zone id (`fe80::1%eth0`) is not part of the address and makes
+  // `BlockList.check` answer false.
+  const address = ip.replace(/%.*$/, '');
+  const family = isIP(address);
+  if (family === 4) return PRIVATE_RANGES.check(address, 'ipv4');
+  if (family !== 6) return false;
+  if (PRIVATE_RANGES.check(address, 'ipv6')) return true;
+  return NAT64.check(address, 'ipv6') && PRIVATE_RANGES.check(lowIpv4(address), 'ipv4');
+}
+
+/** `URL.hostname` without the brackets an IPv6 literal carries, if it is an IP. */
+function ipLiteral(hostname: string): string | null {
+  const bare = hostname.replace(/^\[(.*)\]$/, '$1');
+  return isIP(bare) !== 0 ? bare : null;
 }
 
 function isBlockedHostname(hostname: string): boolean {
@@ -114,8 +165,10 @@ export async function validateUrlForFetch(
     return { isValid: false, error: 'Localhost and internal hosts are not allowed' };
   }
 
-  const ipMatch = hostname.match(/^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$/);
-  if (ipMatch && !allowPrivateIPs && isPrivateAddress(hostname)) {
+  // IP literals are decided here, without a resolver — `URL.hostname` keeps the
+  // brackets of an IPv6 literal, which DNS would only reject by accident.
+  const ipMatch = ipLiteral(hostname);
+  if (ipMatch && !allowPrivateIPs && isPrivateAddress(ipMatch)) {
     return { isValid: false, error: 'Private IP addresses are not allowed' };
   }
 
@@ -180,8 +233,9 @@ export function validateUrlSync(
     return { isValid: false, error: 'Localhost and internal hosts are not allowed' };
   }
 
-  const ipMatch = hostname.match(/^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$/);
-  if (ipMatch && !allowPrivateIPs && isPrivateAddress(hostname)) {
+  // `URL.hostname` keeps the brackets of an IPv6 literal; strip them first.
+  const ipMatch = ipLiteral(hostname);
+  if (ipMatch && !allowPrivateIPs && isPrivateAddress(ipMatch)) {
     return { isValid: false, error: 'Private IP addresses are not allowed' };
   }
 

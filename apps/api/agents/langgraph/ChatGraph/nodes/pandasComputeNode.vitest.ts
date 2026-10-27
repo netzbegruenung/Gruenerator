@@ -160,6 +160,22 @@ describe('pandasComputeNode', () => {
     expect(await pandasComputeNode(state)).toEqual({ pythonCode: null });
   });
 
+  it('reads a vectorized first-turn table from turnTabularTexts (standing grant, no thread row yet)', async () => {
+    const state = makeState('{"related": true, "code": "print(1)"}', {
+      threadAttachments: [],
+      attachmentContext: null,
+      turnTabularTexts: [{ name: 'Buchungen.xlsx', text: 'Kostenstelle | Betrag\nKS-Web | 12,50' }],
+    } as Partial<ChatGraphState>);
+    const { pythonCode } = await pandasComputeNode(state, { mode: 'fill' });
+    expect(pythonCode).toBe('print(1)');
+    const { messages } = requestAt(0) as { messages: Array<{ content: string }> };
+    const prompt = messages[0]!.content;
+    expect(prompt).toContain('Kostenstelle | Betrag');
+    expect(prompt).toContain(
+      'Dateiname(n) im Arbeitsverzeichnis (exakt so verwenden): Buchungen.xlsx\n'
+    );
+  });
+
   it('recovers the exact filename from a labeled first-turn header in fill mode', async () => {
     // Regression: `### name.xlsx (Volltext-Auszug)` used to fail the tabular
     // extension check, dropping the file from the fill-mode prompt entirely.
@@ -182,5 +198,18 @@ describe('pandasComputeNode', () => {
     executeProvider.mockReset();
     executeProvider.mockRejectedValue(new Error('provider down'));
     expect(await pandasComputeNode(state)).toEqual({ pythonCode: null, computeFailed: true });
+  });
+
+  it('asks for German number and date output in the analysis prompt only (#5043)', async () => {
+    // Pandas prints 2114.23 and 2004-01-31 00:00:00; the card shows stdout
+    // verbatim and the answer copies it.
+    await pandasComputeNode(makeState('{"related": true, "code": "print(1)"}'));
+    const analyse = requestAt(0).systemPrompt as string;
+    expect(analyse).toContain('→ 2.114,23');
+    expect(analyse).toContain('strftime("%d.%m.%Y")');
+
+    // Filling writes cells — formatted strings there would break the workbook.
+    await pandasComputeNode(makeState('{"related": true, "code": "print(1)"}'), { mode: 'fill' });
+    expect(requestAt(0).systemPrompt as string).not.toContain('→ 2.114,23');
   });
 });

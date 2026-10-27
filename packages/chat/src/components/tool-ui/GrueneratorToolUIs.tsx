@@ -12,10 +12,12 @@ import { ToolNarration } from '../message-parts/ToolNarration';
 import { ToolCallUI } from '../ToolCallUI';
 
 import { AskHumanToolUI } from './AskHumanToolUI';
+import { BrowserSessionToolRender } from './BrowserSessionCard';
 import { McpToolUI } from './McpToolUI';
 import { PressemitteilungExamplesToolRender } from './PressemitteilungExamplesToolRender';
 import { ResearchToolRender } from './ResearchToolRender';
 import { RunPythonToolUI } from './RunPythonToolUI';
+import { TabelleAuswertenToolUI } from './TabelleAuswertenToolUI';
 import { ToolApprovalCard, type ToolApprovalState } from './ToolApprovalCard';
 import { ToolGrantCard } from './ToolGrantCard';
 
@@ -96,6 +98,12 @@ const DEDICATED_RENDERS: Partial<Record<UiToolName, (props: ToolRenderProps) => 
     <AskHumanToolUI args={args ?? {}} result={result} addResult={addResult} />
   ),
   run_python: ({ args, result }) => <RunPythonToolUI args={args ?? {}} result={result} />,
+  website_erkunden: ({ args, result }) => (
+    <BrowserSessionToolRender args={args ?? {}} result={result} />
+  ),
+  tabelle_auswerten: ({ args, result }) => (
+    <TabelleAuswertenToolUI args={args ?? {}} result={result} />
+  ),
   mcp_tool: ({ args, result }) => <McpToolUI args={args ?? {}} result={result} />,
   // Die Argumente SIND der Grant (toolGrantPartFields).
   mcp_tool_grant: ({ args }) => <ToolGrantCard grant={args as unknown as McpToolGrant} />,

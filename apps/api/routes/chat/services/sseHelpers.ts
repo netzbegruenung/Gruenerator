@@ -38,6 +38,8 @@ import type {
   ChatWarningCode,
   ResearchLogStart,
   ResearchLogUpdate,
+  BrowserSessionStart,
+  BrowserSessionUpdate,
   NotebookAnswerModeEvent,
 } from '@gruenerator/contracts';
 import type { Response } from 'express';
@@ -97,6 +99,10 @@ export type SSEEventType =
   // `_start` opens it, every `_update` merges into what is shown.
   | 'research_log_start'
   | 'research_log_update'
+  // Live view of a `website_erkunden` run: `_start` opens it, every `_update`
+  // appends a step / screenshot or closes it with status + summary.
+  | 'browser_session_start'
+  | 'browser_session_update'
   | 'compute'
   | 'bahn'
   | 'memory_context'
@@ -311,6 +317,8 @@ export interface SSEEventPayloads {
   };
   research_log_start: ResearchLogStart;
   research_log_update: ResearchLogUpdate;
+  browser_session_start: BrowserSessionStart;
+  browser_session_update: BrowserSessionUpdate;
   compute: {
     compute: ComputeData;
   };
@@ -962,6 +970,7 @@ export const CHAT_WARNINGS = {
     severity: 'info',
     attribution: 'system',
   },
+  // No sender since the pre-loop run_python path is gone; kept as an F0 contract value.
   compute_failed: {
     message: 'Die Berechnung ist fehlgeschlagen — Zahlen in der Antwort sind ungeprüft.',
     severity: 'warning',

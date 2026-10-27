@@ -71,3 +71,22 @@ describe('ToolApprovalCard — ablehnen', () => {
     expect(await axe(container)).toHaveNoViolations();
   });
 });
+
+describe('ToolApprovalCard — eigene Werkzeuge', () => {
+  it('benennt tabelle_auswerten und sagt, dass Code im Browser läuft', () => {
+    render(
+      <ToolApprovalCard
+        toolName="tabelle_auswerten"
+        args={{ auftrag: 'Summe', modus: 'auswerten' }}
+        approval={{ id: 'c2' }}
+        respondToApproval={vi.fn()}
+      />
+    );
+    expect(screen.getByText('Tabelle auswerten ausführen?')).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        'Der Grünerator erzeugt dafür Python-Code und führt ihn in deinem Browser aus.'
+      )
+    ).toBeInTheDocument();
+  });
+});

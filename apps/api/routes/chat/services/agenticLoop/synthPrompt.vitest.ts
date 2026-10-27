@@ -181,6 +181,58 @@ describe('buildSynthSystem — Quellenblock', () => {
     expect(prompt).toContain('Der Beschluss regelt …');
   });
 
+  /**
+   * Live 27.10.2026: `website_erkunden` lief, die Karte zeigte zwei
+   * Screenshots, und der Schreiber antwortete „Ich kann keine Screenshots von
+   * Webseiten erstellen" — er hatte nur „du hast NICHTS recherchiert" gelesen.
+   */
+  it('meldet dem Schreiber die Website-Erkundung samt Screenshots', () => {
+    const steps: PersistedStep[] = [
+      {
+        toolName: 'website_erkunden',
+        result: {
+          summary: 'Took screenshots of the homepage and the climate page.',
+          screenshots: [
+            { name: 'homepage.png', url: '/api/compute-assets/a.png' },
+            { name: 'klimaschutz.png', url: '/api/compute-assets/b.png' },
+          ],
+          fehlend: 0,
+          schritte: 5,
+          abgebrochen: false,
+        },
+      } as never,
+    ];
+    const prompt = buildSynthSystem('', ctx({ steps }));
+    expect(prompt).not.toContain('hast du NICHTS recherchiert');
+    expect(prompt).toContain('in 5 Schritten bedient');
+    expect(prompt).toContain('homepage.png, klimaschutz.png');
+    expect(prompt).toContain('behaupte NIE, du könntest keine Screenshots machen');
+    expect(prompt).toContain('Took screenshots of the homepage');
+    expect(prompt).toContain('Antworte auf Deutsch');
+  });
+
+  it('stellt einen website_erkunden mit Zeitlimit nicht als Erfolg dar', () => {
+    const steps: PersistedStep[] = [
+      {
+        toolName: 'website_erkunden',
+        result: {
+          summary:
+            'Teilergebnis (Zeitlimit erreicht, der Browser wurde vorzeitig gestoppt) nach 9 Schritten.',
+          screenshots: [{ name: 'homepage.png', url: '/api/compute-assets/a.png' }],
+          fehlend: 1,
+          schritte: 9,
+          abgebrochen: false,
+          zeitlimit: true,
+        },
+      } as never,
+    ];
+    const prompt = buildSynthSystem('', ctx({ steps }));
+    expect(prompt).not.toContain('hast du NICHTS recherchiert');
+    expect(prompt).toContain('Teilergebnis – Zeitlimit erreicht');
+    expect(prompt).toContain('homepage.png');
+    expect(prompt).not.toContain('Schritten bedient — erfolgreich');
+  });
+
   it('lässt den Hinweis stehen, wenn dasselbe Werkzeug NICHTS lieferte', () => {
     const steps: PersistedStep[] = [
       {
@@ -232,6 +284,28 @@ describe('buildSynthSystem — Eröffnungssatz und Rezept', () => {
     const prompt = buildSynthSystem('', ctx({ recipeRegistry }));
     expect(prompt).toContain('ABSCHLUSS');
     expect(prompt).toContain('Soll ich daraus ein Sharepic machen?');
+  });
+});
+
+describe('buildSynthSystem — Tabellen-Werkzeug (#5042)', () => {
+  const tabelleTools = { tabelle_auswerten: {} } as unknown as ToolSet;
+
+  it('sagt dem werkzeuglosen Schreiber, dass die Auswertung nicht lief', () => {
+    const prompt = buildSynthSystem('', ctx({ tools: tabelleTools }));
+    expect(prompt).toContain('TABELLE IN DIESEM TURN NICHT AUSGEWERTET');
+    expect(prompt).toContain('auch nicht als JSON');
+  });
+
+  it('schweigt, wenn das Werkzeug in diesem Turn lief', () => {
+    const steps = [
+      { toolCallId: 't1', toolName: 'tabelle_auswerten', args: {}, result: { ergebnis: '42' } },
+    ] as PersistedStep[];
+    const prompt = buildSynthSystem('', ctx({ tools: tabelleTools, steps }));
+    expect(prompt).not.toContain('NICHT AUSGEWERTET');
+  });
+
+  it('schweigt ohne montiertes Werkzeug', () => {
+    expect(buildSynthSystem('', ctx())).not.toContain('NICHT AUSGEWERTET');
   });
 });
 

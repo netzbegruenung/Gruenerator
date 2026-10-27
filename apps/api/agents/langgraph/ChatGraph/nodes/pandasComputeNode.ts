@@ -36,6 +36,7 @@ Regeln für den Code:
 - Verwende die ECHTEN Spaltennamen aus dem Tabellen-Kontext (exakte Schreibweise).
 - Arbeitsmappen mit mehreren Blättern: \`df\` ist das ERSTE Blatt; ALLE Blätter sind als \`sheets["Blattname"]\` verfügbar (Namen stehen im Tabellen-Kontext). Wähle das Blatt, dessen Spalten zur Frage passen.
 - Gib jedes Ergebnis mit \`print("Label:", wert)\` aus — ein klares deutsches Label pro Zeile (z.B. \`print("Gesamtgewinn:", round(gewinn, 2))\`).
+- In der print-Ausgabe deutsche Schreibweise (nie in exportierten Dateien): Dezimalzahlen als \`f"{wert:,.2f}".replace(",", " ").replace(".", ",").replace(" ", ".")\` (→ 2.114,23), Datumswerte als \`wert.strftime("%d.%m.%Y")\` (→ 31.01.2004). Erst rechnen, dann formatieren.
 - Halte den Code kurz und robust; keine Datei-/Netzwerkzugriffe, keine Plots.
 - Rechne mit fehlenden Werten: nutze dropna() vor idxmax()/idxmin() und prüfe, dass Gruppierungs-Ergebnisse nicht NaN als Schlüssel liefern.
 - Enthält die Tabelle bereits eine Spalte für die gefragte Größe (z.B. "Umsatz"), verwende NUR diese Spalte — leite sie NICHT zusätzlich aus anderen Spalten her (z.B. Menge*Einzelpreis) und addiere niemals beides.
@@ -129,13 +130,17 @@ export function truncateTableContext(text: string): string {
 
 /**
  * Collect column names + sample rows for the codegen prompt: extracted text of
- * tabular thread attachments first (survives across turns), then the current
- * turn's attachment context as fallback.
+ * tabular thread attachments first (survives across turns), then this turn's
+ * tables, then the current turn's attachment context as fallback.
  */
 function buildTableContext(state: ChatGraphState): string {
-  const tabularTexts = (state.threadAttachments ?? [])
+  const fromThread = (state.threadAttachments ?? [])
     .filter((a) => !a.isImage && a.extractedText && isTabularAttachment(a.name, a.mimeType))
     .map((a) => `### ${a.name}\n${a.extractedText}`);
+  const tabularTexts =
+    fromThread.length > 0
+      ? fromThread
+      : (state.turnTabularTexts ?? []).map((t) => `### ${t.name}\n${t.text}`);
 
   const combined = tabularTexts.length
     ? tabularTexts.join('\n\n')
@@ -155,6 +160,8 @@ function tabularFileNames(state: ChatGraphState): string[] {
     .filter((a) => !a.isImage && isTabularAttachment(a.name, a.mimeType))
     .map((a) => a.name);
   if (fromAttachments.length > 0) return fromAttachments;
+  const fromTurn = (state.turnTabularTexts ?? []).map((t) => t.name);
+  if (fromTurn.length > 0) return fromTurn;
 
   return [...(state.attachmentContext ?? '').matchAll(/^### (.+)$/gm)]
     .map((m) => m[1].trim().replace(/\s*\([^)]*\)\s*$/, ''))

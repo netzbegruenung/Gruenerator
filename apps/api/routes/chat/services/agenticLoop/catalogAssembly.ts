@@ -33,6 +33,7 @@ import {
 } from '../../agents/recipeCatalog.js';
 import { makeRecipeTool } from '../../agents/recipeTools.js';
 import { buildChatToolCatalog as buildChatToolCatalogReal } from '../../agents/toolCatalog.js';
+import { isTabularAttachment } from '../attachmentProcessingService.js';
 import { sendChatWarning, type SSEWriter } from '../sseHelpers.js';
 import {
   getRecentThreadSources,
@@ -621,13 +622,18 @@ export async function rehydrateCarriedSources(params: {
   threadId: string;
   sourceRegistry: SourceRegistry;
   toolHistory?: ThreadToolHistory | null;
+  /** Wie bei `seedAttachedDocuments`: eine gerechnete Tabelle wird nicht zitiert. */
+  skipTables?: boolean;
   onInfo: (message: string) => void;
   onError: (message: string) => void;
 }): Promise<void> {
   try {
-    const carried = params.toolHistory
+    const prior = params.toolHistory
       ? params.toolHistory.sources()
       : await getRecentThreadSources(params.threadId);
+    const carried = params.skipTables
+      ? prior.filter((r) => !isTabularAttachment(r.title, ''))
+      : prior;
     if (carried.length > 0) {
       params.sourceRegistry.seedCarried(carried);
       params.onInfo(`[Agentic] rehydrated ${carried.length} prior source(s) for grounding`);
@@ -690,6 +696,8 @@ export async function seedAttachedDocuments(params: {
    *  Werkzeug, das es nicht gibt. */
   toolName: string;
   isMounted: boolean;
+  /** `tabelle_auswerten` hängt: eine Tabelle wird gerechnet, nicht zitiert. */
+  skipTables?: boolean;
   onInfo: (message: string) => void;
   onError: (message: string) => void;
 }): Promise<SeededAttachedDocuments> {
@@ -700,7 +708,13 @@ export async function seedAttachedDocuments(params: {
     const query = attachedDocsQuery(params.state);
     if (!query) return NOTHING_SEEDED;
 
-    const results = await retrieveAttachedDocuments(params.state, query, { sources });
+    const retrieved = await retrieveAttachedDocuments(params.state, query, { sources });
+    // Ein Tabellenauszug als Quelle [N] stach das berechnete Ergebnis aus: der
+    // Schreiber hatte es zweimal im Prompt und zitierte trotzdem die grösste
+    // Buchung aus dem Auszug (live 27.10.2026, B-0142 statt B-0060).
+    const results = params.skipTables
+      ? retrieved.filter((r) => !isTabularAttachment(r.title, ''))
+      : retrieved;
     if (results.length === 0) {
       params.onInfo(
         `[Agentic] Vorab-Abruf über ${sources.length} angehängte(s) Dokument(e) ohne Treffer`

@@ -167,3 +167,121 @@ describe('runToolApprovalResume — endet wie ein normaler Zug (#4369)', () => {
     });
   });
 });
+
+/** `tabelle_auswerten`: Freigabe, dann pausiert der Zug für den Browser. */
+describe('runToolApprovalResume — tabelle_auswerten geht nach der Freigabe in den Browser', () => {
+  beforeEach(async () => {
+    vi.clearAllMocks();
+    claim.mockResolvedValue(true);
+    get.mockResolvedValue({
+      approvalTurnId: 'turn-2',
+      calls: [
+        {
+          toolCallId: 'c1',
+          toolName: 'tabelle_auswerten',
+          args: { auftrag: 'Summe Umsatz' },
+          scopeKey: 'internal/tabelle_auswerten',
+        },
+      ],
+      priorSteps: [],
+      partialText: '',
+      pausedMessageId: 'msg-2',
+      classifiedState: { intent: 'agentic', startTime: Date.now() },
+      requestContext: {
+        userId: 'u1',
+        agentId: 'gruenerator-universal',
+        isNewThread: false,
+        processedMeta: [],
+        memoryRetrieveTimeMs: 0,
+        validMessages: [{ role: 'user', content: 'Wie viel Umsatz?' }],
+      },
+      createdAt: Date.now(),
+    });
+    streamAgenticResponse.mockResolvedValue({
+      fullText: '',
+      steps: [],
+      citations: [],
+      sources: [],
+      modelName: 'm',
+      pendingClientTool: {
+        toolCallId: 'c1',
+        toolName: 'tabelle_auswerten',
+        args: { auftrag: 'Summe Umsatz' },
+        clientToolName: 'run_python',
+        clientArgs: { code: 'print(1)' },
+      },
+    });
+  });
+
+  it('merkt sich „Immer erlauben", pausiert für run_python und hält die Karte als entschieden', async () => {
+    const { grantApproval } = await import('./toolApprovalRepo.js');
+    const { suspendForLoopClientTool } =
+      await import('../../streamStages/clientToolLoopSuspend.js');
+    const decisions = [{ toolCallId: 'c1', approved: true, optionId: 'allow-always' }];
+
+    await runToolApprovalResume({
+      req: {} as never,
+      sse: { send: vi.fn(), end: vi.fn() } as never,
+      threadId: 't1',
+      userId: 'u1',
+      decisions: decisions as never,
+      fail: vi.fn() as never,
+    });
+
+    expect(grantApproval).toHaveBeenCalledWith(
+      'u1',
+      'internal/tabelle_auswerten',
+      'tabelle_auswerten'
+    );
+    expect(suspendForLoopClientTool).toHaveBeenCalledTimes(1);
+    const params = vi.mocked(suspendForLoopClientTool).mock.calls[0]?.[0];
+    expect(params?.pendingClientTool.clientToolName).toBe('run_python');
+    expect(params?.pendingId).toBe('msg-2');
+    expect(params?.resolvedPause).toEqual({
+      pendingApproval: {
+        approvalTurnId: 'turn-2',
+        calls: [expect.objectContaining({ toolCallId: 'c1' })],
+        resolved: true,
+        decisions,
+      },
+    });
+  });
+  // #5044: ein schon freigegebener Browser-Aufruf, den diese Freigabe überholt
+  // hat, geht in die Fortsetzung und reist bei einer erneuten Pause weiter mit.
+  it('reicht den mitgereisten Browser-Aufruf in die Fortsetzung und in eine neue Pause', async () => {
+    const { suspendForToolApproval } = await import('../../streamStages/toolApprovalSuspend.js');
+    const held = {
+      toolCallId: 'tab_1',
+      toolName: 'tabelle_auswerten',
+      args: { auftrag: 'Summe Umsatz' },
+      clientToolName: 'run_python',
+      clientArgs: { code: 'print(1)' },
+    };
+    const stored = await get.getMockImplementation()?.('t1');
+    get.mockResolvedValue({ ...(stored as object), heldClientTool: held });
+    streamAgenticResponse.mockResolvedValue({
+      fullText: '',
+      steps: [],
+      citations: [],
+      sources: [],
+      modelName: 'm',
+      pendingApproval: [{ toolCallId: 'c9', toolName: 'mcp__y', args: {}, scopeKey: 'mcp:s/y' }],
+      heldClientTool: held,
+    });
+
+    await runToolApprovalResume({
+      req: {} as never,
+      sse: { send: vi.fn(), end: vi.fn() } as never,
+      threadId: 't1',
+      userId: 'u1',
+      decisions: [{ toolCallId: 'c1', approved: true }] as never,
+      fail: vi.fn() as never,
+    });
+
+    const resumeParams = streamAgenticResponse.mock.calls[0]?.[0] as {
+      resumeApproval: { heldClientTool?: unknown };
+    };
+    expect(resumeParams.resumeApproval.heldClientTool).toEqual(held);
+    expect(vi.mocked(suspendForToolApproval).mock.calls[0]?.[0].heldClientTool).toEqual(held);
+  });
+});

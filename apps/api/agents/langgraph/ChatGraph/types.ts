@@ -40,6 +40,7 @@ import type {
   GroupAudience,
   CreateRecurringTaskBody,
   McpToolGrant,
+  BrowserSessionMeta,
 } from '@gruenerator/contracts';
 import type { RoleLandesverbandInput } from '@gruenerator/shared/agents';
 import type { ArtifactCreateKind } from '@gruenerator/shared/chat-intents';
@@ -555,6 +556,11 @@ export interface ChatGraphInput {
    *  and is only written after the turn completes — on the very first turn
    *  ("here is my form, fill it in") the DB has nothing yet. */
   pdfFormAttachments?: Array<{ name: string; data: string }> | undefined;
+  /** THIS turn's tabular attachments (name + extracted text), for the pandas
+   *  codegen. Same reason as `pdfFormAttachments`: `threadAttachments` is only
+   *  written after the turn, and a vectorized table is gone from
+   *  `attachmentContext` — the first-turn codegen had neither. */
+  turnTabularTexts?: Array<{ name: string; text: string }> | undefined;
   /**
    * True when the requesting client declared the run_python client tool
    * (clientTools includes 'run_python') — i.e. it can execute the pandas code
@@ -562,6 +568,9 @@ export interface ChatGraphInput {
    * so their tabular guidance must not promise code execution.
    */
   clientCanRunPython?: boolean | undefined;
+  /** The client also declared the `tabelle_auswerten` capability: it resumes a
+   *  client tool after an approval. Old clients with only `run_python` cannot. */
+  clientCanUseTabularTool?: boolean | undefined;
   /** The client declared the `render_sharepic` client tool — it can render a
    *  chat sharepic to an image for `check_sharepic`. Mobile/voice cannot. */
   clientCanRenderSharepic?: boolean | undefined;
@@ -813,7 +822,10 @@ export interface ChatGraphState {
   cloudConnectionCount: number;
   /** See the input-side field: this turn's fillable PDFs, name + base64. */
   pdfFormAttachments: Array<{ name: string; data: string }>;
+  /** See `ChatGraphInput.turnTabularTexts`. */
+  turnTabularTexts?: Array<{ name: string; text: string }> | undefined;
   clientCanRunPython: boolean;
+  clientCanUseTabularTool: boolean;
   clientCanRenderSharepic: boolean;
 
   // Notebook scoping (from @notebook mentions)
@@ -1124,6 +1136,14 @@ export interface ChatGraphState {
    */
   webImageResults?: WebImageResult[];
 
+  /**
+   * The browser session a `website_erkunden` call ran this turn (steps,
+   * screenshots, summary — asset URLs only, never base64). Set by the tool,
+   * persisted as `metadata.browserSession` so the session view survives a
+   * reload.
+   */
+  browserSession?: BrowserSessionMeta;
+
   // Clarification (HITL interrupt)
   needsClarification: boolean;
   clarificationQuestion: string | null;
@@ -1323,20 +1343,6 @@ export interface ChatGraphState {
    *  computedResult forwarded from the previous turn (lastComputeStore) leaves
    *  this unset so a new follow-up computation can still emit code. */
   computedResultFresh?: boolean | undefined;
-  /** run_python error-correction loop (OpenWebUI-style, max 1 retry): how many
-   *  corrected code versions were already issued this turn, and the last code
-   *  sent to the client — both survive the Redis round-trip so the resume
-   *  handler can regenerate with the failure in context. */
-  pandasComputeRetries?: number | undefined;
-  pandasLastCode?: string | undefined;
-  /** Which codegen prompt produced `pandasLastCode` — survives the Redis
-   *  round-trip so a correction round regenerates openpyxl fill code for a fill
-   *  request instead of silently falling back to pandas analysis code. */
-  pandasComputeMode?: 'analyze' | 'fill' | undefined;
-  /** Successful result stashed before a verifier-triggered correction round —
-   *  if the "corrected" code then fails, the turn falls back to this instead
-   *  of ending with no computation at all. */
-  pandasComputeFallback?: ComputeData | undefined;
 
   // Chart generation
   chartData: ChartData | null;

@@ -205,7 +205,9 @@ export const chatStreamBodySchema = z.object({
   // Tool names this client can execute locally (e.g. 'run_python' when the web
   // host injected a Pyodide runner). The backend only emits a client_tool
   // interrupt for tools listed here; clients without the capability (mobile,
-  // voice) keep the legacy prompt-guidance path.
+  // voice) keep the legacy prompt-guidance path. Also carries capabilities:
+  // 'tabelle_auswerten' = this client resumes a client tool after an approval
+  // (older bundles send only 'run_python' and would stall).
   clientTools: z.array(z.string()).nullish(),
   platform: clientPlatformSchema.nullish(),
   // Visual-block fence kinds this client draws as components (```bars, …, see

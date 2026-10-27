@@ -102,9 +102,14 @@ export const UI_TOOL_NAMES = z.enum([
   'vertonen',
   'vorlagen_vorschlagen',
   'check_sharepic',
+  'tabelle_auswerten',
   // Loader of toolScope.ts: opens the personal-content group for the rest of
   // the turn. Reports through the status line only (isSearchProgressTool).
   'meine_inhalte_laden',
+  // Browser agent (website_erkunden) and its toolScope loader. The live session
+  // renders from `custom.browserSession`; the card here is the plain fallback.
+  'website_erkunden',
+  'website_werkzeug_laden',
 ]);
 export type UiToolName = z.infer<typeof UI_TOOL_NAMES>;
 
@@ -1068,6 +1073,12 @@ export const TOOL_REGISTRY: Record<UiToolName, ToolRegistryEntry> = {
   // The gallery itself renders from `custom.vorlagenSuggestions`.
   vorlagen_vorschlagen: entry('vorlagen_vorschlagen', 'text-note', parseVorlagenVM),
   check_sharepic: entry('check_sharepic', 'text-note', parseCheckSharepicVM),
+  // The numbers render in the compute card (`compute` SSE event); the step
+  // card only carries the error or the raw output.
+  tabelle_auswerten: entry('tabelle_auswerten', 'text-note', (_a, r) => ({
+    kind: 'text-note',
+    text: getString(r, 'error') ?? getString(r, 'ergebnis') ?? '',
+  })),
   cloud_files: entry('cloud_files', 'key-value', parseCloudFilesVM),
   text_uebersetzen: entry('text_uebersetzen', 'text-note', parseTranslationVM),
   recurring_tasks: entry('recurring_tasks', 'citations', parseRecurringTasksVM),
@@ -1112,6 +1123,11 @@ export const TOOL_REGISTRY: Record<UiToolName, ToolRegistryEntry> = {
   meine_inhalte_laden: entry('meine_inhalte_laden', 'text-note', () => ({
     kind: 'text-note',
     text: 'Eigene Inhalte freigeschaltet',
+  })),
+  website_erkunden: entry('website_erkunden', 'text-note', parseTextNoteVM),
+  website_werkzeug_laden: entry('website_werkzeug_laden', 'text-note', () => ({
+    kind: 'text-note',
+    text: 'Website-Werkzeug freigeschaltet',
   })),
 };
 

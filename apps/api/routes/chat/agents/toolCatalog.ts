@@ -37,6 +37,8 @@ import { z } from 'zod';
 import { lastUserText } from '../../../agents/langgraph/ChatGraph/nodes/classifierHeuristics.js';
 import { looksLikeRecurringOrder } from '../../../agents/langgraph/ChatGraph/nodes/classifierSignals.js';
 import { forbidsNewResearch } from '../../../agents/langgraph/ChatGraph/nodes/fastPathGuards.js';
+import { env } from '../../../config/env.js';
+import { isBrowserAgentConfigured } from '../../../services/browserAgent/runToken.js';
 import { buildProductKnowledgeBlock } from '../../../services/chat/productKnowledge.js';
 import { crawlAndDistill } from '../../../services/search/index.js';
 import { getDeepLService } from '../../../services/translation/DeepLService.js';
@@ -72,6 +74,7 @@ import { hasReachableForm } from '../services/pdfFormAvailability.js';
 import { isReisekostenTurn } from '../services/reisekostenAvailability.js';
 import { withImageProxy } from '../services/searchImagePayload.js';
 
+import { makeWebsiteErkundenTool } from './browserAgentTool.js';
 import { makeCloudFilesTool } from './cloudFileTools.js';
 import { makeEditDocumentTextTool, makeReadDocumentTool } from './documentLoopTools.js';
 import {
@@ -113,6 +116,11 @@ import { agentAllowsWebSearch, createSearchTools } from './searchTools.js';
 import { makeCheckSharepicTool } from './sharepicCheckTool.js';
 import { makeEditSharepicTool, makeReadSharepicTool } from './sharepicLoopTools.js';
 import { hasThreadSheet, makeEditSheetTool, makeReadSheetTool } from './sheetLoopTools.js';
+import {
+  isTabelleAuswertenMountable,
+  makeDirektAntwortenTool,
+  makeTabelleAuswertenTool,
+} from './tabelleAuswertenTool.js';
 import { makeRecipesTool } from './textFormTools.js';
 import { threadHasArtifact } from './threadArtifactTarget.js';
 import { makeTranslateTool } from './translationTools.js';
@@ -563,6 +571,25 @@ NUTZE WENN:
         const sources = sourceRegistry.register(results, { snippetChars: CRAWL_SNIPPET_CHARS });
         return { resultCount: results.length, sources };
       },
+    });
+  }
+
+  // website_erkunden: a real browser that OPERATES a page (click, search,
+  // screenshots) — the interactive sibling of scrape_url, under the same two
+  // gates (research ban, web capability). Mounted only where the browser
+  // service is deployed AND the API holds its own run-token secret; without
+  // either the model endpoint answers 503 and a run could not take a step.
+  if (
+    loop &&
+    !researchBanned &&
+    webAllowed &&
+    env.BROWSER_AGENT_URL &&
+    isBrowserAgentConfigured()
+  ) {
+    tools.website_erkunden = makeWebsiteErkundenTool({
+      sse: loop.sse,
+      state: loop.state,
+      userId: agentConfig.userId ?? null,
     });
   }
 
@@ -1144,6 +1171,14 @@ NUTZE WENN nach Funktionen, Begriffen, Fähigkeiten oder Anbindungen des Grüner
       const pdfCtx = { state, sse, threadId: loop.threadId ?? null };
       tools.read_pdf_form = makeReadPdfFormTool(pdfCtx);
       tools.fill_pdf_form = makeFillPdfFormTool(pdfCtx);
+    }
+    // Tabellen rechnen: Code läuft im Browser (Pyodide), also nur mit einer
+    // Oberfläche, die das kann, und mit Thread — die Pause hängt an ihm. Vor dem
+    // Lauf fragt das Freigabe-Gate (INTERNAL_APPROVAL_REQUIRED_TOOLS) — das
+    // ohne angemeldete Person aus ist; dann lieber gar nicht montieren.
+    if (loop.threadId && isTabelleAuswertenMountable({ ...state, agentConfig })) {
+      tools.tabelle_auswerten = makeTabelleAuswertenTool();
+      tools.direkt_antworten = makeDirektAntwortenTool();
     }
     // Reisekostenabrechnung (Beta). Nur in Reisekosten-Turns: das Eingabeschema
     // ist gross und zählte sonst gegen das Katalogbudget jedes Recherche-Turns.

@@ -602,15 +602,12 @@ Folgende Datei wurde erstellt und steht der*dem Nutzer*in bereits zum Download b
 ---
 Übernimm diese Werte EXAKT und unverändert in deine Antwort. Sie wurden per Code berechnet und sind korrekt. Zähle oder rechne NICHT selbst nach.
 
-## TABELLENDATEN — MIT DEM INTERPRETER RECHNEN, NICHT IM KOPF
+## TABELLENDATEN — AUS DEN DATEN ANTWORTEN
 
-Der*die Nutzer*in hat eine Tabelle (CSV/Excel/ODS) angehängt. Im Browser läuft ein Python-Interpreter, in dem die Datei bereits als pandas-DataFrame \`df\` vorgeladen ist (die Spaltennamen findest du im angehängten Dokumentkontext). Dein Code-Block wird **automatisch ausgeführt** und das Ergebnis wird der*dem Nutzer*in direkt angezeigt.
-
-Für JEDE Frage, die eine Berechnung, Aggregation, Sortierung oder Filterung über die Daten erfordert (Summe, Durchschnitt, Minimum/Maximum, "pro Produkt/Kategorie", Anteile, Zählungen …):
-- Gib einen ausführbaren Code-Block aus, der zwingend mit dem Sprach-Tag \`\`\`python beginnt (NIEMALS nur \`\`\` ohne \`python\`), auf \`df\` arbeitet und das Ergebnis mit \`print(...)\` ausgibt — mit einem klaren Label, z.B. \`print("Gesamtgewinn:", ...)\`.
-- Rechne NIEMALS selbst im Kopf und gib KEINE Handlungsanleitung ("erstelle eine Pivot-Tabelle") — schreibe den Code, der die Antwort direkt berechnet.
-- Verwende die echten Spaltennamen aus dem Dokumentkontext. Halte den Code kurz und robust.
-- Schreibe höchstens 1 kurzen Satz vor den Block. Fordere NICHT zum Klicken/Kopieren/„Ausführen" auf und entschuldige dich NICHT, du könntest keinen Code ausführen — die Ausführung passiert automatisch.
+Der*die Nutzer*in hat eine Tabelle (CSV/Excel/ODS) angehängt. Ihre Daten stehen im angehängten Dokumentkontext.
+- Beantworte Rechenfragen (Summe, Durchschnitt, Minimum/Maximum, "pro Produkt/Kategorie", Anteile, Zählungen …) direkt aus den Tabellendaten im Dokumentkontext: rechne sorgfältig Schritt für Schritt und zeige den Rechenweg kurz und nachvollziehbar (relevante Werte und Zwischensummen nennen).
+- Gib einen \`\`\`python-Block NUR aus, wenn der*die Nutzer*in ausdrücklich nach Code fragt. Behaupte NIEMALS, dass Code von selbst läuft oder dass das Ergebnis gleich erscheint.
+- Sind die benötigten Zeilen oder Spalten im Kontext nicht vollständig enthalten, sag das ehrlich und nenne, welche Angaben fehlen — erfinde KEINE Zahlen.
 - Wurde bereits ein BERECHNUNGSERGEBNIS geliefert (siehe unten), übernimm dessen Werte EXAKT und rechne nicht neu.
 
 ## SUCHERGEBNISSE
@@ -2257,15 +2254,12 @@ Folgende Datei wurde erstellt und steht der*dem Nutzer*in bereits zum Download b
 ---
 Übernimm diese Werte EXAKT und unverändert in deine Antwort. Sie wurden per Code berechnet und sind korrekt. Zähle oder rechne NICHT selbst nach.
 
-## TABELLENDATEN — MIT DEM INTERPRETER RECHNEN, NICHT IM KOPF
+## TABELLENDATEN — AUS DEN DATEN ANTWORTEN
 
-Der*die Nutzer*in hat eine Tabelle (CSV/Excel/ODS) angehängt. Im Browser läuft ein Python-Interpreter, in dem die Datei bereits als pandas-DataFrame \`df\` vorgeladen ist (die Spaltennamen findest du im angehängten Dokumentkontext). Dein Code-Block wird **automatisch ausgeführt** und das Ergebnis wird der*dem Nutzer*in direkt angezeigt.
-
-Für JEDE Frage, die eine Berechnung, Aggregation, Sortierung oder Filterung über die Daten erfordert (Summe, Durchschnitt, Minimum/Maximum, "pro Produkt/Kategorie", Anteile, Zählungen …):
-- Gib einen ausführbaren Code-Block aus, der zwingend mit dem Sprach-Tag \`\`\`python beginnt (NIEMALS nur \`\`\` ohne \`python\`), auf \`df\` arbeitet und das Ergebnis mit \`print(...)\` ausgibt — mit einem klaren Label, z.B. \`print("Gesamtgewinn:", ...)\`.
-- Rechne NIEMALS selbst im Kopf und gib KEINE Handlungsanleitung ("erstelle eine Pivot-Tabelle") — schreibe den Code, der die Antwort direkt berechnet.
-- Verwende die echten Spaltennamen aus dem Dokumentkontext. Halte den Code kurz und robust.
-- Schreibe höchstens 1 kurzen Satz vor den Block. Fordere NICHT zum Klicken/Kopieren/„Ausführen" auf und entschuldige dich NICHT, du könntest keinen Code ausführen — die Ausführung passiert automatisch.
+Der*die Nutzer*in hat eine Tabelle (CSV/Excel/ODS) angehängt. Ihre Daten stehen im angehängten Dokumentkontext.
+- Beantworte Rechenfragen (Summe, Durchschnitt, Minimum/Maximum, "pro Produkt/Kategorie", Anteile, Zählungen …) direkt aus den Tabellendaten im Dokumentkontext: rechne sorgfältig Schritt für Schritt und zeige den Rechenweg kurz und nachvollziehbar (relevante Werte und Zwischensummen nennen).
+- Gib einen \`\`\`python-Block NUR aus, wenn der*die Nutzer*in ausdrücklich nach Code fragt. Behaupte NIEMALS, dass Code von selbst läuft oder dass das Ergebnis gleich erscheint.
+- Sind die benötigten Zeilen oder Spalten im Kontext nicht vollständig enthalten, sag das ehrlich und nenne, welche Angaben fehlen — erfinde KEINE Zahlen.
 - Wurde bereits ein BERECHNUNGSERGEBNIS geliefert (siehe unten), übernimm dessen Werte EXAKT und rechne nicht neu.
 
 ## SUCHERGEBNISSE
@@ -2503,15 +2497,12 @@ Folgende Datei wurde erstellt und steht der*dem Nutzer*in bereits zum Download b
 ---
 Übernimm diese Werte EXAKT und unverändert in deine Antwort. Sie wurden per Code berechnet und sind korrekt. Zähle oder rechne NICHT selbst nach.
 
-## TABELLENDATEN — MIT DEM INTERPRETER RECHNEN, NICHT IM KOPF
+## TABELLENDATEN — AUS DEN DATEN ANTWORTEN
 
-Der*die Nutzer*in hat eine Tabelle (CSV/Excel/ODS) angehängt. Im Browser läuft ein Python-Interpreter, in dem die Datei bereits als pandas-DataFrame \`df\` vorgeladen ist (die Spaltennamen findest du im angehängten Dokumentkontext). Dein Code-Block wird **automatisch ausgeführt** und das Ergebnis wird der*dem Nutzer*in direkt angezeigt.
-
-Für JEDE Frage, die eine Berechnung, Aggregation, Sortierung oder Filterung über die Daten erfordert (Summe, Durchschnitt, Minimum/Maximum, "pro Produkt/Kategorie", Anteile, Zählungen …):
-- Gib einen ausführbaren Code-Block aus, der zwingend mit dem Sprach-Tag \`\`\`python beginnt (NIEMALS nur \`\`\` ohne \`python\`), auf \`df\` arbeitet und das Ergebnis mit \`print(...)\` ausgibt — mit einem klaren Label, z.B. \`print("Gesamtgewinn:", ...)\`.
-- Rechne NIEMALS selbst im Kopf und gib KEINE Handlungsanleitung ("erstelle eine Pivot-Tabelle") — schreibe den Code, der die Antwort direkt berechnet.
-- Verwende die echten Spaltennamen aus dem Dokumentkontext. Halte den Code kurz und robust.
-- Schreibe höchstens 1 kurzen Satz vor den Block. Fordere NICHT zum Klicken/Kopieren/„Ausführen" auf und entschuldige dich NICHT, du könntest keinen Code ausführen — die Ausführung passiert automatisch.
+Der*die Nutzer*in hat eine Tabelle (CSV/Excel/ODS) angehängt. Ihre Daten stehen im angehängten Dokumentkontext.
+- Beantworte Rechenfragen (Summe, Durchschnitt, Minimum/Maximum, "pro Produkt/Kategorie", Anteile, Zählungen …) direkt aus den Tabellendaten im Dokumentkontext: rechne sorgfältig Schritt für Schritt und zeige den Rechenweg kurz und nachvollziehbar (relevante Werte und Zwischensummen nennen).
+- Gib einen \`\`\`python-Block NUR aus, wenn der*die Nutzer*in ausdrücklich nach Code fragt. Behaupte NIEMALS, dass Code von selbst läuft oder dass das Ergebnis gleich erscheint.
+- Sind die benötigten Zeilen oder Spalten im Kontext nicht vollständig enthalten, sag das ehrlich und nenne, welche Angaben fehlen — erfinde KEINE Zahlen.
 - Wurde bereits ein BERECHNUNGSERGEBNIS geliefert (siehe unten), übernimm dessen Werte EXAKT und rechne nicht neu.
 
 ## SUCHERGEBNISSE

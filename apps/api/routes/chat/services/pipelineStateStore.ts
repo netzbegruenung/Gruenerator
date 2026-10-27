@@ -40,7 +40,13 @@ export const pipelineStateStore = {
     // processedMeta` ALREADY holds — serializing both would double the Redis
     // payload of every interrupted PDF turn. The resume path rebuilds the field
     // from processedMeta (see rehydratePdfFormAttachments).
-    const { pdfFormAttachments: _pdfBytes, ...classifiedState } = data.classifiedState;
+    // Same for this turn's table texts; after the pause the codegen reads the
+    // thread row written by `persistSuspendedTurnAttachments`.
+    const {
+      pdfFormAttachments: _pdfBytes,
+      turnTabularTexts: _tables,
+      ...classifiedState
+    } = data.classifiedState;
     const entry: StoredPipelineState = {
       ...data,
       classifiedState: classifiedState as ChatGraphState,

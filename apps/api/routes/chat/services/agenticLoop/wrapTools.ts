@@ -21,8 +21,14 @@
 import { recordDecision } from '../../../../utils/decisionJournal.js';
 import { createLogger } from '../../../../utils/logger.js';
 
+import { LOOP_CLIENT_TOOLS } from './clientToolRegistry.js';
 import { truncateResultForModel } from './truncate.js';
-import { readMcpResult, type PersistedStep } from './types.js';
+import {
+  readMcpResult,
+  TURN_ABORTABLE_TOOLS,
+  UNRECORDED_TOOLS,
+  type PersistedStep,
+} from './types.js';
 
 import type { AskHumanGate } from './askHumanGate.js';
 import type { ClientToolGate } from './clientToolGate.js';
@@ -485,6 +491,13 @@ export function wrapToolsForLoop(tools: ToolSet, ctx: WrapToolsContext): ToolSet
       });
     };
 
+    // Eine reine Entscheidung (`UNRECORDED_TOOLS`): läuft an allem vorbei, was
+    // einen Aufruf zur Tat macht — Karte, Schritt, Budget, Wächter.
+    if (UNRECORDED_TOOLS.has(toolName)) {
+      wrapped[toolName] = toolDef;
+      continue;
+    }
+
     const wrappedExecute: ExecuteFn = async (input, options) => {
       const stepId = uniqueStepId(options.toolCallId);
       const args = asRecord(input);
@@ -552,10 +565,11 @@ export function wrapToolsForLoop(tools: ToolSet, ctx: WrapToolsContext): ToolSet
         return { error: 'Warte auf die Antwort der Nutzer*in.' };
       }
 
-      // `check_sharepic` ebenso: der Browser muss erst rendern, das Ergebnis
-      // entsteht in der Fortsetzung. Scheitert das Auflösen des Ziels, geht der
-      // Fehler als gewöhnliches Ergebnis ans Modell und der Zug läuft weiter.
-      if (toolName === 'check_sharepic' && ctx.clientToolGate) {
+      // Browser-Werkzeuge (`LOOP_CLIENT_TOOLS`, z. B. `check_sharepic`) ebenso:
+      // der Browser muss erst ausführen, das Ergebnis entsteht in der
+      // Fortsetzung. Scheitert das Auflösen, geht der Fehler als gewöhnliches
+      // Ergebnis ans Modell und der Zug läuft weiter.
+      if (LOOP_CLIENT_TOOLS.has(toolName) && ctx.clientToolGate) {
         return (
           (await ctx.clientToolGate.hold({ toolName, stepId, args })) ?? {
             error: 'Warte auf die Darstellung im Browser.',
@@ -652,10 +666,20 @@ export function wrapToolsForLoop(tools: ToolSet, ctx: WrapToolsContext): ToolSet
         ctx.toolActivity?.begin();
         try {
           const timeoutMs = ctx.perCallTimeoutOverridesMs?.[toolName] ?? ctx.perCallTimeoutMs;
+          // Only opted-in tools also see the turn signal (see
+          // TURN_ABORTABLE_TOOLS): it carries more than Stop — the approval/ask
+          // gates and the hard cap — and would abort sibling calls such as
+          // create_document mid-commit. Everyone else stays timeout-only. The
+          // timeout aborts with a `TimeoutError` reason so a tool can tell
+          // "time limit" from "user stopped".
+          const toolSignal =
+            options.abortSignal && TURN_ABORTABLE_TOOLS.has(toolName)
+              ? AbortSignal.any([options.abortSignal, abandoned.signal])
+              : abandoned.signal;
           output = await withTimeout(
-            Promise.resolve(original(input, { ...options, abortSignal: abandoned.signal })),
+            Promise.resolve(original(input, { ...options, abortSignal: toolSignal })),
             timeoutMs,
-            () => abandoned.abort()
+            () => abandoned.abort(new DOMException('Tool call timed out', 'TimeoutError'))
           );
         } catch (err) {
           const message = err instanceof Error ? err.message : String(err);

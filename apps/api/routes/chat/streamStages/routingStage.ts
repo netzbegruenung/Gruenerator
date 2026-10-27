@@ -23,6 +23,7 @@ import { createLogger } from '../../../utils/logger.js';
 import { deriveImplicitRecipeMention } from '../agents/implicitRecipe.js';
 import { preferredLvRecipeMention } from '../agents/lvRecipePreference.js';
 import { getPipelineAgent } from '../agents/pipelines/index.js';
+import { isTabelleAuswertenMountable } from '../agents/tabelleAuswertenTool.js';
 import { isAgenticLoopEnabled } from '../services/agenticLoop/flags.js';
 import { AGENTIC_INTENTS } from '../services/agenticLoop/intents.js';
 import { decideTurnPlan, type TurnPlan } from '../services/agenticLoop/turnPlan.js';
@@ -129,6 +130,10 @@ export function runRoutingStage({
       lastUserTextNoMentions,
       classifiedState.messages
     ),
+    // Die Tabelle entscheidet, nicht die Frage: `tabelle_auswerten` hängt nur im
+    // Loop, und eine Tabellenfrage landet oft als `compute` im Einzeldurchlauf.
+    // Dasselbe Prädikat wie Katalog und Prompt (Person, Schalter, Client-Fähigkeit).
+    isTabularAnalysisTurn: isTabelleAuswertenMountable(classifiedState),
     classifierContradictedResearch: classifiedState.classifierContradictedResearch === true,
     // Same question the classifier's Tier 3.5 asks, asked again here because a
     // turn can reach this gate without having passed that tier (confident
