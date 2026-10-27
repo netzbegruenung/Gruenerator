@@ -1,7 +1,4 @@
 import { stripInlineMarks } from '@gruenerator/contracts';
-import { pickShareRoute, shareDataUrlViaNativeHost } from '@gruenerator/shared';
-import { withPhotoCredit } from '../../utils/photoCredit';
-import { shareApi } from '@gruenerator/shared/share';
 import {
   Popover,
   PopoverAnchor,
@@ -19,7 +16,9 @@ import { FaCheck, FaDownload, FaSave, FaUserPlus } from 'react-icons/fa';
 import { IoShareOutline } from 'react-icons/io5';
 import { PiArrowLeft, PiMegaphone } from 'react-icons/pi';
 
+import { useCanvasEditorServices } from '../../CanvasEditorProvider';
 import { useIsCanvasMobile } from '../../hooks/useIsCanvasMobile';
+import { browserFileDelivery } from '../../hostServices';
 import {
   AltTextField,
   useCaptionAltText,
@@ -27,6 +26,7 @@ import {
   withAltText,
 } from '../../sidebar/components/AltTextField';
 import { useAutoSaveStoreApi } from '../../stores/useAutoSaveStore';
+import { withPhotoCredit } from '../../utils/photoCredit';
 
 import {
   DownloadSection,
@@ -125,18 +125,19 @@ export function ShareDropdown({
   const shareText = withAltText(withPhotoCredit(canvasText, photoCredit), captionAltText);
 
   const autoSaveStoreApi = useAutoSaveStoreApi();
-  const shareRoute = pickShareRoute();
+  const { fileDelivery = browserFileDelivery, imageShares } = useCanvasEditorServices();
+  const shareRoute = fileDelivery.pickShareRoute();
 
   const publishDraftIfNeeded = useCallback(async () => {
     const token = shareToken || autoSaveStoreApi.getState().autoSavedShareToken;
-    if (token) {
+    if (token && imageShares) {
       try {
-        await shareApi.publishShare(token);
+        await imageShares.publishShare(token);
       } catch (err) {
         console.warn('[ShareDropdown] Failed to publish draft:', err);
       }
     }
-  }, [shareToken, autoSaveStoreApi]);
+  }, [shareToken, autoSaveStoreApi, imageShares]);
 
   const handleNativeShare = useCallback(async () => {
     setIsSharing(true);
@@ -144,7 +145,7 @@ export function ShareDropdown({
       const dataUrl = await onCaptureCanvas();
       if (!dataUrl) return;
       if (shareRoute === 'native-host') {
-        shareDataUrlViaNativeHost(dataUrl, 'gruenerator.png', {
+        fileDelivery.shareDataUrlViaNativeHost(dataUrl, 'gruenerator.png', {
           title: 'Grünerator Share',
           text: shareText,
         });
@@ -166,7 +167,7 @@ export function ShareDropdown({
     } finally {
       setIsSharing(false);
     }
-  }, [onCaptureCanvas, shareText, publishDraftIfNeeded, shareRoute]);
+  }, [onCaptureCanvas, shareText, publishDraftIfNeeded, shareRoute, fileDelivery]);
 
   return (
     <Popover

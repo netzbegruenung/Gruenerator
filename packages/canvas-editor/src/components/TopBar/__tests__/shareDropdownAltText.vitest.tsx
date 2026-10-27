@@ -2,13 +2,15 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { CanvasEditorProvider, type CanvasEditorServices } from '../../../CanvasEditorProvider';
+import { browserFileDelivery } from '../../../hostServices';
 import { AutoSaveStoreProvider } from '../../../stores/AutoSaveStoreProvider';
 import { ShareDropdown } from '../ShareDropdown';
 
-vi.mock('@gruenerator/shared', async (importOriginal) => ({
-  ...(await importOriginal<Record<string, unknown>>()),
-  pickShareRoute: () => 'web-share',
-}));
+// The host's file delivery says the page can use the Web Share API.
+const services: CanvasEditorServices = {
+  fileDelivery: { ...browserFileDelivery, pickShareRoute: () => 'web-share' },
+};
 
 const share = vi.fn().mockResolvedValue(undefined);
 
@@ -29,18 +31,20 @@ beforeEach(() => {
 
 async function openMenu() {
   render(
-    <AutoSaveStoreProvider>
-      <ShareDropdown
-        onCaptureCanvas={() => Promise.resolve('data:image/png;base64,aGVsbG8=')}
-        onDownload={() => {}}
-        onNavigateToGallery={() => {}}
-        canvasText="Klimaschutz jetzt"
-        canvasType="dreizeilen"
-        canvasWidth={1080}
-        canvasHeight={1080}
-        shareToken={null}
-      />
-    </AutoSaveStoreProvider>
+    <CanvasEditorProvider services={services}>
+      <AutoSaveStoreProvider>
+        <ShareDropdown
+          onCaptureCanvas={() => Promise.resolve('data:image/png;base64,aGVsbG8=')}
+          onDownload={() => {}}
+          onNavigateToGallery={() => {}}
+          canvasText="Klimaschutz jetzt"
+          canvasType="dreizeilen"
+          canvasWidth={1080}
+          canvasHeight={1080}
+          shareToken={null}
+        />
+      </AutoSaveStoreProvider>
+    </CanvasEditorProvider>
   );
   await userEvent.click(screen.getByRole('button', { name: 'Teilen' }));
 }

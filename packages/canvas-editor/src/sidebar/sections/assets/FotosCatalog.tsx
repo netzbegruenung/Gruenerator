@@ -1,7 +1,7 @@
-import { useUnsplashSearch, type UnsplashSearchFn } from '@gruenerator/shared/image-studio';
 import { useCallback, useEffect, useMemo, type ReactNode } from 'react';
 
 import { useCanvasEditorServices } from '../../../CanvasEditorProvider';
+import { useNoUnsplashSearch, type UnsplashSearchFn } from '../../../hostServices';
 import { UnsplashLimitNotice, UnsplashRemaining } from '../tools/UnsplashLimitNotice';
 
 import { unsplashPhotoItem } from './useStockPhotos';
@@ -26,7 +26,9 @@ export function FotosCatalog({
   grid: (items: readonly ElementItem[]) => ReactNode;
   children: ReactNode;
 }) {
-  const { searchUnsplashImages } = useCanvasEditorServices();
+  // `useUnsplashSearch` is a host hook, fixed for the lifetime of the editor.
+  const { searchUnsplashImages, useUnsplashSearch = useNoUnsplashSearch } =
+    useCanvasEditorServices();
   const searchFn = useCallback<UnsplashSearchFn>(
     (q, p, pp) =>
       searchUnsplashImages

@@ -267,3 +267,4 @@ export * from './stickers/catalog.js';
 export * from './stickers/profilbildAssets.js';
 export * from './stickers/savedProfilbildSticker.js';
 export * from './canvasPalette.js';
+export * from './studioAssets/labels.js';

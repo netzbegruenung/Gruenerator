@@ -1,6 +1,6 @@
-import { useShareStore } from '@gruenerator/shared/share';
 import { useEffect, useLayoutEffect, useRef, useCallback } from 'react';
 
+import { useCanvasEditorServices } from '../CanvasEditorProvider';
 import { useAutoSaveStore, useAutoSaveStoreApi } from '../stores/useAutoSaveStore';
 import { originalImageFetchUrl } from '../utils/canvasImageSource';
 
@@ -164,7 +164,10 @@ export const useCanvasAutoSave = (
   const setAutoSavedShareToken = useAutoSaveStore((s) => s.setAutoSavedShareToken);
   const setLastAutoSavedImageSrc = useAutoSaveStore((s) => s.setLastAutoSavedImageSrc);
 
-  const { createImageShare, updateImageShare } = useShareStore();
+  // Host service; without it the editor does not autosave.
+  const imageShares = useCanvasEditorServices().imageShares;
+  const createImageShare = imageShares?.createImageShare;
+  const updateImageShare = imageShares?.updateImageShare;
 
   // Use refs to store latest values without causing effect re-runs
   const latestRefs = useRef({
@@ -203,6 +206,7 @@ export const useCanvasAutoSave = (
 
       if (!imageSrc) return;
       if (refs.enabled === false) return;
+      if (!refs.createImageShare || !refs.updateImageShare) return;
       if (storeState.autoSaveStatus === 'saving') return;
       if (storeState.lastAutoSavedImageSrc === imageSrc) {
         storeState.setDirty(false);

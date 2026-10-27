@@ -1,4 +1,3 @@
-import { MediaThumb } from '@gruenerator/shared/media-library/ui';
 import { Popover, PopoverContent, PopoverTrigger } from '@gruenerator/ui';
 import { Slider } from 'radix-ui';
 import { useEffect, useId, useRef, useState, type ChangeEvent } from 'react';
@@ -48,7 +47,7 @@ export function BackgroundImagePicker({
   useEffect(() => {
     if (openRequest > 0) setOpen(true);
   }, [openRequest]);
-  const { items, isLoading, error, search, setSearch, upload, hasMore, loadMore } =
+  const { items, isLoading, error, search, setSearch, upload, hasMore, loadMore, MediaThumb } =
     useUserUploads();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [pendingId, setPendingId] = useState<string | null>(null);

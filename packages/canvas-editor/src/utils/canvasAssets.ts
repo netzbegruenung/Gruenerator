@@ -257,7 +257,7 @@ function emojiAssetFromId(id: string): UniversalAsset | undefined {
   };
 }
 
-/** The shared sticker catalogue (`@gruenerator/shared/stickers`), the same set as the Profilbild. */
+/** The shared sticker catalogue (`SYSTEM_STICKERS` in `@gruenerator/contracts`), the same set as the Profilbild. */
 export const STICKER_ASSETS: UniversalAsset[] = SYSTEM_STICKERS.map((s) => ({
   id: s.id,
   src: s.src,

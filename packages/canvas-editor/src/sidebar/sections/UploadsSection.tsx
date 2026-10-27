@@ -1,4 +1,3 @@
-import { MediaThumb } from '@gruenerator/shared/media-library/ui';
 import { MasonryGrid, MasonryItem } from '@gruenerator/ui';
 import { useRef, useState } from 'react';
 import { FaTrash } from 'react-icons/fa';
@@ -45,6 +44,7 @@ export function UploadsSection({
     uploadError,
     hasMore,
     loadMore,
+    MediaThumb,
   } = useUserUploads();
 
   const [isDragOver, setIsDragOver] = useState(false);
