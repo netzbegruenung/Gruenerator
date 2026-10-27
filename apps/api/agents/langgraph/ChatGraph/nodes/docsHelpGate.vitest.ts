@@ -55,11 +55,8 @@ describe('looksLikeDocsHelpQuestion', () => {
       'Was ist Panda und wie bekomme ich das?',
       'Was ist der Unterschied zwischen Klein, Mittel und Ultra?',
       'Was ist ein Explainable?',
-      'Gibt es den Grünerator als App fürs Handy?',
-      'Wie lösche ich mein Konto?',
       'Was macht der Öko-Modus bei der Transkription?',
       'Kann ich aus einer Notebook-Antwort einen Podcast machen?',
-      'Welche Rezepte gibt es für Instagram?',
     ]) {
       expect(looksLikeDocsHelpQuestion(text), text).toBe(true);
     }
@@ -71,6 +68,20 @@ describe('looksLikeDocsHelpQuestion', () => {
       'Schreib einen kurzen Instagram-Post über die Pandas im Tiergarten Schönbrunn',
       'Mach ein Explainable zur Wärmepumpe',
       'Erstelle ein Sharepic mit Steckbrief für unsere Kandidatin',
+    ]) {
+      expect(looksLikeDocsHelpQuestion(text), text).toBe(false);
+    }
+  });
+
+  it('does NOT route everyday words that only share a glossary entry', () => {
+    // App, Konto, Projekt, Rezept, Agent get their definition into the prompt,
+    // but they must not move ordinary questions into the docs lane.
+    for (const text of [
+      'Wie baue ich eine App für mehr Bürgerbeteiligung?',
+      'Welches Konto brauche ich für die Spendenverwaltung?',
+      'Was ist ein gutes Rezept für Linsensuppe?',
+      'Welche Projekte fördert die EU im ländlichen Raum?',
+      'Wie kann ich Feuchtgebiete wiederherstellen?',
     ]) {
       expect(looksLikeDocsHelpQuestion(text), text).toBe(false);
     }
