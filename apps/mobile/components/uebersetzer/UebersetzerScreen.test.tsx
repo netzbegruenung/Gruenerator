@@ -142,17 +142,17 @@ describe('UebersetzerScreen', () => {
     expect(screen.getAllByLabelText('Nach: alle Sprachen').length).toBeGreaterThan(0);
   });
 
-  it('translates text typed while loading once the list lands', () => {
+  it('translates text typed while loading once the list lands', async () => {
     languages.mockReturnValue(pending());
     const view = renderScreen();
 
-    fireEvent.changeText(screen.getByLabelText('Ausgangstext'), 'Guten Morgen');
-    act(() => jest.advanceTimersByTime(2000));
+    await fireEvent.changeText(screen.getByLabelText('Ausgangstext'), 'Guten Morgen');
+    await act(() => jest.advanceTimersByTime(2000));
     expect(mutate).not.toHaveBeenCalled();
 
     languages.mockReturnValue(loaded());
     view.rerender(tree());
-    act(() => jest.advanceTimersByTime(1000));
+    await act(() => jest.advanceTimersByTime(1000));
 
     expect(mutate).toHaveBeenCalledTimes(1);
     expect(mutate.mock.calls[0]?.[0]).toEqual({
@@ -164,10 +164,10 @@ describe('UebersetzerScreen', () => {
     expect(screen.getAllByText('Englisch (britisch)').length).toBeGreaterThan(0);
   });
 
-  it('keeps the typed text when the list fails to load', () => {
+  it('keeps the typed text when the list fails to load', async () => {
     languages.mockReturnValue(pending());
     const view = renderScreen();
-    fireEvent.changeText(screen.getByLabelText('Ausgangstext'), 'Guten Morgen');
+    await fireEvent.changeText(screen.getByLabelText('Ausgangstext'), 'Guten Morgen');
 
     languages.mockReturnValue(
       failed(new TranslationRequestError('Sprachen konnten nicht geladen werden.', 502))

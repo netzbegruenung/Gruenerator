@@ -16,6 +16,11 @@ const reactDomDir = dirOf('react-dom');
 module.exports = {
   preset: 'jest-expo',
   testMatch: ['**/*.test.ts', '**/*.test.tsx'],
+  // Reanimated 4.7 ships a Jest resolver that swaps its native-only modules
+  // (initializers, mappers, …) for their JS/web twins; without it
+  // `react-native-reanimated/mock` initialises the native CSS bridge and dies
+  // with "setCSSEventHandler is not available in JSReanimated".
+  resolver: require.resolve('react-native-reanimated/jest/resolver'),
   setupFilesAfterEnv: ['<rootDir>/test/jest.setup.ts'],
   testPathIgnorePatterns: ['/node_modules/', '/android/', '/ios/', '/.expo/', '/maestro/'],
 

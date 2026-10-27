@@ -176,13 +176,13 @@ describe('BackgroundPicker', () => {
   it('offers the CD colours first and picks a free colour', async () => {
     const { onSelect } = await renderBackgrounds();
     const swatches = screen.getAllByRole('button', { name: COLOR_SWATCHES_DE[0].label }).length;
-    fireEvent.press(screen.getByRole('button', { name: 'Eigene Farbe' }));
+    await fireEvent.press(screen.getByRole('button', { name: 'Eigene Farbe' }));
     expect(onSelect).not.toHaveBeenCalled();
     // The CD colour stands once more as a quick pick in the sheet.
     expect(screen.getAllByRole('button', { name: COLOR_SWATCHES_DE[0].label })).toHaveLength(
       swatches + 1
     );
-    fireEvent.press(screen.getByRole('button', { name: 'Farbe #ffffff' }));
+    await fireEvent.press(screen.getByRole('button', { name: 'Farbe #ffffff' }));
     expect(onSelect).toHaveBeenLastCalledWith(FREE_BACKGROUND_ID, {
       kind: 'color',
       color: '#ffffff',
@@ -194,8 +194,8 @@ describe('BackgroundPicker', () => {
       kind: 'color',
       color: '#ffffff',
     });
-    fireEvent.press(screen.getByRole('button', { name: 'Eigene Farbe' }));
-    fireEvent.press(screen.getByRole('radio', { name: 'Verlauf' }));
+    await fireEvent.press(screen.getByRole('button', { name: 'Eigene Farbe' }));
+    await fireEvent.press(screen.getByRole('radio', { name: 'Verlauf' }));
     expect(onSelect).toHaveBeenLastCalledWith(
       FREE_BACKGROUND_ID,
       expect.objectContaining({ kind: 'gradient', stops: ['#ffffff', expect.any(String)] })
@@ -208,8 +208,8 @@ describe('BackgroundPicker', () => {
       stops: ['#005538', '#46962b'],
       angle: 180,
     });
-    fireEvent.press(screen.getByRole('button', { name: 'Eigene Farbe' }));
-    fireEvent.press(screen.getByRole('button', { name: 'Diagonal' }));
+    await fireEvent.press(screen.getByRole('button', { name: 'Eigene Farbe' }));
+    await fireEvent.press(screen.getByRole('button', { name: 'Diagonal' }));
     expect(onSelect).toHaveBeenLastCalledWith(
       FREE_BACKGROUND_ID,
       expect.objectContaining({ kind: 'gradient', angle: 135 })
@@ -218,12 +218,12 @@ describe('BackgroundPicker', () => {
 
   it('shows own and saved backgrounds under Deine, then upload and the Marktplatz', async () => {
     const { onPickGallery } = await renderBackgrounds();
-    fireEvent.press(screen.getByRole('radio', { name: 'Deine' }));
+    await fireEvent.press(screen.getByRole('radio', { name: 'Deine' }));
     expect(mockOwn).toHaveBeenCalledWith('background', '');
     expect(screen.getByRole('button', { name: 'Hintergrund „Wiese“' })).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Bild hochladen' })).toBeTruthy();
 
-    fireEvent.press(screen.getByRole('button', { name: 'Hintergründe im Marktplatz' }));
+    await fireEvent.press(screen.getByRole('button', { name: 'Hintergründe im Marktplatz' }));
     await act(async () => {});
     expect(screen.getByRole('header', { name: 'Hintergründe im Marktplatz' })).toBeTruthy();
     // Only backgrounds: no kind tabs, the server is asked for that one kind.
@@ -231,7 +231,7 @@ describe('BackgroundPicker', () => {
     expect(mockMarketplace).toHaveBeenLastCalledWith(
       expect.objectContaining({ kind: 'background', platform: 'mobile', enabled: true })
     );
-    fireEvent.press(screen.getByRole('button', { name: 'Berge' }));
+    await fireEvent.press(screen.getByRole('button', { name: 'Berge' }));
     const { id, kind, src, title, width, height } = shared;
     expect(onPickGallery).toHaveBeenCalledWith({ id, kind, src, title, width, height });
     expect(screen.queryByRole('header', { name: 'Hintergründe im Marktplatz' })).toBeNull();
@@ -246,13 +246,13 @@ describe('BackgroundPicker', () => {
 describe('StickerPicker', () => {
   it('lists the Grüne stickers, then own and saved, then Erstellen and the Marktplatz — no tabs', async () => {
     mockOwn.mockReturnValue(section([asset({ kind: 'sticker', title: 'Herz' })]));
-    render(<StickerPicker isAustria={false} onAdd={jest.fn()} onAddGallery={jest.fn()} />);
+    await render(<StickerPicker isAustria={false} onAdd={jest.fn()} onAddGallery={jest.fn()} />);
     await act(async () => {});
     expect(screen.getByLabelText('Grüne Sticker')).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Sticker „Herz“ hinzufügen' })).toBeTruthy();
     expect(screen.queryByRole('button', { name: 'Gemerkt' })).toBeNull();
 
-    fireEvent.press(screen.getByRole('button', { name: 'Sticker erstellen' }));
+    await fireEvent.press(screen.getByRole('button', { name: 'Sticker erstellen' }));
     expect(router.push).toHaveBeenCalledWith({
       pathname: '/(focused)/sticker-neu',
       params: { return: 'profilbild' },

@@ -58,11 +58,11 @@ describe('useProfilbildAutosave', () => {
     const { persist, rerender } = setup(snapshot(0));
     await pause();
     rerender({ snap: snapshot(10), session: PHOTO });
-    act(() => {
+    await act(() => {
       jest.advanceTimersByTime(AUTOSAVE_DELAY - 100);
     });
     rerender({ snap: snapshot(20), session: PHOTO });
-    act(() => {
+    await act(() => {
       jest.advanceTimersByTime(AUTOSAVE_DELAY - 100);
     });
     expect(persist).toHaveBeenCalledTimes(1);
@@ -96,7 +96,7 @@ describe('useProfilbildAutosave', () => {
 
   it('does not save again what was just saved by hand', async () => {
     const { persist, result } = setup(snapshot(0));
-    act(() => result.current.noteSaved());
+    await act(() => result.current.noteSaved());
     await pause();
     expect(persist).not.toHaveBeenCalled();
     expect(result.current.state).toBe('saved');

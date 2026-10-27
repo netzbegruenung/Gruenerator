@@ -29,31 +29,31 @@ afterEach(() => {
 });
 
 describe('NoticeToast', () => {
-  it('shows a notice and hides it after a few seconds', () => {
-    render(<NoticeToast />);
-    act(() => useNoticeStore.getState().show('warning', 'Websuche eingeschränkt'));
+  it('shows a notice and hides it after a few seconds', async () => {
+    await render(<NoticeToast />);
+    await act(() => useNoticeStore.getState().show('warning', 'Websuche eingeschränkt'));
     expect(screen.getByText('Websuche eingeschränkt')).toBeTruthy();
 
-    act(() => jest.advanceTimersByTime(6000));
+    await act(() => jest.advanceTimersByTime(6000));
     expect(screen.queryByTestId('notice-toast')).toBeNull();
   });
 
-  it('replaces the old notice, and the old timer does not clear the new one', () => {
-    render(<NoticeToast />);
-    act(() => useNoticeStore.getState().show('warning', 'Erste'));
-    act(() => jest.advanceTimersByTime(4000));
-    act(() => useNoticeStore.getState().show('error', 'Zweite', 'Details'));
-    act(() => jest.advanceTimersByTime(3000));
+  it('replaces the old notice, and the old timer does not clear the new one', async () => {
+    await render(<NoticeToast />);
+    await act(() => useNoticeStore.getState().show('warning', 'Erste'));
+    await act(() => jest.advanceTimersByTime(4000));
+    await act(() => useNoticeStore.getState().show('error', 'Zweite', 'Details'));
+    await act(() => jest.advanceTimersByTime(3000));
 
     expect(screen.queryByText('Erste')).toBeNull();
     expect(screen.getByText('Zweite')).toBeTruthy();
     expect(screen.getByText('Details')).toBeTruthy();
   });
 
-  it('closes on tap', () => {
-    render(<NoticeToast />);
-    act(() => useNoticeStore.getState().show('error', 'Export fehlgeschlagen'));
-    fireEvent.press(screen.getByTestId('notice-toast'));
+  it('closes on tap', async () => {
+    await render(<NoticeToast />);
+    await act(() => useNoticeStore.getState().show('error', 'Export fehlgeschlagen'));
+    await fireEvent.press(screen.getByTestId('notice-toast'));
     expect(screen.queryByTestId('notice-toast')).toBeNull();
   });
 });

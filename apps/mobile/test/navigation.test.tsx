@@ -12,6 +12,7 @@ import { jest, describe, it, expect, beforeEach } from '@jest/globals';
 import { render } from '@testing-library/react-native';
 import { Stack, router, useLocalSearchParams, type Href } from 'expo-router';
 import { renderRouter, act } from 'expo-router/testing-library';
+import { useContext } from 'react';
 import { Text } from 'react-native';
 
 import FocusedLayout from '../app/(focused)/_layout';
@@ -29,6 +30,7 @@ import LegacyWebviewEditorRoute from '../app/(fullscreen)/webview-editor';
 import HomeLayout from '../app/(tabs)/_layout';
 import NotFoundScreen from '../app/+not-found';
 import * as NotebookLayout from '../app/notebook/[id]/_layout';
+import { NotebookIdContext } from '../components/notebook/NotebookIdContext';
 import { useChatAgentSelection } from '../hooks/useChatAgentSelection';
 import { routeWithParams } from '../types/routes';
 import { goHome } from '../utils/navigation';
@@ -39,10 +41,14 @@ jest.unmock('expo-router');
 
 const Stub = () => <Text>stub</Text>;
 
-/** The notebook page's own params, as the real page reads them. */
+/**
+ * The notebook id the page gets, as the real page reads it: the anchor page has
+ * no params of its own (and expo-router 58 dropped `initialParams`), so the
+ * layout hands the id down through `NotebookIdContext`.
+ */
 const notebookPageParams = jest.fn();
 const NotebookPage = () => {
-  notebookPageParams(useLocalSearchParams());
+  notebookPageParams({ id: useContext(NotebookIdContext) });
   return <Text>notebook</Text>;
 };
 
@@ -85,7 +91,7 @@ function shape(state: { routes: Route[] } | undefined): string {
   if (!state) return '';
   return `[${state.routes.map((r) => r.name + shape(r.state)).join(', ')}]`;
 }
-function rootShape(r: ReturnType<typeof renderRouter>): string {
+function rootShape(r: Awaited<ReturnType<typeof renderRouter>>): string {
   const root = r.getRouterState() as { routes: Route[] } | undefined;
   return shape(root?.routes[0]?.state);
 }
@@ -100,75 +106,75 @@ describe('notebook chat: back always leads to the notebook (#4017)', () => {
     notebookPageParams.mockClear();
   });
 
-  it('a cold link to the chat opens with the notebook page beneath it', () => {
-    const r = renderRouter(tree, { initialUrl: '/notebook/berlin-notebook/chat' });
+  it('a cold link to the chat opens with the notebook page beneath it', async () => {
+    const r = await renderRouter(tree, { initialUrl: '/notebook/berlin-notebook/chat' });
     expect(rootShape(r)).toBe('[notebook/[id][index, chat]]');
-    act(() => router.back());
+    await act(() => router.back());
     expect(r.getPathname()).toBe('/notebook/berlin-notebook');
   });
 
-  it('a notebook thread opened from the start page backs into its notebook, then home', () => {
-    const r = renderRouter(tree, { initialUrl: '/start' });
-    act(() =>
+  it('a notebook thread opened from the start page backs into its notebook, then home', async () => {
+    const r = await renderRouter(tree, { initialUrl: '/start' });
+    await act(() =>
       openThread({ id: 't1', threadType: 'notebook', notebookCollectionIds: ['berlin-system'] })
     );
     expect(r.getPathname()).toBe('/notebook/berlin-notebook/chat');
     expect(rootShape(r)).toBe('[(tabs)[start], notebook/[id][index, chat]]');
-    act(() => router.back());
+    await act(() => router.back());
     expect(r.getPathname()).toBe('/notebook/berlin-notebook');
     // The page the anchor made knows which notebook it is.
     expect(notebookPageParams).toHaveBeenLastCalledWith(
       expect.objectContaining({ id: 'berlin-notebook' })
     );
-    act(() => router.back());
+    await act(() => router.back());
     expect(r.getPathname()).toBe('/start');
   });
 
-  it('a notebook thread opened from a chat backs into its notebook, then the chat', () => {
-    const r = renderRouter(tree, { initialUrl: '/start' });
-    act(() => router.push('/chat-conversation'));
-    act(() =>
+  it('a notebook thread opened from a chat backs into its notebook, then the chat', async () => {
+    const r = await renderRouter(tree, { initialUrl: '/start' });
+    await act(() => router.push('/chat-conversation'));
+    await act(() =>
       openThread({ id: 't1', threadType: 'notebook', notebookCollectionIds: ['berlin-system'] })
     );
-    act(() => router.back());
+    await act(() => router.back());
     expect(r.getPathname()).toBe('/notebook/berlin-notebook');
-    act(() => router.back());
+    await act(() => router.back());
     expect(r.getPathname()).toBe('/chat-conversation');
   });
 
-  it('a question asked on the notebook page backs onto that same page, no second copy', () => {
-    const r = renderRouter(tree, { initialUrl: '/start' });
-    act(() => router.push(routeWithParams('/notebook/[id]', { id: 'berlin-notebook' })));
-    act(() => router.push(routeWithParams('/notebook/[id]/chat', { id: 'berlin-notebook' })));
+  it('a question asked on the notebook page backs onto that same page, no second copy', async () => {
+    const r = await renderRouter(tree, { initialUrl: '/start' });
+    await act(() => router.push(routeWithParams('/notebook/[id]', { id: 'berlin-notebook' })));
+    await act(() => router.push(routeWithParams('/notebook/[id]/chat', { id: 'berlin-notebook' })));
     expect(rootShape(r)).toBe('[(tabs)[start], notebook/[id][index, chat]]');
-    act(() => router.back());
-    act(() => router.back());
+    await act(() => router.back());
+    await act(() => router.back());
     expect(r.getPathname()).toBe('/start');
   });
 
-  it('a plain chat thread gets no anchor slid in beneath it', () => {
-    const r = renderRouter(tree, { initialUrl: '/start' });
-    act(() => openThread({ id: 't3', threadType: 'chat' }));
+  it('a plain chat thread gets no anchor slid in beneath it', async () => {
+    const r = await renderRouter(tree, { initialUrl: '/start' });
+    await act(() => openThread({ id: 't3', threadType: 'chat' }));
     expect(rootShape(r)).toBe('[(tabs)[start], (focused)[chat-conversation]]');
   });
 });
 
 describe('legacy notebook paths keep resolving', () => {
-  it('/notebook-chat redirects into the nested chat, notebook beneath', () => {
-    const r = renderRouter(tree, {
+  it('/notebook-chat redirects into the nested chat, notebook beneath', async () => {
+    const r = await renderRouter(tree, {
       initialUrl: '/notebook-chat?notebookId=berlin-notebook&threadId=t1',
     });
     expect(r.getPathname()).toBe('/notebook/berlin-notebook/chat');
     expect(r.getSearchParams()).toMatchObject({ threadId: 't1' });
-    act(() => router.back());
+    await act(() => router.back());
     expect(r.getPathname()).toBe('/notebook/berlin-notebook');
     expect(notebookPageParams).toHaveBeenLastCalledWith(
       expect.objectContaining({ id: 'berlin-notebook' })
     );
   });
 
-  it('/notebook-detail redirects to the notebook page', () => {
-    const r = renderRouter(tree, {
+  it('/notebook-detail redirects to the notebook page', async () => {
+    const r = await renderRouter(tree, {
       initialUrl: '/notebook-detail?notebookId=berlin-notebook&kind=system',
     });
     expect(r.getPathname()).toBe('/notebook/berlin-notebook');
@@ -176,81 +182,81 @@ describe('legacy notebook paths keep resolving', () => {
 });
 
 describe('tools and Wissen open on a stack, not as hidden tabs', () => {
-  it('each tool backs out to home, and the next one does not sit on the last', () => {
-    const r = renderRouter(tree, { initialUrl: '/start' });
-    act(() => router.push('/(focused)/scanner'));
-    act(() => router.back());
+  it('each tool backs out to home, and the next one does not sit on the last', async () => {
+    const r = await renderRouter(tree, { initialUrl: '/start' });
+    await act(() => router.push('/(focused)/scanner'));
+    await act(() => router.back());
     expect(r.getPathname()).toBe('/start');
-    act(() => router.push('/(focused)/reel'));
+    await act(() => router.push('/(focused)/reel'));
     expect(rootShape(r)).toBe('[(tabs)[start], (focused)[reel]]');
-    act(() => router.back());
+    await act(() => router.back());
     expect(r.getPathname()).toBe('/start');
   });
 
-  it('Vorlagen and Wissen have a screen to go back to', () => {
-    const r = renderRouter(tree, { initialUrl: '/start' });
+  it('Vorlagen and Wissen have a screen to go back to', async () => {
+    const r = await renderRouter(tree, { initialUrl: '/start' });
     for (const path of ['/(focused)/vorlagen', '/(focused)/wissen'] as const) {
-      act(() => router.push(path));
+      await act(() => router.push(path));
       expect(router.canGoBack()).toBe(true);
-      act(() => router.back());
+      await act(() => router.back());
       expect(r.getPathname()).toBe('/start');
     }
   });
 
-  it('the tool paths are unchanged by the move (F0)', () => {
-    expect(renderRouter(tree, { initialUrl: '/vorlagen' }).getPathname()).toBe('/vorlagen');
+  it('the tool paths are unchanged by the move (F0)', async () => {
+    expect((await renderRouter(tree, { initialUrl: '/vorlagen' })).getPathname()).toBe('/vorlagen');
   });
 });
 
 describe('the old sticker Entdecken is the Marktplatz now', () => {
-  it('/sticker-entdecken redirects to the Sticker tab, search kept', () => {
-    const r = renderRouter(tree, { initialUrl: '/sticker-entdecken?q=sonne' });
+  it('/sticker-entdecken redirects to the Sticker tab, search kept', async () => {
+    const r = await renderRouter(tree, { initialUrl: '/sticker-entdecken?q=sonne' });
     expect(r.getPathname()).toBe('/marktplatz');
     expect(r.getSearchParams()).toMatchObject({ art: 'sticker', q: 'sonne' });
   });
 });
 
 describe('going home leaves exactly one home', () => {
-  it('from a fullscreen editor above a tool', () => {
-    const r = renderRouter(tree, { initialUrl: '/start' });
-    act(() => router.push('/(focused)/reel'));
-    act(() => router.push('/(fullscreen)/subtitle-editor'));
-    act(() => goHome());
+  it('from a fullscreen editor above a tool', async () => {
+    const r = await renderRouter(tree, { initialUrl: '/start' });
+    await act(() => router.push('/(focused)/reel'));
+    await act(() => router.push('/(fullscreen)/subtitle-editor'));
+    await act(() => goHome());
     expect(rootShape(r)).toBe('[(tabs)[start]]');
   });
 
-  it('from a cold link', () => {
-    const r = renderRouter(tree, { initialUrl: '/subtitle-editor' });
-    act(() => goHome());
+  it('from a cold link', async () => {
+    const r = await renderRouter(tree, { initialUrl: '/subtitle-editor' });
+    await act(() => goHome());
     expect(rootShape(r)).toBe('[(tabs)[start]]');
   });
 });
 
 describe('unknown paths', () => {
-  it('a cold link to a path without a screen lands at home', () => {
-    const r = renderRouter(tree, { initialUrl: '/gibt-es-nicht' });
+  it('a cold link to a path without a screen lands at home', async () => {
+    const r = await renderRouter(tree, { initialUrl: '/gibt-es-nicht' });
     expect(r.getPathname()).toBe('/start');
     expect(rootShape(r)).toBe('[(tabs)[start]]');
   });
 
-  it('pushed on top of a running app, it returns home without a second home', () => {
-    const r = renderRouter(tree, { initialUrl: '/start' });
-    act(() => router.push('/(focused)/reel'));
-    act(() => router.push('/gibt-es-nicht' as Href));
+  it('pushed on top of a running app, it returns home without a second home', async () => {
+    const r = await renderRouter(tree, { initialUrl: '/start' });
+    await act(() => router.push('/(focused)/reel'));
+    await act(() => router.push('/gibt-es-nicht' as Href));
     expect(r.getPathname()).toBe('/start');
     expect(rootShape(r)).toBe('[(tabs)[start]]');
   });
 });
 
 describe('switching threads from the drawer', () => {
-  it('swaps the open chat instead of stacking every thread looked at', () => {
-    const r = renderRouter(tree, { initialUrl: '/start' });
-    act(() => router.push('/chat-conversation?threadId=a'));
+  it('swaps the open chat instead of stacking every thread looked at', async () => {
+    const r = await renderRouter(tree, { initialUrl: '/start' });
+    await act(() => router.push('/chat-conversation?threadId=a'));
     // What `drawerOpenMode` answers for a chat-to-chat switch.
-    act(() => router.replace('/chat-conversation?threadId=b'));
-    act(() => router.replace('/chat-conversation?threadId=c'));
+    await act(() => router.replace('/chat-conversation?threadId=b'));
+    await act(() => router.replace('/chat-conversation?threadId=c'));
     expect(rootShape(r)).toBe('[(tabs)[start], (focused)[chat-conversation]]');
-    act(() => router.back());
+    await act(() => router.back());
     expect(r.getPathname()).toBe('/start');
   });
 });
@@ -273,54 +279,54 @@ describe('the agent store across a drawer swap', () => {
     });
   });
 
-  it('keeps the agent and its notebook when both threads use the same agent', () => {
+  it('keeps the agent and its notebook when both threads use the same agent', async () => {
     expect(getSystemAgent(SAARLAND)?.defaultNotebookIds?.[0]).toBe('saarland-notebook');
-    renderRouter(chatTree, { initialUrl: '/start' });
-    act(() => router.push(`/chat-conversation?threadId=a&agentId=${SAARLAND}`));
-    act(() => useAgentStore.getState().setThreadMode('notebook'));
-    act(() => router.replace(`/chat-conversation?threadId=b&agentId=${SAARLAND}`));
+    await renderRouter(chatTree, { initialUrl: '/start' });
+    await act(() => router.push(`/chat-conversation?threadId=a&agentId=${SAARLAND}`));
+    await act(() => useAgentStore.getState().setThreadMode('notebook'));
+    await act(() => router.replace(`/chat-conversation?threadId=b&agentId=${SAARLAND}`));
     const state = useAgentStore.getState();
     expect(state.selectedAgentId).toBe(SAARLAND);
     expect(state.selectedNotebookId).toBe('saarland-notebook');
   });
 
-  it('keeps the next agent when the agents differ', () => {
-    renderRouter(chatTree, { initialUrl: '/start' });
-    act(() => router.push('/chat-conversation?threadId=a&agentId=gruenerator-universal'));
-    act(() => router.replace(`/chat-conversation?threadId=b&agentId=${SAARLAND}`));
+  it('keeps the next agent when the agents differ', async () => {
+    await renderRouter(chatTree, { initialUrl: '/start' });
+    await act(() => router.push('/chat-conversation?threadId=a&agentId=gruenerator-universal'));
+    await act(() => router.replace(`/chat-conversation?threadId=b&agentId=${SAARLAND}`));
     expect(useAgentStore.getState().selectedAgentId).toBe(SAARLAND);
     expect(useAgentStore.getState().selectedNotebookId).toBe('saarland-notebook');
   });
 
   // A native stack keeps the replaced screen mounted until its exit animation
   // ends, so the next chat writes the store before the old one cleans up.
-  it('the outgoing chat cleaning up late leaves the next chat alone', () => {
+  it('the outgoing chat cleaning up late leaves the next chat alone', async () => {
     const Chat = ({ agentId }: { agentId: string }) => {
       useChatAgentSelection(agentId, 'de-DE');
       return null;
     };
-    const r = render(<Chat key="a" agentId={SAARLAND} />);
-    act(() => useAgentStore.getState().setThreadMode('notebook'));
-    r.rerender(
+    const r = await render(<Chat key="a" agentId={SAARLAND} />);
+    await act(() => useAgentStore.getState().setThreadMode('notebook'));
+    await r.rerender(
       <>
         <Chat key="a" agentId={SAARLAND} />
         <Chat key="b" agentId={SAARLAND} />
       </>
     );
-    act(() => useAgentStore.getState().setThreadMode('notebook'));
-    r.rerender(<Chat key="b" agentId={SAARLAND} />);
+    await act(() => useAgentStore.getState().setThreadMode('notebook'));
+    await r.rerender(<Chat key="b" agentId={SAARLAND} />);
     const state = useAgentStore.getState();
     expect(state.selectedAgentId).toBe(SAARLAND);
     expect(state.selectedNotebookId).toBe('saarland-notebook');
     expect(state.threadMode).toBe('notebook');
   });
 
-  it('resets everything once the last chat is left', () => {
-    const r = renderRouter(chatTree, { initialUrl: '/start' });
-    act(() => router.push(`/chat-conversation?threadId=a&agentId=${SAARLAND}`));
-    act(() => useAgentStore.getState().setThreadMode('notebook'));
-    act(() => router.replace(`/chat-conversation?threadId=b&agentId=${SAARLAND}`));
-    act(() => router.back());
+  it('resets everything once the last chat is left', async () => {
+    const r = await renderRouter(chatTree, { initialUrl: '/start' });
+    await act(() => router.push(`/chat-conversation?threadId=a&agentId=${SAARLAND}`));
+    await act(() => useAgentStore.getState().setThreadMode('notebook'));
+    await act(() => router.replace(`/chat-conversation?threadId=b&agentId=${SAARLAND}`));
+    await act(() => router.back());
     expect(r.getPathname()).toBe('/start');
     const state = useAgentStore.getState();
     expect(state.selectedAgentId).toBeNull();
@@ -340,8 +346,8 @@ describe('retired screens keep their URLs (#4025)', () => {
     ['/webview-editor', '/bild-editor'],
     ['/research', '/wissen'],
     ['/all-threads', '/start'],
-  ])('%s lands on %s', (from, to) => {
-    const r = renderRouter(tree, { initialUrl: from });
+  ])('%s lands on %s', async (from, to) => {
+    const r = await renderRouter(tree, { initialUrl: from });
     expect(r.getPathname()).toBe(to);
   });
 });

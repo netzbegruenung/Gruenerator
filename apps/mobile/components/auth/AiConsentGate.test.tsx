@@ -40,21 +40,21 @@ beforeEach(() => {
 });
 
 describe('AiConsentGate (mobile)', () => {
-  it('bleibt weg, wenn die Einwilligung vorliegt', () => {
+  it('bleibt weg, wenn die Einwilligung vorliegt', async () => {
     mockStore({ ai_consent_at: '2026-01-01T00:00:00.000Z' });
-    render(<AiConsentGate />);
+    await render(<AiConsentGate />);
     expect(screen.queryByText(TITLE)).toBeNull();
   });
 
-  it('bleibt weg, solange niemand angemeldet ist', () => {
+  it('bleibt weg, solange niemand angemeldet ist', async () => {
     mockStore(null);
-    render(<AiConsentGate />);
+    await render(<AiConsentGate />);
     expect(screen.queryByText(TITLE)).toBeNull();
   });
 
-  it('fragt, sobald die Einwilligung fehlt', () => {
+  it('fragt, sobald die Einwilligung fehlt', async () => {
     mockStore({ ai_consent_at: null });
-    render(<AiConsentGate />);
+    await render(<AiConsentGate />);
     expect(screen.getByText(TITLE)).toBeTruthy();
   });
 
@@ -64,9 +64,9 @@ describe('AiConsentGate (mobile)', () => {
   // ersatzlos weg — das ist kein Schoenheitsfehler, sondern genau die
   // redaktionelle Kontrolle, auf die sich die Ausnahme von der
   // Kennzeichnungspflicht stuetzt. Geprueft wird die Aussage, nicht der Satzbau.
-  it('nennt die redaktionelle Pruefung, die die Kennzeichnung ersetzt', () => {
+  it('nennt die redaktionelle Pruefung, die die Kennzeichnung ersetzt', async () => {
     mockStore({ ai_consent_at: null });
-    render(<AiConsentGate />);
+    await render(<AiConsentGate />);
     expect(screen.getByText(/Art\. 50 Abs\. 4 KI-VO/)).toBeTruthy();
     expect(screen.getByText(/bevor Du sie ver\u00f6ffentlichst/)).toBeTruthy();
   });
@@ -77,21 +77,21 @@ describe('AiConsentGate (mobile)', () => {
   // angewöhnt zu überlesen, und dann übersieht man die echten.
   it('bestätigt erst nach dem Haken', async () => {
     mockStore({ ai_consent_at: null });
-    render(<AiConsentGate />);
+    await render(<AiConsentGate />);
 
-    fireEvent.press(screen.getByText(CONFIRM));
+    await fireEvent.press(screen.getByText(CONFIRM));
     expect(setAiConsent).not.toHaveBeenCalled();
 
-    fireEvent.press(screen.getByRole('checkbox'));
-    fireEvent.press(screen.getByText(CONFIRM));
+    await fireEvent.press(screen.getByRole('checkbox'));
+    await fireEvent.press(screen.getByText(CONFIRM));
     await waitFor(() => expect(setAiConsent).toHaveBeenCalledWith(true));
   });
 
-  it('lässt sich ohne Einwilligung verlassen', () => {
+  it('lässt sich ohne Einwilligung verlassen', async () => {
     mockStore({ ai_consent_at: null });
-    render(<AiConsentGate />);
+    await render(<AiConsentGate />);
 
-    fireEvent.press(screen.getByText('Ohne Einwilligung abmelden'));
+    await fireEvent.press(screen.getByText('Ohne Einwilligung abmelden'));
     expect(mockLogout).toHaveBeenCalled();
     expect(setAiConsent).not.toHaveBeenCalled();
   });

@@ -43,17 +43,17 @@ describe('SegmentedControl', () => {
     for (const radio of screen.getAllByRole('radio')) expect(radio).not.toBeChecked();
   });
 
-  it('reports the tapped value', () => {
+  it('reports the tapped value', async () => {
     const onChange = renderControl('oben');
-    fireEvent.press(screen.getByText('Mitte'));
+    await fireEvent.press(screen.getByText('Mitte'));
     expect(onChange).toHaveBeenCalledWith('mitte');
   });
 
-  it('does not press a disabled option', () => {
+  it('does not press a disabled option', async () => {
     const onChange = renderControl('oben');
     const disabled = screen.getByRole('radio', { name: 'Text unten' });
     expect(disabled).toBeDisabled();
-    fireEvent.press(disabled);
+    await fireEvent.press(disabled);
     expect(onChange).not.toHaveBeenCalled();
   });
 });

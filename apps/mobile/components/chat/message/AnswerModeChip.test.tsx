@@ -6,8 +6,8 @@ import { lightTheme } from '../../../theme/colors';
 import { AnswerModeChip } from './AnswerModeChip';
 
 describe('AnswerModeChip', () => {
-  it('names the mode and announces it as one label', () => {
-    render(
+  it('names the mode and announces it as one label', async () => {
+    await render(
       <AnswerModeChip
         view={{
           label: 'Präzisionsmodus',
@@ -24,8 +24,8 @@ describe('AnswerModeChip', () => {
     ).toBeTruthy();
   });
 
-  it('shows no hint when the person chose the mode', () => {
-    render(
+  it('shows no hint when the person chose the mode', async () => {
+    await render(
       <AnswerModeChip
         view={{ label: 'Chatmodus', hint: null, accessibilityLabel: 'Beantwortet im Chatmodus' }}
         theme={lightTheme}

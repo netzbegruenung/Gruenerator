@@ -111,25 +111,25 @@ beforeEach(() => {
 });
 
 describe('SharepicCreatorScreen', () => {
-  it('introduces itself and sends what is typed', () => {
+  it('introduces itself and sends what is typed', async () => {
     useCreator.mockReturnValue(state());
     renderScreen();
     expect(screen.getByText(/Beschreib dein Sharepic/)).toBeTruthy();
-    fireEvent.changeText(screen.getByPlaceholderText('Schreibe …'), 'Mehr Radwege');
-    fireEvent.press(screen.getByText('Senden'));
+    await fireEvent.changeText(screen.getByPlaceholderText('Schreibe …'), 'Mehr Radwege');
+    await fireEvent.press(screen.getByText('Senden'));
     expect(send).toHaveBeenCalledWith('Mehr Radwege');
     expect(screen.getByRole('button', { name: 'Senden' })).not.toBeDisabled();
   });
 
-  it('does not send while a turn is running and says what it is doing', () => {
+  it('does not send while a turn is running and says what it is doing', async () => {
     useCreator.mockReturnValue(
       state({ phase: 'drafting', messages: [{ id: 0, role: 'user', text: 'x', error: false }] })
     );
     renderScreen();
     expect(screen.getByText('Entwirft …')).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Senden' })).toBeDisabled();
-    fireEvent.changeText(screen.getByPlaceholderText('Schreibe …'), 'noch was');
-    fireEvent.press(screen.getByText('Senden'));
+    await fireEvent.changeText(screen.getByPlaceholderText('Schreibe …'), 'noch was');
+    await fireEvent.press(screen.getByText('Senden'));
     expect(send).not.toHaveBeenCalled();
   });
 
@@ -151,7 +151,7 @@ describe('SharepicCreatorScreen', () => {
     expect(screen.getByText('Der Text ist zu lang.')).toBeTruthy();
   });
 
-  it('offers editing when a slide is held', () => {
+  it('offers editing when a slide is held', async () => {
     useCreator.mockReturnValue(
       state({
         phase: 'ready',
@@ -164,7 +164,7 @@ describe('SharepicCreatorScreen', () => {
     );
     renderScreen();
     expect(screen.queryByText('Bearbeiten')).toBeNull();
-    fireEvent(screen.getByLabelText('Folie 1 von 1'), 'longPress');
+    await fireEvent(screen.getByLabelText('Folie 1 von 1'), 'longPress');
     expect(screen.getByRole('button', { name: 'Bearbeiten' })).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Feinschliff' })).toBeTruthy();
   });

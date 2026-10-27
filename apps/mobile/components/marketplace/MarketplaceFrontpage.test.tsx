@@ -169,7 +169,7 @@ describe('MarketplaceFrontpage', () => {
     // One request for the whole page, asking for what the app can open.
     expect(mockFrontpage).toHaveBeenCalledWith({ platform: 'mobile' });
 
-    fireEvent.press(screen.getByText('Im Chat ausprobieren'));
+    await fireEvent.press(screen.getByText('Im Chat ausprobieren'));
     expect(router.push).toHaveBeenCalledWith(
       expect.objectContaining({
         params: expect.objectContaining({ agentId: 'gruenerator-leichte-sprache' }),
@@ -206,7 +206,7 @@ describe('MarketplaceFrontpage', () => {
     expect(screen.getByRole('header', { name: 'Themen' })).toBeTruthy();
     expect(screen.queryByRole('button', { name: 'Wahlkampf für Moritz' })).toBeNull();
 
-    fireEvent.press(screen.getByRole('button', { name: 'Queer und sichtbar' }));
+    await fireEvent.press(screen.getByRole('button', { name: 'Queer und sichtbar' }));
     expect(router.push).toHaveBeenCalledWith({
       pathname: '/(focused)/marktplatz',
       params: { kollektion: 'queer' },
@@ -216,7 +216,7 @@ describe('MarketplaceFrontpage', () => {
   it('opens a category from its photo tile', async () => {
     setup({});
     await renderStart();
-    fireEvent.press(screen.getByRole('button', { name: /^Zum Gestalten, Vorlagen/ }));
+    await fireEvent.press(screen.getByRole('button', { name: /^Zum Gestalten, Vorlagen/ }));
     expect(router.push).toHaveBeenCalledWith({
       pathname: '/(focused)/marktplatz',
       params: { kategorie: 'vorlagen' },
@@ -236,7 +236,7 @@ describe('MarketplaceFrontpage', () => {
 
     const own = screen.getByRole('button', { name: /Dein Landesverband/ });
     expect(own.props.accessibilityLabel).toBe('Hessen, Dein Landesverband');
-    fireEvent.press(own);
+    await fireEvent.press(own);
     expect(router.push).toHaveBeenCalledWith({
       pathname: '/(focused)/marktplatz/landesverband/[slug]',
       params: { slug: expect.stringContaining('hessen') },
@@ -289,14 +289,14 @@ describe('MarketplaceFrontpage', () => {
   it('a filter leaves the front page for the list', async () => {
     setup({ neu: [agent('neu1')] });
     await renderStart();
-    fireEvent.press(screen.getByRole('button', { name: 'Alle anzeigen: Neu im Marktplatz' }));
+    await fireEvent.press(screen.getByRole('button', { name: 'Alle anzeigen: Neu im Marktplatz' }));
     expect(screen.queryByRole('header', { name: 'Leichte Sprache' })).toBeNull();
     expect(mockSections).toHaveBeenLastCalledWith(
       expect.objectContaining({ sort: 'neu', enabled: true })
     );
     // The filter shows as a chip, and „Zurücksetzen" leads back to the front page.
     expect(screen.getByRole('button', { name: 'Filter entfernen: Neu' })).toBeTruthy();
-    fireEvent.press(screen.getByText('Zurücksetzen'));
+    await fireEvent.press(screen.getByText('Zurücksetzen'));
     expect(screen.getByRole('header', { name: 'Leichte Sprache' })).toBeTruthy();
   });
 });

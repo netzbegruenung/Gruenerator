@@ -122,7 +122,7 @@ describe('confirming', () => {
     mockConfirm.mockResolvedValueOnce({ status: 'confirmed', url: null });
     renderCard();
 
-    fireEvent.press(screen.getByText('Speichern'));
+    await fireEvent.press(screen.getByText('Speichern'));
 
     await settle();
 
@@ -135,7 +135,7 @@ describe('confirming', () => {
     mockConfirm.mockResolvedValueOnce({ status: 'confirmed', url: '/document/abc123' });
     renderCard();
 
-    fireEvent.press(screen.getByText('Speichern'));
+    await fireEvent.press(screen.getByText('Speichern'));
 
     expect(await screen.findByText('Dokument öffnen')).toBeTruthy();
   });
@@ -144,7 +144,7 @@ describe('confirming', () => {
     mockConfirm.mockResolvedValueOnce({ status: 'confirmed', url: '/gruppen/42' });
     renderCard();
 
-    fireEvent.press(screen.getByText('Speichern'));
+    await fireEvent.press(screen.getByText('Speichern'));
 
     await settle();
 
@@ -157,7 +157,7 @@ describe('confirming', () => {
     mockConfirm.mockResolvedValueOnce({ status: 'confirmed', url: '/document/abc123' });
     renderCard({ ...ACTION, type: 'modify_board' });
 
-    fireEvent.press(screen.getByText('Speichern'));
+    await fireEvent.press(screen.getByText('Speichern'));
 
     expect(await screen.findByText('Board öffnen')).toBeTruthy();
   });
@@ -166,8 +166,8 @@ describe('confirming', () => {
     mockConfirm.mockResolvedValueOnce({ status: 'confirmed', url: '/office/abc123?tab=chat' });
     renderCard();
 
-    fireEvent.press(screen.getByText('Speichern'));
-    fireEvent.press(await screen.findByText('Dokument öffnen'));
+    await fireEvent.press(screen.getByText('Speichern'));
+    await fireEvent.press(await screen.findByText('Dokument öffnen'));
 
     expect(router.push).toHaveBeenCalledWith({
       pathname: '/(fullscreen)/doc-editor',
@@ -181,7 +181,7 @@ describe('rejecting and expiry', () => {
     mockConfirm.mockResolvedValueOnce({ status: 'rejected' });
     renderCard();
 
-    fireEvent.press(screen.getByText('Abbrechen'));
+    await fireEvent.press(screen.getByText('Abbrechen'));
 
     expect(await screen.findByText('Abgebrochen')).toBeTruthy();
     expect(mockConfirm).toHaveBeenCalledWith(ACTION, false);
@@ -191,7 +191,7 @@ describe('rejecting and expiry', () => {
     mockConfirm.mockResolvedValueOnce({ status: 'expired' });
     renderCard();
 
-    fireEvent.press(screen.getByText('Speichern'));
+    await fireEvent.press(screen.getByText('Speichern'));
 
     expect(await screen.findByText('Aktion abgelaufen')).toBeTruthy();
   });
@@ -202,7 +202,7 @@ describe('error state', () => {
     mockConfirm.mockResolvedValueOnce({ status: 'error', message: 'Speichern fehlgeschlagen' });
     renderCard();
 
-    fireEvent.press(screen.getByText('Speichern'));
+    await fireEvent.press(screen.getByText('Speichern'));
 
     expect(await screen.findByText('Speichern fehlgeschlagen')).toBeTruthy();
     expect(screen.getByText('Erneut versuchen')).toBeTruthy();
@@ -212,14 +212,14 @@ describe('error state', () => {
     mockConfirm.mockResolvedValueOnce({ status: 'error', message: 'Netzwerkfehler' });
     renderCard();
 
-    fireEvent.press(screen.getByText('Speichern'));
-    fireEvent.press(await screen.findByText('Erneut versuchen'));
+    await fireEvent.press(screen.getByText('Speichern'));
+    await fireEvent.press(await screen.findByText('Erneut versuchen'));
 
     expect(screen.getByText('Speichern')).toBeTruthy();
     expect(screen.queryByText('Netzwerkfehler')).toBeNull();
 
     mockConfirm.mockResolvedValueOnce({ status: 'confirmed', url: null });
-    fireEvent.press(screen.getByText('Speichern'));
+    await fireEvent.press(screen.getByText('Speichern'));
 
     await waitFor(() => expect(mockConfirm).toHaveBeenCalledTimes(2));
   });
@@ -228,7 +228,7 @@ describe('error state', () => {
     const { resolve } = deferOutcome();
     renderCard();
 
-    fireEvent.press(screen.getByText('Speichern'));
+    await fireEvent.press(screen.getByText('Speichern'));
 
     // Mid-flight: spinner is up, no error text yet.
     expect(screen.UNSAFE_queryAllByType(ActivityIndicator)).toHaveLength(1);
@@ -247,9 +247,9 @@ describe('double submission', () => {
     const { resolve } = deferOutcome();
     renderCard();
 
-    fireEvent.press(screen.getByText('Speichern'));
-    fireEvent.press(screen.getByText('Speichern'));
-    fireEvent.press(screen.getByText('Abbrechen'));
+    await fireEvent.press(screen.getByText('Speichern'));
+    await fireEvent.press(screen.getByText('Speichern'));
+    await fireEvent.press(screen.getByText('Abbrechen'));
 
     expect(mockConfirm).toHaveBeenCalledTimes(1);
 

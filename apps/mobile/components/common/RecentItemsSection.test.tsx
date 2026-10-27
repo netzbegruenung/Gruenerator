@@ -52,8 +52,8 @@ const items: RecentItem[] = [
 ];
 
 describe('RecentItemsSection previews', () => {
-  it('draws board, sheet and presentation content in grid mode', () => {
-    render(<RecentItemsSection title="Zuletzt" items={items} onOpen={() => {}} />);
+  it('draws board, sheet and presentation content in grid mode', async () => {
+    await render(<RecentItemsSection title="Zuletzt" items={items} onOpen={() => {}} />);
 
     expect(screen.getByText('In Arbeit', { includeHiddenElements: true })).toBeTruthy();
     expect(screen.getByText('Lastenrad-Verleih', { includeHiddenElements: true })).toBeTruthy();
@@ -65,8 +65,10 @@ describe('RecentItemsSection previews', () => {
     expect(screen.queryByText('Posten', { includeHiddenElements: true })).toBeNull();
   });
 
-  it('keeps the type icon in the 48-dp list rows', () => {
-    render(<RecentItemsSection title="Zuletzt" items={items} viewMode="list" onOpen={() => {}} />);
+  it('keeps the type icon in the 48-dp list rows', async () => {
+    await render(
+      <RecentItemsSection title="Zuletzt" items={items} viewMode="list" onOpen={() => {}} />
+    );
 
     expect(screen.queryByText('In Arbeit', { includeHiddenElements: true })).toBeNull();
     expect(screen.queryByText('Plakate', { includeHiddenElements: true })).toBeNull();

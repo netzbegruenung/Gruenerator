@@ -35,16 +35,16 @@ describe('VorlagenHeaderActions', () => {
     expect(screen.getByTestId('filter-dot')).toBeTruthy();
   });
 
-  it('reports the bookmark and card size toggles as selected', () => {
+  it('reports the bookmark and card size toggles as selected', async () => {
     const h = renderActions({ onlyBookmarked: true, gridSize: 'large' });
     const bookmark = screen.getByRole('button', { name: 'Nur gemerkte Vorlagen' });
     const size = screen.getByRole('button', { name: 'Große Kacheln' });
     expect(bookmark.props.accessibilityState).toEqual(expect.objectContaining({ selected: true }));
     expect(size.props.accessibilityState).toEqual(expect.objectContaining({ selected: true }));
 
-    fireEvent.press(bookmark);
-    fireEvent.press(size);
-    fireEvent.press(screen.getByRole('button', { name: 'Filter' }));
+    await fireEvent.press(bookmark);
+    await fireEvent.press(size);
+    await fireEvent.press(screen.getByRole('button', { name: 'Filter' }));
     expect(h.onToggleBookmarked).toHaveBeenCalled();
     expect(h.onToggleGridSize).toHaveBeenCalled();
     expect(h.onOpenFilter).toHaveBeenCalled();

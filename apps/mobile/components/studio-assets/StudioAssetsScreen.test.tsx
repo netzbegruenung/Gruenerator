@@ -146,12 +146,12 @@ describe('StudioAssetsScreen', () => {
   it('points an empty collection at the creator and the Marktplatz', async () => {
     await renderScreen([]);
     expect(screen.getByText('Noch keine Sticker oder Hintergründe')).toBeTruthy();
-    fireEvent.press(screen.getByRole('button', { name: 'Zum Marktplatz' }));
+    await fireEvent.press(screen.getByRole('button', { name: 'Zum Marktplatz' }));
     expect(router.push).toHaveBeenCalledWith({
       pathname: '/(focused)/marktplatz',
       params: { art: 'sticker' },
     });
-    fireEvent.press(screen.getByRole('button', { name: 'Sticker erstellen' }));
+    await fireEvent.press(screen.getByRole('button', { name: 'Sticker erstellen' }));
     expect(router.push).toHaveBeenCalledWith('/(focused)/sticker-neu');
   });
 
@@ -159,8 +159,8 @@ describe('StudioAssetsScreen', () => {
     await renderScreen([theirs]);
     openMenu('Sonnenblume');
     expect(screen.queryByText('Löschen')).toBeNull();
-    fireEvent.press(screen.getByText('Melden'));
-    act(() => jest.runOnlyPendingTimers());
+    await fireEvent.press(screen.getByText('Melden'));
+    await act(() => jest.runOnlyPendingTimers());
     expect(screen.getByText('Inhalt melden')).toBeTruthy();
   });
 
@@ -171,10 +171,10 @@ describe('StudioAssetsScreen', () => {
     mockSubmit.mockResolvedValue(outcome);
     await renderScreen([theirs]);
     openMenu('Sonnenblume');
-    fireEvent.press(screen.getByText('Melden'));
-    act(() => jest.runOnlyPendingTimers());
-    fireEvent.press(screen.getByLabelText('Rechtswidrig'));
-    await act(async () => fireEvent.press(screen.getByLabelText('Melden')));
+    await fireEvent.press(screen.getByText('Melden'));
+    await act(() => jest.runOnlyPendingTimers());
+    await fireEvent.press(screen.getByLabelText('Rechtswidrig'));
+    await act(async () => await fireEvent.press(screen.getByLabelText('Melden')));
 
     expect(mockSubmit).toHaveBeenCalled();
     expect(mockInvalidate).toHaveBeenCalledTimes(refreshes);
@@ -194,8 +194,8 @@ describe('StudioAssetsScreen', () => {
   it('hands the item to the Profilbild as route params', async () => {
     await renderScreen([theirs]);
     openMenu('Sonnenblume');
-    fireEvent.press(screen.getByText('Im Profilbild verwenden'));
-    act(() => jest.runOnlyPendingTimers());
+    await fireEvent.press(screen.getByText('Im Profilbild verwenden'));
+    await act(() => jest.runOnlyPendingTimers());
     expect(router.push).toHaveBeenCalledWith({
       pathname: '/(focused)/profilbild',
       params: {
@@ -212,7 +212,7 @@ describe('StudioAssetsScreen', () => {
   it('toggles a like from the menu without leaving the tile', async () => {
     await renderScreen([theirs]);
     openMenu('Sonnenblume');
-    fireEvent.press(screen.getByText('Gefällt mir'));
+    await fireEvent.press(screen.getByText('Gefällt mir'));
     expect(mockToggleLike).toHaveBeenCalledWith(theirs);
   });
 });

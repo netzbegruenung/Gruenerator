@@ -120,7 +120,7 @@ describe('ResearchDocumentReader (mobile)', () => {
     const client = new QueryClient({
       defaultOptions: { queries: { retry: false, gcTime: Infinity } },
     });
-    render(
+    await render(
       <QueryClientProvider client={client}>
         <ResearchDocumentReader
           documentId="doc-uuid"
@@ -146,11 +146,11 @@ describe('ResearchDocumentReader (mobile)', () => {
     renderReader();
     await screen.findByLabelText('Stelle 1 von 2');
 
-    fireEvent.press(screen.getByLabelText('Nächste Stelle'));
+    await fireEvent.press(screen.getByLabelText('Nächste Stelle'));
     expect(screen.getByLabelText('Stelle 2 von 2')).toBeTruthy();
-    fireEvent.press(screen.getByLabelText('Nächste Stelle'));
+    await fireEvent.press(screen.getByLabelText('Nächste Stelle'));
     expect(screen.getByLabelText('Stelle 1 von 2')).toBeTruthy();
-    fireEvent.press(screen.getByLabelText('Vorherige Stelle'));
+    await fireEvent.press(screen.getByLabelText('Vorherige Stelle'));
     expect(screen.getByLabelText('Stelle 2 von 2')).toBeTruthy();
   });
 
@@ -166,7 +166,7 @@ describe('ResearchDocumentReader (mobile)', () => {
     mockFetch.mockRejectedValue(new Error('404'));
     renderReader();
 
-    fireEvent.press(await screen.findByText('Im Web öffnen'));
+    await fireEvent.press(await screen.findByText('Im Web öffnen'));
     expect(WebBrowser.openBrowserAsync).toHaveBeenCalledWith(DOC.sourceUrl);
   });
 
@@ -175,9 +175,9 @@ describe('ResearchDocumentReader (mobile)', () => {
     const onOpenInChat = jest.fn();
     renderReader(onOpenInChat);
 
-    fireEvent.press(await screen.findByText('Mit KI zusammenfassen'));
+    await fireEvent.press(await screen.findByText('Mit KI zusammenfassen'));
     expect(onOpenInChat).toHaveBeenLastCalledWith(DOC.title, 'Fasse dieses Dokument zusammen.');
-    fireEvent.press(screen.getByText('Im Chat besprechen'));
+    await fireEvent.press(screen.getByText('Im Chat besprechen'));
     expect(onOpenInChat).toHaveBeenLastCalledWith(DOC.title, null);
   });
 
@@ -193,7 +193,7 @@ describe('ResearchDocumentReader (mobile)', () => {
   it('goes back to the results', async () => {
     mockFetch.mockResolvedValue(DOC);
     renderReader();
-    fireEvent.press(screen.getByLabelText('Zurück zu den Ergebnissen'));
+    await fireEvent.press(screen.getByLabelText('Zurück zu den Ergebnissen'));
     expect(onClose).toHaveBeenCalled();
   });
 

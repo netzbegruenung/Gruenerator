@@ -48,7 +48,7 @@ const renderCard = (
 };
 
 describe('ToolApprovalCard', () => {
-  it('shows the service warning, all decisions, and expandable arguments', () => {
+  it('shows the service warning, all decisions, and expandable arguments', async () => {
     renderCard();
 
     expect(screen.getByText('Datei teilen ausführen?')).toBeTruthy();
@@ -57,7 +57,7 @@ describe('ToolApprovalCard', () => {
     expect(screen.getByText('Immer erlauben')).toBeTruthy();
     expect(screen.getByText('Ablehnen')).toBeTruthy();
 
-    fireEvent.press(screen.getByLabelText('Übergabewerte anzeigen'));
+    await fireEvent.press(screen.getByLabelText('Übergabewerte anzeigen'));
     expect(screen.getByText(/Plan\.pdf/)).toBeTruthy();
   });
 
@@ -66,25 +66,25 @@ describe('ToolApprovalCard', () => {
     { label: 'Immer erlauben', approved: true, optionId: 'allow-always' },
   ] as const)(
     'submits $label through the assistant-ui approval callback',
-    ({ label, approved, optionId }) => {
+    async ({ label, approved, optionId }) => {
       const respond = renderCard();
 
-      fireEvent.press(screen.getByText(label));
+      await fireEvent.press(screen.getByText(label));
 
       expect(respond).toHaveBeenCalledWith({ approved, optionId });
     }
   );
 
-  it('asks for an optional reason before rejecting and passes it on', () => {
+  it('asks for an optional reason before rejecting and passes it on', async () => {
     const respond = renderCard();
 
-    fireEvent.press(screen.getByText('Ablehnen'));
+    await fireEvent.press(screen.getByText('Ablehnen'));
     expect(respond).not.toHaveBeenCalled();
-    fireEvent.changeText(
+    await fireEvent.changeText(
       screen.getByLabelText('Begründung für die Ablehnung'),
       '  Lieber nur einen Entwurf  '
     );
-    fireEvent.press(screen.getByLabelText('Ablehnen'));
+    await fireEvent.press(screen.getByLabelText('Ablehnen'));
 
     expect(respond).toHaveBeenCalledWith({
       approved: false,
@@ -93,11 +93,11 @@ describe('ToolApprovalCard', () => {
     });
   });
 
-  it('rejects without a reason when the field stays empty', () => {
+  it('rejects without a reason when the field stays empty', async () => {
     const respond = renderCard();
 
-    fireEvent.press(screen.getByText('Ablehnen'));
-    fireEvent.press(screen.getByLabelText('Ablehnen'));
+    await fireEvent.press(screen.getByText('Ablehnen'));
+    await fireEvent.press(screen.getByLabelText('Ablehnen'));
 
     expect(respond).toHaveBeenCalledWith({ approved: false, optionId: 'reject-once' });
   });

@@ -81,51 +81,51 @@ beforeEach(async () => {
 
 describe('AppUpdateBanner', () => {
   it('stays hidden when nothing is new', async () => {
-    render(<AppUpdateBanner />);
+    await render(<AppUpdateBanner />);
     await waitFor(() => expect(mockIosRelease).toHaveBeenCalled());
     expect(screen.queryByTestId('app-update-banner')).toBeNull();
   });
 
   it('offers the restart once an OTA update is downloaded', async () => {
     Object.assign(mockOta, { isUpdatePending: true, downloadedUpdate: { updateId: 'u1' } });
-    render(<AppUpdateBanner />);
+    await render(<AppUpdateBanner />);
     expect(await screen.findByText('Neue Version geladen')).toBeTruthy();
 
-    fireEvent.press(screen.getByText('Neu starten'));
+    await fireEvent.press(screen.getByText('Neu starten'));
     expect(mockUpdates.reloadAsync).toHaveBeenCalledTimes(1);
   });
 
   describe('iOS', () => {
     it('sends to the App Store when a newer version is live', async () => {
       mockIosRelease.mockResolvedValueOnce({ status: 200, body: { version: '1.7.0' } });
-      render(<AppUpdateBanner />);
+      await render(<AppUpdateBanner />);
       expect(await screen.findByText('Neue Version im App Store')).toBeTruthy();
 
-      fireEvent.press(screen.getByText('Aktualisieren'));
+      await fireEvent.press(screen.getByText('Aktualisieren'));
       expect(openURL).toHaveBeenCalledWith('itms-apps://apps.apple.com/app/id6740809955');
       expect(screen.queryByTestId('app-update-banner')).toBeNull();
     });
 
     it('ignores a store version that is not newer than the installed one', async () => {
       mockIosRelease.mockResolvedValueOnce({ status: 200, body: { version: '1.6.0' } });
-      render(<AppUpdateBanner />);
+      await render(<AppUpdateBanner />);
       await waitFor(() => expect(mockIosRelease).toHaveBeenCalled());
       expect(screen.queryByTestId('app-update-banner')).toBeNull();
     });
 
     it('does not offer a dismissed store version again after a restart', async () => {
       mockIosRelease.mockResolvedValue({ status: 200, body: { version: '1.7.0' } });
-      const first = render(<AppUpdateBanner />);
-      fireEvent.press(await screen.findByText('Später'));
+      const first = await render(<AppUpdateBanner />);
+      await fireEvent.press(await screen.findByText('Später'));
       expect(screen.queryByTestId('app-update-banner')).toBeNull();
       await waitFor(async () =>
         expect(await AsyncStorage.getItem('app-update-banner:dismissed-store-version')).toBe(
           '1.7.0'
         )
       );
-      first.unmount();
+      await first.unmount();
 
-      render(<AppUpdateBanner />);
+      await render(<AppUpdateBanner />);
       await waitFor(() => expect(mockIosRelease).toHaveBeenCalledTimes(2));
       expect(screen.queryByTestId('app-update-banner')).toBeNull();
     });
@@ -138,26 +138,26 @@ describe('AppUpdateBanner', () => {
 
     it('walks through Play: offer, download, restart', async () => {
       mockPlay.check.mockResolvedValueOnce({ available: true, downloaded: false, versionCode: 42 });
-      render(<AppUpdateBanner />);
+      await render(<AppUpdateBanner />);
 
-      fireEvent.press(await screen.findByText('Aktualisieren'));
+      await fireEvent.press(await screen.findByText('Aktualisieren'));
       expect(mockPlay.startFlexibleUpdate).toHaveBeenCalledTimes(1);
       expect(screen.queryByTestId('app-update-banner')).toBeNull();
 
       onDownloaded?.();
-      fireEvent.press(await screen.findByText('Neu starten'));
+      await fireEvent.press(await screen.findByText('Neu starten'));
       expect(mockPlay.completeUpdate).toHaveBeenCalledTimes(1);
       expect(mockUpdates.reloadAsync).not.toHaveBeenCalled();
     });
 
     it('offers the restart for a Play update downloaded in an earlier session', async () => {
       mockPlay.check.mockResolvedValueOnce({ available: false, downloaded: true, versionCode: 42 });
-      render(<AppUpdateBanner />);
+      await render(<AppUpdateBanner />);
       expect(await screen.findByText('Neue Version geladen')).toBeTruthy();
     });
 
     it('never asks Apple', async () => {
-      render(<AppUpdateBanner />);
+      await render(<AppUpdateBanner />);
       await waitFor(() => expect(mockPlay.check).toHaveBeenCalled());
       expect(mockIosRelease).not.toHaveBeenCalled();
     });

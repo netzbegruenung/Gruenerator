@@ -199,7 +199,7 @@ describe('VorlagenScreen', () => {
       expect.objectContaining({ kind: 'template', scope: 'saved', enabled: false })
     );
 
-    fireEvent.press(screen.getByRole('button', { name: 'Öffentliche Vorlagen' }));
+    await fireEvent.press(screen.getByRole('button', { name: 'Öffentliche Vorlagen' }));
     expect(router.push).toHaveBeenCalledWith({
       pathname: '/(focused)/marktplatz',
       params: { art: 'vorlagen' },
@@ -213,14 +213,14 @@ describe('VorlagenScreen', () => {
     expect(screen.getAllByRole('button', { name: 'Gefällt mir' })).toHaveLength(1);
     expect(screen.queryByText(/Reaktion/)).toBeNull();
 
-    fireEvent.press(screen.getByRole('button', { name: 'Merken' }));
+    await fireEvent.press(screen.getByRole('button', { name: 'Merken' }));
     await act(async () => {});
     expect(api.setTemplateBookmark).toHaveBeenCalledWith('klima-karussell', true);
     expect(screen.getByRole('button', { name: 'Merken' }).props.accessibilityState).toEqual(
       expect.objectContaining({ selected: true })
     );
 
-    fireEvent.press(screen.getByRole('button', { name: 'Gefällt mir' }));
+    await fireEvent.press(screen.getByRole('button', { name: 'Gefällt mir' }));
     await act(async () => {});
     expect(api.setTemplateLike).toHaveBeenCalledWith('klima-karussell', true);
   });
@@ -230,7 +230,7 @@ describe('VorlagenScreen', () => {
     await renderScreen();
     expect(header().filterLabel).toBeNull();
 
-    act(() => header().onOpenFilter());
+    await act(() => header().onOpenFilter());
     expect(option('Alle Vorlagen').props.accessibilityState).toEqual(
       expect.objectContaining({ selected: true })
     );
@@ -242,8 +242,8 @@ describe('VorlagenScreen', () => {
     setup();
     await renderScreen();
 
-    act(() => header().onOpenFilter());
-    fireEvent.press(option('Meine Vorlagen'));
+    await act(() => header().onOpenFilter());
+    await fireEvent.press(option('Meine Vorlagen'));
     await act(async () => {});
 
     expect(screen.getByRole('button', { name: 'Mein Canva-Plakat' })).toBeTruthy();
@@ -257,7 +257,7 @@ describe('VorlagenScreen', () => {
     setup({ bookmarked: ['g1'] });
     await renderScreen();
 
-    act(() => header().onToggleBookmarked());
+    await act(() => header().onToggleBookmarked());
     await act(async () => {});
     expect(mockSaved).toHaveBeenLastCalledWith(
       expect.objectContaining({ kind: 'template', scope: 'saved', enabled: true })
@@ -265,7 +265,7 @@ describe('VorlagenScreen', () => {
     expect(screen.queryByRole('button', { name: /Klimaschutz/ })).toBeNull();
     expect(screen.getByRole('button', { name: 'Plakat Klima' })).toBeTruthy();
 
-    fireEvent.press(screen.getByRole('button', { name: 'Merken' }));
+    await fireEvent.press(screen.getByRole('button', { name: 'Merken' }));
     await act(async () => {});
     expect(api.setTemplateBookmark).toHaveBeenCalledWith('g1', false);
     expect(screen.getByText('Noch keine gemerkten Vorlagen')).toBeTruthy();
@@ -292,14 +292,14 @@ describe('VorlagenScreen', () => {
     setup();
     await renderScreen();
 
-    fireEvent.press(
+    await fireEvent.press(
       screen.getByRole('button', { name: 'Klimaschutz in drei Schritten, 3 Seiten' })
     );
     expect(screen.getByText(karussell.beschreibung)).toBeTruthy();
     expect(imageUris().filter((u) => u.endsWith('/thumb?seite=3'))).toHaveLength(1);
     expect(screen.getByText('So erstellst du das im Chat')).toBeTruthy();
 
-    fireEvent.press(
+    await fireEvent.press(
       screen.getByRole('button', {
         name: 'Im Chat erstellen: Mach ein Karussell zu Radwegen in Köln',
       })
@@ -318,13 +318,15 @@ describe('VorlagenScreen', () => {
     setup();
     await renderScreen();
 
-    fireEvent.press(
+    await fireEvent.press(
       screen.getByRole('button', { name: 'Klimaschutz in drei Schritten, 3 Seiten' })
     );
-    fireEvent.press(screen.getByRole('link', { name: 'Foto von Anna Foto auf Unsplash öffnen' }));
+    await fireEvent.press(
+      screen.getByRole('link', { name: 'Foto von Anna Foto auf Unsplash öffnen' })
+    );
     expect(openUrl).toHaveBeenCalledWith('https://unsplash.com/photos/a');
 
-    fireEvent.press(screen.getByRole('button', { name: 'Kopie bearbeiten' }));
+    await fireEvent.press(screen.getByRole('button', { name: 'Kopie bearbeiten' }));
     expect(router.push).toHaveBeenCalledWith({
       pathname: '/(fullscreen)/web-viewer',
       params: { path: '/studio/vorlage/klima-karussell', title: karussell.titel },
