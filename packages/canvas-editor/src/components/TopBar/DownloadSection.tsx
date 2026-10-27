@@ -1,18 +1,18 @@
 import { useCanvasEditorServices } from '@ggraphic/editor/CanvasEditorProvider';
-import { downloadErrorMessage } from '@ggraphic/editor/utils/downloadError';
-import { PRINT_UNGETESTET_HINWEIS } from '@gruenerator/contracts';
+import { Button } from '@ggraphic/editor/ui/button';
+import { Input } from '@ggraphic/editor/ui/input';
+import { Label } from '@ggraphic/editor/ui/label';
 import {
-  Button,
-  Input,
-  Label,
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-  Skeleton,
-  Switch,
-} from '@gruenerator/ui';
+} from '@ggraphic/editor/ui/select';
+import { Skeleton } from '@ggraphic/editor/ui/skeleton';
+import { Switch } from '@ggraphic/editor/ui/switch';
+import { downloadErrorMessage } from '@ggraphic/editor/utils/downloadError';
+import { PRINT_UNGETESTET_HINWEIS } from '@gruenerator/contracts';
 import { useId, useState, type FormEvent } from 'react';
 import { FaDownload } from 'react-icons/fa';
 
