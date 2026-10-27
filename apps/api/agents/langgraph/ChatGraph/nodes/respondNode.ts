@@ -11,6 +11,7 @@ import { SKILLS, canonicalSkillMention } from '@gruenerator/shared/agents';
 import { type ChatIntentId, isGroundableProse } from '@gruenerator/shared/chat-intents';
 
 import { roleAwareDefaultRecipeMention } from '../../../../routes/chat/agents/lvRecipePreference.js';
+import { isTabelleAuswertenMountable } from '../../../../routes/chat/agents/tabelleAuswertenTool.js';
 import {
   EDITOR_SURFACE_NOUNS,
   looksLikeChitchatTurn,
@@ -867,11 +868,15 @@ Zusammenfassung: ${computedResult.summary}${figureNote}${fileNote}
 /**
  * Steer the model when a spreadsheet is attached. Three branches: a fresh
  * computed result (only phrase it), no Python interpreter (mobile/voice: answer
- * from the document context), and the default, where the agentic loop's tool
- * `tabelle_auswerten` does the calculating. Python blocks in chat answers run
+ * from the document context), and the default: in the agentic loop with the
+ * tool mounted `tabelle_auswerten` does the calculating, otherwise the model
+ * answers from the document context. Python blocks in chat answers run
  * only on click (c12f94316a), so no branch promises automatic execution.
  */
-export function formatTabularComputeGuidance(state: ChatGraphState): string {
+export function formatTabularComputeGuidance(
+  state: ChatGraphState,
+  opts: { loop?: boolean } = {}
+): string {
   if (!state.hasTabularAttachment) return '';
   // Run-then-answer resume: the numbers were already computed client-side
   // (run_python client tool) and injected as BERECHNUNGSERGEBNIS. The model
@@ -901,10 +906,11 @@ Der*die Nutzer*in hat eine Tabelle (CSV/Excel/ODS) angehängt. Auf diesem Gerät
 - Soll die Tabelle AUSGEFÜLLT werden (Werte eintragen, Vorlage befüllen), geht das auf diesem Gerät nicht: sag kurz, dass das Ausfüllen und der Download der fertigen Datei derzeit nur im Browser (Web-Version) funktioniert, und nenne stattdessen die Werte, die einzutragen wären.
 - Wurde bereits ein BERECHNUNGSERGEBNIS geliefert (siehe unten), übernimm dessen Werte EXAKT und rechne nicht neu.`;
   }
-  // Default: the client can run Python and the turn runs in the agentic loop,
-  // which owns the tool `tabelle_auswerten` (approval-gated, result returns to
-  // the loop). No python block in the answer — fenced blocks only run on click.
-  return `
+  // Tool turn: the agentic loop mounts `tabelle_auswerten` (approval-gated,
+  // result returns to the loop) — same predicate as the catalog. No python
+  // block in the answer: fenced blocks only run on click (c12f94316a).
+  if (opts.loop === true && isTabelleAuswertenMountable(state)) {
+    return `
 
 ## TABELLENDATEN — MIT DEM WERKZEUG RECHNEN
 
@@ -913,6 +919,18 @@ Der*die Nutzer*in hat eine Tabelle (CSV/Excel/ODS) angehängt. Ihre Daten stehen
 - Gib KEINEN Code-Block in die Antwort aus und rechne NICHT selbst im Kopf — auch nicht "nur kurz".
 - Übernimm die Werte aus dem Werkzeug-Ergebnis EXAKT und formuliere eine kurze, klare Antwort.
 - Lehnt der*die Nutzer*in den Aufruf ab (Fehler "Vom Nutzer abgelehnt"), antworte ohne Rechnung aus dem Dokumentkontext und sag ausdrücklich, dass die Werte nicht berechnet sind. Sind Zeilen oder Spalten dort unvollständig, nenne, was fehlt — erfinde KEINE Zahlen.
+- Wurde bereits ein BERECHNUNGSERGEBNIS geliefert (siehe unten), übernimm dessen Werte EXAKT und rechne nicht neu.`;
+  }
+  // No tool this turn (single-pass, anonymous, tool switched off): answer from
+  // the document context; code only on explicit request.
+  return `
+
+## TABELLENDATEN — AUS DEN DATEN ANTWORTEN
+
+Der*die Nutzer*in hat eine Tabelle (CSV/Excel/ODS) angehängt. Ihre Daten stehen im angehängten Dokumentkontext.
+- Beantworte Rechenfragen (Summe, Durchschnitt, Minimum/Maximum, "pro Produkt/Kategorie", Anteile, Zählungen …) direkt aus den Tabellendaten im Dokumentkontext: rechne sorgfältig Schritt für Schritt und zeige den Rechenweg kurz und nachvollziehbar (relevante Werte und Zwischensummen nennen).
+- Gib einen \`\`\`python-Block NUR aus, wenn der*die Nutzer*in ausdrücklich nach Code fragt. Behaupte NIEMALS, dass Code von selbst läuft oder dass das Ergebnis gleich erscheint.
+- Sind die benötigten Zeilen oder Spalten im Kontext nicht vollständig enthalten, sag das ehrlich und nenne, welche Angaben fehlen — erfinde KEINE Zahlen.
 - Wurde bereits ein BERECHNUNGSERGEBNIS geliefert (siehe unten), übernimm dessen Werte EXAKT und rechne nicht neu.`;
 }
 
@@ -1950,7 +1968,7 @@ async function buildPromptBlockContext(state: ChatGraphState, opts: SystemMessag
   const imageContext = formatImageContext(state, opts);
   const summaryContextFormatted = formatSummaryContext(summaryContext);
   const computedResultFormatted = formatComputedResultContext(computedResult);
-  const tabularComputeGuidance = formatTabularComputeGuidance(state);
+  const tabularComputeGuidance = formatTabularComputeGuidance(state, opts);
   const threadAttachmentsContext = isPinnedTransfer
     ? ''
     : formatThreadAttachmentsContext(

@@ -46,6 +46,24 @@ export const tabelleAuswertenInputSchema = z.object({
     .describe('„auswerten" für Zahlen und Listen, „ausfuellen" um die Datei selbst zu befüllen'),
 });
 
+/**
+ * Single source of truth for "is the tool available this turn": the catalog
+ * mounts it and the prompt mentions it under exactly this condition (plus the
+ * loop). Needs a signed-in user (approval gate) and a client that runs Python.
+ */
+export function isTabelleAuswertenMountable(
+  state: Pick<ChatGraphState, 'hasTabularAttachment' | 'clientCanRunPython' | 'enabledTools'> & {
+    agentConfig?: { userId?: string | null | undefined } | null;
+  }
+): boolean {
+  return Boolean(
+    state.hasTabularAttachment &&
+    state.clientCanRunPython &&
+    state.agentConfig?.userId != null &&
+    state.enabledTools?.[TABELLE_AUSWERTEN_TOOL] !== false
+  );
+}
+
 export function makeTabelleAuswertenTool(): Tool {
   return tool({
     description: `Wertet die angehängte Tabelle (Excel/CSV) aus: erzeugt Python-Code und lässt ihn im Browser der Person rechnen. Liefert die Ausgabe (\`ergebnis\`), erzeugte Dateien und den Code.

@@ -113,7 +113,7 @@ import { agentAllowsWebSearch, createSearchTools } from './searchTools.js';
 import { makeCheckSharepicTool } from './sharepicCheckTool.js';
 import { makeEditSharepicTool, makeReadSharepicTool } from './sharepicLoopTools.js';
 import { hasThreadSheet, makeEditSheetTool, makeReadSheetTool } from './sheetLoopTools.js';
-import { makeTabelleAuswertenTool } from './tabelleAuswertenTool.js';
+import { isTabelleAuswertenMountable, makeTabelleAuswertenTool } from './tabelleAuswertenTool.js';
 import { makeRecipesTool } from './textFormTools.js';
 import { threadHasArtifact } from './threadArtifactTarget.js';
 import { makeTranslateTool } from './translationTools.js';
@@ -1150,13 +1150,7 @@ NUTZE WENN nach Funktionen, Begriffen, Fähigkeiten oder Anbindungen des Grüner
     // Oberfläche, die das kann, und mit Thread — die Pause hängt an ihm. Vor dem
     // Lauf fragt das Freigabe-Gate (INTERNAL_APPROVAL_REQUIRED_TOOLS) — das
     // ohne angemeldete Person aus ist; dann lieber gar nicht montieren.
-    if (
-      loop.threadId &&
-      agentConfig.userId != null &&
-      state.hasTabularAttachment &&
-      state.clientCanRunPython &&
-      state.enabledTools?.['tabelle_auswerten'] !== false
-    ) {
+    if (loop.threadId && isTabelleAuswertenMountable({ ...state, agentConfig })) {
       tools.tabelle_auswerten = makeTabelleAuswertenTool();
     }
     // Reisekostenabrechnung (Beta). Nur in Reisekosten-Turns: das Eingabeschema

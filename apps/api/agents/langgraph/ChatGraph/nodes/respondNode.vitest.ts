@@ -534,15 +534,44 @@ describe('formatTabularComputeGuidance', () => {
     expect(out).toBe('');
   });
 
-  it('default branch steers calculations to the tabelle_auswerten tool', () => {
-    const out = formatTabularComputeGuidance(
-      makeState({ hasTabularAttachment: true, computedResult: null, clientCanRunPython: true })
-    );
+  const mountable = {
+    hasTabularAttachment: true,
+    computedResult: null,
+    clientCanRunPython: true,
+    agentConfig: { userId: 'u1' },
+  } as never;
+
+  it('loop turn with the tool mounted steers calculations to tabelle_auswerten', () => {
+    const out = formatTabularComputeGuidance(makeState(mountable), { loop: true });
     expect(out).toContain('MIT DEM WERKZEUG RECHNEN');
     expect(out).toContain('tabelle_auswerten');
     expect(out).not.toContain('```python');
     expect(out).not.toContain('automatisch ausgeführt');
     expect(out).not.toMatch(/Fordere NICHT zum Klicken/);
+  });
+
+  it('single-pass turn never mentions the tool and answers from the data', () => {
+    const out = formatTabularComputeGuidance(makeState(mountable));
+    expect(out).not.toContain('tabelle_auswerten');
+    expect(out).toContain('AUS DEN DATEN ANTWORTEN');
+    expect(out).not.toContain('automatisch ausgeführt');
+  });
+
+  it('loop turn without a user (tool not mounted) never mentions the tool', () => {
+    const out = formatTabularComputeGuidance(
+      makeState({ ...(mountable as object), agentConfig: { userId: null } } as never),
+      { loop: true }
+    );
+    expect(out).not.toContain('tabelle_auswerten');
+    expect(out).toContain('AUS DEN DATEN ANTWORTEN');
+  });
+
+  it('loop turn with the tool switched off never mentions the tool', () => {
+    const out = formatTabularComputeGuidance(
+      makeState({ ...(mountable as object), enabledTools: { tabelle_auswerten: false } } as never),
+      { loop: true }
+    );
+    expect(out).not.toContain('tabelle_auswerten');
   });
 
   it('suppresses code emission when a FRESH result exists (run-then-answer resume)', () => {
@@ -563,7 +592,19 @@ describe('formatTabularComputeGuidance', () => {
     const out = formatTabularComputeGuidance(
       makeState({ hasTabularAttachment: true, computedResult: makeComputeResult() })
     );
-    expect(out).toContain('tabelle_auswerten');
+    // single-pass: wording from the document context, no tool
+    expect(out).toContain('AUS DEN DATEN ANTWORTEN');
+    expect(out).not.toContain('tabelle_auswerten');
+    const loopOut = formatTabularComputeGuidance(
+      makeState({
+        hasTabularAttachment: true,
+        computedResult: makeComputeResult(),
+        clientCanRunPython: true,
+        agentConfig: { userId: 'u1' },
+      } as never),
+      { loop: true }
+    );
+    expect(loopOut).toContain('tabelle_auswerten');
   });
 
   it('never promises code execution to clients without the run_python capability', () => {
