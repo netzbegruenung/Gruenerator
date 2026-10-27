@@ -55,3 +55,5 @@ export {
   type ComposedPrint,
   type ComposePrintOptions,
 } from './composePrint';
+export { grueneratorPrint } from './printService';
+export { grueneratorBlocks, grueneratorCarousel } from './sharepicServices';

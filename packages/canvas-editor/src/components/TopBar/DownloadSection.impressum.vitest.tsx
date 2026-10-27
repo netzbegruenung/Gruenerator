@@ -1,6 +1,8 @@
 import { fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 
+import { CanvasEditorProvider } from '../../CanvasEditorProvider';
+import { grueneratorPrint } from '../../composer/printService';
 import { axe } from '../../test-utils';
 
 import { DownloadSection, type PrintImpressumGate } from './DownloadSection';
@@ -13,11 +15,13 @@ function renderGate(locale: PrintImpressumGate['locale']) {
     onSubmit: vi.fn(),
   };
   const view = render(
-    <DownloadSection
-      onDownload={vi.fn()}
-      pageCount={1}
-      printExport={{ onDownloadPdf: vi.fn(), getWarnings: () => [], impressum: gate }}
-    />
+    <CanvasEditorProvider services={{ print: grueneratorPrint }}>
+      <DownloadSection
+        onDownload={vi.fn()}
+        pageCount={1}
+        printExport={{ onDownloadPdf: vi.fn(), getWarnings: () => [], impressum: gate }}
+      />
+    </CanvasEditorProvider>
   );
   return { gate, container: view.container };
 }

@@ -1,0 +1,91 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`block insert into a page > composes on the page’s brand ground and adds the block centred 1`] = `
+{
+  "layerOrder": [
+    "blk-T-liste-card",
+    "blk-T-liste-0-marker",
+    "blk-T-liste-0",
+    "blk-T-liste-1-marker",
+    "blk-T-liste-1",
+  ],
+  "shapes": [
+    {
+      "id": "blk-T-liste-card",
+      "x": 540,
+      "y": 675,
+    },
+  ],
+  "texts": [
+    {
+      "id": "blk-T-liste-0-marker",
+      "text": "→",
+      "x": 116,
+      "y": 568,
+    },
+    {
+      "id": "blk-T-liste-0",
+      "text": "Mehr Busse",
+      "x": 190,
+      "y": 572,
+    },
+    {
+      "id": "blk-T-liste-1-marker",
+      "text": "→",
+      "x": 116,
+      "y": 688,
+    },
+    {
+      "id": "blk-T-liste-1",
+      "text": "Radwege",
+      "x": 190,
+      "y": 691,
+    },
+  ],
+}
+`;
+
+exports[`block insert into a page > places a dropped block on the drop point 1`] = `
+{
+  "layerOrder": [
+    "blk-T-liste-card",
+    "blk-T-liste-0-marker",
+    "blk-T-liste-0",
+    "blk-T-liste-1-marker",
+    "blk-T-liste-1",
+  ],
+  "shapes": [
+    {
+      "id": "blk-T-liste-card",
+      "x": 540,
+      "y": 334,
+    },
+  ],
+  "texts": [
+    {
+      "id": "blk-T-liste-0-marker",
+      "text": "→",
+      "x": 116,
+      "y": 227,
+    },
+    {
+      "id": "blk-T-liste-0",
+      "text": "Mehr Busse",
+      "x": 190,
+      "y": 230,
+    },
+    {
+      "id": "blk-T-liste-1-marker",
+      "text": "→",
+      "x": 116,
+      "y": 346,
+    },
+    {
+      "id": "blk-T-liste-1",
+      "text": "Radwege",
+      "x": 190,
+      "y": 350,
+    },
+  ],
+}
+`;

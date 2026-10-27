@@ -4,6 +4,7 @@ import { createRef } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { CanvasEditorProvider, type CanvasVorlagenService } from '../../CanvasEditorProvider';
+import { grueneratorPrint } from '../../composer/printService';
 import { defaultCanvasEditorStore } from '../../stores/createCanvasEditorStore';
 import { axe } from '../../test-utils';
 import { VORLAGE_DRAG_TYPE } from '../../utils/mediaDrop';
@@ -129,11 +130,14 @@ function setup(
     formatId = 'post-portrait',
     userLocale = 'de-DE',
     canAddPage = true,
+    withPrint = true,
   }: {
     service?: Partial<CanvasVorlagenService>;
     formatId?: string;
     userLocale?: 'de-DE' | 'de-AT';
     canAddPage?: boolean;
+    /** The host's print service (impressum, print composer); the web host always has it. */
+    withPrint?: boolean;
   } = {}
 ) {
   const vorlagen: CanvasVorlagenService = {
@@ -152,7 +156,9 @@ function setup(
   const onShowPage = vi.fn();
   const handle = createRef<VorlagenSectionHandle>();
   const { container } = render(
-    <CanvasEditorProvider services={{ vorlagen, userLocale }}>
+    <CanvasEditorProvider
+      services={{ vorlagen, userLocale, ...(withPrint ? { print: grueneratorPrint } : {}) }}
+    >
       <VorlagenSection
         ref={handle}
         formatId={formatId}
@@ -532,6 +538,15 @@ describe('VorlagenSection on a print design', () => {
       expect(vorlagen.openPrintAsNew).toHaveBeenCalledWith(vorlageById('de-visitenkarte-quer'));
       expect(deck.replaceDeck).not.toHaveBeenCalled();
     });
+  });
+
+  it('lists no print Vorlage without the host print service', async () => {
+    const { vorlagen } = setup(EMPTY, { formatId: 'print-a3-hoch', withPrint: false });
+    expect(
+      await screen.findByText('Für dieses Format gibt es noch keine Vorlagen.')
+    ).toBeInTheDocument();
+    expect(screen.queryByText('Typo-Plakat A3')).toBeNull();
+    expect(vorlagen.listPrint).not.toHaveBeenCalled();
   });
 
   it('says when a print format has no Vorlage yet', async () => {
