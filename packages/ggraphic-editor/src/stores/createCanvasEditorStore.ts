@@ -15,9 +15,9 @@ import { createStore } from 'zustand/vanilla';
 
 import { activeBrand } from '@ggraphic/editor/brand/brandRegistry';
 
-import { DEFAULT_FORMAT_ID, getCanvasFormatOrDefault } from '../formats';
+import { DEFAULT_FORMAT_ID, getCanvasFormatOrDefault } from '../formats/index.js';
 
-import type { CanvasEditorConfig, CanvasHistoryEntry } from '../types/editorTypes';
+import type { CanvasEditorConfig, CanvasHistoryEntry } from '../types/editorTypes.js';
 import type { CropAspectId } from '@ggraphic/editor/utils/cropAspect';
 import type { SnapTarget, SnapLine } from '@ggraphic/editor/utils/snapping';
 

@@ -9,7 +9,7 @@
 import { useCallback, useRef, useEffect, type MutableRefObject } from 'react';
 import { flushSync } from 'react-dom';
 
-import { useCanvasUndoRedo } from './useCanvasUndoRedo';
+import { useCanvasUndoRedo } from './useCanvasUndoRedo.js';
 
 export interface UseCanvasHistorySetupResult<T extends Record<string, unknown>> {
   saveToHistory: (state?: T) => void;

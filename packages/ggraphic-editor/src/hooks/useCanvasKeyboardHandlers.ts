@@ -6,12 +6,12 @@ import { isPageFocusTarget, returnFocusToPage } from '@ggraphic/editor/utils/edi
 import { isTextEditingTarget, isWidgetOwnedKey } from '@ggraphic/editor/utils/keyboardOwnership';
 import { assertAsPosition } from '@ggraphic/editor/utils/stateTypeAssertions';
 
-import { isLayerLocked } from '../utils/layerLock';
+import { isLayerLocked } from '../utils/layerLock.js';
 
-import type { OptionalCanvasActions } from './useCanvasElementHandlers';
-import type { BaseCanvasState } from '../configs/factory/baseTypes';
-import type { CanvasElementConfig } from '../configs/types';
-import type { CanvasCommands } from '../utils/canvasCommands';
+import type { OptionalCanvasActions } from './useCanvasElementHandlers.js';
+import type { BaseCanvasState } from '../configs/factory/baseTypes.js';
+import type { CanvasElementConfig } from '../configs/types.js';
+import type { CanvasCommands } from '../utils/canvasCommands.js';
 import type { CanvasEditorStoreApi } from '@ggraphic/editor/stores/createCanvasEditorStore';
 
 /**

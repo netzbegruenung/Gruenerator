@@ -36,9 +36,9 @@
 
 import { isTextAlign, type TextAlign } from '@ggraphic/editor/utils/textAlign';
 
-import type { IconState } from './baseTypes';
-import type { AssetInstance } from '../../utils/canvasAssets';
-import type { AdditionalText } from '../types';
+import type { IconState } from './baseTypes.js';
+import type { AssetInstance } from '../../utils/canvasAssets.js';
+import type { AdditionalText } from '../types.js';
 import type { BalkenInstance } from '@ggraphic/editor/utils/balkenUtils';
 import type { ChartInstance } from '@ggraphic/editor/utils/chartTypes';
 import type { CircleBadgeInstance } from '@ggraphic/editor/utils/circleBadgeUtils';

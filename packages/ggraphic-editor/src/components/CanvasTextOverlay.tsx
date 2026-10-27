@@ -86,17 +86,17 @@ import {
 import { normalizeRotation } from '@ggraphic/editor/utils/orientation';
 import { stageCssScale } from '@ggraphic/editor/utils/stageCssScale';
 
-import { fontMarkSupport } from '../utils/fontMarkSupport';
-import { defaultTextMarker } from '../utils/markerColors';
+import { fontMarkSupport } from '../utils/fontMarkSupport.js';
+import { defaultTextMarker } from '../utils/markerColors.js';
 import {
   fontStyleForRun,
   measureTextWidthWithFont,
   type TextAccent,
   type TextMarker,
-} from '../utils/textUtils';
+} from '../utils/textUtils.js';
 
-import type { RichTextField } from './RichTextField';
-import type { OfferedMarks, TextFormatControls } from './TextFormatControls';
+import type { RichTextField } from './RichTextField.js';
+import type { OfferedMarks, TextFormatControls } from './TextFormatControls.js';
 import type { Editor } from '@tiptap/react';
 import type Konva from 'konva';
 
@@ -181,7 +181,7 @@ let richTextLoading: Promise<RichTextModules> | null = null;
  * danach, liegt sein Fokus außerhalb der Geste, und iOS zeigt keine Tastatur.
  */
 export function preloadRichText(): Promise<RichTextModules> {
-  richTextLoading ??= Promise.all([import('./RichTextField'), import('./TextFormatControls')]).then(
+  richTextLoading ??= Promise.all([import('./RichTextField.js'), import('./TextFormatControls.js')]).then(
     ([field, controls]) =>
       (richTextModules = {
         RichTextField: field.RichTextField,

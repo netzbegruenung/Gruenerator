@@ -14,7 +14,7 @@
 import { memo } from 'react';
 import { Line } from 'react-konva';
 
-import { useCanvasStoreShallow } from '../stores/CanvasStoreProvider';
+import { useCanvasStoreShallow } from '../stores/CanvasStoreProvider.js';
 
 import type { SnapLine } from '@ggraphic/editor/utils/snapping';
 

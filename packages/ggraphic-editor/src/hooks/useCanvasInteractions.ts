@@ -12,9 +12,9 @@ import { useCallback, useEffect, useRef } from 'react';
 
 import { useCanvasStore } from '@ggraphic/editor/stores/CanvasStoreProvider';
 
-import { useMarqueeSelection } from './useMarqueeSelection';
+import { useMarqueeSelection } from './useMarqueeSelection.js';
 
-import type { CanvasStageRef } from '../primitives/CanvasStage';
+import type { CanvasStageRef } from '../primitives/CanvasStage.js';
 import type { SnapTarget } from '@ggraphic/editor/utils/snapping';
 import type Konva from 'konva';
 

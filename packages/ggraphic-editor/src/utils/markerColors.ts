@@ -8,8 +8,8 @@
 import { activeBrand } from '@ggraphic/editor/brand/brandRegistry';
 import { contrastRatio, luminance } from '@ggraphic/editor/utils/colorLuminance';
 
-import { asColorOptions, type ColorOption } from './colorOptions';
-import { type TextMarker } from './textUtils';
+import { asColorOptions, type ColorOption } from './colorOptions.js';
+import { type TextMarker } from './textUtils.js';
 
 const MARKER_INK_LIGHT = '#FFFFFF';
 

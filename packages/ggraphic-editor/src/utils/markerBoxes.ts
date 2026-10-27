@@ -11,9 +11,9 @@
  * knapp ins Leerzeichen: sonst stößt er an das Nachbarwort, dessen kursive
  * Glyphen ohnehin schon hineinlehnen.
  */
-import { markerInkOn } from './markerColors';
+import { markerInkOn } from './markerColors.js';
 
-import type { TextMarker } from './textUtils';
+import type { TextMarker } from './textUtils.js';
 import type { MeasureRun, RichLayoutedLine } from '@ggraphic/schema';
 
 export interface MarkerBox {

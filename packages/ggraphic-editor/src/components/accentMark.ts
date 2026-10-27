@@ -9,7 +9,7 @@
  */
 import { Mark } from '@tiptap/core';
 
-import { colorAttribute } from './markColor';
+import { colorAttribute } from './markColor.js';
 
 declare module '@tiptap/core' {
   interface Commands<ReturnType> {

@@ -3,10 +3,10 @@ import { useEffect, useLayoutEffect, useRef, useCallback } from 'react';
 
 import { useAutoSaveStore, useAutoSaveStoreApi } from '@ggraphic/editor/stores/useAutoSaveStore';
 
-import { useCanvasEditorServices } from '../CanvasEditorProvider';
-import { plainImageUrls } from '../hostServices';
+import { useCanvasEditorServices } from '../CanvasEditorProvider.js';
+import { plainImageUrls } from '../hostServices.js';
 
-import type { ShareDescription } from '../configs/types';
+import type { ShareDescription } from '../configs/types.js';
 
 interface ShareMetadata {
   [key: string]: unknown;

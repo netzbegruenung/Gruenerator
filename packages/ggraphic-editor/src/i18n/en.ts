@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MPL-2.0
-import type { Messages } from './de';
+import type { Messages } from './de.js';
 
 /** English catalogue. Typed against the German one: a missing key is a compile error. */
 export const en: Messages = {

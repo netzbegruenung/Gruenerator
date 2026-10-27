@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: MPL-2.0
-import { ELEMENT_KINDS, kindList } from './elementKinds';
-import { isLayerLocked } from './layerLock';
+import { ELEMENT_KINDS, kindList } from './elementKinds.js';
+import { isLayerLocked } from './layerLock.js';
 
-import type { CanvasItem } from './canvasItem';
-import type { BaseCanvasState } from '../configs/factory/baseTypes';
-import type { OptionalCanvasActions } from '../hooks/useCanvasElementHandlers';
+import type { CanvasItem } from './canvasItem.js';
+import type { BaseCanvasState } from '../configs/factory/baseTypes.js';
+import type { OptionalCanvasActions } from '../hooks/useCanvasElementHandlers.js';
 
 type WithId = { id: string };
 

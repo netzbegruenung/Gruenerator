@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MPL-2.0
-import { CANVAS_ITEM_NAME } from './deepSelect';
-import { SELECTION_COLOR } from './multiSelect';
-import { COARSE_POINTER, touchAnchorStyleFunc } from './touchInput';
+import { CANVAS_ITEM_NAME } from './deepSelect.js';
+import { SELECTION_COLOR } from './multiSelect.js';
+import { COARSE_POINTER, touchAnchorStyleFunc } from './touchInput.js';
 
 import type Konva from 'konva';
 

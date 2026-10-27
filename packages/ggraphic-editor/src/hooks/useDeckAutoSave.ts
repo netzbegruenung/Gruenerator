@@ -5,7 +5,7 @@ import { serializeDeck, type SerializedPage } from '@ggraphic/editor/collab/page
 import { messages } from '@ggraphic/editor/i18n/messages';
 import { useAutoSaveStore, useAutoSaveStoreApi } from '@ggraphic/editor/stores/useAutoSaveStore';
 
-import { useCanvasEditorServices } from '../CanvasEditorProvider';
+import { useCanvasEditorServices } from '../CanvasEditorProvider.js';
 
 import type * as Y from 'yjs';
 

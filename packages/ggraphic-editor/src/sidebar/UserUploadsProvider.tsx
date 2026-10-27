@@ -12,13 +12,13 @@ import {
 import { messages } from '@ggraphic/editor/i18n/messages';
 import { toast } from '@ggraphic/editor/utils/editorToast';
 
-import { useCanvasEditorServices } from '../CanvasEditorProvider';
+import { useCanvasEditorServices } from '../CanvasEditorProvider.js';
 import {
   mediaLibraryOrFallback,
   type CanvasMediaItem,
   type CanvasMediaThumbProps,
   type CanvasUploadSource,
-} from '../hostServices';
+} from '../hostServices.js';
 
 import type { ComponentType, ReactNode } from 'react';
 

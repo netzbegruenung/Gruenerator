@@ -10,7 +10,7 @@ import type {
   CanvasPrintService,
   UseCanvasStudioAssets,
   UseCanvasUnsplashSearch,
-} from './hostServices';
+} from './hostServices.js';
 import type {
   ApplyResult,
   HostCanvasAiOperation,

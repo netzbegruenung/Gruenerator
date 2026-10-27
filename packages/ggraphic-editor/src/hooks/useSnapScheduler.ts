@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: MPL-2.0
 import { useCallback, useEffect, useRef } from 'react';
 
-import { createSnapHysteresis, resetSnapHysteresis, sameSnapLines } from '../utils/snapping';
+import { createSnapHysteresis, resetSnapHysteresis, sameSnapLines } from '../utils/snapping.js';
 
-import type { SnapHysteresis, SnapLine } from '../utils/snapping';
+import type { SnapHysteresis, SnapLine } from '../utils/snapping.js';
 
 interface SnapCallbacks {
   onSnapChange: (snapH: boolean, snapV: boolean) => void;

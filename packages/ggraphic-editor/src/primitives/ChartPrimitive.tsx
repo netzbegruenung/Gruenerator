@@ -28,7 +28,7 @@ import {
 import { ELEMENT_TRANSFORMER } from '@ggraphic/editor/utils/orientation';
 import { useTrackPendingImage } from '@ggraphic/editor/utils/pendingImages';
 
-import { chartBox } from '../utils/renderedBoxes';
+import { chartBox } from '../utils/renderedBoxes.js';
 
 import type Konva from 'konva';
 

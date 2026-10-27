@@ -6,8 +6,8 @@
  * These provide the foundation for the factory pattern.
  */
 
-import type { AssetInstance } from '../../utils/canvasAssets';
-import type { AdditionalText, LayoutResult } from '../types';
+import type { AssetInstance } from '../../utils/canvasAssets.js';
+import type { AdditionalText, LayoutResult } from '../types.js';
 import type { StockImageAttribution } from '@ggraphic/editor/common/imageSourceTypes';
 import type { BalkenInstance, BalkenMode } from '@ggraphic/editor/utils/balkenUtils';
 import type { ChartInstance, ChartType } from '@ggraphic/editor/utils/chartTypes';

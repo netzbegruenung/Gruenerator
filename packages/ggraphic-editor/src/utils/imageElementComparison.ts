@@ -15,10 +15,10 @@ import { backgroundAdjustments } from '@ggraphic/editor/utils/imageFilters';
 import { assertAsPosition, assertAsSize } from '@ggraphic/editor/utils/stateTypeAssertions';
 import { backgroundStraighten } from '@ggraphic/editor/utils/straighten';
 
-import { BACKGROUND_IMAGE_NODE_ID } from './printImageInfo';
-import { templateRotationOf } from './templateRotation';
+import { BACKGROUND_IMAGE_NODE_ID } from './printImageInfo.js';
+import { templateRotationOf } from './templateRotation.js';
 
-import type { ImageElementConfig, LayoutElementResult, LayoutResult } from '../configs/types';
+import type { ImageElementConfig, LayoutElementResult, LayoutResult } from '../configs/types.js';
 
 export interface ImageRenderInputs<TState extends Record<string, unknown>> {
   config: ImageElementConfig<TState>;

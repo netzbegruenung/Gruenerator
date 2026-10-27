@@ -1,16 +1,16 @@
 // SPDX-License-Identifier: MPL-2.0
-import { findKindItem, type ElementKindName, type KindItem } from './elementKinds';
-import { isLayerLocked } from './layerLock';
+import { findKindItem, type ElementKindName, type KindItem } from './elementKinds.js';
+import { isLayerLocked } from './layerLock.js';
 import {
   isTemplateElementRotatable,
   templatePositionUpdates,
   templateRotationOf,
   withTemplateRotation,
-} from './templateRotation';
+} from './templateRotation.js';
 
-import type { BaseCanvasState } from '../configs/factory/baseTypes';
-import type { CanvasElementConfig, LayoutResult } from '../configs/types';
-import type { OptionalCanvasActions } from '../hooks/useCanvasElementHandlers';
+import type { BaseCanvasState } from '../configs/factory/baseTypes.js';
+import type { CanvasElementConfig, LayoutResult } from '../configs/types.js';
+import type { OptionalCanvasActions } from '../hooks/useCanvasElementHandlers.js';
 
 export type OrientableKind =
   | 'shape'

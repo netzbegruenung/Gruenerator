@@ -7,9 +7,9 @@ import { useAnnounce } from '@ggraphic/editor/hooks/useAnnounce';
 import { messages } from '@ggraphic/editor/i18n/messages';
 import { editorSkipsKey } from '@ggraphic/editor/utils/keyboardOwnership';
 
-import { useCanvasStore } from '../stores/CanvasStoreProvider';
+import { useCanvasStore } from '../stores/CanvasStoreProvider.js';
 
-import type { CanvasEditorStoreState } from '../stores/createCanvasEditorStore';
+import type { CanvasEditorStoreState } from '../stores/createCanvasEditorStore.js';
 
 interface UseCanvasUndoRedoReturn<
   TComponentState extends Record<string, unknown> = Record<string, unknown>,

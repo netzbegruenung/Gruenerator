@@ -5,7 +5,7 @@ import * as React from 'react';
 
 import { useMessages } from '@ggraphic/editor/i18n/messages';
 
-import { cn } from '../utils/cn';
+import { cn } from '../utils/cn.js';
 
 // Radix treats a click inside a toast as an outside click and would close the
 // dialog behind it ("Undo" in a toast must not take the dialog along).

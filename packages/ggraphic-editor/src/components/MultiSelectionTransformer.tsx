@@ -41,7 +41,7 @@ import {
   useCanvasStore,
   useCanvasStoreSelector,
   useCanvasStoreShallow,
-} from '../stores/CanvasStoreProvider';
+} from '../stores/CanvasStoreProvider.js';
 
 import type { SnapLine } from '@ggraphic/editor/utils/snapping';
 import type Konva from 'konva';

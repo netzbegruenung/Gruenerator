@@ -2,7 +2,7 @@
 import { messages } from '@ggraphic/editor/i18n/messages';
 import { downscaleImageForUpload } from '@ggraphic/editor/utils/userImageUtils';
 
-import type { CanvasImageUrlService } from '../hostServices';
+import type { CanvasImageUrlService } from '../hostServices.js';
 
 /**
  * A stored image as the File a background pick hands to `onImageChange`. The
