@@ -405,8 +405,8 @@ importers:
         specifier: ^5.13.0
         version: 5.13.0(@opentelemetry/api@1.10.0)
       '@langfuse/vercel-ai-sdk':
-        specifier: ^5.13.0
-        version: 5.13.0(@opentelemetry/api@1.10.0)(ai@7.0.152(zod@4.6.7))(zod@4.6.7)
+        specifier: ^6.0.2
+        version: 6.0.2(@opentelemetry/api@1.10.0)(ai@7.0.152(zod@4.6.7))(zod@4.6.7)
       '@mistralai/mistralai':
         specifier: ^2.7.0
         version: 2.7.0(@opentelemetry/api@1.10.0)(@opentelemetry/exporter-trace-otlp-http@0.221.0(@opentelemetry/api@1.10.0))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.10.0))
@@ -6457,6 +6457,12 @@ packages:
     peerDependencies:
       '@opentelemetry/api': ^1.9.0
 
+  '@langfuse/core@6.0.2':
+    resolution: {integrity: sha512-S4Aa7IJ27c9pGe8209T2DW3aK5QBM+yjeST1uyIOPg49BNnO778PsBYGPMZHlghhJGLbzwSWvq7v/BvfZdn5xg==}
+    engines: {node: '>=22'}
+    peerDependencies:
+      '@opentelemetry/api': ^1.9.0
+
   '@langfuse/otel@5.13.0':
     resolution: {integrity: sha512-bPpBim4roGJ14R7OASxkwEse9bYjb3KU/4kgIS9GbOjVVylMb+99lnfjGHviQ/ix1wEEsZGWq2flMsLw1GhJIA==}
     engines: {node: '>=20'}
@@ -6474,8 +6480,8 @@ packages:
     peerDependencies:
       '@opentelemetry/api': ^1.9.0
 
-  '@langfuse/vercel-ai-sdk@5.13.0':
-    resolution: {integrity: sha512-ZGMJK171y8I84m+JbtjEYFqZJ+VZAPmC/9h16db7cI2vENCUxEV+2k2t+G0qIF1KFLglMGYV/VE1c+c9yYdGmQ==}
+  '@langfuse/vercel-ai-sdk@6.0.2':
+    resolution: {integrity: sha512-sJ5j12pofFtxj4JADYRWBiWDOEqtKMpaLKkkQh9U1q6jNzwcsrdDpTUoa0r0c7PqEJjxjH8J+79c+oU/DiqD9g==}
     engines: {node: '>=22'}
     peerDependencies:
       '@opentelemetry/api': ^1.9.0
@@ -28105,6 +28111,10 @@ snapshots:
     dependencies:
       '@opentelemetry/api': 1.10.0
 
+  '@langfuse/core@6.0.2(@opentelemetry/api@1.10.0)':
+    dependencies:
+      '@opentelemetry/api': 1.10.0
+
   '@langfuse/otel@5.13.0(@opentelemetry/api@1.10.0)(@opentelemetry/core@2.12.0(@opentelemetry/api@1.10.0))(@opentelemetry/exporter-trace-otlp-http@0.221.0(@opentelemetry/api@1.10.0))(@opentelemetry/otlp-exporter-base@0.221.0(@opentelemetry/api@1.10.0))(@opentelemetry/otlp-transformer@0.221.0(@opentelemetry/api@1.10.0))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.10.0))':
     dependencies:
       '@langfuse/core': 5.13.0(@opentelemetry/api@1.10.0)
@@ -28120,10 +28130,10 @@ snapshots:
       '@langfuse/core': 5.13.0(@opentelemetry/api@1.10.0)
       '@opentelemetry/api': 1.10.0
 
-  '@langfuse/vercel-ai-sdk@5.13.0(@opentelemetry/api@1.10.0)(ai@7.0.152(zod@4.6.7))(zod@4.6.7)':
+  '@langfuse/vercel-ai-sdk@6.0.2(@opentelemetry/api@1.10.0)(ai@7.0.152(zod@4.6.7))(zod@4.6.7)':
     dependencies:
       '@ai-sdk/otel': 1.0.130(zod@4.6.7)
-      '@langfuse/core': 5.13.0(@opentelemetry/api@1.10.0)
+      '@langfuse/core': 6.0.2(@opentelemetry/api@1.10.0)
       '@opentelemetry/api': 1.10.0
       ai: 7.0.152(zod@4.6.7)
     transitivePeerDependencies:
