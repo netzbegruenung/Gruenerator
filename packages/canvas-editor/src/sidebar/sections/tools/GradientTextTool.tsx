@@ -2,7 +2,7 @@ import { useCallback, useState } from 'react';
 import { PiTextT } from 'react-icons/pi';
 
 import { CustomColorSwatch } from '../../../components/CustomColorSwatch';
-import { BRAND_COLORS } from '../../../utils/shapes';
+import { brandColors } from '../../../utils/colorOptions';
 import { MOBILE_INPUT_TEXT } from '../../sidebarStyles';
 
 import { ToolPanel, type ToolPanelSuccess } from './ToolPanel';
@@ -18,8 +18,8 @@ const RENDER_FONT_PX = 240;
 const RENDER_PADDING = 24;
 const FONT_FAMILY = '"GrueneTypeNeue", "ArvoGruen", sans-serif';
 
-const DEFAULT_COLOR_1 = BRAND_COLORS[0]?.value ?? '#005538';
-const DEFAULT_COLOR_2 = BRAND_COLORS[1]?.value ?? '#8ABD24';
+/** The brand's nth colour, read when the tool opens. */
+const paletteColor = (index: number) => () => brandColors()[index]?.value ?? '#000000';
 
 function ColorRow({
   label,
@@ -36,7 +36,7 @@ function ColorRow({
     <div className="flex flex-col gap-1.5">
       <span className="text-xs text-foreground-muted">{label}</span>
       <div className="flex flex-wrap items-center gap-1.5">
-        {BRAND_COLORS.map((c) => (
+        {brandColors().map((c) => (
           <button
             key={c.id}
             type="button"
@@ -53,7 +53,7 @@ function ColorRow({
         ))}
         <CustomColorSwatch
           value={selected}
-          presets={BRAND_COLORS.map((c) => c.value)}
+          presets={brandColors().map((c) => c.value)}
           onPick={onSelect}
           className="size-6"
           disabled={disabled}
@@ -112,8 +112,8 @@ export function GradientTextTool({ onJumpToUploads, onPlaceImageUrl }: GradientT
   const { finish, isUploading } = useToolImagePlacement({ onPlaceImageUrl, onJumpToUploads });
 
   const [value, setValue] = useState('');
-  const [color1, setColor1] = useState(DEFAULT_COLOR_1);
-  const [color2, setColor2] = useState(DEFAULT_COLOR_2);
+  const [color1, setColor1] = useState(paletteColor(0));
+  const [color2, setColor2] = useState(paletteColor(1));
   const [angle, setAngle] = useState(90);
   const [isBusy, setIsBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);

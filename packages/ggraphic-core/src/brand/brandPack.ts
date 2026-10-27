@@ -16,6 +16,14 @@ export interface BrandPack {
   backgrounds: BrandBackground[];
   /** `color` of the ground a new design starts on; one of `backgrounds`. */
   defaultBackground: string;
+  /** Colours every colour picker offers, in picker order. */
+  palette: BrandSwatch[];
+  /** The colours offered for text, in picker order. */
+  textPalette: BrandSwatch[];
+  /** Text-marker boxes, the first one the default; `ink` is the dark text on them. */
+  markers: { swatches: BrandSwatch[]; ink: string };
+  /** Chart series, strongest first, one colour per part of a pie. */
+  chart: readonly string[];
   fonts: BrandFonts;
   /** Font files the host loads before rendering; empty = the host provides the families. */
   fontFaces: BrandFontFace[];
@@ -39,13 +47,18 @@ export interface BrandColors {
   attention: string;
   textOnDark: string;
   textOnLight: string;
+  /** Light neutral ground behind a design that brings no background of its own. */
+  surface: string;
 }
 
-export interface BrandBackground {
+export interface BrandSwatch {
   /** Stable key, stored with documents. */
   id: string;
   label: string;
   color: string;
+}
+
+export interface BrandBackground extends BrandSwatch {
   /** Text colour on this ground. */
   ink: string;
   /** Radial glow the ground is painted as, centre first; absent = flat. */
@@ -59,6 +72,8 @@ export interface BrandFonts {
   quoteShort: string;
   /** Emphasised words and long quotes. */
   quoteEmphasis: string;
+  /** Families whose bold cut is declared as a family of its own, regular → bold. */
+  boldFamilies?: Readonly<Record<string, string>>;
 }
 
 export interface BrandFontFace {

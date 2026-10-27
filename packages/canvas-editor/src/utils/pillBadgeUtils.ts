@@ -6,6 +6,8 @@
  * for labels like "Wusstest du?" in slider templates.
  */
 
+import { activeBrand } from '@ggraphic/editor/brand/brandRegistry';
+
 import { measureTextWidthWithFont } from './textUtils';
 
 // ============================================================================
@@ -50,34 +52,38 @@ export interface PillBadgePreset {
 // PRESETS
 // ============================================================================
 
-export const PILL_BADGE_PRESETS: Record<string, PillBadgePreset> = {
-  slider: {
-    text: 'Wusstest du?',
-    backgroundColor: '#005538',
-    textColor: '#FFFFFF',
-    fontSize: 70,
-    fontFamily: 'GrueneTypeNeue',
-    fontStyle: 'normal',
-    paddingX: 40,
-    paddingY: 16,
-    cornerRadius: 50,
-    defaultX: 80,
-    defaultY: 120,
-  },
-  'slider-inverted': {
-    text: 'Wusstest du?',
-    backgroundColor: '#F5F1E9',
-    textColor: '#005538',
-    fontSize: 70,
-    fontFamily: 'GrueneTypeNeue',
-    fontStyle: 'normal',
-    paddingX: 40,
-    paddingY: 16,
-    cornerRadius: 50,
-    defaultX: 80,
-    defaultY: 120,
-  },
-};
+/** The presets in the active brand's colours and headline font. */
+function pillBadgePresets(): Record<string, PillBadgePreset> {
+  const { colors, fonts } = activeBrand();
+  return {
+    slider: {
+      text: 'Wusstest du?',
+      backgroundColor: colors.primary,
+      textColor: '#FFFFFF',
+      fontSize: 70,
+      fontFamily: fonts.headline,
+      fontStyle: 'normal',
+      paddingX: 40,
+      paddingY: 16,
+      cornerRadius: 50,
+      defaultX: 80,
+      defaultY: 120,
+    },
+    'slider-inverted': {
+      text: 'Wusstest du?',
+      backgroundColor: colors.surface,
+      textColor: colors.primary,
+      fontSize: 70,
+      fontFamily: fonts.headline,
+      fontStyle: 'normal',
+      paddingX: 40,
+      paddingY: 16,
+      cornerRadius: 50,
+      defaultX: 80,
+      defaultY: 120,
+    },
+  };
+}
 
 // ============================================================================
 // UTILITY FUNCTIONS
@@ -120,7 +126,8 @@ export function createPillBadgeInstance(
   presetId: string = 'slider',
   overrides: Partial<PillBadgeInstance> = {}
 ): PillBadgeInstance {
-  const preset = PILL_BADGE_PRESETS[presetId] ?? PILL_BADGE_PRESETS.slider;
+  const presets = pillBadgePresets();
+  const preset = presets[presetId] ?? presets.slider;
 
   return {
     id: generatePillBadgeId(),

@@ -1,6 +1,7 @@
 import { type SharepicChartKind } from '@gruenerator/contracts';
 
-import { CHART_PALETTES, createChartInstance, type ChartType } from '../utils/chartUtils';
+import { getBrandPack } from '../brand/theme';
+import { createChartInstance, type ChartType } from '../utils/chartUtils';
 import { createShape } from '../utils/shapes';
 
 import { type DiagrammItem, type Placed } from './composeTypes';
@@ -67,7 +68,7 @@ export function layoutDiagramm(
   // Shares of a whole: what the values leave to 100 % is drawn too.
   const rest = round && item.einheit === '%' && sum < 99.5;
   if (rest) data.push({ name: 'Rest', value: Math.round((100 - sum) * 10) / 10 });
-  const palette = sharepicTheme(thema)?.chartPalette(darkText) ?? CHART_PALETTES[locale];
+  const palette = sharepicTheme(thema)?.chartPalette(darkText) ?? getBrandPack(locale).chart;
   // A long bar or line series reads as one colour; a few parts get one each.
   const colors =
     round || data.length <= 3

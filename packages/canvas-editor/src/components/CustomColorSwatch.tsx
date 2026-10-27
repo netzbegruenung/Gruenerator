@@ -15,13 +15,14 @@
  * dahin sah man nichts, und klappte die Palette vorher zu, ging die Farbe
  * samt Listener verloren. Beim Abbauen wird eine offene Wahl noch übernommen.
  */
+import { activeBrand } from '@ggraphic/editor/brand/brandRegistry';
 import { cn } from '@ggraphic/editor/utils/cn';
 import { useEffect, useRef, type CSSProperties, type InputHTMLAttributes } from 'react';
 
 const HEX6 = /^#[0-9a-f]{6}$/i;
 const DRAG_COMMIT_MS = 250;
 const COLOR_WHEEL =
-  'conic-gradient(from 180deg, #ff4d4d, #ffd84d, #6ccd87, #0ba1dd, #8a4dff, #ff4dc4, #ff4d4d)';
+  'conic-gradient(from 180deg, #ff4d4d, #ffd84d, #4dd98a, #4db8ff, #8a4dff, #ff4dc4, #ff4d4d)';
 
 interface CustomColorSwatchProps {
   /** Die aktuelle Farbe des Elements. */
@@ -92,7 +93,7 @@ export function CustomColorSwatch({
   const isCustom = hex !== null && !presets.some((preset) => preset.toUpperCase() === hex);
   const style: CSSProperties = {
     background: isCustom ? hex : COLOR_WHEEL,
-    outline: isCustom ? '2px solid var(--editor-accent, #005538)' : 'none',
+    outline: isCustom ? '2px solid var(--editor-accent)' : 'none',
     outlineOffset: `${outlineOffset}px`,
   };
 
@@ -111,7 +112,7 @@ export function CustomColorSwatch({
         type="color"
         aria-label="Eigene Farbe"
         disabled={disabled}
-        defaultValue={(hex ?? '#005538').toLowerCase()}
+        defaultValue={(hex ?? activeBrand().colors.primary).toLowerCase()}
         onChange={(e) => onPreview?.(e.target.value.toUpperCase())}
         className="absolute inset-0 size-full cursor-pointer opacity-0"
         {...inputProps}

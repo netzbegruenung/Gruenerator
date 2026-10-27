@@ -7,10 +7,8 @@
  * ChartSettingsSection) while still exporting/collab-syncing like any element.
  */
 
+import { activeBrand } from '@ggraphic/editor/brand/brandRegistry';
 import { contrastRatio, luminance } from '@ggraphic/editor/utils/colorLuminance';
-import { type SharepicCreatorLocale } from '@gruenerator/contracts';
-
-import { getBrandTheme } from '../brand/theme';
 
 import type {
   ChartDataPoint,
@@ -226,24 +224,8 @@ export function chartInk(chart: Pick<ChartInstance, 'background'>): string {
 export const CHART_DEFAULT_WIDTH = 480;
 export const CHART_DEFAULT_HEIGHT = 320;
 
-/**
- * Chart series per country, strongest first, one colour per part of a pie.
- * Light ones (DE grass green and lime, AT yellow) never open the list: on
- * white they only read next to a dark green.
- */
-export const CHART_PALETTES: Record<SharepicCreatorLocale, readonly string[]> = {
-  'de-DE': ['#00261A', '#008939', '#00CC4F', '#005538', '#BEFF60'],
-  'de-AT': [
-    getBrandTheme('de-AT').colors.primary,
-    getBrandTheme('de-AT').colors.secondary,
-    getBrandTheme('de-AT').colors.accent,
-    '#0B6620',
-    '#7CC650',
-  ],
-};
-
-/** The palette of a page that names no country. */
-export const CHART_COLORS = CHART_PALETTES['de-DE'];
+/** The chart series of the active brand: what a new chart starts with. */
+export const chartColors = (): readonly string[] => activeBrand().chart;
 
 const DEFAULT_DATA: ChartDataPoint[] = [
   { name: 'A', value: 40 },
@@ -264,7 +246,7 @@ export function createChartInstance(
   chartType: ChartType,
   canvasWidth: number,
   canvasHeight: number,
-  colors: readonly string[] = CHART_COLORS
+  colors: readonly string[] = chartColors()
 ): ChartInstance {
   const isRound = isRoundChartType(chartType);
   return {

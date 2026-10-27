@@ -2,10 +2,11 @@
  * Shared text utilities for canvas editor
  *
  * Umbruch, Aufzählungsmarker, hängender Einzug und Inline-Auszeichnung liegen
- * in `@gruenerator/contracts` (`text/listLayout.ts`, `text/inlineMarks.ts`) —
+ * in `@ggraphic/schema` (`text/listLayout.ts`, `text/inlineMarks.ts`) —
  * DOM-frei, damit die Vorschau hier und der Server-Renderer an derselben
  * Stelle umbrechen. Hier bleibt nur, was ein Canvas braucht: die Messung.
  */
+import { registeredBrands } from '@ggraphic/editor/brand/brandRegistry';
 import { notifyFontLoaded } from '@ggraphic/editor/hooks/useFontGeneration';
 import { layoutRichTextBlock, wrapLines, type MeasureRun, type RunStyle } from '@ggraphic/schema';
 
@@ -83,7 +84,7 @@ function requestFace(fontSize: number, fontFamily: string, style: string, text: 
  *
  * @param text - The text to measure
  * @param fontSize - Font size in pixels
- * @param fontFamily - Font family name (e.g., 'GrueneTypeNeue', 'PT Sans')
+ * @param fontFamily - Font family name (e.g., 'Raleway', 'PT Sans')
  * @param fontStyle - CSS font style (e.g., 'normal', 'bold', 'italic', 'bold italic')
  */
 export function measureTextWidthWithFont(
@@ -98,7 +99,7 @@ export function measureTextWidthWithFont(
     return text.length * fontSize * 0.5;
   }
 
-  // Build CSS font string (e.g., "bold italic 90px GrueneTypeNeue, Arial, sans-serif")
+  // Build CSS font string (e.g., "bold italic 90px Raleway, Arial, sans-serif")
   ctx.font = `${fontStyle} ${fontSize}px ${fontFamily}, Arial, sans-serif`;
   requestFace(fontSize, fontFamily, fontStyle, text);
 
@@ -161,15 +162,22 @@ export interface TextMarker {
  * Vollkorn trägt dort Bold Italic als `italic` und Black Italic als
  * `bold italic`. Nur hier gilt „kursiv schlägt fett" nicht — der Browser
  * fettet nichts synthetisch, er lädt den Black-Schnitt. Den braucht die
- * österreichische Betonung (CI 2026, S. 22).
+ * Betonung einiger Markenpakete.
  */
 const REAL_BOLD_ITALIC: ReadonlySet<string> = new Set(['Vollkorn']);
 
 /**
- * Families whose bold cut `typography.css` declares as a family of its own:
- * `font-weight: bold` on Gotham Book would hit no face and be faked.
+ * The family that carries the bold cut of `family`, when a registered brand
+ * declares it as a family of its own (`BrandFonts.boldFamilies`):
+ * `font-weight: bold` on the regular family would hit no face and be faked.
  */
-const BOLD_FAMILY: Readonly<Record<string, string>> = { 'GothamNarrow-Book': 'GothamNarrow-Bold' };
+function boldFamilyOf(family: string): string | null {
+  for (const brand of registeredBrands()) {
+    const bold = brand.fonts.boldFamilies?.[family];
+    if (bold) return bold;
+  }
+  return null;
+}
 
 /** Schrift und Schnitt eines Laufs — Messung und Zeichnung fragen beide hier. */
 export function runFont(
@@ -188,7 +196,7 @@ export function runFont(
   if (bold && italic && REAL_BOLD_ITALIC.has(family)) {
     return { fontFamily: family, fontStyle: 'bold italic' };
   }
-  const boldFamily = BOLD_FAMILY[family];
+  const boldFamily = boldFamilyOf(family);
   if (bold && !italic && boldFamily) return { fontFamily: boldFamily, fontStyle: 'normal' };
   // Every other run: italic wins, so the browser and the server renderer pick
   // the same face (see `fontStyleForRun`).

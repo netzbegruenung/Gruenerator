@@ -7,4 +7,5 @@ export {
   type BrandFonts,
   type BrandImage,
   type BrandPack,
+  type BrandSwatch,
 } from './brand/brandPack';

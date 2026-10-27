@@ -23,9 +23,9 @@ import { createPortal } from 'react-dom';
 import { FiBold, FiItalic, FiList, FiUnderline } from 'react-icons/fi';
 import { MdBorderColor, MdFormatListNumbered, MdHighlight } from 'react-icons/md';
 
+import { brandColors, type ColorOption } from '../utils/colorOptions';
 import { type FontMarkSupport } from '../utils/fontMarkSupport';
-import { DEFAULT_TEXT_MARKER, MARKER_PRESETS } from '../utils/markerColors';
-import { BRAND_COLORS } from '../utils/shapes';
+import { defaultTextMarker, markerSwatches } from '../utils/markerColors';
 
 import { CustomColorSwatch } from './CustomColorSwatch';
 
@@ -186,7 +186,7 @@ export function TextFormatControls({
         variant={variant}
         isActive={state.accent}
         color={state.accentColor}
-        presets={ACCENT_PRESETS}
+        presets={brandColors()}
         hasTemplate={!!marks.accent}
         onPick={(color) => editor.chain().focus().setAccent(color).run()}
         onPreview={(color) => editor.chain().setAccent(color).run()}
@@ -198,8 +198,8 @@ export function TextFormatControls({
         icon={<MdBorderColor />}
         variant={variant}
         isActive={state.marker}
-        color={state.markerColor ?? (marks.marker ? null : DEFAULT_TEXT_MARKER.fill)}
-        presets={MARKER_COLOR_PRESETS}
+        color={state.markerColor ?? (marks.marker ? null : defaultTextMarker().fill)}
+        presets={markerColorPresets()}
         hasTemplate={!!marks.marker}
         onPick={(color) => editor.chain().focus().setMarker(color).run()}
         onPreview={(color) => editor.chain().setMarker(color).run()}
@@ -226,17 +226,16 @@ export function TextFormatControls({
   );
 }
 
-interface ColorPreset {
-  id: string;
-  name: string;
-  value: string;
-}
+type ColorPreset = ColorOption;
 
-const ACCENT_PRESETS: ColorPreset[] = BRAND_COLORS;
-const MARKER_COLOR_PRESETS: ColorPreset[] = [
-  ...MARKER_PRESETS,
-  ...BRAND_COLORS.filter((brand) => !MARKER_PRESETS.some((m) => m.value === brand.value)),
-];
+/** The marker boxes first, then the brand colours that are not among them. */
+const markerColorPresets = (): ColorPreset[] => {
+  const markers = markerSwatches();
+  return [
+    ...markers,
+    ...brandColors().filter((brand) => !markers.some((m) => m.value === brand.value)),
+  ];
+};
 
 const POPOVER_WIDTH = 184;
 /** Wie bei den Knöpfen der Leiste: Auswahl und Fokus bleiben im Editor. */

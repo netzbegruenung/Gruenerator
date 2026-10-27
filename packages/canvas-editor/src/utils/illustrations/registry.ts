@@ -8,6 +8,8 @@
  * illustrationCatalog.ts (used only inside the lazy assets chunk).
  */
 
+import { activeBrand } from '@ggraphic/editor/brand/brandRegistry';
+
 import type {
   KawaiiDef,
   SvgDef,
@@ -28,7 +30,7 @@ export type {
   KawaiiIllustrationType,
 } from './types';
 
-export { ILLUSTRATION_COLORS, KAWAII_MOODS } from './types';
+export { KAWAII_MOODS } from './types';
 
 // =============================================================================
 // ASYNC LOADERS
@@ -119,7 +121,7 @@ export async function createIllustration(
       y: canvasHeight / 2 - 50,
       scale: 1,
       rotation: 0,
-      color: '#6CCD87',
+      color: activeBrand().colors.secondary,
       opacity: 1,
       mood: 'happy',
     };
@@ -139,7 +141,7 @@ export async function createIllustration(
       scale: 1.0,
       rotation: 0,
       opacity: 1,
-      color: '#005538',
+      color: activeBrand().colors.primary,
     };
   }
 

@@ -56,6 +56,11 @@
       "require": "./src/brand/grueneAssetCatalog.ts",
       "types": "./src/brand/grueneAssetCatalog.ts"
     },
+    "./grueneBrandPacks": {
+      "import": "./src/brand/grueneBrandPacks.ts",
+      "require": "./src/brand/grueneBrandPacks.ts",
+      "types": "./src/brand/grueneBrandPacks.ts"
+    },
     "./profilbildStickers": {
       "import": "./src/utils/profilbildStickerInstances.ts",
       "require": "./src/utils/profilbildStickerInstances.ts",

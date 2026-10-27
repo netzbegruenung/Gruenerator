@@ -1,8 +1,8 @@
+import { activeBrand } from '@ggraphic/editor/brand/brandRegistry';
 import { cn } from '@ggraphic/editor/utils/cn';
 import { FaTrash, FaCopy } from 'react-icons/fa';
 
 import { CustomColorSwatch } from '../../components/CustomColorSwatch';
-import { ILLUSTRATION_COLORS } from '../../utils/illustrations/types';
 import { SidebarSlider } from '../components/SidebarSlider';
 import { ACTION_BTN, ACTION_BTN_DANGER, SECTION_HEADER, SECTION_TITLE } from '../sidebarStyles';
 
@@ -93,7 +93,7 @@ export function IllustrationSettings({
             Farbe
           </span>
           <div className="flex gap-[var(--spacing-small)] flex-wrap">
-            {ILLUSTRATION_COLORS.map((color) => (
+            {activeBrand().palette.map((color) => (
               <button
                 key={color.id}
                 className={cn(
@@ -110,7 +110,7 @@ export function IllustrationSettings({
             ))}
             <CustomColorSwatch
               value={selectedIllustration.color}
-              presets={ILLUSTRATION_COLORS.map((color) => color.color)}
+              presets={activeBrand().palette.map((color) => color.color)}
               onPick={(color) => onUpdateIllustration(selectedIllustration.id, { color })}
               className="size-7"
               outlineOffset={3}

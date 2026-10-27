@@ -1,3 +1,4 @@
+import { activeBrand } from '@ggraphic/editor/brand/brandRegistry';
 import { LOCKED_TRANSFORMER, useIsItemLocked } from '@ggraphic/editor/components/canvasItemLock';
 import {
   useGeometryReporter,
@@ -222,7 +223,7 @@ function AssetPrimitiveInner({
             y={-scaledHeight / 2}
             width={scaledWidth}
             height={scaledHeight}
-            stroke="#005437"
+            stroke={activeBrand().colors.primary}
             strokeWidth={2 / asset.scale}
             dash={[5, 5]}
             listening={false}

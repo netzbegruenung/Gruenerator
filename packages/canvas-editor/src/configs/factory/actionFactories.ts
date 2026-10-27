@@ -17,12 +17,13 @@ import { createBalkenInstanceFromPreset } from '../../utils/balkenUtils';
 import { createAssetInstance, createStickerInstance } from '../../utils/canvasAssets';
 import { createChartInstance, type ChartInstance, type ChartType } from '../../utils/chartUtils';
 import { createCircleBadgeInstance } from '../../utils/circleBadgeUtils';
+import { brandColors } from '../../utils/colorOptions';
 import { duplicateElementInState } from '../../utils/duplicateElement';
 import { createFrameInstance } from '../../utils/frameUtils';
 import { iconInstanceIdsFor } from '../../utils/iconInstances';
 import { createIllustration } from '../../utils/illustrations/registry';
 import { createPillBadgeInstance } from '../../utils/pillBadgeUtils';
-import { BRAND_COLORS, createShape } from '../../utils/shapes';
+import { createShape } from '../../utils/shapes';
 import {
   createUserImageInstance,
   createUserImageInstanceFromUrl,
@@ -218,7 +219,7 @@ export function createShapeActions<TState extends { shapeInstances: ShapeInstanc
   debouncedSaveToHistory: HistorySaver<TState>,
   canvasWidth: number,
   canvasHeight: number,
-  defaultColor: string = BRAND_COLORS[0].value,
+  defaultColor: string = brandColors()[0]?.value ?? '#000000',
   insertScale = 1
 ) {
   return {

@@ -24,7 +24,6 @@ import { AssetsSection } from '../sidebar';
 import { CombinedTextSection } from '../sidebar/sections/CombinedTextSection';
 import { FrameSettingsSection } from '../sidebar/sections/FrameSettingsSection';
 import { CANVAS_RECOMMENDED_ASSETS } from '../utils/canvasAssets';
-import { CHART_PALETTES } from '../utils/chartUtils';
 import { COMPOSER_PLANE_IDS, photoStripBeside } from '../utils/shapes';
 
 import { chatTab, createCommonSectionEntries, toolsTab, uploadsTab } from './commonSections';
@@ -242,8 +241,8 @@ export const createFreeformFullConfig = (
   {
     /** Colour of newly added text; white suits the default Tanne sheet. */
     fontColor = '#FFFFFF',
-    /** Series colours of a new chart, the country's palette. */
-    chartColors = CHART_PALETTES['de-DE'],
+    /** Series colours of a new chart; absent = the active brand's, read when a chart is made. */
+    chartColors,
   }: { fontColor?: string; chartColors?: readonly string[] } = {}
 ): FullCanvasConfig<FreeformState, FreeformActions> =>
   withFreeformAi(
@@ -261,13 +260,13 @@ const withFreeformAi = (
   width: number,
   height: number,
   fontColor: string,
-  chartColors: readonly string[],
+  chartColors: readonly string[] | undefined,
   maxPages: number,
   insertScale: number
 ): FullCanvasConfig<FreeformState, FreeformActions> => ({
   id: 'freeform',
 
-  chartColors,
+  ...(chartColors ? { chartColors } : {}),
 
   canvas: { width, height },
 
