@@ -27,7 +27,7 @@ import {
   markdownLiteToRichText,
   richTextToMarkdownLite,
   type CanvasRichTextDoc,
-} from '@gruenerator/contracts';
+} from '@ggraphic/schema';
 import { Bold } from '@tiptap/extension-bold';
 import { Document } from '@tiptap/extension-document';
 import { HardBreak } from '@tiptap/extension-hard-break';

@@ -13,7 +13,7 @@
 import { markerInkOn } from './markerColors';
 
 import type { TextMarker } from './textUtils';
-import type { MeasureRun, RichLayoutedLine } from '@gruenerator/contracts';
+import type { MeasureRun, RichLayoutedLine } from '@ggraphic/schema';
 
 export interface MarkerBox {
   line: number;

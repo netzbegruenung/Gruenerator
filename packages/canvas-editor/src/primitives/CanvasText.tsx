@@ -7,7 +7,7 @@
  * - This prevents re-renders during drag for smooth UX
  */
 
-import { hasInlineMarks, hasListMarkers } from '@gruenerator/contracts';
+import { hasInlineMarks, hasListMarkers } from '@ggraphic/schema';
 import { useRef, useEffect, useState, useCallback, memo } from 'react';
 import { Text as KonvaText, Transformer } from 'react-konva';
 
@@ -22,9 +22,9 @@ import { boxFrame, createBoxFrame, frameBounds, snapByBounds } from '../utils/sn
 
 import { CanvasRichText } from './CanvasRichText';
 
+import type { TransformConfig, TransformAnchor } from '../types/editorTypes';
 import type { SnapTarget, SnapLine } from '../utils/snapping';
 import type { TextAccent, TextMarker } from '../utils/textUtils';
-import type { TransformConfig, TransformAnchor } from '../types/editorTypes';
 import type Konva from 'konva';
 
 // Rahmen für Snap und Geometrie-Meldung, pro Aufruf neu beschrieben (synchron, ohne Allokation).

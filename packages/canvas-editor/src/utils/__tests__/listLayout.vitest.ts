@@ -5,8 +5,6 @@
  * Zusicherungen deterministisch sind und kein Canvas brauchen — genau dafür
  * nimmt `listLayout` die Messung als Callback entgegen.
  */
-import { describe, it, expect } from 'vitest';
-
 import {
   hasListMarkers,
   layoutTextBlock,
@@ -14,7 +12,8 @@ import {
   splitListItems,
   stripLeadingBullets,
   wrapLines,
-} from '@gruenerator/contracts';
+} from '@ggraphic/schema';
+import { describe, it, expect } from 'vitest';
 
 /** Ein Zeichen = 10 px. */
 const measure = (text: string) => text.length * 10;

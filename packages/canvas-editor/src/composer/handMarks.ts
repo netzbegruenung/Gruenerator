@@ -11,11 +11,10 @@
 import {
   layoutRichTextBlock,
   replaceHandMarks,
-  SHAREPIC_HAND_MARKS,
   type HandMarkKind,
   type MeasureRun,
-  type SharepicSlide,
-} from '@gruenerator/contracts';
+} from '@ggraphic/schema';
+import { SHAREPIC_HAND_MARKS, type SharepicSlide } from '@gruenerator/contracts';
 
 import { createShape, type ShapeInstance } from '../utils/shapes';
 import { runFont } from '../utils/textUtils';

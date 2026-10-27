@@ -22,7 +22,7 @@
  * Tippen Fett statt Sternchen.
  */
 
-import { layoutRichTextBlock } from '@gruenerator/contracts';
+import { layoutRichTextBlock } from '@ggraphic/schema';
 import { useRef, useEffect, useCallback, useMemo, useState, Fragment } from 'react';
 import { Group, Rect, Text as KonvaText, Transformer } from 'react-konva';
 

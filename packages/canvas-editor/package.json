@@ -75,6 +75,7 @@
   },
   "dependencies": {
     "@ggraphic/core": "workspace:*",
+    "@ggraphic/schema": "workspace:*",
     "@gruenerator/collab": "workspace:*",
     "@gruenerator/contracts": "workspace:*",
     "@gruenerator/shared": "workspace:*",

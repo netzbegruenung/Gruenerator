@@ -2,9 +2,8 @@
  * Die Kästen eines ++Marker++-Textes: ein Stück je Zeile, an der gemessenen
  * Stelle. Attrappe: ein Zeichen = 10 px.
  */
+import { layoutRichTextBlock, type MeasureRun } from '@ggraphic/schema';
 import { describe, it, expect } from 'vitest';
-
-import { layoutRichTextBlock, type MeasureRun } from '@gruenerator/contracts';
 
 import { markerBoxes } from '../markerBoxes';
 

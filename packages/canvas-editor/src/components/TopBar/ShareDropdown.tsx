@@ -1,4 +1,4 @@
-import { stripInlineMarks } from '@gruenerator/contracts';
+import { stripInlineMarks } from '@ggraphic/schema';
 import {
   Popover,
   PopoverAnchor,

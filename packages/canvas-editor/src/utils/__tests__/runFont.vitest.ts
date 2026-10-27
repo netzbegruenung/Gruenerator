@@ -3,7 +3,7 @@
  * Schrift ohne echten Fett-Kursiv-Schnitt; Vollkorn hat einen (Black Italic,
  * CI 2026 S. 22) und darf ihn anfordern.
  */
-import { PLAIN_STYLE } from '@gruenerator/contracts';
+import { PLAIN_STYLE } from '@ggraphic/schema';
 import { describe, it, expect } from 'vitest';
 
 import { runFont } from '../textUtils';

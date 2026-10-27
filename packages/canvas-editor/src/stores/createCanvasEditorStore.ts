@@ -9,16 +9,15 @@
  * re-render optimization as the old create() bound hook.
  */
 
-import { DEFAULT_CANVAS_SIZE } from '@gruenerator/contracts';
-import { DEFAULT_CANVAS_HEIGHT, DEFAULT_BACKGROUND_COLOR } from '../types/editorTypes';
 import { immer } from 'zustand/middleware/immer';
 import { createStore } from 'zustand/vanilla';
 
-import { DEFAULT_FORMAT_ID } from '../formats';
+import { DEFAULT_FORMAT_ID, getCanvasFormatOrDefault } from '../formats';
+import { DEFAULT_BACKGROUND_COLOR } from '../types/editorTypes';
 
+import type { CanvasEditorConfig, CanvasHistoryEntry } from '../types/editorTypes';
 import type { CropAspectId } from '../utils/cropAspect';
 import type { SnapTarget, SnapLine } from '../utils/snapping';
-import type { CanvasEditorConfig, CanvasHistoryEntry } from '../types/editorTypes';
 
 // =============================================================================
 // TYPES
@@ -181,12 +180,13 @@ function applySelection(
 function createInitialState<
   TComponentState extends Record<string, unknown>,
 >(): CanvasEditorState<TComponentState> {
+  const format = getCanvasFormatOrDefault(DEFAULT_FORMAT_ID);
   return {
     selectedLayerIds: [],
     selectedElement: null,
     config: {
-      width: DEFAULT_CANVAS_SIZE,
-      height: DEFAULT_CANVAS_HEIGHT,
+      width: format.width,
+      height: format.height,
       backgroundColor: DEFAULT_BACKGROUND_COLOR,
       responsive: true,
       maxContainerWidth: 600,
