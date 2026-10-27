@@ -7,9 +7,23 @@ Modell-Key im Dienst: das Modell kommt ausschließlich über die API-Lane
 
 ## Egress-Proxy (`src/browser_agent/egress.py`)
 
-Der Browser wird per `--proxy-server=http://127.0.0.1:8899` durch einen
-filternden Proxy gezwungen. Er ist die bindende Sperre gegen SSRF in interne
-Netze (Redis, Postgres, Cloud-Metadaten, eigene Host-IPs):
+Der Browser wird per `--proxy-server` durch einen filternden Proxy gezwungen.
+Chromium läuft ohne Sandbox (siehe Dockerfile); damit ein Renderer-Exploit den
+Proxy nicht einfach umgeht, läuft er im Betrieb als **eigener Container**:
+
+- `browser-agent` hängt nur im Netz `gruenerator-browser` (`internal: true`,
+  `gateway_mode_ipv4/ipv6: isolated`). Ohne `isolated` bleibt ein Dienst auf
+  dem Host über die Gateway-IP erreichbar (gemessen 27.10.2026, Docker 29.5);
+  die Option braucht Docker ≥ 28.
+- `browser-egress` (dasselbe Image, `python -c "from browser_agent.egress import
+main; main()"`, lauscht auf `:8899`) hängt zusätzlich in einem Netz mit
+  Ausgang. Der Agent bekommt ihn per Env `BROWSER_EGRESS_PROXY=http://browser-egress:8899`;
+  ist die Env gesetzt, startet `api.py` keinen Proxy im Prozess.
+- Die API erreicht der Agent für das Modell direkt über das interne Netz.
+
+Ohne `BROWSER_EGRESS_PROXY` (lokal, Rauchtest `proxy_smoke.py`) startet
+`api.py` den Proxy im Prozess auf `127.0.0.1:8899`. Der Proxy ist die Sperre
+gegen SSRF in interne Netze (Redis, Postgres, Cloud-Metadaten, eigene Host-IPs):
 
 - Unterstützt `CONNECT host:port` und absolute-form-HTTP (`GET http://host/…`);
   alles andere ergibt `405`, Gesperrtes `403`.
@@ -37,7 +51,11 @@ docker run --rm -v "$PWD/services/browser-agent/evals:/evals" \
     gruenerator-browser-agent python /evals/proxy_smoke.py
 ```
 
-Jeder „gesperrt“-Fall dort lädt nachweislich ohne die Sperre (example.org vor
+Die Topologie selbst (kein direkter Ausgang, kein Host-Dienst erreichbar,
+Chromium mit dem Profil aus `run.py` lädt über den Proxy-Container) prüft
+`evals/topology_smoke.sh <image>`, ebenfalls in der Image-CI.
+
+Jeder „gesperrt“-Fall in `proxy_smoke.py` lädt nachweislich ohne die Sperre (example.org vor
 und nach der Zusatzsperre, ein lokaler Server mit Abrufzähler, eine
 Weiterleitung auf Loopback); dazu file:// und die Chromium-Policy
 `chromium-policy.json` (`URLBlocklist` für file://, chrome://, view-source:,
@@ -59,7 +77,7 @@ jeweiligen Test auf einen lokalen Stub umgebogen.
 ## Lauf (`src/browser_agent/api.py`, `run.py`, `events.py`)
 
 Start: `PYTHONPATH=src python -c "from browser_agent.api import main; main()"`
-(startet auch den Egress-Proxy auf `127.0.0.1:8899`).
+(startet ohne `BROWSER_EGRESS_PROXY` auch den Egress-Proxy auf `127.0.0.1:8899`).
 
 Alle Läufe verlangen den Header `X-Browser-Agent-Secret: $BROWSER_AGENT_SECRET`
 (leer = alles `401`). Die Run-Tokens, mit denen der Dienst das Modell ruft

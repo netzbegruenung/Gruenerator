@@ -82,3 +82,10 @@ jobs:
         run: |
           docker run --rm -v "$PWD/services/browser-agent/evals:/evals" \
             gruenerator-browser-agent:pr python /evals/proxy_smoke.py
+
+      # In production Chromium (no sandbox) sits on an internal network and
+      # reaches the internet only through a separate browser-egress container.
+      # Prove that topology: no direct route out, no host service reachable,
+      # the run.py profile loads through the egress container.
+      - name: Smoke-test the isolated network topology
+        run: services/browser-agent/evals/topology_smoke.sh gruenerator-browser-agent:pr

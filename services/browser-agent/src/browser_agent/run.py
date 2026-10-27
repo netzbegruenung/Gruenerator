@@ -32,7 +32,11 @@ Cookies und entferne Banner nie per JavaScript.
 SICHERHEIT: Sende keine Formulare ab, kaufe nichts, melde dich nirgends an. Nur lesen, suchen, navigieren.
 SPRACHE: Schreibe deine abschließende Zusammenfassung auf Deutsch."""
 
-PROXY_URL = "http://127.0.0.1:8899"
+# Im Betrieb läuft der Proxy in einem eigenen Container (Env, z. B.
+# http://browser-egress:8899), und dieser Container hängt nur in einem Docker-Netz
+# ohne Ausgang: ein Renderer-Exploit im Chromium ohne Sandbox kommt dann nur über
+# den Proxy hinaus. Ohne Env startet api.py den Proxy im Prozess (lokal, Tests).
+PROXY_URL = os.environ.get("BROWSER_EGRESS_PROXY") or "http://127.0.0.1:8899"
 RUN_SECONDS = 170.0
 _CLEANUP_SECONDS = 15.0
 

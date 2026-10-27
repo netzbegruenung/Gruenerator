@@ -77,7 +77,7 @@ class _RunResponse(StreamingResponse):
 def create_app(
     agent_factory: Callable = build_agent,
     *,
-    start_proxy: bool = True,
+    start_proxy: bool | None = None,
     runs_dir: Path | None = None,
 ) -> FastAPI:
     secret = os.environ.get("BROWSER_AGENT_SECRET", "")
@@ -85,6 +85,9 @@ def create_app(
         logger.warning("BROWSER_AGENT_SECRET ist leer: alle Läufe werden mit 401 abgewiesen")
     max_parallel = int(os.environ.get("BROWSER_MAX_PARALLEL", "2"))
     runs: dict[str, RunControl] = {}
+    if start_proxy is None:
+        # Ein externer Proxy (eigener Container) ersetzt den im Prozess.
+        start_proxy = not os.environ.get("BROWSER_EGRESS_PROXY")
 
     @asynccontextmanager
     async def lifespan(_app: FastAPI):

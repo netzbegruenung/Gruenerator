@@ -152,3 +152,24 @@ async def test_busy_returns_429(fake_agent, monkeypatch, tmp_path):
         assert r.status_code == 204
     await asyncio.wait_for(first, 5)
     assert fake_agent.made[0].stop_called
+
+
+def test_external_proxy_replaces_the_in_process_one(monkeypatch, tmp_path, fake_agent):
+    import browser_agent.api as api
+
+    started = []
+
+    async def fake_start(*args, **kw):
+        started.append(args)
+        return SimpleNamespace(close=lambda: None, wait_closed=lambda: asyncio.sleep(0))
+
+    monkeypatch.setattr(api, "start_egress_proxy", fake_start)
+    monkeypatch.setenv("BROWSER_EGRESS_PROXY", "http://browser-egress:8899")
+    with TestClient(create_app(agent_factory=fake_agent.factory, runs_dir=tmp_path)):
+        pass
+    assert started == []
+
+    monkeypatch.delenv("BROWSER_EGRESS_PROXY")
+    with TestClient(create_app(agent_factory=fake_agent.factory, runs_dir=tmp_path)):
+        pass
+    assert started == [("127.0.0.1", 8899, [])]

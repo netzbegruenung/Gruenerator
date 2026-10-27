@@ -251,3 +251,16 @@ async def test_run_timeout_uses_partial_final_result(tmp_path):
     req = dict(run_id="r1", task="t", start_url="https://example.org", llm_base_url="http://x", llm_token="t", max_steps=25)
     events = [ev async for ev in execute_run(req, factory, base_dir=tmp_path, max_seconds=0.2)]
     assert events[-1]["summary"] == "halb fertig" and events[-1]["timed_out"] is True
+
+
+def test_chromium_uses_the_external_proxy_from_env(monkeypatch):
+    import importlib
+
+    import browser_agent.run as run
+
+    monkeypatch.setenv("BROWSER_EGRESS_PROXY", "http://browser-egress:8899")
+    try:
+        assert "--proxy-server=http://browser-egress:8899" in importlib.reload(run).CHROMIUM_ARGS
+    finally:
+        monkeypatch.delenv("BROWSER_EGRESS_PROXY")
+        assert "--proxy-server=http://127.0.0.1:8899" in importlib.reload(run).CHROMIUM_ARGS
