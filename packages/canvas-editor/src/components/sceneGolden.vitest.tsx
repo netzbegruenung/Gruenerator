@@ -1,9 +1,10 @@
 import { cleanup, render, waitFor } from '@testing-library/react';
 import Konva from 'konva';
-import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 
 import { composeSharepic } from '../composer/composeSharepic';
 import { MORE_SPECS, SPECS } from '../composer/sharepicSpecFixtures';
+import { DEFAULT_FORMAT_ID } from '../formats';
 import { loadAllIcons } from '../utils/canvasIcons';
 
 import { StandaloneCanvas } from './StandaloneCanvas';
@@ -157,4 +158,234 @@ describe('editor scene golden', () => {
       );
     }, 60_000);
   }
+});
+
+/**
+ * The composer never emits Balken, frames or illustrations, so one slide
+ * carries a hand-written instance of every element kind: rendering moves
+ * kind by kind onto a table, and each kind needs a scene that turns red
+ * when its renderer passes a prop differently.
+ */
+const EVERY_KIND: Record<string, unknown> = {
+  backgroundColor: '#005538',
+  balkenInstances: [
+    {
+      id: 'k-balken',
+      mode: 'triple',
+      colorSchemeId: 'tanne-sand',
+      widthScale: 1,
+      offset: { x: 40, y: 600 },
+      scale: 1,
+      texts: ['Eins', 'Zwei', 'Drei'],
+      rotation: 3,
+      opacity: 0.9,
+    },
+  ],
+  selectedIcons: ['k-icon'],
+  iconStates: {
+    'k-icon': {
+      iconId: 'tabler:arrow-narrow-right',
+      x: 900,
+      y: 200,
+      scale: 0.5,
+      rotation: 10,
+      color: '#FFFFFF',
+      opacity: 0.8,
+    },
+  },
+  shapeInstances: [
+    {
+      id: 'k-shape',
+      type: 'rounded-rect',
+      x: 200,
+      y: 200,
+      width: 160,
+      height: 90,
+      fill: '#E6007E',
+      rotation: 5,
+      scaleX: 1,
+      scaleY: 1,
+      opacity: 0.7,
+      cornerRadius: 12,
+    },
+  ],
+  frameInstances: [
+    {
+      id: 'k-frame',
+      clipType: 'circle',
+      x: 540,
+      y: 300,
+      width: 240,
+      height: 240,
+      rotation: 4,
+      scaleX: 1,
+      scaleY: 1,
+      opacity: 0.95,
+      imageSrc: null,
+      imageOffsetX: 0,
+      imageOffsetY: 0,
+      imageScale: 1,
+      borderColor: '#FFFFFF',
+      borderWidth: 6,
+      cornerRadius: 0,
+    },
+  ],
+  additionalTexts: [
+    {
+      id: 'k-text',
+      text: 'Mehr Text',
+      type: 'body',
+      x: 70,
+      y: 1000,
+      width: 900,
+      fontSize: 60,
+      fontFamily: 'GothamNarrow-Ultra',
+      fontStyle: 'normal',
+      fill: '#FFFFFF',
+      align: 'left',
+      rotation: 2,
+      opacity: 0.9,
+    },
+  ],
+  illustrationInstances: [
+    {
+      id: 'k-illustration',
+      illustrationId: 'planet',
+      source: 'kawaii',
+      x: 300,
+      y: 500,
+      scale: 1,
+      rotation: 6,
+      color: '#FCEC00',
+      opacity: 0.85,
+      mood: 'happy',
+    },
+  ],
+  assetInstances: [
+    {
+      id: 'k-asset',
+      assetId: 'brush-arrow-weiss',
+      x: 800,
+      y: 1100,
+      scale: 1.5,
+      rotation: 7,
+      opacity: 0.75,
+    },
+  ],
+  circleBadgeInstances: [
+    {
+      id: 'k-circle',
+      x: 900,
+      y: 500,
+      radius: 110,
+      backgroundColor: '#E4007C',
+      textColor: '#FFFFFF',
+      rotation: -8,
+      scale: 1,
+      opacity: 0.9,
+      textLines: [
+        {
+          text: 'Neu',
+          yOffset: -20,
+          fontFamily: 'GothamNarrow-Ultra',
+          fontSize: 38,
+          fontWeight: 'bold',
+        },
+      ],
+    },
+  ],
+  pillBadgeInstances: [
+    {
+      id: 'k-pill',
+      text: 'gruene.de',
+      x: 400,
+      y: 800,
+      backgroundColor: '#BEFF60',
+      textColor: '#00261A',
+      fontSize: 46,
+      fontFamily: 'GrueneTypeNeue',
+      fontStyle: 'normal',
+      rotation: 3,
+      scale: 1,
+      opacity: 0.9,
+      paddingX: 36,
+      paddingY: 18,
+      cornerRadius: 60,
+    },
+  ],
+  userImageInstances: [
+    {
+      id: 'k-user-image',
+      src: '/media/wind.jpg',
+      fileName: 'wind.jpg',
+      x: 0,
+      y: 1150,
+      width: 500,
+      height: 200,
+      rotation: 2,
+      scale: 1,
+      opacity: 0.9,
+    },
+  ],
+  chartInstances: [
+    {
+      id: 'k-chart',
+      x: 110,
+      y: 300,
+      width: 430,
+      height: 236.5,
+      scale: 1,
+      rotation: 3,
+      opacity: 0.9,
+      chartType: 'bar',
+      data: [
+        { name: 'Wind', value: 40 },
+        { name: 'Rest', value: 60 },
+      ],
+      colors: ['#257639', '#C8C8C7'],
+      title: '',
+      showLegend: true,
+      showGrid: false,
+      showValues: true,
+      unit: '%',
+      background: '#FFFFFF',
+    },
+  ],
+};
+
+describe('editor scene golden, every element kind', () => {
+  // Icons, assets, illustrations and user images draw nothing until their
+  // image loads, and jsdom never loads one. Here every image loads as a 4×4
+  // bitmap from @napi-rs/canvas (the context vitest.setup.ts hands Konva),
+  // so these kinds reach the scene. Only in this block: the composer files
+  // above stay as they were recorded.
+  const realImage = window.Image;
+  beforeAll(async () => {
+    const { Image, createCanvas } = await import('@napi-rs/canvas');
+    const png = createCanvas(4, 4).toBuffer('image/png');
+    const setSrc = Object.getOwnPropertyDescriptor(Image.prototype, 'src')?.set;
+    function LoadedImage() {
+      const image = new Image();
+      // Whatever URL the primitive asks for, the bitmap arrives.
+      Object.defineProperty(image, 'src', {
+        get: () => 'loaded',
+        set: () => setSrc?.call(image, png),
+      });
+      return image;
+    }
+    window.Image = LoadedImage as unknown as typeof window.Image;
+    // Konva caches filtered images on a jsdom canvas the napi context rejects.
+    vi.spyOn(Konva.Node.prototype, 'cache').mockReturnThis();
+  });
+  afterAll(() => {
+    window.Image = realImage;
+    vi.restoreAllMocks();
+  });
+
+  it('freeform', async () => {
+    const scene = await sceneOf('freeform', DEFAULT_FORMAT_ID, EVERY_KIND);
+    await expect(`${JSON.stringify([scene], null, 1)}\n`).toMatchFileSnapshot(
+      '__golden__/scene/everyKind.json'
+    );
+  }, 60_000);
 });
