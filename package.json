@@ -35,6 +35,8 @@
     "deps:verify": "node scripts/check-installed-lockfile-drift.mjs",
     "check:internal": "node scripts/check-internal-content.mjs",
     "check:ggraphic": "node scripts/check-ggraphic-core-boundary.mjs --self-test && node scripts/check-ggraphic-core-boundary.mjs",
+    "ggraphic:export-dryrun": "node scripts/ggraphic-export-dryrun.mjs",
+    "test:scripts": "vitest run --root scripts --config vitest.config.mjs",
     "check:overlays": "node scripts/check-overlay-layers.mjs",
     "check:lookbehind": "node scripts/check-browser-lookbehind.mjs",
     "build": "turbo run build",
