@@ -20,7 +20,7 @@ import type { ChartInstance, ChartType } from '@ggraphic/editor/utils/chartTypes
 import type { FrameClipType, FrameInstance } from '@ggraphic/editor/utils/frameUtils';
 import type { PillBadgeInstance } from '@ggraphic/editor/utils/pillBadgeUtils';
 import type { ShapeInstance, ShapeType } from '@ggraphic/editor/utils/shapes';
-import type { StickerRef } from '@gruenerator/contracts';
+import type { StickerRef } from '@ggraphic/schema';
 
 /**
  * Canvas Element Handlers - Handlers for all element interactions

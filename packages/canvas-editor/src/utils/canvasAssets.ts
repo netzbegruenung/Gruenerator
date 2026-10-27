@@ -4,7 +4,7 @@
  * knows none of them by name.
  */
 
-import type { StickerRef } from '@gruenerator/contracts';
+import type { StickerRef } from '@ggraphic/schema';
 
 export type AssetAudience = 'de-DE' | 'de-AT' | 'all';
 

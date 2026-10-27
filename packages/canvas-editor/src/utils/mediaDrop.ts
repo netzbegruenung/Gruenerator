@@ -3,7 +3,7 @@ import type { BalkenMode } from '../utils/balkenUtils';
 import type { ChartType } from '@ggraphic/editor/utils/chartTypes';
 import type { FrameClipType } from '@ggraphic/editor/utils/frameUtils';
 import type { ShapeType } from '@ggraphic/editor/utils/shapes';
-import type { StickerRef } from '@gruenerator/contracts';
+import type { StickerRef } from '@ggraphic/schema';
 import type Konva from 'konva';
 
 /** Drag type of an upload or photo tile; the payload is `MediaDragPayload` as JSON. */

@@ -1,10 +1,11 @@
 /**
  * What the editor needs from its host for data it does not own: the media
  * library, image shares, image URLs, file delivery, Studio assets, the
- * Unsplash search state, print (impressum, print Vorlagen), blocks and the
- * carousel chrome.
+ * Unsplash search state, print (the impressum) and the carousel chrome.
  * Supplied through `CanvasEditorServices`; the host passes its own
- * implementations, including those for print, blocks and the carousel chrome.
+ * implementations, including those for print and the carousel chrome. Services
+ * only a host's own UI reads are declared by that host, by augmenting
+ * `CanvasEditorHostServices` (and `CanvasPrintService`).
  *
  * The shapes are the structural subset the editor reads, so a host can hand in
  * its own hooks unchanged. The hook-valued services are React hooks: the
@@ -20,27 +21,31 @@
 import { useState, type ComponentType } from 'react';
 import { type Doc } from 'yjs';
 
-import type { BlockSlide, LiftedBlock } from './blocks/liftedBlock';
 import type { AdditionalText } from './configs/types';
-import type {
-  MediaItem,
-  MediaType,
-  PrintFormatId,
-  PrintSpec,
-  SharepicColor,
-  SharepicCreatorLocale,
-  StockImage,
-  StudioAssetItem,
-  StudioAssetKind,
-  StudioAssetScope,
-  UnsplashSearchResult,
-  UploadSource,
-} from '@gruenerator/contracts';
+import type { StockImage, UnsplashSearchResult } from '@ggraphic/schema';
 
 // ── Media library ───────────────────────────────────────────────────────────
 
+/** A library item, as far as the editor reads it; the host's items carry more. */
+export interface CanvasMediaItem {
+  id: string;
+  shareToken: string;
+  title: string | null;
+  /** The full-resolution source when the host has no separate `mediaUrl`. */
+  thumbnailUrl: string | null;
+  mediaUrl?: string;
+  altText: string | null;
+  originalFilename: string | null;
+}
+
+/**
+ * What the editor uploads as: `'upload'` shows in the Uploads tab,
+ * `'canvas-element'` is a tool-generated image placed straight onto the canvas.
+ */
+export type CanvasUploadSource = 'upload' | 'canvas-element';
+
 export interface CanvasMediaLibraryState {
-  items: MediaItem[];
+  items: CanvasMediaItem[];
   isLoading: boolean;
   error: string | null;
   pagination: { hasMore: boolean };
@@ -52,14 +57,12 @@ export interface CanvasMediaLibraryState {
 export interface CanvasMediaUploadResult {
   id: string;
   shareToken: string;
-  mediaType: MediaType;
-  createdAt: string;
 }
 
 export interface CanvasMediaUploadState {
   upload: (
     file: File,
-    options: { uploadSource: UploadSource }
+    options: { uploadSource: CanvasUploadSource }
   ) => Promise<CanvasMediaUploadResult | null>;
   isUploading: boolean;
   progress: number;
@@ -67,7 +70,8 @@ export interface CanvasMediaUploadState {
 }
 
 export interface CanvasMediaThumbProps {
-  item: MediaItem;
+  /** One of the host's own `items`, so its thumb may read what it put there. */
+  item: CanvasMediaItem;
   alt: string;
   sizes?: string;
 }
@@ -83,7 +87,7 @@ export interface CanvasMediaLibraryService {
   MediaThumb: ComponentType<CanvasMediaThumbProps>;
 }
 
-const NO_ITEMS: MediaItem[] = [];
+const NO_ITEMS: CanvasMediaItem[] = [];
 const NO_LIBRARY: CanvasMediaLibraryState = {
   items: NO_ITEMS,
   isLoading: false,
@@ -160,7 +164,7 @@ export interface CanvasImageUrlService {
   originalUrl: (url: string) => string;
   /** The URL a media-library item is placed onto the canvas from. */
   placementUrl: (
-    item: Pick<MediaItem, 'mediaUrl' | 'shareToken' | 'thumbnailUrl'>
+    item: Pick<CanvasMediaItem, 'mediaUrl' | 'shareToken' | 'thumbnailUrl'>
   ) => string | null;
 }
 
@@ -217,15 +221,28 @@ export const browserFileDelivery: CanvasFileDeliveryService = {
 
 // ── Studio assets (sticker and background galleries) ────────────────────────
 
+export type CanvasStudioAssetKind = 'sticker' | 'background';
+
+/** The public shop, the viewer's own, the viewer's saved ones. */
+export type CanvasStudioAssetScope = 'shop' | 'mine' | 'saved';
+
+/** A Studio asset, as far as the editor reads it; the host's items carry more. */
+export interface CanvasStudioAssetItem {
+  id: string;
+  title: string;
+  src: string;
+  thumbUrl: string | null;
+}
+
 export interface CanvasStudioAssetsFilter {
-  kind: StudioAssetKind;
-  scope: StudioAssetScope;
+  kind: CanvasStudioAssetKind;
+  scope: CanvasStudioAssetScope;
   q: string;
   sort: 'new';
 }
 
 export interface CanvasStudioAssetsState {
-  items: StudioAssetItem[];
+  items: CanvasStudioAssetItem[];
   isLoading: boolean;
   isError: boolean;
   hasNextPage: boolean;
@@ -296,7 +313,7 @@ export const useNoUnsplashSearch: UseCanvasUnsplashSearch = () => {
   };
 };
 
-// ── Print (V.i.S.d.P. / Impressum, print Vorlagen) ──────────────────────────
+// ── Print (V.i.S.d.P. / Impressum) ──────────────────────────────────────────
 
 /** The country form an impressum line is written in. */
 export type CanvasImpressumLocale = 'de-DE' | 'de-AT';
@@ -329,47 +346,23 @@ export interface CanvasImpressumService {
   isFilled: (value: string) => boolean;
   isComplete: (parts: CanvasImpressumParts) => boolean;
   labels: Record<CanvasImpressumLocale, CanvasImpressumLabels>;
-  /** The element at its standard position on a page of `formatId`, for re-adding a deleted line. */
-  composeElement: (formatId: PrintFormatId, isAt: boolean, text: string) => AdditionalText;
+  /** The element at its standard position on a page of print format `formatId`, for re-adding a deleted line. */
+  composeElement: (formatId: string, isAt: boolean, text: string) => AdditionalText;
 }
 
 /**
  * What the editor needs for print beyond the PDF export itself: the
- * impressum gate and the composition of print Vorlagen.
+ * impressum gate.
  *
  * Without it the editor treats every format as one without an impressum —
  * no warning or form in the download view, no impressum carried over when a
- * Vorlage replaces the design — and the „Vorlagen" tab lists no print
- * Vorlagen. The PDF export is unaffected.
+ * Vorlage replaces the design. The PDF export is unaffected.
+ *
+ * A host adds its own print members (a print Vorlagen composer, say) by
+ * augmenting this interface.
  */
 export interface CanvasPrintService {
   impressum: CanvasImpressumService;
-  /** The pages of a print Vorlage's spec (measures text: fonts must be ready). */
-  composePrint: (spec: PrintSpec) => {
-    templateType: string;
-    slides: readonly Record<string, unknown>[];
-  };
-}
-
-// ── Blocks (the host's blocks in the Elemente panel) ────────────────────────
-
-/**
- * Turns a block the host composed (`CanvasVorlagenService.composeBlock`) into
- * items for a page. The editor places the result (`placeBlock`) and selects
- * its parts.
- *
- * Without it the editor offers no blocks: no „Blöcke" category in the
- * Elemente panel and no block drop onto a page, as without a block catalogue.
- */
-export interface CanvasBlockService {
-  /** The colour to compose a block on for a page with this background. */
-  ground: (
-    locale: SharepicCreatorLocale,
-    page: { backgroundMode?: unknown; backgroundColor?: unknown },
-    fallback: SharepicColor
-  ) => SharepicColor;
-  /** The elements of `items` cut loose from the composed slide, ids made unique by `token`. */
-  lift: (slide: BlockSlide, items: readonly number[], token: string) => LiftedBlock;
 }
 
 // ── Carousel chrome (page number, swipe arrow) ──────────────────────────────

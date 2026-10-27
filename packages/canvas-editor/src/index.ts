@@ -25,9 +25,8 @@ export type {
   ChatSectionContentProps,
   CanvasAiEditBridge,
   CanvasSpecEditBridge,
-  CanvasVorlagenService,
-  VorlagePage,
 } from './CanvasEditorProvider';
+export type { CanvasVorlagenService, VorlagePage } from './grueneratorHostServices';
 
 export { StandaloneCanvas } from './components/StandaloneCanvas';
 export { ConfigCanvas } from './components/ConfigCanvas';
