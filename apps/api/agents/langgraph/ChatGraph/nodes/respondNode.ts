@@ -865,10 +865,11 @@ Zusammenfassung: ${computedResult.summary}${figureNote}${fileNote}
 }
 
 /**
- * Steer the model when a spreadsheet is attached. Python blocks in chat answers
- * run only on click (c12f94316a), so no branch promises automatic execution:
- * the default and the no-interpreter branch (mobile/voice, no run_python client
- * tool) both answer from the table data in the document context.
+ * Steer the model when a spreadsheet is attached. Three branches: a fresh
+ * computed result (only phrase it), no Python interpreter (mobile/voice: answer
+ * from the document context), and the default, where the agentic loop's tool
+ * `tabelle_auswerten` does the calculating. Python blocks in chat answers run
+ * only on click (c12f94316a), so no branch promises automatic execution.
  */
 export function formatTabularComputeGuidance(state: ChatGraphState): string {
   if (!state.hasTabularAttachment) return '';
@@ -900,17 +901,18 @@ Der*die Nutzer*in hat eine Tabelle (CSV/Excel/ODS) angehängt. Auf diesem Gerät
 - Soll die Tabelle AUSGEFÜLLT werden (Werte eintragen, Vorlage befüllen), geht das auf diesem Gerät nicht: sag kurz, dass das Ausfüllen und der Download der fertigen Datei derzeit nur im Browser (Web-Version) funktioniert, und nenne stattdessen die Werte, die einzutragen wären.
 - Wurde bereits ein BERECHNUNGSERGEBNIS geliefert (siehe unten), übernimm dessen Werte EXAKT und rechne nicht neu.`;
   }
-  // Fenced python blocks in chat answers run only on click (c12f94316a), never
-  // automatically — so the default branch must not promise an auto-run. It
-  // answers from the document context; code only on explicit request.
+  // Default: the client can run Python and the turn runs in the agentic loop,
+  // which owns the tool `tabelle_auswerten` (approval-gated, result returns to
+  // the loop). No python block in the answer — fenced blocks only run on click.
   return `
 
-## TABELLENDATEN — AUS DEN DATEN ANTWORTEN
+## TABELLENDATEN — MIT DEM WERKZEUG RECHNEN
 
 Der*die Nutzer*in hat eine Tabelle (CSV/Excel/ODS) angehängt. Ihre Daten stehen im angehängten Dokumentkontext.
-- Beantworte Rechenfragen (Summe, Durchschnitt, Minimum/Maximum, "pro Produkt/Kategorie", Anteile, Zählungen …) direkt aus den Tabellendaten im Dokumentkontext: rechne sorgfältig Schritt für Schritt und zeige den Rechenweg kurz und nachvollziehbar (relevante Werte und Zwischensummen nennen).
-- Gib einen \`\`\`python-Block NUR aus, wenn der*die Nutzer*in ausdrücklich nach Code fragt. Behaupte NIEMALS, dass Code von selbst läuft oder dass das Ergebnis gleich erscheint.
-- Sind die benötigten Zeilen oder Spalten im Kontext nicht vollständig enthalten, sag das ehrlich und nenne, welche Angaben fehlen — erfinde KEINE Zahlen.
+- Für jede Berechnung, Filterung, Sortierung, Zählung, Datumslogik und jedes Ausfüllen der Tabelle rufst du das Werkzeug \`tabelle_auswerten\` auf (\`auftrag\`: was zu tun ist, \`modus\`: "auswerten" oder "ausfuellen"). Das Werkzeug rechnet per Code; der*die Nutzer*in bestätigt den Aufruf.
+- Gib KEINEN Code-Block in die Antwort aus und rechne NICHT selbst im Kopf — auch nicht "nur kurz".
+- Übernimm die Werte aus dem Werkzeug-Ergebnis EXAKT und formuliere eine kurze, klare Antwort.
+- Lehnt der*die Nutzer*in den Aufruf ab (Fehler "Vom Nutzer abgelehnt"), antworte ohne Rechnung aus dem Dokumentkontext und sag ausdrücklich, dass die Werte nicht berechnet sind. Sind Zeilen oder Spalten dort unvollständig, nenne, was fehlt — erfinde KEINE Zahlen.
 - Wurde bereits ein BERECHNUNGSERGEBNIS geliefert (siehe unten), übernimm dessen Werte EXAKT und rechne nicht neu.`;
 }
 

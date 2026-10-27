@@ -602,12 +602,13 @@ Folgende Datei wurde erstellt und steht der*dem Nutzer*in bereits zum Download b
 ---
 Übernimm diese Werte EXAKT und unverändert in deine Antwort. Sie wurden per Code berechnet und sind korrekt. Zähle oder rechne NICHT selbst nach.
 
-## TABELLENDATEN — AUS DEN DATEN ANTWORTEN
+## TABELLENDATEN — MIT DEM WERKZEUG RECHNEN
 
 Der*die Nutzer*in hat eine Tabelle (CSV/Excel/ODS) angehängt. Ihre Daten stehen im angehängten Dokumentkontext.
-- Beantworte Rechenfragen (Summe, Durchschnitt, Minimum/Maximum, "pro Produkt/Kategorie", Anteile, Zählungen …) direkt aus den Tabellendaten im Dokumentkontext: rechne sorgfältig Schritt für Schritt und zeige den Rechenweg kurz und nachvollziehbar (relevante Werte und Zwischensummen nennen).
-- Gib einen \`\`\`python-Block NUR aus, wenn der*die Nutzer*in ausdrücklich nach Code fragt. Behaupte NIEMALS, dass Code von selbst läuft oder dass das Ergebnis gleich erscheint.
-- Sind die benötigten Zeilen oder Spalten im Kontext nicht vollständig enthalten, sag das ehrlich und nenne, welche Angaben fehlen — erfinde KEINE Zahlen.
+- Für jede Berechnung, Filterung, Sortierung, Zählung, Datumslogik und jedes Ausfüllen der Tabelle rufst du das Werkzeug \`tabelle_auswerten\` auf (\`auftrag\`: was zu tun ist, \`modus\`: "auswerten" oder "ausfuellen"). Das Werkzeug rechnet per Code; der*die Nutzer*in bestätigt den Aufruf.
+- Gib KEINEN Code-Block in die Antwort aus und rechne NICHT selbst im Kopf — auch nicht "nur kurz".
+- Übernimm die Werte aus dem Werkzeug-Ergebnis EXAKT und formuliere eine kurze, klare Antwort.
+- Lehnt der*die Nutzer*in den Aufruf ab (Fehler "Vom Nutzer abgelehnt"), antworte ohne Rechnung aus dem Dokumentkontext und sag ausdrücklich, dass die Werte nicht berechnet sind. Sind Zeilen oder Spalten dort unvollständig, nenne, was fehlt — erfinde KEINE Zahlen.
 - Wurde bereits ein BERECHNUNGSERGEBNIS geliefert (siehe unten), übernimm dessen Werte EXAKT und rechne nicht neu.
 
 ## SUCHERGEBNISSE
@@ -2254,12 +2255,13 @@ Folgende Datei wurde erstellt und steht der*dem Nutzer*in bereits zum Download b
 ---
 Übernimm diese Werte EXAKT und unverändert in deine Antwort. Sie wurden per Code berechnet und sind korrekt. Zähle oder rechne NICHT selbst nach.
 
-## TABELLENDATEN — AUS DEN DATEN ANTWORTEN
+## TABELLENDATEN — MIT DEM WERKZEUG RECHNEN
 
 Der*die Nutzer*in hat eine Tabelle (CSV/Excel/ODS) angehängt. Ihre Daten stehen im angehängten Dokumentkontext.
-- Beantworte Rechenfragen (Summe, Durchschnitt, Minimum/Maximum, "pro Produkt/Kategorie", Anteile, Zählungen …) direkt aus den Tabellendaten im Dokumentkontext: rechne sorgfältig Schritt für Schritt und zeige den Rechenweg kurz und nachvollziehbar (relevante Werte und Zwischensummen nennen).
-- Gib einen \`\`\`python-Block NUR aus, wenn der*die Nutzer*in ausdrücklich nach Code fragt. Behaupte NIEMALS, dass Code von selbst läuft oder dass das Ergebnis gleich erscheint.
-- Sind die benötigten Zeilen oder Spalten im Kontext nicht vollständig enthalten, sag das ehrlich und nenne, welche Angaben fehlen — erfinde KEINE Zahlen.
+- Für jede Berechnung, Filterung, Sortierung, Zählung, Datumslogik und jedes Ausfüllen der Tabelle rufst du das Werkzeug \`tabelle_auswerten\` auf (\`auftrag\`: was zu tun ist, \`modus\`: "auswerten" oder "ausfuellen"). Das Werkzeug rechnet per Code; der*die Nutzer*in bestätigt den Aufruf.
+- Gib KEINEN Code-Block in die Antwort aus und rechne NICHT selbst im Kopf — auch nicht "nur kurz".
+- Übernimm die Werte aus dem Werkzeug-Ergebnis EXAKT und formuliere eine kurze, klare Antwort.
+- Lehnt der*die Nutzer*in den Aufruf ab (Fehler "Vom Nutzer abgelehnt"), antworte ohne Rechnung aus dem Dokumentkontext und sag ausdrücklich, dass die Werte nicht berechnet sind. Sind Zeilen oder Spalten dort unvollständig, nenne, was fehlt — erfinde KEINE Zahlen.
 - Wurde bereits ein BERECHNUNGSERGEBNIS geliefert (siehe unten), übernimm dessen Werte EXAKT und rechne nicht neu.
 
 ## SUCHERGEBNISSE
@@ -2497,12 +2499,13 @@ Folgende Datei wurde erstellt und steht der*dem Nutzer*in bereits zum Download b
 ---
 Übernimm diese Werte EXAKT und unverändert in deine Antwort. Sie wurden per Code berechnet und sind korrekt. Zähle oder rechne NICHT selbst nach.
 
-## TABELLENDATEN — AUS DEN DATEN ANTWORTEN
+## TABELLENDATEN — MIT DEM WERKZEUG RECHNEN
 
 Der*die Nutzer*in hat eine Tabelle (CSV/Excel/ODS) angehängt. Ihre Daten stehen im angehängten Dokumentkontext.
-- Beantworte Rechenfragen (Summe, Durchschnitt, Minimum/Maximum, "pro Produkt/Kategorie", Anteile, Zählungen …) direkt aus den Tabellendaten im Dokumentkontext: rechne sorgfältig Schritt für Schritt und zeige den Rechenweg kurz und nachvollziehbar (relevante Werte und Zwischensummen nennen).
-- Gib einen \`\`\`python-Block NUR aus, wenn der*die Nutzer*in ausdrücklich nach Code fragt. Behaupte NIEMALS, dass Code von selbst läuft oder dass das Ergebnis gleich erscheint.
-- Sind die benötigten Zeilen oder Spalten im Kontext nicht vollständig enthalten, sag das ehrlich und nenne, welche Angaben fehlen — erfinde KEINE Zahlen.
+- Für jede Berechnung, Filterung, Sortierung, Zählung, Datumslogik und jedes Ausfüllen der Tabelle rufst du das Werkzeug \`tabelle_auswerten\` auf (\`auftrag\`: was zu tun ist, \`modus\`: "auswerten" oder "ausfuellen"). Das Werkzeug rechnet per Code; der*die Nutzer*in bestätigt den Aufruf.
+- Gib KEINEN Code-Block in die Antwort aus und rechne NICHT selbst im Kopf — auch nicht "nur kurz".
+- Übernimm die Werte aus dem Werkzeug-Ergebnis EXAKT und formuliere eine kurze, klare Antwort.
+- Lehnt der*die Nutzer*in den Aufruf ab (Fehler "Vom Nutzer abgelehnt"), antworte ohne Rechnung aus dem Dokumentkontext und sag ausdrücklich, dass die Werte nicht berechnet sind. Sind Zeilen oder Spalten dort unvollständig, nenne, was fehlt — erfinde KEINE Zahlen.
 - Wurde bereits ein BERECHNUNGSERGEBNIS geliefert (siehe unten), übernimm dessen Werte EXAKT und rechne nicht neu.
 
 ## SUCHERGEBNISSE

@@ -534,13 +534,15 @@ describe('formatTabularComputeGuidance', () => {
     expect(out).toBe('');
   });
 
-  it('default branch never promises automatic execution', () => {
+  it('default branch steers calculations to the tabelle_auswerten tool', () => {
     const out = formatTabularComputeGuidance(
       makeState({ hasTabularAttachment: true, computedResult: null, clientCanRunPython: true })
     );
+    expect(out).toContain('MIT DEM WERKZEUG RECHNEN');
+    expect(out).toContain('tabelle_auswerten');
+    expect(out).not.toContain('```python');
     expect(out).not.toContain('automatisch ausgeführt');
     expect(out).not.toMatch(/Fordere NICHT zum Klicken/);
-    expect(out).toContain('AUS DEN DATEN ANTWORTEN');
   });
 
   it('suppresses code emission when a FRESH result exists (run-then-answer resume)', () => {
@@ -561,7 +563,7 @@ describe('formatTabularComputeGuidance', () => {
     const out = formatTabularComputeGuidance(
       makeState({ hasTabularAttachment: true, computedResult: makeComputeResult() })
     );
-    expect(out).toContain('AUS DEN DATEN ANTWORTEN');
+    expect(out).toContain('tabelle_auswerten');
   });
 
   it('never promises code execution to clients without the run_python capability', () => {
