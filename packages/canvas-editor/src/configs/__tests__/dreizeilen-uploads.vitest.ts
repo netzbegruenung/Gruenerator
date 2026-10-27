@@ -1,6 +1,5 @@
+import { loadCanvasConfig } from '@ggraphic/editor/configs/configLoader';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
-
-import { loadCanvasConfig } from '../configLoader';
 
 import type { ToolsSectionProps, UploadsSectionProps } from '../../sidebar/sections';
 import type { UserImageInstance } from '@ggraphic/editor/utils/userImageUtils';

@@ -1,10 +1,24 @@
 // SPDX-License-Identifier: MPL-2.0
+import { messages } from '@ggraphic/editor/i18n/messages';
+
 import { type Rect, type Size } from './coverFit';
 
 /** Seitenverhältnis-Vorgaben im Zuschneide-Modus eigener Bilder, in Anzeige-Reihenfolge. */
 export const CROP_ASPECT_PRESETS = [
-  { id: 'free', label: 'Freiform', ratio: null },
-  { id: 'original', label: 'Original', ratio: null },
+  {
+    id: 'free',
+    get label() {
+      return messages().crop.free;
+    },
+    ratio: null,
+  },
+  {
+    id: 'original',
+    get label() {
+      return messages().crop.original;
+    },
+    ratio: null,
+  },
   { id: '1:1', label: '1:1', ratio: 1 },
   { id: '4:5', label: '4:5', ratio: 4 / 5 },
   { id: '9:16', label: '9:16', ratio: 9 / 16 },

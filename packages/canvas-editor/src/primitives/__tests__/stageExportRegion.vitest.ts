@@ -1,6 +1,5 @@
+import { stageExportRegion } from '@ggraphic/editor/primitives/CanvasStage';
 import { describe, expect, it } from 'vitest';
-
-import { stageExportRegion } from '../CanvasStage';
 
 /** Konva's bitmap size: `Canvas._bitmapSize` floors region × pixelRatio. */
 const bitmap = (size: number, ratio: number) => Math.floor(size * ratio);

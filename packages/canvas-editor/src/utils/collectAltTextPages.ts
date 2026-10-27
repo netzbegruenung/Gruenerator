@@ -1,5 +1,5 @@
-import { type AltTextPage } from '../CanvasEditorProvider';
-import { type GenericCanvasRef } from '../components/GenericCanvas';
+import { type AltTextPage } from '@ggraphic/editor/CanvasEditorProvider';
+import { type GenericCanvasRef } from '@ggraphic/editor/components/GenericCanvas';
 
 /** Check every requested page before reporting capture failures, as for multi-page export. */
 export async function collectAltTextPages(

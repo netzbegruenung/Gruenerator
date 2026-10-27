@@ -14,11 +14,11 @@
  * This eliminates 60+ lines of manual prop passing per config (83% code reduction).
  */
 
-import { MAX_ICON_SELECTIONS, selectedCatalogIconIds } from '../utils/iconInstances';
+import { MAX_ICON_SELECTIONS, selectedCatalogIconIds } from '@ggraphic/editor/utils/iconInstances';
 
-import type { IconState } from './factory/baseTypes';
-import type { SectionContext } from './types';
 import type { ExtendedAssetsSectionProps } from '../sidebar/sections/assets';
+import type { IconState } from '@ggraphic/editor/configs/factory/baseTypes';
+import type { SectionContext } from '@ggraphic/editor/configs/types';
 import type { CircleBadgeInstance } from '@ggraphic/editor/primitives/CircleBadge';
 import type { BalkenInstance } from '@ggraphic/editor/utils/balkenUtils';
 import type { ChartInstance } from '@ggraphic/editor/utils/chartUtils';

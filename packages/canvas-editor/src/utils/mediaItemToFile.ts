@@ -1,4 +1,4 @@
-import type { CanvasMediaItem } from '../hostServices';
+import type { CanvasMediaItem } from '@ggraphic/editor/hostServices';
 
 export function buildMediaItemUrl(item: CanvasMediaItem): string | null {
   if (item.mediaUrl) return item.mediaUrl;

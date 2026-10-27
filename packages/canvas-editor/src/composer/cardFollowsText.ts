@@ -1,7 +1,7 @@
 import { runMeasurer } from '@ggraphic/editor/utils/textUtils';
 import { layoutRichTextBlock } from '@ggraphic/schema';
 
-import type { AdditionalText } from '../configs/types';
+import type { AdditionalText } from '@ggraphic/editor/configs/types';
 import type { ShapeInstance } from '@ggraphic/editor/utils/shapes';
 
 interface CardPage {

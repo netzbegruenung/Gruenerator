@@ -1,14 +1,13 @@
-import { isComposerPlane } from '@ggraphic/editor/utils/shapes';
-
 import {
   buildCanvasItems,
   buildSortedRenderList,
   type CanvasItem,
-} from '../utils/canvasLayerManager';
-import { isLayerLocked } from '../utils/layerLock';
+} from '@ggraphic/editor/utils/canvasLayerManager';
+import { isLayerLocked } from '@ggraphic/editor/utils/layerLock';
+import { isComposerPlane } from '@ggraphic/editor/utils/shapes';
 
-import type { BaseCanvasState } from '../configs/factory/baseTypes';
-import type { FullCanvasConfig } from '../configs/types';
+import type { BaseCanvasState } from '@ggraphic/editor/configs/factory/baseTypes';
+import type { FullCanvasConfig } from '@ggraphic/editor/configs/types';
 import type { CanvasAiSnapshot } from '@gruenerator/contracts';
 
 type SummaryEntry = CanvasAiSnapshot['elementsSummary'][number];

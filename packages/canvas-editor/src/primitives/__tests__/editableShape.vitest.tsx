@@ -1,11 +1,10 @@
+import { CanvasStage, type CanvasStageRef } from '@ggraphic/editor/primitives/CanvasStage';
 import { ShapePrimitive } from '@ggraphic/editor/primitives/ShapePrimitive';
 import { createShape, type ShapeInstance } from '@ggraphic/editor/utils/shapes';
 import { render } from '@testing-library/react';
 import Konva from 'konva';
 import { createRef } from 'react';
 import { describe, expect, it } from 'vitest';
-
-import { CanvasStage, type CanvasStageRef } from '../CanvasStage';
 
 function rectNode(shape: ShapeInstance) {
   Konva.autoDrawEnabled = false;

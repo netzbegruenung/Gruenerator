@@ -4,12 +4,11 @@
  * weg, muss der Editor mitwandern — sonst schwebt er zwischen den Seiten
  * (#4385).
  */
+import { CanvasStage, type CanvasStageRef } from '@ggraphic/editor/primitives/CanvasStage';
+import { CanvasText } from '@ggraphic/editor/primitives/CanvasText';
 import { act, cleanup, render } from '@testing-library/react';
 import { createRef } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-
-import { CanvasStage, type CanvasStageRef } from '../../primitives/CanvasStage';
-import { CanvasText } from '../../primitives/CanvasText';
 
 let frames: FrameRequestCallback[] = [];
 

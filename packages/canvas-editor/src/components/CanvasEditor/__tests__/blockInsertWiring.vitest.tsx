@@ -5,6 +5,12 @@
  * page as its own elements. Runs on the real freeform page and the real
  * composer; the host's `composeBlock` is the composition apps/web runs.
  */
+import {
+  CanvasEditorProvider,
+  type CanvasEditorServices,
+} from '@ggraphic/editor/CanvasEditorProvider';
+import { GenericCanvas, type GenericCanvasRef } from '@ggraphic/editor/components/GenericCanvas';
+import { loadCanvasConfig } from '@ggraphic/editor/configs/configLoader';
 import { AutoSaveStoreProvider } from '@ggraphic/editor/stores/AutoSaveStoreProvider';
 import { sharepicBlockSpec, type SharepicBlock } from '@gruenerator/contracts';
 import { act, cleanup, render } from '@testing-library/react';
@@ -12,14 +18,11 @@ import Konva from 'konva';
 import React, { createRef } from 'react';
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 
-import { CanvasEditorProvider, type CanvasEditorServices } from '../../../CanvasEditorProvider';
 import { composeSharepic, SHAREPIC_COLOR_HEX } from '../../../composer/composeSharepic';
 import { grueneratorBlocks } from '../../../composer/sharepicServices';
-import { loadCanvasConfig } from '../../../configs/configLoader';
-import { GenericCanvas, type GenericCanvasRef } from '../../GenericCanvas';
 import { BlockInsertProvider, useBlockInsert, type BlockInsertApi } from '../blockInsert';
 
-import type { AdditionalText } from '../../../configs/types';
+import type { AdditionalText } from '@ggraphic/editor/configs/types';
 
 const BLOCK: SharepicBlock = {
   id: 'de-block-liste',

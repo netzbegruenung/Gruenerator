@@ -14,6 +14,8 @@
  *   - Each op is wrapped in try/catch so one bad op in a multi-op
  *     suggestion doesn't abort the rest.
  */
+import { isLayerLocked } from '@ggraphic/editor/utils/layerLock';
+import { findElementRemover } from '@ggraphic/editor/utils/removeElement';
 import { type ShapeInstance } from '@ggraphic/editor/utils/shapes';
 import {
   type CanvasAiUpdatePatch,
@@ -21,12 +23,9 @@ import {
   isCoreCanvasAiOperation,
 } from '@ggraphic/schema';
 
-import { isLayerLocked } from '../utils/layerLock';
-import { findElementRemover } from '../utils/removeElement';
-
-import type { BaseCanvasState } from '../configs/factory/baseTypes';
-import type { AdditionalText } from '../configs/types';
 import type { ApplyResult, TemplateAiCapabilities } from '@ggraphic/editor/ai/types';
+import type { BaseCanvasState } from '@ggraphic/editor/configs/factory/baseTypes';
+import type { AdditionalText } from '@ggraphic/editor/configs/types';
 import type { CircleBadgeInstance } from '@ggraphic/editor/primitives/CircleBadge';
 import type { BalkenInstance } from '@ggraphic/editor/utils/balkenUtils';
 import type { FrameInstance } from '@ggraphic/editor/utils/frameUtils';

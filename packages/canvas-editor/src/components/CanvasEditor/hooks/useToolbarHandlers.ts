@@ -1,7 +1,10 @@
 import { useMemo } from 'react';
 
-import type { ShadowPatch } from '../../../hooks/useFloatingModuleHandlers';
-import type { GenericCanvasRef, ToolbarStateReport } from '../../GenericCanvas';
+import type {
+  GenericCanvasRef,
+  ToolbarStateReport,
+} from '@ggraphic/editor/components/GenericCanvas';
+import type { ShadowPatch } from '@ggraphic/editor/hooks/useFloatingModuleHandlers';
 import type { PageCommandId } from '@ggraphic/editor/utils/canvasCommandRegistry';
 import type { CropAspectId } from '@ggraphic/editor/utils/cropAspect';
 import type { GradientFill } from '@ggraphic/editor/utils/gradientFill';

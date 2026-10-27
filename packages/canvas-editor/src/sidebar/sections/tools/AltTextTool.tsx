@@ -1,14 +1,14 @@
+import { useCanvasEditorServices } from '@ggraphic/editor/CanvasEditorProvider';
 import { cn } from '@ggraphic/editor/utils/cn';
 import { SLIDE_ALT_TEXT_MAX_CHARS } from '@gruenerator/contracts';
 import { useCallback, useId, useState } from 'react';
 import { HiChatBubbleBottomCenterText } from 'react-icons/hi2';
 
-import { useCanvasEditorServices } from '../../../CanvasEditorProvider';
 import { MOBILE_INPUT_TEXT } from '../../sidebarStyles';
 
 import { ToolPanel } from './ToolPanel';
 
-import type { AltTextPage, AltTextScope } from '../../../CanvasEditorProvider';
+import type { AltTextPage, AltTextScope } from '@ggraphic/editor/CanvasEditorProvider';
 
 export interface AltTextPagesSource {
   collect: (scope: AltTextScope) => Promise<AltTextPage[]>;

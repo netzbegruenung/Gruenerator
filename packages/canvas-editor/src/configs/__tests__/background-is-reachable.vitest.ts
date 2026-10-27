@@ -1,6 +1,5 @@
+import { loadCanvasConfig } from '@ggraphic/editor/configs/configLoader';
 import { beforeAll, describe, expect, it } from 'vitest';
-
-import { loadCanvasConfig } from '../configLoader';
 
 /**
  * Guard for the "background you cannot reach" class.

@@ -1,11 +1,11 @@
+import { loadCanvasConfig } from '@ggraphic/editor/configs/configLoader';
+import { resolveToolbarOpacity } from '@ggraphic/editor/hooks/useFloatingModuleState';
 import { describe, it, expect, beforeAll } from 'vitest';
 
-import { loadCanvasConfig } from '../configLoader';
-import { resolveToolbarOpacity } from '../../hooks/useFloatingModuleState';
-import { ZITAT_PURE_CONFIG } from '../../utils/zitatPureLayout';
 import { SLIDER_CONFIG } from '../../utils/sliderLayout';
+import { ZITAT_PURE_CONFIG } from '../../utils/zitatPureLayout';
 
-import type { CanvasElementConfig, ImageElementConfig } from '../types';
+import type { CanvasElementConfig, ImageElementConfig } from '@ggraphic/editor/configs/types';
 
 type CanvasConfigType = Parameters<typeof loadCanvasConfig>[0];
 

@@ -1,9 +1,12 @@
+import {
+  CanvasEditorProvider,
+  type CanvasEditorServices,
+} from '@ggraphic/editor/CanvasEditorProvider';
 import { UnsplashLimitError, useUnsplashSearch } from '@gruenerator/shared/image-studio';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { CanvasEditorProvider, type CanvasEditorServices } from '../../../CanvasEditorProvider';
 import { axe } from '../../../test-utils';
 
 import { ToolsSection } from './ToolsSection';

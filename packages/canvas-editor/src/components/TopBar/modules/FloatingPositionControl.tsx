@@ -13,7 +13,7 @@ import {
   PiRows,
 } from 'react-icons/pi';
 
-import type { SelectionGeometry } from '../../../utils/canvasCommands';
+import type { SelectionGeometry } from '@ggraphic/editor/utils/canvasCommands';
 import type { IconType } from 'react-icons';
 
 export type PositionCommandId =

@@ -1,12 +1,11 @@
+import { canCropBackgroundPhoto } from '@ggraphic/editor/utils/backgroundPhotoCrop';
+import { canEnterCrop, cropTargetOf } from '@ggraphic/editor/utils/cropTarget';
+import { expandedFileName, expandTarget } from '@ggraphic/editor/utils/expandImage';
+import { smartCropView } from '@ggraphic/editor/utils/smartCrop';
 import { userFacingError, userFacingMessage } from '@ggraphic/editor/utils/userFacingError';
 import { describe, expect, it } from 'vitest';
 
-import { canCropBackgroundPhoto } from './backgroundPhotoCrop';
-import { canEnterCrop, cropTargetOf } from './cropTarget';
-import { expandedFileName, expandTarget } from './expandImage';
-import { smartCropView } from './smartCrop';
-
-import type { CanvasElementConfig } from '../configs/types';
+import type { CanvasElementConfig } from '@ggraphic/editor/configs/types';
 
 const background = (coverFit: boolean): CanvasElementConfig[] => [
   {

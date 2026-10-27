@@ -9,6 +9,8 @@
  * Tastaturen hinter AltGr.
  */
 
+import { messages, type Messages } from '@ggraphic/editor/i18n/messages';
+
 export interface CommandShortcut {
   /** `KeyboardEvent.key`; Buchstaben klein. */
   readonly key: string;
@@ -29,52 +31,65 @@ interface CommandSpec {
 const mod = (key: string): CommandShortcut => ({ key, mod: true, shift: false, alsoKeys: [] });
 const shift = (key: string): CommandShortcut => ({ key, mod: false, shift: true, alsoKeys: [] });
 
+/** `label` is read on access, so the active message catalogue decides — not the one at import time. */
+function command<S extends CommandSpec['scope']>(
+  id: keyof Messages['commands'],
+  scope: S,
+  shortcut: CommandShortcut | null
+): { readonly label: string; readonly scope: S; readonly shortcut: CommandShortcut | null } {
+  return {
+    get label() {
+      return messages().commands[id];
+    },
+    scope,
+    shortcut,
+  };
+}
+
 export const CANVAS_COMMANDS = {
-  copy: { label: 'Kopieren', scope: 'page', shortcut: mod('c') },
-  cut: { label: 'Ausschneiden', scope: 'page', shortcut: mod('x') },
-  paste: { label: 'Einfügen', scope: 'page', shortcut: mod('v') },
-  pasteHere: { label: 'Hier einfügen', scope: 'page', shortcut: null },
-  duplicate: { label: 'Duplizieren', scope: 'page', shortcut: mod('d') },
-  delete: {
-    label: 'Löschen',
-    scope: 'page',
-    shortcut: { key: 'Delete', mod: false, shift: false, alsoKeys: ['Backspace'] },
-  },
-  selectAll: { label: 'Alles auswählen', scope: 'page', shortcut: mod('a') },
-  bringToFront: { label: 'Ganz nach vorne', scope: 'page', shortcut: null },
-  bringForward: { label: 'Nach vorne', scope: 'page', shortcut: null },
-  sendBackward: { label: 'Nach hinten', scope: 'page', shortcut: null },
-  sendToBack: { label: 'Ganz nach hinten', scope: 'page', shortcut: null },
-  toggleLock: { label: 'Sperren', scope: 'page', shortcut: null },
-  editText: {
-    label: 'Text bearbeiten',
-    scope: 'page',
-    shortcut: { key: 'F2', mod: false, shift: false, alsoKeys: [] },
-  },
-  insertFrameImage: {
-    label: 'Bild einsetzen',
-    scope: 'page',
-    shortcut: { key: 'Enter', mod: false, shift: false, alsoKeys: [] },
-  },
-  flipHorizontal: { label: 'Horizontal spiegeln', scope: 'page', shortcut: shift('h') },
-  flipVertical: { label: 'Vertikal spiegeln', scope: 'page', shortcut: shift('v') },
-  resetRotation: { label: 'Drehung zurücksetzen', scope: 'page', shortcut: null },
+  copy: command('copy', 'page', mod('c')),
+  cut: command('cut', 'page', mod('x')),
+  paste: command('paste', 'page', mod('v')),
+  pasteHere: command('pasteHere', 'page', null),
+  duplicate: command('duplicate', 'page', mod('d')),
+  delete: command('delete', 'page', {
+    key: 'Delete',
+    mod: false,
+    shift: false,
+    alsoKeys: ['Backspace'],
+  }),
+  selectAll: command('selectAll', 'page', mod('a')),
+  bringToFront: command('bringToFront', 'page', null),
+  bringForward: command('bringForward', 'page', null),
+  sendBackward: command('sendBackward', 'page', null),
+  sendToBack: command('sendToBack', 'page', null),
+  toggleLock: command('toggleLock', 'page', null),
+  editText: command('editText', 'page', { key: 'F2', mod: false, shift: false, alsoKeys: [] }),
+  insertFrameImage: command('insertFrameImage', 'page', {
+    key: 'Enter',
+    mod: false,
+    shift: false,
+    alsoKeys: [],
+  }),
+  flipHorizontal: command('flipHorizontal', 'page', shift('h')),
+  flipVertical: command('flipVertical', 'page', shift('v')),
+  resetRotation: command('resetRotation', 'page', null),
   // Ausrichten: einzeln an der Seite, mehrere an der Auswahl. Ohne Kürzel.
-  alignLeft: { label: 'Links', scope: 'page', shortcut: null },
-  alignCenterH: { label: 'Zentriert', scope: 'page', shortcut: null },
-  alignRight: { label: 'Rechts', scope: 'page', shortcut: null },
-  alignTop: { label: 'Oben', scope: 'page', shortcut: null },
-  alignMiddle: { label: 'Mitte', scope: 'page', shortcut: null },
-  alignBottom: { label: 'Unten', scope: 'page', shortcut: null },
-  distributeHorizontal: { label: 'Horizontal verteilen', scope: 'page', shortcut: null },
-  distributeVertical: { label: 'Vertikal verteilen', scope: 'page', shortcut: null },
-  editImage: { label: 'Bild bearbeiten', scope: 'editor', shortcut: null },
-  setAsBackground: { label: 'Als Hintergrund', scope: 'editor', shortcut: null },
-  replaceBackground: { label: 'Bild ersetzen …', scope: 'editor', shortcut: null },
-  cropBackground: { label: 'Ausschnitt anpassen', scope: 'editor', shortcut: null },
-  removeBackground: { label: 'Hintergrundbild entfernen', scope: 'editor', shortcut: null },
-  duplicatePage: { label: 'Seite duplizieren', scope: 'editor', shortcut: null },
-  deletePage: { label: 'Seite löschen', scope: 'editor', shortcut: null },
+  alignLeft: command('alignLeft', 'page', null),
+  alignCenterH: command('alignCenterH', 'page', null),
+  alignRight: command('alignRight', 'page', null),
+  alignTop: command('alignTop', 'page', null),
+  alignMiddle: command('alignMiddle', 'page', null),
+  alignBottom: command('alignBottom', 'page', null),
+  distributeHorizontal: command('distributeHorizontal', 'page', null),
+  distributeVertical: command('distributeVertical', 'page', null),
+  editImage: command('editImage', 'editor', null),
+  setAsBackground: command('setAsBackground', 'editor', null),
+  replaceBackground: command('replaceBackground', 'editor', null),
+  cropBackground: command('cropBackground', 'editor', null),
+  removeBackground: command('removeBackground', 'editor', null),
+  duplicatePage: command('duplicatePage', 'editor', null),
+  deletePage: command('deletePage', 'editor', null),
 } as const satisfies Record<string, CommandSpec>;
 
 export type CanvasCommandId = keyof typeof CANVAS_COMMANDS;
@@ -116,8 +131,18 @@ export function commandForKey(e: KeyLike): CanvasCommandId | null {
 }
 
 const KEY_LABELS: Record<string, { mac: string; other: string }> = {
-  Delete: { mac: '⌫', other: 'Entf' },
-  Backspace: { mac: '⌫', other: 'Rücktaste' },
+  Delete: {
+    mac: '⌫',
+    get other() {
+      return messages().keys.delete;
+    },
+  },
+  Backspace: {
+    mac: '⌫',
+    get other() {
+      return messages().keys.backspace;
+    },
+  },
   Enter: { mac: '↩', other: 'Enter' },
 };
 
@@ -126,7 +151,9 @@ export function formatShortcut(shortcut: CommandShortcut, isMac: boolean): strin
   const named = KEY_LABELS[shortcut.key];
   const key = named ? (isMac ? named.mac : named.other) : shortcut.key.toUpperCase();
   if (isMac) return `${shortcut.shift ? '⇧' : ''}${shortcut.mod ? '⌘' : ''}${key}`;
-  return [shortcut.mod && 'Strg', shortcut.shift && 'Umschalt', key].filter(Boolean).join('+');
+  return [shortcut.mod && messages().keys.ctrl, shortcut.shift && messages().keys.shift, key]
+    .filter(Boolean)
+    .join('+');
 }
 
 /** Dasselbe Kürzel für `aria-keyshortcuts` (`Control+C`, `Meta+C`, `Shift+H`, `Delete`). */

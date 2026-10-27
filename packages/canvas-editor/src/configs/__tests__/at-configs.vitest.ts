@@ -1,3 +1,4 @@
+import { loadCanvasConfig } from '@ggraphic/editor/configs/configLoader';
 import { measureTextWidthWithFont } from '@ggraphic/editor/utils/textUtils';
 import { describe, it, expect, beforeAll } from 'vitest';
 
@@ -7,7 +8,6 @@ import { OVERLAY_AT_CONFIG, calculateOverlayAtLayout } from '../../utils/overlay
 import { getTemplatesForLocale } from '../../utils/templateRegistry';
 import { ZITAT_AT_CONFIG, calculateZitatAtLayout } from '../../utils/zitatAtLayout';
 import { ZITAT_PURE_AT_CONFIG, calculateZitatPureAtLayout } from '../../utils/zitatPureAtLayout';
-import { loadCanvasConfig } from '../configLoader';
 
 const AT_IDS = [
   'zitat-at',

@@ -1,7 +1,4 @@
 import { covers, framedPhotoRect, photoRectAround } from '@ggraphic/editor/utils/coverFit';
-import { straightenWindowPhoto } from '@ggraphic/editor/utils/straighten';
-import { describe, expect, it } from 'vitest';
-
 import {
   backgroundSmartCropView,
   backgroundSmartCropWindow,
@@ -10,9 +7,11 @@ import {
   userImageSmartCropPatch,
   userImageSmartCropView,
   viewAround,
-} from './smartCrop';
+} from '@ggraphic/editor/utils/smartCrop';
+import { straightenWindowPhoto } from '@ggraphic/editor/utils/straighten';
+import { describe, expect, it } from 'vitest';
 
-import type { CanvasElementConfig, LayoutResult } from '../configs/types';
+import type { CanvasElementConfig, LayoutResult } from '@ggraphic/editor/configs/types';
 import type { UserImageInstance } from '@ggraphic/editor/utils/userImageUtils';
 
 const IMAGE: UserImageInstance = {

@@ -1,12 +1,12 @@
+import { useUserUploads } from '@ggraphic/editor/sidebar/UserUploadsProvider';
 import { MasonryGrid, MasonryItem } from '@ggraphic/editor/ui/masonry-grid';
 import { cn } from '@ggraphic/editor/utils/cn';
 import { useEffect, useRef, useState } from 'react';
 import { HiArrowUpTray, HiPhoto, HiXMark } from 'react-icons/hi2';
 
 import { mediaItemToFile } from '../../../utils/mediaItemToFile';
-import { useUserUploads } from '../../UserUploadsProvider';
 
-import type { CanvasMediaItem } from '../../../hostServices';
+import type { CanvasMediaItem } from '@ggraphic/editor/hostServices';
 
 export interface ImageInputPickerProps {
   value: File | null;

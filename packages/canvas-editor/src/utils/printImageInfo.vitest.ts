@@ -1,7 +1,7 @@
-import type Konva from 'konva';
+import { printImageInfo } from '@ggraphic/editor/utils/printImageInfo';
 import { describe, expect, it } from 'vitest';
 
-import { printImageInfo } from './printImageInfo';
+import type Konva from 'konva';
 
 function fakeNode(opts: {
   cropWidth: number;

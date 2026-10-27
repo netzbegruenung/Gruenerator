@@ -5,7 +5,7 @@ import {
   TripleBalkenPreviewIcon,
 } from './BadgePreviewIcons';
 
-import type { BalkenMode } from '../../primitives';
+import type { BalkenMode } from '@ggraphic/editor/primitives/index';
 
 export interface BadgeSectionProps {
   onAddPillBadge?: (preset?: string) => void;

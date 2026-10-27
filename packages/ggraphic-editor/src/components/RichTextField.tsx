@@ -42,6 +42,7 @@ import { EditorContent, useEditor, type Editor } from '@tiptap/react';
 import { useEffect, useRef, type CSSProperties } from 'react';
 
 import { Accent } from '@ggraphic/editor/components/accentMark';
+import { messages } from '@ggraphic/editor/i18n/messages';
 import { keepsEditing } from '@ggraphic/editor/utils/keyboardOwnership';
 
 import { Marker } from './markerMark';
@@ -178,7 +179,7 @@ export function RichTextField({
         class: 'canvas-rte__content',
         role: 'textbox',
         'aria-multiline': 'true',
-        'aria-label': 'Text bearbeiten',
+        'aria-label': messages().common.editText,
       },
       handleKeyDown: (_view, event) => {
         if (event.key === 'Escape') {

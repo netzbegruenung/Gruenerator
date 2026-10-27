@@ -77,6 +77,7 @@ import {
 } from 'react';
 import { createPortal, flushSync } from 'react-dom';
 
+import { messages } from '@ggraphic/editor/i18n/messages';
 import {
   captureFocusOrigin,
   returnFocus,
@@ -224,8 +225,6 @@ function useRichTextModules(needed: boolean, onFailed: () => void): RichTextModu
   return richTextModules;
 }
 
-const LOAD_FAILED_NOTICE =
-  'Der Texteditor konnte nicht geladen werden. Bitte prüfe deine Verbindung und versuche es erneut.';
 const NOTICE_MS = 6000;
 
 /**
@@ -668,7 +667,7 @@ function TextEditorRoot({ children }: { children: ReactNode }) {
             role="alert"
             className="fixed bottom-4 left-1/2 z-[10000] max-w-[min(420px,calc(100vw-32px))] -translate-x-1/2 rounded-md bg-[var(--editor-surface)] px-4 py-3 text-sm text-[var(--editor-text)] shadow-lg"
           >
-            {LOAD_FAILED_NOTICE}
+            {messages().errors.textEditorLoad}
           </div>,
           document.body
         )}

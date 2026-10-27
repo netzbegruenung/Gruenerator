@@ -6,7 +6,7 @@ import { HIDDEN_SCROLLBAR } from '../../sidebar/sidebarStyles';
 
 import { ContextControls, type ContextControlsProps } from './ContextControls';
 
-import type { FloatingModuleState } from '../../hooks/useFloatingModuleState';
+import type { FloatingModuleState } from '@ggraphic/editor/hooks/useFloatingModuleState';
 
 const SELECTION_LABELS: Record<FloatingModuleState['type'], string> = {
   text: 'Text',

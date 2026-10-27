@@ -3,12 +3,11 @@
  * Ohne Blur — ein Tipp auf den Zurück-Knopf nimmt dem Text auf iOS den Fokus nicht.
  */
 import { commitOpenTextEdit } from '@ggraphic/editor/components/CanvasTextOverlay';
+import { CanvasStage, type CanvasStageRef } from '@ggraphic/editor/primitives/CanvasStage';
+import { CanvasText } from '@ggraphic/editor/primitives/CanvasText';
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { createRef, useEffect, useState } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-
-import { CanvasStage, type CanvasStageRef } from '../../primitives/CanvasStage';
-import { CanvasText } from '../../primitives/CanvasText';
 
 vi.mock('@ggraphic/editor/components/RichTextField', () => ({
   RichTextField: ({ value, onChange }: { value: string; onChange: (v: string) => void }) => (

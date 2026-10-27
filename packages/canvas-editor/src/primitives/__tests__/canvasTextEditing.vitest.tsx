@@ -16,14 +16,13 @@ import {
   useCanvasTextFormatting,
 } from '@ggraphic/editor/components/CanvasTextOverlay';
 import { TextFormatControls } from '@ggraphic/editor/components/TextFormatControls';
+import { CanvasStage } from '@ggraphic/editor/primitives/CanvasStage';
+import { CanvasText } from '@ggraphic/editor/primitives/CanvasText';
 import { render, screen, act, cleanup, fireEvent } from '@testing-library/react';
 import { createRef, type ReactNode } from 'react';
 import { beforeAll, describe, expect, it, vi } from 'vitest';
 
-import { CanvasStage } from '../CanvasStage';
-import { CanvasText } from '../CanvasText';
-
-import type { CanvasStageRef } from '../CanvasStage';
+import type { CanvasStageRef } from '@ggraphic/editor/primitives/CanvasStage';
 
 const GRUENE_TYPE = 'GrueneTypeNeue, Arial, sans-serif';
 const PT_SANS = 'PT Sans, Arial, sans-serif';

@@ -3,12 +3,11 @@
  * the whole-state replacement (changed keys with values, dropped keys as
  * undefined — GenericCanvas merges `{...prev, ...partial}`, so they clear).
  */
+import { useYjsPages } from '@ggraphic/editor/collab/useYjsPages';
+import { useYjsPageStateSync } from '@ggraphic/editor/collab/useYjsPageStateSync';
 import { act, renderHook } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import * as Y from 'yjs';
-
-import { useYjsPages } from './useYjsPages';
-import { useYjsPageStateSync } from './useYjsPageStateSync';
 
 const seed = (headline: string, extra: Record<string, unknown> = {}) => ({
   configId: 'creator',

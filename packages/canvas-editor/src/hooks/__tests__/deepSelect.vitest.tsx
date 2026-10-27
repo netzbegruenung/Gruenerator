@@ -3,6 +3,8 @@
  * sharepic strip, where the green tint covers the background photo exactly,
  * so a plain click can only ever reach the tint.
  */
+import { useDeepSelect } from '@ggraphic/editor/hooks/useDeepSelect';
+import { CanvasStage, type CanvasStageRef } from '@ggraphic/editor/primitives/CanvasStage';
 import { ShapePrimitive } from '@ggraphic/editor/primitives/ShapePrimitive';
 import {
   CanvasStoreProvider,
@@ -15,9 +17,6 @@ import { act, render } from '@testing-library/react';
 import { createRef } from 'react';
 import { Group } from 'react-konva';
 import { describe, expect, it } from 'vitest';
-
-import { CanvasStage, type CanvasStageRef } from '../../primitives/CanvasStage';
-import { useDeepSelect } from '../useDeepSelect';
 
 import type { CanvasEditorStoreApi } from '@ggraphic/editor/stores/createCanvasEditorStore';
 

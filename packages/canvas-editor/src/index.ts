@@ -17,33 +17,39 @@ export type {
 } from './components/CanvasEditor/types';
 export { EDITOR_KEY_SHIELD_ATTRIBUTE } from './components/CanvasEditor/hooks/usePageUndoRedoShortcuts';
 export { templateFitsFormat } from './utils/templateRegistry';
-export { CanvasEditorProvider, useCanvasEditorServices } from './CanvasEditorProvider';
-export { canvasImageSourceUrl } from './utils/canvasImageSource';
-export type { CanvasImageUrlService } from './hostServices';
+export {
+  CanvasEditorProvider,
+  useCanvasEditorServices,
+} from '@ggraphic/editor/CanvasEditorProvider';
+export { canvasImageSourceUrl } from '@ggraphic/editor/utils/canvasImageSource';
+export type { CanvasImageUrlService } from '@ggraphic/editor/hostServices';
 export type {
   CanvasEditorServices,
   ChatSectionContentProps,
   CanvasAiEditBridge,
   CanvasSpecEditBridge,
-} from './CanvasEditorProvider';
+} from '@ggraphic/editor/CanvasEditorProvider';
 export type { CanvasVorlagenService, VorlagePage } from './grueneratorHostServices';
 
 export { StandaloneCanvas } from './components/StandaloneCanvas';
-export { ConfigCanvas } from './components/ConfigCanvas';
+export { ConfigCanvas } from '@ggraphic/editor/components/ConfigCanvas';
 export { commitOpenTextEdit } from '@ggraphic/editor/components/CanvasTextOverlay';
 export type { StandaloneCanvasProps } from './components/StandaloneCanvas';
-export type { ConfigCanvasProps } from './components/ConfigCanvas';
-export { GenericCanvas } from './components/GenericCanvas';
-export type { GenericCanvasProps, GenericCanvasRef } from './components/GenericCanvas';
+export type { ConfigCanvasProps } from '@ggraphic/editor/components/ConfigCanvas';
+export { GenericCanvas } from '@ggraphic/editor/components/GenericCanvas';
+export type {
+  GenericCanvasProps,
+  GenericCanvasRef,
+} from '@ggraphic/editor/components/GenericCanvas';
 export { defineTemplate, registerTemplates } from './templates/registry';
 export type { TemplateDefinition, TemplateId, AnyCanvasConfig } from './templates/registry';
 
-export * from './primitives';
+export * from '@ggraphic/editor/primitives/index';
 export { BalkenGroup } from './primitives/BalkenGroup';
 export type { BalkenGroupProps } from './primitives/BalkenGroup';
 export * from './composed';
 export * from './utils';
-export * from './hooks';
+export * from '@ggraphic/editor/hooks/index';
 export * from './sidebar';
 export * from './layouts';
 export * from './composer';
@@ -66,7 +72,7 @@ export {
   type TemplateAiCapabilities,
 } from './ai';
 export type { CanvasConfigId } from './templates/registry';
-export { preloadCanvasTemplate } from './configs/configLoader';
+export { preloadCanvasTemplate } from '@ggraphic/editor/configs/configLoader';
 export type {
   DreizeilenAlternative,
   DreizeilenFullState,

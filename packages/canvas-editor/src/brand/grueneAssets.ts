@@ -11,7 +11,7 @@ import {
   getAssetById,
   type AssetAudience,
   type UniversalAsset,
-} from '../utils/canvasAssets';
+} from '@ggraphic/editor/utils/canvasAssets';
 
 export const GRUENE_SYSTEM_ASSETS = {
   sunflower: {

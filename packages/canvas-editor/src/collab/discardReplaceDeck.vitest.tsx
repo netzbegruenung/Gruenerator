@@ -4,11 +4,10 @@
  * the discarded deck, and a page op made after the replacement must not be
  * what gets undone instead of it.
  */
+import { useYjsPages } from '@ggraphic/editor/collab/useYjsPages';
 import { act, renderHook } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import * as Y from 'yjs';
-
-import { useYjsPages } from './useYjsPages';
 
 function setup() {
   const doc = new Y.Doc();

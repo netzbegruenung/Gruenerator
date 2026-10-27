@@ -1,15 +1,14 @@
-import { icons as heroicons } from '@iconify-json/heroicons';
-import { describe, expect, it } from 'vitest';
-
 import {
   catalogIconId,
   iconInstanceIdsFor,
   recolorIconInstances,
   resolveIconDef,
   selectedCatalogIconIds,
-} from './iconInstances';
+} from '@ggraphic/editor/utils/iconInstances';
+import { icons as heroicons } from '@iconify-json/heroicons';
+import { describe, expect, it } from 'vitest';
 
-import type { IconState } from '../configs/factory/baseTypes';
+import type { IconState } from '@ggraphic/editor/configs/factory/baseTypes';
 
 const at = (x: number, extra: Partial<IconState> = {}): IconState => ({
   x,

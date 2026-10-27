@@ -4,11 +4,10 @@
  * may be stale. A reopened one shows its locally cached doc pages instead.
  */
 import { seedPagesIfEmpty } from '@ggraphic/editor/collab/pagesDoc';
+import { usePageManager, type InitialPageDef } from '@ggraphic/editor/hooks/usePageManager';
 import { renderHook } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import * as Y from 'yjs';
-
-import { usePageManager, type InitialPageDef } from '../usePageManager';
 
 const initialPages: InitialPageDef[] = [
   { configId: 'freeform', state: { headline: 'Eins' } },

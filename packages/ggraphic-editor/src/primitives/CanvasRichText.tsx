@@ -1,0 +1,504 @@
+// SPDX-License-Identifier: MPL-2.0
+/**
+ * CanvasRichText — ein Textblock mit Aufzählung und/oder Inline-Auszeichnung.
+ *
+ * Warum ein eigener Renderer: Konva.Text kennt weder einen hängenden Einzug
+ * noch gemischte Schnitte in einem Knoten. Hier steht je Zeile ein Marker-
+ * Knoten am Blockrand und je Lauf ein eigener Textknoten an seiner gemessenen
+ * Position — fett, kursiv oder unterstrichen, wie der Lauf es trägt —, und
+ * ALLE Zeilen eines Punktes tragen denselben Einzug.
+ *
+ * Die Zeilen sind vorberechnet (`layoutRichTextBlock`) und werden mit
+ * `wrap="none"` gesetzt: derselbe Umbruch, den der Server-Renderer fährt,
+ * statt zweier Verfahren, die auseinanderdriften.
+ *
+ * Die Aufteilung zwischen diesem Renderer und dem gewöhnlichen `CanvasText`
+ * entscheidet `CanvasText` selbst — an der Komponentengrenze, nicht in einem
+ * Zweig innerhalb einer Komponente, damit die Hook-Reihenfolge stabil bleibt,
+ * wenn ein Text seinen ersten Marker bekommt.
+ *
+ * Bearbeitet wird mit `RichTextField`, das der `CanvasTextEditorProvider`
+ * NEBEN der Bühne im DOM aufspannt (siehe `CanvasTextOverlay`) — nicht aus dem
+ * Konva-Baum heraus und nicht mit einer nackten Textarea: nur so sieht man beim
+ * Tippen Fett statt Sternchen.
+ */
+
+import { layoutRichTextBlock } from '@ggraphic/schema';
+import { useRef, useEffect, useCallback, useMemo, useState, Fragment } from 'react';
+import { Group, Rect, Text as KonvaText, Transformer } from 'react-konva';
+
+import { LOCKED_TRANSFORMER, useIsItemLocked } from '@ggraphic/editor/components/canvasItemLock';
+import {
+  overlayBoxForNode,
+  useCanvasTextEditor,
+} from '@ggraphic/editor/components/CanvasTextOverlay';
+import { useFontGeneration } from '@ggraphic/editor/hooks/useFontGeneration';
+import { useGeometryReporter } from '@ggraphic/editor/hooks/useGeometryReporter';
+import { useSnapScheduler } from '@ggraphic/editor/hooks/useSnapScheduler';
+import { gradientFillProps } from '@ggraphic/editor/utils/gradientFill';
+import { markerBoxes } from '@ggraphic/editor/utils/markerBoxes';
+import { defaultTextMarker, markerInkOn } from '@ggraphic/editor/utils/markerColors';
+import { isGroupDrag } from '@ggraphic/editor/utils/multiSelect';
+import { ELEMENT_TRANSFORMER, normalizeRotation } from '@ggraphic/editor/utils/orientation';
+import {
+  boxFrame,
+  createBoxFrame,
+  frameBounds,
+  snapByBounds,
+} from '@ggraphic/editor/utils/snapping';
+import { runFont, runMeasurer } from '@ggraphic/editor/utils/textUtils';
+
+import { type CanvasTextProps, isWidthOnlyScale } from './CanvasText';
+
+import type { TransformAnchor } from '@ggraphic/editor/types/editorTypes';
+import type Konva from 'konva';
+
+// Rahmen für Snap und Geometrie-Meldung, pro Aufruf neu beschrieben (synchron, ohne Allokation).
+const dragFrame = createBoxFrame();
+
+const DEFAULT_TEXT_ANCHORS: TransformAnchor[] = ['middle-left', 'middle-right'];
+
+export function CanvasRichText({
+  id,
+  text,
+  x,
+  y,
+  width,
+  fontSize = 24,
+  fontFamily = 'Arial',
+  fontStyle = 'normal',
+  fill = '#000000',
+  rotation,
+  opacity = 1,
+  stroke,
+  strokeWidth,
+  shadowColor,
+  shadowBlur,
+  shadowOffsetX,
+  shadowOffsetY,
+  shadowOpacity,
+  fillGradient,
+  align = 'left',
+  accent = null,
+  marker: templateMarker = null,
+  lineHeight = 1.2,
+  padding = 0,
+  draggable = true,
+  selected = false,
+  editable = false,
+  transformConfig,
+  onSelect,
+  onTextChange,
+  onDragEnd,
+  onTransformEnd,
+  onFontSizeChange,
+  snapToCenter = true,
+  stageWidth,
+  stageHeight,
+  onSnapChange,
+  getSnapTargets,
+  onPositionChange,
+  onGeometryChange,
+  onSnapLinesChange,
+}: CanvasTextProps) {
+  const locked = useIsItemLocked();
+  const groupRef = useRef<Konva.Group>(null);
+  const trRef = useRef<Konva.Transformer>(null);
+  const { open, isEditing } = useCanvasTextEditor(id, editable);
+
+  // Ein nachgeladener Schriftschnitt misst anders. Ohne diese Abhängigkeit
+  // bliebe der mit der Ersatzschrift gerechnete Umbruch stehen — siehe
+  // `useFontGeneration`, auch dazu, warum der Wert ins Argument muss.
+  const fontGeneration = useFontGeneration();
+  const measure = useMemo(
+    () => runMeasurer(fontSize, fontFamily, fontStyle, fontGeneration, accent),
+    [fontSize, fontFamily, fontStyle, fontGeneration, accent]
+  );
+
+  // Ohne gesetzte Breite gibt es nichts zu umbrechen; der Einzug gilt trotzdem,
+  // damit die Marker eine Spalte bilden.
+  // While a side handle is dragged the block re-wraps at this width; it is
+  // committed (and cleared) on transform end.
+  const [liveWidth, setLiveWidth] = useState<number | null>(null);
+  const layoutWidth = liveWidth ?? width;
+  const innerWidth =
+    layoutWidth != null ? Math.max(layoutWidth - 2 * padding, 1) : Number.POSITIVE_INFINITY;
+  const lines = useMemo(
+    () => layoutRichTextBlock(text, innerWidth, measure),
+    [text, innerWidth, measure]
+  );
+
+  const lineHeightPx = fontSize * lineHeight;
+  const blockHeight = lines.length * lineHeightPx + 2 * padding;
+  // Breite je Zeile: der Marker steht links davor, der letzte Lauf endet rechts.
+  const lineWidths = useMemo(
+    () =>
+      lines.map((line) => {
+        const last = line.runs[line.runs.length - 1];
+        return line.indent + (last ? last.x + measure(last.text, last) : 0);
+      }),
+    [lines, measure]
+  );
+  // Ohne feste Breite die breiteste gesetzte Zeile — der Transformer und die
+  // Snap-Ziele brauchen eine Box, eine Gruppe misst sich nicht selbst.
+  const blockWidth = layoutWidth ?? Math.max(...lineWidths, 1) + 2 * padding;
+  const innerBoxWidth = Math.max(blockWidth - 2 * padding, 1);
+
+  // Die Ausrichtung verschiebt jede Zeile für sich; die Kästen brauchen denselben Versatz.
+  const originX = useMemo(
+    () =>
+      lines.map(
+        (_, index) =>
+          padding +
+          (align === 'center'
+            ? (innerBoxWidth - lineWidths[index]!) / 2
+            : align === 'right'
+              ? innerBoxWidth - lineWidths[index]!
+              : 0)
+      ),
+    [lines, lineWidths, align, padding, innerBoxWidth]
+  );
+  // Ohne Markerstil der Vorlage bekommt ein `++`-Lauf den Standardkasten.
+  const marker = templateMarker ?? defaultTextMarker();
+  const boxes = useMemo(
+    () =>
+      markerBoxes(lines, measure, marker, {
+        fontSize,
+        lineHeightPx,
+        top: padding,
+        originX,
+      }),
+    [marker, lines, measure, fontSize, lineHeightPx, padding, originX]
+  );
+
+  useEffect(() => {
+    if (selected && trRef.current && groupRef.current && !isEditing) {
+      trRef.current.nodes([groupRef.current]);
+      trRef.current.getLayer()?.batchDraw();
+    } else if (!selected && trRef.current) {
+      trRef.current.nodes([]);
+    }
+  }, [selected, isEditing]);
+
+  const reportGeometry = useGeometryReporter(id, onGeometryChange);
+  useEffect(() => {
+    const node = groupRef.current;
+    if (!node) return;
+    const box = frameBounds(
+      boxFrame(
+        dragFrame,
+        node.x(),
+        node.y(),
+        blockWidth * node.scaleX(),
+        blockHeight * node.scaleY(),
+        node.rotation(),
+        'top-left'
+      )
+    );
+    reportGeometry(box.x, box.y, box.width, box.height);
+  }, [reportGeometry, x, y, blockWidth, blockHeight, rotation]);
+
+  const snap = useSnapScheduler({
+    onSnapChange: onSnapChange ?? (() => {}),
+    onSnapLinesChange: onSnapLinesChange ?? (() => {}),
+  });
+
+  const handleDragMove = useCallback(
+    (e: Konva.KonvaEventObject<DragEvent>) => {
+      const node = e.target;
+      if (isGroupDrag(node)) return;
+      if (!stageWidth || !stageHeight) return;
+      const snapTargets = getSnapTargets?.(id ?? '') ?? [];
+      if (snapTargets.length > 0 || snapToCenter) {
+        const result = snapByBounds(
+          boxFrame(
+            dragFrame,
+            node.x(),
+            node.y(),
+            blockWidth * node.scaleX(),
+            blockHeight * node.scaleY(),
+            node.rotation(),
+            'top-left'
+          ),
+          snapTargets,
+          stageWidth,
+          stageHeight,
+          snap.hysteresis
+        );
+        node.position({ x: result.x, y: result.y });
+        snap.scheduleSnap(result.snapH, result.snapV, result.snapLines);
+      }
+    },
+    [id, snapToCenter, stageWidth, stageHeight, getSnapTargets, snap, blockWidth, blockHeight]
+  );
+
+  const handleDragEnd = useCallback(
+    (e: Konva.KonvaEventObject<DragEvent>) => {
+      const node = e.target;
+      snap.onDragEnd();
+      onDragEnd?.(node.x(), node.y());
+      if (id && onPositionChange) {
+        onPositionChange(id, node.x(), node.y(), blockWidth, blockHeight);
+        // onPositionChange schreibt die ungedrehte Box in dieselben Snap-Ziele;
+        // gedreht muss danach die sichtbare Box dort stehen (der Reporter
+        // meldet nur bei Prop-Änderung, ein Drag zurück an den Start ändert keine).
+        if (node.rotation() !== 0 && onGeometryChange) {
+          const box = frameBounds(
+            boxFrame(
+              dragFrame,
+              node.x(),
+              node.y(),
+              blockWidth * node.scaleX(),
+              blockHeight * node.scaleY(),
+              node.rotation(),
+              'top-left'
+            )
+          );
+          onGeometryChange(id, box.x, box.y, box.width, box.height);
+        }
+      }
+    },
+    [id, onDragEnd, onPositionChange, onGeometryChange, snap, blockWidth, blockHeight]
+  );
+
+  // A ref, not the rendered width: two transform events can arrive before
+  // React re-renders, and the second must build on the first.
+  const liveWidthRef = useRef<number | null>(null);
+  const handleTransform = useCallback(() => {
+    const node = groupRef.current;
+    if (!node || !isWidthOnlyScale(node)) return;
+    const next = Math.max(1, (liveWidthRef.current ?? blockWidth) * node.scaleX());
+    node.scaleX(1);
+    liveWidthRef.current = next;
+    setLiveWidth(next);
+  }, [blockWidth]);
+
+  const handleTransformEnd = useCallback(() => {
+    const node = groupRef.current;
+    if (!node) return;
+    const committedWidth = liveWidthRef.current;
+    if (committedWidth != null) {
+      liveWidthRef.current = null;
+      setLiveWidth(null);
+      if (Math.abs(node.scaleY() - 1) < 1e-3) {
+        node.scale({ x: 1, y: 1 });
+        onTransformEnd?.(
+          node.x(),
+          node.y(),
+          Math.round(committedWidth),
+          1,
+          1,
+          normalizeRotation(node.rotation())
+        );
+        return;
+      }
+    }
+    const scaleX = node.scaleX();
+    const scaleY = node.scaleY();
+    const SCALE_THRESHOLD = 0.03;
+    const scaleChanged =
+      Math.abs(scaleX - 1) > SCALE_THRESHOLD || Math.abs(scaleY - 1) > SCALE_THRESHOLD;
+
+    node.scale({ x: 1, y: 1 });
+
+    if (scaleChanged) {
+      // Eine Gruppe trägt keine fontSize — anders als beim einfachen Textknoten
+      // wird sie aus der Prop und dem Maßstab gerechnet.
+      const newFontSize = Math.max(8, Math.round(fontSize * scaleY));
+      const newWidth = Math.round(blockWidth * scaleX);
+      onFontSizeChange?.(newFontSize);
+      onTransformEnd?.(node.x(), node.y(), newWidth, 1, 1, normalizeRotation(node.rotation()));
+    } else {
+      onTransformEnd?.(node.x(), node.y(), blockWidth, 1, 1, normalizeRotation(node.rotation()));
+    }
+  }, [fontSize, blockWidth, onFontSizeChange, onTransformEnd]);
+
+  const handleDblClick = useCallback(() => {
+    const node = groupRef.current;
+    const box = node && overlayBoxForNode(node, blockWidth, blockHeight);
+    if (!editable || !node || !box) return;
+    open({
+      id: id ?? '',
+      box,
+      anchor: { node, width: blockWidth, height: blockHeight },
+      text,
+      fontFamily,
+      fontSize,
+      fontStyle,
+      fill,
+      align,
+      lineHeight,
+      opacity,
+      accent,
+      marker: templateMarker,
+      onTextChange,
+    });
+  }, [
+    editable,
+    open,
+    id,
+    text,
+    blockWidth,
+    blockHeight,
+    fontFamily,
+    fontSize,
+    fontStyle,
+    fill,
+    align,
+    lineHeight,
+    opacity,
+    accent,
+    templateMarker,
+    onTextChange,
+  ]);
+
+  const enabledAnchors = transformConfig?.enabledAnchors ?? DEFAULT_TEXT_ANCHORS;
+
+  // One gradient across the whole block: each run node paints it in its own
+  // coordinates, so the block box is shifted by the node's position.
+  const gradientAt = (nodeX: number, nodeY: number) =>
+    fillGradient
+      ? gradientFillProps(fillGradient, {
+          x: -nodeX,
+          y: -nodeY,
+          width: blockWidth,
+          height: blockHeight,
+        })
+      : null;
+
+  return (
+    <>
+      <Group
+        ref={groupRef}
+        id={id}
+        x={x}
+        y={y}
+        width={blockWidth}
+        height={blockHeight}
+        rotation={rotation}
+        opacity={opacity}
+        draggable={draggable && !isEditing && !locked}
+        visible={!isEditing}
+        onMouseDown={onSelect}
+        onTouchStart={onSelect}
+        onDblClick={handleDblClick}
+        onDblTap={handleDblClick}
+        onDragStart={snap.onDragStart}
+        onDragMove={handleDragMove}
+        onDragEnd={handleDragEnd}
+        onTransform={handleTransform}
+        onTransformEnd={handleTransformEnd}
+      >
+        {/* Die Trefferfläche des Blocks. Eine Konva-Gruppe hat keine eigene:
+            sie fragt ihre Kinder, und die Laufknoten hören alle nicht zu
+            (`listening={false}`, damit nicht jeder Lauf einzeln anspricht).
+            Ohne diesen Rahmen war die Gruppe für Maus und Finger nicht
+            vorhanden — kein Auswählen, kein Ziehen, kein Doppelklick, und
+            damit kein Weg zurück in den Editor. Betroffen war jedes Feld,
+            sobald sein Text einen Marker oder eine Auszeichnung trug, denn
+            genau dann übernimmt dieser Renderer von `CanvasText`.
+
+            `fill` muss gesetzt sein, sonst zeichnet Konva die Form nicht in
+            die Treffer-Ebene; sichtbar wird davon nichts. */}
+        <Rect width={blockWidth} height={blockHeight} fill="transparent" />
+        {/* Die Textmarker-Kästen liegen unter allen Glyphen: erst sie, dann die Läufe. */}
+        {boxes.map((box, index) => (
+          <Rect
+            key={`marker-${index}`}
+            x={box.x}
+            y={box.y}
+            width={box.width}
+            height={box.height}
+            fill={box.fill}
+            listening={false}
+          />
+        ))}
+        {lines.map((line, index) => {
+          // Konva zeichnet eine Zeile mittig in ihre Zeilenbox (textBaseline
+          // "middle"). Ein Stapel einzeiliger Knoten im Abstand einer Zeilenbox
+          // liegt deshalb exakt dort, wo ein mehrzeiliger Textknoten läge.
+          const top = padding + index * lineHeightPx;
+          // Die Läufe stehen an gemessenen x-Positionen, also richtet sich die
+          // Zeile nicht von selbst aus — der Versatz muss hier rein. Ohne ihn
+          // rutschten alle zentrierten Vorlagen (die AT-Sujets) nach links,
+          // sobald ihr Text einen Marker trägt.
+          const offset = originX[index]! - padding;
+          return (
+            <Fragment key={index}>
+              {line.marker !== null && (
+                <KonvaText
+                  text={line.marker}
+                  x={padding + offset}
+                  y={top}
+                  fontSize={fontSize}
+                  fontFamily={fontFamily}
+                  fontStyle={fontStyle}
+                  fill={fill}
+                  {...gradientAt(padding + offset, top)}
+                  lineHeight={lineHeight}
+                  wrap="none"
+                  listening={false}
+                />
+              )}
+              {line.runs.map((run, runIndex) => (
+                <KonvaText
+                  key={runIndex}
+                  text={run.text}
+                  x={padding + offset + line.indent + run.x}
+                  y={top}
+                  fontSize={fontSize}
+                  {...runFont(fontFamily, fontStyle, run, accent)}
+                  textDecoration={run.underline ? 'underline' : ''}
+                  {...(run.marker
+                    ? // Ink chosen for the box: no halo or outline of the photo text.
+                      {
+                        fill:
+                          run.accentColor ??
+                          (run.markerColor ? markerInkOn(run.markerColor) : marker.color),
+                        lineJoin: 'round' as const,
+                      }
+                    : {
+                        fill: run.accentColor ?? (run.accent && accent ? accent.fill : fill),
+                        // An accent keeps its own colour; only base-coloured runs carry the gradient.
+                        ...(!run.accentColor &&
+                          !(run.accent && accent) &&
+                          gradientAt(padding + offset + line.indent + run.x, top)),
+                        stroke,
+                        strokeWidth,
+                        fillAfterStrokeEnabled: !!stroke && (strokeWidth ?? 0) > 0,
+                        lineJoin: 'round' as const,
+                        shadowColor,
+                        shadowBlur,
+                        shadowOffsetX,
+                        shadowOffsetY,
+                        shadowOpacity,
+                      })}
+                  lineHeight={lineHeight}
+                  wrap="none"
+                  listening={false}
+                />
+              ))}
+            </Fragment>
+          );
+        })}
+      </Group>
+      {selected && !isEditing && (
+        <Transformer
+          ref={trRef}
+          rotateEnabled={transformConfig?.rotateEnabled ?? false}
+          keepRatio={transformConfig?.keepRatio ?? true}
+          enabledAnchors={enabledAnchors}
+          boundBoxFunc={(oldBox, newBox) => {
+            const minWidth = transformConfig?.bounds?.minWidth ?? 50;
+            const maxWidth = transformConfig?.bounds?.maxWidth ?? Infinity;
+            if (newBox.width < minWidth) return oldBox;
+            if (newBox.width > maxWidth) return oldBox;
+            return newBox;
+          }}
+          {...ELEMENT_TRANSFORMER}
+          {...(locked ? LOCKED_TRANSFORMER : {})}
+        />
+      )}
+    </>
+  );
+}

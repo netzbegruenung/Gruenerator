@@ -11,6 +11,7 @@
  * route through the FullCanvasConfig pipeline and gain `aiEdit` parity.
  */
 
+import { carryInstanceState } from '@ggraphic/editor/configs/factory/carryInstanceState';
 import { INITIAL_SCALE } from '@ggraphic/editor/types/editorTypes';
 import { CANVAS_COLORS, DEFAULT_CANVAS_SIZE } from '@gruenerator/contracts';
 import { PiSquaresFourFill } from 'react-icons/pi';
@@ -19,19 +20,18 @@ import { AssetsSection } from '../sidebar/sections';
 
 import { chatTab, createCommonSectionEntries, toolsTab, uploadsTab } from './commonSections';
 import { createBaseActions } from './factory/actionFactories';
-import { carryInstanceState } from './factory/carryInstanceState';
 import { makeSectionDefiner } from './factory/defineSection';
 import { injectFeatureProps } from './featureInjector';
 
 import type { SharepicAiCapabilities } from './aiCapabilities';
-import type { BaseCanvasState } from './factory/baseTypes';
+import type { BackgroundColorOption } from '../sidebar/types';
+import type { BaseCanvasState } from '@ggraphic/editor/configs/factory/baseTypes';
 import type {
   BackgroundElementConfig,
   FullCanvasConfig,
   ImageElementConfig,
   LayoutResult,
-} from './types';
-import type { BackgroundColorOption } from '../sidebar/types';
+} from '@ggraphic/editor/configs/types';
 import type { CanvasAiSnapshot } from '@gruenerator/contracts';
 
 // ============================================================================

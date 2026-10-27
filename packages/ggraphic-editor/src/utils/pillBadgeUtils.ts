@@ -8,6 +8,7 @@
  */
 
 import { activeBrand } from '@ggraphic/editor/brand/brandRegistry';
+import { messages } from '@ggraphic/editor/i18n/messages';
 
 import { measureTextWidthWithFont } from './textUtils';
 
@@ -58,7 +59,7 @@ function pillBadgePresets(): Record<string, PillBadgePreset> {
   const { colors, fonts } = activeBrand();
   return {
     slider: {
-      text: 'Wusstest du?',
+      text: messages().defaults.pillBadgeText,
       backgroundColor: colors.primary,
       textColor: '#FFFFFF',
       fontSize: 70,
@@ -71,7 +72,7 @@ function pillBadgePresets(): Record<string, PillBadgePreset> {
       defaultY: 120,
     },
     'slider-inverted': {
-      text: 'Wusstest du?',
+      text: messages().defaults.pillBadgeText,
       backgroundColor: colors.surface,
       textColor: colors.primary,
       fontSize: 70,

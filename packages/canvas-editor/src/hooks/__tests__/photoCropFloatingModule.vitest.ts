@@ -1,8 +1,7 @@
+import { floatingModuleFor } from '@ggraphic/editor/hooks/useFloatingModuleState';
 import { describe, expect, it } from 'vitest';
 
-import { floatingModuleFor } from '../useFloatingModuleState';
-
-import type { CanvasElementConfig, FullCanvasConfig } from '../../configs/types';
+import type { CanvasElementConfig, FullCanvasConfig } from '@ggraphic/editor/configs/types';
 
 /** Ob die Leiste „Ausschnitt“ zeigt, liest sie aus der Config des Fotos. */
 function canCrop(element: Partial<CanvasElementConfig>) {
