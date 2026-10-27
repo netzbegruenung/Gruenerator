@@ -1,3 +1,4 @@
+import { findKindItem, type ElementKindName, type KindItem } from './elementKinds';
 import { isLayerLocked } from './layerLock';
 import {
   isTemplateElementRotatable,
@@ -67,9 +68,56 @@ export interface OrientationDoorInput<TState extends Partial<BaseCanvasState>> {
 
 type Oriented = { id?: string; rotation?: number; flipX?: boolean; flipY?: boolean };
 
+type UpdateAction = Extract<keyof OptionalCanvasActions, `update${string}`>;
+
+interface KindDoor<I extends KindItem> {
+  kind: OrientableKind;
+  action: UpdateAction;
+  /** Where rotation and flips are read; the instance itself unless given. */
+  read?: (item: I, state: Partial<BaseCanvasState>) => Oriented | null;
+  /** The patch the update action receives; the patch without `translate` unless given. */
+  shape?: (patch: OrientationPatch, item: I) => Record<string, unknown>;
+}
+
+const withoutTranslate = ({ translate: _, ...rest }: OrientationPatch) => rest;
+
+/** The orientation door per element kind. */
+const KIND_DOORS: { [K in ElementKindName]: KindDoor<Extract<KindItem, { type: K }>> } = {
+  balken: {
+    kind: 'balken',
+    action: 'updateBalken',
+    // Dreht um die Mitte und speichert einen `offset`: x/y gehören nicht in den Patch,
+    // eine Verschiebung (Spiegeln in der Mehrfachauswahl) wandert in den `offset`.
+    shape: (patch, { data: balken }) => ({
+      ...(patch.rotation != null && { rotation: patch.rotation }),
+      ...(patch.translate && {
+        offset: {
+          x: balken.offset.x + patch.translate.x,
+          y: balken.offset.y + patch.translate.y,
+        },
+      }),
+    }),
+  },
+  // Icons stehen als blanke Id in `selectedIcons`; ihre Lage steht in `iconStates`.
+  icon: {
+    kind: 'icon',
+    action: 'updateIcon',
+    read: ({ id }, state) => state.iconStates?.[id] ?? null,
+  },
+  shape: { kind: 'shape', action: 'updateShape' },
+  'additional-text': { kind: 'text', action: 'updateAdditionalText' },
+  illustration: { kind: 'illustration', action: 'updateIllustration' },
+  asset: { kind: 'asset', action: 'updateAsset' },
+  'pill-badge': { kind: 'pill-badge', action: 'updatePillBadge' },
+  'circle-badge': { kind: 'circle-badge', action: 'updateCircleBadge' },
+  frame: { kind: 'frame', action: 'updateFrame' },
+  'user-image': { kind: 'user-image', action: 'updateUserImage' },
+  chart: { kind: 'chart', action: 'updateChart' },
+};
+
 /**
  * Drehen & Spiegeln eines Canvas-Elements — eine Tür für Werkzeugleiste,
- * Kontextmenü und Tastenkürzel. Prüfreihenfolge wie `findElementRemover`.
+ * Kontextmenü und Tastenkürzel. Instanzen zuerst (`findKindItem`), dann Vorlagen-Elemente.
  * `null`, wenn das Element nicht drehbar ist: unbekannt, gesperrt, Hintergrund,
  * Vorlagen-Element ohne Positionsschlüssel oder Config ohne passende Aktion.
  */
@@ -80,71 +128,20 @@ export function findOrientationDoor<TState extends Partial<BaseCanvasState>>(
   const { state, actions } = input;
   if (!id || isLayerLocked(state, id)) return null;
 
-  const has = (list: readonly { id: string }[] | undefined) => !!list?.some((i) => i.id === id);
-  const read = (list: readonly Oriented[] | undefined) => list?.find((i) => i.id === id) ?? null;
-
-  const free = <P extends OrientationPatch>(
-    kind: OrientableKind,
-    item: Oriented | null,
-    update: ((id: string, patch: P) => void) | undefined,
-    shape: (patch: OrientationPatch) => Record<string, unknown> = ({ translate: _, ...rest }) =>
-      rest
-  ): OrientationDoor | null => {
+  const found = findKindItem(state, id);
+  if (found) {
+    const door = KIND_DOORS[found.type] as KindDoor<KindItem>;
+    const update = actions[door.action] as ((id: string, patch: object) => void) | undefined;
     if (!update) return null;
+    const item = door.read ? door.read(found, state) : (found as { data: Oriented }).data;
     return {
-      kind,
+      kind: door.kind,
       rotation: item?.rotation ?? 0,
       flipX: item?.flipX ?? false,
       flipY: item?.flipY ?? false,
-      canFlip: FLIPPABLE_KINDS.has(kind),
-      apply: (patch) => update(id, shape(patch) as P),
+      canFlip: FLIPPABLE_KINDS.has(door.kind),
+      apply: (patch) => update(id, (door.shape ?? withoutTranslate)(patch, found)),
     };
-  };
-
-  if (has(state.balkenInstances)) {
-    // Dreht um die Mitte und speichert einen `offset`: x/y gehören nicht in den Patch,
-    // eine Verschiebung (Spiegeln in der Mehrfachauswahl) wandert in den `offset`.
-    const balken = state.balkenInstances?.find((b) => b.id === id);
-    return free('balken', balken ?? null, actions.updateBalken, (patch) => ({
-      ...(patch.rotation != null && { rotation: patch.rotation }),
-      ...(patch.translate &&
-        balken && {
-          offset: {
-            x: balken.offset.x + patch.translate.x,
-            y: balken.offset.y + patch.translate.y,
-          },
-        }),
-    }));
-  }
-  if (state.selectedIcons?.includes(id)) {
-    return free('icon', state.iconStates?.[id] ?? null, actions.updateIcon);
-  }
-  if (has(state.shapeInstances)) {
-    return free('shape', read(state.shapeInstances), actions.updateShape);
-  }
-  if (has(state.additionalTexts)) {
-    return free('text', read(state.additionalTexts), actions.updateAdditionalText);
-  }
-  if (has(state.illustrationInstances)) {
-    return free('illustration', read(state.illustrationInstances), actions.updateIllustration);
-  }
-  if (has(state.assetInstances)) {
-    return free('asset', read(state.assetInstances), actions.updateAsset);
-  }
-  if (has(state.pillBadgeInstances)) {
-    return free('pill-badge', read(state.pillBadgeInstances), actions.updatePillBadge);
-  }
-  if (has(state.circleBadgeInstances)) {
-    return free('circle-badge', read(state.circleBadgeInstances), actions.updateCircleBadge);
-  }
-  if (has(state.frameInstances)) {
-    return free('frame', read(state.frameInstances), actions.updateFrame);
-  }
-  if (has(state.userImageInstances)) {
-    return free('user-image', read(state.userImageInstances), actions.updateUserImage);
-  }
-  if (has(state.chartInstances)) {
-    return free('chart', read(state.chartInstances), actions.updateChart);
   }
 
   const config = input.elements.find((e) => e.id === id);
