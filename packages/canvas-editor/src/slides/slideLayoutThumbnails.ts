@@ -6,6 +6,9 @@
  */
 import { useLayoutEffect, useRef, useState } from 'react';
 
+import { useCanvasEditorServices } from '../CanvasEditorProvider';
+import { plainImageUrls, type CanvasImageUrlService } from '../hostServices';
+
 import { preloadSlideLayoutPhoto, renderSlideLayoutThumbnail } from './renderSlideLayoutThumbnail';
 
 import type { SlideLayoutId } from './slideLayouts';
@@ -19,12 +22,23 @@ const FALLBACK_TILE_PX = 160;
 export interface SlideThumbnailRenderer {
   /** Läuft parallel, vor dem Platz in der Warteschlange (Foto vorladen). */
   prepare: (id: SlideLayoutId, locale: BrandLocale) => Promise<void>;
-  render: (id: SlideLayoutId, locale: BrandLocale, widthPx: number) => Promise<string | null>;
+  render: (
+    id: SlideLayoutId,
+    locale: BrandLocale,
+    widthPx: number,
+    imageUrls: CanvasImageUrlService
+  ) => Promise<string | null>;
 }
 
 export interface SlideThumbnailCache {
   peek: (id: SlideLayoutId, locale: BrandLocale) => string | null;
-  get: (id: SlideLayoutId, locale: BrandLocale, widthPx: number) => Promise<string | null>;
+  /** `imageUrls`: the host's, so the offscreen stage loads photos as the editor does. */
+  get: (
+    id: SlideLayoutId,
+    locale: BrandLocale,
+    widthPx: number,
+    imageUrls?: CanvasImageUrlService
+  ) => Promise<string | null>;
 }
 
 export function createSlideThumbnailCache(renderer: SlideThumbnailRenderer): SlideThumbnailCache {
@@ -34,7 +48,7 @@ export function createSlideThumbnailCache(renderer: SlideThumbnailRenderer): Sli
 
   return {
     peek: (id, locale) => done.get(`${locale}:${id}`) ?? null,
-    get(id, locale, widthPx) {
+    get(id, locale, widthPx, imageUrls = plainImageUrls) {
       const key = `${locale}:${id}`;
       const cached = done.get(key);
       if (cached) return Promise.resolve(cached);
@@ -43,7 +57,9 @@ export function createSlideThumbnailCache(renderer: SlideThumbnailRenderer): Sli
 
       const job = (async () => {
         await renderer.prepare(id, locale).catch(() => undefined);
-        const run = tail.then(() => renderer.render(id, locale, widthPx).catch(() => null));
+        const run = tail.then(() =>
+          renderer.render(id, locale, widthPx, imageUrls).catch(() => null)
+        );
         tail = run;
         const url = await run;
         if (url) done.set(key, url);
@@ -73,6 +89,7 @@ type ThumbnailStatus = 'loading' | 'ready' | 'failed';
  */
 export function useSlideLayoutThumbnail(id: SlideLayoutId, locale: BrandLocale) {
   const ref = useRef<HTMLElement | null>(null);
+  const { imageUrls = plainImageUrls } = useCanvasEditorServices();
   const [src, setSrc] = useState(() => slideLayoutThumbnails.peek(id, locale));
   const [status, setStatus] = useState<ThumbnailStatus>(src ? 'ready' : 'loading');
 
@@ -83,7 +100,7 @@ export function useSlideLayoutThumbnail(id: SlideLayoutId, locale: BrandLocale) 
       ref.current?.getBoundingClientRect().width ?? 0,
       window.devicePixelRatio
     );
-    void slideLayoutThumbnails.get(id, locale, width).then((url) => {
+    void slideLayoutThumbnails.get(id, locale, width, imageUrls).then((url) => {
       if (!alive) return;
       setSrc(url);
       setStatus(url ? 'ready' : 'failed');
@@ -91,7 +108,7 @@ export function useSlideLayoutThumbnail(id: SlideLayoutId, locale: BrandLocale) 
     return () => {
       alive = false;
     };
-  }, [id, locale, src]);
+  }, [id, locale, src, imageUrls]);
 
   return { ref, src, status };
 }

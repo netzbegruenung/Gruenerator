@@ -9,10 +9,12 @@ import {
   HiOutlineTrash,
 } from 'react-icons/hi2';
 
+import { useCanvasEditorServices } from '../../../CanvasEditorProvider';
+import { plainImageUrls } from '../../../hostServices';
 import { MOBILE_INPUT_TEXT } from '../../../sidebar/sidebarStyles';
 import { useUserUploads } from '../../../sidebar/UserUploadsProvider';
 import { cn } from '../../../utils/cn';
-import { buildPlacementUrl, fetchShareImageFile } from '../../../utils/mediaPlacement';
+import { fetchShareImageFile } from '../../../utils/mediaPlacement';
 import { downscaleImageForUpload } from '../../../utils/userImageUtils';
 
 import type { StockImageAttribution } from '../../../common/imageSourceTypes';
@@ -43,6 +45,7 @@ export function BackgroundImagePicker({
   /** Each new value opens the picker — the context menu's "Bild ersetzen …". */
   openRequest?: number;
 }) {
+  const { imageUrls = plainImageUrls } = useCanvasEditorServices();
   const [open, setOpen] = useState(false);
   useEffect(() => {
     if (openRequest > 0) setOpen(true);
@@ -77,10 +80,14 @@ export function BackgroundImagePicker({
   };
 
   const pickUpload = (item: MediaItem) => {
-    const url = buildPlacementUrl(item);
+    const url = imageUrls.placementUrl(item);
     if (!url) return;
     void apply(item.id, async () => ({
-      file: await fetchShareImageFile(url, item.originalFilename ?? item.title ?? 'hintergrund'),
+      file: await fetchShareImageFile(
+        url,
+        item.originalFilename ?? item.title ?? 'hintergrund',
+        imageUrls
+      ),
       url,
     }));
   };
@@ -92,7 +99,7 @@ export function BackgroundImagePicker({
     void apply('upload', async () => {
       const file = await downscaleImageForUpload(raw);
       const item = await upload(file);
-      const url = item ? buildPlacementUrl(item) : null;
+      const url = item ? imageUrls.placementUrl(item) : null;
       return url ? { file, url } : null;
     });
   };
@@ -155,7 +162,7 @@ export function BackgroundImagePicker({
 
         <div className="grid grid-cols-3 gap-2 max-h-72 overflow-y-auto">
           {items.map((item) => {
-            const isActive = !!currentImageSrc && buildPlacementUrl(item) === currentImageSrc;
+            const isActive = !!currentImageSrc && imageUrls.placementUrl(item) === currentImageSrc;
             return (
               <button
                 key={item.id}
@@ -293,12 +300,13 @@ export function SetAsBackgroundButton({
 }) {
   const [pending, setPending] = useState(false);
   const [failed, setFailed] = useState(false);
+  const { imageUrls = plainImageUrls } = useCanvasEditorServices();
 
   const handleClick = async () => {
     setPending(true);
     setFailed(false);
     try {
-      const file = await fetchShareImageFile(src, fileName);
+      const file = await fetchShareImageFile(src, fileName, imageUrls);
       onImageChange(file, src, attribution ?? null);
       onRemoveElement();
     } catch {

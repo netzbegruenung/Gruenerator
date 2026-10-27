@@ -1,6 +1,7 @@
 import { useCallback } from 'react';
 
-import { buildPlacementUrl } from '../utils/mediaPlacement';
+import { useCanvasEditorServices } from '../CanvasEditorProvider';
+import { plainImageUrls } from '../hostServices';
 
 import { useUserUploads } from './UserUploadsProvider';
 
@@ -21,17 +22,18 @@ export interface PlacedImage {
  */
 export function useImagePlacement(onPlaceUrl?: (url: string, fileName: string) => void) {
   const { upload, isUploading } = useUserUploads();
+  const { imageUrls = plainImageUrls } = useCanvasEditorServices();
 
   const place = useCallback(
     async (file: File, source: UploadSource): Promise<PlacedImage> => {
       const item = await upload(file, source);
       if (!item) throw new Error('Upload fehlgeschlagen');
       const name = item.originalFilename ?? item.title ?? file.name;
-      const url = buildPlacementUrl(item);
+      const url = imageUrls.placementUrl(item);
       if (url && onPlaceUrl) onPlaceUrl(url, name);
       return { url, name };
     },
-    [upload, onPlaceUrl]
+    [upload, onPlaceUrl, imageUrls]
   );
 
   return { place, isUploading };

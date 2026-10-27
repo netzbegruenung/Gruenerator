@@ -10,7 +10,7 @@ import type Konva from 'konva';
 export const MEDIA_DRAG_TYPE = 'application/x-gruenerator-media';
 
 export interface MediaDragPayload {
-  /** A durable URL (`buildPlacementUrl`, a stock URL), never a `blob:`. */
+  /** A durable URL (`CanvasImageUrlService.placementUrl`, a stock URL), never a `blob:`. */
   url: string;
   name: string;
   /** Stock credit of a catalogue photo, kept on the placed image. */

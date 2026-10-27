@@ -3,7 +3,7 @@
  * Vorher nahm sie das erste Bild nach 500 ms — beim Dreizeiler war das
  * Stockbild dann noch unterwegs, und die Vorschau zeigte nur die grüne Fläche.
  */
-import { useEffect } from 'react';
+import { useEffect, type ReactNode } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const handle = vi.hoisted(() => ({
@@ -11,7 +11,10 @@ const handle = vi.hoisted(() => ({
   toDataURL: vi.fn(() => `data:image/png;base64,${'A'.repeat(200)}`),
 }));
 
-const mounts = vi.hoisted(() => ({ props: [] as Array<Record<string, unknown>> }));
+const mounts = vi.hoisted(() => ({
+  props: [] as Array<Record<string, unknown>>,
+  services: [] as Array<Record<string, unknown>>,
+}));
 const compose = vi.hoisted(() => ({ fn: vi.fn() }));
 const failing = vi.hoisted(() => ({ prepare: 'no' as 'no' | 'reject' | 'stall' }));
 const sentry = vi.hoisted(() => ({ captureException: vi.fn() }));
@@ -29,6 +32,16 @@ vi.mock('@gruenerator/canvas-editor', () => ({
         ? new Promise<void>(() => undefined)
         : Promise.resolve(),
   catalogIconId: (id: string) => id,
+  CanvasEditorProvider: ({
+    services,
+    children,
+  }: {
+    services: Record<string, unknown>;
+    children: ReactNode;
+  }) => {
+    mounts.services.push(services);
+    return children;
+  },
   StandaloneCanvas: (props: { canvasRef: (ref: unknown) => void }) => {
     const { canvasRef } = props;
     mounts.props.push(props as unknown as Record<string, unknown>);
@@ -40,6 +53,7 @@ vi.mock('@gruenerator/canvas-editor', () => ({
 }));
 
 import { renderSharepicToImage } from './renderSharepicToImage';
+import { webCanvasImageUrls } from './webCanvasImageUrls';
 
 let seq = 0;
 const render = () =>
@@ -51,6 +65,7 @@ describe('renderSharepicToImage', () => {
     handle.settled = false;
     handle.toDataURL.mockClear();
     mounts.props.length = 0;
+    mounts.services.length = 0;
     compose.fn.mockReset();
     failing.prepare = 'no';
     sentry.captureException.mockClear();
@@ -105,6 +120,14 @@ describe('renderSharepicToImage', () => {
     await vi.advanceTimersByTimeAsync(700);
     await expect(result).resolves.toMatch(/^data:image\/png/);
     expect(handle.toDataURL).toHaveBeenLastCalledWith({ pixelRatio });
+  });
+
+  // Its root inherits no context: without these the canvas would load every
+  // share and stock photo as the multi-MB original instead of the WebP tier.
+  it("hands the offscreen canvas the Grünerator's image URLs", async () => {
+    handle.settled = true;
+    await Promise.all([render(), vi.advanceTimersByTimeAsync(500)]);
+    expect(mounts.services).toEqual([{ imageUrls: webCanvasImageUrls }]);
   });
 
   it('captures what it has at the deadline rather than giving up', async () => {
