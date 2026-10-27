@@ -22,6 +22,7 @@
 
 import { GEMMA_31B_PRIMARY } from './gemmaHosts.js';
 import { intermediateLane } from './intermediateLanes.js';
+import { MELIOUS_WIDE_MODEL } from './meliousThinkingFetch.js';
 
 import type { ProviderName } from './providers.js';
 
@@ -216,7 +217,7 @@ export const AI_LANES = {
   //   trägt einen Screenshot im Prompt. `:speed` (infercom/DE, ~130k Fenster)
   //   gemessen; `:balanced` (FI-Knoten, ~45k) lief im Browser-Spike in
   //   Zeitüberschreitungen. Rückfall über `laneFallback` (cortecs, mistral).
-  browser_agent: { provider: 'melious', model: 'gemma-4-31b:speed', structuredMode: 'tool' },
+  browser_agent: { provider: 'melious', model: MELIOUS_WIDE_MODEL, structuredMode: 'tool' },
 } as const satisfies Record<string, LaneConfig>;
 
 export type LaneId = keyof typeof AI_LANES;
