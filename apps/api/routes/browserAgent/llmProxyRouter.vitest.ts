@@ -27,7 +27,19 @@ vi.mock('../../services/ai/generate.js', () => ({
   aiText: (call: AiCall) => aiTextMock(call),
 }));
 
-const { default: llmProxyRouter } = await import('./llmProxyRouter.js');
+const redisCounts = new Map<string, number>();
+const redisMock = {
+  isReady: true,
+  incr: vi.fn(async (key: string) => {
+    const n = (redisCounts.get(key) ?? 0) + 1;
+    redisCounts.set(key, n);
+    return n;
+  }),
+  expire: vi.fn(async () => true),
+};
+vi.mock('../../utils/redis/index.js', () => ({ redisClient: redisMock }));
+
+const { default: llmProxyRouter, MAX_LLM_CALLS_PER_RUN } = await import('./llmProxyRouter.js');
 const { signRunToken } = await import('../../services/browserAgent/runToken.js');
 
 let server: Server;
@@ -50,6 +62,8 @@ afterAll(async () => {
 
 beforeEach(() => {
   aiTextMock.mockReset();
+  redisCounts.clear();
+  redisMock.isReady = true;
   envMock.BROWSER_AGENT_TOKEN_SECRET = 'test-token-secret';
 });
 
@@ -206,5 +220,26 @@ describe('POST /api/browser-agent/llm/v1/chat/completions', () => {
     });
     await post(baseBody, token('u'));
     expect(seen).toBe('u');
+  });
+
+  it('caps model calls per run and keeps other runs unaffected', async () => {
+    aiTextMock.mockResolvedValue('ok');
+    const t = signRunToken({ runId: 'run-cap', userId: 'u', expiresAt: Date.now() + 60_000 });
+    for (let i = 0; i < MAX_LLM_CALLS_PER_RUN; i++) {
+      expect((await post(baseBody, t)).status).toBe(200);
+    }
+    const res = await post(baseBody, t);
+    expect(res.status).toBe(429);
+    expect(aiTextMock).toHaveBeenCalledTimes(MAX_LLM_CALLS_PER_RUN);
+    expect(redisMock.expire).toHaveBeenCalledWith('browser_agent_llm_calls:run-cap', 600);
+
+    const other = signRunToken({ runId: 'run-other', userId: 'u', expiresAt: Date.now() + 60_000 });
+    expect((await post(baseBody, other)).status).toBe(200);
+  });
+
+  it('does not count calls without a valid token', async () => {
+    await post(baseBody, 'nonsense');
+    expect(redisMock.incr).not.toHaveBeenCalledWith(expect.stringContaining('nonsense'));
+    expect(redisCounts.size).toBe(0);
   });
 });

@@ -14,7 +14,9 @@ import os
 import socket
 from urllib.parse import urlsplit
 
-# Stand von `isPrivateAddress` (apps/api, PR #5011).
+# Stand von `isPrivateAddress` (apps/api, PR #5011), dazu 6to4 und Teredo: beide
+# tragen eine IPv4 in der Adresse (6to4 auch eine private), und öffentliche Ziele
+# erreicht man über sie nicht direkt — ganz sperren ist billiger als auspacken.
 _BLOCKED = [
     ipaddress.ip_network(n)
     for n in (
@@ -27,6 +29,8 @@ _BLOCKED = [
         "192.168.0.0/16",
         "224.0.0.0/3",
         "::/96",
+        "2001::/32",
+        "2002::/16",
         "fc00::/7",
         "fe80::/10",
         "fec0::/10",

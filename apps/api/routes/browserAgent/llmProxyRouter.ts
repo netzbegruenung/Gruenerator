@@ -24,9 +24,14 @@ import { z } from 'zod';
 import { jsonBody } from '../../middleware/jsonBody.js';
 import { validateBody, type TypedRequest } from '../../middleware/validateBody.js';
 import { aiText } from '../../services/ai/generate.js';
-import { isBrowserAgentConfigured, verifyRunToken } from '../../services/browserAgent/runToken.js';
+import {
+  isBrowserAgentConfigured,
+  RUN_TOKEN_TTL_MS,
+  verifyRunToken,
+} from '../../services/browserAgent/runToken.js';
 import { AiProviderError } from '../../services/providers/providerErrors.js';
 import { createLogger } from '../../utils/logger.js';
+import { redisClient } from '../../utils/redis/index.js';
 import { runWithUsageContext } from '../../utils/usageContext.js';
 
 import type { AIRequestData } from '../../services/ai/types.js';
@@ -47,6 +52,34 @@ const DEFAULT_MAX_OUTPUT_TOKENS = 4096;
  * selbst entscheiden kann, statt dass der Socket stumm abreisst.
  */
 const STEP_TIMEOUT_MS = 75_000;
+
+/**
+ * Modellaufrufe je Lauf. Das Token gilt 10 min und liegt in einem fremden
+ * Prozess; ohne Deckel könnte, wer es abgreift, bis zum Ablauf beliebig viele
+ * Aufrufe auf die Person dahinter buchen. Ein Lauf hat höchstens 25 Schritte
+ * mit je einem Aufruf; das Doppelte lässt Luft für Wiederholungen nach
+ * ungültigem JSON.
+ */
+export const MAX_LLM_CALLS_PER_RUN = 50;
+
+/** Zählt den Aufruf; `false`, wenn der Lauf sein Kontingent verbraucht hat. */
+async function consumeRunCall(runId: string): Promise<boolean> {
+  try {
+    // Wie `consumeApiKeyRateLimit`: ein nicht verbundener Client hinge an `incr`.
+    if (!redisClient.isReady) {
+      log.warn(`[run ${runId}] Redis nicht bereit, Aufruf ungezählt`);
+      return true;
+    }
+    const key = `browser_agent_llm_calls:${runId}`;
+    const count = await redisClient.incr(key);
+    if (count === 1) await redisClient.expire(key, Math.ceil(RUN_TOKEN_TTL_MS / 1000));
+    return count <= MAX_LLM_CALLS_PER_RUN;
+  } catch (err) {
+    // Fail-open wie die übrigen Zähler: ein Redis-Schluckauf soll keinen Lauf abbrechen.
+    log.warn(`[run ${runId}] Redis-Fehler beim Zählen, Aufruf ungezählt:`, err);
+    return true;
+  }
+}
 
 const textPart = z.object({ type: z.literal('text'), text: z.string() }).passthrough();
 /**
@@ -125,6 +158,17 @@ function requireRunToken(req: Request, res: Response, next: NextFunction): void 
   next();
 }
 
+async function requireRunBudget(req: Request, res: Response, next: NextFunction): Promise<void> {
+  const run = (req as RunRequest).browserAgentRun;
+  if (!run) return;
+  if (!(await consumeRunCall(run.runId))) {
+    log.warn(`[run ${run.runId}] Aufrufdeckel (${MAX_LLM_CALLS_PER_RUN}) erreicht`);
+    openAiError(res, 429, 'Run call budget exhausted', 'rate_limit_error');
+    return;
+  }
+  next();
+}
+
 /**
  * browser-use validiert das JSON selbst mit pydantic; die Fassade kennt nur
  * „JSON ja/nein" (`json: true`). Das Schema geht deshalb als Anweisung vorne
@@ -144,6 +188,7 @@ const router: Router = Router();
 router.post(
   '/v1/chat/completions',
   requireRunToken,
+  requireRunBudget,
   // Erst nach dem Token: ein Fremder bringt uns nicht dazu, 20 MB zu parsen.
   jsonBody(BODY_LIMIT),
   validateBody(chatCompletionSchema),

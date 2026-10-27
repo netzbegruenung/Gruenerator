@@ -12,7 +12,8 @@ from browser_agent.egress import is_blocked, start_egress_proxy
     "ip",
     ["169.254.169.254", "10.0.0.1", "100.64.0.1", "127.0.0.1", "0.1.2.3", "172.16.0.1",
      "192.168.1.1", "224.0.0.1", "255.255.255.255", "::1", "fd12::1", "fe90::1",
-     "fec0::1", "ff02::1", "::ffff:a9fe:a9fe", "::ffff:127.0.0.1", "::", "64:ff9b::a9fe:a9fe", "64:ff9b::a00:5"],
+     "fec0::1", "ff02::1", "::ffff:a9fe:a9fe", "::ffff:127.0.0.1", "::", "64:ff9b::a9fe:a9fe", "64:ff9b::a00:5",
+     "2002:a00:1::1", "2001:0:4136:e378:8000:63bf:3fff:fdd2"],
 )
 def test_blocks_private(ip):
     assert is_blocked(ip, [])
