@@ -28,6 +28,22 @@ Netze (Redis, Postgres, Cloud-Metadaten, eigene Host-IPs):
   und sperrt sie sonst nicht. Ein ungültiger Eintrag lässt den Start mit einem
   `ValueError` scheitern (fail-fast), statt still zu ignorieren.
 
+Rauchtest im Image (braucht Internet für example.com/.org; läuft auch in
+`.github/workflows/browser-agent-image.yml`):
+
+```bash
+docker build -t gruenerator-browser-agent services/browser-agent
+docker run --rm -v "$PWD/services/browser-agent/evals:/evals" \
+    gruenerator-browser-agent python /evals/proxy_smoke.py
+```
+
+Jeder „gesperrt“-Fall dort lädt nachweislich ohne die Sperre (example.org vor
+und nach der Zusatzsperre, ein lokaler Server mit Abrufzähler, eine
+Weiterleitung auf Loopback); dazu file:// und die Chromium-Policy
+`chromium-policy.json` (`URLBlocklist` für file://, chrome://, view-source:,
+devtools://), die im Image unter `/etc/opt/chrome_for_testing/policies/managed/`
+liegt.
+
 ## Tests
 
 ```bash

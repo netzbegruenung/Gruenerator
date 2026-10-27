@@ -73,3 +73,12 @@ jobs:
           docker run --rm gruenerator-browser-agent:pr chromium --version
           # Launch it for real, as the image's default (non-root) user.
           docker run --rm gruenerator-browser-agent:pr chromium --headless --no-sandbox --dump-dom about:blank 2>/dev/null | grep -q '<html'
+
+      # The egress proxy and the URL policy are the binding barrier, so prove
+      # them in the image: every "blocked" case must be one that loads without
+      # the block (see the module docstring). evals/ is not in the image
+      # (.dockerignore), hence the mount.
+      - name: Smoke-test egress proxy and URL policy
+        run: |
+          docker run --rm -v "$PWD/services/browser-agent/evals:/evals" \
+            gruenerator-browser-agent:pr python /evals/proxy_smoke.py
