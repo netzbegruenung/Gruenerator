@@ -1,0 +1,979 @@
+[
+ {
+  "className": "Stage",
+  "attrs": {
+   "width": 518,
+   "height": 648,
+   "scaleX": 0.47962962962962963,
+   "scaleY": 0.47962962962962963,
+   "listening": false
+  },
+  "children": [
+   {
+    "className": "Layer",
+    "attrs": {
+     "listening": false
+    },
+    "children": [
+     {
+      "className": "Group",
+      "attrs": {
+       "name": "canvas-item",
+       "canvasItemId": "background-color"
+      },
+      "children": [
+       {
+        "className": "Rect",
+        "attrs": {
+         "x": 0,
+         "y": 0,
+         "width": 1080,
+         "height": 1350,
+         "fill": "#005538",
+         "opacity": 1,
+         "listening": true,
+         "name": "canvas-background"
+        }
+       }
+      ]
+     },
+     {
+      "className": "Group",
+      "attrs": {
+       "name": "canvas-item",
+       "canvasItemId": "background-image"
+      },
+      "children": []
+     },
+     {
+      "className": "Group",
+      "attrs": {
+       "name": "canvas-item",
+       "canvasItemId": "sc-0-headline-0-kreis-0"
+      },
+      "children": [
+       {
+        "className": "Path",
+        "attrs": {
+         "x": 681,
+         "y": 541.36,
+         "fill": "#FFFFFF",
+         "opacity": 1,
+         "rotation": 0,
+         "scaleX": 1,
+         "scaleY": 1,
+         "mirrorX": false,
+         "draggable": true,
+         "name": "shape-sc-0-headline-0-kreis-0",
+         "fillPriority": "color",
+         "data": "M-280.7,-2.5L-286.4,0.1L-291.4,2.8L-295.5,5.5L-298.8,8.2L-301.2,11L-302.6,14L-302.9,17.2L-301.9,20.4L-299.7,23.3L-296.4,26L-292.1,28.5L-286.7,30.9L-280.4,33L-273,35L-264.6,36.9L-255.2,38.6L-244.9,40.1L-233.7,41.5L-221.7,42.8L-208.9,44L-195.3,45L-181,45.8L-166.2,46.5L-150.8,47.1L-134.9,47.5L-118.6,47.8L-102.1,48L-85.2,48.1L-68.2,48L-51.1,47.8L-34,47.4L-16.8,47L0.3,46.5L17.2,45.8L34,45L50.6,44.2L66.8,43.2L82.8,42.1L98.5,40.9L113.8,39.7L128.7,38.3L143.2,36.8L157.3,35.2L170.9,33.4L184,31.6L196.6,29.7L208.7,27.6L220.2,25.4L231.2,23.1L241.5,20.7L251.2,18.2L260.3,15.5L268.6,12.8L276.3,9.9L283.2,6.9L289.3,3.8L294.6,0.6L299,-2.7L302.6,-6.2L305.3,-9.8L306.9,-13.7L307.3,-17.7L306.5,-21.7L304.5,-25.5L301.3,-29L297.2,-32.3L291.9,-35.5L285.7,-38.5L278.4,-41.3L270.1,-44L260.9,-46.5L250.6,-48.8L239.4,-50.9L227.3,-52.8L214.4,-54.5L200.8,-56L186.4,-57.3L171.4,-58.4L155.8,-59.2L139.7,-59.8L123.2,-60.2L106.4,-60.3L89.2,-60.2L71.9,-60L54.5,-59.5L37,-58.8L19.6,-57.9L2.2,-56.9L-15.1,-55.7L-32.1,-54.3L-49,-52.8L-65.6,-51.2L-81.8,-49.4L-97.7,-47.5L-113.3,-45.5L-128.4,-43.4L-143.1,-41.2L-157.3,-38.9L-171.1,-36.5L-184.3,-34L-197.1,-31.5L-209.3,-28.8L-220.9,-26.1L-232.1,-23.4L-242.8,-20.7L-252.9,-17.9L-262.4,-15.1L-271.4,-12.2L-279.6,-9.2L-287.2,-6.2L-294,-3L-299.9,0.2L-305,3.5L-309.2,6.9L-312.4,10.3L-314.5,13.8L-315.5,17.4L-315.3,20.9L-313.8,24.3L-311.2,27.6L-310.2,26.8L-312.7,23.7L-313.9,20.6L-314,17.6L-313,14.5L-311,11.4L-307.9,8.3L-303.8,5.3L-298.7,2.3L-292.8,-0.6L-286.1,-3.5L-278.5,-6.2L-270.3,-8.9L-261.4,-11.6L-251.9,-14.1L-241.8,-16.7L-231.1,-19.2L-219.9,-21.7L-208.3,-24.2L-196.1,-26.7L-183.4,-29.2L-170.2,-31.6L-156.5,-34L-142.3,-36.2L-127.7,-38.4L-112.6,-40.5L-97.1,-42.5L-81.3,-44.4L-65,-46.2L-48.5,-47.8L-31.7,-49.4L-14.7,-50.7L2.5,-51.9L19.9,-53L37.3,-53.8L54.7,-54.5L72.1,-55L89.3,-55.2L106.3,-55.3L123.1,-55.2L139.6,-54.8L155.6,-54.2L171.1,-53.4L186,-52.3L200.3,-51.1L213.8,-49.6L226.6,-47.9L238.6,-46L249.6,-43.9L259.7,-41.6L268.7,-39.2L276.8,-36.6L283.7,-33.9L289.6,-31.1L294.3,-28.2L297.9,-25.4L300.4,-22.6L301.8,-19.9L302.3,-17.4L302,-14.9L300.9,-12.3L298.9,-9.5L295.8,-6.5L291.8,-3.5L286.9,-0.6L281.1,2.4L274.4,5.2L267,8L258.8,10.7L249.9,13.4L240.3,15.8L230.1,18.2L219.3,20.5L207.8,22.7L195.8,24.7L183.3,26.7L170.2,28.5L156.7,30.2L142.7,31.8L128.3,33.3L113.4,34.7L98.1,36L82.5,37.1L66.5,38.2L50.3,39.2L33.7,40.1L17,40.8L0.1,41.5L-17,42L-34.1,42.5L-51.2,42.8L-68.3,43L-85.2,43.1L-102,43L-118.6,42.8L-134.8,42.5L-150.6,42.1L-165.9,41.5L-180.7,40.8L-194.9,40L-208.5,39L-221.2,37.8L-233.2,36.6L-244.3,35.2L-254.4,33.6L-263.6,31.9L-271.8,30.2L-279,28.3L-285.1,26.4L-290.1,24.4L-294,22.3L-296.8,20.3L-298.6,18.4L-299.4,16.6L-299.4,14.8L-298.6,12.6L-296.8,10.1L-294,7.5L-290.2,4.9L-285.4,2.2L-279.7,-0.5Z",
+         "stroke": "rgba(0,0,0,0)",
+         "strokeWidth": 1,
+         "hitStrokeWidth": 24,
+         "perfectDrawEnabled": false
+        }
+       }
+      ]
+     },
+     {
+      "className": "Group",
+      "attrs": {
+       "name": "canvas-item",
+       "canvasItemId": "sc-0-headline-0"
+      },
+      "children": [
+       {
+        "className": "Text",
+        "attrs": {
+         "id": "sc-0-headline-0",
+         "text": "Unsere Nutzpflanzen\nunter Stress",
+         "x": 70,
+         "y": 491.54,
+         "width": 940,
+         "fontSize": 94,
+         "fontFamily": "GrueneTypeNeue",
+         "fontStyle": "normal",
+         "fill": "#FFFFFF",
+         "fillPriority": "color",
+         "rotation": 0,
+         "scaleX": 1,
+         "scaleY": 1,
+         "opacity": 1,
+         "fillAfterStrokeEnabled": false,
+         "lineJoin": "round",
+         "align": "left",
+         "verticalAlign": "top",
+         "lineHeight": 0.96,
+         "wrap": "word",
+         "padding": 0,
+         "draggable": true,
+         "visible": true
+        }
+       }
+      ]
+     },
+     {
+      "className": "Group",
+      "attrs": {
+       "name": "canvas-item",
+       "canvasItemId": "sc-1-absatz-unterstrich-0"
+      },
+      "children": [
+       {
+        "className": "Path",
+        "attrs": {
+         "x": 239,
+         "y": 767.94,
+         "fill": "#FFFFFF",
+         "opacity": 1,
+         "rotation": 0,
+         "scaleX": 1,
+         "scaleY": 1,
+         "mirrorX": false,
+         "draggable": true,
+         "name": "shape-sc-1-absatz-unterstrich-0",
+         "fillPriority": "color",
+         "data": "M-170.6,5.8L-164.9,5.7L-159.3,5.7L-153.6,5.8L-147.9,5.8L-142.2,5.8L-136.5,5.8L-130.8,5.6L-125.1,5.3L-119.4,5.1L-113.7,4.8L-108,4.5L-102.3,4.3L-96.6,4.1L-90.9,3.9L-85.2,3.8L-79.5,3.7L-73.8,3.5L-68.1,3.4L-62.5,3.3L-56.8,3.1L-51.1,2.9L-45.4,2.7L-39.7,2.4L-34,2.2L-28.4,2L-22.7,1.9L-17,1.7L-11.3,1.7L-5.6,1.6L0,1.6L5.7,1.6L11.4,1.6L17.1,1.6L22.8,1.5L28.5,1.5L34.2,1.4L39.8,1.3L45.5,1.1L51.2,1L56.9,0.9L62.6,0.9L68.3,0.8L74,0.8L79.7,0.8L85.4,0.8L91.1,0.7L96.8,0.6L102.5,0.4L108.2,0.1L113.8,-0.2L119.5,-0.5L125.2,-0.8L130.9,-1.2L136.6,-1.5L142.4,-1.9L148.1,-2.6L153.8,-3.4L159.4,-4.1L165.1,-4.6L170.7,-4.8L170.7,-7.1L164.9,-6.9L159.2,-6.4L153.5,-5.9L147.8,-5.4L142.1,-5L136.5,-5L130.8,-5.1L125.1,-5.3L119.5,-5.5L113.8,-5.6L108.1,-5.7L102.4,-5.8L96.7,-5.9L91,-5.8L85.3,-5.8L79.6,-5.7L73.9,-5.6L68.3,-5.5L62.6,-5.4L56.9,-5.5L51.2,-5.5L45.5,-5.6L39.8,-5.7L34.1,-5.7L28.4,-5.8L22.7,-5.8L17.1,-5.8L11.4,-5.8L5.7,-5.7L0,-5.6L-5.7,-5.5L-11.4,-5.4L-17.1,-5.3L-22.8,-5.1L-28.5,-5L-34.2,-5L-39.9,-4.8L-45.6,-4.7L-51.3,-4.6L-57,-4.4L-62.7,-4.1L-68.4,-3.8L-74.1,-3.5L-79.8,-3.2L-85.5,-2.9L-91.2,-2.5L-96.9,-2.3L-102.5,-2L-108.2,-1.8L-113.9,-1.7L-119.6,-1.5L-125.3,-1.4L-131,-1.4L-136.7,-1.2L-142.3,-1L-148,-0.6L-153.7,-0.3L-159.4,0L-165.1,0.3L-170.8,0.5Z",
+         "stroke": "rgba(0,0,0,0)",
+         "strokeWidth": 1,
+         "hitStrokeWidth": 24,
+         "perfectDrawEnabled": false
+        }
+       }
+      ]
+     },
+     {
+      "className": "Group",
+      "attrs": {
+       "name": "canvas-item",
+       "canvasItemId": "sc-1-absatz"
+      },
+      "children": [
+       {
+        "className": "Text",
+        "attrs": {
+         "id": "sc-1-absatz",
+         "text": "Herbert sagt: das stimmt nicht.",
+         "x": 70,
+         "y": 705.02,
+         "width": 940,
+         "fontSize": 52,
+         "fontFamily": "PT Sans",
+         "fontStyle": "normal",
+         "fill": "#FFFFFF",
+         "fillPriority": "color",
+         "rotation": 0,
+         "scaleX": 1,
+         "scaleY": 1,
+         "opacity": 1,
+         "fillAfterStrokeEnabled": false,
+         "lineJoin": "round",
+         "align": "left",
+         "verticalAlign": "top",
+         "lineHeight": 1.22,
+         "wrap": "word",
+         "padding": 0,
+         "draggable": true,
+         "visible": true
+        }
+       }
+      ]
+     },
+     {
+      "className": "Group",
+      "attrs": {
+       "name": "canvas-item",
+       "canvasItemId": "sc-pfeil"
+      },
+      "children": []
+     },
+     {
+      "className": "Group",
+      "attrs": {
+       "name": "canvas-item",
+       "canvasItemId": "sc-ki-label-bg"
+      },
+      "children": [
+       {
+        "className": "Rect",
+        "attrs": {
+         "x": 108,
+         "y": 1316.5,
+         "fill": "#2B2B2B",
+         "opacity": 0.4,
+         "rotation": 0,
+         "scaleX": 1,
+         "scaleY": 1,
+         "mirrorX": false,
+         "draggable": true,
+         "name": "shape-sc-ki-label-bg",
+         "fillPriority": "color",
+         "width": 194,
+         "height": 45,
+         "offsetX": 97,
+         "offsetY": 22.5,
+         "cornerRadius": 8
+        }
+       }
+      ]
+     },
+     {
+      "className": "Group",
+      "attrs": {
+       "name": "canvas-item",
+       "canvasItemId": "sc-ki-label"
+      },
+      "children": [
+       {
+        "className": "Text",
+        "attrs": {
+         "id": "sc-ki-label",
+         "text": "KI-Generiert",
+         "x": 27,
+         "y": 1303,
+         "width": 166,
+         "fontSize": 27,
+         "fontFamily": "PT Sans",
+         "fontStyle": "bold",
+         "fill": "#FFFFFF",
+         "fillPriority": "color",
+         "rotation": 0,
+         "scaleX": 1,
+         "scaleY": 1,
+         "opacity": 0.85,
+         "fillAfterStrokeEnabled": false,
+         "lineJoin": "round",
+         "align": "left",
+         "verticalAlign": "top",
+         "lineHeight": 1,
+         "wrap": "word",
+         "padding": 0,
+         "draggable": true,
+         "visible": true
+        }
+       }
+      ]
+     },
+     {
+      "className": "Transformer",
+      "attrs": {
+       "name": "multi-selection-transformer",
+       "resizeEnabled": false,
+       "rotateEnabled": false,
+       "rotationSnaps": [
+        0,
+        45,
+        90,
+        135,
+        180,
+        225,
+        270,
+        315
+       ],
+       "rotationSnapTolerance": 5,
+       "flipEnabled": false,
+       "anchorSize": 12,
+       "borderStroke": "rgb(0, 161, 255)",
+       "borderStrokeWidth": 1.5,
+       "rotateLineVisible": false,
+       "rotateAnchorOffset": 24,
+       "rotateAnchorCursor": "url(\"data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2224%22%20height%3D%2224%22%20viewBox%3D%220%200%2024%2024%22%3E%3Cg%20fill%3D%22none%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22M19%2012a7%207%200%201%201-2.05-4.95M19%204v4h-4%22%20stroke%3D%22white%22%20stroke-width%3D%224%22%2F%3E%3Cpath%20d%3D%22M19%2012a7%207%200%201%201-2.05-4.95M19%204v4h-4%22%20stroke%3D%22black%22%20stroke-width%3D%222%22%2F%3E%3C%2Fg%3E%3C%2Fsvg%3E\") 12 12, grab",
+       "rotation": 0
+      },
+      "children": [
+       {
+        "className": "Shape",
+        "attrs": {
+         "name": "back",
+         "width": 0,
+         "height": 0,
+         "visible": true,
+         "stroke": "rgb(0, 161, 255)",
+         "strokeWidth": 1.5,
+         "x": 0,
+         "y": 0
+        }
+       },
+       {
+        "className": "Rect",
+        "attrs": {
+         "stroke": "rgba(0, 0, 0, 0.18)",
+         "fill": "white",
+         "strokeWidth": 1,
+         "name": "top-left _anchor",
+         "dragDistance": 0,
+         "draggable": true,
+         "hitStrokeWidth": 12,
+         "width": 12,
+         "height": 12,
+         "offsetX": 6,
+         "offsetY": 6,
+         "cornerRadius": 6,
+         "x": 0,
+         "y": 0,
+         "visible": false,
+         "shadowColor": "black",
+         "shadowBlur": 4,
+         "shadowOpacity": 0.25,
+         "shadowOffsetY": 1,
+         "perfectDrawEnabled": false
+        }
+       },
+       {
+        "className": "Rect",
+        "attrs": {
+         "stroke": "rgba(0, 0, 0, 0.18)",
+         "fill": "white",
+         "strokeWidth": 1,
+         "name": "top-center _anchor",
+         "dragDistance": 0,
+         "draggable": true,
+         "hitStrokeWidth": 12,
+         "width": 18,
+         "height": 6,
+         "offsetX": 9,
+         "offsetY": 3,
+         "cornerRadius": 3,
+         "x": 0,
+         "y": 0,
+         "visible": false,
+         "shadowColor": "black",
+         "shadowBlur": 4,
+         "shadowOpacity": 0.25,
+         "shadowOffsetY": 1,
+         "perfectDrawEnabled": false
+        }
+       },
+       {
+        "className": "Rect",
+        "attrs": {
+         "stroke": "rgba(0, 0, 0, 0.18)",
+         "fill": "white",
+         "strokeWidth": 1,
+         "name": "top-right _anchor",
+         "dragDistance": 0,
+         "draggable": true,
+         "hitStrokeWidth": 12,
+         "width": 12,
+         "height": 12,
+         "offsetX": 6,
+         "offsetY": 6,
+         "cornerRadius": 6,
+         "x": 0,
+         "y": 0,
+         "visible": false,
+         "shadowColor": "black",
+         "shadowBlur": 4,
+         "shadowOpacity": 0.25,
+         "shadowOffsetY": 1,
+         "perfectDrawEnabled": false
+        }
+       },
+       {
+        "className": "Rect",
+        "attrs": {
+         "stroke": "rgba(0, 0, 0, 0.18)",
+         "fill": "white",
+         "strokeWidth": 1,
+         "name": "middle-right _anchor",
+         "dragDistance": 0,
+         "draggable": true,
+         "hitStrokeWidth": 12,
+         "width": 6,
+         "height": 18,
+         "offsetX": 3,
+         "offsetY": 9,
+         "cornerRadius": 3,
+         "x": 0,
+         "y": 0,
+         "visible": false,
+         "shadowColor": "black",
+         "shadowBlur": 4,
+         "shadowOpacity": 0.25,
+         "shadowOffsetY": 1,
+         "perfectDrawEnabled": false
+        }
+       },
+       {
+        "className": "Rect",
+        "attrs": {
+         "stroke": "rgba(0, 0, 0, 0.18)",
+         "fill": "white",
+         "strokeWidth": 1,
+         "name": "middle-left _anchor",
+         "dragDistance": 0,
+         "draggable": true,
+         "hitStrokeWidth": 12,
+         "width": 6,
+         "height": 18,
+         "offsetX": 3,
+         "offsetY": 9,
+         "cornerRadius": 3,
+         "x": 0,
+         "y": 0,
+         "visible": false,
+         "shadowColor": "black",
+         "shadowBlur": 4,
+         "shadowOpacity": 0.25,
+         "shadowOffsetY": 1,
+         "perfectDrawEnabled": false
+        }
+       },
+       {
+        "className": "Rect",
+        "attrs": {
+         "stroke": "rgba(0, 0, 0, 0.18)",
+         "fill": "white",
+         "strokeWidth": 1,
+         "name": "bottom-left _anchor",
+         "dragDistance": 0,
+         "draggable": true,
+         "hitStrokeWidth": 12,
+         "width": 12,
+         "height": 12,
+         "offsetX": 6,
+         "offsetY": 6,
+         "cornerRadius": 6,
+         "x": 0,
+         "y": 0,
+         "visible": false,
+         "shadowColor": "black",
+         "shadowBlur": 4,
+         "shadowOpacity": 0.25,
+         "shadowOffsetY": 1,
+         "perfectDrawEnabled": false
+        }
+       },
+       {
+        "className": "Rect",
+        "attrs": {
+         "stroke": "rgba(0, 0, 0, 0.18)",
+         "fill": "white",
+         "strokeWidth": 1,
+         "name": "bottom-center _anchor",
+         "dragDistance": 0,
+         "draggable": true,
+         "hitStrokeWidth": 12,
+         "width": 18,
+         "height": 6,
+         "offsetX": 9,
+         "offsetY": 3,
+         "cornerRadius": 3,
+         "x": 0,
+         "y": 0,
+         "visible": false,
+         "shadowColor": "black",
+         "shadowBlur": 4,
+         "shadowOpacity": 0.25,
+         "shadowOffsetY": 1,
+         "perfectDrawEnabled": false
+        }
+       },
+       {
+        "className": "Rect",
+        "attrs": {
+         "stroke": "rgba(0, 0, 0, 0.18)",
+         "fill": "white",
+         "strokeWidth": 1,
+         "name": "bottom-right _anchor",
+         "dragDistance": 0,
+         "draggable": true,
+         "hitStrokeWidth": 12,
+         "width": 12,
+         "height": 12,
+         "offsetX": 6,
+         "offsetY": 6,
+         "cornerRadius": 6,
+         "x": 0,
+         "y": 0,
+         "visible": false,
+         "shadowColor": "black",
+         "shadowBlur": 4,
+         "shadowOpacity": 0.25,
+         "shadowOffsetY": 1,
+         "perfectDrawEnabled": false
+        }
+       },
+       {
+        "className": "Rect",
+        "attrs": {
+         "stroke": "rgba(0, 0, 0, 0.18)",
+         "fill": "white",
+         "strokeWidth": 1,
+         "name": "rotater _anchor",
+         "dragDistance": 0,
+         "draggable": true,
+         "hitStrokeWidth": 12,
+         "width": 24,
+         "height": 24,
+         "offsetX": 12,
+         "offsetY": 12,
+         "cornerRadius": 0,
+         "x": 0,
+         "y": -24,
+         "visible": false,
+         "shadowColor": "black",
+         "shadowBlur": 4,
+         "shadowOpacity": 0.25,
+         "shadowOffsetY": 1,
+         "perfectDrawEnabled": false
+        }
+       }
+      ]
+     }
+    ]
+   }
+  ]
+ },
+ {
+  "className": "Stage",
+  "attrs": {
+   "width": 518,
+   "height": 648,
+   "scaleX": 0.47962962962962963,
+   "scaleY": 0.47962962962962963,
+   "listening": false
+  },
+  "children": [
+   {
+    "className": "Layer",
+    "attrs": {
+     "listening": false
+    },
+    "children": [
+     {
+      "className": "Group",
+      "attrs": {
+       "name": "canvas-item",
+       "canvasItemId": "background-color"
+      },
+      "children": [
+       {
+        "className": "Rect",
+        "attrs": {
+         "x": 0,
+         "y": 0,
+         "width": 1080,
+         "height": 1350,
+         "fill": "#FFFFFF",
+         "opacity": 1,
+         "listening": true,
+         "name": "canvas-background"
+        }
+       }
+      ]
+     },
+     {
+      "className": "Group",
+      "attrs": {
+       "name": "canvas-item",
+       "canvasItemId": "background-image"
+      },
+      "children": []
+     },
+     {
+      "className": "Group",
+      "attrs": {
+       "name": "canvas-item",
+       "canvasItemId": "sc-0-text-kreis-0"
+      },
+      "children": [
+       {
+        "className": "Path",
+        "attrs": {
+         "x": 778,
+         "y": 690.95,
+         "fill": "#008939",
+         "opacity": 1,
+         "rotation": 0,
+         "scaleX": 1,
+         "scaleY": 1,
+         "mirrorX": false,
+         "draggable": true,
+         "name": "shape-sc-0-text-kreis-0",
+         "fillPriority": "color",
+         "data": "M-93.4,-5.1L-95.4,-3.5L-97.2,-1.9L-98.6,-0.3L-99.8,1.4L-100.7,3.1L-101.3,4.9L-101.5,6.8L-101.2,8.7L-100.5,10.6L-99.4,12.4L-97.9,14.1L-96,15.7L-93.8,17.2L-91.2,18.6L-88.3,19.8L-85.1,21L-81.5,22.1L-77.7,23.2L-73.6,24.1L-69.2,25L-64.6,25.8L-59.8,26.5L-54.8,27.1L-49.6,27.7L-44.3,28.1L-38.9,28.5L-33.3,28.8L-27.7,29.1L-22.1,29.2L-16.4,29.3L-10.7,29.3L-5,29.3L0.7,29.2L6.3,29L11.8,28.7L17.3,28.4L22.7,28L28,27.5L33.2,27L38.3,26.4L43.2,25.7L48,25L52.7,24.1L57.3,23.2L61.6,22.3L65.9,21.2L70,20.1L73.9,18.8L77.6,17.5L81.1,16.2L84.5,14.7L87.6,13.1L90.5,11.5L93.2,9.8L95.6,7.9L97.8,6L99.7,4L101.3,2L102.6,-0.2L103.5,-2.4L104.1,-4.8L104.3,-7.1L104.1,-9.5L103.5,-11.8L102.4,-14.1L100.9,-16.3L99.1,-18.4L96.9,-20.4L94.4,-22.3L91.5,-24.2L88.2,-25.9L84.7,-27.5L80.8,-28.9L76.6,-30.3L72.2,-31.5L67.4,-32.6L62.5,-33.6L57.4,-34.5L52,-35.2L46.5,-35.7L40.9,-36.2L35.2,-36.5L29.4,-36.6L23.5,-36.7L17.6,-36.6L11.7,-36.4L5.8,-36.1L0,-35.6L-5.9,-35.1L-11.6,-34.5L-17.2,-33.7L-22.8,-32.9L-28.2,-32L-33.6,-31L-38.8,-30L-43.8,-28.8L-48.7,-27.7L-53.5,-26.4L-58.1,-25.1L-62.6,-23.7L-66.9,-22.3L-71,-20.8L-74.9,-19.2L-78.7,-17.7L-82.3,-16.1L-85.9,-14.5L-89.2,-12.8L-92.4,-11.1L-95.4,-9.3L-98.1,-7.5L-100.7,-5.6L-102.9,-3.6L-104.9,-1.6L-106.5,0.5L-107.7,2.6L-108.6,4.8L-109.1,7L-109.2,9.1L-108.8,11.3L-107.9,13.3L-107,12.9L-107.8,11L-108.1,9.1L-108,7.1L-107.4,5.2L-106.5,3.3L-105.2,1.4L-103.6,-0.4L-101.6,-2.1L-99.4,-3.9L-96.8,-5.5L-94.1,-7.1L-91.1,-8.7L-87.9,-10.2L-84.6,-11.6L-81.1,-13L-77.4,-14.4L-73.6,-15.8L-69.7,-17.2L-65.6,-18.6L-61.4,-20L-57,-21.3L-52.5,-22.6L-47.8,-23.8L-42.9,-25L-37.9,-26.1L-32.8,-27.1L-27.5,-28.1L-22.2,-29L-16.7,-29.8L-11.1,-30.5L-5.4,-31.1L0.3,-31.6L6.1,-32.1L11.9,-32.4L17.7,-32.6L23.5,-32.7L29.3,-32.6L35,-32.5L40.6,-32.2L46.2,-31.8L51.6,-31.2L56.8,-30.5L61.8,-29.7L66.6,-28.7L71.2,-27.7L75.4,-26.5L79.4,-25.2L83.1,-23.8L86.5,-22.3L89.5,-20.7L92.1,-19L94.4,-17.3L96.3,-15.6L97.8,-13.9L98.9,-12.2L99.7,-10.4L100.2,-8.8L100.3,-7.1L100.2,-5.4L99.8,-3.7L99,-2L98,-0.3L96.7,1.4L95,3.1L93.1,4.8L90.9,6.5L88.4,8.1L85.7,9.6L82.8,11.1L79.6,12.5L76.2,13.8L72.6,15L68.8,16.2L64.9,17.3L60.7,18.4L56.4,19.3L52,20.2L47.4,21L42.6,21.7L37.7,22.4L32.7,23L27.6,23.5L22.4,24L17,24.4L11.6,24.7L6.1,25L0.6,25.2L-5.1,25.3L-10.7,25.3L-16.3,25.3L-22,25.2L-27.6,25.1L-33.1,24.8L-38.6,24.5L-44,24.2L-49.2,23.7L-54.3,23.2L-59.3,22.5L-64,21.8L-68.5,21.1L-72.7,20.2L-76.7,19.3L-80.4,18.3L-83.8,17.2L-86.8,16.1L-89.5,14.9L-91.8,13.8L-93.8,12.6L-95.4,11.4L-96.7,10.2L-97.6,9L-98.3,7.8L-98.6,6.6L-98.7,5.3L-98.5,3.9L-97.9,2.5L-97,0.9L-95.8,-0.6L-94.2,-2.2L-92.3,-3.7Z",
+         "stroke": "rgba(0,0,0,0)",
+         "strokeWidth": 1,
+         "hitStrokeWidth": 24,
+         "perfectDrawEnabled": false
+        }
+       }
+      ]
+     },
+     {
+      "className": "Group",
+      "attrs": {
+       "name": "canvas-item",
+       "canvasItemId": "sc-0-text"
+      },
+      "children": [
+       {
+        "className": "Text",
+        "attrs": {
+         "id": "sc-0-text",
+         "text": "Achte dazwischen auf Pausen.",
+         "x": 70,
+         "y": 651.125,
+         "width": 940,
+         "fontSize": 59,
+         "fontFamily": "PT Sans",
+         "fontStyle": "normal",
+         "fill": "#00261A",
+         "fillPriority": "color",
+         "rotation": 0,
+         "scaleX": 1,
+         "scaleY": 1,
+         "opacity": 1,
+         "fillAfterStrokeEnabled": false,
+         "lineJoin": "round",
+         "align": "left",
+         "verticalAlign": "top",
+         "lineHeight": 1.25,
+         "wrap": "word",
+         "padding": 0,
+         "draggable": true,
+         "visible": true
+        }
+       }
+      ]
+     },
+     {
+      "className": "Group",
+      "attrs": {
+       "name": "canvas-item",
+       "canvasItemId": "sc-ki-label-bg"
+      },
+      "children": [
+       {
+        "className": "Rect",
+        "attrs": {
+         "x": 330.75,
+         "y": 1316.5,
+         "fill": "#2B2B2B",
+         "opacity": 0.55,
+         "rotation": 0,
+         "scaleX": 1,
+         "scaleY": 1,
+         "mirrorX": false,
+         "draggable": true,
+         "name": "shape-sc-ki-label-bg",
+         "fillPriority": "color",
+         "width": 639.5,
+         "height": 45,
+         "offsetX": 319.75,
+         "offsetY": 22.5,
+         "cornerRadius": 8
+        }
+       }
+      ]
+     },
+     {
+      "className": "Group",
+      "attrs": {
+       "name": "canvas-item",
+       "canvasItemId": "sc-ki-label"
+      },
+      "children": [
+       {
+        "className": "Text",
+        "attrs": {
+         "id": "sc-ki-label",
+         "text": "Klimaschonend KI-generiert mit dem Grünerator",
+         "x": 27,
+         "y": 1303,
+         "width": 611.5,
+         "fontSize": 27,
+         "fontFamily": "PT Sans",
+         "fontStyle": "bold",
+         "fill": "#FFFFFF",
+         "fillPriority": "color",
+         "rotation": 0,
+         "scaleX": 1,
+         "scaleY": 1,
+         "opacity": 0.85,
+         "fillAfterStrokeEnabled": false,
+         "lineJoin": "round",
+         "align": "left",
+         "verticalAlign": "top",
+         "lineHeight": 1,
+         "wrap": "word",
+         "padding": 0,
+         "draggable": true,
+         "visible": true
+        }
+       }
+      ]
+     },
+     {
+      "className": "Transformer",
+      "attrs": {
+       "name": "multi-selection-transformer",
+       "resizeEnabled": false,
+       "rotateEnabled": false,
+       "rotationSnaps": [
+        0,
+        45,
+        90,
+        135,
+        180,
+        225,
+        270,
+        315
+       ],
+       "rotationSnapTolerance": 5,
+       "flipEnabled": false,
+       "anchorSize": 12,
+       "borderStroke": "rgb(0, 161, 255)",
+       "borderStrokeWidth": 1.5,
+       "rotateLineVisible": false,
+       "rotateAnchorOffset": 24,
+       "rotateAnchorCursor": "url(\"data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2224%22%20height%3D%2224%22%20viewBox%3D%220%200%2024%2024%22%3E%3Cg%20fill%3D%22none%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22M19%2012a7%207%200%201%201-2.05-4.95M19%204v4h-4%22%20stroke%3D%22white%22%20stroke-width%3D%224%22%2F%3E%3Cpath%20d%3D%22M19%2012a7%207%200%201%201-2.05-4.95M19%204v4h-4%22%20stroke%3D%22black%22%20stroke-width%3D%222%22%2F%3E%3C%2Fg%3E%3C%2Fsvg%3E\") 12 12, grab",
+       "rotation": 0
+      },
+      "children": [
+       {
+        "className": "Shape",
+        "attrs": {
+         "name": "back",
+         "width": 0,
+         "height": 0,
+         "visible": true,
+         "stroke": "rgb(0, 161, 255)",
+         "strokeWidth": 1.5,
+         "x": 0,
+         "y": 0
+        }
+       },
+       {
+        "className": "Rect",
+        "attrs": {
+         "stroke": "rgba(0, 0, 0, 0.18)",
+         "fill": "white",
+         "strokeWidth": 1,
+         "name": "top-left _anchor",
+         "dragDistance": 0,
+         "draggable": true,
+         "hitStrokeWidth": 12,
+         "width": 12,
+         "height": 12,
+         "offsetX": 6,
+         "offsetY": 6,
+         "cornerRadius": 6,
+         "x": 0,
+         "y": 0,
+         "visible": false,
+         "shadowColor": "black",
+         "shadowBlur": 4,
+         "shadowOpacity": 0.25,
+         "shadowOffsetY": 1,
+         "perfectDrawEnabled": false
+        }
+       },
+       {
+        "className": "Rect",
+        "attrs": {
+         "stroke": "rgba(0, 0, 0, 0.18)",
+         "fill": "white",
+         "strokeWidth": 1,
+         "name": "top-center _anchor",
+         "dragDistance": 0,
+         "draggable": true,
+         "hitStrokeWidth": 12,
+         "width": 18,
+         "height": 6,
+         "offsetX": 9,
+         "offsetY": 3,
+         "cornerRadius": 3,
+         "x": 0,
+         "y": 0,
+         "visible": false,
+         "shadowColor": "black",
+         "shadowBlur": 4,
+         "shadowOpacity": 0.25,
+         "shadowOffsetY": 1,
+         "perfectDrawEnabled": false
+        }
+       },
+       {
+        "className": "Rect",
+        "attrs": {
+         "stroke": "rgba(0, 0, 0, 0.18)",
+         "fill": "white",
+         "strokeWidth": 1,
+         "name": "top-right _anchor",
+         "dragDistance": 0,
+         "draggable": true,
+         "hitStrokeWidth": 12,
+         "width": 12,
+         "height": 12,
+         "offsetX": 6,
+         "offsetY": 6,
+         "cornerRadius": 6,
+         "x": 0,
+         "y": 0,
+         "visible": false,
+         "shadowColor": "black",
+         "shadowBlur": 4,
+         "shadowOpacity": 0.25,
+         "shadowOffsetY": 1,
+         "perfectDrawEnabled": false
+        }
+       },
+       {
+        "className": "Rect",
+        "attrs": {
+         "stroke": "rgba(0, 0, 0, 0.18)",
+         "fill": "white",
+         "strokeWidth": 1,
+         "name": "middle-right _anchor",
+         "dragDistance": 0,
+         "draggable": true,
+         "hitStrokeWidth": 12,
+         "width": 6,
+         "height": 18,
+         "offsetX": 3,
+         "offsetY": 9,
+         "cornerRadius": 3,
+         "x": 0,
+         "y": 0,
+         "visible": false,
+         "shadowColor": "black",
+         "shadowBlur": 4,
+         "shadowOpacity": 0.25,
+         "shadowOffsetY": 1,
+         "perfectDrawEnabled": false
+        }
+       },
+       {
+        "className": "Rect",
+        "attrs": {
+         "stroke": "rgba(0, 0, 0, 0.18)",
+         "fill": "white",
+         "strokeWidth": 1,
+         "name": "middle-left _anchor",
+         "dragDistance": 0,
+         "draggable": true,
+         "hitStrokeWidth": 12,
+         "width": 6,
+         "height": 18,
+         "offsetX": 3,
+         "offsetY": 9,
+         "cornerRadius": 3,
+         "x": 0,
+         "y": 0,
+         "visible": false,
+         "shadowColor": "black",
+         "shadowBlur": 4,
+         "shadowOpacity": 0.25,
+         "shadowOffsetY": 1,
+         "perfectDrawEnabled": false
+        }
+       },
+       {
+        "className": "Rect",
+        "attrs": {
+         "stroke": "rgba(0, 0, 0, 0.18)",
+         "fill": "white",
+         "strokeWidth": 1,
+         "name": "bottom-left _anchor",
+         "dragDistance": 0,
+         "draggable": true,
+         "hitStrokeWidth": 12,
+         "width": 12,
+         "height": 12,
+         "offsetX": 6,
+         "offsetY": 6,
+         "cornerRadius": 6,
+         "x": 0,
+         "y": 0,
+         "visible": false,
+         "shadowColor": "black",
+         "shadowBlur": 4,
+         "shadowOpacity": 0.25,
+         "shadowOffsetY": 1,
+         "perfectDrawEnabled": false
+        }
+       },
+       {
+        "className": "Rect",
+        "attrs": {
+         "stroke": "rgba(0, 0, 0, 0.18)",
+         "fill": "white",
+         "strokeWidth": 1,
+         "name": "bottom-center _anchor",
+         "dragDistance": 0,
+         "draggable": true,
+         "hitStrokeWidth": 12,
+         "width": 18,
+         "height": 6,
+         "offsetX": 9,
+         "offsetY": 3,
+         "cornerRadius": 3,
+         "x": 0,
+         "y": 0,
+         "visible": false,
+         "shadowColor": "black",
+         "shadowBlur": 4,
+         "shadowOpacity": 0.25,
+         "shadowOffsetY": 1,
+         "perfectDrawEnabled": false
+        }
+       },
+       {
+        "className": "Rect",
+        "attrs": {
+         "stroke": "rgba(0, 0, 0, 0.18)",
+         "fill": "white",
+         "strokeWidth": 1,
+         "name": "bottom-right _anchor",
+         "dragDistance": 0,
+         "draggable": true,
+         "hitStrokeWidth": 12,
+         "width": 12,
+         "height": 12,
+         "offsetX": 6,
+         "offsetY": 6,
+         "cornerRadius": 6,
+         "x": 0,
+         "y": 0,
+         "visible": false,
+         "shadowColor": "black",
+         "shadowBlur": 4,
+         "shadowOpacity": 0.25,
+         "shadowOffsetY": 1,
+         "perfectDrawEnabled": false
+        }
+       },
+       {
+        "className": "Rect",
+        "attrs": {
+         "stroke": "rgba(0, 0, 0, 0.18)",
+         "fill": "white",
+         "strokeWidth": 1,
+         "name": "rotater _anchor",
+         "dragDistance": 0,
+         "draggable": true,
+         "hitStrokeWidth": 12,
+         "width": 24,
+         "height": 24,
+         "offsetX": 12,
+         "offsetY": 12,
+         "cornerRadius": 0,
+         "x": 0,
+         "y": -24,
+         "visible": false,
+         "shadowColor": "black",
+         "shadowBlur": 4,
+         "shadowOpacity": 0.25,
+         "shadowOffsetY": 1,
+         "perfectDrawEnabled": false
+        }
+       }
+      ]
+     }
+    ]
+   }
+  ]
+ }
+]
