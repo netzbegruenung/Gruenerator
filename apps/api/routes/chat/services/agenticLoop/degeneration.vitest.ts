@@ -210,6 +210,10 @@ describe('cutLostContent', () => {
     expect(cutLostContent(answer, `\n\nKorrigierte Ausgabe:\n\n${answer}`)).toBe(false);
   });
 
+  it('says no when only a shuffled emoji run was removed', () => {
+    expect(cutLostContent(prose(2000), shuffled(PARTY, 1500))).toBe(false);
+  });
+
   it('says yes when the cut ate real prose', () => {
     const lost = Array.from({ length: 20 }, (_, i) => variedProse(100 + i)).join('');
     expect(cutLostContent(answer, lost + terminatorSpam(1500))).toBe(true);
@@ -566,6 +570,77 @@ describe('createDegenerationGuard — emoji runs', () => {
     const kept = trimDegenerate(t.slice(0, len), g.cutAt(t.slice(0, len)));
     expect(kept.startsWith('Antwort.\n\nDas Ergebnis lautet: fertig!')).toBe(true);
     expect(graphemes(kept).filter((x) => /\p{Extended_Pictographic}/u.test(x))).toHaveLength(0);
+  });
+
+  /** ≥ 8000 units of varied prose, ending on a complete sentence. */
+  function longProse(): string {
+    let text = '';
+    for (let i = 0; text.length < 8200; i++) text += variedProse(i);
+    return text;
+  }
+  const PICTO = /\p{Extended_Pictographic}/u;
+
+  it('cuts lettered junk that stands in front of a letterless run (review)', () => {
+    const answer = longProse();
+    const t = answer + terminatorSpam(1500) + repeatTo(':-)', 3000);
+    const g = createDegenerationGuard();
+    const len = firstFiringLength(g, t);
+    const kept = trimDegenerate(t.slice(0, len), g.cutAt(t.slice(0, len)));
+    expect(kept).not.toMatch(/Fertig\.\*\*|ANTWORT|:-\)/);
+    // The whole answer, and no notice: only junk was removed (cutLostContent).
+    expect(kept).toBe(answer.trimEnd());
+  });
+
+  it('cuts alternating lettered and letterless junk back to the prose (review)', () => {
+    const answer = longProse();
+    const t =
+      answer +
+      terminatorSpam(800) +
+      shuffled(PARTY, 400) +
+      terminatorSpam(400) +
+      shuffled(PARTY, 1500, 7);
+    const g = createDegenerationGuard();
+    const len = firstFiringLength(g, t);
+    const kept = trimDegenerate(t.slice(0, len), g.cutAt(t.slice(0, len)));
+    expect(kept).not.toMatch(/Fertig\.\*\*|ANTWORT/);
+    expect(graphemes(kept).filter((x) => PICTO.test(x))).toHaveLength(0);
+    expect(kept).toBe(answer.trimEnd());
+  });
+
+  it.each([
+    ['family', FAMILY, 130],
+    ['party', PARTY, 720],
+  ])(
+    'cuts a repeated %s-emoji block found by the long-range detector (review)',
+    (_name, pool, n) => {
+      const answer = longProse();
+      const block = shuffled(pool, n, 3);
+      expect(block.length).toBeGreaterThan(1200);
+      const t = answer + block.repeat(4);
+      const g = createDegenerationGuard();
+      // One big delta: the shingle index sees the whole repeat at once and fires
+      // before the letterless check, so the cut goes through the repeat onset.
+      expect(g.check(t)).toBe(true);
+      const kept = trimDegenerate(t, g.cutAt(t));
+      expect(graphemes(kept).filter((x) => PICTO.test(x))).toHaveLength(0);
+      expect(kept.length).toBeGreaterThan(answer.length - 600);
+    }
+  );
+
+  // Intended: a diagram with labels carries ≥ 10% letters and is left alone; a
+  // box-drawing run WITHOUT labels is letterless and fires from 1500 on, like
+  // any other letterless flood.
+  it('leaves a labelled box-drawing diagram alone below 8000', () => {
+    const row = '┌────────┐  ┌────────┐\n│ Antrag │──│ Partei │\n└────────┘  └────────┘\n';
+    const diagram = 'Der Ablauf:\n\n' + repeatTo(row, 2400);
+    const g = createDegenerationGuard();
+    expect(firstFiringLength(g, diagram)).toBe(Infinity);
+  });
+
+  it('fires on an unlabelled box-drawing flood below 8000', () => {
+    const flood = 'Der Ablauf:\n\n' + repeatTo('┌──┐└──┘│││', 2400);
+    const g = createDegenerationGuard();
+    expect(firstFiringLength(g, flood)).toBeLessThan(DEGEN_MIN_LENGTH);
   });
 
   it('stays quiet on a long healthy answer sprinkled with emoji', () => {

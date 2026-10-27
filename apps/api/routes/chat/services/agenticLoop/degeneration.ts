@@ -311,11 +311,67 @@ export function isDegenerateSample(sample: string): boolean {
  * reaches the boundary; the floor only wins when everything scanned is spam.
  */
 export function findDegenerationCut(text: string, detectedAt: number): number {
-  const SCAN_WINDOW = 600;
-  const SCAN_STEP = 200;
-  const MAX_BACKSCAN = 6000;
+  return backscan(
+    text,
+    detectedAt,
+    new Set(words(text.slice(Math.max(0, detectedAt - DEGEN_WINDOW), detectedAt)))
+  );
+}
+
+const SCAN_WINDOW = 600;
+const SCAN_STEP = 200;
+const MAX_BACKSCAN = 6000;
+/** Below this word diversity (lettered words only), the window in front of a
+ *  letterless run is junk too. Measured on 600 units: German prose 0.87, a
+ *  400-unit stretch of terminator spam 0.45, a markdown table 0.44. Not the
+ *  0.16 floor — that one is calibrated to 2.000-unit windows, where a junk
+ *  vocabulary has been drawn often enough to look small.
+ *
+ *  The knowing trade: a templated bullet list measures 0.22, so a list that
+ *  directly precedes a letterless run is cut along with it. Its numbers and
+ *  names should then count as lost in {@link cutLostContent}, so the notice
+ *  would ride along — expected, not measured. */
+const LETTERED_JUNK_DIVERSITY = 0.5;
+const LETTERED_JUNK_MIN_WORDS = 20;
+
+/** Whether a token carries language — emoji clusters and smileys do not. */
+const isLettered = (token: string): boolean => LETTER_OR_DIGIT.test(token);
+
+/** Start of the run of junk tokens — spam vocabulary, scaffolding or letterless —
+ *  that ends at `pos`, within the scan window before it; `pos` when the last
+ *  token is language. */
+function spamRunStart(text: string, pos: number, spamVocab: Set<string>): number {
+  const from = Math.max(0, pos - SCAN_WINDOW);
+  const tokens = [...text.slice(from, pos).matchAll(/\S+/g)];
+  let start = pos;
+  let last = tokens.length - 1;
+  // A token the scan position cuts in half ("Fert|ig.**") is in no vocabulary;
+  // it goes either way, so step over it rather than stop on it.
+  const tail = tokens[last];
+  if (tail && from + (tail.index ?? 0) + tail[0].length === pos && /\S/.test(text[pos] ?? '')) {
+    start = from + (tail.index ?? 0);
+    last--;
+  }
+  for (let i = last; i >= 0; i--) {
+    const token = tokens[i][0];
+    if (!spamVocab.has(token) && !SCAFFOLD_TOKEN.test(token) && isLettered(token)) break;
+    start = from + (tokens[i].index ?? 0);
+  }
+  return start;
+}
+
+/** @param exactTail set when the scan continues behind a letterless run and
+ *  `spamVocab` is the junk standing in front of it. Letterless tokens then
+ *  count as junk too (the two kinds alternate), and the window the scan stops
+ *  at is trimmed of its trailing junk instead of being kept whole — up to ~300
+ *  units of spam at window granularity. */
+function backscan(
+  text: string,
+  detectedAt: number,
+  spamVocab: Set<string>,
+  exactTail = false
+): number {
   let crossingLetterless = false;
-  const spamVocab = new Set(words(text.slice(Math.max(0, detectedAt - DEGEN_WINDOW), detectedAt)));
   const readsAsSpam = (sample: string): boolean => {
     // The same gate the detector uses, for the same reason — without it the fix
     // only moves the bug one function along. A table window keeps almost no
@@ -327,7 +383,7 @@ export function findDegenerationCut(text: string, detectedAt: number): number {
     const w = words(sample);
     if (w.length >= 5) {
       let hits = 0;
-      for (const word of w) if (spamVocab.has(word)) hits++;
+      for (const word of w) if (spamVocab.has(word) || (exactTail && !isLettered(word))) hits++;
       return hits / w.length >= 0.5;
     }
     return selfSimilarity(sample) >= SELF_SIMILARITY_FLOOR;
@@ -347,8 +403,21 @@ export function findDegenerationCut(text: string, detectedAt: number): number {
       crossingLetterless = true;
       continue;
     }
-    if (crossingLetterless) return languageEnd(text, pos);
-    if (!readsAsSpam(sample)) return pos;
+    if (crossingLetterless) {
+      const end = languageEnd(text, pos);
+      // Junk with letters can stand in front of the letterless run (`Fertig.**
+      // --- Ende.**` then `:-):-)`). Ask the window right before the run, with
+      // a window-sized floor and over its LETTERED words only (each emoji
+      // cluster would count as a distinct word) — and if it is junk, keep
+      // scanning against ITS vocabulary: the detection window's would hold the
+      // healthy answer.
+      const adjacent = words(text.slice(Math.max(0, end - SCAN_WINDOW), end)).filter(isLettered);
+      if (adjacent.length < LETTERED_JUNK_MIN_WORDS) return end;
+      const vocab = new Set(adjacent);
+      if (vocab.size / adjacent.length >= LETTERED_JUNK_DIVERSITY) return end;
+      return backscan(text, end, vocab, true);
+    }
+    if (!readsAsSpam(sample)) return exactTail ? spamRunStart(text, pos, spamVocab) : pos;
   }
   return floor;
 }
@@ -414,7 +483,10 @@ export function cutLostContent(kept: string, removed: string): boolean {
   const known = new Set(words(kept));
   const novel = new Set<string>();
   for (const word of words(removed)) {
-    if (known.has(word)) continue;
+    // Letterless tokens carry no content: a shuffled emoji run split by the odd
+    // space yields hundreds of distinct "words" and would announce a loss that
+    // is not there.
+    if (known.has(word) || !isLettered(word)) continue;
     novel.add(word);
     if (novel.size > LOST_VOCAB_FLOOR) return true;
   }
@@ -633,6 +705,11 @@ export function createDegenerationGuard(): DegenerationGuard {
     // back from a junk run still holds the healthy prose that preceded it, and
     // the mixture measures healthy — which is the whole question here.
     const before = text.slice(Math.max(0, repeatOnset - ONSET_PROBE), repeatOnset);
+    // A letterless block repeated as a whole: the subtraction below assumes
+    // a period under MIN_REPEAT_DISTANCE and lands inside a longer block
+    // (measured: ~120 party emoji kept). The probe window is pure junk by the
+    // argument above, so the backscan starts in the run and finds the language.
+    if (lowInformation(before, SCAN_MIN_GRAPHEMES)) return findDegenerationCut(text, repeatOnset);
     if (!isDegenerateSample(before)) return repeatOnset;
 
     // Junk: subtract exactly the distance the run needed in order to exist.
