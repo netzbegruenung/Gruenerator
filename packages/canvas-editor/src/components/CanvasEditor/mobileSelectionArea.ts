@@ -1,5 +1,5 @@
-import type { FloatingModuleState } from '../../hooks/useFloatingModuleState';
 import type { SidebarTabId } from '../../sidebar/types';
+import type { FloatingModuleState } from '@ggraphic/editor/hooks/useFloatingModuleState';
 
 type SelectionType = FloatingModuleState['type'];
 

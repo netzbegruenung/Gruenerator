@@ -1,3 +1,4 @@
+import { getAssetById } from '@ggraphic/editor/utils/canvasAssets';
 import {
   type SharepicEmoji,
   type SharepicItem,
@@ -6,8 +7,6 @@ import {
   sharepicSpecSchema,
 } from '@gruenerator/contracts';
 import { describe, expect, it } from 'vitest';
-
-import { getAssetById } from '../utils/canvasAssets';
 
 import { applySharepicPatch } from './applySharepicPatch';
 import { composeSharepic } from './composeSharepic';

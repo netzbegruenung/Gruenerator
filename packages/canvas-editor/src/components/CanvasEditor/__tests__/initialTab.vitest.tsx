@@ -2,17 +2,20 @@
  * Der Host merkt sich den offenen Reiter je Canvas (#4258): ohne `initialTab`
  * war der Chat nach jedem Neuladen zu, weil `activeTab` mit `null` startet.
  */
+import {
+  CanvasEditorProvider,
+  type ChatSectionContentProps,
+} from '@ggraphic/editor/CanvasEditorProvider';
 import { act, render, screen, waitFor } from '@testing-library/react';
 import Konva from 'konva';
 import React from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { CanvasEditorProvider, type ChatSectionContentProps } from '../../../CanvasEditorProvider';
 import { CanvasEditor } from '../index';
 
 import type { SidebarTabId } from '../../../sidebar/types';
 
-vi.mock('../../../sidebar/UserUploadsProvider', () => ({
+vi.mock('@ggraphic/editor/sidebar/UserUploadsProvider', () => ({
   // ToolbarStateBridge liest die Uploads optional (Erweitern).
   useOptionalUserUploads: () => null,
   UserUploadsProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,

@@ -1,7 +1,6 @@
+import { useCanvasEditorServices } from '@ggraphic/editor/CanvasEditorProvider';
 import { STOCK_CATEGORY_LABELS } from '@gruenerator/contracts';
 import { useQuery, type QueryClient } from '@tanstack/react-query';
-
-import { useCanvasEditorServices } from '../../../CanvasEditorProvider';
 
 import type { ElementItem } from './elementTypes';
 import type { StockImage, StockImageAttribution } from '@ggraphic/editor/common/imageSourceTypes';

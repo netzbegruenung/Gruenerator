@@ -1,7 +1,6 @@
+import { loadCanvasConfig } from '@ggraphic/editor/configs/configLoader';
+import { getAssetBySrc } from '@ggraphic/editor/utils/canvasAssets';
 import { beforeAll, describe, expect, it } from 'vitest';
-
-import { loadCanvasConfig } from '../configLoader';
-import { getAssetBySrc } from '../../utils/canvasAssets';
 
 /**
  * Wächter für #3403: eine Vorlagen-Grafik wird beim Duplizieren zur

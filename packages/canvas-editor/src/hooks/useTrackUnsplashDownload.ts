@@ -1,6 +1,5 @@
+import { useCanvasEditorServices } from '@ggraphic/editor/CanvasEditorProvider';
 import { useCallback } from 'react';
-
-import { useCanvasEditorServices } from '../CanvasEditorProvider';
 
 import type { StockImageAttribution } from '@ggraphic/editor/common/imageSourceTypes';
 

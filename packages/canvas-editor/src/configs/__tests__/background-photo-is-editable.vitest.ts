@@ -1,7 +1,6 @@
+import { loadCanvasConfig } from '@ggraphic/editor/configs/configLoader';
+import { BACKGROUND_IMAGE_NODE_ID } from '@ggraphic/editor/utils/printImageInfo';
 import { beforeAll, describe, expect, it } from 'vitest';
-
-import { BACKGROUND_IMAGE_NODE_ID } from '../../utils/printImageInfo';
-import { loadCanvasConfig } from '../configLoader';
 
 /**
  * Every template that draws a background photo offers "Bearbeiten" for it in

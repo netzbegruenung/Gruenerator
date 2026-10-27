@@ -1,3 +1,4 @@
+import { useCanvasEditorServices } from '@ggraphic/editor/CanvasEditorProvider';
 import { cn } from '@ggraphic/editor/utils/cn';
 import { brandColors } from '@ggraphic/editor/utils/colorOptions';
 import { Suspense, useEffect, useId, useState } from 'react';
@@ -11,7 +12,6 @@ import {
 } from 'react-icons/hi2';
 import { PiArrowLeft, PiCaretRightBold, PiDropSimpleFill, PiPath } from 'react-icons/pi';
 
-import { useCanvasEditorServices } from '../../../CanvasEditorProvider';
 import { useIsCanvasMobile } from '../../../hooks/useIsCanvasMobile';
 import { lazyWithPreload } from '../lazyWithPreload';
 import { whenIdle } from '../whenIdle';

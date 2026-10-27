@@ -4,6 +4,7 @@
  * nativ — gerastert werden nur Grafiken (Sonnenblume, Logo).
  */
 import { getCanvasFormat } from '@ggraphic/editor/formats/index';
+import { getAssetById } from '@ggraphic/editor/utils/canvasAssets';
 import { createCanvas } from '@napi-rs/canvas';
 import { strFromU8, unzipSync } from 'fflate';
 import { describe, expect, it } from 'vitest';
@@ -12,7 +13,6 @@ import { createFreeformAtFullConfig } from '../configs/freeform_at_full.config';
 import { createFreeformFullConfig, type FreeformState } from '../configs/freeform_full.config';
 import { buildPptxModel } from '../export/pptx/buildPptxModel';
 import { writePptx, type WritePptxDeps } from '../export/pptx/writePptx';
-import { getAssetById } from '../utils/canvasAssets';
 
 import {
   buildSlideLayout,

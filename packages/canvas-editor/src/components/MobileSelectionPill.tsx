@@ -12,7 +12,7 @@ import {
   PiTrash,
 } from 'react-icons/pi';
 
-import type { SelectionBox } from './GenericCanvas';
+import type { SelectionBox } from '@ggraphic/editor/components/GenericCanvas';
 
 const PILL_HEIGHT = 44;
 const GAP = 12;

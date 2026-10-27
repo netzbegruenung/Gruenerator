@@ -24,7 +24,7 @@ import { withCardResizedFor } from './cardFollowsText';
 import { type ComposedSlide } from './composeSharepic';
 import { invertLiftedText, slideProvenance, type SharepicProvenance } from './sharepicProvenance';
 
-import type { AdditionalText } from '../configs/types';
+import type { AdditionalText } from '@ggraphic/editor/configs/types';
 
 type ElementKind = SharepicFingerprint['kind'];
 type FingerprintProp = Exclude<keyof SharepicFingerprint, 'kind'>;

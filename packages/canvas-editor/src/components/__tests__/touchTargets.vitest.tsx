@@ -22,7 +22,7 @@ import { FloatingFontSizeControl } from '../TopBar/modules/FloatingFontSizeContr
 import { FloatingHistoryControls } from '../TopBar/modules/FloatingHistoryControls';
 import { FloatingLayerControls } from '../TopBar/modules/FloatingLayerControls';
 
-import type { FloatingModuleState } from '../../hooks/useFloatingModuleState';
+import type { FloatingModuleState } from '@ggraphic/editor/hooks/useFloatingModuleState';
 
 function setMobileViewport() {
   window.matchMedia = vi.fn().mockImplementation((query: string) => ({

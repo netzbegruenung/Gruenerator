@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 
 import { createIconActions } from './actionFactories';
 
-import type { IconState } from './baseTypes';
+import type { IconState } from '@ggraphic/editor/configs/factory/baseTypes';
 
 /**
  * Abwählen trifft seit #3404 zwei verschiedene Absichten mit derselben Aktion:

@@ -5,6 +5,12 @@
  * Migrated from monolithic 1,107-line DreizeilenCanvas component.
  */
 
+import {
+  carryBackgroundAdjustments,
+  carryBackgroundRotation,
+  carryTemplateRotations,
+  carryTemplateTextAligns,
+} from '@ggraphic/editor/configs/factory/carryInstanceState';
 import { zoomBackground } from '@ggraphic/editor/utils/coverFit';
 import { straightenResetFor } from '@ggraphic/editor/utils/straighten';
 import {
@@ -48,12 +54,6 @@ import {
   createFrameActions,
   createUserImageActions,
 } from './factory/actionFactories';
-import {
-  carryBackgroundAdjustments,
-  carryBackgroundRotation,
-  carryTemplateRotations,
-  carryTemplateTextAligns,
-} from './factory/carryInstanceState';
 import { makeSectionDefiner } from './factory/defineSection';
 import { injectFeatureProps } from './featureInjector';
 import { PLACEHOLDER_TEXT } from './placeholders';
@@ -61,14 +61,14 @@ import { createShareSection } from './shareSection';
 
 import type { SharepicAiCapabilities } from './aiCapabilities';
 import type { DreizeilenFullState, DreizeilenFullActions } from './dreizeilen.types';
+import type { StockImageAttribution } from '@ggraphic/editor/common/imageSourceTypes';
 import type {
   FullCanvasConfig,
   LayoutResult as GenericLayoutResult,
   AdditionalText,
-} from './types';
-import type { AssetInstance } from '../utils/canvasAssets';
-import type { StockImageAttribution } from '@ggraphic/editor/common/imageSourceTypes';
+} from '@ggraphic/editor/configs/types';
 import type { BalkenInstance } from '@ggraphic/editor/utils/balkenUtils';
+import type { AssetInstance } from '@ggraphic/editor/utils/canvasAssets';
 import type { ChartInstance } from '@ggraphic/editor/utils/chartUtils';
 import type { CircleBadgeInstance } from '@ggraphic/editor/utils/circleBadgeUtils';
 import type { FrameInstance } from '@ggraphic/editor/utils/frameUtils';

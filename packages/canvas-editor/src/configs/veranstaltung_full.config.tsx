@@ -3,6 +3,8 @@
  * Event sharepic with photo, green section, and date circle
  */
 
+import { carryInstanceState } from '@ggraphic/editor/configs/factory/carryInstanceState';
+import { type AssetInstance } from '@ggraphic/editor/utils/canvasAssets';
 import { zoomBackground } from '@ggraphic/editor/utils/coverFit';
 import { straightenResetFor } from '@ggraphic/editor/utils/straighten';
 import { PiFrameCornersFill, PiSquaresFourFill, PiTextAa } from 'react-icons/pi';
@@ -10,7 +12,6 @@ import { PiFrameCornersFill, PiSquaresFourFill, PiTextAa } from 'react-icons/pi'
 import { CANVAS_RECOMMENDED_ASSETS } from '../brand/grueneAssets';
 import { AssetsSection, FrameSettingsSection } from '../sidebar/sections';
 import { CombinedTextSection } from '../sidebar/sections/CombinedTextSection';
-import { type AssetInstance } from '../utils/canvasAssets';
 import { VERANSTALTUNG_CONFIG, calculateVeranstaltungLayout } from '../utils/veranstaltungLayout';
 
 import { chatTab, createCommonSectionEntries, toolsTab, uploadsTab } from './commonSections';
@@ -26,16 +27,19 @@ import {
   createFrameActions,
   createUserImageActions,
 } from './factory/actionFactories';
-import { carryInstanceState } from './factory/carryInstanceState';
 import { makeSectionDefiner } from './factory/defineSection';
 import { injectFeatureProps } from './featureInjector';
 import { PLACEHOLDER_TEXT } from './placeholders';
 import { createShareSection } from './shareSection';
 
 import type { SharepicAiCapabilities } from './aiCapabilities';
-import type { CircleBadgeInstance, CircleBadgeTextLine } from '../primitives';
-import type { FullCanvasConfig, LayoutResult, AdditionalText } from './types';
 import type { StockImageAttribution } from '@ggraphic/editor/common/imageSourceTypes';
+import type {
+  FullCanvasConfig,
+  LayoutResult,
+  AdditionalText,
+} from '@ggraphic/editor/configs/types';
+import type { CircleBadgeInstance, CircleBadgeTextLine } from '@ggraphic/editor/primitives/index';
 import type { BalkenInstance, BalkenMode } from '@ggraphic/editor/utils/balkenUtils';
 import type { ChartInstance } from '@ggraphic/editor/utils/chartUtils';
 import type { FrameClipType, FrameInstance } from '@ggraphic/editor/utils/frameUtils';

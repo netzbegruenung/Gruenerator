@@ -1,7 +1,6 @@
+import { loadCanvasConfig, preloadCanvasTemplate } from '@ggraphic/editor/configs/configLoader';
+import { canvasFontFamilies } from '@ggraphic/editor/utils/canvasFontFamilies';
 import { afterEach, beforeAll, beforeEach, describe, it, expect, vi } from 'vitest';
-
-import { canvasFontFamilies } from '../../utils/canvasFontFamilies';
-import { loadCanvasConfig, preloadCanvasTemplate } from '../configLoader';
 
 /**
  * Der Editor fragt Schriften erst an, wenn die erste Seite gemountet ist —

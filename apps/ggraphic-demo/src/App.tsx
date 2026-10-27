@@ -1,4 +1,4 @@
-import { ConfigCanvas } from '@gruenerator/canvas-editor';
+import { ConfigCanvas } from '@ggraphic/editor/components/ConfigCanvas';
 
 import { demoTemplate } from './demoTemplate';
 

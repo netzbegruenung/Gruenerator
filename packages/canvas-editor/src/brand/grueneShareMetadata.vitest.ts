@@ -1,6 +1,5 @@
+import { loadCanvasConfig } from '@ggraphic/editor/configs/configLoader';
 import { beforeAll, describe, expect, it } from 'vitest';
-
-import { loadCanvasConfig } from '../configs/configLoader';
 
 /**
  * The share metadata the auto-save stored before the templates described

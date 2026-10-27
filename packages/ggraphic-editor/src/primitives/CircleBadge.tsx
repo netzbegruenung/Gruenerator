@@ -16,6 +16,7 @@ import { Group, Circle, Text, Rect, Transformer } from 'react-konva';
 
 import { LOCKED_TRANSFORMER, useIsItemLocked } from '@ggraphic/editor/components/canvasItemLock';
 import { useSnapScheduler } from '@ggraphic/editor/hooks/useSnapScheduler';
+import { messages } from '@ggraphic/editor/i18n/messages';
 import { captureFocusOrigin, returnFocus } from '@ggraphic/editor/utils/editorFocus';
 import { followStage } from '@ggraphic/editor/utils/followStage';
 import { isGroupDrag } from '@ggraphic/editor/utils/multiSelect';
@@ -205,7 +206,7 @@ function CircleBadgeInner({
       const textH = line.fontSize * lineHeight;
 
       input.value = line.text;
-      input.setAttribute('aria-label', 'Text bearbeiten');
+      input.setAttribute('aria-label', messages().common.editText);
       input.style.position = 'absolute';
       input.style.fontFamily = `${line.fontFamily}, Arial, sans-serif`;
       input.style.fontWeight = line.fontWeight === 'bold' ? 'bold' : 'normal';

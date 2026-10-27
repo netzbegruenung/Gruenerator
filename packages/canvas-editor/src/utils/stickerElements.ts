@@ -3,7 +3,7 @@
  * same Noto set and Iconify sets, the same German-aware ranking.
  */
 export { EMOJI_ASSETS } from '../brand/grueneAssetCatalog';
-export { type UniversalAsset } from './canvasAssets';
+export { type UniversalAsset } from '@ggraphic/editor/utils/canvasAssets';
 export {
   DEFAULT_ICON_SET,
   generateIconDataUrl,

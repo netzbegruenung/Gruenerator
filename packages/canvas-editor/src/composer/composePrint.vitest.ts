@@ -4,16 +4,16 @@ import {
   printGeometry,
   type PrintRect,
 } from '@ggraphic/editor/formats/index';
+import { ASSET_TARGET_SIZE, type AssetInstance } from '@ggraphic/editor/utils/canvasAssets';
 import { printSpecSchema, type PrintSpec } from '@gruenerator/contracts';
 import { describe, expect, it } from 'vitest';
 
 import { getBrandTheme } from '../brand/theme';
-import { ASSET_TARGET_SIZE, type AssetInstance } from '../utils/canvasAssets';
 
 import { layoutTextLines, LIME, SHAREPIC_COLOR_HEX } from './chromeParts';
 import { composePrint, PRINT_IMPRESSUM_ID, type ComposedPrint } from './composePrint';
 
-import type { AdditionalText } from '../configs/types';
+import type { AdditionalText } from '@ggraphic/editor/configs/types';
 
 /** Monospace stand-in: half the font size per character. */
 const measure = (text: string, fontSize: number) => text.length * fontSize * 0.5;

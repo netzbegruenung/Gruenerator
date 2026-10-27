@@ -1,4 +1,4 @@
-import type { SectionConfig, SectionContext } from '../types';
+import type { SectionConfig, SectionContext } from '@ggraphic/editor/configs/types';
 
 /**
  * Returns a section definer bound to a template's `TState` / `TActions`.

@@ -2,7 +2,7 @@ import { defaultTextMarker, markerInkOn } from '@ggraphic/editor/utils/markerCol
 import { markdownLiteToRichText, type CanvasRichTextDoc } from '@ggraphic/schema';
 
 import type { PptxBullet, PptxParagraph, PptxTextRun } from './types';
-import type { AdditionalText } from '../../configs/types';
+import type { AdditionalText } from '@ggraphic/editor/configs/types';
 
 type RichNode = NonNullable<CanvasRichTextDoc['content']>[number];
 

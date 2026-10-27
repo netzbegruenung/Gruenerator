@@ -17,9 +17,9 @@ import {
 } from './carouselChrome';
 import { composeSharepic, SHAREPIC_COLOR_HEX } from './composeSharepic';
 
-import type { IconState } from '../configs/factory/baseTypes';
-import type { AdditionalText } from '../configs/types';
-import type { AssetInstance } from '../utils/canvasAssets';
+import type { IconState } from '@ggraphic/editor/configs/factory/baseTypes';
+import type { AdditionalText } from '@ggraphic/editor/configs/types';
+import type { AssetInstance } from '@ggraphic/editor/utils/canvasAssets';
 import type { ShapeInstance } from '@ggraphic/editor/utils/shapes';
 
 /** Monospace stand-in: half the font size per character. */

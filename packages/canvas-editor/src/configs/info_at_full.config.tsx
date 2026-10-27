@@ -34,7 +34,7 @@ import type {
   ImageElementConfig,
   LayoutResult,
   TextElementConfig,
-} from './types';
+} from '@ggraphic/editor/configs/types';
 
 const AT = getBrandTheme('de-AT');
 const I = INFO_AT_CONFIG;

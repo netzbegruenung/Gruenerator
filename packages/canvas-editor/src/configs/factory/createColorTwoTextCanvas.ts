@@ -10,6 +10,7 @@
  * Used by: Zitat Pure, Info
  */
 
+import { carryInstanceState } from '@ggraphic/editor/configs/factory/carryInstanceState';
 import { contrastRatio, luminance } from '@ggraphic/editor/utils/colorLuminance';
 import { zoomBackground } from '@ggraphic/editor/utils/coverFit';
 import { straightenResetFor } from '@ggraphic/editor/utils/straighten';
@@ -22,15 +23,23 @@ import { getPlaceholder } from '../placeholders';
 import { createShareSection } from '../shareSection';
 
 import { createBaseActions } from './actionFactories';
-import { carryInstanceState } from './carryInstanceState';
 import { makeSectionDefiner } from './defineSection';
 
-import type { CanvasFeatures, CanvasDimensions, IconState } from './baseTypes';
 import type { BackgroundColorOption } from '../../sidebar/types';
-import type { AssetInstance } from '../../utils/canvasAssets';
-import type { FullCanvasConfig, LayoutResult, CanvasElementConfig, AdditionalText } from '../types';
 import type { StockImageAttribution } from '@ggraphic/editor/common/imageSourceTypes';
+import type {
+  CanvasFeatures,
+  CanvasDimensions,
+  IconState,
+} from '@ggraphic/editor/configs/factory/baseTypes';
+import type {
+  FullCanvasConfig,
+  LayoutResult,
+  CanvasElementConfig,
+  AdditionalText,
+} from '@ggraphic/editor/configs/types';
 import type { BalkenInstance, BalkenMode } from '@ggraphic/editor/utils/balkenUtils';
+import type { AssetInstance } from '@ggraphic/editor/utils/canvasAssets';
 import type { ChartInstance } from '@ggraphic/editor/utils/chartUtils';
 import type { CircleBadgeInstance } from '@ggraphic/editor/utils/circleBadgeUtils';
 import type { FrameClipType, FrameInstance } from '@ggraphic/editor/utils/frameUtils';

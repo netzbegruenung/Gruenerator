@@ -1,8 +1,11 @@
-import type { FullCanvasConfig } from '../../configs/types';
-import type { InitialPageDef } from '../../hooks/usePageManager';
 import type { SidebarTabId } from '../../sidebar/types';
 import type { CanvasConfigId } from '../../templates/registry';
-import type { GenericCanvasRef, ToolbarStateReport } from '../GenericCanvas';
+import type {
+  GenericCanvasRef,
+  ToolbarStateReport,
+} from '@ggraphic/editor/components/GenericCanvas';
+import type { FullCanvasConfig } from '@ggraphic/editor/configs/types';
+import type { InitialPageDef } from '@ggraphic/editor/hooks/usePageManager';
 import type { HocuspocusProvider } from '@hocuspocus/provider';
 import type React from 'react';
 import type * as Y from 'yjs';

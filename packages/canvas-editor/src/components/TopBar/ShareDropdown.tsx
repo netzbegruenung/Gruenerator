@@ -1,25 +1,22 @@
+import { useCanvasEditorServices } from '@ggraphic/editor/CanvasEditorProvider';
+import { browserFileDelivery } from '@ggraphic/editor/hostServices';
 import { useAutoSaveStoreApi } from '@ggraphic/editor/stores/useAutoSaveStore';
-import { stripInlineMarks } from '@ggraphic/schema';
+import { Button } from '@ggraphic/editor/ui/button';
+import { IconButton, IconButtonRow } from '@ggraphic/editor/ui/icon-button';
 import {
   Popover,
   PopoverAnchor,
   PopoverContent,
   PopoverTrigger,
-  Button,
-  IconButton,
-  IconButtonRow,
-  Skeleton,
-  canRequestFeedback,
-  requestFeedback,
-} from '@gruenerator/ui';
+} from '@ggraphic/editor/ui/popover';
+import { Skeleton } from '@ggraphic/editor/ui/skeleton';
+import { stripInlineMarks } from '@ggraphic/schema';
 import { useCallback, useMemo, useState } from 'react';
 import { FaCheck, FaDownload, FaSave, FaUserPlus } from 'react-icons/fa';
 import { IoShareOutline } from 'react-icons/io5';
 import { PiArrowLeft, PiMegaphone } from 'react-icons/pi';
 
-import { useCanvasEditorServices } from '../../CanvasEditorProvider';
 import { useIsCanvasMobile } from '../../hooks/useIsCanvasMobile';
-import { browserFileDelivery } from '../../hostServices';
 import {
   AltTextField,
   useCaptionAltText,
@@ -125,7 +122,7 @@ export function ShareDropdown({
   const shareText = withAltText(withPhotoCredit(canvasText, photoCredit), captionAltText);
 
   const autoSaveStoreApi = useAutoSaveStoreApi();
-  const { fileDelivery = browserFileDelivery, imageShares } = useCanvasEditorServices();
+  const { fileDelivery = browserFileDelivery, imageShares, feedback } = useCanvasEditorServices();
   const shareRoute = fileDelivery.pickShareRoute();
 
   const publishDraftIfNeeded = useCallback(async () => {
@@ -276,14 +273,14 @@ export function ShareDropdown({
               )}
 
               {/* Mobil schwebt kein Feedback-Knopf über dem Editor — er wohnt hier. */}
-              {isMobile && canRequestFeedback() && (
+              {isMobile && feedback?.canRequest() && (
                 <IconButton
                   size="sm"
                   icon={<PiMegaphone />}
                   label="Feedback"
                   onClick={() => {
                     setOpen(false);
-                    requestFeedback();
+                    feedback?.request();
                   }}
                 />
               )}

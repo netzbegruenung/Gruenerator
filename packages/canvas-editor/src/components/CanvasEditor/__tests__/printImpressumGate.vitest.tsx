@@ -1,3 +1,4 @@
+import { CanvasEditorProvider } from '@ggraphic/editor/CanvasEditorProvider';
 import {
   getCanvasFormat,
   isPrintFormat,
@@ -8,7 +9,6 @@ import userEvent from '@testing-library/user-event';
 import { type ReactNode } from 'react';
 import { describe, expect, it, vi } from 'vitest';
 
-import { CanvasEditorProvider } from '../../../CanvasEditorProvider';
 import { grueneratorPrint } from '../../../composer/printService';
 import { DownloadSection } from '../../TopBar/DownloadSection';
 import {

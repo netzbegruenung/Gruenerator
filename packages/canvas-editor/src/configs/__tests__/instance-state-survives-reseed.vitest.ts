@@ -1,7 +1,6 @@
+import { loadCanvasConfig } from '@ggraphic/editor/configs/configLoader';
+import { CARRIED_INSTANCE_KEYS } from '@ggraphic/editor/configs/factory/carryInstanceState';
 import { beforeAll, describe, expect, it } from 'vitest';
-
-import { loadCanvasConfig } from '../configLoader';
-import { CARRIED_INSTANCE_KEYS } from '../factory/carryInstanceState';
 
 /**
  * Guard for the "re-seed wipes the canvas" class.

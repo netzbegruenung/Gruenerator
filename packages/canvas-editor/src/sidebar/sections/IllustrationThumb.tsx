@@ -1,5 +1,8 @@
-import { useCanvasEditorServices } from '../../CanvasEditorProvider';
-import { getIllustrationPath, getIllustrationThumbPath } from '../../utils/illustrations/registry';
+import { useCanvasEditorServices } from '@ggraphic/editor/CanvasEditorProvider';
+import {
+  getIllustrationPath,
+  getIllustrationThumbPath,
+} from '@ggraphic/editor/utils/illustrations/registry';
 
 import type { SvgDef } from '@ggraphic/editor/utils/illustrations/types';
 
