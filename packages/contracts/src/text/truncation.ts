@@ -54,9 +54,29 @@ function endsInClosingBlock(trimmed: string): boolean {
   return false;
 }
 
+const LIST_ITEM_RE = /^(?:[-*+]|\d+[.)])\s+/;
+const LIST_ITEM_MAX = 80;
+
+/**
+ * A list of results ends on its last value, not on punctuation ("5. KS-Büro:
+ * 3.225,68 EUR"). Every table answer with a closing list was flagged and
+ * re-run for nothing (live 27.10.2026). Needs two items and a short last one:
+ * a single bullet is no list, and a long last item is a sentence that can be
+ * cut like any other.
+ */
+function endsInList(trimmed: string): boolean {
+  const lines = trimmed
+    .split('\n')
+    .map((l) => l.trim())
+    .filter(Boolean);
+  const last = lines[lines.length - 1] ?? '';
+  const previous = lines[lines.length - 2] ?? '';
+  return LIST_ITEM_RE.test(last) && LIST_ITEM_RE.test(previous) && last.length <= LIST_ITEM_MAX;
+}
+
 export function looksCutOff(text: string): boolean {
   const trimmed = text.trimEnd();
   if (trimmed.split(/\s+/).filter(Boolean).length < TRUNCATION_MIN_WORDS) return false;
   if (!/[\p{L}\p{N}]$/u.test(trimmed)) return false;
-  return !endsInClosingBlock(trimmed);
+  return !endsInClosingBlock(trimmed) && !endsInList(trimmed);
 }

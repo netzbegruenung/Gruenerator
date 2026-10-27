@@ -396,8 +396,27 @@ describe('decideRunAgentic', () => {
     expect(
       decide({ ...ask, intent: 'compute', isTabularAnalysisTurn: true, loopEnabled: false })
     ).toBe(false);
+  });
+
+  it('lets a table turn with a chosen notebook into the loop, where the table is computed', () => {
+    // Single-pass would answer from the table excerpt without the tool. The loop
+    // seeds the notebook passages itself (`seedAttachedDocuments`), so the
+    // notebook is not answered around.
+    const ask = { lastUserText: 'Welche Kostenstelle war am teuersten?', hasOwnMaterial: true };
     expect(
-      decide({ ...ask, intent: 'compute', isTabularAnalysisTurn: true, hasSelectedNotebook: true })
+      decide({ ...ask, intent: 'search', isTabularAnalysisTurn: true, hasSelectedNotebook: true })
+    ).toBe(true);
+    // Without the table the notebook still keeps the turn single-pass.
+    expect(decide({ ...ask, intent: 'search', hasSelectedNotebook: true })).toBe(false);
+    // Compound stays single-pass: its executor is not the loop.
+    expect(
+      decide({
+        ...ask,
+        intent: 'search',
+        isTabularAnalysisTurn: true,
+        hasSelectedNotebook: true,
+        isCompound: true,
+      })
     ).toBe(false);
   });
 
