@@ -14,7 +14,7 @@
 
 import { wrapTextAccurate } from '@ggraphic/editor/utils/textUtils';
 
-import { SYSTEM_ASSETS } from './canvasAssets';
+import { SYSTEM_ASSETS } from '../brand/grueneAssets';
 
 export const ZITAT_PURE_AT_CONFIG = {
   canvas: { width: 1080, height: 1350 },

@@ -1,13 +1,8 @@
 /**
- * Canvas Assets Registry
- * Centralized registry of all available decorative assets for canvas editor
+ * Canvas assets: placed graphics and the catalogue they resolve against.
+ * The graphics themselves are host data (`registerAssetCatalog`); the editor
+ * knows none of them by name.
  */
-import {
-  GRUENE_DECORATION_ASSETS,
-  GRUENE_MARK_ASSETS,
-  GRUENE_SYSTEM_ASSETS,
-  GRUENE_TEMPLATE_ASSETS,
-} from '../brand/grueneAssets';
 
 import type { StickerRef } from '@gruenerator/contracts';
 
@@ -84,85 +79,6 @@ export const createStickerInstance = (
   return resolveAssetInstanceSrc(instance, catalog) ? instance : null;
 };
 
-/**
- * System Assets Configuration
- * DRY: Single source of truth for all hardcoded asset paths used in layouts
- */
-export const SYSTEM_ASSETS = {
-  sunflower: GRUENE_SYSTEM_ASSETS.sunflower,
-  quote: {
-    white: {
-      src: '/quote-white.svg',
-      label: 'Anführungszeichen (Weiß)',
-    },
-    default: {
-      src: '/quote.svg',
-      label: 'Anführungszeichen',
-    },
-    gelb: GRUENE_SYSTEM_ASSETS.quoteGelb,
-  },
-  logoDe: GRUENE_SYSTEM_ASSETS.logoDe,
-  logoAt: GRUENE_SYSTEM_ASSETS.logoAt,
-  arrow: {
-    src: '/arrow_right.svg',
-    label: 'Pfeil rechts',
-  },
-  brushArrow: GRUENE_SYSTEM_ASSETS.brushArrow,
-  backgrounds: GRUENE_SYSTEM_ASSETS.backgrounds,
-} as const;
-
-/**
- * @deprecated Use SYSTEM_ASSETS.sunflower instead
- */
-export const SYSTEM_SUNFLOWER = SYSTEM_ASSETS.sunflower;
-
-/**
- * All available decorative assets that can be used across canvas types
- */
-export const ALL_ASSETS: UniversalAsset[] = [
-  ...GRUENE_DECORATION_ASSETS,
-  {
-    id: 'quote-mark',
-    src: SYSTEM_ASSETS.quote.default.src,
-    label: SYSTEM_ASSETS.quote.default.label,
-    category: 'mark',
-    tags: ['zitat', 'quote', 'text', 'spruch', 'rede'],
-    audience: 'all',
-  },
-  {
-    id: 'arrow',
-    src: SYSTEM_ASSETS.arrow.src,
-    label: SYSTEM_ASSETS.arrow.label,
-    category: 'mark',
-    tags: ['pfeil', 'arrow', 'richtung', 'zeiger', 'hinweis'],
-    audience: 'all',
-  },
-  ...GRUENE_MARK_ASSETS,
-];
-
-/**
- * Vorlagen-Varianten: dieselben Grafiken in genau der Ausfuehrung, die eine
- * bestimmte Vorlage braucht — das weisse und das gelbe Anfuehrungszeichen, die
- * hellgruene Sonnenblume.
- *
- * Sie stehen bewusst NICHT in `ALL_ASSETS`: in der freien Auswahl waeren drei
- * fast gleiche Anfuehrungszeichen nur verwirrend, und ueber einem hellen
- * Hintergrund ist die weisse Fassung unsichtbar. Aufloesen muss man sie
- * trotzdem, seit eine duplizierte Vorlagen-Grafik zu einer Asset-Instanz wird
- * (#3403) — die zeichnet sich ueber `getAssetById`.
- */
-export const TEMPLATE_ASSETS: UniversalAsset[] = [
-  {
-    id: 'quote-mark-weiss',
-    src: SYSTEM_ASSETS.quote.white.src,
-    label: SYSTEM_ASSETS.quote.white.label,
-    category: 'mark',
-    tags: ['zitat', 'quote', 'weiß', 'weiss'],
-    audience: 'all',
-  },
-  ...GRUENE_TEMPLATE_ASSETS,
-];
-
 /** Any vendored Noto emoji by its file code ("1f600", "1f9d1_1f3fb"). */
 export const emojiCodeAssetId = (code: string): string => `emoji-${code}`;
 export const emojiCodeSrc = (code: string): string => `/emoji/emoji_u${code}.svg`;
@@ -215,12 +131,6 @@ export function registerAssetCatalog(catalog: CanvasAssetCatalog): void {
   registered = catalog;
 }
 
-/**
- * Logo assets shown in the "Logos" (grafiken) category.
- * Only true logos (decoration) — marks like Anführungszeichen/Pfeil are excluded.
- */
-export const LOGO_ASSETS: UniversalAsset[] = ALL_ASSETS.filter((a) => a.category === 'decoration');
-
 export function hasDarkPreview(asset: UniversalAsset): boolean {
   return asset.darkPreview === true || /weiss|white/.test(asset.id);
 }
@@ -228,34 +138,6 @@ export function hasDarkPreview(asset: UniversalAsset): boolean {
 export function assetMatchesLocale(asset: UniversalAsset, locale: AssetAudience): boolean {
   return asset.audience === 'all' || asset.audience === locale;
 }
-
-/**
- * Locale-filtered logos ordered recommended-first — shared by the Marke strip,
- * the Marke drill-down and the mobile subsection. AT users only see the AT
- * logo variants; DE users the DE marks.
- */
-export function sortLogoAssets(
-  recommendedAssetIds: readonly string[],
-  locale: AssetAudience = 'de-DE'
-): UniversalAsset[] {
-  const logos = LOGO_ASSETS.filter((a) => assetMatchesLocale(a, locale));
-  const recommended = logos.filter((a) => recommendedAssetIds.includes(a.id));
-  const others = logos.filter((a) => !recommendedAssetIds.includes(a.id));
-  return [...recommended, ...others];
-}
-
-/**
- * Mapping of canvas types to their recommended (default) assets
- * These appear in the "Empfohlen" section at the top
- */
-export const CANVAS_RECOMMENDED_ASSETS: Record<string, string[]> = {
-  zitat: ['quote-mark'],
-  'zitat-pure': ['sunflower-green', 'quote-mark'],
-  simple: [],
-  info: ['arrow'],
-  dreizeilen: ['sunflower'],
-  veranstaltung: [],
-};
 
 /**
  * Get asset by ID — aus dem Katalog des Hosts, dazu jedes Emoji, denn alle koennen als
@@ -301,22 +183,4 @@ export function getAssetBySrc(
   catalog: CanvasAssetCatalog = registered
 ): UniversalAsset | undefined {
   return catalog.assets.find((asset) => asset.src === src);
-}
-
-/**
- * Get recommended assets for a canvas type
- */
-export function getRecommendedAssets(canvasType: string): UniversalAsset[] {
-  const recommendedIds = CANVAS_RECOMMENDED_ASSETS[canvasType] || [];
-  return recommendedIds
-    .map((id) => getAssetById(id))
-    .filter((asset): asset is UniversalAsset => asset !== undefined);
-}
-
-/**
- * Get non-recommended assets for a canvas type
- */
-export function getOtherAssets(canvasType: string): UniversalAsset[] {
-  const recommendedIds = CANVAS_RECOMMENDED_ASSETS[canvasType] || [];
-  return ALL_ASSETS.filter((asset) => !recommendedIds.includes(asset.id));
 }

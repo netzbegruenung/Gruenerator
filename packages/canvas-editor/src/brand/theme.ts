@@ -20,7 +20,7 @@
 import { type BrandPack } from '@ggraphic/core';
 import { type ComposerBrand } from '@ggraphic/editor/brand/composerBrand';
 
-import { SYSTEM_ASSETS } from '../utils/canvasAssets';
+import { SYSTEM_ASSETS } from './grueneAssets';
 
 import type { BackgroundColorOption } from '@ggraphic/editor/sidebar/tabTypes';
 

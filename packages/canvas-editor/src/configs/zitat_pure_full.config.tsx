@@ -5,7 +5,7 @@
  * Uses createColorTwoTextCanvas factory + Phase A/B helpers.
  */
 
-import { SYSTEM_ASSETS } from '../utils/canvasAssets';
+import { SYSTEM_ASSETS } from '../brand/grueneAssets';
 import { ZITAT_PURE_CONFIG, calculateZitatPureLayout } from '../utils/zitatPureLayout';
 
 import {
