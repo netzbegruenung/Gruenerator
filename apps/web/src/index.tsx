@@ -1,3 +1,7 @@
+import {
+  GRUENE_ASSET_CATALOG,
+  registerAssetCatalog,
+} from '@gruenerator/canvas-editor/grueneAssetCatalog';
 import { registerDesktopSaver } from '@gruenerator/shared';
 import * as Sentry from '@sentry/react';
 import React, { useEffect } from 'react';
@@ -22,6 +26,11 @@ import { registerServiceWorker } from './utils/registerServiceWorker';
 trackFocusModality();
 
 installBrandFonts();
+
+// The canvas editor's stickers, emoji and logos are host data. Registered
+// before anything renders: offscreen renders (chat previews, /mobile-render)
+// resolve saved assets through it too, without any React context.
+registerAssetCatalog(GRUENE_ASSET_CATALOG);
 
 // Tauri's webview ignores `<a download>`; route every shared export through the
 // native save dialog. Lazy, so the plugins never reach the web bundle's hot path.

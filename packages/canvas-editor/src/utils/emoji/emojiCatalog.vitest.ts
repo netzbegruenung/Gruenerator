@@ -3,7 +3,8 @@ import path from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
-import { EMOJI_ASSETS, getAssetById, resolveAssetInstanceSrc } from '../canvasAssets';
+import { EMOJI_ASSETS } from '../../brand/grueneAssetCatalog';
+import { getAssetById, resolveAssetInstanceSrc } from '../canvasAssets';
 
 import { loadEmojiCatalog, withTone } from './emojiCatalog';
 
