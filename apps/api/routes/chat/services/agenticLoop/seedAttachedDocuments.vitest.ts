@@ -209,6 +209,36 @@ describe('seedAttachedDocuments', () => {
     expect(sourceRegistry.renderAll()).not.toContain('B-0142');
   });
 
+  // Ein Tabellen-Turn mit gewähltem Notebook läuft im Loop (routing.ts); ohne
+  // den Seed beantwortete er die Frage am Notebook vorbei.
+  it('ruft mit includeNotebooks auch das gewählte Notebook ab', async () => {
+    fanout.mockResolvedValue({
+      perSourceResults: {
+        'nb-1': [{ ...hit, source: 'gruenerator:nb', content: 'Beschlusslage Verkehr.' }],
+      },
+      searchedCollections: [],
+      errors: [],
+    });
+    const notebook = { kind: 'notebook', id: 'nb-1', label: 'Verkehr', collectionIds: ['c1'] };
+    const state = stateWith({ documentSources: [notebook] });
+
+    const { sourceRegistry } = await run(state, { includeNotebooks: true });
+
+    expect(fanout.mock.calls[0]?.[1]).toEqual([notebook]);
+    expect(sourceRegistry.renderAll()).toContain('Beschlusslage Verkehr.');
+  });
+
+  it('lässt das Notebook ohne includeNotebooks aus', async () => {
+    const state = stateWith({
+      documentSources: [{ kind: 'notebook', id: 'nb-1', label: 'Verkehr', collectionIds: ['c1'] }],
+    });
+
+    const { delivered } = await run(state);
+
+    expect(delivered).toBe(false);
+    expect(fanout).not.toHaveBeenCalled();
+  });
+
   it('ohne tabelle_auswerten bleibt der Tabellenauszug zitierbar', async () => {
     fanout.mockResolvedValue({
       perSourceResults: { 'doc-1': [{ ...hit, title: 'Buchungen.xlsx', content: '| B-0142 |' }] },
