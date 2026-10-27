@@ -115,8 +115,15 @@ function generate() {
   if (!commands || !ts.isObjectLiteralExpression(commands)) {
     throw new Error('Cannot read CANVAS_COMMANDS for UI labels');
   }
-  for (const [id, spec] of objectEntries(commands)) {
-    const title = ts.isObjectLiteralExpression(spec) && stringProp(spec, 'label');
+  // The labels live in the German message catalogue, keyed by the same ids.
+  const catalogue = findDeclaration(parse('packages/ggraphic-editor/src/i18n/de.ts'), 'de');
+  const labels =
+    catalogue && ts.isObjectLiteralExpression(catalogue)
+      ? objectProp(catalogue, 'commands')
+      : undefined;
+  if (!labels) throw new Error('Cannot read the commands of the German message catalogue');
+  for (const [id] of objectEntries(commands)) {
+    const title = stringProp(labels, id);
     if (!title) throw new Error(`Cannot read canvas command label: ${id}`);
     out[`canvas-command.${id}`] = { title };
   }

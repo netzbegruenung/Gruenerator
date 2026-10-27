@@ -6,6 +6,7 @@
  * nicht auseinanderlaufen.
  */
 
+import { messages } from '@ggraphic/editor/i18n/messages';
 import {
   CANVAS_COMMANDS,
   ariaShortcut,
@@ -100,7 +101,12 @@ export function buildCanvasMenu(snapshot: CanvasMenuSnapshot, env: CanvasMenuEnv
   ];
   const lock = (): CanvasMenuEntry[] =>
     caps.canLock
-      ? [item('toggleLock', { label: caps.lock === 'all' ? 'Entsperren' : 'Sperren' })]
+      ? [
+          item('toggleLock', {
+            label:
+              caps.lock === 'all' ? messages().contextMenu.unlock : messages().commands.toggleLock,
+          }),
+        ]
       : [];
   const selectAll = () => item('selectAll', { disabled: !snapshot.canSelectAll });
   /** Einzeln an der Seite, mehrere an der Auswahl; Verteilen braucht drei. */
@@ -109,7 +115,7 @@ export function buildCanvasMenu(snapshot: CanvasMenuSnapshot, env: CanvasMenuEnv
       ? [
           {
             kind: 'sub',
-            label: 'Ausrichten',
+            label: messages().contextMenu.align,
             entries: [
               item('alignLeft'),
               item('alignCenterH'),
@@ -139,7 +145,9 @@ export function buildCanvasMenu(snapshot: CanvasMenuSnapshot, env: CanvasMenuEnv
       ...(caps.canFlip ? [item('flipHorizontal'), item('flipVertical')] : []),
       ...(caps.rotation !== 0 ? [item('resetRotation')] : []),
     ];
-    return entries.length ? [{ kind: 'sub', label: 'Drehen & Spiegeln', entries }] : [];
+    return entries.length
+      ? [{ kind: 'sub', label: messages().contextMenu.rotateAndFlip, entries }]
+      : [];
   };
   const page = (): CanvasMenuEntry[] => [
     item('duplicatePage', { disabled: !env.canAddPage }),
@@ -147,14 +155,14 @@ export function buildCanvasMenu(snapshot: CanvasMenuSnapshot, env: CanvasMenuEnv
   ];
 
   const kind = menuKindOf(snapshot);
-  const pageLabel = `Seite ${env.pageIndex + 1}`;
+  const pageLabel = messages().common.page(env.pageIndex + 1);
 
   if (kind === 'multi') {
     return {
       kind,
-      label: `${caps.count} Elemente`,
+      label: messages().common.elements(caps.count),
       entries: compact([
-        { kind: 'label', label: `${caps.count} Elemente` },
+        { kind: 'label', label: messages().common.elements(caps.count) },
         item('copy', { disabled: !caps.canCopy }),
         item('cut', { disabled: !caps.canCopy || !caps.canDelete }),
         item('duplicate', { disabled: !caps.canCopy }),
@@ -183,13 +191,13 @@ export function buildCanvasMenu(snapshot: CanvasMenuSnapshot, env: CanvasMenuEnv
     const hasImage = !!bg?.currentImageSrc;
     return {
       kind,
-      label: 'Hintergrund',
+      label: messages().contextMenu.background,
       entries: compact([
         ...(bg?.onImageChange
           ? [
               hasImage
                 ? item('replaceBackground')
-                : item('replaceBackground', { label: 'Hintergrundbild …' }),
+                : item('replaceBackground', { label: messages().contextMenu.backgroundImage }),
             ]
           : []),
         ...(hasImage && snapshot.module?.data.canCrop ? [item('cropBackground')] : []),
@@ -212,7 +220,7 @@ export function buildCanvasMenu(snapshot: CanvasMenuSnapshot, env: CanvasMenuEnv
 
   return {
     kind,
-    label: 'Element',
+    label: messages().common.element,
     entries: compact([
       ...own,
       separator,
@@ -224,7 +232,7 @@ export function buildCanvasMenu(snapshot: CanvasMenuSnapshot, env: CanvasMenuEnv
       separator,
       {
         kind: 'sub',
-        label: 'Ebene',
+        label: messages().contextMenu.layer,
         entries: [
           item('bringToFront', { disabled: !caps.canBringForward }),
           item('bringForward', { disabled: !caps.canBringForward }),

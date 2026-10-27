@@ -14,6 +14,7 @@ import { activeBrand } from '@ggraphic/editor/brand/brandRegistry';
 import { LOCKED_TRANSFORMER, useIsItemLocked } from '@ggraphic/editor/components/canvasItemLock';
 import { useAnnounce } from '@ggraphic/editor/hooks/useAnnounce';
 import { useBoxSnap, type SnapProps } from '@ggraphic/editor/hooks/useBoxSnap';
+import { messages } from '@ggraphic/editor/i18n/messages';
 import {
   clampPan,
   covers,
@@ -237,7 +238,7 @@ function UserImagePrimitiveInner({
   const keyCropActive = cropping && isSelected && !locked;
 
   useEffect(() => {
-    if (keyCropActive) announce('Ausschnitt: Pfeiltasten verschieben, Enter beendet');
+    if (keyCropActive) announce(messages().announce.cropKeys);
   }, [keyCropActive, announce]);
 
   // Keyboard crop: arrows pan the photo inside the frame (Shift = 10 px),

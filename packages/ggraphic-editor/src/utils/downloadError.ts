@@ -1,6 +1,5 @@
 // SPDX-License-Identifier: MPL-2.0
-export const DOWNLOAD_TOO_LARGE_NOTICE =
-  'Die Datei ist zu groß für die App. Bitte lade die Seiten einzeln herunter.';
+import { messages } from '@ggraphic/editor/i18n/messages';
 
 // The host's file delivery (`CanvasFileDeliveryService`) throws an error named
 // 'NativeDownloadTooLargeError' when the WebView bridge refuses the payload
@@ -11,5 +10,6 @@ export function isDownloadTooLarge(err: unknown): boolean {
 }
 
 export function downloadErrorMessage(err: unknown): string {
-  return isDownloadTooLarge(err) ? DOWNLOAD_TOO_LARGE_NOTICE : 'Der Download ist fehlgeschlagen.';
+  const m = messages().errors;
+  return isDownloadTooLarge(err) ? m.downloadTooLarge : m.downloadFailed;
 }
