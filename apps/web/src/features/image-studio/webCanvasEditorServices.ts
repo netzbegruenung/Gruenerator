@@ -69,7 +69,13 @@ export const webCanvasEditorServices: CanvasEditorServices = {
     publishShare: shareApi.publishShare,
   },
   imageUrls: webCanvasImageUrls,
-  fileDelivery: { downloadBlob, downloadDataUrl, pickShareRoute, shareDataUrlViaNativeHost },
+  fileDelivery: {
+    downloadBlob,
+    downloadDataUrl,
+    pickShareRoute,
+    shareDataUrlViaNativeHost,
+    filenamePrefix: 'gruenerator',
+  },
   useStudioAssets,
   useUnsplashSearch,
   // Impressum gate and print Vorlagen: the Grünerator composer, also in /mobile-editor.

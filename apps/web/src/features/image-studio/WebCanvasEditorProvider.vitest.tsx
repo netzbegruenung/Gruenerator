@@ -69,6 +69,8 @@ describe('WebCanvasEditorProvider', () => {
       downloadDataUrl,
       pickShareRoute,
       shareDataUrlViaNativeHost,
+      // F0: the names of the downloaded files.
+      filenamePrefix: 'gruenerator',
     });
     expect(seen?.imageShares?.publishShare).toBe(shareApi.publishShare);
     expect(seen?.useStudioAssets).toBe(useStudioAssets);
