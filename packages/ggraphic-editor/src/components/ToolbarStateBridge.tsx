@@ -13,6 +13,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState, type MutableRefObject } from 'react';
 
+import { messages } from '@ggraphic/editor/i18n/messages';
 import {
   useCanvasStore,
   useCanvasStoreSelector,
@@ -79,9 +80,6 @@ export interface ToolbarBridgeState {
   /** „Erweitern" im Zuschneide-Modus: die KI ergänzt das Foto auf das Rahmenformat. */
   handleExpandImage: () => void;
 }
-
-const SMART_CROP_FAILED = 'Automatischer Ausschnitt nicht möglich';
-const EXPAND_FAILED = 'Erweitern hat nicht geklappt. Bitte versuche es noch einmal.';
 
 interface ToolbarStateBridgeProps<
   TState extends Record<string, unknown> & Partial<BaseCanvasState>,
@@ -264,7 +262,7 @@ export function ToolbarStateBridge<
             })
           : null;
         if (!image || !view) {
-          toast.error(SMART_CROP_FAILED);
+          toast.error(messages().errors.smartCropFailed);
           return;
         }
         const src = cropImageSrc(state, elements, id);
@@ -274,7 +272,7 @@ export function ToolbarStateBridge<
             if (store.getState().croppingElement !== id) return;
             applySmartCropRef.current(id, src, image, region);
           },
-          () => toast.error(SMART_CROP_FAILED)
+          () => toast.error(messages().errors.smartCropFailed)
         );
       },
       handleExpandImage: () => {
@@ -282,7 +280,7 @@ export function ToolbarStateBridge<
         if (!id || !expandImage || expandingRef.current) return;
         const target = expandTarget(state, elements, layout, id);
         if (!target || !uploads) {
-          toast.error(EXPAND_FAILED);
+          toast.error(messages().errors.expandFailed);
           return;
         }
         expandingRef.current = true;
@@ -298,7 +296,7 @@ export function ToolbarStateBridge<
           // Wie „Ersetzen": erst hochladen, damit keine `blob:`/data-URL gespeichert wird.
           const item = await uploads.upload(file, 'canvas-element');
           const url = item ? imageUrls.placementUrl(item) : null;
-          if (!url) throw new Error(EXPAND_FAILED);
+          if (!url) throw new Error(messages().errors.expandFailed);
           return { file, url };
         };
         run()
@@ -308,7 +306,8 @@ export function ToolbarStateBridge<
               applyExpandRef.current(id, target.src, file, url);
             },
             // Rohe Meldungen („Failed to fetch") gehören nicht in den Toast, nur ausdrücklich für Menschen geschriebene.
-            (error: unknown) => toast.error(userFacingMessage(error) ?? EXPAND_FAILED)
+            (error: unknown) =>
+              toast.error(userFacingMessage(error) ?? messages().errors.expandFailed)
           )
           .finally(() => {
             expandingRef.current = false;

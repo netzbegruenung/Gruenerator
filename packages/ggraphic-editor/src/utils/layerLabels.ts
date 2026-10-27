@@ -6,6 +6,7 @@
  * damit Bühnen-Beschriftung, Alt-Text und Ansagen dieselben Namen lesen.
  */
 
+import { messages } from '@ggraphic/editor/i18n/messages';
 import { getShapeDef } from '@ggraphic/editor/utils/shapes';
 
 import { getAssetById, isStickerLikeInstance } from './canvasAssets';
@@ -25,14 +26,24 @@ export interface LayerEntry {
 export const LAYER_TEXT_MAX = 40;
 
 /** Vorlagen-Bilder tragen ihre Rolle in der Id. */
-const TEMPLATE_IMAGE_NAMES: Readonly<Record<string, string>> = {
-  [BACKGROUND_IMAGE_NODE_ID]: 'Foto',
-  avatar: 'Foto',
-  sunflower: 'Sonnenblume',
-  logo: 'Logo',
-  'quote-mark': 'Anführungszeichen',
-  arrow: 'Pfeil',
-};
+function templateImageName(id: string): string | undefined {
+  const m = messages().layers;
+  switch (id) {
+    case BACKGROUND_IMAGE_NODE_ID:
+    case 'avatar':
+      return m.photo;
+    case 'sunflower':
+      return m.sunflower;
+    case 'logo':
+      return m.logo;
+    case 'quote-mark':
+      return m.quoteMark;
+    case 'arrow':
+      return m.arrow;
+    default:
+      return undefined;
+  }
+}
 
 /** Fließtext für den Namen: Markdown-lite weg, Leerraum zusammengezogen, gekürzt. */
 function shorten(text: string): string {
@@ -45,7 +56,7 @@ function shorten(text: string): string {
 
 function named(kind: string, content: string): string {
   const text = shorten(content);
-  return text ? `${kind}: ${text}` : kind;
+  return text ? messages().layers.named(kind, text) : kind;
 }
 
 function imageSource(
@@ -64,18 +75,18 @@ function elementLabel(element: CanvasElementConfig, state: Record<string, unknow
   switch (element.type) {
     case 'text': {
       const value = state[element.textKey];
-      return named('Text', typeof value === 'string' ? value : '');
+      return named(messages().common.text, typeof value === 'string' ? value : '');
     }
     case 'image':
-      return TEMPLATE_IMAGE_NAMES[element.id] ?? 'Bild';
+      return templateImageName(element.id) ?? messages().common.image;
     case 'background':
-      return 'Hintergrund';
+      return messages().layers.background;
     case 'rect':
-      return 'Fläche';
+      return messages().layers.area;
     case 'circle':
-      return 'Form: Kreis';
+      return messages().layers.shapeCircle;
     case 'group':
-      return 'Gruppe';
+      return messages().layers.group;
   }
 }
 
@@ -84,37 +95,40 @@ function kindLabel(item: CanvasItem, state: Record<string, unknown>): string {
     case 'element':
       return elementLabel(item.data, state);
     case 'balken':
-      return named('Balken', item.data.texts.filter((t) => t.trim()).join(' / '));
+      return named(messages().layers.bar, item.data.texts.filter((t) => t.trim()).join(' / '));
     case 'icon':
-      return 'Icon';
+      return messages().layers.icon;
     case 'shape':
-      return `Form: ${getShapeDef(item.data.type).name}`;
+      return messages().layers.shape(getShapeDef(item.data.type).name);
     case 'frame':
-      return 'Rahmen';
+      return messages().layers.frame;
     case 'additional-text':
-      return named('Text', item.data.text);
+      return named(messages().common.text, item.data.text);
     case 'illustration':
-      return 'Illustration';
+      return messages().layers.illustration;
     case 'asset':
       return (
         getAssetById(item.data.assetId)?.label ??
-        (isStickerLikeInstance(item.data) ? 'Sticker' : 'Grafik')
+        (isStickerLikeInstance(item.data) ? messages().layers.sticker : messages().layers.graphic)
       );
     case 'circle-badge':
-      return named('Störer', item.data.textLines.map((line) => line.text).join(' '));
+      return named(
+        messages().layers.badgeCircle,
+        item.data.textLines.map((line) => line.text).join(' ')
+      );
     case 'pill-badge':
-      return named('Badge', item.data.text);
+      return named(messages().layers.badgePill, item.data.text);
     case 'user-image':
-      return 'Bild';
+      return messages().common.image;
     case 'chart':
-      return named('Diagramm', item.data.title ?? '');
+      return named(messages().layers.chart, item.data.title ?? '');
   }
 }
 
 /** Der Name eines Elements, mit „, gesperrt“, wenn es gesperrt ist. */
 export function layerLabel(item: CanvasItem, state: Record<string, unknown>): string {
   const label = kindLabel(item, state);
-  return isLayerLocked(state, item.id) ? `${label}, gesperrt` : label;
+  return isLayerLocked(state, item.id) ? messages().layers.locked(label) : label;
 }
 
 /**
@@ -166,7 +180,7 @@ export const STAGE_SUMMARY_MAX = 200;
  * geht, zählt „und N weitere“. `prefix` ist „Seite 1“ o. ä.
  */
 export function stageSummary(entries: readonly LayerEntry[], prefix: string): string {
-  if (entries.length === 0) return `${prefix}: leer`;
+  if (entries.length === 0) return messages().layers.stageEmpty(prefix);
   let text = `${prefix}: `;
   let used = 0;
   for (const entry of entries) {
@@ -176,7 +190,7 @@ export function stageSummary(entries: readonly LayerEntry[], prefix: string): st
     used++;
   }
   const rest = entries.length - used;
-  return rest > 0 ? `${text} und ${rest} weitere` : text;
+  return rest > 0 ? messages().layers.stageMore(text, rest) : text;
 }
 
 /** Gleiche Einträge in gleicher Reihenfolge? */

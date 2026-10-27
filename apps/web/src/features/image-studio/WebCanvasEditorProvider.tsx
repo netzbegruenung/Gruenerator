@@ -1,5 +1,6 @@
 import { CanvasEditorProvider } from '@gruenerator/canvas-editor';
 import { sharepicBlockSpec } from '@gruenerator/contracts';
+import { canRequestFeedback, requestFeedback } from '@gruenerator/ui';
 import { useQueryClient } from '@tanstack/react-query';
 import { useId, useMemo, type ReactNode } from 'react';
 
@@ -99,6 +100,7 @@ export function WebCanvasEditorProvider({
             },
           }
         : {}),
+      feedback: { canRequest: canRequestFeedback, request: requestFeedback },
       userLocale: isAustrianUser ? 'de-AT' : 'de-DE',
     };
   }, [isAustrianUser, allowStickerCreator, allowVorlagen, queryClient, openPrintVorlage]);

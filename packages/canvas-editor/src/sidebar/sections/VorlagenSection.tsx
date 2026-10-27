@@ -31,6 +31,18 @@ import {
 } from '@ggraphic/editor/formats/index';
 import { useAnnounce } from '@ggraphic/editor/hooks/useAnnounce';
 import { useCanvasStoreSelector } from '@ggraphic/editor/stores/CanvasStoreProvider';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@ggraphic/editor/ui/alert-dialog';
+import { Button } from '@ggraphic/editor/ui/button';
+import { Skeleton } from '@ggraphic/editor/ui/skeleton';
 import { cn } from '@ggraphic/editor/utils/cn';
 import { ensureFontsReady } from '@ggraphic/editor/utils/ensureFontsReady';
 import { VORLAGE_DRAG_TYPE } from '@ggraphic/editor/utils/mediaDrop';
@@ -45,18 +57,6 @@ import {
   type SharepicSeite,
   type SharepicSeiteTyp,
 } from '@gruenerator/contracts';
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  Button,
-  Skeleton,
-} from '@gruenerator/ui';
 import {
   useEffect,
   useImperativeHandle,

@@ -76,6 +76,16 @@ export interface CanvasBlockService {
   lift: (slide: BlockSlide, items: readonly number[], token: string) => LiftedBlock;
 }
 
+/**
+ * Lets surfaces that hide the host's floating feedback launcher (the mobile
+ * editor) offer „Feedback geben" in their own menu.
+ */
+export interface CanvasFeedbackService {
+  /** True while a feedback form is registered; read on every render. */
+  canRequest: () => boolean;
+  request: () => void;
+}
+
 declare module '@ggraphic/editor/CanvasEditorProvider' {
   interface CanvasEditorHostServices {
     /** The host's Vorlagen for the „Vorlagen" tab; when omitted, the tab is hidden. */
@@ -87,6 +97,12 @@ declare module '@ggraphic/editor/CanvasEditorProvider' {
      * and `vorlagen.composeBlock`.
      */
     blocks?: CanvasBlockService;
+
+    /**
+     * Where the host's feedback form opens from. When omitted, or while
+     * `canRequest()` is false, the share menu offers no „Feedback" entry.
+     */
+    feedback?: CanvasFeedbackService;
   }
 }
 

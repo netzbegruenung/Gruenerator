@@ -28,6 +28,7 @@ import { PrintGuides } from '@ggraphic/editor/components/PrintGuides';
 import { getCanvasFormatOrDefault } from '@ggraphic/editor/formats/index';
 import { useAnnounce } from '@ggraphic/editor/hooks/useAnnounce';
 import { useSelectionAnnouncement } from '@ggraphic/editor/hooks/useSelectionAnnouncement';
+import { messages } from '@ggraphic/editor/i18n/messages';
 import {
   CanvasStoreProvider,
   useCanvasStore,
@@ -776,7 +777,7 @@ function GenericCanvasWithRef<
     () =>
       stageSummary(
         pageLayerLabels(sortedRenderList, state),
-        pageNumber ? `Seite ${pageNumber}` : 'Zeichenfläche'
+        pageNumber ? messages().common.page(pageNumber) : messages().layers.stageCanvas
       ),
     [sortedRenderList, state, pageNumber]
   );

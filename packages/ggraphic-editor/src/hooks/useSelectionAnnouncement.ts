@@ -2,6 +2,7 @@
 import { useEffect, useRef } from 'react';
 
 import { useAnnouncer } from '@ggraphic/editor/hooks/useAnnounce';
+import { messages } from '@ggraphic/editor/i18n/messages';
 
 import type { CanvasEditorStoreApi } from '../stores/createCanvasEditorStore';
 
@@ -13,10 +14,10 @@ export function selectionMessage(
   ids: readonly string[],
   labelOf: (id: string) => string | null
 ): string | null {
-  if (ids.length === 0) return 'Auswahl aufgehoben';
-  if (ids.length > 1) return `${ids.length} Elemente ausgewählt`;
+  if (ids.length === 0) return messages().announce.selectionCleared;
+  if (ids.length > 1) return messages().announce.elementsSelected(ids.length);
   const label = labelOf(ids[0]!);
-  return label ? `${label} ausgewählt` : null;
+  return label ? messages().announce.selected(label) : null;
 }
 
 /** In der Ebenen-Liste liest der Screenreader die fokussierte Option ohnehin vor. */
