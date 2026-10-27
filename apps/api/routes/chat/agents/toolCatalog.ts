@@ -37,6 +37,8 @@ import { z } from 'zod';
 import { lastUserText } from '../../../agents/langgraph/ChatGraph/nodes/classifierHeuristics.js';
 import { looksLikeRecurringOrder } from '../../../agents/langgraph/ChatGraph/nodes/classifierSignals.js';
 import { forbidsNewResearch } from '../../../agents/langgraph/ChatGraph/nodes/fastPathGuards.js';
+import { env } from '../../../config/env.js';
+import { isBrowserAgentConfigured } from '../../../services/browserAgent/runToken.js';
 import { buildProductKnowledgeBlock } from '../../../services/chat/productKnowledge.js';
 import { crawlAndDistill } from '../../../services/search/index.js';
 import { getDeepLService } from '../../../services/translation/DeepLService.js';
@@ -72,6 +74,7 @@ import { hasReachableForm } from '../services/pdfFormAvailability.js';
 import { isReisekostenTurn } from '../services/reisekostenAvailability.js';
 import { withImageProxy } from '../services/searchImagePayload.js';
 
+import { makeWebsiteErkundenTool } from './browserAgentTool.js';
 import { makeCloudFilesTool } from './cloudFileTools.js';
 import { makeEditDocumentTextTool, makeReadDocumentTool } from './documentLoopTools.js';
 import {
@@ -563,6 +566,25 @@ NUTZE WENN:
         const sources = sourceRegistry.register(results, { snippetChars: CRAWL_SNIPPET_CHARS });
         return { resultCount: results.length, sources };
       },
+    });
+  }
+
+  // website_erkunden: a real browser that OPERATES a page (click, search,
+  // screenshots) — the interactive sibling of scrape_url, under the same two
+  // gates (research ban, web capability). Mounted only where the browser
+  // service is deployed AND the API holds its own run-token secret; without
+  // either the model endpoint answers 503 and a run could not take a step.
+  if (
+    loop &&
+    !researchBanned &&
+    webAllowed &&
+    env.BROWSER_AGENT_URL &&
+    isBrowserAgentConfigured()
+  ) {
+    tools.website_erkunden = makeWebsiteErkundenTool({
+      sse: loop.sse,
+      state: loop.state,
+      userId: agentConfig.userId ?? null,
     });
   }
 

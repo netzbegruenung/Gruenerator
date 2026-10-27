@@ -9,6 +9,7 @@ import { type ThreadMessageLike, type ToolCallMessagePart } from '@assistant-ui/
 import {
   notebookAnswerModeReasonSchema,
   notebookResolvedAnswerModeSchema,
+  type BrowserSessionMeta,
 } from '@gruenerator/contracts';
 
 import {
@@ -78,6 +79,8 @@ export interface LoadedMessage {
     generatedImage?: GeneratedImage;
     createdDocument?: DocumentCreatedData;
     computeData?: ComputeData;
+    /** `website_erkunden`: the browser session (steps + screenshots as asset URLs). */
+    browserSession?: BrowserSessionMeta;
     agentId?: string;
     toolCalls?: PersistedToolCall[];
     /** Notebook answers only: the mode the answer ran in, and why (see
@@ -248,6 +251,7 @@ export const PASSTHROUGH_METADATA_FIELDS = [
   'generatedImage',
   'createdDocument',
   'computeData',
+  'browserSession',
   'agentId',
   'roleName',
   'interrupted',
