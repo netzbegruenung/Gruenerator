@@ -186,7 +186,6 @@ type PayloadSpec =
  * Screenshots erstellen — direkt unter der Karte mit den zwei Screenshots.
  */
 function renderWebsiteErkunden(result: Record<string, unknown>): string | null {
-  if (typeof result.error === 'string') return null;
   const schritte = typeof result.schritte === 'number' ? result.schritte : 0;
   const names = Array.isArray(result.screenshots)
     ? result.screenshots
@@ -194,6 +193,16 @@ function renderWebsiteErkunden(result: Record<string, unknown>): string | null {
         .filter((n): n is string => typeof n === 'string')
     : [];
   const fehlend = typeof result.fehlend === 'number' ? result.fehlend : 0;
+  if (typeof result.error === 'string') {
+    // Ohne Screenshots genügt der Fehler-Hinweis. Mit welchen liegen sie in der
+    // Galerie — der Schreiber muss das wissen, sonst leugnet er sie.
+    if (names.length === 0) return null;
+    return [
+      `Die Website-Erkundung ist gescheitert: ${result.error} Der Auftrag ist NICHT erledigt — sag das ehrlich.`,
+      `Vor dem Abbruch gespeichert und der Person als Galerie in der Karte zur Website-Erkundung angezeigt: ${names.join(', ')}. Nur diese Screenshots gibt es. Füge keine Bild-Links oder Markdown-Bilder ein.`,
+      ...(fehlend > 0 ? [`${fehlend} der gewünschten Screenshots fehlen — sag das ehrlich.`] : []),
+    ].join('\n');
+  }
   const summary = typeof result.summary === 'string' ? result.summary.trim() : '';
   // Drei Ausgänge, drei Überschriften. Ein Teilergebnis (`zeitlimit`) ist KEIN
   // Erfolg: der Auftrag kann unerledigt sein, auch wenn Screenshots vorliegen.

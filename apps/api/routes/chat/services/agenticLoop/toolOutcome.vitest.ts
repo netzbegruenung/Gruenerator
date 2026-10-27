@@ -341,6 +341,27 @@ describe('buildToolPayloadNote', () => {
     ).toBe('');
   });
 
+  it('nennt bei einem gescheiterten Lauf die Screenshots, die es trotzdem gibt', () => {
+    const note = buildToolPayloadNote([
+      step({
+        toolName: 'website_erkunden',
+        result: {
+          error: 'Die Website konnte nicht erkundet werden.',
+          screenshots: [{ name: 'start.png', url: '/x.png' }],
+          fehlend: 2,
+          schritte: 4,
+        },
+      }),
+    ]);
+    expect(note).toContain('### Website-Erkundung im Browser (website_erkunden)');
+    expect(note).toContain('gescheitert: Die Website konnte nicht erkundet werden.');
+    expect(note).toContain('NICHT erledigt');
+    expect(note).toContain('start.png');
+    expect(note).toContain('2 der gewünschten Screenshots fehlen');
+    expect(note).not.toContain('erfolgreich');
+    expect(note).not.toContain('/x.png');
+  });
+
   it('lässt einen gleichnamigen Konnektor bei buildMcpOutcomeNote', () => {
     expect(
       buildToolPayloadNote([
