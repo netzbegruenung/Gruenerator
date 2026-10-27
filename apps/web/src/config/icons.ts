@@ -46,6 +46,7 @@ import {
   PiMagicWand,
   PiMagnifyingGlass,
   PiVideoCamera,
+  PiFilmSlate,
   PiImageSquare,
   PiArchive,
   PiUser,
@@ -134,6 +135,7 @@ export type NavigationIconName =
   | 'universal'
   | 'suche'
   | 'reel'
+  | 'videoEditor'
   | 'sharepic'
   | 'datenbank'
   | 'vorlagen'
@@ -263,6 +265,7 @@ export const ICONS: IconRegistry = {
     universal: PiSquaresFour,
     suche: PiMagnifyingGlass,
     reel: PiVideoCamera,
+    videoEditor: PiFilmSlate,
     sharepic: PiImageSquare,
     datenbank: PiArchive,
     vorlagen: PiPaintBrush,

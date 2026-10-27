@@ -13,6 +13,7 @@ import { jsonBody } from './middleware/jsonBody.js';
 import { rateLimitMiddleware } from './middleware/rateLimitMiddleware.js';
 import { requireAiConsent } from './middleware/requireAiConsent.js';
 import { mountAdminReportsContractRouter } from './routes/admin/adminReportsContractRouter.js';
+import { mountAdminStatsContractRouter } from './routes/admin/adminStatsContractRouter.js';
 import { mountChunkInspectorContractRouter } from './routes/admin/chunkInspectorContractRouter.js';
 import { mountConnectorTestContractRouter } from './routes/admin/connectorTestContractRouter.js';
 import { mountInstanceAdminOverviewContractRouter } from './routes/admin/instanceAdminOverviewContractRouter.js';
@@ -398,6 +399,10 @@ export async function setupRoutes(app: Application): Promise<void> {
   // per-handler requireInstanceAdmin check.
   app.use('/api/auth/admin/bgst', requireAuth);
   mountInstanceAdminOverviewContractRouter(app);
+  // Anonymous created-content statistics — same requireAuth-at-prefix +
+  // per-handler requireInstanceAdmin check.
+  app.use('/api/auth/admin/statistics', requireAuth);
+  mountAdminStatsContractRouter(app);
   // Store version of the mobile app — public, the answer is the same for all.
   mountAppReleaseContractRouter(app);
   // Hauptgrünerator-Super-Admin: Landesverband master data + who

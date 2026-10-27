@@ -17,6 +17,7 @@ import GlossarTab from './tabs/GlossarTab';
 import ReportsTab from './tabs/ReportsTab';
 import RolesTab from './tabs/RolesTab';
 import SkillsTab from './tabs/SkillsTab';
+import StatisticsTab from './tabs/StatisticsTab';
 import UsersTab from './tabs/UsersTab';
 import VorlagenTab from './tabs/VorlagenTab';
 
@@ -73,6 +74,14 @@ function buildTabs(instanceId: typeof CURRENT_INSTANCE): AdminTab[] {
       title: 'Rollenübersicht',
       description: 'Welche Rolle sich die Nutzenden selbst gegeben haben.',
       render: () => <RolesTab />,
+    },
+    {
+      value: 'statistik',
+      label: 'Statistik',
+      title: 'Statistik',
+      description:
+        'Was auf dieser Instanz entstanden ist, über die Zeit. Nur Summen, keine Personen. Ein Klick auf eine Zeile zeigt Verlauf und Untertypen.',
+      render: () => <StatisticsTab />,
     },
     {
       value: 'app-updates',

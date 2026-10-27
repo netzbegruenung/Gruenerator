@@ -6,6 +6,7 @@ import { useNavigate } from 'react-router-dom';
 
 import PageContainer from '../../components/common/PageContainer';
 import ErrorBoundary from '../../components/ErrorBoundary';
+import { isToolVisibleTo } from '../../config/adminOnlyTools';
 import { SHOW_SHAREPIC_STUDIO } from '../../config/featureFlags';
 import { getToolGradient } from '../../config/toolTheme';
 import {
@@ -110,15 +111,17 @@ const CanvasLandingContent = () => {
   const firstName = useFirstName();
   const featureIndex = useFeatureIndex();
   const locale = useAuthStore((s) => s.locale);
+  const isAdmin = useAuthStore((s) => s.user?.is_admin === true);
   // The creator speaks both corporate designs, so the composer serves DE and AT.
   const sharepicEnabled = SHOW_SHAREPIC_STUDIO;
   // „Vorlagen" and „KI-Bilder" give way to the two example pills below; Reels stays.
   const visibleCanvasTools = useMemo(
     () =>
       filterWorkplaceTools(CANVAS_TOOLS).filter(
-        (t) => t.id !== 'canvas-vorlagen' && t.id !== 'canvas-ki'
+        (t) =>
+          t.id !== 'canvas-vorlagen' && t.id !== 'canvas-ki' && isToolVisibleTo(t.path, isAdmin)
       ),
-    []
+    [isAdmin]
   );
 
   const studioWerkzeuge = useMemo(
