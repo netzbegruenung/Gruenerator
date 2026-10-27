@@ -105,8 +105,8 @@ export function buildFileSetup(name: string, mimeType: string): string {
     // pandas auto-selects openpyxl (.xlsx) or xlrd (.xls) by extension.
     // Multi-sheet workbooks (OpenWebUI/LobeHub parity): every sheet is loaded
     // and cleaned, `df` stays the FIRST sheet (backward compatible), and the
-    // sheet map is announced via print — that line lands in the compute card
-    // AND the respond context, so model and user know what is addressable.
+    // sheet map is announced via print — that line reaches the model via the
+    // result summary; parseComputeResult keeps it off the compute card.
     return `import pandas as pd
 ${CLEAN_HELPER}
 _gruen_all = pd.read_excel(${literal}, sheet_name=None)

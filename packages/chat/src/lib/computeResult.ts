@@ -32,9 +32,18 @@ export function capComputeFiles(
     .map((f) => ({ name: f.name, b64: f.base64 }));
 }
 
+/** Printed by the multi-sheet setup (`spreadsheetSetup.ts`): setup info for the
+ *  model, not a result — it stays in `summary` but never becomes a card row. */
+const WORKBOOK_HINT_PREFIX = 'Hinweis: Arbeitsmappe mit ';
+
 export function parseComputeResult(operation: string, stdout: string): ComputeResult {
   const summary = stdout.trim();
-  const lines = summary.split('\n').filter(Boolean);
+  const display = summary
+    .split('\n')
+    .filter((line) => !line.startsWith(WORKBOOK_HINT_PREFIX))
+    .join('\n')
+    .trim();
+  const lines = display.split('\n').filter(Boolean);
   let unlabelled = 0;
   const entries = lines.map((line) => {
     const idx = line.indexOf(':');
@@ -47,7 +56,7 @@ export function parseComputeResult(operation: string, stdout: string): ComputeRe
   // Tabular/multi-line output (pivot tables, df prints) is mostly unlabelled —
   // keep it as ONE entry instead of a card row per line.
   if (entries.length === 0 || unlabelled > entries.length / 2) {
-    return { operation, entries: [{ label: 'Ergebnis', value: summary }], summary };
+    return { operation, entries: [{ label: 'Ergebnis', value: display }], summary };
   }
   return { operation, entries, summary };
 }
