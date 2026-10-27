@@ -1,5 +1,6 @@
 import { useCanvasEditorServices } from '@ggraphic/editor/CanvasEditorProvider';
 import { plainImageUrls, type CanvasStudioAssetItem } from '@ggraphic/editor/hostServices';
+import { useMessages } from '@ggraphic/editor/i18n/messages';
 import { fetchShareImageFile } from '@ggraphic/editor/utils/mediaPlacement';
 import { type StudioAssetScope } from '@gruenerator/contracts';
 import { isShareSrc } from '@gruenerator/contracts';
@@ -8,7 +9,6 @@ import { useRef, useState } from 'react';
 import { GALLERY_SCOPES, GalleryTabs, StudioGalleryGrid } from '../StudioGallery';
 
 import type { BackgroundControls } from '@ggraphic/editor/configs/types';
-import { useMessages } from '@ggraphic/editor/i18n/messages';
 
 type ImageChange = NonNullable<BackgroundControls['onImageChange']>;
 

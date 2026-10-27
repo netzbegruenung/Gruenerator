@@ -1,4 +1,5 @@
 import { useCanvasEditorServices } from '@ggraphic/editor/CanvasEditorProvider';
+import { useMessages, type Messages } from '@ggraphic/editor/i18n/messages';
 import { useUserUploads } from '@ggraphic/editor/sidebar/UserUploadsProvider';
 import { useCallback, useState } from 'react';
 import { HiSparkles } from 'react-icons/hi';
@@ -7,7 +8,6 @@ import { useAiImageGeneration, type AiVariant } from '../../../hooks/useAiImageG
 import { MOBILE_INPUT_TEXT } from '../../sidebarStyles';
 
 import { ToolPanel, type ToolPanelSuccess } from './ToolPanel';
-import { useMessages, type Messages } from '@ggraphic/editor/i18n/messages';
 
 const aiVariantOptions = (t: Messages): { value: AiVariant; label: string }[] => [
   { value: 'realistic', label: t.sidebar.tools.variantRealistic },
@@ -48,7 +48,7 @@ export function AiCreateTool({ onJumpToUploads }: AiCreateToolProps) {
       const message = err instanceof Error ? err.message : t.sidebar.tools.saveError;
       setUploadError(message);
     }
-  }, [generate, prompt, variant, upload, onJumpToUploads]);
+  }, [t, generate, prompt, variant, upload, onJumpToUploads]);
 
   if (!generateAiImage) return null;
 

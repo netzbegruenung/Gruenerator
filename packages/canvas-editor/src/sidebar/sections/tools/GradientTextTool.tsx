@@ -1,4 +1,5 @@
 import { CustomColorSwatch } from '@ggraphic/editor/components/CustomColorSwatch';
+import { useMessages } from '@ggraphic/editor/i18n/messages';
 import { brandColors } from '@ggraphic/editor/utils/colorOptions';
 import { useCallback, useState } from 'react';
 import { PiTextT } from 'react-icons/pi';
@@ -7,7 +8,6 @@ import { MOBILE_INPUT_TEXT } from '../../sidebarStyles';
 
 import { ToolPanel, type ToolPanelSuccess } from './ToolPanel';
 import { useToolImagePlacement } from './useToolImagePlacement';
-import { useMessages } from '@ggraphic/editor/i18n/messages';
 
 export interface GradientTextToolProps {
   onJumpToUploads?: () => void;
@@ -142,7 +142,7 @@ export function GradientTextTool({ onJumpToUploads, onPlaceImageUrl }: GradientT
     } finally {
       setIsBusy(false);
     }
-  }, [trimmed, color1, color2, angle, finish]);
+  }, [t, trimmed, color1, color2, angle, finish]);
 
   const disabled = isBusy || isUploading;
   const previewText = trimmed || 'Verlaufstext';

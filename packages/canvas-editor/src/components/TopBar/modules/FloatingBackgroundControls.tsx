@@ -1,5 +1,6 @@
 import { useCanvasEditorServices } from '@ggraphic/editor/CanvasEditorProvider';
 import { plainImageUrls } from '@ggraphic/editor/hostServices';
+import { useMessages } from '@ggraphic/editor/i18n/messages';
 import { useUserUploads } from '@ggraphic/editor/sidebar/UserUploadsProvider';
 import { Popover, PopoverContent, PopoverTrigger } from '@ggraphic/editor/ui/popover';
 import { cn } from '@ggraphic/editor/utils/cn';
@@ -20,7 +21,6 @@ import { MOBILE_INPUT_TEXT } from '../../../sidebar/sidebarStyles';
 import type { StockImageAttribution } from '@ggraphic/editor/common/imageSourceTypes';
 import type { BackgroundControls } from '@ggraphic/editor/configs/types';
 import type { CanvasMediaItem } from '@ggraphic/editor/hostServices';
-import { useMessages } from '@ggraphic/editor/i18n/messages';
 
 const ICON_BTN =
   'inline-flex items-center justify-center size-8 shrink-0 rounded-md border-none bg-transparent cursor-pointer text-[var(--editor-text)] transition-colors duration-150 hover:bg-[var(--editor-surface-hover)] hover:text-[var(--editor-active-fg)]';

@@ -1,4 +1,5 @@
 import { CustomColorSwatch } from '@ggraphic/editor/components/CustomColorSwatch';
+import { useMessages } from '@ggraphic/editor/i18n/messages';
 import { Popover, PopoverContent, PopoverTrigger } from '@ggraphic/editor/ui/popover';
 import { Slider } from 'radix-ui';
 import React, { useId } from 'react';
@@ -7,7 +8,6 @@ import { PiDropHalfBottom } from 'react-icons/pi';
 import { colorName } from '../../../utils/colorNames';
 
 import type { ShadowPatch } from '@ggraphic/editor/hooks/useFloatingModuleHandlers';
-import { useMessages } from '@ggraphic/editor/i18n/messages';
 
 interface FloatingShadowControlProps {
   shadowColor?: string;

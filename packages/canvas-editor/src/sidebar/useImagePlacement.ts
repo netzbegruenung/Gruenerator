@@ -1,8 +1,8 @@
 import { useCanvasEditorServices } from '@ggraphic/editor/CanvasEditorProvider';
 import { plainImageUrls, type CanvasUploadSource } from '@ggraphic/editor/hostServices';
+import { useMessages } from '@ggraphic/editor/i18n/messages';
 import { useUserUploads } from '@ggraphic/editor/sidebar/UserUploadsProvider';
 import { useCallback } from 'react';
-import { useMessages } from '@ggraphic/editor/i18n/messages';
 
 export interface PlacedImage {
   /** Durable, placeable URL for the uploaded file (null if none could be resolved). */
@@ -31,7 +31,7 @@ export function useImagePlacement(onPlaceUrl?: (url: string, fileName: string) =
       if (url && onPlaceUrl) onPlaceUrl(url, name);
       return { url, name };
     },
-    [upload, onPlaceUrl, imageUrls]
+    [t, upload, onPlaceUrl, imageUrls]
   );
 
   return { place, isUploading };

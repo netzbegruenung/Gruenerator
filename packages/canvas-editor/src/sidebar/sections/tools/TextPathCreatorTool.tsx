@@ -1,4 +1,5 @@
 import { CustomColorSwatch } from '@ggraphic/editor/components/CustomColorSwatch';
+import { useMessages } from '@ggraphic/editor/i18n/messages';
 import { brandColors } from '@ggraphic/editor/utils/colorOptions';
 import Konva from 'konva';
 import { useCallback, useEffect, useState } from 'react';
@@ -8,7 +9,6 @@ import { MOBILE_INPUT_TEXT } from '../../sidebarStyles';
 
 import { ToolPanel, type ToolPanelSuccess } from './ToolPanel';
 import { useToolImagePlacement } from './useToolImagePlacement';
-import { useMessages } from '@ggraphic/editor/i18n/messages';
 
 export interface TextPathCreatorToolProps {
   onJumpToUploads?: () => void;
@@ -141,7 +141,7 @@ export function TextPathCreatorTool({
     } finally {
       setIsBusy(false);
     }
-  }, [trimmed, variant.data, fontSize, color, finish]);
+  }, [t, trimmed, variant.data, fontSize, color, finish]);
 
   return (
     <ToolPanel

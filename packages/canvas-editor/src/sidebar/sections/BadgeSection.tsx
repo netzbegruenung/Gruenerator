@@ -1,3 +1,5 @@
+import { useMessages } from '@ggraphic/editor/i18n/messages';
+
 import {
   PillBadgePreviewIcon,
   StorerPreviewIcon,
@@ -6,7 +8,6 @@ import {
 } from './BadgePreviewIcons';
 
 import type { BalkenMode } from '@ggraphic/editor/primitives/index';
-import { useMessages } from '@ggraphic/editor/i18n/messages';
 
 export interface BadgeSectionProps {
   onAddPillBadge?: (preset?: string) => void;

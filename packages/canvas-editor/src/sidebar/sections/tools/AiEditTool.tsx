@@ -1,4 +1,5 @@
 import { useCanvasEditorServices } from '@ggraphic/editor/CanvasEditorProvider';
+import { useMessages } from '@ggraphic/editor/i18n/messages';
 import { useUserUploads } from '@ggraphic/editor/sidebar/UserUploadsProvider';
 import { useCallback, useState } from 'react';
 import { HiPencilSquare } from 'react-icons/hi2';
@@ -7,7 +8,6 @@ import { MOBILE_INPUT_TEXT } from '../../sidebarStyles';
 
 import { ImageInputPicker } from './ImageInputPicker';
 import { ToolPanel, type ToolPanelSuccess } from './ToolPanel';
-import { useMessages } from '@ggraphic/editor/i18n/messages';
 
 const MIN_INSTRUCTION_LENGTH = 15;
 const MAX_INSTRUCTION_LENGTH = 500;
@@ -54,7 +54,7 @@ export function AiEditTool({ onJumpToUploads }: AiEditToolProps) {
       setIsBusy(false);
       setProgressMessage(null);
     }
-  }, [input, editAiImage, instruction, upload, onJumpToUploads]);
+  }, [t, input, editAiImage, instruction, upload, onJumpToUploads]);
 
   if (!editAiImage) return null;
 

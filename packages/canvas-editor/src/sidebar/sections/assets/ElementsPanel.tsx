@@ -1,5 +1,6 @@
 import { useCanvasEditorServices } from '@ggraphic/editor/CanvasEditorProvider';
 import { useDebounce } from '@ggraphic/editor/hooks/useDebounce';
+import { useMessages } from '@ggraphic/editor/i18n/messages';
 import { cn } from '@ggraphic/editor/utils/cn';
 import { MAX_ICON_SELECTIONS } from '@ggraphic/editor/utils/iconInstances';
 import {
@@ -35,7 +36,6 @@ import { useRecentElements } from './useRecentElements';
 
 import type { ExtendedAssetsSectionProps } from './AssetsSection';
 import type { SharepicBlock, StickerRef } from '@gruenerator/contracts';
-import { useMessages } from '@ggraphic/editor/i18n/messages';
 
 /**
  * Entrance (element-enter in both CSS twins): tiles 0–7 start 30 ms apart, the

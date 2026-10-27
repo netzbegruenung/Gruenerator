@@ -1,11 +1,11 @@
 import { CustomColorSwatch } from '@ggraphic/editor/components/CustomColorSwatch';
+import { useMessages } from '@ggraphic/editor/i18n/messages';
 import { Popover, PopoverContent, PopoverTrigger } from '@ggraphic/editor/ui/popover';
 import { Slider } from 'radix-ui';
 import React, { useId } from 'react';
 import { PiTextAa } from 'react-icons/pi';
 
 import { colorName } from '../../../utils/colorNames';
-import { useMessages } from '@ggraphic/editor/i18n/messages';
 
 interface FloatingOutlineControlProps {
   stroke?: string;

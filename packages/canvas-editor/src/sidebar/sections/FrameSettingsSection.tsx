@@ -1,3 +1,4 @@
+import { useMessages } from '@ggraphic/editor/i18n/messages';
 import { useCallback, useEffect, useState } from 'react';
 import { FaTrash } from 'react-icons/fa';
 
@@ -6,7 +7,6 @@ import { ACTION_BTN_DANGER, SECTION_HEADER, SECTION_TITLE } from '../sidebarStyl
 import { ImageInputPicker } from './tools/ImageInputPicker';
 
 import type { FrameInstance } from '@ggraphic/editor/utils/frameUtils';
-import { useMessages } from '@ggraphic/editor/i18n/messages';
 
 export interface FrameSettingsSectionProps {
   selectedFrame: FrameInstance | null;

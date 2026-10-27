@@ -1,3 +1,4 @@
+import { useMessages } from '@ggraphic/editor/i18n/messages';
 import { QRCodeCanvas } from 'qrcode.react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { flushSync } from 'react-dom';
@@ -7,7 +8,6 @@ import { MOBILE_INPUT_TEXT } from '../../sidebarStyles';
 
 import { ToolPanel, type ToolPanelSuccess } from './ToolPanel';
 import { useToolImagePlacement } from './useToolImagePlacement';
-import { useMessages } from '@ggraphic/editor/i18n/messages';
 
 export interface QRCodeToolProps {
   onJumpToUploads?: () => void;
@@ -65,7 +65,7 @@ export function QRCodeTool({ onJumpToUploads, onPlaceImageUrl }: QRCodeToolProps
     } finally {
       setIsBusy(false);
     }
-  }, [trimmed, previewText, finish]);
+  }, [t, trimmed, previewText, finish]);
 
   return (
     <ToolPanel

@@ -1,8 +1,8 @@
+import { useMessages } from '@ggraphic/editor/i18n/messages';
 import { useAutoSaveStore } from '@ggraphic/editor/stores/useAutoSaveStore';
 import { cn } from '@ggraphic/editor/utils/cn';
 import { useEffect, useState } from 'react';
 import { FaCheck, FaExclamationTriangle } from 'react-icons/fa';
-import { useMessages } from '@ggraphic/editor/i18n/messages';
 
 /**
  * Autosave status as a single glyph: spinner while saving, a check that fades

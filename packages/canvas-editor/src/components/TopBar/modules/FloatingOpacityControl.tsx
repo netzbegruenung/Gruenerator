@@ -1,7 +1,7 @@
+import { useMessages } from '@ggraphic/editor/i18n/messages';
 import { Slider } from 'radix-ui';
 import React from 'react';
 import { PiDrop } from 'react-icons/pi';
-import { useMessages } from '@ggraphic/editor/i18n/messages';
 
 interface FloatingOpacityControlProps {
   opacity: number;

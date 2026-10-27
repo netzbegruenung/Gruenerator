@@ -1,3 +1,4 @@
+import { useMessages } from '@ggraphic/editor/i18n/messages';
 import { cn } from '@ggraphic/editor/utils/cn';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { PiCaretRightBold } from 'react-icons/pi';
@@ -8,7 +9,6 @@ import { HIDDEN_SCROLLBAR } from '../../sidebarStyles';
 import { ElementTile } from './ElementTile';
 
 import type { ElementItem } from './elementTypes';
-import { useMessages } from '@ggraphic/editor/i18n/messages';
 
 /** One "page" of the carousel: two 88px tiles and their gaps. */
 const SCROLL_STEP = 192;

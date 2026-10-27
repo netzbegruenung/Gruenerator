@@ -1,5 +1,6 @@
 import { activeBrand } from '@ggraphic/editor/brand/brandRegistry';
 import { CustomColorSwatch } from '@ggraphic/editor/components/CustomColorSwatch';
+import { useMessages } from '@ggraphic/editor/i18n/messages';
 import { cn } from '@ggraphic/editor/utils/cn';
 import { FaTrash, FaCopy } from 'react-icons/fa';
 
@@ -11,7 +12,6 @@ import type {
   KawaiiMood,
   KawaiiInstance,
 } from '@ggraphic/editor/utils/illustrations/types';
-import { useMessages } from '@ggraphic/editor/i18n/messages';
 
 const MOOD_OPTIONS: { id: KawaiiMood; label: string }[] = [
   { id: 'happy', label: '😊' },

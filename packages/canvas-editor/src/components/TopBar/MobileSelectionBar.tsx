@@ -2,6 +2,7 @@ import {
   TOOLBAR_ITEMS_WITH_INPUTS,
   useRovingToolbar,
 } from '@ggraphic/editor/hooks/useRovingToolbar';
+import { useMessages } from '@ggraphic/editor/i18n/messages';
 import { useCanvasStoreSelector } from '@ggraphic/editor/stores/CanvasStoreProvider';
 import { cn } from '@ggraphic/editor/utils/cn';
 import React from 'react';
@@ -10,7 +11,6 @@ import { PiCheckBold, PiSlidersHorizontal } from 'react-icons/pi';
 import { HIDDEN_SCROLLBAR } from '../../sidebar/sidebarStyles';
 
 import { ContextControls, showsCropModeBar, type ContextControlsProps } from './ContextControls';
-import { useMessages } from '@ggraphic/editor/i18n/messages';
 
 interface MobileSelectionBarProps extends ContextControlsProps {
   /** Öffnet den Bereich der Auswahl als Sheet; fehlt, wenn es keinen gibt. */

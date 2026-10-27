@@ -1,4 +1,5 @@
 import { CustomColorSwatch } from '@ggraphic/editor/components/CustomColorSwatch';
+import { useMessages, type Messages } from '@ggraphic/editor/i18n/messages';
 import { Switch } from '@ggraphic/editor/ui/switch';
 import {
   addChartRow,
@@ -28,7 +29,6 @@ import {
 import { MOBILE_INPUT_TEXT } from '../sidebarStyles';
 
 import type { IconType } from 'react-icons';
-import { useMessages, type Messages } from '@ggraphic/editor/i18n/messages';
 
 export interface ChartSettingsSectionProps {
   selectedChart: ChartInstance | null;

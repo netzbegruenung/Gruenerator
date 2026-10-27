@@ -1,6 +1,6 @@
+import { useMessages } from '@ggraphic/editor/i18n/messages';
 import { useCanvasStoreSelector } from '@ggraphic/editor/stores/CanvasStoreProvider';
 import { Check, LayoutTemplate, RotateCcw, Sparkles } from 'lucide-react';
-import { useMessages } from '@ggraphic/editor/i18n/messages';
 
 /**
  * Banner shown in the canvas top bar after the AI auto-applies a suggestion.

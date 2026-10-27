@@ -1,3 +1,4 @@
+import { useMessages } from '@ggraphic/editor/i18n/messages';
 import { cn } from '@ggraphic/editor/utils/cn';
 import { FaCheck, FaChevronLeft, FaChevronRight, FaTrash, FaCopy } from 'react-icons/fa';
 import { HiColorSwatch, HiAdjustments, HiArrowsExpand } from 'react-icons/hi';
@@ -8,7 +9,6 @@ import { SubsectionTabBar, type Subsection } from '../SubsectionTabBar';
 
 import type { ColorScheme } from '../../utils/dreizeilenLayout';
 import type { BalkenInstance } from '@ggraphic/editor/utils/balkenUtils';
-import { useMessages } from '@ggraphic/editor/i18n/messages';
 
 export interface BalkenSettingsSectionProps {
   selectedBalken: BalkenInstance | null;

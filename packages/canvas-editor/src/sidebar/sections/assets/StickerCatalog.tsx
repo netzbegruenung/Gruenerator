@@ -1,5 +1,6 @@
 import { useCanvasEditorServices } from '@ggraphic/editor/CanvasEditorProvider';
 import { type CanvasStudioAssetItem } from '@ggraphic/editor/hostServices';
+import { useMessages } from '@ggraphic/editor/i18n/messages';
 import { assetStickerId, type StickerRef, type StudioAssetScope } from '@gruenerator/contracts';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { HiPlus } from 'react-icons/hi2';
@@ -8,7 +9,6 @@ import { GALLERY_SCOPES, GalleryTabs, StudioGalleryGrid, type GalleryTab } from 
 
 import { elementDragProps } from './ElementTile';
 import { galleryStickerItem } from './elementTypes';
-import { useMessages } from '@ggraphic/editor/i18n/messages';
 
 type StickerTab = 'gruene' | StudioAssetScope;
 

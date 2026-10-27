@@ -1,4 +1,5 @@
 import { useRovingToolbar } from '@ggraphic/editor/hooks/useRovingToolbar';
+import { useMessages } from '@ggraphic/editor/i18n/messages';
 import {
   CANVAS_COMMANDS,
   ariaShortcut,
@@ -21,7 +22,6 @@ import {
 
 import { ContextCard } from './ContextToolbar';
 import { FloatingPositionControl, type PositionCommandId } from './modules/FloatingPositionControl';
-import { useMessages } from '@ggraphic/editor/i18n/messages';
 
 export interface MultiSelectionToolbarProps {
   count: number;

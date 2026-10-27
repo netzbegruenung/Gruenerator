@@ -3,6 +3,7 @@ import { useCanvasTextFormatting } from '@ggraphic/editor/components/CanvasTextO
 import { type BackgroundControls } from '@ggraphic/editor/configs/types';
 import { type ShadowPatch } from '@ggraphic/editor/hooks/useFloatingModuleHandlers';
 import { type FloatingModuleState } from '@ggraphic/editor/hooks/useFloatingModuleState';
+import { useMessages } from '@ggraphic/editor/i18n/messages';
 import { useOptionalUserUploads } from '@ggraphic/editor/sidebar/UserUploadsProvider';
 import {
   formatShortcut,
@@ -37,7 +38,6 @@ import { FloatingOutlineControl } from './modules/FloatingOutlineControl';
 import { FloatingPositionControl, type PositionCommandId } from './modules/FloatingPositionControl';
 import { FloatingShadowControl } from './modules/FloatingShadowControl';
 import { FloatingTextAlignControl } from './modules/FloatingTextAlignControl';
-import { useMessages } from '@ggraphic/editor/i18n/messages';
 
 export interface ContextControlsProps {
   selectedElement: string | null;

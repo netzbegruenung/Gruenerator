@@ -1,4 +1,5 @@
 import { useMobileSheet } from '@ggraphic/editor/hooks/useMobileSheet';
+import { useMessages } from '@ggraphic/editor/i18n/messages';
 import { cn } from '@ggraphic/editor/utils/cn';
 import { isFocusLost, isKeyboardModality } from '@ggraphic/editor/utils/editorFocus';
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
@@ -9,7 +10,6 @@ import { useIsCanvasMobile } from '../hooks/useIsCanvasMobile';
 import { SIDEBAR_PANEL_ID } from './sidebarStyles';
 
 import type { SidebarPanelProps } from './types';
-import { useMessages } from '@ggraphic/editor/i18n/messages';
 
 interface ExtendedSidebarPanelProps extends SidebarPanelProps {
   /** Sheet title on mobile — the label of the active area. */

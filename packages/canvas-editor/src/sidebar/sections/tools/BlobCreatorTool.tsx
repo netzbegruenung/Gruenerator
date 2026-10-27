@@ -1,4 +1,5 @@
 import { CustomColorSwatch } from '@ggraphic/editor/components/CustomColorSwatch';
+import { useMessages } from '@ggraphic/editor/i18n/messages';
 import { brandColors } from '@ggraphic/editor/utils/colorOptions';
 import { useCallback, useMemo, useRef, useState } from 'react';
 import { PiShuffle, PiDropSimpleFill } from 'react-icons/pi';
@@ -8,7 +9,6 @@ import { ToolPanel, type ToolPanelSuccess } from './ToolPanel';
 import { useToolImagePlacement } from './useToolImagePlacement';
 
 import type Konva from 'konva';
-import { useMessages } from '@ggraphic/editor/i18n/messages';
 
 export interface BlobCreatorToolProps {
   onJumpToUploads?: () => void;
@@ -160,7 +160,7 @@ export function BlobCreatorTool({ onJumpToUploads, onPlaceImageUrl }: BlobCreato
     } finally {
       setIsBusy(false);
     }
-  }, [finish]);
+  }, [t, finish]);
 
   return (
     <ToolPanel

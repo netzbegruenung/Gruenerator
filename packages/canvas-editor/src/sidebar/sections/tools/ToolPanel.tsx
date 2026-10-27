@@ -1,3 +1,4 @@
+import { useMessages } from '@ggraphic/editor/i18n/messages';
 import { cn } from '@ggraphic/editor/utils/cn';
 import { useState } from 'react';
 import { HiCheckCircle, HiXCircle } from 'react-icons/hi2';
@@ -7,7 +8,6 @@ import { SIDEBAR_SECTION } from '../../sidebarStyles';
 
 import type { ComponentType, ReactNode } from 'react';
 import type { IconType } from 'react-icons';
-import { useMessages } from '@ggraphic/editor/i18n/messages';
 
 export interface ToolPanelSuccess {
   thumbnailUrl: string;

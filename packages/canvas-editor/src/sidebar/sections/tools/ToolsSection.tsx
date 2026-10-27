@@ -1,4 +1,5 @@
 import { useCanvasEditorServices } from '@ggraphic/editor/CanvasEditorProvider';
+import { useMessages } from '@ggraphic/editor/i18n/messages';
 import { cn } from '@ggraphic/editor/utils/cn';
 import { brandColors } from '@ggraphic/editor/utils/colorOptions';
 import { Suspense, useEffect, useId, useState } from 'react';
@@ -22,7 +23,6 @@ import type { AltTextPagesSource } from './AltTextTool';
 import type { UserImagePlacement } from '@ggraphic/editor/utils/userImageUtils';
 import type { ComponentType } from 'react';
 import type { IconType } from 'react-icons';
-import { useMessages } from '@ggraphic/editor/i18n/messages';
 
 // The panels load on demand, so opening the tab only waits for the tiles. Once
 // the tab is idle every offered panel is preloaded (touch has no hover), and a

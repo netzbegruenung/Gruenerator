@@ -1,11 +1,11 @@
 import { useCanvasEditorServices } from '@ggraphic/editor/CanvasEditorProvider';
+import { useMessages } from '@ggraphic/editor/i18n/messages';
 import { useUserUploads } from '@ggraphic/editor/sidebar/UserUploadsProvider';
 import { useCallback, useState } from 'react';
 import { HiScissors } from 'react-icons/hi2';
 
 import { ImageInputPicker } from './ImageInputPicker';
 import { ToolPanel, type ToolPanelSuccess } from './ToolPanel';
-import { useMessages } from '@ggraphic/editor/i18n/messages';
 
 export interface RemoveBackgroundToolProps {
   onJumpToUploads?: () => void;
@@ -49,7 +49,7 @@ export function RemoveBackgroundTool({ onJumpToUploads }: RemoveBackgroundToolPr
       setIsBusy(false);
       setProgressMessage(null);
     }
-  }, [input, removeBackgroundFromImage, upload, onJumpToUploads]);
+  }, [t, input, removeBackgroundFromImage, upload, onJumpToUploads]);
 
   if (!removeBackgroundFromImage) return null;
 

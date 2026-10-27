@@ -1,8 +1,8 @@
 import { CustomColorSwatch } from '@ggraphic/editor/components/CustomColorSwatch';
+import { useMessages } from '@ggraphic/editor/i18n/messages';
 import { cn } from '@ggraphic/editor/utils/cn';
 import { brandColors, type ColorOption } from '@ggraphic/editor/utils/colorOptions';
 import React from 'react';
-import { useMessages } from '@ggraphic/editor/i18n/messages';
 
 interface FloatingColorPickerProps {
   currentColor: string;

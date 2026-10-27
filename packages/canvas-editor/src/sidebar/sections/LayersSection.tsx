@@ -11,6 +11,7 @@
  * Seite (`hooks/useCanvasKeyboardHandlers.ts`, Regel R1).
  */
 
+import { useMessages } from '@ggraphic/editor/i18n/messages';
 import { cn } from '@ggraphic/editor/utils/cn';
 import { isFocusLost } from '@ggraphic/editor/utils/editorFocus';
 import {
@@ -24,7 +25,6 @@ import {
 
 import type { LayerEntry } from '@ggraphic/editor/utils/layerLabels';
 import type { LayerSelectionChange } from '@ggraphic/editor/utils/layerSelection';
-import { useMessages } from '@ggraphic/editor/i18n/messages';
 
 export interface LayersSectionProps {
   layers: readonly LayerEntry[];

@@ -1,3 +1,4 @@
+import { useMessages } from '@ggraphic/editor/i18n/messages';
 import { useUserUploads } from '@ggraphic/editor/sidebar/UserUploadsProvider';
 import { MasonryGrid, MasonryItem } from '@ggraphic/editor/ui/masonry-grid';
 import { cn } from '@ggraphic/editor/utils/cn';
@@ -7,7 +8,6 @@ import { HiArrowUpTray, HiPhoto, HiXMark } from 'react-icons/hi2';
 import { mediaItemToFile } from '../../../utils/mediaItemToFile';
 
 import type { CanvasMediaItem } from '@ggraphic/editor/hostServices';
-import { useMessages } from '@ggraphic/editor/i18n/messages';
 
 export interface ImageInputPickerProps {
   value: File | null;

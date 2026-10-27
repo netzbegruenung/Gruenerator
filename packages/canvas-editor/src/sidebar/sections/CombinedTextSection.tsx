@@ -1,3 +1,4 @@
+import { messages, useMessages } from '@ggraphic/editor/i18n/messages';
 import { cn } from '@ggraphic/editor/utils/cn';
 import { FaTrash } from 'react-icons/fa';
 import { PiPlusBold, PiTextAa, PiTextHBold } from 'react-icons/pi';
@@ -9,7 +10,6 @@ import { MOBILE_INPUT_TEXT, SIDEBAR_SECTION } from '../sidebarStyles';
 
 import type { AdditionalText } from '@ggraphic/editor/configs/types';
 import type { TextFieldConfig } from '@ggraphic/editor/configs/unifiedTabs';
-import { messages, useMessages } from '@ggraphic/editor/i18n/messages';
 
 export interface CombinedTextSectionProps {
   onAddHeader?: () => void;

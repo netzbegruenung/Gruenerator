@@ -1,9 +1,9 @@
+import { useMessages } from '@ggraphic/editor/i18n/messages';
 import { cn } from '@ggraphic/editor/utils/cn';
 import { useState, useRef, useEffect } from 'react';
 import { FaQuestionCircle, FaTimes } from 'react-icons/fa';
 
 import { SIDEBAR_HINT } from '../sidebarStyles';
-import { useMessages } from '@ggraphic/editor/i18n/messages';
 
 interface SidebarHintProps {
   children: React.ReactNode;

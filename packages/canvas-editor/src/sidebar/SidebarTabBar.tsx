@@ -1,3 +1,4 @@
+import { useMessages } from '@ggraphic/editor/i18n/messages';
 import { cn } from '@ggraphic/editor/utils/cn';
 import { memo, useCallback } from 'react';
 
@@ -7,7 +8,6 @@ import { useIsCanvasMobile } from '../hooks/useIsCanvasMobile';
 import { SIDEBAR_PANEL_ID } from './sidebarStyles';
 
 import type { SidebarTabBarProps, SidebarTabId, SidebarTab } from './types';
-import { useMessages } from '@ggraphic/editor/i18n/messages';
 
 interface TabButtonProps {
   tab: SidebarTab;

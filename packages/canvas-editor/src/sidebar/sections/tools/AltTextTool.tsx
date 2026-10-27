@@ -1,4 +1,5 @@
 import { useCanvasEditorServices } from '@ggraphic/editor/CanvasEditorProvider';
+import { useMessages } from '@ggraphic/editor/i18n/messages';
 import { cn } from '@ggraphic/editor/utils/cn';
 import { SLIDE_ALT_TEXT_MAX_CHARS } from '@gruenerator/contracts';
 import { useCallback, useId, useState } from 'react';
@@ -9,7 +10,6 @@ import { MOBILE_INPUT_TEXT } from '../../sidebarStyles';
 import { ToolPanel } from './ToolPanel';
 
 import type { AltTextPage, AltTextScope } from '@ggraphic/editor/CanvasEditorProvider';
-import { useMessages } from '@ggraphic/editor/i18n/messages';
 
 export interface AltTextPagesSource {
   collect: (scope: AltTextScope) => Promise<AltTextPage[]>;
@@ -81,7 +81,7 @@ export function AltTextTool({ pages }: AltTextToolProps) {
       setIsBusy(false);
       setProgressMessage(null);
     }
-  }, [generateSlideAltTexts, pages, effectiveScope]);
+  }, [t, generateSlideAltTexts, pages, effectiveScope]);
 
   const updateText = (pageNumber: number, text: string) =>
     setResults((prev) => prev.map((r) => (r.pageNumber === pageNumber ? { ...r, text } : r)));

@@ -1,4 +1,5 @@
 import { CustomColorSwatch } from '@ggraphic/editor/components/CustomColorSwatch';
+import { useMessages } from '@ggraphic/editor/i18n/messages';
 import { Switch } from '@ggraphic/editor/ui/switch';
 import { defaultTint, EMPTY_ADJUSTMENTS, IMAGE_PRESETS } from '@ggraphic/editor/utils/imageFilters';
 import {
@@ -11,7 +12,6 @@ import {
 
 import { colorName } from '../../utils/colorNames';
 import { SidebarSlider } from '../components/SidebarSlider';
-import { useMessages } from '@ggraphic/editor/i18n/messages';
 
 /** DE Tanne and Klee, AT Dunkel- and Hellgrün. */
 const TINTS = ['#005538', '#008939', '#257639', '#56AF31'];

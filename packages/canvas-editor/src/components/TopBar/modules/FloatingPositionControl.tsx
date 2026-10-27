@@ -1,3 +1,4 @@
+import { useMessages } from '@ggraphic/editor/i18n/messages';
 import { Popover, PopoverContent, PopoverTrigger } from '@ggraphic/editor/ui/popover';
 import { CANVAS_COMMANDS } from '@ggraphic/editor/utils/canvasCommandRegistry';
 import React, { useId, useState } from 'react';
@@ -15,7 +16,6 @@ import {
 
 import type { SelectionGeometry } from '@ggraphic/editor/utils/canvasCommands';
 import type { IconType } from 'react-icons';
-import { useMessages } from '@ggraphic/editor/i18n/messages';
 
 export type PositionCommandId =
   | 'alignLeft'

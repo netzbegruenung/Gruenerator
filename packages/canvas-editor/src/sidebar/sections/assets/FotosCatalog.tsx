@@ -1,5 +1,6 @@
 import { useCanvasEditorServices } from '@ggraphic/editor/CanvasEditorProvider';
 import { useNoUnsplashSearch, type UnsplashSearchFn } from '@ggraphic/editor/hostServices';
+import { useMessages } from '@ggraphic/editor/i18n/messages';
 import { useCallback, useEffect, useMemo, type ReactNode } from 'react';
 
 import { UnsplashLimitNotice, UnsplashRemaining } from '../tools/UnsplashLimitNotice';
@@ -7,7 +8,6 @@ import { UnsplashLimitNotice, UnsplashRemaining } from '../tools/UnsplashLimitNo
 import { unsplashPhotoItem } from './useStockPhotos';
 
 import type { ElementItem } from './elementTypes';
-import { useMessages } from '@ggraphic/editor/i18n/messages';
 
 /** On top of the panel's own 200 ms, so a typing pause, not every key, costs a search. */
 const SEARCH_DEBOUNCE_MS = 400;

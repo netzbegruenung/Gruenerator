@@ -1,5 +1,6 @@
 import { useCanvasEditorServices } from '@ggraphic/editor/CanvasEditorProvider';
 import { plainImageUrls } from '@ggraphic/editor/hostServices';
+import { useMessages } from '@ggraphic/editor/i18n/messages';
 import { useUserUploads } from '@ggraphic/editor/sidebar/UserUploadsProvider';
 import { MasonryGrid, MasonryItem } from '@ggraphic/editor/ui/masonry-grid';
 import { cn } from '@ggraphic/editor/utils/cn';
@@ -14,7 +15,6 @@ import { SidebarHint } from '../components/SidebarHint';
 import { MOBILE_INPUT_TEXT, SIDEBAR_SECTION } from '../sidebarStyles';
 
 import type { CanvasMediaItem } from '@ggraphic/editor/hostServices';
-import { useMessages } from '@ggraphic/editor/i18n/messages';
 
 export interface UploadsSectionProps {
   /** Place an already-durable URL (used when clicking a prior upload). */

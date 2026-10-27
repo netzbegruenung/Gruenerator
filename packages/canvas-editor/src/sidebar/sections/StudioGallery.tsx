@@ -1,5 +1,6 @@
 import { useCanvasEditorServices } from '@ggraphic/editor/CanvasEditorProvider';
 import { useNoStudioAssets, type CanvasStudioAssetItem } from '@ggraphic/editor/hostServices';
+import { useMessages } from '@ggraphic/editor/i18n/messages';
 import { cn } from '@ggraphic/editor/utils/cn';
 import {
   galleryScopeEmptyText,
@@ -10,7 +11,6 @@ import {
   type StudioAssetScope,
 } from '@gruenerator/contracts';
 import { useEffect, useRef, type ButtonHTMLAttributes } from 'react';
-import { useMessages } from '@ggraphic/editor/i18n/messages';
 
 export const GALLERY_SCOPES: readonly GalleryTab<StudioAssetScope>[] = STUDIO_ASSET_SCOPES.map(
   (s) => ({ id: s.value, label: s.label })

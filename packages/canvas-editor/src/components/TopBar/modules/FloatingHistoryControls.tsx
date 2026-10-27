@@ -1,6 +1,6 @@
+import { useMessages } from '@ggraphic/editor/i18n/messages';
 import React from 'react';
 import { PiArrowCounterClockwise, PiArrowClockwise } from 'react-icons/pi';
-import { useMessages } from '@ggraphic/editor/i18n/messages';
 
 const iconBtnLight =
   'size-8 max-canvas-mobile:size-11 rounded-full max-canvas-mobile:rounded-[10px] border-none bg-transparent cursor-pointer flex items-center justify-center text-foreground transition-[background-color,color] duration-200 hover:enabled:bg-hover-alt hover:enabled:text-primary-600 active:enabled:bg-editor-canvas-hover disabled:opacity-30 disabled:cursor-not-allowed disabled:text-grey-400';

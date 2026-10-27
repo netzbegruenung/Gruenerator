@@ -1,3 +1,4 @@
+import { useMessages } from '@ggraphic/editor/i18n/messages';
 import { cn } from '@ggraphic/editor/utils/cn';
 import {
   CROP_ASPECT_PRESETS,
@@ -8,7 +9,6 @@ import { clampStraighten, STRAIGHTEN_LIMIT } from '@ggraphic/editor/utils/straig
 import React, { useState } from 'react';
 
 import { HIDDEN_SCROLLBAR } from '../../sidebar/sidebarStyles';
-import { useMessages } from '@ggraphic/editor/i18n/messages';
 
 const TEXT_BTN =
   'inline-flex items-center h-8 max-canvas-mobile:h-11 shrink-0 rounded-md border-none px-3 cursor-pointer text-[13px] font-medium transition-colors duration-150';
