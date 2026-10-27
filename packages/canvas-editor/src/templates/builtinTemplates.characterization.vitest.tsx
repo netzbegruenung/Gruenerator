@@ -50,7 +50,7 @@ import {
   templateFitsFormat,
 } from '../utils/templateRegistry';
 
-import type { CanvasConfigId } from '../configs/types';
+import type { CanvasConfigId } from './registry';
 
 /** Every state key any built-in template seeds from, each with a distinct value. */
 const RICH_STATE: Record<string, unknown> = {

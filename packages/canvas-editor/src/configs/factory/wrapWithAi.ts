@@ -2,7 +2,8 @@ import { createChatSection } from '../commonSections';
 
 import type { CanvasAiActionsBase } from '../../ai/applyOperation';
 import type { TemplateAiCapabilities } from '../../ai/types';
-import type { CanvasConfigId, FullCanvasConfig } from '../types';
+import type { CanvasConfigId } from '../../templates/registry';
+import type { FullCanvasConfig } from '../types';
 
 /**
  * Overlays the AI capability declaration + capability-aware chat section onto

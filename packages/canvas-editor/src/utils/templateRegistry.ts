@@ -9,8 +9,12 @@ import { DEFAULT_FORMAT_ID, getCanvasFormatOrDefault, pinnedFormatId } from '../
 import { BUILTIN_TEMPLATES } from '../templates/registry';
 
 import type { BrandLocale } from '../brand/theme';
-import type { CanvasConfigId } from '../configs/types';
-import type { TemplateAudience, TemplateCategory, TemplatePickerInfo } from '../templates/registry';
+import type {
+  CanvasConfigId,
+  TemplateAudience,
+  TemplateCategory,
+  TemplatePickerInfo,
+} from '../templates/registry';
 
 export type { TemplateAudience, TemplateCategory } from '../templates/registry';
 

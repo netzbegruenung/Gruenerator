@@ -19,7 +19,7 @@ import {
   type TemplateInfo,
 } from '../utils/templateRegistry';
 
-import type { CanvasConfigId } from '../configs/types';
+import type { CanvasConfigId } from '../templates/registry';
 
 interface TemplatePickerFlyoutProps {
   onSelectTemplate: (configId: CanvasConfigId) => void;

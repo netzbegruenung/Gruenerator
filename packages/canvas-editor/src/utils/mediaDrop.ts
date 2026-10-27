@@ -1,4 +1,4 @@
-import type { ChartType } from './chartUtils';
+import type { ChartType } from './chartTypes';
 import type { FrameClipType } from './frameUtils';
 import type { ShapeType } from './shapes';
 import type { StockImageAttribution } from '../common/imageSourceTypes';

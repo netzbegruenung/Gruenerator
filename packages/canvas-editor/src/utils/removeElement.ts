@@ -1,7 +1,7 @@
 import { ELEMENT_KINDS, kindList } from './elementKinds';
 import { isLayerLocked } from './layerLock';
 
-import type { CanvasItem } from './canvasLayerManager';
+import type { CanvasItem } from './canvasItem';
 import type { BaseCanvasState } from '../configs/factory/baseTypes';
 import type { OptionalCanvasActions } from '../hooks/useCanvasElementHandlers';
 

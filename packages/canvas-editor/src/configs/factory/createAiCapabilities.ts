@@ -1,10 +1,10 @@
 import { buildAssetCapability } from '../../ai/assetCapability';
 import { buildIllustrationCapability } from '../../ai/illustrationCapability';
 
-import type { CanvasAiOperationKind, CanvasAiSnapshot } from '@gruenerator/contracts';
 import type { CanvasAiActionsBase } from '../../ai/applyOperation';
 import type { TemplateAiCapabilities } from '../../ai/types';
-import type { CanvasConfigId } from '../types';
+import type { CanvasConfigId } from '../../templates/registry';
+import type { CanvasAiOperationKind, CanvasAiSnapshot } from '@gruenerator/contracts';
 
 const BASE_OPERATIONS: readonly CanvasAiOperationKind[] = [
   'set-text',

@@ -54,7 +54,7 @@ export {
   type CanvasAiNamedOption,
   type TemplateAiCapabilities,
 } from './ai';
-export type { CanvasConfigId } from './configs/types';
+export type { CanvasConfigId } from './templates/registry';
 export { preloadCanvasTemplate } from './configs/configLoader';
 export type {
   DreizeilenAlternative,
