@@ -23,6 +23,7 @@ import { FiBold, FiItalic, FiList, FiUnderline } from 'react-icons/fi';
 import { MdBorderColor, MdFormatListNumbered, MdHighlight } from 'react-icons/md';
 
 import { useRovingToolbar } from '@ggraphic/editor/hooks/useRovingToolbar';
+import { useMessages } from '@ggraphic/editor/i18n/messages';
 import { KEEP_EDITING_ATTR, keepsEditing } from '@ggraphic/editor/utils/keyboardOwnership';
 
 import { brandColors, type ColorOption } from '../utils/colorOptions';
@@ -119,6 +120,7 @@ export function TextFormatControls({
   // Der Wirt muss nichts von tiptap wissen: die Knöpfe hören selbst auf den
   // Editor. Deshalb reist kein Zustand je Tastendruck durch den Baum nach oben.
   const roving = useRovingToolbar<HTMLDivElement>();
+  const m = useMessages().textFormat;
   const state = useEditorState({
     editor,
     selector: ({ editor: e }) => ({
@@ -151,14 +153,14 @@ export function TextFormatControls({
       {...roving}
       {...{ [KEEP_EDITING_ATTR]: '' }}
       role="toolbar"
-      aria-label="Textformatierung"
+      aria-label={m.toolbar}
       className={GROUP_CLASS[variant]}
     >
       {marks.bold && (
         <ToolbarButton
           onClick={() => editor.chain().focus().toggleBold().run()}
           isActive={state.bold}
-          label="Fett (⌘B)"
+          label={m.bold}
           variant={variant}
         >
           <FiBold />
@@ -168,7 +170,7 @@ export function TextFormatControls({
         <ToolbarButton
           onClick={() => editor.chain().focus().toggleItalic().run()}
           isActive={state.italic}
-          label="Kursiv (⌘I)"
+          label={m.italic}
           variant={variant}
         >
           <FiItalic />
@@ -177,13 +179,13 @@ export function TextFormatControls({
       <ToolbarButton
         onClick={() => editor.chain().focus().toggleUnderline().run()}
         isActive={state.underline}
-        label="Unterstrichen (⌘U)"
+        label={m.underline}
         variant={variant}
       >
         <FiUnderline />
       </ToolbarButton>
       <MarkColorButton
-        label="Akzent"
+        label={m.accent}
         icon={<MdHighlight />}
         variant={variant}
         isActive={state.accent}
@@ -196,7 +198,7 @@ export function TextFormatControls({
         editor={editor}
       />
       <MarkColorButton
-        label="Textmarker"
+        label={m.marker}
         icon={<MdBorderColor />}
         variant={variant}
         isActive={state.marker}
@@ -211,7 +213,7 @@ export function TextFormatControls({
       <ToolbarButton
         onClick={() => editor.chain().focus().toggleBulletList().run()}
         isActive={state.bulletList}
-        label="Aufzählung"
+        label={m.bulletList}
         variant={variant}
       >
         <FiList />
@@ -219,7 +221,7 @@ export function TextFormatControls({
       <ToolbarButton
         onClick={() => editor.chain().focus().toggleOrderedList().run()}
         isActive={state.orderedList}
-        label="Nummerierte Liste"
+        label={m.orderedList}
         variant={variant}
       >
         <MdFormatListNumbered />
@@ -284,6 +286,7 @@ function MarkColorButton({
   onRemove,
   editor,
 }: MarkColorButtonProps) {
+  const m = useMessages();
   // Fest positioniert und in den Body portiert: die Kontextleiste scrollt
   // waagerecht (`overflow-x-auto`) und schnitte ein Popover in ihr ab.
   const [position, setPosition] = useState<CSSProperties | null>(null);
@@ -340,7 +343,7 @@ function MarkColorButton({
             ref={popoverRef}
             {...{ [KEEP_EDITING_ATTR]: '' }}
             role="dialog"
-            aria-label={`${label}: Farbe`}
+            aria-label={m.textFormat.colorOf(label)}
             style={{ ...position, width: POPOVER_WIDTH }}
             className="fixed z-[10001] flex flex-col gap-2 rounded-md border border-[var(--editor-border)] bg-[var(--editor-surface)] p-2 shadow-lg"
           >
@@ -385,7 +388,7 @@ function MarkColorButton({
                   },
                 }}
               />
-              <span aria-hidden="true">Eigene Farbe</span>
+              <span aria-hidden="true">{m.common.ownColor}</span>
             </div>
             {hasTemplate && (
               <button
@@ -394,7 +397,7 @@ function MarkColorButton({
                 className={MENU_ITEM_CLASS}
                 onClick={() => pick(null)}
               >
-                Vorlagenfarbe
+                {m.textFormat.templateColor}
               </button>
             )}
             {isActive && (
@@ -407,7 +410,7 @@ function MarkColorButton({
                   setPosition(null);
                 }}
               >
-                {label} entfernen
+                {m.textFormat.remove(label)}
               </button>
             )}
           </div>,

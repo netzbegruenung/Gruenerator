@@ -22,6 +22,8 @@
 import { useState, type ComponentType } from 'react';
 import { type Doc } from 'yjs';
 
+import { messages } from '@ggraphic/editor/i18n/messages';
+
 import type { AdditionalText } from './configs/types';
 import type { StockImage, UnsplashSearchResult } from '@ggraphic/schema';
 
@@ -218,7 +220,7 @@ export const browserFileDelivery: CanvasFileDeliveryService = {
   pickShareRoute: () =>
     typeof navigator !== 'undefined' && 'share' in navigator ? 'web-share' : null,
   shareDataUrlViaNativeHost: () => {
-    throw new Error('Kein nativer Host zum Teilen vorhanden.');
+    throw new Error(messages().errors.noNativeShare);
   },
 };
 

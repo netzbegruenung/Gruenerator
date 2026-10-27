@@ -8,6 +8,7 @@
  */
 
 import { activeBrand } from '@ggraphic/editor/brand/brandRegistry';
+import { messages } from '@ggraphic/editor/i18n/messages';
 
 import type { CircleBadgeInstance, CircleBadgeTextLine } from '../primitives/CircleBadge';
 
@@ -40,7 +41,7 @@ function circleBadgePresets(): Record<string, CircleBadgePreset> {
       textColor: '#FFFFFF',
       textLines: [
         {
-          text: 'Text',
+          text: messages().common.text,
           yOffset: 0,
           fontFamily: fonts.headline,
           fontSize: 32,
@@ -56,7 +57,7 @@ function circleBadgePresets(): Record<string, CircleBadgePreset> {
       textColor: colors.primary,
       textLines: [
         {
-          text: 'Text',
+          text: messages().common.text,
           yOffset: 0,
           fontFamily: fonts.headline,
           fontSize: 32,

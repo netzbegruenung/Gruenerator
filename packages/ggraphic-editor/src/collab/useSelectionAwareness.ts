@@ -2,6 +2,7 @@
 import { useEffect, useMemo } from 'react';
 
 import { useAwarenessState } from '@ggraphic/editor/collab/useAwarenessState';
+import { messages } from '@ggraphic/editor/i18n/messages';
 import { useCanvasStoreSelector } from '@ggraphic/editor/stores/CanvasStoreProvider';
 
 import type { HocuspocusProvider } from '@hocuspocus/provider';
@@ -65,7 +66,7 @@ export function useSelectionAwareness(
         result.push({
           clientId,
           userId: record.user.id,
-          userName: record.user.name || 'Anonym',
+          userName: record.user.name || messages().common.anonymous,
           color: record.user.color || '#888',
           selectedLayerIds: record.selectedLayerIds || [],
           activePageId: record.activePageId ?? null,

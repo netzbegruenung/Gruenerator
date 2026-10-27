@@ -2,6 +2,7 @@
 import { useEffect, useRef, useCallback } from 'react';
 
 import { serializeDeck, type SerializedPage } from '@ggraphic/editor/collab/pagesDoc';
+import { messages } from '@ggraphic/editor/i18n/messages';
 import { useAutoSaveStore, useAutoSaveStoreApi } from '@ggraphic/editor/stores/useAutoSaveStore';
 
 import { useCanvasEditorServices } from '../CanvasEditorProvider';
@@ -166,7 +167,7 @@ export function useDeckAutoSave({
       };
       const title =
         pages.length > 1
-          ? `Canvas: ${r.deckType} (${pages.length} Seiten)`
+          ? messages().defaults.deckTitleMany(r.deckType, pages.length)
           : `Canvas: ${r.deckType}`;
 
       const token = autoSaveStoreApi.getState().autoSavedShareToken;

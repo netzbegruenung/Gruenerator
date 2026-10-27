@@ -87,6 +87,9 @@
     "./hooks/useSelectionAnnouncement": "./src/hooks/useSelectionAnnouncement.ts",
     "./hooks/useSnapScheduler": "./src/hooks/useSnapScheduler.ts",
     "./hostServices": "./src/hostServices.ts",
+    "./i18n/de": "./src/i18n/de.ts",
+    "./i18n/en": "./src/i18n/en.ts",
+    "./i18n/messages": "./src/i18n/messages.ts",
     "./primitives/AssetPrimitive": "./src/primitives/AssetPrimitive.tsx",
     "./primitives/CanvasBackground": "./src/primitives/CanvasBackground.tsx",
     "./primitives/CanvasIcons": "./src/primitives/CanvasIcons.tsx",
@@ -219,6 +222,7 @@
   },
   "scripts": {
     "lint": "eslint .",
+    "test": "vitest run",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
@@ -262,8 +266,18 @@
     "zustand": "5.0.16"
   },
   "devDependencies": {
+    "@napi-rs/canvas": "^1.0.13",
+    "@rolldown/plugin-babel": "^0.2.4",
+    "@testing-library/jest-dom": "^7.0.1",
+    "@testing-library/react": "^16.3.3",
+    "@testing-library/user-event": "^14.6.8",
     "@types/react": "19.3.0",
-    "typescript": "^6.0.3"
+    "@types/react-dom": "^19.3.0",
+    "@vitejs/plugin-react": "^6.1.2",
+    "jsdom": "30.1.3",
+    "typescript": "^6.0.3",
+    "vitest": "^5.0.5",
+    "vitest-axe": "^0.1.0"
   },
   "peerDependencies": {
     "react": "^19.0.0",

@@ -9,6 +9,7 @@
 
 import { useState, useCallback, useEffect, useRef, type RefObject } from 'react';
 
+import { messages } from '@ggraphic/editor/i18n/messages';
 import { type ExportFormat } from '@ggraphic/editor/types/editorTypes';
 import { isDownloadTooLarge } from '@ggraphic/editor/utils/downloadError';
 import { zipPageImages } from '@ggraphic/editor/utils/zipPageImages';
@@ -83,7 +84,7 @@ export function useMultiPageExport({
       }
 
       if (failedPages.length > 0) {
-        throw new Error(`Seite(n) ${failedPages.join(', ')} konnten nicht exportiert werden`);
+        throw new Error(messages().errors.pagesExport(failedPages.join(', ')));
       }
 
       return images;
@@ -94,7 +95,7 @@ export function useMultiPageExport({
   const downloadAllAsZip = useCallback(
     async (format: ExportFormat = 'png') => {
       if (canvasRefs.length === 0) {
-        setError('Keine Seiten zum Exportieren');
+        setError(messages().errors.noPagesToExport);
         return;
       }
 
@@ -108,7 +109,7 @@ export function useMultiPageExport({
         const images = await exportAllPages({ format });
 
         if (images.length === 0) {
-          throw new Error('Keine Bilder konnten exportiert werden');
+          throw new Error(messages().errors.noImagesExported);
         }
 
         const blob = zipPageImages(images);
@@ -124,7 +125,7 @@ export function useMultiPageExport({
           let sent = 0;
           try {
             for (let i = 0; i < images.length; i++) {
-              setNotice(`Seite ${i + 1} von ${images.length} wird gesendet …`);
+              setNotice(messages().export.sending(i + 1, images.length));
               await fileDelivery.downloadDataUrl(
                 images[i],
                 `${prefix}-${canvasType}-seite-${i + 1}.${format === 'jpeg' ? 'jpg' : format}`
@@ -132,18 +133,14 @@ export function useMultiPageExport({
               sent = i + 1;
             }
           } catch (pageErr) {
-            setNotice(
-              sent === 0
-                ? null
-                : `${sent === 1 ? 'Seite 1 wurde' : `Die Seiten 1 bis ${sent} wurden`} einzeln gesendet, Seite ${sent + 1} nicht.`
-            );
+            setNotice(sent === 0 ? null : messages().export.partlySent(sent));
             throw pageErr;
           }
-          setNotice('Die Seiten wurden einzeln gesendet.');
+          setNotice(messages().export.allSent);
           noticeTimer.current = setTimeout(() => setNotice(null), NOTICE_LIFETIME_MS);
         }
       } catch (err) {
-        const message = err instanceof Error ? err.message : 'Unbekannter Fehler beim ZIP-Export';
+        const message = err instanceof Error ? err.message : messages().errors.zipUnknown;
         setError(message);
         console.error('[useMultiPageExport] ZIP download failed:', err);
       } finally {
