@@ -4,6 +4,7 @@ import { afterEach, beforeAll, describe, expect, it } from 'vitest';
 
 import { composeSharepic } from '../composer/composeSharepic';
 import { MORE_SPECS, SPECS } from '../composer/sharepicSpecFixtures';
+import { loadAllIcons } from '../utils/canvasIcons';
 
 import { StandaloneCanvas } from './StandaloneCanvas';
 
@@ -41,7 +42,11 @@ function dump(node: Konva.Node): SceneNode {
   };
 }
 
-beforeAll(() => {
+beforeAll(async () => {
+  // Icon sets load on demand and the editor redraws once they are in; how
+  // long that import takes decides whether an icon is in the scene. Load
+  // them up front so every case sees the same catalogue.
+  await loadAllIcons();
   // jsdom has no FontFaceSet; the editor waits on it before it draws text.
   Object.defineProperty(document, 'fonts', {
     configurable: true,
