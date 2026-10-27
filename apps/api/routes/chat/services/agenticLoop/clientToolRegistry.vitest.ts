@@ -111,31 +111,24 @@ describe('check_sharepic toToolResult', () => {
 });
 
 describe('routesToLoopClientToolResume', () => {
-  const loop = (clientToolName: string, createdAt = 100) => ({ clientToolName, createdAt });
+  const loop = (clientToolName: string) => ({ clientToolName });
 
   it('gespeicherter Loop-Zustand für denselben Browser-Namen ⇒ Loop-Fortsetzung', () => {
-    expect(routesToLoopClientToolResume('render_sharepic', loop('render_sharepic'), null)).toBe(
-      true
-    );
-    expect(routesToLoopClientToolResume('run_python', loop('run_python'), null)).toBe(true);
+    expect(routesToLoopClientToolResume('render_sharepic', loop('render_sharepic'))).toBe(true);
+    expect(routesToLoopClientToolResume('run_python', loop('run_python'))).toBe(true);
   });
 
-  it('run_python ohne Loop-Zustand ⇒ Alt-Pfad der Pre-Loop-Pause', () => {
-    expect(routesToLoopClientToolResume('run_python', null, 50)).toBe(false);
-    expect(routesToLoopClientToolResume('run_python', loop('render_sharepic'), null)).toBe(false);
+  it('Loop-Zustand für ein anderes Werkzeug ⇒ nicht die Loop-Fortsetzung', () => {
+    expect(routesToLoopClientToolResume('run_python', loop('render_sharepic'))).toBe(false);
   });
 
-  it('run_python mit beiden Pausen ⇒ die jüngere gewinnt', () => {
-    expect(routesToLoopClientToolResume('run_python', loop('run_python', 200), 100)).toBe(true);
-    expect(routesToLoopClientToolResume('run_python', loop('run_python', 100), 200)).toBe(false);
-  });
-
-  it('render_sharepic ohne Zustand ⇒ trotzdem Loop-Fortsetzung (meldet „abgelaufen")', () => {
-    expect(routesToLoopClientToolResume('render_sharepic', null, null)).toBe(true);
+  it('registriertes Werkzeug ohne Zustand ⇒ trotzdem Loop-Fortsetzung (meldet „abgelaufen")', () => {
+    expect(routesToLoopClientToolResume('render_sharepic', null)).toBe(true);
+    expect(routesToLoopClientToolResume('run_python', null)).toBe(true);
   });
 
   it('unbekanntes Werkzeug ohne Zustand ⇒ nicht die Loop-Fortsetzung', () => {
-    expect(routesToLoopClientToolResume('nope', null, null)).toBe(false);
+    expect(routesToLoopClientToolResume('nope', null)).toBe(false);
   });
 });
 

@@ -1323,20 +1323,6 @@ export interface ChatGraphState {
    *  computedResult forwarded from the previous turn (lastComputeStore) leaves
    *  this unset so a new follow-up computation can still emit code. */
   computedResultFresh?: boolean | undefined;
-  /** run_python error-correction loop (OpenWebUI-style, max 1 retry): how many
-   *  corrected code versions were already issued this turn, and the last code
-   *  sent to the client — both survive the Redis round-trip so the resume
-   *  handler can regenerate with the failure in context. */
-  pandasComputeRetries?: number | undefined;
-  pandasLastCode?: string | undefined;
-  /** Which codegen prompt produced `pandasLastCode` — survives the Redis
-   *  round-trip so a correction round regenerates openpyxl fill code for a fill
-   *  request instead of silently falling back to pandas analysis code. */
-  pandasComputeMode?: 'analyze' | 'fill' | undefined;
-  /** Successful result stashed before a verifier-triggered correction round —
-   *  if the "corrected" code then fails, the turn falls back to this instead
-   *  of ending with no computation at all. */
-  pandasComputeFallback?: ComputeData | undefined;
 
   // Chart generation
   chartData: ChartData | null;

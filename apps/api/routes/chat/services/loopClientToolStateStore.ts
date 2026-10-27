@@ -4,10 +4,10 @@
  * `loopClarificationStateStore`, über dieselbe Factory und mit denselben
  * Garantien (24-h-TTL, Ein-Fortsetzungs-Anspruch).
  *
- * NICHT der `pipelineStateStore`: der gehört der Pre-Loop-Pause (`run_python`)
- * und kennt weder `priorSteps` noch die fortzuschreibende Nachricht. Welcher
- * der beiden ein `client_tool`-Ergebnis verarbeitet, entscheidet
- * `resumePipeline` am gespeicherten Zustand.
+ * NICHT der `pipelineStateStore`: der gehört der Pre-Loop-Klärung und kennt
+ * weder `priorSteps` noch die fortzuschreibende Nachricht. Jedes
+ * `client_tool`-Ergebnis verarbeitet die Loop-Fortsetzung; ohne Zustand hier
+ * ist es abgelaufen.
  */
 import { createSuspendedTurnStore, type SuspendedTurnStore } from './toolApprovalStateStore.js';
 

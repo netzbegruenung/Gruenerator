@@ -96,28 +96,15 @@ export function loopClientToolForClientName(name: string): LoopClientTool | null
 }
 
 /**
- * Browser-Werkzeuge, die zusätzlich die Pre-Loop-Pause (`pipelineStateStore`)
- * kennt. Ohne Loop-Zustand gehört ihre Antwort dorthin.
- */
-const PRE_LOOP_CLIENT_TOOLS = new Set(['run_python']);
-
-/**
  * Gehört eine `client_tool`-Antwort der Loop-Fortsetzung? Entschieden am
- * gespeicherten Loop-Zustand: liegt einer für genau diesen Browser-Namen vor,
- * ja — es sei denn, das Werkzeug kennt auch die Pre-Loop-Pause und die ist
- * JÜNGER (Stale-Shadowing wie bei `ask_human`: der ältere Zustand ist dann
- * überholt). Ohne Zustand nur für registrierte Werkzeuge ohne Pre-Loop-Pfad —
- * die Fortsetzung meldet dann „abgelaufen" statt „nicht unterstützt".
+ * gespeicherten Loop-Zustand: liegt einer vor, nur wenn er auf genau diesen
+ * Browser-Namen wartet. Ohne Zustand für jedes registrierte Werkzeug — die
+ * Fortsetzung meldet dann „abgelaufen" statt „nicht unterstützt".
  */
 export function routesToLoopClientToolResume(
   toolName: string,
-  storedLoop: { clientToolName: string; createdAt: number } | null,
-  preLoopPausedAt: number | null
+  storedLoop: { clientToolName: string } | null
 ): boolean {
-  if (storedLoop != null) {
-    if (storedLoop.clientToolName !== toolName) return false;
-    if (!PRE_LOOP_CLIENT_TOOLS.has(toolName) || preLoopPausedAt == null) return true;
-    return storedLoop.createdAt >= preLoopPausedAt;
-  }
-  return !PRE_LOOP_CLIENT_TOOLS.has(toolName) && loopClientToolForClientName(toolName) != null;
+  if (storedLoop != null) return storedLoop.clientToolName === toolName;
+  return loopClientToolForClientName(toolName) != null;
 }

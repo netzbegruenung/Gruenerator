@@ -42,7 +42,7 @@ export interface SuspendForLoopClientToolParams {
  * (`check_sharepic` → `render_sharepic`).
  *
  * Das Muster von `suspendForLoopClarification` — erst persistieren, dann
- * pausieren — mit der Wire-Form des Pre-Loop-`run_python`: ein
+ * pausieren — mit der Wire-Form des früheren Pre-Loop-`run_python`: ein
  * `client_tool`-Interrupt, den der Client-Adapter selbst ausführt und mit
  * `{threadId, toolName, result}` beantwortet. Keine Karte für den
  * zurückgehaltenen Aufruf: sie entsteht erst in der Fortsetzung, mit Ergebnis.
