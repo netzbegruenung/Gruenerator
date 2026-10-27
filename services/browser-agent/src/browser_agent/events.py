@@ -6,6 +6,7 @@ Die Formen sind der Vertrag mit der API (dort als Zod-Schema gespiegelt):
 
 import base64
 import io
+import unicodedata
 from pathlib import Path
 
 from PIL import Image
@@ -19,10 +20,24 @@ _TEXT_MAX = 160
 _TARGET_PARAMS = ("url", "query", "text", "file_name")
 
 
+# Private Use (Icon-Fonts), Steuerzeichen, Format-Zeichen (Zero-Width u. ä.),
+# Surrogates, nicht zugewiesen: in der Schrittliste erschienen sie als „☒".
+_UNREADABLE = {"Co", "Cc", "Cf", "Cs", "Cn"}
+
+
+def _readable(c: str) -> str:
+    cat = unicodedata.category(c)
+    if cat == "Cf":
+        return ""
+    return " " if cat in _UNREADABLE else c
+
+
 def _clip(text: str | None) -> str | None:
     if not text:
         return None
-    text = " ".join(str(text).split())
+    # Format-Zeichen (Zero-Width) stehen mitten im Wort und fallen weg; der Rest wird Leerraum.
+    text = "".join(_readable(c) for c in str(text))
+    text = " ".join(text.split())
     return text[:_TEXT_MAX] if text else None
 
 
@@ -50,9 +65,17 @@ def _actions(model_output) -> list[tuple[str, dict]]:
 
 
 def _element_label(node) -> str | None:
+    """Lesbarer Name des Elements. Ein Icon-Button trägt oft nur ein Icon-Font-
+    Zeichen als Namen — dann zählt aria-label/title, sonst der Text."""
     ax = getattr(node, "ax_node", None)
-    if ax is not None and getattr(ax, "name", None):
-        return _clip(ax.name)
+    label = _clip(getattr(ax, "name", None)) if ax is not None else None
+    if label:
+        return label
+    attrs = getattr(node, "attributes", None) or {}
+    for key in ("aria-label", "title"):
+        label = _clip(attrs.get(key))
+        if label:
+            return label
     try:
         return _clip(node.get_meaningful_text_for_llm())
     except Exception:

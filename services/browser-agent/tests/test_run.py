@@ -98,6 +98,31 @@ def test_click_position_respects_scroll():
     assert ev["screenshot_jpeg_b64"] == ""
 
 
+def _click_on(node):
+    out = SimpleNamespace(next_goal=None, thinking=None, action=[_action({"click": {"index": 1}})])
+    return step_event_from(_state(None, {1: node}), out, 1)
+
+
+def test_icon_only_target_falls_back_to_aria_label():
+    # Icon-Font-Zeichen (Private Use) als Name — erschien in der Schrittliste als „☒".
+    node = SimpleNamespace(absolute_position=None, ax_node=SimpleNamespace(name="\ue8b6"),
+                           attributes={"aria-label": "Suche öffnen"},
+                           get_meaningful_text_for_llm=lambda: "\ue8b6")
+    assert _click_on(node)["target"] == "Suche öffnen"
+
+
+def test_icon_only_target_without_label_is_null():
+    node = SimpleNamespace(absolute_position=None, ax_node=SimpleNamespace(name=" \uf101\u200b "),
+                           attributes={}, get_meaningful_text_for_llm=lambda: "\x07\ue000")
+    assert _click_on(node)["target"] is None
+
+
+def test_target_strips_unreadable_chars_and_collapses_whitespace():
+    node = SimpleNamespace(absolute_position=None, ax_node=SimpleNamespace(name="\ue8b6  Klima\u200bschutz\n\t Seite"),
+                           attributes={}, get_meaningful_text_for_llm=lambda: "")
+    assert _click_on(node)["target"] == "Klimaschutz Seite"
+
+
 def test_no_click_no_position():
     out = SimpleNamespace(next_goal=None, thinking="hm", action=[_action({"navigate": {"url": "https://x.org"}})])
     ev = step_event_from(_state(None), out, 1)
