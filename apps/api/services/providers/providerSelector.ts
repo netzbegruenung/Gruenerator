@@ -261,6 +261,12 @@ export function selectProviderAndModel({
     provider = LANE.provider;
     model = options.model || LANE.model;
   }
+  // Browser-Agent — Gemma 4 bei Melious auf `:speed`. Spiegel von
+  // `browser_agent` in services/ai/lanes.ts (Begründung dort).
+  else if (type === 'browser_agent') {
+    provider = 'melious';
+    model = options.model || 'gemma-4-31b:speed';
+  }
 
   // Respect explicit provider at top-level if present (routes may set data.provider)
   if (options.explicitProvider) {

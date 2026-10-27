@@ -84,6 +84,15 @@ const envSchema = z.object({
   MEDIA_URL_SIGNING_SECRET: z.string().optional(),
   MEDIA_URL_SIGNING_SECRET_PREVIOUS: z.string().optional(),
   /**
+   * Signiert die Run-Tokens, mit denen der Browser-Dienst (`services/browser-agent`)
+   * unseren Modell-Endpunkt `/api/browser-agent/llm` ruft
+   * (`services/browserAgent/runToken.ts`). Optional: ohne ihn antwortet der
+   * Endpunkt 503 und es startet kein Lauf.
+   */
+  BROWSER_AGENT_SECRET: z.string().optional(),
+  /** Basis-URL des Browser-Dienstes. Optional; ohne sie bleibt das Feature aus. */
+  BROWSER_AGENT_URL: z.string().optional(),
+  /**
    * Where generated thumbnail variants are cached. Defaults to
    * `apps/api/uploads/thumb-cache`. Point it elsewhere to size or wipe the
    * derived-image cache independently of the uploads it is derived from — every
