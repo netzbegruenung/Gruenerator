@@ -2,6 +2,7 @@ import { describe, it, expect, vi } from 'vitest';
 
 import { createToolLoopGuards } from './loopGuards.js';
 import { createToolActivity } from './toolActivity.js';
+import { createToolApprovalGate } from './toolApprovalGate.js';
 import { type PersistedStep } from './types.js';
 import { wrapToolsForLoop, type WrapToolsContext } from './wrapTools.js';
 
@@ -742,6 +743,49 @@ describe('wrapToolsForLoop — Browser-Werkzeug-Gate (check_sharepic)', () => {
     );
 
     expect(await run(tools, 'check_sharepic', {})).toEqual({ error: 'Es gibt kein Sharepic.' });
+  });
+});
+
+/**
+ * `tabelle_auswerten` steht hinter BEIDEN Gates: erst die Freigabe, dann das
+ * Browser-Gate, dessen `hold` den Codegen startet. Ohne Freigabe darf kein Code
+ * erzeugt werden — die echte Gate-Reihenfolge, nicht zwei Attrappen.
+ */
+describe('wrapToolsForLoop — tabelle_auswerten: Freigabe vor Codegen', () => {
+  const setup = (allowlist: ReadonlySet<string>) => {
+    const clientHold = vi.fn(async () => null);
+    const { ctx } = makeCtx({
+      approvalGate: createToolApprovalGate({ enabled: true, allowlist, originFor: () => null }),
+      clientToolGate: { hold: clientHold },
+    });
+    const tools = wrapToolsForLoop(
+      { tabelle_auswerten: { execute: vi.fn() } } as unknown as ToolSet,
+      ctx
+    );
+    return { tools, clientHold };
+  };
+
+  it('ohne Freigabe: wartet auf die Freigabe, der Codegen-Hold läuft nie', async () => {
+    const { tools, clientHold } = setup(new Set());
+
+    const out = (await run(tools, 'tabelle_auswerten', { auftrag: 'Summe' })) as {
+      error?: string;
+    };
+
+    expect(out.error).toContain('Warte auf die Freigabe');
+    expect(clientHold).not.toHaveBeenCalled();
+  });
+
+  it('freigegeben (internal/tabelle_auswerten): das Browser-Gate übernimmt', async () => {
+    const { tools, clientHold } = setup(new Set(['internal/tabelle_auswerten']));
+
+    await run(tools, 'tabelle_auswerten', { auftrag: 'Summe' }, 'call_t');
+
+    expect(clientHold).toHaveBeenCalledWith({
+      toolName: 'tabelle_auswerten',
+      stepId: 'call_t',
+      args: { auftrag: 'Summe' },
+    });
   });
 });
 
