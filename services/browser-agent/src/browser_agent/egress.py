@@ -32,6 +32,8 @@ _BLOCKED = [
     )
 ]
 
+_NAT64 = ipaddress.ip_network("64:ff9b::/96")
+_DEFAULT_PORTS = frozenset({80, 443})
 _MAX_HEAD = 64 * 1024
 _HEAD_TIMEOUT = 15
 _CONNECT_TIMEOUT = 15
@@ -41,6 +43,13 @@ _PLAIN_METHODS = {"GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS"}
 def parse_extra_blocked(value: str) -> list:
     """Kommagetrennte IPs/CIDRs (Env ``BROWSER_EGRESS_EXTRA_BLOCKED``)."""
     return [ipaddress.ip_network(p.strip(), strict=False) for p in value.split(",") if p.strip()]
+
+
+def allowed_ports_from_env() -> frozenset:
+    """Erlaubte Zielports (Env ``BROWSER_EGRESS_ALLOWED_PORTS``, Standard 80,443)."""
+    raw = os.environ.get("BROWSER_EGRESS_ALLOWED_PORTS", "")
+    ports = frozenset(int(p) for p in raw.split(",") if p.strip())
+    return ports or _DEFAULT_PORTS
 
 
 def extra_blocked_from_env() -> list:
@@ -55,6 +64,9 @@ def is_blocked(ip: str, extra: list) -> bool:
         return True
     if isinstance(addr, ipaddress.IPv6Address) and addr.ipv4_mapped is not None:
         addr = addr.ipv4_mapped
+    elif addr in _NAT64:
+        # NAT64 trägt eine IPv4 im unteren Wort; beurteilt wird diese.
+        addr = ipaddress.IPv4Address(int(addr) & 0xFFFFFFFF)
     return any(addr in net for net in (*_BLOCKED, *extra) if net.version == addr.version)
 
 
@@ -119,7 +131,9 @@ async def _tunnel(r1, w1, r2, w2) -> None:
     await asyncio.gather(_pipe(r1, w2), _pipe(r2, w1))
 
 
-async def _handle(reader: asyncio.StreamReader, writer: asyncio.StreamWriter, extra: list) -> None:
+async def _handle(
+    reader: asyncio.StreamReader, writer: asyncio.StreamWriter, extra: list, ports: frozenset
+) -> None:
     upstream_writer = None
     try:
         try:
@@ -136,6 +150,8 @@ async def _handle(reader: asyncio.StreamReader, writer: asyncio.StreamWriter, ex
 
         if method == "CONNECT":
             host, port = _split_host_port(target, 443)
+            if port not in ports:
+                raise _Refused("403 Forbidden")
             up_r, upstream_writer = await _open_checked(host, port, extra)
             writer.write(b"HTTP/1.1 200 Connection Established\r\n\r\n")
             await writer.drain()
@@ -148,6 +164,8 @@ async def _handle(reader: asyncio.StreamReader, writer: asyncio.StreamWriter, ex
         if url.scheme != "http" or not url.hostname:
             raise _Refused("405 Method Not Allowed")
         host, port = _split_host_port(url.netloc.rpartition("@")[2], 80)
+        if port not in ports:
+            raise _Refused("403 Forbidden")
         up_r, upstream_writer = await _open_checked(host, port, extra)
         path = (url.path or "/") + (f"?{url.query}" if url.query else "")
         headers = [
@@ -175,7 +193,10 @@ async def _handle(reader: asyncio.StreamReader, writer: asyncio.StreamWriter, ex
                     pass
 
 
-async def start_egress_proxy(host: str, port: int, extra_blocked: list[str]) -> asyncio.AbstractServer:
+async def start_egress_proxy(
+    host: str, port: int, extra_blocked: list[str], allowed_ports: frozenset | None = None
+) -> asyncio.AbstractServer:
     """Startet den Proxy. ``port=0`` wählt einen freien Port (``server.sockets``)."""
     extra = parse_extra_blocked(",".join(extra_blocked))
-    return await asyncio.start_server(lambda r, w: _handle(r, w, extra), host, port)
+    ports = frozenset(allowed_ports) if allowed_ports is not None else allowed_ports_from_env()
+    return await asyncio.start_server(lambda r, w: _handle(r, w, extra, ports), host, port)
