@@ -45,7 +45,7 @@ export function extractInheritablePageState(
   }
 
   // Cross-template rule: a source with an image background but no explicit
-  // mode (zitat, dreizeilen, …) lands in mode-aware templates (freeform) as
+  // mode (zitat, …) lands in mode-aware templates (freeform) as
   // an image page, not the 'color' default.
   if (imageSrc && !state.backgroundMode) {
     inherited.backgroundMode = 'image';

@@ -4,7 +4,7 @@
  * Fett, Kursiv, Unterstrichen, Aufzählung und Nummerierung; gespeichert wird
  * NICHT das tiptap-Dokument, sondern Markdown-lite im vorhandenen String-Feld
  * (`**fett**`, `_kursiv_`, `<u>…</u>`, `• Punkt`, `1. Punkt`). Die Brücke ist
- * `markdownLiteToRichText`/`richTextToMarkdownLite` aus `@gruenerator/contracts`
+ * `markdownLiteToRichText`/`richTextToMarkdownLite` aus `@ggraphic/schema`
  * — so bleibt der Zustand ein flacher String, den Server-Renderer, KI und
  * Chat unverändert lesen.
  *

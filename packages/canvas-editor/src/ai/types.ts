@@ -61,14 +61,14 @@ export interface TemplateAiCapabilities<
   /**
    * Per-operation dispatch overrides. Use these when the default applier
    * path (e.g. `actions.setHeadline(value)`) doesn't apply — e.g. for
-   * dreizeilen's `setLine1/2/3` or presentation's `setColorMode`.
+   * a three-line template's `setLine1/2/3` or presentation's `setColorMode`.
    */
   applyOverrides?: CanvasAiApplyOverrides<TState, TActions>;
 
   /**
    * Runs after every op that applied. The state an op handler reads is the
    * one the canvas rendered, not what earlier ops in the batch left, so a
-   * check across ops (dreizeilen's bar group bound) has to queue its own
+   * check across ops (a bar group bound) has to queue its own
    * state updater from here.
    */
   afterApply?: (op: CanvasAiOperation, actions: TActions) => void;

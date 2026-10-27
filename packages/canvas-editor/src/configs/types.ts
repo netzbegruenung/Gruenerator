@@ -115,8 +115,8 @@ export interface TextElementConfig<
   /**
    * Der Text trägt Markdown-lite (`**fett**`, `_kursiv_`, `<u>…</u>`, Listen)
    * und wird mit dem Rich-Text-Editor bearbeitet. Nur für Felder in einer
-   * Schrift mit echten Fett-/Kursiv-Schnitten (PT Sans) setzen — GrueneTypeNeue
-   * hat nur einen Schnitt, dort würde beides synthetisiert.
+   * Schrift mit echten Fett-/Kursiv-Schnitten (PT Sans) setzen — eine Display-Schrift
+   * mit nur einem Schnitt, dort würde beides synthetisiert.
    */
   richText?: boolean;
   /** Enable dragging */
@@ -454,7 +454,7 @@ export interface FullCanvasConfig<
   ) => TActions;
   /** The background's colour and photo controls for the context bar. */
   background?: (state: TState, actions: TActions) => BackgroundControls;
-  /** Series colours for charts on this page, its country's palette; absent: `CHART_COLORS`. */
+  /** Series colours for charts on this page, its country's palette; absent: the active brand's (`chartColors()`). */
   chartColors?: readonly string[];
   /** Optional function to determine disabled tabs */
   getDisabledTabs?: (state: TState) => SidebarTabId[];
@@ -510,7 +510,7 @@ export interface FullCanvasConfig<
   useUnifiedTabs?: boolean;
   /** Font configuration for canvas rendering */
   fonts?: {
-    /** Primary font family used in canvas (e.g., 'GrueneTypeNeue') */
+    /** Primary font family used in canvas (e.g., 'PT Sans') */
     primary: string;
     /** Font size for preloading (affects text metrics) */
     fontSize: number;
@@ -521,13 +521,13 @@ export interface FullCanvasConfig<
   /**
    * Optional AI capability declaration. Templates that supply this gain
    * an AI sidebar tab; templates that don't never see the AI section.
-   * See @gruenerator/canvas-editor/src/ai/types.ts for shape.
+   * See `ai/types.ts` for shape.
    */
   ai?: TemplateAiCapabilities<TState, TActions>;
 }
 
 // ============================================================================
-// LEGACY SIDEBAR-ONLY CONFIG (for backward compatibility with Dreizeilen)
+// LEGACY SIDEBAR-ONLY CONFIG (for backward compatibility with older templates)
 // ============================================================================
 
 export interface CanvasConfig<

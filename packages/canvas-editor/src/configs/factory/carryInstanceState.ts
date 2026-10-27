@@ -9,13 +9,13 @@
  * `[]` was erased on the next chat edit.
  *
  * Collections a template derives from its own text fields (the slider pill,
- * the event date circle, the dreizeilen balken) are still owned by that
+ * the event date circle, the three-line balken) are still owned by that
  * template: spread this first, then override the derived key.
  *
  * `layerOrder` rides along because it is the z-order OF these collections and
  * nothing else — an id array that `buildSortedRenderList` lets outrank each
  * element's declared `order`. It used to be missing here, so every template
- * except `dreizeilen` and `freeform` (which read it from the props by hand)
+ * except the three-line template and `freeform` (which read it from the props by hand)
  * handed a user their shapes back in the default order after a reload (#3420).
  *
  * `lockedLayerIds` is the same kind of id array: which of these elements the
