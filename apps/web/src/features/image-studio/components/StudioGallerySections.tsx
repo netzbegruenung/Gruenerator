@@ -20,6 +20,7 @@ import { useNavigate } from 'react-router-dom';
 import { SharedMediaImage } from '../../../components/common/SharedMediaImage';
 import { ShareMediaModal } from '../../../components/common/ShareMediaModal';
 import apiClient from '../../../components/utils/apiClient';
+import { isToolVisibleTo } from '../../../config/adminOnlyTools';
 import { SHOW_SHAREPIC_STUDIO } from '../../../config/featureFlags';
 import { useAuthStore } from '../../../stores/authStore';
 import { downloadBlob } from '../../../utils/downloadFile';
@@ -122,6 +123,7 @@ const StudioGallerySections = () => {
   const navigate = useNavigate();
   const prefetchCanvasEditor = useCanvasEditorPrefetch();
   const locale = useAuthStore((s) => s.locale);
+  const isAdmin = useAuthStore((s) => s.user?.is_admin === true);
 
   // In prod the canvas editor is gated off, so gallery items open a read-only
   // preview (Lightbox) instead of the edit flow.
@@ -306,7 +308,9 @@ const StudioGallerySections = () => {
     onSharepic: () => void navigate('/vorlagen'),
     onKiBild: startKiBild,
     onReel: () => void navigate('/studio/video'),
-    onVideoEditor: () => void navigate('/studio/videoeditor'),
+    ...(isToolVisibleTo('/studio/videoeditor', isAdmin)
+      ? { onVideoEditor: () => void navigate('/studio/videoeditor') }
+      : {}),
   });
 
   return (

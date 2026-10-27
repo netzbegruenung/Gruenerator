@@ -36,6 +36,19 @@ describe('matchFeatures — tool search', () => {
     expect(pathsFor('audio')).toContain('/transkription');
   });
 
+  it('shows the video editor to instance admins only', () => {
+    const admin = buildFeatureIndex({
+      isAustrian: false,
+      locale: 'de-DE',
+      userAgents: [],
+      isAdmin: true,
+    });
+    expect(matchFeatures(admin, 'video editor').map((h) => h.path)).toContain(
+      '/studio/videoeditor'
+    );
+    expect(index.some((h) => h.path === '/studio/videoeditor')).toBe(false);
+  });
+
   it('returns nothing for a term no tool relates to', () => {
     expect(matchFeatures(index, 'quantenphysik')).toHaveLength(0);
   });

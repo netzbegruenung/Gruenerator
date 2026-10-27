@@ -17,6 +17,9 @@ vi.mock('../../utils/logger.js', () => ({
 const transcribeWithProvider = vi.fn();
 vi.mock('../../services/subtitler/transcriptionService.js', () => ({ transcribeWithProvider }));
 
+const requireInstanceAdmin = vi.fn();
+vi.mock('../../utils/adminAuthz.js', () => ({ requireInstanceAdmin }));
+
 const { default: transcribeController } = await import('./transcribeController.js');
 
 let baseUrl = '';
@@ -43,6 +46,7 @@ afterAll(() => close());
 
 beforeEach(() => {
   transcribeWithProvider.mockReset();
+  requireInstanceAdmin.mockReset().mockResolvedValue(true);
   userLocale = null;
 });
 
@@ -78,6 +82,16 @@ describe('POST /api/video/transcribe/file', () => {
     await postFile();
 
     expect(transcribeWithProvider.mock.calls[0][3]).toBe('de-AT');
+  });
+
+  it('refuses anyone but an instance admin before receiving the file', async () => {
+    requireInstanceAdmin.mockResolvedValue(false);
+
+    const res = await postFile();
+
+    expect(res.status).toBe(403);
+    expect(requireInstanceAdmin).toHaveBeenCalledWith('u1', undefined);
+    expect(transcribeWithProvider).not.toHaveBeenCalled();
   });
 
   it('answers 400 without a file', async () => {

@@ -28,7 +28,8 @@ export type StudioQuickStartHandlers = {
   onSharepic: () => void;
   onKiBild: () => void;
   onReel: () => void;
-  onVideoEditor: () => void;
+  /** Admins only (config/adminOnlyTools.ts); without it the tile is left out. */
+  onVideoEditor?: () => void;
 };
 
 const SHAREPIC_DESCRIPTION = 'Zitate, Headlines & Infos aus Vorlagen.';
@@ -76,13 +77,17 @@ export function buildStudioQuickStarts({
       description: 'Kurze Videos für Social Media.',
       onClick: onReel,
     },
-    {
-      key: 'videoeditor',
-      icon: Clapperboard,
-      title: 'Video Editor',
-      description: 'Clips schneiden, Text & Musik.',
-      onClick: onVideoEditor,
-    },
+    ...(onVideoEditor
+      ? [
+          {
+            key: 'videoeditor',
+            icon: Clapperboard,
+            title: 'Video Editor',
+            description: 'Clips schneiden, Text & Musik.',
+            onClick: onVideoEditor,
+          },
+        ]
+      : []),
   ];
 }
 
