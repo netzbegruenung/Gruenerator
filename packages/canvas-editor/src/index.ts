@@ -1,3 +1,5 @@
+import { registerHostStorageKeys } from '@ggraphic/editor/utils/hostStorageKeys';
+
 import { GRUENE_KIND_RENDERERS, registerKindRenderers } from './brand/grueneKinds';
 
 // The Grünerator's own element kinds (the Balken) draw wherever this package
@@ -7,6 +9,9 @@ import { GRUENE_KIND_RENDERERS, registerKindRenderers } from './brand/grueneKind
 // not carry. `package.json` lists this file under `sideEffects`, or the
 // bundler would drop the call whenever a consumer uses only re-exports.
 registerKindRenderers(GRUENE_KIND_RENDERERS);
+
+// F0: every browser that opened the editor holds its recent elements under this key.
+registerHostStorageKeys({ recentElements: 'gruenerator-canvas-recent-elements' });
 
 export { MasterCanvasEditor } from './MasterCanvasEditor';
 export { ControllableCanvasWrapper } from './CanvasEditorRouter';
