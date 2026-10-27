@@ -1,6 +1,6 @@
-import { type StockImageAttribution } from '../common/imageSourceTypes';
+import { type StockImageAttribution } from '@ggraphic/editor/common/imageSourceTypes';
 
-import type { UserImageInstance } from './userImageUtils';
+import type { UserImageInstance } from '@ggraphic/editor/utils/userImageUtils';
 
 /** Alle Foto-Nachweise einer Seite: Hintergrundfoto und eingefügte Fotos. */
 export function pagePhotoCredits(state: Record<string, unknown>): StockImageAttribution[] {

@@ -1,6 +1,9 @@
+import {
+  MAX_OVERLAY_AREA,
+  MAX_OVERLAY_SIDE,
+  overlayRegion,
+} from '@ggraphic/editor/utils/cropGhost';
 import { describe, expect, it } from 'vitest';
-
-import { MAX_OVERLAY_AREA, MAX_OVERLAY_SIDE, overlayRegion } from './cropGhost';
 
 describe('overlayRegion', () => {
   it('zeichnet nur, was im sichtbaren Ausschnitt liegt', () => {

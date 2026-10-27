@@ -26,7 +26,7 @@ export interface TextSectionProps {
   onUpdateAdditionalTextFontSize?: (id: string, size: number) => void;
 }
 
-export type { StockImageAttribution } from '../common/imageSourceTypes';
+export type { StockImageAttribution } from '@ggraphic/editor/common/imageSourceTypes';
 
 export interface ImageSectionProps {
   scale: number;

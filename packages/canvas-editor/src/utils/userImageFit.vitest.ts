@@ -1,6 +1,5 @@
+import { fitToCanvas } from '@ggraphic/editor/utils/userImageUtils';
 import { describe, expect, it } from 'vitest';
-
-import { fitToCanvas } from './userImageUtils';
 
 describe('fitToCanvas', () => {
   it('fits a large landscape photo into 60% of a square canvas', () => {

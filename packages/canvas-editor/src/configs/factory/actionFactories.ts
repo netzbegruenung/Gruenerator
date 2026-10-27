@@ -15,6 +15,10 @@ import { brandColors } from '@ggraphic/editor/utils/colorOptions';
 import { createFrameInstance } from '@ggraphic/editor/utils/frameUtils';
 import { createPillBadgeInstance } from '@ggraphic/editor/utils/pillBadgeUtils';
 import { createShape } from '@ggraphic/editor/utils/shapes';
+import {
+  createUserImageInstance,
+  createUserImageInstanceFromUrl,
+} from '@ggraphic/editor/utils/userImageUtils';
 import { v4 as uuid } from 'uuid';
 
 import { createBalkenInstanceFromPreset } from '../../brand/balkenPresets';
@@ -28,26 +32,22 @@ import { createAssetInstance, createStickerInstance } from '../../utils/canvasAs
 import { duplicateElementInState } from '../../utils/duplicateElement';
 import { iconInstanceIdsFor } from '../../utils/iconInstances';
 import { createIllustration } from '../../utils/illustrations/registry';
-import {
-  createUserImageInstance,
-  createUserImageInstanceFromUrl,
-} from '../../utils/userImageUtils';
 
 import type { IconState, BaseCanvasState } from './baseTypes';
-import type { BalkenInstance, BalkenMode } from '../../utils/balkenUtils';
 import type { AssetInstance } from '../../utils/canvasAssets';
-import type {
-  ElementPlacement,
-  ImageAdjustments,
-  UserImageInstance,
-  UserImagePlacement,
-} from '../../utils/userImageUtils';
 import type { AdditionalText } from '../types';
+import type { BalkenInstance, BalkenMode } from '@ggraphic/editor/utils/balkenUtils';
 import type { CircleBadgeInstance } from '@ggraphic/editor/utils/circleBadgeUtils';
 import type { FrameClipType, FrameInstance } from '@ggraphic/editor/utils/frameUtils';
 import type { IllustrationInstance } from '@ggraphic/editor/utils/illustrations/types';
 import type { PillBadgeInstance } from '@ggraphic/editor/utils/pillBadgeUtils';
 import type { ShapeInstance, ShapeType } from '@ggraphic/editor/utils/shapes';
+import type {
+  ElementPlacement,
+  ImageAdjustments,
+  UserImageInstance,
+  UserImagePlacement,
+} from '@ggraphic/editor/utils/userImageUtils';
 import type { StickerRef } from '@gruenerator/contracts';
 
 // ============================================================================

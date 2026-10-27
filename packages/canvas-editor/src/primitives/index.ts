@@ -14,14 +14,14 @@ export type { CanvasTextProps } from './CanvasText';
 export { SnapGuidelines } from '@ggraphic/editor/primitives/SnapGuidelines';
 export type { SnapGuidelinesProps } from '@ggraphic/editor/primitives/SnapGuidelines';
 
-export { CanvasImage } from './CanvasImage';
-export type { CanvasImageProps } from './CanvasImage';
+export { CanvasImage } from '@ggraphic/editor/primitives/CanvasImage';
+export type { CanvasImageProps } from '@ggraphic/editor/primitives/CanvasImage';
 
-export { CanvasIcons } from './CanvasIcons';
+export { CanvasIcons } from '@ggraphic/editor/primitives/CanvasIcons';
 
-export type { BalkenMode, BalkenInstance } from '../utils/balkenUtils';
+export type { BalkenMode, BalkenInstance } from '@ggraphic/editor/utils/balkenUtils';
 
-export { ShapePrimitive } from './ShapePrimitive';
+export { ShapePrimitive } from '@ggraphic/editor/primitives/ShapePrimitive';
 
 export { IllustrationPrimitive } from './IllustrationPrimitive';
 export type { IllustrationPrimitiveProps } from './IllustrationPrimitive';

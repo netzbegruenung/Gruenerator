@@ -1,4 +1,5 @@
 import { IconPrimitive } from '@ggraphic/editor/primitives/IconPrimitive';
+import { ShapePrimitive } from '@ggraphic/editor/primitives/ShapePrimitive';
 import { createShape, type ShapeInstance } from '@ggraphic/editor/utils/shapes';
 import { act, render } from '@testing-library/react';
 import Konva from 'konva';
@@ -8,7 +9,6 @@ import { beforeAll, describe, expect, it, vi } from 'vitest';
 import { AssetPrimitive } from '../AssetPrimitive';
 import { CanvasStage, type CanvasStageRef } from '../CanvasStage';
 import { IllustrationPrimitive } from '../IllustrationPrimitive';
-import { ShapePrimitive } from '../ShapePrimitive';
 
 vi.mock('@ggraphic/editor/utils/canvasIcons', () => ({
   generateIconDataUrl: vi.fn(() => Promise.resolve('data:image/png;base64,AA==')),
