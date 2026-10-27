@@ -35,6 +35,24 @@ export interface SuspendForApprovalParams {
   /** Die vor dem Streamen angelegte Platzhalter-Zeile, falls vorhanden. */
   pendingId: string | null;
   startTime: number;
+  /** Früher im Zug aufgelöste Pausen — eine schon entschiedene Freigabe
+   *  wandert dabei nach `decidedApprovals` (#5051). */
+  resolvedPause?: Record<string, unknown>;
+}
+
+/**
+ * Die neue Pause belegt `pendingApproval`. Eine dort schon entschiedene Freigabe
+ * desselben Zuges wandert vorher in die Liste `decidedApprovals` — sonst
+ * überschreibt die neue Karte die alte, und nach einem Reload fehlt deren
+ * Pille (#5051).
+ */
+function archiveDecidedApproval(
+  resolvedPause: Record<string, unknown> | undefined
+): Record<string, unknown> | undefined {
+  if (!resolvedPause?.pendingApproval) return resolvedPause;
+  const { pendingApproval, ...rest } = resolvedPause;
+  const earlier: unknown[] = Array.isArray(rest.decidedApprovals) ? rest.decidedApprovals : [];
+  return { ...rest, decidedApprovals: [...earlier, pendingApproval] };
 }
 
 /**
@@ -57,8 +75,10 @@ export async function suspendForToolApproval({
   priorSteps,
   pendingId,
   startTime,
+  resolvedPause,
 }: SuspendForApprovalParams): Promise<StreamHandlerResult> {
   const approvalTurnId = randomUUID();
+  const carried = archiveDecidedApproval(resolvedPause);
 
   const stored = await toolApprovalStateStore.store(threadId, {
     approvalTurnId,
@@ -67,6 +87,7 @@ export async function suspendForToolApproval({
     priorSteps,
     partialText,
     pausedMessageId: pendingId,
+    ...(carried ? { resolvedPause: carried } : {}),
     classifiedState,
     requestContext,
   });
@@ -91,6 +112,7 @@ export async function suspendForToolApproval({
     intent: classifiedState.intent,
     searchCount: 0,
     citations: [],
+    ...carried,
     toolCalls: priorSteps,
     pendingApproval: {
       approvalTurnId,

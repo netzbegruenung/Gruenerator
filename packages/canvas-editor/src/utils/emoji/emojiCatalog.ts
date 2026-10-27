@@ -1,5 +1,5 @@
-import { EMOJI_ASSETS } from '../../brand/grueneAssetCatalog';
-import { emojiCodeAssetId, emojiCodeSrc, type UniversalAsset } from '../canvasAssets';
+import { EMOJI_ASSETS, emojiCodeSrc } from '../../brand/grueneAssetCatalog';
+import { emojiCodeAssetId, type UniversalAsset } from '../canvasAssets';
 
 /** One emoji of the full Noto set; `tones` are the five uniform skin-tone codes, light → dark. */
 export interface EmojiCatalogEntry extends UniversalAsset {

@@ -200,6 +200,78 @@
        {
         "className": "Rect",
         "attrs": {
+         "stroke": "rgb(0, 161, 255)",
+         "fill": "transparent",
+         "strokeWidth": 1,
+         "name": "rotater-top-left _rotate-zone",
+         "dragDistance": 0,
+         "draggable": true,
+         "hitStrokeWidth": 10,
+         "strokeEnabled": false,
+         "visible": false,
+         "x": -24,
+         "y": -24,
+         "width": 24,
+         "height": 24
+        }
+       },
+       {
+        "className": "Rect",
+        "attrs": {
+         "stroke": "rgb(0, 161, 255)",
+         "fill": "transparent",
+         "strokeWidth": 1,
+         "name": "rotater-top-right _rotate-zone",
+         "dragDistance": 0,
+         "draggable": true,
+         "hitStrokeWidth": 10,
+         "strokeEnabled": false,
+         "visible": false,
+         "x": 0,
+         "y": -24,
+         "width": 24,
+         "height": 24
+        }
+       },
+       {
+        "className": "Rect",
+        "attrs": {
+         "stroke": "rgb(0, 161, 255)",
+         "fill": "transparent",
+         "strokeWidth": 1,
+         "name": "rotater-bottom-left _rotate-zone",
+         "dragDistance": 0,
+         "draggable": true,
+         "hitStrokeWidth": 10,
+         "strokeEnabled": false,
+         "visible": false,
+         "x": -24,
+         "y": 0,
+         "width": 24,
+         "height": 24
+        }
+       },
+       {
+        "className": "Rect",
+        "attrs": {
+         "stroke": "rgb(0, 161, 255)",
+         "fill": "transparent",
+         "strokeWidth": 1,
+         "name": "rotater-bottom-right _rotate-zone",
+         "dragDistance": 0,
+         "draggable": true,
+         "hitStrokeWidth": 10,
+         "strokeEnabled": false,
+         "visible": false,
+         "x": 0,
+         "y": 0,
+         "width": 24,
+         "height": 24
+        }
+       },
+       {
+        "className": "Rect",
+        "attrs": {
          "stroke": "rgba(0, 0, 0, 0.18)",
          "fill": "white",
          "strokeWidth": 1,
@@ -703,6 +775,78 @@
        {
         "className": "Rect",
         "attrs": {
+         "stroke": "rgb(0, 161, 255)",
+         "fill": "transparent",
+         "strokeWidth": 1,
+         "name": "rotater-top-left _rotate-zone",
+         "dragDistance": 0,
+         "draggable": true,
+         "hitStrokeWidth": 10,
+         "strokeEnabled": false,
+         "visible": false,
+         "x": -24,
+         "y": -24,
+         "width": 24,
+         "height": 24
+        }
+       },
+       {
+        "className": "Rect",
+        "attrs": {
+         "stroke": "rgb(0, 161, 255)",
+         "fill": "transparent",
+         "strokeWidth": 1,
+         "name": "rotater-top-right _rotate-zone",
+         "dragDistance": 0,
+         "draggable": true,
+         "hitStrokeWidth": 10,
+         "strokeEnabled": false,
+         "visible": false,
+         "x": 0,
+         "y": -24,
+         "width": 24,
+         "height": 24
+        }
+       },
+       {
+        "className": "Rect",
+        "attrs": {
+         "stroke": "rgb(0, 161, 255)",
+         "fill": "transparent",
+         "strokeWidth": 1,
+         "name": "rotater-bottom-left _rotate-zone",
+         "dragDistance": 0,
+         "draggable": true,
+         "hitStrokeWidth": 10,
+         "strokeEnabled": false,
+         "visible": false,
+         "x": -24,
+         "y": 0,
+         "width": 24,
+         "height": 24
+        }
+       },
+       {
+        "className": "Rect",
+        "attrs": {
+         "stroke": "rgb(0, 161, 255)",
+         "fill": "transparent",
+         "strokeWidth": 1,
+         "name": "rotater-bottom-right _rotate-zone",
+         "dragDistance": 0,
+         "draggable": true,
+         "hitStrokeWidth": 10,
+         "strokeEnabled": false,
+         "visible": false,
+         "x": 0,
+         "y": 0,
+         "width": 24,
+         "height": 24
+        }
+       },
+       {
+        "className": "Rect",
+        "attrs": {
          "stroke": "rgba(0, 0, 0, 0.18)",
          "fill": "white",
          "strokeWidth": 1,
@@ -1164,6 +1308,78 @@
          "strokeWidth": 1.5,
          "x": 0,
          "y": 0
+        }
+       },
+       {
+        "className": "Rect",
+        "attrs": {
+         "stroke": "rgb(0, 161, 255)",
+         "fill": "transparent",
+         "strokeWidth": 1,
+         "name": "rotater-top-left _rotate-zone",
+         "dragDistance": 0,
+         "draggable": true,
+         "hitStrokeWidth": 10,
+         "strokeEnabled": false,
+         "visible": false,
+         "x": -24,
+         "y": -24,
+         "width": 24,
+         "height": 24
+        }
+       },
+       {
+        "className": "Rect",
+        "attrs": {
+         "stroke": "rgb(0, 161, 255)",
+         "fill": "transparent",
+         "strokeWidth": 1,
+         "name": "rotater-top-right _rotate-zone",
+         "dragDistance": 0,
+         "draggable": true,
+         "hitStrokeWidth": 10,
+         "strokeEnabled": false,
+         "visible": false,
+         "x": 0,
+         "y": -24,
+         "width": 24,
+         "height": 24
+        }
+       },
+       {
+        "className": "Rect",
+        "attrs": {
+         "stroke": "rgb(0, 161, 255)",
+         "fill": "transparent",
+         "strokeWidth": 1,
+         "name": "rotater-bottom-left _rotate-zone",
+         "dragDistance": 0,
+         "draggable": true,
+         "hitStrokeWidth": 10,
+         "strokeEnabled": false,
+         "visible": false,
+         "x": -24,
+         "y": 0,
+         "width": 24,
+         "height": 24
+        }
+       },
+       {
+        "className": "Rect",
+        "attrs": {
+         "stroke": "rgb(0, 161, 255)",
+         "fill": "transparent",
+         "strokeWidth": 1,
+         "name": "rotater-bottom-right _rotate-zone",
+         "dragDistance": 0,
+         "draggable": true,
+         "hitStrokeWidth": 10,
+         "strokeEnabled": false,
+         "visible": false,
+         "x": 0,
+         "y": 0,
+         "width": 24,
+         "height": 24
         }
        },
        {
@@ -1635,6 +1851,78 @@
        {
         "className": "Rect",
         "attrs": {
+         "stroke": "rgb(0, 161, 255)",
+         "fill": "transparent",
+         "strokeWidth": 1,
+         "name": "rotater-top-left _rotate-zone",
+         "dragDistance": 0,
+         "draggable": true,
+         "hitStrokeWidth": 10,
+         "strokeEnabled": false,
+         "visible": false,
+         "x": -24,
+         "y": -24,
+         "width": 24,
+         "height": 24
+        }
+       },
+       {
+        "className": "Rect",
+        "attrs": {
+         "stroke": "rgb(0, 161, 255)",
+         "fill": "transparent",
+         "strokeWidth": 1,
+         "name": "rotater-top-right _rotate-zone",
+         "dragDistance": 0,
+         "draggable": true,
+         "hitStrokeWidth": 10,
+         "strokeEnabled": false,
+         "visible": false,
+         "x": 0,
+         "y": -24,
+         "width": 24,
+         "height": 24
+        }
+       },
+       {
+        "className": "Rect",
+        "attrs": {
+         "stroke": "rgb(0, 161, 255)",
+         "fill": "transparent",
+         "strokeWidth": 1,
+         "name": "rotater-bottom-left _rotate-zone",
+         "dragDistance": 0,
+         "draggable": true,
+         "hitStrokeWidth": 10,
+         "strokeEnabled": false,
+         "visible": false,
+         "x": -24,
+         "y": 0,
+         "width": 24,
+         "height": 24
+        }
+       },
+       {
+        "className": "Rect",
+        "attrs": {
+         "stroke": "rgb(0, 161, 255)",
+         "fill": "transparent",
+         "strokeWidth": 1,
+         "name": "rotater-bottom-right _rotate-zone",
+         "dragDistance": 0,
+         "draggable": true,
+         "hitStrokeWidth": 10,
+         "strokeEnabled": false,
+         "visible": false,
+         "x": 0,
+         "y": 0,
+         "width": 24,
+         "height": 24
+        }
+       },
+       {
+        "className": "Rect",
+        "attrs": {
          "stroke": "rgba(0, 0, 0, 0.18)",
          "fill": "white",
          "strokeWidth": 1,
@@ -2096,6 +2384,78 @@
          "strokeWidth": 1.5,
          "x": 0,
          "y": 0
+        }
+       },
+       {
+        "className": "Rect",
+        "attrs": {
+         "stroke": "rgb(0, 161, 255)",
+         "fill": "transparent",
+         "strokeWidth": 1,
+         "name": "rotater-top-left _rotate-zone",
+         "dragDistance": 0,
+         "draggable": true,
+         "hitStrokeWidth": 10,
+         "strokeEnabled": false,
+         "visible": false,
+         "x": -24,
+         "y": -24,
+         "width": 24,
+         "height": 24
+        }
+       },
+       {
+        "className": "Rect",
+        "attrs": {
+         "stroke": "rgb(0, 161, 255)",
+         "fill": "transparent",
+         "strokeWidth": 1,
+         "name": "rotater-top-right _rotate-zone",
+         "dragDistance": 0,
+         "draggable": true,
+         "hitStrokeWidth": 10,
+         "strokeEnabled": false,
+         "visible": false,
+         "x": 0,
+         "y": -24,
+         "width": 24,
+         "height": 24
+        }
+       },
+       {
+        "className": "Rect",
+        "attrs": {
+         "stroke": "rgb(0, 161, 255)",
+         "fill": "transparent",
+         "strokeWidth": 1,
+         "name": "rotater-bottom-left _rotate-zone",
+         "dragDistance": 0,
+         "draggable": true,
+         "hitStrokeWidth": 10,
+         "strokeEnabled": false,
+         "visible": false,
+         "x": -24,
+         "y": 0,
+         "width": 24,
+         "height": 24
+        }
+       },
+       {
+        "className": "Rect",
+        "attrs": {
+         "stroke": "rgb(0, 161, 255)",
+         "fill": "transparent",
+         "strokeWidth": 1,
+         "name": "rotater-bottom-right _rotate-zone",
+         "dragDistance": 0,
+         "draggable": true,
+         "hitStrokeWidth": 10,
+         "strokeEnabled": false,
+         "visible": false,
+         "x": 0,
+         "y": 0,
+         "width": 24,
+         "height": 24
         }
        },
        {
@@ -2591,6 +2951,78 @@
          "strokeWidth": 1.5,
          "x": 0,
          "y": 0
+        }
+       },
+       {
+        "className": "Rect",
+        "attrs": {
+         "stroke": "rgb(0, 161, 255)",
+         "fill": "transparent",
+         "strokeWidth": 1,
+         "name": "rotater-top-left _rotate-zone",
+         "dragDistance": 0,
+         "draggable": true,
+         "hitStrokeWidth": 10,
+         "strokeEnabled": false,
+         "visible": false,
+         "x": -24,
+         "y": -24,
+         "width": 24,
+         "height": 24
+        }
+       },
+       {
+        "className": "Rect",
+        "attrs": {
+         "stroke": "rgb(0, 161, 255)",
+         "fill": "transparent",
+         "strokeWidth": 1,
+         "name": "rotater-top-right _rotate-zone",
+         "dragDistance": 0,
+         "draggable": true,
+         "hitStrokeWidth": 10,
+         "strokeEnabled": false,
+         "visible": false,
+         "x": 0,
+         "y": -24,
+         "width": 24,
+         "height": 24
+        }
+       },
+       {
+        "className": "Rect",
+        "attrs": {
+         "stroke": "rgb(0, 161, 255)",
+         "fill": "transparent",
+         "strokeWidth": 1,
+         "name": "rotater-bottom-left _rotate-zone",
+         "dragDistance": 0,
+         "draggable": true,
+         "hitStrokeWidth": 10,
+         "strokeEnabled": false,
+         "visible": false,
+         "x": -24,
+         "y": 0,
+         "width": 24,
+         "height": 24
+        }
+       },
+       {
+        "className": "Rect",
+        "attrs": {
+         "stroke": "rgb(0, 161, 255)",
+         "fill": "transparent",
+         "strokeWidth": 1,
+         "name": "rotater-bottom-right _rotate-zone",
+         "dragDistance": 0,
+         "draggable": true,
+         "hitStrokeWidth": 10,
+         "strokeEnabled": false,
+         "visible": false,
+         "x": 0,
+         "y": 0,
+         "width": 24,
+         "height": 24
         }
        },
        {

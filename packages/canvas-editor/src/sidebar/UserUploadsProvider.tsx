@@ -1,4 +1,4 @@
-import { toast } from '@gruenerator/ui';
+import { toast } from '@ggraphic/editor/utils/editorToast';
 import {
   createContext,
   useContext,

@@ -6,6 +6,7 @@ import {
   GRUENE_BRAND_PACKS,
   registerBrandPacks,
 } from '@gruenerator/canvas-editor/grueneBrandPacks';
+import { registerGrueneHostSeams } from '@gruenerator/canvas-editor/grueneHostSeams';
 import { registerDesktopSaver } from '@gruenerator/shared';
 import * as Sentry from '@sentry/react';
 import React, { useEffect } from 'react';
@@ -36,6 +37,7 @@ installBrandFonts();
 // resolve saved assets through it too, without any React context.
 registerAssetCatalog(GRUENE_ASSET_CATALOG);
 registerBrandPacks(GRUENE_BRAND_PACKS);
+registerGrueneHostSeams();
 
 // Tauri's webview ignores `<a download>`; route every shared export through the
 // native save dialog. Lazy, so the plugins never reach the web bundle's hot path.

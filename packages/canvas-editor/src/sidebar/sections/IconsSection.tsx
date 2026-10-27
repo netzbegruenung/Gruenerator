@@ -1,8 +1,8 @@
 import { useIconCatalog } from '@ggraphic/editor/hooks/useIconCatalog';
 import { usePaginatedIcons } from '@ggraphic/editor/hooks/usePaginatedIcons';
+import { Skeleton } from '@ggraphic/editor/ui/skeleton';
 import { type IconDef } from '@ggraphic/editor/utils/canvasIcons';
 import { cn } from '@ggraphic/editor/utils/cn';
-import { Skeleton } from '@gruenerator/ui';
 import { Icon } from '@iconify/react';
 import { useCallback, useMemo, useRef, useEffect } from 'react';
 import { FaCheck } from 'react-icons/fa';

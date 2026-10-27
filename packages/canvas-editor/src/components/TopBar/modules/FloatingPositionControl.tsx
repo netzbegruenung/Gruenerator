@@ -1,5 +1,5 @@
+import { Popover, PopoverContent, PopoverTrigger } from '@ggraphic/editor/ui/popover';
 import { CANVAS_COMMANDS } from '@ggraphic/editor/utils/canvasCommandRegistry';
-import { Popover, PopoverContent, PopoverTrigger } from '@gruenerator/ui';
 import React, { useId, useState } from 'react';
 import {
   PiAlignBottom,

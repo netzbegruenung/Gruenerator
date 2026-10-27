@@ -15,8 +15,8 @@ import {
   useCanvasStoreSelector,
   useCanvasStoreShallow,
 } from '@ggraphic/editor/stores/CanvasStoreProvider';
+import { toast } from '@ggraphic/editor/utils/editorToast';
 import { userFacingMessage } from '@ggraphic/editor/utils/userFacingError';
-import { toast } from '@gruenerator/ui';
 import { useCallback, useEffect, useMemo, useRef, useState, type MutableRefObject } from 'react';
 
 import { useCanvasEditorServices } from '../CanvasEditorProvider';

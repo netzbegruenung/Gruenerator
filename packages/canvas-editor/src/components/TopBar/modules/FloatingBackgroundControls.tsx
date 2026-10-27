@@ -1,6 +1,6 @@
+import { Popover, PopoverContent, PopoverTrigger } from '@ggraphic/editor/ui/popover';
 import { cn } from '@ggraphic/editor/utils/cn';
 import { downscaleImageForUpload } from '@ggraphic/editor/utils/userImageUtils';
-import { Popover, PopoverContent, PopoverTrigger } from '@gruenerator/ui';
 import { Slider } from 'radix-ui';
 import { useEffect, useId, useRef, useState, type ChangeEvent } from 'react';
 import {

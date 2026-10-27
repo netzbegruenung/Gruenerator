@@ -51,6 +51,7 @@ export function createShareSection<TState, TActions = unknown>(
         exportedImage: context?.exportedImage ?? null,
         shareToken: context?.shareToken ?? null,
         onCaptureCanvas: context?.onCaptureCanvas ?? (() => {}),
+        captureCanvasImage: context?.captureCanvasImage ?? null,
         onDownload: context?.onDownload ?? (() => {}),
         onNavigateToGallery: context?.onNavigateToGallery ?? (() => {}),
         onSaveAsTemplate: context?.onSaveAsTemplate,

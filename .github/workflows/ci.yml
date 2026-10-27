@@ -627,7 +627,8 @@ jobs:
           cache-dependency-path: services/browser-agent/requirements-dev.txt
 
       - name: Install dependencies
-        run: pip install -r requirements-dev.txt
+        # --no-deps: see overrides.txt — the closure overrides exact browser-use pins.
+        run: pip install --no-deps -r requirements-dev.txt
 
       - name: Run tests
         run: pytest

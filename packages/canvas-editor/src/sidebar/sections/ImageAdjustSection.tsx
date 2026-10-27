@@ -1,4 +1,5 @@
 import { CustomColorSwatch } from '@ggraphic/editor/components/CustomColorSwatch';
+import { Switch } from '@ggraphic/editor/ui/switch';
 import { defaultTint, EMPTY_ADJUSTMENTS, IMAGE_PRESETS } from '@ggraphic/editor/utils/imageFilters';
 import {
   CROP_PRESETS,
@@ -7,7 +8,6 @@ import {
   type ImageAdjustments,
   type UserImageInstance,
 } from '@ggraphic/editor/utils/userImageUtils';
-import { Switch } from '@gruenerator/ui';
 
 import { colorName } from '../../utils/colorNames';
 import { SidebarSlider } from '../components/SidebarSlider';

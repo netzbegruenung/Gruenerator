@@ -1089,6 +1089,33 @@ describe('convertToThreadMessageLike — entschiedene Freigabe (#5043)', () => {
       expect.objectContaining({ approval: expect.objectContaining({ approved: false }) }),
     ]);
   });
+
+  // #5051: pausiert die Fortsetzung erneut, trägt `pendingApproval` nur die
+  // letzte Freigabe; die frühere steht in `decidedApprovals`.
+  it('zeigt die Pillen aller Freigaben eines Zuges, jede vor ihrer Karte', () => {
+    const second = {
+      approvalTurnId: 'appr-2',
+      calls: [{ toolCallId: 'call_tab2', toolName: 'tabelle_auswerten', args: {} }],
+      resolved: true as const,
+      decisions: [{ toolCallId: 'call_tab2', approved: true, optionId: 'allow-always' }],
+    };
+    const [msg] = convertToThreadMessageLike([
+      {
+        id: 'm1',
+        role: 'assistant',
+        content: 'Erst 1, dann 2.',
+        metadata: {
+          decidedApprovals: [pendingApproval],
+          pendingApproval: second,
+          toolCalls: [step, { ...step, toolCallId: 'call_tab2' }],
+        },
+      },
+    ]);
+    const ids = (msg!.content as unknown as Array<Record<string, unknown>>)
+      .filter((p) => p.type === 'tool-call')
+      .map((p) => p.toolCallId);
+    expect(ids).toEqual(['call_tab__approval', 'call_tab', 'call_tab2__approval', 'call_tab2']);
+  });
 });
 
 describe('convertToThreadMessageLike — grant cards', () => {

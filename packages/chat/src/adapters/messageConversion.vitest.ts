@@ -269,6 +269,32 @@ describe('convertToThreadMessageLike — pending tool approval', () => {
   });
 });
 
+describe('convertToThreadMessageLike — entschiedene Freigaben (#5051, Mobile-Pfad)', () => {
+  const decided = (turn: string, id: string, approved: boolean) => ({
+    approvalTurnId: turn,
+    calls: [{ toolCallId: id, toolName: 'tabelle_auswerten', args: {} }],
+    resolved: true as const,
+    decisions: [{ toolCallId: id, approved, optionId: approved ? 'allow-once' : 'reject-once' }],
+  });
+
+  it('baut die Pillen aller Freigaben eines Zuges nach, jede vor ihrer Karte', () => {
+    const [message] = convertToThreadMessageLike([
+      assistant({
+        decidedApprovals: [decided('t1', 'c1', true)],
+        pendingApproval: decided('t2', 'c2', false),
+        toolCalls: [{ toolCallId: 'c1', toolName: 'tabelle_auswerten', args: {}, result: {} }],
+      }),
+    ]);
+    const parts = (message?.content ?? []).filter((part) => part.type === 'tool-call');
+
+    // Die abgelehnte Freigabe hat keine Karte und steht danach.
+    expect(parts.map((part) => part.toolCallId)).toEqual(['c1__approval', 'c1', 'c2__approval']);
+    expect(parts[0]).toMatchObject({ approval: { id: 'c1', approved: true } });
+    expect(parts[2]).toMatchObject({ approval: { id: 'c2', approved: false } });
+    expect(message?.status).toBeUndefined();
+  });
+});
+
 describe('convertToThreadMessageLike — tool-call ids stay unique (Mobile-Pfad)', () => {
   const idsOf = (content: ReadonlyArray<{ type: string; toolCallId?: string }>) =>
     content.flatMap((p) => (p.type === 'tool-call' && p.toolCallId ? [p.toolCallId] : []));

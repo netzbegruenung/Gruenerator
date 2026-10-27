@@ -1,5 +1,5 @@
+import { MasonryGrid, MasonryItem } from '@ggraphic/editor/ui/masonry-grid';
 import { cn } from '@ggraphic/editor/utils/cn';
-import { MasonryGrid, MasonryItem } from '@gruenerator/ui';
 import { useEffect, useRef, useState } from 'react';
 import { HiArrowUpTray, HiPhoto, HiXMark } from 'react-icons/hi2';
 

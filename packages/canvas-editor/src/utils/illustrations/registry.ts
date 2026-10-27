@@ -1,14 +1,16 @@
 /**
  * Illustration Registry
  *
- * Every catalog is pulled in via dynamic import only when an async lookup
- * first needs it, so none of the metadata lands in the editor-core chunk
- * (this module is reached eagerly through the render layer and action
- * factories). Sync access to the catalogs lives in the per-source modules and
- * illustrationCatalog.ts (used only inside the lazy assets chunk).
+ * The catalogues and where their files live are host data
+ * (`CanvasAssetCatalog.illustrations`, installed with `registerAssetCatalog`);
+ * without a host there are none. The host loads each set lazily, so none of
+ * the metadata lands in the editor-core chunk (this module is reached eagerly
+ * through the render layer and action factories).
  */
 
 import { activeBrand } from '@ggraphic/editor/brand/brandRegistry';
+
+import { registeredAssetCatalog } from '../canvasAssets';
 
 import type {
   KawaiiDef,
@@ -33,44 +35,11 @@ export type {
 export { KAWAII_MOODS } from '@ggraphic/editor/utils/illustrations/types';
 
 // =============================================================================
-// ASYNC LOADERS
+// HOST SOURCES
 // =============================================================================
 
-let undrawAllPromise: Promise<SvgDef[]> | null = null;
-function loadUndrawAll(): Promise<SvgDef[]> {
-  return (undrawAllPromise ??= import('./undrawAll').then((m) => m.UNDRAW_ALL));
-}
-
 export function loadKawaiiIllustrations(): Promise<KawaiiDef[]> {
-  return import('./kawaii').then((m) => m.KAWAII_ILLUSTRATIONS);
-}
-
-export function loadOpendoodlesIllustrations(): Promise<SvgDef[]> {
-  return import('./opendoodles').then((m) => m.OPENDOODLES);
-}
-
-export function loadIlllustrations(): Promise<SvgDef[]> {
-  return import('./illlustrations').then((m) => m.ILLLUSTRATIONS);
-}
-
-export function loadGophers(): Promise<SvgDef[]> {
-  return import('./gophers').then((m) => m.GOPHERS);
-}
-
-export function loadTranshumans(): Promise<SvgDef[]> {
-  return import('./transhumans').then((m) => m.TRANSHUMANS);
-}
-
-export function loadHumaaans(): Promise<SvgDef[]> {
-  return import('./humaaans').then((m) => m.HUMAAANS);
-}
-
-export function loadOpenpeeps(): Promise<SvgDef[]> {
-  return import('./openpeeps').then((m) => m.OPENPEEPS);
-}
-
-export function loadUndrawIllustrations(): Promise<SvgDef[]> {
-  return import('./undraw').then((m) => m.UNDRAW_FEATURED);
+  return registeredAssetCatalog().illustrations?.loadKawaii() ?? Promise.resolve([]);
 }
 
 export async function getAllIllustrations(): Promise<IllustrationDef[]> {
@@ -78,30 +47,25 @@ export async function getAllIllustrations(): Promise<IllustrationDef[]> {
   return [...kawaii, ...svgs];
 }
 
-export async function getAllSvgIllustrations(): Promise<SvgDef[]> {
-  const sets = await Promise.all([
-    loadOpendoodlesIllustrations(),
-    loadIlllustrations(),
-    loadGophers(),
-    loadTranshumans(),
-    loadHumaaans(),
-    loadOpenpeeps(),
-    loadUndrawAll(),
-  ]);
-  return sets.flat();
+export function getAllSvgIllustrations(): Promise<SvgDef[]> {
+  return registeredAssetCatalog().illustrations?.loadSvg() ?? Promise.resolve([]);
 }
 
 // =============================================================================
 // HELPER FUNCTIONS
 // =============================================================================
 
+function illustrationBase(baseUrl: string): string {
+  return `${baseUrl}${registeredAssetCatalog().illustrations?.basePath ?? ''}`;
+}
+
 export function getIllustrationPath(illustration: SvgDef, baseUrl = ''): string {
-  return `${baseUrl}/illustrations/${illustration.source}/${illustration.filename}`;
+  return `${illustrationBase(baseUrl)}/${illustration.source}/${illustration.filename}`;
 }
 
 export function getIllustrationThumbPath(illustration: SvgDef, baseUrl = ''): string {
   const pngFilename = illustration.filename.replace(/\.svg$/, '.png');
-  return `${baseUrl}/illustrations/thumbs/${illustration.source}/${pngFilename}`;
+  return `${illustrationBase(baseUrl)}/thumbs/${illustration.source}/${pngFilename}`;
 }
 
 export async function createIllustration(

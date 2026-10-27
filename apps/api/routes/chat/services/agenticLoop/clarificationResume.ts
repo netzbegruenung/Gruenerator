@@ -150,6 +150,7 @@ export async function runClarificationLoopResume(params: {
           priorSteps: outcome.steps,
           pendingId: stored.pausedMessageId,
           startTime: Date.now(),
+          ...(stored.resolvedPause ? { resolvedPause: stored.resolvedPause } : {}),
         })),
         handled: true as const,
       };
@@ -167,6 +168,7 @@ export async function runClarificationLoopResume(params: {
           priorSteps: outcome.steps,
           pendingId: stored.pausedMessageId,
           startTime: Date.now(),
+          ...(stored.resolvedPause ? { resolvedPause: stored.resolvedPause } : {}),
         })),
         handled: true as const,
       };
@@ -185,6 +187,7 @@ export async function runClarificationLoopResume(params: {
           priorSteps: outcome.steps,
           pendingId: stored.pausedMessageId,
           startTime: Date.now(),
+          ...(stored.resolvedPause ? { resolvedPause: stored.resolvedPause } : {}),
         })),
         handled: true as const,
       };
@@ -205,6 +208,7 @@ export async function runClarificationLoopResume(params: {
       pausedMessageId: stored.pausedMessageId,
       requestId,
       resolvedPause: {
+        ...stored.resolvedPause,
         pendingClarification: {
           askTurnId: stored.askTurnId,
           toolCallId: stored.toolCallId,

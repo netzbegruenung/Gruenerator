@@ -88,6 +88,15 @@ function loopToolNames(): ReadonlySet<string> {
   return names;
 }
 
+/** `UNRECORDED_TOOLS`: tools `wrapTools` passes through without card or step — they never reach the UI. */
+function unrecordedToolNames(): ReadonlySet<string> {
+  const block = /UNRECORDED_TOOLS[^=]*=\s*new Set\(\[([^\]]*)\]\)/.exec(
+    repoFile('apps/api/routes/chat/services/agenticLoop/types.ts')
+  );
+  if (!block?.[1]) throw new Error('UNRECORDED_TOOLS not found — did types.ts move?');
+  return new Set([...block[1].matchAll(/'([^']+)'/g)].map((m) => m[1] as string));
+}
+
 /** The `UI_TOOL_NAMES` zod enum in packages/chat. */
 function uiToolNames(): readonly string[] {
   const block = /export const UI_TOOL_NAMES = z\.enum\(\[([\s\S]*?)\]\)/.exec(
@@ -114,13 +123,20 @@ describe('loop catalog ↔ UI registry coverage', () => {
     expect(names, 'EDIT_TOOL_NAMES site').toContain('edit_current_sharepic');
   });
 
+  it('actually extracts the unrecorded tools', () => {
+    expect(unrecordedToolNames()).toContain('direkt_antworten');
+  });
+
   it('actually extracts the UI registry', () => {
     expect(uiToolNames().length).toBeGreaterThanOrEqual(40);
   });
 
   it('every mountable loop tool has a UI registry entry', () => {
     const ui = uiToolNames();
-    const missing = [...loopToolNames()].filter((n) => !ui.includes(n)).sort();
+    const unrecorded = unrecordedToolNames();
+    const missing = [...loopToolNames()]
+      .filter((n) => !ui.includes(n) && !unrecorded.has(n))
+      .sort();
     expect(
       missing,
       `Tools ohne UI-Eintrag — sie rendern sonst mit dem ROHEN Namen und einem ` +
