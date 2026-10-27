@@ -98,8 +98,8 @@ const METRICS = {
   insets: { top: 0, left: 0, right: 0, bottom: 0 },
 };
 
-function renderScreen() {
-  render(
+async function renderScreen() {
+  await render(
     <SafeAreaProvider initialMetrics={METRICS}>
       <SharepicCreatorScreen />
     </SafeAreaProvider>
@@ -113,7 +113,7 @@ beforeEach(() => {
 describe('SharepicCreatorScreen', () => {
   it('introduces itself and sends what is typed', async () => {
     useCreator.mockReturnValue(state());
-    renderScreen();
+    await renderScreen();
     expect(screen.getByText(/Beschreib dein Sharepic/)).toBeTruthy();
     await fireEvent.changeText(screen.getByPlaceholderText('Schreibe …'), 'Mehr Radwege');
     await fireEvent.press(screen.getByText('Senden'));
@@ -125,7 +125,7 @@ describe('SharepicCreatorScreen', () => {
     useCreator.mockReturnValue(
       state({ phase: 'drafting', messages: [{ id: 0, role: 'user', text: 'x', error: false }] })
     );
-    renderScreen();
+    await renderScreen();
     expect(screen.getByText('Entwirft …')).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Senden' })).toBeDisabled();
     await fireEvent.changeText(screen.getByPlaceholderText('Schreibe …'), 'noch was');
@@ -133,7 +133,7 @@ describe('SharepicCreatorScreen', () => {
     expect(send).not.toHaveBeenCalled();
   });
 
-  it('shows every slide under the message the design belongs to', () => {
+  it('shows every slide under the message the design belongs to', async () => {
     useCreator.mockReturnValue(
       state({
         phase: 'ready',
@@ -145,7 +145,7 @@ describe('SharepicCreatorScreen', () => {
         ],
       })
     );
-    renderScreen();
+    await renderScreen();
     expect(screen.getByLabelText('Folie 1 von 2')).toBeTruthy();
     expect(screen.getByLabelText('Folie 2 von 2')).toBeTruthy();
     expect(screen.getByText('Der Text ist zu lang.')).toBeTruthy();
@@ -162,7 +162,7 @@ describe('SharepicCreatorScreen', () => {
         ],
       })
     );
-    renderScreen();
+    await renderScreen();
     expect(screen.queryByText('Bearbeiten')).toBeNull();
     await fireEvent(screen.getByLabelText('Folie 1 von 1'), 'longPress');
     expect(screen.getByRole('button', { name: 'Bearbeiten' })).toBeTruthy();

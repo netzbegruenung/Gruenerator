@@ -96,7 +96,7 @@ const section = (items: StudioAssetItem[]) => ({
 
 async function renderScreen(items: StudioAssetItem[], backgrounds: StudioAssetItem[] = []) {
   mockOwn.mockImplementation((kind) => section(kind === 'sticker' ? items : backgrounds));
-  render(<StudioAssetsScreen />);
+  await render(<StudioAssetsScreen />);
   await act(async () => {});
 }
 
@@ -157,7 +157,7 @@ describe('StudioAssetsScreen', () => {
 
   it('reports someone else’s item through the report sheet', async () => {
     await renderScreen([theirs]);
-    openMenu('Sonnenblume');
+    await openMenu('Sonnenblume');
     expect(screen.queryByText('Löschen')).toBeNull();
     await fireEvent.press(screen.getByText('Melden'));
     await act(() => jest.runOnlyPendingTimers());
@@ -170,7 +170,7 @@ describe('StudioAssetsScreen', () => {
   ])('%s', async (_name, outcome, refreshes) => {
     mockSubmit.mockResolvedValue(outcome);
     await renderScreen([theirs]);
-    openMenu('Sonnenblume');
+    await openMenu('Sonnenblume');
     await fireEvent.press(screen.getByText('Melden'));
     await act(() => jest.runOnlyPendingTimers());
     await fireEvent.press(screen.getByLabelText('Rechtswidrig'));
@@ -185,7 +185,7 @@ describe('StudioAssetsScreen', () => {
 
   it('offers no Melden on an own item', async () => {
     await renderScreen([mine]);
-    openMenu('Mein Herz');
+    await openMenu('Mein Herz');
     expect(screen.queryByText('Melden')).toBeNull();
     expect(screen.getByText('Öffentlich machen')).toBeTruthy();
     expect(screen.getByText('Löschen')).toBeTruthy();
@@ -193,7 +193,7 @@ describe('StudioAssetsScreen', () => {
 
   it('hands the item to the Profilbild as route params', async () => {
     await renderScreen([theirs]);
-    openMenu('Sonnenblume');
+    await openMenu('Sonnenblume');
     await fireEvent.press(screen.getByText('Im Profilbild verwenden'));
     await act(() => jest.runOnlyPendingTimers());
     expect(router.push).toHaveBeenCalledWith({
@@ -211,7 +211,7 @@ describe('StudioAssetsScreen', () => {
 
   it('toggles a like from the menu without leaving the tile', async () => {
     await renderScreen([theirs]);
-    openMenu('Sonnenblume');
+    await openMenu('Sonnenblume');
     await fireEvent.press(screen.getByText('Gefällt mir'));
     expect(mockToggleLike).toHaveBeenCalledWith(theirs);
   });

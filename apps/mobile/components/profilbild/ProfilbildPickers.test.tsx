@@ -146,7 +146,7 @@ afterEach(() => {
 async function renderBackgrounds(selected = 'tanne', freeBackground: FreeBackground | null = null) {
   const onSelect = jest.fn();
   const onPickGallery = jest.fn();
-  render(
+  await render(
     <BackgroundPicker
       isAustria={false}
       images={{}}

@@ -61,7 +61,7 @@ const recipe = {
   liked: false,
   saved: false,
   isOwn: false,
-  reportKind: 'text_form',
+  reportKind: 'user_text_form',
   createdAt: null,
   recipe: { mention: 'presse', rowId: 'r1', skillCategory: null, system: false },
 } as unknown as MarketplaceItemOf<'recipe'>;
@@ -92,10 +92,10 @@ function setup(comments: EntityComment[]) {
 }
 
 async function sendReport() {
-  fireEvent.press(screen.getByRole('radio', { name: 'Sonstiges' }));
+  await fireEvent.press(screen.getByRole('radio', { name: 'Sonstiges' }));
   await act(async () => {
     // The form's own „Melden" comes last, after the item's.
-    fireEvent.press(screen.getAllByRole('button', { name: 'Melden' }).at(-1)!);
+    await fireEvent.press(screen.getAllByRole('button', { name: 'Melden' }).at(-1)!);
   });
 }
 
@@ -114,7 +114,9 @@ const target = { kind: 'recipe', ref: 'r1' } as const;
 describe('MarketplaceDiscussion', () => {
   it('likes, shares and reports the item', async () => {
     setup([]);
-    const share = jest.spyOn(Share, 'share').mockResolvedValue({ action: 'sharedAction' });
+    const share = jest
+      .spyOn(Share, 'share')
+      .mockResolvedValue({ action: 'sharedAction', activityType: undefined });
     await render(
       <MarketplaceDiscussion
         target={target}
@@ -134,7 +136,11 @@ describe('MarketplaceDiscussion', () => {
 
     await fireEvent.press(screen.getByText('Melden'));
     await sendReport();
-    expect(mockSubmit).toHaveBeenCalledWith({ kind: 'text_form', targetId: 'r1' }, 'other', '');
+    expect(mockSubmit).toHaveBeenCalledWith(
+      { kind: 'user_text_form', targetId: 'r1' },
+      'other',
+      ''
+    );
     expect(screen.getByText('Noch keine Kommentare. Schreib den ersten.')).toBeTruthy();
   });
 

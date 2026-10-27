@@ -8,13 +8,13 @@ import { confirmChatAction } from '@gruenerator/chat';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react-native';
 import { router } from 'expo-router';
-import { ActivityIndicator } from 'react-native';
 
 import { lightTheme } from '../../theme/colors';
 
 import { ConfirmActionCard } from './ConfirmActionCard';
 
 import type { ConfirmActionData, ConfirmActionOutcome } from '@gruenerator/chat';
+import { hostsOfType } from '../../test/hostElements';
 
 jest.mock('@gruenerator/chat', () => ({ confirmChatAction: jest.fn() }));
 
@@ -42,8 +42,8 @@ const ACTION: ConfirmActionData = {
 // Die Karte invalidiert nach einem bestätigten `create_group`/`join_group` die
 // Projektliste und braucht dafür denselben QueryClient, den `app/_layout.tsx`
 // um die App legt.
-const renderCard = (action: ConfirmActionData = ACTION) =>
-  render(
+const renderCard = async (action: ConfirmActionData = ACTION) =>
+  await render(
     <QueryClientProvider
       client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}
     >
@@ -82,8 +82,8 @@ beforeEach(() => {
 });
 
 describe('idle state', () => {
-  it('renders the title, description, metadata and both labels', () => {
-    renderCard();
+  it('renders the title, description, metadata and both labels', async () => {
+    await renderCard();
 
     expect(screen.getByText('Als Dokument speichern')).toBeTruthy();
     expect(screen.getByText('Der Text wird in deinen Dokumenten abgelegt.')).toBeTruthy();
@@ -92,14 +92,14 @@ describe('idle state', () => {
     expect(screen.getByText('Abbrechen')).toBeTruthy();
   });
 
-  it('omits the description when there is none', () => {
-    renderCard({ ...ACTION, description: '' });
+  it('omits the description when there is none', async () => {
+    await renderCard({ ...ACTION, description: '' });
 
     expect(screen.queryByText('Der Text wird in deinen Dokumenten abgelegt.')).toBeNull();
   });
 
-  it('renders without a metadata row when metadata is empty', () => {
-    renderCard({ ...ACTION, metadata: [] });
+  it('renders without a metadata row when metadata is empty', async () => {
+    await renderCard({ ...ACTION, metadata: [] });
 
     expect(screen.queryByText('Kampagnenplan')).toBeNull();
     expect(screen.getByText('Als Dokument speichern')).toBeTruthy();
@@ -112,15 +112,15 @@ describe('idle state', () => {
     'share_doc',
     'create_group',
     'join_group',
-  ] as const)('renders every action type without a missing-icon crash: %s', (type) => {
-    expect(() => renderCard({ ...ACTION, type })).not.toThrow();
+  ] as const)('renders every action type without a missing-icon crash: %s', async (type) => {
+    await expect(renderCard({ ...ACTION, type })).resolves.not.toThrow();
   });
 });
 
 describe('confirming', () => {
   it('posts confirmed=true and shows the title as a badge', async () => {
     mockConfirm.mockResolvedValueOnce({ status: 'confirmed', url: null });
-    renderCard();
+    await renderCard();
 
     await fireEvent.press(screen.getByText('Speichern'));
 
@@ -133,7 +133,7 @@ describe('confirming', () => {
 
   it('offers "Dokument öffnen" only when the result URL resolves to a document', async () => {
     mockConfirm.mockResolvedValueOnce({ status: 'confirmed', url: '/document/abc123' });
-    renderCard();
+    await renderCard();
 
     await fireEvent.press(screen.getByText('Speichern'));
 
@@ -142,7 +142,7 @@ describe('confirming', () => {
 
   it('offers no open link when the result URL is not a document route', async () => {
     mockConfirm.mockResolvedValueOnce({ status: 'confirmed', url: '/gruppen/42' });
-    renderCard();
+    await renderCard();
 
     await fireEvent.press(screen.getByText('Speichern'));
 
@@ -155,7 +155,7 @@ describe('confirming', () => {
 
   it('labels the link per action type', async () => {
     mockConfirm.mockResolvedValueOnce({ status: 'confirmed', url: '/document/abc123' });
-    renderCard({ ...ACTION, type: 'modify_board' });
+    await renderCard({ ...ACTION, type: 'modify_board' });
 
     await fireEvent.press(screen.getByText('Speichern'));
 
@@ -164,7 +164,7 @@ describe('confirming', () => {
 
   it('navigates to the doc editor with the extracted id', async () => {
     mockConfirm.mockResolvedValueOnce({ status: 'confirmed', url: '/office/abc123?tab=chat' });
-    renderCard();
+    await renderCard();
 
     await fireEvent.press(screen.getByText('Speichern'));
     await fireEvent.press(await screen.findByText('Dokument öffnen'));
@@ -179,7 +179,7 @@ describe('confirming', () => {
 describe('rejecting and expiry', () => {
   it('posts confirmed=false and shows "Abgebrochen"', async () => {
     mockConfirm.mockResolvedValueOnce({ status: 'rejected' });
-    renderCard();
+    await renderCard();
 
     await fireEvent.press(screen.getByText('Abbrechen'));
 
@@ -189,7 +189,7 @@ describe('rejecting and expiry', () => {
 
   it('shows "Aktion abgelaufen" when the backend reports expiry', async () => {
     mockConfirm.mockResolvedValueOnce({ status: 'expired' });
-    renderCard();
+    await renderCard();
 
     await fireEvent.press(screen.getByText('Speichern'));
 
@@ -200,7 +200,7 @@ describe('rejecting and expiry', () => {
 describe('error state', () => {
   it('surfaces the backend message and offers a retry', async () => {
     mockConfirm.mockResolvedValueOnce({ status: 'error', message: 'Speichern fehlgeschlagen' });
-    renderCard();
+    await renderCard();
 
     await fireEvent.press(screen.getByText('Speichern'));
 
@@ -210,7 +210,7 @@ describe('error state', () => {
 
   it('retry returns to idle and allows a second attempt', async () => {
     mockConfirm.mockResolvedValueOnce({ status: 'error', message: 'Netzwerkfehler' });
-    renderCard();
+    await renderCard();
 
     await fireEvent.press(screen.getByText('Speichern'));
     await fireEvent.press(await screen.findByText('Erneut versuchen'));
@@ -226,26 +226,26 @@ describe('error state', () => {
 
   it('never shows a spinner and an error at the same time', async () => {
     const { resolve } = deferOutcome();
-    renderCard();
+    await renderCard();
 
     await fireEvent.press(screen.getByText('Speichern'));
 
     // Mid-flight: spinner is up, no error text yet.
-    expect(screen.UNSAFE_queryAllByType(ActivityIndicator)).toHaveLength(1);
+    expect(hostsOfType('ActivityIndicator')).toHaveLength(1);
     expect(screen.queryByText('Netzwerkfehler')).toBeNull();
 
     resolve({ status: 'error', message: 'Netzwerkfehler' });
 
     // Settled: error is up, spinner is gone.
     expect(await screen.findByText('Netzwerkfehler')).toBeTruthy();
-    expect(screen.UNSAFE_queryAllByType(ActivityIndicator)).toHaveLength(0);
+    expect(hostsOfType('ActivityIndicator')).toHaveLength(0);
   });
 });
 
 describe('double submission', () => {
   it('ignores further presses while the request is in flight', async () => {
     const { resolve } = deferOutcome();
-    renderCard();
+    await renderCard();
 
     await fireEvent.press(screen.getByText('Speichern'));
     await fireEvent.press(screen.getByText('Speichern'));

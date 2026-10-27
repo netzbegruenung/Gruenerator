@@ -23,7 +23,7 @@ jest.mock('../../services/auth', () => ({ logout: jest.fn() }));
  * es gibt einen Ausgang, ohne den sie es nicht wäre (Art. 7 Abs. 4 DSGVO).
  */
 
-const setAiConsent = jest.fn<() => Promise<void>>().mockResolvedValue(undefined);
+const setAiConsent = jest.fn<(consent: boolean) => Promise<void>>().mockResolvedValue(undefined);
 const mockLogout = logout as jest.MockedFunction<typeof logout>;
 
 function mockStore(user: Record<string, unknown> | null): void {

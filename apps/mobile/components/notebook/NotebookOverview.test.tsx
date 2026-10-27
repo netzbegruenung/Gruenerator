@@ -16,9 +16,9 @@ jest.mock('../../hooks/notebook/useNotebookOverview', () => ({ useNotebookOvervi
 jest.mock('../common/Skeleton', () => ({ SkeletonBar: () => null, SkeletonGroup: () => null }));
 // Both have their own data sources; only whether they are mounted matters here.
 jest.mock('./NotebookAgentsSection', () => ({ NotebookAgentsSection: () => null }));
-const mockLastAdded = jest.fn((_props: { collectionIds: string[] }) => null);
+const mockLastAdded = jest.fn((_props: { collectionIds: string[]; theme: unknown }) => null);
 jest.mock('./LastAddedSection', () => ({
-  LastAddedSection: (props: { collectionIds: string[] }) => mockLastAdded(props),
+  LastAddedSection: (props: { collectionIds: string[]; theme: unknown }) => mockLastAdded(props),
 }));
 
 const mockOverview = useNotebookOverview as unknown as jest.Mock<(id: string | null) => unknown>;

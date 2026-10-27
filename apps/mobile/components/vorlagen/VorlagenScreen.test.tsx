@@ -4,7 +4,6 @@
 import { beforeEach, describe, expect, it, jest } from '@jest/globals';
 import { type MarketplaceItemOf, type SharepicVorlage } from '@gruenerator/contracts';
 import { act, fireEvent, render, screen } from '@testing-library/react-native';
-import { Image } from 'expo-image';
 import { router, useFocusEffect } from 'expo-router';
 import { type EffectCallback, type ReactElement, type ReactNode, useEffect } from 'react';
 
@@ -17,6 +16,7 @@ import { usePreferencesStore } from '../../stores/preferencesStore';
 
 import { type VorlagenHeaderActionsProps } from './VorlagenHeaderActions';
 import { VorlagenScreen } from './VorlagenScreen';
+import { hostsOfType, imageSources } from '../../test/hostElements';
 
 // The preferences store only reads defaults from the chat package; loading it for
 // real pulls in the ESM-only assistant-stream.
@@ -65,7 +65,7 @@ const mockSaved = useMarketplaceKind as unknown as jest.MockedFunction<
 >;
 const mockGetToken = secureStorage.getToken as jest.MockedFunction<typeof secureStorage.getToken>;
 const api = vorlagen as unknown as {
-  [K in keyof typeof vorlagen]: jest.MockedFunction<(...args: never[]) => Promise<unknown>>;
+  [K in keyof typeof vorlagen]: jest.MockedFunction<(...args: unknown[]) => Promise<unknown>>;
 };
 
 // Only the fields the UI reads; the spec's element tree is irrelevant here.
@@ -138,14 +138,15 @@ function setup({
 }
 
 async function renderScreen() {
-  const view = render(<VorlagenScreen />);
+  const view = await render(<VorlagenScreen />);
   await act(async () => {});
   return view;
 }
 
 /** The header lives in the native stack; its element comes from the screen options. */
 function header(): VorlagenHeaderActionsProps {
-  const node = screen.UNSAFE_getByType('Stack.Screen' as never);
+  const node = hostsOfType('Stack.Screen')[0];
+  if (!node) throw new Error('no Stack.Screen');
   const options = node.props.options as {
     headerRight: () => ReactElement<VorlagenHeaderActionsProps>;
   };
@@ -162,9 +163,7 @@ function option(name: string) {
 }
 
 function imageUris() {
-  return screen
-    .UNSAFE_queryAllByType(Image)
-    .map((node) => (node.props.source as { uri: string }).uri);
+  return imageSources().map((source) => source.uri ?? '');
 }
 
 // The screen reads its likes and bookmarks on focus; mounted means focused here.

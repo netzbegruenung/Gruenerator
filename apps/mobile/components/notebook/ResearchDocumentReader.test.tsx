@@ -5,8 +5,6 @@ import { fetchResearchDocument } from '@gruenerator/shared/api';
 import { useAuthStore } from '@gruenerator/shared/stores';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { fireEvent, render, screen } from '@testing-library/react-native';
-import { BlurView } from 'expo-blur';
-import { GlassView } from 'expo-glass-effect';
 import * as WebBrowser from 'expo-web-browser';
 import { FlatList, ScrollView } from 'react-native';
 
@@ -15,6 +13,7 @@ import { lightTheme } from '../../theme/colors';
 import { ResearchDocumentReader } from './ResearchDocumentReader';
 
 import type { ResearchDocumentResponse } from '@gruenerator/contracts';
+import { hostsOfType } from '../../test/hostElements';
 
 jest.mock('@gruenerator/shared/api', () => ({
   fetchResearchDocument: jest.fn(),
@@ -67,7 +66,7 @@ const DOC = {
 
 const onClose = jest.fn();
 
-function renderReader(onOpenInChat?: (docTitle: string, message: string | null) => void) {
+async function renderReader(onOpenInChat?: (docTitle: string, message: string | null) => void) {
   const client = new QueryClient({
     defaultOptions: { queries: { retry: false, gcTime: Infinity } },
   });
@@ -103,7 +102,7 @@ beforeEach(() => {
 describe('ResearchDocumentReader (mobile)', () => {
   it('loads the document for the hit and lists its passages', async () => {
     mockFetch.mockResolvedValue(DOC);
-    renderReader();
+    await renderReader();
 
     expect(await screen.findByLabelText('Stelle 1: Forderungen')).toBeTruthy();
     expect(screen.getByLabelText('Stelle 2: Forderungen')).toBeTruthy();
@@ -143,7 +142,7 @@ describe('ResearchDocumentReader (mobile)', () => {
 
   it('steps through the passages and wraps around', async () => {
     mockFetch.mockResolvedValue(DOC);
-    renderReader();
+    await renderReader();
     await screen.findByLabelText('Stelle 1 von 2');
 
     await fireEvent.press(screen.getByLabelText('Nächste Stelle'));
@@ -156,7 +155,7 @@ describe('ResearchDocumentReader (mobile)', () => {
 
   it('shows the hint and no stepping when nothing single matched', async () => {
     mockFetch.mockResolvedValue({ ...DOC, passages: [], blocks: [] });
-    renderReader();
+    await renderReader();
 
     expect(await screen.findByText(/Keine einzelnen Textstellen markiert/)).toBeTruthy();
     expect(screen.queryByLabelText('Nächste Stelle')).toBeNull();
@@ -164,7 +163,7 @@ describe('ResearchDocumentReader (mobile)', () => {
 
   it('offers the source in the browser when loading fails', async () => {
     mockFetch.mockRejectedValue(new Error('404'));
-    renderReader();
+    await renderReader();
 
     await fireEvent.press(await screen.findByText('Im Web öffnen'));
     expect(WebBrowser.openBrowserAsync).toHaveBeenCalledWith(DOC.sourceUrl);
@@ -173,7 +172,7 @@ describe('ResearchDocumentReader (mobile)', () => {
   it('hands the loaded document to the chat: summary sends, discussion does not', async () => {
     mockFetch.mockResolvedValue(DOC);
     const onOpenInChat = jest.fn();
-    renderReader(onOpenInChat);
+    await renderReader(onOpenInChat);
 
     await fireEvent.press(await screen.findByText('Mit KI zusammenfassen'));
     expect(onOpenInChat).toHaveBeenLastCalledWith(DOC.title, 'Fasse dieses Dokument zusammen.');
@@ -183,7 +182,7 @@ describe('ResearchDocumentReader (mobile)', () => {
 
   it('offers no way into the chat without a hand-off (opened from a chat)', async () => {
     mockFetch.mockResolvedValue(DOC);
-    renderReader();
+    await renderReader();
 
     expect(await screen.findByText('Im Web öffnen')).toBeTruthy();
     expect(screen.queryByText('Mit KI zusammenfassen')).toBeNull();
@@ -192,7 +191,7 @@ describe('ResearchDocumentReader (mobile)', () => {
 
   it('goes back to the results', async () => {
     mockFetch.mockResolvedValue(DOC);
-    renderReader();
+    await renderReader();
     await fireEvent.press(screen.getByLabelText('Zurück zu den Ergebnissen'));
     expect(onClose).toHaveBeenCalled();
   });
@@ -203,12 +202,12 @@ describe('ResearchDocumentReader (mobile)', () => {
   ])('reduce transparency %s draws the stepper on %i see-through surface', async (reduce, n) => {
     useAuthStore.setState({ user: { reduce_transparency: reduce } as never });
     mockFetch.mockResolvedValue(DOC);
-    renderReader();
+    await renderReader();
     await screen.findByLabelText('Stelle 1 von 2');
 
     const seeThrough = [
-      ...screen.UNSAFE_queryAllByType(BlurView),
-      ...screen.UNSAFE_queryAllByType(GlassView),
+      ...hostsOfType('ViewManagerAdapter_ExpoBlur'),
+      ...hostsOfType('ViewManagerAdapter_ExpoGlassEffect'),
     ];
     expect(seeThrough).toHaveLength(n);
   });

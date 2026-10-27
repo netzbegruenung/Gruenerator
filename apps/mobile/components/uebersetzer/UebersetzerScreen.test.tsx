@@ -115,7 +115,7 @@ function tree() {
   );
 }
 
-const renderScreen = () => render(tree());
+const renderScreen = async () => render(tree());
 
 beforeEach(() => {
   jest.useFakeTimers();
@@ -131,9 +131,9 @@ afterEach(() => {
 });
 
 describe('UebersetzerScreen', () => {
-  it('is usable before the language list has arrived', () => {
+  it('is usable before the language list has arrived', async () => {
     languages.mockReturnValue(pending());
-    renderScreen();
+    await renderScreen();
 
     expect(screen.getByLabelText('Ausgangstext')).toBeOnTheScreen();
     expect(screen.getByLabelText('Art der Übersetzung')).toBeOnTheScreen();
@@ -144,14 +144,14 @@ describe('UebersetzerScreen', () => {
 
   it('translates text typed while loading once the list lands', async () => {
     languages.mockReturnValue(pending());
-    const view = renderScreen();
+    const view = await renderScreen();
 
     await fireEvent.changeText(screen.getByLabelText('Ausgangstext'), 'Guten Morgen');
     await act(() => jest.advanceTimersByTime(2000));
     expect(mutate).not.toHaveBeenCalled();
 
     languages.mockReturnValue(loaded());
-    view.rerender(tree());
+    await view.rerender(tree());
     await act(() => jest.advanceTimersByTime(1000));
 
     expect(mutate).toHaveBeenCalledTimes(1);
@@ -166,22 +166,22 @@ describe('UebersetzerScreen', () => {
 
   it('keeps the typed text when the list fails to load', async () => {
     languages.mockReturnValue(pending());
-    const view = renderScreen();
+    const view = await renderScreen();
     await fireEvent.changeText(screen.getByLabelText('Ausgangstext'), 'Guten Morgen');
 
     languages.mockReturnValue(
       failed(new TranslationRequestError('Sprachen konnten nicht geladen werden.', 502))
     );
-    view.rerender(tree());
+    await view.rerender(tree());
 
     expect(screen.getByText('Sprachen konnten nicht geladen werden.')).toBeOnTheScreen();
     expect(screen.getByText('Erneut versuchen')).toBeOnTheScreen();
     expect(screen.getByLabelText('Ausgangstext').props.value).toBe('Guten Morgen');
   });
 
-  it('shows only the notice when this server has no DeepL key', () => {
+  it('shows only the notice when this server has no DeepL key', async () => {
     languages.mockReturnValue(failed(new TranslationNotConfiguredError()));
-    renderScreen();
+    await renderScreen();
 
     expect(
       screen.getByText('Die Übersetzung ist auf diesem Server nicht eingerichtet.')

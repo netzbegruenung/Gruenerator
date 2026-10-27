@@ -141,7 +141,9 @@ function setup(shelves: Shelves, featured: MarketplaceItem | null = leichteSprac
 }
 
 async function renderStart(filters: Partial<typeof DEFAULT_MARKETPLACE_FILTERS> = {}) {
-  render(<MarketplaceScreen initialFilters={{ ...DEFAULT_MARKETPLACE_FILTERS, ...filters }} />);
+  await render(
+    <MarketplaceScreen initialFilters={{ ...DEFAULT_MARKETPLACE_FILTERS, ...filters }} />
+  );
   await act(async () => {});
 }
 

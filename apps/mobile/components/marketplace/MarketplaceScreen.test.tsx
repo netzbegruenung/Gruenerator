@@ -308,7 +308,9 @@ describe('MarketplaceScreen detail', () => {
   });
 
   it('shares the web Marktplatz with the item open', async () => {
-    const share = jest.spyOn(Share, 'share').mockResolvedValue({ action: 'sharedAction' });
+    const share = jest
+      .spyOn(Share, 'share')
+      .mockResolvedValue({ action: 'sharedAction', activityType: undefined });
     await renderItemPage(publicAgent);
 
     await fireEvent.press(screen.getByRole('button', { name: 'Teilen' }));

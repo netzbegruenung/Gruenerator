@@ -1,8 +1,8 @@
 import { beforeEach, describe, expect, it, jest } from '@jest/globals';
 import { act, render, screen, waitFor } from '@testing-library/react-native';
-import { Image } from 'expo-image';
 
 import { secureStorage } from '../../services/storage';
+import { imageSources } from '../../test/hostElements';
 import { lightTheme } from '../../theme/colors';
 
 import { SearchImagesSection } from './SearchImagesSection';
@@ -34,10 +34,7 @@ function image(n: number, proxied = true): SearchImage {
 
 /** Every `uri` handed to expo-image in this render. */
 function renderedImageUris(): string[] {
-  return screen.UNSAFE_queryAllByType(Image).map((node) => {
-    const source = node.props.source as { uri?: string } | undefined;
-    return source?.uri ?? '';
-  });
+  return imageSources().map((source) => source.uri ?? '');
 }
 
 beforeEach(() => {
@@ -70,10 +67,7 @@ describe('SearchImagesSection', () => {
     await render(<SearchImagesSection images={[image(1)]} theme={lightTheme} />);
 
     await waitFor(() => {
-      const source = screen.UNSAFE_getAllByType(Image)[0]?.props.source as {
-        headers?: Record<string, string>;
-      };
-      expect(source.headers?.Authorization).toBe('Bearer tok');
+      expect(imageSources()[0]?.headers?.Authorization).toBe('Bearer tok');
     });
   });
 

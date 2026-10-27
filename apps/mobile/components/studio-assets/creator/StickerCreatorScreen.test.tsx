@@ -100,11 +100,11 @@ const isEnabled = (name: string) =>
 
 /** Upload mode up to the save form, with the title the file name suggested. */
 async function designUpload(returnTo: 'profilbild' | null = null) {
-  render(<StickerCreatorScreen locale="de-DE" returnTo={returnTo} />);
-  fireEvent.press(button('Bild hochladen'));
-  fireEvent.press(button('Bild wählen'));
+  await render(<StickerCreatorScreen locale="de-DE" returnTo={returnTo} />);
+  await fireEvent.press(button('Bild hochladen'));
+  await fireEvent.press(button('Bild wählen'));
   await waitFor(() => isEnabled('Weiter'));
-  fireEvent.press(button('Weiter'));
+  await fireEvent.press(button('Weiter'));
   expect(screen.getByDisplayValue('Herz')).toBeTruthy();
 }
 

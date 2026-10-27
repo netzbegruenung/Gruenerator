@@ -29,11 +29,11 @@ jest.mock('@gruenerator/chat', () => ({
   ],
 }));
 
-const renderCard = (
+const renderCard = async (
   respondToApproval: jest.Mock = jest.fn(),
   approval: { id: string; approved?: boolean; optionId?: string } = { id: 'call-1' }
 ) => {
-  render(
+  await render(
     <ToolApprovalCard
       toolName="mcp__drive__share_file"
       args={{ path: '/Plan.pdf' }}
@@ -49,7 +49,7 @@ const renderCard = (
 
 describe('ToolApprovalCard', () => {
   it('shows the service warning, all decisions, and expandable arguments', async () => {
-    renderCard();
+    await renderCard();
 
     expect(screen.getByText('Datei teilen ausführen?')).toBeTruthy();
     expect(screen.getByText(/Google Drive ist ein verbundener Dienst/)).toBeTruthy();
@@ -67,7 +67,7 @@ describe('ToolApprovalCard', () => {
   ] as const)(
     'submits $label through the assistant-ui approval callback',
     async ({ label, approved, optionId }) => {
-      const respond = renderCard();
+      const respond = await renderCard();
 
       await fireEvent.press(screen.getByText(label));
 
@@ -76,7 +76,7 @@ describe('ToolApprovalCard', () => {
   );
 
   it('asks for an optional reason before rejecting and passes it on', async () => {
-    const respond = renderCard();
+    const respond = await renderCard();
 
     await fireEvent.press(screen.getByText('Ablehnen'));
     expect(respond).not.toHaveBeenCalled();
@@ -94,7 +94,7 @@ describe('ToolApprovalCard', () => {
   });
 
   it('rejects without a reason when the field stays empty', async () => {
-    const respond = renderCard();
+    const respond = await renderCard();
 
     await fireEvent.press(screen.getByText('Ablehnen'));
     await fireEvent.press(screen.getByLabelText('Ablehnen'));
@@ -102,8 +102,8 @@ describe('ToolApprovalCard', () => {
     expect(respond).toHaveBeenCalledWith({ approved: false, optionId: 'reject-once' });
   });
 
-  it('renders a terminal badge instead of controls after a decision', () => {
-    renderCard(jest.fn(), { id: 'call-1', approved: true, optionId: 'allow-always' });
+  it('renders a terminal badge instead of controls after a decision', async () => {
+    await renderCard(jest.fn(), { id: 'call-1', approved: true, optionId: 'allow-always' });
 
     expect(screen.getByText('Immer erlaubt')).toBeTruthy();
     expect(screen.queryByText('Einmal erlauben')).toBeNull();

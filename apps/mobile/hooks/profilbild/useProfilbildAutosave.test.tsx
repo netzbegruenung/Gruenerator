@@ -18,9 +18,13 @@ const snapshot = (x: number, backgroundId = 'tanne'): ProfilbildSnapshot => ({
 
 const PHOTO = {};
 
-function setup(initial: ProfilbildSnapshot | null, reopened = false, session: unknown = PHOTO) {
+async function setup(
+  initial: ProfilbildSnapshot | null,
+  reopened = false,
+  session: unknown = PHOTO
+) {
   const persist = jest.fn<(s: ProfilbildSnapshot) => Promise<void>>().mockResolvedValue(undefined);
-  const hook = renderHook(
+  const hook = await renderHook(
     (props: { snap: ProfilbildSnapshot | null; session: unknown }) =>
       useProfilbildAutosave(props.session, props.snap, persist, reopened),
     { initialProps: { snap: initial, session } }
@@ -42,26 +46,26 @@ describe('useProfilbildAutosave', () => {
   });
 
   it('saves a new Profilbild after the pause, and again after a change', async () => {
-    const { persist, result, rerender } = setup(snapshot(0));
+    const { persist, result, rerender } = await setup(snapshot(0));
     expect(persist).not.toHaveBeenCalled();
     await pause();
     expect(persist).toHaveBeenCalledTimes(1);
     expect(result.current.state).toBe('saved');
 
-    rerender({ snap: snapshot(40), session: PHOTO });
+    await rerender({ snap: snapshot(40), session: PHOTO });
     await pause();
     expect(persist).toHaveBeenCalledTimes(2);
     expect(persist).toHaveBeenLastCalledWith(snapshot(40));
   });
 
   it('waits for the pause: a second edit restarts it', async () => {
-    const { persist, rerender } = setup(snapshot(0));
+    const { persist, rerender } = await setup(snapshot(0));
     await pause();
-    rerender({ snap: snapshot(10), session: PHOTO });
+    await rerender({ snap: snapshot(10), session: PHOTO });
     await act(() => {
       jest.advanceTimersByTime(AUTOSAVE_DELAY - 100);
     });
-    rerender({ snap: snapshot(20), session: PHOTO });
+    await rerender({ snap: snapshot(20), session: PHOTO });
     await act(() => {
       jest.advanceTimersByTime(AUTOSAVE_DELAY - 100);
     });
@@ -72,30 +76,30 @@ describe('useProfilbildAutosave', () => {
   });
 
   it('does not save a reopened Profilbild until it is changed', async () => {
-    const { persist, rerender } = setup(snapshot(0), true);
+    const { persist, rerender } = await setup(snapshot(0), true);
     await pause();
     expect(persist).not.toHaveBeenCalled();
-    rerender({ snap: snapshot(0, 'klee'), session: PHOTO });
+    await rerender({ snap: snapshot(0, 'klee'), session: PHOTO });
     await pause();
     expect(persist).toHaveBeenCalledTimes(1);
   });
 
   it('saves nothing while there is nothing to save', async () => {
-    const { persist } = setup(null);
+    const { persist } = await setup(null);
     await pause();
     expect(persist).not.toHaveBeenCalled();
   });
 
   it('keeps a change made just before leaving', async () => {
-    const { persist, rerender, unmount } = setup(snapshot(0));
+    const { persist, rerender, unmount } = await setup(snapshot(0));
     await pause();
-    rerender({ snap: snapshot(10), session: PHOTO });
-    unmount();
+    await rerender({ snap: snapshot(10), session: PHOTO });
+    await unmount();
     expect(persist).toHaveBeenCalledTimes(2);
   });
 
   it('does not save again what was just saved by hand', async () => {
-    const { persist, result } = setup(snapshot(0));
+    const { persist, result } = await setup(snapshot(0));
     await act(() => result.current.noteSaved());
     await pause();
     expect(persist).not.toHaveBeenCalled();
@@ -103,11 +107,11 @@ describe('useProfilbildAutosave', () => {
   });
 
   it('says so when saving fails, and tries again with the next change', async () => {
-    const { persist, result, rerender } = setup(snapshot(0));
+    const { persist, result, rerender } = await setup(snapshot(0));
     persist.mockRejectedValueOnce(new Error('offline'));
     await pause();
     expect(result.current.state).toBe('error');
-    rerender({ snap: snapshot(10), session: PHOTO });
+    await rerender({ snap: snapshot(10), session: PHOTO });
     await pause();
     expect(persist).toHaveBeenCalledTimes(2);
     expect(result.current.state).toBe('saved');
@@ -118,26 +122,26 @@ describe('useProfilbildAutosave', () => {
       ...snapshot(0, FREE_BACKGROUND_ID),
       model: { ...snapshot(0).model, background: { kind: 'color', color } },
     });
-    const { persist, rerender } = setup(free('#ff0000'));
+    const { persist, rerender } = await setup(free('#ff0000'));
     await pause();
-    rerender({ snap: free('#00ff00'), session: PHOTO });
+    await rerender({ snap: free('#00ff00'), session: PHOTO });
     await pause();
     expect(persist).toHaveBeenCalledTimes(2);
     expect(persist).toHaveBeenLastCalledWith(free('#00ff00'));
   });
 
-  it('drops a pending save when the photo is dropped, instead of running it on leaving', () => {
-    const { persist, rerender, unmount } = setup(snapshot(0));
-    rerender({ snap: null, session: null });
-    unmount();
+  it('drops a pending save when the photo is dropped, instead of running it on leaving', async () => {
+    const { persist, rerender, unmount } = await setup(snapshot(0));
+    await rerender({ snap: null, session: null });
+    await unmount();
     expect(persist).not.toHaveBeenCalled();
   });
 
   it('starts a new photo without the status of the last one', async () => {
-    const { result, rerender } = setup(snapshot(0));
+    const { result, rerender } = await setup(snapshot(0));
     await pause();
     expect(result.current.state).toBe('saved');
-    rerender({ snap: snapshot(0), session: {} });
+    await rerender({ snap: snapshot(0), session: {} });
     expect(result.current.state).toBe('idle');
   });
 });

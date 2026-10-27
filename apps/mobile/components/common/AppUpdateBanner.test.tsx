@@ -65,7 +65,7 @@ jest.mock('@gruenerator/shared/api', () => ({
   getContractsClient: () => ({ appRelease: { getIosStoreRelease: mockIosRelease } }),
 }));
 
-const openURL = jest.spyOn(Linking, 'openURL').mockResolvedValue(true);
+const openURL = jest.spyOn(Linking, 'openURL').mockResolvedValue(undefined);
 
 beforeEach(async () => {
   jest.clearAllMocks();

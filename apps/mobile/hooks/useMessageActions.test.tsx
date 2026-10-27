@@ -12,11 +12,11 @@ jest.mock('expo-router', () => ({ useRouter: () => ({ push: mockPush }) }));
 jest.mock('expo-sharing', () => ({ shareAsync: jest.fn(async () => undefined) }));
 jest.mock('expo-file-system', () => ({
   Paths: { cache: 'cache' },
-  File: jest.fn().mockImplementation(() => ({ uri: 'file:///cache/a.docx', write: jest.fn() })),
+  File: jest.fn().mockImplementation(() => ({ uri: 'file:///cache/a.docx', writeSync: jest.fn() })),
 }));
 jest.mock('../services/storage', () => ({ secureStorage: { getToken: jest.fn() } }));
 
-type AnyMock = jest.Mock<(...args: never[]) => Promise<unknown>>;
+type AnyMock = jest.Mock<(...args: unknown[]) => Promise<unknown>>;
 const getToken = secureStorage.getToken as unknown as AnyMock;
 const message = { role: 'assistant', text: 'Hallo', metadata: {} };
 const ok = (body: unknown) =>
