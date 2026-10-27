@@ -1,6 +1,6 @@
 import { cn } from '@ggraphic/editor/utils/cn';
+import { useMeasuredCornerReservation } from '@ggraphic/editor/utils/cornerReservation';
 import { returnFocusToPage } from '@ggraphic/editor/utils/editorFocus';
-import { useMeasuredCornerReservation } from '@gruenerator/ui';
 import React from 'react';
 import { HiLink } from 'react-icons/hi';
 

@@ -62,6 +62,11 @@
       "require": "./src/brand/grueneBrandPacks.ts",
       "types": "./src/brand/grueneBrandPacks.ts"
     },
+    "./grueneHostSeams": {
+      "import": "./src/brand/grueneHostSeams.ts",
+      "require": "./src/brand/grueneHostSeams.ts",
+      "types": "./src/brand/grueneHostSeams.ts"
+    },
     "./profilbildStickers": {
       "import": "./src/utils/profilbildStickerInstances.ts",
       "require": "./src/utils/profilbildStickerInstances.ts",

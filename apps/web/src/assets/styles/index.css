@@ -292,6 +292,9 @@
   --color-editor-accent: var(--editor-accent);
   --color-editor-active-fg: var(--editor-active-fg);
   --color-editor-active-bg: var(--editor-active-bg);
+  --color-editor-switch-off: var(--editor-switch-off);
+  --color-editor-switch-thumb-on: var(--editor-switch-thumb-on);
+  --color-editor-switch-thumb-off: var(--editor-switch-thumb-off);
   --color-editor-active-soft: var(--editor-active-soft);
   --color-editor-stack-back: var(--editor-stack-back);
   --color-editor-stack-mid: var(--editor-stack-mid);

@@ -6,6 +6,7 @@
  * wenn das Foto während der Analyse ersetzt wurde.
  */
 import { AutoSaveStoreProvider } from '@ggraphic/editor/stores/AutoSaveStoreProvider';
+import { registerToast } from '@ggraphic/editor/utils/editorToast';
 import { userFacingError } from '@ggraphic/editor/utils/userFacingError';
 import { createCanvas } from '@napi-rs/canvas';
 import { act, cleanup, render, waitFor } from '@testing-library/react';
@@ -33,10 +34,8 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock('smartcrop', () => ({ default: { crop: mocks.crop } }));
 
-vi.mock('@gruenerator/ui', async (importOriginal) => {
-  const original = await importOriginal<Record<string, unknown>>();
-  return { ...original, toast: Object.assign(vi.fn(), { error: mocks.toastError }) };
-});
+// The editor reports through its toast seam; the host's registration is replaced by the spy.
+registerToast(Object.assign(vi.fn(), { error: mocks.toastError }));
 
 vi.mock('../../sidebar/UserUploadsProvider', () => ({
   useOptionalUserUploads: () => ({ upload: mocks.upload }),

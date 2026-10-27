@@ -1,4 +1,5 @@
 import { CustomColorSwatch } from '@ggraphic/editor/components/CustomColorSwatch';
+import { Switch } from '@ggraphic/editor/ui/switch';
 import {
   addChartRow,
   addChartSeries,
@@ -14,7 +15,6 @@ import {
   type ChartLegendPosition,
   type ChartType,
 } from '@ggraphic/editor/utils/chartUtils';
-import { Switch } from '@gruenerator/ui';
 import { FaTrash, FaPlus } from 'react-icons/fa';
 import {
   PiChartBar,

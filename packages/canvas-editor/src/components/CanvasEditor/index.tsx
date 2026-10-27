@@ -35,9 +35,9 @@ import {
 import { AnnouncerContext, useLiveAnnouncer } from '@ggraphic/editor/hooks/useAnnounce';
 import { useCanvasStoreSelector } from '@ggraphic/editor/stores/CanvasStoreProvider';
 import { AutoSaveStoreProvider } from '@ggraphic/editor/stores/useAutoSaveStore';
+import { Skeleton } from '@ggraphic/editor/ui/skeleton';
 import { cn } from '@ggraphic/editor/utils/cn';
 import { ensureFontsReady } from '@ggraphic/editor/utils/ensureFontsReady';
-import { Skeleton } from '@gruenerator/ui';
 import Konva from 'konva';
 import React, {
   useCallback,

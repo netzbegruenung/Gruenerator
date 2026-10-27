@@ -1,6 +1,6 @@
 import { useAutoSaveStore, useAutoSaveStoreApi } from '@ggraphic/editor/stores/useAutoSaveStore';
+import { Skeleton } from '@ggraphic/editor/ui/skeleton';
 import { downloadErrorMessage } from '@ggraphic/editor/utils/downloadError';
-import { Skeleton } from '@gruenerator/ui';
 import { useCallback, useState, useMemo, useRef, useEffect, type CSSProperties } from 'react';
 import { createPortal } from 'react-dom';
 import { FaDownload, FaImages, FaSave, FaCheck, FaFileArchive, FaFileImage } from 'react-icons/fa';

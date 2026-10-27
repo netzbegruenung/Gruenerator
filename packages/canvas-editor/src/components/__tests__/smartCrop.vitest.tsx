@@ -4,6 +4,7 @@
  * ihn zurück, und ein Fehlschlag ändert nichts.
  */
 import { AutoSaveStoreProvider } from '@ggraphic/editor/stores/AutoSaveStoreProvider';
+import { registerToast } from '@ggraphic/editor/utils/editorToast';
 import { createCanvas } from '@napi-rs/canvas';
 import { act, cleanup, render, waitFor } from '@testing-library/react';
 import Konva from 'konva';
@@ -30,10 +31,8 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock('smartcrop', () => ({ default: { crop: mocks.crop } }));
 
-vi.mock('@gruenerator/ui', async (importOriginal) => {
-  const original = await importOriginal<Record<string, unknown>>();
-  return { ...original, toast: Object.assign(vi.fn(), { error: mocks.toastError }) };
-});
+// The editor reports through its toast seam; the host's registration is replaced by the spy.
+registerToast(Object.assign(vi.fn(), { error: mocks.toastError }));
 
 vi.mock('@ggraphic/editor/stores/createCanvasEditorStore', async (importOriginal) => {
   const original = await importOriginal<typeof StoreModule>();

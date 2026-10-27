@@ -1,5 +1,5 @@
 import { CustomColorSwatch } from '@ggraphic/editor/components/CustomColorSwatch';
-import { Switch } from '@gruenerator/ui';
+import { Switch } from '@ggraphic/editor/ui/switch';
 
 import { colorName } from '../../utils/colorNames';
 import { defaultTint, EMPTY_ADJUSTMENTS, IMAGE_PRESETS } from '../../utils/imageFilters';
