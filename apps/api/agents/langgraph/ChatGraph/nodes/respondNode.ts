@@ -865,16 +865,10 @@ Zusammenfassung: ${computedResult.summary}${figureNote}${fileNote}
 }
 
 /**
- * Steer the model to compute over an attached spreadsheet with the in-browser
- * pandas interpreter instead of doing arithmetic in its head. When the composer
- * bridges a CSV/Excel/ODS file it is pre-loaded as a pandas DataFrame `df`. The
- * client auto-runs the emitted block and shows the result — so the model must
- * emit a properly language-tagged ```python block and must NOT tell the user to
- * click "Run" or apologise that it can't execute (both were happening).
- *
- * Forks on `clientCanRunPython`: clients without the run_python client tool
- * (mobile/voice) instead get guidance to derive the answer from the document
- * context — never a code block that would silently do nothing there.
+ * Steer the model when a spreadsheet is attached. Python blocks in chat answers
+ * run only on click (c12f94316a), so no branch promises automatic execution:
+ * the default and the no-interpreter branch (mobile/voice, no run_python client
+ * tool) both answer from the table data in the document context.
  */
 export function formatTabularComputeGuidance(state: ChatGraphState): string {
   if (!state.hasTabularAttachment) return '';
@@ -906,17 +900,17 @@ Der*die Nutzer*in hat eine Tabelle (CSV/Excel/ODS) angehängt. Auf diesem Gerät
 - Soll die Tabelle AUSGEFÜLLT werden (Werte eintragen, Vorlage befüllen), geht das auf diesem Gerät nicht: sag kurz, dass das Ausfüllen und der Download der fertigen Datei derzeit nur im Browser (Web-Version) funktioniert, und nenne stattdessen die Werte, die einzutragen wären.
 - Wurde bereits ein BERECHNUNGSERGEBNIS geliefert (siehe unten), übernimm dessen Werte EXAKT und rechne nicht neu.`;
   }
+  // Fenced python blocks in chat answers run only on click (c12f94316a), never
+  // automatically — so the default branch must not promise an auto-run. It
+  // answers from the document context; code only on explicit request.
   return `
 
-## TABELLENDATEN — MIT DEM INTERPRETER RECHNEN, NICHT IM KOPF
+## TABELLENDATEN — AUS DEN DATEN ANTWORTEN
 
-Der*die Nutzer*in hat eine Tabelle (CSV/Excel/ODS) angehängt. Im Browser läuft ein Python-Interpreter, in dem die Datei bereits als pandas-DataFrame \`df\` vorgeladen ist (die Spaltennamen findest du im angehängten Dokumentkontext). Dein Code-Block wird **automatisch ausgeführt** und das Ergebnis wird der*dem Nutzer*in direkt angezeigt.
-
-Für JEDE Frage, die eine Berechnung, Aggregation, Sortierung oder Filterung über die Daten erfordert (Summe, Durchschnitt, Minimum/Maximum, "pro Produkt/Kategorie", Anteile, Zählungen …):
-- Gib einen ausführbaren Code-Block aus, der zwingend mit dem Sprach-Tag \`\`\`python beginnt (NIEMALS nur \`\`\` ohne \`python\`), auf \`df\` arbeitet und das Ergebnis mit \`print(...)\` ausgibt — mit einem klaren Label, z.B. \`print("Gesamtgewinn:", ...)\`.
-- Rechne NIEMALS selbst im Kopf und gib KEINE Handlungsanleitung ("erstelle eine Pivot-Tabelle") — schreibe den Code, der die Antwort direkt berechnet.
-- Verwende die echten Spaltennamen aus dem Dokumentkontext. Halte den Code kurz und robust.
-- Schreibe höchstens 1 kurzen Satz vor den Block. Fordere NICHT zum Klicken/Kopieren/„Ausführen" auf und entschuldige dich NICHT, du könntest keinen Code ausführen — die Ausführung passiert automatisch.
+Der*die Nutzer*in hat eine Tabelle (CSV/Excel/ODS) angehängt. Ihre Daten stehen im angehängten Dokumentkontext.
+- Beantworte Rechenfragen (Summe, Durchschnitt, Minimum/Maximum, "pro Produkt/Kategorie", Anteile, Zählungen …) direkt aus den Tabellendaten im Dokumentkontext: rechne sorgfältig Schritt für Schritt und zeige den Rechenweg kurz und nachvollziehbar (relevante Werte und Zwischensummen nennen).
+- Gib einen \`\`\`python-Block NUR aus, wenn der*die Nutzer*in ausdrücklich nach Code fragt. Behaupte NIEMALS, dass Code von selbst läuft oder dass das Ergebnis gleich erscheint.
+- Sind die benötigten Zeilen oder Spalten im Kontext nicht vollständig enthalten, sag das ehrlich und nenne, welche Angaben fehlen — erfinde KEINE Zahlen.
 - Wurde bereits ein BERECHNUNGSERGEBNIS geliefert (siehe unten), übernimm dessen Werte EXAKT und rechne nicht neu.`;
 }
 
