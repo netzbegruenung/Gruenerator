@@ -147,7 +147,9 @@ describe('runAssertions — each failure class we hit live', () => {
       expect(run({ fullText: 'Panda Security ist eine Antivirensoftware.' })).toBe(false);
     });
     it('passes when a product tool ran', () => {
-      expect(run({ toolCalls: [{ toolName: 'gruenerator_docs_search', args: {}, ok: true }] })).toBe(true);
+      expect(
+        run({ toolCalls: [{ toolName: 'gruenerator_docs_search', args: {}, ok: true }] })
+      ).toBe(true);
     });
     it('passes on a deep link to an existing docs page', () => {
       expect(
