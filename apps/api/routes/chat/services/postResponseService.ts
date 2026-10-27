@@ -40,6 +40,7 @@ import {
 
 import type { PersistedStep } from './agenticLoop/types.js';
 import type { ProcessedAttachmentMeta } from './attachmentProcessingService.js';
+import type { StoredRequestContext } from './pipelineStateStore.js';
 import type { SharepicVariant } from './sharepicVariantHelpers.js';
 import type {
   ChatGraphState,
@@ -699,6 +700,31 @@ async function saveThreadAttachmentsFromMeta(
   // single attachment had failed.
   log.info(`[ChatGraph] Saved ${saved}/${processedMeta.length} attachments for thread ${threadId}`);
   return saved === processedMeta.length;
+}
+
+/**
+ * Save a SUSPENDING turn's uploads before it hands the client anything to do —
+ * shared by every pause (tool approval, loop client tool, loop ask_human, the
+ * pre-loop `suspendTurn`).
+ *
+ * The end of the turn saves them too, but a paused turn has no end yet. The
+ * browser meanwhile cleared its Pyodide file store on the draft → thread switch
+ * and can only refill it from `/threads/:id/tabular-files`, which reads these
+ * rows: without this, `tabelle_auswerten` ran its pandas code with no `df`
+ * (live 27.10.2026), and a reload during an open approval lost the file.
+ * The later end-of-turn save is a no-op per file (ON CONFLICT on
+ * thread_id + content_hash in `saveThreadAttachment`). Never throws.
+ */
+export async function persistSuspendedTurnAttachments(
+  threadId: string,
+  ctx: Pick<StoredRequestContext, 'userId' | 'processedMeta' | 'userMessageId'>
+): Promise<void> {
+  await saveThreadAttachmentsFromMeta(
+    threadId,
+    ctx.userId,
+    ctx.processedMeta,
+    ctx.userMessageId ?? null
+  );
 }
 
 /**

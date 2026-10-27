@@ -43,7 +43,8 @@ vi.mock('./attachmentPersistenceService.js', () => ({
   RAG_ATTACHMENT_THRESHOLD_CHARS: 20_000,
 }));
 
-const { persistResumedResponse } = await import('./postResponseService.js');
+const { persistResumedResponse, persistSuspendedTurnAttachments } =
+  await import('./postResponseService.js');
 
 // Minimal ChatGraphState-shaped stub — persistResumedResponse only reads
 // intent/searchCount/citations/searchResults/computedResult(+Fresh) off it.
@@ -126,6 +127,56 @@ describe('Anhänge werden nicht zweimal eingebettet', () => {
     });
 
     expect(embedThreadAttachmentForRag).not.toHaveBeenCalled();
+  });
+});
+
+/**
+ * Ein pausierender Zug (Freigabe, Browser-Werkzeug, Rückfrage) speichert seine
+ * Anhänge schon beim Pausieren — der Browser holt die Tabellen-Bytes für Pyodide
+ * von dort, bevor der Zug zu Ende ist. Das Ende des Zuges speichert danach noch
+ * einmal; doppelte Zeilen verhindert `saveThreadAttachment` selbst über
+ * (thread_id, content_hash) — siehe attachmentDedupe.vitest.ts.
+ */
+describe('persistSuspendedTurnAttachments', () => {
+  const xlsx = {
+    name: 'test.xlsx',
+    mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    sizeBytes: 1234,
+    isImage: false,
+    extractedText: 'Name;Geburtstag',
+    fileData: 'UEsDBA==',
+  };
+
+  it('speichert die Bytes des Turns am User-Turn', async () => {
+    await persistSuspendedTurnAttachments('thread-1', {
+      userId: 'user-1',
+      userMessageId: 'user-msg-1',
+      processedMeta: [xlsx] as never,
+    });
+
+    expect(saveThreadAttachment).toHaveBeenCalledTimes(1);
+    expect(saveThreadAttachment.mock.calls[0]![0]).toMatchObject({
+      threadId: 'thread-1',
+      userId: 'user-1',
+      messageId: 'user-msg-1',
+      name: 'test.xlsx',
+      fileData: 'UEsDBA==',
+    });
+  });
+
+  it('wirft nicht, wenn das Speichern scheitert — die Pause geht trotzdem raus', async () => {
+    saveThreadAttachment.mockRejectedValue(new Error('db down'));
+    await expect(
+      persistSuspendedTurnAttachments('thread-1', {
+        userId: 'user-1',
+        processedMeta: [xlsx] as never,
+      })
+    ).resolves.toBeUndefined();
+  });
+
+  it('tut ohne Anhänge nichts', async () => {
+    await persistSuspendedTurnAttachments('thread-1', { userId: 'user-1', processedMeta: [] });
+    expect(saveThreadAttachment).not.toHaveBeenCalled();
   });
 });
 

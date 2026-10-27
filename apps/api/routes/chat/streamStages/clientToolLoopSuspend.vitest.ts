@@ -34,7 +34,7 @@ describe('suspendForLoopClientTool', () => {
       sse: { send: vi.fn(), end: vi.fn() } as unknown as SSEWriter,
       threadId: 't1',
       classifiedState: { intent: 'agentic' } as never,
-      requestContext: { userId: 'u1' } as never,
+      requestContext: { userId: 'u1', processedMeta: [] } as never,
       pendingClientTool: {
         toolCallId: 'c1',
         toolName: 'tabelle_auswerten',
