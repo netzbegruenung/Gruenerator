@@ -6,24 +6,31 @@
  * transformed through Babel, which is what jest-expo's preset provides. Vitest
  * cannot do that, hence the second runner.
  */
+// Wherever the hoisted linker put mobile's react — nested under apps/mobile
+// while web pins another version, at the root when they agree.
+const dirOf = (pkg) =>
+  require.resolve(`${pkg}/package.json`, { paths: [__dirname] }).replace(/[\\/]package\.json$/, '');
+const reactDir = dirOf('react');
+const reactDomDir = dirOf('react-dom');
+
 module.exports = {
   preset: 'jest-expo',
   testMatch: ['**/*.test.ts', '**/*.test.tsx'],
   setupFilesAfterEnv: ['<rootDir>/test/jest.setup.ts'],
   testPathIgnorePatterns: ['/node_modules/', '/android/', '/ios/', '/.expo/', '/maestro/'],
 
-  // Collapse react/react-dom onto the single Expo-pinned copy in
-  // apps/mobile/node_modules. Three copies exist on disk under
-  // node-linker=hoisted — the root one, the Expo-pinned one here, and a nested
-  // one inside @testing-library/react-native — and two React instances do not
+  // Collapse react/react-dom onto the single Expo-pinned copy mobile resolves.
+  // Under node-linker=hoisted several copies can exist on disk — the root one,
+  // an Expo-pinned one in apps/mobile/node_modules, and a nested one inside
+  // @testing-library/react-native — and two React instances do not
   // share a hook dispatcher. The symptom is not an error: `renderHook` returns
   // an undefined `result.current`. Mirrors the dedupe metro.config.js applies
   // to the real bundle.
   moduleNameMapper: {
-    '^react$': '<rootDir>/node_modules/react',
-    '^react/(.*)$': '<rootDir>/node_modules/react/$1',
-    '^react-dom$': '<rootDir>/node_modules/react-dom',
-    '^react-dom/(.*)$': '<rootDir>/node_modules/react-dom/$1',
+    '^react$': reactDir,
+    '^react/(.*)$': `${reactDir}/$1`,
+    '^react-dom$': reactDomDir,
+    '^react-dom/(.*)$': `${reactDomDir}/$1`,
 
     // The TS sources in packages/* use ESM-style relative specifiers
     // (`export * from './client.js'`) that actually point at `./client.ts`.
