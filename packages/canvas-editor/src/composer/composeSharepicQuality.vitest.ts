@@ -3,7 +3,7 @@
  * the text at the bottom, the headline fills its column, logos are rare, the
  * date circle sits free in the corner.
  */
-import { type SharepicSlide, type SharepicSpec } from '@gruenerator/contracts';
+import { type SharepicColor, type SharepicSlide, type SharepicSpec } from '@gruenerator/contracts';
 import { describe, expect, it } from 'vitest';
 
 import { getBrandTheme } from '../brand/theme';
@@ -368,5 +368,37 @@ describe('DE interview question', () => {
     expect(q.accent?.fill).toBe('#008939');
     expect(q.fill).toBe(SHAREPIC_COLOR_HEX.dunkeltanne);
     expect(q.fontSize).toBeLessThan(a.fontSize);
+  });
+});
+
+describe('DE date circle colour', () => {
+  const circleOn = (color: SharepicColor, thema: SharepicSpec['thema'] = undefined) => {
+    const [s] = composeSharepic(
+      {
+        locale: 'de-DE',
+        ...(thema ? { thema } : {}),
+        slides: [
+          slide({ background: { kind: 'farbe', color }, datum: { weekday: 'Sa', date: '12.11.' } }),
+        ],
+      },
+      options
+    ).slides;
+    return s!.circleBadgeInstances.find((b) => b.id === 'sc-datum')!.backgroundColor;
+  };
+
+  it('is Tanne on light and grass-green ground', () => {
+    expect(circleOn('mint')).toBe('#005538');
+    expect(circleOn('grasgruen')).toBe('#005538');
+  });
+
+  // Keyed on the ground's ink, not a list of names: aubergine and the queer
+  // theme's grounds came after the list and got a Tanne circle at ~1:1 (#4992).
+  it.each([
+    ['tanne', undefined],
+    ['aubergine', undefined],
+    ['violett', 'queer'],
+    ['pride', 'queer'],
+  ] as const)('is grass green on dark ground (%s)', (color, thema) => {
+    expect(circleOn(color, thema)).toBe(SHAREPIC_COLOR_HEX.grasgruen);
   });
 });
