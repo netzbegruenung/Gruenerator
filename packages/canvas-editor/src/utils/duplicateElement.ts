@@ -32,7 +32,7 @@ import { ELEMENT_KINDS, type ElementKindName } from './elementKinds';
 import { catalogIconId } from './iconInstances';
 
 import type { AssetInstance } from './canvasAssets';
-import type { ChartInstance } from './chartUtils';
+import type { ChartInstance } from './chartTypes';
 import type { FrameInstance } from './frameUtils';
 import type { GradientFill } from './gradientFill';
 import type { IllustrationInstance } from './illustrations/types';

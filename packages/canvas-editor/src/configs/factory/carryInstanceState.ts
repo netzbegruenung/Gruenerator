@@ -38,7 +38,7 @@ import { isTextAlign, type TextAlign } from '../../utils/textAlign';
 import type { IconState } from './baseTypes';
 import type { BalkenInstance } from '../../utils/balkenUtils';
 import type { AssetInstance } from '../../utils/canvasAssets';
-import type { ChartInstance } from '../../utils/chartUtils';
+import type { ChartInstance } from '../../utils/chartTypes';
 import type { CircleBadgeInstance } from '../../utils/circleBadgeUtils';
 import type { FrameInstance } from '../../utils/frameUtils';
 import type { IllustrationInstance } from '../../utils/illustrations/types';

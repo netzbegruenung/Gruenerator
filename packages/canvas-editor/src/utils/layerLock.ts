@@ -8,7 +8,7 @@
 
 import { BACKGROUND_IMAGE_NODE_ID } from './printImageInfo';
 
-import type { CanvasItem } from './canvasLayerManager';
+import type { CanvasItem } from './canvasItem';
 
 export type LockState = 'all' | 'some' | 'none';
 

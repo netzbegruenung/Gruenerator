@@ -8,7 +8,7 @@ import type { ReplaceDeckOps } from './collab/pagesDoc';
 
 /**
  * A page in a heterogeneous multi-page document. `TConfigId` is the host's
- * template id union; the core only knows a string, the Grünerator's own
+ * template id union; the core only knows a string, the host's own
  * multi-page editor uses `HeterogeneousPage<CanvasConfigId>`.
  */
 export interface HeterogeneousPage<TConfigId extends string = string> {

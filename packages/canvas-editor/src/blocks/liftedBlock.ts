@@ -13,7 +13,7 @@ import { runMeasurer } from '../utils/textUtils';
 import type { IconState } from '../configs/factory/baseTypes';
 import type { AdditionalText } from '../configs/types';
 import type { AssetInstance } from '../utils/canvasAssets';
-import type { ChartInstance } from '../utils/chartUtils';
+import type { ChartInstance } from '../utils/chartTypes';
 import type { CircleBadgeInstance } from '../utils/circleBadgeUtils';
 import type { PillBadgeInstance } from '../utils/pillBadgeUtils';
 import type { ShapeInstance } from '../utils/shapes';
