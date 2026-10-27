@@ -1,7 +1,7 @@
 import { CustomColorSwatch } from '@ggraphic/editor/components/CustomColorSwatch';
+import { Popover, PopoverContent, PopoverTrigger } from '@ggraphic/editor/ui/popover';
 import { brandColors } from '@ggraphic/editor/utils/colorOptions';
 import { createDefaultGradient, type GradientFill } from '@ggraphic/editor/utils/gradientFill';
-import { Popover, PopoverContent, PopoverTrigger } from '@gruenerator/ui';
 import { Slider } from 'radix-ui';
 import React, { useId } from 'react';
 import { PiPaintBucket } from 'react-icons/pi';

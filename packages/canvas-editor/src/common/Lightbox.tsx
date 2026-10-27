@@ -1,4 +1,4 @@
-import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@gruenerator/ui';
+import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@ggraphic/editor/ui/dialog';
 
 interface LightboxProps {
   isOpen: boolean;
