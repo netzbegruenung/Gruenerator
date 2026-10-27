@@ -37,6 +37,7 @@ function setup(total = 3) {
   const onPlaceImageUrl = vi.fn();
   const services: CanvasEditorServices = {
     searchUnsplashImages,
+    unsplashUtmSource: 'gruenerator',
     trackUnsplashDownloadLive,
     uploadImage,
     // The host's search-state hook, as apps/web passes it.

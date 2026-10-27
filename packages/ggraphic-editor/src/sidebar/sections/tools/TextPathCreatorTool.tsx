@@ -1,4 +1,6 @@
+// SPDX-License-Identifier: MPL-2.0
 import { CustomColorSwatch } from '@ggraphic/editor/components/CustomColorSwatch';
+import { headlineFontStack } from '@ggraphic/editor/brand/brandRegistry';
 import { useMessages } from '@ggraphic/editor/i18n/messages';
 import { brandColors } from '@ggraphic/editor/utils/colorOptions';
 import Konva from 'konva';
@@ -7,7 +9,10 @@ import { PiPath } from 'react-icons/pi';
 
 import { MOBILE_INPUT_TEXT } from '@ggraphic/editor/sidebar/sidebarStyles';
 
-import { ToolPanel, type ToolPanelSuccess } from '@ggraphic/editor/sidebar/sections/tools/ToolPanel';
+import {
+  ToolPanel,
+  type ToolPanelSuccess,
+} from '@ggraphic/editor/sidebar/sections/tools/ToolPanel';
 import { useToolImagePlacement } from '@ggraphic/editor/sidebar/sections/tools/useToolImagePlacement';
 
 export interface TextPathCreatorToolProps {
@@ -15,7 +20,6 @@ export interface TextPathCreatorToolProps {
   onPlaceImageUrl?: (url: string, fileName: string) => void;
 }
 
-const FONT_FAMILY = '"GrueneTypeNeue", "ArvoGruen", sans-serif';
 /** The brand's first colour, read when the tool opens. */
 const defaultColor = () => brandColors()[0]?.value ?? '#000000';
 
@@ -55,7 +59,7 @@ async function renderTextPath(
   const layer = new Konva.Layer();
   stage.add(layer);
 
-  const font = `bold ${fontSize}px ${FONT_FAMILY}`;
+  const font = `bold ${fontSize}px ${headlineFontStack()}`;
   try {
     await document.fonts.load(font, text);
   } catch {
@@ -66,7 +70,7 @@ async function renderTextPath(
     text,
     data,
     fontSize,
-    fontFamily: FONT_FAMILY,
+    fontFamily: headlineFontStack(),
     fontStyle: 'bold',
     fill: color,
   });
@@ -201,7 +205,7 @@ export function TextPathCreatorTool({
                   className="size-6 rounded-full border border-black/10 transition-transform hover:scale-110 disabled:opacity-50"
                   style={{
                     backgroundColor: c.value,
-                    outline: color === c.value ? '2px solid var(--editor-accent, #005538)' : 'none',
+                    outline: color === c.value ? '2px solid var(--editor-accent)' : 'none',
                     outlineOffset: '2px',
                   }}
                 />

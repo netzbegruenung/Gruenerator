@@ -1,4 +1,5 @@
 import { useCanvasEditorServices } from '@ggraphic/editor/CanvasEditorProvider';
+import { headlineFontStack } from '@ggraphic/editor/brand/brandRegistry';
 import { useMessages } from '@ggraphic/editor/i18n/messages';
 import { cn } from '@ggraphic/editor/utils/cn';
 import { brandColors } from '@ggraphic/editor/utils/colorOptions';
@@ -19,7 +20,7 @@ import { whenIdle } from '@ggraphic/editor/sidebar/sections/whenIdle';
 
 import { ToolTile, type ToolTileId } from '@ggraphic/editor/sidebar/sections/tools/ToolTiles';
 
-import type { AltTextPagesSource } from './AltTextTool';
+import type { AltTextPagesSource } from '@ggraphic/editor/sidebar/sections/tools/AltTextTool';
 import type { UserImagePlacement } from '@ggraphic/editor/utils/userImageUtils';
 import type { ComponentType } from 'react';
 import type { IconType } from 'react-icons';
@@ -29,19 +30,35 @@ import type { IconType } from 'react-icons';
 // tile also warms its own on pointer-enter/focus in case the click comes first.
 const PANELS = {
   'remove-bg': lazyWithPreload(() =>
-    import('./RemoveBackgroundTool').then((m) => m.RemoveBackgroundTool)
+    import('@ggraphic/editor/sidebar/sections/tools/RemoveBackgroundTool').then(
+      (m) => m.RemoveBackgroundTool
+    )
   ),
-  'ai-create': lazyWithPreload(() => import('@ggraphic/editor/sidebar/sections/tools/AiCreateTool').then((m) => m.AiCreateTool)),
-  'ai-edit': lazyWithPreload(() => import('./AiEditTool').then((m) => m.AiEditTool)),
-  'alt-text': lazyWithPreload(() => import('./AltTextTool').then((m) => m.AltTextTool)),
+  'ai-create': lazyWithPreload(() =>
+    import('@ggraphic/editor/sidebar/sections/tools/AiCreateTool').then((m) => m.AiCreateTool)
+  ),
+  'ai-edit': lazyWithPreload(() =>
+    import('@ggraphic/editor/sidebar/sections/tools/AiEditTool').then((m) => m.AiEditTool)
+  ),
+  'alt-text': lazyWithPreload(() =>
+    import('@ggraphic/editor/sidebar/sections/tools/AltTextTool').then((m) => m.AltTextTool)
+  ),
   unsplash: lazyWithPreload(() => import('./UnsplashTool').then((m) => m.UnsplashTool)),
-  'qr-code': lazyWithPreload(() => import('./QRCodeTool').then((m) => m.QRCodeTool)),
-  'gradient-text': lazyWithPreload(() =>
-    import('./GradientTextTool').then((m) => m.GradientTextTool)
+  'qr-code': lazyWithPreload(() =>
+    import('@ggraphic/editor/sidebar/sections/tools/QRCodeTool').then((m) => m.QRCodeTool)
   ),
-  blob: lazyWithPreload(() => import('./BlobCreatorTool').then((m) => m.BlobCreatorTool)),
+  'gradient-text': lazyWithPreload(() =>
+    import('@ggraphic/editor/sidebar/sections/tools/GradientTextTool').then(
+      (m) => m.GradientTextTool
+    )
+  ),
+  blob: lazyWithPreload(() =>
+    import('@ggraphic/editor/sidebar/sections/tools/BlobCreatorTool').then((m) => m.BlobCreatorTool)
+  ),
   'text-path': lazyWithPreload(() =>
-    import('./TextPathCreatorTool').then((m) => m.TextPathCreatorTool)
+    import('@ggraphic/editor/sidebar/sections/tools/TextPathCreatorTool').then(
+      (m) => m.TextPathCreatorTool
+    )
   ),
 } satisfies Record<ToolTileId, { preload: () => Promise<unknown> }>;
 
@@ -101,7 +118,7 @@ function GradientTextIcon({ size = 24, className }: { size?: number; className?:
         textAnchor="middle"
         fontSize="17"
         fontWeight="900"
-        fontFamily="GrueneTypeNeue, ArvoGruen, sans-serif"
+        fontFamily={headlineFontStack()}
         fill={`url(#${gradientId})`}
       >
         Aa

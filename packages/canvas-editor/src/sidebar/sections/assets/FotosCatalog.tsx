@@ -3,7 +3,10 @@ import { useNoUnsplashSearch, type UnsplashSearchFn } from '@ggraphic/editor/hos
 import { useMessages } from '@ggraphic/editor/i18n/messages';
 import { useCallback, useEffect, useMemo, type ReactNode } from 'react';
 
-import { UnsplashLimitNotice, UnsplashRemaining } from '../tools/UnsplashLimitNotice';
+import {
+  UnsplashLimitNotice,
+  UnsplashRemaining,
+} from '@ggraphic/editor/sidebar/sections/tools/UnsplashLimitNotice';
 
 import { unsplashPhotoItem } from './useStockPhotos';
 

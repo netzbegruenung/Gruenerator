@@ -1,4 +1,6 @@
+// SPDX-License-Identifier: MPL-2.0
 import { CustomColorSwatch } from '@ggraphic/editor/components/CustomColorSwatch';
+import { headlineFontStack } from '@ggraphic/editor/brand/brandRegistry';
 import { useMessages } from '@ggraphic/editor/i18n/messages';
 import { brandColors } from '@ggraphic/editor/utils/colorOptions';
 import { useCallback, useState } from 'react';
@@ -6,7 +8,10 @@ import { PiTextT } from 'react-icons/pi';
 
 import { MOBILE_INPUT_TEXT } from '@ggraphic/editor/sidebar/sidebarStyles';
 
-import { ToolPanel, type ToolPanelSuccess } from '@ggraphic/editor/sidebar/sections/tools/ToolPanel';
+import {
+  ToolPanel,
+  type ToolPanelSuccess,
+} from '@ggraphic/editor/sidebar/sections/tools/ToolPanel';
 import { useToolImagePlacement } from '@ggraphic/editor/sidebar/sections/tools/useToolImagePlacement';
 
 export interface GradientTextToolProps {
@@ -17,7 +22,6 @@ export interface GradientTextToolProps {
 // High-res render so the placed image stays crisp when scaled on the canvas.
 const RENDER_FONT_PX = 240;
 const RENDER_PADDING = 24;
-const FONT_FAMILY = '"GrueneTypeNeue", "ArvoGruen", sans-serif';
 
 /** The brand's nth colour, read when the tool opens. */
 const paletteColor = (index: number) => () => brandColors()[index]?.value ?? '#000000';
@@ -47,7 +51,7 @@ function ColorRow({
             className="size-6 rounded-full border border-black/10 transition-transform hover:scale-110 disabled:opacity-50"
             style={{
               backgroundColor: c.value,
-              outline: selected === c.value ? '2px solid var(--editor-accent, #005538)' : 'none',
+              outline: selected === c.value ? '2px solid var(--editor-accent)' : 'none',
               outlineOffset: '2px',
             }}
           />
@@ -74,7 +78,7 @@ async function renderGradientTextPng(
   const ctx = canvas.getContext('2d');
   if (!ctx) return null;
 
-  const font = `700 ${RENDER_FONT_PX}px ${FONT_FAMILY}`;
+  const font = `700 ${RENDER_FONT_PX}px ${headlineFontStack()}`;
   // Best-effort: make sure the brand font is ready before measuring/drawing.
   try {
     await document.fonts.load(font, text);
@@ -167,7 +171,7 @@ export function GradientTextTool({ onJumpToUploads, onPlaceImageUrl }: GradientT
             <span
               className="text-3xl font-bold leading-tight text-center break-words"
               style={{
-                fontFamily: FONT_FAMILY,
+                fontFamily: headlineFontStack(),
                 backgroundImage: `linear-gradient(${angle}deg, ${color1}, ${color2})`,
                 WebkitBackgroundClip: 'text',
                 backgroundClip: 'text',
