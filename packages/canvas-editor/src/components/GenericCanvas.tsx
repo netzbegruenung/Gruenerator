@@ -8,11 +8,25 @@
  */
 
 import { useEmitHostStateChanges } from '@ggraphic/editor/collab/useEmitHostStateChanges';
+import { useYjsCanvasBinding } from '@ggraphic/editor/collab/useYjsCanvasBinding';
 import { stateKeyOfCallback } from '@ggraphic/editor/collab/wrapCallbacksWithPageSync';
+import { PrintGuides } from '@ggraphic/editor/components/PrintGuides';
+import { getCanvasFormatOrDefault } from '@ggraphic/editor/formats/index';
 import { useAnnounce } from '@ggraphic/editor/hooks/useAnnounce';
+import { useSelectionAnnouncement } from '@ggraphic/editor/hooks/useSelectionAnnouncement';
+import {
+  CanvasStoreProvider,
+  useCanvasStore,
+  useCanvasStoreSelector,
+} from '@ggraphic/editor/stores/CanvasStoreProvider';
 import { useAutoSaveStore } from '@ggraphic/editor/stores/useAutoSaveStore';
 import { type CropAspectId } from '@ggraphic/editor/utils/cropAspect';
 import { itemBodyRect } from '@ggraphic/editor/utils/deepSelect';
+import { ensureFontsReady } from '@ggraphic/editor/utils/ensureFontsReady';
+import {
+  applyLayerSelection,
+  type LayerSelectionChange,
+} from '@ggraphic/editor/utils/layerSelection';
 import { selectableItemIds } from '@ggraphic/editor/utils/multiSelect';
 import { type ViewportRect, rotaterRects, visibleArea } from '@ggraphic/editor/utils/orientation';
 import { PendingImagesContext } from '@ggraphic/editor/utils/pendingImages';
@@ -33,9 +47,7 @@ import React, {
 import { blockElementIds, placeBlock, type LiftedBlock } from '../blocks/liftedBlock';
 import { HOST_EMITTED_STATE_KEYS } from '../collab/pageElementStateKeys';
 import { useSelectionAwareness } from '../collab/useSelectionAwareness';
-import { useYjsCanvasBinding } from '../collab/useYjsCanvasBinding';
 import { useYjsPageStateSync } from '../collab/useYjsPageStateSync';
-import { getCanvasFormatOrDefault } from '../formats';
 import {
   useCanvasInteractions,
   useCanvasStoreReset,
@@ -50,13 +62,7 @@ import { useContextPress } from '../hooks/useContextPress';
 import { useCropSession } from '../hooks/useCropSession';
 import { useDeepSelect } from '../hooks/useDeepSelect';
 import { floatingModuleFor } from '../hooks/useFloatingModuleState';
-import { useSelectionAnnouncement } from '../hooks/useSelectionAnnouncement';
 import { CanvasStage, SnapGuidelines } from '../primitives';
-import {
-  CanvasStoreProvider,
-  useCanvasStore,
-  useCanvasStoreSelector,
-} from '../stores/CanvasStoreProvider';
 import {
   createCanvasCommands,
   type ClientPoint,
@@ -70,16 +76,13 @@ import {
   rasterizeStageElement,
   visibleStageTexts,
 } from '../utils/captureStage';
-import { ensureFontsReady } from '../utils/ensureFontsReady';
 import { MAX_ICON_SELECTIONS, selectedCatalogIconIds } from '../utils/iconInstances';
 import { layerLabel, pageLayerLabels, stageSummary } from '../utils/layerLabels';
-import { applyLayerSelection, type LayerSelectionChange } from '../utils/layerSelection';
 import { locateDrop, type ElementDragPayload, type MediaDragPayload } from '../utils/mediaDrop';
 import { findTemplateEntry } from '../utils/templateElementInstance';
 
 import { CanvasRenderLayer } from './CanvasRenderLayer';
 import { CropGhostOverlay } from './CropGhostOverlay';
-import { PrintGuides } from './PrintGuides';
 import { ToolbarStateBridge } from './ToolbarStateBridge';
 
 import type { CanvasMenuSnapshot } from './CanvasContextMenu/canvasMenuModel';
@@ -95,10 +98,10 @@ import type { OptionalCanvasActions } from '../hooks/useCanvasElementHandlers';
 import type { ShadowPatch } from '../hooks/useFloatingModuleHandlers';
 import type { FloatingModuleState } from '../hooks/useFloatingModuleState';
 import type { CanvasStageRef } from '../primitives/CanvasStage';
-import type { CanvasEditorStoreApi } from '../stores/createCanvasEditorStore';
-import type { ExportOptions } from '../types/editorTypes';
 import type { LayerEntry } from '../utils/layerLabels';
 import type { LockState } from '../utils/layerLock';
+import type { CanvasEditorStoreApi } from '@ggraphic/editor/stores/createCanvasEditorStore';
+import type { ExportOptions } from '@ggraphic/editor/types/editorTypes';
 import type { PageCommandId } from '@ggraphic/editor/utils/canvasCommandRegistry';
 import type { GradientFill } from '@ggraphic/editor/utils/gradientFill';
 import type { TextAlign } from '@ggraphic/editor/utils/textAlign';

@@ -1,7 +1,7 @@
+import { getCanvasFormatOrDefault } from '@ggraphic/editor/formats/index';
 import { replaceCanvasPagesBodySchema } from '@gruenerator/contracts';
 import { describe, expect, it } from 'vitest';
 
-import { getCanvasFormatOrDefault } from '../formats';
 import { createFreeformAtFullConfig } from './freeform_at_full.config';
 import { createFreeformFullConfig } from './freeform_full.config';
 

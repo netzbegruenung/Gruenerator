@@ -1,6 +1,5 @@
+import { createShape, photoStripBeside, STROKE_ONLY_SHAPES } from '@ggraphic/editor/utils/shapes';
 import { describe, expect, it } from 'vitest';
-
-import { createShape, photoStripBeside, STROKE_ONLY_SHAPES } from './shapes';
 
 describe('STROKE_ONLY_SHAPES', () => {
   it('contains only the line-* ids rendered as Konva Line/Arrow', () => {

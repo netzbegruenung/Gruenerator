@@ -1,4 +1,4 @@
-import { brandColors } from './colorOptions';
+import { brandColors } from '@ggraphic/editor/utils/colorOptions';
 
 /** German name of a brand colour, otherwise "Farbe #RRGGBB" — for swatch `aria-label`s. */
 export function colorName(hex: string): string {

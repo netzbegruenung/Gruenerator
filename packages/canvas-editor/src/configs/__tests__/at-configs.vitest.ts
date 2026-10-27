@@ -1,13 +1,13 @@
+import { measureTextWidthWithFont } from '@ggraphic/editor/utils/textUtils';
 import { describe, it, expect, beforeAll } from 'vitest';
 
 import { getBrandTheme } from '../../brand/theme';
-import { loadCanvasConfig } from '../configLoader';
+import { INFO_AT_CONFIG, calculateInfoAtLayout } from '../../utils/infoAtLayout';
+import { OVERLAY_AT_CONFIG, calculateOverlayAtLayout } from '../../utils/overlayAtLayout';
 import { getTemplatesForLocale } from '../../utils/templateRegistry';
 import { ZITAT_AT_CONFIG, calculateZitatAtLayout } from '../../utils/zitatAtLayout';
 import { ZITAT_PURE_AT_CONFIG, calculateZitatPureAtLayout } from '../../utils/zitatPureAtLayout';
-import { INFO_AT_CONFIG, calculateInfoAtLayout } from '../../utils/infoAtLayout';
-import { OVERLAY_AT_CONFIG, calculateOverlayAtLayout } from '../../utils/overlayAtLayout';
-import { measureTextWidthWithFont } from '../../utils/textUtils';
+import { loadCanvasConfig } from '../configLoader';
 
 const AT_IDS = [
   'zitat-at',

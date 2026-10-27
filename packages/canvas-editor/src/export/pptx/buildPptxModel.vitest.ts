@@ -1,8 +1,8 @@
+import { getCanvasFormat, type CanvasFormat } from '@ggraphic/editor/formats/index';
 import { describe, expect, it } from 'vitest';
 
 import { composeSharepic } from '../../composer/composeSharepic';
 import { at, deCarousel, options } from '../../composer/sharepicSpecFixtures';
-import { getCanvasFormat, type CanvasFormat } from '../../formats';
 
 import {
   buildPptxModel,
@@ -20,9 +20,9 @@ import type {
   PptxTextItem,
 } from './types';
 import type { AdditionalText } from '../../configs/types';
-import type { ChartInstance } from '../../utils/chartUtils';
-import type { ShapeInstance } from '../../utils/shapes';
 import type { UserImageInstance } from '../../utils/userImageUtils';
+import type { ChartInstance } from '@ggraphic/editor/utils/chartUtils';
+import type { ShapeInstance } from '@ggraphic/editor/utils/shapes';
 
 /** Das Folienformat (`slide-16-9`) entsteht parallel; hier inline mit denselben Maßen. */
 const SLIDE: CanvasFormat = {

@@ -13,9 +13,9 @@ import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vite
 import { loadCanvasConfig } from '../../configs/configLoader';
 import { GenericCanvas, type GenericCanvasRef } from '../GenericCanvas';
 
-import type * as StoreModule from '../../stores/createCanvasEditorStore';
-import type { CanvasEditorStoreApi } from '../../stores/createCanvasEditorStore';
 import type { UserImageInstance } from '../../utils/userImageUtils';
+import type * as StoreModule from '@ggraphic/editor/stores/createCanvasEditorStore';
+import type { CanvasEditorStoreApi } from '@ggraphic/editor/stores/createCanvasEditorStore';
 
 const mocks = vi.hoisted(() => ({
   stores: [] as unknown[],
@@ -35,7 +35,7 @@ vi.mock('@gruenerator/ui', async (importOriginal) => {
   return { ...original, toast: Object.assign(vi.fn(), { error: mocks.toastError }) };
 });
 
-vi.mock('../../stores/createCanvasEditorStore', async (importOriginal) => {
+vi.mock('@ggraphic/editor/stores/createCanvasEditorStore', async (importOriginal) => {
   const original = await importOriginal<typeof StoreModule>();
   return {
     ...original,

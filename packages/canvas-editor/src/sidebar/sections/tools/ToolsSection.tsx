@@ -1,4 +1,5 @@
 import { cn } from '@ggraphic/editor/utils/cn';
+import { brandColors } from '@ggraphic/editor/utils/colorOptions';
 import { Suspense, useEffect, useId, useState } from 'react';
 import { HiSparkles } from 'react-icons/hi';
 import {
@@ -12,7 +13,6 @@ import { PiArrowLeft, PiCaretRightBold, PiDropSimpleFill, PiPath } from 'react-i
 
 import { useCanvasEditorServices } from '../../../CanvasEditorProvider';
 import { useIsCanvasMobile } from '../../../hooks/useIsCanvasMobile';
-import { brandColors } from '../../../utils/colorOptions';
 import { lazyWithPreload } from '../lazyWithPreload';
 import { whenIdle } from '../whenIdle';
 

@@ -5,7 +5,12 @@
  * itself lives with each template in `templates/registry.ts`.
  */
 
-import { DEFAULT_FORMAT_ID, getCanvasFormatOrDefault, pinnedFormatId } from '../formats';
+import {
+  DEFAULT_FORMAT_ID,
+  getCanvasFormatOrDefault,
+  pinnedFormatId,
+} from '@ggraphic/editor/formats/index';
+
 import { BUILTIN_TEMPLATES } from '../templates/registry';
 
 import type { BrandLocale } from '../brand/theme';

@@ -3,15 +3,15 @@
  * die Memo-Vergleiche zeichnen bei reiner Drehung neu, und jeder Editor
  * (Text, Pille, Kreis-Badge) öffnet sich gedreht an Ort und Stelle.
  */
+import { overlayBoxForNode } from '@ggraphic/editor/components/CanvasTextOverlay';
+import { CircleBadge } from '@ggraphic/editor/primitives/CircleBadge';
+import { PillBadge } from '@ggraphic/editor/primitives/PillBadge';
 import { act, cleanup, render } from '@testing-library/react';
 import { createRef } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { overlayBoxForNode } from '../../components/CanvasTextOverlay';
 import { CanvasStage, type CanvasStageRef } from '../CanvasStage';
 import { CanvasText } from '../CanvasText';
-import { CircleBadge } from '../CircleBadge';
-import { PillBadge } from '../PillBadge';
 
 import type Konva from 'konva';
 

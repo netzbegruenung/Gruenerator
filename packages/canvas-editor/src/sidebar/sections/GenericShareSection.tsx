@@ -1,4 +1,5 @@
 import { useAutoSaveStore, useAutoSaveStoreApi } from '@ggraphic/editor/stores/useAutoSaveStore';
+import { downloadErrorMessage } from '@ggraphic/editor/utils/downloadError';
 import { Skeleton } from '@gruenerator/ui';
 import { useCallback, useState, useMemo, useRef, useEffect, type CSSProperties } from 'react';
 import { createPortal } from 'react-dom';
@@ -8,7 +9,6 @@ import { IoCheckmarkOutline, IoShareOutline } from 'react-icons/io5';
 import { useCanvasEditorServices } from '../../CanvasEditorProvider';
 import { DownloadNotice } from '../../components/DownloadNotice';
 import { browserFileDelivery } from '../../hostServices';
-import { downloadErrorMessage } from '../../utils/downloadError';
 import {
   AltTextField,
   useCaptionAltText,

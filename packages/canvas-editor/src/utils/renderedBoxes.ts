@@ -10,12 +10,12 @@
 import { ILLUSTRATION_TARGET_SIZE } from '@ggraphic/editor/utils/motifSizes';
 import { PATH_OFFSETS, PATH_VIEWBOX } from '@ggraphic/editor/utils/shapeTransform';
 
-import type { FrameInstance } from './frameUtils';
-import type { IllustrationInstance } from './illustrations/types';
-import type { ShapeInstance } from './shapes';
 import type { UserImageInstance } from './userImageUtils';
 import type { RenderedBox } from '@ggraphic/editor/hooks/useBoxSnap';
 import type { ChartInstance } from '@ggraphic/editor/utils/chartTypes';
+import type { FrameInstance } from '@ggraphic/editor/utils/frameUtils';
+import type { IllustrationInstance } from '@ggraphic/editor/utils/illustrations/types';
+import type { ShapeInstance } from '@ggraphic/editor/utils/shapes';
 
 export function shapeBox(shape: ShapeInstance): RenderedBox {
   // Pfad-Formen sitzen auf ihrem `PATH_OFFSETS`-Punkt im 100er-Raster — bei

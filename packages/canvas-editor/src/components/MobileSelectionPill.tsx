@@ -1,3 +1,4 @@
+import { useIsCanvasTextEditing } from '@ggraphic/editor/components/CanvasTextOverlay';
 import { useRovingToolbar } from '@ggraphic/editor/hooks/useRovingToolbar';
 import { CANVAS_COMMANDS } from '@ggraphic/editor/utils/canvasCommandRegistry';
 import React, { useEffect, useLayoutEffect, useState } from 'react';
@@ -10,8 +11,6 @@ import {
   PiLockSimpleOpen,
   PiTrash,
 } from 'react-icons/pi';
-
-import { useIsCanvasTextEditing } from './CanvasTextOverlay';
 
 import type { SelectionBox } from './GenericCanvas';
 

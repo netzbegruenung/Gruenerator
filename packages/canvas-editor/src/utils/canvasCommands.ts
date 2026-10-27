@@ -26,6 +26,7 @@ import {
   type Box,
   type NodeFrame,
 } from '@ggraphic/editor/utils/orientation';
+import { openTextEditor } from '@ggraphic/editor/utils/textEditorOpeners';
 
 import { CanvasClipboard } from './canvasClipboard';
 import { moveLayerTo, type CanvasItem, type LayerStep } from './canvasLayerManager';
@@ -54,12 +55,11 @@ import {
   selectionCapabilities,
   type SelectionCapabilities,
 } from './selectionCapabilities';
-import { openTextEditor } from './textEditorOpeners';
 
 import type { BaseCanvasState } from '../configs/factory/baseTypes';
 import type { CanvasElementConfig, LayoutResult } from '../configs/types';
 import type { OptionalCanvasActions } from '../hooks/useCanvasElementHandlers';
-import type { CanvasEditorStoreApi } from '../stores/createCanvasEditorStore';
+import type { CanvasEditorStoreApi } from '@ggraphic/editor/stores/createCanvasEditorStore';
 import type { PageCommandId } from '@ggraphic/editor/utils/canvasCommandRegistry';
 import type Konva from 'konva';
 

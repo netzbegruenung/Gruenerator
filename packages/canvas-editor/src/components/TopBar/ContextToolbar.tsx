@@ -1,6 +1,5 @@
+import { useCanvasStoreSelector } from '@ggraphic/editor/stores/CanvasStoreProvider';
 import React from 'react';
-
-import { useCanvasStoreSelector } from '../../stores/CanvasStoreProvider';
 
 import { ContextControls, type ContextControlsProps } from './ContextControls';
 

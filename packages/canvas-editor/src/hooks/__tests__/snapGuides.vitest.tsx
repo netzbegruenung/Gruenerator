@@ -4,14 +4,13 @@
  * Anzahl kommt an.
  */
 import { useSnapScheduler } from '@ggraphic/editor/hooks/useSnapScheduler';
+import { SnapGuidelines } from '@ggraphic/editor/primitives/SnapGuidelines';
+import { CanvasStoreProvider, useCanvasStore } from '@ggraphic/editor/stores/CanvasStoreProvider';
 import { act, render, renderHook } from '@testing-library/react';
 import { Layer, Stage } from 'react-konva';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { SnapGuidelines } from '../../primitives/SnapGuidelines';
-import { CanvasStoreProvider, useCanvasStore } from '../../stores/CanvasStoreProvider';
-
-import type { CanvasEditorStoreApi } from '../../stores/createCanvasEditorStore';
+import type { CanvasEditorStoreApi } from '@ggraphic/editor/stores/createCanvasEditorStore';
 import type { SnapLine } from '@ggraphic/editor/utils/snapping';
 import type Konva from 'konva';
 

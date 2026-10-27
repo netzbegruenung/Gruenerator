@@ -11,7 +11,7 @@ import { CanvasText } from '../../primitives/CanvasText';
 
 const loads = vi.hoisted(() => ({ count: 0 }));
 
-vi.mock('../RichTextField', async (importOriginal) => {
+vi.mock('@ggraphic/editor/components/RichTextField', async (importOriginal) => {
   loads.count += 1;
   return importOriginal();
 });

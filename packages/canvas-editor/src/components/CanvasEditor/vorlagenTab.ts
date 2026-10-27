@@ -1,7 +1,6 @@
+import { DEFAULT_FORMAT_ID } from '@ggraphic/editor/formats/index';
 import { canvasFormatIdSchema } from '@gruenerator/contracts';
 import { PiLayoutFill } from 'react-icons/pi';
-
-import { DEFAULT_FORMAT_ID } from '../../formats';
 
 import type { SidebarTab } from '../../sidebar/types';
 

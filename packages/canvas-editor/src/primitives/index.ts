@@ -11,8 +11,8 @@ export type {
 export { CanvasText } from './CanvasText';
 export type { CanvasTextProps } from './CanvasText';
 
-export { SnapGuidelines } from './SnapGuidelines';
-export type { SnapGuidelinesProps } from './SnapGuidelines';
+export { SnapGuidelines } from '@ggraphic/editor/primitives/SnapGuidelines';
+export type { SnapGuidelinesProps } from '@ggraphic/editor/primitives/SnapGuidelines';
 
 export { CanvasImage } from './CanvasImage';
 export type { CanvasImageProps } from './CanvasImage';
@@ -27,8 +27,12 @@ export { ShapePrimitive } from './ShapePrimitive';
 export { IllustrationPrimitive } from './IllustrationPrimitive';
 export type { IllustrationPrimitiveProps } from './IllustrationPrimitive';
 
-export { CircleBadge } from './CircleBadge';
-export type { CircleBadgeProps, CircleBadgeInstance, CircleBadgeTextLine } from './CircleBadge';
+export { CircleBadge } from '@ggraphic/editor/primitives/CircleBadge';
+export type {
+  CircleBadgeProps,
+  CircleBadgeInstance,
+  CircleBadgeTextLine,
+} from '@ggraphic/editor/primitives/CircleBadge';
 
-export { PillBadge } from './PillBadge';
-export type { PillBadgeProps } from './PillBadge';
+export { PillBadge } from '@ggraphic/editor/primitives/PillBadge';
+export type { PillBadgeProps } from '@ggraphic/editor/primitives/PillBadge';

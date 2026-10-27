@@ -10,16 +10,16 @@ import {
 
 import type { FullCanvasConfig, LayoutResult, AdditionalText } from '../configs/types';
 import type { BalkenMode } from '../primitives/BalkenGroup';
-import type { CircleBadgeInstance } from '../primitives/CircleBadge';
-import type { FrameClipType, FrameInstance } from '../utils/frameUtils';
-import type { PillBadgeInstance } from '../utils/pillBadgeUtils';
-import type { ShapeInstance, ShapeType } from '../utils/shapes';
 import type {
   ElementPlacement,
   UserImageInstance,
   UserImagePlacement,
 } from '../utils/userImageUtils';
+import type { CircleBadgeInstance } from '@ggraphic/editor/primitives/CircleBadge';
 import type { ChartInstance, ChartType } from '@ggraphic/editor/utils/chartTypes';
+import type { FrameClipType, FrameInstance } from '@ggraphic/editor/utils/frameUtils';
+import type { PillBadgeInstance } from '@ggraphic/editor/utils/pillBadgeUtils';
+import type { ShapeInstance, ShapeType } from '@ggraphic/editor/utils/shapes';
 import type { StickerRef } from '@gruenerator/contracts';
 
 /**

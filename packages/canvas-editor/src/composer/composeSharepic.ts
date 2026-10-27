@@ -14,6 +14,14 @@
  */
 import { onGround } from '@ggraphic/editor/brand/composerBrand';
 import {
+  DEFAULT_FORMAT_ID,
+  getCanvasFormatOrDefault,
+  type CanvasFormat,
+} from '@ggraphic/editor/formats/index';
+import { createPillBadgeInstance } from '@ggraphic/editor/utils/pillBadgeUtils';
+import { createShape, type ShapeInstance } from '@ggraphic/editor/utils/shapes';
+import { type TextAccent } from '@ggraphic/editor/utils/textUtils';
+import {
   accentLines,
   type SharepicColor,
   type SharepicCreatorLocale,
@@ -28,11 +36,7 @@ import {
 } from '@gruenerator/contracts';
 
 import { getBrandPack, getBrandTheme } from '../brand/theme';
-import { DEFAULT_FORMAT_ID, getCanvasFormatOrDefault, type CanvasFormat } from '../formats';
 import { ASSET_TARGET_SIZE } from '../utils/canvasAssets';
-import { createPillBadgeInstance } from '../utils/pillBadgeUtils';
-import { createShape, type ShapeInstance } from '../utils/shapes';
-import { type TextAccent } from '../utils/textUtils';
 import { VERANSTALTUNG_CONFIG } from '../utils/veranstaltungLayout';
 
 import { layoutAufruf } from './aufrufLayout';

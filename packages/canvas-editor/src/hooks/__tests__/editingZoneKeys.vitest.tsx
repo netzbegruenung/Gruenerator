@@ -1,3 +1,6 @@
+import { useCanvasUndoRedo } from '@ggraphic/editor/hooks/useCanvasUndoRedo';
+import { CanvasStoreProvider, useCanvasStore } from '@ggraphic/editor/stores/CanvasStoreProvider';
+import { createCanvasEditorStore } from '@ggraphic/editor/stores/createCanvasEditorStore';
 import { KEEP_EDITING_ATTR } from '@ggraphic/editor/utils/keyboardOwnership';
 import { fireEvent, render, renderHook, screen } from '@testing-library/react';
 import { act, useState } from 'react';
@@ -5,14 +8,11 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { usePageUndoRedoShortcuts } from '../../components/CanvasEditor/hooks/usePageUndoRedoShortcuts';
 import { SidebarSlider } from '../../sidebar/components/SidebarSlider';
-import { CanvasStoreProvider, useCanvasStore } from '../../stores/CanvasStoreProvider';
-import { createCanvasEditorStore } from '../../stores/createCanvasEditorStore';
 import { useCanvasKeyboardHandlers } from '../useCanvasKeyboardHandlers';
-import { useCanvasUndoRedo } from '../useCanvasUndoRedo';
 
 import type { BaseCanvasState } from '../../configs/factory/baseTypes';
-import type { CanvasEditorStoreApi } from '../../stores/createCanvasEditorStore';
 import type { CanvasCommands } from '../../utils/canvasCommands';
+import type { CanvasEditorStoreApi } from '@ggraphic/editor/stores/createCanvasEditorStore';
 
 /**
  * Steht der Fokus in der Formatleiste des offenen Texteditors (Tab aus dem

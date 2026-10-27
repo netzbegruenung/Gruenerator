@@ -2,15 +2,14 @@
  * Verwerfen reverts through the undo of the path that applied the suggestion:
  * the per-page store for canvas ops, the page-level undo for a replaced deck.
  */
+import { CanvasStoreProvider, useCanvasStore } from '@ggraphic/editor/stores/CanvasStoreProvider';
 import { fireEvent, render, screen } from '@testing-library/react';
 import { useEffect } from 'react';
 import { describe, expect, it, vi } from 'vitest';
 
-import { CanvasStoreProvider, useCanvasStore } from '../../../stores/CanvasStoreProvider';
-
 import { FloatingAiSuggestionBanner } from './FloatingAiSuggestionBanner';
 
-import type { PendingAiSuggestion } from '../../../stores/createCanvasEditorStore';
+import type { PendingAiSuggestion } from '@ggraphic/editor/stores/createCanvasEditorStore';
 
 function Seed({
   pending,

@@ -10,16 +10,16 @@
  * unerreichbar. Ein Test auf `RichTextField` allein sieht davon nichts: die
  * Komponente selbst war die ganze Zeit in Ordnung.
  */
-import { render, screen, act, cleanup, fireEvent } from '@testing-library/react';
-import { createRef, type ReactNode } from 'react';
-import { beforeAll, describe, expect, it, vi } from 'vitest';
-
 import {
   CanvasTextEditorProvider,
   preloadRichText,
   useCanvasTextFormatting,
-} from '../../components/CanvasTextOverlay';
-import { TextFormatControls } from '../../components/TextFormatControls';
+} from '@ggraphic/editor/components/CanvasTextOverlay';
+import { TextFormatControls } from '@ggraphic/editor/components/TextFormatControls';
+import { render, screen, act, cleanup, fireEvent } from '@testing-library/react';
+import { createRef, type ReactNode } from 'react';
+import { beforeAll, describe, expect, it, vi } from 'vitest';
+
 import { CanvasStage } from '../CanvasStage';
 import { CanvasText } from '../CanvasText';
 

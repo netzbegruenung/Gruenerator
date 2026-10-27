@@ -17,7 +17,7 @@ import { OPENPEEPS } from './openpeeps';
 import { TRANSHUMANS } from './transhumans';
 import { UNDRAW_ALL } from './undrawAll';
 
-import type { IllustrationDef, SvgDef } from './types';
+import type { IllustrationDef, SvgDef } from '@ggraphic/editor/utils/illustrations/types';
 
 export const ALL_ILLUSTRATIONS: IllustrationDef[] = [
   ...KAWAII_ILLUSTRATIONS,

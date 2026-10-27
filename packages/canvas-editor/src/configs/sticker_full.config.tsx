@@ -7,9 +7,8 @@
  * graphic, saved as a studio asset rather than shared.
  */
 
+import { getCanvasFormatOrDefault } from '@ggraphic/editor/formats/index';
 import { CANVAS_COLORS } from '@gruenerator/contracts';
-
-import { getCanvasFormatOrDefault } from '../formats';
 
 import {
   createFreeformFullConfig,

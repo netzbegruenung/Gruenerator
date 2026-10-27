@@ -1,3 +1,9 @@
+import { getCanvasFormatOrDefault } from '@ggraphic/editor/formats/index';
+import {
+  createChartInstance,
+  type ChartInstance,
+  type ChartType,
+} from '@ggraphic/editor/utils/chartUtils';
 import { fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 
@@ -5,8 +11,6 @@ import { getBrandPack } from '../../brand/theme';
 import { chartSettingsSectionEntry } from '../../configs/commonSections';
 import { createFreeformAtFullConfig } from '../../configs/freeform_at_full.config';
 import { createFreeformFullConfig, type FreeformState } from '../../configs/freeform_full.config';
-import { getCanvasFormatOrDefault } from '../../formats';
-import { createChartInstance, type ChartInstance, type ChartType } from '../../utils/chartUtils';
 import { ChartSettingsSection } from '../sections/ChartSettingsSection';
 
 const format = getCanvasFormatOrDefault(null);

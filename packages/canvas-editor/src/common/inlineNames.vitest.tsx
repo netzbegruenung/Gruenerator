@@ -1,11 +1,11 @@
 /**
  * Task 3: Namen für Inline-Editoren, Speicherstatus als Text, Lightbox als Dialog.
  */
+import { RichTextField } from '@ggraphic/editor/components/RichTextField';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 
-import { RichTextField } from '../components/RichTextField';
 import { AutoSaveIndicator } from '../components/TopBar/AutoSaveIndicator';
 import { axe } from '../test-utils';
 

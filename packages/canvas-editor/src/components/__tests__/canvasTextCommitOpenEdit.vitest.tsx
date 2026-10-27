@@ -2,15 +2,15 @@
  * Ein Host, der gleich schließt, übernimmt den offenen Entwurf vorher (#4397).
  * Ohne Blur — ein Tipp auf den Zurück-Knopf nimmt dem Text auf iOS den Fokus nicht.
  */
+import { commitOpenTextEdit } from '@ggraphic/editor/components/CanvasTextOverlay';
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { createRef, useEffect, useState } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { CanvasStage, type CanvasStageRef } from '../../primitives/CanvasStage';
 import { CanvasText } from '../../primitives/CanvasText';
-import { commitOpenTextEdit } from '../CanvasTextOverlay';
 
-vi.mock('../RichTextField', () => ({
+vi.mock('@ggraphic/editor/components/RichTextField', () => ({
   RichTextField: ({ value, onChange }: { value: string; onChange: (v: string) => void }) => (
     <textarea aria-label="Entwurf" value={value} onChange={(e) => onChange(e.target.value)} />
   ),

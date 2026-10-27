@@ -1,11 +1,14 @@
+import { useCanvasTextFormatting } from '@ggraphic/editor/components/CanvasTextOverlay';
 import {
   formatShortcut,
   isMacPlatform,
   shortcutOf,
 } from '@ggraphic/editor/utils/canvasCommandRegistry';
+import { brandColors, fontColors } from '@ggraphic/editor/utils/colorOptions';
 import { type CropAspectId } from '@ggraphic/editor/utils/cropAspect';
 import { focusPage, isKeyboardModality } from '@ggraphic/editor/utils/editorFocus';
 import { type GradientFill } from '@ggraphic/editor/utils/gradientFill';
+import { STROKE_ONLY_SHAPES } from '@ggraphic/editor/utils/shapes';
 import { type TextAlign } from '@ggraphic/editor/utils/textAlign';
 import React, { useState } from 'react';
 import { PiCopy, PiLockSimple, PiLockSimpleOpen, PiTrash } from 'react-icons/pi';
@@ -16,10 +19,7 @@ import { type ShadowPatch } from '../../hooks/useFloatingModuleHandlers';
 import { type FloatingModuleState } from '../../hooks/useFloatingModuleState';
 import { useOptionalUserUploads } from '../../sidebar/UserUploadsProvider';
 import { type SelectionGeometry } from '../../utils/canvasCommands';
-import { brandColors, fontColors } from '../../utils/colorOptions';
 import { type LockState } from '../../utils/layerLock';
-import { STROKE_ONLY_SHAPES } from '../../utils/shapes';
-import { useCanvasTextFormatting } from '../CanvasTextOverlay';
 
 import { CropModeControls } from './CropModeControls';
 import {

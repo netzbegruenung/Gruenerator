@@ -1,5 +1,3 @@
-import { describe, expect, it } from 'vitest';
-
 import {
   addChartRow,
   addChartSeries,
@@ -11,7 +9,8 @@ import {
   renameChartSeries,
   setChartValue,
   type ChartInstance,
-} from './chartUtils';
+} from '@ggraphic/editor/utils/chartUtils';
+import { describe, expect, it } from 'vitest';
 
 const base = (): ChartInstance => ({
   ...createChartInstance('bar', 1920, 1080),

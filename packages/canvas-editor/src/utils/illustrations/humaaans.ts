@@ -5,7 +5,7 @@
  * free for personal and commercial use. Rendered in native colors.
  */
 
-import type { SvgDef } from './types';
+import type { SvgDef } from '@ggraphic/editor/utils/illustrations/types';
 
 export const HUMAAANS: SvgDef[] = [
   {

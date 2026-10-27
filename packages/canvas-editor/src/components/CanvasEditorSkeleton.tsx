@@ -1,4 +1,4 @@
-import { getCanvasFormatOrDefault } from '../formats';
+import { getCanvasFormatOrDefault } from '@ggraphic/editor/formats/index';
 
 import type { ReactNode } from 'react';
 

@@ -1,11 +1,10 @@
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
+import { getCanvasFormat } from '@ggraphic/editor/formats/index';
 import { createCanvas } from '@napi-rs/canvas';
 import { strFromU8, unzipSync } from 'fflate';
 import { describe, expect, it } from 'vitest';
-
-import { getCanvasFormat } from '../../formats';
 
 import { buildPptxModel } from './buildPptxModel';
 import { PRESENTATION_FIXTURE_DECKS } from './presentationFixtureDeck';

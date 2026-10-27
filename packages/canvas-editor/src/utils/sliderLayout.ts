@@ -12,10 +12,11 @@
  * typography, see SLIDER_AT_STYLE.
  */
 
+import { measureTextWidthWithFont, wrapTextAccurate } from '@ggraphic/editor/utils/textUtils';
+
 import { getBrandTheme } from '../brand/theme';
 
 import { SYSTEM_ASSETS } from './canvasAssets';
-import { measureTextWidthWithFont, wrapTextAccurate } from './textUtils';
 
 // ============================================================================
 // CONFIGURATION CONSTANTS

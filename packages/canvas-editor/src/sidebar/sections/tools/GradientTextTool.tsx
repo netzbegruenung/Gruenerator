@@ -1,8 +1,8 @@
+import { CustomColorSwatch } from '@ggraphic/editor/components/CustomColorSwatch';
+import { brandColors } from '@ggraphic/editor/utils/colorOptions';
 import { useCallback, useState } from 'react';
 import { PiTextT } from 'react-icons/pi';
 
-import { CustomColorSwatch } from '../../../components/CustomColorSwatch';
-import { brandColors } from '../../../utils/colorOptions';
 import { MOBILE_INPUT_TEXT } from '../../sidebarStyles';
 
 import { ToolPanel, type ToolPanelSuccess } from './ToolPanel';

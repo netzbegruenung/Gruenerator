@@ -2,10 +2,9 @@
  * „Eigene Farbe": übernimmt erst beim nativen `change` (ein Rückgängig-Schritt
  * je Wahl), zeigt eine eigene Farbe gefüllt und lässt die Vorgaben Vorgaben sein.
  */
+import { CustomColorSwatch } from '@ggraphic/editor/components/CustomColorSwatch';
 import { fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
-
-import { CustomColorSwatch } from '../CustomColorSwatch';
 
 const PRESETS = ['#005538', '#FFFFFF'];
 

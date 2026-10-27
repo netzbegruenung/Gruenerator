@@ -2,14 +2,14 @@
  * Die Werkzeugleiste des Sharepic-Text-Editors: was sie je Schrift anbietet
  * und was ihre Knöpfe in den flachen Feldtext schreiben.
  */
+import { RichTextField } from '@ggraphic/editor/components/RichTextField';
+import { TextFormatControls } from '@ggraphic/editor/components/TextFormatControls';
+import { fontMarkSupport } from '@ggraphic/editor/utils/fontMarkSupport';
 import { act, fireEvent, render, screen } from '@testing-library/react';
 import { useState } from 'react';
 import { describe, expect, it, vi } from 'vitest';
 
 import { axe } from '../../test-utils';
-import { fontMarkSupport } from '../../utils/fontMarkSupport';
-import { RichTextField } from '../RichTextField';
-import { TextFormatControls } from '../TextFormatControls';
 
 import type { Editor } from '@tiptap/react';
 

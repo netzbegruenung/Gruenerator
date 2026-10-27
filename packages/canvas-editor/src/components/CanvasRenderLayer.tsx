@@ -1,15 +1,16 @@
 import { CanvasItemLockContext } from '@ggraphic/editor/components/canvasItemLock';
+import { MultiSelectionTransformer } from '@ggraphic/editor/components/MultiSelectionTransformer';
 import {
   RemoteSelectionOverlay,
   type RemoteSelector,
 } from '@ggraphic/editor/components/RemoteSelectionOverlay';
 import { type GeometryReporter } from '@ggraphic/editor/hooks/useGeometryReporter';
+import { useCanvasStoreSelector } from '@ggraphic/editor/stores/CanvasStoreProvider';
 import { CANVAS_ITEM_NAME } from '@ggraphic/editor/utils/deepSelect';
 import React, { memo, type ComponentProps } from 'react';
 import { Group } from 'react-konva';
 
 import { useIconSetsFor } from '../hooks/useIconSetsFor';
-import { useCanvasStoreSelector } from '../stores/CanvasStoreProvider';
 import { lockedIdsOf } from '../utils/layerLock';
 
 import { GenericCanvasElement } from './GenericCanvasElement';
@@ -18,7 +19,6 @@ import {
   type CanvasRenderHandlers,
   type OptionalCanvasStateProperties,
 } from './kindRenderers';
-import { MultiSelectionTransformer } from './MultiSelectionTransformer';
 
 import type { CanvasElementConfig, FullCanvasConfig, LayoutResult } from '../configs/types';
 import type { CanvasItem } from '../utils/canvasLayerManager';

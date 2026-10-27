@@ -1,5 +1,15 @@
 import { cn } from '@ggraphic/editor/utils/cn';
+import { brandColors } from '@ggraphic/editor/utils/colorOptions';
 import { handDrawnPath, type HandShapeType } from '@ggraphic/editor/utils/handDrawn';
+import { defaultMarkerFill } from '@ggraphic/editor/utils/markerColors';
+import {
+  CATEGORY_LABELS,
+  CATEGORY_ORDER,
+  EUCALYPTUS,
+  getShapeDef,
+  type ShapeCategory,
+  type ShapeType,
+} from '@ggraphic/editor/utils/shapes';
 import { useMemo } from 'react';
 import {
   PiStarFill,
@@ -38,16 +48,6 @@ import {
   PiSunFill,
 } from 'react-icons/pi';
 
-import { brandColors } from '../../utils/colorOptions';
-import { defaultMarkerFill } from '../../utils/markerColors';
-import {
-  CATEGORY_LABELS,
-  CATEGORY_ORDER,
-  EUCALYPTUS,
-  getShapeDef,
-  type ShapeCategory,
-  type ShapeType,
-} from '../../utils/shapes';
 import { CARD_GRID, CARD_PREVIEW, SELECTABLE_CARD, SIDEBAR_SECTION } from '../sidebarStyles';
 
 export interface FormenSectionProps {

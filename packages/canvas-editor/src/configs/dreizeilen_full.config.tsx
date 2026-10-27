@@ -68,13 +68,13 @@ import type { TemplateAiCapabilities } from '../ai/types';
 import type { StockImageAttribution } from '../common/imageSourceTypes';
 import type { BalkenInstance } from '../primitives/BalkenGroup';
 import type { AssetInstance } from '../utils/canvasAssets';
-import type { ChartInstance } from '../utils/chartUtils';
-import type { CircleBadgeInstance } from '../utils/circleBadgeUtils';
-import type { FrameInstance } from '../utils/frameUtils';
-import type { IllustrationInstance } from '../utils/illustrations/types';
-import type { PillBadgeInstance } from '../utils/pillBadgeUtils';
-import type { ShapeInstance } from '../utils/shapes';
 import type { UserImageInstance } from '../utils/userImageUtils';
+import type { ChartInstance } from '@ggraphic/editor/utils/chartUtils';
+import type { CircleBadgeInstance } from '@ggraphic/editor/utils/circleBadgeUtils';
+import type { FrameInstance } from '@ggraphic/editor/utils/frameUtils';
+import type { IllustrationInstance } from '@ggraphic/editor/utils/illustrations/types';
+import type { PillBadgeInstance } from '@ggraphic/editor/utils/pillBadgeUtils';
+import type { ShapeInstance } from '@ggraphic/editor/utils/shapes';
 
 // ============================================================================
 // CONSTANTS

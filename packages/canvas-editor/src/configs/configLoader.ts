@@ -11,7 +11,8 @@
  * Now, configs are loaded dynamically based on the canvas type being used.
  */
 
-import { styledFontSpecs } from '../hooks/useFontLoader';
+import { styledFontSpecs } from '@ggraphic/editor/hooks/useFontLoader';
+
 import {
   getTemplate,
   isValidCanvasType,

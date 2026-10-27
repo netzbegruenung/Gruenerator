@@ -1,4 +1,4 @@
-import { type TextMarker } from '../utils/textUtils';
+import { type TextMarker } from '@ggraphic/editor/utils/textUtils';
 
 import { SHAREPIC_COLOR_HEX } from './chromeParts';
 

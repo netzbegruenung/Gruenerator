@@ -8,11 +8,11 @@
  * What the line is and when it counts as filled in comes from the host
  * (`CanvasEditorServices.print`); without it there is no gate.
  */
+import { type PrintCanvasFormat } from '@ggraphic/editor/formats/index';
 import { type PrintFormatId } from '@gruenerator/contracts';
 import { useMemo } from 'react';
 
 import { useCanvasEditorServices } from '../../../CanvasEditorProvider';
-import { type PrintCanvasFormat } from '../../../formats';
 import { type PrintImpressumGate } from '../../TopBar/DownloadSection';
 
 import type { AdditionalText } from '../../../configs/types';

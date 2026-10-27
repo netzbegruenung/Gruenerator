@@ -3,24 +3,24 @@
  * und klappt eine Mehrfachauswahl nicht auf ein Element zusammen — das tat
  * der gewöhnliche Druck beim Loslassen, auch mit der rechten Taste.
  */
+import { MultiSelectionTransformer } from '@ggraphic/editor/components/MultiSelectionTransformer';
+import {
+  CanvasStoreProvider,
+  useCanvasStore,
+  useCanvasStoreSelector,
+} from '@ggraphic/editor/stores/CanvasStoreProvider';
+import { createShape, type ShapeInstance } from '@ggraphic/editor/utils/shapes';
 import { act, render } from '@testing-library/react';
 import { createRef } from 'react';
 import { Group } from 'react-konva';
 import { describe, expect, it } from 'vitest';
 
-import { MultiSelectionTransformer } from '../../components/MultiSelectionTransformer';
 import { CanvasStage, type CanvasStageRef } from '../../primitives/CanvasStage';
 import { ShapePrimitive } from '../../primitives/ShapePrimitive';
-import {
-  CanvasStoreProvider,
-  useCanvasStore,
-  useCanvasStoreSelector,
-} from '../../stores/CanvasStoreProvider';
-import { createShape, type ShapeInstance } from '../../utils/shapes';
 import { useCanvasInteractions } from '../useCanvasInteractions';
 import { useContextPress } from '../useContextPress';
 
-import type { CanvasEditorStoreApi } from '../../stores/createCanvasEditorStore';
+import type { CanvasEditorStoreApi } from '@ggraphic/editor/stores/createCanvasEditorStore';
 
 const box = (id: string, x: number, y: number): ShapeInstance => ({
   ...createShape('rect', x, y, '#888888', '#888888'),

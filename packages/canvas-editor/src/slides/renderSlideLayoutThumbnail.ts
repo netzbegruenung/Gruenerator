@@ -4,11 +4,11 @@
  * Umbrüche und Grafiken wie auf der Seite. Gleiches Muster wie
  * `renderSharepicToImage` in apps/web.
  */
+import { ensureFontsReady } from '@ggraphic/editor/utils/ensureFontsReady';
 import { createElement } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 
 import { CanvasEditorProvider } from '../CanvasEditorProvider';
-import { ensureFontsReady } from '../utils/ensureFontsReady';
 
 import {
   buildSlideLayout,
