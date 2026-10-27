@@ -5,7 +5,10 @@ import React from 'react';
 
 import { HIDDEN_SCROLLBAR } from '@ggraphic/editor/sidebar/sidebarStyles';
 
-import { ContextControls, type ContextControlsProps } from './ContextControls';
+import {
+  ContextControls,
+  type ContextControlsProps,
+} from '@ggraphic/editor/components/TopBar/ContextControls';
 
 import type { FloatingModuleState } from '@ggraphic/editor/hooks/useFloatingModuleState';
 

@@ -1,4 +1,5 @@
-import type { StockImageAttribution } from '@gruenerator/contracts';
+// SPDX-License-Identifier: MPL-2.0
+import type { StockImageAttribution } from '@ggraphic/schema';
 
 /**
  * Bildnachweis für den Beitragstext. Unsplash verlangt ihn im Post selbst,

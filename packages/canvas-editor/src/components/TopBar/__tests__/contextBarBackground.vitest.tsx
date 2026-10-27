@@ -3,7 +3,7 @@ import userEvent from '@testing-library/user-event';
 import React from 'react';
 import { describe, expect, it, vi } from 'vitest';
 
-import { ContextControls } from '../ContextControls';
+import { ContextControls } from '@ggraphic/editor/components/TopBar/ContextControls';
 
 import type { BackgroundControls } from '@ggraphic/editor/configs/types';
 import type { FloatingModuleState } from '@ggraphic/editor/hooks/useFloatingModuleState';

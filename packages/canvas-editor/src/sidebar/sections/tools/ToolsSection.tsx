@@ -14,7 +14,7 @@ import {
 } from 'react-icons/hi2';
 import { PiArrowLeft, PiCaretRightBold, PiDropSimpleFill, PiPath } from 'react-icons/pi';
 
-import { useIsCanvasMobile } from '../../../hooks/useIsCanvasMobile';
+import { useIsCanvasMobile } from '@ggraphic/editor/hooks/useIsCanvasMobile';
 import { lazyWithPreload } from '@ggraphic/editor/sidebar/sections/lazyWithPreload';
 import { whenIdle } from '@ggraphic/editor/sidebar/sections/whenIdle';
 

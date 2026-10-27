@@ -10,7 +10,11 @@ import { PiCheckBold, PiSlidersHorizontal } from 'react-icons/pi';
 
 import { HIDDEN_SCROLLBAR } from '@ggraphic/editor/sidebar/sidebarStyles';
 
-import { ContextControls, showsCropModeBar, type ContextControlsProps } from './ContextControls';
+import {
+  ContextControls,
+  showsCropModeBar,
+  type ContextControlsProps,
+} from '@ggraphic/editor/components/TopBar/ContextControls';
 
 interface MobileSelectionBarProps extends ContextControlsProps {
   /** Öffnet den Bereich der Auswahl als Sheet; fehlt, wenn es keinen gibt. */

@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 
 import './canvas-editor.css';
 import { CanvasEditor } from './components/CanvasEditor';
-import { CanvasEditorSkeleton } from './components/CanvasEditorSkeleton';
+import { CanvasEditorSkeleton } from '@ggraphic/editor/components/CanvasEditorSkeleton';
 
 import { loadCanvasConfig } from '@ggraphic/editor/configs/configLoader';
 import { getCanvasFormatOrDefault, isUnsupportedFormatId } from '@ggraphic/editor/formats/index';

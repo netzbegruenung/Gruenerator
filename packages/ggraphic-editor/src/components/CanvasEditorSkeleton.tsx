@@ -1,9 +1,10 @@
+// SPDX-License-Identifier: MPL-2.0
 import { getCanvasFormatOrDefault } from '@ggraphic/editor/formats/index';
 
 import type { ReactNode } from 'react';
 
 // Nur leichte Importe (kein Editor-Barrel): die Datei ist als eigener Subpath
-// (`@gruenerator/canvas-editor/skeleton`) der Suspense-Fallback der Route und
+// (`./skeleton` des Pakets) der Suspense-Fallback der Route und
 // darf Konva & Co. nicht ins Entry-Bundle ziehen.
 
 const pulse = 'animate-pulse bg-[var(--editor-tile)]';

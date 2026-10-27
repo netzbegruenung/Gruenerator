@@ -15,7 +15,7 @@ import {
 import { PiCaretLeftBold, PiMagnifyingGlass, PiX } from 'react-icons/pi';
 
 import { useBlockInsert } from '../../../components/CanvasEditor/blockInsert';
-import { useIsCanvasMobile } from '../../../hooks/useIsCanvasMobile';
+import { useIsCanvasMobile } from '@ggraphic/editor/hooks/useIsCanvasMobile';
 import { useTrackUnsplashDownload } from '@ggraphic/editor/hooks/useTrackUnsplashDownload';
 import { MOBILE_INPUT_TEXT } from '@ggraphic/editor/sidebar/sidebarStyles';
 import { IllustrationSettings } from '../IllustrationSettings';

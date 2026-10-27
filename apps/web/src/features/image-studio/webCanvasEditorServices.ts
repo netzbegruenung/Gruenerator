@@ -78,9 +78,11 @@ export const webCanvasEditorServices: CanvasEditorServices = {
     pickShareRoute,
     shareDataUrlViaNativeHost,
     filenamePrefix: 'gruenerator',
+    shareTitle: 'Grünerator Share',
   },
   useStudioAssets,
   useUnsplashSearch,
+  unsplashUtmSource: 'gruenerator',
   // Impressum gate and print Vorlagen: the Grünerator composer, also in /mobile-editor.
   print: grueneratorPrint,
   // Blocks cut out of composed slides, and the carousel chrome after page ops: the composer's too.

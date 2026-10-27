@@ -100,6 +100,13 @@ const AT_DUNKELGRUEN = '#257639';
 const AT_GELB = '#FCEC00';
 const AT_MAGENTA = '#E4007C';
 
+// Image tints, shadow and outline swatches: the same in both countries.
+const GRUENE_EFFECTS = {
+  tints: ['#005538', '#008939', '#257639', '#56AF31'],
+  shadows: ['#000000', '#316049', '#40200e', '#1f3a5f'],
+  outlines: ['#ffffff', '#000000', '#316049', '#e6007e'],
+};
+
 export const GRUENE_DE: GruenePack = {
   id: 'gruene-de',
   name: 'Bündnis 90/Die Grünen',
@@ -150,6 +157,7 @@ export const GRUENE_DE: GruenePack = {
   // Light ones (grass green and lime) never open the list: on white they only
   // read next to a dark green.
   chart: [DE_DUNKELTANNE, DE_KLEE, DE_GRASGRUEN, DE_TANNE, DE_LIME],
+  effects: GRUENE_EFFECTS,
   fonts: {
     headline: 'GrueneTypeNeue',
     body: 'PT Sans',
@@ -268,6 +276,7 @@ export const GRUENE_AT: GruenePack = {
   },
   // Yellow never opens the list: on white it only reads next to a dark green.
   chart: [AT_DUNKELGRUEN, '#56af31', AT_GELB, '#0B6620', '#7CC650'],
+  effects: GRUENE_EFFECTS,
   fonts: {
     headline: 'GothamNarrow-Ultra',
     body: 'GothamNarrow-Book',

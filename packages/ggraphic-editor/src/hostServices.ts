@@ -196,6 +196,8 @@ export interface CanvasFileDeliveryService {
   ) => void;
   /** Leads the name of every exported file (`<prefix>-<type>-…`); default `ggraphic`. */
   filenamePrefix?: string;
+  /** Title of the native share sheet for an exported image; default `ggraphic`. */
+  shareTitle?: string;
 }
 
 function clickAnchor(href: string, filename: string): void {

@@ -72,7 +72,7 @@ import {
   type PrintExportPage,
 } from '../../export/printExport';
 import { exportSlidesPdf } from '@ggraphic/editor/export/slidesPdf';
-import { useIsCanvasMobile } from '../../hooks/useIsCanvasMobile';
+import { useIsCanvasMobile } from '@ggraphic/editor/hooks/useIsCanvasMobile';
 import { useZoomGestures } from '@ggraphic/editor/hooks/useZoomGestures';
 import { HOST_CALLBACK_KEYS } from '../../hostCallbackKeys';
 import { CanvasEditorLayout } from '@ggraphic/editor/layouts/index';
@@ -85,13 +85,16 @@ import {
 } from '../../slides/slideLayouts';
 import { type CanvasConfigId } from '../../templates/registry';
 import { collectAltTextPages as collectCapturedAltTextPages } from '@ggraphic/editor/utils/collectAltTextPages';
-import { photoCreditLine } from '../../utils/photoCredit';
+import { photoCreditLine } from '@ggraphic/editor/utils/photoCredit';
 import { pagePhotoCredits } from '@ggraphic/editor/utils/photoCredits';
 import { scrollBehavior } from '@ggraphic/editor/utils/scrollBehavior';
 import { getCategoryForTemplate } from '../../utils/templateRegistry';
 import { CanvasAnnouncer } from '@ggraphic/editor/components/CanvasAnnouncer';
 import { CanvasContextMenu } from '@ggraphic/editor/components/CanvasContextMenu/CanvasContextMenu';
-import { CanvasPageSkeleton, CanvasTabRailSkeleton } from '../CanvasEditorSkeleton';
+import {
+  CanvasPageSkeleton,
+  CanvasTabRailSkeleton,
+} from '@ggraphic/editor/components/CanvasEditorSkeleton';
 import { CanvasMetaBar, CanvasZoomIndicator } from '@ggraphic/editor/components/CanvasMetaBar';
 import { MobileSelectionPill } from '@ggraphic/editor/components/MobileSelectionPill';
 import { PageThumbnailStrip } from '../PageThumbnailStrip';

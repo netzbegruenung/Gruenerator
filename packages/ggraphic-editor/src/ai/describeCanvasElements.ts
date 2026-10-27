@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 import {
   buildCanvasItems,
   buildSortedRenderList,
@@ -8,9 +9,12 @@ import { isComposerPlane } from '@ggraphic/editor/utils/shapes';
 
 import type { BaseCanvasState } from '@ggraphic/editor/configs/factory/baseTypes';
 import type { FullCanvasConfig } from '@ggraphic/editor/configs/types';
-import type { CanvasAiSnapshot } from '@gruenerator/contracts';
+import type { HostCanvasAiSnapshot } from '@ggraphic/editor/ai/types';
 
-type SummaryEntry = CanvasAiSnapshot['elementsSummary'][number];
+type HostEntry = HostCanvasAiSnapshot['elementsSummary'][number];
+// `balken` is the one kind the core itself draws but its own snapshot schema
+// leaves to the host (the host binds it through `CanvasAiHostTypes`).
+type SummaryEntry = Omit<HostEntry, 'kind'> & { kind: HostEntry['kind'] | 'balken' };
 
 /** Keeps the prompt bounded on crowded canvases. */
 const MAX_ENTRIES = 40;
@@ -28,7 +32,12 @@ const quote = (text: string) => `"${text.replace(/\s+/g, ' ').trim().slice(0, 40
  * the back), so the planner can target any of them with update-element /
  * remove-element and reason about where things are.
  */
-export function describeCanvasElements(state: BaseCanvasState): SummaryEntry[] {
+export function describeCanvasElements(state: BaseCanvasState): HostEntry[] {
+  // Boundary cast: see SummaryEntry — the host's snapshot lists `balken`.
+  return describeEntries(state) as HostEntry[];
+}
+
+function describeEntries(state: BaseCanvasState): SummaryEntry[] {
   const items = buildSortedRenderList(
     // Boundary cast: buildCanvasItems reads only `elements`, and template
     // elements are not AI-targetable anyway.

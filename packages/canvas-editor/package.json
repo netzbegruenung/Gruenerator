@@ -74,9 +74,9 @@
       "types": "./src/utils/profilbildStickerInstances.ts"
     },
     "./skeleton": {
-      "import": "./src/components/CanvasEditorSkeleton.tsx",
-      "require": "./src/components/CanvasEditorSkeleton.tsx",
-      "types": "./src/components/CanvasEditorSkeleton.tsx"
+      "import": "./src/skeleton.ts",
+      "require": "./src/skeleton.ts",
+      "types": "./src/skeleton.ts"
     },
     "./config-loader": {
       "import": "./src/templates/builtinConfigLoader.ts",

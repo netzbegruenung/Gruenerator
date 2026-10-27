@@ -3,6 +3,7 @@ export { brandDefault } from './brand/brandDefault';
 export {
   type BrandBackground,
   type BrandColors,
+  type BrandEffects,
   type BrandFontFace,
   type BrandFonts,
   type BrandImage,

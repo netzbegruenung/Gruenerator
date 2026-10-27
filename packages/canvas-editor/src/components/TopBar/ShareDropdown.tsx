@@ -16,14 +16,14 @@ import { FaCheck, FaDownload, FaSave, FaUserPlus } from 'react-icons/fa';
 import { IoShareOutline } from 'react-icons/io5';
 import { PiArrowLeft, PiMegaphone } from 'react-icons/pi';
 
-import { useIsCanvasMobile } from '../../hooks/useIsCanvasMobile';
+import { useIsCanvasMobile } from '@ggraphic/editor/hooks/useIsCanvasMobile';
 import {
   AltTextField,
   useCaptionAltText,
   useShareAltText,
   withAltText,
 } from '@ggraphic/editor/sidebar/components/AltTextField';
-import { withPhotoCredit } from '../../utils/photoCredit';
+import { withPhotoCredit } from '@ggraphic/editor/utils/photoCredit';
 
 import {
   DownloadSection,

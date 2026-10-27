@@ -5,7 +5,7 @@ import { isFocusLost, isKeyboardModality } from '@ggraphic/editor/utils/editorFo
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { PiX } from 'react-icons/pi';
 
-import { useIsCanvasMobile } from '../hooks/useIsCanvasMobile';
+import { useIsCanvasMobile } from '@ggraphic/editor/hooks/useIsCanvasMobile';
 
 import { SIDEBAR_PANEL_ID } from '@ggraphic/editor/sidebar/sidebarStyles';
 

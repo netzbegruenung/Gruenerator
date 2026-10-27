@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: MPL-2.0
+import { activeBrand } from '@ggraphic/editor/brand/brandRegistry';
 import { CustomColorSwatch } from '@ggraphic/editor/components/CustomColorSwatch';
 import { useMessages } from '@ggraphic/editor/i18n/messages';
 import { Popover, PopoverContent, PopoverTrigger } from '@ggraphic/editor/ui/popover';
@@ -13,7 +15,6 @@ interface FloatingOutlineControlProps {
   onChange: (patch: { stroke?: string; strokeWidth?: number }) => void;
 }
 
-const OUTLINE_COLORS = ['#ffffff', '#000000', '#316049', '#e6007e'];
 const DEFAULT_WIDTH = 2;
 
 const ICON_BTN =
@@ -24,6 +25,7 @@ export function FloatingOutlineControl({
   strokeWidth,
   onChange,
 }: FloatingOutlineControlProps) {
+  const { outlines } = activeBrand().effects;
   const t = useMessages();
   const enabled = !!stroke && (strokeWidth ?? 0) > 0;
 
@@ -73,7 +75,7 @@ export function FloatingOutlineControl({
         {enabled && (
           <>
             <div className="flex items-center gap-2">
-              {OUTLINE_COLORS.map((c) => (
+              {outlines.map((c) => (
                 <button
                   key={c}
                   className="size-6 rounded-full border border-black/10 hover:scale-110 transition-transform"
@@ -91,7 +93,7 @@ export function FloatingOutlineControl({
               ))}
               <CustomColorSwatch
                 value={stroke}
-                presets={OUTLINE_COLORS}
+                presets={outlines}
                 onPick={(color) => onChange({ stroke: color })}
                 className="size-6"
               />
