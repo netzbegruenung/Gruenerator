@@ -5,14 +5,13 @@ import { CanvasEditor } from './components/CanvasEditor';
 import { CanvasEditorSkeleton } from './components/CanvasEditorSkeleton';
 import { loadCanvasConfig, isValidCanvasType } from './configs/configLoader';
 import { getCanvasFormatOrDefault, isUnsupportedFormatId } from './formats';
-import { HOST_CALLBACK_KEYS } from './hostCallbackKeys';
+import { getBuiltinTemplate } from './templates/registry';
 
-import type { StockImageAttribution } from './common/imageSourceTypes';
 import type {
   CanvasEditorExportApi,
   CanvasEditorHostChrome,
 } from './components/CanvasEditor/types';
-import type { FullCanvasConfig, CanvasConfigId } from './configs/types';
+import type { FullCanvasConfig } from './configs/types';
 import type { InitialPageDef } from './hooks/usePageManager';
 import type { SidebarTabId } from './sidebar/types';
 import type { HocuspocusProvider } from '@hocuspocus/provider';
@@ -20,74 +19,9 @@ import type * as Y from 'yjs';
 
 type CanvasState = Record<string, unknown>;
 
-/**
- * Per-template shape of the props seeded into the inner CanvasEditor.
- *
- * Every branch in `buildInitialProps` is `satisfies`-checked against its
- * entry here — so dropping or mistyping a field (e.g. forgetting to thread
- * a background URL) is a compile error rather than a silent runtime '' fallback.
- */
-/**
- * Background-image state that persists alongside the image so the position,
- * zoom, opacity and Unsplash credit all survive a reload — not just the URL.
- * Optional because legacy saves and non-image layouts omit them.
- */
-interface BackgroundImageProps {
-  imageOffset?: { x: number; y: number };
-  imageScale?: number;
-  backgroundImageOpacity?: number;
-  imageAttribution?: StockImageAttribution | null;
-}
-
-export interface CanvasInitialPropsMap {
-  zitat: { quote: string; name: string; imageSrc: string } & BackgroundImageProps;
-  'zitat-pure': { quote: string; name: string };
-  info: { header: string; body: string };
-  veranstaltung: VeranstaltungInitialProps;
-  simple: { headline: string; subtext: string; imageSrc: string } & BackgroundImageProps;
-  slider: { label: string; headline: string; subtext: string };
-  dreizeilen: {
-    line1: string;
-    line2: string;
-    line3: string;
-    currentImageSrc: string;
-  } & BackgroundImageProps;
-  freeform: {
-    backgroundMode: string;
-    backgroundColor: string;
-    currentImageSrc: string;
-  } & BackgroundImageProps;
-  profilbild: { transparentImage: string; backgroundColor: string };
-  // Österreich (de-AT) variants — field sets mirror CANVAS_TYPE_FIELDS in the studio
-  'zitat-at': { quote: string; name: string; imageSrc: string } & BackgroundImageProps;
-  'zitat-pure-at': { quote: string; name: string };
-  'dreizeilen-overlay-at': {
-    line1: string;
-    accent: string;
-    line3: string;
-    subline: string;
-    currentImageSrc: string;
-  } & BackgroundImageProps;
-  'info-at': { introline: string; text: string; accent: string };
-  'slider-at': { label: string; headline: string; subtext: string };
-  // backgroundColor omitted when unset so the AT config's CI default applies
-  'freeform-at': {
-    backgroundMode: string;
-    backgroundColor?: string;
-    currentImageSrc: string;
-  } & BackgroundImageProps;
-}
-
-interface VeranstaltungInitialProps extends BackgroundImageProps {
-  eventTitle: string;
-  beschreibung: string;
-  weekday: string;
-  date: string;
-  time: string;
-  locationName: string;
-  address: string;
-  imageSrc: string;
-}
+// The per-template props shape moved to the template registry, next to the
+// `seedProps` that build it.
+export type { CanvasInitialPropsMap } from './templates/registry';
 
 // Compare two values with special handling for arrays
 function valuesEqual(a: unknown, b: unknown): boolean {
@@ -338,194 +272,52 @@ function ControllableCanvasEditor({
       );
     }
 
-    // Build initial props based on canvas type.
-    // Each branch returns an object `satisfies CanvasInitialPropsMap['<key>']` so
-    // the field set is structurally checked at compile time (see top of file).
-    const str = (v: unknown): string => (typeof v === 'string' ? v : '');
-    // The persisted background lives under `currentImageSrc` for every type;
-    // some types surface it to the inner canvas as `imageSrc`. Fall back across
-    // both (and the legacy `imageSrc` prop) so saves from either key re-hydrate.
-    const bgSrc = (): string =>
-      str(effectiveState.currentImageSrc) || str(effectiveState.imageSrc) || imageSrc || '';
-    // Image transform/opacity/credit that persist alongside the URL.
-    const bgImageProps = (): BackgroundImageProps => ({
-      imageOffset: effectiveState.imageOffset as { x: number; y: number } | undefined,
-      imageScale: effectiveState.imageScale as number | undefined,
-      backgroundImageOpacity: effectiveState.backgroundImageOpacity as number | undefined,
-      imageAttribution:
-        (effectiveState.imageAttribution as StockImageAttribution | null | undefined) ?? null,
-    });
-    const buildInitialProps = (): Record<string, unknown> => {
-      switch (type) {
-        case 'zitat':
-          return {
-            quote: str(effectiveState.quote),
-            name: str(effectiveState.name),
-            imageSrc: bgSrc(),
-            ...bgImageProps(),
-          } satisfies CanvasInitialPropsMap['zitat'];
-        case 'zitat-pure':
-          return {
-            quote: str(effectiveState.quote),
-            name: str(effectiveState.name),
-          } satisfies CanvasInitialPropsMap['zitat-pure'];
-        case 'info':
-          return {
-            header: str(effectiveState.header),
-            body: str(effectiveState.body),
-          } satisfies CanvasInitialPropsMap['info'];
-        case 'veranstaltung':
-          return {
-            eventTitle: str(effectiveState.eventTitle),
-            beschreibung: str(effectiveState.beschreibung),
-            weekday: str(effectiveState.weekday),
-            date: str(effectiveState.date),
-            time: str(effectiveState.time),
-            locationName: str(effectiveState.locationName),
-            address: str(effectiveState.address),
-            imageSrc: bgSrc(),
-            ...bgImageProps(),
-          } satisfies CanvasInitialPropsMap['veranstaltung'];
-        case 'simple':
-          return {
-            headline: str(effectiveState.headline),
-            subtext: str(effectiveState.subtext),
-            imageSrc: bgSrc(),
-            ...bgImageProps(),
-          } satisfies CanvasInitialPropsMap['simple'];
-        case 'slider':
-        case 'slider-at':
-          return {
-            label: str(effectiveState.label),
-            headline: str(effectiveState.headline),
-            subtext: str(effectiveState.subtext),
-          } satisfies CanvasInitialPropsMap['slider'];
-        case 'dreizeilen':
-          return {
-            line1: str(effectiveState.line1),
-            line2: str(effectiveState.line2),
-            line3: str(effectiveState.line3),
-            currentImageSrc: bgSrc(),
-            ...bgImageProps(),
-          } satisfies CanvasInitialPropsMap['dreizeilen'];
-        case 'freeform':
-          return {
-            backgroundMode: str(effectiveState.backgroundMode) || 'color',
-            backgroundColor: str(effectiveState.backgroundColor) || '#005538',
-            currentImageSrc: bgSrc(),
-            ...bgImageProps(),
-          } satisfies CanvasInitialPropsMap['freeform'];
-        case 'profilbild':
-          return {
-            transparentImage: str(effectiveState.transparentImage) || imageSrc || '',
-            backgroundColor: str(effectiveState.backgroundColor),
-          } satisfies CanvasInitialPropsMap['profilbild'];
-        case 'zitat-at':
-          return {
-            quote: str(effectiveState.quote),
-            name: str(effectiveState.name),
-            imageSrc: bgSrc(),
-            ...bgImageProps(),
-          } satisfies CanvasInitialPropsMap['zitat-at'];
-        case 'zitat-pure-at':
-          return {
-            quote: str(effectiveState.quote),
-            name: str(effectiveState.name),
-          } satisfies CanvasInitialPropsMap['zitat-pure-at'];
-        case 'dreizeilen-overlay-at':
-          return {
-            line1: str(effectiveState.line1),
-            accent: str(effectiveState.accent),
-            line3: str(effectiveState.line3),
-            subline: str(effectiveState.subline),
-            currentImageSrc: bgSrc(),
-            ...bgImageProps(),
-          } satisfies CanvasInitialPropsMap['dreizeilen-overlay-at'];
-        case 'info-at':
-          return {
-            introline: str(effectiveState.introline),
-            text: str(effectiveState.text),
-            accent: str(effectiveState.accent),
-          } satisfies CanvasInitialPropsMap['info-at'];
-        case 'freeform-at': {
-          const backgroundColor = str(effectiveState.backgroundColor);
-          return {
-            backgroundMode: str(effectiveState.backgroundMode) || 'color',
-            ...(backgroundColor ? { backgroundColor } : {}),
-            currentImageSrc: bgSrc(),
-            ...bgImageProps(),
-          } satisfies CanvasInitialPropsMap['freeform-at'];
-        }
-        default:
-          return effectiveState;
-      }
-    };
-
-    const buildCallbacks = (): Record<string, (val: unknown) => void> =>
-      isValidCanvasType(type) ? createCallbacks([...HOST_CALLBACK_KEYS[type]]) : {};
-
-    switch (type) {
-      // Config-driven canvases - use ConfigMultiPage if multiPage.enabled
-      case 'zitat':
-      case 'zitat-pure':
-      case 'info':
-      case 'veranstaltung':
-      case 'simple':
-      case 'slider':
-      case 'dreizeilen':
-      case 'freeform':
-      case 'profilbild':
-      case 'sticker':
-      case 'zitat-at':
-      case 'zitat-pure-at':
-      case 'dreizeilen-overlay-at':
-      case 'info-at':
-      case 'freeform-at':
-      case 'slider-at':
-        if (!config)
-          return (
-            <CanvasEditorSkeleton
-              chromeLeft={chromeLeft}
-              aspectRatio={skeletonAspectRatio}
-              topBar={!hostChrome}
-            />
-          );
-
-        return (
-          <CanvasEditor
-            key={componentKey}
-            initialConfigId={type as CanvasConfigId}
-            formatId={formatId}
-            documentTitle={documentTitle}
-            initialProps={buildInitialProps()}
-            onExport={onExport}
-            onCancel={onCancel}
-            onDownload={onDownload}
-            callbacks={buildCallbacks()}
-            maxPages={config.multiPage?.maxPages ?? 30}
-            initialPages={initialPages}
-            collaborative={collaborative}
-            chromeLeft={chromeLeft}
-            chromeCenter={chromeCenter}
-            chromeRight={chromeRight}
-            onInvitePeople={onInvitePeople}
-            onSaveAsTemplate={onSaveAsTemplate}
-            onCollabSnapshot={onCollabSnapshot}
-            initialShareToken={initialShareToken}
-            onAutoSaveShareToken={onAutoSaveShareToken}
-            initialTab={initialTab}
-            onActiveTabChange={onActiveTabChange}
-            galleryAutoSave={galleryAutoSave}
-            showShare={showShare}
-            exportApiRef={exportApiRef}
-            hostChrome={hostChrome}
-            readOnly={readOnly}
-          />
-        );
-
-      default:
-        return <div>Editor type &quot;{type}&quot; not found.</div>;
+    // Every built-in template is config-driven (incl. the de-AT variants);
+    // what it seeds and which callbacks it gets lives in its registry entry.
+    if (!isValidCanvasType(type)) {
+      return <div>Editor type &quot;{type}&quot; not found.</div>;
     }
+    if (!config)
+      return (
+        <CanvasEditorSkeleton
+          chromeLeft={chromeLeft}
+          aspectRatio={skeletonAspectRatio}
+          topBar={!hostChrome}
+        />
+      );
+
+    const template = getBuiltinTemplate(type);
+    return (
+      <CanvasEditor
+        key={componentKey}
+        initialConfigId={type}
+        formatId={formatId}
+        documentTitle={documentTitle}
+        initialProps={template.seedProps?.(effectiveState, imageSrc) ?? effectiveState}
+        onExport={onExport}
+        onCancel={onCancel}
+        onDownload={onDownload}
+        callbacks={createCallbacks([...template.hostCallbackKeys])}
+        maxPages={config.multiPage?.maxPages ?? 30}
+        initialPages={initialPages}
+        collaborative={collaborative}
+        chromeLeft={chromeLeft}
+        chromeCenter={chromeCenter}
+        chromeRight={chromeRight}
+        onInvitePeople={onInvitePeople}
+        onSaveAsTemplate={onSaveAsTemplate}
+        onCollabSnapshot={onCollabSnapshot}
+        initialShareToken={initialShareToken}
+        onAutoSaveShareToken={onAutoSaveShareToken}
+        initialTab={initialTab}
+        onActiveTabChange={onActiveTabChange}
+        galleryAutoSave={galleryAutoSave}
+        showShare={showShare}
+        exportApiRef={exportApiRef}
+        hostChrome={hostChrome}
+        readOnly={readOnly}
+      />
+    );
   };
 
   return <>{renderCanvas()}</>;

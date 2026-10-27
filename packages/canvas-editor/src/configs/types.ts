@@ -4,6 +4,7 @@ import type { AltTextPage, AltTextScope, CanvasSpecEditBridge } from '../CanvasE
 import type { StockImageAttribution } from '../common/imageSourceTypes';
 import type { CanvasStageRef } from '../primitives/CanvasStage';
 import type { BackgroundColorOption, SidebarTabId, SidebarTab } from '../sidebar/types';
+import type { CanvasConfigId } from '../templates/registry';
 import type { GradientFill } from '../utils/gradientFill';
 import type { TextAccent, TextMarker } from '../utils/textUtils';
 
@@ -353,25 +354,8 @@ export interface SectionConfig<
 // MULTI-PAGE CONFIGURATION
 // ============================================================================
 
-/** Valid canvas config identifiers for heterogeneous multi-page */
-export type CanvasConfigId =
-  | 'zitat'
-  | 'zitat-pure'
-  | 'info'
-  | 'veranstaltung'
-  | 'simple'
-  | 'dreizeilen'
-  | 'slider'
-  | 'freeform'
-  | 'profilbild'
-  | 'sticker'
-  // Österreich (de-AT) variants
-  | 'zitat-at'
-  | 'zitat-pure-at'
-  | 'dreizeilen-overlay-at'
-  | 'info-at'
-  | 'freeform-at'
-  | 'slider-at';
+/** Valid canvas config identifiers for heterogeneous multi-page — derived from the template registry */
+export type { CanvasConfigId };
 
 /** A page in a heterogeneous multi-page document */
 export interface HeterogeneousPage {

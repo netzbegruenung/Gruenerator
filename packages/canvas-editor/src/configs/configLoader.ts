@@ -11,127 +11,32 @@
  * Now, configs are loaded dynamically based on the canvas type being used.
  */
 
-import { getCanvasFormatOrDefault } from '../formats';
 import { styledFontSpecs } from '../hooks/useFontLoader';
+import {
+  getTemplate,
+  isValidCanvasType,
+  type AnyCanvasConfig,
+  type CanvasConfigId,
+} from '../templates/registry';
 import { canvasFontFamilies } from '../utils/canvasFontFamilies';
 
-import type { FullCanvasConfig } from './types';
-
-type CanvasConfigType =
-  | 'zitat-pure'
-  | 'info'
-  | 'veranstaltung'
-  | 'simple'
-  | 'dreizeilen'
-  | 'zitat'
-  | 'slider'
-  | 'freeform'
-  | 'profilbild'
-  | 'sticker'
-  // Österreich (de-AT) variants
-  | 'zitat-at'
-  | 'zitat-pure-at'
-  | 'dreizeilen-overlay-at'
-  | 'info-at'
-  | 'freeform-at'
-  | 'slider-at';
-
-// Use a flexible type that accepts any state/action types
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-type AnyCanvasConfig = FullCanvasConfig<any, any>;
+export { isValidCanvasType };
 
 /**
- * Load a canvas configuration dynamically based on type
+ * Load a built-in canvas configuration dynamically based on type. Each
+ * template's loader lives in its entry in `templates/registry.ts`.
  * @param type - The canvas type to load
  * @param formatId - The canvas's format; only freeform lays out on it, every
  *   other template keeps its own 4:5 sheet
  * @returns Promise resolving to the canvas configuration
  */
 export async function loadCanvasConfig(
-  type: CanvasConfigType,
+  type: CanvasConfigId,
   formatId?: string
 ): Promise<AnyCanvasConfig> {
-  switch (type) {
-    case 'zitat-pure':
-      return (await import('./zitat_pure_full.config')).zitatPureFullConfig;
-
-    case 'info':
-      return (await import('./info_full.config')).infoFullConfig;
-
-    case 'veranstaltung':
-      return (await import('./veranstaltung_full.config')).veranstaltungFullConfig;
-
-    case 'simple':
-      return (await import('./simple_full.config')).simpleFullConfig;
-
-    case 'dreizeilen':
-      return (await import('./dreizeilen_full.config')).dreizeilenFullConfig;
-
-    case 'zitat':
-      return (await import('./zitat_full.config')).zitatFullConfig;
-
-    case 'slider':
-      return (await import('./slider_full.config')).sliderFullConfig;
-
-    case 'freeform':
-      return (await import('./freeform_full.config')).createFreeformFullConfig(
-        getCanvasFormatOrDefault(formatId)
-      );
-
-    case 'profilbild':
-      return (await import('./profilbild_full.config')).profilbildFullConfig;
-
-    case 'sticker':
-      return (await import('./sticker_full.config')).stickerFullConfig;
-
-    // Österreich (de-AT) variants
-    case 'zitat-pure-at':
-      return (await import('./zitat_pure_at_full.config')).zitatPureAtFullConfig;
-
-    case 'zitat-at':
-      return (await import('./zitat_at_full.config')).zitatAtFullConfig;
-
-    case 'dreizeilen-overlay-at':
-      return (await import('./dreizeilen_overlay_at_full.config')).dreizeilenOverlayAtFullConfig;
-
-    case 'info-at':
-      return (await import('./info_at_full.config')).infoAtFullConfig;
-
-    case 'freeform-at':
-      return (await import('./freeform_at_full.config')).createFreeformAtFullConfig(
-        getCanvasFormatOrDefault(formatId)
-      );
-
-    case 'slider-at':
-      return (await import('./slider_full.config')).sliderAtFullConfig;
-
-    default:
-      throw new Error(`Unknown canvas type: ${type}`);
-  }
-}
-
-/**
- * Check if a canvas type is valid
- */
-export function isValidCanvasType(type: string): type is CanvasConfigType {
-  return [
-    'zitat-pure',
-    'info',
-    'veranstaltung',
-    'simple',
-    'dreizeilen',
-    'zitat',
-    'slider',
-    'freeform',
-    'profilbild',
-    'sticker',
-    'zitat-at',
-    'zitat-pure-at',
-    'dreizeilen-overlay-at',
-    'info-at',
-    'freeform-at',
-    'slider-at',
-  ].includes(type);
+  const template = getTemplate(type);
+  if (!template) throw new Error(`Unknown canvas type: ${type}`);
+  return template.load(formatId);
 }
 
 /**
