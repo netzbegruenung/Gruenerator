@@ -1,4 +1,4 @@
-import { ELEMENT_KINDS, kindList } from './elementKinds';
+import { ELEMENT_KINDS, kindItem, kindList } from './elementKinds';
 
 import type { AssetInstance } from './canvasAssets';
 import type { ChartInstance } from './chartUtils';
@@ -10,7 +10,6 @@ import type { UserImageInstance } from './userImageUtils';
 import type { AdditionalText, CanvasElementConfig, FullCanvasConfig } from '../configs/types';
 import type { BalkenInstance } from '../primitives/BalkenGroup';
 import type { CircleBadgeInstance } from '../utils/circleBadgeUtils';
-
 
 /**
  * Canvas Layer Manager - Utilities for managing layer ordering
@@ -70,14 +69,7 @@ export function buildCanvasItems<
 
   // 2. Every element kind, in the order `ELEMENT_KINDS` lists them.
   for (const { kind, stateKey } of ELEMENT_KINDS) {
-    for (const entry of kindList(state, stateKey)) {
-      // Boundary: the kind tells the payload type the registry cannot spell.
-      items.push(
-        kind === 'icon'
-          ? { id: entry as string, type: 'icon' }
-          : ({ id: (entry as { id: string }).id, type: kind, data: entry } as CanvasItem)
-      );
-    }
+    for (const entry of kindList(state, stateKey)) items.push(kindItem(kind, entry));
   }
 
   return items;

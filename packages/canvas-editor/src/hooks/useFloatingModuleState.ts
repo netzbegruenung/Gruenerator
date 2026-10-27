@@ -2,19 +2,12 @@ import { useMemo, useRef } from 'react';
 
 import { canCropBackgroundPhoto } from '../utils/backgroundPhotoCrop';
 import { resolveValue } from '../utils/canvasValueResolver';
+import { findKindItem, type ElementKindName, type KindItem } from '../utils/elementKinds';
 import { templateTextAlignOf, type TextAlign } from '../utils/textAlign';
 
 import type { StockImageAttribution } from '../common/imageSourceTypes';
 import type { FullCanvasConfig, LayoutResult } from '../configs/types';
-import type { BalkenInstance, CircleBadgeInstance } from '../primitives';
-import type { AssetInstance } from '../utils/canvasAssets';
-import type { ChartInstance } from '../utils/chartUtils';
-import type { FrameInstance } from '../utils/frameUtils';
 import type { GradientFill } from '../utils/gradientFill';
-import type { IllustrationInstance } from '../utils/illustrations/types';
-import type { PillBadgeInstance } from '../utils/pillBadgeUtils';
-import type { ShapeInstance } from '../utils/shapes';
-import type { UserImageInstance } from '../utils/userImageUtils';
 
 /**
  * Floating Module State - Determines active floating toolbar module
@@ -114,16 +107,6 @@ export function resolveToolbarOpacity<TState extends Record<string, unknown>>(
 }
 
 /**
- * Helper to check if state has array property
- */
-function getStateArray<T>(state: unknown, key: string | undefined): T[] {
-  if (!key) return [];
-  const stateObj = state as Record<string, unknown>;
-  const value = stateObj[key];
-  return Array.isArray(value) ? (value as T[]) : [];
-}
-
-/**
  * Hook to compute active floating module based on selected element
  */
 function floatingModuleEqual(
@@ -150,6 +133,74 @@ function floatingModuleEqual(
     a.data.fillGradient === b.data.fillGradient &&
     a.data.align === b.data.align
   );
+}
+
+type KindModules = {
+  [K in ElementKindName]: (
+    item: Extract<KindItem, { type: K }>,
+    state: Record<string, unknown>
+  ) => FloatingModuleState;
+};
+
+/**
+ * The floating module per element kind. Most kinds hand their whole instance
+ * to the module; the exceptions say why they don't.
+ */
+const KIND_MODULES: KindModules = {
+  shape: ({ id, data }) => ({ type: 'shape', data: { ...data, id } }),
+  // Icons are listed as bare ids; their state lives under the id in `iconStates`.
+  icon: ({ id }, state) => {
+    const iconStates = getStateProperty<Record<string, unknown>>(state, 'iconStates');
+    return { type: 'icon', data: { id, ...(iconStates?.[id] ?? {}) } };
+  },
+  // Instance-backed text shares the template text's module, flagged so the
+  // effect controls (outline, shadow, gradient) show.
+  'additional-text': ({ id, data: t }) => ({
+    type: 'text',
+    data: {
+      id,
+      isInstanceText: true,
+      fontSize: t.fontSize,
+      opacity: t.opacity ?? 1,
+      fill: t.fill,
+      stroke: t.stroke,
+      strokeWidth: t.strokeWidth,
+      shadowColor: t.shadowColor,
+      shadowBlur: t.shadowBlur,
+      shadowOffsetX: t.shadowOffsetX,
+      shadowOffsetY: t.shadowOffsetY,
+      shadowOpacity: t.shadowOpacity,
+      fillGradient: t.fillGradient,
+      align: t.align ?? 'left',
+    },
+  }),
+  balken: ({ id, data }) => ({ type: 'balken', data: { id, opacity: data.opacity ?? 1 } }),
+  illustration: ({ id, data }) => ({ type: 'illustration', data: { ...data, id } }),
+  frame: ({ id, data }) => ({ type: 'frame', data: { ...data, id } }),
+  asset: ({ id, data }) => ({ type: 'asset', data: { ...data, id } }),
+  'user-image': ({ id, data }) => ({
+    type: 'user-image',
+    data: { ...data, id, opacity: data.opacity ?? 1 },
+  }),
+  // Badges: the swatch colours the badge body (`backgroundColor`), not its text.
+  'pill-badge': ({ id, data }) => ({
+    type: 'pill-badge',
+    data: { id, fill: data.backgroundColor, opacity: data.opacity ?? 1 },
+  }),
+  'circle-badge': ({ id, data }) => ({
+    type: 'circle-badge',
+    data: { id, fill: data.backgroundColor, opacity: data.opacity ?? 1 },
+  }),
+  // Charts: series colours live in the chart-settings tab; the bar only
+  // carries opacity.
+  chart: ({ id, data }) => ({ type: 'chart', data: { id, opacity: data.opacity ?? 1 } }),
+};
+
+type KindModule = (item: KindItem, state: Record<string, unknown>) => FloatingModuleState;
+
+function kindModule(item: KindItem, state: Record<string, unknown>): FloatingModuleState {
+  // Boundary: `item.type` picks the entry that takes exactly this item.
+  return (KIND_MODULES[item.type] as KindModule)(item, state);
 }
 
 /**
@@ -273,159 +324,8 @@ export function floatingModuleFor<
     };
   }
 
-  // Check if Shape
-  const shapeInstances = getStateArray<ShapeInstance>(state, 'shapeInstances');
-  const shape = shapeInstances.find((s) => s.id === selectedElement);
-  if (shape) {
-    return {
-      type: 'shape' as const,
-      data: { ...shape, id: selectedElement },
-    };
-  }
-
-  // Check if Icon
-  const selectedIcons = getStateArray<string>(state, 'selectedIcons');
-  const isIcon = selectedIcons.includes(selectedElement);
-  if (isIcon) {
-    const iconStatesObj = getStateProperty<Record<string, unknown>>(state, 'iconStates');
-    const iconState = iconStatesObj?.[selectedElement] ?? {};
-    return {
-      type: 'icon' as const,
-      data: { id: selectedElement, ...iconState },
-    };
-  }
-
-  // Check if Additional Text
-  const additionalTexts = getStateArray<{
-    id: string;
-    fontSize?: number;
-    opacity?: number;
-    fill?: string;
-    stroke?: string;
-    strokeWidth?: number;
-    shadowColor?: string;
-    shadowBlur?: number;
-    shadowOffsetX?: number;
-    shadowOffsetY?: number;
-    shadowOpacity?: number;
-    fillGradient?: GradientFill | null;
-    align?: TextAlign;
-  }>(state, 'additionalTexts');
-  const additionalText = additionalTexts.find((t) => t.id === selectedElement);
-  if (additionalText) {
-    return {
-      type: 'text' as const,
-      data: {
-        id: selectedElement,
-        isInstanceText: true,
-        fontSize: additionalText.fontSize,
-        opacity: additionalText.opacity ?? 1,
-        fill: additionalText.fill,
-        stroke: additionalText.stroke,
-        strokeWidth: additionalText.strokeWidth,
-        shadowColor: additionalText.shadowColor,
-        shadowBlur: additionalText.shadowBlur,
-        shadowOffsetX: additionalText.shadowOffsetX,
-        shadowOffsetY: additionalText.shadowOffsetY,
-        shadowOpacity: additionalText.shadowOpacity,
-        fillGradient: additionalText.fillGradient,
-        align: additionalText.align ?? 'left',
-      },
-    };
-  }
-
-  // Check if Balken
-  const balkenInstances = getStateArray<BalkenInstance>(state, 'balkenInstances');
-  const balken = balkenInstances.find((b) => b.id === selectedElement);
-  if (balken) {
-    return {
-      type: 'balken' as const,
-      data: {
-        id: selectedElement,
-        opacity: balken.opacity ?? 1,
-      },
-    };
-  }
-
-  // Check if Illustration
-  const illustrationInstances = getStateArray<IllustrationInstance>(state, 'illustrationInstances');
-  const illustration = illustrationInstances.find((i) => i.id === selectedElement);
-  if (illustration) {
-    return {
-      type: 'illustration' as const,
-      data: { ...illustration, id: selectedElement },
-    };
-  }
-
-  // Check if Frame
-  const frameInstances = getStateArray<FrameInstance>(state, 'frameInstances');
-  const frame = frameInstances.find((f) => f.id === selectedElement);
-  if (frame) {
-    return {
-      type: 'frame' as const,
-      data: { ...frame, id: selectedElement },
-    };
-  }
-
-  // Check if Asset
-  const assetInstances = getStateArray<AssetInstance>(state, 'assetInstances');
-  const asset = assetInstances.find((a) => a.id === selectedElement);
-  if (asset) {
-    return {
-      type: 'asset' as const,
-      data: { ...asset, id: selectedElement },
-    };
-  }
-
-  // Check if User Image
-  const userImageInstances = getStateArray<UserImageInstance>(state, 'userImageInstances');
-  const userImage = userImageInstances.find((u) => u.id === selectedElement);
-  if (userImage) {
-    return {
-      type: 'user-image' as const,
-      data: { ...userImage, id: selectedElement, opacity: userImage.opacity ?? 1 },
-    };
-  }
-
-  // Badges: the swatch colours the badge body (`backgroundColor`), not its text.
-  const pillBadgeInstances = getStateArray<PillBadgeInstance>(state, 'pillBadgeInstances');
-  const pillBadge = pillBadgeInstances.find((p) => p.id === selectedElement);
-  if (pillBadge) {
-    return {
-      type: 'pill-badge' as const,
-      data: {
-        id: selectedElement,
-        fill: pillBadge.backgroundColor,
-        opacity: pillBadge.opacity ?? 1,
-      },
-    };
-  }
-
-  const circleBadgeInstances = getStateArray<CircleBadgeInstance>(state, 'circleBadgeInstances');
-  const circleBadge = circleBadgeInstances.find((c) => c.id === selectedElement);
-  if (circleBadge) {
-    return {
-      type: 'circle-badge' as const,
-      data: {
-        id: selectedElement,
-        fill: circleBadge.backgroundColor,
-        opacity: circleBadge.opacity ?? 1,
-      },
-    };
-  }
-
-  // Charts: series colours live in the chart-settings tab; the bar only
-  // carries opacity.
-  const chartInstances = getStateArray<ChartInstance>(state, 'chartInstances');
-  const chart = chartInstances.find((c) => c.id === selectedElement);
-  if (chart) {
-    return {
-      type: 'chart' as const,
-      data: { id: selectedElement, opacity: chart.opacity ?? 1 },
-    };
-  }
-
-  return null;
+  const found = findKindItem(state, selectedElement);
+  return found ? kindModule(found, state) : null;
 }
 
 export function useFloatingModuleState<

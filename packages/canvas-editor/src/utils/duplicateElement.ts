@@ -28,6 +28,7 @@
  * sie `null`.
  */
 
+import { ELEMENT_KINDS, type ElementKindName } from './elementKinds';
 import { catalogIconId } from './iconInstances';
 
 import type { AssetInstance } from './canvasAssets';
@@ -55,18 +56,8 @@ export interface InsertOffset {
 const toOffset = (offset: number | InsertOffset): InsertOffset =>
   typeof offset === 'number' ? { x: offset, y: offset } : offset;
 
-export type DuplicableType =
-  | 'shape'
-  | 'additional-text'
-  | 'balken'
-  | 'illustration'
-  | 'asset'
-  | 'pill-badge'
-  | 'circle-badge'
-  | 'frame'
-  | 'user-image'
-  | 'chart'
-  | 'icon';
+/** Jede Elementart aus `ELEMENT_KINDS` ist duplizierbar; die Registry unten nennt sie alle. */
+export type DuplicableType = ElementKindName;
 
 /**
  * Die Nutzlast eines Icons: sein Zustand plus die Katalog-ID, aufgelöst. Anders
@@ -120,11 +111,12 @@ interface DuplicableSpec<T> {
   insert: (state: object, data: T, newId: string, offset: InsertOffset) => Record<string, unknown>;
 }
 
-/** Der Normalfall: eine Art, die als Liste von `{ id, … }` im Zustand liegt. */
+/** Der Normalfall: eine Art, die als Liste von `{ id, … }` unter ihrem `stateKey` liegt. */
 function listSpec<T extends { id: string }>(
-  field: string,
+  kind: Exclude<DuplicableType, 'icon'>,
   clone: (data: T, id: string, offset: InsertOffset) => T
 ): DuplicableSpec<T> {
+  const field = ELEMENT_KINDS.find((k) => k.kind === kind)!.stateKey;
   return {
     find: (state, id) => (readList(state, field).find((i) => i.id === id) as T | undefined) ?? null,
     insert: (state, data, newId, offset) => ({
@@ -135,11 +127,12 @@ function listSpec<T extends { id: string }>(
 
 /**
  * Registry: je Art, wie man sie im Zustand findet und wie eine versetzte Kopie
- * hineinkommt. Eine neue Elementart wird genau hier eingetragen — der Rest
- * dieser Datei und alle vier Aufrufer ziehen automatisch nach.
+ * hineinkommt. Eine neue Elementart in `ELEMENT_KINDS` bricht den Typcheck,
+ * bis sie hier steht — der Rest dieser Datei und alle vier Aufrufer ziehen
+ * dann automatisch nach.
  */
 const DUPLICABLE: { [K in DuplicableType]: DuplicableSpec<DuplicableDataMap[K]> } = {
-  shape: listSpec('shapeInstances', (d, id, o) => ({
+  shape: listSpec('shape', (d, id, o) => ({
     ...d,
     id,
     x: d.x + o.x,
@@ -147,7 +140,7 @@ const DUPLICABLE: { [K in DuplicableType]: DuplicableSpec<DuplicableDataMap[K]> 
     ...(d.dash ? { dash: [...d.dash] } : {}),
     ...(d.fillGradient !== undefined ? { fillGradient: cloneGradient(d.fillGradient) } : {}),
   })),
-  'additional-text': listSpec('additionalTexts', (d, id, o) => ({
+  'additional-text': listSpec('additional-text', (d, id, o) => ({
     ...d,
     id,
     x: d.x + o.x,
@@ -155,27 +148,27 @@ const DUPLICABLE: { [K in DuplicableType]: DuplicableSpec<DuplicableDataMap[K]> 
     ...(d.fillGradient !== undefined ? { fillGradient: cloneGradient(d.fillGradient) } : {}),
   })),
   // Balken kennt kein x/y — seine Lage ist ein Versatz zur Layout-Basis.
-  balken: listSpec('balkenInstances', (d, id, o) => ({
+  balken: listSpec('balken', (d, id, o) => ({
     ...d,
     id,
     offset: { x: (d.offset?.x ?? 0) + o.x, y: (d.offset?.y ?? 0) + o.y },
     texts: [...d.texts],
     ...(d.barOffsets ? { barOffsets: [...d.barOffsets] as [number, number, number] } : {}),
   })),
-  illustration: listSpec('illustrationInstances', (d, id, o) => ({
+  illustration: listSpec('illustration', (d, id, o) => ({
     ...d,
     id,
     x: d.x + o.x,
     y: d.y + o.y,
   })),
-  asset: listSpec('assetInstances', (d, id, o) => ({ ...d, id, x: d.x + o.x, y: d.y + o.y })),
-  'pill-badge': listSpec('pillBadgeInstances', (d, id, o) => ({
+  asset: listSpec('asset', (d, id, o) => ({ ...d, id, x: d.x + o.x, y: d.y + o.y })),
+  'pill-badge': listSpec('pill-badge', (d, id, o) => ({
     ...d,
     id,
     x: d.x + o.x,
     y: d.y + o.y,
   })),
-  'circle-badge': listSpec('circleBadgeInstances', (d, id, o) => ({
+  'circle-badge': listSpec('circle-badge', (d, id, o) => ({
     ...d,
     id,
     x: d.x + o.x,
@@ -185,14 +178,14 @@ const DUPLICABLE: { [K in DuplicableType]: DuplicableSpec<DuplicableDataMap[K]> 
   // `imageSrc` wird bewusst mitgenommen: ein Rahmen ohne sein Bild ist keine
   // Kopie. Dass das Löschen des Originals die geteilte Blob-URL freigibt,
   // verhindern die Zählungen in `removeFrame`/`removeUserImage`.
-  frame: listSpec('frameInstances', (d, id, o) => ({ ...d, id, x: d.x + o.x, y: d.y + o.y })),
-  'user-image': listSpec('userImageInstances', (d, id, o) => ({
+  frame: listSpec('frame', (d, id, o) => ({ ...d, id, x: d.x + o.x, y: d.y + o.y })),
+  'user-image': listSpec('user-image', (d, id, o) => ({
     ...d,
     id,
     x: d.x + o.x,
     y: d.y + o.y,
   })),
-  chart: listSpec('chartInstances', (d, id, o) => ({
+  chart: listSpec('chart', (d, id, o) => ({
     ...d,
     id,
     x: d.x + o.x,

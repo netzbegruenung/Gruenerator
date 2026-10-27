@@ -1,7 +1,12 @@
 import type { CanvasItem } from './canvasLayerManager';
 import type { OptionalCanvasActions } from '../hooks/useCanvasElementHandlers';
 
-type KindName = Exclude<CanvasItem['type'], 'element'>;
+/** The element kinds a canvas holds beside the config's own elements. */
+export type ElementKindName = Exclude<CanvasItem['type'], 'element'>;
+type KindName = ElementKindName;
+
+/** One placed instance of a kind, as the render list carries it. */
+export type KindItem = Exclude<CanvasItem, { type: 'element' }>;
 
 export interface ElementKindDef {
   kind: KindName;
@@ -16,9 +21,11 @@ export interface ElementKindDef {
 
 /**
  * The element kinds a canvas holds, in the order they stack after the
- * config's own elements. A new kind is added here: `buildCanvasItems` and
- * `findElementRemover` follow, and a test holds `CARRIED_INSTANCE_KEYS` to
- * it, so a re-seed cannot drop the kind's state.
+ * config's own elements. A new kind is added here: `buildCanvasItems`,
+ * `findElementRemover` and `findKindItem` follow, the per-kind tables
+ * (`KIND_RENDERERS`, the floating modules, the orientation doors, the
+ * duplicate specs) fail to compile until they name it, and a test holds
+ * `CARRIED_INSTANCE_KEYS` to it, so a re-seed cannot drop the kind's state.
  */
 export const ELEMENT_KINDS = [
   { kind: 'balken', stateKey: 'balkenInstances', remove: 'removeBalken' },
@@ -38,4 +45,26 @@ export const ELEMENT_KINDS = [
 export function kindList(state: object, stateKey: string): readonly unknown[] {
   const value = (state as Record<string, unknown>)[stateKey];
   return Array.isArray(value) ? value : [];
+}
+
+/**
+ * A list entry of a kind as a render-list item. Icons are the exception: their
+ * list holds bare ids, and their state lives apart in `iconStates`.
+ */
+export function kindItem(kind: KindName, entry: unknown): KindItem {
+  // Boundary: the kind tells the payload type the registry cannot spell.
+  return kind === 'icon'
+    ? { id: entry as string, type: 'icon' }
+    : ({ id: (entry as { id: string }).id, type: kind, data: entry } as KindItem);
+}
+
+/** Which kind `id` is and its instance, in the order of `ELEMENT_KINDS`; `null` if none. */
+export function findKindItem(state: object, id: string): KindItem | null {
+  for (const { kind, stateKey } of ELEMENT_KINDS) {
+    const entry = kindList(state, stateKey).find((e) =>
+      kind === 'icon' ? e === id : (e as { id?: unknown } | null)?.id === id
+    );
+    if (entry !== undefined) return kindItem(kind, entry);
+  }
+  return null;
 }
