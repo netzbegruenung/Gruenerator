@@ -264,6 +264,20 @@ describe('buildToolPayloadNote', () => {
     expect(note).toContain('Sag NIEMALS, dir liege kein Dokument');
   });
 
+  it('reicht das berechnete Tabellen-Ergebnis an den Schreiber durch (#5043)', () => {
+    const note = buildToolPayloadNote([
+      step({
+        toolName: 'tabelle_auswerten',
+        result: { ergebnis: 'B-0016 | 25.02.2026 | 2.483,05 EUR', code: 'print(1)' },
+      }),
+    ]);
+    expect(note).toContain('Per Code berechnetes Ergebnis über die Tabelle (tabelle_auswerten)');
+    expect(note).toContain('B-0016 | 25.02.2026 | 2.483,05 EUR');
+    expect(note).not.toContain('print(1)');
+    // Live: ohne Quellen setzte der Schreiber „[Quelle 1], [Quelle 2]" hinter jede Zeile.
+    expect(note).toContain('KEINE nummerierten Quellen');
+  });
+
   /**
    * Eine benannte Liste, keine Pauschalregel. Wer registriert, trägt seine
    * Nutzlast schon im Quellenblock — eine zweite Kopie verdoppelte sie im

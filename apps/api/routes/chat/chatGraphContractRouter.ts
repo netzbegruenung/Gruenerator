@@ -52,7 +52,6 @@ import { suspendForLoopClarification } from './streamStages/clarificationLoopSus
 import { runClarificationStage } from './streamStages/clarificationStage.js';
 import { runClassifyStage } from './streamStages/classifyStage.js';
 import { suspendForLoopClientTool } from './streamStages/clientToolLoopSuspend.js';
-import { runComputeInterruptStage } from './streamStages/computeInterruptStage.js';
 import { runCreateIntentStage } from './streamStages/createIntentStage.js';
 import { runEarlyHandlerStage } from './streamStages/earlyHandlerStage.js';
 import { runForcedIntentStage } from './streamStages/forcedIntentStage.js';
@@ -313,7 +312,7 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
         memoryEnabled,
       });
 
-      // === HITL: clarification, then the run-then-answer compute interrupt ===
+      // === HITL: clarification ===
       const clarification = await runClarificationStage({
         sse,
         classifiedState,
@@ -324,18 +323,6 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
         actualThreadId,
       });
       if (clarification.handled) return clarification.result;
-
-      const computeInterrupt = await runComputeInterruptStage({
-        sse,
-        classifiedState,
-        suspendBase,
-        forcedTool,
-        forcedTools,
-        lastUserText,
-        clientTools: args.body.clientTools,
-        actualThreadId,
-      });
-      if (computeInterrupt.handled) return computeInterrupt.result;
 
       // === Artifact-creating turns, then the sharepic-topic HITL gate ===
       const created = await runCreateIntentStage({
@@ -458,6 +445,7 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
           classifiedState,
           requestContext: suspendRequestContext,
           pendingApproval: response.pendingApproval as NonNullable<typeof response.pendingApproval>,
+          heldClientTool: response.heldClientTool ?? null,
           partialText: fullText,
           priorSteps: agenticSteps ?? [],
           pendingId,

@@ -9,7 +9,7 @@ import { memo } from 'react';
 import { FiShield, FiTrash2 } from 'react-icons/fi';
 
 import { useRevokeToolApproval, useToolApprovals } from '../hooks/useToolApprovals';
-import { toolNameFromScopeKey } from '../lib/toolApprovalsApi';
+import { approvalDisplayLabel } from '../lib/toolApprovalsApi';
 
 interface ToolApprovalsSectionProps {
   onSuccess: (message: string) => void;
@@ -53,7 +53,7 @@ const ToolApprovalsSection = memo(function ToolApprovalsSection({
 
       <ul className="mt-md list-none space-y-2 p-0">
         {approvals.map((approval) => {
-          const label = approval.toolLabel ?? toolNameFromScopeKey(approval.scopeKey);
+          const label = approvalDisplayLabel(approval);
           return (
             <li
               key={approval.scopeKey}

@@ -28,6 +28,8 @@ const base = {
   hasAttachedDocuments: false,
   summaryAsk: false,
   attachedSeedDelivered: false,
+  resumesSuspendedTurn: false,
+  tabularToolMounted: false,
 };
 
 const force = (over: Partial<typeof base> = {}) => shouldForceFirstToolCall({ ...base, ...over });
@@ -35,6 +37,55 @@ const force = (over: Partial<typeof base> = {}) => shouldForceFirstToolCall({ ..
 describe('shouldForceFirstToolCall', () => {
   it('erzwingt nichts, wenn kein Weg zutrifft', () => {
     expect(force()).toBeNull();
+  });
+
+  // Eine Fortsetzung (Freigabe, Client-Werkzeug, Rückfrage) setzt einen Zug fort,
+  // dessen erster Schritt schon lief. Live 27.10.2026: nach jedem „Einmal
+  // erlauben" erneut „erzwungener erster Aufruf (named_intent)" — eine zusätzliche
+  // gruenerator_search plus Planer-Runde je Fortsetzung.
+  it('erzwingt bei einer Fortsetzung desselben Zuges nichts mehr', () => {
+    expect(force({ intent: 'search', resumesSuspendedTurn: true })).toBeNull();
+    expect(force({ pinnedTool: 'web_search', resumesSuspendedTurn: true })).toBeNull();
+    expect(
+      force({ hasAttachedDocuments: true, summaryAsk: true, resumesSuspendedTurn: true })
+    ).toBeNull();
+  });
+
+  // Live 27.10.2026, 4 von ~20 Tabellen-Läufen: ein Agent mit Standard-Notebook
+  // schob den Turn nach `search`, der erzwungene Schritt sah nur
+  // [gruenerator_search], der Planer hing ⇒ steps=0. Bei einer Anschlussfrage
+  // dasselbe mit web_search. Mit montiertem `tabelle_auswerten` entscheidet
+  // der Planer frei.
+  // Ganz ohne Zwang schwieg der Planer bei Anschlussfragen, und der Schreiber
+  // rechnete aus dem Auszug (#5042). Der Zwang ist eine Wahl zwischen
+  // `tabelle_auswerten` und `direkt_antworten`, nie eine Suche.
+  it('Tabellen-Turn mit montiertem tabelle_auswerten ⇒ tabular_decision statt named_intent/followup', () => {
+    expect(force({ intent: 'search', tabularToolMounted: true })).toBe('tabular_decision');
+    expect(
+      force({
+        intent: 'agentic',
+        priorTurnRetrieved: true,
+        lastUserText: 'Und im Februar?',
+        tabularToolMounted: true,
+      })
+    ).toBe('tabular_decision');
+  });
+
+  it('Tabellen-Turn: Fortsetzung und Recherche-Bann vetoen die Wahl', () => {
+    expect(force({ tabularToolMounted: true, resumesSuspendedTurn: true })).toBeNull();
+    expect(force({ tabularToolMounted: true, researchBanned: true })).toBeNull();
+  });
+
+  it('ohne Tabellen-Werkzeug bleiben named_intent und followup', () => {
+    expect(force({ intent: 'search' })).toBe('named_intent');
+    expect(
+      force({ intent: 'agentic', priorTurnRetrieved: true, lastUserText: 'Und im Februar?' })
+    ).toBe('followup');
+  });
+
+  it('ein frischer Zug bleibt unverändert', () => {
+    expect(force({ intent: 'search' })).toBe('named_intent');
+    expect(force({ pinnedTool: 'web_search' })).toBe('pinned');
   });
 
   // Achter Weg. Der gemessene Ausfall (23.08.2026): ein 21.785-Zeichen-PDF war
@@ -771,6 +822,21 @@ describe('forcedFirstStepTools', () => {
     'gruenerator_examples_search',
     'gruenerator_pressemitteilung_examples',
   ]);
+  it('tabular_decision sieht nur rechnen oder direkt antworten', () => {
+    expect(
+      forcedFirstStepTools({
+        reason: 'tabular_decision',
+        intent: 'search',
+        mounted: [...MOUNTED, 'tabelle_auswerten', 'direkt_antworten'],
+        mcpToolNames: [],
+        priorToolNames: ['gruenerator_search'],
+        isLookupTool: (name) => !NOT_LOOKUP.has(name),
+        attachedDocsTool: 'dokumente_lesen',
+        userText: 'Welche Buchung war die größte?',
+      })
+    ).toEqual(['tabelle_auswerten', 'direkt_antworten']);
+  });
+
   const tools = (
     over: Partial<Parameters<typeof forcedFirstStepTools>[0]> & { reason: ForceReason }
   ) =>

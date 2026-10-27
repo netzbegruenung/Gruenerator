@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 
-import { approvalScopeKey, evaluateApproval } from './approvalPolicy.js';
+import { approvalGateEnabled, approvalScopeKey, evaluateApproval } from './approvalPolicy.js';
 import { createToolApprovalGate } from './toolApprovalGate.js';
 
 import type { ToolOrigin } from './types.js';
@@ -106,6 +106,51 @@ describe('evaluateApproval', () => {
       allowlist,
     });
     expect(verdict).toEqual({ required: false, reason: 'allowlisted' });
+  });
+});
+
+describe('tabelle_auswerten', () => {
+  it('fragt vor dem ersten Lauf', () => {
+    expect(evaluateApproval({ toolName: 'tabelle_auswerten', allowlist: new Set() })).toEqual({
+      required: true,
+      scopeKey: 'internal/tabelle_auswerten',
+    });
+  });
+
+  it('fragt nicht mehr nach „Immer erlauben"', () => {
+    const verdict = evaluateApproval({
+      toolName: 'tabelle_auswerten',
+      allowlist: new Set(['internal/tabelle_auswerten']),
+    });
+    expect(verdict.required).toBe(false);
+  });
+});
+
+describe('approvalGateEnabled', () => {
+  it('an, wenn Konnektoren laufen und jemand angemeldet ist', () => {
+    expect(approvalGateEnabled({ disableMcp: false, userId: 'u1', toolNames: [] })).toBe(true);
+  });
+
+  it('aus ohne angemeldete Person', () => {
+    expect(
+      approvalGateEnabled({ disableMcp: false, userId: null, toolNames: ['tabelle_auswerten'] })
+    ).toBe(false);
+  });
+
+  it('aus bei disableMcp ohne internes Pflichtwerkzeug im Katalog', () => {
+    expect(approvalGateEnabled({ disableMcp: true, userId: 'u1', toolNames: ['web_search'] })).toBe(
+      false
+    );
+  });
+
+  it('an bei disableMcp, sobald tabelle_auswerten im Katalog ist — sonst liefe Code ungefragt', () => {
+    expect(
+      approvalGateEnabled({
+        disableMcp: true,
+        userId: 'u1',
+        toolNames: ['web_search', 'tabelle_auswerten'],
+      })
+    ).toBe(true);
   });
 });
 

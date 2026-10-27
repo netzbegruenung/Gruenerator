@@ -1090,6 +1090,11 @@ export interface AgenticDecisionInput {
    *  tool exists only in the loop, and "Mach meine Abrechnung, Belege anbei"
    *  otherwise reads as a self-contained writing order. */
   isReisekostenTurn?: boolean;
+  /** A spreadsheet is attached and the client can run Python (`hasTabularAttachment
+   *  && clientCanRunPython`). Decided by the table's presence, never by the
+   *  wording of the question: `tabelle_auswerten` exists only in the loop, and a
+   *  tabular question is often classified `compute`, which is single-pass. */
+  isTabularAnalysisTurn?: boolean;
   /** The classifier answered `needsResearch: true` and then picked `direct`.
    *  Rescues the turn into the loop even when it isn't shaped like a question —
    *  the `direct` rescue below keys on phrasing, and the failing turns were
@@ -1157,6 +1162,7 @@ export function decideRunAgentic(p: AgenticDecisionInput): boolean {
         !selfContained)) ||
     p.isPdfFillRequest ||
     p.isReisekostenTurn === true ||
+    p.isTabularAnalysisTurn === true ||
     compoundGen ||
     memoryRequest;
   const secondaryAllowed =
@@ -1190,7 +1196,11 @@ export function decideRunAgentic(p: AgenticDecisionInput): boolean {
   // `forcedLoop` is a property of the intent; only with `forcedTool` is it a
   // mention the person made.
   const explicitLoopReason =
-    p.mustLoop || (p.forcedTool && p.forcedLoop) || p.isPdfFillRequest || memoryRequest;
+    p.mustLoop ||
+    (p.forcedTool && p.forcedLoop) ||
+    p.isPdfFillRequest ||
+    p.isTabularAnalysisTurn === true ||
+    memoryRequest;
   const imageStaysSinglePass =
     isPixelTurn(p.hasImageAttachments, p.intent) ||
     (p.hasImageAttachments && !explicitLoopReason && looksLikeImageOnlyAsk(p.lastUserText));
@@ -1216,6 +1226,7 @@ export function decideRunAgentic(p: AgenticDecisionInput): boolean {
       hasImageAttachments: p.hasImageAttachments,
       isPdfFillRequest: p.isPdfFillRequest,
       ...(p.isReisekostenTurn === true && { isReisekostenTurn: true }),
+      ...(p.isTabularAnalysisTurn === true && { isTabularAnalysisTurn: true }),
       unsourcedWriting,
       selfContained,
       memoryRequest,

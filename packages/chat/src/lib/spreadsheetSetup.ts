@@ -42,6 +42,12 @@ export function isTabularFile(name: string, mimeType: string): boolean {
  * cell equals the sum (or, for labelled/gappy rows, the mean) of ALL other
  * rows — a mathematically unambiguous signal — and the removal is printed so
  * the model and the user see it in the compute card.
+ *
+ * Also undoes the timezone shift some xlsx writers bake into date cells: a
+ * local midnight stored as UTC (`2004-01-31T01:00:00Z`, `…T22:00:00Z`) reads
+ * as "2004-01-31 01:00:00" — on the card and in every month/day grouping. Only
+ * a column whose every value sits on a whole hour within ±2 h of midnight is
+ * rounded to the day; a real time column never looks like that (#5043).
  */
 const CLEAN_HELPER = `import re as _gruen_re
 
@@ -64,8 +70,21 @@ def _gruen_is_agg_row(_row, _head, _num, _txt):
                 return True
     return False
 
+def _gruen_fix_shifted_dates(_df):
+    for _c in _df.columns:
+        if not pd.api.types.is_datetime64_any_dtype(_df[_c]):
+            continue
+        _v = _df[_c].dropna()
+        if len(_v) == 0:
+            continue
+        _whole = (_v.dt.minute == 0) & (_v.dt.second == 0) & (_v.dt.microsecond == 0)
+        _near = _v.dt.hour.isin([0, 1, 2, 22, 23])
+        if bool((_whole & _near).all()) and bool((_v.dt.hour != 0).any()):
+            _df[_c] = _df[_c].dt.round('D')
+    return _df
+
 def _gruen_clean(_df):
-    _df = _df.dropna(how='all')
+    _df = _gruen_fix_shifted_dates(_df.dropna(how='all'))
     _num = list(_df.select_dtypes('number').columns)
     _txt = [_c for _c in _df.columns if _c not in _num]
     _removed = 0
@@ -105,8 +124,8 @@ export function buildFileSetup(name: string, mimeType: string): string {
     // pandas auto-selects openpyxl (.xlsx) or xlrd (.xls) by extension.
     // Multi-sheet workbooks (OpenWebUI/LobeHub parity): every sheet is loaded
     // and cleaned, `df` stays the FIRST sheet (backward compatible), and the
-    // sheet map is announced via print — that line lands in the compute card
-    // AND the respond context, so model and user know what is addressable.
+    // sheet map is announced via print — that line reaches the model via the
+    // result summary; parseComputeResult keeps it off the compute card.
     return `import pandas as pd
 ${CLEAN_HELPER}
 _gruen_all = pd.read_excel(${literal}, sheet_name=None)

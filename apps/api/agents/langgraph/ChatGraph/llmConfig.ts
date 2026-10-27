@@ -1,6 +1,6 @@
 /**
  * Re-export shim for the intermediate-lane registry, used by the ChatGraph
- * nodes (classifier, briefGenerator, qualityGate, computeVerifier, summarize, …).
+ * nodes (classifier, briefGenerator, qualityGate, summarize, …).
  *
  * This file used to also build LangChain-compatible `ChatMistralAI` instances
  * for `createReactAgent`. That had zero callers — the chat system runs on AI SDK

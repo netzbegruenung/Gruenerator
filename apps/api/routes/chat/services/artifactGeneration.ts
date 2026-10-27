@@ -182,8 +182,8 @@ export async function runPdfGeneration(opts: {
     returnLine: letterhead.returnLine,
     foldMarks: letterhead.foldMarks,
     stationery: letterhead.stationery,
-    // Bounded self-repair, in the shape computeVerifierNode + resumePipeline
-    // already use for compute: the self-check's findings go back to the model
+    // Bounded self-repair, in the shape the (since removed) compute verifier
+    // used: the self-check's findings go back to the model
     // once. `createPdfDocument` owns WHEN this is called (only for findings a
     // rewrite can fix) and whether the result is kept (only if it improved).
     regenerate: async (problems) => {

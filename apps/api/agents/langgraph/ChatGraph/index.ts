@@ -22,7 +22,6 @@ export {
   summarizeNode,
   computeNode,
   pandasComputeNode,
-  computeVerifierNode,
   respondNode,
   buildSystemMessage,
   restoreAttachmentsDroppedWithHistory,

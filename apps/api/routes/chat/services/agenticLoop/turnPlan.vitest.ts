@@ -763,3 +763,26 @@ describe('decideTurnPlan — Erstell-Auftrag unter Material, genanntes Sharepic'
     expect(p.compoundGenerationKind).toBeNull();
   });
 });
+
+describe('decideTurnPlan — Tabellen-Zug', () => {
+  it('compute mit angehängter Tabelle läuft im Loop, ohne Auffang-Intent', () => {
+    const p = plan({
+      intent: 'compute',
+      lastUserText: 'Wie viele Zeilen hat die Tabelle?',
+      hasOwnMaterial: true,
+      isTabularAnalysisTurn: true,
+    });
+    expect(p.lane).toBe('loop');
+    expect(p.runAgentic).toBe(true);
+    expect(p.intent).toBe('compute');
+  });
+
+  it('compute ohne Flag bleibt im Einzeldurchlauf', () => {
+    const p = plan({
+      intent: 'compute',
+      lastUserText: 'Wie viele Zeilen hat die Tabelle?',
+      hasOwnMaterial: true,
+    });
+    expect(p.runAgentic).toBe(false);
+  });
+});

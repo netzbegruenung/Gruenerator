@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto';
 
 import { createLogger } from '../../../utils/logger.js';
+import { persistSuspendedTurnAttachments } from '../services/postResponseService.js';
 import {
   createMessage,
   finalizeAssistantMessage,
@@ -10,7 +11,11 @@ import { toolApprovalStateStore } from '../services/toolApprovalStateStore.js';
 
 import type { StreamHandlerResult } from './types.js';
 import type { ChatGraphState } from '../../../agents/langgraph/ChatGraph/types.js';
-import type { PendingToolCall, PersistedStep } from '../services/agenticLoop/types.js';
+import type {
+  PendingClientToolRequest,
+  PendingToolCall,
+  PersistedStep,
+} from '../services/agenticLoop/types.js';
 import type { StoredRequestContext } from '../services/pipelineStateStore.js';
 import type { SSEWriter } from '../services/sseHelpers.js';
 
@@ -22,6 +27,8 @@ export interface SuspendForApprovalParams {
   classifiedState: ChatGraphState;
   requestContext: StoredRequestContext;
   pendingApproval: PendingToolCall[];
+  /** Ein schon freigegebener Browser-Aufruf desselben Steps — läuft nach der Entscheidung (#5044). */
+  heldClientTool?: PendingClientToolRequest | null;
   /** Was bis zum Gate gestreamt wurde — bleibt stehen und wird fortgeschrieben. */
   partialText: string;
   priorSteps: PersistedStep[];
@@ -45,6 +52,7 @@ export async function suspendForToolApproval({
   classifiedState,
   requestContext,
   pendingApproval,
+  heldClientTool,
   partialText,
   priorSteps,
   pendingId,
@@ -55,6 +63,7 @@ export async function suspendForToolApproval({
   const stored = await toolApprovalStateStore.store(threadId, {
     approvalTurnId,
     calls: pendingApproval,
+    ...(heldClientTool ? { heldClientTool } : {}),
     priorSteps,
     partialText,
     pausedMessageId: pendingId,
@@ -73,6 +82,10 @@ export async function suspendForToolApproval({
     sse.end();
     return { status: 200 as const, body: undefined };
   }
+
+  // Erst die Anhänge des Turns sichern, dann fragen: der Browser holt die
+  // Tabellen-Bytes für Pyodide aus diesen Zeilen (auch nach einem Reload).
+  await persistSuspendedTurnAttachments(threadId, requestContext);
 
   const metadata: Record<string, unknown> = {
     intent: classifiedState.intent,

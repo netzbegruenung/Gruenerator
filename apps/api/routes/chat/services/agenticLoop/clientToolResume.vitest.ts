@@ -205,6 +205,25 @@ describe('runClientToolLoopResume', () => {
     expect(finishMock).not.toHaveBeenCalled();
   });
 
+  it('reicht eine entschiedene Freigabe an die neue Pause und ans Ende weiter', async () => {
+    const resolvedPause = { pendingApproval: { approvalTurnId: 'a1', resolved: true } };
+    storeMock.get.mockResolvedValue({ ...storedState(), resolvedPause });
+    const again = { toolCallId: 'c2', toolName: 'check_sharepic', args: {} };
+    streamMock.mockResolvedValueOnce({
+      fullText: '',
+      steps: [],
+      citations: [],
+      sources: [],
+      modelName: 'm',
+      pendingClientTool: again,
+    });
+    await run({ image: IMAGE }).promise;
+    expect(suspendToolMock).toHaveBeenCalledWith(expect.objectContaining({ resolvedPause }));
+
+    await run({ image: IMAGE }).promise;
+    expect(finishMock).toHaveBeenCalledWith(expect.objectContaining({ resolvedPause }));
+  });
+
   it('gescheiterte Fortsetzung ⇒ Anspruch zurück + fail', async () => {
     streamMock.mockRejectedValue(new Error('kaputt'));
     await run({ image: IMAGE }).promise;

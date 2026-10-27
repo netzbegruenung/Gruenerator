@@ -11,6 +11,24 @@ describe('parseComputeResult', () => {
     expect(r.summary).toBe('Gesamtgewinn: 102199.508');
   });
 
+  // Live 27.10.2026: die Ergebniskarte zeigte die Setup-Zeile der Pyodide-
+  // Vorbereitung als Ergebniszeile. Das Modell liest sie weiter über `summary`.
+  it('keeps the workbook setup hint out of the card entries but in the summary', () => {
+    const hint =
+      "Hinweis: Arbeitsmappe mit 5 Blättern: Jänner, Feber, März, April, Mai. df ist das Blatt 'Jänner', weitere Blätter über sheets['Blattname'].";
+    const r = parseComputeResult('Tabellen-Berechnung', `${hint}\nSumme Jänner: 1200\n`);
+    expect(r.entries).toEqual([{ label: 'Summe Jänner', value: '1200' }]);
+    expect(r.summary).toContain(hint);
+  });
+
+  it('keeps the hint out of a multi-line table entry too', () => {
+    const hint =
+      "Hinweis: Arbeitsmappe mit 2 Blättern: A, B. df ist das Blatt 'A', weitere Blätter über sheets['Blattname'].";
+    const r = parseComputeResult('Tabellen-Berechnung', `${hint}\n   x   y\n0  1   2\n1  3   4\n`);
+    expect(r.entries).toHaveLength(1);
+    expect(r.entries[0].value).not.toContain('Arbeitsmappe');
+  });
+
   it('parses one entry per stdout line (groupby output)', () => {
     const r = parseComputeResult('Tabellen-Berechnung', 'Nord: 100.0\nSued: 200.0\n');
     expect(r.entries).toEqual([
