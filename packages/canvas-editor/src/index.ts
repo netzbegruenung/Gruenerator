@@ -19,7 +19,7 @@ export type { ControllableCanvasWrapperProps, CanvasInitialPropsMap } from './Ca
 export type {
   CanvasEditorExportApi,
   CanvasEditorHostChrome,
-} from './components/CanvasEditor/types';
+} from '@ggraphic/editor/components/CanvasEditor/types';
 export { EDITOR_KEY_SHIELD_ATTRIBUTE } from '@ggraphic/editor/components/CanvasEditor/hooks/usePageUndoRedoShortcuts';
 export { templateFitsFormat } from './utils/templateRegistry';
 export {

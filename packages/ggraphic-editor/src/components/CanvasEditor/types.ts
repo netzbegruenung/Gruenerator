@@ -1,5 +1,5 @@
+// SPDX-License-Identifier: MPL-2.0
 import type { SidebarTabId } from '@ggraphic/editor/sidebar/types';
-import type { CanvasConfigId } from '../../templates/registry';
 import type {
   GenericCanvasRef,
   ToolbarStateReport,
@@ -10,8 +10,9 @@ import type { HocuspocusProvider } from '@hocuspocus/provider';
 import type React from 'react';
 import type * as Y from 'yjs';
 
-export interface CanvasEditorProps {
-  initialConfigId: CanvasConfigId;
+/** `TConfigId`: the host's template ids (`registerTemplates`). */
+export interface CanvasEditorProps<TConfigId extends string = string> {
+  initialConfigId: TConfigId;
   /** The canvas document's format id. Absent: the default format. */
   formatId?: string;
   /** Document title; names the print PDF (`<title>.pdf`). */
@@ -137,7 +138,7 @@ export interface CanvasEditorExportApi {
 }
 
 export interface PageWrapperProps {
-  page: { id: string; configId: CanvasConfigId; state: Record<string, unknown> };
+  page: { id: string; configId: string; state: Record<string, unknown> };
   index: number;
   pageCount: number;
   config: FullCanvasConfig;

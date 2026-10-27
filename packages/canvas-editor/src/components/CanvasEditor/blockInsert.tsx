@@ -1,39 +1,29 @@
 import { useCanvasEditorServices } from '@ggraphic/editor/CanvasEditorProvider';
 import {
+  BlockInsertContext,
+  type BlockInsertApi as CoreBlockInsertApi,
+  type BlockTarget,
+} from '@ggraphic/editor/components/CanvasEditor/blockInsertContext';
+import {
   sharepicFormatSchema,
   type SharepicBlock,
   type SharepicCreatorLocale,
 } from '@gruenerator/contracts';
-import {
-  createContext,
-  useCallback,
-  useContext,
-  useEffect,
-  useMemo,
-  useState,
-  type ReactNode,
-} from 'react';
+import { useCallback, useContext, useEffect, useMemo, useState } from 'react';
 
-import type { GenericCanvasRef } from '@ggraphic/editor/components/GenericCanvas';
+import type { EditorShellProviderProps } from '@ggraphic/editor/components/CanvasEditor/editorShell';
 
-/** Where a block goes: a page (default the active one), centred on the drop point if any. */
-export interface BlockTarget {
-  pageIndex?: number;
-  at?: { clientX: number; clientY: number };
-}
+export type { BlockTarget };
 
-export interface BlockInsertApi {
-  /** The blocks the active page can take, in catalogue order. */
-  bloecke: SharepicBlock[];
-  isLoading: boolean;
-  insert: (blockId: string, target?: BlockTarget) => Promise<boolean>;
-}
+export type BlockInsertApi = CoreBlockInsertApi<SharepicBlock>;
 
 /** Exported for tests; the editor provides it through `BlockInsertProvider`. */
-export const BlockInsertContext = createContext<BlockInsertApi | null>(null);
+export { BlockInsertContext };
 
 /** The editor's blocks; null outside the editor or without the catalogue and block services. */
-export const useBlockInsert = (): BlockInsertApi | null => useContext(BlockInsertContext);
+export const useBlockInsert = (): BlockInsertApi | null =>
+  // Boundary: only `BlockInsertProvider` below provides the context, with Grünerator-Blöcke.
+  useContext(BlockInsertContext) as BlockInsertApi | null;
 
 /** Pages the composer lays blocks out for: a sharepic page of either country. */
 const BLOCK_LOCALE: Record<string, SharepicCreatorLocale> = {
@@ -46,13 +36,7 @@ export const blockLocaleOf = (configId: string | undefined): SharepicCreatorLoca
 
 const token = () => Math.random().toString(36).slice(2, 8);
 
-interface BlockInsertProviderProps {
-  pages: readonly { configId: string }[];
-  currentPageIndex: number;
-  formatId: string | undefined;
-  canvasRefsRef: React.MutableRefObject<React.RefObject<GenericCanvasRef | null>[]>;
-  children: ReactNode;
-}
+type BlockInsertProviderProps = Omit<EditorShellProviderProps, 'configTabIds'>;
 
 /**
  * Loads the Grünerator-Blöcke and drops one onto a page: composed by the host

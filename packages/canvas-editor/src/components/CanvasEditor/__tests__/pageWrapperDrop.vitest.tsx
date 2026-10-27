@@ -8,7 +8,7 @@ import React from 'react';
 import { describe, expect, it, vi } from 'vitest';
 
 import { BlockInsertContext, type BlockInsertApi } from '../blockInsert';
-import { PageWrapper } from '../PageWrapper';
+import { PageWrapper } from '@ggraphic/editor/components/CanvasEditor/PageWrapper';
 
 vi.mock('@ggraphic/editor/components/GenericCanvas', () => ({ GenericCanvas: () => <canvas /> }));
 vi.mock('@ggraphic/editor/components/PageToolbar', () => ({ PageToolbar: () => null }));

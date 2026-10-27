@@ -1,24 +1,22 @@
+// SPDX-License-Identifier: MPL-2.0
 import { useEffect, useState } from 'react';
 
-import type { CanvasConfigId } from '../../../templates/registry';
 import type { FullCanvasConfig } from '@ggraphic/editor/configs/types';
 
-interface UseLoadedConfigsParams {
-  pages: Array<{ configId: CanvasConfigId }>;
-  getConfigForPage: (configId: CanvasConfigId) => Promise<FullCanvasConfig>;
+interface UseLoadedConfigsParams<TConfigId extends string> {
+  pages: Array<{ configId: TConfigId }>;
+  getConfigForPage: (configId: TConfigId) => Promise<FullCanvasConfig>;
 }
 
 /**
  * Lazily loads + caches the full canvas config for every page's configId.
  * Returns the cache Map; consumers read `loadedConfigs.get(page.configId)`.
  */
-export function useLoadedConfigs({
+export function useLoadedConfigs<TConfigId extends string = string>({
   pages,
   getConfigForPage,
-}: UseLoadedConfigsParams): Map<CanvasConfigId, FullCanvasConfig> {
-  const [loadedConfigs, setLoadedConfigs] = useState<Map<CanvasConfigId, FullCanvasConfig>>(
-    new Map()
-  );
+}: UseLoadedConfigsParams<TConfigId>): Map<TConfigId, FullCanvasConfig> {
+  const [loadedConfigs, setLoadedConfigs] = useState<Map<TConfigId, FullCanvasConfig>>(new Map());
 
   useEffect(() => {
     const loadConfigs = async () => {
