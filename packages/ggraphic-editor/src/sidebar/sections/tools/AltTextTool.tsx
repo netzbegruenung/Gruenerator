@@ -1,7 +1,7 @@
+// SPDX-License-Identifier: MPL-2.0
 import { useCanvasEditorServices } from '@ggraphic/editor/CanvasEditorProvider';
 import { useMessages } from '@ggraphic/editor/i18n/messages';
 import { cn } from '@ggraphic/editor/utils/cn';
-import { SLIDE_ALT_TEXT_MAX_CHARS } from '@gruenerator/contracts';
 import { useCallback, useId, useState } from 'react';
 import { HiChatBubbleBottomCenterText } from 'react-icons/hi2';
 
@@ -10,6 +10,9 @@ import { MOBILE_INPUT_TEXT } from '@ggraphic/editor/sidebar/sidebarStyles';
 import { ToolPanel } from '@ggraphic/editor/sidebar/sections/tools/ToolPanel';
 
 import type { AltTextPage, AltTextScope } from '@ggraphic/editor/CanvasEditorProvider';
+
+/** Instagram's alt-text limit; the contract's `SLIDE_ALT_TEXT_MAX_CHARS` (guarded by a test) is the same number. */
+export const ALT_TEXT_MAX_CHARS = 1000;
 
 export interface AltTextPagesSource {
   collect: (scope: AltTextScope) => Promise<AltTextPage[]>;
@@ -182,7 +185,7 @@ function AltTextResultField({
       </div>
     );
   }
-  const tooLong = result.text.length > SLIDE_ALT_TEXT_MAX_CHARS;
+  const tooLong = result.text.length > ALT_TEXT_MAX_CHARS;
   return (
     <div className="flex flex-col gap-1">
       <div className="flex items-center justify-between">
@@ -205,7 +208,7 @@ function AltTextResultField({
         )}
         aria-live="polite"
       >
-        {t.sidebar.tools.altText.charCount(result.text.length, SLIDE_ALT_TEXT_MAX_CHARS, tooLong)}
+        {t.sidebar.tools.altText.charCount(result.text.length, ALT_TEXT_MAX_CHARS, tooLong)}
       </span>
     </div>
   );

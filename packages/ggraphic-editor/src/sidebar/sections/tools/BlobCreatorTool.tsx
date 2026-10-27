@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 import { CustomColorSwatch } from '@ggraphic/editor/components/CustomColorSwatch';
 import { useMessages } from '@ggraphic/editor/i18n/messages';
 import { brandColors } from '@ggraphic/editor/utils/colorOptions';
@@ -5,7 +6,10 @@ import { useCallback, useMemo, useRef, useState } from 'react';
 import { PiShuffle, PiDropSimpleFill } from 'react-icons/pi';
 import { Layer, Line, Stage } from 'react-konva';
 
-import { ToolPanel, type ToolPanelSuccess } from '@ggraphic/editor/sidebar/sections/tools/ToolPanel';
+import {
+  ToolPanel,
+  type ToolPanelSuccess,
+} from '@ggraphic/editor/sidebar/sections/tools/ToolPanel';
 import { useToolImagePlacement } from '@ggraphic/editor/sidebar/sections/tools/useToolImagePlacement';
 
 import type Konva from 'konva';
@@ -68,7 +72,7 @@ function ColorRow({
             className="size-6 rounded-full border border-black/10 transition-transform hover:scale-110 disabled:opacity-50"
             style={{
               backgroundColor: c.value,
-              outline: selected === c.value ? '2px solid var(--editor-accent, #005538)' : 'none',
+              outline: selected === c.value ? '2px solid var(--editor-accent)' : 'none',
               outlineOffset: '2px',
             }}
           />

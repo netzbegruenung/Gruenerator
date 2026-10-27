@@ -5,10 +5,14 @@ import { useCallback, useEffect, useState } from 'react';
 import { HiMagnifyingGlass } from 'react-icons/hi2';
 
 import { useTrackUnsplashDownload } from '@ggraphic/editor/hooks/useTrackUnsplashDownload';
+import { useUnsplashHome } from '@ggraphic/editor/utils/unsplashLinks';
 import { MOBILE_INPUT_TEXT } from '@ggraphic/editor/sidebar/sidebarStyles';
 import { unsplashThumbnailUrl } from '../assets/useStockPhotos';
 
-import { UnsplashLimitNotice, UnsplashRemaining } from './UnsplashLimitNotice';
+import {
+  UnsplashLimitNotice,
+  UnsplashRemaining,
+} from '@ggraphic/editor/sidebar/sections/tools/UnsplashLimitNotice';
 
 import type { StockImage } from '@ggraphic/editor/common/imageSourceTypes';
 import type { UserImagePlacement } from '@ggraphic/editor/utils/userImageUtils';
@@ -18,7 +22,6 @@ export interface UnsplashToolProps {
 }
 
 const SEARCH_DEBOUNCE_MS = 400;
-const UNSPLASH_HOME = 'https://unsplash.com/?utm_source=gruenerator&utm_medium=referral';
 
 /**
  * Unsplash search as a tool. A picked photo is placed by its hotlinked
@@ -27,6 +30,7 @@ const UNSPLASH_HOME = 'https://unsplash.com/?utm_source=gruenerator&utm_medium=r
  */
 export function UnsplashTool({ onPlaceImageUrl }: UnsplashToolProps) {
   const t = useMessages();
+  const unsplashHome = useUnsplashHome();
   // `useUnsplashSearch` is a host hook, fixed for the lifetime of the editor.
   const { searchUnsplashImages, useUnsplashSearch = useNoUnsplashSearch } =
     useCanvasEditorServices();
@@ -175,7 +179,7 @@ export function UnsplashTool({ onPlaceImageUrl }: UnsplashToolProps) {
       <p className="m-0 text-[11px] text-[var(--editor-text-muted)]">
         Fotos von{' '}
         <a
-          href={UNSPLASH_HOME}
+          href={unsplashHome}
           target="_blank"
           rel="noopener noreferrer"
           className="text-[var(--editor-text)] underline"

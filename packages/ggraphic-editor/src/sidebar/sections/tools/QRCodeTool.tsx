@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: MPL-2.0
+import { useCanvasEditorServices } from '@ggraphic/editor/CanvasEditorProvider';
 import { useMessages } from '@ggraphic/editor/i18n/messages';
 import { QRCodeCanvas } from 'qrcode.react';
 import { useCallback, useEffect, useRef, useState } from 'react';
@@ -6,7 +8,10 @@ import { HiQrCode } from 'react-icons/hi2';
 
 import { MOBILE_INPUT_TEXT } from '@ggraphic/editor/sidebar/sidebarStyles';
 
-import { ToolPanel, type ToolPanelSuccess } from '@ggraphic/editor/sidebar/sections/tools/ToolPanel';
+import {
+  ToolPanel,
+  type ToolPanelSuccess,
+} from '@ggraphic/editor/sidebar/sections/tools/ToolPanel';
 import { useToolImagePlacement } from '@ggraphic/editor/sidebar/sections/tools/useToolImagePlacement';
 
 export interface QRCodeToolProps {
@@ -14,12 +19,13 @@ export interface QRCodeToolProps {
   onPlaceImageUrl?: (url: string, fileName: string) => void;
 }
 
-const PREVIEW_PLACEHOLDER = 'https://gruenerator.eu';
+const DEFAULT_PREVIEW_URL = 'https://example.org';
 const QR_PIXEL_SIZE = 1024;
 const PREVIEW_DEBOUNCE_MS = 400;
 
 export function QRCodeTool({ onJumpToUploads, onPlaceImageUrl }: QRCodeToolProps) {
   const t = useMessages();
+  const { qrPreviewUrl = DEFAULT_PREVIEW_URL } = useCanvasEditorServices();
   const { finish, isUploading } = useToolImagePlacement({ onPlaceImageUrl, onJumpToUploads });
   const previewRef = useRef<HTMLDivElement>(null);
 
@@ -31,7 +37,7 @@ export function QRCodeTool({ onJumpToUploads, onPlaceImageUrl }: QRCodeToolProps
   const trimmed = value.trim();
   const [previewText, setPreviewText] = useState('');
   const isPreviewStale = previewText !== trimmed;
-  const previewValue = previewText || PREVIEW_PLACEHOLDER;
+  const previewValue = previewText || qrPreviewUrl;
 
   useEffect(() => {
     const timer = setTimeout(() => setPreviewText(trimmed), PREVIEW_DEBOUNCE_MS);

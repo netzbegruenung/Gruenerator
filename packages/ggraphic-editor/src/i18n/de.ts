@@ -484,6 +484,16 @@ export const de = {
       editError: 'Fehler beim Bearbeiten',
       editPlaceholder:
         'Bearbeitungsanweisung (z.B. "Ersetze den Himmel durch einen Sonnenuntergang")',
+      imageNoUrl: 'Bild hat keine ladbare URL',
+      imageFetchFailed: 'Bild konnte nicht geladen werden',
+      unsplashLimit: {
+        title: 'Unsplash-Suche gerade ausgeschöpft',
+        body: (owner: string, time: string) =>
+          `${owner} teilt sich 50 Unsplash-Suchen pro Stunde. Wieder möglich ab ca. ${time} Uhr. Die eingebauten Fotos funktionieren weiter.`,
+        defaultOwner: 'Der Editor',
+        remaining: (n: number) =>
+          `Noch ${n} ${n === 1 ? 'Unsplash-Suche' : 'Unsplash-Suchen'} in dieser Stunde`,
+      },
       altText: {
         capturing: 'Seiten werden erfasst…',
         writingAlt: 'Alt-Text wird geschrieben…',

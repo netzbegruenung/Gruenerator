@@ -1,11 +1,12 @@
+// SPDX-License-Identifier: MPL-2.0
+import { useCanvasEditorServices } from '@ggraphic/editor/CanvasEditorProvider';
+import { plainImageUrls } from '@ggraphic/editor/hostServices';
 import { useMessages } from '@ggraphic/editor/i18n/messages';
 import { useUserUploads } from '@ggraphic/editor/sidebar/UserUploadsProvider';
 import { MasonryGrid, MasonryItem } from '@ggraphic/editor/ui/masonry-grid';
 import { cn } from '@ggraphic/editor/utils/cn';
 import { useEffect, useRef, useState } from 'react';
 import { HiArrowUpTray, HiPhoto, HiXMark } from 'react-icons/hi2';
-
-import { mediaItemToFile } from '../../../utils/mediaItemToFile';
 
 import type { CanvasMediaItem } from '@ggraphic/editor/hostServices';
 
@@ -23,6 +24,7 @@ export function ImageInputPicker({
   disabled,
 }: ImageInputPickerProps) {
   const t = useMessages();
+  const { imageUrls = plainImageUrls } = useCanvasEditorServices();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { items, MediaThumb } = useUserUploads();
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
@@ -47,8 +49,13 @@ export function ImageInputPicker({
   const handlePickFromUploads = async (item: CanvasMediaItem) => {
     setPickError(null);
     try {
-      const file = await mediaItemToFile(item);
-      onChange(file);
+      const url = imageUrls.placementUrl(item);
+      if (!url) throw new Error(t.sidebar.tools.imageNoUrl);
+      const response = await fetch(url);
+      if (!response.ok) throw new Error(t.sidebar.tools.imageFetchFailed);
+      const blob = await response.blob();
+      const filename = item.originalFilename ?? item.title ?? `upload-${item.id}`;
+      onChange(new File([blob], filename, { type: blob.type || 'image/jpeg' }));
     } catch (err) {
       const message = err instanceof Error ? err.message : t.sidebar.tools.loadError;
       setPickError(message);

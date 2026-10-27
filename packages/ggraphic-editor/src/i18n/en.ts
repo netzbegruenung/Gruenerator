@@ -474,6 +474,16 @@ export const en: Messages = {
       savingToUploads: 'Saving to uploads…',
       editError: 'Could not edit the image',
       editPlaceholder: 'Editing instruction (e.g. "Replace the sky with a sunset")',
+      imageNoUrl: 'The image has no loadable URL',
+      imageFetchFailed: 'The image could not be loaded',
+      unsplashLimit: {
+        title: 'Unsplash search used up for now',
+        body: (owner: string, time: string) =>
+          `${owner} shares 50 Unsplash searches per hour. Available again at about ${time}. The built-in photos keep working.`,
+        defaultOwner: 'The editor',
+        remaining: (n: number) =>
+          `${n} ${n === 1 ? 'Unsplash search' : 'Unsplash searches'} left this hour`,
+      },
       altText: {
         capturing: 'Capturing pages…',
         writingAlt: 'Writing alt text…',
