@@ -1,0 +1,147 @@
+{
+ "templateType": "freeform",
+ "format": "post-portrait",
+ "slides": [
+  {
+   "backgroundMode": "image",
+   "backgroundColor": "#00261A",
+   "hasBackgroundImage": true,
+   "imageAttribution": null,
+   "additionalTexts": [
+    {
+     "id": "sc-ki-label",
+     "text": "KI-Generiert",
+     "type": "body",
+     "x": 27,
+     "y": 1303,
+     "width": 166,
+     "fontSize": 27,
+     "fontFamily": "PT Sans",
+     "fontStyle": "bold",
+     "fill": "#FFFFFF",
+     "opacity": 0.85,
+     "lineHeight": 1
+    }
+   ],
+   "pillBadgeInstances": [
+    {
+     "id": "sc-0-headline-0",
+     "text": "Wir sind",
+     "x": 70,
+     "y": 482.5,
+     "backgroundColor": "#FFFFFF",
+     "textColor": "#0B0F0C",
+     "fontSize": 76,
+     "fontFamily": "PT Sans",
+     "fontStyle": "bold",
+     "rotation": 0,
+     "scale": 1,
+     "opacity": 1,
+     "paddingX": 19,
+     "paddingY": 6,
+     "cornerRadius": 15
+    },
+    {
+     "id": "sc-0-headline-1",
+     "text": "viele",
+     "x": 70,
+     "y": 570.5,
+     "backgroundColor": "#00CC4F",
+     "textColor": "#0B0F0C",
+     "fontSize": 76,
+     "fontFamily": "PT Sans",
+     "fontStyle": "bold",
+     "rotation": 0,
+     "scale": 1,
+     "opacity": 1,
+     "paddingX": 19,
+     "paddingY": 6,
+     "cornerRadius": 15
+    },
+    {
+     "id": "sc-1-absatz-0",
+     "text": "Und wir werden mehr,",
+     "x": 70,
+     "y": 696.5,
+     "backgroundColor": "#FFFFFF",
+     "textColor": "#0B0F0C",
+     "fontSize": 53,
+     "fontFamily": "PT Sans",
+     "fontStyle": "bold",
+     "rotation": 0,
+     "scale": 1,
+     "opacity": 1,
+     "paddingX": 13,
+     "paddingY": 4,
+     "cornerRadius": 11
+    },
+    {
+     "id": "sc-1-absatz-1",
+     "text": "jeden Tag ein bisschen.",
+     "x": 70,
+     "y": 757.5,
+     "backgroundColor": "#FFFFFF",
+     "textColor": "#0B0F0C",
+     "fontSize": 53,
+     "fontFamily": "PT Sans",
+     "fontStyle": "bold",
+     "rotation": 0,
+     "scale": 1,
+     "opacity": 1,
+     "paddingX": 13,
+     "paddingY": 4,
+     "cornerRadius": 11
+    },
+    {
+     "id": "sc-2-text-0",
+     "text": "Komm vorbei.",
+     "x": 70,
+     "y": 845.5,
+     "backgroundColor": "#FFFFFF",
+     "textColor": "#0B0F0C",
+     "fontSize": 42,
+     "fontFamily": "PT Sans",
+     "fontStyle": "normal",
+     "rotation": 0,
+     "scale": 1,
+     "opacity": 1,
+     "paddingX": 11,
+     "paddingY": 3,
+     "cornerRadius": 8
+    }
+   ],
+   "circleBadgeInstances": [],
+   "shapeInstances": [
+    {
+     "id": "sc-ki-label-bg",
+     "type": "rounded-rect",
+     "x": 108,
+     "y": 1316.5,
+     "width": 194,
+     "height": 45,
+     "fill": "#2B2B2B",
+     "rotation": 0,
+     "scaleX": 1,
+     "scaleY": 1,
+     "opacity": 0.4,
+     "cornerRadius": 8
+    }
+   ],
+   "assetInstances": [],
+   "chartInstances": [],
+   "userImageInstances": [],
+   "selectedIcons": [],
+   "iconStates": {},
+   "layerOrder": [
+    "sc-0-headline-0",
+    "sc-0-headline-1",
+    "sc-1-absatz-0",
+    "sc-1-absatz-1",
+    "sc-2-text-0",
+    "sc-ki-label-bg",
+    "sc-ki-label"
+   ],
+   "currentImageSrc": "/media/demo.jpg"
+  }
+ ]
+}

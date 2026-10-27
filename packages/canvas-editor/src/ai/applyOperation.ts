@@ -1,30 +1,46 @@
 /**
- * Applies a CanvasAiOperation to the active template's actions.
+ * Applies a canvas-AI operation to the active template's actions.
  *
  * Design:
- *   - One exhaustive switch over op.kind. TypeScript's `never` check at the
- *     end forces every kind in the discriminated union to be handled —
- *     adding a new kind to the Zod schema breaks compilation here until
- *     it's mapped.
- *   - Per-template `applyOverrides` take priority over the default path.
+ *   - Generic over the operation union `TOp` (core vocabulary by default).
+ *   - Per-template `applyOverrides` take priority over the default path; they
+ *     are the only path for kinds outside the core vocabulary, which fail
+ *     with "<kind> requires a template applyOverride" otherwise.
+ *   - One exhaustive switch over the core kinds. TypeScript's `never` check
+ *     at the end forces every core kind to be handled — adding a kind to the
+ *     core schema breaks compilation here until it's mapped.
  *     Use them when the conventional action name doesn't apply (e.g.
  *     dreizeilen's `setLine1/2/3`, presentation's `setColorMode`).
  *   - Each op is wrapped in try/catch so one bad op in a multi-op
  *     suggestion doesn't abort the rest.
  */
-import { findElementRemover } from '../utils/removeElement';
-import { isLockedShape, type ShapeInstance } from '../utils/shapes';
+import { type ShapeInstance } from '@ggraphic/editor/utils/shapes';
+import {
+  type CanvasAiUpdatePatch,
+  type CoreCanvasAiOperation,
+  isCoreCanvasAiOperation,
+} from '@ggraphic/schema';
 
-import type { TemplateAiCapabilities } from './types';
+import { isLayerLocked } from '../utils/layerLock';
+import { findElementRemover } from '../utils/removeElement';
+
 import type { BaseCanvasState } from '../configs/factory/baseTypes';
 import type { AdditionalText } from '../configs/types';
-import type { BalkenInstance } from '../primitives/BalkenGroup';
-import type { CircleBadgeInstance } from '../primitives/CircleBadge';
-import type { FrameInstance } from '../utils/frameUtils';
-import type { PillBadgeInstance } from '../utils/pillBadgeUtils';
-import type { CanvasAiOperation, CanvasAiUpdatePatch } from '@gruenerator/contracts';
+import type { ApplyResult, TemplateAiCapabilities } from '@ggraphic/editor/ai/types';
+import type { CircleBadgeInstance } from '@ggraphic/editor/primitives/CircleBadge';
+import type { BalkenInstance } from '@ggraphic/editor/utils/balkenUtils';
+import type { FrameInstance } from '@ggraphic/editor/utils/frameUtils';
+import type { PillBadgeInstance } from '@ggraphic/editor/utils/pillBadgeUtils';
 
-export type ApplyResult = { ok: true } | { ok: false; reason: string };
+export type { ApplyResult };
+
+/**
+ * Dreht ein Element um seine Mitte, wie die Werkzeugleiste (`rotateElement` der
+ * Seiten-Befehle). Der KI-Pfad schreibt `rotation` nie roh: bei Kinds mit dem
+ * Ursprung oben links (Text, Pille, Bild, Diagramm) schwänge das Element sonst
+ * um seine Ecke. `false`, wenn es sich nicht drehen lässt.
+ */
+export type RotateElement = (id: string, deg: number) => boolean;
 
 /**
  * Strict patch passed to per-kind update actions.
@@ -146,40 +162,62 @@ function pickFontSizeSetter(
   }
 }
 
-export function applyOperation<TState, TActions extends CanvasAiActionsBase>(
-  op: CanvasAiOperation,
+export function applyOperation<
+  TState,
+  TActions extends CanvasAiActionsBase,
+  TOp extends { kind: string } = CoreCanvasAiOperation,
+  TSnapshot = unknown,
+>(
+  op: TOp,
   actions: TActions,
   getState: () => TState,
-  capabilities: TemplateAiCapabilities<TState, TActions>
+  capabilities: TemplateAiCapabilities<TState, TActions, TOp, TSnapshot>,
+  rotate?: RotateElement
 ): ApplyResult {
-  const result = applyOne(op, actions, getState, capabilities);
+  const result = applyOne(op, actions, getState, capabilities, rotate);
   if (result.ok) capabilities.afterApply?.(op, actions);
   return result;
 }
 
-function applyOne<TState, TActions extends CanvasAiActionsBase>(
-  op: CanvasAiOperation,
+function applyOne<
+  TState,
+  TActions extends CanvasAiActionsBase,
+  TOp extends { kind: string },
+  TSnapshot,
+>(
+  op: TOp,
   actions: TActions,
   getState: () => TState,
-  capabilities: TemplateAiCapabilities<TState, TActions>
+  capabilities: TemplateAiCapabilities<TState, TActions, TOp, TSnapshot>,
+  rotate: RotateElement | undefined
 ): ApplyResult {
   // Per-template override wins
-  const override = capabilities.applyOverrides?.[op.kind];
+  const override = capabilities.applyOverrides?.[op.kind as TOp['kind']];
   if (override) {
     try {
       // Cast safe: override key matches op.kind, so the discriminated union
       // narrows to the same variant the override was typed against.
-      (override as (op: CanvasAiOperation, a: TActions, gs: () => TState) => void)(
-        op,
-        actions,
-        getState
-      );
+      (override as (op: TOp, a: TActions, gs: () => TState) => void)(op, actions, getState);
       return { ok: true };
     } catch (e) {
       return { ok: false, reason: errorReason(e) };
     }
   }
 
+  // A host kind without an override has no default path.
+  if (!isCoreCanvasAiOperation(op)) {
+    return { ok: false, reason: `${op.kind} requires a template applyOverride` };
+  }
+
+  return applyCore(op, actions, getState, rotate);
+}
+
+function applyCore<TState>(
+  op: CoreCanvasAiOperation,
+  actions: CanvasAiActionsBase,
+  getState: () => TState,
+  rotate: RotateElement | undefined
+): ApplyResult {
   try {
     switch (op.kind) {
       case 'set-text': {
@@ -247,21 +285,14 @@ function applyOne<TState, TActions extends CanvasAiActionsBase>(
         // Same door as the Entf key: the collection the id lives in picks the
         // remover. Local cast as in dispatchUpdate — only optional fields are read.
         const state = getState() as Partial<BaseCanvasState>;
-        const shape = state.shapeInstances?.find((el) => el.id === op.elementId);
-        if (shape && isLockedShape(shape)) {
-          return { ok: false, reason: `shape "${op.elementId}" is a locked background plane` };
+        if (isLayerLocked(state, op.elementId)) {
+          return { ok: false, reason: `element "${op.elementId}" is locked` };
         }
         const remove = findElementRemover(state, actions, op.elementId);
         if (!remove) return { ok: false, reason: `element "${op.elementId}" not found` };
         remove();
         return { ok: true };
       }
-
-      case 'toggle-sunflower':
-        return {
-          ok: false,
-          reason: 'toggle-sunflower requires a template applyOverride',
-        };
 
       case 'set-font-size': {
         // Default: map conventional primary/secondary aliases to the standard
@@ -280,21 +311,42 @@ function applyOne<TState, TActions extends CanvasAiActionsBase>(
 
       case 'update-element': {
         const cleanPatch = stripNullPatchFields(op.patch);
-        const dispatchResult = dispatchUpdate(op.elementId, cleanPatch, actions, getState);
-        return dispatchResult;
+        // A lock pins position, size and rotation; colour and opacity stay
+        // editable, as they do by hand.
+        const movesElement = (['x', 'y', 'scale', 'rotation'] as const).some(
+          (key) => cleanPatch[key] !== undefined
+        );
+        if (movesElement && isLayerLocked(getState() as Partial<BaseCanvasState>, op.elementId)) {
+          return { ok: false, reason: `element "${op.elementId}" is locked` };
+        }
+        const { rotation, ...rest } = cleanPatch;
+        if (rotation === undefined) return dispatchUpdate(op.elementId, rest, actions, getState);
+        // Without the mounted page there is no centre to turn about.
+        if (!rotate) return { ok: false, reason: 'rotation needs the open canvas' };
+        // Checked before anything is written, so a refused field leaves no half-applied op.
+        const refused = dispatchUpdate(op.elementId, rest, actions, getState, true);
+        if (!refused.ok) return refused;
+        // Rotation first: the door measures the node as drawn, before the rest
+        // of the patch has re-rendered it. An explicit x/y then wins.
+        if (!rotate(op.elementId, rotation)) {
+          return { ok: false, reason: `element "${op.elementId}" cannot be rotated` };
+        }
+        return Object.keys(rest).length > 0
+          ? dispatchUpdate(op.elementId, rest, actions, getState)
+          : { ok: true };
       }
 
       case 'set-background-image':
         // Server-only operation: the chat backend resolves the stock-photo
         // query via ImageSelectionService before patching state. The studio
-        // applier has no resolver — users change images via the Hintergrund tab.
+        // applier has no resolver — users change images by clicking the background.
         return {
           ok: false,
-          reason: 'Hintergrundbilder bitte über den Hintergrund-Tab ändern',
+          reason: 'Hintergrundbilder bitte per Klick auf den Hintergrund ändern',
         };
 
       default: {
-        // Exhaustiveness check — if a new op kind is added to the Zod
+        // Exhaustiveness check — if a new kind is added to the core
         // schema, this line fails to compile until it is handled above.
         const _exhaustive: never = op;
         void _exhaustive;
@@ -351,13 +403,14 @@ const GEOMETRY: readonly PatchKey[] = ['x', 'y', 'rotation', 'opacity', 'scale']
  * Each kind names its colour and size differently (`fill`, `backgroundColor`,
  * `scaleX/Y`, `fontSize`); the patch is translated per kind, and a field the
  * kind cannot take fails the op instead of landing as a stray key that
- * changes nothing on screen.
+ * changes nothing on screen. `dryRun` only checks.
  */
 function dispatchUpdate<TState>(
   elementId: string,
   patch: Patch,
   actions: CanvasAiActionsBase,
-  getState: () => TState
+  getState: () => TState,
+  dryRun = false
 ): ApplyResult {
   // Local cast: only BaseCanvasState's optional collections are read.
   const state = getState() as Partial<BaseCanvasState>;
@@ -373,7 +426,7 @@ function dispatchUpdate<TState>(
     if (!updater) return { ok: false, reason: `template does not support updating ${label}` };
     const reason = rejectFields(patch, allowed, label);
     if (reason) return { ok: false, reason };
-    updater(elementId, build());
+    if (!dryRun) updater(elementId, build());
     return { ok: true };
   }
 
@@ -384,7 +437,7 @@ function dispatchUpdate<TState>(
       const { color, scale, ...rest } = patch;
       return {
         ...rest,
-        ...(color != null && { fill: color }),
+        ...(color != null && { fill: color, fillGradient: null }),
         ...(scale != null && { fontSize: Math.round(text.fontSize * scale) }),
       };
     });
@@ -392,12 +445,10 @@ function dispatchUpdate<TState>(
 
   const shape = find(state.shapeInstances);
   if (shape) {
-    if (isLockedShape(shape)) {
-      return { ok: false, reason: `shape "${elementId}" is a locked background plane` };
-    }
     return run('shape', actions.updateShape, [...GEOMETRY, 'color'], () => {
       const { color, ...rest } = withScaleXY(patch, shape);
-      return { ...rest, ...(color != null && { fill: color }) };
+      // A solid colour replaces a gradient, as with the colour picker.
+      return { ...rest, ...(color != null && { fill: color, fillGradient: null }) };
     });
   }
 

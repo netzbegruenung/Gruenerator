@@ -1,0 +1,4773 @@
+{
+ "byId": [
+  [
+   "gruene-de-logo",
+   {
+    "id": "gruene-de-logo",
+    "src": "/gruene-de-logo.png",
+    "label": "Logo Bündnis 90/Die Grünen",
+    "category": "decoration",
+    "tags": [
+     "logo",
+     "bündnis 90",
+     "buendnis",
+     "grüne",
+     "gruene",
+     "deutschland",
+     "marke",
+     "farbe"
+    ],
+    "audience": "de-DE",
+    "darkPreview": true
+   }
+  ],
+  [
+   "gruene-de-logo-weiss",
+   {
+    "id": "gruene-de-logo-weiss",
+    "src": "/gruene-de-logo-weiss.png",
+    "label": "Logo weiß",
+    "category": "decoration",
+    "tags": [
+     "logo",
+     "bündnis 90",
+     "buendnis",
+     "grüne",
+     "gruene",
+     "deutschland",
+     "marke",
+     "weiß",
+     "weiss"
+    ],
+    "audience": "de-DE"
+   }
+  ],
+  [
+   "gruene-de-logo-schwarz",
+   {
+    "id": "gruene-de-logo-schwarz",
+    "src": "/gruene-de-logo-schwarz.png",
+    "label": "Logo schwarz",
+    "category": "decoration",
+    "tags": [
+     "logo",
+     "bündnis 90",
+     "buendnis",
+     "grüne",
+     "gruene",
+     "deutschland",
+     "marke",
+     "schwarz"
+    ],
+    "audience": "de-DE"
+   }
+  ],
+  [
+   "sunflower",
+   {
+    "id": "sunflower",
+    "src": "/Sonnenblume.png",
+    "label": "Sonnenblume (Gelb)",
+    "category": "decoration",
+    "tags": [
+     "blume",
+     "flower",
+     "gelb",
+     "yellow",
+     "natur",
+     "pflanze",
+     "sommer"
+    ],
+    "audience": "de-DE"
+   }
+  ],
+  [
+   "sunflower-green",
+   {
+    "id": "sunflower-green",
+    "src": "/sonnenblume_dunkelgruen.svg",
+    "label": "Sonnenblume (Grün)",
+    "category": "decoration",
+    "tags": [
+     "blume",
+     "flower",
+     "grün",
+     "green",
+     "natur",
+     "pflanze"
+    ],
+    "audience": "de-DE"
+   }
+  ],
+  [
+   "sunflower-weiss",
+   {
+    "id": "sunflower-weiss",
+    "src": "/sonnenblume_weiss.svg",
+    "label": "Sonnenblume (Weiß)",
+    "category": "decoration",
+    "tags": [
+     "blume",
+     "flower",
+     "weiß",
+     "weiss",
+     "white",
+     "natur",
+     "pflanze"
+    ],
+    "audience": "de-DE"
+   }
+  ],
+  [
+   "sunflower-schwarz",
+   {
+    "id": "sunflower-schwarz",
+    "src": "/sonnenblume_schwarz.svg",
+    "label": "Sonnenblume (Schwarz)",
+    "category": "decoration",
+    "tags": [
+     "blume",
+     "flower",
+     "schwarz",
+     "black",
+     "natur",
+     "pflanze"
+    ],
+    "audience": "de-DE"
+   }
+  ],
+  [
+   "gruene-at-logo-weiss",
+   {
+    "id": "gruene-at-logo-weiss",
+    "src": "/gruene-at-logo-weiss.png",
+    "label": "Die Grünen (weiß)",
+    "category": "decoration",
+    "tags": [
+     "logo",
+     "grüne",
+     "gruene",
+     "österreich",
+     "at",
+     "weiß",
+     "weiss",
+     "marke"
+    ],
+    "audience": "de-AT"
+   }
+  ],
+  [
+   "gruene-at-logo-gruen",
+   {
+    "id": "gruene-at-logo-gruen",
+    "src": "/gruene-at-logo-gruen.png",
+    "label": "Die Grünen (grün)",
+    "category": "decoration",
+    "tags": [
+     "logo",
+     "grüne",
+     "gruene",
+     "österreich",
+     "at",
+     "grün",
+     "gruen",
+     "marke"
+    ],
+    "audience": "de-AT"
+   }
+  ],
+  [
+   "quote-mark",
+   {
+    "id": "quote-mark",
+    "src": "/quote.svg",
+    "label": "Anführungszeichen",
+    "category": "mark",
+    "tags": [
+     "zitat",
+     "quote",
+     "text",
+     "spruch",
+     "rede"
+    ],
+    "audience": "all"
+   }
+  ],
+  [
+   "arrow",
+   {
+    "id": "arrow",
+    "src": "/arrow_right.svg",
+    "label": "Pfeil rechts",
+    "category": "mark",
+    "tags": [
+     "pfeil",
+     "arrow",
+     "richtung",
+     "zeiger",
+     "hinweis"
+    ],
+    "audience": "all"
+   }
+  ],
+  [
+   "brush-arrow-gruen",
+   {
+    "id": "brush-arrow-gruen",
+    "src": "/brush-arrow-gruen.svg",
+    "label": "Pinselpfeil (Grün)",
+    "category": "mark",
+    "tags": [
+     "pfeil",
+     "arrow",
+     "pinsel",
+     "brush",
+     "wischen",
+     "grün",
+     "gruen"
+    ],
+    "audience": "de-AT"
+   }
+  ],
+  [
+   "quote-mark-weiss",
+   {
+    "id": "quote-mark-weiss",
+    "src": "/quote-white.svg",
+    "label": "Anführungszeichen (Weiß)",
+    "category": "mark",
+    "tags": [
+     "zitat",
+     "quote",
+     "weiß",
+     "weiss"
+    ],
+    "audience": "all"
+   }
+  ],
+  [
+   "quote-mark-gelb",
+   {
+    "id": "quote-mark-gelb",
+    "src": "/quote-gelb.svg",
+    "label": "Anführungszeichen (Gelb)",
+    "category": "mark",
+    "tags": [
+     "zitat",
+     "quote",
+     "gelb"
+    ],
+    "audience": "de-AT"
+   }
+  ],
+  [
+   "sunflower-green-light",
+   {
+    "id": "sunflower-green-light",
+    "src": "/sonnenblume_gruen.png",
+    "label": "Sonnenblume (Hellgrün)",
+    "category": "decoration",
+    "tags": [
+     "blume",
+     "flower",
+     "grün",
+     "green",
+     "hell"
+    ],
+    "audience": "de-DE"
+   }
+  ],
+  [
+   "brush-arrow-weiss",
+   {
+    "id": "brush-arrow-weiss",
+    "src": "/brush-arrow-weiss.svg",
+    "label": "Pinselpfeil (Weiß)",
+    "category": "mark",
+    "tags": [
+     "pfeil",
+     "arrow",
+     "pinsel",
+     "brush",
+     "wischen",
+     "weiß",
+     "weiss"
+    ],
+    "audience": "de-AT"
+   }
+  ],
+  [
+   "emoji-1f5f3",
+   {
+    "id": "emoji-1f5f3",
+    "src": "/emoji/emoji_u1f5f3.svg",
+    "label": "Wahlurne",
+    "category": "emoji",
+    "tags": [
+     "emoji",
+     "wahl",
+     "wählen",
+     "stimme"
+    ],
+    "audience": "all"
+   }
+  ],
+  [
+   "emoji-1f4f0",
+   {
+    "id": "emoji-1f4f0",
+    "src": "/emoji/emoji_u1f4f0.svg",
+    "label": "Zeitung",
+    "category": "emoji",
+    "tags": [
+     "emoji",
+     "presse",
+     "medien",
+     "nachrichten"
+    ],
+    "audience": "all"
+   }
+  ],
+  [
+   "emoji-1faa7",
+   {
+    "id": "emoji-1faa7",
+    "src": "/emoji/emoji_u1faa7.svg",
+    "label": "Schild",
+    "category": "emoji",
+    "tags": [
+     "emoji",
+     "demo",
+     "protest",
+     "plakat"
+    ],
+    "audience": "all"
+   }
+  ],
+  [
+   "emoji-270d",
+   {
+    "id": "emoji-270d",
+    "src": "/emoji/emoji_u270d.svg",
+    "label": "Schreibende Hand",
+    "category": "emoji",
+    "tags": [
+     "emoji",
+     "unterschrift",
+     "petition",
+     "schreiben"
+    ],
+    "audience": "all"
+   }
+  ],
+  [
+   "emoji-1f4e3",
+   {
+    "id": "emoji-1f4e3",
+    "src": "/emoji/emoji_u1f4e3.svg",
+    "label": "Megafon",
+    "category": "emoji",
+    "tags": [
+     "emoji",
+     "laut",
+     "aufruf",
+     "social media"
+    ],
+    "audience": "all"
+   }
+  ],
+  [
+   "emoji-1f4e2",
+   {
+    "id": "emoji-1f4e2",
+    "src": "/emoji/emoji_u1f4e2.svg",
+    "label": "Lautsprecher",
+    "category": "emoji",
+    "tags": [
+     "emoji",
+     "laut",
+     "ansage",
+     "aufruf"
+    ],
+    "audience": "all"
+   }
+  ],
+  [
+   "emoji-1f91d",
+   {
+    "id": "emoji-1f91d",
+    "src": "/emoji/emoji_u1f91d.svg",
+    "label": "Handschlag",
+    "category": "emoji",
+    "tags": [
+     "emoji",
+     "zusammenhalt",
+     "gemeinsam",
+     "verein"
+    ],
+    "audience": "all"
+   }
+  ],
+  [
+   "emoji-1f49a",
+   {
+    "id": "emoji-1f49a",
+    "src": "/emoji/emoji_u1f49a.svg",
+    "label": "Grünes Herz",
+    "category": "emoji",
+    "tags": [
+     "emoji",
+     "herz",
+     "liebe",
+     "grün"
+    ],
+    "audience": "all"
+   }
+  ],
+  [
+   "emoji-2764",
+   {
+    "id": "emoji-2764",
+    "src": "/emoji/emoji_u2764.svg",
+    "label": "Rotes Herz",
+    "category": "emoji",
+    "tags": [
+     "emoji",
+     "herz",
+     "liebe"
+    ],
+    "audience": "all"
+   }
+  ],
+  [
+   "emoji-2705",
+   {
+    "id": "emoji-2705",
+    "src": "/emoji/emoji_u2705.svg",
+    "label": "Haken",
+    "category": "emoji",
+    "tags": [
+     "emoji",
+     "ja",
+     "erledigt",
+     "check"
+    ],
+    "audience": "all"
+   }
+  ],
+  [
+   "emoji-274c",
+   {
+    "id": "emoji-274c",
+    "src": "/emoji/emoji_u274c.svg",
+    "label": "Kreuz",
+    "category": "emoji",
+    "tags": [
+     "emoji",
+     "nein",
+     "falsch"
+    ],
+    "audience": "all"
+   }
+  ],
+  [
+   "emoji-1f449",
+   {
+    "id": "emoji-1f449",
+    "src": "/emoji/emoji_u1f449.svg",
+    "label": "Zeigefinger",
+    "category": "emoji",
+    "tags": [
+     "emoji",
+     "hinweis",
+     "pfeil"
+    ],
+    "audience": "all"
+   }
+  ],
+  [
+   "emoji-1f4aa",
+   {
+    "id": "emoji-1f4aa",
+    "src": "/emoji/emoji_u1f4aa.svg",
+    "label": "Bizeps",
+    "category": "emoji",
+    "tags": [
+     "emoji",
+     "stark",
+     "kraft"
+    ],
+    "audience": "all"
+   }
+  ],
+  [
+   "emoji-1f44f",
+   {
+    "id": "emoji-1f44f",
+    "src": "/emoji/emoji_u1f44f.svg",
+    "label": "Applaus",
+    "category": "emoji",
+    "tags": [
+     "emoji",
+     "klatschen",
+     "danke"
+    ],
+    "audience": "all"
+   }
+  ],
+  [
+   "emoji-1f9d1_200d_1f91d_200d_1f9d1",
+   {
+    "id": "emoji-1f9d1_200d_1f91d_200d_1f9d1",
+    "src": "/emoji/emoji_u1f9d1_200d_1f91d_200d_1f9d1.svg",
+    "label": "Menschen Hand in Hand",
+    "category": "emoji",
+    "tags": [
+     "emoji",
+     "gemeinsam",
+     "menschen",
+     "solidarität"
+    ],
+    "audience": "all"
+   }
+  ],
+  [
+   "emoji-1f30d",
+   {
+    "id": "emoji-1f30d",
+    "src": "/emoji/emoji_u1f30d.svg",
+    "label": "Erde",
+    "category": "emoji",
+    "tags": [
+     "emoji",
+     "welt",
+     "klima",
+     "europa"
+    ],
+    "audience": "all"
+   }
+  ],
+  [
+   "emoji-1f331",
+   {
+    "id": "emoji-1f331",
+    "src": "/emoji/emoji_u1f331.svg",
+    "label": "Keimling",
+    "category": "emoji",
+    "tags": [
+     "emoji",
+     "pflanze",
+     "wachstum",
+     "natur"
+    ],
+    "audience": "all"
+   }
+  ],
+  [
+   "emoji-1f333",
+   {
+    "id": "emoji-1f333",
+    "src": "/emoji/emoji_u1f333.svg",
+    "label": "Baum",
+    "category": "emoji",
+    "tags": [
+     "emoji",
+     "wald",
+     "natur"
+    ],
+    "audience": "all"
+   }
+  ],
+  [
+   "emoji-1f33b",
+   {
+    "id": "emoji-1f33b",
+    "src": "/emoji/emoji_u1f33b.svg",
+    "label": "Sonnenblume",
+    "category": "emoji",
+    "tags": [
+     "emoji",
+     "blume",
+     "grüne"
+    ],
+    "audience": "all"
+   }
+  ],
+  [
+   "emoji-2600",
+   {
+    "id": "emoji-2600",
+    "src": "/emoji/emoji_u2600.svg",
+    "label": "Sonne",
+    "category": "emoji",
+    "tags": [
+     "emoji",
+     "solar",
+     "energie",
+     "sommer"
+    ],
+    "audience": "all"
+   }
+  ],
+  [
+   "emoji-1f4a8",
+   {
+    "id": "emoji-1f4a8",
+    "src": "/emoji/emoji_u1f4a8.svg",
+    "label": "Wind",
+    "category": "emoji",
+    "tags": [
+     "emoji",
+     "windkraft",
+     "luft"
+    ],
+    "audience": "all"
+   }
+  ],
+  [
+   "emoji-26a1",
+   {
+    "id": "emoji-26a1",
+    "src": "/emoji/emoji_u26a1.svg",
+    "label": "Blitz",
+    "category": "emoji",
+    "tags": [
+     "emoji",
+     "strom",
+     "energie"
+    ],
+    "audience": "all"
+   }
+  ],
+  [
+   "emoji-1f525",
+   {
+    "id": "emoji-1f525",
+    "src": "/emoji/emoji_u1f525.svg",
+    "label": "Feuer",
+    "category": "emoji",
+    "tags": [
+     "emoji",
+     "hitze",
+     "heizen"
+    ],
+    "audience": "all"
+   }
+  ],
+  [
+   "emoji-1f4a7",
+   {
+    "id": "emoji-1f4a7",
+    "src": "/emoji/emoji_u1f4a7.svg",
+    "label": "Tropfen",
+    "category": "emoji",
+    "tags": [
+     "emoji",
+     "wasser"
+    ],
+    "audience": "all"
+   }
+  ],
+  [
+   "emoji-267b",
+   {
+    "id": "emoji-267b",
+    "src": "/emoji/emoji_u267b.svg",
+    "label": "Recycling",
+    "category": "emoji",
+    "tags": [
+     "emoji",
+     "müll",
+     "kreislauf"
+    ],
+    "audience": "all"
+   }
+  ],
+  [
+   "emoji-1f41d",
+   {
+    "id": "emoji-1f41d",
+    "src": "/emoji/emoji_u1f41d.svg",
+    "label": "Biene",
+    "category": "emoji",
+    "tags": [
+     "emoji",
+     "artenschutz",
+     "natur",
+     "tiere"
+    ],
+    "audience": "all"
+   }
+  ],
+  [
+   "emoji-1f6b2",
+   {
+    "id": "emoji-1f6b2",
+    "src": "/emoji/emoji_u1f6b2.svg",
+    "label": "Fahrrad",
+    "category": "emoji",
+    "tags": [
+     "emoji",
+     "rad",
+     "verkehr"
+    ],
+    "audience": "all"
+   }
+  ],
+  [
+   "emoji-1f686",
+   {
+    "id": "emoji-1f686",
+    "src": "/emoji/emoji_u1f686.svg",
+    "label": "Zug",
+    "category": "emoji",
+    "tags": [
+     "emoji",
+     "bahn",
+     "verkehr"
+    ],
+    "audience": "all"
+   }
+  ],
+  [
+   "emoji-1f68c",
+   {
+    "id": "emoji-1f68c",
+    "src": "/emoji/emoji_u1f68c.svg",
+    "label": "Bus",
+    "category": "emoji",
+    "tags": [
+     "emoji",
+     "öffis",
+     "verkehr"
+    ],
+    "audience": "all"
+   }
+  ],
+  [
+   "emoji-1f3e0",
+   {
+    "id": "emoji-1f3e0",
+    "src": "/emoji/emoji_u1f3e0.svg",
+    "label": "Haus",
+    "category": "emoji",
+    "tags": [
+     "emoji",
+     "wohnen",
+     "miete"
+    ],
+    "audience": "all"
+   }
+  ],
+  [
+   "emoji-1f3eb",
+   {
+    "id": "emoji-1f3eb",
+    "src": "/emoji/emoji_u1f3eb.svg",
+    "label": "Schule",
+    "category": "emoji",
+    "tags": [
+     "emoji",
+     "bildung"
+    ],
+    "audience": "all"
+   }
+  ],
+  [
+   "emoji-1f3e5",
+   {
+    "id": "emoji-1f3e5",
+    "src": "/emoji/emoji_u1f3e5.svg",
+    "label": "Krankenhaus",
+    "category": "emoji",
+    "tags": [
+     "emoji",
+     "gesundheit",
+     "pflege"
+    ],
+    "audience": "all"
+   }
+  ],
+  [
+   "emoji-1f4b6",
+   {
+    "id": "emoji-1f4b6",
+    "src": "/emoji/emoji_u1f4b6.svg",
+    "label": "Euro-Schein",
+    "category": "emoji",
+    "tags": [
+     "emoji",
+     "geld",
+     "euro",
+     "kosten"
+    ],
+    "audience": "all"
+   }
+  ],
+  [
+   "emoji-1f4c8",
+   {
+    "id": "emoji-1f4c8",
+    "src": "/emoji/emoji_u1f4c8.svg",
+    "label": "Diagramm steigend",
+    "category": "emoji",
+    "tags": [
+     "emoji",
+     "mehr",
+     "wachstum"
+    ],
+    "audience": "all"
+   }
+  ],
+  [
+   "emoji-1f4c9",
+   {
+    "id": "emoji-1f4c9",
+    "src": "/emoji/emoji_u1f4c9.svg",
+    "label": "Diagramm fallend",
+    "category": "emoji",
+    "tags": [
+     "emoji",
+     "weniger",
+     "sinken"
+    ],
+    "audience": "all"
+   }
+  ],
+  [
+   "emoji-1f4c5",
+   {
+    "id": "emoji-1f4c5",
+    "src": "/emoji/emoji_u1f4c5.svg",
+    "label": "Kalender",
+    "category": "emoji",
+    "tags": [
+     "emoji",
+     "termin",
+     "datum"
+    ],
+    "audience": "all"
+   }
+  ],
+  [
+   "emoji-1f4cd",
+   {
+    "id": "emoji-1f4cd",
+    "src": "/emoji/emoji_u1f4cd.svg",
+    "label": "Pin",
+    "category": "emoji",
+    "tags": [
+     "emoji",
+     "ort",
+     "vor ort"
+    ],
+    "audience": "all"
+   }
+  ],
+  [
+   "emoji-1f4f1",
+   {
+    "id": "emoji-1f4f1",
+    "src": "/emoji/emoji_u1f4f1.svg",
+    "label": "Handy",
+    "category": "emoji",
+    "tags": [
+     "emoji",
+     "smartphone",
+     "digital"
+    ],
+    "audience": "all"
+   }
+  ],
+  [
+   "emoji-1f4ac",
+   {
+    "id": "emoji-1f4ac",
+    "src": "/emoji/emoji_u1f4ac.svg",
+    "label": "Sprechblase",
+    "category": "emoji",
+    "tags": [
+     "emoji",
+     "gespräch",
+     "kommentar"
+    ],
+    "audience": "all"
+   }
+  ],
+  [
+   "emoji-1f4a1",
+   {
+    "id": "emoji-1f4a1",
+    "src": "/emoji/emoji_u1f4a1.svg",
+    "label": "Glühbirne",
+    "category": "emoji",
+    "tags": [
+     "emoji",
+     "idee",
+     "tipp"
+    ],
+    "audience": "all"
+   }
+  ],
+  [
+   "emoji-2696",
+   {
+    "id": "emoji-2696",
+    "src": "/emoji/emoji_u2696.svg",
+    "label": "Waage",
+    "category": "emoji",
+    "tags": [
+     "emoji",
+     "gerechtigkeit",
+     "recht"
+    ],
+    "audience": "all"
+   }
+  ],
+  [
+   "emoji-1f54a",
+   {
+    "id": "emoji-1f54a",
+    "src": "/emoji/emoji_u1f54a.svg",
+    "label": "Taube",
+    "category": "emoji",
+    "tags": [
+     "emoji",
+     "frieden"
+    ],
+    "audience": "all"
+   }
+  ],
+  [
+   "emoji-1f393",
+   {
+    "id": "emoji-1f393",
+    "src": "/emoji/emoji_u1f393.svg",
+    "label": "Doktorhut",
+    "category": "emoji",
+    "tags": [
+     "emoji",
+     "bildung",
+     "studium"
+    ],
+    "audience": "all"
+   }
+  ],
+  [
+   "emoji-1f308",
+   {
+    "id": "emoji-1f308",
+    "src": "/emoji/emoji_u1f308.svg",
+    "label": "Regenbogen",
+    "category": "emoji",
+    "tags": [
+     "emoji",
+     "vielfalt",
+     "pride"
+    ],
+    "audience": "all"
+   }
+  ],
+  [
+   "sonnenblume-gelb",
+   {
+    "id": "sonnenblume-gelb",
+    "src": "/images/Sonnenblume_RGB_gelb.png",
+    "label": "Sonnenblume gelb",
+    "category": "sticker",
+    "tags": [
+     "sticker",
+     "sonnenblume",
+     "gelb"
+    ],
+    "audience": "de-DE"
+   }
+  ],
+  [
+   "sonnenblume-gruen",
+   {
+    "id": "sonnenblume-gruen",
+    "src": "/sonnenblume_gruen.png",
+    "label": "Sonnenblume grün",
+    "category": "sticker",
+    "tags": [
+     "sticker",
+     "sonnenblume",
+     "grün"
+    ],
+    "audience": "de-DE"
+   }
+  ],
+  [
+   "sonnenblume-weiss",
+   {
+    "id": "sonnenblume-weiss",
+    "src": "/sonnenblume_weiss.svg",
+    "label": "Sonnenblume weiß",
+    "category": "sticker",
+    "tags": [
+     "sticker",
+     "sonnenblume",
+     "weiß"
+    ],
+    "audience": "de-DE"
+   }
+  ],
+  [
+   "teamgruen",
+   {
+    "id": "teamgruen",
+    "src": "/studio-tools/stickers/teamgruen.svg",
+    "label": "#teamgrün",
+    "category": "sticker",
+    "tags": [
+     "sticker",
+     "teamgrün",
+     "hashtag",
+     "schriftzug"
+    ],
+    "audience": "all"
+   }
+  ],
+  [
+   "regenbogen",
+   {
+    "id": "regenbogen",
+    "src": "/studio-tools/stickers/regenbogen.svg",
+    "label": "Regenbogen",
+    "category": "sticker",
+    "tags": [
+     "sticker",
+     "regenbogen",
+     "vielfalt"
+    ],
+    "audience": "all"
+   }
+  ],
+  [
+   "regenbogen-herz",
+   {
+    "id": "regenbogen-herz",
+    "src": "/studio-tools/stickers/regenbogen-herz.svg",
+    "label": "Regenbogen-Herz",
+    "category": "sticker",
+    "tags": [
+     "sticker",
+     "regenbogen",
+     "herz",
+     "vielfalt"
+    ],
+    "audience": "all"
+   }
+  ],
+  [
+   "progress-pride",
+   {
+    "id": "progress-pride",
+    "src": "/studio-tools/stickers/progress-pride.svg",
+    "label": "Progress-Pride-Flagge",
+    "category": "sticker",
+    "tags": [
+     "sticker",
+     "regenbogen",
+     "pride",
+     "csd",
+     "queer",
+     "flagge",
+     "vielfalt"
+    ],
+    "audience": "all"
+   }
+  ],
+  [
+   "eu-flagge",
+   {
+    "id": "eu-flagge",
+    "src": "/studio-tools/stickers/eu-flagge.svg",
+    "label": "Europaflagge",
+    "category": "sticker",
+    "tags": [
+     "sticker",
+     "europa",
+     "eu",
+     "flagge",
+     "sterne"
+    ],
+    "audience": "all"
+   }
+  ],
+  [
+   "europa-sterne",
+   {
+    "id": "europa-sterne",
+    "src": "/studio-tools/stickers/europa-sterne.svg",
+    "label": "Europa-Sternenkranz",
+    "category": "sticker",
+    "tags": [
+     "sticker",
+     "europa",
+     "eu",
+     "sterne",
+     "sternenkranz"
+    ],
+    "audience": "all"
+   }
+  ],
+  [
+   "vielfalt",
+   {
+    "id": "vielfalt",
+    "src": "/studio-tools/stickers/vielfalt.svg",
+    "label": "Vielfalt",
+    "category": "sticker",
+    "tags": [
+     "sticker",
+     "vielfalt",
+     "schriftzug"
+    ],
+    "audience": "all"
+   }
+  ],
+  [
+   "at-gruen-waehlen",
+   {
+    "id": "at-gruen-waehlen",
+    "src": "/studio-tools/stickers/at-gruen-waehlen.png",
+    "label": "Grün wählen!",
+    "category": "sticker",
+    "tags": [
+     "sticker",
+     "störer",
+     "wahl",
+     "magenta"
+    ],
+    "audience": "de-AT"
+   }
+  ],
+  [
+   "at-klima-schuetzen",
+   {
+    "id": "at-klima-schuetzen",
+    "src": "/studio-tools/stickers/at-klima-schuetzen.png",
+    "label": "Klima schützen",
+    "category": "sticker",
+    "tags": [
+     "sticker",
+     "klima",
+     "schriftzug"
+    ],
+    "audience": "de-AT"
+   }
+  ],
+  [
+   "at-jetzt-gruen",
+   {
+    "id": "at-jetzt-gruen",
+    "src": "/studio-tools/stickers/at-jetzt-gruen.png",
+    "label": "Jetzt Grün!",
+    "category": "sticker",
+    "tags": [
+     "sticker",
+     "störer",
+     "wahl",
+     "gelb"
+    ],
+    "audience": "de-AT"
+   }
+  ],
+  [
+   "emoji-1f600",
+   {
+    "id": "emoji-1f600",
+    "src": "/emoji/emoji_u1f600.svg",
+    "label": "😀",
+    "category": "emoji",
+    "tags": [
+     "emoji"
+    ],
+    "audience": "all"
+   }
+  ],
+  [
+   "emoji-1f9d1_1f3fb",
+   {
+    "id": "emoji-1f9d1_1f3fb",
+    "src": "/emoji/emoji_u1f9d1_1f3fb.svg",
+    "label": "🧑🏻",
+    "category": "emoji",
+    "tags": [
+     "emoji"
+    ],
+    "audience": "all"
+   }
+  ],
+  [
+   "emoji-xyz",
+   null
+  ],
+  [
+   "asset:0b6f3c1e-8a4d-4f5e-9c2a-7d1e5b3a9f10",
+   null
+  ],
+  [
+   "unknown",
+   null
+  ]
+ ],
+ "bySrc": [
+  [
+   "/gruene-de-logo.png",
+   "gruene-de-logo"
+  ],
+  [
+   "/gruene-de-logo-weiss.png",
+   "gruene-de-logo-weiss"
+  ],
+  [
+   "/gruene-de-logo-schwarz.png",
+   "gruene-de-logo-schwarz"
+  ],
+  [
+   "/Sonnenblume.png",
+   "sunflower"
+  ],
+  [
+   "/sonnenblume_dunkelgruen.svg",
+   "sunflower-green"
+  ],
+  [
+   "/sonnenblume_weiss.svg",
+   "sunflower-weiss"
+  ],
+  [
+   "/sonnenblume_schwarz.svg",
+   "sunflower-schwarz"
+  ],
+  [
+   "/gruene-at-logo-weiss.png",
+   "gruene-at-logo-weiss"
+  ],
+  [
+   "/gruene-at-logo-gruen.png",
+   "gruene-at-logo-gruen"
+  ],
+  [
+   "/quote.svg",
+   "quote-mark"
+  ],
+  [
+   "/arrow_right.svg",
+   "arrow"
+  ],
+  [
+   "/brush-arrow-gruen.svg",
+   "brush-arrow-gruen"
+  ],
+  [
+   "/quote-white.svg",
+   "quote-mark-weiss"
+  ],
+  [
+   "/quote-gelb.svg",
+   "quote-mark-gelb"
+  ],
+  [
+   "/sonnenblume_gruen.png",
+   "sunflower-green-light"
+  ],
+  [
+   "/brush-arrow-weiss.svg",
+   "brush-arrow-weiss"
+  ],
+  [
+   "/emoji/emoji_u1f5f3.svg",
+   "emoji-1f5f3"
+  ],
+  [
+   "/emoji/emoji_u1f4f0.svg",
+   "emoji-1f4f0"
+  ],
+  [
+   "/emoji/emoji_u1faa7.svg",
+   "emoji-1faa7"
+  ],
+  [
+   "/emoji/emoji_u270d.svg",
+   "emoji-270d"
+  ],
+  [
+   "/emoji/emoji_u1f4e3.svg",
+   "emoji-1f4e3"
+  ],
+  [
+   "/emoji/emoji_u1f4e2.svg",
+   "emoji-1f4e2"
+  ],
+  [
+   "/emoji/emoji_u1f91d.svg",
+   "emoji-1f91d"
+  ],
+  [
+   "/emoji/emoji_u1f49a.svg",
+   "emoji-1f49a"
+  ],
+  [
+   "/emoji/emoji_u2764.svg",
+   "emoji-2764"
+  ],
+  [
+   "/emoji/emoji_u2705.svg",
+   "emoji-2705"
+  ],
+  [
+   "/emoji/emoji_u274c.svg",
+   "emoji-274c"
+  ],
+  [
+   "/emoji/emoji_u1f449.svg",
+   "emoji-1f449"
+  ],
+  [
+   "/emoji/emoji_u1f4aa.svg",
+   "emoji-1f4aa"
+  ],
+  [
+   "/emoji/emoji_u1f44f.svg",
+   "emoji-1f44f"
+  ],
+  [
+   "/emoji/emoji_u1f9d1_200d_1f91d_200d_1f9d1.svg",
+   "emoji-1f9d1_200d_1f91d_200d_1f9d1"
+  ],
+  [
+   "/emoji/emoji_u1f30d.svg",
+   "emoji-1f30d"
+  ],
+  [
+   "/emoji/emoji_u1f331.svg",
+   "emoji-1f331"
+  ],
+  [
+   "/emoji/emoji_u1f333.svg",
+   "emoji-1f333"
+  ],
+  [
+   "/emoji/emoji_u1f33b.svg",
+   "emoji-1f33b"
+  ],
+  [
+   "/emoji/emoji_u2600.svg",
+   "emoji-2600"
+  ],
+  [
+   "/emoji/emoji_u1f4a8.svg",
+   "emoji-1f4a8"
+  ],
+  [
+   "/emoji/emoji_u26a1.svg",
+   "emoji-26a1"
+  ],
+  [
+   "/emoji/emoji_u1f525.svg",
+   "emoji-1f525"
+  ],
+  [
+   "/emoji/emoji_u1f4a7.svg",
+   "emoji-1f4a7"
+  ],
+  [
+   "/emoji/emoji_u267b.svg",
+   "emoji-267b"
+  ],
+  [
+   "/emoji/emoji_u1f41d.svg",
+   "emoji-1f41d"
+  ],
+  [
+   "/emoji/emoji_u1f6b2.svg",
+   "emoji-1f6b2"
+  ],
+  [
+   "/emoji/emoji_u1f686.svg",
+   "emoji-1f686"
+  ],
+  [
+   "/emoji/emoji_u1f68c.svg",
+   "emoji-1f68c"
+  ],
+  [
+   "/emoji/emoji_u1f3e0.svg",
+   "emoji-1f3e0"
+  ],
+  [
+   "/emoji/emoji_u1f3eb.svg",
+   "emoji-1f3eb"
+  ],
+  [
+   "/emoji/emoji_u1f3e5.svg",
+   "emoji-1f3e5"
+  ],
+  [
+   "/emoji/emoji_u1f4b6.svg",
+   "emoji-1f4b6"
+  ],
+  [
+   "/emoji/emoji_u1f4c8.svg",
+   "emoji-1f4c8"
+  ],
+  [
+   "/emoji/emoji_u1f4c9.svg",
+   "emoji-1f4c9"
+  ],
+  [
+   "/emoji/emoji_u1f4c5.svg",
+   "emoji-1f4c5"
+  ],
+  [
+   "/emoji/emoji_u1f4cd.svg",
+   "emoji-1f4cd"
+  ],
+  [
+   "/emoji/emoji_u1f4f1.svg",
+   "emoji-1f4f1"
+  ],
+  [
+   "/emoji/emoji_u1f4ac.svg",
+   "emoji-1f4ac"
+  ],
+  [
+   "/emoji/emoji_u1f4a1.svg",
+   "emoji-1f4a1"
+  ],
+  [
+   "/emoji/emoji_u2696.svg",
+   "emoji-2696"
+  ],
+  [
+   "/emoji/emoji_u1f54a.svg",
+   "emoji-1f54a"
+  ],
+  [
+   "/emoji/emoji_u1f393.svg",
+   "emoji-1f393"
+  ],
+  [
+   "/emoji/emoji_u1f308.svg",
+   "emoji-1f308"
+  ],
+  [
+   "/images/Sonnenblume_RGB_gelb.png",
+   "sonnenblume-gelb"
+  ],
+  [
+   "/sonnenblume_gruen.png",
+   "sunflower-green-light"
+  ],
+  [
+   "/sonnenblume_weiss.svg",
+   "sunflower-weiss"
+  ],
+  [
+   "/studio-tools/stickers/teamgruen.svg",
+   "teamgruen"
+  ],
+  [
+   "/studio-tools/stickers/regenbogen.svg",
+   "regenbogen"
+  ],
+  [
+   "/studio-tools/stickers/regenbogen-herz.svg",
+   "regenbogen-herz"
+  ],
+  [
+   "/studio-tools/stickers/progress-pride.svg",
+   "progress-pride"
+  ],
+  [
+   "/studio-tools/stickers/eu-flagge.svg",
+   "eu-flagge"
+  ],
+  [
+   "/studio-tools/stickers/europa-sterne.svg",
+   "europa-sterne"
+  ],
+  [
+   "/studio-tools/stickers/vielfalt.svg",
+   "vielfalt"
+  ],
+  [
+   "/studio-tools/stickers/at-gruen-waehlen.png",
+   "at-gruen-waehlen"
+  ],
+  [
+   "/studio-tools/stickers/at-klima-schuetzen.png",
+   "at-klima-schuetzen"
+  ],
+  [
+   "/studio-tools/stickers/at-jetzt-gruen.png",
+   "at-jetzt-gruen"
+  ]
+ ],
+ "instances": [
+  [
+   "gruene-de-logo",
+   null,
+   "/gruene-de-logo.png",
+   false
+  ],
+  [
+   "gruene-de-logo",
+   "/api/share/0123456789abcdef0123456789abcdef/download",
+   "/api/share/0123456789abcdef0123456789abcdef/download",
+   true
+  ],
+  [
+   "gruene-de-logo",
+   "https://evil.example/x.png",
+   "/gruene-de-logo.png",
+   false
+  ],
+  [
+   "gruene-de-logo-weiss",
+   null,
+   "/gruene-de-logo-weiss.png",
+   false
+  ],
+  [
+   "gruene-de-logo-weiss",
+   "/api/share/0123456789abcdef0123456789abcdef/download",
+   "/api/share/0123456789abcdef0123456789abcdef/download",
+   true
+  ],
+  [
+   "gruene-de-logo-weiss",
+   "https://evil.example/x.png",
+   "/gruene-de-logo-weiss.png",
+   false
+  ],
+  [
+   "gruene-de-logo-schwarz",
+   null,
+   "/gruene-de-logo-schwarz.png",
+   false
+  ],
+  [
+   "gruene-de-logo-schwarz",
+   "/api/share/0123456789abcdef0123456789abcdef/download",
+   "/api/share/0123456789abcdef0123456789abcdef/download",
+   true
+  ],
+  [
+   "gruene-de-logo-schwarz",
+   "https://evil.example/x.png",
+   "/gruene-de-logo-schwarz.png",
+   false
+  ],
+  [
+   "sunflower",
+   null,
+   "/Sonnenblume.png",
+   false
+  ],
+  [
+   "sunflower",
+   "/api/share/0123456789abcdef0123456789abcdef/download",
+   "/api/share/0123456789abcdef0123456789abcdef/download",
+   true
+  ],
+  [
+   "sunflower",
+   "https://evil.example/x.png",
+   "/Sonnenblume.png",
+   false
+  ],
+  [
+   "sunflower-green",
+   null,
+   "/sonnenblume_dunkelgruen.svg",
+   false
+  ],
+  [
+   "sunflower-green",
+   "/api/share/0123456789abcdef0123456789abcdef/download",
+   "/api/share/0123456789abcdef0123456789abcdef/download",
+   true
+  ],
+  [
+   "sunflower-green",
+   "https://evil.example/x.png",
+   "/sonnenblume_dunkelgruen.svg",
+   false
+  ],
+  [
+   "sunflower-weiss",
+   null,
+   "/sonnenblume_weiss.svg",
+   false
+  ],
+  [
+   "sunflower-weiss",
+   "/api/share/0123456789abcdef0123456789abcdef/download",
+   "/api/share/0123456789abcdef0123456789abcdef/download",
+   true
+  ],
+  [
+   "sunflower-weiss",
+   "https://evil.example/x.png",
+   "/sonnenblume_weiss.svg",
+   false
+  ],
+  [
+   "sunflower-schwarz",
+   null,
+   "/sonnenblume_schwarz.svg",
+   false
+  ],
+  [
+   "sunflower-schwarz",
+   "/api/share/0123456789abcdef0123456789abcdef/download",
+   "/api/share/0123456789abcdef0123456789abcdef/download",
+   true
+  ],
+  [
+   "sunflower-schwarz",
+   "https://evil.example/x.png",
+   "/sonnenblume_schwarz.svg",
+   false
+  ],
+  [
+   "gruene-at-logo-weiss",
+   null,
+   "/gruene-at-logo-weiss.png",
+   false
+  ],
+  [
+   "gruene-at-logo-weiss",
+   "/api/share/0123456789abcdef0123456789abcdef/download",
+   "/api/share/0123456789abcdef0123456789abcdef/download",
+   true
+  ],
+  [
+   "gruene-at-logo-weiss",
+   "https://evil.example/x.png",
+   "/gruene-at-logo-weiss.png",
+   false
+  ],
+  [
+   "gruene-at-logo-gruen",
+   null,
+   "/gruene-at-logo-gruen.png",
+   false
+  ],
+  [
+   "gruene-at-logo-gruen",
+   "/api/share/0123456789abcdef0123456789abcdef/download",
+   "/api/share/0123456789abcdef0123456789abcdef/download",
+   true
+  ],
+  [
+   "gruene-at-logo-gruen",
+   "https://evil.example/x.png",
+   "/gruene-at-logo-gruen.png",
+   false
+  ],
+  [
+   "quote-mark",
+   null,
+   "/quote.svg",
+   false
+  ],
+  [
+   "quote-mark",
+   "/api/share/0123456789abcdef0123456789abcdef/download",
+   "/api/share/0123456789abcdef0123456789abcdef/download",
+   true
+  ],
+  [
+   "quote-mark",
+   "https://evil.example/x.png",
+   "/quote.svg",
+   false
+  ],
+  [
+   "arrow",
+   null,
+   "/arrow_right.svg",
+   false
+  ],
+  [
+   "arrow",
+   "/api/share/0123456789abcdef0123456789abcdef/download",
+   "/api/share/0123456789abcdef0123456789abcdef/download",
+   true
+  ],
+  [
+   "arrow",
+   "https://evil.example/x.png",
+   "/arrow_right.svg",
+   false
+  ],
+  [
+   "brush-arrow-gruen",
+   null,
+   "/brush-arrow-gruen.svg",
+   false
+  ],
+  [
+   "brush-arrow-gruen",
+   "/api/share/0123456789abcdef0123456789abcdef/download",
+   "/api/share/0123456789abcdef0123456789abcdef/download",
+   true
+  ],
+  [
+   "brush-arrow-gruen",
+   "https://evil.example/x.png",
+   "/brush-arrow-gruen.svg",
+   false
+  ],
+  [
+   "quote-mark-weiss",
+   null,
+   "/quote-white.svg",
+   false
+  ],
+  [
+   "quote-mark-weiss",
+   "/api/share/0123456789abcdef0123456789abcdef/download",
+   "/api/share/0123456789abcdef0123456789abcdef/download",
+   true
+  ],
+  [
+   "quote-mark-weiss",
+   "https://evil.example/x.png",
+   "/quote-white.svg",
+   false
+  ],
+  [
+   "quote-mark-gelb",
+   null,
+   "/quote-gelb.svg",
+   false
+  ],
+  [
+   "quote-mark-gelb",
+   "/api/share/0123456789abcdef0123456789abcdef/download",
+   "/api/share/0123456789abcdef0123456789abcdef/download",
+   true
+  ],
+  [
+   "quote-mark-gelb",
+   "https://evil.example/x.png",
+   "/quote-gelb.svg",
+   false
+  ],
+  [
+   "sunflower-green-light",
+   null,
+   "/sonnenblume_gruen.png",
+   false
+  ],
+  [
+   "sunflower-green-light",
+   "/api/share/0123456789abcdef0123456789abcdef/download",
+   "/api/share/0123456789abcdef0123456789abcdef/download",
+   true
+  ],
+  [
+   "sunflower-green-light",
+   "https://evil.example/x.png",
+   "/sonnenblume_gruen.png",
+   false
+  ],
+  [
+   "brush-arrow-weiss",
+   null,
+   "/brush-arrow-weiss.svg",
+   false
+  ],
+  [
+   "brush-arrow-weiss",
+   "/api/share/0123456789abcdef0123456789abcdef/download",
+   "/api/share/0123456789abcdef0123456789abcdef/download",
+   true
+  ],
+  [
+   "brush-arrow-weiss",
+   "https://evil.example/x.png",
+   "/brush-arrow-weiss.svg",
+   false
+  ],
+  [
+   "emoji-1f5f3",
+   null,
+   "/emoji/emoji_u1f5f3.svg",
+   false
+  ],
+  [
+   "emoji-1f5f3",
+   "/api/share/0123456789abcdef0123456789abcdef/download",
+   "/api/share/0123456789abcdef0123456789abcdef/download",
+   true
+  ],
+  [
+   "emoji-1f5f3",
+   "https://evil.example/x.png",
+   "/emoji/emoji_u1f5f3.svg",
+   false
+  ],
+  [
+   "emoji-1f4f0",
+   null,
+   "/emoji/emoji_u1f4f0.svg",
+   false
+  ],
+  [
+   "emoji-1f4f0",
+   "/api/share/0123456789abcdef0123456789abcdef/download",
+   "/api/share/0123456789abcdef0123456789abcdef/download",
+   true
+  ],
+  [
+   "emoji-1f4f0",
+   "https://evil.example/x.png",
+   "/emoji/emoji_u1f4f0.svg",
+   false
+  ],
+  [
+   "emoji-1faa7",
+   null,
+   "/emoji/emoji_u1faa7.svg",
+   false
+  ],
+  [
+   "emoji-1faa7",
+   "/api/share/0123456789abcdef0123456789abcdef/download",
+   "/api/share/0123456789abcdef0123456789abcdef/download",
+   true
+  ],
+  [
+   "emoji-1faa7",
+   "https://evil.example/x.png",
+   "/emoji/emoji_u1faa7.svg",
+   false
+  ],
+  [
+   "emoji-270d",
+   null,
+   "/emoji/emoji_u270d.svg",
+   false
+  ],
+  [
+   "emoji-270d",
+   "/api/share/0123456789abcdef0123456789abcdef/download",
+   "/api/share/0123456789abcdef0123456789abcdef/download",
+   true
+  ],
+  [
+   "emoji-270d",
+   "https://evil.example/x.png",
+   "/emoji/emoji_u270d.svg",
+   false
+  ],
+  [
+   "emoji-1f4e3",
+   null,
+   "/emoji/emoji_u1f4e3.svg",
+   false
+  ],
+  [
+   "emoji-1f4e3",
+   "/api/share/0123456789abcdef0123456789abcdef/download",
+   "/api/share/0123456789abcdef0123456789abcdef/download",
+   true
+  ],
+  [
+   "emoji-1f4e3",
+   "https://evil.example/x.png",
+   "/emoji/emoji_u1f4e3.svg",
+   false
+  ],
+  [
+   "emoji-1f4e2",
+   null,
+   "/emoji/emoji_u1f4e2.svg",
+   false
+  ],
+  [
+   "emoji-1f4e2",
+   "/api/share/0123456789abcdef0123456789abcdef/download",
+   "/api/share/0123456789abcdef0123456789abcdef/download",
+   true
+  ],
+  [
+   "emoji-1f4e2",
+   "https://evil.example/x.png",
+   "/emoji/emoji_u1f4e2.svg",
+   false
+  ],
+  [
+   "emoji-1f91d",
+   null,
+   "/emoji/emoji_u1f91d.svg",
+   false
+  ],
+  [
+   "emoji-1f91d",
+   "/api/share/0123456789abcdef0123456789abcdef/download",
+   "/api/share/0123456789abcdef0123456789abcdef/download",
+   true
+  ],
+  [
+   "emoji-1f91d",
+   "https://evil.example/x.png",
+   "/emoji/emoji_u1f91d.svg",
+   false
+  ],
+  [
+   "emoji-1f49a",
+   null,
+   "/emoji/emoji_u1f49a.svg",
+   false
+  ],
+  [
+   "emoji-1f49a",
+   "/api/share/0123456789abcdef0123456789abcdef/download",
+   "/api/share/0123456789abcdef0123456789abcdef/download",
+   true
+  ],
+  [
+   "emoji-1f49a",
+   "https://evil.example/x.png",
+   "/emoji/emoji_u1f49a.svg",
+   false
+  ],
+  [
+   "emoji-2764",
+   null,
+   "/emoji/emoji_u2764.svg",
+   false
+  ],
+  [
+   "emoji-2764",
+   "/api/share/0123456789abcdef0123456789abcdef/download",
+   "/api/share/0123456789abcdef0123456789abcdef/download",
+   true
+  ],
+  [
+   "emoji-2764",
+   "https://evil.example/x.png",
+   "/emoji/emoji_u2764.svg",
+   false
+  ],
+  [
+   "emoji-2705",
+   null,
+   "/emoji/emoji_u2705.svg",
+   false
+  ],
+  [
+   "emoji-2705",
+   "/api/share/0123456789abcdef0123456789abcdef/download",
+   "/api/share/0123456789abcdef0123456789abcdef/download",
+   true
+  ],
+  [
+   "emoji-2705",
+   "https://evil.example/x.png",
+   "/emoji/emoji_u2705.svg",
+   false
+  ],
+  [
+   "emoji-274c",
+   null,
+   "/emoji/emoji_u274c.svg",
+   false
+  ],
+  [
+   "emoji-274c",
+   "/api/share/0123456789abcdef0123456789abcdef/download",
+   "/api/share/0123456789abcdef0123456789abcdef/download",
+   true
+  ],
+  [
+   "emoji-274c",
+   "https://evil.example/x.png",
+   "/emoji/emoji_u274c.svg",
+   false
+  ],
+  [
+   "emoji-1f449",
+   null,
+   "/emoji/emoji_u1f449.svg",
+   false
+  ],
+  [
+   "emoji-1f449",
+   "/api/share/0123456789abcdef0123456789abcdef/download",
+   "/api/share/0123456789abcdef0123456789abcdef/download",
+   true
+  ],
+  [
+   "emoji-1f449",
+   "https://evil.example/x.png",
+   "/emoji/emoji_u1f449.svg",
+   false
+  ],
+  [
+   "emoji-1f4aa",
+   null,
+   "/emoji/emoji_u1f4aa.svg",
+   false
+  ],
+  [
+   "emoji-1f4aa",
+   "/api/share/0123456789abcdef0123456789abcdef/download",
+   "/api/share/0123456789abcdef0123456789abcdef/download",
+   true
+  ],
+  [
+   "emoji-1f4aa",
+   "https://evil.example/x.png",
+   "/emoji/emoji_u1f4aa.svg",
+   false
+  ],
+  [
+   "emoji-1f44f",
+   null,
+   "/emoji/emoji_u1f44f.svg",
+   false
+  ],
+  [
+   "emoji-1f44f",
+   "/api/share/0123456789abcdef0123456789abcdef/download",
+   "/api/share/0123456789abcdef0123456789abcdef/download",
+   true
+  ],
+  [
+   "emoji-1f44f",
+   "https://evil.example/x.png",
+   "/emoji/emoji_u1f44f.svg",
+   false
+  ],
+  [
+   "emoji-1f9d1_200d_1f91d_200d_1f9d1",
+   null,
+   "/emoji/emoji_u1f9d1_200d_1f91d_200d_1f9d1.svg",
+   false
+  ],
+  [
+   "emoji-1f9d1_200d_1f91d_200d_1f9d1",
+   "/api/share/0123456789abcdef0123456789abcdef/download",
+   "/api/share/0123456789abcdef0123456789abcdef/download",
+   true
+  ],
+  [
+   "emoji-1f9d1_200d_1f91d_200d_1f9d1",
+   "https://evil.example/x.png",
+   "/emoji/emoji_u1f9d1_200d_1f91d_200d_1f9d1.svg",
+   false
+  ],
+  [
+   "emoji-1f30d",
+   null,
+   "/emoji/emoji_u1f30d.svg",
+   false
+  ],
+  [
+   "emoji-1f30d",
+   "/api/share/0123456789abcdef0123456789abcdef/download",
+   "/api/share/0123456789abcdef0123456789abcdef/download",
+   true
+  ],
+  [
+   "emoji-1f30d",
+   "https://evil.example/x.png",
+   "/emoji/emoji_u1f30d.svg",
+   false
+  ],
+  [
+   "emoji-1f331",
+   null,
+   "/emoji/emoji_u1f331.svg",
+   false
+  ],
+  [
+   "emoji-1f331",
+   "/api/share/0123456789abcdef0123456789abcdef/download",
+   "/api/share/0123456789abcdef0123456789abcdef/download",
+   true
+  ],
+  [
+   "emoji-1f331",
+   "https://evil.example/x.png",
+   "/emoji/emoji_u1f331.svg",
+   false
+  ],
+  [
+   "emoji-1f333",
+   null,
+   "/emoji/emoji_u1f333.svg",
+   false
+  ],
+  [
+   "emoji-1f333",
+   "/api/share/0123456789abcdef0123456789abcdef/download",
+   "/api/share/0123456789abcdef0123456789abcdef/download",
+   true
+  ],
+  [
+   "emoji-1f333",
+   "https://evil.example/x.png",
+   "/emoji/emoji_u1f333.svg",
+   false
+  ],
+  [
+   "emoji-1f33b",
+   null,
+   "/emoji/emoji_u1f33b.svg",
+   false
+  ],
+  [
+   "emoji-1f33b",
+   "/api/share/0123456789abcdef0123456789abcdef/download",
+   "/api/share/0123456789abcdef0123456789abcdef/download",
+   true
+  ],
+  [
+   "emoji-1f33b",
+   "https://evil.example/x.png",
+   "/emoji/emoji_u1f33b.svg",
+   false
+  ],
+  [
+   "emoji-2600",
+   null,
+   "/emoji/emoji_u2600.svg",
+   false
+  ],
+  [
+   "emoji-2600",
+   "/api/share/0123456789abcdef0123456789abcdef/download",
+   "/api/share/0123456789abcdef0123456789abcdef/download",
+   true
+  ],
+  [
+   "emoji-2600",
+   "https://evil.example/x.png",
+   "/emoji/emoji_u2600.svg",
+   false
+  ],
+  [
+   "emoji-1f4a8",
+   null,
+   "/emoji/emoji_u1f4a8.svg",
+   false
+  ],
+  [
+   "emoji-1f4a8",
+   "/api/share/0123456789abcdef0123456789abcdef/download",
+   "/api/share/0123456789abcdef0123456789abcdef/download",
+   true
+  ],
+  [
+   "emoji-1f4a8",
+   "https://evil.example/x.png",
+   "/emoji/emoji_u1f4a8.svg",
+   false
+  ],
+  [
+   "emoji-26a1",
+   null,
+   "/emoji/emoji_u26a1.svg",
+   false
+  ],
+  [
+   "emoji-26a1",
+   "/api/share/0123456789abcdef0123456789abcdef/download",
+   "/api/share/0123456789abcdef0123456789abcdef/download",
+   true
+  ],
+  [
+   "emoji-26a1",
+   "https://evil.example/x.png",
+   "/emoji/emoji_u26a1.svg",
+   false
+  ],
+  [
+   "emoji-1f525",
+   null,
+   "/emoji/emoji_u1f525.svg",
+   false
+  ],
+  [
+   "emoji-1f525",
+   "/api/share/0123456789abcdef0123456789abcdef/download",
+   "/api/share/0123456789abcdef0123456789abcdef/download",
+   true
+  ],
+  [
+   "emoji-1f525",
+   "https://evil.example/x.png",
+   "/emoji/emoji_u1f525.svg",
+   false
+  ],
+  [
+   "emoji-1f4a7",
+   null,
+   "/emoji/emoji_u1f4a7.svg",
+   false
+  ],
+  [
+   "emoji-1f4a7",
+   "/api/share/0123456789abcdef0123456789abcdef/download",
+   "/api/share/0123456789abcdef0123456789abcdef/download",
+   true
+  ],
+  [
+   "emoji-1f4a7",
+   "https://evil.example/x.png",
+   "/emoji/emoji_u1f4a7.svg",
+   false
+  ],
+  [
+   "emoji-267b",
+   null,
+   "/emoji/emoji_u267b.svg",
+   false
+  ],
+  [
+   "emoji-267b",
+   "/api/share/0123456789abcdef0123456789abcdef/download",
+   "/api/share/0123456789abcdef0123456789abcdef/download",
+   true
+  ],
+  [
+   "emoji-267b",
+   "https://evil.example/x.png",
+   "/emoji/emoji_u267b.svg",
+   false
+  ],
+  [
+   "emoji-1f41d",
+   null,
+   "/emoji/emoji_u1f41d.svg",
+   false
+  ],
+  [
+   "emoji-1f41d",
+   "/api/share/0123456789abcdef0123456789abcdef/download",
+   "/api/share/0123456789abcdef0123456789abcdef/download",
+   true
+  ],
+  [
+   "emoji-1f41d",
+   "https://evil.example/x.png",
+   "/emoji/emoji_u1f41d.svg",
+   false
+  ],
+  [
+   "emoji-1f6b2",
+   null,
+   "/emoji/emoji_u1f6b2.svg",
+   false
+  ],
+  [
+   "emoji-1f6b2",
+   "/api/share/0123456789abcdef0123456789abcdef/download",
+   "/api/share/0123456789abcdef0123456789abcdef/download",
+   true
+  ],
+  [
+   "emoji-1f6b2",
+   "https://evil.example/x.png",
+   "/emoji/emoji_u1f6b2.svg",
+   false
+  ],
+  [
+   "emoji-1f686",
+   null,
+   "/emoji/emoji_u1f686.svg",
+   false
+  ],
+  [
+   "emoji-1f686",
+   "/api/share/0123456789abcdef0123456789abcdef/download",
+   "/api/share/0123456789abcdef0123456789abcdef/download",
+   true
+  ],
+  [
+   "emoji-1f686",
+   "https://evil.example/x.png",
+   "/emoji/emoji_u1f686.svg",
+   false
+  ],
+  [
+   "emoji-1f68c",
+   null,
+   "/emoji/emoji_u1f68c.svg",
+   false
+  ],
+  [
+   "emoji-1f68c",
+   "/api/share/0123456789abcdef0123456789abcdef/download",
+   "/api/share/0123456789abcdef0123456789abcdef/download",
+   true
+  ],
+  [
+   "emoji-1f68c",
+   "https://evil.example/x.png",
+   "/emoji/emoji_u1f68c.svg",
+   false
+  ],
+  [
+   "emoji-1f3e0",
+   null,
+   "/emoji/emoji_u1f3e0.svg",
+   false
+  ],
+  [
+   "emoji-1f3e0",
+   "/api/share/0123456789abcdef0123456789abcdef/download",
+   "/api/share/0123456789abcdef0123456789abcdef/download",
+   true
+  ],
+  [
+   "emoji-1f3e0",
+   "https://evil.example/x.png",
+   "/emoji/emoji_u1f3e0.svg",
+   false
+  ],
+  [
+   "emoji-1f3eb",
+   null,
+   "/emoji/emoji_u1f3eb.svg",
+   false
+  ],
+  [
+   "emoji-1f3eb",
+   "/api/share/0123456789abcdef0123456789abcdef/download",
+   "/api/share/0123456789abcdef0123456789abcdef/download",
+   true
+  ],
+  [
+   "emoji-1f3eb",
+   "https://evil.example/x.png",
+   "/emoji/emoji_u1f3eb.svg",
+   false
+  ],
+  [
+   "emoji-1f3e5",
+   null,
+   "/emoji/emoji_u1f3e5.svg",
+   false
+  ],
+  [
+   "emoji-1f3e5",
+   "/api/share/0123456789abcdef0123456789abcdef/download",
+   "/api/share/0123456789abcdef0123456789abcdef/download",
+   true
+  ],
+  [
+   "emoji-1f3e5",
+   "https://evil.example/x.png",
+   "/emoji/emoji_u1f3e5.svg",
+   false
+  ],
+  [
+   "emoji-1f4b6",
+   null,
+   "/emoji/emoji_u1f4b6.svg",
+   false
+  ],
+  [
+   "emoji-1f4b6",
+   "/api/share/0123456789abcdef0123456789abcdef/download",
+   "/api/share/0123456789abcdef0123456789abcdef/download",
+   true
+  ],
+  [
+   "emoji-1f4b6",
+   "https://evil.example/x.png",
+   "/emoji/emoji_u1f4b6.svg",
+   false
+  ],
+  [
+   "emoji-1f4c8",
+   null,
+   "/emoji/emoji_u1f4c8.svg",
+   false
+  ],
+  [
+   "emoji-1f4c8",
+   "/api/share/0123456789abcdef0123456789abcdef/download",
+   "/api/share/0123456789abcdef0123456789abcdef/download",
+   true
+  ],
+  [
+   "emoji-1f4c8",
+   "https://evil.example/x.png",
+   "/emoji/emoji_u1f4c8.svg",
+   false
+  ],
+  [
+   "emoji-1f4c9",
+   null,
+   "/emoji/emoji_u1f4c9.svg",
+   false
+  ],
+  [
+   "emoji-1f4c9",
+   "/api/share/0123456789abcdef0123456789abcdef/download",
+   "/api/share/0123456789abcdef0123456789abcdef/download",
+   true
+  ],
+  [
+   "emoji-1f4c9",
+   "https://evil.example/x.png",
+   "/emoji/emoji_u1f4c9.svg",
+   false
+  ],
+  [
+   "emoji-1f4c5",
+   null,
+   "/emoji/emoji_u1f4c5.svg",
+   false
+  ],
+  [
+   "emoji-1f4c5",
+   "/api/share/0123456789abcdef0123456789abcdef/download",
+   "/api/share/0123456789abcdef0123456789abcdef/download",
+   true
+  ],
+  [
+   "emoji-1f4c5",
+   "https://evil.example/x.png",
+   "/emoji/emoji_u1f4c5.svg",
+   false
+  ],
+  [
+   "emoji-1f4cd",
+   null,
+   "/emoji/emoji_u1f4cd.svg",
+   false
+  ],
+  [
+   "emoji-1f4cd",
+   "/api/share/0123456789abcdef0123456789abcdef/download",
+   "/api/share/0123456789abcdef0123456789abcdef/download",
+   true
+  ],
+  [
+   "emoji-1f4cd",
+   "https://evil.example/x.png",
+   "/emoji/emoji_u1f4cd.svg",
+   false
+  ],
+  [
+   "emoji-1f4f1",
+   null,
+   "/emoji/emoji_u1f4f1.svg",
+   false
+  ],
+  [
+   "emoji-1f4f1",
+   "/api/share/0123456789abcdef0123456789abcdef/download",
+   "/api/share/0123456789abcdef0123456789abcdef/download",
+   true
+  ],
+  [
+   "emoji-1f4f1",
+   "https://evil.example/x.png",
+   "/emoji/emoji_u1f4f1.svg",
+   false
+  ],
+  [
+   "emoji-1f4ac",
+   null,
+   "/emoji/emoji_u1f4ac.svg",
+   false
+  ],
+  [
+   "emoji-1f4ac",
+   "/api/share/0123456789abcdef0123456789abcdef/download",
+   "/api/share/0123456789abcdef0123456789abcdef/download",
+   true
+  ],
+  [
+   "emoji-1f4ac",
+   "https://evil.example/x.png",
+   "/emoji/emoji_u1f4ac.svg",
+   false
+  ],
+  [
+   "emoji-1f4a1",
+   null,
+   "/emoji/emoji_u1f4a1.svg",
+   false
+  ],
+  [
+   "emoji-1f4a1",
+   "/api/share/0123456789abcdef0123456789abcdef/download",
+   "/api/share/0123456789abcdef0123456789abcdef/download",
+   true
+  ],
+  [
+   "emoji-1f4a1",
+   "https://evil.example/x.png",
+   "/emoji/emoji_u1f4a1.svg",
+   false
+  ],
+  [
+   "emoji-2696",
+   null,
+   "/emoji/emoji_u2696.svg",
+   false
+  ],
+  [
+   "emoji-2696",
+   "/api/share/0123456789abcdef0123456789abcdef/download",
+   "/api/share/0123456789abcdef0123456789abcdef/download",
+   true
+  ],
+  [
+   "emoji-2696",
+   "https://evil.example/x.png",
+   "/emoji/emoji_u2696.svg",
+   false
+  ],
+  [
+   "emoji-1f54a",
+   null,
+   "/emoji/emoji_u1f54a.svg",
+   false
+  ],
+  [
+   "emoji-1f54a",
+   "/api/share/0123456789abcdef0123456789abcdef/download",
+   "/api/share/0123456789abcdef0123456789abcdef/download",
+   true
+  ],
+  [
+   "emoji-1f54a",
+   "https://evil.example/x.png",
+   "/emoji/emoji_u1f54a.svg",
+   false
+  ],
+  [
+   "emoji-1f393",
+   null,
+   "/emoji/emoji_u1f393.svg",
+   false
+  ],
+  [
+   "emoji-1f393",
+   "/api/share/0123456789abcdef0123456789abcdef/download",
+   "/api/share/0123456789abcdef0123456789abcdef/download",
+   true
+  ],
+  [
+   "emoji-1f393",
+   "https://evil.example/x.png",
+   "/emoji/emoji_u1f393.svg",
+   false
+  ],
+  [
+   "emoji-1f308",
+   null,
+   "/emoji/emoji_u1f308.svg",
+   false
+  ],
+  [
+   "emoji-1f308",
+   "/api/share/0123456789abcdef0123456789abcdef/download",
+   "/api/share/0123456789abcdef0123456789abcdef/download",
+   true
+  ],
+  [
+   "emoji-1f308",
+   "https://evil.example/x.png",
+   "/emoji/emoji_u1f308.svg",
+   false
+  ],
+  [
+   "sonnenblume-gelb",
+   null,
+   "/images/Sonnenblume_RGB_gelb.png",
+   true
+  ],
+  [
+   "sonnenblume-gelb",
+   "/api/share/0123456789abcdef0123456789abcdef/download",
+   "/api/share/0123456789abcdef0123456789abcdef/download",
+   true
+  ],
+  [
+   "sonnenblume-gelb",
+   "https://evil.example/x.png",
+   "/images/Sonnenblume_RGB_gelb.png",
+   true
+  ],
+  [
+   "sonnenblume-gruen",
+   null,
+   "/sonnenblume_gruen.png",
+   true
+  ],
+  [
+   "sonnenblume-gruen",
+   "/api/share/0123456789abcdef0123456789abcdef/download",
+   "/api/share/0123456789abcdef0123456789abcdef/download",
+   true
+  ],
+  [
+   "sonnenblume-gruen",
+   "https://evil.example/x.png",
+   "/sonnenblume_gruen.png",
+   true
+  ],
+  [
+   "sonnenblume-weiss",
+   null,
+   "/sonnenblume_weiss.svg",
+   true
+  ],
+  [
+   "sonnenblume-weiss",
+   "/api/share/0123456789abcdef0123456789abcdef/download",
+   "/api/share/0123456789abcdef0123456789abcdef/download",
+   true
+  ],
+  [
+   "sonnenblume-weiss",
+   "https://evil.example/x.png",
+   "/sonnenblume_weiss.svg",
+   true
+  ],
+  [
+   "teamgruen",
+   null,
+   "/studio-tools/stickers/teamgruen.svg",
+   true
+  ],
+  [
+   "teamgruen",
+   "/api/share/0123456789abcdef0123456789abcdef/download",
+   "/api/share/0123456789abcdef0123456789abcdef/download",
+   true
+  ],
+  [
+   "teamgruen",
+   "https://evil.example/x.png",
+   "/studio-tools/stickers/teamgruen.svg",
+   true
+  ],
+  [
+   "regenbogen",
+   null,
+   "/studio-tools/stickers/regenbogen.svg",
+   true
+  ],
+  [
+   "regenbogen",
+   "/api/share/0123456789abcdef0123456789abcdef/download",
+   "/api/share/0123456789abcdef0123456789abcdef/download",
+   true
+  ],
+  [
+   "regenbogen",
+   "https://evil.example/x.png",
+   "/studio-tools/stickers/regenbogen.svg",
+   true
+  ],
+  [
+   "regenbogen-herz",
+   null,
+   "/studio-tools/stickers/regenbogen-herz.svg",
+   true
+  ],
+  [
+   "regenbogen-herz",
+   "/api/share/0123456789abcdef0123456789abcdef/download",
+   "/api/share/0123456789abcdef0123456789abcdef/download",
+   true
+  ],
+  [
+   "regenbogen-herz",
+   "https://evil.example/x.png",
+   "/studio-tools/stickers/regenbogen-herz.svg",
+   true
+  ],
+  [
+   "progress-pride",
+   null,
+   "/studio-tools/stickers/progress-pride.svg",
+   true
+  ],
+  [
+   "progress-pride",
+   "/api/share/0123456789abcdef0123456789abcdef/download",
+   "/api/share/0123456789abcdef0123456789abcdef/download",
+   true
+  ],
+  [
+   "progress-pride",
+   "https://evil.example/x.png",
+   "/studio-tools/stickers/progress-pride.svg",
+   true
+  ],
+  [
+   "eu-flagge",
+   null,
+   "/studio-tools/stickers/eu-flagge.svg",
+   true
+  ],
+  [
+   "eu-flagge",
+   "/api/share/0123456789abcdef0123456789abcdef/download",
+   "/api/share/0123456789abcdef0123456789abcdef/download",
+   true
+  ],
+  [
+   "eu-flagge",
+   "https://evil.example/x.png",
+   "/studio-tools/stickers/eu-flagge.svg",
+   true
+  ],
+  [
+   "europa-sterne",
+   null,
+   "/studio-tools/stickers/europa-sterne.svg",
+   true
+  ],
+  [
+   "europa-sterne",
+   "/api/share/0123456789abcdef0123456789abcdef/download",
+   "/api/share/0123456789abcdef0123456789abcdef/download",
+   true
+  ],
+  [
+   "europa-sterne",
+   "https://evil.example/x.png",
+   "/studio-tools/stickers/europa-sterne.svg",
+   true
+  ],
+  [
+   "vielfalt",
+   null,
+   "/studio-tools/stickers/vielfalt.svg",
+   true
+  ],
+  [
+   "vielfalt",
+   "/api/share/0123456789abcdef0123456789abcdef/download",
+   "/api/share/0123456789abcdef0123456789abcdef/download",
+   true
+  ],
+  [
+   "vielfalt",
+   "https://evil.example/x.png",
+   "/studio-tools/stickers/vielfalt.svg",
+   true
+  ],
+  [
+   "at-gruen-waehlen",
+   null,
+   "/studio-tools/stickers/at-gruen-waehlen.png",
+   true
+  ],
+  [
+   "at-gruen-waehlen",
+   "/api/share/0123456789abcdef0123456789abcdef/download",
+   "/api/share/0123456789abcdef0123456789abcdef/download",
+   true
+  ],
+  [
+   "at-gruen-waehlen",
+   "https://evil.example/x.png",
+   "/studio-tools/stickers/at-gruen-waehlen.png",
+   true
+  ],
+  [
+   "at-klima-schuetzen",
+   null,
+   "/studio-tools/stickers/at-klima-schuetzen.png",
+   true
+  ],
+  [
+   "at-klima-schuetzen",
+   "/api/share/0123456789abcdef0123456789abcdef/download",
+   "/api/share/0123456789abcdef0123456789abcdef/download",
+   true
+  ],
+  [
+   "at-klima-schuetzen",
+   "https://evil.example/x.png",
+   "/studio-tools/stickers/at-klima-schuetzen.png",
+   true
+  ],
+  [
+   "at-jetzt-gruen",
+   null,
+   "/studio-tools/stickers/at-jetzt-gruen.png",
+   true
+  ],
+  [
+   "at-jetzt-gruen",
+   "/api/share/0123456789abcdef0123456789abcdef/download",
+   "/api/share/0123456789abcdef0123456789abcdef/download",
+   true
+  ],
+  [
+   "at-jetzt-gruen",
+   "https://evil.example/x.png",
+   "/studio-tools/stickers/at-jetzt-gruen.png",
+   true
+  ],
+  [
+   "emoji-1f600",
+   null,
+   "/emoji/emoji_u1f600.svg",
+   false
+  ],
+  [
+   "emoji-1f600",
+   "/api/share/0123456789abcdef0123456789abcdef/download",
+   "/api/share/0123456789abcdef0123456789abcdef/download",
+   true
+  ],
+  [
+   "emoji-1f600",
+   "https://evil.example/x.png",
+   "/emoji/emoji_u1f600.svg",
+   false
+  ],
+  [
+   "emoji-1f9d1_1f3fb",
+   null,
+   "/emoji/emoji_u1f9d1_1f3fb.svg",
+   false
+  ],
+  [
+   "emoji-1f9d1_1f3fb",
+   "/api/share/0123456789abcdef0123456789abcdef/download",
+   "/api/share/0123456789abcdef0123456789abcdef/download",
+   true
+  ],
+  [
+   "emoji-1f9d1_1f3fb",
+   "https://evil.example/x.png",
+   "/emoji/emoji_u1f9d1_1f3fb.svg",
+   false
+  ],
+  [
+   "emoji-xyz",
+   null,
+   null,
+   false
+  ],
+  [
+   "emoji-xyz",
+   "/api/share/0123456789abcdef0123456789abcdef/download",
+   "/api/share/0123456789abcdef0123456789abcdef/download",
+   true
+  ],
+  [
+   "emoji-xyz",
+   "https://evil.example/x.png",
+   null,
+   false
+  ],
+  [
+   "asset:0b6f3c1e-8a4d-4f5e-9c2a-7d1e5b3a9f10",
+   null,
+   null,
+   false
+  ],
+  [
+   "asset:0b6f3c1e-8a4d-4f5e-9c2a-7d1e5b3a9f10",
+   "/api/share/0123456789abcdef0123456789abcdef/download",
+   "/api/share/0123456789abcdef0123456789abcdef/download",
+   true
+  ],
+  [
+   "asset:0b6f3c1e-8a4d-4f5e-9c2a-7d1e5b3a9f10",
+   "https://evil.example/x.png",
+   null,
+   false
+  ],
+  [
+   "unknown",
+   null,
+   null,
+   false
+  ],
+  [
+   "unknown",
+   "/api/share/0123456789abcdef0123456789abcdef/download",
+   "/api/share/0123456789abcdef0123456789abcdef/download",
+   true
+  ],
+  [
+   "unknown",
+   "https://evil.example/x.png",
+   null,
+   false
+  ]
+ ],
+ "stickers": [
+  [
+   "gruene-de-logo",
+   "/gruene-de-logo.png",
+   {
+    "assetId": "gruene-de-logo",
+    "src": null
+   }
+  ],
+  [
+   "gruene-de-logo",
+   "/api/share/0123456789abcdef0123456789abcdef/download",
+   {
+    "assetId": "gruene-de-logo",
+    "src": "/api/share/0123456789abcdef0123456789abcdef/download"
+   }
+  ],
+  [
+   "gruene-de-logo",
+   "https://evil.example/x.png",
+   {
+    "assetId": "gruene-de-logo",
+    "src": null
+   }
+  ],
+  [
+   "gruene-de-logo-weiss",
+   "/gruene-de-logo-weiss.png",
+   {
+    "assetId": "gruene-de-logo-weiss",
+    "src": null
+   }
+  ],
+  [
+   "gruene-de-logo-weiss",
+   "/api/share/0123456789abcdef0123456789abcdef/download",
+   {
+    "assetId": "gruene-de-logo-weiss",
+    "src": "/api/share/0123456789abcdef0123456789abcdef/download"
+   }
+  ],
+  [
+   "gruene-de-logo-weiss",
+   "https://evil.example/x.png",
+   {
+    "assetId": "gruene-de-logo-weiss",
+    "src": null
+   }
+  ],
+  [
+   "gruene-de-logo-schwarz",
+   "/gruene-de-logo-schwarz.png",
+   {
+    "assetId": "gruene-de-logo-schwarz",
+    "src": null
+   }
+  ],
+  [
+   "gruene-de-logo-schwarz",
+   "/api/share/0123456789abcdef0123456789abcdef/download",
+   {
+    "assetId": "gruene-de-logo-schwarz",
+    "src": "/api/share/0123456789abcdef0123456789abcdef/download"
+   }
+  ],
+  [
+   "gruene-de-logo-schwarz",
+   "https://evil.example/x.png",
+   {
+    "assetId": "gruene-de-logo-schwarz",
+    "src": null
+   }
+  ],
+  [
+   "sunflower",
+   "/sunflower.png",
+   {
+    "assetId": "sunflower",
+    "src": null
+   }
+  ],
+  [
+   "sunflower",
+   "/api/share/0123456789abcdef0123456789abcdef/download",
+   {
+    "assetId": "sunflower",
+    "src": "/api/share/0123456789abcdef0123456789abcdef/download"
+   }
+  ],
+  [
+   "sunflower",
+   "https://evil.example/x.png",
+   {
+    "assetId": "sunflower",
+    "src": null
+   }
+  ],
+  [
+   "sunflower-green",
+   "/sunflower-green.png",
+   {
+    "assetId": "sunflower-green",
+    "src": null
+   }
+  ],
+  [
+   "sunflower-green",
+   "/api/share/0123456789abcdef0123456789abcdef/download",
+   {
+    "assetId": "sunflower-green",
+    "src": "/api/share/0123456789abcdef0123456789abcdef/download"
+   }
+  ],
+  [
+   "sunflower-green",
+   "https://evil.example/x.png",
+   {
+    "assetId": "sunflower-green",
+    "src": null
+   }
+  ],
+  [
+   "sunflower-weiss",
+   "/sunflower-weiss.png",
+   {
+    "assetId": "sunflower-weiss",
+    "src": null
+   }
+  ],
+  [
+   "sunflower-weiss",
+   "/api/share/0123456789abcdef0123456789abcdef/download",
+   {
+    "assetId": "sunflower-weiss",
+    "src": "/api/share/0123456789abcdef0123456789abcdef/download"
+   }
+  ],
+  [
+   "sunflower-weiss",
+   "https://evil.example/x.png",
+   {
+    "assetId": "sunflower-weiss",
+    "src": null
+   }
+  ],
+  [
+   "sunflower-schwarz",
+   "/sunflower-schwarz.png",
+   {
+    "assetId": "sunflower-schwarz",
+    "src": null
+   }
+  ],
+  [
+   "sunflower-schwarz",
+   "/api/share/0123456789abcdef0123456789abcdef/download",
+   {
+    "assetId": "sunflower-schwarz",
+    "src": "/api/share/0123456789abcdef0123456789abcdef/download"
+   }
+  ],
+  [
+   "sunflower-schwarz",
+   "https://evil.example/x.png",
+   {
+    "assetId": "sunflower-schwarz",
+    "src": null
+   }
+  ],
+  [
+   "gruene-at-logo-weiss",
+   "/gruene-at-logo-weiss.png",
+   {
+    "assetId": "gruene-at-logo-weiss",
+    "src": null
+   }
+  ],
+  [
+   "gruene-at-logo-weiss",
+   "/api/share/0123456789abcdef0123456789abcdef/download",
+   {
+    "assetId": "gruene-at-logo-weiss",
+    "src": "/api/share/0123456789abcdef0123456789abcdef/download"
+   }
+  ],
+  [
+   "gruene-at-logo-weiss",
+   "https://evil.example/x.png",
+   {
+    "assetId": "gruene-at-logo-weiss",
+    "src": null
+   }
+  ],
+  [
+   "gruene-at-logo-gruen",
+   "/gruene-at-logo-gruen.png",
+   {
+    "assetId": "gruene-at-logo-gruen",
+    "src": null
+   }
+  ],
+  [
+   "gruene-at-logo-gruen",
+   "/api/share/0123456789abcdef0123456789abcdef/download",
+   {
+    "assetId": "gruene-at-logo-gruen",
+    "src": "/api/share/0123456789abcdef0123456789abcdef/download"
+   }
+  ],
+  [
+   "gruene-at-logo-gruen",
+   "https://evil.example/x.png",
+   {
+    "assetId": "gruene-at-logo-gruen",
+    "src": null
+   }
+  ],
+  [
+   "quote-mark",
+   "/quote-mark.png",
+   {
+    "assetId": "quote-mark",
+    "src": null
+   }
+  ],
+  [
+   "quote-mark",
+   "/api/share/0123456789abcdef0123456789abcdef/download",
+   {
+    "assetId": "quote-mark",
+    "src": "/api/share/0123456789abcdef0123456789abcdef/download"
+   }
+  ],
+  [
+   "quote-mark",
+   "https://evil.example/x.png",
+   {
+    "assetId": "quote-mark",
+    "src": null
+   }
+  ],
+  [
+   "arrow",
+   "/arrow.png",
+   {
+    "assetId": "arrow",
+    "src": null
+   }
+  ],
+  [
+   "arrow",
+   "/api/share/0123456789abcdef0123456789abcdef/download",
+   {
+    "assetId": "arrow",
+    "src": "/api/share/0123456789abcdef0123456789abcdef/download"
+   }
+  ],
+  [
+   "arrow",
+   "https://evil.example/x.png",
+   {
+    "assetId": "arrow",
+    "src": null
+   }
+  ],
+  [
+   "brush-arrow-gruen",
+   "/brush-arrow-gruen.png",
+   {
+    "assetId": "brush-arrow-gruen",
+    "src": null
+   }
+  ],
+  [
+   "brush-arrow-gruen",
+   "/api/share/0123456789abcdef0123456789abcdef/download",
+   {
+    "assetId": "brush-arrow-gruen",
+    "src": "/api/share/0123456789abcdef0123456789abcdef/download"
+   }
+  ],
+  [
+   "brush-arrow-gruen",
+   "https://evil.example/x.png",
+   {
+    "assetId": "brush-arrow-gruen",
+    "src": null
+   }
+  ],
+  [
+   "quote-mark-weiss",
+   "/quote-mark-weiss.png",
+   {
+    "assetId": "quote-mark-weiss",
+    "src": null
+   }
+  ],
+  [
+   "quote-mark-weiss",
+   "/api/share/0123456789abcdef0123456789abcdef/download",
+   {
+    "assetId": "quote-mark-weiss",
+    "src": "/api/share/0123456789abcdef0123456789abcdef/download"
+   }
+  ],
+  [
+   "quote-mark-weiss",
+   "https://evil.example/x.png",
+   {
+    "assetId": "quote-mark-weiss",
+    "src": null
+   }
+  ],
+  [
+   "quote-mark-gelb",
+   "/quote-mark-gelb.png",
+   {
+    "assetId": "quote-mark-gelb",
+    "src": null
+   }
+  ],
+  [
+   "quote-mark-gelb",
+   "/api/share/0123456789abcdef0123456789abcdef/download",
+   {
+    "assetId": "quote-mark-gelb",
+    "src": "/api/share/0123456789abcdef0123456789abcdef/download"
+   }
+  ],
+  [
+   "quote-mark-gelb",
+   "https://evil.example/x.png",
+   {
+    "assetId": "quote-mark-gelb",
+    "src": null
+   }
+  ],
+  [
+   "sunflower-green-light",
+   "/sunflower-green-light.png",
+   {
+    "assetId": "sunflower-green-light",
+    "src": null
+   }
+  ],
+  [
+   "sunflower-green-light",
+   "/api/share/0123456789abcdef0123456789abcdef/download",
+   {
+    "assetId": "sunflower-green-light",
+    "src": "/api/share/0123456789abcdef0123456789abcdef/download"
+   }
+  ],
+  [
+   "sunflower-green-light",
+   "https://evil.example/x.png",
+   {
+    "assetId": "sunflower-green-light",
+    "src": null
+   }
+  ],
+  [
+   "brush-arrow-weiss",
+   "/brush-arrow-weiss.png",
+   {
+    "assetId": "brush-arrow-weiss",
+    "src": null
+   }
+  ],
+  [
+   "brush-arrow-weiss",
+   "/api/share/0123456789abcdef0123456789abcdef/download",
+   {
+    "assetId": "brush-arrow-weiss",
+    "src": "/api/share/0123456789abcdef0123456789abcdef/download"
+   }
+  ],
+  [
+   "brush-arrow-weiss",
+   "https://evil.example/x.png",
+   {
+    "assetId": "brush-arrow-weiss",
+    "src": null
+   }
+  ],
+  [
+   "emoji-1f5f3",
+   "/emoji-1f5f3.png",
+   {
+    "assetId": "emoji-1f5f3",
+    "src": null
+   }
+  ],
+  [
+   "emoji-1f5f3",
+   "/api/share/0123456789abcdef0123456789abcdef/download",
+   {
+    "assetId": "emoji-1f5f3",
+    "src": "/api/share/0123456789abcdef0123456789abcdef/download"
+   }
+  ],
+  [
+   "emoji-1f5f3",
+   "https://evil.example/x.png",
+   {
+    "assetId": "emoji-1f5f3",
+    "src": null
+   }
+  ],
+  [
+   "emoji-1f4f0",
+   "/emoji-1f4f0.png",
+   {
+    "assetId": "emoji-1f4f0",
+    "src": null
+   }
+  ],
+  [
+   "emoji-1f4f0",
+   "/api/share/0123456789abcdef0123456789abcdef/download",
+   {
+    "assetId": "emoji-1f4f0",
+    "src": "/api/share/0123456789abcdef0123456789abcdef/download"
+   }
+  ],
+  [
+   "emoji-1f4f0",
+   "https://evil.example/x.png",
+   {
+    "assetId": "emoji-1f4f0",
+    "src": null
+   }
+  ],
+  [
+   "emoji-1faa7",
+   "/emoji-1faa7.png",
+   {
+    "assetId": "emoji-1faa7",
+    "src": null
+   }
+  ],
+  [
+   "emoji-1faa7",
+   "/api/share/0123456789abcdef0123456789abcdef/download",
+   {
+    "assetId": "emoji-1faa7",
+    "src": "/api/share/0123456789abcdef0123456789abcdef/download"
+   }
+  ],
+  [
+   "emoji-1faa7",
+   "https://evil.example/x.png",
+   {
+    "assetId": "emoji-1faa7",
+    "src": null
+   }
+  ],
+  [
+   "emoji-270d",
+   "/emoji-270d.png",
+   {
+    "assetId": "emoji-270d",
+    "src": null
+   }
+  ],
+  [
+   "emoji-270d",
+   "/api/share/0123456789abcdef0123456789abcdef/download",
+   {
+    "assetId": "emoji-270d",
+    "src": "/api/share/0123456789abcdef0123456789abcdef/download"
+   }
+  ],
+  [
+   "emoji-270d",
+   "https://evil.example/x.png",
+   {
+    "assetId": "emoji-270d",
+    "src": null
+   }
+  ],
+  [
+   "emoji-1f4e3",
+   "/emoji-1f4e3.png",
+   {
+    "assetId": "emoji-1f4e3",
+    "src": null
+   }
+  ],
+  [
+   "emoji-1f4e3",
+   "/api/share/0123456789abcdef0123456789abcdef/download",
+   {
+    "assetId": "emoji-1f4e3",
+    "src": "/api/share/0123456789abcdef0123456789abcdef/download"
+   }
+  ],
+  [
+   "emoji-1f4e3",
+   "https://evil.example/x.png",
+   {
+    "assetId": "emoji-1f4e3",
+    "src": null
+   }
+  ],
+  [
+   "emoji-1f4e2",
+   "/emoji-1f4e2.png",
+   {
+    "assetId": "emoji-1f4e2",
+    "src": null
+   }
+  ],
+  [
+   "emoji-1f4e2",
+   "/api/share/0123456789abcdef0123456789abcdef/download",
+   {
+    "assetId": "emoji-1f4e2",
+    "src": "/api/share/0123456789abcdef0123456789abcdef/download"
+   }
+  ],
+  [
+   "emoji-1f4e2",
+   "https://evil.example/x.png",
+   {
+    "assetId": "emoji-1f4e2",
+    "src": null
+   }
+  ],
+  [
+   "emoji-1f91d",
+   "/emoji-1f91d.png",
+   {
+    "assetId": "emoji-1f91d",
+    "src": null
+   }
+  ],
+  [
+   "emoji-1f91d",
+   "/api/share/0123456789abcdef0123456789abcdef/download",
+   {
+    "assetId": "emoji-1f91d",
+    "src": "/api/share/0123456789abcdef0123456789abcdef/download"
+   }
+  ],
+  [
+   "emoji-1f91d",
+   "https://evil.example/x.png",
+   {
+    "assetId": "emoji-1f91d",
+    "src": null
+   }
+  ],
+  [
+   "emoji-1f49a",
+   "/emoji-1f49a.png",
+   {
+    "assetId": "emoji-1f49a",
+    "src": null
+   }
+  ],
+  [
+   "emoji-1f49a",
+   "/api/share/0123456789abcdef0123456789abcdef/download",
+   {
+    "assetId": "emoji-1f49a",
+    "src": "/api/share/0123456789abcdef0123456789abcdef/download"
+   }
+  ],
+  [
+   "emoji-1f49a",
+   "https://evil.example/x.png",
+   {
+    "assetId": "emoji-1f49a",
+    "src": null
+   }
+  ],
+  [
+   "emoji-2764",
+   "/emoji-2764.png",
+   {
+    "assetId": "emoji-2764",
+    "src": null
+   }
+  ],
+  [
+   "emoji-2764",
+   "/api/share/0123456789abcdef0123456789abcdef/download",
+   {
+    "assetId": "emoji-2764",
+    "src": "/api/share/0123456789abcdef0123456789abcdef/download"
+   }
+  ],
+  [
+   "emoji-2764",
+   "https://evil.example/x.png",
+   {
+    "assetId": "emoji-2764",
+    "src": null
+   }
+  ],
+  [
+   "emoji-2705",
+   "/emoji-2705.png",
+   {
+    "assetId": "emoji-2705",
+    "src": null
+   }
+  ],
+  [
+   "emoji-2705",
+   "/api/share/0123456789abcdef0123456789abcdef/download",
+   {
+    "assetId": "emoji-2705",
+    "src": "/api/share/0123456789abcdef0123456789abcdef/download"
+   }
+  ],
+  [
+   "emoji-2705",
+   "https://evil.example/x.png",
+   {
+    "assetId": "emoji-2705",
+    "src": null
+   }
+  ],
+  [
+   "emoji-274c",
+   "/emoji-274c.png",
+   {
+    "assetId": "emoji-274c",
+    "src": null
+   }
+  ],
+  [
+   "emoji-274c",
+   "/api/share/0123456789abcdef0123456789abcdef/download",
+   {
+    "assetId": "emoji-274c",
+    "src": "/api/share/0123456789abcdef0123456789abcdef/download"
+   }
+  ],
+  [
+   "emoji-274c",
+   "https://evil.example/x.png",
+   {
+    "assetId": "emoji-274c",
+    "src": null
+   }
+  ],
+  [
+   "emoji-1f449",
+   "/emoji-1f449.png",
+   {
+    "assetId": "emoji-1f449",
+    "src": null
+   }
+  ],
+  [
+   "emoji-1f449",
+   "/api/share/0123456789abcdef0123456789abcdef/download",
+   {
+    "assetId": "emoji-1f449",
+    "src": "/api/share/0123456789abcdef0123456789abcdef/download"
+   }
+  ],
+  [
+   "emoji-1f449",
+   "https://evil.example/x.png",
+   {
+    "assetId": "emoji-1f449",
+    "src": null
+   }
+  ],
+  [
+   "emoji-1f4aa",
+   "/emoji-1f4aa.png",
+   {
+    "assetId": "emoji-1f4aa",
+    "src": null
+   }
+  ],
+  [
+   "emoji-1f4aa",
+   "/api/share/0123456789abcdef0123456789abcdef/download",
+   {
+    "assetId": "emoji-1f4aa",
+    "src": "/api/share/0123456789abcdef0123456789abcdef/download"
+   }
+  ],
+  [
+   "emoji-1f4aa",
+   "https://evil.example/x.png",
+   {
+    "assetId": "emoji-1f4aa",
+    "src": null
+   }
+  ],
+  [
+   "emoji-1f44f",
+   "/emoji-1f44f.png",
+   {
+    "assetId": "emoji-1f44f",
+    "src": null
+   }
+  ],
+  [
+   "emoji-1f44f",
+   "/api/share/0123456789abcdef0123456789abcdef/download",
+   {
+    "assetId": "emoji-1f44f",
+    "src": "/api/share/0123456789abcdef0123456789abcdef/download"
+   }
+  ],
+  [
+   "emoji-1f44f",
+   "https://evil.example/x.png",
+   {
+    "assetId": "emoji-1f44f",
+    "src": null
+   }
+  ],
+  [
+   "emoji-1f9d1_200d_1f91d_200d_1f9d1",
+   "/emoji-1f9d1_200d_1f91d_200d_1f9d1.png",
+   {
+    "assetId": "emoji-1f9d1_200d_1f91d_200d_1f9d1",
+    "src": null
+   }
+  ],
+  [
+   "emoji-1f9d1_200d_1f91d_200d_1f9d1",
+   "/api/share/0123456789abcdef0123456789abcdef/download",
+   {
+    "assetId": "emoji-1f9d1_200d_1f91d_200d_1f9d1",
+    "src": "/api/share/0123456789abcdef0123456789abcdef/download"
+   }
+  ],
+  [
+   "emoji-1f9d1_200d_1f91d_200d_1f9d1",
+   "https://evil.example/x.png",
+   {
+    "assetId": "emoji-1f9d1_200d_1f91d_200d_1f9d1",
+    "src": null
+   }
+  ],
+  [
+   "emoji-1f30d",
+   "/emoji-1f30d.png",
+   {
+    "assetId": "emoji-1f30d",
+    "src": null
+   }
+  ],
+  [
+   "emoji-1f30d",
+   "/api/share/0123456789abcdef0123456789abcdef/download",
+   {
+    "assetId": "emoji-1f30d",
+    "src": "/api/share/0123456789abcdef0123456789abcdef/download"
+   }
+  ],
+  [
+   "emoji-1f30d",
+   "https://evil.example/x.png",
+   {
+    "assetId": "emoji-1f30d",
+    "src": null
+   }
+  ],
+  [
+   "emoji-1f331",
+   "/emoji-1f331.png",
+   {
+    "assetId": "emoji-1f331",
+    "src": null
+   }
+  ],
+  [
+   "emoji-1f331",
+   "/api/share/0123456789abcdef0123456789abcdef/download",
+   {
+    "assetId": "emoji-1f331",
+    "src": "/api/share/0123456789abcdef0123456789abcdef/download"
+   }
+  ],
+  [
+   "emoji-1f331",
+   "https://evil.example/x.png",
+   {
+    "assetId": "emoji-1f331",
+    "src": null
+   }
+  ],
+  [
+   "emoji-1f333",
+   "/emoji-1f333.png",
+   {
+    "assetId": "emoji-1f333",
+    "src": null
+   }
+  ],
+  [
+   "emoji-1f333",
+   "/api/share/0123456789abcdef0123456789abcdef/download",
+   {
+    "assetId": "emoji-1f333",
+    "src": "/api/share/0123456789abcdef0123456789abcdef/download"
+   }
+  ],
+  [
+   "emoji-1f333",
+   "https://evil.example/x.png",
+   {
+    "assetId": "emoji-1f333",
+    "src": null
+   }
+  ],
+  [
+   "emoji-1f33b",
+   "/emoji-1f33b.png",
+   {
+    "assetId": "emoji-1f33b",
+    "src": null
+   }
+  ],
+  [
+   "emoji-1f33b",
+   "/api/share/0123456789abcdef0123456789abcdef/download",
+   {
+    "assetId": "emoji-1f33b",
+    "src": "/api/share/0123456789abcdef0123456789abcdef/download"
+   }
+  ],
+  [
+   "emoji-1f33b",
+   "https://evil.example/x.png",
+   {
+    "assetId": "emoji-1f33b",
+    "src": null
+   }
+  ],
+  [
+   "emoji-2600",
+   "/emoji-2600.png",
+   {
+    "assetId": "emoji-2600",
+    "src": null
+   }
+  ],
+  [
+   "emoji-2600",
+   "/api/share/0123456789abcdef0123456789abcdef/download",
+   {
+    "assetId": "emoji-2600",
+    "src": "/api/share/0123456789abcdef0123456789abcdef/download"
+   }
+  ],
+  [
+   "emoji-2600",
+   "https://evil.example/x.png",
+   {
+    "assetId": "emoji-2600",
+    "src": null
+   }
+  ],
+  [
+   "emoji-1f4a8",
+   "/emoji-1f4a8.png",
+   {
+    "assetId": "emoji-1f4a8",
+    "src": null
+   }
+  ],
+  [
+   "emoji-1f4a8",
+   "/api/share/0123456789abcdef0123456789abcdef/download",
+   {
+    "assetId": "emoji-1f4a8",
+    "src": "/api/share/0123456789abcdef0123456789abcdef/download"
+   }
+  ],
+  [
+   "emoji-1f4a8",
+   "https://evil.example/x.png",
+   {
+    "assetId": "emoji-1f4a8",
+    "src": null
+   }
+  ],
+  [
+   "emoji-26a1",
+   "/emoji-26a1.png",
+   {
+    "assetId": "emoji-26a1",
+    "src": null
+   }
+  ],
+  [
+   "emoji-26a1",
+   "/api/share/0123456789abcdef0123456789abcdef/download",
+   {
+    "assetId": "emoji-26a1",
+    "src": "/api/share/0123456789abcdef0123456789abcdef/download"
+   }
+  ],
+  [
+   "emoji-26a1",
+   "https://evil.example/x.png",
+   {
+    "assetId": "emoji-26a1",
+    "src": null
+   }
+  ],
+  [
+   "emoji-1f525",
+   "/emoji-1f525.png",
+   {
+    "assetId": "emoji-1f525",
+    "src": null
+   }
+  ],
+  [
+   "emoji-1f525",
+   "/api/share/0123456789abcdef0123456789abcdef/download",
+   {
+    "assetId": "emoji-1f525",
+    "src": "/api/share/0123456789abcdef0123456789abcdef/download"
+   }
+  ],
+  [
+   "emoji-1f525",
+   "https://evil.example/x.png",
+   {
+    "assetId": "emoji-1f525",
+    "src": null
+   }
+  ],
+  [
+   "emoji-1f4a7",
+   "/emoji-1f4a7.png",
+   {
+    "assetId": "emoji-1f4a7",
+    "src": null
+   }
+  ],
+  [
+   "emoji-1f4a7",
+   "/api/share/0123456789abcdef0123456789abcdef/download",
+   {
+    "assetId": "emoji-1f4a7",
+    "src": "/api/share/0123456789abcdef0123456789abcdef/download"
+   }
+  ],
+  [
+   "emoji-1f4a7",
+   "https://evil.example/x.png",
+   {
+    "assetId": "emoji-1f4a7",
+    "src": null
+   }
+  ],
+  [
+   "emoji-267b",
+   "/emoji-267b.png",
+   {
+    "assetId": "emoji-267b",
+    "src": null
+   }
+  ],
+  [
+   "emoji-267b",
+   "/api/share/0123456789abcdef0123456789abcdef/download",
+   {
+    "assetId": "emoji-267b",
+    "src": "/api/share/0123456789abcdef0123456789abcdef/download"
+   }
+  ],
+  [
+   "emoji-267b",
+   "https://evil.example/x.png",
+   {
+    "assetId": "emoji-267b",
+    "src": null
+   }
+  ],
+  [
+   "emoji-1f41d",
+   "/emoji-1f41d.png",
+   {
+    "assetId": "emoji-1f41d",
+    "src": null
+   }
+  ],
+  [
+   "emoji-1f41d",
+   "/api/share/0123456789abcdef0123456789abcdef/download",
+   {
+    "assetId": "emoji-1f41d",
+    "src": "/api/share/0123456789abcdef0123456789abcdef/download"
+   }
+  ],
+  [
+   "emoji-1f41d",
+   "https://evil.example/x.png",
+   {
+    "assetId": "emoji-1f41d",
+    "src": null
+   }
+  ],
+  [
+   "emoji-1f6b2",
+   "/emoji-1f6b2.png",
+   {
+    "assetId": "emoji-1f6b2",
+    "src": null
+   }
+  ],
+  [
+   "emoji-1f6b2",
+   "/api/share/0123456789abcdef0123456789abcdef/download",
+   {
+    "assetId": "emoji-1f6b2",
+    "src": "/api/share/0123456789abcdef0123456789abcdef/download"
+   }
+  ],
+  [
+   "emoji-1f6b2",
+   "https://evil.example/x.png",
+   {
+    "assetId": "emoji-1f6b2",
+    "src": null
+   }
+  ],
+  [
+   "emoji-1f686",
+   "/emoji-1f686.png",
+   {
+    "assetId": "emoji-1f686",
+    "src": null
+   }
+  ],
+  [
+   "emoji-1f686",
+   "/api/share/0123456789abcdef0123456789abcdef/download",
+   {
+    "assetId": "emoji-1f686",
+    "src": "/api/share/0123456789abcdef0123456789abcdef/download"
+   }
+  ],
+  [
+   "emoji-1f686",
+   "https://evil.example/x.png",
+   {
+    "assetId": "emoji-1f686",
+    "src": null
+   }
+  ],
+  [
+   "emoji-1f68c",
+   "/emoji-1f68c.png",
+   {
+    "assetId": "emoji-1f68c",
+    "src": null
+   }
+  ],
+  [
+   "emoji-1f68c",
+   "/api/share/0123456789abcdef0123456789abcdef/download",
+   {
+    "assetId": "emoji-1f68c",
+    "src": "/api/share/0123456789abcdef0123456789abcdef/download"
+   }
+  ],
+  [
+   "emoji-1f68c",
+   "https://evil.example/x.png",
+   {
+    "assetId": "emoji-1f68c",
+    "src": null
+   }
+  ],
+  [
+   "emoji-1f3e0",
+   "/emoji-1f3e0.png",
+   {
+    "assetId": "emoji-1f3e0",
+    "src": null
+   }
+  ],
+  [
+   "emoji-1f3e0",
+   "/api/share/0123456789abcdef0123456789abcdef/download",
+   {
+    "assetId": "emoji-1f3e0",
+    "src": "/api/share/0123456789abcdef0123456789abcdef/download"
+   }
+  ],
+  [
+   "emoji-1f3e0",
+   "https://evil.example/x.png",
+   {
+    "assetId": "emoji-1f3e0",
+    "src": null
+   }
+  ],
+  [
+   "emoji-1f3eb",
+   "/emoji-1f3eb.png",
+   {
+    "assetId": "emoji-1f3eb",
+    "src": null
+   }
+  ],
+  [
+   "emoji-1f3eb",
+   "/api/share/0123456789abcdef0123456789abcdef/download",
+   {
+    "assetId": "emoji-1f3eb",
+    "src": "/api/share/0123456789abcdef0123456789abcdef/download"
+   }
+  ],
+  [
+   "emoji-1f3eb",
+   "https://evil.example/x.png",
+   {
+    "assetId": "emoji-1f3eb",
+    "src": null
+   }
+  ],
+  [
+   "emoji-1f3e5",
+   "/emoji-1f3e5.png",
+   {
+    "assetId": "emoji-1f3e5",
+    "src": null
+   }
+  ],
+  [
+   "emoji-1f3e5",
+   "/api/share/0123456789abcdef0123456789abcdef/download",
+   {
+    "assetId": "emoji-1f3e5",
+    "src": "/api/share/0123456789abcdef0123456789abcdef/download"
+   }
+  ],
+  [
+   "emoji-1f3e5",
+   "https://evil.example/x.png",
+   {
+    "assetId": "emoji-1f3e5",
+    "src": null
+   }
+  ],
+  [
+   "emoji-1f4b6",
+   "/emoji-1f4b6.png",
+   {
+    "assetId": "emoji-1f4b6",
+    "src": null
+   }
+  ],
+  [
+   "emoji-1f4b6",
+   "/api/share/0123456789abcdef0123456789abcdef/download",
+   {
+    "assetId": "emoji-1f4b6",
+    "src": "/api/share/0123456789abcdef0123456789abcdef/download"
+   }
+  ],
+  [
+   "emoji-1f4b6",
+   "https://evil.example/x.png",
+   {
+    "assetId": "emoji-1f4b6",
+    "src": null
+   }
+  ],
+  [
+   "emoji-1f4c8",
+   "/emoji-1f4c8.png",
+   {
+    "assetId": "emoji-1f4c8",
+    "src": null
+   }
+  ],
+  [
+   "emoji-1f4c8",
+   "/api/share/0123456789abcdef0123456789abcdef/download",
+   {
+    "assetId": "emoji-1f4c8",
+    "src": "/api/share/0123456789abcdef0123456789abcdef/download"
+   }
+  ],
+  [
+   "emoji-1f4c8",
+   "https://evil.example/x.png",
+   {
+    "assetId": "emoji-1f4c8",
+    "src": null
+   }
+  ],
+  [
+   "emoji-1f4c9",
+   "/emoji-1f4c9.png",
+   {
+    "assetId": "emoji-1f4c9",
+    "src": null
+   }
+  ],
+  [
+   "emoji-1f4c9",
+   "/api/share/0123456789abcdef0123456789abcdef/download",
+   {
+    "assetId": "emoji-1f4c9",
+    "src": "/api/share/0123456789abcdef0123456789abcdef/download"
+   }
+  ],
+  [
+   "emoji-1f4c9",
+   "https://evil.example/x.png",
+   {
+    "assetId": "emoji-1f4c9",
+    "src": null
+   }
+  ],
+  [
+   "emoji-1f4c5",
+   "/emoji-1f4c5.png",
+   {
+    "assetId": "emoji-1f4c5",
+    "src": null
+   }
+  ],
+  [
+   "emoji-1f4c5",
+   "/api/share/0123456789abcdef0123456789abcdef/download",
+   {
+    "assetId": "emoji-1f4c5",
+    "src": "/api/share/0123456789abcdef0123456789abcdef/download"
+   }
+  ],
+  [
+   "emoji-1f4c5",
+   "https://evil.example/x.png",
+   {
+    "assetId": "emoji-1f4c5",
+    "src": null
+   }
+  ],
+  [
+   "emoji-1f4cd",
+   "/emoji-1f4cd.png",
+   {
+    "assetId": "emoji-1f4cd",
+    "src": null
+   }
+  ],
+  [
+   "emoji-1f4cd",
+   "/api/share/0123456789abcdef0123456789abcdef/download",
+   {
+    "assetId": "emoji-1f4cd",
+    "src": "/api/share/0123456789abcdef0123456789abcdef/download"
+   }
+  ],
+  [
+   "emoji-1f4cd",
+   "https://evil.example/x.png",
+   {
+    "assetId": "emoji-1f4cd",
+    "src": null
+   }
+  ],
+  [
+   "emoji-1f4f1",
+   "/emoji-1f4f1.png",
+   {
+    "assetId": "emoji-1f4f1",
+    "src": null
+   }
+  ],
+  [
+   "emoji-1f4f1",
+   "/api/share/0123456789abcdef0123456789abcdef/download",
+   {
+    "assetId": "emoji-1f4f1",
+    "src": "/api/share/0123456789abcdef0123456789abcdef/download"
+   }
+  ],
+  [
+   "emoji-1f4f1",
+   "https://evil.example/x.png",
+   {
+    "assetId": "emoji-1f4f1",
+    "src": null
+   }
+  ],
+  [
+   "emoji-1f4ac",
+   "/emoji-1f4ac.png",
+   {
+    "assetId": "emoji-1f4ac",
+    "src": null
+   }
+  ],
+  [
+   "emoji-1f4ac",
+   "/api/share/0123456789abcdef0123456789abcdef/download",
+   {
+    "assetId": "emoji-1f4ac",
+    "src": "/api/share/0123456789abcdef0123456789abcdef/download"
+   }
+  ],
+  [
+   "emoji-1f4ac",
+   "https://evil.example/x.png",
+   {
+    "assetId": "emoji-1f4ac",
+    "src": null
+   }
+  ],
+  [
+   "emoji-1f4a1",
+   "/emoji-1f4a1.png",
+   {
+    "assetId": "emoji-1f4a1",
+    "src": null
+   }
+  ],
+  [
+   "emoji-1f4a1",
+   "/api/share/0123456789abcdef0123456789abcdef/download",
+   {
+    "assetId": "emoji-1f4a1",
+    "src": "/api/share/0123456789abcdef0123456789abcdef/download"
+   }
+  ],
+  [
+   "emoji-1f4a1",
+   "https://evil.example/x.png",
+   {
+    "assetId": "emoji-1f4a1",
+    "src": null
+   }
+  ],
+  [
+   "emoji-2696",
+   "/emoji-2696.png",
+   {
+    "assetId": "emoji-2696",
+    "src": null
+   }
+  ],
+  [
+   "emoji-2696",
+   "/api/share/0123456789abcdef0123456789abcdef/download",
+   {
+    "assetId": "emoji-2696",
+    "src": "/api/share/0123456789abcdef0123456789abcdef/download"
+   }
+  ],
+  [
+   "emoji-2696",
+   "https://evil.example/x.png",
+   {
+    "assetId": "emoji-2696",
+    "src": null
+   }
+  ],
+  [
+   "emoji-1f54a",
+   "/emoji-1f54a.png",
+   {
+    "assetId": "emoji-1f54a",
+    "src": null
+   }
+  ],
+  [
+   "emoji-1f54a",
+   "/api/share/0123456789abcdef0123456789abcdef/download",
+   {
+    "assetId": "emoji-1f54a",
+    "src": "/api/share/0123456789abcdef0123456789abcdef/download"
+   }
+  ],
+  [
+   "emoji-1f54a",
+   "https://evil.example/x.png",
+   {
+    "assetId": "emoji-1f54a",
+    "src": null
+   }
+  ],
+  [
+   "emoji-1f393",
+   "/emoji-1f393.png",
+   {
+    "assetId": "emoji-1f393",
+    "src": null
+   }
+  ],
+  [
+   "emoji-1f393",
+   "/api/share/0123456789abcdef0123456789abcdef/download",
+   {
+    "assetId": "emoji-1f393",
+    "src": "/api/share/0123456789abcdef0123456789abcdef/download"
+   }
+  ],
+  [
+   "emoji-1f393",
+   "https://evil.example/x.png",
+   {
+    "assetId": "emoji-1f393",
+    "src": null
+   }
+  ],
+  [
+   "emoji-1f308",
+   "/emoji-1f308.png",
+   {
+    "assetId": "emoji-1f308",
+    "src": null
+   }
+  ],
+  [
+   "emoji-1f308",
+   "/api/share/0123456789abcdef0123456789abcdef/download",
+   {
+    "assetId": "emoji-1f308",
+    "src": "/api/share/0123456789abcdef0123456789abcdef/download"
+   }
+  ],
+  [
+   "emoji-1f308",
+   "https://evil.example/x.png",
+   {
+    "assetId": "emoji-1f308",
+    "src": null
+   }
+  ],
+  [
+   "sonnenblume-gelb",
+   "/sonnenblume-gelb.png",
+   {
+    "assetId": "sonnenblume-gelb",
+    "src": null
+   }
+  ],
+  [
+   "sonnenblume-gelb",
+   "/api/share/0123456789abcdef0123456789abcdef/download",
+   {
+    "assetId": "sonnenblume-gelb",
+    "src": "/api/share/0123456789abcdef0123456789abcdef/download"
+   }
+  ],
+  [
+   "sonnenblume-gelb",
+   "https://evil.example/x.png",
+   {
+    "assetId": "sonnenblume-gelb",
+    "src": null
+   }
+  ],
+  [
+   "sonnenblume-gruen",
+   "/sonnenblume-gruen.png",
+   {
+    "assetId": "sonnenblume-gruen",
+    "src": null
+   }
+  ],
+  [
+   "sonnenblume-gruen",
+   "/api/share/0123456789abcdef0123456789abcdef/download",
+   {
+    "assetId": "sonnenblume-gruen",
+    "src": "/api/share/0123456789abcdef0123456789abcdef/download"
+   }
+  ],
+  [
+   "sonnenblume-gruen",
+   "https://evil.example/x.png",
+   {
+    "assetId": "sonnenblume-gruen",
+    "src": null
+   }
+  ],
+  [
+   "sonnenblume-weiss",
+   "/sonnenblume-weiss.png",
+   {
+    "assetId": "sonnenblume-weiss",
+    "src": null
+   }
+  ],
+  [
+   "sonnenblume-weiss",
+   "/api/share/0123456789abcdef0123456789abcdef/download",
+   {
+    "assetId": "sonnenblume-weiss",
+    "src": "/api/share/0123456789abcdef0123456789abcdef/download"
+   }
+  ],
+  [
+   "sonnenblume-weiss",
+   "https://evil.example/x.png",
+   {
+    "assetId": "sonnenblume-weiss",
+    "src": null
+   }
+  ],
+  [
+   "teamgruen",
+   "/teamgruen.png",
+   {
+    "assetId": "teamgruen",
+    "src": null
+   }
+  ],
+  [
+   "teamgruen",
+   "/api/share/0123456789abcdef0123456789abcdef/download",
+   {
+    "assetId": "teamgruen",
+    "src": "/api/share/0123456789abcdef0123456789abcdef/download"
+   }
+  ],
+  [
+   "teamgruen",
+   "https://evil.example/x.png",
+   {
+    "assetId": "teamgruen",
+    "src": null
+   }
+  ],
+  [
+   "regenbogen",
+   "/regenbogen.png",
+   {
+    "assetId": "regenbogen",
+    "src": null
+   }
+  ],
+  [
+   "regenbogen",
+   "/api/share/0123456789abcdef0123456789abcdef/download",
+   {
+    "assetId": "regenbogen",
+    "src": "/api/share/0123456789abcdef0123456789abcdef/download"
+   }
+  ],
+  [
+   "regenbogen",
+   "https://evil.example/x.png",
+   {
+    "assetId": "regenbogen",
+    "src": null
+   }
+  ],
+  [
+   "regenbogen-herz",
+   "/regenbogen-herz.png",
+   {
+    "assetId": "regenbogen-herz",
+    "src": null
+   }
+  ],
+  [
+   "regenbogen-herz",
+   "/api/share/0123456789abcdef0123456789abcdef/download",
+   {
+    "assetId": "regenbogen-herz",
+    "src": "/api/share/0123456789abcdef0123456789abcdef/download"
+   }
+  ],
+  [
+   "regenbogen-herz",
+   "https://evil.example/x.png",
+   {
+    "assetId": "regenbogen-herz",
+    "src": null
+   }
+  ],
+  [
+   "progress-pride",
+   "/progress-pride.png",
+   {
+    "assetId": "progress-pride",
+    "src": null
+   }
+  ],
+  [
+   "progress-pride",
+   "/api/share/0123456789abcdef0123456789abcdef/download",
+   {
+    "assetId": "progress-pride",
+    "src": "/api/share/0123456789abcdef0123456789abcdef/download"
+   }
+  ],
+  [
+   "progress-pride",
+   "https://evil.example/x.png",
+   {
+    "assetId": "progress-pride",
+    "src": null
+   }
+  ],
+  [
+   "eu-flagge",
+   "/eu-flagge.png",
+   {
+    "assetId": "eu-flagge",
+    "src": null
+   }
+  ],
+  [
+   "eu-flagge",
+   "/api/share/0123456789abcdef0123456789abcdef/download",
+   {
+    "assetId": "eu-flagge",
+    "src": "/api/share/0123456789abcdef0123456789abcdef/download"
+   }
+  ],
+  [
+   "eu-flagge",
+   "https://evil.example/x.png",
+   {
+    "assetId": "eu-flagge",
+    "src": null
+   }
+  ],
+  [
+   "europa-sterne",
+   "/europa-sterne.png",
+   {
+    "assetId": "europa-sterne",
+    "src": null
+   }
+  ],
+  [
+   "europa-sterne",
+   "/api/share/0123456789abcdef0123456789abcdef/download",
+   {
+    "assetId": "europa-sterne",
+    "src": "/api/share/0123456789abcdef0123456789abcdef/download"
+   }
+  ],
+  [
+   "europa-sterne",
+   "https://evil.example/x.png",
+   {
+    "assetId": "europa-sterne",
+    "src": null
+   }
+  ],
+  [
+   "vielfalt",
+   "/vielfalt.png",
+   {
+    "assetId": "vielfalt",
+    "src": null
+   }
+  ],
+  [
+   "vielfalt",
+   "/api/share/0123456789abcdef0123456789abcdef/download",
+   {
+    "assetId": "vielfalt",
+    "src": "/api/share/0123456789abcdef0123456789abcdef/download"
+   }
+  ],
+  [
+   "vielfalt",
+   "https://evil.example/x.png",
+   {
+    "assetId": "vielfalt",
+    "src": null
+   }
+  ],
+  [
+   "at-gruen-waehlen",
+   "/at-gruen-waehlen.png",
+   {
+    "assetId": "at-gruen-waehlen",
+    "src": null
+   }
+  ],
+  [
+   "at-gruen-waehlen",
+   "/api/share/0123456789abcdef0123456789abcdef/download",
+   {
+    "assetId": "at-gruen-waehlen",
+    "src": "/api/share/0123456789abcdef0123456789abcdef/download"
+   }
+  ],
+  [
+   "at-gruen-waehlen",
+   "https://evil.example/x.png",
+   {
+    "assetId": "at-gruen-waehlen",
+    "src": null
+   }
+  ],
+  [
+   "at-klima-schuetzen",
+   "/at-klima-schuetzen.png",
+   {
+    "assetId": "at-klima-schuetzen",
+    "src": null
+   }
+  ],
+  [
+   "at-klima-schuetzen",
+   "/api/share/0123456789abcdef0123456789abcdef/download",
+   {
+    "assetId": "at-klima-schuetzen",
+    "src": "/api/share/0123456789abcdef0123456789abcdef/download"
+   }
+  ],
+  [
+   "at-klima-schuetzen",
+   "https://evil.example/x.png",
+   {
+    "assetId": "at-klima-schuetzen",
+    "src": null
+   }
+  ],
+  [
+   "at-jetzt-gruen",
+   "/at-jetzt-gruen.png",
+   {
+    "assetId": "at-jetzt-gruen",
+    "src": null
+   }
+  ],
+  [
+   "at-jetzt-gruen",
+   "/api/share/0123456789abcdef0123456789abcdef/download",
+   {
+    "assetId": "at-jetzt-gruen",
+    "src": "/api/share/0123456789abcdef0123456789abcdef/download"
+   }
+  ],
+  [
+   "at-jetzt-gruen",
+   "https://evil.example/x.png",
+   {
+    "assetId": "at-jetzt-gruen",
+    "src": null
+   }
+  ],
+  [
+   "emoji-1f600",
+   "/emoji-1f600.png",
+   {
+    "assetId": "emoji-1f600",
+    "src": null
+   }
+  ],
+  [
+   "emoji-1f600",
+   "/api/share/0123456789abcdef0123456789abcdef/download",
+   {
+    "assetId": "emoji-1f600",
+    "src": "/api/share/0123456789abcdef0123456789abcdef/download"
+   }
+  ],
+  [
+   "emoji-1f600",
+   "https://evil.example/x.png",
+   {
+    "assetId": "emoji-1f600",
+    "src": null
+   }
+  ],
+  [
+   "emoji-1f9d1_1f3fb",
+   "/emoji-1f9d1_1f3fb.png",
+   {
+    "assetId": "emoji-1f9d1_1f3fb",
+    "src": null
+   }
+  ],
+  [
+   "emoji-1f9d1_1f3fb",
+   "/api/share/0123456789abcdef0123456789abcdef/download",
+   {
+    "assetId": "emoji-1f9d1_1f3fb",
+    "src": "/api/share/0123456789abcdef0123456789abcdef/download"
+   }
+  ],
+  [
+   "emoji-1f9d1_1f3fb",
+   "https://evil.example/x.png",
+   {
+    "assetId": "emoji-1f9d1_1f3fb",
+    "src": null
+   }
+  ],
+  [
+   "emoji-xyz",
+   "/emoji-xyz.png",
+   null
+  ],
+  [
+   "emoji-xyz",
+   "/api/share/0123456789abcdef0123456789abcdef/download",
+   {
+    "assetId": "emoji-xyz",
+    "src": "/api/share/0123456789abcdef0123456789abcdef/download"
+   }
+  ],
+  [
+   "emoji-xyz",
+   "https://evil.example/x.png",
+   null
+  ],
+  [
+   "asset:0b6f3c1e-8a4d-4f5e-9c2a-7d1e5b3a9f10",
+   "/asset:0b6f3c1e-8a4d-4f5e-9c2a-7d1e5b3a9f10.png",
+   null
+  ],
+  [
+   "asset:0b6f3c1e-8a4d-4f5e-9c2a-7d1e5b3a9f10",
+   "/api/share/0123456789abcdef0123456789abcdef/download",
+   {
+    "assetId": "asset:0b6f3c1e-8a4d-4f5e-9c2a-7d1e5b3a9f10",
+    "src": "/api/share/0123456789abcdef0123456789abcdef/download"
+   }
+  ],
+  [
+   "asset:0b6f3c1e-8a4d-4f5e-9c2a-7d1e5b3a9f10",
+   "https://evil.example/x.png",
+   null
+  ],
+  [
+   "unknown",
+   "/unknown.png",
+   null
+  ],
+  [
+   "unknown",
+   "/api/share/0123456789abcdef0123456789abcdef/download",
+   {
+    "assetId": "unknown",
+    "src": "/api/share/0123456789abcdef0123456789abcdef/download"
+   }
+  ],
+  [
+   "unknown",
+   "https://evil.example/x.png",
+   null
+  ]
+ ]
+}

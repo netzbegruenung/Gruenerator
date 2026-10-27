@@ -1,57 +1,52 @@
 import { describe, expect, it } from 'vitest';
 
-import { canvasImageSourceUrl, originalImageFetchUrl } from './canvasImageSource';
+import { plainImageUrls, type CanvasImageUrlService } from '../hostServices';
+
+import { canvasImageSourceUrl } from './canvasImageSource';
+
+/** A host that keeps a 2160px variant of every stored image. */
+const host: CanvasImageUrlService = {
+  previewWidth: 2160,
+  previewUrl: (url) => `${url}#preview`,
+  originalUrl: (url) => `${url}#original`,
+  placementUrl: (item) => item.mediaUrl ?? null,
+};
 
 describe('canvasImageSourceUrl', () => {
-  it('renders the 2160px working tier while the box fits the export budget', () => {
+  it("renders the host's variant while the box fits the export budget", () => {
     // 1080 x 2 = 2160: sharp at the UI's max export scale.
-    expect(canvasImageSourceUrl('/api/share/abc123/download', 1080)).toBe(
-      '/api/share/abc123/preview?w=2160&fmt=webp'
-    );
-    expect(canvasImageSourceUrl('/api/share/abc123/download', 540)).toBe(
-      '/api/share/abc123/preview?w=2160&fmt=webp'
-    );
+    expect(canvasImageSourceUrl('/img.jpg', 1080, host)).toBe('/img.jpg#preview');
+    expect(canvasImageSourceUrl('/img.jpg', 540, host)).toBe('/img.jpg#preview');
   });
 
-  it('loads the stored original once the box exceeds the budget', () => {
-    expect(canvasImageSourceUrl('/api/share/abc123/download', 1081)).toBe(
-      '/api/share/abc123/download'
-    );
-  });
-
-  it('loads the stored original for a 3x-zoomed full-width background', () => {
-    expect(canvasImageSourceUrl('/api/share/abc123/download', 3240)).toBe(
-      '/api/share/abc123/download'
-    );
-  });
-
-  it.each([
-    ['blob: previews', 'blob:http://localhost/5d41402a-b4d3-11e9-9ee5-0a4c1e6b9c7c'],
-    ['remote stock URLs', 'https://images.unsplash.com/photo-123.jpg'],
-    ['data: URIs', 'data:image/png;base64,abc'],
-  ])('passes %s through unchanged at any width', (_label, url) => {
-    expect(canvasImageSourceUrl(url, 100)).toBe(url);
-    expect(canvasImageSourceUrl(url, 4000)).toBe(url);
+  it('loads the original once the box exceeds the budget', () => {
+    expect(canvasImageSourceUrl('/img.jpg', 1081, host)).toBe('/img.jpg#original');
+    // A 3x-zoomed full-width background.
+    expect(canvasImageSourceUrl('/img.jpg', 3240, host)).toBe('/img.jpg#original');
   });
 
   it('keeps undefined URLs undefined', () => {
-    expect(canvasImageSourceUrl(undefined, 1080)).toBeUndefined();
+    expect(canvasImageSourceUrl(undefined, 1080, host)).toBeUndefined();
+  });
+
+  it('passes every URL through unchanged without a host', () => {
+    for (const url of [
+      '/api/share/abc/download',
+      'blob:http://localhost/x',
+      'data:image/png;base64,a',
+    ]) {
+      expect(canvasImageSourceUrl(url, 100, plainImageUrls)).toBe(url);
+      expect(canvasImageSourceUrl(url, 4000, plainImageUrls)).toBe(url);
+    }
   });
 });
 
-describe('originalImageFetchUrl', () => {
-  it('fetches a share download link through /preview, the original without a deadline', () => {
-    expect(originalImageFetchUrl('/api/share/abc123/download')).toBe('/api/share/abc123/preview');
-  });
+describe('plainImageUrls.placementUrl', () => {
+  const item = { id: 'm1', shareToken: 'tok', thumbnailUrl: '/thumb.webp' };
 
-  it('leaves every other URL alone', () => {
-    for (const url of [
-      'blob:http://localhost/x',
-      'https://example.org/api/share/abc/download',
-      '/api/share/abc/preview?w=400',
-      '/api/image-picker/stock-image/a.jpg',
-    ]) {
-      expect(originalImageFetchUrl(url)).toBe(url);
-    }
+  it('places the media URL, else the thumbnail', () => {
+    expect(plainImageUrls.placementUrl({ ...item, mediaUrl: '/full.jpg' })).toBe('/full.jpg');
+    expect(plainImageUrls.placementUrl(item)).toBe('/thumb.webp');
+    expect(plainImageUrls.placementUrl({ ...item, thumbnailUrl: null })).toBeNull();
   });
 });

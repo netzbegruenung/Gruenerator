@@ -130,6 +130,50 @@ describe('distillPassages', () => {
     });
   });
 
+  describe('figures mode — a chart needs the table, not the prose about it', () => {
+    const TABLE =
+      'TABELLE Jahr Grüne ' +
+      Array.from(
+        { length: 30 },
+        (_, i) => `${1995 + i} ${(46000 + i * 3100).toLocaleString('de-DE')}`
+      ).join(' ');
+    const withTable = `${page(['ALPHA'])}\n\n${TABLE}\n\n${page(['CHARLIE'])}`;
+
+    it('keeps a figure-dense passage ahead of better-scored prose', async () => {
+      // The cross-encoder ranks the table LAST — exactly what it did live with
+      // the Wikipedia membership table (16.10.2026).
+      rerankPipeline.mockImplementation(rerankRanking(['CHARLIE', 'ALPHA', 'TABELLE']));
+      const out = await distillPassages({
+        ...base,
+        mode: 'figures',
+        text: withTable,
+        targetChars: 900,
+      });
+      expect(out.digest).toContain('TABELLE');
+      expect(out.digest).not.toContain('CHARLIE');
+    });
+
+    it('selects even with the kill switch off — the chart search has no raw-text past to keep', async () => {
+      process.env.CHAT_PASSAGE_DISTILL = 'false';
+      rerankPipeline.mockImplementation(rerankRanking(['CHARLIE', 'ALPHA', 'TABELLE']));
+      const out = await distillPassages({
+        ...base,
+        mode: 'figures',
+        text: withTable,
+        targetChars: 900,
+      });
+      expect(out.method).not.toBe('disabled');
+      expect(out.digest).toContain('TABELLE');
+    });
+
+    it('query-focused keeps ranking by relevance alone', async () => {
+      rerankPipeline.mockImplementation(rerankRanking(['CHARLIE', 'ALPHA', 'TABELLE']));
+      const out = await distillPassages({ ...base, text: withTable, targetChars: 900 });
+      expect(out.digest).toContain('CHARLIE');
+      expect(out.digest).not.toContain('TABELLE');
+    });
+  });
+
   describe('degradation is honest', () => {
     it('reports lexical, never cross-encoder, when the pipeline failed', async () => {
       rerankPipeline.mockResolvedValue({

@@ -1,3 +1,4 @@
+import { toast } from '@ggraphic/editor/utils/editorToast';
 import {
   createContext,
   useContext,
@@ -8,15 +9,24 @@ import {
   useState,
 } from 'react';
 
-import { useMediaLibrary, useMediaUpload } from '@gruenerator/shared/media-library';
+import { useCanvasEditorServices } from '../CanvasEditorProvider';
+import {
+  mediaLibraryOrFallback,
+  type CanvasMediaItem,
+  type CanvasMediaThumbProps,
+  type CanvasUploadSource,
+} from '../hostServices';
 
-import type { ReactNode } from 'react';
-import type { MediaItem, UploadSource } from '@gruenerator/shared/media-library';
+import type { ComponentType, ReactNode } from 'react';
 
 const SEARCH_DEBOUNCE_MS = 300;
+// Auf dem Handy ist das Löschen eine dauerhafte 44-px-Ecke jeder Kachel, die
+// selbst Antippen-zum-Platzieren ist. Gelöscht wird deshalb erst nach diesem
+// Fenster; bis dahin ist das Bild nur ausgeblendet und „Rückgängig“ kostenlos.
+const UNDO_WINDOW_MS = 5000;
 
 interface UserUploadsContextValue {
-  items: MediaItem[];
+  items: CanvasMediaItem[];
   isLoading: boolean;
   error: string | null;
   search: string;
@@ -26,13 +36,16 @@ interface UserUploadsContextValue {
    * the Uploads tab); pass 'canvas-element' for tool-generated images that are
    * placed straight onto the canvas and must stay out of the library.
    */
-  upload: (file: File, uploadSource?: UploadSource) => Promise<MediaItem | null>;
-  deleteFromLibrary: (id: string) => Promise<boolean>;
+  upload: (file: File, uploadSource?: CanvasUploadSource) => Promise<CanvasMediaItem | null>;
+  /** Hides the item at once and deletes it after an undo window (toast). */
+  deleteFromLibrary: (id: string) => void;
   isUploading: boolean;
   uploadProgress: number;
   uploadError: string | null;
   hasMore: boolean;
   loadMore: () => Promise<void>;
+  /** The host's responsive image for an item of `items`. */
+  MediaThumb: ComponentType<CanvasMediaThumbProps>;
 }
 
 const UserUploadsContext = createContext<UserUploadsContextValue | null>(null);
@@ -41,6 +54,10 @@ export function UserUploadsProvider({ children }: { children: ReactNode }) {
   const [search, setSearchState] = useState('');
   const lastAppliedSearchRef = useRef('');
 
+  // Host hooks: fixed for the lifetime of the editor (see hostServices.ts).
+  const { useMediaLibrary, useMediaUpload, MediaThumb } = mediaLibraryOrFallback(
+    useCanvasEditorServices().mediaLibrary
+  );
   const library = useMediaLibrary({
     initialFilters: { type: 'image', sort: 'newest' },
   });
@@ -57,36 +74,96 @@ export function UserUploadsProvider({ children }: { children: ReactNode }) {
   }, [search, library]);
 
   const upload = useCallback(
-    async (file: File, uploadSource: UploadSource = 'upload'): Promise<MediaItem | null> => {
+    async (
+      file: File,
+      uploadSource: CanvasUploadSource = 'upload'
+    ): Promise<CanvasMediaItem | null> => {
       const result = await uploader.upload(file, { uploadSource });
       if (!result) return null;
       return {
         id: result.id,
         shareToken: result.shareToken,
-        mediaType: result.mediaType,
         title: null,
         thumbnailUrl: null,
-        fileSize: file.size,
-        mimeType: file.type,
         altText: null,
-        uploadSource,
         originalFilename: file.name,
-        downloadCount: 0,
-        viewCount: 0,
-        createdAt: result.createdAt,
       };
     },
     [uploader]
   );
 
+  const [pendingDeletes, setPendingDeletes] = useState<ReadonlySet<string>>(() => new Set());
+  const pendingTimersRef = useRef(new Map<string, number>());
+  const deleteItemRef = useRef(library.deleteItem);
+  useEffect(() => {
+    deleteItemRef.current = library.deleteItem;
+  }, [library.deleteItem]);
+
+  const unhide = useCallback((id: string) => {
+    setPendingDeletes((prev) => {
+      const next = new Set(prev);
+      next.delete(id);
+      return next;
+    });
+  }, []);
+
+  const commitDelete = useCallback(
+    (id: string) => {
+      pendingTimersRef.current.delete(id);
+      // Schlägt das Löschen fehl, taucht das Bild wieder auf.
+      void deleteItemRef.current(id).finally(() => unhide(id));
+    },
+    [unhide]
+  );
+
   const deleteFromLibrary = useCallback(
-    async (id: string): Promise<boolean> => library.deleteItem(id),
-    [library]
+    (id: string) => {
+      if (pendingTimersRef.current.has(id)) return;
+      setPendingDeletes((prev) => new Set(prev).add(id));
+      pendingTimersRef.current.set(
+        id,
+        window.setTimeout(() => commitDelete(id), UNDO_WINDOW_MS)
+      );
+      toast('Bild gelöscht', {
+        duration: UNDO_WINDOW_MS,
+        action: {
+          label: 'Rückgängig',
+          onClick: () => {
+            const timer = pendingTimersRef.current.get(id);
+            if (timer === undefined) return;
+            window.clearTimeout(timer);
+            pendingTimersRef.current.delete(id);
+            unhide(id);
+          },
+        },
+      });
+    },
+    [commitDelete, unhide]
+  );
+
+  // Editor zu, bevor das Fenster abläuft: das Löschen trotzdem ausführen.
+  useEffect(() => {
+    const timers = pendingTimersRef.current;
+    return () => {
+      for (const [id, timer] of timers) {
+        window.clearTimeout(timer);
+        void deleteItemRef.current(id);
+      }
+      timers.clear();
+    };
+  }, []);
+
+  const visibleItems = useMemo(
+    () =>
+      pendingDeletes.size === 0
+        ? library.items
+        : library.items.filter((item) => !pendingDeletes.has(item.id)),
+    [library.items, pendingDeletes]
   );
 
   const value = useMemo<UserUploadsContextValue>(
     () => ({
-      items: library.items,
+      items: visibleItems,
       isLoading: library.isLoading,
       error: library.error,
       search,
@@ -98,9 +175,10 @@ export function UserUploadsProvider({ children }: { children: ReactNode }) {
       uploadError: uploader.error,
       hasMore: library.pagination.hasMore,
       loadMore: library.loadMore,
+      MediaThumb,
     }),
     [
-      library.items,
+      visibleItems,
       library.isLoading,
       library.error,
       library.pagination.hasMore,
@@ -111,10 +189,16 @@ export function UserUploadsProvider({ children }: { children: ReactNode }) {
       uploader.isUploading,
       uploader.progress,
       uploader.error,
+      MediaThumb,
     ]
   );
 
   return <UserUploadsContext.Provider value={value}>{children}</UserUploadsContext.Provider>;
+}
+
+/** Wie `useUserUploads`, aber `null` außerhalb des Editors (z. B. `StandaloneCanvas`). */
+export function useOptionalUserUploads(): UserUploadsContextValue | null {
+  return useContext(UserUploadsContext);
 }
 
 export function useUserUploads(): UserUploadsContextValue {

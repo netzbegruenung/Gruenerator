@@ -131,3 +131,101 @@ describe('GET /api/chat-service/messages — attachment preview', () => {
     expect(message!.attachments[0]!.preview).toBe('Präambel\n\nBeschluss');
   });
 });
+
+describe('GET /api/chat-service/messages — notebook reader chips', () => {
+  it('restores the reader hand-over as attachment chips after a reload', async () => {
+    const DOC = '00000000-0000-4000-8000-000000000001';
+    query.mockResolvedValueOnce([
+      {
+        id: 'm1',
+        role: 'user',
+        content: 'Fasse dieses Dokument zusammen.',
+        tool_calls: null,
+        tool_results: {
+          roleName: 'Pressesprecher*in',
+          notebookSources: [
+            { ref: { documentId: DOC, notebookId: null }, title: 'Antrag Radweg' },
+            {
+              ref: { collectionId: 'hamburg-system', sourceUrl: 'https://gruene-hamburg.de/a' },
+              title: null,
+            },
+            { ref: { documentId: 'not-a-uuid' }, title: 'kaputt' },
+          ],
+        },
+        user_id: 'u1',
+        status: 'complete',
+        created_at: '2026-10-22T10:00:00Z',
+        attachments: [],
+      },
+    ]);
+    let body: unknown;
+    const res = {
+      status: () => res,
+      json: (b: unknown) => {
+        body = b;
+        return res;
+      },
+    };
+    await handler({ query: { threadId: 't1' }, user: { id: 'u1' } }, res);
+
+    const [message] = body as Array<{
+      attachments?: unknown[];
+      metadata: Record<string, unknown>;
+    }>;
+    // A malformed entry drops the whole list rather than half-restoring it.
+    expect(message!.attachments).toBeUndefined();
+    expect(message!.metadata.roleName).toBe('Pressesprecher*in');
+  });
+
+  it('maps each persisted reader source to a chip', async () => {
+    const DOC = '00000000-0000-4000-8000-000000000001';
+    query.mockResolvedValueOnce([
+      {
+        id: 'm1',
+        role: 'user',
+        content: 'Fasse dieses Dokument zusammen.',
+        tool_calls: null,
+        tool_results: {
+          notebookSources: [
+            { ref: { documentId: DOC, notebookId: 'nb-1' }, title: 'Antrag Radweg' },
+            {
+              ref: { collectionId: 'hamburg-system', sourceUrl: 'https://gruene-hamburg.de/a' },
+              title: null,
+            },
+          ],
+        },
+        user_id: 'u1',
+        status: 'complete',
+        created_at: '2026-10-22T10:00:00Z',
+        attachments: [],
+      },
+    ]);
+    let body: unknown;
+    const res = {
+      status: () => res,
+      json: (b: unknown) => {
+        body = b;
+        return res;
+      },
+    };
+    await handler({ query: { threadId: 't1' }, user: { id: 'u1' } }, res);
+
+    const [message] = body as Array<{ attachments: unknown[] }>;
+    expect(message!.attachments).toEqual([
+      {
+        id: `notebook-source-${DOC}`,
+        name: 'Antrag Radweg',
+        contentType: 'application/x-gruenerator-notebook-source',
+        preview: '',
+        truncated: false,
+      },
+      {
+        id: 'notebook-source-hamburg-system:https://gruene-hamburg.de/a',
+        name: 'Notebook-Dokument',
+        contentType: 'application/x-gruenerator-notebook-source',
+        preview: '',
+        truncated: false,
+      },
+    ]);
+  });
+});

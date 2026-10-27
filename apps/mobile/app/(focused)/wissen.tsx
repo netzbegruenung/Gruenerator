@@ -17,9 +17,9 @@ import {
 } from 'react-native';
 
 import { BottomComposerBar } from '../../components/common/BottomComposerBar';
-import { NotebookGradientBackground } from '../../components/common/NotebookGradientBackground';
+import { NeutralBackdrop } from '../../components/common/NeutralBackdrop';
 import { ScreenScaffold } from '../../components/navigation/ScreenScaffold';
-import { CommunityNotebooksSection } from '../../components/notebook/CommunityNotebooksSection';
+import { MarketplaceNotebooksTile } from '../../components/notebook/MarketplaceNotebooksTile';
 import { NotebookCoverArt } from '../../components/notebook/NotebookCoverArt';
 import { NotebookCreator } from '../../components/notebook/NotebookCreator';
 import { NotebookSection } from '../../components/notebook/NotebookSection';
@@ -46,7 +46,6 @@ import { useFavoritesStore } from '../../stores/favoritesStore';
 import {
   colors,
   spacing,
-  typography,
   borderRadius,
   lightTheme,
   darkTheme,
@@ -224,7 +223,7 @@ export default function NotebooksScreen() {
   return (
     <ScreenScaffold
       title="Wissen"
-      backdrop={<NotebookGradientBackground />}
+      backdrop={<NeutralBackdrop />}
       // Opened from its tile on Arbeiten; a cold link has nothing beneath it.
       onBack={() => goBackOr('/start')}
     >
@@ -268,6 +267,7 @@ export default function NotebooksScreen() {
               notebooks={weitere}
               onNotebookPress={handleNotebookPress}
               onNotebookLongPress={handleToggleFavourite}
+              trailing={<MarketplaceNotebooksTile enabled={!!user} size={tileSize} />}
             />
             <NotebookSection
               title="Österreich"
@@ -277,18 +277,7 @@ export default function NotebooksScreen() {
             />
 
             <View style={styles.section}>
-              <View style={styles.sectionHeader}>
-                <Text style={[styles.sectionTitle, { color: theme.text }]}>Meine Notebooks</Text>
-                <Pressable
-                  onPress={() => setCreatorVisible(true)}
-                  style={[styles.addButton, { backgroundColor: colors.primary[600] + '15' }]}
-                  hitSlop={8}
-                  accessibilityRole="button"
-                  accessibilityLabel="Notebook erstellen"
-                >
-                  <Ionicons name="add" size={20} color={colors.primary[600]} />
-                </Pressable>
-              </View>
+              <Text style={[styles.sectionTitle, { color: theme.text }]}>Meine Notebooks</Text>
               {isLoading ? (
                 <View style={notebookTileGridStyle}>
                   {[0, 1, 2].map((i) => (
@@ -306,10 +295,6 @@ export default function NotebooksScreen() {
                     />
                   ))}
                 </View>
-              ) : collections.length === 0 ? (
-                <Text style={[styles.emptyText, { color: theme.textSecondary }]}>
-                  Noch keine eigenen Notebooks.
-                </Text>
               ) : (
                 <View style={notebookTileGridStyle}>
                   {collections.map((c) => (
@@ -341,11 +326,16 @@ export default function NotebooksScreen() {
                       }
                     />
                   ))}
+                  <NotebookTile
+                    icon="add"
+                    title="Neues erstellen"
+                    meta="Eigene Quellen sammeln und befragen."
+                    size={tileSize}
+                    onPress={() => setCreatorVisible(true)}
+                  />
                 </View>
               )}
             </View>
-
-            <CommunityNotebooksSection enabled={!!user} onOpen={handleCollectionPress} />
           </View>
 
           <NotebookCreator
@@ -417,27 +407,10 @@ const styles = StyleSheet.create({
   section: {
     marginBottom: spacing.large,
   },
-  sectionHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
   sectionTitle: {
     fontFamily: HEADING_FONT_BOLD,
     fontSize: 17,
     marginBottom: spacing.small,
-  },
-  addButton: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  emptyText: {
-    ...typography.bodySmall,
-    textAlign: 'center',
-    paddingVertical: spacing.large,
   },
   skeletonTile: {
     borderRadius: borderRadius.large,

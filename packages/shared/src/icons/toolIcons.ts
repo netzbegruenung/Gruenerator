@@ -24,7 +24,13 @@ export type ToolIconKey =
   | 'imageSquare'
   | 'videoCamera'
   | 'book'
-  | 'userCircle';
+  | 'userCircle'
+  | 'sticker'
+  | 'translate'
+  | 'newspaper'
+  | 'bookOpen'
+  | 'storefront'
+  | 'wrench';
 
 /**
  * Tool id → glyph. Ids are the shared ones (F1-frozen on mobile, where
@@ -32,6 +38,7 @@ export type ToolIconKey =
  */
 export const TOOL_ICON_KEYS = {
   agents: 'spy',
+  marktplatz: 'storefront',
   projekte: 'userGroup',
   scanner: 'scan',
   vorlagen: 'paintBrush',
@@ -40,6 +47,12 @@ export const TOOL_ICON_KEYS = {
   reel: 'videoCamera',
   wissen: 'book',
   profilbild: 'userCircle',
+  sticker: 'sticker',
+  uebersetzer: 'translate',
+  newsletter: 'newspaper',
+  doku: 'bookOpen',
+  // Not a tool: the „Weitere" tile that opens the rest (web's `navigation.tools`).
+  weitere: 'wrench',
 } as const satisfies Record<string, ToolIconKey>;
 
 export type ToolIconId = keyof typeof TOOL_ICON_KEYS;

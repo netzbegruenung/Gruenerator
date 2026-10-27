@@ -4,21 +4,7 @@ import babel from '@rolldown/plugin-babel';
 import { reactCompilerPreset } from '@vitejs/plugin-react';
 import { defineConfig } from 'vitest/config';
 
-// Beide Lanes erben dieses `resolve`: seit vitest 5 erweitern inline
-// `test.projects` die Wurzel-Config, wie in apps/web.
-const resolve = {
-  alias: {
-    // Subpath resolved via vite alias in the apps (no exports-map entry) —
-    // mirror it here so configs importing runtime values from it load.
-    '@gruenerator/shared/canvas-editor': path.resolve(
-      import.meta.dirname,
-      '../shared/src/canvas-editor/index.ts'
-    ),
-  },
-};
-
 export default defineConfig({
-  resolve,
   test: {
     projects: [
       {
@@ -38,9 +24,13 @@ export default defineConfig({
           // Sicher, solange keine Testdatei Modulzustand mutiert: hier gibt es
           // kein vi.mock, kein Global-/Env-Stubbing, keine Schreibzugriffe auf
           // die Config-Singletons — Tests lesen nur und erzeugen Zustand über
-          // createInitialState frisch.
+          // createInitialState frisch. Der Asset-Katalog des Hosts ist das eine
+          // Modul-Register: das Setup trägt den des Grünerators ein, und
+          // `assetCatalog.vitest.ts` setzt ihn nach seinem Probe-Katalog sofort
+          // zurück.
           isolate: false,
           maxWorkers: 1,
+          setupFiles: ['./vitest.setup.assets.ts'],
           // Getrennte Gruppen, weil die Lanes verschiedene `maxWorkers`
           // haben — vitest 4 lehnt sonst den ganzen Lauf ab. Die schnelle
           // Node-Lane zuerst.
@@ -52,11 +42,22 @@ export default defineConfig({
         // `*.vitest.tsx`, damit die schnelle Node-Lane unberührt bleibt. Der
         // React-Compiler-Preset ist derselbe, den `vite build` fährt.
         plugins: [babel({ presets: [reactCompilerPreset()] })],
+        // @tanstack/react-query ships a nested older react; without one copy a
+        // hook under QueryClientProvider dies at "reading 'useEffect'". Same
+        // fix as apps/web/vitest.config.ts.
+        resolve: {
+          dedupe: ['react', 'react-dom'],
+          alias: {
+            react: path.resolve(import.meta.dirname, '../../node_modules/react'),
+            'react-dom': path.resolve(import.meta.dirname, '../../node_modules/react-dom'),
+          },
+        },
         test: {
           name: 'dom',
+          server: { deps: { inline: ['@tanstack/react-query'] } },
           include: ['**/*.vitest.tsx'],
           environment: 'jsdom',
-          setupFiles: ['./vitest.setup.ts'],
+          setupFiles: ['./vitest.setup.assets.ts', './vitest.setup.kinds.ts', './vitest.setup.ts'],
           sequence: { groupOrder: 1 },
         },
       },

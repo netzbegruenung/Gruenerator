@@ -1,11 +1,10 @@
-import { Popover, PopoverContent, PopoverTrigger } from '@gruenerator/ui';
+import { CustomColorSwatch } from '@ggraphic/editor/components/CustomColorSwatch';
+import { Popover, PopoverContent, PopoverTrigger } from '@ggraphic/editor/ui/popover';
+import { brandColors } from '@ggraphic/editor/utils/colorOptions';
+import { createDefaultGradient, type GradientFill } from '@ggraphic/editor/utils/gradientFill';
 import { Slider } from 'radix-ui';
-import React from 'react';
+import React, { useId } from 'react';
 import { PiPaintBucket } from 'react-icons/pi';
-
-import { createDefaultGradient, type GradientFill } from '../../../utils/gradientFill';
-import { BRAND_COLORS } from '../../../utils/shapes';
-import { CustomColorSwatch } from '../../CustomColorSwatch';
 
 interface FloatingGradientControlProps {
   currentColor: string;
@@ -25,10 +24,10 @@ function StopSwatches({
 }) {
   return (
     <div className="flex flex-wrap items-center gap-1.5">
-      {BRAND_COLORS.map((c) => (
+      {brandColors().map((c) => (
         <button
           key={c.id}
-          className="size-5 rounded-full border border-black/10 hover:scale-110 transition-transform"
+          className="size-6 rounded-full border border-black/10 hover:scale-110 transition-transform"
           style={{
             backgroundColor: c.value,
             outline: selected === c.value ? '2px solid var(--editor-accent)' : 'none',
@@ -36,12 +35,14 @@ function StopSwatches({
           }}
           onClick={() => onSelect(c.value)}
           title={c.name}
+          aria-label={c.name}
+          aria-pressed={selected === c.value}
           type="button"
         />
       ))}
       <CustomColorSwatch
         value={selected}
-        presets={BRAND_COLORS.map((c) => c.value)}
+        presets={brandColors().map((c) => c.value)}
         onPick={onSelect}
         className="size-5"
         outlineOffset={1}
@@ -65,6 +66,8 @@ export function FloatingGradientControl({
     onChange({ ...g, stops });
   };
 
+  const titleId = useId();
+
   return (
     <Popover>
       <PopoverTrigger asChild>
@@ -80,9 +83,15 @@ export function FloatingGradientControl({
           />
         </button>
       </PopoverTrigger>
-      <PopoverContent className="z-[10001] w-64 flex flex-col gap-3 p-3" align="center">
+      <PopoverContent
+        className="z-[10001] w-64 flex flex-col gap-3 p-3"
+        align="center"
+        aria-labelledby={titleId}
+      >
         <div className="flex items-center justify-between">
-          <span className="text-xs font-medium text-[var(--editor-text)]">Farbverlauf</span>
+          <span id={titleId} className="text-xs font-medium text-[var(--editor-text)]">
+            Farbverlauf
+          </span>
           {active ? (
             <button
               className="text-[11px] font-medium text-[var(--editor-accent)] hover:underline"
@@ -125,7 +134,7 @@ export function FloatingGradientControl({
               <div className="flex items-center gap-2">
                 <span className="text-[11px] w-12 text-[var(--editor-text-muted)]">Winkel</span>
                 <Slider.Root
-                  className="relative flex items-center select-none touch-none grow h-4"
+                  className="relative flex items-center select-none touch-none grow h-4 max-canvas-mobile:h-11"
                   value={[g.angle]}
                   onValueChange={(v) => onChange({ ...g, angle: v[0] })}
                   min={0}
@@ -136,7 +145,7 @@ export function FloatingGradientControl({
                     <Slider.Range className="absolute rounded-full h-full bg-[var(--editor-accent)]" />
                   </Slider.Track>
                   <Slider.Thumb
-                    className="block size-3 bg-white rounded-full border-2 border-[var(--editor-accent)] shadow-[0_1px_3px_rgba(0,0,0,0.2)] cursor-grab focus:outline-none"
+                    className="block size-3 max-canvas-mobile:size-5 bg-white rounded-full border-2 border-[var(--editor-accent)] shadow-[0_1px_3px_rgba(0,0,0,0.2)] cursor-grab outline-none kbd:focus-visible:outline-2 kbd:focus-visible:outline-solid kbd:focus-visible:outline-offset-2 kbd:focus-visible:outline-[var(--editor-accent)]"
                     aria-label="Winkel"
                   />
                 </Slider.Root>

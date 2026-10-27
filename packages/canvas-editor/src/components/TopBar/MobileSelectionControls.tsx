@@ -1,8 +1,8 @@
+import { useCanvasStoreSelector } from '@ggraphic/editor/stores/CanvasStoreProvider';
+import { cn } from '@ggraphic/editor/utils/cn';
 import React from 'react';
 
 import { HIDDEN_SCROLLBAR } from '../../sidebar/sidebarStyles';
-import { useCanvasStoreSelector } from '../../stores/CanvasStoreProvider';
-import { cn } from '../../utils/cn';
 
 import { ContextControls, type ContextControlsProps } from './ContextControls';
 
@@ -44,7 +44,7 @@ export function MobileSelectionControls(props: ContextControlsProps) {
       </span>
       <div
         className={cn(
-          'flex items-center gap-1.5 overflow-x-auto -mx-5 px-5 py-1',
+          'canvas-scroll-fade-x flex items-center gap-1.5 overflow-x-auto -mx-5 px-5 py-1',
           HIDDEN_SCROLLBAR
         )}
       >

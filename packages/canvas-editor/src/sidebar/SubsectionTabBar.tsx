@@ -1,11 +1,12 @@
-import { useState, type ReactNode } from 'react';
-
-import type { IconType } from 'react-icons';
+import { useRovingToolbar } from '@ggraphic/editor/hooks/useRovingToolbar';
+import { cn } from '@ggraphic/editor/utils/cn';
+import { useId, useState, type ReactNode } from 'react';
 
 import { useIsCanvasMobile } from '../hooks/useIsCanvasMobile';
 
 import { HIDDEN_SCROLLBAR } from './sidebarStyles';
-import { cn } from '../utils/cn';
+
+import type { IconType } from 'react-icons';
 
 export interface Subsection {
   id: string;
@@ -22,6 +23,8 @@ export interface SubsectionTabBarProps {
 export function SubsectionTabBar({ subsections, defaultSubsection }: SubsectionTabBarProps) {
   const isMobile = useIsCanvasMobile();
   const [localActiveSubsection, setLocalActiveSubsection] = useState<string | null>(null);
+  const baseId = useId();
+  const roving = useRovingToolbar<HTMLDivElement>('[role="tab"]');
 
   if (!isMobile) {
     return (
@@ -45,9 +48,10 @@ export function SubsectionTabBar({ subsections, defaultSubsection }: SubsectionT
     <div className="flex flex-col gap-4">
       {subsections.length > 1 && (
         <div
+          {...roving}
           role="tablist"
           aria-label="Ansicht"
-          className={cn('flex gap-2 overflow-x-auto -mx-5 px-5', HIDDEN_SCROLLBAR)}
+          className={cn('flex gap-2 overflow-x-auto -mx-5 px-5 py-1.5 -my-1.5', HIDDEN_SCROLLBAR)}
         >
           {subsections.map((sub) => {
             const isActive = activeId === sub.id;
@@ -56,9 +60,11 @@ export function SubsectionTabBar({ subsections, defaultSubsection }: SubsectionT
                 key={sub.id}
                 type="button"
                 role="tab"
+                id={`${baseId}-tab-${sub.id}`}
                 aria-selected={isActive}
+                aria-controls={`${baseId}-panel`}
                 className={cn(
-                  'flex-none h-8 px-3.5 rounded-2xl border-none cursor-pointer text-sm whitespace-nowrap transition-colors duration-150',
+                  'touch-target flex-none h-8 px-3.5 rounded-2xl border-none cursor-pointer text-sm whitespace-nowrap transition-colors duration-150',
                   isActive
                     ? 'bg-[var(--editor-active-bg)] text-[var(--editor-active-fg)] font-bold'
                     : 'bg-[var(--editor-tile)] text-[var(--editor-text-secondary)] font-semibold'
@@ -72,7 +78,13 @@ export function SubsectionTabBar({ subsections, defaultSubsection }: SubsectionT
         </div>
       )}
       {activeContent && (
-        <div key={activeId} className="[&>*]:animate-subsection-fade-in">
+        <div
+          key={activeId}
+          role="tabpanel"
+          id={`${baseId}-panel`}
+          aria-labelledby={`${baseId}-tab-${activeId}`}
+          className="[&>*]:animate-subsection-fade-in"
+        >
           {activeContent}
         </div>
       )}

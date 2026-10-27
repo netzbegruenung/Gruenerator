@@ -30,6 +30,9 @@ vi.mock('./tabs/UsersTab', () => ({ default: () => <div>Nutzerliste</div> }));
 vi.mock('./tabs/SkillsTab', () => ({ default: () => <div>Rezeptliste</div> }));
 vi.mock('./tabs/AgentsTab', () => ({ default: () => <div>Agentenliste</div> }));
 vi.mock('./tabs/RolesTab', () => ({ default: () => <div>Rollenliste</div> }));
+vi.mock('./tabs/StatisticsTab', () => ({ default: () => <div>Statistik</div> }));
+vi.mock('./tabs/ReportsTab', () => ({ default: () => <div>Meldungsliste</div> }));
+vi.mock('./components/ReportsTabLabel', () => ({ default: () => <>Meldungen</> }));
 vi.mock('./tabs/VorlagenTab', () => ({ default: () => <div>Vorlagenliste</div> }));
 vi.mock('./landesverband-assignment/LandesverbandAssignmentTab', () => ({
   default: () => <div>LV-Zuteilung</div>,
@@ -74,8 +77,11 @@ describe('AdminPage', () => {
       'Rezepte',
       'Agenten',
       'Rollen',
+      'Statistik',
+      'App-Updates',
       'Glossar',
       'Vorlagen',
+      'Meldungen',
       'Landesverbände',
     ]);
   });
@@ -85,7 +91,16 @@ describe('AdminPage', () => {
   it('lässt weg, was die Instanz nicht führt', async () => {
     await renderAdminOn('bgst');
 
-    expect(tabNames()).toEqual(['Nutzer:innen', 'Rezepte', 'Agenten', 'Rollen', 'Glossar']);
+    expect(tabNames()).toEqual([
+      'Nutzer:innen',
+      'Rezepte',
+      'Agenten',
+      'Rollen',
+      'Statistik',
+      'App-Updates',
+      'Glossar',
+      'Meldungen',
+    ]);
     expect(screen.queryByRole('tab', { name: 'Vorlagen' })).toBeNull();
     expect(screen.queryByRole('tab', { name: 'Landesverbände' })).toBeNull();
   });

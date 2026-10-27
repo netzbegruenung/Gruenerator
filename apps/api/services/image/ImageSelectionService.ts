@@ -2,9 +2,10 @@ import fs from 'fs/promises';
 import path, { dirname } from 'path';
 import { fileURLToPath } from 'url';
 
+import { selectCatalogImage } from './selectCatalogImage.js';
+
 import type {
   ImageCatalog,
-  ImageCatalogEntry,
   ImageSelectionOptions,
   ImageSelectionResult,
   ImageSelectionServiceStats,
@@ -13,21 +14,7 @@ import type {
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
-interface ImageGraphResult {
-  error?: string;
-  selectedImage: ImageCatalogEntry;
-  confidence: number;
-  reasoning: string;
-  alternatives: ImageCatalogEntry[];
-  metadata?: {
-    totalImages?: number;
-    totalImagesConsidered?: number;
-    selectionMethod?: string;
-  };
-}
-
 class ImageSelectionService {
-  private imageGraph: { invoke: (input: unknown) => Promise<ImageGraphResult> } | null = null;
   private imageCatalog: ImageCatalog | null = null;
   private readonly basePath: string;
 
@@ -40,13 +27,6 @@ class ImageSelectionService {
   }
 
   async initialize(): Promise<void> {
-    if (!this.imageGraph) {
-      const { imageSelectionGraph } =
-        await import('../../agents/langgraph/ImageSelectionGraph/index.js');
-      this.imageGraph = imageSelectionGraph as unknown as typeof this.imageGraph;
-      console.log('[ImageSelectionService] LangGraph service initialized');
-    }
-
     if (!this.imageCatalog) {
       const catalogPath = path.join(this.basePath, 'image_alt_texts.json');
       const catalogData = await fs.readFile(catalogPath, 'utf8');
@@ -64,34 +44,26 @@ class ImageSelectionService {
     await this.initialize();
 
     const sharepicType = options.sharepicType || 'general';
+    const images = this.imageCatalog!.images;
 
     try {
-      console.log(
-        `[ImageSelectionService] Using LangGraph for image selection: "${text.substring(0, 50)}..."`
-      );
-
-      const result = await this.imageGraph!.invoke({ text, sharepicType });
-
-      if (result.error) {
-        throw new Error(result.error);
-      }
+      const result = await selectCatalogImage(text, sharepicType, images);
 
       return {
         selectedImage: result.selectedImage,
         confidence: result.confidence,
         reasoning: result.reasoning,
-        alternatives: result.alternatives || [],
+        alternatives: result.alternatives,
         metadata: {
-          totalImages: result.metadata?.totalImages || 0,
-          candidatesFound:
-            result.metadata?.totalImagesConsidered || result.metadata?.totalImages || 0,
+          totalImages: images.length,
+          candidatesFound: images.length,
           themes: [],
           keywords: [],
-          processingMethod: result.metadata?.selectionMethod || 'direct_description_matching',
+          processingMethod: result.selectionMethod,
         },
       };
     } catch (error: unknown) {
-      console.error('[ImageSelectionService] LangGraph selection failed:', error);
+      console.error('[ImageSelectionService] Image selection failed:', error);
       throw new Error(
         `Image selection failed: ${error instanceof Error ? error.message : String(error)}`
       );
@@ -114,9 +86,9 @@ class ImageSelectionService {
 
   getStats(): ImageSelectionServiceStats {
     return {
-      serviceName: 'LangGraph Image Picker',
+      serviceName: 'AI Image Picker',
       method: 'two-step-ai-selection',
-      initialized: !!this.imageGraph,
+      initialized: !!this.imageCatalog,
     };
   }
 
@@ -125,7 +97,7 @@ class ImageSelectionService {
   }
 
   clearCache(): void {
-    console.log('[ImageSelectionService] Cache clear requested (no cache in LangGraph version)');
+    console.log('[ImageSelectionService] Cache clear requested (no cache)');
   }
 }
 

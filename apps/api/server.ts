@@ -31,6 +31,7 @@ import { requireAuth } from './middleware/authMiddleware.js';
 import { shouldSkipBodyParser } from './middleware/bodyParserConfig.js';
 import { createCacheMiddleware } from './middleware/cacheMiddleware.js';
 import { shouldCompress } from './middleware/compressionFilter.js';
+import { jsonBody } from './middleware/jsonBody.js';
 import { setupRoutes } from './routes.js';
 import {
   startModelLatencyCleanup,
@@ -243,7 +244,7 @@ async function startWorker(): Promise<void> {
     if (shouldSkipBodyParser(req)) {
       return next();
     }
-    express.json({ limit: '50mb' })(req, res, next);
+    jsonBody('50mb')(req, res, next);
   });
 
   app.use((req: Request, res: Response, next: NextFunction) => {
@@ -705,20 +706,36 @@ async function startWorker(): Promise<void> {
     next();
   });
 
-  // Sentry error handler (must be before custom error handler).
+  // Sentry error capture (must be before custom error handler).
   //
-  // Sentry's default `shouldHandleError` only captures 5xx, which silently
-  // drops every Better Auth credential / OAuth-state / JWT failure (all 4xx).
-  // Widen to also capture 400/401/403 — the auth failure universe — while
-  // still excluding noisy 404s and benign 422 validations.
-  Sentry.setupExpressErrorHandler(app, {
-    shouldHandleError(error) {
-      const raw = error.statusCode ?? error.status ?? error.output?.statusCode ?? 500;
+  // Sentry's default only captures 5xx, which silently drops every Better Auth
+  // credential / OAuth-state / JWT failure (all 4xx). Widen to also capture
+  // 400/401/403 — the auth failure universe — while still excluding noisy 404s
+  // and benign 422 validations. Ours rather than SDK v11's built-in capture
+  // (switched off in instrument.ts): that one only sees thrown errors, not
+  // errors handed to `next(err)`, and the SDK's fallback middleware ignores
+  // `shouldHandleError`.
+  app.use(
+    (
+      err: Error & {
+        status?: number | string;
+        statusCode?: number | string;
+        output?: { statusCode?: number | string };
+      },
+      _req: Request,
+      _res: Response,
+      next: NextFunction
+    ) => {
+      const raw = err.statusCode ?? err.status ?? err.output?.statusCode ?? 500;
       const status = typeof raw === 'string' ? Number.parseInt(raw, 10) : raw;
-      if (!Number.isFinite(status)) return true;
-      return status >= 500 || status === 400 || status === 401 || status === 403;
-    },
-  });
+      if (!Number.isFinite(status) || status >= 500 || [400, 401, 403].includes(status)) {
+        Sentry.captureException(err, {
+          mechanism: { type: 'auto.middleware.express', handled: false },
+        });
+      }
+      next(err);
+    }
+  );
 
   // Error handler
   app.use((err: Error, req: Request, res: Response, _next: NextFunction) => {

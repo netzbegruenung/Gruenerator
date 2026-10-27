@@ -54,6 +54,19 @@ const text = z
   .transform((value) => value.replace(CITATION_MARKER_RE, '').trim())
   .pipe(z.string().min(1));
 
+/**
+ * A tile value the model wrote as a number (`"value": 2114.23` — the prompt's
+ * „Zahlen als Zahl" rule invites it) is shown German-style instead of failing
+ * the block and leaking the raw JSON fence into the answer (#5043).
+ */
+const figure = z.union([
+  text,
+  z
+    .number()
+    .finite()
+    .transform((n) => n.toLocaleString('de-DE', { maximumFractionDigits: 2 })),
+]);
+
 /** Semantic colours; each client maps them onto its own theme tokens. */
 export const visualToneSchema = z.enum([
   'primary',
@@ -73,7 +86,7 @@ const common = {
 
 export const chartBlockSchema = chartPayloadSchema.extend({
   ...common,
-  data: z.array(z.record(z.union([z.string(), z.number()]))).min(1),
+  data: z.array(z.record(z.string(), z.union([z.string(), z.number()]))).min(1),
   yKeys: z.array(z.string()).min(1),
 });
 export type ChartBlock = z.infer<typeof chartBlockSchema>;
@@ -111,7 +124,7 @@ export const statsBlockSchema = z.object({
     .array(
       z.object({
         label: text,
-        value: text,
+        value: figure,
         /** Change line, free text: "+3,2 % ggü. 2020". */
         change: text.optional(),
         trend: z.enum(['up', 'down', 'flat']).optional(),
@@ -189,7 +202,7 @@ export const tableBlockSchema = z.object({
     .min(1)
     .max(8),
   rows: z
-    .array(z.record(z.union([z.string(), z.number(), z.null()])))
+    .array(z.record(z.string(), z.union([z.string(), z.number(), z.null()])))
     .min(1)
     .max(100),
 });
@@ -224,6 +237,14 @@ export function parseVisualBlock(language: string, code: string): VisualBlock | 
     json = JSON.parse(code);
   } catch {
     return null;
+  }
+  // Live 16.10.2026: the chart lane wrote `"yKey":["wert"]`, and the whole
+  // block fell back to raw JSON. The singular is unambiguous, so read it.
+  if (language === 'chart' && typeof json === 'object' && json !== null && !Array.isArray(json)) {
+    const { yKey, ...rest } = json as Record<string, unknown>;
+    if (rest['yKeys'] == null && yKey != null) {
+      json = { ...rest, yKeys: Array.isArray(yKey) ? yKey : [yKey] };
+    }
   }
   const result = SCHEMAS[language].safeParse(json);
   if (!result.success) return null;

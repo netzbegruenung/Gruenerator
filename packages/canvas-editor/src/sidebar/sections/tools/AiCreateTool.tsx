@@ -3,6 +3,7 @@ import { HiSparkles } from 'react-icons/hi';
 
 import { useCanvasEditorServices } from '../../../CanvasEditorProvider';
 import { useAiImageGeneration, type AiVariant } from '../../../hooks/useAiImageGeneration';
+import { MOBILE_INPUT_TEXT } from '../../sidebarStyles';
 import { useUserUploads } from '../../UserUploadsProvider';
 
 import { ToolPanel, type ToolPanelSuccess } from './ToolPanel';
@@ -69,7 +70,7 @@ export function AiCreateTool({ onJumpToUploads }: AiCreateToolProps) {
             rows={3}
             maxLength={500}
             disabled={isBusy}
-            className="w-full p-3 bg-background border border-[var(--font-color)] rounded-lg text-foreground text-sm outline-none resize-none focus:border-primary-600 disabled:opacity-50"
+            className={`w-full p-3 bg-background border border-[var(--font-color)] rounded-lg text-foreground text-sm ${MOBILE_INPUT_TEXT} outline-none resize-none focus:border-primary-600 disabled:opacity-50`}
           />
           <label className="flex flex-col gap-1 text-foreground-muted text-xs">
             Stil
@@ -77,7 +78,7 @@ export function AiCreateTool({ onJumpToUploads }: AiCreateToolProps) {
               value={variant}
               onChange={(e) => setVariant(e.target.value as AiVariant)}
               disabled={isBusy}
-              className="w-full py-2 px-3 bg-background border border-[var(--font-color)] rounded-lg text-foreground text-sm outline-none focus:border-primary-600 disabled:opacity-50"
+              className={`w-full py-2 px-3 bg-background border border-[var(--font-color)] rounded-lg text-foreground text-sm ${MOBILE_INPUT_TEXT} outline-none focus:border-primary-600 disabled:opacity-50`}
             >
               {AI_VARIANT_OPTIONS.map((opt) => (
                 <option key={opt.value} value={opt.value}>

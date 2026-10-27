@@ -1,7 +1,7 @@
 /**
  * Die Übersicht „Grüneratoren" zeigt, womit die Person arbeitet: eigene und
- * geteilte Agents und Rezepte, dazu, was sie in der Agentura gesternt hat.
- * Offizielles und Öffentliches steht im Shop (`AgenturaPage.vitest.tsx`). Die
+ * geteilte Agents und Rezepte, dazu, was sie im Marktplatz gesternt hat.
+ * Offizielles und Öffentliches steht im Marktplatz (`features/marketplace`). Die
  * Zugehörigkeit steht in der Meta-Zeile der Karte, die Kartenaktionen liegen
  * im Kebab-Menü.
  *
@@ -14,23 +14,24 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi, type MockInstance } from 'vitest';
 
-import AgenturaPage from './AgenturaPage';
 import GrueneratorenPage from './GrueneratorenPage';
 import { STAR_IMPORT_DONE_KEY } from './hooks/useStarImport';
 
 import useAgentFavoritesStore from '@/stores/agentFavoritesStore';
-import { axe, render, screen, userEvent, within } from '@/test-utils';
+import { axe, render, screen, userEvent, waitFor, within } from '@/test-utils';
 
 const list = vi.hoisted(() => vi.fn());
 const listPublic = vi.hoisted(() => vi.fn());
 const remove = vi.hoisted(() => vi.fn());
 const library = vi.hoisted(() => ({ list: vi.fn(), add: vi.fn(), remove: vi.fn() }));
+const marketplace = vi.hoisted(() => ({ list: vi.fn() }));
 
 vi.mock('@gruenerator/shared/api', async (importOriginal) => ({
   ...(await importOriginal<Record<string, unknown>>()),
   getContractsClient: () => ({
     userTextForms: { list, listPublic, remove },
     userLibrary: library,
+    marketplace,
   }),
 }));
 
@@ -334,9 +335,10 @@ describe('GrueneratorenPage — Meine: eigene und geteilte Agenten', () => {
     useAgentFavoritesStore.setState({ favoriteIdentifiers: ['gruene-poesie'], favoriteTitles: {} });
     userAgents.loaded = false;
     publicAgents.current = [agent()];
-    renderPage('/agentura?q=poesie', AgenturaPage);
+    renderPage();
 
-    await screen.findByRole('heading', { name: 'Grüne Poesie', level: 3 });
+    await screen.findByRole('status');
+    await waitFor(() => expect(library.list).toHaveBeenCalled());
     expect(useAgentFavoritesStore.getState().favoriteIdentifiers).toEqual(['gruene-poesie']);
   });
 
@@ -432,7 +434,25 @@ describe('GrueneratorenPage — Meine Rezepte', () => {
     ).toBeInTheDocument();
     expect(screen.getByRole('link', { name: /Agent erstellen/ })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: /Rezept erstellen/ })).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: /Zur Agentura/ })).toHaveAttribute('href', '/agentura');
+    expect(screen.getByRole('button', { name: /Zum Marktplatz/ })).toBeInTheDocument();
+  });
+});
+
+describe('GrueneratorenPage — Marktplatz', () => {
+  it('öffnet den Marktplatz als Popup, nur mit Agents und Rezepten', async () => {
+    marketplace.list.mockResolvedValue({ status: 200, body: { sections: [] } });
+    renderPage();
+
+    await userEvent.setup().click(await screen.findByRole('button', { name: 'Marktplatz' }));
+
+    const dialog = await screen.findByRole('dialog', { name: 'Marktplatz' });
+    const tabs = within(within(dialog).getByRole('group', { name: 'Art' })).getAllByRole('button');
+    expect(tabs.map((t) => t.textContent)).toEqual(['Alle', 'Agents', 'Rezepte']);
+    await waitFor(() =>
+      expect(marketplace.list).toHaveBeenCalledWith({
+        query: expect.objectContaining({ kinds: 'agent,recipe' }) as unknown,
+      })
+    );
   });
 });
 

@@ -57,6 +57,10 @@ async function capturePageScreenshot(): Promise<string | null> {
       quality: 0.8,
       scale,
       backgroundColor: '#ffffff',
+      // The clone has no scroll offsets; without this every inner scroller
+      // (e.g. the canvas editor's stacked pages) is captured at its top (#4962).
+      // Unlisted features keep their default.
+      features: { restoreScrollPosition: true },
       // Exclude the (already open) feedback dialog and its own launcher so the
       // screenshot shows the page the user is giving feedback on, not the modal
       // overlaying it. Radix portals overlay + content as direct <body>

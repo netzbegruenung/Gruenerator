@@ -1,9 +1,3 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
-import { v4 as uuid } from 'uuid';
-import * as Y from 'yjs';
-
-import { refreshCarouselChromeInDoc } from '../composer/carouselChrome';
-
 import {
   appendPage,
   duplicatePageById,
@@ -24,8 +18,15 @@ import {
   type PageDef,
   type PageView,
   type ReplaceDeckOps,
-} from './pagesDoc';
-import { YDOC_KEYS } from './ydocKeys';
+} from '@ggraphic/editor/collab/pagesDoc';
+import { YDOC_KEYS } from '@ggraphic/editor/collab/ydocKeys';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { v4 as uuid } from 'uuid';
+import * as Y from 'yjs';
+
+import { useCanvasEditorServices } from '../CanvasEditorProvider';
+
+import type { CanvasCarouselService } from '../hostServices';
 
 // Structural page ops (add/remove/duplicate/move/convert) — tracked by the
 // page UndoManager.
@@ -128,7 +129,7 @@ function restoreDeckStates(
  * keystroke (dual-written into the page state map by CanvasEditor) would
  * round-trip back into component state and rebuild it mid-typing.
  * Structural ops (LOCAL_ORIGIN) are NOT skipped: the carousel chrome they
- * rewrite (`refreshCarouselChromeInDoc`) must reach the mounted canvases.
+ * rewrite (the host's `carousel.refreshChrome`) must reach the mounted canvases.
  */
 export const PAGES_STATE_ORIGIN: unknown = STATE_ORIGIN;
 
@@ -165,9 +166,17 @@ export interface YjsPagesApi {
   undoPageOp: () => void;
   /** Redo the most recently undone page operation. */
   redoPageOp: () => void;
+  /**
+   * Verwerfen of the newest `replaceDeck`: undoes back to before it (page ops
+   * made since go with it) and drops the redo stack, so Redo cannot bring the
+   * discarded deck back.
+   */
+  discardReplaceDeck: () => void;
   canUndoPageOp: boolean;
   canRedoPageOp: boolean;
 }
+
+const noChrome: CanvasCarouselService['refreshChrome'] = () => {};
 
 const shallowEqualState = (a: Record<string, unknown>, b: Record<string, unknown>): boolean => {
   const keysA = Object.keys(a);
@@ -199,6 +208,8 @@ export function useYjsPages(
   // identity across version bumps, so memo'd PageWrappers don't re-render
   // whenever ANY page changes.
   const viewsRef = useRef<PageView[]>([]);
+  // The host keeps the carousel chrome true after page ops; without it they leave it as is.
+  const refreshChrome = useCanvasEditorServices().carousel?.refreshChrome ?? noChrome;
 
   useEffect(() => {
     if (!ydoc || !isSynced) return undefined;
@@ -289,14 +300,14 @@ export function useYjsPages(
     const addPage: YjsPagesApi['addPage'] = (def) => {
       ydoc.transact(() => {
         appendPage(ydoc, def);
-        refreshCarouselChromeInDoc(ydoc);
+        refreshChrome(ydoc);
       }, LOCAL_ORIGIN);
     };
 
     const insertPage: YjsPagesApi['insertPage'] = (index, def) => {
       ydoc.transact(() => {
         insertPageAt(ydoc, index, def);
-        refreshCarouselChromeInDoc(ydoc);
+        refreshChrome(ydoc);
       }, LOCAL_ORIGIN);
     };
 
@@ -305,7 +316,7 @@ export function useYjsPages(
       let ok = false;
       ydoc.transact(() => {
         ok = duplicatePageById(ydoc, sourceId, newId);
-        refreshCarouselChromeInDoc(ydoc);
+        refreshChrome(ydoc);
       }, LOCAL_ORIGIN);
       return ok ? newId : null;
     };
@@ -313,14 +324,14 @@ export function useYjsPages(
     const removePage: YjsPagesApi['removePage'] = (id) => {
       ydoc.transact(() => {
         removePageById(ydoc, id);
-        refreshCarouselChromeInDoc(ydoc);
+        refreshChrome(ydoc);
       }, LOCAL_ORIGIN);
     };
 
     const movePage: YjsPagesApi['movePage'] = (id, direction) => {
       ydoc.transact(() => {
         movePageById(ydoc, id, direction);
-        refreshCarouselChromeInDoc(ydoc);
+        refreshChrome(ydoc);
       }, LOCAL_ORIGIN);
     };
 
@@ -343,7 +354,7 @@ export function useYjsPages(
       const depth = manager?.undoStack.length ?? 0;
       ydoc.transact(() => {
         ids = replaceDeck(ydoc, ops, LOCAL_ORIGIN);
-        refreshCarouselChromeInDoc(ydoc);
+        refreshChrome(ydoc);
         // Yjs undo pops nothing when every item it would revert was overwritten
         // since (the canvas echo does exactly that), and silently undoes the
         // next older step instead. A key only this client writes always reverts.
@@ -367,6 +378,16 @@ export function useYjsPages(
       return ids;
     };
 
+    const discardReplaceDeck = () => {
+      const manager = undoManagerRef.current;
+      if (!manager) return;
+      let at = manager.undoStack.length - 1;
+      while (at >= 0 && !manager.undoStack[at]!.meta.has(DECK_STATES)) at--;
+      if (at < 0) return;
+      while (manager.undoStack.length > at) manager.undo();
+      manager.clear(false, true);
+    };
+
     const undoManager = undoManagerRef.current;
     return {
       pages,
@@ -382,9 +403,10 @@ export function useYjsPages(
       replaceDeck: replaceDeckOp,
       undoPageOp: () => undoManager?.undo(),
       redoPageOp: () => undoManager?.redo(),
+      discardReplaceDeck,
       canUndoPageOp: (undoManager?.undoStack.length ?? 0) > 0,
       canRedoPageOp: (undoManager?.redoStack.length ?? 0) > 0,
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps -- version/historyVersion invalidate the derived view
-  }, [ydoc, isSynced, version, historyVersion, normalizeEcho]);
+  }, [ydoc, isSynced, version, historyVersion, normalizeEcho, refreshChrome]);
 }

@@ -11,6 +11,7 @@ import { SKILLS, canonicalSkillMention } from '@gruenerator/shared/agents';
 import { type ChatIntentId, isGroundableProse } from '@gruenerator/shared/chat-intents';
 
 import { roleAwareDefaultRecipeMention } from '../../../../routes/chat/agents/lvRecipePreference.js';
+import { isTabelleAuswertenMountable } from '../../../../routes/chat/agents/tabelleAuswertenTool.js';
 import {
   EDITOR_SURFACE_NOUNS,
   looksLikeChitchatTurn,
@@ -32,6 +33,7 @@ import {
   INJECTION_WARNING_NOTE,
   INSTRUCTION_HIERARCHY_RULE,
 } from '../../../../routes/chat/services/untrustedContent.js';
+import { buildGlossaryDefinitionsNote } from '../../../../services/chat/productGlossary.js';
 import {
   buildCompactProductIdentity,
   buildProductKnowledgeBlock,
@@ -864,18 +866,17 @@ Zusammenfassung: ${computedResult.summary}${figureNote}${fileNote}
 }
 
 /**
- * Steer the model to compute over an attached spreadsheet with the in-browser
- * pandas interpreter instead of doing arithmetic in its head. When the composer
- * bridges a CSV/Excel/ODS file it is pre-loaded as a pandas DataFrame `df`. The
- * client auto-runs the emitted block and shows the result — so the model must
- * emit a properly language-tagged ```python block and must NOT tell the user to
- * click "Run" or apologise that it can't execute (both were happening).
- *
- * Forks on `clientCanRunPython`: clients without the run_python client tool
- * (mobile/voice) instead get guidance to derive the answer from the document
- * context — never a code block that would silently do nothing there.
+ * Steer the model when a spreadsheet is attached. Three branches: a fresh
+ * computed result (only phrase it), no Python interpreter (mobile/voice: answer
+ * from the document context), and the default: in the agentic loop with the
+ * tool mounted `tabelle_auswerten` does the calculating, otherwise the model
+ * answers from the document context. Python blocks in chat answers run
+ * only on click (c12f94316a), so no branch promises automatic execution.
  */
-export function formatTabularComputeGuidance(state: ChatGraphState): string {
+export function formatTabularComputeGuidance(
+  state: ChatGraphState,
+  opts: { loop?: boolean } = {}
+): string {
   if (!state.hasTabularAttachment) return '';
   // Run-then-answer resume: the numbers were already computed client-side
   // (run_python client tool) and injected as BERECHNUNGSERGEBNIS. The model
@@ -890,9 +891,8 @@ export function formatTabularComputeGuidance(state: ChatGraphState): string {
 Die Berechnung über die angehängte Tabelle wurde bereits per Code ausgeführt (siehe BERECHNUNGSERGEBNIS unten). Übernimm die Werte EXAKT und formuliere eine kurze, klare Antwort. Gib KEINEN Code-Block aus und rechne NICHT selbst nach.`;
   }
   // Client cannot execute Python (mobile/voice declare no run_python client
-  // tool). The pandas guidance below would produce a dead "wird automatisch
-  // ausgeführt" code block on those clients — steer the model to derive the
-  // answer from the attached document context instead.
+  // tool). A python block would render there but never run — steer the model
+  // to derive the answer from the attached document context instead.
   if (!state.clientCanRunPython) {
     return `
 
@@ -905,17 +905,32 @@ Der*die Nutzer*in hat eine Tabelle (CSV/Excel/ODS) angehängt. Auf diesem Gerät
 - Soll die Tabelle AUSGEFÜLLT werden (Werte eintragen, Vorlage befüllen), geht das auf diesem Gerät nicht: sag kurz, dass das Ausfüllen und der Download der fertigen Datei derzeit nur im Browser (Web-Version) funktioniert, und nenne stattdessen die Werte, die einzutragen wären.
 - Wurde bereits ein BERECHNUNGSERGEBNIS geliefert (siehe unten), übernimm dessen Werte EXAKT und rechne nicht neu.`;
   }
+  // Tool turn: the agentic loop mounts `tabelle_auswerten` (approval-gated,
+  // result returns to the loop) — same predicate as the catalog. No python
+  // block in the answer: fenced blocks only run on click (c12f94316a).
+  if (opts.loop === true && isTabelleAuswertenMountable(state)) {
+    return `
+
+## TABELLENDATEN — MIT DEM WERKZEUG RECHNEN
+
+Der*die Nutzer*in hat eine Tabelle (CSV/Excel/ODS) angehängt. Ihre Daten stehen im angehängten Dokumentkontext.
+- Für jede Berechnung, Filterung, Sortierung, Zählung, Datumslogik und jedes Ausfüllen der Tabelle rufst du das Werkzeug \`tabelle_auswerten\` auf (\`auftrag\`: was zu tun ist, \`modus\`: "auswerten" oder "ausfuellen"). Das Werkzeug rechnet per Code.
+- Rufe das Werkzeug direkt auf — die Freigabe holt das System selbst ein. Bitte NIE im Text um Bestätigung und kündige einen Aufruf NIE nur an („Ich rufe jetzt … auf"), sondern führe ihn aus.
+- Gib KEINEN Code-Block in die Antwort aus und rechne NICHT selbst im Kopf — auch nicht "nur kurz".
+- Übernimm die Werte aus dem Werkzeug-Ergebnis EXAKT und formuliere eine kurze, klare Antwort.
+- Lehnt der*die Nutzer*in den Aufruf ab (Fehler "Vom Nutzer abgelehnt"), antworte ohne Rechnung aus dem Dokumentkontext und sag ausdrücklich, dass die Werte nicht berechnet sind. Nur wenn benötigte Zeilen oder Spalten tatsächlich im Dokumentkontext fehlen, nenne, welche — behaupte sonst NICHT, die Tabelle sei unvollständig. Erfinde KEINE Zahlen.
+- Wurde bereits ein BERECHNUNGSERGEBNIS geliefert (siehe unten), übernimm dessen Werte EXAKT und rechne nicht neu.`;
+  }
+  // No tool this turn (single-pass, anonymous, tool switched off): answer from
+  // the document context; code only on explicit request.
   return `
 
-## TABELLENDATEN — MIT DEM INTERPRETER RECHNEN, NICHT IM KOPF
+## TABELLENDATEN — AUS DEN DATEN ANTWORTEN
 
-Der*die Nutzer*in hat eine Tabelle (CSV/Excel/ODS) angehängt. Im Browser läuft ein Python-Interpreter, in dem die Datei bereits als pandas-DataFrame \`df\` vorgeladen ist (die Spaltennamen findest du im angehängten Dokumentkontext). Dein Code-Block wird **automatisch ausgeführt** und das Ergebnis wird der*dem Nutzer*in direkt angezeigt.
-
-Für JEDE Frage, die eine Berechnung, Aggregation, Sortierung oder Filterung über die Daten erfordert (Summe, Durchschnitt, Minimum/Maximum, "pro Produkt/Kategorie", Anteile, Zählungen …):
-- Gib einen ausführbaren Code-Block aus, der zwingend mit dem Sprach-Tag \`\`\`python beginnt (NIEMALS nur \`\`\` ohne \`python\`), auf \`df\` arbeitet und das Ergebnis mit \`print(...)\` ausgibt — mit einem klaren Label, z.B. \`print("Gesamtgewinn:", ...)\`.
-- Rechne NIEMALS selbst im Kopf und gib KEINE Handlungsanleitung ("erstelle eine Pivot-Tabelle") — schreibe den Code, der die Antwort direkt berechnet.
-- Verwende die echten Spaltennamen aus dem Dokumentkontext. Halte den Code kurz und robust.
-- Schreibe höchstens 1 kurzen Satz vor den Block. Fordere NICHT zum Klicken/Kopieren/„Ausführen" auf und entschuldige dich NICHT, du könntest keinen Code ausführen — die Ausführung passiert automatisch.
+Der*die Nutzer*in hat eine Tabelle (CSV/Excel/ODS) angehängt. Ihre Daten stehen im angehängten Dokumentkontext.
+- Beantworte Rechenfragen (Summe, Durchschnitt, Minimum/Maximum, "pro Produkt/Kategorie", Anteile, Zählungen …) direkt aus den Tabellendaten im Dokumentkontext: rechne sorgfältig Schritt für Schritt und zeige den Rechenweg kurz und nachvollziehbar (relevante Werte und Zwischensummen nennen).
+- Gib einen \`\`\`python-Block NUR aus, wenn der*die Nutzer*in ausdrücklich nach Code fragt. Die Tabelle steht darin als DataFrame \`df\` bereit; der Block läuft erst, wenn die Person ihn startet. Behaupte NIEMALS, dass Code von selbst läuft oder dass das Ergebnis gleich erscheint.
+- Sind die benötigten Zeilen oder Spalten im Kontext nicht vollständig enthalten, sag das ehrlich und nenne, welche Angaben fehlen — erfinde KEINE Zahlen.
 - Wurde bereits ein BERECHNUNGSERGEBNIS geliefert (siehe unten), übernimm dessen Werte EXAKT und rechne nicht neu.`;
 }
 
@@ -1157,6 +1172,7 @@ function buildChartGuidance(computed: boolean): string {
         '- xKey: Name des Feldes für die X-Achse (z.B. "name", "monat", "jahr")',
         '- yKeys: Array der Feldnamen für die Werte (z.B. ["wert", "wert2"])',
         '- Zahlen NUR aus der Nachricht, dem Gesprächsverlauf, angehängten Dokumenten oder den Quellen im Prompt übernehmen — niemals schätzen oder erfinden',
+        '- Nur Datenpunkte mit belegtem Wert aufnehmen — keine null-Werte oder Platzhalter für fehlende Jahre',
         '- Fehlen belastbare Zahlen: KEINEN chart-Block ausgeben, sondern kurz sagen, dass dir die Zahlen fehlen, und danach fragen oder eine Recherche anbieten',
         '- Nur wenn ausdrücklich ein Beispieldiagramm gewünscht ist, sind fiktive Werte erlaubt — dann im title als „Beispieldaten" kennzeichnen',
       ];
@@ -1263,7 +1279,7 @@ const DIRECT_HONESTY_NOTE = `\nWICHTIG: In diesem Turn wurde NICHTS recherchiert
  * and no door; the product HAS a door, and it is one sentence wide.
  */
 const NO_HANDMADE_FILE_NOTE =
-  '\nDu kannst eine Datei nicht selbst in die Antwort schreiben. Gib deshalb NIEMALS einen `data:`-Block, Base64, einen Datei-Inhalt zum Selbst-Abspeichern oder einen ausgedachten Pfad/Link (`/office/…`, `/docs/…`) aus — nichts davon ergibt eine Datei, die sich öffnen lässt. Präsentationen, Dokumente, Tabellen und PDFs entstehen im Grünerator ausschließlich über die Erstellungsfunktion und erscheinen dann als Karte im Chat. Fehlt sie hier, sag das offen und biete an, sie anzulegen.';
+  '\nDu kannst eine Datei nicht selbst in die Antwort schreiben. Gib deshalb NIEMALS einen `data:`-Block, Base64, einen Datei-Inhalt zum Selbst-Abspeichern oder einen ausgedachten Pfad/Link (`/office/…`, `/docs/…`) aus — nichts davon ergibt eine Datei, die sich öffnen lässt. Präsentationen, Dokumente, Tabellen und PDFs entstehen im Grünerator ausschließlich über die Erstellungsfunktion und erscheinen dann als Karte im Chat. Fehlt sie hier, sag das offen und biete an, sie anzulegen — als eine Frage am Schluss, die die Art nennt (z. B. „Soll ich daraus eine Präsentation machen?").';
 
 // Same turn-outcome honesty, minus the citation ban: on a carried-source turn
 // the sources ARE real, persisted and chip-backed, so [N] is not a lie — only
@@ -1708,6 +1724,12 @@ function resolveAnswerFormatOwner(
   state: ChatGraphState,
   activeTextForm: string | null
 ): string | null {
+  // Eine Übertragung (Einfache/Leichte Sprache) hat Form UND Umfang schon
+  // festgelegt: das Regelwerk der Persona und „vollständig, ohne Kürzung" im
+  // angehefteten Ausgangstext. Ohne diesen Eintrag bekam sie zuletzt im Prompt
+  // „bis zu 6 Absätze" bzw. „1-2 Absätze" und den Visual-Block-Katalog — am
+  // 19.10.2026 wurden aus 12567 Zeichen Original so 2102 Zeichen Fassung.
+  if (state.pipelineSourceText) return 'transfer';
   if (state.synthesisMode) return `synthesis:${state.synthesisMode}`;
   if (INTENTS_WITH_OWN_FORMAT.has(state.intent)) return `intent:${String(state.intent)}`;
   if (state.taskShape != null) return `task_shape:${state.taskShape}`;
@@ -1795,6 +1817,10 @@ function buildAnswerFormatRule(
   // an empty string: the numbered list would show a bare "2." and the citation
   // block below counts on rules 1–4 existing.
   const formatOwner = resolveAnswerFormatOwner(state, activeTextForm);
+  if (formatOwner === 'transfer') {
+    note('own_format', { formatOwner });
+    return 'Form und Umfang gibt das Regelwerk der Übertragung oben vor. Übertrage den Text unter ZU ÜBERTRAGENDER TEXT vollständig, Abschnitt für Abschnitt, ohne Längengrenze. Titel und Zwischenüberschriften als Markdown (`# Titel`, `## Zwischenüberschrift`). Gib nur die Fassung aus — keine Einleitung, keine Rückfrage und kein Angebot am Schluss.';
+  }
   if (formatOwner?.startsWith('synthesis:') || formatOwner?.startsWith('intent:')) {
     note('own_format', { formatOwner });
     return 'Form und Umfang dieser Antwort sind oben bereits vorgegeben — halte dich genau daran.';
@@ -1942,7 +1968,7 @@ async function buildPromptBlockContext(state: ChatGraphState, opts: SystemMessag
   const imageContext = formatImageContext(state, opts);
   const summaryContextFormatted = formatSummaryContext(summaryContext);
   const computedResultFormatted = formatComputedResultContext(computedResult);
-  const tabularComputeGuidance = formatTabularComputeGuidance(state);
+  const tabularComputeGuidance = formatTabularComputeGuidance(state, opts);
   const threadAttachmentsContext = isPinnedTransfer
     ? ''
     : formatThreadAttachmentsContext(
@@ -2074,6 +2100,11 @@ async function buildPromptBlockContext(state: ChatGraphState, opts: SystemMessag
       question: userQuestion,
     });
     log.debug('[Respond] product-knowledge block attached');
+  } else if (!state.customSystemPrompt && !isNeutralTurn && userQuestion.length <= 400) {
+    // Only the terms this message names — „Was ist Panda?" must not be
+    // answered from priors (Panda Security, live 27.10.2026). Short turns
+    // only: in pasted material a term is content, not a question.
+    productKnowledge = buildGlossaryDefinitionsNote(userQuestion);
   }
 
   // Documentation page map: every doc page with URL + lead paragraph (~2.5k
@@ -2454,6 +2485,50 @@ export async function buildSystemMessage(
   return renderPromptBlocks(branch, ctx)
     .map((b) => b.text)
     .join('');
+}
+
+/**
+ * Stored attachments the prompt left out because their text stood in the
+ * history, put back once pruning or compaction took that copy out (#4791).
+ * The prompt is built before the history is cut — pruning budgets against
+ * it — so its dedupe saw messages that never went out.
+ *
+ * Inserted after the base prompt, before a compaction summary appended to it.
+ */
+export function restoreAttachmentsDroppedWithHistory(
+  state: ChatGraphState,
+  baseSystemMessage: string,
+  systemMessage: string,
+  sentMessages: readonly { content: unknown }[]
+): string {
+  if (composerBypass(state) !== null || state.pipelineSourceText) return systemMessage;
+  const textOf = (content: unknown): string =>
+    typeof content === 'string'
+      ? content
+      : Array.isArray(content)
+        ? extractTextContent(content as Parameters<typeof extractTextContent>[0])
+        : '';
+  const fullText = (state.messages ?? []).map((m) => extractTextContent(m.content)).join('\n');
+  const sentText = [systemMessage, ...sentMessages.map((m) => textOf(m.content))].join('\n');
+  const restored = (state.threadAttachments ?? []).filter(
+    (a) =>
+      !a.isImage &&
+      !a.documentId &&
+      alreadyVerbatimInConversation(a.extractedText, fullText) &&
+      !alreadyVerbatimInConversation(a.extractedText, sentText)
+  );
+  if (restored.length === 0) return systemMessage;
+  const block = formatThreadAttachmentsContext(
+    restored,
+    state.contextWindowTokens,
+    sentText,
+    state.attachmentContext ?? '',
+    attachmentQuery(state)
+  );
+  if (!block) return systemMessage;
+  return systemMessage.startsWith(baseSystemMessage)
+    ? baseSystemMessage + block + systemMessage.slice(baseSystemMessage.length)
+    : systemMessage + block;
 }
 
 /**

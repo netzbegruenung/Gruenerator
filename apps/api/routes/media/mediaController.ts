@@ -5,8 +5,11 @@ import { z } from 'zod';
 
 import { validateBody, type TypedRequest } from '../../middleware/validateBody.js';
 import { getSharedMediaService } from '../../services/sharedMediaService.js';
+import { STUDIO_ASSET_SHARE_DELETE_MESSAGE } from '../../services/studioAssets/studioAssetShare.js';
 
-import type { AllowedMimeType, SharedMediaRow } from '../../types/media.js';
+import { transformMediaItem } from './mediaItemTransform.js';
+
+import type { AllowedMimeType } from '../../types/media.js';
 
 interface MediaListQuery {
   type?: 'image' | 'video' | 'audio' | 'all';
@@ -66,45 +69,6 @@ const upload = multer({
     }
   },
 });
-
-/**
- * Transform database row to API response format.
- *
- * `thumbnailUrl` is `/preview` *without* a `w` parameter, and that is on
- * purpose: the route reads a missing width as "the original bytes, unresized"
- * (`services/media/thumbnailCache.ts`), which is what the canvas placement path
- * needs — `canvas-editor/utils/mediaPlacement.ts` and `mediaItemToFile.ts` both
- * fall back to this field to get the real upload. Appending a width here would
- * silently turn every placed background into a 400px re-encode.
- *
- * Which means the field is *not* a thumbnail: rendering it in an `<img>` pulls
- * a multi-megabyte upload into a tile. Preview surfaces build their own sized
- * URLs from `shareToken` via `buildSharedMediaSrcSet`
- * (`packages/shared/src/media-library/srcset.ts`).
- */
-function transformMediaItem(item: SharedMediaRow) {
-  return {
-    id: item.id,
-    shareToken: item.share_token,
-    mediaType: item.media_type,
-    title: item.title,
-    thumbnailUrl: item.thumbnail_path ? `/api/share/${item.share_token}/preview` : null,
-    fileSize: item.file_size,
-    mimeType: item.mime_type,
-    // NUMERIC arrives from pg as a string; the shared type promises a number.
-    duration: item.duration === null ? null : Number(item.duration),
-    imageType: item.image_type,
-    imageMetadata: item.image_metadata,
-    altText: item.alt_text,
-    uploadSource: item.upload_source,
-    contentOrigin: item.content_origin,
-    originalFilename: item.original_filename,
-    status: item.status,
-    downloadCount: item.download_count,
-    viewCount: item.view_count,
-    createdAt: item.created_at,
-  };
-}
 
 /**
  * GET /api/media
@@ -353,7 +317,12 @@ router.delete('/:id', async (req: Request<{ id: string }>, res: Response): Promi
       return;
     }
 
-    if ((await mediaService.trashShare(userId, item.share_token)) !== 'ok') {
+    const trashed = await mediaService.trashShare(userId, item.share_token);
+    if (trashed === 'studio_asset') {
+      res.status(409).json({ error: STUDIO_ASSET_SHARE_DELETE_MESSAGE });
+      return;
+    }
+    if (trashed !== 'ok') {
       res.status(404).json({ error: 'Media not found' });
       return;
     }

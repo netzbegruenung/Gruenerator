@@ -1,5 +1,5 @@
 import { type InferSelectModel } from 'drizzle-orm';
-import { boolean, index, pgTable, text, timestamp, uuid } from 'drizzle-orm/pg-core';
+import { boolean, index, jsonb, pgTable, text, timestamp, uuid } from 'drizzle-orm/pg-core';
 
 /**
  * Type source for the deep research run registry. Runtime DDL lives in
@@ -7,9 +7,8 @@ import { boolean, index, pgTable, text, timestamp, uuid } from 'drizzle-orm/pg-c
  * startup); this schema exists so the service layer derives its row type via
  * InferSelectModel instead of a hand-written interface.
  *
- * The checkpointer stores a run's STATE under a thread_id; this table is what
- * makes that state findable — whose run, about what, and whether it ever
- * finished. See services/research/deepAgent/runRegistry.ts.
+ * One row per run: whose run, about what, whether it ever finished, and the
+ * state a resume continues from. See services/research/deepAgent/runRegistry.ts.
  */
 export const deep_research_runs = pgTable(
   'deep_research_runs',
@@ -23,6 +22,8 @@ export const deep_research_runs = pgTable(
     partial: boolean('partial').notNull().default(false),
     started_at: timestamp('started_at', { withTimezone: true }).notNull().defaultNow(),
     finished_at: timestamp('finished_at', { withTimezone: true }),
+    /** History, plan and files after the lead's last step — see runRegistry.ts. */
+    state: jsonb('state'),
   },
   (table) => [
     index('idx_deep_research_runs_status_started').on(table.status, table.started_at),

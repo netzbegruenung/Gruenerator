@@ -5,24 +5,27 @@
  * Migrated from monolithic 1,107-line DreizeilenCanvas component.
  */
 
+import { zoomBackground } from '@ggraphic/editor/utils/coverFit';
+import { straightenResetFor } from '@ggraphic/editor/utils/straighten';
 import {
   buildSharepicSnapshot,
   getSharepicTemplateDescriptor,
   type CanvasAiOperation,
   type CanvasAiSnapshot,
 } from '@gruenerator/contracts';
-import { HiCog, HiPhotograph } from 'react-icons/hi';
+import { HiCog } from 'react-icons/hi';
 import { PiFrameCornersFill, PiSquaresFourFill, PiTextAa } from 'react-icons/pi';
 
 import { buildAssetCapability } from '../ai/assetCapability';
 import { describeCanvasElements } from '../ai/describeCanvasElements';
 import { buildIllustrationCapability } from '../ai/illustrationCapability';
-import { AssetsSection, ImageBackgroundSection } from '../sidebar';
+import { CANVAS_RECOMMENDED_ASSETS, SYSTEM_ASSETS } from '../brand/grueneAssets';
+import { dreizeilenShareMetadata } from '../brand/grueneShareMetadata';
+import { AssetsSection } from '../sidebar';
 import { BalkenSettingsSection } from '../sidebar/sections/BalkenSettingsSection';
 import { CombinedTextSection } from '../sidebar/sections/CombinedTextSection';
 import { FrameSettingsSection } from '../sidebar/sections/FrameSettingsSection';
 import { balkenExtent, fitBalkenAfterTextEdit, fitBalkenToCanvas } from '../utils/balkenBounds';
-import { CANVAS_RECOMMENDED_ASSETS, SYSTEM_ASSETS } from '../utils/canvasAssets';
 import {
   calculateDreizeilenLayout,
   COLOR_SCHEMES,
@@ -45,28 +48,34 @@ import {
   createFrameActions,
   createUserImageActions,
 } from './factory/actionFactories';
+import {
+  carryBackgroundAdjustments,
+  carryBackgroundRotation,
+  carryTemplateRotations,
+  carryTemplateTextAligns,
+} from './factory/carryInstanceState';
 import { makeSectionDefiner } from './factory/defineSection';
 import { injectFeatureProps } from './featureInjector';
 import { PLACEHOLDER_TEXT } from './placeholders';
 import { createShareSection } from './shareSection';
 
+import type { SharepicAiCapabilities } from './aiCapabilities';
 import type { DreizeilenFullState, DreizeilenFullActions } from './dreizeilen.types';
 import type {
   FullCanvasConfig,
   LayoutResult as GenericLayoutResult,
   AdditionalText,
 } from './types';
-import type { TemplateAiCapabilities } from '../ai/types';
-import type { StockImageAttribution } from '../common/imageSourceTypes';
-import type { BalkenInstance } from '../primitives/BalkenGroup';
 import type { AssetInstance } from '../utils/canvasAssets';
-import type { ChartInstance } from '../utils/chartUtils';
-import type { CircleBadgeInstance } from '../utils/circleBadgeUtils';
-import type { FrameInstance } from '../utils/frameUtils';
-import type { IllustrationInstance } from '../utils/illustrations/types';
-import type { PillBadgeInstance } from '../utils/pillBadgeUtils';
-import type { ShapeInstance } from '../utils/shapes';
-import type { UserImageInstance } from '../utils/userImageUtils';
+import type { StockImageAttribution } from '@ggraphic/editor/common/imageSourceTypes';
+import type { BalkenInstance } from '@ggraphic/editor/utils/balkenUtils';
+import type { ChartInstance } from '@ggraphic/editor/utils/chartUtils';
+import type { CircleBadgeInstance } from '@ggraphic/editor/utils/circleBadgeUtils';
+import type { FrameInstance } from '@ggraphic/editor/utils/frameUtils';
+import type { IllustrationInstance } from '@ggraphic/editor/utils/illustrations/types';
+import type { PillBadgeInstance } from '@ggraphic/editor/utils/pillBadgeUtils';
+import type { ShapeInstance } from '@ggraphic/editor/utils/shapes';
+import type { UserImageInstance } from '@ggraphic/editor/utils/userImageUtils';
 
 // ============================================================================
 // CONSTANTS
@@ -296,7 +305,7 @@ function fitAfterTextEdit(
   return { ...fitted, balkenInstances: reconcileBalkenInstances(fitted, fitted.balkenInstances) };
 }
 
-const dreizeilenAiCapabilities: TemplateAiCapabilities<DreizeilenFullState, DreizeilenFullActions> =
+const dreizeilenAiCapabilities: SharepicAiCapabilities<DreizeilenFullState, DreizeilenFullActions> =
   {
     supportedOperations: [
       'set-text',
@@ -366,6 +375,7 @@ const section = makeSectionDefiner<DreizeilenFullState, DreizeilenFullActions>()
 
 export const dreizeilenFullConfig: FullCanvasConfig<DreizeilenFullState, DreizeilenFullActions> = {
   id: 'dreizeilen',
+  shareMetadata: dreizeilenShareMetadata,
 
   canvas: {
     width: CANVAS_WIDTH,
@@ -398,20 +408,14 @@ export const dreizeilenFullConfig: FullCanvasConfig<DreizeilenFullState, Dreizei
   ai: dreizeilenAiCapabilities,
 
   tabs: [
-    {
-      id: 'image-background',
-      icon: HiPhotograph,
-      label: 'Hintergrund',
-      ariaLabel: 'Hintergrundbild ändern',
-    },
-    { id: 'settings', icon: HiCog, label: 'Einstellungen', ariaLabel: 'Balken-Einstellungen' },
+    { id: 'settings', icon: HiCog, label: 'Einstellungen', ariaLabel: 'Einstellungen: Balken' },
     {
       id: 'frame-settings',
       icon: PiFrameCornersFill,
       label: 'Rahmen',
       ariaLabel: 'Rahmen-Einstellungen',
     },
-    { id: 'text', icon: PiTextAa, label: 'Text', ariaLabel: 'Texte hinzufügen' },
+    { id: 'text', icon: PiTextAa, label: 'Text', ariaLabel: 'Text hinzufügen' },
     { id: 'assets', icon: PiSquaresFourFill, label: 'Elemente', ariaLabel: 'Elemente hinzufügen' },
     toolsTab,
     uploadsTab,
@@ -422,17 +426,26 @@ export const dreizeilenFullConfig: FullCanvasConfig<DreizeilenFullState, Dreizei
     // 'settings' tab kept registered but hidden — opened via getAutoSwitchTab on balken
     // selection so the icon strip doesn't shift when a balken is clicked.
     // 'share' is not in `tabs`, so listing it here filtered to nothing.
-    return ['image-background', 'text', 'assets', 'tools', 'uploads', 'chat'];
+    return ['text', 'assets', 'tools', 'uploads', 'chat'];
   },
 
   getAutoSwitchTab: (selectedElement) => {
-    // Clicking the background image opens the tab that replaces it.
-    if (selectedElement === 'background-image') return 'image-background';
     if (selectedElement?.includes('balken')) return 'settings';
     if (selectedElement?.startsWith('chart-')) return 'chart-settings';
     if (selectedElement?.startsWith('frame-')) return 'frame-settings';
     return null;
   },
+
+  background: (state, actions) => ({
+    currentImageSrc: state.currentImageSrc || undefined,
+    imageAttribution: state.imageAttribution ?? null,
+    onImageChange: (file, url, attribution) => actions.setCurrentImageSrc(file, url, attribution),
+    scale: state.imageScale,
+    onScaleChange: actions.setImageScale,
+    colors: PHOTO_BACKGROUND_COLORS_DE,
+    currentColor: state.backgroundColor,
+    onColorChange: actions.setBackgroundColor,
+  }),
 
   sections: {
     'frame-settings': section({
@@ -449,25 +462,6 @@ export const dreizeilenFullConfig: FullCanvasConfig<DreizeilenFullState, Dreizei
           onRemoveFrame: actions.removeFrame,
         };
       },
-    }),
-
-    'image-background': section({
-      component: ImageBackgroundSection,
-      propsFactory: (state, actions) => ({
-        currentImageSrc: state.currentImageSrc,
-        onImageChange: (
-          file: File | null,
-          objectUrl?: string,
-          attribution?: StockImageAttribution | null
-        ) => {
-          actions.setCurrentImageSrc(file, objectUrl, attribution);
-        },
-        scale: state.imageScale,
-        onScaleChange: actions.setImageScale,
-        backgroundColor: state.backgroundColor,
-        backgroundColors: PHOTO_BACKGROUND_COLORS_DE,
-        onBackgroundColorChange: actions.setBackgroundColor,
-      }),
     }),
 
     text: section({
@@ -487,6 +481,7 @@ export const dreizeilenFullConfig: FullCanvasConfig<DreizeilenFullState, Dreizei
       propsFactory: (state, actions, context) => ({
         // Asset instance props
         onAddAsset: actions.addAsset,
+        onAddStickerAsset: actions.addStickerAsset,
         recommendedAssetIds: CANVAS_RECOMMENDED_ASSETS['dreizeilen'],
 
         // Auto-inject all feature props (icons, shapes, illustrations, balken)
@@ -694,6 +689,11 @@ export const dreizeilenFullConfig: FullCanvasConfig<DreizeilenFullState, Dreizei
 
       // Layer Ordering
       layerOrder: (props.layerOrder as string[] | undefined) ?? [],
+      lockedLayerIds: (props.lockedLayerIds as string[] | undefined) ?? [],
+      templateRotations: carryTemplateRotations(props),
+      templateTextAligns: carryTemplateTextAligns(props),
+      ...carryBackgroundAdjustments(props),
+      ...carryBackgroundRotation(props),
 
       // UI State
       isDesktop:
@@ -821,6 +821,11 @@ export const dreizeilenFullConfig: FullCanvasConfig<DreizeilenFullState, Dreizei
       ...genericBalkenActions,
       ...frameActions,
       ...userImageActions,
+
+      // The primary bar group comes back from the three lines on every edit
+      // and reload (`reconcileBalkenInstances`), so deleting it would only
+      // hide it until then; the sidebar offers no remove button for it either.
+      isTemplateBound: (id: string) => id === PRIMARY_BALKEN_ID,
 
       // === Text Actions ===
       setLine1: (text: string) => {
@@ -991,12 +996,14 @@ export const dreizeilenFullConfig: FullCanvasConfig<DreizeilenFullState, Dreizei
         attribution?: StockImageAttribution | null
       ) => {
         const src = file ? objectUrl : undefined;
+        const reset = straightenResetFor(getState());
         setState((prev) => ({
           ...prev,
           currentImageSrc: src,
           backgroundImageFile: file,
           imageAttribution: attribution ?? null,
           hasBackgroundImage: !!src,
+          ...reset,
         }));
         callbacks.onImageChange?.(file);
         saveToHistory({
@@ -1005,12 +1012,17 @@ export const dreizeilenFullConfig: FullCanvasConfig<DreizeilenFullState, Dreizei
           backgroundImageFile: file,
           imageAttribution: attribution ?? null,
           hasBackgroundImage: !!src,
+          ...reset,
         });
       },
 
       setImageScale: (scale: number) => {
-        setState((prev) => ({ ...prev, imageScale: scale }));
-        debouncedSaveToHistory({ ...getState(), imageScale: scale });
+        const zoom = zoomBackground(getState(), scale, {
+          width: CANVAS_WIDTH,
+          height: CANVAS_HEIGHT,
+        });
+        setState((prev) => ({ ...prev, ...zoom }));
+        debouncedSaveToHistory({ ...getState(), ...zoom });
       },
 
       handleBackgroundImageDragEnd: (x: number, y: number) => {

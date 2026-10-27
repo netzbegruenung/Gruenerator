@@ -33,6 +33,10 @@ describe('namedSharepicForm', () => {
     ['Sharepic für Österreich mit einer großen Zahl: 3,1 Grad', 'zahl'],
     ['Infografik mit einer großen Zahl: 420 €', 'infografik'],
     ['Noch 3 Tage bis zur Wahl!', 'zahl'],
+    ['Steckbrief für unsere Kandidatin Lena', 'vorstellung'],
+    ['Ein Vorstellungspost für Jonas, Imker und Radfahrer', 'vorstellung'],
+    ['Ich stelle mich vor: Lena, Imkerin aus Kassel', 'vorstellung'],
+    ['Vorstellung unseres Wahlprogramms', null],
   ])('%s → %s', (text, form) => {
     expect(namedSharepicForm(text)).toBe(form);
   });
@@ -89,23 +93,19 @@ describe('formMismatch', () => {
   });
   const headline = slide([{ type: 'headline', lines: ['Busse statt Stau'] }]);
 
-  it('holds a carousel to at least three slides', () => {
+  it('holds a carousel to at least two slides', () => {
     expect(formMismatch('karussell', { locale: 'de-DE', slides: [headline] }, false)).toContain(
-      '3–8 Slides'
+      '2–8 Slides'
     );
     expect(
-      formMismatch('karussell', { locale: 'de-DE', slides: [headline, headline, headline] }, false)
+      formMismatch('karussell', { locale: 'de-DE', slides: [headline, headline] }, false)
     ).toBeNull();
   });
 
-  it('turns a two-slide request into three slides rather than failing', () => {
-    const mismatch = formMismatch(
-      'karussell',
-      { locale: 'de-DE', slides: [headline, headline] },
-      false
-    );
-    expect(mismatch).toContain('du hast 2');
-    expect(mismatch).toContain('mach trotzdem 3');
+  it('names the count and the way out on a one-slide carousel', () => {
+    const mismatch = formMismatch('karussell', { locale: 'de-DE', slides: [headline] }, false);
+    expect(mismatch).toContain('du hast 1');
+    expect(mismatch).toContain('Aufruf-Slide');
   });
 
   it('holds a single image to one slide', () => {
@@ -118,6 +118,12 @@ describe('formMismatch', () => {
   it('wants a quote item for a quote', () => {
     expect(formMismatch('zitat', { locale: 'de-DE', slides: [headline] }, false)).toContain(
       '"type":"zitat"'
+    );
+  });
+
+  it('wants a steckbrief for a Vorstellung', () => {
+    expect(formMismatch('vorstellung', { locale: 'de-DE', slides: [headline] }, false)).toContain(
+      '"type":"steckbrief"'
     );
   });
 });

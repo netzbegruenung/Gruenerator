@@ -448,7 +448,13 @@ export async function aiText(call: AiCall): Promise<string> {
   return (result.content ?? '').trim();
 }
 
-export type StructuredResult<T> = { ok: true; data: T } | { ok: false; error: string };
+/**
+ * `cause` is set only when the LAST attempt died on the provider chain: an
+ * earlier outage followed by a rejected structure is a model failure, not a
+ * provider failure, and a route must not answer it with "try again later".
+ */
+export type StructuredResult<T> =
+  { ok: true; data: T } | { ok: false; error: string; cause?: AiProviderError };
 
 export interface AiObjectCall<T> extends AiCall {
   /** Shown to the model. Keep it LOOSE — strict provider schema modes reject
@@ -553,6 +559,7 @@ export async function aiObject<T>(call: AiObjectCall<T>): Promise<StructuredResu
 
   let lastError = '';
   let lastRaw = '';
+  let lastProviderError: AiProviderError | null = null;
   /** Best structure recovered from a CUT-OFF answer, used only if every attempt
    *  was cut off (see the return at the bottom). */
   let truncatedFallback: T | null = null;
@@ -578,6 +585,7 @@ export async function aiObject<T>(call: AiObjectCall<T>): Promise<StructuredResu
       : opening;
 
     try {
+      lastProviderError = null;
       const result = await runWithFallback(
         {
           ...call,
@@ -678,6 +686,7 @@ export async function aiObject<T>(call: AiObjectCall<T>): Promise<StructuredResu
       // der Umschlag `{success: false}` antwortete. Another attempt may
       // still find a provider that has recovered.
       lastError = e instanceof Error ? e.message : String(e);
+      if (e instanceof AiProviderError) lastProviderError = e;
       log.error(`[${label}] attempt ${attempt} threw: ${lastError}`);
     }
   }
@@ -691,7 +700,11 @@ export async function aiObject<T>(call: AiObjectCall<T>): Promise<StructuredResu
     return { ok: true, data: truncatedFallback };
   }
 
-  return { ok: false, error: lastError || 'unbekannter Fehler' };
+  return {
+    ok: false,
+    error: lastError || 'unbekannter Fehler',
+    ...(lastProviderError && { cause: lastProviderError }),
+  };
 }
 
 export interface AiToolsCall extends AiCall {

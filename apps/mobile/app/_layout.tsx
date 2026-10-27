@@ -10,19 +10,23 @@ import { memo, useEffect, type ReactNode } from 'react';
 import { View, useColorScheme } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { KeyboardProvider } from 'react-native-keyboard-controller';
+import { ReducedMotionConfig, ReduceMotion } from 'react-native-reanimated';
 import { SafeAreaProvider, initialWindowMetrics } from 'react-native-safe-area-context';
 import { enableFreeze } from 'react-native-screens';
 
 import { AiConsentGate } from '../components/auth/AiConsentGate';
 import { LocaleGate } from '../components/auth/LocaleGate';
 import { SharepicRenderHost } from '../components/chat/SharepicRenderHost';
+import { AppUpdateBanner } from '../components/common/AppUpdateBanner';
 import { ErrorBoundary } from '../components/common/ErrorBoundary';
 import { NoticeToast } from '../components/common/NoticeToast';
 import { AppDrawer } from '../components/navigation';
 import { SettingsSheet } from '../components/settings';
 import { CURRENT_INSTANCE } from '../config/instance';
+import { useReduceMotion } from '../hooks/useAccessibilityPreferences';
 import { useAppInitialization } from '../hooks/useAppInitialization';
 import { useHydrateUserProfile } from '../hooks/useHydrateUserProfile';
+import { configureMobileChat } from '../services/chatConfig';
 import { initErrorReporting } from '../services/errorReporting';
 import { queryClient } from '../services/queryClient';
 import { useOnboardingStore } from '../stores/onboardingStore';
@@ -43,6 +47,20 @@ void SplashScreen.preventAutoHideAsync();
 function UserProfileHydrationBridge() {
   useHydrateUserProfile();
   return null;
+}
+
+/**
+ * Hands the app's reduce-motion answer (OS setting OR the profile's
+ * „Animationen reduzieren") to Reanimated, so every loop, `withTiming` and
+ * `entering`/`exiting` that keeps the default `ReduceMotion.System` follows it.
+ * Without this Reanimated only knows the OS flag it read at startup, and the
+ * profile switch reached just the few components that ask the hook themselves.
+ *
+ * Mounted only while reducing: unmounting restores Reanimated's own value, and
+ * `ReducedMotionConfig` logs a dev warning on every mount.
+ */
+function ReducedMotionBridge() {
+  return useReduceMotion() ? <ReducedMotionConfig mode={ReduceMotion.Always} /> : null;
 }
 
 // Local notifications only (the subtitle export tells you when it is done).
@@ -84,17 +102,25 @@ enableFreeze(true);
  * every install to `production`, so an instance that hides recipes still had
  * them in the picker (#2903).
  *
- * Here rather than next to `configureMobileChat()` in `services/chatConfig.ts`:
- * that module is only imported by the chat providers and the thread list, so a
- * call there would not provably precede every mention surface. The root layout
- * is the root of the Expo Router tree — every screen renders as its child, so
- * this module body runs before anything can render a mention list. Same reason
- * `enableFreeze` sits at module scope above.
+ * Here rather than in `services/chatConfig.ts`: that module runs when something
+ * first imports it, which would not provably precede every mention surface. The
+ * root layout is the root of the Expo Router tree — every screen renders as its
+ * child, so this module body runs before anything can render a mention list.
+ * Same reason `enableFreeze` sits at module scope above.
  *
  * Module scope rather than an effect, mirroring web's `ChatPage`: unlike the
  * locale, the instance is fixed for the lifetime of the bundle.
  */
 setMentionInstance(CURRENT_INSTANCE);
+
+/**
+ * Chat's fetch (absolute URL, bearer token) has to be in the store before the
+ * drawer, which this layout renders, lists threads. Configuring it as a side
+ * effect of importing `services/chatConfig` left that to the chat routes, and a
+ * release bundle loads routes lazily: until a conversation opened, the drawer
+ * asked the store's default fetch for a relative URL and showed no threads.
+ */
+configureMobileChat();
 
 /**
  * Sends a signed-out visitor to onboarding or login, unless they are already in
@@ -229,6 +255,9 @@ function RootLayout() {
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
+      {/* First child: sibling effects run in order, so the config is in place
+          before any screen below starts an animation on mount. */}
+      <ReducedMotionBridge />
       <SafeAreaProvider initialMetrics={initialWindowMetrics}>
         <QueryClientProvider client={queryClient}>
           <KeyboardProvider>
@@ -263,6 +292,9 @@ function RootLayout() {
                 {user ? <SharepicRenderHost /> : null}
                 {/* Hinweise aus dem Chat-Paket (notifyError/notifyWarning), über
                     jedem Bildschirm — die App hat kein sonner (#3996). */}
+                {/* Neustart anbieten, sobald ein OTA-Update geladen ist. Vor
+                    NoticeToast, damit ein Hinweis darüber liegt. */}
+                <AppUpdateBanner />
                 <NoticeToast />
                 {/* Art.-9-Einwilligung. Ganz zuletzt und über allem, damit sie
                     auch über dem Einstellungen-Sheet steht — ein Widerruf dort

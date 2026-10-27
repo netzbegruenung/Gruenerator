@@ -14,6 +14,8 @@
 
 import { type ChatIntentId, intentsWithDisposition } from '@gruenerator/shared/chat-intents';
 
+import { GLOSSARY_TERM_RE } from '../../../../services/chat/productGlossary.js';
+
 import type { SearchIntent, SearchSource } from '../types.js';
 
 /**
@@ -397,7 +399,23 @@ export function looksLikeRecurringOrder(raw: string): boolean {
  * {@link looksLikeDocsHelpQuestion} is what actually keeps this precise.
  */
 export const INSTRUCTIONAL_QUESTION =
-  /\bwie\s+(?:\w+\s+){0,2}?ich\b|\bwie\s+(geht\s+das|funktioniert)\b|\bwo\s+(finde|stelle)\s+ich\b/i;
+  /\bwie\s+(?:[\p{L}-]+\s+){0,2}?ich\b|\bwie\s+(geht\s+das|funktioniert)\b|\bwo\s+(finde|stelle)\s+ich\b/iu;
+
+/**
+ * A question ABOUT something — "was ist …", "gibt es …", "welche …",
+ * "Unterschied zwischen …". Start-anchored, so an order with a question tail
+ * ("Erstelle ein Sharepic, was ist besser?") stays an order.
+ *
+ * Deliberately loose: paired with a glossary term it only opens the door to
+ * the loop, where the model decides whether to look anything up (measured
+ * 27.10.2026: „Was ist Panda?" missed every gate and the loop answered from
+ * priors). A false positive costs one docs page map; a miss costs a made-up
+ * product answer.
+ */
+const MAX_GLOSSARY_QUESTION_LENGTH = 400;
+
+const ABOUT_QUESTION =
+  /^\s*(was\s+(ist|sind|macht|bedeutet|kann|heißt|heisst)|gibt\s+es|kann\s+ich|welche[rsmn]?|wo|wozu|wof[üu]r|warum)\b|\bunterschied\s+zwischen\b/i;
 
 /**
  * An explicit request for documentation, by name.
@@ -429,7 +447,13 @@ export function looksLikeDocsHelpQuestion(text: string): boolean {
   if (!t) return false;
   const hasFeature = GRUENERATOR_FEATURE_NOUN.test(t);
   if (HELP_ANCHOR.test(t) && (hasFeature || INSTRUCTIONAL_QUESTION.test(t))) return true;
-  return INSTRUCTIONAL_QUESTION.test(t) && hasFeature;
+  if (INSTRUCTIONAL_QUESTION.test(t) && hasFeature) return true;
+  // The glossary path: product-only terms (Panda, Explainable, Konto …), never
+  // the content nouns above — „Welche Forderungen enthält das Notebook?" asks
+  // about the user's notebook, not about notebooks. And only on short turns: a
+  // pasted mail that mentions „Konto" is material, not a product question.
+  if (t.length > MAX_GLOSSARY_QUESTION_LENGTH || !GLOSSARY_TERM_RE.test(t)) return false;
+  return INSTRUCTIONAL_QUESTION.test(t) || ABOUT_QUESTION.test(t);
 }
 
 /**

@@ -1,12 +1,16 @@
+import { type MenuAction } from '@expo/ui/community/menu';
 import {
+  HOST_CAPABILITY_EDITOR_CHROME,
   HOST_CAPABILITY_REQUEST_CLOSE,
   HOST_CAPABILITY_SHARE,
   hostCapabilitiesScript,
   parseWebViewMessage,
+  type EditorCommand,
+  type EditorMenuAction,
+  type WebViewInboundMessage,
 } from '@gruenerator/shared';
 import { Ionicons } from '@react-native-vector-icons/ionicons';
-import { LinearGradient } from 'expo-linear-gradient';
-import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
+import { Stack, useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import * as ScreenOrientation from 'expo-screen-orientation';
 import { StatusBar } from 'expo-status-bar';
 import * as WebBrowser from 'expo-web-browser';
@@ -21,20 +25,23 @@ import {
   Alert,
   BackHandler,
   Platform,
+  useWindowDimensions,
 } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { WebView, type WebViewMessageEvent } from 'react-native-webview';
 
+import { MenuActionSheet } from '../../components/chat/MenuActionSheet';
+import { RenameSheet } from '../../components/common/RenameSheet';
 import { WebViewSkeleton } from '../../components/webview/WebViewSkeleton';
 import { WEB_ORIGIN } from '../../services/webOrigin';
 import { createCloseRequest } from '../../services/webview/closeRequest';
-import { mintWebViewHandoff } from '../../services/webview/handoff';
 import {
-  CANVAS_MENUBAR_GRADIENT_STOPS,
-  embeddedSurfaceShape,
-  hostDrawsHeader,
-  statusBarTint,
-} from '../../services/webview/hostChrome';
+  buildEditorBar,
+  type EditorBarButton,
+  type EditorBarState,
+  titleMaxWidth,
+} from '../../services/webview/editorBar';
+import { mintWebViewHandoff } from '../../services/webview/handoff';
+import { embeddedSurfaceShape, fallbackTitle, headerKind } from '../../services/webview/hostChrome';
 import {
   decideNavigation,
   WEBVIEW_ORIGIN_WHITELIST,
@@ -46,40 +53,59 @@ import { createSerialQueue } from '../../services/webview/serialQueue';
 import { colors, lightTheme, darkTheme, BODY_FONT } from '../../theme';
 
 // Android's System WebView has no `navigator.share`; this tells the page it can
-// ask us instead (see `HOST_CAPABILITIES_GLOBAL`). Only Android has a hardware
-// back to turn into `REQUEST_CLOSE`.
-const HOST_CAPABILITIES_SCRIPT = hostCapabilitiesScript(
-  Platform.OS === 'android'
-    ? [HOST_CAPABILITY_SHARE, HOST_CAPABILITY_REQUEST_CLOSE]
-    : [HOST_CAPABILITY_SHARE]
-);
+// ask us instead (see `HOST_CAPABILITIES_GLOBAL`). `REQUEST_CLOSE` serves
+// Android's hardware back and, on both platforms, the native bar's close
+// button, which must let the page flush first just the same.
+const HOST_CAPABILITIES_SCRIPT = hostCapabilitiesScript([
+  HOST_CAPABILITY_SHARE,
+  HOST_CAPABILITY_REQUEST_CLOSE,
+  HOST_CAPABILITY_EDITOR_CHROME,
+]);
 
 /** How long hardware back waits for the page's `CLOSE`; its own flush bounds itself at 1 s. */
 const REQUEST_CLOSE_TIMEOUT_MS = 1500;
 
-/**
- * The strip the status bar sits in, painted so that it reads as the top of the
- * page's own header rather than as a band the host bolted on.
- */
-function StatusBarBand({
-  height,
-  tint,
-  fallback,
+/** One icon button in the native header: no label, no padding beyond the touch target. */
+function HeaderIcon({
+  icon,
+  label,
+  onPress,
+  disabled = false,
+  color,
 }: {
-  height: number;
-  tint: readonly string[] | null;
-  fallback: string;
+  icon: 'close' | 'ellipsis-vertical' | EditorBarButton['ionicon'];
+  label: string;
+  onPress: () => void;
+  disabled?: boolean;
+  color: string;
 }) {
-  if (tint === null) return <View style={{ height, backgroundColor: fallback }} />;
   return (
-    <LinearGradient
-      colors={tint as [string, string, ...string[]]}
-      locations={CANVAS_MENUBAR_GRADIENT_STOPS as unknown as [number, number, ...number[]]}
-      start={{ x: 0, y: 0.5 }}
-      end={{ x: 1, y: 0.5 }}
-      style={{ height }}
-    />
+    <Pressable
+      onPress={onPress}
+      disabled={disabled}
+      hitSlop={6}
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      accessibilityState={{ disabled }}
+      style={({ pressed }) => [
+        styles.headerIcon,
+        disabled && styles.headerIconDisabled,
+        pressed && styles.headerIconPressed,
+      ]}
+    >
+      <Ionicons name={icon} size={22} color={color} />
+    </Pressable>
   );
+}
+
+/** A page's menu entry as the shared menu sheet takes it. */
+function toMenuAction(action: EditorMenuAction): MenuAction {
+  return {
+    id: action.id,
+    title: action.label,
+    state: action.checked ? 'on' : 'off',
+    attributes: { destructive: action.destructive === true },
+  };
 }
 
 export default function WebViewerScreen() {
@@ -87,13 +113,16 @@ export default function WebViewerScreen() {
   const router = useRouter();
   const colorScheme = useColorScheme();
   const theme = colorScheme === 'dark' ? darkTheme : lightTheme;
-  const insets = useSafeAreaInsets();
+  const { width: windowWidth } = useWindowDimensions();
   const webViewRef = useRef<WebView>(null);
   const [loading, setLoading] = useState(true);
   const [targetUrl, setTargetUrl] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   // The page's present mode is open; see `PRESENTING` in the bridge.
   const [presenting, setPresenting] = useState(false);
+  const [editorBar, setEditorBar] = useState<EditorBarState | null>(null);
+  const [renaming, setRenaming] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
   /** Bumped to remount the WebView on a fresh handoff after its web process died. */
   const [attempt, setAttempt] = useState(0);
   const [restartBudget] = useState(() => createRestartBudget(3, 60_000));
@@ -110,10 +139,6 @@ export default function WebViewerScreen() {
   // history: the screen is pinned to one page, so "back" can only mean "leave
   // it". The one exception is a page with state to flush (`CLOSE_HANDLER`): it
   // is asked first, see `createCloseRequest`.
-  const handleClose = useCallback(() => {
-    router.back();
-  }, [router]);
-
   const [closeRequest] = useState(() =>
     createCloseRequest({ close: () => router.back(), timeoutMs: REQUEST_CLOSE_TIMEOUT_MS })
   );
@@ -155,16 +180,26 @@ export default function WebViewerScreen() {
   }, [presenting]);
 
   // Evaluated on the raw param rather than `normalizedPath`, so that a path we
-  // would refuse to open anyway cannot silently claim the immersive layout.
-  //
-  // The error view is the exception: it replaces the page, so the page's own
-  // back button goes with it. Only the dismiss gesture would be left, and an
-  // expired session is the worst moment to make someone guess at one.
-  const drawHeader = error !== null || hostDrawsHeader(path ?? '');
+  // would refuse to open anyway cannot silently claim the editor bar. The error
+  // view replaces the page, and with it everything the page reported, so it
+  // gets the plain bar: title and the way out.
+  const bar = buildEditorBar(error === null ? headerKind(path ?? '') : 'plain', editorBar);
+  const barTitle = editorBar?.title || title || fallbackTitle(path ?? '');
 
-  // `null` means "paint it in the theme background", which is what board and
-  // office headers sit on anyway.
-  const tint = drawHeader ? null : statusBarTint(path ?? '');
+  const sendToPage = useCallback((message: WebViewInboundMessage) => {
+    webViewRef.current?.postMessage(JSON.stringify(message));
+  }, []);
+  const sendCommand = useCallback(
+    (command: EditorCommand) => sendToPage({ type: 'EDITOR_COMMAND', command }),
+    [sendToPage]
+  );
+
+  // The bar's close button leaves the way hardware back does: through the
+  // page's flush when it announced one, at once otherwise — and at once when the
+  // error view has replaced the page, since nobody is left to answer.
+  const close = useCallback(() => {
+    if (error !== null || !closeRequest.onHardwareBack()) closeRequest.onPageClose();
+  }, [error, closeRequest]);
 
   const normalizedPath = useMemo(() => {
     if (!path) return '/';
@@ -251,6 +286,7 @@ export default function WebViewerScreen() {
     setTargetUrl(null);
     setLoading(true);
     setPresenting(false);
+    setEditorBar(null);
     closeRequest.setPageHandles(false);
     setAttempt((n) => n + 1);
   }, [restartBudget, closeRequest]);
@@ -276,6 +312,11 @@ export default function WebViewerScreen() {
       }
       if (message.type === 'PRESENTING') {
         setPresenting(message.active);
+        return;
+      }
+      if (message.type === 'EDITOR_STATE') {
+        const { type: _type, ...state } = message;
+        setEditorBar(state);
         return;
       }
       if (message.type === 'DOWNLOAD_FILE') {
@@ -325,38 +366,96 @@ export default function WebViewerScreen() {
           in it. `hidden` is always passed because expo-status-bar merges
           props down the tree and would otherwise keep the group's `hidden`.
           Present mode is the exception: the deck takes the whole screen. */}
-      <StatusBar
-        hidden={presenting}
-        style={tint !== null || colorScheme === 'dark' ? 'light' : 'dark'}
+      <StatusBar hidden={presenting} style={colorScheme === 'dark' ? 'light' : 'dark'} />
+      {/* One native bar for every page: the editor bar where the page reports
+          its state (`buildEditorBar`), title and close everywhere else. Compact
+          and in system colours: no large title, no back label, icons only. */}
+      <Stack.Screen
+        options={{
+          headerShown: !presenting,
+          title: barTitle,
+          headerBackVisible: false,
+          headerTitle: ({ children }) => (
+            <Pressable
+              onPress={() => setRenaming(true)}
+              disabled={!bar.canRename}
+              accessibilityRole={bar.canRename ? 'button' : 'header'}
+              accessibilityLabel={bar.canRename ? `Titel ändern: ${children}` : children}
+              // Without a cap the title runs under the right-hand items.
+              style={{ maxWidth: titleMaxWidth(windowWidth, bar) }}
+            >
+              <Text style={[styles.title, { color: theme.text }]} numberOfLines={1}>
+                {children}
+              </Text>
+            </Pressable>
+          ),
+          // iOS gets real bar button items with SF Symbols (below); the
+          // Android toolbar takes image icons only, so it keeps views.
+          ...(process.env.EXPO_OS === 'android' && {
+            headerLeft: () => (
+              <HeaderIcon icon="close" label="Schließen" onPress={close} color={theme.text} />
+            ),
+            headerRight: () => (
+              <View style={styles.headerActions}>
+                {bar.buttons
+                  .filter((button) => !button.hidden)
+                  .map((button) => (
+                    <HeaderIcon
+                      key={button.command}
+                      icon={button.ionicon}
+                      label={button.label}
+                      onPress={() => sendCommand(button.command)}
+                      disabled={button.disabled}
+                      color={theme.text}
+                    />
+                  ))}
+                {bar.menu.length > 0 && (
+                  <HeaderIcon
+                    icon="ellipsis-vertical"
+                    label="Weitere Aktionen"
+                    onPress={() => setMenuOpen(true)}
+                    color={theme.text}
+                  />
+                )}
+              </View>
+            ),
+          }),
+        }}
       />
-      {drawHeader ? (
-        <View
-          style={[styles.header, { paddingTop: insets.top + 8, borderBottomColor: theme.border }]}
-        >
-          <Pressable
-            onPress={handleClose}
-            hitSlop={12}
-            style={styles.closeButton}
-            accessibilityRole="button"
-            accessibilityLabel="Schließen"
-          >
-            <Ionicons name="close" size={24} color={theme.text} />
-          </Pressable>
-          <Text style={[styles.title, { color: theme.text }]} numberOfLines={1}>
-            {title || 'Web'}
-          </Text>
-          <View style={styles.closeButton} />
-        </View>
-      ) : (
-        // Only the status-bar band. The page draws the bar itself and carries
-        // both the title and the way out; see `hostDrawsHeader`. `insets.top`
-        // is the honest number on every device: the status bar where there is
-        // no cutout, the cutout where it is taller (34.33 dp on a Galaxy S24).
-        <StatusBarBand
-          height={presenting ? 0 : insets.top}
-          tint={tint}
-          fallback={theme.background}
-        />
+      {!presenting && process.env.EXPO_OS === 'ios' && (
+        <>
+          <Stack.Toolbar placement="left">
+            <Stack.Toolbar.Button icon="xmark" accessibilityLabel="Schließen" onPress={close} />
+          </Stack.Toolbar>
+          <Stack.Toolbar placement="right">
+            {bar.buttons.map((button) => (
+              <Stack.Toolbar.Button
+                key={button.command}
+                icon={button.sfSymbol}
+                accessibilityLabel={button.label}
+                onPress={() => sendCommand(button.command)}
+                disabled={button.disabled}
+                hidden={button.hidden}
+              />
+            ))}
+            <Stack.Toolbar.Menu
+              icon="ellipsis"
+              accessibilityLabel="Weitere Aktionen"
+              hidden={bar.menu.length === 0}
+            >
+              {bar.menu.map((action) => (
+                <Stack.Toolbar.MenuAction
+                  key={action.id}
+                  isOn={action.checked === true}
+                  destructive={action.destructive === true}
+                  onPress={() => sendToPage({ type: 'EDITOR_ACTION', id: action.id })}
+                >
+                  {action.label}
+                </Stack.Toolbar.MenuAction>
+              ))}
+            </Stack.Toolbar.Menu>
+          </Stack.Toolbar>
+        </>
       )}
 
       {error !== null ? (
@@ -367,7 +466,7 @@ export default function WebViewerScreen() {
         placeholder
       ) : (
         // The overlay is positioned against this box, not the screen, so the
-        // skeleton starts below the status-bar band like the page will.
+        // skeleton starts below the bar like the page will.
         <View style={styles.webview}>
           <WebView
             key={attempt}
@@ -375,11 +474,18 @@ export default function WebViewerScreen() {
             source={{ uri: targetUrl }}
             sharedCookiesEnabled
             thirdPartyCookiesEnabled
-            onLoadStart={() => {
+            onLoadStart={(event) => {
+              // Android also reports every history.replaceState/pushState as a
+              // load start (`doUpdateVisitedHistory`), with no load end after
+              // it — the studio dropping `fresh=1` covered the editor with the
+              // skeleton for good. A real load is still in progress here; a
+              // same-document update arrives on a finished page.
+              if (!event.nativeEvent.loading) return;
               setLoading(true);
-              // A reload unmounts present mode and the close handler without
-              // either saying so.
+              // A reload unmounts present mode, the close handler and the
+              // editor bar's state without any of them saying so.
               setPresenting(false);
+              setEditorBar(null);
               closeRequest.setPageHandles(false);
             }}
             onLoadEnd={() => setLoading(false)}
@@ -407,6 +513,9 @@ export default function WebViewerScreen() {
             setSupportMultipleWindows={false}
             javaScriptCanOpenWindowsAutomatically={false}
             // Edge-swipe would walk the web history back out of the page.
+            // The editors are app screens, not documents: the page must not
+            // rubber-band when a drag reaches its edge.
+            bounces={false}
             allowsBackForwardNavigationGestures={false}
             // iOS long-press peek renders an arbitrary URL outside the gate.
             allowsLinkPreview={false}
@@ -434,27 +543,31 @@ export default function WebViewerScreen() {
           )}
         </View>
       )}
+      <RenameSheet
+        title={renaming && editorBar ? editorBar.title : null}
+        onSave={(next) => sendToPage({ type: 'EDITOR_RENAME', title: next })}
+        onClose={() => setRenaming(false)}
+      />
+      {/* Android's "…" menu; iOS has the native one in its toolbar. */}
+      <MenuActionSheet
+        visible={menuOpen}
+        theme={theme}
+        heading={barTitle}
+        actions={bar.menu.map(toMenuAction)}
+        onSelect={(id) => sendToPage({ type: 'EDITOR_ACTION', id })}
+        onClose={() => setMenuOpen(false)}
+      />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingBottom: 8,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-  },
-  closeButton: {
-    width: 40,
-    height: 40,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
   title: { fontFamily: BODY_FONT, fontSize: 16, fontWeight: '600' },
+  headerActions: { flexDirection: 'row', alignItems: 'center' },
+  headerIcon: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
+  headerIconDisabled: { opacity: 0.3 },
+  headerIconPressed: { opacity: 0.5 },
   webview: { flex: 1 },
   loading: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 32 },
   errorText: {

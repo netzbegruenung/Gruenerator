@@ -1,6 +1,6 @@
 import {
   SHAREPIC_COLOR_LABELS,
-  SHAREPIC_LOCALE_COLORS,
+  sharepicColorsFor,
   sharepicAufrufStilSchema,
   sharepicChartKindSchema,
   type SharepicColor,
@@ -190,7 +190,10 @@ function options(id: SharepicTweakId, spec: SharepicSpec): readonly string[] {
   switch (id) {
     case 'farbe':
       return coloured(spec).length
-        ? [...SHAREPIC_LOCALE_COLORS[spec.locale], ...(coloured(spec).length > 1 ? [WECHSEL] : [])]
+        ? [
+            ...sharepicColorsFor(spec.locale, spec.thema),
+            ...(coloured(spec).length > 1 ? [WECHSEL] : []),
+          ]
         : [];
     case 'zeilenboxen':
       return spec.locale === 'de-DE' && spec.slides.some(boxable) ? AN_AUS : [];

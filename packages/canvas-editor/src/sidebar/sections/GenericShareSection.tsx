@@ -1,23 +1,33 @@
-import { pickShareRoute, shareDataUrlViaNativeHost } from '@gruenerator/shared';
-import { shareApi } from '@gruenerator/shared/share';
-import { Skeleton } from '@gruenerator/ui';
+import { useAutoSaveStore, useAutoSaveStoreApi } from '@ggraphic/editor/stores/useAutoSaveStore';
+import { Skeleton } from '@ggraphic/editor/ui/skeleton';
+import { downloadErrorMessage } from '@ggraphic/editor/utils/downloadError';
 import { useCallback, useState, useMemo, useRef, useEffect, type CSSProperties } from 'react';
 import { createPortal } from 'react-dom';
 import { FaDownload, FaImages, FaSave, FaCheck, FaFileArchive, FaFileImage } from 'react-icons/fa';
 import { IoCheckmarkOutline, IoShareOutline } from 'react-icons/io5';
 
+import { useCanvasEditorServices } from '../../CanvasEditorProvider';
 import { DownloadNotice } from '../../components/DownloadNotice';
-import { useAutoSaveStore, useAutoSaveStoreApi } from '../../stores/useAutoSaveStore';
-import { downloadErrorMessage } from '../../utils/downloadError';
+import { browserFileDelivery } from '../../hostServices';
+import {
+  AltTextField,
+  useCaptionAltText,
+  useShareAltText,
+  withAltText,
+} from '../components/AltTextField';
 import { SubsectionTabBar } from '../SubsectionTabBar';
 
 export interface GenericShareSectionProps {
   exportedImage: string | null;
   shareToken: string | null;
   onCaptureCanvas: () => void;
+  /** Returns the current page as a PNG data URL (or null if not ready); native share awaits it. */
+  captureCanvasImage?: (() => Promise<string | null>) | null;
   onDownload: () => void | Promise<void>;
   onNavigateToGallery: () => void;
   canvasText: string;
+  /** Der Text der Leinwand allein (ohne Bildnachweis) — Grundlage des Alt-Text-Vorschlags. */
+  imageText?: string;
   canvasType: string;
   pageCount?: number;
   onDownloadAllZip?: () => Promise<void>;
@@ -100,9 +110,11 @@ function DownloadShareSubsection({
   exportedImage,
   shareToken,
   onCaptureCanvas,
+  captureCanvasImage,
   onDownload,
   onNavigateToGallery,
   canvasText,
+  imageText = '',
   pageCount = 1,
   onDownloadAllZip,
   onShareAllPages,
@@ -111,6 +123,8 @@ function DownloadShareSubsection({
   exportError,
   exportNotice,
 }: Omit<GenericShareSectionProps, 'canvasType'>) {
+  const [altText, setAltText] = useShareAltText(imageText);
+  const captionAltText = useCaptionAltText(altText);
   const [downloadState, setDownloadState] = useState<'idle' | 'capturing' | 'success'>('idle');
   const [downloadError, setDownloadError] = useState<string | null>(null);
   const [isSharing, setIsSharing] = useState(false);
@@ -121,19 +135,20 @@ function DownloadShareSubsection({
 
   const autoSaveStoreApi = useAutoSaveStoreApi();
   const autoSaveStatus = useAutoSaveStore((s) => s.autoSaveStatus);
-  const shareRoute = pickShareRoute();
+  const { fileDelivery = browserFileDelivery, imageShares } = useCanvasEditorServices();
+  const shareRoute = fileDelivery.pickShareRoute();
   const isMultiPage = pageCount > 1 && onDownloadAllZip;
 
   const publishDraftIfNeeded = useCallback(async () => {
     const token = shareToken || autoSaveStoreApi.getState().autoSavedShareToken;
-    if (token) {
+    if (token && imageShares) {
       try {
-        await shareApi.publishShare(token);
+        await imageShares.publishShare(token);
       } catch (err) {
         console.warn('[DownloadShareSubsection] Failed to publish draft:', err);
       }
     }
-  }, [shareToken, autoSaveStoreApi]);
+  }, [shareToken, autoSaveStoreApi, imageShares]);
 
   // Remembers the last export attempt so a failed export can be retried
   const lastExportOpRef = useRef<(() => Promise<void> | void) | null>(null);
@@ -175,20 +190,15 @@ function DownloadShareSubsection({
 
   const handleNativeShare = useCallback(async () => {
     shareDropdown.setOpen(false);
-    if (!exportedImage) {
-      onCaptureCanvas();
-      await new Promise((resolve) => setTimeout(resolve, 150));
-    }
-
-    const imageToShare = exportedImage || autoSaveStoreApi.getState().autoSavedShareToken;
+    const imageToShare = exportedImage || (await captureCanvasImage?.()) || null;
     if (!imageToShare) return;
 
     setIsSharing(true);
     try {
       if (shareRoute === 'native-host') {
-        shareDataUrlViaNativeHost(imageToShare, 'gruenerator.png', {
+        fileDelivery.shareDataUrlViaNativeHost(imageToShare, 'gruenerator.png', {
           title: 'Grünerator Share',
-          text: canvasText,
+          text: withAltText(canvasText, captionAltText),
         });
       } else {
         const blob = await (await fetch(imageToShare)).blob();
@@ -197,12 +207,12 @@ function DownloadShareSubsection({
         if (navigator.canShare?.({ files: [file] })) {
           await navigator.share({
             files: [file],
-            text: canvasText,
+            text: withAltText(canvasText, captionAltText),
             title: 'Grünerator Share',
           });
         } else {
           await navigator.share({
-            text: canvasText,
+            text: withAltText(canvasText, captionAltText),
             title: 'Grünerator Share',
           });
         }
@@ -217,7 +227,16 @@ function DownloadShareSubsection({
     } finally {
       setIsSharing(false);
     }
-  }, [exportedImage, canvasText, onCaptureCanvas, shareDropdown, publishDraftIfNeeded, shareRoute]);
+  }, [
+    exportedImage,
+    canvasText,
+    captionAltText,
+    captureCanvasImage,
+    shareDropdown,
+    publishDraftIfNeeded,
+    shareRoute,
+    fileDelivery,
+  ]);
 
   const handleShareAllPages = useCallback(async () => {
     shareDropdown.setOpen(false);
@@ -370,6 +389,8 @@ function DownloadShareSubsection({
         )}
       </div>
 
+      <AltTextField value={altText} onChange={setAltText} />
+
       {isMultiExporting && exportProgress && exportProgress.total > 0 && (
         <div className="relative w-full h-6 bg-editor-tile rounded-full overflow-hidden">
           <div
@@ -463,9 +484,11 @@ export function GenericShareSection({
   exportedImage,
   shareToken,
   onCaptureCanvas,
+  captureCanvasImage,
   onDownload,
   onNavigateToGallery,
   canvasText,
+  imageText,
   pageCount,
   onDownloadAllZip,
   onShareAllPages,
@@ -486,9 +509,11 @@ export function GenericShareSection({
             exportedImage={exportedImage}
             shareToken={shareToken}
             onCaptureCanvas={onCaptureCanvas}
+            captureCanvasImage={captureCanvasImage}
             onDownload={onDownload}
             onNavigateToGallery={onNavigateToGallery}
             canvasText={canvasText}
+            imageText={imageText}
             pageCount={pageCount}
             onDownloadAllZip={onDownloadAllZip}
             onShareAllPages={onShareAllPages}
@@ -514,9 +539,11 @@ export function GenericShareSection({
       exportedImage,
       shareToken,
       onCaptureCanvas,
+      captureCanvasImage,
       onDownload,
       onNavigateToGallery,
       canvasText,
+      imageText,
       pageCount,
       onDownloadAllZip,
       onShareAllPages,

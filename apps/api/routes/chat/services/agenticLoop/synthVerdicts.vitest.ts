@@ -1,5 +1,7 @@
 import { describe, it, expect } from 'vitest';
 
+import { PHANTOM_CREATION_FALLBACK } from '../outputSanity.js';
+
 import { finalizeAnswerText } from './synthVerdicts.js';
 
 const base = { sourceCount: 0, seenTexts: [], knownArtifactRefs: [] };
@@ -43,5 +45,31 @@ describe('finalizeAnswerText — erfundene Sharepic-Bearbeitung', () => {
       editedArtifacts: new Set(['sharepic']),
     });
     expect(r.text).toBe(claim);
+  });
+});
+
+describe('finalizeAnswerText — angekündigte Erstellung ohne Artefakt (#4611)', () => {
+  const live =
+    'Ich erstelle dir jetzt die Sharepics für den Slider basierend auf dem Entwurf. (Hier erfolgt nun die Erstellung der Sharepics durch die entsprechenden Werkzeuge des Grünerators)';
+
+  it('ersetzt die Ankündigung und schickt sie per completion', () => {
+    const r = finalizeAnswerText({ ...base, text: live, stepCount: 0 });
+    expect(r.text).toBe(PHANTOM_CREATION_FALLBACK);
+    expect(r.replaced).toBe(true);
+  });
+
+  it('lässt sie stehen, wenn ein Artefakt entstanden ist', () => {
+    const r = finalizeAnswerText({ ...base, text: live, stepCount: 1, createdArtifact: true });
+    expect(r.text).toBe(live);
+  });
+
+  it('lässt sie stehen, wenn ein Werkzeug ein Artefakt geändert hat', () => {
+    const r = finalizeAnswerText({
+      ...base,
+      text: live,
+      stepCount: 1,
+      editedArtifacts: new Set(['sharepic'] as const),
+    });
+    expect(r.text).toBe(live);
   });
 });

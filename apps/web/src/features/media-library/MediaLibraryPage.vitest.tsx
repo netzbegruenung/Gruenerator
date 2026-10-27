@@ -1,3 +1,8 @@
+import {
+  type CanvasContentItem,
+  type MediathekItem,
+  type VideoContentItem,
+} from '@gruenerator/contracts';
 import { createApiClient, setGlobalApiClient } from '@gruenerator/shared/api';
 import { type MediaItem } from '@gruenerator/shared/media-library';
 import { fireEvent, screen, waitFor, within } from '@testing-library/react';
@@ -34,13 +39,56 @@ const mediaItem = (id: string, overrides: Partial<MediaItem> = {}): MediaItem =>
   ...overrides,
 });
 
+const reel = (id: string, title: string): VideoContentItem => ({
+  kind: 'video',
+  id,
+  title,
+  date: new Date().toISOString(),
+  href: `/studio/video?project=${id}`,
+  deleteEndpoint: `/api/subtitler/projects/${id}`,
+  creatorName: null,
+  accessType: 'owner',
+  thumbnailUrl: null,
+  duration: 12,
+});
+
+const canvas = (id: string, title: string): CanvasContentItem => ({
+  kind: 'canvas',
+  id,
+  title,
+  date: new Date().toISOString(),
+  href: `/studio/canvas/${id}`,
+  deleteEndpoint: `/api/canvas/${id}`,
+  creatorName: null,
+  accessType: 'owner',
+  thumbnailUrl: null,
+});
+
+type Entry = MediaItem | VideoContentItem | CanvasContentItem;
+
+const toWire = (entry: Entry): MediathekItem =>
+  'kind' in entry
+    ? entry
+    : {
+        kind: 'media',
+        ...entry,
+        duration: entry.duration ?? null,
+        imageType: entry.imageType ?? null,
+        imageMetadata: null,
+        contentOrigin: entry.contentOrigin ?? null,
+        status: 'ready',
+      };
+
+const mediaTypeOf = (entry: Entry) =>
+  'kind' in entry ? (entry.kind === 'video' ? 'video' : 'image') : entry.mediaType;
+
 let listQueries: URLSearchParams[] = [];
 let updates: Array<{ id: string; body: unknown }> = [];
 let deletes: string[] = [];
 let uploads = 0;
 
 function serve(
-  initial: MediaItem[] = [
+  initial: Entry[] = [
     mediaItem('a'),
     mediaItem('b', { mediaType: 'video', mimeType: 'video/mp4', title: 'Rede' }),
   ]
@@ -51,26 +99,41 @@ function serve(
   deletes = [];
   uploads = 0;
   server.use(
-    http.get(`${API}/media`, ({ request }) => {
+    http.get(`${API}/content/mediathek`, ({ request }) => {
       const params = new URL(request.url).searchParams;
       listQueries.push(params);
-      const type = params.get('type');
+      const typ = params.get('typ');
       const search = params.get('search')?.toLowerCase();
       const data = items.filter(
         (item) =>
-          (!type || type === 'all' || item.mediaType === type) &&
+          (!typ ||
+            typ === 'all' ||
+            (typ === 'reel' && 'kind' in item && item.kind === 'video') ||
+            mediaTypeOf(item) === typ) &&
           (!search || (item.title ?? '').toLowerCase().includes(search))
       );
       return HttpResponse.json({
-        success: true,
-        data,
-        pagination: { total: data.length, limit: 50, offset: 0, hasMore: false },
+        items: data.map(toWire),
+        total: data.length,
+        limit: 50,
+        offset: 0,
+        hasMore: false,
       });
     }),
     http.put(`${API}/media/:id`, async ({ params, request }) => {
       const body = await request.json();
       updates.push({ id: String(params.id), body });
+      items = items.map((item) =>
+        item.id === params.id && !('kind' in item)
+          ? { ...item, title: (body as { title: string }).title }
+          : item
+      );
       return HttpResponse.json({ success: true, data: { id: params.id } });
+    }),
+    http.delete(`${API}/subtitler/projects/:id`, ({ params }) => {
+      deletes.push(String(params.id));
+      items = items.filter((item) => item.id !== params.id);
+      return HttpResponse.json({ success: true });
     }),
     http.delete(`${API}/media/:id`, ({ params }) => {
       deletes.push(String(params.id));
@@ -114,6 +177,7 @@ function renderPage(route = '/studio/mediathek') {
           </>
         }
       />
+      <Route path="/studio/canvas/:id" element={<p>Canvas-Editor</p>} />
     </Routes>,
     { route }
   );
@@ -151,7 +215,7 @@ describe('MediaLibraryPage', () => {
 
     expect(screen.getByLabelText('Adresse')).toHaveTextContent('?typ=video');
     await waitFor(() => expect(screen.queryByRole('button', { name: 'Bild a' })).toBeNull());
-    expect(listQueries.at(-1)?.get('type')).toBe('video');
+    expect(listQueries.at(-1)?.get('typ')).toBe('video');
 
     await user.click(screen.getByRole('button', { name: 'Filter „Videos“ entfernen' }));
     expect(await screen.findByRole('button', { name: 'Bild a' })).toBeInTheDocument();
@@ -162,7 +226,7 @@ describe('MediaLibraryPage', () => {
     renderPage('/studio/mediathek?typ=video');
     expect(await screen.findByRole('button', { name: 'Rede' })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Bild a' })).toBeNull();
-    expect(listQueries[0]?.get('type')).toBe('video');
+    expect(listQueries[0]?.get('typ')).toBe('video');
   });
 
   it('searches as you type, after a pause', async () => {
@@ -249,6 +313,49 @@ describe('MediaLibraryPage', () => {
     ).toBeInTheDocument();
     expect(uploads).toBe(1);
     expect(await screen.findByRole('button', { name: 'Bild neu1' })).toBeInTheDocument();
+  });
+
+  it('lists Reels and canvas Sharepics next to the files', async () => {
+    serve([mediaItem('a'), reel('r1', 'Wahlkampf-Reel'), canvas('c1', 'Plakat')]);
+    renderPage();
+
+    expect(await screen.findByRole('button', { name: 'Wahlkampf-Reel' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Plakat' })).toBeInTheDocument();
+    expect(screen.getByText('Reel')).toBeInTheDocument();
+    expect(screen.getByText('3 Medien')).toBeInTheDocument();
+  });
+
+  it('opens Reels only from the address filter', async () => {
+    serve([mediaItem('a'), reel('r1', 'Wahlkampf-Reel')]);
+    renderPage('/studio/mediathek?typ=reel');
+
+    expect(await screen.findByRole('button', { name: 'Wahlkampf-Reel' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Bild a' })).toBeNull();
+    expect(listQueries[0]?.get('typ')).toBe('reel');
+  });
+
+  it('opens a canvas Sharepic in its editor', async () => {
+    serve([canvas('c1', 'Plakat')]);
+    const user = userEvent.setup();
+    renderPage();
+
+    await user.click(await screen.findByRole('button', { name: 'Plakat' }));
+
+    expect(await screen.findByText('Canvas-Editor')).toBeInTheDocument();
+  });
+
+  it('moves a Reel to the trash through its own endpoint', async () => {
+    serve([reel('r1', 'Wahlkampf-Reel')]);
+    const user = userEvent.setup();
+    renderPage();
+
+    await user.click(await screen.findByRole('button', { name: 'Aktionen für Wahlkampf-Reel' }));
+    await user.click(await screen.findByRole('menuitem', { name: 'In den Papierkorb' }));
+
+    await waitFor(() =>
+      expect(screen.queryByRole('button', { name: 'Wahlkampf-Reel' })).toBeNull()
+    );
+    expect(deletes).toEqual(['r1']);
   });
 
   it('keeps the drop hint while the pointer moves across tiles', async () => {

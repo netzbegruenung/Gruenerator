@@ -1,11 +1,10 @@
-import { describe, it, expect } from 'vitest';
-
 import {
   calculateCenteredSnapPosition,
   calculateElementSnapPosition,
   createSnapHysteresis,
   type SnapTarget,
-} from '../snapping';
+} from '@ggraphic/editor/utils/snapping';
+import { describe, it, expect } from 'vitest';
 
 const STAGE = 1080;
 
@@ -35,6 +34,17 @@ describe('calculateElementSnapPosition', () => {
     expect(result.snapV).toBe(false);
     expect(result.snapH).toBe(false);
     expect(result.snapLines).toHaveLength(0);
+  });
+
+  it('richtet an der linken Kante eines weit entfernten Elements aus', () => {
+    // Dachzeile oben, Absender ganz unten: dieselbe linke Kante zieht trotzdem an.
+    const result = calculateElementSnapPosition(118, 900, 300, 60, [bodyText], STAGE, STAGE);
+
+    expect(result.x).toBe(125);
+    expect(result.snapH).toBe(true);
+    expect(result.snapLines).toContainEqual(
+      expect.objectContaining({ orientation: 'vertical', position: 125, start: 280, end: 960 })
+    );
   });
 
   it('haelt den eingerasteten Zustand laenger (Hysterese)', () => {

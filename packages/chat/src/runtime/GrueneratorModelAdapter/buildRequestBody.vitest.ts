@@ -35,6 +35,7 @@ function build(overrides: {
   typedSkillMention?: string | null;
   notebookAnswerMode?: 'auto' | 'chat' | 'praezision';
   formattedMessages?: BuildRequestBodyParams['formattedMessages'];
+  notebookSourceRefs?: BuildRequestBodyParams['notebookSourceRefs'];
 }): Record<string, unknown> {
   return buildRequestBody({
     effectiveMode: overrides.effectiveMode,
@@ -64,6 +65,7 @@ function build(overrides: {
     wolkeFiles: [],
     connectFiles: [],
     webpageUrls: [],
+    notebookSourceRefs: overrides.notebookSourceRefs ?? [],
     regenerate: false,
     replaceFromMessageId: undefined,
     mergedDocChatIds: [],
@@ -195,5 +197,19 @@ describe('buildRequestBody — notebook answer mode', () => {
       { role: 'assistant', content: '1. …', answerMode: 'praezision' },
       { role: 'user', content: 'und die zweite?' },
     ]);
+  });
+});
+
+describe('buildRequestBody — notebookSourceRefs', () => {
+  const ref = { collectionId: 'hamburg-system', sourceUrl: 'https://gruene-hamburg.de/hitze' };
+
+  it('sends the documents handed over from the reader', () => {
+    expect(build({ effectiveMode: 'chat', notebookSourceRefs: [ref] }).notebookSourceRefs).toEqual([
+      ref,
+    ]);
+  });
+
+  it('leaves the field out when there are none', () => {
+    expect(build({ effectiveMode: 'chat' }).notebookSourceRefs).toBeUndefined();
   });
 });

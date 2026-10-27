@@ -17,6 +17,7 @@
  * Leerzustand ist ein gültiges Prüfziel, eine Seite im Fehlerzustand wäre es
  * auch, aber nicht reproduzierbar.
  */
+import { type MarketplaceListResponse, type OfficeResponse } from '@gruenerator/contracts';
 import { type Page, type Route } from '@playwright/test';
 
 /** Feste ID, damit die Route in `ROUTES` und der Mock dieselbe Karte meinen. */
@@ -50,6 +51,48 @@ const boardDocument = {
   content: { board_type: 'kanban' },
   description: null,
 };
+
+/** Real card shapes so the Office audit covers the library, not only its empty state. */
+const officeResponse = {
+  items: [
+    {
+      id: '22222222-2222-4222-8222-222222222222',
+      title: 'Prüf-Dokument',
+      document_subtype: 'blank',
+      content: '<p>Antrag zur Verkehrswende</p>',
+    },
+    {
+      id: '33333333-3333-4333-8333-333333333333',
+      title: 'Prüf-Tabelle',
+      document_subtype: 'sheets',
+      content: '',
+    },
+    {
+      id: '44444444-4444-4444-8444-444444444444',
+      title: 'Prüf-Präsentation',
+      document_subtype: 'presentations',
+      content: '',
+    },
+    {
+      id: FIXTURE_BOARD_ID,
+      title: boardDocument.title,
+      document_subtype: 'boards',
+      content: JSON.stringify(boardDocument.content),
+    },
+  ].map((item) => ({
+    ...item,
+    updated_at: ZEITPUNKT,
+    creator_name: 'Test User',
+    access_type: 'owner' as const,
+    group_shares: [],
+  })),
+  total: 4,
+  limit: 50,
+  offset: 0,
+  hasMore: false,
+} satisfies OfficeResponse;
+
+const emptyMarketplace = { sections: [] } satisfies MarketplaceListResponse;
 
 const boardState = {
   id: FIXTURE_BOARD_ID,
@@ -106,7 +149,12 @@ async function json(route: Route, body: unknown): Promise<void> {
  * die zuletzt registrierte gewinnt. Deshalb steht die Auffangregel zuerst und
  * die spezifischen danach; andersherum würde die Auffangregel alles schlucken.
  */
-export async function installApiFixtures(page: Page): Promise<void> {
+/**
+ * Was jede Seite des Editors ruhig stellt, ohne die API anzufassen: Banner und
+ * Touren aus, react-scan blockiert. `installApiFixtures` baut darauf auf; ein
+ * Test gegen den echten Dev-Stack nimmt nur das hier.
+ */
+export async function quietEditorChrome(page: Page): Promise<void> {
   await page.addInitScript(() => {
     // Der Schlüssel, den das Banner in `index.html` wirklich liest. Die drei
     // Namen in `pageHelpers.ts` (`cookie-consent`, `gruenerator_cookie_consent`,
@@ -145,6 +193,10 @@ export async function installApiFixtures(page: Page): Promise<void> {
   // Blockieren statt ausschließen, damit die Lane nebenbei auch nicht mehr
   // davon abhängt, dass unpkg.com erreichbar ist.
   await page.route('**/react-scan/**', (route) => route.abort());
+}
+
+export async function installApiFixtures(page: Page): Promise<void> {
+  await quietEditorChrome(page);
 
   // Auffangregel: leere, wohlgeformte Antwort statt eines Netzwerkfehlers.
   // `data` und `items` gleichzeitig, weil beide Hüllenformen im Bestand
@@ -251,6 +303,12 @@ export async function installApiFixtures(page: Page): Promise<void> {
       data: [],
       pagination: { total: 0, limit: 24, offset: 0, hasMore: false },
     },
+    // Saved notebooks on /wissen read `sections.some` through useMarketplaceKind.
+    '/api/marketplace': emptyMarketplace,
+    '/api/content/office': officeResponse,
+    // `marketplaceFrontpageResponseSchema`: `shelves` is read with `.find`, so the
+    // catch-all object would crash „Start" into the error boundary.
+    '/api/marketplace/frontpage': { featured: null, featureId: null, shelves: [], collections: [] },
   };
   for (const [pfad, antwort] of Object.entries(SONDERFORMEN)) {
     await page.route(

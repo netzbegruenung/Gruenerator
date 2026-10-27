@@ -49,6 +49,22 @@ export const connectFileRefSchema = z.object({
 export type ConnectFileRef = z.infer<typeof connectFileRefSchema>;
 
 /**
+ * A notebook source handed from the document reader to the chat ("Mit KI
+ * zusammenfassen" / "Im Chat besprechen"). Exactly the two shapes the reader
+ * loads by: a user document — own, or read through a shared notebook, which is
+ * why `notebookId` travels — or a system-collection document named by its
+ * STORED `source_url` (a `wolke://` key, not the display URL). The server
+ * re-authorizes every ref each turn with the reader's own access rules and
+ * keeps it per thread (`chat_threads.notebook_source_refs`).
+ */
+export const notebookSourceRefSchema = z.union([
+  z.object({ documentId: z.string().guid(), notebookId: z.string().max(128).nullable() }),
+  z.object({ collectionId: z.string().min(1).max(128), sourceUrl: z.string().min(1).max(2048) }),
+]);
+export type NotebookSourceRef = z.infer<typeof notebookSourceRefSchema>;
+export const NOTEBOOK_SOURCE_REFS_MAX = 5;
+
+/**
  * A single chat message on the wire. Two client formats reach the stream
  * endpoint: the chat UI sends AI-SDK UIMessages (`parts` array), the voice
  * surfaces send plain `{ role, content }` ModelMessages. Both pass through
@@ -173,7 +189,7 @@ export const chatStreamBodySchema = z.object({
   messages: z.array(chatWireMessageSchema).min(1),
   agentId: z.string().nullish(),
   threadId: z.string().nullish(),
-  enabledTools: z.record(z.boolean()).nullish(),
+  enabledTools: z.record(z.string(), z.boolean()).nullish(),
   modelId: z.string().nullish(),
   attachments: z.array(chatAttachmentSchema).nullish(),
   notebookIds: z.array(z.string()).nullish(),
@@ -189,7 +205,9 @@ export const chatStreamBodySchema = z.object({
   // Tool names this client can execute locally (e.g. 'run_python' when the web
   // host injected a Pyodide runner). The backend only emits a client_tool
   // interrupt for tools listed here; clients without the capability (mobile,
-  // voice) keep the legacy prompt-guidance path.
+  // voice) keep the legacy prompt-guidance path. Also carries capabilities:
+  // 'tabelle_auswerten' = this client resumes a client tool after an approval
+  // (older bundles send only 'run_python' and would stall).
   clientTools: z.array(z.string()).nullish(),
   platform: clientPlatformSchema.nullish(),
   // Visual-block fence kinds this client draws as components (```bars, …, see
@@ -205,6 +223,7 @@ export const chatStreamBodySchema = z.object({
   docMentionIds: z.array(z.string()).nullish(),
   wolkeFiles: z.array(wolkeFileRefSchema).nullish(),
   connectFiles: z.array(connectFileRefSchema).nullish(),
+  notebookSourceRefs: z.array(notebookSourceRefSchema).max(NOTEBOOK_SOURCE_REFS_MAX).nullish(),
   currentDocument: z
     .object({
       id: z.string(),
@@ -276,7 +295,7 @@ export const chatStreamBodySchema = z.object({
   // Row id of the active user recipe ("angelernte Textform"). Wins over
   // activeSkillMention when both are set — old clients only ever send the
   // mention, so they keep working unchanged.
-  activeRecipeId: z.string().uuid().nullish(),
+  activeRecipeId: z.string().guid().nullish(),
   // Regenerate the last assistant turn: the backend skips re-persisting the
   // (unchanged) user message and deletes the trailing assistant message(s)
   // before streaming the replacement. Keeps chat_messages linear (no dupes).
@@ -329,4 +348,4 @@ export const chatGraphErrorResponseSchema = z.object({
 });
 
 /** Path params of the resumable-stream routes: the placeholder assistant message id. */
-export const chatStreamIdParamsSchema = z.object({ streamId: z.string().uuid() });
+export const chatStreamIdParamsSchema = z.object({ streamId: z.string().guid() });

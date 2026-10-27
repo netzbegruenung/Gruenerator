@@ -2,7 +2,7 @@
  * Image Services - Barrel Export
  *
  * Centralized exports for all image-related services:
- * - ImageSelectionService: AI-powered image selection using LangGraph
+ * - ImageSelectionService: AI-powered image selection from the stock catalog
  * - ImagineCanvasRenderer: Canvas composition for FLUX images with text overlays
  * - UnsplashAttributionService: Unsplash image attribution parsing and formatting
  */

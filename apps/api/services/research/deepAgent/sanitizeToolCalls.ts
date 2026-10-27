@@ -13,7 +13,7 @@
  * made it rarer (measured: three concurrent calls collapse to one) but never
  * eliminated it, so the history is cleaned here instead of hoping upstream.
  *
- * That is also why the lead may batch again: this middleware, not the provider
+ * That is also why the lead may batch again: this repair, not the provider
  * setting, is what the run survives on. The lead delegates in parallel
  * (`PARALLEL_TOOL_CALLS` in models.ts) precisely because a bad batch is repaired
  * here, and the worker — which has nothing to batch — stays serial.
@@ -21,28 +21,22 @@
  * Repairing rather than failing is the point: a dropped call costs one step, a
  * poisoned history costs the whole report.
  *
- * ── Why filtering `tool_calls` was not enough ──────────────────────────────
+ * ── Where the repair sits now ─────────────────────────────────────────────
  *
- * The same call rides in up to three fields, and the first version of this
- * middleware cleaned only the first:
+ * The AI SDK does not throw on such a call: it records it as an invalid tool
+ * call with a `tool-error` result and carries on. That keeps the run alive for
+ * one step, but the call is still in the history, and the next request would
+ * echo the poisoned name back to Mistral. So the history is cleaned in
+ * `prepareStep`, before every model call; a messages override there carries
+ * forward to the later steps, so a dropped call stays dropped.
  *
- *   1. `tool_calls` — the parsed ones.
- *   2. `invalid_tool_calls` — where LangChain parks what it could not parse.
- *   3. `additional_kwargs.tool_calls` — the provider's RAW payload.
- *
- * `@langchain/openai`'s converter (`converters/completions`, the
- * `_convertMessagesToOpenAIParams` path) reads 1 only when it is non-empty and
- * otherwise passes 3 through verbatim. So the all-garbage case — the one that
- * empties `tool_calls` — is precisely the case that fell back to the untouched
- * raw payload and put the poisoned name back on the wire.
- *
- * That is the run of 11.08.2026 in the logs: `[sanitize] verworfen` at 10:33:10,
- * the same 400 immediately after, twice, both continuations of `resume.ts` spent
- * on it, ~160 s of a 420 s budget. All three fields are filtered now.
+ * (Under LangChain the same call rode in three fields at once, and the first
+ * version of this repair cleaned only one of them — the run of 11.08.2026 lost
+ * both continuations to it. The AI SDK keeps one representation per call, so
+ * there is one place to clean.)
  */
 
-import { AIMessage, HumanMessage } from '@langchain/core/messages';
-import { createMiddleware } from 'langchain';
+import { type ModelMessage } from 'ai';
 
 import { createLogger } from '../../../utils/logger.js';
 
@@ -69,114 +63,86 @@ export const RETRY_TEXT =
   'Der letzte Werkzeugaufruf war fehlerhaft und wurde verworfen. Wiederhole ihn jetzt ' +
   'einzeln und korrekt; danach kannst du wie gewohnt weiterarbeiten.';
 
-function countRetries(messages: unknown[]): number {
-  return messages.filter((m) => m instanceof HumanMessage && m.content === RETRY_TEXT).length;
+function countRetries(messages: ModelMessage[]): number {
+  return messages.filter((m) => m.role === 'user' && m.content === RETRY_TEXT).length;
 }
 
 export function isValidToolName(name: unknown): boolean {
   return typeof name === 'string' && VALID_TOOL_NAME.test(name);
 }
 
-interface ToolCallLike {
-  name?: unknown;
-}
+/**
+ * The history minus every tool call the API would reject, and minus the
+ * results that answered them — a result without its call is the same 400.
+ *
+ * Returns null when nothing had to go, so the caller can leave the step's
+ * messages untouched instead of overriding them with an identical copy.
+ */
+export function sanitizeHistory(
+  messages: ModelMessage[]
+): { messages: ModelMessage[]; dropped: string[]; lastTurnEmptied: boolean } | null {
+  const droppedIds = new Set<string>();
+  const dropped: string[] = [];
+  // Tracks the NEWEST assistant turn only: an emptied turn further back was
+  // already answered by a nudge or by the model moving on.
+  let lastTurnEmptied = false;
 
-/** The raw OpenAI shape as it survives in `additional_kwargs`. */
-interface RawToolCall {
-  function?: { name?: unknown };
+  const cleaned: ModelMessage[] = [];
+  for (const msg of messages) {
+    if (msg.role === 'assistant' && Array.isArray(msg.content)) {
+      const kept = msg.content.filter((part) => {
+        if (part.type !== 'tool-call' || isValidToolName(part.toolName)) return true;
+        droppedIds.add(part.toolCallId);
+        dropped.push(JSON.stringify(part.toolName));
+        return false;
+      });
+      lastTurnEmptied =
+        kept.length < msg.content.length && !kept.some((part) => part.type === 'tool-call');
+      if (kept.length === msg.content.length) cleaned.push(msg);
+      else if (kept.length > 0) cleaned.push({ ...msg, content: kept });
+      continue;
+    }
+    if (msg.role === 'tool') {
+      const kept = msg.content.filter(
+        (part) => part.type !== 'tool-result' || !droppedIds.has(part.toolCallId)
+      );
+      if (kept.length === msg.content.length) cleaned.push(msg);
+      else if (kept.length > 0) cleaned.push({ ...msg, content: kept });
+      continue;
+    }
+    cleaned.push(msg);
+  }
+
+  if (dropped.length === 0) return null;
+  return { messages: cleaned, dropped, lastTurnEmptied };
 }
 
 /**
- * The raw payload, minus every entry the API would reject.
+ * `prepareStep` hook for both the lead and the workers.
  *
- * Returns the `additional_kwargs` to put on the repaired message: the key is
- * REMOVED rather than set to an empty array when nothing survives, because the
- * converter branches on `!= null`, not on length — an empty array would still
- * win over the parsed calls and send `tool_calls: []`.
+ * Every call was garbage: the step would otherwise go on with nothing in hand,
+ * so the model is told to repeat the call — bounded like `nudgeMissingReport`,
+ * because a model that keeps emitting invalid names would otherwise spend the
+ * run's whole step budget on nothing. Past the limit the history is still
+ * repaired, only the nudge is dropped.
  */
-export function sanitizeAdditionalKwargs(
-  kwargs: Record<string, unknown> | undefined
-): Record<string, unknown> {
-  const rest = { ...(kwargs ?? {}) };
-  const raw = rest.tool_calls;
-  if (!Array.isArray(raw)) return rest;
-
-  const kept = (raw as RawToolCall[]).filter((c) => isValidToolName(c?.function?.name));
-  // Identity matters to the caller: an unchanged payload must come back as the
-  // SAME array, or every clean turn looks like a repair and gets rewritten.
-  if (kept.length === raw.length) return rest;
-  if (kept.length === 0) {
-    delete rest.tool_calls;
-    return rest;
+export function sanitizeStep({
+  messages,
+}: {
+  messages: ModelMessage[];
+}): { messages: ModelMessage[] } | undefined {
+  const result = sanitizeHistory(messages);
+  if (!result) return undefined;
+  log.warn(
+    `[sanitize] ${result.dropped.length} unbrauchbare(r) Tool-Aufruf(e) verworfen: ${result.dropped.join(', ')}`
+  );
+  if (!result.lastTurnEmptied) return { messages: result.messages };
+  const retries = countRetries(result.messages);
+  if (retries >= RETRY_LIMIT) {
+    log.warn(
+      `[sanitize] Lauf geht nach ${retries} Anstößen weiter mit ungültigen Tool-Namen — kein weiterer Anstoß`
+    );
+    return { messages: result.messages };
   }
-  rest.tool_calls = kept;
-  return rest;
+  return { messages: [...result.messages, { role: 'user', content: RETRY_TEXT }] };
 }
-
-export const sanitizeToolCallsMiddleware = createMiddleware({
-  name: 'sanitizeToolCalls',
-  afterModel: {
-    canJumpTo: ['model'],
-    hook: (state: { messages?: unknown[] }) => {
-      const messages = state.messages ?? [];
-      const last = messages[messages.length - 1];
-      if (!(last instanceof AIMessage)) return undefined;
-
-      const calls = (last.tool_calls ?? []) as ToolCallLike[];
-      const invalidParsed = (last.invalid_tool_calls ?? []) as ToolCallLike[];
-      const kwargs = sanitizeAdditionalKwargs(last.additional_kwargs);
-      const rawCleaned = kwargs.tool_calls !== last.additional_kwargs?.tool_calls;
-
-      const kept = calls.filter((c) => isValidToolName(c.name));
-      // `invalid_tool_calls` is dropped wholesale: an entry only lands there
-      // because it could not be parsed, so there is nothing to execute and
-      // nothing worth carrying into the next request.
-      if (kept.length === calls.length && invalidParsed.length === 0 && !rawCleaned) {
-        return undefined;
-      }
-
-      const badNames = [...calls, ...invalidParsed]
-        .filter((c) => !isValidToolName(c.name))
-        .map((c) => JSON.stringify(c.name));
-      log.warn(
-        `[sanitize] ${badNames.length || 'unbenannte'} unbrauchbare(r) Tool-Aufruf(e) verworfen: ${badNames.join(', ') || '(nur Rohnutzlast)'}`
-      );
-
-      // Same id → LangGraph's message reducer replaces rather than appends.
-      const repaired = new AIMessage({
-        ...(last.id ? { id: last.id } : {}),
-        content: last.content,
-        tool_calls: kept as never,
-        invalid_tool_calls: [],
-        additional_kwargs: kwargs,
-      });
-
-      // Every call was garbage: the turn would end here with nothing to show,
-      // so nudge the model instead of letting the run die quietly. The message
-      // alone is not enough — without `jumpTo` (and `canJumpTo` above) the
-      // router still ends the run, appended nudge or not.
-      //
-      // Bounded like `nudgeMissingReport`, and for the same reason: a model that
-      // keeps emitting invalid names would otherwise bounce here until
-      // `recursionLimit` (60) burns the whole run's budget on nothing. Past the
-      // limit the history still gets repaired — only the jump is dropped, so the
-      // run ends without the 400-poisoning call in it.
-      if (kept.length === 0) {
-        const retries = countRetries(messages);
-        if (retries >= RETRY_LIMIT) {
-          log.warn(
-            `[sanitize] Lauf endet nach ${retries} Anstößen weiter mit ungültigen Tool-Namen — kein weiterer Rücksprung`
-          );
-          return { messages: [repaired] } as never;
-        }
-
-        return {
-          messages: [repaired, new HumanMessage(RETRY_TEXT)],
-          jumpTo: 'model',
-        } as never;
-      }
-
-      return { messages: [repaired] } as never;
-    },
-  },
-});

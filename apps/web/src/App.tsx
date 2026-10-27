@@ -52,6 +52,7 @@ import { Toaster, toast, TooltipProvider } from '@gruenerator/ui';
 import { shouldRetryQuery } from './components/utils/queryRetry';
 import { toastApiError } from './components/utils/toastError';
 import { prefetchCanvasEditor } from './features/image-studio/canvasQuery';
+import { startServerRestartNotice } from './lib/serverRestartNotice';
 // PopupNutzungsbedingungen moved to inline HTML in index.html — see the
 // `terms-banner` block there. It was the LCP element on / for fresh
 // visitors and waited for the React boot to paint; inline removes that
@@ -101,6 +102,8 @@ const queryClient = new QueryClient({
 if (typeof window !== 'undefined') {
   window.queryClient = queryClient;
 }
+
+startServerRestartNotice(queryClient);
 
 // Direktaufruf des Canvas-Editors: Route-Chunk und Dokument parallel zum
 // Auth-Bootstrap laden, statt erst wenn das Routing die Seite gemountet hat.

@@ -12,7 +12,7 @@ import { test, expect } from '@playwright/test';
  * Routes are picked to exercise each named vendor chunk in
  * `apps/web/vite.config.ts` advancedChunks.groups:
  *   - /imagine        → vendor-konva, pkg-canvas-editor
- *   - /boards         → vendor-excalidraw, vendor-collab, vendor-mermaid
+ *   - /boards         → vendor-collab, vendor-mermaid
  *   - /themen         → vendor-recharts
  *   - /docs/<id>      → vendor-blocknote-export (lazy on Export click — not asserted here)
  *   - /chat, /start, /workplace, /dashboard, /settings → entry chunk only

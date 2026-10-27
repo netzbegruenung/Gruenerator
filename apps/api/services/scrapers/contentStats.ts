@@ -6,7 +6,7 @@
  * runs) and the internal API endpoint (GET /api/internal/content-sync/stats,
  * for CI — which has no direct Qdrant network access).
  */
-import { env } from '../../config/env.js';
+import { getQdrantInstance } from '../../database/services/QdrantService/index.js';
 
 const CONTENT_COLLECTIONS = [
   { name: 'grundsatz_documents', label: 'Grundsatzprogramm' },
@@ -48,49 +48,24 @@ const LV_SHORT_NAMES: { code: string; label: string }[] = [
   { code: 'TH-F', label: 'Thüringen Fraktion' },
 ];
 
-function buildHeaders(): Record<string, string> {
-  const headers: Record<string, string> = {
-    'Content-Type': 'application/json',
-    'api-key': env.QDRANT_API_KEY ?? '',
-  };
-  const basicUser = env.QDRANT_BASIC_AUTH_USERNAME;
-  const basicPass = env.QDRANT_BASIC_AUTH_PASSWORD;
-  if (basicUser && basicPass) {
-    headers['Authorization'] =
-      `Basic ${Buffer.from(`${basicUser}:${basicPass}`).toString('base64')}`;
-  }
-  return headers;
-}
-
-async function getCollectionCount(qdrantUrl: string, collection: string): Promise<number | null> {
+async function getCollectionCount(collection: string): Promise<number | null> {
   try {
-    const resp = await fetch(`${qdrantUrl}/collections/${collection}/points/count`, {
-      method: 'POST',
-      headers: buildHeaders(),
-      body: JSON.stringify({}),
-      signal: AbortSignal.timeout(10000),
-    });
-    if (!resp.ok) return null;
-    const data = (await resp.json()) as { result?: { count?: number } };
-    return data.result?.count ?? null;
+    const res = await getQdrantInstance().readClient(collection).count(collection, { exact: true });
+    return res.count ?? null;
   } catch {
     return null;
   }
 }
 
-async function getLvCount(qdrantUrl: string, code: string): Promise<number | null> {
+async function getLvCount(code: string): Promise<number | null> {
   try {
-    const resp = await fetch(`${qdrantUrl}/collections/landesverbaende_documents/points/count`, {
-      method: 'POST',
-      headers: buildHeaders(),
-      body: JSON.stringify({
+    const res = await getQdrantInstance()
+      .readClient('landesverbaende_documents')
+      .count('landesverbaende_documents', {
         filter: { must: [{ key: 'landesverband', match: { value: code } }] },
-      }),
-      signal: AbortSignal.timeout(10000),
-    });
-    if (!resp.ok) return null;
-    const data = (await resp.json()) as { result?: { count?: number } };
-    return data.result?.count ?? null;
+        exact: true,
+      });
+    return res.count ?? null;
   } catch {
     return null;
   }
@@ -107,22 +82,17 @@ export interface ContentStats {
 }
 
 export async function getContentStatsMarkdown(): Promise<ContentStats> {
-  const qdrantUrl = (env.QDRANT_URL ?? '').replace(/\/+$/, '');
-  if (!qdrantUrl || !env.QDRANT_API_KEY) {
-    throw new Error('QDRANT_URL and QDRANT_API_KEY are required');
-  }
-
   const collectionResults = await Promise.all(
     CONTENT_COLLECTIONS.map(async (c) => ({
       ...c,
-      count: await getCollectionCount(qdrantUrl, c.name),
+      count: await getCollectionCount(c.name),
     }))
   );
 
   const lvResults = await Promise.all(
     LV_SHORT_NAMES.map(async (lv) => ({
       ...lv,
-      count: await getLvCount(qdrantUrl, lv.code),
+      count: await getLvCount(lv.code),
     }))
   );
 

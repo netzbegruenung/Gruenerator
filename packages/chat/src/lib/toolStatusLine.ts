@@ -41,6 +41,8 @@ const SEARCH_PROGRESS_TOOLS: ReadonlySet<string> = new Set([
   // The loader of toolScope.ts has no result worth a card: it only switches the
   // personal-content tools on. Their own calls then draw the cards.
   'meine_inhalte_laden',
+  // Same for the website group's loader.
+  'website_werkzeug_laden',
 ]);
 
 /** Whether this tool reports through the status line instead of a card. */

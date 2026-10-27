@@ -12,7 +12,11 @@
  * pipeline consumes.
  */
 
-import { type chatGraphContract, isVisualBlockKind } from '@gruenerator/contracts';
+import {
+  type chatGraphContract,
+  isVisualBlockKind,
+  type NotebookSourceRef,
+} from '@gruenerator/contracts';
 import { type UserRole, stripRoleBlock } from '@gruenerator/shared/roles';
 import {
   hasMentionTokens,
@@ -38,6 +42,7 @@ import {
 import { findRole, resolveCustomSystemPrompt } from '../../../services/roles/roleSystemPrompt.js';
 import { loadUserRoles } from '../../../services/roles/userRoles.js';
 import { recordItemUsageSafe } from '../../../services/usage/ItemUsageService.js';
+import { gatePandaModelId } from '../../../services/user/pandaEntitlement.js';
 import { NextcloudShareManager } from '../../../utils/integrations/nextcloud/shareManager.js';
 import { createLogger } from '../../../utils/logger.js';
 import { captureSseError } from '../../../utils/observability/captureSseError.js';
@@ -45,7 +50,7 @@ import { ThreadId, UserId } from '../../../utils/types/branded.js';
 import { withTimeout } from '../../../utils/withTimeout.js';
 import { notebookIdFromSteps } from '../agents/notebookSourceTools.js';
 import { getPipelineAgent } from '../agents/pipelines/index.js';
-import { getContextWindow } from '../agents/providers.js';
+import { clientCanUseTabularToolFrom } from '../agents/tabelleAuswertenTool.js';
 
 import { priorLookups, priorTurnRetrievalFailed } from './agenticLoop/catalogAssembly.js';
 import { getThreadAttachments } from './attachmentPersistenceService.js';
@@ -56,14 +61,17 @@ import {
 } from './attachmentProcessingService.js';
 import { countCloudConnections } from './cloudConnectionContext.js';
 import { enrichContext } from './contextEnrichmentService.js';
+import { authorizeDocumentScope } from './documentScopeAccess.js';
 import { priorTurnEditables } from './editAddressee.js';
 import { backfillEmptyUserMessages } from './historyBackfill.js';
+import { turnContextWindow } from './laneContextFloor.js';
 import {
   extractTextContent,
   filterEmptyAssistantMessages,
   sanitizeUIFileParts,
 } from './messageHelpers.js';
 import { notebookIdsForTurn } from './notebookScopeFromText.js';
+import { type NotebookSourceCheck, resolveNotebookSources } from './resolveNotebookSources.js';
 import { type createSSEStream, PROGRESS_MESSAGES } from './sseHelpers.js';
 import { canWriteThread } from './threadAccessService.js';
 import {
@@ -72,6 +80,20 @@ import {
   mergeThreadCloudFiles,
   sameThreadCloudFiles,
 } from './threadCloudFiles.js';
+import {
+  type MentionChip,
+  NO_MENTION_REFS,
+  isEmptyThreadMentionRefs,
+  mentionChipsFor,
+  mergeThreadMentionRefs,
+  sameThreadMentionRefs,
+} from './threadMentionRefs.js';
+import {
+  NO_NOTEBOOK_SOURCES,
+  mergeThreadNotebookSources,
+  notebookSourceKey,
+  sameThreadNotebookSources,
+} from './threadNotebookSources.js';
 import {
   getUser,
   getUserMessageTexts,
@@ -82,15 +104,20 @@ import {
   deleteMessagesFrom,
   deleteTrailingAssistant,
   getThreadCloudFiles,
+  getThreadMentionRefs,
+  getThreadNotebookSources,
   getThreadToolContext,
   readThreadToolHistory,
   setThreadCloudFiles,
+  setThreadMentionRefs,
+  setThreadNotebookSources,
   type ThreadToolHistory,
 } from './threadPersistenceService.js';
 
 import type {
   ChatGraphInput,
   ProcessedAttachment,
+  ResolvedNotebookSource,
   WolkeFileRef,
 } from '../../../agents/langgraph/ChatGraph/types.js';
 import type { ServerInferRequest } from '@ts-rest/core';
@@ -193,6 +220,8 @@ export interface StreamContext {
   memoryContext: string | null;
   memoryRetrieveTimeMs: number;
   memoryEnabled: boolean;
+  /** The request's model after the Panda entitlement gate. */
+  modelId: StreamBody['modelId'];
   contextWindowTokens: number;
   /** Routing fields derived from durable mention tokens in the last user
    *  message ("@[Label](type:id)") — merged with the legacy body fields. */
@@ -243,6 +272,7 @@ export async function buildStreamContext({
     docMentionIds: rawDocMentionIds,
     wolkeFiles: rawWolkeFiles,
     connectFiles: rawConnectFiles,
+    notebookSourceRefs: rawNotebookSourceRefs,
     currentDocument: rawCurrentDocument,
     currentBoard: rawCurrentBoard,
     currentCanvas: rawCurrentCanvas,
@@ -254,7 +284,7 @@ export async function buildStreamContext({
     activeSkillMention: rawActiveSkillMention,
     activeRecipeId: rawActiveRecipeId,
     enabledTools,
-    modelId,
+    modelId: requestedModelId,
     attachments,
     documentIds: rawDocumentIds,
     textIds: rawTextIds,
@@ -343,8 +373,25 @@ export async function buildStreamContext({
     rawDefaultNotebookId && !defaultNotebookId && isUserNotebookId(rawDefaultNotebookId)
       ? await resolveUserNotebookDocumentIds(userId, [rawDefaultNotebookId])
       : { documentIds: [], documentNotebookIds: {} };
+
+  // Body document ids scope a search that runs without an owner filter, so they
+  // are authorized here, before they reach the graph state.
+  const documentScope = await authorizeDocumentScope(userId, [
+    ...(rawDocumentIds ?? []),
+    ...(rawDocumentChatIds ?? []),
+  ]);
+  const readableDocumentIds = new Set(documentScope.documentIds);
+  const authorizedDocumentIds = (rawDocumentIds ?? []).filter((id) => readableDocumentIds.has(id));
+  const authorizedDocumentChatIds = (rawDocumentChatIds ?? []).filter((id) =>
+    readableDocumentIds.has(id)
+  );
+
   // The mention wins on overlap, as it wins the search scope.
-  const documentNotebookIds = { ...defaultDocumentNotebookIds, ...mentionedDocumentNotebookIds };
+  const documentNotebookIds = {
+    ...documentScope.documentNotebookIds,
+    ...defaultDocumentNotebookIds,
+    ...mentionedDocumentNotebookIds,
+  };
 
   // Tor für `cloud_files`: der Katalog wird synchron gebaut und kann diese Frage
   // nicht selbst stellen. Gecacht (60 s) und fehlertolerant — ein Ausfall macht
@@ -432,6 +479,58 @@ export async function buildStreamContext({
     }
   }
 
+  // === Notebook sources handed over from the reader: this turn's refs ===
+  // Checked before the user row is written, so the chip it keeps for a reload
+  // carries the title the check resolved. The thread's earlier refs are merged
+  // and checked further down, next to the cloud files.
+  // @datei picks (`documentIds`) stay in the thread the same way (#4861): each
+  // authorized id rides along as a user-document ref, so it is stored, checked
+  // again every turn and comes back as a chip after a reload. On the turn of the
+  // pick it still goes through `documentIds` (inline text for short documents) —
+  // see the `notebookSources` handed to the graph below.
+  const pickedNotebookSources: NotebookSourceRef[] = [
+    ...(rawNotebookSourceRefs ?? []),
+    ...authorizedDocumentIds.map((documentId) => ({
+      documentId,
+      notebookId: documentScope.documentNotebookIds[documentId] ?? null,
+    })),
+  ];
+  // `null`: the check itself failed — not the same as "no access".
+  let pickedNotebookChecks: NotebookSourceCheck[] | null = [];
+  if (pickedNotebookSources.length > 0) {
+    try {
+      pickedNotebookChecks = await withTimeout(
+        resolveNotebookSources(pickedNotebookSources, userId),
+        EXTERNAL_CONTEXT_TIMEOUT_MS,
+        'notebook source check'
+      );
+    } catch (err) {
+      log.warn('[StreamContext] Notebook source check failed (continuing):', err);
+      pickedNotebookChecks = null;
+    }
+  }
+
+  // === @doc / saved-text / @link picks: this turn's refs and chips ===
+  // Carried per thread further down (threadMentionRefs.ts). The chips are
+  // resolved here, before the user row is written; a typed @doc token already
+  // shows inline after a reload, so only picker-attached docs get a chip.
+  const pickedMentionRefs = mergeThreadMentionRefs(NO_MENTION_REFS, {
+    texts: rawTextIds ?? [],
+    docs: mergedDocMentionIds,
+    links: rawWebpageUrls ?? [],
+  });
+  let mentionChips: MentionChip[] = [];
+  if (!isEmptyThreadMentionRefs(pickedMentionRefs) && !rawRegenerate) {
+    try {
+      mentionChips = await mentionChipsFor(userId, {
+        ...pickedMentionRefs,
+        docs: pickedMentionRefs.docs.filter((id) => !mentionTokenFields.docMentionIds.includes(id)),
+      });
+    } catch (err) {
+      log.warn('[StreamContext] Could not resolve mention chips (continuing):', err);
+    }
+  }
+
   // === Create thread if needed ===
   // Normalize null → undefined: contract schema uses .nullish() to accept
   // both, but downstream code is typed for string | undefined.
@@ -465,6 +564,47 @@ export async function buildStreamContext({
     sse.send('thread_created', { threadId: actualThreadId });
   }
 
+  // === Thread access — before ANY read keyed on the client's thread id ===
+  // Everything below that reads the thread (history backfill, cloud-file refs,
+  // earlier attachments, tool history) trusts `actualThreadId`; it must only
+  // ever name a thread this user may write to.
+  if (
+    actualThreadId &&
+    !isNewThread &&
+    !(await canWriteThread(ThreadId(actualThreadId), UserId(userId)))
+  ) {
+    if (!lastUserMessage) {
+      // Nothing to persist, so no thread to mint: run the turn thread-less.
+      log.warn('[StreamContext] Dropping unwritable threadId on a turn without a user message');
+      actualThreadId = undefined;
+    } else {
+      // The client-supplied threadId is gone or not writable — most often a
+      // freshly-created empty thread reaped by the sidebar's auto-cleanup race
+      // mid-send, or a stale client id. Recover gracefully by minting a new
+      // thread for this user instead of hard-erroring. Safe: a foreign/deleted
+      // id is never reused, we always create a fresh user-owned thread.
+      //
+      // The recovery is invisible to the user, so leave a breadcrumb: without
+      // it we lose all signal on how often the reap race still fires (e.g. if
+      // the client's 60s protection window proves too short).
+      captureSseError({
+        code: 'thread-reaped-recovered',
+        message: 'Thread not found mid-send; minted a fresh thread to recover',
+        level: 'warning',
+        extras: { staleThreadId: actualThreadId, userId, agentId },
+      });
+      const userText = sanitizeMentionTokens(extractTextContent(lastUserMessage.content), 'label');
+      const thread = await createThread(
+        userId,
+        agentId ?? 'gruenerator-universal',
+        userText.slice(0, 50) + (userText.length > 50 ? '...' : '') || 'Neue Unterhaltung'
+      );
+      actualThreadId = thread.id;
+      isNewThread = true;
+      sse.send('thread_created', { threadId: actualThreadId });
+    }
+  }
+
   // Earlier user messages can arrive with no text at all (see historyBackfill);
   // the persisted rows still have it. Runs before this turn's own message is
   // written, so the persisted list is exactly the prior history. Only pay for the
@@ -492,38 +632,6 @@ export async function buildStreamContext({
   }
 
   if (actualThreadId && lastUserMessage) {
-    if (!isNewThread) {
-      if (!(await canWriteThread(ThreadId(actualThreadId), UserId(userId)))) {
-        // The client-supplied threadId is gone or not writable — most often a
-        // freshly-created empty thread reaped by the sidebar's auto-cleanup race
-        // mid-send, or a stale client id. Recover gracefully by minting a new
-        // thread for this user instead of hard-erroring. Safe: a foreign/deleted
-        // id is never reused, we always create a fresh user-owned thread.
-        //
-        // The recovery is invisible to the user, so leave a breadcrumb: without
-        // it we lose all signal on how often the reap race still fires (e.g. if
-        // the client's 60s protection window proves too short).
-        captureSseError({
-          code: 'thread-reaped-recovered',
-          message: 'Thread not found mid-send; minted a fresh thread to recover',
-          level: 'warning',
-          extras: { staleThreadId: actualThreadId, userId, agentId },
-        });
-        const userText = sanitizeMentionTokens(
-          extractTextContent(lastUserMessage.content),
-          'label'
-        );
-        const thread = await createThread(
-          userId,
-          agentId ?? 'gruenerator-universal',
-          userText.slice(0, 50) + (userText.length > 50 ? '...' : '') || 'Neue Unterhaltung'
-        );
-        actualThreadId = thread.id;
-        isNewThread = true;
-        sse.send('thread_created', { threadId: actualThreadId });
-      }
-    }
-
     // Seed message (Antrag / PM / Social text) — persisted BEFORE the user
     // message so order is seed → user → assistant-reply. New threads only.
     if (
@@ -568,11 +676,24 @@ export async function buildStreamContext({
     // would duplicate the row. Edit-resubmit removed it above, so write it fresh.
     if (!rawRegenerate) {
       const userText = extractTextContent(lastUserMessage.content);
+      // The reader chip, restored as an attachment by messagesController.
+      // Refs that failed the check get no chip; if the check could not run,
+      // the chip keeps the ref without a title.
+      const notebookSourceChips = pickedNotebookChecks
+        ? pickedNotebookChecks.flatMap((c) =>
+            c.source ? [{ ref: c.ref, title: c.source.title }] : []
+          )
+        : pickedNotebookSources.map((ref) => ({ ref, title: null }));
+      const userMeta = {
+        ...(rawRoleName ? { roleName: rawRoleName } : {}),
+        ...(notebookSourceChips.length > 0 ? { notebookSources: notebookSourceChips } : {}),
+        ...(mentionChips.length > 0 ? { mentionChips } : {}),
+      };
       userMessageId = await createMessage(
         actualThreadId,
         'user',
         userText,
-        rawRoleName ? { roleName: rawRoleName } : undefined,
+        Object.keys(userMeta).length > 0 ? userMeta : undefined,
         userId
       );
     }
@@ -677,6 +798,111 @@ export async function buildStreamContext({
     );
   }
 
+  // === Notebook sources (reader hand-over) ===
+  // Carried per thread like the cloud files (threadNotebookSources.ts), and
+  // EVERY ref — stored or new — is authorized again with the reader's own
+  // rules: a stored ref grants nothing by itself. Dropped refs leave the
+  // thread with one warning; a failed check proves nothing, so they stay.
+  let storedNotebookSources = NO_NOTEBOOK_SOURCES;
+  let storedNotebookSourcesUnknown = false;
+  if (actualThreadId && !isNewThread) {
+    try {
+      storedNotebookSources = await getThreadNotebookSources(actualThreadId, userId);
+    } catch (err) {
+      storedNotebookSourcesUnknown = true;
+      log.warn('[StreamContext] Could not read thread notebook sources (continuing):', err);
+    }
+  }
+  const threadNotebookSources = mergeThreadNotebookSources(
+    storedNotebookSources,
+    pickedNotebookSources
+  );
+  let notebookSources: ResolvedNotebookSource[] = [];
+  let keptNotebookSources = threadNotebookSources;
+  if (threadNotebookSources.length > 0) {
+    let checks: NotebookSourceCheck[] | null = null;
+    if (pickedNotebookChecks) {
+      try {
+        const byKey = new Map(pickedNotebookChecks.map((c) => [notebookSourceKey(c.ref), c]));
+        const unchecked = threadNotebookSources.filter((r) => !byKey.has(notebookSourceKey(r)));
+        const more = await withTimeout(
+          resolveNotebookSources(unchecked, userId),
+          EXTERNAL_CONTEXT_TIMEOUT_MS,
+          'notebook source check'
+        );
+        for (const c of more) byKey.set(notebookSourceKey(c.ref), c);
+        checks = threadNotebookSources.flatMap((r) => {
+          const c = byKey.get(notebookSourceKey(r));
+          return c ? [c] : [];
+        });
+      } catch (err) {
+        log.warn('[StreamContext] Notebook source check failed (continuing):', err);
+      }
+    }
+    if (checks) {
+      notebookSources = checks.flatMap((c) => (c.source ? [c.source] : []));
+      keptNotebookSources = checks.filter((c) => c.source).map((c) => c.ref);
+      const dropped = threadNotebookSources.length - keptNotebookSources.length;
+      if (dropped > 0) {
+        log.warn(`[StreamContext] Dropped ${dropped} notebook source ref(s) for user ${userId}`);
+        sse.send('warning', {
+          code: 'notebook_sources_dropped',
+          message: `${dropped} Notebook-Dokument(e) nicht mehr verfügbar — Antwort ohne diese Dokumente.`,
+        });
+      }
+    } else {
+      sse.send('warning', {
+        code: 'notebook_sources_check_failed',
+        message: 'Notebook-Dokumente konnten nicht geprüft werden — Antwort ohne diese Dokumente.',
+      });
+    }
+  }
+  if (
+    actualThreadId &&
+    !storedNotebookSourcesUnknown &&
+    !sameThreadNotebookSources(storedNotebookSources, keptNotebookSources)
+  ) {
+    // Fire-and-forget, owner-scoped: a lost write costs the next turn its carried refs.
+    setThreadNotebookSources(actualThreadId, userId, keptNotebookSources).catch((err: unknown) =>
+      log.warn('[StreamContext] Could not store thread notebook sources:', err)
+    );
+  }
+
+  // === @doc / saved-text / @link picks: carried per thread ===
+  // Read again every turn through their own access checks (saved texts and
+  // @doc content in enrichContext, links by the crawler), so a stored ref
+  // grants nothing by itself. A carried @doc only adds its CONTENT: routing
+  // (`docMentionIds` → modify_doc, share_doc) stays with this turn's mentions.
+  let storedMentionRefs = NO_MENTION_REFS;
+  let storedMentionRefsUnknown = false;
+  if (actualThreadId && !isNewThread) {
+    try {
+      storedMentionRefs = await getThreadMentionRefs(actualThreadId, userId);
+    } catch (err) {
+      storedMentionRefsUnknown = true;
+      log.warn('[StreamContext] Could not read thread mention refs (continuing):', err);
+    }
+  }
+  const threadMentionRefs = mergeThreadMentionRefs(storedMentionRefs, pickedMentionRefs);
+  if (
+    actualThreadId &&
+    !storedMentionRefsUnknown &&
+    !sameThreadMentionRefs(storedMentionRefs, threadMentionRefs)
+  ) {
+    // Fire-and-forget, owner-scoped: a lost write costs the next turn its carried refs.
+    setThreadMentionRefs(actualThreadId, userId, threadMentionRefs).catch((err: unknown) =>
+      log.warn('[StreamContext] Could not store thread mention refs:', err)
+    );
+  }
+  // Carried refs are material, never a route: only this turn's picks steer the
+  // classifier. Carried texts and docs land in the referenced-documents
+  // section, carried links are crawled only when the turn searches anyway.
+  const carriedTextIds = threadMentionRefs.texts.filter((id) => !rawTextIds?.includes(id));
+  const turnDocContextIds = unionIds(mergedDocMentionIds, threadMentionRefs.docs);
+  const carriedWebpageUrls = threadMentionRefs.links.filter(
+    (url) => !rawWebpageUrls?.includes(url)
+  );
+
   // Raw (token-bearing) text is persisted above; everything downstream —
   // classifier, heuristics, memory query, LLM prompts — sees the readable
   // "@Label" form. Tokens never reach a prompt.
@@ -752,6 +978,14 @@ export async function buildStreamContext({
   // client-sent `isImage` flag.
   const pdfFormAttachments = pdfFormCandidates;
 
+  // Extracted text of THIS turn's tables, for the `tabelle_auswerten` codegen.
+  // A large table is vectorized (attachmentContext cleared) and its thread row
+  // is only written at the end of the turn — with a standing grant the tool
+  // runs before either, and the codegen saw no table at all (live 27.10.2026).
+  const turnTabularTexts = processedMeta
+    .filter((m) => !m.isImage && m.extractedText && isTabularAttachment(m.name, m.mimeType))
+    .map((m) => ({ name: m.name, text: m.extractedText ?? '' }));
+
   // Large prose attachments from earlier turns were embedded into Qdrant — route
   // their document ids through the existing document-chat retrieval fan-out so
   // follow-up questions pull the relevant chunks per query (RAG), instead of the
@@ -760,7 +994,7 @@ export async function buildStreamContext({
     .filter((a) => a.documentId)
     .map((a) => a.documentId as string);
   const mergedDocumentChatIds = [
-    ...new Set([...(rawDocumentChatIds ?? []), ...embeddedAttachmentDocIds]),
+    ...new Set([...authorizedDocumentChatIds, ...embeddedAttachmentDocIds]),
   ];
 
   // === Memory retrieval (explicit user memory) ===
@@ -843,7 +1077,10 @@ export async function buildStreamContext({
   }
 
   // === Resolve context window for model-aware budgets ===
-  const contextWindowTokens = getContextWindow(modelId);
+  // Gated first: an unentitled Panda request is answered on Ultra, and the
+  // budgets must fit the model that answers.
+  const modelId = await gatePandaModelId(requestedModelId, userId);
+  const contextWindowTokens = turnContextWindow(modelId);
 
   // === Initialize state ===
   const initialState = await initializeChatState({
@@ -866,7 +1103,9 @@ export async function buildStreamContext({
     threadAttachments: previousAttachments.length > 0 ? previousAttachments : undefined,
     hasTabularAttachment,
     ...(pdfFormAttachments.length > 0 && { pdfFormAttachments }),
+    ...(turnTabularTexts.length > 0 && { turnTabularTexts }),
     clientCanRunPython: clientTools?.includes('run_python') ?? false,
+    clientCanUseTabularTool: clientCanUseTabularToolFrom(clientTools),
     clientCanRenderSharepic: clientTools?.includes('render_sharepic') ?? false,
     computedResult: rawComputedResult ?? undefined,
     notebookIds: notebookIds.length > 0 ? notebookIds : undefined,
@@ -876,7 +1115,7 @@ export async function buildStreamContext({
       defaultNotebookDocumentIds.length > 0 ? defaultNotebookDocumentIds : undefined,
     documentNotebookIds:
       Object.keys(documentNotebookIds).length > 0 ? documentNotebookIds : undefined,
-    documentIds: rawDocumentIds?.length ? rawDocumentIds : undefined,
+    documentIds: authorizedDocumentIds.length ? authorizedDocumentIds : undefined,
     documentChatIds: mergedDocumentChatIds.length
       ? mergedDocumentChatIds
       : docAttachments.length > 0 || documentChatMode
@@ -887,7 +1126,17 @@ export async function buildStreamContext({
     wolkeFiles,
     cloudConnectionCount,
     connectFiles,
+    // Picked this turn they force the search route; carried, they are material.
+    cloudFilesCarriedOnly: pickedCloudFiles.wolke.length + pickedCloudFiles.connect.length === 0,
+    // This turn's @datei picks already travel as `documentIds`; listed twice
+    // they would be summarised twice.
+    notebookSources: notebookSources.filter(
+      (s) => s.kind !== 'user' || !authorizedDocumentIds.includes(s.documentId)
+    ),
+    // Picked this turn they force the search route; carried, they are material.
+    notebookSourcesCarriedOnly: (rawNotebookSourceRefs?.length ?? 0) === 0,
     attachedWebpageUrls: rawWebpageUrls?.length ? rawWebpageUrls : undefined,
+    carriedWebpageUrls,
     // When the docs editor sends a currentDocument, also surface its id as a
     // doc-mention so the existing modify_doc / summary intent paths activate
     // (they key off `hasDocMentions`). Explicit @doc mentions always take
@@ -1013,11 +1262,12 @@ export async function buildStreamContext({
   await enrichContext({
     initialState,
     userId,
-    ...(rawDocumentIds != null && { rawDocumentIds }),
+    ...(authorizedDocumentIds.length > 0 && { rawDocumentIds: authorizedDocumentIds }),
     ...(rawTextIds != null && { rawTextIds }),
+    ...(carriedTextIds.length > 0 && { carriedTextIds }),
     ...(mergedBoardIds.length > 0 && { rawBoardIds: mergedBoardIds }),
     ...(mergedSheetIds.length > 0 && { rawSheetIds: mergedSheetIds }),
-    ...(mergedDocMentionIds.length > 0 && { rawDocMentionIds: mergedDocMentionIds }),
+    ...(turnDocContextIds.length > 0 && { rawDocMentionIds: turnDocContextIds }),
     docAttachments,
     processedMeta,
     contextWindowTokens,
@@ -1041,6 +1291,7 @@ export async function buildStreamContext({
       memoryContext,
       memoryRetrieveTimeMs,
       memoryEnabled,
+      modelId,
       contextWindowTokens,
       mentionTokenFields,
       lastUserTextRaw,

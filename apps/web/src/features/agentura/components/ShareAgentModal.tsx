@@ -10,6 +10,15 @@
  * Agents are USED, not co-edited, so there is no edit-policy axis.
  */
 import {
+  useAddAgentGroupShare,
+  useAgentGroupShares,
+  useAgentShareSettings,
+  useMyGroupsForSharing,
+  useRemoveAgentGroupShare,
+  useSetAgentIsPublic,
+  useSetAgentShareMode,
+} from '@gruenerator/shared/grueneratoren';
+import {
   Button,
   Dialog,
   DialogContent,
@@ -29,16 +38,6 @@ import {
 import { useMemo } from 'react';
 import { HiTrash } from 'react-icons/hi';
 import { PiLink } from 'react-icons/pi';
-
-import {
-  useAddAgentGroupShare,
-  useAgentGroupShares,
-  useAgentShareSettings,
-  useMyGroupsForSharing,
-  useRemoveAgentGroupShare,
-  useSetAgentIsPublic,
-  useSetAgentShareMode,
-} from '../hooks/useAgentSharing';
 
 import type { PublicOwnership, UserAgentShareMode } from '@gruenerator/contracts';
 
@@ -193,7 +192,7 @@ export function ShareAgentModal({ identifier, open, onOpenChange }: ShareAgentMo
                   Auf „Öffentlich“ listen
                 </Label>
                 <p className="text-xs text-grey-500 dark:text-grey-400">
-                  Dein Agent erscheint dann in der Agentura unter „Öffentlich“ zum Entdecken.
+                  Dein Agent erscheint dann im Marktplatz unter „Öffentlich“.
                 </p>
                 {!isPublic && shareMode !== 'authenticated' ? (
                   <p className="text-xs text-grey-500 dark:text-grey-400">

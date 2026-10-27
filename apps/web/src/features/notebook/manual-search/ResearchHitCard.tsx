@@ -1,7 +1,6 @@
 import { formatResearchHitCount, formatResearchScore } from '@gruenerator/shared/utils';
 import { Badge } from '@gruenerator/ui';
 import { type JSX, type MouseEvent } from 'react';
-import rehypeRaw from 'rehype-raw';
 
 import { Markdown } from '../../../components/common/Markdown/Markdown';
 import { NOTEBOOK_ACCENT_TEXT, NOTEBOOK_PASSAGE, NOTEBOOK_SNIPPET_MARKS } from '../notebookTheme';
@@ -45,7 +44,48 @@ const SNIPPET_MARKDOWN_COMPONENTS: Partial<Components> = {
   li: ({ children }): JSX.Element => <span className="before:content-['·_']"> {children}</span>,
 };
 
-const SNIPPET_REHYPE_PLUGINS = [rehypeRaw];
+/** The slice of the hast tree `rehypeSnippetMarks` touches. */
+interface SnippetNode {
+  type: string;
+  value?: string;
+  tagName?: string;
+  properties?: Record<string, never>;
+  children?: SnippetNode[];
+}
+
+/** Wraps the siblings between a `<mark>` and its `</mark>` in a `mark`
+ *  element; an unclosed one runs to the end of its parent, as in HTML. */
+function liftMarks(parent: SnippetNode): void {
+  if (!parent.children) return;
+  const children: SnippetNode[] = [];
+  let mark: SnippetNode | null = null;
+  for (const child of parent.children) {
+    if (child.type === 'raw' && child.value === '<mark>') {
+      if (!mark) {
+        mark = { type: 'element', tagName: 'mark', properties: {}, children: [] };
+        children.push(mark);
+      }
+      continue;
+    }
+    if (child.type === 'raw' && child.value === '</mark>') {
+      mark = null;
+      continue;
+    }
+    liftMarks(child);
+    (mark?.children ?? children).push(child);
+  }
+  parent.children = children;
+}
+
+/** The snippet is stored source text: the server escapes it and wraps the
+ *  query hits in `<mark>`. No HTML parser runs over it — each inline tag
+ *  reaches hast as a `raw` node, which react-markdown renders as text; only
+ *  the `<mark>` pairs become elements. */
+function rehypeSnippetMarks() {
+  return (tree: SnippetNode) => liftMarks(tree);
+}
+
+const SNIPPET_REHYPE_PLUGINS = [rehypeSnippetMarks];
 
 /** Teaser text, not prose: the server's `<mark>` splits a source's `**bold**`
  *  so its stars would show literally, and two gender stars (`Bürger*innen …
@@ -57,7 +97,10 @@ export function snippetMarkdown(text: string): string {
 
 const CARD =
   'relative flex flex-col rounded-xl border border-grey-200 bg-background transition-[box-shadow,border-color] hover:border-[#F2A9CE] hover:shadow-md focus-within:border-[#F2A9CE] dark:border-grey-700 dark:hover:border-[#7A3A5A]';
-const TITLE = 'm-0 font-[Raleway,sans-serif] font-bold leading-snug text-foreground-heading';
+/** `anywhere`: an uploaded file's name (`WP-02_Ein_Land_der_…pdf`) has no space
+ *  to wrap at — without it the title runs out of the card instead of clamping. */
+const TITLE =
+  'm-0 font-[Raleway,sans-serif] font-bold leading-snug text-foreground-heading [overflow-wrap:anywhere]';
 const SNIPPET = cn(
   'm-0 text-sm leading-relaxed text-grey-600 dark:text-grey-300',
   NOTEBOOK_SNIPPET_MARKS
@@ -150,8 +193,8 @@ export function ResearchHitCard({
   );
 
   const kindBadge = kind ? (
-    <Badge variant="outline" className="font-medium">
-      {kind}
+    <Badge variant="outline" className="min-w-0 shrink font-medium" title={kind}>
+      <span className="truncate">{kind}</span>
     </Badge>
   ) : null;
 
@@ -174,7 +217,7 @@ export function ResearchHitCard({
     <article className={cn(CARD, 'h-full gap-3 p-4 sm:p-5', wide && 'md:p-6')}>
       <div className="flex items-center justify-between gap-2">
         {kindBadge ?? <span />}
-        <div className="flex items-center gap-2">
+        <div className="flex shrink-0 items-center gap-2">
           {date && <span className={META}>{date}</span>}
           {scoreBadge}
         </div>

@@ -28,7 +28,7 @@ export const canvasPermissionEntrySchema = z.object({
 });
 
 /** Mirrors `DocumentPermissions`: a map keyed by userId. */
-export const canvasPermissionsSchema = z.record(canvasPermissionEntrySchema);
+export const canvasPermissionsSchema = z.record(z.string(), canvasPermissionEntrySchema);
 
 /** The canvas document as returned by list / get / create. */
 export const canvasDocumentSchema = z.object({
@@ -44,9 +44,11 @@ export const canvasDocumentSchema = z.object({
   base_template_id: z.string().nullable(),
   thumbnail_url: z.string().nullable(),
   page_count: z.number().int(),
-  initial_state: z.record(z.unknown()),
+  initial_state: z.record(z.string(), z.unknown()),
   format: z.string(),
   creator_name: z.string().nullable().optional(),
+  /** Whether the reader may write; set by the single read, from the same rule the collab connection enforces. */
+  can_edit: z.boolean().optional(),
 });
 
 export type CanvasDocument = z.infer<typeof canvasDocumentSchema>;
@@ -66,8 +68,9 @@ export const createCanvasBodySchema = z.object({
   title: z.string().optional(),
   template_type: z.string(),
   base_template_id: z.string().optional(),
-  initial_state: z.record(z.unknown()).optional(),
+  initial_state: z.record(z.string(), z.unknown()).optional(),
   page_count: z.number().int().positive().optional(),
+  // Free string by design (see NOTE above); the server checks `print-*` ids against its format registry.
   format: z.string().optional(),
 });
 
@@ -78,7 +81,9 @@ export type CreateCanvasBody = z.infer<typeof createCanvasBodySchema>;
  * sharepic variant. The server seeds the Yjs formState from the FULL
  * `initial_props` (lossless, unlike the old client mint), binds it to the
  * thread/variant (idempotent — a re-open or a later chat edit reuse the same
- * canvas), and returns the canvasId to open at `/studio/canvas/:id`.
+ * canvas), and returns the canvasId to open at `/studio/canvas/:id`. Only a
+ * caller who may write the thread binds, and only a variant the thread holds;
+ * a read-only viewer gets an unbound canvas of their own, no access is a 404.
  */
 export const canvasFromVariantBodySchema = z.object({
   canvasType: canvasTemplateTypeSchema,
@@ -163,11 +168,11 @@ export const canvasErrorResponseSchema = z.object({
  * version number, null when the canvas has no version rows.
  */
 export const canvasStateResponseSchema = z.object({
-  state: z.record(z.unknown()),
+  state: z.record(z.string(), z.unknown()),
   source: z.enum(['yjs', 'initial_state']),
   version: z.number().int().nullable(),
   /** Per-slide states for multi-page (deck) canvases, in page order. */
-  pages: z.array(z.record(z.unknown())).nullish(),
+  pages: z.array(z.record(z.string(), z.unknown())).nullish(),
 });
 
 export type CanvasStateResponse = z.infer<typeof canvasStateResponseSchema>;
@@ -187,12 +192,12 @@ export const canvasVersionListResponseSchema = z.object({
 
 export const canvasVersionResponseSchema = z.object({
   version: z.number().int(),
-  state: z.record(z.unknown()),
+  state: z.record(z.string(), z.unknown()),
   summary: z.string().nullable(),
 });
 
 /** restore → the snapshot re-applied as a NEW version. */
 export const canvasRestoreResponseSchema = z.object({
   version: z.number().int(),
-  state: z.record(z.unknown()),
+  state: z.record(z.string(), z.unknown()),
 });

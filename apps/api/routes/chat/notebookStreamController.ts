@@ -19,7 +19,7 @@ import { startStreamRecorder } from '../../services/chat/resumableStreams.js';
 import { extractLocaleFromRequest } from '../../services/localization/index.js';
 import { memoryService } from '../../services/memory/index.js';
 import { withRetry } from '../../services/search/searchRetryStrategy.js';
-import { gatePandaModelId } from '../../services/user/pandaEntitlement.js';
+import { resolveNotebookTier } from '../../services/user/pandaEntitlement.js';
 import { createAuthenticatedRouter } from '../../utils/keycloak/index.js';
 import { createLogger } from '../../utils/logger.js';
 import { ThreadId, UserId } from '../../utils/types/branded.js';
@@ -62,8 +62,8 @@ import type { ModelMessage } from 'ai';
 const notebookStreamMessageSchema = z
   .object({
     role: z.string(),
-    content: z.union([z.string(), z.array(z.record(z.unknown()))]),
-    citations: z.array(z.record(z.unknown())).nullish(),
+    content: z.union([z.string(), z.array(z.record(z.string(), z.unknown()))]),
+    citations: z.array(z.record(z.string(), z.unknown())).nullish(),
     /** Modus einer früheren Antwort — Kontext für den Auto-Wächter. Tolerant:
      *  ein unbekannter Wert macht den Request nicht ungültig. */
     answerMode: notebookResolvedAnswerModeSchema.nullish().catch(null),
@@ -75,7 +75,7 @@ const notebookStreamRequestSchema = z.object({
   messages: z.array(notebookStreamMessageSchema).optional(),
   collectionId: z.string().optional(),
   collectionIds: z.array(z.string()).optional(),
-  filters: z.record(z.unknown()).optional(),
+  filters: z.record(z.string(), z.unknown()).optional(),
   model: z.string().optional(),
   mode: notebookDepthSchema.optional(),
   /** Quellen-Ampel; fehlt ⇒ `equal`. */
@@ -132,14 +132,14 @@ router.post(
       collectionIds,
       filters,
       model: requestedModel,
-      mode,
+      mode: requestedMode,
       sourceTier,
       answerMode,
       documentIds,
       threadId: existingThreadId,
     } = req.body;
     const messages = rawMessages as ModelMessage[] | undefined;
-    const model = await gatePandaModelId(requestedModel, user.id);
+    const { mode, model } = await resolveNotebookTier(requestedMode, requestedModel, user.id);
 
     const lastUserMessage = Array.isArray(messages)
       ? messages.filter((m: { role: string }) => m.role === 'user').pop()

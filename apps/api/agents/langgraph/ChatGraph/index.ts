@@ -22,9 +22,9 @@ export {
   summarizeNode,
   computeNode,
   pandasComputeNode,
-  computeVerifierNode,
   respondNode,
   buildSystemMessage,
+  restoreAttachmentsDroppedWithHistory,
 } from './nodes/index.js';
 export {
   buildCitations,

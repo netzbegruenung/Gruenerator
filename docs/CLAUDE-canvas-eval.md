@@ -1,5 +1,7 @@
 # Canvas-Editor evaluieren: Performance, Touch, WebView
 
+> Barrierefreiheit und Browser-Tests über den Barrierefreiheitsbaum statt über Konva/Pixel: `docs/CLAUDE-canvas-browser-tests.md`.
+
 Learnings aus zwei Evaluationen vom 10.10.2026: zuerst „so flüssig wie Canva" auf dem Desktop (PR #4382), danach Mobil und App-WebView (Issues #4383–#4400). Das Dokument beschreibt vor allem, **wie** gemessen wurde und **was dabei funktioniert hat und was nicht**. Die Werkzeuge liegen in `packages/canvas-editor/scripts/perf-eval/`.
 
 ## Kurzfassung: so geht man vor
@@ -130,7 +132,7 @@ Ein Unit-Test belegt die Logik, aber nicht, dass der Fehler im Browser weg ist. 
 | Zustand | Wie |
 |---|---|
 | Schrift oder Bild kommt spät | `page.route(<url>, async (r) => { await sleep(4000); r.continue(); })`. Vorher `serviceWorkers: 'block'` setzen: Was der Service Worker ausliefert (Fonts, Assets), sieht `route()` nicht. |
-| Export über der Bridge-Grenze | Die Antwort von `/api/exports/zip` mit `route.fulfill` durch 10 MB ersetzen. |
+| Export über der Bridge-Grenze | Seit #4695 baut der Browser das ZIP, es gibt keinen Request mehr zum Ersetzen. Mit `ReactNativeWebView`-Stub so viele Seiten mit verrauschtem Bild exportieren, bis das ZIP über `WEBVIEW_DOWNLOAD_MAX_BASE64_LENGTH` liegt. |
 | Collab-Zugriff verweigert | `page.routeWebSocket(/\/ws$/)`. Der Collab-Socket läuft über `ws://<origin>/ws`, nicht über :1340. Auf die Auth-Nachricht des Clients mit einem Hocuspocus-Frame antworten: `varString(doc)`, `varUint(2)` (Auth), `varUint(1)` (PermissionDenied), `varString(reason)`. |
 | Sitzung lebt bzw. ist tot | `/auth/v2/get-session` mocken. **Im Dev-Bypass liefert die Probe `null`**, ohne Mock gilt jede Sitzung als tot (Logout bzw. `SESSION_LOST`). |
 | Wurde neu gemessen? | `CanvasRenderingContext2D.prototype.measureText` zählen und den Aufrufer per Stack bestimmen (`listLayout` = Rich-Text). |

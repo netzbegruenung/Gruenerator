@@ -1,7 +1,7 @@
 /**
  * The notebook composer's depth control.
  *
- * Two things are pinned. First, all three tiers are offered — the menu used to
+ * Two things are pinned. First, every tier is offered — the menu used to
  * hardcode two `DropdownMenuRadioItem`s, so a tier added to the registry would
  * have been reachable by nobody. Second, the active tier is readable without
  * opening the menu: before this it was invisible everywhere in the UI, so
@@ -13,6 +13,7 @@ import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 
+import { ModelPreferencesProvider } from '../../context/ModelPreferencesContext';
 import { NOTEBOOK_ANSWER_MODES, NOTEBOOK_COMPOSER_MODES } from '../../lib/notebookAnswerMode';
 import { NOTEBOOK_DEPTHS } from '../../lib/notebookDepth';
 import { axe } from '../../test-utils';
@@ -20,6 +21,19 @@ import { axe } from '../../test-utils';
 import { NotebookComposer } from './NotebookComposer';
 
 import type { NotebookDepth } from '@gruenerator/contracts';
+import type { TextModelId } from '@gruenerator/shared/models';
+
+/** An account with the Panda unlock — the server reports the lane as enabled. */
+const UNLOCKED: ReadonlySet<TextModelId> = new Set(['gruenerator-ultra', 'gruenerator-panda']);
+
+/** The trigger's on-screen text — its `sr-only` parts belong to the name only. */
+function visibleText(el: HTMLElement): string {
+  return [...el.childNodes]
+    .filter((n) => !(n instanceof HTMLElement && n.classList.contains('sr-only')))
+    .map((n) => n.textContent)
+    .join('')
+    .trim();
+}
 
 // The composer itself is assistant-ui's; only the leading slot is under test.
 const composerProps: {
@@ -57,8 +71,16 @@ vi.mock('@assistant-ui/store', () => ({
   useAuiState: () => false,
 }));
 
-function renderComposer(mode: NotebookDepth, onModeChange = vi.fn()) {
-  render(<NotebookComposer mode={mode} onModeChange={onModeChange} />);
+function renderComposer(
+  mode: NotebookDepth,
+  onModeChange = vi.fn(),
+  enabledModelIds: ReadonlySet<TextModelId> | null = UNLOCKED
+) {
+  render(
+    <ModelPreferencesProvider enabledModelIds={enabledModelIds}>
+      <NotebookComposer mode={mode} onModeChange={onModeChange} />
+    </ModelPreferencesProvider>
+  );
   return onModeChange;
 }
 
@@ -109,6 +131,29 @@ describe('NotebookComposer — depth control', () => {
     await user.click(await screen.findByRole('button', { name: 'Ultra' }));
 
     await waitFor(() => expect(onModeChange).toHaveBeenCalledWith('ultra'));
+  });
+
+  it('offers Panda only with the unlock, and shows a locked Panda choice as Ultra', async () => {
+    const user = userEvent.setup();
+    renderComposer('panda', vi.fn(), new Set(['gruenerator-ultra']));
+    expect(screen.getByRole('button', { name: /Suchtiefe: Ultra/ })).toBeInTheDocument();
+    await user.click(screen.getByRole('button'));
+
+    const depth = await screen.findByRole('region', { name: 'Suchtiefe' });
+    expect(within(depth).queryByRole('button', { name: 'Panda' })).not.toBeInTheDocument();
+    expect(within(depth).getByRole('button', { name: 'Ultra' })).toHaveAttribute(
+      'aria-pressed',
+      'true'
+    );
+  });
+
+  it('reports Panda by its wire id for an unlocked account', async () => {
+    const user = userEvent.setup();
+    const onModeChange = renderComposer('ultra');
+    await user.click(screen.getByRole('button'));
+    await user.click(await screen.findByRole('button', { name: 'Panda' }));
+
+    await waitFor(() => expect(onModeChange).toHaveBeenCalledWith('panda'));
   });
 
   it('says what each tier costs, so "Ultra" is not just a word', async () => {
@@ -282,9 +327,9 @@ describe('NotebookComposer — answer mode picker', () => {
       />
     );
     const trigger = within(screen.getByTestId('send-adornment')).getByRole('button', {
-      name: /Antwortmodus wählen – Magic Search/,
+      name: /Antwortmodus wählen: Magic \(Magic Search/,
     });
-    expect(trigger).toHaveTextContent(/^Magic$/);
+    expect(visibleText(trigger)).toBe('Magic');
   });
 
   it('offers every registry mode with the recommended badge and reports the wire id', async () => {
@@ -427,7 +472,7 @@ describe('NotebookComposer — Manuell', () => {
     composerProps.length = 0;
     render(<NotebookComposer answerMode="manuell" onAnswerModeChange={vi.fn()} />);
     expect(
-      screen.getByRole('button', { name: /Antwortmodus wählen – Magic Search/ })
+      screen.getByRole('button', { name: /Antwortmodus wählen: Magic \(Magic Search/ })
     ).toBeVisible();
     expect(composerProps.at(-1)?.onSearchSubmit).toBeUndefined();
   });
@@ -509,10 +554,10 @@ describe('NotebookComposer — Magic Search', () => {
   ] as const)('names what it recognised to screen readers only (%s)', (intent, label) => {
     renderMagic(intent);
     const trigger = within(screen.getByTestId('send-adornment')).getByRole('button', {
-      name: `Antwortmodus wählen – Magic Search · ${label}`,
+      name: `Antwortmodus wählen: Magic (Magic Search · ${label})`,
     });
     // The send button shows the intent; the label stays short on every width.
-    expect(trigger).toHaveTextContent(/^Magic$/);
+    expect(visibleText(trigger)).toBe('Magic');
   });
 
   it('keeps the suffix off the option list', async () => {
@@ -527,7 +572,7 @@ describe('NotebookComposer — Magic Search', () => {
     renderMagic(null);
     expect(composerProps.at(-1)?.onSearchSubmit).toBeUndefined();
     expect(
-      screen.getByRole('button', { name: 'Antwortmodus wählen – Magic Search' })
+      screen.getByRole('button', { name: 'Antwortmodus wählen: Magic (Magic Search)' })
     ).toBeVisible();
   });
 
@@ -536,7 +581,7 @@ describe('NotebookComposer — Magic Search', () => {
     render(<NotebookComposer answerMode="auto" onAnswerModeChange={vi.fn()} magicIntent="suche" />);
     expect(composerProps.at(-1)?.onSearchSubmit).toBeUndefined();
     expect(
-      screen.getByRole('button', { name: 'Antwortmodus wählen – Magic Search' })
+      screen.getByRole('button', { name: 'Antwortmodus wählen: Magic (Magic Search)' })
     ).toBeVisible();
   });
 
@@ -551,7 +596,7 @@ describe('NotebookComposer — Magic Search', () => {
       />
     );
     expect(composerProps.at(-1)?.onSearchSubmit).toBeUndefined();
-    expect(screen.getByRole('button', { name: 'Antwortmodus wählen – Präzision' })).toBeVisible();
+    expect(screen.getByRole('button', { name: 'Antwortmodus wählen: Präzision' })).toBeVisible();
   });
 
   it('has no axe violations with the suffix', async () => {

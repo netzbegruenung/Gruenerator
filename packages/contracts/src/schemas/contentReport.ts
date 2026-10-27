@@ -1,7 +1,8 @@
 /**
  * Zod schemas for reporting objectionable content (user-generated project
- * posts/comments and AI chat output). Reports are emailed to the operator
- * (no DB row), like the feedback widget.
+ * posts/comments, AI chat output, the public Agents, Rezepte, Vorlagen and
+ * studio assets, and the comments on them). Each report is stored in `content_reports` and emailed to the
+ * operator.
  */
 import { z } from 'zod';
 
@@ -10,7 +11,26 @@ export const contentReportKindSchema = z.enum([
   'group_comment',
   'chat_message',
   'group_share',
+  'studio_asset',
+  'user_agent',
+  'user_text_form',
+  'user_template',
+  'entity_comment',
+  'notebook',
 ]);
+
+/** The kinds whose row carries a `moderation` column the reports can act on. */
+export const moderatableReportKindSchema = contentReportKindSchema.extract([
+  'studio_asset',
+  'user_agent',
+  'user_text_form',
+  'user_template',
+  'entity_comment',
+  'notebook',
+]);
+
+/** F0: persisted in the `moderation` column of every moderatable table. */
+export const moderationStateSchema = z.enum(['ok', 'hidden', 'removed']);
 
 export const contentReportReasonSchema = z.enum([
   'offensive',
@@ -19,6 +39,10 @@ export const contentReportReasonSchema = z.enum([
   'illegal',
   'other',
 ]);
+
+export const contentReportStatusSchema = z.enum(['open', 'resolved', 'dismissed']);
+
+export const contentReportResolutionSchema = z.enum(['removed', 'restored', 'dismissed']);
 
 export const contentReportCreateSchema = z.object({
   kind: contentReportKindSchema,
@@ -41,7 +65,11 @@ export const contentReportErrorSchema = z.object({
 });
 
 export type ContentReportKind = z.infer<typeof contentReportKindSchema>;
+export type ModeratableReportKind = z.infer<typeof moderatableReportKindSchema>;
+export type ModerationState = z.infer<typeof moderationStateSchema>;
 export type ContentReportReason = z.infer<typeof contentReportReasonSchema>;
+export type ContentReportStatus = z.infer<typeof contentReportStatusSchema>;
+export type ContentReportResolution = z.infer<typeof contentReportResolutionSchema>;
 export type ContentReportCreate = z.infer<typeof contentReportCreateSchema>;
 export type ContentReportResponse = z.infer<typeof contentReportResponseSchema>;
 export type ContentReportError = z.infer<typeof contentReportErrorSchema>;

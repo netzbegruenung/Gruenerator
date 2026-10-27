@@ -5,6 +5,7 @@
 
 import * as crypto from 'crypto';
 
+import { type ModerationState, moderationStateSchema } from '@gruenerator/contracts';
 import { generateSlugSuffix } from '@gruenerator/shared/utils';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -16,7 +17,7 @@ import { reportBackgroundError } from '../../utils/reportBackgroundError.js';
 
 import { getPostgresInstance } from './PostgresService.js';
 import { type QdrantService, getQdrantInstance } from './QdrantService/index.js';
-import { QdrantOperations } from './QdrantService/operations/index.js';
+import { type QdrantOperations } from './QdrantService/operations/index.js';
 
 import type { QdrantFilter } from './QdrantService/types.js';
 
@@ -51,6 +52,12 @@ const NOTEBOOK_EDIT_POLICIES: readonly NotebookEditPolicy[] = [
   'all_members',
 ];
 const NOTEBOOK_AUDIENCES: readonly NotebookAudience[] = ['de-DE', 'de-AT'];
+
+/** A point without the field predates moderation and was never reported away. */
+function normalizeModeration(raw: unknown): ModerationState {
+  const parsed = moderationStateSchema.safeParse(raw);
+  return parsed.success ? parsed.data : 'ok';
+}
 
 function normalizeShareMode(raw: unknown): NotebookShareMode {
   return NOTEBOOK_SHARE_MODES.includes(raw as NotebookShareMode)
@@ -109,6 +116,8 @@ interface NotebookCollectionData {
    * mints a fresh suffix.
    */
   slug_suffix?: string | null;
+  /** Set by the content reports (Marktplatz); `hidden`/`removed` drop it from public listings. */
+  moderation?: ModerationState;
 }
 
 interface NotebookCollection {
@@ -133,6 +142,7 @@ interface NotebookCollection {
   edit_policy: NotebookEditPolicy;
   audience: NotebookAudience;
   slug_suffix: string | null;
+  moderation: ModerationState;
   notebook_collection_documents?: CollectionDocument[];
 }
 
@@ -192,26 +202,39 @@ function liveOnly(filter: QdrantFilter): QdrantFilter {
 
 export type NotebookTrashResult = 'ok' | 'not_found' | 'forbidden';
 
+/**
+ * Notebooks live in Qdrant, where no trigger sees them — the one create path
+ * that feeds `platform_creation_daily` from the app. A failing tally is logged,
+ * never thrown: the notebook is already stored.
+ */
+async function countNotebookCreation(userId: string): Promise<void> {
+  try {
+    await getPostgresInstance().query("SELECT count_platform_creation('notebooks', '', $1)", [
+      userId,
+    ]);
+  } catch (error) {
+    logger.warn(`platform_creation_daily (notebooks): ${(error as Error).message}`);
+  }
+}
+
 class NotebookQdrantHelper {
   private qdrant: QdrantService;
-  private qdrantOps: QdrantOperations | null;
-  private initialized: boolean;
 
   constructor() {
     this.qdrant = getQdrantInstance();
-    this.qdrantOps = null;
-    this.initialized = false;
+  }
+
+  /** Je Zugriff gelesen: nach einem gescheiterten init() ist `operations` noch null. */
+  private get qdrantOps(): QdrantOperations | null {
+    return this.qdrant.operations;
   }
 
   /**
-   * Ensure service is initialized
+   * Ensure service is initialized. init() kehrt sofort zurück, sobald Qdrant
+   * verbunden ist, und versucht es nach einem Fehlschlag gedrosselt erneut.
    */
   async ensureInitialized(): Promise<void> {
-    if (!this.initialized) {
-      await this.qdrant.init();
-      this.qdrantOps = new QdrantOperations(this.qdrant.client!);
-      this.initialized = true;
-    }
+    await this.qdrant.init();
   }
 
   /**
@@ -289,10 +312,16 @@ class NotebookQdrantHelper {
           edit_policy: normalizeEditPolicy(collectionData.edit_policy),
           audience: normalizeAudience(collectionData.audience),
           slug_suffix: slugSuffix,
+          // The whole payload is rewritten on every update (rename included);
+          // dropping the field here would quietly undo a removal.
+          moderation: normalizeModeration(collectionData.moderation),
         },
       };
 
       await this.qdrantOps!.batchUpsert(this.qdrant.collections.notebook_collections, [point]);
+
+      // Creates arrive without an id; updates and the system collection carry one.
+      if (!collectionData.id) await countNotebookCreation(collectionData.user_id);
 
       logger.info(`Stored Notebook collection: ${collectionId}`);
       // The suffix is minted here, so it has to travel back out: the create
@@ -355,10 +384,12 @@ class NotebookQdrantHelper {
       // the existing semantic embedding intact. A batchUpsert here would
       // require re-supplying the vector and silently overwrite each
       // notebook's embedding with zeros.
-      await this.qdrantOps!.client.setPayload(this.qdrant.collections.notebook_collections, {
-        payload: { slug_suffix: fresh },
-        points: [point.id],
-      });
+      await this.qdrant
+        .writeClient(this.qdrant.collections.notebook_collections)
+        .setPayload(this.qdrant.collections.notebook_collections, {
+          payload: { slug_suffix: fresh },
+          points: [point.id],
+        });
       updated++;
 
       if (updated > 0 && updated % 50 === 0) {
@@ -417,10 +448,12 @@ class NotebookQdrantHelper {
       if (typeof collectionId !== 'string' || !sharedIds.has(collectionId)) continue;
       if (normalizeShareMode(point.payload.share_mode) !== 'private') continue;
 
-      await this.qdrantOps!.client.setPayload(this.qdrant.collections.notebook_collections, {
-        payload: { share_mode: 'groups' },
-        points: [point.id],
-      });
+      await this.qdrant
+        .writeClient(this.qdrant.collections.notebook_collections)
+        .setPayload(this.qdrant.collections.notebook_collections, {
+          payload: { share_mode: 'groups' },
+          points: [point.id],
+        });
       updated++;
     }
 
@@ -476,10 +509,12 @@ class NotebookQdrantHelper {
 
     for (const target of targets) {
       const newAudience: NotebookAudience = localeByUser.get(target.userId) ?? 'de-DE';
-      await this.qdrantOps!.client.setPayload(this.qdrant.collections.notebook_collections, {
-        payload: { audience: newAudience },
-        points: [target.id],
-      });
+      await this.qdrant
+        .writeClient(this.qdrant.collections.notebook_collections)
+        .setPayload(this.qdrant.collections.notebook_collections, {
+          payload: { audience: newAudience },
+          points: [target.id],
+        });
       updated++;
       if (updated > 0 && updated % 50 === 0) {
         logger.info(`[backfillAudience] Progress: ${updated} rows updated`);
@@ -776,24 +811,71 @@ class NotebookQdrantHelper {
     if (!collection) return 'not_found';
     if (collection.user_id === 'SYSTEM') return 'forbidden';
 
-    await this.qdrantOps!.client.setPayload(this.qdrant.collections.notebook_collections, {
-      payload: { deleted_at: new Date().toISOString() },
-      filter: { must: [{ key: 'collection_id', match: { value: collectionId } }] },
-    });
+    await this.qdrant
+      .writeClient(this.qdrant.collections.notebook_collections)
+      .setPayload(this.qdrant.collections.notebook_collections, {
+        payload: { deleted_at: new Date().toISOString() },
+        filter: { must: [{ key: 'collection_id', match: { value: collectionId } }] },
+      });
     logger.info(`Moved Notebook collection to the Papierkorb: ${collectionId}`);
     return 'ok';
+  }
+
+  /**
+   * Set the moderation state of one notebook, trashed or not — a report must
+   * reach an item its owner trashed to dodge it. `onlyFrom` limits the write
+   * to that current state. Returns the state after, `null` when it is gone.
+   */
+  async setNotebookModeration(
+    collectionId: string,
+    state: ModerationState,
+    onlyFrom?: ModerationState
+  ): Promise<ModerationState | null> {
+    await this.ensureInitialized();
+    const current = await this.getNotebookCollection(collectionId, { includeTrashed: true });
+    if (!current) return null;
+    if (onlyFrom !== undefined && current.moderation !== onlyFrom) return current.moderation;
+    await this.qdrant
+      .writeClient(this.qdrant.collections.notebook_collections)
+      .setPayload(this.qdrant.collections.notebook_collections, {
+        payload: { moderation: state },
+        filter: { must: [{ key: 'collection_id', match: { value: collectionId } }] },
+      });
+    return state;
   }
 
   /** Undo {@link trashNotebookCollection}: drop the `deleted_at` payload key. */
   async restoreNotebookCollection(collectionId: string): Promise<void> {
     await this.ensureInitialized();
-    await this.qdrantOps!.client.deletePayload(this.qdrant.collections.notebook_collections, {
-      keys: ['deleted_at'],
-      filter: { must: [{ key: 'collection_id', match: { value: collectionId } }] },
-    });
+    await this.qdrant
+      .writeClient(this.qdrant.collections.notebook_collections)
+      .deletePayload(this.qdrant.collections.notebook_collections, {
+        keys: ['deleted_at'],
+        filter: { must: [{ key: 'collection_id', match: { value: collectionId } }] },
+      });
   }
 
   /** Every notebook of `userId`, trashed ones included — for account deletion. */
+  /**
+   * Creation time and owner of every notebook, trashed ones included — the
+   * admin statistics count what was created (services/usage/adminContentStats.ts).
+   * Reads these two payload fields and nothing else.
+   */
+  async listCreationStamps(): Promise<{ createdAt: string; userId: string }[]> {
+    await this.ensureInitialized();
+    const points = await this.qdrantOps!.scrollDocuments(
+      this.qdrant.collections.notebook_collections,
+      {},
+      { limit: 100_000, withPayload: ['created_at', 'user_id'] }
+    );
+    return points.flatMap((point) => {
+      const { created_at: createdAt, user_id: userId } = point.payload;
+      return typeof createdAt === 'string' && typeof userId === 'string'
+        ? [{ createdAt, userId }]
+        : [];
+    });
+  }
+
   async listAllNotebookIdsOfUser(userId: string): Promise<string[]> {
     await this.ensureInitialized();
     const points = await this.qdrantOps!.scrollDocuments(
@@ -1140,6 +1222,36 @@ class NotebookQdrantHelper {
   }
 
   /**
+   * The notebooks each given document is linked to — the reverse of
+   * `getCollectionDocuments`. Documents without a link are absent from the map.
+   *
+   * Errors are rethrown: callers use this to grant access, and a Qdrant hiccup
+   * answered as "linked nowhere" must stay distinguishable from a real absence.
+   */
+  async getCollectionIdsForDocuments(documentIds: string[]): Promise<Map<string, string[]>> {
+    const byDocument = new Map<string, string[]>();
+    if (documentIds.length === 0) return byDocument;
+    await this.ensureInitialized();
+
+    const filter: QdrantFilter = {
+      must: [{ key: 'document_id', match: { any: documentIds } }],
+    };
+    const results: ScrollPoint[] = await this.qdrantOps!.scrollDocuments(
+      this.qdrant.collections.notebook_collection_documents,
+      filter,
+      { limit: 10000, withPayload: true }
+    );
+    for (const result of results) {
+      const documentId = String(result.payload.document_id);
+      const collectionId = String(result.payload.collection_id);
+      const entry = byDocument.get(documentId);
+      if (!entry) byDocument.set(documentId, [collectionId]);
+      else if (!entry.includes(collectionId)) entry.push(collectionId);
+    }
+    return byDocument;
+  }
+
+  /**
    * The same join for MANY notebooks in one filtered scroll.
    *
    * The public „Öffentlich" listing enriches up to 200 notebooks per
@@ -1362,6 +1474,7 @@ class NotebookQdrantHelper {
         typeof payload.slug_suffix === 'string' && payload.slug_suffix.length > 0
           ? payload.slug_suffix
           : null,
+      moderation: normalizeModeration(payload.moderation),
     };
   }
 

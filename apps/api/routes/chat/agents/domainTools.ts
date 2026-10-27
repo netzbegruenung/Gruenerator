@@ -36,7 +36,11 @@ import {
   runExplainableGeneration,
 } from '../services/artifactGeneration.js';
 import { artifactKind, type ArtifactKindId } from '../services/artifactKindRegistry.js';
-import { buildCreateTurnContext, withConversationContext } from '../services/createTurn.js';
+import {
+  buildCreateTurnContext,
+  turnMaterialBlock,
+  withConversationContext,
+} from '../services/createTurn.js';
 import {
   pdfKindFromText,
   runBoardGeneration,
@@ -66,7 +70,10 @@ export function makeSummaryTool(ctx: { sse: SSEWriter; state: ChatGraphState }):
 NUTZE WENN der*die Nutzer*in um eine Zusammenfassung bittet ("fasse zusammen", "worum geht es in dem Dokument"). Rufe das Tool einmal auf und formuliere die Antwort auf Basis des zurückgegebenen Digests.`,
     inputSchema: z.object({}),
     execute: async () => {
-      const documentCount = (state.documentChatIds?.length ?? 0) + (state.documentIds?.length ?? 0);
+      const documentCount =
+        (state.documentChatIds?.length ?? 0) +
+        (state.documentIds?.length ?? 0) +
+        (state.notebookSources?.length ?? 0);
       sse.send('summary_start', { message: PROGRESS_MESSAGES.summaryStart, documentCount });
       const result = await summarizeNode(state);
       const summary = result.summaryContext ?? '';
@@ -461,7 +468,11 @@ function briefWithContext(
   state: ChatGraphState,
   sourceRegistry?: SourceRegistry
 ): string {
-  const withHistory = withConversationContext(prompt, buildCreateTurnContext(state.messages ?? []));
+  const withHistory = withConversationContext(
+    prompt,
+    buildCreateTurnContext(state.messages ?? []),
+    turnMaterialBlock(state.attachmentContext)
+  );
   return withResearchedSources(withHistory, sourceRegistry?.renderReference() ?? '');
 }
 

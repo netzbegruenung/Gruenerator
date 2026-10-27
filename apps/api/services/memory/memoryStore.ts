@@ -18,7 +18,7 @@ import { and, asc, eq, sql } from 'drizzle-orm';
 import { user_memories, type UserMemoryRow } from '../../database/schema/index.js';
 import { getDrizzleInstance } from '../../database/services/DrizzleService.js';
 import { getQdrantInstance } from '../../database/services/QdrantService/index.js';
-import { QdrantOperations } from '../../database/services/QdrantService/operations/index.js';
+import { type QdrantOperations } from '../../database/services/QdrantService/operations/index.js';
 import { createLogger } from '../../utils/logger.js';
 import { mistralEmbeddingService } from '../mistral/index.js';
 
@@ -149,7 +149,7 @@ function pointId(memoryId: string): number {
 async function ops(): Promise<QdrantOperations> {
   const qdrant = getQdrantInstance();
   await qdrant.init();
-  return new QdrantOperations(qdrant.client!);
+  return qdrant.operations!;
 }
 
 export const qdrantMemoryVectors: MemoryVectors = {

@@ -1,15 +1,24 @@
 import { createContext, useContext } from 'react';
 
-import type { ApplyResult } from './ai/applyOperation';
-import type { ReplaceDeckOps } from './collab/pagesDoc';
-import type { StockImage, StockImageAttribution } from './common/imageSourceTypes';
-import type { HeterogeneousPage } from './configs/types';
 import type {
-  CanvasAiCapabilities,
-  CanvasAiOperation,
-  CanvasAiSnapshot,
-} from '@gruenerator/contracts';
-import type { ComponentType, ReactNode } from 'react';
+  CanvasCarouselService,
+  CanvasFileDeliveryService,
+  CanvasImageShareService,
+  CanvasImageUrlService,
+  CanvasMediaLibraryService,
+  CanvasPrintService,
+  UseCanvasStudioAssets,
+  UseCanvasUnsplashSearch,
+} from './hostServices';
+import type {
+  ApplyResult,
+  HostCanvasAiOperation,
+  HostCanvasAiSnapshot,
+} from '@ggraphic/editor/ai/types';
+import type { StockImage, StockImageAttribution } from '@ggraphic/editor/common/imageSourceTypes';
+import type { AltTextPage, CanvasSpecEditBridge } from '@ggraphic/editor/editorSeamTypes';
+import type { CanvasAiCapabilities } from '@ggraphic/schema';
+import type { ComponentType, PropsWithChildren } from 'react';
 
 /**
  * Bridge between the canvas-editor's typed state/actions/capabilities and the
@@ -21,28 +30,23 @@ export interface CanvasAiEditBridge {
   /** Capability list to send with the suggest request. */
   capabilityList: CanvasAiCapabilities;
   /** Builds a fresh CanvasAiSnapshot at request-time. */
-  getSnapshot: () => CanvasAiSnapshot;
+  getSnapshot: () => HostCanvasAiSnapshot;
   /** Applies an array of operations and returns one ApplyResult per op. */
-  applyOperations: (ops: CanvasAiOperation[]) => ApplyResult[];
+  applyOperations: (ops: HostCanvasAiOperation[]) => ApplyResult[];
 }
 
-/**
- * Spec path: creator pages carry a `sharepicSource`, so the host can revise
- * their spec and replace the whole deck. Reads are live (at call time).
- */
-export interface CanvasSpecEditBridge {
-  getPages: () => HeterogeneousPage[];
-  getActivePageId: () => string | null;
-  /** One page-level undo step; returns the inserted page ids. */
-  replaceDeck: (ops: ReplaceDeckOps) => string[];
-}
+export type {
+  AltTextPage,
+  AltTextScope,
+  CanvasSpecEditBridge,
+} from '@ggraphic/editor/editorSeamTypes';
 
 /**
  * Props passed to the host-supplied chat component when the user opens the
  * Chat sidebar tab. The component renders inline inside the sidebar panel.
  */
 export interface ChatSectionContentProps {
-  /** Template id (e.g. 'zitat', 'simple', 'dreizeilen'). */
+  /** Template id (e.g. 'zitat', 'simple'). */
   canvasType: string;
   /** Returns a structured German text description of the current canvas. */
   getSharepicText: () => string;
@@ -55,7 +59,15 @@ export interface ChatSectionContentProps {
   specEdit?: CanvasSpecEditBridge;
 }
 
-export interface CanvasEditorServices {
+/**
+ * Services only a host's own UI reads. Empty here: a host declares its members
+ * by augmenting this interface (`declare module`), and `CanvasEditorServices`
+ * carries them.
+ */
+// eslint-disable-next-line @typescript-eslint/no-empty-object-type -- filled by host augmentation
+export interface CanvasEditorHostServices {}
+
+export interface CanvasEditorServices extends CanvasEditorHostServices {
   /** Fetch curated stock images by category */
   fetchStockImages?: (category?: string | null) => Promise<{
     success: boolean;
@@ -93,6 +105,9 @@ export interface CanvasEditorServices {
   /** Open Unsplash search in browser */
   openUnsplashSearch?: (query: string) => void;
 
+  /** Open the host's sticker creator. When omitted, the Sticker card offers no "Sticker erstellen". */
+  openStickerCreator?: () => void;
+
   /**
    * Generate an image from a text prompt via the host's AI image pipeline.
    * The host is expected to wrap an authenticated endpoint that enforces
@@ -124,6 +139,22 @@ export interface CanvasEditorServices {
    */
   editAiImage?: (image: File, instruction: string) => Promise<{ file: File; objectUrl: string }>;
 
+  /**
+   * „Erweitern" in the crop mode: AI-outpaints `image` to the aspect ratio
+   * `aspect` (width / height) of its frame. Reject with an `Error` carrying
+   * `userFacing: true` to have its message shown as the toast
+   * (consent, budget); any other error shows the editor's generic text. When omitted, the button is hidden.
+   */
+  expandImage?: (image: File, aspect: number) => Promise<File>;
+
+  /**
+   * One alt text per page, in the given order; `null` where a page failed.
+   * When omitted, the alt-text tool is hidden.
+   */
+  generateSlideAltTexts?: (
+    pages: ReadonlyArray<Pick<AltTextPage, 'image' | 'texts'>>
+  ) => Promise<Array<string | null>>;
+
   /** API base URL for multi-page export */
   apiBaseUrl?: string;
 
@@ -142,6 +173,46 @@ export interface CanvasEditorServices {
    * section shows a "not configured" hint.
    */
   ChatSectionContent?: ComponentType<ChatSectionContentProps>;
+
+  /**
+   * The viewer's media library (Uploads tab, image pickers). When omitted, the
+   * list is empty and an upload yields nothing. Hooks: see `hostServices.ts`.
+   */
+  mediaLibrary?: CanvasMediaLibraryService;
+
+  /** Autosave and draft publishing. When omitted, the editor does not autosave. */
+  imageShares?: CanvasImageShareService;
+
+  /**
+   * Where stored images are drawn and fetched from (`CanvasImageUrlService` in
+   * `hostServices.ts`). When omitted, every image loads from the URL it has
+   * (`plainImageUrls`).
+   */
+  imageUrls?: CanvasImageUrlService;
+
+  /**
+   * Hands exports to the user. When omitted, the editor uses a plain browser
+   * download and the Web Share API (`browserFileDelivery`).
+   */
+  fileDelivery?: CanvasFileDeliveryService;
+
+  /** Hook for the sticker and background galleries. When omitted, they stay empty. */
+  useStudioAssets?: UseCanvasStudioAssets;
+
+  /** Hook holding the Unsplash search state. When omitted, searches find nothing. */
+  useUnsplashSearch?: UseCanvasUnsplashSearch;
+
+  /**
+   * The impressum gate (`CanvasPrintService` in `hostServices.ts`). When
+   * omitted, no format carries an impressum; the PDF export still works.
+   */
+  print?: CanvasPrintService;
+
+  /**
+   * Keeps the carousel chrome true after page ops (`CanvasCarouselService`).
+   * When omitted, page ops leave the chrome as it is.
+   */
+  carousel?: CanvasCarouselService;
 }
 
 const CanvasEditorContext = createContext<CanvasEditorServices>({});
@@ -149,10 +220,7 @@ const CanvasEditorContext = createContext<CanvasEditorServices>({});
 export function CanvasEditorProvider({
   services,
   children,
-}: {
-  services: CanvasEditorServices;
-  children: ReactNode;
-}) {
+}: PropsWithChildren<{ services: CanvasEditorServices }>) {
   return <CanvasEditorContext.Provider value={services}>{children}</CanvasEditorContext.Provider>;
 }
 

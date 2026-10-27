@@ -18,6 +18,10 @@
  *    Illustrationen und Uploads laden im Browser nach, und jsdom rastert
  *    nichts, also fuehrt keine echte Aktion dort hin.
  */
+import { readPages, seedPagesIfEmpty, updatePageStateById } from '@ggraphic/editor/collab/pagesDoc';
+import { useEmitHostStateChanges } from '@ggraphic/editor/collab/useEmitHostStateChanges';
+import { createPageSyncedCallbacks } from '@ggraphic/editor/collab/wrapCallbacksWithPageSync';
+import { AutoSaveStoreProvider } from '@ggraphic/editor/stores/AutoSaveStoreProvider';
 import { act, render } from '@testing-library/react';
 import React, { useState } from 'react';
 import { describe, expect, it, vi } from 'vitest';
@@ -25,13 +29,9 @@ import * as Y from 'yjs';
 
 import { GenericCanvas } from '../components/GenericCanvas';
 import { loadCanvasConfig } from '../configs/configLoader';
-import { AutoSaveStoreProvider } from '../stores/AutoSaveStoreProvider';
 
 import { PAGE_ELEMENT_STATE_KEYS } from './pageElementStateKeys';
-import { readPages, seedPagesIfEmpty, updatePageStateById } from './pagesDoc';
 import { PAGES_STATE_ORIGIN } from './useYjsPages';
-import { useEmitHostStateChanges } from './useEmitHostStateChanges';
-import { createPageSyncedCallbacks } from './wrapCallbacksWithPageSync';
 
 // `useFontLoader` fragt `document.fonts`; jsdom laedt keine Schriften und
 // kennt die FontFaceSet nicht, das Mounten stirbt sonst im Effekt.
@@ -185,6 +185,11 @@ describe('freie Elemente im gemeinsamen Dokument', () => {
       chartInstances: [{ id: 'chart-1', chartType: 'bar' }],
       userImageInstances: [{ id: 'img-1', src: 'blob:x' }],
       layerOrder: ['shape-1', 'asset-1'],
+      lockedLayerIds: ['shape-1'],
+      templateRotations: { 'quote-text': 15 },
+      templateTextAligns: { 'quote-text': 'left' },
+      backgroundImageAdjustments: { vignette: 0.4, flipX: true },
+      backgroundImageRotation: -6,
     };
     expect(Object.keys(edited)).toEqual([...PAGE_ELEMENT_STATE_KEYS]);
 

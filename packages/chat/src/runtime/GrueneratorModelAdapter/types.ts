@@ -179,6 +179,9 @@ export interface StreamOutcome {
    *  the stream, not whatever log is active: another thread's stream may own
    *  that one and still be running. */
   openedResearchLogId?: string;
+  /** The browser session this stream opened (`browser_session_start`); same
+   *  ownership rule as `openedResearchLogId`. */
+  openedBrowserSessionId?: string;
   /** Resumable turn id (`stream_started`) — re-attach after a dropped
    *  connection, cancel on stop. Absent when the server could not record. */
   streamId?: string;

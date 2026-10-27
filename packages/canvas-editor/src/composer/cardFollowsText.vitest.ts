@@ -3,19 +3,20 @@
  * Before, the card kept the composer's height until an AI edit recomposed the
  * page, and the new point hung below it.
  */
-import { layoutRichTextBlock, type SharepicSpec } from '@gruenerator/contracts';
+import { getCanvasFormatOrDefault } from '@ggraphic/editor/formats/index';
+import { runMeasurer } from '@ggraphic/editor/utils/textUtils';
+import { layoutRichTextBlock } from '@ggraphic/schema';
+import { type SharepicSpec } from '@gruenerator/contracts';
 import { describe, expect, it } from 'vitest';
 
 import { createFreeformFullConfig, type FreeformState } from '../configs/freeform_full.config';
-import { getCanvasFormatOrDefault } from '../formats';
-import { runMeasurer } from '../utils/textUtils';
 
 import { composeSharepic } from './composeSharepic';
 import { fingerprint, liftPage, recomposePage } from './liftSharepicPage';
 import { farbe, options } from './sharepicSpecFixtures';
 
 import type { AdditionalText } from '../configs/types';
-import type { ShapeInstance } from '../utils/shapes';
+import type { ShapeInstance } from '@ggraphic/editor/utils/shapes';
 
 const specOf = (headline: string, items: string[]): SharepicSpec => ({
   locale: 'de-DE',
@@ -68,6 +69,48 @@ describe('a creator list card follows a hand edit', () => {
     const after = cardOf(getState(), list.id);
     expect(cardTop(after)).toBeCloseTo(cardTop(before), 5);
     expect(cardBottom(after) - bottomOf(text)).toBeCloseTo(padBelow, 5);
+  });
+
+  it('grows when the list is narrowed and its points wrap (#4381)', () => {
+    const { update, getState, list } = creatorList();
+    const before = cardOf(getState(), list.id);
+    const padBelow = cardBottom(before) - bottomOf(list);
+
+    update(list.id, { x: list.x + 40, width: Math.round(list.width * 0.4) });
+
+    const text = (getState().additionalTexts as AdditionalText[]).find((t) => t.id === list.id)!;
+    const after = cardOf(getState(), list.id);
+    expect(bottomOf(text)).toBeGreaterThan(bottomOf(list));
+    expect(cardTop(after)).toBeCloseTo(cardTop(before), 5);
+    expect(cardBottom(after) - bottomOf(text)).toBeCloseTo(padBelow, 5);
+  });
+
+  it('keeps fitting a narrowed list through a recompose', () => {
+    const { update, getState, list, source } = creatorList();
+    const padBelow = cardBottom(cardOf(getState(), list.id)) - bottomOf(list);
+    update(list.id, { width: Math.round(list.width * 0.4) });
+    const lifted = liftPage(getState() as unknown as Record<string, unknown>, source);
+    const next = specOf('Was wir fordern', ['Saubere Luft', 'Günstiger Strom', 'Jobs']);
+
+    const page = recomposePage(
+      compose(next),
+      lifted.overrides,
+      lifted.foreign,
+      lifted.slide,
+      next,
+      fingerprint(compose(lifted.slide))
+    );
+
+    const state = page.state as unknown as FreeformState;
+    const text = (state.additionalTexts as AdditionalText[]).find((t) => t.id === list.id)!;
+    expect(text.width).toBe(Math.round(list.width * 0.4));
+    expect(cardBottom(cardOf(state, list.id)) - bottomOf(text)).toBeCloseTo(padBelow, 5);
+    // The grown card is the composer's size again: only the hand width lifts.
+    const relifted = liftPage(page.state as unknown as Record<string, unknown>, {
+      slide: next,
+      baseline: page.baseline,
+    });
+    expect(relifted.overrides).toEqual(lifted.overrides);
   });
 
   it('is not read as a hand-styled card by the next lift', () => {

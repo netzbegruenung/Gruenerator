@@ -17,6 +17,18 @@ describe('parseVisualBlock', () => {
     expect(parsed.block.items.map((i) => i.value)).toEqual([12.5, 1234.5]);
   });
 
+  it('draws stats tiles whose value the model wrote as a number, German-style (#5043)', () => {
+    // Was null → the raw ```stats fence leaked under a table answer.
+    const parsed = parseVisualBlock(
+      'stats',
+      '{"items":[{"label":"Ausgaben gesamt","value":2114.23},{"label":"Buchungen","value":"500"}]}'
+    );
+    expect(parsed?.kind === 'stats' && parsed.block.items.map((i) => i.value)).toEqual([
+      '2.114,23',
+      '500',
+    ]);
+  });
+
   it('returns null for unknown kinds, broken JSON and wrong shapes', () => {
     expect(parseVisualBlock('python', '{}')).toBeNull();
     expect(parseVisualBlock('bars', '{"items": [')).toBeNull();
@@ -57,6 +69,19 @@ describe('parseVisualBlock', () => {
       '{"type":"bar","data":[{"name":"A","wert":1}],"xKey":"name","yKeys":["wert"],"stacked":true}'
     );
     expect(parsed?.kind).toBe('chart');
+  });
+
+  it('reads the singular "yKey" the model sometimes writes', () => {
+    const parsed = parseVisualBlock(
+      'chart',
+      '{"type":"bar","data":[{"name":"2023","wert":139}],"xKey":"name","yKey":["wert"]}'
+    );
+    expect(parsed?.kind === 'chart' && parsed.block.yKeys).toEqual(['wert']);
+    const single = parseVisualBlock(
+      'chart',
+      '{"type":"bar","data":[{"name":"2023","wert":139}],"xKey":"name","yKey":"wert"}'
+    );
+    expect(single?.kind === 'chart' && single.block.yKeys).toEqual(['wert']);
   });
 });
 

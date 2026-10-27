@@ -30,7 +30,6 @@ import { sanitizeMentionTokens } from '@gruenerator/shared/utils';
 import { createExpressEndpoints, initServer } from '@ts-rest/express';
 
 import { resumableStreams, startStreamRecorder } from '../../services/chat/resumableStreams.js';
-import { gatePandaModelId } from '../../services/user/pandaEntitlement.js';
 import { logContractValidationError } from '../../utils/contractValidationLogger.js';
 import { createLogger } from '../../utils/logger.js';
 import { ThreadId, UserId } from '../../utils/types/branded.js';
@@ -53,7 +52,6 @@ import { suspendForLoopClarification } from './streamStages/clarificationLoopSus
 import { runClarificationStage } from './streamStages/clarificationStage.js';
 import { runClassifyStage } from './streamStages/classifyStage.js';
 import { suspendForLoopClientTool } from './streamStages/clientToolLoopSuspend.js';
-import { runComputeInterruptStage } from './streamStages/computeInterruptStage.js';
 import { runCreateIntentStage } from './streamStages/createIntentStage.js';
 import { runEarlyHandlerStage } from './streamStages/earlyHandlerStage.js';
 import { runForcedIntentStage } from './streamStages/forcedIntentStage.js';
@@ -63,7 +61,7 @@ import { runResponseStage } from './streamStages/responseStage.js';
 import { runRoutingStage } from './streamStages/routingStage.js';
 import { runSharepicTopicStage } from './streamStages/sharepicTopicStage.js';
 import { suspendForToolApproval } from './streamStages/toolApprovalSuspend.js';
-import { type FixedTextBase, type SuspendTurnBase } from './streamStages/turnEnd.js';
+import { type SuspendTurnBase } from './streamStages/turnEnd.js';
 
 import type { Application, Request } from 'express';
 import type { ReadableStream as WebReadableStream } from 'node:stream/web';
@@ -124,6 +122,7 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
         memoryContext,
         memoryRetrieveTimeMs,
         memoryEnabled,
+        modelId,
         contextWindowTokens,
         mentionTokenFields,
         lastUserTextRaw,
@@ -161,7 +160,6 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
       const {
         agentId,
         forcedTools: bodyForcedTools,
-        modelId: requestedModelId,
         documentIds: rawDocumentIds,
         documentChatIds: rawDocumentChatIds,
         docMentionIds: rawDocMentionIds,
@@ -174,7 +172,6 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
         currentReel: rawCurrentReel,
         reelUpload: rawReelUpload,
       } = args.body;
-      const modelId = await gatePandaModelId(requestedModelId, userId);
 
       // Durable mention tokens (parsed in streamContext) are the source of
       // truth; legacy body forcedTools (older clients) union in. Regex edit
@@ -213,13 +210,6 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
         memoryRetrieveTimeMs,
         validMessages,
         rawDocumentIds,
-        startTime: initialState.startTime,
-      };
-      const fixedTextBase: FixedTextBase = {
-        sse,
-        cleanupPending,
-        actualThreadId,
-        classifiedState,
         startTime: initialState.startTime,
       };
 
@@ -271,15 +261,13 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
       if (early.forcedTool) forcedTool = true;
 
       // === Gates: may this turn make a sharepic / persist an artifact? ===
-      const gate = await runActionGateStage({
+      await runActionGateStage({
         classifiedState,
         initialState,
-        fixedTextBase,
         forcedTool,
         lastUserTextNoMentions,
         actualThreadId,
       });
-      if (gate.handled) return gate.result;
 
       sse.send('progress_step', {
         stepId: classifyStepId,
@@ -324,7 +312,7 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
         memoryEnabled,
       });
 
-      // === HITL: clarification, then the run-then-answer compute interrupt ===
+      // === HITL: clarification ===
       const clarification = await runClarificationStage({
         sse,
         classifiedState,
@@ -335,18 +323,6 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
         actualThreadId,
       });
       if (clarification.handled) return clarification.result;
-
-      const computeInterrupt = await runComputeInterruptStage({
-        sse,
-        classifiedState,
-        suspendBase,
-        forcedTool,
-        forcedTools,
-        lastUserText,
-        clientTools: args.body.clientTools,
-        actualThreadId,
-      });
-      if (computeInterrupt.handled) return computeInterrupt.result;
 
       // === Artifact-creating turns, then the sharepic-topic HITL gate ===
       const created = await runCreateIntentStage({
@@ -469,6 +445,7 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
           classifiedState,
           requestContext: suspendRequestContext,
           pendingApproval: response.pendingApproval as NonNullable<typeof response.pendingApproval>,
+          heldClientTool: response.heldClientTool ?? null,
           partialText: fullText,
           priorSteps: agenticSteps ?? [],
           pendingId,

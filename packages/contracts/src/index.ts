@@ -41,6 +41,7 @@ export {
   entityReactionsContract,
   agentCommentsContract,
   templateCommentsContract,
+  entityCommentsContract,
   boardAgentContract,
   boardActivityContract,
   boardSubscriptionsContract,
@@ -76,10 +77,12 @@ export {
   emailContract,
   feedbackContract,
   contentReportContract,
+  adminReportsContract,
   modelPreferencesContract,
   imageModelPreferenceContract,
   mcpServersContract,
   chatToolApprovalsContract,
+  appReleaseContract,
   imageEditContract,
   sharepicCreatorContract,
   sharepicVorlagenContract,
@@ -87,6 +90,8 @@ export {
   userTemplatesContract,
   sharedTemplateContract,
   templateInteractionsContract,
+  studioAssetsContract,
+  marketplaceContract,
   userAgentsContract,
   userAgentsSharingContract,
   userTextFormsContract,
@@ -97,6 +102,7 @@ export {
   connectionsContract,
   skillVisibilityContract,
   instanceAdminOverviewContract,
+  adminStatsContract,
   translationContract,
   lvAdminAssignmentContract,
   landesverbandAdminContract,
@@ -117,6 +123,8 @@ export * from './schemas/threads.js';
 export * from './schemas/chatThreadSharing.js';
 export * from './schemas/explainables.js';
 export * from './schemas/podcasts.js';
+export * from './schemas/studioAssets.js';
+export * from './schemas/marketplace.js';
 export * from './schemas/textForm.js';
 export * from './schemas/exports.js';
 export * from './schemas/recentValues.js';
@@ -149,6 +157,8 @@ export * from './schemas/boardComments.js';
 export * from './schemas/entityReactions.js';
 export * from './schemas/agentComments.js';
 export * from './schemas/templateComments.js';
+export * from './schemas/entityLikes.js';
+export * from './schemas/entityComments.js';
 export * from './schemas/boardActivity.js';
 export * from './schemas/boardSubscriptions.js';
 export * from './schemas/boardSchedules.js';
@@ -182,16 +192,20 @@ export * from './schemas/memory.js';
 export * from './schemas/email.js';
 export * from './schemas/feedback.js';
 export * from './schemas/contentReport.js';
+export * from './schemas/adminReports.js';
 export * from './schemas/translation.js';
 export * from './schemas/modelPreferences.js';
 export * from './schemas/imageModelPreference.js';
 export * from './schemas/mcpServers.js';
 export * from './schemas/chatToolApprovals.js';
+export * from './schemas/appRelease.js';
 export * from './schemas/flux3Boxes.js';
 export * from './schemas/imageEdit.js';
 export * from './schemas/sharepicCreator.js';
 export * from './schemas/sharepicHandMarks.js';
 export * from './schemas/sharepicVorlagen.js';
+export * from './schemas/brandFonts.js';
+export * from './schemas/printCreator.js';
 export * from './schemas/adminVorlagen.js';
 export * from './schemas/userTemplates.js';
 export * from './schemas/sharedTemplate.js';
@@ -229,6 +243,7 @@ export * from './schemas/prompts.js';
 export * from './schemas/landesverbaende.js';
 export * from './schemas/lvAdminAssignment.js';
 export * from './schemas/instanceAdminOverview.js';
+export * from './schemas/adminStats.js';
 export * from './schemas/landesverbandAdmin.js';
 
 // Canvas-Textlayout: Umbruch, Aufzählungsmarker, hängender Einzug und
@@ -239,3 +254,17 @@ export * from './text/inlineMarks.js';
 export * from './text/handMarks.js';
 export * from './text/canvasRichText.js';
 export * from './text/truncation.js';
+
+// Media-, Sticker- und Leinwand-Bausteine ohne Netz und ohne Store. Hier statt
+// in @gruenerator/shared, damit der Canvas-Editor sie lesen kann, ohne shared
+// zu importieren; shared exportiert dieselben Namen weiter.
+export * from './media/mediaItem.js';
+export * from './media/shareUrl.js';
+export * from './media/srcset.js';
+export * from './media/dataUrl.js';
+export * from './media/stockImages.js';
+export * from './stickers/catalog.js';
+export * from './stickers/profilbildAssets.js';
+export * from './stickers/savedProfilbildSticker.js';
+export * from './canvasPalette.js';
+export * from './studioAssets/labels.js';

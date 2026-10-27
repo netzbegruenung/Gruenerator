@@ -1,36 +1,36 @@
 /**
  * Profilbild Canvas Configuration
  *
- * Solid-color background + draggable foreground avatar (transparent PNG).
- * No text fields. Supports background color picker + AI chat (set-background-color
- * for the canvas, update-element for repositioning/resizing the avatar).
+ * Solid-color background + draggable foreground avatar (transparent PNG), plus
+ * whatever the Elemente tab adds (the Profilbild hands its stickers over as
+ * asset instances). No text fields. Supports background color picker + AI chat
+ * (set-background-color for the canvas, update-element for repositioning/resizing
+ * the avatar).
  *
  * Replaces the legacy bespoke `ProfilbildCanvas.tsx` so all canvas templates
  * route through the FullCanvasConfig pipeline and gain `aiEdit` parity.
  */
 
-import {
-  CANVAS_COLORS,
-  DEFAULT_BACKGROUND_COLOR,
-  DEFAULT_CANVAS_SIZE,
-  INITIAL_SCALE,
-} from '@gruenerator/shared/canvas-editor';
-import { HiPaintBrush } from 'react-icons/hi2';
+import { INITIAL_SCALE } from '@ggraphic/editor/types/editorTypes';
+import { CANVAS_COLORS, DEFAULT_CANVAS_SIZE } from '@gruenerator/contracts';
+import { PiSquaresFourFill } from 'react-icons/pi';
 
+import { AssetsSection } from '../sidebar/sections';
+
+import { chatTab, createCommonSectionEntries, toolsTab, uploadsTab } from './commonSections';
 import { createBaseActions } from './factory/actionFactories';
 import { carryInstanceState } from './factory/carryInstanceState';
 import { makeSectionDefiner } from './factory/defineSection';
-import { chatTab, createCommonSectionEntries, toolsTab, uploadsTab } from './commonSections';
-import { BackgroundSection } from '../sidebar/sections';
+import { injectFeatureProps } from './featureInjector';
 
+import type { SharepicAiCapabilities } from './aiCapabilities';
 import type { BaseCanvasState } from './factory/baseTypes';
 import type {
+  BackgroundElementConfig,
   FullCanvasConfig,
   ImageElementConfig,
   LayoutResult,
-  RectElementConfig,
 } from './types';
-import type { TemplateAiCapabilities } from '../ai/types';
 import type { BackgroundColorOption } from '../sidebar/types';
 import type { CanvasAiSnapshot } from '@gruenerator/contracts';
 
@@ -92,7 +92,7 @@ function defaultAvatarLayout(): {
 function createProfilbildInitialState(props: Record<string, unknown>): ProfilbildFullState {
   const { position, size } = defaultAvatarLayout();
   const transparentImage = (props.transparentImage as string | undefined) ?? '';
-  const backgroundColor = (props.backgroundColor as string | undefined) ?? DEFAULT_BACKGROUND_COLOR;
+  const backgroundColor = (props.backgroundColor as string | undefined) ?? CANVAS_COLORS.TANNE;
 
   return {
     isDesktop: true,
@@ -122,16 +122,18 @@ const calculateLayout = (_state: ProfilbildFullState): LayoutResult => ({});
 // ELEMENTS
 // ============================================================================
 
-const backgroundElement: RectElementConfig<ProfilbildFullState> = {
+// A colour plane like the other templates', so a click on it selects it and
+// the context bar shows the swatches.
+const backgroundElement: BackgroundElementConfig<ProfilbildFullState> = {
   id: 'background',
-  type: 'rect',
+  type: 'background',
   x: 0,
   y: 0,
   order: 0,
   width: CANVAS_SIZE,
   height: CANVAS_SIZE,
-  fill: (state) => state.backgroundColor || DEFAULT_BACKGROUND_COLOR,
-  listening: false,
+  colorKey: 'backgroundColor',
+  color: CANVAS_COLORS.TANNE,
 };
 
 const avatarElement: ImageElementConfig<ProfilbildFullState> = {
@@ -154,7 +156,7 @@ const avatarElement: ImageElementConfig<ProfilbildFullState> = {
 // AI CAPABILITIES
 // ============================================================================
 
-const profilbildAiCapabilities: TemplateAiCapabilities<ProfilbildFullState, ProfilbildFullActions> =
+const profilbildAiCapabilities: SharepicAiCapabilities<ProfilbildFullState, ProfilbildFullActions> =
   {
     supportedOperations: ['set-background-color', 'update-element'],
 
@@ -208,21 +210,32 @@ export const profilbildFullConfig: FullCanvasConfig<ProfilbildFullState, Profilb
   ai: profilbildAiCapabilities,
 
   tabs: [
-    { id: 'background', icon: HiPaintBrush, label: 'Farbe', ariaLabel: 'Hintergrundfarbe' },
+    {
+      id: 'elements',
+      icon: PiSquaresFourFill,
+      label: 'Elemente',
+      ariaLabel: 'Elemente hinzufügen',
+    },
     toolsTab,
     uploadsTab,
     chatTab,
   ],
 
-  getVisibleTabs: () => ['background', 'tools', 'uploads', 'chat'],
+  getVisibleTabs: () => ['elements', 'tools', 'uploads', 'chat'],
+
+  background: (state, actions) => ({
+    colors: BACKGROUND_COLORS,
+    currentColor: state.backgroundColor,
+    onColorChange: actions.setBackgroundColor,
+  }),
 
   sections: {
-    background: section({
-      component: BackgroundSection,
-      propsFactory: (state, actions) => ({
-        colors: BACKGROUND_COLORS,
-        currentColor: state.backgroundColor,
-        onColorChange: actions.setBackgroundColor,
+    elements: section({
+      component: AssetsSection,
+      propsFactory: (state, actions, context) => ({
+        onAddAsset: actions.addAsset,
+        onAddStickerAsset: actions.addStickerAsset,
+        ...injectFeatureProps(state, actions, context),
       }),
     }),
     ...createCommonSectionEntries('profilbild', profilbildAiCapabilities),

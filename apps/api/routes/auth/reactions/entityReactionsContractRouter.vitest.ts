@@ -15,6 +15,10 @@ const m = vi.hoisted(() => ({
   addReaction: vi.fn(),
   removeReaction: vi.fn(),
   getReactionSummaries: vi.fn(),
+  addItemReaction: vi.fn(),
+  removeItemReaction: vi.fn(),
+  getItemReactionSummaries: vi.fn(),
+  canViewAgent: vi.fn(),
 }));
 
 vi.mock('../../../database/services/PostgresService.js', () => ({
@@ -30,6 +34,12 @@ vi.mock('../../../services/entityReactions/EntityReactionsService.js', () => ({
   addReaction: m.addReaction,
   removeReaction: m.removeReaction,
   getReactionSummaries: m.getReactionSummaries,
+  addItemReaction: m.addItemReaction,
+  removeItemReaction: m.removeItemReaction,
+  getItemReactionSummaries: m.getItemReactionSummaries,
+}));
+vi.mock('../../../services/entityComments/commentTargets.js', () => ({
+  commentTargets: { agent: { canView: m.canViewAgent } },
 }));
 
 const { entityReactionsContractRouter } = await import('./entityReactionsContractRouter.js');
@@ -37,10 +47,11 @@ const { entityReactionsContractRouter } = await import('./entityReactionsContrac
 type Result = { status: number; body: unknown };
 type Handler = (args: Record<string, unknown>) => Promise<Result>;
 type Name = 'addReaction' | 'removeReaction';
-const call = (name: Name, entityType: string, entityId = ID) =>
+const call = (name: Name, entityType: string, entityId = ID, query: Record<string, string> = {}) =>
   (entityReactionsContractRouter[name] as unknown as Handler)({
     req: { user: { id: 'viewer' } } as unknown as Request,
     params: { entityType, entityId, emoji: '👍' },
+    query,
   });
 
 const ID = '11111111-2222-4333-8444-555555555555';
@@ -52,6 +63,8 @@ beforeEach(() => {
   m.findViewer.mockResolvedValue({ isPersonal: false });
   m.checkBoardAccess.mockResolvedValue({ hasAccess: true, createdBy: 'owner' });
   m.getReactionSummaries.mockResolvedValue(new Map([[ID, SUMMARY]]));
+  m.getItemReactionSummaries.mockResolvedValue(new Map([['presse-bot', SUMMARY]]));
+  m.canViewAgent.mockResolvedValue(true);
 });
 
 describe.each(['addReaction', 'removeReaction'] as const)('%s', (name) => {
@@ -101,5 +114,36 @@ describe.each(['addReaction', 'removeReaction'] as const)('%s', (name) => {
   it.each(['group_share', 'group_comment'])('%s does not bump', async (type) => {
     expect((await call(name, type)).status).toBe(200);
     expect(m.bumpCardComments).not.toHaveBeenCalled();
+  });
+});
+
+describe.each(['addReaction', 'removeReaction'] as const)('%s on a marketplace item', (name) => {
+  const write = name === 'addReaction' ? m.addItemReaction : m.removeItemReaction;
+
+  it('stores it under the item key from itemType + entityId', async () => {
+    const res = await call(name, 'marketplace_item', 'presse-bot', { itemType: 'agent' });
+    expect(res).toEqual({ status: 200, body: { reactions: SUMMARY } });
+    expect(m.canViewAgent).toHaveBeenCalledWith('viewer', 'presse-bot');
+    expect(write).toHaveBeenCalledWith('viewer', 'agent', 'presse-bot', '👍');
+    expect(m.getItemReactionSummaries).toHaveBeenCalledWith('agent', ['presse-bot'], 'viewer');
+  });
+
+  it('the legacy agent type is the item (agent, id)', async () => {
+    await call(name, 'agent', 'presse-bot');
+    expect(write).toHaveBeenCalledWith('viewer', 'agent', 'presse-bot', '👍');
+  });
+
+  it('400 without itemType, nothing checked or written', async () => {
+    const res = await call(name, 'marketplace_item', 'presse-bot');
+    expect(res.status).toBe(400);
+    expect(m.canViewAgent).not.toHaveBeenCalled();
+    expect(write).not.toHaveBeenCalled();
+  });
+
+  it('404 when the viewer cannot see the item', async () => {
+    m.canViewAgent.mockResolvedValue(false);
+    const res = await call(name, 'marketplace_item', 'presse-bot', { itemType: 'agent' });
+    expect(res.status).toBe(404);
+    expect(write).not.toHaveBeenCalled();
   });
 });

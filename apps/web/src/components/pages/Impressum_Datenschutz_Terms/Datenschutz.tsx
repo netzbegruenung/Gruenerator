@@ -58,7 +58,7 @@ const Datenschutz = () => {
   return (
     <div className="page-container">
       <h1>Datenschutzerklärung</h1>
-      <p>Stand: 1. Oktober 2026</p>
+      <p>Stand: 26. Oktober 2026</p>
 
       <h2>Einleitung</h2>
       <p>
@@ -563,6 +563,19 @@ const Datenschutz = () => {
         Antwort (Daumen hoch/runter). Eine Weitergabe an Dritte findet nicht statt, ebenso wenig
         eine Nutzung zum KI-Training. Löschung nach 30 Tagen. Rechtsgrundlage ist Art. 6 Abs. 1 lit.
         f DSGVO (berechtigtes Interesse an der Qualitätssicherung).
+      </p>
+
+      <h3>Interne Nutzungsstatistik</h3>
+      <p>
+        Um zu sehen, wie der Grünerator genutzt wird, zählen wir, wie viele Inhalte (z. B. Chats,
+        Dokumente, Sharepics) angelegt werden. Gespeichert werden dafür ausschließlich Summen je
+        Tag, Inhaltsart und Land (Deutschland, Österreich oder unbekannt) – ohne Kennung der Person
+        und ohne Inhalte. Zusätzlich werten wir die Erstellungszeitpunkte der bei uns gespeicherten
+        Inhalte aus; auch dabei werden nur Summen gebildet. Die Auswertung sehen ausschließlich die
+        Administrator*innen der jeweiligen Instanz. Werte, hinter denen bei einer Aufschlüsselung
+        nach Land weniger als fünf Personen stehen, werden nicht angezeigt. Rechtsgrundlage ist Art.
+        6 Abs. 1 lit. f DSGVO (berechtigtes Interesse an der Weiterentwicklung und Planung des
+        Angebots).
       </p>
 
       <h3>Cookies und lokale Speicherung im Browser</h3>

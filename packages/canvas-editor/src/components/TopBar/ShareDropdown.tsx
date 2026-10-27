@@ -1,7 +1,8 @@
-import { pickShareRoute, shareDataUrlViaNativeHost } from '@gruenerator/shared';
-import { shareApi } from '@gruenerator/shared/share';
+import { useAutoSaveStoreApi } from '@ggraphic/editor/stores/useAutoSaveStore';
+import { stripInlineMarks } from '@ggraphic/schema';
 import {
   Popover,
+  PopoverAnchor,
   PopoverContent,
   PopoverTrigger,
   Button,
@@ -11,15 +12,28 @@ import {
   canRequestFeedback,
   requestFeedback,
 } from '@gruenerator/ui';
-import { useCallback, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { FaCheck, FaDownload, FaSave, FaUserPlus } from 'react-icons/fa';
 import { IoShareOutline } from 'react-icons/io5';
 import { PiArrowLeft, PiMegaphone } from 'react-icons/pi';
 
+import { useCanvasEditorServices } from '../../CanvasEditorProvider';
 import { useIsCanvasMobile } from '../../hooks/useIsCanvasMobile';
-import { useAutoSaveStoreApi } from '../../stores/useAutoSaveStore';
+import { browserFileDelivery } from '../../hostServices';
+import {
+  AltTextField,
+  useCaptionAltText,
+  useShareAltText,
+  withAltText,
+} from '../../sidebar/components/AltTextField';
+import { withPhotoCredit } from '../../utils/photoCredit';
 
-import { DownloadSection, type CanvasDownloadChoice } from './DownloadSection';
+import {
+  DownloadSection,
+  type CanvasDownloadChoice,
+  type PrintExportProps,
+  type SlideDeckExportProps,
+} from './DownloadSection';
 
 export interface ShareDropdownProps {
   onCaptureCanvas: () => Promise<string | null>;
@@ -35,12 +49,16 @@ export interface ShareDropdownProps {
   canvasHeight: number;
   shareToken: string | null;
   pageCount?: number;
-  onDownloadAllZip?: () => Promise<void>;
+  onDownloadAllZip?: (format?: CanvasDownloadChoice) => Promise<void>;
   onShareAllPages?: () => Promise<void>;
   isMultiExporting?: boolean;
   exportProgress?: { current: number; total: number };
   exportError?: string | null;
   exportNotice?: string | null;
+  /** Set for print formats: the download section offers the print PDF. */
+  printExport?: PrintExportProps | null;
+  /** Set for slide formats: the download section offers PowerPoint and a PDF of all pages. */
+  slideDeck?: SlideDeckExportProps | null;
   /**
    * Optional host-supplied "invite people" action. When provided, the share
    * popover shows a "Personen" icon button that opens the host's collaborator
@@ -54,6 +72,18 @@ export interface ShareDropdownProps {
    * built from, so it also owns the dialog. Hidden when absent.
    */
   onSaveAsTemplate?: () => void;
+  /**
+   * Opened by a host-drawn bar instead of the "Teilen" button: the menu is
+   * controlled from outside and hangs from the top right of the editor.
+   */
+  hostControl?: { open: boolean; onOpenChange: (open: boolean) => void };
+  /**
+   * Bildnachweis aller Seiten („Foto: … auf Unsplash"), gelesen beim Öffnen.
+   * Unsplash verlangt ihn im Beitragstext: er wird an den geteilten Text
+   * gehängt und zum Kopieren angezeigt, weil Instagram & Co. den Text eines
+   * geteilten Bilds verwerfen.
+   */
+  getPhotoCredit?: () => string;
 }
 
 export function ShareDropdown({
@@ -71,28 +101,43 @@ export function ShareDropdown({
   exportProgress,
   exportError,
   exportNotice,
+  printExport,
+  slideDeck,
   onInvitePeople,
   onSaveAsTemplate,
+  hostControl,
+  getPhotoCredit,
 }: ShareDropdownProps) {
   const isMobile = useIsCanvasMobile();
-  const [open, setOpen] = useState(false);
+  const [ownOpen, setOwnOpen] = useState(false);
+  const open = hostControl ? hostControl.open : ownOpen;
+  const setOpen = hostControl ? hostControl.onOpenChange : setOwnOpen;
   const [view, setView] = useState<'main' | 'download'>('main');
   const [isSharing, setIsSharing] = useState(false);
   const [shareSuccess, setShareSuccess] = useState(false);
+  const [creditCopied, setCreditCopied] = useState(false);
+  const photoCredit = useMemo(
+    () => (open && getPhotoCredit ? getPhotoCredit() : ''),
+    [open, getPhotoCredit]
+  );
+  const [altText, setAltText] = useShareAltText(stripInlineMarks(canvasText));
+  const captionAltText = useCaptionAltText(altText);
+  const shareText = withAltText(withPhotoCredit(canvasText, photoCredit), captionAltText);
 
   const autoSaveStoreApi = useAutoSaveStoreApi();
-  const shareRoute = pickShareRoute();
+  const { fileDelivery = browserFileDelivery, imageShares } = useCanvasEditorServices();
+  const shareRoute = fileDelivery.pickShareRoute();
 
   const publishDraftIfNeeded = useCallback(async () => {
     const token = shareToken || autoSaveStoreApi.getState().autoSavedShareToken;
-    if (token) {
+    if (token && imageShares) {
       try {
-        await shareApi.publishShare(token);
+        await imageShares.publishShare(token);
       } catch (err) {
         console.warn('[ShareDropdown] Failed to publish draft:', err);
       }
     }
-  }, [shareToken, autoSaveStoreApi]);
+  }, [shareToken, autoSaveStoreApi, imageShares]);
 
   const handleNativeShare = useCallback(async () => {
     setIsSharing(true);
@@ -100,18 +145,18 @@ export function ShareDropdown({
       const dataUrl = await onCaptureCanvas();
       if (!dataUrl) return;
       if (shareRoute === 'native-host') {
-        shareDataUrlViaNativeHost(dataUrl, 'gruenerator.png', {
+        fileDelivery.shareDataUrlViaNativeHost(dataUrl, 'gruenerator.png', {
           title: 'Grünerator Share',
-          text: canvasText,
+          text: shareText,
         });
       } else {
         const blob = await (await fetch(dataUrl)).blob();
         const file = new File([blob], 'gruenerator.png', { type: 'image/png' });
 
         if (navigator.canShare?.({ files: [file] })) {
-          await navigator.share({ files: [file], text: canvasText, title: 'Grünerator Share' });
+          await navigator.share({ files: [file], text: shareText, title: 'Grünerator Share' });
         } else {
-          await navigator.share({ text: canvasText, title: 'Grünerator Share' });
+          await navigator.share({ text: shareText, title: 'Grünerator Share' });
         }
       }
       void publishDraftIfNeeded();
@@ -122,7 +167,7 @@ export function ShareDropdown({
     } finally {
       setIsSharing(false);
     }
-  }, [onCaptureCanvas, canvasText, publishDraftIfNeeded, shareRoute]);
+  }, [onCaptureCanvas, shareText, publishDraftIfNeeded, shareRoute, fileDelivery]);
 
   return (
     <Popover
@@ -132,15 +177,19 @@ export function ShareDropdown({
         if (!v) setView('main');
       }}
     >
-      <PopoverTrigger asChild>
-        <Button
-          size="sm"
-          className="ml-auto h-9 rounded-full bg-white px-4 font-extrabold text-[var(--editor-green-deep)] hover:bg-white/90 max-canvas-mobile:h-8 max-canvas-mobile:px-3"
-        >
-          <IoShareOutline className="size-4" />
-          <span>Teilen</span>
-        </Button>
-      </PopoverTrigger>
+      {hostControl ? (
+        <PopoverAnchor className="absolute right-3 top-0 size-0" />
+      ) : (
+        <PopoverTrigger asChild>
+          <Button
+            size="sm"
+            className="ml-auto h-9 rounded-full bg-white px-4 font-extrabold text-[var(--editor-green-deep)] hover:bg-white/90 max-canvas-mobile:h-8 max-canvas-mobile:px-3"
+          >
+            <IoShareOutline className="size-4" />
+            <span>Teilen</span>
+          </Button>
+        </PopoverTrigger>
+      )}
       <PopoverContent align="end" sideOffset={8} className="w-80 p-0 overflow-hidden">
         {view === 'download' ? (
           <>
@@ -164,6 +213,8 @@ export function ShareDropdown({
                 exportProgress={exportProgress}
                 exportError={exportError}
                 exportNotice={exportNotice}
+                printExport={printExport}
+                slideDeck={slideDeck}
               />
             </div>
           </>
@@ -237,7 +288,34 @@ export function ShareDropdown({
                 />
               )}
             </IconButtonRow>
+            <div className="px-4 pb-4">
+              <AltTextField value={altText} onChange={setAltText} />
+            </div>
           </>
+        )}
+        {photoCredit && (
+          <div className="mx-4 mb-4 flex flex-col gap-2 rounded-md border border-[var(--editor-border-soft)] p-3">
+            <p className="m-0 text-xs font-semibold text-foreground">
+              Bildnachweis für deinen Beitrag
+            </p>
+            <p className="m-0 text-xs text-muted-foreground">
+              Das Foto gehört nicht dir: Nenne die Fotograf*in und Unsplash im Beitragstext.
+            </p>
+            <p className="m-0 select-all text-sm text-foreground">{photoCredit}</p>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => {
+                void navigator.clipboard.writeText(photoCredit).then(() => {
+                  setCreditCopied(true);
+                  setTimeout(() => setCreditCopied(false), 2000);
+                });
+              }}
+            >
+              {creditCopied ? <FaCheck className="size-3" /> : null}
+              {creditCopied ? 'Kopiert' : 'Bildnachweis kopieren'}
+            </Button>
+          </div>
         )}
       </PopoverContent>
     </Popover>

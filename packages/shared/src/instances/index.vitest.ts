@@ -189,19 +189,24 @@ describe('current instances', () => {
   // By category, not by id: the Bundesgeschäftsstelle works federally, and a
   // thirteenth Landesverband must inherit the rule without anyone remembering
   // to add it here.
-  it('bgst hides the Landesverband and Austrian notebook categories', () => {
-    expect(getInstance('bgst').hide?.notebookCategories).toEqual(['landesebene', 'oesterreich']);
+  // `parlamente` nur vorübergehend, bis #4875 samt Salt-Rollout: bgsts eigenes
+  // Qdrant hat keine Parlaments-Sammlungen.
+  it('bgst hides the Landesverband, Austrian and (for now) Parlamente notebook categories', () => {
+    expect(getInstance('bgst').hide?.notebookCategories).toEqual([
+      'landesebene',
+      'oesterreich',
+      'parlamente',
+    ]);
     for (const id of ['production', 'beta', 'local'] as const) {
       expect(getInstance(id).hide?.notebookCategories).toBeUndefined();
     }
   });
 
-  // Parlamente — Bundestag wie Landtage — sind auch auf Bundesebene Arbeitsstoff.
-  it('bgst keeps the Parlamente notebooks', () => {
+  it('bgst hides every Parlamente notebook', () => {
     const parlamente = NOTEBOOK_REGISTRY.filter((nb) => nb.category === 'parlamente');
     expect(parlamente.length).toBeGreaterThan(0);
     for (const nb of parlamente) {
-      expect(policyCoversNotebook(getInstance('bgst').hide, nb), nb.id).toBe(false);
+      expect(policyCoversNotebook(getInstance('bgst').hide, nb), nb.id).toBe(true);
     }
   });
 

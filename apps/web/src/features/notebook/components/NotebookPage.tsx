@@ -18,7 +18,7 @@ import {
   type NotebookMessageMetadata,
 } from '@gruenerator/chat';
 import { type NotebookSourceTier } from '@gruenerator/contracts';
-import { Skeleton, cn } from '@gruenerator/ui';
+import { Skeleton } from '@gruenerator/ui';
 import { useQueryClient } from '@tanstack/react-query';
 import React, { useState, useCallback, useEffect, useMemo, useRef, type ReactNode } from 'react';
 import { useLocation, useParams, useSearchParams } from 'react-router-dom';
@@ -28,6 +28,7 @@ import PageContainer from '../../../components/common/PageContainer';
 import ErrorBoundary from '../../../components/ErrorBoundary';
 import { useAuthStore } from '../../../stores/authStore';
 import { whenIdle } from '../../../utils/whenIdle';
+import { useModelPreferences } from '../../models/hooks/useModelPreferences';
 import { buildChatHandoffUrl, createRepeatGuard, readChatHandoff } from '../chatHandoff';
 import { getNotebookConfig } from '../config/notebookPagesConfig';
 import { getNotebookById } from '../config/notebooksConfig';
@@ -104,8 +105,8 @@ interface NotebookPageContentProps {
   /** Disable the startpage's own page background when embedded in a surface
    *  that paints its own (workplace "Wissen" tab tint). Defaults to true. */
   pageGradient?: boolean;
-  /** A fixed Chat | Übersicht pill sits over the top row; keep the thread clear of it. */
-  withTabBar?: boolean;
+  /** The Chat | Übersicht pill, shown on the start page only — a conversation is a page of its own. */
+  tabBar?: ReactNode;
 }
 
 interface NotebookPageProps {
@@ -132,7 +133,7 @@ export const NotebookPageContent = ({
   manualSearchNotebookId,
   omniComposer = false,
   pageGradient = true,
-  withTabBar = false,
+  tabBar,
 }: NotebookPageContentProps): React.ReactElement => {
   const isMulti = config.collectionType === 'multi';
   const isSingleSystem = !isMulti && config.collections[0]?.id.endsWith('-system');
@@ -150,7 +151,9 @@ export const NotebookPageContent = ({
   // mount — including a plain page reload mid-conversation.
   const storedDepth = useAgentStore((s) => s.notebookDepth);
   const setMode = useAgentStore((s) => s.setNotebookDepth);
-  const mode = notebookDepthDef(storedDepth).depth;
+  // A stored Panda choice without the unlock goes out as Ultra (see notebookDepthDef).
+  const { enabledModelIds } = useModelPreferences();
+  const mode = notebookDepthDef(storedDepth, enabledModelIds).depth;
   // Quellen-Ampel: per notebook, remembered in the browser, offered only where the
   // collection knows demoted sources (parliament notebooks).
   const offersSourceTier = supportsSourceTier(config.collections.map((c) => c.id));
@@ -337,13 +340,14 @@ export const NotebookPageContent = ({
   // The Übersicht tab sits one click away on a tabbed system notebook — have
   // its chunk and data ready by the time that click comes.
   const queryClient = useQueryClient();
+  const hasTabBar = tabBar != null;
   useEffect(() => {
-    if (!systemCollectionId || !withTabBar) return;
+    if (!systemCollectionId || !hasTabBar) return;
     return whenIdle(() => {
       void loadNotebookOverview().catch(() => {});
       void prefetchNotebookOverview(queryClient, systemCollectionId);
     });
-  }, [systemCollectionId, withTabBar, queryClient]);
+  }, [systemCollectionId, hasTabBar, queryClient]);
 
   const categoryFilters = useMemo((): CategoryFilterConfig | undefined => {
     if (!systemCollectionId) return undefined;
@@ -416,6 +420,7 @@ export const NotebookPageContent = ({
               `?thread=` is still being fetched — without it the start page
               flashes up first and reads as "this conversation is gone". */}
             <AuiIf condition={(s) => s.thread.isEmpty && !s.thread.isLoading}>
+              {tabBar}
               <div className="flex flex-1 flex-col overflow-y-auto">
                 <NotebookStartpage
                   title={config.startPageTitle}
@@ -441,13 +446,11 @@ export const NotebookPageContent = ({
               </div>
             </AuiIf>
             <AuiIf condition={(s) => s.thread.isEmpty && s.thread.isLoading}>
-              <ThreadLoadingSkeleton withTabBar={withTabBar} />
+              <ThreadLoadingSkeleton />
             </AuiIf>
             <AuiIf condition={(s) => !s.thread.isEmpty}>
               <div className="flex min-h-0 h-full flex-col">
-                <ThreadPrimitive.Viewport
-                  className={cn('flex flex-1 flex-col overflow-y-auto px-4', withTabBar && 'pt-12')}
-                >
+                <ThreadPrimitive.Viewport className="flex flex-1 flex-col overflow-y-auto px-4">
                   <div className="mx-auto flex w-full max-w-3xl flex-col gap-4 py-4">
                     <ThreadPrimitive.Messages
                       components={{
@@ -483,12 +486,12 @@ export const NotebookPageContent = ({
 };
 
 /** The conversation named by `?thread=` is on its way: its shape, not a blank page. */
-function ThreadLoadingSkeleton({ withTabBar }: { withTabBar: boolean }) {
+function ThreadLoadingSkeleton() {
   return (
     <div
       aria-busy="true"
       aria-label="Unterhaltung wird geladen"
-      className={cn('flex flex-1 flex-col px-4', withTabBar && 'pt-12')}
+      className="flex flex-1 flex-col px-4"
     >
       <div className="mx-auto flex w-full max-w-3xl flex-col gap-4 py-4">
         <Skeleton className="ml-auto h-10 w-2/5 rounded-2xl" />

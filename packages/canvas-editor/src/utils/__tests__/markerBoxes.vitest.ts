@@ -2,11 +2,9 @@
  * Die Kästen eines ++Marker++-Textes: ein Stück je Zeile, an der gemessenen
  * Stelle. Attrappe: ein Zeichen = 10 px.
  */
+import { markerBoxes } from '@ggraphic/editor/utils/markerBoxes';
+import { layoutRichTextBlock, type MeasureRun } from '@ggraphic/schema';
 import { describe, it, expect } from 'vitest';
-
-import { layoutRichTextBlock, type MeasureRun } from '@gruenerator/contracts';
-
-import { markerBoxes } from '../markerBoxes';
 
 const measure: MeasureRun = (text) => text.length * 10;
 const marker = { fill: '#FFFFFF', color: '#00261A', padX: 0.2, padY: 0 };
@@ -17,8 +15,17 @@ describe('markerBoxes', () => {
     const lines = layoutRichTextBlock('ab ++cd ef++ gh', 1000, measure);
     const boxes = markerBoxes(lines, measure, marker, opts);
     expect(boxes).toHaveLength(1);
-    // "ab " = 30 px, "cd ef" = 50 px; Innenabstand 0.2 * 20 = 4 px je Seite.
-    expect(boxes[0]).toMatchObject({ line: 0, x: 30 - 4, width: 50 + 8 });
+    // "ab " = 30 px, "cd ef" = 50 px; neben einem Wort höchstens 0.3 des
+    // Leerzeichens (3 px) statt des Innenabstands 0.2 * 20 = 4 px.
+    expect(boxes[0]).toMatchObject({ line: 0, x: 30 - 3, width: 50 + 6 });
+  });
+
+  it('lässt den Großteil des Leerzeichens zum Nachbarwort frei', () => {
+    const lines = layoutRichTextBlock('ab ++cd++ ef', 1000, measure);
+    const [box] = markerBoxes(lines, measure, { ...marker, padX: 1 }, opts);
+    // Leerzeichen je 10 px: links bleiben 7 px bis "ab", rechts 7 px bis "ef".
+    expect(box!.x - 20).toBe(7);
+    expect(60 - (box!.x + box!.width)).toBe(7);
   });
 
   it('bricht mit der Passage um: ein Kasten je Zeilenstück', () => {
@@ -27,10 +34,10 @@ describe('markerBoxes', () => {
     expect(lines.map((l) => l.runs.map((r) => r.text).join(''))).toEqual(['ab cd ef', 'gh ij']);
     const boxes = markerBoxes(lines, measure, marker, { ...opts, lineHeightPx: 24 });
     expect(boxes.map((b) => b.line)).toEqual([0, 1]);
-    // Zeile 0: von "cd" (x 30) bis Zeilenende "ef" (Leerzeichen am Umbruch bleibt draußen).
-    expect(boxes[0]).toMatchObject({ x: 30 - 4, width: 50 + 8 });
+    // Zeile 0: von "cd" (x 30, neben "ab") bis Zeilenende "ef" (Leerzeichen am Umbruch bleibt draußen).
+    expect(boxes[0]).toMatchObject({ x: 30 - 3, width: 50 + 3 + 4 });
     // Zeile 1: "gh" von x 0, ein Zeichenpaar breit — "ij" ist nicht markiert.
-    expect(boxes[1]).toMatchObject({ x: 0 - 4, width: 20 + 8 });
+    expect(boxes[1]).toMatchObject({ x: 0 - 4, width: 20 + 4 + 3 });
     // Zeile 1 liegt genau eine Zeilenhöhe tiefer.
     expect(boxes[1]!.y - boxes[0]!.y).toBe(24);
   });

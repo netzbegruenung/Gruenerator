@@ -130,6 +130,8 @@ export interface UnsplashAttribution {
   photoUrl: string;
   license: string;
   downloadLocation?: string | undefined;
+  /** Without the `@`; only live API results carry it. */
+  instagramUsername?: string;
 }
 
 export interface ImageWithAttribution {

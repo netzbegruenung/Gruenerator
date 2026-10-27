@@ -344,8 +344,16 @@ export function forbidsNewResearch(text: string): boolean {
  *
  * Callers build their patterns at MODULE scope: new RegExp compiles per call,
  * unlike a regex literal.
+ *
+ * Umwandeln ist Erzeugen (15.10.2026): „wandle diese PM in einen Sharepic-Slider
+ * um" kam als Textgliederung zurück, weil kein Verb hier passte. Nur Verbformen
+ * (`wandle`, `umwandeln`, `verwandle`, `verwandel`), nicht die Nomen
+ * „Umwandlung"/„Verwandlung" — und kein nacktes `wandel`: „Wandel" ist eines
+ * der häufigsten Nomen in grüner Sprache („die Präsentation zum sozialen
+ * Wandel") und machte jede Erwähnung zur Bestellung.
  */
-export const CREATION_VERB_CORE = 'erstell|erzeug|generier|mach|bau|entwirf|entwerf|gestalte';
+export const CREATION_VERB_CORE =
+  'erstell|erzeug|generier|mach|bau|entwirf|entwerf|gestalte|(?:um|ver)?wandle|(?:um|ver)wandel';
 
 /** Any core creation verb, any inflection, anywhere — "is this an order at all?" */
 export const CREATION_VERB_RE = new RegExp(`\\b(?:${CREATION_VERB_CORE})[a-zäöü]*\\b`, 'i');
@@ -477,10 +485,14 @@ export const EXPLAINABLE_ORDER_PATTERN = creationOrderPattern(EXPLAINABLE_NOUN, 
  * „Infografik" (06.10.2026): der Sharepic-Creator setzt Zahlen als Diagramm,
  * Icon-Liste oder Vergleich — genau das ist eine Infografik. Ohne das Wort
  * fiel „Mach eine Infografik zu …" in den agentischen Loop.
+ *
+ * „Slider" (15.10.2026): so heissen die Karussells im Chat und im Creator
+ * (`sharepicCreator/forms.ts`) — „wandle diese PM in einen Sharepic-Slider um"
+ * war der Live-Fall, „mach daraus einen Slider" trug das Wort gar nicht.
  */
 export const SHAREPIC_NOUN_SRC =
   'share[\\s-]?pics?|sharepics?|spruchbild\\w*|zitatbild\\w*|drei[\\s-]?zeiler\\w*' +
-  '|karussell\\w*|carousels?|infografik\\w*|infographics?|faktenbild\\w*';
+  '|karussell\\w*|carousels?|slider[ns]?|infografik\\w*|infographics?|faktenbild\\w*';
 export const SHAREPIC_WORD_RE = new RegExp(`\\b(${SHAREPIC_NOUN_SRC})\\b`, 'i');
 // Ein Satz, der nur aus dem Nomen besteht („Ein Karussell?", „Instagram-Karussell.").
 const BARE_SHAREPIC_NOUN_RE = new RegExp(
@@ -543,6 +555,21 @@ const DEFINITE_SHAREPIC_RE = new RegExp(
   `\\b(?:das|dem|des|dieses|diesem|unser\\w*|mein\\w*|dein\\w*)\\s+(?:[a-zäöüß-]+\\s+)?(?:${SHAREPIC_NOUN_SRC})\\b`,
   'i'
 );
+/**
+ * Der Text meint ein VORHANDENES Sharepic: bestimmter oder besitzanzeigender
+ * Artikel am Nomen („das Sharepic ist zu blau", „der Slider hakt", „unser
+ * Karussell"). Breiter als {@link DEFINITE_SHAREPIC_RE}, das nur neben einem
+ * Wunsch-Verb gefragt wird: hier zählen auch der/die/den, weil Slider und
+ * Karussell maskulin bzw. neutral, Infografik feminin sind.
+ */
+const EXISTING_SHAREPIC_RE = new RegExp(
+  `\\b(?:der|die|den|das|dem|des|diese[mnrs]?|unser\\w*|mein\\w*|dein\\w*|euer\\w*|eure\\w*)\\s+(?:[a-zäöüß-]+\\s+)?(?:${SHAREPIC_NOUN_SRC})\\b`,
+  'i'
+);
+export function refersToExistingSharepic(text: string): boolean {
+  return EXISTING_SHAREPIC_RE.test(stripQuotedSpans(text ?? ''));
+}
+
 // Das Nomen eröffnet den Auftrag: „Sharepic zum Klimageld", „ein Zitatbild mit …",
 // auch mit Plattform davor („Insta-Karussell zum Klimaschutz").
 const SHAREPIC_NOMINAL_ORDER = new RegExp(

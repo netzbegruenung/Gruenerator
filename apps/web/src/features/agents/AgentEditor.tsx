@@ -1,4 +1,12 @@
 import { getAgentSlug, USER_SELECTABLE_TOOLS } from '@gruenerator/shared/agents';
+import {
+  DEFAULT_SCHEDULE,
+  scheduleToRecurrence,
+  type ScheduleState,
+  formToPayload,
+  type FormState,
+  type Locale,
+} from '@gruenerator/shared/grueneratoren';
 import { isModelEnabledByDefault, TEXT_MODELS } from '@gruenerator/shared/models';
 import { generateSlugSuffix, slugifyName } from '@gruenerator/shared/utils';
 import { Button, Input, Textarea } from '@gruenerator/ui';
@@ -8,13 +16,7 @@ import { useNavigate } from 'react-router-dom';
 import { RecipePicker } from '../agentura/recipes/RecipePicker';
 import { useCreateRecurringTask, useUpdateRecurringTask } from '../recurring-tasks/api';
 import { RecurrenceFields } from '../recurring-tasks/RecurrenceFields';
-import {
-  DEFAULT_SCHEDULE,
-  scheduleToRecurrence,
-  type ScheduleState,
-} from '../recurring-tasks/scheduleState';
 
-import { formToPayload, type FormState, type Locale } from './agentFormState';
 import { AgentPreview } from './AgentPreview';
 import { useCreateUserAgent, useUpdateUserAgent } from './api';
 import { ExperimentalAgentBanner } from './experimentalWarning';

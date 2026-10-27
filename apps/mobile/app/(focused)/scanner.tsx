@@ -3,7 +3,6 @@ import { getGlobalApiClient } from '@gruenerator/shared/api';
 import { useGeneratedTextStore } from '@gruenerator/shared/stores';
 import { Ionicons } from '@react-native-vector-icons/ionicons';
 import * as ImagePicker from 'expo-image-picker';
-import { useFocusEffect } from 'expo-router';
 import { useState, useCallback } from 'react';
 import {
   View,
@@ -14,10 +13,10 @@ import {
   ActivityIndicator,
   Pressable,
   Alert,
-  BackHandler,
 } from 'react-native';
 
 import { ContentDisplay } from '../../components/content';
+import { useStepBack } from '../../hooks/useStepBack';
 import { pickDocumentForScanner, uploadDocumentToScanner } from '../../services/documentPicker';
 import {
   colors,
@@ -83,19 +82,8 @@ export default function ScannerScreen() {
     clearGeneratedText(COMPONENT_NAME);
   }, [clearGeneratedText]);
 
-  useFocusEffect(
-    useCallback(() => {
-      const onBackPress = () => {
-        if (phase !== 'pick') {
-          reset();
-          return true;
-        }
-        return false;
-      };
-      const subscription = BackHandler.addEventListener('hardwareBackPress', onBackPress);
-      return () => subscription.remove();
-    }, [phase, reset])
-  );
+  // Every way back returns to the picker, not out of the scanner.
+  useStepBack(phase !== 'pick', reset);
 
   const uploadAndExtract = useCallback(async (uri: string, name: string, mimeType: string) => {
     setPhase('extracting');

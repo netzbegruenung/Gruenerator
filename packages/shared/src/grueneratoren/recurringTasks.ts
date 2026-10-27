@@ -1,0 +1,106 @@
+/**
+ * EXPERIMENTAL — TanStack Query hooks for recurring agent tasks. Mirrors
+ * userAgents.ts: typed getContractsClient().recurringTasks.* with a
+ * single query key.
+ */
+import {
+  type CreateRecurringTaskBody,
+  type RecurringTask,
+  type RecurringTaskRun,
+  type UpdateRecurringTaskBody,
+} from '@gruenerator/contracts';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+
+import { ApiError, apiErrorFromResponse, getContractsClient } from '../api/index.js';
+
+export type RecurringTaskInput = CreateRecurringTaskBody;
+export type RecurringTaskPatch = UpdateRecurringTaskBody;
+
+const KEY = ['recurring-tasks'] as const;
+
+/** Query key of one task's run history — shared with the run-now watcher. */
+export const recurringRunsKey = (taskId: string) => [...KEY, taskId, 'runs'] as const;
+
+/** The bare fetch, reused by the hook and by the pre-run snapshot. */
+export async function fetchRecurringTaskRuns(taskId: string): Promise<RecurringTaskRun[]> {
+  const res = await getContractsClient().recurringTasks.listRuns({ params: { id: taskId } });
+  if (res.status === 200) return res.body.runs;
+  throw apiErrorFromResponse(res, 'Verlauf konnte nicht geladen werden.');
+}
+
+/** `enabled` is the caller's auth gate (see `useUserAgents`). */
+export function useRecurringTasks(enabled = true) {
+  return useQuery({
+    queryKey: KEY,
+    enabled,
+    queryFn: async (): Promise<RecurringTask[]> => {
+      const res = await getContractsClient().recurringTasks.list();
+      if (res.status === 200) return res.body.tasks;
+      throw apiErrorFromResponse(res, 'Wiederkehrende Aufgaben konnten nicht geladen werden.');
+    },
+  });
+}
+
+export function useRecurringTaskRuns(taskId?: string, refetchIntervalMs?: number) {
+  return useQuery({
+    queryKey: recurringRunsKey(taskId ?? ''),
+    enabled: !!taskId,
+    ...(refetchIntervalMs != null ? { refetchInterval: refetchIntervalMs } : {}),
+    queryFn: async (): Promise<RecurringTaskRun[]> => {
+      if (!taskId) return [];
+      return fetchRecurringTaskRuns(taskId);
+    },
+  });
+}
+
+export function useCreateRecurringTask() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (input: RecurringTaskInput): Promise<RecurringTask> => {
+      const res = await getContractsClient().recurringTasks.create({ body: input });
+      if (res.status === 201) return res.body.task;
+      throw apiErrorFromResponse(res);
+    },
+    onSuccess: () => void qc.invalidateQueries({ queryKey: KEY }),
+  });
+}
+
+export function useUpdateRecurringTask() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({
+      id,
+      patch,
+    }: {
+      id: string;
+      patch: RecurringTaskPatch;
+    }): Promise<RecurringTask> => {
+      const res = await getContractsClient().recurringTasks.update({ params: { id }, body: patch });
+      if (res.status === 200) return res.body.task;
+      throw apiErrorFromResponse(res);
+    },
+    onSuccess: () => void qc.invalidateQueries({ queryKey: KEY }),
+  });
+}
+
+export function useDeleteRecurringTask() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: string): Promise<void> => {
+      const res = await getContractsClient().recurringTasks.remove({ params: { id } });
+      if (res.status !== 200) throw new ApiError(res.status, 'Löschen fehlgeschlagen.');
+    },
+    onSuccess: () => void qc.invalidateQueries({ queryKey: KEY }),
+  });
+}
+
+export function useRunRecurringTaskNow() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: string): Promise<void> => {
+      const res = await getContractsClient().recurringTasks.runNow({ params: { id }, body: {} });
+      if (res.status !== 202) throw new ApiError(res.status, 'Ausführen fehlgeschlagen.');
+    },
+    onSuccess: () => void qc.invalidateQueries({ queryKey: KEY }),
+  });
+}

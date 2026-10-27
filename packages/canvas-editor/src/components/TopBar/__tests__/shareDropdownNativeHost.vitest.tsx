@@ -1,8 +1,15 @@
-import { HOST_CAPABILITIES_GLOBAL } from '@gruenerator/shared';
+import {
+  downloadBlob,
+  downloadDataUrl,
+  HOST_CAPABILITIES_GLOBAL,
+  pickShareRoute,
+  shareDataUrlViaNativeHost,
+} from '@gruenerator/shared';
 import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { CanvasEditorProvider } from '../../../CanvasEditorProvider';
 import { ShareDropdown } from '../ShareDropdown';
 
 /**
@@ -13,18 +20,23 @@ import { ShareDropdown } from '../ShareDropdown';
 
 const DATA_URL = 'data:image/png;base64,aGVsbG8=';
 
+// The @gruenerator/shared file delivery, injected the way apps/web does it.
+const fileDelivery = { downloadBlob, downloadDataUrl, pickShareRoute, shareDataUrlViaNativeHost };
+
 function renderDropdown() {
   return render(
-    <ShareDropdown
-      onCaptureCanvas={() => Promise.resolve(DATA_URL)}
-      onDownload={() => {}}
-      onNavigateToGallery={() => {}}
-      canvasText="Hallo Welt"
-      canvasType="dreizeilen"
-      canvasWidth={1080}
-      canvasHeight={1080}
-      shareToken={null}
-    />
+    <CanvasEditorProvider services={{ fileDelivery }}>
+      <ShareDropdown
+        onCaptureCanvas={() => Promise.resolve(DATA_URL)}
+        onDownload={() => {}}
+        onNavigateToGallery={() => {}}
+        canvasText="Hallo Welt"
+        canvasType="dreizeilen"
+        canvasWidth={1080}
+        canvasHeight={1080}
+        shareToken={null}
+      />
+    </CanvasEditorProvider>
   );
 }
 
@@ -80,5 +92,28 @@ describe('ShareDropdown im eingebetteten Modus ohne navigator.share', () => {
       title: 'Grünerator Share',
       text: 'Hallo Welt',
     });
+  });
+});
+
+describe('ShareDropdown ohne Dateiübergabe des Hosts', () => {
+  it('schickt nichts über die Brücke, auch wenn ein Host teilen könnte', async () => {
+    (window as unknown as HostWindow).ReactNativeWebView = { postMessage: vi.fn() };
+    (window as unknown as HostWindow)[HOST_CAPABILITIES_GLOBAL] = ['share'];
+    render(
+      <ShareDropdown
+        onCaptureCanvas={() => Promise.resolve(DATA_URL)}
+        onDownload={() => {}}
+        onNavigateToGallery={() => {}}
+        canvasText="Hallo Welt"
+        canvasType="dreizeilen"
+        canvasWidth={1080}
+        canvasHeight={1080}
+        shareToken={null}
+      />
+    );
+    await openMenu();
+    // The plain-browser fallback knows no native host and jsdom has no navigator.share.
+    expect(menu().getByRole('button', { name: 'Download' })).toBeInTheDocument();
+    expect(shareEntry()).toBeNull();
   });
 });

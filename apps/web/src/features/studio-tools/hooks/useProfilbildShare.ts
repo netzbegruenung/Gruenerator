@@ -9,20 +9,14 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useCallback, useRef } from 'react';
 
 import apiClient from '../../../components/utils/apiClient';
-import { uploadBlobToMediaLibrary } from '../../image-studio/services/mediaUploadService';
-import { fileToDownscaledDataUrl } from '../../image-studio/utils/downscaleImage';
-
-export type ProfilbildSaveBackground =
-  | Extract<SavedProfilbildBackground, { kind: 'id' }>
-  /** The person's own photo: already stored (`url`) or still only a local file. */
-  | { kind: 'custom'; url: string | null; file: File | null };
+import { RECENT_PROFILBILDER_KEY } from '../components/RecentProfilbilder';
 
 export interface ProfilbildSaveInput {
   imageDataUrl: string;
   /** The trimmed cutout as a data URL; only sent with the first save. */
   cutoutDataUrl: string;
   person: SavedProfilbild['person'];
-  background: ProfilbildSaveBackground;
+  background: SavedProfilbildBackground;
   stickers: SavedProfilbild['stickers'];
 }
 
@@ -30,43 +24,21 @@ export interface ProfilbildSaveInput {
  * Saves exported Profilbilder like canvas sharepics: one `shared_media` row per
  * editor session, created on the first export and updated on every later one,
  * so it shows under „Zuletzt" and reopens with its editor state. The cutout is
- * the share's original image; an own background photo goes to the media store.
+ * the share's original image; an own background is a gallery item, saved by path.
  */
 export function useProfilbildShare(initialShareToken: string | null) {
   const { createImageShare, updateImageShare } = useShareStore();
   const queryClient = useQueryClient();
   const shareToken = useRef(initialShareToken);
-  const uploaded = useRef(new WeakMap<File, string>());
   // Serialised: a second export before the first create returned must update, not duplicate.
   const queue = useRef<Promise<unknown>>(Promise.resolve());
 
-  const storeBackground = useCallback(
-    async (bg: ProfilbildSaveBackground): Promise<SavedProfilbildBackground | null> => {
-      if (bg.kind === 'id') return bg;
-      if (bg.url) return { kind: 'custom', url: bg.url };
-      if (!bg.file) return null;
-      const known = uploaded.current.get(bg.file);
-      if (known) return { kind: 'custom', url: known };
-      const blob = await (await fetch(await fileToDownscaledDataUrl(bg.file))).blob();
-      const url = await uploadBlobToMediaLibrary(blob, {
-        filename: 'profilbild-hintergrund.jpg',
-        uploadSource: 'profilbild-background',
-      });
-      if (!url) return null;
-      uploaded.current.set(bg.file, url);
-      return { kind: 'custom', url };
-    },
-    []
-  );
-
   const persist = useCallback(
     async (input: ProfilbildSaveInput) => {
-      const background = await storeBackground(input.background);
-      if (!background) throw new Error('Hintergrundbild konnte nicht gespeichert werden.');
       const saved: SavedProfilbild = {
         v: 1,
         person: input.person,
-        background,
+        background: input.background,
         stickers: input.stickers,
       };
       const metadata = { source: 'profilbild', [PROFILBILD_METADATA_KEY]: saved };
@@ -89,9 +61,12 @@ export function useProfilbildShare(initialShareToken: string | null) {
         });
         shareToken.current = share.shareToken;
       }
-      await queryClient.invalidateQueries({ queryKey: ['recent-activity'] });
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['recent-activity'] }),
+        queryClient.invalidateQueries({ queryKey: RECENT_PROFILBILDER_KEY }),
+      ]);
     },
-    [createImageShare, updateImageShare, queryClient, storeBackground]
+    [createImageShare, updateImageShare, queryClient]
   );
 
   return useCallback(

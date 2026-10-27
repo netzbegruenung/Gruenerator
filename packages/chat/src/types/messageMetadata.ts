@@ -21,6 +21,7 @@ import type {
   SocialPostPayload,
   BahnPayload,
   SharepicVorlagenSuggestions,
+  BrowserSessionMeta,
 } from '@gruenerator/contracts';
 
 // Wire enum lives in @gruenerator/contracts (chatStreamEvents); the
@@ -84,6 +85,8 @@ export type ChatMessageMetadata = {
   chartData?: ChartData;
   artifactData?: CodeArtifact;
   computeData?: ComputeData;
+  /** `website_erkunden`: live/persisted browser session (asset URLs, no base64). */
+  browserSession?: BrowserSessionMeta;
   bahnData?: BahnPayload;
   streamMetadata?: StreamMetadata;
   threadId?: string;

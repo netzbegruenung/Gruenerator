@@ -11,6 +11,7 @@ import { promises as fs } from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
+import { brandFontPath } from '../../services/fonts/brandFonts.js';
 import { createLogger } from '../../utils/logger.js';
 
 import { parseCitationMarkers } from './citationParser.js';
@@ -186,7 +187,7 @@ let embeddedFontsPromise: Promise<Array<{ name: string; data: Buffer }>> | null 
 export function loadEmbeddedFonts(): Promise<Array<{ name: string; data: Buffer }>> {
   embeddedFontsPromise ??= Promise.all([
     fs.readFile(path.join(FONTS_DIR, 'PTSans-Regular.ttf')),
-    fs.readFile(path.join(FONTS_DIR, 'GrueneTypeNeue-Regular.ttf')),
+    fs.readFile(brandFontPath('GrueneTypeNeue-Regular.ttf')),
   ]).then(
     ([body, heading]) => [
       { name: BODY_FONT, data: body },

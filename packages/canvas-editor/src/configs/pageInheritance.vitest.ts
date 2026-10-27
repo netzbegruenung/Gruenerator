@@ -1,12 +1,12 @@
+import { extractInheritablePageState } from '@ggraphic/editor/configs/pageInheritance';
 import { type SharepicSlide } from '@gruenerator/contracts';
 import { beforeAll, describe, it, expect } from 'vitest';
 
 import { composeSharepic } from '../composer/composeSharepic';
 
 import { loadCanvasConfig } from './configLoader';
-import { extractInheritablePageState } from './pageInheritance';
 
-import type { ShapeInstance } from '../utils/shapes';
+import type { ShapeInstance } from '@ggraphic/editor/utils/shapes';
 
 describe('extractInheritablePageState', () => {
   it('mirrors the image source into both keys', () => {
@@ -31,10 +31,12 @@ describe('extractInheritablePageState', () => {
       backgroundColor: '#005538',
       imageOffset: { x: 5, y: 6 },
       imageScale: 1.2,
+      backgroundImageRotation: -9,
       backgroundImageOpacity: 0.8,
       imageAttribution: { author: 'X' },
     });
     expect(inherited).toMatchObject({
+      backgroundImageRotation: -9,
       backgroundColor: '#005538',
       imageOffset: { x: 5, y: 6 },
       imageScale: 1.2,
@@ -94,7 +96,6 @@ describe('extractInheritablePageState', () => {
       expect(ids(page)).toEqual(['sc-panel']);
       expect(page.layerOrder).toEqual(['sc-panel']);
       const panel = (page.shapeInstances as ShapeInstance[])[0]!;
-      expect(panel.locked).toBe(true);
       expect(panel).toEqual((source.shapeInstances as ShapeInstance[])[0]);
       // Only the background: no text, no logo, no chrome.
       expect(page.additionalTexts).toEqual([]);

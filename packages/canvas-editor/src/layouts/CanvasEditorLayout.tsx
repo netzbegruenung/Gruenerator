@@ -1,8 +1,8 @@
-import { useMeasuredCornerReservation } from '@gruenerator/ui';
+import { cn } from '@ggraphic/editor/utils/cn';
+import { useMeasuredCornerReservation } from '@ggraphic/editor/utils/cornerReservation';
+import { returnFocusToPage } from '@ggraphic/editor/utils/editorFocus';
 import React from 'react';
 import { HiLink } from 'react-icons/hi';
-
-import { cn } from '../utils/cn';
 
 import type { ReactNode } from 'react';
 
@@ -69,8 +69,23 @@ export function CanvasEditorLayout({
     active: Boolean(bottomBar),
   });
 
+  // Ein Knopf, der sich mit seinem Klick selbst abräumt („Auswahl aufheben",
+  // „Löschen"), nähme den Fokus mit auf <body>. Per Tastatur gedrückt
+  // (`detail === 0`) geht er stattdessen auf die Seite; nach einem Mausklick
+  // bleibt alles, wie es ist. Als React-Handler, damit auch Portale im Baum
+  // (die mobile Pille) mitzählen.
+  const handleClickCapture = React.useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+    if (e.detail !== 0 || !(e.target instanceof Element)) return;
+    const button = e.target.closest('button');
+    if (!button) return;
+    returnFocusToPage(e.currentTarget, () => !button.isConnected);
+  }, []);
+
   return (
-    <div className="canvas-editor-layout flex flex-col h-dvh min-h-[500px] bg-[var(--editor-bg)]">
+    <div
+      onClickCapture={handleClickCapture}
+      className="canvas-editor-layout flex flex-col h-dvh min-h-[500px] bg-[var(--editor-bg)] max-canvas-mobile:relative"
+    >
       {toolbar}
       {hasSidebar && (
         <div

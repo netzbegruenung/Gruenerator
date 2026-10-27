@@ -1,4 +1,8 @@
-import { isAiConsentRequiredBody, notebookResolvedAnswerModeSchema } from '@gruenerator/contracts';
+import {
+  isAiConsentRequiredBody,
+  notebookResolvedAnswerModeSchema,
+  notebookSourceRefSchema,
+} from '@gruenerator/contracts';
 import { getSystemAgent } from '@gruenerator/shared/agents';
 import { notifyAiConsentRequired, unauthorizedInfoFromResponse } from '@gruenerator/shared/api';
 import { buildMentionToken } from '@gruenerator/shared/utils';
@@ -54,7 +58,7 @@ import type {
   ChatModelRunResult,
   CompleteAttachment,
 } from '@assistant-ui/react';
-import type { CurrentBoard, CurrentCanvas } from '@gruenerator/contracts';
+import type { CurrentBoard, CurrentCanvas, NotebookSourceRef } from '@gruenerator/contracts';
 
 export type {
   GrueneratorMessageMetadata,
@@ -232,7 +236,7 @@ async function* runClientToolResumes(params: {
 
     let result: unknown;
     try {
-      result = await execute(args);
+      result = await execute(args, { threadId });
     } catch (err) {
       result = { error: err instanceof Error ? err.message : String(err) };
     }
@@ -383,7 +387,7 @@ export function createGrueneratorModelAdapter(
             );
           }
 
-          const resumeOutcome: StreamOutcome = { interrupted: false, indexedDocumentIds: [] };
+          let resumeOutcome: StreamOutcome = { interrupted: false, indexedDocumentIds: [] };
           yield* parseSSEStream(
             resumeResponse,
             callbacks,
@@ -391,6 +395,18 @@ export function createGrueneratorModelAdapter(
             config.agentId ? { agentId: config.agentId } : undefined,
             { knownToolCallIds }
           );
+          // Ein freigegebenes Werkzeug kann im Browser weiterlaufen
+          // (`tabelle_auswerten` → `run_python`): ausführen und fortsetzen wie
+          // nach dem Hauptstrom, sonst bleibt der Zug am Interrupt stehen.
+          if (resumeOutcome.clientToolInterrupt) {
+            resumeOutcome = yield* runClientToolResumes({
+              outcome: resumeOutcome,
+              fallbackThreadId: config.threadId,
+              callbacks,
+              agentInfo: config.agentId ? { agentId: config.agentId } : undefined,
+              abortSignal,
+            });
+          }
           if (resumeOutcome.interrupted) {
             interruptedThreadId = config.threadId;
           }
@@ -626,6 +642,7 @@ export function createGrueneratorModelAdapter(
       let wolkeFiles: ReturnType<typeof parseAllMentions>['wolkeFiles'] = [];
       let connectFiles: ReturnType<typeof parseAllMentions>['connectFiles'] = [];
       const webpageUrls: string[] = [];
+      const notebookSourceRefs: NotebookSourceRef[] = [];
       let hasDocumentChat = false;
       if (isChatMode)
         for (let i = formattedMessages.length - 1; i >= 0; i--) {
@@ -713,7 +730,8 @@ export function createGrueneratorModelAdapter(
             }
           | { kind: 'wolke'; shareLinkId: string; path: string; name: string }
           | { kind: 'connect'; provider: string; fileId: string; name: string; mimeType?: string }
-          | { kind: 'webpage'; url: string; name: string };
+          | { kind: 'webpage'; url: string; name: string }
+          | { kind: 'notebook-source'; ref: unknown; title: string };
         const attachments = (lastUserMsg as { attachments: readonly CompleteAttachment[] })
           .attachments;
         for (const att of attachments) {
@@ -766,6 +784,11 @@ export function createGrueneratorModelAdapter(
                 seenWeb.add(data.url);
                 webpageUrls.push(data.url);
               }
+            } else if (data.kind === 'notebook-source') {
+              // Parsed here because one malformed ref would fail the whole
+              // request body against the contract, not just this chip.
+              const ref = notebookSourceRefSchema.safeParse(data.ref);
+              if (ref.success) notebookSourceRefs.push(ref.data);
             }
           }
         }
@@ -900,6 +923,7 @@ export function createGrueneratorModelAdapter(
         wolkeFiles,
         connectFiles,
         webpageUrls,
+        notebookSourceRefs,
         regenerate: runSignals.regenerate,
         replaceFromMessageId: runSignals.replaceFromMessageId,
         mergedDocChatIds,

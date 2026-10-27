@@ -16,6 +16,7 @@ import { type CommentBlock } from '@gruenerator/contracts';
 
 import { type AgentTask } from '../../database/schema/agentTasks.js';
 import { hasAiConsent } from '../../middleware/requireAiConsent.js';
+import { checkBoardAccess } from '../../routes/boards/boardAccess.js';
 import {
   runHeadlessAgenticTurn,
   type HeadlessTurnParams,
@@ -233,6 +234,17 @@ async function processTask(task: AgentTask): Promise<void> {
     // Grünerator-Spalte tasks carry a flow config and run their own pipeline
     // (source → AI step → output nodes). The @-mention path continues below.
     if (task.flow_config) {
+      // A flow reads its sources and writes its outputs as `requested_by`. A
+      // schedule can fire long after it was set up: once that person has lost
+      // access to the board, the run must not happen at all. Final, no retry.
+      if (!(await checkBoardAccess(task.board_id, task.requested_by)).hasAccess) {
+        log.warn(`Agent task ${task.id} skipped: requester has no board access`);
+        await failOrRetryAgentTask(
+          { ...task, attempts: task.max_attempts },
+          'Kein Zugriff mehr auf dieses Board'
+        );
+        return;
+      }
       await runFlow(task);
       log.info(`Agent task ${task.id} completed via Grünerator-Spalte flow`);
       return;

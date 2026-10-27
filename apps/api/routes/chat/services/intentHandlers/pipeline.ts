@@ -55,6 +55,50 @@ export function isChartRerender(state: Pick<ChatGraphState, 'messages'>): boolea
   return priorHadChart && shortOrder;
 }
 
+/** Numbers that can be plotted — a bare year („2015-2024") is a range, not data. */
+function countFigures(text: string): number {
+  const numbers = text.match(/(?<![\p{L}\d])\d+(?:[.,]\d+)*/gu) ?? [];
+  return numbers.filter((n) => !/^(?:19|20)\d\d$/.test(n)).length;
+}
+
+const REFERS_BACK_RE =
+  /(?<!\p{L})(?:daraus|davon|dazu|damit|hieraus|hiervon|obige\p{L}*|oben)(?!\p{L})/iu;
+
+/**
+ * Does the chart turn bring its own numbers? Only then may it skip the search.
+ *
+ * Without this the `chart` lane never retrieved anything, so „@diagramm
+ * Windkraftausbau 2015-2024" — the common case — always ended in „mir fehlen die
+ * Zahlen". Data counts as present when the order states figures, carries
+ * material (attachment, referenced document, notebook, computed result), points
+ * back at an answer with figures („mach daraus ein Diagramm"), or redraws the
+ * chart before.
+ */
+export function chartDataOnTable(state: ChatGraphState): boolean {
+  if (isChartRerender(state)) return true;
+  if (state.computedResult || state.attachmentContext || state.currentDocument) return true;
+  const referenced = [
+    state.documentIds,
+    state.sheetIds,
+    state.docMentionIds,
+    state.wolkeFiles,
+    state.notebookIds,
+    state.notebookSources,
+  ];
+  if (referenced.some((ids) => (ids?.length ?? 0) > 0)) return true;
+
+  const messages = state.messages ?? [];
+  const lastUser = [...messages].reverse().find((m) => m.role === 'user');
+  const lastAssistant = [...messages].reverse().find((m) => m.role === 'assistant');
+  const order = lastUser ? extractTextContent(lastUser.content) : '';
+  if (countFigures(order) >= 2) return true;
+  return (
+    !!lastAssistant &&
+    REFERS_BACK_RE.test(order) &&
+    countFigures(extractTextContent(lastAssistant.content)) >= 3
+  );
+}
+
 /**
  * Ground a vague continuation on the research this thread already paid for.
  *
@@ -223,7 +267,9 @@ export async function executeIntentPipeline(opts: {
       }));
     } else if (currentIntent === 'summary') {
       const docCount =
-        (finalState.documentChatIds?.length || 0) + (finalState.documentIds?.length || 0);
+        (finalState.documentChatIds?.length || 0) +
+        (finalState.documentIds?.length || 0) +
+        (finalState.notebookSources?.length || 0);
       sse.send('summary_start', {
         message: PROGRESS_MESSAGES.summaryStart,
         documentCount: docCount,
@@ -270,7 +316,7 @@ export async function executeIntentPipeline(opts: {
       currentIntent !== 'save_as_doc' &&
       currentIntent !== 'modify_doc' &&
       currentIntent !== 'modify_board' &&
-      !(currentIntent === 'chart' && isChartRerender(finalState))
+      !(currentIntent === 'chart' && chartDataOnTable(finalState))
     ) {
       const result = await runSearchBranch({
         state: finalState,

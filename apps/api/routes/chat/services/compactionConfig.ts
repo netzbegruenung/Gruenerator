@@ -1,89 +1,82 @@
 /**
  * Compaction thresholds — leaf module with no service imports, so tests can
- * re-import it (env-override behavior) without spinning up Redis/Postgres.
+ * import it without spinning up Redis/Postgres.
  *
- * The long-thread eval harness needs compaction to fire within ~10 turns
- * instead of 50+, so the thresholds are env-overridable outside production.
- * An explicit override also wins over the model-aware tiers below.
+ * Every number is a share of the pruning budget of the turn's EFFECTIVE window
+ * (the widest lane the turn may move to, see `effectiveContextWindow`). A fixed
+ * 24k-token trigger summarised a 128k Gemma thread at 28 % of what fit and left
+ * the model 20 messages plus 800 tokens of prose (#4790).
+ *
+ * The long-thread eval harness needs compaction to fire within a few turns, so
+ * the two token figures are env-overridable outside production.
  */
-const DEV_OVERRIDES = process.env.NODE_ENV !== 'production';
+import { getPruningBudget } from './messageHelpers.js';
 
-function envInt(name: string, fallback: number, min = 1): number {
-  if (!DEV_OVERRIDES) return fallback;
+/** The un-summarised tail triggers compaction at this share of the budget.
+ *  Below 1 because the summary is built in the background and lands a turn late. */
+const COMPACT_AT_SHARE = 0.7;
+/** What stays verbatim behind a fresh summary. The difference to
+ *  COMPACT_AT_SHARE is what one summary reads: 0,4 × 180k ≈ 72k on Large 4. */
+const TAIL_SHARE = 0.3;
+/** Verbatim material carried out of the summarised part (pastes, the latest draft). */
+const CARRY_SHARE = 0.2;
+/** Chars per token of the estimator the budgets are measured with (TokenCounter). */
+const CHARS_PER_ESTIMATED_TOKEN = 4;
+
+export const SUMMARY_MAX_TOKENS = 2000;
+/** One summary call's transcript. The heavy lane is Gemma at 128k (budget 86,6k);
+ *  a longer delta — a thread that predates these thresholds — is folded in chunks. */
+export const SUMMARY_INPUT_MAX_TOKENS = 80_000;
+
+/**
+ * Grösstes Fenster, an dem sich die Zusammenfassung misst.
+ *
+ * Ultra und Panda tragen seit dem 22.10.2026 fast 1M Tokens. Das Fenster ist
+ * für grosses Material da — ein Dokument, eine lange Einfügung —, nicht dafür,
+ * dass ein Thread unzusammengefasst auf 500k wächst: jeder Zug schickt den
+ * ganzen Rest neu, bei Ultra ein Euro und zwei Minuten Einlesen pro Antwort
+ * (gemessen: 861k Tokens, 111 s bis zum ersten Token). Gedeckelt auf das
+ * Fenster, an dem die Schwellen bisher standen, fasst ein langer Thread also
+ * genau so früh zusammen wie vorher.
+ */
+const COMPACTION_WINDOW_CAP = 262_144;
+
+function compactionBudget(contextWindowTokens?: number): number {
+  return getPruningBudget(
+    contextWindowTokens == null
+      ? contextWindowTokens
+      : Math.min(contextWindowTokens, COMPACTION_WINDOW_CAP)
+  );
+}
+
+function devOverride(name: string): number | null {
+  if (process.env.NODE_ENV === 'production') return null;
   const n = Number.parseInt(process.env[name] ?? '', 10);
-  return Number.isInteger(n) && n >= min ? n : fallback;
+  return Number.isInteger(n) && n >= 1 ? n : null;
 }
 
-const hasOverride = (name: string): boolean => {
-  if (!DEV_OVERRIDES) return false;
-  const n = Number.parseInt(process.env[name] ?? '', 10);
-  return Number.isInteger(n) && n >= 1;
-};
-
-// Configuration constants (defaults for 128K+ context models)
-export const COMPACTION_THRESHOLD = envInt('CHAT_COMPACTION_THRESHOLD', 50);
-export const COMPACTION_TOKEN_THRESHOLD = envInt('CHAT_COMPACTION_TOKEN_THRESHOLD', 24000);
-export const KEEP_RECENT = envInt('CHAT_COMPACTION_KEEP_RECENT', 20);
-export const RE_COMPACTION_THRESHOLD = envInt('CHAT_RE_COMPACTION_THRESHOLD', 50);
-export const SUMMARY_MAX_TOKENS = 800;
-
-/**
- * Model-aware message count limit (lobe-chat pattern).
- * Returns how many recent messages to keep based on context window size.
- * Smaller models need fewer messages to leave room for system prompt + response.
- */
-export function getKeepRecent(contextWindowTokens?: number): number {
-  if (hasOverride('CHAT_COMPACTION_KEEP_RECENT')) return KEEP_RECENT;
-  if (!contextWindowTokens) return KEEP_RECENT;
-  if (contextWindowTokens < 16000) return 6;
-  if (contextWindowTokens < 32000) return 10;
-  if (contextWindowTokens < 64000) return 15;
-  return KEEP_RECENT;
-}
-
-/**
- * Model-aware compaction threshold.
- * Returns when to trigger compaction based on context window size.
- */
-export function getCompactionThreshold(contextWindowTokens?: number): number {
-  if (hasOverride('CHAT_COMPACTION_THRESHOLD')) return COMPACTION_THRESHOLD;
-  if (!contextWindowTokens) return COMPACTION_THRESHOLD;
-  if (contextWindowTokens < 16000) return 15;
-  if (contextWindowTokens < 32000) return 25;
-  if (contextWindowTokens < 64000) return 35;
-  return COMPACTION_THRESHOLD;
-}
-
-/**
- * Model-aware token threshold for compaction.
- */
 export function getCompactionTokenThreshold(contextWindowTokens?: number): number {
-  if (hasOverride('CHAT_COMPACTION_TOKEN_THRESHOLD')) return COMPACTION_TOKEN_THRESHOLD;
-  if (!contextWindowTokens) return COMPACTION_TOKEN_THRESHOLD;
-  // Use ~40% of context window as token threshold
-  return Math.min(Math.floor(contextWindowTokens * 0.4), COMPACTION_TOKEN_THRESHOLD);
+  return (
+    devOverride('CHAT_COMPACTION_TOKEN_THRESHOLD') ??
+    Math.floor(compactionBudget(contextWindowTokens) * COMPACT_AT_SHARE)
+  );
 }
 
-/**
- * Check if a thread needs compaction based on message count or estimated token usage.
- * Token-based threshold catches conversations with few but very large messages
- * (e.g., pasted articles) that would otherwise lose context before hitting the message count.
- * When contextWindowTokens is provided, uses model-aware thresholds.
- */
-export function needsCompaction(
-  messageCount: number,
-  existingSummary: string | null,
-  estimatedTokens?: number,
-  contextWindowTokens?: number
-): boolean {
-  const threshold = getCompactionThreshold(contextWindowTokens);
-  const tokenThreshold = getCompactionTokenThreshold(contextWindowTokens);
+export function getTailTokenBudget(contextWindowTokens?: number): number {
+  return (
+    devOverride('CHAT_COMPACTION_TAIL_TOKENS') ??
+    Math.floor(compactionBudget(contextWindowTokens) * TAIL_SHARE)
+  );
+}
 
-  if (estimatedTokens && estimatedTokens >= tokenThreshold && !existingSummary) {
-    return true;
-  }
-  if (!existingSummary) {
-    return messageCount >= threshold;
-  }
-  return messageCount >= threshold + RE_COMPACTION_THRESHOLD;
+export function getCarryCharBudget(contextWindowTokens?: number): number {
+  return (
+    Math.floor(compactionBudget(contextWindowTokens) * CARRY_SHARE) * CHARS_PER_ESTIMATED_TOKEN
+  );
+}
+
+/** True once what the model still sees verbatim — everything after the last
+ *  summary, or the whole thread before the first — reaches the threshold. */
+export function needsCompaction(tailTokens: number, contextWindowTokens?: number): boolean {
+  return tailTokens >= getCompactionTokenThreshold(contextWindowTokens);
 }

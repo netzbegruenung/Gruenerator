@@ -128,7 +128,9 @@ export async function deleteLikesForEntity(
 
 /**
  * Account deletion: the user's own likes (`user_id` has no FK either) and the
- * likes on their Vorlagen, whose rows cascade away with the profile.
+ * likes on their Vorlagen, Sticker/Hintergründe, Agents and Rezepte, whose rows
+ * cascade away with the profile. Must run before the profile delete — the
+ * subqueries need the rows to still exist.
  */
 export async function deleteLikesOfDeletedUser(userId: string): Promise<void> {
   await getDrizzleInstance().delete(entityLikes).where(eq(entityLikes.user_id, userId));
@@ -136,6 +138,23 @@ export async function deleteLikesOfDeletedUser(userId: string): Promise<void> {
   await getPostgresInstance().query(
     `DELETE FROM entity_likes WHERE entity_type = 'template'
      AND entity_id IN (SELECT id::text FROM user_templates WHERE user_id = $1)`,
+    [userId]
+  );
+  await getPostgresInstance().query(
+    `DELETE FROM entity_likes WHERE entity_type = 'studio_asset'
+     AND entity_id IN (SELECT id::text FROM studio_assets WHERE user_id = $1)`,
+    [userId]
+  );
+  // Agents and Rezepte are liked by row uuid (`agentRef`/`rowId`); official
+  // ones by identifier/mention, which never match a uuid here.
+  await getPostgresInstance().query(
+    `DELETE FROM entity_likes WHERE entity_type = 'agent'
+     AND entity_id IN (SELECT id::text FROM user_agents WHERE user_id = $1)`,
+    [userId]
+  );
+  await getPostgresInstance().query(
+    `DELETE FROM entity_likes WHERE entity_type = 'recipe'
+     AND entity_id IN (SELECT id::text FROM user_text_forms WHERE user_id = $1)`,
     [userId]
   );
 }

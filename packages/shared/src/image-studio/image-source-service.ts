@@ -1,3 +1,6 @@
+import { unsplashRateLimitErrorSchema } from '@gruenerator/contracts';
+import { isAxiosError } from 'axios';
+
 import type {
   FetchStockImagesResponse,
   StockImage,
@@ -5,15 +8,8 @@ import type {
 } from './image-source-types.js';
 import type { AxiosInstance } from 'axios';
 
-export const STOCK_CATEGORY_LABELS: Record<string, string> = {
-  all: 'Alle',
-  environment: 'Umwelt',
-  transport: 'Mobilit\u00e4t',
-  social: 'Gesellschaft',
-  nature: 'Natur',
-  politics: 'Politik',
-  education: 'Bildung',
-};
+// Lives in @gruenerator/contracts, which the canvas editor also reads.
+export { STOCK_CATEGORY_LABELS } from '@gruenerator/contracts';
 
 export async function fetchStockImages(
   client: AxiosInstance,
@@ -47,15 +43,33 @@ export async function searchUnsplashImages(
     return { results: [], total: 0, total_pages: 0 };
   }
 
-  const response = await client.get<UnsplashSearchResult>('/unsplash/search', {
-    params: {
-      query: query.trim(),
-      page,
-      per_page: perPage,
-    },
-  });
+  try {
+    const response = await client.get<UnsplashSearchResult>('/unsplash/search', {
+      params: {
+        query: query.trim(),
+        page,
+        per_page: perPage,
+      },
+    });
+    return response.data;
+  } catch (error) {
+    if (isAxiosError(error) && error.response?.status === 429) {
+      const body = unsplashRateLimitErrorSchema.safeParse(error.response.data);
+      if (body.success) throw new UnsplashLimitError(body.data.retryAfter);
+    }
+    throw new Error('Die Unsplash-Suche ist fehlgeschlagen.', { cause: error });
+  }
+}
 
-  return response.data;
+/** The shared Unsplash key has used up its hourly searches. */
+export class UnsplashLimitError extends Error {
+  readonly retryAt: Date;
+
+  constructor(retryAfterSeconds: number) {
+    super('Das Unsplash-Kontingent ist für diese Stunde aufgebraucht.');
+    this.name = 'UnsplashLimitError';
+    this.retryAt = new Date(Date.now() + retryAfterSeconds * 1000);
+  }
 }
 
 export async function trackUnsplashDownload(

@@ -5,14 +5,10 @@
  * a text only counts as liftable when inverting it reproduces its field
  * exactly — anything the composer rewrote beyond that stays `opaque`.
  */
-import {
-  accentLines,
-  stripLeadingBullets,
-  type SharepicItem,
-  type SharepicSlide,
-} from '@gruenerator/contracts';
+import { stripLeadingBullets } from '@ggraphic/schema';
+import { accentLines, type SharepicItem, type SharepicSlide } from '@gruenerator/contracts';
 
-import { type ComposedSlide } from './composeSharepic';
+import { type ComposedSlide } from './composeTypes';
 import { stripMarks } from './marks';
 
 export type SharepicProvenanceLift =
@@ -124,6 +120,10 @@ const ITEM_RULES: Record<Exclude<SharepicItem['type'], 'headline'>, Rule[]> = {
     [/^-(adressat|hinweis)$/, '$1', V],
   ],
   bild: [],
+  steckbrief: [
+    [/^-(gruss|name)$/, '$1', V],
+    [/^-(\d+)$/, 'merkmale.$1', V],
+  ],
 };
 
 const valueAt = (source: unknown, field: string): unknown =>

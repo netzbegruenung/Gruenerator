@@ -162,6 +162,52 @@ describe.skipIf(!ENABLED)('runPythonCore against the real Pyodide runtime', () =
     expect(result.stdout).toContain('Gesamtgewinn: 42');
   }, 180_000);
 
+  it('rounds timezone-shifted xlsx dates back to the day, real times stay (#5043)', async () => {
+    await py.loadPackage(['micropip']);
+    await py.runPythonAsync(
+      `import micropip\nawait micropip.install([${ENGINE_WHEEL_FILES.xlsx
+        .map((f) => `'emfs:/wheels/${f}'`)
+        .join(',')}], deps=False)`
+    );
+    // Writers that store a local midnight as UTC leave 01:00 / 23:00 in the cell.
+    const genResult = await runPythonCore(
+      py,
+      [
+        'import base64, datetime as dt, openpyxl',
+        'wb = openpyxl.Workbook()',
+        'ws = wb.active',
+        'ws.append(["Datum", "Beginn", "Betrag"])',
+        'ws.append([dt.datetime(2004, 1, 31, 1, 0), dt.datetime(2026, 3, 2, 8, 30), 10])',
+        'ws.append([dt.datetime(2026, 1, 31, 23, 0), dt.datetime(2026, 3, 3, 14, 15), 5])',
+        'wb.save("/dates.xlsx")',
+        'print(base64.b64encode(open("/dates.xlsx", "rb").read()).decode())',
+      ].join('\n'),
+      [],
+      opts
+    );
+    expect(genResult.ok).toBe(true);
+    const bytes = Uint8Array.from(atob(genResult.stdout.trim()), (ch) => ch.charCodeAt(0));
+    const file: PythonFile = {
+      name: 'daten.xlsx',
+      mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      bytes: bytes.buffer.slice(0, bytes.byteLength),
+    };
+
+    const result = await runPythonCore(
+      py,
+      [
+        'print("Daten:", ", ".join(str(d) for d in df["Datum"]))',
+        'print("Beginn:", ", ".join(str(d) for d in df["Beginn"]))',
+      ].join('\n'),
+      [file],
+      opts
+    );
+    expect(result.ok).toBe(true);
+    // 23:00 belongs to the NEXT day: the cell meant local midnight of 1 Feb.
+    expect(result.stdout).toContain('Daten: 2004-01-31 00:00:00, 2026-02-01 00:00:00');
+    expect(result.stdout).toContain('Beginn: 2026-03-02 08:30:00, 2026-03-03 14:15:00');
+  }, 180_000);
+
   it('keeps a template’s formatting, formulas AND embedded logo through a fill', async () => {
     // Fidelity is the whole reason the fill path uses openpyxl instead of
     // pandas. Images are the fragile part: openpyxl silently drops them unless
@@ -663,6 +709,53 @@ describe.skipIf(!ENABLED)('runPythonCore against the real Pyodide runtime', () =
     const result = await runPythonCore(py, 'import js\nprint(js.location)', [SALES_CSV], opts);
     expect(result.ok).toBe(false);
     expect(result.traceback ?? '').toContain('nicht erlaubt');
+  });
+
+  // The guard is defence in depth, not the boundary (that is the worker's CSP),
+  // but the obvious ways around it must not work: each of these reached `js`
+  // or pyodide's run_js while the guard trusted the importer's __name__.
+  it.each([
+    ['a spoofed __name__', '__name__ = "lib"\nimport js\nprint("bridge:", js)'],
+    ['exec with fresh globals', 'exec("import js", {"__name__": "lib"})\nprint("bridge: ok")'],
+    [
+      'importlib.import_module',
+      'import importlib\nprint("bridge:", importlib.import_module("js"))',
+    ],
+  ])('refuses the bridge module via %s', async (_label, code) => {
+    const result = await runPythonCore(py, code, [SALES_CSV], opts);
+    expect(result.ok).toBe(false);
+    expect(result.stdout).not.toContain('bridge:');
+    expect(result.traceback ?? '').toContain('nicht erlaubt');
+  });
+
+  it.each([
+    [
+      'pyodide via sys.modules',
+      'import sys\nprint("bridge:", sys.modules["pyodide"].code.run_js("1 + 1"))',
+    ],
+    [
+      'pyodide_js via sys.modules',
+      'import sys\nprint("bridge:", sys.modules["pyodide_js"].version)',
+    ],
+    [
+      'the unwrapped import',
+      'import sys\nprint("bridge:", sys.modules["__main__"]._gruen_real_import("js"))',
+    ],
+  ])('leaves nothing to reach %s', async (_label, code) => {
+    const result = await runPythonCore(py, code, [SALES_CSV], opts);
+    expect(result.ok).toBe(false);
+    expect(result.stdout).not.toContain('bridge:');
+  });
+
+  it('puts the bridge modules back once the user code is done', async () => {
+    const failed = await runPythonCore(py, 'import js', [SALES_CSV], opts);
+    expect(failed.ok).toBe(false);
+    // pyodide's own machinery (loadPackage, micropip, the event loop) looks
+    // these up again after the run.
+    expect(await py.runPythonAsync('import sys\n"pyodide" in sys.modules')).toBe(true);
+    const next = await runPythonCore(py, 'print("Zeilen:", len(df))', [SALES_CSV], opts);
+    expect(next.ok).toBe(true);
+    expect(next.stdout).toContain('Zeilen: 3');
   });
 
   it('keeps micropip working after the import guard is installed', async () => {

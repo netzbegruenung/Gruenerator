@@ -1,9 +1,10 @@
-import { Popover, PopoverContent, PopoverTrigger } from '@gruenerator/ui';
+import { CustomColorSwatch } from '@ggraphic/editor/components/CustomColorSwatch';
+import { Popover, PopoverContent, PopoverTrigger } from '@ggraphic/editor/ui/popover';
 import { Slider } from 'radix-ui';
-import React from 'react';
+import React, { useId } from 'react';
 import { PiTextAa } from 'react-icons/pi';
 
-import { CustomColorSwatch } from '../../CustomColorSwatch';
+import { colorName } from '../../../utils/colorNames';
 
 interface FloatingOutlineControlProps {
   stroke?: string;
@@ -32,6 +33,8 @@ export function FloatingOutlineControl({
     }
   };
 
+  const titleId = useId();
+
   return (
     <Popover>
       <PopoverTrigger asChild>
@@ -47,9 +50,15 @@ export function FloatingOutlineControl({
           />
         </button>
       </PopoverTrigger>
-      <PopoverContent className="z-[10001] w-56 flex flex-col gap-2.5 p-3" align="center">
+      <PopoverContent
+        className="z-[10001] w-56 flex flex-col gap-2.5 p-3"
+        align="center"
+        aria-labelledby={titleId}
+      >
         <div className="flex items-center justify-between">
-          <span className="text-xs font-medium text-[var(--editor-text)]">Kontur</span>
+          <span id={titleId} className="text-xs font-medium text-[var(--editor-text)]">
+            Kontur
+          </span>
           <button
             className="text-[11px] font-medium text-[var(--editor-accent)] hover:underline"
             onClick={toggle}
@@ -72,7 +81,9 @@ export function FloatingOutlineControl({
                     outlineOffset: '2px',
                   }}
                   onClick={() => onChange({ stroke: c })}
-                  title={c}
+                  title={colorName(c)}
+                  aria-label={colorName(c)}
+                  aria-pressed={stroke === c}
                   type="button"
                 />
               ))}
@@ -86,7 +97,7 @@ export function FloatingOutlineControl({
             <div className="flex items-center gap-2">
               <span className="text-[11px] w-12 text-[var(--editor-text-muted)]">Stärke</span>
               <Slider.Root
-                className="relative flex items-center select-none touch-none grow h-4"
+                className="relative flex items-center select-none touch-none grow h-4 max-canvas-mobile:h-11"
                 value={[strokeWidth ?? DEFAULT_WIDTH]}
                 onValueChange={(v) => onChange({ strokeWidth: v[0] })}
                 min={0.5}
@@ -97,7 +108,7 @@ export function FloatingOutlineControl({
                   <Slider.Range className="absolute rounded-full h-full bg-[var(--editor-accent)]" />
                 </Slider.Track>
                 <Slider.Thumb
-                  className="block size-3 bg-white rounded-full border-2 border-[var(--editor-accent)] shadow-[0_1px_3px_rgba(0,0,0,0.2)] cursor-grab focus:outline-none"
+                  className="block size-3 max-canvas-mobile:size-5 bg-white rounded-full border-2 border-[var(--editor-accent)] shadow-[0_1px_3px_rgba(0,0,0,0.2)] cursor-grab focus:outline-none"
                   aria-label="Konturstärke"
                 />
               </Slider.Root>

@@ -9,9 +9,10 @@
  * crashes a tile — it just renders grey until it gets a hue here.
  *
  * Hues are taken over 1:1 from web wherever the tool exists on both platforms
- * (office, wissen, agents, projekte, vorlagen, ki-bild, reel). `scanner` and
- * `suche` have no web tile, so they borrow the palette's remaining free hues
- * (boards olive, "weitere" grey-green) rather than inventing new ones.
+ * (office, wissen, agents, projekte, vorlagen, ki-bild, reel, marktplatz,
+ * weitere). `scanner` and `uebersetzer` have no web tile, so they borrow the
+ * palette's remaining free hues (boards olive, presentations amber) rather
+ * than inventing new ones.
  */
 
 export interface ToolTheme {
@@ -36,6 +37,21 @@ const TOOL_THEME: Record<string, ToolThemePair> = {
     light: { tile: '#F5EFC9', icon: '#7C6A1E', title: '#5F5212', desc: '#786A37' },
     dark: { tile: '#26220F', icon: '#CDBB72', title: '#E1D296', desc: '#AC9C68' },
   },
+  // Web's terracotta, so it no longer reads as a second Grüneratoren tile.
+  marktplatz: {
+    light: { tile: '#F4E2D8', icon: '#8A4A2B', title: '#6A3418', desc: '#7F5643' },
+    dark: { tile: '#2A1B14', icon: '#D9A285', title: '#EBC4AF', desc: '#B48D7A' },
+  },
+  // Web's presentations amber; no mobile tile wears it.
+  uebersetzer: {
+    light: { tile: '#F6E5D4', icon: '#7A4A1F', title: '#5E3915', desc: '#81613B' },
+    dark: { tile: '#2B1D12', icon: '#CB9A6A', title: '#E4C0A0', desc: '#AB8864' },
+  },
+  // The „Weitere" tile: web's grey-green.
+  weitere: {
+    light: { tile: '#E7EAE6', icon: '#4A554C', title: '#313A34', desc: '#5F6A61' },
+    dark: { tile: '#1C211D', icon: '#9CA99F', title: '#C0CCC3', desc: '#8A968C' },
+  },
   projekte: {
     light: { tile: '#DCE6F2', icon: '#2E4E7A', title: '#1E3A5E', desc: '#4F6784' },
     dark: { tile: '#14202E', icon: '#7CA2CB', title: '#A2C0E4', desc: '#6E88AB' },
@@ -56,6 +72,12 @@ const TOOL_THEME: Record<string, ToolThemePair> = {
     light: { tile: '#F5DEE9', icon: '#993D68', title: '#7A2E52', desc: '#85576E' },
     dark: { tile: '#2B1620', icon: '#D69BB8', title: '#E9BCD2', desc: '#B0829A' },
   },
+  // The notebook and tool tiles on the Wissen screen — mirrors `WISSEN_TILE`
+  // in web's NotebooksIndexPage.
+  notebooks: {
+    light: { tile: '#FCDDE4', icon: '#C80050', title: '#A00044', desc: '#8C5666' },
+    dark: { tile: '#2C121A', icon: '#EE6090', title: '#F2A6C0', desc: '#BA7892' },
+  },
   reel: {
     light: { tile: '#F5DEE6', icon: '#8A3E5C', title: '#6E2E48', desc: '#85576A' },
     dark: { tile: '#2B1620', icon: '#CB8AA6', title: '#E4B0C6', desc: '#AB7E94' },
@@ -63,6 +85,11 @@ const TOOL_THEME: Record<string, ToolThemePair> = {
   profilbild: {
     light: { tile: '#DFEBD9', icon: '#3D6130', title: '#2F4D25', desc: '#5E7A53' },
     dark: { tile: '#1A2B16', icon: '#8FC27E', title: '#B3DAA5', desc: '#7FA672' },
+  },
+  // Web's „Bild erweitern" coral: no web sticker tile to copy, and no mobile tool wears it.
+  sticker: {
+    light: { tile: '#F8E1D8', icon: '#9A4A30', title: '#7A3820', desc: '#8E6252' },
+    dark: { tile: '#2E1B14', icon: '#D69A82', title: '#EBBBA8', desc: '#B08272' },
   },
 };
 

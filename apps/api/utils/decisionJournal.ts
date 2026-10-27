@@ -54,7 +54,9 @@ export const DECISION_POINTS = {
   'router.intent_override': {
     branches: [
       'sharepic_unlicensed_to_direct',
-      'sharepic_unlicensed_fixed_text',
+      // Sharepic genannt, aber nicht bestellt → `produktion`, das Werkzeug hängt
+      // ohne Zwang im Loop, der Planer entscheidet.
+      'sharepic_named_to_planner',
       'modify_board_to_agentic',
       'agentic_to_search',
       'system_tool_to_web',
@@ -102,6 +104,9 @@ export const DECISION_POINTS = {
       'tier2_offer_accept',
       // „ja" auf eine Rückfrage zu Tabelle/Präsentation → Loop mit deren Werkzeugen.
       'tier2_artifact_question_accept',
+      // Erstell-Auftrag über einem Anhang („mach daraus eine Präsentation") →
+      // benannter Erstell-Intent, vor dem Anhang-Rückfall auf `produktion`.
+      'tier2_attachment_create_order',
       // Folgeauftrag auf ein Chat-Dokument ohne „komplett neu" → gezielt im Loop.
       'tier2.7_doc_targeted_edit',
       // Erstell-Verdikt ohne Erstell-Auftrag auf ein vorhandenes Artefakt → Loop.

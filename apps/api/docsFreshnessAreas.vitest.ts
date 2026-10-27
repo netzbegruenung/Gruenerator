@@ -15,7 +15,12 @@ import { fileURLToPath } from 'node:url';
 
 import { describe, expect, it } from 'vitest';
 
-import { AREA_HINTS, foldersForChangedFiles, SCOPE_FOLDERS } from './docsFreshnessAreas.js';
+import {
+  AREA_HINTS,
+  foldersForChangedFiles,
+  SCOPE_FOLDERS,
+  unpublishedDocMatcher,
+} from './docsFreshnessAreas.js';
 
 const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 const WORKFLOW_PATH = path.join(REPO_ROOT, '.github/workflows/docs-freshness-pr.yml');
@@ -138,5 +143,21 @@ describe('foldersForChangedFiles', () => {
     expect(foldersForChangedFiles(['apps/api/database/postgres/migrations/0042_foo.sql'])).toEqual(
       []
     );
+  });
+});
+
+describe('unpublishedDocMatcher', () => {
+  const config = readFileSync(path.join(REPO_ROOT, 'documentation/docusaurus.config.ts'), 'utf-8');
+
+  it('skips the pages docs.exclude leaves out of the build', () => {
+    const isUnpublished = unpublishedDocMatcher(config);
+    expect(isUnpublished('integrationen/chrome-erweiterung.md')).toBe(true);
+    expect(isUnpublished('intern/korpus/analyse.md')).toBe(true);
+    expect(isUnpublished('chat/ki-chat.mdx')).toBe(false);
+    expect(isUnpublished('internals.md')).toBe(false);
+  });
+
+  it('throws instead of auditing everything when the block is gone', () => {
+    expect(() => unpublishedDocMatcher('export default {};')).toThrow();
   });
 });

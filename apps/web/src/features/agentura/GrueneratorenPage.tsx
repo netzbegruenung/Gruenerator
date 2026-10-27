@@ -1,5 +1,6 @@
 import { type RecurringTask, type TextForm } from '@gruenerator/contracts';
 import { agentKey, agentRef, matchesAgenturaType } from '@gruenerator/shared/agents';
+import { useDeleteRecipe } from '@gruenerator/shared/grueneratoren';
 import {
   Button,
   ConfirmDialogProvider,
@@ -10,7 +11,7 @@ import {
   DropdownMenuTrigger,
   useConfirm,
 } from '@gruenerator/ui';
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import {
   PiClockCounterClockwise,
   PiFileText,
@@ -19,26 +20,21 @@ import {
   PiSparkle,
   PiStorefront,
 } from 'react-icons/pi';
-import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 
+import { MarketplaceDialog } from '../marketplace/MarketplaceDialog';
 import { useRecurringTasks } from '../recurring-tasks/api';
 import { useTrashUndoToast } from '../trash/trashUndoToast';
 
-import { AgenturaDialog } from './components/AgenturaDialog';
 import { MarketSection } from './components/MarketSection';
 import { useAgentIndex } from './hooks/useAgentIndex';
 import { useAgenturaPools } from './hooks/useAgenturaPools';
 import { useMarketCards } from './hooks/useMarketCards';
-import { AGENTURA_PATH, GRUENERATOREN_PATH, useMarketFilters } from './hooks/useMarketFilters';
+import { useMarketFilters } from './hooks/useMarketFilters';
 import { useStarImport } from './hooks/useStarImport';
 import { useSystemCatalog } from './hooks/useSystemCatalog';
 import { useUserLibrary } from './hooks/useUserLibrary';
-import {
-  AGENTURA_TYPE_LABELS,
-  SORT_LABELS,
-  type AgenturaSort,
-  type AgenturaType,
-} from './lib/categories';
+import { AGENTURA_TYPE_LABELS, SORT_LABELS } from './lib/categories';
 import { isLandesverbandIdentifier } from './lib/lookups';
 import {
   foreignEntry,
@@ -52,7 +48,6 @@ import {
   type MarketItem,
   type RecipeEntry,
 } from './lib/marketItems';
-import { useDeleteRecipe } from './recipes/api';
 import { recipeOriginLine } from './recipes/recipeMeta';
 
 import {
@@ -75,31 +70,21 @@ const toTaskItem = (task: RecurringTask): MarketItem => ({
   task,
 });
 
-/**
- * Ein Link in die Agentura merkt sich, dass er von hier kam — dann führt
- * Schließen per `navigate(-1)` zurück, statt einen neuen Eintrag anzuhängen, über
- * den „Zurück" das Popup wieder öffnen würde.
- */
-const FROM_OVERVIEW = { fromOverview: true } as const;
-
-/** Was die Übersicht unter dem offenen Popup zeigt — die Adresse gehört dann dem Shop. */
-const UNFILTERED: { search: string; type: AgenturaType; sort: AgenturaSort } = {
-  search: '',
-  type: 'all',
-  sort: 'empfohlen',
-};
+/** Im Popup über der Übersicht gibt es nur, was hier auch steht: Agents und Rezepte. */
+const MARKET_KINDS = ['agent', 'recipe'] as const;
 
 /**
  * Die Übersicht „Grüneratoren": womit die Person arbeitet — eigene Agents,
- * Rezepte und Aufgaben, was mit ihr geteilt wurde, und was sie aus der Agentura
- * zu ihren Grüneratoren geholt hat. Die Agentura selbst ist ein Popup darüber
- * (`marketOpen`, Adresse `/agentura`).
+ * Rezepte und Aufgaben, was mit ihr geteilt wurde, und was sie aus dem
+ * Marktplatz zu ihren Grüneratoren geholt hat. Der Marktplatz selbst öffnet
+ * als Popup darüber, auf Agents und Rezepte beschränkt.
  */
-function GrueneratorenPage({ marketOpen }: { marketOpen: boolean }) {
+function GrueneratorenPage() {
   const navigate = useNavigate();
-  const location = useLocation();
   const filters = useMarketFilters();
-  const { search, type, sort } = marketOpen ? UNFILTERED : filters;
+  const { search, type, sort } = filters;
+  // `null` = zu; sonst die Suche, mit der das Popup aufgeht.
+  const [market, setMarket] = useState<{ q: string } | null>(null);
   const [gridSize, toggleGridSize] = useGridSize('grueneratoren-grid-size', 'large');
 
   const pools = useAgenturaPools();
@@ -256,11 +241,6 @@ function GrueneratorenPage({ marketOpen }: { marketOpen: boolean }) {
   const settled = pools.ownLoaded && tasksLoaded && library.loaded;
   const failed = pools.ownFailed || tasksFailed || library.failed;
   const nothingYet = settled && allItems.length === 0;
-  const closeMarket = () => {
-    const state = location.state as { fromOverview?: boolean } | null;
-    if (state?.fromOverview) void navigate(-1);
-    else void navigate(GRUENERATOREN_PATH, { replace: true });
-  };
   const sections = SECTION_KINDS.map((kind) => ({
     kind,
     items: items.filter((item) => item.kind === kind),
@@ -273,7 +253,7 @@ function GrueneratorenPage({ marketOpen }: { marketOpen: boolean }) {
         description={
           <p className="m-0 text-sm leading-relaxed text-pretty text-grey-500 dark:text-grey-400">
             Deine Agents, Rezepte und wiederkehrenden Aufgaben. Offizielle und öffentliche findest
-            du in der Agentura.
+            du im Marktplatz.
           </p>
         }
         toolbar={
@@ -283,10 +263,14 @@ function GrueneratorenPage({ marketOpen }: { marketOpen: boolean }) {
               onQuery={filters.setSearch}
               placeholder="Grüneratoren durchsuchen…"
             />
-            <Button asChild variant="ghost" size="icon">
-              <Link to={AGENTURA_PATH} state={FROM_OVERVIEW} aria-label="Agentura" title="Agentura">
-                <PiStorefront aria-hidden className="size-[18px]" />
-              </Link>
+            <Button
+              variant="ghost"
+              size="icon"
+              aria-label="Marktplatz"
+              title="Marktplatz"
+              onClick={() => setMarket({ q: '' })}
+            >
+              <PiStorefront aria-hidden className="size-[18px]" />
             </Button>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
@@ -325,7 +309,7 @@ function GrueneratorenPage({ marketOpen }: { marketOpen: boolean }) {
       <span role="status" aria-live="polite" className="sr-only">
         {`${items.length} ${items.length === 1 ? 'Eintrag' : 'Einträge'}`}
       </span>
-      {!marketOpen && filters.isFiltered && (
+      {filters.isFiltered && (
         <GalleryCountRow count={null} onReset={filters.reset}>
           {typeActive && (
             <FilterChip
@@ -371,7 +355,7 @@ function GrueneratorenPage({ marketOpen }: { marketOpen: boolean }) {
       ) : nothingYet ? (
         <GalleryEmptyState
           title="Noch nichts angelegt"
-          hint="Du hast noch keine eigenen Agents oder Rezepte erstellt. Leg los oder stöbere in der Agentura."
+          hint="Du hast noch keine eigenen Agents oder Rezepte erstellt. Leg los oder stöbere im Marktplatz."
           action={
             <div className="flex flex-wrap items-center justify-center gap-sm">
               <Button asChild variant="brand" size="brand-sm">
@@ -386,11 +370,9 @@ function GrueneratorenPage({ marketOpen }: { marketOpen: boolean }) {
                   Rezept erstellen
                 </Link>
               </Button>
-              <Button asChild variant="outline" size="brand-sm">
-                <Link to={AGENTURA_PATH} state={FROM_OVERVIEW}>
-                  <PiStorefront />
-                  Zur Agentura
-                </Link>
+              <Button variant="outline" size="brand-sm" onClick={() => setMarket({ q: '' })}>
+                <PiStorefront />
+                Zum Marktplatz
               </Button>
             </div>
           }
@@ -400,19 +382,14 @@ function GrueneratorenPage({ marketOpen }: { marketOpen: boolean }) {
           title={searching ? 'Keine Treffer' : 'Nichts gefunden'}
           hint={
             searching
-              ? 'Bei deinen Grüneratoren ist nichts dabei — vielleicht in der Agentura.'
+              ? 'Bei deinen Grüneratoren ist nichts dabei — vielleicht im Marktplatz.'
               : 'Versuch einen anderen Filter.'
           }
           action={
             <div className="flex flex-wrap items-center justify-center gap-sm">
               {searching && (
-                <Button asChild variant="outline" size="sm">
-                  <Link
-                    to={`${AGENTURA_PATH}?q=${encodeURIComponent(search.trim())}`}
-                    state={FROM_OVERVIEW}
-                  >
-                    In der Agentura suchen
-                  </Link>
+                <Button variant="outline" size="sm" onClick={() => setMarket({ q: search.trim() })}>
+                  Im Marktplatz suchen
                 </Button>
               )}
               <Button variant="outline" size="sm" onClick={filters.reset}>
@@ -423,23 +400,24 @@ function GrueneratorenPage({ marketOpen }: { marketOpen: boolean }) {
         />
       )}
 
-      <AgenturaDialog open={marketOpen} onClose={closeMarket} />
+      <MarketplaceDialog
+        open={market !== null}
+        onOpenChange={(open) => !open && setMarket(null)}
+        kinds={MARKET_KINDS}
+        initialQuery={market?.q ?? ''}
+      />
     </PageShell>
   );
 }
 
 /** Gives the recipe-delete flow a real AlertDialog instead of `useConfirm`'s
  *  degraded `window.confirm` fallback — mirrors `RecipeDetailPage`'s dispatcher. */
-export function GrueneratorenView({ marketOpen = false }: { marketOpen?: boolean }) {
+function GrueneratorenRoute() {
   return (
     <ConfirmDialogProvider>
-      <GrueneratorenPage marketOpen={marketOpen} />
+      <GrueneratorenPage />
     </ConfirmDialogProvider>
   );
-}
-
-function GrueneratorenRoute() {
-  return <GrueneratorenView />;
 }
 
 export default withAuthRequired(GrueneratorenRoute, { title: 'Grüneratoren' });

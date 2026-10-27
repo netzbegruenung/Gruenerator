@@ -49,6 +49,41 @@ vi.mock('../../agents/providers.js', async (importOriginal) => {
   };
 });
 
+// Der Vorab-Abruf der @link-Seiten (#4896) liest über den echten Crawl-Pfad;
+// gestellt wird nur das Netz.
+const { crawledSeeds } = vi.hoisted(() => ({ crawledSeeds: [] as string[][] }));
+vi.mock('../../../../services/search/index.js', async (importOriginal) => ({
+  ...(await importOriginal<Record<string, unknown>>()),
+  crawlAndDistill: (seeds: Array<{ url: string }>) => {
+    crawledSeeds.push(seeds.map((s) => s.url));
+    return Promise.resolve(
+      seeds.map((s) => ({ ...s, crawled: true, content: 'Baubeginn ist 2027.' }))
+    );
+  },
+}));
+vi.mock('../../../../utils/validation/urlSecurity.js', async (importOriginal) => ({
+  ...(await importOriginal<Record<string, unknown>>()),
+  validateUrlForFetch: (raw: string) => Promise.resolve({ isValid: true, url: new URL(raw) }),
+}));
+
+// Freigabe-Gate ohne Datenbank, Browser-Werkzeug ohne Codegen (#5044).
+vi.mock('./toolApprovalRepo.js', () => ({
+  loadAllowlist: () => Promise.resolve(new Set<string>()),
+}));
+vi.mock('./clientToolRegistry.js', async (importOriginal) => {
+  const actual = await importOriginal<Record<string, unknown>>();
+  const fakeTabelle = {
+    loopToolName: 'tabelle_auswerten',
+    clientToolName: 'run_python',
+    resolve: () => Promise.resolve({ clientArgs: { code: 'print(df["Umsatz"].sum())' } }),
+    toToolResult: () => Promise.resolve({ toolResult: {} }),
+  };
+  return {
+    ...actual,
+    LOOP_CLIENT_TOOLS: new Map([['tabelle_auswerten', fakeTabelle]]),
+  };
+});
+
 import { promptCacheKeyForThread } from '../../../../services/ai/promptCacheKey.js';
 
 import { streamAgenticResponse, type AgenticRespondDeps } from './agenticRespondService.js';
@@ -546,6 +581,30 @@ describe('streamAgenticResponse — Zuschnitt des erzwungenen ersten Schritts (#
     expect(p.firstStepTools).toEqual(['gruenerator_search']);
   });
 
+  it('Tabellen-Turn: kein Zwang auf die Suche, sondern die Wahl rechnen/direkt antworten (#5042)', async () => {
+    const p = await loopParams(
+      fakeState({ intent: 'search' }),
+      'Wie viel Umsatz im März?',
+      catalogWith([...MOUNTED, 'tabelle_auswerten', 'direkt_antworten'])
+    );
+    expect(p.forceFirstToolCall).toBe(true);
+    expect(p.firstStepTools).toEqual(['tabelle_auswerten', 'direkt_antworten']);
+  });
+
+  it('Fortsetzung desselben Zuges: kein erneuter Zwang auf den ersten Schritt', async () => {
+    const p = await loopParams(fakeState({ intent: 'search' }), 'Frage?', catalogWith(MOUNTED), {
+      resumeApproval: {
+        priorSteps: [
+          { toolCallId: 'c0', toolName: 'gruenerator_search', args: {}, result: {} },
+        ] satisfies PersistedStep[],
+        approved: [],
+        denied: [],
+      },
+    });
+    expect(p.forceFirstToolCall).toBe(false);
+    expect(p.firstStepTools).toBeNull();
+  });
+
   it('named_intent mit Anhang ohne Vorab-Treffer: nur die angehängten Dokumente (#3888)', async () => {
     // Ohne `searchQuery`/`lastUserTextNoMentions` hat der Vorab-Abruf keine
     // Anfrage und liefert nichts — der Fall, in dem der Zwang stehen bleibt.
@@ -630,6 +689,22 @@ describe('streamAgenticResponse — Zuschnitt des erzwungenen ersten Schritts (#
     expect(p.forceFirstToolCall).toBe(true);
     expect(p.firstToolName).toBe('bundestag');
     expect(p.firstStepTools).toBeNull();
+  });
+  it('zeigt dem Planer die @link-Seite eines Loop-Turns als gelesenen scrape_url-Aufruf (#4896)', async () => {
+    crawledSeeds.length = 0;
+    const link = 'https://example.org/radweg';
+    const p = await loopParams(
+      fakeState({
+        attachedWebpageUrls: [link],
+        lastUserTextNoMentions: 'Wann wird der Radweg gebaut?',
+      } as never),
+      'Wann wird der Radweg gebaut?',
+      catalogWith([...MOUNTED, 'scrape_url'])
+    );
+    expect(crawledSeeds).toEqual([[link]]);
+    const replayed = JSON.stringify(p.messages);
+    expect(replayed).toContain('"toolName":"scrape_url"');
+    expect(replayed).toContain('Baubeginn ist 2027.');
   });
 });
 
@@ -797,5 +872,121 @@ describe('streamAgenticResponse — toolAllowlist', () => {
       fakeDeps({ assemble: assemble as unknown as AgenticRespondDeps['assembleToolCatalog'] })
     );
     expect(assemble.mock.calls[0]![0]).not.toHaveProperty('toolAllowlist');
+  });
+});
+
+/**
+ * #5044: ein schon freigegebener Browser-Aufruf (`tabelle_auswerten`) und ein
+ * freigabepflichtiges Geschwister im selben Step. Die Freigabe gewinnt — der
+ * Browser-Aufruf darf dabei nicht verloren gehen, sonst fragt das Gate beim
+ * Neuaufruf ein zweites Mal.
+ */
+describe('streamAgenticResponse — Browser-Aufruf neben einer Freigabe (#5044)', () => {
+  type Exec = (i: unknown, o: { toolCallId: string }) => Promise<unknown>;
+  const mcpRuns: string[] = [];
+  const catalog = {
+    ...EMPTY_CATALOG,
+    tools: {
+      tabelle_auswerten: { execute: async () => ({ error: 'nie direkt' }) },
+      mcp__x: {
+        execute: async (_i: unknown, o: { toolCallId: string }) => {
+          mcpRuns.push(o.toolCallId);
+          return { ok: true };
+        },
+      },
+    } as unknown as ToolSet,
+    toolLabels: new Map([
+      [
+        'mcp__x',
+        {
+          serverName: 'Tally',
+          toolName: 'x',
+          origin: { kind: 'mcp' as const, serverId: 's1', remoteToolName: 'x' },
+        },
+      ],
+    ]),
+  };
+  const stateWithUser = () =>
+    fakeState({
+      agentConfig: {
+        identifier: 'gruenerator-universal',
+        provider: 'mistral',
+        model: 'mistral-medium-2604',
+        params: { temperature: 0.3 },
+        userId: 'u1',
+      },
+    } as unknown as Partial<ChatGraphState>);
+  const HELD = {
+    toolCallId: 'tab_1',
+    toolName: 'tabelle_auswerten',
+    args: { auftrag: 'Summe Umsatz' },
+    clientToolName: 'run_python',
+    clientArgs: { code: 'print(df["Umsatz"].sum())' },
+  };
+
+  it('Erstzug: Freigabe gewinnt, der freigegebene Browser-Aufruf reist als heldClientTool mit', async () => {
+    const { sse } = fakeSse();
+    const deps = fakeDeps({ assemble: (async () => catalog) as never });
+    deps.runAgenticLoop = (async (p: LoopEngineParams) => {
+      // Geschwister desselben Steps, nebenläufig wie im echten Loop.
+      await Promise.all([
+        (p.tools['tabelle_auswerten'] as { execute: Exec }).execute(
+          { auftrag: 'Summe Umsatz' },
+          { toolCallId: 'tab_1' }
+        ),
+        (p.tools['mcp__x'] as { execute: Exec }).execute({}, { toolCallId: 'mcp_1' }),
+      ]);
+      if (p.suspended?.()) throw new TurnSuspendedError();
+      return { text: 'nie erreicht' };
+    }) as unknown as AgenticRespondDeps['runAgenticLoop'];
+
+    const outcome = await streamAgenticResponse(
+      {
+        ...baseParams(stateWithUser(), 'x'.repeat(4000), 'Summe?'),
+        sse,
+        // Die Tabelle ist schon freigegeben, Tally noch nicht.
+        grantedOnce: new Map([['internal/tabelle_auswerten', 1]]),
+      },
+      deps
+    );
+
+    expect(outcome.pendingApproval?.map((c) => c.toolCallId)).toEqual(['mcp_1']);
+    expect(outcome.pendingClientTool).toBeUndefined();
+    expect(outcome.heldClientTool).toEqual(HELD);
+  });
+
+  it('Fortsetzung: erst der freigegebene Aufruf, dann pausiert der Zug für den Browser', async () => {
+    mcpRuns.length = 0;
+    const { sse } = fakeSse();
+    let loopSawSuspended = false;
+    const deps = fakeDeps({ assemble: (async () => catalog) as never });
+    deps.runAgenticLoop = (async (p: LoopEngineParams) => {
+      loopSawSuspended = p.suspended?.() ?? false;
+      if (loopSawSuspended) throw new TurnSuspendedError();
+      return { text: 'nie erreicht' };
+    }) as unknown as AgenticRespondDeps['runAgenticLoop'];
+
+    const mcpCall = {
+      toolCallId: 'mcp_1',
+      toolName: 'mcp__x',
+      args: {},
+      scopeKey: 'mcp:s1/x',
+    };
+    const outcome = await streamAgenticResponse(
+      {
+        ...baseParams(stateWithUser(), 'x'.repeat(4000), 'Summe?'),
+        sse,
+        threadId: 't1',
+        grantedOnce: new Map([['mcp:s1/x', 1]]),
+        resumeApproval: { priorSteps: [], approved: [mcpCall], denied: [], heldClientTool: HELD },
+      },
+      deps
+    );
+
+    expect(mcpRuns).toEqual(['mcp_1']);
+    expect(outcome.steps.map((st) => st.toolCallId)).toContain('mcp_1');
+    expect(loopSawSuspended).toBe(true);
+    expect(outcome.pendingClientTool).toEqual(HELD);
+    expect(outcome.pendingApproval).toBeUndefined();
   });
 });

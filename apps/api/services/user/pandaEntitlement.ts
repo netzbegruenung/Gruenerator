@@ -11,6 +11,7 @@
  * the person an admin just switched lags behind by the cookie cache.
  */
 
+import { type NotebookDepth, type NotebookSearchDepth } from '@gruenerator/contracts';
 import { isPandaTierDefaultOn } from '@gruenerator/shared/instances';
 import { type TextModelId } from '@gruenerator/shared/models';
 
@@ -52,4 +53,20 @@ export async function gatePandaModelId<T extends string | null | undefined>(
   if (userId && (await isUserPandaEntitled(userId))) return modelId;
   log.warn(`Panda requested without unlock (user=${userId ?? 'anonymous'}) — serving Ultra`);
   return PANDA_DENIED_FALLBACK;
+}
+
+/**
+ * The notebook tier „Panda" is the `ultra` search answered by the Panda lane.
+ * Resolved here, at the door, so retrieval never sees `panda` and the unlock
+ * runs through the same gate as an explicit Panda model id.
+ */
+export async function resolveNotebookTier(
+  mode: NotebookDepth | undefined,
+  modelId: string | undefined,
+  userId: string | null | undefined
+): Promise<{ mode: NotebookSearchDepth | undefined; model: string | undefined }> {
+  if (mode === 'panda') {
+    return { mode: 'ultra', model: await gatePandaModelId(PANDA_MODEL_ID, userId) };
+  }
+  return { mode, model: await gatePandaModelId(modelId, userId) };
 }

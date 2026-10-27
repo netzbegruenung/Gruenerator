@@ -1,5 +1,6 @@
 import { type CreateAttachment } from '@assistant-ui/react-native';
 import { useAuth } from '@gruenerator/shared/hooks';
+import { useAuthStore } from '@gruenerator/shared/stores';
 import { useRouter } from 'expo-router';
 import { useCallback } from 'react';
 import { Platform, StyleSheet, View } from 'react-native';
@@ -7,11 +8,13 @@ import { GestureDetector } from 'react-native-gesture-handler';
 
 import { useDrawerStore } from '../../hooks/useDrawerStore';
 import { useTabSwipe } from '../../hooks/useTabSwipe';
+import { DEV_AUTH_BYPASS } from '../../services/devAuth';
 import { usePendingAttachmentStore } from '../../stores/pendingAttachmentStore';
 import { routeWithParams } from '../../types/routes';
 import { mobileGreeting } from '../../utils/greeting';
 import { BottomComposerBar } from '../common/BottomComposerBar';
 import { CenteredGreeting } from '../common/CenteredGreeting';
+import { WaveformIcon } from '../voice/WaveformIcon';
 
 /**
  * The Chat page of the workplace pager (`WorkplacePager`): the greeting in the middle and the
@@ -53,6 +56,16 @@ export function WorkplaceChatPage() {
     [router]
   );
 
+  // Instance admins only, like the API: audio leaves through Mistral's global
+  // endpoint. The emulator's bypass user stands in for one.
+  const canCall = useAuthStore((s) => s.user?.is_admin === true) || DEV_AUTH_BYPASS;
+  // A call is a chat like any other: it opens a new one, already talking.
+  const openCall = useCallback(
+    () =>
+      router.push(routeWithParams('/(focused)/chat-conversation', { threadId: 'new', voice: '1' })),
+    [router]
+  );
+
   const openDrawer = useDrawerStore((s) => s.openDrawer);
   const swipe = useTabSwipe({
     ...(Platform.OS === 'android' && { onSwipeRight: openDrawer }),
@@ -67,6 +80,14 @@ export function WorkplaceChatPage() {
           onSend={handleSend}
           showActionSheet
           onAttach={handleAttach}
+          {...(canCall && {
+            accessoryBesideAction: true,
+            accessory: {
+              icon: WaveformIcon,
+              onPress: openCall,
+              accessibilityLabel: 'Sprachgespräch starten',
+            },
+          })}
         />
       </View>
     </GestureDetector>

@@ -1,0 +1,19 @@
+{"id":"produkt-was-kannst-du","prompt":"Was kannst du?","category":"produkt","expect":{"noCapabilityRefusal":true,"topicsCovered":["Sharepic","Notebook"]}}
+{"id":"produkt-sharepic-anleitung","prompt":"Wie erstelle ich ein Sharepic?","category":"produkt","expect":{"productGrounded":true,"generatesSharepic":false,"topicsCovered":["Sharepic"]}}
+{"id":"produkt-modellstufen","prompt":"Was ist der Unterschied zwischen Klein, Mittel und Ultra?","category":"produkt","expect":{"productGrounded":true,"topicsCovered":["Klein","Mittel","Ultra"],"answerMustNotContain":["was genau meinst du"]}}
+{"id":"produkt-welches-modell","prompt":"Welches KI-Modell steckt hinter dir?","category":"produkt","expect":{"productGrounded":true,"topicsCovered":["Ultra|Mittel|Klein"]}}
+{"id":"produkt-panda","prompt":"Was ist Panda und wie bekomme ich das?","category":"produkt","expect":{"productGrounded":true,"toolsMustNotInclude":["web_search"],"topicsCovered":["Stufe|Modell"],"answerMustNotContain":["Panda Security","Antivir"]}}
+{"id":"produkt-datenschutz","prompt":"Wo werden meine Daten verarbeitet? Ist das DSGVO-konform?","category":"produkt","expect":{"productGrounded":true,"topicsCovered":["Mistral|europäisch"]}}
+{"id":"produkt-notebook-teilen","prompt":"Kann ich ein Notebook mit meinem Projekt teilen?","category":"produkt","expect":{"productGrounded":true,"topicsCovered":["Projekt"]}}
+{"id":"produkt-was-ist-neu","prompt":"Was ist neu im Grünerator?","category":"produkt","expect":{"productGrounded":true}}
+{"id":"produkt-konto-loeschen","prompt":"Wie lösche ich mein Konto?","category":"produkt","expect":{"productGrounded":true,"topicsCovered":["Einstellungen"],"answerMustNotContain":["an den Support"]}}
+{"id":"produkt-chatgpt","prompt":"Wie verbinde ich den Grünerator mit ChatGPT?","category":"produkt","expect":{"productGrounded":true,"topicsCovered":["MCP"]}}
+{"id":"produkt-explainable","prompt":"Was ist ein Explainable?","category":"produkt","expect":{"topicsCovered":["Erklärbild|gemalt"],"toolsMustNotInclude":["web_search"]}}
+{"id":"produkt-rezepte-instagram","prompt":"Welche Rezepte gibt es für Instagram?","category":"produkt","expect":{"productGrounded":true,"topicsCovered":["Instagram"],"toolsMustNotInclude":["web_search"]}}
+{"id":"produkt-app","prompt":"Gibt es den Grünerator als App fürs Handy?","category":"produkt","expect":{"productGrounded":true,"topicsCovered":["Android|iPhone|iOS"],"answerMustNotContain":["keine App","gibt es derzeit nicht"]}}
+{"id":"produkt-co2","prompt":"Wie viel CO2 verbraucht eine Anfrage beim Grünerator?","category":"produkt","expect":{"productGrounded":true}}
+{"id":"produkt-papierkorb","prompt":"Wo finde ich gelöschte Dokumente wieder und wie lange bleiben die drin?","category":"produkt","expect":{"productGrounded":true,"topicsCovered":["Papierkorb","30 Tage"]}}
+{"id":"produkt-oeko-modus","prompt":"Was macht der Öko-Modus bei der Transkription?","category":"produkt","expect":{"topicsCovered":["GreenPT","Voxtral"],"toolsMustNotInclude":["web_search"],"answerMustNotContain":["geht nicht hervor","gibt es keine"]}}
+{"id":"produkt-podcast","prompt":"Kann ich aus einer Notebook-Antwort einen Podcast machen?","category":"produkt","expect":{"productGrounded":true,"topicsCovered":["anhören|Stimmen"]}}
+{"id":"produkt-oesterreich","prompt":"Gibt es den Grünerator auch für Österreich?","category":"produkt","expect":{"productGrounded":true,"topicsCovered":["Österreich"]}}
+{"id":"produkt-kontrolle-auftrag","prompt":"Schreib einen kurzen Instagram-Post über die Pandas im Tiergarten Schönbrunn","category":"produkt","expect":{"routingNot":["hilfe"],"toolsMustNotInclude":["product_knowledge","gruenerator_docs_search"],"answerMustNotContain":["Modellstufe"]}}

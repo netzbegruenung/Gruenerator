@@ -54,6 +54,7 @@ export function runTour(id: TourId, steps: DriveStep[], config?: Config): void {
     nextBtnText: 'Weiter',
     prevBtnText: 'Zurück',
     doneBtnText: 'Fertig',
+    closeBtnLabel: 'Schließen',
     ...config,
     onHighlighted: (el, step, opts) => {
       dropInvalidPopupHints();

@@ -20,6 +20,7 @@ import type { AgentConfig } from '../../../routes/chat/agents/types.js';
 import type { ArtifactKindId } from '../../../routes/chat/services/artifactKindRegistry.js';
 import type { EditableArtifact } from '../../../routes/chat/services/editAddressee.js';
 import type { RenderedMemory } from '../../../services/memory/memoryPrompt.js';
+import type { SystemCollection } from '../../../services/notebook/systemNotebookSources.js';
 import type { UserAgentInput } from '../../../services/userAgents/userAgentsRepository.js';
 import type {
   WolkeFileRef,
@@ -39,6 +40,7 @@ import type {
   GroupAudience,
   CreateRecurringTaskBody,
   McpToolGrant,
+  BrowserSessionMeta,
 } from '@gruenerator/contracts';
 import type { RoleLandesverbandInput } from '@gruenerator/shared/agents';
 import type { ArtifactCreateKind } from '@gruenerator/shared/chat-intents';
@@ -147,6 +149,8 @@ export interface CreatedDocument {
   title: string;
   subtype: string;
   url: string;
+  /** Begleitdokument: Karte ja, Panel nicht von selbst — siehe `documentCreatedEventSchema`. */
+  background?: boolean;
 }
 
 /**
@@ -370,7 +374,24 @@ export type DocumentSourceKind =
   | 'attachment' // threadAttachments (uploaded file context)
   | 'current_doc' // currentDocument (open in docs editor)
   | 'wolke' // wolkeFiles (@wolke mentionable — Nextcloud file picker)
-  | 'connect'; // connectFiles (@connect mentionable — Nango-connected provider file picker)
+  | 'connect' // connectFiles (@connect mentionable — Nango-connected provider file picker)
+  | 'system_document'; // notebookSources (system-collection document handed over from the reader)
+
+/**
+ * A notebook document handed from the document reader to the chat, already
+ * authorized for this turn (`resolveNotebookSources`, the reader's own access
+ * rules). `user`: own, or a collaborator's read through `notebookId`.
+ * `system`: one URL of a system collection, checked under its default filter.
+ */
+export type ResolvedNotebookSource =
+  | {
+      kind: 'user';
+      documentId: string;
+      notebookId: string | null;
+      ownerUserId: string;
+      title: string;
+    }
+  | { kind: 'system'; collection: SystemCollection; sourceUrl: string; title: string };
 
 /**
  * Normalized reference to a single document the user is working with this turn.
@@ -391,6 +412,13 @@ export interface DocumentSource {
   // For `connect` kind: the provider + fileId so searchNode can fetch the file
   // content via the matching Nango provider API client at retrieval time.
   connect?: ConnectFileRef | undefined;
+  // For a `document` handed over from the notebook reader: whose `user_id` its
+  // chunks carry (read with it, not the viewer's) and the notebook it was read
+  // through (null = the viewer's own). Authorized upstream in streamContext.
+  ownerUserId?: string;
+  notebookId?: string | null;
+  // For `system_document` kind: the system collection and the STORED source_url.
+  systemDocument?: { collection: SystemCollection; sourceUrl: string };
 }
 
 /**
@@ -528,6 +556,11 @@ export interface ChatGraphInput {
    *  and is only written after the turn completes — on the very first turn
    *  ("here is my form, fill it in") the DB has nothing yet. */
   pdfFormAttachments?: Array<{ name: string; data: string }> | undefined;
+  /** THIS turn's tabular attachments (name + extracted text), for the pandas
+   *  codegen. Same reason as `pdfFormAttachments`: `threadAttachments` is only
+   *  written after the turn, and a vectorized table is gone from
+   *  `attachmentContext` — the first-turn codegen had neither. */
+  turnTabularTexts?: Array<{ name: string; text: string }> | undefined;
   /**
    * True when the requesting client declared the run_python client tool
    * (clientTools includes 'run_python') — i.e. it can execute the pandas code
@@ -535,6 +568,9 @@ export interface ChatGraphInput {
    * so their tabular guidance must not promise code execution.
    */
   clientCanRunPython?: boolean | undefined;
+  /** The client also declared the `tabelle_auswerten` capability: it resumes a
+   *  client tool after an approval. Old clients with only `run_python` cannot. */
+  clientCanUseTabularTool?: boolean | undefined;
   /** The client declared the `render_sharepic` client tool — it can render a
    *  chat sharepic to an image for `check_sharepic`. Mobile/voice cannot. */
   clientCanRenderSharepic?: boolean | undefined;
@@ -575,6 +611,17 @@ export interface ChatGraphInput {
   docMentionIds?: string[] | undefined;
   wolkeFiles?: WolkeFileRef[] | undefined;
   connectFiles?: ConnectFileRef[] | undefined;
+  /** None of `wolkeFiles`/`connectFiles` was picked this turn — all carried
+   *  from earlier turns (#4112). Material, not a forced route (#4897). */
+  cloudFilesCarriedOnly?: boolean;
+  /** Notebook documents handed over from the reader, authorized this turn. */
+  notebookSources?: ResolvedNotebookSource[];
+  /** None of `notebookSources` was picked this turn — all carried from earlier
+   *  turns. Carried material is available but does not force a route (#4861). */
+  notebookSourcesCarriedOnly?: boolean;
+  /** @link pages picked in earlier turns of the thread (#4861). Unlike
+   *  `attachedWebpageUrls` they are only crawled when the turn retrieves anyway. */
+  carriedWebpageUrls?: string[];
   /**
    * URLs explicitly attached in the composer via the @link mention. Merged with
    * the classifier's auto-detected URLs and crawled through the scrape_url path.
@@ -775,7 +822,10 @@ export interface ChatGraphState {
   cloudConnectionCount: number;
   /** See the input-side field: this turn's fillable PDFs, name + base64. */
   pdfFormAttachments: Array<{ name: string; data: string }>;
+  /** See `ChatGraphInput.turnTabularTexts`. */
+  turnTabularTexts?: Array<{ name: string; text: string }> | undefined;
   clientCanRunPython: boolean;
+  clientCanUseTabularTool: boolean;
   clientCanRenderSharepic: boolean;
 
   // Notebook scoping (from @notebook mentions)
@@ -847,6 +897,20 @@ export interface ChatGraphState {
   // Connected-account (Nango) file refs selected via @connect mentionable.
   // Downloaded + parsed inline at searchNode time; never persisted.
   connectFiles: ConnectFileRef[];
+  // True when every cloud file was carried from an earlier turn — same rule
+  // as `notebookSourcesCarriedOnly`.
+  cloudFilesCarriedOnly: boolean;
+
+  // Notebook documents handed over from the document reader (own, shared or
+  // system), re-authorized every turn in streamContext and carried per thread
+  // (`chat_threads.notebook_source_refs`). Retrieved like attached documents.
+  notebookSources: ResolvedNotebookSource[];
+  // True when every notebook source was carried from an earlier turn: then they
+  // are material the turn may use, not a reason to force the search route.
+  notebookSourcesCarriedOnly: boolean;
+
+  // @link pages from earlier turns — crawled only when the turn retrieves anyway.
+  carriedWebpageUrls: string[];
 
   // URLs attached via the @link mentionable. The classifier unions these into
   // `detectedUrls` so the existing scrape_url path crawls them.
@@ -1072,6 +1136,14 @@ export interface ChatGraphState {
    */
   webImageResults?: WebImageResult[];
 
+  /**
+   * The browser session a `website_erkunden` call ran this turn (steps,
+   * screenshots, summary — asset URLs only, never base64). Set by the tool,
+   * persisted as `metadata.browserSession` so the session view survives a
+   * reload.
+   */
+  browserSession?: BrowserSessionMeta;
+
   // Clarification (HITL interrupt)
   needsClarification: boolean;
   clarificationQuestion: string | null;
@@ -1158,6 +1230,9 @@ export interface ChatGraphState {
   // Literal: dieses Feld war der siebte Schreiber derselben Menge, und ein hier
   // fehlender Wert hätte im Katalog stumm kein Werkzeug montiert.
   compoundGenerationKind?: ArtifactKindId | null;
+  // Die Art wurde bestellt, nicht nur genannt. `false` heisst: Werkzeug montiert,
+  // aber `forceCompoundGeneration` holt es nicht nach — der Planer entscheidet.
+  compoundGenerationOrdered?: boolean;
   // Compound "research + edit the OPEN artefact" (editor sidebars): runs the
   // research loop, then feeds the gathered sources to the `edit_document` tool
   // as reference material. Synth writes only a short confirm.
@@ -1268,20 +1343,6 @@ export interface ChatGraphState {
    *  computedResult forwarded from the previous turn (lastComputeStore) leaves
    *  this unset so a new follow-up computation can still emit code. */
   computedResultFresh?: boolean | undefined;
-  /** run_python error-correction loop (OpenWebUI-style, max 1 retry): how many
-   *  corrected code versions were already issued this turn, and the last code
-   *  sent to the client — both survive the Redis round-trip so the resume
-   *  handler can regenerate with the failure in context. */
-  pandasComputeRetries?: number | undefined;
-  pandasLastCode?: string | undefined;
-  /** Which codegen prompt produced `pandasLastCode` — survives the Redis
-   *  round-trip so a correction round regenerates openpyxl fill code for a fill
-   *  request instead of silently falling back to pandas analysis code. */
-  pandasComputeMode?: 'analyze' | 'fill' | undefined;
-  /** Successful result stashed before a verifier-triggered correction round —
-   *  if the "corrected" code then fails, the turn falls back to this instead
-   *  of ending with no computation at all. */
-  pandasComputeFallback?: ComputeData | undefined;
 
   // Chart generation
   chartData: ChartData | null;

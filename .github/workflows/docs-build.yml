@@ -1,6 +1,6 @@
 name: Docs Build
 
-# Builds the Docusaurus site on PRs so three guarantees have teeth:
+# Builds the Docusaurus site on PRs so these guarantees have teeth:
 #   1. labels:check fails if src/generated/ui-labels.json is stale vs. the app's
 #      UI catalog configs (a title changed in code but the manifest wasn't
 #      regenerated).
@@ -10,47 +10,26 @@ name: Docs Build
 #      stale vs. documentation/docs (a page added, renamed or restructured
 #      without regenerating), which would make the chat cite dead deep links or
 #      miss the page entirely.
-#   4. tools:check / office:check / agent-tools:check fail if the tool-overview,
-#      Office or agent-builder manifests are stale vs. the configs, contracts
-#      and catalogs they derive from.
-# Triggers on doc changes and on the catalog source files the manifests derive
-# from. Blocking on purpose — all of these are real drift the author must fix.
+#   4. tools / office / agentura / agent-tools / reference / models :check fail
+#      if a manifest under src/generated/ is stale vs. the configs, contracts,
+#      catalogs and routing code it derives from.
+# Every staleness check also runs unfiltered in ci.yml ("Generated artifacts in
+# sync"), and that is the one that counts: a source outside documentation/ that
+# changes a manifest fails there until the regenerated JSON is committed — and
+# that commit touches documentation/, which triggers this build. So the trigger
+# needs no list of generator sources. It used to carry one, and four entries
+# pointed at the wrong files, letting manifests go stale with CI green (#5014).
+# Blocking on purpose — all of these are real drift the author must fix.
 #
-# The chat-capabilities manifest is deliberately NOT checked here: an
-# undocumented chat capability is reported as a GitHub issue by
-# docs-capabilities.yml instead, so a backend change never breaks the docs build.
-# Same split applies to the new manifests: a STALE manifest blocks here, but a
-# tool or operation that merely lacks German prose is an issue from
-# docs-tools.yml, never a failed build.
+# Staleness and audits are split: a STALE manifest blocks, but an undocumented
+# chat capability or a tool/operation that merely lacks German prose is an
+# issue from docs-capabilities.yml / docs-tools.yml, never a failed build.
 
 on:
   pull_request:
     paths:
       - 'documentation/**'
-      - 'apps/web/src/features/global-search/toolCatalog.ts'
-      - 'apps/web/src/config/workplaceToolsConfig.ts'
-      - 'apps/web/src/components/layout/Header/menuData.tsx'
-      - 'packages/shared/src/agents/landesverbaende.ts'
-      - 'apps/web/src/config/routes.ts'
-      # Agentura manifest sources
-      - 'apps/web/src/features/agentura/lib/categories.ts'
-      - 'packages/shared/src/agents/types.ts'
-      # Office manifest sources — the contracts plus the two files that decide
-      # what actually reaches the user (runtime skips, import limits).
-      - 'packages/contracts/src/schemas/docs.ts'
-      - 'packages/contracts/src/schemas/sheets.ts'
-      - 'packages/contracts/src/schemas/presentations.ts'
-      - 'packages/contracts/src/schemas/boardFlow.ts'
-      - 'packages/sheets/src/ai/applySheetOperations.ts'
-      - 'apps/web/src/features/docs/docTypeMeta.tsx'
-      - 'apps/web/src/features/sheets/SheetImportDialog.tsx'
-      # agent-tools manifest source — the catalog behind the builder's
-      # checkboxes; a new tool there and the guide's table is a row short.
-      - 'packages/shared/src/agents/userTools.ts'
-      # reference manifest sources
-      - 'packages/chat/src/lib/fileUtils.ts'
-      - 'apps/api/config/systemCollectionsConfig.ts'
-      - 'apps/api/services/mcp/McpRegistryService.ts'
+      - '.github/workflows/docs-build.yml'
 
 permissions:
   contents: read

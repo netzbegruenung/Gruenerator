@@ -1,3 +1,7 @@
+import {
+  agenturaToMarketplaceHref,
+  stickerDiscoverToMarketplaceHref,
+} from '@gruenerator/shared/marketplace';
 import { type Href } from 'expo-router';
 
 /** `/document/<id>` (API canonical) or `/office/<id>` / legacy `/docs/<id>` (web routes) → document id. */
@@ -7,14 +11,19 @@ export function documentIdFromUrl(url: string): string | null {
 }
 
 /** Web paths the app has a native screen for under the same path. */
-const NATIVE_PATHS = [/^\/projekte\/[^/?#]+/, /^\/vorlagen(?:[?#]|$)/, /^\/notebook\/[^/?#]+/];
+const NATIVE_PATHS = [
+  /^\/projekte\/[^/?#]+/,
+  /^\/vorlagen(?:[?#]|$)/,
+  /^\/marktplatz(?:[?#]|$)/,
+  /^\/notebook\/[^/?#]+/,
+];
 
 /**
  * Map a backend action_url (a web path) to a mobile route. Document URLs have
  * no expo-router screen — they open via the fullscreen doc editor, which reads
  * `id` from useLocalSearchParams. A path the app has a screen for is pushed
- * as-is; everything else (boards, recurring tasks, notebook settings) opens in
- * the web viewer rather than on expo-router's "Unmatched route" screen.
+ * as-is; everything else (boards, notebook settings) opens in the web viewer
+ * rather than on expo-router's "Unmatched route" screen.
  */
 export function actionUrlToRoute(url: string): Href {
   const documentId = documentIdFromUrl(url);
@@ -31,6 +40,50 @@ export function actionUrlToRoute(url: string): Href {
   if (chatThread) {
     return { pathname: '/(focused)/chat-conversation', params: { threadId: chatThread[1]! } };
   }
+  const grueneratoren = grueneratorenRoute(url);
+  if (grueneratoren) return grueneratoren;
+  // Das alte „Entdecken" für Sticker und Hintergründe ist heute der Marktplatz.
+  const [path = '', query = ''] = url.split(/[?#]/);
+  if (path === '/studio/sticker/entdecken')
+    return stickerDiscoverToMarketplaceHref(new URLSearchParams(query)) as Href;
   if (NATIVE_PATHS.some((pattern) => pattern.test(url))) return url as Href;
   return { pathname: '/(fullscreen)/web-viewer', params: { path: url } };
+}
+
+/**
+ * Grüneratoren-Pfade des Webs auf ihre Seiten in der App: Übersicht, Agentura
+ * (heute der Marktplatz), Detailseiten und wiederkehrende Aufgaben (Meldungen verlinken
+ * `/wiederkehrend?task=<id>`). Anlegen und Bearbeiten (`/agents/new`,
+ * `/agentura/rezept/neu`, `…/bearbeiten`) bleiben bewusst beim Web-Viewer —
+ * ein Link dorthin trägt keinen Entwurf mit, den die App übernehmen könnte.
+ */
+function grueneratorenRoute(url: string): Href | null {
+  const [path = '', query = ''] = url.split(/[?#]/);
+  if (path === '/grueneratoren' || path === '/agents') return '/(focused)/agents';
+  if (path === '/agentura') {
+    const target = agenturaToMarketplaceHref(new URLSearchParams(query));
+    // Die alten Übersichts-Regale führen auf `/grueneratoren`.
+    return target.startsWith('/grueneratoren') ? '/(focused)/agents' : (target as Href);
+  }
+  if (path === '/wiederkehrend') {
+    const task = new URLSearchParams(query).get('task');
+    return task
+      ? { pathname: '/(focused)/grueneratoren/aufgabe/[id]', params: { id: task } }
+      : '/(focused)/agents';
+  }
+  const agent = path.match(/^\/agentura\/agent\/([^/]+)$/);
+  if (agent) {
+    return {
+      pathname: '/(focused)/grueneratoren/agent/[slug]',
+      params: { slug: decodeURIComponent(agent[1]!) },
+    };
+  }
+  const recipe = path.match(/^\/agentura\/(?:rezept|skill)\/([^/]+)$/);
+  if (recipe && recipe[1] !== 'neu') {
+    return {
+      pathname: '/(focused)/grueneratoren/rezept/[mention]',
+      params: { mention: decodeURIComponent(recipe[1]!) },
+    };
+  }
+  return null;
 }

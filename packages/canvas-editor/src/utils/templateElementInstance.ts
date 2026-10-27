@@ -29,8 +29,11 @@
  * `lineHeight`, eine zentrierte Headline kaeme also linksbuendig heraus.
  */
 
+import { centreOf } from '@ggraphic/editor/utils/orientation';
+
 import { ASSET_TARGET_SIZE, getAssetBySrc } from './canvasAssets';
 import { resolveImageElementBox } from './resolveElementValue';
+import { templateRotationOf } from './templateRotation';
 
 import type { DuplicableEntry } from './duplicateElement';
 import type { CanvasElementConfig, ImageElementConfig, LayoutResult } from '../configs/types';
@@ -67,6 +70,20 @@ export function templateElementToEntry<TState extends Record<string, unknown>>(
   const box = resolveImageElementBox(config, state, layout);
   if (!(box.width > 0) || !(box.height > 0)) return null;
 
+  // Die Vorlage dreht um oben links, die Instanz um ihre Mitte: die Kopie
+  // sitzt auf der gedrehten Mitte, sonst wanderte sie um die halbe Diagonale.
+  const rotation = templateRotationOf(state, element.id);
+  const centre = centreOf({
+    x: box.x,
+    y: box.y,
+    rotation,
+    scaleX: 1,
+    scaleY: 1,
+    offsetX: 0,
+    offsetY: 0,
+    local: { x: 0, y: 0, width: box.width, height: box.height },
+  });
+
   return {
     type: 'asset',
     data: {
@@ -74,10 +91,10 @@ export function templateElementToEntry<TState extends Record<string, unknown>>(
       // Nutzlast dieselbe Form hat wie eine aus dem Zustand gelesene Instanz.
       id: element.id,
       assetId: asset.id,
-      x: box.x + box.width / 2,
-      y: box.y + box.height / 2,
+      x: centre.x,
+      y: centre.y,
       scale: Math.max(box.width, box.height) / ASSET_TARGET_SIZE,
-      rotation: 0,
+      rotation,
       opacity: box.opacity,
     },
   };

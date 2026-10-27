@@ -18,8 +18,8 @@
  * Katalog zieht `@iconify` nach und hat in der Node-Lane nichts zu suchen.
  */
 
-import type { IconDef } from './canvasIcons';
 import type { IconState } from '../configs/factory/baseTypes';
+import type { IconDef } from '@ggraphic/editor/utils/canvasIcons';
 
 /**
  * Zum Auflösen zählt nur dieses eine Feld. Der Renderer hält seinen eigenen,
@@ -46,6 +46,9 @@ export function catalogIconId(
   const id = iconStates?.[instanceId]?.iconId ?? instanceId;
   return LEGACY_CATALOG_IDS[id] ?? id;
 }
+
+/** Wie viele verschiedene Icons eine Seite höchstens trägt (Seitenleiste und Drop). */
+export const MAX_ICON_SELECTIONS = 3;
 
 /**
  * Die Katalog-IDs, die gerade auf der Fläche liegen — je einmal, in der

@@ -1,4 +1,5 @@
 import { parseVisualBlock } from '@gruenerator/contracts';
+import { IconSwap } from '@gruenerator/ui';
 import { Check, ChevronDown, ChevronRight, Copy, Loader2, Play } from 'lucide-react';
 import { type ReactNode, isValidElement, useCallback, useEffect, useMemo, useState } from 'react';
 
@@ -111,7 +112,11 @@ export function ChatCodeBlock({ children }: { children?: ReactNode }) {
             className="rounded-md p-1 text-foreground-muted hover:bg-primary/10 hover:text-foreground"
             aria-label="Code kopieren"
           >
-            {copied ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
+            <IconSwap
+              swapped={copied}
+              from={<Copy className="h-3.5 w-3.5" />}
+              to={<Check className="h-3.5 w-3.5" />}
+            />
           </button>
         </div>
       </div>

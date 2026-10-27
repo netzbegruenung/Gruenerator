@@ -27,6 +27,7 @@
  *   node scripts/generate-tool-catalog.mjs --audit --apply  # …and sync the GitHub issue
  */
 import {
+  constSetStrings,
   fail,
   findDeclaration,
   objectEntries,
@@ -43,7 +44,12 @@ const SRC = {
   workplace: 'apps/web/src/config/workplaceToolsConfig.ts',
   catalog: 'apps/web/src/features/global-search/toolCatalog.ts',
   routes: 'apps/web/src/config/routes.ts',
+  adminOnly: 'apps/web/src/config/adminOnlyTools.ts',
 };
+
+/** Tools only instance admins see; the public docs leave them out. */
+const ADMIN_ONLY_PATHS = new Set(constSetStrings(parse(SRC.adminOnly), 'ADMIN_ONLY_PATHS'));
+const isAdminOnly = (tile) => tile.path != null && ADMIN_ONLY_PATHS.has(tile.path);
 
 const OUT_FILE = 'documentation/src/generated/tools.json';
 const NOTES_FILE = 'documentation/src/components/ToolOverview/toolNotes.ts';
@@ -141,12 +147,12 @@ function extractGroups() {
             if (!itemNode || !ts.isObjectLiteralExpression(itemNode) || isInternalChannel(itemNode))
               continue;
             const item = readTile(itemNode);
-            if (item) tools.push(item);
+            if (item && !isAdminOnly(item)) tools.push(item);
           }
         }
         continue;
       }
-      tools.push(tile);
+      if (!isAdminOnly(tile)) tools.push(tile);
     }
 
     if (tools.length === 0) fail(SRC.workplace, group.const, 'at least one non-internal tile');
@@ -175,7 +181,7 @@ function extractCatalog() {
     const id = stringProp(node, 'id');
     const title = stringProp(node, 'title');
     const path = stringProp(node, 'path');
-    if (!id || !title || !path) continue;
+    if (!id || !title || !path || ADMIN_ONLY_PATHS.has(path)) continue;
     const entry = { title, path };
     const subtitle = stringProp(node, 'subtitle');
     if (subtitle) entry.subtitle = subtitle;

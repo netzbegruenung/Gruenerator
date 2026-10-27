@@ -4,6 +4,9 @@
  * callback; a restore that only set the component state left the document
  * on the undone value, so a reload (or another client) showed it again.
  */
+import { readPages, seedPagesIfEmpty, updatePageStateById } from '@ggraphic/editor/collab/pagesDoc';
+import { createPageSyncedCallbacks } from '@ggraphic/editor/collab/wrapCallbacksWithPageSync';
+import { AutoSaveStoreProvider } from '@ggraphic/editor/stores/AutoSaveStoreProvider';
 import { act, render } from '@testing-library/react';
 import { createRef } from 'react';
 import { describe, expect, it, vi } from 'vitest';
@@ -11,18 +14,15 @@ import * as Y from 'yjs';
 
 import { GenericCanvas, type GenericCanvasRef } from '../components/GenericCanvas';
 import { loadCanvasConfig } from '../configs/configLoader';
-import { AutoSaveStoreProvider } from '../stores/AutoSaveStoreProvider';
 
 import { PAGE_PERSISTED_STATE_KEYS } from './pageElementStateKeys';
-import { readPages, seedPagesIfEmpty, updatePageStateById } from './pagesDoc';
 import { PAGES_STATE_ORIGIN } from './useYjsPages';
-import { createPageSyncedCallbacks } from './wrapCallbacksWithPageSync';
 
-import type * as StoreModule from '../stores/createCanvasEditorStore';
-import type { CanvasEditorStoreApi } from '../stores/createCanvasEditorStore';
+import type * as StoreModule from '@ggraphic/editor/stores/createCanvasEditorStore';
+import type { CanvasEditorStoreApi } from '@ggraphic/editor/stores/createCanvasEditorStore';
 
 const stores = vi.hoisted(() => [] as unknown[]);
-vi.mock('../stores/createCanvasEditorStore', async (importOriginal) => {
+vi.mock('@ggraphic/editor/stores/createCanvasEditorStore', async (importOriginal) => {
   const original = await importOriginal<typeof StoreModule>();
   return {
     ...original,

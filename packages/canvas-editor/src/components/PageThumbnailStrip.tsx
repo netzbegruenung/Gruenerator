@@ -1,15 +1,16 @@
+import { cn } from '@ggraphic/editor/utils/cn';
 import { memo, useCallback, useRef, useState } from 'react';
 import { PiCaretDown, PiPlus } from 'react-icons/pi';
 
-import { cn } from '../utils/cn';
-
 import { TemplatePickerFlyout } from './TemplatePickerFlyout';
 
-import type { CanvasConfigId, FullCanvasConfig, HeterogeneousPage } from '../configs/types';
+import type { FullCanvasConfig, HeterogeneousPage } from '../configs/types';
+import type { SlideLayoutId } from '../slides/slideLayouts';
+import type { CanvasConfigId } from '../templates/registry';
 import type { TemplateCategory } from '../utils/templateRegistry';
 
 interface PageThumbnailStripProps {
-  pages: HeterogeneousPage[];
+  pages: HeterogeneousPage<CanvasConfigId>[];
   currentPageIndex: number;
   thumbnails: Map<string, string>;
   loadedConfigs: Map<CanvasConfigId, FullCanvasConfig>;
@@ -21,6 +22,7 @@ interface PageThumbnailStripProps {
   onAddSliderVariant?: (variant: 'cover' | 'content' | 'last') => void;
   templateFilter?: TemplateCategory;
   formatId?: string;
+  onAddSlideLayout?: (layoutId: SlideLayoutId) => void;
 }
 
 export const PageThumbnailStrip = memo(function PageThumbnailStrip({
@@ -36,6 +38,7 @@ export const PageThumbnailStrip = memo(function PageThumbnailStrip({
   onAddSliderVariant,
   templateFilter,
   formatId,
+  onAddSlideLayout,
 }: PageThumbnailStripProps) {
   const [isFlyoutOpen, setIsFlyoutOpen] = useState(false);
   const chevronRef = useRef<HTMLButtonElement>(null);
@@ -110,10 +113,11 @@ export const PageThumbnailStrip = memo(function PageThumbnailStrip({
       {canAddMore && (
         <div className="flex items-center shrink-0 ml-0.5 rounded-md bg-[var(--editor-inset)] border border-[var(--editor-border)] overflow-hidden">
           <button
-            className="h-8 px-2.5 flex items-center justify-center text-[var(--editor-text-secondary)] hover:bg-[var(--editor-surface-hover)] hover:text-[var(--editor-active-fg)] transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+            className="h-8 max-canvas-mobile:h-11 max-canvas-mobile:min-w-11 px-2.5 flex items-center justify-center text-[var(--editor-text-secondary)] hover:bg-[var(--editor-surface-hover)] hover:text-[var(--editor-active-fg)] transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
             onClick={handleQuickAdd}
             disabled={!currentTemplateId}
             title="Seite hinzufügen"
+            aria-label="Seite hinzufügen"
             type="button"
           >
             <PiPlus size={16} />
@@ -121,11 +125,11 @@ export const PageThumbnailStrip = memo(function PageThumbnailStrip({
           <div className="w-px h-4 bg-[var(--editor-border)]" />
           <button
             ref={chevronRef}
-            className="h-8 px-1.5 flex items-center justify-center text-[var(--editor-text-secondary)] hover:bg-[var(--editor-surface-hover)] hover:text-[var(--editor-active-fg)] transition-colors"
+            className="h-8 max-canvas-mobile:h-11 max-canvas-mobile:min-w-11 px-1.5 flex items-center justify-center text-[var(--editor-text-secondary)] hover:bg-[var(--editor-surface-hover)] hover:text-[var(--editor-active-fg)] transition-colors"
             onClick={handleToggleFlyout}
             title="Vorlage auswählen"
+            aria-label="Vorlage auswählen"
             type="button"
-            aria-haspopup="menu"
             aria-expanded={isFlyoutOpen}
           >
             <PiCaretDown size={14} />
@@ -140,6 +144,7 @@ export const PageThumbnailStrip = memo(function PageThumbnailStrip({
             onAddSliderVariant={onAddSliderVariant}
             templateFilter={templateFilter}
             formatId={formatId}
+            onAddSlideLayout={onAddSlideLayout}
           />
         </div>
       )}

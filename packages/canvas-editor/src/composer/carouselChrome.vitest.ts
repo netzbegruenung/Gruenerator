@@ -1,7 +1,3 @@
-import { type SharepicSlide, type SharepicSpec } from '@gruenerator/contracts';
-import { describe, expect, it } from 'vitest';
-import * as Y from 'yjs';
-
 import {
   duplicatePageById,
   getPagesMap,
@@ -9,7 +5,10 @@ import {
   readPages,
   removePageById,
   seedPagesIfEmpty,
-} from '../collab/pagesDoc';
+} from '@ggraphic/editor/collab/pagesDoc';
+import { type SharepicSlide, type SharepicSpec } from '@gruenerator/contracts';
+import { describe, expect, it } from 'vitest';
+import * as Y from 'yjs';
 
 import {
   type ChromePage,
@@ -21,7 +20,7 @@ import { composeSharepic, SHAREPIC_COLOR_HEX } from './composeSharepic';
 import type { IconState } from '../configs/factory/baseTypes';
 import type { AdditionalText } from '../configs/types';
 import type { AssetInstance } from '../utils/canvasAssets';
-import type { ShapeInstance } from '../utils/shapes';
+import type { ShapeInstance } from '@ggraphic/editor/utils/shapes';
 
 /** Monospace stand-in: half the font size per character. */
 const measure = (text: string, fontSize: number) => text.length * fontSize * 0.5;

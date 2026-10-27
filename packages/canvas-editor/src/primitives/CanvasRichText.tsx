@@ -22,24 +22,37 @@
  * Tippen Fett statt Sternchen.
  */
 
-import { layoutRichTextBlock } from '@gruenerator/contracts';
+import { LOCKED_TRANSFORMER, useIsItemLocked } from '@ggraphic/editor/components/canvasItemLock';
+import {
+  overlayBoxForNode,
+  useCanvasTextEditor,
+} from '@ggraphic/editor/components/CanvasTextOverlay';
+import { useFontGeneration } from '@ggraphic/editor/hooks/useFontGeneration';
+import { useGeometryReporter } from '@ggraphic/editor/hooks/useGeometryReporter';
+import { useSnapScheduler } from '@ggraphic/editor/hooks/useSnapScheduler';
+import { gradientFillProps } from '@ggraphic/editor/utils/gradientFill';
+import { markerBoxes } from '@ggraphic/editor/utils/markerBoxes';
+import { defaultTextMarker, markerInkOn } from '@ggraphic/editor/utils/markerColors';
+import { isGroupDrag } from '@ggraphic/editor/utils/multiSelect';
+import { ELEMENT_TRANSFORMER, normalizeRotation } from '@ggraphic/editor/utils/orientation';
+import {
+  boxFrame,
+  createBoxFrame,
+  frameBounds,
+  snapByBounds,
+} from '@ggraphic/editor/utils/snapping';
+import { runFont, runMeasurer } from '@ggraphic/editor/utils/textUtils';
+import { layoutRichTextBlock } from '@ggraphic/schema';
 import { useRef, useEffect, useCallback, useMemo, useState, Fragment } from 'react';
 import { Group, Rect, Text as KonvaText, Transformer } from 'react-konva';
 
-import { overlayBoxForNode, useCanvasTextEditor } from '../components/CanvasTextOverlay';
-import { useFontGeneration } from '../hooks/useFontGeneration';
-import { useGeometryReporter } from '../hooks/useGeometryReporter';
-import { useSnapScheduler } from '../hooks/useSnapScheduler';
-import { markerBoxes } from '../utils/markerBoxes';
-import { DEFAULT_TEXT_MARKER, markerInkOn } from '../utils/markerColors';
-import { calculateElementSnapPosition } from '../utils/snapping';
-import { runFont, runMeasurer } from '../utils/textUtils';
-import { touchAnchorStyleFunc } from '../utils/touchInput';
-
 import { type CanvasTextProps, isWidthOnlyScale } from './CanvasText';
 
-import type { TransformAnchor } from '@gruenerator/shared/canvas-editor';
+import type { TransformAnchor } from '@ggraphic/editor/types/editorTypes';
 import type Konva from 'konva';
+
+// Rahmen für Snap und Geometrie-Meldung, pro Aufruf neu beschrieben (synchron, ohne Allokation).
+const dragFrame = createBoxFrame();
 
 const DEFAULT_TEXT_ANCHORS: TransformAnchor[] = ['middle-left', 'middle-right'];
 
@@ -62,6 +75,7 @@ export function CanvasRichText({
   shadowOffsetX,
   shadowOffsetY,
   shadowOpacity,
+  fillGradient,
   align = 'left',
   accent = null,
   marker: templateMarker = null,
@@ -80,11 +94,12 @@ export function CanvasRichText({
   stageWidth,
   stageHeight,
   onSnapChange,
-  snapTargets,
+  getSnapTargets,
   onPositionChange,
   onGeometryChange,
   onSnapLinesChange,
 }: CanvasTextProps) {
+  const locked = useIsItemLocked();
   const groupRef = useRef<Konva.Group>(null);
   const trRef = useRef<Konva.Transformer>(null);
   const { open, isEditing } = useCanvasTextEditor(id, editable);
@@ -142,7 +157,7 @@ export function CanvasRichText({
     [lines, lineWidths, align, padding, innerBoxWidth]
   );
   // Ohne Markerstil der Vorlage bekommt ein `++`-Lauf den Standardkasten.
-  const marker = templateMarker ?? DEFAULT_TEXT_MARKER;
+  const marker = templateMarker ?? defaultTextMarker();
   const boxes = useMemo(
     () =>
       markerBoxes(lines, measure, marker, {
@@ -167,8 +182,19 @@ export function CanvasRichText({
   useEffect(() => {
     const node = groupRef.current;
     if (!node) return;
-    reportGeometry(node.x(), node.y(), blockWidth * node.scaleX(), blockHeight * node.scaleY());
-  }, [reportGeometry, x, y, blockWidth, blockHeight]);
+    const box = frameBounds(
+      boxFrame(
+        dragFrame,
+        node.x(),
+        node.y(),
+        blockWidth * node.scaleX(),
+        blockHeight * node.scaleY(),
+        node.rotation(),
+        'top-left'
+      )
+    );
+    reportGeometry(box.x, box.y, box.width, box.height);
+  }, [reportGeometry, x, y, blockWidth, blockHeight, rotation]);
 
   const snap = useSnapScheduler({
     onSnapChange: onSnapChange ?? (() => {}),
@@ -178,14 +204,21 @@ export function CanvasRichText({
   const handleDragMove = useCallback(
     (e: Konva.KonvaEventObject<DragEvent>) => {
       const node = e.target;
+      if (isGroupDrag(node)) return;
       if (!stageWidth || !stageHeight) return;
-      if ((snapTargets && snapTargets.length > 0) || snapToCenter) {
-        const result = calculateElementSnapPosition(
-          node.x(),
-          node.y(),
-          blockWidth * node.scaleX(),
-          blockHeight * node.scaleY(),
-          snapTargets || [],
+      const snapTargets = getSnapTargets?.(id ?? '') ?? [];
+      if (snapTargets.length > 0 || snapToCenter) {
+        const result = snapByBounds(
+          boxFrame(
+            dragFrame,
+            node.x(),
+            node.y(),
+            blockWidth * node.scaleX(),
+            blockHeight * node.scaleY(),
+            node.rotation(),
+            'top-left'
+          ),
+          snapTargets,
           stageWidth,
           stageHeight,
           snap.hysteresis
@@ -194,7 +227,7 @@ export function CanvasRichText({
         snap.scheduleSnap(result.snapH, result.snapV, result.snapLines);
       }
     },
-    [snapToCenter, stageWidth, stageHeight, snapTargets, snap, blockWidth, blockHeight]
+    [id, snapToCenter, stageWidth, stageHeight, getSnapTargets, snap, blockWidth, blockHeight]
   );
 
   const handleDragEnd = useCallback(
@@ -204,9 +237,26 @@ export function CanvasRichText({
       onDragEnd?.(node.x(), node.y());
       if (id && onPositionChange) {
         onPositionChange(id, node.x(), node.y(), blockWidth, blockHeight);
+        // onPositionChange schreibt die ungedrehte Box in dieselben Snap-Ziele;
+        // gedreht muss danach die sichtbare Box dort stehen (der Reporter
+        // meldet nur bei Prop-Änderung, ein Drag zurück an den Start ändert keine).
+        if (node.rotation() !== 0 && onGeometryChange) {
+          const box = frameBounds(
+            boxFrame(
+              dragFrame,
+              node.x(),
+              node.y(),
+              blockWidth * node.scaleX(),
+              blockHeight * node.scaleY(),
+              node.rotation(),
+              'top-left'
+            )
+          );
+          onGeometryChange(id, box.x, box.y, box.width, box.height);
+        }
       }
     },
-    [id, onDragEnd, onPositionChange, snap, blockWidth, blockHeight]
+    [id, onDragEnd, onPositionChange, onGeometryChange, snap, blockWidth, blockHeight]
   );
 
   // A ref, not the rendered width: two transform events can arrive before
@@ -230,7 +280,14 @@ export function CanvasRichText({
       setLiveWidth(null);
       if (Math.abs(node.scaleY() - 1) < 1e-3) {
         node.scale({ x: 1, y: 1 });
-        onTransformEnd?.(node.x(), node.y(), Math.round(committedWidth), 1, 1);
+        onTransformEnd?.(
+          node.x(),
+          node.y(),
+          Math.round(committedWidth),
+          1,
+          1,
+          normalizeRotation(node.rotation())
+        );
         return;
       }
     }
@@ -248,9 +305,9 @@ export function CanvasRichText({
       const newFontSize = Math.max(8, Math.round(fontSize * scaleY));
       const newWidth = Math.round(blockWidth * scaleX);
       onFontSizeChange?.(newFontSize);
-      onTransformEnd?.(node.x(), node.y(), newWidth, 1, 1);
+      onTransformEnd?.(node.x(), node.y(), newWidth, 1, 1, normalizeRotation(node.rotation()));
     } else {
-      onTransformEnd?.(node.x(), node.y(), blockWidth, 1, 1);
+      onTransformEnd?.(node.x(), node.y(), blockWidth, 1, 1, normalizeRotation(node.rotation()));
     }
   }, [fontSize, blockWidth, onFontSizeChange, onTransformEnd]);
 
@@ -295,6 +352,18 @@ export function CanvasRichText({
 
   const enabledAnchors = transformConfig?.enabledAnchors ?? DEFAULT_TEXT_ANCHORS;
 
+  // One gradient across the whole block: each run node paints it in its own
+  // coordinates, so the block box is shifted by the node's position.
+  const gradientAt = (nodeX: number, nodeY: number) =>
+    fillGradient
+      ? gradientFillProps(fillGradient, {
+          x: -nodeX,
+          y: -nodeY,
+          width: blockWidth,
+          height: blockHeight,
+        })
+      : null;
+
   return (
     <>
       <Group
@@ -306,7 +375,7 @@ export function CanvasRichText({
         height={blockHeight}
         rotation={rotation}
         opacity={opacity}
-        draggable={draggable && !isEditing}
+        draggable={draggable && !isEditing && !locked}
         visible={!isEditing}
         onMouseDown={onSelect}
         onTouchStart={onSelect}
@@ -363,6 +432,7 @@ export function CanvasRichText({
                   fontFamily={fontFamily}
                   fontStyle={fontStyle}
                   fill={fill}
+                  {...gradientAt(padding + offset, top)}
                   lineHeight={lineHeight}
                   wrap="none"
                   listening={false}
@@ -387,6 +457,10 @@ export function CanvasRichText({
                       }
                     : {
                         fill: run.accentColor ?? (run.accent && accent ? accent.fill : fill),
+                        // An accent keeps its own colour; only base-coloured runs carry the gradient.
+                        ...(!run.accentColor &&
+                          !(run.accent && accent) &&
+                          gradientAt(padding + offset + line.indent + run.x, top)),
                         stroke,
                         strokeWidth,
                         fillAfterStrokeEnabled: !!stroke && (strokeWidth ?? 0) > 0,
@@ -408,12 +482,8 @@ export function CanvasRichText({
       </Group>
       {selected && !isEditing && (
         <Transformer
-          anchorStyleFunc={touchAnchorStyleFunc}
           ref={trRef}
           rotateEnabled={transformConfig?.rotateEnabled ?? false}
-          rotationSnaps={[0, 45, 90, 135, 180, 225, 270, 315]}
-          rotationSnapTolerance={7}
-          flipEnabled={transformConfig?.flipEnabled ?? false}
           keepRatio={transformConfig?.keepRatio ?? true}
           enabledAnchors={enabledAnchors}
           boundBoxFunc={(oldBox, newBox) => {
@@ -423,6 +493,8 @@ export function CanvasRichText({
             if (newBox.width > maxWidth) return oldBox;
             return newBox;
           }}
+          {...ELEMENT_TRANSFORMER}
+          {...(locked ? LOCKED_TRANSFORMER : {})}
         />
       )}
     </>

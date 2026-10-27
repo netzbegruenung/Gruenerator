@@ -1,22 +1,23 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 
 import { FIELD_IDS } from '../types';
-import {
-  DEFAULT_FIELDS,
-  DEFAULT_KANBAN_VIEW,
-  DEFAULT_ROWS,
-  DONE_STATUS_ID,
-  TODO_STATUS_ID,
-} from '../utils/boardDefaults';
-import { computeNextDueDate, isRecurrencePattern } from '../utils/recurrence';
+import { DEFAULT_FIELDS, DEFAULT_KANBAN_VIEW, DEFAULT_ROWS } from '../utils/boardDefaults';
+import { getDoneStatusId, nextOccurrence, reopenStatusId, withStatus } from '../utils/taskDone';
 
 import type { Field, Row, BoardView, CellValue } from '../types';
 import type * as Y from 'yjs';
 
-/** A recurring card spawned when its predecessor was moved to "done". */
+/** A recurring card spawned when its predecessor was completed. */
 export interface RecurringSpawn {
   rowId: string;
   dueDate: string;
+}
+
+/** Outcome of setRowStatus/setRowDone, for activity logging. */
+export interface StatusChange {
+  spawned: RecurringSpawn[];
+  completed: boolean;
+  reopened: boolean;
 }
 
 interface BoardState {
@@ -203,6 +204,11 @@ export const useBoardState = (
         // slot-refill below (fewer slots than newRows entries).
         const subsetIds = new Set(newRows.filter((r) => oldById.has(r.id)).map((r) => r.id));
 
+        // Moves into/out of the done column go through withStatus so the card
+        // remembers its previous column (the "wieder öffnen" target).
+        const fields = yFields.toJSON() as Field[];
+        const doneId = groupByFieldId === FIELD_IDS.STATUS ? getDoneStatusId(fields) : null;
+
         // Refill the dragged slots in their new order; leave every other row in place.
         let ptr = 0;
         const merged = oldRows.map((row) => {
@@ -213,43 +219,25 @@ export const useBoardState = (
           const current = oldById.get(next.id) ?? next;
           const newGroup = next.cells[groupByFieldId];
           if (current.cells[groupByFieldId] === newGroup) return current;
+          if (groupByFieldId === FIELD_IDS.STATUS && typeof newGroup === 'string') {
+            return withStatus(current, newGroup, doneId);
+          }
           return { ...current, cells: { ...current.cells, [groupByFieldId]: newGroup } };
         });
 
-        // Recurring cards that just entered "done" spawn the next occurrence in todo.
+        // Recurring cards that just entered "done" spawn the next occurrence.
         const clones: Row[] = [];
-        for (const newRow of newRows) {
-          const old = oldById.get(newRow.id);
-          if (!old) continue;
-          const oldGroup = old.cells[groupByFieldId];
-          const newGroup = newRow.cells[groupByFieldId];
-          if (oldGroup === newGroup) continue;
-
-          const recurrence = old.cells[FIELD_IDS.RECURRENCE];
-          if (
-            groupByFieldId === FIELD_IDS.STATUS &&
-            newGroup === DONE_STATUS_ID &&
-            oldGroup !== DONE_STATUS_ID &&
-            isRecurrencePattern(recurrence)
-          ) {
-            const dueDate = computeNextDueDate(old.cells[FIELD_IDS.DUE_DATE], recurrence);
-            const newId = `row-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
-            clones.push({
-              id: newId,
-              cells: {
-                ...old.cells,
-                [FIELD_IDS.STATUS]: TODO_STATUS_ID,
-                [FIELD_IDS.DUE_DATE]: dueDate,
-                ...(FIELD_IDS.COMMENTS in old.cells ? { [FIELD_IDS.COMMENTS]: '[]' } : {}),
-              },
-              createdBy: old.createdBy,
-              createdAt: new Date().toISOString(),
-              ...(old.icon ? { icon: old.icon } : {}),
-              ...(old.coverColor ? { coverColor: old.coverColor } : {}),
-              ...(old.coverImageUrl ? { coverImageUrl: old.coverImageUrl } : {}),
-              // archivedAt intentionally omitted (the new occurrence is active).
-            });
-            spawned.push({ rowId: newId, dueDate });
+        if (doneId) {
+          for (const newRow of newRows) {
+            const old = oldById.get(newRow.id);
+            if (!old) continue;
+            const oldGroup = old.cells[groupByFieldId];
+            const newGroup = newRow.cells[groupByFieldId];
+            if (newGroup !== doneId || oldGroup === doneId) continue;
+            const next = nextOccurrence(old, fields, doneId);
+            if (!next) continue;
+            clones.push(next.row);
+            spawned.push({ rowId: next.row.id, dueDate: next.dueDate });
           }
         }
 
@@ -270,7 +258,60 @@ export const useBoardState = (
 
       return spawned;
     },
-    [ydoc, yRows]
+    [ydoc, yRows, yFields]
+  );
+
+  /**
+   * The one door for a card's status change outside a drag (detail panel, list
+   * drag, "Karte verschieben"): keeps the done bookkeeping in one place —
+   * statusBeforeDone and the recurring follow-up. Returns null when nothing
+   * changed, else what happened so the caller can log it.
+   */
+  const setRowStatus = useCallback(
+    (rowId: string, statusId: string): StatusChange | null => {
+      if (isLockedRef.current) return null;
+      let change: StatusChange | null = null;
+      ydoc.transact(() => {
+        const fields = yFields.toJSON() as Field[];
+        const doneId = getDoneStatusId(fields);
+        const rows = yRows.toJSON() as Row[];
+        const index = rows.findIndex((r) => r.id === rowId);
+        if (index === -1) return;
+        const row = rows[index];
+        const prev = row.cells[FIELD_IDS.STATUS];
+        if (prev === statusId) return;
+        yRows.delete(index, 1);
+        yRows.insert(index, [withStatus(row, statusId, doneId)]);
+        const completed = !!doneId && statusId === doneId;
+        const spawned: RecurringSpawn[] = [];
+        const next = completed && doneId ? nextOccurrence(row, fields, doneId) : null;
+        if (next) {
+          yRows.push([next.row]);
+          spawned.push({ rowId: next.row.id, dueDate: next.dueDate });
+        }
+        change = { spawned, completed, reopened: !!doneId && prev === doneId };
+      });
+      return change;
+    },
+    [ydoc, yRows, yFields]
+  );
+
+  /**
+   * Check a card off (move it to the done column) or reopen it (back to the column
+   * it came from). Null when nothing changed (no done column, already in that
+   * state, locked).
+   */
+  const setRowDone = useCallback(
+    (rowId: string, done: boolean): StatusChange | null => {
+      const fields = yFields.toJSON() as Field[];
+      const doneId = getDoneStatusId(fields);
+      const row = (yRows.toJSON() as Row[]).find((r) => r.id === rowId);
+      if (!doneId || !row) return null;
+      if ((row.cells[FIELD_IDS.STATUS] === doneId) === done) return null;
+      const target = done ? doneId : reopenStatusId(row, fields, doneId);
+      return target ? setRowStatus(rowId, target) : null;
+    },
+    [yRows, yFields, setRowStatus]
   );
 
   // --- Field CRUD ---
@@ -361,6 +402,8 @@ export const useBoardState = (
     deleteRow,
     duplicateRow,
     onDragReorder,
+    setRowStatus,
+    setRowDone,
     addField,
     updateField,
     removeField,

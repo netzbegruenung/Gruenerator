@@ -5,8 +5,10 @@
  * Uses createColorTwoTextCanvas factory + Phase A/B helpers.
  */
 
+import { wrapTextAccurate } from '@ggraphic/editor/utils/textUtils';
+
+import { infoShareMetadata } from '../brand/grueneShareMetadata';
 import { INFO_CONFIG } from '../utils/infoLayout';
-import { wrapTextAccurate } from '../utils/textUtils';
 
 import {
   createAiCapabilities,
@@ -198,33 +200,36 @@ const bodyTextElement = createSecondaryText<InfoState>({
   },
 });
 
-const baseInfoConfig = createColorTwoTextCanvas({
-  id: 'info',
-  canvas: {
-    width: INFO_CONFIG.canvas.width,
-    height: INFO_CONFIG.canvas.height,
-  },
-  primaryField: { key: 'header', label: 'Überschrift' },
-  secondaryField: { key: 'body', label: 'Text' },
-  backgroundColors: BACKGROUND_COLORS,
-  defaultBackgroundColor: '#005538',
-  textColorMap: TEXT_COLORS,
-  calculateLayout,
-  passthroughStateKeys: [
-    'arrowOpacity',
-    'arrowPosition',
-    'arrowSize',
-    'sunflowerOpacity',
-    'sunflowerOffset',
-  ],
-  elements: [sunflowerElement, headerTextElement, arrowElement, bodyTextElement],
-  features: { icons: true, shapes: true, illustrations: true },
-  getCanvasText: (state) => {
-    const header = state.header || '';
-    const body = state.body || '';
-    return `${header}\n${body}`.trim();
-  },
-});
+const baseInfoConfig = {
+  ...createColorTwoTextCanvas({
+    id: 'info',
+    canvas: {
+      width: INFO_CONFIG.canvas.width,
+      height: INFO_CONFIG.canvas.height,
+    },
+    primaryField: { key: 'header', label: 'Überschrift' },
+    secondaryField: { key: 'body', label: 'Text' },
+    backgroundColors: BACKGROUND_COLORS,
+    defaultBackgroundColor: '#005538',
+    textColorMap: TEXT_COLORS,
+    calculateLayout,
+    passthroughStateKeys: [
+      'arrowOpacity',
+      'arrowPosition',
+      'arrowSize',
+      'sunflowerOpacity',
+      'sunflowerOffset',
+    ],
+    elements: [sunflowerElement, headerTextElement, arrowElement, bodyTextElement],
+    features: { icons: true, shapes: true, illustrations: true },
+    getCanvasText: (state) => {
+      const header = state.header || '';
+      const body = state.body || '';
+      return `${header}\n${body}`.trim();
+    },
+  }),
+  shareMetadata: infoShareMetadata,
+};
 
 const infoAiCapabilities = createAiCapabilities<InfoState, ColorTwoTextActions>({
   id: 'info',

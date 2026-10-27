@@ -1,0 +1,825 @@
+{
+ "templateType": "freeform-at",
+ "format": "post-portrait-tall",
+ "slides": [
+  {
+   "backgroundMode": "image",
+   "backgroundColor": "#00261A",
+   "hasBackgroundImage": true,
+   "imageAttribution": null,
+   "additionalTexts": [
+    {
+     "id": "sc-0-headline-0",
+     "text": "Mach mit",
+     "type": "header",
+     "x": 70,
+     "y": 669.55,
+     "width": 940,
+     "fontSize": 223,
+     "fontFamily": "GothamNarrow-Ultra",
+     "fontStyle": "normal",
+     "fill": "#FFFFFF",
+     "align": "left",
+     "accent": {
+      "fill": "#FCEC00",
+      "fontFamily": "Vollkorn",
+      "fontStyle": "bold italic"
+     },
+     "shadowColor": "#000000",
+     "shadowBlur": 18,
+     "shadowOffsetX": 0,
+     "shadowOffsetY": 2,
+     "shadowOpacity": 0.45,
+     "lineHeight": 0.95
+    },
+    {
+     "id": "sc-0-headline-1",
+     "text": "bei uns!",
+     "type": "header",
+     "x": 70,
+     "y": 881.4,
+     "width": 940,
+     "fontSize": 212,
+     "fontFamily": "Vollkorn",
+     "fontStyle": "bold italic",
+     "fill": "#FCEC00",
+     "align": "left",
+     "accent": {
+      "fill": "#FCEC00",
+      "fontFamily": "Vollkorn",
+      "fontStyle": "bold italic"
+     },
+     "shadowColor": "#000000",
+     "shadowBlur": 18,
+     "shadowOffsetX": 0,
+     "shadowOffsetY": 2,
+     "shadowOpacity": 0.45,
+     "lineHeight": 0.95
+    },
+    {
+     "id": "sc-1-text",
+     "text": "Gemeinsam für Klimaschutz vor Ort.",
+     "type": "body",
+     "x": 70,
+     "y": 1171.25,
+     "width": 940,
+     "fontSize": 55,
+     "fontFamily": "GothamNarrow-Book",
+     "fontStyle": "normal",
+     "fill": "#FFFFFF",
+     "align": "left",
+     "accent": {
+      "fill": "#FCEC00",
+      "fontFamily": "Vollkorn",
+      "fontStyle": "bold italic"
+     },
+     "shadowColor": "#000000",
+     "shadowBlur": 18,
+     "shadowOffsetX": 0,
+     "shadowOffsetY": 2,
+     "shadowOpacity": 0.45,
+     "lineHeight": 1.25
+    },
+    {
+     "id": "sc-ki-label",
+     "text": "KI-Generiert",
+     "type": "body",
+     "x": 27,
+     "y": 1393,
+     "width": 166,
+     "fontSize": 27,
+     "fontFamily": "PT Sans",
+     "fontStyle": "bold",
+     "fill": "#FFFFFF",
+     "opacity": 0.85,
+     "lineHeight": 1
+    }
+   ],
+   "pillBadgeInstances": [],
+   "circleBadgeInstances": [],
+   "shapeInstances": [
+    {
+     "id": "sc-scrim",
+     "type": "rect",
+     "x": 540,
+     "y": 922.775,
+     "width": 1080,
+     "height": 1034.45,
+     "fill": "transparent",
+     "rotation": 0,
+     "scaleX": 1,
+     "scaleY": 1,
+     "opacity": 1,
+     "fillGradient": {
+      "type": "linear",
+      "angle": 90,
+      "stops": [
+       {
+        "offset": 0,
+        "color": "rgba(3,14,8,0.000)"
+       },
+       {
+        "offset": 0.02610082652617332,
+        "color": "rgba(3,14,8,0.021)"
+       },
+       {
+        "offset": 0.05220165305234664,
+        "color": "rgba(3,14,8,0.075)"
+       },
+       {
+        "offset": 0.07830247957851996,
+        "color": "rgba(3,14,8,0.152)"
+       },
+       {
+        "offset": 0.10440330610469328,
+        "color": "rgba(3,14,8,0.240)"
+       },
+       {
+        "offset": 0.1305041326308666,
+        "color": "rgba(3,14,8,0.328)"
+       },
+       {
+        "offset": 0.15660495915703992,
+        "color": "rgba(3,14,8,0.405)"
+       },
+       {
+        "offset": 0.18270578568321325,
+        "color": "rgba(3,14,8,0.459)"
+       },
+       {
+        "offset": 0.20880661220938657,
+        "color": "rgba(3,14,8,0.480)"
+       },
+       {
+        "offset": 1,
+        "color": "rgba(3,14,8,0.48)"
+       }
+      ]
+     }
+    },
+    {
+     "id": "sc-ki-label-bg",
+     "type": "rounded-rect",
+     "x": 108,
+     "y": 1406.5,
+     "width": 194,
+     "height": 45,
+     "fill": "#2B2B2B",
+     "rotation": 0,
+     "scaleX": 1,
+     "scaleY": 1,
+     "opacity": 0.4,
+     "cornerRadius": 8
+    }
+   ],
+   "assetInstances": [
+    {
+     "id": "sc-pfeil",
+     "assetId": "brush-arrow-weiss",
+     "x": 900,
+     "y": 1352,
+     "scale": 1.8666666666666667,
+     "rotation": 0,
+     "opacity": 1
+    }
+   ],
+   "chartInstances": [],
+   "userImageInstances": [],
+   "selectedIcons": [],
+   "iconStates": {},
+   "layerOrder": [
+    "sc-scrim",
+    "sc-0-headline-0",
+    "sc-0-headline-1",
+    "sc-1-text",
+    "sc-pfeil",
+    "sc-ki-label-bg",
+    "sc-ki-label"
+   ],
+   "currentImageSrc": "/media/wind.jpg"
+  },
+  {
+   "backgroundMode": "image",
+   "backgroundColor": "#005538",
+   "hasBackgroundImage": true,
+   "imageAttribution": null,
+   "additionalTexts": [
+    {
+     "id": "sc-0-headline-0",
+     "text": "Mach mit",
+     "type": "header",
+     "x": 70,
+     "y": 685.8,
+     "width": 940,
+     "fontSize": 223,
+     "fontFamily": "GothamNarrow-Ultra",
+     "fontStyle": "normal",
+     "fill": "#FFFFFF",
+     "align": "left",
+     "accent": {
+      "fill": "#FCEC00",
+      "fontFamily": "Vollkorn",
+      "fontStyle": "bold italic"
+     },
+     "lineHeight": 0.95
+    },
+    {
+     "id": "sc-0-headline-1",
+     "text": "bei uns!",
+     "type": "header",
+     "x": 70,
+     "y": 897.65,
+     "width": 940,
+     "fontSize": 212,
+     "fontFamily": "Vollkorn",
+     "fontStyle": "bold italic",
+     "fill": "#FCEC00",
+     "align": "left",
+     "accent": {
+      "fill": "#FCEC00",
+      "fontFamily": "Vollkorn",
+      "fontStyle": "bold italic"
+     },
+     "lineHeight": 0.95
+    },
+    {
+     "id": "sc-1-text",
+     "text": "Gemeinsam für Klimaschutz vor Ort.",
+     "type": "body",
+     "x": 70,
+     "y": 1187.5,
+     "width": 940,
+     "fontSize": 42,
+     "fontFamily": "GothamNarrow-Book",
+     "fontStyle": "normal",
+     "fill": "#FFFFFF",
+     "align": "left",
+     "accent": {
+      "fill": "#FCEC00",
+      "fontFamily": "Vollkorn",
+      "fontStyle": "bold italic"
+     },
+     "lineHeight": 1.25
+    },
+    {
+     "id": "sc-ki-label",
+     "text": "KI-Generiert",
+     "type": "body",
+     "x": 27,
+     "y": 1393,
+     "width": 166,
+     "fontSize": 27,
+     "fontFamily": "PT Sans",
+     "fontStyle": "bold",
+     "fill": "#FFFFFF",
+     "opacity": 0.85,
+     "lineHeight": 1
+    }
+   ],
+   "pillBadgeInstances": [],
+   "circleBadgeInstances": [],
+   "shapeInstances": [
+    {
+     "id": "sc-panel",
+     "type": "rect",
+     "x": 540,
+     "y": 1008,
+     "width": 1080,
+     "height": 864,
+     "fill": "#005538",
+     "rotation": 0,
+     "scaleX": 1,
+     "scaleY": 1,
+     "opacity": 1
+    },
+    {
+     "id": "sc-tint",
+     "type": "rect",
+     "x": 540,
+     "y": 288,
+     "width": 1080,
+     "height": 576,
+     "fill": "#257639",
+     "rotation": 0,
+     "scaleX": 1,
+     "scaleY": 1,
+     "opacity": 1,
+     "blendMode": "color"
+    },
+    {
+     "id": "sc-ki-label-bg",
+     "type": "rounded-rect",
+     "x": 108,
+     "y": 1406.5,
+     "width": 194,
+     "height": 45,
+     "fill": "#2B2B2B",
+     "rotation": 0,
+     "scaleX": 1,
+     "scaleY": 1,
+     "opacity": 0.4,
+     "cornerRadius": 8
+    }
+   ],
+   "assetInstances": [
+    {
+     "id": "sc-pfeil",
+     "assetId": "brush-arrow-weiss",
+     "x": 900,
+     "y": 1352,
+     "scale": 1.8666666666666667,
+     "rotation": 0,
+     "opacity": 1
+    }
+   ],
+   "chartInstances": [],
+   "userImageInstances": [],
+   "selectedIcons": [],
+   "iconStates": {},
+   "layerOrder": [
+    "sc-panel",
+    "sc-tint",
+    "sc-0-headline-0",
+    "sc-0-headline-1",
+    "sc-1-text",
+    "sc-pfeil",
+    "sc-ki-label-bg",
+    "sc-ki-label"
+   ],
+   "currentImageSrc": "/media/wind.jpg",
+   "imageOffset": {
+    "x": 0,
+    "y": -432
+   },
+   "imageScale": 1
+  },
+  {
+   "backgroundMode": "image",
+   "backgroundColor": "#005538",
+   "hasBackgroundImage": true,
+   "imageAttribution": null,
+   "additionalTexts": [
+    {
+     "id": "sc-0-headline-0",
+     "text": "Mach mit",
+     "type": "header",
+     "x": 70,
+     "y": 120,
+     "width": 940,
+     "fontSize": 223,
+     "fontFamily": "GothamNarrow-Ultra",
+     "fontStyle": "normal",
+     "fill": "#FFFFFF",
+     "align": "left",
+     "accent": {
+      "fill": "#FCEC00",
+      "fontFamily": "Vollkorn",
+      "fontStyle": "bold italic"
+     },
+     "lineHeight": 0.95
+    },
+    {
+     "id": "sc-0-headline-1",
+     "text": "bei uns!",
+     "type": "header",
+     "x": 70,
+     "y": 331.85,
+     "width": 940,
+     "fontSize": 212,
+     "fontFamily": "Vollkorn",
+     "fontStyle": "bold italic",
+     "fill": "#FCEC00",
+     "align": "left",
+     "accent": {
+      "fill": "#FCEC00",
+      "fontFamily": "Vollkorn",
+      "fontStyle": "bold italic"
+     },
+     "lineHeight": 0.95
+    },
+    {
+     "id": "sc-1-text",
+     "text": "Gemeinsam für Klimaschutz vor Ort.",
+     "type": "body",
+     "x": 70,
+     "y": 621.7,
+     "width": 940,
+     "fontSize": 55,
+     "fontFamily": "GothamNarrow-Book",
+     "fontStyle": "normal",
+     "fill": "#FFFFFF",
+     "align": "left",
+     "accent": {
+      "fill": "#FCEC00",
+      "fontFamily": "Vollkorn",
+      "fontStyle": "bold italic"
+     },
+     "lineHeight": 1.25
+    },
+    {
+     "id": "sc-ki-label",
+     "text": "KI-Generiert",
+     "type": "body",
+     "x": 27,
+     "y": 1393,
+     "width": 166,
+     "fontSize": 27,
+     "fontFamily": "PT Sans",
+     "fontStyle": "bold",
+     "fill": "#FFFFFF",
+     "opacity": 0.85,
+     "lineHeight": 1
+    }
+   ],
+   "pillBadgeInstances": [],
+   "circleBadgeInstances": [],
+   "shapeInstances": [
+    {
+     "id": "sc-panel",
+     "type": "rect",
+     "x": 540,
+     "y": 432,
+     "width": 1080,
+     "height": 864,
+     "fill": "#005538",
+     "rotation": 0,
+     "scaleX": 1,
+     "scaleY": 1,
+     "opacity": 1
+    },
+    {
+     "id": "sc-tint",
+     "type": "rect",
+     "x": 540,
+     "y": 1152,
+     "width": 1080,
+     "height": 576,
+     "fill": "#257639",
+     "rotation": 0,
+     "scaleX": 1,
+     "scaleY": 1,
+     "opacity": 1,
+     "blendMode": "color"
+    },
+    {
+     "id": "sc-ki-label-bg",
+     "type": "rounded-rect",
+     "x": 108,
+     "y": 1406.5,
+     "width": 194,
+     "height": 45,
+     "fill": "#2B2B2B",
+     "rotation": 0,
+     "scaleX": 1,
+     "scaleY": 1,
+     "opacity": 0.4,
+     "cornerRadius": 8
+    }
+   ],
+   "assetInstances": [
+    {
+     "id": "sc-pfeil",
+     "assetId": "brush-arrow-weiss",
+     "x": 900,
+     "y": 1352,
+     "scale": 1.8666666666666667,
+     "rotation": 0,
+     "opacity": 1
+    }
+   ],
+   "chartInstances": [],
+   "userImageInstances": [],
+   "selectedIcons": [],
+   "iconStates": {},
+   "layerOrder": [
+    "sc-panel",
+    "sc-tint",
+    "sc-0-headline-0",
+    "sc-0-headline-1",
+    "sc-1-text",
+    "sc-pfeil",
+    "sc-ki-label-bg",
+    "sc-ki-label"
+   ],
+   "currentImageSrc": "/media/wind.jpg",
+   "imageOffset": {
+    "x": 0,
+    "y": 432
+   },
+   "imageScale": 1
+  },
+  {
+   "backgroundMode": "color",
+   "backgroundColor": "#005538",
+   "hasBackgroundImage": false,
+   "imageAttribution": null,
+   "additionalTexts": [
+    {
+     "id": "sc-0-headline-0",
+     "text": "Mach mit",
+     "type": "header",
+     "x": 70,
+     "y": 300.79999999999995,
+     "width": 940,
+     "fontSize": 223,
+     "fontFamily": "GothamNarrow-Ultra",
+     "fontStyle": "normal",
+     "fill": "#FFFFFF",
+     "align": "center",
+     "accent": {
+      "fill": "#FCEC00",
+      "fontFamily": "Vollkorn",
+      "fontStyle": "bold italic"
+     },
+     "lineHeight": 0.95
+    },
+    {
+     "id": "sc-0-headline-1",
+     "text": "bei uns!",
+     "type": "header",
+     "x": 70,
+     "y": 512.65,
+     "width": 940,
+     "fontSize": 212,
+     "fontFamily": "Vollkorn",
+     "fontStyle": "bold italic",
+     "fill": "#FCEC00",
+     "align": "center",
+     "accent": {
+      "fill": "#FCEC00",
+      "fontFamily": "Vollkorn",
+      "fontStyle": "bold italic"
+     },
+     "lineHeight": 0.95
+    },
+    {
+     "id": "sc-1-text",
+     "text": "Gemeinsam für Klimaschutz vor Ort.",
+     "type": "body",
+     "x": 100,
+     "y": 802.5,
+     "width": 880,
+     "fontSize": 59,
+     "fontFamily": "GothamNarrow-Book",
+     "fontStyle": "normal",
+     "fill": "#FFFFFF",
+     "align": "center",
+     "accent": {
+      "fill": "#FCEC00",
+      "fontFamily": "Vollkorn",
+      "fontStyle": "bold italic"
+     },
+     "lineHeight": 1.25
+    },
+    {
+     "id": "sc-ort",
+     "text": "Gasthaus Zur Post\nLandstraße 12",
+     "type": "body",
+     "x": 70,
+     "y": 1172.5,
+     "width": 600,
+     "fontSize": 38,
+     "fontFamily": "GothamNarrow-Book",
+     "fontStyle": "normal",
+     "fill": "#FFFFFF",
+     "lineHeight": 1.25,
+     "align": "right"
+    },
+    {
+     "id": "sc-ki-label",
+     "text": "KI-Generiert",
+     "type": "body",
+     "x": 27,
+     "y": 1393,
+     "width": 166,
+     "fontSize": 27,
+     "fontFamily": "PT Sans",
+     "fontStyle": "bold",
+     "fill": "#FFFFFF",
+     "opacity": 0.85,
+     "lineHeight": 1
+    }
+   ],
+   "pillBadgeInstances": [],
+   "circleBadgeInstances": [
+    {
+     "id": "sc-datum",
+     "x": 870,
+     "y": 1220,
+     "radius": 170,
+     "backgroundColor": "#E4007C",
+     "textColor": "#ffffff",
+     "rotation": -10,
+     "scale": 1,
+     "opacity": 1,
+     "textLines": [
+      {
+       "text": "Di",
+       "yOffset": -55,
+       "fontFamily": "GothamNarrow-Ultra",
+       "fontSize": 48,
+       "fontWeight": "normal"
+      },
+      {
+       "text": "18.11.",
+       "yOffset": 4,
+       "fontFamily": "GothamNarrow-Ultra",
+       "fontSize": 47,
+       "fontWeight": "normal"
+      },
+      {
+       "text": "19 Uhr",
+       "yOffset": 68,
+       "fontFamily": "GothamNarrow-Ultra",
+       "fontSize": 47,
+       "fontWeight": "normal"
+      }
+     ]
+    }
+   ],
+   "shapeInstances": [
+    {
+     "id": "sc-ki-label-bg",
+     "type": "rounded-rect",
+     "x": 108,
+     "y": 1406.5,
+     "width": 194,
+     "height": 45,
+     "fill": "#2B2B2B",
+     "rotation": 0,
+     "scaleX": 1,
+     "scaleY": 1,
+     "opacity": 0.4,
+     "cornerRadius": 8
+    }
+   ],
+   "assetInstances": [
+    {
+     "id": "sc-pfeil",
+     "assetId": "brush-arrow-weiss",
+     "x": 900,
+     "y": 1352,
+     "scale": 1.8666666666666667,
+     "rotation": 0,
+     "opacity": 1
+    }
+   ],
+   "chartInstances": [],
+   "userImageInstances": [],
+   "selectedIcons": [],
+   "iconStates": {},
+   "layerOrder": [
+    "sc-0-headline-0",
+    "sc-0-headline-1",
+    "sc-1-text",
+    "sc-datum",
+    "sc-ort",
+    "sc-pfeil",
+    "sc-ki-label-bg",
+    "sc-ki-label"
+   ]
+  },
+  {
+   "backgroundMode": "color",
+   "backgroundColor": "#005538",
+   "hasBackgroundImage": false,
+   "imageAttribution": null,
+   "additionalTexts": [
+    {
+     "id": "sc-0-headline-0",
+     "text": "Mieten steigen",
+     "type": "header",
+     "x": 70,
+     "y": 283.86808510638286,
+     "width": 940,
+     "fontSize": 128,
+     "fontFamily": "GothamNarrow-Ultra",
+     "fontStyle": "normal",
+     "fill": "#FFFFFF",
+     "align": "left",
+     "accent": {
+      "fill": "#FCEC00",
+      "fontFamily": "Vollkorn",
+      "fontStyle": "bold italic"
+     },
+     "lineHeight": 0.95
+    },
+    {
+     "id": "sc-quelle",
+     "text": "Quelle: Stadt Musterstadt",
+     "type": "body",
+     "x": 70,
+     "y": 1347.2,
+     "width": 345,
+     "fontSize": 24,
+     "fontFamily": "GothamNarrow-Book",
+     "fontStyle": "normal",
+     "fill": "#FFFFFF",
+     "opacity": 0.8,
+     "lineHeight": 1.2
+    },
+    {
+     "id": "sc-ki-label",
+     "text": "Klimaschonend KI-generiert mit dem Grünerator",
+     "type": "body",
+     "x": 27,
+     "y": 1393,
+     "width": 611.5,
+     "fontSize": 27,
+     "fontFamily": "PT Sans",
+     "fontStyle": "bold",
+     "fill": "#FFFFFF",
+     "opacity": 0.85,
+     "lineHeight": 1
+    }
+   ],
+   "pillBadgeInstances": [],
+   "circleBadgeInstances": [],
+   "shapeInstances": [
+    {
+     "id": "sc-1-diagramm-card",
+     "type": "rounded-rect",
+     "x": 540,
+     "y": 762.4680851063829,
+     "width": 940,
+     "height": 624,
+     "fill": "#FFFFFF",
+     "rotation": 0,
+     "scaleX": 1,
+     "scaleY": 1,
+     "opacity": 1,
+     "cornerRadius": 32
+    },
+    {
+     "id": "sc-ki-label-bg",
+     "type": "rounded-rect",
+     "x": 330.75,
+     "y": 1406.5,
+     "width": 639.5,
+     "height": 45,
+     "fill": "#2B2B2B",
+     "rotation": 0,
+     "scaleX": 1,
+     "scaleY": 1,
+     "opacity": 0.4,
+     "cornerRadius": 8
+    }
+   ],
+   "assetInstances": [
+    {
+     "id": "sc-logo",
+     "assetId": "gruene-at-logo-weiss",
+     "x": 540,
+     "y": 1256.7340425531916,
+     "scale": 1.4,
+     "rotation": 0,
+     "opacity": 1
+    }
+   ],
+   "chartInstances": [
+    {
+     "id": "chart-sc-1-diagramm",
+     "x": 110,
+     "y": 490.4680851063829,
+     "width": 430,
+     "height": 272,
+     "scale": 2,
+     "rotation": 0,
+     "opacity": 1,
+     "chartType": "bar",
+     "data": [
+      {
+       "name": "2015",
+       "value": 100
+      },
+      {
+       "name": "2025",
+       "value": 138
+      }
+     ],
+     "colors": [
+      "#257639",
+      "#56af31"
+     ],
+     "title": "",
+     "showLegend": false,
+     "showGrid": false,
+     "showValues": true,
+     "background": "#FFFFFF"
+    }
+   ],
+   "userImageInstances": [],
+   "selectedIcons": [],
+   "iconStates": {},
+   "layerOrder": [
+    "sc-0-headline-0",
+    "sc-1-diagramm-card",
+    "chart-sc-1-diagramm",
+    "sc-logo",
+    "sc-quelle",
+    "sc-ki-label-bg",
+    "sc-ki-label"
+   ]
+  }
+ ]
+}

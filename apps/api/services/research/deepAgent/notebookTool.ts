@@ -9,12 +9,13 @@
  * `DocumentSearchService` filtered to known document ids for personal notebooks
  * — literally the two calls `searchNode` makes for an ordinary notebook turn.
  *
- * The choice of notebook is a JSON-Schema `enum` rather than a list in the
+ * The choice of notebook is a schema `enum` rather than a list in the
  * prompt: the model cannot then name a corpus that does not exist, and the two
  * prompts stay free of a list that would go stale on every registry change.
  */
 
-import { tool } from '@langchain/core/tools';
+import { tool } from 'ai';
+import { z } from 'zod';
 
 import { executeDirectSearch } from '../../../routes/chat/agents/directSearchExecutors.js';
 import { createLogger } from '../../../utils/logger.js';
@@ -141,9 +142,20 @@ export function createNotebookTool(ctx: ToolContext, scope: NotebookScope) {
     .map((c) => c.title)
     .join(', ');
 
-  return tool(
-    async (input: unknown): Promise<string> => {
-      const { frage, notebook } = input as { frage: string; notebook?: string };
+  const notebookIds = [...byId.keys()];
+  const notebookDescription = 'Ein bestimmtes Notebook. Weglassen, wenn die Standardauswahl passt.';
+
+  return tool({
+    description: `Durchsucht die Notebooks des Grünerators — Programme, Beschlüsse, Positionen und Pressemitteilungen der Grünen${examples ? ` (u. a. ${examples})` : ''}. Nutze es für alles, was grüne Haltung, Beschlusslage oder Programmatik betrifft, bevor du ins Web gehst. Ohne Angabe eines Notebooks wird die passende Auswahl automatisch durchsucht.`,
+    inputSchema: z.object({
+      frage: z.string().describe('Die Teilfrage, ausformuliert'),
+      // A plain string rather than an empty enum when no corpus is in reach —
+      // an empty enum admits no value at all and would break the schema.
+      notebook: (notebookIds.length > 0 ? z.enum(notebookIds as [string, ...string[]]) : z.string())
+        .optional()
+        .describe(notebookDescription),
+    }),
+    execute: async ({ frage, notebook }): Promise<string> => {
       const stop = budgetSpent(ctx);
       if (stop) return stop;
       if (ctx.budget.notebookSearchesLeft <= 0) {
@@ -196,23 +208,5 @@ export function createNotebookTool(ctx: ToolContext, scope: NotebookScope) {
       ctx.onStep(label, 'done');
       return formatNotebookHits(hits);
     },
-    {
-      name: 'notebook_suche',
-      description: `Durchsucht die Notebooks des Grünerators — Programme, Beschlüsse, Positionen und Pressemitteilungen der Grünen${examples ? ` (u. a. ${examples})` : ''}. Nutze es für alles, was grüne Haltung, Beschlusslage oder Programmatik betrifft, bevor du ins Web gehst. Ohne Angabe eines Notebooks wird die passende Auswahl automatisch durchsucht.`,
-      schema: {
-        type: 'object',
-        properties: {
-          frage: { type: 'string', description: 'Die Teilfrage, ausformuliert' },
-          notebook: {
-            type: 'string',
-            description: 'Ein bestimmtes Notebook. Weglassen, wenn die Standardauswahl passt.',
-            // Omitted rather than left empty when no corpus is in reach — an
-            // empty enum admits no value at all and would break the schema.
-            ...(byId.size > 0 ? { enum: [...byId.keys()] } : {}),
-          },
-        },
-        required: ['frage'],
-      },
-    }
-  );
+  });
 }

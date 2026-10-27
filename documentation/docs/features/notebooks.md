@@ -63,7 +63,7 @@ Im Dialog **„Notebook teilen"** stellst du die **Sichtbarkeit** ein:
 
 ### Auf „Öffentlich" listen
 
-Im Modus **„Mit Anmeldung"** kannst du zusätzlich den Schalter **„Auf ‚Öffentlich' listen"** aktivieren. Dann erscheint dein Notebook für andere auf der Wissen-Seite: in der Notebook-Reihe gibt es die Kachel **„Öffentlich"**, die alle so gelisteten Notebooks aufklappt. Zusätzlich taucht es in der Suche der Wissen-Seite auf, die System-Notebooks, eigene und öffentliche Notebooks gemeinsam durchsucht. Sobald du den Schalter aktivierst, musst du eine der beiden Aussagen bestätigen:
+Im Modus **„Mit Anmeldung"** kannst du zusätzlich den Schalter **„Auf ‚Öffentlich' listen"** aktivieren. Dann erscheint dein Notebook für andere im **Marktplatz** unter **Notebooks**: Dort können sie es finden, liken, kommentieren und **merken**. Die Kachel **„Öffentlich"** in der Notebook-Reihe der Wissen-Seite öffnet den Marktplatz direkt bei den Notebooks; was du dort gemerkt hast, steht auf der Wissen-Seite unter **„Gemerkt"** und in deren Suche. Du kannst ein eigenes Notebook auch im Marktplatz über das **Plus** (**Element hinzufügen**) öffentlich machen. Sobald du den Schalter aktivierst, musst du eine der beiden Aussagen bestätigen:
 
 - **„Ich besitze die Daten"** — … oder habe die Rechte zur Veröffentlichung; z.&nbsp;B. eigene Texte, Beschlüsse deines Verbands, Material, das du selbst veröffentlichen darfst.
 - **„Daten sind öffentlich verfügbar"** — z.&nbsp;B. offizielle Dokumente, Pressemitteilungen, frei zugängliche Veröffentlichungen.
@@ -85,7 +85,7 @@ Hinter der Karte **„Eigene Notebooks"** auf der Wissen-Seite erscheint jedes d
 ## Häufige Fragen
 
 **Wo schalte ich ein Notebook öffentlich?**
-Nicht mehr in der Erstellung. Öffne das Notebook über **Bearbeiten** und klicke oben rechts auf **„Teilen"**. Wähle im Dialog die Sichtbarkeit **„Mit Anmeldung"** und aktiviere **„Auf ‚Öffentlich' listen"**, damit es auf der Wissen-Seite unter der Kachel „Öffentlich" und in der Suche auffindbar wird.
+Nicht mehr in der Erstellung. Öffne das Notebook über **Bearbeiten** und klicke oben rechts auf **„Teilen"**. Wähle im Dialog die Sichtbarkeit **„Mit Anmeldung"** und aktiviere **„Auf ‚Öffentlich' listen"**, damit es im Marktplatz unter **Notebooks** auffindbar wird. Alternativ im Marktplatz über das **Plus** → **Notebook**.
 
 **Was passiert mit Dokumenten, wenn ich ein Notebook lösche?**
 Die Dokumente bleiben in deiner persönlichen Dokumenten-Bibliothek erhalten — nur die Sammlung wird gelöscht.

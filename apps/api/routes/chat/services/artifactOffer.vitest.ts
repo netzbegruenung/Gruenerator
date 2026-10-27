@@ -127,13 +127,94 @@ describe('offerToRecord', () => {
     ).toBeNull();
   });
 
-  it('records nothing without a recipe', () => {
+  // Bis 15.10.2026 hiess es hier „records nothing without a recipe". Die
+  // Prompt-Regeln lassen das Modell aber auch ohne Rezept anbieten, und das „ja"
+  // darauf lief ins Leere. Gespeichert wird jetzt, was das Angebot als
+  // ERSTELLUNG formuliert — dasselbe Prädikat wie für einen Auftrag.
+  it('records an offer to create, even without a recipe', () => {
     expect(
       offerToRecord({
         recipeMentions: [],
         text: 'Soll ich daraus ein Sharepic machen?',
         producedArtifact: false,
       })
+    ).toEqual({ kind: 'sharepic' });
+  });
+
+  it('records the live offer that ended with „!" instead of a question', () => {
+    const text =
+      'Kachel 1: Stoppt die kommunale Unterfinanzierung!\n\n' +
+      'Da du nach einem Sharepic-Format gefragt hast: Ich kann dir diese Kacheln direkt als ' +
+      'fertige KI-Bilder oder Sharepics erstellen. Gib mir einfach kurz Bescheid, ob ich das übernehmen soll!';
+    expect(offerToRecord({ recipeMentions: [], text, producedArtifact: false })).toEqual({
+      kind: 'sharepic',
+    });
+  });
+
+  // Ohne Leerzeile ist der Schlussabsatz die ganze Antwort — ein „ich kann"
+  // am Anfang ist dann eine Einordnung, kein Angebot (Claude Review, #4613).
+  it('ignores a first-person aside early in a single-paragraph reply', () => {
+    const text =
+      'Ich kann aus dieser Meldung sicher eine Tabelle machen, aber zuerst eine Einordnung: ' +
+      'Die Novelle ändert drei Paragraphen. Das wirkt sich auf die Kommunen aus. ' +
+      'Besonders betroffen sind kleine Gemeinden.';
+    expect(offerToRecord({ recipeMentions: [], text, producedArtifact: false })).toBeNull();
+  });
+
+  it.each([
+    ['Soll ich daraus ein Karussell machen?', 'sharepic'],
+    ['Soll ich daraus eine Präsentation erstellen?', 'presentation'],
+    ['Wenn du möchtest, kann ich daraus eine Tabelle machen.', 'sheet'],
+  ])('reads the kind from the offer: %s', (offer, kind) => {
+    expect(
+      offerToRecord({ recipeMentions: [], text: `Text …\n\n${offer}`, producedArtifact: false })
+    ).toEqual({ kind });
+  });
+
+  it('records no free-form offer for a kind the thread already has', () => {
+    const text = 'Text …\n\nSoll ich daraus eine neue Folie machen?';
+    expect(
+      offerToRecord({
+        recipeMentions: [],
+        text,
+        producedArtifact: false,
+        threadKinds: ['presentation'],
+      })
+    ).toBeNull();
+    expect(offerToRecord({ recipeMentions: [], text, producedArtifact: false })).toEqual({
+      kind: 'presentation',
+    });
+  });
+
+  it('records a sharepic offer even when the thread has one — no edit path would take the „ja"', () => {
+    expect(
+      offerToRecord({
+        recipeMentions: [],
+        text: 'Text …\n\nSoll ich daraus ein Sharepic machen?',
+        producedArtifact: false,
+        threadKinds: ['sharepic'],
+      })
+    ).toEqual({ kind: 'sharepic' });
+  });
+
+  it('a reader call to action at the end of a post is no offer', () => {
+    expect(
+      offerToRecord({
+        recipeMentions: [],
+        text: 'Post …\n\nMöchtest du dabei sein? Erstelle dein eigenes Sharepic auf gruenerator.de',
+        producedArtifact: false,
+      })
+    ).toBeNull();
+  });
+
+  it.each([
+    'Soll ich die Tabelle noch um eine Spalte ergänzen?',
+    'Soll ich das Dokument noch kürzen?',
+    'Ich kann dir leider keine Präsentation erstellen. Sag Bescheid, wenn du den Text anders willst.',
+    'Passt das so?',
+  ])('records nothing for an offer that creates nothing: %s', (offer) => {
+    expect(
+      offerToRecord({ recipeMentions: [], text: `Text …\n\n${offer}`, producedArtifact: false })
     ).toBeNull();
   });
 

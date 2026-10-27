@@ -8,6 +8,7 @@ import { sourceLinkRegex } from '@gruenerator/shared/utils';
 
 import { announcesPendingWork } from '../routes/chat/services/outputSanity.js';
 import { refusalLanguage } from '../routes/chat/services/refusalDetection.js';
+import { DOCS_PAGES } from '../services/docs/docsIndex.generated.js';
 
 import {
   type AssertionResult,
@@ -19,6 +20,33 @@ import {
 const SEARCH_TOOL_RE = /search/i;
 const INTERNAL_TOOL = 'gruenerator_search';
 const WEB_TOOLS = ['web_search', 'scrape_url'];
+// `recipes` lists the live recipe registry — as much a product source as the docs.
+const PRODUCT_TOOLS = ['product_knowledge', 'gruenerator_docs_search', 'recipes'];
+const DOKU_URL_RE = /https?:\/\/doku\.gruenerator\.eu(\/[^\s)\]>"'`*,]*)?/gi;
+const DOKU_PAGE_PATHS = new Set(DOCS_PAGES.map((p) => p.url.toLowerCase()));
+
+/** doku.gruenerator.eu links in the text, split into known and unknown pages. */
+export function classifyDokuLinks(text: string): { known: string[]; unknown: string[] } {
+  const known: string[] = [];
+  const unknown: string[] = [];
+  for (const match of text.matchAll(DOKU_URL_RE)) {
+    const path = (match[1] ?? '')
+      .split('#')[0]!
+      .replace(/[.:;]+$/, '')
+      .replace(/\/$/, '');
+    // The bare host is a valid pointer, not an invented page.
+    let decoded: string | null;
+    try {
+      decoded = decodeURI(path).toLowerCase();
+    } catch {
+      // A malformed escape is not a page we serve — fail this case, not the run.
+      decoded = null;
+    }
+    if (path === '' || (decoded !== null && DOKU_PAGE_PATHS.has(decoded))) known.push(match[0]);
+    else unknown.push(match[0]);
+  }
+  return { known, unknown };
+}
 // The verb-first word order („kann ich dir keine fertige Grafikdatei
 // erstellen", #4367) is its own alternative: the subject sits between „kann"
 // and „kein".
@@ -468,6 +496,24 @@ export function runAssertions(
         ? ok('noInventedUrls')
         : fail('noInventedUrls', `${badScrape.length} scrape_url call(s) failed (404/invented)`)
     );
+  }
+
+  if (expect.productGrounded) {
+    const called = trace.toolCalls.filter((t) => PRODUCT_TOOLS.includes(t.toolName));
+    const { known, unknown } = classifyDokuLinks(trace.fullText);
+    const deepLinks = known.filter((u) => /\/docs\//.test(u));
+    if (unknown.length > 0) {
+      results.push(fail('productGrounded', `invented doku link(s): ${unknown.join(', ')}`));
+    } else if (called.length > 0 || deepLinks.length > 0) {
+      results.push(
+        ok(
+          'productGrounded',
+          called.length > 0 ? called.map((t) => t.toolName).join(',') : deepLinks.join(', ')
+        )
+      );
+    } else {
+      results.push(fail('productGrounded', 'answered from priors: no product tool, no doku page'));
+    }
   }
 
   if (expect.cited) {

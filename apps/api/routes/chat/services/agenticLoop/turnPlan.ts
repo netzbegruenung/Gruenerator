@@ -37,6 +37,7 @@ import {
   isEditToolEnabled,
   isPixelTurn,
   looksLikeCompoundEdit,
+  namesSharepicWithoutOrder,
   resolveEditorSurfaceKind,
   type CompoundGenerationKind,
   type EditorSurfaceKind,
@@ -116,6 +117,13 @@ export interface TurnPlan {
   editToolSurface: EditorSurfaceKind | null;
   compoundGenerationKind: CompoundGenerationKind | null;
   /**
+   * Die Art wurde BESTELLT (Verb am Nomen), nicht nur genannt. Nur dann holt
+   * `forceCompoundGeneration` das Artefakt nach, wenn der Planer es liegen
+   * lässt; ein bloss genanntes Sharepic (`namesSharepicWithoutOrder`) ist
+   * montiert, die Entscheidung bleibt beim Planer.
+   */
+  compoundGenerationOrdered: boolean;
+  /**
    * Der System-Tool-Auffang hat auf `web` umgeschrieben. Diese Intents sind
    * NON_SEARCH, der Klassifikator hat `searchQuery` also genullt — ohne
    * Nachtrag würde der Web-Zweig nach '' suchen.
@@ -140,6 +148,7 @@ export interface TurnPlanInput {
   secondaryIntent: string | null;
   isPdfFillRequest: boolean;
   isReisekostenTurn?: boolean;
+  isTabularAnalysisTurn?: boolean;
   classifierContradictedResearch: boolean;
   hasOwnMaterial: boolean;
   /** Die Werkzeug-Schalter der Fläche — ein `edit_current_*`-Schlüssel je Fläche. */
@@ -413,8 +422,19 @@ export function decideTurnPlan(p: TurnPlanInput): TurnPlan {
     !p.forcedTool && !p.isSharepicRefinement && !editorSurface
       ? compoundGenerationKind(proposedIntent, p.lastUserText, p.mentionPinnedArtifactKind)
       : null;
-  const compoundKind =
+  const orderedKind =
     proposedKind === 'sharepic' && p.addressesThreadSharepic === true ? null : proposedKind;
+  // Genannt statt bestellt: das Werkzeug hängt, der Planer entscheidet.
+  const namedOnlyKind: CompoundGenerationKind | null =
+    orderedKind == null &&
+    !p.forcedTool &&
+    !p.isSharepicRefinement &&
+    !editorSurface &&
+    p.addressesThreadSharepic !== true &&
+    namesSharepicWithoutOrder(proposedIntent, p.lastUserText)
+      ? 'sharepic'
+      : null;
+  const compoundKind = orderedKind ?? namedOnlyKind;
 
   // Verbund „recherchiere UND bau es ins offene Dokument ein". Dieselben
   // Notausschalter wie {@link decideRunAgentic}, damit das Erzwingen der
@@ -511,6 +531,7 @@ export function decideTurnPlan(p: TurnPlanInput): TurnPlan {
         hasImageAttachments: p.hasImageAttachments,
         isPdfFillRequest: p.isPdfFillRequest,
         isReisekostenTurn: p.isReisekostenTurn === true,
+        isTabularAnalysisTurn: p.isTabularAnalysisTurn === true,
         classifierContradictedResearch: p.classifierContradictedResearch,
         hasOwnMaterial: p.hasOwnMaterial,
       }));
@@ -541,6 +562,7 @@ export function decideTurnPlan(p: TurnPlanInput): TurnPlan {
     editToolLoop,
     editToolSurface: editToolLoop ? editToolSurfaceKind : null,
     compoundGenerationKind: compoundKind,
+    compoundGenerationOrdered: orderedKind != null,
     backfillSearchQuery: fallback.backfillSearchQuery,
   };
 }

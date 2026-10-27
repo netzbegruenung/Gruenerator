@@ -1,6 +1,5 @@
+import { isReportableGeometry, type Geometry } from '@ggraphic/editor/hooks/useGeometryReporter';
 import { describe, it, expect } from 'vitest';
-
-import { isReportableGeometry, type Geometry } from '../useGeometryReporter';
 
 describe('isReportableGeometry', () => {
   it('meldet die erste brauchbare Messung', () => {

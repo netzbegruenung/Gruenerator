@@ -2,6 +2,7 @@
  * The creator's 3:4 format (1080 × 1440): every height-relative placement
  * follows the taller canvas, the footer stays on the bottom edge.
  */
+import { getCanvasFormat } from '@ggraphic/editor/formats/index';
 import {
   sharepicFormatSchema,
   sharepicSpecSchema,
@@ -10,7 +11,6 @@ import {
 } from '@gruenerator/contracts';
 import { describe, expect, it } from 'vitest';
 
-import { getCanvasFormat } from '../formats';
 import { ASSET_TARGET_SIZE } from '../utils/canvasAssets';
 
 import { composeSharepic, type ComposedSlide } from './composeSharepic';

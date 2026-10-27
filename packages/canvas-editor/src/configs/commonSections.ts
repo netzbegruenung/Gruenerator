@@ -1,3 +1,4 @@
+import { backgroundAdjustments } from '@ggraphic/editor/utils/imageFilters';
 import { HiArrowUpTray, HiChatBubbleLeftRight, HiWrenchScrewdriver } from 'react-icons/hi2';
 
 import { applyOperation, type ApplyResult, type CanvasAiActionsBase } from '../ai/applyOperation';
@@ -6,22 +7,27 @@ import { BalkenSettingsSection } from '../sidebar/sections/BalkenSettingsSection
 import { ChartSettingsSection } from '../sidebar/sections/ChartSettingsSection';
 import { ImageAdjustSection } from '../sidebar/sections/ImageAdjustSection';
 import { COLOR_SCHEMES } from '../utils/dreizeilenLayout';
+import { BACKGROUND_IMAGE_NODE_ID } from '../utils/printImageInfo';
 
 import { buildSharepicText } from './buildSharepicText';
 import { makeSectionDefiner } from './factory/defineSection';
 
-import type { TemplateAiCapabilities } from '../ai/types';
+import type { SharepicAiCapabilities } from './aiCapabilities';
 import type { CanvasAiEditBridge } from '../CanvasEditorProvider';
-import type { BalkenInstance } from '../primitives/BalkenGroup';
 import type { ChatSectionProps, ToolsSectionProps, UploadsSectionProps } from '../sidebar/sections';
 import type { SidebarTab } from '../sidebar/types';
-import type { ChartInstance } from '../utils/chartUtils';
-import type { UserImageInstance } from '../utils/userImageUtils';
+import type { BalkenInstance } from '@ggraphic/editor/utils/balkenUtils';
+import type { ChartInstance } from '@ggraphic/editor/utils/chartUtils';
+import type {
+  ImageAdjustments,
+  UserImageInstance,
+  UserImagePlacement,
+} from '@ggraphic/editor/utils/userImageUtils';
 
 interface ActionsWithChart {
   updateChart?: (id: string, partial: Partial<ChartInstance>) => void;
   removeChart?: (id: string) => void;
-  addUserImageFromUrl?: (url: string, fileName: string) => void;
+  addUserImageFromUrl?: (url: string, fileName: string, options?: UserImagePlacement) => void;
 }
 
 interface ActionsWithBalken {
@@ -32,13 +38,14 @@ interface ActionsWithBalken {
 
 interface ActionsWithUserImage {
   updateUserImage?: (id: string, partial: Partial<UserImageInstance>) => void;
+  updateBackgroundImageAdjustments?: (partial: Partial<ImageAdjustments>) => void;
 }
 
 export const uploadsTab: SidebarTab = {
   id: 'uploads',
   icon: HiArrowUpTray,
   label: 'Uploads',
-  ariaLabel: 'Eigene Bilder hochladen',
+  ariaLabel: 'Uploads: eigene Bilder hochladen',
 };
 
 interface ActionsWithUploads {
@@ -78,16 +85,22 @@ export const toolsTab: SidebarTab = {
   id: 'tools',
   icon: HiWrenchScrewdriver,
   label: 'Tools',
-  ariaLabel: 'KI-Bildwerkzeuge',
+  ariaLabel: 'Tools: KI-Bildwerkzeuge',
 };
 
 export const toolsSectionEntry = defineCommonSection({
   component: ToolsSection,
-  propsFactory: (_state, actions): ToolsSectionProps => {
+  propsFactory: (_state, actions, context): ToolsSectionProps => {
     const a = actions as ActionsWithChart;
     const props: ToolsSectionProps = {};
     // Tools place their generated image straight onto the canvas (durable URL).
     if (a.addUserImageFromUrl) props.onPlaceImageUrl = a.addUserImageFromUrl;
+    if (context?.collectAltTextPages) {
+      props.altTextPages = {
+        collect: context.collectAltTextPages,
+        pageCount: context.pageCount ?? 1,
+      };
+    }
     return props;
   },
 });
@@ -103,13 +116,15 @@ export const chartSettingsSectionEntry = defineCommonSection({
   propsFactory: (state, actions, context) => {
     const s = state as { chartInstances?: ChartInstance[] };
     const a = actions as ActionsWithChart;
-    const selectedId = (context as { selectedElement?: string | null } | undefined)
-      ?.selectedElement;
+    const ctx = context as
+      { selectedElement?: string | null; chartColors?: readonly string[] } | undefined;
+    const selectedId = ctx?.selectedElement;
     const selectedChart = selectedId
       ? (s.chartInstances?.find((c) => c.id === selectedId) ?? null)
       : null;
     return {
       selectedChart,
+      ...(ctx?.chartColors && { palette: ctx.chartColors }),
       onUpdateChart: a.updateChart ?? (() => {}),
       onRemoveChart: a.removeChart ?? (() => {}),
     };
@@ -144,8 +159,9 @@ export const balkenSettingsSectionEntry = defineCommonSection({
 });
 
 /**
- * Shared image-adjust ("Bearbeiten") panel. Opened explicitly from the context
- * bar's Bearbeiten button (setActiveTab('image-adjust')), not on selection.
+ * Shared image-adjust ("Bearbeiten") panel for a free image or the template's
+ * background photo. Opened explicitly from the context bar's Bearbeiten button
+ * (setActiveTab('image-adjust')), not on selection.
  */
 export const imageAdjustSectionEntry = defineCommonSection({
   component: ImageAdjustSection,
@@ -157,9 +173,20 @@ export const imageAdjustSectionEntry = defineCommonSection({
     const selectedImage = selectedId
       ? (s.userImageInstances?.find((u) => u.id === selectedId) ?? null)
       : null;
+    const page = state as Record<string, unknown>;
+    const backgroundPhoto =
+      selectedId === BACKGROUND_IMAGE_NODE_ID &&
+      page.currentImageSrc &&
+      a.updateBackgroundImageAdjustments
+        ? {
+            adjustments: backgroundAdjustments(page) ?? {},
+            onUpdate: a.updateBackgroundImageAdjustments,
+          }
+        : null;
     return {
       selectedImage,
       onUpdateImage: a.updateUserImage ?? (() => {}),
+      backgroundPhoto,
     };
   },
 });
@@ -168,7 +195,7 @@ export const chatTab: SidebarTab = {
   id: 'chat',
   icon: HiChatBubbleLeftRight,
   label: 'Chat',
-  ariaLabel: 'KI-Chat zum aktuellen Sharepic öffnen',
+  ariaLabel: 'Chat: KI-Chat zum aktuellen Sharepic öffnen',
 };
 
 /**
@@ -180,7 +207,7 @@ export const chatTab: SidebarTab = {
  */
 export function createCommonSectionEntries<TState, TActions extends CanvasAiActionsBase>(
   canvasType: string,
-  capabilities?: TemplateAiCapabilities<TState, TActions>
+  capabilities?: SharepicAiCapabilities<TState, TActions>
 ) {
   return {
     tools: toolsSectionEntry,
@@ -204,7 +231,7 @@ export function createCommonSectionEntries<TState, TActions extends CanvasAiActi
  */
 export function createChatSection<TState, TActions extends CanvasAiActionsBase>(
   canvasType: string,
-  capabilities?: TemplateAiCapabilities<TState, TActions>
+  capabilities?: SharepicAiCapabilities<TState, TActions>
 ) {
   const defineSection = makeSectionDefiner<TState, TActions>();
   return defineSection({
@@ -222,7 +249,9 @@ export function createChatSection<TState, TActions extends CanvasAiActionsBase>(
             applyOperations: (ops) => {
               let results: ApplyResult[] = [];
               const apply = () => {
-                results = ops.map((op) => applyOperation(op, actions, () => state, capabilities));
+                results = ops.map((op) =>
+                  applyOperation(op, actions, () => state, capabilities, context?.rotateElement)
+                );
               };
               // One batch, one undo step — the banner's "Verwerfen" is a single undo.
               if (actions.runHistoryBatch) actions.runHistoryBatch(apply);

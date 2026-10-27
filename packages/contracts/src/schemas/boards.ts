@@ -58,7 +58,7 @@ export const boardDocumentSchema = z.object({
   last_edited_by: z.string(),
   document_subtype: z.literal('boards'),
   permissions: z
-    .record(z.object({ level: boardPermissionLevelSchema, granted_at: z.string() }))
+    .record(z.string(), z.object({ level: boardPermissionLevelSchema, granted_at: z.string() }))
     .nullable(),
   is_public: z.boolean(),
   is_deleted: z.boolean(),
@@ -72,7 +72,7 @@ export const boardDocumentSchema = z.object({
 
 export const generateBoardResponseSchema = z.object({
   board: boardDocumentSchema,
-  generatedStructure: z.unknown().nullable(),
+  generatedStructure: z.unknown().nullable().optional(),
 });
 
 export const createBoardResponseSchema = boardDocumentSchema;
@@ -145,13 +145,17 @@ export const selectOptionSchema = z.object({
   // Optional WIP limit (max cards) when this option is a kanban column. Empty =
   // no limit. The column header shows `count/limit` and turns red on overflow.
   limit: z.number().int().positive().optional(),
+  // Marks the status option whose column means "erledigt": "Als erledigt markieren" moves
+  // a task here. Absent on every option = fall back to the legacy ids/names
+  // (getDoneStatusId); an explicit `false` opts that option out of the fallback.
+  isDone: z.boolean().optional(),
 });
 
 export const boardFieldSchema = z.object({
   id: z.string(),
   name: z.string(),
   type: fieldTypeSchema,
-  typeOptions: z.record(z.unknown()),
+  typeOptions: z.record(z.string(), z.unknown()),
   order: z.number(),
 });
 
@@ -165,7 +169,7 @@ export const cellValueSchema = z.union([
 
 export const boardRowSchema = z.object({
   id: z.string(),
-  cells: z.record(cellValueSchema),
+  cells: z.record(z.string(), cellValueSchema),
   createdBy: z.string(),
   createdAt: z.string(),
   icon: z.string().optional(),
@@ -175,6 +179,9 @@ export const boardRowSchema = z.object({
   // ISO timestamp set when the card is archived (soft-delete); absent = active.
   // Archived rows are filtered out of every view by default (useViewData).
   archivedAt: z.string().optional(),
+  // Status the card had before it was checked off, so unchecking returns it there.
+  // Cleared when the card leaves the done column.
+  statusBeforeDone: z.string().optional(),
 });
 
 export const viewLayoutSchema = z.enum(['kanban', 'table', 'list', 'calendar', 'gantt']);
@@ -182,7 +189,7 @@ export const viewLayoutSchema = z.enum(['kanban', 'table', 'list', 'calendar', '
 export const filterRuleSchema = z.object({
   fieldId: z.string(),
   operator: z.string(),
-  value: z.unknown(),
+  value: z.unknown().optional(),
 });
 
 export const sortRuleSchema = z.object({

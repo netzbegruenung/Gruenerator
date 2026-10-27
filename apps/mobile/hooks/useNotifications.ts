@@ -120,15 +120,20 @@ export function useNotifications() {
     }
   }, []);
 
-  const dismiss = useCallback(async (id: string) => {
-    try {
-      const client = getGlobalApiClient();
-      await client.delete(`/notifications/${id}`);
+  // Gone at once: waiting for the server made a slow request look like a missed
+  // tap. A failure reloads the list, so the row comes back instead of vanishing
+  // silently.
+  const dismiss = useCallback(
+    async (id: string) => {
       setNotifications((prev) => prev.filter((n) => n.id !== id));
-    } catch {
-      /* ignore */
-    }
-  }, []);
+      try {
+        await getGlobalApiClient().delete(`/notifications/${id}`);
+      } catch {
+        void refresh();
+      }
+    },
+    [refresh]
+  );
 
   return {
     notifications,

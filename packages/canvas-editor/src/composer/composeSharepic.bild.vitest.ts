@@ -1,3 +1,6 @@
+import { framedPhotoRect, visiblePart } from '@ggraphic/editor/utils/coverFit';
+import { tintRamp } from '@ggraphic/editor/utils/imageFilters';
+import { CROP_PRESETS, cropPresetUpdate } from '@ggraphic/editor/utils/userImageUtils';
 import {
   sharepicSpecSchema,
   slidePhotoFilename,
@@ -5,9 +8,6 @@ import {
   type SharepicSpec,
 } from '@gruenerator/contracts';
 import { describe, expect, it } from 'vitest';
-
-import { tintRamp } from '../utils/imageFilters';
-import { coverCrop, CROP_PRESETS, cropPresetUpdate } from '../utils/userImageUtils';
 
 import { composeSharepic } from './composeSharepic';
 import { slideProvenance } from './sharepicProvenance';
@@ -186,6 +186,10 @@ describe('image tint and crop', () => {
   });
 
   it('crops the centred part that fills the frame', () => {
+    const coverCrop = (
+      natural: { width: number; height: number },
+      frame: { width: number; height: number }
+    ) => visiblePart(natural, framedPhotoRect(natural, frame), { x: 0, y: 0, ...frame })?.crop;
     expect(coverCrop({ width: 3000, height: 2000 }, { width: 1080, height: 360 })).toEqual({
       x: 0,
       y: 500,
@@ -208,6 +212,9 @@ describe('image tint and crop', () => {
       height: 300,
       fit: 'cover',
       mask: 'kreis',
+      cropZoom: 1,
+      panX: 0,
+      panY: 0,
     });
     const original = CROP_PRESETS.find((p) => p.id === 'original')!;
     expect(cropPresetUpdate(img, original, { width: 1000, height: 1000 })).toEqual({
@@ -215,6 +222,9 @@ describe('image tint and crop', () => {
       height: 300,
       fit: undefined,
       mask: undefined,
+      cropZoom: 1,
+      panX: 0,
+      panY: 0,
     });
   });
 });

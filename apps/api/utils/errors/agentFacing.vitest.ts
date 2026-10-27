@@ -4,6 +4,7 @@ import { z } from 'zod';
 import {
   buildRepairInstruction,
   formatZodIssuesForModel,
+  MAX_REPORTED_ISSUES,
   makeInvalidEnumHint,
   makeInvalidShapeHint,
   toolErrorResult,
@@ -39,6 +40,15 @@ describe('formatZodIssuesForModel', () => {
     const formatted = formatZodIssuesForModel(result.error);
     expect(formatted).toContain('cron:');
     expect(formatted).toContain('title:');
+  });
+
+  it('names the first issues and counts the rest', () => {
+    const result = z.array(z.string()).safeParse(new Array(1000).fill(1));
+    if (result.success) throw new Error('expected a failure');
+
+    const formatted = formatZodIssuesForModel(result.error);
+    expect(formatted.split('; ')).toHaveLength(MAX_REPORTED_ISSUES + 1);
+    expect(formatted).toMatch(/… 980 more$/);
   });
 });
 

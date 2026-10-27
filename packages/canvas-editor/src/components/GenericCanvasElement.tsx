@@ -7,30 +7,47 @@
  * 3. Callbacks are stabilized via useCallback in parent
  */
 
-import React, { memo, useCallback, useMemo } from 'react';
-import { Group, Rect, Circle, Text } from 'react-konva';
-import useImage from 'use-image';
-
-import { surfaceGlow } from '../brand/theme';
-import { type GeometryReporter } from '../hooks/useGeometryReporter';
-import { CanvasText, CanvasImage, CanvasBackground } from '../primitives';
-import { useIsElementSelected } from '../stores/CanvasStoreProvider';
-import { canvasImageSourceUrl } from '../utils/canvasImageSource';
-import { imageRenderInputsAreEqual } from '../utils/imageElementComparison';
-import { useTrackPendingImage } from '../utils/pendingImages';
-// Die Aufloesung von x/y/width/height/opacity steht seit #3403 ausserhalb:
-// `templateElementToEntry` braucht dieselbe Rechnung, und zwei Fassungen
-// derselben Arithmetik driften auseinander.
-import { resolveColor, resolveImageElementBox, resolveValue } from '../utils/resolveElementValue';
+import { type GeometryReporter } from '@ggraphic/editor/hooks/useGeometryReporter';
+import {
+  useCanvasStore,
+  useCanvasStoreSelector,
+  useIsElementSelected,
+} from '@ggraphic/editor/stores/CanvasStoreProvider';
+import { backgroundAdjustments } from '@ggraphic/editor/utils/imageFilters';
+import { useTrackPendingImage } from '@ggraphic/editor/utils/pendingImages';
 import {
   assertAsString,
   assertAsNumber,
-  assertAsBoolean,
   assertAsPosition,
   assertAsOpacity,
   getStateValue,
   getOptionalStateValue,
-} from '../utils/stateTypeAssertions';
+} from '@ggraphic/editor/utils/stateTypeAssertions';
+import { backgroundStraighten } from '@ggraphic/editor/utils/straighten';
+import { surfaceGlow } from '@ggraphic/editor/utils/surfaceGlow';
+import { templateTextAlignOf } from '@ggraphic/editor/utils/textAlign';
+import React, { memo, useCallback, useMemo } from 'react';
+import { Group, Rect, Circle, Text } from 'react-konva';
+import useImage from 'use-image';
+
+import { useCanvasEditorServices } from '../CanvasEditorProvider';
+import { plainImageUrls } from '../hostServices';
+import { CanvasText, CanvasImage, CanvasBackground } from '../primitives';
+import { canCropBackgroundPhoto, imageElementInteraction } from '../utils/backgroundPhotoCrop';
+import { canvasImageSourceUrl } from '../utils/canvasImageSource';
+import { imageRenderInputsAreEqual } from '../utils/imageElementComparison';
+import { BACKGROUND_IMAGE_NODE_ID } from '../utils/printImageInfo';
+import {
+  coverFitSlot,
+  resolveColor,
+  resolveImageElementBox,
+  resolveValue,
+} from '../utils/resolveElementValue';
+
+// Die Aufloesung von x/y/width/height/opacity steht seit #3403 ausserhalb:
+// `templateElementToEntry` braucht dieselbe Rechnung, und zwei Fassungen
+// derselben Arithmetik driften auseinander.
+import { isTemplateElementRotatable, templateRotationOf } from '../utils/templateRotation';
 
 import type {
   CanvasElementConfig,
@@ -43,7 +60,7 @@ import type {
   LayoutResult,
   PositionValue,
 } from '../configs/types';
-import type { SnapTarget, SnapLine } from '../utils/snapping';
+import type { SnapTarget, SnapLine } from '@ggraphic/editor/utils/snapping';
 
 // ============================================================================
 // MEMOIZED TEXT ELEMENT
@@ -58,12 +75,13 @@ interface MemoizedTextProps<TState extends Record<string, unknown> = Record<stri
   onTextChange: (id: string, text: string) => void;
   onFontSizeChange: (id: string, size: number) => void;
   onPositionChange: (id: string, x: number, y: number, w: number, h: number) => void;
+  onTemplateTransformEnd: (id: string, x: number, y: number, rotation: number) => void;
   onGeometryChange?: GeometryReporter;
   onSnapChange: (snapH: boolean, snapV: boolean) => void;
   onSnapLinesChange: (lines: SnapLine[]) => void;
   stageWidth: number;
   stageHeight: number;
-  snapTargets: SnapTarget[];
+  getSnapTargets: (excludeId: string) => SnapTarget[];
 }
 
 const MemoizedTextElement = memo(
@@ -76,12 +94,13 @@ const MemoizedTextElement = memo(
     onTextChange,
     onFontSizeChange,
     onPositionChange,
+    onTemplateTransformEnd,
     onGeometryChange,
     onSnapChange,
     onSnapLinesChange,
     stageWidth,
     stageHeight,
-    snapTargets,
+    getSnapTargets,
   }: MemoizedTextProps<TState>) {
     const text = assertAsString(state[config.textKey]);
     const customFontSize = getOptionalStateValue<number>(state, config.fontSizeStateKey);
@@ -120,6 +139,15 @@ const MemoizedTextElement = memo(
       (size: number) => onFontSizeChange(config.id, size),
       [onFontSizeChange, config.id]
     );
+    // Only a text whose position persists may turn: Konva turns about the
+    // top-left corner, so the turn moves x/y too.
+    const rotatable = isTemplateElementRotatable(config);
+    const rotation = rotatable ? templateRotationOf(state, config.id) : 0;
+    const handleTransformEnd = useCallback(
+      (newX: number, newY: number, _w: number, _sx: number, _sy: number, newRotation: number) =>
+        onTemplateTransformEnd(config.id, newX, newY, newRotation),
+      [onTemplateTransformEnd, config.id]
+    );
 
     return (
       <CanvasText
@@ -132,7 +160,7 @@ const MemoizedTextElement = memo(
         fontFamily={config.fontFamily}
         fontStyle={config.fontStyle}
         fill={fill}
-        align={config.align ?? 'left'}
+        align={templateTextAlignOf(state, config.id) ?? config.align ?? 'left'}
         lineHeight={config.lineHeight ?? 1.2}
         wrap={config.wrap ?? 'word'}
         padding={padding}
@@ -147,10 +175,13 @@ const MemoizedTextElement = memo(
         stageWidth={stageWidth}
         stageHeight={stageHeight}
         onSnapChange={onSnapChange}
-        snapTargets={snapTargets}
+        getSnapTargets={getSnapTargets}
         onPositionChange={onPositionChange}
         onGeometryChange={onGeometryChange}
         onSnapLinesChange={onSnapLinesChange}
+        rotation={rotation}
+        transformConfig={{ rotateEnabled: rotatable }}
+        {...(rotatable ? { onTransformEnd: handleTransformEnd } : {})}
       />
     );
   },
@@ -184,6 +215,19 @@ const MemoizedTextElement = memo(
     const fillKey = prev.config.fillStateKey;
     if (fillKey && prev.state[fillKey] !== next.state[fillKey]) return false;
 
+    if (
+      templateRotationOf(prev.state, prev.config.id) !==
+      templateRotationOf(next.state, next.config.id)
+    ) {
+      return false;
+    }
+    if (
+      templateTextAlignOf(prev.state, prev.config.id) !==
+      templateTextAlignOf(next.state, next.config.id)
+    ) {
+      return false;
+    }
+
     // Compare layout
     const prevLayout = prev.layout[prev.config.id];
     const nextLayout = next.layout[next.config.id];
@@ -211,14 +255,21 @@ interface MemoizedImageProps<TState extends Record<string, unknown> = Record<str
   selected: boolean;
   onSelect: (id: string) => void;
   onDragEnd: (id: string, x: number, y: number) => void;
-  onTransformEnd: (id: string, x: number, y: number, w: number, h: number) => void;
+  onTransformEnd: (
+    id: string,
+    x: number,
+    y: number,
+    w: number,
+    h: number,
+    rotation: number
+  ) => void;
   onPositionChange?: (id: string, x: number, y: number, w: number, h: number) => void;
   onGeometryChange?: GeometryReporter;
   stageWidth: number;
   stageHeight: number;
   onSnapChange: (snapH: boolean, snapV: boolean) => void;
   onSnapLinesChange: (lines: SnapLine[]) => void;
-  snapTargets: SnapTarget[];
+  getSnapTargets: (excludeId: string) => SnapTarget[];
 }
 
 const MemoizedImageElement = memo(function MemoizedImageElement<
@@ -237,8 +288,9 @@ const MemoizedImageElement = memo(function MemoizedImageElement<
   stageHeight,
   onSnapChange,
   onSnapLinesChange,
-  snapTargets,
+  getSnapTargets,
 }: MemoizedImageProps<TState>) {
+  const { imageUrls = plainImageUrls } = useCanvasEditorServices();
   // Resolve image source
   let imageSrc: string | undefined;
   if (config.srcKey) {
@@ -252,16 +304,30 @@ const MemoizedImageElement = memo(function MemoizedImageElement<
   // beim naechsten Neuzeichnen zurueck.
   const { x, y, width, height, opacity } = resolveImageElementBox(config, state, layout);
 
-  // Render the server's working-size WebP variant instead of the raw original:
-  // the original is kept on disk for the gallery, but loading multi-MB
-  // full-resolution bytes made background swaps feel endless. The variant is
-  // only export-quality while the element draws narrow enough; wider (zoomed
-  // or resized) elements load the stored original instead.
-  const sourceUrl = canvasImageSourceUrl(imageSrc, width) ?? '';
+  // Render the host's working-size variant instead of the raw original:
+  // loading multi-MB full-resolution bytes made background swaps feel endless.
+  // The variant is only export-quality while the element draws narrow enough;
+  // wider (zoomed or resized) elements load the stored original instead.
+  const sourceUrl = canvasImageSourceUrl(imageSrc, width, imageUrls) ?? '';
   const [image, status] = useImage(sourceUrl, 'anonymous');
   useTrackPendingImage(config.id, sourceUrl, status);
 
-  const isLocked = config.lockedKey ? assertAsBoolean(state[config.lockedKey]) : false;
+  const isBackgroundPhoto = config.id === BACKGROUND_IMAGE_NODE_ID;
+  const cropping = useCanvasStoreSelector(
+    (s) => isBackgroundPhoto && s.croppingElement === config.id
+  );
+  const interaction = imageElementInteraction(config, { cropping });
+  const store = useCanvasStore();
+  const handleToggleCrop = useCallback(() => {
+    const s = store.getState();
+    if (s.croppingElement === config.id) {
+      s.setCroppingElement(null);
+      return;
+    }
+    // Direkt in den Store: der Auswahl-Pfad schiebt in einer Mehrfachauswahl auf.
+    if (s.selectedElement !== config.id) s.setSelectedElement(config.id);
+    store.getState().setCroppingElement(config.id);
+  }, [store, config.id]);
   const customFill = getOptionalStateValue<string>(state, config.fillStateKey);
   const fill = customFill ?? resolveColor(config.fill, state, layout);
 
@@ -271,12 +337,18 @@ const MemoizedImageElement = memo(function MemoizedImageElement<
     [onDragEnd, config.id]
   );
   const handleTransformEnd = useCallback(
-    (newX: number, newY: number, w: number, h: number) =>
-      onTransformEnd(config.id, newX, newY, w, h),
+    (newX: number, newY: number, w: number, h: number, rotation: number) =>
+      onTransformEnd(config.id, newX, newY, w, h, rotation),
     [onTransformEnd, config.id]
   );
+  // CI marks turn but never mirror; the background photo and cover fits never turn.
+  const rotatable = isTemplateElementRotatable(config);
+  const rotation = rotatable ? templateRotationOf(state, config.id) : 0;
 
   if (!image) return null;
+
+  // The slot the photo fills: the element's own box before zoom and pan.
+  const frame = config.coverFit ? coverFitSlot(config, state, layout) : null;
 
   return (
     <CanvasImage
@@ -286,11 +358,17 @@ const MemoizedImageElement = memo(function MemoizedImageElement<
       y={y}
       width={width}
       height={height}
+      rotation={rotation}
       opacity={opacity}
       color={typeof fill === 'string' ? fill : undefined}
+      adjustments={config.id === BACKGROUND_IMAGE_NODE_ID ? backgroundAdjustments(state) : null}
       coverFit={config.coverFit}
-      draggable={config.draggable && !isLocked}
-      touchDragNeedsSelection={config.id === 'background-image'}
+      frame={frame}
+      straighten={isBackgroundPhoto ? backgroundStraighten(state) : null}
+      draggable={interaction.draggable}
+      touchDragNeedsSelection={isBackgroundPhoto}
+      onToggleCrop={canCropBackgroundPhoto(config) ? handleToggleCrop : null}
+      cropping={cropping}
       selected={selected}
       onSelect={handleSelect}
       onDragEnd={handleDragEnd}
@@ -298,24 +376,23 @@ const MemoizedImageElement = memo(function MemoizedImageElement<
       stageWidth={stageWidth}
       stageHeight={stageHeight}
       onSnapChange={onSnapChange}
-      snapTargets={snapTargets}
+      getSnapTargets={getSnapTargets}
       onPositionChange={onPositionChange}
       onGeometryChange={onGeometryChange}
       onSnapLinesChange={onSnapLinesChange}
       listening={config.listening}
       constrainToBounds={config.constrainToBounds ?? true}
       transformConfig={{
-        // A non-transformable (or locked) image shows no resize handles. Without
+        // A non-transformable image shows no resize handles. Without
         // this, CanvasImage falls back to DEFAULT_IMAGE_ANCHORS, so a selectable
         // but non-transformable slot (e.g. the veranstaltung photo band,
         // draggable: false) would still expose all four corner handles and let a
         // user resize/move it via the Transformer — writing an unbounded
         // offset/scale straight past the centerZoom/coverFit assumptions.
-        enabledAnchors:
-          config.transformable && !isLocked
-            ? ['top-left', 'top-right', 'bottom-left', 'bottom-right']
-            : [],
-        rotateEnabled: false,
+        enabledAnchors: interaction.transformable
+          ? ['top-left', 'top-right', 'bottom-left', 'bottom-right']
+          : [],
+        rotateEnabled: rotatable,
         keepRatio: true,
       }}
     />
@@ -405,11 +482,15 @@ interface MemoizedBackgroundProps<
 > {
   config: BackgroundElementConfig<TState>;
   state: TState;
+  onSelect: (id: string) => void;
 }
 
 const MemoizedBackgroundElement = memo(function MemoizedBackgroundElement<
   TState extends Record<string, unknown> = Record<string, unknown>,
->({ config, state }: MemoizedBackgroundProps<TState>) {
+>({ config, state, onSelect }: MemoizedBackgroundProps<TState>) {
+  // Selecting the plane opens its colour and photo controls in the context bar.
+  const handleSelect = useCallback(() => onSelect(config.id), [onSelect, config.id]);
+
   // Der Typ bietet zwei Schlüssel an: `colorKey` (slider) und `fillStateKey`
   // (freeform). Gelesen wurde nur der erste, deshalb blieb der
   // Freeform-Hintergrund unabhängig von der Farbwahl immer weiß.
@@ -426,6 +507,7 @@ const MemoizedBackgroundElement = memo(function MemoizedBackgroundElement<
       width={config.width}
       height={config.height}
       color={color}
+      onSelect={handleSelect}
       {...(glow
         ? {
             gradient: {
@@ -455,12 +537,21 @@ export interface GenericCanvasElementProps<
   /** Meldet gerenderte Geometrie als Snap-Ziel (ohne den Zustand anzufassen). */
   onGeometryChange?: GeometryReporter;
   onImageDragEnd: (id: string, x: number, y: number) => void;
-  onImageTransformEnd: (id: string, x: number, y: number, w: number, h: number) => void;
+  onImageTransformEnd: (
+    id: string,
+    x: number,
+    y: number,
+    w: number,
+    h: number,
+    rotation: number
+  ) => void;
+  /** Vorlagen-Text nach dem Transformer: Position und Drehung. */
+  onTemplateTransformEnd: (id: string, x: number, y: number, rotation: number) => void;
   onSnapChange: (snapH: boolean, snapV: boolean) => void;
   onSnapLinesChange: (lines: SnapLine[]) => void;
   stageWidth: number;
   stageHeight: number;
-  snapTargets: SnapTarget[];
+  getSnapTargets: (excludeId: string) => SnapTarget[];
 }
 
 export const GenericCanvasElement = memo(function GenericCanvasElement<
@@ -476,11 +567,12 @@ export const GenericCanvasElement = memo(function GenericCanvasElement<
   onGeometryChange,
   onImageDragEnd,
   onImageTransformEnd,
+  onTemplateTransformEnd,
   onSnapChange,
   onSnapLinesChange,
   stageWidth,
   stageHeight,
-  snapTargets,
+  getSnapTargets,
 }: GenericCanvasElementProps<TState>) {
   const selected = useIsElementSelected(config.id);
 
@@ -501,12 +593,13 @@ export const GenericCanvasElement = memo(function GenericCanvasElement<
           onTextChange={onTextChange}
           onFontSizeChange={onFontSizeChange}
           onPositionChange={onPositionChange}
+          onTemplateTransformEnd={onTemplateTransformEnd}
           onGeometryChange={onGeometryChange}
           onSnapChange={onSnapChange}
           onSnapLinesChange={onSnapLinesChange}
           stageWidth={stageWidth}
           stageHeight={stageHeight}
-          snapTargets={snapTargets}
+          getSnapTargets={getSnapTargets}
         />
       );
 
@@ -526,7 +619,7 @@ export const GenericCanvasElement = memo(function GenericCanvasElement<
           stageHeight={stageHeight}
           onSnapChange={onSnapChange}
           onSnapLinesChange={onSnapLinesChange}
-          snapTargets={snapTargets}
+          getSnapTargets={getSnapTargets}
         />
       );
 
@@ -553,6 +646,7 @@ export const GenericCanvasElement = memo(function GenericCanvasElement<
         <MemoizedBackgroundElement
           config={config as BackgroundElementConfig<Record<string, unknown>>}
           state={state as Record<string, unknown>}
+          onSelect={onSelect}
         />
       );
 
@@ -584,11 +678,12 @@ export const GenericCanvasElement = memo(function GenericCanvasElement<
               onGeometryChange={onGeometryChange}
               onImageDragEnd={onImageDragEnd}
               onImageTransformEnd={onImageTransformEnd}
+              onTemplateTransformEnd={onTemplateTransformEnd}
               onSnapChange={onSnapChange}
               onSnapLinesChange={onSnapLinesChange}
               stageWidth={stageWidth}
               stageHeight={stageHeight}
-              snapTargets={snapTargets}
+              getSnapTargets={getSnapTargets}
             />
           ))}
         </Group>

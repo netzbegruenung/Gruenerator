@@ -5,51 +5,55 @@ import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 
 import {
-  CANVAS_MENUBAR_GRADIENT,
-  CANVAS_MENUBAR_GRADIENT_STOPS,
   embeddedSurfaceShape,
-  hostDrawsHeader,
+  fallbackTitle,
+  headerKind,
   SELF_CHROMED_PATH_PREFIXES,
-  statusBarTint,
 } from './hostChrome';
 
-describe('hostDrawsHeader', () => {
-  it('stands back where the page brings its own bar', () => {
-    expect(hostDrawsHeader('/studio/canvas/abc-123')).toBe(false);
-    expect(hostDrawsHeader('/boards/abc-123')).toBe(false);
-    expect(hostDrawsHeader('/office/abc-123')).toBe(false);
+describe('headerKind', () => {
+  it('draws the editor bar for the editors', () => {
+    expect(headerKind('/studio/canvas/abc-123')).toBe('editor');
+    expect(headerKind('/studio/vorlage/abc?mitBeitrag=1')).toBe('editor');
+    expect(headerKind('/boards/abc-123')).toBe('editor');
+    expect(headerKind('/office/abc-123')).toBe('editor');
   });
 
-  it('keeps its header where nothing else leaves the screen', () => {
-    // These four have no back button of their own in embedded mode. Without the
-    // host header the WebView would be a room without a door.
-    expect(hostDrawsHeader('/notebooks/abc-123')).toBe(true);
-    expect(hostDrawsHeader('/texte/abc-123')).toBe(true);
-    expect(hostDrawsHeader('/gruenerator/mein-agent')).toBe(true);
-    expect(hostDrawsHeader('/documents/abc-123')).toBe(true);
+  it('draws the plain bar everywhere else', () => {
+    expect(headerKind('/notebooks/abc-123')).toBe('plain');
+    expect(headerKind('/texte/abc-123')).toBe('plain');
+    expect(headerKind('/gruenerator/mein-agent')).toBe('plain');
+    expect(headerKind('/documents/abc-123')).toBe('plain');
+    expect(headerKind('')).toBe('plain');
+    expect(headerKind('/')).toBe('plain');
   });
 
   it('judges by the pathname, not by the query string', () => {
-    expect(hostDrawsHeader('/datenbank/vorlagen?selected=abc')).toBe(true);
-    expect(hostDrawsHeader('/boards/abc?tab=archiv')).toBe(false);
+    expect(headerKind('/datenbank/vorlagen?selected=abc')).toBe('plain');
+    expect(headerKind('/boards/abc?tab=archiv')).toBe('editor');
   });
 
   it('does not let a neighbouring path borrow the prefix', () => {
     // The trailing slash is what separates `/boards/` from `/boards-admin`.
-    expect(hostDrawsHeader('/boards-admin/abc')).toBe(true);
-    expect(hostDrawsHeader('/office-intern/abc')).toBe(true);
+    expect(headerKind('/boards-admin/abc')).toBe('plain');
+    expect(headerKind('/office-intern/abc')).toBe('plain');
+    expect(headerKind('/studio/canvas-archiv/abc')).toBe('plain');
   });
+});
 
-  it('falls back to drawing the header for an empty or unknown path', () => {
-    expect(hostDrawsHeader('')).toBe(true);
-    expect(hostDrawsHeader('/')).toBe(true);
+describe('fallbackTitle', () => {
+  it('names the editor until the page reports a title', () => {
+    expect(fallbackTitle('/studio/vorlage/abc')).toBe('Sharepic');
+    expect(fallbackTitle('/office/abc')).toBe('Dokument');
+    expect(fallbackTitle('/boards/abc')).toBe('Board');
+    expect(fallbackTitle('/notebooks/abc')).toBe('Web');
   });
 });
 
 /**
- * The dangerous half of the decision. Hiding the host header for a surface that
- * has no way out of its own leaves the user pinned on a page with nothing but
- * Android's hardware back — and on iOS, nothing at all.
+ * App binaries from before the native editor bar draw no header on these
+ * surfaces, so the page's own bar is their only way out — on iOS the only one at
+ * all.
  *
  * So each entry is tied to the web file that draws its bar, and the file must
  * still call `useHostAwareBack` (the hook whose embedded branch posts `CLOSE`).
@@ -82,70 +86,6 @@ describe('every self-chromed surface has a way out', () => {
       expect(fs.readFileSync(absolute, 'utf8')).toContain('useHostAwareBack(');
     }
   );
-});
-
-describe('statusBarTint', () => {
-  it('tints only the canvas band', () => {
-    expect(statusBarTint('/studio/canvas/abc')).toEqual(CANVAS_MENUBAR_GRADIENT);
-    expect(statusBarTint('/studio/vorlage/abc')).toEqual(CANVAS_MENUBAR_GRADIENT);
-    expect(statusBarTint('/boards/abc')).toBeNull();
-    expect(statusBarTint('/office/abc')).toBeNull();
-    expect(statusBarTint('/notebooks/abc')).toBeNull();
-  });
-
-  it('judges by the pathname', () => {
-    expect(statusBarTint('/studio/canvas/abc?page=2')).toEqual(CANVAS_MENUBAR_GRADIENT);
-    expect(statusBarTint('/studio/canvas-archiv/abc')).toBeNull();
-  });
-});
-
-/**
- * The gradient is a web design token wearing a second hat. Redesign the editor
- * menu bar and the band above it would keep the old colours — a seam nobody
- * notices in a diff, because the two values live in different languages in
- * different packages. So the accent CSS is read here and the stops recomputed.
- */
-describe('the canvas band matches the editor menu bar', () => {
-  const CSS = path.join(REPO_ROOT, 'apps/web/src/assets/styles/common/accent.css');
-
-  type Rgb = [number, number, number];
-  const parse = (hex: string): Rgb =>
-    [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16)) as Rgb;
-  const hex = (rgb: Rgb) => '#' + rgb.map((c) => c.toString(16).padStart(2, '0')).join('');
-  // color-mix(in srgb, <accent> <pct>%, <other>) with white or black
-  const mix = (accent: Rgb, pct: number, other: number): Rgb =>
-    accent.map((c) => Math.round((c * pct) / 100 + (other * (100 - pct)) / 100)) as Rgb;
-
-  it('derives the same stops from --accent and the primary ramp', () => {
-    const css = fs.readFileSync(CSS, 'utf8');
-    const accent = /--accent:\s*(#[0-9a-fA-F]{6})/.exec(css)?.[1];
-    expect(accent, 'accent.css no longer declares --accent').toBeDefined();
-
-    // `90deg, var(--primary-700) 0%, var(--primary-600) 55%, var(--primary-400) 100%`
-    const gradient = /--editor-menubar-gradient:\s*linear-gradient\(([^;]*)\);/s.exec(css)?.[1];
-    expect(gradient, 'accent.css no longer declares --editor-menubar-gradient').toBeDefined();
-    const [angle, ...stops] = (gradient as string).split(',').map((part) => part.trim());
-    expect(angle, 'the bar is no longer a left-to-right gradient').toBe('90deg');
-
-    const rgb = parse(accent as string);
-    const ramp = (step: string): Rgb => {
-      const m = new RegExp(`--primary-${step}:\\s*([^;]+);`).exec(css)?.[1] ?? '';
-      if (m === 'var(--accent)') return rgb;
-      const mixed = /color-mix\(in srgb, var\(--accent\) (\d+)%, (white|black)\)/.exec(m);
-      expect(mixed, `--primary-${step} is no longer a mix of --accent`).not.toBeNull();
-      return mix(rgb, Number(mixed?.[1]), mixed?.[2] === 'white' ? 255 : 0);
-    };
-
-    const steps = stops.map((stop) => /var\(--primary-(\d+)\)/.exec(stop)?.[1] ?? '');
-    const positions = stops.map(
-      (stop) => Number((stop.split(/\s+/).pop() ?? '').replace('%', '')) / 100
-    );
-
-    expect(steps.map((step) => hex(ramp(step)).toUpperCase())).toEqual([
-      ...CANVAS_MENUBAR_GRADIENT,
-    ]);
-    expect(positions).toEqual([...CANVAS_MENUBAR_GRADIENT_STOPS]);
-  });
 });
 
 /**

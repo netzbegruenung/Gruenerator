@@ -1,15 +1,14 @@
+import { cn } from '@ggraphic/editor/utils/cn';
 import { FaTrash } from 'react-icons/fa';
 import { PiPlusBold, PiTextAa, PiTextHBold } from 'react-icons/pi';
 
 import { useIsCanvasMobile } from '../../hooks/useIsCanvasMobile';
 import { SidebarHint } from '../components/SidebarHint';
 import { TextField } from '../components/TextFieldPrimitives';
-import { SIDEBAR_SECTION } from '../sidebarStyles';
+import { MOBILE_INPUT_TEXT, SIDEBAR_SECTION } from '../sidebarStyles';
 
 import type { AdditionalText } from '../../configs/types';
-import type { TextFieldConfig } from '../../configs/unifiedTabs';
-
-import { cn } from '../../utils/cn';
+import type { TextFieldConfig } from '@ggraphic/editor/configs/unifiedTabs';
 
 export interface CombinedTextSectionProps {
   onAddHeader?: () => void;
@@ -89,7 +88,7 @@ export function CombinedTextSection({
             <button
               type="button"
               onClick={onAddText}
-              className={cn(MOBILE_ADD_TILE, 'h-10 text-[15px] font-normal')}
+              className={cn(MOBILE_ADD_TILE, 'h-11 text-[15px] font-normal')}
             >
               Fließtext hinzufügen
             </button>
@@ -191,13 +190,13 @@ export function CombinedTextSection({
                 type="text"
                 value={text.text}
                 onChange={(e) => onUpdateText(text.id, { text: e.target.value })}
-                className="flex-1 min-w-0 bg-transparent border-none outline-none text-sm text-foreground placeholder:text-foreground-muted max-canvas-mobile:text-[15px] max-canvas-mobile:text-[var(--editor-text)]"
+                className={`flex-1 min-w-0 bg-transparent border-none outline-none text-sm text-foreground placeholder:text-foreground-muted max-canvas-mobile:text-[var(--editor-text)] ${MOBILE_INPUT_TEXT}`}
                 placeholder={getTextTypePlaceholder(text.type)}
               />
               <button
                 type="button"
                 onClick={() => onRemoveText(text.id)}
-                className="shrink-0 size-7 flex items-center justify-center bg-transparent border-none rounded-md cursor-pointer text-foreground-muted transition-colors duration-150 hover:bg-red-50 hover:text-red-600"
+                className="touch-target shrink-0 size-7 flex items-center justify-center bg-transparent border-none rounded-md cursor-pointer text-foreground-muted transition-colors duration-150 hover:bg-red-50 hover:text-red-600"
                 aria-label="Text entfernen"
               >
                 <FaTrash size={11} />

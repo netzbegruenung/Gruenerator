@@ -6,8 +6,8 @@ import type * as Compaction from './compactionService.js';
 
 // ─── Mock compactionService ────────────────────────────────────────────────
 
-const mockGetMessageCount =
-  vi.fn<(...a: Parameters<typeof Compaction.getMessageCount>) => Promise<number>>();
+const mockCountMessagesAfter =
+  vi.fn<(...a: Parameters<typeof Compaction.countMessagesAfter>) => Promise<number | null>>();
 const mockGetCompactionState = vi.fn<
   (...a: Parameters<typeof Compaction.getCompactionState>) => Promise<{
     summary: string | null;
@@ -18,14 +18,16 @@ const mockGetCompactionState = vi.fn<
 const mockNeedsCompaction =
   vi.fn<(...a: Parameters<typeof Compaction.needsCompaction>) => boolean>();
 const mockGenerateCompactionSummary =
-  vi.fn<(...a: Parameters<typeof Compaction.generateCompactionSummary>) => Promise<void>>();
+  vi.fn<
+    (...a: Parameters<typeof Compaction.generateCompactionSummary>) => Promise<string | null>
+  >();
 const mockGetThreadMessages =
   vi.fn<(...a: Parameters<typeof Compaction.getThreadMessages>) => Promise<any[]>>();
 const mockPrepareMessagesWithCompaction = vi.fn();
 
 vi.mock('./compactionService.js', () => ({
-  getMessageCount: (...args: Parameters<typeof Compaction.getMessageCount>) =>
-    mockGetMessageCount(...args),
+  countMessagesAfter: (...args: Parameters<typeof Compaction.countMessagesAfter>) =>
+    mockCountMessagesAfter(...args),
   getCompactionState: (...args: Parameters<typeof Compaction.getCompactionState>) =>
     mockGetCompactionState(...args),
   needsCompaction: (...args: Parameters<typeof Compaction.needsCompaction>) =>
@@ -61,15 +63,18 @@ function tid() {
 }
 
 function setupMocks(opts: { needsCompaction?: boolean; summary?: string | null } = {}) {
-  mockGetMessageCount.mockResolvedValue(100);
+  mockCountMessagesAfter.mockResolvedValue(1);
   mockGetCompactionState.mockResolvedValue({
     summary: opts.summary ?? null,
-    compactedUpToMessageId: null,
+    compactedUpToMessageId: opts.summary ? 'cut' : null,
     compactionUpdatedAt: null,
   });
   mockNeedsCompaction.mockReturnValue(opts.needsCompaction ?? true);
-  mockGenerateCompactionSummary.mockResolvedValue(undefined);
+  mockGenerateCompactionSummary.mockResolvedValue(null);
   mockGetThreadMessages.mockResolvedValue([]);
+  mockPrepareMessagesWithCompaction.mockImplementation(
+    (messages: unknown[], _state: unknown, systemMessage: string) => ({ messages, systemMessage })
+  );
 }
 
 // ─── Tests ─────────────────────────────────────────────────────────────────
@@ -107,8 +112,8 @@ describe('applyCompaction – concurrency guard & cooldown', () => {
 
     // Make compaction hang until we resolve it
     let resolveCompaction!: () => void;
-    const hangingPromise = new Promise<void>((r) => {
-      resolveCompaction = r;
+    const hangingPromise = new Promise<string | null>((r) => {
+      resolveCompaction = () => r(null);
     });
 
     setupMocks({ needsCompaction: true });
@@ -132,11 +137,11 @@ describe('applyCompaction – concurrency guard & cooldown', () => {
 
     let resolveA!: () => void;
     let resolveB!: () => void;
-    const promiseA = new Promise<void>((r) => {
-      resolveA = r;
+    const promiseA = new Promise<string | null>((r) => {
+      resolveA = () => r(null);
     });
-    const promiseB = new Promise<void>((r) => {
-      resolveB = r;
+    const promiseB = new Promise<string | null>((r) => {
+      resolveB = () => r(null);
     });
 
     setupMocks({ needsCompaction: true });
@@ -215,12 +220,13 @@ describe('applyCompaction – concurrency guard & cooldown', () => {
       full,
       expect.anything(),
       'my system prompt',
+      1,
       undefined
     );
   });
 
   it('handles compaction error gracefully and returns original systemMessage + messages', async () => {
-    mockGetMessageCount.mockRejectedValue(new Error('DB connection failed'));
+    mockGetCompactionState.mockRejectedValue(new Error('DB connection failed'));
     const id = tid();
     const msgs = [{ role: 'user', content: 'unchanged' }];
 
@@ -243,10 +249,41 @@ describe('applyCompaction – concurrency guard & cooldown', () => {
     expect(mockGenerateCompactionSummary).toHaveBeenCalledTimes(1);
 
     // Failed compaction does NOT set lastCompactionTime — retry should work immediately
-    mockGenerateCompactionSummary.mockResolvedValueOnce(undefined);
+    mockGenerateCompactionSummary.mockResolvedValueOnce(null);
     await applyCompaction(id, [], 'system msg');
 
     expect(mockGenerateCompactionSummary).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe('applyCompaction – what the trigger measures', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('measures only the rows after the summary, so a summarised thread stops re-triggering', async () => {
+    setupMocks({ summary: 'S' });
+    const tail = [{ role: 'user', content: 'neu' }];
+    mockPrepareMessagesWithCompaction.mockReturnValue({ systemMessage: 'S', messages: tail });
+    const long = Array.from({ length: 120 }, () => ({ role: 'user', content: 'x'.repeat(400) }));
+
+    await applyCompaction(tid(), long, 'sys', 128_000);
+
+    // TokenCounter: 3 chars / 4 → 1 + 10 per message — the 120-message history is not counted.
+    expect(mockNeedsCompaction).toHaveBeenCalledWith(11, 128_000);
+  });
+
+  it('hands the previous summary over, but not a stale one', async () => {
+    setupMocks({ summary: 'S', needsCompaction: true });
+    await applyCompaction(tid(), [], 'sys', 128_000);
+    expect(mockGenerateCompactionSummary.mock.calls[0][3]).toMatchObject({ summary: 'S' });
+
+    vi.clearAllMocks();
+    setupMocks({ summary: 'S', needsCompaction: true });
+    mockCountMessagesAfter.mockResolvedValue(null);
+    await applyCompaction(tid(), [], 'sys', 128_000);
+    expect(mockGenerateCompactionSummary.mock.calls[0][3]).toBeNull();
+    expect(mockPrepareMessagesWithCompaction.mock.calls[0][3]).toBeNull();
   });
 });
 

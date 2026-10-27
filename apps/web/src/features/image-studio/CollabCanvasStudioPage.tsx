@@ -1,20 +1,23 @@
 import {
   commitOpenTextEdit,
+  getCanvasFormatOrDefault,
+  isSlideFormat,
   useCanvasCollaboration,
   MasterCanvasEditor,
   parseInitialPages,
   preloadCanvasTemplate,
+  type CanvasEditorExportApi,
   type InitialPageDef,
   type SidebarTabId,
 } from '@gruenerator/canvas-editor';
 import { CanvasEditorSkeleton } from '@gruenerator/canvas-editor/skeleton';
 import { getAuthErrorMessage, PresenceAvatars, useCollaborators } from '@gruenerator/collab';
-import { type CanvasDocument } from '@gruenerator/contracts';
+import { sharepicFormatSchema, type CanvasDocument } from '@gruenerator/contracts';
 import { ApiError, getContractsClient } from '@gruenerator/shared/api';
 import { EditableTitle } from '@gruenerator/shared/components/EditableTitle';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { lazy, Suspense, useCallback, useEffect, useMemo, useState } from 'react';
-import { PiArrowLeft, PiCheck } from 'react-icons/pi';
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { PiArrowLeft, PiCheck, PiPresentationChart } from 'react-icons/pi';
 import { useParams, useSearchParams } from 'react-router-dom';
 
 import { DottedBackground } from '../../components/common/DottedBackground';
@@ -28,10 +31,13 @@ import { useAuthStore } from '../../stores/authStore';
 import useCanvasUiStore from '../../stores/canvasUiStore';
 import { isEmbedded } from '../../utils/platform';
 import { useTourAutostart } from '../tours/useTourAutostart';
+import { ExportCanvasVorlageButton } from '../vorlagen/components/ExportCanvasVorlageButton';
 
 import { CanvasChatDocContext } from './CanvasChatDocContext';
+import { CanvasPresentMode } from './CanvasPresentMode';
 import { canvasQueryOptions } from './canvasQuery';
 import { updateCanvasThumbnail } from './services/canvasThumbnailService';
+import { useNativeEditorChrome } from './useNativeEditorChrome';
 import { waitForCollabSync } from './waitForCollabSync';
 import { WebCanvasEditorProvider } from './WebCanvasEditorProvider';
 
@@ -59,6 +65,8 @@ function CollabCanvasStudioContent() {
   const user = useAuthStore((s) => s.user);
   const config = useCollaborationConfig();
   const [shareOpen, setShareOpen] = useState(false);
+  const exportApi = useRef<CanvasEditorExportApi>(null);
+  const [presenting, setPresenting] = useState(false);
   const [saveTemplateOpen, setSaveTemplateOpen] = useState(false);
   // Einmal geöffnet bleiben die Dialoge gemountet, damit ihre Schließ-Animation läuft.
   const [shareMounted, setShareMounted] = useState(false);
@@ -95,12 +103,14 @@ function CollabCanvasStudioContent() {
     [canvas]
   );
 
-  const canEdit = useMemo(() => {
+  const canEdit = canvas?.can_edit === true;
+
+  // Only owners may manage who has access; everyone else would get a share
+  // dialog stuck loading on the owner-only share-settings endpoint (403).
+  const isOwner = useMemo(() => {
     if (!canvas || !user) return false;
     const uid = String(user.id);
-    if (canvas.created_by === uid) return true;
-    const perm = canvas.permissions?.[uid];
-    return perm ? ['owner', 'editor'].includes(perm.level) : false;
+    return canvas.created_by === uid || canvas.permissions?.[uid]?.level === 'owner';
   }, [canvas, user]);
 
   const handleTitleChange = useCallback(
@@ -128,6 +138,13 @@ function CollabCanvasStudioContent() {
   );
 
   useDocumentTitle(canvas?.title);
+
+  const hostChrome = useNativeEditorChrome({
+    title: canvas?.title ?? null,
+    canEdit,
+    exportApi,
+    onRename: handleTitleChange,
+  });
 
   const collaborationUser = useMemo(
     () =>
@@ -287,7 +304,25 @@ function CollabCanvasStudioContent() {
     </div>
   ) : null;
 
-  const chromeRight = <PresenceAvatars collaborators={collaborators} compact />;
+  const chromeRight = (
+    <div className="flex items-center gap-2">
+      {/* Sharepic formats are built from Seiten; a whole Vorlage there would never be offered. */}
+      {canvas && canEdit && !sharepicFormatSchema.safeParse(canvas.format).success ? (
+        <ExportCanvasVorlageButton exportApi={exportApi} formatId={canvas.format} />
+      ) : null}
+      {canvas && isSlideFormat(getCanvasFormatOrDefault(canvas.format)) ? (
+        <button
+          type="button"
+          onClick={() => setPresenting(true)}
+          className="flex items-center gap-1.5 rounded-[10px] border-none bg-white/15 px-3 h-[34px] text-sm font-medium text-white cursor-pointer hover:bg-white/25"
+        >
+          <PiPresentationChart size={16} aria-hidden="true" />
+          Präsentieren
+        </button>
+      ) : null}
+      <PresenceAvatars collaborators={collaborators} compact />
+    </div>
+  );
 
   // Immersive layout hides the global app sidebar, so this back button is the
   // way out of the editor — mirrors the docs EditorTopBar back button.
@@ -308,9 +343,11 @@ function CollabCanvasStudioContent() {
       <div className="relative flex flex-col h-dvh bg-background">
         <DottedBackground />
         {/* The back button is styled for the editor's green bar. */}
-        <div className="z-10 h-[var(--editor-topbar-height)] shrink-0 bg-[image:var(--editor-menubar-gradient)] px-4 flex items-center max-canvas-mobile:h-[52px] max-canvas-mobile:px-2.5">
-          {chromeLeft}
-        </div>
+        {!hostChrome && (
+          <div className="z-10 h-[var(--editor-topbar-height)] shrink-0 bg-[image:var(--editor-menubar-gradient)] px-4 flex items-center max-canvas-mobile:h-[52px] max-canvas-mobile:px-2.5">
+            {chromeLeft}
+          </div>
+        )}
         <p className="z-10 p-md text-sm text-foreground" role="alert">
           {accessError ?? 'Der Canvas konnte nicht geladen werden.'}
         </p>
@@ -319,11 +356,11 @@ function CollabCanvasStudioContent() {
   }
 
   if (isLoading || !canvas) {
-    return <CanvasEditorSkeleton chromeLeft={chromeLeft} />;
+    return <CanvasEditorSkeleton chromeLeft={chromeLeft} topBar={!hostChrome} />;
   }
 
   return (
-    <WebCanvasEditorProvider>
+    <WebCanvasEditorProvider allowVorlagen={canEdit}>
       <CanvasChatDocContext.Provider value={chatDoc}>
         <div className="relative flex flex-col h-dvh bg-[var(--editor-bg)]">
           <div className="flex-1 min-h-0">
@@ -331,6 +368,7 @@ function CollabCanvasStudioContent() {
               key={canvas.id}
               type={canvas.template_type}
               formatId={canvas.format}
+              documentTitle={canvas.title}
               initialState={canvas.initial_state}
               initialPages={initialPages}
               onExport={handleExport}
@@ -348,23 +386,31 @@ function CollabCanvasStudioContent() {
                     }
                   : undefined
               }
-              chromeLeft={chromeLeft}
-              chromeCenter={chromeCenter}
-              chromeRight={chromeRight}
-              onInvitePeople={() => {
-                setShareMounted(true);
-                setShareOpen(true);
-              }}
+              {...(hostChrome ? { hostChrome } : { chromeLeft, chromeCenter, chromeRight })}
+              exportApiRef={exportApi}
+              {...(isOwner
+                ? {
+                    onInvitePeople: () => {
+                      setShareMounted(true);
+                      setShareOpen(true);
+                    },
+                  }
+                : {})}
               onSaveAsTemplate={() => {
                 setSaveTemplateMounted(true);
                 setSaveTemplateOpen(true);
               }}
               initialTab={initialTab}
               onActiveTabChange={handleActiveTabChange}
+              // The connection's scope, not canEdit: project shares and editor links grant writes `permissions` lacks.
+              readOnly={collab.isReadOnly}
             />
           </div>
           {/* Lazy und erst beim ersten Öffnen gemountet: der Share-Dialog zieht
               den Docs-Editor (BlockNote) nach, den der Canvas sonst nie braucht. */}
+          {presenting && (
+            <CanvasPresentMode exportApi={exportApi} onClose={() => setPresenting(false)} />
+          )}
           <Suspense fallback={null}>
             {shareMounted && (
               <ShareCanvasDialog

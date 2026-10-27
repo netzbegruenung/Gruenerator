@@ -32,6 +32,8 @@ import {
 } from '@gruenerator/shared';
 import { useSyncExternalStore } from 'react';
 
+import { reportFailure } from './errorReporting';
+
 /**
  * How long one render may take, measured from the moment it is posted.
  *
@@ -41,6 +43,13 @@ import { useSyncExternalStore } from 'react';
  * budget.
  */
 const REQUEST_TIMEOUT_MS = 20_000;
+
+/**
+ * Drawing a preview gets longer than the other requests: the page waits up to
+ * ten seconds for the photo alone, and a cold first render measured 25 s (dev
+ * bundle, Android emulator) — past the old 20 s, which the retry then inherited.
+ */
+const RENDER_TIMEOUT_MS = 30_000;
 
 /** A creator turn renders every slide of a carousel, and maybe a contact sheet. */
 const CREATOR_TIMEOUT_MS = 60_000;
@@ -189,7 +198,7 @@ function armIdleUnmount(): void {
     // page we were talking to goes away with it. Forgetting that here is the
     // whole point: a stale `hostReady` would let the next render be posted into
     // a dead ref, where it is neither delivered nor refused — it would sit
-    // until the 20s timeout while the fresh page waits, already announced, with
+    // until its timeout while the fresh page waits, already announced, with
     // nothing to do.
     hostReady = false;
     postToPage = null;
@@ -232,6 +241,8 @@ function failInFlight(reason: string): void {
     queue.unshift(job);
   } else {
     console.warn(`[sharepicRender] giving up on ${job.key}: ${reason}`);
+    // Without this a preview that never appears leaves no trace anywhere.
+    reportFailure('sharepic render gave up', { reason, request: job.request.type });
     settle(job, null);
   }
   if (!pending()) armIdleUnmount();
@@ -261,7 +272,11 @@ function pump(): void {
   requestCounter += 1;
   const requestId = `r${requestCounter}`;
   const timeout =
-    job.request.type === 'CREATOR_RENDER_REQUEST' ? CREATOR_TIMEOUT_MS : REQUEST_TIMEOUT_MS;
+    job.request.type === 'CREATOR_RENDER_REQUEST'
+      ? CREATOR_TIMEOUT_MS
+      : job.request.type === 'RENDER_REQUEST'
+        ? RENDER_TIMEOUT_MS
+        : REQUEST_TIMEOUT_MS;
   const timer = setTimeout(() => failInFlight('timeout'), timeout);
   inFlight = { job, requestId, timer };
 
@@ -397,6 +412,9 @@ export function unregisterRenderHost(): void {
  */
 export function hostUnavailable(reason: string): void {
   console.warn(`[sharepicRender] host unavailable: ${reason}`);
+  // Only when it cost someone a picture: the host also gives up while idle
+  // (a WebView error between renders), and a burst of those is noise.
+  if (pending()) reportFailure('sharepic render host unavailable', { reason });
   if (bootTimer !== null) {
     clearTimeout(bootTimer);
     bootTimer = null;

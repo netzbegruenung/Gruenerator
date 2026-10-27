@@ -7,12 +7,15 @@
  * under the mention field rather than as a banner, and the sharing section is
  * accessible.
  */
+import {
+  EMPTY_RECIPE_FORM,
+  type RecipeFormState,
+  EXAMPLE_SEPARATOR,
+} from '@gruenerator/shared/grueneratoren';
 import { ConfirmDialogProvider } from '@gruenerator/ui';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import RecipeEditor from './RecipeEditor';
-import { EMPTY_RECIPE_FORM, type RecipeFormState } from './recipeFormState';
-import { EXAMPLE_SEPARATOR } from './splitExamples';
 
 import { axe, fireEvent, renderWithProviders, screen, waitFor } from '@/test-utils';
 

@@ -6,6 +6,14 @@
  * regardless of display scaling.
  */
 
+import { activeBrand } from '@ggraphic/editor/brand/brandRegistry';
+import { CanvasTextEditorProvider } from '@ggraphic/editor/components/CanvasTextOverlay';
+import { TransformHud } from '@ggraphic/editor/components/TransformHud';
+import { useHoverOutline } from '@ggraphic/editor/hooks/useHoverOutline';
+import { installAxisLock } from '@ggraphic/editor/utils/axisLock';
+import { cn } from '@ggraphic/editor/utils/cn';
+import { MOUSE_DRAG_DISTANCE, TOUCH_DRAG_DISTANCE } from '@ggraphic/editor/utils/touchInput';
+import { USER_PHOTO_NODE_NAME } from '@ggraphic/editor/utils/userImageUtils';
 import Konva from 'konva';
 import {
   useRef,
@@ -18,13 +26,10 @@ import {
 } from 'react';
 import { Stage, Layer, Group, Rect } from 'react-konva';
 
-import { CanvasTextEditorProvider } from '../components/CanvasTextOverlay';
-import { useHoverOutline } from '../hooks/useHoverOutline';
 import { withSelectionChromeHidden } from '../utils/captureStage';
-import { cn } from '../utils/cn';
-import { MOUSE_DRAG_DISTANCE, TOUCH_DRAG_DISTANCE } from '../utils/touchInput';
+import { BACKGROUND_IMAGE_NODE_ID, printImageInfo } from '../utils/printImageInfo';
 
-import type { ExportOptions } from '@gruenerator/shared/canvas-editor';
+import type { ExportOptions } from '@ggraphic/editor/types/editorTypes';
 
 export interface CanvasStageProps {
   width: number;
@@ -48,7 +53,11 @@ export interface CanvasStageProps {
    * true; only the preview path turns it off.
    */
   listening?: boolean;
+  /** Beschreibt die Bühne für Screenreader (`role="img"`) — siehe `stageSummary`. */
+  ariaLabel?: string;
   children: ReactNode;
+  /** DOM über der Bühne im selben Koordinatensystem (z. B. das Restbild beim Zuschneiden). */
+  overlay?: ReactNode;
   className?: string;
   style?: React.CSSProperties;
 }
@@ -131,10 +140,32 @@ function cancelTransforms(before: Map<Konva.Node, Konva.NodeConfig>) {
 const exportMimeType = (options: Partial<ExportOptions>) =>
   `image/${options.format || 'png'}` as 'image/png' | 'image/jpeg' | 'image/webp';
 
+export interface PrintTileRequest {
+  /** Format px, as planned by planTiles. */
+  x: number;
+  y: number;
+  /** Authoritative output size in whole pixels. */
+  outWidth: number;
+  outHeight: number;
+  pixelRatio: number;
+  quality: number;
+}
+
+export interface PrintImageInfo {
+  /** Pixels of the source that are actually shown (after the cover crop). */
+  naturalWidthPx: number;
+  /** Width the photo covers on the canvas, in format px. */
+  displayedWidthPx: number;
+}
+
 export interface CanvasStageRef {
   getStage: () => Konva.Stage | null;
   toDataURL: (options?: Partial<ExportOptions>) => string | undefined;
   toDataURLAsync: (options?: Partial<ExportOptions>) => Promise<string | null>;
+  /** One print tile (format px) as JPEG bytes, selection chrome hidden. */
+  toTileJpeg: (tile: PrintTileRequest) => Promise<Uint8Array | null>;
+  /** User photos on the stage with natural and displayed width (format px). */
+  getPrintImages: () => PrintImageInfo[];
   getContainerSize: () => { width: number; height: number };
   getDisplayScale: () => number;
 }
@@ -151,7 +182,9 @@ export const CanvasStage = forwardRef<CanvasStageRef, CanvasStageProps>(
       maxContainerHeight,
       onStageClick,
       listening = true,
+      ariaLabel,
       children,
+      overlay,
       className,
       style,
     },
@@ -290,6 +323,45 @@ export const CanvasStage = forwardRef<CanvasStageRef, CanvasStageProps>(
       [withExportView]
     );
 
+    const toTileJpeg = useCallback(
+      async (tile: PrintTileRequest): Promise<Uint8Array | null> => {
+        const stage = displayStageRef.current;
+        if (!stage) return null;
+        // Same region maths as stageExportRegion: the stage is shown at
+        // displayScale, the half pixel keeps float error from flooring short.
+        const ratio = tile.pixelRatio / displayScale;
+        const canvas = withSelectionChromeHidden(stage, () =>
+          stage.toCanvas({
+            x: tile.x * displayScale,
+            y: tile.y * displayScale,
+            width: (tile.outWidth + 0.5) / ratio,
+            height: (tile.outHeight + 0.5) / ratio,
+            pixelRatio: ratio,
+          })
+        );
+        const blob = await new Promise<Blob | null>((resolve) =>
+          canvas.toBlob(resolve, 'image/jpeg', tile.quality)
+        );
+        canvas.width = 0;
+        canvas.height = 0;
+        return blob ? new Uint8Array(await blob.arrayBuffer()) : null;
+      },
+      [displayScale]
+    );
+
+    const getPrintImages = useCallback((): PrintImageInfo[] => {
+      const stage = displayStageRef.current;
+      if (!stage) return [];
+      const nodes = [
+        ...stage.find<Konva.Image>(`.${USER_PHOTO_NODE_NAME}`),
+        ...stage.find<Konva.Image>(`#${BACKGROUND_IMAGE_NODE_ID}`),
+      ];
+      return nodes.flatMap((node) => {
+        const info = printImageInfo(node, displayScale);
+        return info ? [info] : [];
+      });
+    }, [displayScale]);
+
     useHoverOutline(displayStageRef, listening);
 
     // Konva only has a global drag threshold, read on every move. Capture
@@ -297,6 +369,12 @@ export const CanvasStage = forwardRef<CanvasStageRef, CanvasStageProps>(
     // A second finger makes the gesture a pinch (useZoomGestures): its press
     // never reaches Konva, so it can't select what it lands on, and a drag or
     // resize the first finger started is put back and ended.
+    // Umschalt sperrt jeden Zug auf eine Achse — einmal für alle Elemente.
+    useEffect(() => {
+      const stage = displayStageRef.current;
+      return stage ? installAxisLock(stage) : undefined;
+    }, []);
+
     useEffect(() => {
       const stage = displayStageRef.current;
       const container = stage?.container();
@@ -337,10 +415,12 @@ export const CanvasStage = forwardRef<CanvasStageRef, CanvasStageProps>(
         getStage: () => displayStageRef.current,
         toDataURL,
         toDataURLAsync,
+        toTileJpeg,
+        getPrintImages,
         getContainerSize: () => containerSize,
         getDisplayScale: () => displayScale,
       }),
-      [toDataURL, toDataURLAsync, containerSize, displayScale]
+      [toDataURL, toDataURLAsync, toTileJpeg, getPrintImages, containerSize, displayScale]
     );
 
     return (
@@ -353,6 +433,8 @@ export const CanvasStage = forwardRef<CanvasStageRef, CanvasStageProps>(
         {/* Display Stage - Visible, interactive, responsively scaled */}
         <div
           ref={containerDivRef}
+          role={ariaLabel ? 'img' : undefined}
+          aria-label={ariaLabel}
           className={cn('canvas-stage-container relative', className)}
           style={{
             width: containerSize.width,
@@ -377,9 +459,15 @@ export const CanvasStage = forwardRef<CanvasStageRef, CanvasStageProps>(
                   {/* Solid-color backdrop for non-default formats. Sharepic
                       templates were designed with their own backgrounds (image
                       or color); for non-sharepic formats (Story, Präsentation,
-                      Flyer, Plakat) we render a clean SAND base behind the
+                      Flyer, Plakat) we render the brand's light surface behind the
                       scaled design so it never sits on a transparent canvas. */}
-                  <Rect x={0} y={0} width={width} height={height} fill="#f5f1e9" />
+                  <Rect
+                    x={0}
+                    y={0}
+                    width={width}
+                    height={height}
+                    fill={activeBrand().colors.surface}
+                  />
                   <Group scaleX={width / logicalWidth} scaleY={height / logicalHeight}>
                     {children}
                   </Group>
@@ -389,6 +477,8 @@ export const CanvasStage = forwardRef<CanvasStageRef, CanvasStageProps>(
               )}
             </Layer>
           </Stage>
+          {overlay}
+          <TransformHud stageRef={displayStageRef} enabled={listening} />
         </div>
       </CanvasTextEditorProvider>
     );

@@ -70,6 +70,7 @@ export {
 export { Badge, badgeVariants } from './components/badge';
 export { Button, buttonVariants } from './components/button';
 export { CopyLinkRow } from './components/copy-link-row';
+export { IconSwap } from './components/icon-swap';
 export { Fab, type FabProps } from './components/fab';
 export { Checkbox } from './components/checkbox';
 export {
@@ -227,6 +228,7 @@ export { SelectCard, type SelectCardProps } from './components/select-card';
 export { LiteTooltip, type LiteTooltipProps } from './components/lite-tooltip';
 export { Toaster } from './components/sonner';
 export { toast } from 'sonner';
+export { isToastEvent } from './lib/toastEvent';
 export {
   NotificationBell,
   type NotificationBellProps,
@@ -250,6 +252,22 @@ export { ProcessingState, type ProcessingStateProps } from './components/process
 export { PreviewImage, type PreviewImageProps } from './components/preview-image';
 export { FeatureCard, type FeatureCardProps } from './components/feature-card';
 export { InteractiveCard, interactiveCardControl } from './components/interactive-card';
+export {
+  ShowcaseCard,
+  ShowcaseCardIcons,
+  ShowcaseCardImage,
+  ShowcaseCardPoster,
+  ShowcaseMedia,
+  ShowcasePhotoCard,
+  type ShowcaseCardIconsProps,
+  type ShowcaseCardPosterProps,
+  type ShowcaseCardImageProps,
+  type ShowcaseCardProps,
+  type ShowcaseCredit,
+  type ShowcaseMediaProps,
+  type ShowcasePhotoCardProps,
+  type ShowcaseTone,
+} from './components/showcase-card';
 
 export {
   PillGroup,

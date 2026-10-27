@@ -1,4 +1,8 @@
-import { getDocUndoManager, type UndoableEditor } from '../hooks/useDocUndoState';
+import {
+  getDocUndoManager,
+  notifyDocUndoStacksRewritten,
+  type UndoableEditor,
+} from '../hooks/useDocUndoState';
 
 /**
  * Carry the undo/redo history across an editor recreation (#3262).
@@ -49,6 +53,7 @@ export function carryUndoAcrossEditorRecreate(
   if (um && parked && um.undoStack.length === 0 && um.redoStack.length === 0) {
     um.undoStack = parked.undoStack;
     um.redoStack = parked.redoStack;
+    notifyDocUndoStacksRewritten(editor);
   }
   parkedHistories.delete(fragment);
 

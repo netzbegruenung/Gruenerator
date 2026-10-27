@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
+import { env } from '../../../config/env.js';
 import { ATTACHED_DOC_SNIPPET_CHARS } from '../services/agenticLoop/attachedDocuments.js';
 import { createSourceRegistry } from '../services/agenticLoop/sourceRegistry.js';
 
@@ -297,6 +298,31 @@ describe('toolCatalog domain tool mounting', () => {
       buildChatToolCatalog({ agentConfig, sourceRegistry, loop: { sse, state } }).toolNames
     ).not.toContain('text_uebersetzen');
     deeplConfigured.current = false;
+  });
+
+  it('mounts website_erkunden only with the service URL and an API-only token secret', () => {
+    const saved = {
+      url: env.BROWSER_AGENT_URL,
+      service: env.BROWSER_AGENT_SECRET,
+      token: env.BROWSER_AGENT_TOKEN_SECRET,
+    };
+    try {
+      env.BROWSER_AGENT_URL = 'http://browser-agent.test';
+      env.BROWSER_AGENT_SECRET = 'service-secret';
+      env.BROWSER_AGENT_TOKEN_SECRET = 'token-secret';
+      expect(catalogFor('search').toolNames).toContain('website_erkunden');
+
+      env.BROWSER_AGENT_TOKEN_SECRET = undefined;
+      expect(catalogFor('search').toolNames).not.toContain('website_erkunden');
+
+      // Same value as the secret the browser container holds: still off.
+      env.BROWSER_AGENT_TOKEN_SECRET = 'service-secret';
+      expect(catalogFor('search').toolNames).not.toContain('website_erkunden');
+    } finally {
+      env.BROWSER_AGENT_URL = saved.url;
+      env.BROWSER_AGENT_SECRET = saved.service;
+      env.BROWSER_AGENT_TOKEN_SECRET = saved.token;
+    }
   });
 
   it('mounts no domain tools without a loop context (unit-test / non-loop path)', () => {
@@ -840,6 +866,96 @@ describe('toolCatalog: Formularwerkzeuge hängen am Formular, nicht am MIME-Typ'
       threadAttachments: [pdf({ mimeType: 'text/plain', hasFileData: true })],
     });
     expect(names).not.toContain('read_pdf_form');
+  });
+});
+
+/**
+ * `tabelle_auswerten` lässt Code im Browser laufen: nur mit Tabelle, mit einer
+ * Oberfläche, die Python kann, und in einem Thread (die Pause braucht ihn).
+ */
+describe('toolCatalog: tabelle_auswerten', () => {
+  const catalogFor = (
+    state: Record<string, unknown>,
+    threadId: string | null = 't1',
+    userId: string | null = 'u1'
+  ) => {
+    const sourceRegistry = createSourceRegistry();
+    const sse = { send: () => {} } as unknown as NonNullable<
+      Parameters<typeof buildChatToolCatalog>[0]['loop']
+    >['sse'];
+    const { toolNames } = buildChatToolCatalog({
+      agentConfig: { ...agentConfig, ...(userId ? { userId } : {}) } as AgentConfig,
+      sourceRegistry,
+      loop: {
+        sse,
+        state: { intent: 'search', ...state } as unknown as ChatGraphState,
+        ...(threadId ? { threadId } : {}),
+      },
+    });
+    return toolNames;
+  };
+
+  it('fehlt ohne Python im Browser', () => {
+    expect(catalogFor({ hasTabularAttachment: true, clientCanRunPython: false })).not.toContain(
+      'tabelle_auswerten'
+    );
+  });
+
+  it('fehlt bei einem alten Client, der nur run_python meldet', () => {
+    expect(
+      catalogFor({
+        hasTabularAttachment: true,
+        clientCanRunPython: true,
+        clientCanUseTabularTool: false,
+      })
+    ).not.toContain('tabelle_auswerten');
+  });
+
+  it('fehlt ohne Tabelle', () => {
+    expect(
+      catalogFor({
+        hasTabularAttachment: false,
+        clientCanRunPython: true,
+        clientCanUseTabularTool: true,
+      })
+    ).not.toContain('tabelle_auswerten');
+  });
+
+  it('ist da mit Tabelle und Python', () => {
+    expect(
+      catalogFor({
+        hasTabularAttachment: true,
+        clientCanRunPython: true,
+        clientCanUseTabularTool: true,
+      })
+    ).toContain('tabelle_auswerten');
+  });
+
+  it('fehlt ohne angemeldete Person — ohne sie ist das Freigabe-Gate aus', () => {
+    expect(
+      catalogFor(
+        { hasTabularAttachment: true, clientCanRunPython: true, clientCanUseTabularTool: true },
+        't1',
+        null
+      )
+    ).not.toContain('tabelle_auswerten');
+  });
+
+  it('fehlt ohne Thread und wenn die Agentin es abgeschaltet hat', () => {
+    expect(
+      catalogFor(
+        { hasTabularAttachment: true, clientCanRunPython: true, clientCanUseTabularTool: true },
+        null
+      )
+    ).not.toContain('tabelle_auswerten');
+    expect(
+      catalogFor({
+        hasTabularAttachment: true,
+        clientCanRunPython: true,
+        clientCanUseTabularTool: true,
+        enabledTools: { tabelle_auswerten: false },
+      })
+    ).not.toContain('tabelle_auswerten');
   });
 });
 

@@ -6,15 +6,15 @@
  * gerechnet werden; und weil Safari über ein Canvas allein nichts lädt, muss
  * die Messung den Schnitt selbst anfordern, sonst käme `loadingdone` nie.
  */
+import { measureTextWidthWithFont } from '@ggraphic/editor/utils/textUtils';
 import { act, render } from '@testing-library/react';
 import { createRef } from 'react';
 import { describe, expect, it, vi } from 'vitest';
 
-import { measureTextWidthWithFont } from '../../utils/textUtils';
 import { CanvasRichText } from '../CanvasRichText';
 import { CanvasStage, type CanvasStageRef } from '../CanvasStage';
 
-import type * as TextUtils from '../../utils/textUtils';
+import type * as TextUtils from '@ggraphic/editor/utils/textUtils';
 import type Konva from 'konva';
 
 const fonts = vi.hoisted(() => {
@@ -32,7 +32,7 @@ const fonts = vi.hoisted(() => {
 
 const measured = vi.hoisted(() => ({ factor: 1 }));
 
-vi.mock('../../utils/textUtils', async (importOriginal) => ({
+vi.mock('@ggraphic/editor/utils/textUtils', async (importOriginal) => ({
   ...(await importOriginal<typeof TextUtils>()),
   runMeasurer: () => (text: string) => text.length * 10 * measured.factor,
 }));

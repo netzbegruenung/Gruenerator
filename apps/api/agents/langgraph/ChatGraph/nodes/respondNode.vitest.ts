@@ -9,6 +9,7 @@ import {
   truncateDocument,
   limitAttachmentContext,
   formatThreadAttachmentsContext,
+  restoreAttachmentsDroppedWithHistory,
 } from './respondNode.js';
 import { NO_CAPABILITY_DENIAL_RULE } from './artifactInventory.js';
 
@@ -483,6 +484,7 @@ Regeln:
 - xKey: Name des Feldes für die X-Achse (z.B. "name", "monat", "jahr")
 - yKeys: Array der Feldnamen für die Werte (z.B. ["wert", "wert2"])
 - Zahlen NUR aus der Nachricht, dem Gesprächsverlauf, angehängten Dokumenten oder den Quellen im Prompt übernehmen — niemals schätzen oder erfinden
+- Nur Datenpunkte mit belegtem Wert aufnehmen — keine null-Werte oder Platzhalter für fehlende Jahre
 - Fehlen belastbare Zahlen: KEINEN chart-Block ausgeben, sondern kurz sagen, dass dir die Zahlen fehlen, und danach fragen oder eine Recherche anbieten
 - Nur wenn ausdrücklich ein Beispieldiagramm gewünscht ist, sind fiktive Werte erlaubt — dann im title als „Beispieldaten" kennzeichnen
 - Optional bei bar/area mit mehreren yKeys: "stacked": true stapelt die Reihen, "percent": true normiert jede Kategorie auf 100 % (Anteile, Zusammensetzungen)
@@ -532,12 +534,72 @@ describe('formatTabularComputeGuidance', () => {
     expect(out).toBe('');
   });
 
-  it('emits the code-block guidance for a tabular attachment without a result', () => {
+  const mountable = {
+    hasTabularAttachment: true,
+    computedResult: null,
+    clientCanRunPython: true,
+    clientCanUseTabularTool: true,
+    agentConfig: { userId: 'u1' },
+  } as never;
+
+  it('loop turn with the tool mounted steers calculations to tabelle_auswerten', () => {
+    const out = formatTabularComputeGuidance(makeState(mountable), { loop: true });
+    expect(out).toContain('MIT DEM WERKZEUG RECHNEN');
+    expect(out).toContain('tabelle_auswerten');
+    expect(out).not.toContain('```python');
+    expect(out).not.toContain('automatisch ausgeführt');
+    expect(out).not.toMatch(/Fordere NICHT zum Klicken/);
+  });
+
+  it('after a denial the tool branch only reports missing data when it is really missing', () => {
+    // Live: after „Ablehnen" the model claimed „Liste unvollständig" although the
+    // whole table stood in the context.
+    const out = formatTabularComputeGuidance(makeState(mountable), { loop: true });
+    expect(out).not.toContain('Sind Zeilen oder Spalten dort unvollständig');
+    expect(out).toContain('tatsächlich');
+    expect(out).toContain('NICHT, die Tabelle sei unvollständig');
+  });
+
+  it('tool branch: call directly, never ask for confirmation or only announce the call', () => {
+    const out = formatTabularComputeGuidance(makeState(mountable), { loop: true });
+    expect(out).toContain('Rufe das Werkzeug direkt auf');
+    expect(out).toContain('Bitte NIE im Text um Bestätigung');
+    expect(out).not.toContain('bestätigt den Aufruf');
+  });
+
+  it('single-pass turn never mentions the tool and answers from the data', () => {
+    const out = formatTabularComputeGuidance(makeState(mountable));
+    expect(out).not.toContain('tabelle_auswerten');
+    expect(out).toContain('AUS DEN DATEN ANTWORTEN');
+    expect(out).not.toContain('automatisch ausgeführt');
+    // Ein ausdrücklich verlangter Block soll den vorgeladenen DataFrame nutzen.
+    expect(out).toContain('DataFrame `df`');
+  });
+
+  it('loop turn without a user (tool not mounted) never mentions the tool', () => {
     const out = formatTabularComputeGuidance(
-      makeState({ hasTabularAttachment: true, computedResult: null })
+      makeState({ ...(mountable as object), agentConfig: { userId: null } } as never),
+      { loop: true }
     );
-    expect(out).toContain('```python');
-    expect(out).toContain('automatisch ausgeführt');
+    expect(out).not.toContain('tabelle_auswerten');
+    expect(out).toContain('AUS DEN DATEN ANTWORTEN');
+  });
+
+  it('loop turn from an old client (run_python only, no capability) answers from the data', () => {
+    const out = formatTabularComputeGuidance(
+      makeState({ ...(mountable as object), clientCanUseTabularTool: false } as never),
+      { loop: true }
+    );
+    expect(out).not.toContain('tabelle_auswerten');
+    expect(out).toContain('AUS DEN DATEN ANTWORTEN');
+  });
+
+  it('loop turn with the tool switched off never mentions the tool', () => {
+    const out = formatTabularComputeGuidance(
+      makeState({ ...(mountable as object), enabledTools: { tabelle_auswerten: false } } as never),
+      { loop: true }
+    );
+    expect(out).not.toContain('tabelle_auswerten');
   });
 
   it('suppresses code emission when a FRESH result exists (run-then-answer resume)', () => {
@@ -553,13 +615,25 @@ describe('formatTabularComputeGuidance', () => {
     expect(out).not.toContain('```python');
   });
 
-  it('keeps the code-block guidance when the result is only forwarded from the last turn', () => {
-    // A stale lastComputeStore result must not block a NEW follow-up
-    // computation (e.g. on clients without the run_python capability).
+  it('keeps the default guidance when the result is only forwarded from the last turn', () => {
+    // A stale lastComputeStore result must not block a NEW follow-up computation.
     const out = formatTabularComputeGuidance(
       makeState({ hasTabularAttachment: true, computedResult: makeComputeResult() })
     );
-    expect(out).toContain('```python');
+    // single-pass: wording from the document context, no tool
+    expect(out).toContain('AUS DEN DATEN ANTWORTEN');
+    expect(out).not.toContain('tabelle_auswerten');
+    const loopOut = formatTabularComputeGuidance(
+      makeState({
+        hasTabularAttachment: true,
+        computedResult: makeComputeResult(),
+        clientCanRunPython: true,
+        clientCanUseTabularTool: true,
+        agentConfig: { userId: 'u1' },
+      } as never),
+      { loop: true }
+    );
+    expect(loopOut).toContain('tabelle_auswerten');
   });
 
   it('never promises code execution to clients without the run_python capability', () => {
@@ -570,8 +644,8 @@ describe('formatTabularComputeGuidance', () => {
     );
     expect(out).toContain('KEIN Python-Interpreter');
     expect(out).not.toContain('```python');
-    // The pandas guidance PROMISES execution ("wird **automatisch ausgeführt**");
-    // the no-capability variant only forbids claiming it.
+    // The old pandas guidance promised execution ("wird **automatisch
+    // ausgeführt**"); no branch does any more, this one forbids claiming it.
     expect(out).not.toContain('**automatisch ausgeführt**');
     expect(out).toContain('NIEMALS, dass Code automatisch ausgeführt wird');
   });
@@ -752,6 +826,47 @@ describe('formatThreadAttachmentsContext — kein doppelter Ausgangstext', () =>
       const out = formatThreadAttachmentsContext([doc(article)], undefined, 'Und weiter?', live);
       expect(out).toBe('');
     });
+  });
+});
+
+describe('restoreAttachmentsDroppedWithHistory (#4791)', () => {
+  const paste = 'Der Gehweg soll mindestens 2,50 Meter breit werden, Telefon 09642 123456. '.repeat(
+    20
+  );
+  const state = {
+    messages: [
+      { role: 'user', content: paste },
+      { role: 'assistant', content: 'Danke' },
+      { role: 'user', content: 'Wie breit soll der Gehweg werden?' },
+    ],
+    threadAttachments: [
+      {
+        id: 'a1',
+        name: 'Eingefügter Text.txt',
+        isImage: false,
+        extractedText: paste,
+        summary: null,
+      },
+    ],
+  } as unknown as ChatGraphState;
+
+  it('puts the stored paste back when the history copy did not go out', () => {
+    const out = restoreAttachmentsDroppedWithHistory(state, 'BASIS', 'BASIS\n\nSUMMARY', [
+      { content: 'Wie breit soll der Gehweg werden?' },
+    ]);
+    expect(out).toContain('FRÜHERE DOKUMENTE');
+    expect(out).toContain('Telefon 09642 123456');
+    expect(out.indexOf('Telefon')).toBeLessThan(out.indexOf('SUMMARY'));
+  });
+
+  it('leaves the prompt alone while the paste is still sent', () => {
+    const sent = state.messages.map((m) => ({ content: m.content }));
+    expect(restoreAttachmentsDroppedWithHistory(state, 'BASIS', 'BASIS', sent)).toBe('BASIS');
+  });
+
+  it('leaves it alone when the compaction carry already holds the text', () => {
+    const withCarry = `BASIS\n\n## EINGEFÜGTES MATERIAL (WÖRTLICH)\n\n${paste}`;
+    expect(restoreAttachmentsDroppedWithHistory(state, 'BASIS', withCarry, [])).toBe(withCarry);
   });
 });
 

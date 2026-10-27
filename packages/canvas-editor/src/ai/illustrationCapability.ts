@@ -9,7 +9,7 @@
  * The applier (utils/illustrations/registry.createIllustration) will
  * resolve it at apply time.
  */
-import type { CanvasAiNamedOption } from './types';
+import type { CanvasAiNamedOption } from '@ggraphic/editor/ai/types';
 
 /**
  * Hand-picked Undraw illustrations relevant to political / civic content

@@ -26,6 +26,7 @@ COPY tsconfig.base.json tsconfig.strict-migration.json ./
 COPY packages/shared/package.json ./packages/shared/
 COPY packages/query/package.json ./packages/query/
 COPY packages/core/package.json ./packages/core/
+COPY packages/ggraphic-schema/package.json ./packages/ggraphic-schema/
 COPY packages/contracts/package.json ./packages/contracts/
 COPY packages/docs/package.json ./packages/docs/
 COPY packages/chat/package.json ./packages/chat/
@@ -33,6 +34,8 @@ COPY packages/voice/package.json ./packages/voice/
 COPY packages/canvas-editor/package.json ./packages/canvas-editor/
 COPY packages/ui/package.json ./packages/ui/
 COPY packages/collab/package.json ./packages/collab/
+COPY packages/ggraphic-core/package.json ./packages/ggraphic-core/
+COPY packages/ggraphic-editor/package.json ./packages/ggraphic-editor/
 COPY packages/sheets/package.json ./packages/sheets/
 COPY packages/wolke/package.json ./packages/wolke/
 COPY packages/sites/package.json ./packages/sites/
@@ -56,6 +59,7 @@ RUN --mount=type=cache,id=pnpm,target=/root/.local/share/pnpm/store \
 COPY packages/shared ./packages/shared
 COPY packages/query ./packages/query
 COPY packages/core ./packages/core
+COPY packages/ggraphic-schema ./packages/ggraphic-schema
 COPY packages/contracts ./packages/contracts
 COPY packages/docs ./packages/docs
 COPY packages/chat ./packages/chat
@@ -63,6 +67,8 @@ COPY packages/voice ./packages/voice
 COPY packages/canvas-editor ./packages/canvas-editor
 COPY packages/ui ./packages/ui
 COPY packages/collab ./packages/collab
+COPY packages/ggraphic-core ./packages/ggraphic-core
+COPY packages/ggraphic-editor ./packages/ggraphic-editor
 COPY packages/sheets ./packages/sheets
 COPY packages/wolke ./packages/wolke
 COPY packages/sites ./packages/sites
@@ -140,6 +146,16 @@ RUN rm -rf /usr/share/nginx/html/* /etc/nginx/conf.d/default.conf
 
 # Copy custom nginx config for SPA
 COPY <<'EOF' /etc/nginx/conf.d/default.conf
+# Stock mime.types has no .mjs entry, so /pyodide/pyodide.asm.mjs went out as
+# application/octet-stream and browsers refused to import it as a module — the
+# in-browser Python interpreter never started (#4884). This file is included in
+# nginx.conf's http block after mime.types, and a types block at that level
+# adds to the stock map. Inside `server` or a `location` it would replace the
+# whole map instead.
+types {
+    application/javascript mjs;
+}
+
 server {
     listen 80;
     server_name _;
@@ -169,6 +185,24 @@ server {
         return 404;
     }
 
+    # The Pyodide worker runs model-written Python. A dedicated worker enforces
+    # the Content-Security-Policy of its OWN script response, so this header is
+    # the interpreter's sandbox: network only to /pyodide/ (runtime + wheels),
+    # WebAssembly but no eval, no nested workers — the session cookie never
+    # leaves with a request to /api, and nothing reaches a third party.
+    # connect-src names the host because CSP cannot path-scope 'self'; ":*"
+    # keeps local setups behind a non-default port working. The root nginx.conf
+    # proxies / to this server and passes the header through unchanged.
+    # Regex locations win over the /assets/ prefix block below, so its caching
+    # is repeated here (add_header is not inherited).
+    # Pinned to the worker's file name by
+    # src/services/pythonInterpreterCsp.vitest.ts.
+    location ~ ^/assets/pythonInterpreter\.worker-[A-Za-z0-9_-]+\.js$ {
+        expires 1y;
+        add_header Cache-Control "public, immutable";
+        add_header Content-Security-Policy "default-src 'none'; script-src $host:*/pyodide/ 'wasm-unsafe-eval'; connect-src $host:*/pyodide/" always;
+    }
+
     # Hashed assets under /assets/ — cache forever
     # Vite outputs all content-hashed files here (js, css, images, fonts)
     location /assets/ {
@@ -191,6 +225,16 @@ server {
     # never overwritten), so caching them immutable turns the picker's many
     # per-file requests into zero-byte disk-cache hits instead of 304 round-trips.
     location /illustrations/ {
+        expires 1y;
+        add_header Cache-Control "public, immutable";
+    }
+
+    # Vendored Noto emoji (packages/canvas-editor/scripts/vendorNotoEmoji.ts):
+    # one file per codepoint, ~3,500 of them behind the emoji picker. A file
+    # only changes when the pinned Noto commit is bumped, and a redrawn glyph
+    # under its old name is acceptable for a year — 304 round-trips per tile
+    # are not.
+    location /emoji/ {
         expires 1y;
         add_header Cache-Control "public, immutable";
     }

@@ -3,12 +3,12 @@
  * group lands on the canvas once its offset, scale and rotation are applied.
  */
 
-import { type RunStyle } from '@gruenerator/contracts';
+import { runMeasurer } from '@ggraphic/editor/utils/textUtils';
+import { type RunStyle } from '@ggraphic/schema';
 
 import { DREIZEILEN_CONFIG } from './dreizeilenLayout';
-import { runMeasurer } from './textUtils';
 
-import type { BalkenInstance, BalkenMode } from '../primitives/BalkenGroup';
+import type { BalkenInstance, BalkenMode } from '@ggraphic/editor/utils/balkenUtils';
 
 export interface BalkenLayout {
   x: number;

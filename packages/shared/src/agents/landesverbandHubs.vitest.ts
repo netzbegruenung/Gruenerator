@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest';
 
-import { LV_HUBS, hasLandesverbandContentIn } from './landesverbandHubs.js';
+import {
+  LV_HUBS,
+  getLandesverbandHubById,
+  getLandesverbandHubsByIds,
+  hasLandesverbandContentIn,
+} from './landesverbandHubs.js';
 
 /**
  * Die Frage, die eine ganze Fläche entscheidet: führt die Instanz überhaupt
@@ -25,5 +30,28 @@ describe('hasLandesverbandContentIn', () => {
   it('bleibt wahr, solange irgendein Landesverband angeboten wird', () => {
     expect(LV_HUBS.length).toBeGreaterThan(3);
     expect(hasLandesverbandContentIn('production')).toBe(true);
+  });
+});
+
+/**
+ * Die Auflösung über die LV-Id läuft durch dasselbe Gate wie der Slug — sonst
+ * wäre der Marktplatz die Hintertür, durch die ein abgeschalteter Landesverband
+ * wieder auftaucht.
+ */
+describe('getLandesverbandHubById', () => {
+  it('löst einen aktiven Landesverband auf', () => {
+    expect(getLandesverbandHubById('berlin', 'production')?.slug).toBe('gruene-berlin');
+    expect(getLandesverbandHubById('oesterreich', 'production')?.audience).toBe('de-AT');
+  });
+
+  it('verneint unbekannte und abgeschaltete Landesverbände', () => {
+    expect(getLandesverbandHubById('atlantis', 'production')).toBeNull();
+    expect(getLandesverbandHubById('hamburg', 'production')).toBeNull();
+  });
+
+  it('behält Reihenfolge und lässt nicht Auflösbares weg', () => {
+    expect(
+      getLandesverbandHubsByIds(['hessen', 'hamburg', 'berlin'], 'production').map((h) => h.lvId)
+    ).toEqual(['hessen', 'berlin']);
   });
 });

@@ -16,7 +16,7 @@ describe('injectFeatureProps: selectedFrameId', () => {
     );
   });
 
-  // Eine Illustration öffnete sonst mobil den Rahmen-Katalog (MobileCatalogView).
+  // Eine Illustration öffnete sonst mobil den Rahmen-Katalog (ElementsPanel).
   it('bleibt bei einer Illustration leer', () => {
     expect(
       injectFeatureProps(state, actions, { selectedElement: 'ill-1' }).selectedFrameId

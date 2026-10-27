@@ -7,19 +7,19 @@
  * Anmeldung als Wirt ist. Ohne sie fielen die Knöpfe stumm aus — sichtbar,
  * aber ohne Editor dahinter.
  */
-import { render, screen, act } from '@testing-library/react';
-import { useEffect } from 'react';
-import { beforeAll, describe, expect, it, vi } from 'vitest';
-
 import {
   CanvasTextEditorProvider,
   preloadRichText,
   useCanvasTextEditor,
-} from '../../CanvasTextOverlay';
+} from '@ggraphic/editor/components/CanvasTextOverlay';
+import { render, screen, act } from '@testing-library/react';
+import { useEffect } from 'react';
+import { beforeAll, describe, expect, it, vi } from 'vitest';
+
 import { ContextControls } from '../ContextControls';
 
 import type { FloatingModuleState } from '../../../hooks/useFloatingModuleState';
-import type { TextEditSession } from '../../CanvasTextOverlay';
+import type { TextEditSession } from '@ggraphic/editor/components/CanvasTextOverlay';
 
 const PT_SANS = 'PT Sans, Arial, sans-serif';
 const GRUENE_TYPE = 'GrueneTypeNeue, Arial, sans-serif';
@@ -46,7 +46,7 @@ function OpenSession({ id, fontFamily }: { id: string; fontFamily: string }) {
   useEffect(() => {
     const session: TextEditSession = {
       id,
-      box: { top: 0, left: 0, width: 400, minHeight: 80, scale: 1 },
+      box: { top: 0, left: 0, width: 400, minHeight: 80, scale: 1, rotation: 0 },
       text: 'Klimaschutz ist kein Sprint',
       fontFamily,
       fontSize: 24,

@@ -8,6 +8,8 @@ import {
 import {
   SHAREPIC_SCENE_REF,
   SHAREPIC_SOURCE_KEY,
+  isSharepicVorlageRef,
+  sharepicVorlageAssetPath,
   type SharepicFormat,
   type SharepicPhotoAttribution,
   type SharepicSpec,
@@ -18,8 +20,12 @@ import { cachedPhotoTone, primePhotoTones } from './photoTone';
 const stockPhotoSrc = (filename: string): string =>
   `/api/image-picker/stock-image/${encodeURIComponent(filename)}`;
 
-/** A stock file, or a scene FLUX painted into the user's media library (`ki:<token>`). */
+/**
+ * A stock file, a scene FLUX painted into the user's media library
+ * (`ki:<token>`), or a photo the Vorlagen catalogue ships (`vorlage:<file>`).
+ */
 export const creatorPhotoSrc = (filename: string): string => {
+  if (isSharepicVorlageRef(filename)) return sharepicVorlageAssetPath(filename);
   const token = SHAREPIC_SCENE_REF.exec(filename)?.[1];
   return token ? `/api/share/${token}/download` : stockPhotoSrc(filename);
 };

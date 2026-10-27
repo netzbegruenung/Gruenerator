@@ -13,6 +13,9 @@
  * src/styles/__tests__/typography-fonts.vitest.ts hält jedes url() gegen die
  * Platte — ein fehlender Schnitt fällt nicht auf, er sieht nur nach einer
  * anderen Schrift aus.
+ *
+ * GrueneType, GrueneTypeNeue und Gotham Narrow stehen nicht hier: die liefert
+ * die API aus, deklariert werden sie in apps/web/src/assets/styles/common/brandFonts.ts.
  */
 
 /* PT Sans — body text */
@@ -43,54 +46,7 @@
     font-display: swap;
 }
 
-/* GrueneType — legacy brand font */
-@font-face {
-    font-family: 'GrueneType';
-    src: url('../../fonts/GrueneType.woff2') format('woff2'),
-         url('../../fonts/GrueneType.woff') format('woff');
-    font-weight: normal;
-    font-style: normal;
-    font-display: swap;
-}
-
-/* GrueneTypeNeue — primary canvas text font */
-@font-face {
-    font-family: 'GrueneTypeNeue';
-    src: url('../../fonts/GrueneTypeNeue-Regular.woff2') format('woff2'),
-         url('../../fonts/GrueneTypeNeue-Regular.woff') format('woff');
-    font-weight: normal;
-    font-style: normal;
-    font-display: swap;
-}
-
-/* Österreich (de-AT) sharepic fonts — Gotham Narrow + Vollkorn */
-@font-face {
-    font-family: 'GothamNarrow-Ultra';
-    src: url('../../fonts/GothamNarrow-Ultra.woff2') format('woff2'),
-         url('../../fonts/GothamNarrow-Ultra.woff') format('woff');
-    font-weight: normal;
-    font-style: normal;
-    font-display: swap;
-}
-
-@font-face {
-    font-family: 'GothamNarrow-Book';
-    src: url('../../fonts/GothamNarrow-Book.woff2') format('woff2'),
-         url('../../fonts/GothamNarrow-Book.woff') format('woff');
-    font-weight: normal;
-    font-style: normal;
-    font-display: swap;
-}
-
-@font-face {
-    font-family: 'GothamNarrow-Bold';
-    src: url('../../fonts/GothamNarrow-Bold.woff2') format('woff2'),
-         url('../../fonts/GothamNarrow-Bold.woff') format('woff');
-    font-weight: normal;
-    font-style: normal;
-    font-display: swap;
-}
-
+/* Österreich (de-AT) — Vollkorn */
 @font-face {
     font-family: 'Vollkorn';
     src: url('../../fonts/Vollkorn-BoldItalic.woff2') format('woff2'),

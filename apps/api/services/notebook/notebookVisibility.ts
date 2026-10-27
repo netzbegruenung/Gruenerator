@@ -39,10 +39,10 @@ type VisibilityUpdates = Pick<
 >;
 
 export type VisibilityPlan =
-  { ok: true; updates: VisibilityUpdates } | { ok: false; error: string };
+  { ok: true; updates: VisibilityUpdates } | { ok: false; status: 400 | 403; error: string };
 
 export function planNotebookVisibility(
-  collection: Pick<NotebookCollection, 'share_mode' | 'is_public'>,
+  collection: Pick<NotebookCollection, 'share_mode' | 'is_public' | 'moderation'>,
   patch: NotebookVisibilityPatch
 ): VisibilityPlan {
   const updates: VisibilityUpdates = {};
@@ -58,15 +58,24 @@ export function planNotebookVisibility(
   if (patch.edit_policy !== undefined) updates.edit_policy = patch.edit_policy;
 
   if (patch.is_public === true) {
+    if (collection.moderation === 'removed') {
+      return {
+        ok: false,
+        status: 403,
+        error: 'Dieses Notebook wurde entfernt und kann nicht mehr gelistet werden.',
+      };
+    }
     if (!patch.public_ownership) {
       return {
         ok: false,
+        status: 400,
         error: 'Bitte bestätige die Quelle der Inhalte (Eigentum oder öffentlich).',
       };
     }
     if (nextMode !== 'authenticated') {
       return {
         ok: false,
+        status: 400,
         error:
           'Bitte zuerst Sichtbarkeit auf „Mit Anmeldung" setzen, dann auf „Öffentlich" listen.',
       };
@@ -103,7 +112,7 @@ export async function applyNotebookVisibility(
     return { ok: false, status: 403, error: 'Nur Eigentümer*in erlaubt' };
   }
   const plan = planNotebookVisibility(collection, patch);
-  if (!plan.ok) return { ok: false, status: 400, error: plan.error };
+  if (!plan.ok) return { ok: false, status: plan.status, error: plan.error };
   if (Object.keys(plan.updates).length === 0) return { ok: true };
   await helper.updateNotebookCollection(collectionId, plan.updates);
   return { ok: true };

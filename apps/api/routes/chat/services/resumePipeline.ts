@@ -6,11 +6,7 @@
  * topic) or by running search + response generation for non-sharepic intents.
  */
 
-import {
-  computePayloadSchema,
-  type ComputePayload,
-  type chatGraphContract,
-} from '@gruenerator/contracts';
+import { type chatGraphContract } from '@gruenerator/contracts';
 import { type ChatIntentId } from '@gruenerator/shared/chat-intents';
 
 import {
@@ -18,11 +14,10 @@ import {
   briefGeneratorNode,
   wantsResearchBrief,
   classifierNode,
-  pandasComputeNode,
-  computeVerifierNode,
   searchNode,
   rerankNode,
   buildCitations,
+  restoreAttachmentsDroppedWithHistory,
 } from '../../../agents/langgraph/ChatGraph/index.js';
 import { partitionSearchErrors } from '../../../agents/langgraph/ChatGraph/types.js';
 import { promptCacheKeyForThread } from '../../../services/ai/promptCacheKey.js';
@@ -37,15 +32,15 @@ import { getContextWindow } from '../agents/providers.js';
 
 import { runToolApprovalResume } from './agenticLoop/approvalResume.js';
 import { runClarificationLoopResume } from './agenticLoop/clarificationResume.js';
+import { clientToolResumeRejection } from './agenticLoop/clientToolRegistry.js';
 import { runClientToolLoopResume } from './agenticLoop/clientToolResume.js';
 import { ARTIFACT_CONFIRMATION_TEXTS, buildSharepicConfirmation } from './artifactConfirmations.js';
 import { injectImageAttachments } from './attachmentProcessingService.js';
-import { persistComputeAssets } from './computeAssetStorage.js';
-import { hasBrokenComputeValues } from './computeResultSanity.js';
-import { pruneMessages } from './contextPruningService.js';
+import { applyCompaction, pruneMessages } from './contextPruningService.js';
 import { imageVisibility } from './imageVisibility.js';
 import { executeIntentPipeline, reportUnavailableSources } from './intentExecutionService.js';
 import { loopClarificationStateStore } from './loopClarificationStateStore.js';
+import { loopClientToolStateStore } from './loopClientToolStateStore.js';
 import { extractTextContent, lastUserText } from './messageHelpers.js';
 import { createPendingAssistantWriter } from './pendingAssistantWriter.js';
 import { pipelineStateStore } from './pipelineStateStore.js';
@@ -109,8 +104,8 @@ export async function runChatGraphResume({
   // Turn persistence (WP-B) for the resume path: the placeholder assistant row
   // + its streaming writer. Declared in the handler scope (not inside the try)
   // so the outer catch can run cleanupPending too. Assigned only right before
-  // the truly streaming stage — the sharepic fixed-text branch and run_python
-  // correction rounds return earlier and must not stream into the placeholder.
+  // the truly streaming stage — the sharepic fixed-text branch returns earlier
+  // and must not stream into the placeholder.
   let pendingId: string | null = null;
   let pendingWriter: ReturnType<typeof createPendingAssistantWriter> | null = null;
   const cleanupPending = async (discard: boolean): Promise<void> => {
@@ -147,9 +142,16 @@ export async function runChatGraphResume({
       });
       return { status: result.status, body: result.body };
     }
-    // Browser-Werkzeug eines Loop-Zuges (`check_sharepic` → `render_sharepic`):
+    // Browser-Werkzeug eines Loop-Zuges (`LOOP_CLIENT_TOOLS`, z. B.
+    // `check_sharepic` → `render_sharepic`, `tabelle_auswerten` → `run_python`):
     // eigener Zustand, eigene agentische Fortsetzung — wie die Loop-Rückfrage.
-    if (resumeInput.kind === 'client_tool' && resumeInput.toolName === 'render_sharepic') {
+    // Entschieden am gespeicherten Loop-Zustand. Eine Pre-Loop-Pause für
+    // Browser-Werkzeuge gibt es nicht mehr; ein `run_python` ohne Loop-Zustand
+    // ist abgelaufen.
+    if (resumeInput.kind === 'client_tool') {
+      const storedLoop = (await loopClientToolStateStore.get(threadId)) ?? null;
+      const rejection = clientToolResumeRejection(resumeInput.toolName, storedLoop);
+      if (rejection) return sseFail(sse, rejection.message, { code: rejection.code });
       const clientToolUser = getUser(req);
       if (!clientToolUser?.id) {
         return sseFail(sse, PROGRESS_MESSAGES.unauthorized, { code: 'unauthorized' });
@@ -167,12 +169,7 @@ export async function runChatGraphResume({
       });
       return { status: result.status, body: result.body };
     }
-    if (resumeInput.kind === 'client_tool' && resumeInput.toolName !== 'run_python') {
-      return sseFail(sse, 'Dieser Tool-Typ wird noch nicht unterstützt.', {
-        code: 'invalid_request',
-      });
-    }
-    const userAnswer = resumeInput.kind === 'ask_human' ? resumeInput.answer : null;
+    const userAnswer = resumeInput.answer;
 
     const user = getUser(req);
     if (!user?.id) {
@@ -185,30 +182,28 @@ export async function runChatGraphResume({
     // Der Wire-Body ist identisch — entschieden wird am gespeicherten Zustand.
     // Liegen BEIDE vor (Stale-Shadowing: 24 h gegen 10 min TTL), gewinnt der
     // jüngere.
-    if (resumeInput.kind === 'ask_human') {
-      const loopState = await loopClarificationStateStore.get(threadId);
-      if (loopState) {
-        const pipelineState = await pipelineStateStore.get(threadId);
-        if (!pipelineState || loopState.createdAt >= pipelineState.createdAt) {
-          const result = await runClarificationLoopResume({
-            req,
-            sse,
-            threadId,
-            userId: user.id,
-            answer: resumeInput.answer,
-            fail: (message, code) => ({
-              handled: true as const,
-              ...sseFail(sse, message, { code }),
-            }),
-          });
-          return { status: result.status, body: result.body };
-        }
-        // Der jüngere Pre-Loop-Zustand gewinnt — dann ist der ältere
-        // Loop-Zustand überholt und muss WEG: sonst überlebt er (24 h TTL)
-        // den 10-Minuten-Zustand und eine spätere ask_human-Antwort liefe
-        // gegen die falsche, längst überholte Frage.
-        await loopClarificationStateStore.delete(threadId);
+    const loopState = await loopClarificationStateStore.get(threadId);
+    if (loopState) {
+      const pipelineState = await pipelineStateStore.get(threadId);
+      if (!pipelineState || loopState.createdAt >= pipelineState.createdAt) {
+        const result = await runClarificationLoopResume({
+          req,
+          sse,
+          threadId,
+          userId: user.id,
+          answer: resumeInput.answer,
+          fail: (message, code) => ({
+            handled: true as const,
+            ...sseFail(sse, message, { code }),
+          }),
+        });
+        return { status: result.status, body: result.body };
       }
+      // Der jüngere Pre-Loop-Zustand gewinnt — dann ist der ältere
+      // Loop-Zustand überholt und muss WEG: sonst überlebt er (24 h TTL)
+      // den 10-Minuten-Zustand und eine spätere ask_human-Antwort liefe
+      // gegen die falsche, längst überholte Frage.
+      await loopClarificationStateStore.delete(threadId);
     }
 
     const stored = await pipelineStateStore.get(threadId);
@@ -237,160 +232,13 @@ export async function runChatGraphResume({
       .filter((m) => m.mimeType === 'application/pdf' && m.fileData != null)
       .map((m) => ({ name: m.name, data: m.fileData as string }));
 
-    log.info(
-      `[ChatGraph:Resume] Thread ${threadId}, ${
-        resumeInput.kind === 'ask_human'
-          ? `answer: "${(userAnswer ?? '').slice(0, 80)}"`
-          : `client tool: ${resumeInput.toolName}`
-      }`
-    );
+    log.info(`[ChatGraph:Resume] Thread ${threadId}, answer: "${userAnswer.slice(0, 80)}"`);
 
     classifiedState.needsClarification = false;
     classifiedState.clarificationQuestion = null;
     classifiedState.clarificationOptions = null;
 
-    if (resumeInput.kind === 'ask_human') {
-      classifiedState.searchQuery = userAnswer;
-    } else {
-      // run_python result: validate the browser-computed payload and seed it as
-      // ground truth for respondNode (formatComputedResultContext). The
-      // `compute` SSE event drives the inline "Berechnung" card.
-      const parsed = computePayloadSchema.safeParse(resumeInput.result);
-      // Asset URLs are SERVER-minted only (they render as <img>/<a> in the
-      // card) — strip anything the client sent, then move the capped base64
-      // figures/exports to uploads/compute-assets so the message metadata
-      // carries small authenticated URLs instead of megabytes of base64.
-      let payload: ComputePayload | null = null;
-      if (parsed.success) {
-        const { figureUrls: _cfu, fileAssets: _cfa, ...clientSafe } = parsed.data;
-        payload = await persistComputeAssets(user.id, clientSafe);
-      }
-      const hasNanValues = payload != null && hasBrokenComputeValues(payload);
-
-      const seedComputedResult = (data: (typeof classifiedState)['computedResult']) => {
-        classifiedState.computedResult = data;
-        classifiedState.computedResultFresh = true;
-        if (data) sse.send('compute', { compute: data });
-      };
-
-      // Correction round (OpenWebUI-style, bounded to 1 retry total): give the
-      // codegen model the failed code + a failure/plausibility hint and pause
-      // the turn again — the client executes the corrected code and resumes.
-      // Returns true when the turn was re-interrupted (caller must return).
-      const tryCorrectionRound = async (errorText: string): Promise<boolean> => {
-        const retries = classifiedState.pandasComputeRetries ?? 0;
-        if (retries >= 1) return false;
-        const { pythonCode, computeFailed } = await pandasComputeNode(classifiedState, {
-          ...(classifiedState.pandasLastCode != null && {
-            previousCode: classifiedState.pandasLastCode,
-          }),
-          ...(classifiedState.pandasComputeMode != null && {
-            mode: classifiedState.pandasComputeMode,
-          }),
-          previousError: errorText,
-        });
-        // This is the path where the user's Python run ALREADY failed once. If
-        // the correction codegen also fails, the turn falls through to respond
-        // — and without this note the model answers the numeric question from
-        // the truncated table text, which is the hallucination this node exists
-        // to prevent.
-        if (computeFailed) {
-          sendChatWarning(sse, 'compute_failed');
-          classifiedState.degradationNotes = [
-            ...(classifiedState.degradationNotes ?? []),
-            {
-              code: 'compute_failed',
-              modelHint:
-                'Die Berechnung auf der Tabelle ist fehlgeschlagen. Rechne NICHT selbst und nenne keine Zahlen aus der Tabelle — sag ehrlich, dass die Auswertung gerade nicht möglich war.',
-            },
-          ];
-        }
-        if (!pythonCode) return false;
-
-        classifiedState.pandasComputeRetries = retries + 1;
-        classifiedState.pandasLastCode = pythonCode;
-        log.info(`[ChatGraph:Resume] run_python correction round (${pythonCode.length} chars)`);
-
-        // State FIRST, then the interrupt: if Redis fails here the client has
-        // not been promised a resume it can never complete.
-        await pipelineStateStore.store(threadId, { classifiedState, requestContext });
-        sse.sendRaw('thinking_step', {
-          stepId: `run_python_retry_${Date.now()}`,
-          toolName: 'run_python',
-          title: 'Korrigiere Berechnung…',
-          status: 'in_progress',
-          args: { code: pythonCode },
-        });
-        sse.send('interrupt', {
-          interruptType: 'client_tool',
-          toolName: 'run_python',
-          args: { code: pythonCode },
-          threadId,
-        });
-        sse.send('done', {
-          threadId,
-          citations: [],
-          interrupted: true,
-          metadata: {
-            intent: classifiedState.intent,
-            searchCount: 0,
-            totalTimeMs: Date.now() - (classifiedState.startTime || Date.now()),
-            searchTimeMs: 0,
-          },
-        });
-        sse.end();
-        return true;
-      };
-
-      if (payload && !hasNanValues) {
-        // Plausibility check (fail-open, once per turn, shares the correction
-        // budget): catches code that RAN fine but answered the wrong question
-        // — beta: doubled totals, wrong column for "höchster Gewinn". Skipped
-        // for fill runs: they answer no question, they produce a file, and the
-        // verifier's "does this number fit?" framing has nothing to judge.
-        if (
-          classifiedState.pandasComputeMode !== 'fill' &&
-          (classifiedState.pandasComputeRetries ?? 0) < 1 &&
-          classifiedState.pandasLastCode
-        ) {
-          const verdict = await computeVerifierNode(classifiedState, payload);
-          if (!verdict.plausible) {
-            const hint =
-              verdict.hint ?? 'Das Ergebnis passt nicht zur Frage — prüfe Spaltenwahl/Gruppierung.';
-            // Stash the SUCCESSFUL result: the verifier is fallible, and if the
-            // corrected code then fails we fall back to this instead of losing
-            // a working computation entirely.
-            classifiedState.pandasComputeFallback = payload;
-            if (await tryCorrectionRound(`Plausibilitätsprüfung fehlgeschlagen: ${hint}`)) {
-              return { status: 200 as const, body: undefined };
-            }
-          }
-        }
-        seedComputedResult(payload);
-      } else {
-        const errorText = payload
-          ? `Der Code lief durch, aber das Ergebnis enthält nan/leere Werte — vermutlich falsche Spaltenwahl oder fehlendes dropna(). Ausgabe: ${payload.summary.slice(0, 300)}`
-          : resumeInput.result != null &&
-              typeof resumeInput.result === 'object' &&
-              'error' in resumeInput.result
-            ? String((resumeInput.result as { error: unknown }).error)
-            : 'invalid payload';
-        log.warn(`[ChatGraph:Resume] run_python failed client-side: ${errorText.slice(0, 200)}`);
-
-        if (await tryCorrectionRound(errorText)) {
-          return { status: 200 as const, body: undefined };
-        }
-        // Correction budget spent or codegen declined: hand the model the best
-        // available result — the valid-but-nan payload, or the stashed result
-        // a fallible verifier sent into a correction round that then failed.
-        if (payload) {
-          seedComputedResult(payload);
-        } else if (classifiedState.pandasComputeFallback) {
-          log.info('[ChatGraph:Resume] correction failed — falling back to the original result');
-          seedComputedResult(classifiedState.pandasComputeFallback);
-        }
-      }
-    }
+    classifiedState.searchQuery = userAnswer;
 
     const startTime = Date.now();
 
@@ -500,17 +348,14 @@ export async function runChatGraphResume({
     // `create_pdf` or `wetter` turn into a search after a clarification and
     // throw its artefact/tool route away. The old name here — `nonSearchIntents`
     // — is how that trap was laid.
-    if (
-      resumeInput.kind === 'ask_human' &&
-      CLARIFICATION_UPGRADE_INTENTS.has(classifiedState.intent)
-    ) {
+    if (CLARIFICATION_UPGRADE_INTENTS.has(classifiedState.intent)) {
       classifiedState.intent = 'search';
     }
 
     sse.send('intent', {
       intent: classifiedState.intent,
       message: getIntentMessage(classifiedState.intent),
-      reasoning: `Resumed: ${resumeInput.kind === 'ask_human' ? userAnswer : resumeInput.toolName}`,
+      reasoning: `Resumed: ${userAnswer}`,
       ...(classifiedState.searchQuery != null && { searchQuery: classifiedState.searchQuery }),
       ...(classifiedState.subQueries != null && { subQueries: classifiedState.subQueries }),
       ...(classifiedState.searchSources?.length && {
@@ -519,15 +364,12 @@ export async function runChatGraphResume({
     });
 
     // === Search ===
-    // Client-tool resumes (run_python) skip search entirely: the answer needs
-    // only the computed result + the already-injected attachment context.
+    // Only pre-loop clarification answers reach this point: approval and
+    // client-tool resumes returned above.
     let finalState = classifiedState;
     const { enabledTools, modelId, forcedTool } = requestContext;
 
-    if (
-      resumeInput.kind === 'ask_human' &&
-      !CLARIFICATION_UPGRADE_INTENTS.has(classifiedState.intent)
-    ) {
+    if (!CLARIFICATION_UPGRADE_INTENTS.has(classifiedState.intent)) {
       const toolEnabled = forcedTool || enabledTools?.[classifiedState.intent] !== false;
       if (toolEnabled) {
         let searchInputState = classifiedState;
@@ -599,9 +441,9 @@ export async function runChatGraphResume({
 
     // === Turn persistence: mint the placeholder + stream the reply into it ===
     // Only from here does the answer truly stream (streamWithFallback). The
-    // sharepic fixed-text branch and the run_python correction rounds send their
-    // own text and return above this point, so registering the SSE text listener
-    // now keeps their output out of the placeholder. Requires a real thread row;
+    // sharepic fixed-text branch sends its own text and returns above this
+    // point, so registering the SSE text listener now keeps its output out of
+    // the placeholder. Requires a real thread row;
     // without one we degrade to the in-place insert (pendingId stays null), same
     // as the regular router path.
     const persistThreadId = requestContext.actualThreadId;
@@ -664,10 +506,27 @@ export async function runChatGraphResume({
     // getContextWindow(modelId) is the 32k default, which cut a resumed turn's
     // history to ~20k tokens on a 128k or 262k lane.
     const resumeWindow = resolution2.contextWindow ?? getContextWindow(modelId);
+    // A resumed turn reads the same summary as the turn it continues — without
+    // it, a thread past its first compaction resumed on the raw history.
+    const { systemMessage: compactedSystemMessage, messages: resumeHistory } =
+      requestContext.actualThreadId
+        ? await applyCompaction(
+            requestContext.actualThreadId,
+            pruneMessages(validMessages, resumeWindow, systemMessage),
+            systemMessage,
+            resumeWindow
+          )
+        : { systemMessage, messages: validMessages };
+    const resumeSystemMessage = restoreAttachmentsDroppedWithHistory(
+      finalState,
+      systemMessage,
+      compactedSystemMessage,
+      resumeHistory
+    );
     const assembleMessages = (contextWindow: number) => {
       const built = buildMessagesForAI(
-        systemMessage,
-        pruneMessages(validMessages, contextWindow, systemMessage)
+        resumeSystemMessage,
+        pruneMessages(resumeHistory, contextWindow, resumeSystemMessage)
       );
       return resumeImagesVisible
         ? injectImageAttachments(

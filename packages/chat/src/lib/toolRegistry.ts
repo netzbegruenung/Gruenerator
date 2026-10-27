@@ -102,9 +102,14 @@ export const UI_TOOL_NAMES = z.enum([
   'vertonen',
   'vorlagen_vorschlagen',
   'check_sharepic',
+  'tabelle_auswerten',
   // Loader of toolScope.ts: opens the personal-content group for the rest of
   // the turn. Reports through the status line only (isSearchProgressTool).
   'meine_inhalte_laden',
+  // Browser agent (website_erkunden) and its toolScope loader. The live session
+  // renders from `custom.browserSession`; the card here is the plain fallback.
+  'website_erkunden',
+  'website_werkzeug_laden',
 ]);
 export type UiToolName = z.infer<typeof UI_TOOL_NAMES>;
 
@@ -357,14 +362,13 @@ function parseRecipeVM(args: unknown, result: unknown): ToolResultVM {
 
 // The doc family already renders a rich DocumentCreatedCard off the `done`
 // metadata, so this card stays deliberately slim — two cards for one artifact
-// would double-represent it.
-function parseArtifactCreatedVM(args: unknown, result: unknown): ToolResultVM {
+// would double-represent it. A creating tool's `note` is an instruction to the
+// model ("Rufe das Tool NICHT erneut auf"), never a line for the reader.
+function parseArtifactCreatedVM(_args: unknown, result: unknown): ToolResultVM {
   const error = getString(result, 'error');
   if (error) return { kind: 'text-note', text: error };
   const title = getString(getObject(result, 'document'), 'title');
-  if (title) return { kind: 'text-note', text: `„${title}" erstellt.` };
-  const note = getString(result, 'note');
-  return note ? { kind: 'text-note', text: note } : parseGenericFallback(args, result);
+  return { kind: 'text-note', text: title ? `„${title}" erstellt.` : 'Erstellt.' };
 }
 
 // create_pdf carries a self-check the user can see NOWHERE else: `probleme` is
@@ -387,21 +391,17 @@ function parsePdfCreatedVM(args: unknown, result: unknown): ToolResultVM {
 
 // Boards emit no document_created event — this card is the ONLY place a created
 // board is ever named, which is why it carries the title rather than staying slim.
-function parseBoardCreatedVM(args: unknown, result: unknown): ToolResultVM {
+function parseBoardCreatedVM(_args: unknown, result: unknown): ToolResultVM {
   const error = getString(result, 'error');
   if (error) return { kind: 'text-note', text: error };
   const title = getString(getObject(result, 'board'), 'title');
-  if (title) return { kind: 'text-note', text: `Board „${title}" erstellt.` };
-  const note = getString(result, 'note');
-  return note ? { kind: 'text-note', text: note } : parseGenericFallback(args, result);
+  return { kind: 'text-note', text: title ? `Board „${title}" erstellt.` : 'Board erstellt.' };
 }
 
 // The variants themselves render in SharepicVariantStack; the card only reports.
-function parseSharepicVM(args: unknown, result: unknown): ToolResultVM {
+function parseSharepicVM(_args: unknown, result: unknown): ToolResultVM {
   const error = getString(result, 'error');
-  if (error) return { kind: 'text-note', text: error };
-  const note = getString(result, 'note');
-  return note ? { kind: 'text-note', text: note } : parseGenericFallback(args, result);
+  return { kind: 'text-note', text: error ?? 'Sharepic erstellt.' };
 }
 
 // The edited picture re-renders via `sharepic_updated`; the card names the
@@ -1073,6 +1073,12 @@ export const TOOL_REGISTRY: Record<UiToolName, ToolRegistryEntry> = {
   // The gallery itself renders from `custom.vorlagenSuggestions`.
   vorlagen_vorschlagen: entry('vorlagen_vorschlagen', 'text-note', parseVorlagenVM),
   check_sharepic: entry('check_sharepic', 'text-note', parseCheckSharepicVM),
+  // The numbers render in the compute card (`compute` SSE event); the step
+  // card only carries the error or the raw output.
+  tabelle_auswerten: entry('tabelle_auswerten', 'text-note', (_a, r) => ({
+    kind: 'text-note',
+    text: getString(r, 'error') ?? getString(r, 'ergebnis') ?? '',
+  })),
   cloud_files: entry('cloud_files', 'key-value', parseCloudFilesVM),
   text_uebersetzen: entry('text_uebersetzen', 'text-note', parseTranslationVM),
   recurring_tasks: entry('recurring_tasks', 'citations', parseRecurringTasksVM),
@@ -1117,6 +1123,11 @@ export const TOOL_REGISTRY: Record<UiToolName, ToolRegistryEntry> = {
   meine_inhalte_laden: entry('meine_inhalte_laden', 'text-note', () => ({
     kind: 'text-note',
     text: 'Eigene Inhalte freigeschaltet',
+  })),
+  website_erkunden: entry('website_erkunden', 'text-note', parseTextNoteVM),
+  website_werkzeug_laden: entry('website_werkzeug_laden', 'text-note', () => ({
+    kind: 'text-note',
+    text: 'Website-Werkzeug freigeschaltet',
   })),
 };
 

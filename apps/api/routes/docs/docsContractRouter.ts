@@ -24,6 +24,8 @@ import { createExpressEndpoints, initServer } from '@ts-rest/express';
 import { getPostgresInstance } from '../../database/services/PostgresService.js';
 import { aiObject } from '../../services/ai/generate.js';
 import { viaLaxParser, withContent } from '../../services/ai/structuredParsing.js';
+import { CANVAS_SUBTYPE, isVorlageSnapshotCanvas } from '../../services/canvas/canvasRepository.js';
+import { closeCollabRooms } from '../../services/collab/hocuspocusInternal.js';
 import {
   trashCollaborativeDocument,
   updateCollaborativeDocument,
@@ -277,6 +279,7 @@ export const docsContractRouter = s.router(docsContract, {
       )) as unknown[];
       if (result.length === 0)
         return { status: 404 as const, body: { error: 'Group share not found' } };
+      void closeCollabRooms([id]);
 
       return {
         status: 200 as const,
@@ -439,6 +442,7 @@ export const docsContractRouter = s.router(docsContract, {
          WHERE id = $1`,
         [id, GRANTED_BY_SHARE_LINK]
       );
+      void closeCollabRooms([id]);
 
       return {
         status: 200 as const,
@@ -579,6 +583,7 @@ export const docsContractRouter = s.router(docsContract, {
       if (!result || (result as unknown[]).length === 0) {
         return { status: 404 as const, body: { error: 'Group share not found' } };
       }
+      void closeCollabRooms([id]);
 
       return { status: 200 as const, body: { message: 'Group permission updated successfully' } };
     } catch (error) {
@@ -806,6 +811,9 @@ export const docsContractRouter = s.router(docsContract, {
       const userId = getUserId(args.req);
       const doc = await getOwnedShareRow(args.params.id, userId);
       if (doc.kind !== 'ok') return doc.response;
+      if (await publicLinkForbidden(doc.row)) {
+        return { status: 400 as const, body: { error: LOGIN_ONLY_ERROR } };
+      }
 
       // Same safe default as setShareMode('public'): a freshly-public link is
       // view-only, otherwise 'public' + 'editor' (the column default) grants any
@@ -830,6 +838,7 @@ export const docsContractRouter = s.router(docsContract, {
          WHERE id = $1`,
         [args.params.id, nextPermission, GRANTED_BY_SHARE_LINK]
       );
+      void closeCollabRooms([args.params.id]);
 
       return {
         status: 200 as const,
@@ -853,9 +862,10 @@ export const docsContractRouter = s.router(docsContract, {
 
       const { permission } = args.body;
       // Strip auto-granted link permissions so the new link level takes effect
-      // for everyone on reconnect. Without this, users who opened the link while
-      // it was 'editor' keep their persisted editor entry after a downgrade to
+      // for everyone. Without this, users who opened the link while it was
+      // 'editor' keep their persisted editor entry after a downgrade to
       // 'viewer' — the column change alone would not revoke their write access.
+      // Open sessions are closed below and reconnect with the new level.
       await db.query(
         `UPDATE collaborative_documents
          SET share_permission = $1,
@@ -868,6 +878,7 @@ export const docsContractRouter = s.router(docsContract, {
          WHERE id = $2`,
         [permission, args.params.id, GRANTED_BY_SHARE_LINK]
       );
+      void closeCollabRooms([args.params.id]);
 
       return {
         status: 200 as const,
@@ -890,6 +901,9 @@ export const docsContractRouter = s.router(docsContract, {
       if (doc.kind !== 'ok') return doc.response;
 
       const { mode } = args.body;
+      if (mode === 'public' && (await publicLinkForbidden(doc.row))) {
+        return { status: 400 as const, body: { error: LOGIN_ONLY_ERROR } };
+      }
       const isPublic = mode === 'public';
       const currentPermission = doc.row.share_permission ?? 'editor';
 
@@ -910,7 +924,8 @@ export const docsContractRouter = s.router(docsContract, {
         );
       } else {
         // Revoke auto-granted link permissions when changing away from / into a
-        // link mode, so the effective link level is re-derived on reconnect.
+        // link mode, so the effective link level is re-derived when the open
+        // sessions reconnect (closed below).
         await db.query(
           `UPDATE collaborative_documents
            SET share_mode = $1,
@@ -926,6 +941,9 @@ export const docsContractRouter = s.router(docsContract, {
           [mode, isPublic, args.params.id, GRANTED_BY_SHARE_LINK, nextPermission]
         );
       }
+      // Any mode change can narrow access (e.g. public → authenticated drops
+      // guests), and an open session keeps the rights it connected with.
+      void closeCollabRooms([args.params.id]);
 
       return {
         status: 200 as const,
@@ -951,6 +969,7 @@ interface OwnedShareRow {
   is_public: boolean;
   share_permission?: 'editor' | 'viewer' | null;
   share_mode?: 'private' | 'authenticated' | 'public' | null;
+  document_subtype?: string | null;
 }
 
 type ShareLookupResult =
@@ -966,7 +985,8 @@ type ShareLookupResult =
  */
 async function getOwnedShareRow(id: string, userId: string): Promise<ShareLookupResult> {
   const result = (await db.query(
-    `SELECT id, created_by, permissions, is_public, share_permission, share_mode, is_deleted
+    `SELECT id, created_by, permissions, is_public, share_permission, share_mode, is_deleted,
+            document_subtype
      FROM collaborative_documents
      WHERE id = $1 AND document_subtype = ANY($2::text[]) AND is_deleted = false`,
     [id, DOCS_SUBTYPES]
@@ -987,6 +1007,14 @@ async function getOwnedShareRow(id: string, userId: string): Promise<ShareLookup
   }
 
   return { kind: 'ok', row };
+}
+
+const LOGIN_ONLY_ERROR =
+  'Sharepics lassen sich nur mit Anmeldung teilen, nicht öffentlich.' as const;
+
+/** A plain sharepic never gets a public link — see {@link isVorlageSnapshotCanvas}. */
+async function publicLinkForbidden(row: OwnedShareRow): Promise<boolean> {
+  return row.document_subtype === CANVAS_SUBTYPE && !(await isVorlageSnapshotCanvas(row.id));
 }
 
 /**

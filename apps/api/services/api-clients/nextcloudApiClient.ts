@@ -1,9 +1,13 @@
 import { parseCloudShareLink } from '@gruenerator/shared/utils';
-import axios, { type AxiosInstance, type AxiosError } from 'axios';
+import axios, { type AxiosInstance, type AxiosError, type AxiosRequestConfig } from 'axios';
 
 import { toUserFacingMessage } from '../../utils/errors/index.js';
 import { assertNoPathEscape } from '../../utils/validation/cloudPaths.js';
-import { validateUrlSync, validateUrlForFetch } from '../../utils/validation/urlSecurity.js';
+import {
+  guardedLookup,
+  validateUrlSync,
+  validateUrlForFetch,
+} from '../../utils/validation/urlSecurity.js';
 
 // Type Definitions
 export interface ParsedShareLink {
@@ -274,6 +278,18 @@ class NextcloudApiClient {
     // Create axios instance with basic authentication using share token
     this.axiosInstance = axios.create({
       timeout: 30000, // 30 seconds timeout
+      // Geprüft ist genau ein Host: der aus dem Freigabe-Link (`create()`).
+      // axios folgt Redirects sonst über follow-redirects — bis zu 21 Hops, auch
+      // auf fremde Hosts und von https nach http, ohne dass ein Hop geprüft
+      // wird. Ein 3xx endet deshalb als `NextcloudHttpError` mit seinem Status.
+      // Gebraucht wird keiner: `public.php/webdav` antwortet mit und ohne
+      // Schrägstrich direkt (gemessen 22.10.2026 an wolke.netzbegruenung.de).
+      maxRedirects: 0,
+      // Dieselbe Prüfung im Connect: der Name, den `create()` öffentlich
+      // aufgelöst hat, darf beim Verbinden nicht auf eine interne Adresse
+      // zeigen. Cast an der Grenze: axios tippt `family` als 4 | 6, Node als
+      // `number` — `normalizeLookup` in axios' http-Adapter nimmt beides.
+      lookup: guardedLookup as NonNullable<AxiosRequestConfig['lookup']>,
       headers: {
         'User-Agent': 'Gruenerator/1.0',
         'Content-Type': 'application/octet-stream',

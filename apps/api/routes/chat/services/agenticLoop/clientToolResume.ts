@@ -5,13 +5,12 @@
  * Dasselbe Muster wie `clarificationResume`: kein Wiederaufsetzen des alten
  * Loops, sondern ein frischer agentischer Zug, der die Schritte von vorher plus
  * den BEANTWORTETEN Aufruf als Beobachtung einspielt. Das Ergebnis des
- * Browsers (das Bild) ist nicht die Antwort selbst: erst die Prüfung daran
- * (`reviewRenderedSharepic`) wird das tool-result des zurückgehaltenen
- * `check_sharepic`-Aufrufs.
+ * Browsers ist nicht unbedingt die Antwort selbst: was daraus das tool-result
+ * des zurückgehaltenen Aufrufs wird, entscheidet der Registry-Eintrag
+ * (`toToolResult`, bei `check_sharepic` die Prüfung am Bild).
  */
 import { buildSystemMessage } from '../../../../agents/langgraph/ChatGraph/index.js';
 import { createLogger } from '../../../../utils/logger.js';
-import { renderedImageOf, reviewRenderedSharepic } from '../../agents/sharepicCheckTool.js';
 import { suspendForLoopClarification } from '../../streamStages/clarificationLoopSuspend.js';
 import { suspendForLoopClientTool } from '../../streamStages/clientToolLoopSuspend.js';
 import { finishResumedLoopTurn } from '../../streamStages/loopResumeEnd.js';
@@ -19,6 +18,7 @@ import { suspendForToolApproval } from '../../streamStages/toolApprovalSuspend.j
 import { loopClientToolStateStore } from '../loopClientToolStateStore.js';
 
 import { streamAgenticResponse } from './agenticRespondService.js';
+import { LOOP_CLIENT_TOOLS } from './clientToolRegistry.js';
 
 import type { PersistedStep } from './types.js';
 import type { SSEWriter } from '../sseHelpers.js';
@@ -49,7 +49,7 @@ export async function runClientToolLoopResume(params: {
   const stored = await loopClientToolStateStore.get(threadId);
   if (!stored) {
     return fail(
-      'Die Prüfung ist abgelaufen. Bitte stelle die Anfrage noch einmal.',
+      'Dieser Schritt ist abgelaufen. Bitte stelle die Anfrage noch einmal.',
       'invalid_request'
     );
   }
@@ -61,39 +61,35 @@ export async function runClientToolLoopResume(params: {
   // weiterlaufen lassen. Fail-closed, wenn Redis nicht antwortet.
   const claimed = await loopClientToolStateStore.claim(threadId, stored.clientToolTurnId);
   if (!claimed) {
-    return fail('Diese Prüfung wurde bereits fortgesetzt.', 'invalid_request');
+    return fail('Dieser Schritt wurde bereits fortgesetzt.', 'invalid_request');
   }
-
-  const image = renderedImageOf(result);
-  log.info(
-    `[Client-Tool] Fortsetzung Thread ${threadId}: ${stored.clientToolName} ${image ? `Bild ${Math.round(image.length / 1024)} KB` : 'ohne Bild'}`
-  );
 
   const { classifiedState, requestContext } = stored;
   const requestId = `client_tool_resume_${Date.now()}`;
 
   try {
-    const variantId =
-      typeof stored.clientArgs.variantId === 'string' ? stored.clientArgs.variantId : '';
-    const checkResult = await reviewRenderedSharepic({
+    const clientTool = LOOP_CLIENT_TOOLS.get(stored.toolName);
+    if (!clientTool) throw new Error(`Kein Browser-Werkzeug registriert für ${stored.toolName}`);
+    const { toolResult, ok, classifiedStatePatch } = await clientTool.toToolResult({
       threadId,
-      variantId,
-      userText: classifiedState.lastUserTextNoMentions ?? null,
-      image,
+      stored,
+      result,
+      sse,
+      userId,
     });
-    classifiedState.sharepicCheck = checkResult;
-    const checkStep: PersistedStep = {
+    if (classifiedStatePatch) Object.assign(classifiedState, classifiedStatePatch);
+    const answeredStep: PersistedStep = {
       toolCallId: stored.toolCallId,
       toolName: stored.toolName,
       args: stored.args,
-      result: checkResult,
-      ...(image ? {} : { ok: false as const }),
+      result: toolResult,
+      ...(ok === false ? { ok: false as const } : {}),
     };
 
     // Karten-Kontinuität wie in der Rückfrage-Fortsetzung: die Vorkarten UND
     // die jetzt abgeschlossene Prüfung gehen in den Resume-Stream (der Client
     // dedupliziert über stepId).
-    for (const step of [...stored.priorSteps, checkStep]) {
+    for (const step of [...stored.priorSteps, answeredStep]) {
       sse.send('tool_step_start', {
         stepId: step.toolCallId,
         toolName: step.toolName,
@@ -121,7 +117,7 @@ export async function runClientToolLoopResume(params: {
       req,
       threadId,
       resumeApproval: {
-        priorSteps: [...stored.priorSteps, checkStep],
+        priorSteps: [...stored.priorSteps, answeredStep],
         approved: [],
         denied: [],
       },
@@ -144,6 +140,7 @@ export async function runClientToolLoopResume(params: {
           priorSteps: outcome.steps,
           pendingId: stored.pausedMessageId,
           startTime: Date.now(),
+          ...(stored.resolvedPause ? { resolvedPause: stored.resolvedPause } : {}),
         })),
         handled: true as const,
       };
@@ -161,6 +158,7 @@ export async function runClientToolLoopResume(params: {
           priorSteps: outcome.steps,
           pendingId: stored.pausedMessageId,
           startTime: Date.now(),
+          ...(stored.resolvedPause ? { resolvedPause: stored.resolvedPause } : {}),
         })),
         handled: true as const,
       };
@@ -174,10 +172,12 @@ export async function runClientToolLoopResume(params: {
           classifiedState,
           requestContext,
           pendingApproval: outcome.pendingApproval,
+          heldClientTool: outcome.heldClientTool ?? null,
           partialText: mergedText,
           priorSteps: outcome.steps,
           pendingId: stored.pausedMessageId,
           startTime: Date.now(),
+          ...(stored.resolvedPause ? { resolvedPause: stored.resolvedPause } : {}),
         })),
         handled: true as const,
       };
@@ -185,8 +185,8 @@ export async function runClientToolLoopResume(params: {
 
     await loopClientToolStateStore.delete(threadId);
 
-    // Ab hier derselbe Weg wie ein ungebrochener Zug (#4369). Es gibt keine
-    // Karte, die als „aufgelöst" markiert werden müsste.
+    // Ab hier derselbe Weg wie ein ungebrochener Zug (#4369). Die Pause selbst
+    // hat keine Karte; eine vorher entschiedene Freigabe reist mit.
     const finished = await finishResumedLoopTurn({
       sse,
       req,
@@ -197,7 +197,7 @@ export async function runClientToolLoopResume(params: {
       fullText: mergedText,
       pausedMessageId: stored.pausedMessageId,
       requestId,
-      resolvedPause: {},
+      resolvedPause: stored.resolvedPause ?? {},
     });
     return { ...finished, handled: true as const };
   } catch (err) {

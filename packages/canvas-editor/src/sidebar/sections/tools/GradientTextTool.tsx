@@ -1,8 +1,9 @@
+import { CustomColorSwatch } from '@ggraphic/editor/components/CustomColorSwatch';
+import { brandColors } from '@ggraphic/editor/utils/colorOptions';
 import { useCallback, useState } from 'react';
 import { PiTextT } from 'react-icons/pi';
 
-import { CustomColorSwatch } from '../../../components/CustomColorSwatch';
-import { BRAND_COLORS } from '../../../utils/shapes';
+import { MOBILE_INPUT_TEXT } from '../../sidebarStyles';
 
 import { ToolPanel, type ToolPanelSuccess } from './ToolPanel';
 import { useToolImagePlacement } from './useToolImagePlacement';
@@ -17,8 +18,8 @@ const RENDER_FONT_PX = 240;
 const RENDER_PADDING = 24;
 const FONT_FAMILY = '"GrueneTypeNeue", "ArvoGruen", sans-serif';
 
-const DEFAULT_COLOR_1 = BRAND_COLORS[0]?.value ?? '#005538';
-const DEFAULT_COLOR_2 = BRAND_COLORS[1]?.value ?? '#8ABD24';
+/** The brand's nth colour, read when the tool opens. */
+const paletteColor = (index: number) => () => brandColors()[index]?.value ?? '#000000';
 
 function ColorRow({
   label,
@@ -35,7 +36,7 @@ function ColorRow({
     <div className="flex flex-col gap-1.5">
       <span className="text-xs text-foreground-muted">{label}</span>
       <div className="flex flex-wrap items-center gap-1.5">
-        {BRAND_COLORS.map((c) => (
+        {brandColors().map((c) => (
           <button
             key={c.id}
             type="button"
@@ -52,7 +53,7 @@ function ColorRow({
         ))}
         <CustomColorSwatch
           value={selected}
-          presets={BRAND_COLORS.map((c) => c.value)}
+          presets={brandColors().map((c) => c.value)}
           onPick={onSelect}
           className="size-6"
           disabled={disabled}
@@ -111,8 +112,8 @@ export function GradientTextTool({ onJumpToUploads, onPlaceImageUrl }: GradientT
   const { finish, isUploading } = useToolImagePlacement({ onPlaceImageUrl, onJumpToUploads });
 
   const [value, setValue] = useState('');
-  const [color1, setColor1] = useState(DEFAULT_COLOR_1);
-  const [color2, setColor2] = useState(DEFAULT_COLOR_2);
+  const [color1, setColor1] = useState(paletteColor(0));
+  const [color2, setColor2] = useState(paletteColor(1));
   const [angle, setAngle] = useState(90);
   const [isBusy, setIsBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -157,7 +158,7 @@ export function GradientTextTool({ onJumpToUploads, onPlaceImageUrl }: GradientT
               onChange={(e) => setValue(e.target.value)}
               placeholder="Dein Text…"
               disabled={disabled}
-              className="rounded-md border border-editor-border-strong bg-background px-sm py-xs text-sm text-foreground outline-none focus:border-primary-500 disabled:opacity-50"
+              className={`rounded-md border border-editor-border-strong bg-background px-sm py-xs text-sm ${MOBILE_INPUT_TEXT} text-foreground outline-none focus:border-primary-500 disabled:opacity-50`}
             />
           </label>
 
@@ -189,7 +190,7 @@ export function GradientTextTool({ onJumpToUploads, onPlaceImageUrl }: GradientT
               value={angle}
               onChange={(e) => setAngle(Number(e.target.value))}
               disabled={disabled}
-              className="w-full accent-primary-600 disabled:opacity-50"
+              className="w-full max-canvas-mobile:h-11 accent-primary-600 disabled:opacity-50"
             />
           </label>
         </div>

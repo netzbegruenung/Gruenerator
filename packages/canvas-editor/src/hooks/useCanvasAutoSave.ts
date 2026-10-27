@@ -1,8 +1,10 @@
-import { useShareStore } from '@gruenerator/shared/share';
+import { useAutoSaveStore, useAutoSaveStoreApi } from '@ggraphic/editor/stores/useAutoSaveStore';
 import { useEffect, useLayoutEffect, useRef, useCallback } from 'react';
 
-import { useAutoSaveStore, useAutoSaveStoreApi } from '../stores/useAutoSaveStore';
-import { originalImageFetchUrl } from '../utils/canvasImageSource';
+import { useCanvasEditorServices } from '../CanvasEditorProvider';
+import { plainImageUrls } from '../hostServices';
+
+import type { ShareDescription } from '../configs/types';
 
 interface ShareMetadata {
   [key: string]: unknown;
@@ -27,6 +29,8 @@ async function fileToBase64(file: File | Blob): Promise<string> {
 interface CanvasAutoSaveOptions {
   canvasType: string;
   canvasState: Record<string, unknown>;
+  /** The template's description of a design for the gallery (`FullCanvasConfig.shareMetadata`). */
+  shareMetadata?: (state: Record<string, unknown>) => ShareDescription;
   enabled?: boolean;
   /**
    * Captures the current stage as a data URL for the unmount flush.
@@ -54,7 +58,8 @@ interface CanvasAutoSaveReturn {
 function buildCanvasShareMetadata(
   canvasType: string,
   canvasState: Record<string, unknown>,
-  hasOriginalImage: boolean
+  hasOriginalImage: boolean,
+  describe: ((state: Record<string, unknown>) => ShareDescription) | undefined
 ): ShareMetadata {
   const metadata: ShareMetadata = {
     sharepicType: canvasType,
@@ -64,80 +69,10 @@ function buildCanvasShareMetadata(
     generatedAt: new Date().toISOString(),
   };
 
-  // Extract canvas-specific content based on type
-  if (canvasType === 'dreizeilen') {
-    metadata.content = {
-      line1: canvasState.line1 || '',
-      line2: canvasState.line2 || '',
-      line3: canvasState.line3 || '',
-    };
-    metadata.styling = {
-      fontSize: canvasState.fontSize as number | undefined,
-      colorScheme: canvasState.colorSchemeId as string | undefined,
-      balkenWidthScale: canvasState.balkenWidthScale as number | undefined,
-      balkenScale: canvasState.balkenScale as number | undefined,
-      balkenOffset: canvasState.balkenOffset as number[] | undefined,
-      barOffsets: canvasState.barOffsets as [number, number, number] | undefined,
-      sunflowerPos: canvasState.sunflowerPos as { x: number; y: number } | null | undefined,
-      sunflowerSize: canvasState.sunflowerSize as { w: number; h: number } | null | undefined,
-      sunflowerVisible: canvasState.sunflowerVisible as boolean | undefined,
-      sunflowerOpacity: canvasState.sunflowerOpacity as number | undefined,
-      balkenOpacity: canvasState.balkenOpacity as number | undefined,
-      currentImageSrc: canvasState.currentImageSrc as string | undefined,
-      backgroundImageOpacity: canvasState.backgroundImageOpacity as number | undefined,
-      imageOffset: canvasState.imageOffset as { x: number; y: number } | undefined,
-      imageScale: canvasState.imageScale as number | undefined,
-      selectedIcons: canvasState.selectedIcons as string[] | undefined,
-      iconStates: canvasState.iconStates as Record<string, unknown> | undefined,
-      shapeInstances: canvasState.shapeInstances as unknown[] | undefined,
-      layerOrder: canvasState.layerOrder as string[] | undefined,
-      additionalTexts: canvasState.additionalTexts as unknown[] | undefined,
-    };
-  } else if (canvasType === 'zitat' || canvasType === 'zitat-pure') {
-    metadata.content = {
-      quote: canvasState.quote || '',
-      name: canvasState.name || '',
-    };
-    metadata.styling = {
-      fontSize: canvasState.fontSize as number | undefined,
-      colorScheme: canvasState.colorSchemeId as string | undefined,
-      currentImageSrc: canvasState.currentImageSrc as string | undefined,
-      backgroundImageOpacity: canvasState.backgroundImageOpacity as number | undefined,
-      imageOffset: canvasState.imageOffset as { x: number; y: number } | undefined,
-      imageScale: canvasState.imageScale as number | undefined,
-      sunflowerPos: canvasState.sunflowerPos as { x: number; y: number } | null | undefined,
-      sunflowerSize: canvasState.sunflowerSize as { w: number; h: number } | null | undefined,
-      sunflowerVisible: canvasState.sunflowerVisible as boolean | undefined,
-      sunflowerOpacity: canvasState.sunflowerOpacity as number | undefined,
-      selectedIcons: canvasState.selectedIcons as string[] | undefined,
-      iconStates: canvasState.iconStates as Record<string, unknown> | undefined,
-      shapeInstances: canvasState.shapeInstances as unknown[] | undefined,
-      layerOrder: canvasState.layerOrder as string[] | undefined,
-      additionalTexts: canvasState.additionalTexts as unknown[] | undefined,
-    };
-  } else if (canvasType === 'info') {
-    metadata.content = {
-      header: canvasState.header || '',
-      subheader: canvasState.subheader || '',
-      body: canvasState.body || '',
-    };
-    metadata.styling = {
-      fontSize: canvasState.fontSize as number | undefined,
-      colorScheme: canvasState.colorSchemeId as string | undefined,
-      currentImageSrc: canvasState.currentImageSrc as string | undefined,
-      backgroundImageOpacity: canvasState.backgroundImageOpacity as number | undefined,
-      imageOffset: canvasState.imageOffset as { x: number; y: number } | undefined,
-      imageScale: canvasState.imageScale as number | undefined,
-      sunflowerPos: canvasState.sunflowerPos as { x: number; y: number } | null | undefined,
-      sunflowerSize: canvasState.sunflowerSize as { w: number; h: number } | null | undefined,
-      sunflowerVisible: canvasState.sunflowerVisible as boolean | undefined,
-      sunflowerOpacity: canvasState.sunflowerOpacity as number | undefined,
-      selectedIcons: canvasState.selectedIcons as string[] | undefined,
-      iconStates: canvasState.iconStates as Record<string, unknown> | undefined,
-      shapeInstances: canvasState.shapeInstances as unknown[] | undefined,
-      layerOrder: canvasState.layerOrder as string[] | undefined,
-      additionalTexts: canvasState.additionalTexts as unknown[] | undefined,
-    };
+  const described = describe?.(canvasState);
+  if (described) {
+    metadata.content = described.content;
+    metadata.styling = described.styling;
   } else {
     // Generic canvas - store full state
     metadata.content = { canvasState };
@@ -164,12 +99,16 @@ export const useCanvasAutoSave = (
   const setAutoSavedShareToken = useAutoSaveStore((s) => s.setAutoSavedShareToken);
   const setLastAutoSavedImageSrc = useAutoSaveStore((s) => s.setLastAutoSavedImageSrc);
 
-  const { createImageShare, updateImageShare } = useShareStore();
+  // Host service; without it the editor does not autosave.
+  const { imageShares, imageUrls = plainImageUrls } = useCanvasEditorServices();
+  const createImageShare = imageShares?.createImageShare;
+  const updateImageShare = imageShares?.updateImageShare;
 
   // Use refs to store latest values without causing effect re-runs
   const latestRefs = useRef({
     canvasType: options.canvasType,
     canvasState: options.canvasState,
+    shareMetadata: options.shareMetadata,
     enabled: options.enabled,
     captureImage: options.captureImage,
     onShareToken: options.onShareToken,
@@ -184,6 +123,7 @@ export const useCanvasAutoSave = (
   latestRefs.current = {
     canvasType: options.canvasType,
     canvasState: options.canvasState,
+    shareMetadata: options.shareMetadata,
     enabled: options.enabled,
     captureImage: options.captureImage,
     onShareToken: options.onShareToken,
@@ -203,6 +143,7 @@ export const useCanvasAutoSave = (
 
       if (!imageSrc) return;
       if (refs.enabled === false) return;
+      if (!refs.createImageShare || !refs.updateImageShare) return;
       if (storeState.autoSaveStatus === 'saving') return;
       if (storeState.lastAutoSavedImageSrc === imageSrc) {
         storeState.setDirty(false);
@@ -231,7 +172,7 @@ export const useCanvasAutoSave = (
           }
         } else if (currentImageSrc) {
           try {
-            const res = await fetch(originalImageFetchUrl(currentImageSrc));
+            const res = await fetch(imageUrls.originalUrl(currentImageSrc));
             if (res.ok) {
               const blob = await res.blob();
               originalImageBase64 = await fileToBase64(blob);
@@ -244,7 +185,8 @@ export const useCanvasAutoSave = (
         const metadata = buildCanvasShareMetadata(
           refs.canvasType,
           refs.canvasState,
-          !!originalImageBase64
+          !!originalImageBase64,
+          refs.shareMetadata
         );
 
         // If we already have a shareToken, update the existing entry instead of creating new

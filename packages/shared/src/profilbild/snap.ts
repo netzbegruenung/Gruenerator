@@ -16,11 +16,16 @@ export interface SnapResult {
   guideY: number | null;
 }
 
+// The 'worklet' directives below let the mobile editor snap on the UI thread
+// (#4534); everywhere else they are inert strings. No default parameters here:
+// the plugin does not capture what they read.
 export function gridLines(size: number) {
+  'worklet';
   return [size / 3, size / 2, (size * 2) / 3];
 }
 
 function nearest(edges: number[], targets: number[], threshold: number) {
+  'worklet';
   let best: { delta: number; target: number } | null = null;
   for (const edge of edges) {
     for (const target of targets) {
@@ -37,18 +42,12 @@ function nearest(edges: number[], targets: number[], threshold: number) {
  * Snaps the person's edges and centre to the thirds and centre lines, and its
  * bottom to the canvas bottom, per axis to the closest guide within the threshold.
  */
-export function snapPerson(
-  rect: Rect,
-  size: number,
-  threshold = PROFILBILD_SNAP_THRESHOLD
-): SnapResult {
+export function snapPerson(rect: Rect, size: number, threshold?: number): SnapResult {
+  'worklet';
+  const t = threshold ?? PROFILBILD_SNAP_THRESHOLD;
   const lines = gridLines(size);
-  const h = nearest([rect.x, rect.x + rect.width / 2, rect.x + rect.width], lines, threshold);
-  const v = nearest(
-    [rect.y, rect.y + rect.height / 2, rect.y + rect.height],
-    [...lines, size],
-    threshold
-  );
+  const h = nearest([rect.x, rect.x + rect.width / 2, rect.x + rect.width], lines, t);
+  const v = nearest([rect.y, rect.y + rect.height / 2, rect.y + rect.height], [...lines, size], t);
   return {
     x: rect.x + (h?.delta ?? 0),
     y: rect.y + (v?.delta ?? 0),
@@ -59,6 +58,7 @@ export function snapPerson(
 
 /** Keeps the person's centre on the canvas so it can't be dragged out of reach. */
 export function clampPerson(rect: Rect, size: number) {
+  'worklet';
   return {
     x: Math.min(Math.max(rect.x, -rect.width / 2), size - rect.width / 2),
     y: Math.min(Math.max(rect.y, -rect.height / 2), size - rect.height / 2),
@@ -78,6 +78,7 @@ export interface CentredBox {
 
 /** Axis-aligned bounds of a box rotated around its centre. */
 export function rotatedBounds(box: CentredBox): Rect {
+  'worklet';
   const rad = (box.rotation * Math.PI) / 180;
   const cos = Math.abs(Math.cos(rad));
   const sin = Math.abs(Math.sin(rad));
@@ -87,11 +88,8 @@ export function rotatedBounds(box: CentredBox): Rect {
 }
 
 /** Clamps and snaps a sticker by its rotated bounds; returns the new centre. */
-export function snapSticker(
-  box: CentredBox,
-  size: number,
-  threshold = PROFILBILD_SNAP_THRESHOLD
-): SnapResult {
+export function snapSticker(box: CentredBox, size: number, threshold?: number): SnapResult {
+  'worklet';
   const bounds = rotatedBounds(box);
   const snapped = snapPerson({ ...bounds, ...clampPerson(bounds, size) }, size, threshold);
   return {

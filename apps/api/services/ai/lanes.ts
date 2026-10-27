@@ -22,6 +22,7 @@
 
 import { GEMMA_31B_PRIMARY } from './gemmaHosts.js';
 import { intermediateLane } from './intermediateLanes.js';
+import { MELIOUS_WIDE_MODEL } from './meliousThinkingFetch.js';
 
 import type { ProviderName } from './providers.js';
 
@@ -137,7 +138,6 @@ export const AI_LANES = {
   doc_generation: { provider: 'greenpt', model: GEMMA_4_GREENPT, structuredMode: 'tool' },
   board_generation: { provider: 'mistral', model: MISTRAL_LARGE, structuredMode: 'tool' },
   canvas_ai_suggest: { provider: 'mistral', model: MISTRAL_LARGE, structuredMode: 'tool' },
-
   // — Editor-Op-Planer (board/sheet/presentation), der `edit_document`-
   //   Werkzeug im agentischen Loop (#3426). Erzwungener Tool-Call wie die
   //   Zeilen darüber; alle drei planten vorher auf einer privaten Kette
@@ -204,6 +204,20 @@ export const AI_LANES = {
 
   // — Podcasts: a source re-told as a two-voice dialogue script.
   podcast_script: { provider: GEMMA_31B_PRIMARY.provider, model: GEMMA_4, structuredMode: 'tool' },
+
+  // — Agent- und Rezept-Entwurf aus einer Beschreibung (`draftAgentSpec`,
+  //   `draftRecipeSpec`, #4518). Gemma 4 statt Mistral Large 4, gemessen am
+  //   15.10.2026 (je 6 Agent-Entwürfe): beide 6/6 ohne Ausweich oder
+  //   Reparatur, Gemma 3–7 s statt 11–80 s und kürzere Rollen (~2,4k statt
+  //   6–7k Zeichen beim langen Brief), ohne die erfundenen Beispielzitate, die
+  //   Mistral in den systemRole schrieb.
+  creator_draft: { provider: GEMMA_31B_PRIMARY.provider, model: GEMMA_4, structuredMode: 'tool' },
+
+  // — Browser-Agent (`services/browser-agent`, browser-use): jeder Schritt
+  //   trägt einen Screenshot im Prompt. `:speed` (infercom/DE, ~130k Fenster)
+  //   gemessen; `:balanced` (FI-Knoten, ~45k) lief im Browser-Spike in
+  //   Zeitüberschreitungen. Rückfall über `laneFallback` (cortecs, mistral).
+  browser_agent: { provider: 'melious', model: MELIOUS_WIDE_MODEL, structuredMode: 'tool' },
 } as const satisfies Record<string, LaneConfig>;
 
 export type LaneId = keyof typeof AI_LANES;

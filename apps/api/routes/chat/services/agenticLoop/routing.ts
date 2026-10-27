@@ -21,6 +21,7 @@ import {
   isMetaQuestionAbout,
   isNegatedArtifactRequest,
   POST_NOUN_PATTERN,
+  refersToExistingSharepic,
   stripQuotedSpans,
 } from '../../../../agents/langgraph/ChatGraph/nodes/fastPathGuards.js';
 import { looksLikeMemoryRequest } from '../../../../services/memory/memoryRequest.js';
@@ -237,6 +238,22 @@ export function reworksSuppliedText(raw: string): boolean {
     FACT_CHECK_RE.test(order) ||
     looksLikeExplicitResearchOrder(order)
   );
+}
+
+/**
+ * Die Frage benennt einen mitgebrachten Text als ihren Gegenstand — „Welche vier
+ * Maßnahmen stehen im Antrag?", „Wie hoch sind die Kosten laut Antrag?", „Was
+ * steht darin zur Finanzierung?". Ob es diesen Text im Thread gibt, weiss der
+ * Aufrufer; hier steht nur, ob die Frage auf ihn zeigt (#4789).
+ *
+ * „Programm" fehlt bewusst: „im Wahlprogramm" meint die Beschlusslage, nach der
+ * gesucht werden soll, nicht den eingefügten Text.
+ */
+const SUPPLIED_MATERIAL_REF_RE =
+  /(?<!\p{L})(?:(?:im|(?:laut|gem[äa](?:ß|ss))(?:\s+(?:de[rms]|diese[rms]))?|(?:in|aus|nach)\s+(?:de[rm]|diese[rm]))\s+(?:\p{L}+en\s+)?(?:antrag|text|dokument|entwurf|artikel|beitrag|newsletter|brief|schreiben|papier|beschluss|pressemitteilung|anfrage|stellungnahme|vorlage|e-?mail)\p{L}*|darin|drin)(?!\p{L})/iu;
+
+export function asksAboutSuppliedMaterial(raw: string): boolean {
+  return SUPPLIED_MATERIAL_REF_RE.test(orderText((raw ?? '').trim()));
 }
 
 /**
@@ -837,6 +854,35 @@ export function compoundGenerationKind(
 }
 
 /**
+ * Der Auftrag NENNT ein Sharepic, bestellt es aber nicht in einer Form, die
+ * `asksForSharepic` erkennt — „wandle unsere Forderungen zur Kitafinanzierung in
+ * einen Sharepic-Slider um" (Verb und Nomen zu weit auseinander), aber auch
+ * „Dazu passt später ein Sharepic." (blosse Erwähnung).
+ *
+ * Das Nomen ist die Freigabe, die Entscheidung trifft das Modell: der Turn
+ * bekommt das Sharepic-Werkzeug montiert, aber NICHT erzwungen
+ * (`compoundGenerationOrdered: false`), und der Planer ruft es, wenn der
+ * Auftrag eines meint. Die Verb-Regex entscheidet nur noch über den Zwang. Bis
+ * 15.10.2026 war sie ein hartes Veto, und jedes fehlende Verb kostete den Turn.
+ *
+ * Nur das Sharepic-Vokabular: es ist spezifisch. „Dokument", „PDF" und
+ * „Tabelle" meinen meist vorhandenes Material („was steht im PDF?"), dort bleibt
+ * das Verb die Bedingung fürs Montieren. Verneinung, Zitat und Meta-Frage fängt
+ * `hasExplicitSharepicWord` ab, die Post-Vorfahrt gilt wie bei der Bestellung.
+ */
+export function namesSharepicWithoutOrder(intent: string, raw: string): boolean {
+  if (intent !== 'agentic' && intent !== 'produktion' && intent !== 'direct') return false;
+  const t = stripQuotedSpans(orderText(raw ?? ''));
+  if (!hasExplicitSharepicWord(t) || asksForSharepic(t) || POST_NOUN_PATTERN.test(t)) return false;
+  // „Danke, das Sharepic sieht super aus", „der Slider hakt": ein vorhandenes,
+  // kein neues — dafür gibt es die Bearbeitungswege, kein Erstell-Werkzeug.
+  if (refersToExistingSharepic(t)) return false;
+  // „Slider" allein ist auch ein Bedienelement („einen Slider auf der Website").
+  // Ohne ein zweites Sharepic-Wort reicht es nur für eine Bestellung.
+  return hasExplicitSharepicWord(t.replace(/(?<!\p{L})slider[ns]?(?!\p{L})/giu, ' '));
+}
+
+/**
  * The five embedded editor surfaces whose sidebar can drive a tool-based edit of
  * the OPEN artifact inside the agentic loop (see editorTools). Distinct from
  * {@link CompoundGenerationKind} (which is about spawning a NEW artifact).
@@ -1020,6 +1066,10 @@ export interface AgenticDecisionInput {
    *  notebook unless the model happens to call `notebooks(search)` itself.
    *  Flipping this flag is therefore a deliberate, measured change — not a
    *  leftover. Do not remove it on the strength of the tool existing.
+   *  One measured exception: a table turn (`isTabularAnalysisTurn`). Single-pass
+   *  has no `tabelle_auswerten` and answered from the excerpt; the loop seeds the
+   *  notebook through the same fan-out `searchNode` uses (`seedAttachedDocuments`
+   *  with `includeNotebooks`), so the notebook is read without the model.
    *  `isCompound` covered only the NAMED-agent half of this; the universal agent
    *  reached the loop unguarded. Separate flag rather than a widened
    *  `isCompound`, because that name means "gather-then-apply pipeline" and
@@ -1044,6 +1094,11 @@ export interface AgenticDecisionInput {
    *  tool exists only in the loop, and "Mach meine Abrechnung, Belege anbei"
    *  otherwise reads as a self-contained writing order. */
   isReisekostenTurn?: boolean;
+  /** A spreadsheet is attached and the client can run Python (`hasTabularAttachment
+   *  && clientCanRunPython`). Decided by the table's presence, never by the
+   *  wording of the question: `tabelle_auswerten` exists only in the loop, and a
+   *  tabular question is often classified `compute`, which is single-pass. */
+  isTabularAnalysisTurn?: boolean;
   /** The classifier answered `needsResearch: true` and then picked `direct`.
    *  Rescues the turn into the loop even when it isn't shaped like a question —
    *  the `direct` rescue below keys on phrasing, and the failing turns were
@@ -1063,7 +1118,13 @@ export interface AgenticDecisionInput {
  * loop — the model choice only decides unified-vs-split MODE inside the loop.
  */
 export function decideRunAgentic(p: AgenticDecisionInput): boolean {
-  const compoundGen = isCompoundGenerationIntent(p.intent) && p.compoundGeneration;
+  // Eine zurückgewonnene Art hebt den Turn in die Schleife, wo ihr Werkzeug
+  // hängt — auch einen Prosa-Turn mit eigenem Material. Bis 15.10.2026 zählte
+  // das nur bei benannten Erzeugungs-Intents: „mach daraus ein Dokument" unter
+  // einem Anhang war `self-contained`, lief als Einzeldurchlauf, und das
+  // erkannte Dokument-Werkzeug wurde nie montiert.
+  const compoundGen =
+    p.compoundGeneration && (isCompoundGenerationIntent(p.intent) || isGroundableProse(p.intent));
   // "Füll mir das Formular aus" is an imperative with no question word, so
   // looksLikeToolableQuestion rejects it by design (content imperatives are
   // creative generation). With a PDF attached it is exactly a tool turn — and
@@ -1105,6 +1166,7 @@ export function decideRunAgentic(p: AgenticDecisionInput): boolean {
         !selfContained)) ||
     p.isPdfFillRequest ||
     p.isReisekostenTurn === true ||
+    p.isTabularAnalysisTurn === true ||
     compoundGen ||
     memoryRequest;
   const secondaryAllowed =
@@ -1138,7 +1200,11 @@ export function decideRunAgentic(p: AgenticDecisionInput): boolean {
   // `forcedLoop` is a property of the intent; only with `forcedTool` is it a
   // mention the person made.
   const explicitLoopReason =
-    p.mustLoop || (p.forcedTool && p.forcedLoop) || p.isPdfFillRequest || memoryRequest;
+    p.mustLoop ||
+    (p.forcedTool && p.forcedLoop) ||
+    p.isPdfFillRequest ||
+    p.isTabularAnalysisTurn === true ||
+    memoryRequest;
   const imageStaysSinglePass =
     isPixelTurn(p.hasImageAttachments, p.intent) ||
     (p.hasImageAttachments && !explicitLoopReason && looksLikeImageOnlyAsk(p.lastUserText));
@@ -1146,7 +1212,7 @@ export function decideRunAgentic(p: AgenticDecisionInput): boolean {
     gateOpen &&
     (!p.forcedTool || p.forcedLoop) &&
     !p.isCompound &&
-    (!p.hasSelectedNotebook || p.mustLoop) &&
+    (!p.hasSelectedNotebook || p.mustLoop || p.isTabularAnalysisTurn === true) &&
     secondaryAllowed &&
     !imageStaysSinglePass;
   recordDecision('router.run_agentic', runAgentic ? 'loop' : 'single_pass', {
@@ -1164,6 +1230,7 @@ export function decideRunAgentic(p: AgenticDecisionInput): boolean {
       hasImageAttachments: p.hasImageAttachments,
       isPdfFillRequest: p.isPdfFillRequest,
       ...(p.isReisekostenTurn === true && { isReisekostenTurn: true }),
+      ...(p.isTabularAnalysisTurn === true && { isTabularAnalysisTurn: true }),
       unsourcedWriting,
       selfContained,
       memoryRequest,

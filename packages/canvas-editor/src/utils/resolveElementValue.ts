@@ -19,7 +19,7 @@ import {
   assertAsScale,
   assertAsSize,
   getOptionalStateValue,
-} from './stateTypeAssertions';
+} from '@ggraphic/editor/utils/stateTypeAssertions';
 
 import type { ImageElementConfig, LayoutResult } from '../configs/types';
 
@@ -97,4 +97,20 @@ export function resolveImageElementBox<
       customOpacity ?? (config.opacity ? resolveValue(config.opacity, state, layout) : 1)
     ),
   };
+}
+
+/** Der Platz, den ein cover-gefittetes Foto füllt: die eigene Schachtel vor Zoom und Versatz. */
+export function coverFitSlot<TState extends Record<string, unknown> = Record<string, unknown>>(
+  config: ImageElementConfig<TState>,
+  state: TState,
+  layout: LayoutResult
+): { x: number; y: number; width: number; height: number } {
+  return (
+    config.frame?.(state, layout) ?? {
+      x: resolveValue(config.x, state, layout),
+      y: resolveValue(config.y, state, layout),
+      width: resolveValue(config.width, state, layout),
+      height: resolveValue(config.height, state, layout),
+    }
+  );
 }

@@ -15,6 +15,7 @@
 
 import { deleteStoredFile } from '../../routes/boards/boardAttachmentStorage.js';
 import { reportBackgroundError } from '../../utils/reportBackgroundError.js';
+import { closeCollabRooms } from '../collab/hocuspocusInternal.js';
 import { type TrashCursor, trashKeysetWhere, trashOrderBy } from '../trash/trashCursor.js';
 
 export type QueryRunner = <T = Record<string, unknown>>(
@@ -175,6 +176,9 @@ export async function trashCollaborativeDocument(
      WHERE id = $1 AND is_deleted = false`,
     [id]
   );
+  // Open editors would otherwise keep editing a trashed document; on reconnect
+  // Hocuspocus refuses it.
+  void closeCollabRooms([id]);
   return { status: 'ok' };
 }
 
@@ -184,6 +188,8 @@ export interface TrashedCollabDocRow {
   document_subtype: string | null;
   deleted_at: Date;
   deleted_before_trash: boolean;
+  /** Format des Canvas-Sidecars (nur Canvas-Zeilen), sonst null. */
+  canvas_format: string | null;
 }
 
 /**
@@ -197,6 +203,9 @@ const DELETED_BEFORE_TRASH_SQL = `COALESCE(deleted_at = (
     SELECT applied_at FROM schema_migrations WHERE filename = 'zz_20260929_trash_deleted_at.sql'
   ), false) AS deleted_before_trash`;
 
+const CANVAS_FORMAT_SQL = `(SELECT cdoc.format FROM canvas_documents cdoc
+    WHERE cdoc.document_id = collaborative_documents.id) AS canvas_format`;
+
 export type TrashedLookup =
   { status: 'not_found' } | { status: 'forbidden' } | { status: 'ok'; row: TrashedCollabDocRow };
 
@@ -209,7 +218,7 @@ export async function getTrashedCollaborativeDocument(
   const rows = await runQuery<
     TrashedCollabDocRow & Pick<CollabDocRow, 'created_by' | 'permissions'>
   >(
-    `SELECT id, title, document_subtype, deleted_at, ${DELETED_BEFORE_TRASH_SQL}, created_by, permissions
+    `SELECT id, title, document_subtype, deleted_at, ${DELETED_BEFORE_TRASH_SQL}, ${CANVAS_FORMAT_SQL}, created_by, permissions
      FROM collaborative_documents WHERE id = $1 AND deleted_at IS NOT NULL`,
     [id]
   );
@@ -248,7 +257,7 @@ export async function listTrashedCollaborativeDocuments(
   const keyset = trashKeysetWhere('deleted_at', 'id', opts.before, params);
   params.push(opts.limit);
   return runQuery<TrashedCollabDocRow>(
-    `SELECT id, title, document_subtype, deleted_at, ${DELETED_BEFORE_TRASH_SQL}
+    `SELECT id, title, document_subtype, deleted_at, ${DELETED_BEFORE_TRASH_SQL}, ${CANVAS_FORMAT_SQL}
      FROM collaborative_documents
      WHERE deleted_at IS NOT NULL AND ${OWNER_SQL} AND ${keyset}
      ORDER BY ${trashOrderBy('deleted_at', 'id')}

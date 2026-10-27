@@ -573,7 +573,7 @@ export class BoellStiftungScraper extends BaseScraper {
   async #articleExists(url: string): Promise<ExistingArticle | null> {
     try {
       const points = await scrollDocuments(
-        this.qdrant.client!,
+        this.qdrant.readClient(this.config.collectionName),
         this.config.collectionName,
         {
           must: [{ key: 'source_url', match: { value: url } }],
@@ -611,7 +611,7 @@ export class BoellStiftungScraper extends BaseScraper {
   ): Promise<void> {
     if (existing.published_at || !content.publishedAt) return;
     await setPayload(
-      this.qdrant.client!,
+      this.qdrant.writeClient(this.config.collectionName),
       this.config.collectionName,
       { published_at: content.publishedAt },
       { must: [{ key: 'source_url', match: { value: url } }] }
@@ -622,9 +622,13 @@ export class BoellStiftungScraper extends BaseScraper {
    * Delete article from Qdrant
    */
   async #deleteArticle(url: string): Promise<void> {
-    await batchDelete(this.qdrant.client!, this.config.collectionName, {
-      must: [{ key: 'source_url', match: { value: url } }],
-    });
+    await batchDelete(
+      this.qdrant.writeClient(this.config.collectionName),
+      this.config.collectionName,
+      {
+        must: [{ key: 'source_url', match: { value: url } }],
+      }
+    );
   }
 
   /**
@@ -697,7 +701,11 @@ export class BoellStiftungScraper extends BaseScraper {
 
     for (let i = 0; i < points.length; i += 10) {
       const batch = points.slice(i, i + 10);
-      await batchUpsert(this.qdrant.client!, this.config.collectionName, batch);
+      await batchUpsert(
+        this.qdrant.writeClient(this.config.collectionName),
+        this.config.collectionName,
+        batch
+      );
     }
 
     recordSyncEvent({
@@ -797,7 +805,7 @@ export class BoellStiftungScraper extends BaseScraper {
         concurrency: 3,
         delayMs: this.crawlDelay,
       });
-      const gone = new GoneTracker(this.qdrant.client!, this.config.collectionName);
+      const gone = new GoneTracker(this.qdrant, this.config.collectionName);
 
       for (let i = 0; i < fetched.length; i++) {
         const entry = fetched[i];
@@ -940,13 +948,15 @@ export class BoellStiftungScraper extends BaseScraper {
       filter.must.push({ key: 'primary_category', match: { value: topic } });
     }
 
-    const searchResult = await this.qdrant.client!.query(this.config.collectionName, {
-      query: queryVector,
-      ...(filter.must.length > 0 ? { filter } : {}),
-      limit: limit * 3,
-      score_threshold: threshold,
-      with_payload: true,
-    });
+    const searchResult = await this.qdrant
+      .readClient(this.config.collectionName)
+      .query(this.config.collectionName, {
+        query: queryVector,
+        ...(filter.must.length > 0 ? { filter } : {}),
+        limit: limit * 3,
+        score_threshold: threshold,
+        with_payload: true,
+      });
 
     const articlesMap = new Map<string, BoellArticleResult>();
     for (const hit of searchResult.points) {
@@ -982,7 +992,10 @@ export class BoellStiftungScraper extends BaseScraper {
    */
   async getStats(): Promise<BoellStats> {
     try {
-      const stats = await getCollectionStats(this.qdrant.client!, this.config.collectionName);
+      const stats = await getCollectionStats(
+        this.qdrant.readClient(this.config.collectionName),
+        this.config.collectionName
+      );
       return {
         collection: this.config.collectionName,
         ...(stats.vectors_count !== undefined && { vectors_count: stats.vectors_count }),
@@ -1003,7 +1016,7 @@ export class BoellStiftungScraper extends BaseScraper {
       const topics = new Set<string>();
 
       const points = await scrollDocuments(
-        this.qdrant.client!,
+        this.qdrant.readClient(this.config.collectionName),
         this.config.collectionName,
         {},
         {
@@ -1037,7 +1050,7 @@ export class BoellStiftungScraper extends BaseScraper {
     this.log('Clearing all documents...');
     try {
       const points = await scrollDocuments(
-        this.qdrant.client!,
+        this.qdrant.readClient(this.config.collectionName),
         this.config.collectionName,
         undefined,
         {
@@ -1049,7 +1062,9 @@ export class BoellStiftungScraper extends BaseScraper {
 
       if (points.length > 0) {
         const pointIds = points.map((p) => p.id);
-        await this.qdrant.client!.delete(this.config.collectionName, { points: pointIds });
+        await this.qdrant
+          .writeClient(this.config.collectionName)
+          .delete(this.config.collectionName, { points: pointIds });
       }
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';

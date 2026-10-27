@@ -80,6 +80,11 @@ on:
         required: false
         default: 'false'
         type: boolean
+      build_browser_agent:
+        description: 'Build browser-agent image only'
+        required: false
+        default: 'false'
+        type: boolean
 permissions:
   contents: read
   packages: write
@@ -111,6 +116,7 @@ jobs:
       doku: ${{ steps.filter.outputs.doku }}
       gruen-o-mat: ${{ steps.filter.outputs.gruen-o-mat }}
       nlp: ${{ steps.filter.outputs.nlp }}
+      browser-agent: ${{ steps.filter.outputs.browser-agent }}
       shared: ${{ steps.filter.outputs.shared }}
     steps:
       - uses: actions/checkout@v7
@@ -163,11 +169,13 @@ jobs:
             shared:
               - 'packages/shared/**'
               - 'packages/core/**'
+              - 'packages/ggraphic-schema/**'
               - *install
             web:
               - 'apps/web/**'
               - 'packages/shared/**'
               - 'packages/core/**'
+              - 'packages/ggraphic-schema/**'
               - 'packages/contracts/**'
               - 'packages/query/**'
               - 'packages/docs/**'
@@ -178,6 +186,8 @@ jobs:
               - 'packages/sheets/**'
               - 'packages/ui/**'
               - 'packages/collab/**'
+              - 'packages/ggraphic-core/**'
+              - 'packages/ggraphic-editor/**'
               - 'packages/wolke/**'
               - 'packages/sites/**'
               - 'packages/sites-design/**'
@@ -189,6 +199,7 @@ jobs:
               - 'services/hocuspocus/**'
               - 'packages/shared/**'
               - 'packages/core/**'
+              - 'packages/ggraphic-schema/**'
               - 'packages/contracts/**'
               - 'packages/query/**'
               - *install
@@ -197,6 +208,7 @@ jobs:
               - 'services/hocuspocus/**'
               - 'packages/shared/**'
               - 'packages/core/**'
+              - 'packages/ggraphic-schema/**'
               - 'packages/contracts/**'
               - 'packages/query/**'
               - *install
@@ -207,6 +219,7 @@ jobs:
               - 'packages/voice/**'
               - 'packages/shared/**'
               - 'packages/core/**'
+              - 'packages/ggraphic-schema/**'
               - 'packages/contracts/**'
               - 'packages/query/**'
               - 'packages/ui/**'
@@ -215,6 +228,8 @@ jobs:
               - *tsconfig
             nlp:
               - 'services/nlp/**'
+            browser-agent:
+              - 'services/browser-agent/**'
             doku:
               - 'documentation/**'
               - *install
@@ -235,7 +250,7 @@ jobs:
       - name: Login to Docker Hub
         # Dependabot PRs see only Dependabot secrets; they pull anonymously.
         if: github.event.pull_request.user.login != 'dependabot[bot]'
-        uses: docker/login-action@v4.6.0
+        uses: docker/login-action@v4.7.0
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
@@ -244,7 +259,7 @@ jobs:
         uses: docker/setup-buildx-action@v4
 
       - name: Log in to Container Registry
-        uses: docker/login-action@v4.6.0
+        uses: docker/login-action@v4.7.0
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
@@ -292,7 +307,7 @@ jobs:
       - name: Login to Docker Hub
         # Dependabot PRs see only Dependabot secrets; they pull anonymously.
         if: github.event.pull_request.user.login != 'dependabot[bot]'
-        uses: docker/login-action@v4.6.0
+        uses: docker/login-action@v4.7.0
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
@@ -301,7 +316,7 @@ jobs:
         uses: docker/setup-buildx-action@v4
 
       - name: Log in to Container Registry
-        uses: docker/login-action@v4.6.0
+        uses: docker/login-action@v4.7.0
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
@@ -345,7 +360,7 @@ jobs:
       - name: Login to Docker Hub
         # Dependabot PRs see only Dependabot secrets; they pull anonymously.
         if: github.event.pull_request.user.login != 'dependabot[bot]'
-        uses: docker/login-action@v4.6.0
+        uses: docker/login-action@v4.7.0
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
@@ -354,7 +369,7 @@ jobs:
         uses: docker/setup-buildx-action@v4
 
       - name: Log in to Container Registry
-        uses: docker/login-action@v4.6.0
+        uses: docker/login-action@v4.7.0
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
@@ -398,7 +413,7 @@ jobs:
       - name: Login to Docker Hub
         # Dependabot PRs see only Dependabot secrets; they pull anonymously.
         if: github.event.pull_request.user.login != 'dependabot[bot]'
-        uses: docker/login-action@v4.6.0
+        uses: docker/login-action@v4.7.0
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
@@ -407,7 +422,7 @@ jobs:
         uses: docker/setup-buildx-action@v4
 
       - name: Log in to Container Registry
-        uses: docker/login-action@v4.6.0
+        uses: docker/login-action@v4.7.0
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
@@ -451,7 +466,7 @@ jobs:
       - name: Login to Docker Hub
         # Dependabot PRs see only Dependabot secrets; they pull anonymously.
         if: github.event.pull_request.user.login != 'dependabot[bot]'
-        uses: docker/login-action@v4.6.0
+        uses: docker/login-action@v4.7.0
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
@@ -460,7 +475,7 @@ jobs:
         uses: docker/setup-buildx-action@v4
 
       - name: Log in to Container Registry
-        uses: docker/login-action@v4.6.0
+        uses: docker/login-action@v4.7.0
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
@@ -487,6 +502,59 @@ jobs:
           cache-from: type=registry,ref=${{ env.IMAGE_PREFIX }}-nlp:buildcache
           cache-to: ${{ github.event_name != 'pull_request' && format('type=registry,ref={0}-nlp:buildcache,mode=max,image-manifest=true,oci-mediatypes=true', env.IMAGE_PREFIX) || '' }}
 
+  build-browser-agent:
+    needs: detect-changes
+    if: >
+      needs.detect-changes.outputs.browser-agent == 'true' ||
+      github.event.inputs.force_all == 'true' ||
+      github.event_name == 'schedule' ||
+      github.event.inputs.build_browser_agent == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Login to Docker Hub
+        # Dependabot PRs see only Dependabot secrets; they pull anonymously.
+        if: github.event.pull_request.user.login != 'dependabot[bot]'
+        uses: docker/login-action@v4.7.0
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      - name: Log in to Container Registry
+        uses: docker/login-action@v4.7.0
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v6
+        with:
+          images: ${{ env.IMAGE_PREFIX }}-browser-agent
+          tags: |
+            type=ref,event=branch
+            type=sha,prefix=
+            type=raw,value=latest,enable={{is_default_branch}}
+
+      - name: Build and push
+        uses: docker/build-push-action@v7
+        with:
+          context: ./services/browser-agent
+          file: services/browser-agent/Dockerfile
+          push: ${{ github.event_name != 'pull_request' }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=registry,ref=${{ env.IMAGE_PREFIX }}-browser-agent:buildcache
+          cache-to: ${{ github.event_name != 'pull_request' && format('type=registry,ref={0}-browser-agent:buildcache,mode=max,image-manifest=true,oci-mediatypes=true', env.IMAGE_PREFIX) || '' }}
+
   build-doku:
     needs: detect-changes
     if: >
@@ -504,7 +572,7 @@ jobs:
       - name: Login to Docker Hub
         # Dependabot PRs see only Dependabot secrets; they pull anonymously.
         if: github.event.pull_request.user.login != 'dependabot[bot]'
-        uses: docker/login-action@v4.6.0
+        uses: docker/login-action@v4.7.0
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
@@ -513,7 +581,7 @@ jobs:
         uses: docker/setup-buildx-action@v4
 
       - name: Log in to Container Registry
-        uses: docker/login-action@v4.6.0
+        uses: docker/login-action@v4.7.0
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
@@ -552,8 +620,128 @@ jobs:
           cache-from: type=registry,ref=${{ env.IMAGE_PREFIX }}-doku:buildcache
           cache-to: ${{ github.event_name != 'pull_request' && format('type=registry,ref={0}-doku:buildcache,mode=max,image-manifest=true,oci-mediatypes=true', env.IMAGE_PREFIX) || '' }}
 
+  # test-branch mirrors master (sync-test-branch.yml), and its images are built
+  # with the same build args. Rebuilding them after every sync produced the
+  # same images a second time, ~9 min per merge. Instead, once master's images
+  # are pushed, `:test-branch` is pointed at them — if test-branch carries
+  # nothing of its own. When it does, sync-test-branch.yml still dispatches a
+  # real build, and this job leaves the tags alone.
+  #
+  # All seven images, not just the ones this run built: a later master commit
+  # without image changes runs no build, so this is the run that has to bring
+  # test-branch level. Runs are serialized per ref, so `:master` already holds
+  # every earlier merge.
+  promote-test-branch:
+    needs:
+      [
+        build-web,
+        build-api,
+        build-hocuspocus,
+        build-gruen-o-mat,
+        build-nlp,
+        build-browser-agent,
+        build-doku,
+      ]
+    if: >-
+      always() &&
+      github.ref == 'refs/heads/master' && github.event_name != 'pull_request' &&
+      !contains(needs.*.result, 'failure') && !contains(needs.*.result, 'cancelled')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+      actions: read
+    env:
+      GH_TOKEN: ${{ github.token }}
+      REPO: ${{ github.repository }}
+    steps:
+      # sync-test-branch.yml usually lands within a minute, long before the
+      # builds are done; the wait covers a queued sync. Only a test-branch that
+      # contains this commit and whose tree equals the master commit it
+      # mirrors gets the master images.
+      - name: Check that test-branch mirrors this commit
+        id: mirror
+        run: |
+          contains() { case $(gh api "repos/$REPO/compare/$1...$2" --jq .status) in identical | ahead) return 0 ;; esac; return 1; }
+          tree() { gh api "repos/$REPO/commits/$1" --jq .commit.tree.sha; }
+
+          for _ in $(seq 40); do
+            if contains "$GITHUB_SHA" test-branch; then
+              head=$(gh api "repos/$REPO/commits/test-branch" --jq .sha)
+              # A sync merge has the master commit as its last parent; a
+              # fast-forward is a master commit itself.
+              if contains "$head" master; then
+                mirrored=$head
+              else
+                mirrored=$(gh api "repos/$REPO/commits/$head" --jq '.parents[-1].sha')
+              fi
+              if [ "$(tree "$head")" = "$(tree "$mirrored")" ] && contains "$GITHUB_SHA" "$mirrored"; then
+                echo "test-branch $head mirrors master $mirrored — promoting."
+                echo "head=$head" >> "$GITHUB_OUTPUT"
+              else
+                echo "test-branch $head carries its own changes — sync-test-branch.yml builds it."
+              fi
+              exit 0
+            fi
+            sleep 15
+          done
+          echo "::warning::test-branch did not pick up $GITHUB_SHA within 10 minutes (sync conflict or queued). Its images were not promoted."
+
+      # A test-branch build dispatched by an earlier sync (when test-branch
+      # still carried changes of its own) runs in its own concurrency group.
+      # Finishing after the retag, it would put the older image back on
+      # `:test-branch`. So it goes first.
+      - name: Wait for running test-branch builds
+        if: steps.mirror.outputs.head
+        run: |
+          for _ in $(seq 120); do
+            running=$(gh api "repos/$REPO/actions/workflows/build-images.yml/runs?branch=test-branch&per_page=20" \
+              --jq '[.workflow_runs[] | select(.status != "completed")] | length')
+            [ "$running" -eq 0 ] && exit 0
+            echo "$running test-branch build(s) still running — waiting."
+            sleep 15
+          done
+          echo "::error::test-branch builds still running after 30 minutes — not retagging over them."
+          exit 1
+
+      - name: Login to GitHub Container Registry
+        if: steps.mirror.outputs.head
+        uses: docker/login-action@v4.7.0
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # Same tags a test-branch build would set: the branch tag the test
+      # server pulls, and the short SHA of the test-branch commit.
+      - name: Point test-branch tags at the master images
+        if: steps.mirror.outputs.head
+        env:
+          HEAD_SHA: ${{ steps.mirror.outputs.head }}
+        run: |
+          failed=0
+          for image in web api hocuspocus gruen-o-mat nlp browser-agent doku; do
+            ref="$IMAGE_PREFIX-$image"
+            if docker buildx imagetools create -t "$ref:test-branch" -t "$ref:${HEAD_SHA:0:7}" "$ref:master"; then
+              echo "$image: :test-branch → :master"
+            else
+              echo "::error::$image: retag failed"
+              failed=1
+            fi
+          done
+          exit $failed
+
   summary:
-    needs: [build-web, build-api, build-hocuspocus, build-gruen-o-mat, build-nlp, build-doku]
+    needs:
+      [
+        build-web,
+        build-api,
+        build-hocuspocus,
+        build-gruen-o-mat,
+        build-nlp,
+        build-browser-agent,
+        build-doku,
+      ]
     if: always()
     runs-on: ubuntu-latest
     permissions:
@@ -569,4 +757,5 @@ jobs:
           echo "| hocuspocus | ${{ needs.build-hocuspocus.result }} |" >> $GITHUB_STEP_SUMMARY
           echo "| gruen-o-mat | ${{ needs.build-gruen-o-mat.result }} |" >> $GITHUB_STEP_SUMMARY
           echo "| nlp | ${{ needs.build-nlp.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| browser-agent | ${{ needs.build-browser-agent.result }} |" >> $GITHUB_STEP_SUMMARY
           echo "| doku | ${{ needs.build-doku.result }} |" >> $GITHUB_STEP_SUMMARY

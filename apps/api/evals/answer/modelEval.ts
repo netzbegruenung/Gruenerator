@@ -25,7 +25,7 @@ const { handleNotebookStream } = await import('../../routes/chat/notebookStreamC
 const { notebookQAService } = await import('../../services/notebook/index.js');
 const { getNotebookDepthProfile } = await import('../../config/notebookDepthProfiles.js');
 
-import { type NotebookDepth } from '@gruenerator/contracts';
+import { type NotebookSearchDepth } from '@gruenerator/contracts';
 
 import { type NotebookStreamOptions } from '../../routes/chat/notebookStreamCore.js';
 
@@ -35,7 +35,7 @@ const CONCURRENCY = Number(process.env.EVAL_CONCURRENCY ?? 2);
 const WIDE_PASSAGES = Number(process.env.EVAL_WIDE_PASSAGES ?? 100);
 
 type Variant = 'gemma' | 'medium35' | 'large4' | 'large4-wide' | 'gemma-wide';
-const VARIANTS: Record<Variant, { model: string; depth: NotebookDepth }> = {
+const VARIANTS: Record<Variant, { model: string; depth: NotebookSearchDepth }> = {
   gemma: { model: 'gruenerator-medium', depth: 'deep' },
   medium35: { model: 'mistral-medium-3.5', depth: 'deep' },
   large4: { model: 'gruenerator-ultra', depth: 'deep' },

@@ -57,7 +57,7 @@ export default function MobileRenderPage() {
     let cancelled = false;
 
     const run = async (
-      request: Exclude<WebViewInboundMessage, { type: 'REQUEST_CLOSE' }>
+      request: Extract<WebViewInboundMessage, { requestId: string }>
     ): Promise<void> => {
       try {
         if (request.type === 'COMPOSE_REQUEST') {
@@ -97,7 +97,11 @@ export default function MobileRenderPage() {
           });
           return;
         }
-        const image = await renderSharepicToImage(request.canvasType, request.initialProps);
+        // `'app'`, not the export default: see APP_PIXEL_RATIO — above 1x the
+        // Android WebView drops the photo from the capture.
+        const image = await renderSharepicToImage(request.canvasType, request.initialProps, {
+          quality: 'app',
+        });
         if (cancelled) return;
         if (image === null) {
           // `renderSharepicToImage` resolves null on its own 5s timeout — a
@@ -124,7 +128,8 @@ export default function MobileRenderPage() {
 
     const handleMessage = (event: MessageEvent) => {
       const request = parseHostMessage(event.data);
-      if (request === null || request.type === 'REQUEST_CLOSE') return;
+      // Only render work; the close and editor-bar messages are for other pages.
+      if (request === null || !('requestId' in request)) return;
       queue.current = queue.current.then(() => run(request));
     };
 

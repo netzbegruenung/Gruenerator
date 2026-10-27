@@ -59,6 +59,10 @@ vi.mock('../services/threadPersistenceService.js', async () => {
     }),
   };
 });
+vi.mock('../services/documentScopeAccess.js', async () => {
+  const { ownedDocumentScopeMock } = await import('./harness/mocks.js');
+  return ownedDocumentScopeMock();
+});
 vi.mock('../services/threadAccessService.js', async () => {
   const { threadAccessMock } = await import('./harness/mocks.js');
   return threadAccessMock();
@@ -347,6 +351,18 @@ const CASES: Case[] = [
       defaultNotebookId: 'bundestagsfraktion-notebook',
     },
     fits: ['gruenerator_search', 'notebooks', 'notebook_quellen'],
+  },
+  // #4785: Einfügung plus Schreibauftrag. Der Prompt verlangt das Rezept
+  // zuerst; ohne es im Zuschnitt hing Gemma unter `required` über 50 s.
+  {
+    id: 'paste-instagram-post',
+    prompt: 'Mach daraus bitte einen Instagram-Post',
+    body: {
+      attachments: [pasteAttachment(PASTE)],
+      defaultNotebookId: 'bundestagsfraktion-notebook',
+    },
+    fits: ['rezept_laden'],
+    without: DECOYS.filter((t) => t !== 'rezept_laden'),
   },
 ];
 

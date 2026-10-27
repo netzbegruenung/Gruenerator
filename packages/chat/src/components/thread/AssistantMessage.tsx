@@ -30,7 +30,6 @@ import { ImageGenerationFrame } from '../message-parts/ImageGenerationFrame';
 import { MemoryIndicator } from '../message-parts/MemoryIndicator';
 import { MessageActions } from '../message-parts/MessageActions';
 import { MessageErrorBanner } from '../message-parts/MessageErrorBanner';
-import { MessageStreamingProvider } from '../message-parts/messageStreamingContext';
 import { MessageDaySeparator } from '../message-parts/MessageTimestamp';
 import { SearchImagesSection } from '../message-parts/SearchImagesSection';
 import { SearchResultsSection, type AdditionalSource } from '../message-parts/SearchResultsSection';
@@ -52,9 +51,6 @@ import type { ChatMessageMetadata } from '../../types/messageMetadata';
 
 function AssistantMessageTextPart() {
   const isCompact = useChatDensity() === 'compact';
-  // Expose streaming state to descendants (ChatCodeBlock auto-runs a spreadsheet
-  // block only once the message has finished streaming).
-  const isStreaming = useAuiState((s) => s.message.status?.type === 'running');
   return (
     <div
       className={
@@ -63,9 +59,7 @@ function AssistantMessageTextPart() {
           : 'prose prose-sm max-w-none min-w-0 break-words'
       }
     >
-      <MessageStreamingProvider value={isStreaming}>
-        <CitationMarkdownText />
-      </MessageStreamingProvider>
+      <CitationMarkdownText />
     </div>
   );
 }
@@ -323,15 +317,22 @@ export const AssistantMessage = memo(function AssistantMessage() {
           )}
           {custom?.generatedImage && <GeneratedImageDisplay image={custom.generatedImage} />}
 
-          {/* Platzhalter-Rahmen, solange das KI-Bild noch generiert wird. Nur für
-              die Bild-Intents (Generierung + Bearbeitung) — Sharepics/Social
-              Posts rendern ihre eigenen Karten und teilen bloß dieselbe
+          {/* Platzhalter-Rahmen, solange das KI-Bild noch generiert wird — für
+              die Bild-Intents (Generierung + Bearbeitung), und für ein Sharepic,
+              bis seine Karte da ist (dann zeigt die Karte das Zeichnen selbst).
+              Social Posts rendern ihre eigene Karte und teilen bloß dieselbe
               progress-Stage. */}
           {isStreaming &&
             !custom?.generatedImage &&
             custom?.progress?.stage === 'generating_image' &&
             (custom.progress.intent === 'image' || custom.progress.intent === 'image_edit') && (
               <ImageGenerationFrame />
+            )}
+          {isStreaming &&
+            !custom?.sharepicData &&
+            custom?.progress?.stage === 'generating_image' &&
+            custom.progress.intent === 'sharepic' && (
+              <ImageGenerationFrame label="Sharepic wird entworfen …" aspect="aspect-[4/5]" />
             )}
 
           {/* Above the answer, not under it: on a turn that found pictures they are

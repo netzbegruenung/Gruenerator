@@ -17,7 +17,7 @@ import {
   isSystemQdrantCollection,
 } from '../../../config/systemCollectionsConfig.js';
 import { vectorConfig } from '../../../config/vectorConfig.js';
-import { QdrantOperations } from '../../../database/services/QdrantOperations.js';
+import { type QdrantOperations } from '../../../database/services/QdrantOperations.js';
 import { getQdrantInstance } from '../../../database/services/QdrantService.js';
 import { InputValidator } from '../../../utils/validation/index.js';
 import { BaseSearchService } from '../../BaseSearchService/index.js';
@@ -137,10 +137,29 @@ async function hideTrashedDocuments(response: SearchResponse): Promise<SearchRes
   return { ...response, results: response.results.filter((r) => !trashed.has(r.document_id)) };
 }
 
+/**
+ * Keep the owner pin on a `documentIds`-scoped search of `documents`.
+ *
+ * `searchOperations` drops its `user_id` pin once `documentIds` scope a
+ * search, because notebook callers pass ids they authorized for other owners.
+ * `textSearch`/`hybridSearch` have no such caller — they serve only the
+ * "my documents" search (`POST /api/documents/search`) — so an id that slipped
+ * past the route check must still find nothing the caller does not own.
+ */
+function ownerPinnedFilter(userId: string, options: DocumentSearchOptions): QdrantFilter | null {
+  const scoped = Array.isArray(options.documentIds) && options.documentIds.length > 0;
+  const collection = (options.searchCollection as string | undefined) ?? 'documents';
+  if (!scoped || collection !== 'documents') return null;
+  const existing = options.additionalFilter as QdrantFilter | undefined;
+  return {
+    ...existing,
+    must: [...(existing?.must ?? []), { key: 'user_id', match: { value: userId } }],
+  };
+}
+
 export class DocumentSearchService extends BaseSearchService {
   private qdrant: QdrantService;
   private qdrantOps: QdrantOperations | null;
-  private initialized: boolean;
   private qdrantAvailable: boolean;
   private hybridConfig: HybridConfig;
 
@@ -153,7 +172,6 @@ export class DocumentSearchService extends BaseSearchService {
 
     this.qdrant = getQdrantInstance();
     this.qdrantOps = null;
-    this.initialized = false;
     this.qdrantAvailable = false;
     this.hybridConfig = vectorConfig.get('hybrid');
   }
@@ -165,19 +183,14 @@ export class DocumentSearchService extends BaseSearchService {
    * Called automatically before search operations.
    */
   async ensureInitialized(): Promise<void> {
-    if (!this.initialized) {
-      await this.qdrant.init();
-      this.qdrantAvailable = !!this.qdrant?.client && !!this.qdrant?.isConnected;
+    // QdrantService throttles reconnects, so asking again on every call is cheap.
+    if (this.qdrantOps) return;
 
-      if (this.qdrantAvailable && this.qdrant.client) {
-        this.qdrantOps = new QdrantOperations(this.qdrant.client);
-      } else {
-        console.warn(
-          '[DocumentSearchService] Qdrant not available; vector searches will be skipped'
-        );
-        this.qdrantOps = null;
-      }
-      this.initialized = true;
+    await this.qdrant.init();
+    this.qdrantAvailable = !!this.qdrant?.operations && !!this.qdrant?.isConnected;
+
+    if (this.qdrantAvailable) {
+      this.qdrantOps = this.qdrant.operations;
     }
   }
 
@@ -472,12 +485,13 @@ export class DocumentSearchService extends BaseSearchService {
         throw new Error('Qdrant not available');
       }
 
+      const additionalFilter = ownerPinnedFilter(userId, options);
       return await hideTrashedDocuments(
         await searchOps.performTextSearch(
           this.qdrantOps,
           query,
           userId,
-          options,
+          additionalFilter ? { ...options, additionalFilter } : options,
           this.chunkMultiplier,
           this.groupAndRankHybridResults.bind(this)
         )
@@ -511,6 +525,7 @@ export class DocumentSearchService extends BaseSearchService {
         );
       }
 
+      const additionalFilter = ownerPinnedFilter(userId, options);
       const response = await this.performHybridSearch({
         query,
         userId,
@@ -518,6 +533,7 @@ export class DocumentSearchService extends BaseSearchService {
           documentIds: options.documentIds,
           sourceType: options.sourceType,
           searchCollection: options.searchCollection,
+          ...(additionalFilter && { additionalFilter }),
         },
         options: {
           limit: options.limit || this.defaultLimit,
@@ -676,7 +692,8 @@ export class DocumentSearchService extends BaseSearchService {
   async getDocumentFirstChunks(userId: string, documentIds: string[]): Promise<FirstChunksResult> {
     await this.ensureInitialized();
     if (!this.qdrantOps) {
-      throw new Error('Qdrant not available');
+      // Only list previews depend on this; the lists themselves come from Postgres.
+      return { success: false, chunks: {}, foundCount: 0, error: 'Qdrant not available' };
     }
     return await docRetrieval.getDocumentFirstChunks(this.qdrantOps, userId, documentIds);
   }

@@ -1,3 +1,12 @@
+import {
+  GRUENE_ASSET_CATALOG,
+  registerAssetCatalog,
+} from '@gruenerator/canvas-editor/grueneAssetCatalog';
+import {
+  GRUENE_BRAND_PACKS,
+  registerBrandPacks,
+} from '@gruenerator/canvas-editor/grueneBrandPacks';
+import { registerGrueneHostSeams } from '@gruenerator/canvas-editor/grueneHostSeams';
 import { registerDesktopSaver } from '@gruenerator/shared';
 import * as Sentry from '@sentry/react';
 import React, { useEffect } from 'react';
@@ -11,13 +20,24 @@ import {
 
 import './assets/styles/index.css';
 import App from './App';
+import { installBrandFonts } from './assets/styles/common/brandFonts';
 import { trackFocusModality } from './components/utils/focusModality';
+import { reportKilledTab } from './lib/observability/reportKilledTab';
 import { isDesktopApp } from './utils/platform';
 import { registerServiceWorker } from './utils/registerServiceWorker';
 
 // Before React renders: the composer autofocuses itself, so the attribute has
 // to be on <html> ahead of the first paint.
 trackFocusModality();
+
+installBrandFonts();
+
+// The canvas editor's stickers, emoji and logos, and its brand packs, are host
+// data. Registered before anything renders: offscreen renders (chat previews, /mobile-render)
+// resolve saved assets through it too, without any React context.
+registerAssetCatalog(GRUENE_ASSET_CATALOG);
+registerBrandPacks(GRUENE_BRAND_PACKS);
+registerGrueneHostSeams();
 
 // Tauri's webview ignores `<a download>`; route every shared export through the
 // native save dialog. Lazy, so the plugins never reach the web bundle's hot path.
@@ -61,6 +81,25 @@ if (sentryDsn) {
       }),
     ],
     tracesSampleRate: 0.1,
+    // GlitchTip ingests transactions but drops the streamed `span` envelope
+    // items that are the v11 default, so tracing would silently go dark.
+    traceLifecycle: 'static',
+    // v11 collects user info (incl. IP), cookies and bodies unless told
+    // otherwise. Pin the v10 default (the old `sendDefaultPii: false`).
+    dataCollection: {
+      userInfo: false,
+      cookies: false,
+      httpHeaders: {
+        request: { deny: ['forwarded', '-ip', 'remote-', 'via', '-user'] },
+        response: { deny: ['forwarded', '-ip', 'remote-', 'via', '-user'] },
+      },
+      httpBodies: [],
+      urlQueryParams: { deny: ['forwarded', '-ip', 'remote-', 'via', '-user'] },
+      genAI: { inputs: false, outputs: false },
+      databaseQueryData: false,
+      queues: false,
+      graphQL: { document: false, variables: false },
+    },
     ignoreErrors: [
       'ResizeObserver loop limit exceeded',
       'ResizeObserver loop completed with undelivered notifications',
@@ -92,6 +131,10 @@ if (sentryDsn) {
       // to reject. Arrives with no stack and nothing to act on.
       'The WKWebView was deallocated before the message was delivered',
       'Unable to preload CSS', // stale deploy; recovered via vite:preloadError reload above
+      // Microsoft's link scanner (Outlook SafeLinks / Defender, CefSharp on Azure)
+      // rejects a promise with this plain string when its own bridge loses an
+      // object while crawling a shared link. Not ours: we have no CefSharp bridge.
+      /Object Not Found Matching Id:\d+, MethodName:\w+, ParamCount:\d+/,
     ],
     denyUrls: [
       /^webkit-masked-url:\/\//, // Safari masks browser-extension frames behind this scheme
@@ -101,6 +144,8 @@ if (sentryDsn) {
 } else {
   console.info('Error tracking DSN not configured. Error tracking disabled.');
 }
+
+reportKilledTab();
 
 const rootElement = document.getElementById('root');
 if (!rootElement) {

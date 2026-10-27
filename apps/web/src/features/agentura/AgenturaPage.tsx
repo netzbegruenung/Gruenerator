@@ -1,20 +1,13 @@
+import { agenturaToMarketplaceHref } from '@gruenerator/shared/marketplace';
 import { Navigate, useSearchParams } from 'react-router-dom';
 
-import { GrueneratorenView } from './GrueneratorenPage';
-import { legacyAgenturaRedirect } from './hooks/useMarketFilters';
-
-import withAuthRequired from '@/components/common/LoginRequired/withAuthRequired';
-
 /**
- * `/agentura` — die Übersicht mit offenem Agentura-Popup. Eine eigene Adresse,
- * damit Links aus Chat-Antworten, Menüs und Lesezeichen den Shop öffnen. Alte
- * Links, die noch die frühere Übersicht meinten, gehen vorher weiter.
+ * `/agentura` — bis Oktober 2026 der Shop, heute der Marktplatz. Links aus
+ * Chat-Antworten, Menüs und Lesezeichen leben weiter (URL-Sonderrecht): ein
+ * Shop-Link landet auf `/marktplatz` mit derselben Art, Herkunft und Suche,
+ * ein Link, der die frühere Übersicht meinte, auf `/grueneratoren`.
  */
-function AgenturaRoute() {
+export default function AgenturaPage() {
   const [params] = useSearchParams();
-  const redirect = legacyAgenturaRedirect(params);
-  if (redirect) return <Navigate to={redirect} replace />;
-  return <GrueneratorenView marketOpen />;
+  return <Navigate to={agenturaToMarketplaceHref(params)} replace />;
 }
-
-export default withAuthRequired(AgenturaRoute, { title: 'Agentura' });

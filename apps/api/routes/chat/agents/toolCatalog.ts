@@ -37,10 +37,9 @@ import { z } from 'zod';
 import { lastUserText } from '../../../agents/langgraph/ChatGraph/nodes/classifierHeuristics.js';
 import { looksLikeRecurringOrder } from '../../../agents/langgraph/ChatGraph/nodes/classifierSignals.js';
 import { forbidsNewResearch } from '../../../agents/langgraph/ChatGraph/nodes/fastPathGuards.js';
-import {
-  buildProductKnowledgeBlock,
-  isProductMetaQuestion,
-} from '../../../services/chat/productKnowledge.js';
+import { env } from '../../../config/env.js';
+import { isBrowserAgentConfigured } from '../../../services/browserAgent/runToken.js';
+import { buildProductKnowledgeBlock } from '../../../services/chat/productKnowledge.js';
 import { crawlAndDistill } from '../../../services/search/index.js';
 import { getDeepLService } from '../../../services/translation/DeepLService.js';
 import { createLogger } from '../../../utils/logger.js';
@@ -75,6 +74,7 @@ import { hasReachableForm } from '../services/pdfFormAvailability.js';
 import { isReisekostenTurn } from '../services/reisekostenAvailability.js';
 import { withImageProxy } from '../services/searchImagePayload.js';
 
+import { makeWebsiteErkundenTool } from './browserAgentTool.js';
 import { makeCloudFilesTool } from './cloudFileTools.js';
 import { makeEditDocumentTextTool, makeReadDocumentTool } from './documentLoopTools.js';
 import {
@@ -95,6 +95,7 @@ import { makeEditExplainableTool, makeReadExplainableTool } from './explainableL
 import { makeGroupsTool } from './groupTools.js';
 import { makeBildAnsehenTool } from './imageTools.js';
 import { makeMemoryTool } from './memoryTools.js';
+import { CRAWL_SNIPPET_CHARS, readNamedPages } from './namedPages.js';
 import { makeNotebookSourcesTool } from './notebookSourceTools.js';
 import { makeNotebooksTool } from './notebookTools.js';
 import { makeReadPdfFormTool, makeFillPdfFormTool } from './pdfFormTools.js';
@@ -115,6 +116,11 @@ import { agentAllowsWebSearch, createSearchTools } from './searchTools.js';
 import { makeCheckSharepicTool } from './sharepicCheckTool.js';
 import { makeEditSharepicTool, makeReadSharepicTool } from './sharepicLoopTools.js';
 import { hasThreadSheet, makeEditSheetTool, makeReadSheetTool } from './sheetLoopTools.js';
+import {
+  isTabelleAuswertenMountable,
+  makeDirektAntwortenTool,
+  makeTabelleAuswertenTool,
+} from './tabelleAuswertenTool.js';
 import { makeRecipesTool } from './textFormTools.js';
 import { threadHasArtifact } from './threadArtifactTarget.js';
 import { makeTranslateTool } from './translationTools.js';
@@ -187,20 +193,6 @@ const CATALOG_TOOL_PICKER_KEYS: Readonly<Record<string, readonly string[]>> = {
   gruenerator_examples_search: ['examples'],
   gruenerator_pressemitteilung_examples: ['examples', 'pressemitteilung_examples'],
 };
-
-/**
- * Snippet budget for `scrape_url`. A deliberate page read deserves far more
- * than a search hit's snippet — see the call site.
- *
- * Was 25k, which was never actually reachable: `renderAll`'s shared shrink
- * collapses it as soon as a second source exists, and in unified mode there is
- * no `renderAll` at all, so the model saw whatever survived
- * `truncateResultForModel`. 8k of a DISTILLED page is text that arrives.
- */
-const CRAWL_SNIPPET_CHARS = 8_000;
-
-/** Char budget handed to the distiller for a deliberately named page. */
-const CRAWL_DISTILL_TARGET_CHARS = 8_000;
 
 /**
  * Chunk limit for `expand_attachment`'s vectorized-doc path — well above the
@@ -562,39 +554,10 @@ NUTZE WENN:
         urls: z.array(z.string()).min(1).max(3).describe('Vollständige URLs inkl. Protokoll'),
       }),
       execute: async ({ urls }) => {
-        const validated: string[] = [];
-        for (const raw of urls) {
-          const check = await validateUrlForFetch(raw);
-          if (check.isValid && check.url) validated.push(check.url.toString());
-          else log.warn(`[scrape_url] rejected URL: ${check.error ?? 'invalid'}`);
-        }
+        const { validated, results } = await readNamedPages(urls);
         if (validated.length === 0) {
           return { error: 'Keine gültige oder erlaubte URL. Prüfe die Adresse (inkl. https://).' };
         }
-        const seeds = validated.map((url, idx) => ({
-          url,
-          title: url,
-          content: '',
-          relevance: 1 - idx * 0.1,
-        }));
-        // `faithful`, never query-focused: the page was NAMED, so a relevance
-        // filter would drop precisely the parts the user asked about. The
-        // distiller only condenses here, it does not select.
-        const crawled = await crawlAndDistill(seeds, '', {
-          maxUrls: 3,
-          timeout: 8000,
-          mode: 'faithful',
-          targetChars: CRAWL_DISTILL_TARGET_CHARS,
-          condense: true,
-        });
-        const results: SearchResult[] = crawled
-          .filter((r) => r.crawled && (r.content || r.fullContent))
-          .map((r) => ({
-            source: 'web',
-            url: r.url,
-            title: r.title || r.url || '',
-            content: r.content || r.fullContent || '',
-          }));
         if (results.length === 0) {
           return {
             error: 'Konnte die Seite(n) nicht lesen (Timeout, Blockade oder kein Textinhalt).',
@@ -608,6 +571,25 @@ NUTZE WENN:
         const sources = sourceRegistry.register(results, { snippetChars: CRAWL_SNIPPET_CHARS });
         return { resultCount: results.length, sources };
       },
+    });
+  }
+
+  // website_erkunden: a real browser that OPERATES a page (click, search,
+  // screenshots) — the interactive sibling of scrape_url, under the same two
+  // gates (research ban, web capability). Mounted only where the browser
+  // service is deployed AND the API holds its own run-token secret; without
+  // either the model endpoint answers 503 and a run could not take a step.
+  if (
+    loop &&
+    !researchBanned &&
+    webAllowed &&
+    env.BROWSER_AGENT_URL &&
+    isBrowserAgentConfigured()
+  ) {
+    tools.website_erkunden = makeWebsiteErkundenTool({
+      sse: loop.sse,
+      state: loop.state,
+      userId: agentConfig.userId ?? null,
     });
   }
 
@@ -896,19 +878,19 @@ NICHT für eine Zusammenfassung des ganzen Dokuments — dafür gibt es \`summar
         attachedCloudShareLinks(state.attachedWebpageUrls).length > 0 ||
         wolkeInText);
     // Product self-knowledge: what Grünerator itself offers (Grüneratoren,
-    // Werkzeuge, MCP-Server, Wissenssammlungen). Same builder respondNode
-    // injects when the meta regex matches — the loop inherits that system
-    // prompt, so the tool is only mounted for turns the regex MISSED (the
-    // model decides); otherwise the block would land in context twice and the
-    // connected-servers DB read would run twice per turn.
-    if (
-      state.enabledTools?.['product_knowledge'] !== false &&
-      !isProductMetaQuestion(state.lastUserTextNoMentions ?? lastUserText(state))
-    ) {
+    // Werkzeuge, Begriffe, MCP-Server, Wissenssammlungen). Mounted on EVERY
+    // loop turn: the loop prompt names the product vocabulary
+    // (buildGlossaryVocabularyNote) and the model decides whether to look a
+    // term up. It used to be mounted only when the meta regex missed, to
+    // avoid the block landing twice — but a regex is not what should decide
+    // here (live 27.10.2026: „Was ist Panda?" went to web_search). The block
+    // only lands twice if the model calls the tool on a turn that already
+    // carries it, and the connected-servers read runs only on MCP questions.
+    if (state.enabledTools?.['product_knowledge'] !== false) {
       tools.product_knowledge = tool({
-        description: `Beantwortet Fragen über den Grünerator selbst: verfügbare Grüneratoren (Assistenten), Werkzeuge, MCP-Server/Anbindungen und durchsuchbare Wissenssammlungen.
+        description: `Beantwortet Fragen über den Grünerator selbst: verfügbare Grüneratoren (Assistenten), Werkzeuge, eigene Begriffe (Modellstufen Klein/Mittel/Ultra/Panda, Explainable, Podcast, Öko-Modus, Marktplatz, Papierkorb, Konto, App …), MCP-Server/Anbindungen und durchsuchbare Wissenssammlungen.
 
-NUTZE WENN nach Funktionen, Fähigkeiten oder Anbindungen des Grünerators gefragt wird ("was kannst du", "welche MCP-Server kennst du", "wie erstelle ich ein Sharepic"). NICHT für politische Inhalte oder Recherche — und NICHT für die persönlichen Wolke-/Nextcloud-Verbindungen oder -Dateien der Person: welche Wolke-Links verbunden sind, beantwortet 'cloud_files' (list_connections).`,
+NUTZE WENN nach Funktionen, Begriffen, Fähigkeiten oder Anbindungen des Grünerators gefragt wird ("was kannst du", "was ist Panda", "welche MCP-Server kennst du", "wie erstelle ich ein Sharepic"). NICHT für politische Inhalte oder Recherche — und NICHT für die persönlichen Wolke-/Nextcloud-Verbindungen oder -Dateien der Person: welche Wolke-Links verbunden sind, beantwortet 'cloud_files' (list_connections).`,
         inputSchema: z.object({
           topic: z
             .string()
@@ -1190,6 +1172,14 @@ NUTZE WENN nach Funktionen, Fähigkeiten oder Anbindungen des Grünerators gefra
       tools.read_pdf_form = makeReadPdfFormTool(pdfCtx);
       tools.fill_pdf_form = makeFillPdfFormTool(pdfCtx);
     }
+    // Tabellen rechnen: Code läuft im Browser (Pyodide), also nur mit einer
+    // Oberfläche, die das kann, und mit Thread — die Pause hängt an ihm. Vor dem
+    // Lauf fragt das Freigabe-Gate (INTERNAL_APPROVAL_REQUIRED_TOOLS) — das
+    // ohne angemeldete Person aus ist; dann lieber gar nicht montieren.
+    if (loop.threadId && isTabelleAuswertenMountable({ ...state, agentConfig })) {
+      tools.tabelle_auswerten = makeTabelleAuswertenTool();
+      tools.direkt_antworten = makeDirektAntwortenTool();
+    }
     // Reisekostenabrechnung (Beta). Nur in Reisekosten-Turns: das Eingabeschema
     // ist gross und zählte sonst gegen das Katalogbudget jedes Recherche-Turns.
     // Dasselbe Prädikat entscheidet im Routing, ob der Turn in den Loop geht.
@@ -1243,82 +1233,21 @@ NUTZE WENN nach Funktionen, Fähigkeiten oder Anbindungen des Grünerators gefra
     // follow-up edits); presentation/sheet/document persist via createdDocument;
     // board renders from the `done` event.
     if (state.compoundGeneration === true && loop.req && !editorSurface) {
-      // Einmal festgehalten statt sechsmal gecastet: die Verengung aus der
-      // Bedingung oben gilt in den Closures unten nicht mehr.
       const req = loop.req;
       const kind = state.compoundGenerationKind;
-      // The generation tools stay mounted under a research ban — only their
-      // opening line flips from "Recherchiere ZUERST" to "arbeite mit dem, was
-      // im Gespräch steht". Telling the model to search with no search tool
-      // mounted is how a turn stalls or invents one.
-      //
-      // One factory per kind, keyed by the registry's union instead of a chain
-      // of `else if`. The factories genuinely differ — the PDF tool carries the
-      // letterhead/sender/edit inputs, the board tool has no card path — so what
-      // is unified is the LOOKUP, not the construction. The `Record<
-      // ArtifactKindId, …>` is what buys the check: a new kind in the registry
-      // stops compiling here until it has a factory, where the chain would just
-      // have fallen through and mounted nothing at all. A turn like that still
-      // promised the artifact — `forceCompoundGeneration` then looks for a tool
-      // that was never there.
-      const mount: Readonly<Record<ArtifactKindId, () => Tool>> = {
-        sharepic: () =>
-          makeCreateSharepicTool({
-            sse,
-            state,
-            threadId: loop.threadId ?? null,
-            researchBanned,
-          }),
-        presentation: () =>
-          makeCreateDocTool({
-            kind: 'presentation',
-            sse,
-            state,
-            req,
-            sourceRegistry,
-            researchBanned,
-          }),
-        sheet: () =>
-          makeCreateDocTool({
-            kind: 'sheet',
-            sse,
-            state,
-            req,
-            sourceRegistry,
-            researchBanned,
-          }),
-        document: () =>
-          makeCreateDocTool({
-            kind: 'document',
-            sse,
-            state,
-            req,
-            sourceRegistry,
-            researchBanned,
-          }),
-        board: () => makeCreateBoardTool({ state, req, researchBanned }),
-        pdf: () =>
-          makeCreatePdfTool({
-            sse,
-            state,
-            req,
-            sourceRegistry,
-            researchBanned,
-          }),
-        explainable: () =>
-          makeCreateExplainableTool({
-            sse,
-            state,
-            sourceRegistry,
-            researchBanned,
-          }),
-      };
       // The catalog key IS the registry's `loopToolName` — the same string
       // `forceCompoundGeneration` looks the tool up by, so the two cannot drift.
       if (kind != null) {
         const { loopToolName } = artifactKind(kind);
         if (state.enabledTools?.[loopToolName] !== false) {
-          tools[loopToolName] = mount[kind]();
+          tools[loopToolName] = artifactTool(kind, {
+            sse,
+            state,
+            req,
+            threadId: loop.threadId ?? null,
+            sourceRegistry,
+            researchBanned,
+          });
         }
       }
     }
@@ -1332,4 +1261,89 @@ NUTZE WENN nach Funktionen, Fähigkeiten oder Anbindungen des Grünerators gefra
   }
 
   return { tools, toolNames: Object.keys(tools) };
+}
+
+/**
+ * The creating tool for one artifact kind — what the chat loop mounts for a
+ * compound turn and the voice port (voicePort.ts) for a spoken order.
+ */
+export function artifactTool(
+  kind: ArtifactKindId,
+  ctx: {
+    sse: SSEWriter;
+    state: ChatGraphState;
+    req: Request;
+    threadId: string | null;
+    sourceRegistry: SourceRegistry;
+    researchBanned: boolean;
+  }
+): Tool {
+  const { sse, state, req, threadId, sourceRegistry, researchBanned } = ctx;
+  // The generation tools stay mounted under a research ban — only their
+  // opening line flips from "Recherchiere ZUERST" to "arbeite mit dem, was
+  // im Gespräch steht". Telling the model to search with no search tool
+  // mounted is how a turn stalls or invents one.
+  //
+  // One factory per kind, keyed by the registry's union instead of a chain
+  // of `else if`. The factories genuinely differ — the PDF tool carries the
+  // letterhead/sender/edit inputs, the board tool has no card path — so what
+  // is unified is the LOOKUP, not the construction. The `Record<
+  // ArtifactKindId, …>` is what buys the check: a new kind in the registry
+  // stops compiling here until it has a factory, where the chain would just
+  // have fallen through and mounted nothing at all. A turn like that still
+  // promised the artifact — `forceCompoundGeneration` then looks for a tool
+  // that was never there.
+  const mount: Readonly<Record<ArtifactKindId, () => Tool>> = {
+    sharepic: () =>
+      makeCreateSharepicTool({
+        sse,
+        state,
+        threadId,
+        researchBanned,
+      }),
+    presentation: () =>
+      makeCreateDocTool({
+        kind: 'presentation',
+        sse,
+        state,
+        req,
+        sourceRegistry,
+        researchBanned,
+      }),
+    sheet: () =>
+      makeCreateDocTool({
+        kind: 'sheet',
+        sse,
+        state,
+        req,
+        sourceRegistry,
+        researchBanned,
+      }),
+    document: () =>
+      makeCreateDocTool({
+        kind: 'document',
+        sse,
+        state,
+        req,
+        sourceRegistry,
+        researchBanned,
+      }),
+    board: () => makeCreateBoardTool({ state, req, researchBanned }),
+    pdf: () =>
+      makeCreatePdfTool({
+        sse,
+        state,
+        req,
+        sourceRegistry,
+        researchBanned,
+      }),
+    explainable: () =>
+      makeCreateExplainableTool({
+        sse,
+        state,
+        sourceRegistry,
+        researchBanned,
+      }),
+  };
+  return mount[kind]();
 }

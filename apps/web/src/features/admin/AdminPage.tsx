@@ -8,12 +8,16 @@ import PageContainer from '../../components/common/PageContainer';
 import ErrorBoundary from '../../components/ErrorBoundary';
 import { CURRENT_INSTANCE } from '../../config/instance';
 
+import ReportsTabLabel from './components/ReportsTabLabel';
 import RequireAdmin from './components/RequireAdmin';
 import LandesverbandAssignmentTab from './landesverband-assignment/LandesverbandAssignmentTab';
 import AgentsTab from './tabs/AgentsTab';
+import AppUpdatesTab from './tabs/AppUpdatesTab';
 import GlossarTab from './tabs/GlossarTab';
+import ReportsTab from './tabs/ReportsTab';
 import RolesTab from './tabs/RolesTab';
 import SkillsTab from './tabs/SkillsTab';
+import StatisticsTab from './tabs/StatisticsTab';
 import UsersTab from './tabs/UsersTab';
 import VorlagenTab from './tabs/VorlagenTab';
 
@@ -33,6 +37,8 @@ import VorlagenTab from './tabs/VorlagenTab';
 interface AdminTab {
   value: string;
   label: string;
+  /** Overrides `label` in the trigger, e.g. to append a live count. */
+  labelNode?: () => ReactNode;
   title: string;
   description?: string;
   render: () => ReactNode;
@@ -70,6 +76,22 @@ function buildTabs(instanceId: typeof CURRENT_INSTANCE): AdminTab[] {
       render: () => <RolesTab />,
     },
     {
+      value: 'statistik',
+      label: 'Statistik',
+      title: 'Statistik',
+      description:
+        'Was auf dieser Instanz entstanden ist, über die Zeit. Nur Summen, keine Personen. Ein Klick auf eine Zeile zeigt Verlauf und Untertypen.',
+      render: () => <StatisticsTab />,
+    },
+    {
+      value: 'app-updates',
+      label: 'App-Updates',
+      title: 'App-Updates',
+      description:
+        'Welche Stände der Handy-App in den letzten 30 Tagen liefen: der Store-Build oder ein Update aus der Luft, mit der Zahl der angemeldeten Personen (geschätzt).',
+      render: () => <AppUpdatesTab />,
+    },
+    {
       value: 'glossar',
       label: 'Glossar',
       title: 'Übersetzungs-Glossar',
@@ -88,6 +110,15 @@ function buildTabs(instanceId: typeof CURRENT_INSTANCE): AdminTab[] {
       render: () => <VorlagenTab />,
     });
   }
+
+  tabs.push({
+    value: 'meldungen',
+    label: 'Meldungen',
+    labelNode: () => <ReportsTabLabel />,
+    title: 'Meldungen',
+    description: 'Gemeldete Inhalte prüfen, entfernen oder die Meldung verwerfen.',
+    render: () => <ReportsTab />,
+  });
 
   if (hasLandesverbandContentIn(instanceId)) {
     tabs.push({
@@ -122,7 +153,7 @@ const AdminPage = () => {
             <TabsList>
               {tabs.map((tab) => (
                 <TabsTrigger key={tab.value} value={tab.value}>
-                  {tab.label}
+                  {tab.labelNode ? tab.labelNode() : tab.label}
                 </TabsTrigger>
               ))}
             </TabsList>

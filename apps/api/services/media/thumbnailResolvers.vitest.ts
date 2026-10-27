@@ -4,6 +4,9 @@ const dbQuery = vi.fn();
 vi.mock('../../database/services/PostgresService/PostgresService.js', () => ({
   getPostgresInstance: () => ({ query: (...a: unknown[]) => dbQuery(...a) }),
 }));
+vi.mock('../../database/services/PostgresService.js', () => ({
+  getPostgresInstance: () => ({ query: (...a: unknown[]) => dbQuery(...a) }),
+}));
 
 const getShareByToken = vi.fn();
 vi.mock('../../routes/share/shareServices.js', () => ({
@@ -19,14 +22,21 @@ vi.mock('../subtitler/index.js', () => ({
   getSubtitlerProjectService: () => ({ getThumbnailPath }),
 }));
 
+const getRemoteImageSource = vi.fn();
+vi.mock('./remoteImageSource.js', () => ({
+  getRemoteImageSource: (...a: unknown[]) => getRemoteImageSource(...a),
+}));
+
 const { isSafeThumbnailId, resolveThumbnailSource } = await import('./thumbnailResolvers.js');
 
 const PROJECT_ID = '11111111-1111-4111-8111-111111111111';
 const CANVAS_ID = '22222222-2222-4222-8222-222222222222';
+const TEMPLATE_ID = '33333333-3333-4333-8333-333333333333';
 
 beforeEach(() => {
   dbQuery.mockReset();
   getShareByToken.mockReset();
+  getRemoteImageSource.mockReset();
 });
 
 describe('id validation', () => {
@@ -102,6 +112,34 @@ describe('media', () => {
   });
 });
 
+describe('a Sticker/Hintergrund', () => {
+  const studio = {
+    id: 'media-1',
+    status: 'ready',
+    media_type: 'image',
+    file_path: 'tok/media.png',
+    upload_source: 'studio-asset',
+  };
+
+  it('is not_found once moderation removed it', async () => {
+    getShareByToken.mockResolvedValue(studio);
+    dbQuery.mockResolvedValue([{ removed: true }]);
+    expect(await resolveThumbnailSource('media', 'tok')).toEqual({
+      ok: false,
+      reason: 'not_found',
+    });
+    expect(dbQuery).toHaveBeenCalledWith(expect.stringContaining("moderation = 'removed'"), [
+      'media-1',
+    ]);
+  });
+
+  it('still resolves while it is only hidden', async () => {
+    getShareByToken.mockResolvedValue(studio);
+    dbQuery.mockResolvedValue([]);
+    expect(await resolveThumbnailSource('media', 'tok')).toMatchObject({ ok: true });
+  });
+});
+
 describe('reel', () => {
   it('resolves through the traversal-guarded project path helper', async () => {
     dbQuery.mockResolvedValue([{ thumbnail_path: 'user/proj/thumbnail.jpg' }]);
@@ -172,5 +210,108 @@ describe('canvas', () => {
       reason: 'not_found',
     });
     expect(getShareByToken).not.toHaveBeenCalled();
+  });
+});
+
+describe('template', () => {
+  const readyShare = {
+    status: 'ready',
+    media_type: 'image',
+    file_path: 'tpltok/media.png',
+    mime_type: 'image/png',
+  };
+
+  it.each([
+    ['its upload page URL', '/share/tpltok'],
+    ['the download URL a Grünerator-Vorlage stores', '/api/share/tpltok/download'],
+  ])('delegates %s to the media row', async (_label, url) => {
+    dbQuery.mockResolvedValue([{ url }]);
+    getShareByToken.mockResolvedValue(readyShare);
+    const result = await resolveThumbnailSource('template', TEMPLATE_ID);
+    expect(getShareByToken).toHaveBeenCalledWith('tpltok');
+    expect(result).toMatchObject({
+      ok: true,
+      sourcePath: '/uploads/shared-media/tpltok/media.png',
+    });
+    expect(getRemoteImageSource).not.toHaveBeenCalled();
+  });
+
+  it('serves a crawled og:image through the remote source cache', async () => {
+    dbQuery.mockResolvedValue([{ url: 'https://static.canva.com/og.png' }]);
+    getRemoteImageSource.mockResolvedValue({
+      sourcePath: '/cache/remote/ab/abc/source.png',
+      contentType: 'image/png',
+    });
+    expect(await resolveThumbnailSource('template', TEMPLATE_ID)).toEqual({
+      ok: true,
+      sourcePath: '/cache/remote/ab/abc/source.png',
+      contentType: 'image/png',
+    });
+    expect(getRemoteImageSource).toHaveBeenCalledWith('https://static.canva.com/og.png');
+  });
+
+  it('reads only live, not removed rows', async () => {
+    dbQuery.mockResolvedValue([]);
+    expect(await resolveThumbnailSource('template', TEMPLATE_ID)).toEqual({
+      ok: false,
+      reason: 'not_found',
+    });
+    const sql = dbQuery.mock.calls[0]?.[0] as string;
+    expect(sql).toContain('deleted_at IS NULL');
+    expect(sql).toContain("moderation <> 'removed'");
+  });
+
+  it.each([
+    ['a data URL', 'data:image/png;base64,AAAA'],
+    ['a traversal in the token', '/api/share/..%2f..%2fetc/download'],
+    ['a relative path', '/images/logo.png'],
+  ])('refuses %s', async (_label, url) => {
+    dbQuery.mockResolvedValue([{ url }]);
+    expect(await resolveThumbnailSource('template', TEMPLATE_ID)).toEqual({
+      ok: false,
+      reason: 'not_found',
+    });
+    expect(getShareByToken).not.toHaveBeenCalled();
+    expect(getRemoteImageSource).not.toHaveBeenCalled();
+  });
+
+  it('never queries for an id that is not a uuid', async () => {
+    expect(await resolveThumbnailSource('template', 'not-a-uuid')).toEqual({
+      ok: false,
+      reason: 'not_found',
+    });
+    expect(dbQuery).not.toHaveBeenCalled();
+  });
+});
+
+describe('template page', () => {
+  it('reads the page at the position the tile was minted for', async () => {
+    dbQuery.mockResolvedValue([{ url: '/share/pagetok' }]);
+    getShareByToken.mockResolvedValue({
+      status: 'ready',
+      media_type: 'image',
+      file_path: 'pagetok/media.png',
+      mime_type: 'image/png',
+    });
+    const result = await resolveThumbnailSource('template-page', `${TEMPLATE_ID}-2`);
+    expect(dbQuery.mock.calls[0]?.[1]).toEqual([TEMPLATE_ID, 2]);
+    expect(dbQuery.mock.calls[0]?.[0]).toContain('deleted_at IS NULL');
+    expect(result).toMatchObject({
+      ok: true,
+      sourcePath: '/uploads/shared-media/pagetok/media.png',
+    });
+  });
+
+  it.each([
+    ['a bare template id', TEMPLATE_ID],
+    ['a non-numeric page', `${TEMPLATE_ID}-x`],
+    ['an over-long page index', `${TEMPLATE_ID}-1234`],
+    ['a malformed uuid', 'abc-1'],
+  ])('never queries for %s', async (_label, id) => {
+    expect(await resolveThumbnailSource('template-page', id)).toEqual({
+      ok: false,
+      reason: 'not_found',
+    });
+    expect(dbQuery).not.toHaveBeenCalled();
   });
 });

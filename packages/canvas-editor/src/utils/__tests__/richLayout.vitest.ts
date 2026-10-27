@@ -5,11 +5,10 @@
  *
  * Attrappe: ein Zeichen = 10 px, fett = 12 px.
  */
+import { layoutRichTextBlock, layoutTextBlock, wrapLines } from '@ggraphic/schema';
 import { describe, it, expect } from 'vitest';
 
-import { layoutRichTextBlock, layoutTextBlock, wrapLines } from '@gruenerator/contracts';
-
-import type { MeasureRun, RunStyle } from '@gruenerator/contracts';
+import type { MeasureRun, RunStyle } from '@ggraphic/schema';
 
 const measure: MeasureRun = (text, style) => text.length * (style.bold ? 12 : 10);
 const plain: RunStyle = {

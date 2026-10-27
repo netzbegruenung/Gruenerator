@@ -15,7 +15,7 @@ const boolFlag = (defaultValue: boolean) =>
   z
     .string()
     .transform((v) => v === 'true')
-    .default(defaultValue ? 'true' : 'false');
+    .default(defaultValue);
 
 /** Coerce a string to a number with a required default. */
 const numStr = (defaultValue: number) => z.coerce.number().default(defaultValue);
@@ -58,6 +58,11 @@ const envSchema = z.object({
   WORKER_COUNT: numStr(2),
 
   // ── Session / Auth core ────────────────────────────────────────────────
+  /**
+   * Required in production: it signs the app login code and the WebView
+   * handoff token, and without it both fail on first use
+   * (`utils/authTokenSecret.ts`). Optional here so the rest of the API boots.
+   */
   SESSION_SECRET: z.string().optional(),
   /**
    * Signing key for search-image proxy handles. Optional: falls back to
@@ -78,6 +83,34 @@ const envSchema = z.object({
    */
   MEDIA_URL_SIGNING_SECRET: z.string().optional(),
   MEDIA_URL_SIGNING_SECRET_PREVIOUS: z.string().optional(),
+  /**
+   * Das Geheimnis, mit dem sich die API beim Browser-Dienst (`services/browser-agent`)
+   * ausweist (Header `X-Browser-Agent-Secret`). Der Dienst kennt es — darum
+   * signiert es KEINE Run-Tokens, siehe `BROWSER_AGENT_TOKEN_SECRET`.
+   */
+  BROWSER_AGENT_SECRET: z.string().optional(),
+  /**
+   * Signiert die Run-Tokens, mit denen der Browser-Dienst unseren
+   * Modell-Endpunkt `/api/browser-agent/llm` ruft
+   * (`services/browserAgent/runToken.ts`). Liegt NUR in der API, nie im
+   * Browser-Container: wer den Container übernimmt, soll sich keine Tokens
+   * für fremde Personen ausstellen können. Optional: ohne ihn (oder wenn er
+   * gleich `BROWSER_AGENT_SECRET` ist) antwortet der Endpunkt 503 und
+   * `website_erkunden` wird nicht montiert.
+   */
+  BROWSER_AGENT_TOKEN_SECRET: z.string().optional(),
+  /**
+   * Basis-URL des Browser-Dienstes. Optional; ohne sie bleibt das Feature aus.
+   * Im Betrieb der Container `browser-gateway` (`:8000`), nie der Agent direkt:
+   * API und Agent teilen kein Netz (`services/browser-agent/src/browser_agent/gateway.py`).
+   */
+  BROWSER_AGENT_URL: z.string().optional(),
+  /**
+   * Wie der Browser-Dienst die API erreicht (für den Modell-Proxy). Default
+   * `http://localhost:3001`; im Betrieb `browser-gateway:8898`, das nur den
+   * Modell-Pfad durchlässt.
+   */
+  API_INTERNAL_BASE_URL: z.string().optional(),
   /**
    * Where generated thumbnail variants are cached. Defaults to
    * `apps/api/uploads/thumb-cache`. Point it elsewhere to size or wipe the
@@ -414,6 +447,11 @@ const envSchema = z.object({
   QDRANT_API_KEY: z.string().optional(),
   QDRANT_BASIC_AUTH_USERNAME: z.string().optional(),
   QDRANT_BASIC_AUTH_PASSWORD: z.string().optional(),
+  QDRANT_CONTENT_URL: z.string().optional(),
+  QDRANT_CONTENT_API_KEY: z.string().optional(),
+  QDRANT_CONTENT_BASIC_AUTH_USERNAME: z.string().optional(),
+  QDRANT_CONTENT_BASIC_AUTH_PASSWORD: z.string().optional(),
+  QDRANT_CONTENT_READ_ONLY: boolFlag(false),
 
   // ── Vector search tuning ───────────────────────────────────────────────
   VECTOR_SEARCH_THRESHOLD: z.coerce.number().default(0.3),

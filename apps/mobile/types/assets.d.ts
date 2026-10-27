@@ -14,3 +14,15 @@ declare module '*.png' {
   const asset: number;
   export default asset;
 }
+
+/** The bundled fonts, loaded by Skia for the sticker creator's badge text. */
+declare module '*.ttf' {
+  const asset: number;
+  export default asset;
+}
+
+/** The voice call's ready tone, played by `expo-audio`. */
+declare module '*.wav' {
+  const asset: number;
+  export default asset;
+}

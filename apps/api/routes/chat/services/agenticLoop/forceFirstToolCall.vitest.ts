@@ -22,11 +22,14 @@ const base = {
   loopDemotedFromRetrieval: false,
   classifierContradictedResearch: false,
   materialHeavy: false,
+  carriesMaterial: false,
   pinnedTool: null as string | null,
   priorTurnRetrieved: false,
   hasAttachedDocuments: false,
   summaryAsk: false,
   attachedSeedDelivered: false,
+  resumesSuspendedTurn: false,
+  tabularToolMounted: false,
 };
 
 const force = (over: Partial<typeof base> = {}) => shouldForceFirstToolCall({ ...base, ...over });
@@ -34,6 +37,55 @@ const force = (over: Partial<typeof base> = {}) => shouldForceFirstToolCall({ ..
 describe('shouldForceFirstToolCall', () => {
   it('erzwingt nichts, wenn kein Weg zutrifft', () => {
     expect(force()).toBeNull();
+  });
+
+  // Eine Fortsetzung (Freigabe, Client-Werkzeug, Rückfrage) setzt einen Zug fort,
+  // dessen erster Schritt schon lief. Live 27.10.2026: nach jedem „Einmal
+  // erlauben" erneut „erzwungener erster Aufruf (named_intent)" — eine zusätzliche
+  // gruenerator_search plus Planer-Runde je Fortsetzung.
+  it('erzwingt bei einer Fortsetzung desselben Zuges nichts mehr', () => {
+    expect(force({ intent: 'search', resumesSuspendedTurn: true })).toBeNull();
+    expect(force({ pinnedTool: 'web_search', resumesSuspendedTurn: true })).toBeNull();
+    expect(
+      force({ hasAttachedDocuments: true, summaryAsk: true, resumesSuspendedTurn: true })
+    ).toBeNull();
+  });
+
+  // Live 27.10.2026, 4 von ~20 Tabellen-Läufen: ein Agent mit Standard-Notebook
+  // schob den Turn nach `search`, der erzwungene Schritt sah nur
+  // [gruenerator_search], der Planer hing ⇒ steps=0. Bei einer Anschlussfrage
+  // dasselbe mit web_search. Mit montiertem `tabelle_auswerten` entscheidet
+  // der Planer frei.
+  // Ganz ohne Zwang schwieg der Planer bei Anschlussfragen, und der Schreiber
+  // rechnete aus dem Auszug (#5042). Der Zwang ist eine Wahl zwischen
+  // `tabelle_auswerten` und `direkt_antworten`, nie eine Suche.
+  it('Tabellen-Turn mit montiertem tabelle_auswerten ⇒ tabular_decision statt named_intent/followup', () => {
+    expect(force({ intent: 'search', tabularToolMounted: true })).toBe('tabular_decision');
+    expect(
+      force({
+        intent: 'agentic',
+        priorTurnRetrieved: true,
+        lastUserText: 'Und im Februar?',
+        tabularToolMounted: true,
+      })
+    ).toBe('tabular_decision');
+  });
+
+  it('Tabellen-Turn: Fortsetzung und Recherche-Bann vetoen die Wahl', () => {
+    expect(force({ tabularToolMounted: true, resumesSuspendedTurn: true })).toBeNull();
+    expect(force({ tabularToolMounted: true, researchBanned: true })).toBeNull();
+  });
+
+  it('ohne Tabellen-Werkzeug bleiben named_intent und followup', () => {
+    expect(force({ intent: 'search' })).toBe('named_intent');
+    expect(
+      force({ intent: 'agentic', priorTurnRetrieved: true, lastUserText: 'Und im Februar?' })
+    ).toBe('followup');
+  });
+
+  it('ein frischer Zug bleibt unverändert', () => {
+    expect(force({ intent: 'search' })).toBe('named_intent');
+    expect(force({ pinnedTool: 'web_search' })).toBe('pinned');
   });
 
   // Achter Weg. Der gemessene Ausfall (23.08.2026): ein 21.785-Zeichen-PDF war
@@ -293,6 +345,28 @@ describe('shouldForceFirstToolCall', () => {
       [`Kannst du das lektorieren?\n\n${newsletter}`],
     ])('kurzer eingefügter Text mit Überarbeitungs-Auftrag sucht nicht: %s', (lastUserText) => {
       expect(force({ loopDemotedFromRetrieval: true, lastUserText })).toBeNull();
+    });
+
+    // #4789: die Frage zum Paste eines früheren Turns. Zu kurz für
+    // `materialHeavy`, kein Überarbeiten — der Stoff steht trotzdem im Prompt.
+    it.each([
+      ['Welche vier Maßnahmen stehen im Antrag genau?'],
+      ['Wie hoch waren nochmal die Kosten laut Antrag?'],
+      ['Was steht darin zur Finanzierung?'],
+    ])('eine Frage über mitgebrachten Text sucht nicht: %s', (lastUserText) => {
+      expect(
+        force({ loopDemotedFromRetrieval: true, carriesMaterial: true, lastUserText })
+      ).toBeNull();
+    });
+
+    it.each([
+      // Ohne Stoff im Prompt ist „im Antrag" ein Abruf.
+      [{ carriesMaterial: false, lastUserText: 'Welche Maßnahmen stehen im Antrag der Grünen?' }],
+      // Mit Stoff, aber die Frage zeigt nicht auf ihn.
+      [{ carriesMaterial: true, lastUserText: 'Wer ist aktuell Bundeskanzler in Österreich?' }],
+      [{ carriesMaterial: true, lastUserText: 'Was steht im Wahlprogramm zur Windkraft?' }],
+    ])('ohne Bezug auf den Stoff bleibt der Zwang: %o', (input) => {
+      expect(force({ loopDemotedFromRetrieval: true, ...input })).toBe('demoted_retrieval');
     });
 
     // #3912: „die Suche" im Stoff machte aus einem Schreibauftrag eine erzwungene
@@ -727,7 +801,8 @@ describe('forcedFirstStepTools', () => {
     'summarize',
     'dokumente_lesen',
     'text_uebersetzen',
-    'rezept_laden',
+    // `rezept_laden` fehlt absichtlich: montiert hängt es an jeden Zuschnitt
+    // an (eigener Block unten), die Fälle hier prüfen den Zuschnitt selbst.
     'ask_human',
     'edit_document',
     'm1__list',
@@ -747,6 +822,21 @@ describe('forcedFirstStepTools', () => {
     'gruenerator_examples_search',
     'gruenerator_pressemitteilung_examples',
   ]);
+  it('tabular_decision sieht nur rechnen oder direkt antworten', () => {
+    expect(
+      forcedFirstStepTools({
+        reason: 'tabular_decision',
+        intent: 'search',
+        mounted: [...MOUNTED, 'tabelle_auswerten', 'direkt_antworten'],
+        mcpToolNames: [],
+        priorToolNames: ['gruenerator_search'],
+        isLookupTool: (name) => !NOT_LOOKUP.has(name),
+        attachedDocsTool: 'dokumente_lesen',
+        userText: 'Welche Buchung war die größte?',
+      })
+    ).toEqual(['tabelle_auswerten', 'direkt_antworten']);
+  });
+
   const tools = (
     over: Partial<Parameters<typeof forcedFirstStepTools>[0]> & { reason: ForceReason }
   ) =>
@@ -760,6 +850,54 @@ describe('forcedFirstStepTools', () => {
       userText: '',
       ...over,
     });
+
+  describe('rezept_laden im Zuschnitt (#4785)', () => {
+    const withRecipe = [...MOUNTED, 'rezept_laden'];
+    const order = (over: Parameters<typeof tools>[0]) => tools({ recipeOrder: true, ...over });
+
+    it('named_intent mit Anhang: der Prompt verlangt das Rezept zuerst, also ist es dabei', () => {
+      // Der Live-Fall: Paste + „Mach daraus bitte einen Instagram-Post" mit
+      // Standard-Notebooks. Ohne das Werkzeug hing Gemma unter `required`.
+      expect(order({ reason: 'named_intent', intent: 'search', mounted: withRecipe })).toEqual([
+        'gruenerator_search',
+        'rezept_laden',
+      ]);
+    });
+
+    it.each(['research_order', 'demoted_retrieval', 'contradicted', 'followup'] as const)(
+      '%s: dabei, wenn montiert',
+      (reason) => {
+        expect(order({ reason, mounted: withRecipe })).toContain('rezept_laden');
+      }
+    );
+
+    it('nicht montiert (kein Katalog im Prompt) → bleibt draussen', () => {
+      expect(order({ reason: 'named_intent', intent: 'search' })).not.toContain('rezept_laden');
+    });
+
+    it('ohne Bestellung bleibt es draussen: Recherche griff sonst zum Rezept (#3880)', () => {
+      expect(
+        tools({ reason: 'research_order', mounted: withRecipe, recipeOrder: false })
+      ).not.toContain('rezept_laden');
+      expect(tools({ reason: 'named_intent', intent: 'search', mounted: withRecipe })).toEqual([
+        'gruenerator_search',
+      ]);
+    });
+
+    it('mcp_scope und Bearbeitungsaufträge schreiben keine Textsorte → bleibt draussen', () => {
+      expect(order({ reason: 'mcp_scope', mounted: withRecipe })).not.toContain('rezept_laden');
+      expect(
+        order({ reason: 'sharepic_order', mounted: [...withRecipe, 'edit_sharepic'] })
+      ).not.toContain('rezept_laden');
+    });
+
+    it('macht aus einem leeren Zuschnitt keinen Rezept-Zwang', () => {
+      expect(order({ reason: 'mcp_scope', mcpToolNames: [], mounted: withRecipe })).toBeNull();
+      expect(
+        order({ reason: 'named_intent', intent: 'search', mounted: ['rezept_laden'] })
+      ).toBeNull();
+    });
+  });
 
   it('named_intent: search → gruenerator_search', () => {
     expect(tools({ reason: 'named_intent', intent: 'search' })).toEqual(['gruenerator_search']);

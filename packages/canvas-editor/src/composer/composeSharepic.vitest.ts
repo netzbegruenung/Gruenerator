@@ -1,8 +1,10 @@
 import { readdirSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 
+import { chartSeriesOutlines } from '@ggraphic/editor/utils/chartUtils';
+import { type GradientFill } from '@ggraphic/editor/utils/gradientFill';
+import { layoutRichTextBlock } from '@ggraphic/schema';
 import {
-  layoutRichTextBlock,
   sharepicSpecSchema,
   SHAREPIC_LIMITS,
   SHAREPIC_LOCALE_COLORS,
@@ -12,8 +14,6 @@ import {
 import { describe, expect, it } from 'vitest';
 
 import { getBrandTheme } from '../brand/theme';
-import { chartSeriesOutlines } from '../utils/chartUtils';
-import { type GradientFill } from '../utils/gradientFill';
 
 import { applySharepicPatch } from './applySharepicPatch';
 import {
@@ -1346,7 +1346,7 @@ describe.each(['de-DE', 'de-AT'] as const)('composeSharepic — space use (%s)',
         )
       );
       const logo = props.assetInstances[0]!;
-      // x/y is the centre; heights as in LOGO of the composer.
+      // x/y is the centre; heights as in the brand pack's `composer.logo`.
       const logoHeight = locale === 'de-AT' ? (210 * 1239) / 1410 : 110;
       const logoTop = logo.y - logoHeight / 2;
       const bottom = Math.max(

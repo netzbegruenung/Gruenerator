@@ -5,6 +5,7 @@ import { FiArrowLeft } from 'react-icons/fi';
 import { PiStar, PiStarFill } from 'react-icons/pi';
 
 import { useHostAwareBack } from '../../../hooks/useHostAwareBack';
+import { hasNativeEditorBar } from '../../../hooks/useNativeEditorBar';
 import useSidebarFavouritesStore, { useIsFavourite } from '../../../stores/sidebarFavouritesStore';
 
 import { BoardDropdown } from './BoardDropdown';
@@ -21,6 +22,8 @@ interface BoardInlineHeaderProps {
   isConnected: boolean;
   isSynced: boolean;
   isArchived: boolean;
+  /** Connection is read-only: no rename, plus a "Nur Ansicht" badge. */
+  readOnly?: boolean;
   expertMode: boolean;
   provider: HocuspocusProvider | null;
   onDelete: () => void;
@@ -40,6 +43,7 @@ export const BoardInlineHeader = memo(function BoardInlineHeader({
   isConnected,
   isSynced,
   isArchived,
+  readOnly,
   expertMode,
   provider,
   onDelete,
@@ -56,6 +60,30 @@ export const BoardInlineHeader = memo(function BoardInlineHeader({
   const collaborators = useCollaborators(provider);
   const isFavourite = useIsFavourite(boardId);
   const toggleFavourite = useSidebarFavouritesStore((s) => s.toggleFavourite);
+
+  const menu = (
+    <BoardDropdown
+      boardId={boardId}
+      title={title}
+      isArchived={isArchived}
+      readOnly={readOnly}
+      expertMode={expertMode}
+      onDelete={onDelete}
+      onArchiveToggle={onArchiveToggle}
+      onExpertModeToggle={onExpertModeToggle}
+      onRename={onRename}
+      onOpenSettings={onOpenSettings}
+      onOpenActivity={onOpenActivity}
+      onDuplicate={onDuplicate}
+      onOpenFullSettings={onOpenFullSettings}
+      isFavourite={isFavourite}
+      onToggleFavourite={() => toggleFavourite(boardId)}
+    />
+  );
+
+  // The app draws the bar natively; the menu stays mounted for its dialogs and
+  // its half of the bridge, see `BoardDropdown`.
+  if (hasNativeEditorBar()) return menu;
 
   const showStatusDot = !isConnected || !isSynced;
   const statusClass = !isConnected ? 'bg-red-500' : 'bg-yellow-500';
@@ -78,13 +106,18 @@ export const BoardInlineHeader = memo(function BoardInlineHeader({
         <EditableTitle
           as="h1"
           title={title}
-          editable
+          editable={!readOnly}
           activateOn="doubleClick"
           onTitleChange={onRename}
           className={`${compact ? 'text-sm' : 'text-lg sm:text-2xl'} font-bold tracking-tight text-foreground-heading m-0 min-w-0 truncate`}
           inputClassName={`${compact ? 'text-sm' : 'text-lg sm:text-2xl'} font-bold tracking-tight text-foreground-heading m-0 bg-transparent border-none outline-none`}
           editableClassName="cursor-pointer"
         />
+        {readOnly && (
+          <span className="shrink-0 text-xs text-grey-500 bg-grey-100 dark:bg-grey-800 dark:text-grey-300 px-2 py-0.5 rounded">
+            Nur Ansicht
+          </span>
+        )}
         {showStatusDot && <div className={`w-2 h-2 rounded-full shrink-0 ${statusClass}`} />}
       </div>
 
@@ -103,22 +136,7 @@ export const BoardInlineHeader = memo(function BoardInlineHeader({
             <PiStar size={16} className="text-grey-400" />
           )}
         </button>
-        <BoardDropdown
-          boardId={boardId}
-          title={title}
-          isArchived={isArchived}
-          expertMode={expertMode}
-          onDelete={onDelete}
-          onArchiveToggle={onArchiveToggle}
-          onExpertModeToggle={onExpertModeToggle}
-          onRename={onRename}
-          onOpenSettings={onOpenSettings}
-          onOpenActivity={onOpenActivity}
-          onDuplicate={onDuplicate}
-          onOpenFullSettings={onOpenFullSettings}
-          isFavourite={isFavourite}
-          onToggleFavourite={() => toggleFavourite(boardId)}
-        />
+        {menu}
       </div>
     </div>
   );

@@ -13,25 +13,21 @@ import {
   type KawaiiProps,
 } from 'react-kawaii';
 
-import type { KawaiiIllustrationType } from '../../../utils/illustrations/types';
+import type { KawaiiIllustrationType } from '@ggraphic/editor/utils/illustrations/types';
 
 export type AssetView =
-  'browse' | 'marke' | 'formen' | 'diagramme' | 'rahmen' | 'illustrationen' | 'icons' | 'emoji';
-
-export interface CategoryCardDef {
-  id: AssetView;
-  label: string;
-}
-
-export const CATEGORY_CARDS: CategoryCardDef[] = [
-  { id: 'marke', label: 'Marke' },
-  { id: 'formen', label: 'Formen' },
-  { id: 'diagramme', label: 'Diagramme' },
-  { id: 'rahmen', label: 'Rahmen' },
-  { id: 'illustrationen', label: 'Illustrationen' },
-  { id: 'icons', label: 'Icons' },
-  { id: 'emoji', label: 'Emoji' },
-];
+  | 'browse'
+  | 'marke'
+  | 'bloecke'
+  | 'sticker'
+  | 'fotos'
+  | 'hintergruende'
+  | 'formen'
+  | 'diagramme'
+  | 'rahmen'
+  | 'illustrationen'
+  | 'icons'
+  | 'emoji';
 
 export const PREVIEW_COMPONENTS: Record<
   KawaiiIllustrationType,

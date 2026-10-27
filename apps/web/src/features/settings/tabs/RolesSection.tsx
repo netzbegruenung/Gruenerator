@@ -1,7 +1,12 @@
 import { type UserRole, useUserLandesverbaende } from '@gruenerator/chat';
-import { isLandesverbandRolle, landesverbandOfferForBundesland } from '@gruenerator/shared/agents';
+import {
+  getLandesverbandHubsByIds,
+  isLandesverbandRolle,
+  landesverbandOfferForBundesland,
+} from '@gruenerator/shared/agents';
 import { ApiError, getContractsClient } from '@gruenerator/shared/api';
 import { getInstance } from '@gruenerator/shared/instances';
+import { landesverbandHubHref } from '@gruenerator/shared/marketplace';
 import {
   type EbeneConfig,
   DE_EBENEN,
@@ -206,6 +211,8 @@ export default function RolesSection() {
   // Die Landesverbands-Zuteilung dieser Person — dieselbe Quelle, aus der
   // Agentur, Bibliothek und Mention-Menü sie lesen.
   const { lvIds, headings: lvHeadings } = useUserLandesverbaende();
+  // One button per Landesverband page; none resolvable keeps the filtered Marktplatz.
+  const lvHubs = useMemo(() => getLandesverbandHubsByIds(lvIds ?? [], CURRENT_INSTANCE), [lvIds]);
   const navigate = useNavigate();
   const closeSettings = useSettingsDialogStore((s) => s.close);
   const goTo = useCallback(
@@ -266,7 +273,7 @@ export default function RolesSection() {
 
     return {
       title: offer.title,
-      beschreibung: `${aufzaehlung} sowie das Notebook ${offer.title} erscheinen künftig in der Agentura und im Chat.`,
+      beschreibung: `${aufzaehlung} sowie das Notebook ${offer.title} erscheinen künftig im Marktplatz und im Chat.`,
     };
   }, [wizEbene, wizBundesland, wizRolle, isAustrian]);
 
@@ -884,9 +891,9 @@ export default function RolesSection() {
                   Dialog schließt mit, sonst läge die Agentur dahinter.
 
                   Grüneratoren und Rezepte des Landesverbands stehen seit dem
-                  Regal-Umbau beide im Agentura-Gang von=landesverband, deshalb
-                  ein Knopf statt zwei. Der Gang steht AUSDRÜCKLICH im Link: ein
-                  nacktes `/agentura` zeigt alle Gänge, und das Zugeteilte stünde
+                  Regal-Umbau beide im Marktplatz unter von=landesverband, deshalb
+                  ein Knopf statt zwei. Die Herkunft steht AUSDRÜCKLICH im Link:
+                  ein nacktes `/marktplatz` zeigt alle, und das Zugeteilte stünde
                   zwischen den offiziellen. */}
               {lvIds !== null && lvIds.length > 0 && (
                 <div className="mt-md border-t border-grey-200 pt-md dark:border-grey-700">
@@ -895,13 +902,26 @@ export default function RolesSection() {
                     zugeteilt.
                   </p>
                   <div className="mt-sm flex flex-wrap gap-sm">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => goTo('/agentura?von=landesverband')}
-                    >
-                      Zu deinem Landesverband
-                    </Button>
+                    {lvHubs.length === 0 ? (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => goTo('/marktplatz?von=landesverband')}
+                      >
+                        Zu deinem Landesverband
+                      </Button>
+                    ) : (
+                      lvHubs.map((hub) => (
+                        <Button
+                          key={hub.lvId}
+                          variant="outline"
+                          size="sm"
+                          onClick={() => goTo(landesverbandHubHref(hub.slug))}
+                        >
+                          {lvHubs.length === 1 ? 'Zu deinem Landesverband' : hub.name}
+                        </Button>
+                      ))
+                    )}
                   </div>
                 </div>
               )}

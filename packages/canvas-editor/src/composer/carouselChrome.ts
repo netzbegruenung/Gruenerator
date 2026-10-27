@@ -23,10 +23,9 @@
  * Pure apart from `refreshCarouselChromeInDoc`, which applies the result to
  * the pages document inside the caller's transaction.
  */
+import { readPages, updatePageStateById } from '@ggraphic/editor/collab/pagesDoc';
 import { type SharepicColor, type SharepicCreatorLocale } from '@gruenerator/contracts';
 import { type Doc } from 'yjs';
-
-import { readPages, updatePageStateById } from '../collab/pagesDoc';
 
 import {
   BRUSH_ARROW,
@@ -40,7 +39,7 @@ import {
 import type { IconState } from '../configs/factory/baseTypes';
 import type { AdditionalText } from '../configs/types';
 import type { AssetInstance } from '../utils/canvasAssets';
-import type { ShapeInstance } from '../utils/shapes';
+import type { ShapeInstance } from '@ggraphic/editor/utils/shapes';
 
 export interface ChromePage {
   configId: string;
@@ -60,7 +59,8 @@ const list = <T>(value: unknown): T[] => (Array.isArray(value) ? (value as T[]) 
 const record = <T>(value: unknown): Record<string, T> =>
   value && typeof value === 'object' ? (value as Record<string, T>) : {};
 
-const colorOf = (hex: unknown): SharepicColor | null => {
+/** The brand colour a hex value is, or null for any other colour. */
+export const colorOf = (hex: unknown): SharepicColor | null => {
   if (typeof hex !== 'string') return null;
   const match = Object.entries(SHAREPIC_COLOR_HEX).find(
     ([, value]) => value.toLowerCase() === hex.toLowerCase()

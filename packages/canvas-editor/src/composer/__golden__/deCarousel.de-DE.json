@@ -1,0 +1,3317 @@
+{
+ "templateType": "freeform",
+ "format": "post-portrait",
+ "slides": [
+  {
+   "backgroundMode": "image",
+   "backgroundColor": "#00261A",
+   "hasBackgroundImage": true,
+   "imageAttribution": null,
+   "additionalTexts": [
+    {
+     "id": "sc-0-dachzeile",
+     "text": "Klimaschutz vor Ort",
+     "type": "body",
+     "x": 70,
+     "y": 379.34000000000003,
+     "width": 940,
+     "fontSize": 89,
+     "fontFamily": "GrueneTypeNeue",
+     "fontStyle": "normal",
+     "fill": "#FFFFFF",
+     "align": "left",
+     "accent": {
+      "fill": "#BEFF60"
+     },
+     "marker": {
+      "fill": "#FFFFFF",
+      "color": "#00261A",
+      "padX": 0.1
+     },
+     "shadowColor": "#000000",
+     "shadowBlur": 18,
+     "shadowOffsetX": 0,
+     "shadowOffsetY": 2,
+     "shadowOpacity": 0.45,
+     "lineHeight": 1
+    },
+    {
+     "id": "sc-1-headline-0",
+     "text": "Mach mit",
+     "type": "header",
+     "x": 70,
+     "y": 481.34000000000003,
+     "width": 940,
+     "fontSize": 223,
+     "fontFamily": "GrueneTypeNeue",
+     "fontStyle": "normal",
+     "fill": "#FFFFFF",
+     "align": "left",
+     "accent": {
+      "fill": "#BEFF60"
+     },
+     "marker": {
+      "fill": "#FFFFFF",
+      "color": "#00261A",
+      "padX": 0.1
+     },
+     "shadowColor": "#000000",
+     "shadowBlur": 18,
+     "shadowOffsetX": 0,
+     "shadowOffsetY": 2,
+     "shadowOpacity": 0.45,
+     "lineHeight": 0.96
+    },
+    {
+     "id": "sc-1-headline-1",
+     "text": "bei uns!",
+     "type": "header",
+     "x": 70,
+     "y": 695.4200000000001,
+     "width": 940,
+     "fontSize": 223,
+     "fontFamily": "GrueneTypeNeue",
+     "fontStyle": "normal",
+     "fill": "#00261A",
+     "align": "left",
+     "accent": {
+      "fill": "#BEFF60"
+     },
+     "marker": {
+      "fill": "#FFFFFF",
+      "color": "#00261A",
+      "padX": 0.1
+     },
+     "shadowColor": "#000000",
+     "shadowBlur": 18,
+     "shadowOffsetX": 0,
+     "shadowOffsetY": 2,
+     "shadowOpacity": 0,
+     "lineHeight": 0.96
+    },
+    {
+     "id": "sc-2-text",
+     "text": "Gemeinsam für **Klimaschutz** vor Ort.",
+     "type": "body",
+     "x": 70,
+     "y": 987.5,
+     "width": 940,
+     "fontSize": 42,
+     "fontFamily": "PT Sans",
+     "fontStyle": "normal",
+     "fill": "#FFFFFF",
+     "align": "left",
+     "accent": {
+      "fill": "#BEFF60"
+     },
+     "marker": {
+      "fill": "#FFFFFF",
+      "color": "#00261A",
+      "padX": 0.1
+     },
+     "shadowColor": "#000000",
+     "shadowBlur": 18,
+     "shadowOffsetX": 0,
+     "shadowOffsetY": 2,
+     "shadowOpacity": 0.45,
+     "lineHeight": 1.25
+    },
+    {
+     "id": "sc-weiter",
+     "text": "Denn",
+     "type": "body",
+     "x": 953.1199999999999,
+     "y": 1306.64,
+     "width": 68,
+     "fontSize": 30,
+     "fontFamily": "PT Sans",
+     "fontStyle": "bold",
+     "fill": "#FFFFFF",
+     "align": "right",
+     "lineHeight": 1.2,
+     "shadowColor": "#000000",
+     "shadowBlur": 18,
+     "shadowOffsetX": 0,
+     "shadowOffsetY": 2,
+     "shadowOpacity": 0.45
+    },
+    {
+     "id": "sc-seite",
+     "text": "1/14",
+     "type": "body",
+     "x": 70,
+     "y": 44,
+     "width": 68,
+     "fontSize": 30,
+     "fontFamily": "PT Sans",
+     "fontStyle": "bold",
+     "fill": "#FFFFFF",
+     "opacity": 0.85,
+     "align": "left",
+     "lineHeight": 1,
+     "shadowColor": "#000000",
+     "shadowBlur": 18,
+     "shadowOffsetX": 0,
+     "shadowOffsetY": 2,
+     "shadowOpacity": 0.45
+    },
+    {
+     "id": "sc-quelle",
+     "text": "Quelle: Umweltbundesamt 2025",
+     "type": "body",
+     "x": 70,
+     "y": 1257.2,
+     "width": 750,
+     "fontSize": 24,
+     "fontFamily": "PT Sans",
+     "fontStyle": "normal",
+     "fill": "#FFFFFF",
+     "opacity": 0.8,
+     "lineHeight": 1.2,
+     "shadowColor": "#000000",
+     "shadowBlur": 18,
+     "shadowOffsetX": 0,
+     "shadowOffsetY": 2,
+     "shadowOpacity": 0.45
+    },
+    {
+     "id": "sc-ki-label",
+     "text": "KI-Generiert",
+     "type": "body",
+     "x": 27,
+     "y": 1303,
+     "width": 166,
+     "fontSize": 27,
+     "fontFamily": "PT Sans",
+     "fontStyle": "bold",
+     "fill": "#FFFFFF",
+     "opacity": 0.85,
+     "lineHeight": 1
+    }
+   ],
+   "pillBadgeInstances": [
+    {
+     "id": "sc-3-button",
+     "text": "Jetzt Mitglied werden",
+     "x": 70,
+     "y": 1070,
+     "backgroundColor": "#BEFF60",
+     "textColor": "#00261A",
+     "fontSize": 44,
+     "fontFamily": "GrueneTypeNeue",
+     "fontStyle": "normal",
+     "rotation": 0,
+     "scale": 1,
+     "opacity": 1,
+     "paddingX": 36,
+     "paddingY": 18,
+     "cornerRadius": 60
+    }
+   ],
+   "circleBadgeInstances": [
+    {
+     "id": "sc-stoerer",
+     "x": 875,
+     "y": 205,
+     "radius": 165,
+     "backgroundColor": "#00CC4F",
+     "textColor": "#00261A",
+     "rotation": -7,
+     "scale": 1,
+     "opacity": 1,
+     "textLines": [
+      {
+       "text": "Neu",
+       "yOffset": -44.550000000000004,
+       "fontFamily": "GrueneTypeNeue",
+       "fontSize": 81,
+       "fontWeight": "bold"
+      },
+      {
+       "text": "dabei!",
+       "yOffset": 44.550000000000004,
+       "fontFamily": "GrueneTypeNeue",
+       "fontSize": 81,
+       "fontWeight": "bold"
+      }
+     ]
+    }
+   ],
+   "shapeInstances": [
+    {
+     "id": "sc-scrim",
+     "type": "rect",
+     "x": 540,
+     "y": 739.4200000000001,
+     "width": 1080,
+     "height": 1221.1599999999999,
+     "fill": "transparent",
+     "rotation": 0,
+     "scaleX": 1,
+     "scaleY": 1,
+     "opacity": 1,
+     "fillGradient": {
+      "type": "linear",
+      "angle": 90,
+      "stops": [
+       {
+        "offset": 0,
+        "color": "rgba(6,37,26,0.000)"
+       },
+       {
+        "offset": 0.020728241999410382,
+        "color": "rgba(6,37,26,0.021)"
+       },
+       {
+        "offset": 0.041456483998820765,
+        "color": "rgba(6,37,26,0.075)"
+       },
+       {
+        "offset": 0.06218472599823115,
+        "color": "rgba(6,37,26,0.152)"
+       },
+       {
+        "offset": 0.08291296799764153,
+        "color": "rgba(6,37,26,0.240)"
+       },
+       {
+        "offset": 0.10364120999705191,
+        "color": "rgba(6,37,26,0.328)"
+       },
+       {
+        "offset": 0.1243694519964623,
+        "color": "rgba(6,37,26,0.405)"
+       },
+       {
+        "offset": 0.1450976939958727,
+        "color": "rgba(6,37,26,0.459)"
+       },
+       {
+        "offset": 0.16582593599528306,
+        "color": "rgba(6,37,26,0.480)"
+       },
+       {
+        "offset": 1,
+        "color": "rgba(6,37,26,0.48)"
+       }
+      ]
+     }
+    },
+    {
+     "id": "sc-1-headline-1-box",
+     "type": "rect",
+     "x": 527.15,
+     "y": 811.38,
+     "width": 981.2,
+     "height": 214.07999999999998,
+     "fill": "#BEFF60",
+     "rotation": -2,
+     "scaleX": 1,
+     "scaleY": 1,
+     "opacity": 1
+    },
+    {
+     "id": "sc-ki-label-bg",
+     "type": "rounded-rect",
+     "x": 108,
+     "y": 1316.5,
+     "width": 194,
+     "height": 45,
+     "fill": "#2B2B2B",
+     "rotation": 0,
+     "scaleX": 1,
+     "scaleY": 1,
+     "opacity": 0.4,
+     "cornerRadius": 8
+    }
+   ],
+   "assetInstances": [],
+   "chartInstances": [],
+   "userImageInstances": [],
+   "selectedIcons": [
+    "sc-pfeil"
+   ],
+   "iconStates": {
+    "sc-pfeil": {
+     "iconId": "tabler:arrow-narrow-right",
+     "x": 1044.56,
+     "y": 1324.64,
+     "scale": 0.35,
+     "rotation": 0,
+     "color": "#FFFFFF"
+    }
+   },
+   "layerOrder": [
+    "sc-scrim",
+    "sc-0-dachzeile",
+    "sc-1-headline-0",
+    "sc-1-headline-1-box",
+    "sc-1-headline-1",
+    "sc-2-text",
+    "sc-3-button",
+    "sc-stoerer",
+    "sc-pfeil",
+    "sc-weiter",
+    "sc-seite",
+    "sc-quelle",
+    "sc-ki-label-bg",
+    "sc-ki-label"
+   ],
+   "currentImageSrc": "/media/wind.jpg"
+  },
+  {
+   "backgroundMode": "color",
+   "backgroundColor": "#005538",
+   "hasBackgroundImage": false,
+   "imageAttribution": null,
+   "additionalTexts": [
+    {
+     "id": "sc-0-headline-0",
+     "text": "Drei Gründe\nfür Wind\nund Sonne",
+     "type": "header",
+     "x": 70,
+     "y": 237.3,
+     "width": 940,
+     "fontSize": 130,
+     "fontFamily": "GrueneTypeNeue",
+     "fontStyle": "normal",
+     "fill": "#FFFFFF",
+     "align": "left",
+     "accent": {
+      "fill": "#BEFF60"
+     },
+     "marker": {
+      "fill": "#FFFFFF",
+      "color": "#00261A",
+      "padX": 0.1
+     },
+     "lineHeight": 0.96
+    },
+    {
+     "id": "sc-1-liste",
+     "text": "• Saubere Luft\n• Günstiger **Strom**\n• Jobs vor Ort",
+     "type": "body",
+     "x": 116,
+     "y": 703.7,
+     "width": 848,
+     "fontSize": 70,
+     "fontFamily": "PT Sans",
+     "fontStyle": "normal",
+     "fill": "#00261A",
+     "lineHeight": 1.3,
+     "accent": {
+      "fill": "#008939"
+     }
+    },
+    {
+     "id": "sc-seite",
+     "text": "2/14",
+     "type": "body",
+     "x": 942,
+     "y": 44,
+     "width": 68,
+     "fontSize": 30,
+     "fontFamily": "PT Sans",
+     "fontStyle": "bold",
+     "fill": "#FFFFFF",
+     "opacity": 0.85,
+     "align": "right",
+     "lineHeight": 1
+    },
+    {
+     "id": "sc-ki-label",
+     "text": "KI-Generiert",
+     "type": "body",
+     "x": 27,
+     "y": 1303,
+     "width": 166,
+     "fontSize": 27,
+     "fontFamily": "PT Sans",
+     "fontStyle": "bold",
+     "fill": "#FFFFFF",
+     "opacity": 0.85,
+     "lineHeight": 1
+    }
+   ],
+   "pillBadgeInstances": [],
+   "circleBadgeInstances": [],
+   "shapeInstances": [
+    {
+     "id": "sc-1-liste-card",
+     "type": "rounded-rect",
+     "x": 540,
+     "y": 840.2,
+     "width": 940,
+     "height": 365,
+     "fill": "#FFFFFF",
+     "rotation": 0,
+     "scaleX": 1,
+     "scaleY": 1,
+     "opacity": 1,
+     "cornerRadius": 32
+    },
+    {
+     "id": "sc-ki-label-bg",
+     "type": "rounded-rect",
+     "x": 108,
+     "y": 1316.5,
+     "width": 194,
+     "height": 45,
+     "fill": "#2B2B2B",
+     "rotation": 0,
+     "scaleX": 1,
+     "scaleY": 1,
+     "opacity": 0.4,
+     "cornerRadius": 8
+    }
+   ],
+   "assetInstances": [],
+   "chartInstances": [],
+   "userImageInstances": [],
+   "selectedIcons": [
+    "sc-pfeil"
+   ],
+   "iconStates": {
+    "sc-pfeil": {
+     "iconId": "tabler:arrow-narrow-right",
+     "x": 1044.56,
+     "y": 1324.64,
+     "scale": 0.35,
+     "rotation": 0,
+     "color": "#FFFFFF"
+    }
+   },
+   "layerOrder": [
+    "sc-0-headline-0",
+    "sc-1-liste-card",
+    "sc-1-liste",
+    "sc-pfeil",
+    "sc-seite",
+    "sc-ki-label-bg",
+    "sc-ki-label"
+   ]
+  },
+  {
+   "backgroundMode": "color",
+   "backgroundColor": "#FFFFFF",
+   "hasBackgroundImage": false,
+   "imageAttribution": null,
+   "additionalTexts": [
+    {
+     "id": "sc-0-liste-0-marker",
+     "text": "1",
+     "type": "header",
+     "x": 116,
+     "y": 208.33999999999997,
+     "width": 67.5,
+     "fontSize": 81,
+     "fontFamily": "GrueneTypeNeue",
+     "fontStyle": "bold",
+     "fill": "#008939",
+     "align": "left",
+     "accent": {
+      "fill": "#008939"
+     },
+     "marker": {
+      "fill": "#BEFF60",
+      "color": "#00261A",
+      "padX": 0.1
+     },
+     "lineHeight": 1
+    },
+    {
+     "id": "sc-0-liste-0",
+     "text": "Erstens",
+     "type": "body",
+     "x": 183.5,
+     "y": 229.39999999999998,
+     "width": 780.5,
+     "fontSize": 54,
+     "fontFamily": "PT Sans",
+     "fontStyle": "normal",
+     "fill": "#00261A",
+     "align": "left",
+     "accent": {
+      "fill": "#008939"
+     },
+     "marker": {
+      "fill": "#00CC4F",
+      "color": "#00261A",
+      "padX": 0.1
+     },
+     "lineHeight": 1.25,
+     "shadowOpacity": 0
+    },
+    {
+     "id": "sc-0-liste-1-marker",
+     "text": "2",
+     "type": "header",
+     "x": 116,
+     "y": 299.84,
+     "width": 67.5,
+     "fontSize": 81,
+     "fontFamily": "GrueneTypeNeue",
+     "fontStyle": "bold",
+     "fill": "#008939",
+     "align": "left",
+     "accent": {
+      "fill": "#008939"
+     },
+     "marker": {
+      "fill": "#BEFF60",
+      "color": "#00261A",
+      "padX": 0.1
+     },
+     "lineHeight": 1
+    },
+    {
+     "id": "sc-0-liste-1",
+     "text": "Zweitens",
+     "type": "body",
+     "x": 183.5,
+     "y": 320.9,
+     "width": 780.5,
+     "fontSize": 54,
+     "fontFamily": "PT Sans",
+     "fontStyle": "normal",
+     "fill": "#00261A",
+     "align": "left",
+     "accent": {
+      "fill": "#008939"
+     },
+     "marker": {
+      "fill": "#00CC4F",
+      "color": "#00261A",
+      "padX": 0.1
+     },
+     "lineHeight": 1.25,
+     "shadowOpacity": 0
+    },
+    {
+     "id": "sc-1-diagramm-titel",
+     "text": "Strommix",
+     "type": "body",
+     "x": 110,
+     "y": 504.4,
+     "width": 860,
+     "fontSize": 36,
+     "fontFamily": "PT Sans",
+     "fontStyle": "bold",
+     "fill": "#00261A",
+     "lineHeight": 1.2,
+     "align": "left",
+     "accent": {
+      "fill": "#008939"
+     }
+    },
+    {
+     "id": "sc-seite",
+     "text": "3/14",
+     "type": "body",
+     "x": 942,
+     "y": 44,
+     "width": 68,
+     "fontSize": 30,
+     "fontFamily": "PT Sans",
+     "fontStyle": "bold",
+     "fill": "#00261A",
+     "opacity": 0.85,
+     "align": "right",
+     "lineHeight": 1
+    },
+    {
+     "id": "sc-ki-label",
+     "text": "KI-Generiert",
+     "type": "body",
+     "x": 27,
+     "y": 1303,
+     "width": 166,
+     "fontSize": 27,
+     "fontFamily": "PT Sans",
+     "fontStyle": "bold",
+     "fill": "#FFFFFF",
+     "opacity": 0.85,
+     "lineHeight": 1
+    }
+   ],
+   "pillBadgeInstances": [],
+   "circleBadgeInstances": [],
+   "shapeInstances": [
+    {
+     "id": "sc-0-liste-card",
+     "type": "rounded-rect",
+     "x": 540,
+     "y": 308.9,
+     "width": 940,
+     "height": 251,
+     "fill": "#FFFFFF",
+     "rotation": 0,
+     "scaleX": 1,
+     "scaleY": 1,
+     "opacity": 1,
+     "cornerRadius": 32
+    },
+    {
+     "id": "sc-1-diagramm-card",
+     "type": "rounded-rect",
+     "x": 540,
+     "y": 770.5,
+     "width": 940,
+     "height": 612.2,
+     "fill": "#FFFFFF",
+     "rotation": 0,
+     "scaleX": 1,
+     "scaleY": 1,
+     "opacity": 1,
+     "cornerRadius": 32
+    },
+    {
+     "id": "sc-ki-label-bg",
+     "type": "rounded-rect",
+     "x": 108,
+     "y": 1316.5,
+     "width": 194,
+     "height": 45,
+     "fill": "#2B2B2B",
+     "rotation": 0,
+     "scaleX": 1,
+     "scaleY": 1,
+     "opacity": 0.55,
+     "cornerRadius": 8
+    }
+   ],
+   "assetInstances": [],
+   "chartInstances": [
+    {
+     "id": "chart-sc-1-diagramm",
+     "x": 110,
+     "y": 563.6,
+     "width": 430,
+     "height": 236.5,
+     "scale": 2,
+     "rotation": 0,
+     "opacity": 1,
+     "chartType": "pie",
+     "data": [
+      {
+       "name": "Wind",
+       "value": 40
+      },
+      {
+       "name": "Rest",
+       "value": 60
+      }
+     ],
+     "colors": [
+      "#00261A",
+      "#C8C8C7"
+     ],
+     "title": "",
+     "showLegend": true,
+     "showGrid": false,
+     "showValues": true,
+     "unit": "%",
+     "background": "#FFFFFF"
+    }
+   ],
+   "userImageInstances": [],
+   "selectedIcons": [
+    "sc-pfeil"
+   ],
+   "iconStates": {
+    "sc-pfeil": {
+     "iconId": "tabler:arrow-narrow-right",
+     "x": 1044.56,
+     "y": 1324.64,
+     "scale": 0.35,
+     "rotation": 0,
+     "color": "#00261A"
+    }
+   },
+   "layerOrder": [
+    "sc-0-liste-card",
+    "sc-0-liste-0-marker",
+    "sc-0-liste-0",
+    "sc-0-liste-1-marker",
+    "sc-0-liste-1",
+    "sc-1-diagramm-card",
+    "sc-1-diagramm-titel",
+    "chart-sc-1-diagramm",
+    "sc-pfeil",
+    "sc-seite",
+    "sc-ki-label-bg",
+    "sc-ki-label"
+   ]
+  },
+  {
+   "backgroundMode": "color",
+   "backgroundColor": "#005538",
+   "hasBackgroundImage": false,
+   "imageAttribution": null,
+   "additionalTexts": [
+    {
+     "id": "sc-0-iconliste-0",
+     "text": "Klima schützen",
+     "type": "body",
+     "x": 203,
+     "y": 257.15,
+     "width": 807,
+     "fontSize": 70,
+     "fontFamily": "PT Sans",
+     "fontStyle": "normal",
+     "fill": "#FFFFFF",
+     "align": "left",
+     "accent": {
+      "fill": "#BEFF60"
+     },
+     "marker": {
+      "fill": "#FFFFFF",
+      "color": "#00261A",
+      "padX": 0.1
+     },
+     "lineHeight": 1.25
+    },
+    {
+     "id": "sc-0-iconliste-1",
+     "text": "Geld sparen",
+     "type": "body",
+     "x": 203,
+     "y": 390.15,
+     "width": 807,
+     "fontSize": 70,
+     "fontFamily": "PT Sans",
+     "fontStyle": "normal",
+     "fill": "#FFFFFF",
+     "align": "left",
+     "accent": {
+      "fill": "#BEFF60"
+     },
+     "marker": {
+      "fill": "#FFFFFF",
+      "color": "#00261A",
+      "padX": 0.1
+     },
+     "lineHeight": 1.25
+    },
+    {
+     "id": "sc-1-zahl-wert",
+     "text": "40 %",
+     "type": "header",
+     "x": 70,
+     "y": 487.7,
+     "width": 940,
+     "fontSize": 420,
+     "fontFamily": "GrueneTypeNeue",
+     "fontStyle": "normal",
+     "fill": "#BEFF60",
+     "align": "left",
+     "accent": {
+      "fill": "#BEFF60"
+     },
+     "marker": {
+      "fill": "#FFFFFF",
+      "color": "#00261A",
+      "padX": 0.1
+     },
+     "lineHeight": 1
+    },
+    {
+     "id": "sc-1-zahl-label",
+     "text": "mehr Wind",
+     "type": "body",
+     "x": 70,
+     "y": 931.3,
+     "width": 940,
+     "fontSize": 64,
+     "fontFamily": "PT Sans",
+     "fontStyle": "bold",
+     "fill": "#FFFFFF",
+     "align": "left",
+     "accent": {
+      "fill": "#BEFF60"
+     },
+     "marker": {
+      "fill": "#FFFFFF",
+      "color": "#00261A",
+      "padX": 0.1
+     },
+     "lineHeight": 1.2
+    },
+    {
+     "id": "sc-seite",
+     "text": "4/14",
+     "type": "body",
+     "x": 942,
+     "y": 44,
+     "width": 68,
+     "fontSize": 30,
+     "fontFamily": "PT Sans",
+     "fontStyle": "bold",
+     "fill": "#FFFFFF",
+     "opacity": 0.85,
+     "align": "right",
+     "lineHeight": 1
+    },
+    {
+     "id": "sc-ki-label",
+     "text": "KI-Generiert",
+     "type": "body",
+     "x": 27,
+     "y": 1303,
+     "width": 166,
+     "fontSize": 27,
+     "fontFamily": "PT Sans",
+     "fontStyle": "bold",
+     "fill": "#FFFFFF",
+     "opacity": 0.85,
+     "lineHeight": 1
+    }
+   ],
+   "pillBadgeInstances": [],
+   "circleBadgeInstances": [],
+   "shapeInstances": [
+    {
+     "id": "sc-0-iconliste-0-badge",
+     "type": "circle",
+     "x": 119,
+     "y": 300.9,
+     "width": 98,
+     "height": 98,
+     "fill": "#BEFF60",
+     "rotation": 0,
+     "scaleX": 1,
+     "scaleY": 1,
+     "opacity": 1
+    },
+    {
+     "id": "sc-0-iconliste-1-badge",
+     "type": "circle",
+     "x": 119,
+     "y": 433.9,
+     "width": 98,
+     "height": 98,
+     "fill": "#BEFF60",
+     "rotation": 0,
+     "scaleX": 1,
+     "scaleY": 1,
+     "opacity": 1
+    },
+    {
+     "id": "sc-ki-label-bg",
+     "type": "rounded-rect",
+     "x": 108,
+     "y": 1316.5,
+     "width": 194,
+     "height": 45,
+     "fill": "#2B2B2B",
+     "rotation": 0,
+     "scaleX": 1,
+     "scaleY": 1,
+     "opacity": 0.4,
+     "cornerRadius": 8
+    }
+   ],
+   "assetInstances": [],
+   "chartInstances": [],
+   "userImageInstances": [],
+   "selectedIcons": [
+    "sc-0-iconliste-0-icon",
+    "sc-0-iconliste-1-icon",
+    "sc-pfeil"
+   ],
+   "iconStates": {
+    "sc-0-iconliste-0-icon": {
+     "iconId": "tabler:leaf",
+     "x": 119,
+     "y": 300.9,
+     "scale": 0.49,
+     "rotation": 0,
+     "color": "#00261A",
+     "opacity": 1
+    },
+    "sc-0-iconliste-1-icon": {
+     "iconId": "tabler:currency-euro",
+     "x": 119,
+     "y": 433.9,
+     "scale": 0.49,
+     "rotation": 0,
+     "color": "#00261A",
+     "opacity": 1
+    },
+    "sc-pfeil": {
+     "iconId": "tabler:arrow-narrow-right",
+     "x": 1044.56,
+     "y": 1324.64,
+     "scale": 0.35,
+     "rotation": 0,
+     "color": "#FFFFFF"
+    }
+   },
+   "layerOrder": [
+    "sc-0-iconliste-0-badge",
+    "sc-0-iconliste-0-icon",
+    "sc-0-iconliste-0",
+    "sc-0-iconliste-1-badge",
+    "sc-0-iconliste-1-icon",
+    "sc-0-iconliste-1",
+    "sc-1-zahl-wert",
+    "sc-1-zahl-label",
+    "sc-pfeil",
+    "sc-seite",
+    "sc-ki-label-bg",
+    "sc-ki-label"
+   ]
+  },
+  {
+   "backgroundMode": "color",
+   "backgroundColor": "#F2F2F2",
+   "hasBackgroundImage": false,
+   "imageAttribution": null,
+   "additionalTexts": [
+    {
+     "type": "body",
+     "fill": "#00261A",
+     "opacity": 0.7,
+     "accent": {
+      "fill": "#008939"
+     },
+     "id": "sc-0-vergleich-links-titel",
+     "text": "Die anderen",
+     "x": 106,
+     "y": 523.375,
+     "width": 386,
+     "fontSize": 55,
+     "fontFamily": "GrueneTypeNeue",
+     "fontStyle": "normal",
+     "lineHeight": 1.05,
+     "align": "center"
+    },
+    {
+     "type": "body",
+     "fill": "#00261A",
+     "opacity": 0.7,
+     "accent": {
+      "fill": "#008939"
+     },
+     "id": "sc-0-vergleich-links-0",
+     "text": "Kohle",
+     "x": 167,
+     "y": 609.125,
+     "width": 325,
+     "fontSize": 41,
+     "fontFamily": "PT Sans",
+     "fontStyle": "normal",
+     "lineHeight": 1.25
+    },
+    {
+     "type": "body",
+     "fill": "#00261A",
+     "opacity": 0.7,
+     "accent": {
+      "fill": "#008939"
+     },
+     "id": "sc-0-vergleich-links-1",
+     "text": "Stillstand",
+     "x": 167,
+     "y": 685.375,
+     "width": 325,
+     "fontSize": 41,
+     "fontFamily": "PT Sans",
+     "fontStyle": "normal",
+     "lineHeight": 1.25
+    },
+    {
+     "type": "body",
+     "fill": "#00261A",
+     "opacity": 1,
+     "accent": {
+      "fill": "#005538",
+      "fontStyle": "bold italic"
+     },
+     "id": "sc-0-vergleich-rechts-titel",
+     "text": "Wir",
+     "x": 588,
+     "y": 523.375,
+     "width": 386,
+     "fontSize": 55,
+     "fontFamily": "GrueneTypeNeue",
+     "fontStyle": "normal",
+     "lineHeight": 1.05,
+     "align": "center"
+    },
+    {
+     "type": "body",
+     "fill": "#00261A",
+     "opacity": 1,
+     "accent": {
+      "fill": "#005538",
+      "fontStyle": "bold italic"
+     },
+     "id": "sc-0-vergleich-rechts-0",
+     "text": "Wind",
+     "x": 649,
+     "y": 609.125,
+     "width": 325,
+     "fontSize": 41,
+     "fontFamily": "PT Sans",
+     "fontStyle": "normal",
+     "lineHeight": 1.25
+    },
+    {
+     "type": "body",
+     "fill": "#00261A",
+     "opacity": 1,
+     "accent": {
+      "fill": "#005538",
+      "fontStyle": "bold italic"
+     },
+     "id": "sc-0-vergleich-rechts-1",
+     "text": "Fortschritt",
+     "x": 649,
+     "y": 685.375,
+     "width": 325,
+     "fontSize": 41,
+     "fontFamily": "PT Sans",
+     "fontStyle": "normal",
+     "lineHeight": 1.25
+    },
+    {
+     "id": "sc-seite",
+     "text": "5/14",
+     "type": "body",
+     "x": 942,
+     "y": 44,
+     "width": 68,
+     "fontSize": 30,
+     "fontFamily": "PT Sans",
+     "fontStyle": "bold",
+     "fill": "#00261A",
+     "opacity": 0.85,
+     "align": "right",
+     "lineHeight": 1
+    },
+    {
+     "id": "sc-ki-label",
+     "text": "KI-Generiert",
+     "type": "body",
+     "x": 27,
+     "y": 1303,
+     "width": 166,
+     "fontSize": 27,
+     "fontFamily": "PT Sans",
+     "fontStyle": "bold",
+     "fill": "#FFFFFF",
+     "opacity": 0.85,
+     "lineHeight": 1
+    }
+   ],
+   "pillBadgeInstances": [],
+   "circleBadgeInstances": [],
+   "shapeInstances": [
+    {
+     "id": "sc-0-vergleich-links-card",
+     "type": "rounded-rect",
+     "x": 299,
+     "y": 630,
+     "width": 458,
+     "height": 285.25,
+     "fill": "#D5EEE6",
+     "rotation": 0,
+     "scaleX": 1,
+     "scaleY": 1,
+     "opacity": 1,
+     "cornerRadius": 32
+    },
+    {
+     "id": "sc-0-vergleich-rechts-card",
+     "type": "rounded-rect",
+     "x": 781,
+     "y": 630,
+     "width": 458,
+     "height": 285.25,
+     "fill": "#00CC4F",
+     "rotation": 0,
+     "scaleX": 1,
+     "scaleY": 1,
+     "opacity": 1,
+     "cornerRadius": 32
+    },
+    {
+     "id": "sc-ki-label-bg",
+     "type": "rounded-rect",
+     "x": 108,
+     "y": 1316.5,
+     "width": 194,
+     "height": 45,
+     "fill": "#2B2B2B",
+     "rotation": 0,
+     "scaleX": 1,
+     "scaleY": 1,
+     "opacity": 0.55,
+     "cornerRadius": 8
+    }
+   ],
+   "assetInstances": [],
+   "chartInstances": [],
+   "userImageInstances": [],
+   "selectedIcons": [
+    "sc-0-vergleich-links-0-marker",
+    "sc-0-vergleich-links-1-marker",
+    "sc-0-vergleich-rechts-0-marker",
+    "sc-0-vergleich-rechts-1-marker",
+    "sc-pfeil"
+   ],
+   "iconStates": {
+    "sc-0-vergleich-links-0-marker": {
+     "iconId": "tabler:circle-x-filled",
+     "x": 128.5,
+     "y": 634.75,
+     "scale": 0.375,
+     "rotation": 0,
+     "color": "#00261A",
+     "opacity": 0.7
+    },
+    "sc-0-vergleich-links-1-marker": {
+     "iconId": "tabler:circle-x-filled",
+     "x": 128.5,
+     "y": 711,
+     "scale": 0.375,
+     "rotation": 0,
+     "color": "#00261A",
+     "opacity": 0.7
+    },
+    "sc-0-vergleich-rechts-0-marker": {
+     "iconId": "tabler:circle-check-filled",
+     "x": 610.5,
+     "y": 634.75,
+     "scale": 0.375,
+     "rotation": 0,
+     "color": "#00261A",
+     "opacity": 1
+    },
+    "sc-0-vergleich-rechts-1-marker": {
+     "iconId": "tabler:circle-check-filled",
+     "x": 610.5,
+     "y": 711,
+     "scale": 0.375,
+     "rotation": 0,
+     "color": "#00261A",
+     "opacity": 1
+    },
+    "sc-pfeil": {
+     "iconId": "tabler:arrow-narrow-right",
+     "x": 1044.56,
+     "y": 1324.64,
+     "scale": 0.35,
+     "rotation": 0,
+     "color": "#00261A"
+    }
+   },
+   "layerOrder": [
+    "sc-0-vergleich-links-card",
+    "sc-0-vergleich-links-titel",
+    "sc-0-vergleich-links-0-marker",
+    "sc-0-vergleich-links-0",
+    "sc-0-vergleich-links-1-marker",
+    "sc-0-vergleich-links-1",
+    "sc-0-vergleich-rechts-card",
+    "sc-0-vergleich-rechts-titel",
+    "sc-0-vergleich-rechts-0-marker",
+    "sc-0-vergleich-rechts-0",
+    "sc-0-vergleich-rechts-1-marker",
+    "sc-0-vergleich-rechts-1",
+    "sc-pfeil",
+    "sc-seite",
+    "sc-ki-label-bg",
+    "sc-ki-label"
+   ]
+  },
+  {
+   "backgroundMode": "color",
+   "backgroundColor": "#005538",
+   "hasBackgroundImage": false,
+   "imageAttribution": null,
+   "additionalTexts": [
+    {
+     "type": "body",
+     "fill": "#00261A",
+     "opacity": 0.7,
+     "accent": {
+      "fill": "#008939"
+     },
+     "fontFamily": "PT Sans",
+     "id": "sc-0-faktencheck-0-mythos-label",
+     "text": "Mythos",
+     "x": 158,
+     "y": 468.7,
+     "width": 820,
+     "fontSize": 38,
+     "fontStyle": "bold",
+     "lineHeight": 1.2,
+     "align": "left"
+    },
+    {
+     "type": "body",
+     "fill": "#00261A",
+     "opacity": 0.7,
+     "accent": {
+      "fill": "#008939"
+     },
+     "fontFamily": "PT Sans",
+     "id": "sc-0-faktencheck-0-mythos-text",
+     "text": "Wind ist teuer",
+     "x": 102,
+     "y": 534.5,
+     "width": 876,
+     "fontSize": 46,
+     "fontStyle": "normal",
+     "lineHeight": 1.25,
+     "align": "left"
+    },
+    {
+     "type": "body",
+     "fill": "#00261A",
+     "opacity": 1,
+     "accent": {
+      "fill": "#005538",
+      "fontStyle": "bold italic"
+     },
+     "fontFamily": "PT Sans",
+     "id": "sc-0-faktencheck-0-fakt-label",
+     "text": "Fakt",
+     "x": 158,
+     "y": 667.2,
+     "width": 820,
+     "fontSize": 38,
+     "fontStyle": "bold",
+     "lineHeight": 1.2,
+     "align": "left"
+    },
+    {
+     "type": "body",
+     "fill": "#00261A",
+     "opacity": 1,
+     "accent": {
+      "fill": "#005538",
+      "fontStyle": "bold italic"
+     },
+     "fontFamily": "PT Sans",
+     "id": "sc-0-faktencheck-0-fakt-text",
+     "text": "Wind ist günstig",
+     "x": 102,
+     "y": 733,
+     "width": 876,
+     "fontSize": 46,
+     "fontStyle": "bold",
+     "lineHeight": 1.25,
+     "align": "left"
+    },
+    {
+     "id": "sc-seite",
+     "text": "6/14",
+     "type": "body",
+     "x": 942,
+     "y": 44,
+     "width": 68,
+     "fontSize": 30,
+     "fontFamily": "PT Sans",
+     "fontStyle": "bold",
+     "fill": "#FFFFFF",
+     "opacity": 0.85,
+     "align": "right",
+     "lineHeight": 1
+    },
+    {
+     "id": "sc-ki-label",
+     "text": "KI-Generiert",
+     "type": "body",
+     "x": 27,
+     "y": 1303,
+     "width": 166,
+     "fontSize": 27,
+     "fontFamily": "PT Sans",
+     "fontStyle": "bold",
+     "fill": "#FFFFFF",
+     "opacity": 0.85,
+     "lineHeight": 1
+    }
+   ],
+   "pillBadgeInstances": [],
+   "circleBadgeInstances": [],
+   "shapeInstances": [
+    {
+     "id": "sc-0-faktencheck-0-mythos-card",
+     "type": "rounded-rect",
+     "x": 540,
+     "y": 530.75,
+     "width": 940,
+     "height": 186.5,
+     "fill": "#F2F2F2",
+     "rotation": 0,
+     "scaleX": 1,
+     "scaleY": 1,
+     "opacity": 1,
+     "cornerRadius": 28
+    },
+    {
+     "id": "sc-0-faktencheck-0-fakt-card",
+     "type": "rounded-rect",
+     "x": 540,
+     "y": 729.25,
+     "width": 940,
+     "height": 186.5,
+     "fill": "#00CC4F",
+     "rotation": 0,
+     "scaleX": 1,
+     "scaleY": 1,
+     "opacity": 1,
+     "cornerRadius": 28
+    },
+    {
+     "id": "sc-ki-label-bg",
+     "type": "rounded-rect",
+     "x": 108,
+     "y": 1316.5,
+     "width": 194,
+     "height": 45,
+     "fill": "#2B2B2B",
+     "rotation": 0,
+     "scaleX": 1,
+     "scaleY": 1,
+     "opacity": 0.4,
+     "cornerRadius": 8
+    }
+   ],
+   "assetInstances": [],
+   "chartInstances": [],
+   "userImageInstances": [],
+   "selectedIcons": [
+    "sc-0-faktencheck-0-mythos-marker",
+    "sc-0-faktencheck-0-fakt-marker",
+    "sc-pfeil"
+   ],
+   "iconStates": {
+    "sc-0-faktencheck-0-mythos-marker": {
+     "iconId": "tabler:circle-x-filled",
+     "x": 124,
+     "y": 491.5,
+     "scale": 0.36666666666666664,
+     "rotation": 0,
+     "color": "#00261A",
+     "opacity": 0.7
+    },
+    "sc-0-faktencheck-0-fakt-marker": {
+     "iconId": "tabler:circle-check-filled",
+     "x": 124,
+     "y": 690,
+     "scale": 0.36666666666666664,
+     "rotation": 0,
+     "color": "#00261A",
+     "opacity": 1
+    },
+    "sc-pfeil": {
+     "iconId": "tabler:arrow-narrow-right",
+     "x": 1044.56,
+     "y": 1324.64,
+     "scale": 0.35,
+     "rotation": 0,
+     "color": "#FFFFFF"
+    }
+   },
+   "layerOrder": [
+    "sc-0-faktencheck-0-mythos-card",
+    "sc-0-faktencheck-0-mythos-marker",
+    "sc-0-faktencheck-0-mythos-label",
+    "sc-0-faktencheck-0-mythos-text",
+    "sc-0-faktencheck-0-fakt-card",
+    "sc-0-faktencheck-0-fakt-marker",
+    "sc-0-faktencheck-0-fakt-label",
+    "sc-0-faktencheck-0-fakt-text",
+    "sc-pfeil",
+    "sc-seite",
+    "sc-ki-label-bg",
+    "sc-ki-label"
+   ]
+  },
+  {
+   "backgroundMode": "color",
+   "backgroundColor": "#005538",
+   "hasBackgroundImage": false,
+   "imageAttribution": null,
+   "additionalTexts": [
+    {
+     "id": "sc-0-rechnung-0-wert",
+     "text": "63 €",
+     "type": "header",
+     "x": 118,
+     "y": 153.60000000000002,
+     "width": 172,
+     "fontSize": 56,
+     "fontFamily": "GrueneTypeNeue",
+     "fontStyle": "normal",
+     "fill": "#FFFFFF",
+     "align": "left",
+     "accent": {
+      "fill": "#BEFF60"
+     },
+     "marker": {
+      "fill": "#FFFFFF",
+      "color": "#00261A",
+      "padX": 0.1
+     },
+     "lineHeight": 1
+    },
+    {
+     "id": "sc-0-rechnung-0-label",
+     "text": "Ticket",
+     "type": "body",
+     "x": 290,
+     "y": 165.70000000000002,
+     "width": 720,
+     "fontSize": 34,
+     "fontFamily": "PT Sans",
+     "fontStyle": "normal",
+     "fill": "#FFFFFF",
+     "align": "left",
+     "accent": {
+      "fill": "#BEFF60"
+     },
+     "marker": {
+      "fill": "#FFFFFF",
+      "color": "#00261A",
+      "padX": 0.1
+     },
+     "lineHeight": 1.2
+    },
+    {
+     "id": "sc-0-rechnung-1-op",
+     "text": "−",
+     "type": "header",
+     "x": 70,
+     "y": 223.60000000000002,
+     "width": 48,
+     "fontSize": 56,
+     "fontFamily": "GrueneTypeNeue",
+     "fontStyle": "normal",
+     "fill": "#FFFFFF",
+     "align": "left",
+     "accent": {
+      "fill": "#BEFF60"
+     },
+     "marker": {
+      "fill": "#FFFFFF",
+      "color": "#00261A",
+      "padX": 0.1
+     },
+     "lineHeight": 1
+    },
+    {
+     "id": "sc-0-rechnung-1-wert",
+     "text": "5 €",
+     "type": "header",
+     "x": 118,
+     "y": 223.60000000000002,
+     "width": 172,
+     "fontSize": 56,
+     "fontFamily": "GrueneTypeNeue",
+     "fontStyle": "normal",
+     "fill": "#FFFFFF",
+     "align": "left",
+     "accent": {
+      "fill": "#BEFF60"
+     },
+     "marker": {
+      "fill": "#FFFFFF",
+      "color": "#00261A",
+      "padX": 0.1
+     },
+     "lineHeight": 1
+    },
+    {
+     "id": "sc-0-rechnung-1-label",
+     "text": "Rabatt",
+     "type": "body",
+     "x": 290,
+     "y": 235.70000000000002,
+     "width": 720,
+     "fontSize": 34,
+     "fontFamily": "PT Sans",
+     "fontStyle": "normal",
+     "fill": "#FFFFFF",
+     "align": "left",
+     "accent": {
+      "fill": "#BEFF60"
+     },
+     "marker": {
+      "fill": "#FFFFFF",
+      "color": "#00261A",
+      "padX": 0.1
+     },
+     "lineHeight": 1.2
+    },
+    {
+     "id": "sc-0-rechnung-ergebnis-op",
+     "text": "=",
+     "type": "header",
+     "x": 70,
+     "y": 325.6,
+     "width": 48,
+     "fontSize": 76,
+     "fontFamily": "GrueneTypeNeue",
+     "fontStyle": "normal",
+     "fill": "#BEFF60",
+     "align": "left",
+     "accent": {
+      "fill": "#BEFF60"
+     },
+     "marker": {
+      "fill": "#FFFFFF",
+      "color": "#00261A",
+      "padX": 0.1
+     },
+     "lineHeight": 1
+    },
+    {
+     "id": "sc-0-rechnung-ergebnis-wert",
+     "text": "58 €",
+     "type": "header",
+     "x": 118,
+     "y": 325.6,
+     "width": 172,
+     "fontSize": 76,
+     "fontFamily": "GrueneTypeNeue",
+     "fontStyle": "normal",
+     "fill": "#BEFF60",
+     "align": "left",
+     "accent": {
+      "fill": "#BEFF60"
+     },
+     "marker": {
+      "fill": "#FFFFFF",
+      "color": "#00261A",
+      "padX": 0.1
+     },
+     "lineHeight": 1
+    },
+    {
+     "id": "sc-0-rechnung-ergebnis-label",
+     "text": "bleibt",
+     "type": "body",
+     "x": 290,
+     "y": 348.70000000000005,
+     "width": 720,
+     "fontSize": 34,
+     "fontFamily": "PT Sans",
+     "fontStyle": "normal",
+     "fill": "#FFFFFF",
+     "align": "left",
+     "accent": {
+      "fill": "#BEFF60"
+     },
+     "marker": {
+      "fill": "#FFFFFF",
+      "color": "#00261A",
+      "padX": 0.1
+     },
+     "lineHeight": 1.2
+    },
+    {
+     "id": "sc-1-zahl-wert",
+     "text": "10",
+     "type": "header",
+     "x": 70,
+     "y": 536.88,
+     "width": 560,
+     "fontSize": 336,
+     "fontFamily": "GrueneTypeNeue",
+     "fontStyle": "normal",
+     "fill": "#00261A",
+     "align": "center",
+     "accent": {
+      "fill": "#BEFF60"
+     },
+     "marker": {
+      "fill": "#FFFFFF",
+      "color": "#00261A",
+      "padX": 0.1
+     },
+     "lineHeight": 1,
+     "shadowOpacity": 0
+    },
+    {
+     "id": "sc-1-zahl-label",
+     "text": "Tage",
+     "type": "body",
+     "x": 70,
+     "y": 1029.6,
+     "width": 940,
+     "fontSize": 64,
+     "fontFamily": "PT Sans",
+     "fontStyle": "bold",
+     "fill": "#FFFFFF",
+     "align": "left",
+     "accent": {
+      "fill": "#BEFF60"
+     },
+     "marker": {
+      "fill": "#FFFFFF",
+      "color": "#00261A",
+      "padX": 0.1
+     },
+     "lineHeight": 1.2
+    },
+    {
+     "id": "sc-seite",
+     "text": "7/14",
+     "type": "body",
+     "x": 942,
+     "y": 44,
+     "width": 68,
+     "fontSize": 30,
+     "fontFamily": "PT Sans",
+     "fontStyle": "bold",
+     "fill": "#FFFFFF",
+     "opacity": 0.85,
+     "align": "right",
+     "lineHeight": 1
+    },
+    {
+     "id": "sc-ki-label",
+     "text": "KI-Generiert",
+     "type": "body",
+     "x": 27,
+     "y": 1303,
+     "width": 166,
+     "fontSize": 27,
+     "fontFamily": "PT Sans",
+     "fontStyle": "bold",
+     "fill": "#FFFFFF",
+     "opacity": 0.85,
+     "lineHeight": 1
+    }
+   ],
+   "pillBadgeInstances": [],
+   "circleBadgeInstances": [],
+   "shapeInstances": [
+    {
+     "id": "sc-0-rechnung-rule",
+     "type": "rect",
+     "x": 540,
+     "y": 302.6,
+     "width": 940,
+     "height": 6,
+     "fill": "#FFFFFF",
+     "rotation": 0,
+     "scaleX": 1,
+     "scaleY": 1,
+     "opacity": 1
+    },
+    {
+     "id": "sc-1-zahl-disc",
+     "type": "circle",
+     "x": 350,
+     "y": 711.6,
+     "width": 560,
+     "height": 560,
+     "fill": "#BEFF60",
+     "rotation": 0,
+     "scaleX": 1,
+     "scaleY": 1,
+     "opacity": 1
+    },
+    {
+     "id": "sc-ki-label-bg",
+     "type": "rounded-rect",
+     "x": 108,
+     "y": 1316.5,
+     "width": 194,
+     "height": 45,
+     "fill": "#2B2B2B",
+     "rotation": 0,
+     "scaleX": 1,
+     "scaleY": 1,
+     "opacity": 0.4,
+     "cornerRadius": 8
+    }
+   ],
+   "assetInstances": [],
+   "chartInstances": [],
+   "userImageInstances": [],
+   "selectedIcons": [
+    "sc-pfeil"
+   ],
+   "iconStates": {
+    "sc-pfeil": {
+     "iconId": "tabler:arrow-narrow-right",
+     "x": 1044.56,
+     "y": 1324.64,
+     "scale": 0.35,
+     "rotation": 0,
+     "color": "#FFFFFF"
+    }
+   },
+   "layerOrder": [
+    "sc-0-rechnung-0-wert",
+    "sc-0-rechnung-0-label",
+    "sc-0-rechnung-1-op",
+    "sc-0-rechnung-1-wert",
+    "sc-0-rechnung-1-label",
+    "sc-0-rechnung-rule",
+    "sc-0-rechnung-ergebnis-op",
+    "sc-0-rechnung-ergebnis-wert",
+    "sc-0-rechnung-ergebnis-label",
+    "sc-1-zahl-disc",
+    "sc-1-zahl-wert",
+    "sc-1-zahl-label",
+    "sc-pfeil",
+    "sc-seite",
+    "sc-ki-label-bg",
+    "sc-ki-label"
+   ]
+  },
+  {
+   "backgroundMode": "color",
+   "backgroundColor": "#005538",
+   "hasBackgroundImage": false,
+   "imageAttribution": null,
+   "additionalTexts": [
+    {
+     "id": "sc-0-schlagzeile-medium",
+     "text": "SZ · 3.4.2026",
+     "type": "body",
+     "x": 107.17525785099143,
+     "y": 467.62744941799343,
+     "width": 804,
+     "fontSize": 32,
+     "fontFamily": "PT Sans",
+     "fontStyle": "bold",
+     "fill": "#1E1E1E",
+     "align": "left",
+     "accent": {
+      "fill": "#BEFF60"
+     },
+     "marker": {
+      "fill": "#FFFFFF",
+      "color": "#00261A",
+      "padX": 0.1
+     },
+     "opacity": 0.65,
+     "lineHeight": 1.3,
+     "rotation": -3,
+     "shadowOpacity": 0
+    },
+    {
+     "id": "sc-0-schlagzeile-titel",
+     "text": "Wind boomt",
+     "type": "body",
+     "x": 110.0851370180991,
+     "y": 523.1512515503478,
+     "width": 804,
+     "fontSize": 64,
+     "fontFamily": "PT Sans",
+     "fontStyle": "bold",
+     "fill": "#1E1E1E",
+     "align": "left",
+     "accent": {
+      "fill": "#BEFF60"
+     },
+     "marker": {
+      "fill": "#FFFFFF",
+      "color": "#00261A",
+      "padX": 0.1
+     },
+     "lineHeight": 1.15,
+     "rotation": -3,
+     "shadowOpacity": 0
+    },
+    {
+     "id": "sc-1-schlagzeile-medium",
+     "text": "FAZ",
+     "type": "body",
+     "x": 110,
+     "y": 711.5,
+     "width": 804,
+     "fontSize": 32,
+     "fontFamily": "PT Sans",
+     "fontStyle": "bold",
+     "fill": "#1E1E1E",
+     "align": "left",
+     "accent": {
+      "fill": "#BEFF60"
+     },
+     "marker": {
+      "fill": "#FFFFFF",
+      "color": "#00261A",
+      "padX": 0.1
+     },
+     "opacity": 0.65,
+     "lineHeight": 1.3,
+     "rotation": 0,
+     "shadowOpacity": 0
+    },
+    {
+     "id": "sc-1-schlagzeile-titel",
+     "text": "Sonne auch",
+     "type": "body",
+     "x": 110,
+     "y": 767.1,
+     "width": 804,
+     "fontSize": 64,
+     "fontFamily": "PT Sans",
+     "fontStyle": "bold",
+     "fill": "#1E1E1E",
+     "align": "left",
+     "accent": {
+      "fill": "#BEFF60"
+     },
+     "marker": {
+      "fill": "#FFFFFF",
+      "color": "#00261A",
+      "padX": 0.1
+     },
+     "lineHeight": 1.15,
+     "rotation": 0,
+     "shadowOpacity": 0
+    },
+    {
+     "id": "sc-seite",
+     "text": "8/14",
+     "type": "body",
+     "x": 942,
+     "y": 44,
+     "width": 68,
+     "fontSize": 30,
+     "fontFamily": "PT Sans",
+     "fontStyle": "bold",
+     "fill": "#FFFFFF",
+     "opacity": 0.85,
+     "align": "right",
+     "lineHeight": 1
+    },
+    {
+     "id": "sc-ki-label",
+     "text": "KI-Generiert",
+     "type": "body",
+     "x": 27,
+     "y": 1303,
+     "width": 166,
+     "fontSize": 27,
+     "fontFamily": "PT Sans",
+     "fontStyle": "bold",
+     "fill": "#FFFFFF",
+     "opacity": 0.85,
+     "lineHeight": 1
+    }
+   ],
+   "pillBadgeInstances": [],
+   "circleBadgeInstances": [],
+   "shapeInstances": [
+    {
+     "id": "sc-0-schlagzeile-card",
+     "type": "rounded-rect",
+     "x": 512,
+     "y": 511,
+     "width": 884,
+     "height": 209,
+     "fill": "#F5F1E8",
+     "rotation": -3,
+     "scaleX": 1,
+     "scaleY": 1,
+     "opacity": 1,
+     "cornerRadius": 4
+    },
+    {
+     "id": "sc-1-schlagzeile-card",
+     "type": "rounded-rect",
+     "x": 512,
+     "y": 776,
+     "width": 884,
+     "height": 209,
+     "fill": "#FFFFFF",
+     "rotation": 0,
+     "scaleX": 1,
+     "scaleY": 1,
+     "opacity": 1,
+     "cornerRadius": 24
+    },
+    {
+     "id": "sc-ki-label-bg",
+     "type": "rounded-rect",
+     "x": 108,
+     "y": 1316.5,
+     "width": 194,
+     "height": 45,
+     "fill": "#2B2B2B",
+     "rotation": 0,
+     "scaleX": 1,
+     "scaleY": 1,
+     "opacity": 0.4,
+     "cornerRadius": 8
+    }
+   ],
+   "assetInstances": [],
+   "chartInstances": [],
+   "userImageInstances": [],
+   "selectedIcons": [
+    "sc-pfeil"
+   ],
+   "iconStates": {
+    "sc-pfeil": {
+     "iconId": "tabler:arrow-narrow-right",
+     "x": 1044.56,
+     "y": 1324.64,
+     "scale": 0.35,
+     "rotation": 0,
+     "color": "#FFFFFF"
+    }
+   },
+   "layerOrder": [
+    "sc-0-schlagzeile-card",
+    "sc-0-schlagzeile-medium",
+    "sc-0-schlagzeile-titel",
+    "sc-1-schlagzeile-card",
+    "sc-1-schlagzeile-medium",
+    "sc-1-schlagzeile-titel",
+    "sc-pfeil",
+    "sc-seite",
+    "sc-ki-label-bg",
+    "sc-ki-label"
+   ]
+  },
+  {
+   "backgroundMode": "color",
+   "backgroundColor": "#005538",
+   "hasBackgroundImage": false,
+   "imageAttribution": null,
+   "additionalTexts": [
+    {
+     "id": "sc-0-bingo-0",
+     "text": "a",
+     "type": "body",
+     "x": 91,
+     "y": 371.1,
+     "width": 263,
+     "fontSize": 52,
+     "fontFamily": "PT Sans",
+     "fontStyle": "bold",
+     "fill": "#00261A",
+     "align": "center",
+     "accent": {
+      "fill": "#BEFF60"
+     },
+     "marker": {
+      "fill": "#FFFFFF",
+      "color": "#00261A",
+      "padX": 0.1
+     },
+     "lineHeight": 1.15,
+     "shadowOpacity": 0
+    },
+    {
+     "id": "sc-0-bingo-1",
+     "text": "b",
+     "type": "body",
+     "x": 408,
+     "y": 371.1,
+     "width": 263,
+     "fontSize": 52,
+     "fontFamily": "PT Sans",
+     "fontStyle": "bold",
+     "fill": "#00261A",
+     "align": "center",
+     "accent": {
+      "fill": "#BEFF60"
+     },
+     "marker": {
+      "fill": "#FFFFFF",
+      "color": "#00261A",
+      "padX": 0.1
+     },
+     "lineHeight": 1.15,
+     "shadowOpacity": 0
+    },
+    {
+     "id": "sc-0-bingo-2",
+     "text": "c",
+     "type": "body",
+     "x": 725,
+     "y": 371.1,
+     "width": 263,
+     "fontSize": 52,
+     "fontFamily": "PT Sans",
+     "fontStyle": "bold",
+     "fill": "#00261A",
+     "align": "center",
+     "accent": {
+      "fill": "#BEFF60"
+     },
+     "marker": {
+      "fill": "#FFFFFF",
+      "color": "#00261A",
+      "padX": 0.1
+     },
+     "lineHeight": 1.15,
+     "shadowOpacity": 0
+    },
+    {
+     "id": "sc-0-bingo-3",
+     "text": "d",
+     "type": "body",
+     "x": 91,
+     "y": 600.1,
+     "width": 263,
+     "fontSize": 52,
+     "fontFamily": "PT Sans",
+     "fontStyle": "bold",
+     "fill": "#00261A",
+     "align": "center",
+     "accent": {
+      "fill": "#BEFF60"
+     },
+     "marker": {
+      "fill": "#FFFFFF",
+      "color": "#00261A",
+      "padX": 0.1
+     },
+     "lineHeight": 1.15,
+     "shadowOpacity": 0
+    },
+    {
+     "id": "sc-0-bingo-4",
+     "text": "e",
+     "type": "body",
+     "x": 408,
+     "y": 600.1,
+     "width": 263,
+     "fontSize": 52,
+     "fontFamily": "PT Sans",
+     "fontStyle": "bold",
+     "fill": "#00261A",
+     "align": "center",
+     "accent": {
+      "fill": "#BEFF60"
+     },
+     "marker": {
+      "fill": "#FFFFFF",
+      "color": "#00261A",
+      "padX": 0.1
+     },
+     "lineHeight": 1.15,
+     "shadowOpacity": 0
+    },
+    {
+     "id": "sc-0-bingo-5",
+     "text": "f",
+     "type": "body",
+     "x": 725,
+     "y": 600.1,
+     "width": 263,
+     "fontSize": 52,
+     "fontFamily": "PT Sans",
+     "fontStyle": "bold",
+     "fill": "#00261A",
+     "align": "center",
+     "accent": {
+      "fill": "#BEFF60"
+     },
+     "marker": {
+      "fill": "#FFFFFF",
+      "color": "#00261A",
+      "padX": 0.1
+     },
+     "lineHeight": 1.15,
+     "shadowOpacity": 0
+    },
+    {
+     "id": "sc-0-bingo-6",
+     "text": "g",
+     "type": "body",
+     "x": 91,
+     "y": 829.1,
+     "width": 263,
+     "fontSize": 52,
+     "fontFamily": "PT Sans",
+     "fontStyle": "bold",
+     "fill": "#00261A",
+     "align": "center",
+     "accent": {
+      "fill": "#BEFF60"
+     },
+     "marker": {
+      "fill": "#FFFFFF",
+      "color": "#00261A",
+      "padX": 0.1
+     },
+     "lineHeight": 1.15,
+     "shadowOpacity": 0
+    },
+    {
+     "id": "sc-0-bingo-7",
+     "text": "h",
+     "type": "body",
+     "x": 408,
+     "y": 829.1,
+     "width": 263,
+     "fontSize": 52,
+     "fontFamily": "PT Sans",
+     "fontStyle": "bold",
+     "fill": "#00261A",
+     "align": "center",
+     "accent": {
+      "fill": "#BEFF60"
+     },
+     "marker": {
+      "fill": "#FFFFFF",
+      "color": "#00261A",
+      "padX": 0.1
+     },
+     "lineHeight": 1.15,
+     "shadowOpacity": 0
+    },
+    {
+     "id": "sc-0-bingo-8",
+     "text": "i",
+     "type": "body",
+     "x": 725,
+     "y": 829.1,
+     "width": 263,
+     "fontSize": 52,
+     "fontFamily": "PT Sans",
+     "fontStyle": "bold",
+     "fill": "#00261A",
+     "align": "center",
+     "accent": {
+      "fill": "#BEFF60"
+     },
+     "marker": {
+      "fill": "#FFFFFF",
+      "color": "#00261A",
+      "padX": 0.1
+     },
+     "lineHeight": 1.15,
+     "shadowOpacity": 0
+    },
+    {
+     "id": "sc-seite",
+     "text": "9/14",
+     "type": "body",
+     "x": 942,
+     "y": 44,
+     "width": 68,
+     "fontSize": 30,
+     "fontFamily": "PT Sans",
+     "fontStyle": "bold",
+     "fill": "#FFFFFF",
+     "opacity": 0.85,
+     "align": "right",
+     "lineHeight": 1
+    },
+    {
+     "id": "sc-ki-label",
+     "text": "KI-Generiert",
+     "type": "body",
+     "x": 27,
+     "y": 1303,
+     "width": 166,
+     "fontSize": 27,
+     "fontFamily": "PT Sans",
+     "fontStyle": "bold",
+     "fill": "#FFFFFF",
+     "opacity": 0.85,
+     "lineHeight": 1
+    }
+   ],
+   "pillBadgeInstances": [],
+   "circleBadgeInstances": [],
+   "shapeInstances": [
+    {
+     "id": "sc-0-bingo-0-feld",
+     "type": "rounded-rect",
+     "x": 222.5,
+     "y": 401,
+     "width": 305,
+     "height": 217,
+     "fill": "#FFFFFF",
+     "rotation": 0,
+     "scaleX": 1,
+     "scaleY": 1,
+     "opacity": 1,
+     "cornerRadius": 12
+    },
+    {
+     "id": "sc-0-bingo-1-feld",
+     "type": "rounded-rect",
+     "x": 539.5,
+     "y": 401,
+     "width": 305,
+     "height": 217,
+     "fill": "#FFFFFF",
+     "rotation": 0,
+     "scaleX": 1,
+     "scaleY": 1,
+     "opacity": 1,
+     "cornerRadius": 12
+    },
+    {
+     "id": "sc-0-bingo-2-feld",
+     "type": "rounded-rect",
+     "x": 856.5,
+     "y": 401,
+     "width": 305,
+     "height": 217,
+     "fill": "#FFFFFF",
+     "rotation": 0,
+     "scaleX": 1,
+     "scaleY": 1,
+     "opacity": 1,
+     "cornerRadius": 12
+    },
+    {
+     "id": "sc-0-bingo-3-feld",
+     "type": "rounded-rect",
+     "x": 222.5,
+     "y": 630,
+     "width": 305,
+     "height": 217,
+     "fill": "#FFFFFF",
+     "rotation": 0,
+     "scaleX": 1,
+     "scaleY": 1,
+     "opacity": 1,
+     "cornerRadius": 12
+    },
+    {
+     "id": "sc-0-bingo-4-feld",
+     "type": "rounded-rect",
+     "x": 539.5,
+     "y": 630,
+     "width": 305,
+     "height": 217,
+     "fill": "#FFFFFF",
+     "rotation": 0,
+     "scaleX": 1,
+     "scaleY": 1,
+     "opacity": 1,
+     "cornerRadius": 12
+    },
+    {
+     "id": "sc-0-bingo-5-feld",
+     "type": "rounded-rect",
+     "x": 856.5,
+     "y": 630,
+     "width": 305,
+     "height": 217,
+     "fill": "#FFFFFF",
+     "rotation": 0,
+     "scaleX": 1,
+     "scaleY": 1,
+     "opacity": 1,
+     "cornerRadius": 12
+    },
+    {
+     "id": "sc-0-bingo-6-feld",
+     "type": "rounded-rect",
+     "x": 222.5,
+     "y": 859,
+     "width": 305,
+     "height": 217,
+     "fill": "#FFFFFF",
+     "rotation": 0,
+     "scaleX": 1,
+     "scaleY": 1,
+     "opacity": 1,
+     "cornerRadius": 12
+    },
+    {
+     "id": "sc-0-bingo-7-feld",
+     "type": "rounded-rect",
+     "x": 539.5,
+     "y": 859,
+     "width": 305,
+     "height": 217,
+     "fill": "#FFFFFF",
+     "rotation": 0,
+     "scaleX": 1,
+     "scaleY": 1,
+     "opacity": 1,
+     "cornerRadius": 12
+    },
+    {
+     "id": "sc-0-bingo-8-feld",
+     "type": "rounded-rect",
+     "x": 856.5,
+     "y": 859,
+     "width": 305,
+     "height": 217,
+     "fill": "#FFFFFF",
+     "rotation": 0,
+     "scaleX": 1,
+     "scaleY": 1,
+     "opacity": 1,
+     "cornerRadius": 12
+    },
+    {
+     "id": "sc-ki-label-bg",
+     "type": "rounded-rect",
+     "x": 108,
+     "y": 1316.5,
+     "width": 194,
+     "height": 45,
+     "fill": "#2B2B2B",
+     "rotation": 0,
+     "scaleX": 1,
+     "scaleY": 1,
+     "opacity": 0.4,
+     "cornerRadius": 8
+    }
+   ],
+   "assetInstances": [],
+   "chartInstances": [],
+   "userImageInstances": [],
+   "selectedIcons": [
+    "sc-pfeil"
+   ],
+   "iconStates": {
+    "sc-pfeil": {
+     "iconId": "tabler:arrow-narrow-right",
+     "x": 1044.56,
+     "y": 1324.64,
+     "scale": 0.35,
+     "rotation": 0,
+     "color": "#FFFFFF"
+    }
+   },
+   "layerOrder": [
+    "sc-0-bingo-0-feld",
+    "sc-0-bingo-0",
+    "sc-0-bingo-1-feld",
+    "sc-0-bingo-1",
+    "sc-0-bingo-2-feld",
+    "sc-0-bingo-2",
+    "sc-0-bingo-3-feld",
+    "sc-0-bingo-3",
+    "sc-0-bingo-4-feld",
+    "sc-0-bingo-4",
+    "sc-0-bingo-5-feld",
+    "sc-0-bingo-5",
+    "sc-0-bingo-6-feld",
+    "sc-0-bingo-6",
+    "sc-0-bingo-7-feld",
+    "sc-0-bingo-7",
+    "sc-0-bingo-8-feld",
+    "sc-0-bingo-8",
+    "sc-pfeil",
+    "sc-seite",
+    "sc-ki-label-bg",
+    "sc-ki-label"
+   ]
+  },
+  {
+   "backgroundMode": "color",
+   "backgroundColor": "#005538",
+   "hasBackgroundImage": false,
+   "imageAttribution": null,
+   "additionalTexts": [
+    {
+     "id": "sc-0-termine-0-datum",
+     "text": "3.4.",
+     "type": "header",
+     "x": 70,
+     "y": 523.8,
+     "width": 160,
+     "fontSize": 64,
+     "fontFamily": "GrueneTypeNeue",
+     "fontStyle": "normal",
+     "fill": "#BEFF60",
+     "align": "left",
+     "accent": {
+      "fill": "#BEFF60"
+     },
+     "marker": {
+      "fill": "#FFFFFF",
+      "color": "#00261A",
+      "padX": 0.1
+     },
+     "lineHeight": 1
+    },
+    {
+     "id": "sc-0-termine-0-titel",
+     "text": "Infostand",
+     "type": "body",
+     "x": 230,
+     "y": 528.5999999999999,
+     "width": 780,
+     "fontSize": 52,
+     "fontFamily": "PT Sans",
+     "fontStyle": "bold",
+     "fill": "#FFFFFF",
+     "align": "left",
+     "accent": {
+      "fill": "#BEFF60"
+     },
+     "marker": {
+      "fill": "#FFFFFF",
+      "color": "#00261A",
+      "padX": 0.1
+     },
+     "lineHeight": 1.15
+    },
+    {
+     "id": "sc-0-termine-0-ort",
+     "text": "Marktplatz",
+     "type": "body",
+     "x": 230,
+     "y": 596.3999999999999,
+     "width": 780,
+     "fontSize": 38,
+     "fontFamily": "PT Sans",
+     "fontStyle": "normal",
+     "fill": "#FFFFFF",
+     "align": "left",
+     "accent": {
+      "fill": "#BEFF60"
+     },
+     "marker": {
+      "fill": "#FFFFFF",
+      "color": "#00261A",
+      "padX": 0.1
+     },
+     "opacity": 0.85,
+     "lineHeight": 1.2
+    },
+    {
+     "id": "sc-0-termine-1-datum",
+     "text": "5.4.",
+     "type": "header",
+     "x": 70,
+     "y": 672.1999999999999,
+     "width": 160,
+     "fontSize": 64,
+     "fontFamily": "GrueneTypeNeue",
+     "fontStyle": "normal",
+     "fill": "#BEFF60",
+     "align": "left",
+     "accent": {
+      "fill": "#BEFF60"
+     },
+     "marker": {
+      "fill": "#FFFFFF",
+      "color": "#00261A",
+      "padX": 0.1
+     },
+     "lineHeight": 1
+    },
+    {
+     "id": "sc-0-termine-1-titel",
+     "text": "Demo",
+     "type": "body",
+     "x": 230,
+     "y": 676.9999999999999,
+     "width": 780,
+     "fontSize": 52,
+     "fontFamily": "PT Sans",
+     "fontStyle": "bold",
+     "fill": "#FFFFFF",
+     "align": "left",
+     "accent": {
+      "fill": "#BEFF60"
+     },
+     "marker": {
+      "fill": "#FFFFFF",
+      "color": "#00261A",
+      "padX": 0.1
+     },
+     "lineHeight": 1.15
+    },
+    {
+     "id": "sc-seite",
+     "text": "10/14",
+     "type": "body",
+     "x": 927,
+     "y": 44,
+     "width": 83,
+     "fontSize": 30,
+     "fontFamily": "PT Sans",
+     "fontStyle": "bold",
+     "fill": "#FFFFFF",
+     "opacity": 0.85,
+     "align": "right",
+     "lineHeight": 1
+    },
+    {
+     "id": "sc-ki-label",
+     "text": "KI-Generiert",
+     "type": "body",
+     "x": 27,
+     "y": 1303,
+     "width": 166,
+     "fontSize": 27,
+     "fontFamily": "PT Sans",
+     "fontStyle": "bold",
+     "fill": "#FFFFFF",
+     "opacity": 0.85,
+     "lineHeight": 1
+    }
+   ],
+   "pillBadgeInstances": [],
+   "circleBadgeInstances": [],
+   "shapeInstances": [
+    {
+     "id": "sc-ki-label-bg",
+     "type": "rounded-rect",
+     "x": 108,
+     "y": 1316.5,
+     "width": 194,
+     "height": 45,
+     "fill": "#2B2B2B",
+     "rotation": 0,
+     "scaleX": 1,
+     "scaleY": 1,
+     "opacity": 0.4,
+     "cornerRadius": 8
+    }
+   ],
+   "assetInstances": [],
+   "chartInstances": [],
+   "userImageInstances": [],
+   "selectedIcons": [
+    "sc-pfeil"
+   ],
+   "iconStates": {
+    "sc-pfeil": {
+     "iconId": "tabler:arrow-narrow-right",
+     "x": 1044.56,
+     "y": 1324.64,
+     "scale": 0.35,
+     "rotation": 0,
+     "color": "#FFFFFF"
+    }
+   },
+   "layerOrder": [
+    "sc-0-termine-0-datum",
+    "sc-0-termine-0-titel",
+    "sc-0-termine-0-ort",
+    "sc-0-termine-1-datum",
+    "sc-0-termine-1-titel",
+    "sc-pfeil",
+    "sc-seite",
+    "sc-ki-label-bg",
+    "sc-ki-label"
+   ]
+  },
+  {
+   "backgroundMode": "color",
+   "backgroundColor": "#005538",
+   "hasBackgroundImage": false,
+   "imageAttribution": null,
+   "additionalTexts": [
+    {
+     "id": "sc-0-zitat",
+     "text": "Wir machen das.",
+     "type": "body",
+     "x": 70,
+     "y": 361.6,
+     "width": 940,
+     "fontSize": 83,
+     "fontFamily": "PT Sans",
+     "fontStyle": "normal",
+     "fill": "#FFFFFF",
+     "align": "left",
+     "accent": {
+      "fill": "#BEFF60"
+     },
+     "marker": {
+      "fill": "#FFFFFF",
+      "color": "#00261A",
+      "padX": 0.1
+     },
+     "lineHeight": 1.3
+    },
+    {
+     "id": "sc-0-zitat-name",
+     "text": "**Anna** im SZ-Interview",
+     "type": "body",
+     "x": 70,
+     "y": 531.5,
+     "width": 940,
+     "fontSize": 38,
+     "fontFamily": "PT Sans",
+     "fontStyle": "normal",
+     "fill": "#FFFFFF",
+     "align": "left",
+     "accent": {
+      "fill": "#BEFF60"
+     },
+     "marker": {
+      "fill": "#FFFFFF",
+      "color": "#00261A",
+      "padX": 0.1
+     },
+     "lineHeight": 1.25
+    },
+    {
+     "id": "sc-1-zitat",
+     "text": "Geht nicht.",
+     "type": "body",
+     "x": 70,
+     "y": 795,
+     "width": 940,
+     "fontSize": 83,
+     "fontFamily": "PT Sans",
+     "fontStyle": "normal",
+     "fill": "#00261A",
+     "align": "left",
+     "accent": {
+      "fill": "#BEFF60"
+     },
+     "marker": {
+      "fill": "#FFFFFF",
+      "color": "#00261A",
+      "padX": 0.1
+     },
+     "lineHeight": 1.3,
+     "opacity": 0.7,
+     "shadowOpacity": 0
+    },
+    {
+     "id": "sc-1-zitat-name",
+     "text": "**Bernd**",
+     "type": "body",
+     "x": 70,
+     "y": 964.9,
+     "width": 940,
+     "fontSize": 38,
+     "fontFamily": "PT Sans",
+     "fontStyle": "normal",
+     "fill": "#00261A",
+     "align": "left",
+     "accent": {
+      "fill": "#BEFF60"
+     },
+     "marker": {
+      "fill": "#FFFFFF",
+      "color": "#00261A",
+      "padX": 0.1
+     },
+     "lineHeight": 1.25,
+     "opacity": 0.7,
+     "shadowOpacity": 0
+    },
+    {
+     "id": "sc-seite",
+     "text": "11/14",
+     "type": "body",
+     "x": 927,
+     "y": 44,
+     "width": 83,
+     "fontSize": 30,
+     "fontFamily": "PT Sans",
+     "fontStyle": "bold",
+     "fill": "#FFFFFF",
+     "opacity": 0.85,
+     "align": "right",
+     "lineHeight": 1
+    },
+    {
+     "id": "sc-ki-label",
+     "text": "KI-Generiert",
+     "type": "body",
+     "x": 27,
+     "y": 1303,
+     "width": 166,
+     "fontSize": 27,
+     "fontFamily": "PT Sans",
+     "fontStyle": "bold",
+     "fill": "#FFFFFF",
+     "opacity": 0.85,
+     "lineHeight": 1
+    }
+   ],
+   "pillBadgeInstances": [],
+   "circleBadgeInstances": [],
+   "shapeInstances": [
+    {
+     "id": "sc-1-zitat-panel",
+     "type": "rounded-rect",
+     "x": 540,
+     "y": 828.7,
+     "width": 1012,
+     "height": 439.4,
+     "fill": "#F2F2F2",
+     "rotation": 0,
+     "scaleX": 1,
+     "scaleY": 1,
+     "opacity": 1,
+     "cornerRadius": 28
+    },
+    {
+     "id": "sc-ki-label-bg",
+     "type": "rounded-rect",
+     "x": 108,
+     "y": 1316.5,
+     "width": 194,
+     "height": 45,
+     "fill": "#2B2B2B",
+     "rotation": 0,
+     "scaleX": 1,
+     "scaleY": 1,
+     "opacity": 0.4,
+     "cornerRadius": 8
+    }
+   ],
+   "assetInstances": [
+    {
+     "id": "sc-0-zitat-mark",
+     "assetId": "quote-mark-weiss",
+     "x": 140,
+     "y": 281.6,
+     "scale": 0.9333333333333333,
+     "rotation": 0,
+     "opacity": 1
+    }
+   ],
+   "chartInstances": [],
+   "userImageInstances": [],
+   "selectedIcons": [
+    "sc-1-zitat-gegner",
+    "sc-pfeil"
+   ],
+   "iconStates": {
+    "sc-1-zitat-gegner": {
+     "iconId": "tabler:circle-x-filled",
+     "x": 990,
+     "y": 665,
+     "scale": 0.4666666666666667,
+     "rotation": 0,
+     "color": "#00261A",
+     "opacity": 0.8
+    },
+    "sc-pfeil": {
+     "iconId": "tabler:arrow-narrow-right",
+     "x": 1044.56,
+     "y": 1324.64,
+     "scale": 0.35,
+     "rotation": 0,
+     "color": "#FFFFFF"
+    }
+   },
+   "layerOrder": [
+    "sc-0-zitat-mark",
+    "sc-0-zitat",
+    "sc-0-zitat-name",
+    "sc-1-zitat-panel",
+    "sc-1-zitat",
+    "sc-1-zitat-name",
+    "sc-1-zitat-gegner",
+    "sc-pfeil",
+    "sc-seite",
+    "sc-ki-label-bg",
+    "sc-ki-label"
+   ]
+  },
+  {
+   "backgroundMode": "color",
+   "backgroundColor": "#005538",
+   "hasBackgroundImage": false,
+   "imageAttribution": null,
+   "additionalTexts": [
+    {
+     "id": "sc-0-frage",
+     "text": "==SZ:== Warum Wind?",
+     "type": "body",
+     "x": 70,
+     "y": 490.03999999999996,
+     "width": 940,
+     "fontSize": 50,
+     "fontFamily": "PT Sans",
+     "fontStyle": "bold",
+     "fill": "#FFFFFF",
+     "align": "left",
+     "accent": {
+      "fill": "#00CC4F"
+     },
+     "marker": {
+      "fill": "#FFFFFF",
+      "color": "#00261A",
+      "padX": 0.1
+     },
+     "lineHeight": 1.25
+    },
+    {
+     "id": "sc-1-frage",
+     "text": "Und Sonne?",
+     "type": "body",
+     "x": 70,
+     "y": 577.54,
+     "width": 940,
+     "fontSize": 50,
+     "fontFamily": "PT Sans",
+     "fontStyle": "bold",
+     "fill": "#FFFFFF",
+     "align": "left",
+     "accent": {
+      "fill": "#00CC4F"
+     },
+     "marker": {
+      "fill": "#FFFFFF",
+      "color": "#00261A",
+      "padX": 0.1
+     },
+     "lineHeight": 1.25
+    },
+    {
+     "id": "sc-2-absatz",
+     "text": "Weil es **günstig** ist.",
+     "type": "body",
+     "x": 70,
+     "y": 665.04,
+     "width": 940,
+     "fontSize": 86,
+     "fontFamily": "PT Sans",
+     "fontStyle": "bold",
+     "fill": "#BEFF60",
+     "align": "left",
+     "accent": {
+      "fill": "#BEFF60"
+     },
+     "marker": {
+      "fill": "#FFFFFF",
+      "color": "#00261A",
+      "padX": 0.1
+     },
+     "lineHeight": 1.22
+    },
+    {
+     "id": "sc-seite",
+     "text": "12/14",
+     "type": "body",
+     "x": 927,
+     "y": 44,
+     "width": 83,
+     "fontSize": 30,
+     "fontFamily": "PT Sans",
+     "fontStyle": "bold",
+     "fill": "#FFFFFF",
+     "opacity": 0.85,
+     "align": "right",
+     "lineHeight": 1
+    },
+    {
+     "id": "sc-ki-label",
+     "text": "KI-Generiert",
+     "type": "body",
+     "x": 27,
+     "y": 1303,
+     "width": 166,
+     "fontSize": 27,
+     "fontFamily": "PT Sans",
+     "fontStyle": "bold",
+     "fill": "#FFFFFF",
+     "opacity": 0.85,
+     "lineHeight": 1
+    }
+   ],
+   "pillBadgeInstances": [],
+   "circleBadgeInstances": [],
+   "shapeInstances": [
+    {
+     "id": "sc-ki-label-bg",
+     "type": "rounded-rect",
+     "x": 108,
+     "y": 1316.5,
+     "width": 194,
+     "height": 45,
+     "fill": "#2B2B2B",
+     "rotation": 0,
+     "scaleX": 1,
+     "scaleY": 1,
+     "opacity": 0.4,
+     "cornerRadius": 8
+    }
+   ],
+   "assetInstances": [],
+   "chartInstances": [],
+   "userImageInstances": [],
+   "selectedIcons": [
+    "sc-pfeil"
+   ],
+   "iconStates": {
+    "sc-pfeil": {
+     "iconId": "tabler:arrow-narrow-right",
+     "x": 1044.56,
+     "y": 1324.64,
+     "scale": 0.35,
+     "rotation": 0,
+     "color": "#FFFFFF"
+    }
+   },
+   "layerOrder": [
+    "sc-0-frage",
+    "sc-1-frage",
+    "sc-2-absatz",
+    "sc-pfeil",
+    "sc-seite",
+    "sc-ki-label-bg",
+    "sc-ki-label"
+   ]
+  },
+  {
+   "backgroundMode": "color",
+   "backgroundColor": "#005538",
+   "hasBackgroundImage": false,
+   "imageAttribution": null,
+   "additionalTexts": [
+    {
+     "id": "sc-nummer",
+     "text": "1.",
+     "type": "header",
+     "x": 70,
+     "y": 222.58,
+     "width": 940,
+     "fontSize": 356,
+     "fontFamily": "GrueneTypeNeue",
+     "fontStyle": "normal",
+     "fill": "#BEFF60",
+     "align": "center",
+     "accent": {
+      "fill": "#BEFF60"
+     },
+     "marker": {
+      "fill": "#FFFFFF",
+      "color": "#00261A",
+      "padX": 0.1
+     },
+     "lineHeight": 1
+    },
+    {
+     "id": "sc-0-aufruf-adressat",
+     "text": "An den Landtag",
+     "type": "body",
+     "x": 70,
+     "y": 593.1,
+     "width": 940,
+     "fontSize": 44,
+     "fontFamily": "PT Sans",
+     "fontStyle": "bold",
+     "fill": "#FFFFFF",
+     "align": "center",
+     "accent": {
+      "fill": "#BEFF60"
+     },
+     "marker": {
+      "fill": "#FFFFFF",
+      "color": "#00261A",
+      "padX": 0.1
+     },
+     "lineHeight": 1.15
+    },
+    {
+     "id": "sc-0-aufruf",
+     "text": "Unterschreib jetzt!",
+     "type": "header",
+     "x": 70,
+     "y": 662.7,
+     "width": 940,
+     "fontSize": 104,
+     "fontFamily": "GrueneTypeNeue",
+     "fontStyle": "normal",
+     "fill": "#FFFFFF",
+     "align": "center",
+     "accent": {
+      "fill": "#BEFF60"
+     },
+     "marker": {
+      "fill": "#FFFFFF",
+      "color": "#00261A",
+      "padX": 0.1
+     },
+     "lineHeight": 1
+    },
+    {
+     "id": "sc-seite",
+     "text": "13/14",
+     "type": "body",
+     "x": 927,
+     "y": 44,
+     "width": 83,
+     "fontSize": 30,
+     "fontFamily": "PT Sans",
+     "fontStyle": "bold",
+     "fill": "#FFFFFF",
+     "opacity": 0.85,
+     "align": "right",
+     "lineHeight": 1
+    },
+    {
+     "id": "sc-ki-label",
+     "text": "KI-Generiert",
+     "type": "body",
+     "x": 27,
+     "y": 1303,
+     "width": 166,
+     "fontSize": 27,
+     "fontFamily": "PT Sans",
+     "fontStyle": "bold",
+     "fill": "#FFFFFF",
+     "opacity": 0.85,
+     "lineHeight": 1
+    }
+   ],
+   "pillBadgeInstances": [
+    {
+     "id": "sc-0-aufruf-hinweis",
+     "text": "gruene.de/petition",
+     "x": 297,
+     "y": 912.7,
+     "backgroundColor": "#BEFF60",
+     "textColor": "#00261A",
+     "fontSize": 46,
+     "fontFamily": "GrueneTypeNeue",
+     "fontStyle": "normal",
+     "rotation": 0,
+     "scale": 1,
+     "opacity": 1,
+     "paddingX": 36,
+     "paddingY": 18,
+     "cornerRadius": 60
+    }
+   ],
+   "circleBadgeInstances": [],
+   "shapeInstances": [
+    {
+     "id": "sc-ki-label-bg",
+     "type": "rounded-rect",
+     "x": 108,
+     "y": 1316.5,
+     "width": 194,
+     "height": 45,
+     "fill": "#2B2B2B",
+     "rotation": 0,
+     "scaleX": 1,
+     "scaleY": 1,
+     "opacity": 0.4,
+     "cornerRadius": 8
+    }
+   ],
+   "assetInstances": [],
+   "chartInstances": [],
+   "userImageInstances": [],
+   "selectedIcons": [
+    "sc-pfeil"
+   ],
+   "iconStates": {
+    "sc-pfeil": {
+     "iconId": "tabler:arrow-narrow-right",
+     "x": 1044.56,
+     "y": 1324.64,
+     "scale": 0.35,
+     "rotation": 0,
+     "color": "#FFFFFF"
+    }
+   },
+   "layerOrder": [
+    "sc-nummer",
+    "sc-0-aufruf-adressat",
+    "sc-0-aufruf",
+    "sc-0-aufruf-hinweis",
+    "sc-pfeil",
+    "sc-seite",
+    "sc-ki-label-bg",
+    "sc-ki-label"
+   ]
+  },
+  {
+   "backgroundMode": "color",
+   "backgroundColor": "#005538",
+   "hasBackgroundImage": false,
+   "imageAttribution": null,
+   "additionalTexts": [
+    {
+     "id": "sc-nummer",
+     "text": "2",
+     "type": "header",
+     "x": 21.4,
+     "y": 270,
+     "width": 1010,
+     "fontSize": 810,
+     "fontFamily": "GrueneTypeNeue",
+     "fontStyle": "normal",
+     "fill": "#BEFF60",
+     "opacity": 0.2,
+     "align": "left",
+     "lineHeight": 1
+    },
+    {
+     "id": "sc-0-aufruf-ausruf",
+     "text": "!",
+     "type": "header",
+     "x": 70,
+     "y": 224.27999999999997,
+     "width": 940,
+     "fontSize": 374,
+     "fontFamily": "GrueneTypeNeue",
+     "fontStyle": "normal",
+     "fill": "#BEFF60",
+     "align": "left",
+     "accent": {
+      "fill": "#BEFF60"
+     },
+     "marker": {
+      "fill": "#FFFFFF",
+      "color": "#00261A",
+      "padX": 0.1
+     },
+     "lineHeight": 1
+    },
+    {
+     "id": "sc-0-aufruf",
+     "text": "Wählen gehen",
+     "type": "header",
+     "x": 70,
+     "y": 596.8399999999999,
+     "width": 940,
+     "fontSize": 104,
+     "fontFamily": "GrueneTypeNeue",
+     "fontStyle": "normal",
+     "fill": "#FFFFFF",
+     "align": "left",
+     "accent": {
+      "fill": "#BEFF60"
+     },
+     "marker": {
+      "fill": "#FFFFFF",
+      "color": "#00261A",
+      "padX": 0.1
+     },
+     "lineHeight": 1
+    },
+    {
+     "id": "sc-ort",
+     "text": "Marktplatz\nMusterstadt",
+     "type": "body",
+     "x": 70,
+     "y": 1082.5,
+     "width": 600,
+     "fontSize": 38,
+     "fontFamily": "PT Sans",
+     "fontStyle": "normal",
+     "fill": "#FFFFFF",
+     "lineHeight": 1.25,
+     "align": "right"
+    },
+    {
+     "id": "sc-seite",
+     "text": "14/14",
+     "type": "body",
+     "x": 927,
+     "y": 44,
+     "width": 83,
+     "fontSize": 30,
+     "fontFamily": "PT Sans",
+     "fontStyle": "bold",
+     "fill": "#FFFFFF",
+     "opacity": 0.85,
+     "align": "right",
+     "lineHeight": 1
+    },
+    {
+     "id": "sc-quelle",
+     "text": "Quelle: schon dabei",
+     "type": "body",
+     "x": 70,
+     "y": 1257.2,
+     "width": 750,
+     "fontSize": 24,
+     "fontFamily": "PT Sans",
+     "fontStyle": "normal",
+     "fill": "#FFFFFF",
+     "opacity": 0.8,
+     "lineHeight": 1.2
+    },
+    {
+     "id": "sc-ki-label",
+     "text": "Klimaschonend KI-generiert mit dem Grünerator",
+     "type": "body",
+     "x": 27,
+     "y": 1303,
+     "width": 611.5,
+     "fontSize": 27,
+     "fontFamily": "PT Sans",
+     "fontStyle": "bold",
+     "fill": "#FFFFFF",
+     "opacity": 0.85,
+     "lineHeight": 1
+    }
+   ],
+   "pillBadgeInstances": [],
+   "circleBadgeInstances": [
+    {
+     "id": "sc-datum",
+     "x": 870,
+     "y": 1130,
+     "radius": 170,
+     "backgroundColor": "#00CC4F",
+     "textColor": "#005538",
+     "rotation": -10,
+     "scale": 1,
+     "opacity": 1,
+     "textLines": [
+      {
+       "text": "SA",
+       "yOffset": -55,
+       "fontFamily": "PT Sans",
+       "fontSize": 48,
+       "fontWeight": "bold"
+      },
+      {
+       "text": "3.4.",
+       "yOffset": 4,
+       "fontFamily": "PT Sans",
+       "fontSize": 47,
+       "fontWeight": "normal"
+      },
+      {
+       "text": "10 Uhr",
+       "yOffset": 68,
+       "fontFamily": "PT Sans",
+       "fontSize": 47,
+       "fontWeight": "bold"
+      }
+     ]
+    }
+   ],
+   "shapeInstances": [
+    {
+     "id": "sc-ki-label-bg",
+     "type": "rounded-rect",
+     "x": 330.75,
+     "y": 1316.5,
+     "width": 639.5,
+     "height": 45,
+     "fill": "#2B2B2B",
+     "rotation": 0,
+     "scaleX": 1,
+     "scaleY": 1,
+     "opacity": 0.4,
+     "cornerRadius": 8
+    }
+   ],
+   "assetInstances": [],
+   "chartInstances": [],
+   "userImageInstances": [],
+   "selectedIcons": [],
+   "iconStates": {},
+   "layerOrder": [
+    "sc-nummer",
+    "sc-0-aufruf-ausruf",
+    "sc-0-aufruf",
+    "sc-datum",
+    "sc-ort",
+    "sc-seite",
+    "sc-quelle",
+    "sc-ki-label-bg",
+    "sc-ki-label"
+   ]
+  }
+ ]
+}

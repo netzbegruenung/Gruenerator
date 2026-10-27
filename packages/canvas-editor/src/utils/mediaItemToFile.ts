@@ -1,12 +1,12 @@
-import type { MediaItem } from '@gruenerator/shared/media-library';
+import type { CanvasMediaItem } from '../hostServices';
 
-export function buildMediaItemUrl(item: MediaItem): string | null {
+export function buildMediaItemUrl(item: CanvasMediaItem): string | null {
   if (item.mediaUrl) return item.mediaUrl;
   if (item.shareToken) return `/api/share/${item.shareToken}/download`;
   return item.thumbnailUrl;
 }
 
-export async function mediaItemToFile(item: MediaItem): Promise<File> {
+export async function mediaItemToFile(item: CanvasMediaItem): Promise<File> {
   const url = buildMediaItemUrl(item);
   if (!url) throw new Error('Bild hat keine ladbare URL');
   const response = await fetch(url);

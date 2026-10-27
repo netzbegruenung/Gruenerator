@@ -1,5 +1,6 @@
 import { CanvasEditorSkeleton } from '@gruenerator/canvas-editor/skeleton';
 import { isChannelVisibleIn, type InstanceChannel } from '@gruenerator/shared/instances';
+import { stickerDiscoverToMarketplaceHref } from '@gruenerator/shared/marketplace';
 import {
   lazy,
   type ComponentType,
@@ -188,6 +189,23 @@ const ProfilbildRedirect = lazy(() =>
 const ProfilbildPage = lazy(() => import('../features/studio-tools/pages/ProfilbildPage'));
 const BildErweiternPage = lazy(() => import('../features/studio-tools/pages/BildErweiternPage'));
 const FreistellenPage = lazy(() => import('../features/studio-tools/pages/FreistellenPage'));
+const StudioAssetsPage = lazy(() => import('../features/studio-assets/StudioAssetsPage'));
+// „Entdecken" ist im Marktplatz aufgegangen; der alte Pfad leitet für immer
+// weiter (URL-Sonderrecht, CLAUDE.md), samt Suche.
+export const StickerDiscoverRedirectComponent: FC<Record<string, unknown>> = () => {
+  const { search } = useLocation();
+  return createElement(Navigate, {
+    to: stickerDiscoverToMarketplaceHref(new URLSearchParams(search)),
+    replace: true,
+  });
+};
+const StickerDiscoverRedirect = lazy(() =>
+  Promise.resolve({ default: StickerDiscoverRedirectComponent })
+);
+const StickerCreatorPage = lazy(
+  () => import('../features/studio-assets/creator/StickerCreatorPage')
+);
+const StickerCanvasPage = lazy(() => import('../features/studio-assets/creator/StickerCanvasPage'));
 
 // Legacy KI routes (/studio/ki, /imagine, /bild-editor) now redirect to the Studio, where KI-Bilder
 // are made from the composer.
@@ -276,6 +294,7 @@ const SubtitlerBetaPage = lazy(
   () => import('../features/subtitler-beta/components/SubtitlerBetaPage')
 );
 const SubStudioPage = lazy(() => import('../features/subtitler-beta/components/SubStudioPage'));
+const VideoEditorPage = lazy(() => import('../features/videoeditor/VideoEditorPage'));
 const SharedVideoPage = lazy(() => import('../features/subtitler/components/SharedVideoPage'));
 const SharedMediaPage = lazy(() => import('../features/shared-media/SharedMediaPage'));
 const SharedChatPage = lazy(() => import('../features/chat/SharedChatPage'));
@@ -289,6 +308,10 @@ const ChatPage = lazy(() => import('../features/chat/ChatPage'));
 
 // Voice agent (immersive voice conversation)
 const VoiceAgentPage = lazy(() => import('../features/voice-agent/VoiceAgentPage'));
+const VoiceAgentTestPage = lazy(() => import('../features/voice-agent-test/VoiceAgentTestPage'));
+const MobileVoiceAgentPage = lazy(
+  () => import('../features/voice-agent-test/MobileVoiceAgentPage')
+);
 
 const MobileEditorPage = lazy(() => import('../pages/MobileEditorPage'));
 const MobileRenderPage = lazy(() => import('../pages/MobileRenderPage'));
@@ -358,6 +381,10 @@ const AgentCreatorPage = lazy(() => import('../features/agents/AgentCreatorPage'
 const AgentSettingsPage = lazy(() => import('../features/agents/AgentSettingsPage'));
 const AgenturaPage = lazy(() => import('../features/agentura/AgenturaPage'));
 const GrueneratorenPage = lazy(() => import('../features/agentura/GrueneratorenPage'));
+const MarketplacePage = lazy(() => import('../features/marketplace/MarketplacePage'));
+const MarketplaceLandesverbandPage = lazy(
+  () => import('../features/marketplace/MarketplaceLandesverbandPage')
+);
 const AgentDetailPage = lazy(() => import('../features/agentura/AgentDetailPage'));
 const RecipeDetailPage = lazy(() => import('../features/agentura/RecipeDetailPage'));
 const RecipeEditorPage = lazy(() => import('../features/agentura/recipes/RecipeEditorPage'));
@@ -423,15 +450,20 @@ const standardRoutes: RouteConfig[] = [
   { path: '/wiederkehrend', component: RecurringTasksPage },
   { path: '/papierkorb', component: TrashPage },
   // /grueneratoren is the overview of what a person works with (own, shared,
-  // starred). /agentura is the shop for official, Landesverband and public
-  // agents & recipes; their product pages sit under /agentura/agent/<slug> and
-  // /agentura/rezept/<mention>. Old overview links (/agentura?cat=meine, /agents)
-  // land on /grueneratoren, the old catalogue link (/skills) on the shop.
+  // starred). /marktplatz is the shop for official, Landesverband and public
+  // agents, recipes, Vorlagen, stickers and backgrounds; the product pages of
+  // agents and recipes stay under /agentura/agent/<slug> and
+  // /agentura/rezept/<mention>. /agentura itself redirects: old overview links
+  // (/agentura?cat=meine, /agents) land on /grueneratoren, shop links and the
+  // old catalogue link (/skills) on /marktplatz.
   { path: '/agentura/agent/:slug', component: AgentDetailPage },
   { path: '/agentura/rezept/:mention', component: RecipeDetailPage },
   { path: '/agentura/skill/:mention', component: LegacySkillMentionRedirect },
   { path: '/agentura', component: AgenturaPage },
   { path: '/grueneratoren', component: GrueneratorenPage },
+  { path: '/marktplatz', component: MarketplacePage },
+  // A Landesverband's page in the Marktplatz; the slug is the hub slug of `/agents/<slug>`.
+  { path: '/marktplatz/landesverband/:slug', component: MarketplaceLandesverbandPage },
   {
     path: '/agents',
     component: lazy(() => Promise.resolve({ default: createRedirect('/grueneratoren') })),
@@ -449,7 +481,7 @@ const standardRoutes: RouteConfig[] = [
   },
   {
     path: '/skills',
-    component: lazy(() => Promise.resolve({ default: createRedirect('/agentura') })),
+    component: lazy(() => Promise.resolve({ default: createRedirect('/marktplatz') })),
   },
   { path: '/projekte', component: ProjektePage, layoutMode: 'sidebarOnly' },
   { path: '/projekte/:idOrSlug', component: ProjektePage },
@@ -561,6 +593,13 @@ const standardRoutes: RouteConfig[] = [
   // { path: '/playground', component: PlaygroundPage },
   { path: '/icon-test', component: IconAnimationTestPage, channel: 'internal' },
   { path: '/kugel-test', component: KugelVoiceTestPage, channel: 'internal' },
+  { path: '/voice-agent-test', component: VoiceAgentTestPage, channel: 'internal' },
+  {
+    path: '/voice-agent-test/mobil',
+    component: MobileVoiceAgentPage,
+    layoutMode: 'noChrome',
+    channel: 'internal',
+  },
   { accent: 'studio', path: '/vorlagen', component: GrueneratorenBundle.VorlagenListe },
   { path: '/vorlagen/meine', component: VorlagenMeineRedirect },
   // Link-shared Vorlage. `public` because the öffentlich mode has to open
@@ -844,10 +883,40 @@ const standardRoutes: RouteConfig[] = [
     component: MediaLibraryPage,
     layoutMode: 'sidebarOnly',
   },
+  {
+    accent: 'studio',
+    path: '/studio/sticker',
+    component: StudioAssetsPage,
+    layoutMode: 'sidebarOnly',
+  },
+  {
+    accent: 'studio',
+    path: '/studio/sticker/entdecken',
+    component: StickerDiscoverRedirect,
+    layoutMode: 'sidebarOnly',
+  },
+  {
+    accent: 'studio',
+    path: '/studio/sticker/neu',
+    component: StickerCreatorPage,
+    layoutMode: 'sidebarOnly',
+  },
+  {
+    accent: 'studio',
+    path: '/studio/sticker/gestalten',
+    component: StickerCanvasPage,
+    layoutMode: 'immersive',
+  },
   { path: '/studio/templates/profilbild', component: ProfilbildRedirect },
   { path: '/studio/ki', component: ImageStudioKiRedirect },
   { path: '/studio/ki/:type', component: ImageStudioKiTypeRedirect },
   { path: '/studio/video', component: GrueneratorenBundle.Reel },
+  {
+    accent: 'studio',
+    path: '/studio/videoeditor',
+    component: VideoEditorPage,
+    layoutMode: 'immersive',
+  },
   { path: '/studio/gallery', component: MediathekRedirect },
   // Collaborative canvas — must come before /studio/:category so the literal
   // "canvas" segment matches first instead of being interpreted as a category.

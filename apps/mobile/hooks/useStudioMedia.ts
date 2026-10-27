@@ -1,6 +1,6 @@
 import { fetchProjects } from '@gruenerator/shared';
 import { getRecentShares } from '@gruenerator/shared/share';
-import { useQueries, useQueryClient } from '@tanstack/react-query';
+import { useQueries, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCallback, useMemo } from 'react';
 
 import {
@@ -11,7 +11,12 @@ import {
 } from '../services/devFixtures';
 import { officeApi } from '../services/office/officeApi';
 
-import { toKiImageItems, toReelItems, toSharepicItems } from './studioMediaMapping';
+import {
+  toKiImageItems,
+  toProfilbildItems,
+  toReelItems,
+  toSharepicItems,
+} from './studioMediaMapping';
 import { type RecentItem } from './useRecentActivity';
 
 /**
@@ -32,6 +37,27 @@ const RECENT_SHARES_LIMIT = 20;
 const SHAREPICS_KEY = ['studio', 'shares', 'image'] as const;
 const CANVASES_KEY = ['studio', 'canvases'] as const;
 const REELS_KEY = ['studio', 'reels'] as const;
+
+const sharesQuery = {
+  queryKey: SHAREPICS_KEY,
+  // The dev bypass authenticates client-side, so every list endpoint
+  // answers 401 — without fixtures this screen would show nothing but its
+  // error state under the very flag that exists to lay it out.
+  queryFn: async () =>
+    DEV_FIXTURES_ENABLED ? DEV_SHARES : (await getRecentShares(RECENT_SHARES_LIMIT)).shares,
+  staleTime: 30_000,
+};
+
+/**
+ * Saved Profilbilder among the latest shares — the Studio tab's query, so one
+ * fetch serves both. `/share/recent` has no type filter, so a Profilbild older
+ * than the last twenty shares of any kind drops out (#4599).
+ */
+export function useRecentProfilbilder(): { items: RecentItem[]; isPending: boolean } {
+  const { data, isPending } = useQuery(sharesQuery);
+  const items = useMemo(() => toProfilbildItems(data ?? []), [data]);
+  return { items, isPending };
+}
 
 export interface StudioMedia {
   /** Published image shares that are not KI output, plus editable canvases. */
@@ -64,15 +90,7 @@ export function useStudioMedia(): StudioMedia {
 
   const [shares, canvases, reels] = useQueries({
     queries: [
-      {
-        queryKey: SHAREPICS_KEY,
-        // The dev bypass authenticates client-side, so every list endpoint
-        // answers 401 — without fixtures this screen would show nothing but its
-        // error state under the very flag that exists to lay it out.
-        queryFn: async () =>
-          DEV_FIXTURES_ENABLED ? DEV_SHARES : (await getRecentShares(RECENT_SHARES_LIMIT)).shares,
-        staleTime: 30_000,
-      },
+      sharesQuery,
       {
         queryKey: CANVASES_KEY,
         queryFn: () => (DEV_FIXTURES_ENABLED ? DEV_CANVASES : officeApi.fetchCanvases()),

@@ -1,6 +1,10 @@
 import { type NotebookDepth } from '@gruenerator/contracts';
+import { type TextModelId } from '@gruenerator/shared/models';
 
-export type NotebookDepthIconKey = 'fast' | 'deep' | 'ultra';
+export type NotebookDepthIconKey = 'fast' | 'deep' | 'ultra' | 'panda';
+
+/** The model lane behind the „Panda" tier — offered only to unlocked accounts. */
+const PANDA_MODEL_ID = 'gruenerator-panda' satisfies TextModelId;
 
 export interface NotebookDepthDef {
   depth: NotebookDepth;
@@ -56,18 +60,46 @@ export const NOTEBOOK_DEPTHS: NotebookDepthDef[] = [
     description: 'Mehrere Formulierungen, breitester Quellenkorpus',
     icon: 'ultra',
   },
+  // Same search as Ultra; the server swaps in the Panda model lane.
+  {
+    depth: 'panda',
+    label: 'Panda',
+    description: 'Wie Ultra, beantwortet vom Panda-Modell',
+    icon: 'panda',
+  },
 ];
+
+/**
+ * The tiers this person may pick. Panda needs the same unlock as in the chat
+ * picker, and `enabledModelIds` is the same source: the server reports the
+ * Panda lane as enabled only for an unlocked account. `null` (not loaded yet)
+ * hides it, like the catalog default does in the chat picker.
+ */
+export function visibleNotebookDepths(
+  enabledModelIds: ReadonlySet<TextModelId> | null
+): NotebookDepthDef[] {
+  return NOTEBOOK_DEPTHS.filter(
+    (d) => d.depth !== 'panda' || (enabledModelIds?.has(PANDA_MODEL_ID) ?? false)
+  );
+}
 
 /**
  * The tier's presentation, falling back to the default for an unknown id.
  *
  * The fallback is load-bearing, not defensive noise: the choice is persisted, so
  * a tier this build no longer knows can be read back from storage — and putting
- * that id on the wire would fail the whole request at the contract.
+ * that id on the wire would fail the whole request at the contract. A stored
+ * Panda choice without the unlock (revoked, or not loaded yet) reads as Ultra,
+ * the search it stands on.
  */
-export function notebookDepthDef(depth: NotebookDepth | undefined): NotebookDepthDef {
+export function notebookDepthDef(
+  depth: NotebookDepth | undefined,
+  enabledModelIds: ReadonlySet<TextModelId> | null
+): NotebookDepthDef {
+  const visible = visibleNotebookDepths(enabledModelIds);
+  const wanted = depth === 'panda' && !visible.some((d) => d.depth === 'panda') ? 'ultra' : depth;
   return (
-    NOTEBOOK_DEPTHS.find((d) => d.depth === depth) ??
+    visible.find((d) => d.depth === wanted) ??
     NOTEBOOK_DEPTHS.find((d) => d.depth === DEFAULT_NOTEBOOK_DEPTH)!
   );
 }

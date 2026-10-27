@@ -1,6 +1,9 @@
+import {
+  PATH_VIEWBOX,
+  resizedShapeSize,
+  shapeNodeScale,
+} from '@ggraphic/editor/utils/shapeTransform';
 import { describe, it, expect } from 'vitest';
-
-import { PATH_VIEWBOX, resizedShapeSize, shapeNodeScale } from './shapeTransform';
 
 describe('resizedShapeSize', () => {
   describe('path shapes (node scale is absolute)', () => {

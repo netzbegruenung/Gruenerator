@@ -1,8 +1,11 @@
 /**
- * Canvas Assets Registry
- * Centralized registry of all available decorative assets for canvas editor
+ * Canvas assets: placed graphics and the catalogue they resolve against.
+ * The graphics themselves are host data (`registerAssetCatalog`); the editor
+ * knows none of them by name.
  */
-import { SHAREPIC_EMOJI, sharepicEmojiCode, type SharepicEmoji } from '@gruenerator/contracts';
+
+import type { KawaiiDef, SvgDef } from '@ggraphic/editor/utils/illustrations/types';
+import type { StickerRef } from '@ggraphic/schema';
 
 export type AssetAudience = 'de-DE' | 'de-AT' | 'all';
 
@@ -10,7 +13,7 @@ export interface UniversalAsset {
   id: string;
   src: string;
   label: string;
-  category: 'decoration' | 'mark' | 'emoji';
+  category: 'decoration' | 'mark' | 'emoji' | 'sticker';
   tags: string[];
   /** Which brand locale the asset belongs to; 'all' is locale-independent. */
   audience: AssetAudience;
@@ -33,12 +36,16 @@ export const ASSET_TARGET_SIZE = 150;
  */
 export interface AssetInstance {
   id: string;
-  assetId: string; // Reference to UniversalAsset.id
+  assetId: string; // Reference to UniversalAsset.id, or `asset:<uuid>` for a shop sticker
+  /** Own image of a shop sticker: a share path the host's `isInstanceSrc` accepts. */
+  src?: string;
   x: number;
   y: number;
   scale: number;
   rotation: number;
   opacity: number;
+  flipX?: boolean;
+  flipY?: boolean;
 }
 
 /**
@@ -59,334 +66,92 @@ export const createAssetInstance = (
 });
 
 /**
- * System Assets Configuration
- * DRY: Single source of truth for all hardcoded asset paths used in layouts
+ * A sticker on the canvas: a catalogue sticker by id, a shop sticker with its
+ * share path. Null when the ref resolves to no image.
  */
-export const SYSTEM_ASSETS = {
-  sunflower: {
-    yellow: {
-      src: '/Sonnenblume.png',
-      label: 'Sonnenblume (Gelb)',
-    },
-    green: {
-      src: '/sonnenblume_dunkelgruen.svg',
-      label: 'Sonnenblume (Grün)',
-    },
-    // Light-green flower matching the Info sharepic's server render
-    // (apps/api/public/sonnenblume_gruen.png).
-    greenLight: {
-      src: '/sonnenblume_gruen.png',
-      label: 'Sonnenblume (Hellgrün)',
-    },
-    white: {
-      src: '/sonnenblume_weiss.svg',
-      label: 'Sonnenblume (Weiß)',
-    },
-    black: {
-      src: '/sonnenblume_schwarz.svg',
-      label: 'Sonnenblume (Schwarz)',
-    },
-  },
-  quote: {
-    white: {
-      src: '/quote-white.svg',
-      label: 'Anführungszeichen (Weiß)',
-    },
-    default: {
-      src: '/quote.svg',
-      label: 'Anführungszeichen',
-    },
-    // Österreich (de-AT): das Anführungszeichen steht dort in Gelb (CI 2026).
-    gelb: {
-      src: '/quote-gelb.svg',
-      label: 'Anführungszeichen (Gelb)',
-    },
-  },
-  // Deutschland (de-DE) — Wortmarke "BÜNDNIS 90 / DIE GRÜNEN". Die Farbfassung
-  // (sandfarbene Schrift) ist für dunkle Hintergründe gedacht.
-  logoDe: {
-    farbe: {
-      src: '/gruene-de-logo.png',
-      label: 'Logo Bündnis 90/Die Grünen',
-    },
-    weiss: {
-      src: '/gruene-de-logo-weiss.png',
-      label: 'Logo weiß',
-    },
-    schwarz: {
-      src: '/gruene-de-logo-schwarz.png',
-      label: 'Logo schwarz',
-    },
-  },
-  // Österreich (de-AT) — reduziertes Ein-Balken-Logo "G DIE GRÜNEN" (CI 2026)
-  logoAt: {
-    weiss: {
-      src: '/gruene-at-logo-weiss.png',
-      label: 'Die Grünen (weiß)',
-    },
-    gruen: {
-      src: '/gruene-at-logo-gruen.png',
-      label: 'Die Grünen (grün)',
-    },
-  },
-  arrow: {
-    src: '/arrow_right.svg',
-    label: 'Pfeil rechts',
-  },
-  // Österreich (de-AT): der Wischen-Pfeil der Karussells als Pinselstrich.
-  brushArrow: {
-    weiss: {
-      src: '/brush-arrow-weiss.svg',
-      label: 'Pinselpfeil (Weiß)',
-    },
-    gruen: {
-      src: '/brush-arrow-gruen.svg',
-      label: 'Pinselpfeil (Grün)',
-    },
-  },
-  backgrounds: {
-    info: {
-      tanne: '/Info_bg_tanne.png',
-      sand: '/Info_bg_sand.png',
-    },
-  },
-} as const;
-
-/**
- * @deprecated Use SYSTEM_ASSETS.sunflower instead
- */
-export const SYSTEM_SUNFLOWER = SYSTEM_ASSETS.sunflower;
-
-/**
- * All available decorative assets that can be used across canvas types
- */
-export const ALL_ASSETS: UniversalAsset[] = [
-  {
-    id: 'gruene-de-logo',
-    src: SYSTEM_ASSETS.logoDe.farbe.src,
-    label: SYSTEM_ASSETS.logoDe.farbe.label,
-    category: 'decoration',
-    tags: ['logo', 'bündnis 90', 'buendnis', 'grüne', 'gruene', 'deutschland', 'marke', 'farbe'],
-    audience: 'de-DE',
-    darkPreview: true,
-  },
-  {
-    id: 'gruene-de-logo-weiss',
-    src: SYSTEM_ASSETS.logoDe.weiss.src,
-    label: SYSTEM_ASSETS.logoDe.weiss.label,
-    category: 'decoration',
-    tags: [
-      'logo',
-      'bündnis 90',
-      'buendnis',
-      'grüne',
-      'gruene',
-      'deutschland',
-      'marke',
-      'weiß',
-      'weiss',
-    ],
-    audience: 'de-DE',
-  },
-  {
-    id: 'gruene-de-logo-schwarz',
-    src: SYSTEM_ASSETS.logoDe.schwarz.src,
-    label: SYSTEM_ASSETS.logoDe.schwarz.label,
-    category: 'decoration',
-    tags: ['logo', 'bündnis 90', 'buendnis', 'grüne', 'gruene', 'deutschland', 'marke', 'schwarz'],
-    audience: 'de-DE',
-  },
-  {
-    id: 'sunflower',
-    src: SYSTEM_ASSETS.sunflower.yellow.src,
-    label: SYSTEM_ASSETS.sunflower.yellow.label,
-    category: 'decoration',
-    tags: ['blume', 'flower', 'gelb', 'yellow', 'natur', 'pflanze', 'sommer'],
-    audience: 'de-DE',
-  },
-  {
-    id: 'sunflower-green',
-    src: SYSTEM_ASSETS.sunflower.green.src,
-    label: SYSTEM_ASSETS.sunflower.green.label,
-    category: 'decoration',
-    tags: ['blume', 'flower', 'grün', 'green', 'natur', 'pflanze'],
-    audience: 'de-DE',
-  },
-  {
-    id: 'sunflower-weiss',
-    src: SYSTEM_ASSETS.sunflower.white.src,
-    label: SYSTEM_ASSETS.sunflower.white.label,
-    category: 'decoration',
-    tags: ['blume', 'flower', 'weiß', 'weiss', 'white', 'natur', 'pflanze'],
-    audience: 'de-DE',
-  },
-  {
-    id: 'sunflower-schwarz',
-    src: SYSTEM_ASSETS.sunflower.black.src,
-    label: SYSTEM_ASSETS.sunflower.black.label,
-    category: 'decoration',
-    tags: ['blume', 'flower', 'schwarz', 'black', 'natur', 'pflanze'],
-    audience: 'de-DE',
-  },
-  {
-    id: 'gruene-at-logo-weiss',
-    src: SYSTEM_ASSETS.logoAt.weiss.src,
-    label: SYSTEM_ASSETS.logoAt.weiss.label,
-    category: 'decoration',
-    tags: ['logo', 'grüne', 'gruene', 'österreich', 'at', 'weiß', 'weiss', 'marke'],
-    audience: 'de-AT',
-  },
-  {
-    id: 'gruene-at-logo-gruen',
-    src: SYSTEM_ASSETS.logoAt.gruen.src,
-    label: SYSTEM_ASSETS.logoAt.gruen.label,
-    category: 'decoration',
-    tags: ['logo', 'grüne', 'gruene', 'österreich', 'at', 'grün', 'gruen', 'marke'],
-    audience: 'de-AT',
-  },
-  {
-    id: 'quote-mark',
-    src: SYSTEM_ASSETS.quote.default.src,
-    label: SYSTEM_ASSETS.quote.default.label,
-    category: 'mark',
-    tags: ['zitat', 'quote', 'text', 'spruch', 'rede'],
-    audience: 'all',
-  },
-  {
-    id: 'arrow',
-    src: SYSTEM_ASSETS.arrow.src,
-    label: SYSTEM_ASSETS.arrow.label,
-    category: 'mark',
-    tags: ['pfeil', 'arrow', 'richtung', 'zeiger', 'hinweis'],
-    audience: 'all',
-  },
-  {
-    id: 'brush-arrow-gruen',
-    src: SYSTEM_ASSETS.brushArrow.gruen.src,
-    label: SYSTEM_ASSETS.brushArrow.gruen.label,
-    category: 'mark',
-    tags: ['pfeil', 'arrow', 'pinsel', 'brush', 'wischen', 'grün', 'gruen'],
-    audience: 'de-AT',
-  },
-];
-
-/**
- * Vorlagen-Varianten: dieselben Grafiken in genau der Ausfuehrung, die eine
- * bestimmte Vorlage braucht — das weisse und das gelbe Anfuehrungszeichen, die
- * hellgruene Sonnenblume.
- *
- * Sie stehen bewusst NICHT in `ALL_ASSETS`: in der freien Auswahl waeren drei
- * fast gleiche Anfuehrungszeichen nur verwirrend, und ueber einem hellen
- * Hintergrund ist die weisse Fassung unsichtbar. Aufloesen muss man sie
- * trotzdem, seit eine duplizierte Vorlagen-Grafik zu einer Asset-Instanz wird
- * (#3403) — die zeichnet sich ueber `getAssetById`.
- */
-export const TEMPLATE_ASSETS: UniversalAsset[] = [
-  {
-    id: 'quote-mark-weiss',
-    src: SYSTEM_ASSETS.quote.white.src,
-    label: SYSTEM_ASSETS.quote.white.label,
-    category: 'mark',
-    tags: ['zitat', 'quote', 'weiß', 'weiss'],
-    audience: 'all',
-  },
-  {
-    id: 'quote-mark-gelb',
-    src: SYSTEM_ASSETS.quote.gelb.src,
-    label: SYSTEM_ASSETS.quote.gelb.label,
-    category: 'mark',
-    tags: ['zitat', 'quote', 'gelb'],
-    audience: 'de-AT',
-  },
-  {
-    id: 'sunflower-green-light',
-    src: SYSTEM_ASSETS.sunflower.greenLight.src,
-    label: SYSTEM_ASSETS.sunflower.greenLight.label,
-    category: 'decoration',
-    tags: ['blume', 'flower', 'grün', 'green', 'hell'],
-    audience: 'de-DE',
-  },
-  {
-    id: 'brush-arrow-weiss',
-    src: SYSTEM_ASSETS.brushArrow.weiss.src,
-    label: SYSTEM_ASSETS.brushArrow.weiss.label,
-    category: 'mark',
-    tags: ['pfeil', 'arrow', 'pinsel', 'brush', 'wischen', 'weiß', 'weiss'],
-    audience: 'de-AT',
-  },
-];
-
-const EMOJI_NAMES: Record<SharepicEmoji, [label: string, ...tags: string[]]> = {
-  '🗳️': ['Wahlurne', 'wahl', 'wählen', 'stimme'],
-  '📰': ['Zeitung', 'presse', 'medien', 'nachrichten'],
-  '🪧': ['Schild', 'demo', 'protest', 'plakat'],
-  '✍️': ['Schreibende Hand', 'unterschrift', 'petition', 'schreiben'],
-  '📣': ['Megafon', 'laut', 'aufruf', 'social media'],
-  '📢': ['Lautsprecher', 'laut', 'ansage', 'aufruf'],
-  '🤝': ['Handschlag', 'zusammenhalt', 'gemeinsam', 'verein'],
-  '💚': ['Grünes Herz', 'herz', 'liebe', 'grün'],
-  '❤️': ['Rotes Herz', 'herz', 'liebe'],
-  '✅': ['Haken', 'ja', 'erledigt', 'check'],
-  '❌': ['Kreuz', 'nein', 'falsch'],
-  '👉': ['Zeigefinger', 'hinweis', 'pfeil'],
-  '💪': ['Bizeps', 'stark', 'kraft'],
-  '👏': ['Applaus', 'klatschen', 'danke'],
-  '🧑‍🤝‍🧑': ['Menschen Hand in Hand', 'gemeinsam', 'menschen', 'solidarität'],
-  '🌍': ['Erde', 'welt', 'klima', 'europa'],
-  '🌱': ['Keimling', 'pflanze', 'wachstum', 'natur'],
-  '🌳': ['Baum', 'wald', 'natur'],
-  '🌻': ['Sonnenblume', 'blume', 'grüne'],
-  '☀️': ['Sonne', 'solar', 'energie', 'sommer'],
-  '💨': ['Wind', 'windkraft', 'luft'],
-  '⚡': ['Blitz', 'strom', 'energie'],
-  '🔥': ['Feuer', 'hitze', 'heizen'],
-  '💧': ['Tropfen', 'wasser'],
-  '♻️': ['Recycling', 'müll', 'kreislauf'],
-  '🐝': ['Biene', 'artenschutz', 'natur', 'tiere'],
-  '🚲': ['Fahrrad', 'rad', 'verkehr'],
-  '🚆': ['Zug', 'bahn', 'verkehr'],
-  '🚌': ['Bus', 'öffis', 'verkehr'],
-  '🏠': ['Haus', 'wohnen', 'miete'],
-  '🏫': ['Schule', 'bildung'],
-  '🏥': ['Krankenhaus', 'gesundheit', 'pflege'],
-  '💶': ['Euro-Schein', 'geld', 'euro', 'kosten'],
-  '📈': ['Diagramm steigend', 'mehr', 'wachstum'],
-  '📉': ['Diagramm fallend', 'weniger', 'sinken'],
-  '📅': ['Kalender', 'termin', 'datum'],
-  '📍': ['Pin', 'ort', 'vor ort'],
-  '📱': ['Handy', 'smartphone', 'digital'],
-  '💬': ['Sprechblase', 'gespräch', 'kommentar'],
-  '💡': ['Glühbirne', 'idee', 'tipp'],
-  '⚖️': ['Waage', 'gerechtigkeit', 'recht'],
-  '🕊️': ['Taube', 'frieden'],
-  '🎓': ['Doktorhut', 'bildung', 'studium'],
-  '🌈': ['Regenbogen', 'vielfalt', 'pride'],
+export const createStickerInstance = (
+  ref: StickerRef,
+  canvasWidth: number,
+  canvasHeight: number,
+  catalog: CanvasAssetCatalog = registered
+): AssetInstance | null => {
+  const base = createAssetInstance(ref.id, canvasWidth, canvasHeight);
+  const instance = catalog.isInstanceSrc(ref.src) ? { ...base, src: ref.src } : base;
+  return resolveAssetInstanceSrc(instance, catalog) ? instance : null;
 };
 
-/** The asset an emoji of a sharepic list is drawn with. */
-export const emojiAssetId = (emoji: SharepicEmoji): string => `emoji-${sharepicEmojiCode(emoji)}`;
+/** Any emoji by its file code ("1f600", "1f9d1_1f3fb"). */
+export const emojiCodeAssetId = (code: string): string => `emoji-${code}`;
 
-/** Noto Emoji (Apache-2.0, `public/emoji/LICENSE`): the closed set a sharepic list may use. */
-export const EMOJI_ASSETS: UniversalAsset[] = SHAREPIC_EMOJI.map((emoji) => {
-  const [label, ...tags] = EMOJI_NAMES[emoji];
-  return {
-    id: emojiAssetId(emoji),
-    src: `/emoji/emoji_u${sharepicEmojiCode(emoji)}.svg`,
-    label,
-    category: 'emoji',
-    tags: ['emoji', ...tags],
-    audience: 'all',
-  };
-});
-
-/** Katalog plus Vorlagen-Varianten — alles, was sich zu einer Grafik aufloesen laesst. */
-const RESOLVABLE_ASSETS: UniversalAsset[] = [...ALL_ASSETS, ...TEMPLATE_ASSETS, ...EMOJI_ASSETS];
+const EMOJI_ID = /^emoji-([0-9a-f]{4,6}(?:_[0-9a-f]{4,6})*)$/;
 
 /**
- * Logo assets shown in the "Logos" (grafiken) category.
- * Only true logos (decoration) — marks like Anführungszeichen/Pfeil are excluded.
+ * The full catalogue (`utils/emoji/emojiCatalog`) loads lazily, but a placed
+ * emoji must draw without it: its id alone names the file, through the host's
+ * `emojiSrc`. The pattern keeps persisted state from naming anything but an
+ * emoji code.
  */
-export const LOGO_ASSETS: UniversalAsset[] = ALL_ASSETS.filter((a) => a.category === 'decoration');
+function emojiAssetFromId(id: string, catalog: CanvasAssetCatalog): UniversalAsset | undefined {
+  const code = EMOJI_ID.exec(id)?.[1];
+  if (!code || !catalog.emojiSrc) return undefined;
+  return {
+    id,
+    src: catalog.emojiSrc(code),
+    label: String.fromCodePoint(...code.split('_').map((cp) => parseInt(cp, 16))),
+    category: 'emoji',
+    tags: ['emoji'],
+    audience: 'all',
+  };
+}
+
+/**
+ * The graphics a placed asset instance can name, supplied by the host
+ * (`registerAssetCatalog`). Saved canvases reference them by id and src, so
+ * a host never renames an entry.
+ */
+export interface CanvasAssetCatalog {
+  /** Everything an instance may name, in lookup order: by id and by src, the first match wins. */
+  assets: readonly UniversalAsset[];
+  /**
+   * Is this an image the host stores for one instance (a shop sticker)? Such
+   * an instance draws from its own `src`; any other `src` is ignored.
+   */
+  isInstanceSrc: (src: string) => boolean;
+  /**
+   * Where the file of an emoji lives, by its code ("1f600", "1f9d1_1f3fb").
+   * Without it the editor knows no emoji file and a placed emoji draws nothing.
+   */
+  emojiSrc?: (code: string) => string;
+  /** The illustration catalogues; without them the editor offers none. */
+  illustrations?: IllustrationSources;
+}
+
+/** The illustration sets a host offers, loaded on the first lookup. */
+export interface IllustrationSources {
+  loadKawaii: () => Promise<KawaiiDef[]>;
+  /** Every SVG set, in catalogue order. */
+  loadSvg: () => Promise<SvgDef[]>;
+  /** Where the SVG files and their `thumbs/` PNGs live, before `<source>/<filename>`. */
+  basePath: string;
+}
+
+/**
+ * A module-level registry, not a `CanvasEditorServices` field: the lookups run
+ * in commands, action factories and offscreen renders that have no React
+ * context. Without a host the editor knows no catalogue graphic, no emoji
+ * file and no illustration, and ignores every instance `src`.
+ */
+let registered: CanvasAssetCatalog = { assets: [], isInstanceSrc: () => false };
+
+/** The host's catalogue, installed once at startup; replaces the one before. */
+export function registerAssetCatalog(catalog: CanvasAssetCatalog): void {
+  registered = catalog;
+}
+
+/** The catalogue lookups answer from (`utils/illustrations/registry`). */
+export function registeredAssetCatalog(): CanvasAssetCatalog {
+  return registered;
+}
 
 export function hasDarkPreview(asset: UniversalAsset): boolean {
   return asset.darkPreview === true || /weiss|white/.test(asset.id);
@@ -397,39 +162,36 @@ export function assetMatchesLocale(asset: UniversalAsset, locale: AssetAudience)
 }
 
 /**
- * Locale-filtered logos ordered recommended-first — shared by the Marke strip,
- * the Marke drill-down and the mobile subsection. AT users only see the AT
- * logo variants; DE users the DE marks.
+ * Get asset by ID — aus dem Katalog des Hosts, dazu jedes Emoji, denn alle koennen als
+ * Asset-Instanz auf der Flaeche liegen.
  */
-export function sortLogoAssets(
-  recommendedAssetIds: readonly string[],
-  locale: AssetAudience = 'de-DE'
-): UniversalAsset[] {
-  const logos = LOGO_ASSETS.filter((a) => assetMatchesLocale(a, locale));
-  const recommended = logos.filter((a) => recommendedAssetIds.includes(a.id));
-  const others = logos.filter((a) => !recommendedAssetIds.includes(a.id));
-  return [...recommended, ...others];
+export function getAssetById(
+  id: string,
+  catalog: CanvasAssetCatalog = registered
+): UniversalAsset | undefined {
+  return catalog.assets.find((asset) => asset.id === id) ?? emojiAssetFromId(id, catalog);
 }
 
 /**
- * Mapping of canvas types to their recommended (default) assets
- * These appear in the "Empfohlen" section at the top
+ * The image an instance draws: its own share path (shop sticker), else the
+ * catalogue's. A foreign `src` is ignored so persisted state can't point the
+ * canvas at an arbitrary URL.
  */
-export const CANVAS_RECOMMENDED_ASSETS: Record<string, string[]> = {
-  zitat: ['quote-mark'],
-  'zitat-pure': ['sunflower-green', 'quote-mark'],
-  simple: [],
-  info: ['arrow'],
-  dreizeilen: ['sunflower'],
-  veranstaltung: [],
-};
+export function resolveAssetInstanceSrc(
+  instance: Pick<AssetInstance, 'assetId' | 'src'>,
+  catalog: CanvasAssetCatalog = registered
+): string | null {
+  if (instance.src && catalog.isInstanceSrc(instance.src)) return instance.src;
+  return getAssetById(instance.assetId, catalog)?.src ?? null;
+}
 
-/**
- * Get asset by ID — Katalog UND Vorlagen-Varianten, denn beide koennen als
- * Asset-Instanz auf der Flaeche liegen.
- */
-export function getAssetById(id: string): UniversalAsset | undefined {
-  return RESOLVABLE_ASSETS.find((asset) => asset.id === id);
+/** Sticker-like instances get a pixel-exact hit area: transparent pixels click through. */
+export function isStickerLikeInstance(
+  instance: Pick<AssetInstance, 'assetId' | 'src'>,
+  catalog: CanvasAssetCatalog = registered
+): boolean {
+  if (instance.src && catalog.isInstanceSrc(instance.src)) return true;
+  return getAssetById(instance.assetId, catalog)?.category === 'sticker';
 }
 
 /**
@@ -438,24 +200,9 @@ export function getAssetById(id: string): UniversalAsset | undefined {
  * die Vorlagen-Elemente und die Katalog-Eintraege sind dieselben Bilder, nur
  * zweimal aufgeschrieben (#3403).
  */
-export function getAssetBySrc(src: string): UniversalAsset | undefined {
-  return RESOLVABLE_ASSETS.find((asset) => asset.src === src);
-}
-
-/**
- * Get recommended assets for a canvas type
- */
-export function getRecommendedAssets(canvasType: string): UniversalAsset[] {
-  const recommendedIds = CANVAS_RECOMMENDED_ASSETS[canvasType] || [];
-  return recommendedIds
-    .map((id) => getAssetById(id))
-    .filter((asset): asset is UniversalAsset => asset !== undefined);
-}
-
-/**
- * Get non-recommended assets for a canvas type
- */
-export function getOtherAssets(canvasType: string): UniversalAsset[] {
-  const recommendedIds = CANVAS_RECOMMENDED_ASSETS[canvasType] || [];
-  return ALL_ASSETS.filter((asset) => !recommendedIds.includes(asset.id));
+export function getAssetBySrc(
+  src: string,
+  catalog: CanvasAssetCatalog = registered
+): UniversalAsset | undefined {
+  return catalog.assets.find((asset) => asset.src === src);
 }

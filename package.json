@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "type": "module",
-  "packageManager": "pnpm@12.8.2",
+  "packageManager": "pnpm@12.12.1",
   "workspaces": [
     "apps/*",
     "packages/*",
@@ -13,18 +13,18 @@
   "devDependencies": {
     "@commitlint/cli": "^21.2.3",
     "@commitlint/config-conventional": "^21.2.3",
-    "@types/node": "26.6.3",
-    "concurrently": "^10.0.5",
+    "@types/node": "26.6.5",
+    "concurrently": "^10.0.6",
     "cross-env": "^10.1.0",
     "eslint": "^9.39.5",
     "husky": "^9.1.7",
-    "knip": "^6.38.0",
+    "knip": "^6.42.1",
     "lint-staged": "^17.6.0",
-    "prettier": "3.9.9",
+    "prettier": "3.9.10",
     "semver": "^7.8.5",
-    "turbo": "^2.11.4",
+    "turbo": "^2.11.10",
     "typescript": "^6.0.3",
-    "wait-on": "^9.1.0"
+    "wait-on": "^9.5.1"
   },
   "scripts": {
     "knip": "knip",
@@ -34,6 +34,7 @@
     "overrides:ranges": "node scripts/check-override-ranges.mjs",
     "deps:verify": "node scripts/check-installed-lockfile-drift.mjs",
     "check:internal": "node scripts/check-internal-content.mjs",
+    "check:ggraphic": "node scripts/check-ggraphic-core-boundary.mjs --self-test && node scripts/check-ggraphic-core-boundary.mjs",
     "check:overlays": "node scripts/check-overlay-layers.mjs",
     "check:lookbehind": "node scripts/check-browser-lookbehind.mjs",
     "build": "turbo run build",

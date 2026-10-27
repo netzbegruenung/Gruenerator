@@ -1,4 +1,4 @@
-import { getCanvasFormatOrDefault } from '../formats';
+import { getCanvasFormatOrDefault } from '@ggraphic/editor/formats/index';
 
 import type { ReactNode } from 'react';
 
@@ -67,9 +67,15 @@ interface CanvasEditorSkeletonProps {
   /** Echter Zurück-Button des Hosts, damit man schon während des Ladens raus kann. */
   chromeLeft?: ReactNode;
   aspectRatio?: number;
+  /** False when the host draws the menu bar itself (the app's native header). */
+  topBar?: boolean;
 }
 
-export function CanvasEditorSkeleton({ chromeLeft, aspectRatio }: CanvasEditorSkeletonProps) {
+export function CanvasEditorSkeleton({
+  chromeLeft,
+  aspectRatio,
+  topBar = true,
+}: CanvasEditorSkeletonProps) {
   return (
     <div
       role="status"
@@ -78,11 +84,13 @@ export function CanvasEditorSkeleton({ chromeLeft, aspectRatio }: CanvasEditorSk
       aria-label="Editor wird geladen"
       className="flex flex-col h-dvh min-h-[500px] bg-[var(--editor-bg)]"
     >
-      <div className="relative w-full h-[var(--editor-topbar-height)] shrink-0 bg-[image:var(--editor-menubar-gradient)] px-4 flex items-center gap-1 max-canvas-mobile:h-[52px] max-canvas-mobile:px-2.5">
-        {chromeLeft ?? <div className="size-[34px] rounded-[10px] bg-white/15" />}
-        <div className="absolute left-1/2 -translate-x-1/2 h-3.5 w-40 rounded animate-pulse bg-white/25" />
-        <div className="ml-auto h-8 w-24 rounded-[10px] animate-pulse bg-white/15" />
-      </div>
+      {topBar && (
+        <div className="relative w-full h-[var(--editor-topbar-height)] shrink-0 bg-[image:var(--editor-menubar-gradient)] px-4 flex items-center gap-1 max-canvas-mobile:h-[52px] max-canvas-mobile:px-2.5">
+          {chromeLeft ?? <div className="size-[34px] rounded-[10px] bg-white/15" />}
+          <div className="absolute left-1/2 -translate-x-1/2 h-3.5 w-40 rounded animate-pulse bg-white/25" />
+          <div className="ml-auto h-8 w-24 rounded-[10px] animate-pulse bg-white/15" />
+        </div>
+      )}
       <div className="flex flex-1 min-h-0 max-canvas-mobile:flex-col">
         <CanvasTabRailSkeleton />
         <div className="flex flex-1 min-h-0 flex-col bg-[var(--editor-canvas-bg)]">

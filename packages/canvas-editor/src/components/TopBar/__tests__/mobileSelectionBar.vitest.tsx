@@ -1,8 +1,8 @@
+import { CanvasStoreProvider } from '@ggraphic/editor/stores/CanvasStoreProvider';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { CanvasStoreProvider } from '../../../stores/CanvasStoreProvider';
 import { MobileSelectionBar } from '../MobileSelectionBar';
 
 /**
@@ -29,7 +29,7 @@ function renderBar(props: { onOpenArea?: () => void; onDone?: () => void } = {})
         canMoveDown={false}
         canDuplicate
         handlers={HANDLERS}
-        onDelete={() => {}}
+        onDeletePage={() => {}}
         onDeselect={() => {}}
         onDone={props.onDone ?? (() => {})}
         onOpenArea={props.onOpenArea}
@@ -61,5 +61,58 @@ describe('MobileSelectionBar', () => {
   it('zeigt „Mehr" nur, wenn die Auswahl einen Bereich hat', () => {
     renderBar();
     expect(screen.queryByRole('button', { name: 'Mehr' })).toBeNull();
+  });
+});
+
+describe('MobileSelectionBar: Zuschneiden per Tastatur', () => {
+  afterEach(() => {
+    delete document.documentElement.dataset.focusModality;
+  });
+
+  function renderPhotoBar(handleCropImage: () => void) {
+    return render(
+      <CanvasStoreProvider>
+        <div aria-current="page">
+          <button type="button" data-page-focus-target="p1">
+            Seite 1 bearbeiten
+          </button>
+        </div>
+        <MobileSelectionBar
+          selectedElement="photo"
+          activeFloatingModule={{
+            type: 'user-image',
+            data: { id: 'photo', src: '/photo.jpg', width: 600, height: 400 },
+          }}
+          canMoveUp={false}
+          canMoveDown={false}
+          canDuplicate
+          handlers={{ ...HANDLERS, handleCropImage }}
+          onDeletePage={() => {}}
+          onDeselect={() => {}}
+          onDone={() => {}}
+        />
+      </CanvasStoreProvider>
+    );
+  }
+
+  // In der Werkzeugleiste gehören die Pfeile dem Wechsel zwischen den Knöpfen;
+  // der Ausschnitt liesse sich von dort nicht verschieben.
+  it('gibt den Fokus an die Seite, damit die Pfeile den Ausschnitt schieben', async () => {
+    const crop = vi.fn();
+    renderPhotoBar(crop);
+    document.documentElement.dataset.focusModality = 'keyboard';
+    screen.getByRole('button', { name: 'Zuschneiden' }).focus();
+    await userEvent.keyboard('{Enter}');
+    expect(crop).toHaveBeenCalledOnce();
+    expect(screen.getByRole('button', { name: 'Seite 1 bearbeiten' })).toHaveFocus();
+  });
+
+  it('lässt den Fokus beim Antippen, wo er ist', async () => {
+    const crop = vi.fn();
+    renderPhotoBar(crop);
+    document.documentElement.dataset.focusModality = 'pointer';
+    await userEvent.click(screen.getByRole('button', { name: 'Zuschneiden' }));
+    expect(crop).toHaveBeenCalledOnce();
+    expect(screen.getByRole('button', { name: 'Seite 1 bearbeiten' })).not.toHaveFocus();
   });
 });

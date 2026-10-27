@@ -88,10 +88,16 @@ export async function createSchedule(
   return toApiSchedule(rows[0]);
 }
 
+/**
+ * A schedule fires as its `created_by` (see {@link claimAndEnqueueDueSchedules}).
+ * Whoever replaces the flow becomes that identity — the same rule as starting a
+ * flow by hand — so editing a board never makes a flow run as someone else.
+ */
 export async function updateSchedule(
   boardId: string,
   scheduleId: string,
-  patch: BoardScheduleUpdate
+  patch: BoardScheduleUpdate,
+  callerId: string
 ): Promise<BoardSchedule | null> {
   const existing = await db.query<BoardScheduledRun>(
     `SELECT * FROM board_scheduled_runs WHERE id = $1 AND board_id = $2`,
@@ -114,6 +120,7 @@ export async function updateSchedule(
 
   const flowConfig: BoardFlowConfig | null =
     patch.flow && patch.cardContext ? { ...patch.flow, cardContext: patch.cardContext } : null;
+  const createdBy = flowConfig ? callerId : row.created_by;
 
   const rows = await db.query<BoardScheduledRun>(
     `UPDATE board_scheduled_runs
@@ -123,6 +130,7 @@ export async function updateSchedule(
             enabled = COALESCE($6, enabled),
             next_run_at = $7,
             flow_config = COALESCE($8, flow_config),
+            created_by = $9,
             updated_at = now()
       WHERE id = $1 AND board_id = $2
       RETURNING *`,
@@ -135,6 +143,7 @@ export async function updateSchedule(
       patch.enabled ?? null,
       nextRunAt,
       flowConfig ? JSON.stringify(flowConfig) : null,
+      createdBy,
     ]
   );
   return rows[0] ? toApiSchedule(rows[0]) : null;
@@ -149,27 +158,29 @@ export async function deleteSchedule(boardId: string, scheduleId: string): Promi
 }
 
 /**
- * Enqueue a single agent task from a schedule (used by "run now" and the poller).
- * Returns the new task id, or null if the schedule no longer exists.
+ * "Run now": enqueue a single agent task from a schedule, run as the person who
+ * pressed the button (the poller runs as `created_by`). Returns the new task id,
+ * or null if the schedule no longer exists.
  */
 export async function enqueueScheduleRun(
   boardId: string,
-  scheduleId: string
+  scheduleId: string,
+  requestedBy: string
 ): Promise<string | null> {
   const rows = await db.query<BoardScheduledRun>(
     `SELECT * FROM board_scheduled_runs WHERE id = $1 AND board_id = $2`,
     [scheduleId, boardId]
   );
   if (rows.length === 0) return null;
-  return enqueueFromRow(rows[0]);
+  return enqueueFromRow(rows[0], requestedBy);
 }
 
-async function enqueueFromRow(row: BoardScheduledRun): Promise<string> {
+async function enqueueFromRow(row: BoardScheduledRun, requestedBy: string): Promise<string> {
   const task = await enqueueAgentTask({
     boardId: row.board_id,
     cardId: row.card_id,
     triggerCommentId: null,
-    requestedBy: row.created_by,
+    requestedBy,
     taskText: flowTaskText(row.flow_config),
     locale: row.locale,
     flowConfig: row.flow_config,
@@ -183,15 +194,18 @@ async function enqueueFromRow(row: BoardScheduledRun): Promise<string> {
  * Redo a run that was awaiting review (Phase 2): re-enqueue the original run's flow
  * as a fresh task. An optional `instruction` is injected into the card context so
  * the AI sees the human's refinement note — reusing the exact enqueue → runFlow path
- * (no separate "refine" executor). Returns the new task id, or null if not found.
+ * (no separate "refine" executor). The redo runs as the person who asked for it,
+ * and only a run still awaiting review can be redone. Returns the new task id, or
+ * null if there is no such run.
  */
 export async function redoRun(
   boardId: string,
   taskId: string,
+  callerId: string,
   instruction?: string
 ): Promise<string | null> {
   const rows = await db.query<AgentTask>(
-    `SELECT * FROM agent_tasks WHERE id = $1 AND board_id = $2`,
+    `SELECT * FROM agent_tasks WHERE id = $1 AND board_id = $2 AND status = 'awaiting_review'`,
     [taskId, boardId]
   );
   if (rows.length === 0) return null;
@@ -214,7 +228,7 @@ export async function redoRun(
     boardId: orig.board_id,
     cardId: orig.card_id,
     triggerCommentId: null,
-    requestedBy: orig.requested_by,
+    requestedBy: callerId,
     taskText: flowTaskText(flowConfig),
     locale: orig.locale,
     flowConfig,
@@ -283,7 +297,7 @@ export async function claimAndEnqueueDueSchedules(): Promise<number> {
   let fired = 0;
   for (const row of claimed) {
     try {
-      await enqueueFromRow(row);
+      await enqueueFromRow(row, row.created_by);
       fired++;
     } catch (err: unknown) {
       log.error(

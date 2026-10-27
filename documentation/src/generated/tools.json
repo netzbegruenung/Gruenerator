@@ -78,7 +78,7 @@
         },
         {
           "id": "reels-untertitel",
-          "title": "Reels",
+          "title": "Simple Reel",
           "description": "Untertitel für Clips",
           "path": "/studio/video"
         },
@@ -99,6 +99,12 @@
           "title": "Profilbild",
           "description": "Freistellen & Hintergrund wechseln",
           "path": "/studio/profilbild"
+        },
+        {
+          "id": "sticker",
+          "title": "Sticker & Hintergründe",
+          "description": "Sticker erstellen, teilen & entdecken",
+          "path": "/studio/sticker"
         },
         {
           "id": "bild-erweitern",
@@ -131,10 +137,10 @@
       "title": "Organisieren",
       "tools": [
         {
-          "id": "agents",
-          "title": "Grüneratoren",
-          "description": "Agents, Rezepte & Aufgaben",
-          "path": "/grueneratoren"
+          "id": "marktplatz",
+          "title": "Marktplatz",
+          "description": "Agents, Rezepte & Vorlagen entdecken",
+          "path": "/marktplatz"
         },
         {
           "id": "projekte",
@@ -223,6 +229,11 @@
       "path": "/studio",
       "subtitle": "Bilder mit KI erstellen & bearbeiten"
     },
+    "tool-marktplatz": {
+      "title": "Marktplatz",
+      "path": "/marktplatz",
+      "subtitle": "Agents, Rezepte, Vorlagen und Sticker entdecken"
+    },
     "tool-mediathek": {
       "title": "Mediathek",
       "path": "/studio/mediathek",
@@ -252,6 +263,11 @@
       "title": "Scanner",
       "path": "/scanner",
       "subtitle": "Fotos & Scans in Text umwandeln"
+    },
+    "tool-sticker": {
+      "title": "Sticker & Hintergründe",
+      "path": "/studio/sticker",
+      "subtitle": "Sticker und Hintergründe erstellen, teilen und entdecken"
     },
     "tool-studio": {
       "title": "Studio",

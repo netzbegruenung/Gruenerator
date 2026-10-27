@@ -1,9 +1,10 @@
+import { CustomColorSwatch } from '@ggraphic/editor/components/CustomColorSwatch';
+import { brandColors } from '@ggraphic/editor/utils/colorOptions';
 import Konva from 'konva';
 import { useCallback, useEffect, useState } from 'react';
 import { PiPath } from 'react-icons/pi';
 
-import { CustomColorSwatch } from '../../../components/CustomColorSwatch';
-import { BRAND_COLORS } from '../../../utils/shapes';
+import { MOBILE_INPUT_TEXT } from '../../sidebarStyles';
 
 import { ToolPanel, type ToolPanelSuccess } from './ToolPanel';
 import { useToolImagePlacement } from './useToolImagePlacement';
@@ -14,7 +15,8 @@ export interface TextPathCreatorToolProps {
 }
 
 const FONT_FAMILY = '"GrueneTypeNeue", "ArvoGruen", sans-serif';
-const DEFAULT_COLOR = BRAND_COLORS[0]?.value ?? '#005538';
+/** The brand's first colour, read when the tool opens. */
+const defaultColor = () => brandColors()[0]?.value ?? '#000000';
 
 interface PathVariant {
   id: string;
@@ -96,7 +98,7 @@ export function TextPathCreatorTool({
   const [value, setValue] = useState('');
   const [variant, setVariant] = useState<PathVariant>(VARIANTS[0]);
   const [fontSize, setFontSize] = useState(48);
-  const [color, setColor] = useState(DEFAULT_COLOR);
+  const [color, setColor] = useState(defaultColor);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [isBusy, setIsBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -151,7 +153,7 @@ export function TextPathCreatorTool({
               onChange={(e) => setValue(e.target.value)}
               placeholder="Dein Text…"
               disabled={disabled}
-              className="rounded-md border border-editor-border-strong bg-background px-sm py-xs text-sm text-foreground outline-none focus:border-primary-500 disabled:opacity-50"
+              className={`rounded-md border border-editor-border-strong bg-background px-sm py-xs text-sm ${MOBILE_INPUT_TEXT} text-foreground outline-none focus:border-primary-500 disabled:opacity-50`}
             />
           </label>
 
@@ -187,7 +189,7 @@ export function TextPathCreatorTool({
           <div className="flex flex-col gap-1.5">
             <span className="text-xs text-foreground-muted">Farbe</span>
             <div className="flex flex-wrap items-center gap-1.5">
-              {BRAND_COLORS.map((c) => (
+              {brandColors().map((c) => (
                 <button
                   key={c.id}
                   type="button"
@@ -204,7 +206,7 @@ export function TextPathCreatorTool({
               ))}
               <CustomColorSwatch
                 value={color}
-                presets={BRAND_COLORS.map((c) => c.value)}
+                presets={brandColors().map((c) => c.value)}
                 onPick={setColor}
                 className="size-6"
                 disabled={disabled}
@@ -222,7 +224,7 @@ export function TextPathCreatorTool({
               value={fontSize}
               onChange={(e) => setFontSize(Number(e.target.value))}
               disabled={disabled}
-              className="w-full accent-primary-600 disabled:opacity-50"
+              className="w-full max-canvas-mobile:h-11 accent-primary-600 disabled:opacity-50"
             />
           </label>
         </div>

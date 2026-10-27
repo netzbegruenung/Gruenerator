@@ -53,6 +53,20 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v7
 
+      # Die Sharepic-Lane rendert in den Hausschriften; die liegen im privaten
+      # Inhalte-Repo. Der Harness liest sie aus .external/gruenerator-intern/fonts.
+      # Ohne Secret faellt nur die Sharepic-Lane, die Resize-Lane braucht keine
+      # Schriften.
+      - name: Hausschriften
+        id: fonts
+        continue-on-error: true
+        uses: actions/checkout@v7
+        with:
+          repository: netzbegruenung/gruenerator-intern
+          token: ${{ secrets.INTERN_CONTENT_TOKEN }}
+          path: .external/gruenerator-intern
+          sparse-checkout: fonts
+
       - name: Setup pnpm
         uses: pnpm/action-setup@v6
 
@@ -102,8 +116,14 @@ jobs:
         working-directory: apps/web
         run: pnpm exec playwright test canvas-shape-resize.spec.ts --reporter=github,list
 
+      - name: Sharepic-Lane ohne Hausschriften
+        if: ${{ !cancelled() && steps.fonts.outcome != 'success' }}
+        run: |
+          echo "::error::Die Sharepic-Lane braucht die Hausschriften aus gruenerator-intern: Secret INTERN_CONTENT_TOKEN fehlt oder hat keinen Lesezugriff."
+          exit 1
+
       - name: Sharepic-Lane
-        if: ${{ !cancelled() }}
+        if: ${{ !cancelled() && steps.fonts.outcome == 'success' }}
         working-directory: apps/web
         run: pnpm exec playwright test sharepic-visual.spec.ts --reporter=github,list ${{ inputs.update_snapshots && '--update-snapshots=all' || '' }}
 

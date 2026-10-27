@@ -46,6 +46,7 @@ import {
   PiMagicWand,
   PiMagnifyingGlass,
   PiVideoCamera,
+  PiFilmSlate,
   PiImageSquare,
   PiArchive,
   PiUser,
@@ -67,6 +68,8 @@ import {
   PiArrowsOut,
   PiScissors,
   PiSpeakerHigh,
+  PiSticker,
+  PiStorefront,
   PiChatCircle,
   PiDesktop,
   PiChartBar,
@@ -132,6 +135,7 @@ export type NavigationIconName =
   | 'universal'
   | 'suche'
   | 'reel'
+  | 'videoEditor'
   | 'sharepic'
   | 'datenbank'
   | 'vorlagen'
@@ -143,6 +147,8 @@ export type NavigationIconName =
   | 'bild-erweitern'
   | 'freisteller'
   | 'mediathek'
+  | 'sticker'
+  | 'marktplatz'
   | 'texte'
   | 'eigene'
   | 'home'
@@ -259,6 +265,7 @@ export const ICONS: IconRegistry = {
     universal: PiSquaresFour,
     suche: PiMagnifyingGlass,
     reel: PiVideoCamera,
+    videoEditor: PiFilmSlate,
     sharepic: PiImageSquare,
     datenbank: PiArchive,
     vorlagen: PiPaintBrush,
@@ -270,6 +277,8 @@ export const ICONS: IconRegistry = {
     'bild-erweitern': PiArrowsOut,
     freisteller: PiScissors,
     mediathek: PiImages,
+    sticker: PiSticker,
+    marktplatz: PiStorefront,
     texte: PiArticle,
     eigene: PiWrench,
     home: GrueneratorHomeIcon,

@@ -6,16 +6,7 @@ import { useEffect, useMemo } from 'react';
 import { createChatApiClient } from '../context/ChatContext';
 import { useChatConfigStore } from '../stores/chatConfigStore';
 import { useAgentStore } from '../stores/chatStore';
-import { usePythonFileStore } from '../stores/pythonFileStore';
-
-/** Decode raw base64 (no data-URL prefix) to an ArrayBuffer for the Pyodide worker. */
-function base64ToArrayBuffer(base64: string): ArrayBuffer {
-  const clean = base64.includes(',') ? base64.slice(base64.indexOf(',') + 1) : base64;
-  const binary = atob(clean);
-  const bytes = new Uint8Array(binary.length);
-  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
-  return bytes.buffer;
-}
+import { fetchThreadTabularFiles, usePythonFileStore } from '../stores/pythonFileStore';
 
 /**
  * Loads the per-thread side data (compaction state, thread settings, tabular
@@ -57,20 +48,12 @@ export function ThreadDataSyncEffect() {
     // Best-effort; on failure the user just re-attaches the file.
     void (async () => {
       try {
-        const tabular = await apiClient.get<{
-          files: Array<{ name: string; mimeType: string; data: string }>;
-        }>(`/api/chat-service/threads/${mainRemoteId}/tabular-files`);
+        const files = await fetchThreadTabularFiles(apiClient, mainRemoteId);
         // The user may have switched away while this was in flight — dropping
         // the old thread's spreadsheets into the new one is worse than none.
         if (cancelled || useAgentStore.getState().currentThreadId !== mainRemoteId) return;
         const fileStore = usePythonFileStore.getState();
-        for (const f of tabular.files) {
-          fileStore.setFile({
-            name: f.name,
-            mimeType: f.mimeType,
-            bytes: base64ToArrayBuffer(f.data),
-          });
-        }
+        for (const f of files) fileStore.setFile(f);
       } catch (err) {
         console.warn('[ThreadDataSync] Tabular file rehydration failed:', err);
       }

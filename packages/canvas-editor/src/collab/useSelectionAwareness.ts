@@ -1,7 +1,6 @@
-import { useAwarenessState } from '@gruenerator/collab';
+import { useAwarenessState } from '@ggraphic/editor/collab/useAwarenessState';
+import { useCanvasStoreSelector } from '@ggraphic/editor/stores/CanvasStoreProvider';
 import { useEffect, useMemo } from 'react';
-
-import { useCanvasStoreSelector } from '../stores/CanvasStoreProvider';
 
 import type { HocuspocusProvider } from '@hocuspocus/provider';
 
@@ -36,18 +35,15 @@ export function useSelectionAwareness(
   provider: HocuspocusProvider | null,
   options?: UseSelectionAwarenessOptions
 ): RemoteSelection[] {
+  // The whole selection; a single selected element is in it as well.
   const localSelection = useCanvasStoreSelector((s) => s.selectedLayerIds);
-  // The config-driven editor tracks its selection in selectedElement (single id);
-  // selectedLayerIds is only populated by the layer API. Publish whichever is active.
-  const localElement = useCanvasStoreSelector((s) => s.selectedElement);
   const activePageId = options?.activePageId ?? null;
   const publish = options?.publish ?? true;
 
   useEffect(() => {
     if (!provider?.awareness || !publish) return;
-    const published = localElement ? [localElement] : localSelection;
-    provider.awareness.setLocalStateField('selectedLayerIds', published);
-  }, [provider, localSelection, localElement, publish]);
+    provider.awareness.setLocalStateField('selectedLayerIds', localSelection);
+  }, [provider, localSelection, publish]);
 
   useEffect(() => {
     if (!provider?.awareness || !publish) return;

@@ -1,0 +1,527 @@
+{
+ "templateType": "freeform",
+ "format": "post-portrait",
+ "slides": [
+  {
+   "backgroundMode": "image",
+   "backgroundColor": "#00261A",
+   "hasBackgroundImage": true,
+   "imageAttribution": null,
+   "additionalTexts": [
+    {
+     "id": "sc-0-zitat",
+     "text": "Wir schaffen das.",
+     "type": "body",
+     "x": 70,
+     "y": 942.1,
+     "width": 940,
+     "fontSize": 78,
+     "fontFamily": "PT Sans",
+     "fontStyle": "normal",
+     "fill": "#FFFFFF",
+     "align": "left",
+     "accent": {
+      "fill": "#BEFF60"
+     },
+     "marker": {
+      "fill": "#FFFFFF",
+      "color": "#00261A",
+      "padX": 0.1
+     },
+     "shadowColor": "#000000",
+     "shadowBlur": 18,
+     "shadowOffsetX": 0,
+     "shadowOffsetY": 2,
+     "shadowOpacity": 0.45,
+     "lineHeight": 1.3
+    },
+    {
+     "id": "sc-0-zitat-name",
+     "text": "**Leonore**",
+     "type": "body",
+     "x": 70,
+     "y": 1102.5,
+     "width": 940,
+     "fontSize": 38,
+     "fontFamily": "PT Sans",
+     "fontStyle": "normal",
+     "fill": "#FFFFFF",
+     "align": "left",
+     "accent": {
+      "fill": "#BEFF60"
+     },
+     "marker": {
+      "fill": "#FFFFFF",
+      "color": "#00261A",
+      "padX": 0.1
+     },
+     "shadowColor": "#000000",
+     "shadowBlur": 18,
+     "shadowOffsetX": 0,
+     "shadowOffsetY": 2,
+     "shadowOpacity": 0.45,
+     "lineHeight": 1.25
+    },
+    {
+     "id": "sc-ki-label",
+     "text": "KI-Generiert",
+     "type": "body",
+     "x": 27,
+     "y": 1303,
+     "width": 166,
+     "fontSize": 27,
+     "fontFamily": "PT Sans",
+     "fontStyle": "bold",
+     "fill": "#FFFFFF",
+     "opacity": 0.85,
+     "lineHeight": 1
+    }
+   ],
+   "pillBadgeInstances": [],
+   "circleBadgeInstances": [],
+   "shapeInstances": [
+    {
+     "id": "sc-scrim",
+     "type": "rect",
+     "x": 540,
+     "y": 970.8,
+     "width": 1080,
+     "height": 758.4,
+     "fill": "transparent",
+     "rotation": 0,
+     "scaleX": 1,
+     "scaleY": 1,
+     "opacity": 1,
+     "fillGradient": {
+      "type": "linear",
+      "angle": 90,
+      "stops": [
+       {
+        "offset": 0,
+        "color": "rgba(6,37,26,0.000)"
+       },
+       {
+        "offset": 0.033376186708860764,
+        "color": "rgba(6,37,26,0.021)"
+       },
+       {
+        "offset": 0.06675237341772153,
+        "color": "rgba(6,37,26,0.075)"
+       },
+       {
+        "offset": 0.10012856012658229,
+        "color": "rgba(6,37,26,0.152)"
+       },
+       {
+        "offset": 0.13350474683544306,
+        "color": "rgba(6,37,26,0.240)"
+       },
+       {
+        "offset": 0.16688093354430383,
+        "color": "rgba(6,37,26,0.328)"
+       },
+       {
+        "offset": 0.20025712025316458,
+        "color": "rgba(6,37,26,0.405)"
+       },
+       {
+        "offset": 0.23363330696202533,
+        "color": "rgba(6,37,26,0.459)"
+       },
+       {
+        "offset": 0.2670094936708861,
+        "color": "rgba(6,37,26,0.480)"
+       },
+       {
+        "offset": 1,
+        "color": "rgba(6,37,26,0.48)"
+       }
+      ]
+     }
+    },
+    {
+     "id": "sc-ki-label-bg",
+     "type": "rounded-rect",
+     "x": 108,
+     "y": 1316.5,
+     "width": 194,
+     "height": 45,
+     "fill": "#2B2B2B",
+     "rotation": 0,
+     "scaleX": 1,
+     "scaleY": 1,
+     "opacity": 0.4,
+     "cornerRadius": 8
+    }
+   ],
+   "assetInstances": [
+    {
+     "id": "sc-0-zitat-mark",
+     "assetId": "quote-mark-weiss",
+     "x": 115,
+     "y": 887.1,
+     "scale": 0.6,
+     "rotation": 0,
+     "opacity": 1
+    }
+   ],
+   "chartInstances": [],
+   "userImageInstances": [],
+   "selectedIcons": [
+    "sc-pfeil"
+   ],
+   "iconStates": {
+    "sc-pfeil": {
+     "iconId": "tabler:arrow-narrow-right",
+     "x": 1044.56,
+     "y": 1324.64,
+     "scale": 0.35,
+     "rotation": 0,
+     "color": "#FFFFFF"
+    }
+   },
+   "layerOrder": [
+    "sc-scrim",
+    "sc-0-zitat-mark",
+    "sc-0-zitat",
+    "sc-0-zitat-name",
+    "sc-pfeil",
+    "sc-ki-label-bg",
+    "sc-ki-label"
+   ],
+   "currentImageSrc": "/media/wind.jpg"
+  },
+  {
+   "backgroundMode": "color",
+   "backgroundColor": "#257639",
+   "hasBackgroundImage": false,
+   "imageAttribution": null,
+   "additionalTexts": [
+    {
+     "id": "sc-0-headline-0",
+     "text": "Mehr ++Grün++",
+     "type": "header",
+     "x": 70,
+     "y": 286.28,
+     "width": 940,
+     "fontSize": 130,
+     "fontFamily": "GrueneTypeNeue",
+     "fontStyle": "normal",
+     "fill": "#FFFFFF",
+     "align": "left",
+     "accent": {
+      "fill": "#BEFF60"
+     },
+     "marker": {
+      "fill": "#FFFFFF",
+      "color": "#00261A",
+      "padX": 0.1
+     },
+     "lineHeight": 0.96
+    },
+    {
+     "id": "sc-0-headline-1",
+     "text": "für alle",
+     "type": "header",
+     "x": 70,
+     "y": 411.08,
+     "width": 940,
+     "fontSize": 130,
+     "fontFamily": "GrueneTypeNeue",
+     "fontStyle": "normal",
+     "fill": "#00261A",
+     "align": "left",
+     "accent": {
+      "fill": "#BEFF60"
+     },
+     "marker": {
+      "fill": "#FFFFFF",
+      "color": "#00261A",
+      "padX": 0.1
+     },
+     "lineHeight": 0.96,
+     "shadowOpacity": 0
+    },
+    {
+     "id": "sc-1-liste",
+     "text": "• Bahn\n• Rad",
+     "type": "body",
+     "x": 116,
+     "y": 627.88,
+     "width": 848,
+     "fontSize": 70,
+     "fontFamily": "PT Sans",
+     "fontStyle": "normal",
+     "fill": "#00261A",
+     "lineHeight": 1.3,
+     "accent": {
+      "fill": "#008939"
+     }
+    },
+    {
+     "id": "sc-2-absatz",
+     "text": "Ganz ++klar++.",
+     "type": "body",
+     "x": 70,
+     "y": 885.88,
+     "width": 940,
+     "fontSize": 72,
+     "fontFamily": "PT Sans",
+     "fontStyle": "normal",
+     "fill": "#FFFFFF",
+     "align": "left",
+     "accent": {
+      "fill": "#BEFF60"
+     },
+     "marker": {
+      "fill": "#FFFFFF",
+      "color": "#00261A",
+      "padX": 0.1
+     },
+     "lineHeight": 1.22
+    },
+    {
+     "id": "sc-ki-label",
+     "text": "KI-Generiert",
+     "type": "body",
+     "x": 27,
+     "y": 1303,
+     "width": 166,
+     "fontSize": 27,
+     "fontFamily": "PT Sans",
+     "fontStyle": "bold",
+     "fill": "#FFFFFF",
+     "opacity": 0.85,
+     "lineHeight": 1
+    }
+   ],
+   "pillBadgeInstances": [],
+   "circleBadgeInstances": [],
+   "shapeInstances": [
+    {
+     "id": "sc-bg",
+     "type": "rect",
+     "x": 540,
+     "y": 675,
+     "width": 1080,
+     "height": 1350,
+     "fill": "#1D7A35",
+     "rotation": 0,
+     "scaleX": 1,
+     "scaleY": 1,
+     "opacity": 1,
+     "fillGradient": {
+      "type": "linear",
+      "angle": 90,
+      "stops": [
+       {
+        "offset": 0,
+        "color": "#0B6620"
+       },
+       {
+        "offset": 0.5,
+        "color": "#1D7A35"
+       },
+       {
+        "offset": 1,
+        "color": "#23803B"
+       }
+      ]
+     }
+    },
+    {
+     "id": "sc-0-headline-1-box",
+     "type": "rect",
+     "x": 336.5,
+     "y": 478.67999999999995,
+     "width": 572,
+     "height": 124.8,
+     "fill": "#BEFF60",
+     "rotation": -2,
+     "scaleX": 1,
+     "scaleY": 1,
+     "opacity": 1
+    },
+    {
+     "id": "sc-1-liste-card",
+     "type": "rounded-rect",
+     "x": 540,
+     "y": 718.88,
+     "width": 940,
+     "height": 274,
+     "fill": "#FFFFFF",
+     "rotation": 0,
+     "scaleX": 1,
+     "scaleY": 1,
+     "opacity": 1,
+     "cornerRadius": 32
+    },
+    {
+     "id": "sc-ki-label-bg",
+     "type": "rounded-rect",
+     "x": 108,
+     "y": 1316.5,
+     "width": 194,
+     "height": 45,
+     "fill": "#2B2B2B",
+     "rotation": 0,
+     "scaleX": 1,
+     "scaleY": 1,
+     "opacity": 0.4,
+     "cornerRadius": 8
+    }
+   ],
+   "assetInstances": [],
+   "chartInstances": [],
+   "userImageInstances": [],
+   "selectedIcons": [
+    "sc-pfeil"
+   ],
+   "iconStates": {
+    "sc-pfeil": {
+     "iconId": "tabler:arrow-narrow-right",
+     "x": 1044.56,
+     "y": 1324.64,
+     "scale": 0.35,
+     "rotation": 0,
+     "color": "#FFFFFF"
+    }
+   },
+   "layerOrder": [
+    "sc-bg",
+    "sc-0-headline-0",
+    "sc-0-headline-1-box",
+    "sc-0-headline-1",
+    "sc-1-liste-card",
+    "sc-1-liste",
+    "sc-2-absatz",
+    "sc-pfeil",
+    "sc-ki-label-bg",
+    "sc-ki-label"
+   ]
+  },
+  {
+   "backgroundMode": "color",
+   "backgroundColor": "#257639",
+   "hasBackgroundImage": false,
+   "imageAttribution": null,
+   "additionalTexts": [
+    {
+     "id": "sc-0-aufruf",
+     "text": "Jetzt unterschreiben",
+     "type": "header",
+     "x": 70,
+     "y": 522,
+     "width": 940,
+     "fontSize": 104,
+     "fontFamily": "GrueneTypeNeue",
+     "fontStyle": "normal",
+     "fill": "#FFFFFF",
+     "align": "center",
+     "accent": {
+      "fill": "#BEFF60"
+     },
+     "marker": {
+      "fill": "#FFFFFF",
+      "color": "#00261A",
+      "padX": 0.1
+     },
+     "lineHeight": 1
+    },
+    {
+     "id": "sc-ki-label",
+     "text": "Klimaschonend KI-generiert mit dem Grünerator",
+     "type": "body",
+     "x": 27,
+     "y": 1303,
+     "width": 611.5,
+     "fontSize": 27,
+     "fontFamily": "PT Sans",
+     "fontStyle": "bold",
+     "fill": "#FFFFFF",
+     "opacity": 0.85,
+     "lineHeight": 1
+    }
+   ],
+   "pillBadgeInstances": [
+    {
+     "id": "sc-0-aufruf-hinweis",
+     "text": "gruene.at",
+     "x": 400.5,
+     "y": 772,
+     "backgroundColor": "#BEFF60",
+     "textColor": "#00261A",
+     "fontSize": 46,
+     "fontFamily": "GrueneTypeNeue",
+     "fontStyle": "normal",
+     "rotation": 0,
+     "scale": 1,
+     "opacity": 1,
+     "paddingX": 36,
+     "paddingY": 18,
+     "cornerRadius": 60
+    }
+   ],
+   "circleBadgeInstances": [],
+   "shapeInstances": [
+    {
+     "id": "sc-bg",
+     "type": "rect",
+     "x": 540,
+     "y": 675,
+     "width": 1080,
+     "height": 1350,
+     "fill": "#1D7A35",
+     "rotation": 0,
+     "scaleX": 1,
+     "scaleY": 1,
+     "opacity": 1,
+     "fillGradient": {
+      "type": "linear",
+      "angle": 90,
+      "stops": [
+       {
+        "offset": 0,
+        "color": "#0B6620"
+       },
+       {
+        "offset": 0.5,
+        "color": "#1D7A35"
+       },
+       {
+        "offset": 1,
+        "color": "#23803B"
+       }
+      ]
+     }
+    },
+    {
+     "id": "sc-ki-label-bg",
+     "type": "rounded-rect",
+     "x": 330.75,
+     "y": 1316.5,
+     "width": 639.5,
+     "height": 45,
+     "fill": "#2B2B2B",
+     "rotation": 0,
+     "scaleX": 1,
+     "scaleY": 1,
+     "opacity": 0.4,
+     "cornerRadius": 8
+    }
+   ],
+   "assetInstances": [],
+   "chartInstances": [],
+   "userImageInstances": [],
+   "selectedIcons": [],
+   "iconStates": {},
+   "layerOrder": [
+    "sc-bg",
+    "sc-0-aufruf",
+    "sc-0-aufruf-hinweis",
+    "sc-ki-label-bg",
+    "sc-ki-label"
+   ]
+  }
+ ]
+}

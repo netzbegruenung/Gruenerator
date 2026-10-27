@@ -189,8 +189,9 @@ export interface GemmaHost {
  *  lehnte Melious auf allen Flavors sofort ab (`context_length_exceeded`) —
  *  über ~131k vermittelt es nicht weiter. Die 128k stehen deshalb mit
  *  derselben Reserve unter der Kante wie bei Cortecs, und ein Umrouten von
- *  `:speed` fiele als lauter 400 in die Fallback-Kette. `:eco` landet auf
- *  demselben FI-Knoten wie `:balanced` und bringt kein Fenster.
+ *  `:speed` fiele als lauter 400 in die Fallback-Kette. `:eco` landete am
+ *  07.10.2026 auf dem FI-Knoten, am 21.10.2026 auf berget/SE mit 198k — siehe
+ *  die Nachmessung bei GEMMA_31B_ON_CORTECS.
  *
  *  Bilder: am 23.09.2026 HTTP 400 auf einen echten Bild-Turn, am 02.10.2026
  *  HTTP 200 mit korrekten Antworten auf allen drei Flavors (#4008) — daher
@@ -258,7 +259,58 @@ export const GEMMA_31B_ON_MELIOUS: GemmaHost = {
  *  Wer neu misst: Markierung an den ANFANG, bis zur Zielgrösse auffüllen, eine
  *  Grösse unter und eine über der Kante, BEIDE Unteranbieter einzeln — und
  *  `usage.prompt_tokens` zurücklesen, denn eine stille Kürzung zeigt sich dort
- *  und nicht im HTTP-Status. `scripts/probeCortecs.ts` ist die Vorlage. */
+ *  und nicht im HTTP-Status. `scripts/probeCortecs.ts` ist die Vorlage.
+ *
+ *  ── Nachmessung 21.10.2026: 128k bleibt, und das ist die Empfehlung ──
+ *
+ *  Nadel am Anfang, 30 Ausgabe-Tokens, `reasoning_effort: 'none'` (soweit der
+ *  Host ihn annimmt), `usage.prompt_tokens` zurückgelesen. Eine Messung je
+ *  Punkt, Zeiten schwanken (Berget bei 46k: 23 s gegen 64 s).
+ *
+ *    Weg                              grösster Lauf, Nadel gefunden   erste Ablehnung
+ *    Melious :balanced/:speed/ohne    123k, infercom/DE, 27–43 s      ab ~139k, sofort
+ *    Melious :price                   123k, melious/FI, 132 s         150k
+ *    Melious :eco                     198k, berget/SE, 97 s           205k
+ *    Cortecs, infercom                123k, 24–43 s                   138k (131.072)
+ *    Cortecs, auf berget gepinnt      198k, 170 s (150k: 51 s)        geschätzt 236k
+ *    Mistral Large 4                  123,5k Mistral-Tokens, 13 s     Zeitüberschreitung bei
+ *    (Katalog: 1.048.576)                                             228k/290k Ziel (400 s)
+ *
+ *  - Berget lehnt ab, wenn Cortecs' EIGENE Schätzung ~236k erreicht, obwohl der
+ *    Deckel 262.144 heisst; die Schätzung liegt ~17 % über den echten Tokens.
+ *    Nutzbar sind dort rund 200k echte Tokens, nicht 262k.
+ *  - Die 45k-Kante von `:balanced` (Messung 23.09.) gilt nicht mehr: 123k gingen
+ *    durch, an infercom. Welchen Upstream Melious wählt, bleibt unzugesagt.
+ *  - Mistral zählt denselben Text ~30 % kleiner als Gemma (101k Mistral-Tokens
+ *    ≙ 142k-Ziel). Bei ~101k fand Large 4 die Nadel in 2 von 4 Läufen, bei
+ *    ~70k in 3 von 3. Gemessen ist nur diese eine Nadel, keine Textqualität.
+ *
+ *  Warum es bei 128k bleibt und KEINE Token-Weiche auf Mistral Large 4 dazukommt:
+ *  der Chat bemisst Verlauf, Retrieval und Kompaktierung gegen das Fenster der
+ *  Lane und kürzt darauf (`messagesForLane`); Material ab MATERIAL_LANE_MIN_CHARS
+ *  nimmt `auto` ohnehin auf die Lane `mistral-medium-3.5`, und die fährt seit
+ *  12.10.2026 Mistral Large 4 (262.144, `AVAILABLE_MODELS`). Was darüber hinaus
+ *  gross wird, ist selten. Eine Weiche bei ~100k hiesse: Mistral-Preis für
+ *  wenige Anfragen und ein Eingriff in Fristen und Budgetierung. Wer sie
+ *  dennoch baut: bei ~100k
+ *  Gemma-Tokens umschalten (≈ 70k bei Mistral, dort sauber) und bei
+ *  `context_length_exceeded` von infercom einmal wiederholen — 120k liesse nur
+ *  ~11k für Antwort und Schätzfehler.
+ *
+ *  Preise, € je Million Tokens, Stand 21.10.2026 (Katalog bzw. Preisseite des
+ *  Anbieters, von Hand übernommen):
+ *
+ *                             Eingabe   Ausgabe
+ *    Cortecs gemma-4-31b-it     0,20      0,35
+ *    Melious :balanced          0,20      0,35
+ *    Melious :price             0,10      0,30   (gemessen: melious/FI, langsam)
+ *    Melious :eco               0,25      0,50
+ *    Mistral Large 4            1,156     3,553  (gecachte Eingabe 0,119)
+ *
+ *  Beispiel, 100k Gemma-Tokens Prompt + 2k Ausgabe (≈ 70k bei Mistral): Gemma
+ *  ≈ 0,021 €, Large 4 ≈ 0,088 € (mit Cache-Treffer ≈ 0,015 €). Der Aufpreis von
+ *  rund 7 Cent je Anfrage kommt vor allem von der Eingabe (≈ 6 ct); die Ausgabe
+ *  (≈ 10× Gemma) trägt bei 2k Tokens nur ≈ 0,6 ct bei. */
 export const GEMMA_31B_ON_CORTECS: GemmaHost = {
   provider: 'cortecs',
   model: 'gemma-4-31b-it',

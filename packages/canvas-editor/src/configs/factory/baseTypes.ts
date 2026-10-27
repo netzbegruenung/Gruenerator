@@ -5,17 +5,19 @@
  * These provide the foundation for the factory pattern.
  */
 
-import type { StockImageAttribution } from '../../common/imageSourceTypes';
-import type { BalkenInstance, BalkenMode } from '../../utils/balkenUtils';
 import type { AssetInstance } from '../../utils/canvasAssets';
-import type { ChartInstance, ChartType } from '../../utils/chartUtils';
-import type { CircleBadgeInstance } from '../../utils/circleBadgeUtils';
-import type { FrameClipType, FrameInstance } from '../../utils/frameUtils';
-import type { IllustrationInstance } from '../../utils/illustrations/types';
-import type { PillBadgeInstance } from '../../utils/pillBadgeUtils';
-import type { ShapeInstance, ShapeType } from '../../utils/shapes';
-import type { UserImageInstance } from '../../utils/userImageUtils';
 import type { AdditionalText, LayoutResult } from '../types';
+import type { StockImageAttribution } from '@ggraphic/editor/common/imageSourceTypes';
+import type { BalkenInstance, BalkenMode } from '@ggraphic/editor/utils/balkenUtils';
+import type { ChartInstance, ChartType } from '@ggraphic/editor/utils/chartTypes';
+import type { CircleBadgeInstance } from '@ggraphic/editor/utils/circleBadgeUtils';
+import type { FrameClipType, FrameInstance } from '@ggraphic/editor/utils/frameUtils';
+import type { IllustrationInstance } from '@ggraphic/editor/utils/illustrations/types';
+import type { PillBadgeInstance } from '@ggraphic/editor/utils/pillBadgeUtils';
+import type { ShapeInstance, ShapeType } from '@ggraphic/editor/utils/shapes';
+import type { TextAlign } from '@ggraphic/editor/utils/textAlign';
+import type { ElementPlacement, UserImageInstance } from '@ggraphic/editor/utils/userImageUtils';
+import type { StickerRef } from '@ggraphic/schema';
 
 // ============================================================================
 // SHARED STATE TYPES
@@ -37,6 +39,12 @@ export interface BaseCanvasState {
   userImageInstances: UserImageInstance[];
   chartInstances: ChartInstance[];
   layerOrder?: string[];
+  /** Gesperrte Elemente: nicht ziehen, skalieren, drehen oder löschen. */
+  lockedLayerIds?: string[];
+  /** Drehung der Vorlagen-Elemente (Text, Grafiken), je Element-ID in Grad. */
+  templateRotations?: Record<string, number>;
+  /** Gewählte Ausrichtung der Vorlagen-Texte, je Element-ID (`utils/textAlign.ts`). */
+  templateTextAligns?: Record<string, TextAlign>;
   imageAttribution?: StockImageAttribution | null;
   [key: string]: unknown;
 }
@@ -56,6 +64,9 @@ export interface IconState {
    * wird immer über `catalogIconId` in `utils/iconInstances.ts`.
    */
   iconId?: string;
+  /** Mirrored about the centre (negative node scale); omit for upright. */
+  flipX?: boolean;
+  flipY?: boolean;
 }
 
 /** State for templates with image backgrounds */
@@ -64,7 +75,6 @@ export interface ImageBackgroundState {
   backgroundImageFile?: File | Blob | null;
   imageOffset: { x: number; y: number };
   imageScale: number;
-  isBackgroundLocked?: boolean;
   backgroundImageOpacity?: number;
   imageAttribution?: StockImageAttribution | null;
 }
@@ -97,21 +107,22 @@ export interface TextStylingState {
 /** Base actions shared by ALL canvas templates */
 export interface BaseCanvasActions {
   // Asset management
-  addAsset: (assetId: string) => void;
+  addAsset: (assetId: string, options?: ElementPlacement) => void;
+  addStickerAsset: (ref: StickerRef, options?: ElementPlacement) => void;
   updateAsset: (id: string, partial: Partial<AssetInstance>) => void;
   removeAsset: (id: string) => void;
 
   // Icon management
-  toggleIcon: (id: string, selected: boolean) => void;
+  toggleIcon: (id: string, selected: boolean, options?: ElementPlacement) => void;
   updateIcon: (id: string, partial: Partial<IconState>) => void;
 
   // Shape management
-  addShape: (type: ShapeType) => void;
+  addShape: (type: ShapeType, color?: string, options?: ElementPlacement) => void;
   updateShape: (id: string, partial: Partial<ShapeInstance>) => void;
   removeShape: (id: string) => void;
 
   // Illustration management
-  addIllustration: (id: string) => void;
+  addIllustration: (id: string, options?: ElementPlacement) => void;
   updateIllustration: (id: string, partial: Partial<IllustrationInstance>) => void;
   removeIllustration: (id: string) => void;
 
@@ -132,13 +143,13 @@ export interface BaseCanvasActions {
   removeCircleBadge: (id: string) => void;
 
   // Balken management
-  addBalken: (mode: BalkenMode) => void;
+  addBalken: (mode: BalkenMode, options?: ElementPlacement) => void;
   updateBalken: (id: string, partial: Partial<BalkenInstance>) => void;
   setBalkenText: (id: string, index: number, text: string) => void;
   removeBalken: (id: string) => void;
 
   // Frame management
-  addFrame: (clipType: FrameClipType) => void;
+  addFrame: (clipType: FrameClipType, options?: ElementPlacement) => void;
   updateFrame: (id: string, partial: Partial<FrameInstance>) => void;
   removeFrame: (id: string) => void;
   setFrameImage: (id: string, file: File, objectUrl: string) => void;
@@ -149,7 +160,7 @@ export interface BaseCanvasActions {
   removeUserImage: (id: string) => void;
 
   // Chart management
-  addChart: (chartType: ChartType) => void;
+  addChart: (chartType: ChartType, options?: ElementPlacement) => void;
   updateChart: (id: string, partial: Partial<ChartInstance>) => void;
   removeChart: (id: string) => void;
 }
@@ -158,7 +169,6 @@ export interface BaseCanvasActions {
 export interface ImageBackgroundActions {
   setCurrentImageSrc: (file: File | null, objectUrl?: string) => void;
   setImageScale: (scale: number) => void;
-  toggleBackgroundLock?: () => void;
   setImageAttribution?: (attribution: StockImageAttribution | null) => void;
 }
 

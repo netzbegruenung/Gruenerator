@@ -1,9 +1,9 @@
 import { beforeAll, describe, expect, it } from 'vitest';
 
-import { createBalkenInstanceFromPreset } from '../../utils/balkenUtils';
+import { createBalkenInstanceFromPreset } from '../../brand/balkenPresets';
 import { loadCanvasConfig } from '../configLoader';
 
-import type { BalkenInstance } from '../../primitives/BalkenGroup';
+import type { BalkenInstance } from '@ggraphic/editor/utils/balkenUtils';
 
 /**
  * Guard for #3869: `createBaseActions` wires `addBalken` into every template

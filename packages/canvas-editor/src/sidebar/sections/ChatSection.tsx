@@ -1,3 +1,4 @@
+import { useAnnounce } from '@ggraphic/editor/hooks/useAnnounce';
 import { useMemo } from 'react';
 
 import { filterAssetOptionsForLocale } from '../../ai/assetCapability';
@@ -19,6 +20,9 @@ export interface ChatSectionProps {
   specEdit?: CanvasSpecEditBridge;
 }
 
+/** Der Chat setzt das Banner selbst; Screenreader erfahren hier, dass etwas geändert wurde. */
+export const AI_EDIT_APPLIED = 'KI-Änderung angewendet. Behalten oder verwerfen über das Banner.';
+
 export function ChatSection({
   canvasType,
   getSharepicText,
@@ -27,17 +31,40 @@ export function ChatSection({
   specEdit,
 }: ChatSectionProps) {
   const { ChatSectionContent, userLocale = 'de-DE' } = useCanvasEditorServices();
-  const localeAiEdit = useMemo(() => {
-    const assets = aiEdit?.capabilityList.assets;
-    if (!aiEdit || !assets) return aiEdit;
+  const announce = useAnnounce();
+  // Einmal je Stapel, nur wenn mindestens eine Operation griff.
+  const localeAiEdit = useMemo<CanvasAiEditBridge | undefined>(() => {
+    if (!aiEdit) return aiEdit;
+    const assets = aiEdit.capabilityList.assets;
     return {
       ...aiEdit,
-      capabilityList: {
-        ...aiEdit.capabilityList,
-        assets: filterAssetOptionsForLocale(assets, userLocale),
+      capabilityList: assets
+        ? {
+            ...aiEdit.capabilityList,
+            assets: filterAssetOptionsForLocale(assets, userLocale),
+          }
+        : aiEdit.capabilityList,
+      applyOperations: (ops) => {
+        const results = aiEdit.applyOperations(ops);
+        if (results.some((result) => result.ok)) announce(AI_EDIT_APPLIED);
+        return results;
       },
     };
-  }, [aiEdit, userLocale]);
+  }, [aiEdit, userLocale, announce]);
+  const announcingSpecEdit = useMemo<CanvasSpecEditBridge | undefined>(
+    () =>
+      specEdit && {
+        ...specEdit,
+        replaceDeck: (ops) => {
+          const ids = specEdit.replaceDeck(ops);
+          if (ops.updates.length + ops.inserts.length + ops.removes.length > 0) {
+            announce(AI_EDIT_APPLIED);
+          }
+          return ids;
+        },
+      },
+    [specEdit, announce]
+  );
 
   if (!ChatSectionContent) {
     return (
@@ -54,7 +81,7 @@ export function ChatSection({
         getSharepicText={getSharepicText}
         captureCanvasImage={captureCanvasImage}
         aiEdit={localeAiEdit}
-        specEdit={specEdit}
+        specEdit={announcingSpecEdit}
       />
     </div>
   );

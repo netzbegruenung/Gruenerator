@@ -3,6 +3,7 @@ import { z } from 'zod';
 
 import { getPostgresInstance } from '../../database/services/PostgresService/PostgresService.js';
 import { validateBody, type TypedRequest } from '../../middleware/validateBody.js';
+import { closeCollabRooms } from '../../services/collab/hocuspocusInternal.js';
 import { getDocPreview } from '../../services/docs/docPreview.js';
 
 import { DOCS_SUBTYPES } from './constants.js';
@@ -341,6 +342,8 @@ router.put(
         'UPDATE collaborative_documents SET permissions = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2',
         [JSON.stringify(permissions), id]
       );
+      // The open session keeps the level it connected with; reconnect it.
+      void closeCollabRooms([id], targetUserId);
 
       const LEVEL_LABELS: Record<string, string> = {
         owner: 'Eigentümer*in',
@@ -437,6 +440,7 @@ router.delete(
         'UPDATE collaborative_documents SET permissions = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2',
         [JSON.stringify(permissions), id]
       );
+      void closeCollabRooms([id], targetUserId);
 
       import('../../services/notifications/index.js')
         .then(({ createNotification }) =>

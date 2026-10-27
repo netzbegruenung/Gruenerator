@@ -7,7 +7,7 @@ import { TOOL_ACTIONS, TOOL_PANEL, TOOL_PILL } from './ToolUi';
 
 import { cn } from '@/utils/cn';
 
-const CHECKERBOARD =
+export const CHECKERBOARD =
   'bg-[length:16px_16px] bg-[position:0_0,8px_8px] bg-[image:linear-gradient(45deg,var(--color-grey-200)_25%,transparent_25%,transparent_75%,var(--color-grey-200)_75%),linear-gradient(45deg,var(--color-grey-200)_25%,transparent_25%,transparent_75%,var(--color-grey-200)_75%)] dark:bg-[image:linear-gradient(45deg,var(--color-grey-700)_25%,transparent_25%,transparent_75%,var(--color-grey-700)_75%),linear-gradient(45deg,var(--color-grey-700)_25%,transparent_25%,transparent_75%,var(--color-grey-700)_75%)]';
 
 export interface ToolResultCardProps {

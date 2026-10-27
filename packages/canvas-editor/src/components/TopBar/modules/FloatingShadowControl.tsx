@@ -1,9 +1,10 @@
-import { Popover, PopoverContent, PopoverTrigger } from '@gruenerator/ui';
+import { CustomColorSwatch } from '@ggraphic/editor/components/CustomColorSwatch';
+import { Popover, PopoverContent, PopoverTrigger } from '@ggraphic/editor/ui/popover';
 import { Slider } from 'radix-ui';
-import React from 'react';
+import React, { useId } from 'react';
 import { PiDropHalfBottom } from 'react-icons/pi';
 
-import { CustomColorSwatch } from '../../CustomColorSwatch';
+import { colorName } from '../../../utils/colorNames';
 
 import type { ShadowPatch } from '../../../hooks/useFloatingModuleHandlers';
 
@@ -50,7 +51,7 @@ function LabeledSlider({
     <div className="flex items-center gap-2">
       <span className="text-[11px] w-14 text-[var(--editor-text-muted)]">{label}</span>
       <Slider.Root
-        className="relative flex items-center select-none touch-none grow h-4"
+        className="relative flex items-center select-none touch-none grow h-4 max-canvas-mobile:h-11"
         value={[value]}
         onValueChange={(v) => onValueChange(v[0])}
         min={min}
@@ -61,7 +62,7 @@ function LabeledSlider({
           <Slider.Range className="absolute rounded-full h-full bg-[var(--editor-accent)]" />
         </Slider.Track>
         <Slider.Thumb
-          className="block size-3 bg-white rounded-full border-2 border-[var(--editor-accent)] shadow-[0_1px_3px_rgba(0,0,0,0.2)] cursor-grab focus:outline-none"
+          className="block size-3 max-canvas-mobile:size-5 bg-white rounded-full border-2 border-[var(--editor-accent)] shadow-[0_1px_3px_rgba(0,0,0,0.2)] cursor-grab focus:outline-none"
           aria-label={label}
         />
       </Slider.Root>
@@ -91,6 +92,8 @@ export function FloatingShadowControl({
     }
   };
 
+  const titleId = useId();
+
   return (
     <Popover>
       <PopoverTrigger asChild>
@@ -106,9 +109,15 @@ export function FloatingShadowControl({
           />
         </button>
       </PopoverTrigger>
-      <PopoverContent className="z-[10001] w-64 flex flex-col gap-2.5 p-3" align="center">
+      <PopoverContent
+        className="z-[10001] w-64 flex flex-col gap-2.5 p-3"
+        align="center"
+        aria-labelledby={titleId}
+      >
         <div className="flex items-center justify-between">
-          <span className="text-xs font-medium text-[var(--editor-text)]">Schatten</span>
+          <span id={titleId} className="text-xs font-medium text-[var(--editor-text)]">
+            Schatten
+          </span>
           <button
             className="text-[11px] font-medium text-[var(--editor-accent)] hover:underline"
             onClick={toggle}
@@ -131,7 +140,9 @@ export function FloatingShadowControl({
                     outlineOffset: '2px',
                   }}
                   onClick={() => onChange({ shadowColor: c })}
-                  title={c}
+                  title={colorName(c)}
+                  aria-label={colorName(c)}
+                  aria-pressed={shadowColor === c}
                   type="button"
                 />
               ))}

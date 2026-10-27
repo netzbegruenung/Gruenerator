@@ -1,10 +1,14 @@
 import { MAX_DRAFT_BRIEF_CHARS } from '@gruenerator/contracts';
+import {
+  useDraftRecipe,
+  draftToRecipeForm,
+  EMPTY_RECIPE_FORM,
+  type RecipeFormState,
+} from '@gruenerator/shared/grueneratoren';
 import { ConfirmDialogProvider } from '@gruenerator/ui';
 import { useCallback, useState } from 'react';
 
-import { useDraftRecipe } from './api';
 import RecipeEditor from './RecipeEditor';
-import { draftToRecipeForm, EMPTY_RECIPE_FORM, type RecipeFormState } from './recipeFormState';
 import RecipeStartScreen from './RecipeStartScreen';
 
 import withAuthRequired from '@/components/common/LoginRequired/withAuthRequired';

@@ -65,6 +65,25 @@ export function generateSlugSuffix(): string {
 }
 
 /**
+ * Same suffix from a caller-supplied random source — for React Native, where
+ * Hermes has no `globalThis.crypto` and nanoid throws ("Property 'crypto'
+ * doesn't exist"); the app passes `expo-crypto`'s `getRandomValues`. Bytes at
+ * or above the largest multiple of the alphabet size are rejected, so the
+ * result stays uniform like nanoid's.
+ */
+export function slugSuffixFrom(randomBytes: (count: number) => Uint8Array): string {
+  const limit = 256 - (256 % SUFFIX_ALPHABET.length);
+  let suffix = '';
+  while (suffix.length < SUFFIX_LENGTH) {
+    for (const byte of randomBytes(SUFFIX_LENGTH * 2)) {
+      if (byte < limit) suffix += SUFFIX_ALPHABET[byte % SUFFIX_ALPHABET.length];
+      if (suffix.length === SUFFIX_LENGTH) break;
+    }
+  }
+  return suffix;
+}
+
+/**
  * Compose the final slug shown in the URL: `<slugified-name>-<suffix>`.
  */
 export function buildNotebookSlug(name: string, suffix: string): string {

@@ -1,9 +1,10 @@
 name: PR Review
 
-# Führt denselben mehrphasigen Review wie der lokale `/review`-Slash-Command,
-# nur auf dem Runner statt im Terminal: die Action startet die echte Claude-Code-
-# CLI, `/review <nr>` ist dort also verfügbar. Befunde landen als Inline-
-# Kommentare am Code, die Übersicht als PR-Kommentar.
+# Ein Claude-Code-Lauf auf dem Runner reviewt den PR. Der Ablauf steht
+# ausgeschrieben im Prompt: `.claude/` ist gitignored, ein Projekt-`/review`
+# gibt es auf dem Runner nicht, und der eingebaute Befehl braucht Subagenten,
+# die hier nicht freigegeben sind (#4819). Befunde landen als Inline-Kommentare
+# am Code, die Übersicht als PR-Kommentar.
 #
 # Läuft parallel zu ci.yml — eigener Workflow, eigene Concurrency-Gruppe, keine
 # gemeinsamen Jobs. Auth über den Max-Abo-Token (`claude setup-token`), wie in
@@ -61,16 +62,80 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
 
+      # Jeder Lauf zieht vom Max-Abo-Kontingent — ein voller Sonnet-Review lag
+      # bei ~2 $ API-Gegenwert, und eine Nacht davon hat das Kontingent geleert
+      # (#4819). Darum: was nur Lockfile, Generiertes, Snapshots oder Doku
+      # ändert, wird gar nicht reviewt; kleine Diffs bekommen Haiku; jeder Lauf
+      # hat einen Turn-Deckel, der mit der Dateizahl wächst. Ein Lauf am Deckel
+      # endet rot, nicht grün.
+      - name: Measure reviewable diff
+        id: scope
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SKIP_RE: '(^|/)pnpm-lock\.yaml$|(^|/)skills-lock\.json$|\.generated\.[^/]+$|^documentation/src/generated/|\.snap$|\.mdx?$|^\.agents/'
+          SMALL_LINES: '150'
+          LARGE_MODEL: ${{ vars.PR_REVIEW_MODEL || 'claude-sonnet-5' }}
+        run: |
+          gh api --paginate "repos/${{ github.repository }}/pulls/${{ github.event.pull_request.number }}/files" \
+            --jq '.[] | "\(.additions + .deletions)\t\(.status)\t\(.filename)\t\(.deletions)"' \
+            | awk -F'\t' '$3 !~ ENVIRON["SKIP_RE"]' > "$RUNNER_TEMP/review-scope.tsv"
+
+          LINES=$(awk -F'\t' '{s += $1} END {print s + 0}' "$RUNNER_TEMP/review-scope.tsv")
+          awk -F'\t' '$2 != "removed" {print $3}' "$RUNNER_TEMP/review-scope.tsv" | sort -u > "$RUNNER_TEMP/review-files.txt"
+          # Die Patches braucht das Gate: aus ihren Hunks entsteht, was ein Lauf
+          # gesehen haben muss (.github/scripts/review-read-gate.mjs).
+          gh api --paginate "repos/${{ github.repository }}/pulls/${{ github.event.pull_request.number }}/files" \
+            --jq '.[] | select(.status != "removed") | {file: .filename, patch, deletions}' \
+            | jq -s --arg skip "$SKIP_RE" 'map(select(.file | test($skip) | not))' > "$RUNNER_TEMP/review-patches.json"
+          FILES=$(grep -c . "$RUNNER_TEMP/review-files.txt" || true)
+
+          if [ "$LINES" -lt "$SMALL_LINES" ]; then
+            MODEL=claude-haiku-5-5
+          else
+            MODEL="$LARGE_MODEL"
+          fi
+          # Der Deckel wächst mit den Dateien, nicht mit dem Modell: ein fester
+          # 50er riss bei 20+ Dateien den Lauf (Runs 40291726095, 40293152392:
+          # 51 Turns, je ~2 $, kein Kommentar gepostet). Gemessen ~2,5 Züge je
+          # Datei (Diff, Read, Grep) plus Anlauf und Posten; der obere Deckel
+          # hält das Kontingent.
+          MAX_TURNS=$(( 15 + 3 * FILES ))
+          MAX_TURNS=$(( MAX_TURNS < 25 ? 25 : MAX_TURNS > 90 ? 90 : MAX_TURNS ))
+
+          echo "Reviewbar: $LINES Zeilen in $FILES Dateien → $MODEL, max. $MAX_TURNS Turns"
+          {
+            echo "lines=$LINES"
+            echo "files=$FILES"
+            echo "model=$MODEL"
+            echo "max_turns=$MAX_TURNS"
+            echo "skip=$([ "$LINES" -eq 0 ] && echo true || echo false)"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Skip review
+        if: steps.scope.outputs.skip == 'true'
+        run: |
+          echo "Kein reviewbarer Code im Diff (nur Lockfile, Generiertes, Snapshots oder Doku) — Review übersprungen."
+          echo "## Claude Review übersprungen — kein reviewbarer Code im Diff." >> "$GITHUB_STEP_SUMMARY"
+
       # fetch-depth: 0, damit der Agent gegen den Basis-Branch diffen und
       # umliegenden Code lesen kann. Kein pnpm install: der Review liest Code,
       # er baut nichts.
       - uses: actions/checkout@v7
+        if: steps.scope.outputs.skip != 'true'
         with:
           fetch-depth: 0
 
       - name: Review pull request
         id: review
+        if: steps.scope.outputs.skip != 'true'
         uses: anthropics/claude-code-action@v1
+        # Subagenten nur im Vordergrund (#4619). Die Action nimmt das erste
+        # `result` der Sitzung und hört dann auf zu lesen
+        # (base-action/src/run-claude-sdk.ts). Mit Hintergrund-Agenten endet
+        # der erste Zug, bevor ein einziger Befund zurück ist — die
+        # strukturierte Ausgabe meldet dann „läuft noch" mit 0 Befunden.
+        env:
+          CLAUDE_CODE_DISABLE_BACKGROUND_TASKS: '1'
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           # Ohne dieses Feld tauscht die Action ihr OIDC-Token gegen ein Token
@@ -82,14 +147,37 @@ jobs:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           track_progress: true
           prompt: |
-            /review ${{ github.event.pull_request.number }}
+            Reviewe PR #${{ github.event.pull_request.number }} auf Fehler.
 
             REPO: ${{ github.repository }}
             PR NUMBER: ${{ github.event.pull_request.number }}
             Der PR-Branch ist bereits in das Arbeitsverzeichnis ausgecheckt.
 
-            Halte dich an die Konventionen aus CLAUDE.md und den CLAUDE-*.md im
-            Wurzelverzeichnis sowie an eine CLAUDE.md im betroffenen Paket.
+            Arbeite selbst, ohne Subagenten, in dieser Reihenfolge:
+            1. `gh pr view` und `gh pr diff` lesen. Lockfiles, generierte
+               Dateien, Snapshots und reine Doku überspringen.
+            2. Jede geänderte Quelldatei mit Read öffnen und den umliegenden
+               Code lesen; Aufrufer und Gegenstellen per Grep suchen. Kein
+               Befund ohne gelesenen Kontext. Dateien nie per Bash lesen
+               (`cat`, `sed`, `head`, `rg` …) — das ist gesperrt. Der Check
+               verlangt jeden geänderten Bereich samt einigen Zeilen
+               Umgebung; ein Read daneben zählt nicht.
+            3. Jeden Kandidaten am Code verifizieren. CONFIRMED nur mit einem
+               konkreten Fehlerszenario (Eingabe oder Zustand → falsches
+               Ergebnis); sonst PLAUSIBLE oder verwerfen.
+
+            Zugbudget: höchstens ${{ steps.scope.outputs.max_turns }} Züge, danach
+            bricht der Lauf ohne jedes Ergebnis ab. Jede Antwort mit
+            Werkzeugaufrufen ist ein Zug, egal wie viele Aufrufe sie enthält —
+            darum unabhängige Aufrufe immer bündeln: alle Reads einer Runde,
+            alle Greps einer Runde in EINER Antwort, mehrere Dateien je
+            `git diff`-Aufruf statt Datei für Datei. Spätestens nach drei
+            Vierteln des Budgets nichts mehr lesen, sondern posten und die
+            Zusammenfassung abgeben; was ungelesen blieb, gehört in die
+            Übersicht.
+
+            Halte dich an die Konventionen aus der CLAUDE.md im
+            Wurzelverzeichnis und an eine CLAUDE.md im betroffenen Paket.
             Besonders relevant: die Frozen-Stufen F0/F1/F2 bei Umbenennungen, der
             Vier-Schichten-Typcheck (Contract → Zod → Drizzle → ts-rest) bei
             Feature-Änderungen, und dass parteiinterne Inhalte nicht in dieses
@@ -108,19 +196,54 @@ jobs:
             zählt NUR Befunde mit Verdikt CONFIRMED in den Kategorien
             correctness und security — die machen den Check rot. Alles andere
             (PLAUSIBLE, Stil, Vereinfachung, Effizienz, Testabdeckung) zählt zu
-            `advisory` und blockiert nicht.
+            `advisory` und blockiert nicht. `review_complete` ist nur dann
+            `true`, wenn jeder Teil des Reviews zurück ist und Verifikation,
+            Inline-Kommentare und Übersicht erledigt sind — sonst `false`.
+          # Read-only-Befehle wie `cat`, `sed -n` oder `rg` gibt Claude Code
+          # ohne Nachfrage frei, an `--allowedTools` vorbei — und auch in
+          # `cd … &&`-Ketten (#4854). Eine Sperrregel geht jeder Freigabe vor.
+          # Das Gate unten zählt Inhalte statt Werkzeugnamen und braucht die
+          # Sperre nicht; sie hält den Lauf bei Read, dessen Zeilennummern es
+          # sicher erkennt. Formen wie `git --no-pager show` rutschen durch —
+          # auch die zählt das Gate, wenn sie den Bereich zeigen.
           claude_args: |
-            --model ${{ vars.PR_REVIEW_MODEL || 'claude-sonnet-5' }}
+            --model ${{ steps.scope.outputs.model }}
+            --max-turns ${{ steps.scope.outputs.max_turns }}
             --allowedTools "mcp__github_inline_comment__create_inline_comment,Read,Grep,Glob,Bash(gh pr view:*),Bash(gh pr diff:*),Bash(gh pr comment:*),Bash(git diff:*),Bash(git log:*)"
-            --json-schema '{"type":"object","properties":{"overview":{"type":"string"},"confirmed_blocking":{"type":"integer"},"advisory":{"type":"integer"},"blocking_titles":{"type":"array","items":{"type":"string"}}},"required":["overview","confirmed_blocking","advisory","blocking_titles"]}'
+            --disallowedTools "Bash(cat:*),Bash(head:*),Bash(tail:*),Bash(sed:*),Bash(awk:*),Bash(grep:*),Bash(rg:*),Bash(less:*),Bash(more:*),Bash(nl:*),Bash(git show:*),Bash(git grep:*)"
+            --json-schema '{"type":"object","properties":{"overview":{"type":"string"},"confirmed_blocking":{"type":"integer"},"advisory":{"type":"integer"},"blocking_titles":{"type":"array","items":{"type":"string"}},"review_complete":{"type":"boolean"}},"required":["overview","confirmed_blocking","advisory","blocking_titles","review_complete"]}'
 
       # Der Check wird rot, sobald ein bestätigter Korrektheits- oder
       # Sicherheitsbefund überlebt. Leere Ausgabe heißt: der Review ist nicht
       # durchgelaufen — das ist ebenfalls rot, sonst wäre ein Ausfall der Action
-      # von „nichts gefunden" nicht zu unterscheiden.
+      # von „nichts gefunden" nicht zu unterscheiden. Dasselbe gilt für eine
+      # gültige Ausgabe, deren Zug vor dem Ende des Reviews schloss: sie trägt
+      # ebenfalls 0 Befunde (#4619). Darum zählt `review_complete`, nicht der
+      # Wortlaut der Übersicht.
+      # Läuft auch, wenn die Action rot endet: ohne `show_full_output` steht
+      # sonst nirgends, welche Werkzeuge verweigert wurden und was das Modell
+      # zuletzt sagte — genau das fehlte bei #4819.
+      - name: Show run diagnostics
+        if: always() && steps.review.outcome != 'skipped'
+        run: |
+          EXEC="$RUNNER_TEMP/claude-execution-output.json"
+          [ -f "$EXEC" ] || { echo "Keine Ausführungsdatei."; exit 0; }
+          jq -r '[.[] | select(.type == "result")] | last
+            | "subtype=\(.subtype) is_error=\(.is_error) num_turns=\(.num_turns) cost_usd=\(.total_cost_usd)",
+              "verweigert:", (.permission_denials[]? | "  \(.tool_name) \((.tool_input.command // .tool_input.file_path // "") | tostring | .[0:200])"),
+              "Ergebnistext: \((.result // "") | .[0:1500])"' "$EXEC"
+          # Was der Lauf getan hat, Aufruf für Aufruf — ohne das bleibt bei
+          # einem flachen Review nur die Zahl, nicht der Grund.
+          echo "Werkzeugaufrufe:"
+          jq -r '.[] | select(.type == "assistant") | .message.content[]? | select(.type == "tool_use")
+            | "  \(.name) \((.input.file_path // .input.path // .input.command // .input.pattern // "") | tostring | .[0:200])"' "$EXEC"
+          jq -r '"Werkzeugergebnisse: \([.[] | select(.type == "user") | .message.content[]? | select(.type == "tool_result")] | length)"' "$EXEC"
+
       - name: Gate on confirmed findings
+        if: steps.scope.outputs.skip != 'true'
         env:
           RESULT: ${{ steps.review.outputs.structured_output }}
+          FILES: ${{ steps.scope.outputs.files }}
         run: |
           if [ -z "$RESULT" ]; then
             echo "::error::Der Review hat keine strukturierte Ausgabe geliefert — der Lauf ist nicht durchgekommen (Auth, Timeout oder Action-Fehler). Das ist kein Befund am Code."
@@ -128,6 +251,42 @@ jobs:
           fi
 
           echo "$RESULT" | jq .
+
+          if ! echo "$RESULT" | jq -e '.review_complete == true' > /dev/null; then
+            echo "::error::Der Review ist nicht fertig geworden (review_complete ist nicht true) — die 0 Befunde heißen hier nicht „nichts gefunden“. Label claude-review setzen, um ihn neu zu starten."
+            exit 1
+          fi
+
+          # Ein flacher Lauf meldet `review_complete: true`, ohne den Code
+          # gesehen zu haben (#4818: 13 Turns, 2600 Zeilen, grün). Darum muss er
+          # mindestens drei der geänderten Dateien wirklich gesehen haben (bei
+          # weniger Dateien: alle). Gezählt wird, was in den Werkzeugergebnissen
+          # steht, nicht welches Werkzeug lief: jeder geänderte Bereich samt
+          # etwas Umgebung, ob per Read, `cat` oder `git log -p` (#4854).
+          # Die Regeln stehen im Kopf von review-read-gate.mjs.
+          NEED=$(( FILES < 3 ? FILES : 3 ))
+          OPENED=$(node .github/scripts/review-read-gate.mjs \
+              "$RUNNER_TEMP/claude-execution-output.json" \
+              "$RUNNER_TEMP/review-patches.json" \
+              "${{ github.event.pull_request.head.sha }}" \
+              "$GITHUB_WORKSPACE" | grep -c . || true)
+          echo "Geöffnete geänderte Dateien: $OPENED von $FILES (nötig: $NEED)"
+          if [ "$OPENED" -lt "$NEED" ]; then
+            echo "::error::Der Review hat nur $OPENED der geänderten Dateien gelesen (nötig: $NEED) — das ist kein Review, egal was die Ausgabe meldet. Label claude-review setzen, um ihn neu zu starten."
+            exit 1
+          fi
+
+          # Ein reiner Lösch-PR hat nichts zum Öffnen — sein Risiko sind
+          # verwaiste Verweise, also muss der Lauf danach gesucht haben.
+          if [ "$FILES" -eq 0 ]; then
+            GREPS=$(jq '[.[] | select(.type == "assistant") | .message.content[]?
+                | select(.type == "tool_use" and .name == "Grep")] | length' \
+                "$RUNNER_TEMP/claude-execution-output.json" || echo 0)
+            if [ "$GREPS" -eq 0 ]; then
+              echo "::error::Der PR löscht nur, und der Review hat nicht nach verbliebenen Verweisen gesucht (kein Grep). Label claude-review setzen, um ihn neu zu starten."
+              exit 1
+            fi
+          fi
 
           BLOCKING=$(echo "$RESULT" | jq -r '.confirmed_blocking // 0')
           ADVISORY=$(echo "$RESULT" | jq -r '.advisory // 0')

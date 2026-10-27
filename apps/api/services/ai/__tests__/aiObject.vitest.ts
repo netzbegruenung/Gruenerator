@@ -25,6 +25,7 @@ vi.mock('../execution/index.js', () => ({
 }));
 
 const { aiObject } = await import('../generate.js');
+const { AiProviderError } = await import('../../providers/providerErrors.js');
 
 import type { StructuredValidation } from '../structuredParsing.js';
 
@@ -317,6 +318,36 @@ describe('aiObject', () => {
     const result = await aiObject(base);
 
     expect(result).toEqual({ ok: true, data: { title: 'Nach dem Fehler' } });
+  });
+
+  it('hands the typed provider failure back when the chain stays spent (#4522)', async () => {
+    executeProvider.mockReset();
+    executeProvider.mockRejectedValue(
+      Object.assign(new Error('Too Many Requests'), { statusCode: 429 })
+    );
+
+    const result = await aiObject(base);
+
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.cause).toBeInstanceOf(AiProviderError);
+    expect(result.cause?.code).toBe('rate_limited');
+    expect(result.cause?.retryable).toBe(true);
+    expect(result.error).toBe(result.cause?.message);
+  });
+
+  it('reports no provider failure when the LAST attempt was a semantic rejection', async () => {
+    executeProvider.mockReset();
+    executeProvider
+      .mockRejectedValueOnce(new Error('socket hang up'))
+      .mockRejectedValueOnce(new Error('socket hang up'))
+      .mockRejectedValueOnce(new Error('socket hang up'))
+      .mockRejectedValueOnce(new Error('socket hang up'))
+      .mockResolvedValueOnce(toolCall({}));
+
+    const result = await aiObject(base);
+
+    expect(result).toEqual({ ok: false, error: 'title: Required' });
   });
 
   it('tells validate which model attempt it checks, not how often it ran', async () => {

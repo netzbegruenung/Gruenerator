@@ -11,9 +11,13 @@ import {
   type SharepicReviewResponse,
   type SharepicSlide,
   type SharepicSpec,
+  sharepicPatchOpSchema,
   sharepicReviewResponseSchema,
   countMarkerPassages,
   hasUnpairedAccentMark,
+  isSharepicSceneRef,
+  isSharepicUploadId,
+  isSharepicVorlageRef,
   SHAREPIC_MARKER_PASSAGES,
   stripInlineMarks,
   tightenAccentMarksDeep,
@@ -26,6 +30,7 @@ import { aiObject } from '../ai/generate.js';
 import { paletteHint, paletteSubstitutions, withPaletteColors } from './paletteColors.js';
 import { basicsText } from './styleguide.js';
 import { toJpegBase64 } from './toJpegBase64.js';
+import { structureOf } from './toolSchema.js';
 
 import type { StructuredValidation } from '../ai/structuredParsing.js';
 
@@ -38,7 +43,7 @@ const REVIEW_SYSTEM = `Du bist Art Director für Sharepics im Instagram-Hochform
 Prüfe in dieser Reihenfolge:
 1. Fehler: Überlappt Text mit Text, Kreis oder Logo? Ist Text abgeschnitten oder läuft aus dem Bild? Ist jeder Text gut lesbar (Kontrast)? Stimmen Rechtschreibung und Grammatik?
 2. Wirkung (so wie gute Partei-Posts): Ist die Botschaft in zwei Sekunden klar? Ist die Headline groß und kurz genug – sonst kürzen? Gibt es höchstens einen bis zwei Akzente pro Slide? Bilden die Texte einen kompakten Block? Ist zu viel Text drauf? Passt das Foto zum Thema, und liegt der Text auf einer ruhigen Stelle?
-3. Nur bei Karussells: Sehen die Slides wie aus einem Guss aus (Hintergrund, Ausrichtung)? Ist die erste Slide ein starker Hook, die letzte ein klarer Schluss?
+3. Nur bei Karussells: Sehen die Slides wie aus einem Guss aus (Hintergrund, Ausrichtung)? Ist die erste Slide ein starker Hook, die letzte ein klarer Schluss? Farbe ändert sich im Karussell nur für alle Slides gemeinsam: use_color für jede Foto-Slide in derselben Farbe wie die übrigen Farbflächen, set_color für jede Slide – nie einzelne Slides umfärben. Eine Fotogeschichte (Fotos über die ganze Slide) behält ihre Fotos: dort kein use_color.
 
 Ist alles gut: ok = true, issues und patch leer. Sonst issues = höchstens 3 kurze deutsche Sätze für die Person, die das Sharepic erstellt (nenne eine Slide darin immer als „Slide N“ mit derselben Zahl wie im patch, ab 0 gezählt – nie „Folie“; das Programm übersetzt das für die Person), und patch = die kleinsten Änderungen, die das beheben. Jede Änderung nennt mit "slide":N die Slide (ohne Angabe: Slide 0):
 - {"op":"set_text","item":N,"text":…} – Text kürzen oder korrigieren, nie bei Zitat und Frage (bei liste die Punkte mit \\n trennen)
@@ -50,7 +55,7 @@ Ist alles gut: ok = true, issues und patch leer. Sonst issues = höchstens 3 kur
 - {"op":"set_color","color":…} – Hintergrund- bzw. Flächenfarbe
 - {"op":"remove_extra","extra":"stoerer"|"datum"|"ort"|"logo"|"quelle"}
 - {"op":"use_color","color":…} – das Foto passt nicht erkennbar zum Thema (Motiv und Auftrag haben nichts miteinander zu tun): stattdessen Markenfarbe – im Zweifel lieber Farbe als ein beliebiges Foto
-Eigene Fotos (filename "upload:N") hat die Person selbst mitgebracht: nie durch eine Farbe ersetzen (kein use_color) – auch dann nicht, wenn das Motiv nicht zum Thema passt.
+Eigene Fotos (filename "upload:N") hat die Person selbst mitgebracht, Fotos einer Vorlage ("vorlage:…") gehören zu ihr: nie durch eine Farbe ersetzen (kein use_color) – auch dann nicht, wenn das Motiv nicht zum Thema passt.
 Diese Elemente SIND Corporate Design und kein Fehler: der Datumskreis (Deutschland Tanne oder grasgrün, Österreich magenta), der Störer-Kreis (Deutschland grasgrün mit dunkler Schrift, auf grasgrüner Fläche Tanne; Österreich magenta), der Lime-Marker hinter einer Headline-Zeile und lime Einzelwörter (Deutschland), weiße und grüne Zeilenboxen (Deutschland), gelbe kursive Wörter oder Zeilen (Österreich), der Farbverlauf über dem Foto, die Farbfläche, die ins Foto ausblendet, das einfarbig grün eingefärbte Foto über oder unter der Farbfläche (Österreich), der Weiter-Pfeil unten rechts (in einem Karussell, darf auch fehlen) mit einem kurzen Teaser daneben, die Seitenzahl oben („2/5“ oder eine Punktreihe), die kleine Quellenzeile, das dunkle Schild „KI-Generiert …“ unten links auf jeder Slide (Pflichtkennzeichnung, nie entfernen oder bemängeln).
 In Karussells sind Slides ohne Headline gewollt: Geschichte, Kontext und Kritik stehen dort als Absätze (absatz), oft in Zeilenboxen. Mach daraus keine Headline – kürze höchstens den Text.
 Eine Headline mit "groesse":"gross" ist auf Wunsch der Person größer gesetzt: nicht als zu groß bemängeln; ein set_headline darauf behält die Größe.
@@ -62,6 +67,7 @@ Der Schluss-Aufruf (aufruf) auf der letzten Slide ist gewollt, in Deutschland wi
 Schlagzeilen-Karte (schlagzeile, gerade oder leicht gedreht wie ein Zeitungsausriss), Bingo-Raster (bingo) und ein Zitat der Gegenseite auf blassem Feld mit ✗ (zitat mit seite gegner) sind gewollt: kein set_text darauf, nicht weglassen; der Wortlaut stammt aus dem Auftrag.
 Große Zahl (zahl), Rechnung (rechnung) und Termine (termine) sind gewollt, auch die große Ziffer oder blasse Hintergrundziffer eines nummerierten Punkts und die Ziffern, Pfeile oder Häkchen vor Listenpunkten: kein set_text darauf, nicht zur Headline machen; ihre Zahlen und Daten stammen aus dem Auftrag.
 Icon-Liste (iconliste) und Vergleich (vergleich) sind gewollt, die Icons und ✓/✗ gehören dazu: eine iconliste kürzt set_text nur mit genau einer Zeile je Punkt (\\n getrennt), die Icons bleiben; ein vergleich bekommt kein set_text und wird keine Headline.
+Ein Steckbrief (steckbrief) ist gewollt: der kleine Gruß, der große Name mit winkender Hand, die verstreuten Merkmale mit handgezeichneten Pfeilen zur Person und die kleine Sonnenblume gehören dazu. Kein set_text darauf, nie weglassen, keine Headline dazusetzen; Name und Merkmale stammen aus dem Auftrag.
 Hervorhebung in Texten wie im Entwurf: ==Wort== für den Akzent – kein **fett** einführen, wo der Entwurf ==…== nutzt.
 Erfinde keine neuen Inhalte. Ändere nichts, was gut ist. Melde nur, was man sieht. Schlage nichts vor, was du schon einmal vorgeschlagen hast.`;
 
@@ -70,7 +76,7 @@ const REVIEW_SCHEMA = {
   properties: {
     ok: { type: 'boolean' },
     issues: { type: 'array', items: { type: 'string' } },
-    patch: { type: 'array', items: { type: 'object' } },
+    patch: { type: 'array', items: structureOf(sharepicPatchOpSchema) },
   },
   required: ['ok', 'issues', 'patch'],
 };
@@ -92,10 +98,31 @@ function normalizePatch(input: unknown): unknown {
   return { ...input, patch };
 }
 
+type PatchOp = SharepicReviewResponse['patch'][number];
+
+/**
+ * A removal of an item the same patch rewrites contradicts it: removals run
+ * last, so the new text would go with the item. Live (21.10.2026) the review
+ * took the place line under the text for the invitation, rewrote the
+ * invitation and removed it. The item stays.
+ */
+function removesRewritten(op: PatchOp, patch: readonly PatchOp[]): boolean {
+  return (
+    op.op === 'remove_item' &&
+    patch.some(
+      (other) =>
+        (other.op === 'set_text' || other.op === 'set_headline') &&
+        other.item === op.item &&
+        (other.slide ?? 0) === (op.slide ?? 0)
+    )
+  );
+}
+
 /**
  * A quote that becomes a headline loses its speaker; one that is removed loses
  * the point of the slide; rewording a quote or question falsifies what was
- * said; a chart or comparison has no text to reword. All are dropped, silently, like any other bad op. `removed` collects
+ * said; a chart or comparison has no text to reword; a steckbrief slide is
+ * laid out as a whole. All are dropped, silently, like any other bad op. `removed` collects
  * the quotes earlier ops of the same patch already take away, so two removals
  * cannot together leave none.
  */
@@ -104,6 +131,17 @@ function protectsZitat(
   slides: SharepicSlide[],
   removed: Set<string>
 ): boolean {
+  // A steckbrief fills its slide: its texts, its person and the photo layout stay.
+  if (
+    (op.op === 'set_text' ||
+      op.op === 'set_headline' ||
+      op.op === 'remove_item' ||
+      op.op === 'use_color' ||
+      op.op === 'set_text_side') &&
+    slides[op.slide ?? 0]?.items.some((i) => i.type === 'steckbrief')
+  ) {
+    return true;
+  }
   if (op.op !== 'set_text' && op.op !== 'set_headline' && op.op !== 'remove_item') return false;
   // The closing call carries its slide alone: no headline joins it.
   if (op.op === 'set_headline' && slides[op.slide ?? 0]?.items.some((i) => i.type === 'aufruf')) {
@@ -137,6 +175,49 @@ function protectsZitat(
   return false;
 }
 
+/**
+ * A carousel holds one look (see carouselLook.ts). Live the review swapped three
+ * of six story photos for mint, hellgrau and grasgrün, one slide at a time. A
+ * colour op stands only when it recolours the whole carousel in one colour:
+ * use_color on every stock photo (matching the colour slides already there),
+ * set_color on every slide. Otherwise those ops go, silently. A photo story
+ * (full-bleed photos) keeps its photos: live the review turned all six into
+ * mint, and the story's zeilenboxen stood on a plain colour (#4616).
+ */
+function keepsCarouselLook(
+  patch: SharepicReviewResponse['patch'],
+  slides: SharepicSlide[]
+): SharepicReviewResponse['patch'] {
+  if (slides.length < 3) return patch;
+  const all = slides.map((_, i) => i);
+  const story = slides.slice(1).some((s) => s.background.kind === 'foto');
+  const photos = all.filter((i) => {
+    const bg = slides[i]!.background;
+    return (
+      bg.kind !== 'farbe' &&
+      !isSharepicUploadId(bg.filename) &&
+      !isSharepicSceneRef(bg.filename) &&
+      !isSharepicVorlageRef(bg.filename)
+    );
+  });
+  const plain = new Set(
+    slides.flatMap((s) => (s.background.kind === 'farbe' ? [s.background.color] : []))
+  );
+  const whole = (kind: 'use_color' | 'set_color', targets: number[]) => {
+    const ops = patch.flatMap((op) => (op.op === kind ? [op] : []));
+    const colors = new Set(ops.map((op) => op.color));
+    if (!ops.length) return true;
+    if (colors.size !== 1) return false;
+    if (kind === 'use_color' && plain.size && !plain.has(ops[0]!.color)) return false;
+    return targets.every((i) => ops.some((op) => (op.slide ?? 0) === i));
+  };
+  const keepUse = !story && whole('use_color', photos);
+  const keepSet = whole('set_color', all);
+  return patch.filter(
+    (op) => (op.op !== 'use_color' || keepUse) && (op.op !== 'set_color' || keepSet)
+  );
+}
+
 /** `slides` (the draft the review looked at) lets the review protect its quotes. */
 export function validateReview(
   input: unknown,
@@ -154,6 +235,14 @@ export function validateReview(
   }
   for (const op of parsed.data.patch) {
     const texts = op.op === 'set_text' ? [op.text] : op.op === 'set_headline' ? op.lines : [];
+    // Live Gemma closed its JSON inside a line („==Hitzefallen.==],slide:0}]") and the next round repeated it.
+    // „[…]" is how a shortened quote is marked, not JSON.
+    if (texts.some((t) => /[{}[\]]/.test(t.replace(/\[(?:…|\.\.\.)\]/g, '')))) {
+      return {
+        ok: false,
+        error: 'Im Text stehen Klammern aus dem JSON – jede Zeile ist nur der sichtbare Text.',
+      };
+    }
     if (texts.some(hasUnpairedAccentMark)) {
       return {
         ok: false,
@@ -188,7 +277,12 @@ export function validateReview(
     }
   }
   const removed = new Set<string>();
-  const patch = parsed.data.patch.filter((op) => !protectsZitat(op, slides, removed));
+  // Only a rewrite that survives the protections can contradict a removal.
+  const kept = parsed.data.patch.filter((op) => !protectsZitat(op, slides, removed));
+  const patch = keepsCarouselLook(
+    kept.filter((op) => !removesRewritten(op, kept)),
+    slides
+  );
   return { ok: true, value: { ...parsed.data, issues: parsed.data.issues.slice(0, 3), patch } };
 }
 

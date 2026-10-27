@@ -1,6 +1,8 @@
 import { afterEach, describe, expect, it } from 'vitest';
 
 import {
+  EDITOR_MENU_MAX_ACTIONS,
+  EDITOR_TITLE_MAX_LENGTH,
   HOST_CAPABILITIES_GLOBAL,
   HOST_CAPABILITY_SHARE,
   hostCapabilitiesScript,
@@ -305,6 +307,95 @@ describe('hardware back round-trip (#4403)', () => {
   it('keeps the two directions apart', () => {
     expect(parseWebViewMessage({ type: 'REQUEST_CLOSE' })).toBeNull();
     expect(parseHostMessage({ type: 'CLOSE_HANDLER', active: true })).toBeNull();
+  });
+});
+
+describe('native editor bar', () => {
+  const state = {
+    type: 'EDITOR_STATE',
+    title: 'Plakat',
+    canEdit: true,
+    canUndo: true,
+    canRedo: false,
+  };
+
+  it('accepts EDITOR_STATE and drops extra fields', () => {
+    expect(parseWebViewMessage(JSON.stringify({ ...state, evil: 1 }))).toEqual(state);
+  });
+
+  it('rejects EDITOR_STATE with a field of the wrong type', () => {
+    expect(parseWebViewMessage({ ...state, canUndo: 'yes' })).toBeNull();
+    expect(parseWebViewMessage({ ...state, title: null })).toBeNull();
+  });
+
+  it('accepts the known commands only', () => {
+    for (const command of ['undo', 'redo', 'share']) {
+      expect(parseHostMessage({ type: 'EDITOR_COMMAND', command, evil: 1 })).toEqual({
+        type: 'EDITOR_COMMAND',
+        command,
+      });
+    }
+    expect(parseHostMessage({ type: 'EDITOR_COMMAND', command: 'delete' })).toBeNull();
+  });
+
+  it('trims a rename and rejects an empty or over-long title', () => {
+    expect(parseHostMessage({ type: 'EDITOR_RENAME', title: '  Neu  ' })).toEqual({
+      type: 'EDITOR_RENAME',
+      title: 'Neu',
+    });
+    expect(parseHostMessage({ type: 'EDITOR_RENAME', title: '   ' })).toBeNull();
+    expect(
+      parseHostMessage({ type: 'EDITOR_RENAME', title: 'x'.repeat(EDITOR_TITLE_MAX_LENGTH + 1) })
+    ).toBeNull();
+  });
+
+  it('carries history, share and menu entries when the page sends them', () => {
+    const full = {
+      ...state,
+      history: false,
+      canShare: false,
+      actions: [
+        { id: 'chat', label: 'Chat', checked: true },
+        { id: 'delete', label: 'Löschen', destructive: true },
+      ],
+    };
+    expect(parseWebViewMessage(full)).toEqual(full);
+  });
+
+  it('drops malformed menu entries and caps the list', () => {
+    const parsed = parseWebViewMessage({
+      ...state,
+      actions: [
+        { id: 'ok', label: 'Gut', destructive: 'yes', evil: 1 },
+        { id: '', label: 'Ohne Id' },
+        { id: 'x', label: '' },
+        'kaputt',
+        ...Array.from({ length: EDITOR_MENU_MAX_ACTIONS + 5 }, (_, i) => ({
+          id: `a${i}`,
+          label: `Eintrag ${i}`,
+        })),
+      ],
+    });
+    expect(parsed?.type === 'EDITOR_STATE' && parsed.actions?.[0]).toEqual({
+      id: 'ok',
+      label: 'Gut',
+    });
+    expect(parsed?.type === 'EDITOR_STATE' && parsed.actions?.length).toBe(EDITOR_MENU_MAX_ACTIONS);
+  });
+
+  it('accepts a menu pick by id', () => {
+    expect(parseHostMessage({ type: 'EDITOR_ACTION', id: 'chat', evil: 1 })).toEqual({
+      type: 'EDITOR_ACTION',
+      id: 'chat',
+    });
+    expect(parseHostMessage({ type: 'EDITOR_ACTION', id: '' })).toBeNull();
+    expect(parseHostMessage({ type: 'EDITOR_ACTION', id: 7 })).toBeNull();
+  });
+
+  it('keeps the two directions apart', () => {
+    expect(parseHostMessage(state)).toBeNull();
+    expect(parseWebViewMessage({ type: 'EDITOR_ACTION', id: 'chat' })).toBeNull();
+    expect(parseWebViewMessage({ type: 'EDITOR_COMMAND', command: 'undo' })).toBeNull();
   });
 });
 

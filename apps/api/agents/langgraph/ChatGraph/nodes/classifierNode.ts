@@ -27,6 +27,7 @@ import { agentAllowsTool } from '../../../../routes/chat/agents/agentToolWhiteli
 import { collectionsForLocale } from '../../../../routes/chat/agents/searchTools.js';
 import { isAgenticLoopEnabled } from '../../../../routes/chat/services/agenticLoop/flags.js';
 import {
+  compoundGenerationKind,
   isDocumentContextEditAllowed,
   isReferentialFollowup,
   looksLikeSelfContainedTurn,
@@ -36,7 +37,11 @@ import {
 } from '../../../../routes/chat/services/agenticLoop/routing.js';
 import { agenturaCreateTarget } from '../../../../routes/chat/services/agenturaContext.js';
 import { artifactKind } from '../../../../routes/chat/services/artifactKindRegistry.js';
-import { acceptsOffer, offerTopic } from '../../../../routes/chat/services/artifactOffer.js';
+import {
+  acceptsOffer,
+  offerTopic,
+  QUESTION_EDITABLE_KINDS,
+} from '../../../../routes/chat/services/artifactOffer.js';
 import {
   namedLoopArtifact,
   namesDocumentTarget,
@@ -325,6 +330,19 @@ const ANAPHORIC_CUE =
   /(?<![\p{L}])(?:davon|daraus|darin|dazu|dort|diese[rnms]?|dieselben?|n(?:ä|ae)chste[nrs]?|vorletzte[nrs]?|davor|danach|weitere[nrs]?|nochmal|noch\s+mal|erneut|stimmt\s+nicht)(?![\p{L}])/iu;
 const SHORT_FOLLOWUP_WORDS = 4;
 
+/** Does the heuristic table confidently place this turn on a route that
+ *  retrieves nothing (an artifact order, a greeting)? */
+function claimsNonRetrievalTurn(userContent: string, state: ChatGraphState): boolean {
+  const verdict = heuristicClassify(userContent, {
+    hasTabularAttachment: state.hasTabularAttachment ?? false,
+  });
+  return (
+    verdict.confidence >= HEURISTIC_CONFIDENCE_THRESHOLD &&
+    verdict.intent !== 'summary' &&
+    NON_SEARCH_INTENTS.has(verdict.intent)
+  );
+}
+
 function continuesToolTurn(text: string, messages: ChatGraphState['messages']): boolean {
   // „suche im web danach" nennt eine andere Quelle — kein Anschluss ans Notebook.
   if (EXPLICIT_WEB_SEARCH_PATTERN.test(text)) return false;
@@ -377,6 +395,7 @@ export async function classifierNode(state: ChatGraphState): Promise<Partial<Cha
     notebookIds: state.notebookIds ?? [],
     wolkeFiles: state.wolkeFiles ?? [],
     connectFiles: state.connectFiles ?? [],
+    notebookSources: state.notebookSources ?? [],
     threadAttachments: state.threadAttachments ?? [],
     currentDocument: state.currentDocument ?? null,
     documentChatLabels: state.documentChatLabels ?? {},
@@ -436,9 +455,17 @@ export async function classifierNode(state: ChatGraphState): Promise<Partial<Cha
   const attachedUrls = scrapeEnabled
     ? (state.attachedWebpageUrls ?? []).filter((url) => !isCloudShareUrl(url))
     : [];
-  const detectedUrls = scrapeEnabled
+  let detectedUrls = scrapeEnabled
     ? [...new Set([...attachedUrls, ...crawlableUrls(userText)])]
     : [];
+  // @link pages from earlier turns (#4861) join only where this turn reads
+  // anyway — a summary or a search intent. They never turn a no-retrieval or a
+  // creation verdict into a crawl: „Danke" must not fetch the page again, and
+  // „Erstelle ein Sharepic zur Windkraft" must not draw on an unrelated page.
+  const carriedUrls =
+    scrapeEnabled && detectedUrls.length === 0
+      ? (state.carriedWebpageUrls ?? []).filter((url) => !isCloudShareUrl(url))
+      : [];
 
   // `summary` is not a wording, it is a STATE: material is already here, so skip
   // the search node (ChatGraph routes it straight to respond), drop the product
@@ -471,6 +498,7 @@ export async function classifierNode(state: ChatGraphState): Promise<Partial<Cha
     (state.pdfFormAttachments?.length ?? 0) > 0 ||
     carriesPastedBody(userText);
   if (intent === 'summary' && !hasMaterialToSummarise && !CURRENT_THREAD_REFERENCE.test(userText)) {
+    if (detectedUrls.length === 0 && carriedUrls.length > 0) detectedUrls = carriedUrls;
     if (detectedUrls.length > 0) {
       // The page IS the material. Not `summary` (that intent skips the search
       // node, so the link would never be fetched) and not `web` (searching for
@@ -539,12 +567,21 @@ export async function classifierNode(state: ChatGraphState): Promise<Partial<Cha
   // the scrape_url slot directly; otherwise it rides as the secondary intent so
   // "schreib einen Tweet zu <url>" both crawls the page AND drafts the tweet.
   let secondaryIntent = result.secondaryIntent ?? null;
+  if (
+    detectedUrls.length === 0 &&
+    intent &&
+    intent !== 'agentic' &&
+    !NON_SEARCH_INTENTS.has(intent as ChatIntentId)
+  ) {
+    detectedUrls = carriedUrls;
+  }
   if (detectedUrls.length > 0) {
     if (!intent || NO_RETRIEVAL_VERDICTS.has(intent)) {
       intent = 'scrape_url';
     } else if (!secondaryIntent && intent !== 'scrape_url' && intent !== 'agentic') {
       // 'agentic' turns keep secondary null: the loop has its own scrape_url
-      // tool, and a secondary would kick the turn out of the loop (routing.ts).
+      // tool and reads @link pages up front (`seedAttachedPages`), and a
+      // secondary would kick the turn out of the loop (routing.ts).
       secondaryIntent = 'scrape_url';
     }
     log.info(
@@ -720,6 +757,7 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
     const hasDocumentChat = state.documentChatIds && state.documentChatIds.length > 0;
     const hasWolkeFiles = state.wolkeFiles && state.wolkeFiles.length > 0;
     const hasConnectFiles = state.connectFiles && state.connectFiles.length > 0;
+    const hasNotebookSources = (state.notebookSources?.length ?? 0) > 0;
     const hasBoards = state.boardIds && state.boardIds.length > 0;
     // Live board open in the boards-editor surface. Primary context, NOT a
     // retrieval mention — its id is deliberately NOT injected into boardIds, so
@@ -742,7 +780,11 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
     const hasAttachmentContext = !!state.attachmentContext;
     const hasImageAttachments = state.imageAttachments && state.imageAttachments.length > 0;
     const hasAnyDocuments =
-      hasDocumentChat || hasDocuments || hasAttachmentContext || hasCurrentDocument;
+      hasDocumentChat ||
+      hasDocuments ||
+      hasNotebookSources ||
+      hasAttachmentContext ||
+      hasCurrentDocument;
     // @sheet mentions. currentDocument is shared with docs/presentations, so a
     // sheet open in its own editor is already covered by hasCurrentDocument.
     const hasSheetMentions = state.sheetIds && state.sheetIds.length > 0;
@@ -1017,7 +1059,14 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
 
     // @wolke selections force search intent — the wolke file content must reach
     // respondNode via perSourceResults, and that only happens inside the search path.
-    if (hasWolkeFiles && userContent.length > 0) {
+    // Carried from earlier turns (#4112) they still force it — only the search
+    // path reads a picked file, so a question about it needs this route — except
+    // where the heuristic table confidently claims a turn that reads nothing:
+    // „Erstelle ein Sharepic …" or „Danke!" after a pick (#4897). A summary
+    // keeps the route: cloud files are not material for the summary path.
+    const cloudFilesForceSearch =
+      !state.cloudFilesCarriedOnly || !claimsNonRetrievalTurn(userContent, state);
+    if (hasWolkeFiles && cloudFilesForceSearch && userContent.length > 0) {
       return classifyWithForcedSearch({
         reason: 'Wolke',
         docCount: state.wolkeFiles.length,
@@ -1033,10 +1082,29 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
     // @connect selections force search intent — the connected-account file content
     // must reach respondNode via perSourceResults, and that only happens inside the
     // search path. Mirrors the @wolke forced-search branch above.
-    if (hasConnectFiles && userContent.length > 0) {
+    if (hasConnectFiles && cloudFilesForceSearch && userContent.length > 0) {
       return classifyWithForcedSearch({
         reason: 'Connect',
         docCount: state.connectFiles.length,
+        userContent,
+        conversationContext,
+        topicalContext,
+        temporal,
+        complexity,
+        startTime,
+      });
+    }
+
+    // Notebook documents handed over from the reader — same reason as @wolke:
+    // their content only reaches respondNode through the search path's fan-out.
+    // Only on the turn they were picked: carried from earlier turns they stay
+    // material (summary, loop seed, search fan-out) but must not claim every
+    // later turn — „Erstelle ein Sharepic …" after a pick would never build
+    // one, and small talk would run a search (#4861).
+    if (hasNotebookSources && !state.notebookSourcesCarriedOnly && userContent.length > 0) {
+      return classifyWithForcedSearch({
+        reason: 'NotebookSource',
+        docCount: state.notebookSources.length,
         userContent,
         conversationContext,
         topicalContext,
@@ -1206,8 +1274,8 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
           extractMessageText(messages.filter((m) => m.role === 'assistant').pop()?.content)
         )) &&
       (state.lastTurnPendingConfirm === true ||
-        state.threadArtifacts?.some(
-          (a) => a.kind === 'sheet' || a.kind === 'presentation' || a.kind === 'explainable'
+        state.threadArtifacts?.some((a) =>
+          (QUESTION_EDITABLE_KINDS as readonly string[]).includes(a.kind)
         ) === true)
     ) {
       recordDecision('classifier.tier', 'tier2_artifact_question_accept');
@@ -1304,6 +1372,37 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
     // mention above already routed the request.
 
     if (hasAttachmentContext && userContent.length > 0) {
+      // Ein Erstell-Auftrag über dem Anhang ist ein Erstell-Turn, kein
+      // Schreibauftrag am Material. Dieser Rückfall lief vor jeder Erstell-Regel
+      // und machte „erstelle ein Sharepic aus dieser PM" oder „mach daraus eine
+      // Präsentation" mit Paste-Chip zu `produktion` ohne Werkzeug (live
+      // 15.10.2026). Dasselbe Prädikat wie der Router, damit beide dieselbe Art
+      // lesen. Arten ohne eigenen Intent (Dokument, Board) bleiben `produktion`;
+      // die hebt der Router mit dem Werkzeug in den Loop.
+      //
+      // Bewusst VOR dem Notebook-Zweig darunter: dessen erzwungene Suche baute
+      // nie ein Artefakt (`search` hat keine Erstell-Art), ein Notebook-Agent
+      // beantwortete „mach daraus eine Präsentation" also mit Text. Der bestellte
+      // Gegenstand und sein Stoff im Anhang gehen der Notebook-Erdung vor.
+      const orderedKind = compoundGenerationKind('produktion', askText);
+      const orderedIntent = orderedKind ? artifactKind(orderedKind).intent : null;
+      if (orderedKind && orderedIntent) {
+        log.info(`[Classifier] Creation order over an attachment → ${orderedIntent}`);
+        recordDecision('classifier.tier', 'tier2_attachment_create_order', {
+          inputs: { kind: orderedKind },
+        });
+        return {
+          intent: orderedIntent,
+          searchSources: [],
+          searchQuery: null,
+          detectedFilters: null,
+          reasoning: `Erstell-Auftrag über dem Anhang: ${artifactKind(orderedKind).label}`,
+          hasTemporal: temporal.hasTemporal,
+          complexity,
+          classificationTimeMs: Date.now() - startTime,
+        };
+      }
+
       // Agent-bound default notebooks (or a deliberate composer pick): the
       // attachment is working material (e.g. a pasted citizen email), but the
       // answer must still be grounded in the notebook. `produktion` would skip

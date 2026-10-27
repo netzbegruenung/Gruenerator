@@ -8,17 +8,15 @@
  * the same rich-text layout the renderer runs, the shape is laid under the
  * text, and the sentinels leave the text.
  */
+import { createShape, type ShapeInstance } from '@ggraphic/editor/utils/shapes';
+import { runFont } from '@ggraphic/editor/utils/textUtils';
 import {
   layoutRichTextBlock,
   replaceHandMarks,
-  SHAREPIC_HAND_MARKS,
   type HandMarkKind,
   type MeasureRun,
-  type SharepicSlide,
-} from '@gruenerator/contracts';
-
-import { createShape, type ShapeInstance } from '../utils/shapes';
-import { runFont } from '../utils/textUtils';
+} from '@ggraphic/schema';
+import { SHAREPIC_HAND_MARKS, type SharepicSlide } from '@gruenerator/contracts';
 
 import type { MeasureText } from './chromeParts';
 import type { AdditionalText } from '../configs/types';

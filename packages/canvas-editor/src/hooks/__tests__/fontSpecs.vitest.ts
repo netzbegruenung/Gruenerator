@@ -1,6 +1,5 @@
+import { styledFontSpecs } from '@ggraphic/editor/hooks/useFontLoader';
 import { describe, it, expect } from 'vitest';
-
-import { styledFontSpecs } from '../useFontLoader';
 
 /**
  * Der Fehler, gegen den diese Tests stehen, war ein Spec-String OHNE Stil:

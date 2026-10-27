@@ -1,4 +1,8 @@
 import { type ContentReportReason } from '@gruenerator/contracts';
+import {
+  CONTENT_REPORT_REASON_LABELS as REASON_LABELS,
+  CONTENT_REPORT_REASONS as REASONS,
+} from '@gruenerator/shared/utils';
 import { useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
@@ -8,34 +12,36 @@ import { BODY_FONT, HEADING_FONT_BOLD, borderRadius, colors, spacing } from '../
 import { BottomSheet } from './BottomSheet';
 import { submitReport, type ReportTarget } from './submitReport';
 
-/** Display order of the reasons; the record keeps the labels exhaustive over the contract enum. */
-const REASON_LABELS: Record<ContentReportReason, string> = {
-  offensive: 'Beleidigend oder hasserfüllt',
-  false_information: 'Falschinformation',
-  harassment: 'Belästigung',
-  illegal: 'Rechtswidrig',
-  other: 'Sonstiges',
-};
-const REASONS = Object.keys(REASON_LABELS) as ContentReportReason[];
-
 export type { ReportTarget };
 
 interface ReportSheetProps {
   /** null = geschlossen. */
   target: ReportTarget | null;
   onClose: () => void;
+  /** After the report went through — e.g. to drop an item auto-hidden by it. */
+  onReported?: () => void;
 }
 
-export function ReportSheet({ target, onClose }: ReportSheetProps) {
+export function ReportSheet({ target, onClose, onReported }: ReportSheetProps) {
   return (
     <BottomSheet visible={!!target} onClose={onClose} padded keyboardAvoiding>
-      {target ? <ReportForm target={target} onClose={onClose} /> : null}
+      {target ? (
+        <ReportForm target={target} onClose={onClose} onReported={onReported ?? null} />
+      ) : null}
     </BottomSheet>
   );
 }
 
 /** Mounted only while the sheet is open, so every report starts with a clean form. */
-function ReportForm({ target, onClose }: { target: ReportTarget; onClose: () => void }) {
+function ReportForm({
+  target,
+  onClose,
+  onReported,
+}: {
+  target: ReportTarget;
+  onClose: () => void;
+  onReported: (() => void) | null;
+}) {
   const theme = useTheme();
   const [reason, setReason] = useState<ContentReportReason | null>(null);
   const [note, setNote] = useState('');
@@ -49,8 +55,10 @@ function ReportForm({ target, onClose }: { target: ReportTarget; onClose: () => 
     setError(null);
     const outcome = await submitReport(target, reason, note);
     setBusy(false);
-    if (outcome === 'done') setDone(true);
-    else setError(outcome);
+    if (outcome === 'done') {
+      setDone(true);
+      onReported?.();
+    } else setError(outcome);
   };
 
   return (

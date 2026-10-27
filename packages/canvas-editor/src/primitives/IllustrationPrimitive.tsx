@@ -1,18 +1,22 @@
+import { activeBrand } from '@ggraphic/editor/brand/brandRegistry';
+import { LOCKED_TRANSFORMER, useIsItemLocked } from '@ggraphic/editor/components/canvasItemLock';
+import { useBoxSnap, type SnapProps } from '@ggraphic/editor/hooks/useBoxSnap';
+import { ILLUSTRATION_TARGET_SIZE, MOTIF_BASE_SIZE } from '@ggraphic/editor/utils/motifSizes';
+import { ELEMENT_TRANSFORMER, signedScale } from '@ggraphic/editor/utils/orientation';
+import { illustrationBox } from '@ggraphic/editor/utils/renderedBoxes';
 import { useState, useEffect, useRef, memo } from 'react';
 import { Image, Group, Rect, Transformer } from 'react-konva';
 
 import { useCanvasEditorServices } from '../CanvasEditorProvider';
 import { getIllustrationPath, findIllustrationById } from '../utils/illustrations/registry';
 import { getCachedSVG, getSVG } from '../utils/illustrations/svgCache';
-import { touchAnchorStyleFunc } from '../utils/touchInput';
 
 import type {
   IllustrationInstance,
   KawaiiIllustrationType,
   SvgDef,
   KawaiiInstance,
-} from '../utils/illustrations/types';
-import type { SnapTarget } from '../utils/snapping';
+} from '@ggraphic/editor/utils/illustrations/types';
 import type Konva from 'konva';
 
 // react-kawaii and react-dom/server are only needed once a kawaii
@@ -43,17 +47,12 @@ async function renderKawaiiSvg(instance: KawaiiInstance, size: number): Promise<
   );
 }
 
-export interface IllustrationPrimitiveProps {
+export interface IllustrationPrimitiveProps extends SnapProps {
   illustration: IllustrationInstance;
   isSelected: boolean;
   onSelect: (id: string) => void;
   onDragEnd: (x: number, y: number) => void;
   onTransformEnd: (x: number, y: number, scale: number, rotation: number) => void;
-  onSnapChange?: (h: boolean, v: boolean) => void;
-  onSnapLinesChange?: (lines: unknown[]) => void;
-  getSnapTargets?: (id: string) => SnapTarget[];
-  stageWidth?: number;
-  stageHeight?: number;
   draggable?: boolean;
 }
 
@@ -64,7 +63,10 @@ function IllustrationPrimitiveInner({
   onDragEnd,
   onTransformEnd,
   draggable = true,
+  ...snapProps
 }: IllustrationPrimitiveProps) {
+  const locked = useIsItemLocked();
+  const snap = useBoxSnap({ id: illustration.id, ...snapProps }, illustrationBox(illustration));
   const { assetBaseUrl = '' } = useCanvasEditorServices();
   const groupRef = useRef<Konva.Group>(null);
   const transformerRef = useRef<Konva.Transformer>(null);
@@ -142,8 +144,8 @@ function IllustrationPrimitiveInner({
 
   if (!image) return null;
 
-  const BASE_SIZE = 200;
-  const TARGET_SIZE = 160;
+  const BASE_SIZE = MOTIF_BASE_SIZE;
+  const TARGET_SIZE = ILLUSTRATION_TARGET_SIZE;
   const baseScale = TARGET_SIZE / BASE_SIZE;
 
   return (
@@ -156,7 +158,7 @@ function IllustrationPrimitiveInner({
         scaleY={illustration.scale * baseScale}
         rotation={illustration.rotation}
         opacity={illustration.opacity}
-        draggable={draggable}
+        draggable={draggable && !locked}
         onMouseDown={(e) => {
           e.cancelBubble = true;
           onSelect(illustration.id);
@@ -165,15 +167,18 @@ function IllustrationPrimitiveInner({
           e.cancelBubble = true;
           onSelect(illustration.id);
         }}
+        onDragStart={snap.onDragStart}
+        onDragMove={snap.onDragMove}
         onDragEnd={(e) => {
+          snap.onDragEnd();
           onDragEnd(e.target.x(), e.target.y());
         }}
         onTransformEnd={() => {
           const node = groupRef.current;
           if (!node) return;
 
-          const scaleX = node.scaleX();
-          const scaleY = node.scaleY();
+          const scaleX = Math.abs(node.scaleX());
+          const scaleY = Math.abs(node.scaleY());
           const newScale = Math.max(scaleX, scaleY) / baseScale;
           const newRotation = node.rotation();
 
@@ -185,12 +190,16 @@ function IllustrationPrimitiveInner({
           onTransformEnd(node.x(), node.y(), newScale, newRotation);
         }}
       >
+        {/* Gespiegelt wird das Bild, nicht die Gruppe: am Transformer hängt so nie
+            eine negative Skala, die Konva als Drehung + 180° zerlegen würde. */}
         <Image
           image={image}
           width={BASE_SIZE}
           height={BASE_SIZE}
           offsetX={BASE_SIZE / 2}
           offsetY={BASE_SIZE / 2}
+          scaleX={signedScale(1, illustration.flipX === true)}
+          scaleY={signedScale(1, illustration.flipY === true)}
         />
 
         {/* Selection border */}
@@ -201,7 +210,7 @@ function IllustrationPrimitiveInner({
             y={-BASE_SIZE / 2}
             width={BASE_SIZE}
             height={BASE_SIZE}
-            stroke="#005437"
+            stroke={activeBrand().colors.primary}
             strokeWidth={2 / (illustration.scale * baseScale)}
             dash={[5, 5]}
             listening={false}
@@ -211,15 +220,12 @@ function IllustrationPrimitiveInner({
 
       {isSelected && (
         <Transformer
-          anchorStyleFunc={touchAnchorStyleFunc}
           ref={transformerRef}
           keepRatio={true}
           enabledAnchors={['top-left', 'top-right', 'bottom-left', 'bottom-right']}
-          anchorSize={10}
-          anchorCornerRadius={5}
-          borderStroke="#005437"
-          anchorStroke="#005437"
-          anchorFill="#ffffff"
+          rotateEnabled={true}
+          {...ELEMENT_TRANSFORMER}
+          {...(locked ? LOCKED_TRANSFORMER : {})}
         />
       )}
     </>
@@ -241,6 +247,8 @@ export const IllustrationPrimitive = memo(IllustrationPrimitiveInner, (prevProps
   if (prev.y !== next.y) return false;
   if (prev.scale !== next.scale) return false;
   if (prev.rotation !== next.rotation) return false;
+  if (prev.flipX !== next.flipX) return false;
+  if (prev.flipY !== next.flipY) return false;
   if (prev.opacity !== next.opacity) return false;
   if (prev.color !== next.color) return false;
 

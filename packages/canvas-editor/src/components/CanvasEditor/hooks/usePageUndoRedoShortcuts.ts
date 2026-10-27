@@ -1,4 +1,13 @@
+import { editorSkipsKey } from '@ggraphic/editor/utils/keyboardOwnership';
 import { useEffect } from 'react';
+
+/**
+ * Markiert ein Overlay über dem Editor (Präsentationsmodus): Tasten aus ihm
+ * lösen kein Seiten-Undo aus. Der Handler hier hört in der Capture-Phase auf
+ * window und ist früher registriert als jedes Overlay — ein stopPropagation
+ * des Overlays käme zu spät.
+ */
+export const EDITOR_KEY_SHIELD_ATTRIBUTE = 'data-canvas-key-shield';
 
 interface UsePageUndoRedoShortcutsParams {
   activePageCanUndo: boolean;
@@ -26,13 +35,9 @@ export function usePageUndoRedoShortcuts({
 }: UsePageUndoRedoShortcutsParams): void {
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
+      if (editorSkipsKey(e)) return;
       const target = e.target as HTMLElement | null;
-      if (
-        target &&
-        (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable)
-      ) {
-        return;
-      }
+      if (target?.closest?.(`[${EDITOR_KEY_SHIELD_ATTRIBUTE}]`)) return;
       const isMac = navigator.platform.toLowerCase().includes('mac');
       const modKey = isMac ? e.metaKey : e.ctrlKey;
       if (!modKey) return;

@@ -48,7 +48,6 @@ const PAGE_STYLE_STATE_KEYS = [
   'sunflowerSize',
   'sunflowerOpacity',
   'sunflowerOffset',
-  'isBackgroundLocked',
   'bgImageDimensions',
   // text styling and dragged positions
   'primaryColor',
@@ -73,7 +72,7 @@ const PAGE_STYLE_STATE_KEYS = [
   'logoOpacity',
   'logoOffset',
   'logoPosition',
-  // dreizeilen bar
+  // three-line bar
   'balkenWidthScale',
   'barOffsets',
   'balkenOffset',

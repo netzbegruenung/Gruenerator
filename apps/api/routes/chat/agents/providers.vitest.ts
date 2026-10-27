@@ -167,8 +167,18 @@ describe('AVAILABLE_MODELS', () => {
     expect(tuple?.sibling).toEqual({
       provider: 'mistral',
       model: 'mistral-large-4',
-      contextWindow: 262_144,
+      contextWindow: 1_048_576,
     });
+  });
+
+  it('Ultra und Panda tragen ihr gemessenes Fenster, nicht CTX_FULL (22.10.2026)', () => {
+    expect(getContextWindow('gruenerator-ultra')).toBe(1_048_576);
+    // Unter Melious' 1M: der grösste gemessene Zug, mit Abstand zum 60-s-Gateway.
+    expect(getContextWindow('gruenerator-panda')).toBe(880_000);
+    // Der Ausweich trägt mindestens so viel wie die Lane, die er auffängt.
+    expect(getContextWindow('gruenerator-ultra')).toBeGreaterThanOrEqual(
+      getContextWindow('gruenerator-panda')
+    );
   });
 });
 

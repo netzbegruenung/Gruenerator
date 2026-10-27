@@ -23,6 +23,7 @@ import {
   type WhatHappenedQuery,
   type WhatHappenedResult,
 } from '@gruenerator/contracts';
+import { type QdrantClient } from '@qdrant/js-client-rest';
 import { z } from 'zod';
 
 import { getPostgresInstance } from '../../database/services/PostgresService.js';
@@ -237,7 +238,7 @@ function toCorpusArticle(payload: Record<string, unknown>): WhatHappenedArticle 
  * payloads. Bounded by SCROLL_MAX_PER_SCROLL (warns if hit).
  */
 async function scrollLvPayloads(
-  client: NonNullable<ReturnType<typeof getQdrantInstance>['client']>,
+  client: QdrantClient,
   must: Record<string, unknown>[]
 ): Promise<Record<string, unknown>[]> {
   const payloads: Record<string, unknown>[] = [];
@@ -288,8 +289,7 @@ async function loadRecentLvArticles(): Promise<WhatHappenedArticle[]> {
 
   const qdrant = getQdrantInstance();
   await qdrant.init();
-  const client = qdrant.client;
-  if (!client) {
+  if (!qdrant.isContentAvailable()) {
     log.warn('Qdrant client unavailable for the what-happened feed');
     return [];
   }
@@ -304,6 +304,7 @@ async function loadRecentLvArticles(): Promise<WhatHappenedArticle[]> {
 
   const articles: WhatHappenedArticle[] = [];
   try {
+    const client = qdrant.readClient(LV_COLLECTION);
     const payloads = [
       ...(await scrollLvPayloads(client, publishedInWindow)),
       ...(await scrollLvPayloads(client, indexedInWindow)),

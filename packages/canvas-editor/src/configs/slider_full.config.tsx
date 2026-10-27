@@ -12,17 +12,13 @@
  * `slider-at` (Österreich: Ein-Balken-Logo, Dunkelgrün/Hellgrün, Gotham).
  */
 
-import { HiPhotograph } from 'react-icons/hi';
+import { zoomBackground } from '@ggraphic/editor/utils/coverFit';
+import { createPillBadgeInstance } from '@ggraphic/editor/utils/pillBadgeUtils';
+import { straightenResetFor } from '@ggraphic/editor/utils/straighten';
 import { PiFrameCornersFill, PiSquaresFourFill, PiTextAa } from 'react-icons/pi';
 
-import {
-  AssetsSection,
-  CombinedTextSection,
-  FrameSettingsSection,
-  ImageBackgroundSection,
-} from '../sidebar/sections';
+import { AssetsSection, CombinedTextSection, FrameSettingsSection } from '../sidebar/sections';
 import { recolorIconInstances } from '../utils/iconInstances';
-import { createPillBadgeInstance } from '../utils/pillBadgeUtils';
 import {
   SLIDER_AT_LOGO,
   SLIDER_AT_STYLE,
@@ -42,6 +38,7 @@ import { fromLayout } from './factory/layoutAccessors';
 import { injectFeatureProps } from './featureInjector';
 import { createShareSection } from './shareSection';
 
+import type { SharepicAiCapabilities } from './aiCapabilities';
 import type {
   FullCanvasConfig,
   LayoutResult,
@@ -51,19 +48,18 @@ import type {
   ImageElementConfig,
   AdditionalText,
 } from './types';
-import type { TemplateAiCapabilities } from '../ai/types';
-import type { ImageBackgroundSectionProps } from '../sidebar/sections/ImageBackgroundSection';
 import type { BackgroundColorOption, StockImageAttribution } from '../sidebar/types';
-import type { BalkenInstance, BalkenMode } from '../utils/balkenUtils';
 import type { AssetInstance } from '../utils/canvasAssets';
-import type { CircleBadgeInstance } from '../utils/circleBadgeUtils';
-import type { FrameClipType, FrameInstance } from '../utils/frameUtils';
 import type { BaseCanvasState, IconState } from './factory/baseTypes';
-import type { IllustrationInstance } from '../utils/illustrations/types';
-import type { PillBadgeInstance } from '../utils/pillBadgeUtils';
-import type { ShapeInstance } from '../utils/shapes';
 import type { SliderColorScheme, SliderStyle } from '../utils/sliderLayout';
-import type { CanvasAiSnapshot } from '@gruenerator/contracts';
+import type { BalkenInstance, BalkenMode } from '@ggraphic/editor/utils/balkenUtils';
+import type { CircleBadgeInstance } from '@ggraphic/editor/utils/circleBadgeUtils';
+import type { FrameClipType, FrameInstance } from '@ggraphic/editor/utils/frameUtils';
+import type { IllustrationInstance } from '@ggraphic/editor/utils/illustrations/types';
+import type { PillBadgeInstance } from '@ggraphic/editor/utils/pillBadgeUtils';
+import type { ShapeInstance, ShapeType } from '@ggraphic/editor/utils/shapes';
+import type { ElementPlacement } from '@ggraphic/editor/utils/userImageUtils';
+import type { CanvasAiSnapshot, StickerRef } from '@gruenerator/contracts';
 
 // Default arrow icon ID (HeroIcons chevron-right, resolved via canvasIcons.ts)
 /** Feste Id der Pille, die die Folien-Beschriftung traegt. */
@@ -97,7 +93,6 @@ export interface SliderState extends BaseCanvasState {
   backgroundImageFile?: File | Blob | null;
   imageOffset?: { x: number; y: number };
   imageScale?: number;
-  isBackgroundLocked?: boolean;
   backgroundImageOpacity?: number;
   imageAttribution?: StockImageAttribution | null;
 
@@ -166,15 +161,14 @@ export interface SliderActions {
   setColorScheme: (scheme: SliderColorScheme) => void;
   setBackgroundColor: (color: string) => void;
 
-  // Photo background. `onImageChange`'s shape, so `ImageBackgroundSection`
-  // hands a pick (photo + credit) over as one action and one undo step.
+  // Photo background. `onImageChange`'s shape, so a pick (photo + credit) is
+  // one action and one undo step.
   setCurrentImageSrc: (
     file: File | null,
     objectUrl?: string,
     attribution?: StockImageAttribution | null
   ) => void;
   setImageScale: (scale: number) => void;
-  toggleBackgroundLock: () => void;
   setImageAttribution: (attribution: StockImageAttribution | null) => void;
 
   // Pill badge actions
@@ -188,26 +182,27 @@ export interface SliderActions {
   removeCircleBadge: (id: string) => void;
 
   // Balken actions
-  addBalken: (mode: BalkenMode) => void;
+  addBalken: (mode: BalkenMode, options?: ElementPlacement) => void;
   updateBalken: (id: string, partial: Partial<BalkenInstance>) => void;
   removeBalken: (id: string) => void;
 
   // Frame actions
-  addFrame: (clipType: FrameClipType) => void;
+  addFrame: (clipType: FrameClipType, options?: ElementPlacement) => void;
   updateFrame: (id: string, partial: Partial<FrameInstance>) => void;
   removeFrame: (id: string) => void;
   setFrameImage: (id: string, file: File, objectUrl: string) => void;
 
   // Base actions
-  addAsset: (assetId: string) => void;
+  addAsset: (assetId: string, options?: ElementPlacement) => void;
+  addStickerAsset: (ref: StickerRef, options?: ElementPlacement) => void;
   updateAsset: (id: string, partial: Partial<AssetInstance>) => void;
   removeAsset: (id: string) => void;
-  toggleIcon: (id: string, selected: boolean) => void;
+  toggleIcon: (id: string, selected: boolean, options?: ElementPlacement) => void;
   updateIcon: (id: string, partial: Partial<IconState>) => void;
-  addShape: (type: 'rect' | 'circle' | 'triangle' | 'star' | 'arrow' | 'heart' | 'cloud') => void;
+  addShape: (type: ShapeType, color?: string, options?: ElementPlacement) => void;
   updateShape: (id: string, partial: Partial<ShapeInstance>) => void;
   removeShape: (id: string) => void;
-  addIllustration: (id: string) => void;
+  addIllustration: (id: string, options?: ElementPlacement) => void;
   updateIllustration: (id: string, partial: Partial<IllustrationInstance>) => void;
   removeIllustration: (id: string) => void;
   addHeader: () => void;
@@ -354,7 +349,6 @@ const backgroundImageElement: ImageElementConfig<SliderState> = {
   draggable: true,
   // Corner handles zoom it like the sidebar slider (both write `imageScale`).
   transformable: true,
-  lockedKey: 'isBackgroundLocked',
   opacityStateKey: 'backgroundImageOpacity',
   coverFit: true,
 };
@@ -490,7 +484,7 @@ const createTextElements = (style: SliderStyle): TextElementConfig<SliderState>[
 
 const createAiCapabilities = (
   brand: SliderBrand
-): TemplateAiCapabilities<SliderState, SliderActions> => ({
+): SharepicAiCapabilities<SliderState, SliderActions> => ({
   supportedOperations: ['set-text', 'set-color-scheme', 'set-font-size'],
 
   colorSchemes: brand.aiColorSchemes,
@@ -603,12 +597,6 @@ function createSliderConfig(brand: SliderBrand): FullCanvasConfig<SliderState, S
 
     tabs: [
       {
-        id: 'background',
-        icon: HiPhotograph,
-        label: 'Hintergrund',
-        ariaLabel: 'Farbschema wählen',
-      },
-      {
         id: 'text',
         icon: PiTextAa,
         label: 'Text',
@@ -618,7 +606,7 @@ function createSliderConfig(brand: SliderBrand): FullCanvasConfig<SliderState, S
         id: 'assets',
         icon: PiSquaresFourFill,
         label: 'Elemente',
-        ariaLabel: 'Dekorative Elemente',
+        ariaLabel: 'Elemente hinzufügen',
       },
       {
         id: 'frame-settings',
@@ -631,40 +619,30 @@ function createSliderConfig(brand: SliderBrand): FullCanvasConfig<SliderState, S
       chatTab,
     ],
 
-    // 'background' was hidden here and left to getAutoSwitchTab below, which
-    // matched the id `background` — the colour plane, drawn `listening={false}`,
-    // so it never becomes the selection and the tab never opened.
-    getVisibleTabs: () => ['background', 'text', 'assets', 'tools', 'uploads', 'chat'],
+    getVisibleTabs: () => ['text', 'assets', 'tools', 'uploads', 'chat'],
 
     getAutoSwitchTab: (selectedElement) => {
-      if (selectedElement === 'background-image') return 'background';
       if (selectedElement?.startsWith('balken-')) return 'settings';
       if (selectedElement?.startsWith('chart-')) return 'chart-settings';
       if (selectedElement?.startsWith('frame-')) return 'frame-settings';
       return null;
     },
 
+    // The swatches pick a colour scheme: the plane sits under the photo and the
+    // scheme also colours pill and arrow.
+    background: (state, actions) => ({
+      currentImageSrc: state.currentImageSrc || undefined,
+      imageAttribution: state.imageAttribution ?? null,
+      onImageChange: actions.setCurrentImageSrc,
+      colors: brand.backgroundColors,
+      paletteOnly: true,
+      currentColor: state.backgroundColor,
+      onColorChange: (color: string) => actions.setColorScheme(schemeForColor(color)),
+      scale: state.currentImageSrc ? (state.imageScale ?? 1) : undefined,
+      onScaleChange: state.currentImageSrc ? actions.setImageScale : undefined,
+    }),
+
     sections: {
-      // The photo templates' picker: library, Unsplash and own uploads, the
-      // scheme swatches as its "Farbe" tab (the colour plane sits under the
-      // photo and the scheme also colours pill and arrow), zoom and lock.
-      background: section({
-        component: ImageBackgroundSection,
-        propsFactory: (state, actions) =>
-          ({
-            currentImageSrc: state.currentImageSrc || undefined,
-            onImageChange: actions.setCurrentImageSrc,
-            backgroundColor: state.backgroundColor,
-            backgroundColors: brand.backgroundColors,
-            onBackgroundColorChange: (color: string) =>
-              actions.setColorScheme(schemeForColor(color)),
-            scale: state.currentImageSrc ? (state.imageScale ?? 1) : undefined,
-            onScaleChange: state.currentImageSrc ? actions.setImageScale : undefined,
-            isLocked: state.isBackgroundLocked ?? false,
-            onToggleLock: state.currentImageSrc ? actions.toggleBackgroundLock : undefined,
-            initialSubsection: state.currentImageSrc ? 'image-search' : 'background-color',
-          }) satisfies ImageBackgroundSectionProps,
-      }),
       text: section({
         component: CombinedTextSection,
         propsFactory: (state, actions) => ({
@@ -680,6 +658,7 @@ function createSliderConfig(brand: SliderBrand): FullCanvasConfig<SliderState, S
         propsFactory: (state, actions, context) => ({
           assetInstances: state.assetInstances,
           onAddAsset: actions.addAsset,
+          onAddStickerAsset: actions.addStickerAsset,
           onUpdateAsset: actions.updateAsset,
           onRemoveAsset: actions.removeAsset,
           onAddPillBadge: actions.addPillBadge,
@@ -833,7 +812,6 @@ function createSliderConfig(brand: SliderBrand): FullCanvasConfig<SliderState, S
         currentImageSrc: (props.currentImageSrc as string) || '',
         imageOffset: (props.imageOffset as { x: number; y: number } | undefined) ?? { x: 0, y: 0 },
         imageScale: (props.imageScale as number | undefined) ?? 1,
-        isBackgroundLocked: (props.isBackgroundLocked as boolean | undefined) ?? false,
         backgroundImageOpacity: (props.backgroundImageOpacity as number | undefined) ?? 1,
         imageAttribution:
           (props.imageAttribution as StockImageAttribution | null | undefined) ?? null,
@@ -1031,19 +1009,15 @@ function createSliderConfig(brand: SliderBrand): FullCanvasConfig<SliderState, S
             backgroundImageFile: file,
             imageAttribution: nextSrc ? (attribution ?? null) : null,
             iconStates: recolorIconInstances(state.iconStates, ARROW_ICON_ID, nextColor),
+            ...straightenResetFor(state),
           };
           setState(patch);
           saveToHistory({ ...state, ...patch });
         },
         setImageScale: (scale: number) => {
-          setState({ imageScale: scale } as Partial<SliderState>);
-          debouncedSaveToHistory({ ...getState(), imageScale: scale });
-        },
-        toggleBackgroundLock: () => {
-          const state = getState();
-          const isBackgroundLocked = !state.isBackgroundLocked;
-          setState({ isBackgroundLocked } as Partial<SliderState>);
-          saveToHistory({ ...state, isBackgroundLocked });
+          const zoom = zoomBackground(getState(), scale, SLIDER_CONFIG.canvas);
+          setState(zoom as Partial<SliderState>);
+          debouncedSaveToHistory({ ...getState(), ...zoom });
         },
         setImageAttribution: (attribution: StockImageAttribution | null) => {
           setState({ imageAttribution: attribution } as Partial<SliderState>);

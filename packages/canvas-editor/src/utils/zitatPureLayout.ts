@@ -3,8 +3,9 @@
  * Values originally taken from the retired server-side Zitat-Pure renderer, so
  * canvases match the sharepics it produced
  */
-import { SYSTEM_ASSETS } from './canvasAssets';
-import { wrapText } from './textUtils';
+import { wrapText } from '@ggraphic/editor/utils/textUtils';
+
+import { SYSTEM_ASSETS } from '../brand/grueneAssets';
 
 export const ZITAT_PURE_CONFIG = {
   canvas: {

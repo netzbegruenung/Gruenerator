@@ -9,15 +9,11 @@
  * Used by: Zitat, Simple
  */
 
-import { HiPhotograph } from 'react-icons/hi';
+import { zoomBackground } from '@ggraphic/editor/utils/coverFit';
+import { straightenResetFor } from '@ggraphic/editor/utils/straighten';
 import { PiFrameCornersFill, PiSquaresFourFill, PiTextAa } from 'react-icons/pi';
 
-import {
-  AssetsSection,
-  CombinedTextSection,
-  FrameSettingsSection,
-  ImageBackgroundSection,
-} from '../../sidebar/sections';
+import { AssetsSection, CombinedTextSection, FrameSettingsSection } from '../../sidebar/sections';
 import { chatTab, createCommonSectionEntries, toolsTab, uploadsTab } from '../commonSections';
 import { injectFeatureProps } from '../featureInjector';
 import { getPlaceholder } from '../placeholders';
@@ -28,18 +24,19 @@ import { carryInstanceState } from './carryInstanceState';
 import { makeSectionDefiner } from './defineSection';
 
 import type { CanvasFeatures, CanvasDimensions, IconState } from './baseTypes';
-import type { StockImageAttribution } from '../../common/imageSourceTypes';
 import type { BackgroundColorOption } from '../../sidebar/types';
-import type { BalkenInstance, BalkenMode } from '../../utils/balkenUtils';
 import type { AssetInstance } from '../../utils/canvasAssets';
-import type { ChartInstance } from '../../utils/chartUtils';
-import type { CircleBadgeInstance } from '../../utils/circleBadgeUtils';
-import type { FrameClipType, FrameInstance } from '../../utils/frameUtils';
-import type { IllustrationInstance } from '../../utils/illustrations/types';
-import type { PillBadgeInstance } from '../../utils/pillBadgeUtils';
-import type { ShapeInstance, ShapeType } from '../../utils/shapes';
-import type { UserImageInstance } from '../../utils/userImageUtils';
 import type { FullCanvasConfig, LayoutResult, CanvasElementConfig, AdditionalText } from '../types';
+import type { StockImageAttribution } from '@ggraphic/editor/common/imageSourceTypes';
+import type { BalkenInstance, BalkenMode } from '@ggraphic/editor/utils/balkenUtils';
+import type { ChartInstance } from '@ggraphic/editor/utils/chartUtils';
+import type { CircleBadgeInstance } from '@ggraphic/editor/utils/circleBadgeUtils';
+import type { FrameClipType, FrameInstance } from '@ggraphic/editor/utils/frameUtils';
+import type { IllustrationInstance } from '@ggraphic/editor/utils/illustrations/types';
+import type { PillBadgeInstance } from '@ggraphic/editor/utils/pillBadgeUtils';
+import type { ShapeInstance, ShapeType } from '@ggraphic/editor/utils/shapes';
+import type { ElementPlacement, UserImageInstance } from '@ggraphic/editor/utils/userImageUtils';
+import type { StickerRef } from '@gruenerator/contracts';
 
 // ============================================================================
 // STATE TYPE
@@ -72,7 +69,6 @@ export interface ImageTwoTextStateBase {
   backgroundImageFile?: File | Blob | null;
   imageOffset: { x: number; y: number };
   imageScale: number;
-  isBackgroundLocked: boolean;
   backgroundImageOpacity?: number;
   imageAttribution?: StockImageAttribution | null;
 
@@ -132,22 +128,22 @@ export interface ImageTwoTextActions {
   // Image background
   setCurrentImageSrc: (file: File | null, objectUrl?: string) => void;
   setImageScale: (scale: number) => void;
-  toggleBackgroundLock: () => void;
   setImageAttribution?: (attribution: StockImageAttribution | null) => void;
 
   /** No-op on templates the factory was not given a palette for. */
   setBackgroundColor: (color: string) => void;
 
   // Base actions
-  addAsset: (assetId: string) => void;
+  addAsset: (assetId: string, options?: ElementPlacement) => void;
+  addStickerAsset: (ref: StickerRef, options?: ElementPlacement) => void;
   updateAsset: (id: string, partial: Partial<AssetInstance>) => void;
   removeAsset: (id: string) => void;
-  toggleIcon: (id: string, selected: boolean) => void;
+  toggleIcon: (id: string, selected: boolean, options?: ElementPlacement) => void;
   updateIcon: (id: string, partial: Partial<IconState>) => void;
-  addShape: (type: ShapeType) => void;
+  addShape: (type: ShapeType, color?: string, options?: ElementPlacement) => void;
   updateShape: (id: string, partial: Partial<ShapeInstance>) => void;
   removeShape: (id: string) => void;
-  addIllustration: (id: string) => void;
+  addIllustration: (id: string, options?: ElementPlacement) => void;
   updateIllustration: (id: string, partial: Partial<IllustrationInstance>) => void;
   removeIllustration: (id: string) => void;
   addHeader: () => void;
@@ -160,10 +156,10 @@ export interface ImageTwoTextActions {
   addCircleBadge: (preset?: string) => void;
   updateCircleBadge: (id: string, partial: Partial<CircleBadgeInstance>) => void;
   removeCircleBadge: (id: string) => void;
-  addBalken: (mode: BalkenMode) => void;
+  addBalken: (mode: BalkenMode, options?: ElementPlacement) => void;
   updateBalken: (id: string, partial: Partial<BalkenInstance>) => void;
   removeBalken: (id: string) => void;
-  addFrame: (clipType: FrameClipType) => void;
+  addFrame: (clipType: FrameClipType, options?: ElementPlacement) => void;
   updateFrame: (id: string, partial: Partial<FrameInstance>) => void;
   removeFrame: (id: string) => void;
   setFrameImage: (id: string, file: File, objectUrl: string) => void;
@@ -307,7 +303,6 @@ export function createImageTwoTextCanvas<
       offsetKey: 'imageOffset',
       scaleKey: 'imageScale',
       draggable: true,
-      lockedKey: 'isBackgroundLocked',
       opacityStateKey: 'backgroundImageOpacity',
       coverFit: true,
     },
@@ -399,15 +394,6 @@ export function createImageTwoTextCanvas<
 
     tabs: [
       {
-        id: 'image',
-        // Tab id stays `image` — it is persisted nowhere, but 14 configs, the
-        // mobile bridge and four test files name it, and renaming buys the user
-        // nothing. The LABEL is what they read, and it now covers both halves.
-        icon: HiPhotograph,
-        label: hasColorPlane ? 'Hintergrund' : 'Bild',
-        ariaLabel: hasColorPlane ? 'Hintergrund wählen' : 'Bild anpassen',
-      },
-      {
         id: 'text',
         icon: PiTextAa,
         label: 'Text',
@@ -417,7 +403,7 @@ export function createImageTwoTextCanvas<
         id: 'assets',
         icon: PiSquaresFourFill,
         label: 'Elemente',
-        ariaLabel: 'Dekorative Elemente',
+        ariaLabel: 'Elemente hinzufügen',
       },
       {
         id: 'frame-settings',
@@ -431,48 +417,36 @@ export function createImageTwoTextCanvas<
     ],
 
     // 'share' is not in `tabs`, so listing it here filtered to nothing.
-    getVisibleTabs: () => ['image', 'text', 'assets', 'tools', 'uploads', 'chat'],
+    getVisibleTabs: () => ['text', 'assets', 'tools', 'uploads', 'chat'],
 
-    // Clicking the background image opens the tab that replaces it. The
-    // element id is `background-image`; `background` is the (unclickable) colour
-    // plane, so matching on that would never fire.
     getAutoSwitchTab: (selectedElement) =>
-      selectedElement === 'background-image'
-        ? 'image'
-        : selectedElement?.startsWith('chart-')
-          ? 'chart-settings'
-          : selectedElement?.startsWith('frame-')
-            ? 'frame-settings'
-            : selectedElement?.startsWith('balken-')
-              ? 'settings'
-              : null,
+      selectedElement?.startsWith('chart-')
+        ? 'chart-settings'
+        : selectedElement?.startsWith('frame-')
+          ? 'frame-settings'
+          : selectedElement?.startsWith('balken-')
+            ? 'settings'
+            : null,
+
+    background: (state, actions) => ({
+      currentImageSrc: state.currentImageSrc || undefined,
+      imageAttribution: state.imageAttribution ?? null,
+      onImageChange: (file, url, attribution) => {
+        actions.setCurrentImageSrc(file, url);
+        if (attribution !== undefined) actions.setImageAttribution?.(attribution);
+      },
+      scale: state.imageScale,
+      onScaleChange: actions.setImageScale,
+      ...(hasColorPlane
+        ? {
+            colors: backgroundColors,
+            currentColor: state.backgroundColor,
+            onColorChange: actions.setBackgroundColor,
+          }
+        : {}),
+    }),
 
     sections: {
-      image: section({
-        component: ImageBackgroundSection,
-        propsFactory: (state, actions) => ({
-          currentImageSrc: state.currentImageSrc,
-          onImageChange: (
-            file: File | null,
-            objectUrl?: string,
-            attribution?: StockImageAttribution | null
-          ) => {
-            actions.setCurrentImageSrc(file, objectUrl);
-            if (attribution !== undefined) actions.setImageAttribution?.(attribution);
-          },
-          scale: state.imageScale,
-          onScaleChange: actions.setImageScale,
-          isLocked: state.isBackgroundLocked,
-          onToggleLock: actions.toggleBackgroundLock,
-          ...(hasColorPlane
-            ? {
-                backgroundColor: state.backgroundColor,
-                backgroundColors,
-                onBackgroundColorChange: actions.setBackgroundColor,
-              }
-            : {}),
-        }),
-      }),
       text: section({
         component: CombinedTextSection,
         propsFactory: (state, actions) => ({
@@ -488,6 +462,7 @@ export function createImageTwoTextCanvas<
         propsFactory: (state, actions, context) => ({
           assetInstances: state.assetInstances,
           onAddAsset: actions.addAsset,
+          onAddStickerAsset: actions.addStickerAsset,
           onUpdateAsset: actions.updateAsset,
           onRemoveAsset: actions.removeAsset,
           ...injectFeatureProps(state, actions, context),
@@ -548,9 +523,6 @@ export function createImageTwoTextCanvas<
         currentImageSrc: (props.currentImageSrc as string) || (props.imageSrc as string) || '',
         imageOffset: (props.imageOffset as { x: number; y: number } | undefined) ?? { x: 0, y: 0 },
         imageScale: (props.imageScale as number | undefined) ?? 1,
-        // Carried, not hard-reset: card renders and remote-sync re-seeds run
-        // through here, so a hard `false` threw the lock away on the next render.
-        isBackgroundLocked: (props.isBackgroundLocked as boolean | undefined) ?? false,
         backgroundImageOpacity: (props.backgroundImageOpacity as number | undefined) ?? 1,
         imageAttribution:
           (props.imageAttribution as StockImageAttribution | null | undefined) ?? null,
@@ -622,14 +594,12 @@ export function createImageTwoTextCanvas<
           setState({
             currentImageSrc: objectUrl || '',
             backgroundImageFile: file,
+            ...straightenResetFor(getState()),
           } as Partial<State>);
           saveToHistory(getState());
         },
         setImageScale: (scale: number) => {
-          setState({ imageScale: scale } as Partial<State>);
-        },
-        toggleBackgroundLock: () => {
-          setState((prev) => ({ ...prev, isBackgroundLocked: !prev.isBackgroundLocked }));
+          setState(zoomBackground(getState(), scale, canvas) as Partial<State>);
         },
         setImageAttribution: (attribution: StockImageAttribution | null) => {
           setState({ imageAttribution: attribution } as Partial<State>);

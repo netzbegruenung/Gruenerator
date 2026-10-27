@@ -15,7 +15,7 @@ import { useAuth } from '@gruenerator/shared/hooks';
 import { Ionicons } from '@react-native-vector-icons/ionicons';
 import { useNavigationContainerRef, useRouter, type Href } from 'expo-router';
 import { type ReactElement, memo, useCallback, useMemo, useState } from 'react';
-import { View, Text, Pressable, StyleSheet, Alert } from 'react-native';
+import { ActivityIndicator, View, Text, Pressable, StyleSheet, Alert } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useDrawerStore } from '../../hooks/useDrawerStore';
@@ -327,7 +327,7 @@ function DrawerSections({
           </Text>
         </Pressable>
       ))}
-      <Text style={[styles.sectionLabel, { color: theme.textSecondary }]}>Letzte</Text>
+      <View style={[styles.sectionDivider, { backgroundColor: theme.border }]} />
     </View>
   );
 }
@@ -400,6 +400,7 @@ export const ThreadListDrawer = memo(function ThreadListDrawer({ theme: themePro
   const closeDrawer = useDrawerStore((s) => s.closeDrawer);
   const openSettings = useSettingsSheetStore((s) => s.open);
   const activeThreadId = useAuiState((s) => s.threadListItem.id);
+  const isLoadingThreads = useAuiState((s) => s.threads.isLoading);
   const favouriteIds = useToolFavoritesStore((s) => s.favorites);
   // The starred Studio tools, in the order they were starred. The top-level
   // tools are tiles on Arbeiten, not entries here.
@@ -506,7 +507,15 @@ export const ThreadListDrawer = memo(function ThreadListDrawer({ theme: themePro
         contentContainerStyle={styles.listContent}
         ListHeaderComponent={listHeader}
         ListFooterComponent={listFooter}
-        ListEmptyComponent={<EmptyThreads theme={theme} onNewChat={handleNewChat} />}
+        ListEmptyComponent={
+          // An empty list while list() runs is not "no conversations" — the
+          // first load after a cold start can take many seconds.
+          isLoadingThreads ? (
+            <ActivityIndicator style={styles.empty} color={theme.textSecondary} />
+          ) : (
+            <EmptyThreads theme={theme} onNewChat={handleNewChat} />
+          )
+        }
       />
 
       {selected && (
@@ -542,7 +551,7 @@ const styles = StyleSheet.create({
   },
   // ── Drawer geometry ──────────────────────────────────────────────────────
   // Two vertical edges, not four. Everything without an icon — the title, the
-  // "Letzte" label, the conversation rows — starts at DRAWER_EDGE; rows with an
+  // divider, the conversation rows — starts at DRAWER_EDGE; rows with an
   // icon put their LABEL at DRAWER_EDGE + icon + gap, and the icon itself on the
   // same edge as the text above it. Before this the four were 16, 20, 24 and 60,
   // three of which were nobody's decision — they fell out of a container padding
@@ -587,14 +596,12 @@ const styles = StyleSheet.create({
     ...chatType.chatBody,
     fontWeight: '500',
   },
-  sectionLabel: {
-    ...chatType.chatLabel,
-    fontWeight: '700',
-    paddingHorizontal: spacing.small,
-    // The turn from navigation to content. At the old 16 it read as one more
-    // row gap instead of a change of subject.
-    marginTop: spacing.xlarge + spacing.xsmall,
-    marginBottom: spacing.xsmall,
+  // The turn from navigation to the conversations, without a heading: a line
+  // says "change of subject" in less height than the old „Letzte" label.
+  sectionDivider: {
+    height: StyleSheet.hairlineWidth,
+    marginHorizontal: spacing.small,
+    marginVertical: spacing.medium,
   },
   list: {
     flex: 1,

@@ -43,7 +43,7 @@ interface RenderJob {
 }
 
 const renderBodySchema = z.object({
-  design: z.record(z.unknown()),
+  design: z.record(z.string(), z.unknown()),
   options: z
     .object({
       fps: z.number().optional(),

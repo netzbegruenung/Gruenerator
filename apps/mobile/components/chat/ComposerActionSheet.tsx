@@ -253,7 +253,7 @@ export const ComposerActionSheet = memo(function ComposerActionSheet({
       ));
       if (detail === 'functions') return rows;
       // Web closes its recipe submenu with two entries — a search across all
-      // recipes and a link to the library. On mobile the Agentura screen is both,
+      // recipes and a link to the library. On mobile the Grüneratoren screen is both,
       // so it is one row.
       return [
         ...rows,
@@ -261,7 +261,7 @@ export const ComposerActionSheet = memo(function ComposerActionSheet({
           key="all-recipes"
           icon="library-outline"
           title="Alle Rezepte"
-          value="In der Agentura durchsuchen"
+          value="In den Grüneratoren durchsuchen"
           onPress={() => runAction(() => router.push(route('/(focused)/agents')))}
           last
         />,

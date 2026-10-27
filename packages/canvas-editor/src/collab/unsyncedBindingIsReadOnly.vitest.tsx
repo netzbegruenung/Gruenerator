@@ -2,15 +2,13 @@
  * Before the sync a page previews the locally cached doc: its stored config
  * reaches the store, but nothing flows back into the doc.
  */
+import { useYjsCanvasBinding } from '@ggraphic/editor/collab/useYjsCanvasBinding';
+import { CanvasStoreProvider, useCanvasStore } from '@ggraphic/editor/stores/CanvasStoreProvider';
 import { render } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import * as Y from 'yjs';
 
-import { CanvasStoreProvider, useCanvasStore } from '../stores/CanvasStoreProvider';
-
-import { useYjsCanvasBinding } from './useYjsCanvasBinding';
-
-import type { CanvasEditorStoreApi } from '../stores/createCanvasEditorStore';
+import type { CanvasEditorStoreApi } from '@ggraphic/editor/stores/createCanvasEditorStore';
 
 let captured: CanvasEditorStoreApi | null = null;
 

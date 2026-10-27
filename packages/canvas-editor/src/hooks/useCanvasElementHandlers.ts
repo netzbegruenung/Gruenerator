@@ -1,14 +1,26 @@
 import { useCallback, useMemo } from 'react';
 
+import { type LiftedBlock } from '../blocks/liftedBlock';
 import { resolveValue } from '../utils/canvasValueResolver';
+import {
+  isTemplateElementRotatable,
+  templatePositionUpdates,
+  withTemplateRotation,
+} from '../utils/templateRotation';
 
 import type { FullCanvasConfig, LayoutResult, AdditionalText } from '../configs/types';
-import type { CircleBadgeInstance } from '../primitives';
-import type { ChartInstance } from '../utils/chartUtils';
-import type { FrameInstance } from '../utils/frameUtils';
-import type { PillBadgeInstance } from '../utils/pillBadgeUtils';
-import type { ShapeInstance } from '../utils/shapes';
-import type { UserImageInstance } from '../utils/userImageUtils';
+import type { CircleBadgeInstance } from '@ggraphic/editor/primitives/CircleBadge';
+import type { BalkenMode } from '@ggraphic/editor/utils/balkenUtils';
+import type { ChartInstance, ChartType } from '@ggraphic/editor/utils/chartTypes';
+import type { FrameClipType, FrameInstance } from '@ggraphic/editor/utils/frameUtils';
+import type { PillBadgeInstance } from '@ggraphic/editor/utils/pillBadgeUtils';
+import type { ShapeInstance, ShapeType } from '@ggraphic/editor/utils/shapes';
+import type {
+  ElementPlacement,
+  UserImageInstance,
+  UserImagePlacement,
+} from '@ggraphic/editor/utils/userImageUtils';
+import type { StickerRef } from '@ggraphic/schema';
 
 /**
  * Canvas Element Handlers - Handlers for all element interactions
@@ -40,6 +52,8 @@ export interface OptionalCanvasActions {
       rotation?: number;
       color?: string;
       opacity?: number;
+      flipX?: boolean;
+      flipY?: boolean;
     }>
   ) => void;
   updateShape?: (id: string, attrs: Partial<ShapeInstance>) => void;
@@ -52,24 +66,46 @@ export interface OptionalCanvasActions {
       rotation?: number;
       color?: string;
       opacity?: number;
+      flipX?: boolean;
+      flipY?: boolean;
     }>
   ) => void;
   updateAsset?: (
     id: string,
-    attrs: Partial<{ x: number; y: number; scale?: number; rotation?: number; opacity?: number }>
+    attrs: Partial<{
+      x: number;
+      y: number;
+      scale?: number;
+      rotation?: number;
+      opacity?: number;
+      flipX?: boolean;
+      flipY?: boolean;
+    }>
   ) => void;
   updateAdditionalText?: (id: string, attrs: Partial<AdditionalText>) => void;
   updateCircleBadge?: (id: string, attrs: Partial<CircleBadgeInstance>) => void;
   updatePillBadge?: (id: string, attrs: Partial<PillBadgeInstance>) => void;
   updateFrame?: (id: string, attrs: Partial<FrameInstance>) => void;
   setFrameImage?: (id: string, file: File, objectUrl: string) => void;
+  addUserImageFromUrl?: (url: string, fileName: string, options?: UserImagePlacement) => void;
   updateUserImage?: (id: string, attrs: Partial<UserImageInstance>) => void;
   updateChart?: (id: string, attrs: Partial<ChartInstance>) => void;
+
+  // Add actions a dragged Elemente tile is dropped with (GenericCanvas `dropElement`).
+  addAsset?: (assetId: string, options?: ElementPlacement) => void;
+  /** Adds a block (`blocks/liftedBlock.ts`) as one history entry (freeform pages). */
+  insertBlock?: (block: LiftedBlock) => void;
+  addStickerAsset?: (ref: StickerRef, options?: ElementPlacement) => void;
+  addShape?: (type: ShapeType, color?: string, options?: ElementPlacement) => void;
+  addIllustration?: (id: string, options?: ElementPlacement) => void;
+  addChart?: (chartType: ChartType, options?: ElementPlacement) => void;
+  addFrame?: (clipType: FrameClipType, options?: ElementPlacement) => void;
+  addBalken?: (mode: BalkenMode, options?: ElementPlacement) => void;
 
   // Removal / toggle actions (consumed by useCanvasKeyboardHandlers for
   // delete-key shortcuts; same factory-provided implementations).
   removeBalken?: (id: string) => void;
-  toggleIcon?: (id: string, enabled: boolean) => void;
+  toggleIcon?: (id: string, enabled: boolean, options?: ElementPlacement) => void;
   removeShape?: (id: string) => void;
   removeAdditionalText?: (id: string) => void;
   removeIllustration?: (id: string) => void;
@@ -79,6 +115,12 @@ export interface OptionalCanvasActions {
   removeFrame?: (id: string) => void;
   removeUserImage?: (id: string) => void;
   removeChart?: (id: string) => void;
+  /**
+   * Gehört das Element zur Vorlage, obwohl es in einer Sammlung liegt (der
+   * Balken einer Dreizeilen-Vorlage, aus den drei Zeilen abgeleitet)? Dann lässt es
+   * sich nicht löschen — siehe `findElementRemover`.
+   */
+  isTemplateBound?: (id: string) => boolean;
 }
 
 export interface UseCanvasElementHandlersOptions<
@@ -91,10 +133,11 @@ export interface UseCanvasElementHandlersOptions<
   actions: TActions;
   layout: LayoutResult;
   callbacks: Record<string, ((val: unknown) => void) | undefined>;
-  setSelectedElement: (id: string | null) => void;
+  selectElement: (id: string) => void;
   updateElementPosition: (id: string, x: number, y: number, w: number, h: number) => void;
-  saveToHistory: (state: TState) => void;
-  debouncedSaveToHistory: (state: TState) => void;
+  /** Snapshots the committed state; the argument is ignored (`useCanvasHistorySetup`). */
+  saveToHistory: (state?: TState) => void;
+  debouncedSaveToHistory: (state?: TState) => void;
 }
 
 export interface UseCanvasElementHandlersResult {
@@ -103,7 +146,16 @@ export interface UseCanvasElementHandlersResult {
   handleFontSizeChange: (id: string, size: number) => void;
   handleElementPositionChange: (id: string, x: number, y: number, w: number, h: number) => void;
   handleImageDragEnd: (id: string, x: number, y: number) => void;
-  handleImageTransformEnd: (id: string, x: number, y: number, w: number, h: number) => void;
+  handleImageTransformEnd: (
+    id: string,
+    x: number,
+    y: number,
+    w: number,
+    h: number,
+    rotation: number
+  ) => void;
+  /** Vorlagen-Text nach dem Transformer: Position und Drehung als ein Schritt. */
+  handleTemplateTransformEnd: (id: string, x: number, y: number, rotation: number) => void;
   handleBalkenSelect: (id: string) => void;
   handleBalkenDragEnd: (id: string, x: number, y: number) => void;
   handleBalkenTransformEnd: (
@@ -163,6 +215,7 @@ export interface UseCanvasElementHandlersResult {
   handleFrameChange: (id: string, newAttrs: Partial<FrameInstance>) => void;
   handleFrameImageUpload: (id: string, file: File, objectUrl: string) => void;
   handleUserImageDragEnd: (id: string, x: number, y: number) => void;
+  handleUserImageCropEnd: (id: string, patch: Partial<UserImageInstance>) => void;
   handleUserImageTransformEnd: (
     id: string,
     x: number,
@@ -204,7 +257,7 @@ export function useCanvasElementHandlers<
     actions,
     layout,
     callbacks,
-    setSelectedElement,
+    selectElement,
     updateElementPosition,
     saveToHistory,
     debouncedSaveToHistory,
@@ -212,9 +265,9 @@ export function useCanvasElementHandlers<
 
   const handleElementSelect = useCallback(
     (id: string) => {
-      setSelectedElement(id);
+      selectElement(id);
     },
-    [setSelectedElement]
+    [selectElement]
   );
 
   const handleTextChange = useCallback(
@@ -237,9 +290,9 @@ export function useCanvasElementHandlers<
     (id: string, size: number) => {
       const elementConfig = config.elements.find((e) => e.id === id);
       if (elementConfig && elementConfig.type === 'text' && elementConfig.fontSizeStateKey) {
-        const next = { ...state, [elementConfig.fontSizeStateKey]: size };
-        setState(() => next);
-        debouncedSaveToHistory(next);
+        const key = elementConfig.fontSizeStateKey;
+        setState((prev) => ({ ...prev, [key]: size }));
+        debouncedSaveToHistory();
         return;
       }
 
@@ -278,9 +331,8 @@ export function useCanvasElementHandlers<
       // verschiebt. Ohne einen der beiden Schluessel bleibt der Zug fluechtig.
       if (elementConfig.positionStateKey) {
         const key = elementConfig.positionStateKey;
-        const next = { ...state, [key]: { x, y } };
-        setState(() => next);
-        saveToHistory(next);
+        setState((prev) => ({ ...prev, [key]: { x, y } }));
+        saveToHistory();
         return;
       }
 
@@ -296,22 +348,11 @@ export function useCanvasElementHandlers<
   );
 
   const handleImageTransformEnd = useCallback(
-    (id: string, x: number, y: number, w: number, h: number) => {
+    (id: string, x: number, y: number, w: number, h: number, rotation: number) => {
       const elementConfig = config.elements.find((e) => e.id === id);
       if (elementConfig && elementConfig.type === 'image') {
-        const updates = {} as Record<string, unknown>;
-
-        // Handle offset-based position (relative to base)
-        if (elementConfig.offsetKey) {
-          const baseX = typeof elementConfig.x === 'number' ? elementConfig.x : 0;
-          const baseY = typeof elementConfig.y === 'number' ? elementConfig.y : 0;
-          updates[elementConfig.offsetKey] = { x: x - baseX, y: y - baseY };
-        }
-
-        // Handle absolute position
-        if (elementConfig.positionStateKey) {
-          updates[elementConfig.positionStateKey] = { x, y };
-        }
+        // Offset (relative to the layout base, as the drag writes it) and absolute position
+        const updates = templatePositionUpdates(elementConfig, x, y, state, layout);
 
         // Handle scale-based sizing
         if (elementConfig.scaleKey) {
@@ -326,21 +367,52 @@ export function useCanvasElementHandlers<
           updates[elementConfig.sizeStateKey] = { w, h };
         }
 
+        // Rotation rides in the same update and the same history entry as the
+        // position it shifted: one undo restores both.
+        const rotatable = isTemplateElementRotatable(elementConfig);
         if (Object.keys(updates).length > 0) {
-          const nextState = { ...state, ...updates } as TState;
-          setState((prev) => ({ ...prev, ...updates }));
-          saveToHistory(nextState);
+          setState(
+            (prev) =>
+              ({
+                ...prev,
+                ...updates,
+                ...(rotatable
+                  ? { templateRotations: withTemplateRotation(prev, id, rotation) }
+                  : {}),
+              }) as TState
+          );
+          saveToHistory({ ...state, ...updates } as TState);
         }
       }
+    },
+    [config.elements, setState, saveToHistory, state, layout]
+  );
+
+  const handleTemplateTransformEnd = useCallback(
+    (id: string, x: number, y: number, rotation: number) => {
+      const elementConfig = config.elements.find((e) => e.id === id);
+      if (elementConfig?.type !== 'text' || !isTemplateElementRotatable(elementConfig)) return;
+      const positionStateKey = elementConfig.positionStateKey as string | undefined;
+      if (!positionStateKey) return;
+      setState(
+        (prev) =>
+          ({
+            ...prev,
+            [positionStateKey]: { x, y },
+            templateRotations: withTemplateRotation(prev, id, rotation),
+          }) as TState
+      );
+      // The argument is ignored: the entry snapshots the committed state.
+      saveToHistory(state);
     },
     [config.elements, setState, saveToHistory, state]
   );
 
   const handleBalkenSelect = useCallback(
     (id: string) => {
-      setSelectedElement(id);
+      selectElement(id);
     },
-    [setSelectedElement]
+    [selectElement]
   );
 
   const handleBalkenDragEnd = useCallback(
@@ -408,9 +480,9 @@ export function useCanvasElementHandlers<
 
   const handleCircleBadgeSelect = useCallback(
     (id: string) => {
-      setSelectedElement(id);
+      selectElement(id);
     },
-    [setSelectedElement]
+    [selectElement]
   );
 
   const handleCircleBadgeDragEnd = useCallback(
@@ -458,9 +530,9 @@ export function useCanvasElementHandlers<
 
   const handlePillBadgeSelect = useCallback(
     (id: string) => {
-      setSelectedElement(id);
+      selectElement(id);
     },
-    [setSelectedElement]
+    [selectElement]
   );
 
   const handlePillBadgeTextChange = useCallback(
@@ -552,6 +624,13 @@ export function useCanvasElementHandlers<
     [actions]
   );
 
+  const handleUserImageCropEnd = useCallback(
+    (id: string, patch: Partial<UserImageInstance>) => {
+      actions.updateUserImage?.(id, patch);
+    },
+    [actions]
+  );
+
   const handleUserImageTransformEnd = useCallback(
     (id: string, x: number, y: number, width: number, height: number, rotation: number) => {
       actions.updateUserImage?.(id, { x, y, width, height, rotation });
@@ -581,6 +660,7 @@ export function useCanvasElementHandlers<
       handleElementPositionChange,
       handleImageDragEnd,
       handleImageTransformEnd,
+      handleTemplateTransformEnd,
       handleBalkenSelect,
       handleBalkenDragEnd,
       handleBalkenTransformEnd,
@@ -604,6 +684,7 @@ export function useCanvasElementHandlers<
       handleFrameChange,
       handleFrameImageUpload,
       handleUserImageDragEnd,
+      handleUserImageCropEnd,
       handleUserImageTransformEnd,
       handleChartDragEnd,
       handleChartTransformEnd,
@@ -615,6 +696,7 @@ export function useCanvasElementHandlers<
       handleElementPositionChange,
       handleImageDragEnd,
       handleImageTransformEnd,
+      handleTemplateTransformEnd,
       handleBalkenSelect,
       handleBalkenDragEnd,
       handleBalkenTransformEnd,
@@ -638,6 +720,7 @@ export function useCanvasElementHandlers<
       handleFrameChange,
       handleFrameImageUpload,
       handleUserImageDragEnd,
+      handleUserImageCropEnd,
       handleUserImageTransformEnd,
       handleChartDragEnd,
       handleChartTransformEnd,

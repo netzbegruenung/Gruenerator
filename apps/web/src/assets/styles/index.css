@@ -43,6 +43,9 @@
 
 /* ── Full Tailwind (preflight + base + utilities) ── */
 @import 'tailwindcss';
+/* animate-in/-out, fade/zoom/slide-*, accordion-/collapsible-down: the
+   enter/exit utilities the Radix primitives in packages/ui are written against. */
+@import 'tw-animate-css';
 
 /* Override Tailwind's dark: variant to use the site's data-theme attribute
    instead of prefers-color-scheme (OS-level). This ensures dark: utilities
@@ -289,7 +292,12 @@
   --color-editor-accent: var(--editor-accent);
   --color-editor-active-fg: var(--editor-active-fg);
   --color-editor-active-bg: var(--editor-active-bg);
+  --color-editor-switch-off: var(--editor-switch-off);
+  --color-editor-switch-thumb-on: var(--editor-switch-thumb-on);
+  --color-editor-switch-thumb-off: var(--editor-switch-thumb-off);
   --color-editor-active-soft: var(--editor-active-soft);
+  --color-editor-stack-back: var(--editor-stack-back);
+  --color-editor-stack-mid: var(--editor-stack-mid);
   --color-editor-secondary-fg: var(--editor-secondary-fg);
   --color-editor-danger-fg: var(--editor-danger-fg);
   --color-editor-danger-bg: var(--editor-danger-bg);
@@ -644,6 +652,28 @@
   }
 }
 
+/* Elemente-Katalog: Einblenden beim Öffnen, je Kachel um 30 ms versetzt (max. 8 Kacheln, Index 0–7).
+   Zwilling von packages/canvas-editor/src/styles/tailwind-input.css — motionTwins.vitest.ts hält beide gleich. */
+@utility element-enter {
+  animation:
+    elementFade 0.2s var(--editor-ease-out) both,
+    elementRise 0.25s var(--editor-ease-out) both;
+  animation-delay: calc(min(var(--i, 0), 7) * 30ms);
+
+  @media (prefers-reduced-motion: reduce) {
+    animation: none;
+  }
+}
+
+/* Elemente-Katalog: gestaffeltes Einblenden (Opazität und Lage getrennt getaktet) */
+@keyframes elementFade {
+  from { opacity: 0; }
+}
+
+@keyframes elementRise {
+  from { transform: var(--enter-from, none); }
+}
+
 @keyframes subsectionFadeIn {
   from {
     opacity: 0;
@@ -674,6 +704,37 @@
   to {
     opacity: 1;
     transform: translateY(0);
+  }
+}
+
+/* Reduced motion: these entrances keep their fade and drop the movement.
+   Zwilling von packages/canvas-editor/src/styles/tailwind-input.css. */
+@media (prefers-reduced-motion: reduce) {
+  @keyframes subsectionFadeIn {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+
+  @keyframes slideDownFade {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+
+  @keyframes flyout-enter {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
   }
 }
 

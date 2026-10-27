@@ -32,7 +32,20 @@ import type { PassageChunk } from './passageChunker.js';
 
 const log = createLogger('Distill');
 
-export type DistillMode = 'query-focused' | 'faithful';
+/**
+ * `figures` selects like `query-focused`, but a figure-dense passage (a table,
+ * a year-by-year list) goes before any prose. A chart turn needs the series,
+ * and the cross-encoder ranks a column of numbers below the paragraph that
+ * talks about it — live 16.10.2026 it dropped the complete Wikipedia membership
+ * table (1990–2026) and kept the prose around it.
+ */
+export type DistillMode = 'query-focused' | 'faithful' | 'figures';
+
+/** A passage that is mostly numbers: at least 12 of them, one per 25 chars. */
+function isFigureDense(text: string): boolean {
+  const figures = text.match(/(?<![\p{L}\d])\d[\d.,]*/gu)?.length ?? 0;
+  return figures >= 12 && figures * 25 >= text.length;
+}
 
 export type DistillMethod =
   'cross-encoder' | 'lexical' | 'passthrough' | 'llm' | 'disabled' | 'cached';
@@ -273,7 +286,9 @@ export async function distillPassages(args: DistillArgs): Promise<DistillResult>
   const { text, query, mode, targetChars } = args;
 
   if (!text || !text.trim()) return emptyResult(text?.length ?? 0, 'passthrough', 0);
-  if (!isPassageDistillEnabled()) {
+  // `figures` is not behind the switch: the switch keeps existing crawl paths on
+  // their raw text, and the chart search that uses this mode never had one.
+  if (mode !== 'figures' && !isPassageDistillEnabled()) {
     return { ...passthrough(text, targetChars, startedAt), method: 'disabled' };
   }
   if (text.length <= targetChars) {
@@ -326,9 +341,14 @@ export async function distillPassages(args: DistillArgs): Promise<DistillResult>
     ? { scores: chunks.map(() => 0), method: 'passthrough' as DistillMethod }
     : await selectChunks(chunks, query);
 
+  const figuresFirst = mode === 'figures';
   const ranked = chunks
-    .map((chunk, i) => ({ chunk, score: scores[i] ?? 0 }))
-    .sort((a, b) => b.score - a.score);
+    .map((chunk, i) => ({
+      chunk,
+      score: scores[i] ?? 0,
+      tier: figuresFirst && isFigureDense(chunk.text) ? 1 : 0,
+    }))
+    .sort((a, b) => b.tier - a.tier || b.score - a.score);
 
   const useLlm =
     (args.useLlm ?? isDistillLlmEnabled()) && args.condense === true && chunks.length > 1;

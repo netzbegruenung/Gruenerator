@@ -10,6 +10,7 @@ import { orderText } from '../orderText.js';
 import { NAMED_RETRIEVAL_INTENTS } from './intents.js';
 import {
   asksAboutOwnPastAction,
+  asksAboutSuppliedMaterial,
   isReferentialFollowup,
   looksLikeExplicitResearchOrder,
   looksLikeFactCheckOrder,
@@ -32,7 +33,8 @@ export type ForceReason =
   | 'followup'
   | 'named_intent'
   | 'sharepic_order'
-  | 'artifact_edit_order';
+  | 'artifact_edit_order'
+  | 'tabular_decision';
 
 /**
  * Darf der Loop dem Planer einen Werkzeugaufruf ABVERLANGEN (`toolChoice: required`)?
@@ -57,6 +59,10 @@ export function shouldForceFirstToolCall(input: {
   /** Der Turn bringt seinen Stoff selbst mit — dieselbe Zahl, die dem SCHREIBER
    *  den Werkzeugkatalog entzieht (`materialDominatesTurn`). */
   materialHeavy: boolean;
+  /** Im Prompt dieses Turns steht mitgebrachter Text — ein Anhang, ein
+   *  weitergetragener Paste-Chip oder eine lange Nachricht im Verlauf. Anders als
+   *  `materialHeavy` fragt das nicht, ob er den Prompt dominiert, nur ob er da ist. */
+  carriesMaterial?: boolean;
   /** Eine @-Erwähnung hat ein Werkzeug benannt (`mentionPinnedTool`). */
   pinnedTool: string | null;
   /** Der Thread hat in Reichweite der Werkzeug-Wiedergabe schon INFORMATION
@@ -75,11 +81,21 @@ export function shouldForceFirstToolCall(input: {
   /** Der Vorab-Abruf hat für DIESEN Turn Passagen aus den angehängten
    *  Dokumenten in die Quellenregistry gelegt (`seedAttachedDocuments`). */
   attachedSeedDelivered?: boolean;
+  /** Der Zug wird fortgesetzt (Freigabe, Client-Werkzeug, Rückfrage —
+   *  `resumeApproval`): sein erster Schritt lief schon vor der Pause. */
+  resumesSuspendedTurn?: boolean;
+  /** `tabelle_auswerten` hängt im Katalog: der Turn rechnet über eine Tabelle. */
+  tabularToolMounted?: boolean;
 }): ForceReason | null {
   // Der Bann vetoed alles. `toolChoice: 'required'` ist kein Vorschlag, den das
   // Modell gegen den Satz des Nutzers abwägen kann — unter „ohne neue Recherche"
   // sind die verbleibenden Werkzeuge die falschen.
   if (input.researchBanned) return null;
+
+  // Eine Fortsetzung hat ihren ersten Schritt schon hinter sich. Erneut zu
+  // zwingen kostete je Pause eine zusätzliche Suche plus Planer-Runde (live
+  // 27.10.2026: „erzwungener erster Aufruf (named_intent)" nach jeder Freigabe).
+  if (input.resumesSuspendedTurn) return null;
 
   // Fünfter Weg: die Person hat ein Werkzeug BENANNT. Er steht neben dem
   // Intent-Weg unten und nicht in ihm, weil ein Pin keinen Intent mehr braucht —
@@ -164,7 +180,22 @@ export function shouldForceFirstToolCall(input: {
   // Dasselbe gilt für einen Auftrag, der nur an mitgebrachtem Text arbeitet
   // („rechtschreibung korrigieren" unter einem eingefügten Newsletter), auch wenn
   // der Stoff zu kurz ist, um `materialHeavy` zu setzen (#3903).
-  if (input.loopDemotedFromRetrieval && !input.materialHeavy && !reworksOwnText)
+  //
+  // Und für eine Frage ÜBER den mitgebrachten Text („Welche vier Maßnahmen stehen
+  // im Antrag?"), auch wenn er in einem früheren Turn kam (#4789). Die Heuristik
+  // liest „im Antrag" als Parteiposition, und der Zwang holte 10–20 fremde
+  // Web-Treffer, die als Quellen unter der Antwort standen und in die
+  // Folge-Turns weitergetragen wurden. `materialHeavy` sieht das nicht: es misst,
+  // ob der Stoff den Prompt DOMINIERT, und ein Antrag von 1.300 Zeichen neben dem
+  // Systemprompt tut das nie.
+  const asksAboutOwnMaterial =
+    input.carriesMaterial === true && asksAboutSuppliedMaterial(input.lastUserText);
+  if (
+    input.loopDemotedFromRetrieval &&
+    !input.materialHeavy &&
+    !reworksOwnText &&
+    !asksAboutOwnMaterial
+  )
     return 'demoted_retrieval';
 
   // Dritter Weg: die LLM-Stufe sagte „braucht Recherche" und schrieb im selben
@@ -201,6 +232,13 @@ export function shouldForceFirstToolCall(input: {
   //
   // Eigenes Material sticht auch hier, aus demselben Grund wie beim
   // Demotions-Zweig.
+  // Ein Tabellen-Turn holt nichts nach: die Daten liegen im Anhang, gerechnet
+  // wird mit `tabelle_auswerten`. Ein Zwang auf die Suchwerkzeuge liess den
+  // Planer hängen oder im Web suchen (live 27.10.2026, named_intent/followup).
+  // Ganz ohne Zwang schwieg er dagegen bei Anschlussfragen, und der Schreiber
+  // rechnete aus dem Auszug (#5042) — also eine Wahl zwischen zwei Werkzeugen.
+  if (input.tabularToolMounted) return 'tabular_decision';
+
   if (
     input.priorTurnRetrieved &&
     input.intent === 'agentic' &&
@@ -352,6 +390,8 @@ export function forcedFirstStepTools(input: {
   userText: string;
   /** Der Thread arbeitet mit einem Notebook (`notebookForPrompt`). */
   threadNotebook?: boolean;
+  /** Der Auftrag bestellt eine Textsorte mit Rezept (`deriveImplicitRecipeMention`). */
+  recipeOrder?: boolean;
 }): readonly string[] | null {
   // Der Klassifikator schiebt jeden Dokument-Turn nach `search`. Hat der
   // Vorab-Abruf nichts geliefert, müsste Schritt 0 sonst die Parteiprogramme
@@ -375,6 +415,9 @@ export function forcedFirstStepTools(input: {
       break;
     case 'sharepic_order':
       candidates = ['edit_sharepic', 'read_sharepic', 'check_sharepic'];
+      break;
+    case 'tabular_decision':
+      candidates = ['tabelle_auswerten', 'direkt_antworten'];
       break;
     case 'artifact_edit_order':
       candidates = [
@@ -434,5 +477,20 @@ export function forcedFirstStepTools(input: {
   // Die Lader (`meine_inhalte_laden` u. a.) öffnen nur eine Gruppe, sie holen nichts.
   const loaders = new Set<string>(DEFERRABLE_GROUPS.map((g) => g.loaderTool));
   const scoped = [...new Set(candidates)].filter((t) => mounted.has(t) && !loaders.has(t));
-  return scoped.length > 0 ? scoped : null;
+  if (scoped.length === 0) return null;
+  // Bestellt der Auftrag eine Textsorte, sagt der Prompt „rufe ZUERST
+  // `rezept_laden`" (Katalog und Werkzeug entstehen zusammen in
+  // catalogAssembly). Ein erzwungener Schritt ohne das Werkzeug widerspricht
+  // ihm, und darauf antwortet Gemma unter `required` gar nicht: „Mach daraus
+  // bitte einen Instagram-Post" mit Anhang hing auf Melious UND Cortecs 3 von 3
+  // Mal über 50 s, mit `rezept_laden` daneben kamen alle sechs Läufe nach 5 s
+  // (#4785). Nur bei einer Bestellung: auf Recherche-Aufträge griff der Planer
+  // unter `required` zum Rezept statt zur Suche (#3880).
+  const offersRecipe =
+    input.recipeOrder === true &&
+    input.reason !== 'mcp_scope' &&
+    input.reason !== 'sharepic_order' &&
+    input.reason !== 'artifact_edit_order' &&
+    mounted.has('rezept_laden');
+  return offersRecipe ? [...scoped, 'rezept_laden'] : scoped;
 }

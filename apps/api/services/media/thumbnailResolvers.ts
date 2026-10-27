@@ -14,12 +14,19 @@
 
 import path from 'path';
 
+import {
+  shareTokenFromDownloadUrl,
+  shareTokenFromShareUrl,
+} from '@gruenerator/shared/media-library/shareUrl';
+
 import { getPostgresInstance } from '../../database/services/PostgresService/PostgresService.js';
 import { getSharedMediaService } from '../../routes/share/shareServices.js';
+import { isRemovedStudioAssetShare } from '../studioAssets/studioAssetShare.js';
 import { getSubtitlerProjectService } from '../subtitler/index.js';
 
+import { getRemoteImageSource } from './remoteImageSource.js';
 import { type ThumbnailKind } from './thumbnailSignature.js';
-import { shareTokenFromDownloadUrl } from './thumbnailUrl.js';
+import { parseTemplatePageThumbnailId } from './thumbnailUrl.js';
 
 const db = getPostgresInstance();
 
@@ -64,6 +71,7 @@ async function resolveMedia(shareToken: string): Promise<ResolvedThumbnail> {
   if (!share) return { ok: false, reason: 'not_found' };
   if (share.status === 'processing') return { ok: false, reason: 'processing' };
   if (share.status === 'failed') return { ok: false, reason: 'not_found' };
+  if (await isRemovedStudioAssetShare(share)) return { ok: false, reason: 'not_found' };
 
   // A video share's `file_path` is the mp4. This endpoint only ever produces
   // still images, so it uses the poster frame generated at upload — resizing an
@@ -126,6 +134,49 @@ async function resolveCanvas(canvasId: string): Promise<ResolvedThumbnail> {
   return resolveMedia(token);
 }
 
+/**
+ * Any image URL a row stores — a media-library upload in either stored form
+ * (`/share/<token>`, `/api/share/<token>/download`) or a remote `http(s)` URL —
+ * as a thumbnail source. The reusable half of a new kind: the kind only reads
+ * its stored URL, this turns it into pixels.
+ */
+export async function resolveStoredImage(url: string): Promise<ResolvedThumbnail> {
+  const token = shareTokenFromShareUrl(url);
+  if (token) {
+    return isSafeThumbnailId(token) ? resolveMedia(token) : { ok: false, reason: 'not_found' };
+  }
+  if (!/^https?:\/\//i.test(url)) return { ok: false, reason: 'not_found' };
+  const remote = await getRemoteImageSource(url);
+  return remote ? { ok: true, ...remote } : { ok: false, reason: 'not_found' };
+}
+
+/** A Vorlage's card image: its thumbnail, else its first page — as the gallery shows it. */
+async function resolveTemplate(templateId: string): Promise<ResolvedThumbnail> {
+  if (!UUID_RE.test(templateId)) return { ok: false, reason: 'not_found' };
+  const rows = (await db.query(
+    `SELECT COALESCE(NULLIF(thumbnail_url, ''), images->0->>'url') AS url
+       FROM user_templates
+      WHERE id = $1 AND deleted_at IS NULL AND moderation <> 'removed'`,
+    [templateId]
+  )) as Array<{ url: string | null }>;
+  const url = rows[0]?.url;
+  return url ? resolveStoredImage(url) : { ok: false, reason: 'not_found' };
+}
+
+/** One page of a Vorlage, for its detail view. */
+async function resolveTemplatePage(id: string): Promise<ResolvedThumbnail> {
+  const page = parseTemplatePageThumbnailId(id);
+  if (!page) return { ok: false, reason: 'not_found' };
+  const rows = (await db.query(
+    `SELECT images->($2::int)->>'url' AS url
+       FROM user_templates
+      WHERE id = $1 AND deleted_at IS NULL AND moderation <> 'removed'`,
+    [page.templateId, page.index]
+  )) as Array<{ url: string | null }>;
+  const url = rows[0]?.url;
+  return url ? resolveStoredImage(url) : { ok: false, reason: 'not_found' };
+}
+
 export async function resolveThumbnailSource(
   kind: ThumbnailKind,
   id: string
@@ -138,5 +189,9 @@ export async function resolveThumbnailSource(
       return resolveReel(id);
     case 'canvas':
       return resolveCanvas(id);
+    case 'template':
+      return resolveTemplate(id);
+    case 'template-page':
+      return resolveTemplatePage(id);
   }
 }

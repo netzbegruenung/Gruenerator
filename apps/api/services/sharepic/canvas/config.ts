@@ -1,15 +1,14 @@
 import path, { dirname } from 'path';
 import { fileURLToPath } from 'url';
 
+import { brandFontPath } from '../../fonts/brandFonts.js';
+
 import type { CanvasColors } from './types.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
-export const FONT_PATH: string = path.resolve(
-  __dirname,
-  '../../../public/fonts/GrueneTypeNeue-Regular.ttf'
-);
+export const FONT_PATH: string = brandFontPath('GrueneTypeNeue-Regular.ttf');
 export const PTSANS_REGULAR_PATH: string = path.resolve(
   __dirname,
   '../../../public/fonts/PTSans-Regular.ttf'
@@ -24,18 +23,9 @@ export const PTSANS_ITALIC_PATH: string = path.resolve(
 );
 
 // Österreich (de-AT) fonts — Gotham Narrow + Vollkorn (CI 2026)
-export const GOTHAM_ULTRA_PATH: string = path.resolve(
-  __dirname,
-  '../../../public/fonts/GothamNarrow-Ultra.ttf'
-);
-export const GOTHAM_BOOK_PATH: string = path.resolve(
-  __dirname,
-  '../../../public/fonts/GothamNarrow-Book.otf'
-);
-export const GOTHAM_BOLD_PATH: string = path.resolve(
-  __dirname,
-  '../../../public/fonts/GothamNarrow-Bold.otf'
-);
+export const GOTHAM_ULTRA_PATH: string = brandFontPath('GothamNarrow-Ultra.ttf');
+export const GOTHAM_BOOK_PATH: string = brandFontPath('GothamNarrow-Book.otf');
+export const GOTHAM_BOLD_PATH: string = brandFontPath('GothamNarrow-Bold.otf');
 export const VOLLKORN_ITALIC_PATH: string = path.resolve(
   __dirname,
   '../../../public/fonts/Vollkorn-BoldItalic.ttf'

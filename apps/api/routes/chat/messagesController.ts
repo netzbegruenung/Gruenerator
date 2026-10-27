@@ -6,11 +6,13 @@
 import {
   notebookAnswerModeReasonSchema,
   notebookResolvedAnswerModeSchema,
+  notebookSourceRefSchema,
   notebookSourceTierSchema,
   type NotebookAnswerModeReason,
   type NotebookResolvedAnswerMode,
   type NotebookSourceTier,
 } from '@gruenerator/contracts';
+import { z } from 'zod';
 
 import { getPostgresInstance } from '../../database/services/PostgresService.js';
 import { resumableStreams } from '../../services/chat/resumableStreams.js';
@@ -21,12 +23,58 @@ import { ThreadId, UserId } from '../../utils/types/branded.js';
 
 import { withImageProxy } from './services/searchImagePayload.js';
 import { canAccessThread } from './services/threadAccessService.js';
+import { type MentionChip, persistedMentionChipsSchema } from './services/threadMentionRefs.js';
 import { getUser } from './services/threadPersistenceService.js';
 
 import type { WebImageResult } from '../../agents/langgraph/ChatGraph/types.js';
 
 const log = createLogger('MessagesController');
 const router = createAuthenticatedRouter();
+
+/** F0: persisted chip type of a notebook document handed over from the reader. */
+const NOTEBOOK_SOURCE_CONTENT_TYPE = 'application/x-gruenerator-notebook-source';
+
+const persistedNotebookSourcesSchema = z.array(
+  z.object({ ref: notebookSourceRefSchema, title: z.string().nullable() })
+);
+
+/**
+ * The reader chips of a user message (`notebookSources` in its metadata,
+ * written by streamContext) as display attachments — the same shape the
+ * uploaded-file attachments take, so the client restores them as chips.
+ */
+function notebookSourceAttachments(meta: Record<string, unknown>) {
+  const parsed = persistedNotebookSourcesSchema.safeParse(meta.notebookSources);
+  if (!parsed.success) return [];
+  return parsed.data.map(({ ref, title }) => ({
+    id: `notebook-source-${'documentId' in ref ? ref.documentId : `${ref.collectionId}:${ref.sourceUrl}`}`,
+    name: title ?? 'Notebook-Dokument',
+    contentType: NOTEBOOK_SOURCE_CONTENT_TYPE,
+    preview: '',
+    truncated: false,
+  }));
+}
+
+/** F0: chip content types the client renders for a restored mention chip. */
+const MENTION_CHIP_CONTENT_TYPES: Record<MentionChip['kind'], string> = {
+  text: 'application/x-gruenerator-datei-text',
+  doc: 'application/x-gruenerator-collab-doc',
+  link: 'application/x-gruenerator-webpage',
+};
+
+/** The @doc / saved-text / @link chips of a user message (`mentionChips` in its
+ *  metadata, written by streamContext), restored like the reader chips. */
+function mentionChipAttachments(meta: Record<string, unknown>) {
+  const parsed = persistedMentionChipsSchema.safeParse(meta.mentionChips);
+  if (!parsed.success) return [];
+  return parsed.data.map(({ kind, id, title }) => ({
+    id: `mention-${kind}-${id}`,
+    name: title,
+    contentType: MENTION_CHIP_CONTENT_TYPES[kind],
+    preview: '',
+    truncated: false,
+  }));
+}
 
 /**
  * Persisted image hits → render-ready payloads with a fresh proxy handle.
@@ -158,7 +206,7 @@ router.get('/', async (req, res) => {
       const parsedToolCalls = parseJsonField(msg.tool_calls, 'tool_calls', msg.id);
       const content = (msg.content as string) || '';
       const parsedAttachments = parseJsonField(msg.attachments, 'attachments', msg.id);
-      const attachments = Array.isArray(parsedAttachments)
+      const fileAttachments = Array.isArray(parsedAttachments)
         ? parsedAttachments.flatMap((attachment) => {
             if (!attachment || typeof attachment !== 'object') return [];
             const record = attachment as Record<string, unknown>;
@@ -202,6 +250,7 @@ router.get('/', async (req, res) => {
             generatedImage?: Record<string, unknown>;
             createdDocument?: Record<string, unknown>;
             computeData?: Record<string, unknown>;
+            browserSession?: Record<string, unknown>;
             agentId?: string;
             answerMode?: NotebookResolvedAnswerMode;
             answerModeReason?: NotebookAnswerModeReason;
@@ -209,6 +258,7 @@ router.get('/', async (req, res) => {
           }
         | undefined;
       let resultsMap = new Map<string, unknown>();
+      let sourceAttachments: ReturnType<typeof notebookSourceAttachments> = [];
       // ChatGraph/SearchGraph persist toolCalls inline inside the metadata object
       // (with result already attached per entry). When present, this takes precedence
       // over the legacy tool_calls column + result-map reconstruction path.
@@ -227,6 +277,7 @@ router.get('/', async (req, res) => {
         } else {
           // It's search metadata or user message metadata (e.g. roleName)
           const meta = parsedToolResults as Record<string, unknown>;
+          sourceAttachments = [...notebookSourceAttachments(meta), ...mentionChipAttachments(meta)];
           const answerMode = notebookResolvedAnswerModeSchema.safeParse(meta.answerMode);
           const answerModeReason = notebookAnswerModeReasonSchema.safeParse(meta.answerModeReason);
           const sourceTier = notebookSourceTierSchema.safeParse(meta.sourceTier);
@@ -250,6 +301,10 @@ router.get('/', async (req, res) => {
               : {}),
             ...(meta.computeData && typeof meta.computeData === 'object'
               ? { computeData: meta.computeData as Record<string, unknown> }
+              : {}),
+            // website_erkunden: steps + screenshots as asset URLs (no base64).
+            ...(meta.browserSession && typeof meta.browserSession === 'object'
+              ? { browserSession: meta.browserSession as Record<string, unknown> }
               : {}),
             ...(typeof meta.agentId === 'string' && { agentId: meta.agentId }),
             // Notebook-Seite: in welchem Antwortmodus die Antwort lief — trägt
@@ -281,6 +336,11 @@ router.get('/', async (req, res) => {
             ...(meta.pendingApproval && typeof meta.pendingApproval === 'object'
               ? { pendingApproval: meta.pendingApproval as Record<string, unknown> }
               : {}),
+            // Die früher im Zug entschiedenen Freigaben (#5051): ohne sie zeigt
+            // der Reload nur die Pille der letzten Pause.
+            ...(Array.isArray(meta.decidedApprovals)
+              ? { decidedApprovals: meta.decidedApprovals as unknown[] }
+              : {}),
             // Offene Loop-Rückfragen (#3220): dieselbe Begründung — ohne das
             // Feld ist die Frage nach einem Reload weg und nicht beantwortbar.
             ...(meta.pendingClarification && typeof meta.pendingClarification === 'object'
@@ -292,6 +352,8 @@ router.get('/', async (req, res) => {
           }
         }
       }
+
+      const attachments = [...fileAttachments, ...sourceAttachments];
 
       // Build tool invocations array. Prefer embedded toolCalls from the metadata
       // object (inline {toolCallId, toolName, args, result}); fall back to the

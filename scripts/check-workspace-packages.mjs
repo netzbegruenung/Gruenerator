@@ -6,7 +6,8 @@
 // einzigen Stelle würde dagegen genau dort landen, wo ein Angreifer den Namen
 // belegen kann. `private: true` ist die zweite Hälfte: es macht ein
 // versehentliches `npm publish` unmöglich, das denselben Namensraum aufmachen
-// würde.
+// würde. Dasselbe gilt für `@ggraphic/*` (packages/ggraphic-core): der Scope ist
+// auf npm nach unserem Stand nicht registriert (ungeprüft).
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 
@@ -31,6 +32,7 @@ for (const glob of GLOBS) {
 }
 
 const DEP_FIELDS = ['dependencies', 'devDependencies', 'peerDependencies', 'optionalDependencies'];
+const INTERNAL_SCOPE = /^@(gruenerator|ggraphic)\//;
 const errors = [];
 
 for (const { dir, pkg } of manifests) {
@@ -39,7 +41,7 @@ for (const { dir, pkg } of manifests) {
   }
   for (const field of DEP_FIELDS) {
     for (const [name, spec] of Object.entries(pkg[field] ?? {})) {
-      if (!name.startsWith('@gruenerator/')) continue;
+      if (!INTERNAL_SCOPE.test(name)) continue;
       // peerDependencies werden nicht installiert, sondern nur deklariert —
       // dort ist ein Range korrekt und erreicht keine Registry.
       if (field === 'peerDependencies') continue;
@@ -56,7 +58,7 @@ if (errors.length > 0) {
   console.error(
     '\nInterne Pakete müssen `"private": true` sein und ausschließlich über' +
       '\n`workspace:*` referenziert werden — sonst kann die Auflösung auf der' +
-      '\nöffentlichen npm-Registry landen, wo die @gruenerator-Namen frei sind.'
+      '\nöffentlichen npm-Registry landen, wo die @gruenerator- und @ggraphic-Namen frei sind.'
   );
   process.exit(1);
 }

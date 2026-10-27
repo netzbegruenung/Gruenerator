@@ -74,8 +74,10 @@ describe('actionUrlToRoute', () => {
 
   it.each([
     '/boards/b1?card=c1',
-    '/wiederkehrend?task=t1',
     '/notebooks/n1/bearbeiten',
+    '/agents/new',
+    '/agentura/rezept/neu',
+    '/agentura/rezept/presse/bearbeiten',
     '/vorlagen-neu',
   ])('opens %s in the web viewer instead of an unmatched route', (url) => {
     expect(actionUrlToRoute(url)).toEqual({
@@ -99,5 +101,45 @@ describe('actionUrlToRoute for projects', () => {
 
   it('pushes /projekte/<id>?beitrag=<share> unchanged so the screen reads beitrag', () => {
     expect(actionUrlToRoute('/projekte/g1?beitrag=s1')).toBe('/projekte/g1?beitrag=s1');
+  });
+});
+
+describe('actionUrlToRoute for Grüneratoren', () => {
+  it('opens a recurring task notification on the task screen', () => {
+    expect(actionUrlToRoute('/wiederkehrend?task=t1')).toEqual({
+      pathname: '/(focused)/grueneratoren/aufgabe/[id]',
+      params: { id: 't1' },
+    });
+    expect(actionUrlToRoute('/wiederkehrend')).toBe('/(focused)/agents');
+  });
+
+  it('opens agent and recipe detail links natively', () => {
+    expect(actionUrlToRoute('/agentura/agent/pressestelle-ab12cd')).toEqual({
+      pathname: '/(focused)/grueneratoren/agent/[slug]',
+      params: { slug: 'pressestelle-ab12cd' },
+    });
+    expect(actionUrlToRoute('/agentura/skill/presse')).toEqual({
+      pathname: '/(focused)/grueneratoren/rezept/[mention]',
+      params: { mention: 'presse' },
+    });
+  });
+
+  it('opens the overview, and the Agentura as the Marktplatz', () => {
+    expect(actionUrlToRoute('/grueneratoren')).toBe('/(focused)/agents');
+    expect(actionUrlToRoute('/agentura?von=oeffentlich')).toBe('/marktplatz?von=oeffentlich');
+    expect(actionUrlToRoute('/agentura?type=recipe')).toBe('/marktplatz?art=rezepte');
+    // The old overview shelves still mean the overview.
+    expect(actionUrlToRoute('/agentura?cat=meine')).toBe('/(focused)/agents');
+  });
+
+  it('opens the Marktplatz and the old sticker Entdecken natively', () => {
+    expect(actionUrlToRoute('/marktplatz?art=vorlagen')).toBe('/marktplatz?art=vorlagen');
+    // A shared item link opens its detail in the native screen.
+    expect(actionUrlToRoute('/marktplatz?art=agents&item=agent%3Au1')).toBe(
+      '/marktplatz?art=agents&item=agent%3Au1'
+    );
+    expect(actionUrlToRoute('/studio/sticker/entdecken?q=sonne')).toBe(
+      '/marktplatz?art=sticker&q=sonne'
+    );
   });
 });

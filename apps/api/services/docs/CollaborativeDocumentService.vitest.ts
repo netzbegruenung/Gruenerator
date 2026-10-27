@@ -7,6 +7,7 @@ const {
   deleteReplacedThumbnailShare,
   purgeDocThread,
   reportBackgroundError,
+  closeCollabRooms,
 } = vi.hoisted(() => {
   const log: string[] = [];
   return {
@@ -24,6 +25,7 @@ const {
       return Promise.resolve(true);
     }),
     reportBackgroundError: vi.fn(),
+    closeCollabRooms: vi.fn(),
   };
 });
 
@@ -31,6 +33,7 @@ vi.mock('../../routes/boards/boardAttachmentStorage.js', () => ({ deleteStoredFi
 vi.mock('../canvas/canvasRepository.js', () => ({ deleteReplacedThumbnailShare }));
 vi.mock('../../routes/chat/services/threadTrashService.js', () => ({ purgeDocThread }));
 vi.mock('../../utils/reportBackgroundError.js', () => ({ reportBackgroundError }));
+vi.mock('../collab/hocuspocusInternal.js', () => ({ closeCollabRooms }));
 
 import {
   checkEditAccess,
@@ -204,6 +207,38 @@ function makeTrashTable(initial: { created_by: string; permissions?: unknown }) 
   }) as QueryRunner;
   return { row, run };
 }
+
+describe('trashCollaborativeDocument and open collaboration connections', () => {
+  beforeEach(() => {
+    closeCollabRooms.mockReset().mockResolvedValue(undefined);
+  });
+
+  it('closes the room once the document is in the trash', async () => {
+    const { row, run } = makeTrashTable({ created_by: OWNER });
+    let trashedWhenClosed: boolean | null = null;
+    closeCollabRooms.mockImplementation(async () => {
+      trashedWhenClosed = row.is_deleted;
+    });
+
+    expect(await trashCollaborativeDocument(run, 'doc-1', OWNER, null)).toEqual({ status: 'ok' });
+
+    expect(closeCollabRooms).toHaveBeenCalledWith(['doc-1']);
+    // After the write: a client that reconnects is refused.
+    expect(trashedWhenClosed).toBe(true);
+  });
+
+  it('closes nothing when the trash is refused', async () => {
+    const { run } = makeRunner({ select: [{ created_by: STRANGER, permissions: null }] });
+    expect(await trashCollaborativeDocument(run, 'doc-1', EDITOR, null)).toEqual({
+      status: 'forbidden',
+    });
+    const missing = makeRunner({ select: [] });
+    expect(await trashCollaborativeDocument(missing.run, 'doc-1', OWNER, null)).toEqual({
+      status: 'not_found',
+    });
+    expect(closeCollabRooms).not.toHaveBeenCalled();
+  });
+});
 
 describe('trash lifecycle', () => {
   it('trash sets both columns, restore clears both', async () => {

@@ -11,7 +11,7 @@
 import { recordCacheHit, recordCacheMiss, recordNetworkRequest } from './prefetchAnalytics';
 import { getIllustrationPath } from './registry';
 
-import type { SvgDef } from './types';
+import type { SvgDef } from '@ggraphic/editor/utils/illustrations/types';
 
 // =============================================================================
 // TYPES

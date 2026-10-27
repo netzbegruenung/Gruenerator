@@ -58,6 +58,8 @@ export function createHocuspocusServer(config: HocuspocusConfig): Server {
         // is informational and never consulted by the framework.
         data.connectionConfig.readOnly = authResult.readOnly || false;
 
+        // Becomes the connection context; closeRoomConnections (internalApi.ts)
+        // reads `user.id` to close one user's connections after an access change.
         return {
           user: {
             id: authResult.userId,

@@ -1,8 +1,12 @@
 import * as jestDomMatchers from '@testing-library/jest-dom/matchers';
 import { cleanup } from '@testing-library/react';
 import { afterEach, expect } from 'vitest';
+import * as axeMatchers from 'vitest-axe/matchers';
 
+// jest-dom + axe matchers (toBeInTheDocument, toHaveNoViolations, …). The axe
+// runner itself is preconfigured in `src/test-utils.ts` — import it from there.
 expect.extend(jestDomMatchers);
+expect.extend(axeMatchers);
 
 // ProseMirror rechnet nach jeder Transaktion aus, ob es zur Auswahl scrollen
 // muss, und fragt dafür `getClientRects` auf Knoten und Bereichen. jsdom

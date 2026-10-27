@@ -18,6 +18,10 @@ export type AppRoute =
   | '/(focused)/vorlagen'
   | '/(focused)/sharepic'
   | '/(focused)/profilbild'
+  | '/(focused)/sticker'
+  | '/(focused)/sticker-neu'
+  | '/(focused)/marktplatz'
+  | '/(focused)/uebersetzer'
   // Wissen
   | '/(focused)/wissen'
   // Auth routes
@@ -55,6 +59,8 @@ export interface ModalRouteParams {
     notebookId?: string;
     agentId?: string;
     initialComposerText?: string;
+    /** `1` opens the chat in a voice call. */
+    voice?: string;
   };
   '/notebook/[id]/chat': {
     /** Registry id of a system notebook, or the UUID of a user notebook. */
@@ -81,6 +87,9 @@ export interface ModalRouteParams {
     query: string;
     /** Shown while the document loads. */
     title: string;
+    /** '1' when opened from a chat's source link: no "into the chat" buttons
+     *  over a chat that is already open. */
+    fromChat?: string;
   };
   '/(fullscreen)/subtitle-editor': {
     projectId: string;

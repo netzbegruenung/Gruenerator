@@ -9,13 +9,23 @@ import {
 import { useAuiState } from '@assistant-ui/store';
 import { useCollaborators, PresenceAvatars, TypingIndicator } from '@gruenerator/collab';
 import { QuoteIcon } from 'lucide-react';
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  useSyncExternalStore,
+  type ReactNode,
+} from 'react';
 
 import { useChatCollaborationContext } from '../../context/ChatCollaborationContext';
 import { setMentionLocale } from '../../lib/mentionables';
 import { useActiveAgentMeta } from '../../lib/useActiveAgentMeta';
 import { cn } from '../../lib/utils';
+import { useChatConfigStore } from '../../stores/chatConfigStore';
 import { VoiceOrb } from '../assistant-ui/voice';
+import { GrueneratorHomeIconLoading } from '../icons';
 
 import { AssistantMessage } from './AssistantMessage';
 import { AutoMessageSender } from './AutoMessageSender';
@@ -84,8 +94,16 @@ interface GrueneratorThreadProps {
   userLocale?: string;
 }
 
+const noActivity = () => null;
+const noSubscription = () => () => {};
+
 function VoiceOrbOverlay() {
   const { disconnect } = useVoiceControls();
+  const voice = useChatConfigStore((s) => s.voice);
+  const activity = useSyncExternalStore(
+    voice?.subscribeActivity ?? noSubscription,
+    voice?.getActivity ?? noActivity
+  );
   const disconnectRef = useRef(disconnect);
   disconnectRef.current = disconnect;
 
@@ -106,10 +124,22 @@ function VoiceOrbOverlay() {
         type="button"
         onClick={() => disconnect()}
         aria-label="Sprachsitzung beenden"
-        className="rounded-full p-2 transition-transform hover:scale-105"
+        className="relative grid place-items-center rounded-full p-2 transition-transform hover:scale-105"
       >
         <VoiceOrb className="size-44 drop-shadow-2xl md:size-56" />
+        {/* Turns while the agent looks something up. */}
+        <GrueneratorHomeIconLoading
+          loading
+          aria-hidden
+          className={cn(
+            'absolute size-12 text-white drop-shadow transition-[opacity,transform] duration-300',
+            activity ? 'scale-100 opacity-100' : 'scale-75 opacity-0'
+          )}
+        />
       </button>
+      <p aria-live="polite" className="min-h-5 text-sm text-foreground-muted">
+        {activity ? `${activity} …` : null}
+      </p>
       {/* Kennzeichnung als KI-Dialog (Art. 50 Abs. 1 KI-VO): der Orb allein
           sagt nicht, dass hier eine KI antwortet. */}
       <p className="rounded-full bg-background/80 px-3 py-1 text-xs font-medium text-foreground-muted backdrop-blur">

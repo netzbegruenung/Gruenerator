@@ -5,7 +5,10 @@
  * hinterlässt nie ein Dokument, das als fertig gilt.
  */
 
-import { getQdrantInstance } from '../../../database/services/QdrantService/index.js';
+import {
+  getQdrantInstance,
+  type QdrantService,
+} from '../../../database/services/QdrantService/index.js';
 import {
   batchDelete,
   batchUpsert,
@@ -22,8 +25,6 @@ import {
 import { pagePayload } from '../../document-services/pagePayload.js';
 import { mistralEmbeddingService } from '../../mistral/index.js';
 import { recordSyncEvent, toExcerpt } from '../syncEventRecorder.js';
-
-import type { QdrantClient } from '@qdrant/js-client-rest';
 
 const UPSERT_BATCH = 10;
 /**
@@ -51,7 +52,7 @@ export interface ParliamentDocument {
 type SyncSource = Parameters<typeof recordSyncEvent>[0]['sourceGroupId'];
 
 export class ParliamentStore {
-  #client: QdrantClient | null = null;
+  #qdrant: QdrantService | null = null;
 
   constructor(
     private readonly collection: string,
@@ -63,13 +64,13 @@ export class ParliamentStore {
    * Erst beim ersten echten Zugriff: ein Probelauf soll Qdrant nicht berühren —
    * `init()` legte dort sonst schon die Collection an.
    */
-  async client(): Promise<QdrantClient> {
-    if (!this.#client) {
+  async qdrant(): Promise<QdrantService> {
+    if (!this.#qdrant) {
       const qdrant = getQdrantInstance();
       await qdrant.init(); // legt die Collection aus COLLECTION_SCHEMAS an, falls sie fehlt
-      this.#client = qdrant.client!;
+      this.#qdrant = qdrant;
     }
-    return this.#client;
+    return this.#qdrant;
   }
 
   /** document_id aller fertigen Dokumente — fertig heißt: Chunk 0 liegt da. */
@@ -79,7 +80,7 @@ export class ParliamentStore {
 
   /** Wie {@link loadKnownIds}, dazu je Dokument die genannten Payload-Felder von Chunk 0. */
   async loadKnown(fields: readonly string[]): Promise<Map<string, Record<string, unknown>>> {
-    const client = await this.client();
+    const client = (await this.qdrant()).readClient(this.collection);
     const known = new Map<string, Record<string, unknown>>();
     let offset: string | number | null | undefined = undefined;
     do {
@@ -118,7 +119,7 @@ export class ParliamentStore {
     const embeddings = await mistralEmbeddingService.generateBatchEmbeddings(
       buildEmbeddingTextsForChunks(chunks, doc.title)
     );
-    const client = await this.client();
+    const client = (await this.qdrant()).writeClient(this.collection);
     if (replace) {
       await batchDelete(client, this.collection, {
         must: [{ key: 'document_id', match: { value: doc.documentId } }],

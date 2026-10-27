@@ -2,13 +2,14 @@
 
 import { type NotebookDepth, type NotebookSourceTier } from '@gruenerator/contracts';
 import { cn, Popover, PopoverContent, PopoverTrigger } from '@gruenerator/ui';
-import { BookOpen, Check, Telescope, Zap } from 'lucide-react';
+import { BookOpen, Brain, Check, Telescope, Zap } from 'lucide-react';
 import { useId, useState, type ReactNode } from 'react';
 import { LuSettings2 } from 'react-icons/lu';
 
+import { useModelPreferencesContext } from '../../context/ModelPreferencesContext';
 import {
-  NOTEBOOK_DEPTHS,
   notebookDepthDef,
+  visibleNotebookDepths,
   type NotebookDepthIconKey,
 } from '../../lib/notebookDepth';
 import { SOURCE_TIER_DESCRIPTION, SOURCE_TIER_LABEL } from '../../lib/notebookSourceTier';
@@ -51,6 +52,8 @@ const DEPTH_ICONS: Record<NotebookDepthIconKey, typeof Zap> = {
   fast: Zap,
   deep: BookOpen,
   ultra: Telescope,
+  // The model picker's icon for the Panda lane (catalog `icon: 'brain'`).
+  panda: Brain,
 };
 
 /** The one facet a document carries exactly once, so its counts add up to a
@@ -204,7 +207,8 @@ export function NotebookSettingsPopover({
     ? sourceFilters.collections.length - sourceFilters.selectedIds.length
     : 0;
   const hasActiveBadge = categoryActiveCount > 0 || sourceActiveCount > 0;
-  const activeDepth = notebookDepthDef(mode);
+  const { enabledModelIds } = useModelPreferencesContext();
+  const activeDepth = notebookDepthDef(mode, enabledModelIds);
   const fields = categoryFilters?.fields ?? [];
   // A collapsed field with a selection stays in view, so it can be undone.
   const isActive = (field: CategoryFilterField) =>
@@ -261,12 +265,12 @@ export function NotebookSettingsPopover({
           {mode && onModeChange && (
             <div className="space-y-2">
               <Section title="Suchtiefe">
-                {NOTEBOOK_DEPTHS.map((depth) => {
+                {visibleNotebookDepths(enabledModelIds).map((depth) => {
                   const Icon = DEPTH_ICONS[depth.icon];
                   return (
                     <Chip
                       key={depth.depth}
-                      selected={depth.depth === mode}
+                      selected={depth.depth === activeDepth.depth}
                       onClick={() => onModeChange(depth.depth)}
                       title={depth.description}
                     >

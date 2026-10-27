@@ -6,6 +6,8 @@ import { denyUpgrade, resolveUpgradeAuth } from '../../middleware/resolveUpgrade
 import { recordOperation } from '../../services/usage/UsageTrackingService.js';
 import { createLogger } from '../../utils/logger.js';
 
+import { handleTurnSession } from './voxtralTurnSession.js';
+
 import type http from 'http';
 
 const log = createLogger('voiceRealtime');
@@ -57,8 +59,13 @@ export function attachRealtimeWebSocket(server: http.Server): void {
     })();
   });
 
-  wss.on('connection', (ws: WsWebSocket, _request: unknown, userId: string) => {
+  wss.on('connection', (ws: WsWebSocket, request: http.IncomingMessage, userId: string) => {
     log.debug('[Realtime] Client verbunden user=%s', userId);
+    const url = new URL(request.url || '', `http://${request.headers.host}`);
+    if (url.searchParams.get('turns') === 'server') {
+      handleTurnSession(ws, userId);
+      return;
+    }
     void handleRealtimeSession(ws, userId);
   });
 }

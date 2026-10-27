@@ -1,6 +1,3 @@
-import { describe, it, expect } from 'vitest';
-import * as Y from 'yjs';
-
 import {
   appendPage,
   buildPage,
@@ -19,8 +16,10 @@ import {
   serializeDeck,
   setPageConfigById,
   updatePageStateById,
-} from './pagesDoc';
-import { YDOC_KEYS } from './ydocKeys';
+} from '@ggraphic/editor/collab/pagesDoc';
+import { YDOC_KEYS } from '@ggraphic/editor/collab/ydocKeys';
+import { describe, it, expect } from 'vitest';
+import * as Y from 'yjs';
 
 /** Two docs kept in sync by applying each other's updates (a fake network). */
 function syncedPair(): [Y.Doc, Y.Doc] {

@@ -7,7 +7,12 @@
  * respond lane leaves no text to persist — so it reports `MaybeHandled`.
  */
 
-import { buildSystemMessage } from '../../../agents/langgraph/ChatGraph/index.js';
+import { isGroundableProse } from '@gruenerator/shared/chat-intents';
+
+import {
+  buildSystemMessage,
+  restoreAttachmentsDroppedWithHistory,
+} from '../../../agents/langgraph/ChatGraph/index.js';
 import { knownArtifactRefs } from '../../../agents/langgraph/ChatGraph/nodes/artifactInventory.js';
 import { promptCacheKeyForThread } from '../../../services/ai/promptCacheKey.js';
 import { looksLikeMemoryRequest } from '../../../services/memory/memoryRequest.js';
@@ -30,6 +35,7 @@ import {
   stripFabricatedArtifactDelivery,
   stripFabricatedSystemClaims,
   stripPhantomMemoryClaim,
+  stripPhantomArtifactCreation,
   stripPhantomArtifactEdit,
 } from '../services/outputSanity.js';
 import {
@@ -221,7 +227,7 @@ export async function runSinglePassAnswer({
       resolvedContextWindow,
       systemMessage
     );
-    const { systemMessage: finalSystemMessage, messages: contextMessages } = actualThreadId
+    const { systemMessage: compactedSystemMessage, messages: contextMessages } = actualThreadId
       ? await applyCompaction(
           actualThreadId,
           prunedValidMessages,
@@ -229,6 +235,12 @@ export async function runSinglePassAnswer({
           resolvedContextWindow
         )
       : { systemMessage, messages: prunedValidMessages };
+    const finalSystemMessage = restoreAttachmentsDroppedWithHistory(
+      finalState,
+      systemMessage,
+      compactedSystemMessage,
+      contextMessages
+    );
 
     const assembleMessages = (history: typeof contextMessages) => {
       const built = buildMessagesForAI(
@@ -374,6 +386,23 @@ export async function runSinglePassAnswer({
       );
       fullText = phantomEdit.text;
     }
+    // „Ich erstelle dir jetzt die Sharepics …" ohne Artefakt im Turn: nach dem
+    // Turn läuft nichts mehr, die Erstellung findet nie statt (#4611).
+    // Nur auf Prosa-Turns: ein Bearbeitungs- oder Erstell-Intent hat seinen
+    // eigenen Ausgang, und eine Ankündigung kann dort wahr sein.
+    const phantomCreation = stripPhantomArtifactCreation(fullText, {
+      createdArtifact:
+        !isGroundableProse(finalState.intent ?? '') ||
+        (sharepicVariants?.length ?? 0) > 0 ||
+        generatedImage != null ||
+        finalState.createdDocument != null,
+    });
+    if (phantomCreation.removed.length > 0) {
+      log.warn(
+        `[ChatGraph] Removed creation announcement without an artifact: ${phantomCreation.removed.join(' | ')}`
+      );
+      fullText = phantomCreation.text;
+    }
     // Telemetry only — the text is already on the wire; the prompt rules are the fix.
     if (announcesPendingWork(fullText)) {
       log.warn(
@@ -386,7 +415,8 @@ export async function runSinglePassAnswer({
       sanity.fabricated.length > 0 ||
       delivery.removed.length > 0 ||
       phantomNote.removed.length > 0 ||
-      phantomEdit.removed.length > 0
+      phantomEdit.removed.length > 0 ||
+      phantomCreation.removed.length > 0
     ) {
       fullText = citeClamp.text;
       sse.send('completion', { text: fullText, citations: finalState.citations });

@@ -1,13 +1,7 @@
+import { zipPageImages } from '@gruenerator/canvas-editor/zip';
 import { downloadBlob } from '@gruenerator/shared';
 
-import apiClient from '../../../components/utils/apiClient';
-
-/** Bundles the slides of a carousel into one ZIP on the server and hands it to the user. */
+/** Bundles the slides of a carousel into one ZIP in the browser and hands it to the user. */
 export async function downloadSharepicZip(images: string[], canvasType: string): Promise<void> {
-  const response = await apiClient.post(
-    '/exports/zip',
-    { images, canvasType },
-    { responseType: 'blob' }
-  );
-  await downloadBlob(response.data as Blob, `gruenerator-${canvasType}-${Date.now()}.zip`);
+  await downloadBlob(zipPageImages(images), `gruenerator-${canvasType}-${Date.now()}.zip`);
 }

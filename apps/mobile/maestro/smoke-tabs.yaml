@@ -25,7 +25,7 @@ appId: de.gruenerator.app
 # Home is two pills, Chat and Arbeiten; Wissen is a tile on Arbeiten and opens
 # on a stack, so it is left through its back arrow.
 - tapOn: 'Arbeiten'
-- assertVisible: 'Agentura'
+- assertVisible: 'Grüneratoren'
 - assertNotVisible:
     text: '.*No QueryClient set.*'
     optional: true

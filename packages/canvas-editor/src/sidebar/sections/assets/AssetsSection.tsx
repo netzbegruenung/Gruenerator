@@ -1,26 +1,32 @@
+import { type ShapeInstance, type ShapeType } from '@ggraphic/editor/utils/shapes';
+import { type UserImagePlacement } from '@ggraphic/editor/utils/userImageUtils';
 import { useEffect } from 'react';
 
-import { useIconCatalog } from '../../../hooks/useIconCatalog';
-import { useIsCanvasMobile } from '../../../hooks/useIsCanvasMobile';
 import { type AssetInstance } from '../../../utils/canvasAssets';
 import { prefetchBackground } from '../../../utils/illustrations/svgCache';
 import { UNDRAW_FEATURED } from '../../../utils/illustrations/undraw';
-import { type ShapeInstance, type ShapeType } from '../../../utils/shapes';
 
-import { BrowseView } from './BrowseView';
-import { MobileCatalogView } from './MobileCatalogView';
-import { useAssetSearch } from './useAssetSearch';
+import { ElementsPanel } from './ElementsPanel';
 
+import type { BackgroundControls } from '../../../configs/types';
 import type { BalkenInstance, BalkenMode } from '../../../primitives';
-import type { ChartInstance, ChartType } from '../../../utils/chartUtils';
-import type { FrameClipType, FrameInstance } from '../../../utils/frameUtils';
-import type { IllustrationInstance } from '../../../utils/illustrations/types';
+import type { ChartInstance, ChartType } from '@ggraphic/editor/utils/chartUtils';
+import type { FrameClipType, FrameInstance } from '@ggraphic/editor/utils/frameUtils';
+import type { IllustrationInstance } from '@ggraphic/editor/utils/illustrations/types';
+import type { StickerRef } from '@gruenerator/contracts';
 
 export interface ExtendedAssetsSectionProps {
   recommendedAssetIds?: string[];
   assetInstances?: AssetInstance[];
   selectedAssetId?: string | null;
   onAddAsset?: (assetId: string) => void;
+  /** Adds a gallery sticker by ref; enables the Entdecken / Meine / Gemerkt lists. */
+  onAddStickerAsset?: (ref: StickerRef) => void;
+  /** Sets the page's background photo; enables the gallery's Hintergründe. */
+  onSetBackgroundImage?: NonNullable<BackgroundControls['onImageChange']>;
+  currentBackgroundSrc?: string;
+  /** Places a stock photo as an image element; enables the Fotos category. */
+  onAddImageFromUrl?: (url: string, name: string, options?: UserImagePlacement) => void;
   onUpdateAsset?: (id: string, partial: Partial<AssetInstance>) => void;
   onRemoveAsset?: (id: string) => void;
   onAddPillBadge?: (preset?: string) => void;
@@ -60,60 +66,20 @@ export interface ExtendedAssetsSectionProps {
 }
 
 export function AssetsSection(props: ExtendedAssetsSectionProps) {
-  const {
-    onAddAsset,
-    selectedIcons,
-    onIconToggle,
-    onAddShape,
-    onAddChart,
-    onAddIllustration,
-    onAddFrame,
-  } = props;
-
-  const isMobile = useIsCanvasMobile();
-
-  const hasAssetsFeature = onAddAsset !== undefined;
-  const hasIconsFeature = selectedIcons !== undefined && onIconToggle !== undefined;
-  // Loads the Iconify catalog when the section mounts (React Query, cached)
-  // and re-renders the icon subsection + search once it arrives.
-  useIconCatalog();
-  const hasShapesFeature = onAddShape !== undefined;
-  const hasChartsFeature = onAddChart !== undefined;
-  const hasIllustrationsFeature = onAddIllustration !== undefined;
-  const hasFramesFeature = onAddFrame !== undefined;
-
-  const search = useAssetSearch({
-    hasAssetsFeature,
-    hasShapesFeature,
-    hasChartsFeature,
-    hasIconsFeature,
-    hasFramesFeature,
-  });
+  const hasIllustrationsFeature = props.onAddIllustration !== undefined;
 
   // Background prefetch only featured/curated SVGs (not all 1,600+)
   useEffect(() => {
     if (!hasIllustrationsFeature) return;
     const featured = UNDRAW_FEATURED.map((ill) => ({ id: ill.id, def: ill }));
     if (featured.length === 0) return;
-    if ('requestIdleCallback' in window) {
-      requestIdleCallback(() => prefetchBackground(featured), { timeout: 5000 });
-    } else {
-      setTimeout(() => prefetchBackground(featured), 1000);
+    if (typeof requestIdleCallback === 'function') {
+      const handle = requestIdleCallback(() => prefetchBackground(featured), { timeout: 5000 });
+      return () => cancelIdleCallback(handle);
     }
+    const timer = setTimeout(() => prefetchBackground(featured), 1000);
+    return () => clearTimeout(timer);
   }, [hasIllustrationsFeature]);
 
-  // --- Desktop: library view (jump bar + category strips) with drill-down ---
-  // canvas-mobile:-m-3 cancels the panel's p-3 (also canvas-mobile-scoped) so
-  // strips bleed to the panel edge; the view fills the panel height and
-  // scrolls internally below search + chips.
-  if (!isMobile) {
-    return (
-      <div className="flex flex-col flex-1 min-h-0 min-w-[296px] canvas-mobile:-m-3">
-        <BrowseView search={search} {...props} />
-      </div>
-    );
-  }
-
-  // --- Mobile: search + category carousels with "Alle" drill-down ---
-  return <MobileCatalogView search={search} {...props} />;
+  return <ElementsPanel {...props} />;
 }

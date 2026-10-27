@@ -2,6 +2,7 @@ import { type useDocsAdapter } from '@gruenerator/docs';
 import { InteractiveCard, cn, interactiveCardControl } from '@gruenerator/ui';
 import { memo } from 'react';
 import { FiCheck } from 'react-icons/fi';
+import { useNavigate } from 'react-router-dom';
 
 import {
   PlaceholderBars,
@@ -18,7 +19,7 @@ import { CardActionMenu } from './CardActionMenu';
 // presentations read as their own category, everything else is "Dokument".
 const docTypeLabel = (subtype: string): string => {
   if (subtype === 'sheets' || subtype === 'tabelle') return 'Tabelle';
-  if (subtype === 'presentations') return 'Präsentation';
+  if (subtype === 'presentations' || subtype === 'canvas') return 'Präsentation';
   return 'Dokument';
 };
 
@@ -54,12 +55,15 @@ export const DocumentCard = memo(function DocumentCard({
   isDisabled?: boolean;
   onSelect?: (id: string) => void;
 }) {
+  const navigate = useNavigate();
   const hasContent = !!doc.content?.trim();
   const isSelectMode = mode === 'select';
   // Sheets and presentations keep their data in the Y.Doc (no HTML `content`),
   // so they get a type-faithful schematic plate instead of the prose excerpt.
   const isSheet = doc.document_subtype === 'sheets' || doc.document_subtype === 'tabelle';
-  const isSlides = doc.document_subtype === 'presentations';
+  // Die Office-Bibliothek liefert `canvas` nur für Folien (Format slide-16-9); sie öffnen im Canvas-Editor.
+  const isCanvasDeck = doc.document_subtype === 'canvas';
+  const isSlides = doc.document_subtype === 'presentations' || isCanvasDeck;
   const preview = !isSheet && !isSlides && hasContent ? parseDocPreview(doc.content!) : null;
 
   const sheetCols =
@@ -88,6 +92,8 @@ export const DocumentCard = memo(function DocumentCard({
     if (isDisabled) return;
     if (isSelectMode) {
       onSelect?.(doc.id);
+    } else if (isCanvasDeck) {
+      void navigate(`/studio/canvas/${doc.id}`);
     } else {
       adapter.navigateToDocument(doc.id);
     }

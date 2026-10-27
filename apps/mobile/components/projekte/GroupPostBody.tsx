@@ -11,9 +11,10 @@ import { ActivityIndicator, Alert, Pressable, StyleSheet, Text, View } from 'rea
 
 import { groupPostFileUrl, shareGroupPostFile } from '../../hooks/useGroupContent';
 import { useTheme } from '../../hooks/useTheme';
-import { BODY_FONT, colors } from '../../theme';
+import { BODY_FONT } from '../../theme';
 
 import { GroupMentionText } from './GroupMentionText';
+import { useProjekteTone } from './projekteTone';
 
 interface GroupPostBodyProps {
   groupId: string;
@@ -33,6 +34,7 @@ const imageLayout = (count: number) =>
 /** Text, Bilder und Dateien eines eigenen Beitrags — in der App nur zum Lesen. */
 export function GroupPostBody({ groupId, postId, post, token }: GroupPostBodyProps) {
   const theme = useTheme();
+  const tone = useProjekteTone();
   const [loadingId, setLoadingId] = useState<string | null>(null);
   const images = post.files.filter((f) => f.isImage);
   const others = post.files.filter((f) => !f.isImage);
@@ -92,8 +94,10 @@ export function GroupPostBody({ groupId, postId, post, token }: GroupPostBodyPro
           accessibilityLabel={`${f.name}, ${formatFileSize(f.sizeBytes)} öffnen`}
           style={[styles.fileRow, { borderColor: theme.border }]}
         >
-          <View style={[styles.badge, { backgroundColor: colors.primary[50] }]}>
-            <Text style={styles.badgeText}>{fileExtensionLabel(f.name)}</Text>
+          <View style={[styles.badge, { backgroundColor: tone.soft }]}>
+            <Text style={[styles.badgeText, { color: tone.accent }]}>
+              {fileExtensionLabel(f.name)}
+            </Text>
           </View>
           <View style={styles.flex}>
             <Text style={[styles.fileName, { color: theme.text }]} numberOfLines={1}>
@@ -104,7 +108,7 @@ export function GroupPostBody({ groupId, postId, post, token }: GroupPostBodyPro
             </Text>
           </View>
           {loadingId === f.id ? (
-            <ActivityIndicator color={colors.primary[600]} />
+            <ActivityIndicator color={tone.accent} />
           ) : (
             <Ionicons name="share-outline" size={20} color={theme.textSecondary} />
           )}
@@ -143,7 +147,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  badgeText: { fontFamily: BODY_FONT, fontSize: 10, fontWeight: '700', color: colors.primary[700] },
+  badgeText: { fontFamily: BODY_FONT, fontSize: 10, fontWeight: '700' },
   flex: { flex: 1, minWidth: 0 },
   fileName: { fontFamily: BODY_FONT, fontSize: 14, fontWeight: '700' },
   fileSize: { fontFamily: BODY_FONT, fontSize: 12 },

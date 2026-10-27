@@ -7,60 +7,40 @@
  * Use this when you need to embed a canvas directly without the full CanvasEditor
  * orchestrator (e.g., previews, inline editing, multiple canvases on one page).
  *
+ * The template is either a registered id (built-in, or added by the host with
+ * `registerTemplates`) or a config object the host built itself. A host with
+ * only its own templates uses ConfigCanvas, which does not load the registry.
+ *
  * For the full editing experience with sidebar/toolbar, use ControllableCanvasWrapper.
  */
 
 import { useState, useRef, memo } from 'react';
 
-import { loadCanvasConfig, isValidCanvasType } from '../configs/configLoader';
+import { getTemplate, type AnyCanvasConfig, type TemplateId } from '../templates/registry';
 
-import { GenericCanvas } from './GenericCanvas';
+import { ConfigCanvas, type ConfigCanvasProps } from './ConfigCanvas';
 
-import type { GenericCanvasRef } from './GenericCanvas';
-import type { FullCanvasConfig, CanvasConfigId } from '../configs/types';
-import type React from 'react';
+/** Which template to draw: a registered id, or a config object. Read once on mount. */
+type StandaloneCanvasSource =
+  { configId: TemplateId; config?: never } | { config: AnyCanvasConfig; configId?: never };
 
-export interface StandaloneCanvasProps {
-  configId: CanvasConfigId;
-  /** Format id of the canvas; freeform lays out on it. Absent: the default format. */
-  formatId?: string;
-  initialProps: Record<string, unknown>;
-  canvasRef?: React.Ref<GenericCanvasRef>;
-  onStateChange?: (state: Record<string, unknown>) => void;
-  onExport?: (base64: string) => void;
-  className?: string;
-  /**
-   * Render-once snapshot rather than an embedded editor — see
-   * `GenericCanvasProps.preview`. Used by the offscreen chat-preview renderer.
-   */
-  preview?: boolean;
-}
+export type StandaloneCanvasProps = StandaloneCanvasSource & Omit<ConfigCanvasProps, 'config'>;
 
-const noop = () => {};
-
-function StandaloneCanvasInner({
-  configId,
-  formatId,
-  initialProps,
-  canvasRef,
-  onStateChange,
-  onExport,
-  className,
-  preview = false,
-}: StandaloneCanvasProps) {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const [config, setConfig] = useState<FullCanvasConfig<any, any> | null>(null);
+function StandaloneCanvasInner({ configId, config: configProp, ...canvas }: StandaloneCanvasProps) {
+  const [config, setConfig] = useState<AnyCanvasConfig | null>(configProp ?? null);
   const [error, setError] = useState<string | null>(null);
   const configIdRef = useRef(configId);
   const startedRef = useRef(false);
 
   // Load config once on first render — configId is stable
-  if (!startedRef.current) {
+  if (!startedRef.current && configId !== undefined) {
     startedRef.current = true;
-    if (!isValidCanvasType(configId)) {
+    const template = getTemplate(configId);
+    if (!template) {
       setError(`Unknown canvas type: ${configId}`);
     } else {
-      loadCanvasConfig(configId, formatId)
+      template
+        .load(canvas.formatId)
         .then((loaded) => {
           if (configIdRef.current === configId) {
             setConfig(loaded);
@@ -74,36 +54,15 @@ function StandaloneCanvasInner({
     }
   }
 
-  // Stable ref for onStateChange callback — avoids stale closures
-  const onStateChangeRef = useRef(onStateChange);
-  onStateChangeRef.current = onStateChange;
-
-  const callbacks = useRef<Record<string, ((val: unknown) => void) | undefined>>({
-    onStateChange: (val: unknown) => onStateChangeRef.current?.(val as Record<string, unknown>),
-  });
-
   if (error) {
-    return <div className={className}>Canvas error: {error}</div>;
+    return <div className={canvas.className}>Canvas error: {error}</div>;
   }
 
   if (!config) {
-    return <div className={className} />;
+    return <div className={canvas.className} />;
   }
 
-  return (
-    <div className={className}>
-      <GenericCanvas
-        forwardedRef={canvasRef}
-        config={config}
-        formatId={formatId}
-        initialProps={initialProps}
-        onExport={onExport ?? noop}
-        onCancel={noop}
-        callbacks={callbacks.current}
-        preview={preview}
-      />
-    </div>
-  );
+  return <ConfigCanvas config={config} {...canvas} />;
 }
 
 StandaloneCanvasInner.displayName = 'StandaloneCanvas';

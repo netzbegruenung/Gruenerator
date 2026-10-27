@@ -9,6 +9,7 @@ import axios, {
 
 import { notifyAiConsentRequired } from './aiConsentSignal.js';
 import { getApiLocale } from './locale.js';
+import { isGatewayDownResponse, reportGatewayDown } from './serverRestartSignal.js';
 
 import type { ApiConfig } from '../types/auth.js';
 
@@ -103,6 +104,11 @@ export function createApiClient(options: CreateApiClientOptions): AxiosInstance 
   client.interceptors.response.use(
     (response) => {
       rejectAbortedResponse(response);
+      // Der Contracts-Client löst 5xx als Antwort auf statt als Fehler, also
+      // kommt die nginx-502 eines Neustarts auch hier an.
+      if (isGatewayDownResponse(response.status, response.headers['content-type'])) {
+        reportGatewayDown();
+      }
       // Better Auth's bearer() plugin can return a refreshed session token via
       // the `set-auth-token` response header. Persist it so the stored token
       // never drifts from the server session. No-op on web (no handler passed).
@@ -115,6 +121,12 @@ export function createApiClient(options: CreateApiClientOptions): AxiosInstance 
       return response;
     },
     async (error: AxiosError) => {
+      if (
+        error.response &&
+        isGatewayDownResponse(error.response.status, error.response.headers['content-type'])
+      ) {
+        reportGatewayDown();
+      }
       // Einwilligung fehlt: kein Anmeldeproblem — der Store hält nur einen
       // veralteten Zeitstempel. Melden statt toasten, dann zeigt das Gate sich
       // selbst. Vor dem 401-Zweig, damit kein Refresh-Versuch dazwischenkommt.

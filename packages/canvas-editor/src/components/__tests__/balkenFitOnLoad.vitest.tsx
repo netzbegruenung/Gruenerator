@@ -4,20 +4,20 @@
  * `balkenFitPending`; the canvas fits once its fonts are ready, clears the
  * marker and writes both back to the page.
  */
+import { readPages, seedPagesIfEmpty, updatePageStateById } from '@ggraphic/editor/collab/pagesDoc';
+import { createPageSyncedCallbacks } from '@ggraphic/editor/collab/wrapCallbacksWithPageSync';
+import { AutoSaveStoreProvider } from '@ggraphic/editor/stores/AutoSaveStoreProvider';
 import { act, render } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import * as Y from 'yjs';
 
 import { PAGE_PERSISTED_STATE_KEYS } from '../../collab/pageElementStateKeys';
-import { readPages, seedPagesIfEmpty, updatePageStateById } from '../../collab/pagesDoc';
 import { PAGES_STATE_ORIGIN } from '../../collab/useYjsPages';
-import { createPageSyncedCallbacks } from '../../collab/wrapCallbacksWithPageSync';
 import { loadCanvasConfig } from '../../configs/configLoader';
-import { AutoSaveStoreProvider } from '../../stores/AutoSaveStoreProvider';
 import { balkenExtent } from '../../utils/balkenBounds';
 import { GenericCanvas } from '../GenericCanvas';
 
-import type { BalkenInstance } from '../../primitives/BalkenGroup';
+import type { BalkenInstance } from '@ggraphic/editor/utils/balkenUtils';
 
 Object.defineProperty(document, 'fonts', {
   configurable: true,

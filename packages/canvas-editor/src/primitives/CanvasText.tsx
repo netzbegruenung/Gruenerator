@@ -7,23 +7,38 @@
  * - This prevents re-renders during drag for smooth UX
  */
 
-import { hasInlineMarks, hasListMarkers } from '@gruenerator/contracts';
+import { LOCKED_TRANSFORMER, useIsItemLocked } from '@ggraphic/editor/components/canvasItemLock';
+import {
+  overlayBoxForNode,
+  useCanvasTextEditor,
+} from '@ggraphic/editor/components/CanvasTextOverlay';
+import {
+  useGeometryReporter,
+  type GeometryReporter,
+} from '@ggraphic/editor/hooks/useGeometryReporter';
+import { useSnapScheduler } from '@ggraphic/editor/hooks/useSnapScheduler';
+import { gradientFillProps, type GradientFill } from '@ggraphic/editor/utils/gradientFill';
+import { isGroupDrag } from '@ggraphic/editor/utils/multiSelect';
+import { ELEMENT_TRANSFORMER, normalizeRotation } from '@ggraphic/editor/utils/orientation';
+import {
+  boxFrame,
+  createBoxFrame,
+  frameBounds,
+  snapByBounds,
+} from '@ggraphic/editor/utils/snapping';
+import { hasInlineMarks, hasListMarkers } from '@ggraphic/schema';
 import { useRef, useEffect, useState, useCallback, memo } from 'react';
 import { Text as KonvaText, Transformer } from 'react-konva';
 
-import { overlayBoxForNode, useCanvasTextEditor } from '../components/CanvasTextOverlay';
-import { useGeometryReporter, type GeometryReporter } from '../hooks/useGeometryReporter';
-import { useSnapScheduler } from '../hooks/useSnapScheduler';
-import { gradientFillProps, type GradientFill } from '../utils/gradientFill';
-import { calculateSnapPosition, calculateElementSnapPosition } from '../utils/snapping';
-import { touchAnchorStyleFunc } from '../utils/touchInput';
-
 import { CanvasRichText } from './CanvasRichText';
 
-import type { SnapTarget, SnapLine } from '../utils/snapping';
-import type { TextAccent, TextMarker } from '../utils/textUtils';
-import type { TransformConfig, TransformAnchor } from '@gruenerator/shared/canvas-editor';
+import type { TransformConfig, TransformAnchor } from '@ggraphic/editor/types/editorTypes';
+import type { SnapTarget, SnapLine } from '@ggraphic/editor/utils/snapping';
+import type { TextAccent, TextMarker } from '@ggraphic/editor/utils/textUtils';
 import type Konva from 'konva';
+
+// Rahmen für Snap und Geometrie-Meldung, pro Aufruf neu beschrieben (synchron, ohne Allokation).
+const dragFrame = createBoxFrame();
 
 export interface CanvasTextProps {
   id?: string;
@@ -69,13 +84,20 @@ export interface CanvasTextProps {
   onDeselect?: () => void;
   onTextChange?: (text: string) => void;
   onDragEnd?: (x: number, y: number) => void;
-  onTransformEnd?: (x: number, y: number, width: number, scaleX: number, scaleY: number) => void;
+  onTransformEnd?: (
+    x: number,
+    y: number,
+    width: number,
+    scaleX: number,
+    scaleY: number,
+    rotation: number
+  ) => void;
   onFontSizeChange?: (fontSize: number) => void;
   snapToCenter?: boolean;
   stageWidth?: number;
   stageHeight?: number;
   onSnapChange?: (snapH: boolean, snapV: boolean) => void;
-  snapTargets?: SnapTarget[];
+  getSnapTargets?: (excludeId: string) => SnapTarget[];
   onPositionChange?: (id: string, x: number, y: number, width: number, height: number) => void;
   /** Meldet die gerenderte Geometrie als Snap-Ziel — unabhaengig davon, ob je gezogen wurde. */
   onGeometryChange?: GeometryReporter;
@@ -130,11 +152,12 @@ function CanvasTextInner({
   stageWidth,
   stageHeight,
   onSnapChange,
-  snapTargets,
+  getSnapTargets,
   onPositionChange,
   onGeometryChange,
   onSnapLinesChange,
 }: CanvasTextProps) {
+  const locked = useIsItemLocked();
   const textRef = useRef<Konva.Text>(null);
   const trRef = useRef<Konva.Transformer>(null);
   const { open, isEditing } = useCanvasTextEditor(id, editable);
@@ -180,12 +203,24 @@ function CanvasTextInner({
   useEffect(() => {
     const node = textRef.current;
     if (!node) return;
-    reportGeometry(node.x(), node.y(), node.width() * node.scaleX(), node.height() * node.scaleY());
+    const box = frameBounds(
+      boxFrame(
+        dragFrame,
+        node.x(),
+        node.y(),
+        node.width() * node.scaleX(),
+        node.height() * node.scaleY(),
+        node.rotation(),
+        'top-left'
+      )
+    );
+    reportGeometry(box.x, box.y, box.width, box.height);
   }, [
     reportGeometry,
     text,
     x,
     y,
+    rotation,
     width,
     fontSize,
     fontFamily,
@@ -207,26 +242,51 @@ function CanvasTextInner({
 
       if (id && onPositionChange) {
         onPositionChange(id, node.x(), node.y(), nodeWidth, nodeHeight);
+        // onPositionChange schreibt die ungedrehte Box in dieselben Snap-Ziele;
+        // gedreht muss danach die sichtbare Box dort stehen (der Reporter
+        // meldet nur bei Prop-Änderung, ein Drag zurück an den Start ändert keine).
+        if (node.rotation() !== 0 && onGeometryChange) {
+          const box = frameBounds(
+            boxFrame(
+              dragFrame,
+              node.x(),
+              node.y(),
+              nodeWidth,
+              nodeHeight,
+              node.rotation(),
+              'top-left'
+            )
+          );
+          onGeometryChange(id, box.x, box.y, box.width, box.height);
+        }
       }
     },
-    [id, onDragEnd, onPositionChange, snap]
+    [id, onDragEnd, onPositionChange, onGeometryChange, snap]
   );
 
   const handleDragMove = useCallback(
     (e: Konva.KonvaEventObject<DragEvent>) => {
       const node = e.target as Konva.Text;
+      if (isGroupDrag(node)) return;
       const nodeWidth = node.width() * node.scaleX();
       const nodeHeight = node.height() * node.scaleY();
 
       if (!stageWidth || !stageHeight) return;
 
-      if ((snapTargets && snapTargets.length > 0) || snapToCenter) {
-        const result = calculateElementSnapPosition(
-          node.x(),
-          node.y(),
-          nodeWidth,
-          nodeHeight,
-          snapTargets || [],
+      const snapTargets = getSnapTargets?.(id ?? '') ?? [];
+      if (snapTargets.length > 0 || snapToCenter) {
+        // Die Höhe ist die aktuelle des Knotens (nach dem Umbruch) — ein Property-Read.
+        const result = snapByBounds(
+          boxFrame(
+            dragFrame,
+            node.x(),
+            node.y(),
+            nodeWidth,
+            nodeHeight,
+            node.rotation(),
+            'top-left'
+          ),
+          snapTargets,
           stageWidth,
           stageHeight,
           snap.hysteresis
@@ -236,7 +296,7 @@ function CanvasTextInner({
         snap.scheduleSnap(result.snapH, result.snapV, result.snapLines);
       }
     },
-    [snapToCenter, stageWidth, stageHeight, snapTargets, snap]
+    [id, snapToCenter, stageWidth, stageHeight, getSnapTargets, snap]
   );
 
   // A side handle only changes the width: turn that scale into width right
@@ -276,11 +336,11 @@ function CanvasTextInner({
 
       // Commit to React state
       onFontSizeChange?.(newFontSize);
-      onTransformEnd?.(node.x(), node.y(), newWidth, 1, 1);
+      onTransformEnd?.(node.x(), node.y(), newWidth, 1, 1, normalizeRotation(node.rotation()));
     } else {
       // Just reset scale without changing dimensions
       node.scale({ x: 1, y: 1 });
-      onTransformEnd?.(node.x(), node.y(), currentWidth, 1, 1);
+      onTransformEnd?.(node.x(), node.y(), currentWidth, 1, 1, normalizeRotation(node.rotation()));
     }
   }, [onFontSizeChange, onTransformEnd]);
 
@@ -357,7 +417,7 @@ function CanvasTextInner({
         lineHeight={lineHeight}
         wrap={wrap}
         padding={padding}
-        draggable={draggable && !isEditing}
+        draggable={draggable && !isEditing && !locked}
         visible={!isEditing}
         onMouseDown={onSelect}
         onTouchStart={onSelect}
@@ -371,12 +431,8 @@ function CanvasTextInner({
       />
       {selected && !isEditing && (
         <Transformer
-          anchorStyleFunc={touchAnchorStyleFunc}
           ref={trRef}
           rotateEnabled={transformConfig?.rotateEnabled ?? false}
-          rotationSnaps={[0, 45, 90, 135, 180, 225, 270, 315]}
-          rotationSnapTolerance={7}
-          flipEnabled={transformConfig?.flipEnabled ?? false}
           keepRatio={transformConfig?.keepRatio ?? true}
           enabledAnchors={enabledAnchors}
           boundBoxFunc={(oldBox, newBox) => {
@@ -386,6 +442,8 @@ function CanvasTextInner({
             if (newBox.width > maxWidth) return oldBox;
             return newBox;
           }}
+          {...ELEMENT_TRANSFORMER}
+          {...(locked ? LOCKED_TRANSFORMER : {})}
         />
       )}
     </>
@@ -411,12 +469,12 @@ function CanvasTextSwitch(props: CanvasTextProps) {
 // Memoize to prevent re-renders when parent (ZitatPureCanvas) updates due to snap state changes
 export const CanvasText = memo(CanvasTextSwitch, (prevProps, nextProps) => {
   // Custom comparison: only re-render if these specific props changed
-  // Ignore snapTargets array reference changes (we use the values inside)
   const keysToCompare: (keyof CanvasTextProps)[] = [
     'id',
     'text',
     'x',
     'y',
+    'rotation',
     'width',
     'fontSize',
     'fontFamily',

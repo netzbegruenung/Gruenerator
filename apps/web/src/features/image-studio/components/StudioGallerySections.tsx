@@ -20,10 +20,15 @@ import { useNavigate } from 'react-router-dom';
 import { SharedMediaImage } from '../../../components/common/SharedMediaImage';
 import { ShareMediaModal } from '../../../components/common/ShareMediaModal';
 import apiClient from '../../../components/utils/apiClient';
+import { isToolVisibleTo } from '../../../config/adminOnlyTools';
 import { SHOW_SHAREPIC_STUDIO } from '../../../config/featureFlags';
 import { useAuthStore } from '../../../stores/authStore';
 import { downloadBlob } from '../../../utils/downloadFile';
 import { resolveApiAssetUrl, shareThumbnailPreviewUrl } from '../../../utils/platform';
+import {
+  mediathekPath,
+  ShowAllInMediathek,
+} from '../../media-library/components/ShowAllInMediathek';
 import { profilbildReopenPath } from '../../studio-tools/profilbildHandoff';
 import { showTrashUndoToast } from '../../trash/trashUndoToast';
 import ReelsSection from '../../workplace/components/ReelsSection';
@@ -118,6 +123,7 @@ const StudioGallerySections = () => {
   const navigate = useNavigate();
   const prefetchCanvasEditor = useCanvasEditorPrefetch();
   const locale = useAuthStore((s) => s.locale);
+  const isAdmin = useAuthStore((s) => s.user?.is_admin === true);
 
   // In prod the canvas editor is gated off, so gallery items open a read-only
   // preview (Lightbox) instead of the edit flow.
@@ -302,6 +308,9 @@ const StudioGallerySections = () => {
     onSharepic: () => void navigate('/vorlagen'),
     onKiBild: startKiBild,
     onReel: () => void navigate('/studio/video'),
+    ...(isToolVisibleTo('/studio/videoeditor', isAdmin)
+      ? { onVideoEditor: () => void navigate('/studio/videoeditor') }
+      : {}),
   });
 
   return (
@@ -321,11 +330,12 @@ const StudioGallerySections = () => {
           <SectionHeader
             title="Sharepics"
             // The title doubles as the entry point to the full Mediathek.
-            onTitleClick={() => navigate('/studio/mediathek')}
+            onTitleClick={() => navigate(mediathekPath('sharepic'))}
             // Both DE and AT create through the internal canvas editor (AT gets
             // the de-AT template set), gated by SHOW_SHAREPIC_STUDIO.
             onCreate={SHOW_SHAREPIC_STUDIO ? () => void navigate('/vorlagen') : undefined}
             createLabel="Neues Sharepic erstellen"
+            actions={showSharepics && <ShowAllInMediathek typ="sharepic" />}
           />
           {showSharepics && (
             <CardGrid columns="5">
@@ -394,8 +404,10 @@ const StudioGallerySections = () => {
         <section className="mb-xl">
           <SectionHeader
             title="KI-Bilder"
+            onTitleClick={() => navigate(mediathekPath('ki'))}
             onCreate={startKiBild}
             createLabel="Neues KI-Bild erstellen"
+            actions={showImagine && <ShowAllInMediathek typ="ki" />}
           />
           {showImagine && (
             <CardGrid columns="5">

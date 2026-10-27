@@ -37,8 +37,7 @@ import {
   presentationsContract,
   boardCommentsContract,
   entityReactionsContract,
-  agentCommentsContract,
-  templateCommentsContract,
+  entityCommentsContract,
   boardAgentContract,
   boardActivityContract,
   boardSubscriptionsContract,
@@ -58,6 +57,7 @@ import {
   emailContract,
   feedbackContract,
   contentReportContract,
+  adminReportsContract,
   modelPreferencesContract,
   imageModelPreferenceContract,
   mcpServersContract,
@@ -70,6 +70,8 @@ import {
   userTemplatesContract,
   sharedTemplateContract,
   templateInteractionsContract,
+  studioAssetsContract,
+  marketplaceContract,
   userAgentsContract,
   userAgentsSharingContract,
   skillPromptContract,
@@ -78,6 +80,8 @@ import {
   connectorTestContract,
   skillVisibilityContract,
   instanceAdminOverviewContract,
+  adminStatsContract,
+  appReleaseContract,
   translationContract,
   lvAdminAssignmentContract,
   landesverbandAdminContract,
@@ -300,8 +304,7 @@ const _sheetsClient = () => initClient(sheetsContract, CLIENT_OPTS);
 const _presentationsClient = () => initClient(presentationsContract, CLIENT_OPTS);
 const _boardCommentsClient = () => initClient(boardCommentsContract, CLIENT_OPTS);
 const _entityReactionsClient = () => initClient(entityReactionsContract, CLIENT_OPTS);
-const _agentCommentsClient = () => initClient(agentCommentsContract, CLIENT_OPTS);
-const _templateCommentsClient = () => initClient(templateCommentsContract, CLIENT_OPTS);
+const _entityCommentsClient = () => initClient(entityCommentsContract, CLIENT_OPTS);
 const _boardAgentClient = () => initClient(boardAgentContract, CLIENT_OPTS);
 const _boardActivityClient = () => initClient(boardActivityContract, CLIENT_OPTS);
 const _boardSubscriptionsClient = () => initClient(boardSubscriptionsContract, CLIENT_OPTS);
@@ -322,6 +325,7 @@ const _memoryClient = () => initClient(memoryContract, CLIENT_OPTS);
 const _emailClient = () => initClient(emailContract, CLIENT_OPTS);
 const _feedbackClient = () => initClient(feedbackContract, CLIENT_OPTS);
 const _contentReportsClient = () => initClient(contentReportContract, CLIENT_OPTS);
+const _adminReportsClient = () => initClient(adminReportsContract, CLIENT_OPTS);
 const _modelPreferencesClient = () => initClient(modelPreferencesContract, CLIENT_OPTS);
 const _imageModelPreferenceClient = () => initClient(imageModelPreferenceContract, CLIENT_OPTS);
 const _mcpServersClient = () => initClient(mcpServersContract, CLIENT_OPTS);
@@ -334,6 +338,8 @@ const _adminVorlagenClient = () => initClient(adminVorlagenContract, CLIENT_OPTS
 const _userTemplatesClient = () => initClient(userTemplatesContract, CLIENT_OPTS);
 const _sharedTemplateClient = () => initClient(sharedTemplateContract, CLIENT_OPTS);
 const _templateInteractionsClient = () => initClient(templateInteractionsContract, CLIENT_OPTS);
+const _studioAssetsClient = () => initClient(studioAssetsContract, CLIENT_OPTS);
+const _marketplaceClient = () => initClient(marketplaceContract, CLIENT_OPTS);
 const _userAgentsClient = () => initClient(userAgentsContract, CLIENT_OPTS);
 const _userAgentsSharingClient = () => initClient(userAgentsSharingContract, CLIENT_OPTS);
 const _skillPromptClient = () => initClient(skillPromptContract, CLIENT_OPTS);
@@ -342,6 +348,8 @@ const _chunkInspectorClient = () => initClient(chunkInspectorContract, CLIENT_OP
 const _connectorTestClient = () => initClient(connectorTestContract, CLIENT_OPTS);
 const _skillVisibilityClient = () => initClient(skillVisibilityContract, CLIENT_OPTS);
 const _instanceAdminOverviewClient = () => initClient(instanceAdminOverviewContract, CLIENT_OPTS);
+const _adminStatsClient = () => initClient(adminStatsContract, CLIENT_OPTS);
+const _appReleaseClient = () => initClient(appReleaseContract, CLIENT_OPTS);
 const _translationClient = () => initClient(translationContract, CLIENT_OPTS);
 const _lvAdminAssignmentClient = () => initClient(lvAdminAssignmentContract, CLIENT_OPTS);
 const _landesverbandAdminClient = () => initClient(landesverbandAdminContract, CLIENT_OPTS);
@@ -387,8 +395,7 @@ export interface ContractsClient {
   presentations: ReturnType<typeof _presentationsClient>;
   boardComments: ReturnType<typeof _boardCommentsClient>;
   entityReactions: ReturnType<typeof _entityReactionsClient>;
-  agentComments: ReturnType<typeof _agentCommentsClient>;
-  templateComments: ReturnType<typeof _templateCommentsClient>;
+  entityComments: ReturnType<typeof _entityCommentsClient>;
   boardAgent: ReturnType<typeof _boardAgentClient>;
   boardActivity: ReturnType<typeof _boardActivityClient>;
   boardSubscriptions: ReturnType<typeof _boardSubscriptionsClient>;
@@ -409,6 +416,7 @@ export interface ContractsClient {
   email: ReturnType<typeof _emailClient>;
   feedback: ReturnType<typeof _feedbackClient>;
   contentReports: ReturnType<typeof _contentReportsClient>;
+  adminReports: ReturnType<typeof _adminReportsClient>;
   translation: ReturnType<typeof _translationClient>;
   modelPreferences: ReturnType<typeof _modelPreferencesClient>;
   imageModelPreference: ReturnType<typeof _imageModelPreferenceClient>;
@@ -422,6 +430,8 @@ export interface ContractsClient {
   userTemplates: ReturnType<typeof _userTemplatesClient>;
   sharedTemplate: ReturnType<typeof _sharedTemplateClient>;
   templateInteractions: ReturnType<typeof _templateInteractionsClient>;
+  studioAssets: ReturnType<typeof _studioAssetsClient>;
+  marketplace: ReturnType<typeof _marketplaceClient>;
   userAgents: ReturnType<typeof _userAgentsClient>;
   userAgentsSharing: ReturnType<typeof _userAgentsSharingClient>;
   skillPrompt: ReturnType<typeof _skillPromptClient>;
@@ -430,6 +440,8 @@ export interface ContractsClient {
   connectorTest: ReturnType<typeof _connectorTestClient>;
   skillVisibility: ReturnType<typeof _skillVisibilityClient>;
   instanceAdminOverview: ReturnType<typeof _instanceAdminOverviewClient>;
+  adminStats: ReturnType<typeof _adminStatsClient>;
+  appRelease: ReturnType<typeof _appReleaseClient>;
   lvAdminAssignment: ReturnType<typeof _lvAdminAssignmentClient>;
   landesverbandAdmin: ReturnType<typeof _landesverbandAdminClient>;
   userTextForms: ReturnType<typeof _userTextFormsClient>;
@@ -487,8 +499,7 @@ export function getContractsClient(): ContractsClient {
     presentations: _presentationsClient(),
     boardComments: _boardCommentsClient(),
     entityReactions: _entityReactionsClient(),
-    agentComments: _agentCommentsClient(),
-    templateComments: _templateCommentsClient(),
+    entityComments: _entityCommentsClient(),
     boardAgent: _boardAgentClient(),
     boardActivity: _boardActivityClient(),
     boardSubscriptions: _boardSubscriptionsClient(),
@@ -509,6 +520,7 @@ export function getContractsClient(): ContractsClient {
     email: _emailClient(),
     feedback: _feedbackClient(),
     contentReports: _contentReportsClient(),
+    adminReports: _adminReportsClient(),
     translation: _translationClient(),
     modelPreferences: _modelPreferencesClient(),
     imageModelPreference: _imageModelPreferenceClient(),
@@ -522,6 +534,8 @@ export function getContractsClient(): ContractsClient {
     userTemplates: _userTemplatesClient(),
     sharedTemplate: _sharedTemplateClient(),
     templateInteractions: _templateInteractionsClient(),
+    studioAssets: _studioAssetsClient(),
+    marketplace: _marketplaceClient(),
     userAgents: _userAgentsClient(),
     userAgentsSharing: _userAgentsSharingClient(),
     skillPrompt: _skillPromptClient(),
@@ -530,6 +544,8 @@ export function getContractsClient(): ContractsClient {
     connectorTest: _connectorTestClient(),
     skillVisibility: _skillVisibilityClient(),
     instanceAdminOverview: _instanceAdminOverviewClient(),
+    adminStats: _adminStatsClient(),
+    appRelease: _appReleaseClient(),
     lvAdminAssignment: _lvAdminAssignmentClient(),
     landesverbandAdmin: _landesverbandAdminClient(),
     userTextForms: _userTextFormsClient(),

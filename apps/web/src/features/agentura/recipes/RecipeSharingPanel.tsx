@@ -21,6 +21,15 @@
 import { type PublicOwnership, type TextFormShareMode } from '@gruenerator/contracts';
 import { isApiErrorWithStatus } from '@gruenerator/shared/api';
 import {
+  useMyGroupsForSharing,
+  useShareRecipeWithGroup,
+  useUnshareRecipeFromGroup,
+  useRecipeGroupShares,
+  useRecipeShareSettings,
+  useSetRecipeIsPublic,
+  useSetRecipeShareMode,
+} from '@gruenerator/shared/grueneratoren';
+import {
   Button,
   Label,
   Select,
@@ -32,16 +41,6 @@ import {
 } from '@gruenerator/ui';
 import { useId, useMemo } from 'react';
 import { HiTrash } from 'react-icons/hi';
-
-import { useMyGroupsForSharing } from '../hooks/useMyGroupsForSharing';
-
-import { useShareRecipeWithGroup, useUnshareRecipeFromGroup } from './api';
-import {
-  useRecipeGroupShares,
-  useRecipeShareSettings,
-  useSetRecipeIsPublic,
-  useSetRecipeShareMode,
-} from './useRecipeSharing';
 
 import { cn } from '@/utils/cn';
 
@@ -225,7 +224,7 @@ export function RecipeSharingPanel({ mention, enabled }: RecipeSharingPanelProps
             Auf „Öffentlich“ listen
           </Label>
           <p className="text-xs text-grey-500 dark:text-grey-400">
-            Dein Rezept erscheint dann in der Agentura unter „Öffentlich“ zum Entdecken.
+            Dein Rezept erscheint dann im Marktplatz unter „Öffentlich“.
           </p>
           {!isPublic && shareMode !== 'authenticated' ? (
             <p className="text-xs text-grey-500 dark:text-grey-400">

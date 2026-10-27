@@ -90,6 +90,9 @@ describe('useCombinedContentQuery', () => {
 
     expect(result.current.data).toBeUndefined();
     expect(result.current.error?.message).toBe('HTTP 404');
+    // toastApiError classifies by `.status`; a bare Error turned every 5xx into an
+    // "unclassified" GlitchTip report (#699).
+    expect(result.current.error).toMatchObject({ status: 404 });
   });
 
   it('stays idle while the panel is closed', () => {

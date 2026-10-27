@@ -1,32 +1,61 @@
-import { CANVAS_COLORS } from '@gruenerator/shared/canvas-editor';
+import { useMediaQuery } from '@gruenerator/shared/hooks';
 import {
   clampPerson,
   COLOR_SWATCHES_AT,
   COLOR_SWATCHES_DE,
   defaultPlacement,
-  GRADIENT_SWATCHES,
+  FREE_BACKGROUND_ID,
+  gradientSwatches,
   MIN_STICKER,
   placementRect,
+  allPresetDesigns,
   presetDesigns,
   PROFILBILD_SIZE,
-  PROFILBILD_STICKERS,
   rescalePlacement,
   snapNudge,
   snapPerson,
   snapSticker,
   STICKER_BASE_WIDTH,
   stickerById,
+  type FreeBackground,
   type PersonPlacement,
   type PresetDesign,
   type ProfilbildSticker,
   type SavedProfilbild,
+  type SavedProfilbildSticker,
 } from '@gruenerator/shared/profilbild';
-import { Alert, AlertDescription, Button } from '@gruenerator/ui';
-import { lazy, Suspense, useEffect, useId, useMemo, useRef, useState } from 'react';
-import { PiTrash } from 'react-icons/pi';
+import { assetStickerId, isAssetStickerId, isShareSrc } from '@gruenerator/shared/stickers';
+import { emptyAssetForm } from '@gruenerator/shared/studio-assets';
+import {
+  Alert,
+  AlertDescription,
+  Button,
+  Slider,
+  ToggleGroup,
+  toast,
+  ToggleGroupItem,
+} from '@gruenerator/ui';
+import { lazy, Suspense, useEffect, useId, useMemo, useRef, useState, type ReactNode } from 'react';
+import {
+  PiArrowsOut,
+  PiCameraRotate,
+  PiCircle,
+  PiCrosshairSimple,
+  PiDotsThree,
+  PiImage,
+  PiInstagramLogo,
+  PiSquare,
+  PiSticker,
+} from 'react-icons/pi';
 
 import { useAuthStore } from '../../../stores/authStore';
 import { downloadDataUrl } from '../../../utils/downloadFile';
+import { BACKGROUND_ACCEPT } from '../../studio-assets/backgroundImage';
+import {
+  BackgroundUploadError,
+  titleFromFile,
+  useBackgroundAssetUpload,
+} from '../../studio-assets/useBackgroundAssetUpload';
 import {
   loadShareFileDataUrl,
   type ProfilbildSaveInput,
@@ -41,11 +70,17 @@ import {
   type ProfilbildBackground,
   type TrimmedCutout,
 } from '../utils/composeProfilbild';
+import { type GalleryAsset } from '../utils/galleryAsset';
 import { loadCachedImage, resolvePreset } from '../utils/profilbildBackgrounds';
-import { type PlacedSticker, type StickerChange } from '../utils/profilbildStickers';
+import {
+  restoreSavedStickers,
+  type PlacedSticker,
+  type StickerChange,
+} from '../utils/profilbildStickers';
 
 import { CUSTOM_ID, ProfilbildBackgroundPicker } from './ProfilbildBackgroundPicker';
-import { TOOL_ACTIONS, TOOL_HINT, TOOL_LABEL, TOOL_PANEL, TOOL_PILL } from './ToolUi';
+import { ProfilbildStickerPicker } from './ProfilbildStickerPicker';
+import { ToolBackLink } from './ToolUi';
 
 import { cn } from '@/utils/cn';
 
@@ -53,17 +88,31 @@ const ProfilbildStage = lazy(() => import('./ProfilbildStage'));
 
 type Variant = 'rund' | 'quadrat' | 'instagram';
 
-const VARIANTS: { value: Variant; label: string }[] = [
-  { value: 'rund', label: 'Rund' },
-  { value: 'quadrat', label: 'Quadrat' },
-  { value: 'instagram', label: 'Instagram' },
+const VARIANTS: { value: Variant; label: string; icon: typeof PiCircle }[] = [
+  { value: 'rund', label: 'Rund', icon: PiCircle },
+  { value: 'quadrat', label: 'Quadrat', icon: PiSquare },
+  { value: 'instagram', label: 'Instagram', icon: PiInstagramLogo },
 ];
 
-const VARIANT_HINTS: Record<Variant, string> = {
-  rund: 'Vorschau rund wie in sozialen Netzwerken – der Download bleibt quadratisch.',
-  quadrat: 'Der Download bleibt quadratisch – Netzwerke schneiden selbst rund zu.',
-  instagram: 'So erscheint das Bild auf Instagram – der Download bleibt quadratisch.',
+type MobileSheet = 'hintergrund' | 'sticker' | 'groesse' | 'mehr';
+
+const MOBILE_TOOLS: { id: MobileSheet; label: string; icon: typeof PiImage }[] = [
+  { id: 'hintergrund', label: 'Hintergrund', icon: PiImage },
+  { id: 'sticker', label: 'Sticker', icon: PiSticker },
+  { id: 'groesse', label: 'Größe', icon: PiArrowsOut },
+  { id: 'mehr', label: 'Mehr', icon: PiDotsThree },
+];
+
+const SHEET_TITLES: Record<MobileSheet, string> = {
+  hintergrund: 'Hintergrund',
+  sticker: 'Sticker',
+  groesse: 'Größe der Person',
+  mehr: 'Mehr',
 };
+
+/** Gedrückt halten ohne Bewegung öffnet auf dem Handy die Instagram-Vorschau. */
+const PEEK_DELAY = 450;
+const PEEK_SLOP = 5;
 
 const NUDGE = 10;
 const NUDGE_FAST = NUDGE * 10;
@@ -73,7 +122,7 @@ const ARROWS: Record<string, [number, number, string]> = {
   ArrowUp: [0, -1, 'oben'],
   ArrowDown: [0, 1, 'unten'],
 };
-const PERSON_SCALE = { min: 0.7, max: 1, step: 0.05 };
+const PERSON_SCALE = { min: 0.5, max: 1.5, step: 0.05 };
 const STICKER_SCALE_STEP = 1.1;
 const STICKER_MAX = PROFILBILD_SIZE * 1.5;
 const ROTATE_STEP = 15;
@@ -90,12 +139,10 @@ const SAVE_STATUS = {
 };
 const PERSON = 'Person';
 
-const STICKER_TILE_CLASS =
-  'flex size-14 shrink-0 cursor-pointer items-center justify-center rounded-lg border border-grey-300 p-1 outline-none transition-[box-shadow,transform] hover:-translate-y-px hover:shadow-md focus-visible:ring-2 focus-visible:ring-primary-600 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 dark:border-grey-600';
-
 /**
- * A plain colour without stickers stays an editable profilbild canvas; anything
- * else is handed over flattened as one 1080 image, since the canvas can't rebuild it.
+ * A plain colour stays an editable profilbild canvas, its stickers as movable
+ * elements; gradients, presets and own photos are handed over flattened as one
+ * 1080 image.
  */
 export type ProfilbildCanvasHandoff =
   | {
@@ -103,6 +150,7 @@ export type ProfilbildCanvasHandoff =
       backgroundColor: string;
       layout: ProfilbildLayout;
       cutoutDataUrl: string;
+      stickers: SavedProfilbildSticker[];
     }
   | { kind: 'flat'; imageDataUrl: string };
 
@@ -113,45 +161,101 @@ export interface ProfilbildReopen {
 }
 
 export interface ProfilbildEditorProps {
-  cutoutUrl: string;
+  title: string;
+  description: string;
+  /** Above the stage, e.g. the recent Profilbilder while the stage is empty. */
+  beforeStage?: ReactNode;
+  /** The cut-out person; null until a photo is in — the editor shows `emptyStage` instead. */
+  cutoutUrl: string | null;
+  /**
+   * Fills the stage while there is no person yet: upload, progress or error. Gets
+   * the chosen background as an image URL, to preview it without a person.
+   */
+  emptyStage?: (backgroundPreview: string | null) => ReactNode;
   reopen?: ProfilbildReopen | null;
+  /** A gallery item handed over by deep link, applied once the photo is in. */
+  galleryAsset?: GalleryAsset | null;
   onEditInCanvas: (handoff: ProfilbildCanvasHandoff) => Promise<void>;
   onReset: () => void;
 }
 
 export function ProfilbildEditor({
+  title,
+  description,
+  beforeStage,
   cutoutUrl,
+  emptyStage,
   reopen = null,
+  galleryAsset = null,
   onEditInCanvas,
   onReset,
 }: ProfilbildEditorProps) {
-  const sizeId = useId();
+  const backgroundHeadingId = useId();
+  const stickerHeadingId = useId();
+  const sizeHeadingId = useId();
+  const isMobile = useMediaQuery('(max-width: 767px)');
+  const [sheet, setSheet] = useState<MobileSheet | null>(null);
+  const [peek, setPeek] = useState(false);
+  const peekStart = useRef<{ x: number; y: number; timer: number } | null>(null);
+  const endPeek = () => {
+    if (peekStart.current) window.clearTimeout(peekStart.current.timer);
+    peekStart.current = null;
+    setPeek(false);
+  };
+  const peekHandlers = {
+    onPointerDown: (e: React.PointerEvent) => {
+      endPeek();
+      peekStart.current = {
+        x: e.clientX,
+        y: e.clientY,
+        timer: window.setTimeout(() => setPeek(true), PEEK_DELAY),
+      };
+    },
+    onPointerMove: (e: React.PointerEvent) => {
+      const start = peekStart.current;
+      if (start && !peek && Math.hypot(e.clientX - start.x, e.clientY - start.y) > PEEK_SLOP)
+        endPeek();
+    },
+    onPointerUp: endPeek,
+    onPointerCancel: endPeek,
+    // A long press would otherwise open the system menu instead of the preview.
+    onContextMenu: (e: React.MouseEvent) => e.preventDefault(),
+  };
+  useEffect(() => () => endPeek(), []);
   const moveHintId = useId();
-  const keysHintId = useId();
-  const layersId = useId();
   const igProfileRef = useRef<HTMLCanvasElement>(null);
   const igFeedRef = useRef<HTMLCanvasElement>(null);
-  const fileRef = useRef<HTMLInputElement>(null);
-  const customUrlRef = useRef<string | null>(null);
   const isAustria = useAuthStore((s) => s.locale === 'de-AT');
+  const galleryAssetRef = useRef(galleryAsset);
+  const [uploadingBackground, setUploadingBackground] = useState(false);
+  const fileRef = useRef<HTMLInputElement>(null);
+  const uploadBackgroundAsset = useBackgroundAssetUpload();
+  const locale = useAuthStore((s) => s.locale);
   const colorSwatches = isAustria ? COLOR_SWATCHES_AT : COLOR_SWATCHES_DE;
   const presets = useMemo(() => presetDesigns(isAustria), [isAustria]);
-  const presetsRef = useRef(presets);
+  // Lookups by id also know retired Vorlagen: a saved Profilbild may still name one.
+  const knownPresets = useMemo(() => allPresetDesigns(isAustria), [isAustria]);
+  const presetsRef = useRef(knownPresets);
   const reopenRef = useRef(reopen);
   const savedBackground = reopen?.saved.background;
   const saveProfilbild = useProfilbildShare(reopen?.shareToken ?? null);
   const [cutout, setCutout] = useState<TrimmedCutout | null>(null);
   const [customImage, setCustomImage] = useState<HTMLImageElement | null>(null);
-  // Where the own background photo lives: a stored share file once saved, else the picked file.
-  const [customSource, setCustomSource] = useState<{ url: string | null; file: File | null }>(
-    () => ({ url: savedBackground?.kind === 'custom' ? savedBackground.url : null, file: null })
+  // The own background's stored share path: from the gallery, an upload or the saved state.
+  const [customUrl, setCustomUrl] = useState<string | null>(() =>
+    savedBackground?.kind === 'custom' ? savedBackground.url : null
   );
   const [selected, setSelected] = useState(() =>
     savedBackground
       ? savedBackground.kind === 'custom'
         ? CUSTOM_ID
-        : savedBackground.id
+        : savedBackground.kind === 'free'
+          ? FREE_BACKGROUND_ID
+          : savedBackground.id
       : (colorSwatches[0]?.id ?? 'tanne')
+  );
+  const [freeBackground, setFreeBackground] = useState<FreeBackground | null>(() =>
+    savedBackground?.kind === 'free' ? savedBackground.background : null
   );
   const [presetBackground, setPresetBackground] = useState<{
     design: PresetDesign;
@@ -160,8 +264,9 @@ export function ProfilbildEditor({
   const [stickers, setStickers] = useState<PlacedSticker[]>([]);
   const [selectedSticker, setSelectedSticker] = useState<string | null>(null);
   const stickerSeq = useRef(0);
+  // Saved stickers whose image failed to load: kept in the saved state, not drawn.
+  const unrestoredStickers = useRef<SavedProfilbildSticker[]>([]);
   const backgroundRequest = useRef(0);
-  const personLayerRef = useRef<HTMLButtonElement>(null);
   const [placement, setPlacement] = useState<PersonPlacement | null>(null);
   const [variant, setVariant] = useState<Variant>('rund');
   const [canvasBusy, setCanvasBusy] = useState(false);
@@ -177,6 +282,7 @@ export function ProfilbildEditor({
   const announceTimer = useRef<number | null>(null);
 
   useEffect(() => {
+    if (!cutoutUrl) return;
     let alive = true;
     loadImage(cutoutUrl)
       .then((img) => {
@@ -195,7 +301,6 @@ export function ProfilbildEditor({
 
   useEffect(
     () => () => {
-      if (customUrlRef.current) URL.revokeObjectURL(customUrlRef.current);
       if (announceTimer.current) window.clearTimeout(announceTimer.current);
     },
     []
@@ -218,7 +323,7 @@ export function ProfilbildEditor({
           if (alive) setCustomImage(img);
         })
         .catch(fail);
-    } else {
+    } else if (bg.kind === 'id') {
       const design = presetsRef.current.find((p) => p.id === bg.id);
       if (design)
         resolvePreset(design)
@@ -227,22 +332,30 @@ export function ProfilbildEditor({
           })
           .catch(fail);
     }
-    Promise.all(
-      saved.stickers.map(async (s) => {
-        const sticker = stickerById(s.id);
-        if (!sticker) return null;
-        const image = await loadCachedImage(sticker.src);
+    restoreSavedStickers(
+      saved.stickers,
+      async (s) => {
+        const sticker = isAssetStickerId(s.id) ? null : stickerById(s.id);
+        const src = sticker?.src ?? s.src;
+        if (!src) return null;
+        const image = sticker
+          ? await loadCachedImage(src)
+          : await loadShareFileDataUrl(src).then(loadImage);
         const placed: PlacedSticker = {
           ...s,
+          src,
           uid: `sticker-${++stickerSeq.current}`,
-          label: sticker.label,
+          label: sticker?.label ?? 'Sticker',
           image,
         };
         return placed;
-      })
+      },
+      fail
     )
-      .then((list) => {
-        if (alive) setStickers(list.filter((st) => st !== null));
+      .then(({ placed, unrestored }) => {
+        if (!alive) return;
+        unrestoredStickers.current = unrestored;
+        setStickers(placed);
       })
       .catch(fail)
       .finally(() => {
@@ -255,17 +368,24 @@ export function ProfilbildEditor({
 
   // A locale switch swaps the palette and the presets: a colour missing from the
   // new palette falls back to its first colour, a chosen preset is re-resolved.
-  const flatSwatches = [...colorSwatches, ...GRADIENT_SWATCHES];
+  const gradients = gradientSwatches(isAustria);
+  const flatSwatches = [
+    ...colorSwatches,
+    ...gradients,
+    ...(freeBackground
+      ? [{ id: FREE_BACKGROUND_ID, label: 'Eigene Farbe', background: freeBackground }]
+      : []),
+  ];
   const activeId =
     flatSwatches.some((s) => s.id === selected) ||
-    presets.some((p) => p.id === selected) ||
+    knownPresets.some((p) => p.id === selected) ||
     selected === CUSTOM_ID
       ? selected
       : (colorSwatches[0]?.id ?? selected);
   const flat = flatSwatches.find((s) => s.id === activeId);
   const chosenDesign = presetBackground?.design;
   const stalePreset = chosenDesign
-    ? presets.find((p) => p.id === chosenDesign.id && p !== chosenDesign)
+    ? knownPresets.find((p) => p.id === chosenDesign.id && p !== chosenDesign)
     : undefined;
   useEffect(() => {
     if (!stalePreset) return;
@@ -291,9 +411,13 @@ export function ProfilbildEditor({
     () => (background ? renderProfilbildBackground(background) : null),
     [background]
   );
+  const backgroundPreview = useMemo(
+    () => (!cutoutUrl && backgroundCanvas ? backgroundCanvas.toDataURL('image/jpeg', 0.8) : null),
+    [cutoutUrl, backgroundCanvas]
+  );
 
   const colorBackground = flat?.background.kind === 'color' ? flat.background.color : null;
-  const flattenForCanvas = !colorBackground || stickers.length > 0;
+  const flattenForCanvas = !colorBackground;
   const rect = cutout && placement ? placementRect(cutout.image, placement) : null;
 
   const stickerNames = useMemo(() => {
@@ -335,7 +459,7 @@ export function ProfilbildEditor({
 
   const composedRef = useRef<HTMLCanvasElement | null>(null);
   useEffect(() => {
-    if (variant !== 'instagram') return;
+    if (variant !== 'instagram' && !peek) return;
     const frame = requestAnimationFrame(() => {
       composedRef.current ??= document.createElement('canvas');
       const composed = compose(composedRef.current);
@@ -358,31 +482,61 @@ export function ProfilbildEditor({
     setSelectedSticker((cur) => (cur === uid ? null : cur));
   };
 
+  const placeSticker = (
+    sticker: Pick<PlacedSticker, 'id' | 'src' | 'label' | 'image'>,
+    scale: number,
+    aspect: number
+  ) => {
+    const uid = `sticker-${++stickerSeq.current}`;
+    const width = PROFILBILD_SIZE * STICKER_BASE_WIDTH * scale;
+    setStickers((list) => {
+      const shift = (list.length % 5) * 40;
+      return [
+        ...list,
+        {
+          ...sticker,
+          uid,
+          x: PROFILBILD_SIZE * 0.68 - shift,
+          y: PROFILBILD_SIZE * 0.72 - shift,
+          width,
+          height: width * aspect,
+          rotation: 0,
+        },
+      ];
+    });
+    setSelectedSticker(uid);
+  };
+
   const addSticker = async (sticker: ProfilbildSticker) => {
     setError(null);
     try {
       const image = await loadCachedImage(sticker.src);
-      const uid = `sticker-${++stickerSeq.current}`;
-      const width = PROFILBILD_SIZE * STICKER_BASE_WIDTH * sticker.defaultScale;
-      const height = (width * image.height) / image.width;
-      setStickers((list) => {
-        const shift = (list.length % 5) * 40;
-        return [
-          ...list,
-          {
-            uid,
-            id: sticker.id,
-            label: sticker.label,
-            image,
-            x: PROFILBILD_SIZE * 0.68 - shift,
-            y: PROFILBILD_SIZE * 0.72 - shift,
-            width,
-            height,
-            rotation: 0,
-          },
-        ];
-      });
-      setSelectedSticker(uid);
+      placeSticker(
+        { id: sticker.id, src: sticker.src, label: sticker.label, image },
+        sticker.defaultScale,
+        image.height / image.width
+      );
+    } catch (cause) {
+      setError(errorMessage(cause, 'Sticker konnte nicht geladen werden.'));
+    }
+  };
+
+  // Loaded as a data URL, like a reopened gallery sticker, so the export canvas stays untainted.
+  const addGallerySticker = async (item: GalleryAsset) => {
+    setError(null);
+    if (!isShareSrc(item.src)) {
+      setError('Dieser Sticker kann nicht verwendet werden.');
+      return;
+    }
+    try {
+      const image = await loadImage(await loadShareFileDataUrl(item.src));
+      const aspect =
+        item.width > 0 && item.height > 0 ? item.height / item.width : image.height / image.width;
+      placeSticker(
+        { id: assetStickerId(item.id), src: item.src, label: item.title || 'Sticker', image },
+        1,
+        aspect
+      );
     } catch (cause) {
       setError(errorMessage(cause, 'Sticker konnte nicht geladen werden.'));
     }
@@ -457,6 +611,13 @@ export function ProfilbildEditor({
       e.preventDefault();
       removeSticker(active.uid);
       announce(`${name} entfernt`);
+    } else if (e.key === ' ' && stickers.length > 0) {
+      e.preventDefault();
+      const order = [null, ...stickers.map((st) => st.uid)];
+      const next = order[(order.indexOf(selectedSticker) + 1) % order.length] ?? null;
+      setSelectedSticker(next);
+      const picked = stickers.find((st) => st.uid === next);
+      announce(`${picked ? (stickerNames.get(picked.uid) ?? picked.label) : PERSON} ausgewählt`);
     } else if (active && e.key === 'Escape') {
       e.preventDefault();
       setSelectedSticker(null);
@@ -469,25 +630,42 @@ export function ProfilbildEditor({
       setPlacement((p) => (p ? defaultPlacement(cutout.image, PROFILBILD_SIZE, p.scale) : p));
   };
 
-  const pickCustom = async (file: File) => {
+  const pickGalleryBackground = async (item: GalleryAsset) => {
     setError(null);
+    if (!isShareSrc(item.src)) {
+      setError('Dieser Hintergrund kann nicht verwendet werden.');
+      return;
+    }
     const request = ++backgroundRequest.current;
-    const url = URL.createObjectURL(file);
     try {
-      const img = await loadImage(url);
-      if (request !== backgroundRequest.current) {
-        URL.revokeObjectURL(url);
-        return;
-      }
-      if (customUrlRef.current) URL.revokeObjectURL(customUrlRef.current);
-      customUrlRef.current = url;
+      const img = await loadImage(await loadShareFileDataUrl(item.src));
+      if (request !== backgroundRequest.current) return;
       setCustomImage(img);
-      setCustomSource({ url: null, file });
+      setCustomUrl(item.src);
       setSelected(CUSTOM_ID);
     } catch (cause) {
-      URL.revokeObjectURL(url);
       if (request !== backgroundRequest.current) return;
-      setError(errorMessage(cause, 'Bild konnte nicht geladen werden.'));
+      setError(errorMessage(cause, 'Hintergrund konnte nicht geladen werden.'));
+    }
+  };
+
+  // Ein eigenes Foto wird ohne Umweg ein privater Galerie-Eintrag unter „Deine“ und gilt
+  // sofort; teilen lässt es sich später dort, wo die Galerie verwaltet wird.
+  const uploadBackground = async (file: File) => {
+    setError(null);
+    setUploadingBackground(true);
+    try {
+      const item = await uploadBackgroundAsset(file, {
+        ...emptyAssetForm(locale),
+        title: titleFromFile(file.name) || 'Hintergrund',
+      });
+      toast.success(`„${item.title}“ liegt jetzt unter „Deine“.`);
+      await pickGalleryBackground(item);
+    } catch (err) {
+      // Create errors are toasted by the global mutation handler.
+      if (err instanceof BackgroundUploadError) setError(err.message);
+    } finally {
+      setUploadingBackground(false);
     }
   };
 
@@ -505,33 +683,48 @@ export function ProfilbildEditor({
     }
   };
 
+  // A gallery deep link lands once the photo (and a reopened state) is in.
+  useEffect(() => {
+    const asset = galleryAssetRef.current;
+    if (!asset || !cutout || !restored) return;
+    galleryAssetRef.current = null;
+    void (asset.kind === 'sticker' ? addGallerySticker(asset) : pickGalleryBackground(asset));
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- applied once; the handlers only read state setters
+  }, [cutout, restored]);
+
+  const placedStickers = (): SavedProfilbildSticker[] =>
+    stickers.map(({ id, src, x, y, width, height, rotation }) => ({
+      id,
+      ...(isAssetStickerId(id) ? { src } : {}),
+      x,
+      y,
+      width,
+      height,
+      rotation,
+    }));
+
   const saveInputFor = (imageDataUrl: string): ProfilbildSaveInput | null =>
-    cutout && placement
+    cutout && placement && cutoutUrl
       ? {
           imageDataUrl,
           cutoutDataUrl: cutout.dataUrl ?? cutoutUrl,
           person: placement,
           background:
-            activeId === CUSTOM_ID
-              ? { kind: 'custom', ...customSource }
-              : { kind: 'id', id: activeId },
-          stickers: stickers.map(({ id, x, y, width, height, rotation }) => ({
-            id,
-            x,
-            y,
-            width,
-            height,
-            rotation,
-          })),
+            activeId === CUSTOM_ID && customUrl
+              ? { kind: 'custom', url: customUrl }
+              : activeId === FREE_BACKGROUND_ID && freeBackground
+                ? { kind: 'free', background: freeBackground }
+                : { kind: 'id', id: activeId },
+          stickers: [...placedStickers(), ...unrestoredStickers.current],
         }
       : null;
 
   // What the saved Profilbild is made of; a change to any of it is worth saving.
-  const { file: customFile, url: customUrl } = customSource;
   const signature = JSON.stringify([
     placement,
     activeId,
-    activeId === CUSTOM_ID ? [customUrl, customFile?.name, customFile?.size] : null,
+    activeId === CUSTOM_ID ? customUrl : null,
+    activeId === FREE_BACKGROUND_ID ? freeBackground : null,
     stickers.map(({ id, x, y, width, height, rotation }) => [id, x, y, width, height, rotation]),
   ]);
   const ready = restored && !!cutout && !!placement && !!background;
@@ -587,7 +780,7 @@ export function ProfilbildEditor({
   };
 
   const editInCanvas = async () => {
-    if (canvasBusy || !cutout || !rect) return;
+    if (canvasBusy || !cutout || !rect || !cutoutUrl) return;
     setError(null);
     setCanvasBusy(true);
     try {
@@ -604,6 +797,7 @@ export function ProfilbildEditor({
             imageSize: { w: rect.width, h: rect.height },
           },
           cutoutDataUrl: cutout.dataUrl ?? cutoutUrl,
+          stickers: placedStickers(),
         });
       }
     } catch (cause) {
@@ -614,257 +808,451 @@ export function ProfilbildEditor({
   };
 
   const scalePct = placement ? Math.round(placement.scale * 100) : 0;
+  const backgroundName =
+    activeId === CUSTOM_ID
+      ? 'Eigenes Bild'
+      : (flat?.label ?? knownPresets.find((p) => p.id === activeId)?.label ?? '');
+  const hasPhoto = !!cutoutUrl;
+
+  const downloadButton = (
+    <Button
+      type="button"
+      variant="brand"
+      size={isMobile ? 'lg' : 'default'}
+      disabled={!cutout}
+      onClick={() => void download()}
+    >
+      Herunterladen
+    </Button>
+  );
+
+  const sizeSlider = (
+    <Slider
+      aria-label="Größe der Person"
+      min={PERSON_SCALE.min * 100}
+      max={PERSON_SCALE.max * 100}
+      step={1}
+      value={[scalePct]}
+      disabled={!placement}
+      onValueChange={([pct]) => {
+        if (cutout && pct !== undefined)
+          setPlacement((p) => (p ? rescalePlacement(cutout.image, p, pct / 100) : p));
+      }}
+    />
+  );
+
+  const backgroundPicker = (
+    <ProfilbildBackgroundPicker
+      colors={colorSwatches}
+      gradients={gradients}
+      freeBackground={freeBackground}
+      onSelectFree={(bg) => {
+        backgroundRequest.current++;
+        setFreeBackground(bg);
+        setSelected(FREE_BACKGROUND_ID);
+      }}
+      presets={presets}
+      selected={activeId}
+      customImageSrc={customImage?.src ?? null}
+      customUrl={customUrl}
+      onSelect={(id) => {
+        backgroundRequest.current++;
+        setSelected(id);
+      }}
+      onSelectPreset={(design) => void selectPreset(design)}
+      onSelectGallery={(item) => void pickGalleryBackground(item)}
+      onUpload={() => fileRef.current?.click()}
+      uploading={uploadingBackground}
+    />
+  );
+
+  const stickerPicker = (
+    <ProfilbildStickerPicker
+      locale={isAustria ? 'de-AT' : 'de-DE'}
+      disabled={!cutout}
+      onAddSystem={(st) => void addSticker(st)}
+      onAddAsset={(item) => void addGallerySticker(item)}
+    />
+  );
+
+  // Unter der Bühne nur der Hinweis und eine Aktion: gearbeitet wird im Bild selbst.
+  const stageBar = (
+    <div className="flex w-full items-start justify-between gap-3">
+      {/* Auf dem Desktop nur für Screenreader: die Bühne beschreibt sich damit. */}
+      <p
+        id={moveHintId}
+        className={cn('m-0 text-xs leading-snug text-muted-foreground', !isMobile && 'sr-only')}
+      >
+        {isMobile
+          ? 'Ziehen zum Verschieben. Gedrückt halten für die Instagram-Vorschau.'
+          : 'Ziehen zum Verschieben. Leertaste wählt aus, Pfeiltasten bewegen, + / – skaliert, [ ] dreht, Entf löscht.'}
+      </p>
+      {selectedSticker ? (
+        <Button
+          type="button"
+          size="sm"
+          variant="outline"
+          className="shrink-0"
+          onClick={() => {
+            const st = stickers.find((s) => s.uid === selectedSticker);
+            removeSticker(selectedSticker);
+            if (st) announce(`${stickerNames.get(st.uid) ?? st.label} entfernt`);
+          }}
+        >
+          Sticker entfernen
+        </Button>
+      ) : isMobile ? (
+        <Button
+          type="button"
+          size="sm"
+          variant="outline"
+          className="shrink-0"
+          disabled={!cutout}
+          onClick={center}
+        >
+          Zentrieren
+        </Button>
+      ) : null}
+    </div>
+  );
+
+  // Handy: immer Quadrat mit Kreisrand; Desktop: die gewählte Form.
+  const shape: Variant = isMobile ? 'rund' : variant;
+  const stageFrame = (
+    <div
+      {...(hasPhoto
+        ? {
+            role: 'application',
+            tabIndex: 0,
+            'aria-label': selectedSticker
+              ? 'Sticker verschieben – Pfeiltasten, Entf löscht'
+              : 'Person verschieben – Pfeiltasten',
+            'aria-describedby': moveHintId,
+            onKeyDown: onEditorKey,
+          }
+        : {})}
+      {...(isMobile && hasPhoto ? peekHandlers : {})}
+      className={cn(
+        'relative aspect-square w-full touch-manipulation overflow-hidden bg-surface shadow-lg outline-none select-none focus-visible:ring-2 focus-visible:ring-primary-600 focus-visible:ring-offset-2 focus-visible:ring-offset-background-alt',
+        shape === 'rund' && !isMobile && hasPhoto ? 'rounded-full' : 'rounded-[4%]',
+        'transition-[border-radius] duration-250 motion-reduce:transition-none'
+      )}
+    >
+      {!hasPhoto ? (
+        <div className="relative size-full">{emptyStage?.(backgroundPreview)}</div>
+      ) : cutout && rect && backgroundCanvas ? (
+        <Suspense fallback={null}>
+          <ProfilbildStage
+            background={backgroundCanvas}
+            person={cutout.image}
+            rect={rect}
+            round={isMobile}
+            onMove={moveTo}
+            stickers={stickers}
+            selectedSticker={selectedSticker}
+            onSelectSticker={setSelectedSticker}
+            onStickerChange={changeSticker}
+          />
+        </Suspense>
+      ) : null}
+      {peek ? (
+        <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center bg-black/40">
+          <div className="w-[86%]">
+            <InstagramPreview profileRef={igProfileRef} feedRef={igFeedRef} />
+          </div>
+        </div>
+      ) : null}
+    </div>
+  );
+
+  const stage =
+    !isMobile && variant === 'instagram' && cutout ? (
+      <div className="w-[min(560px,100cqw_-_48px)]">
+        <InstagramPreview profileRef={igProfileRef} feedRef={igFeedRef} />
+      </div>
+    ) : (
+      <div
+        className={cn(
+          'flex flex-col items-center gap-3',
+          isMobile
+            ? sheet
+              ? 'w-[min(342px,100cqw_-_48px,100cqh_-_24px)]'
+              : 'w-[min(342px,100cqw_-_48px,100cqh_-_96px)]'
+            : 'w-[min(500px,100cqw_-_48px,100cqh_-_190px)]'
+        )}
+      >
+        {stageFrame}
+        {hasPhoto && !(isMobile && sheet) ? stageBar : null}
+      </div>
+    );
+
+  const errorAlert = error ? (
+    <Alert variant="destructive" role="alert" className="w-full max-w-[500px]">
+      <AlertDescription>{error}</AlertDescription>
+    </Alert>
+  ) : null;
+
+  const sectionHead = (heading: string, aside: ReactNode, id?: string) => (
+    <div className="flex items-baseline justify-between gap-sm">
+      <h2 id={id} className="m-0 text-base font-semibold text-foreground-heading">
+        {heading}
+      </h2>
+      <span className="min-w-0 truncate text-[13px] text-muted-foreground">{aside}</span>
+    </div>
+  );
 
   return (
-    <div className="grid gap-lg md:grid-cols-[300px_1fr] md:items-start">
-      <div className="mx-auto flex w-full max-w-[300px] flex-col gap-xs md:mx-0">
-        <div role="group" aria-label="Vorschau" className="flex gap-xs">
-          {VARIANTS.map((o) => (
-            <button
-              key={o.value}
-              type="button"
-              aria-pressed={variant === o.value}
-              onClick={() => setVariant(o.value)}
-              className={cn(TOOL_PILL, 'flex-1 px-sm')}
-            >
-              {o.label}
-            </button>
-          ))}
-        </div>
-
-        {variant === 'instagram' ? (
-          cutout ? (
-            <InstagramPreview profileRef={igProfileRef} feedRef={igFeedRef} />
-          ) : null
-        ) : (
-          <>
-            {/* eslint-disable jsx-a11y/no-noninteractive-tabindex, jsx-a11y/no-noninteractive-element-interactions -- Tastatur-Ersatz für das Ziehen auf der Konva-Bühne; role="application" reicht Pfeiltasten am Screenreader vorbei durch */}
-            <div
-              role="application"
-              tabIndex={0}
-              aria-label={
-                selectedSticker
-                  ? 'Sticker verschieben – Pfeiltasten, Entf löscht'
-                  : 'Person verschieben – Pfeiltasten'
-              }
-              aria-describedby={`${moveHintId} ${keysHintId}`}
-              onKeyDown={onEditorKey}
-              className="aspect-square w-full overflow-hidden rounded-[14px] border border-grey-200 bg-grey-100 outline-none focus-visible:ring-2 focus-visible:ring-primary-600 focus-visible:ring-offset-2 dark:border-grey-700 dark:bg-grey-800"
-            >
-              {cutout && rect && backgroundCanvas ? (
-                <Suspense fallback={null}>
-                  <ProfilbildStage
-                    background={backgroundCanvas}
-                    person={cutout.image}
-                    rect={rect}
-                    round={variant === 'rund'}
-                    onMove={moveTo}
-                    stickers={stickers}
-                    selectedSticker={selectedSticker}
-                    onSelectSticker={setSelectedSticker}
-                    onStickerChange={changeSticker}
-                  />
-                </Suspense>
-              ) : null}
-            </div>
-            {/* eslint-enable jsx-a11y/no-noninteractive-tabindex, jsx-a11y/no-noninteractive-element-interactions */}
-            <div aria-live="polite" className="sr-only">
-              {announcement}
-            </div>
-            <div className="flex items-start justify-between gap-sm">
-              <p id={moveHintId} className={cn(TOOL_HINT, 'flex-1 text-xs')}>
-                Person und Sticker ziehen – sie rasten an Mitte, Raster und Unterkante ein.
-              </p>
-              {selectedSticker ? (
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="outline"
-                  className="shrink-0"
-                  onClick={() => removeSticker(selectedSticker)}
-                >
-                  Sticker entfernen
-                </Button>
-              ) : (
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="outline"
-                  className="shrink-0"
-                  disabled={!cutout}
-                  onClick={center}
-                >
-                  Zentrieren
-                </Button>
-              )}
-            </div>
-            <p id={keysHintId} className={cn(TOOL_HINT, 'hidden text-xs md:block')}>
-              Tastatur: Pfeile verschieben (Umschalt × 10), + / − Größe, [ / ] drehen, Entf löscht,
-              Esc hebt die Auswahl auf.
-            </p>
-            <div className="flex flex-col gap-xs">
-              <span id={layersId} className={cn(TOOL_LABEL, 'text-xs')}>
-                Ebenen
-              </span>
-              <ul aria-labelledby={layersId} className="m-0 flex list-none flex-col gap-xs p-0">
-                <li>
-                  <button
-                    ref={personLayerRef}
-                    type="button"
-                    aria-pressed={selectedSticker === null}
-                    disabled={!cutout}
-                    onClick={() => setSelectedSticker(null)}
-                    className={cn(TOOL_PILL, 'w-full justify-start')}
-                  >
-                    {PERSON}
-                  </button>
-                </li>
-                {stickers.map((st) => {
-                  const name = stickerNames.get(st.uid) ?? st.label;
-                  return (
-                    <li key={st.uid} className="flex items-center gap-xs">
-                      <button
-                        type="button"
-                        aria-pressed={selectedSticker === st.uid}
-                        onClick={() => setSelectedSticker(st.uid)}
-                        className={cn(TOOL_PILL, 'min-w-0 flex-1 justify-start truncate')}
-                      >
-                        {name}
-                      </button>
-                      <Button
-                        type="button"
-                        size="icon"
-                        variant="ghost"
-                        aria-label={`${name} entfernen`}
-                        className="shrink-0 max-md:size-11"
-                        onClick={() => {
-                          removeSticker(st.uid);
-                          announce(`${name} entfernt`);
-                          personLayerRef.current?.focus();
-                        }}
-                      >
-                        <PiTrash aria-hidden="true" />
-                      </Button>
-                    </li>
-                  );
-                })}
-              </ul>
-            </div>
-          </>
+    <div className="flex h-dvh min-h-0 flex-col bg-background text-foreground">
+      <header
+        className={cn(
+          'flex-none',
+          isMobile
+            ? 'flex items-center justify-between gap-md pt-1.5 pr-4 pb-2.5 pl-14'
+            : 'grid h-[72px] grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-md border-b border-border px-6 lg:px-8'
         )}
-        <p className={cn(TOOL_HINT, 'text-xs')}>{VARIANT_HINTS[variant]}</p>
+      >
+        <div className="flex min-w-0 items-center gap-2">
+          <ToolBackLink to="/studio" label="Zurück zum Studio" />
+          <div className="flex min-w-0 items-baseline gap-3.5">
+            <h1
+              className={cn(
+                'm-0 shrink-0 font-semibold text-foreground-heading',
+                isMobile ? 'text-[22px]' : 'text-2xl'
+              )}
+            >
+              {title}
+            </h1>
+            {isMobile ? null : (
+              <span className="hidden truncate text-[15px] text-muted-foreground xl:inline">
+                {description}
+              </span>
+            )}
+          </div>
+        </div>
+        {/* Gespeichert wird still; die Ansage bleibt für Screenreader. */}
+        <p role="status" className="sr-only">
+          {hasPhoto ? SAVE_STATUS[saveState] : ''}
+        </p>
+        {!isMobile && hasPhoto ? (
+          <div className="flex items-center gap-2">
+            <ToggleGroup
+              type="single"
+              variant="outline"
+              aria-label="Vorschau"
+              value={variant}
+              onValueChange={(v) => {
+                if (v) setVariant(v as Variant);
+              }}
+            >
+              {VARIANTS.map((o) => (
+                <ToggleGroupItem
+                  key={o.value}
+                  value={o.value}
+                  aria-label={o.label}
+                  title={o.label}
+                  className="size-9"
+                >
+                  <o.icon aria-hidden="true" className="size-[18px]" />
+                </ToggleGroupItem>
+              ))}
+            </ToggleGroup>
+            <Button
+              type="button"
+              variant="outline"
+              size="icon"
+              aria-label="Zentrieren"
+              title="Zentrieren"
+              disabled={!cutout}
+              onClick={center}
+            >
+              <PiCrosshairSimple aria-hidden="true" className="size-[18px]" />
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              size="icon"
+              aria-label="Anderes Foto"
+              title="Anderes Foto"
+              onClick={onReset}
+            >
+              <PiCameraRotate aria-hidden="true" className="size-[18px]" />
+            </Button>
+          </div>
+        ) : null}
+        {hasPhoto ? (
+          <div className="flex items-center justify-end gap-2">
+            {isMobile ? null : (
+              <Button
+                type="button"
+                variant="outline"
+                disabled={canvasBusy || !cutout}
+                onClick={() => void editInCanvas()}
+              >
+                {canvasBusy ? 'Canvas wird geöffnet …' : 'In Canvas bearbeiten'}
+              </Button>
+            )}
+            {downloadButton}
+          </div>
+        ) : null}
+      </header>
+
+      <div className="flex min-h-0 flex-1">
+        <main
+          // Die Bühne bemisst sich an dieser Fläche (Container-Einheiten): so groß wie
+          // möglich, ohne dass sie mit Umschalter und Hinweis über den Rand ragt.
+          className={cn(
+            'flex min-w-0 flex-1 flex-col items-center justify-center overflow-y-auto bg-background-alt [container-type:size]',
+            isMobile ? 'gap-3 px-6 py-3' : 'gap-7 p-6 lg:p-8'
+          )}
+        >
+          {beforeStage}
+          {stage}
+          {errorAlert}
+        </main>
+
+        {!isMobile ? (
+          <aside className="flex w-[340px] flex-none flex-col gap-8 overflow-y-auto border-l border-border p-6 lg:w-[400px] lg:p-7">
+            <section aria-labelledby={backgroundHeadingId} className="flex flex-col gap-3.5">
+              {sectionHead('Hintergrund', backgroundName, backgroundHeadingId)}
+              {backgroundPicker}
+            </section>
+            {hasPhoto ? (
+              <>
+                <section aria-labelledby={stickerHeadingId} className="flex flex-col gap-3.5">
+                  {sectionHead('Sticker', 'Mehrere möglich', stickerHeadingId)}
+                  {stickerPicker}
+                </section>
+                <section aria-labelledby={sizeHeadingId} className="flex flex-col gap-3.5">
+                  <div className="flex items-baseline justify-between gap-sm">
+                    <h2
+                      id={sizeHeadingId}
+                      className="m-0 text-base font-semibold text-foreground-heading"
+                    >
+                      Größe der Person
+                    </h2>
+                    <span className="text-sm tabular-nums text-muted-foreground">{scalePct} %</span>
+                  </div>
+                  {sizeSlider}
+                </section>
+                {flattenForCanvas ? (
+                  <p className="mt-auto mb-0 text-[13px] leading-normal text-muted-foreground">
+                    „In Canvas bearbeiten“ übernimmt das Bild als Ganzes – Person und Sticker sind
+                    dort nicht mehr einzeln verschiebbar.
+                  </p>
+                ) : null}
+              </>
+            ) : null}
+          </aside>
+        ) : null}
       </div>
 
-      <div className={cn(TOOL_PANEL, 'flex min-w-0 flex-col gap-lg')}>
-        <fieldset className="m-0 flex min-w-0 flex-col gap-sm border-0 p-0">
-          <legend className={cn(TOOL_LABEL, 'mb-sm')}>Hintergrund</legend>
-          <ProfilbildBackgroundPicker
-            colors={colorSwatches}
-            presets={presets}
-            selected={activeId}
-            customImageSrc={customImage?.src ?? null}
-            onSelect={(id) => {
-              backgroundRequest.current++;
-              setSelected(id);
-            }}
-            onSelectPreset={(design) => void selectPreset(design)}
-            onUpload={() => fileRef.current?.click()}
-          />
-          <input
-            ref={fileRef}
-            type="file"
-            aria-label="Eigenes Hintergrundbild wählen"
-            accept="image/*"
-            className="hidden"
-            data-testid="profilbild-background-input"
-            onChange={(e) => {
-              const file = e.target.files?.[0];
-              e.target.value = '';
-              if (file) void pickCustom(file);
-            }}
-          />
-        </fieldset>
-
-        <fieldset className="m-0 flex min-w-0 flex-col gap-sm border-0 p-0">
-          <legend className={cn(TOOL_LABEL, 'mb-sm')}>Sticker</legend>
-          <div className="flex flex-wrap gap-sm">
-            {PROFILBILD_STICKERS.map((st) => (
+      {isMobile ? (
+        <>
+          {sheet ? (
+            <section
+              aria-label={SHEET_TITLES[sheet]}
+              className="relative z-10 -mt-5 flex max-h-[60dvh] flex-none flex-col gap-3 overflow-y-auto rounded-t-[22px] bg-background px-4 pt-2 pb-4 shadow-[0_-8px_24px_rgba(0,0,0,0.12)]"
+            >
+              <span
+                aria-hidden="true"
+                className="h-[5px] w-10 flex-none self-center rounded-full bg-border"
+              />
+              <div className="flex items-center justify-between">
+                <h2 className="m-0 text-[17px] font-semibold text-foreground-heading">
+                  {SHEET_TITLES[sheet]}
+                </h2>
+                <Button type="button" size="sm" variant="ghost" onClick={() => setSheet(null)}>
+                  Fertig
+                </Button>
+              </div>
+              {sheet === 'hintergrund' ? backgroundPicker : null}
+              {sheet === 'sticker' ? (
+                <div className="flex flex-col gap-2.5">
+                  <span className="text-[13px] text-muted-foreground">
+                    Mehrere möglich · auf dem Bild verschieben
+                  </span>
+                  <div className="max-h-[228px] overflow-y-auto">{stickerPicker}</div>
+                </div>
+              ) : null}
+              {sheet === 'groesse' ? (
+                <div className="flex flex-col gap-3.5 pb-1.5">
+                  <div className="flex justify-between text-sm">
+                    <strong>Größe der Person</strong>
+                    <span className="tabular-nums text-muted-foreground">{scalePct} %</span>
+                  </div>
+                  <div className="px-1 py-2">{sizeSlider}</div>
+                </div>
+              ) : null}
+              {sheet === 'mehr' ? (
+                <div className="flex flex-col gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="lg"
+                    className="h-12 w-full"
+                    disabled={canvasBusy || !cutout}
+                    onClick={() => void editInCanvas()}
+                  >
+                    {canvasBusy ? 'Canvas wird geöffnet …' : 'In Canvas bearbeiten'}
+                  </Button>
+                  {flattenForCanvas ? (
+                    <span className="px-1 pb-1.5 text-xs leading-snug text-muted-foreground">
+                      Im Canvas wird das Bild als Ganzes übernommen – Person und Sticker sind dort
+                      nicht mehr einzeln verschiebbar.
+                    </span>
+                  ) : null}
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="lg"
+                    className="h-12 w-full"
+                    onClick={onReset}
+                  >
+                    Anderes Foto
+                  </Button>
+                </div>
+              ) : null}
+            </section>
+          ) : null}
+          <nav
+            aria-label="Werkzeuge"
+            className="grid flex-none grid-cols-4 border-t border-border bg-background px-1.5 pt-1.5 pb-[max(0.5rem,env(safe-area-inset-bottom,0px))]"
+          >
+            {MOBILE_TOOLS.map((tool) => (
               <button
-                key={st.id}
+                key={tool.id}
                 type="button"
-                aria-label={`Sticker ${st.label} hinzufügen`}
-                title={st.label}
-                disabled={!cutout}
-                onClick={() => void addSticker(st)}
-                className={STICKER_TILE_CLASS}
-                style={{ background: CANVAS_COLORS.TANNE }}
+                aria-pressed={sheet === tool.id}
+                // Ohne Foto gibt es nur den Hintergrund zu wählen.
+                disabled={!hasPhoto && tool.id !== 'hintergrund'}
+                onClick={() => setSheet((s) => (s === tool.id ? null : tool.id))}
+                className="flex h-14 cursor-pointer flex-col items-center justify-center gap-1 rounded-lg text-[11px] font-bold text-muted-foreground outline-none focus-visible:ring-2 focus-visible:ring-primary-600 disabled:cursor-not-allowed disabled:opacity-40 aria-pressed:text-primary-600"
               >
-                <img src={st.src} alt="" aria-hidden="true" className="max-h-full max-w-full" />
+                <tool.icon aria-hidden="true" className="size-6" />
+                {tool.label}
               </button>
             ))}
-          </div>
-          {stickers.length > 0 ? (
-            <p className={cn(TOOL_HINT, 'text-xs')}>
-              Sticker antippen zum Auswählen – Ecken ziehen zum Vergrößern und Drehen.
-            </p>
-          ) : null}
-        </fieldset>
+          </nav>
+        </>
+      ) : null}
 
-        <div className="flex flex-col gap-xs">
-          <label htmlFor={sizeId} className={cn(TOOL_LABEL, 'flex justify-between')}>
-            Größe der Person{' '}
-            <span className="font-normal tabular-nums text-grey-600 dark:text-grey-400">
-              {scalePct} %
-            </span>
-          </label>
-          <input
-            id={sizeId}
-            type="range"
-            min={70}
-            max={100}
-            value={scalePct}
-            disabled={!placement}
-            onChange={(e) => {
-              const next = Number(e.target.value) / 100;
-              if (cutout) setPlacement((p) => (p ? rescalePlacement(cutout.image, p, next) : p));
-            }}
-            className="h-11 w-full cursor-pointer accent-primary-600 md:h-6"
-          />
-        </div>
-
-        <div className={TOOL_ACTIONS}>
-          <Button type="button" variant="brand" disabled={!cutout} onClick={() => void download()}>
-            Herunterladen
-          </Button>
-          <Button
-            type="button"
-            variant="outline"
-            disabled={canvasBusy || !cutout}
-            onClick={() => void editInCanvas()}
-          >
-            {canvasBusy ? 'Canvas wird geöffnet …' : 'In Canvas bearbeiten'}
-          </Button>
-          <Button type="button" variant="ghost" className="sm:ml-auto" onClick={onReset}>
-            Anderes Foto
-          </Button>
-        </div>
-        <p role="status" className={cn(TOOL_HINT, '-mt-sm text-xs')}>
-          {SAVE_STATUS[saveState]}
-        </p>
-
-        {flattenForCanvas ? (
-          <p className={cn(TOOL_HINT, '-mt-sm text-xs')}>
-            Im Canvas wird das Bild als Ganzes übernommen – Person und Sticker sind dort nicht mehr
-            einzeln verschiebbar.
-          </p>
-        ) : null}
-
-        {error ? (
-          <Alert variant="destructive" role="alert">
-            <AlertDescription>{error}</AlertDescription>
-          </Alert>
-        ) : null}
+      <div aria-live="polite" className="sr-only">
+        {announcement}
       </div>
+
+      <input
+        ref={fileRef}
+        type="file"
+        aria-label="Eigenes Hintergrundbild wählen"
+        accept={BACKGROUND_ACCEPT}
+        className="hidden"
+        data-testid="profilbild-background-input"
+        onChange={(e) => {
+          const file = e.target.files?.[0];
+          e.target.value = '';
+          if (file) void uploadBackground(file);
+        }}
+      />
     </div>
   );
 }

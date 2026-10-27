@@ -111,10 +111,9 @@ Unter all diesen Funktionen liegt ein Fundament aus bewährten Open-Source-Baust
 
 [GitHub](https://github.com/expressjs/express) · [NPM](https://www.npmjs.com/package/express)
 
-**Vercel AI SDK & LangGraph** bilden zusammen den KI-Motor des Grünerators. Das AI SDK verbindet den Grünerator mit den Sprachmodellen und liefert ihre Antworten Wort für Wort aus, während du zuschaust. LangGraph aus dem LangChain-Umfeld steuert die mehrstufigen Abläufe dahinter und bildet sie als eine Art Ablaufdiagramm ab – etwa wenn der Chat erst recherchiert und dann eine Antwort formuliert.
+**Vercel AI SDK** ist der KI-Motor des Grünerators. Es verbindet den Grünerator mit den Sprachmodellen, liefert ihre Antworten Wort für Wort aus, während du zuschaust, und steuert auch die mehrstufigen Abläufe dahinter – etwa wenn der Chat erst recherchiert und dann eine Antwort formuliert oder eine Tiefenrecherche Teilfragen an mehrere Helfer verteilt.
 
-**Vercel AI SDK:** [GitHub](https://github.com/vercel/ai) · [NPM](https://www.npmjs.com/package/ai)<br />
-**LangGraph:** [GitHub](https://github.com/langchain-ai/langgraphjs) · [NPM](https://www.npmjs.com/package/@langchain/langgraph)
+[GitHub](https://github.com/vercel/ai) · [NPM](https://www.npmjs.com/package/ai)
 
 **PostgreSQL** ist die Datenbank, in der der Grünerator deine Inhalte sicher speichert – von Dokumenten über Boards bis zu deinen Einstellungen. Sie ist seit Jahrzehnten erprobt und gilt als eine der zuverlässigsten Open-Source-Datenbanken überhaupt.
 

@@ -346,6 +346,7 @@ function DeckPanelInner({
 
   const {
     imageBase64,
+    imageAltText,
     isRendering,
     renderError,
     isExporting,
@@ -411,7 +412,7 @@ function DeckPanelInner({
             {imageBase64 && (
               <img
                 src={imageBase64}
-                alt={`Karussell-Folie ${selectedIndex + 1} von ${slideCount}`}
+                alt={imageAltText}
                 className={
                   isRendering
                     ? 'mx-auto w-full opacity-50 transition-opacity'

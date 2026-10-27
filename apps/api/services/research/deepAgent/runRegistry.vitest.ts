@@ -1,14 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const query = vi.fn<(sql: string, params?: unknown[]) => Promise<unknown[]>>();
-const deleteThread = vi.fn<(threadId: string) => Promise<void>>();
-let checkpointer: unknown = null;
 
 vi.mock('../../../database/services/PostgresService/index.js', () => ({
   getPostgresInstance: () => ({ query }),
-}));
-vi.mock('./checkpointer.js', () => ({
-  getCheckpointer: () => Promise.resolve(checkpointer),
 }));
 
 const {
@@ -18,13 +13,12 @@ const {
   purgeExpiredRuns,
   recordRunFinished,
   recordRunStarted,
+  recordRunState,
 } = await import('./runRegistry.js');
 
 beforeEach(() => {
   vi.clearAllMocks();
   query.mockResolvedValue([]);
-  checkpointer = { deleteThread };
-  deleteThread.mockResolvedValue();
 });
 
 /** The SQL a call produced, joined for substring assertions. */
@@ -103,18 +97,32 @@ describe('listResumableRuns', () => {
   });
 });
 
+describe('recordRunState', () => {
+  it('overwrites the one state the row carries', async () => {
+    const state = {
+      messages: [{ role: 'user' as const, content: 'Frage' }],
+      workspace: { todos: [], files: {} },
+    };
+    await recordRunState('t1', state);
+
+    expect(sqlOf()).toContain('UPDATE deep_research_runs SET state');
+    expect(query.mock.calls[0]?.[1]).toEqual(['t1', JSON.stringify(state)]);
+  });
+
+  it('never throws, whatever the database does', async () => {
+    query.mockRejectedValueOnce(new Error('connection refused'));
+    await expect(
+      recordRunState('t1', { messages: [], workspace: { todos: [], files: {} } })
+    ).resolves.toBeUndefined();
+  });
+});
+
 describe('purgeExpiredRuns', () => {
-  it('deletes the state through the saver, then the row', async () => {
-    query.mockResolvedValueOnce([{ thread_id: 't1' }]).mockResolvedValue([]);
+  it('drops expired rows, state included, in one statement', async () => {
+    query.mockResolvedValueOnce([{ thread_id: 't1' }, { thread_id: 't2' }]);
 
-    expect(await purgeExpiredRuns()).toBe(1);
-
-    // Order is load-bearing: state first, row second. A crash in between leaves
-    // a row whose state is gone — the next pass cleans it. The reverse would
-    // leave checkpoint blobs nothing knows about, which is the unbounded growth
-    // this exists to prevent.
-    expect(deleteThread).toHaveBeenCalledWith('t1');
-    expect(sqlOf(1)).toContain('DELETE FROM deep_research_runs');
+    expect(await purgeExpiredRuns()).toBe(2);
+    expect(sqlOf()).toContain('DELETE FROM deep_research_runs');
   });
 
   it('uses the retention age it documents', async () => {
@@ -123,28 +131,12 @@ describe('purgeExpiredRuns', () => {
     expect(query.mock.calls[0]?.[1]).toEqual([String(RETENTION_DAYS)]);
   });
 
-  it('still drops the row when there is no checkpointer', async () => {
-    // Runs recorded while Postgres was out of reach have no state to delete —
-    // their rows must not become immortal because of it.
-    checkpointer = null;
-    query.mockResolvedValueOnce([{ thread_id: 't1' }]).mockResolvedValue([]);
-
-    expect(await purgeExpiredRuns()).toBe(1);
-    expect(sqlOf(1)).toContain('DELETE FROM deep_research_runs');
-  });
-
-  it('keeps going when one thread cannot be deleted', async () => {
-    query.mockResolvedValueOnce([{ thread_id: 't1' }, { thread_id: 't2' }]).mockResolvedValue([]);
-    deleteThread.mockRejectedValueOnce(new Error('deadlock detected'));
-
-    // One stuck thread must not stop the sweep — it would stop retention
-    // altogether, and the schema grows from there.
-    expect(await purgeExpiredRuns()).toBe(1);
-    expect(deleteThread).toHaveBeenCalledTimes(2);
+  it('reports nothing when the sweep fails', async () => {
+    query.mockRejectedValueOnce(new Error('deadlock detected'));
+    expect(await purgeExpiredRuns()).toBe(0);
   });
 
   it('does nothing when nothing is expired', async () => {
     expect(await purgeExpiredRuns()).toBe(0);
-    expect(deleteThread).not.toHaveBeenCalled();
   });
 });

@@ -9,6 +9,7 @@ import { type ThreadMessageLike, type ToolCallMessagePart } from '@assistant-ui/
 import {
   notebookAnswerModeReasonSchema,
   notebookResolvedAnswerModeSchema,
+  type BrowserSessionMeta,
 } from '@gruenerator/contracts';
 
 import {
@@ -21,7 +22,11 @@ import {
 import { ATTACHMENT_META_PART_NAME, type AttachmentMetaData } from '../lib/attachmentMeta';
 import { mapRawCitationsToChat } from '../lib/citationUtils';
 import { isPastedTextAttachment, PASTED_TEXT_PREVIEW_PART_NAME } from '../lib/pastedText';
-import { TOOL_APPROVAL_OPTIONS } from '../lib/toolApproval';
+import {
+  decidedApprovalPills,
+  TOOL_APPROVAL_OPTIONS,
+  type PersistedApprovalPause,
+} from '../lib/toolApproval';
 import { dropDuplicateToolCalls } from '../lib/toolCallParts';
 import { buildToolDerivedCustom } from '../lib/toolDerivedCustom';
 import { toolGrantPartFields, type McpToolGrant } from '../lib/toolGrant';
@@ -78,6 +83,8 @@ export interface LoadedMessage {
     generatedImage?: GeneratedImage;
     createdDocument?: DocumentCreatedData;
     computeData?: ComputeData;
+    /** `website_erkunden`: the browser session (steps + screenshots as asset URLs). */
+    browserSession?: BrowserSessionMeta;
     agentId?: string;
     toolCalls?: PersistedToolCall[];
     /** Notebook answers only: the mode the answer ran in, and why (see
@@ -102,17 +109,10 @@ export interface LoadedMessage {
     /** Werkzeugaufrufe, die auf eine Freigabe warten (oder gewartet haben).
      *  Solange `resolved` falsch ist, zeigt der Thread nach einem Reload wieder
      *  die Karte und kann entschieden werden. */
-    pendingApproval?: {
-      approvalTurnId: string;
-      calls: Array<{
-        toolCallId: string;
-        toolName: string;
-        args?: Record<string, unknown>;
-        title?: string;
-        serverName?: string;
-      }>;
-      resolved?: boolean | 'expired';
-    };
+    pendingApproval?: PersistedApprovalPause;
+    /** Die früher im selben Zug entschiedenen Freigaben — `pendingApproval`
+     *  trägt nur die letzte Pause (#5051). */
+    decidedApprovals?: PersistedApprovalPause[];
     /** Eine Loop-Rückfrage (`ask_human`, #3220). Solange `resolved` falsch ist,
      *  zeigt der Thread nach einem Reload wieder die beantwortbare Karte. */
     pendingClarification?: {
@@ -140,6 +140,19 @@ type ToolCallLike = {
 };
 
 /**
+ * Die Karten führen nach dem Reload nur `query` — und `auftrag`, die
+ * Statuszeile von `tabelle_auswerten`. Ohne ihn verschwand die Zeile, die live
+ * über dem Code stand (#5043).
+ */
+function persistedCardArgs(tc: PersistedToolCall): ToolCallMessagePart['args'] {
+  const args = (tc.args ?? {}) as Record<string, unknown>;
+  return {
+    query: String(args.query ?? ''),
+    ...(typeof args.auftrag === 'string' ? { auftrag: args.auftrag } : {}),
+  };
+}
+
+/**
  * One persisted loop step → the tool-call part the live stream built for it.
  * Shared by the chat and the notebook reload.
  */
@@ -163,7 +176,7 @@ function persistedToolCallToPart(tc: PersistedToolCall, fallbackId: string): Too
     type: 'tool-call' as const,
     toolCallId: tc.toolCallId || fallbackId,
     toolName: tc.toolName,
-    args: { query: String((tc.args as Record<string, unknown>)?.query ?? '') },
+    args: persistedCardArgs(tc),
     // Live, parseSSEStream folds `ok` into `result`; do the same here so a
     // reloaded card reaches the identical shape and reports the identical
     // outcome. Without this a failed call reloads as a green tick.
@@ -248,6 +261,7 @@ export const PASSTHROUGH_METADATA_FIELDS = [
   'generatedImage',
   'createdDocument',
   'computeData',
+  'browserSession',
   'agentId',
   'roleName',
   'interrupted',
@@ -421,6 +435,18 @@ export function convertToThreadMessageLike(messages: LoadedMessage[]): ThreadMes
         parentId,
       });
 
+      // Entschiedene Freigaben: die Pille steht vor der Karte ihres Aufrufs.
+      const pills = decidedApprovalPills([
+        ...(m.metadata?.decidedApprovals ?? []),
+        m.metadata?.pendingApproval,
+      ]);
+      const pushPillFor = (toolCallId: string, parentId?: string): void => {
+        const pill = pills.get(toolCallId);
+        if (!pill) return;
+        pills.delete(toolCallId);
+        contentParts.push(parentId != null ? { ...pill, parentId } : pill);
+      };
+
       const toolCalls = m.metadata?.toolCalls;
       const hasOffsets = toolCalls?.some((tc) => typeof tc.textOffset === 'number') ?? false;
 
@@ -448,6 +474,7 @@ export function convertToThreadMessageLike(messages: LoadedMessage[]): ThreadMes
           const toolCallId = tc.toolCallId || fallbackId(i);
           const parentId: string = prevWasCard && runParentId ? runParentId : toolCallId;
           runParentId = parentId;
+          pushPillFor(toolCallId, parentId);
           contentParts.push(cardFor(tc, i, parentId));
           prevWasCard = true;
           cursor = offset;
@@ -457,6 +484,7 @@ export function convertToThreadMessageLike(messages: LoadedMessage[]): ThreadMes
         // Legacy / split turns: cards first, then the full text — unchanged.
         if (toolCalls) {
           for (const [i, tc] of toolCalls.entries()) {
+            pushPillFor(tc.toolCallId || fallbackId(i));
             if (tc.toolName === 'ask_human') {
               // Gleiche Sonderform wie in `cardFor`: echte args, Antwort als String.
               const answer = (tc.result as Record<string, unknown> | undefined)?.answer;
@@ -473,7 +501,7 @@ export function convertToThreadMessageLike(messages: LoadedMessage[]): ThreadMes
               type: 'tool-call' as const,
               toolCallId: tc.toolCallId || fallbackId(i),
               toolName: tc.toolName,
-              args: { query: String((tc.args as Record<string, unknown>)?.query ?? '') },
+              args: persistedCardArgs(tc),
               result: tc.result,
               ...(tc.narration ? { narration: tc.narration } : {}),
             });
@@ -518,6 +546,10 @@ export function convertToThreadMessageLike(messages: LoadedMessage[]): ThreadMes
           } as ToolCallMessagePart['args'],
         });
       }
+
+      // Ein entschiedener Aufruf ohne eigene Karte (z. B. abgelehnt) behält
+      // seine Pille trotzdem.
+      for (const pill of pills.values()) contentParts.push(pill);
 
       const pending = m.metadata?.pendingApproval;
       const pendingUnresolved = pending && pending.resolved !== true;

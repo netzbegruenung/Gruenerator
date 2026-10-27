@@ -5,7 +5,7 @@ import {
   isNotebookResolvableIn,
 } from '../notebooks/index.js';
 
-import { LANDESVERBAENDE, landesverbandAgentIds } from './landesverbaende.js';
+import { LANDESVERBAENDE, landesverbandAgentIds, type LandesverbandId } from './landesverbaende.js';
 import { type SystemAgentId } from './system.js';
 import { type AgentAudience } from './types.js';
 
@@ -25,11 +25,13 @@ import { type AgentAudience } from './types.js';
  */
 export interface LvHub {
   /** Internal LV id (matches the `lv` key in the agent specs). */
-  lvId: string;
+  lvId: LandesverbandId;
   /** Branded URL slug — `/agents/<slug>` resolves to this hub. */
   slug: string;
   /** Display name on the landing, e.g. "Grüne Berlin". */
   name: string;
+  /** The Land alone, e.g. "Berlin" — where a heading already says „Landesverbände". */
+  title: string;
   /** The LV notebook every agent pins. Also drives the hub's icon (the LV's
    *  chosen notebook icon) via `NOTEBOOK_ICONS` on the web side. */
   notebookId: NotebookId;
@@ -60,6 +62,7 @@ export const LV_HUBS: readonly LvHub[] = LANDESVERBAENDE.map((lv) => ({
   lvId: lv.id,
   slug: lv.hub.slug,
   name: lv.hub.name,
+  title: lv.title,
   notebookId: lv.notebookId,
   prAgentId: lv.prAgentId as SystemAgentId,
   buergerAgentId: lv.buergerAgentId as SystemAgentId,
@@ -94,6 +97,32 @@ export function getLandesverbandHubBySlug(
   const hub = hubBySlug.get(slug);
   if (!hub) return null;
   return isNotebookResolvableIn(hub.notebookId, instanceId) ? hub : null;
+}
+
+/**
+ * Dieselbe Auflösung wie {@link getLandesverbandHubBySlug}, nur über die LV-Id
+ * (`berlin`, `mecklenburg-vorpommern`) — für Aufrufer, die mit Rollen oder einer
+ * API-Anfrage statt mit einer Adresse arbeiten. Läuft absichtlich DURCH das
+ * Slug-Gate, damit ein abgeschalteter Landesverband auf keinem der beiden Wege
+ * wieder auftaucht.
+ */
+export function getLandesverbandHubById(
+  lvId: string,
+  instanceId: InstanceId = DEFAULT_INSTANCE_ID
+): LvHub | null {
+  const hub = LV_HUBS.find((entry) => entry.lvId === lvId);
+  return hub ? getLandesverbandHubBySlug(hub.slug, instanceId) : null;
+}
+
+/** Die auflösbaren Hubs zu einer Liste von LV-Ids, in deren Reihenfolge. */
+export function getLandesverbandHubsByIds(
+  lvIds: readonly string[],
+  instanceId: InstanceId = DEFAULT_INSTANCE_ID
+): LvHub[] {
+  return lvIds.flatMap((lvId) => {
+    const hub = getLandesverbandHubById(lvId, instanceId);
+    return hub ? [hub] : [];
+  });
 }
 
 /**

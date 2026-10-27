@@ -45,9 +45,9 @@ const { RETRIEVAL_CASES } = await import('./cases.js');
 
 import type { NotebookCaseMeta, RetrievalExpectation } from './cases.js';
 import type { ExpandedChunkResult } from '../../services/search/types.js';
-import type { NotebookDepth } from '@gruenerator/contracts';
+import type { NotebookSearchDepth } from '@gruenerator/contracts';
 
-const DEPTH: NotebookDepth = 'deep';
+const DEPTH: NotebookSearchDepth = 'deep';
 /** Production `RERANK_MIN_RELEVANCE` default (config/env.ts). */
 const PRODUCTION_MIN_RELEVANCE = 0.2;
 

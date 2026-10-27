@@ -1,12 +1,16 @@
 import { useUserLandesverbaende } from '@gruenerator/chat';
+import {
+  useOwnRecipes,
+  classifyRecipeMention,
+  EMPTY_RECIPE_FORM,
+  hydrateRecipeForm,
+  type RecipeFormState,
+} from '@gruenerator/shared/grueneratoren';
 import { Button, ConfirmDialogProvider } from '@gruenerator/ui';
 import { type ReactNode } from 'react';
 import { Link, useParams } from 'react-router-dom';
 
-import { useOwnRecipes } from './api';
 import RecipeEditor from './RecipeEditor';
-import { EMPTY_RECIPE_FORM, hydrateRecipeForm, type RecipeFormState } from './recipeFormState';
-import { classifyRecipeMention } from './recipeKind';
 
 import withAuthRequired from '@/components/common/LoginRequired/withAuthRequired';
 import PageContainer from '@/components/common/PageContainer';
@@ -69,10 +73,10 @@ function RecipeEditorPage() {
           Dieses Rezept ist deinem Landesverband nicht zugeteilt.
         </p>
         <Link
-          to="/agentura"
+          to="/marktplatz"
           className="text-sm text-primary-600 hover:underline dark:text-primary-300"
         >
-          Zurück zur Agentura
+          Zurück zum Marktplatz
         </Link>
       </PageContainer>
     );

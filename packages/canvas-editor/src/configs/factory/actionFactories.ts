@@ -5,38 +5,50 @@
  * These eliminate the need to duplicate action logic across configs.
  */
 
-import { v4 as uuid } from 'uuid';
-
 import {
-  BALKEN_FIT_MARGIN,
-  BALKEN_FIT_MIN_SCALE,
-  fitBalkenAfterTextEdit,
-} from '../../utils/balkenBounds';
-import { createBalkenInstanceFromPreset } from '../../utils/balkenUtils';
-import { createAssetInstance } from '../../utils/canvasAssets';
-import { createChartInstance, type ChartInstance, type ChartType } from '../../utils/chartUtils';
-import { createCircleBadgeInstance } from '../../utils/circleBadgeUtils';
-import { duplicateElementInState } from '../../utils/duplicateElement';
-import { createFrameInstance } from '../../utils/frameUtils';
-import { iconInstanceIdsFor } from '../../utils/iconInstances';
-import { createIllustration } from '../../utils/illustrations/registry';
-import { createPillBadgeInstance } from '../../utils/pillBadgeUtils';
-import { BRAND_COLORS, createShape } from '../../utils/shapes';
+  createChartInstance,
+  type ChartInstance,
+  type ChartType,
+} from '@ggraphic/editor/utils/chartUtils';
+import { createCircleBadgeInstance } from '@ggraphic/editor/utils/circleBadgeUtils';
+import { brandColors } from '@ggraphic/editor/utils/colorOptions';
+import { createFrameInstance } from '@ggraphic/editor/utils/frameUtils';
+import { createPillBadgeInstance } from '@ggraphic/editor/utils/pillBadgeUtils';
+import { createShape } from '@ggraphic/editor/utils/shapes';
 import {
   createUserImageInstance,
   createUserImageInstanceFromUrl,
-} from '../../utils/userImageUtils';
+} from '@ggraphic/editor/utils/userImageUtils';
+import { v4 as uuid } from 'uuid';
+
+import { createBalkenInstanceFromPreset } from '../../brand/balkenPresets';
+import {
+  BALKEN_FIT_MARGIN,
+  BALKEN_FIT_MIN_SCALE,
+  balkenExtent,
+  fitBalkenAfterTextEdit,
+} from '../../utils/balkenBounds';
+import { createAssetInstance, createStickerInstance } from '../../utils/canvasAssets';
+import { duplicateElementInState } from '../../utils/duplicateElement';
+import { iconInstanceIdsFor } from '../../utils/iconInstances';
+import { createIllustration } from '../../utils/illustrations/registry';
 
 import type { IconState, BaseCanvasState } from './baseTypes';
-import type { BalkenInstance, BalkenMode } from '../../utils/balkenUtils';
 import type { AssetInstance } from '../../utils/canvasAssets';
-import type { CircleBadgeInstance } from '../../utils/circleBadgeUtils';
-import type { FrameClipType, FrameInstance } from '../../utils/frameUtils';
-import type { IllustrationInstance } from '../../utils/illustrations/types';
-import type { PillBadgeInstance } from '../../utils/pillBadgeUtils';
-import type { ShapeInstance, ShapeType } from '../../utils/shapes';
-import type { UserImageInstance } from '../../utils/userImageUtils';
 import type { AdditionalText } from '../types';
+import type { BalkenInstance, BalkenMode } from '@ggraphic/editor/utils/balkenUtils';
+import type { CircleBadgeInstance } from '@ggraphic/editor/utils/circleBadgeUtils';
+import type { FrameClipType, FrameInstance } from '@ggraphic/editor/utils/frameUtils';
+import type { IllustrationInstance } from '@ggraphic/editor/utils/illustrations/types';
+import type { PillBadgeInstance } from '@ggraphic/editor/utils/pillBadgeUtils';
+import type { ShapeInstance, ShapeType } from '@ggraphic/editor/utils/shapes';
+import type {
+  ElementPlacement,
+  ImageAdjustments,
+  UserImageInstance,
+  UserImagePlacement,
+} from '@ggraphic/editor/utils/userImageUtils';
+import type { StickerRef } from '@gruenerator/contracts';
 
 // ============================================================================
 // TYPE HELPERS
@@ -69,11 +81,31 @@ export function createAssetActions<TState extends { assetInstances: AssetInstanc
   saveToHistory: HistorySaver<TState>,
   debouncedSaveToHistory: HistorySaver<TState>,
   canvasWidth: number,
-  canvasHeight: number
+  canvasHeight: number,
+  insertScale = 1
 ) {
   return {
-    addAsset: (assetId: string) => {
-      const newInstance = createAssetInstance(assetId, canvasWidth, canvasHeight);
+    addAsset: (assetId: string, options?: ElementPlacement) => {
+      // Assets are anchored at their centre.
+      const newInstance = {
+        ...createAssetInstance(assetId, canvasWidth, canvasHeight),
+        ...(insertScale !== 1 ? { scale: insertScale } : {}),
+        ...options?.center,
+      };
+      setState((prev) => ({
+        ...prev,
+        assetInstances: [...prev.assetInstances, newInstance],
+      }));
+      saveToHistory(getState());
+    },
+    addStickerAsset: (ref: StickerRef, options?: ElementPlacement) => {
+      const sticker = createStickerInstance(ref, canvasWidth, canvasHeight);
+      if (!sticker) return;
+      const newInstance = {
+        ...sticker,
+        ...(insertScale !== 1 ? { scale: insertScale } : {}),
+        ...options?.center,
+      };
       setState((prev) => ({
         ...prev,
         assetInstances: [...prev.assetInstances, newInstance],
@@ -104,6 +136,8 @@ export function createAssetActions<TState extends { assetInstances: AssetInstanc
 export interface IconActionsConfig {
   defaultColor?: string;
   defaultOpacity?: number;
+  /** Startgröße neuer Icons (`insertScaleFor`); 1 auf Sharepics. */
+  defaultScale?: number;
 }
 
 export function createIconActions<
@@ -117,15 +151,15 @@ export function createIconActions<
   canvasHeight: number,
   config: IconActionsConfig = {}
 ) {
-  const { defaultColor, defaultOpacity = 1 } = config;
+  const { defaultColor, defaultOpacity = 1, defaultScale = 1 } = config;
 
   return {
-    toggleIcon: (id: string, selected: boolean) => {
+    toggleIcon: (id: string, selected: boolean, options?: ElementPlacement) => {
       if (selected) {
         const newIconState: IconState = {
-          x: canvasWidth / 2,
-          y: canvasHeight / 2,
-          scale: 1,
+          x: options?.center?.x ?? canvasWidth / 2,
+          y: options?.center?.y ?? canvasHeight / 2,
+          scale: defaultScale,
           rotation: 0,
           ...(defaultColor ? { color: defaultColor } : {}),
           opacity: defaultOpacity,
@@ -189,11 +223,21 @@ export function createShapeActions<TState extends { shapeInstances: ShapeInstanc
   debouncedSaveToHistory: HistorySaver<TState>,
   canvasWidth: number,
   canvasHeight: number,
-  defaultColor: string = BRAND_COLORS[0].value
+  defaultColor: string = brandColors()[0]?.value ?? '#000000',
+  insertScale = 1
 ) {
   return {
-    addShape: (type: ShapeType, color?: string) => {
-      const newShape = createShape(type, canvasWidth / 2, canvasHeight / 2, defaultColor, color);
+    addShape: (type: ShapeType, color?: string, options?: ElementPlacement) => {
+      const center = options?.center ?? { x: canvasWidth / 2, y: canvasHeight / 2 };
+      const created = createShape(type, center.x, center.y, defaultColor, color);
+      const newShape =
+        insertScale === 1
+          ? created
+          : {
+              ...created,
+              width: created.width * insertScale,
+              height: created.height * insertScale,
+            };
       setState((prev) => ({
         ...prev,
         shapeInstances: [...prev.shapeInstances, newShape],
@@ -232,9 +276,11 @@ export function createIllustrationActions<
   canvasHeight: number
 ) {
   return {
-    addIllustration: (id: string) => {
-      void createIllustration(id, canvasWidth, canvasHeight).then((newIllustration) => {
-        if (!newIllustration) return;
+    addIllustration: (id: string, options?: ElementPlacement) => {
+      void createIllustration(id, canvasWidth, canvasHeight).then((created) => {
+        if (!created) return;
+        // The primitive centres the artwork on x/y.
+        const newIllustration = { ...created, ...options?.center };
         setState((prev) => ({
           ...prev,
           illustrationInstances: [...prev.illustrationInstances, newIllustration],
@@ -316,6 +362,21 @@ const ADDITIONAL_TEXT_DEFAULTS = {
   },
 };
 
+/**
+ * Voreinstellung einer Textart, mit `insertScale` vergrößert; zentriert über
+ * der Seitenmitte. Bei 1 genau die Sharepic-Werte.
+ */
+function textPreset(type: keyof typeof ADDITIONAL_TEXT_DEFAULTS, canvasWidth: number, s: number) {
+  const preset = ADDITIONAL_TEXT_DEFAULTS[type];
+  const width = preset.width * s;
+  return {
+    ...preset,
+    fontSize: preset.fontSize * s,
+    width,
+    x: canvasWidth / 2 - width / 2,
+  };
+}
+
 export function createAdditionalTextActions<TState extends { additionalTexts: AdditionalText[] }>(
   getState: () => TState,
   setState: StateSetter<TState>,
@@ -323,7 +384,8 @@ export function createAdditionalTextActions<TState extends { additionalTexts: Ad
   debouncedSaveToHistory: HistorySaver<TState>,
   canvasWidth: number,
   canvasHeight: number,
-  fontColor: string = '#ffffff'
+  fontColor: string = '#ffffff',
+  insertScale = 1
 ) {
   return {
     addHeader: () => {
@@ -331,9 +393,8 @@ export function createAdditionalTextActions<TState extends { additionalTexts: Ad
         id: uuid(),
         text: 'Überschrift',
         type: 'header',
-        x: canvasWidth / 2 - 200,
         y: canvasHeight / 3,
-        ...ADDITIONAL_TEXT_DEFAULTS.header,
+        ...textPreset('header', canvasWidth, insertScale),
         fill: fontColor,
       };
       setState((prev) => ({
@@ -347,9 +408,8 @@ export function createAdditionalTextActions<TState extends { additionalTexts: Ad
         id: uuid(),
         text: 'Untertitel',
         type: 'subheader',
-        x: canvasWidth / 2 - 200,
         y: canvasHeight * 0.4,
-        ...ADDITIONAL_TEXT_DEFAULTS.subheader,
+        ...textPreset('subheader', canvasWidth, insertScale),
         fill: fontColor,
       };
       setState((prev) => ({
@@ -363,9 +423,8 @@ export function createAdditionalTextActions<TState extends { additionalTexts: Ad
         id: uuid(),
         text: 'Text hier eingeben',
         type: 'body',
-        x: canvasWidth / 2 - 200,
         y: canvasHeight / 2,
-        ...ADDITIONAL_TEXT_DEFAULTS.body,
+        ...textPreset('body', canvasWidth, insertScale),
         fill: fontColor,
       };
       setState((prev) => ({
@@ -383,9 +442,8 @@ export function createAdditionalTextActions<TState extends { additionalTexts: Ad
         id: uuid(),
         text: content,
         type: 'body',
-        x: canvasWidth / 2 - 200,
         y: canvasHeight / 2,
-        ...ADDITIONAL_TEXT_DEFAULTS.body,
+        ...textPreset('body', canvasWidth, insertScale),
         fill: fontColor,
       };
       setState((prev) => ({
@@ -502,8 +560,20 @@ export function createBalkenActions<TState extends { balkenInstances: BalkenInst
   canvasHeight: number
 ) {
   return {
-    addBalken: (mode: BalkenMode) => {
-      const newBalken = createBalkenInstanceFromPreset(mode);
+    addBalken: (mode: BalkenMode, options?: ElementPlacement) => {
+      const preset = createBalkenInstanceFromPreset(mode);
+      let newBalken = preset;
+      if (options?.center) {
+        // The bars lay out around the canvas centre; `offset` moves the group.
+        const box = balkenExtent(preset, canvasWidth, canvasHeight);
+        newBalken = {
+          ...preset,
+          offset: {
+            x: options.center.x - (box.left + box.right) / 2,
+            y: options.center.y - (box.top + box.bottom) / 2,
+          },
+        };
+      }
       setState((prev) => ({
         ...prev,
         balkenInstances: [...prev.balkenInstances, newBalken],
@@ -562,11 +632,25 @@ export function createChartActions<TState extends { chartInstances: ChartInstanc
   saveToHistory: HistorySaver<TState>,
   debouncedSaveToHistory: HistorySaver<TState>,
   canvasWidth: number,
-  canvasHeight: number
+  canvasHeight: number,
+  /** Series colours of a new chart; the page's country palette. */
+  chartColors?: readonly string[],
+  insertScale = 1
 ) {
   return {
-    addChart: (chartType: ChartType) => {
-      const newChart = createChartInstance(chartType, canvasWidth, canvasHeight);
+    addChart: (chartType: ChartType, options?: ElementPlacement) => {
+      const created = createChartInstance(chartType, canvasWidth, canvasHeight, chartColors);
+      // Charts store their top-left corner; `scale` grows them from there.
+      const center =
+        options?.center ?? (insertScale !== 1 ? { x: canvasWidth / 2, y: canvasHeight / 2 } : null);
+      const newChart = center
+        ? {
+            ...created,
+            ...(insertScale !== 1 ? { scale: insertScale } : {}),
+            x: center.x - (created.width * insertScale) / 2,
+            y: center.y - (created.height * insertScale) / 2,
+          }
+        : created;
       setState((prev) => ({
         ...prev,
         chartInstances: [...prev.chartInstances, newChart],
@@ -603,8 +687,9 @@ export function createFrameActions<TState extends { frameInstances: FrameInstanc
   canvasHeight: number
 ) {
   return {
-    addFrame: (clipType: FrameClipType) => {
-      const newFrame = createFrameInstance(clipType, canvasWidth / 2, canvasHeight / 2);
+    addFrame: (clipType: FrameClipType, options?: ElementPlacement) => {
+      const center = options?.center ?? { x: canvasWidth / 2, y: canvasHeight / 2 };
+      const newFrame = createFrameInstance(clipType, center.x, center.y);
       setState((prev) => ({
         ...prev,
         frameInstances: [...prev.frameInstances, newFrame],
@@ -678,8 +763,8 @@ export function createUserImageActions<TState extends { userImageInstances: User
         commit(appendImage(instance));
       });
     },
-    addUserImageFromUrl: (url: string, fileName: string) => {
-      void createUserImageInstanceFromUrl(url, fileName, canvasWidth, canvasHeight).then(
+    addUserImageFromUrl: (url: string, fileName: string, options?: UserImagePlacement) => {
+      void createUserImageInstanceFromUrl(url, fileName, canvasWidth, canvasHeight, options).then(
         (instance) => {
           commit(appendImage(instance));
         }
@@ -722,6 +807,18 @@ export function createUserImageActions<TState extends { userImageInstances: User
       setState(change);
       debouncedSaveToHistory(change(getState()));
     },
+    /** The template background photo's "Bearbeiten" look; merges like `updateUserImage`. */
+    updateBackgroundImageAdjustments: (partial: Partial<ImageAdjustments>) => {
+      const change = (s: TState): TState => ({
+        ...s,
+        backgroundImageAdjustments: {
+          ...(s as { backgroundImageAdjustments?: ImageAdjustments }).backgroundImageAdjustments,
+          ...partial,
+        },
+      });
+      setState(change);
+      debouncedSaveToHistory(change(getState()));
+    },
     removeUserImage: (id: string) => {
       const images = getState().userImageInstances;
       const instance = images.find((u) => u.id === id);
@@ -747,7 +844,10 @@ export function createBaseActions<TState extends BaseCanvasState>(
   debouncedSaveToHistory: HistorySaver<TState>,
   canvasWidth: number,
   canvasHeight: number,
-  fontColor?: string
+  fontColor?: string,
+  chartColors?: readonly string[],
+  /** Startgröße neuer Elemente (`insertScaleFor`); 1 = Sharepic-Werte. */
+  insertScale = 1
 ) {
   return {
     ...createAssetActions(
@@ -756,7 +856,8 @@ export function createBaseActions<TState extends BaseCanvasState>(
       saveToHistory,
       debouncedSaveToHistory,
       canvasWidth,
-      canvasHeight
+      canvasHeight,
+      insertScale
     ),
     ...createIconActions(
       getState,
@@ -768,7 +869,7 @@ export function createBaseActions<TState extends BaseCanvasState>(
       // Without a default the icon state carries no color and IconPrimitive
       // falls back to black — invisible on dark templates. The template's own
       // font color is by definition readable against its background.
-      { defaultColor: fontColor }
+      { defaultColor: fontColor, defaultScale: insertScale }
     ),
     ...createShapeActions(
       getState,
@@ -776,7 +877,9 @@ export function createBaseActions<TState extends BaseCanvasState>(
       saveToHistory,
       debouncedSaveToHistory,
       canvasWidth,
-      canvasHeight
+      canvasHeight,
+      undefined,
+      insertScale
     ),
     ...createIllustrationActions(
       getState,
@@ -793,7 +896,8 @@ export function createBaseActions<TState extends BaseCanvasState>(
       debouncedSaveToHistory,
       canvasWidth,
       canvasHeight,
-      fontColor
+      fontColor,
+      insertScale
     ),
     ...createPillBadgeActions(getState, setState, saveToHistory, debouncedSaveToHistory),
     ...createCircleBadgeActions(getState, setState, saveToHistory, debouncedSaveToHistory),
@@ -811,7 +915,9 @@ export function createBaseActions<TState extends BaseCanvasState>(
       saveToHistory,
       debouncedSaveToHistory,
       canvasWidth,
-      canvasHeight
+      canvasHeight,
+      chartColors,
+      insertScale
     ),
     ...createFrameActions(
       getState,

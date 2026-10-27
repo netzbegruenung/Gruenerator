@@ -23,6 +23,7 @@ import { createLogger } from '../../../utils/logger.js';
 import { deriveImplicitRecipeMention } from '../agents/implicitRecipe.js';
 import { preferredLvRecipeMention } from '../agents/lvRecipePreference.js';
 import { getPipelineAgent } from '../agents/pipelines/index.js';
+import { isTabelleAuswertenMountable } from '../agents/tabelleAuswertenTool.js';
 import { isAgenticLoopEnabled } from '../services/agenticLoop/flags.js';
 import { AGENTIC_INTENTS } from '../services/agenticLoop/intents.js';
 import { decideTurnPlan, type TurnPlan } from '../services/agenticLoop/turnPlan.js';
@@ -71,6 +72,8 @@ export interface RoutingStageResult {
   pipelineOriginal: string;
 }
 
+/** Ab hier ist eine getippte Nachricht an einen Pipeline-Agenten selbst der Ausgangstext. */
+const MIN_TYPED_TRANSFER_CHARS = 400;
 export function runRoutingStage({
   sse,
   classifiedState,
@@ -127,6 +130,10 @@ export function runRoutingStage({
       lastUserTextNoMentions,
       classifiedState.messages
     ),
+    // Die Tabelle entscheidet, nicht die Frage: `tabelle_auswerten` hängt nur im
+    // Loop, und eine Tabellenfrage landet oft als `compute` im Einzeldurchlauf.
+    // Dasselbe Prädikat wie Katalog und Prompt (Person, Schalter, Client-Fähigkeit).
+    isTabularAnalysisTurn: isTabelleAuswertenMountable(classifiedState),
     classifierContradictedResearch: classifiedState.classifierContradictedResearch === true,
     // Same question the classifier's Tier 3.5 asks, asked again here because a
     // turn can reach this gate without having passed that tier (confident
@@ -159,6 +166,7 @@ export function runRoutingStage({
   if (plan.compoundGenerationKind) {
     classifiedState.compoundGeneration = true;
     classifiedState.compoundGenerationKind = plan.compoundGenerationKind;
+    classifiedState.compoundGenerationOrdered = plan.compoundGenerationOrdered;
   }
   if (plan.compoundEdit) classifiedState.compoundEdit = true;
   if (plan.editToolSurface) {
@@ -177,9 +185,18 @@ export function runRoutingStage({
   // genagelt, die Nachschritte messen gegen dieselbe Variable. Vorher entschied
   // Schritt 1 selbst, was er aus dem Thread-Kontext für gemeint hielt — und dort
   // liegt der Volltext jedes früheren Anhangs.
-  const pipelineOriginal = pipelineAgent
+  const resolvedOriginal = pipelineAgent
     ? resolveOriginalText(classifiedState, lastUserText, promptIsPastedText)
     : '';
+  // Übertragen wird nur Material: Eingefügtes, ein Anhang oder eine Mention —
+  // oder eine getippte Nachricht, die lang genug ist, um selbst der Text zu
+  // sein. Eine kurze Frage an den Agenten („Was ist Leichte Sprache?") liefe
+  // sonst als Ausgangstext durch Übertragung und Prüfkette.
+  const isMaterial =
+    promptIsPastedText ||
+    resolvedOriginal.trim() !== lastUserText.trim() ||
+    resolvedOriginal.length >= MIN_TYPED_TRANSFER_CHARS;
+  const pipelineOriginal = isMaterial ? resolvedOriginal : '';
   if (pipelineAgent) {
     classifiedState.pipelineSourceText = pipelineOriginal || null;
     log.info(

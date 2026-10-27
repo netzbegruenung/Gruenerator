@@ -6,7 +6,7 @@
  * DO NOT EDIT MANUALLY — re-run the generator script instead.
  */
 
-import type { SvgDef } from './types';
+import type { SvgDef } from '@ggraphic/editor/utils/illustrations/types';
 
 export const UNDRAW_ALL: SvgDef[] = [
   {

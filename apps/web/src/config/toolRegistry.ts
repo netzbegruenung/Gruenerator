@@ -49,8 +49,8 @@ export interface ToolDefinition {
   /** Restricts the tool to one country's users (matched against the user locale). */
   audience?: ToolAudience;
   icon: ToolIconRef;
-  /** Colored tile on the Arbeiten tab or the /studio landing page. */
-  tile?: { group: WorkplaceTileGroup; description: string };
+  /** Colored tile on the Arbeiten tab or the /studio landing page; `badge` sits top-right (e.g. „Neu"). */
+  tile?: { group: WorkplaceTileGroup; description: string; badge?: string };
   /** Row inside the "Weitere" dropdown tile (the single menu, `menuRoot` below). */
   menuItem?: {
     description: string;
@@ -110,7 +110,6 @@ const TOOLS = [
         'planen',
         'aufgaben',
         'todo',
-        'whiteboard',
         'tabellen',
         'tabelle',
         'sheet',
@@ -159,12 +158,29 @@ const TOOLS = [
     title: 'Grüneratoren',
     path: '/grueneratoren',
     icon: { component: RiSpyLine },
-    tile: { group: 'organisieren', description: 'Agents, Rezepte & Aufgaben' },
     search: {
+      // F1: the id predates the overview (it named the Agentura); the shop is `tool-marktplatz` now.
       id: 'tool-agentura',
       subtitle: 'Deine Agents, Rezepte und Aufgaben',
       icon: { navigation: 'desk' },
-      keywords: ['agentura', 'agent', 'agenten', 'grünerator', 'grueneratoren', 'skills', 'ki'],
+      keywords: ['agent', 'agenten', 'grünerator', 'grueneratoren', 'skills', 'ki'],
+    },
+    theme: true,
+  },
+  {
+    id: 'marktplatz',
+    title: 'Marktplatz',
+    path: '/marktplatz',
+    icon: { navigation: 'marktplatz' },
+    tile: {
+      group: 'organisieren',
+      description: 'Agents, Rezepte & Vorlagen entdecken',
+      badge: 'Neu',
+    },
+    search: {
+      id: 'tool-marktplatz',
+      subtitle: 'Agents, Rezepte, Vorlagen und Sticker entdecken',
+      keywords: ['marktplatz', 'agentura', 'shop', 'entdecken', 'öffentlich', 'community'],
     },
     theme: true,
   },
@@ -355,7 +371,7 @@ const TOOLS = [
   },
   {
     id: 'reels-untertitel',
-    title: 'Reels',
+    title: 'Simple Reel',
     path: '/studio/video',
     icon: { navigation: 'reel' },
     tile: { group: 'studio', description: 'Untertitel für Clips' },
@@ -364,6 +380,20 @@ const TOOLS = [
       title: 'Reel',
       subtitle: 'Social-Clips untertiteln',
       keywords: ['reel', 'video', 'untertitel', 'subtitle', 'clip', 'social', 'tiktok', 'story'],
+    },
+    theme: true,
+  },
+  {
+    id: 'studio-videoeditor',
+    title: 'Video Editor',
+    path: '/studio/videoeditor',
+    icon: { navigation: 'videoEditor' },
+    tile: { group: 'studio', description: 'Clips schneiden & gestalten' },
+    search: {
+      id: 'tool-videoeditor',
+      title: 'Video Editor',
+      subtitle: 'Videos schneiden, Text & Musik',
+      keywords: ['video', 'editor', 'schneiden', 'timeline', 'reel', 'musik', 'clip'],
     },
     theme: true,
   },
@@ -394,6 +424,18 @@ const TOOLS = [
       ],
     },
     theme: true,
+  },
+  {
+    id: 'sticker',
+    title: 'Sticker & Hintergründe',
+    path: '/studio/sticker',
+    icon: { navigation: 'sticker' },
+    tile: { group: 'studio-werkzeuge', description: 'Sticker erstellen, teilen & entdecken' },
+    search: {
+      id: 'tool-sticker',
+      subtitle: 'Sticker und Hintergründe erstellen, teilen und entdecken',
+      keywords: ['sticker', 'aufkleber', 'hintergrund', 'profilbild', 'wahlkampf'],
+    },
   },
   {
     id: 'bild-erweitern',
@@ -602,6 +644,8 @@ const LEGACY_FAVOURITE_ITEMS: readonly {
   { id: 'notebooks', title: 'Wissen', path: '/wissen', icon: { navigation: 'notebooks' } },
   { id: 'gruppen', title: 'Projekte', path: '/projekte', icon: { navigation: 'projekte' } },
   { id: 'spaces', title: 'Projekte', path: '/projekte', icon: { navigation: 'projekte' } },
+  // The Grüneratoren tile left the Arbeiten strip for the Marktplatz (the overview is in the sidebar).
+  { id: 'agents', title: 'Grüneratoren', path: '/grueneratoren', icon: { component: RiSpyLine } },
 ];
 
 // Row order of the "Weitere" menu — reorder the menu here, not in TOOLS. Every
@@ -621,9 +665,11 @@ const MENU_ORDER = [
 // contradicts the studio tile order — no single TOOLS ordering can serve both.
 const SEARCH_ORDER = [
   'tool-reel',
+  'tool-videoeditor',
   'tool-studio',
   'tool-imagine',
   'tool-profilbild',
+  'tool-sticker',
   'tool-bild-erweitern',
   'tool-freisteller',
   'tool-mediathek',
@@ -638,6 +684,7 @@ const SEARCH_ORDER = [
   'tool-chat',
   'tool-suche',
   'tool-agentura',
+  'tool-marktplatz',
   'tool-projekte',
 ] as const satisfies readonly ToolSearchId[];
 
@@ -659,6 +706,7 @@ export interface DerivedTile {
   href?: string;
   audience?: ToolAudience;
   icon: IconType;
+  badge?: string;
 }
 
 export function toolsWithTile(group: WorkplaceTileGroup): DerivedTile[] {
@@ -673,6 +721,7 @@ export function toolsWithTile(group: WorkplaceTileGroup): DerivedTile[] {
       ...(tool.href != null ? { href: tool.href } : {}),
       ...(tool.audience != null ? { audience: tool.audience } : {}),
       icon: resolveToolIcon(tool.icon),
+      ...(tool.tile.badge != null ? { badge: tool.tile.badge } : {}),
     });
   }
   return out;

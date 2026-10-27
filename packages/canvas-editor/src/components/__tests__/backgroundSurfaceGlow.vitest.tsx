@@ -1,3 +1,4 @@
+import { CanvasStoreProvider } from '@ggraphic/editor/stores/CanvasStoreProvider';
 import { render } from '@testing-library/react';
 import Konva from 'konva';
 import { createRef } from 'react';
@@ -5,7 +6,6 @@ import { describe, expect, it } from 'vitest';
 
 import { HELLGRUEN_GLOW } from '../../brand/theme';
 import { CanvasStage, type CanvasStageRef } from '../../primitives/CanvasStage';
-import { CanvasStoreProvider } from '../../stores/CanvasStoreProvider';
 import { GenericCanvasElement } from '../GenericCanvasElement';
 
 import type { BackgroundElementConfig } from '../../configs/types';
@@ -37,11 +37,12 @@ function backgroundNode(backgroundColor: string) {
           onPositionChange={noop}
           onImageDragEnd={noop}
           onImageTransformEnd={noop}
+          onTemplateTransformEnd={noop}
           onSnapChange={noop}
           onSnapLinesChange={noop}
           stageWidth={1080}
           stageHeight={1350}
-          snapTargets={[]}
+          getSnapTargets={() => []}
         />
       </CanvasStage>
     </CanvasStoreProvider>

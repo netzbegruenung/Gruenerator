@@ -31,9 +31,8 @@ import { createLogger } from '../../../utils/logger.js';
 import {
   AVOID_AS_SYNTH,
   mayWriteAnswer,
-  LOOP_PLANNER_PRIMARY,
-  LOOP_PLANNER_HEALTHY_ALT,
-  LOOP_PLANNER_FALLBACK,
+  LOOP_PLANNER_CHAIN,
+  LOOP_PLANNER_UNCONFIGURED,
   LOOP_SYNTH_PRIMARY,
   LOOP_SYNTH_FALLBACK,
 } from './autoPolicy.js';
@@ -110,6 +109,24 @@ export type ModelConfig = ModelConfigSingle;
  * verified end-to-end (120k, needle retrieved, 32s cold / 3.6s warm).
  */
 const CTX_FULL = 262_144;
+/**
+ * Ultra: Mistral Large 4. Gemessen 22.10.2026 wie oben — `GET /v1/models`
+ * meldet `max_context_length: 1048576`, 1,35M Tokens kommen als sauberer 400
+ * zurück („Prompt 1350024 > 1048576 maximum context length"), und ein
+ * Nadeltest mit 861.094 Eingabe-Tokens fand die Nadel (erstes Token nach
+ * 111 s). Nutzbar ist das nur, weil die Stream-Fristen das Einlesen
+ * mitrechnen (routes/chat/services/prefillAllowance.ts) — ohne das riss die
+ * 20-s-Frist schon ab ~100k Tokens.
+ */
+const CTX_ULTRA = 1_048_576;
+/**
+ * Panda: DeepSeek v4.1 Flash auf Melious. Die API lehnt erst über 1.000.000
+ * Tokens ab (gemessen 22.10.2026), eingetragen ist aber der grösste GEMESSENE
+ * Zug: 884.661 Eingabe-Tokens, Nadel gefunden, erstes Token nach 52,9 s. Der
+ * Abstand ist gewollt — Melious' Gateway trennte bei früheren Messungen nach
+ * 60 s Schweigen, und das Einlesen von 1M läge genau dort.
+ */
+const CTX_PANDA = 880_000;
 /**
  * „Klein" — die kleine Antwort-Lane.
  *
@@ -441,15 +458,15 @@ AVAILABLE_MODELS['gruenerator-small'] = SMALL_ANSWER_LANE;
 AVAILABLE_MODELS['gruenerator-medium'] = GEMMA_ANSWER_LANE;
 // Seit 06.10.2026 Mistral Large 4 (Public Preview). `reasoning_effort` sendet
 // @ai-sdk/mistral für diese ID seit 4.0.59 selbst.
-// `CTX_FULL` liegt unter den 524.288, die `GET /v1/models` am 06.10.2026
-// meldete. Der Ausweich bleibt Gemma bei Cortecs wie vorher: der Stream-Sibling
+// Fenster: `CTX_ULTRA`, gemessen am 22.10.2026 (am 06.10.2026 meldete die API
+// noch 524.288). Der Ausweich bleibt Gemma bei Cortecs wie vorher: der Stream-Sibling
 // ist einstufig, und nur ein anderer Anbieter fängt auch einen Mistral-weiten
-// Ausfall ab.
+// Ausfall ab. Er trägt 128k — `messagesForLane` kürzt für ihn neu.
 AVAILABLE_MODELS['gruenerator-ultra'] = {
   kind: 'single',
   provider: 'mistral',
   model: 'mistral-large-4',
-  contextWindow: CTX_FULL,
+  contextWindow: CTX_ULTRA,
   fallback: 'gemma-4',
 };
 
@@ -458,10 +475,12 @@ AVAILABLE_MODELS['gruenerator-ultra'] = {
  * China-Sperre ausnimmt (`PANDA_LANE_MODEL` in services/ai/textModelPolicy.ts),
  * erreichbar nur über die Freischaltung in services/user/pandaEntitlement.ts.
  *
- * `CTX_FULL`, nicht mehr: gemessen 01.10.2026 nahm Melious 359k Eingabetokens
- * an (FI, kein stilles Kürzen) und lehnte ~1,07M mit `context_length_exceeded`
- * ab; GreenPT nahm 359k ebenso. Über 262k hinaus zu gehen hiesse, dem Split-Loop
- * mehr Material zu erlauben als jeder anderen Lane.
+ * Fenster `CTX_PANDA` (gemessen 22.10.2026, siehe dort). Bis dahin stand hier
+ * `CTX_FULL` mit der Begründung, mehr hiesse dem Split-Loop mehr Material zu
+ * erlauben als jeder anderen Lane — seit Ultra 1M trägt, gilt das nicht mehr,
+ * und der Ausweich Ultra ist damit grösser als Panda selbst. Wer
+ * `GREENPT_DEEPSEEK_CLEARED` umlegt, misst GreenPT vorher über 359k
+ * (01.10.2026 das Grösste, was dort gemessen ist).
  *
  * Fallback Ultra: der Stream-Sibling greift, wenn DeepSeek vor dem ersten Token
  * scheitert. Die Zwischenstufe GreenPT hängt NICHT hier, sondern an
@@ -472,7 +491,7 @@ AVAILABLE_MODELS['gruenerator-panda'] = {
   kind: 'single',
   provider: 'melious',
   model: PANDA_LANE_MODEL,
-  contextWindow: CTX_FULL,
+  contextWindow: CTX_PANDA,
   fallback: 'gruenerator-ultra',
 };
 
@@ -812,22 +831,16 @@ function plannerStageUsable(stage: { provider: Provider; model: string }): boole
 }
 
 function loopPlannerChoice(): { provider: Provider; model: string; contextWindow: number } {
-  // Melious Gemma first, Melious Mistral Small 4 second — see
-  // LOOP_PLANNER_PRIMARY in autoPolicy.ts for why and for the measurements.
-  //
-  // Beide Stufen hängen am selben Gateway: ein Melious-Ausfall vermerkt beide
-  // als zäh. Mistral Medium (andere Familie, anderer Vertragspartner) steht
-  // deshalb VOR dem „lieber zäh als gar keiner"-Zweig — sonst bliebe der Zug
-  // auf dem Gateway, das gerade steht.
-  if (plannerStageUsable(LOOP_PLANNER_PRIMARY)) return LOOP_PLANNER_PRIMARY;
-  if (plannerStageUsable(LOOP_PLANNER_HEALTHY_ALT)) return LOOP_PLANNER_HEALTHY_ALT;
-  if (plannerStageUsable(LOOP_PLANNER_FALLBACK)) return LOOP_PLANNER_FALLBACK;
+  // Melious, Cortecs, GreenPT — see LOOP_PLANNER_PRIMARY in autoPolicy.ts for
+  // why and for the measurements.
+  const usable = LOOP_PLANNER_CHAIN.find(plannerStageUsable);
+  if (usable) return usable;
   // Ab hier zählt nur noch die Konfiguration: ein zäher Planer ist besser als
-  // keiner. Ist gar nichts konfiguriert, bleibt nur die letzte Stufe: den
-  // Primär dort zu liefern, obwohl sein Getter ohne Schlüssel wirft, tötete am
-  // 14.08.2026 jeden agentischen Zug, bevor er den ersten Modellaufruf erreichte.
-  if (isProviderConfigured('melious')) return LOOP_PLANNER_PRIMARY;
-  return LOOP_PLANNER_FALLBACK;
+  // keiner. Ist gar nichts konfiguriert, bleibt nur die schlüssellose Stufe.
+  return (
+    LOOP_PLANNER_CHAIN.find((stage) => isProviderConfigured(stage.provider)) ??
+    LOOP_PLANNER_UNCONFIGURED
+  );
 }
 
 function loopSynthWriterChoice(): { provider: Provider; model: string } {
@@ -884,25 +897,27 @@ export function resolveLoopPlannerLane(): {
 }
 
 /**
- * Ausweich-Lane für den Werkzeugschritt, einmal versucht, wenn die Planer-Lane
- * die Anfrage ABLEHNT, bevor ein Werkzeug lief (400/429/5xx).
+ * Ausweich-Lanes für den Werkzeugschritt, der Reihe nach versucht, wenn die
+ * Planer-Lane ablehnt (400/429/5xx) oder schweigt, bevor ein Werkzeug lief.
  *
- * Immer die letzte Stufe, Mistral Medium: andere Familie, anderer Anbieter,
- * eigenes Gateway. Die beiden Melious-Stufen davor teilen sich das Gateway —
- * eine Ablehnung dort (am 02.10.2026 „malformed" bei 60 Typeform-Werkzeugen,
- * vermutlich das Kontextfenster des `:balanced`-Knotens) träfe die
- * Geschwisterstufe genauso. `null`, wenn der Planer schon diese Stufe ist oder
- * ihr Anbieter nicht konfiguriert ist.
+ * Die Stufen der Kette HINTER der laufenden, jede auf einem eigenen Gateway —
+ * eine Ablehnung des Melious-Knotens (am 02.10.2026 „malformed" bei 60
+ * Typeform-Werkzeugen, sein Fenster von ~45k Tokens) trifft Cortecs nicht.
+ * Ausgelassen wird, was nicht konfiguriert oder gerade als zäh vermerkt ist.
  */
-export function getLoopPlannerFallbackModel(
+export function getLoopPlannerFallbackModels(
+  plannerProvider: Provider,
   plannerName: string
-): { model: LanguageModel; name: string } | null {
-  if (plannerName === LOOP_PLANNER_FALLBACK.model) return null;
-  if (!isProviderConfigured(LOOP_PLANNER_FALLBACK.provider)) return null;
-  return {
-    model: getModel(LOOP_PLANNER_FALLBACK.provider, LOOP_PLANNER_FALLBACK.model),
-    name: LOOP_PLANNER_FALLBACK.model,
-  };
+): LanguageModel[] {
+  const at = LOOP_PLANNER_CHAIN.findIndex(
+    (stage) => stage.provider === plannerProvider && stage.model === plannerName
+  );
+  if (at < 0) return [];
+  return LOOP_PLANNER_CHAIN.slice(at + 1)
+    .filter(
+      (stage) => isProviderConfigured(stage.provider) && !isModelSlow(stage.provider, stage.model)
+    )
+    .map((stage) => getModel(stage.provider, stage.model));
 }
 
 /**

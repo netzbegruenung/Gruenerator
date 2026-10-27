@@ -1,0 +1,413 @@
+{
+ "templateType": "freeform",
+ "format": "post-portrait",
+ "slides": [
+  {
+   "backgroundMode": "color",
+   "backgroundColor": "#257639",
+   "hasBackgroundImage": false,
+   "imageAttribution": null,
+   "additionalTexts": [
+    {
+     "id": "sc-0-headline-0",
+     "text": "Die Lösung?",
+     "type": "header",
+     "x": 70,
+     "y": 418.82,
+     "width": 940,
+     "fontSize": 162,
+     "fontFamily": "GrueneTypeNeue",
+     "fontStyle": "normal",
+     "fill": "#FFFFFF",
+     "align": "center",
+     "accent": {
+      "fill": "#BEFF60"
+     },
+     "marker": {
+      "fill": "#FFFFFF",
+      "color": "#00261A",
+      "padX": 0.1
+     },
+     "lineHeight": 0.96
+    },
+    {
+     "id": "sc-1-absatz",
+     "text": "Für den Abschluss empfehlen wir:",
+     "type": "body",
+     "x": 70,
+     "y": 631.3399999999999,
+     "width": 940,
+     "fontSize": 86,
+     "fontFamily": "PT Sans",
+     "fontStyle": "normal",
+     "fill": "#FFFFFF",
+     "align": "center",
+     "accent": {
+      "fill": "#BEFF60"
+     },
+     "marker": {
+      "fill": "#FFFFFF",
+      "color": "#00261A",
+      "padX": 0.1
+     },
+     "lineHeight": 1.22
+    },
+    {
+     "id": "sc-ki-label",
+     "text": "KI-Generiert",
+     "type": "body",
+     "x": 27,
+     "y": 1303,
+     "width": 166,
+     "fontSize": 27,
+     "fontFamily": "PT Sans",
+     "fontStyle": "bold",
+     "fill": "#FFFFFF",
+     "opacity": 0.85,
+     "lineHeight": 1
+    }
+   ],
+   "pillBadgeInstances": [],
+   "circleBadgeInstances": [],
+   "shapeInstances": [
+    {
+     "id": "sc-bg",
+     "type": "rect",
+     "x": 540,
+     "y": 675,
+     "width": 1080,
+     "height": 1350,
+     "fill": "#1D7A35",
+     "rotation": 0,
+     "scaleX": 1,
+     "scaleY": 1,
+     "opacity": 1,
+     "fillGradient": {
+      "type": "linear",
+      "angle": 90,
+      "stops": [
+       {
+        "offset": 0,
+        "color": "#0B6620"
+       },
+       {
+        "offset": 0.5,
+        "color": "#1D7A35"
+       },
+       {
+        "offset": 1,
+        "color": "#23803B"
+       }
+      ]
+     }
+    },
+    {
+     "id": "sc-ki-label-bg",
+     "type": "rounded-rect",
+     "x": 108,
+     "y": 1316.5,
+     "width": 194,
+     "height": 45,
+     "fill": "#2B2B2B",
+     "rotation": 0,
+     "scaleX": 1,
+     "scaleY": 1,
+     "opacity": 0.4,
+     "cornerRadius": 8
+    },
+    {
+     "id": "sc-0-headline-0-kreis-0",
+     "type": "hand-kreis",
+     "x": 702,
+     "y": 504.68,
+     "width": 688.5,
+     "height": 223.55999999999997,
+     "fill": "#FFFFFF",
+     "rotation": 0,
+     "scaleX": 1,
+     "scaleY": 1,
+     "opacity": 1,
+     "strokeWidth": 8
+    },
+    {
+     "id": "sc-1-absatz-unterstrich-0",
+     "type": "hand-unterstrich",
+     "x": 712,
+     "y": 735.4,
+     "width": 404.2,
+     "height": 33,
+     "fill": "#FFFFFF",
+     "rotation": 0,
+     "scaleX": 1,
+     "scaleY": 1,
+     "opacity": 1,
+     "strokeWidth": 11
+    }
+   ],
+   "assetInstances": [],
+   "chartInstances": [],
+   "userImageInstances": [],
+   "selectedIcons": [
+    "sc-pfeil"
+   ],
+   "iconStates": {
+    "sc-pfeil": {
+     "iconId": "tabler:arrow-narrow-right",
+     "x": 1044.56,
+     "y": 1324.64,
+     "scale": 0.35,
+     "rotation": 0,
+     "color": "#FFFFFF"
+    }
+   },
+   "layerOrder": [
+    "sc-bg",
+    "sc-0-headline-0-kreis-0",
+    "sc-0-headline-0",
+    "sc-1-absatz-unterstrich-0",
+    "sc-1-absatz",
+    "sc-pfeil",
+    "sc-ki-label-bg",
+    "sc-ki-label"
+   ]
+  },
+  {
+   "backgroundMode": "image",
+   "backgroundColor": "#00261A",
+   "hasBackgroundImage": true,
+   "imageAttribution": null,
+   "additionalTexts": [
+    {
+     "id": "sc-0-headline-0",
+     "text": "5 Fakten,\ndie wir nach",
+     "type": "header",
+     "x": 70,
+     "y": 739.9200000000001,
+     "width": 940,
+     "fontSize": 137,
+     "fontFamily": "GrueneTypeNeue",
+     "fontStyle": "normal",
+     "fill": "#FFFFFF",
+     "align": "left",
+     "accent": {
+      "fill": "#BEFF60"
+     },
+     "marker": {
+      "fill": "#FFFFFF",
+      "color": "#00261A",
+      "padX": 0.1
+     },
+     "shadowColor": "#000000",
+     "shadowBlur": 18,
+     "shadowOffsetX": 0,
+     "shadowOffsetY": 2,
+     "shadowOpacity": 0.45,
+     "lineHeight": 0.96
+    },
+    {
+     "id": "sc-0-headline-1",
+     "text": "diesem Sommer",
+     "type": "header",
+     "x": 70,
+     "y": 1002.96,
+     "width": 940,
+     "fontSize": 137,
+     "fontFamily": "GrueneTypeNeue",
+     "fontStyle": "normal",
+     "fill": "#00261A",
+     "align": "left",
+     "accent": {
+      "fill": "#BEFF60"
+     },
+     "marker": {
+      "fill": "#FFFFFF",
+      "color": "#00261A",
+      "padX": 0.1
+     },
+     "shadowColor": "#000000",
+     "shadowBlur": 18,
+     "shadowOffsetX": 0,
+     "shadowOffsetY": 2,
+     "shadowOpacity": 0,
+     "lineHeight": 0.96
+    },
+    {
+     "id": "sc-0-headline-2",
+     "text": "ins Schwitzen",
+     "type": "header",
+     "x": 70,
+     "y": 1134.48,
+     "width": 940,
+     "fontSize": 137,
+     "fontFamily": "GrueneTypeNeue",
+     "fontStyle": "normal",
+     "fill": "#FFFFFF",
+     "align": "left",
+     "accent": {
+      "fill": "#BEFF60"
+     },
+     "marker": {
+      "fill": "#FFFFFF",
+      "color": "#00261A",
+      "padX": 0.1
+     },
+     "shadowColor": "#000000",
+     "shadowBlur": 18,
+     "shadowOffsetX": 0,
+     "shadowOffsetY": 2,
+     "shadowOpacity": 0.45,
+     "lineHeight": 0.96
+    },
+    {
+     "id": "sc-ki-label",
+     "text": "Klimaschonend KI-generiert mit dem Grünerator",
+     "type": "body",
+     "x": 27,
+     "y": 1303,
+     "width": 611.5,
+     "fontSize": 27,
+     "fontFamily": "PT Sans",
+     "fontStyle": "bold",
+     "fill": "#FFFFFF",
+     "opacity": 0.85,
+     "lineHeight": 1
+    }
+   ],
+   "pillBadgeInstances": [],
+   "circleBadgeInstances": [],
+   "shapeInstances": [
+    {
+     "id": "sc-scrim",
+     "type": "rect",
+     "x": 540,
+     "y": 919.71,
+     "width": 1080,
+     "height": 860.5799999999999,
+     "fill": "transparent",
+     "rotation": 0,
+     "scaleX": 1,
+     "scaleY": 1,
+     "opacity": 1,
+     "fillGradient": {
+      "type": "linear",
+      "angle": 90,
+      "stops": [
+       {
+        "offset": 0,
+        "color": "rgba(6,37,26,0.000)"
+       },
+       {
+        "offset": 0.029413302656348048,
+        "color": "rgba(6,37,26,0.021)"
+       },
+       {
+        "offset": 0.058826605312696095,
+        "color": "rgba(6,37,26,0.075)"
+       },
+       {
+        "offset": 0.08823990796904414,
+        "color": "rgba(6,37,26,0.152)"
+       },
+       {
+        "offset": 0.11765321062539219,
+        "color": "rgba(6,37,26,0.240)"
+       },
+       {
+        "offset": 0.14706651328174025,
+        "color": "rgba(6,37,26,0.328)"
+       },
+       {
+        "offset": 0.17647981593808829,
+        "color": "rgba(6,37,26,0.405)"
+       },
+       {
+        "offset": 0.20589311859443632,
+        "color": "rgba(6,37,26,0.459)"
+       },
+       {
+        "offset": 0.23530642125078438,
+        "color": "rgba(6,37,26,0.480)"
+       },
+       {
+        "offset": 1,
+        "color": "rgba(6,37,26,0.48)"
+       }
+      ]
+     }
+    },
+    {
+     "id": "sc-0-headline-1-box",
+     "type": "rect",
+     "x": 522.1,
+     "y": 1074.2,
+     "width": 945.3,
+     "height": 131.51999999999998,
+     "fill": "#BEFF60",
+     "rotation": -2,
+     "scaleX": 1,
+     "scaleY": 1,
+     "opacity": 1
+    },
+    {
+     "id": "sc-ki-label-bg",
+     "type": "rounded-rect",
+     "x": 330.75,
+     "y": 1316.5,
+     "width": 639.5,
+     "height": 45,
+     "fill": "#2B2B2B",
+     "rotation": 0,
+     "scaleX": 1,
+     "scaleY": 1,
+     "opacity": 0.4,
+     "cornerRadius": 8
+    },
+    {
+     "id": "sc-0-headline-0-kreis-0",
+     "type": "hand-kreis",
+     "x": 378.25,
+     "y": 812.5300000000001,
+     "width": 719.25,
+     "height": 189.05999999999997,
+     "fill": "#FFFFFF",
+     "rotation": 0,
+     "scaleX": 1,
+     "scaleY": 1,
+     "opacity": 1,
+     "strokeWidth": 7
+    },
+    {
+     "id": "sc-0-headline-2-unterstrich-0",
+     "type": "hand-unterstrich",
+     "x": 652.25,
+     "y": 1282.44,
+     "width": 643.9,
+     "height": 54,
+     "fill": "#FFFFFF",
+     "rotation": 0,
+     "scaleX": 1,
+     "scaleY": 1,
+     "opacity": 1,
+     "strokeWidth": 18
+    }
+   ],
+   "assetInstances": [],
+   "chartInstances": [],
+   "userImageInstances": [],
+   "selectedIcons": [],
+   "iconStates": {},
+   "layerOrder": [
+    "sc-scrim",
+    "sc-0-headline-0-kreis-0",
+    "sc-0-headline-0",
+    "sc-0-headline-1-box",
+    "sc-0-headline-1",
+    "sc-0-headline-2-unterstrich-0",
+    "sc-0-headline-2",
+    "sc-ki-label-bg",
+    "sc-ki-label"
+   ],
+   "currentImageSrc": "/media/wind.jpg"
+  }
+ ]
+}

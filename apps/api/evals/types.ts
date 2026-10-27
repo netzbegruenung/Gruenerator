@@ -119,8 +119,10 @@ export interface ChatTrace {
 export const evalSurfaceSchema = z.enum(['chat', 'notebook']);
 export type EvalSurface = z.infer<typeof evalSurfaceSchema>;
 
-/** Notebook retrieval depth — the wire enum itself, not a second copy of it. */
-export const evalNotebookModeSchema = notebookDepthSchema;
+/** Notebook retrieval depth — the wire enum itself, not a second copy of it.
+ *  Minus `panda`: that tier only swaps the model at the stream door, so a
+ *  scenario names the model it wants instead. */
+export const evalNotebookModeSchema = notebookDepthSchema.exclude(['panda']);
 
 /**
  * The LLM-judge rubrics a turn may request. An enum, not a free string: a
@@ -255,6 +257,13 @@ export const evalExpectSchema = z
     retainsPriorSources: z.boolean().optional(),
     /** No scrape_url call errored (model-invented / dead URL). */
     noInventedUrls: z.boolean().optional(),
+    /**
+     * Product question about the Grünerator itself: the answer must rest on the
+     * product sources — a `product_knowledge` / `gruenerator_docs_search` call,
+     * or at least one doku.gruenerator.eu link that exists in the docs index.
+     * A doku link to a page that does not exist fails in any case.
+     */
+    productGrounded: z.boolean().optional(),
     /**
      * `warning` event codes the turn must emit (search_degraded,
      * deep_research_quota_spent, unknown_model_id, …).

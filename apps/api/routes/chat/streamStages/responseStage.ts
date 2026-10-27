@@ -15,7 +15,8 @@
  * persistence and a reload see what is on screen.
  */
 
-import { runAgentPipeline } from '../services/agentPipeline.js';
+import { withLangfuseTrace } from '../../../services/telemetry/langfuseTelemetry.js';
+import { runTransferTurn } from '../services/agentPipeline.js';
 import { type executeIntentPipeline } from '../services/intentExecutionService.js';
 import { type createPendingAssistantWriter } from '../services/pendingAssistantWriter.js';
 import { type SSEWriter } from '../services/sseHelpers.js';
@@ -86,6 +87,8 @@ export interface ResponseStageOutput {
   pendingAsk?: PendingAskRequest;
   /** Gesetzt ⇒ der Zug pausiert, bis der Browser ein Loop-Werkzeug ausgeführt hat. */
   pendingClientTool?: PendingClientToolRequest;
+  /** Nur neben `pendingApproval`: der mitreisende Browser-Aufruf (#5044). */
+  heldClientTool?: PendingClientToolRequest;
 }
 
 export async function runResponseStage({
@@ -161,6 +164,45 @@ export async function runResponseStage({
     },
   });
 
+  // Ein Übertragungs-Turn (Einfache/Leichte Sprache) hat seine eigene Kette:
+  // Fassung, Prüfung, Nachbesserung — und gesendet wird nur der fertige Text.
+  // `pipelineOriginal` ist leer, wenn der Turn nichts zu übertragen hat (eine
+  // Frage an den Agenten); dann antwortet er wie jeder andere.
+  if (pipelineAgent && pipelineOriginal) {
+    // Derselbe `chat-turn`-Trace wie auf den anderen Pfaden: ohne ihn fehlen
+    // dem Turn die Langfuse-Spur und die Feedback-Knöpfe unter der Nachricht.
+    let transferTraceId: string | undefined;
+    const transfer = await withLangfuseTrace(
+      buildTurnTrace(classifiedState.intent ?? 'produktion'),
+      async (trace) => {
+        transferTraceId = trace.traceId;
+        const result = await runTransferTurn({
+          pipeline: pipelineAgent,
+          state: classifiedState,
+          sse,
+          original: pipelineOriginal,
+          instruction: lastUserText.trim() === pipelineOriginal.trim() ? '' : lastUserText.trim(),
+          userId,
+          modelId,
+          requestId,
+        });
+        trace.update({ input: pipelineOriginal, output: result.fullText });
+        return result;
+      }
+    );
+    return {
+      handled: false,
+      finalState: classifiedState,
+      fullText: transfer.fullText,
+      generatedImage: null,
+      sharepicVariants: [],
+      createdDocument: transfer.createdDocument,
+      createdBoard: null,
+      agenticSteps: undefined,
+      langfuseTraceId: transferTraceId,
+    };
+  }
+
   if (runAgentic) {
     const agentic = await runAgenticAnswer({
       sse,
@@ -209,6 +251,7 @@ export async function runResponseStage({
         ...(pendingApproval && pendingApproval.length > 0 ? { pendingApproval } : {}),
         ...(agentic.pendingAsk ? { pendingAsk: agentic.pendingAsk } : {}),
         ...(agentic.pendingClientTool ? { pendingClientTool: agentic.pendingClientTool } : {}),
+        ...(agentic.heldClientTool ? { heldClientTool: agentic.heldClientTool } : {}),
       };
     }
   } else {
@@ -242,21 +285,6 @@ export async function runResponseStage({
     return { handled: true, result: { status: 200 as const, body: undefined } };
   }
 
-  // === Pipeline-Agenten: die Nachschritte, jeder mit eigenem Kontext ===
-  // Laufen NACH der gestromten Antwort und hängen an denselben Text an,
-  // damit Persistenz und Neuladen sehen, was auf dem Bildschirm steht.
-  // `pipelineOriginal` ist dieselbe Zeichenkette, die Schritt 1 oben im
-  // Systemprompt festgenagelt bekam — die Prüfung misst nichts anderes, als
-  // was übertragen werden sollte.
-  if (pipelineAgent) {
-    fullText += await runAgentPipeline({
-      pipeline: pipelineAgent,
-      state: finalState,
-      sse,
-      produced: fullText,
-      original: pipelineOriginal,
-    });
-  }
   return {
     handled: false,
     finalState,

@@ -20,4 +20,4 @@ export const entityLikes = pgTable(
 
 export type EntityLike = InferSelectModel<typeof entityLikes>;
 
-export type EntityLikeType = 'notebook' | 'template';
+export { type EntityLikeType } from '@gruenerator/contracts';

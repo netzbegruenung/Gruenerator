@@ -146,7 +146,9 @@ export async function initializeChatState(input: ChatGraphInput): Promise<ChatGr
     hasTabularAttachment: input.hasTabularAttachment ?? false,
     cloudConnectionCount: input.cloudConnectionCount ?? 0,
     pdfFormAttachments: input.pdfFormAttachments || [],
+    turnTabularTexts: input.turnTabularTexts ?? [],
     clientCanRunPython: input.clientCanRunPython ?? false,
+    clientCanUseTabularTool: input.clientCanUseTabularTool ?? false,
     clientCanRenderSharepic: input.clientCanRenderSharepic ?? false,
 
     // Notebook scoping
@@ -189,6 +191,12 @@ export async function initializeChatState(input: ChatGraphInput): Promise<ChatGr
 
     // Connected-account (Nango) file refs (from @connect mentionable)
     connectFiles: input.connectFiles || [],
+    cloudFilesCarriedOnly: input.cloudFilesCarriedOnly ?? false,
+
+    // Notebook documents from the reader (authorized by streamContext)
+    notebookSources: input.notebookSources ?? [],
+    notebookSourcesCarriedOnly: input.notebookSourcesCarriedOnly ?? false,
+    carriedWebpageUrls: input.carriedWebpageUrls ?? [],
 
     // URLs attached via @link mentionable (unioned into detectedUrls by classifier)
     attachedWebpageUrls: input.attachedWebpageUrls || [],

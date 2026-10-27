@@ -1,6 +1,7 @@
-import type { CanvasConfigId, FullCanvasConfig } from '../../configs/types';
+import type { FullCanvasConfig } from '../../configs/types';
 import type { InitialPageDef } from '../../hooks/usePageManager';
 import type { SidebarTabId } from '../../sidebar/types';
+import type { CanvasConfigId } from '../../templates/registry';
 import type { GenericCanvasRef, ToolbarStateReport } from '../GenericCanvas';
 import type { HocuspocusProvider } from '@hocuspocus/provider';
 import type React from 'react';
@@ -10,6 +11,8 @@ export interface CanvasEditorProps {
   initialConfigId: CanvasConfigId;
   /** The canvas document's format id. Absent: the default format. */
   formatId?: string;
+  /** Document title; names the print PDF (`<title>.pdf`). */
+  documentTitle?: string;
   initialProps: Record<string, unknown>;
   onExport: (base64: string) => void;
   onCancel: () => void;
@@ -83,6 +86,51 @@ export interface CanvasEditorProps {
   initialTab?: SidebarTabId | null;
   /** Fired whenever the open sidebar tab changes, including on mount. Desktop only. */
   onActiveTabChange?: (tab: SidebarTabId | null) => void;
+  /**
+   * Local mode only: false keeps the editor out of the gallery — a host that
+   * saves the result itself (the sticker creator) would otherwise leave a
+   * draft behind for every attempt. Default true.
+   */
+  galleryAutoSave?: boolean;
+  /** False hides the toolbar's share/download menu, for a host with its own way out. Default true. */
+  showShare?: boolean;
+  /** Lets the host render the active page itself, e.g. to save it somewhere else. */
+  exportApiRef?: React.Ref<CanvasEditorExportApi>;
+  /**
+   * The host draws the menu bar itself (the mobile app's native header). The
+   * editor then renders no bar of its own: undo/redo run through
+   * `exportApiRef`, and the share menu opens on the host's request.
+   */
+  hostChrome?: CanvasEditorHostChrome;
+  /** A viewer's session: view, page, download and present, but nothing offers a write the server would drop. */
+  readOnly?: boolean;
+}
+
+/** See `CanvasEditorProps.hostChrome`. */
+export interface CanvasEditorHostChrome {
+  /** Fired whenever undo or redo becomes (un)available; both false while an AI suggestion waits. */
+  onHistoryChange: (history: { canUndo: boolean; canRedo: boolean }) => void;
+  /** The share menu, opened from the host's bar and anchored at the top right. */
+  shareOpen: boolean;
+  onShareOpenChange: (open: boolean) => void;
+}
+
+/** What `exportApiRef` exposes to the host. */
+export interface CanvasEditorExportApi {
+  /** The active page as a PNG data URL; null when it is not mounted. */
+  captureActivePage: (options?: {
+    pixelRatio?: number;
+    transparent?: boolean;
+  }) => Promise<string | null>;
+  /** Every page as a PNG data URL, in page order; throws when a page cannot be rendered. */
+  capturePages: (options?: { pixelRatio?: number }) => Promise<string[]>;
+  /** The deck as an editable .pptx; throws when a page cannot be rendered. */
+  exportPptx: () => Promise<Blob>;
+  /** The deck as a Vorlage stores it: config and state per page. */
+  getPages: () => { configId: string; state: Record<string, unknown> }[];
+  /** The menu bar's undo/redo, for a host that draws the bar itself. */
+  undo: () => void;
+  redo: () => void;
 }
 
 export interface PageWrapperProps {
@@ -100,6 +148,8 @@ export interface PageWrapperProps {
   onDuplicatePage: (id: string) => void;
   /** Opens the template picker in replace mode for this page ("Vorlage ändern"). */
   onChangeTemplate?: (id: string) => void;
+  /** A Vorlagen tile dropped on this page; unset where the design has no Vorlagen tab. */
+  onDropVorlage?: (id: string, pageId: string) => void;
   onExport: (base64: string) => void;
   onCancel: () => void;
   callbacks: Record<string, (val: unknown) => void>;
@@ -114,6 +164,12 @@ export interface PageWrapperProps {
     state: Record<string, unknown>,
     actions: Record<string, unknown>,
     selectedElement: string | null
+  ) => void;
+  /** Reports this page's live state even while it is not the active page (print impressum gate). */
+  onObservedState?: (
+    pageId: string,
+    state: Record<string, unknown>,
+    actions: Record<string, unknown>
   ) => void;
   onToolbarStateChange?: (state: ToolbarStateReport) => void;
   /** See CanvasEditorProps.onAutoSaveShareToken. */
@@ -139,4 +195,6 @@ export interface PageWrapperProps {
   };
   /** Forwarded ref to the wrapper div — used for scroll-into-view */
   pageRef?: React.Ref<HTMLDivElement>;
+  /** See CanvasEditorProps.readOnly. */
+  readOnly?: boolean;
 }

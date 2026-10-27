@@ -7,8 +7,10 @@
  * renumbers the items. Elements the composer never wrote stay as they are.
  *
  * Pure. The provenance is rebuilt from the baseline (ids, kinds and texts),
- * so nothing beyond the stored source is needed, and no text is measured.
+ * so nothing beyond the stored source is needed, and the lift measures no text.
  */
+import { DEFAULT_FORMAT_ID } from '@ggraphic/editor/formats/index';
+import { BACKGROUND_STRAIGHTEN_KEY, backgroundStraighten } from '@ggraphic/editor/utils/straighten';
 import {
   type SharepicBaseline,
   type SharepicFingerprint,
@@ -18,10 +20,11 @@ import {
   sharepicSlideSchema,
 } from '@gruenerator/contracts';
 
-import { DEFAULT_FORMAT_ID } from '../formats';
-
+import { withCardResizedFor } from './cardFollowsText';
 import { type ComposedSlide } from './composeSharepic';
 import { invertLiftedText, slideProvenance, type SharepicProvenance } from './sharepicProvenance';
+
+import type { AdditionalText } from '../configs/types';
 
 type ElementKind = SharepicFingerprint['kind'];
 type FingerprintProp = Exclude<keyof SharepicFingerprint, 'kind'>;
@@ -47,6 +50,8 @@ export type SharepicOverride =
       kind: 'background';
       offset?: { x: number; y: number };
       scale?: number;
+      /** Begradigen des Fotos (Grad); reist mit Versatz und Zoom, die es auf Deckung hält. */
+      rotation?: number;
       color?: string;
       imageSrc?: string | null;
     };
@@ -408,6 +413,9 @@ export function liftPage(
     }
   }
   if (scale !== null && scale !== (bg.scale ?? 1)) background.scale = scale;
+  // Auch 0° ist eine Hand-Änderung: ohne den Schlüssel liefe ein gedreht verschobenes Fenster über den alten Weg und zeigte eine Lücke.
+  const rotation = backgroundStraighten(pageState);
+  if (rotation !== null) background.rotation = rotation;
   if (typeof pageState.backgroundColor === 'string' && pageState.backgroundColor !== bg.color) {
     background.color = pageState.backgroundColor;
   }
@@ -547,6 +555,14 @@ export function recomposePage(
   const elements = pageElements(state as unknown as Record<string, unknown>);
   const deleted = new Set<string>();
   const dropped: SharepicOverride[] = [];
+  // Texts as composed, before a hand edit went back on them; their cards follow below.
+  const composedTexts = new Map<string, AdditionalText>();
+  const restyled = new Set<string>();
+  const keepComposed = (id: string, target: PageElement) => {
+    if (target.kind === 'text' && !composedTexts.has(id)) {
+      composedTexts.set(id, structuredClone(target.element) as unknown as AdditionalText);
+    }
+  };
 
   for (const override of overrides) {
     if (override.kind === 'background') {
@@ -554,7 +570,7 @@ export function recomposePage(
       const placed = photo(before) === photo(after) && !formatChanged;
       const sameBackground =
         !formatChanged && JSON.stringify(before.background) === JSON.stringify(after.background);
-      const { offset, scale, color, imageSrc } = override;
+      const { offset, scale, rotation, color, imageSrc } = override;
       const lost: Extract<SharepicOverride, { kind: 'background' }> = { kind: 'background' };
       if (offset) {
         if (placed) state.imageOffset = offset;
@@ -563,6 +579,10 @@ export function recomposePage(
       if (scale !== undefined) {
         if (placed) state.imageScale = scale;
         else lost.scale = scale;
+      }
+      if (rotation !== undefined) {
+        if (placed) (state as Record<string, unknown>)[BACKGROUND_STRAIGHTEN_KEY] = rotation;
+        else lost.rotation = rotation;
       }
       if (color !== undefined) {
         if (sameBackground) state.backgroundColor = color;
@@ -593,7 +613,10 @@ export function recomposePage(
     } else if (override.kind === 'text') {
       // The hand text was written over the old spec text, not the new one.
       if (textChange(override.key, before, after) > 0) dropped.push(override);
-      else target.element.text = override.text;
+      else {
+        keepComposed(id, target);
+        target.element.text = override.text;
+      }
     } else {
       const props: SharepicStyleProps = { ...override.props };
       const lost: SharepicStyleProps = {};
@@ -619,11 +642,22 @@ export function recomposePage(
       }
       if (Object.keys(lost).length) dropped.push({ ...override, props: lost });
       const fields = SHAREPIC_FINGERPRINT_FIELDS[target.kind];
+      if (Object.keys(props).length) {
+        keepComposed(id, target);
+        restyled.add(id);
+      }
       for (const [prop, value] of Object.entries(props)) {
         const field = fields[prop as SharepicStyleProp];
         if (field) target.element[field] = value;
       }
     }
+  }
+
+  // A card resized by hand keeps that size; its height already fits the hand text.
+  for (const [id, composed] of composedTexts) {
+    if (deleted.has(id) || restyled.has(`${id}-card`)) continue;
+    const text = elements.get(id)!.element as unknown as AdditionalText;
+    state.shapeInstances = withCardResizedFor(state, composed, text).shapeInstances;
   }
 
   const slide = state as unknown as Record<string, unknown>;

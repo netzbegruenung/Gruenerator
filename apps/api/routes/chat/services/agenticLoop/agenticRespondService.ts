@@ -14,24 +14,26 @@
  */
 import { type ModelMessage } from 'ai';
 
+import { NOUN_TRIGGER_MAX_LENGTH } from '../../../../agents/langgraph/ChatGraph/nodes/analyzedMessage.js';
 import { knownArtifactRefs } from '../../../../agents/langgraph/ChatGraph/nodes/artifactInventory.js';
 import { isSummaryAsk } from '../../../../agents/langgraph/ChatGraph/nodes/classifierHeuristics.js';
 import { forbidsNewResearch } from '../../../../agents/langgraph/ChatGraph/nodes/fastPathGuards.js';
 import { isModelSlow, recordSlowVerdict } from '../../../../services/ai/modelHealth.js';
 import { promptCacheKeyForThread } from '../../../../services/ai/promptCacheKey.js';
+import { buildGlossaryVocabularyNote } from '../../../../services/chat/productGlossary.js';
 import { looksLikeMemoryRequest } from '../../../../services/memory/memoryRequest.js';
 import { createLogger } from '../../../../utils/logger.js';
+import { deriveImplicitRecipeMention } from '../../agents/implicitRecipe.js';
 import { type McpCatalog } from '../../agents/mcpCatalog.js';
 import { notebookForPrompt } from '../../agents/notebookSourceTools.js';
 import {
-  getLoopPlannerFallbackModel,
+  getLoopPlannerFallbackModels,
   getLoopSynthFallbackModel,
   resolveLoopPlannerLane,
   getLoopSynthModel,
 } from '../../agents/providers.js';
 import { renderRecipeCatalog } from '../../agents/recipeCatalog.js';
 import { imageDeliveryNote } from '../../agents/searchImageHarvest.js';
-import { resolveCheckSharepicRender } from '../../agents/sharepicCheckTool.js';
 import { quotesSharepicText } from '../../agents/sharepicLoopTools.js';
 import { offerNote } from '../artifactOffer.js';
 import { pruneMessages } from '../contextPruningService.js';
@@ -51,6 +53,7 @@ import { resolveAbortOutcome } from '../turnAbortOutcome.js';
 import { turnMaterialChars } from '../turnMaterial.js';
 import { withInstructionHierarchy } from '../untrustedContent.js';
 
+import { approvalGateEnabled } from './approvalPolicy.js';
 import { buildPreLoopEditNotes, editOutcomeAfterPreamble } from './artifactNotes.js';
 import { createAskHumanGate, type AskHumanGate } from './askHumanGate.js';
 import { ATTACHED_DOCS_TOOL, retrievableAttachedSources } from './attachedDocuments.js';
@@ -63,9 +66,11 @@ import {
   createLoopGuards,
   rehydrateCarriedSources,
   seedAttachedDocuments,
+  seedAttachedPages,
   wrapAssembledTools,
 } from './catalogAssembly.js';
 import { createClientToolGate, type ClientToolGate } from './clientToolGate.js';
+import { LOOP_CLIENT_TOOLS } from './clientToolRegistry.js';
 import { editedArtifactKinds, guardedArtifactKinds } from './editedArtifacts.js';
 import { isToolScopeEnforced } from './flags.js';
 import {
@@ -161,6 +166,13 @@ export interface AgenticResponseOutcome {
    *  hat (`check_sharepic` → `render_sharepic`). */
   pendingClientTool?: PendingClientToolRequest;
   /**
+   * Nur neben `pendingApproval`: ein Browser-Aufruf desselben Steps, der das
+   * Freigabe-Gate schon passiert hatte (#5044). Die Freigabe gewinnt, der
+   * Aufruf reist in der Pause mit und läuft nach der Entscheidung — sonst
+   * fragt das Gate beim Neuaufruf ein zweites Mal.
+   */
+  heldClientTool?: PendingClientToolRequest;
+  /**
    * Wie der Nie-Werfen-Vertrag diesen Zug aufgelöst hat. Fehlt ⇒ echte
    * Antwort. Der Request-Pfad ignoriert das Feld (der Text IST dort die
    * ehrliche Auskunft an die Person); ein headless Aufrufer (#3221) braucht
@@ -211,6 +223,8 @@ export async function streamAgenticResponse(
       priorSteps: PersistedStep[];
       approved: PendingToolCall[];
       denied: Array<{ call: PendingToolCall; reason?: string }>;
+      /** Der mitgereiste Browser-Aufruf (`heldClientTool`) — läuft nach den entschiedenen. */
+      heldClientTool?: PendingClientToolRequest;
     };
   },
   deps: AgenticRespondDeps = defaultDeps
@@ -353,6 +367,7 @@ export async function streamAgenticResponse(
         threadId,
         sourceRegistry,
         toolHistory: toolHistory ?? null,
+        skipTables: 'tabelle_auswerten' in tools,
         onInfo: (m) => log.info(m),
         onError: (m) => log.warn(m),
       });
@@ -369,10 +384,22 @@ export async function streamAgenticResponse(
       sourceRegistry,
       toolName: ATTACHED_DOCS_TOOL,
       isMounted: ATTACHED_DOCS_TOOL in tools,
+      skipTables: 'tabelle_auswerten' in tools,
+      includeNotebooks: 'tabelle_auswerten' in tools,
       onInfo: (m) => log.info(m),
       onError: (m) => log.warn(m),
     });
     toolReplayMessages = [...toolReplayMessages, ...seeded.replay];
+    // Die @link-Seiten des Turns genauso — ohne den Seed sah der Planer die
+    // Adresse nie, sie steht nicht im Text (#4896).
+    const seededPages = await seedAttachedPages({
+      state: finalState,
+      sourceRegistry,
+      isMounted: 'scrape_url' in tools,
+      onInfo: (m) => log.info(m),
+      onError: (m) => log.warn(m),
+    });
+    toolReplayMessages = [...toolReplayMessages, ...seededPages.replay];
 
     // Gemeinsam für Umschlag und Motor: der Umschlag zählt laufende Aufrufe,
     // die Stillstands-Uhr der Werkzeugphase liest sie. Ohne diese eine Instanz
@@ -382,8 +409,13 @@ export async function streamAgenticResponse(
     const approvalUserId = agentConfig.userId ?? null;
     // `disableMcp` (headless): ohne Connectoren kann das Gate nicht feuern —
     // der Allowlist-Read wäre bei jedem Hintergrundlauf reine Kosten, und eine
-    // Karte, die niemand sieht, hielte den Lauf für immer an.
-    const approvalEnabled = !disableMcp && approvalUserId != null;
+    // Karte, die niemand sieht, hielte den Lauf für immer an. Ausnahme: ein
+    // internes Pflichtwerkzeug im Katalog (`tabelle_auswerten`) fragt trotzdem.
+    const approvalEnabled = approvalGateEnabled({
+      disableMcp: disableMcp === true,
+      userId: approvalUserId,
+      toolNames: Object.keys(tools),
+    });
     approvalGate = createToolApprovalGate({
       enabled: approvalEnabled,
       allowlist: approvalEnabled
@@ -398,13 +430,19 @@ export async function streamAgenticResponse(
       ...(grantedOnce ? { grantedOnce } : {}),
     });
     askGate = createAskHumanGate();
-    clientToolGate = createClientToolGate((call) =>
-      finalState.sharepicCheck
-        ? Promise.resolve({
-            error: `In diesem Zug schon geprüft, nicht erneut aufrufen. Ergebnis: ${JSON.stringify(finalState.sharepicCheck)}`,
-          })
-        : resolveCheckSharepicRender(threadId ?? null, finalState, call.args)
-    );
+    clientToolGate = createClientToolGate(async (call) => {
+      const clientTool = LOOP_CLIENT_TOOLS.get(call.toolName);
+      if (!clientTool) return { error: `${call.toolName} läuft nicht im Browser.` };
+      const resolved = await clientTool.resolve({
+        threadId: threadId ?? null,
+        state: finalState,
+        args: call.args,
+        priorSteps: steps,
+      });
+      return 'error' in resolved
+        ? resolved
+        : { clientToolName: clientTool.clientToolName, clientArgs: resolved.clientArgs };
+    });
     // Zwei Beobachter am selben Haken: die Kostenrechnung zählt JEDEN Aufruf,
     // die Rerank-Warnung feuert höchstens einmal je Turn. `composeToolHooks`
     // isoliert dabei jeden Beobachter einzeln — ein werfender Kostenzähler
@@ -471,6 +509,15 @@ export async function streamAgenticResponse(
           result: { error },
         });
       }
+      // Nach den entschiedenen Aufrufen, damit deren Schritte vor der
+      // Browser-Pause im Verlauf stehen. Das Wiedereinsetzen bricht den Zug ab
+      // wie ein frisch gehaltener Aufruf; die Fortsetzung pausiert dann für den
+      // Browser. Hat ein freigegebener Aufruf das Gate schon belegt, gewinnt er.
+      if (resumeApproval.heldClientTool && !clientToolGate.restore(resumeApproval.heldClientTool)) {
+        log.warn(
+          `[Freigabe] ${resumeApproval.heldClientTool.toolName} nicht wieder eingesetzt — ein anderer Browser-Aufruf hält schon`
+        );
+      }
       toolReplayMessages = [
         ...toolReplayMessages,
         ...buildToolObservationReplay(steps, new Set(Object.keys(wrapped)), { sameTurn: true }),
@@ -519,8 +566,16 @@ export async function streamAgenticResponse(
       finalState.notebookIds?.[0] ?? finalState.threadNotebookId,
       finalState.userLocale ?? null
     );
+    // The product vocabulary — term names only, so the planner recognises a
+    // question about the Grünerator itself and decides to look it up. The
+    // definitions of named terms ride in systemMessage (respondNode), where the
+    // split-mode writer sees them too. Only when a lookup tool is mounted.
+    const glossaryNote =
+      'product_knowledge' in wrapped || 'gruenerator_docs_search' in wrapped
+        ? buildGlossaryVocabularyNote()
+        : '';
     const toolSystem = withInstructionHierarchy(
-      `${systemMessage}\n\n${buildToolUsageBlock(budget.maxSteps, researchBanned, mode === 'unified', Object.keys(wrapped), sourceRegistry.carriedSize > 0, promptNotebook)}${mcpNote}${systemNote}${connectorCatalogNote}${carriedNote}${preLoopEditNotes}${renderRecipeCatalog(recipeCatalog)}`
+      `${systemMessage}\n\n${buildToolUsageBlock(budget.maxSteps, researchBanned, mode === 'unified', Object.keys(wrapped), sourceRegistry.carriedSize > 0, promptNotebook)}${mcpNote}${systemNote}${connectorCatalogNote}${carriedNote}${preLoopEditNotes}${glossaryNote}${renderRecipeCatalog(recipeCatalog)}`
     );
     const { abortSignal, writeAbortSignal, toolBudgetDeadline } = createTurnClocks(
       budget,
@@ -623,12 +678,19 @@ export async function streamAgenticResponse(
       priorTurnRetrieved: priorTurnRetrieved(toolHistory),
       classifierContradictedResearch: finalState.classifierContradictedResearch === true,
       materialHeavy,
+      carriesMaterial:
+        carriedMaterialChars > 0 ||
+        messages.some(
+          (m) => m.role === 'user' && extractTextContent(m.content).length > NOUN_TRIGGER_MAX_LENGTH
+        ),
       pinnedTool,
       hasAttachedDocuments,
       summaryAsk,
       sharepicOrder: await isSharepicOrder(),
       artifactEditOrder: finalState.artifactEditOrder === true,
       attachedSeedDelivered: seeded.delivered,
+      resumesSuspendedTurn: resumeApproval != null,
+      tabularToolMounted: 'tabelle_auswerten' in wrapped,
     });
     const forceFirstToolCall = forceReason !== null;
 
@@ -658,6 +720,11 @@ export async function streamAgenticResponse(
             attachedDocsTool: hasAttachedDocuments ? ATTACHED_DOCS_TOOL : null,
             userText: finalState.lastUserTextNoMentions ?? lastUserText,
             threadNotebook: promptNotebook != null,
+            recipeOrder:
+              deriveImplicitRecipeMention(
+                orderText(finalState.lastUserTextNoMentions ?? lastUserText),
+                finalState.userLocale ?? null
+              ) != null,
           })
         : null;
     if (firstToolName) {
@@ -686,7 +753,9 @@ export async function streamAgenticResponse(
     // EINMAL aufgelöst: derselbe Wert speist das Modell, den Vermerk beim
     // Stillstand und die Turn-Zusammenfassung — siehe `resolveLoopPlannerLane`.
     plannerLane = mode === 'split' ? resolveLoopPlannerLane() : null;
-    const plannerFallback = plannerLane ? getLoopPlannerFallbackModel(plannerLane.model) : null;
+    const plannerFallbacks = plannerLane
+      ? getLoopPlannerFallbackModels(plannerLane.provider, plannerLane.model)
+      : [];
 
     const reasoningEffort = mistralReasoningOption(resolution.reasoningEffort);
     const promptCacheKey = promptCacheKeyForThread(threadId ?? null);
@@ -703,7 +772,7 @@ export async function streamAgenticResponse(
       plannerModel: plannerLane ? plannerLane.languageModel : resolution.model,
       synthModel: synth.model,
       ...(synthFallback && { synthFallbackModel: synthFallback.model }),
-      ...(plannerFallback && { plannerFallbackModel: plannerFallback.model }),
+      plannerFallbackModels: plannerFallbacks,
       // Der Stillstand der WERKZEUG-Phase. Hier gibt es nichts umzuschalten —
       // der Zug antwortet aus dem, was schon gesammelt war —, aber die Lane
       // gehört vermerkt: sonst ist sie im nächsten Zug wieder erste Wahl und
@@ -915,7 +984,7 @@ export async function streamAgenticResponse(
         askGate?.hasPending()
           ? '[Agentic] Zug pausiert — Rückfrage an die Nutzer*in offen'
           : clientToolGate?.hasPending()
-            ? '[Agentic] Zug pausiert — Browser rendert das Sharepic'
+            ? `[Agentic] Zug pausiert — Browser führt ${clientToolGate.pending()?.clientToolName ?? 'ein Werkzeug'} aus`
             : `[Agentic] Zug pausiert — ${approvalGate?.pending().length ?? 0} Freigabe(n) offen`
       );
     } else {
@@ -960,6 +1029,10 @@ export async function streamAgenticResponse(
       pendingAsk,
     };
   }
+  // Die Freigabe GEWINNT gegen einen gehaltenen Browser-Aufruf: ihre Karte hat
+  // die Person noch nicht gesehen. Der Browser-Aufruf hatte das Gate aber schon
+  // passiert — er reist als `heldClientTool` mit, statt beim Neuaufruf ein
+  // zweites Mal gefragt zu werden (#5044).
   const pendingClientTool = clientToolGate?.pending() ?? null;
   if (pendingClientTool && !approvalGate?.hasPending()) {
     costLedger.log();
@@ -981,6 +1054,7 @@ export async function streamAgenticResponse(
       sources: sourceRegistry.getResults(MAX_SOURCES),
       modelName: resolution?.modelName ?? agentConfig.model,
       pendingApproval: approvalGate.pending(),
+      ...(pendingClientTool ? { heldClientTool: pendingClientTool } : {}),
     };
   }
 
@@ -1001,6 +1075,11 @@ export async function streamAgenticResponse(
     memoryRan: steps.some((step) => step.toolName === 'memory' && step.ok !== false),
     editedArtifacts: editedArtifactKinds(steps, finalState),
     guardedArtifacts: guardedArtifactKinds(finalState),
+    createdArtifact:
+      (finalState.sharepicVariants?.length ?? 0) > 0 ||
+      finalState.generatedImage != null ||
+      finalState.createdDocument != null ||
+      finalState.createdBoard != null,
     seenTexts: [
       // A name the user typed themselves is not one the model invented.
       finalState.lastUserTextNoMentions ?? '',

@@ -3,15 +3,17 @@
  * Central routing setup for all API endpoints
  */
 
-import express from 'express';
 import rateLimit, { ipKeyGenerator } from 'express-rate-limit';
 
 import { env } from './config/env.js';
 import { requireAdminToken } from './middleware/adminTokenMiddleware.js';
 import authMiddleware from './middleware/authMiddleware.js';
 import { deprecatedRoute } from './middleware/deprecatedRoute.js';
+import { jsonBody } from './middleware/jsonBody.js';
 import { rateLimitMiddleware } from './middleware/rateLimitMiddleware.js';
 import { requireAiConsent } from './middleware/requireAiConsent.js';
+import { mountAdminReportsContractRouter } from './routes/admin/adminReportsContractRouter.js';
+import { mountAdminStatsContractRouter } from './routes/admin/adminStatsContractRouter.js';
 import { mountChunkInspectorContractRouter } from './routes/admin/chunkInspectorContractRouter.js';
 import { mountConnectorTestContractRouter } from './routes/admin/connectorTestContractRouter.js';
 import { mountInstanceAdminOverviewContractRouter } from './routes/admin/instanceAdminOverviewContractRouter.js';
@@ -19,7 +21,9 @@ import { mountLandesverbandAdminContractRouter } from './routes/admin/landesverb
 import { mountLvAdminAssignmentContractRouter } from './routes/admin/lvAdminAssignmentContractRouter.js';
 import { mountAgentVisibilityContractRouter } from './routes/agents/agentVisibilityContractRouter.js';
 import antraegeRouter from './routes/antraege/index.js';
+import { mountAppReleaseContractRouter } from './routes/app/appReleaseContractRouter.js';
 import { mountAgentCommentsContractRouter } from './routes/auth/agentComments/agentCommentsContractRouter.js';
+import { mountEntityCommentsContractRouter } from './routes/auth/entityComments/entityCommentsContractRouter.js';
 import { mountGroupsContractRouter } from './routes/auth/groups/groupsContract/index.js';
 import { mountImageModelPreferenceContractRouter } from './routes/auth/imageModelPreferenceContractRouter.js';
 import authInitRouter from './routes/auth/initController.js';
@@ -41,6 +45,7 @@ import { mountBoardSchedulesContractRouter } from './routes/boards/boardSchedule
 import { mountBoardsContractRouter } from './routes/boards/boardsContractRouter.js';
 import { mountBoardSubscriptionsContractRouter } from './routes/boards/boardSubscriptionsContractRouter.js';
 import { mountPublicBoardsContractRouter } from './routes/boards/publicBoardsContractRouter.js';
+import browserAgentLlmRouter from './routes/browserAgent/llmProxyRouter.js';
 import { mountCanvasContractRouter } from './routes/canvas/canvasContractRouter.js';
 import { mountChatGraphContractRouter } from './routes/chat/chatGraphContractRouter.js';
 import { mountChatThreadSharingContractRouter } from './routes/chat/chatThreadSharingContractRouter.js';
@@ -63,6 +68,7 @@ import exportDocumentsRouter from './routes/exports/index.js';
 import { mountFeedbackContractRouter } from './routes/feedback/feedbackContractRouter.js';
 import imaginePureRoute from './routes/flux/imaginePure.js';
 import outpaintRoute from './routes/flux/outpaint.js';
+import { mountBrandFontsRouter } from './routes/fonts/brandFontsRouter.js';
 import { mountImagePickerContractRouter } from './routes/image/imagePickerContractRouter.js';
 import { pickerController as imagePickerRoute } from './routes/image/index.js';
 import { mountContentSyncContractRouter } from './routes/internal/contentSyncContractRouter.js';
@@ -74,6 +80,7 @@ import {
   wolkeWatchRouter,
 } from './routes/internal/index.js';
 import { markdownController as markdownRouter } from './routes/markdown/index.js';
+import { mountMarketplaceContractRouter } from './routes/marketplace/marketplaceContractRouter.js';
 import { mountMcpOAuthCallbackRouter } from './routes/mcp/mcpOAuthCallbackRouter.js';
 import { mountMcpServersContractRouter } from './routes/mcp/mcpServersContractRouter.js';
 import { createMcpAppsRouter } from './routes/mcp-apps/mcpAppsRouter.js';
@@ -118,6 +125,7 @@ import { mountSheetsContractRouter } from './routes/sheets/sheetsContractRouter.
 import { mountSitesContractRouter } from './routes/sites/sitesContractRouter.js';
 import { mountSkillPromptContractRouter } from './routes/skills/skillPromptContractRouter.js';
 import { mountSkillVisibilityContractRouter } from './routes/skills/skillVisibilityContractRouter.js';
+import { mountStudioAssetsContractRouter } from './routes/studioAssets/studioAssetsContractRouter.js';
 import subtitlerRouter from './routes/subtitler/processingController.js';
 import subtitlerProjectRouter from './routes/subtitler/projectController.js';
 import subtitlerShareRouter from './routes/subtitler/shareController.js';
@@ -147,6 +155,7 @@ import v1ChatCompletionsRouter, {
 import v1CollectionsRouter from './routes/v1/collectionsRouter.js';
 import v1NotebooksRouter from './routes/v1/notebooksRouter.js';
 import { mountVideoContractRouter } from './routes/video/videoContractRouter.js';
+import agentSessionRouter from './routes/voice/agentSessionController.js';
 import { mountSpeechContractRouter } from './routes/voice/speechContractRouter.js';
 import ttsRouter from './routes/voice/ttsController.js';
 import { mountVoiceContractRouter } from './routes/voice/voiceContractRouter.js';
@@ -154,6 +163,7 @@ import voiceRouter from './routes/voice/voiceController.js';
 import { mountSharedTemplateContractRouter } from './routes/vorlagen/sharedTemplateContractRouter.js';
 import { mountRecentActivityContractRouter } from './routes/workplace/recentActivityContractRouter.js';
 import recentActivityRouter from './routes/workplace/recentActivityController.js';
+import { parseAppBundle, recordAppBundleUse } from './services/appBundles/appBundleUsage.js';
 import * as tusServiceModule from './services/subtitler/tusService.js';
 import { decisionLogMiddleware } from './utils/decisionLog.js';
 import { toUserFacingMessage } from './utils/errors/index.js';
@@ -230,6 +240,20 @@ const contentReportLimiter = isRateLimitDisabled
       message: { error: 'Too many requests, please try again later.' },
     });
 
+// Studio shop uploads are rare and every one may go public at once — cap
+// creates and edits well below the general write budget.
+const studioAssetWriteLimiter = isRateLimitDisabled
+  ? (_req: Request, _res: Response, next: NextFunction) => next()
+  : rateLimit({
+      windowMs: 15 * 60 * 1000,
+      max: 30,
+      standardHeaders: true,
+      legacyHeaders: false,
+      keyGenerator: perUserOrIpKey,
+      skip: (req) => req.method !== 'POST' && req.method !== 'PATCH',
+      message: { success: false, message: 'Zu viele Anfragen. Bitte versuche es später erneut.' },
+    });
+
 const authenticatedReadLimiter = isRateLimitDisabled
   ? (_req: Request, _res: Response, next: NextFunction) => next()
   : rateLimit({
@@ -285,6 +309,18 @@ export async function setupRoutes(app: Application): Promise<void> {
   app.use('/api/*splat', (req: Request, _res: Response, next: NextFunction) => {
     const path = req.originalUrl.split('?')[0] ?? req.originalUrl;
     runWithUsageContext({ req, feature: featureFromPath(path) }, next);
+  });
+
+  // Mobile bundle reach for the admin tab „App-Updates". Read on finish, when
+  // requireAuth (mounted per prefix below) has resolved the account.
+  app.use('/api/*splat', (req: Request, res: Response, next: NextFunction) => {
+    const bundle = parseAppBundle(req.headers);
+    if (bundle) {
+      res.on('finish', () => {
+        if (req.user?.id) recordAppBundleUse(bundle, req.user.id);
+      });
+    }
+    next();
   });
 
   // Dynamic imports for ES modules
@@ -364,6 +400,12 @@ export async function setupRoutes(app: Application): Promise<void> {
   // per-handler requireInstanceAdmin check.
   app.use('/api/auth/admin/bgst', requireAuth);
   mountInstanceAdminOverviewContractRouter(app);
+  // Anonymous created-content statistics — same requireAuth-at-prefix +
+  // per-handler requireInstanceAdmin check.
+  app.use('/api/auth/admin/statistics', requireAuth);
+  mountAdminStatsContractRouter(app);
+  // Store version of the mobile app — public, the answer is the same for all.
+  mountAppReleaseContractRouter(app);
   // Hauptgrünerator-Super-Admin: Landesverband master data + who
   // administers which Landesverband, plus the assignment user picker.
   app.use('/api/auth/admin/landesverbaende', requireAuth);
@@ -395,6 +437,9 @@ export async function setupRoutes(app: Application): Promise<void> {
   mountAgentCommentsContractRouter(app);
   app.use('/api/auth/template-comments', requireAuth);
   mountTemplateCommentsContractRouter(app);
+  // Comments on every marketplace item; the two above are its legacy surfaces.
+  app.use('/api/comments', requireAuth);
+  mountEntityCommentsContractRouter(app);
   // ts-rest contract router for user prompts (custom_prompts + saved_prompts
   // CRUD) — mounts BEFORE authRouter so contract routes match first; the
   // legacy userCustomPrompts router keeps the semantic-search / discovery
@@ -456,6 +501,12 @@ export async function setupRoutes(app: Application): Promise<void> {
   app.use('/api/v1/chat/completions', v1ChatCompletionsRouter);
   // Modell-Discovery: OpenAI-kompatible Clients fragen ${baseUrl}/models ab.
   app.use('/api/v1/models', v1ModelsRouter);
+  // Modell-Endpunkt des Browser-Dienstes (browser-use, OpenAI-kompatibel).
+  // Einzige Auth ist das Run-Token als Bearer, im Router geprüft — keine
+  // Sitzung, deshalb nicht unter /api/internal (requireAdminToken). Der Präfix
+  // steht in CUSTOM_BODY_PARSER_PATHS; der Router parst selbst (20 MB für
+  // Screenshots), und zwar erst NACH der Token-Prüfung.
+  app.use('/api/browser-agent/llm', browserAgentLlmRouter);
   // Public MCP collection catalog (unauthenticated, rate-limited).
   app.use('/api/v1/collections', publicReadLimiter, v1CollectionsRouter);
   // ts-rest contract router for /api/documents — mounts BEFORE the legacy documentsRouter
@@ -489,12 +540,22 @@ export async function setupRoutes(app: Application): Promise<void> {
   app.use('/api/reisekosten', requireAuth, standardMutationLimiter);
   app.use('/api/reisekosten/extract-beleg', requireAiConsent);
   mountReisekostenContractRouter(app);
+  // Studio shop: user Sticker and Hintergründe.
+  app.use('/api/studio-assets', requireAuth, authenticatedReadLimiter, studioAssetWriteLimiter);
+  mountStudioAssetsContractRouter(app);
+  // Marktplatz: Agents, Rezepte, Vorlagen, Sticker und Hintergründe in einer Liste.
+  // Likes and saves are PUT/DELETE, which the studio-asset write cap skips, so
+  // they take the general write ceiling.
+  app.use('/api/marketplace', requireAuth, authenticatedReadLimiter, standardMutationLimiter);
+  mountMarketplaceContractRouter(app);
   // Explainables. The shared routes come first and terminate before the
   // requireAuth gate on the prefix below; `/shared/:token` would otherwise be
   // read as the owner's `/:ref`.
   app.use('/api/explainables/shared', optionalAuth, explainableSharedFilesRouter);
   app.use('/api/explainables/shared', publicReadLimiter);
   mountPublicExplainablesContractRouter(app);
+  app.use('/api/fonts', publicReadLimiter);
+  mountBrandFontsRouter(app);
   app.use('/api/explainables', requireAuth, authenticatedReadLimiter);
   app.post('/api/explainables', aiGenerationLimiter, requireAiConsent, (_req, _res, next) =>
     next()
@@ -581,7 +642,7 @@ export async function setupRoutes(app: Application): Promise<void> {
   // so the global 10mb body parser is skipped. Install a 50mb parser scoped
   // to /api/chat-graph here so the contract router receives a parsed body
   // (large payloads: base64 image attachments).
-  app.use('/api/chat-graph', express.json({ limit: '50mb' }));
+  app.use('/api/chat-graph', jsonBody('50mb'));
   app.use('/api/chat-graph', aiGenerationLimiter);
   // Dev-only: bind a decision journal per turn and dump it to CHAT_DECISION_LOG_DIR
   // so the live eval lane can render a decision map. Returns null — and mounts
@@ -873,6 +934,10 @@ export async function setupRoutes(app: Application): Promise<void> {
   // Gleiche Bauform: requireAuth am Präfix, requireInstanceAdmin pro Handler.
   app.use('/api/auth/admin/connector-test', requireAuth);
   mountConnectorTestContractRouter(app);
+  // Meldungen (content_reports) je Ziel, gleiche Bauform: requireAuth am
+  // Präfix, requireInstanceAdmin pro Handler.
+  app.use('/api/auth/admin/reports', requireAuth);
+  mountAdminReportsContractRouter(app);
   // Per-user external MCP server registry (EXPERIMENTAL). requireAuth at the
   // prefix — every route is user-scoped and handles user-entered credentials.
   app.use('/api/mcp/servers', requireAuth);
@@ -880,8 +945,9 @@ export async function setupRoutes(app: Application): Promise<void> {
   // Dauerhafte Werkzeug-Freigaben im Chat („immer erlauben").
   app.use('/api/chat/tool-approvals', requireAuth);
   mountToolApprovalsContractRouter(app);
-  // OAuth callback is public (identity comes from the one-time Redis state, not
-  // a cookie — the cross-site provider redirect can't carry our session).
+  // OAuth callback without requireAuth: it answers with a popup page, never a
+  // 401. The router still resolves the session (optionalAuth) and stores tokens
+  // only for the user the one-time Redis state was issued to.
   mountMcpOAuthCallbackRouter(app);
   // Inbound MCP server (mcp.gruenerator.eu/v2) — auth resolved in the router.
   if (env.MCP_SERVER_ENABLED) {
@@ -970,6 +1036,7 @@ export async function setupRoutes(app: Application): Promise<void> {
   mountSpeechContractRouter(app);
   app.use('/api/voice', voiceRouter);
   app.use('/api/voice/tts', ttsRouter);
+  app.use('/api/voice/agent-session', agentSessionRouter);
   // Unified "search everything" over the caller's own content. requireAuth runs
   // on the prefix because
   // createExpressEndpoints registers handlers directly on the app.
@@ -1078,8 +1145,8 @@ export async function setupRoutes(app: Application): Promise<void> {
   app.use('/api/connections', standardMutationLimiter, requireAuth);
   mountConnectionsContractRouter(app);
   app.use('/api/connections', connectionsRouter);
-  // Direct Canva Connect API (OAuth2 + PKCE). requireAuth is applied per-route
-  // inside the router — the OAuth callback must stay public (cookie-less redirect).
+  // Direct Canva Connect API (OAuth2 + PKCE). Auth is applied per-route inside
+  // the router — the OAuth callback answers with a popup page, never a 401.
   app.use('/api/canva', standardMutationLimiter, canvaApiRouter);
   // Link-shared Vorlagen. optionalAuth, NOT requireAuth: a Vorlage shared with
   // share_mode='public' has to open without an account, and the handler

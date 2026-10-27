@@ -2,7 +2,7 @@
  * Der Host merkt sich den offenen Reiter je Canvas (#4258): ohne `initialTab`
  * war der Chat nach jedem Neuladen zu, weil `activeTab` mit `null` startet.
  */
-import { act, render, screen } from '@testing-library/react';
+import { act, render, screen, waitFor } from '@testing-library/react';
 import Konva from 'konva';
 import React from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -13,6 +13,8 @@ import { CanvasEditor } from '../index';
 import type { SidebarTabId } from '../../../sidebar/types';
 
 vi.mock('../../../sidebar/UserUploadsProvider', () => ({
+  // ToolbarStateBridge liest die Uploads optional (Erweitern).
+  useOptionalUserUploads: () => null,
   UserUploadsProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,
   useUserUploads: () => ({ uploads: [], refresh: () => {} }),
 }));
@@ -40,6 +42,12 @@ vi.stubGlobal(
 
 vi.spyOn(Konva.Stage.prototype, 'toDataURL').mockReturnValue('data:,');
 Element.prototype.scrollIntoView ??= () => {};
+
+/** Tab by its tour id — read via the attribute, a literal selector would count as a tour anchor (check-tour-anchors). */
+const tabButton = (id: string) =>
+  [...document.querySelectorAll<HTMLElement>('[data-tour]')].find(
+    (el) => el.dataset.tour === `canvas-tab-${id}`
+  ) ?? null;
 
 async function renderEditor(props: {
   initialTab?: SidebarTabId | null;
@@ -71,13 +79,13 @@ describe('CanvasEditor initialTab', () => {
 
   it('öffnet den mitgegebenen Reiter beim ersten Render', async () => {
     const chatTab = await renderEditor({ initialTab: 'chat' });
-    expect(chatTab).toHaveAttribute('aria-pressed', 'true');
+    expect(chatTab).toHaveAttribute('aria-expanded', 'true');
     expect(await screen.findByText('Chat ist in dieser Umgebung nicht verfügbar.')).toBeTruthy();
   });
 
   it('startet ohne initialTab geschlossen', async () => {
     const chatTab = await renderEditor({});
-    expect(chatTab).toHaveAttribute('aria-pressed', 'false');
+    expect(chatTab).toHaveAttribute('aria-expanded', 'false');
   });
 
   it('meldet Reiterwechsel an den Host', async () => {
@@ -98,14 +106,45 @@ describe('CanvasEditor initialTab', () => {
     // nicht wieder aufklappen und den Desktop-Stand nicht überschreiben.
     mobile = true;
     const onActiveTabChange = vi.fn();
-    const chatTab = await renderEditor({ initialTab: 'chat', onActiveTabChange });
-    expect(chatTab).toHaveAttribute('aria-pressed', 'false');
-    expect(screen.queryByText('Chat ist in dieser Umgebung nicht verfügbar.')).toBeNull();
     await act(async () => {
-      chatTab.click();
+      render(
+        <CanvasEditor
+          initialConfigId="dreizeilen"
+          initialProps={{}}
+          onExport={() => {}}
+          onCancel={() => {}}
+          initialTab="text"
+          onActiveTabChange={onActiveTabChange}
+        />
+      );
     });
-    expect(chatTab).toHaveAttribute('aria-pressed', 'true');
+    const textTab = await waitFor(() => {
+      const el = tabButton('text');
+      expect(el).not.toBeNull();
+      return el!;
+    });
+    expect(textTab).toHaveAttribute('aria-expanded', 'false');
+    await act(async () => {
+      textTab.click();
+    });
+    expect(textTab).toHaveAttribute('aria-expanded', 'true');
     expect(onActiveTabChange).not.toHaveBeenCalled();
+  });
+
+  it('blendet den Chat mobil aus — die Leiste hat dort sechs Plätze', async () => {
+    mobile = true;
+    await act(async () => {
+      render(
+        <CanvasEditor
+          initialConfigId="dreizeilen"
+          initialProps={{}}
+          onExport={() => {}}
+          onCancel={() => {}}
+        />
+      );
+    });
+    await waitFor(() => expect(tabButton('text')).not.toBeNull());
+    expect(screen.queryByRole('button', { name: /KI-Chat/ })).toBeNull();
   });
 });
 
@@ -157,7 +196,7 @@ describe('CanvasEditor Chat über Seitenwechsel (#4273)', () => {
       document.querySelector<HTMLElement>('[data-page-index="1"]')!.click();
     });
     await settle();
-    expect(document.querySelector('[data-page-index="1"]')).toHaveAttribute('aria-pressed', 'true');
+    expect(document.querySelector('[data-page-index="1"]')).toHaveAttribute('aria-current', 'page');
     expect(screen.getByText('spy-chat')).toBeTruthy();
     expect(mounts).toBe(1);
   });

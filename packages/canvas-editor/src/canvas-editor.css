@@ -31,19 +31,23 @@
   transition: border-color 0.15s ease;
 }
 
-.heterogeneous-multipage__page-wrapper:hover:not(.heterogeneous-multipage__page-wrapper--active)
-  .canvas-stage-container::after {
-  border-color: var(--border-color-hover, rgba(0, 0, 0, 0.15));
+@media (hover: hover) and (pointer: fine) {
+  .heterogeneous-multipage__page-wrapper:hover:not(.heterogeneous-multipage__page-wrapper--active)
+    .canvas-stage-container::after {
+    border-color: var(--border-color-hover, rgba(0, 0, 0, 0.15));
+  }
 }
 
 .heterogeneous-multipage__page-wrapper--active .canvas-stage-container::after {
   border-color: var(--tanne, #0a2b1e);
 }
 
-[data-theme='dark']
-  .heterogeneous-multipage__page-wrapper:hover:not(.heterogeneous-multipage__page-wrapper--active)
-  .canvas-stage-container::after {
-  border-color: rgba(255, 255, 255, 0.2);
+@media (hover: hover) and (pointer: fine) {
+  [data-theme='dark']
+    .heterogeneous-multipage__page-wrapper:hover:not(.heterogeneous-multipage__page-wrapper--active)
+    .canvas-stage-container::after {
+    border-color: rgba(255, 255, 255, 0.2);
+  }
 }
 
 [data-theme='dark'] .heterogeneous-multipage__page-wrapper--active .canvas-stage-container::after {
@@ -147,6 +151,59 @@
   }
 
   .heterogeneous-multipage__pages-container[data-zooming] {
+    transition: none;
+  }
+}
+
+/* ── Mobile sheet: slides in from the bottom, its content fades in once the
+      slide is done, and it slides back out before it unmounts. The phase
+      lives in data-state (SidebarPanel); transitionend or a 350 ms fallback
+      moves it on. Only the mobile <section> carries data-state. ── */
+.sidebar-panel[data-state] {
+  transition: transform 280ms var(--editor-ease-drawer);
+}
+
+@starting-style {
+  .sidebar-panel[data-state='entering'] {
+    transform: translateY(100%);
+  }
+}
+
+.sidebar-panel[data-state='closing'] {
+  transform: translateY(100%);
+  transition: transform 200ms var(--editor-ease-out);
+}
+
+.sidebar-panel__content--in {
+  animation: sheet-content-in 150ms var(--editor-ease-out) both;
+}
+
+@keyframes sheet-content-in {
+  from {
+    opacity: 0;
+  }
+}
+
+/* Reduced motion: the sheet fades instead of sliding; the content fade stays. */
+@media (prefers-reduced-motion: reduce) {
+  .sidebar-panel[data-state] {
+    transition: opacity 150ms var(--editor-ease-out);
+  }
+
+  @starting-style {
+    .sidebar-panel[data-state='entering'] {
+      transform: none;
+      opacity: 0;
+    }
+  }
+
+  .sidebar-panel[data-state='closing'] {
+    transform: none;
+    opacity: 0;
+    transition: opacity 150ms var(--editor-ease-out);
+  }
+
+  .heterogeneous-multipage__pages-container {
     transition: none;
   }
 }
@@ -320,4 +377,94 @@ input[type='number'].hide-spinner {
   font-family: inherit;
   font-style: inherit;
   font-weight: inherit;
+}
+
+/* Sticker: the sheet is transparent — the checkerboard shows what stays see-through.
+   CSS only, so it never reaches the Konva export. */
+.sticker-stage {
+  background-color: #ffffff;
+  background-image:
+    linear-gradient(45deg, #e8e8e8 25%, transparent 25%, transparent 75%, #e8e8e8 75%),
+    linear-gradient(45deg, #e8e8e8 25%, transparent 25%, transparent 75%, #e8e8e8 75%);
+  background-size: 24px 24px;
+  background-position:
+    0 0,
+    12px 12px;
+}
+
+/* ── Touch baseline (mobile feel) ──
+   Scoped to the editor: the legacy global `button { transition: ... 0.5s }`
+   (apps/web global.css) must stay untouched for the rest of the app.
+   Layered on purpose: apps/web imports global.css as `layer(legacy)` and
+   declares `base, legacy, components, utilities`, so `components` beats the
+   legacy fade while utilities (duration-*, touch-none, select-text) still
+   beat the baseline. Unlayered it would override every utility as well. */
+@layer components {
+  /* Mobile only: desktop keeps trackpad swipe-back. */
+  @media (max-width: 899px) {
+    html:has(.canvas-editor-layout),
+    html:has(.canvas-editor-layout) body {
+      overscroll-behavior: none;
+    }
+  }
+
+  .canvas-editor-layout button {
+    transition-duration: 100ms;
+    transition-timing-function: var(--editor-ease-out);
+  }
+
+  .canvas-editor-layout :is(button, [role='button'], [role='tab']) {
+    touch-action: manipulation;
+    -webkit-user-select: none;
+    user-select: none;
+    -webkit-touch-callout: none;
+  }
+
+  .canvas-editor-layout img {
+    -webkit-touch-callout: none;
+  }
+}
+
+/* ── Horizontal scroller on mobile: fade the edge that has more content, so a
+   row without a scrollbar still says "there is more". Driven by the scroller's
+   own scroll timeline; with no overflow the timeline is inactive and nothing
+   fades. Browsers without scroll timelines simply show no fade. ── */
+@property --canvas-fade-start {
+  syntax: '<length>';
+  inherits: false;
+  initial-value: 0px;
+}
+@property --canvas-fade-end {
+  syntax: '<length>';
+  inherits: false;
+  initial-value: 0px;
+}
+@supports (animation-timeline: scroll()) {
+  .canvas-scroll-fade-x {
+    mask-image: linear-gradient(
+      to right,
+      transparent,
+      #000 var(--canvas-fade-start),
+      #000 calc(100% - var(--canvas-fade-end)),
+      transparent
+    );
+    animation: canvas-scroll-fade-x linear both;
+    animation-timeline: scroll(self inline);
+  }
+}
+@keyframes canvas-scroll-fade-x {
+  0% {
+    --canvas-fade-start: 0px;
+    --canvas-fade-end: 24px;
+  }
+  10% {
+    --canvas-fade-start: 24px;
+  }
+  90% {
+    --canvas-fade-end: 24px;
+  }
+  100% {
+    --canvas-fade-start: 24px;
+    --canvas-fade-end: 0px;
+  }
 }

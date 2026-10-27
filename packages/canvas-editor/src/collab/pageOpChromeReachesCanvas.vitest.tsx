@@ -3,11 +3,15 @@
  * the mounted canvas of such a page must hear about it, or its next
  * dual-write puts the stale chrome straight back.
  */
+import { updatePageStateById } from '@ggraphic/editor/collab/pagesDoc';
 import { act, renderHook } from '@testing-library/react';
+import React from 'react';
 import { describe, expect, it, vi } from 'vitest';
 import * as Y from 'yjs';
 
-import { updatePageStateById } from './pagesDoc';
+import { CanvasEditorProvider } from '../CanvasEditorProvider';
+import { grueneratorCarousel } from '../composer/sharepicServices';
+
 import { useYjsPages, PAGES_STATE_ORIGIN } from './useYjsPages';
 import { useYjsPageStateSync } from './useYjsPageStateSync';
 
@@ -32,7 +36,13 @@ const page = (k: number) => ({
 describe('page ops reach the mounted canvas', () => {
   it('hands the rewritten page number to the page that stayed, not its own dual-writes', () => {
     const doc = new Y.Doc();
-    const pages = renderHook(() => useYjsPages(doc, true));
+    // The chrome refresh is the host's; apps/web passes the composer's.
+    const wrapper = ({ children }: { children: React.ReactNode }) => (
+      <CanvasEditorProvider services={{ carousel: grueneratorCarousel }}>
+        {children}
+      </CanvasEditorProvider>
+    );
+    const pages = renderHook(() => useYjsPages(doc, true), { wrapper });
     act(() => pages.result.current!.seedIfEmpty([page(1), page(2), page(3)]));
     const first = pages.result.current!.pages[0]!;
     const onRemoteState = vi.fn();

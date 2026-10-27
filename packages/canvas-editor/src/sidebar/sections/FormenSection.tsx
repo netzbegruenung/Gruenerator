@@ -1,3 +1,15 @@
+import { cn } from '@ggraphic/editor/utils/cn';
+import { brandColors } from '@ggraphic/editor/utils/colorOptions';
+import { handDrawnPath, type HandShapeType } from '@ggraphic/editor/utils/handDrawn';
+import { defaultMarkerFill } from '@ggraphic/editor/utils/markerColors';
+import {
+  CATEGORY_LABELS,
+  CATEGORY_ORDER,
+  EUCALYPTUS,
+  getShapeDef,
+  type ShapeCategory,
+  type ShapeType,
+} from '@ggraphic/editor/utils/shapes';
 import { useMemo } from 'react';
 import {
   PiStarFill,
@@ -36,18 +48,6 @@ import {
   PiSunFill,
 } from 'react-icons/pi';
 
-import { cn } from '../../utils/cn';
-import { handDrawnPath, type HandShapeType } from '../../utils/handDrawn';
-import { MARKER_LIME } from '../../utils/markerColors';
-import {
-  BRAND_COLORS,
-  CATEGORY_LABELS,
-  CATEGORY_ORDER,
-  EUCALYPTUS,
-  getShapeDef,
-  type ShapeCategory,
-  type ShapeType,
-} from '../../utils/shapes';
 import { CARD_GRID, CARD_PREVIEW, SELECTABLE_CARD, SIDEBAR_SECTION } from '../sidebarStyles';
 
 export interface FormenSectionProps {
@@ -90,6 +90,12 @@ const HAND_PREVIEW_HEIGHT: Partial<Record<HandShapeType, number>> = {
   'hand-ausruf': 100,
   'hand-marker': 26,
   'hand-marker-box': 28,
+  'hand-pfeil-bogen': 28,
+  'hand-pfeil-haken': 34,
+  'hand-pfeil-welle': 28,
+  'hand-pfeil-schlaufe': 30,
+  'hand-pfeil-herz': 30,
+  'hand-pfeil-spirale': 28,
 };
 
 /** A hand-drawn shape at preview size, drawn by the same outline the canvas uses. */
@@ -335,6 +341,41 @@ const SHAPE_PREVIEWS: { readonly [K in ShapeType]: ShapeDefinition<K> } = {
     id: 'hand-marker-box',
     title: 'Textmarker-Box hinzufügen',
     renderPreview: () => <HandShapePreview type="hand-marker-box" />,
+  },
+  'hand-pfeil-schlaufe': {
+    id: 'hand-pfeil-schlaufe',
+    title: 'Schlaufenpfeil hinzufügen',
+    renderPreview: () => <HandShapePreview type="hand-pfeil-schlaufe" />,
+  },
+  'hand-pfeil-welle': {
+    id: 'hand-pfeil-welle',
+    title: 'Wellenpfeil hinzufügen',
+    renderPreview: () => <HandShapePreview type="hand-pfeil-welle" />,
+  },
+  'hand-pfeil-bogen': {
+    id: 'hand-pfeil-bogen',
+    title: 'Bogenpfeil hinzufügen',
+    renderPreview: () => <HandShapePreview type="hand-pfeil-bogen" />,
+  },
+  'hand-pfeil-haken': {
+    id: 'hand-pfeil-haken',
+    title: 'Hakenpfeil hinzufügen',
+    renderPreview: () => <HandShapePreview type="hand-pfeil-haken" />,
+  },
+  'hand-pfeil-herz': {
+    id: 'hand-pfeil-herz',
+    title: 'Herzpfeil hinzufügen',
+    renderPreview: () => <HandShapePreview type="hand-pfeil-herz" />,
+  },
+  'hand-pfeil-spirale': {
+    id: 'hand-pfeil-spirale',
+    title: 'Kringelpfeil hinzufügen',
+    renderPreview: () => <HandShapePreview type="hand-pfeil-spirale" />,
+  },
+  'hand-winken': {
+    id: 'hand-winken',
+    title: 'Winkende Hand hinzufügen',
+    renderPreview: () => <HandShapePreview type="hand-winken" />,
   },
   star: {
     id: 'star',
@@ -602,34 +643,33 @@ const DARK_PREVIEW_OVERRIDES: Partial<Record<string, string>> = {
   tanne: '!text-editor-tanne-preview',
 };
 /** Textmarker come in the marker colour, not the brand cycle. */
-const FIXED_VARIANT_COLOR: Partial<Record<ShapeType, string>> = {
-  'hand-marker': MARKER_LIME,
-  'hand-marker-box': MARKER_LIME,
-};
+const MARKER_SHAPES: ReadonlySet<ShapeType> = new Set(['hand-marker', 'hand-marker-box']);
 
 /**
  * Brand color variants cycled across shape tiles (Canva-style); clicking inserts the
  * shown color. Keyed by the shape's global palette index so the same shape shows the
  * same color in the strip, the drill-down groups, and search results.
- * Lazy for the same chunk-init reason as getShapesByCategory below (BRAND_COLORS is a
- * cross-chunk import).
+ * A brand that names none of these colours cycles its first five. Lazy for the
+ * same chunk-init reason as getShapesByCategory below, and because the host
+ * registers its brand at startup.
  */
 let shapeVariantByType: Map<ShapeType, ShapeVariant> | null = null;
 export function getShapeVariant(type: ShapeType): ShapeVariant {
   if (!shapeVariantByType) {
-    const variants = SHAPE_VARIANT_COLOR_IDS.map((id) => ({
-      color: BRAND_COLORS.find((c) => c.id === id)?.value ?? EUCALYPTUS,
-      darkPreviewClass: DARK_PREVIEW_OVERRIDES[id] ?? '',
+    const palette = brandColors();
+    const named = SHAPE_VARIANT_COLOR_IDS.flatMap((id) => palette.filter((c) => c.id === id));
+    const variants = (named.length > 0 ? named : palette.slice(0, 5)).map((c) => ({
+      color: c.value,
+      darkPreviewClass: DARK_PREVIEW_OVERRIDES[c.id] ?? '',
     }));
     shapeVariantByType = new Map(
       ALL_PALETTE_SHAPES.map((shape, index) => [shape.id, variants[index % variants.length]])
     );
   }
-  const fixed = FIXED_VARIANT_COLOR[type];
-  if (fixed) return { color: fixed, darkPreviewClass: '' };
+  if (MARKER_SHAPES.has(type)) return { color: defaultMarkerFill(), darkPreviewClass: '' };
   return (
     shapeVariantByType.get(type) ?? {
-      color: BRAND_COLORS[0]?.value ?? EUCALYPTUS,
+      color: brandColors()[0]?.value ?? EUCALYPTUS,
       darkPreviewClass: '',
     }
   );

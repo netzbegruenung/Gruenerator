@@ -1,18 +1,19 @@
-import { MediaThumb } from '@gruenerator/shared/media-library/ui';
-import { MasonryGrid, MasonryItem } from '@gruenerator/ui';
+import { MasonryGrid, MasonryItem } from '@ggraphic/editor/ui/masonry-grid';
+import { cn } from '@ggraphic/editor/utils/cn';
+import { MEDIA_DRAG_TYPE, type MediaDragPayload } from '@ggraphic/editor/utils/mediaDrop';
+import { downscaleImageForUpload } from '@ggraphic/editor/utils/userImageUtils';
 import { useRef, useState } from 'react';
 import { FaTrash } from 'react-icons/fa';
 import { HiArrowUpTray, HiMagnifyingGlass } from 'react-icons/hi2';
 
+import { useCanvasEditorServices } from '../../CanvasEditorProvider';
 import { useIsCanvasMobile } from '../../hooks/useIsCanvasMobile';
-import { cn } from '../../utils/cn';
-import { buildPlacementUrl } from '../../utils/mediaPlacement';
-import { downscaleImageForUpload } from '../../utils/userImageUtils';
+import { plainImageUrls } from '../../hostServices';
 import { SidebarHint } from '../components/SidebarHint';
-import { SIDEBAR_SECTION } from '../sidebarStyles';
+import { MOBILE_INPUT_TEXT, SIDEBAR_SECTION } from '../sidebarStyles';
 import { useUserUploads } from '../UserUploadsProvider';
 
-import type { MediaItem } from '@gruenerator/shared/media-library';
+import type { CanvasMediaItem } from '../../hostServices';
 
 export interface UploadsSectionProps {
   /** Place an already-durable URL (used when clicking a prior upload). */
@@ -33,6 +34,7 @@ export function UploadsSection({
 }: UploadsSectionProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const isMobile = useIsCanvasMobile();
+  const { imageUrls = plainImageUrls } = useCanvasEditorServices();
   const {
     items,
     isLoading,
@@ -44,6 +46,7 @@ export function UploadsSection({
     uploadError,
     hasMore,
     loadMore,
+    MediaThumb,
   } = useUserUploads();
 
   const [isDragOver, setIsDragOver] = useState(false);
@@ -62,7 +65,7 @@ export function UploadsSection({
     try {
       const toUpload = await downscaleImageForUpload(file);
       const result = await upload(toUpload);
-      const url = result ? buildPlacementUrl(result) : null;
+      const url = result ? imageUrls.placementUrl(result) : null;
       if (!url) {
         if (placedId && onRemovePlaced) onRemovePlaced(placedId);
         return;
@@ -91,11 +94,28 @@ export function UploadsSection({
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
-  const handlePlace = (item: MediaItem) => {
+  const handlePlace = (item: CanvasMediaItem) => {
     if (!onPlaceFromUrl) return;
-    const url = buildPlacementUrl(item);
+    const url = imageUrls.placementUrl(item);
     if (!url) return;
     onPlaceFromUrl(url, item.originalFilename ?? item.title ?? 'image');
+  };
+
+  // A tile dragged onto a page lands where it is dropped (PageWrapper).
+  const tileDragProps = (item: CanvasMediaItem) => {
+    const url = imageUrls.placementUrl(item);
+    if (!url || !onPlaceFromUrl) return {};
+    const payload: MediaDragPayload = {
+      url,
+      name: item.originalFilename ?? item.title ?? 'image',
+    };
+    return {
+      draggable: true,
+      onDragStart: (e: React.DragEvent) => {
+        e.dataTransfer.setData(MEDIA_DRAG_TYPE, JSON.stringify(payload));
+        e.dataTransfer.effectAllowed = 'copy';
+      },
+    };
   };
 
   const handleDrop = (e: React.DragEvent) => {
@@ -122,6 +142,8 @@ export function UploadsSection({
 
   const dragProps = {
     onDragOver: (e: React.DragEvent) => {
+      // Files from the desktop only; a tile dragged out to the canvas is no upload.
+      if (!e.dataTransfer.types.includes('Files')) return;
       e.preventDefault();
       setIsDragOver(true);
     },
@@ -147,10 +169,11 @@ export function UploadsSection({
           />
           <input
             type="search"
+            enterKeyHint="search"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Eigene Bilder durchsuchen"
-            className="w-full h-11 pl-10 pr-3 rounded-xl border-none bg-[var(--editor-tile)] text-sm text-[var(--editor-text)] placeholder:text-[var(--editor-text-muted)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--editor-accent)]"
+            className={`w-full h-11 pl-10 pr-3 rounded-xl border-none bg-[var(--editor-tile)] text-sm ${MOBILE_INPUT_TEXT} text-[var(--editor-text)] placeholder:text-[var(--editor-text-muted)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--editor-accent)]`}
           />
         </div>
 
@@ -183,6 +206,7 @@ export function UploadsSection({
               <button
                 type="button"
                 onClick={() => handlePlace(item)}
+                {...tileDragProps(item)}
                 className="block size-full p-0 bg-transparent border-none cursor-pointer [&_picture]:size-full [&_img]:size-full [&_img]:object-cover"
                 title={item.title ?? item.originalFilename ?? ''}
               >
@@ -201,9 +225,11 @@ export function UploadsSection({
                 type="button"
                 onClick={() => void deleteFromLibrary(item.id)}
                 aria-label="Bild aus Bibliothek entfernen"
-                className="absolute top-1 right-1 size-6 flex items-center justify-center bg-black/60 text-white border-none rounded-md cursor-pointer opacity-0 transition-opacity duration-150 group-hover:opacity-100 focus:opacity-100"
+                className="absolute top-1 right-1 size-6 flex items-center justify-center bg-black/60 text-white border-none rounded-md cursor-pointer opacity-0 transition-opacity duration-150 group-hover:opacity-100 focus:opacity-100 max-canvas-mobile:top-0 max-canvas-mobile:right-0 max-canvas-mobile:size-11 max-canvas-mobile:bg-transparent max-canvas-mobile:opacity-100"
               >
-                <FaTrash size={10} />
+                <span className="flex items-center justify-center max-canvas-mobile:size-6 max-canvas-mobile:rounded-md max-canvas-mobile:bg-black/60">
+                  <FaTrash size={10} />
+                </span>
               </button>
             </div>
           ))}
@@ -250,10 +276,11 @@ export function UploadsSection({
         />
         <input
           type="search"
+          enterKeyHint="search"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           placeholder="Bilder durchsuchen"
-          className="w-full pl-9 pr-3 py-2 rounded-lg bg-[var(--card-background)] border border-[var(--card-border)] text-sm focus:outline-none focus:border-primary-500"
+          className={`w-full pl-9 pr-3 py-2 rounded-lg bg-[var(--card-background)] border border-[var(--card-border)] text-sm ${MOBILE_INPUT_TEXT} focus:outline-none focus:border-primary-500`}
         />
       </div>
 
@@ -300,6 +327,7 @@ export function UploadsSection({
               <button
                 type="button"
                 onClick={() => handlePlace(item)}
+                {...tileDragProps(item)}
                 className="relative block w-full p-0 bg-transparent border-none cursor-pointer"
                 title={item.title ?? item.originalFilename ?? ''}
               >
@@ -318,9 +346,11 @@ export function UploadsSection({
                 type="button"
                 onClick={() => void deleteFromLibrary(item.id)}
                 aria-label="Bild aus Bibliothek entfernen"
-                className="absolute top-1 right-1 size-6 flex items-center justify-center bg-black/60 text-white border-none rounded-md cursor-pointer opacity-0 transition-opacity duration-150 group-hover:opacity-100 focus:opacity-100"
+                className="absolute top-1 right-1 size-6 flex items-center justify-center bg-black/60 text-white border-none rounded-md cursor-pointer opacity-0 transition-opacity duration-150 group-hover:opacity-100 focus:opacity-100 max-canvas-mobile:top-0 max-canvas-mobile:right-0 max-canvas-mobile:size-11 max-canvas-mobile:bg-transparent max-canvas-mobile:opacity-100"
               >
-                <FaTrash size={10} />
+                <span className="flex items-center justify-center max-canvas-mobile:size-6 max-canvas-mobile:rounded-md max-canvas-mobile:bg-black/60">
+                  <FaTrash size={10} />
+                </span>
               </button>
             </MasonryItem>
           ))}

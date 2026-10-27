@@ -6,27 +6,31 @@
  * Turn bewertete sich selbst und meldete „vollständig", während ein Ortsname
  * fehlte.
  *
- * Die Tests fahren die Kette über die Registry, nicht über fest verdrahtete
- * Schritte: was hier grün ist, gilt für jeden Agenten, der später dazukommt.
+ * Seit 19.10.2026 rechnet der Code das Urteil aus einem Prüfbericht als Objekt
+ * und führt die Überarbeitungsrunden selbst; getestet wird `checkAndRevise`, die
+ * Prüfkette EINER Fassung. Die Tests fahren sie über die Registry, nicht über
+ * fest verdrahtete Schritte: was hier grün ist, gilt für jeden Agenten, der
+ * später dazukommt.
  */
 
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 
 const executeProvider = vi.fn();
 vi.mock('../../../services/ai/execution/index.js', () => ({
-  executeProvider: (...args: unknown[]) => executeProvider(...args),
+  executeProvider: (...args: unknown[]) => executeProvider(...args) as unknown,
 }));
 
 const { _resetModelHealthForTests } = await import('../../../services/ai/modelHealth.js');
 const { getPipelineAgent } = await import('../agents/pipelines/index.js');
-const { resolveOriginalText, runAgentPipeline } = await import('./agentPipeline.js');
+const { resolveOriginalText, checkAndRevise, trimSectionFrame } =
+  await import('./agentPipeline.js');
 
 import type { ThreadAttachment } from '../../../agents/langgraph/ChatGraph/types.js';
 import type { PipelineAgent } from '../agents/pipelines/index.js';
 
 const ES = getPipelineAgent('gruenerator-einfache-sprache') as PipelineAgent;
+const LS = getPipelineAgent('gruenerator-leichte-sprache') as PipelineAgent;
 
-/** Über der Schwelle, damit die Kette überhaupt anläuft. */
 const FASSUNG = 'Die Grünen fordern ein Sofortprogramm. '.repeat(15);
 const ORIGINAL = 'Auf dem Parteitag in Sassnitz beschlossen die Grünen ein Sofortprogramm.';
 
@@ -35,27 +39,47 @@ interface Sent {
   payload: Record<string, unknown>;
 }
 
-/** Nimmt je Schritt-`type` eine Antwort entgegen; null = Ausfall. */
-function fakePool(answers: Record<string, string | null>) {
+/** Eine Antwort des Fake-Providers: Text, Ausfall (null) oder ein Werkzeugaufruf. */
+type Answer = string | null | { tool: 'pruefbericht' | 'nachpruefung'; input: unknown };
+
+/** Je Schritt-`type` eine Antwort — oder eine Liste, die pro Aufruf desselben Schritts vorrückt. */
+type Script = Record<string, Answer | Answer[]>;
+
+function toResult(answer: Answer) {
+  if (answer !== null && typeof answer === 'object') {
+    return {
+      content: null,
+      success: true,
+      stop_reason: 'tool_use',
+      tool_calls: [{ id: 't1', name: answer.tool, input: answer.input }],
+    };
+  }
+  return { content: answer, success: true, stop_reason: 'stop' };
+}
+
+function fakePool(script: Script) {
   const calls: Array<{
     type: string;
     systemPrompt: string;
     userMessage: string;
     provider: string;
-    model: string;
   }> = [];
+  const counts: Record<string, number> = {};
   executeProvider.mockReset();
   executeProvider.mockImplementation(
     async (provider: string, _id: string, req: Record<string, unknown>) => {
+      const type = String(req.type);
       const messages = req.messages as Array<{ content: string }>;
       calls.push({
-        type: String(req.type),
+        type,
         systemPrompt: String(req.systemPrompt),
         userMessage: messages[0]?.content ?? '',
         provider,
-        model: String((req.options as { model?: string } | undefined)?.model),
       });
-      return { content: answers[String(req.type)] ?? null, success: true, stop_reason: 'stop' };
+      const entry = script[type] ?? null;
+      const n = (counts[type] = (counts[type] ?? 0) + 1);
+      const answer = Array.isArray(entry) ? (entry[Math.min(n, entry.length) - 1] ?? null) : entry;
+      return toResult(answer);
     }
   );
   return { calls };
@@ -79,30 +103,68 @@ function fakeSse(): {
 
 const RUECK_TYPE = 'chat_einfache_sprache_rueck';
 const PRUEF_TYPE = 'chat_einfache_sprache_pruefung';
+const UEBER_TYPE = 'chat_einfache_sprache_ueberarbeitung';
+const NACH_TYPE = 'chat_einfache_sprache_nachpruefung';
+
+/** Ein Prüfbericht, der alles für vollständig hält. */
+const freigabe: Answer = {
+  tool: 'pruefbericht',
+  input: {
+    abdeckung: [{ punkt: 'Sofortprogramm beschlossen', status: 'vollständig' }],
+    modalitaet: [{ original: 'beschlossen', fassung: 'fordern', erhalten: true }],
+    befunde: [{ stelle: 'Satz 1', fehlerart: 'r', schweregrad: 'NIEDRIG', beschreibung: 'Stil' }],
+  },
+};
+
+/** Ein Bericht mit einem HOCH-Befund: die Überarbeitung muss laufen. */
+const mitHoch: Answer = {
+  tool: 'pruefbericht',
+  input: {
+    abdeckung: [{ punkt: 'Sofortprogramm beschlossen', status: 'vollständig' }],
+    modalitaet: [],
+    befunde: [
+      {
+        stelle: 'Satz 1',
+        fehlerart: 'a',
+        schweregrad: 'HOCH',
+        beschreibung: 'Ortsname fehlt',
+        beleg: 'in Sassnitz',
+      },
+    ],
+  },
+};
+
+const behoben = (...nr: number[]): Answer => ({
+  tool: 'nachpruefung',
+  input: { punkte: nr.map((n) => ({ nr: n, behoben: true, beleg: 'steht da' })), neue_befunde: [] },
+});
+const nichtBehoben = (...nr: number[]): Answer => ({
+  tool: 'nachpruefung',
+  input: { punkte: nr.map((n) => ({ nr: n, behoben: false })), neue_befunde: [] },
+});
 
 function run(
-  answers: Record<string, string | null>,
-  overrides: { produced?: string; original?: string } = {}
+  script: Script,
+  overrides: {
+    original?: string;
+    fassung?: string;
+    pipeline?: PipelineAgent;
+    revisionLane?: Parameters<typeof checkAndRevise>[0]['revisionLane'];
+  } = {}
 ) {
   const { sse, sent } = fakeSse();
-  const { calls } = fakePool(answers);
-  const promise = runAgentPipeline({
-    pipeline: ES,
-    state: {} as never,
+  const { calls } = fakePool(script);
+  const promise = checkAndRevise({
+    pipeline: overrides.pipeline ?? ES,
     sse: sse as never,
-    produced: overrides.produced ?? FASSUNG,
     original: overrides.original ?? ORIGINAL,
+    fassung: overrides.fassung ?? FASSUNG,
+    ...(overrides.revisionLane && { revisionLane: overrides.revisionLane }),
   });
   return { promise, sent, calls };
 }
 
-const streamed = (sent: Sent[]): string =>
-  sent
-    .filter((s) => s.event === 'text_delta')
-    .map((s) => String(s.payload.text))
-    .join('');
-
-describe('runAgentPipeline', () => {
+describe('checkAndRevise', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     // Der Vermerk aus services/ai/modelHealth.ts überdauert sonst den Test:
@@ -114,7 +176,7 @@ describe('runAgentPipeline', () => {
   it('reicht der Rückübersetzung NUR die Fassung, nie das Original', async () => {
     const { promise, calls } = run({
       [RUECK_TYPE]: 'Fachdeutsche Fassung.',
-      [PRUEF_TYPE]: 'FREIGABE',
+      [PRUEF_TYPE]: freigabe,
     });
     await promise;
 
@@ -127,10 +189,10 @@ describe('runAgentPipeline', () => {
     expect(JSON.stringify(rueck)).not.toContain('Sassnitz');
   });
 
-  it('gibt der Prüfung alle drei Texte', async () => {
+  it('gibt der Prüfung Original, Fassung und Rückübersetzung', async () => {
     const { promise, calls } = run({
       [RUECK_TYPE]: 'Fachdeutsche Fassung.',
-      [PRUEF_TYPE]: 'ÜBERARBEITUNG',
+      [PRUEF_TYPE]: freigabe,
     });
     await promise;
 
@@ -140,35 +202,159 @@ describe('runAgentPipeline', () => {
     expect(pruef?.userMessage).toContain('Fachdeutsche Fassung.');
   });
 
-  it('strömt jeden Schritt und gibt exakt das Angehängte zurück', async () => {
-    const { promise, sent } = run({
-      [RUECK_TYPE]: 'Fachdeutsche Fassung.',
-      [PRUEF_TYPE]: 'FREIGABE, keine Befunde.',
-    });
-    const appended = await promise;
-
-    expect(appended).toContain('Fachdeutsche Fassung.');
-    expect(appended).toContain('FREIGABE, keine Befunde.');
-    // Rückgabewert und Bildschirm müssen deckungsgleich sein — sonst zeigt ein
-    // Neuladen des Threads etwas anderes als der Lauf.
-    expect(streamed(sent)).toBe(appended);
-  });
-
-  it('benennt einen ausgefallenen Schritt, statt ihn zu verschweigen', async () => {
-    const { promise } = run({ [RUECK_TYPE]: 'Fachdeutsch.', [PRUEF_TYPE]: null });
-    const appended = await promise;
-
-    // Ohne diesen Satz sähe eine ungeprüfte Fassung wie eine freigegebene aus.
-    expect(appended).toContain('ungeprüft');
-  });
-
-  it('prüft trotzdem, wenn die Rückübersetzung ausfällt', async () => {
-    const { promise, calls } = run({ [RUECK_TYPE]: null, [PRUEF_TYPE]: 'ÜBERARBEITUNG' });
-    const appended = await promise;
+  it('prüft trotzdem, wenn die Rückübersetzung ausfällt, und benennt den Ausfall', async () => {
+    const { promise, calls } = run({ [RUECK_TYPE]: null, [PRUEF_TYPE]: freigabe });
+    const out = await promise;
 
     const pruef = calls.find((c) => c.type === PRUEF_TYPE);
     expect(pruef?.userMessage).toContain('nicht zustande gekommen');
-    expect(appended).toContain('ÜBERARBEITUNG');
+    expect(out.endstand).toBe('FREIGABE');
+    expect(out.protokoll).toContain('Rückübersetzung ist nicht zustande gekommen');
+  });
+
+  it('gibt bei FREIGABE die Fassung unverändert zurück, ohne Überarbeitung', async () => {
+    const { promise, calls } = run({ [RUECK_TYPE]: 'Fachdeutsch.', [PRUEF_TYPE]: freigabe });
+    const out = await promise;
+
+    expect(out).toMatchObject({ final: FASSUNG, endstand: 'FREIGABE', runden: 0, offen: 0 });
+    expect(calls.map((c) => c.type)).toEqual([RUECK_TYPE, PRUEF_TYPE]);
+  });
+
+  it('überarbeitet bei einem HOCH-Befund und gibt nach der Nachprüfung frei', async () => {
+    const { promise, calls } = run({
+      [RUECK_TYPE]: 'Fachdeutsch.',
+      [PRUEF_TYPE]: mitHoch,
+      [UEBER_TYPE]: 'Überarbeitete Fassung mit Sassnitz.',
+      [NACH_TYPE]: behoben(1),
+    });
+    const out = await promise;
+
+    // Die Überarbeitung sieht Original, Fassung und die NUMMERIERTE Liste.
+    const ueber = calls.find((c) => c.type === UEBER_TYPE);
+    expect(ueber?.userMessage).toContain(ORIGINAL);
+    expect(ueber?.userMessage).toContain(FASSUNG);
+    expect(ueber?.userMessage).toContain('1. [HOCH]');
+    expect(ueber?.userMessage).toContain('Ortsname fehlt');
+
+    expect(out).toMatchObject({
+      final: 'Überarbeitete Fassung mit Sassnitz.',
+      endstand: 'FREIGABE',
+      runden: 1,
+      offen: 0,
+    });
+    expect(out.protokoll).toContain('### Überarbeitung, Runde 1');
+    expect(out.protokoll).toContain('### Nachprüfung, Runde 1');
+  });
+
+  it('schreibt die Überarbeitung mit der Lane der Fassung, prüft aber auf der Prüf-Lane', async () => {
+    // Die Überarbeitung schreibt den Text, den die Person liest: eine
+    // ausdrückliche Modellwahl muss auch hier gelten (Review zu #4746).
+    const { promise, calls } = run(
+      {
+        [RUECK_TYPE]: 'Fachdeutsch.',
+        [PRUEF_TYPE]: mitHoch,
+        [UEBER_TYPE]: 'Neue Fassung.',
+        [NACH_TYPE]: behoben(1),
+      },
+      {
+        revisionLane: {
+          primary: { provider: 'mistral', model: 'mistral-large-latest' },
+          hedge: null,
+        },
+      }
+    );
+    await promise;
+
+    expect(calls.find((c) => c.type === UEBER_TYPE)?.provider).toBe('mistral');
+    expect(calls.find((c) => c.type === PRUEF_TYPE)?.provider).toBe('cortecs');
+    expect(calls.find((c) => c.type === NACH_TYPE)?.provider).toBe('cortecs');
+  });
+
+  it('bricht nach MAX_ROUNDS (2) ab, wenn ein HOCH-Punkt offen bleibt', async () => {
+    const { promise, calls } = run({
+      [RUECK_TYPE]: 'Fachdeutsch.',
+      [PRUEF_TYPE]: mitHoch,
+      [UEBER_TYPE]: ['Zweite Fassung.', 'Dritte Fassung.'],
+      [NACH_TYPE]: [nichtBehoben(1), nichtBehoben(1)],
+    });
+    const out = await promise;
+
+    expect(calls.filter((c) => c.type === UEBER_TYPE)).toHaveLength(2);
+    expect(calls.filter((c) => c.type === NACH_TYPE)).toHaveLength(2);
+    // Die zweite Runde überarbeitet die Fassung der ersten, nicht die Urfassung.
+    const zweite = calls.filter((c) => c.type === UEBER_TYPE)[1];
+    expect(zweite?.userMessage).toContain('Zweite Fassung.');
+    expect(out).toMatchObject({
+      final: 'Dritte Fassung.',
+      endstand: 'ÜBERARBEITUNG',
+      runden: 2,
+      offen: 1,
+    });
+  });
+
+  it('zählt einen Punkt, den die Nachprüfung nicht erwähnt, als offen', async () => {
+    const { promise } = run({
+      [RUECK_TYPE]: 'Fachdeutsch.',
+      [PRUEF_TYPE]: mitHoch,
+      [UEBER_TYPE]: 'Neue Fassung.',
+      // Schweigen ist kein Befund: weder behoben noch ein Eintrag zu Punkt 1.
+      [NACH_TYPE]: { tool: 'nachpruefung', input: { punkte: [], neue_befunde: [] } },
+    });
+    const out = await promise;
+
+    expect(out.endstand).toBe('ÜBERARBEITUNG');
+    expect(out.runden).toBe(2);
+    expect(out.protokoll).toContain('nicht geprüft → offen');
+  });
+
+  it('meldet UNGEPRÜFT mit der Fassung, wenn die Prüfung ausfällt', async () => {
+    const { promise, calls } = run({ [RUECK_TYPE]: 'Fachdeutsch.', [PRUEF_TYPE]: null });
+    const out = await promise;
+
+    // Ohne diesen Endstand sähe eine ungeprüfte Fassung wie eine freigegebene aus.
+    expect(out).toMatchObject({ final: FASSUNG, endstand: 'UNGEPRÜFT', runden: 0 });
+    expect(calls.some((c) => c.type === UEBER_TYPE)).toBe(false);
+    expect(out.protokoll).toContain('Die Prüfung ist nicht zustande gekommen');
+  });
+
+  it('meldet UNGEPRÜFT, wenn der Bericht auf allen Versuchen ungültig ist', async () => {
+    // Eine leere Abdeckung ist kein Bericht: das Zählwerk fehlt.
+    const { promise } = run({
+      [RUECK_TYPE]: 'Fachdeutsch.',
+      [PRUEF_TYPE]: {
+        tool: 'pruefbericht',
+        input: { abdeckung: [], modalitaet: [], befunde: [] },
+      },
+    });
+    const out = await promise;
+
+    expect(out).toMatchObject({ final: FASSUNG, endstand: 'UNGEPRÜFT' });
+  });
+
+  it('meldet UNGEPRÜFT mit der neuen Fassung, wenn die Nachprüfung ausfällt', async () => {
+    const { promise } = run({
+      [RUECK_TYPE]: 'Fachdeutsch.',
+      [PRUEF_TYPE]: mitHoch,
+      [UEBER_TYPE]: 'Neue Fassung.',
+      [NACH_TYPE]: null,
+    });
+    const out = await promise;
+
+    // Die neue Fassung geht raus — sie arbeitet die Befunde ab —, aber ungeprüft.
+    expect(out).toMatchObject({ final: 'Neue Fassung.', endstand: 'UNGEPRÜFT', runden: 1 });
+    expect(out.protokoll).toContain('Die Nachprüfung ist nicht zustande gekommen');
+  });
+
+  it('behält die Fassung und den Befund, wenn die Überarbeitung ausfällt', async () => {
+    const { promise } = run({
+      [RUECK_TYPE]: 'Fachdeutsch.',
+      [PRUEF_TYPE]: mitHoch,
+      [UEBER_TYPE]: null,
+    });
+    const out = await promise;
+
+    expect(out).toMatchObject({ final: FASSUNG, endstand: 'ÜBERARBEITUNG', runden: 1, offen: 1 });
+    expect(out.protokoll).toContain('Die Überarbeitung ist nicht zustande gekommen');
   });
 
   it('kürzt ein überlanges Original und sagt es dem Prüfer', async () => {
@@ -179,7 +365,7 @@ describe('runAgentPipeline', () => {
     expect(riesig.length).toBeGreaterThan(24000);
 
     const { promise, calls } = run(
-      { [RUECK_TYPE]: 'Fachdeutsch.', [PRUEF_TYPE]: 'ÜBERARBEITUNG' },
+      { [RUECK_TYPE]: 'Fachdeutsch.', [PRUEF_TYPE]: freigabe },
       { original: riesig }
     );
     await promise;
@@ -189,22 +375,21 @@ describe('runAgentPipeline', () => {
     expect(pruef?.userMessage).toContain('Gekürzt');
   });
 
-  it('spart die Modellaufrufe bei einer kurzen Antwort', async () => {
-    const { promise, calls } = run({}, { produced: 'Kurze Rückfrage.' });
-    const appended = await promise;
+  it('hängt den Abschnitts-Suffix an die Schritt-IDs', async () => {
+    const { sse, sent } = fakeSse();
+    fakePool({ [RUECK_TYPE]: 'Fachdeutsch.', [PRUEF_TYPE]: freigabe });
+    await checkAndRevise({
+      pipeline: ES,
+      sse: sse as never,
+      original: ORIGINAL,
+      fassung: FASSUNG,
+      suffix: '-2',
+      label: ' (Abschnitt 2 von 3)',
+    });
 
-    expect(appended).toBe('');
-    expect(calls).toHaveLength(0);
-  });
-
-  it('prüft nicht ohne Original, sagt es aber', async () => {
-    const { promise, calls } = run({}, { original: '   ' });
-    const appended = await promise;
-
-    expect(calls).toHaveLength(0);
-    // Früher war dieser Zweig stumm — eine ungeprüfte Fassung sah damit aus wie
-    // eine freigegebene. Genau der Fall trat bei `@dokument`-Mentions ein.
-    expect(appended).toContain('ungeprüft');
+    const ids = new Set(sent.map((s) => s.payload.stepId));
+    expect(ids).toEqual(new Set(['es-rueck-2', 'es-pruefung-2']));
+    expect(sent.some((s) => String(s.payload.title).endsWith('(Abschnitt 2 von 3)'))).toBe(true);
   });
 
   it('meldet den laufenden Schritt weiter, solange er läuft', async () => {
@@ -220,20 +405,18 @@ describe('runAgentPipeline', () => {
       executeProvider.mockReset();
       executeProvider.mockImplementation(
         async (_p: string, _id: string, req: Record<string, unknown>) => {
-          if (String(req.type) !== RUECK_TYPE)
-            return { content: 'FREIGABE', success: true, stop_reason: 'stop' };
+          if (String(req.type) !== RUECK_TYPE) return toResult(freigabe);
           await new Promise<void>((resolve) => {
             holder.release = resolve;
           });
-          return { content: 'Fachdeutsch.', success: true, stop_reason: 'stop' };
+          return toResult('Fachdeutsch.');
         }
       );
-      const promise = runAgentPipeline({
+      const promise = checkAndRevise({
         pipeline: ES,
-        state: {} as never,
         sse: sse as never,
-        produced: FASSUNG,
         original: ORIGINAL,
+        fassung: FASSUNG,
       });
       await vi.advanceTimersByTimeAsync(10_000);
 
@@ -263,7 +446,7 @@ describe('runAgentPipeline', () => {
  * 14.08.), und dass er auf einen abgelaufenen Wecker wartet, obwohl der Primär
  * längst gescheitert ist.
  */
-describe('runAgentPipeline — Sibling bei Langsamkeit', () => {
+describe('checkAndRevise — Sibling bei Langsamkeit', () => {
   // Ein Lauf, in dem die Frist riss, vermerkt das Paar — der nächste Lauf ginge
   // sonst sofort zum Sibling. Im Betrieb genau richtig, hier eine
   // Verunreinigung zwischen den Fällen.
@@ -272,7 +455,7 @@ describe('runAgentPipeline — Sibling bei Langsamkeit', () => {
   });
 
   /** Ein Pool, dessen Antwort je Provider verschieden ausfällt. */
-  function poolNachProvider(handler: (provider: string, type: string) => Promise<string | null>): {
+  function poolNachProvider(handler: (provider: string, type: string) => Promise<Answer>): {
     calls: Array<{ provider: string; type: string }>;
   } {
     const calls: Array<{ provider: string; type: string }> = [];
@@ -281,25 +464,27 @@ describe('runAgentPipeline — Sibling bei Langsamkeit', () => {
       async (provider: string, _id: string, req: Record<string, unknown>) => {
         const type = String(req.type);
         calls.push({ provider, type });
-        return { content: await handler(provider, type), success: true, stop_reason: 'stop' };
+        return toResult(await handler(provider, type));
       }
     );
     return { calls };
   }
 
+  /** Antwort, die zum Schritt passt: die Prüfung bekommt ihr Objekt. */
+  const antwort = (type: string, text: string): Answer => (type === PRUEF_TYPE ? freigabe : text);
+
   const laufe = () =>
-    runAgentPipeline({
+    checkAndRevise({
       pipeline: ES,
-      state: {} as never,
       sse: fakeSse().sse as never,
-      produced: FASSUNG,
       original: ORIGINAL,
+      fassung: FASSUNG,
     });
 
   it('ruft den Sibling NICHT, wenn der Primär rechtzeitig antwortet', async () => {
     // Der teuerste Fehlgriff wäre ein Hedge, der immer feuert: jeder Schritt
     // kostete dann zwei Aufrufe, in Tokens wie in CO₂.
-    const { calls } = poolNachProvider(async () => 'Fertig.');
+    const { calls } = poolNachProvider(async (_p, type) => antwort(type, 'Fertig.'));
     await laufe();
 
     expect(calls.map((c) => c.provider)).toEqual(['cortecs', 'cortecs']);
@@ -308,10 +493,10 @@ describe('runAgentPipeline — Sibling bei Langsamkeit', () => {
   it('lässt den Sibling gewinnen, wenn der Primär über die Frist hinaus schweigt', async () => {
     vi.useFakeTimers();
     try {
-      const { calls } = poolNachProvider(async (provider) => {
+      const { calls } = poolNachProvider(async (provider, type) => {
         // Der Primär antwortet nie — der langsame Lauf vom 14.08. im Extrem.
-        if (provider === 'cortecs') return new Promise<string>(() => {});
-        return 'Vom Sibling.';
+        if (provider === 'cortecs') return new Promise<Answer>(() => {});
+        return antwort(type, 'Vom Sibling.');
       });
       const promise = laufe();
 
@@ -319,14 +504,15 @@ describe('runAgentPipeline — Sibling bei Langsamkeit', () => {
       await vi.advanceTimersByTimeAsync(20_000);
       expect(calls.map((c) => c.provider)).toEqual(['cortecs']);
 
-      // Reichlich: der zweite Schritt hat seine eigene, längere Frist.
+      // Reichlich: die Prüfung hat ihre eigene, längere Frist.
       await vi.advanceTimersByTimeAsync(300_000);
-      const appended = await promise;
+      const out = await promise;
 
       expect(calls.filter((c) => c.provider === 'melious')).not.toHaveLength(0);
-      expect(appended).toContain('Vom Sibling.');
-      // Und nicht als Ausfall verbucht: der Schritt hat geliefert.
-      expect(appended).not.toContain('nicht zustande gekommen');
+      expect(out.protokoll).toContain('Vom Sibling.');
+      // Und nicht als Ausfall verbucht: beide Schritte haben geliefert.
+      expect(out.endstand).toBe('FREIGABE');
+      expect(out.protokoll).not.toContain('nicht zustande gekommen');
     } finally {
       vi.useRealTimers();
     }
@@ -338,14 +524,14 @@ describe('runAgentPipeline — Sibling bei Langsamkeit', () => {
     // schon bewiesen hat.
     vi.useFakeTimers();
     try {
-      poolNachProvider(async (provider) =>
-        provider === 'cortecs' ? new Promise<string>(() => {}) : 'Vom Sibling.'
+      poolNachProvider(async (provider, type) =>
+        provider === 'cortecs' ? new Promise<Answer>(() => {}) : antwort(type, 'Vom Sibling.')
       );
       const ersterLauf = laufe();
       await vi.advanceTimersByTimeAsync(300_000);
       await ersterLauf;
 
-      const zweiter = poolNachProvider(async () => 'Vom Sibling.');
+      const zweiter = poolNachProvider(async (_p, type) => antwort(type, 'Vom Sibling.'));
       await laufe();
 
       // Kein Tick auf der Uhr, und der Primär wurde gar nicht erst gefragt.
@@ -383,10 +569,11 @@ describe('runAgentPipeline — Sibling bei Langsamkeit', () => {
         return rueckAufrufe > PRIMAER_UND_KETTE ? 'Vom Sibling.' : null;
       });
       const promise = laufe();
+      // Ohne einen einzigen Tick auf der Uhr: der Sibling folgt dem gescheiterten
+      // Primär sofort, ohne die Frist abzuwarten.
       await vi.advanceTimersByTimeAsync(0);
 
-      // Ohne einen einzigen Tick auf der Uhr: beide Schritte sind schon durch,
-      // je Schritt Primär, dessen Ausfallkette — und dann sofort der Sibling.
+      // Je Schritt Primär, dessen Ausfallkette — und dann sofort der Sibling.
       const rueck = calls.filter((c) => c.type === RUECK_TYPE);
       expect(rueck.map((c) => c.provider)).toEqual([
         'cortecs',
@@ -395,7 +582,7 @@ describe('runAgentPipeline — Sibling bei Langsamkeit', () => {
         // Der Hedge: derselbe Prüfer beim anderen Vertragspartner.
         'melious',
       ]);
-      expect(await promise).toContain('Vom Sibling.');
+      expect((await promise).protokoll).toContain('Vom Sibling.');
     } finally {
       vi.useRealTimers();
     }
@@ -572,23 +759,54 @@ describe('Pipeline-Registry', () => {
     expect(getPipelineAgent(undefined)).toBeNull();
   });
 
-  it('bringt die Einfache-Sprache-Persona im Repo mit, Leichte Sprache nicht', () => {
-    // Der Unterschied ist die Zuständigkeit, nicht die Vertraulichkeit — siehe
-    // den Kopf von leichteSprache.ts.
-    expect(getPipelineAgent('gruenerator-einfache-sprache')?.systemRole).toContain('B1');
-    expect(getPipelineAgent('gruenerator-leichte-sprache')?.systemRole).toBeNull();
+  it('bringt für beide Agenten die Persona im Repo mit', () => {
+    // Seit 19.10.2026 auch Leichte Sprache: das Regelwerk ist Handwerk (Satzbau,
+    // Trennpunkte, Zahlenregeln), kein Korpuswissen — siehe types.ts.
+    expect(ES.systemRole).toContain('B1');
+    expect(LS.systemRole).toContain('Leichte Sprache');
   });
 
-  it('hält jeden Schritt für einen Ausfall sprechfähig', () => {
-    // Ein Schritt ohne `missingText` wäre im Ausfall stumm, und Stille liest
-    // sich hier als Freigabe. Gilt für jeden künftigen Eintrag mit.
-    for (const id of ['gruenerator-einfache-sprache', 'gruenerator-leichte-sprache']) {
-      const pipeline = getPipelineAgent(id);
-      expect(pipeline?.steps.length).toBeGreaterThan(0);
-      for (const step of pipeline?.steps ?? []) {
-        expect(step.missingText.length).toBeGreaterThan(20);
-        expect(step.heading).toContain('##');
+  it('gibt jedem Schritt beider Pipelines Id, Titel, Prompt, Typ und Budget', () => {
+    for (const pipeline of [ES, LS]) {
+      for (const [name, step] of Object.entries(pipeline.steps)) {
+        expect(step.id.length).toBeGreaterThan(0);
+        expect(step.title.length).toBeGreaterThan(0);
+        // Die Fassung bekommt ihren Prompt aus dem Antwortknoten.
+        if (name !== 'fassung') expect(step.systemPrompt.length).toBeGreaterThan(100);
+        expect(step.requestType).toMatch(/^chat_einfache_sprache_/);
+        expect(step.maxTokens).toBeGreaterThan(0);
       }
     }
+  });
+
+  it('führt die Eigenmittel von Leichter Sprache in Prüfung und Nachprüfung', () => {
+    // Sonst meldet die Prüfung die Trennpunkte als Hinzufügung und die
+    // Überarbeitung nimmt sie wieder heraus.
+    expect(LS.steps.pruefung.systemPrompt).toContain('Trennpunkte');
+    expect(LS.steps.nachpruefung.systemPrompt).toContain('Trennpunkte');
+  });
+});
+
+describe('trimSectionFrame', () => {
+  const ABSCHNITT =
+    '# Titel\n\n## Worum geht es?\nEs geht um Rad·wege.\n\n## Der Plan\nDas Netz ist lang.\n\n' +
+    'Das ist ein Text in Leichter Sprache.\nDer Original-Text ist ein Beitrag.';
+
+  it('lässt einen einzigen Abschnitt unangetastet', () => {
+    expect(trimSectionFrame(ABSCHNITT, 0, 1)).toBe(ABSCHNITT);
+  });
+
+  it('nimmt einem mittleren Abschnitt Titel, Einordnung und Schlusshinweis', () => {
+    // Live am 19.10.2026: die Überarbeitung setzte mittleren Abschnitten eines
+    // 96k-Textes wieder Titel und Hinweis auf — zusammengesetzt standen sie
+    // mitten im Text.
+    expect(trimSectionFrame(ABSCHNITT, 1, 3)).toBe('## Der Plan\nDas Netz ist lang.');
+  });
+
+  it('behält Titel im ersten und den Hinweis im letzten Abschnitt', () => {
+    expect(trimSectionFrame(ABSCHNITT, 0, 3)).toMatch(/^# Titel/);
+    expect(trimSectionFrame(ABSCHNITT, 0, 3)).not.toContain('Original-Text');
+    expect(trimSectionFrame(ABSCHNITT, 2, 3)).toContain('Der Original-Text ist ein Beitrag.');
+    expect(trimSectionFrame(ABSCHNITT, 2, 3)).not.toContain('# Titel');
   });
 });

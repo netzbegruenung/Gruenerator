@@ -3,7 +3,7 @@
  * 11 cute React Kawaii components with German names and tags
  */
 
-import type { KawaiiDef } from './types';
+import type { KawaiiDef } from '@ggraphic/editor/utils/illustrations/types';
 
 export const KAWAII_ILLUSTRATIONS: KawaiiDef[] = [
   {

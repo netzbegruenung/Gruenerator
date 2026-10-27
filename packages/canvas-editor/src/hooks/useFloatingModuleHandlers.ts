@@ -1,10 +1,11 @@
+import { withTemplateTextAlign, type TextAlign } from '@ggraphic/editor/utils/textAlign';
 import { useCallback } from 'react';
 
 import type { OptionalCanvasActions } from './useCanvasElementHandlers';
 import type { FloatingModuleState } from './useFloatingModuleState';
 import type { BaseCanvasState } from '../configs/factory/baseTypes';
 import type { FullCanvasConfig } from '../configs/types';
-import type { GradientFill } from '../utils/gradientFill';
+import type { GradientFill } from '@ggraphic/editor/utils/gradientFill';
 
 /** Partial shadow patch shared by shape/text/user-image update actions. */
 export interface ShadowPatch {
@@ -46,6 +47,7 @@ export interface UseFloatingModuleHandlersResult {
   handleOutlineChange: (id: string, patch: { stroke?: string; strokeWidth?: number }) => void;
   handleBlurChange: (id: string, blur: number) => void;
   handleGradientSelect: (gradient: GradientFill | null) => void;
+  handleTextAlignChange: (id: string, align: TextAlign) => void;
 }
 
 /**
@@ -252,6 +254,31 @@ export function useFloatingModuleHandlers<
     [activeFloatingModule, actions, state]
   );
 
+  const handleTextAlignChange = useCallback(
+    (id: string, align: TextAlign) => {
+      const additionalTexts = state.additionalTexts ?? [];
+      if (additionalTexts.find((t) => t.id === id)) {
+        actions.updateAdditionalText?.(id, { align });
+        return;
+      }
+
+      // Vorlagen-Texte haben ihre Ausrichtung in der Config; die Wahl steht je
+      // Element-ID im Zustand (`utils/textAlign.ts`). Vom Vorzustand aus: ein
+      // Klick in die Leiste beendet eine offene Textbearbeitung, und deren
+      // Text darf hier nicht überschrieben werden.
+      const elementConfig = config.elements.find((e) => e.id === id);
+      if (elementConfig && elementConfig.type === 'text') {
+        setState((prev) => ({
+          ...prev,
+          templateTextAligns: withTemplateTextAlign(prev, id, align),
+        }));
+        // The argument is ignored: the entry snapshots the committed state.
+        debouncedSaveToHistory(state);
+      }
+    },
+    [actions, config.elements, state, setState, debouncedSaveToHistory]
+  );
+
   return {
     handleColorSelect,
     handleOpacityChange,
@@ -259,5 +286,6 @@ export function useFloatingModuleHandlers<
     handleOutlineChange,
     handleBlurChange,
     handleGradientSelect,
+    handleTextAlignChange,
   };
 }

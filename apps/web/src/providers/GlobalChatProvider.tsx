@@ -27,6 +27,7 @@ import { resolveNotebookChatEntries } from '../features/notebook/utils/notebookC
 import { uploadVideoToTus } from '../features/subtitler/utils/videoUtils';
 import { useTrashUndoToast } from '../features/trash/trashUndoToast';
 import { useSetUserDefault } from '../features/user-defaults/userDefaultsQueries';
+import { mistralChatVoice } from '../features/voice-agent-test/chatVoice';
 import { sessionDebug } from '../lib/sessionDebug';
 import { runPython } from '../services/pythonInterpreter';
 import { useAuthStore } from '../stores/authStore';
@@ -208,6 +209,8 @@ export function GlobalChatProvider({ children }: GlobalChatProviderProps) {
             return `/admin/chunks/${encodeURIComponent(documentId)}?collection=${encodeURIComponent(collectionId)}&offset=${offset}#chunk-${chunkIndex}`;
           }
         : undefined,
+      // Interner Test: Mistrals Voice-Agent geht über den globalen Endpunkt.
+      voice: isInstanceAdmin ? mistralChatVoice : undefined,
       renderSharepic: renderSharepicToImage,
       renderSharepicSheet: async (initialProps: Record<string, unknown>) =>
         (await import('../features/image-studio/freitext/creatorRender')).renderSharepicSheet(

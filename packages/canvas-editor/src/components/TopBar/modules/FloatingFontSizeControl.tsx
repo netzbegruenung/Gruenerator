@@ -2,7 +2,7 @@ import React from 'react';
 import { FaPlus, FaMinus } from 'react-icons/fa';
 
 const fontBtn =
-  'size-7 rounded-md border-none bg-transparent cursor-pointer flex items-center justify-center text-[var(--editor-text-secondary)] transition-colors duration-150 hover:enabled:bg-[var(--editor-surface-hover)] hover:enabled:text-[var(--editor-active-fg)] disabled:opacity-30 disabled:cursor-not-allowed';
+  'touch-target size-7 rounded-md border-none bg-transparent cursor-pointer flex items-center justify-center text-[var(--editor-text-secondary)] transition-colors duration-150 hover:enabled:bg-[var(--editor-surface-hover)] hover:enabled:text-[var(--editor-active-fg)] disabled:opacity-30 disabled:cursor-not-allowed';
 
 interface FloatingFontSizeControlProps {
   fontSize: number;
@@ -29,6 +29,7 @@ export function FloatingFontSizeControl({
         className={fontBtn}
         onClick={handleDecrease}
         title="Schrift verkleinern"
+        aria-label="Schrift verkleinern"
         type="button"
       >
         <FaMinus size={10} />
@@ -36,7 +37,13 @@ export function FloatingFontSizeControl({
       <span className="text-[13px] font-semibold text-[var(--editor-text)] min-w-8 text-center tabular-nums">
         {Math.round(fontSize)}
       </span>
-      <button className={fontBtn} onClick={handleIncrease} title="Schrift vergrößern" type="button">
+      <button
+        className={fontBtn}
+        onClick={handleIncrease}
+        title="Schrift vergrößern"
+        aria-label="Schrift vergrößern"
+        type="button"
+      >
         <FaPlus size={10} />
       </button>
     </div>

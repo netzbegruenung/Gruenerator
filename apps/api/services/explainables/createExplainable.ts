@@ -16,12 +16,12 @@ import {
 } from '@gruenerator/contracts';
 import { IMAGE_MODEL_BY_ID } from '@gruenerator/shared/models';
 import { generateSlugSuffix, slugifyName } from '@gruenerator/shared/utils';
-import { zodToJsonSchema } from 'zod-to-json-schema';
 
 import { createLogger } from '../../utils/logger.js';
 import { getUsageUserId, runWithUsageContext } from '../../utils/usageContext.js';
 import { aiObject } from '../ai/generate.js';
 import { type StructuredValidation } from '../ai/structuredParsing.js';
+import { toolInputJsonSchema } from '../ai/toolJsonSchema.js';
 import { getTreeBudget, treeBudgetSpentMessage, treeCostForImage } from '../trees/index.js';
 
 import { insertExplainable } from './explainableRepository.js';
@@ -58,10 +58,7 @@ export function explainableUrl(title: string, slugSuffix: string): string {
 
 const BRIEF_MAX_CHARS = 24_000;
 
-export const DRAFT_TOOL_SCHEMA = zodToJsonSchema(explainableDraftSchema, {
-  target: 'jsonSchema7',
-  $refStrategy: 'none',
-}) as Record<string, unknown>;
+export const DRAFT_TOOL_SCHEMA = toolInputJsonSchema(explainableDraftSchema);
 
 const AUSTRIA_BLOCK = `
 ## LÄNDERKONTEXT: ÖSTERREICH
@@ -265,7 +262,7 @@ export async function createExplainable(
         label: 'explainable',
       })
     );
-    if (!generated.ok) throw new Error(generated.error);
+    if (!generated.ok) throw generated.cause ?? new Error(generated.error);
     content = toContent(generated.data, input.sources);
   } catch (error) {
     log.warn(`Generation failed: ${(error as Error).message}`);

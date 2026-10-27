@@ -44,6 +44,27 @@ const LANGUAGES_STALE_TTL_SECONDS = 7 * 24 * 60 * 60;
  * our own bug or a billing state, and neither says anything about whether the
  * provider is reachable.
  */
+const GERMAN_LANGUAGE_NAMES = new Intl.DisplayNames(['de'], { type: 'language' });
+
+/** ICU spells out the country ("Englisch (Vereinigtes Königreich)"); the variant word stays short and sorts next to its language. */
+const SHORT_VARIANT_NAMES: Record<string, string> = {
+  'en-gb': 'Englisch (britisch)',
+  'en-us': 'Englisch (amerikanisch)',
+  'pt-br': 'Portugiesisch (brasilianisch)',
+  'pt-pt': 'Portugiesisch (europäisch)',
+};
+
+/** DeepL names its languages in English; keeps DeepL's name for codes ICU does not know. */
+function withGermanName(language: DeepLLanguage): DeepLLanguage {
+  let name: string | null = SHORT_VARIANT_NAMES[language.code.toLowerCase()] ?? null;
+  try {
+    name ??= GERMAN_LANGUAGE_NAMES.of(language.code) ?? null;
+  } catch {
+    // RangeError for a code that is not a well-formed BCP-47 tag
+  }
+  return name && name !== language.code ? { ...language, name } : language;
+}
+
 const deeplCircuit = new CircuitBreaker({
   failureThreshold: 3,
   resetTimeMs: 2 * 60 * 1000,
@@ -139,7 +160,7 @@ const languagesResponseSchema = z.array(
     name: z.string(),
     usable_as_source: z.boolean(),
     usable_as_target: z.boolean(),
-    features: z.record(z.unknown()).optional(),
+    features: z.record(z.string(), z.unknown()).optional(),
   })
 );
 
@@ -280,8 +301,13 @@ export class DeepLService {
    * Languages for text translation, cached for an hour. A DeepL outage must
    * not take the language pickers down with it, so a stale copy (up to a
    * week old) is served when the fetch fails — the list changes rarely.
+   * Names are germanised on the way out, so the cache keeps DeepL's own.
    */
   async getLanguages(): Promise<DeepLLanguage[]> {
+    return (await this.loadLanguages()).map(withGermanName);
+  }
+
+  private async loadLanguages(): Promise<DeepLLanguage[]> {
     const cached = await getCachedJson(LANGUAGES_CACHE_KEY, languagesCacheSchema);
     if (cached) return cached;
     try {

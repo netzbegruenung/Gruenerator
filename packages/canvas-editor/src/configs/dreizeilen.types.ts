@@ -7,17 +7,21 @@
 
 import type { IconState } from './factory/baseTypes';
 import type { AdditionalText } from './types';
-import type { BalkenInstance } from '../primitives/BalkenGroup';
 import type { StockImageAttribution } from '../sidebar/types';
-import type { BalkenMode } from '../utils/balkenUtils';
 import type { AssetInstance } from '../utils/canvasAssets';
-import type { ChartInstance } from '../utils/chartUtils';
-import type { CircleBadgeInstance } from '../utils/circleBadgeUtils';
-import type { FrameClipType, FrameInstance } from '../utils/frameUtils';
-import type { IllustrationInstance } from '../utils/illustrations/types';
-import type { PillBadgeInstance } from '../utils/pillBadgeUtils';
-import type { ShapeInstance } from '../utils/shapes';
-import type { UserImageInstance } from '../utils/userImageUtils';
+import type { BalkenInstance, BalkenMode } from '@ggraphic/editor/utils/balkenUtils';
+import type { ChartInstance } from '@ggraphic/editor/utils/chartUtils';
+import type { CircleBadgeInstance } from '@ggraphic/editor/utils/circleBadgeUtils';
+import type { FrameClipType, FrameInstance } from '@ggraphic/editor/utils/frameUtils';
+import type { IllustrationInstance } from '@ggraphic/editor/utils/illustrations/types';
+import type { PillBadgeInstance } from '@ggraphic/editor/utils/pillBadgeUtils';
+import type { ShapeInstance, ShapeType } from '@ggraphic/editor/utils/shapes';
+import type {
+  ElementPlacement,
+  UserImageInstance,
+  UserImagePlacement,
+} from '@ggraphic/editor/utils/userImageUtils';
+import type { StickerRef } from '@gruenerator/contracts';
 
 /**
  * DreizeilenFullState
@@ -128,13 +132,15 @@ export interface DreizeilenFullActions {
   setBarOffsets: (offsets: [number, number, number]) => void;
   setBalkenOffset: (offset: { x: number; y: number }) => void;
   setBalkenOpacity: (opacity: number) => void;
-  addBalken: (mode: BalkenMode) => void;
+  addBalken: (mode: BalkenMode, options?: ElementPlacement) => void;
   updateBalken: (id: string, partial: Partial<BalkenInstance>) => void;
   /** Pulls the template's own bar group back inside the canvas (AI edits, #4263). */
   fitBalkenToCanvas: () => void;
   setBalkenText: (id: string, index: number, text: string) => void;
   removeBalken: (id: string) => void;
   duplicateBalken: (id: string) => void;
+  /** The template's own bar group is derived from the three lines and cannot be deleted. */
+  isTemplateBound: (id: string) => boolean;
 
   // === Pill Badge Actions ===
   addPillBadge: (preset?: string) => void;
@@ -153,7 +159,8 @@ export interface DreizeilenFullActions {
   handleSunflowerTransformEnd: (width: number, height: number) => void;
 
   // === Asset Actions ===
-  addAsset: (assetId: string) => void;
+  addAsset: (assetId: string, options?: ElementPlacement) => void;
+  addStickerAsset: (ref: StickerRef, options?: ElementPlacement) => void;
   updateAsset: (id: string, partial: Partial<AssetInstance>) => void;
   removeAsset: (id: string) => void;
 
@@ -168,17 +175,17 @@ export interface DreizeilenFullActions {
   handleBackgroundImageTransformEnd: (width: number, height: number) => void;
 
   // === Icon Actions ===
-  toggleIcon: (iconId: string, selected: boolean) => void;
+  toggleIcon: (iconId: string, selected: boolean, options?: ElementPlacement) => void;
   updateIcon: (iconId: string, partial: Partial<DreizeilenFullState['iconStates'][string]>) => void;
   handleIconDragEnd: (iconId: string, x: number, y: number) => void;
 
   // === Shape Actions ===
-  addShape: (type: 'rect' | 'circle' | 'triangle' | 'star' | 'arrow' | 'heart' | 'cloud') => void;
+  addShape: (type: ShapeType, color?: string, options?: ElementPlacement) => void;
   updateShape: (shapeId: string, partial: Partial<ShapeInstance>) => void;
   removeShape: (shapeId: string) => void;
 
   // === Illustration Actions ===
-  addIllustration: (id: string) => void;
+  addIllustration: (id: string, options?: ElementPlacement) => void;
   updateIllustration: (illustrationId: string, partial: Partial<IllustrationInstance>) => void;
   removeIllustration: (illustrationId: string) => void;
   duplicateIllustration: (illustrationId: string) => void;
@@ -198,14 +205,14 @@ export interface DreizeilenFullActions {
   removeAdditionalText: (textId: string) => void;
 
   // === Frame Actions ===
-  addFrame: (clipType: FrameClipType) => void;
+  addFrame: (clipType: FrameClipType, options?: ElementPlacement) => void;
   updateFrame: (id: string, partial: Partial<FrameInstance>) => void;
   removeFrame: (id: string) => void;
   setFrameImage: (id: string, file: File, objectUrl: string) => void;
 
   // === Placed Image Actions (Uploads / Tools) ===
   addUserImage: (file: File, objectUrl: string) => void;
-  addUserImageFromUrl: (url: string, fileName: string) => void;
+  addUserImageFromUrl: (url: string, fileName: string, options?: UserImagePlacement) => void;
   placeUserImageFromFile: (file: File) => Promise<string>;
   updateUserImage: (id: string, partial: Partial<UserImageInstance>) => void;
   removeUserImage: (id: string) => void;

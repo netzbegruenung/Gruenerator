@@ -94,6 +94,14 @@ export const TOOL_THEME = {
     gradient:
       'bg-[image:radial-gradient(ellipse_55%_45%_at_50%_50%,#FBEDF2_0%,#FDF7FA_55%,#FFFFFF_100%)] dark:bg-[image:radial-gradient(ellipse_55%_45%_at_50%_50%,#22141A_0%,#170E12_55%,#0F090C_100%)]',
   },
+  'studio-videoeditor': {
+    tile: 'bg-[#F5DEE6] dark:bg-[#2B1620]',
+    icon: 'text-[#8A3E5C] dark:text-[#CB8AA6]',
+    title: 'text-[#6E2E48] dark:text-[#E4B0C6]',
+    desc: 'text-[#85576A] dark:text-[#AB7E94]',
+    gradient:
+      'bg-[image:radial-gradient(ellipse_55%_45%_at_50%_50%,#FBEDF2_0%,#FDF7FA_55%,#FFFFFF_100%)] dark:bg-[image:radial-gradient(ellipse_55%_45%_at_50%_50%,#22141A_0%,#170E12_55%,#0F090C_100%)]',
+  },
   // Studio "Weitere Tools" menu — green / coral / blue / violet, distinct from the strip above.
   profilbild: {
     tile: 'bg-[#DFEBD9] dark:bg-[#1A2B16]',
@@ -136,6 +144,15 @@ export const TOOL_THEME = {
     desc: 'text-[#786A37] dark:text-[#AC9C68]',
     gradient:
       'bg-[image:radial-gradient(ellipse_55%_45%_at_50%_50%,#FBF7DF_0%,#FDFBF1_55%,#FFFFFF_100%)] dark:bg-[image:radial-gradient(ellipse_55%_45%_at_50%_50%,#201D0E_0%,#16130A_55%,#0E0C07_100%)]',
+  },
+  // Marktplatz — a soft terracotta, the warm "shop" hue next to Agentura's yellow.
+  marktplatz: {
+    tile: 'bg-[#F4E2D8] dark:bg-[#2A1B14]',
+    icon: 'text-[#8A4A2B] dark:text-[#D9A285]',
+    title: 'text-[#6A3418] dark:text-[#EBC4AF]',
+    desc: 'text-[#7F5643] dark:text-[#B48D7A]',
+    gradient:
+      'bg-[image:radial-gradient(ellipse_55%_45%_at_50%_50%,#FAEFE9_0%,#FCF7F4_55%,#FFFFFF_100%)] dark:bg-[image:radial-gradient(ellipse_55%_45%_at_50%_50%,#22160F_0%,#170F0A_55%,#0E0906_100%)]',
   },
   // Projekte — a soft blue (the calm, "bündeln/organisieren" hue), distinct from
   // sheets' teal and the warm office/agentura tones.

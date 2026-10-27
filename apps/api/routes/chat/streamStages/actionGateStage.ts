@@ -12,15 +12,14 @@ import {
   asksForSharepic,
   forbidsPersistentAction,
   type ForbiddableArtifact,
+  hasExplicitSharepicWord,
 } from '../../../agents/langgraph/ChatGraph/nodes/fastPathGuards.js';
 import { recordDecision } from '../../../utils/decisionJournal.js';
 import { createLogger } from '../../../utils/logger.js';
 import { orderText } from '../services/orderText.js';
-import { NO_SHAREPIC_TO_EDIT_TEXT } from '../services/platformGating.js';
 import { threadHasSharepic } from '../services/sharepicEditService.js';
 
-import { finishTurnWithFixedText, type FixedTextBase } from './turnEnd.js';
-import { type InitialState, type MaybeHandled } from './types.js';
+import { type InitialState } from './types.js';
 
 import type { ChatGraphState } from '../../../agents/langgraph/ChatGraph/types.js';
 
@@ -29,7 +28,6 @@ const log = createLogger('chatGraphContractRouter');
 export interface ActionGateStageParams {
   classifiedState: ChatGraphState;
   initialState: InitialState;
-  fixedTextBase: FixedTextBase;
   /** An @-mention pinned the intent — an explicit pick licenses a sharepic. */
   forcedTool: boolean;
   lastUserTextNoMentions: string;
@@ -37,22 +35,16 @@ export interface ActionGateStageParams {
 }
 
 /**
- * Das Gitter gibt nichts mehr zurück — es entscheidet nur noch, ob der Turn
- * weiterläuft. Sein einziges Ausgabefeld war `sharepicLicensed`, und der einzige
- * Leser war der Social-Post-Zweig: „ein Post ohne Lizenz ist Text, kein
- * gescheitertes Sharepic". Mit dem stillgelegten Verdikt ist die Frage weg, die
- * Lizenz selbst bleibt hier drin und sperrt weiter die Sharepic-Route.
+ * Das Gitter beendet keinen Turn mehr, es schreibt nur den Intent um. Die feste
+ * Absage „kein Sharepic zum Anpassen" war sein letzter Ausgang (#4788).
  */
-export type ActionGateStageOutput = object;
-
 export async function runActionGateStage({
   classifiedState,
   initialState,
-  fixedTextBase,
   forcedTool,
   lastUserTextNoMentions,
   actualThreadId,
-}: ActionGateStageParams): Promise<MaybeHandled<ActionGateStageOutput>> {
+}: ActionGateStageParams): Promise<void> {
   // === Sharepic licence: the single gate for "may this turn make one?" ===
   // A sharepic is legitimate in exactly two situations: the user named one,
   // or the thread already has one to edit — and both edit lanes above have
@@ -71,31 +63,41 @@ export async function runActionGateStage({
     // („Dazu passt später ein Sharepic.") lizenziert nichts (Beta-Audit 30.09.2026).
     asksForSharepic(orderText(lastUserTextNoMentions));
 
+  // Ein unlizenzierter Turn geht immer als `produktion` weiter. Bis 21.10.2026
+  // endete er ohne Sharepic im Thread und ohne das Wort in einer festen Absage
+  // („kein Sharepic, das ich anpassen könnte") und machte so jeden Fehlgriff des
+  // Generierungs-Aufklärers zur Sackgasse: „Kürzer bitte und weniger Emojis"
+  // unter einem Post mit Bildidee bekam die Absage statt des Posts (#4788).
   if (classifiedState.intent === 'sharepic' && !sharepicLicensed) {
-    if (actualThreadId && (await threadHasSharepic(actualThreadId))) {
-      // Sharepic-shaped, and there IS one — but the edit lanes declined it
-      // (wrong template, ambiguous, not actually an edit). Answering
-      // normally beats minting a surprise second sharepic.
-      log.info('[ChatGraph] Unlicensed sharepic intent, thread has one → produktion');
+    const threadHasOne = !!actualThreadId && (await threadHasSharepic(actualThreadId));
+    if (threadHasOne || !hasExplicitSharepicWord(orderText(lastUserTextNoMentions))) {
+      // Sharepic-shaped, but either the edit lanes declined the one the thread
+      // has (wrong template, ambiguous, not actually an edit) or nothing in the
+      // order says sharepic. Answering normally beats minting a surprise one.
+      log.info(
+        `[ChatGraph] Unlicensed sharepic intent (threadHasSharepic=${threadHasOne}) → produktion`
+      );
       // Decision key unchanged (F1): the journal cards are named after it.
       recordDecision('router.intent_override', 'sharepic_unlicensed_to_direct', {
-        inputs: { intentBefore: 'sharepic', sharepicLicensed, threadHasSharepic: true },
+        inputs: { intentBefore: 'sharepic', sharepicLicensed, threadHasSharepic: threadHasOne },
       });
-      classifiedState.intent = 'produktion';
     } else {
-      log.info('[ChatGraph] Unlicensed sharepic intent, nothing to edit → fixed reply');
-      recordDecision('router.intent_override', 'sharepic_unlicensed_fixed_text', {
-        inputs: { intentBefore: 'sharepic', sharepicLicensed, threadHasSharepic: false },
+      // Das Wort steht im Auftrag, nur das Bestell-Verb fehlt: der Klassifikator
+      // hat ein Sharepic gesehen, die Regex keinen Auftrag. Der Einzeldurchlauf
+      // baut immer — er ist ein erzwungener Aufruf und bleibt der Bestellung
+      // vorbehalten. Der Turn geht stattdessen als `produktion` weiter, und der
+      // Router montiert das Werkzeug ohne Zwang (`namesSharepicWithoutOrder`):
+      // der Planer entscheidet. Bis 15.10.2026 endete so ein Turn in der festen
+      // Absage. Nur ohne Sharepic im Thread, damit einer mit Sharepic weiterhin
+      // keinen Überraschungs-Zweiten bekommt.
+      log.info(
+        '[ChatGraph] Sharepic named without an order → produktion, tool left to the planner'
+      );
+      recordDecision('router.intent_override', 'sharepic_named_to_planner', {
+        inputs: { intentBefore: 'sharepic', sharepicLicensed },
       });
-      return {
-        handled: true,
-        result: await finishTurnWithFixedText({
-          ...fixedTextBase,
-          text: NO_SHAREPIC_TO_EDIT_TEXT,
-          intent: 'sharepic',
-        }),
-      };
     }
+    classifiedState.intent = 'produktion';
   }
 
   // === Negative action constraints: one gate for "may this turn persist?" ===
@@ -141,5 +143,4 @@ export async function runActionGateStage({
       classifiedState.forbiddenArtifactAction = primaryFamily;
     }
   }
-  return { handled: false };
 }

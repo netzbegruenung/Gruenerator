@@ -17,7 +17,7 @@ import {
   type ChatModelRunResult,
 } from '@assistant-ui/react';
 import { isApiErrorWithStatus } from '@gruenerator/shared/api';
-import { GrueneratorRealtimeVoiceAdapter, VoxtralDictationAdapter } from '@gruenerator/voice';
+import { VoxtralDictationAdapter } from '@gruenerator/voice';
 import {
   type ReactNode,
   useMemo,
@@ -63,6 +63,7 @@ import { ThreadDataSyncEffect } from './ThreadDataSyncEffect';
 import { ThreadListReloadListener } from './ThreadListReloadListener';
 import { convertToThreadMessageLike, type LoadedMessage } from './threadMessageConversion';
 import { useFeedbackAdapter } from './useFeedbackAdapter';
+import { insertSavedMessage, reloadSavedThread } from './voiceThreadSync';
 
 import type { StreamMetadata } from '../hooks/useChatGraphStream';
 
@@ -224,9 +225,6 @@ function useGrueneratorThreadRuntime() {
     }))
   );
   const incrementMessageCount = useAgentStore((s) => s.incrementMessageCount);
-  const needsCompaction = useAgentStore((s) => s.needsCompaction);
-  const compactionState = useAgentStore((s) => s.compactionState);
-  const triggerCompaction = useAgentStore((s) => s.triggerCompaction);
 
   const getConfig = useCallback((): GrueneratorAdapterConfig => {
     // `auto` is sent through as-is: the server resolves it AFTER the classifier
@@ -299,24 +297,14 @@ function useGrueneratorThreadRuntime() {
     useAgentStore.setState({ roleRefSource: 'load' });
   }, [currentThreadId, roleRefSource]);
 
-  const needsCompactionRef = useRef(needsCompaction);
-  needsCompactionRef.current = needsCompaction;
-  const compactionSummaryRef = useRef(compactionState.summary);
-  compactionSummaryRef.current = compactionState.summary;
-
   const onComplete = useCallback(
     (_metadata: StreamMetadata) => {
-      const tid = useAgentStore.getState().currentThreadId;
-      if (tid) {
+      if (useAgentStore.getState().currentThreadId) {
         incrementMessageCount();
         incrementMessageCount();
-
-        if (needsCompactionRef.current && !compactionSummaryRef.current) {
-          void triggerCompaction(tid, runtimeApiClient);
-        }
       }
     },
-    [incrementMessageCount, triggerCompaction, runtimeApiClient]
+    [incrementMessageCount]
   );
 
   const interruptSignal = useInterruptSignal();
@@ -335,14 +323,42 @@ function useGrueneratorThreadRuntime() {
     []
   );
 
+  // Only when the host offers a voice conversation; without the adapter the
+  // composer hides its voice button (capabilities.voice). A call runs in this
+  // thread: a draft is created first, a card the call creates joins it live,
+  // and the thread is read back as saved once the call ends.
+  const aui = useAui();
+  const messagesEndpoint = useChatConfigStore((s) => s.endpoints.messages);
+  const runtimeRef = useRef<ReturnType<typeof useLocalRuntime> | null>(null);
+  const voiceThread = useMemo(() => {
+    const thread = () => runtimeRef.current?.thread ?? null;
+    const messagesUrl = () => {
+      const remoteId = aui.threadListItem.getState().remoteId;
+      return remoteId ? `${messagesEndpoint}?threadId=${remoteId}` : null;
+    };
+    return {
+      resolveThreadId: async () => (await aui.threadListItem.initialize()).remoteId,
+      insert: async (messageId: string) => {
+        const url = messagesUrl();
+        if (url)
+          await insertSavedMessage(
+            thread,
+            runtimeApiClient,
+            url,
+            messageId,
+            convertToThreadMessageLike
+          );
+      },
+      reload: async () => {
+        const url = messagesUrl();
+        if (url) await reloadSavedThread(thread, runtimeApiClient, url, convertToThreadMessageLike);
+      },
+    };
+  }, [aui, messagesEndpoint, runtimeApiClient]);
+  const createVoiceAdapter = useChatConfigStore((s) => s.voice?.createAdapter);
   const voiceAdapter = useMemo(
-    () =>
-      new GrueneratorRealtimeVoiceAdapter({
-        getThreadId: () => useAgentStore.getState().currentThreadId,
-        getAgentId: () => useAgentStore.getState().selectedAgentId,
-        onError: (reason, err) => console.error(`[RealtimeVoice] ${reason}:`, err),
-      }),
-    []
+    () => createVoiceAdapter?.(voiceThread),
+    [createVoiceAdapter, voiceThread]
   );
 
   const feedbackAdapter = useFeedbackAdapter();
@@ -352,6 +368,9 @@ function useGrueneratorThreadRuntime() {
     unstable_enableMessageQueue: MESSAGE_QUEUE_ENABLED,
     adapters: { dictation: dictationAdapter, voice: voiceAdapter, feedback: feedbackAdapter },
   });
+  useEffect(() => {
+    runtimeRef.current = runtime;
+  }, [runtime]);
 
   // Per thread, not around the thread list: this hook runs once per thread
   // runtime, so `modelAdapter`, `runtime` and the queue being emptied all belong

@@ -1,10 +1,20 @@
-import type { BackgroundType, TextFieldConfig } from './unifiedTabs';
-import type { TemplateAiCapabilities } from '../ai/types';
-import type { CanvasSpecEditBridge } from '../CanvasEditorProvider';
 import type { CanvasStageRef } from '../primitives/CanvasStage';
-import type { SidebarTabId, SidebarTab } from '../sidebar/types';
-import type { GradientFill } from '../utils/gradientFill';
-import type { TextAccent, TextMarker } from '../utils/textUtils';
+import type { HostCanvasAiCapabilities } from '@ggraphic/editor/ai/types';
+import type { StockImageAttribution } from '@ggraphic/editor/common/imageSourceTypes';
+import type { BackgroundType, TextFieldConfig } from '@ggraphic/editor/configs/unifiedTabs';
+import type {
+  AltTextPage,
+  AltTextScope,
+  CanvasSpecEditBridge,
+  HeterogeneousPage,
+} from '@ggraphic/editor/editorSeamTypes';
+import type {
+  BackgroundColorOption,
+  SidebarTabId,
+  SidebarTab,
+} from '@ggraphic/editor/sidebar/tabTypes';
+import type { GradientFill } from '@ggraphic/editor/utils/gradientFill';
+import type { TextAccent, TextMarker } from '@ggraphic/editor/utils/textUtils';
 
 // ============================================================================
 // ELEMENT CONFIGURATION TYPES
@@ -105,8 +115,8 @@ export interface TextElementConfig<
   /**
    * Der Text trägt Markdown-lite (`**fett**`, `_kursiv_`, `<u>…</u>`, Listen)
    * und wird mit dem Rich-Text-Editor bearbeitet. Nur für Felder in einer
-   * Schrift mit echten Fett-/Kursiv-Schnitten (PT Sans) setzen — GrueneTypeNeue
-   * hat nur einen Schnitt, dort würde beides synthetisiert.
+   * Schrift mit echten Fett-/Kursiv-Schnitten (PT Sans) setzen — eine Display-Schrift
+   * mit nur einem Schnitt, dort würde beides synthetisiert.
    */
   richText?: boolean;
   /** Enable dragging */
@@ -148,8 +158,6 @@ export interface ImageElementConfig<
   sizeStateKey?: string;
   /** Enable dragging */
   draggable?: boolean;
-  /** Lock state key */
-  lockedKey?: string;
   /** Enable transform handles */
   transformable?: boolean;
   /** Listen for events */
@@ -178,6 +186,14 @@ export interface ImageElementConfig<
    * about the centre with no drift into a corner and no re-centring needed.
    */
   centerZoom?: boolean;
+  /**
+   * The part of the element's box a cover-fitted photo fills; the rest stays
+   * free. Null: the whole box. The composer's photo strips use it.
+   */
+  frame?: (
+    state: TState,
+    layout: LayoutResult
+  ) => { x: number; y: number; width: number; height: number } | null;
 }
 
 /** Rectangle element configuration */
@@ -298,8 +314,18 @@ export interface SectionContext {
   captureCanvasImage?: () => Promise<string | null>;
   /** Higher-fidelity capture variant used to feed canvas images to the AI. */
   captureCanvasImageForAi?: () => Promise<string | null>;
+  /** Rotates an element of the current page about its centre, as the toolbar does; false when it can't turn. */
+  rotateElement?: (id: string, deg: number) => boolean;
+  /** Pages as image plus their texts, for the alt-text tool (multi-page editor only). */
+  collectAltTextPages?: (scope: AltTextScope) => Promise<AltTextPage[]>;
+  /** Number of pages in the editor. */
+  pageCount?: number;
   /** Spec-path bridge for the chat section (multi-page editor only). */
   specEdit?: CanvasSpecEditBridge;
+  /** The page's background controls, for sections that set the background. */
+  background?: BackgroundControls | null;
+  /** The page's chart palette (`FullCanvasConfig.chartColors`). */
+  chartColors?: readonly string[];
   onDownload?: () => void;
   onNavigateToGallery?: () => void;
   /** Opens the host's "als Vorlage speichern" flow; the entry hides without it. */
@@ -336,34 +362,7 @@ export interface SectionConfig<
 // MULTI-PAGE CONFIGURATION
 // ============================================================================
 
-/** Valid canvas config identifiers for heterogeneous multi-page */
-export type CanvasConfigId =
-  | 'zitat'
-  | 'zitat-pure'
-  | 'info'
-  | 'veranstaltung'
-  | 'simple'
-  | 'dreizeilen'
-  | 'slider'
-  | 'freeform'
-  | 'profilbild'
-  // Österreich (de-AT) variants
-  | 'zitat-at'
-  | 'zitat-pure-at'
-  | 'dreizeilen-overlay-at'
-  | 'info-at'
-  | 'freeform-at'
-  | 'slider-at';
-
-/** A page in a heterogeneous multi-page document */
-export interface HeterogeneousPage {
-  /** Unique identifier for this page */
-  id: string;
-  /** Config type for this page (determines which template to use) */
-  configId: CanvasConfigId;
-  /** Runtime state - config interprets this based on its state type */
-  state: Record<string, unknown>;
-}
+export type { HeterogeneousPage };
 
 /** Multi-page configuration options */
 export interface MultiPageConfig<TState> {
@@ -378,8 +377,51 @@ export interface MultiPageConfig<TState> {
 }
 
 // ============================================================================
+// BACKGROUND CONTROLS
+// ============================================================================
+
+/**
+ * What the context bar offers for a template's background — its colour plane
+ * and, where the template has one, the photo over it. Each field is optional:
+ * a control is shown only when its value and its setter are both present.
+ */
+export interface BackgroundControls {
+  /** Swatches for the colour plane, shown first; the brand colours and a free
+   *  pick follow unless `paletteOnly`. */
+  colors?: readonly BackgroundColorOption[];
+  /** The colour is derived from a fixed set (slider schemes): offer only `colors`. */
+  paletteOnly?: boolean;
+  /** The colour now shown; empty while a photo replaces it (freeform). */
+  currentColor?: string;
+  onColorChange?: (color: string) => void;
+  /** True when a colour pick itself hides the photo (freeform keeps it to restore).
+   *  Otherwise the colour lies under the photo, and a pick from the photo removes it. */
+  colorReplacesImage?: boolean;
+  /** The photo now shown; undefined when there is none. */
+  currentImageSrc?: string;
+  /** Stock credit of the photo now shown, if it is a hotlinked stock photo. */
+  imageAttribution?: StockImageAttribution | null;
+  /** Sets the photo (`url` must be durable) or, with `null`, removes it. */
+  onImageChange?: (
+    file: File | null,
+    url?: string,
+    attribution?: StockImageAttribution | null
+  ) => void;
+  /** Brings back a photo that a colour pick hid but kept (freeform). */
+  onRestoreImage?: () => void;
+  scale?: number;
+  onScaleChange?: (scale: number) => void;
+}
+
+// ============================================================================
 // FULL CANVAS CONFIGURATION
 // ============================================================================
+
+/** A design as the host's gallery describes it (`FullCanvasConfig.shareMetadata`). */
+export interface ShareDescription {
+  content: Record<string, unknown>;
+  styling: Record<string, unknown>;
+}
 
 export interface FullCanvasConfig<
   TState = Record<string, unknown>,
@@ -407,6 +449,12 @@ export interface FullCanvasConfig<
    *  repairs what a writer without font metrics (the chat edit path) left
    *  behind. Returns the repaired state, or null when there is nothing to do. */
   normalizeLoadedState?: (state: TState) => TState | null;
+  /**
+   * What the host's gallery stores about an auto-saved design of this
+   * template (`content`, `styling`). Without it, the whole state goes into
+   * `content`.
+   */
+  shareMetadata?: (state: TState) => ShareDescription;
   /** Create action handlers. Both history savers snapshot the committed
    *  state after the action's update; their argument is ignored. */
   createActions: (
@@ -416,6 +464,10 @@ export interface FullCanvasConfig<
     debouncedSaveToHistory: (state?: TState) => void,
     callbacks: Record<string, ((val: unknown) => void) | undefined>
   ) => TActions;
+  /** The background's colour and photo controls for the context bar. */
+  background?: (state: TState, actions: TActions) => BackgroundControls;
+  /** Series colours for charts on this page, its country's palette; absent: the active brand's (`chartColors()`). */
+  chartColors?: readonly string[];
   /** Optional function to determine disabled tabs */
   getDisabledTabs?: (state: TState) => SidebarTabId[];
   /** Optional function to determine visible tabs.
@@ -446,12 +498,7 @@ export interface FullCanvasConfig<
   // UNIFIED TAB SYSTEM (for heterogeneous multi-page mode)
   // ============================================================================
 
-  /**
-   * Background type determines which section renders in the Background tab.
-   * - 'image': ImageBackgroundSection (Unsplash, scale/offset)
-   * - 'color': BackgroundSection (color picker)
-   * If not specified, defaults to 'image' for backwards compatibility.
-   */
+  /** Whether the background is a photo or a colour plane; defaults to 'image'. */
   backgroundType?: BackgroundType;
 
   /**
@@ -475,7 +522,7 @@ export interface FullCanvasConfig<
   useUnifiedTabs?: boolean;
   /** Font configuration for canvas rendering */
   fonts?: {
-    /** Primary font family used in canvas (e.g., 'GrueneTypeNeue') */
+    /** Primary font family used in canvas (e.g., 'PT Sans') */
     primary: string;
     /** Font size for preloading (affects text metrics) */
     fontSize: number;
@@ -486,13 +533,13 @@ export interface FullCanvasConfig<
   /**
    * Optional AI capability declaration. Templates that supply this gain
    * an AI sidebar tab; templates that don't never see the AI section.
-   * See @gruenerator/canvas-editor/src/ai/types.ts for shape.
+   * See `ai/types.ts` for shape.
    */
-  ai?: TemplateAiCapabilities<TState, TActions>;
+  ai?: HostCanvasAiCapabilities<TState, TActions>;
 }
 
 // ============================================================================
-// LEGACY SIDEBAR-ONLY CONFIG (for backward compatibility with Dreizeilen)
+// LEGACY SIDEBAR-ONLY CONFIG (for backward compatibility with older templates)
 // ============================================================================
 
 export interface CanvasConfig<

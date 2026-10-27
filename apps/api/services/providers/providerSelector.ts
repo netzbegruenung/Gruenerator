@@ -5,6 +5,7 @@
 
 import { GEMMA_31B_PRIMARY } from '../ai/gemmaHosts.js';
 import { intermediateLane } from '../ai/intermediateLanes.js';
+import { MELIOUS_WIDE_MODEL } from '../ai/meliousThinkingFetch.js';
 
 import type {
   ProviderName,
@@ -134,6 +135,8 @@ const TEXT_TYPES: ReadonlySet<string> = new Set([
   'voice_script',
   // Zwei-Stimmen-Skript für Podcasts, Schwester von voice_script.
   'podcast_script',
+  // Agent-/Rezept-Entwurf aus einer Beschreibung (#4518).
+  'creator_draft',
 ]);
 
 /** Mistral Large 4 — seit 12.10.2026 anstelle von Medium 3.5 (`mistral-medium-2604`). */
@@ -258,6 +261,12 @@ export function selectProviderAndModel({
   ) {
     provider = LANE.provider;
     model = options.model || LANE.model;
+  }
+  // Browser-Agent — Gemma 4 bei Melious auf `:speed`. Spiegel von
+  // `browser_agent` in services/ai/lanes.ts (Begründung dort).
+  else if (type === 'browser_agent') {
+    provider = 'melious';
+    model = options.model || MELIOUS_WIDE_MODEL;
   }
 
   // Respect explicit provider at top-level if present (routes may set data.provider)

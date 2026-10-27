@@ -11,10 +11,11 @@ import { Bookmark, Heart, Share2, X } from 'lucide-react';
 import { useState, type JSX, type ReactNode } from 'react';
 
 import { type VorlagenCardProps } from '../../../components/common/Gallery/VorlagenCard';
+import { MarketplaceDiscussion } from '../../marketplace/MarketplaceDiscussion';
 
 import { ShareVorlageDialog, type VorlageShareTarget } from './ShareVorlageDialog';
-import { VorlageComments } from './VorlageComments';
 
+import { useUserTemplates } from '@/features/auth/hooks/useProfileData';
 import { cn } from '@/utils/cn';
 
 export type VorlageInteractionProps = Pick<
@@ -40,9 +41,28 @@ interface VorlageDetailDialogProps extends VorlageInteractionProps {
   templateId?: string;
   /** Further sections, set off by a separator. */
   children?: ReactNode;
+  /** False for Vorlagen nobody can like or bookmark, rather than showing both as signed out. */
+  reactions?: boolean;
 }
 
 const ICON = 'size-[18px]';
+
+/**
+ * Reactions and comments under a Vorlage — the Marktplatz's block without its
+ * like, which this dialog shows in its own header. The Vorlage's owner may
+ * delete other people's comments.
+ */
+function VorlageDiscussion({ templateId }: { templateId: string }) {
+  const { query: ownTemplates } = useUserTemplates({ isActive: true });
+  const isOwner = ownTemplates.data?.some((t) => String(t.id) === templateId) ?? false;
+  return (
+    <MarketplaceDiscussion
+      target={{ kind: 'template', ref: templateId }}
+      item={null}
+      canModerate={isOwner}
+    />
+  );
+}
 
 /**
  * The one detail view for every Vorlage — Grünerator catalogue, Canva and
@@ -60,6 +80,7 @@ export function VorlageDetailDialog({
   share,
   templateId,
   children,
+  reactions = true,
   liked = false,
   onToggleLike,
   likeToggling = false,
@@ -83,32 +104,40 @@ export function VorlageDetailDialog({
         )}
       >
         <div className="absolute top-4 right-4 flex items-center gap-1">
-          <Button
-            variant="ghost"
-            size="icon"
-            aria-label="Liken"
-            aria-pressed={liked}
-            title={onToggleLike ? 'Liken' : 'Melde dich an, um zu liken'}
-            disabled={!onToggleLike || likeToggling}
-            className={cn(liked && 'text-red-600 dark:text-red-400')}
-            onClick={onToggleLike}
-          >
-            <Heart aria-hidden className={ICON} fill={liked ? 'currentColor' : 'none'} />
-          </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            aria-label="Merken"
-            aria-pressed={favorited}
-            title={
-              onToggleFavorite ? (favorited ? 'Gemerkt' : 'Merken') : 'Melde dich an, um zu merken'
-            }
-            disabled={!onToggleFavorite || favoriteToggling}
-            className={cn(favorited && 'text-primary-600 dark:text-primary-400')}
-            onClick={onToggleFavorite}
-          >
-            <Bookmark aria-hidden className={ICON} fill={favorited ? 'currentColor' : 'none'} />
-          </Button>
+          {reactions && (
+            <>
+              <Button
+                variant="ghost"
+                size="icon"
+                aria-label="Liken"
+                aria-pressed={liked}
+                title={onToggleLike ? 'Liken' : 'Melde dich an, um zu liken'}
+                disabled={!onToggleLike || likeToggling}
+                className={cn(liked && 'text-red-600 dark:text-red-400')}
+                onClick={onToggleLike}
+              >
+                <Heart aria-hidden className={ICON} fill={liked ? 'currentColor' : 'none'} />
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                aria-label="Merken"
+                aria-pressed={favorited}
+                title={
+                  onToggleFavorite
+                    ? favorited
+                      ? 'Gemerkt'
+                      : 'Merken'
+                    : 'Melde dich an, um zu merken'
+                }
+                disabled={!onToggleFavorite || favoriteToggling}
+                className={cn(favorited && 'text-primary-600 dark:text-primary-400')}
+                onClick={onToggleFavorite}
+              >
+                <Bookmark aria-hidden className={ICON} fill={favorited ? 'currentColor' : 'none'} />
+              </Button>
+            </>
+          )}
           {share && (
             <Button
               variant="ghost"
@@ -129,23 +158,37 @@ export function VorlageDetailDialog({
         </div>
 
         <div className="flex flex-col gap-2">
-          <div className="relative flex aspect-[4/5] items-center justify-center overflow-hidden rounded-2xl bg-background-alt">
+          <div className="flex aspect-[4/5] max-h-[55dvh] items-center justify-center overflow-hidden rounded-2xl bg-background-alt">
             {current ? (
               <img src={current.src} alt={current.alt} className="size-full object-contain" />
             ) : (
               <span className="text-sm text-grey-500">Keine Vorschau verfügbar</span>
             )}
-            {pages.length > 1 && (
-              <button
-                type="button"
-                onClick={() => setPage((page + 1) % pages.length)}
-                aria-label={`Nächste Seite, gerade Seite ${page + 1} von ${pages.length}`}
-                className="absolute right-3.5 bottom-3.5 rounded-full bg-white/90 px-3 py-1.5 text-[13px] text-[#1c2b24] transition-colors hover:bg-white"
-              >
-                {page + 1} / {pages.length} →
-              </button>
-            )}
           </div>
+          {/* Every page at a glance; choosing one shows it large. */}
+          {pages.length > 1 && (
+            <div role="group" aria-label="Seiten" className="flex gap-2 overflow-x-auto pb-1">
+              {pages.map((p, i) => (
+                <button
+                  // eslint-disable-next-line react/no-array-index-key -- pages have no id and may repeat an image URL; order is the identity
+                  key={i}
+                  type="button"
+                  aria-label={`Seite ${i + 1} von ${pages.length} anzeigen`}
+                  aria-current={i === page}
+                  onClick={() => setPage(i)}
+                  onFocus={() => setPage(i)}
+                  className={cn(
+                    'h-20 shrink-0 overflow-hidden rounded-lg border-2 bg-background-alt transition-colors',
+                    i === page
+                      ? 'border-primary-600 dark:border-primary-400'
+                      : 'border-transparent hover:border-grey-300 dark:hover:border-grey-600'
+                  )}
+                >
+                  <img src={p.src} alt="" loading="lazy" className="h-full w-auto" />
+                </button>
+              ))}
+            </div>
+          )}
           {credits}
         </div>
 
@@ -169,7 +212,7 @@ export function VorlageDetailDialog({
           {templateId && (
             <>
               <Separator />
-              <VorlageComments templateId={templateId} />
+              <VorlageDiscussion templateId={templateId} />
             </>
           )}
         </div>

@@ -1,9 +1,11 @@
 import { useMemo } from 'react';
 
 import type { ShadowPatch } from '../../../hooks/useFloatingModuleHandlers';
-import type { GradientFill } from '../../../utils/gradientFill';
 import type { GenericCanvasRef, ToolbarStateReport } from '../../GenericCanvas';
-import type { AlignmentDirection } from '../../Toolbar';
+import type { PageCommandId } from '@ggraphic/editor/utils/canvasCommandRegistry';
+import type { CropAspectId } from '@ggraphic/editor/utils/cropAspect';
+import type { GradientFill } from '@ggraphic/editor/utils/gradientFill';
+import type { TextAlign } from '@ggraphic/editor/utils/textAlign';
 import type React from 'react';
 
 interface UseToolbarHandlersParams {
@@ -14,6 +16,7 @@ interface UseToolbarHandlersParams {
   canRedoPageOp: boolean;
   undoPageOp: () => void;
   redoPageOp: () => void;
+  discardReplaceDeck: () => void;
 }
 
 /**
@@ -37,6 +40,7 @@ export function useToolbarHandlers({
   canRedoPageOp,
   undoPageOp,
   redoPageOp,
+  discardReplaceDeck,
 }: UseToolbarHandlersParams) {
   return useMemo(() => {
     const page = () => canvasRefsRef.current[currentPageIndex]?.current ?? null;
@@ -48,8 +52,9 @@ export function useToolbarHandlers({
           undoPageOp();
         }
       },
-      // The spec path replaced the whole deck in one page-level step.
-      undoPages: undoPageOp,
+      // The spec path replaced the whole deck in one page-level step; Verwerfen
+      // takes it back for good, so Redo cannot re-apply it.
+      undoPages: discardReplaceDeck,
       redo: () => {
         if (toolbarState?.canRedo) {
           page()?.redo?.();
@@ -60,18 +65,34 @@ export function useToolbarHandlers({
       handleMoveLayer: (direction: 'up' | 'down') => page()?.handleMoveLayer?.(direction),
       handleDuplicate: () => page()?.handleDuplicate?.(),
       handleDeleteElement: () => page()?.handleDeleteElement?.(),
+      handleCopy: () => page()?.runCommand?.('copy', null),
+      handleToggleLock: () => page()?.runCommand?.('toggleLock', null),
+      handleFlip: (axis: 'x' | 'y') =>
+        page()?.runCommand?.(axis === 'x' ? 'flipHorizontal' : 'flipVertical', null),
       handleColorSelect: (color: string) => page()?.handleColorSelect?.(color),
       handleOpacityChange: (id: string, opacity: number, type: string) =>
         page()?.handleOpacityChange?.(id, opacity, type),
       handleFontSizeChange: (id: string, size: number) => page()?.handleFontSizeChange?.(id, size),
-      handleAlign: (direction: AlignmentDirection) => page()?.handleAlign?.(direction),
+      runCommand: (id: PageCommandId) => page()?.runCommand?.(id, null),
+      getGeometry: () => page()?.getGeometry?.() ?? null,
+      handlePositionChange: (patch: { x?: number; y?: number }) => page()?.setPosition?.(patch),
+      handleSizeChange: (patch: { width?: number; height?: number }) => page()?.setSize?.(patch),
       handleShadowChange: (id: string, patch: ShadowPatch, type: string) =>
         page()?.handleShadowChange?.(id, patch, type),
       handleOutlineChange: (id: string, patch: { stroke?: string; strokeWidth?: number }) =>
         page()?.handleOutlineChange?.(id, patch),
       handleBlurChange: (id: string, blur: number) => page()?.handleBlurChange?.(id, blur),
+      handleCropImage: () => page()?.handleCropImage?.(),
+      handleCancelCrop: () => page()?.handleCancelCrop?.(),
+      handleFinishCrop: () => page()?.handleFinishCrop?.(),
+      handleCropAspect: (id: CropAspectId) => page()?.handleCropAspect?.(id),
+      handleCropRotation: (deg: number) => page()?.handleCropRotation?.(deg),
+      handleSmartCrop: () => page()?.handleSmartCrop?.(),
+      handleExpandImage: () => page()?.handleExpandImage?.(),
       handleGradientSelect: (gradient: GradientFill | null) =>
         page()?.handleGradientSelect?.(gradient),
+      handleTextAlignChange: (id: string, align: TextAlign) =>
+        page()?.handleTextAlignChange?.(id, align),
     };
   }, [
     canvasRefsRef,
@@ -82,5 +103,6 @@ export function useToolbarHandlers({
     canRedoPageOp,
     undoPageOp,
     redoPageOp,
+    discardReplaceDeck,
   ]);
 }

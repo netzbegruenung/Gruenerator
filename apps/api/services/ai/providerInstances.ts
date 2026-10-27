@@ -19,6 +19,7 @@
  */
 import { createMistral } from '@ai-sdk/mistral';
 import { createOpenAI } from '@ai-sdk/openai';
+import { wrapLanguageModel } from 'ai';
 
 import { env } from '../../config/env.js';
 import { createLogger } from '../../utils/logger.js';
@@ -29,7 +30,7 @@ import { greenptFetchWithThinkingDisabled } from './greenptThinkingFetch.js';
 import { litellmFetchWithThinkingDisabled } from './litellmThinkingFetch.js';
 import { meliousFetch } from './meliousThinkingFetch.js';
 
-import type { LanguageModel } from 'ai';
+import type { LanguageModel, LanguageModelMiddleware } from 'ai';
 
 const log = createLogger('providerInstances');
 
@@ -55,6 +56,9 @@ export const GREENPT_BASE_URL = 'https://api.greenpt.ai/v1';
  *   /v1/audio/voices no longer matters: the speech synthesis moved to
  *   KugelAudio (`services/voice/ttsService.ts`) and the global client it was
  *   the sole reason for is gone.
+ *   2026-10-21: EU dropped every embedding model (`Invalid model:
+ *   mistral-embed`); embeddings now use the global endpoint, see
+ *   `mistralEmbeddingClient` in `mistralClient.ts`.
  */
 export const MISTRAL_GLOBAL_API_URL = 'https://api.mistral.ai/v1';
 export const MISTRAL_EU_API_URL = 'https://api.eu.mistral.ai/v1';
@@ -85,8 +89,28 @@ export function getMistralProvider(): ReturnType<typeof createMistral> {
   return mistralInstance;
 }
 
+/**
+ * Modelle, die ohne `reasoning_effort` von selbst denken. Mistral Large 4 tut
+ * das (live 14.10.2026, #4553: 800 Token Budget ganz im Denken, leere Antwort;
+ * mit `none` 35 Token und die Antwort). Medium 3.5 und Small tun es nicht.
+ * Unser Code liest „nicht gefragt" überall als „nicht denken" — hier wird das
+ * für diese Modelle auf den Draht geschrieben. Ein gesetztes
+ * `providerOptions.mistral.reasoningEffort` gewinnt im SDK weiter.
+ */
+const MISTRAL_THINKS_BY_DEFAULT = new Set(['mistral-large-4']);
+
+const reasoningOffUnlessAsked: LanguageModelMiddleware = {
+  transformParams: async ({ params }) =>
+    params.reasoning === undefined || params.reasoning === 'provider-default'
+      ? { ...params, reasoning: 'none' }
+      : params,
+};
+
 export function getMistralChatModel(modelId: string): LanguageModel {
-  return getMistralProvider()(modelId);
+  const model = getMistralProvider()(modelId);
+  return MISTRAL_THINKS_BY_DEFAULT.has(modelId)
+    ? wrapLanguageModel({ model, middleware: reasoningOffUnlessAsked })
+    : model;
 }
 
 /**

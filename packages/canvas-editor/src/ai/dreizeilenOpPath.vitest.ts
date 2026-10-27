@@ -3,6 +3,7 @@
  * the bar group under its live id, and size and position ops have to land —
  * live every one of them came back "Element lässt sich hier nicht verändern".
  */
+import { type CanvasAiOperation } from '@gruenerator/contracts';
 import { describe, expect, it } from 'vitest';
 
 import { type DreizeilenFullState } from '../configs/dreizeilen.types';
@@ -114,7 +115,7 @@ describe('dreizeilen bar group stays on the canvas', () => {
     };
     const noop = () => {};
     const actions = dreizeilenFullConfig.createActions(() => rendered, setState, noop, noop, {});
-    const applyBatch = (ops: Parameters<typeof applyOperation>[0][]) =>
+    const applyBatch = (ops: CanvasAiOperation[]) =>
       ops.map((op) => applyOperation(op, actions, () => rendered, dreizeilenFullConfig.ai!));
     return { applyBatch, getState: () => state };
   }

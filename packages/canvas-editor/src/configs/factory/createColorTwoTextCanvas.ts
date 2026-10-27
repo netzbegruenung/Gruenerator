@@ -10,15 +10,12 @@
  * Used by: Zitat Pure, Info
  */
 
-import { HiPhotograph } from 'react-icons/hi';
+import { contrastRatio, luminance } from '@ggraphic/editor/utils/colorLuminance';
+import { zoomBackground } from '@ggraphic/editor/utils/coverFit';
+import { straightenResetFor } from '@ggraphic/editor/utils/straighten';
 import { PiFrameCornersFill, PiSquaresFourFill, PiTextAa } from 'react-icons/pi';
 
-import {
-  AssetsSection,
-  CombinedTextSection,
-  FrameSettingsSection,
-  ImageBackgroundSection,
-} from '../../sidebar/sections';
+import { AssetsSection, CombinedTextSection, FrameSettingsSection } from '../../sidebar/sections';
 import { chatTab, createCommonSectionEntries, toolsTab, uploadsTab } from '../commonSections';
 import { injectFeatureProps } from '../featureInjector';
 import { getPlaceholder } from '../placeholders';
@@ -29,18 +26,19 @@ import { carryInstanceState } from './carryInstanceState';
 import { makeSectionDefiner } from './defineSection';
 
 import type { CanvasFeatures, CanvasDimensions, IconState } from './baseTypes';
-import type { StockImageAttribution } from '../../common/imageSourceTypes';
 import type { BackgroundColorOption } from '../../sidebar/types';
-import type { BalkenInstance, BalkenMode } from '../../utils/balkenUtils';
 import type { AssetInstance } from '../../utils/canvasAssets';
-import type { ChartInstance } from '../../utils/chartUtils';
-import type { CircleBadgeInstance } from '../../utils/circleBadgeUtils';
-import type { FrameClipType, FrameInstance } from '../../utils/frameUtils';
-import type { IllustrationInstance } from '../../utils/illustrations/types';
-import type { PillBadgeInstance } from '../../utils/pillBadgeUtils';
-import type { ShapeInstance, ShapeType } from '../../utils/shapes';
-import type { UserImageInstance } from '../../utils/userImageUtils';
 import type { FullCanvasConfig, LayoutResult, CanvasElementConfig, AdditionalText } from '../types';
+import type { StockImageAttribution } from '@ggraphic/editor/common/imageSourceTypes';
+import type { BalkenInstance, BalkenMode } from '@ggraphic/editor/utils/balkenUtils';
+import type { ChartInstance } from '@ggraphic/editor/utils/chartUtils';
+import type { CircleBadgeInstance } from '@ggraphic/editor/utils/circleBadgeUtils';
+import type { FrameClipType, FrameInstance } from '@ggraphic/editor/utils/frameUtils';
+import type { IllustrationInstance } from '@ggraphic/editor/utils/illustrations/types';
+import type { PillBadgeInstance } from '@ggraphic/editor/utils/pillBadgeUtils';
+import type { ShapeInstance, ShapeType } from '@ggraphic/editor/utils/shapes';
+import type { ElementPlacement, UserImageInstance } from '@ggraphic/editor/utils/userImageUtils';
+import type { StickerRef } from '@gruenerator/contracts';
 
 // ============================================================================
 // STATE TYPE
@@ -65,7 +63,6 @@ export interface ColorTwoTextStateBase {
   backgroundImageFile?: File | Blob | null;
   imageOffset?: { x: number; y: number };
   imageScale?: number;
-  isBackgroundLocked?: boolean;
   backgroundImageOpacity?: number;
   imageAttribution?: StockImageAttribution | null;
 
@@ -123,19 +120,19 @@ export interface ColorTwoTextActions {
   // Photo background
   setCurrentImageSrc: (file: File | null, objectUrl?: string) => void;
   setImageScale: (scale: number) => void;
-  toggleBackgroundLock: () => void;
   setImageAttribution: (attribution: StockImageAttribution | null) => void;
 
   // Base actions
-  addAsset: (assetId: string) => void;
+  addAsset: (assetId: string, options?: ElementPlacement) => void;
+  addStickerAsset: (ref: StickerRef, options?: ElementPlacement) => void;
   updateAsset: (id: string, partial: Partial<AssetInstance>) => void;
   removeAsset: (id: string) => void;
-  toggleIcon: (id: string, selected: boolean) => void;
+  toggleIcon: (id: string, selected: boolean, options?: ElementPlacement) => void;
   updateIcon: (id: string, partial: Partial<IconState>) => void;
-  addShape: (type: ShapeType) => void;
+  addShape: (type: ShapeType, color?: string, options?: ElementPlacement) => void;
   updateShape: (id: string, partial: Partial<ShapeInstance>) => void;
   removeShape: (id: string) => void;
-  addIllustration: (id: string) => void;
+  addIllustration: (id: string, options?: ElementPlacement) => void;
   updateIllustration: (id: string, partial: Partial<IllustrationInstance>) => void;
   removeIllustration: (id: string) => void;
   addHeader: () => void;
@@ -148,10 +145,10 @@ export interface ColorTwoTextActions {
   addCircleBadge: (preset?: string) => void;
   updateCircleBadge: (id: string, partial: Partial<CircleBadgeInstance>) => void;
   removeCircleBadge: (id: string) => void;
-  addBalken: (mode: BalkenMode) => void;
+  addBalken: (mode: BalkenMode, options?: ElementPlacement) => void;
   updateBalken: (id: string, partial: Partial<BalkenInstance>) => void;
   removeBalken: (id: string) => void;
-  addFrame: (clipType: FrameClipType) => void;
+  addFrame: (clipType: FrameClipType, options?: ElementPlacement) => void;
   updateFrame: (id: string, partial: Partial<FrameInstance>) => void;
   removeFrame: (id: string) => void;
   setFrameImage: (id: string, file: File, objectUrl: string) => void;
@@ -269,13 +266,24 @@ export function createColorTwoTextCanvas<
     passthroughStateKeys = [],
   } = options;
 
+  // A palette colour has its font colour; a freely picked one gets whichever of
+  // the template's font colours (or white) reads best on it.
+  const fontColorOn = (background: string): string => {
+    const mapped = textColorMap[background];
+    if (mapped) return mapped;
+    const bg = luminance(background);
+    const candidates = [...new Set([...Object.values(textColorMap), '#FFFFFF'])];
+    if (bg === null) return candidates[0]!;
+    return candidates.reduce((best, c) =>
+      contrastRatio(bg, luminance(c) ?? 1) > contrastRatio(bg, luminance(best) ?? 1) ? c : best
+    );
+  };
+
   // The background stack, bottom to top: the solid colour plane, the optional
   // photo over it, and a scrim that appears with the photo.
   //
-  // The colour plane is non-interactive by construction: CanvasBackground draws
-  // it with `listening={false}`, which is load-bearing — a full-bleed listening
-  // rect would swallow every click on empty canvas and useCanvasInteractions
-  // would stop deselecting.
+  // A click on the colour plane selects it (the context bar then shows its
+  // swatches); clicking the grey work area around the artboard deselects.
   //
   // The photo needs no mode flag to hide the colour: `CanvasImage` returns null
   // while `currentImageSrc` is empty, and `coverFit` fills the frame once it is
@@ -304,7 +312,6 @@ export function createColorTwoTextCanvas<
       offsetKey: 'imageOffset',
       scaleKey: 'imageScale',
       draggable: true,
-      lockedKey: 'isBackgroundLocked',
       opacityStateKey: 'backgroundImageOpacity',
       coverFit: true,
     },
@@ -364,12 +371,6 @@ export function createColorTwoTextCanvas<
 
     tabs: [
       {
-        id: 'background',
-        icon: HiPhotograph,
-        label: 'Hintergrund',
-        ariaLabel: 'Hintergrundfarbe wählen',
-      },
-      {
         id: 'text',
         icon: PiTextAa,
         label: 'Text',
@@ -379,7 +380,7 @@ export function createColorTwoTextCanvas<
         id: 'assets',
         icon: PiSquaresFourFill,
         label: 'Elemente',
-        ariaLabel: 'Dekorative Elemente',
+        ariaLabel: 'Elemente hinzufügen',
       },
       {
         id: 'frame-settings',
@@ -392,14 +393,8 @@ export function createColorTwoTextCanvas<
       chatTab,
     ],
 
-    // 'background' was kept out of this list and left to getAutoSwitchTab, on the
-    // assumption that clicking the background opens it. It cannot: the only
-    // background these templates draw is the colour plane, and CanvasBackground
-    // renders that with `listening={false}`, so it never becomes the selection.
-    // The colour picker was unreachable by any route — the tab strip is the only
-    // way in, and it is also the better affordance.
     // 'share' is not in `tabs`, so listing it here filtered to nothing.
-    getVisibleTabs: () => ['background', 'text', 'assets', 'tools', 'uploads', 'chat'],
+    getVisibleTabs: () => ['text', 'assets', 'tools', 'uploads', 'chat'],
 
     getAutoSwitchTab: (selectedElement) => {
       if (selectedElement?.startsWith('balken-')) return 'settings';
@@ -408,31 +403,21 @@ export function createColorTwoTextCanvas<
       return null;
     },
 
+    background: (state, actions) => ({
+      colors: backgroundColors,
+      currentColor: state.backgroundColor,
+      onColorChange: actions.setBackgroundColor,
+      currentImageSrc: state.currentImageSrc || undefined,
+      imageAttribution: state.imageAttribution ?? null,
+      onImageChange: (file, url, attribution) => {
+        actions.setCurrentImageSrc(file, url);
+        if (attribution !== undefined) actions.setImageAttribution(attribution);
+      },
+      scale: state.imageScale ?? 1,
+      onScaleChange: actions.setImageScale,
+    }),
+
     sections: {
-      background: section({
-        // ImageBackgroundSection, not BackgroundSection: it carries the better
-        // picker (own uploads + Unsplash, masonry) and since PR A the zoom and
-        // lock controls. The colour swatches ride along as its "Farbe" tab.
-        component: ImageBackgroundSection,
-        propsFactory: (state, actions) => ({
-          backgroundColor: state.backgroundColor,
-          backgroundColors,
-          onBackgroundColorChange: actions.setBackgroundColor,
-          currentImageSrc: state.currentImageSrc,
-          onImageChange: (
-            file: File | null,
-            objectUrl?: string,
-            attribution?: StockImageAttribution | null
-          ) => {
-            actions.setCurrentImageSrc(file, objectUrl);
-            if (attribution !== undefined) actions.setImageAttribution(attribution);
-          },
-          scale: state.imageScale ?? 1,
-          onScaleChange: actions.setImageScale,
-          isLocked: state.isBackgroundLocked ?? false,
-          onToggleLock: actions.toggleBackgroundLock,
-        }),
-      }),
       text: section({
         component: CombinedTextSection,
         propsFactory: (state, actions) => ({
@@ -448,6 +433,7 @@ export function createColorTwoTextCanvas<
         propsFactory: (state, actions, context) => ({
           assetInstances: state.assetInstances,
           onAddAsset: actions.addAsset,
+          onAddStickerAsset: actions.addStickerAsset,
           onUpdateAsset: actions.updateAsset,
           onRemoveAsset: actions.removeAsset,
           ...injectFeatureProps(state, actions, context),
@@ -483,9 +469,7 @@ export function createColorTwoTextCanvas<
       // the derived colour is meaningless and often dark (zitat-pure derives
       // #005437 from Hellgrün). White plus the gradient scrim is the only pair
       // that holds against an arbitrary photograph.
-      const fontColor = state.currentImageSrc
-        ? '#FFFFFF'
-        : textColorMap[state.backgroundColor] || Object.values(textColorMap)[0];
+      const fontColor = state.currentImageSrc ? '#FFFFFF' : fontColorOn(state.backgroundColor);
       return {
         ...baseLayout,
         _meta: {
@@ -518,7 +502,6 @@ export function createColorTwoTextCanvas<
         currentImageSrc: (props.currentImageSrc as string) || '',
         imageOffset: (props.imageOffset as { x: number; y: number } | undefined) ?? { x: 0, y: 0 },
         imageScale: (props.imageScale as number | undefined) ?? 1,
-        isBackgroundLocked: (props.isBackgroundLocked as boolean | undefined) ?? false,
         backgroundImageOpacity: (props.backgroundImageOpacity as number | undefined) ?? 1,
         imageAttribution:
           (props.imageAttribution as StockImageAttribution | null | undefined) ?? null,
@@ -551,7 +534,7 @@ export function createColorTwoTextCanvas<
       const getFontColor = () => {
         const state = getState();
         if (state.currentImageSrc) return '#FFFFFF';
-        return textColorMap[state.backgroundColor] || Object.values(textColorMap)[0];
+        return fontColorOn(state.backgroundColor);
       };
 
       const baseActions = createBaseActions(
@@ -604,14 +587,12 @@ export function createColorTwoTextCanvas<
           setState({
             currentImageSrc: objectUrl || '',
             backgroundImageFile: file,
+            ...straightenResetFor(getState()),
           } as Partial<State>);
           saveToHistory(getState());
         },
         setImageScale: (scale: number) => {
-          setState({ imageScale: scale } as Partial<State>);
-        },
-        toggleBackgroundLock: () => {
-          setState((prev) => ({ ...prev, isBackgroundLocked: !prev.isBackgroundLocked }));
+          setState(zoomBackground(getState(), scale, canvas) as Partial<State>);
         },
         setImageAttribution: (attribution: StockImageAttribution | null) => {
           setState({ imageAttribution: attribution } as Partial<State>);

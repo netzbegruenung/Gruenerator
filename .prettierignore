@@ -58,9 +58,18 @@ apps/api/services/docs/docsIndex.generated.ts
 # sie, laufen sie beim nächsten Snapshot-Update wieder auseinander.
 apps/web/tests/e2e/**/*-snapshots/
 
+# Composer-Golden — geschrieben von `vitest -u` (composeGolden.vitest.ts) und
+# Zeichen für Zeichen verglichen. Formatiert Prettier sie, schlägt der Golden fehl.
+packages/canvas-editor/src/composer/__golden__/
+
 # Lauf-Artefakte des Chat-Evals — gitignored (apps/api/evals/.gitignore), aber
 # Prettier liest nur diese Datei. Ohne den Eintrag bricht `pnpm run ci` bei
 # jedem, der den Eval lokal einmal laufen liess, an einer Datei ab, die gar
 # nicht ins Repo gehört.
 apps/api/evals/last-run.json
 apps/api/evals/judge-verdicts.json
+packages/canvas-editor/src/utils/__golden__/
+packages/canvas-editor/src/components/__golden__/
+
+# Byte-exact golden files (apps/api canvas ai schema/prompt guard)
+**/__golden__/

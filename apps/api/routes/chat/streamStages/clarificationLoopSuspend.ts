@@ -5,6 +5,7 @@ import {
   loopClarificationStateStore,
   type StoredLoopClarificationState,
 } from '../services/loopClarificationStateStore.js';
+import { persistSuspendedTurnAttachments } from '../services/postResponseService.js';
 import {
   createMessage,
   finalizeAssistantMessage,
@@ -31,6 +32,9 @@ export interface SuspendForLoopClarificationParams {
   /** Die vor dem Streamen angelegte Platzhalter-Zeile, falls vorhanden. */
   pendingId: string | null;
   startTime: number;
+  /** Früher im Zug aufgelöste Pausen (die entschiedene Freigabe-Karte) —
+   *  stehen in der Nachricht und reisen im Zustand mit (#5051). */
+  resolvedPause?: Record<string, unknown>;
 }
 
 /**
@@ -55,6 +59,7 @@ export async function suspendForLoopClarification({
   priorSteps,
   pendingId,
   startTime,
+  resolvedPause,
 }: SuspendForLoopClarificationParams): Promise<StreamHandlerResult> {
   const askTurnId = randomUUID();
 
@@ -66,6 +71,7 @@ export async function suspendForLoopClarification({
     priorSteps,
     partialText,
     pausedMessageId: pendingId,
+    ...(resolvedPause ? { resolvedPause } : {}),
     classifiedState,
     requestContext,
   };
@@ -83,10 +89,15 @@ export async function suspendForLoopClarification({
     return { status: 200 as const, body: undefined };
   }
 
+  // Erst die Anhänge des Turns sichern, dann fragen: der Browser holt die
+  // Tabellen-Bytes für Pyodide aus diesen Zeilen (auch nach einem Reload).
+  await persistSuspendedTurnAttachments(threadId, requestContext);
+
   const metadata: Record<string, unknown> = {
     intent: classifiedState.intent,
     searchCount: 0,
     citations: [],
+    ...resolvedPause,
     toolCalls: priorSteps,
     pendingClarification: {
       askTurnId,

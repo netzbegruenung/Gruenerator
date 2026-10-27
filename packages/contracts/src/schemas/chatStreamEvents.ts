@@ -75,6 +75,8 @@ export const chatWarningCodeSchema = z.enum([
   'search_degraded',
   'wolke_refs_dropped',
   'wolke_check_failed',
+  'notebook_sources_dropped',
+  'notebook_sources_check_failed',
   'doc_creation_failed',
   // Persistence
   'persist_failed',
@@ -386,6 +388,12 @@ export const documentCreatedEventSchema = z.object({
   title: z.string(),
   subtype: z.string(),
   url: z.string(),
+  /**
+   * Ein Begleitdokument (z. B. das Prüfprotokoll einer Übertragung): die Karte
+   * erscheint, das Panel dockt NICHT von selbst an — die Antwort ist der Text im
+   * Chat, nicht das Dokument. Fehlt = bisheriges Verhalten.
+   */
+  background: z.boolean().optional(),
 });
 export type DocumentCreatedEvent = z.infer<typeof documentCreatedEventSchema>;
 
@@ -423,7 +431,7 @@ export type EditorOperationsEvent = z.infer<typeof editorOperationsEventSchema>;
 export const chartPayloadSchema = z.object({
   type: z.enum(['bar', 'line', 'area', 'pie', 'donut']),
   title: z.string(),
-  data: z.array(z.record(z.union([z.string(), z.number()]))),
+  data: z.array(z.record(z.string(), z.union([z.string(), z.number()]))),
   xKey: z.string(),
   yKeys: z.array(z.string()),
   colors: z.array(z.string()).optional(),
@@ -484,6 +492,66 @@ export const researchLogUpdateSchema = z.object({
   documentId: z.string().optional(),
 });
 export type ResearchLogUpdate = z.infer<typeof researchLogUpdateSchema>;
+
+/**
+ * `browser_session_*` SSE payloads — the live view of a `website_erkunden` run
+ * (a real browser the agent operates on the person's behalf).
+ *
+ * Same two-event pattern as `research_log_*`: `browser_session_start` opens the
+ * view, every `browser_session_update` merges into it — a step is appended, a
+ * saved screenshot is added, the status and summary arrive at the end. Images
+ * travel as authenticated asset URLs, never as base64. Clients that do not know
+ * these event names ignore them.
+ */
+export const browserSessionStatusSchema = z.enum(['running', 'done', 'failed']);
+export type BrowserSessionStatus = z.infer<typeof browserSessionStatusSchema>;
+
+export const browserSessionStepSchema = z.object({
+  n: z.number(),
+  url: z.string(),
+  title: z.string(),
+  action: z.string(),
+  target: z.string().nullable(),
+  /** Click position as a percentage of the viewport (0–100), when the action had one. */
+  xPct: z.number().nullable(),
+  yPct: z.number().nullable(),
+  thought: z.string().nullable(),
+  imageUrl: z.string(),
+});
+export type BrowserSessionStep = z.infer<typeof browserSessionStepSchema>;
+
+export const browserSessionScreenshotSchema = z.object({
+  name: z.string(),
+  url: z.string(),
+});
+export type BrowserSessionScreenshot = z.infer<typeof browserSessionScreenshotSchema>;
+
+export const browserSessionStartSchema = z.object({
+  id: z.string(),
+  url: z.string(),
+  title: z.string(),
+});
+export type BrowserSessionStart = z.infer<typeof browserSessionStartSchema>;
+
+export const browserSessionUpdateSchema = z.object({
+  id: z.string(),
+  step: browserSessionStepSchema.optional(),
+  screenshot: browserSessionScreenshotSchema.optional(),
+  status: browserSessionStatusSchema.optional(),
+  summary: z.string().optional(),
+});
+export type BrowserSessionUpdate = z.infer<typeof browserSessionUpdateSchema>;
+
+/** Persisted as `metadata.browserSession`, so the session view survives a reload. */
+export const browserSessionMetaSchema = z.object({
+  id: z.string(),
+  startUrl: z.string(),
+  status: browserSessionStatusSchema,
+  steps: z.array(browserSessionStepSchema),
+  screenshots: z.array(browserSessionScreenshotSchema),
+  summary: z.string(),
+});
+export type BrowserSessionMeta = z.infer<typeof browserSessionMetaSchema>;
 
 /**
  * `compute` SSE payload — the deterministic result of the `compute` intent.
@@ -725,6 +793,8 @@ export const chatStreamEventSchemas: Record<string, z.ZodTypeAny> = {
   artifact: z.object({ artifact: artifactPayloadSchema.passthrough().optional() }).passthrough(),
   research_log_start: researchLogStartSchema.passthrough(),
   research_log_update: researchLogUpdateSchema.passthrough(),
+  browser_session_start: browserSessionStartSchema.passthrough(),
+  browser_session_update: browserSessionUpdateSchema.passthrough(),
   compute: z.object({ compute: computePayloadSchema.passthrough().optional() }).passthrough(),
   bahn: z.object({ bahn: bahnPayloadSchema.passthrough().optional() }).passthrough(),
   // variants stay unknown[] here: per-item validation (sharepicVariantSchema)

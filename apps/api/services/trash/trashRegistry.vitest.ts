@@ -18,8 +18,15 @@ const deleteLikesForEntity = vi.fn();
 vi.mock('../entityLikes/EntityLikesService.js', () => ({ deleteLikesForEntity }));
 
 const getTrashedShare = vi.fn();
+const trashShare = vi.fn();
 vi.mock('../sharedMediaService.js', () => ({
-  getSharedMediaService: () => ({ getTrashedShare }),
+  getSharedMediaService: () => ({ getTrashedShare, trashShare }),
+}));
+
+const getTrashedOwnedRow = vi.fn();
+vi.mock('./ownedRowTrash.js', async (importOriginal) => ({
+  ...(await importOriginal<object>()),
+  getTrashedOwnedRow: (...a: unknown[]) => getTrashedOwnedRow(...a),
 }));
 
 const { TRASH_KINDS, TRASH_RETENTION_DAYS, purgeAtFor, toTrashItem, trashHandlerFor } =
@@ -163,5 +170,27 @@ describe('shared_media handler', () => {
 
     getTrashedShare.mockResolvedValue('forbidden');
     expect(await trashHandlerFor('shared_media')!.getTrashed('user-2', 'tok-1')).toBe('forbidden');
+  });
+
+  it('refuses a Sticker/Hintergrund file: its gallery item is what gets trashed', async () => {
+    trashShare.mockResolvedValue('studio_asset');
+    expect(await trashHandlerFor('shared_media')!.trash('user-1', 'tok-1')).toBe('forbidden');
+  });
+});
+
+describe('studio_asset handler', () => {
+  it('names the kind and falls back to a per-kind title', async () => {
+    const row = { id: 'a-1', deleted_at: new Date('2026-10-14T10:00:00.000Z'), user_id: 'u-1' };
+    getTrashedOwnedRow.mockResolvedValue({ ...row, title: ' ', kind: 'background' });
+    expect(await trashHandlerFor('studio_asset')!.getTrashed('u-1', 'a-1')).toMatchObject({
+      title: 'Unbenannter Hintergrund',
+      subtype: 'background',
+    });
+
+    getTrashedOwnedRow.mockResolvedValue({ ...row, title: 'Herz', kind: 'sticker' });
+    expect(await trashHandlerFor('studio_asset')!.getTrashed('u-1', 'a-1')).toMatchObject({
+      title: 'Herz',
+      subtype: 'sticker',
+    });
   });
 });

@@ -67,6 +67,7 @@ export {
   NOTEBOOK_DEPTHS,
   DEFAULT_NOTEBOOK_DEPTH,
   notebookDepthDef,
+  visibleNotebookDepths,
   type NotebookDepthDef,
   type NotebookDepthIconKey,
 } from './lib/notebookDepth';
@@ -109,6 +110,8 @@ export {
   useChatFetch,
   useChatEndpoints,
   type ChatConfig,
+  type ChatVoice,
+  type ChatVoiceThread,
   type ResolvedEndpoints,
   type ChatRequestContext,
   type ChatRequestContextProvider,
@@ -125,6 +128,11 @@ export {
   convertToThreadMessageLike,
   type LoadedMessage,
 } from './runtime/threadMessageConversion';
+export {
+  insertSavedMessage,
+  reloadSavedThread,
+  type VoiceSyncThread,
+} from './runtime/voiceThreadSync';
 export { GrueneratorAttachmentAdapter } from './runtime/GrueneratorAttachmentAdapter';
 export {
   createGrueneratorModelAdapter,
@@ -209,6 +217,7 @@ export { type CategoryFilterField } from './components/notebook/NotebookSettings
 
 // Thread Components
 export { GrueneratorThread } from './components/thread/GrueneratorThread';
+export { VoiceOrb } from './components/assistant-ui/voice';
 // Read-only transcript view (shared thread archive)
 export {
   ReadonlyThreadProvider,
@@ -341,6 +350,7 @@ export {
 
 // Stores
 export {
+  hasPendingHandoff,
   useAgentStore,
   MODEL_OPTIONS,
   PROVIDER_OPTIONS,
@@ -625,6 +635,8 @@ export {
   registerDocumentSlug,
   buildDocumentMentionAttachment,
   buildCollabDocAttachment,
+  buildNotebookSourceAttachment,
+  NOTEBOOK_SOURCE_CONTENT_TYPE,
   resolveDocumentSlug,
   clearDocumentSlugs,
   documentToSlug,

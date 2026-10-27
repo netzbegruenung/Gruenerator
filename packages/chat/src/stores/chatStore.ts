@@ -16,6 +16,7 @@ import {
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
 
+import { type MentionAttachment } from '../lib/documentMentionables';
 import { DEFAULT_NOTEBOOK_ANSWER_MODE, type NotebookComposerMode } from '../lib/notebookAnswerMode';
 import { DEFAULT_NOTEBOOK_DEPTH } from '../lib/notebookDepth';
 import { notifyError, notifyWarning } from '../lib/notify';
@@ -54,15 +55,6 @@ interface CompactionResponse {
     keepRecent: number;
   };
   needsCompaction: boolean;
-}
-
-interface TriggerCompactionResponse {
-  success: boolean;
-  skipped: boolean;
-  reason?: string;
-  messageCount?: number;
-  summarizedCount?: number;
-  compactionState: CompactionState;
 }
 
 export type ToolKey = 'search' | 'web' | 'examples' | 'pressemitteilung_examples' | 'research';
@@ -125,9 +117,11 @@ interface AgentState {
   compactionState: CompactionState;
   compactionLoading: boolean;
   messageCount: number;
-  needsCompaction: boolean;
   pendingMessage: string | null;
   pendingDraft: string | null;
+  /** Reference chips another surface hands to the next new chat (the notebook
+   *  reader). AutoMessageSender attaches them along with the pending text. */
+  pendingAttachments: MentionAttachment[];
   pendingInitialAssistantMessage: string | null;
   chatViewMode: 'overview' | 'thread';
   threadMode: ThreadMode;
@@ -195,6 +189,7 @@ interface AgentState {
   setSelectedNotebook: (notebookId: string) => void;
   setPendingMessage: (message: string | null) => void;
   setPendingDraft: (draft: string | null) => void;
+  setPendingAttachments: (attachments: MentionAttachment[]) => void;
   setPendingInitialAssistantMessage: (message: string | null) => void;
   setChatViewMode: (mode: 'overview' | 'thread') => void;
   setThreadMode: (mode: ThreadMode) => void;
@@ -204,7 +199,6 @@ interface AgentState {
   setNotebookAnswerMode: (mode: NotebookComposerMode) => void;
   setCompactionState: (state: CompactionState) => void;
   loadCompactionState: (threadId: string, apiClient: ChatApiClient) => Promise<void>;
-  triggerCompaction: (threadId: string, apiClient: ChatApiClient) => Promise<void>;
   incrementMessageCount: () => void;
   setCustomSystemPrompt: (prompt: string | null) => void;
   setCustomRoleName: (name: string | null) => void;
@@ -246,6 +240,23 @@ const DEFAULT_COMPACTION_STATE: CompactionState = {
   compactionUpdatedAt: null,
 };
 
+/**
+ * Whether another surface queued content for the next new chat. AutoMessageSender
+ * owns that hand-off; the views that would otherwise switch threads on mount
+ * step aside while it is pending.
+ */
+export function hasPendingHandoff(
+  s: Pick<
+    AgentState,
+    'pendingMessage' | 'pendingDraft' | 'pendingAttachments' | 'pendingInitialAssistantMessage'
+  >
+): boolean {
+  return (
+    !!(s.pendingMessage || s.pendingDraft || s.pendingInitialAssistantMessage) ||
+    s.pendingAttachments.length > 0
+  );
+}
+
 export const useAgentStore = create<AgentState>()(
   persist(
     (set) => ({
@@ -259,9 +270,9 @@ export const useAgentStore = create<AgentState>()(
       compactionState: { ...DEFAULT_COMPACTION_STATE },
       compactionLoading: false,
       messageCount: 0,
-      needsCompaction: false,
       pendingMessage: null,
       pendingDraft: null,
+      pendingAttachments: [],
       pendingInitialAssistantMessage: null,
       chatViewMode: 'overview' as const,
       threadMode: 'chat' as ThreadMode,
@@ -377,6 +388,8 @@ export const useAgentStore = create<AgentState>()(
 
       setPendingDraft: (draft) => set({ pendingDraft: draft }),
 
+      setPendingAttachments: (attachments) => set({ pendingAttachments: attachments }),
+
       setPendingInitialAssistantMessage: (message) =>
         set({ pendingInitialAssistantMessage: message }),
 
@@ -412,7 +425,6 @@ export const useAgentStore = create<AgentState>()(
           set({
             compactionState: response.compactionState,
             messageCount: response.messageCount,
-            needsCompaction: response.needsCompaction,
             compactionLoading: false,
           });
         } catch (error) {
@@ -425,31 +437,7 @@ export const useAgentStore = create<AgentState>()(
         }
       },
 
-      triggerCompaction: async (threadId: string, apiClient: ChatApiClient) => {
-        set({ compactionLoading: true });
-        try {
-          const response = await apiClient.post<TriggerCompactionResponse>(
-            '/api/chat-service/summarize',
-            { threadId }
-          );
-          if (response.success && !response.skipped) {
-            set({
-              compactionState: response.compactionState,
-              needsCompaction: false,
-            });
-          }
-          set({ compactionLoading: false });
-        } catch (error) {
-          console.error('Failed to trigger compaction:', error);
-          set({ compactionLoading: false });
-        }
-      },
-
-      incrementMessageCount: () =>
-        set((state) => ({
-          messageCount: state.messageCount + 1,
-          needsCompaction: state.messageCount + 1 >= 50 && !state.compactionState.summary,
-        })),
+      incrementMessageCount: () => set((state) => ({ messageCount: state.messageCount + 1 })),
 
       setCustomSystemPrompt: (prompt) => set({ customSystemPrompt: prompt }),
 
@@ -765,7 +753,6 @@ function switchThread(threadId: string | null, opts: { keepMentions: boolean }):
     currentThreadTitle: null,
     compactionState: { ...DEFAULT_COMPACTION_STATE },
     messageCount: 0,
-    needsCompaction: false,
     ...(opts.keepMentions
       ? {}
       : { activeSkillMention: null, activeRecipeId: null, pinnedConnector: null }),

@@ -50,6 +50,26 @@ const PASSTHROUGH_SAMPLES: Record<(typeof PASSTHROUGH_METADATA_FIELDS)[number], 
     summary: 'Gesamtgewinn: 60.0',
     figures: ['aGVsbG8='],
   },
+  browserSession: {
+    id: 'b1',
+    startUrl: 'https://example.test/',
+    status: 'done',
+    steps: [
+      {
+        n: 1,
+        url: 'https://example.test/',
+        title: 'Start',
+        action: 'click',
+        target: 'Suche',
+        xPct: 0.5,
+        yPct: 0.2,
+        thought: null,
+        imageUrl: '/api/chat-service/compute-assets/a.jpg',
+      },
+    ],
+    screenshots: [{ name: 'a.png', url: '/api/chat-service/compute-assets/b.png' }],
+    summary: 'Gefunden.',
+  },
   agentId: 'gruenerator-pressemitteilung',
   roleName: 'Sprecher:in',
   interrupted: true,
@@ -994,6 +1014,107 @@ describe('convertToThreadMessageLike — offene Loop-Rückfrage (#3220)', () => 
     expect(asks[0]!.result).toBe('Anna Müller');
     expect(asks[0]!.args).toMatchObject({ question: 'Welche Anna meinst du?' });
     expect(msg!.status).toBeUndefined();
+  });
+});
+
+describe('convertToThreadMessageLike — entschiedene Freigabe (#5043)', () => {
+  const pendingApproval = {
+    approvalTurnId: 'appr-1',
+    calls: [
+      {
+        toolCallId: 'call_tab',
+        toolName: 'tabelle_auswerten',
+        args: { auftrag: 'Summe der Beträge je Monat' },
+      },
+    ],
+    resolved: true as const,
+    decisions: [{ toolCallId: 'call_tab', approved: true, optionId: 'allow-once' }],
+  };
+  const step = {
+    toolCallId: 'call_tab',
+    toolName: 'tabelle_auswerten',
+    args: { auftrag: 'Summe der Beträge je Monat' },
+    result: { code: 'print(1)', stdout: '1' },
+  };
+
+  it.each([
+    ['ohne Versätze', step],
+    ['mit Versätzen', { ...step, textOffset: 0 }],
+  ])('zeigt Pille und Auftragszeile nach dem Reload (%s)', (_label, persisted) => {
+    const [msg] = convertToThreadMessageLike([
+      {
+        id: 'm1',
+        role: 'assistant',
+        content: 'Die Summe ist 1.',
+        metadata: { pendingApproval, toolCalls: [persisted] },
+      },
+    ]);
+    const parts = (msg!.content as unknown as Array<Record<string, unknown>>).filter(
+      (p) => p.type === 'tool-call'
+    );
+    // Pille zuerst, dann die Karte des ausgeführten Aufrufs — wie live.
+    expect(parts).toHaveLength(2);
+    expect(parts[0]).toMatchObject({
+      toolCallId: 'call_tab__approval',
+      toolName: 'tabelle_auswerten',
+      approval: { approved: true, optionId: 'allow-once' },
+    });
+    expect(parts[1]).toMatchObject({
+      toolCallId: 'call_tab',
+      args: { auftrag: 'Summe der Beträge je Monat' },
+      result: { code: 'print(1)' },
+    });
+    expect(parts[1]).not.toHaveProperty('approval');
+    expect(msg!.status).toBeUndefined();
+  });
+
+  it('zeigt eine abgelehnte Freigabe auch ohne Karte des Aufrufs', () => {
+    const [msg] = convertToThreadMessageLike([
+      {
+        id: 'm1',
+        role: 'assistant',
+        content: 'Dann eben nicht.',
+        metadata: {
+          pendingApproval: {
+            ...pendingApproval,
+            decisions: [{ toolCallId: 'call_tab', approved: false, optionId: 'reject-once' }],
+          },
+        },
+      },
+    ]);
+    const parts = (msg!.content as unknown as Array<Record<string, unknown>>).filter(
+      (p) => p.type === 'tool-call'
+    );
+    expect(parts).toEqual([
+      expect.objectContaining({ approval: expect.objectContaining({ approved: false }) }),
+    ]);
+  });
+
+  // #5051: pausiert die Fortsetzung erneut, trägt `pendingApproval` nur die
+  // letzte Freigabe; die frühere steht in `decidedApprovals`.
+  it('zeigt die Pillen aller Freigaben eines Zuges, jede vor ihrer Karte', () => {
+    const second = {
+      approvalTurnId: 'appr-2',
+      calls: [{ toolCallId: 'call_tab2', toolName: 'tabelle_auswerten', args: {} }],
+      resolved: true as const,
+      decisions: [{ toolCallId: 'call_tab2', approved: true, optionId: 'allow-always' }],
+    };
+    const [msg] = convertToThreadMessageLike([
+      {
+        id: 'm1',
+        role: 'assistant',
+        content: 'Erst 1, dann 2.',
+        metadata: {
+          decidedApprovals: [pendingApproval],
+          pendingApproval: second,
+          toolCalls: [step, { ...step, toolCallId: 'call_tab2' }],
+        },
+      },
+    ]);
+    const ids = (msg!.content as unknown as Array<Record<string, unknown>>)
+      .filter((p) => p.type === 'tool-call')
+      .map((p) => p.toolCallId);
+    expect(ids).toEqual(['call_tab__approval', 'call_tab', 'call_tab2__approval', 'call_tab2']);
   });
 });
 

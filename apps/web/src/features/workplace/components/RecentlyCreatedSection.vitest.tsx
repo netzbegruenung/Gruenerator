@@ -1,3 +1,4 @@
+import { fireEvent } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 
 import { renderWithProviders, screen } from '../../../test-utils';
@@ -50,5 +51,26 @@ describe('RecentlyCreatedSection image cards', () => {
     expect(screen.getByText(/^Bild · /)).toBeTruthy();
     await user.click(screen.getByRole('button', { name: 'Urlaub' }));
     expect(navigate).not.toHaveBeenCalled();
+  });
+});
+
+describe('RecentlyCreatedSection canvas cards', () => {
+  // #4732: a thumbnail whose file is missing 404s; the card must not show a broken image.
+  it('falls back to the placeholder when the thumbnail fails to load', () => {
+    items.splice(0, items.length, {
+      id: 'c-1',
+      title: 'Plakat',
+      date: '2026-10-11T10:00:00.000Z',
+      type: 'canvas',
+      href: '/studio/canvas/c-1',
+      thumbnailUrl: '/api/thumbs/canvas/c-1/v1?sig=x&w=400&fmt=webp',
+    });
+    renderWithProviders(<RecentlyCreatedSection />);
+
+    const img = screen.getByRole('img', { name: 'Plakat' });
+    expect(screen.queryByText('Bild-Vorschau')).toBeNull();
+    fireEvent.error(img);
+    expect(screen.queryByRole('img', { name: 'Plakat' })).toBeNull();
+    expect(screen.getByText('Bild-Vorschau')).toBeTruthy();
   });
 });

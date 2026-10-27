@@ -55,6 +55,19 @@ export interface UpdateUserData {
   enabled?: boolean;
 }
 
+/**
+ * One URL path segment built from a caller-supplied value. Encoded so `/`, `?`
+ * and `#` cannot leave the segment; `.` and `..` are refused outright, because
+ * URL parsing resolves them as dot segments even after encoding and the
+ * request would land on a parent resource of the realm.
+ */
+function pathSegment(value: string): string {
+  if (value === '' || value === '.' || value === '..') {
+    throw new Error('Invalid Keycloak path segment');
+  }
+  return encodeURIComponent(value);
+}
+
 // ============================================================================
 // Keycloak API Client Class
 // ============================================================================
@@ -276,7 +289,7 @@ export class KeycloakApiClient {
 
       console.log(`[KeycloakAPI] Getting user by ID: ${userId}`);
 
-      const response = await this.axiosClient.get(`/users/${userId}`);
+      const response = await this.axiosClient.get(`/users/${pathSegment(userId)}`);
       return keycloakUserSchema.parse(response.data);
     } catch (error: unknown) {
       const axiosErr = error as {
@@ -371,7 +384,7 @@ export class KeycloakApiClient {
       if (updates.username) updateRequest.username = updates.username;
       if (updates.enabled !== undefined) updateRequest.enabled = updates.enabled;
 
-      await this.axiosClient.put(`/users/${userId}`, updateRequest);
+      await this.axiosClient.put(`/users/${pathSegment(userId)}`, updateRequest);
 
       // Return updated user
       return await this.getUserById(userId);
@@ -425,7 +438,7 @@ export class KeycloakApiClient {
       }
 
       console.log(`[KeycloakAPI] Executing DELETE request to /users/${userId}`);
-      const response = await this.axiosClient.delete(`/users/${userId}`);
+      const response = await this.axiosClient.delete(`/users/${pathSegment(userId)}`);
 
       console.log(
         `[KeycloakAPI] ✅ Delete request successful. Response status: ${response.status}`
@@ -473,7 +486,7 @@ export class KeycloakApiClient {
 
       console.log(`[KeycloakAPI] Setting password for user: ${userId}`);
 
-      await this.axiosClient.put(`/users/${userId}/reset-password`, {
+      await this.axiosClient.put(`/users/${pathSegment(userId)}/reset-password`, {
         type: 'password',
         value: password,
         temporary: false,
@@ -508,7 +521,9 @@ export class KeycloakApiClient {
 
       console.log(`[KeycloakAPI] Sending password reset email to: ${email}`);
 
-      await this.axiosClient.put(`/users/${user.id}/execute-actions-email`, ['UPDATE_PASSWORD']);
+      await this.axiosClient.put(`/users/${pathSegment(user.id)}/execute-actions-email`, [
+        'UPDATE_PASSWORD',
+      ]);
 
       console.log('[KeycloakAPI] Password reset email sent successfully');
       return true;
@@ -568,7 +583,9 @@ export class KeycloakApiClient {
     try {
       await this.ensureAuth();
 
-      const response = await this.axiosClient.get(`/users/${userId}/federated-identity`);
+      const response = await this.axiosClient.get(
+        `/users/${pathSegment(userId)}/federated-identity`
+      );
       return z.array(federatedIdentitySchema).parse(response.data);
     } catch (error: unknown) {
       console.error(
@@ -601,6 +618,8 @@ export class KeycloakApiClient {
    */
   async deleteFederatedIdentity(userId: string, provider: string): Promise<void> {
     await this.ensureAuth();
-    await this.axiosClient.delete(`/users/${userId}/federated-identity/${provider}`);
+    await this.axiosClient.delete(
+      `/users/${pathSegment(userId)}/federated-identity/${pathSegment(provider)}`
+    );
   }
 }

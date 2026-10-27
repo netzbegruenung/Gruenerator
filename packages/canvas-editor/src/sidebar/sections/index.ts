@@ -8,6 +8,8 @@
 
 import { lazy } from 'react';
 
+import { lazyWithPreload } from './lazyWithPreload';
+
 // =============================================================================
 // STATIC EXPORTS - Lightweight sections loaded immediately
 // =============================================================================
@@ -16,8 +18,8 @@ export { CombinedTextSection } from './CombinedTextSection';
 export type { CombinedTextSectionProps } from './CombinedTextSection';
 export { ChatSection } from './ChatSection';
 export type { ChatSectionProps } from './ChatSection';
-// Static: IconsSection is already statically imported/rendered by AssetsSection
-// + BrowseView, so the previous lazy() wrapper was an ineffective dynamic import
+// Static: IconsSection used to be statically imported by AssetsSection, so the
+// previous lazy() wrapper was an ineffective dynamic import
 // (it confused the chunker). Export it directly.
 export { IconsSection } from './IconsSection';
 export { BadgeSection } from './BadgeSection';
@@ -34,17 +36,8 @@ export * from './dreizeilen';
 // LAZY EXPORTS - Heavy sections loaded on-demand
 // =============================================================================
 
-export const AssetsSection = lazy(() =>
-  import('./assets').then((m) => ({ default: m.AssetsSection }))
-);
-
-export const BackgroundSection = lazy(() =>
-  import('./BackgroundSection').then((m) => ({ default: m.BackgroundSection }))
-);
-
-export const ImageBackgroundSection = lazy(() =>
-  import('./ImageBackgroundSection').then((m) => ({ default: m.ImageBackgroundSection }))
-);
+// Preloaded while the editor is idle (usePreloadElements), so the first open is instant.
+export const AssetsSection = lazyWithPreload(() => import('./assets').then((m) => m.AssetsSection));
 
 export const GenericShareSection = lazy(() =>
   import('./GenericShareSection').then((m) => ({ default: m.GenericShareSection }))
@@ -56,7 +49,6 @@ export const UploadsSection = lazy(() =>
 );
 export type { UploadsSectionProps } from './UploadsSection';
 
-export const ToolsSection = lazy(() =>
-  import('./tools').then((m) => ({ default: m.ToolsSection }))
-);
+// Preloaded while the editor is idle (usePreloadTools), so the first open is instant.
+export const ToolsSection = lazyWithPreload(() => import('./tools').then((m) => m.ToolsSection));
 export type { ToolsSectionProps } from './tools';

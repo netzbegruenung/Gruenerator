@@ -1,8 +1,16 @@
+import { useIsCanvasTextEditing } from '@ggraphic/editor/components/CanvasTextOverlay';
+import { useRovingToolbar } from '@ggraphic/editor/hooks/useRovingToolbar';
+import { CANVAS_COMMANDS } from '@ggraphic/editor/utils/canvasCommandRegistry';
 import React, { useEffect, useLayoutEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { PiCopy, PiDotsThreeBold, PiTrash } from 'react-icons/pi';
-
-import { useIsCanvasTextEditing } from './CanvasTextOverlay';
+import {
+  PiCopy,
+  PiDotsThreeBold,
+  PiFlipHorizontal,
+  PiFlipVertical,
+  PiLockSimpleOpen,
+  PiTrash,
+} from 'react-icons/pi';
 
 import type { SelectionBox } from './GenericCanvas';
 
@@ -26,6 +34,42 @@ export interface MobileSelectionPillProps {
   onDuplicate: () => void;
   onDelete: () => void;
   onMore?: () => void;
+  /** Gesperrt (am Desktop): statt Löschen steht hier Entsperren. */
+  isLocked?: boolean;
+  onUnlock?: () => void;
+  /**
+   * Spiegeln — nur für die Mehrfachauswahl: am Handy gibt es dafür weder
+   * Leiste noch Kontextmenü. Ein einzelnes Element spiegelt im Drehen-Popover.
+   */
+  onFlip?: (axis: 'x' | 'y') => void;
+}
+
+/**
+ * Lage der Pille in Fenster-px: über der Auswahl, sonst darunter, sonst in der
+ * Auswahl an ihrer Unterkante. Gemessen wird am sichtbaren Teil der
+ * Seitenfläche (`box.visible`), nicht am Fenster — darunter liegt am Handy die
+ * Auswahl-Leiste. Die Pille wirkt nicht auf den Drehgriff zurück: er wählt
+ * seine Seite allein, sie weicht ihm aus (`getSelectionBox`).
+ */
+export function placePill(box: SelectionBox, pillWidth: number): { top: number; left: number } {
+  const { visible } = box;
+  const minTop = Math.max(MIN_TOP, visible.top + EDGE);
+  const maxTop = visible.bottom - EDGE - PILL_HEIGHT;
+  const centered = box.left + box.width / 2 - pillWidth / 2;
+  const left = Math.max(visible.left + EDGE, Math.min(centered, visible.right - pillWidth - EDGE));
+  const bottom = box.top + box.height;
+  const above = box.top - GAP - PILL_HEIGHT;
+  const below = bottom + GAP;
+  if (above >= minTop) return { top: above, left };
+  if (below <= maxTop) return { top: below, left };
+  // In der Auswahl: über ihrer Unterkante und über jedem Drehgriff, der unter der Pille läge.
+  let floor = Math.min(bottom, visible.bottom);
+  for (const r of box.rotaters) {
+    if (r.top > box.top && r.left < left + pillWidth && r.right > left)
+      floor = Math.min(floor, r.top);
+  }
+  // Zu wenig Platz für beides: lieber unter die Kopfzeile als auf die Auswahl-Leiste.
+  return { top: Math.min(maxTop, Math.max(minTop, floor - GAP - PILL_HEIGHT)), left };
 }
 
 /**
@@ -44,11 +88,14 @@ export function MobileSelectionPill({
   onDuplicate,
   onDelete,
   onMore,
+  isLocked = false,
+  onUnlock,
+  onFlip,
 }: MobileSelectionPillProps) {
   const [box, setBox] = useState<SelectionBox | null>(null);
   const [manipulating, setManipulating] = useState(false);
   const [pillWidth, setPillWidth] = useState(0);
-  const pillRef = React.useRef<HTMLDivElement>(null);
+  const { ref: pillRef, onKeyDown, onFocus } = useRovingToolbar<HTMLDivElement>();
   const isEditingText = useIsCanvasTextEditing();
 
   useLayoutEffect(() => {
@@ -75,18 +122,17 @@ export function MobileSelectionPill({
 
   useLayoutEffect(() => {
     if (pillRef.current) setPillWidth(pillRef.current.offsetWidth);
-  }, [box, canDuplicate, canDelete, onMore]);
+  }, [box, canDuplicate, canDelete, onMore, isLocked, onFlip, pillRef]);
 
   if (manipulating || isEditingText || !box) return null;
 
-  const above = box.top - GAP - PILL_HEIGHT;
-  const top = above >= MIN_TOP ? above : box.top + box.height + GAP;
-  const centered = box.left + box.width / 2 - pillWidth / 2;
-  const left = Math.max(EDGE, Math.min(centered, window.innerWidth - pillWidth - EDGE));
+  const { top, left } = placePill(box, pillWidth);
 
   return createPortal(
     <div
       ref={pillRef}
+      onKeyDown={onKeyDown}
+      onFocus={onFocus}
       role="toolbar"
       aria-label="Element"
       style={{ top, left }}
@@ -101,15 +147,41 @@ export function MobileSelectionPill({
       >
         <PiCopy size={20} aria-hidden />
       </button>
-      <button
-        type="button"
-        className={BTN}
-        onClick={onDelete}
-        disabled={!canDelete}
-        aria-label="Löschen"
-      >
-        <PiTrash size={20} aria-hidden />
-      </button>
+      {isLocked && onUnlock ? (
+        <button type="button" className={BTN} onClick={onUnlock} aria-label="Entsperren">
+          <PiLockSimpleOpen size={20} aria-hidden />
+        </button>
+      ) : (
+        <button
+          type="button"
+          className={BTN}
+          onClick={onDelete}
+          disabled={!canDelete}
+          aria-label="Löschen"
+        >
+          <PiTrash size={20} aria-hidden />
+        </button>
+      )}
+      {onFlip && (
+        <>
+          <button
+            type="button"
+            className={BTN}
+            onClick={() => onFlip('x')}
+            aria-label={CANVAS_COMMANDS.flipHorizontal.label}
+          >
+            <PiFlipHorizontal size={20} aria-hidden />
+          </button>
+          <button
+            type="button"
+            className={BTN}
+            onClick={() => onFlip('y')}
+            aria-label={CANVAS_COMMANDS.flipVertical.label}
+          >
+            <PiFlipVertical size={20} aria-hidden />
+          </button>
+        </>
+      )}
       {onMore && (
         <button type="button" className={BTN} onClick={onMore} aria-label="Mehr Optionen">
           <PiDotsThreeBold size={20} aria-hidden />

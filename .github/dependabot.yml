@@ -69,13 +69,14 @@ updates:
       time: '05:00'
       timezone: 'Europe/Berlin'
     open-pull-requests-limit: 10
-    # Seven days between a version's publish date and Dependabot proposing
-    # it: the hijacked releases of 2025 (chalk/debug, Shai-Hulud) were pulled
-    # within 48 h. Security updates are exempt from the cooldown. pnpm
-    # enforces the same window at install time via minimumReleaseAge in
-    # pnpm-workspace.yaml, so Dependabot never proposes what pnpm refuses.
+    # Three days between a version's publish date and Dependabot proposing
+    # it: the known npm hijacks (chalk/debug, Shai-Hulud, nx, ua-parser-js,
+    # axios 2026) were pulled within hours to under 48 h. Security updates are
+    # exempt from the cooldown. pnpm enforces the same window at install time
+    # via minimumReleaseAge in pnpm-workspace.yaml, so Dependabot never
+    # proposes what pnpm refuses. Keep both numbers in step.
     cooldown:
-      default-days: 7
+      default-days: 3
     labels:
       - 'dependencies'
     groups:
@@ -171,14 +172,6 @@ updates:
       - dependency-name: 'sass-loader'
         update-types: ['version-update:semver-major']
 
-      # --- Neutralised by pnpm.overrides -----------------------------------
-      # zod is pinned to ^3.24.1 in pnpm.overrides, so a v4 bump would only
-      # change manifests while v3 stays installed — a lie, not an update.
-      # Drop this ignore as part of the dedicated zod-4 migration (which also
-      # removes the better-auth>zod / knip>zod scoped overrides).
-      - dependency-name: 'zod'
-        update-types: ['version-update:semver-major']
-
       # --- Expo SDK owns these versions — ALL update types ------------------
       # `expo/bundledNativeModules.json` pins 46 of apps/mobile's 74 direct
       # dependencies, and `npx expo install --check` is the only authority on
@@ -209,6 +202,14 @@ updates:
       - dependency-name: 'react-native-*'
       - dependency-name: '@react-native/*'
       - dependency-name: '@react-native-*/*'
+
+      # --- License pin --------------------------------------------------------
+      # @iconify-json/ri 1.2.10 is Remix Icon 4.8.0 under Apache-2.0. Remix Icon
+      # 4.9.0 (Jan 2026) moved to the "Remix Icon License v1.0", which forbids
+      # competing icon libraries (3.2) and use as a logo or brand mark (3.3) —
+      # both things a design editor lets people do. The editor pins 1.2.10
+      # exactly; a newer pack needs its license read before anyone bumps it.
+      - dependency-name: '@iconify-json/ri'
 
   # =============================================================================
   # PIP - services/nlp (outside the pnpm workspace, own lockfile)
@@ -268,7 +269,83 @@ updates:
         update-types: ['version-update:semver-major']
 
   # =============================================================================
-  # DOCKER - base images of the six Dockerfiles we ship
+  # PIP - services/browser-agent (outside the pnpm workspace, own lockfile)
+  # =============================================================================
+  # Same shape as services/nlp above: requirements.txt is the compiled closure
+  # (header of the file has the command) and Dependabot only edits lines.
+  # browser-use pins almost all of its own dependencies EXACTLY (`==`), so a
+  # line bump of any of them cannot resolve — the nlp failure mode (#3303), at
+  # scale. The list below is every package in the closure that some other
+  # pinned package requires with `==`, derived from the installed metadata
+  # (27.10.2026, browser-use 0.13.14: 38 of 106) plus browser-use itself,
+  # whose bump changes those pins and is a recompile:
+  #   uv pip compile pyproject.toml --override overrides.txt --python-version 3.13 \
+  #     --python-platform x86_64-unknown-linux-gnu -o requirements.txt
+  # overrides.txt lifts upstream `==` pins that carry security advisories, so
+  # the closure is installed with `pip install --no-deps`.
+  # Minor and patch bumps of the remaining packages (fastapi, uvicorn,
+  # starlette, certifi, …) still come through. Recompute the list on every
+  # browser-use bump.
+  - package-ecosystem: 'pip'
+    directory: '/services/browser-agent'
+    schedule:
+      interval: 'weekly'
+      day: 'monday'
+      time: '05:00'
+      timezone: 'Europe/Berlin'
+    open-pull-requests-limit: 3
+    labels:
+      - 'dependencies'
+      - 'python'
+    groups:
+      python:
+        patterns:
+          - '*'
+    ignore:
+      - dependency-name: 'aiohttp'
+      - dependency-name: 'anyio'
+      - dependency-name: 'browser-harness'
+      - dependency-name: 'browser-use'
+      - dependency-name: 'bubus'
+      - dependency-name: 'cdp-use'
+      - dependency-name: 'click'
+      - dependency-name: 'cloudpickle'
+      - dependency-name: 'fetch-use'
+      - dependency-name: 'google-api-core'
+      - dependency-name: 'google-api-python-client'
+      - dependency-name: 'google-auth'
+      - dependency-name: 'google-auth-oauthlib'
+      - dependency-name: 'google-genai'
+      - dependency-name: 'groq'
+      - dependency-name: 'httpcore2'
+      - dependency-name: 'httpx'
+      - dependency-name: 'inquirerpy'
+      - dependency-name: 'markdownify'
+      - dependency-name: 'mcp'
+      - dependency-name: 'mcp-types'
+      - dependency-name: 'ollama'
+      - dependency-name: 'pillow'
+      - dependency-name: 'posthog'
+      - dependency-name: 'psutil'
+      - dependency-name: 'pydantic'
+      - dependency-name: 'pydantic-core'
+      - dependency-name: 'pydantic-settings'
+      - dependency-name: 'pyotp'
+      - dependency-name: 'pypdf'
+      - dependency-name: 'python-docx'
+      - dependency-name: 'python-dotenv'
+      - dependency-name: 'reportlab'
+      - dependency-name: 'requests'
+      - dependency-name: 'rich'
+      - dependency-name: 'screeninfo'
+      - dependency-name: 'typing-extensions'
+      - dependency-name: 'uuid7'
+      - dependency-name: 'websockets'
+      - dependency-name: '*'
+        update-types: ['version-update:semver-major']
+
+  # =============================================================================
+  # DOCKER - base images of the seven Dockerfiles we ship
   # =============================================================================
   # Only the FROM lines. Majors (node:22 -> 24, python:3.12 -> 3.13) are a
   # deliberate project, not a bump: node 22 is the version every CI lane and
@@ -281,6 +358,7 @@ updates:
       - '/apps/gruen-o-mat'
       - '/services/hocuspocus'
       - '/services/nlp'
+      - '/services/browser-agent'
       - '/documentation'
     schedule:
       interval: 'weekly'

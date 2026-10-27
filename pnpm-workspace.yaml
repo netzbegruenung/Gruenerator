@@ -7,48 +7,41 @@ packages:
 # Supply-chain settings (docs/CLAUDE-deps.md › B6). Both need pnpm >= 10.21;
 # `packageManager` in package.json pins the version CI and corepack use.
 #
-# A version must be seven days old before pnpm resolves it, transitives
-# included. The hijacked releases of 2025 (chalk/debug, Shai-Hulud) were
-# pulled within 48 h. Excluded: the families we sometimes need on the day a
-# bugfix ships.
+# A version must be three days old before pnpm resolves it, transitives
+# included. The known npm hijacks (chalk/debug, Shai-Hulud, nx, ua-parser-js,
+# axios 2026) were pulled within hours to under 48 h, so 72 h keeps more than
+# half the window as margin. Shortened from seven days on 2026-10-14: the longer
+# gate's real cost was a string of exact-version exclusions for fixes we needed
+# within the week, each of which would have passed a three-day gate unaided.
+# No family is excluded wholesale -- a blanket entry has no age protection at
+# all, which is the opposite of what this gate is for.
 #
 # pnpm 12 checks the WHOLE lockfile against this gate on every install,
 # --frozen-lockfile in CI and in the image builds included, not only new
-# resolutions. A young entry can therefore only sit in the lockfile if it is
-# excluded below; resolving one that is not is refused. So a lockfile that
-# passed the gate never blocks a later re-resolution. When one does
+# resolutions. A young entry can therefore only sit in the lockfile if it has
+# an exact exclusion (see below); resolving one that has not is refused. So a
+# lockfile that passed the gate never blocks a later re-resolution. When one does
 # (ERR_PNPM_MINIMUM_RELEASE_AGE_VIOLATION naming entries nobody just added),
 # the lockfile was written around the gate -- that is the finding, not the
 # gate. Under pnpm 10, which re-checked locked entries only when re-resolving,
-# the same state froze every dependency change for seven days (#3216).
-minimumReleaseAge: 10080
+# the same state froze every dependency change for the whole window (#3216).
+minimumReleaseAge: 4320
 minimumReleaseAgeExclude:
-  # Security fix GHSA-vwc7-r8mq-g2x9 (symlink extraction escape) used at runtime
-  # in apps/api; 0.6.1 was blocked only by the age gate, not by any trust signal.
-  - 'adm-zip'
-  - '@assistant-ui/*'
-  # Same publisher and monorepo as @assistant-ui/*, pulled in lockstep by each
-  # release; without them the scoped exclusion cannot install a fresh bugfix.
-  - 'assistant-stream'
-  - 'assistant-cloud'
-  - 'safe-content-frame'
-  - '@blocknote/*'
-  # Security fix GHSA-68fv-2mgg-jv7q (event-loop DoS), published 2026-09-30 by
-  # the same maintainer as 1.2.1. Exact version only; inert once it passes the
-  # gate on 2026-10-07, remove then.
-  - 'source-map-js@1.2.2'
-  # @ai-sdk/mistral 4.0.59 sends `reasoning_effort` for mistral-large-4 (the
-  # Mistral-Medium-3.5 lanes move to Large 4). Published 2026-10-07 with its two
-  # provider packages. Exact versions only; inert from 2026-10-14, remove then.
-  - '@ai-sdk/mistral@4.0.59'
-  - '@ai-sdk/provider@4.0.24'
-  - '@ai-sdk/provider-utils@5.0.56'
+  # Locked by #4533 under the former blanket @assistant-ui/* exclusion, published
+  # 2026-10-12/13. Exact versions only; inert from 2026-10-16 09:07 UTC, remove then.
+  - 'safe-content-frame@0.0.34'
+  # The hosted voice agent (`extra/voice-agents/browser`) first shipped in 3.0;
+  # the voice-agent test page needs it. Published 2026-10-20 17:23 UTC.
+  # Inert from 2026-10-23 17:23 UTC, remove then.
+  - '@mistralai/mistralai@3.1.0'
 # No exemption by semver: the hijacked releases this gate exists for (chalk/debug,
 # Shai-Hulud) shipped as patch bumps. An urgent fix gets an exact-version entry
-# above -- `pnpm audit --fix` writes one itself for a too-young security patch.
+# in a `minimumReleaseAgeExclude:` list here (`name@x.y.z`, with why, publish date
+# and "inert from <date + 3 days>, remove then") -- `pnpm audit --fix` writes one
+# itself for a too-young security patch.
 # Prune drops exact entries once `pnpm add`/`update`/`remove`/`install` writes a
 # lockfile that no longer resolves them. An entry whose version stays locked is
-# kept, but it stops mattering once the version is seven days old.
+# kept, but it stops mattering once the version is three days old.
 minimumReleaseAgeExcludePrune: true
 # Fail the install when a package's provenance trust level drops between
 # releases (trusted publishing -> token), the signature of a taken-over
@@ -60,8 +53,8 @@ trustPolicy: no-downgrade
 # are long-locked and shipped, and every one of them aborted `pnpm install
 # --lockfile-only` (the check stops at the first hit, so the list was unbounded).
 # Only check releases younger than one year; minimumReleaseAge above already holds
-# every new version for seven days, which is the window the hijacks this policy
-# guards against (chalk/debug, Shai-Hulud) were live. Unit is MINUTES.
+# every new version for three days, longer than the hijacks this policy guards
+# against (chalk/debug, Shai-Hulud) were live. Unit is MINUTES.
 trustPolicyIgnoreAfter: 525600
 # The window does not cover the whole family. tailwind-merge@2.6.1 (2026-01-30) is
 # a 2.x backport of a single bugfix, published from the maintainer's own npm
@@ -187,7 +180,7 @@ allowBuilds:
 # `@`, `.`, `-`, `_`, `+`, `/`, `,`, umlauts, an emoji, `§` and newlines): the
 # produced link nodes are identical for every one of them.
 #
-# `@better-auth/oauth-provider@1.7.6` seeds `ba_oauth_resources` in its plugin
+# `@better-auth/oauth-provider` (1.7.6, still in 1.7.7) seeds `ba_oauth_resources` in its plugin
 # `init` (because `mcp({ resource })` in apps/api/config/betterAuth.ts passes a
 # resource). `betterAuth()` runs that init at module import, before
 # PostgresService has applied the migration that creates the table, and caches
@@ -217,7 +210,7 @@ allowBuilds:
 # React key needs; a re-parse then updates the tree in place. 7.0.2 is the
 # latest release. Guarded by apps/mobile/test/markdownStableKeys.vitest.ts.
 #
-# `expo@58.0.6`: a DOM component (`'use dom'`, our KaTeX MathViewDOM) emits
+# `expo@58.0.19`: a DOM component (`'use dom'`, our KaTeX MathViewDOM) emits
 # its props to the webview in a mount effect, and again on every render
 # because the props object is rebuilt each time. The page is not loaded at
 # mount, and the wrapper sends the props again on `DOM_READY`, so that emit
@@ -226,13 +219,14 @@ allowBuilds:
 # on the main thread. Opening a 200-message thread in the iOS simulator spent
 # 72-125 ms of JS in it while the UI thread mounted the rows. The patch skips
 # the emit on mount and whenever the serialized props are unchanged. Still
-# unfixed upstream in 58.0.6. Guarded by apps/mobile/test/domPropsEmit.test.tsx.
-# Lockfile trap: `expo` is a peer of ~140 packages, and `pnpm patch-commit`
-# (12.8.2) wrote those peer suffixes as `(expo@<version>)` without the patch
-# hash. The lockfile then fails `--frozen-lockfile` with
-# ERR_PNPM_INCONSISTENT_PATCH_HASH, and `--fix-lockfile` does not repair it.
-# The suffixes were rewritten to `(expo@<version>(patch_hash=…))` by hand, and
-# pnpm keeps them on the next install. Check for this when regenerating.
+# unfixed upstream in 58.0.19. Guarded by apps/mobile/test/domPropsEmit.test.tsx.
+# Lockfile: `expo` depends on packages that peer-depend on `expo`, a peer
+# cycle. pnpm writes the ~140 peer suffixes that close it as a bare
+# `(expo@58.0.19)`, without the patch hash, by design; the importer and the
+# `expo` snapshot carry the hash. pnpm <= 12.8 read that as stale
+# (ERR_PNPM_INCONSISTENT_PATCH_HASH, pnpm/pnpm#16418, fixed in 12.9). Do not
+# add the hash to these suffixes by hand: the next re-resolution strips it
+# again and every lockfile diff grows by 139 lines (#4552).
 #
 # `y-indexeddb@9.0.12` chains `.then()` onto its `_db` open promise twice
 # without a catch: in the constructor (the initial load) and in `destroy()`.
@@ -246,9 +240,40 @@ allowBuilds:
 # when there is no connection to close. Only `src/` is patched: the web build
 # and vitest resolve the ESM entry, the CJS `dist/` is unused. 9.0.12 is the
 # latest release. Guarded by packages/collab/src/hooks/idbOpenFailure.vitest.ts.
+#
+# `@blocknote/xl-ai@0.55.0` declares the `id` of its AI suggestion marks
+# (`insertion`/`deletion`/`modification`) as `{ default: null, validate:
+# "number" }`, while its agent creates the preview marks without an id
+# (`pmSchema.mark("insertion", {})`, src/prosemirror/agent.ts). prosemirror-model
+# does not validate a default, so the mark is born with `id: null`. Once the
+# user types inside the AI preview, the DOM observer re-parses the range and the
+# mark view hands back `{ mark, attrs: mark.attrs }`; now `id: null` is passed
+# explicitly and `validate` throws "Expected value of type number for attribute
+# id on type insertion, got null", dropping the keystroke (GlitchTip #702/#703).
+# The upstream comment "validate is supported in prosemirror but not in tiptap"
+# is outdated: tiptap 3 passes `validate` through. The patch widens it to
+# "number|null". The app cannot fix this from outside: tiptap builds `attrs`
+# after `extendMarkSchema`, and a mark's own `addAttributes` beats
+# `addGlobalAttributes`. Unchanged in 0.56.0. Only the ESM entry is patched: the
+# web build and vitest resolve it, the CJS main entry is unused (the API only
+# imports `@blocknote/xl-ai/server`). Guarded by
+# packages/docs/src/lib/aiSuggestionMarks.vitest.ts.
+#
+# `@ts-rest/core@3.52.1` (zod 4 migration): its .d.ts files name zod 3
+# types that zod 4 no longer exports (`z.AnyZodObject`, `z.objectUtil`,
+# `z.ZodEffects`). Under skipLibCheck they silently become `any`, and
+# `UniversalMerge` in dsl.d.ts collapses every route of `c.router()` to
+# `{ [x: string]: any }` without `path`/`responses` — 1378 errors in apps/api,
+# 422 in apps/web. The patch is type-only (no JS changes): `z.ZodObject<any>`
+# for `AnyZodObject`, a plain shape intersection for `MergeShapes`, `ZodPipe`
+# for `ZodEffects`. 3.52.1 is the latest stable; 3.53.0-rc.1 (06/2025) drops
+# the zod peer but ships the same declarations (ts-rest#852, #871, #872), and
+# the repo has had no commit since 2025-06-02 (ts-rest#797, #866).
 patchedDependencies:
-  '@better-auth/oauth-provider@1.7.6': patches/@better-auth__oauth-provider@1.7.6.patch
-  expo@58.0.6: patches/expo@58.0.6.patch
+  '@better-auth/oauth-provider@1.7.7': patches/@better-auth__oauth-provider@1.7.7.patch
+  '@blocknote/xl-ai@0.55.0': patches/@blocknote__xl-ai@0.55.0.patch
+  '@ts-rest/core@3.52.1': patches/@ts-rest__core@3.52.1.patch
+  expo@58.0.19: patches/expo@58.0.19.patch
   mdast-util-gfm-autolink-literal@2.0.1: patches/mdast-util-gfm-autolink-literal@2.0.1.patch
   react-native-markdown-display@7.0.2: patches/react-native-markdown-display@7.0.2.patch
   y-indexeddb@9.0.12: patches/y-indexeddb@9.0.12.patch
@@ -280,10 +305,8 @@ auditConfig:
     - GHSA-ch52-4w7c-c8xp
     # braces <=3.0.3 stack exhaustion on nested patterns (no patched release).
     # Via apps/mobile → react-native → metro-file-map → micromatch (the
-    # bundler, fed with our own config globs, never shipped in the app) and
-    # apps/api → deepagents → micromatch/fast-glob (deep-research file tools;
-    # patterns come from the model, not from user input, worst case is one
-    # failed request). Re-check 2026-11-02.
+    # bundler, fed with our own config globs, never shipped in the app).
+    # Re-check 2026-11-02.
     - GHSA-vfj7-8cjw-p6xm
     # tinypool <2.1.2 prototype pollution → RCE via worker/run() options. The
     # only copy is tinypool 1.1.1 under documentation → @docusaurus/core, which
@@ -292,16 +315,56 @@ auditConfig:
     # the docs site, no user input reaches them. Re-check 2026-11-02.
     - GHSA-5gmw-xhrv-c9v3
     - GHSA-85c8-ppgw-ccpr
+    # stream-json <3.6.0 prototype pollution (GHSA-mjw6-4jj6-33hc) and
+    # quadratic rescan (GHSA-hqr4-qq8f-hg3x). The apps/api path (@crawlee/*)
+    # is fixed by crawlee 3.18.2 (stream-json ~3.7.0). What remains is
+    # apps/mobile → expo-atlas 0.4.3 → stream-json 1.9.1: expo-atlas declares
+    # ^1.8.0 and no 1.x carries the fix, so a >=3.6.0 floor would cross two
+    # majors (3.x is ESM-only). Dev tooling only — the Metro bundle inspector
+    # parses its own stats file, nothing ships in the app. Re-check 2026-11-14.
+    - GHSA-mjw6-4jj6-33hc
+    - GHSA-hqr4-qq8f-hg3x
+    # postcss-selector-parser <7.1.6 (GHSA-rj75-hqrm-r3gf). Only 6.1.4 under
+    # apps/wordpress → @wordpress/scripts / sass-loader → webpack → cssnano
+    # (stylehacks, postcss-merge-rules, postcss-minify-selectors declare
+    # ^6.0.16, postcss-calc ^6.0.11); no patched 6.x, a >=7.1.6 floor would
+    # cross the major. Build-time CSS minification of our own plugin styles.
+    # Re-check 2026-11-14.
+    - GHSA-rj75-hqrm-r3gf
+    # @opentelemetry/instrumentation-{pg,mysql2,knex,mysql,mongoose,tedious}
+    # (GHSA-qqmp-wf37-98f9). Only via apps/wordpress → @wordpress/scripts →
+    # @wordpress/e2e-test-utils-playwright → lighthouse → @sentry/node 9.47.1,
+    # which pins every instrumentation exactly (e.g. instrumentation-pg
+    # 0.51.1), so no floor is possible. Lighthouse runs no database driver;
+    # wp-scripts is build/e2e tooling only. Re-check 2026-11-14.
+    - GHSA-qqmp-wf37-98f9
+    # sprintf-js <=1.1.3 (GHSA-hp3w-g68c-fv3c, no patched release). Only via
+    # packages/shared → gray-matter → js-yaml 3 → argparse 1 → sprintf-js
+    # 1.0.3. gray-matter is a devDependency used by scripts/build-agents.ts
+    # and scripts/build-skills.ts at build time, and argparse is only loaded
+    # by js-yaml's CLI (bin/js-yaml.js), not by the library — it reaches no
+    # web, mobile or api runtime bundle. Re-check 2026-11-14.
+    - GHSA-hp3w-g68c-fv3c
+    # zod <4.6.6 unbounded issue accumulation on oversized arrays
+    # (GHSA-mrhx-c7xc-m3w5). Our own validation runs on zod 4 (>=4.6.6). What
+    # remains is tooling that keeps its own nested zod 3, which has no patched
+    # release: apps/mobile → expo → @expo/cli (dev server / CLI, never in the
+    # app bundle) and apps/wordpress → @wordpress/scripts → puppeteer-core →
+    # chromium-bidi (build/e2e tooling; its schemas parse the browser's
+    # protocol messages, not user input).
+    # ignoreGhsas cannot be scoped to a version, so the `zod@>=4 <5` floor
+    # override below keeps every zod 4 copy at >=4.6.6. Re-check 2026-11-25.
+    - GHSA-mrhx-c7xc-m3w5
 
 # Moved here from package.json's `pnpm.overrides`. scripts/sync-pnpm-overrides.mjs
 # and scripts/check-override-ranges.mjs read this block.
 overrides:
   adm-zip: '>=0.6.1'
   '@expo/dom-webview': ~58.0.2
-  '@types/react': 19.2.18
-  '@types/react-dom': ^19.2.4
+  '@types/react': 19.3.0
+  '@types/react-dom': ^19.3.0
   '@hocuspocus/provider': ^4.7.0
-  '@base-ui/react': ~1.7.0
+  '@base-ui/react': ~1.9.0
   '@blocknote/shadcn>@base-ui/react': 1.6.0
   y-prosemirror: ^1.3.7
   diff: '>=5.2.2'
@@ -309,19 +372,14 @@ overrides:
   '@hono/node-server': '>=2.0.10'
   '@grpc/grpc-js': '>=1.14.5 <2'
   basic-ftp: '>=6.0.1'
-  langsmith: '>=0.4.6'
-  markdown-it: '>=14.2.0 <15'
+  markdown-it: '>=14.3.3 <15'
   tar: '>=7.5.11'
-  undici: '>=8.11.2'
-  '@qdrant/js-client-rest>undici': ^7.29.0
-  jsdom: 30.0.1
+  smol-toml: '>=1.9.0'
+  undici: '>=8.12.1'
+  '@qdrant/js-client-rest>undici': ^7.30.1
+  jsdom: 30.1.3
   rollup: '>=4.59.0'
-  zod: ^3.24.1
-  better-auth>zod: ^4.3.6
-  '@better-auth/core>zod': ^4.3.6
-  '@better-auth/oauth-provider>zod': ^4.3.6
-  knip>zod: ^4.3.6
-  deepagents>zod: ^4.3.6
+  zod@>=4 <5: '>=4.6.6 <5'
   '@types/express-serve-static-core': ^5.0.0
   minimatch@<4: '>=3.1.3 <4'
   minimatch@>=5 <6: '>=5.1.7 <6'
@@ -330,8 +388,11 @@ overrides:
   brace-expansion@>=2 <3: '>=2.1.6 <3'
   brace-expansion@>=5 <6: '>=5.0.11 <6'
   ajv@<7: '>=6.14.0 <7'
+  body-parser@>=2 <3: '>=2.4.0 <3'
   serialize-javascript: '>=7.1.2'
   webpack-dev-server: '>=5.2.5'
+  launch-editor: '>=2.14.2'
+  follow-redirects: '>=1.16.1'
   '@tootallnate/once': '>=2.0.0'
   loader-utils: ^2.0.4
   dompurify: '>=3.4.16'
@@ -351,26 +412,26 @@ overrides:
   lodash: '>=4.18.0'
   '@esbuild-kit/core-utils>esbuild': ^0.25.0
   axios: '>=1.19.0'
-  postcss: '>=8.5.23'
+  postcss: '>=8.5.29'
   uuid: '>=14.0.2'
-  qs: '>=6.16.0'
+  qs: '>=6.16.1'
   proxy-addr: '>=2.0.8'
   compression: '>=1.8.2'
   source-map-js: '>=1.2.2'
   js-cookie: '>=3.0.7'
   '@types/js-cookie': '>=3.0.0'
-  shell-quote: '>=1.11.0'
+  shell-quote: '>=1.12.0'
   sharp: '>=0.35.5'
   seroval: '>=1.6.8'
   seroval-plugins: '>=1.6.8'
-  '@modelcontextprotocol/sdk': '>=1.31.0'
+  '@modelcontextprotocol/sdk': '>=1.32.1'
   form-data: '>=4.0.6'
   xlsx: https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz
   '@typescript-eslint/eslint-plugin>ts-api-utils': ^2.5.0
   '@typescript-eslint/type-utils>ts-api-utils': ^2.5.0
   '@typescript-eslint/utils>ts-api-utils': ^2.5.0
-  joi@>=17.0.0 <18.0.0: '>=17.13.6 <18.0.0'
-  joi@>=18.0.0: '>=18.2.5 <19'
+  joi@>=17.0.0 <18.0.0: '>=17.13.8 <18.0.0'
+  joi@>=18.0.0: '>=18.2.9 <19'
   http-proxy-middleware: ^2.0.10
   '@istanbuljs/load-nyc-config>js-yaml': ^4.3.2
   gray-matter>js-yaml: ^3.15.2
@@ -378,17 +439,17 @@ overrides:
   js-yaml@>=4 <5: '>=4.3.2 <5'
   svgo@>=3 <4: '>=3.3.5 <4'
   colord: '>=2.9.4'
-  fflate: '>=0.4.9 <0.5'
+  fflate@>=0.4 <0.5: '>=0.4.9 <0.5'
   '@swc/html': '>=1.16.2 <2'
-  '@opentelemetry/core': ^2.10.0
+  '@opentelemetry/core': ^2.12.0
   vite>esbuild: ^0.28.1
   tsx>esbuild: ^0.28.1
   '@blocknote/xl-ai>ai': ^6.0.224
   '@blocknote/shadcn>tailwind-merge': 2.6.0
-  '@types/node': 26.6.3
-  '@tanstack/react-query': ^5.104.0
-  zustand: 5.0.15
-  katex: ^0.18.9
+  '@types/node': 26.6.5
+  '@tanstack/react-query': ^5.104.3
+  zustand: 5.0.16
+  katex: ^0.19.0
   pyodide: ^314.0.7
   react-dropzone: ^20.1.2
   prosemirror-view: ^1.42.6
@@ -400,13 +461,13 @@ overrides:
   '@blocknote/xl-ai': ^0.55.0
   '@blocknote/xl-docx-exporter': ^0.55.0
   '@blocknote/xl-odt-exporter': ^0.55.0
-  '@assistant-ui/core': ^0.3.22
-  '@assistant-ui/store': ^0.3.16
-  '@assistant-ui/react': ^0.15.23
-  '@assistant-ui/tap': ^0.9.20
-  '@assistant-ui/react-markdown': ^0.14.18
-  '@assistant-ui/react-streamdown': ^0.3.18
-  '@assistant-ui/react-native': 0.1.44
+  '@assistant-ui/core': ^0.3.31
+  '@assistant-ui/store': ^0.3.22
+  '@assistant-ui/react': ^0.15.31
+  '@assistant-ui/tap': ^0.9.24
+  '@assistant-ui/react-markdown': ^0.14.24
+  '@assistant-ui/react-streamdown': ^0.3.20
+  '@assistant-ui/react-native': 0.1.50
   '@tiptap/core': ^3.31.4
   '@tiptap/extension-bold': ^3.31.4
   '@tiptap/extension-code': ^3.31.4

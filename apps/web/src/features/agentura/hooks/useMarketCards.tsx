@@ -46,12 +46,10 @@ function recipeMeta(entry: RecipeEntry): string {
 }
 
 /**
- * Kachel-Bau für Übersicht und Agentura: aus Einträgen werden `MarketItem`s
+ * Kachel-Bau für die Übersicht: aus Einträgen werden `MarketItem`s
  * (Favoritenstatus eingerechnet), aus `MarketItem`s Kacheln samt Aktionen.
- * `onOpen` ersetzt den Sprung auf die Detailseite — die Agentura öffnet ihre
- * Kacheln im Popup.
  */
-export function useMarketCards({ onOpen }: { onOpen?: (item: MarketItem) => void } = {}) {
+export function useMarketCards() {
   const navigate = useNavigate();
   const favorites = useSkillFavoritesStore((s) => s.favorites);
   const toggleFavorite = useSkillFavoritesStore((s) => s.toggleFavorite);
@@ -112,7 +110,7 @@ export function useMarketCards({ onOpen }: { onOpen?: (item: MarketItem) => void
         meta={agentMeta(entry.agent)}
         headingLevel={3}
         description={entry.agent.description}
-        onSelect={() => (onOpen ? onOpen(item) : handleSelectAgent(entry))}
+        onSelect={() => handleSelectAgent(entry)}
         isFavorite={isFavorite}
         onToggleFavorite={() =>
           toggleAgentFavorite(agentRef(entry.agent, entry.isUser), entry.agent.title)
@@ -143,7 +141,7 @@ export function useMarketCards({ onOpen }: { onOpen?: (item: MarketItem) => void
         meta={recipeMeta(entry)}
         headingLevel={3}
         description={entry.description}
-        onSelect={() => (onOpen ? onOpen(item) : handleSelectRecipe(entry.mention))}
+        onSelect={() => handleSelectRecipe(entry.mention)}
         isFavorite={isFavorite}
         onToggleFavorite={() => toggleFavorite(entry.mention)}
         onEdit={

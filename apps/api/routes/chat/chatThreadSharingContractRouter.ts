@@ -17,6 +17,7 @@ import { extractSlugSuffix } from '@gruenerator/shared/utils';
 import { createExpressEndpoints, initServer } from '@ts-rest/express';
 
 import { getPostgresInstance } from '../../database/services/PostgresService.js';
+import { closeShareRoom } from '../../services/collab/collabRooms.js';
 import { notifyContentShared } from '../../services/groups/groupContent.js';
 import {
   assertCanShareToGroup,
@@ -249,6 +250,7 @@ export const chatThreadSharingContractRouter = s.router(chatThreadSharingContrac
          WHERE content_type = 'chat_threads' AND content_id = $1 AND group_id = $2`,
         [threadId, groupId]
       );
+      void closeShareRoom('chat_threads', threadId);
       return { status: 200 as const, body: { success: true as const } };
     } catch (error) {
       log.error('Error removing share:', error);

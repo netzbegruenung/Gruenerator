@@ -698,3 +698,91 @@ describe('decideTurnPlan — Notebook-Werkzeugauftrag', () => {
     expect(plan({ ...notebookPin, isCompound: true }).runAgentic).toBe(false);
   });
 });
+
+// Live 15.10.2026: Erstell-Aufträge unter einer eingefügten PM bauten nichts —
+// der Turn galt als `self-contained`, und eine zurückgewonnene Art zählte nur
+// bei benannten Erzeugungs-Intents. Und ein Sharepic, das genannt, aber ohne
+// erkanntes Verb bestellt war, bekam gar kein Werkzeug.
+describe('decideTurnPlan — Erstell-Auftrag unter Material, genanntes Sharepic', () => {
+  it('ein bestelltes Dokument unter eigenem Material geht mit dem Werkzeug in den Loop', () => {
+    const p = plan({
+      intent: 'produktion',
+      lastUserText: 'mach daraus ein Dokument',
+      hasOwnMaterial: true,
+    });
+    expect(p.compoundGenerationKind).toBe('document');
+    expect(p.compoundGenerationOrdered).toBe(true);
+    expect(p.runAgentic).toBe(true);
+  });
+
+  it('ein bloss genanntes Sharepic hängt im Loop, aber nicht bestellt', () => {
+    const p = plan({
+      intent: 'produktion',
+      lastUserText: 'kürze die PM auf die Hälfte. Dazu passt später ein Sharepic.',
+      hasOwnMaterial: true,
+    });
+    expect(p.compoundGenerationKind).toBe('sharepic');
+    expect(p.compoundGenerationOrdered).toBe(false);
+    expect(p.runAgentic).toBe(true);
+  });
+
+  it('ein bestelltes Sharepic bleibt bestellt', () => {
+    const p = plan({
+      intent: 'agentic',
+      lastUserText: 'wandle diese pm in einen sharepic slider um',
+    });
+    expect(p.compoundGenerationKind).toBe('sharepic');
+    expect(p.compoundGenerationOrdered).toBe(true);
+  });
+
+  it.each(['kürze die PM auf die Hälfte', 'Schreib den Text ohne Sharepic.'])(
+    'ohne Freigabe montiert nichts: %s',
+    (lastUserText) => {
+      const p = plan({ intent: 'produktion', lastUserText, hasOwnMaterial: true });
+      expect(p.compoundGenerationKind).toBeNull();
+      expect(p.runAgentic).toBe(false);
+    }
+  );
+
+  // Die Frage darf weiter in den Loop (sie ist eine), aber ohne Sharepic-Werkzeug.
+  it('eine Meta-Frage zum Sharepic montiert nichts', () => {
+    const p = plan({
+      intent: 'produktion',
+      lastUserText: 'Was macht ein gutes Sharepic aus?',
+      hasOwnMaterial: true,
+    });
+    expect(p.compoundGenerationKind).toBeNull();
+  });
+
+  it('ein Auftrag ans vorhandene Sharepic montiert kein neues', () => {
+    const p = plan({
+      intent: 'agentic',
+      lastUserText: 'Dazu passt das Sharepic von vorhin.',
+      addressesThreadSharepic: true,
+    });
+    expect(p.compoundGenerationKind).toBeNull();
+  });
+});
+
+describe('decideTurnPlan — Tabellen-Zug', () => {
+  it('compute mit angehängter Tabelle läuft im Loop, ohne Auffang-Intent', () => {
+    const p = plan({
+      intent: 'compute',
+      lastUserText: 'Wie viele Zeilen hat die Tabelle?',
+      hasOwnMaterial: true,
+      isTabularAnalysisTurn: true,
+    });
+    expect(p.lane).toBe('loop');
+    expect(p.runAgentic).toBe(true);
+    expect(p.intent).toBe('compute');
+  });
+
+  it('compute ohne Flag bleibt im Einzeldurchlauf', () => {
+    const p = plan({
+      intent: 'compute',
+      lastUserText: 'Wie viele Zeilen hat die Tabelle?',
+      hasOwnMaterial: true,
+    });
+    expect(p.runAgentic).toBe(false);
+  });
+});

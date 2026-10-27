@@ -2,15 +2,14 @@
  * Verwerfen reverts through the undo of the path that applied the suggestion:
  * the per-page store for canvas ops, the page-level undo for a replaced deck.
  */
+import { CanvasStoreProvider, useCanvasStore } from '@ggraphic/editor/stores/CanvasStoreProvider';
 import { fireEvent, render, screen } from '@testing-library/react';
 import { useEffect } from 'react';
 import { describe, expect, it, vi } from 'vitest';
 
-import { CanvasStoreProvider, useCanvasStore } from '../../../stores/CanvasStoreProvider';
-
 import { FloatingAiSuggestionBanner } from './FloatingAiSuggestionBanner';
 
-import type { PendingAiSuggestion } from '../../../stores/createCanvasEditorStore';
+import type { PendingAiSuggestion } from '@ggraphic/editor/stores/createCanvasEditorStore';
 
 function Seed({
   pending,
@@ -55,6 +54,23 @@ describe('FloatingAiSuggestionBanner', () => {
     expect(r.onUndo).not.toHaveBeenCalled();
   });
 
+  it('names a replaced Vorlage as such, not as an AI suggestion', () => {
+    const onUndoPages = vi.fn();
+    render(
+      <CanvasStoreProvider>
+        <Seed
+          pending={{ title: 'Zitat mit Foto', undo: 'pages', source: 'vorlage' }}
+          onStore={() => {}}
+        />
+        <FloatingAiSuggestionBanner onUndo={() => {}} onUndoPages={onUndoPages} />
+      </CanvasStoreProvider>
+    );
+    expect(screen.getByText('Vorlage: Zitat mit Foto')).toBeInTheDocument();
+    expect(screen.queryByText(/Vorschlag/)).toBeNull();
+    fireEvent.click(screen.getByLabelText('Vorlage verwerfen'));
+    expect(onUndoPages).toHaveBeenCalledTimes(1);
+  });
+
   it('reads on the green menu bar: title and revert glyph are white, not the page text colour', () => {
     // The banner only renders in TopBar, on --editor-menubar-gradient (#00553B →).
     // text-foreground (#3a3a3a) there was about 1.3:1.
@@ -68,5 +84,25 @@ describe('FloatingAiSuggestionBanner', () => {
     expect(title).toHaveClass('text-white');
     expect(title).not.toHaveClass('text-foreground');
     expect(screen.getByLabelText('Vorschlag verwerfen')).not.toHaveClass('text-foreground-muted');
+  });
+
+  it('card over the locked canvas: names the open Vorlage and decides like the bar', () => {
+    const onUndoPages = vi.fn();
+    let store: ReturnType<typeof useCanvasStore> | null = null;
+    render(
+      <CanvasStoreProvider>
+        <Seed
+          pending={{ title: 'Unser Plan in Punkten', undo: 'pages', source: 'vorlage' }}
+          onStore={(s) => (store = s as typeof store)}
+        />
+        <FloatingAiSuggestionBanner variant="card" onUndo={() => {}} onUndoPages={onUndoPages} />
+      </CanvasStoreProvider>
+    );
+    expect(screen.getByRole('status')).toHaveTextContent(
+      'Vorlage „Unser Plan in Punkten“ ist noch offen'
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Behalten' }));
+    expect(store!.getState().pendingAiSuggestion).toBeNull();
+    expect(onUndoPages).not.toHaveBeenCalled();
   });
 });

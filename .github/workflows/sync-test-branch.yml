@@ -1,9 +1,12 @@
 # Keeps the long-lived `test-branch` in sync with `master`, and rebuilds the
-# beta Docker images after each sync.
+# beta Docker images after each sync when test-branch carries changes of its
+# own.
 #
 # Fires on every push to master (i.e. whenever a PR is merged): merges master
 # into test-branch (regular merge — test-branch is never squashed), pushes, then
-# dispatches build-images.yml so the beta images rebuild.
+# dispatches build-images.yml so the beta images rebuild. If the merged tree is
+# master's, there is nothing to rebuild: build-images.yml on master points the
+# `:test-branch` tags at its own images (job promote-test-branch).
 #
 # Why the explicit dispatch: a push made with the default GITHUB_TOKEN does NOT
 # re-trigger other workflows, so the push alone won't rebuild. A workflow_dispatch
@@ -117,6 +120,10 @@ jobs:
       - name: Rebuild beta images
         if: steps.merge.outputs.changed == 'true'
         run: |
+          if git diff --quiet origin/master HEAD; then
+            echo "test-branch is master's tree — build-images.yml on master retags its images."
+            exit 0
+          fi
           # workflow_dispatch (not push) so it runs under GITHUB_TOKEN.
           # build-images.yml detects which images the merge touched.
           gh workflow run build-images.yml --ref test-branch

@@ -119,6 +119,7 @@ export function ImagePicker({
           <Pressable
             style={styles.clearButton}
             onPress={onClear}
+            hitSlop={4}
             accessibilityLabel="Bild entfernen"
             accessibilityRole="button"
           >

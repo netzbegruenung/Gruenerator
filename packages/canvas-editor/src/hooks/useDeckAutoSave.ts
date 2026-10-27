@@ -1,9 +1,10 @@
-import { useShareStore } from '@gruenerator/shared/share';
+import { serializeDeck, type SerializedPage } from '@ggraphic/editor/collab/pagesDoc';
+import { useAutoSaveStore, useAutoSaveStoreApi } from '@ggraphic/editor/stores/useAutoSaveStore';
 import { useEffect, useRef, useCallback } from 'react';
-import type * as Y from 'yjs';
 
-import { serializeDeck, type SerializedPage } from '../collab/pagesDoc';
-import { useAutoSaveStore, useAutoSaveStoreApi } from '../stores/useAutoSaveStore';
+import { useCanvasEditorServices } from '../CanvasEditorProvider';
+
+import type * as Y from 'yjs';
 
 interface DeckAutoSaveOptions {
   /** The Y.Doc holding the deck's pages (usePageManager.pagesDoc). */
@@ -109,7 +110,10 @@ export function useDeckAutoSave({
   const autoSaveStoreApi = useAutoSaveStoreApi();
   const setAutoSaveStatus = useAutoSaveStore((s) => s.setAutoSaveStatus);
   const setAutoSavedShareToken = useAutoSaveStore((s) => s.setAutoSavedShareToken);
-  const { createImageShare, updateImageShare } = useShareStore();
+  // Host service; without it the editor does not autosave.
+  const imageShares = useCanvasEditorServices().imageShares;
+  const createImageShare = imageShares?.createImageShare;
+  const updateImageShare = imageShares?.updateImageShare;
 
   const refs = useRef({
     enabled,
@@ -137,6 +141,7 @@ export function useDeckAutoSave({
   const performSave = useCallback(async () => {
     const r = refs.current;
     if (!r.enabled) return;
+    if (!r.createImageShare || !r.updateImageShare) return;
     const store = autoSaveStoreApi.getState();
     if (store.autoSaveStatus === 'saving') {
       // A save is in flight with an older snapshot — remember to re-run.

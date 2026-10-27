@@ -1,7 +1,17 @@
-import { type SharepicVorlageFileEntry } from '@gruenerator/contracts';
-import { describe, expect, it } from 'vitest';
+import {
+  printSpecSchema,
+  type SharepicBlockFileEntry,
+  type SharepicSeiteFileEntry,
+  type SharepicVorlageFileEntry,
+} from '@gruenerator/contracts';
+import { describe, expect, it, vi } from 'vitest';
 
-import { vorlageProblems } from './vorlageProblems.js';
+vi.mock('./catalog.js', () => ({
+  sharepicVorlageAssetFile: (file: string) => (file === 'person.jpg' ? `/assets/${file}` : null),
+}));
+
+const { blockProblems, printProblems, seiteProblems, vorlageProblems } =
+  await import('./vorlageProblems.js');
 
 const entry = (over: Partial<SharepicVorlageFileEntry> = {}): SharepicVorlageFileEntry => ({
   id: 'de-zitat',
@@ -57,6 +67,131 @@ describe('vorlageProblems', () => {
     expect(vorlageProblems(at)).toEqual([
       'unknown stock photo nicht-da.jpg',
       '++marker++ in an AT spec',
+    ]);
+  });
+});
+
+describe('seiteProblems', () => {
+  const vorlage = entry();
+  const seite = (over: Partial<SharepicSeiteFileEntry> = {}): SharepicSeiteFileEntry => ({
+    id: 'de-seite-zitat',
+    titel: 'Zitat',
+    rolle: 'inhalt',
+    typ: 'zitat',
+    formats: ['post-portrait'],
+    slide: vorlage.spec.slides[0]!,
+    quelle: { vorlage: 'de-zitat', seite: 1 },
+    ...over,
+  });
+
+  it('passes a Seite taken from an existing Vorlage slide', () => {
+    expect(seiteProblems(seite(), 'de-DE', [vorlage])).toEqual([]);
+  });
+
+  it('flags a source the catalogue does not have', () => {
+    expect(
+      seiteProblems(seite({ quelle: { vorlage: 'de-zitat', seite: 2 } }), 'de-DE', [vorlage])
+    ).toEqual(['quelle de-zitat#2 is not in the Vorlagen catalogue']);
+    expect(
+      seiteProblems(seite({ quelle: { vorlage: 'weg', seite: 1 } }), 'de-DE', [vorlage])
+    ).toEqual(['quelle weg#1 is not in the Vorlagen catalogue']);
+  });
+
+  it('flags a DE marker on an AT Seite and a photo we do not host', () => {
+    const slide = {
+      ...vorlage.spec.slides[0]!,
+      background: { kind: 'foto' as const, filename: 'nicht-da.jpg', textSeite: 'unten' as const },
+    };
+    expect(seiteProblems(seite({ slide, quelle: undefined }), 'de-AT', [])).toEqual([
+      'unknown stock photo nicht-da.jpg',
+      '++marker++ in an AT slide',
+    ]);
+  });
+});
+
+describe('blockProblems', () => {
+  const block = (text: string): SharepicBlockFileEntry => ({
+    id: 'at-block-zitat',
+    titel: 'Zitat',
+    gruppe: 'text',
+    stichworte: [],
+    color: 'dunkelgruen',
+    items: [{ type: 'zitat', text, name: 'Vorname Nachname' }],
+  });
+
+  it('passes an AT block with AT accents', () => {
+    expect(blockProblems(block('Mehr ==Platz== fürs Rad.'), 'de-AT')).toEqual([]);
+  });
+
+  it('flags a DE marker in an AT block', () => {
+    expect(blockProblems(block('Mehr ++Platz++ fürs Rad.'), 'de-AT')).toEqual([
+      '++marker++ in an AT block',
+    ]);
+  });
+});
+
+describe('vorlageProblems — photos', () => {
+  const steckbrief = (bild: Record<string, unknown>) =>
+    entry({
+      form: 'vorstellung',
+      chat: { prompts: ['Steckbrief-Sharepic: Hallo, ich bin Lena'] },
+      spec: {
+        locale: 'de-DE',
+        slides: [
+          {
+            background: { kind: 'farbe', color: 'tanne' },
+            position: 'mitte',
+            align: 'links',
+            items: [
+              {
+                type: 'steckbrief',
+                gruss: 'Hallo, ich bin',
+                name: 'Lena',
+                merkmale: ['Fährt Rad', 'Spielt Gitarre', 'Kocht gern'],
+              },
+              { type: 'bild', ausschnitt: 'freigestellt', filter: 'original', ...bild } as never,
+            ],
+            logo: false,
+          },
+        ],
+      },
+    });
+
+  it('passes a shipped photo with its shipped cut-out', () => {
+    expect(
+      vorlageProblems(
+        steckbrief({ quelle: 'vorlage:person.jpg', freisteller: 'vorlage:person.jpg' })
+      )
+    ).toEqual([]);
+  });
+
+  it('flags a missing asset and a user photo', () => {
+    // Uncut is fine on a steckbrief: the photo keeps its own background.
+    expect(vorlageProblems(steckbrief({ quelle: 'vorlage:fehlt.jpg' }))).toEqual([
+      'missing asset fehlt.jpg',
+    ]);
+    expect(
+      vorlageProblems(steckbrief({ quelle: 'upload:1', freisteller: 'vorlage:person.jpg' }))
+    ).toEqual(['upload:1 belongs to one user, not to the catalogue']);
+  });
+});
+
+describe('printProblems', () => {
+  const veranstaltung = (foto: string, portrait: string) =>
+    printSpecSchema.parse({
+      locale: 'de-DE',
+      produkt: 'plakat',
+      variante: 'veranstaltung',
+      format: 'print-a3-hoch',
+      impressum: { art: 'visdp', name: 'Vorname Nachname', anschrift: 'Straße Nr., PLZ Ort' },
+      slots: { headline: 'Abend', foto, mitwirkende: [{ name: 'Kim', foto: portrait }] },
+    });
+
+  it('checks the poster photo and every portrait', () => {
+    expect(printProblems(veranstaltung('vorlage:person.jpg', 'vorlage:person.jpg'))).toEqual([]);
+    expect(printProblems(veranstaltung('vorlage:fehlt.jpg', 'vorlage:auch.jpg'))).toEqual([
+      'missing asset fehlt.jpg',
+      'missing asset auch.jpg',
     ]);
   });
 });

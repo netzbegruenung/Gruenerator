@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto';
 
 import { createLogger } from '../../../utils/logger.js';
+import { persistSuspendedTurnAttachments } from '../services/postResponseService.js';
 import {
   createMessage,
   finalizeAssistantMessage,
@@ -10,7 +11,11 @@ import { toolApprovalStateStore } from '../services/toolApprovalStateStore.js';
 
 import type { StreamHandlerResult } from './types.js';
 import type { ChatGraphState } from '../../../agents/langgraph/ChatGraph/types.js';
-import type { PendingToolCall, PersistedStep } from '../services/agenticLoop/types.js';
+import type {
+  PendingClientToolRequest,
+  PendingToolCall,
+  PersistedStep,
+} from '../services/agenticLoop/types.js';
 import type { StoredRequestContext } from '../services/pipelineStateStore.js';
 import type { SSEWriter } from '../services/sseHelpers.js';
 
@@ -22,12 +27,32 @@ export interface SuspendForApprovalParams {
   classifiedState: ChatGraphState;
   requestContext: StoredRequestContext;
   pendingApproval: PendingToolCall[];
+  /** Ein schon freigegebener Browser-Aufruf desselben Steps — läuft nach der Entscheidung (#5044). */
+  heldClientTool?: PendingClientToolRequest | null;
   /** Was bis zum Gate gestreamt wurde — bleibt stehen und wird fortgeschrieben. */
   partialText: string;
   priorSteps: PersistedStep[];
   /** Die vor dem Streamen angelegte Platzhalter-Zeile, falls vorhanden. */
   pendingId: string | null;
   startTime: number;
+  /** Früher im Zug aufgelöste Pausen — eine schon entschiedene Freigabe
+   *  wandert dabei nach `decidedApprovals` (#5051). */
+  resolvedPause?: Record<string, unknown>;
+}
+
+/**
+ * Die neue Pause belegt `pendingApproval`. Eine dort schon entschiedene Freigabe
+ * desselben Zuges wandert vorher in die Liste `decidedApprovals` — sonst
+ * überschreibt die neue Karte die alte, und nach einem Reload fehlt deren
+ * Pille (#5051).
+ */
+function archiveDecidedApproval(
+  resolvedPause: Record<string, unknown> | undefined
+): Record<string, unknown> | undefined {
+  if (!resolvedPause?.pendingApproval) return resolvedPause;
+  const { pendingApproval, ...rest } = resolvedPause;
+  const earlier: unknown[] = Array.isArray(rest.decidedApprovals) ? rest.decidedApprovals : [];
+  return { ...rest, decidedApprovals: [...earlier, pendingApproval] };
 }
 
 /**
@@ -45,19 +70,24 @@ export async function suspendForToolApproval({
   classifiedState,
   requestContext,
   pendingApproval,
+  heldClientTool,
   partialText,
   priorSteps,
   pendingId,
   startTime,
+  resolvedPause,
 }: SuspendForApprovalParams): Promise<StreamHandlerResult> {
   const approvalTurnId = randomUUID();
+  const carried = archiveDecidedApproval(resolvedPause);
 
   const stored = await toolApprovalStateStore.store(threadId, {
     approvalTurnId,
     calls: pendingApproval,
+    ...(heldClientTool ? { heldClientTool } : {}),
     priorSteps,
     partialText,
     pausedMessageId: pendingId,
+    ...(carried ? { resolvedPause: carried } : {}),
     classifiedState,
     requestContext,
   });
@@ -74,10 +104,15 @@ export async function suspendForToolApproval({
     return { status: 200 as const, body: undefined };
   }
 
+  // Erst die Anhänge des Turns sichern, dann fragen: der Browser holt die
+  // Tabellen-Bytes für Pyodide aus diesen Zeilen (auch nach einem Reload).
+  await persistSuspendedTurnAttachments(threadId, requestContext);
+
   const metadata: Record<string, unknown> = {
     intent: classifiedState.intent,
     searchCount: 0,
     citations: [],
+    ...carried,
     toolCalls: priorSteps,
     pendingApproval: {
       approvalTurnId,

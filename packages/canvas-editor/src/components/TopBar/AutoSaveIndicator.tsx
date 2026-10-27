@@ -1,9 +1,7 @@
+import { useAutoSaveStore } from '@ggraphic/editor/stores/useAutoSaveStore';
+import { cn } from '@ggraphic/editor/utils/cn';
 import { useEffect, useState } from 'react';
 import { FaCheck, FaExclamationTriangle } from 'react-icons/fa';
-
-import { useAutoSaveStore } from '../../stores/useAutoSaveStore';
-
-import { cn } from '../../utils/cn';
 
 /**
  * Autosave status as a single glyph: spinner while saving, a check that fades
@@ -26,6 +24,13 @@ export function AutoSaveIndicator({ onDark = false }: { onDark?: boolean }) {
 
   if (!autoSaveStatus) return null;
 
+  const statusText =
+    autoSaveStatus === 'saving'
+      ? 'Speichert …'
+      : autoSaveStatus === 'saved'
+        ? 'Gespeichert'
+        : 'Fehler beim Speichern';
+
   return (
     <div
       className={cn(
@@ -43,8 +48,10 @@ export function AutoSaveIndicator({ onDark = false }: { onDark?: boolean }) {
               : ''
       }
     >
+      <span className="sr-only">{statusText}</span>
       {autoSaveStatus === 'saving' && (
         <div
+          aria-hidden="true"
           className={cn(
             'size-4 border-2 rounded-full animate-auto-save-spin',
             onDark
@@ -55,18 +62,23 @@ export function AutoSaveIndicator({ onDark = false }: { onDark?: boolean }) {
       )}
       {showSaved && (
         <FaCheck
+          aria-hidden="true"
           size={14}
           className={cn('animate-auto-save-check', onDark ? 'text-white' : 'text-green-500')}
         />
       )}
       {autoSaveStatus === 'error' && (
         <button
-          className="bg-transparent border-none p-0 cursor-pointer flex items-center justify-center"
+          className="touch-target bg-transparent border-none p-0 cursor-pointer flex items-center justify-center min-w-6 min-h-6"
           onClick={() => retryAutoSave?.()}
           aria-label="Speichern erneut versuchen"
           type="button"
         >
-          <FaExclamationTriangle size={14} className={onDark ? 'text-amber-300' : 'text-red-500'} />
+          <FaExclamationTriangle
+            aria-hidden="true"
+            size={14}
+            className={onDark ? 'text-amber-300' : 'text-red-500'}
+          />
         </button>
       )}
     </div>
