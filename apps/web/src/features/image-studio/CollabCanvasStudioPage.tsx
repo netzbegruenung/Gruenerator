@@ -2,7 +2,6 @@ import {
   commitOpenTextEdit,
   getCanvasFormatOrDefault,
   isSlideFormat,
-  useCanvasCollaboration,
   MasterCanvasEditor,
   parseInitialPages,
   preloadCanvasTemplate,
@@ -11,7 +10,12 @@ import {
   type SidebarTabId,
 } from '@gruenerator/canvas-editor';
 import { CanvasEditorSkeleton } from '@gruenerator/canvas-editor/skeleton';
-import { getAuthErrorMessage, PresenceAvatars, useCollaborators } from '@gruenerator/collab';
+import {
+  getAuthErrorMessage,
+  PresenceAvatars,
+  useCollaboration,
+  useCollaborators,
+} from '@gruenerator/collab';
 import { sharepicFormatSchema, type CanvasDocument } from '@gruenerator/contracts';
 import { ApiError, getContractsClient } from '@gruenerator/shared/api';
 import { EditableTitle } from '@gruenerator/shared/components/EditableTitle';
@@ -162,7 +166,7 @@ function CollabCanvasStudioContent() {
     [user?.id, user?.display_name, user?.email, user?.avatar_robot_id]
   );
 
-  const collab = useCanvasCollaboration({
+  const collab = useCollaboration({
     documentId: id || '',
     user: collaborationUser,
     config,

@@ -116,9 +116,15 @@
     "./stores/useAutoSaveStore": "./src/stores/useAutoSaveStore.ts",
     "./templates/registry": "./src/templates/registry.ts",
     "./types/editorTypes": "./src/types/editorTypes.ts",
+    "./ui/alert-dialog": "./src/ui/alert-dialog.tsx",
+    "./ui/button": "./src/ui/button.tsx",
     "./ui/dialog": "./src/ui/dialog.tsx",
+    "./ui/icon-button": "./src/ui/icon-button.tsx",
+    "./ui/input": "./src/ui/input.tsx",
+    "./ui/label": "./src/ui/label.tsx",
     "./ui/masonry-grid": "./src/ui/masonry-grid.tsx",
     "./ui/popover": "./src/ui/popover.tsx",
+    "./ui/select": "./src/ui/select.tsx",
     "./ui/skeleton": "./src/ui/skeleton.tsx",
     "./ui/switch": "./src/ui/switch.tsx",
     "./utils/alignment": "./src/utils/alignment.ts",
@@ -168,6 +174,7 @@
     "./utils/illustrations/registry": "./src/utils/illustrations/registry.ts",
     "./utils/illustrations/svgCache": "./src/utils/illustrations/svgCache.ts",
     "./utils/illustrations/types": "./src/utils/illustrations/types.ts",
+    "./utils/hostStorageKeys": "./src/utils/hostStorageKeys.ts",
     "./utils/imageElementComparison": "./src/utils/imageElementComparison.ts",
     "./utils/imageFilters": "./src/utils/imageFilters.ts",
     "./utils/keyboardCrop": "./src/utils/keyboardCrop.ts",
@@ -215,6 +222,7 @@
   },
   "scripts": {
     "lint": "eslint .",
+    "test": "vitest run",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
@@ -258,8 +266,18 @@
     "zustand": "5.0.16"
   },
   "devDependencies": {
+    "@napi-rs/canvas": "^1.0.13",
+    "@rolldown/plugin-babel": "^0.2.4",
+    "@testing-library/jest-dom": "^7.0.1",
+    "@testing-library/react": "^16.3.3",
+    "@testing-library/user-event": "^14.6.8",
     "@types/react": "19.3.0",
-    "typescript": "^6.0.3"
+    "@types/react-dom": "^19.3.0",
+    "@vitejs/plugin-react": "^6.1.2",
+    "jsdom": "30.1.3",
+    "typescript": "^6.0.3",
+    "vitest": "^5.0.5",
+    "vitest-axe": "^0.1.0"
   },
   "peerDependencies": {
     "react": "^19.0.0",

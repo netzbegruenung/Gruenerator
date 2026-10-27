@@ -33,14 +33,6 @@ vi.mock('@gruenerator/canvas-editor', () => ({
   commitOpenTextEdit: () => {},
   getCanvasFormatOrDefault: (id: string) => ({ id }),
   isSlideFormat: (format: { id: string }) => format.id === 'slide-16-9',
-  useCanvasCollaboration: () =>
-    useSyncExternalStore(
-      (listener) => {
-        collab.listeners.add(listener);
-        return () => collab.listeners.delete(listener);
-      },
-      () => collab.state
-    ),
   parseInitialPages: () => undefined,
   preloadCanvasTemplate: () => Promise.resolve(),
   MasterCanvasEditor: (props: {
@@ -56,6 +48,14 @@ vi.mock('@gruenerator/collab', () => ({
   getAuthErrorMessage: (reason: string) =>
     reason.includes('denied') ? 'Du hast keinen Zugriff mehr auf dieses Dokument.' : null,
   PresenceAvatars: () => null,
+  useCollaboration: () =>
+    useSyncExternalStore(
+      (listener) => {
+        collab.listeners.add(listener);
+        return () => collab.listeners.delete(listener);
+      },
+      () => collab.state
+    ),
   useCollaborators: () => [],
 }));
 vi.mock('@gruenerator/shared/api', async (importOriginal) => ({
