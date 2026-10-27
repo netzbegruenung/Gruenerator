@@ -626,12 +626,21 @@ jobs:
   # nothing of its own. When it does, sync-test-branch.yml still dispatches a
   # real build, and this job leaves the tags alone.
   #
-  # All six images, not just the ones this run built: a later master commit
+  # All seven images, not just the ones this run built: a later master commit
   # without image changes runs no build, so this is the run that has to bring
   # test-branch level. Runs are serialized per ref, so `:master` already holds
   # every earlier merge.
   promote-test-branch:
-    needs: [build-web, build-api, build-hocuspocus, build-gruen-o-mat, build-nlp, build-doku]
+    needs:
+      [
+        build-web,
+        build-api,
+        build-hocuspocus,
+        build-gruen-o-mat,
+        build-nlp,
+        build-browser-agent,
+        build-doku,
+      ]
     if: >-
       always() &&
       github.ref == 'refs/heads/master' && github.event_name != 'pull_request' &&
@@ -710,7 +719,7 @@ jobs:
           HEAD_SHA: ${{ steps.mirror.outputs.head }}
         run: |
           failed=0
-          for image in web api hocuspocus gruen-o-mat nlp doku; do
+          for image in web api hocuspocus gruen-o-mat nlp browser-agent doku; do
             ref="$IMAGE_PREFIX-$image"
             if docker buildx imagetools create -t "$ref:test-branch" -t "$ref:${HEAD_SHA:0:7}" "$ref:master"; then
               echo "$image: :test-branch → :master"
@@ -722,7 +731,16 @@ jobs:
           exit $failed
 
   summary:
-    needs: [build-web, build-api, build-hocuspocus, build-gruen-o-mat, build-nlp, build-doku]
+    needs:
+      [
+        build-web,
+        build-api,
+        build-hocuspocus,
+        build-gruen-o-mat,
+        build-nlp,
+        build-browser-agent,
+        build-doku,
+      ]
     if: always()
     runs-on: ubuntu-latest
     permissions:
@@ -738,4 +756,5 @@ jobs:
           echo "| hocuspocus | ${{ needs.build-hocuspocus.result }} |" >> $GITHUB_STEP_SUMMARY
           echo "| gruen-o-mat | ${{ needs.build-gruen-o-mat.result }} |" >> $GITHUB_STEP_SUMMARY
           echo "| nlp | ${{ needs.build-nlp.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| browser-agent | ${{ needs.build-browser-agent.result }} |" >> $GITHUB_STEP_SUMMARY
           echo "| doku | ${{ needs.build-doku.result }} |" >> $GITHUB_STEP_SUMMARY

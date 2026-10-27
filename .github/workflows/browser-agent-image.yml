@@ -71,3 +71,5 @@ jobs:
           print('browser_agent imports OK')
           "
           docker run --rm gruenerator-browser-agent:pr chromium --version
+          # Launch it for real, as the image's default (non-root) user.
+          docker run --rm gruenerator-browser-agent:pr chromium --headless --no-sandbox --dump-dom about:blank 2>/dev/null | grep -q '<html'

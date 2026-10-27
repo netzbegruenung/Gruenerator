@@ -34,7 +34,8 @@ RUN python -m venv /opt/pw-installer \
 RUN python -m venv /opt/venv
 ENV PATH="/opt/venv/bin:$PATH"
 
-# requirements.txt ist der gepinnte Laufzeit-Abschluss von pyproject.toml.
+# requirements.txt ist der gepinnte Laufzeit-Abschluss von pyproject.toml (neu erzeugen:
+# siehe Kopfzeile der Datei; requirements-dev.txt trägt zusätzlich das [dev]-Extra für die CI).
 COPY pyproject.toml requirements.txt ./
 RUN pip install --no-cache-dir -r requirements.txt
 
