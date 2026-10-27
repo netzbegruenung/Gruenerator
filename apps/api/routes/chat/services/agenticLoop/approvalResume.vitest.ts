@@ -33,6 +33,9 @@ vi.mock('../../streamStages/toolApprovalSuspend.js', () => ({
 vi.mock('../../streamStages/clientToolLoopSuspend.js', () => ({
   suspendForLoopClientTool: vi.fn(),
 }));
+vi.mock('../../streamStages/clarificationLoopSuspend.js', () => ({
+  suspendForLoopClarification: vi.fn(),
+}));
 vi.mock('./toolApprovalRepo.js', () => ({ grantApproval: vi.fn(async () => undefined) }));
 vi.mock('../../../../services/chat/threadTitleService.js', () => ({
   threadNeedsTitle: vi.fn(async () => false),
@@ -283,5 +286,94 @@ describe('runToolApprovalResume — tabelle_auswerten geht nach der Freigabe in 
     };
     expect(resumeParams.resumeApproval.heldClientTool).toEqual(held);
     expect(vi.mocked(suspendForToolApproval).mock.calls[0]?.[0].heldClientTool).toEqual(held);
+  });
+});
+
+// #5051: eine Fortsetzung, die erneut pausiert, gibt die gerade entschiedene
+// Freigabe samt der früher entschiedenen an die neue Pause weiter.
+describe('runToolApprovalResume — mehrere Pausen in einem Zug (#5051)', () => {
+  const earlier = {
+    approvalTurnId: 'turn-1',
+    calls: [{ toolCallId: 'c0', toolName: 'tabelle_auswerten', args: {} }],
+    resolved: true,
+    decisions: [{ toolCallId: 'c0', approved: true, optionId: 'allow-once' }],
+  };
+  const decisions = [{ toolCallId: 'c1', approved: true, optionId: 'allow-once' }];
+  const expectedPause = {
+    decidedApprovals: [earlier],
+    pendingApproval: {
+      approvalTurnId: 'turn-2',
+      calls: [expect.objectContaining({ toolCallId: 'c1' })],
+      resolved: true,
+      decisions,
+    },
+  };
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    claim.mockResolvedValue(true);
+    get.mockResolvedValue({
+      approvalTurnId: 'turn-2',
+      calls: [{ toolCallId: 'c1', toolName: 'tabelle_auswerten', args: {}, scopeKey: 'k' }],
+      priorSteps: [],
+      partialText: '',
+      pausedMessageId: 'msg-2',
+      resolvedPause: { decidedApprovals: [earlier] },
+      classifiedState: { intent: 'agentic', startTime: Date.now() },
+      requestContext: { userId: 'u1', validMessages: [] },
+      createdAt: Date.now(),
+    });
+  });
+
+  const resume = () =>
+    runToolApprovalResume({
+      req: {} as never,
+      sse: { send: vi.fn(), end: vi.fn() } as never,
+      threadId: 't1',
+      userId: 'u1',
+      decisions: decisions as never,
+      fail: vi.fn() as never,
+    });
+
+  it('erneute Freigabe-Pause: bekommt alle entschiedenen Freigaben mit', async () => {
+    const { suspendForToolApproval } = await import('../../streamStages/toolApprovalSuspend.js');
+    streamAgenticResponse.mockResolvedValue({
+      fullText: '',
+      steps: [],
+      citations: [],
+      sources: [],
+      modelName: 'm',
+      pendingApproval: [
+        { toolCallId: 'c2', toolName: 'tabelle_auswerten', args: {}, scopeKey: 'k' },
+      ],
+    });
+
+    await resume();
+
+    expect(vi.mocked(suspendForToolApproval).mock.calls[0]?.[0].resolvedPause).toEqual(
+      expectedPause
+    );
+  });
+
+  it('Rückfrage nach der Freigabe: pausiert statt still zu enden', async () => {
+    const { suspendForLoopClarification } =
+      await import('../../streamStages/clarificationLoopSuspend.js');
+    streamAgenticResponse.mockResolvedValue({
+      fullText: 'Kurz:',
+      steps: [],
+      citations: [],
+      sources: [],
+      modelName: 'm',
+      pendingAsk: { toolCallId: 'ask-1', question: 'Welches Blatt?' },
+    });
+
+    await resume();
+
+    expect(suspendForLoopClarification).toHaveBeenCalledTimes(1);
+    const params = vi.mocked(suspendForLoopClarification).mock.calls[0]?.[0];
+    expect(params?.pendingAsk.question).toBe('Welches Blatt?');
+    expect(params?.pendingId).toBe('msg-2');
+    expect(params?.resolvedPause).toEqual(expectedPause);
+    expect(finalizeAssistantMessage).not.toHaveBeenCalled();
   });
 });

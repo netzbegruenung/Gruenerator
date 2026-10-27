@@ -89,7 +89,7 @@ liegt.
 ```bash
 cd services/browser-agent
 python -m venv .venv && source .venv/bin/activate
-pip install -r requirements-dev.txt
+pip install --no-deps -r requirements-dev.txt
 pytest
 ```
 

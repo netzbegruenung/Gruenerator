@@ -25,8 +25,9 @@ describe('without a host catalogue', () => {
     expect(resolveAssetInstanceSrc({ assetId: 'teamgruen' }, NO_HOST)).toBeNull();
   });
 
-  it('still draws a placed emoji from its id alone', () => {
-    expect(getAssetById('emoji-1f600', NO_HOST)?.src).toBe('/emoji/emoji_u1f600.svg');
+  it('knows no emoji file, so a placed emoji draws nothing', () => {
+    expect(getAssetById('emoji-1f600', NO_HOST)).toBeUndefined();
+    expect(resolveAssetInstanceSrc({ assetId: 'emoji-1f600' }, NO_HOST)).toBeNull();
   });
 
   it('ignores an instance src, so saved state cannot point anywhere', () => {
@@ -34,6 +35,30 @@ describe('without a host catalogue', () => {
     expect(resolveAssetInstanceSrc(shop, NO_HOST)).toBeNull();
     expect(isStickerLikeInstance(shop, NO_HOST)).toBe(false);
     expect(createStickerInstance({ id: SHOP_ID, src: SHARE_SRC }, 1080, 1080, NO_HOST)).toBeNull();
+  });
+});
+
+describe("a host's emoji files", () => {
+  const host: CanvasAssetCatalog = {
+    ...NO_HOST,
+    emojiSrc: (code) => `https://cdn.example/noto/${code}.svg`,
+  };
+
+  it('draw a placed emoji from its id alone', () => {
+    expect(getAssetById('emoji-1f9d1_1f3fb', host)).toMatchObject({
+      src: 'https://cdn.example/noto/1f9d1_1f3fb.svg',
+      label: '🧑🏻',
+      category: 'emoji',
+    });
+    expect(getAssetById('emoji-../x', host)).toBeUndefined();
+  });
+
+  // F0: the Grünerator's emoji files, stored in canvases by id.
+  it("keep the Grünerator's paths", () => {
+    expect(GRUENE_ASSET_CATALOG.emojiSrc?.('1f600')).toBe('/emoji/emoji_u1f600.svg');
+    expect(getAssetById('emoji-1f44d_1f3ff', GRUENE_ASSET_CATALOG)?.src).toBe(
+      '/emoji/emoji_u1f44d_1f3ff.svg'
+    );
   });
 });
 

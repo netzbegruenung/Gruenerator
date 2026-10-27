@@ -724,6 +724,10 @@ async function saveThreadAttachmentsFromMeta(
  * (live 27.10.2026), and a reload during an open approval lost the file.
  * The later end-of-turn save is a no-op per file (ON CONFLICT on
  * thread_id + content_hash in `saveThreadAttachment`). Never throws.
+ *
+ * A paused turn that is never resumed keeps its rows on purpose, exactly like a
+ * finished turn: the table stays computable for later turns in the thread and
+ * leaves with the thread (ON DELETE CASCADE). Only the approval card expires.
  */
 export async function persistSuspendedTurnAttachments(
   threadId: string,

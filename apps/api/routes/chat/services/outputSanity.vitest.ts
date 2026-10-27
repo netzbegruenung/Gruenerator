@@ -196,6 +196,32 @@ describe('looksCutOff — closing blocks are finished (#3628)', () => {
   });
 });
 
+describe('looksCutOff — a list ending on a value is finished', () => {
+  it('accepts the live table answers that ended on an amount (27.10.2026)', () => {
+    for (const t of [
+      'Für Wien ergeben sich diese Summen:\n\n* **KS-Events**: 3.563,14 EUR\n* **KS-Büro**: 3.225,68 EUR',
+      'Für Wien ergeben sich diese Summen:\n\n4. KS-Events: 3.563,14 EUR\n5. KS-Büro: 3.225,68 EUR',
+      'Für Wien ergeben sich diese Summen:\n\n*   KS-Verpflegung: 9.035,93\n*   KS-Schulung: 8.148,66',
+    ]) {
+      expect(looksCutOff(t), t).toBe(false);
+    }
+  });
+
+  it('still flags a cut inside a long final list item', () => {
+    expect(
+      looksCutOff(
+        'Die wichtigsten Punkte:\n\n- Mehr Radwege in der Innenstadt.\n- Im Vergleich zu anderen Städten investiert Graz deutlich weniger in den öffentlichen Pa'
+      )
+    ).toBe(true);
+  });
+
+  it('still flags a single list item, which is no list', () => {
+    expect(looksCutOff('Kurz gesagt:\n\n- Der Anteil erneuerbarer Energien lag 2025 bei 87')).toBe(
+      true
+    );
+  });
+});
+
 const SEARCHED = { sources: 10, toolCalls: 2 };
 
 describe('deniesSearchAbilityDespiteSearching', () => {
