@@ -1,4 +1,6 @@
 import {
+  grueneratorBlocks,
+  grueneratorCarousel,
   grueneratorPrint,
   useCanvasEditorServices,
   type CanvasEditorServices,
@@ -72,6 +74,8 @@ describe('WebCanvasEditorProvider', () => {
     expect(seen?.useStudioAssets).toBe(useStudioAssets);
     expect(seen?.useUnsplashSearch).toBe(useUnsplashSearch);
     expect(seen?.print).toBe(grueneratorPrint);
+    expect(seen?.blocks).toBe(grueneratorBlocks);
+    expect(seen?.carousel).toBe(grueneratorCarousel);
   });
 
   it('reicht „Erweitern" in den Editor, auch im WebView-Host /mobile-editor', () => {

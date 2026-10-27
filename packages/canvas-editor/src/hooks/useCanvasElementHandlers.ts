@@ -1,6 +1,6 @@
 import { useCallback, useMemo } from 'react';
 
-import { type LiftedBlock } from '../composer/liftBlock';
+import { type LiftedBlock } from '../blocks/liftedBlock';
 import { resolveValue } from '../utils/canvasValueResolver';
 import {
   isTemplateElementRotatable,
@@ -92,7 +92,7 @@ export interface OptionalCanvasActions {
 
   // Add actions a dragged Elemente tile is dropped with (GenericCanvas `dropElement`).
   addAsset?: (assetId: string, options?: ElementPlacement) => void;
-  /** Adds a composed block (`liftBlock`) as one history entry (freeform pages). */
+  /** Adds a block (`blocks/liftedBlock.ts`) as one history entry (freeform pages). */
   insertBlock?: (block: LiftedBlock) => void;
   addStickerAsset?: (ref: StickerRef, options?: ElementPlacement) => void;
   addShape?: (type: ShapeType, color?: string, options?: ElementPlacement) => void;

@@ -13,6 +13,7 @@ import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest
 
 import { CanvasEditorProvider, type CanvasEditorServices } from '../../../CanvasEditorProvider';
 import { composeSharepic, SHAREPIC_COLOR_HEX } from '../../../composer/composeSharepic';
+import { grueneratorBlocks } from '../../../composer/sharepicServices';
 import { loadCanvasConfig } from '../../../configs/configLoader';
 import { AutoSaveStoreProvider } from '../../../stores/AutoSaveStoreProvider';
 import { GenericCanvas, type GenericCanvasRef } from '../../GenericCanvas';
@@ -46,6 +47,7 @@ const composeBlock = vi.fn(
 
 /** The services apps/web passes for blocks (plus its Vorlagen catalogue). */
 const HOST: CanvasEditorServices = {
+  blocks: grueneratorBlocks,
   vorlagen: {
     listSeiten: async () => [],
     composeSeite: async () => [],

@@ -13,6 +13,7 @@ import * as Y from 'yjs';
 
 import { CanvasEditorProvider, type CanvasEditorServices } from '../CanvasEditorProvider';
 import { composeSharepic } from '../composer/composeSharepic';
+import { grueneratorCarousel } from '../composer/sharepicServices';
 
 import { readPages } from './pagesDoc';
 import { useYjsPages } from './useYjsPages';
@@ -20,7 +21,7 @@ import { useYjsPages } from './useYjsPages';
 import type { AdditionalText } from '../configs/types';
 
 /** What the editor host passes in apps/web. */
-const HOST: CanvasEditorServices = {};
+const HOST: CanvasEditorServices = { carousel: grueneratorCarousel };
 
 const measure = (text: string, fontSize: number) => text.length * fontSize * 0.5;
 

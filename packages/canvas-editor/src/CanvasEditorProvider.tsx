@@ -1,11 +1,13 @@
 import { createContext, useContext } from 'react';
 
 import type { ApplyResult } from './ai/applyOperation';
+import type { BlockSlide } from './blocks/liftedBlock';
 import type { ReplaceDeckOps } from './collab/pagesDoc';
 import type { StockImage, StockImageAttribution } from './common/imageSourceTypes';
-import type { ComposedSlide } from './composer/composeSharepic';
 import type { HeterogeneousPage } from './configs/types';
 import type {
+  CanvasBlockService,
+  CanvasCarouselService,
   CanvasFileDeliveryService,
   CanvasImageShareService,
   CanvasMediaLibraryService,
@@ -99,7 +101,7 @@ export interface CanvasVorlagenService {
   composeBlock?: (
     block: SharepicBlock,
     options: { format: SharepicFormat; color: SharepicColor }
-  ) => Promise<ComposedSlide>;
+  ) => Promise<BlockSlide>;
 }
 
 /** Which pages the alt-text tool describes. */
@@ -250,6 +252,19 @@ export interface CanvasEditorServices {
    * „Vorlagen" tab lists no print Vorlagen; the PDF export still works.
    */
   print?: CanvasPrintService;
+
+  /**
+   * Turns composed blocks into page items (`CanvasBlockService` in
+   * `hostServices.ts`). When omitted, the editor offers no blocks, even with
+   * `vorlagen.listBloecke` and `vorlagen.composeBlock`.
+   */
+  blocks?: CanvasBlockService;
+
+  /**
+   * Keeps the carousel chrome true after page ops (`CanvasCarouselService`).
+   * When omitted, page ops leave the chrome as it is.
+   */
+  carousel?: CanvasCarouselService;
 }
 
 const CanvasEditorContext = createContext<CanvasEditorServices>({});

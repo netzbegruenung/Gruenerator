@@ -19,13 +19,13 @@ import React, {
   useLayoutEffect,
 } from 'react';
 
+import { blockElementIds, placeBlock, type LiftedBlock } from '../blocks/liftedBlock';
 import { HOST_EMITTED_STATE_KEYS } from '../collab/pageElementStateKeys';
 import { useEmitHostStateChanges } from '../collab/useEmitHostStateChanges';
 import { useSelectionAwareness } from '../collab/useSelectionAwareness';
 import { useYjsCanvasBinding } from '../collab/useYjsCanvasBinding';
 import { useYjsPageStateSync } from '../collab/useYjsPageStateSync';
 import { stateKeyOfCallback } from '../collab/wrapCallbacksWithPageSync';
-import { blockElementIds, placeBlock, type LiftedBlock } from '../composer/liftBlock';
 import { getCanvasFormatOrDefault } from '../formats';
 import {
   useCanvasInteractions,
