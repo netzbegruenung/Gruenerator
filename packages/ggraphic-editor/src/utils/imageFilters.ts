@@ -1,11 +1,13 @@
+// SPDX-License-Identifier: MPL-2.0
 /**
  * Image adjustment filters for user images and background photos
  * (Konva.Filters "Multiple Filters" pattern: cache() the node, then apply an
  * array of filters that read node attrs). See https://konvajs.org/api/Konva.Filters.html
  */
 
-import { activeBrand } from '@ggraphic/editor/brand/brandRegistry';
 import Konva from 'konva';
+
+import { activeBrand } from '@ggraphic/editor/brand/brandRegistry';
 
 import type { ImageAdjustments } from './userImageUtils';
 

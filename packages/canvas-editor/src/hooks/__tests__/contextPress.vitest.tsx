@@ -4,6 +4,7 @@
  * der gewöhnliche Druck beim Loslassen, auch mit der rechten Taste.
  */
 import { MultiSelectionTransformer } from '@ggraphic/editor/components/MultiSelectionTransformer';
+import { ShapePrimitive } from '@ggraphic/editor/primitives/ShapePrimitive';
 import {
   CanvasStoreProvider,
   useCanvasStore,
@@ -16,7 +17,6 @@ import { Group } from 'react-konva';
 import { describe, expect, it } from 'vitest';
 
 import { CanvasStage, type CanvasStageRef } from '../../primitives/CanvasStage';
-import { ShapePrimitive } from '../../primitives/ShapePrimitive';
 import { useCanvasInteractions } from '../useCanvasInteractions';
 import { useContextPress } from '../useContextPress';
 

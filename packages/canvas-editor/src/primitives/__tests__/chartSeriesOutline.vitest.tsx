@@ -1,9 +1,8 @@
+import { buildChartElement } from '@ggraphic/editor/primitives/ChartPrimitive';
 import { type ChartInstance, createChartInstance } from '@ggraphic/editor/utils/chartUtils';
 import { render } from '@testing-library/react';
 import * as recharts from 'recharts';
 import { describe, expect, it } from 'vitest';
-
-import { buildChartElement } from '../ChartPrimitive';
 
 const DARK = '#257639';
 const LIGHT = '#FCEC00';

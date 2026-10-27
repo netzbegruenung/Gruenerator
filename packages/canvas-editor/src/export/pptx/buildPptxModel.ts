@@ -43,10 +43,10 @@ import type {
   PptxSlideModel,
 } from './types';
 import type { AdditionalText } from '../../configs/types';
-import type { ImageAdjustments, UserImageInstance } from '../../utils/userImageUtils';
 import type { CanvasFormat } from '@ggraphic/editor/formats/index';
 import type { CircleBadgeInstance } from '@ggraphic/editor/utils/circleBadgeUtils';
 import type { PillBadgeInstance } from '@ggraphic/editor/utils/pillBadgeUtils';
+import type { ImageAdjustments, UserImageInstance } from '@ggraphic/editor/utils/userImageUtils';
 
 /** Ein Seitenzustand, wie er in `pages[i].state` steht. */
 export type PptxPageState = Readonly<Record<string, unknown>>;

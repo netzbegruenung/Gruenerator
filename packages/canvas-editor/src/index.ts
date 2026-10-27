@@ -48,7 +48,7 @@ export * from './sidebar';
 export * from './layouts';
 export * from './composer';
 
-export type { StockImage } from './common/imageSourceTypes';
+export type { StockImage } from '@ggraphic/editor/common/imageSourceTypes';
 export type {
   CanvasAiOperation,
   CanvasAiOperationKind,
@@ -115,3 +115,6 @@ export type {
 export type { CanvasHistoryEntry } from '@ggraphic/editor/types/editorTypes';
 
 export * from './collab';
+
+// Binds the Grünerator's AI operation union for FullCanvasConfig (CanvasAiHostTypes).
+export type { SharepicAiCapabilities } from './configs/aiCapabilities';

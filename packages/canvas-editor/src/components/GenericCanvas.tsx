@@ -10,6 +10,7 @@
 import { useEmitHostStateChanges } from '@ggraphic/editor/collab/useEmitHostStateChanges';
 import { useYjsCanvasBinding } from '@ggraphic/editor/collab/useYjsCanvasBinding';
 import { stateKeyOfCallback } from '@ggraphic/editor/collab/wrapCallbacksWithPageSync';
+import { CropGhostOverlay } from '@ggraphic/editor/components/CropGhostOverlay';
 import { PrintGuides } from '@ggraphic/editor/components/PrintGuides';
 import { getCanvasFormatOrDefault } from '@ggraphic/editor/formats/index';
 import { useAnnounce } from '@ggraphic/editor/hooks/useAnnounce';
@@ -27,6 +28,11 @@ import {
   applyLayerSelection,
   type LayerSelectionChange,
 } from '@ggraphic/editor/utils/layerSelection';
+import {
+  locateDrop,
+  type ElementDragPayload,
+  type MediaDragPayload,
+} from '@ggraphic/editor/utils/mediaDrop';
 import { selectableItemIds } from '@ggraphic/editor/utils/multiSelect';
 import { type ViewportRect, rotaterRects, visibleArea } from '@ggraphic/editor/utils/orientation';
 import { PendingImagesContext } from '@ggraphic/editor/utils/pendingImages';
@@ -78,11 +84,9 @@ import {
 } from '../utils/captureStage';
 import { MAX_ICON_SELECTIONS, selectedCatalogIconIds } from '../utils/iconInstances';
 import { layerLabel, pageLayerLabels, stageSummary } from '../utils/layerLabels';
-import { locateDrop, type ElementDragPayload, type MediaDragPayload } from '../utils/mediaDrop';
 import { findTemplateEntry } from '../utils/templateElementInstance';
 
 import { CanvasRenderLayer } from './CanvasRenderLayer';
-import { CropGhostOverlay } from './CropGhostOverlay';
 import { ToolbarStateBridge } from './ToolbarStateBridge';
 
 import type { CanvasMenuSnapshot } from './CanvasContextMenu/canvasMenuModel';

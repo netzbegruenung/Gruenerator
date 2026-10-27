@@ -5,6 +5,7 @@
  * Es ist nur im Modus da und folgt Pan und Zoom, beim Ziehen ohne React-Zustand.
  */
 import { AutoSaveStoreProvider } from '@ggraphic/editor/stores/AutoSaveStoreProvider';
+import { CROP_GHOST_NAME, paintCropGhosts } from '@ggraphic/editor/utils/cropGhost';
 import { createCanvas } from '@napi-rs/canvas';
 import { act, cleanup, render, waitFor } from '@testing-library/react';
 import Konva from 'konva';
@@ -13,12 +14,11 @@ import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vite
 
 import { loadCanvasConfig } from '../../configs/configLoader';
 import { withSelectionChromeHidden } from '../../utils/captureStage';
-import { CROP_GHOST_NAME, paintCropGhosts } from '../../utils/cropGhost';
 import { GenericCanvas, type GenericCanvasRef } from '../GenericCanvas';
 
-import type { UserImageInstance } from '../../utils/userImageUtils';
 import type * as StoreModule from '@ggraphic/editor/stores/createCanvasEditorStore';
 import type { CanvasEditorStoreApi } from '@ggraphic/editor/stores/createCanvasEditorStore';
+import type { UserImageInstance } from '@ggraphic/editor/utils/userImageUtils';
 
 const stores = vi.hoisted(() => [] as unknown[]);
 vi.mock('@ggraphic/editor/stores/createCanvasEditorStore', async (importOriginal) => {

@@ -1,9 +1,11 @@
+// SPDX-License-Identifier: MPL-2.0
 /**
  * CanvasIcons - Renders selected Tabler icons on the Konva canvas
  */
-import { generateIconDataUrl } from '@ggraphic/editor/utils/canvasIcons';
 import { useEffect, useState, useCallback } from 'react';
 import useImage from 'use-image';
+
+import { generateIconDataUrl } from '@ggraphic/editor/utils/canvasIcons';
 
 import { CanvasImage } from './CanvasImage';
 

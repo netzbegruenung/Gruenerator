@@ -1,8 +1,12 @@
+import {
+  ELEMENT_DRAG_TYPE,
+  VORLAGE_DRAG_TYPE,
+  takeDropPlaced,
+} from '@ggraphic/editor/utils/mediaDrop';
 import { createEvent, fireEvent, render } from '@testing-library/react';
 import React from 'react';
 import { describe, expect, it, vi } from 'vitest';
 
-import { ELEMENT_DRAG_TYPE, VORLAGE_DRAG_TYPE, takeDropPlaced } from '../../../utils/mediaDrop';
 import { BlockInsertContext, type BlockInsertApi } from '../blockInsert';
 import { PageWrapper } from '../PageWrapper';
 

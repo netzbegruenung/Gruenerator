@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /**
  * ChartPrimitive — renders a ChartInstance as a Konva.Image.
  *
@@ -8,6 +9,10 @@
  * projection that refreshes whenever the instance changes. Recharts is imported
  * lazily so it only enters the bundle when a chart is actually placed.
  */
+
+import { memo, useEffect, useRef, useState } from 'react';
+import { createRoot } from 'react-dom/client';
+import { Image, Group, Rect, Transformer } from 'react-konva';
 
 import { activeBrand } from '@ggraphic/editor/brand/brandRegistry';
 import { LOCKED_TRANSFORMER, useIsItemLocked } from '@ggraphic/editor/components/canvasItemLock';
@@ -22,9 +27,6 @@ import {
 } from '@ggraphic/editor/utils/chartUtils';
 import { ELEMENT_TRANSFORMER } from '@ggraphic/editor/utils/orientation';
 import { useTrackPendingImage } from '@ggraphic/editor/utils/pendingImages';
-import { memo, useEffect, useRef, useState } from 'react';
-import { createRoot } from 'react-dom/client';
-import { Image, Group, Rect, Transformer } from 'react-konva';
 
 import { chartBox } from '../utils/renderedBoxes';
 

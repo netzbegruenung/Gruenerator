@@ -9,17 +9,17 @@ import {
 } from '../utils/templateRotation';
 
 import type { FullCanvasConfig, LayoutResult, AdditionalText } from '../configs/types';
-import type { BalkenMode } from '../utils/balkenUtils';
-import type {
-  ElementPlacement,
-  UserImageInstance,
-  UserImagePlacement,
-} from '../utils/userImageUtils';
 import type { CircleBadgeInstance } from '@ggraphic/editor/primitives/CircleBadge';
+import type { BalkenMode } from '@ggraphic/editor/utils/balkenUtils';
 import type { ChartInstance, ChartType } from '@ggraphic/editor/utils/chartTypes';
 import type { FrameClipType, FrameInstance } from '@ggraphic/editor/utils/frameUtils';
 import type { PillBadgeInstance } from '@ggraphic/editor/utils/pillBadgeUtils';
 import type { ShapeInstance, ShapeType } from '@ggraphic/editor/utils/shapes';
+import type {
+  ElementPlacement,
+  UserImageInstance,
+  UserImagePlacement,
+} from '@ggraphic/editor/utils/userImageUtils';
 import type { StickerRef } from '@ggraphic/schema';
 
 /**

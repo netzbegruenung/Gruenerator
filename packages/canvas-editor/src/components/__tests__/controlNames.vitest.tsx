@@ -17,7 +17,7 @@ import { FloatingOpacityControl } from '../TopBar/modules/FloatingOpacityControl
 import { FloatingShadowControl } from '../TopBar/modules/FloatingShadowControl';
 
 import type { SidebarTab } from '../../sidebar/types';
-import type { BalkenInstance } from '../../utils/balkenUtils';
+import type { BalkenInstance } from '@ggraphic/editor/utils/balkenUtils';
 
 beforeEach(() => {
   // Desktop layout.

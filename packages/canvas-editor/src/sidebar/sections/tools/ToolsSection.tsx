@@ -19,7 +19,7 @@ import { whenIdle } from '../whenIdle';
 import { ToolTile, type ToolTileId } from './ToolTiles';
 
 import type { AltTextPagesSource } from './AltTextTool';
-import type { UserImagePlacement } from '../../../utils/userImageUtils';
+import type { UserImagePlacement } from '@ggraphic/editor/utils/userImageUtils';
 import type { ComponentType } from 'react';
 import type { IconType } from 'react-icons';
 
