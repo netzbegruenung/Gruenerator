@@ -1,10 +1,9 @@
 import { createContext, useContext } from 'react';
 
-import type { ApplyResult } from './ai/applyOperation';
+import type { ApplyResult } from './ai/types';
 import type { BlockSlide } from './blocks/liftedBlock';
-import type { ReplaceDeckOps } from './collab/pagesDoc';
 import type { StockImage, StockImageAttribution } from './common/imageSourceTypes';
-import type { HeterogeneousPage } from './configs/types';
+import type { AltTextPage, CanvasSpecEditBridge } from './editorSeamTypes';
 import type {
   CanvasBlockService,
   CanvasCarouselService,
@@ -44,16 +43,7 @@ export interface CanvasAiEditBridge {
   applyOperations: (ops: CanvasAiOperation[]) => ApplyResult[];
 }
 
-/**
- * Spec path: creator pages carry a `sharepicSource`, so the host can revise
- * their spec and replace the whole deck. Reads are live (at call time).
- */
-export interface CanvasSpecEditBridge {
-  getPages: () => HeterogeneousPage[];
-  getActivePageId: () => string | null;
-  /** One page-level undo step; returns the inserted page ids. */
-  replaceDeck: (ops: ReplaceDeckOps) => string[];
-}
+export type { AltTextPage, AltTextScope, CanvasSpecEditBridge } from './editorSeamTypes';
 
 /**
  * Props passed to the host-supplied chat component when the user opens the
@@ -103,17 +93,6 @@ export interface CanvasVorlagenService {
     block: SharepicBlock,
     options: { format: SharepicFormat; color: SharepicColor }
   ) => Promise<BlockSlide>;
-}
-
-/** Which pages the alt-text tool describes. */
-export type AltTextScope = 'all' | 'active';
-
-/** One page for the alt-text tool: its image and the texts the editor knows it shows. */
-export interface AltTextPage {
-  /** 1-based, as the page strip numbers it. */
-  pageNumber: number;
-  image: string;
-  texts: string[];
 }
 
 export interface CanvasEditorServices {

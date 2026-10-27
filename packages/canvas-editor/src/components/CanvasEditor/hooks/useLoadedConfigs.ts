@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 
-import type { CanvasConfigId, FullCanvasConfig } from '../../../configs/types';
+import type { FullCanvasConfig } from '../../../configs/types';
+import type { CanvasConfigId } from '../../../templates/registry';
 
 interface UseLoadedConfigsParams {
   pages: Array<{ configId: CanvasConfigId }>;

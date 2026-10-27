@@ -1,4 +1,4 @@
-import type { CanvasItem } from './canvasLayerManager';
+import type { CanvasItem } from './canvasItem';
 import type { OptionalCanvasActions } from '../hooks/useCanvasElementHandlers';
 
 /** The element kinds a canvas holds beside the config's own elements. */

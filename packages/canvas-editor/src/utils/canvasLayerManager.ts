@@ -1,7 +1,8 @@
 import { ELEMENT_KINDS, kindItem, kindList } from './elementKinds';
 
 import type { AssetInstance } from './canvasAssets';
-import type { ChartInstance } from './chartUtils';
+import type { CanvasItem } from './canvasItem';
+import type { ChartInstance } from './chartTypes';
 import type { FrameInstance } from './frameUtils';
 import type { IllustrationInstance } from './illustrations/types';
 import type { PillBadgeInstance } from './pillBadgeUtils';
@@ -18,19 +19,7 @@ import type { CircleBadgeInstance } from '../utils/circleBadgeUtils';
  * Elements are rendered in order: config elements, then the kinds of `ELEMENT_KINDS`.
  */
 
-export type CanvasItem =
-  | { id: string; type: 'element'; data: CanvasElementConfig }
-  | { id: string; type: 'balken'; data: BalkenInstance }
-  | { id: string; type: 'icon' }
-  | { id: string; type: 'shape'; data: ShapeInstance }
-  | { id: string; type: 'frame'; data: FrameInstance }
-  | { id: string; type: 'additional-text'; data: AdditionalText }
-  | { id: string; type: 'illustration'; data: IllustrationInstance }
-  | { id: string; type: 'asset'; data: AssetInstance }
-  | { id: string; type: 'circle-badge'; data: CircleBadgeInstance }
-  | { id: string; type: 'pill-badge'; data: PillBadgeInstance }
-  | { id: string; type: 'user-image'; data: UserImageInstance }
-  | { id: string; type: 'chart'; data: ChartInstance };
+export type { CanvasItem };
 
 interface StateWithFeatures {
   balkenInstances?: BalkenInstance[];

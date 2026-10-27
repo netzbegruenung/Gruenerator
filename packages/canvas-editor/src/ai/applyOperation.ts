@@ -16,7 +16,7 @@ import { isLayerLocked } from '../utils/layerLock';
 import { findElementRemover } from '../utils/removeElement';
 import { type ShapeInstance } from '../utils/shapes';
 
-import type { TemplateAiCapabilities } from './types';
+import type { ApplyResult, TemplateAiCapabilities } from './types';
 import type { BaseCanvasState } from '../configs/factory/baseTypes';
 import type { AdditionalText } from '../configs/types';
 import type { BalkenInstance } from '../primitives/BalkenGroup';
@@ -25,7 +25,7 @@ import type { FrameInstance } from '../utils/frameUtils';
 import type { PillBadgeInstance } from '../utils/pillBadgeUtils';
 import type { CanvasAiOperation, CanvasAiUpdatePatch } from '@gruenerator/contracts';
 
-export type ApplyResult = { ok: true } | { ok: false; reason: string };
+export type { ApplyResult };
 
 /**
  * Dreht ein Element um seine Mitte, wie die Werkzeugleiste (`rotateElement` der

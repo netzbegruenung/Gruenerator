@@ -5,12 +5,13 @@ import { cn } from '../utils/cn';
 
 import { TemplatePickerFlyout } from './TemplatePickerFlyout';
 
-import type { CanvasConfigId, FullCanvasConfig, HeterogeneousPage } from '../configs/types';
+import type { FullCanvasConfig, HeterogeneousPage } from '../configs/types';
 import type { SlideLayoutId } from '../slides/slideLayouts';
+import type { CanvasConfigId } from '../templates/registry';
 import type { TemplateCategory } from '../utils/templateRegistry';
 
 interface PageThumbnailStripProps {
-  pages: HeterogeneousPage[];
+  pages: HeterogeneousPage<CanvasConfigId>[];
   currentPageIndex: number;
   thumbnails: Map<string, string>;
   loadedConfigs: Map<CanvasConfigId, FullCanvasConfig>;
