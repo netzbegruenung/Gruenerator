@@ -29,6 +29,15 @@ RUN python -m venv /opt/pw-installer \
     && test -x /usr/local/bin/chromium \
     && rm -rf /opt/pw-installer /var/lib/apt/lists/*
 
+# Zweite Sperre neben `allowed_domains` (run.py): Chromium lädt weder file:// noch
+# chrome://, view-source: oder devtools://, auch nicht per Klick oder Weiterleitung,
+# die browser-use nicht sieht. Playwrights Chromium ist ein Chrome-for-Testing-Build
+# und liest /etc/opt/chrome_for_testing (im Binary nachgesehen, Playwright 1.64.1);
+# /etc/chromium deckt einen Wechsel auf reine Chromium-Builds ab. Ob die Policy
+# greift, prüft evals/proxy_smoke.py (Fall „policy“) in der Image-CI.
+COPY chromium-policy.json /etc/opt/chrome_for_testing/policies/managed/gruenerator.json
+COPY chromium-policy.json /etc/chromium/policies/managed/gruenerator.json
+
 # Fester venv-Pfad wie in services/nlp/Dockerfile: die Python-Minor-Version
 # steht nur in der FROM-Zeile.
 RUN python -m venv /opt/venv

@@ -1,6 +1,7 @@
 import asyncio
 import base64
 import io
+import logging
 from types import SimpleNamespace
 
 from PIL import Image
@@ -31,6 +32,26 @@ def test_agent_config(tmp_path):
     assert '--proxy-bypass-list=<-loopback>' in profile.args
     assert '--force-webrtc-ip-handling-policy=disable_non_proxied_udp' in profile.args
     assert a.settings.use_judge is False
+    assert profile.allowed_domains == ['http://*', 'https://*']
+
+
+def test_profile_allows_only_http_and_https(tmp_path):
+    from browser_use.browser.watchdogs.security_watchdog import SecurityWatchdog
+
+    from browser_agent.run import build_profile
+
+    profile = build_profile(tmp_path)
+    # Die echte Prüfung von browser-use, ohne Browser: sie liest nur das Profil.
+    watchdog = SecurityWatchdog.model_construct(
+        browser_session=SimpleNamespace(browser_profile=profile, logger=logging.getLogger('test'))
+    )
+    assert watchdog._is_url_allowed('https://example.org/a')
+    assert watchdog._is_url_allowed('http://example.org:8080/')
+    assert not watchdog._is_url_allowed('file://localhost/etc/hosts')
+    assert not watchdog._is_url_allowed('file:///etc/hosts')
+    assert not watchdog._is_url_allowed('chrome://settings')
+    assert not watchdog._is_url_allowed('view-source:https://example.org')
+    assert not watchdog._is_url_allowed('ftp://example.org/')
 
 
 def test_rules_text_verbatim():

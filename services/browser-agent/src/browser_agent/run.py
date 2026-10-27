@@ -44,11 +44,21 @@ CHROMIUM_ARGS = [
 ]
 
 
+ALLOWED_URL_PATTERNS = ["http://*", "https://*"]
+
+
 def build_profile(workdir: Path) -> BrowserProfile:
     return BrowserProfile(
         headless=True,
         user_data_dir=str(Path(workdir) / "profile"),
         args=CHROMIUM_ARGS,
+        # Nur http(s): `navigate` prüft kein Schema, ohne Liste käme der Agent an
+        # file://localhost/… (Profil, Arbeitsverzeichnis). browser-use gleicht die
+        # Muster per fnmatch gegen die volle URL ab; data:/blob: und about:blank lässt
+        # es selbst durch. Achtung: in 0.13.14 läuft sein Wächter NACH dem Navigieren
+        # und setzt nur auf about:blank zurück — die eigentliche Sperre ist die
+        # URLBlocklist-Policy im Image (Dockerfile), geprüft von evals/proxy_smoke.py.
+        allowed_domains=ALLOWED_URL_PATTERNS,
         # Erweiterungen würde browser-use beim Start aus dem Netz laden — am Proxy vorbei.
         enable_default_extensions=False,
         # Im Image liegt Chromium an einem festen Pfad (Env); lokal sucht browser-use selbst.
