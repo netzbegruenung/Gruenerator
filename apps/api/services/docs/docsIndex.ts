@@ -349,15 +349,17 @@ export function searchDocs(query: string, limit = 5): DocsSearchHit[] {
 
   scored.sort((a, b) => b.score - a.score);
 
-  // One hit per URL+anchor is already guaranteed (sections are unique), but a
-  // long page can otherwise fill the whole result list with its own sections.
+  // A long page can otherwise fill the whole result list with its own
+  // sections. The page intro is exempt: it carries the page's summary facts,
+  // and the cap used to drop exactly that — „gelöschte Dokumente … Papierkorb"
+  // returned two Papierkorb subsections and not the intro saying „30 Tage".
   const perPage = new Map<string, number>();
   const out: DocsSearchHit[] = [];
   for (const hit of scored) {
-    const page = hit.url.split('#')[0]!;
-    const seen = perPage.get(page) ?? 0;
-    if (seen >= 2) continue;
-    perPage.set(page, seen + 1);
+    const [page, anchor] = hit.url.split('#');
+    const seen = perPage.get(page!) ?? 0;
+    if (seen >= 2 && anchor !== undefined) continue;
+    perPage.set(page!, seen + 1);
     out.push(hit);
     if (out.length >= limit) break;
   }

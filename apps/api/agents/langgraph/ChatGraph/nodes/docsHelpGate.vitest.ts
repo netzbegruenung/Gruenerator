@@ -50,6 +50,43 @@ describe('looksLikeDocsHelpQuestion', () => {
     }
   });
 
+  it('catches questions ABOUT a product term (live 27.10.2026)', () => {
+    for (const text of [
+      'Was ist Panda und wie bekomme ich das?',
+      'Was ist der Unterschied zwischen Klein, Mittel und Ultra?',
+      'Was ist ein Explainable?',
+      'Was macht der Öko-Modus bei der Transkription?',
+      'Kann ich aus einer Notebook-Antwort einen Podcast machen?',
+    ]) {
+      expect(looksLikeDocsHelpQuestion(text), text).toBe(true);
+    }
+  });
+
+  it('does NOT turn an order that names a product term into a question', () => {
+    for (const text of [
+      'Erstelle einen Podcast über die Verkehrswende',
+      'Schreib einen kurzen Instagram-Post über die Pandas im Tiergarten Schönbrunn',
+      'Mach ein Explainable zur Wärmepumpe',
+      'Erstelle ein Sharepic mit Steckbrief für unsere Kandidatin',
+    ]) {
+      expect(looksLikeDocsHelpQuestion(text), text).toBe(false);
+    }
+  });
+
+  it('does NOT route everyday words that only share a glossary entry', () => {
+    // App, Konto, Projekt, Rezept, Agent get their definition into the prompt,
+    // but they must not move ordinary questions into the docs lane.
+    for (const text of [
+      'Wie baue ich eine App für mehr Bürgerbeteiligung?',
+      'Welches Konto brauche ich für die Spendenverwaltung?',
+      'Was ist ein gutes Rezept für Linsensuppe?',
+      'Welche Projekte fördert die EU im ländlichen Raum?',
+      'Wie kann ich Feuchtgebiete wiederherstellen?',
+    ]) {
+      expect(looksLikeDocsHelpQuestion(text), text).toBe(false);
+    }
+  });
+
   it('handles empty input', () => {
     expect(looksLikeDocsHelpQuestion('')).toBe(false);
     expect(looksLikeDocsHelpQuestion('   ')).toBe(false);

@@ -32,6 +32,7 @@ import {
   INJECTION_WARNING_NOTE,
   INSTRUCTION_HIERARCHY_RULE,
 } from '../../../../routes/chat/services/untrustedContent.js';
+import { buildGlossaryDefinitionsNote } from '../../../../services/chat/productGlossary.js';
 import {
   buildCompactProductIdentity,
   buildProductKnowledgeBlock,
@@ -2085,6 +2086,11 @@ async function buildPromptBlockContext(state: ChatGraphState, opts: SystemMessag
       question: userQuestion,
     });
     log.debug('[Respond] product-knowledge block attached');
+  } else if (!state.customSystemPrompt && !isNeutralTurn && userQuestion.length <= 400) {
+    // Only the terms this message names — „Was ist Panda?" must not be
+    // answered from priors (Panda Security, live 27.10.2026). Short turns
+    // only: in pasted material a term is content, not a question.
+    productKnowledge = buildGlossaryDefinitionsNote(userQuestion);
   }
 
   // Documentation page map: every doc page with URL + lead paragraph (~2.5k
