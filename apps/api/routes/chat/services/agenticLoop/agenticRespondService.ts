@@ -533,9 +533,10 @@ export async function streamAgenticResponse(
       finalState.notebookIds?.[0] ?? finalState.threadNotebookId,
       finalState.userLocale ?? null
     );
-    // The product vocabulary — names only, so the model recognises a question
-    // about the Grünerator itself and decides to look it up. Only when a tool
-    // to look it up with is mounted.
+    // The product vocabulary — term names only, so the planner recognises a
+    // question about the Grünerator itself and decides to look it up. The
+    // definitions of named terms ride in systemMessage (respondNode), where the
+    // split-mode writer sees them too. Only when a lookup tool is mounted.
     const glossaryNote =
       'product_knowledge' in wrapped || 'gruenerator_docs_search' in wrapped
         ? buildGlossaryVocabularyNote()

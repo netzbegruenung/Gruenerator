@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { DOCS_PAGES } from '../docs/docsIndex.generated.js';
 
 import {
+  buildGlossaryDefinitionsNote,
   buildGlossaryVocabularyNote,
   formatGlossaryDefinitions,
   GLOSSARY_TERM_RE,
@@ -31,11 +32,14 @@ describe('PRODUCT_GLOSSARY', () => {
     }
   });
 
-  it('keeps the loop note to names — definitions belong to product_knowledge', () => {
-    const note = buildGlossaryVocabularyNote();
-    expect(note).toContain('Explainable');
-    expect(note).not.toContain('Erklärseite');
-    expect(note).toContain('product_knowledge');
+  it('keeps the loop note to names and defines only the terms a message names', () => {
+    const names = buildGlossaryVocabularyNote();
+    expect(names).toContain('Explainable');
+    expect(names).not.toContain('Erklärseite');
+    const defs = buildGlossaryDefinitionsNote('Was ist ein Explainable?');
+    expect(defs).toContain('Erklärseite');
+    expect(defs).not.toContain('30 Tage');
+    expect(buildGlossaryDefinitionsNote('Schreib eine Rede zur Verkehrswende')).toBe('');
     expect(formatGlossaryDefinitions()).toContain('30 Tage');
   });
 });

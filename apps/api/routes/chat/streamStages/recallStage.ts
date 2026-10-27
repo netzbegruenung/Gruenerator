@@ -58,8 +58,16 @@ export async function runRecallStage({
   // retrieval, so skip the proactive pass for it.
   const explicitRecall =
     classifiedState.searchSources?.includes('chat_history') && !!classifiedState.searchQuery;
+  // Not on product questions (`hilfe`): their answer lives in the docs, and a
+  // recalled past chat carries whatever was answered back then. Measured
+  // 27.10.2026: an earlier wrong „wende dich an den Support" for „Wie lösche
+  // ich mein Konto?" came back word for word through this pass.
   const proactiveRecall =
-    isNewThread && memoryEnabled && !!lastUserMessage && classifiedState.intent !== 'chat_history';
+    isNewThread &&
+    memoryEnabled &&
+    !!lastUserMessage &&
+    classifiedState.intent !== 'chat_history' &&
+    classifiedState.intent !== 'hilfe';
 
   // Space scope: when the thread is filed in a Space, recall is restricted to
   // that Space's chats and the model is told which threads it can search.

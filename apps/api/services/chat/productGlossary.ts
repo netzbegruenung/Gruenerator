@@ -167,22 +167,47 @@ export const GLOSSARY_TERM_RE = new RegExp(
 
 const DOCS_SITE_URL = 'https://doku.gruenerator.eu';
 
+function formatEntry(e: (typeof PRODUCT_GLOSSARY)[number]): string {
+  return `- ${e.label}: ${e.definition}${e.docsPath ? ` (Doku: ${DOCS_SITE_URL}${e.docsPath})` : ''}`;
+}
+
 /** All definitions, one line each — part of the product knowledge block. */
 export function formatGlossaryDefinitions(): string {
-  return PRODUCT_GLOSSARY.map(
-    (e) =>
-      `- ${e.label}: ${e.definition}${e.docsPath ? ` (Doku: ${DOCS_SITE_URL}${e.docsPath})` : ''}`
-  ).join('\n');
+  return PRODUCT_GLOSSARY.map(formatEntry).join('\n');
+}
+
+/** The glossary entries a text names — the definitions this turn needs. */
+export function matchGlossary(text: string): (typeof PRODUCT_GLOSSARY)[number][] {
+  return PRODUCT_GLOSSARY.filter((e) => e.terms.test(text));
 }
 
 /**
- * The loop prompt's vocabulary line: names only (~80 tokens), so the model
- * recognises a product question and chooses to look it up. Deliberately no
- * definitions here — the model decides whether to call the tools.
+ * The loop planner's vocabulary note: every term NAME (~80 tokens), so the
+ * model recognises a product question and decides itself whether to look a
+ * term up. No call is forced.
  */
 export function buildGlossaryVocabularyNote(): string {
   return `
 
 ## GRÜNERATOR-BEGRIFFE
-Diese Wörter bezeichnen Funktionen des Grünerators: ${PRODUCT_GLOSSARY.map((e) => e.label).join(', ')}. Fragt jemand, was einer davon ist oder wie er funktioniert — oder allgemein, wie der Grünerator etwas macht —, schlag es mit product_knowledge oder gruenerator_docs_search nach, bevor du antwortest. Für Grünerator-Begriffe kein web_search und keine Antwort aus dem Gedächtnis.`;
+Diese Wörter bezeichnen Funktionen des Grünerators: ${PRODUCT_GLOSSARY.map((e) => e.label).join(', ')}. Fragt jemand, was einer davon ist oder wie er funktioniert — oder allgemein, wie der Grünerator etwas macht —, schlag Einzelheiten mit product_knowledge oder gruenerator_docs_search nach. Für Grünerator-Begriffe kein web_search und keine Antwort aus dem Gedächtnis.`;
+}
+
+/**
+ * The short definitions of the terms a message names (~40 tokens each), for
+ * the shared system message — so the planner AND the split-mode writer see
+ * them, and the single-pass path too. Empty when the message names none.
+ *
+ * Inline because the names alone were measured not to be enough (27.10.2026):
+ * on `hilfe` turns the model leaned on the docs page map, linked a page and
+ * answered „Konto löschen" and „Öko-Modus" from priors without calling a tool.
+ */
+export function buildGlossaryDefinitionsNote(text: string): string {
+  const named = matchGlossary(text);
+  if (named.length === 0) return '';
+  return `
+
+## GRÜNERATOR-BEGRIFFE IN DIESER NACHRICHT
+So heißen diese Wörter im Grünerator — beantworte Fragen danach aus diesen Angaben, nicht aus allgemeinem Wissen:
+${named.map(formatEntry).join('\n')}`;
 }
