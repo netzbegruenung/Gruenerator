@@ -7,7 +7,7 @@ import type { StickerRef } from '@gruenerator/contracts';
 import type Konva from 'konva';
 
 /** Drag type of an upload or photo tile; the payload is `MediaDragPayload` as JSON. */
-export const MEDIA_DRAG_TYPE = 'application/x-gruenerator-media';
+export const MEDIA_DRAG_TYPE = 'application/x-ggraphic-media';
 
 export interface MediaDragPayload {
   /** A durable URL (`CanvasImageUrlService.placementUrl`, a stock URL), never a `blob:`. */
@@ -18,7 +18,7 @@ export interface MediaDragPayload {
 }
 
 /** Drag type of an Elemente tile; the payload is `ElementDragPayload` as JSON. */
-export const ELEMENT_DRAG_TYPE = 'application/x-gruenerator-element';
+export const ELEMENT_DRAG_TYPE = 'application/x-ggraphic-element';
 
 export type ElementDragPayload =
   | { kind: 'asset'; assetId: string }
@@ -79,7 +79,7 @@ export function takeDropPlaced(): boolean {
 }
 
 /** Drag type of a Vorlagen tile; the payload is the Vorlage id. */
-export const VORLAGE_DRAG_TYPE = 'application/x-gruenerator-vorlage';
+export const VORLAGE_DRAG_TYPE = 'application/x-ggraphic-vorlage';
 
 export function isVorlageDrag(dataTransfer: DataTransfer | null): boolean {
   return !!dataTransfer && Array.from(dataTransfer.types).includes(VORLAGE_DRAG_TYPE);
