@@ -20,6 +20,7 @@ import { buildAssetCapability } from '../ai/assetCapability';
 import { describeCanvasElements } from '../ai/describeCanvasElements';
 import { buildIllustrationCapability } from '../ai/illustrationCapability';
 import { CANVAS_RECOMMENDED_ASSETS, SYSTEM_ASSETS } from '../brand/grueneAssets';
+import { dreizeilenShareMetadata } from '../brand/grueneShareMetadata';
 import { AssetsSection } from '../sidebar';
 import { BalkenSettingsSection } from '../sidebar/sections/BalkenSettingsSection';
 import { CombinedTextSection } from '../sidebar/sections/CombinedTextSection';
@@ -374,6 +375,7 @@ const section = makeSectionDefiner<DreizeilenFullState, DreizeilenFullActions>()
 
 export const dreizeilenFullConfig: FullCanvasConfig<DreizeilenFullState, DreizeilenFullActions> = {
   id: 'dreizeilen',
+  shareMetadata: dreizeilenShareMetadata,
 
   canvas: {
     width: CANVAS_WIDTH,

@@ -6,6 +6,7 @@
  */
 
 import { SYSTEM_ASSETS } from '../brand/grueneAssets';
+import { zitatShareMetadata } from '../brand/grueneShareMetadata';
 import { ZITAT_PURE_CONFIG, calculateZitatPureLayout } from '../utils/zitatPureLayout';
 
 import {
@@ -151,33 +152,36 @@ const nameTextElement = createSecondaryText<ZitatPureState>({
   },
 });
 
-const baseZitatPureConfig = createColorTwoTextCanvas({
-  id: 'zitat-pure',
-  canvas: {
-    width: ZITAT_PURE_CONFIG.canvas.width,
-    height: ZITAT_PURE_CONFIG.canvas.height,
-  },
-  primaryField: { key: 'quote', label: 'Zitat' },
-  secondaryField: { key: 'name', label: 'Name' },
-  backgroundColors: BACKGROUND_COLORS,
-  defaultBackgroundColor: ZITAT_PURE_CONFIG.background.color,
-  textColorMap: FONT_COLORS,
-  calculateLayout,
-  passthroughStateKeys: [
-    'namePosition',
-    'quoteMarkOffset',
-    'quoteMarkOpacity',
-    'sunflowerOpacity',
-    'sunflowerOffset',
-  ],
-  elements: [sunflowerElement, quoteMarkElement, quoteTextElement, nameTextElement],
-  features: { icons: true, shapes: true, illustrations: true },
-  getCanvasText: (state) => {
-    const quote = state.quote || '';
-    const name = state.name || '';
-    return `„${quote}"\n— ${name}`.trim();
-  },
-});
+const baseZitatPureConfig = {
+  ...createColorTwoTextCanvas({
+    id: 'zitat-pure',
+    canvas: {
+      width: ZITAT_PURE_CONFIG.canvas.width,
+      height: ZITAT_PURE_CONFIG.canvas.height,
+    },
+    primaryField: { key: 'quote', label: 'Zitat' },
+    secondaryField: { key: 'name', label: 'Name' },
+    backgroundColors: BACKGROUND_COLORS,
+    defaultBackgroundColor: ZITAT_PURE_CONFIG.background.color,
+    textColorMap: FONT_COLORS,
+    calculateLayout,
+    passthroughStateKeys: [
+      'namePosition',
+      'quoteMarkOffset',
+      'quoteMarkOpacity',
+      'sunflowerOpacity',
+      'sunflowerOffset',
+    ],
+    elements: [sunflowerElement, quoteMarkElement, quoteTextElement, nameTextElement],
+    features: { icons: true, shapes: true, illustrations: true },
+    getCanvasText: (state) => {
+      const quote = state.quote || '';
+      const name = state.name || '';
+      return `„${quote}"\n— ${name}`.trim();
+    },
+  }),
+  shareMetadata: zitatShareMetadata,
+};
 
 const zitatPureAiCapabilities = createAiCapabilities<ZitatPureState, ColorTwoTextActions>({
   id: 'zitat-pure',
