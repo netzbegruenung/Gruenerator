@@ -8,7 +8,7 @@
 import type { StockImageAttribution } from '../../common/imageSourceTypes';
 import type { BalkenInstance, BalkenMode } from '../../utils/balkenUtils';
 import type { AssetInstance } from '../../utils/canvasAssets';
-import type { ChartInstance, ChartType } from '../../utils/chartUtils';
+import type { ChartInstance, ChartType } from '../../utils/chartTypes';
 import type { CircleBadgeInstance } from '../../utils/circleBadgeUtils';
 import type { FrameClipType, FrameInstance } from '../../utils/frameUtils';
 import type { IllustrationInstance } from '../../utils/illustrations/types';

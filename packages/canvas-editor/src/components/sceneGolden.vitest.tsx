@@ -9,7 +9,7 @@ import { loadAllIcons } from '../utils/canvasIcons';
 
 import { StandaloneCanvas } from './StandaloneCanvas';
 
-import type { CanvasConfigId } from '../configs/types';
+import type { CanvasConfigId } from '../templates/registry';
 
 /**
  * What the editor draws for every composer fixture, as a Konva scene graph:

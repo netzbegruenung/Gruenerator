@@ -1,10 +1,14 @@
 import type { BackgroundType, TextFieldConfig } from './unifiedTabs';
 import type { TemplateAiCapabilities } from '../ai/types';
-import type { AltTextPage, AltTextScope, CanvasSpecEditBridge } from '../CanvasEditorProvider';
 import type { StockImageAttribution } from '../common/imageSourceTypes';
+import type {
+  AltTextPage,
+  AltTextScope,
+  CanvasSpecEditBridge,
+  HeterogeneousPage,
+} from '../editorSeamTypes';
 import type { CanvasStageRef } from '../primitives/CanvasStage';
-import type { BackgroundColorOption, SidebarTabId, SidebarTab } from '../sidebar/types';
-import type { CanvasConfigId } from '../templates/registry';
+import type { BackgroundColorOption, SidebarTabId, SidebarTab } from '../sidebar/tabTypes';
 import type { GradientFill } from '../utils/gradientFill';
 import type { TextAccent, TextMarker } from '../utils/textUtils';
 
@@ -354,18 +358,7 @@ export interface SectionConfig<
 // MULTI-PAGE CONFIGURATION
 // ============================================================================
 
-/** Valid canvas config identifiers for heterogeneous multi-page — derived from the template registry */
-export type { CanvasConfigId };
-
-/** A page in a heterogeneous multi-page document */
-export interface HeterogeneousPage {
-  /** Unique identifier for this page */
-  id: string;
-  /** Config type for this page (determines which template to use) */
-  configId: CanvasConfigId;
-  /** Runtime state - config interprets this based on its state type */
-  state: Record<string, unknown>;
-}
+export type { HeterogeneousPage };
 
 /** Multi-page configuration options */
 export interface MultiPageConfig<TState> {

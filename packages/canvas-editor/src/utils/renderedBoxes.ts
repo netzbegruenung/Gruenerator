@@ -10,7 +10,7 @@
 import { ILLUSTRATION_TARGET_SIZE } from './motifSizes';
 import { PATH_OFFSETS, PATH_VIEWBOX } from './shapeTransform';
 
-import type { ChartInstance } from './chartUtils';
+import type { ChartInstance } from './chartTypes';
 import type { FrameInstance } from './frameUtils';
 import type { IllustrationInstance } from './illustrations/types';
 import type { ShapeInstance } from './shapes';
