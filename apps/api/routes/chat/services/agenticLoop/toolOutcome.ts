@@ -172,7 +172,44 @@ export function buildMcpOutcomeNote(steps: PersistedStep[]): string {
  * Kopie verdoppelt sie im Prompt. Genau deshalb listet `buildToolFailureNote`
  * nur Fehlschläge.
  */
-const PAYLOAD_TOOLS: Record<string, { field: string; label: string }> = {
+type PayloadSpec =
+  | { field: string; label: string }
+  /** Für Werkzeuge, deren Ergebnis kein fertiges Textfeld hat, sondern erst zu
+   *  Prosa werden muss (Zähler, Dateilisten). `null` = nichts zu melden. */
+  | { render: (result: Record<string, unknown>) => string | null; label: string };
+
+/**
+ * `website_erkunden` gibt `{ summary, screenshots, fehlend, schritte }` zurück
+ * und registriert keine Quelle. Ohne diesen Eintrag las der Schreiber „du hast
+ * NICHTS recherchiert" und antwortete live am 27.10.2026, er könne keine
+ * Screenshots erstellen — direkt unter der Karte mit den zwei Screenshots.
+ */
+function renderWebsiteErkunden(result: Record<string, unknown>): string | null {
+  if (typeof result.error === 'string') return null;
+  const schritte = typeof result.schritte === 'number' ? result.schritte : 0;
+  const names = Array.isArray(result.screenshots)
+    ? result.screenshots
+        .map((s) => (s && typeof s === 'object' ? (s as { name?: unknown }).name : null))
+        .filter((n): n is string => typeof n === 'string')
+    : [];
+  const fehlend = typeof result.fehlend === 'number' ? result.fehlend : 0;
+  const summary = typeof result.summary === 'string' ? result.summary.trim() : '';
+  const lines = [
+    result.abgebrochen === true
+      ? `Die Person hat die Erkundung nach ${schritte} Schritten abgebrochen.`
+      : `Ein echter Browser hat die Website in diesem Turn in ${schritte} Schritten bedient — erfolgreich.`,
+    names.length > 0
+      ? `${names.length} Screenshot(s) wurden gespeichert und werden der Person bereits als Galerie in der Karte zur Website-Erkundung angezeigt: ${names.join(', ')}. Du HAST diese Screenshots erstellt — behaupte NIE, du könntest keine Screenshots machen. Füge keine Bild-Links oder Markdown-Bilder ein.`
+      : 'Es wurden keine Screenshots gespeichert.',
+    ...(fehlend > 0 ? [`${fehlend} der gewünschten Screenshots fehlen — sag das ehrlich.`] : []),
+    ...(summary
+      ? [`Bericht des Browsers (gib ihn auf Deutsch wieder, auch wenn er englisch ist): ${summary}`]
+      : []),
+  ];
+  return lines.join('\n');
+}
+
+const PAYLOAD_TOOLS: Record<string, PayloadSpec> = {
   summarize: { field: 'summary', label: 'Zusammenfassung der angehängten Dokumente' },
   product_knowledge: { field: 'knowledge', label: 'Wissen über den Grünerator' },
   read_sharepic: { field: 'beschreibung', label: 'Inhalt und Gestaltung des Sharepics' },
@@ -184,6 +221,7 @@ const PAYLOAD_TOOLS: Record<string, { field: string; label: string }> = {
   edit_explainable: { field: 'note', label: 'Explainable-Änderung' },
   read_document: { field: 'inhalt', label: 'Wortlaut des Dokuments' },
   edit_document_text: { field: 'note', label: 'Dokument-Änderung' },
+  website_erkunden: { render: renderWebsiteErkunden, label: 'Website-Erkundung im Browser' },
 };
 
 /** Wie `MCP_CONTENT_CAP`, und aus demselben Grund: die Regel unten verlangt,
@@ -205,7 +243,7 @@ export function buildToolPayloadNote(steps: PersistedStep[]): string {
     if (step.serverName) continue;
     const spec = PAYLOAD_TOOLS[step.toolName];
     if (!spec) continue;
-    const payload = step.result[spec.field];
+    const payload = 'render' in spec ? spec.render(step.result) : step.result[spec.field];
     if (typeof payload !== 'string' || payload.trim() === '') continue;
     blocks.push(
       `### ${spec.label} (${step.toolName})\n${applyContextCap(payload, PAYLOAD_CAP, `agenticLoop:${step.toolName}`)}`

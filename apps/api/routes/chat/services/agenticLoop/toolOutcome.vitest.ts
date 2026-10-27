@@ -288,6 +288,36 @@ describe('buildToolPayloadNote', () => {
     );
   });
 
+  it('macht aus dem Ergebnis von website_erkunden Prosa für den Schreiber', () => {
+    const note = buildToolPayloadNote([
+      step({
+        toolName: 'website_erkunden',
+        result: {
+          summary: 'Fertig.',
+          screenshots: [{ name: 'start.png', url: '/x.png' }],
+          fehlend: 1,
+          schritte: 3,
+          abgebrochen: false,
+        },
+      }),
+    ]);
+    expect(note).toContain('### Website-Erkundung im Browser (website_erkunden)');
+    expect(note).toContain('1 Screenshot(s) wurden gespeichert');
+    expect(note).toContain('start.png');
+    expect(note).toContain('1 der gewünschten Screenshots fehlen');
+    expect(note).toContain('Bericht des Browsers');
+    // Asset-URLs gehören in die Galerie, nicht in den Prompt.
+    expect(note).not.toContain('/x.png');
+  });
+
+  it('überlässt einen gescheiterten website_erkunden dem Fehler-Hinweis', () => {
+    expect(
+      buildToolPayloadNote([
+        step({ toolName: 'website_erkunden', result: { error: 'Limit', screenshots: [] } }),
+      ])
+    ).toBe('');
+  });
+
   it('lässt einen gleichnamigen Konnektor bei buildMcpOutcomeNote', () => {
     expect(
       buildToolPayloadNote([

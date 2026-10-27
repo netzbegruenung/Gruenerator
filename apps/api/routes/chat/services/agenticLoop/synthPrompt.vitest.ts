@@ -181,6 +181,36 @@ describe('buildSynthSystem — Quellenblock', () => {
     expect(prompt).toContain('Der Beschluss regelt …');
   });
 
+  /**
+   * Live 27.10.2026: `website_erkunden` lief, die Karte zeigte zwei
+   * Screenshots, und der Schreiber antwortete „Ich kann keine Screenshots von
+   * Webseiten erstellen" — er hatte nur „du hast NICHTS recherchiert" gelesen.
+   */
+  it('meldet dem Schreiber die Website-Erkundung samt Screenshots', () => {
+    const steps: PersistedStep[] = [
+      {
+        toolName: 'website_erkunden',
+        result: {
+          summary: 'Took screenshots of the homepage and the climate page.',
+          screenshots: [
+            { name: 'homepage.png', url: '/api/compute-assets/a.png' },
+            { name: 'klimaschutz.png', url: '/api/compute-assets/b.png' },
+          ],
+          fehlend: 0,
+          schritte: 5,
+          abgebrochen: false,
+        },
+      } as never,
+    ];
+    const prompt = buildSynthSystem('', ctx({ steps }));
+    expect(prompt).not.toContain('hast du NICHTS recherchiert');
+    expect(prompt).toContain('in 5 Schritten bedient');
+    expect(prompt).toContain('homepage.png, klimaschutz.png');
+    expect(prompt).toContain('behaupte NIE, du könntest keine Screenshots machen');
+    expect(prompt).toContain('Took screenshots of the homepage');
+    expect(prompt).toContain('Antworte auf Deutsch');
+  });
+
   it('lässt den Hinweis stehen, wenn dasselbe Werkzeug NICHTS lieferte', () => {
     const steps: PersistedStep[] = [
       {
