@@ -10,6 +10,7 @@ import {
   type StudioAssetScope,
 } from '@gruenerator/contracts';
 import { useEffect, useRef, type ButtonHTMLAttributes } from 'react';
+import { useMessages } from '@ggraphic/editor/i18n/messages';
 
 export const GALLERY_SCOPES: readonly GalleryTab<StudioAssetScope>[] = STUDIO_ASSET_SCOPES.map(
   (s) => ({ id: s.value, label: s.label })
@@ -94,6 +95,7 @@ export function StudioGalleryGrid({
     item: CanvasStudioAssetItem
   ) => Pick<ButtonHTMLAttributes<HTMLButtonElement>, 'draggable' | 'onDragStart' | 'onDragEnd'>;
 }) {
+  const t = useMessages();
   const q = query.trim().slice(0, MAX_QUERY);
   // Host hook, fixed for the lifetime of the editor (see hostServices.ts).
   const { useStudioAssets = useNoStudioAssets } = useCanvasEditorServices();
@@ -108,19 +110,21 @@ export function StudioGalleryGrid({
     void refetch();
   }, [refreshToken, refetch]);
 
-  if (isLoading) return <p className={HINT}>Wird geladen …</p>;
+  if (isLoading) return <p className={HINT}>{t.sidebar.studio.loading}</p>;
   if (isError && items.length === 0)
     return (
       <div role="alert" className="flex flex-col items-center gap-2 py-2">
         <p className={HINT}>{noun} konnten nicht geladen werden.</p>
         <button type="button" className={SECONDARY_BUTTON} onClick={() => void refetch()}>
-          Erneut versuchen
+          {t.ui.retry}
         </button>
       </div>
     );
   if (items.length === 0)
     return (
-      <p className={HINT}>{q ? `Keine ${noun} für „${q}“.` : galleryScopeEmptyText(kind, scope)}</p>
+      <p className={HINT}>
+        {q ? t.sidebar.studio.noMatch(noun, q) : galleryScopeEmptyText(kind, scope)}
+      </p>
     );
 
   return (
@@ -131,7 +135,7 @@ export function StudioGalleryGrid({
             key={item.id}
             type="button"
             title={item.title}
-            aria-label={`${item.title} ${kind === 'sticker' ? 'hinzufügen' : 'als Hintergrund verwenden'}`}
+            aria-label={t.sidebar.studio.itemLabel(item.title, kind === 'sticker')}
             aria-busy={pendingId === item.id}
             {...(selectedSrc === null ? {} : { 'aria-pressed': selectedSrc === item.src })}
             onClick={() => onPick(item)}
@@ -165,7 +169,7 @@ export function StudioGalleryGrid({
           disabled={isFetchingNextPage}
           onClick={() => void fetchNextPage()}
         >
-          {isFetchingNextPage ? 'Wird geladen …' : 'Mehr laden'}
+          {isFetchingNextPage ? t.sidebar.studio.loading : t.sidebar.studio.loadMore}
         </button>
       ) : null}
     </div>

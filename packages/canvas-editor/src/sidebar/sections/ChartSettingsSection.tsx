@@ -28,6 +28,7 @@ import {
 import { MOBILE_INPUT_TEXT } from '../sidebarStyles';
 
 import type { IconType } from 'react-icons';
+import { useMessages, type Messages } from '@ggraphic/editor/i18n/messages';
 
 export interface ChartSettingsSectionProps {
   selectedChart: ChartInstance | null;
@@ -37,18 +38,18 @@ export interface ChartSettingsSectionProps {
   palette?: readonly string[];
 }
 
-const TYPE_OPTIONS: { id: ChartType; label: string; icon: IconType }[] = [
-  { id: 'bar', label: 'Säulen', icon: PiChartBar },
-  { id: 'bar-horizontal', label: 'Balken', icon: PiChartBarHorizontal },
-  { id: 'line', label: 'Linie', icon: PiChartLine },
-  { id: 'area', label: 'Fläche', icon: PiChartLineUp },
-  { id: 'pie', label: 'Torte', icon: PiChartPie },
-  { id: 'donut', label: 'Donut', icon: PiChartDonut },
+const typeOptions = (t: Messages): { id: ChartType; label: string; icon: IconType }[] => [
+  { id: 'bar', label: t.charts['bar'], icon: PiChartBar },
+  { id: 'bar-horizontal', label: t.charts['bar-horizontal'], icon: PiChartBarHorizontal },
+  { id: 'line', label: t.charts['line'], icon: PiChartLine },
+  { id: 'area', label: t.charts['area'], icon: PiChartLineUp },
+  { id: 'pie', label: t.charts['pie'], icon: PiChartPie },
+  { id: 'donut', label: t.charts['donut'], icon: PiChartDonut },
 ];
 
-const LEGEND_OPTIONS: { id: ChartLegendPosition; label: string }[] = [
-  { id: 'right', label: 'Rechts' },
-  { id: 'bottom', label: 'Unten' },
+const legendOptions = (t: Messages): { id: ChartLegendPosition; label: string }[] => [
+  { id: 'right', label: t.sidebar.chart.legendRight },
+  { id: 'bottom', label: t.sidebar.chart.legendBottom },
 ];
 
 /** More series than colours in a palette would repeat a colour. */
@@ -62,6 +63,7 @@ export function ChartSettingsSection({
   onRemoveChart,
   palette = chartColors(),
 }: ChartSettingsSectionProps) {
+  const t = useMessages();
   const chart = selectedChart;
   if (!chart) return null;
   const update = (partial: Partial<ChartInstance>) => onUpdateChart(chart.id, partial);
@@ -95,19 +97,19 @@ export function ChartSettingsSection({
           type="button"
           onClick={() => onRemoveChart(chart.id)}
           className="inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-xs text-red-600 hover:bg-red-500/10"
-          title="Diagramm löschen"
+          title={t.sidebar.chart.deleteChart}
         >
-          <FaTrash size={12} /> Löschen
+          <FaTrash size={12} /> {t.commands.delete}
         </button>
       </div>
 
       {/* Chart type */}
       <div className="flex flex-col gap-1.5">
         <span className="text-[11px] font-semibold uppercase tracking-wide text-foreground-muted">
-          Typ
+          {t.sidebar.chart.type}
         </span>
         <div className="grid grid-cols-3 gap-1.5">
-          {TYPE_OPTIONS.map((opt) => {
+          {typeOptions(t).map((opt) => {
             const Icon = opt.icon;
             const active = chart.chartType === opt.id;
             return (
@@ -139,13 +141,13 @@ export function ChartSettingsSection({
       {/* Title */}
       <label className="flex flex-col gap-1.5 text-xs">
         <span className="text-[11px] font-semibold uppercase tracking-wide text-foreground-muted">
-          Titel
+          {t.sidebar.chart.title}
         </span>
         <input
           type="text"
           value={chart.title ?? ''}
           onChange={(e) => update({ title: e.target.value })}
-          placeholder="Optional…"
+          placeholder={t.sidebar.chart.optional}
           className={`rounded-md border border-editor-border-strong bg-background px-sm py-xs text-sm ${MOBILE_INPUT_TEXT} text-foreground outline-none focus:border-primary-500`}
         />
       </label>
@@ -153,7 +155,7 @@ export function ChartSettingsSection({
       {/* Data table: one column per series */}
       <div className="flex flex-col gap-1.5">
         <span className="text-[11px] font-semibold uppercase tracking-wide text-foreground-muted">
-          Daten
+          {t.sidebar.chart.data}
         </span>
         <div className="flex flex-col gap-1.5">
           {series ? (
@@ -164,7 +166,7 @@ export function ChartSettingsSection({
                   <input
                     type="text"
                     value={s.name}
-                    aria-label={`Name der Reihe ${si + 1}`}
+                    aria-label={t.sidebar.chart.seriesName(si + 1)}
                     onChange={(e) => update(renameChartSeries(chart, si, e.target.value))}
                     className={`min-w-0 flex-1 ${CELL} px-1 text-xs`}
                   />
@@ -199,7 +201,7 @@ export function ChartSettingsSection({
                 onClick={() => removeRow(i)}
                 disabled={chart.data.length <= 1}
                 className="shrink-0 rounded-md p-1.5 text-foreground-muted hover:text-red-600 disabled:opacity-30"
-                title="Zeile entfernen"
+                title={t.sidebar.chart.removeRow}
               >
                 <FaTrash size={11} />
               </button>
@@ -214,7 +216,7 @@ export function ChartSettingsSection({
                   type="button"
                   onClick={() => update(removeChartSeries(chart, si))}
                   className="flex w-16 shrink-0 justify-center rounded-md p-1 text-foreground-muted hover:text-red-600"
-                  title={`${s.name || `Reihe ${si + 1}`} entfernen`}
+                  title={t.sidebar.chart.removeSeries(s.name || t.defaults.series(si + 1))}
                 >
                   <FaTrash size={11} />
                 </button>
@@ -247,7 +249,7 @@ export function ChartSettingsSection({
       {/* Colors */}
       <div className="flex flex-col gap-1.5">
         <span className="text-[11px] font-semibold uppercase tracking-wide text-foreground-muted">
-          Farbe
+          {t.sidebar.chart.color}
         </span>
         <div className="flex flex-wrap items-center gap-1.5">
           {palette.map((c) => (
@@ -278,9 +280,9 @@ export function ChartSettingsSection({
         {(
           [
             // A single series needs no legend; pies draw no grid.
-            ...(round || series ? [['showLegend', 'Legende'] as const] : []),
-            ...(round ? [] : [['showGrid', 'Gitternetz'] as const]),
-            ['showValues', 'Werte anzeigen'] as const,
+            ...(round || series ? [['showLegend', t.sidebar.chart.legend] as const] : []),
+            ...(round ? [] : [['showGrid', t.sidebar.chart.grid] as const]),
+            ['showValues', t.sidebar.chart.showValues] as const,
           ] as const
         ).map(([key, label]) => (
           <div key={key} className="flex items-center justify-between">
@@ -296,11 +298,11 @@ export function ChartSettingsSection({
           <div
             className="flex items-center justify-between"
             role="group"
-            aria-label="Position der Legende"
+            aria-label={t.sidebar.chart.legendPosition}
           >
-            <span className="text-xs text-foreground">Position der Legende</span>
+            <span className="text-xs text-foreground">{t.sidebar.chart.legendPosition}</span>
             <div className="flex gap-1">
-              {LEGEND_OPTIONS.map((opt) => {
+              {legendOptions(t).map((opt) => {
                 const active = chartLegendPosition(chart) === opt.id;
                 return (
                   <button

@@ -15,6 +15,7 @@ import {
 
 import type { SelectionGeometry } from '@ggraphic/editor/utils/canvasCommands';
 import type { IconType } from 'react-icons';
+import { useMessages } from '@ggraphic/editor/i18n/messages';
 
 export type PositionCommandId =
   | 'alignLeft'
@@ -111,6 +112,7 @@ export function FloatingPositionControl({
   onPositionChange,
   onSizeChange,
 }: FloatingPositionControlProps) {
+  const t = useMessages();
   const [geometry, setGeometry] = useState<SelectionGeometry | null>(null);
   const read = () => setGeometry(getGeometry?.() ?? null);
   // Die Seite zeichnet die Änderung erst im nächsten Bild; danach neu lesen.
@@ -140,7 +142,12 @@ export function FloatingPositionControl({
   return (
     <Popover onOpenChange={(open) => open && read()}>
       <PopoverTrigger asChild>
-        <button className={TRIGGER_BTN} title="Position" aria-label="Position" type="button">
+        <button
+          className={TRIGGER_BTN}
+          title={t.topBar.position}
+          aria-label={t.topBar.position}
+          type="button"
+        >
           <PiArrowsOutCardinal size={18} aria-hidden="true" />
         </button>
       </PopoverTrigger>
@@ -150,7 +157,7 @@ export function FloatingPositionControl({
         aria-labelledby={titleId}
       >
         <span id={titleId} className="text-xs font-medium text-[var(--editor-text)]">
-          Position
+          {t.topBar.position}
         </span>
         <div className="grid grid-cols-3 gap-0.5">{ALIGN.map((a) => button(a))}</div>
         {multi && (

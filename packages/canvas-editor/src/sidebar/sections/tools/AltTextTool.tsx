@@ -9,6 +9,7 @@ import { MOBILE_INPUT_TEXT } from '../../sidebarStyles';
 import { ToolPanel } from './ToolPanel';
 
 import type { AltTextPage, AltTextScope } from '@ggraphic/editor/CanvasEditorProvider';
+import { useMessages } from '@ggraphic/editor/i18n/messages';
 
 export interface AltTextPagesSource {
   collect: (scope: AltTextScope) => Promise<AltTextPage[]>;
@@ -43,6 +44,7 @@ function CopyButton({ text, label }: { text: string; label: string }) {
 }
 
 export function AltTextTool({ pages }: AltTextToolProps) {
+  const t = useMessages();
   const { generateSlideAltTexts } = useCanvasEditorServices();
   const scopeName = useId();
   const [scope, setScope] = useState<AltTextScope>('all');
@@ -58,23 +60,23 @@ export function AltTextTool({ pages }: AltTextToolProps) {
     if (!generateSlideAltTexts) return;
     setError(null);
     setIsBusy(true);
-    setProgressMessage('Seiten werden erfasst…');
+    setProgressMessage(t.sidebar.tools.altText.capturing);
     try {
       const collected = await pages.collect(effectiveScope);
       setProgressMessage(
         collected.length > 1
-          ? `${collected.length} Alt-Texte werden geschrieben…`
-          : 'Alt-Text wird geschrieben…'
+          ? t.sidebar.tools.altText.writingN(collected.length)
+          : t.sidebar.tools.altText.writingAlt
       );
       const texts = await generateSlideAltTexts(collected);
       setResults(
         collected.map((page, i) => ({ pageNumber: page.pageNumber, text: texts[i] ?? null }))
       );
       if (texts.some((t) => t === null)) {
-        setError('Nicht jede Seite hat geklappt. Bitte noch einmal versuchen.');
+        setError(t.sidebar.tools.altText.somePagesFailed);
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Fehler beim Erstellen der Alt-Texte');
+      setError(err instanceof Error ? err.message : t.sidebar.tools.altText.altError);
     } finally {
       setIsBusy(false);
       setProgressMessage(null);
@@ -87,15 +89,17 @@ export function AltTextTool({ pages }: AltTextToolProps) {
   if (!generateSlideAltTexts) return null;
 
   const done = results.filter((r): r is AltTextResult & { text: string } => r.text !== null);
-  const allText = done.map((r) => `Seite ${r.pageNumber}: ${r.text}`).join('\n\n');
+  const allText = done.map((r) => `${t.common.page(r.pageNumber)}: ${r.text}`).join('\n\n');
 
   const scopeChoice = multiPage ? (
     <fieldset className="m-0 p-0 border-none flex flex-col gap-1.5">
-      <legend className="text-xs text-foreground-muted mb-1">Für welche Seiten?</legend>
+      <legend className="text-xs text-foreground-muted mb-1">
+        {t.sidebar.tools.altText.whichPages}
+      </legend>
       {(
         [
-          ['all', `Alle Seiten (${pages.pageCount})`],
-          ['active', 'Nur aktuelle Seite'],
+          ['all', t.sidebar.tools.altText.allPages(pages.pageCount)],
+          ['active', t.sidebar.tools.altText.currentPageOnly],
         ] as const
       ).map(([value, label]) => (
         <label
@@ -121,14 +125,14 @@ export function AltTextTool({ pages }: AltTextToolProps) {
       body={
         <>
           <p className="m-0 text-xs text-foreground-muted leading-snug">
-            Beschreibt deine Seiten für Menschen, die Bilder nicht sehen. Füge den Text beim Posten
-            ins Alt-Text-Feld ein (Instagram: „Erweiterte Einstellungen“ → „Alternativtext
-            schreiben“).
+            {t.sidebar.tools.altText.intro}
           </p>
           {scopeChoice}
         </>
       }
-      actionLabel={results.length > 0 ? 'Neu erstellen' : 'Alt-Texte erstellen'}
+      actionLabel={
+        results.length > 0 ? t.sidebar.tools.altText.regenerate : t.sidebar.tools.altText.createAlt
+      }
       actionIcon={HiChatBubbleBottomCenterText}
       canSubmit
       isBusy={isBusy}
@@ -140,7 +144,7 @@ export function AltTextTool({ pages }: AltTextToolProps) {
           <div className="flex flex-col gap-3">
             {done.length > 1 ? (
               <div className="flex justify-end">
-                <CopyButton text={allText} label="Alle kopieren" />
+                <CopyButton text={allText} label={t.sidebar.tools.altText.copyAll} />
               </div>
             ) : null}
             {results.map((result) => (
@@ -151,7 +155,7 @@ export function AltTextTool({ pages }: AltTextToolProps) {
               />
             ))}
             <p className="m-0 text-xs text-foreground-muted leading-snug">
-              KI-Vorschlag – bitte vor dem Posten lesen und bei Bedarf anpassen.
+              {t.sidebar.tools.altText.aiSuggestion}
             </p>
           </div>
         ) : null
@@ -167,13 +171,14 @@ function AltTextResultField({
   result: AltTextResult;
   onChange: (text: string) => void;
 }) {
+  const t = useMessages();
   const fieldId = useId();
-  const label = `Seite ${result.pageNumber}`;
+  const label = t.common.page(result.pageNumber);
   if (result.text === null) {
     return (
       <div className="flex flex-col gap-1">
         <span className="text-xs font-semibold text-foreground">{label}</span>
-        <p className="m-0 text-xs text-foreground-muted">Konnte nicht erstellt werden.</p>
+        <p className="m-0 text-xs text-foreground-muted">{t.sidebar.tools.altText.failed}</p>
       </div>
     );
   }
@@ -200,8 +205,7 @@ function AltTextResultField({
         )}
         aria-live="polite"
       >
-        {result.text.length} / {SLIDE_ALT_TEXT_MAX_CHARS} Zeichen
-        {tooLong ? ' – zu lang für Instagram' : ''}
+        {t.sidebar.tools.altText.charCount(result.text.length, SLIDE_ALT_TEXT_MAX_CHARS, tooLong)}
       </span>
     </div>
   );

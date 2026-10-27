@@ -7,6 +7,7 @@ import { MOBILE_INPUT_TEXT } from '../../sidebarStyles';
 
 import { ToolPanel, type ToolPanelSuccess } from './ToolPanel';
 import { useToolImagePlacement } from './useToolImagePlacement';
+import { useMessages } from '@ggraphic/editor/i18n/messages';
 
 export interface QRCodeToolProps {
   onJumpToUploads?: () => void;
@@ -18,6 +19,7 @@ const QR_PIXEL_SIZE = 1024;
 const PREVIEW_DEBOUNCE_MS = 400;
 
 export function QRCodeTool({ onJumpToUploads, onPlaceImageUrl }: QRCodeToolProps) {
+  const t = useMessages();
   const { finish, isUploading } = useToolImagePlacement({ onPlaceImageUrl, onJumpToUploads });
   const previewRef = useRef<HTMLDivElement>(null);
 
@@ -42,7 +44,7 @@ export function QRCodeTool({ onJumpToUploads, onPlaceImageUrl }: QRCodeToolProps
     if (previewText !== trimmed) flushSync(() => setPreviewText(trimmed));
     const canvas = previewRef.current?.querySelector('canvas');
     if (!canvas) {
-      setError('QR-Vorschau konnte nicht erzeugt werden.');
+      setError(t.sidebar.tools.qrPreviewFailed);
       return;
     }
 
@@ -52,13 +54,13 @@ export function QRCodeTool({ onJumpToUploads, onPlaceImageUrl }: QRCodeToolProps
 
     try {
       const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, 'image/png'));
-      if (!blob) throw new Error('PNG-Konvertierung fehlgeschlagen');
+      if (!blob) throw new Error(t.sidebar.tools.pngFailed);
 
       const file = new File([blob], `qrcode_${Date.now()}.png`, { type: 'image/png' });
       setSuccess(await finish(file));
       setValue('');
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Fehler beim Erstellen des QR-Codes';
+      const message = err instanceof Error ? err.message : t.sidebar.tools.qrError;
       setError(message);
     } finally {
       setIsBusy(false);
@@ -94,11 +96,11 @@ export function QRCodeTool({ onJumpToUploads, onPlaceImageUrl }: QRCodeToolProps
           </div>
         </div>
       }
-      actionLabel={onPlaceImageUrl ? 'QR-Code einfügen' : 'QR-Code zu Uploads hinzufügen'}
+      actionLabel={onPlaceImageUrl ? t.sidebar.tools.qrPlace : t.sidebar.tools.qrAdd}
       actionIcon={HiQrCode}
       canSubmit={!!trimmed}
       isBusy={isBusy || isUploading}
-      progressMessage={isBusy ? 'QR-Code wird gespeichert…' : null}
+      progressMessage={isBusy ? t.sidebar.tools.qrSaving : null}
       error={error}
       success={success}
       onAction={() => void handleAction()}

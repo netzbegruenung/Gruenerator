@@ -8,6 +8,7 @@ import { clampStraighten, STRAIGHTEN_LIMIT } from '@ggraphic/editor/utils/straig
 import React, { useState } from 'react';
 
 import { HIDDEN_SCROLLBAR } from '../../sidebar/sidebarStyles';
+import { useMessages } from '@ggraphic/editor/i18n/messages';
 
 const TEXT_BTN =
   'inline-flex items-center h-8 max-canvas-mobile:h-11 shrink-0 rounded-md border-none px-3 cursor-pointer text-[13px] font-medium transition-colors duration-150';
@@ -27,6 +28,7 @@ const STRAIGHTEN_MIN = -STRAIGHTEN_LIMIT;
  * („12" würde 2, „-" ginge gar nicht). Escape verwirft den Entwurf.
  */
 function StraightenField({ value, onCommit }: { value: number; onCommit: (deg: number) => void }) {
+  const t = useMessages();
   const [draft, setDraft] = useState<string | null>(null);
   const commit = (text: string): number | null => {
     const parsed = Number(text.replace(',', '.'));
@@ -47,7 +49,7 @@ function StraightenField({ value, onCommit }: { value: number; onCommit: (deg: n
       // Nicht `numeric`: die iOS-Zifferntastatur hat kein Minus.
       inputMode="text"
       role="spinbutton"
-      aria-label="Begradigen in Grad"
+      aria-label={t.topBar.straighten}
       aria-valuemin={STRAIGHTEN_MIN}
       aria-valuemax={STRAIGHTEN_LIMIT}
       aria-valuenow={value}
@@ -112,6 +114,7 @@ export function CropModeControls({
    */
   layout?: 'inline' | 'mobile';
 }) {
+  const t = useMessages();
   const expandButton = expand && (
     <button
       type="button"
@@ -119,7 +122,7 @@ export function CropModeControls({
       onClick={() => expand.onExpand()}
       disabled={expand.busy}
       aria-busy={expand.busy}
-      title="Foto per KI auf das Format des Rahmens erweitern"
+      title={t.topBar.expandWithAi}
     >
       {expand.busy && (
         <span
@@ -127,7 +130,7 @@ export function CropModeControls({
           className="mr-1.5 size-3.5 rounded-full border-2 border-current border-t-transparent motion-safe:animate-spin"
         />
       )}
-      Erweitern
+      {t.topBar.expand}
     </button>
   );
   const autoButton = onAuto && (
@@ -135,10 +138,10 @@ export function CropModeControls({
       type="button"
       className={`${TEXT_BTN} bg-transparent text-[var(--editor-text)] hover:bg-[var(--editor-surface-hover)]`}
       onClick={() => onAuto()}
-      aria-label="Ausschnitt automatisch wählen"
-      title="Ausschnitt automatisch wählen"
+      aria-label={t.topBar.autoCrop}
+      title={t.topBar.autoCrop}
     >
-      Automatisch
+      {t.topBar.auto}
     </button>
   );
   const straightenControls = straighten && (
@@ -148,8 +151,8 @@ export function CropModeControls({
     >
       <input
         type="range"
-        aria-label="Begradigen"
-        title="Begradigen"
+        aria-label={t.topBar.straightenShort}
+        title={t.topBar.straightenShort}
         min={-STRAIGHTEN_LIMIT}
         max={STRAIGHTEN_LIMIT}
         step={1}
@@ -166,8 +169,8 @@ export function CropModeControls({
   );
   const aspectSelect = aspect && (
     <select
-      aria-label="Seitenverhältnis"
-      title="Seitenverhältnis"
+      aria-label={t.topBar.aspectRatio}
+      title={t.topBar.aspectRatio}
       className={ASPECT_SELECT}
       value={aspect.value}
       onChange={(e) => {
@@ -187,17 +190,17 @@ export function CropModeControls({
         type="button"
         className={`${TEXT_BTN} bg-transparent text-[var(--editor-text)] hover:bg-[var(--editor-surface-hover)]`}
         onClick={onCancel}
-        title="Abbrechen (Zuschnitt verwerfen)"
+        title={t.topBar.cancelCrop}
       >
-        Abbrechen
+        {t.topBar.cancel}
       </button>
       <button
         type="button"
         className={`${TEXT_BTN} bg-[var(--editor-active-bg)] text-[var(--editor-active-fg)]`}
         onClick={onDone}
-        title="Fertig (Esc)"
+        title={t.topBar.doneCrop}
       >
-        Fertig
+        {t.topBar.done}
       </button>
     </>
   );

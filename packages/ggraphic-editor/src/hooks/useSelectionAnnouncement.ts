@@ -20,11 +20,16 @@ export function selectionMessage(
   return label ? messages().announce.selected(label) : null;
 }
 
-/** In der Ebenen-Liste liest der Screenreader die fokussierte Option ohnehin vor. */
+/**
+ * In der Ebenen-Liste liest der Screenreader die fokussierte Option ohnehin vor.
+ * Die Liste wird über denselben Katalogtext gefunden, den sie als aria-label
+ * trägt (`sidebar.layers.title`) — eine andere Sprache bricht das nicht.
+ */
 function focusInLayerList(): boolean {
   const active = document.activeElement;
+  const label = messages().sidebar.layers.title.replace(/["\\]/g, '\\$&');
   return (
-    active instanceof Element && active.closest('[role=listbox][aria-label="Ebenen"]') !== null
+    active instanceof Element && active.closest(`[role=listbox][aria-label="${label}"]`) !== null
   );
 }
 

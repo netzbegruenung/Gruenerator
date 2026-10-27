@@ -10,6 +10,7 @@ import { PiCheckBold, PiSlidersHorizontal } from 'react-icons/pi';
 import { HIDDEN_SCROLLBAR } from '../../sidebar/sidebarStyles';
 
 import { ContextControls, showsCropModeBar, type ContextControlsProps } from './ContextControls';
+import { useMessages } from '@ggraphic/editor/i18n/messages';
 
 interface MobileSelectionBarProps extends ContextControlsProps {
   /** Öffnet den Bereich der Auswahl als Sheet; fehlt, wenn es keinen gibt. */
@@ -24,6 +25,7 @@ interface MobileSelectionBarProps extends ContextControlsProps {
  * Duplizieren und Löschen in der Pille am Objekt (`MobileSelectionPill`).
  */
 export function MobileSelectionBar({ onOpenArea, onDone, ...controls }: MobileSelectionBarProps) {
+  const t = useMessages();
   const hasPendingAiSuggestion = useCanvasStoreSelector((s) => s.pendingAiSuggestion !== null);
   // Im Zuschneide-Modus hat die Leiste ihre eigenen Ausgänge (Abbrechen, Fertig).
   const cropping = showsCropModeBar(controls) && !hasPendingAiSuggestion;
@@ -33,7 +35,7 @@ export function MobileSelectionBar({ onOpenArea, onDone, ...controls }: MobileSe
     <div
       {...roving}
       role="toolbar"
-      aria-label="Auswahl bearbeiten"
+      aria-label={t.topBar.editSelection}
       data-suppress-feedback-launcher=""
       className={cn(
         'order-2 flex-none flex gap-1 pl-3 pr-2 bg-[var(--editor-surface)] border-t border-[var(--editor-border)]',
@@ -69,8 +71,8 @@ export function MobileSelectionBar({ onOpenArea, onDone, ...controls }: MobileSe
         <button
           type="button"
           onClick={onDone}
-          aria-label="Fertig"
-          title="Fertig"
+          aria-label={t.topBar.done}
+          title={t.topBar.done}
           className="flex-none inline-flex items-center justify-center size-11 rounded-full border-none cursor-pointer bg-[var(--editor-active-bg)] text-[var(--editor-active-fg)]"
         >
           <PiCheckBold size={20} aria-hidden />

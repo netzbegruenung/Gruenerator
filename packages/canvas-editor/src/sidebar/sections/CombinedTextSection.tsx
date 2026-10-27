@@ -9,6 +9,7 @@ import { MOBILE_INPUT_TEXT, SIDEBAR_SECTION } from '../sidebarStyles';
 
 import type { AdditionalText } from '@ggraphic/editor/configs/types';
 import type { TextFieldConfig } from '@ggraphic/editor/configs/unifiedTabs';
+import { messages, useMessages } from '@ggraphic/editor/i18n/messages';
 
 export interface CombinedTextSectionProps {
   onAddHeader?: () => void;
@@ -37,9 +38,10 @@ function getTextTypeIcon(type: AdditionalText['type']) {
 }
 
 function getTextTypePlaceholder(type: AdditionalText['type']) {
-  if (type === 'header') return 'Überschrift...';
-  if (type === 'subheader') return 'Untertitel...';
-  return 'Text...';
+  const t = messages();
+  if (type === 'header') return t.sidebar.text.placeholderHeader;
+  if (type === 'subheader') return t.sidebar.text.placeholderSubheader;
+  return t.sidebar.text.placeholderText;
 }
 
 export function CombinedTextSection({
@@ -55,6 +57,7 @@ export function CombinedTextSection({
   fontSizes,
   onFontSizeChange,
 }: CombinedTextSectionProps) {
+  const t = useMessages();
   const isMobile = useIsCanvasMobile();
   const hasFreeformText = onAddHeader !== undefined || onAddText !== undefined;
   const hasTemplateFields = textFields !== undefined && textFields.length > 0;
@@ -72,7 +75,7 @@ export function CombinedTextSection({
               onClick={onAddHeader}
               className={cn(MOBILE_ADD_TILE, 'h-12 text-[20px] font-black')}
             >
-              Überschrift hinzufügen
+              {t.sidebar.text.addHeader}
             </button>
           )}
           {onAddSubheader && (
@@ -81,7 +84,7 @@ export function CombinedTextSection({
               onClick={onAddSubheader}
               className={cn(MOBILE_ADD_TILE, 'h-11 text-[17px] font-bold')}
             >
-              Untertitel hinzufügen
+              {t.sidebar.text.addSubheader}
             </button>
           )}
           {onAddText && (
@@ -90,7 +93,7 @@ export function CombinedTextSection({
               onClick={onAddText}
               className={cn(MOBILE_ADD_TILE, 'h-11 text-[15px] font-normal')}
             >
-              Fließtext hinzufügen
+              {t.sidebar.text.addBody}
             </button>
           )}
         </div>
@@ -105,7 +108,7 @@ export function CombinedTextSection({
               className="flex items-center justify-center gap-xs w-full py-2.5 bg-primary-600 text-white border-none rounded-lg cursor-pointer text-sm font-semibold transition-colors duration-150 hover:bg-primary-700"
             >
               <PiPlusBold size={14} />
-              Textfeld hinzufügen
+              {t.sidebar.text.addTextField}
             </button>
           )}
 
@@ -117,7 +120,7 @@ export function CombinedTextSection({
                 className="w-full text-left py-3 px-4 bg-[var(--card-background)] border border-[var(--card-border)] rounded-lg cursor-pointer transition-all duration-150 hover:bg-hover-alt hover:border-editor-border-strong"
               >
                 <span className="font-[GrueneTypeNeue,Arial,sans-serif] text-xl font-bold text-foreground">
-                  Titel
+                  {t.sidebar.text.labelTitle}
                 </span>
               </button>
             )}
@@ -128,7 +131,7 @@ export function CombinedTextSection({
                 className="w-full text-left py-2.5 px-4 bg-[var(--card-background)] border border-[var(--card-border)] rounded-lg cursor-pointer transition-all duration-150 hover:bg-hover-alt hover:border-editor-border-strong"
               >
                 <span className="font-[GrueneTypeNeue,Arial,sans-serif] text-base font-bold text-foreground">
-                  Untertitel
+                  {t.sidebar.text.labelSubtitle}
                 </span>
               </button>
             )}
@@ -139,7 +142,7 @@ export function CombinedTextSection({
                 className="w-full text-left py-2 px-4 bg-[var(--card-background)] border border-[var(--card-border)] rounded-lg cursor-pointer transition-all duration-150 hover:bg-hover-alt hover:border-editor-border-strong"
               >
                 <span className="font-[PT_Sans,Arial,sans-serif] text-sm text-foreground">
-                  Text
+                  {t.sidebar.text.labelText}
                 </span>
               </button>
             )}
@@ -176,7 +179,7 @@ export function CombinedTextSection({
       {hasCanvasTexts && onUpdateText && onRemoveText && (
         <div className="flex flex-col gap-xs max-canvas-mobile:gap-2.5">
           <span className="text-xs font-semibold text-foreground uppercase tracking-wide max-canvas-mobile:text-[13px] max-canvas-mobile:font-bold max-canvas-mobile:normal-case max-canvas-mobile:tracking-normal max-canvas-mobile:text-[var(--editor-text-muted)]">
-            Texte auf der Leinwand
+            {t.sidebar.text.onCanvas}
           </span>
           {additionalTexts.map((text) => (
             <div
@@ -197,7 +200,7 @@ export function CombinedTextSection({
                 type="button"
                 onClick={() => onRemoveText(text.id)}
                 className="touch-target shrink-0 size-7 flex items-center justify-center bg-transparent border-none rounded-md cursor-pointer text-foreground-muted transition-colors duration-150 hover:bg-red-50 hover:text-red-600"
-                aria-label="Text entfernen"
+                aria-label={t.sidebar.text.removeText}
               >
                 <FaTrash size={11} />
               </button>
@@ -207,18 +210,10 @@ export function CombinedTextSection({
       )}
 
       {!hasFreeformText && !hasTemplateFields && !hasCanvasTexts && (
-        <SidebarHint>
-          Klicke auf den Text im Canvas, um ihn direkt zu bearbeiten. Du kannst Texte auch per Drag
-          & Drop verschieben.
-        </SidebarHint>
+        <SidebarHint>{t.sidebar.text.hintEdit}</SidebarHint>
       )}
 
-      {hasFreeformText && !hasCanvasTexts && (
-        <SidebarHint>
-          Füge Überschriften oder Fließtext hinzu. Du kannst sie dann per Drag & Drop auf der
-          Leinwand positionieren und direkt bearbeiten.
-        </SidebarHint>
-      )}
+      {hasFreeformText && !hasCanvasTexts && <SidebarHint>{t.sidebar.text.hintAdd}</SidebarHint>}
     </div>
   );
 }

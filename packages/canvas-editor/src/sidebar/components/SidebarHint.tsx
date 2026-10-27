@@ -3,6 +3,7 @@ import { useState, useRef, useEffect } from 'react';
 import { FaQuestionCircle, FaTimes } from 'react-icons/fa';
 
 import { SIDEBAR_HINT } from '../sidebarStyles';
+import { useMessages } from '@ggraphic/editor/i18n/messages';
 
 interface SidebarHintProps {
   children: React.ReactNode;
@@ -11,6 +12,7 @@ interface SidebarHintProps {
 }
 
 export function SidebarHint({ children, className, style }: SidebarHintProps) {
+  const t = useMessages();
   const [isOpen, setIsOpen] = useState(false);
   const popupRef = useRef<HTMLDivElement>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
@@ -58,7 +60,7 @@ export function SidebarHint({ children, className, style }: SidebarHintProps) {
           type="button"
           className="touch-target flex items-center justify-center size-7 p-0 bg-[var(--card-background)] border border-[var(--border-subtle)] rounded-full text-foreground-muted cursor-pointer transition-[color,border-color] duration-150 hover:text-[var(--interactive-accent-color)] hover:border-[var(--interactive-accent-color)] focus:text-[var(--interactive-accent-color)] focus:border-[var(--interactive-accent-color)] outline-none kbd:focus-visible:outline-2 kbd:focus-visible:outline-solid kbd:focus-visible:outline-offset-2 kbd:focus-visible:outline-[var(--editor-accent)]"
           onClick={() => setIsOpen(!isOpen)}
-          aria-label="Hinweis anzeigen"
+          aria-label={t.sidebar.showHint}
           aria-expanded={isOpen}
         >
           <FaQuestionCircle size={16} />
@@ -74,7 +76,7 @@ export function SidebarHint({ children, className, style }: SidebarHintProps) {
               type="button"
               className="absolute top-2 right-2 flex items-center justify-center size-6 p-0 bg-transparent border-none text-foreground-muted cursor-pointer rounded-full transition-[background,color] duration-150 hover:bg-hover-alt hover:text-foreground"
               onClick={() => setIsOpen(false)}
-              aria-label="Schließen"
+              aria-label={t.common.close}
             >
               <FaTimes size={12} />
             </button>

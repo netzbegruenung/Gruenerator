@@ -5,6 +5,7 @@ import React, { useId } from 'react';
 import { PiTextAa } from 'react-icons/pi';
 
 import { colorName } from '../../../utils/colorNames';
+import { useMessages } from '@ggraphic/editor/i18n/messages';
 
 interface FloatingOutlineControlProps {
   stroke?: string;
@@ -23,6 +24,7 @@ export function FloatingOutlineControl({
   strokeWidth,
   onChange,
 }: FloatingOutlineControlProps) {
+  const t = useMessages();
   const enabled = !!stroke && (strokeWidth ?? 0) > 0;
 
   const toggle = () => {
@@ -40,9 +42,9 @@ export function FloatingOutlineControl({
       <PopoverTrigger asChild>
         <button
           className={ICON_BTN}
-          title="Kontur"
+          title={t.topBar.outline}
           type="button"
-          aria-label="Textkontur bearbeiten"
+          aria-label={t.topBar.editOutline}
         >
           <PiTextAa
             size={17}
@@ -57,7 +59,7 @@ export function FloatingOutlineControl({
       >
         <div className="flex items-center justify-between">
           <span id={titleId} className="text-xs font-medium text-[var(--editor-text)]">
-            Kontur
+            {t.topBar.outline}
           </span>
           <button
             className="text-[11px] font-medium text-[var(--editor-accent)] hover:underline"
@@ -95,7 +97,9 @@ export function FloatingOutlineControl({
               />
             </div>
             <div className="flex items-center gap-2">
-              <span className="text-[11px] w-12 text-[var(--editor-text-muted)]">Stärke</span>
+              <span className="text-[11px] w-12 text-[var(--editor-text-muted)]">
+                {t.topBar.strength}
+              </span>
               <Slider.Root
                 className="relative flex items-center select-none touch-none grow h-4 max-canvas-mobile:h-11"
                 value={[strokeWidth ?? DEFAULT_WIDTH]}
@@ -109,7 +113,7 @@ export function FloatingOutlineControl({
                 </Slider.Track>
                 <Slider.Thumb
                   className="block size-3 max-canvas-mobile:size-5 bg-white rounded-full border-2 border-[var(--editor-accent)] shadow-[0_1px_3px_rgba(0,0,0,0.2)] cursor-grab focus:outline-none"
-                  aria-label="Konturstärke"
+                  aria-label={t.topBar.outlineWidth}
                 />
               </Slider.Root>
               <span className="text-[11px] w-8 text-right tabular-nums text-[var(--editor-text-muted)]">

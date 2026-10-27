@@ -1,5 +1,6 @@
 import React from 'react';
 import { PiArrowCounterClockwise, PiArrowClockwise } from 'react-icons/pi';
+import { useMessages } from '@ggraphic/editor/i18n/messages';
 
 const iconBtnLight =
   'size-8 max-canvas-mobile:size-11 rounded-full max-canvas-mobile:rounded-[10px] border-none bg-transparent cursor-pointer flex items-center justify-center text-foreground transition-[background-color,color] duration-200 hover:enabled:bg-hover-alt hover:enabled:text-primary-600 active:enabled:bg-editor-canvas-hover disabled:opacity-30 disabled:cursor-not-allowed disabled:text-grey-400';
@@ -26,6 +27,7 @@ export function FloatingHistoryControls({
   canRedo,
   onDark,
 }: FloatingHistoryControlsProps) {
+  const t = useMessages();
   const iconBtn = onDark ? iconBtnDark : iconBtnLight;
   return (
     <div className="flex items-center gap-1 max-canvas-mobile:gap-0.5">
@@ -36,7 +38,7 @@ export function FloatingHistoryControls({
           onUndo();
         }}
         disabled={!canUndo}
-        title={isMac ? 'Rückgängig (⌘Z)' : 'Rückgängig (Strg+Z)'}
+        title={isMac ? t.topBar.undoMac : t.topBar.undoWin}
         type="button"
       >
         <PiArrowCounterClockwise size={20} />
@@ -48,7 +50,7 @@ export function FloatingHistoryControls({
           onRedo();
         }}
         disabled={!canRedo}
-        title={isMac ? 'Wiederholen (⌘⇧Z)' : 'Wiederholen (Strg+Y)'}
+        title={isMac ? t.topBar.redoMac : t.topBar.redoWin}
         type="button"
       >
         <PiArrowClockwise size={20} />

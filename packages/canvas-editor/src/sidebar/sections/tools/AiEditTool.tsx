@@ -7,6 +7,7 @@ import { MOBILE_INPUT_TEXT } from '../../sidebarStyles';
 
 import { ImageInputPicker } from './ImageInputPicker';
 import { ToolPanel, type ToolPanelSuccess } from './ToolPanel';
+import { useMessages } from '@ggraphic/editor/i18n/messages';
 
 const MIN_INSTRUCTION_LENGTH = 15;
 const MAX_INSTRUCTION_LENGTH = 500;
@@ -16,6 +17,7 @@ export interface AiEditToolProps {
 }
 
 export function AiEditTool({ onJumpToUploads }: AiEditToolProps) {
+  const t = useMessages();
   const { editAiImage } = useCanvasEditorServices();
   const { upload, isUploading } = useUserUploads();
 
@@ -31,13 +33,13 @@ export function AiEditTool({ onJumpToUploads }: AiEditToolProps) {
     setError(null);
     setSuccess(null);
     setIsBusy(true);
-    setProgressMessage('Bild wird bearbeitet…');
+    setProgressMessage(t.sidebar.tools.editing);
 
     try {
       const { file, objectUrl } = await editAiImage(input, instruction.trim());
-      setProgressMessage('Speichern in Uploads…');
+      setProgressMessage(t.sidebar.tools.savingToUploads);
       const item = await upload(file);
-      if (!item) throw new Error('Upload fehlgeschlagen');
+      if (!item) throw new Error(t.sidebar.uploadFailed);
       setSuccess({
         thumbnailUrl: objectUrl,
         itemName: item.originalFilename ?? item.title ?? file.name,
@@ -46,7 +48,7 @@ export function AiEditTool({ onJumpToUploads }: AiEditToolProps) {
       setInput(null);
       setInstruction('');
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Fehler beim Bearbeiten';
+      const message = err instanceof Error ? err.message : t.sidebar.tools.editError;
       setError(message);
     } finally {
       setIsBusy(false);
@@ -66,15 +68,14 @@ export function AiEditTool({ onJumpToUploads }: AiEditToolProps) {
           <textarea
             value={instruction}
             onChange={(e) => setInstruction(e.target.value)}
-            placeholder='Bearbeitungsanweisung (z.B. "Ersetze den Himmel durch einen Sonnenuntergang")'
+            placeholder={t.sidebar.tools.editPlaceholder}
             rows={3}
             maxLength={MAX_INSTRUCTION_LENGTH}
             disabled={isBusy || isUploading}
             className={`w-full p-3 bg-background border border-[var(--font-color)] rounded-lg text-foreground text-sm ${MOBILE_INPUT_TEXT} outline-none resize-none focus:border-primary-600 disabled:opacity-50`}
           />
           <p className="m-0 text-[10px] text-foreground-muted">
-            Mindestens {MIN_INSTRUCTION_LENGTH} Zeichen — je präziser die Anweisung, desto besser
-            das Ergebnis.
+            {t.sidebar.tools.minInstruction(MIN_INSTRUCTION_LENGTH)}
           </p>
         </>
       }

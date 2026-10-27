@@ -1,6 +1,7 @@
 import { Slider } from 'radix-ui';
 import React from 'react';
 import { PiDrop } from 'react-icons/pi';
+import { useMessages } from '@ggraphic/editor/i18n/messages';
 
 interface FloatingOpacityControlProps {
   opacity: number;
@@ -8,6 +9,7 @@ interface FloatingOpacityControlProps {
 }
 
 export function FloatingOpacityControl({ opacity, onOpacityChange }: FloatingOpacityControlProps) {
+  const t = useMessages();
   const handleValueChange = (values: number[]) => {
     onOpacityChange(values[0]);
   };
@@ -28,7 +30,7 @@ export function FloatingOpacityControl({ opacity, onOpacityChange }: FloatingOpa
         </Slider.Track>
         <Slider.Thumb
           className="block size-3.5 max-canvas-mobile:size-5 bg-white rounded-full border-2 border-[var(--editor-accent)] shadow-[0_1px_3px_rgba(0,0,0,0.2)] cursor-grab focus:outline-none focus:shadow-[0_0_0_3px_rgba(82,144,122,0.35)]"
-          aria-label="Deckkraft"
+          aria-label={t.sidebar.imageAdjust.opacity}
           aria-valuetext={`${Math.round(opacity * 100)} %`}
         />
       </Slider.Root>

@@ -20,6 +20,7 @@ import { MOBILE_INPUT_TEXT } from '../../../sidebar/sidebarStyles';
 import type { StockImageAttribution } from '@ggraphic/editor/common/imageSourceTypes';
 import type { BackgroundControls } from '@ggraphic/editor/configs/types';
 import type { CanvasMediaItem } from '@ggraphic/editor/hostServices';
+import { useMessages } from '@ggraphic/editor/i18n/messages';
 
 const ICON_BTN =
   'inline-flex items-center justify-center size-8 shrink-0 rounded-md border-none bg-transparent cursor-pointer text-[var(--editor-text)] transition-colors duration-150 hover:bg-[var(--editor-surface-hover)] hover:text-[var(--editor-active-fg)]';
@@ -45,6 +46,7 @@ export function BackgroundImagePicker({
   /** Each new value opens the picker — the context menu's "Bild ersetzen …". */
   openRequest?: number;
 }) {
+  const t = useMessages();
   const { imageUrls = plainImageUrls } = useCanvasEditorServices();
   const [open, setOpen] = useState(false);
   useEffect(() => {
@@ -66,14 +68,14 @@ export function BackgroundImagePicker({
       const picked = await load();
       if (seq !== seqRef.current) return;
       if (!picked) {
-        setPickError('Bild konnte nicht hochgeladen werden. Bitte versuche es erneut.');
+        setPickError(t.topBar.background.uploadFailed);
         return;
       }
       onImageChange(picked.file, picked.url, null);
       setOpen(false);
     } catch (err) {
       if (seq !== seqRef.current) return;
-      setPickError(err instanceof Error ? err.message : 'Fehler beim Laden des Bildes');
+      setPickError(err instanceof Error ? err.message : t.topBar.background.imageLoadError);
     } finally {
       if (seq === seqRef.current) setPendingId(null);
     }
@@ -117,7 +119,7 @@ export function BackgroundImagePicker({
       <PopoverContent
         className="z-[10001] w-80 flex flex-col gap-3 p-3"
         align="start"
-        aria-label="Hintergrundbild wählen"
+        aria-label={t.topBar.background.pickBackground}
       >
         <div className="flex items-center gap-2 h-9 px-2.5 rounded-lg bg-[var(--editor-tile)]">
           <HiMagnifyingGlass
@@ -130,8 +132,8 @@ export function BackgroundImagePicker({
             enterKeyHint="search"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Eigene Bilder durchsuchen"
-            aria-label="Eigene Bilder durchsuchen"
+            placeholder={t.topBar.background.searchOwn}
+            aria-label={t.topBar.background.searchOwn}
             className={`flex-1 min-w-0 border-none outline-none bg-transparent text-sm ${MOBILE_INPUT_TEXT} text-[var(--editor-text)] placeholder:text-[var(--editor-text-muted)]`}
           />
         </div>
@@ -151,7 +153,7 @@ export function BackgroundImagePicker({
           className="flex w-full items-center justify-center gap-2 h-9 rounded-lg border-[1.5px] border-dashed border-[var(--editor-border-strong)] bg-transparent text-sm font-semibold text-[var(--editor-text-secondary)] cursor-pointer transition-colors duration-150 hover:border-[var(--editor-accent)] hover:text-[var(--editor-text)] disabled:opacity-60 disabled:cursor-not-allowed"
         >
           <HiArrowUpTray size={16} aria-hidden="true" />
-          {pendingId === 'upload' ? 'Bild wird hochgeladen…' : 'Bild hochladen'}
+          {pendingId === 'upload' ? t.topBar.background.uploading : t.topBar.background.upload}
         </button>
 
         {displayedError && (
@@ -190,12 +192,12 @@ export function BackgroundImagePicker({
             onClick={() => void loadMore()}
             className="self-center text-xs font-semibold text-[var(--editor-active-fg)] bg-transparent border-none cursor-pointer"
           >
-            Mehr anzeigen
+            {t.topBar.background.showMore}
           </button>
         )}
         {!isLoading && items.length === 0 && !displayedError && (
           <p className="m-0 text-xs text-[var(--editor-text-muted)]">
-            {search ? `Keine Treffer für „${search}“.` : 'Noch keine eigenen Bilder.'}
+            {search ? t.topBar.background.noMatch(search) : t.topBar.background.noOwn}
           </p>
         )}
       </PopoverContent>
@@ -211,12 +213,18 @@ export function BackgroundZoomControl({
   scale: number;
   onScaleChange: (scale: number) => void;
 }) {
+  const t = useMessages();
   const titleId = useId();
 
   return (
     <Popover>
       <PopoverTrigger asChild>
-        <button type="button" className={ICON_BTN} title="Zoom" aria-label="Bild zoomen">
+        <button
+          type="button"
+          className={ICON_BTN}
+          title={t.topBar.zoom}
+          aria-label={t.topBar.background.zoom}
+        >
           <HiMagnifyingGlassPlus size={17} aria-hidden="true" />
         </button>
       </PopoverTrigger>
@@ -226,7 +234,7 @@ export function BackgroundZoomControl({
         aria-labelledby={titleId}
       >
         <span id={titleId} className="text-[11px] w-10 text-[var(--editor-text-muted)]">
-          Zoom
+          {t.topBar.zoom}
         </span>
         {/* Bounds match `backgroundPhotoElement()` in the sharepic descriptor. */}
         <Slider.Root
@@ -242,7 +250,7 @@ export function BackgroundZoomControl({
           </Slider.Track>
           <Slider.Thumb
             className="block size-3 max-canvas-mobile:size-5 bg-white rounded-full border-2 border-[var(--editor-accent)] shadow-[0_1px_3px_rgba(0,0,0,0.2)] cursor-grab focus:outline-none"
-            aria-label="Zoom"
+            aria-label={t.topBar.zoom}
           />
         </Slider.Root>
         <span className="text-[11px] w-10 text-right tabular-nums text-[var(--editor-text-muted)]">
@@ -254,26 +262,28 @@ export function BackgroundZoomControl({
 }
 
 export function BackgroundRestoreImageButton({ onRestore }: { onRestore: () => void }) {
+  const t = useMessages();
   return (
     <button
       type="button"
       className={TEXT_BTN}
       onClick={onRestore}
-      title="Das zuletzt verwendete Foto wieder als Hintergrund zeigen"
+      title={t.topBar.background.restoreHint}
     >
-      Foto zurück
+      {t.topBar.background.restore}
     </button>
   );
 }
 
 export function BackgroundRemoveImageButton({ onRemove }: { onRemove: () => void }) {
+  const t = useMessages();
   return (
     <button
       type="button"
       className={ICON_BTN}
       onClick={onRemove}
-      title="Hintergrundbild entfernen"
-      aria-label="Hintergrundbild entfernen"
+      title={t.topBar.background.remove}
+      aria-label={t.topBar.background.remove}
     >
       <HiOutlineTrash size={17} aria-hidden="true" />
     </button>
@@ -298,6 +308,7 @@ export function SetAsBackgroundButton({
   onImageChange: ImageChange;
   onRemoveElement: () => void;
 }) {
+  const t = useMessages();
   const [pending, setPending] = useState(false);
   const [failed, setFailed] = useState(false);
   const { imageUrls = plainImageUrls } = useCanvasEditorServices();
@@ -323,10 +334,10 @@ export function SetAsBackgroundButton({
       onClick={() => void handleClick()}
       disabled={pending}
       aria-busy={pending}
-      title={failed ? 'Bild konnte nicht geladen werden' : 'Bild als Hintergrund verwenden'}
+      title={failed ? t.topBar.background.loadFailed : t.topBar.background.use}
     >
       <HiOutlinePhoto size={17} aria-hidden="true" />
-      Als Hintergrund
+      {t.topBar.background.asBackground}
     </button>
   );
 }

@@ -7,6 +7,7 @@ import { SIDEBAR_SECTION } from '../../sidebarStyles';
 
 import type { ComponentType, ReactNode } from 'react';
 import type { IconType } from 'react-icons';
+import { useMessages } from '@ggraphic/editor/i18n/messages';
 
 export interface ToolPanelSuccess {
   thumbnailUrl: string;
@@ -43,6 +44,7 @@ export function ToolPanel({
   onAction,
   footer,
 }: ToolPanelProps) {
+  const t = useMessages();
   const [isLightboxOpen, setIsLightboxOpen] = useState(false);
 
   return (
@@ -64,7 +66,7 @@ export function ToolPanel({
         className="w-full py-2.5 bg-primary-600 text-white border-none rounded-lg cursor-pointer text-sm hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
       >
         <Icon size={16} />
-        {isBusy ? progressMessage || 'Bitte warten…' : actionLabel}
+        {isBusy ? progressMessage || t.sidebar.tools.pleaseWait : actionLabel}
       </button>
 
       {error ? (
@@ -80,7 +82,7 @@ export function ToolPanel({
             type="button"
             onClick={() => setIsLightboxOpen(true)}
             className="block w-full p-0 bg-transparent border-none cursor-zoom-in rounded-lg overflow-hidden"
-            aria-label="Bild in voller Größe ansehen"
+            aria-label={t.sidebar.tools.viewFull}
           >
             <img
               src={success.thumbnailUrl}
@@ -91,7 +93,7 @@ export function ToolPanel({
           <div className="flex items-center gap-2 text-xs text-foreground-muted">
             <HiCheckCircle size={12} className="shrink-0 text-editor-active-fg" />
             <span className="flex-1 truncate">
-              {success.placedOnCanvas ? 'Auf Canvas platziert' : 'In Uploads gespeichert'} ·{' '}
+              {success.placedOnCanvas ? t.sidebar.tools.placed : t.sidebar.tools.savedToUploads} ·{' '}
               {success.itemName}
             </span>
             {success.onJumpToUploads ? (
@@ -100,7 +102,7 @@ export function ToolPanel({
                 onClick={success.onJumpToUploads}
                 className="text-primary-600 bg-transparent border-none cursor-pointer hover:underline shrink-0"
               >
-                Zu Uploads
+                {t.sidebar.tools.toUploads}
               </button>
             ) : null}
           </div>

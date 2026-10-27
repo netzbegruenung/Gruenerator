@@ -8,6 +8,7 @@ import { ToolPanel, type ToolPanelSuccess } from './ToolPanel';
 import { useToolImagePlacement } from './useToolImagePlacement';
 
 import type Konva from 'konva';
+import { useMessages } from '@ggraphic/editor/i18n/messages';
 
 export interface BlobCreatorToolProps {
   onJumpToUploads?: () => void;
@@ -119,6 +120,7 @@ function LabeledRange({
 }
 
 export function BlobCreatorTool({ onJumpToUploads, onPlaceImageUrl }: BlobCreatorToolProps) {
+  const t = useMessages();
   const { finish, isUploading } = useToolImagePlacement({ onPlaceImageUrl, onJumpToUploads });
   const stageRef = useRef<Konva.Stage>(null);
 
@@ -140,7 +142,7 @@ export function BlobCreatorTool({ onJumpToUploads, onPlaceImageUrl }: BlobCreato
   const handleAction = useCallback(async () => {
     const stage = stageRef.current;
     if (!stage) {
-      setError('Vorschau konnte nicht erzeugt werden.');
+      setError(t.sidebar.tools.previewFailed);
       return;
     }
     setError(null);
@@ -153,7 +155,7 @@ export function BlobCreatorTool({ onJumpToUploads, onPlaceImageUrl }: BlobCreato
       const file = new File([blob], `blob_${Date.now()}.png`, { type: 'image/png' });
       setSuccess(await finish(file));
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Fehler beim Erstellen des Blobs';
+      const message = err instanceof Error ? err.message : t.sidebar.tools.blobError;
       setError(message);
     } finally {
       setIsBusy(false);
@@ -179,7 +181,7 @@ export function BlobCreatorTool({ onJumpToUploads, onPlaceImageUrl }: BlobCreato
             className="inline-flex items-center justify-center gap-2 rounded-md border border-editor-border-strong bg-background px-sm py-xs text-sm text-foreground transition-colors hover:border-primary-500 disabled:opacity-50"
           >
             <PiShuffle size={16} />
-            Neu würfeln
+            {t.sidebar.tools.reroll}
           </button>
 
           <ColorRow selected={color} onSelect={setColor} disabled={disabled} />
@@ -193,7 +195,7 @@ export function BlobCreatorTool({ onJumpToUploads, onPlaceImageUrl }: BlobCreato
             disabled={disabled}
           />
           <LabeledRange
-            label={`Unregelmäßigkeit: ${Math.round(irregularity * 100)}%`}
+            label={t.sidebar.tools.irregularity(Math.round(irregularity * 100))}
             value={irregularity}
             min={0.1}
             max={0.6}
@@ -203,11 +205,11 @@ export function BlobCreatorTool({ onJumpToUploads, onPlaceImageUrl }: BlobCreato
           />
         </div>
       }
-      actionLabel={onPlaceImageUrl ? 'Blob einfügen' : 'Blob zu Uploads hinzufügen'}
+      actionLabel={onPlaceImageUrl ? t.sidebar.tools.blobPlace : t.sidebar.tools.blobAdd}
       actionIcon={PiDropSimpleFill}
       canSubmit={!disabled}
       isBusy={disabled}
-      progressMessage={isBusy ? 'Blob wird gespeichert…' : null}
+      progressMessage={isBusy ? t.sidebar.tools.blobSaving : null}
       error={error}
       success={success}
       onAction={() => void handleAction()}

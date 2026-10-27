@@ -11,6 +11,7 @@ import {
 
 import { colorName } from '../../utils/colorNames';
 import { SidebarSlider } from '../components/SidebarSlider';
+import { useMessages } from '@ggraphic/editor/i18n/messages';
 
 /** DE Tanne and Klee, AT Dunkel- and Hellgrün. */
 const TINTS = ['#005538', '#008939', '#257639', '#56AF31'];
@@ -44,6 +45,7 @@ export function ImageAdjustSection({
   onUpdateImage,
   backgroundPhoto = null,
 }: ImageAdjustSectionProps) {
+  const t = useMessages();
   const img = selectedImage;
   const adj: ImageAdjustments | null = img ?? backgroundPhoto?.adjustments ?? null;
   if (!adj) return null;
@@ -77,7 +79,7 @@ export function ImageAdjustSection({
           onClick={() => set(EMPTY_ADJUSTMENTS)}
           className="rounded-md px-2 py-1 text-xs text-foreground-muted hover:text-foreground"
         >
-          Zurücksetzen
+          {t.sidebar.imageAdjust.reset}
         </button>
       </div>
 
@@ -123,8 +125,8 @@ export function ImageAdjustSection({
         <div className="grid grid-cols-2 gap-1.5">
           {(
             [
-              ['flipX', 'Horizontal'],
-              ['flipY', 'Vertikal'],
+              ['flipX', t.sidebar.imageAdjust.horizontal],
+              ['flipY', t.sidebar.imageAdjust.vertical],
             ] as const
           ).map(([key, label]) => (
             <button
@@ -142,7 +144,7 @@ export function ImageAdjustSection({
 
       {/* Tint */}
       <div className="flex flex-col gap-2">
-        <span className={GROUP_LABEL}>Einfärben</span>
+        <span className={GROUP_LABEL}>{t.sidebar.imageAdjust.tint}</span>
         <div className="flex items-center gap-1.5">
           {TINTS.map((c) => (
             <button
@@ -150,7 +152,7 @@ export function ImageAdjustSection({
               type="button"
               onClick={() => set({ tint: c, tintStrength: adj.tintStrength || 1 })}
               title={colorName(c)}
-              aria-label={`Einfärben in ${colorName(c)}`}
+              aria-label={t.sidebar.imageAdjust.tintIn(colorName(c))}
               aria-pressed={(adj.tint ?? defaultTint()) === c && !!adj.tintStrength}
               className="size-6 rounded-full border border-black/10 transition-transform hover:scale-110"
               style={{
@@ -171,7 +173,7 @@ export function ImageAdjustSection({
           />
         </div>
         <SidebarSlider
-          label="Stärke"
+          label={t.sidebar.imageAdjust.intensity}
           value={adj.tintStrength ?? 0}
           onValueChange={(v) => set({ tintStrength: v })}
           min={0}
@@ -183,9 +185,9 @@ export function ImageAdjustSection({
 
       {/* White balance */}
       <div className="flex flex-col gap-2">
-        <span className={GROUP_LABEL}>Weißabgleich</span>
+        <span className={GROUP_LABEL}>{t.sidebar.imageAdjust.whiteBalance}</span>
         <SidebarSlider
-          label="Farbtemperatur"
+          label={t.sidebar.imageAdjust.colorTemperature}
           value={adj.temperature ?? 0}
           onValueChange={(v) => set({ temperature: v })}
           min={-100}
@@ -193,7 +195,7 @@ export function ImageAdjustSection({
           step={1}
         />
         <SidebarSlider
-          label="Farbton"
+          label={t.sidebar.imageAdjust.hue}
           value={adj.hue ?? 0}
           onValueChange={(v) => set({ hue: v })}
           min={0}
@@ -206,7 +208,7 @@ export function ImageAdjustSection({
       <div className="flex flex-col gap-2">
         <span className={GROUP_LABEL}>Hell</span>
         <SidebarSlider
-          label="Helligkeit"
+          label={t.sidebar.imageAdjust.brightness}
           value={adj.brightness ?? 0}
           onValueChange={(v) => set({ brightness: v })}
           min={-1}
@@ -214,7 +216,7 @@ export function ImageAdjustSection({
           step={0.05}
         />
         <SidebarSlider
-          label="Kontrast"
+          label={t.sidebar.imageAdjust.contrast}
           value={adj.contrast ?? 0}
           onValueChange={(v) => set({ contrast: v })}
           min={-100}
@@ -225,9 +227,9 @@ export function ImageAdjustSection({
 
       {/* Color / blur */}
       <div className="flex flex-col gap-2">
-        <span className={GROUP_LABEL}>Farbe & Schärfe</span>
+        <span className={GROUP_LABEL}>{t.sidebar.imageAdjust.colorAndSharpness}</span>
         <SidebarSlider
-          label="Sättigung"
+          label={t.sidebar.imageAdjust.saturation}
           value={adj.saturation ?? 0}
           onValueChange={(v) => set({ saturation: v })}
           min={-2}
@@ -235,7 +237,7 @@ export function ImageAdjustSection({
           step={0.1}
         />
         <SidebarSlider
-          label="Weichzeichnen"
+          label={t.sidebar.imageAdjust.blur}
           value={adj.blur ?? 0}
           onValueChange={(v) => set({ blur: v })}
           min={0}
@@ -243,7 +245,7 @@ export function ImageAdjustSection({
           step={1}
         />
         <SidebarSlider
-          label="Vignette"
+          label={t.sidebar.imageAdjust.vignette}
           value={adj.vignette ?? 0}
           onValueChange={(v) => set({ vignette: v })}
           min={0}
@@ -263,7 +265,7 @@ export function ImageAdjustSection({
               onClick={toggleShadow}
               className="text-[11px] font-medium text-primary-600 hover:underline"
             >
-              {shadowOn ? 'Entfernen' : 'Aktivieren'}
+              {shadowOn ? t.sidebar.imageAdjust.remove : t.sidebar.imageAdjust.enable}
             </button>
           </div>
           {shadowOn && (
@@ -294,7 +296,7 @@ export function ImageAdjustSection({
                 />
               </div>
               <SidebarSlider
-                label="Weichheit"
+                label={t.sidebar.imageAdjust.softness}
                 value={img.shadowBlur ?? 0}
                 onValueChange={(v) => setShadow({ shadowBlur: v })}
                 min={0}
@@ -302,7 +304,7 @@ export function ImageAdjustSection({
                 step={1}
               />
               <SidebarSlider
-                label="X-Versatz"
+                label={t.sidebar.imageAdjust.offsetX}
                 value={img.shadowOffsetX ?? 0}
                 onValueChange={(v) => setShadow({ shadowOffsetX: v })}
                 min={-40}
@@ -310,7 +312,7 @@ export function ImageAdjustSection({
                 step={1}
               />
               <SidebarSlider
-                label="Y-Versatz"
+                label={t.sidebar.imageAdjust.offsetY}
                 value={img.shadowOffsetY ?? 0}
                 onValueChange={(v) => setShadow({ shadowOffsetY: v })}
                 min={-40}
@@ -318,7 +320,7 @@ export function ImageAdjustSection({
                 step={1}
               />
               <SidebarSlider
-                label="Deckkraft"
+                label={t.sidebar.imageAdjust.opacity}
                 value={img.shadowOpacity ?? 0}
                 onValueChange={(v) => setShadow({ shadowOpacity: v })}
                 min={0}
@@ -335,9 +337,9 @@ export function ImageAdjustSection({
       <div className="flex flex-col gap-2">
         {(
           [
-            ['grayscale', 'Graustufen'],
-            ['sepia', 'Sepia'],
-            ['invert', 'Invertieren'],
+            ['grayscale', t.sidebar.imageAdjust.grayscale],
+            ['sepia', t.sidebar.imageAdjust.sepia],
+            ['invert', t.sidebar.imageAdjust.invert],
           ] as const
         ).map(([key, label]) => (
           <div key={key} className="flex items-center justify-between">

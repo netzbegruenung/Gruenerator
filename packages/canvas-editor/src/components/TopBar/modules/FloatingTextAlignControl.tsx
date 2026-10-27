@@ -1,3 +1,4 @@
+import { useMessages } from '@ggraphic/editor/i18n/messages';
 import { TEXT_ALIGNS, type TextAlign } from '@ggraphic/editor/utils/textAlign';
 import { PiTextAlignCenter, PiTextAlignLeft, PiTextAlignRight } from 'react-icons/pi';
 
@@ -6,10 +7,10 @@ import type { IconType } from 'react-icons';
 const ICON_BTN =
   'inline-flex items-center justify-center size-8 max-canvas-mobile:size-11 shrink-0 rounded-md border-none bg-transparent cursor-pointer text-[var(--editor-text)] transition-colors duration-150 hover:bg-[var(--editor-surface-hover)] hover:text-[var(--editor-active-fg)]';
 
-const OPTIONS: Record<TextAlign, { label: string; Icon: IconType }> = {
-  left: { label: 'linksbündig', Icon: PiTextAlignLeft },
-  center: { label: 'zentriert', Icon: PiTextAlignCenter },
-  right: { label: 'rechtsbündig', Icon: PiTextAlignRight },
+const ICONS: Record<TextAlign, IconType> = {
+  left: PiTextAlignLeft,
+  center: PiTextAlignCenter,
+  right: PiTextAlignRight,
 };
 
 interface FloatingTextAlignControlProps {
@@ -24,15 +25,17 @@ interface FloatingTextAlignControlProps {
  */
 export function FloatingTextAlignControl({ align, onAlignChange }: FloatingTextAlignControlProps) {
   const next = TEXT_ALIGNS[(TEXT_ALIGNS.indexOf(align) + 1) % TEXT_ALIGNS.length]!;
-  const { label, Icon } = OPTIONS[align];
+  const t = useMessages();
+  const label = t.topBar.textAlign[align];
+  const Icon = ICONS[align];
 
   return (
     <button
       type="button"
       className={ICON_BTN}
       onClick={() => onAlignChange(next)}
-      title={`Textausrichtung: ${label}`}
-      aria-label={`Textausrichtung: ${label}`}
+      title={t.topBar.textAlignLabel(label)}
+      aria-label={t.topBar.textAlignLabel(label)}
     >
       <Icon size={18} />
     </button>

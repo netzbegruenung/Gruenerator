@@ -3,6 +3,7 @@ import { useAutoSaveStore, useAutoSaveStoreApi } from '@ggraphic/editor/stores/u
 import { useId } from 'react';
 
 import { MOBILE_INPUT_TEXT } from '../sidebarStyles';
+import { useMessages } from '@ggraphic/editor/i18n/messages';
 
 /** Vorschlag aus dem Text auf der Leinwand; ohne Text gibt es keinen Vorschlag. */
 export function composeAltText(canvasText: string): string {
@@ -46,6 +47,7 @@ interface AltTextFieldProps {
 }
 
 export function AltTextField({ value, onChange }: AltTextFieldProps) {
+  const t = useMessages();
   const fieldId = useId();
   const hintId = useId();
   const announce = useAnnounce();
@@ -55,18 +57,18 @@ export function AltTextField({ value, onChange }: AltTextFieldProps) {
   // Ohne Clipboard-API (WebView, unsicherer Ursprung) oder bei verweigertem
   // Zugriff hört die Person, dass nichts kopiert wurde.
   const copy = () => {
-    const failed = () => announce('Kopieren nicht möglich');
+    const failed = () => announce(t.sidebar.altText.copyFailed);
     if (!navigator.clipboard?.writeText) {
       failed();
       return;
     }
-    navigator.clipboard.writeText(value).then(() => announce('Alt-Text kopiert'), failed);
+    navigator.clipboard.writeText(value).then(() => announce(t.sidebar.altText.copied), failed);
   };
 
   return (
     <div className="flex flex-col gap-1.5">
       <label htmlFor={fieldId} className="text-xs font-semibold text-foreground">
-        Bildbeschreibung (Alt-Text)
+        {t.sidebar.altText.label}
       </label>
       <textarea
         id={fieldId}
@@ -77,7 +79,7 @@ export function AltTextField({ value, onChange }: AltTextFieldProps) {
         className={`w-full resize-y rounded-lg border border-[var(--editor-border)] bg-[var(--editor-surface)] p-2 text-sm ${MOBILE_INPUT_TEXT} text-[var(--editor-text)] leading-snug`}
       />
       <p id={hintId} className="m-0 text-xs text-foreground-muted leading-snug">
-        Damit auch Menschen mit Screenreader wissen, was auf dem Bild steht.
+        {t.sidebar.altText.hint}
       </p>
       <label className="flex min-h-6 items-center gap-2 text-sm text-foreground cursor-pointer">
         <input
@@ -86,7 +88,7 @@ export function AltTextField({ value, onChange }: AltTextFieldProps) {
           onChange={(e) => storeApi.getState().setShareAltTextInCaption(e.target.checked)}
           className="size-4 accent-primary-600 cursor-pointer"
         />
-        Bildbeschreibung im Beitragstext mitschicken
+        {t.sidebar.altText.sendWithPost}
       </label>
       <button
         type="button"
@@ -94,7 +96,7 @@ export function AltTextField({ value, onChange }: AltTextFieldProps) {
         disabled={!value.trim()}
         className="self-start min-h-6 rounded-lg border border-editor-border bg-transparent px-3 py-1 text-sm font-medium text-foreground cursor-pointer hover:bg-editor-surface-hover disabled:opacity-40 disabled:cursor-not-allowed"
       >
-        Alt-Text kopieren
+        {t.sidebar.altText.copy}
       </button>
     </div>
   );

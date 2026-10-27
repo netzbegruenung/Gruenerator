@@ -1,5 +1,6 @@
 import { useCanvasStoreSelector } from '@ggraphic/editor/stores/CanvasStoreProvider';
 import { Check, LayoutTemplate, RotateCcw, Sparkles } from 'lucide-react';
+import { useMessages } from '@ggraphic/editor/i18n/messages';
 
 /**
  * Banner shown in the canvas top bar after the AI auto-applies a suggestion.
@@ -33,6 +34,7 @@ export function FloatingAiSuggestionBanner({
   onUndoPages,
   variant = 'bar',
 }: FloatingAiSuggestionBannerProps) {
+  const t = useMessages();
   const pending = useCanvasStoreSelector((s) => s.pendingAiSuggestion);
   const setPending = useCanvasStoreSelector((s) => s.setPendingAiSuggestion);
 
@@ -59,7 +61,7 @@ export function FloatingAiSuggestionBanner({
           <strong className="font-medium">
             {noun} „{pending.title}“
           </strong>{' '}
-          ist noch offen. Erst behalten oder verwerfen, dann weiter bearbeiten.
+          {t.topBar.aiPendingTail}
         </span>
         <button
           type="button"
@@ -67,7 +69,7 @@ export function FloatingAiSuggestionBanner({
           className="inline-flex h-8 shrink-0 items-center gap-1.5 rounded-md border-none bg-transparent px-2 text-[13px] font-medium text-[var(--editor-text)] cursor-pointer transition-colors duration-150 hover:bg-[var(--editor-surface-hover)]"
         >
           <RotateCcw className="size-4" aria-hidden="true" />
-          Verwerfen
+          {t.topBar.discard}
         </button>
         <button
           type="button"
@@ -75,7 +77,7 @@ export function FloatingAiSuggestionBanner({
           className="inline-flex h-8 shrink-0 items-center gap-1.5 rounded-md border-none bg-primary px-3 text-[13px] font-medium text-white cursor-pointer transition-opacity duration-200 hover:opacity-90"
         >
           <Check className="size-4" aria-hidden="true" />
-          Behalten
+          {t.topBar.keep}
         </button>
       </div>
     );

@@ -8,6 +8,7 @@ import { MOBILE_INPUT_TEXT } from '../../sidebarStyles';
 
 import { ToolPanel, type ToolPanelSuccess } from './ToolPanel';
 import { useToolImagePlacement } from './useToolImagePlacement';
+import { useMessages } from '@ggraphic/editor/i18n/messages';
 
 export interface TextPathCreatorToolProps {
   onJumpToUploads?: () => void;
@@ -93,6 +94,7 @@ export function TextPathCreatorTool({
   onJumpToUploads,
   onPlaceImageUrl,
 }: TextPathCreatorToolProps) {
+  const t = useMessages();
   const { finish, isUploading } = useToolImagePlacement({ onPlaceImageUrl, onJumpToUploads });
 
   const [value, setValue] = useState('');
@@ -128,13 +130,13 @@ export function TextPathCreatorTool({
 
     try {
       const dataUrl = await renderTextPath(trimmed, variant.data, fontSize, color, 3);
-      if (!dataUrl) throw new Error('Vorschau konnte nicht erzeugt werden.');
+      if (!dataUrl) throw new Error(t.sidebar.tools.previewFailed);
       const blob = await (await fetch(dataUrl)).blob();
       const file = new File([blob], `pfadtext_${Date.now()}.png`, { type: 'image/png' });
       setSuccess(await finish(file));
       setValue('');
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Fehler beim Erstellen des Pfadtextes';
+      const message = err instanceof Error ? err.message : t.sidebar.tools.pathTextError;
       setError(message);
     } finally {
       setIsBusy(false);
@@ -151,7 +153,7 @@ export function TextPathCreatorTool({
               type="text"
               value={value}
               onChange={(e) => setValue(e.target.value)}
-              placeholder="Dein Text…"
+              placeholder={t.sidebar.tools.yourText}
               disabled={disabled}
               className={`rounded-md border border-editor-border-strong bg-background px-sm py-xs text-sm ${MOBILE_INPUT_TEXT} text-foreground outline-none focus:border-primary-500 disabled:opacity-50`}
             />
@@ -159,7 +161,7 @@ export function TextPathCreatorTool({
 
           <div className="flex items-center justify-center rounded-lg bg-editor-inset p-3 min-h-[120px] overflow-hidden">
             {previewUrl ? (
-              <img src={previewUrl} alt="Vorschau" className="max-h-[140px] max-w-full" />
+              <img src={previewUrl} alt={t.ui.preview} className="max-h-[140px] max-w-full" />
             ) : (
               <span className="text-xs text-foreground-muted">Vorschau…</span>
             )}
@@ -215,7 +217,9 @@ export function TextPathCreatorTool({
           </div>
 
           <label className="flex flex-col gap-1.5 text-xs">
-            <span className="text-foreground-muted">Schriftgröße: {fontSize}px</span>
+            <span className="text-foreground-muted">
+              {t.sidebar.fontSize}: {fontSize}px
+            </span>
             <input
               type="range"
               min={24}
@@ -229,11 +233,11 @@ export function TextPathCreatorTool({
           </label>
         </div>
       }
-      actionLabel={onPlaceImageUrl ? 'Pfadtext einfügen' : 'Pfadtext zu Uploads hinzufügen'}
+      actionLabel={onPlaceImageUrl ? t.sidebar.tools.pathTextPlace : t.sidebar.tools.pathTextAdd}
       actionIcon={PiPath}
       canSubmit={!!trimmed}
       isBusy={disabled}
-      progressMessage={isBusy ? 'Pfadtext wird gespeichert…' : null}
+      progressMessage={isBusy ? t.sidebar.tools.pathTextSaving : null}
       error={error}
       success={success}
       onAction={() => void handleAction()}

@@ -14,6 +14,7 @@ import { SidebarHint } from '../components/SidebarHint';
 import { MOBILE_INPUT_TEXT, SIDEBAR_SECTION } from '../sidebarStyles';
 
 import type { CanvasMediaItem } from '@ggraphic/editor/hostServices';
+import { useMessages } from '@ggraphic/editor/i18n/messages';
 
 export interface UploadsSectionProps {
   /** Place an already-durable URL (used when clicking a prior upload). */
@@ -32,6 +33,7 @@ export function UploadsSection({
   onSwapPlacedUrl,
   onRemovePlaced,
 }: UploadsSectionProps) {
+  const t = useMessages();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const isMobile = useIsCanvasMobile();
   const { imageUrls = plainImageUrls } = useCanvasEditorServices();
@@ -172,7 +174,7 @@ export function UploadsSection({
             enterKeyHint="search"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Eigene Bilder durchsuchen"
+            placeholder={t.sidebar.uploads.searchOwnImages}
             className={`w-full h-11 pl-10 pr-3 rounded-xl border-none bg-[var(--editor-tile)] text-sm ${MOBILE_INPUT_TEXT} text-[var(--editor-text)] placeholder:text-[var(--editor-text-muted)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--editor-accent)]`}
           />
         </div>
@@ -188,14 +190,18 @@ export function UploadsSection({
           >
             <HiArrowUpTray size={22} />
             <span className="text-xs font-semibold">
-              {isBusy ? (activeUploads > 1 ? `Lädt ${activeUploads}…` : 'Lädt…') : 'Hochladen'}
+              {isBusy
+                ? activeUploads > 1
+                  ? t.sidebar.uploads.loadingN(activeUploads)
+                  : t.sidebar.uploads.loading
+                : t.sidebar.uploads.upload}
             </span>
           </button>
           {Array.from({ length: activeUploads }).map((_, i) => (
             <div
               key={`uploading-${i}`}
               className="aspect-square rounded-xl bg-[var(--editor-tile)] animate-pulse"
-              aria-label="Lädt hoch…"
+              aria-label={t.sidebar.uploads.uploading}
             />
           ))}
           {items.map((item) => (
@@ -224,7 +230,7 @@ export function UploadsSection({
               <button
                 type="button"
                 onClick={() => void deleteFromLibrary(item.id)}
-                aria-label="Bild aus Bibliothek entfernen"
+                aria-label={t.sidebar.uploads.removeFromLibrary}
                 className="absolute top-1 right-1 size-6 flex items-center justify-center bg-black/60 text-white border-none rounded-md cursor-pointer opacity-0 transition-opacity duration-150 group-hover:opacity-100 focus:opacity-100 max-canvas-mobile:top-0 max-canvas-mobile:right-0 max-canvas-mobile:size-11 max-canvas-mobile:bg-transparent max-canvas-mobile:opacity-100"
               >
                 <span className="flex items-center justify-center max-canvas-mobile:size-6 max-canvas-mobile:rounded-md max-canvas-mobile:bg-black/60">
@@ -247,13 +253,13 @@ export function UploadsSection({
             onClick={() => void loadMore()}
             className="self-center text-xs font-semibold text-[var(--editor-active-fg)] bg-transparent border-none cursor-pointer"
           >
-            Mehr anzeigen
+            {t.sidebar.uploads.showMore}
           </button>
         ) : null}
 
         {showEmpty ? (
           <p className="m-0 text-xs text-[var(--editor-text-muted)]">
-            Lade eigene Bilder hoch, um sie auf der Leinwand zu platzieren.
+            {t.sidebar.uploads.emptyHint}
           </p>
         ) : null}
       </div>
@@ -279,7 +285,7 @@ export function UploadsSection({
           enterKeyHint="search"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          placeholder="Bilder durchsuchen"
+          placeholder={t.sidebar.uploads.searchImages}
           className={`w-full pl-9 pr-3 py-2 rounded-lg bg-[var(--card-background)] border border-[var(--card-border)] text-sm ${MOBILE_INPUT_TEXT} focus:outline-none focus:border-primary-500`}
         />
       </div>
@@ -293,9 +299,9 @@ export function UploadsSection({
         <HiArrowUpTray size={16} />
         {isBusy
           ? activeUploads > 1
-            ? `Lädt ${activeUploads} Bilder hoch…`
-            : 'Lädt hoch…'
-          : 'Dateien hochladen'}
+            ? t.sidebar.uploads.uploadingN(activeUploads)
+            : t.sidebar.uploads.uploading
+          : t.sidebar.uploads.uploadFiles}
       </button>
 
       {fileInput}
@@ -316,7 +322,7 @@ export function UploadsSection({
               key={`uploading-${i}`}
               className="relative aspect-square overflow-hidden rounded-lg border border-[var(--card-border)] bg-[var(--card-background)] flex items-center justify-center animate-pulse"
             >
-              <span className="text-[10px] text-foreground/60">Lädt hoch…</span>
+              <span className="text-[10px] text-foreground/60">{t.sidebar.uploads.uploading}</span>
             </MasonryItem>
           ))}
           {items.map((item) => (
@@ -345,7 +351,7 @@ export function UploadsSection({
               <button
                 type="button"
                 onClick={() => void deleteFromLibrary(item.id)}
-                aria-label="Bild aus Bibliothek entfernen"
+                aria-label={t.sidebar.uploads.removeFromLibrary}
                 className="absolute top-1 right-1 size-6 flex items-center justify-center bg-black/60 text-white border-none rounded-md cursor-pointer opacity-0 transition-opacity duration-150 group-hover:opacity-100 focus:opacity-100 max-canvas-mobile:top-0 max-canvas-mobile:right-0 max-canvas-mobile:size-11 max-canvas-mobile:bg-transparent max-canvas-mobile:opacity-100"
               >
                 <span className="flex items-center justify-center max-canvas-mobile:size-6 max-canvas-mobile:rounded-md max-canvas-mobile:bg-black/60">
@@ -363,16 +369,11 @@ export function UploadsSection({
           onClick={() => void loadMore()}
           className="text-xs text-primary-600 hover:underline self-center cursor-pointer bg-transparent border-none"
         >
-          Mehr anzeigen
+          {t.sidebar.uploads.showMore}
         </button>
       ) : null}
 
-      {showEmpty ? (
-        <SidebarHint>
-          Lade eigene Bilder hoch, um sie auf der Leinwand zu platzieren. Du kannst sie auch per
-          Drag &amp; Drop in dieses Feld ziehen.
-        </SidebarHint>
-      ) : null}
+      {showEmpty ? <SidebarHint>{t.sidebar.uploads.emptyHintDrop}</SidebarHint> : null}
     </div>
   );
 }

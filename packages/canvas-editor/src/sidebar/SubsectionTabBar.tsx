@@ -7,6 +7,7 @@ import { useIsCanvasMobile } from '../hooks/useIsCanvasMobile';
 import { HIDDEN_SCROLLBAR } from './sidebarStyles';
 
 import type { IconType } from 'react-icons';
+import { useMessages } from '@ggraphic/editor/i18n/messages';
 
 export interface Subsection {
   id: string;
@@ -21,6 +22,7 @@ export interface SubsectionTabBarProps {
 }
 
 export function SubsectionTabBar({ subsections, defaultSubsection }: SubsectionTabBarProps) {
+  const t = useMessages();
   const isMobile = useIsCanvasMobile();
   const [localActiveSubsection, setLocalActiveSubsection] = useState<string | null>(null);
   const baseId = useId();
@@ -50,7 +52,7 @@ export function SubsectionTabBar({ subsections, defaultSubsection }: SubsectionT
         <div
           {...roving}
           role="tablist"
-          aria-label="Ansicht"
+          aria-label={t.ui.view}
           className={cn('flex gap-2 overflow-x-auto -mx-5 px-5 py-1.5 -my-1.5', HIDDEN_SCROLLBAR)}
         >
           {subsections.map((sub) => {

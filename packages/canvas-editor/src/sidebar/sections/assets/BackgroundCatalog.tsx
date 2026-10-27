@@ -8,6 +8,7 @@ import { useRef, useState } from 'react';
 import { GALLERY_SCOPES, GalleryTabs, StudioGalleryGrid } from '../StudioGallery';
 
 import type { BackgroundControls } from '@ggraphic/editor/configs/types';
+import { useMessages } from '@ggraphic/editor/i18n/messages';
 
 type ImageChange = NonNullable<BackgroundControls['onImageChange']>;
 
@@ -16,6 +17,7 @@ type ImageChange = NonNullable<BackgroundControls['onImageChange']>;
  * durable URL, so nothing is uploaded again. Only the newest pick may land.
  */
 function useBackgroundPick(onImageChange: ImageChange) {
+  const t = useMessages();
   const seqRef = useRef(0);
   const { imageUrls = plainImageUrls } = useCanvasEditorServices();
   const [pendingId, setPendingId] = useState<string | null>(null);
@@ -30,7 +32,7 @@ function useBackgroundPick(onImageChange: ImageChange) {
       const file = await fetchShareImageFile(item.src, item.title, imageUrls);
       if (seq === seqRef.current) onImageChange(file, item.src, null);
     } catch {
-      if (seq === seqRef.current) setError('Hintergrund konnte nicht geladen werden.');
+      if (seq === seqRef.current) setError(t.sidebar.elements.backgroundLoadFailed);
     } finally {
       if (seq === seqRef.current) setPendingId(null);
     }
@@ -49,13 +51,14 @@ export function BackgroundCatalog({
   onImageChange: ImageChange;
   searchQuery?: string;
 }) {
+  const t = useMessages();
   const [scope, setScope] = useState<StudioAssetScope>('shop');
   const { pick, pendingId, error } = useBackgroundPick(onImageChange);
 
   return (
     <div className="flex flex-col gap-3 w-full">
       <GalleryTabs
-        label="Hintergrund-Auswahl"
+        label={t.sidebar.elements.backgroundPicker}
         tabs={GALLERY_SCOPES}
         value={scope}
         onChange={setScope}

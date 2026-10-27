@@ -21,6 +21,7 @@ import {
 
 import { ContextCard } from './ContextToolbar';
 import { FloatingPositionControl, type PositionCommandId } from './modules/FloatingPositionControl';
+import { useMessages } from '@ggraphic/editor/i18n/messages';
 
 export interface MultiSelectionToolbarProps {
   count: number;
@@ -85,6 +86,7 @@ export function MultiSelectionToolbar({
   onDeselect,
   onCommand,
 }: MultiSelectionToolbarProps) {
+  const t = useMessages();
   const locked = lockState === 'all';
   const lockLabel = locked ? 'Entsperren' : 'Sperren';
   const roving = useRovingToolbar<HTMLDivElement>();
@@ -164,7 +166,7 @@ export function MultiSelectionToolbar({
           className={DANGER_BTN}
           onClick={onDelete}
           disabled={!canDelete}
-          title={canDelete ? withShortcut('delete') : 'Nichts davon lässt sich löschen'}
+          title={canDelete ? withShortcut('delete') : t.topBar.nothingDeletable}
           aria-label={withShortcut('delete')}
         >
           <PiTrash size={18} />
@@ -174,8 +176,8 @@ export function MultiSelectionToolbar({
           type="button"
           className={ICON_BTN}
           onClick={onDeselect}
-          title="Auswahl aufheben (Esc)"
-          aria-label="Auswahl aufheben (Esc)"
+          title={t.topBar.clearSelection}
+          aria-label={t.topBar.clearSelection}
         >
           <svg
             width="18"

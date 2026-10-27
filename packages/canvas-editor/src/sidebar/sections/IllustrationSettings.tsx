@@ -11,6 +11,7 @@ import type {
   KawaiiMood,
   KawaiiInstance,
 } from '@ggraphic/editor/utils/illustrations/types';
+import { useMessages } from '@ggraphic/editor/i18n/messages';
 
 const MOOD_OPTIONS: { id: KawaiiMood; label: string }[] = [
   { id: 'happy', label: '😊' },
@@ -34,6 +35,7 @@ export function IllustrationSettings({
   onRemoveIllustration,
   onDuplicateIllustration,
 }: IllustrationSettingsProps) {
+  const t = useMessages();
   const isKawaiiSelected = selectedIllustration.source === 'kawaii';
   const kawaiiInstance = isKawaiiSelected ? (selectedIllustration as KawaiiInstance) : null;
 
@@ -41,13 +43,13 @@ export function IllustrationSettings({
     <div className="flex flex-col gap-[var(--spacing-small)] p-[var(--spacing-small)] bg-background-alt rounded-[var(--border-radius-md)] mt-auto">
       <div className={SECTION_HEADER}>
         <span className={SECTION_TITLE}>
-          {isKawaiiSelected ? 'Charakter bearbeiten' : 'Illustration bearbeiten'}
+          {isKawaiiSelected ? t.sidebar.illustration.editCharacter : t.sidebar.illustration.edit}
         </span>
         {onDuplicateIllustration && (
           <button
             className={ACTION_BTN}
             onClick={() => onDuplicateIllustration(selectedIllustration.id)}
-            title="Duplizieren"
+            title={t.commands.duplicate}
           >
             <FaCopy size={12} />
           </button>
@@ -65,7 +67,7 @@ export function IllustrationSettings({
       {kawaiiInstance && (
         <div className="flex flex-col gap-xs">
           <span className="text-[length:var(--font-size-sm)] text-foreground-muted mb-xs">
-            Stimmung
+            {t.sidebar.illustration.mood}
           </span>
           <div className="flex gap-xs flex-wrap">
             {MOOD_OPTIONS.map((mood) => (
@@ -90,7 +92,7 @@ export function IllustrationSettings({
       {selectedIllustration && (
         <div className="flex flex-col gap-xs">
           <span className="text-[length:var(--font-size-sm)] text-foreground-muted mb-xs">
-            Farbe
+            {t.sidebar.chart.color}
           </span>
           <div className="flex gap-[var(--spacing-small)] flex-wrap">
             {activeBrand().palette.map((color) => (
@@ -127,7 +129,7 @@ export function IllustrationSettings({
           min={0.1}
           max={1}
           step={0.05}
-          label="Transparenz"
+          label={t.sidebar.illustration.transparency}
           unit="%"
         />
       </div>
