@@ -16,6 +16,8 @@ import { z } from 'zod';
 
 import { pandasComputeNode } from '../../../agents/langgraph/ChatGraph/nodes/pandasComputeNode.js';
 import { createLogger } from '../../../utils/logger.js';
+import { getThreadAttachments } from '../services/attachmentPersistenceService.js';
+import { isTabularAttachment } from '../services/attachmentProcessingService.js';
 import { persistComputeAssets } from '../services/computeAssetStorage.js';
 import { hasBrokenComputeValues } from '../services/computeResultSanity.js';
 
@@ -112,6 +114,34 @@ function lastFailedRun(priorSteps: PersistedStep[]): { code: string; error: stri
   return last ? failedRunOf(last) : null;
 }
 
+/**
+ * Die Tabellen-Anhänge, aus denen der Codegen Spalten und Beispielzeilen liest.
+ * Im ersten Zug eines Threads liegen sie noch nicht im Zustand, und eine grosse
+ * Tabelle ist vektorisiert (`attachmentContext` genullt) — die Freigabe-
+ * Fortsetzung stellt genau diesen Zustand wieder her (live 27.10.2026,
+ * T06_buchungen_500.xlsx: „Missing question or table context"). Seit die
+ * Anhänge beim Pausieren gespeichert werden, stehen sie am Thread.
+ */
+async function threadAttachmentsForCodegen(
+  state: ChatGraphState,
+  threadId: string | null
+): Promise<ChatGraphState['threadAttachments']> {
+  const current = state.threadAttachments ?? [];
+  const hasTable = current.some(
+    (a) => !a.isImage && a.extractedText && isTabularAttachment(a.name, a.mimeType)
+  );
+  if (hasTable || !threadId) return current;
+  try {
+    const stored = await getThreadAttachments(threadId);
+    return stored.length > 0 ? stored : current;
+  } catch (err) {
+    log.warn(
+      `[Tabelle] Thread-Anhänge nicht ladbar (Thread ${threadId}): ${err instanceof Error ? err.message : String(err)}`
+    );
+    return current;
+  }
+}
+
 function clientErrorOf(result: unknown): string {
   if (result != null && typeof result === 'object' && 'error' in result) {
     const error = (result as { error: unknown }).error;
@@ -123,7 +153,7 @@ function clientErrorOf(result: unknown): string {
 export const tabelleAuswertenClientTool: LoopClientTool = {
   loopToolName: TABELLE_AUSWERTEN_TOOL,
   clientToolName: RUN_PYTHON_CLIENT_TOOL,
-  async resolve({ state, args, priorSteps }) {
+  async resolve({ state, args, priorSteps, threadId }) {
     const auftrag = typeof args.auftrag === 'string' ? args.auftrag.trim() : '';
     if (!auftrag) return { error: 'Der Auftrag fehlt.' };
     if (priorSteps.filter((step) => failedRunOf(step) != null).length >= MAX_FAILED_RUNS) {
@@ -136,6 +166,7 @@ export const tabelleAuswertenClientTool: LoopClientTool = {
     // hier der Auftrag des Modells, nicht der Turn-Text der Person.
     const codegenState: ChatGraphState = {
       ...state,
+      threadAttachments: await threadAttachmentsForCodegen(state, threadId),
       messages: [...(state.messages ?? []), { role: 'user', content: auftrag }],
     };
     const { pythonCode, computeFailed } = await pandasComputeNode(codegenState, {

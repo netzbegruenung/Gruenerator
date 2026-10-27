@@ -4,15 +4,19 @@
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-const { codegenMock, persistMock } = vi.hoisted(() => ({
+const { codegenMock, persistMock, threadAttachmentsMock } = vi.hoisted(() => ({
   codegenMock: vi.fn(),
   persistMock: vi.fn(),
+  threadAttachmentsMock: vi.fn(async (): Promise<unknown[]> => []),
 }));
 
 vi.mock('../../../agents/langgraph/ChatGraph/nodes/pandasComputeNode.js', () => ({
   pandasComputeNode: codegenMock,
 }));
 vi.mock('../services/computeAssetStorage.js', () => ({ persistComputeAssets: persistMock }));
+vi.mock('../services/attachmentPersistenceService.js', () => ({
+  getThreadAttachments: threadAttachmentsMock,
+}));
 
 import {
   clientCanUseTabularToolFrom,
@@ -98,6 +102,61 @@ describe('tabelle_auswerten resolve', () => {
     expect(opts).toEqual({ mode: 'analyze' });
     // Der Zustand des Zuges bleibt unberührt.
     expect(state.messages).toHaveLength(1);
+  });
+
+  // Live 27.10.2026 (T06_buchungen_500.xlsx): die grosse Tabelle wurde vektorisiert
+  // (attachmentContext genullt), und im ersten Zug eines Threads lagen noch keine
+  // Thread-Anhänge im Zustand. Die Freigabe-Fortsetzung stellt genau diesen Zustand
+  // wieder her ⇒ „Missing question or table context". Seit 88d3e8b45a sind die
+  // Anhänge beim Pausieren gespeichert — der Codegen holt sie sich.
+  it('Zustand ohne Tabellenkontext ⇒ lädt die gespeicherten Thread-Anhänge für den Codegen', async () => {
+    const table = {
+      id: 'a1',
+      name: 'T06_buchungen_500.xlsx',
+      mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      isImage: false,
+      extractedText: '| Datum | Betrag |\n| 2026-01-01 | 12 |',
+      documentId: 'd1',
+      summary: null,
+      hasFileData: true,
+    };
+    threadAttachmentsMock.mockResolvedValueOnce([table]);
+    codegenMock.mockResolvedValueOnce({ pythonCode: 'print(1)' });
+    const resumed = {
+      ...state,
+      attachmentContext: null,
+      threadAttachments: [],
+    } as unknown as ChatGraphState;
+
+    const out = await tabelleAuswertenClientTool.resolve({
+      threadId: 't-resume',
+      state: resumed,
+      args: { auftrag: 'Summe aller Beträge' },
+      priorSteps: [],
+    });
+
+    expect(out).toEqual({ clientArgs: { code: 'print(1)' } });
+    expect(threadAttachmentsMock).toHaveBeenCalledWith('t-resume');
+    const [codegenState] = codegenMock.mock.calls[0] as [ChatGraphState];
+    expect(codegenState.threadAttachments).toEqual([table]);
+    expect(codegenState.messages.at(-1)).toEqual({ role: 'user', content: 'Summe aller Beträge' });
+  });
+
+  it('Zustand mit Tabellen-Anhang ⇒ keine zusätzliche Abfrage', async () => {
+    threadAttachmentsMock.mockClear();
+    codegenMock.mockResolvedValueOnce({ pythonCode: 'print(1)' });
+    await tabelleAuswertenClientTool.resolve({
+      threadId: 't1',
+      state: {
+        ...state,
+        threadAttachments: [
+          { name: 'a.csv', mimeType: 'text/csv', isImage: false, extractedText: 'x,y\n1,2' },
+        ],
+      } as unknown as ChatGraphState,
+      args: { auftrag: 'Summe' },
+      priorSteps: [],
+    });
+    expect(threadAttachmentsMock).not.toHaveBeenCalled();
   });
 
   it('modus ausfuellen ⇒ mode fill', async () => {
