@@ -12,7 +12,6 @@ import type { BrowserSessionMeta, BrowserSessionStatus } from '@gruenerator/cont
 interface ToolResultShape {
   summary?: unknown;
   screenshots?: unknown;
-  schritte?: unknown;
   abgebrochen?: unknown;
   error?: unknown;
 }
@@ -25,54 +24,82 @@ function hostOf(url: string): string {
   }
 }
 
-function sessionFromTool(args: Record<string, unknown>, result: unknown): BrowserSessionMeta {
-  const r = (result != null && typeof result === 'object' ? result : {}) as ToolResultShape;
-  const failed = r.error != null || r.abgebrochen === true;
-  const status: BrowserSessionStatus =
-    result === undefined ? 'running' : failed ? 'failed' : 'done';
-  return {
-    id: '',
-    startUrl: typeof args.url === 'string' ? args.url : '',
-    status,
-    steps: [],
-    screenshots: Array.isArray(r.screenshots)
-      ? (r.screenshots as BrowserSessionMeta['screenshots'])
-      : [],
-    summary: typeof r.summary === 'string' ? r.summary : '',
-  };
+export type CardStatus = 'running' | 'done' | 'failed' | 'aborted';
+
+export interface CardStatusInput {
+  /** `custom.browserSession.status`, when metadata exists. */
+  persisted: BrowserSessionStatus | null;
+  /** The tool call's result, when it has one. */
+  result: unknown;
+  /** Is THIS message still streaming? The only truth about liveness. */
+  messageRunning: boolean;
 }
+
+function asResult(result: unknown): ToolResultShape | null {
+  return result != null && typeof result === 'object' ? (result as ToolResultShape) : null;
+}
+
+/**
+ * Persisted/result status wins; a "running" that nobody streams any more died
+ * with the page (reload, Stop) and reads as aborted. A user abort
+ * (`abgebrochen`) is aborted, any other failure is failed.
+ */
+export function deriveCardStatus({
+  persisted,
+  result,
+  messageRunning,
+}: CardStatusInput): CardStatus {
+  const r = asResult(result);
+  if (r?.abgebrochen === true) return 'aborted';
+  if (r?.error != null) return 'failed';
+  if (persisted === 'done' || persisted === 'failed') {
+    return persisted === 'done' ? 'done' : 'failed';
+  }
+  if (r != null) return 'done';
+  return messageRunning ? 'running' : 'aborted';
+}
+
+const STATUS_LABEL: Record<CardStatus, string> = {
+  running: 'Erkundet …',
+  done: 'Erkundet',
+  failed: 'fehlgeschlagen',
+  aborted: 'abgebrochen',
+};
 
 interface BrowserSessionCardProps {
   session: BrowserSessionMeta;
-  /** True while this very session streams in this tab; only then "running" is real. */
-  live: boolean;
+  status: CardStatus;
+  errorText?: string | null;
   stepCount?: number;
 }
 
 export const BrowserSessionCard = memo(function BrowserSessionCard({
   session,
-  live,
+  status,
+  errorText = null,
   stepCount,
 }: BrowserSessionCardProps) {
   const panelMounted = useArtifactLiveStore((s) => s.panelMounted);
-  // A persisted "running" with nobody streaming it is a run that died with the page.
-  const status: BrowserSessionStatus =
-    session.status === 'running' && !live ? 'failed' : session.status;
-  const aborted = session.status === 'running' && !live;
   const host = hostOf(session.startUrl);
   const steps = stepCount ?? session.steps.length;
+  const text = errorText ?? (session.summary !== '' ? session.summary : null);
 
-  const open = () =>
-    useArtifactLiveStore.getState().setActiveArtifact({
+  const open = () => {
+    const store = useArtifactLiveStore.getState();
+    const active = store.activeArtifact;
+    // The live store is fresher than the persisted snapshot: keep it.
+    if (active?.type === 'browser_session' && active.id === session.id) return;
+    store.setActiveArtifact({
       id: session.id,
       type: 'browser_session',
       title: host,
       startUrl: session.startUrl,
-      status,
+      status: status === 'running' ? 'running' : status === 'done' ? 'done' : 'failed',
       steps: session.steps,
       screenshots: session.screenshots,
       summary: session.summary === '' ? null : session.summary,
     });
+  };
 
   return (
     <div className="my-3 max-w-md rounded-xl border border-border bg-background px-4 py-3 text-sm">
@@ -83,22 +110,20 @@ export const BrowserSessionCard = memo(function BrowserSessionCard({
           </span>
           <div className="min-w-0">
             <p className="truncate font-medium text-foreground">{host}</p>
-            <p className="flex items-center gap-1.5 text-xs text-foreground-muted">
+            <p
+              role="status"
+              aria-live="polite"
+              className="flex items-center gap-1.5 text-xs text-foreground-muted"
+            >
               {status === 'running' ? (
                 <Loader2 className="h-3 w-3 animate-spin" aria-hidden="true" />
-              ) : status === 'failed' ? (
-                <TriangleAlert className="h-3 w-3 text-amber-500" aria-hidden="true" />
-              ) : (
+              ) : status === 'done' ? (
                 <Check className="h-3 w-3 text-primary" aria-hidden="true" />
+              ) : (
+                <TriangleAlert className="h-3 w-3 text-amber-500" aria-hidden="true" />
               )}
               <span>
-                {status === 'running'
-                  ? 'Erkundet …'
-                  : aborted
-                    ? 'abgebrochen'
-                    : status === 'failed'
-                      ? 'fehlgeschlagen'
-                      : 'Erkundet'}
+                {STATUS_LABEL[status]}
                 {steps > 0 ? ` · ${steps} ${steps === 1 ? 'Schritt' : 'Schritte'}` : ''}
               </span>
             </p>
@@ -108,6 +133,7 @@ export const BrowserSessionCard = memo(function BrowserSessionCard({
           <button
             type="button"
             onClick={open}
+            aria-label={`Ansehen: ${host}`}
             className="inline-flex flex-shrink-0 items-center gap-1.5 rounded-full bg-primary px-3 py-1.5 text-sm text-white transition-colors hover:bg-primary/90"
           >
             Ansehen
@@ -115,14 +141,16 @@ export const BrowserSessionCard = memo(function BrowserSessionCard({
           </button>
         )}
       </div>
+      {text != null && <p className="mt-2 text-foreground-muted">{text}</p>}
       {session.screenshots.length > 0 && (
         <ul className="mt-3 grid grid-cols-2 gap-2">
-          {session.screenshots.map((shot) => (
-            <li key={shot.name}>
+          {session.screenshots.map((shot, i) => (
+            <li key={`${shot.name}-${i}`}>
               <a href={shot.url} target="_blank" rel="noopener noreferrer" className="block">
                 <img
                   src={shot.url}
                   alt={`Screenshot ${shot.name}`}
+                  loading="lazy"
                   className="block aspect-video w-full rounded-md border border-border object-cover"
                 />
               </a>
@@ -145,13 +173,23 @@ export function BrowserSessionToolRender({
   const persisted = useAuiState(
     (s) => (s.message.metadata?.custom as ChatMessageMetadata | undefined)?.browserSession ?? null
   );
-  const liveId = useArtifactLiveStore((s) =>
-    s.activeArtifact?.type === 'browser_session' && s.activeArtifact.status === 'running'
-      ? s.activeArtifact.id
-      : null
-  );
-  const fromTool = sessionFromTool(args, result);
-  const session = persisted ?? fromTool;
-  const live = session.status === 'running' && (persisted == null || liveId === persisted.id);
-  return <BrowserSessionCard session={session} live={live && result === undefined} />;
+  const messageRunning = useAuiState((s) => s.message.status?.type === 'running');
+  const r = asResult(result);
+  const session: BrowserSessionMeta = persisted ?? {
+    id: '',
+    startUrl: typeof args.url === 'string' ? args.url : '',
+    status: 'running',
+    steps: [],
+    screenshots: Array.isArray(r?.screenshots)
+      ? (r.screenshots as BrowserSessionMeta['screenshots'])
+      : [],
+    summary: typeof r?.summary === 'string' ? r.summary : '',
+  };
+  const status = deriveCardStatus({
+    persisted: persisted?.status ?? null,
+    result,
+    messageRunning,
+  });
+  const errorText = typeof r?.error === 'string' ? r.error : null;
+  return <BrowserSessionCard session={session} status={status} errorText={errorText} />;
 }
