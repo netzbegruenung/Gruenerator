@@ -41,10 +41,21 @@ describe('imageElementInteraction', () => {
 
 describe('canCropBackgroundPhoto', () => {
   it('gilt nur für das Hintergrundfoto, das der Modus zieht oder zoomt', () => {
-    expect(canCropBackgroundPhoto({ id: 'background-image', draggable: true })).toBe(true);
     expect(
-      canCropBackgroundPhoto({ id: 'background-image', draggable: false, transformable: true })
+      canCropBackgroundPhoto({ id: 'background-image', draggable: true, coverFit: true })
     ).toBe(true);
+    expect(
+      canCropBackgroundPhoto({
+        id: 'background-image',
+        draggable: false,
+        transformable: true,
+        coverFit: true,
+      })
+    ).toBe(true);
+  });
+
+  it('fehlt ohne coverFit: dann gibt es keinen Ausschnitt', () => {
+    expect(canCropBackgroundPhoto({ id: 'background-image', draggable: true })).toBe(false);
   });
 
   it('fehlt beim festen Fotoband (veranstaltung) und bei anderen Bildern', () => {

@@ -1,11 +1,14 @@
 import React, { useState } from 'react';
 import { PiCopy, PiLockSimple, PiLockSimpleOpen, PiTrash } from 'react-icons/pi';
 
+import { useCanvasEditorServices } from '../../CanvasEditorProvider';
 import { type BackgroundControls } from '../../configs/types';
 import { type ShadowPatch } from '../../hooks/useFloatingModuleHandlers';
 import { type FloatingModuleState } from '../../hooks/useFloatingModuleState';
+import { useOptionalUserUploads } from '../../sidebar/UserUploadsProvider';
 import { formatShortcut, isMacPlatform, shortcutOf } from '../../utils/canvasCommandRegistry';
 import { type SelectionGeometry } from '../../utils/canvasCommands';
+import { type CropAspectId } from '../../utils/cropAspect';
 import { focusPage, isKeyboardModality } from '../../utils/editorFocus';
 import { type GradientFill } from '../../utils/gradientFill';
 import { type LockState } from '../../utils/layerLock';
@@ -41,6 +44,12 @@ export interface ContextControlsProps {
   canDuplicate: boolean;
   /** The selected framed photo is in Ausschnitt mode. */
   isCropping?: boolean;
+  /** Seitenverhältnis-Vorgabe im Zuschneide-Modus (nur eigene Bilder). */
+  cropAspect?: CropAspectId;
+  /** Begradigungs-Winkel des Fotos im Zuschneide-Modus (Grad). */
+  cropRotation?: number;
+  /** Läuft ein „Erweitern" (KI): der Knopf wartet. */
+  isExpanding?: boolean;
   /** Gesperrt: nicht ziehen, skalieren, ausrichten, löschen — gestalten geht weiter. */
   lockState?: LockState;
   canLock?: boolean;
@@ -67,6 +76,10 @@ export interface ContextControlsProps {
     /** Im Zuschneide-Modus: zurück zum Stand beim Betreten bzw. übernehmen. */
     handleCancelCrop?: () => void;
     handleFinishCrop?: () => void;
+    handleCropAspect?: (id: CropAspectId) => void;
+    handleCropRotation?: (deg: number) => void;
+    handleSmartCrop?: () => void;
+    handleExpandImage?: () => void;
     handleGradientSelect?: (gradient: GradientFill | null) => void;
     /** Ausrichtung des Textes in seiner Box — freie und Vorlagen-Texte. */
     handleTextAlignChange?: (id: string, align: TextAlign) => void;
@@ -88,6 +101,8 @@ export interface ContextControlsProps {
   onDeselect?: () => void;
   /** Mobil: Duplizieren, Löschen und Abwählen liegen in Pille und ✓, nicht hier. */
   hideObjectActions?: boolean;
+  /** Anordnung der Zuschneide-Leiste; mobil mit eigener Begradigen-Zeile und festen Ausgängen. */
+  cropLayout?: 'inline' | 'mobile';
 }
 
 /** Läuft ein Zuschneide-Modus, zeigt die Leiste nur ihn (`CropModeControls`). */
@@ -125,6 +140,9 @@ export function ContextControls({
   canMoveDown,
   canDuplicate,
   isCropping = false,
+  cropAspect = 'free',
+  cropRotation = 0,
+  isExpanding = false,
   lockState = 'none',
   canLock = false,
   canAlign = false,
@@ -137,17 +155,38 @@ export function ContextControls({
   onDeletePage,
   onDeselect,
   hideObjectActions = false,
+  cropLayout = 'inline',
 }: ContextControlsProps) {
   const [isColorPickerExpanded, setIsColorPickerExpanded] = useState(false);
   // Fett/Kursiv/… nur, solange wirklich getippt wird: die Knöpfe bedienen die
   // Auswahl IM Text, und ohne offenen Editor gibt es keine.
   const formatting = useCanvasTextFormatting();
+  // Ohne Dienst des Hosts oder ohne Uploads (das Ergebnis wird hochgeladen) kein „Erweitern".
+  const uploads = useOptionalUserUploads();
+  const canExpand = !!useCanvasEditorServices().expandImage && !!uploads;
 
   if (showsCropModeBar({ isCropping, handlers })) {
+    const handleCropAspect = handlers.handleCropAspect;
+    const handleCropRotation = handlers.handleCropRotation;
     return (
       <CropModeControls
+        layout={cropLayout}
         onCancel={() => handlers.handleCancelCrop?.()}
         onDone={() => handlers.handleFinishCrop?.()}
+        aspect={
+          activeFloatingModule?.type === 'user-image' && handleCropAspect
+            ? { value: cropAspect, onChange: handleCropAspect }
+            : null
+        }
+        straighten={
+          handleCropRotation ? { value: cropRotation, onChange: handleCropRotation } : null
+        }
+        onAuto={handlers.handleSmartCrop ?? null}
+        expand={
+          canExpand && handlers.handleExpandImage
+            ? { onExpand: handlers.handleExpandImage, busy: isExpanding }
+            : null
+        }
       />
     );
   }
@@ -274,7 +313,11 @@ export function ContextControls({
           key="crop"
           type="button"
           className={CROP_BTN}
-          onClick={() => handleCropImage()}
+          onClick={(e) => {
+            handleCropImage();
+            // Wie beim Zuschneiden eigener Bilder: per Tastatur gehören die Pfeile danach der Seite.
+            if (!isCropping && isKeyboardModality()) focusPage(e.currentTarget);
+          }}
           title="Ausschnitt anpassen (oder Doppelklick aufs Foto)"
           aria-label="Ausschnitt anpassen"
           aria-pressed={isCropping}

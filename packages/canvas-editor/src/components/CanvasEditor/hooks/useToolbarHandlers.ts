@@ -2,6 +2,7 @@ import { useMemo } from 'react';
 
 import type { ShadowPatch } from '../../../hooks/useFloatingModuleHandlers';
 import type { PageCommandId } from '../../../utils/canvasCommandRegistry';
+import type { CropAspectId } from '../../../utils/cropAspect';
 import type { GradientFill } from '../../../utils/gradientFill';
 import type { TextAlign } from '../../../utils/textAlign';
 import type { GenericCanvasRef, ToolbarStateReport } from '../../GenericCanvas';
@@ -84,6 +85,10 @@ export function useToolbarHandlers({
       handleCropImage: () => page()?.handleCropImage?.(),
       handleCancelCrop: () => page()?.handleCancelCrop?.(),
       handleFinishCrop: () => page()?.handleFinishCrop?.(),
+      handleCropAspect: (id: CropAspectId) => page()?.handleCropAspect?.(id),
+      handleCropRotation: (deg: number) => page()?.handleCropRotation?.(deg),
+      handleSmartCrop: () => page()?.handleSmartCrop?.(),
+      handleExpandImage: () => page()?.handleExpandImage?.(),
       handleGradientSelect: (gradient: GradientFill | null) =>
         page()?.handleGradientSelect?.(gradient),
       handleTextAlignChange: (id: string, align: TextAlign) =>

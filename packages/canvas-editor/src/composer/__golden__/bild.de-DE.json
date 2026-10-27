@@ -1,0 +1,630 @@
+{
+ "templateType": "freeform",
+ "format": "post-portrait",
+ "slides": [
+  {
+   "backgroundMode": "color",
+   "backgroundColor": "#005538",
+   "hasBackgroundImage": false,
+   "imageAttribution": null,
+   "additionalTexts": [
+    {
+     "id": "sc-0-headline-0",
+     "text": "Der Rechtsruck\nmacht dir\n==Sorgen?==",
+     "type": "header",
+     "x": 70,
+     "y": 110,
+     "width": 940,
+     "fontSize": 128,
+     "fontFamily": "GrueneTypeNeue",
+     "fontStyle": "normal",
+     "fill": "#FFFFFF",
+     "align": "left",
+     "accent": {
+      "fill": "#BEFF60"
+     },
+     "marker": {
+      "fill": "#FFFFFF",
+      "color": "#00261A",
+      "padX": 0.1
+     },
+     "lineHeight": 0.96
+    },
+    {
+     "id": "sc-1-text",
+     "text": "Das kannst du tun.",
+     "type": "body",
+     "x": 70,
+     "y": 523.64,
+     "width": 940,
+     "fontSize": 59,
+     "fontFamily": "PT Sans",
+     "fontStyle": "normal",
+     "fill": "#FFFFFF",
+     "align": "left",
+     "accent": {
+      "fill": "#BEFF60"
+     },
+     "marker": {
+      "fill": "#FFFFFF",
+      "color": "#00261A",
+      "padX": 0.1
+     },
+     "lineHeight": 1.25
+    },
+    {
+     "id": "sc-ki-label",
+     "text": "KI-Generiert",
+     "type": "body",
+     "x": 27,
+     "y": 1303,
+     "width": 166,
+     "fontSize": 27,
+     "fontFamily": "PT Sans",
+     "fontStyle": "bold",
+     "fill": "#FFFFFF",
+     "opacity": 0.85,
+     "lineHeight": 1
+    }
+   ],
+   "pillBadgeInstances": [],
+   "circleBadgeInstances": [],
+   "shapeInstances": [
+    {
+     "id": "sc-ki-label-bg",
+     "type": "rounded-rect",
+     "x": 108,
+     "y": 1316.5,
+     "width": 194,
+     "height": 45,
+     "fill": "#2B2B2B",
+     "rotation": 0,
+     "scaleX": 1,
+     "scaleY": 1,
+     "opacity": 0.4,
+     "cornerRadius": 8
+    }
+   ],
+   "assetInstances": [],
+   "chartInstances": [],
+   "userImageInstances": [
+    {
+     "id": "sc-2-bild",
+     "src": "/media/wind.jpg",
+     "fileName": "wind.jpg",
+     "x": 0,
+     "y": 900,
+     "width": 1080,
+     "height": 450,
+     "rotation": 0,
+     "scale": 1,
+     "opacity": 1,
+     "fit": "cover",
+     "tint": "#008939",
+     "tintStrength": 1
+    }
+   ],
+   "selectedIcons": [
+    "sc-pfeil"
+   ],
+   "iconStates": {
+    "sc-pfeil": {
+     "iconId": "tabler:arrow-narrow-right",
+     "x": 1044.56,
+     "y": 1324.64,
+     "scale": 0.35,
+     "rotation": 0,
+     "color": "#FFFFFF"
+    }
+   },
+   "layerOrder": [
+    "sc-2-bild",
+    "sc-0-headline-0",
+    "sc-1-text",
+    "sc-pfeil",
+    "sc-ki-label-bg",
+    "sc-ki-label"
+   ]
+  },
+  {
+   "backgroundMode": "color",
+   "backgroundColor": "#FFFFFF",
+   "hasBackgroundImage": false,
+   "imageAttribution": null,
+   "additionalTexts": [
+    {
+     "id": "sc-0-headline-0",
+     "text": "Der Rechtsruck\nmacht dir\n==Sorgen?==",
+     "type": "header",
+     "x": 70,
+     "y": 662.61,
+     "width": 940,
+     "fontSize": 128,
+     "fontFamily": "GrueneTypeNeue",
+     "fontStyle": "normal",
+     "fill": "#00261A",
+     "align": "left",
+     "accent": {
+      "fill": "#008939"
+     },
+     "marker": {
+      "fill": "#BEFF60",
+      "color": "#00261A",
+      "padX": 0.1
+     },
+     "lineHeight": 0.96
+    },
+    {
+     "id": "sc-1-text",
+     "text": "Das kannst du tun.",
+     "type": "body",
+     "x": 70,
+     "y": 1076.25,
+     "width": 940,
+     "fontSize": 59,
+     "fontFamily": "PT Sans",
+     "fontStyle": "normal",
+     "fill": "#00261A",
+     "align": "left",
+     "accent": {
+      "fill": "#008939"
+     },
+     "marker": {
+      "fill": "#BEFF60",
+      "color": "#00261A",
+      "padX": 0.1
+     },
+     "lineHeight": 1.25
+    },
+    {
+     "id": "sc-ki-label",
+     "text": "KI-Generiert",
+     "type": "body",
+     "x": 27,
+     "y": 1303,
+     "width": 166,
+     "fontSize": 27,
+     "fontFamily": "PT Sans",
+     "fontStyle": "bold",
+     "fill": "#FFFFFF",
+     "opacity": 0.85,
+     "lineHeight": 1
+    }
+   ],
+   "pillBadgeInstances": [],
+   "circleBadgeInstances": [],
+   "shapeInstances": [
+    {
+     "id": "sc-ki-label-bg",
+     "type": "rounded-rect",
+     "x": 108,
+     "y": 1316.5,
+     "width": 194,
+     "height": 45,
+     "fill": "#2B2B2B",
+     "rotation": 0,
+     "scaleX": 1,
+     "scaleY": 1,
+     "opacity": 0.55,
+     "cornerRadius": 8
+    }
+   ],
+   "assetInstances": [],
+   "chartInstances": [],
+   "userImageInstances": [
+    {
+     "id": "sc-2-bild",
+     "src": "/media/wind.jpg",
+     "fileName": "wind.jpg",
+     "x": 0,
+     "y": 0,
+     "width": 1080,
+     "height": 450,
+     "rotation": 0,
+     "scale": 1,
+     "opacity": 1,
+     "fit": "cover",
+     "grayscale": true
+    }
+   ],
+   "selectedIcons": [
+    "sc-pfeil"
+   ],
+   "iconStates": {
+    "sc-pfeil": {
+     "iconId": "tabler:arrow-narrow-right",
+     "x": 1044.56,
+     "y": 1324.64,
+     "scale": 0.35,
+     "rotation": 0,
+     "color": "#00261A"
+    }
+   },
+   "layerOrder": [
+    "sc-2-bild",
+    "sc-0-headline-0",
+    "sc-1-text",
+    "sc-pfeil",
+    "sc-ki-label-bg",
+    "sc-ki-label"
+   ]
+  },
+  {
+   "backgroundMode": "color",
+   "backgroundColor": "#F2F2F2",
+   "hasBackgroundImage": false,
+   "imageAttribution": null,
+   "additionalTexts": [
+    {
+     "id": "sc-0-headline-0",
+     "text": "Der Rechtsruck\nmacht dir\n==Sorgen?==",
+     "type": "header",
+     "x": 70,
+     "y": 110,
+     "width": 940,
+     "fontSize": 121,
+     "fontFamily": "GrueneTypeNeue",
+     "fontStyle": "normal",
+     "fill": "#00261A",
+     "align": "left",
+     "accent": {
+      "fill": "#008939"
+     },
+     "marker": {
+      "fill": "#BEFF60",
+      "color": "#00261A",
+      "padX": 0.1
+     },
+     "lineHeight": 0.96
+    },
+    {
+     "id": "sc-1-text",
+     "text": "Das kannst du tun.",
+     "type": "body",
+     "x": 70,
+     "y": 500.48,
+     "width": 940,
+     "fontSize": 42,
+     "fontFamily": "PT Sans",
+     "fontStyle": "normal",
+     "fill": "#00261A",
+     "align": "left",
+     "accent": {
+      "fill": "#008939"
+     },
+     "marker": {
+      "fill": "#BEFF60",
+      "color": "#00261A",
+      "padX": 0.1
+     },
+     "lineHeight": 1.25
+    },
+    {
+     "id": "sc-ki-label",
+     "text": "KI-Generiert",
+     "type": "body",
+     "x": 27,
+     "y": 1303,
+     "width": 166,
+     "fontSize": 27,
+     "fontFamily": "PT Sans",
+     "fontStyle": "bold",
+     "fill": "#FFFFFF",
+     "opacity": 0.85,
+     "lineHeight": 1
+    }
+   ],
+   "pillBadgeInstances": [],
+   "circleBadgeInstances": [],
+   "shapeInstances": [
+    {
+     "id": "sc-2-bild-karte",
+     "type": "rect",
+     "x": 540,
+     "y": 880,
+     "width": 860,
+     "height": 540,
+     "fill": "#FFFFFF",
+     "rotation": 0,
+     "scaleX": 1,
+     "scaleY": 1,
+     "opacity": 1,
+     "shadowColor": "#000000",
+     "shadowBlur": 24,
+     "shadowOffsetY": 6,
+     "shadowOpacity": 0.18
+    },
+    {
+     "id": "sc-ki-label-bg",
+     "type": "rounded-rect",
+     "x": 108,
+     "y": 1316.5,
+     "width": 194,
+     "height": 45,
+     "fill": "#2B2B2B",
+     "rotation": 0,
+     "scaleX": 1,
+     "scaleY": 1,
+     "opacity": 0.55,
+     "cornerRadius": 8
+    }
+   ],
+   "assetInstances": [],
+   "chartInstances": [],
+   "userImageInstances": [
+    {
+     "id": "sc-2-bild",
+     "src": "/media/wind.jpg",
+     "fileName": "wind.jpg",
+     "x": 126,
+     "y": 626,
+     "width": 828,
+     "height": 508,
+     "rotation": 0,
+     "scale": 1,
+     "opacity": 1,
+     "fit": "cover"
+    }
+   ],
+   "selectedIcons": [
+    "sc-pfeil"
+   ],
+   "iconStates": {
+    "sc-pfeil": {
+     "iconId": "tabler:arrow-narrow-right",
+     "x": 1044.56,
+     "y": 1324.64,
+     "scale": 0.35,
+     "rotation": 0,
+     "color": "#00261A"
+    }
+   },
+   "layerOrder": [
+    "sc-2-bild-karte",
+    "sc-2-bild",
+    "sc-0-headline-0",
+    "sc-1-text",
+    "sc-pfeil",
+    "sc-ki-label-bg",
+    "sc-ki-label"
+   ]
+  },
+  {
+   "backgroundMode": "color",
+   "backgroundColor": "#005538",
+   "hasBackgroundImage": false,
+   "imageAttribution": null,
+   "additionalTexts": [
+    {
+     "id": "sc-0-headline-0",
+     "text": "Der Rechtsruck\nmacht dir\n==Sorgen?==",
+     "type": "header",
+     "x": 70,
+     "y": 110,
+     "width": 940,
+     "fontSize": 121,
+     "fontFamily": "GrueneTypeNeue",
+     "fontStyle": "normal",
+     "fill": "#FFFFFF",
+     "align": "left",
+     "accent": {
+      "fill": "#BEFF60"
+     },
+     "marker": {
+      "fill": "#FFFFFF",
+      "color": "#00261A",
+      "padX": 0.1
+     },
+     "lineHeight": 0.96
+    },
+    {
+     "id": "sc-1-text",
+     "text": "Das kannst du tun.",
+     "type": "body",
+     "x": 70,
+     "y": 500.48,
+     "width": 940,
+     "fontSize": 42,
+     "fontFamily": "PT Sans",
+     "fontStyle": "normal",
+     "fill": "#FFFFFF",
+     "align": "left",
+     "accent": {
+      "fill": "#BEFF60"
+     },
+     "marker": {
+      "fill": "#FFFFFF",
+      "color": "#00261A",
+      "padX": 0.1
+     },
+     "lineHeight": 1.25
+    },
+    {
+     "id": "sc-ki-label",
+     "text": "KI-Generiert",
+     "type": "body",
+     "x": 27,
+     "y": 1303,
+     "width": 166,
+     "fontSize": 27,
+     "fontFamily": "PT Sans",
+     "fontStyle": "bold",
+     "fill": "#FFFFFF",
+     "opacity": 0.85,
+     "lineHeight": 1
+    }
+   ],
+   "pillBadgeInstances": [],
+   "circleBadgeInstances": [],
+   "shapeInstances": [
+    {
+     "id": "sc-ki-label-bg",
+     "type": "rounded-rect",
+     "x": 108,
+     "y": 1316.5,
+     "width": 194,
+     "height": 45,
+     "fill": "#2B2B2B",
+     "rotation": 0,
+     "scaleX": 1,
+     "scaleY": 1,
+     "opacity": 0.4,
+     "cornerRadius": 8
+    }
+   ],
+   "assetInstances": [],
+   "chartInstances": [],
+   "userImageInstances": [
+    {
+     "id": "sc-2-bild",
+     "src": "/media/wind.jpg",
+     "fileName": "wind.jpg",
+     "x": 270,
+     "y": 610,
+     "width": 540,
+     "height": 540,
+     "rotation": 0,
+     "scale": 1,
+     "opacity": 1,
+     "fit": "cover",
+     "mask": "kreis",
+     "tint": "#008939",
+     "tintStrength": 1
+    }
+   ],
+   "selectedIcons": [
+    "sc-pfeil"
+   ],
+   "iconStates": {
+    "sc-pfeil": {
+     "iconId": "tabler:arrow-narrow-right",
+     "x": 1044.56,
+     "y": 1324.64,
+     "scale": 0.35,
+     "rotation": 0,
+     "color": "#FFFFFF"
+    }
+   },
+   "layerOrder": [
+    "sc-2-bild",
+    "sc-0-headline-0",
+    "sc-1-text",
+    "sc-pfeil",
+    "sc-ki-label-bg",
+    "sc-ki-label"
+   ]
+  },
+  {
+   "backgroundMode": "color",
+   "backgroundColor": "#005538",
+   "hasBackgroundImage": false,
+   "imageAttribution": null,
+   "additionalTexts": [
+    {
+     "id": "sc-0-headline-0",
+     "text": "Der Rechtsruck\nmacht dir\n==Sorgen?==",
+     "type": "header",
+     "x": 70,
+     "y": 110,
+     "width": 940,
+     "fontSize": 115,
+     "fontFamily": "GrueneTypeNeue",
+     "fontStyle": "normal",
+     "fill": "#FFFFFF",
+     "align": "left",
+     "accent": {
+      "fill": "#BEFF60"
+     },
+     "marker": {
+      "fill": "#FFFFFF",
+      "color": "#00261A",
+      "padX": 0.1
+     },
+     "lineHeight": 0.96
+    },
+    {
+     "id": "sc-1-text",
+     "text": "Das kannst du tun.",
+     "type": "body",
+     "x": 70,
+     "y": 481.2,
+     "width": 940,
+     "fontSize": 42,
+     "fontFamily": "PT Sans",
+     "fontStyle": "normal",
+     "fill": "#FFFFFF",
+     "align": "left",
+     "accent": {
+      "fill": "#BEFF60"
+     },
+     "marker": {
+      "fill": "#FFFFFF",
+      "color": "#00261A",
+      "padX": 0.1
+     },
+     "lineHeight": 1.25
+    },
+    {
+     "id": "sc-ki-label",
+     "text": "Klimaschonend KI-generiert mit dem Grünerator",
+     "type": "body",
+     "x": 27,
+     "y": 1303,
+     "width": 611.5,
+     "fontSize": 27,
+     "fontFamily": "PT Sans",
+     "fontStyle": "bold",
+     "fill": "#FFFFFF",
+     "opacity": 0.85,
+     "lineHeight": 1
+    }
+   ],
+   "pillBadgeInstances": [],
+   "circleBadgeInstances": [],
+   "shapeInstances": [
+    {
+     "id": "sc-ki-label-bg",
+     "type": "rounded-rect",
+     "x": 330.75,
+     "y": 1316.5,
+     "width": 639.5,
+     "height": 45,
+     "fill": "#2B2B2B",
+     "rotation": 0,
+     "scaleX": 1,
+     "scaleY": 1,
+     "opacity": 0.4,
+     "cornerRadius": 8
+    }
+   ],
+   "assetInstances": [],
+   "chartInstances": [],
+   "userImageInstances": [
+    {
+     "id": "sc-2-bild",
+     "src": "/media/wind.jpg",
+     "fileName": "wind.jpg",
+     "x": 0,
+     "y": 540,
+     "width": 1080,
+     "height": 810,
+     "rotation": 0,
+     "scale": 1,
+     "opacity": 1,
+     "fit": "cover",
+     "tint": "#008939",
+     "tintStrength": 1
+    }
+   ],
+   "selectedIcons": [],
+   "iconStates": {},
+   "layerOrder": [
+    "sc-2-bild",
+    "sc-0-headline-0",
+    "sc-1-text",
+    "sc-ki-label-bg",
+    "sc-ki-label"
+   ]
+  }
+ ]
+}

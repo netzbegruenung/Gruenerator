@@ -1346,7 +1346,7 @@ describe.each(['de-DE', 'de-AT'] as const)('composeSharepic — space use (%s)',
         )
       );
       const logo = props.assetInstances[0]!;
-      // x/y is the centre; heights as in LOGO of the composer.
+      // x/y is the centre; heights as in the brand pack's `composer.logo`.
       const logoHeight = locale === 'de-AT' ? (210 * 1239) / 1410 : 110;
       const logoTop = logo.y - logoHeight / 2;
       const bottom = Math.max(

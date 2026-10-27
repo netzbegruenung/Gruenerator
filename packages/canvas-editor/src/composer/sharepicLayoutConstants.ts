@@ -9,16 +9,6 @@ export const MARGIN = 70;
 export const GAP = 30;
 export const FOOTER = 130;
 /**
- * Logo: longer side and gap to the bottom edge, measured on the posts (10/2026).
- * DE: the "BÜNDNIS 90/DIE GRÜNEN" word mark (710 × 379), ~250–300 px, bottom-left
- * at the margin, in a tone of the ground (Dd_BXcKiDy2/03, Ddouf0QiL1w/02).
- * AT: the "G DIE GRÜNEN" logo with claim (1410 × 1239), ~210 px, centred.
- */
-export const LOGO = {
-  'de-DE': { size: 260, height: (260 * 379) / 710, bottom: 80 },
-  'de-AT': { size: 210, height: (210 * 1239) / 1410, bottom: 91 },
-} as const;
-/**
  * AI label, looking like `imagine_label_canvas.ts` at 1080 px: PT Sans Bold 27,
  * pill bottom-left. Kept in sync by hand, the API cannot import the editor.
  */

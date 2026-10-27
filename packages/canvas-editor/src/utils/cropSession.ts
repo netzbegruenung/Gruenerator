@@ -1,5 +1,8 @@
 import { type CanvasElementConfig } from '../configs/types';
 
+import { cropTargetOf, type CropUpdate } from './cropTarget';
+import { BACKGROUND_IMAGE_NODE_ID } from './printImageInfo';
+import { BACKGROUND_STRAIGHTEN_KEY, backgroundStraighten, clampStraighten } from './straighten';
 import { type UserImageInstance } from './userImageUtils';
 
 /** Was ein Zuschnitt an einem eigenen Bild ändert: Rahmen und Lage des Fotos darin. */
@@ -12,6 +15,7 @@ const USER_IMAGE_CROP_FIELDS = [
   'panX',
   'panY',
   'cropZoom',
+  'cropRotation',
 ] as const satisfies readonly (keyof UserImageInstance)[];
 
 /**
@@ -35,6 +39,8 @@ export function takeCropSnapshot(
       element.scaleKey,
       element.positionStateKey,
       element.sizeStateKey,
+      // Der Winkel des Hintergrundfotos liegt auf der Seite, nicht in einem Config-Schlüssel.
+      element.id === BACKGROUND_IMAGE_NODE_ID ? BACKGROUND_STRAIGHTEN_KEY : null,
     ].filter((key): key is string => typeof key === 'string');
     const values: Record<string, unknown> = {};
     for (const key of keys) values[key] = state[key];
@@ -73,4 +79,33 @@ export function restoreCropSnapshot(
       return restored as unknown as UserImageInstance;
     }),
   };
+}
+
+/** Der Begradigungs-Winkel des Elements im Zuschneide-Modus (Grad, 0 ohne). */
+export function cropRotationOf(
+  state: Record<string, unknown>,
+  elements: readonly CanvasElementConfig[],
+  id: string
+): number {
+  const target = cropTargetOf(state, elements, id);
+  if (!target) return 0;
+  if (target.kind === 'background') return backgroundStraighten(state) ?? 0;
+  return target.image.fit === 'cover' ? (target.image.cropRotation ?? 0) : 0;
+}
+
+/** Ein gestrecktes eigenes Bild wird zum Begradigen `cover`; Pan und Zoom bleiben, die Bühne hält die Deckung. */
+export function cropRotationUpdate(
+  state: Record<string, unknown>,
+  elements: readonly CanvasElementConfig[],
+  id: string,
+  deg: number
+): CropUpdate | null {
+  const angle = clampStraighten(deg);
+  const target = cropTargetOf(state, elements, id);
+  if (!target) return null;
+  if (target.kind === 'background') {
+    return { kind: 'template', patch: { [BACKGROUND_STRAIGHTEN_KEY]: angle } };
+  }
+  if (target.image.fit === 'cover') return { kind: 'user-image', patch: { cropRotation: angle } };
+  return angle === 0 ? null : { kind: 'user-image', patch: { fit: 'cover', cropRotation: angle } };
 }

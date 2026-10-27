@@ -14,6 +14,8 @@ const INHERITABLE_KEYS = [
   'backgroundColor',
   'imageOffset',
   'imageScale',
+  // Der Begradigungs-Winkel gehört zur Lage des Fotos und wandert mit ihr.
+  'backgroundImageRotation',
   'backgroundImageOpacity',
   'imageAttribution',
   'colorScheme',
@@ -76,6 +78,7 @@ export function extractInheritablePageState(
     // panel it does not have.
     delete inherited.imageOffset;
     delete inherited.imageScale;
+    delete inherited.backgroundImageRotation;
   }
 
   return inherited;

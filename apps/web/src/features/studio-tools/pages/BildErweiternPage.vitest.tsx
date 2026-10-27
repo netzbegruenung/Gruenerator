@@ -22,7 +22,8 @@ vi.mock('@gruenerator/ui', async () => {
     ),
   };
 });
-vi.mock('../../image-studio/services/imageEditingService', () => ({
+vi.mock('../../image-studio/services/imageEditingService', async (importOriginal) => ({
+  ...(await importOriginal<Record<string, unknown>>()),
   outpaintImage: vi.fn(),
 }));
 vi.mock('../../image-studio/bild-editor-v2/canvasHandoff', () => ({

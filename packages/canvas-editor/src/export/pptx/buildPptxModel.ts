@@ -21,6 +21,7 @@ import {
 } from '../../utils/chartUtils';
 import { ICON_TARGET_SIZE, ILLUSTRATION_TARGET_SIZE } from '../../utils/motifSizes';
 import { photoStripBeside, type ShapeInstance } from '../../utils/shapes';
+import { backgroundStraighten } from '../../utils/straighten';
 
 import {
   estimateMeasure,
@@ -64,6 +65,7 @@ export const PPTX_MAPPED_PAGE_KEYS = [
   'imageScale',
   'backgroundImageOpacity',
   'backgroundImageAdjustments',
+  'backgroundImageRotation',
   'additionalTexts',
   'shapeInstances',
   'pillBadgeInstances',
@@ -429,8 +431,10 @@ function mapUserImage(image: UserImageInstance): PptxItem {
     width: image.width,
     height: image.height,
   });
+  // PPTX kann ein im Rahmen gedrehtes Foto nicht ausdrücken: begradigt wird gerastert.
   const movedCrop =
-    image.fit === 'cover' && ((image.cropZoom ?? 1) !== 1 || !!image.panX || !!image.panY);
+    image.fit === 'cover' &&
+    ((image.cropZoom ?? 1) !== 1 || !!image.panX || !!image.panY || !!image.cropRotation);
   const ovalMask = image.mask === 'kreis' && Math.abs(image.width - image.height) > 0.5;
   if (isAdjusted(image) || image.shadowColor || movedCrop || ovalMask) {
     return raster(image.id, placement, 'image-adjusted');
@@ -528,9 +532,12 @@ function mapBackgroundPhoto(state: PptxPageState, page: PptxBox): PptxItem | nul
     typeof state.backgroundImageOpacity === 'number' ? state.backgroundImageOpacity : 1;
   const adjustments = state.backgroundImageAdjustments as ImageAdjustments | null;
   const strip = photoStripBeside(list<ShapeInstance>(state.shapeInstances), page);
+  // Ein im Rahmen gedrehtes Foto hat in PPTX keine Entsprechung: es wird gerastert.
+  const straightened = backgroundStraighten(state as Record<string, unknown>) !== null;
   const plain =
     !offset?.x &&
     !offset?.y &&
+    !straightened &&
     scale === 1 &&
     opacity === 1 &&
     !strip &&

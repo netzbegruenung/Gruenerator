@@ -28,6 +28,7 @@ import {
   getSliderColorsForState,
   isSliderColorScheme,
 } from '../utils/sliderLayout';
+import { straightenResetFor } from '../utils/straighten';
 
 import { chatTab, createCommonSectionEntries, toolsTab, uploadsTab } from './commonSections';
 import { createBaseActions } from './factory/actionFactories';
@@ -1009,6 +1010,7 @@ function createSliderConfig(brand: SliderBrand): FullCanvasConfig<SliderState, S
             backgroundImageFile: file,
             imageAttribution: nextSrc ? (attribution ?? null) : null,
             iconStates: recolorIconInstances(state.iconStates, ARROW_ICON_ID, nextColor),
+            ...straightenResetFor(state),
           };
           setState(patch);
           saveToHistory({ ...state, ...patch });

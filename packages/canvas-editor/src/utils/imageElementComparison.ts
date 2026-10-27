@@ -13,6 +13,7 @@
 import { backgroundAdjustments } from './imageFilters';
 import { BACKGROUND_IMAGE_NODE_ID } from './printImageInfo';
 import { assertAsPosition, assertAsSize } from './stateTypeAssertions';
+import { backgroundStraighten } from './straighten';
 import { templateRotationOf } from './templateRotation';
 
 import type { ImageElementConfig, LayoutElementResult, LayoutResult } from '../configs/types';
@@ -96,7 +97,8 @@ export function imageRenderInputsAreEqual<TState extends Record<string, unknown>
 
   if (
     prev.config.id === BACKGROUND_IMAGE_NODE_ID &&
-    backgroundAdjustments(prev.state) !== backgroundAdjustments(next.state)
+    (backgroundAdjustments(prev.state) !== backgroundAdjustments(next.state) ||
+      backgroundStraighten(prev.state) !== backgroundStraighten(next.state))
   ) {
     return false;
   }

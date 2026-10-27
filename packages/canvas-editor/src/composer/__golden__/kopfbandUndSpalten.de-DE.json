@@ -1,0 +1,482 @@
+{
+ "templateType": "freeform",
+ "format": "post-portrait",
+ "slides": [
+  {
+   "backgroundMode": "color",
+   "backgroundColor": "#D5EEE6",
+   "hasBackgroundImage": false,
+   "imageAttribution": null,
+   "additionalTexts": [
+    {
+     "id": "sc-0-headline-0",
+     "text": "==Die größten==\nVermögen besteuern.",
+     "type": "header",
+     "x": 70,
+     "y": 511.7312676056338,
+     "width": 940,
+     "fontSize": 94,
+     "fontFamily": "GrueneTypeNeue",
+     "fontStyle": "normal",
+     "fill": "#FFFFFF",
+     "align": "left",
+     "accent": {
+      "fill": "#BEFF60"
+     },
+     "marker": {
+      "fill": "#FFFFFF",
+      "color": "#00261A",
+      "padX": 0.1
+     },
+     "lineHeight": 0.96
+    },
+    {
+     "id": "sc-1-liste-0",
+     "text": "++fast 7 Jahre++ das Ticket",
+     "type": "body",
+     "x": 116,
+     "y": 771.2112676056338,
+     "width": 848,
+     "fontSize": 70,
+     "fontFamily": "PT Sans",
+     "fontStyle": "normal",
+     "fill": "#00261A",
+     "align": "left",
+     "accent": {
+      "fill": "#008939"
+     },
+     "marker": {
+      "fill": "#00CC4F",
+      "color": "#00261A",
+      "padX": 0.1
+     },
+     "lineHeight": 1.25,
+     "shadowOpacity": 0
+    },
+    {
+     "id": "sc-1-liste-1",
+     "text": "++82×++ Debakel",
+     "type": "body",
+     "x": 116,
+     "y": 907.7112676056338,
+     "width": 848,
+     "fontSize": 70,
+     "fontFamily": "PT Sans",
+     "fontStyle": "normal",
+     "fill": "#00261A",
+     "align": "left",
+     "accent": {
+      "fill": "#008939"
+     },
+     "marker": {
+      "fill": "#00CC4F",
+      "color": "#00261A",
+      "padX": 0.1
+     },
+     "lineHeight": 1.25,
+     "shadowOpacity": 0
+    },
+    {
+     "id": "sc-ki-label",
+     "text": "KI-Generiert",
+     "type": "body",
+     "x": 27,
+     "y": 1303,
+     "width": 166,
+     "fontSize": 27,
+     "fontFamily": "PT Sans",
+     "fontStyle": "bold",
+     "fill": "#FFFFFF",
+     "opacity": 0.85,
+     "lineHeight": 1
+    }
+   ],
+   "pillBadgeInstances": [],
+   "circleBadgeInstances": [],
+   "shapeInstances": [
+    {
+     "id": "sc-kopfband",
+     "type": "rect",
+     "x": 540,
+     "y": 347.6056338028169,
+     "width": 1080,
+     "height": 695.2112676056338,
+     "fill": "#00261A",
+     "rotation": 0,
+     "scaleX": 1,
+     "scaleY": 1,
+     "opacity": 1
+    },
+    {
+     "id": "sc-1-liste-card",
+     "type": "rounded-rect",
+     "x": 540,
+     "y": 883.2112676056338,
+     "width": 940,
+     "height": 316,
+     "fill": "#FFFFFF",
+     "rotation": 0,
+     "scaleX": 1,
+     "scaleY": 1,
+     "opacity": 1,
+     "cornerRadius": 32
+    },
+    {
+     "id": "sc-ki-label-bg",
+     "type": "rounded-rect",
+     "x": 108,
+     "y": 1316.5,
+     "width": 194,
+     "height": 45,
+     "fill": "#2B2B2B",
+     "rotation": 0,
+     "scaleX": 1,
+     "scaleY": 1,
+     "opacity": 0.4,
+     "cornerRadius": 8
+    }
+   ],
+   "assetInstances": [
+    {
+     "id": "sc-logo",
+     "assetId": "gruene-de-logo-schwarz",
+     "x": 200,
+     "y": 1200.605633802817,
+     "scale": 1.7333333333333334,
+     "rotation": 0,
+     "opacity": 0.5
+    }
+   ],
+   "chartInstances": [],
+   "userImageInstances": [],
+   "selectedIcons": [
+    "sc-pfeil"
+   ],
+   "iconStates": {
+    "sc-pfeil": {
+     "iconId": "tabler:arrow-narrow-right",
+     "x": 1044.56,
+     "y": 1324.64,
+     "scale": 0.35,
+     "rotation": 0,
+     "color": "#00261A"
+    }
+   },
+   "layerOrder": [
+    "sc-kopfband",
+    "sc-0-headline-0",
+    "sc-1-liste-card",
+    "sc-1-liste-0",
+    "sc-1-liste-1",
+    "sc-logo",
+    "sc-pfeil",
+    "sc-ki-label-bg",
+    "sc-ki-label"
+   ]
+  },
+  {
+   "backgroundMode": "color",
+   "backgroundColor": "#FFFFFF",
+   "hasBackgroundImage": false,
+   "imageAttribution": null,
+   "additionalTexts": [
+    {
+     "id": "sc-0-vergleich-links-titel",
+     "text": "Ihr Plan",
+     "type": "header",
+     "x": 56,
+     "y": 60,
+     "width": 383,
+     "fontSize": 58,
+     "fontFamily": "GrueneTypeNeue",
+     "fontStyle": "normal",
+     "fill": "#00261A",
+     "align": "center",
+     "accent": {
+      "fill": "#00261A"
+     },
+     "marker": {
+      "fill": "#FFFFFF",
+      "color": "#00261A",
+      "padX": 0.1
+     },
+     "lineHeight": 1,
+     "shadowOpacity": 0
+    },
+    {
+     "id": "sc-0-vergleich-links-0",
+     "text": "teuer",
+     "type": "body",
+     "x": 110,
+     "y": 159,
+     "width": 374,
+     "fontSize": 36,
+     "fontFamily": "PT Sans",
+     "fontStyle": "normal",
+     "fill": "#5F6B66",
+     "align": "left",
+     "accent": {
+      "fill": "#5F6B66"
+     },
+     "marker": {
+      "fill": "#BEFF60",
+      "color": "#00261A",
+      "padX": 0.1
+     },
+     "lineHeight": 1.25,
+     "shadowOpacity": 0
+    },
+    {
+     "id": "sc-0-vergleich-links-1",
+     "text": "kurz",
+     "type": "body",
+     "x": 110,
+     "y": 229,
+     "width": 374,
+     "fontSize": 36,
+     "fontFamily": "PT Sans",
+     "fontStyle": "normal",
+     "fill": "#5F6B66",
+     "align": "left",
+     "accent": {
+      "fill": "#5F6B66"
+     },
+     "marker": {
+      "fill": "#BEFF60",
+      "color": "#00261A",
+      "padX": 0.1
+     },
+     "lineHeight": 1.25,
+     "shadowOpacity": 0
+    },
+    {
+     "id": "sc-0-vergleich-rechts-titel",
+     "text": "Unser Plan",
+     "type": "header",
+     "x": 641,
+     "y": 60,
+     "width": 383,
+     "fontSize": 58,
+     "fontFamily": "GrueneTypeNeue",
+     "fontStyle": "normal",
+     "fill": "#00261A",
+     "align": "center",
+     "accent": {
+      "fill": "#00261A"
+     },
+     "marker": {
+      "fill": "#BEFF60",
+      "color": "#00261A",
+      "padX": 0.1
+     },
+     "lineHeight": 1,
+     "shadowOpacity": 0
+    },
+    {
+     "id": "sc-0-vergleich-rechts-0",
+     "text": "bezahlbar",
+     "type": "body",
+     "x": 650,
+     "y": 159,
+     "width": 374,
+     "fontSize": 36,
+     "fontFamily": "PT Sans",
+     "fontStyle": "normal",
+     "fill": "#00261A",
+     "align": "left",
+     "accent": {
+      "fill": "#00261A"
+     },
+     "marker": {
+      "fill": "#BEFF60",
+      "color": "#00261A",
+      "padX": 0.1
+     },
+     "lineHeight": 1.25,
+     "shadowOpacity": 0
+    },
+    {
+     "id": "sc-0-vergleich-rechts-1",
+     "text": "dauerhaft",
+     "type": "body",
+     "x": 650,
+     "y": 229,
+     "width": 374,
+     "fontSize": 36,
+     "fontFamily": "PT Sans",
+     "fontStyle": "normal",
+     "fill": "#00261A",
+     "align": "left",
+     "accent": {
+      "fill": "#00261A"
+     },
+     "marker": {
+      "fill": "#BEFF60",
+      "color": "#00261A",
+      "padX": 0.1
+     },
+     "lineHeight": 1.25,
+     "shadowOpacity": 0
+    },
+    {
+     "id": "sc-0-vergleich-vs",
+     "text": "VS",
+     "type": "header",
+     "x": 390,
+     "y": 6.5,
+     "width": 300,
+     "fontSize": 150,
+     "fontFamily": "GrueneTypeNeue",
+     "fontStyle": "normal",
+     "fill": "#FFFFFF",
+     "align": "center",
+     "accent": {
+      "fill": "#008939"
+     },
+     "marker": {
+      "fill": "#BEFF60",
+      "color": "#00261A",
+      "padX": 0.1
+     },
+     "lineHeight": 1,
+     "stroke": "#00CC4F",
+     "strokeWidth": 6,
+     "shadowOpacity": 0
+    },
+    {
+     "id": "sc-ki-label",
+     "text": "Klimaschonend KI-generiert mit dem Grünerator",
+     "type": "body",
+     "x": 27,
+     "y": 1303,
+     "width": 611.5,
+     "fontSize": 27,
+     "fontFamily": "PT Sans",
+     "fontStyle": "bold",
+     "fill": "#FFFFFF",
+     "opacity": 0.85,
+     "lineHeight": 1
+    }
+   ],
+   "pillBadgeInstances": [],
+   "circleBadgeInstances": [],
+   "shapeInstances": [
+    {
+     "id": "sc-0-vergleich-links-flaeche",
+     "type": "rect",
+     "x": 270,
+     "y": 675,
+     "width": 540,
+     "height": 1350,
+     "fill": "#D5EEE6",
+     "rotation": 0,
+     "scaleX": 1,
+     "scaleY": 1,
+     "opacity": 1
+    },
+    {
+     "id": "sc-0-vergleich-rechts-flaeche",
+     "type": "rect",
+     "x": 810,
+     "y": 675,
+     "width": 540,
+     "height": 1350,
+     "fill": "#00CC4F",
+     "rotation": 0,
+     "scaleX": 1,
+     "scaleY": 1,
+     "opacity": 1
+    },
+    {
+     "id": "sc-ki-label-bg",
+     "type": "rounded-rect",
+     "x": 330.75,
+     "y": 1316.5,
+     "width": 639.5,
+     "height": 45,
+     "fill": "#2B2B2B",
+     "rotation": 0,
+     "scaleX": 1,
+     "scaleY": 1,
+     "opacity": 0.55,
+     "cornerRadius": 8
+    }
+   ],
+   "assetInstances": [
+    {
+     "id": "sc-logo",
+     "assetId": "gruene-de-logo-schwarz",
+     "x": 810,
+     "y": 1200.605633802817,
+     "scale": 1.7333333333333334,
+     "rotation": 0,
+     "opacity": 0.8
+    }
+   ],
+   "chartInstances": [],
+   "userImageInstances": [],
+   "selectedIcons": [
+    "sc-0-vergleich-links-0-marker",
+    "sc-0-vergleich-links-1-marker",
+    "sc-0-vergleich-rechts-0-marker",
+    "sc-0-vergleich-rechts-1-marker"
+   ],
+   "iconStates": {
+    "sc-0-vergleich-links-0-marker": {
+     "iconId": "tabler:circle-x-filled",
+     "x": 75,
+     "y": 181.5,
+     "scale": 0.31666666666666665,
+     "rotation": 0,
+     "color": "#E3352F",
+     "opacity": 1
+    },
+    "sc-0-vergleich-links-1-marker": {
+     "iconId": "tabler:circle-x-filled",
+     "x": 75,
+     "y": 251.5,
+     "scale": 0.31666666666666665,
+     "rotation": 0,
+     "color": "#E3352F",
+     "opacity": 1
+    },
+    "sc-0-vergleich-rechts-0-marker": {
+     "iconId": "tabler:circle-check-filled",
+     "x": 615,
+     "y": 181.5,
+     "scale": 0.31666666666666665,
+     "rotation": 0,
+     "color": "#00261A",
+     "opacity": 1
+    },
+    "sc-0-vergleich-rechts-1-marker": {
+     "iconId": "tabler:circle-check-filled",
+     "x": 615,
+     "y": 251.5,
+     "scale": 0.31666666666666665,
+     "rotation": 0,
+     "color": "#00261A",
+     "opacity": 1
+    }
+   },
+   "layerOrder": [
+    "sc-0-vergleich-links-flaeche",
+    "sc-0-vergleich-rechts-flaeche",
+    "sc-0-vergleich-links-titel",
+    "sc-0-vergleich-links-0-marker",
+    "sc-0-vergleich-links-0",
+    "sc-0-vergleich-links-1-marker",
+    "sc-0-vergleich-links-1",
+    "sc-0-vergleich-rechts-titel",
+    "sc-0-vergleich-rechts-0-marker",
+    "sc-0-vergleich-rechts-0",
+    "sc-0-vergleich-rechts-1-marker",
+    "sc-0-vergleich-rechts-1",
+    "sc-0-vergleich-vs",
+    "sc-logo",
+    "sc-ki-label-bg",
+    "sc-ki-label"
+   ]
+  }
+ ]
+}

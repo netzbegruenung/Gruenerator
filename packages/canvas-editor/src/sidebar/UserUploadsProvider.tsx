@@ -186,6 +186,11 @@ export function UserUploadsProvider({ children }: { children: ReactNode }) {
   return <UserUploadsContext.Provider value={value}>{children}</UserUploadsContext.Provider>;
 }
 
+/** Wie `useUserUploads`, aber `null` außerhalb des Editors (z. B. `StandaloneCanvas`). */
+export function useOptionalUserUploads(): UserUploadsContextValue | null {
+  return useContext(UserUploadsContext);
+}
+
 export function useUserUploads(): UserUploadsContextValue {
   const ctx = useContext(UserUploadsContext);
   if (!ctx) {

@@ -63,6 +63,7 @@ import {
   rasterizeStageElement,
   visibleStageTexts,
 } from '../utils/captureStage';
+import { type CropAspectId } from '../utils/cropAspect';
 import { itemBodyRect } from '../utils/deepSelect';
 import { ensureFontsReady } from '../utils/ensureFontsReady';
 import { MAX_ICON_SELECTIONS, selectedCatalogIconIds } from '../utils/iconInstances';
@@ -119,6 +120,12 @@ export interface ToolbarStateReport {
   canDelete: boolean;
   /** The selected framed photo is in Ausschnitt mode. */
   isCropping: boolean;
+  /** Seitenverhältnis-Vorgabe des laufenden Zuschneide-Modus. */
+  cropAspect: CropAspectId;
+  /** Begradigungs-Winkel des Fotos im laufenden Zuschneide-Modus (Grad, 0 ohne). */
+  cropRotation: number;
+  /** Läuft auf dieser Seite gerade ein „Erweitern"? */
+  isExpanding: boolean;
   /** Wie viele Elemente ausgewählt sind; bei mehr als einem ist `selectedElement` null. */
   selectionCount: number;
   /** Lässt sich mindestens ein ausgewähltes Element kopieren? */
@@ -330,6 +337,13 @@ export interface GenericCanvasRef {
   /** Zuschneide-Modus: zurück zum Stand beim Betreten bzw. mit dem aktuellen Stand beenden. */
   handleCancelCrop?: () => void;
   handleFinishCrop?: () => void;
+  handleCropAspect?: (id: CropAspectId) => void;
+  /** Begradigen im Zuschneide-Modus (Hintergrundfoto oder eigenes Bild), Grad. */
+  handleCropRotation?: (deg: number) => void;
+  /** „Automatisch" im Zuschneide-Modus: wählt den Ausschnitt per smartcrop. */
+  handleSmartCrop?: () => void;
+  /** „Erweitern" im Zuschneide-Modus: die KI ergänzt das Foto auf das Rahmenformat. */
+  handleExpandImage?: () => void;
   handleGradientSelect?: (gradient: GradientFill | null) => void;
   handleTextAlignChange?: (id: string, align: TextAlign) => void;
 }
@@ -1089,6 +1103,10 @@ function GenericCanvasWithRef<
       handleCropImage: () => bridgeRef.current?.handleCropImage(),
       handleCancelCrop: cropSession.cancel,
       handleFinishCrop: cropSession.finish,
+      handleCropAspect: (id) => bridgeRef.current?.handleCropAspect(id),
+      handleCropRotation: (deg) => bridgeRef.current?.handleCropRotation(deg),
+      handleSmartCrop: () => bridgeRef.current?.handleSmartCrop(),
+      handleExpandImage: () => bridgeRef.current?.handleExpandImage(),
       handleGradientSelect: (gradient) => bridgeRef.current?.handleGradientSelect(gradient),
       handleTextAlignChange: (id, align) => bridgeRef.current?.handleTextAlignChange(id, align),
     }),
@@ -1164,6 +1182,9 @@ function GenericCanvasWithRef<
         canRedo={canRedo}
         readOnly={!interactive}
         saveToHistory={saveToHistory}
+        runHistoryBatch={runHistoryBatch}
+        cropCancelCount={cropSession.cancelCount}
+        getStage={getStage}
         onToolbarStateChange={onToolbarStateChange}
       />
     </PendingImagesContext.Provider>

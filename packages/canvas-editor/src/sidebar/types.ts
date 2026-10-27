@@ -2,7 +2,7 @@ import type { AdditionalText } from '../configs/types';
 import type { IconType } from 'react-icons';
 
 /**
- * All possible sidebar tab IDs.
+ * The sidebar tab ids the editor itself knows.
  *
  * Unified tabs (used in heterogeneous multi-page):
  * - 'text': Text editing section
@@ -14,7 +14,7 @@ import type { IconType } from 'react-icons';
  * - 'position': Dreizeilen-specific balken controls
  * - 'fontsize': Deprecated - merged into 'text'
  */
-export type SidebarTabId =
+export type CoreSidebarTabId =
   // Unified tab IDs (used in heterogeneous multi-page mode)
   | 'text'
   | 'elements'
@@ -35,6 +35,12 @@ export type SidebarTabId =
   | 'chart-settings'
   | 'image-adjust'
   | 'design';
+
+/**
+ * A sidebar tab id: one the editor knows, or one a host's config brings with
+ * its own section. `string & {}` keeps the core ids as completions.
+ */
+export type SidebarTabId = CoreSidebarTabId | (string & {});
 
 export interface SidebarTab {
   id: SidebarTabId;

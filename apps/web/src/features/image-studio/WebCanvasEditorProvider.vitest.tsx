@@ -25,7 +25,27 @@ function PrintVorlagen() {
   return <span data-testid="print">{vorlagen?.openPrintAsNew ? 'ja' : 'nein'}</span>;
 }
 
+function ExpandImage() {
+  const { expandImage } = useCanvasEditorServices();
+  return <span data-testid="expand">{expandImage ? 'ja' : 'nein'}</span>;
+}
+
 describe('WebCanvasEditorProvider', () => {
+  it('reicht „Erweitern" in den Editor, auch im WebView-Host /mobile-editor', () => {
+    const { rerender } = renderWithProviders(
+      <WebCanvasEditorProvider>
+        <ExpandImage />
+      </WebCanvasEditorProvider>
+    );
+    expect(screen.getByTestId('expand').textContent).toBe('ja');
+    rerender(
+      <WebCanvasEditorProvider allowStickerCreator={false} allowVorlagen={false}>
+        <ExpandImage />
+      </WebCanvasEditorProvider>
+    );
+    expect(screen.getByTestId('expand').textContent).toBe('ja');
+  });
+
   it('öffnet Print-Vorlagen als neues Design, außer wo Vorlagen gesperrt sind', () => {
     const { rerender } = renderWithProviders(
       <WebCanvasEditorProvider>

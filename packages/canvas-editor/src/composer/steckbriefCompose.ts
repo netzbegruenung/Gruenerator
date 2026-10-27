@@ -111,8 +111,19 @@ export function steckbriefAround(
   id: string,
   item: SteckbriefItem
 ): void {
-  const { measure, headFamily, isAt, canvas, out, onLight, textColor, addShape, text, fitLine } =
-    ctx;
+  const {
+    measure,
+    brand,
+    headFamily,
+    isAt,
+    canvas,
+    out,
+    onLight,
+    textColor,
+    addShape,
+    text,
+    fitLine,
+  } = ctx;
   const { person, bg, bild, surface, swipeOn, kiText, kiTop, kiHeight } = around;
   if (!person) return;
   const W = canvas.width;
@@ -131,11 +142,11 @@ export function steckbriefAround(
   };
 
   // Greeting: small over the name, right-aligned beside the face, the waving hand right of the name.
-  const grussSize = isAt ? 46 : 52;
+  const grussSize = brand.fontSize.steckbriefGruss;
   const hand = STECKBRIEF.hand;
   const right = W - MARGIN;
   const nameWidth = Math.round(W * STECKBRIEF.nameWidth);
-  const nameCap = isAt ? 150 : 180;
+  const nameCap = brand.fontSize.steckbriefName;
   const nameSize = Math.min(nameCap, fitLine(item.name, nameCap, nameWidth, family));
   const greetHeight = grussSize * lineHeight + nameSize;
   const greetAt = bg.kind === 'foto' ? STECKBRIEF.greetAt.foto : STECKBRIEF.greetAt.frei;
@@ -180,7 +191,7 @@ export function steckbriefAround(
       ];
       return lines.length <= 3 && bottom + size * 0.4 <= Math.min(...below);
     });
-  let size = isAt ? 58 : 64;
+  let size = brand.fontSize.steckbriefTrait;
   while (size > 30 && !fitsAt(size)) size -= 2;
 
   const turn = (pivot: { x: number; y: number }, rotation: number, p: { x: number; y: number }) =>

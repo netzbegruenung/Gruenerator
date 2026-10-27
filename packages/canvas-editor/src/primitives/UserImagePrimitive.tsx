@@ -14,34 +14,56 @@ import { useAnnounce } from '../hooks/useAnnounce';
 import { useBoxSnap, type SnapProps } from '../hooks/useBoxSnap';
 import {
   clampPan,
+  covers,
   framedPhotoRect,
   panOfFramedPhoto,
   visiblePart,
   type Rect as Box,
 } from '../utils/coverFit';
-import { CROP_GHOST_NAME, CROP_GHOST_OPACITY, cropGhostSource } from '../utils/cropGhost';
+import { cropAspectRatio, frameForAspect, type CropAspectId } from '../utils/cropAspect';
+import {
+  CROP_GHOST_NAME,
+  CROP_GHOST_OPACITY,
+  cropGhostAttrs,
+  cropGhostSource,
+} from '../utils/cropGhost';
 import {
   getActiveImageFilters,
   hasActiveImageFilters,
   imageFilterAttrs,
 } from '../utils/imageFilters';
-import { isWidgetOwnedKey } from '../utils/keyboardOwnership';
+import { cropKeyOf, userImageKeyCrop } from '../utils/keyboardCrop';
 import { ELEMENT_TRANSFORMER } from '../utils/orientation';
 import { useTrackPendingImage } from '../utils/pendingImages';
 import { recacheNextFrame } from '../utils/recacheNextFrame';
 import { userImageBox } from '../utils/renderedBoxes';
+import {
+  clampPointToStraightPhoto,
+  frameForAspectOnStraightPhoto,
+  panOfStraightPhoto,
+  panStraightPhoto,
+  STRAIGHT_DRAW_ATTR,
+  straightDrawOf,
+  straightFramedPhoto,
+  straightPhotoCovers,
+  straightScaleCrop,
+  straightSceneFunc,
+} from '../utils/straighten';
 import { touchAnchorStyleFunc } from '../utils/touchInput';
 import { userImageCropUpdate } from '../utils/userImageCrop';
 import { USER_PHOTO_NODE_NAME, type UserImageInstance } from '../utils/userImageUtils';
 
 import type Konva from 'konva';
 
-const PAN_KEYS: Record<string, [number, number]> = {
-  ArrowUp: [0, -1],
-  ArrowDown: [0, 1],
-  ArrowLeft: [-1, 0],
-  ArrowRight: [1, 0],
-};
+// Konva hält das Verhältnis nur an den Ecken; Kantengriffe würden es brechen.
+const CORNER_ANCHORS = ['top-left', 'top-right', 'bottom-left', 'bottom-right'];
+const ALL_ANCHORS = [
+  ...CORNER_ANCHORS,
+  'top-center',
+  'middle-right',
+  'middle-left',
+  'bottom-center',
+];
 
 export interface UserImagePrimitiveProps extends SnapProps {
   userImage: UserImageInstance;
@@ -54,6 +76,8 @@ export interface UserImagePrimitiveProps extends SnapProps {
   /** Ausschnitt mode (Canva's crop): double-click or the context bar's button turns it on. */
   isCropping?: boolean;
   onCroppingChange?: (on: boolean) => void;
+  /** Seitenverhältnis-Vorgabe des Zuschneide-Modus: setzt den Rahmen und hält ihn beim Ziehen. */
+  cropAspect?: CropAspectId;
   draggable?: boolean;
 }
 
@@ -66,6 +90,7 @@ function UserImagePrimitiveInner({
   onCropEnd,
   isCropping: cropping = false,
   onCroppingChange,
+  cropAspect = 'free',
   draggable = true,
   ...snapProps
 }: UserImagePrimitiveProps) {
@@ -80,6 +105,7 @@ function UserImagePrimitiveInner({
   const transformerRef = useRef<Konva.Transformer>(null);
   const [image, setImage] = useState<HTMLImageElement | null>(null);
   const [settled, setSettled] = useState<{ src: string; ok: boolean } | null>(null);
+  const appliedAspectRef = useRef<CropAspectId>('free');
 
   useEffect(() => {
     const src = userImage.src;
@@ -116,6 +142,42 @@ function UserImagePrimitiveInner({
     }
   }, [cropping, locked, image]);
 
+  // Eine neu gewählte Vorgabe setzt den Rahmen einmal; danach bewegt ihn nur der Transformer.
+  const aspectActive = cropping && isSelected && !locked;
+  useEffect(() => {
+    if (!aspectActive) {
+      appliedAspectRef.current = 'free';
+      return;
+    }
+    if (!image || appliedAspectRef.current === cropAspect) return;
+    appliedAspectRef.current = cropAspect;
+    const natural = { width: image.naturalWidth, height: image.naturalHeight };
+    const ratio = cropAspectRatio(cropAspect, natural);
+    if (ratio === null) return;
+    const frame = { x: 0, y: 0, width: userImage.width, height: userImage.height };
+    const deg = userImage.fit === 'cover' ? (userImage.cropRotation ?? 0) : 0;
+    const photo =
+      userImage.fit === 'cover'
+        ? straightFramedPhoto(
+            natural,
+            frame,
+            { x: userImage.panX ?? 0, y: userImage.panY ?? 0 },
+            userImage.cropZoom ?? 1,
+            deg
+          )
+        : frame;
+    const window =
+      deg !== 0
+        ? frameForAspectOnStraightPhoto(frame, photo, deg, ratio)
+        : frameForAspect(frame, photo, ratio);
+    const same =
+      Math.abs(window.x) < 0.5 &&
+      Math.abs(window.y) < 0.5 &&
+      Math.abs(window.width - frame.width) < 0.5 &&
+      Math.abs(window.height - frame.height) < 0.5;
+    if (!same) onCropEnd?.(userImageCropUpdate(userImage, natural, photo, window));
+  }, [aspectActive, cropAspect, image, userImage, onCropEnd]);
+
   // Konva filters require the node to be cached first.
   useEffect(() => {
     const node = imageRef.current;
@@ -148,6 +210,7 @@ function UserImagePrimitiveInner({
     userImage.cropZoom,
     userImage.panX,
     userImage.panY,
+    userImage.cropRotation,
     userImage.mask,
   ]);
 
@@ -176,46 +239,15 @@ function UserImagePrimitiveInner({
     if (!keyCropActive) return undefined;
     const onKeyDown = (e: KeyboardEvent) => {
       const current = keyCropRef.current;
-      if (!current.image || e.defaultPrevented || e.ctrlKey || e.metaKey) return;
-      const target = e.target;
-      if (
-        target instanceof HTMLInputElement ||
-        target instanceof HTMLTextAreaElement ||
-        (target instanceof HTMLElement && target.isContentEditable) ||
-        (target instanceof Element && target.closest('[role="menu"]')) ||
-        isWidgetOwnedKey(e)
-      ) {
-        return;
-      }
-      const frame = {
-        x: 0,
-        y: 0,
-        width: current.userImage.width,
-        height: current.userImage.height,
-      };
-      const photo = framedPhotoRect(
+      const key = current.image ? cropKeyOf(e) : null;
+      if (!current.image || !key) return;
+      e.preventDefault();
+      const patch = userImageKeyCrop(
         { width: current.image.naturalWidth, height: current.image.naturalHeight },
-        frame,
-        { x: current.userImage.panX ?? 0, y: current.userImage.panY ?? 0 },
-        current.userImage.cropZoom ?? 1
+        current.userImage,
+        key
       );
-      const step = e.shiftKey ? 10 : 1;
-      const arrow = PAN_KEYS[e.key];
-      if (arrow) {
-        e.preventDefault();
-        const { dx, dy } = clampPan(photo, arrow[0] * step, arrow[1] * step, frame);
-        if (dx === 0 && dy === 0) return;
-        const pan = panOfFramedPhoto({ ...photo, x: photo.x + dx, y: photo.y + dy }, frame);
-        current.onCropEnd?.({ fit: 'cover', panX: pan.x, panY: pan.y });
-        return;
-      }
-      const zoomFactor = e.key === '+' || e.key === '=' ? 1.1 : e.key === '-' ? 1 / 1.1 : null;
-      if (zoomFactor) {
-        e.preventDefault();
-        const from = current.userImage.cropZoom ?? 1;
-        const cropZoom = Math.max(1, from * zoomFactor);
-        if (cropZoom !== from) current.onCropEnd?.({ fit: 'cover', cropZoom });
-      }
+      if (patch) current.onCropEnd?.(patch);
     };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
@@ -227,17 +259,31 @@ function UserImagePrimitiveInner({
   const natural = { width: image.naturalWidth, height: image.naturalHeight };
   const frame = { x: 0, y: 0, width, height };
   const cover = userImage.fit === 'cover';
+  // Begradigt: das Foto dreht sich im Rahmen; Konvas `crop` kann das nicht, `straightSceneFunc` zeichnet.
+  const deg = cover ? (userImage.cropRotation ?? 0) : 0;
+  const turned = deg !== 0;
+  const keptPan = { x: userImage.panX ?? 0, y: userImage.panY ?? 0 };
   const photo = cover
-    ? framedPhotoRect(
-        natural,
-        frame,
-        { x: userImage.panX ?? 0, y: userImage.panY ?? 0 },
-        userImage.cropZoom ?? 1
-      )
+    ? turned
+      ? straightFramedPhoto(natural, frame, keptPan, userImage.cropZoom ?? 1, deg)
+      : framedPhotoRect(natural, frame, keptPan, userImage.cropZoom ?? 1)
     : { ...frame };
   const mirror = { x: !!userImage.flipX, y: !!userImage.flipY };
-  const crop = cover ? visiblePart(natural, photo, frame, mirror)?.crop : undefined;
-  const isCropping = cropping && isSelected && !locked;
+  const crop = cover
+    ? turned
+      ? straightScaleCrop(natural, photo, frame)
+      : visiblePart(natural, photo, frame, mirror)?.crop
+    : undefined;
+  const draw = turned ? straightDrawOf(photo, deg, frame, mirror) : null;
+  // Gedreht mit Schatten: ein Radius > 0 lässt Konva über einen Puffer zeichnen, sonst schnitte der Rahmen den Schatten ab.
+  const cornerRadius =
+    userImage.mask === 'kreis'
+      ? Math.min(width, height) / 2
+      : turned && userImage.shadowColor
+        ? 0.01
+        : 0;
+  const isCropping = aspectActive;
+  const lockedRatio = cropAspectRatio(cropAspect, natural) !== null;
   // The dimmed whole photo mirrors by a negative scale, so its node origin
   // sits on the far edge of a flipped axis.
   const ghostShift = photo
@@ -247,6 +293,18 @@ function UserImagePrimitiveInner({
   const panPhoto = (node: Konva.Node) => {
     const start = panStartRef.current;
     if (!start) return null;
+    if (turned) {
+      // Der Knoten des Restbilds sitzt gedreht auf der Mitte des Fotos.
+      const origin = cropGhostAttrs(start, mirror, deg);
+      const moved = panStraightPhoto(start, deg, frame, node.x() - origin.x, node.y() - origin.y);
+      const placed = cropGhostAttrs(moved, mirror, deg);
+      node.position({ x: placed.x, y: placed.y });
+      if (imageRef.current) {
+        imageRef.current.setAttr(STRAIGHT_DRAW_ATTR, straightDrawOf(moved, deg, frame, mirror));
+        recacheNextFrame(imageRef.current);
+      }
+      return moved;
+    }
     const { dx, dy } = clampPan(
       start,
       node.x() - ghostShift.x - start.x,
@@ -311,12 +369,16 @@ function UserImagePrimitiveInner({
           <Image
             name={`selection-chrome ${CROP_GHOST_NAME}`}
             image={ghostImage ?? image}
-            x={photo.x + ghostShift.x}
-            y={photo.y + ghostShift.y}
-            width={photo.width}
-            height={photo.height}
-            scaleX={mirror.x ? -1 : 1}
-            scaleY={mirror.y ? -1 : 1}
+            {...(turned
+              ? cropGhostAttrs(photo, mirror, deg)
+              : {
+                  x: photo.x + ghostShift.x,
+                  y: photo.y + ghostShift.y,
+                  width: photo.width,
+                  height: photo.height,
+                  scaleX: mirror.x ? -1 : 1,
+                  scaleY: mirror.y ? -1 : 1,
+                })}
             opacity={CROP_GHOST_OPACITY}
             draggable
             onMouseDown={(e) => {
@@ -335,7 +397,9 @@ function UserImagePrimitiveInner({
               const moved = panPhoto(e.target);
               panStartRef.current = null;
               if (!moved) return;
-              const pan = panOfFramedPhoto(moved, frame);
+              const pan = turned
+                ? panOfStraightPhoto(moved, deg, frame, keptPan)
+                : panOfFramedPhoto(moved, frame);
               onCropEnd?.({ fit: 'cover', panX: pan.x, panY: pan.y });
             }}
           />
@@ -348,7 +412,7 @@ function UserImagePrimitiveInner({
           width={width}
           height={height}
           crop={crop}
-          cornerRadius={userImage.mask === 'kreis' ? Math.min(width, height) / 2 : 0}
+          cornerRadius={cornerRadius}
           filters={getActiveImageFilters(userImage)}
           {...imageFilterAttrs(userImage)}
           shadowColor={userImage.shadowColor}
@@ -356,6 +420,7 @@ function UserImagePrimitiveInner({
           shadowOffsetX={userImage.shadowOffsetX}
           shadowOffsetY={userImage.shadowOffsetY}
           shadowOpacity={userImage.shadowOpacity}
+          {...(draw ? { sceneFunc: straightSceneFunc, [STRAIGHT_DRAW_ATTR]: draw } : {})}
         />
 
         {isCropping && (
@@ -377,6 +442,13 @@ function UserImagePrimitiveInner({
                   width: node.width() * node.scaleX(),
                   height: node.height() * node.scaleY(),
                 };
+                if (turned) {
+                  drawn.position(window);
+                  drawn.size(window);
+                  drawn.setAttr(STRAIGHT_DRAW_ATTR, straightDrawOf(photo, deg, window, mirror));
+                  recacheNextFrame(drawn);
+                  return;
+                }
                 const part = visiblePart(natural, photo, window, mirror);
                 if (part) {
                   drawn.position(part.box);
@@ -398,6 +470,7 @@ function UserImagePrimitiveInner({
                 node.setAttrs({ x: 0, y: 0, scaleX: 1, scaleY: 1 });
                 imageRef.current?.position({ x: 0, y: 0 });
                 imageRef.current?.size({ width, height });
+                if (draw) imageRef.current?.setAttr(STRAIGHT_DRAW_ATTR, draw);
                 onCropEnd?.(userImageCropUpdate(userImage, natural, photo, window));
               }}
             />
@@ -405,7 +478,8 @@ function UserImagePrimitiveInner({
               ref={cropTransformerRef}
               name="selection-chrome"
               anchorStyleFunc={touchAnchorStyleFunc}
-              keepRatio={false}
+              keepRatio={lockedRatio}
+              enabledAnchors={lockedRatio ? CORNER_ANCHORS : ALL_ANCHORS}
               rotateEnabled={false}
               flipEnabled={false}
               anchorSize={10}
@@ -417,14 +491,31 @@ function UserImagePrimitiveInner({
                 if (!group) return oldPos;
                 const transform = group.getAbsoluteTransform();
                 const local = transform.copy().invert().point(newPos);
+                if (turned) return transform.point(clampPointToStraightPhoto(local, photo, deg));
                 return transform.point({
                   x: Math.max(photo.x, Math.min(photo.x + photo.width, local.x)),
                   y: Math.max(photo.y, Math.min(photo.y + photo.height, local.y)),
                 });
               }}
-              boundBoxFunc={(oldBox, newBox) =>
-                newBox.width < 16 || newBox.height < 16 ? oldBox : newBox
-              }
+              boundBoxFunc={(oldBox, newBox) => {
+                if (newBox.width < 16 || newBox.height < 16) return oldBox;
+                const group = groupRef.current;
+                // Gedreht hält ein Griff allein nicht alle Ecken auf dem Foto: das prüft der ganze Rahmen.
+                if ((!lockedRatio && !turned) || !group) return newBox;
+                // Mit festem Verhältnis zieht Konva den Griff auf die Diagonale zurück
+                // und kann dabei übers Foto hinausschieben: dann bleibt der Rahmen stehen.
+                const corner = group.getAbsoluteTransform().copy().invert().point(newBox);
+                const scale = group.getAbsoluteScale();
+                const local = {
+                  ...corner,
+                  width: newBox.width / scale.x,
+                  height: newBox.height / scale.y,
+                };
+                const inside = turned
+                  ? straightPhotoCovers(photo, deg, local)
+                  : covers(photo, local);
+                return inside ? newBox : oldBox;
+              }}
             />
           </>
         )}
@@ -487,6 +578,7 @@ export const UserImagePrimitive = memo(UserImagePrimitiveInner, (prevProps, next
   if (prev.cropZoom !== next.cropZoom) return false;
   if (prev.panX !== next.panX) return false;
   if (prev.panY !== next.panY) return false;
+  if (prev.cropRotation !== next.cropRotation) return false;
   if (prev.mask !== next.mask) return false;
   if (prev.shadowColor !== next.shadowColor) return false;
   if (prev.shadowBlur !== next.shadowBlur) return false;
@@ -497,6 +589,7 @@ export const UserImagePrimitive = memo(UserImagePrimitiveInner, (prevProps, next
   if (prevProps.isSelected !== nextProps.isSelected) return false;
   if (prevProps.draggable !== nextProps.draggable) return false;
   if (prevProps.isCropping !== nextProps.isCropping) return false;
+  if (prevProps.cropAspect !== nextProps.cropAspect) return false;
   if (prevProps.stageWidth !== nextProps.stageWidth) return false;
   if (prevProps.stageHeight !== nextProps.stageHeight) return false;
 

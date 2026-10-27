@@ -13,6 +13,7 @@ import { PiFrameCornersFill, PiSquaresFourFill, PiTextAa } from 'react-icons/pi'
 
 import { AssetsSection, CombinedTextSection, FrameSettingsSection } from '../../sidebar/sections';
 import { zoomBackground } from '../../utils/coverFit';
+import { straightenResetFor } from '../../utils/straighten';
 import { chatTab, createCommonSectionEntries, toolsTab, uploadsTab } from '../commonSections';
 import { injectFeatureProps } from '../featureInjector';
 import { getPlaceholder } from '../placeholders';
@@ -593,6 +594,7 @@ export function createImageTwoTextCanvas<
           setState({
             currentImageSrc: objectUrl || '',
             backgroundImageFile: file,
+            ...straightenResetFor(getState()),
           } as Partial<State>);
           saveToHistory(getState());
         },

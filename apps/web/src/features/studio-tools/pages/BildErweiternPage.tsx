@@ -10,7 +10,10 @@ import PageContainer from '../../../components/common/PageContainer';
 import { getToolGradient } from '../../../config/toolTheme';
 import { mintCanvasFromImage } from '../../image-studio/bild-editor-v2/canvasHandoff';
 import { seedCanvasQuery } from '../../image-studio/canvasQuery';
-import { outpaintImage } from '../../image-studio/services/imageEditingService';
+import {
+  outpaintErrorMessage,
+  outpaintImage,
+} from '../../image-studio/services/imageEditingService';
 import { ToolResultCard } from '../components/ToolResultCard';
 import {
   TOOL_ACTIONS,
@@ -39,19 +42,6 @@ const HATCH =
 type Phase = 'preview' | 'processing' | 'error' | 'done';
 
 const UNREADABLE_MESSAGE = 'Dieses Bild kann nicht gelesen werden.';
-
-const errorMessage = (err: unknown): string => {
-  const response = (err as { response?: { status?: number; data?: { error?: unknown } } })
-    ?.response;
-  const status = response?.status;
-  if (status === 400 && typeof response?.data?.error === 'string' && response.data.error) {
-    return response.data.error;
-  }
-  if (status === 429) return 'Dein Bild-Budget für heute ist aufgebraucht.';
-  if (status === 503)
-    return 'Das Budget ist gerade nicht abrufbar. Bitte versuche es später erneut.';
-  return 'Erweitern hat nicht geklappt. Bitte versuche es noch einmal.';
-};
 
 const extensionOf = (dataUrl: string) => (/^data:image\/jpe?g/.test(dataUrl) ? 'jpg' : 'png');
 
@@ -151,7 +141,7 @@ const BildErweiternPage = () => {
     } catch (err) {
       console.error('Bild erweitern fehlgeschlagen', err);
       if (id !== requestId.current) return;
-      setError(errorMessage(err));
+      setError(outpaintErrorMessage(err));
       setPhase('error');
     }
   };
