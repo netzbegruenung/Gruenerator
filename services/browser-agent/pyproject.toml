@@ -1,0 +1,26 @@
+[build-system]
+requires = ["setuptools>=68.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "gruenerator-browser-agent"
+version = "0.1.0"
+description = "Headless browser agent with a filtering egress proxy for Grünerator"
+requires-python = ">=3.13"
+# Der Egress-Proxy nutzt nur die Standardbibliothek. Weitere Abhängigkeiten
+# (browser-use 0.13.14 usw.) kommen mit den späteren Aufgaben dazu.
+dependencies = []
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0.0",
+    "pytest-asyncio>=1.0.0",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+# Das Paket wird im Testlauf nicht installiert; pytest soll `import browser_agent`
+# wie im Image über src/ auflösen.
+pythonpath = ["src"]
+addopts = "-q --strict-markers"
+asyncio_mode = "auto"
