@@ -1,5 +1,5 @@
 import { CustomColorSwatch } from '@ggraphic/editor/components/CustomColorSwatch';
-import { Popover, PopoverContent, PopoverTrigger } from '@gruenerator/ui';
+import { Popover, PopoverContent, PopoverTrigger } from '@ggraphic/editor/ui/popover';
 import { Slider } from 'radix-ui';
 import React, { useId } from 'react';
 import { PiDropHalfBottom } from 'react-icons/pi';

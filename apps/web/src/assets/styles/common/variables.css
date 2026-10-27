@@ -184,6 +184,9 @@
     --editor-accent: var(--primary-500);
     --editor-active-fg: var(--primary-600);
     --editor-active-bg: var(--primary-100);
+    --editor-switch-off: var(--grey-300);
+    --editor-switch-thumb-on: var(--background-color);
+    --editor-switch-thumb-off: var(--background-color);
     --editor-active-soft: var(--primary-50);
     --editor-stack-back: var(--primary-300);
     --editor-stack-mid: var(--primary-200);
@@ -425,6 +428,9 @@
     /* Canva-Layout Editor Surfaces — dark overrides (reused tokens inherit) */
     --editor-active-fg: var(--primary-300);
     --editor-active-bg: var(--primary-900);
+    --editor-switch-off: var(--grey-600);
+    --editor-switch-thumb-on: #ffffff;
+    --editor-switch-thumb-off: var(--font-color);
     --editor-active-soft: var(--primary-950);
     --editor-stack-back: var(--primary-800);
     --editor-stack-mid: var(--primary-700);
@@ -604,6 +610,9 @@
         /* Canva-Layout Editor Surfaces — dark overrides (reused tokens inherit) */
         --editor-active-fg: var(--primary-300);
         --editor-active-bg: var(--primary-900);
+        --editor-switch-off: var(--grey-600);
+        --editor-switch-thumb-on: #ffffff;
+        --editor-switch-thumb-off: var(--font-color);
         --editor-active-soft: var(--primary-950);
         --editor-stack-back: var(--primary-800);
         --editor-stack-mid: var(--primary-700);
