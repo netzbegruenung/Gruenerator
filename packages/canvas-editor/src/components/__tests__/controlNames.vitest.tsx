@@ -16,8 +16,8 @@ import { FloatingFontSizeControl } from '../TopBar/modules/FloatingFontSizeContr
 import { FloatingOpacityControl } from '../TopBar/modules/FloatingOpacityControl';
 import { FloatingShadowControl } from '../TopBar/modules/FloatingShadowControl';
 
-import type { BalkenInstance } from '../../primitives/BalkenGroup';
 import type { SidebarTab } from '../../sidebar/types';
+import type { BalkenInstance } from '../../utils/balkenUtils';
 
 beforeEach(() => {
   // Desktop layout.

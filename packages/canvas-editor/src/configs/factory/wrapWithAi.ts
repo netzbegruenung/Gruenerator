@@ -1,8 +1,8 @@
 import { createChatSection } from '../commonSections';
 
 import type { CanvasAiActionsBase } from '../../ai/applyOperation';
-import type { TemplateAiCapabilities } from '../../ai/types';
 import type { CanvasConfigId } from '../../templates/registry';
+import type { SharepicAiCapabilities } from '../aiCapabilities';
 import type { FullCanvasConfig } from '../types';
 
 /**
@@ -13,7 +13,7 @@ import type { FullCanvasConfig } from '../types';
 export function wrapWithAi<TState, TActions extends CanvasAiActionsBase>(
   base: FullCanvasConfig<TState, TActions>,
   id: CanvasConfigId,
-  capabilities: TemplateAiCapabilities<TState, TActions>
+  capabilities: SharepicAiCapabilities<TState, TActions>
 ): FullCanvasConfig<TState, TActions> {
   return {
     ...base,

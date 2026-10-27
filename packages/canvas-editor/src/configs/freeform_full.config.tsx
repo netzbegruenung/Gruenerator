@@ -18,13 +18,13 @@ import { PiFrameCornersFill, PiSquaresFourFill, PiTextAa } from 'react-icons/pi'
 import { buildAssetCapability } from '../ai/assetCapability';
 import { describeCanvasElements } from '../ai/describeCanvasElements';
 import { buildIllustrationCapability } from '../ai/illustrationCapability';
+import { CANVAS_RECOMMENDED_ASSETS } from '../brand/grueneAssets';
 import { withCardFollowingText } from '../composer/cardFollowsText';
 import { SHAREPIC_COLOR_HEX } from '../composer/composeSharepic';
 import { type LiftedBlock } from '../composer/liftBlock';
 import { AssetsSection } from '../sidebar';
 import { CombinedTextSection } from '../sidebar/sections/CombinedTextSection';
 import { FrameSettingsSection } from '../sidebar/sections/FrameSettingsSection';
-import { CANVAS_RECOMMENDED_ASSETS } from '../utils/canvasAssets';
 
 import { chatTab, createCommonSectionEntries, toolsTab, uploadsTab } from './commonSections';
 import { createBaseActions } from './factory/actionFactories';
@@ -33,7 +33,7 @@ import { makeSectionDefiner } from './factory/defineSection';
 import { injectFeatureProps } from './featureInjector';
 import { createShareSection } from './shareSection';
 
-import type { TemplateAiCapabilities } from '../ai/types';
+import type { SharepicAiCapabilities } from './aiCapabilities';
 import type {
   BaseCanvasState,
   ImageBackgroundState,
@@ -104,7 +104,7 @@ const calculateLayout = (_state: FreeformState): LayoutResult => ({});
 const createFreeformAiCapabilities = (
   width: number,
   height: number
-): TemplateAiCapabilities<FreeformState, FreeformActions> => ({
+): SharepicAiCapabilities<FreeformState, FreeformActions> => ({
   supportedOperations: [
     'set-text',
     'set-background-color',
@@ -256,7 +256,7 @@ export const createFreeformFullConfig = (
   );
 
 const withFreeformAi = (
-  ai: TemplateAiCapabilities<FreeformState, FreeformActions>,
+  ai: SharepicAiCapabilities<FreeformState, FreeformActions>,
   width: number,
   height: number,
   fontColor: string,

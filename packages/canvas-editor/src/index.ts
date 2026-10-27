@@ -1,3 +1,13 @@
+import { GRUENE_KIND_RENDERERS, registerKindRenderers } from './brand/grueneKinds';
+
+// The Grünerator's own element kinds (the Balken) draw wherever this package
+// draws: every canvas the app renders, on screen or offscreen, comes through
+// this entry. Installed here rather than in apps/web's startup like the asset
+// catalogue, because the renderers pull Konva, which the app's first load must
+// not carry. `package.json` lists this file under `sideEffects`, or the
+// bundler would drop the call whenever a consumer uses only re-exports.
+registerKindRenderers(GRUENE_KIND_RENDERERS);
+
 export { MasterCanvasEditor } from './MasterCanvasEditor';
 export { ControllableCanvasWrapper } from './CanvasEditorRouter';
 export type { ControllableCanvasWrapperProps, CanvasInitialPropsMap } from './CanvasEditorRouter';
@@ -29,6 +39,8 @@ export { defineTemplate, registerTemplates } from './templates/registry';
 export type { TemplateDefinition, TemplateId, AnyCanvasConfig } from './templates/registry';
 
 export * from './primitives';
+export { BalkenGroup } from './primitives/BalkenGroup';
+export type { BalkenGroupProps } from './primitives/BalkenGroup';
 export * from './composed';
 export * from './utils';
 export * from './hooks';

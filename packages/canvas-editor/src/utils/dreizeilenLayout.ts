@@ -6,7 +6,7 @@
 
 import { measureTextWidthWithFont } from '@ggraphic/editor/utils/textUtils';
 
-import { SYSTEM_ASSETS } from './canvasAssets';
+import { SYSTEM_ASSETS } from '../brand/grueneAssets';
 
 export interface ColorPair {
   background: string;

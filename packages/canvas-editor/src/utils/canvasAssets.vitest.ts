@@ -2,15 +2,14 @@ import { SYSTEM_STICKERS } from '@gruenerator/shared/stickers';
 import { describe, expect, it } from 'vitest';
 
 import { EMOJI_ASSETS, STICKER_ASSETS, stickerAssetsForLocale } from '../brand/grueneAssetCatalog';
+import { ALL_ASSETS, TEMPLATE_ASSETS } from '../brand/grueneAssets';
 
 import {
-  ALL_ASSETS,
   createStickerInstance,
   getAssetById,
   getAssetBySrc,
   isStickerLikeInstance,
   resolveAssetInstanceSrc,
-  TEMPLATE_ASSETS,
 } from './canvasAssets';
 
 const SHOP_ID = 'asset:0b6f3c1e-8a4d-4f5e-9c2a-7d1e5b3a9f10';

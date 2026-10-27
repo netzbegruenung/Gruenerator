@@ -649,9 +649,12 @@ function GenericCanvasWithRef<
     []
   );
 
+  const describeForShare = config.shareMetadata;
   useCanvasAutoSave(exportedImage, {
     canvasType: config.id,
     canvasState: state,
+    // The hook hands back the `state` passed beside it, typed as its default.
+    shareMetadata: describeForShare && ((s) => describeForShare(s as TState)),
     enabled: autoSaveEnabled,
     captureImage: captureForAutoSaveFlush,
     onShareToken: onAutoSaveShareToken,

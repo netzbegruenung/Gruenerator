@@ -1,4 +1,4 @@
-import type { TemplateAiCapabilities } from '../ai/types';
+import type { SharepicAiCapabilities } from './aiCapabilities';
 import type { StockImageAttribution } from '../common/imageSourceTypes';
 import type { CanvasStageRef } from '../primitives/CanvasStage';
 import type { BackgroundType, TextFieldConfig } from '@ggraphic/editor/configs/unifiedTabs';
@@ -417,6 +417,12 @@ export interface BackgroundControls {
 // FULL CANVAS CONFIGURATION
 // ============================================================================
 
+/** A design as the host's gallery describes it (`FullCanvasConfig.shareMetadata`). */
+export interface ShareDescription {
+  content: Record<string, unknown>;
+  styling: Record<string, unknown>;
+}
+
 export interface FullCanvasConfig<
   TState = Record<string, unknown>,
   TActions = Record<string, unknown>,
@@ -443,6 +449,12 @@ export interface FullCanvasConfig<
    *  repairs what a writer without font metrics (the chat edit path) left
    *  behind. Returns the repaired state, or null when there is nothing to do. */
   normalizeLoadedState?: (state: TState) => TState | null;
+  /**
+   * What the host's gallery stores about an auto-saved design of this
+   * template (`content`, `styling`). Without it, the whole state goes into
+   * `content`.
+   */
+  shareMetadata?: (state: TState) => ShareDescription;
   /** Create action handlers. Both history savers snapshot the committed
    *  state after the action's update; their argument is ignored. */
   createActions: (
@@ -523,7 +535,7 @@ export interface FullCanvasConfig<
    * an AI sidebar tab; templates that don't never see the AI section.
    * See `ai/types.ts` for shape.
    */
-  ai?: TemplateAiCapabilities<TState, TActions>;
+  ai?: SharepicAiCapabilities<TState, TActions>;
 }
 
 // ============================================================================

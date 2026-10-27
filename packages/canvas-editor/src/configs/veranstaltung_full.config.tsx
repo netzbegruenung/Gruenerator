@@ -7,9 +7,10 @@ import { zoomBackground } from '@ggraphic/editor/utils/coverFit';
 import { straightenResetFor } from '@ggraphic/editor/utils/straighten';
 import { PiFrameCornersFill, PiSquaresFourFill, PiTextAa } from 'react-icons/pi';
 
+import { CANVAS_RECOMMENDED_ASSETS } from '../brand/grueneAssets';
 import { AssetsSection, FrameSettingsSection } from '../sidebar/sections';
 import { CombinedTextSection } from '../sidebar/sections/CombinedTextSection';
-import { CANVAS_RECOMMENDED_ASSETS, type AssetInstance } from '../utils/canvasAssets';
+import { type AssetInstance } from '../utils/canvasAssets';
 import { VERANSTALTUNG_CONFIG, calculateVeranstaltungLayout } from '../utils/veranstaltungLayout';
 
 import { chatTab, createCommonSectionEntries, toolsTab, uploadsTab } from './commonSections';
@@ -31,7 +32,7 @@ import { injectFeatureProps } from './featureInjector';
 import { PLACEHOLDER_TEXT } from './placeholders';
 import { createShareSection } from './shareSection';
 
-import type { TemplateAiCapabilities } from '../ai/types';
+import type { SharepicAiCapabilities } from './aiCapabilities';
 import type { StockImageAttribution } from '../common/imageSourceTypes';
 import type { CircleBadgeInstance, CircleBadgeTextLine } from '../primitives';
 import type { FullCanvasConfig, LayoutResult, AdditionalText } from './types';
@@ -320,7 +321,7 @@ function carryDateCircleBadges(
 // AI CAPABILITY
 // ============================================================================
 
-const veranstaltungAiCapabilities: TemplateAiCapabilities<
+const veranstaltungAiCapabilities: SharepicAiCapabilities<
   VeranstaltungFullState,
   VeranstaltungFullActions
 > = {

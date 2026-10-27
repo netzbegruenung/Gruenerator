@@ -28,7 +28,6 @@ import React, { memo, useCallback, useMemo } from 'react';
 import { Group, Rect, Circle, Text } from 'react-konva';
 import useImage from 'use-image';
 
-import { surfaceGlow } from '../brand/theme';
 import { useCanvasEditorServices } from '../CanvasEditorProvider';
 import { plainImageUrls } from '../hostServices';
 import { CanvasText, CanvasImage, CanvasBackground } from '../primitives';
@@ -37,15 +36,16 @@ import { canvasImageSourceUrl } from '../utils/canvasImageSource';
 import { imageRenderInputsAreEqual } from '../utils/imageElementComparison';
 import { backgroundAdjustments } from '../utils/imageFilters';
 import { BACKGROUND_IMAGE_NODE_ID } from '../utils/printImageInfo';
-// Die Aufloesung von x/y/width/height/opacity steht seit #3403 ausserhalb:
-// `templateElementToEntry` braucht dieselbe Rechnung, und zwei Fassungen
-// derselben Arithmetik driften auseinander.
 import {
   coverFitSlot,
   resolveColor,
   resolveImageElementBox,
   resolveValue,
 } from '../utils/resolveElementValue';
+import { surfaceGlow } from '../utils/surfaceGlow';
+// Die Aufloesung von x/y/width/height/opacity steht seit #3403 ausserhalb:
+// `templateElementToEntry` braucht dieselbe Rechnung, und zwei Fassungen
+// derselben Arithmetik driften auseinander.
 import { isTemplateElementRotatable, templateRotationOf } from '../utils/templateRotation';
 
 import type {

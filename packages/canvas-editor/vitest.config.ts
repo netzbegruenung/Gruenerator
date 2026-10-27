@@ -57,7 +57,7 @@ export default defineConfig({
           server: { deps: { inline: ['@tanstack/react-query'] } },
           include: ['**/*.vitest.tsx'],
           environment: 'jsdom',
-          setupFiles: ['./vitest.setup.assets.ts', './vitest.setup.ts'],
+          setupFiles: ['./vitest.setup.assets.ts', './vitest.setup.kinds.ts', './vitest.setup.ts'],
           sequence: { groupOrder: 1 },
         },
       },

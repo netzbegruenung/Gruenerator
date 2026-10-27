@@ -15,15 +15,15 @@ import {
 } from '@gruenerator/contracts';
 
 import {
-  ALL_ASSETS,
   assetMatchesLocale,
   type AssetAudience,
   type CanvasAssetCatalog,
   emojiCodeAssetId,
   emojiCodeSrc,
-  TEMPLATE_ASSETS,
   type UniversalAsset,
 } from '../utils/canvasAssets';
+
+import { ALL_ASSETS, TEMPLATE_ASSETS } from './grueneAssets';
 
 export { registerAssetCatalog } from '../utils/canvasAssets';
 

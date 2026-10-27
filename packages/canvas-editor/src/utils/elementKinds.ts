@@ -17,6 +17,12 @@ export interface ElementKindDef {
    * in `selectedIcons`, and deleting one switches it off (`toggleIcon`).
    */
   remove: Extract<keyof OptionalCanvasActions, `remove${string}`> | null;
+  /**
+   * The host draws the kind: the editor holds its state, stacks, selects and
+   * removes it, but its renderer comes from `registerKindRenderers`. Without
+   * one, the kind draws nothing.
+   */
+  hostRendered?: true;
 }
 
 /**
@@ -28,7 +34,7 @@ export interface ElementKindDef {
  * `CARRIED_INSTANCE_KEYS` to it, so a re-seed cannot drop the kind's state.
  */
 export const ELEMENT_KINDS = [
-  { kind: 'balken', stateKey: 'balkenInstances', remove: 'removeBalken' },
+  { kind: 'balken', stateKey: 'balkenInstances', remove: 'removeBalken', hostRendered: true },
   { kind: 'icon', stateKey: 'selectedIcons', remove: null },
   { kind: 'shape', stateKey: 'shapeInstances', remove: 'removeShape' },
   { kind: 'frame', stateKey: 'frameInstances', remove: 'removeFrame' },
@@ -40,6 +46,12 @@ export const ELEMENT_KINDS = [
   { kind: 'user-image', stateKey: 'userImageInstances', remove: 'removeUserImage' },
   { kind: 'chart', stateKey: 'chartInstances', remove: 'removeChart' },
 ] as const satisfies readonly ElementKindDef[];
+
+/** The kinds whose renderer the host registers (`hostRendered`). */
+export type HostRenderedKindName = Extract<
+  (typeof ELEMENT_KINDS)[number],
+  { hostRendered: true }
+>['kind'];
 
 /** A kind's list in a state, or nothing when the state has none. */
 export function kindList(state: object, stateKey: string): readonly unknown[] {

@@ -1,18 +1,25 @@
 /**
- * Applies a CanvasAiOperation to the active template's actions.
+ * Applies a canvas-AI operation to the active template's actions.
  *
  * Design:
- *   - One exhaustive switch over op.kind. TypeScript's `never` check at the
- *     end forces every kind in the discriminated union to be handled —
- *     adding a new kind to the Zod schema breaks compilation here until
- *     it's mapped.
- *   - Per-template `applyOverrides` take priority over the default path.
+ *   - Generic over the operation union `TOp` (core vocabulary by default).
+ *   - Per-template `applyOverrides` take priority over the default path; they
+ *     are the only path for kinds outside the core vocabulary, which fail
+ *     with "<kind> requires a template applyOverride" otherwise.
+ *   - One exhaustive switch over the core kinds. TypeScript's `never` check
+ *     at the end forces every core kind to be handled — adding a kind to the
+ *     core schema breaks compilation here until it's mapped.
  *     Use them when the conventional action name doesn't apply (e.g.
  *     dreizeilen's `setLine1/2/3`, presentation's `setColorMode`).
  *   - Each op is wrapped in try/catch so one bad op in a multi-op
  *     suggestion doesn't abort the rest.
  */
 import { type ShapeInstance } from '@ggraphic/editor/utils/shapes';
+import {
+  type CanvasAiUpdatePatch,
+  type CoreCanvasAiOperation,
+  isCoreCanvasAiOperation,
+} from '@ggraphic/schema';
 
 import { isLayerLocked } from '../utils/layerLock';
 import { findElementRemover } from '../utils/removeElement';
@@ -20,11 +27,10 @@ import { findElementRemover } from '../utils/removeElement';
 import type { ApplyResult, TemplateAiCapabilities } from './types';
 import type { BaseCanvasState } from '../configs/factory/baseTypes';
 import type { AdditionalText } from '../configs/types';
-import type { BalkenInstance } from '../primitives/BalkenGroup';
+import type { BalkenInstance } from '../utils/balkenUtils';
 import type { CircleBadgeInstance } from '@ggraphic/editor/primitives/CircleBadge';
 import type { FrameInstance } from '@ggraphic/editor/utils/frameUtils';
 import type { PillBadgeInstance } from '@ggraphic/editor/utils/pillBadgeUtils';
-import type { CanvasAiOperation, CanvasAiUpdatePatch } from '@gruenerator/contracts';
 
 export type { ApplyResult };
 
@@ -156,11 +162,16 @@ function pickFontSizeSetter(
   }
 }
 
-export function applyOperation<TState, TActions extends CanvasAiActionsBase>(
-  op: CanvasAiOperation,
+export function applyOperation<
+  TState,
+  TActions extends CanvasAiActionsBase,
+  TOp extends { kind: string } = CoreCanvasAiOperation,
+  TSnapshot = unknown,
+>(
+  op: TOp,
   actions: TActions,
   getState: () => TState,
-  capabilities: TemplateAiCapabilities<TState, TActions>,
+  capabilities: TemplateAiCapabilities<TState, TActions, TOp, TSnapshot>,
   rotate?: RotateElement
 ): ApplyResult {
   const result = applyOne(op, actions, getState, capabilities, rotate);
@@ -168,30 +179,45 @@ export function applyOperation<TState, TActions extends CanvasAiActionsBase>(
   return result;
 }
 
-function applyOne<TState, TActions extends CanvasAiActionsBase>(
-  op: CanvasAiOperation,
+function applyOne<
+  TState,
+  TActions extends CanvasAiActionsBase,
+  TOp extends { kind: string },
+  TSnapshot,
+>(
+  op: TOp,
   actions: TActions,
   getState: () => TState,
-  capabilities: TemplateAiCapabilities<TState, TActions>,
+  capabilities: TemplateAiCapabilities<TState, TActions, TOp, TSnapshot>,
   rotate: RotateElement | undefined
 ): ApplyResult {
   // Per-template override wins
-  const override = capabilities.applyOverrides?.[op.kind];
+  const override = capabilities.applyOverrides?.[op.kind as TOp['kind']];
   if (override) {
     try {
       // Cast safe: override key matches op.kind, so the discriminated union
       // narrows to the same variant the override was typed against.
-      (override as (op: CanvasAiOperation, a: TActions, gs: () => TState) => void)(
-        op,
-        actions,
-        getState
-      );
+      (override as (op: TOp, a: TActions, gs: () => TState) => void)(op, actions, getState);
       return { ok: true };
     } catch (e) {
       return { ok: false, reason: errorReason(e) };
     }
   }
 
+  // A host kind without an override has no default path.
+  if (!isCoreCanvasAiOperation(op)) {
+    return { ok: false, reason: `${op.kind} requires a template applyOverride` };
+  }
+
+  return applyCore(op, actions, getState, rotate);
+}
+
+function applyCore<TState>(
+  op: CoreCanvasAiOperation,
+  actions: CanvasAiActionsBase,
+  getState: () => TState,
+  rotate: RotateElement | undefined
+): ApplyResult {
   try {
     switch (op.kind) {
       case 'set-text': {
@@ -268,12 +294,6 @@ function applyOne<TState, TActions extends CanvasAiActionsBase>(
         return { ok: true };
       }
 
-      case 'toggle-sunflower':
-        return {
-          ok: false,
-          reason: 'toggle-sunflower requires a template applyOverride',
-        };
-
       case 'set-font-size': {
         // Default: map conventional primary/secondary aliases to the standard
         // factory actions. Bespoke templates with custom action names should
@@ -326,7 +346,7 @@ function applyOne<TState, TActions extends CanvasAiActionsBase>(
         };
 
       default: {
-        // Exhaustiveness check — if a new op kind is added to the Zod
+        // Exhaustiveness check — if a new kind is added to the core
         // schema, this line fails to compile until it is handled above.
         const _exhaustive: never = op;
         void _exhaustive;

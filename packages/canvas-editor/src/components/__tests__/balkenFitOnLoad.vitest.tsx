@@ -17,7 +17,7 @@ import { loadCanvasConfig } from '../../configs/configLoader';
 import { balkenExtent } from '../../utils/balkenBounds';
 import { GenericCanvas } from '../GenericCanvas';
 
-import type { BalkenInstance } from '../../primitives/BalkenGroup';
+import type { BalkenInstance } from '../../utils/balkenUtils';
 
 Object.defineProperty(document, 'fonts', {
   configurable: true,
