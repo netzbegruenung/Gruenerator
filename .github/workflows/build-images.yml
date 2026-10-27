@@ -163,11 +163,13 @@ jobs:
             shared:
               - 'packages/shared/**'
               - 'packages/core/**'
+              - 'packages/ggraphic-schema/**'
               - *install
             web:
               - 'apps/web/**'
               - 'packages/shared/**'
               - 'packages/core/**'
+              - 'packages/ggraphic-schema/**'
               - 'packages/contracts/**'
               - 'packages/query/**'
               - 'packages/docs/**'
@@ -190,6 +192,7 @@ jobs:
               - 'services/hocuspocus/**'
               - 'packages/shared/**'
               - 'packages/core/**'
+              - 'packages/ggraphic-schema/**'
               - 'packages/contracts/**'
               - 'packages/query/**'
               - *install
@@ -198,6 +201,7 @@ jobs:
               - 'services/hocuspocus/**'
               - 'packages/shared/**'
               - 'packages/core/**'
+              - 'packages/ggraphic-schema/**'
               - 'packages/contracts/**'
               - 'packages/query/**'
               - *install
@@ -208,6 +212,7 @@ jobs:
               - 'packages/voice/**'
               - 'packages/shared/**'
               - 'packages/core/**'
+              - 'packages/ggraphic-schema/**'
               - 'packages/contracts/**'
               - 'packages/query/**'
               - 'packages/ui/**'

@@ -26,6 +26,7 @@ COPY tsconfig.base.json tsconfig.strict-migration.json ./
 COPY packages/shared/package.json ./packages/shared/
 COPY packages/query/package.json ./packages/query/
 COPY packages/core/package.json ./packages/core/
+COPY packages/ggraphic-schema/package.json ./packages/ggraphic-schema/
 COPY packages/contracts/package.json ./packages/contracts/
 COPY packages/docs/package.json ./packages/docs/
 COPY packages/chat/package.json ./packages/chat/
@@ -57,6 +58,7 @@ RUN --mount=type=cache,id=pnpm,target=/root/.local/share/pnpm/store \
 COPY packages/shared ./packages/shared
 COPY packages/query ./packages/query
 COPY packages/core ./packages/core
+COPY packages/ggraphic-schema ./packages/ggraphic-schema
 COPY packages/contracts ./packages/contracts
 COPY packages/docs ./packages/docs
 COPY packages/chat ./packages/chat

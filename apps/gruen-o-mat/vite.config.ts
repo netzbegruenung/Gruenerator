@@ -33,6 +33,10 @@ export default defineConfig(({ command }) => ({
       //   "Rolldown failed to resolve import '@gruenerator/contracts'
       //    from packages/shared/src/api/contractsClient.ts".
       '@gruenerator/contracts': path.resolve(__dirname, '../../packages/contracts/src'),
+      // contracts re-exports its text model from @ggraphic/schema, whose
+      // `import` condition points at dist (built only for Node services).
+      // Same cascade rule — alias it to src.
+      '@ggraphic/schema': path.resolve(__dirname, '../../packages/ggraphic-schema/src'),
     },
   },
   build: {
