@@ -19,6 +19,7 @@
 import { useEffect, useRef, type CSSProperties, type InputHTMLAttributes } from 'react';
 
 import { activeBrand } from '@ggraphic/editor/brand/brandRegistry';
+import { useMessages } from '@ggraphic/editor/i18n/messages';
 import { cn } from '@ggraphic/editor/utils/cn';
 
 const HEX6 = /^#[0-9a-f]{6}$/i;
@@ -52,6 +53,7 @@ export function CustomColorSwatch({
   disabled = false,
   inputProps,
 }: CustomColorSwatchProps) {
+  const ownColor = useMessages().common.ownColor;
   const inputRef = useRef<HTMLInputElement>(null);
   const hex = value && HEX6.test(value) ? value.toUpperCase() : null;
   const pickRef = useRef(onPick);
@@ -101,7 +103,7 @@ export function CustomColorSwatch({
 
   return (
     <label
-      title="Eigene Farbe"
+      title={ownColor}
       style={style}
       className={cn(
         'relative inline-block shrink-0 cursor-pointer rounded-full border border-black/10 transition-transform hover:scale-110',
@@ -112,7 +114,7 @@ export function CustomColorSwatch({
       <input
         ref={inputRef}
         type="color"
-        aria-label="Eigene Farbe"
+        aria-label={ownColor}
         disabled={disabled}
         defaultValue={(hex ?? activeBrand().colors.primary).toLowerCase()}
         onChange={(e) => onPreview?.(e.target.value.toUpperCase())}

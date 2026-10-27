@@ -9,6 +9,7 @@ import {
   useState,
 } from 'react';
 
+import { messages } from '@ggraphic/editor/i18n/messages';
 import { toast } from '@ggraphic/editor/utils/editorToast';
 
 import { useCanvasEditorServices } from '../CanvasEditorProvider';
@@ -126,10 +127,10 @@ export function UserUploadsProvider({ children }: { children: ReactNode }) {
         id,
         window.setTimeout(() => commitDelete(id), UNDO_WINDOW_MS)
       );
-      toast('Bild gelöscht', {
+      toast(messages().uploads.imageDeleted, {
         duration: UNDO_WINDOW_MS,
         action: {
-          label: 'Rückgängig',
+          label: messages().common.undo,
           onClick: () => {
             const timer = pendingTimersRef.current.get(id);
             if (timer === undefined) return;

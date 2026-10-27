@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: MPL-2.0
+import { messages } from '@ggraphic/editor/i18n/messages';
 import { downscaleImageForUpload } from '@ggraphic/editor/utils/userImageUtils';
 
 import type { CanvasImageUrlService } from '../hostServices';
@@ -13,7 +14,7 @@ export async function fetchShareImageFile(
   urls: CanvasImageUrlService
 ): Promise<File> {
   const response = await fetch(urls.previewUrl(url));
-  if (!response.ok) throw new Error('Bild konnte nicht geladen werden');
+  if (!response.ok) throw new Error(messages().errors.imageLoad);
   const blob = await response.blob();
   const rawFile = new File([blob], filename, { type: blob.type || 'image/jpeg' });
   // This File backs the auto-save `originalImage`, so it should be the working

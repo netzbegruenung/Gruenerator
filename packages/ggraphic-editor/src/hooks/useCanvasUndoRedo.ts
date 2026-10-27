@@ -4,6 +4,7 @@ import { flushSync } from 'react-dom';
 import { useStore } from 'zustand';
 
 import { useAnnounce } from '@ggraphic/editor/hooks/useAnnounce';
+import { messages } from '@ggraphic/editor/i18n/messages';
 import { editorSkipsKey } from '@ggraphic/editor/utils/keyboardOwnership';
 
 import { useCanvasStore } from '../stores/CanvasStoreProvider';
@@ -128,7 +129,7 @@ export function useCanvasUndoRedo<
     flushDebouncedSave();
     if (!getStore().canUndo()) return;
     getStore().undo();
-    announceRef.current('Rückgängig gemacht');
+    announceRef.current(messages().announce.undone);
   }, [flushDebouncedSave, flushImmediateSave]);
 
   // Stable redo function
@@ -137,7 +138,7 @@ export function useCanvasUndoRedo<
     flushDebouncedSave();
     if (!getStore().canRedo()) return;
     getStore().redo();
-    announceRef.current('Wiederhergestellt');
+    announceRef.current(messages().announce.redone);
   }, [flushDebouncedSave, flushImmediateSave]);
 
   // Stable saveToHistory function - flushes any pending debounce first
@@ -192,7 +193,7 @@ export function useCanvasUndoRedo<
         const store = getStore();
         if (store.canUndo()) {
           store.undo();
-          announceRef.current('Rückgängig gemacht');
+          announceRef.current(messages().announce.undone);
         }
       }
 
@@ -207,7 +208,7 @@ export function useCanvasUndoRedo<
         const store = getStore();
         if (store.canRedo()) {
           store.redo();
-          announceRef.current('Wiederhergestellt');
+          announceRef.current(messages().announce.redone);
         }
       }
     };

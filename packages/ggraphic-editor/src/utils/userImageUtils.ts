@@ -1,4 +1,6 @@
 // SPDX-License-Identifier: MPL-2.0
+import { messages } from '@ggraphic/editor/i18n/messages';
+
 import { type StockImageAttribution } from '../common/imageSourceTypes';
 
 export interface UserImageInstance {
@@ -97,10 +99,34 @@ export interface CropPreset {
 }
 
 export const CROP_PRESETS: readonly CropPreset[] = [
-  { id: 'original', label: 'Original' },
-  { id: 'quadrat', label: 'Quadrat', ratio: 1 },
-  { id: 'kreis', label: 'Kreis', ratio: 1, mask: 'kreis' },
-  { id: 'streifen', label: 'Streifen', ratio: 3 },
+  {
+    id: 'original',
+    get label() {
+      return messages().crop.original;
+    },
+  },
+  {
+    id: 'quadrat',
+    get label() {
+      return messages().crop.square;
+    },
+    ratio: 1,
+  },
+  {
+    id: 'kreis',
+    get label() {
+      return messages().crop.circle;
+    },
+    ratio: 1,
+    mask: 'kreis',
+  },
+  {
+    id: 'streifen',
+    get label() {
+      return messages().crop.strip;
+    },
+    ratio: 3,
+  },
 ];
 
 /** The frame a crop preset gives the image: same width, same centre, the preset's shape. */

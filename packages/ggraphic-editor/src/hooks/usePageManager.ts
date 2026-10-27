@@ -19,6 +19,7 @@ import * as Y from 'yjs';
 
 import { readPages } from '@ggraphic/editor/collab/pagesDoc';
 import { extractInheritablePageState } from '@ggraphic/editor/configs/pageInheritance';
+import { messages } from '@ggraphic/editor/i18n/messages';
 import { getTemplate, type TemplateId } from '@ggraphic/editor/templates/registry';
 
 import { HOST_EMITTED_STATE_KEYS } from '../collab/pageElementStateKeys';
@@ -363,7 +364,7 @@ export function usePageManager<TId extends string = TemplateId>({
       const id = uuid();
       yjsPages.addPage({ id, configId, state: newPageState });
       setCurrentPageId(id);
-      announceRef.current?.(`Seite ${liveViews.length + 1} hinzugefügt`);
+      announceRef.current?.(messages().announce.pageAdded(liveViews.length + 1));
     },
     [canAddMore, yjsPages, ydoc, currentPageId, getConfigForPage]
   );
@@ -385,7 +386,7 @@ export function usePageManager<TId extends string = TemplateId>({
     if (newId) {
       setCurrentPageId(newId);
       const at = liveRef.current.pages.findIndex((p) => p.id === id);
-      if (at >= 0) announceRef.current?.(`Seite ${at + 1} dupliziert`);
+      if (at >= 0) announceRef.current?.(messages().announce.pageDuplicated(at + 1));
     }
   }, []);
 
@@ -411,7 +412,7 @@ export function usePageManager<TId extends string = TemplateId>({
     api.removePage(id);
     setCurrentPageId(nextId);
     const at = livePages.findIndex((p) => p.id === id);
-    if (at >= 0) announceRef.current?.(`Seite ${at + 1} entfernt`);
+    if (at >= 0) announceRef.current?.(messages().announce.pageRemoved(at + 1));
   }, []);
 
   /**
@@ -457,12 +458,12 @@ export function usePageManager<TId extends string = TemplateId>({
   const undoPageOp = useCallback(() => {
     if (!yjsPages) return;
     yjsPages.undoPageOp();
-    if (yjsPages.canUndoPageOp) announceRef.current?.('Rückgängig gemacht');
+    if (yjsPages.canUndoPageOp) announceRef.current?.(messages().announce.undone);
   }, [yjsPages]);
   const redoPageOp = useCallback(() => {
     if (!yjsPages) return;
     yjsPages.redoPageOp();
-    if (yjsPages.canRedoPageOp) announceRef.current?.('Wiederhergestellt');
+    if (yjsPages.canRedoPageOp) announceRef.current?.(messages().announce.redone);
   }, [yjsPages]);
   const discardReplaceDeck = yjsPages?.discardReplaceDeck ?? noopUndo;
   const replaceDeck = yjsPages?.replaceDeck ?? null;

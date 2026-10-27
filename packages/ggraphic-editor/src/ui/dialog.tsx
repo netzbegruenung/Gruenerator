@@ -3,6 +3,8 @@ import { XIcon } from 'lucide-react';
 import { Dialog as DialogPrimitive } from 'radix-ui';
 import * as React from 'react';
 
+import { useMessages } from '@ggraphic/editor/i18n/messages';
+
 import { cn } from '../utils/cn';
 
 // Radix treats a click inside a toast as an outside click and would close the
@@ -61,6 +63,7 @@ function DialogContent({
   overlayProps?: React.ComponentProps<typeof DialogPrimitive.Overlay> &
     Record<`data-${string}`, string>;
 }) {
+  const closeLabel = useMessages().common.close;
   return (
     <DialogPortal data-slot="dialog-portal">
       <DialogOverlay {...overlayProps} />
@@ -87,7 +90,7 @@ function DialogContent({
             className="absolute top-3 right-3 flex size-9 items-center justify-center rounded-md opacity-70 ring-offset-background-pure transition-opacity hover:opacity-100 focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:outline-hidden disabled:pointer-events-none data-[state=open]:bg-hover-alt pointer-coarse:top-2 pointer-coarse:right-2 pointer-coarse:size-11 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4"
           >
             <XIcon />
-            <span className="sr-only">Schließen</span>
+            <span className="sr-only">{closeLabel}</span>
           </DialogPrimitive.Close>
         )}
       </DialogPrimitive.Content>

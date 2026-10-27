@@ -9,6 +9,7 @@
  * Eine Mehrfach-Aktion ist ein Schritt im Verlauf.
  */
 
+import { messages } from '@ggraphic/editor/i18n/messages';
 import {
   alignDelta,
   distributeDeltas,
@@ -130,11 +131,13 @@ const RESIZE_MODES: Partial<Record<OrientableKind, ResizeMode>> = {
   'circle-badge': 'uniform',
 };
 
-const LAYER_STEP_MESSAGES: Readonly<Record<LayerStep, string>> = {
-  front: 'Ganz nach vorn',
-  forward: 'Eine Ebene nach vorn',
-  backward: 'Eine Ebene nach hinten',
-  back: 'Ganz nach hinten',
+const LAYER_STEP_MESSAGES: Readonly<
+  Record<LayerStep, 'layerFront' | 'layerForward' | 'layerBackward' | 'layerBack'>
+> = {
+  front: 'layerFront',
+  forward: 'layerForward',
+  backward: 'layerBackward',
+  back: 'layerBack',
 };
 
 export interface CanvasCommands {
@@ -184,15 +187,16 @@ export function createCanvasCommands<TState extends Partial<BaseCanvasState>>(
   /** „Text: Klimaschutz“ bei einem Element, „3 Elemente“ bei mehreren; null ohne Treffer. */
   const describe = (ids: readonly string[]): string | null => {
     if (ids.length === 0) return null;
-    if (ids.length > 1) return `${ids.length} Elemente`;
+    if (ids.length > 1) return messages().common.elements(ids.length);
     const item = ctx.getRenderList().find((entry) => entry.id === ids[0]);
-    return item ? layerLabel(item, ctx.getState()) : 'Element';
+    return item ? layerLabel(item, ctx.getState()) : messages().common.element;
   };
   /** `verb` steht hinter mehreren Elementen, `lead` vor einem einzelnen: „Gelöscht: Text“ / „3 Elemente gelöscht“. */
   const say = (ids: readonly string[], lead: string, verb: string) => {
     const what = describe(ids);
     if (!what) return;
-    ctx.announce?.(ids.length === 1 ? `${lead}: ${what}` : `${what} ${verb}`);
+    const m = messages().announce;
+    ctx.announce?.(ids.length === 1 ? m.leadWhat(lead, what) : m.whatVerb(what, verb));
   };
 
   const commit = (next: TState, selectIds: readonly string[]) => {
@@ -228,7 +232,7 @@ export function createCanvasCommands<TState extends Partial<BaseCanvasState>>(
   };
 
   const copy = () => {
-    if (copyQuietly()) say(selection(), 'Kopiert', 'kopiert');
+    if (copyQuietly()) say(selection(), messages().announce.copied, messages().announce.copiedMany);
   };
 
   /** Löscht die Auswahl; false, wenn nichts davon entfernbar war. `lead`/`verb` wählen die Ansage. */
@@ -248,7 +252,10 @@ export function createCanvasCommands<TState extends Partial<BaseCanvasState>>(
     if (removable.length === 1) removable[0]!.remove();
     else ctx.runHistoryBatch(() => removable.forEach((entry) => entry.remove()));
     ctx.store.getState().setSelectedElement(null);
-    if (label) ctx.announce?.(removedIds.length === 1 ? `${lead}: ${label}` : `${label} ${verb}`);
+    if (label) {
+      const m = messages().announce;
+      ctx.announce?.(removedIds.length === 1 ? m.leadWhat(lead, label) : m.whatVerb(label, verb));
+    }
     return true;
   };
 
@@ -257,7 +264,7 @@ export function createCanvasCommands<TState extends Partial<BaseCanvasState>>(
    * Gesperrtes bleibt still stehen — das Schloss sagt schon, warum.
    */
   const remove = () => {
-    if (removeSelection('Gelöscht', 'gelöscht')) return;
+    if (removeSelection(messages().announce.deleted, messages().announce.deletedMany)) return;
     const state = ctx.getState();
     const actions = ctx.getActions();
     const renderList = ctx.getRenderList();
@@ -266,8 +273,8 @@ export function createCanvasCommands<TState extends Partial<BaseCanvasState>>(
     if (!what) return;
     ctx.announce?.(
       bound.length === 1
-        ? `Gehört zur Vorlage und lässt sich nicht löschen: ${what}`
-        : `${what} gehören zur Vorlage und lassen sich nicht löschen`
+        ? messages().announce.templateBound(what)
+        : messages().announce.templateBoundMany(what)
     );
   };
 
@@ -289,7 +296,9 @@ export function createCanvasCommands<TState extends Partial<BaseCanvasState>>(
     }
     commit(next, newIds);
     ctx.announce?.(
-      newIds.length === 1 ? 'Element eingefügt' : `${newIds.length} Elemente eingefügt`
+      newIds.length === 1
+        ? messages().announce.pasted
+        : messages().announce.pastedMany(newIds.length)
     );
   };
 
@@ -308,7 +317,9 @@ export function createCanvasCommands<TState extends Partial<BaseCanvasState>>(
     commit(next, newIds);
     if (label) {
       ctx.announce?.(
-        newIds.length === 1 ? `Dupliziert: ${label}` : `${newIds.length} Elemente dupliziert`
+        newIds.length === 1
+          ? messages().announce.duplicated(label)
+          : messages().announce.duplicatedMany(newIds.length)
       );
     }
   };
@@ -322,7 +333,7 @@ export function createCanvasCommands<TState extends Partial<BaseCanvasState>>(
     const next = { ...ctx.getState(), layerOrder };
     ctx.setState(next);
     ctx.saveToHistory(next);
-    ctx.announce?.(LAYER_STEP_MESSAGES[step]);
+    ctx.announce?.(messages().announce[LAYER_STEP_MESSAGES[step]]);
   };
 
   const toggleLock = () => {
@@ -338,11 +349,16 @@ export function createCanvasCommands<TState extends Partial<BaseCanvasState>>(
     const nowLocked = ids.every((id) => locked.includes(id));
     if (ids.length === 1) {
       // Der Name trägt „, gesperrt“ schon, wenn er vor dem Umschalten gelesen wurde.
+      const m = messages();
       ctx.announce?.(
-        `${nowLocked ? 'Gesperrt' : 'Entsperrt'}: ${label.replace(/, gesperrt$/, '')}`
+        m.announce.leadWhat(
+          nowLocked ? m.announce.locked : m.announce.unlocked,
+          label.replace(m.layers.lockedSuffix, '')
+        )
       );
     } else {
-      ctx.announce?.(`${label} ${nowLocked ? 'gesperrt' : 'entsperrt'}`);
+      const m = messages().announce;
+      ctx.announce?.(m.whatVerb(label, nowLocked ? m.lockedMany : m.unlockedMany));
     }
   };
 
@@ -572,7 +588,7 @@ export function createCanvasCommands<TState extends Partial<BaseCanvasState>>(
     copy,
     cut: () => {
       copyQuietly();
-      removeSelection('Ausgeschnitten', 'ausgeschnitten');
+      removeSelection(messages().announce.cut, messages().announce.cutMany);
     },
     paste,
     duplicate,
