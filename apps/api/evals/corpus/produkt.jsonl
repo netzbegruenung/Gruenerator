@@ -8,12 +8,12 @@
 {"id":"produkt-was-ist-neu","prompt":"Was ist neu im Grünerator?","category":"produkt","expect":{"productGrounded":true}}
 {"id":"produkt-konto-loeschen","prompt":"Wie lösche ich mein Konto?","category":"produkt","expect":{"productGrounded":true,"topicsCovered":["Einstellungen"],"answerMustNotContain":["an den Support"]}}
 {"id":"produkt-chatgpt","prompt":"Wie verbinde ich den Grünerator mit ChatGPT?","category":"produkt","expect":{"productGrounded":true,"topicsCovered":["MCP"]}}
-{"id":"produkt-explainable","prompt":"Was ist ein Explainable?","category":"produkt","expect":{"productGrounded":true,"topicsCovered":["einfache Sprache|einfacher Sprache|Erklär"]}}
-{"id":"produkt-rezepte-instagram","prompt":"Welche Rezepte gibt es für Instagram?","category":"produkt","expect":{"productGrounded":true,"topicsCovered":["@"]}}
+{"id":"produkt-explainable","prompt":"Was ist ein Explainable?","category":"produkt","expect":{"topicsCovered":["Erklärbild|gemalt"],"toolsMustNotInclude":["web_search"]}}
+{"id":"produkt-rezepte-instagram","prompt":"Welche Rezepte gibt es für Instagram?","category":"produkt","expect":{"productGrounded":true,"topicsCovered":["Instagram"],"toolsMustNotInclude":["web_search"]}}
 {"id":"produkt-app","prompt":"Gibt es den Grünerator als App fürs Handy?","category":"produkt","expect":{"productGrounded":true,"topicsCovered":["Android|iPhone|iOS"],"answerMustNotContain":["keine App","gibt es derzeit nicht"]}}
 {"id":"produkt-co2","prompt":"Wie viel CO2 verbraucht eine Anfrage beim Grünerator?","category":"produkt","expect":{"productGrounded":true}}
 {"id":"produkt-papierkorb","prompt":"Wo finde ich gelöschte Dokumente wieder und wie lange bleiben die drin?","category":"produkt","expect":{"productGrounded":true,"topicsCovered":["Papierkorb","30 Tage"]}}
-{"id":"produkt-oeko-modus","prompt":"Was macht der Öko-Modus bei der Transkription?","category":"produkt","expect":{"productGrounded":true,"topicsCovered":["GreenPT"]}}
+{"id":"produkt-oeko-modus","prompt":"Was macht der Öko-Modus bei der Transkription?","category":"produkt","expect":{"topicsCovered":["GreenPT","Voxtral"],"toolsMustNotInclude":["web_search"],"answerMustNotContain":["geht nicht hervor","gibt es keine"]}}
 {"id":"produkt-podcast","prompt":"Kann ich aus einer Notebook-Antwort einen Podcast machen?","category":"produkt","expect":{"productGrounded":true,"topicsCovered":["anhören|Stimmen"]}}
 {"id":"produkt-oesterreich","prompt":"Gibt es den Grünerator auch für Österreich?","category":"produkt","expect":{"productGrounded":true,"topicsCovered":["Österreich"]}}
 {"id":"produkt-kontrolle-auftrag","prompt":"Schreib einen kurzen Instagram-Post über die Pandas im Tiergarten Schönbrunn","category":"produkt","expect":{"routingNot":["hilfe"],"toolsMustNotInclude":["product_knowledge","gruenerator_docs_search"],"answerMustNotContain":["Modellstufe"]}}

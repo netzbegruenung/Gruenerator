@@ -20,7 +20,8 @@ import {
 const SEARCH_TOOL_RE = /search/i;
 const INTERNAL_TOOL = 'gruenerator_search';
 const WEB_TOOLS = ['web_search', 'scrape_url'];
-const PRODUCT_TOOLS = ['product_knowledge', 'gruenerator_docs_search'];
+// `recipes` lists the live recipe registry — as much a product source as the docs.
+const PRODUCT_TOOLS = ['product_knowledge', 'gruenerator_docs_search', 'recipes'];
 const DOKU_URL_RE = /https?:\/\/doku\.gruenerator\.eu(\/[^\s)\]>"'`*,]*)?/gi;
 const DOKU_PAGE_PATHS = new Set(DOCS_PAGES.map((p) => p.url.toLowerCase()));
 
