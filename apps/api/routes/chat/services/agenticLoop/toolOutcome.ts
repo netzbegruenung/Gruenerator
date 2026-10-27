@@ -179,7 +179,8 @@ type PayloadSpec =
   | { render: (result: Record<string, unknown>) => string | null; label: string };
 
 /**
- * `website_erkunden` gibt `{ summary, screenshots, fehlend, schritte }` zurück
+ * `website_erkunden` gibt `{ summary, screenshots, fehlend, schritte, abgebrochen,
+ * zeitlimit }` zurück
  * und registriert keine Quelle. Ohne diesen Eintrag las der Schreiber „du hast
  * NICHTS recherchiert" und antwortete live am 27.10.2026, er könne keine
  * Screenshots erstellen — direkt unter der Karte mit den zwei Screenshots.
@@ -194,13 +195,24 @@ function renderWebsiteErkunden(result: Record<string, unknown>): string | null {
     : [];
   const fehlend = typeof result.fehlend === 'number' ? result.fehlend : 0;
   const summary = typeof result.summary === 'string' ? result.summary.trim() : '';
+  // Drei Ausgänge, drei Überschriften. Ein Teilergebnis (`zeitlimit`) ist KEIN
+  // Erfolg: der Auftrag kann unerledigt sein, auch wenn Screenshots vorliegen.
+  const partial = result.zeitlimit === true;
+  const aborted = result.abgebrochen === true;
+  const headline = aborted
+    ? `Die Person hat die Erkundung nach ${schritte} Schritten abgebrochen.`
+    : partial
+      ? `Teilergebnis – Zeitlimit erreicht: Der Browser wurde nach ${schritte} Schritten vorzeitig gestoppt. Der Auftrag ist womöglich NICHT vollständig erledigt — sag das ehrlich und behaupte keinen vollständigen Erfolg.`
+      : `Ein echter Browser hat die Website in diesem Turn in ${schritte} Schritten bedient — erfolgreich.`;
+  const shots =
+    names.length === 0
+      ? 'Es wurden keine Screenshots gespeichert.'
+      : partial || aborted
+        ? `Bis zum Stopp gespeichert und der Person als Galerie in der Karte zur Website-Erkundung angezeigt: ${names.join(', ')}. Nur diese Screenshots gibt es. Füge keine Bild-Links oder Markdown-Bilder ein.`
+        : `${names.length} Screenshot(s) wurden gespeichert und werden der Person bereits als Galerie in der Karte zur Website-Erkundung angezeigt: ${names.join(', ')}. Du HAST diese Screenshots erstellt — behaupte NIE, du könntest keine Screenshots machen. Füge keine Bild-Links oder Markdown-Bilder ein.`;
   const lines = [
-    result.abgebrochen === true
-      ? `Die Person hat die Erkundung nach ${schritte} Schritten abgebrochen.`
-      : `Ein echter Browser hat die Website in diesem Turn in ${schritte} Schritten bedient — erfolgreich.`,
-    names.length > 0
-      ? `${names.length} Screenshot(s) wurden gespeichert und werden der Person bereits als Galerie in der Karte zur Website-Erkundung angezeigt: ${names.join(', ')}. Du HAST diese Screenshots erstellt — behaupte NIE, du könntest keine Screenshots machen. Füge keine Bild-Links oder Markdown-Bilder ein.`
-      : 'Es wurden keine Screenshots gespeichert.',
+    headline,
+    shots,
     ...(fehlend > 0 ? [`${fehlend} der gewünschten Screenshots fehlen — sag das ehrlich.`] : []),
     ...(summary
       ? [`Bericht des Browsers (gib ihn auf Deutsch wieder, auch wenn er englisch ist): ${summary}`]

@@ -211,6 +211,28 @@ describe('buildSynthSystem — Quellenblock', () => {
     expect(prompt).toContain('Antworte auf Deutsch');
   });
 
+  it('stellt einen website_erkunden mit Zeitlimit nicht als Erfolg dar', () => {
+    const steps: PersistedStep[] = [
+      {
+        toolName: 'website_erkunden',
+        result: {
+          summary:
+            'Teilergebnis (Zeitlimit erreicht, der Browser wurde vorzeitig gestoppt) nach 9 Schritten.',
+          screenshots: [{ name: 'homepage.png', url: '/api/compute-assets/a.png' }],
+          fehlend: 1,
+          schritte: 9,
+          abgebrochen: false,
+          zeitlimit: true,
+        },
+      } as never,
+    ];
+    const prompt = buildSynthSystem('', ctx({ steps }));
+    expect(prompt).not.toContain('hast du NICHTS recherchiert');
+    expect(prompt).toContain('Teilergebnis – Zeitlimit erreicht');
+    expect(prompt).toContain('homepage.png');
+    expect(prompt).not.toContain('Schritten bedient — erfolgreich');
+  });
+
   it('lässt den Hinweis stehen, wenn dasselbe Werkzeug NICHTS lieferte', () => {
     const steps: PersistedStep[] = [
       {

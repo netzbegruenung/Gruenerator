@@ -114,6 +114,9 @@ Sendet keine Formulare ab, kauft nichts und meldet sich nirgends an.`,
       let summary = '';
       let status: BrowserSessionStatus = 'running';
       let abgebrochen = false;
+      // Teilergebnis: Dienst-Deckel (`done.timed_out`) oder Zeitlimit des Loops.
+      // Ein eigenes Feld, damit der Schreiber es nicht am Summary-Präfix erraten muss.
+      let zeitlimit = false;
       let error: string | null = null;
 
       const persist = () => {
@@ -162,6 +165,7 @@ Sendet keine Formulare ab, kauft nichts und meldet sich nirgends an.`,
             sse.send('browser_session_update', { id, screenshot: shot });
           } else if (event.type === 'done') {
             status = 'done';
+            zeitlimit = event.timed_out;
             summary = event.timed_out ? `${TIMEOUT_PREFIX}: ${event.summary}` : event.summary;
           } else {
             log.warn(`[website_erkunden] service error: ${event.message}`);
@@ -179,6 +183,7 @@ Sendet keine Formulare ab, kauft nichts und meldet sich nirgends an.`,
         if (isAbort(err, abortSignal) && isTimeout(abortSignal)) {
           // Time limit, not a Stop: what was seen so far is a partial result.
           status = 'done';
+          zeitlimit = true;
           summary = `${TIMEOUT_PREFIX} nach ${steps.length} Schritten.`;
         } else if (isAbort(err, abortSignal)) {
           abgebrochen = true;
@@ -204,6 +209,7 @@ Sendet keine Formulare ab, kauft nichts und meldet sich nirgends an.`,
         fehlend: Math.max(0, (screenshots_erwartet ?? 0) - screenshots.length),
         schritte: steps.length,
         abgebrochen,
+        zeitlimit,
       };
     },
   });

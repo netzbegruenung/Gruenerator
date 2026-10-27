@@ -138,7 +138,12 @@ describe('website_erkunden', () => {
 
     const last = sent[sent.length - 1];
     expect(last?.payload).toMatchObject({ id, status: 'done', summary: 'Gefunden.' });
-    expect(result).toMatchObject({ summary: 'Gefunden.', schritte: 2, abgebrochen: false });
+    expect(result).toMatchObject({
+      summary: 'Gefunden.',
+      schritte: 2,
+      abgebrochen: false,
+      zeitlimit: false,
+    });
     expect(state.browserSession).toMatchObject({
       id,
       status: 'done',
@@ -169,6 +174,7 @@ describe('website_erkunden', () => {
     const { ctx } = makeCtx();
     const result = await run(makeWebsiteErkundenTool(ctx), INPUT);
     expect(String(result.summary)).toMatch(/Teilergebnis/);
+    expect(result.zeitlimit).toBe(true);
   });
 
   it('aborts the service run when the loop signal aborts', async () => {
@@ -203,6 +209,7 @@ describe('website_erkunden', () => {
     const { ctx, sent, state } = makeCtx();
     const result = await run(makeWebsiteErkundenTool(ctx), INPUT, controller.signal);
     expect(result.abgebrochen).toBe(false);
+    expect(result.zeitlimit).toBe(true);
     expect(String(result.summary)).toMatch(/Teilergebnis.*Zeitlimit/);
     expect(state.browserSession?.summary).toMatch(/Teilergebnis/);
     expect(state.browserSession?.status).toBe('done');

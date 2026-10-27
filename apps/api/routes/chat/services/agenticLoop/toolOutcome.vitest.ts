@@ -310,6 +310,29 @@ describe('buildToolPayloadNote', () => {
     expect(note).not.toContain('/x.png');
   });
 
+  it('meldet ein Zeitlimit als Teilergebnis, nicht als Erfolg', () => {
+    const note = buildToolPayloadNote([
+      step({
+        toolName: 'website_erkunden',
+        result: {
+          summary: 'Teilergebnis (Zeitlimit erreicht, der Browser wurde vorzeitig gestoppt): Halb.',
+          screenshots: [{ name: 'start.png', url: '/x.png' }],
+          fehlend: 1,
+          schritte: 7,
+          abgebrochen: false,
+          zeitlimit: true,
+        },
+      }),
+    ]);
+    expect(note).toContain('Teilergebnis – Zeitlimit erreicht');
+    expect(note).toContain('nach 7 Schritten vorzeitig gestoppt');
+    expect(note).toContain('Bis zum Stopp gespeichert');
+    expect(note).toContain('start.png');
+    expect(note).toContain('1 der gewünschten Screenshots fehlen');
+    expect(note).not.toContain('erfolgreich');
+    expect(note).not.toContain('Du HAST');
+  });
+
   it('überlässt einen gescheiterten website_erkunden dem Fehler-Hinweis', () => {
     expect(
       buildToolPayloadNote([
