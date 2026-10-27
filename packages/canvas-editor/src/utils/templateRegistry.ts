@@ -1,166 +1,30 @@
 /**
  * Template Registry - Metadata for all canvas templates
  *
- * Provides display information for template selection UI.
- * Keeps template metadata in one place for easy maintenance.
+ * Provides display information for template selection UI. The metadata
+ * itself lives with each template in `templates/registry.ts`.
  */
 
 import { DEFAULT_FORMAT_ID, getCanvasFormatOrDefault, pinnedFormatId } from '../formats';
+import { BUILTIN_TEMPLATES } from '../templates/registry';
 
 import type { BrandLocale } from '../brand/theme';
 import type { CanvasConfigId } from '../configs/types';
+import type { TemplateAudience, TemplateCategory, TemplatePickerInfo } from '../templates/registry';
 
-export type TemplateCategory = 'sharepic' | 'slider' | 'profilbild';
+export type { TemplateAudience, TemplateCategory } from '../templates/registry';
 
-/** Which audience a template is offered to. Undefined is treated as 'de-DE'. */
-export type TemplateAudience = 'all' | BrandLocale;
-
-export interface TemplateInfo {
+export interface TemplateInfo extends TemplatePickerInfo {
   id: CanvasConfigId;
-  label: string;
-  description: string;
-  previewImage: string;
-  category: TemplateCategory;
-  /** Audience gating — omitted defaults to 'de-DE'. */
-  audience?: TemplateAudience;
-  /**
-   * Lays out on the canvas's own format (see `configLoader`). Without it the
-   * template has one fixed 4:5 sheet and belongs only in 4:5 documents.
-   */
-  followsFormat?: true;
-  /** Opened by its own host only (the sticker creator), never offered in a picker. */
-  hiddenFromPicker?: true;
 }
 
 /**
- * Registry of all available canvas templates with their display metadata
+ * Display metadata of every built-in template, derived from
+ * `BUILTIN_TEMPLATES` (picker order).
  */
-export const TEMPLATE_REGISTRY: Record<CanvasConfigId, TemplateInfo> = {
-  dreizeilen: {
-    id: 'dreizeilen',
-    label: '3 Zeilen',
-    description: 'Drei Textzeilen auf Foto oder Farbfläche',
-    previewImage: '/imagine/previews/dreizeilen-preview.webp',
-    category: 'sharepic',
-  },
-  zitat: {
-    id: 'zitat',
-    label: 'Zitat',
-    description: 'Zitat auf Foto oder Farbfläche',
-    previewImage: '/imagine/previews/zitat-preview.webp',
-    category: 'sharepic',
-  },
-  'zitat-pure': {
-    id: 'zitat-pure',
-    label: 'Zitat Pur',
-    description: 'Zitat auf Farbfläche oder Foto',
-    previewImage: '/imagine/previews/zitat-pure-preview.webp',
-    category: 'sharepic',
-  },
-  simple: {
-    id: 'simple',
-    label: 'Einfach',
-    description: 'Überschrift und Unterzeile auf Foto oder Farbfläche',
-    previewImage: '/imagine/previews/simple-preview.webp',
-    category: 'sharepic',
-  },
-  info: {
-    id: 'info',
-    label: 'Info',
-    description: 'Überschrift und Text auf Farbfläche oder Foto',
-    previewImage: '/imagine/previews/info-preview.webp',
-    category: 'sharepic',
-  },
-  veranstaltung: {
-    id: 'veranstaltung',
-    label: 'Event',
-    description: 'Veranstaltungsankündigung',
-    previewImage: '/imagine/previews/veranstaltung-preview.webp',
-    category: 'sharepic',
-  },
-  slider: {
-    id: 'slider',
-    label: 'Slider',
-    description: 'Slider-Post mit Pill-Badge und Pfeil',
-    previewImage: '/imagine/previews/slider-preview.webp',
-    category: 'slider',
-  },
-  freeform: {
-    id: 'freeform',
-    label: 'Freies Design',
-    description: 'Leere Leinwand zum freien Gestalten',
-    previewImage: '/imagine/previews/freeform-preview.webp',
-    category: 'sharepic',
-    followsFormat: true,
-  },
-  profilbild: {
-    id: 'profilbild',
-    label: 'Profilbild',
-    description: 'Profilbild mit transparentem Vordergrund auf farbigem Hintergrund',
-    previewImage: '/imagine/previews/profilbild-preview.webp',
-    category: 'profilbild',
-  },
-  sticker: {
-    id: 'sticker',
-    label: 'Sticker',
-    description: 'Transparente Fläche für einen Sticker',
-    previewImage: '/imagine/previews/freeform-preview.webp',
-    category: 'profilbild',
-    audience: 'all',
-    hiddenFromPicker: true,
-  },
-
-  // Österreich (de-AT) variants — kein Info-Sujet, das gibt es nur für de-DE
-  'zitat-at': {
-    id: 'zitat-at',
-    label: 'Zitat',
-    description: 'Zitat auf Foto oder Farbfläche (Österreich)',
-    previewImage: '/imagine/previews/zitat-at-preview.webp',
-    category: 'sharepic',
-    audience: 'de-AT',
-  },
-  'zitat-pure-at': {
-    id: 'zitat-pure-at',
-    label: 'Zitat Pur',
-    description: 'Zitat auf Farbfläche oder Foto (Österreich)',
-    previewImage: '/imagine/previews/zitat-pure-at-preview.webp',
-    category: 'sharepic',
-    audience: 'de-AT',
-  },
-  'dreizeilen-overlay-at': {
-    id: 'dreizeilen-overlay-at',
-    label: '3 Zeilen',
-    description: 'Dreizeilige Headline auf Farbfläche über einem Foto (Österreich)',
-    previewImage: '/imagine/previews/dreizeilen-overlay-at-preview.webp',
-    category: 'sharepic',
-    audience: 'de-AT',
-  },
-  'info-at': {
-    id: 'info-at',
-    label: 'Info',
-    description: 'Introline, Infotext und gelbe Schlusszeile auf Farbfläche oder Foto (Österreich)',
-    previewImage: '/imagine/previews/info-at-preview.webp',
-    category: 'sharepic',
-    audience: 'de-AT',
-  },
-  'freeform-at': {
-    id: 'freeform-at',
-    label: 'Freies Design',
-    description: 'Leere Leinwand mit österreichischem CI',
-    previewImage: '/imagine/previews/freeform-preview.webp',
-    category: 'sharepic',
-    audience: 'de-AT',
-    followsFormat: true,
-  },
-  'slider-at': {
-    id: 'slider-at',
-    label: 'Slider',
-    description: 'Slider-Post mit Label, Pfeil und Logo (Österreich)',
-    previewImage: '/imagine/previews/slider-preview.webp',
-    category: 'slider',
-    audience: 'de-AT',
-  },
-};
+export const TEMPLATE_REGISTRY = Object.fromEntries(
+  BUILTIN_TEMPLATES.map((t) => [t.id, { id: t.id, ...t.info }])
+) as Record<CanvasConfigId, TemplateInfo>;
 
 /**
  * Get template info by ID
