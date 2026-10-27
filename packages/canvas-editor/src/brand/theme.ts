@@ -23,7 +23,7 @@ import { SYSTEM_ASSETS } from '../utils/canvasAssets';
 
 import { type ComposerBrand } from './composerBrand';
 
-import type { BackgroundColorOption } from '../sidebar/types';
+import type { BackgroundColorOption } from '../sidebar/tabTypes';
 
 export type BrandLocale = 'de-DE' | 'de-AT';
 

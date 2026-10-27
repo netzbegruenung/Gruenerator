@@ -1,6 +1,7 @@
-import type { CanvasConfigId, FullCanvasConfig } from '../../configs/types';
+import type { FullCanvasConfig } from '../../configs/types';
 import type { InitialPageDef } from '../../hooks/usePageManager';
 import type { SidebarTabId } from '../../sidebar/types';
+import type { CanvasConfigId } from '../../templates/registry';
 import type { GenericCanvasRef, ToolbarStateReport } from '../GenericCanvas';
 import type { HocuspocusProvider } from '@hocuspocus/provider';
 import type React from 'react';

@@ -41,7 +41,6 @@ import { PAGE_PERSISTED_STATE_KEYS } from '../../collab/pageElementStateKeys';
 import { serializeDeck } from '../../collab/pagesDoc';
 import { createPageSyncedCallbacks } from '../../collab/wrapCallbacksWithPageSync';
 import { shareImageText } from '../../configs/shareSection';
-import { type CanvasConfigId } from '../../configs/types';
 import { exportPptxDeck } from '../../export/pptx/exportPptxDeck';
 import {
   exportPrintPdf,
@@ -80,6 +79,7 @@ import {
 } from '../../slides/slideLayouts';
 import { useCanvasStoreSelector } from '../../stores/CanvasStoreProvider';
 import { AutoSaveStoreProvider } from '../../stores/useAutoSaveStore';
+import { type CanvasConfigId } from '../../templates/registry';
 import { cn } from '../../utils/cn';
 import { collectAltTextPages as collectCapturedAltTextPages } from '../../utils/collectAltTextPages';
 import { ensureFontsReady } from '../../utils/ensureFontsReady';

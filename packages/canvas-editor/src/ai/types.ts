@@ -18,6 +18,9 @@ import type {
   CanvasAiSnapshot,
 } from '@gruenerator/contracts';
 
+/** The outcome of applying one canvas-AI operation. */
+export type ApplyResult = { ok: true } | { ok: false; reason: string };
+
 export type CanvasAiNamedOption = { id: string; label: string };
 
 /**

@@ -22,7 +22,8 @@ import { useYjsPages, type NormalizeEcho, type YjsPagesApi } from '../collab/use
 import { loadCanvasConfig, isValidCanvasType } from '../configs/configLoader';
 import { extractInheritablePageState } from '../configs/pageInheritance';
 
-import type { CanvasConfigId, HeterogeneousPage, FullCanvasConfig } from '../configs/types';
+import type { HeterogeneousPage, FullCanvasConfig } from '../configs/types';
+import type { CanvasConfigId } from '../templates/registry';
 
 /** Pre-populated page definition for initializing multi-page with content */
 export interface InitialPageDef {
@@ -97,10 +98,10 @@ export interface UsePageManagerOptions {
 }
 
 export interface UsePageManagerReturn {
-  pages: HeterogeneousPage[];
+  pages: HeterogeneousPage<CanvasConfigId>[];
   currentPageIndex: number;
   setCurrentPageIndex: (index: number) => void;
-  currentPage: HeterogeneousPage | undefined;
+  currentPage: HeterogeneousPage<CanvasConfigId> | undefined;
   addPage: (
     configId: CanvasConfigId,
     inheritBackground?: boolean,
@@ -218,15 +219,17 @@ export function usePageManager({
 
   // View identity is preserved by useYjsPages for untouched pages; mirror
   // that here so memo'd PageWrappers only re-render for pages that changed.
-  const pageCacheRef = useRef(new Map<string, { view: unknown; page: HeterogeneousPage }>());
-  const prevPagesRef = useRef<HeterogeneousPage[]>([]);
+  const pageCacheRef = useRef(
+    new Map<string, { view: unknown; page: HeterogeneousPage<CanvasConfigId> }>()
+  );
+  const prevPagesRef = useRef<HeterogeneousPage<CanvasConfigId>[]>([]);
   const cachedViews = useMemo(
     () => (!yjsPages && collaborative?.isLocalLoaded ? readPages(ydoc) : []),
     [yjsPages, collaborative?.isLocalLoaded, ydoc]
   );
   const isPreview =
     !yjsPages && (collaborative?.previewBeforeSync === true || cachedViews.length > 0);
-  const previewPages = useMemo((): HeterogeneousPage[] => {
+  const previewPages = useMemo((): HeterogeneousPage<CanvasConfigId>[] => {
     if (!isPreview) return [];
     if (cachedViews.length > 0) {
       return cachedViews.map((view, i) => ({
@@ -247,13 +250,13 @@ export function usePageManager({
     }));
   }, [isPreview, cachedViews, initialPages, initialConfigId, initialProps]);
 
-  const docPages: HeterogeneousPage[] = useMemo(() => {
+  const docPages: HeterogeneousPage<CanvasConfigId>[] = useMemo(() => {
     if (!yjsPages) return [];
     const cache = pageCacheRef.current;
     const next = yjsPages.pages.map((view) => {
       const cached = cache.get(view.id);
       if (cached && cached.view === view) return cached.page;
-      const page: HeterogeneousPage = {
+      const page: HeterogeneousPage<CanvasConfigId> = {
         id: view.id,
         configId: view.configId as CanvasConfigId,
         state: view.state,
