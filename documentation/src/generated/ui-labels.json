@@ -269,6 +269,11 @@
     "subtitle": "Texte & Dokumente mit DeepL übersetzen",
     "path": "/uebersetzer"
   },
+  "catalog.tool-videoeditor": {
+    "title": "Video Editor",
+    "subtitle": "Videos schneiden, Text & Musik",
+    "path": "/studio/videoeditor"
+  },
   "catalog.tool-voice": {
     "title": "Grünerator Voice",
     "subtitle": "Anrufbeantworter, Vorlesefassung & Audiodeskription",
@@ -445,7 +450,7 @@
     "path": "/projekte"
   },
   "workplace.reels-untertitel": {
-    "title": "Reels",
+    "title": "Simple Reel",
     "subtitle": "Untertitel für Clips",
     "path": "/studio/video"
   },
@@ -462,6 +467,11 @@
     "title": "Sticker & Hintergründe",
     "subtitle": "Sticker erstellen, teilen & entdecken",
     "path": "/studio/sticker"
+  },
+  "workplace.studio-videoeditor": {
+    "title": "Video Editor",
+    "subtitle": "Clips schneiden & gestalten",
+    "path": "/studio/videoeditor"
   },
   "workplace.studio-voice": {
     "title": "Voice",
