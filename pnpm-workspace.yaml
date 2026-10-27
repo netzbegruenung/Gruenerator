@@ -492,4 +492,3 @@ overrides:
   '@tiptap/react': ^3.31.4
   '@tiptap/static-renderer': ^3.31.4
   '@babel/core': 7.29.7
-  '@react-native/community-cli-plugin>@react-native/metro-config': 0.84.1

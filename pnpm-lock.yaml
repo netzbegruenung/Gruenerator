@@ -292,7 +292,6 @@ overrides:
   '@tiptap/react': ^3.31.4
   '@tiptap/static-renderer': ^3.31.4
   '@babel/core': 7.29.7
-  '@react-native/community-cli-plugin>@react-native/metro-config': 0.84.1
 
 patchedDependencies:
   '@better-auth/oauth-provider@1.7.7': 9234c102bf0220d1289bb22d667b5ed3266433fa1cb4ac5edd197eb1ec650920
@@ -8958,7 +8957,7 @@ packages:
     engines: {node: ^22.13.0 || ^24.3.0 || >= 26.0.0}
     peerDependencies:
       '@react-native-community/cli': '*'
-      '@react-native/metro-config': 0.84.1
+      '@react-native/metro-config': 0.88.0
     peerDependenciesMeta:
       '@react-native-community/cli':
         optional: true
