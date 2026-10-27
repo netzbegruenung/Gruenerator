@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /**
  * Restbild im Zuschneide-Modus: das ganze Foto, abgedunkelt, auch jenseits der
  * Seite. In Konva liegt es als `crop-ghost`-Knoten (Export blendet ihn als
@@ -6,9 +7,11 @@
  */
 import { GenericCanvas, type GenericCanvasRef } from '@ggraphic/editor/components/GenericCanvas';
 import { loadCanvasConfig } from '@ggraphic/editor/configs/configLoader';
+import '../../testing/fixtureTemplates';
 import { AutoSaveStoreProvider } from '@ggraphic/editor/stores/AutoSaveStoreProvider';
 import { withSelectionChromeHidden } from '@ggraphic/editor/utils/captureStage';
 import { CROP_GHOST_NAME, paintCropGhosts } from '@ggraphic/editor/utils/cropGhost';
+
 import { createCanvas } from '@napi-rs/canvas';
 import { act, cleanup, render, waitFor } from '@testing-library/react';
 import Konva from 'konva';
@@ -77,7 +80,7 @@ beforeEach(() => {
 
 let config: Awaited<ReturnType<typeof loadCanvasConfig>>;
 beforeAll(async () => {
-  config = await loadCanvasConfig('dreizeilen');
+  config = await loadCanvasConfig('fixture-poster');
 }, 120_000);
 
 afterEach(() => {
@@ -87,7 +90,7 @@ afterEach(() => {
 
 const PHOTO: UserImageInstance = {
   id: 'photo',
-  src: '/photo.jpg',
+  src: 'https://example.org/photo.jpg',
   fileName: 'photo.jpg',
   x: 50,
   y: 80,

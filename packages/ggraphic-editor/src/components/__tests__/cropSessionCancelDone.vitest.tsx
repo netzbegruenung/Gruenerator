@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /**
  * Abbrechen / Fertig im Zuschneide-Modus (Hintergrundfoto und eigenes Bild):
  * Abbrechen stellt den Zuschnitt vom Betreten her und hinterlässt keinen
@@ -5,13 +6,16 @@
  */
 import { GenericCanvas, type GenericCanvasRef } from '@ggraphic/editor/components/GenericCanvas';
 import { loadCanvasConfig } from '@ggraphic/editor/configs/configLoader';
-import { AutoSaveStoreProvider } from '@ggraphic/editor/stores/AutoSaveStoreProvider';
-import { straightPhotoCovers, type StraightDraw } from '@ggraphic/editor/utils/straighten';
+
+import '../../testing/fixtureTemplates';
 import { createCanvas } from '@napi-rs/canvas';
 import { act, cleanup, render, waitFor } from '@testing-library/react';
 import Konva from 'konva';
 import { createRef } from 'react';
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+
+import { AutoSaveStoreProvider } from '@ggraphic/editor/stores/AutoSaveStoreProvider';
+import { straightPhotoCovers, type StraightDraw } from '@ggraphic/editor/utils/straighten';
 
 import type * as StoreModule from '@ggraphic/editor/stores/createCanvasEditorStore';
 import type { CanvasEditorStoreApi } from '@ggraphic/editor/stores/createCanvasEditorStore';
@@ -58,7 +62,7 @@ beforeEach(() => {
 
 let config: Awaited<ReturnType<typeof loadCanvasConfig>>;
 beforeAll(async () => {
-  config = await loadCanvasConfig('dreizeilen');
+  config = await loadCanvasConfig('fixture-poster');
 }, 120_000);
 
 afterEach(() => {
@@ -68,7 +72,7 @@ afterEach(() => {
 
 const PHOTO: UserImageInstance = {
   id: 'photo',
-  src: '/photo.jpg',
+  src: 'https://example.org/photo.jpg',
   fileName: 'photo.jpg',
   x: 50,
   y: 80,
@@ -298,7 +302,7 @@ describe('Zuschneide-Modus: jedes andere Ende ist Fertig', () => {
     await enterBackgroundCrop(canvas);
     await canvas.zoomBackground(2);
     const after = canvas.live.state.imageScale;
-    await canvas.fire(canvas.stage.findOne('#sunflower')!, 'touchstart');
+    await canvas.fire(canvas.stage.findOne('#ornament')!, 'touchstart');
     expect(canvas.store.getState().croppingElement).toBeNull();
     expect(canvas.live.state.imageScale).toBe(after);
     // Ein späteres Abbrechen gehört zu keiner Sitzung mehr und nimmt nichts zurück.
@@ -320,8 +324,8 @@ describe('Zuschneide-Modus: jedes andere Ende ist Fertig', () => {
 describe('Zuschneide-Modus: Knopf „Zuschneiden"', () => {
   it('beginnt nur für ein zuschneidbares Element', async () => {
     const canvas = await mount();
-    await canvas.fire(canvas.stage.findOne('#sunflower')!, 'touchstart');
-    expect(canvas.store.getState().selectedElement).toBe('sunflower');
+    await canvas.fire(canvas.stage.findOne('#ornament')!, 'touchstart');
+    expect(canvas.store.getState().selectedElement).toBe('ornament');
     await canvas.run(() => canvas.ref.current!.handleCropImage!());
     expect(canvas.store.getState().croppingElement).toBeNull();
 

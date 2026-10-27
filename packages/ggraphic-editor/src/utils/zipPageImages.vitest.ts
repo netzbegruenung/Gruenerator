@@ -1,6 +1,8 @@
-import { zipPageImages } from '@ggraphic/editor/utils/zipPageImages';
+// SPDX-License-Identifier: MPL-2.0
 import { unzipSync } from 'fflate';
 import { describe, expect, it } from 'vitest';
+
+import { zipPageImages } from '@ggraphic/editor/utils/zipPageImages';
 
 const png = (bytes: number[]) => `data:image/png;base64,${btoa(String.fromCharCode(...bytes))}`;
 
@@ -16,7 +18,7 @@ describe('zipPageImages', () => {
   });
 
   it('names the page it cannot pack instead of shipping a short ZIP', () => {
-    expect(() => zipPageImages([png([1]), 'data:image/gif;base64,R0lG'])).toThrow('Seite 2');
+    expect(() => zipPageImages([png([1]), 'data:image/bmp;base64,Qk0='])).toThrow('Seite 2');
     expect(() => zipPageImages([png([1]), 'kein data url'])).toThrow('Seite 2');
   });
 });

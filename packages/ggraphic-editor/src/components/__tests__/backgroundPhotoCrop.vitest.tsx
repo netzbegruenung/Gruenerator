@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /**
  * Das Hintergrundfoto steht fest wie in Canva: ausgewählt zeigt es keine
  * Griffe und zieht nicht; erst der Ausschnitt-Modus (Doppelklick/Doppeltipp)
@@ -5,8 +6,10 @@
  */
 import { GenericCanvas, type GenericCanvasRef } from '@ggraphic/editor/components/GenericCanvas';
 import { loadCanvasConfig } from '@ggraphic/editor/configs/configLoader';
+import '../../testing/fixtureTemplates';
 import { AutoSaveStoreProvider } from '@ggraphic/editor/stores/AutoSaveStoreProvider';
 import { findDragNodes } from '@ggraphic/editor/utils/multiSelect';
+
 import { act, cleanup, render } from '@testing-library/react';
 import Konva from 'konva';
 import { createRef } from 'react';
@@ -29,7 +32,7 @@ Object.defineProperty(document, 'fonts', {
 let config: Awaited<ReturnType<typeof loadCanvasConfig>>;
 
 beforeAll(async () => {
-  config = await loadCanvasConfig('dreizeilen');
+  config = await loadCanvasConfig('fixture-poster');
 }, 120_000);
 
 afterEach(cleanup);
@@ -99,13 +102,13 @@ describe('Hintergrundfoto: Ausschnitt-Modus', () => {
     const canvas = await mount();
     await canvas.fire(canvas.photo(), 'dbltap');
     expect(canvas.photo().draggable()).toBe(true);
-    await canvas.fire(canvas.stage.findOne('#sunflower')!, 'touchstart');
+    await canvas.fire(canvas.stage.findOne('#ornament')!, 'touchstart');
     expect(canvas.photo().draggable()).toBe(false);
   }, 90_000);
 
   it('wandert im Gruppenzug nicht mit', async () => {
     const canvas = await mount();
-    const nodes = findDragNodes(canvas.stage.getLayers()[0]!, ['background-image', 'sunflower']);
+    const nodes = findDragNodes(canvas.stage.getLayers()[0]!, ['background-image', 'ornament']);
     expect(nodes).toHaveLength(1);
     expect(nodes).not.toContain(canvas.photo());
   }, 90_000);

@@ -1,13 +1,17 @@
+// SPDX-License-Identifier: MPL-2.0
+import { act, render } from '@testing-library/react';
+import Konva from 'konva';
+import { createRef, useState } from 'react';
+import { beforeAll, describe, expect, it, vi } from 'vitest';
+
 import { AssetPrimitive } from '@ggraphic/editor/primitives/AssetPrimitive';
 import { CanvasStage, type CanvasStageRef } from '@ggraphic/editor/primitives/CanvasStage';
 import { IconPrimitive } from '@ggraphic/editor/primitives/IconPrimitive';
 import { IllustrationPrimitive } from '@ggraphic/editor/primitives/IllustrationPrimitive';
 import { ShapePrimitive } from '@ggraphic/editor/primitives/ShapePrimitive';
 import { createShape, type ShapeInstance } from '@ggraphic/editor/utils/shapes';
-import { act, render } from '@testing-library/react';
-import Konva from 'konva';
-import { createRef, useState } from 'react';
-import { beforeAll, describe, expect, it, vi } from 'vitest';
+
+import { FIXTURE_ASSET_ID, registerFixtureAssets } from '../../testing/fixtureTemplates';
 
 vi.mock('@ggraphic/editor/utils/canvasIcons', () => ({
   generateIconDataUrl: vi.fn(() => Promise.resolve('data:image/png;base64,AA==')),
@@ -16,7 +20,7 @@ vi.mock('@ggraphic/editor/utils/illustrations/registry', () => ({
   findIllustrationById: vi.fn(() =>
     Promise.resolve({ id: 'ill', name: 'ill', filename: 'ill.svg', source: 'undraw', tags: [] })
   ),
-  getIllustrationPath: vi.fn(() => '/ill.svg'),
+  getIllustrationPath: vi.fn(() => 'https://example.org/ill.svg'),
 }));
 vi.mock('@ggraphic/editor/utils/illustrations/svgCache', () => ({
   getCachedSVG: vi.fn(() => 'data:image/png;base64,AA=='),
@@ -24,6 +28,7 @@ vi.mock('@ggraphic/editor/utils/illustrations/svgCache', () => ({
 }));
 
 beforeAll(() => {
+  registerFixtureAssets();
   Konva.autoDrawEnabled = false;
   // The fake image is not drawable on Konva's node canvas; geometry is all these tests read.
   vi.spyOn(Konva.Image.prototype, 'drawScene').mockImplementation(function (this: Konva.Image) {
@@ -164,7 +169,7 @@ describe('asset flip', () => {
       <AssetPrimitive
         asset={{
           id: 'a',
-          assetId: 'gruene-de-logo',
+          assetId: FIXTURE_ASSET_ID,
           x: 10,
           y: 10,
           scale: 2,
@@ -201,7 +206,7 @@ describe('shape flip', () => {
   it('keeps width/height positive after resizing a flipped rect', async () => {
     const onChange = vi.fn();
     const shape: ShapeInstance = {
-      ...createShape('rect', 300, 300, '#005538', '#005538'),
+      ...createShape('rect', 300, 300, '#808080', '#808080'),
       id: 's1',
       flipY: true,
     };
@@ -220,7 +225,7 @@ describe('shape flip', () => {
   });
 
   it('mirrors path shapes with the same magnitude', async () => {
-    const base = { ...createShape('leaf', 300, 300, '#005538', '#005538'), id: 'p1' };
+    const base = { ...createShape('leaf', 300, 300, '#808080', '#808080'), id: 'p1' };
     const plain = await shapeNode(base);
     const flipped = await shapeNode({ ...base, id: 'p2', flipX: true });
     expect(flipped.scaleX()).toBeCloseTo(-plain.scaleX());
@@ -228,7 +233,7 @@ describe('shape flip', () => {
   });
 
   it('unflipped rect renders as before', async () => {
-    const shape = { ...createShape('rect', 300, 300, '#005538', '#005538'), id: 's3' };
+    const shape = { ...createShape('rect', 300, 300, '#808080', '#808080'), id: 's3' };
     const node = await shapeNode(shape);
     expect(node.scaleX()).toBe(1);
     expect(node.scaleY()).toBe(1);
@@ -372,7 +377,7 @@ describe('rotating a flipped element by its handle', () => {
             <AssetPrimitive
               asset={{
                 id: 'a',
-                assetId: 'gruene-de-logo',
+                assetId: FIXTURE_ASSET_ID,
                 x: 300,
                 y: 300,
                 scale: 2,
@@ -397,7 +402,7 @@ describe('rotating a flipped element by its handle', () => {
       (selected) => (
         <Stateful
           initial={{
-            ...createShape('leaf', 300, 300, '#005538', '#005538'),
+            ...createShape('leaf', 300, 300, '#808080', '#808080'),
             id: 'sf',
             flipX: true,
           }}
@@ -457,7 +462,7 @@ describe('rotate handle placement on real primitives', () => {
   it('a flipped shape shows its handle visibly below (D1)', async () => {
     const { tr, node } = await mountSelected((selected) => (
       <ShapePrimitive
-        shape={{ ...createShape('leaf', 300, 300, '#005538', '#005538'), id: 'fh', flipX: true }}
+        shape={{ ...createShape('leaf', 300, 300, '#808080', '#808080'), id: 'fh', flipX: true }}
         isSelected={selected}
         onSelect={noop}
         onChange={noop}
