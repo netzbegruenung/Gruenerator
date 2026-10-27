@@ -108,3 +108,25 @@ export function routesToLoopClientToolResume(
   if (storedLoop != null) return storedLoop.clientToolName === toolName;
   return loopClientToolForClientName(toolName) != null;
 }
+
+/**
+ * Warum eine `client_tool`-Antwort abgewiesen wird — oder `null`, wenn sie in
+ * die Loop-Fortsetzung darf. Der Code ist in beiden Fällen `invalid_request`.
+ */
+export function clientToolResumeRejection(
+  toolName: string,
+  storedLoop: { clientToolName: string } | null
+): { message: string; code: 'invalid_request' } | null {
+  // run_python hat keine Pre-Loop-Pause mehr: ohne wartenden run_python-Zustand
+  // ist die Berechnung abgelaufen (TTL), nicht „nicht unterstützt".
+  if (toolName === 'run_python' && storedLoop?.clientToolName !== 'run_python') {
+    return {
+      message: 'Diese Berechnung ist abgelaufen, bitte erneut fragen',
+      code: 'invalid_request',
+    };
+  }
+  if (!routesToLoopClientToolResume(toolName, storedLoop)) {
+    return { message: 'Dieser Tool-Typ wird noch nicht unterstützt.', code: 'invalid_request' };
+  }
+  return null;
+}

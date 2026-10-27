@@ -16,6 +16,7 @@ vi.mock('../../agents/sharepicCheckTool.js', async (importOriginal) => ({
 vi.mock('../sharepicLoopTarget.js', () => ({ resolveLoopSharepicTarget: targetMock }));
 
 import {
+  clientToolResumeRejection,
   LOOP_CLIENT_TOOLS,
   loopClientToolForClientName,
   routesToLoopClientToolResume,
@@ -129,6 +130,34 @@ describe('routesToLoopClientToolResume', () => {
 
   it('unbekanntes Werkzeug ohne Zustand ⇒ nicht die Loop-Fortsetzung', () => {
     expect(routesToLoopClientToolResume('nope', null)).toBe(false);
+  });
+});
+
+describe('clientToolResumeRejection', () => {
+  const loop = (clientToolName: string) => ({ clientToolName });
+  const expired = {
+    message: 'Diese Berechnung ist abgelaufen, bitte erneut fragen',
+    code: 'invalid_request',
+  };
+
+  it('run_python ohne gespeicherten run_python-Zustand ⇒ abgelaufen', () => {
+    expect(clientToolResumeRejection('run_python', null)).toEqual(expired);
+    expect(clientToolResumeRejection('run_python', loop('render_sharepic'))).toEqual(expired);
+  });
+
+  it('run_python mit wartendem Zustand ⇒ keine Ablehnung', () => {
+    expect(clientToolResumeRejection('run_python', loop('run_python'))).toBeNull();
+  });
+
+  it('unbekanntes Werkzeug ⇒ nicht unterstützt', () => {
+    expect(clientToolResumeRejection('nope', null)).toEqual({
+      message: 'Dieser Tool-Typ wird noch nicht unterstützt.',
+      code: 'invalid_request',
+    });
+  });
+
+  it('render_sharepic ohne Zustand ⇒ keine Ablehnung (die Fortsetzung meldet selbst)', () => {
+    expect(clientToolResumeRejection('render_sharepic', null)).toBeNull();
   });
 });
 

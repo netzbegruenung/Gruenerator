@@ -32,7 +32,7 @@ import { getContextWindow } from '../agents/providers.js';
 
 import { runToolApprovalResume } from './agenticLoop/approvalResume.js';
 import { runClarificationLoopResume } from './agenticLoop/clarificationResume.js';
-import { routesToLoopClientToolResume } from './agenticLoop/clientToolRegistry.js';
+import { clientToolResumeRejection } from './agenticLoop/clientToolRegistry.js';
 import { runClientToolLoopResume } from './agenticLoop/clientToolResume.js';
 import { ARTIFACT_CONFIRMATION_TEXTS, buildSharepicConfirmation } from './artifactConfirmations.js';
 import { injectImageAttachments } from './attachmentProcessingService.js';
@@ -150,16 +150,8 @@ export async function runChatGraphResume({
     // ist abgelaufen.
     if (resumeInput.kind === 'client_tool') {
       const storedLoop = (await loopClientToolStateStore.get(threadId)) ?? null;
-      if (resumeInput.toolName === 'run_python' && storedLoop?.clientToolName !== 'run_python') {
-        return sseFail(sse, 'Diese Berechnung ist abgelaufen, bitte erneut fragen', {
-          code: 'invalid_request',
-        });
-      }
-      if (!routesToLoopClientToolResume(resumeInput.toolName, storedLoop)) {
-        return sseFail(sse, 'Dieser Tool-Typ wird noch nicht unterstützt.', {
-          code: 'invalid_request',
-        });
-      }
+      const rejection = clientToolResumeRejection(resumeInput.toolName, storedLoop);
+      if (rejection) return sseFail(sse, rejection.message, { code: rejection.code });
       const clientToolUser = getUser(req);
       if (!clientToolUser?.id) {
         return sseFail(sse, PROGRESS_MESSAGES.unauthorized, { code: 'unauthorized' });
@@ -356,10 +348,7 @@ export async function runChatGraphResume({
     // `create_pdf` or `wetter` turn into a search after a clarification and
     // throw its artefact/tool route away. The old name here — `nonSearchIntents`
     // — is how that trap was laid.
-    if (
-      resumeInput.kind === 'ask_human' &&
-      CLARIFICATION_UPGRADE_INTENTS.has(classifiedState.intent)
-    ) {
+    if (CLARIFICATION_UPGRADE_INTENTS.has(classifiedState.intent)) {
       classifiedState.intent = 'search';
     }
 
@@ -375,15 +364,12 @@ export async function runChatGraphResume({
     });
 
     // === Search ===
-    // Client-tool resumes (run_python) skip search entirely: the answer needs
-    // only the computed result + the already-injected attachment context.
+    // Only pre-loop clarification answers reach this point: approval and
+    // client-tool resumes returned above.
     let finalState = classifiedState;
     const { enabledTools, modelId, forcedTool } = requestContext;
 
-    if (
-      resumeInput.kind === 'ask_human' &&
-      !CLARIFICATION_UPGRADE_INTENTS.has(classifiedState.intent)
-    ) {
+    if (!CLARIFICATION_UPGRADE_INTENTS.has(classifiedState.intent)) {
       const toolEnabled = forcedTool || enabledTools?.[classifiedState.intent] !== false;
       if (toolEnabled) {
         let searchInputState = classifiedState;
