@@ -174,25 +174,48 @@ describe('built-in templates: picker registry', () => {
 });
 
 describe('built-in templates: router', () => {
-  it.each(BUILTIN_IDS)('%s mounts the editor with the seeded props', async (id) => {
+  /** What the router hands the editor for this stored state. */
+  async function mountedWith(
+    id: CanvasConfigId,
+    state: Record<string, unknown>,
+    imageSrc?: string
+  ) {
     render(
       <ControllableCanvasWrapper
         type={id}
-        initialState={RICH_STATE}
-        imageSrc="/legacy.jpg"
+        initialState={state}
+        imageSrc={imageSrc}
         onExport={vi.fn()}
         onCancel={vi.fn()}
       />
     );
     await waitFor(() => expect(captured.props).not.toBeNull(), { timeout: 10_000 });
     const props = captured.props!;
-    expect({
+    return {
       initialConfigId: props.initialConfigId,
       maxPages: props.maxPages,
       initialProps: props.initialProps,
       callbacks: Object.keys(props.callbacks as Record<string, unknown>),
-    }).toMatchSnapshot();
-  });
+    };
+  }
+
+  it.each(BUILTIN_IDS)(
+    '%s mounts the editor with the seeded props',
+    async (id) => {
+      expect(await mountedWith(id, RICH_STATE, '/legacy.jpg')).toMatchSnapshot();
+    },
+    20_000
+  );
+
+  // An empty state pins each template's own defaults (fallback colour, mode,
+  // the legacy imageSrc prop) that a full state overrides.
+  it.each(BUILTIN_IDS)(
+    '%s seeds its defaults from an empty state',
+    async (id) => {
+      expect((await mountedWith(id, {}, '/legacy.jpg')).initialProps).toMatchSnapshot();
+    },
+    20_000
+  );
 
   it('shows "not found" for an unknown type', async () => {
     render(

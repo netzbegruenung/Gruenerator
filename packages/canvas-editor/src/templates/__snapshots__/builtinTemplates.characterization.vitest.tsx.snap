@@ -3171,6 +3171,19 @@ exports[`built-in templates: router > dreizeilen mounts the editor with the seed
 }
 `;
 
+exports[`built-in templates: router > dreizeilen seeds its defaults from an empty state 1`] = `
+{
+  "backgroundImageOpacity": undefined,
+  "currentImageSrc": "/legacy.jpg",
+  "imageAttribution": null,
+  "imageOffset": undefined,
+  "imageScale": undefined,
+  "line1": "",
+  "line2": "",
+  "line3": "",
+}
+`;
+
 exports[`built-in templates: router > dreizeilen-overlay-at mounts the editor with the seeded props 1`] = `
 {
   "callbacks": [
@@ -3203,6 +3216,20 @@ exports[`built-in templates: router > dreizeilen-overlay-at mounts the editor wi
 }
 `;
 
+exports[`built-in templates: router > dreizeilen-overlay-at seeds its defaults from an empty state 1`] = `
+{
+  "accent": "",
+  "backgroundImageOpacity": undefined,
+  "currentImageSrc": "/legacy.jpg",
+  "imageAttribution": null,
+  "imageOffset": undefined,
+  "imageScale": undefined,
+  "line1": "",
+  "line3": "",
+  "subline": "",
+}
+`;
+
 exports[`built-in templates: router > freeform mounts the editor with the seeded props 1`] = `
 {
   "callbacks": [
@@ -3227,6 +3254,18 @@ exports[`built-in templates: router > freeform mounts the editor with the seeded
     "imageScale": 1.5,
   },
   "maxPages": 10,
+}
+`;
+
+exports[`built-in templates: router > freeform seeds its defaults from an empty state 1`] = `
+{
+  "backgroundColor": "#005538",
+  "backgroundImageOpacity": undefined,
+  "backgroundMode": "color",
+  "currentImageSrc": "/legacy.jpg",
+  "imageAttribution": null,
+  "imageOffset": undefined,
+  "imageScale": undefined,
 }
 `;
 
@@ -3258,6 +3297,17 @@ exports[`built-in templates: router > freeform-at mounts the editor with the see
 }
 `;
 
+exports[`built-in templates: router > freeform-at seeds its defaults from an empty state 1`] = `
+{
+  "backgroundImageOpacity": undefined,
+  "backgroundMode": "color",
+  "currentImageSrc": "/legacy.jpg",
+  "imageAttribution": null,
+  "imageOffset": undefined,
+  "imageScale": undefined,
+}
+`;
+
 exports[`built-in templates: router > info mounts the editor with the seeded props 1`] = `
 {
   "callbacks": [
@@ -3275,6 +3325,13 @@ exports[`built-in templates: router > info mounts the editor with the seeded pro
     "header": "H",
   },
   "maxPages": 10,
+}
+`;
+
+exports[`built-in templates: router > info seeds its defaults from an empty state 1`] = `
+{
+  "body": "",
+  "header": "",
 }
 `;
 
@@ -3300,6 +3357,14 @@ exports[`built-in templates: router > info-at mounts the editor with the seeded 
 }
 `;
 
+exports[`built-in templates: router > info-at seeds its defaults from an empty state 1`] = `
+{
+  "accent": "",
+  "introline": "",
+  "text": "",
+}
+`;
+
 exports[`built-in templates: router > profilbild mounts the editor with the seeded props 1`] = `
 {
   "callbacks": [],
@@ -3309,6 +3374,13 @@ exports[`built-in templates: router > profilbild mounts the editor with the seed
     "transparentImage": "/fg.png",
   },
   "maxPages": 10,
+}
+`;
+
+exports[`built-in templates: router > profilbild seeds its defaults from an empty state 1`] = `
+{
+  "backgroundColor": "",
+  "transparentImage": "/legacy.jpg",
 }
 `;
 
@@ -3340,6 +3412,18 @@ exports[`built-in templates: router > simple mounts the editor with the seeded p
 }
 `;
 
+exports[`built-in templates: router > simple seeds its defaults from an empty state 1`] = `
+{
+  "backgroundImageOpacity": undefined,
+  "headline": "",
+  "imageAttribution": null,
+  "imageOffset": undefined,
+  "imageScale": undefined,
+  "imageSrc": "/legacy.jpg",
+  "subtext": "",
+}
+`;
+
 exports[`built-in templates: router > slider mounts the editor with the seeded props 1`] = `
 {
   "callbacks": [
@@ -3362,6 +3446,14 @@ exports[`built-in templates: router > slider mounts the editor with the seeded p
 }
 `;
 
+exports[`built-in templates: router > slider seeds its defaults from an empty state 1`] = `
+{
+  "headline": "",
+  "label": "",
+  "subtext": "",
+}
+`;
+
 exports[`built-in templates: router > slider-at mounts the editor with the seeded props 1`] = `
 {
   "callbacks": [
@@ -3381,6 +3473,14 @@ exports[`built-in templates: router > slider-at mounts the editor with the seede
     "subtext": "ST",
   },
   "maxPages": 10,
+}
+`;
+
+exports[`built-in templates: router > slider-at seeds its defaults from an empty state 1`] = `
+{
+  "headline": "",
+  "label": "",
+  "subtext": "",
 }
 `;
 
@@ -3433,6 +3533,8 @@ exports[`built-in templates: router > sticker mounts the editor with the seeded 
 }
 `;
 
+exports[`built-in templates: router > sticker seeds its defaults from an empty state 1`] = `{}`;
+
 exports[`built-in templates: router > veranstaltung mounts the editor with the seeded props 1`] = `
 {
   "callbacks": [
@@ -3466,6 +3568,23 @@ exports[`built-in templates: router > veranstaltung mounts the editor with the s
 }
 `;
 
+exports[`built-in templates: router > veranstaltung seeds its defaults from an empty state 1`] = `
+{
+  "address": "",
+  "backgroundImageOpacity": undefined,
+  "beschreibung": "",
+  "date": "",
+  "eventTitle": "",
+  "imageAttribution": null,
+  "imageOffset": undefined,
+  "imageScale": undefined,
+  "imageSrc": "/legacy.jpg",
+  "locationName": "",
+  "time": "",
+  "weekday": "",
+}
+`;
+
 exports[`built-in templates: router > zitat mounts the editor with the seeded props 1`] = `
 {
   "callbacks": [
@@ -3491,6 +3610,18 @@ exports[`built-in templates: router > zitat mounts the editor with the seeded pr
     "quote": "Q",
   },
   "maxPages": 10,
+}
+`;
+
+exports[`built-in templates: router > zitat seeds its defaults from an empty state 1`] = `
+{
+  "backgroundImageOpacity": undefined,
+  "imageAttribution": null,
+  "imageOffset": undefined,
+  "imageScale": undefined,
+  "imageSrc": "/legacy.jpg",
+  "name": "",
+  "quote": "",
 }
 `;
 
@@ -3522,6 +3653,18 @@ exports[`built-in templates: router > zitat-at mounts the editor with the seeded
 }
 `;
 
+exports[`built-in templates: router > zitat-at seeds its defaults from an empty state 1`] = `
+{
+  "backgroundImageOpacity": undefined,
+  "imageAttribution": null,
+  "imageOffset": undefined,
+  "imageScale": undefined,
+  "imageSrc": "/legacy.jpg",
+  "name": "",
+  "quote": "",
+}
+`;
+
 exports[`built-in templates: router > zitat-pure mounts the editor with the seeded props 1`] = `
 {
   "callbacks": [
@@ -3542,6 +3685,13 @@ exports[`built-in templates: router > zitat-pure mounts the editor with the seed
 }
 `;
 
+exports[`built-in templates: router > zitat-pure seeds its defaults from an empty state 1`] = `
+{
+  "name": "",
+  "quote": "",
+}
+`;
+
 exports[`built-in templates: router > zitat-pure-at mounts the editor with the seeded props 1`] = `
 {
   "callbacks": [
@@ -3559,5 +3709,12 @@ exports[`built-in templates: router > zitat-pure-at mounts the editor with the s
     "quote": "Q",
   },
   "maxPages": 10,
+}
+`;
+
+exports[`built-in templates: router > zitat-pure-at seeds its defaults from an empty state 1`] = `
+{
+  "name": "",
+  "quote": "",
 }
 `;
