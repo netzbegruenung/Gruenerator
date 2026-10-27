@@ -7,8 +7,13 @@
  * loader, the router, `HOST_CALLBACK_KEYS` and `TEMPLATE_REGISTRY` all derive
  * from that list.
  *
+ * A host can add its own templates with `registerTemplates(defineTemplate(…))`
+ * and mount them through `StandaloneCanvas` by id, or skip the registry and
+ * pass a config object directly. The full editor (router, page manager,
+ * template picker) still only opens built-in templates.
+ *
  * The built-in ids are F0: they are stored in canvases, templates and Y.Docs.
- * Never rename or drop one.
+ * Never rename or drop one; `registerTemplates` refuses to replace one.
  */
 
 import { getCanvasFormatOrDefault } from '../formats';
@@ -71,6 +76,16 @@ interface BuiltinTemplateDefinition<TId extends string = string> extends Templat
    */
   seedProps?: (state: Record<string, unknown>, imageSrc?: string) => Record<string, unknown>;
   info: TemplatePickerInfo;
+}
+
+/**
+ * Declares a host template. Identity at runtime; it keeps the id literal so a
+ * host can derive its own id union the same way `CanvasConfigId` is derived.
+ */
+export function defineTemplate<const TId extends string>(
+  definition: TemplateDefinition<TId>
+): TemplateDefinition<TId> {
+  return definition;
 }
 
 function defineBuiltin<const TId extends string>(
@@ -507,11 +522,16 @@ export const BUILTIN_TEMPLATES = [
 /** The built-in template ids (F0). */
 export type CanvasConfigId = (typeof BUILTIN_TEMPLATES)[number]['id'];
 
+/** A built-in id or the id of a host-registered template. */
+export type TemplateId = CanvasConfigId | (string & {});
+
 const BUILTIN_BY_ID = new Map<string, BuiltinTemplateDefinition<CanvasConfigId>>(
   BUILTIN_TEMPLATES.map((t) => [t.id, t])
 );
 
-/** Is this one of the built-in template ids? */
+const hostTemplates = new Map<string, TemplateDefinition>();
+
+/** Is this one of the built-in template ids? Host templates are not. */
 export function isValidCanvasType(type: string): type is CanvasConfigId {
   return BUILTIN_BY_ID.has(type);
 }
@@ -520,7 +540,21 @@ export function getBuiltinTemplate(id: CanvasConfigId): BuiltinTemplateDefinitio
   return BUILTIN_BY_ID.get(id)!;
 }
 
-/** A registered template, or undefined. */
+/** A built-in or host-registered template, or undefined. */
 export function getTemplate(id: string): TemplateDefinition | undefined {
-  return BUILTIN_BY_ID.get(id);
+  return BUILTIN_BY_ID.get(id) ?? hostTemplates.get(id);
+}
+
+/**
+ * Adds host templates to the registry. An id may be registered once; a
+ * built-in id can never be replaced (it is stored in users' canvases).
+ * Registering the same definition again is a no-op.
+ */
+export function registerTemplates(...definitions: TemplateDefinition[]): void {
+  for (const definition of definitions) {
+    const existing = getTemplate(definition.id);
+    if (existing === definition) continue;
+    if (existing) throw new Error(`Template "${definition.id}" is already registered`);
+    hostTemplates.set(definition.id, definition);
+  }
 }

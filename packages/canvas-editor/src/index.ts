@@ -20,6 +20,10 @@ export type {
 export { StandaloneCanvas } from './components/StandaloneCanvas';
 export { commitOpenTextEdit } from './components/CanvasTextOverlay';
 export type { StandaloneCanvasProps } from './components/StandaloneCanvas';
+export { GenericCanvas } from './components/GenericCanvas';
+export type { GenericCanvasProps, GenericCanvasRef } from './components/GenericCanvas';
+export { defineTemplate, registerTemplates } from './templates/registry';
+export type { TemplateDefinition, TemplateId, AnyCanvasConfig } from './templates/registry';
 
 export * from './primitives';
 export * from './composed';
