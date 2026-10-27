@@ -7,11 +7,10 @@
  * ChartSettingsSection) while still exporting/collab-syncing like any element.
  */
 
+import { contrastRatio, luminance } from '@ggraphic/editor/utils/colorLuminance';
 import { type SharepicCreatorLocale } from '@gruenerator/contracts';
 
 import { getBrandTheme } from '../brand/theme';
-
-import { contrastRatio, luminance } from './colorLuminance';
 
 import type {
   ChartDataPoint,
@@ -19,7 +18,7 @@ import type {
   ChartLegendPosition,
   ChartSeries,
   ChartType,
-} from './chartTypes';
+} from '@ggraphic/editor/utils/chartTypes';
 
 export type {
   ChartDataPoint,
@@ -27,7 +26,7 @@ export type {
   ChartLegendPosition,
   ChartSeries,
   ChartType,
-} from './chartTypes';
+} from '@ggraphic/editor/utils/chartTypes';
 
 export type ChartGroup = 'balken' | 'linien' | 'kreis';
 

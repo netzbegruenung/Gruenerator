@@ -3,16 +3,16 @@
  * neben einer Element-Linie, und ein Sprung auf eine andere Linie gleicher
  * Anzahl kommt an.
  */
+import { useSnapScheduler } from '@ggraphic/editor/hooks/useSnapScheduler';
 import { act, render, renderHook } from '@testing-library/react';
 import { Layer, Stage } from 'react-konva';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { SnapGuidelines } from '../../primitives/SnapGuidelines';
 import { CanvasStoreProvider, useCanvasStore } from '../../stores/CanvasStoreProvider';
-import { useSnapScheduler } from '../useSnapScheduler';
 
 import type { CanvasEditorStoreApi } from '../../stores/createCanvasEditorStore';
-import type { SnapLine } from '../../utils/snapping';
+import type { SnapLine } from '@ggraphic/editor/utils/snapping';
 import type Konva from 'konva';
 
 const elementLine: SnapLine = { orientation: 'vertical', position: 300, start: 0, end: 100 };

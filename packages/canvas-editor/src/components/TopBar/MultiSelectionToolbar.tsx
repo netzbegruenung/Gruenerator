@@ -1,3 +1,12 @@
+import { useRovingToolbar } from '@ggraphic/editor/hooks/useRovingToolbar';
+import {
+  CANVAS_COMMANDS,
+  ariaShortcut,
+  formatShortcut,
+  isMacPlatform,
+  shortcutOf,
+  type CanvasCommandId,
+} from '@ggraphic/editor/utils/canvasCommandRegistry';
 import React from 'react';
 import {
   PiCopy,
@@ -9,15 +18,6 @@ import {
   PiTrash,
 } from 'react-icons/pi';
 
-import { useRovingToolbar } from '../../hooks/useRovingToolbar';
-import {
-  CANVAS_COMMANDS,
-  ariaShortcut,
-  formatShortcut,
-  isMacPlatform,
-  shortcutOf,
-  type CanvasCommandId,
-} from '../../utils/canvasCommandRegistry';
 import { type LockState } from '../../utils/layerLock';
 
 import { ContextCard } from './ContextToolbar';

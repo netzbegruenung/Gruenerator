@@ -12,10 +12,11 @@
  * `slider-at` (Österreich: Ein-Balken-Logo, Dunkelgrün/Hellgrün, Gotham).
  */
 
+import { zoomBackground } from '@ggraphic/editor/utils/coverFit';
+import { straightenResetFor } from '@ggraphic/editor/utils/straighten';
 import { PiFrameCornersFill, PiSquaresFourFill, PiTextAa } from 'react-icons/pi';
 
 import { AssetsSection, CombinedTextSection, FrameSettingsSection } from '../sidebar/sections';
-import { zoomBackground } from '../utils/coverFit';
 import { recolorIconInstances } from '../utils/iconInstances';
 import { createPillBadgeInstance } from '../utils/pillBadgeUtils';
 import {
@@ -28,7 +29,6 @@ import {
   getSliderColorsForState,
   isSliderColorScheme,
 } from '../utils/sliderLayout';
-import { straightenResetFor } from '../utils/straighten';
 
 import { chatTab, createCommonSectionEntries, toolsTab, uploadsTab } from './commonSections';
 import { createBaseActions } from './factory/actionFactories';

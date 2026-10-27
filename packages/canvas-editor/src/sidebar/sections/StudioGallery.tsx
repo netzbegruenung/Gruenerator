@@ -1,3 +1,4 @@
+import { cn } from '@ggraphic/editor/utils/cn';
 import {
   galleryScopeEmptyText,
   shareThumbnailPreviewUrl,
@@ -11,7 +12,6 @@ import { useEffect, useRef, type ButtonHTMLAttributes } from 'react';
 
 import { useCanvasEditorServices } from '../../CanvasEditorProvider';
 import { useNoStudioAssets } from '../../hostServices';
-import { cn } from '../../utils/cn';
 
 export const GALLERY_SCOPES: readonly GalleryTab<StudioAssetScope>[] = STUDIO_ASSET_SCOPES.map(
   (s) => ({ id: s.value, label: s.label })

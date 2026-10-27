@@ -14,6 +14,8 @@ import { describe, it, expect } from 'vitest';
 const HIER = path.dirname(fileURLToPath(import.meta.url));
 const SRC = path.resolve(HIER, '..');
 const REPO = path.resolve(SRC, '../../..');
+// Editor code that moved to @ggraphic/editor follows the same token rules.
+const CORE_SRC = path.join(REPO, 'packages/ggraphic-editor/src');
 
 // `dark:` gefolgt von einem Nicht-Leerzeichen: ein Parameter `dark: string` ist keine Klasse.
 const DARK_UTILITY = /(^|[\s'"`])(?:[\w-]+:)*!?dark:\S/;
@@ -53,13 +55,14 @@ describe('Editor-Token-Regeln', () => {
   });
 
   it('keine dark:-Utilities in src/', () => {
-    const dateien = quelldateien(SRC);
+    const dateien = [...quelldateien(SRC), ...quelldateien(CORE_SRC)];
     expect(dateien.length).toBeGreaterThan(100);
+    expect(dateien.some((datei) => datei.startsWith(CORE_SRC))).toBe(true);
     const treffer = dateien.flatMap((datei) =>
       readFileSync(datei, 'utf8')
         .split('\n')
         .flatMap((zeile, i) =>
-          DARK_UTILITY.test(zeile) ? [`${path.relative(SRC, datei)}:${i + 1}`] : []
+          DARK_UTILITY.test(zeile) ? [`${path.relative(REPO, datei)}:${i + 1}`] : []
         )
     );
     expect(treffer).toEqual([]);

@@ -1,6 +1,5 @@
+import { createPageSyncedCallbacks } from '@ggraphic/editor/collab/wrapCallbacksWithPageSync';
 import { describe, it, expect, vi } from 'vitest';
-
-import { createPageSyncedCallbacks } from './wrapCallbacksWithPageSync';
 
 describe('createPageSyncedCallbacks', () => {
   it('dual-writes on<Key>Change callbacks into page state with the lowercased key', () => {

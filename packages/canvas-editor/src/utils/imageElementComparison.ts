@@ -10,10 +10,11 @@
  * erzwingt.
  */
 
+import { assertAsPosition, assertAsSize } from '@ggraphic/editor/utils/stateTypeAssertions';
+import { backgroundStraighten } from '@ggraphic/editor/utils/straighten';
+
 import { backgroundAdjustments } from './imageFilters';
 import { BACKGROUND_IMAGE_NODE_ID } from './printImageInfo';
-import { assertAsPosition, assertAsSize } from './stateTypeAssertions';
-import { backgroundStraighten } from './straighten';
 import { templateRotationOf } from './templateRotation';
 
 import type { ImageElementConfig, LayoutElementResult, LayoutResult } from '../configs/types';

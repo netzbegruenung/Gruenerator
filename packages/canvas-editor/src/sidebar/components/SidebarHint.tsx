@@ -1,7 +1,7 @@
+import { cn } from '@ggraphic/editor/utils/cn';
 import { useState, useRef, useEffect } from 'react';
 import { FaQuestionCircle, FaTimes } from 'react-icons/fa';
 
-import { cn } from '../../utils/cn';
 import { SIDEBAR_HINT } from '../sidebarStyles';
 
 interface SidebarHintProps {

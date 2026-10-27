@@ -1,8 +1,8 @@
+import { YDOC_KEYS } from '@ggraphic/editor/collab/ydocKeys';
 import { useEffect, useRef } from 'react';
 import * as Y from 'yjs';
 
 import { PAGES_STATE_ORIGIN } from './useYjsPages';
-import { YDOC_KEYS } from './ydocKeys';
 
 /**
  * Push external changes of a page's `state` Y.Map into the mounted canvas.

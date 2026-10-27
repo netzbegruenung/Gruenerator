@@ -1,10 +1,10 @@
+import { type ComposerBrand, onGround } from '@ggraphic/editor/brand/composerBrand';
 import {
   type SharepicColor,
   type SharepicSeitenzahl,
   type SharepicSlide,
 } from '@gruenerator/contracts';
 
-import { type ComposerBrand, onGround } from '../brand/composerBrand';
 import { ASSET_TARGET_SIZE } from '../utils/canvasAssets';
 import { createCircleBadgeInstance } from '../utils/circleBadgeUtils';
 import { COLORS } from '../utils/dreizeilenLayout';

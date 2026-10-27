@@ -1,6 +1,5 @@
+import { useAnnouncer } from '@ggraphic/editor/hooks/useAnnounce';
 import { useEffect, useRef } from 'react';
-
-import { useAnnouncer } from './useAnnounce';
 
 import type { CanvasEditorStoreApi } from '../stores/createCanvasEditorStore';
 

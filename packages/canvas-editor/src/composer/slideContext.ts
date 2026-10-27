@@ -1,6 +1,6 @@
+import { type ComposerBrand } from '@ggraphic/editor/brand/composerBrand';
 import { type SharepicCreatorLocale, type SharepicThema } from '@gruenerator/contracts';
 
-import { type ComposerBrand } from '../brand/composerBrand';
 import { type BrandTheme } from '../brand/theme';
 import { type AdditionalText } from '../configs/types';
 import { type CanvasFormat } from '../formats';

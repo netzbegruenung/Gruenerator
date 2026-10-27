@@ -5,6 +5,7 @@
  * templates count towards n and are left alone; converting a page and state
  * writes do not touch the chrome.
  */
+import { readPages } from '@ggraphic/editor/collab/pagesDoc';
 import { type SharepicSlide } from '@gruenerator/contracts';
 import { act, renderHook } from '@testing-library/react';
 import React from 'react';
@@ -15,7 +16,6 @@ import { CanvasEditorProvider, type CanvasEditorServices } from '../CanvasEditor
 import { composeSharepic } from '../composer/composeSharepic';
 import { grueneratorCarousel } from '../composer/sharepicServices';
 
-import { readPages } from './pagesDoc';
 import { useYjsPages } from './useYjsPages';
 
 import type { AdditionalText } from '../configs/types';

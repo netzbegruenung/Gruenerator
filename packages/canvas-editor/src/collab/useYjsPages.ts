@@ -1,9 +1,3 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
-import { v4 as uuid } from 'uuid';
-import * as Y from 'yjs';
-
-import { useCanvasEditorServices } from '../CanvasEditorProvider';
-
 import {
   appendPage,
   duplicatePageById,
@@ -24,8 +18,13 @@ import {
   type PageDef,
   type PageView,
   type ReplaceDeckOps,
-} from './pagesDoc';
-import { YDOC_KEYS } from './ydocKeys';
+} from '@ggraphic/editor/collab/pagesDoc';
+import { YDOC_KEYS } from '@ggraphic/editor/collab/ydocKeys';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { v4 as uuid } from 'uuid';
+import * as Y from 'yjs';
+
+import { useCanvasEditorServices } from '../CanvasEditorProvider';
 
 import type { CanvasCarouselService } from '../hostServices';
 

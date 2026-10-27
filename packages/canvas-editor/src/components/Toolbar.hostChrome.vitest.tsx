@@ -3,10 +3,10 @@
  * slot, no undo/redo, no "Teilen" button. The share menu still exists — the
  * host's button opens it.
  */
+import { AutoSaveStoreProvider } from '@ggraphic/editor/stores/AutoSaveStoreProvider';
 import { render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { AutoSaveStoreProvider } from '../stores/AutoSaveStoreProvider';
 import { CanvasStoreProvider } from '../stores/CanvasStoreProvider';
 
 import { Toolbar } from './Toolbar';

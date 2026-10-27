@@ -10,6 +10,7 @@
  * That a real page calls `on<Key>Change` for its text fields is covered by
  * undoReachesTheDocument.
  */
+import { readPages, seedPagesIfEmpty, setPageConfigById } from '@ggraphic/editor/collab/pagesDoc';
 import { act, render } from '@testing-library/react';
 import { type ReactNode } from 'react';
 import { describe, expect, it, vi } from 'vitest';
@@ -17,8 +18,6 @@ import * as Y from 'yjs';
 
 import { CanvasEditor } from '../components/CanvasEditor';
 import { HOST_CALLBACK_KEYS } from '../hostCallbackKeys';
-
-import { readPages, seedPagesIfEmpty, setPageConfigById } from './pagesDoc';
 
 type Callbacks = Record<string, (val: unknown) => void>;
 

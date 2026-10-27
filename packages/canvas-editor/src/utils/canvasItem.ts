@@ -1,5 +1,4 @@
 import type { AssetInstance } from './canvasAssets';
-import type { ChartInstance } from './chartTypes';
 import type { FrameInstance } from './frameUtils';
 import type { IllustrationInstance } from './illustrations/types';
 import type { PillBadgeInstance } from './pillBadgeUtils';
@@ -8,6 +7,7 @@ import type { UserImageInstance } from './userImageUtils';
 import type { AdditionalText, CanvasElementConfig } from '../configs/types';
 import type { BalkenInstance } from '../primitives/BalkenGroup';
 import type { CircleBadgeInstance } from '../utils/circleBadgeUtils';
+import type { ChartInstance } from '@ggraphic/editor/utils/chartTypes';
 
 /**
  * One item of a page's layer list. Its own module so the element-kind

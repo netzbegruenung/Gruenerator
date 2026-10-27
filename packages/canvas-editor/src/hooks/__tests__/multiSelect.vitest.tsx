@@ -3,6 +3,11 @@
  * gemeinsame Transformer zieht sie zusammen, und jedes schreibt seine neue
  * Position über seinen eigenen `dragend` zurück.
  */
+import {
+  findDragNodes,
+  isGroupDrag,
+  MULTI_SELECTION_TRANSFORMER_NAME,
+} from '@ggraphic/editor/utils/multiSelect';
 import { act, render } from '@testing-library/react';
 import { createRef, useCallback, useLayoutEffect, useRef, useState } from 'react';
 import { Group } from 'react-konva';
@@ -16,11 +21,6 @@ import {
   useCanvasStore,
   useCanvasStoreSelector,
 } from '../../stores/CanvasStoreProvider';
-import {
-  findDragNodes,
-  isGroupDrag,
-  MULTI_SELECTION_TRANSFORMER_NAME,
-} from '../../utils/multiSelect';
 import { createShape, type ShapeInstance } from '../../utils/shapes';
 import { useCanvasHistorySetup } from '../useCanvasHistorySetup';
 import { useCanvasInteractions } from '../useCanvasInteractions';

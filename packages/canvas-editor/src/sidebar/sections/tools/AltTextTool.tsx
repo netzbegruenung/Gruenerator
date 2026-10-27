@@ -1,9 +1,9 @@
+import { cn } from '@ggraphic/editor/utils/cn';
 import { SLIDE_ALT_TEXT_MAX_CHARS } from '@gruenerator/contracts';
 import { useCallback, useId, useState } from 'react';
 import { HiChatBubbleBottomCenterText } from 'react-icons/hi2';
 
 import { useCanvasEditorServices } from '../../../CanvasEditorProvider';
-import { cn } from '../../../utils/cn';
 import { MOBILE_INPUT_TEXT } from '../../sidebarStyles';
 
 import { ToolPanel } from './ToolPanel';

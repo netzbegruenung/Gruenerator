@@ -1,6 +1,10 @@
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 
+import {
+  AutoSaveStoreProvider,
+  useAutoSaveStoreApi,
+} from '@ggraphic/editor/stores/useAutoSaveStore';
 import { render, screen } from '@testing-library/react';
 import { useLayoutEffect } from 'react';
 import { PiTextAa } from 'react-icons/pi';
@@ -11,7 +15,6 @@ import { FontSizeStepper } from '../../sidebar/components/TextFieldPrimitives';
 import { CombinedTextSection } from '../../sidebar/sections/CombinedTextSection';
 import { SidebarPanel } from '../../sidebar/SidebarPanel';
 import { SubsectionTabBar } from '../../sidebar/SubsectionTabBar';
-import { AutoSaveStoreProvider, useAutoSaveStoreApi } from '../../stores/useAutoSaveStore';
 import { AutoSaveIndicator } from '../TopBar/AutoSaveIndicator';
 import { ContextControls } from '../TopBar/ContextControls';
 import { FloatingColorPicker } from '../TopBar/modules/FloatingColorPicker';

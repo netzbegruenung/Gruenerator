@@ -1,5 +1,11 @@
-import { coverPhotoRect, panOfFramedPhoto, type Rect, type Size } from './coverFit';
-import { panOfStraightPhoto } from './straighten';
+import {
+  coverPhotoRect,
+  panOfFramedPhoto,
+  type Rect,
+  type Size,
+} from '@ggraphic/editor/utils/coverFit';
+import { panOfStraightPhoto } from '@ggraphic/editor/utils/straighten';
+
 import { type UserImageInstance } from './userImageUtils';
 
 /** Commit a local crop window without moving or resampling the underlying photo. */

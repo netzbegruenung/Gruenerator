@@ -1,5 +1,3 @@
-import { describe, expect, it } from 'vitest';
-
 import {
   CANVAS_COMMAND_IDS,
   CANVAS_COMMANDS,
@@ -8,7 +6,8 @@ import {
   formatShortcut,
   shortcutOf,
   type CommandShortcut,
-} from './canvasCommandRegistry';
+} from '@ggraphic/editor/utils/canvasCommandRegistry';
+import { describe, expect, it } from 'vitest';
 
 const press = (key: string, mods: Partial<Record<'ctrl' | 'meta' | 'shift' | 'alt', boolean>>) => ({
   key,

@@ -1,7 +1,6 @@
+import { type NodeFrame } from '@ggraphic/editor/utils/orientation';
+import { transformHudLabel } from '@ggraphic/editor/utils/transformHudLabel';
 import { describe, expect, it } from 'vitest';
-
-import { type NodeFrame } from './orientation';
-import { transformHudLabel } from './transformHudLabel';
 
 const frame = (over: Partial<NodeFrame> = {}): NodeFrame => ({
   x: 0,

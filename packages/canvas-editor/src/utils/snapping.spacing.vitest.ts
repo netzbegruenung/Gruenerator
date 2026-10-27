@@ -1,5 +1,3 @@
-import { describe, expect, it } from 'vitest';
-
 import {
   boxFrame,
   createBoxFrame,
@@ -7,7 +5,8 @@ import {
   snapByBounds,
   snapSpacing,
   type SnapTarget,
-} from './snapping';
+} from '@ggraphic/editor/utils/snapping';
+import { describe, expect, it } from 'vitest';
 
 const t = (id: string, x: number, y: number, width: number, height: number): SnapTarget => ({
   id,

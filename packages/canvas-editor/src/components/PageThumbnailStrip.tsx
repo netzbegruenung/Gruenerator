@@ -1,7 +1,6 @@
+import { cn } from '@ggraphic/editor/utils/cn';
 import { memo, useCallback, useRef, useState } from 'react';
 import { PiCaretDown, PiPlus } from 'react-icons/pi';
-
-import { cn } from '../utils/cn';
 
 import { TemplatePickerFlyout } from './TemplatePickerFlyout';
 

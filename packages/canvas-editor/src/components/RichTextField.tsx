@@ -23,6 +23,8 @@
  * Vorlage reicht ihre Textfelder dorthin durch, bearbeitet wird per
  * Doppelklick auf der Leinwand.
  */
+import { Accent } from '@ggraphic/editor/components/accentMark';
+import { keepsEditing } from '@ggraphic/editor/utils/keyboardOwnership';
 import {
   markdownLiteToRichText,
   richTextToMarkdownLite,
@@ -40,9 +42,6 @@ import { Placeholder, UndoRedo } from '@tiptap/extensions';
 import { EditorContent, useEditor, type Editor } from '@tiptap/react';
 import { useEffect, useRef, type CSSProperties } from 'react';
 
-import { keepsEditing } from '../utils/keyboardOwnership';
-
-import { Accent } from './accentMark';
 import { Marker } from './markerMark';
 import { formatToolbarOf, TextFormatControls, type OfferedMarks } from './TextFormatControls';
 

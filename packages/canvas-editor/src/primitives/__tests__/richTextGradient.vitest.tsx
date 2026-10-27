@@ -11,7 +11,7 @@ import { describe, expect, it } from 'vitest';
 import { CanvasStage, type CanvasStageRef } from '../CanvasStage';
 import { CanvasText } from '../CanvasText';
 
-import type { GradientFill } from '../../utils/gradientFill';
+import type { GradientFill } from '@ggraphic/editor/utils/gradientFill';
 
 const GRADIENT: GradientFill = {
   type: 'linear',

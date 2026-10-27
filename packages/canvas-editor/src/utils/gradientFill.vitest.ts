@@ -1,11 +1,10 @@
-import { describe, expect, it } from 'vitest';
-
 import {
   createDefaultGradient,
   gradientFillProps,
   gradientToKonvaProps,
   type GradientFill,
-} from './gradientFill';
+} from '@ggraphic/editor/utils/gradientFill';
+import { describe, expect, it } from 'vitest';
 
 describe('gradientToKonvaProps', () => {
   const rect = { x: 0, y: 0, width: 100, height: 200 };

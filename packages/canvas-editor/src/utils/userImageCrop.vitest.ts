@@ -1,5 +1,6 @@
+import { framedPhotoRect, visiblePart } from '@ggraphic/editor/utils/coverFit';
 import { describe, expect, it } from 'vitest';
-import { framedPhotoRect, visiblePart } from './coverFit';
+
 import { userImageCropUpdate } from './userImageCrop';
 import { type UserImageInstance } from './userImageUtils';
 

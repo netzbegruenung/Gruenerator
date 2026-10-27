@@ -1,9 +1,9 @@
+import { createDefaultGradient, type GradientFill } from '@ggraphic/editor/utils/gradientFill';
 import { Popover, PopoverContent, PopoverTrigger } from '@gruenerator/ui';
 import { Slider } from 'radix-ui';
 import React, { useId } from 'react';
 import { PiPaintBucket } from 'react-icons/pi';
 
-import { createDefaultGradient, type GradientFill } from '../../../utils/gradientFill';
 import { BRAND_COLORS } from '../../../utils/shapes';
 import { CustomColorSwatch } from '../../CustomColorSwatch';
 

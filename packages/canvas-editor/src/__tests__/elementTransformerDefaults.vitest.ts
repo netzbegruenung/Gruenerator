@@ -11,7 +11,11 @@ import { describe, it, expect } from 'vitest';
  * Transformer erst im Browser auffällt.
  */
 const HIER = path.dirname(fileURLToPath(import.meta.url));
-const PRIMITIVES = path.resolve(HIER, '../primitives');
+// Primitives that moved to @ggraphic/editor are held to the same rule.
+const PRIMITIVE_DIRS = [
+  path.resolve(HIER, '../primitives'),
+  path.resolve(HIER, '../../../ggraphic-editor/src/primitives'),
+];
 
 // Transformer, die kein Element-Transformer sind. Anzahl je Datei.
 const AUSNAHMEN: Record<string, { anzahl: number; grund: string }> = {
@@ -19,11 +23,19 @@ const AUSNAHMEN: Record<string, { anzahl: number; grund: string }> = {
   'UserImagePrimitive.tsx': { anzahl: 1, grund: 'Crop-Transformer ohne Rotation' },
 };
 
-const dateien = readdirSync(PRIMITIVES).filter((f) => f.endsWith('.tsx'));
+const dateien = PRIMITIVE_DIRS.flatMap((dir) =>
+  readdirSync(dir)
+    .filter((f) => f.endsWith('.tsx'))
+    .map((datei) => ({ datei, voll: path.join(dir, datei) }))
+);
 
 describe('Element-Transformer', () => {
-  for (const datei of dateien) {
-    const quelle = readFileSync(path.join(PRIMITIVES, datei), 'utf8');
+  it('findet die Primitive beider Pakete', () => {
+    expect(dateien.some((d) => d.voll.includes('ggraphic-editor'))).toBe(true);
+  });
+
+  for (const { datei, voll } of dateien) {
+    const quelle = readFileSync(voll, 'utf8');
     const transformer = (quelle.match(/<Transformer\b/g) ?? []).length;
     if (transformer === 0) continue;
 

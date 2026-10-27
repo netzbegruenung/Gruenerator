@@ -3,6 +3,7 @@
  * the mounted canvas of such a page must hear about it, or its next
  * dual-write puts the stale chrome straight back.
  */
+import { updatePageStateById } from '@ggraphic/editor/collab/pagesDoc';
 import { act, renderHook } from '@testing-library/react';
 import React from 'react';
 import { describe, expect, it, vi } from 'vitest';
@@ -11,7 +12,6 @@ import * as Y from 'yjs';
 import { CanvasEditorProvider } from '../CanvasEditorProvider';
 import { grueneratorCarousel } from '../composer/sharepicServices';
 
-import { updatePageStateById } from './pagesDoc';
 import { useYjsPages, PAGES_STATE_ORIGIN } from './useYjsPages';
 import { useYjsPageStateSync } from './useYjsPageStateSync';
 

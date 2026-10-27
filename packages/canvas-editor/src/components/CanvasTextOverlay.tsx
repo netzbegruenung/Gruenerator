@@ -62,6 +62,13 @@
  * Zustand, wechselte das Feld beim ersten Marker mitten im Tippen den
  * Renderer, und der Editor würde unter der Hand abgeräumt.
  */
+import {
+  captureFocusOrigin,
+  returnFocus,
+  type FocusOrigin,
+} from '@ggraphic/editor/utils/editorFocus';
+import { normalizeRotation } from '@ggraphic/editor/utils/orientation';
+import { stageCssScale } from '@ggraphic/editor/utils/stageCssScale';
 import { PLAIN_STYLE, splitListItems, stripInlineMarks } from '@ggraphic/schema';
 import {
   createContext,
@@ -76,11 +83,8 @@ import {
 } from 'react';
 import { createPortal, flushSync } from 'react-dom';
 
-import { captureFocusOrigin, returnFocus, type FocusOrigin } from '../utils/editorFocus';
 import { fontMarkSupport } from '../utils/fontMarkSupport';
 import { DEFAULT_TEXT_MARKER } from '../utils/markerColors';
-import { normalizeRotation } from '../utils/orientation';
-import { stageCssScale } from '../utils/stageCssScale';
 import {
   fontStyleForRun,
   measureTextWidthWithFont,

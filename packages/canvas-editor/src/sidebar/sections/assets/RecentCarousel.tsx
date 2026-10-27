@@ -1,7 +1,7 @@
+import { cn } from '@ggraphic/editor/utils/cn';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { PiCaretRightBold } from 'react-icons/pi';
 
-import { cn } from '../../../utils/cn';
 import { scrollBehavior } from '../../../utils/scrollBehavior';
 import { HIDDEN_SCROLLBAR } from '../../sidebarStyles';
 

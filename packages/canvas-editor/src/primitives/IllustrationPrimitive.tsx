@@ -1,13 +1,13 @@
+import { LOCKED_TRANSFORMER, useIsItemLocked } from '@ggraphic/editor/components/canvasItemLock';
+import { useBoxSnap, type SnapProps } from '@ggraphic/editor/hooks/useBoxSnap';
+import { ILLUSTRATION_TARGET_SIZE, MOTIF_BASE_SIZE } from '@ggraphic/editor/utils/motifSizes';
+import { ELEMENT_TRANSFORMER, signedScale } from '@ggraphic/editor/utils/orientation';
 import { useState, useEffect, useRef, memo } from 'react';
 import { Image, Group, Rect, Transformer } from 'react-konva';
 
 import { useCanvasEditorServices } from '../CanvasEditorProvider';
-import { LOCKED_TRANSFORMER, useIsItemLocked } from '../components/canvasItemLock';
-import { useBoxSnap, type SnapProps } from '../hooks/useBoxSnap';
 import { getIllustrationPath, findIllustrationById } from '../utils/illustrations/registry';
 import { getCachedSVG, getSVG } from '../utils/illustrations/svgCache';
-import { ILLUSTRATION_TARGET_SIZE, MOTIF_BASE_SIZE } from '../utils/motifSizes';
-import { ELEMENT_TRANSFORMER, signedScale } from '../utils/orientation';
 import { illustrationBox } from '../utils/renderedBoxes';
 
 import type {

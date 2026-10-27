@@ -1,8 +1,8 @@
+import { loadAllIcons } from '@ggraphic/editor/utils/canvasIcons';
 import { beforeAll, describe, expect, it } from 'vitest';
 
 import { stickerAssetsForLocale } from '../../../brand/grueneAssetCatalog';
 import { ALL_ASSETS } from '../../../utils/canvasAssets';
-import { loadAllIcons } from '../../../utils/canvasIcons';
 import { getAllIllustrations } from '../../../utils/illustrations/registry';
 
 import { searchElements } from './elementSearch';

@@ -1,5 +1,3 @@
-import { describe, expect, it } from 'vitest';
-
 import {
   clampPan,
   coverPhotoRect,
@@ -13,7 +11,8 @@ import {
   windowInPhoto,
   zoomBackground,
   zoomWindow,
-} from './coverFit';
+} from '@ggraphic/editor/utils/coverFit';
+import { describe, expect, it } from 'vitest';
 
 const page = { x: 0, y: 0, width: 1080, height: 1350 };
 const landscape = { width: 5306, height: 3542 };

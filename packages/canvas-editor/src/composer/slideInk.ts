@@ -1,4 +1,5 @@
-import { type ComposerBrand, onGround } from '../brand/composerBrand';
+import { type ComposerBrand, onGround } from '@ggraphic/editor/brand/composerBrand';
+
 import { type BrandTheme, type GrueneBrandId } from '../brand/theme';
 import { type TextAccent, type TextMarker } from '../utils/textUtils';
 

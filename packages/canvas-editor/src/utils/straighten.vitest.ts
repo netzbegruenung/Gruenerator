@@ -1,7 +1,10 @@
-import { describe, expect, it } from 'vitest';
-
-import { framedPhotoRect, panOfFramedPhoto, photoRectAround, type Rect } from './coverFit';
-import { frameForAspect } from './cropAspect';
+import {
+  framedPhotoRect,
+  panOfFramedPhoto,
+  photoRectAround,
+  type Rect,
+} from '@ggraphic/editor/utils/coverFit';
+import { frameForAspect } from '@ggraphic/editor/utils/cropAspect';
 import {
   clampPointToStraightPhoto,
   clampStraighten,
@@ -18,7 +21,8 @@ import {
   straightenWindowPhoto,
   windowPhotoOfStraight,
   zoomStraightPhoto,
-} from './straighten';
+} from '@ggraphic/editor/utils/straighten';
+import { describe, expect, it } from 'vitest';
 
 const page: Rect = { x: 0, y: 0, width: 1080, height: 1350 };
 const landscape = { width: 1200, height: 800 };

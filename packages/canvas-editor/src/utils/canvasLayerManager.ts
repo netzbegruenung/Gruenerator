@@ -2,7 +2,6 @@ import { ELEMENT_KINDS, kindItem, kindList } from './elementKinds';
 
 import type { AssetInstance } from './canvasAssets';
 import type { CanvasItem } from './canvasItem';
-import type { ChartInstance } from './chartTypes';
 import type { FrameInstance } from './frameUtils';
 import type { IllustrationInstance } from './illustrations/types';
 import type { PillBadgeInstance } from './pillBadgeUtils';
@@ -11,6 +10,7 @@ import type { UserImageInstance } from './userImageUtils';
 import type { AdditionalText, CanvasElementConfig, FullCanvasConfig } from '../configs/types';
 import type { BalkenInstance } from '../primitives/BalkenGroup';
 import type { CircleBadgeInstance } from '../utils/circleBadgeUtils';
+import type { ChartInstance } from '@ggraphic/editor/utils/chartTypes';
 
 /**
  * Canvas Layer Manager - Utilities for managing layer ordering

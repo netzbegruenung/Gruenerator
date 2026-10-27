@@ -1,8 +1,8 @@
+import { cn } from '@ggraphic/editor/utils/cn';
 import { MasonryGrid, MasonryItem } from '@gruenerator/ui';
 import { useEffect, useRef, useState } from 'react';
 import { HiArrowUpTray, HiPhoto, HiXMark } from 'react-icons/hi2';
 
-import { cn } from '../../../utils/cn';
 import { mediaItemToFile } from '../../../utils/mediaItemToFile';
 import { useUserUploads } from '../../UserUploadsProvider';
 

@@ -1,6 +1,3 @@
-import { describe, expect, it } from 'vitest';
-import * as Y from 'yjs';
-
 import {
   duplicatePageById,
   readPages,
@@ -8,7 +5,9 @@ import {
   seedPagesIfEmpty,
   serializeDeck,
   updatePageStateById,
-} from './pagesDoc';
+} from '@ggraphic/editor/collab/pagesDoc';
+import { describe, expect, it } from 'vitest';
+import * as Y from 'yjs';
 
 function setup() {
   const doc = new Y.Doc();

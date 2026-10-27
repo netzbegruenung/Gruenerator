@@ -1,7 +1,7 @@
+import { cn } from '@ggraphic/editor/utils/cn';
 import { FaCheck, FaChevronLeft, FaChevronRight, FaTrash, FaCopy } from 'react-icons/fa';
 import { HiColorSwatch, HiAdjustments, HiArrowsExpand } from 'react-icons/hi';
 
-import { cn } from '../../utils/cn';
 import { SidebarSlider } from '../components/SidebarSlider';
 import { ACTION_BTN, ACTION_BTN_DANGER, SECTION_HEADER, SECTION_TITLE } from '../sidebarStyles';
 import { SubsectionTabBar, type Subsection } from '../SubsectionTabBar';
