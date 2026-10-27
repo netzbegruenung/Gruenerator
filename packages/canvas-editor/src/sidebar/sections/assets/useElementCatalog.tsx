@@ -1,6 +1,7 @@
 import { useCanvasEditorServices } from '@ggraphic/editor/CanvasEditorProvider';
 import { useAllIconsCatalog, useIconCatalog } from '@ggraphic/editor/hooks/useIconCatalog';
 import { useNoStudioAssets } from '@ggraphic/editor/hostServices';
+import { useMessages } from '@ggraphic/editor/i18n/messages';
 import {
   hasDarkPreview,
   type AssetAudience,
@@ -72,7 +73,9 @@ export const SHAPE_ITEMS: ElementItem[] = ALL_PALETTE_SHAPES.map((shape) => {
   const def = getShapeDef(shape.id);
   return {
     key: `shape:${shape.id}`,
-    label: def.name,
+    get label() {
+      return def.name;
+    },
     keywords: def.tags,
     action: { kind: 'shape', shapeType: shape.id, color: getShapeVariant(shape.id).color },
     thumb: { t: 'shape', shapeType: shape.id },
@@ -81,7 +84,9 @@ export const SHAPE_ITEMS: ElementItem[] = ALL_PALETTE_SHAPES.map((shape) => {
 
 export const CHART_ITEMS: ElementItem[] = CHART_TYPE_DEFS.map((def) => ({
   key: `chart:${def.id}`,
-  label: def.name,
+  get label() {
+    return def.name;
+  },
   keywords: def.tags,
   action: { kind: 'chart', chartType: def.id },
   thumb: { t: 'chart', chartType: def.id },
@@ -95,7 +100,9 @@ export const FRAME_ITEMS: ElementItem[] = [...FRAME_PRESETS]
   )
   .map((preset) => ({
     key: `frame:${preset.id}`,
-    label: preset.name,
+    get label() {
+      return preset.name;
+    },
     keywords: preset.tags,
     action: { kind: 'frame', clipType: preset.id },
     thumb: { t: 'frame', clipType: preset.id },
@@ -259,6 +266,7 @@ export function useElementCatalog(
   /** Skin tone of the emoji tiles: 0 default, 1–5 light → dark. */
   emojiTone = 0
 ): CatalogCategory[] {
+  const t = useMessages();
   const { userLocale = 'de-DE', fetchStockImages } = useCanvasEditorServices();
   const locale: AssetAudience = userLocale;
   const recommendedAssetIds = props.recommendedAssetIds ?? NO_RECOMMENDED;
@@ -349,7 +357,7 @@ export function useElementCatalog(
     if (hasAssets)
       push({
         id: 'sticker',
-        label: 'Sticker',
+        label: t.sidebar.elements.categories.sticker,
         count: stickerItems.length,
         items: stickerItems,
         isLoading: false,
@@ -358,7 +366,7 @@ export function useElementCatalog(
     if (hasPhotos)
       push({
         id: 'fotos',
-        label: 'Fotos',
+        label: t.sidebar.elements.categories.photos,
         count: photos.items.length || null,
         items: photos.items,
         isLoading: photos.isLoading,
@@ -367,7 +375,7 @@ export function useElementCatalog(
     if (SHOW_GALLERY_BACKGROUNDS && props.onSetBackgroundImage)
       push({
         id: 'hintergruende',
-        label: 'Hintergründe',
+        label: t.sidebar.elements.categories.backgrounds,
         count: null,
         items: [],
         isLoading: false,
@@ -377,7 +385,7 @@ export function useElementCatalog(
     if (props.onAddShape)
       push({
         id: 'formen',
-        label: 'Formen',
+        label: t.sidebar.elements.categories.shapes,
         count: SHAPE_ITEMS.length,
         items: SHAPE_ITEMS,
         isLoading: false,
@@ -386,7 +394,7 @@ export function useElementCatalog(
     if (props.onAddChart)
       push({
         id: 'diagramme',
-        label: 'Diagramme',
+        label: t.sidebar.elements.categories.charts,
         count: CHART_ITEMS.length,
         items: CHART_ITEMS,
         isLoading: false,
@@ -395,7 +403,7 @@ export function useElementCatalog(
     if (props.onAddFrame)
       push({
         id: 'rahmen',
-        label: 'Rahmen',
+        label: t.sidebar.elements.categories.frames,
         count: FRAME_ITEMS.length,
         items: FRAME_ITEMS,
         isLoading: false,
@@ -404,7 +412,7 @@ export function useElementCatalog(
     if (hasIllustrations)
       push({
         id: 'illustrationen',
-        label: 'Illustrationen',
+        label: t.sidebar.elements.categories.illustrations,
         count: allIllustrations.data?.length ?? null,
         items: illustrationItems,
         isLoading: allIllustrations.isLoading,
@@ -414,7 +422,7 @@ export function useElementCatalog(
     if (hasIcons)
       push({
         id: 'icons',
-        label: 'Icons',
+        label: t.sidebar.elements.categories.icons,
         count: iconItems.length || null,
         items: iconItems,
         isLoading: iconsLoading,
@@ -423,7 +431,7 @@ export function useElementCatalog(
     if (hasAssets)
       push({
         id: 'emoji',
-        label: 'Emoji',
+        label: t.sidebar.elements.categories.emoji,
         count: emojiCatalog.data ? emojiItems.length : null,
         items: emojiItems,
         isLoading: emojiCatalog.isLoading,
@@ -431,6 +439,7 @@ export function useElementCatalog(
       });
     return categories;
   }, [
+    t,
     markeItems,
     blocks,
     blockItems,

@@ -1,5 +1,6 @@
 import { useCanvasEditorServices } from '@ggraphic/editor/CanvasEditorProvider';
 import { useNoUnsplashSearch, type UnsplashSearchFn } from '@ggraphic/editor/hostServices';
+import { useMessages } from '@ggraphic/editor/i18n/messages';
 import { useCallback, useEffect, useState } from 'react';
 import { HiMagnifyingGlass } from 'react-icons/hi2';
 
@@ -25,6 +26,7 @@ const UNSPLASH_HOME = 'https://unsplash.com/?utm_source=gruenerator&utm_medium=r
  * unaltered photo, so it never goes through the uploads / Mediathek.
  */
 export function UnsplashTool({ onPlaceImageUrl }: UnsplashToolProps) {
+  const t = useMessages();
   // `useUnsplashSearch` is a host hook, fixed for the lifetime of the editor.
   const { searchUnsplashImages, useUnsplashSearch = useNoUnsplashSearch } =
     useCanvasEditorServices();
@@ -84,8 +86,8 @@ export function UnsplashTool({ onPlaceImageUrl }: UnsplashToolProps) {
           enterKeyHint="search"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          placeholder="z. B. Windrad, Fahrrad, Wald"
-          aria-label="Fotos auf Unsplash suchen"
+          placeholder={t.sidebar.tools.unsplashPlaceholder}
+          aria-label={t.sidebar.tools.unsplashSearch}
           className={`w-full h-9 pl-8 pr-2 rounded-md border border-[var(--editor-border-strong)] bg-[var(--editor-surface)] text-sm ${MOBILE_INPUT_TEXT} text-[var(--editor-text)] placeholder:text-[var(--editor-text-muted)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--editor-accent)]`}
         />
       </form>
@@ -100,7 +102,7 @@ export function UnsplashTool({ onPlaceImageUrl }: UnsplashToolProps) {
 
       {!lastQuery && !isLoadingSearch && (
         <p className="m-0 text-xs text-[var(--editor-text-muted)]">
-          Suche ein Foto und tippe es an, um es auf die Fläche zu legen.
+          {t.sidebar.tools.unsplashHint}
         </p>
       )}
 
@@ -117,7 +119,7 @@ export function UnsplashTool({ onPlaceImageUrl }: UnsplashToolProps) {
               <button
                 type="button"
                 onClick={() => handlePick(image)}
-                aria-label={`Foto einfügen: ${image.alt_text ?? image.filename}`}
+                aria-label={t.sidebar.tools.insertPhoto(image.alt_text ?? image.filename)}
                 className="block w-full aspect-square p-0 overflow-hidden rounded-md border-none bg-[var(--editor-tile)] cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--editor-accent)]"
               >
                 {image.url && (
@@ -136,7 +138,7 @@ export function UnsplashTool({ onPlaceImageUrl }: UnsplashToolProps) {
                   href={image.attribution.profileUrl}
                   target="_blank"
                   rel="noopener noreferrer"
-                  title={`Foto von ${image.attribution.photographer} auf Unsplash`}
+                  title={t.sidebar.tools.photoBy(image.attribution.photographer)}
                   className="truncate text-[11px] text-[var(--editor-text-muted)] no-underline hover:underline"
                 >
                   {image.attribution.photographer}
@@ -154,7 +156,7 @@ export function UnsplashTool({ onPlaceImageUrl }: UnsplashToolProps) {
 
       {isLoadingSearch && (
         <p role="status" className="m-0 text-xs text-[var(--editor-text-muted)]">
-          Lädt…
+          {t.sidebar.uploads.loading}
         </p>
       )}
 

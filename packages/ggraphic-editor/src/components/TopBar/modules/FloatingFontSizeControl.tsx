@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: MPL-2.0
+import { useMessages } from '@ggraphic/editor/i18n/messages';
 import React from 'react';
 import { FaPlus, FaMinus } from 'react-icons/fa';
 
@@ -14,6 +15,7 @@ export function FloatingFontSizeControl({
   fontSize,
   onFontSizeChange,
 }: FloatingFontSizeControlProps) {
+  const t = useMessages();
   const handleIncrease = (e: React.MouseEvent) => {
     e.stopPropagation();
     onFontSizeChange(fontSize + 2);
@@ -29,8 +31,8 @@ export function FloatingFontSizeControl({
       <button
         className={fontBtn}
         onClick={handleDecrease}
-        title="Schrift verkleinern"
-        aria-label="Schrift verkleinern"
+        title={t.topBar.fontSmaller}
+        aria-label={t.topBar.fontSmaller}
         type="button"
       >
         <FaMinus size={10} />
@@ -41,8 +43,8 @@ export function FloatingFontSizeControl({
       <button
         className={fontBtn}
         onClick={handleIncrease}
-        title="Schrift vergrößern"
-        aria-label="Schrift vergrößern"
+        title={t.topBar.fontLarger}
+        aria-label={t.topBar.fontLarger}
         type="button"
       >
         <FaPlus size={10} />

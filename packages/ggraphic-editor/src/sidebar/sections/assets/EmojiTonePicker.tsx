@@ -1,15 +1,9 @@
 // SPDX-License-Identifier: MPL-2.0
+import { useMessages } from '@ggraphic/editor/i18n/messages';
 import { cn } from '@ggraphic/editor/utils/cn';
 import { useRef, type KeyboardEvent } from 'react';
 
-const SKIN_TONES = [
-  { label: 'Standard', color: '#fcc21b' },
-  { label: 'Heller Hautton', color: '#f7dece' },
-  { label: 'Mittelheller Hautton', color: '#f3d2a2' },
-  { label: 'Mittlerer Hautton', color: '#d5ab88' },
-  { label: 'Mitteldunkler Hautton', color: '#af7e57' },
-  { label: 'Dunkler Hautton', color: '#7c533e' },
-];
+const SKIN_TONE_COLORS = ['#fcc21b', '#f7dece', '#f3d2a2', '#d5ab88', '#af7e57', '#7c533e'];
 
 const STEP: Record<string, number> = { ArrowRight: 1, ArrowDown: 1, ArrowLeft: -1, ArrowUp: -1 };
 
@@ -24,13 +18,15 @@ export function EmojiTonePicker({
   tone: number;
   onChange: (tone: number) => void;
 }) {
+  const t = useMessages();
+  const labels = t.sidebar.elements.skinTones;
   const groupRef = useRef<HTMLDivElement>(null);
 
   const onKeyDown = (e: KeyboardEvent<HTMLButtonElement>) => {
     const step = STEP[e.key];
     if (!step) return;
     e.preventDefault();
-    const next = (tone + step + SKIN_TONES.length) % SKIN_TONES.length;
+    const next = (tone + step + SKIN_TONE_COLORS.length) % SKIN_TONE_COLORS.length;
     onChange(next);
     groupRef.current?.querySelectorAll<HTMLButtonElement>('[role="radio"]')[next]?.focus();
   };
@@ -39,17 +35,17 @@ export function EmojiTonePicker({
     <div
       ref={groupRef}
       role="radiogroup"
-      aria-label="Hautton"
+      aria-label={t.sidebar.elements.skinTone}
       className="flex items-center gap-1.5 pb-3"
     >
-      {SKIN_TONES.map((t, i) => (
+      {SKIN_TONE_COLORS.map((color, i) => (
         <button
-          key={t.label}
+          key={labels[i]}
           type="button"
           role="radio"
           aria-checked={tone === i}
-          aria-label={t.label}
-          title={t.label}
+          aria-label={labels[i]}
+          title={labels[i]}
           tabIndex={tone === i ? 0 : -1}
           onClick={() => onChange(i)}
           onKeyDown={onKeyDown}
@@ -57,7 +53,7 @@ export function EmojiTonePicker({
             'size-6 rounded-full border-2 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--editor-accent)]',
             tone === i ? 'border-[var(--editor-accent)]' : 'border-transparent'
           )}
-          style={{ backgroundColor: t.color }}
+          style={{ backgroundColor: color }}
         />
       ))}
     </div>

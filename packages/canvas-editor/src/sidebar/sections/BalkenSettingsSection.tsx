@@ -1,3 +1,4 @@
+import { useMessages } from '@ggraphic/editor/i18n/messages';
 import { cn } from '@ggraphic/editor/utils/cn';
 import { FaCheck, FaChevronLeft, FaChevronRight, FaTrash, FaCopy } from 'react-icons/fa';
 import { HiColorSwatch, HiAdjustments, HiArrowsExpand } from 'react-icons/hi';
@@ -26,6 +27,7 @@ export function BalkenSettingsSection({
   colorSchemes,
   isPrimary,
 }: BalkenSettingsSectionProps) {
+  const t = useMessages();
   if (!selectedBalken) return null;
   const STEP = 5;
   const activeSchemeId = selectedBalken.colorSchemeId;
@@ -47,7 +49,7 @@ export function BalkenSettingsSection({
   const colorContent = (
     <div className="flex flex-col gap-3">
       <div className="text-[11px] font-semibold text-foreground-muted uppercase tracking-[0.8px] max-md:hidden">
-        Farbschema
+        {t.sidebar.bars.colorScheme}
       </div>
       <div className="grid grid-cols-[repeat(auto-fill,minmax(60px,1fr))] gap-2">
         {colorSchemes.map((scheme) => {
@@ -93,10 +95,10 @@ export function BalkenSettingsSection({
   const widthContent = (
     <div className="flex flex-col gap-3">
       <div className="text-[11px] font-semibold text-foreground-muted uppercase tracking-[0.8px] max-md:hidden">
-        Balkenbreite
+        {t.sidebar.bars.width}
       </div>
       <SidebarSlider
-        label="Balkenbreite"
+        label={t.sidebar.bars.width}
         hideLabel
         value={selectedBalken.widthScale}
         onValueChange={(val) => onUpdateBalken(selectedBalken.id, { widthScale: val })}
@@ -115,7 +117,7 @@ export function BalkenSettingsSection({
   const finetuneContent = (
     <div className="flex flex-col gap-3">
       <div className="text-[11px] font-semibold text-foreground-muted uppercase tracking-[0.8px] max-md:hidden">
-        Feinabstimmung
+        {t.sidebar.bars.fineTune}
       </div>
       <div className="flex flex-col gap-2 p-3 bg-background-alt border border-editor-border rounded-lg">
         {[0, 1, 2].map((index) => {
@@ -153,15 +155,15 @@ export function BalkenSettingsSection({
   );
 
   const subsections: Subsection[] = [
-    { id: 'colors', icon: HiColorSwatch, label: 'Farbschema', content: colorContent },
-    { id: 'width', icon: HiArrowsExpand, label: 'Balkenbreite', content: widthContent },
+    { id: 'colors', icon: HiColorSwatch, label: t.sidebar.bars.colorScheme, content: colorContent },
+    { id: 'width', icon: HiArrowsExpand, label: t.sidebar.bars.width, content: widthContent },
   ];
 
   if (selectedBalken.mode === 'triple') {
     subsections.push({
       id: 'finetune',
       icon: HiAdjustments,
-      label: 'Feinabstimmung',
+      label: t.sidebar.bars.fineTune,
       content: finetuneContent,
     });
   }
@@ -169,12 +171,12 @@ export function BalkenSettingsSection({
   return (
     <div className="flex flex-col gap-4 p-3">
       <div className={SECTION_HEADER}>
-        <span className={SECTION_TITLE}>Ausgewählter Balken</span>
+        <span className={SECTION_TITLE}>{t.sidebar.bars.selected}</span>
         {onDuplicateBalken && (
           <button
             className={ACTION_BTN}
             onClick={() => onDuplicateBalken(selectedBalken.id)}
-            title="Balken duplizieren"
+            title={t.sidebar.bars.duplicate}
           >
             <FaCopy size={12} />
           </button>
@@ -183,7 +185,7 @@ export function BalkenSettingsSection({
           <button
             className={ACTION_BTN_DANGER}
             onClick={() => onRemoveBalken(selectedBalken.id)}
-            title="Balken entfernen"
+            title={t.sidebar.bars.remove}
           >
             <FaTrash size={12} />
           </button>

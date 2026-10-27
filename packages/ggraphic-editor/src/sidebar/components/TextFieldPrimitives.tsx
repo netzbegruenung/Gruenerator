@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: MPL-2.0
+import { useMessages } from '@ggraphic/editor/i18n/messages';
 import { useCallback, useRef, useEffect } from 'react';
 import { FaMinus, FaPlus } from 'react-icons/fa';
 
@@ -18,6 +19,7 @@ interface FontSizeStepperProps {
 }
 
 export function FontSizeStepper({ value, onChange, min = 12, max = 200 }: FontSizeStepperProps) {
+  const t = useMessages();
   const handleDecrement = () => {
     if (value > min) onChange(value - 1);
   };
@@ -40,7 +42,7 @@ export function FontSizeStepper({ value, onChange, min = 12, max = 200 }: FontSi
         className="touch-target w-6 h-6 rounded-full border-none bg-transparent cursor-pointer flex items-center justify-center text-foreground transition-[background-color,color] duration-200 hover:not-disabled:bg-hover-alt hover:not-disabled:text-primary-600 active:not-disabled:bg-editor-canvas-hover disabled:opacity-30 disabled:cursor-not-allowed disabled:text-grey-400"
         onClick={handleDecrement}
         disabled={value <= min}
-        aria-label="Schriftgröße verringern"
+        aria-label={t.sidebar.fontSizeDecrease}
       >
         <FaMinus size={10} />
       </button>
@@ -51,14 +53,14 @@ export function FontSizeStepper({ value, onChange, min = 12, max = 200 }: FontSi
         onChange={handleInputChange}
         min={min}
         max={max}
-        aria-label="Schriftgröße"
+        aria-label={t.sidebar.fontSize}
       />
       <button
         type="button"
         className="touch-target w-6 h-6 rounded-full border-none bg-transparent cursor-pointer flex items-center justify-center text-foreground transition-[background-color,color] duration-200 hover:not-disabled:bg-hover-alt hover:not-disabled:text-primary-600 active:not-disabled:bg-editor-canvas-hover disabled:opacity-30 disabled:cursor-not-allowed disabled:text-grey-400"
         onClick={handleIncrement}
         disabled={value >= max}
-        aria-label="Schriftgröße erhöhen"
+        aria-label={t.sidebar.fontSizeIncrease}
       >
         <FaPlus size={10} />
       </button>

@@ -1,3 +1,4 @@
+import { useMessages } from '@ggraphic/editor/i18n/messages';
 import { useCallback, useEffect, useState } from 'react';
 import { FaTrash } from 'react-icons/fa';
 
@@ -20,6 +21,7 @@ export function FrameSettingsSection({
   onUpdateFrame,
   onRemoveFrame,
 }: FrameSettingsSectionProps) {
+  const t = useMessages();
   const [pickerFile, setPickerFile] = useState<File | null>(null);
 
   useEffect(() => {
@@ -41,11 +43,9 @@ export function FrameSettingsSection({
     return (
       <div className="flex flex-col gap-4 p-3">
         <div className={SECTION_HEADER}>
-          <span className={SECTION_TITLE}>Kein Rahmen ausgewählt</span>
+          <span className={SECTION_TITLE}>{t.sidebar.frame.none}</span>
         </div>
-        <p className="text-[12px] text-foreground-muted px-3">
-          Wähle einen Rahmen auf der Leinwand aus, um ein Bild hinzuzufügen.
-        </p>
+        <p className="text-[12px] text-foreground-muted px-3">{t.sidebar.frame.pickHint}</p>
       </div>
     );
   }
@@ -55,12 +55,12 @@ export function FrameSettingsSection({
   return (
     <div className="flex flex-col gap-4 p-3">
       <div className={SECTION_HEADER}>
-        <span className={SECTION_TITLE}>Ausgewählter Rahmen</span>
+        <span className={SECTION_TITLE}>{t.sidebar.frame.selected}</span>
         <button
           type="button"
           className={ACTION_BTN_DANGER}
           onClick={() => onRemoveFrame(selectedFrame.id)}
-          title="Rahmen entfernen"
+          title={t.sidebar.frame.remove}
         >
           <FaTrash size={12} />
         </button>
@@ -72,7 +72,7 @@ export function FrameSettingsSection({
         <div className="flex flex-col gap-2 px-3">
           <div className="flex items-center justify-between">
             <span className="text-[11px] font-semibold uppercase tracking-[0.8px] text-foreground-muted">
-              Zoom
+              {t.sidebar.frame.zoom}
             </span>
             <span className="text-[11px] tabular-nums text-foreground-muted">
               {selectedFrame.imageScale.toFixed(2)}×

@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: MPL-2.0
 import { CustomColorSwatch } from '@ggraphic/editor/components/CustomColorSwatch';
+import { useMessages } from '@ggraphic/editor/i18n/messages';
 import { Popover, PopoverContent, PopoverTrigger } from '@ggraphic/editor/ui/popover';
 import { brandColors } from '@ggraphic/editor/utils/colorOptions';
 import { createDefaultGradient, type GradientFill } from '@ggraphic/editor/utils/gradientFill';
@@ -57,6 +58,7 @@ export function FloatingGradientControl({
   gradient,
   onChange,
 }: FloatingGradientControlProps) {
+  const t = useMessages();
   const active = !!gradient;
   const g = gradient ?? createDefaultGradient(currentColor);
   const stop0 = g.stops[0]?.color ?? currentColor;
@@ -74,9 +76,9 @@ export function FloatingGradientControl({
       <PopoverTrigger asChild>
         <button
           className={ICON_BTN}
-          title="Farbverlauf"
+          title={t.topBar.gradient}
           type="button"
-          aria-label="Farbverlauf bearbeiten"
+          aria-label={t.topBar.editGradient}
         >
           <PiPaintBucket
             size={17}
@@ -91,7 +93,7 @@ export function FloatingGradientControl({
       >
         <div className="flex items-center justify-between">
           <span id={titleId} className="text-xs font-medium text-[var(--editor-text)]">
-            Farbverlauf
+            {t.topBar.gradient}
           </span>
           {active ? (
             <button
@@ -99,7 +101,7 @@ export function FloatingGradientControl({
               onClick={() => onChange(null)}
               type="button"
             >
-              Entfernen
+              {t.sidebar.imageAdjust.remove}
             </button>
           ) : (
             <button
@@ -107,7 +109,7 @@ export function FloatingGradientControl({
               onClick={() => onChange(createDefaultGradient(currentColor))}
               type="button"
             >
-              Aktivieren
+              {t.sidebar.imageAdjust.enable}
             </button>
           )}
         </div>
@@ -133,7 +135,9 @@ export function FloatingGradientControl({
             </div>
             {g.type === 'linear' && (
               <div className="flex items-center gap-2">
-                <span className="text-[11px] w-12 text-[var(--editor-text-muted)]">Winkel</span>
+                <span className="text-[11px] w-12 text-[var(--editor-text-muted)]">
+                  {t.topBar.angle}
+                </span>
                 <Slider.Root
                   className="relative flex items-center select-none touch-none grow h-4 max-canvas-mobile:h-11"
                   value={[g.angle]}
@@ -147,7 +151,7 @@ export function FloatingGradientControl({
                   </Slider.Track>
                   <Slider.Thumb
                     className="block size-3 max-canvas-mobile:size-5 bg-white rounded-full border-2 border-[var(--editor-accent)] shadow-[0_1px_3px_rgba(0,0,0,0.2)] cursor-grab outline-none kbd:focus-visible:outline-2 kbd:focus-visible:outline-solid kbd:focus-visible:outline-offset-2 kbd:focus-visible:outline-[var(--editor-accent)]"
-                    aria-label="Winkel"
+                    aria-label={t.topBar.angle}
                   />
                 </Slider.Root>
                 <span className="text-[11px] w-9 text-right tabular-nums text-[var(--editor-text-muted)]">

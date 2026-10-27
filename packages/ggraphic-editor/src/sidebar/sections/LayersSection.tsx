@@ -12,6 +12,7 @@
  * Seite (`hooks/useCanvasKeyboardHandlers.ts`, Regel R1).
  */
 
+import { useMessages } from '@ggraphic/editor/i18n/messages';
 import { cn } from '@ggraphic/editor/utils/cn';
 import { isFocusLost } from '@ggraphic/editor/utils/editorFocus';
 import {
@@ -47,6 +48,7 @@ export function LayersSection({
   focusRequested = false,
   onFocusHandled,
 }: LayersSectionProps) {
+  const t = useMessages();
   const optionRefs = useRef(new Map<string, HTMLDivElement>());
   const emptyRef = useRef<HTMLParagraphElement>(null);
   // Woher Umschalt+Leertaste und Umschalt-Klick einen Bereich aufziehen.
@@ -169,7 +171,7 @@ export function LayersSection({
   return (
     <div className="flex flex-col gap-2 p-sm">
       <p className="m-0 text-[length:var(--font-size-small)] text-[var(--editor-text-secondary)]">
-        Oben steht das vorderste Element.
+        {t.sidebar.layers.hint}
       </p>
       {layers.length === 0 ? (
         <p
@@ -177,12 +179,12 @@ export function LayersSection({
           tabIndex={-1}
           className="m-0 text-[length:var(--font-size-small)] text-[var(--editor-text-muted)] outline-none"
         >
-          Auf dieser Seite liegen keine Elemente.
+          {t.sidebar.layers.empty}
         </p>
       ) : (
         <div
           role="listbox"
-          aria-label="Ebenen"
+          aria-label={t.sidebar.layers.title}
           aria-multiselectable="true"
           className="flex flex-col gap-0.5"
           onFocus={() => setHasFocus(true)}

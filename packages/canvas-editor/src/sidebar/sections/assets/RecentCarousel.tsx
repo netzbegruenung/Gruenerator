@@ -1,3 +1,4 @@
+import { useMessages } from '@ggraphic/editor/i18n/messages';
 import { cn } from '@ggraphic/editor/utils/cn';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { PiCaretRightBold } from 'react-icons/pi';
@@ -23,6 +24,7 @@ export function RecentCarousel({
   enterIndexOf: (index: number) => number | null;
   canDrag: boolean;
 }) {
+  const t = useMessages();
   const rowRef = useRef<HTMLDivElement>(null);
   const frame = useRef(0);
   const [canScroll, setCanScroll] = useState(false);
@@ -82,7 +84,7 @@ export function RecentCarousel({
       >
         <button
           type="button"
-          aria-label="Weitere zuletzt verwendete Elemente"
+          aria-label={t.sidebar.elements.moreRecent}
           tabIndex={canScroll ? 0 : -1}
           onClick={() =>
             rowRef.current?.scrollBy({ left: SCROLL_STEP, behavior: scrollBehavior() })

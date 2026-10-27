@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: MPL-2.0
 import { useCanvasEditorServices } from '@ggraphic/editor/CanvasEditorProvider';
+import { useMessages, type Messages } from '@ggraphic/editor/i18n/messages';
 import { useUserUploads } from '@ggraphic/editor/sidebar/UserUploadsProvider';
 import { useCallback, useState } from 'react';
 import { HiSparkles } from 'react-icons/hi';
@@ -9,10 +10,10 @@ import { MOBILE_INPUT_TEXT } from '../../sidebarStyles';
 
 import { ToolPanel, type ToolPanelSuccess } from './ToolPanel';
 
-const AI_VARIANT_OPTIONS: { value: AiVariant; label: string }[] = [
-  { value: 'realistic', label: 'Realistisch' },
-  { value: 'illustration', label: 'Illustration' },
-  { value: 'pixel', label: 'Pixel Art' },
+const aiVariantOptions = (t: Messages): { value: AiVariant; label: string }[] => [
+  { value: 'realistic', label: t.sidebar.tools.variantRealistic },
+  { value: 'illustration', label: t.sidebar.tools.variantIllustration },
+  { value: 'pixel', label: t.sidebar.tools.variantPixel },
 ];
 
 export interface AiCreateToolProps {
@@ -20,6 +21,7 @@ export interface AiCreateToolProps {
 }
 
 export function AiCreateTool({ onJumpToUploads }: AiCreateToolProps) {
+  const t = useMessages();
   const { generateAiImage } = useCanvasEditorServices();
   const { upload, isUploading } = useUserUploads();
   const { generate, isGenerating, generationError, remaining } = useAiImageGeneration();
@@ -36,7 +38,7 @@ export function AiCreateTool({ onJumpToUploads }: AiCreateToolProps) {
     if (!result) return;
     try {
       const item = await upload(result.file);
-      if (!item) throw new Error('Upload fehlgeschlagen');
+      if (!item) throw new Error(t.sidebar.uploadFailed);
       setSuccess({
         thumbnailUrl: result.objectUrl,
         itemName: item.originalFilename ?? item.title ?? result.file.name,
@@ -44,10 +46,10 @@ export function AiCreateTool({ onJumpToUploads }: AiCreateToolProps) {
       });
       setPrompt('');
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Fehler beim Speichern';
+      const message = err instanceof Error ? err.message : t.sidebar.tools.saveError;
       setUploadError(message);
     }
-  }, [generate, prompt, variant, upload, onJumpToUploads]);
+  }, [t, generate, prompt, variant, upload, onJumpToUploads]);
 
   if (!generateAiImage) return null;
 
@@ -55,9 +57,9 @@ export function AiCreateTool({ onJumpToUploads }: AiCreateToolProps) {
   const error = uploadError ?? generationError;
   const isBusy = isGenerating || isUploading;
   const progressMessage = isGenerating
-    ? 'Generiere Bild…'
+    ? t.sidebar.tools.generating
     : isUploading
-      ? 'Speichern in Uploads…'
+      ? t.sidebar.tools.savingToUploads
       : null;
 
   return (
@@ -67,21 +69,21 @@ export function AiCreateTool({ onJumpToUploads }: AiCreateToolProps) {
           <textarea
             value={prompt}
             onChange={(e) => setPrompt(e.target.value)}
-            placeholder="Beschreibe dein Wunschbild (z.B. abstrakter grüner Naturhintergrund, weich und unscharf)"
+            placeholder={t.sidebar.tools.generatePlaceholder}
             rows={3}
             maxLength={500}
             disabled={isBusy}
             className={`w-full p-3 bg-background border border-[var(--font-color)] rounded-lg text-foreground text-sm ${MOBILE_INPUT_TEXT} outline-none resize-none focus:border-primary-600 disabled:opacity-50`}
           />
           <label className="flex flex-col gap-1 text-foreground-muted text-xs">
-            Stil
+            {t.sidebar.tools.style}
             <select
               value={variant}
               onChange={(e) => setVariant(e.target.value as AiVariant)}
               disabled={isBusy}
               className={`w-full py-2 px-3 bg-background border border-[var(--font-color)] rounded-lg text-foreground text-sm ${MOBILE_INPUT_TEXT} outline-none focus:border-primary-600 disabled:opacity-50`}
             >
-              {AI_VARIANT_OPTIONS.map((opt) => (
+              {aiVariantOptions(t).map((opt) => (
                 <option key={opt.value} value={opt.value}>
                   {opt.label}
                 </option>
@@ -101,7 +103,7 @@ export function AiCreateTool({ onJumpToUploads }: AiCreateToolProps) {
       footer={
         remaining !== null && !error ? (
           <p className="m-0 text-foreground-muted text-xs text-center">
-            Noch {remaining} {remaining === 1 ? 'Bild' : 'Bilder'} heute verfügbar
+            {t.sidebar.tools.remainingToday(remaining)}
           </p>
         ) : null
       }

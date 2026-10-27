@@ -1,4 +1,5 @@
 import { CustomColorSwatch } from '@ggraphic/editor/components/CustomColorSwatch';
+import { useMessages } from '@ggraphic/editor/i18n/messages';
 import { brandColors } from '@ggraphic/editor/utils/colorOptions';
 import { useCallback, useState } from 'react';
 import { PiTextT } from 'react-icons/pi';
@@ -109,6 +110,7 @@ async function renderGradientTextPng(
 }
 
 export function GradientTextTool({ onJumpToUploads, onPlaceImageUrl }: GradientTextToolProps) {
+  const t = useMessages();
   const { finish, isUploading } = useToolImagePlacement({ onPlaceImageUrl, onJumpToUploads });
 
   const [value, setValue] = useState('');
@@ -129,19 +131,18 @@ export function GradientTextTool({ onJumpToUploads, onPlaceImageUrl }: GradientT
 
     try {
       const blob = await renderGradientTextPng(trimmed, color1, color2, angle);
-      if (!blob) throw new Error('PNG-Konvertierung fehlgeschlagen');
+      if (!blob) throw new Error(t.sidebar.tools.pngFailed);
 
       const file = new File([blob], `verlaufstext_${Date.now()}.png`, { type: 'image/png' });
       setSuccess(await finish(file));
       setValue('');
     } catch (err) {
-      const message =
-        err instanceof Error ? err.message : 'Fehler beim Erstellen des Verlaufstextes';
+      const message = err instanceof Error ? err.message : t.sidebar.tools.gradientError;
       setError(message);
     } finally {
       setIsBusy(false);
     }
-  }, [trimmed, color1, color2, angle, finish]);
+  }, [t, trimmed, color1, color2, angle, finish]);
 
   const disabled = isBusy || isUploading;
   const previewText = trimmed || 'Verlaufstext';
@@ -156,7 +157,7 @@ export function GradientTextTool({ onJumpToUploads, onPlaceImageUrl }: GradientT
               type="text"
               value={value}
               onChange={(e) => setValue(e.target.value)}
-              placeholder="Dein Text…"
+              placeholder={t.sidebar.tools.yourText}
               disabled={disabled}
               className={`rounded-md border border-editor-border-strong bg-background px-sm py-xs text-sm ${MOBILE_INPUT_TEXT} text-foreground outline-none focus:border-primary-500 disabled:opacity-50`}
             />
@@ -177,8 +178,18 @@ export function GradientTextTool({ onJumpToUploads, onPlaceImageUrl }: GradientT
             </span>
           </div>
 
-          <ColorRow label="Farbe 1" selected={color1} onSelect={setColor1} disabled={disabled} />
-          <ColorRow label="Farbe 2" selected={color2} onSelect={setColor2} disabled={disabled} />
+          <ColorRow
+            label={t.sidebar.tools.color1}
+            selected={color1}
+            onSelect={setColor1}
+            disabled={disabled}
+          />
+          <ColorRow
+            label={t.sidebar.tools.color2}
+            selected={color2}
+            onSelect={setColor2}
+            disabled={disabled}
+          />
 
           <label className="flex flex-col gap-1.5 text-xs">
             <span className="text-foreground-muted">Winkel: {angle}°</span>
@@ -195,11 +206,11 @@ export function GradientTextTool({ onJumpToUploads, onPlaceImageUrl }: GradientT
           </label>
         </div>
       }
-      actionLabel={onPlaceImageUrl ? 'Verlaufstext einfügen' : 'Verlaufstext zu Uploads hinzufügen'}
+      actionLabel={onPlaceImageUrl ? t.sidebar.tools.gradientPlace : t.sidebar.tools.gradientAdd}
       actionIcon={PiTextT}
       canSubmit={!!trimmed}
       isBusy={disabled}
-      progressMessage={isBusy ? 'Verlaufstext wird gespeichert…' : null}
+      progressMessage={isBusy ? t.sidebar.tools.gradientSaving : null}
       error={error}
       success={success}
       onAction={() => void handleAction()}

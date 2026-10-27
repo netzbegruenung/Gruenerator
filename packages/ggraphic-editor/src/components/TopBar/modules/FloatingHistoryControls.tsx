@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: MPL-2.0
+import { useMessages } from '@ggraphic/editor/i18n/messages';
 import React from 'react';
 import { PiArrowCounterClockwise, PiArrowClockwise } from 'react-icons/pi';
 
@@ -27,6 +28,7 @@ export function FloatingHistoryControls({
   canRedo,
   onDark,
 }: FloatingHistoryControlsProps) {
+  const t = useMessages();
   const iconBtn = onDark ? iconBtnDark : iconBtnLight;
   return (
     <div className="flex items-center gap-1 max-canvas-mobile:gap-0.5">
@@ -37,7 +39,7 @@ export function FloatingHistoryControls({
           onUndo();
         }}
         disabled={!canUndo}
-        title={isMac ? 'Rückgängig (⌘Z)' : 'Rückgängig (Strg+Z)'}
+        title={isMac ? t.topBar.undoMac : t.topBar.undoWin}
         type="button"
       >
         <PiArrowCounterClockwise size={20} />
@@ -49,7 +51,7 @@ export function FloatingHistoryControls({
           onRedo();
         }}
         disabled={!canRedo}
-        title={isMac ? 'Wiederholen (⌘⇧Z)' : 'Wiederholen (Strg+Y)'}
+        title={isMac ? t.topBar.redoMac : t.topBar.redoWin}
         type="button"
       >
         <PiArrowClockwise size={20} />

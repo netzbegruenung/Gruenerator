@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: MPL-2.0
+import { useMessages } from '@ggraphic/editor/i18n/messages';
 import { useAutoSaveStore } from '@ggraphic/editor/stores/useAutoSaveStore';
 import { cn } from '@ggraphic/editor/utils/cn';
 import { useEffect, useState } from 'react';
@@ -10,6 +11,7 @@ import { FaCheck, FaExclamationTriangle } from 'react-icons/fa';
  * the mobile menu bar (`onDark`).
  */
 export function AutoSaveIndicator({ onDark = false }: { onDark?: boolean }) {
+  const t = useMessages();
   const autoSaveStatus = useAutoSaveStore((s) => s.autoSaveStatus);
   const retryAutoSave = useAutoSaveStore((s) => s.retryAutoSave);
   const [showSaved, setShowSaved] = useState(false);
@@ -27,10 +29,10 @@ export function AutoSaveIndicator({ onDark = false }: { onDark?: boolean }) {
 
   const statusText =
     autoSaveStatus === 'saving'
-      ? 'Speichert …'
+      ? t.topBar.saveShort
       : autoSaveStatus === 'saved'
         ? 'Gespeichert'
-        : 'Fehler beim Speichern';
+        : t.topBar.saveErrorShort;
 
   return (
     <div
@@ -41,11 +43,11 @@ export function AutoSaveIndicator({ onDark = false }: { onDark?: boolean }) {
       role="status"
       title={
         autoSaveStatus === 'saving'
-          ? 'Wird gespeichert...'
+          ? t.topBar.saving
           : autoSaveStatus === 'saved'
             ? 'Gespeichert'
             : autoSaveStatus === 'error'
-              ? 'Fehler beim Speichern — klicken zum Wiederholen'
+              ? t.topBar.saveErrorRetry
               : ''
       }
     >
@@ -72,7 +74,7 @@ export function AutoSaveIndicator({ onDark = false }: { onDark?: boolean }) {
         <button
           className="touch-target bg-transparent border-none p-0 cursor-pointer flex items-center justify-center min-w-6 min-h-6"
           onClick={() => retryAutoSave?.()}
-          aria-label="Speichern erneut versuchen"
+          aria-label={t.topBar.saveRetry}
           type="button"
         >
           <FaExclamationTriangle

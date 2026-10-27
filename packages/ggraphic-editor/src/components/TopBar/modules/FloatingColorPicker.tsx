@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: MPL-2.0
 import { CustomColorSwatch } from '@ggraphic/editor/components/CustomColorSwatch';
+import { useMessages } from '@ggraphic/editor/i18n/messages';
 import { cn } from '@ggraphic/editor/utils/cn';
 import { brandColors, type ColorOption } from '@ggraphic/editor/utils/colorOptions';
 import React from 'react';
@@ -33,6 +34,7 @@ export function FloatingColorPicker({
   variant = 'swatch',
   allowCustom = true,
 }: FloatingColorPickerProps) {
+  const t = useMessages();
   const colorOptions = colors ?? brandColors();
   const [internalExpanded, setInternalExpanded] = React.useState(false);
   const isExpanded = externalExpanded !== undefined ? externalExpanded : internalExpanded;
@@ -90,10 +92,10 @@ export function FloatingColorPicker({
               e.stopPropagation();
               setIsExpanded(true);
             }}
-            title="Textfarbe ändern"
+            title={t.topBar.changeTextColor}
             type="button"
             aria-expanded={false}
-            aria-label="Farbpalette öffnen"
+            aria-label={t.topBar.openPalette}
           >
             <span className="text-[15px] font-bold leading-none">A</span>
             <span
@@ -109,10 +111,10 @@ export function FloatingColorPicker({
               e.stopPropagation();
               setIsExpanded(true);
             }}
-            title="Farbe ändern"
+            title={t.topBar.changeColor}
             type="button"
             aria-expanded={false}
-            aria-label="Farbpalette öffnen"
+            aria-label={t.topBar.openPalette}
           />
         )}
       </div>
@@ -126,7 +128,7 @@ export function FloatingColorPicker({
       className="flex items-center gap-2 px-1 animate-canvas-expand-width max-canvas-mobile:gap-[18px] max-canvas-mobile:px-[9px]"
       ref={containerRef}
       role="group"
-      aria-label="Farbpalette"
+      aria-label={t.topBar.palette}
       onKeyDown={(e) => {
         if (e.key !== 'Escape') return;
         // Close the row only; the canvas must not also deselect.

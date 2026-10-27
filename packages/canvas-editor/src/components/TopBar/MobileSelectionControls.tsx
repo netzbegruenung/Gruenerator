@@ -1,3 +1,4 @@
+import { useMessages, type Messages } from '@ggraphic/editor/i18n/messages';
 import { useCanvasStoreSelector } from '@ggraphic/editor/stores/CanvasStoreProvider';
 import { cn } from '@ggraphic/editor/utils/cn';
 import React from 'react';
@@ -8,21 +9,21 @@ import { ContextControls, type ContextControlsProps } from './ContextControls';
 
 import type { FloatingModuleState } from '@ggraphic/editor/hooks/useFloatingModuleState';
 
-const SELECTION_LABELS: Record<FloatingModuleState['type'], string> = {
-  text: 'Text',
-  image: 'Bild',
-  'user-image': 'Bild',
-  shape: 'Form',
-  icon: 'Icon',
-  illustration: 'Illustration',
-  asset: 'Grafik',
-  background: 'Hintergrund',
-  balken: 'Balken',
-  frame: 'Rahmen',
-  chart: 'Diagramm',
-  'pill-badge': 'Badge',
-  'circle-badge': 'Badge',
-};
+const selectionLabels = (t: Messages): Record<FloatingModuleState['type'], string> => ({
+  text: t.common.text,
+  image: t.common.image,
+  'user-image': t.common.image,
+  shape: t.topBar.shape,
+  icon: t.layers.icon,
+  illustration: t.layers.illustration,
+  asset: t.layers.graphic,
+  background: t.layers.background,
+  balken: t.layers.bar,
+  frame: t.layers.frame,
+  chart: t.layers.chart,
+  'pill-badge': t.layers.badgePill,
+  'circle-badge': t.layers.badgePill,
+});
 
 /**
  * MobileSelectionControls — the "Auswahl" block at the top of the mobile area
@@ -32,6 +33,7 @@ const SELECTION_LABELS: Record<FloatingModuleState['type'], string> = {
  * suggestion is pending.
  */
 export function MobileSelectionControls(props: ContextControlsProps) {
+  const t = useMessages();
   const hasPendingAiSuggestion = useCanvasStoreSelector((s) => s.pendingAiSuggestion !== null);
   if (hasPendingAiSuggestion) return null;
 
@@ -40,7 +42,8 @@ export function MobileSelectionControls(props: ContextControlsProps) {
   return (
     <div className="flex flex-col gap-2">
       <span className="text-[13px] font-bold text-[var(--editor-text-muted)]">
-        Auswahl{type ? ` · ${SELECTION_LABELS[type]}` : ''}
+        {t.topBar.selection}
+        {type ? ` · ${selectionLabels(t)[type]}` : ''}
       </span>
       <div
         className={cn(
