@@ -3,7 +3,7 @@ import {
   type StudioAssetKind,
   type StudioAssetScope,
 } from '@gruenerator/contracts';
-import { shareThumbnailPreviewUrl } from '@gruenerator/shared/media-library';
+import { shareThumbnailPreviewUrl } from '@gruenerator/contracts';
 import {
   STUDIO_ASSET_PLURAL,
   STUDIO_ASSET_SCOPES,

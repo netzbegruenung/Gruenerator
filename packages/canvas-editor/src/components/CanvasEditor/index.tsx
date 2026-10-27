@@ -29,7 +29,7 @@ import {
   pickShareRoute,
   shareDataUrlViaNativeHost,
 } from '@gruenerator/shared';
-import { photoCreditLine } from '@gruenerator/shared/image-studio';
+import { photoCreditLine } from '../../utils/photoCredit';
 import { Skeleton } from '@gruenerator/ui';
 import Konva from 'konva';
 import React, {
@@ -135,7 +135,7 @@ import type { AltTextPage, AltTextScope, CanvasSpecEditBridge } from '../../Canv
 import type { SidebarTabId } from '../../sidebar/types';
 import type { LayerSelectionChange } from '../../utils/layerSelection';
 import type { ToolbarStateReport } from '../GenericCanvas';
-import type { ExportOptions } from '@gruenerator/shared/canvas-editor';
+import type { ExportOptions } from '../../types/editorTypes';
 
 // Hoisted static JSX elements (Rule 6.3: avoids re-creation every render)
 const sidebarLoadingFallback = (

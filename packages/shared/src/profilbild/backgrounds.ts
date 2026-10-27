@@ -1,4 +1,5 @@
-import { CANVAS_COLORS } from '../canvas-editor/types.js';
+import { CANVAS_COLORS } from '@gruenerator/contracts';
+
 import { BRAND_COLORS } from '../image-studio/modification-constants.js';
 
 import { type ProfilbildAssetSrc } from './assets.js';

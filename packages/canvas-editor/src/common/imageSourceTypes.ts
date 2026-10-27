@@ -3,4 +3,4 @@ export type {
   StockImage,
   FetchStockImagesResponse,
   UnsplashSearchResult,
-} from '@gruenerator/shared/image-studio';
+} from '@gruenerator/contracts';

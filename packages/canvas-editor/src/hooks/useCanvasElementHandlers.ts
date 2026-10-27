@@ -19,7 +19,7 @@ import type {
   UserImageInstance,
   UserImagePlacement,
 } from '../utils/userImageUtils';
-import type { StickerRef } from '@gruenerator/shared/stickers';
+import type { StickerRef } from '@gruenerator/contracts';
 
 /**
  * Canvas Element Handlers - Handlers for all element interactions

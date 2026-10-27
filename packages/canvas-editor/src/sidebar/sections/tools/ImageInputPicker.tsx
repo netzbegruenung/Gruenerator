@@ -7,7 +7,7 @@ import { cn } from '../../../utils/cn';
 import { mediaItemToFile } from '../../../utils/mediaItemToFile';
 import { useUserUploads } from '../../UserUploadsProvider';
 
-import type { MediaItem } from '@gruenerator/shared/media-library';
+import type { MediaItem } from '@gruenerator/contracts';
 
 export interface ImageInputPickerProps {
   value: File | null;

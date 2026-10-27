@@ -13,7 +13,7 @@ import { SidebarHint } from '../components/SidebarHint';
 import { MOBILE_INPUT_TEXT, SIDEBAR_SECTION } from '../sidebarStyles';
 import { useUserUploads } from '../UserUploadsProvider';
 
-import type { MediaItem } from '@gruenerator/shared/media-library';
+import type { MediaItem } from '@gruenerator/contracts';
 
 export interface UploadsSectionProps {
   /** Place an already-durable URL (used when clicking a prior upload). */

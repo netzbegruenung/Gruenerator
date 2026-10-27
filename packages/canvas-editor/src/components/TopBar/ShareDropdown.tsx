@@ -1,6 +1,6 @@
 import { stripInlineMarks } from '@gruenerator/contracts';
 import { pickShareRoute, shareDataUrlViaNativeHost } from '@gruenerator/shared';
-import { withPhotoCredit } from '@gruenerator/shared/image-studio';
+import { withPhotoCredit } from '../../utils/photoCredit';
 import { shareApi } from '@gruenerator/shared/share';
 import {
   Popover,

@@ -3,7 +3,7 @@ import * as Y from 'yjs';
 import { YDOC_KEYS } from './ydocKeys';
 
 import type { CanvasEditorStoreApi } from '../stores/createCanvasEditorStore';
-import type { CanvasEditorConfig } from '@gruenerator/shared/canvas-editor';
+import type { CanvasEditorConfig } from '../types/editorTypes';
 
 const LOCAL_ORIGIN = Symbol('canvas-editor-local');
 

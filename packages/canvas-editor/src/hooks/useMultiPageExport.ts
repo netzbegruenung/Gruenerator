@@ -7,7 +7,7 @@
  */
 
 import { downloadBlob, downloadDataUrl } from '@gruenerator/shared';
-import { type ExportFormat } from '@gruenerator/shared/canvas-editor';
+import { type ExportFormat } from '../types/editorTypes';
 import { useState, useCallback, useEffect, useRef, type RefObject } from 'react';
 
 import { isDownloadTooLarge } from '../utils/downloadError';

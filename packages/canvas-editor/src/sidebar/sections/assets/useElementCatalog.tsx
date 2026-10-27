@@ -1,5 +1,5 @@
 import { sharepicBlockThumbPath, type SharepicBlock } from '@gruenerator/contracts';
-import { shareThumbnailPreviewUrl } from '@gruenerator/shared/media-library';
+import { shareThumbnailPreviewUrl } from '@gruenerator/contracts';
 import { useStudioAssets } from '@gruenerator/shared/studio-assets';
 import { useQuery } from '@tanstack/react-query';
 import { useMemo, useState, type ReactNode } from 'react';

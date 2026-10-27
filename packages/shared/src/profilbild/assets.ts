@@ -1,16 +1,2 @@
-export type ProfilbildAssetSrc =
-  | '/images/Sonnenblume_RGB_gelb.png'
-  | '/sonnenblume_gruen.png'
-  | '/sonnenblume_weiss.svg'
-  | '/studio-tools/stickers/teamgruen.svg'
-  | '/studio-tools/stickers/regenbogen.svg'
-  | '/studio-tools/stickers/regenbogen-herz.svg'
-  | '/studio-tools/stickers/progress-pride.svg'
-  | '/studio-tools/stickers/eu-flagge.svg'
-  | '/studio-tools/stickers/europa-sterne.svg'
-  | '/studio-tools/stickers/vielfalt.svg'
-  | '/studio-tools/stickers/at-gruen-waehlen.png'
-  | '/studio-tools/stickers/at-klima-schuetzen.png'
-  | '/studio-tools/stickers/at-jetzt-gruen.png'
-  | '/gruene-de-logo-weiss.png'
-  | '/gruene-at-logo-weiss.png';
+// Lives in @gruenerator/contracts next to the sticker catalogue that uses it.
+export type { ProfilbildAssetSrc } from '@gruenerator/contracts';

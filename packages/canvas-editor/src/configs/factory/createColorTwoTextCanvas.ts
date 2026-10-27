@@ -38,7 +38,7 @@ import type { PillBadgeInstance } from '../../utils/pillBadgeUtils';
 import type { ShapeInstance, ShapeType } from '../../utils/shapes';
 import type { ElementPlacement, UserImageInstance } from '../../utils/userImageUtils';
 import type { FullCanvasConfig, LayoutResult, CanvasElementConfig, AdditionalText } from '../types';
-import type { StickerRef } from '@gruenerator/shared/stickers';
+import type { StickerRef } from '@gruenerator/contracts';
 
 // ============================================================================
 // STATE TYPE

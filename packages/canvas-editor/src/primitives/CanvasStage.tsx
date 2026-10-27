@@ -28,7 +28,7 @@ import { BACKGROUND_IMAGE_NODE_ID, printImageInfo } from '../utils/printImageInf
 import { MOUSE_DRAG_DISTANCE, TOUCH_DRAG_DISTANCE } from '../utils/touchInput';
 import { USER_PHOTO_NODE_NAME } from '../utils/userImageUtils';
 
-import type { ExportOptions } from '@gruenerator/shared/canvas-editor';
+import type { ExportOptions } from '../types/editorTypes';
 
 export interface CanvasStageProps {
   width: number;

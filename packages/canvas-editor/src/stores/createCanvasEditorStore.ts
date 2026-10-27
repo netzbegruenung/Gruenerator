@@ -9,11 +9,8 @@
  * re-render optimization as the old create() bound hook.
  */
 
-import {
-  DEFAULT_CANVAS_SIZE,
-  DEFAULT_CANVAS_HEIGHT,
-  DEFAULT_BACKGROUND_COLOR,
-} from '@gruenerator/shared/canvas-editor';
+import { DEFAULT_CANVAS_SIZE } from '@gruenerator/contracts';
+import { DEFAULT_CANVAS_HEIGHT, DEFAULT_BACKGROUND_COLOR } from '../types/editorTypes';
 import { immer } from 'zustand/middleware/immer';
 import { createStore } from 'zustand/vanilla';
 
@@ -21,7 +18,7 @@ import { DEFAULT_FORMAT_ID } from '../formats';
 
 import type { CropAspectId } from '../utils/cropAspect';
 import type { SnapTarget, SnapLine } from '../utils/snapping';
-import type { CanvasEditorConfig, CanvasHistoryEntry } from '@gruenerator/shared/canvas-editor';
+import type { CanvasEditorConfig, CanvasHistoryEntry } from '../types/editorTypes';
 
 // =============================================================================
 // TYPES

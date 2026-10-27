@@ -53,7 +53,7 @@ import {
 
 import type { SnapTarget, SnapLine } from '../utils/snapping';
 import type { ImageAdjustments } from '../utils/userImageUtils';
-import type { TransformConfig, TransformAnchor } from '@gruenerator/shared/canvas-editor';
+import type { TransformConfig, TransformAnchor } from '../types/editorTypes';
 
 // Rahmen für Snap und Geometrie-Meldung, pro Aufruf neu beschrieben (synchron, ohne Allokation).
 const dragFrame = createBoxFrame();

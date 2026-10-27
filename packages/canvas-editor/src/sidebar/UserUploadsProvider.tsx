@@ -10,7 +10,7 @@ import {
   useState,
 } from 'react';
 
-import type { MediaItem, UploadSource } from '@gruenerator/shared/media-library';
+import type { MediaItem, UploadSource } from '@gruenerator/contracts';
 import type { ReactNode } from 'react';
 
 const SEARCH_DEBOUNCE_MS = 300;

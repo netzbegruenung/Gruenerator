@@ -4,7 +4,7 @@ import { buildPlacementUrl } from '../utils/mediaPlacement';
 
 import { useUserUploads } from './UserUploadsProvider';
 
-import type { UploadSource } from '@gruenerator/shared/media-library';
+import type { UploadSource } from '@gruenerator/contracts';
 
 export interface PlacedImage {
   /** Durable, placeable URL for the uploaded file (null if none could be resolved). */

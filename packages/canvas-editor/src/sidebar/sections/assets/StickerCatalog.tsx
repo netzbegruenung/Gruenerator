@@ -1,5 +1,9 @@
-import { type StudioAssetItem, type StudioAssetScope } from '@gruenerator/contracts';
-import { assetStickerId, type StickerRef } from '@gruenerator/shared/stickers';
+import {
+  assetStickerId,
+  type StickerRef,
+  type StudioAssetItem,
+  type StudioAssetScope,
+} from '@gruenerator/contracts';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { HiPlus } from 'react-icons/hi2';
 

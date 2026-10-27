@@ -4,7 +4,7 @@
  * `pdf-lib` kommt erst hier per dynamischem `import()`.
  */
 
-import { parseDataUrl } from '@gruenerator/shared';
+import { parseDataUrl } from '@gruenerator/contracts';
 
 function dataUrlToBytes(dataUrl: string, index: number): Uint8Array {
   const parsed = parseDataUrl(dataUrl);

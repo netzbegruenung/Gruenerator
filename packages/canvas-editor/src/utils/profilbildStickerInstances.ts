@@ -1,5 +1,5 @@
-import { type SavedProfilbildSticker } from '@gruenerator/shared/profilbild';
-import { isAssetStickerId } from '@gruenerator/shared/stickers';
+import { type SavedProfilbildSticker } from '@gruenerator/contracts';
+import { isAssetStickerId } from '@gruenerator/contracts';
 
 import { ASSET_TARGET_SIZE, type AssetInstance, resolveAssetInstanceSrc } from './canvasAssets';
 

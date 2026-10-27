@@ -59,8 +59,7 @@ import type { PillBadgeInstance } from '../utils/pillBadgeUtils';
 import type { ShapeInstance, ShapeType } from '../utils/shapes';
 import type { SliderColorScheme, SliderStyle } from '../utils/sliderLayout';
 import type { ElementPlacement } from '../utils/userImageUtils';
-import type { CanvasAiSnapshot } from '@gruenerator/contracts';
-import type { StickerRef } from '@gruenerator/shared/stickers';
+import type { CanvasAiSnapshot, StickerRef } from '@gruenerator/contracts';
 
 // Default arrow icon ID (HeroIcons chevron-right, resolved via canvasIcons.ts)
 /** Feste Id der Pille, die die Folien-Beschriftung traegt. */
