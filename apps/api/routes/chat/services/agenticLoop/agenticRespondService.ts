@@ -166,6 +166,13 @@ export interface AgenticResponseOutcome {
    *  hat (`check_sharepic` → `render_sharepic`). */
   pendingClientTool?: PendingClientToolRequest;
   /**
+   * Nur neben `pendingApproval`: ein Browser-Aufruf desselben Steps, der das
+   * Freigabe-Gate schon passiert hatte (#5044). Die Freigabe gewinnt, der
+   * Aufruf reist in der Pause mit und läuft nach der Entscheidung — sonst
+   * fragt das Gate beim Neuaufruf ein zweites Mal.
+   */
+  heldClientTool?: PendingClientToolRequest;
+  /**
    * Wie der Nie-Werfen-Vertrag diesen Zug aufgelöst hat. Fehlt ⇒ echte
    * Antwort. Der Request-Pfad ignoriert das Feld (der Text IST dort die
    * ehrliche Auskunft an die Person); ein headless Aufrufer (#3221) braucht
@@ -216,6 +223,8 @@ export async function streamAgenticResponse(
       priorSteps: PersistedStep[];
       approved: PendingToolCall[];
       denied: Array<{ call: PendingToolCall; reason?: string }>;
+      /** Der mitgereiste Browser-Aufruf (`heldClientTool`) — läuft nach den entschiedenen. */
+      heldClientTool?: PendingClientToolRequest;
     };
   },
   deps: AgenticRespondDeps = defaultDeps
@@ -496,6 +505,15 @@ export async function streamAgenticResponse(
           summary: error,
           result: { error },
         });
+      }
+      // Nach den entschiedenen Aufrufen, damit deren Schritte vor der
+      // Browser-Pause im Verlauf stehen. Das Wiedereinsetzen bricht den Zug ab
+      // wie ein frisch gehaltener Aufruf; die Fortsetzung pausiert dann für den
+      // Browser. Hat ein freigegebener Aufruf das Gate schon belegt, gewinnt er.
+      if (resumeApproval.heldClientTool && !clientToolGate.restore(resumeApproval.heldClientTool)) {
+        log.warn(
+          `[Freigabe] ${resumeApproval.heldClientTool.toolName} nicht wieder eingesetzt — ein anderer Browser-Aufruf hält schon`
+        );
       }
       toolReplayMessages = [
         ...toolReplayMessages,
@@ -1008,6 +1026,10 @@ export async function streamAgenticResponse(
       pendingAsk,
     };
   }
+  // Die Freigabe GEWINNT gegen einen gehaltenen Browser-Aufruf: ihre Karte hat
+  // die Person noch nicht gesehen. Der Browser-Aufruf hatte das Gate aber schon
+  // passiert — er reist als `heldClientTool` mit, statt beim Neuaufruf ein
+  // zweites Mal gefragt zu werden (#5044).
   const pendingClientTool = clientToolGate?.pending() ?? null;
   if (pendingClientTool && !approvalGate?.hasPending()) {
     costLedger.log();
@@ -1029,6 +1051,7 @@ export async function streamAgenticResponse(
       sources: sourceRegistry.getResults(MAX_SOURCES),
       modelName: resolution?.modelName ?? agentConfig.model,
       pendingApproval: approvalGate.pending(),
+      ...(pendingClientTool ? { heldClientTool: pendingClientTool } : {}),
     };
   }
 

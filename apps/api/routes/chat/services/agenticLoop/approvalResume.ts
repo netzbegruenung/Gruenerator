@@ -128,7 +128,12 @@ export async function runToolApprovalResume(params: {
       req,
       threadId,
       grantedOnce,
-      resumeApproval: { priorSteps: stored.priorSteps, approved, denied },
+      resumeApproval: {
+        priorSteps: stored.priorSteps,
+        approved,
+        denied,
+        ...(stored.heldClientTool ? { heldClientTool: stored.heldClientTool } : {}),
+      },
     });
 
     // Eine Blase: die pausierte Zeile wird fortgeschrieben, nicht ergänzt.
@@ -147,6 +152,7 @@ export async function runToolApprovalResume(params: {
           classifiedState,
           requestContext,
           pendingApproval: outcome.pendingApproval,
+          heldClientTool: outcome.heldClientTool ?? null,
           partialText: mergedText,
           priorSteps: outcome.steps,
           pendingId: stored.pausedMessageId,

@@ -445,6 +445,7 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
           classifiedState,
           requestContext: suspendRequestContext,
           pendingApproval: response.pendingApproval as NonNullable<typeof response.pendingApproval>,
+          heldClientTool: response.heldClientTool ?? null,
           partialText: fullText,
           priorSteps: agenticSteps ?? [],
           pendingId,

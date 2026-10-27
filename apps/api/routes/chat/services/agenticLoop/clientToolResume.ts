@@ -171,6 +171,7 @@ export async function runClientToolLoopResume(params: {
           classifiedState,
           requestContext,
           pendingApproval: outcome.pendingApproval,
+          heldClientTool: outcome.heldClientTool ?? null,
           partialText: mergedText,
           priorSteps: outcome.steps,
           pendingId: stored.pausedMessageId,

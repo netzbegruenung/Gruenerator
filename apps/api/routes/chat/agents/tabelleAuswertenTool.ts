@@ -20,6 +20,7 @@ import { getThreadAttachments } from '../services/attachmentPersistenceService.j
 import { isTabularAttachment } from '../services/attachmentProcessingService.js';
 import { persistComputeAssets } from '../services/computeAssetStorage.js';
 import { hasBrokenComputeValues } from '../services/computeResultSanity.js';
+import { verifyComputeResult } from '../services/computeResultVerifier.js';
 
 import type { ChatGraphState } from '../../../agents/langgraph/ChatGraph/types.js';
 import type { LoopClientTool } from '../services/agenticLoop/clientToolRegistry.js';
@@ -35,6 +36,13 @@ const MAX_ERROR_CHARS = 1500;
  *  baut frische Loop-Guards, die den Verlauf vor der Pause nicht kennen. */
 const MAX_FAILED_RUNS = 3;
 const MAX_OUTPUT_CHARS = 4000;
+/**
+ * Reist mit jedem Erfolg im tool-result — dort liest auch der Split-Writer,
+ * der die Werkzeugbeschreibung nie sieht. Live (#5043) nannte die Antwort
+ * Namen, die in keiner Ausgabe standen, und schrieb „2114.23 EUR".
+ */
+export const TABELLE_ANTWORTREGEL =
+  'Schreibe nur, was in `ergebnis` steht: keine Namen, Listen, Zuordnungen oder Zahlen, die dort fehlen — fehlt etwas, rufe tabelle_auswerten mit präzisiertem auftrag erneut auf. Zahlen und Daten in deutscher Schreibweise (2.114,23 €, 31.01.2004).';
 
 export const tabelleAuswertenInputSchema = z.object({
   auftrag: z
@@ -95,7 +103,7 @@ NUTZE WENN eine Antwort aus den Tabellendaten berechnet werden muss — jede Sum
 
 Rufe es direkt auf — die Freigabe fragt das System selbst ab. Bitte nie im Text um Bestätigung und kündige den Aufruf nie nur an.
 
-Bei einem Fehler (\`error\`) rufe es mit einem präzisierten \`auftrag\` erneut auf (z. B. mit dem richtigen Spaltennamen) — höchstens zweimal. Hat die Person die Ausführung abgelehnt, antworte ohne Rechnung aus dem Kontext und sag deutlich, dass die Zahlen nicht berechnet wurden.`,
+Bei einem Fehler (\`error\`) oder einem berechtigten \`hinweis\` der Plausibilitätsprüfung rufe es mit einem präzisierten \`auftrag\` erneut auf (z. B. mit dem richtigen Spaltennamen) — höchstens zweimal. Hat die Person die Ausführung abgelehnt, antworte ohne Rechnung aus dem Kontext und sag deutlich, dass die Zahlen nicht berechnet wurden.`,
     inputSchema: tabelleAuswertenInputSchema,
     execute: async () => ({ error: 'tabelle_auswerten wird nie direkt ausgeführt.' }),
   });
@@ -200,12 +208,35 @@ export const tabelleAuswertenClientTool: LoopClientTool = {
     // was der Client mitschickt, fällt weg; die base64-Dateien wandern auf die
     // Platte, die Nachricht trägt danach nur kleine, authentifizierte URLs.
     const { figureUrls: _figureUrls, fileAssets: _fileAssets, ...clientSafe } = parsed.data;
-    const payload = await persistComputeAssets(userId, clientSafe);
+    // Plausibel aussehend, aber falsch (falsche Spalte summiert)? Der Hinweis
+    // geht ins Ergebnis, das Modell entscheidet über einen präzisierten Neuaufruf.
+    // Beim Ausfüllen ist die Datei das Ergebnis — dort gibt es nichts zu prüfen.
+    const [payload, hinweis] = await Promise.all([
+      persistComputeAssets(userId, clientSafe),
+      stored.args.modus === 'ausfuellen'
+        ? null
+        : verifyComputeResult({
+            question: stored.classifiedState.lastUserTextNoMentions ?? null,
+            auftrag: typeof stored.args.auftrag === 'string' ? stored.args.auftrag : '',
+            code,
+            entries: parsed.data.entries,
+          }),
+    ]);
     sse.send('compute', { compute: payload });
 
     const dateien = (payload.fileAssets ?? payload.files ?? []).map((f) => f.name);
     return {
-      toolResult: { ergebnis: payload.summary.slice(0, MAX_OUTPUT_CHARS), dateien, code },
+      toolResult: {
+        ergebnis: payload.summary.slice(0, MAX_OUTPUT_CHARS),
+        dateien,
+        code,
+        antwortregel: TABELLE_ANTWORTREGEL,
+        ...(hinweis
+          ? {
+              hinweis: `Plausibilitätsprüfung: ${hinweis} Ist das Ergebnis falsch, rufe tabelle_auswerten mit einem präzisierten auftrag erneut auf.`,
+            }
+          : {}),
+      },
       classifiedStatePatch: { computedResult: payload, computedResultFresh: true },
     };
   },

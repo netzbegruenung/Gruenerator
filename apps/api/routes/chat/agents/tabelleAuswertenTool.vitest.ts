@@ -4,16 +4,18 @@
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-const { codegenMock, persistMock, threadAttachmentsMock } = vi.hoisted(() => ({
+const { codegenMock, persistMock, threadAttachmentsMock, verifyMock } = vi.hoisted(() => ({
   codegenMock: vi.fn(),
   persistMock: vi.fn(),
   threadAttachmentsMock: vi.fn(async (): Promise<unknown[]> => []),
+  verifyMock: vi.fn(async (): Promise<string | null> => null),
 }));
 
 vi.mock('../../../agents/langgraph/ChatGraph/nodes/pandasComputeNode.js', () => ({
   pandasComputeNode: codegenMock,
 }));
 vi.mock('../services/computeAssetStorage.js', () => ({ persistComputeAssets: persistMock }));
+vi.mock('../services/computeResultVerifier.js', () => ({ verifyComputeResult: verifyMock }));
 vi.mock('../services/attachmentPersistenceService.js', () => ({
   getThreadAttachments: threadAttachmentsMock,
 }));
@@ -264,8 +266,9 @@ describe('tabelle_auswerten resolve', () => {
 
 describe('tabelle_auswerten toToolResult', () => {
   const stored = {
+    args: { auftrag: 'Summe Umsatz im März' },
     clientArgs: { code: 'print("Summe:", 42)' },
-    classifiedState: {},
+    classifiedState: { lastUserTextNoMentions: 'Wie viel Umsatz im März?' },
   } as unknown as StoredLoopClientToolState;
   let sent: Array<{ event: string; payload: unknown }>;
   let sse: SSEWriter;
@@ -276,6 +279,7 @@ describe('tabelle_auswerten toToolResult', () => {
       send: (event: string, payload: unknown) => sent.push({ event, payload }),
     } as unknown as SSEWriter;
     persistMock.mockReset().mockImplementation(async (_u: string, p: unknown) => p);
+    verifyMock.mockReset().mockResolvedValue(null);
   });
 
   it('Fehler aus dem Browser ⇒ Fehlerergebnis mit Code, kein compute-Event', async () => {
@@ -348,5 +352,69 @@ describe('tabelle_auswerten toToolResult', () => {
     expect(out.toolResult.dateien).toEqual(['export.csv']);
     expect(out.toolResult.code).toBe('print("Summe:", 42)');
     expect(out.ok).toBeUndefined();
+    // #5043: die Antwort bleibt bei der Ausgabe und schreibt Zahlen deutsch.
+    expect(String(out.toolResult.antwortregel)).toContain('Schreibe nur, was in `ergebnis` steht');
+    expect(String(out.toolResult.antwortregel)).toContain('2.114,23');
+  });
+  // #5044: plausibel aussehend, aber falsch — der Hinweis reist im Ergebnis mit.
+  const OK_RESULT = {
+    operation: 'Tabellen-Berechnung',
+    entries: [{ label: 'Summe', value: '42' }],
+    summary: 'Summe: 42',
+  };
+
+  it('unplausibles Ergebnis ⇒ Hinweis im Ergebnis, Ergebnis bleibt gültig', async () => {
+    verifyMock.mockResolvedValue('Summiert wird Menge statt Umsatz.');
+    const out = await tabelleAuswertenClientTool.toToolResult({
+      threadId: 't1',
+      stored,
+      result: OK_RESULT,
+      sse,
+      userId: 'u1',
+    });
+    expect(verifyMock).toHaveBeenCalledWith({
+      question: 'Wie viel Umsatz im März?',
+      auftrag: 'Summe Umsatz im März',
+      code: 'print("Summe:", 42)',
+      entries: OK_RESULT.entries,
+    });
+    expect(String(out.toolResult.hinweis)).toContain('Summiert wird Menge statt Umsatz.');
+    expect(String(out.toolResult.hinweis)).toContain('präzisierten auftrag');
+    expect(out.toolResult.ergebnis).toBe('Summe: 42');
+    expect(out.ok).toBeUndefined();
+    expect(sent.some((s) => s.event === 'compute')).toBe(true);
+  });
+
+  it('plausibles Ergebnis oder gescheiterte Prüfung ⇒ kein Hinweis', async () => {
+    const out = await tabelleAuswertenClientTool.toToolResult({
+      threadId: 't1',
+      stored,
+      result: OK_RESULT,
+      sse,
+      userId: 'u1',
+    });
+    expect('hinweis' in out.toolResult).toBe(false);
+  });
+
+  it('Ausfüllen ⇒ keine Plausibilitätsprüfung', async () => {
+    await tabelleAuswertenClientTool.toToolResult({
+      threadId: 't1',
+      stored: { ...stored, args: { auftrag: 'Spalte ausfüllen', modus: 'ausfuellen' } },
+      result: { ...OK_RESULT, files: [{ name: 'out.xlsx', b64: 'QQ==' }] },
+      sse,
+      userId: 'u1',
+    });
+    expect(verifyMock).not.toHaveBeenCalled();
+  });
+
+  it('Browser-Fehler ⇒ keine Plausibilitätsprüfung', async () => {
+    await tabelleAuswertenClientTool.toToolResult({
+      threadId: 't1',
+      stored,
+      result: { error: 'KeyError' },
+      sse,
+      userId: 'u1',
+    });
+    expect(verifyMock).not.toHaveBeenCalled();
   });
 });

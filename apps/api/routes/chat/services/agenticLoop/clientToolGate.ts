@@ -13,6 +13,12 @@ export type ClientToolRequestResolver = (
 export interface ClientToolGate {
   /** Hält den Aufruf an und bricht den Zug ab. `error` ⇒ nicht gehalten, das Modell erfährt warum. */
   hold(call: HeldCall): Promise<{ error: string } | null>;
+  /**
+   * Setzt einen schon aufgelösten Aufruf aus einer Freigabe-Pause wieder ein
+   * (#5044) und bricht den Zug ab wie `hold`. `false` ⇒ ein anderer Aufruf
+   * hält schon, der wiedereingesetzte entfällt.
+   */
+  restore(held: PendingClientToolRequest): boolean;
   pending(): PendingClientToolRequest | null;
   hasPending(): boolean;
   signal: AbortSignal;
@@ -36,6 +42,15 @@ export function createClientToolGate(resolve: ClientToolRequestResolver): Client
     signal: controller.signal,
     pending: () => held,
     hasPending: () => held != null,
+    restore(call) {
+      if (held) return false;
+      held = call;
+      log.info(
+        `[Client-Tool] ${call.toolName} aus der Freigabe-Pause wieder eingesetzt, Browser führt ${call.clientToolName} aus`
+      );
+      controller.abort();
+      return true;
+    },
     async hold(call) {
       if (held) return WAITING;
       const resolved = await resolve(call);

@@ -11,7 +11,11 @@ import { toolApprovalStateStore } from '../services/toolApprovalStateStore.js';
 
 import type { StreamHandlerResult } from './types.js';
 import type { ChatGraphState } from '../../../agents/langgraph/ChatGraph/types.js';
-import type { PendingToolCall, PersistedStep } from '../services/agenticLoop/types.js';
+import type {
+  PendingClientToolRequest,
+  PendingToolCall,
+  PersistedStep,
+} from '../services/agenticLoop/types.js';
 import type { StoredRequestContext } from '../services/pipelineStateStore.js';
 import type { SSEWriter } from '../services/sseHelpers.js';
 
@@ -23,6 +27,8 @@ export interface SuspendForApprovalParams {
   classifiedState: ChatGraphState;
   requestContext: StoredRequestContext;
   pendingApproval: PendingToolCall[];
+  /** Ein schon freigegebener Browser-Aufruf desselben Steps — läuft nach der Entscheidung (#5044). */
+  heldClientTool?: PendingClientToolRequest | null;
   /** Was bis zum Gate gestreamt wurde — bleibt stehen und wird fortgeschrieben. */
   partialText: string;
   priorSteps: PersistedStep[];
@@ -46,6 +52,7 @@ export async function suspendForToolApproval({
   classifiedState,
   requestContext,
   pendingApproval,
+  heldClientTool,
   partialText,
   priorSteps,
   pendingId,
@@ -56,6 +63,7 @@ export async function suspendForToolApproval({
   const stored = await toolApprovalStateStore.store(threadId, {
     approvalTurnId,
     calls: pendingApproval,
+    ...(heldClientTool ? { heldClientTool } : {}),
     priorSteps,
     partialText,
     pausedMessageId: pendingId,
