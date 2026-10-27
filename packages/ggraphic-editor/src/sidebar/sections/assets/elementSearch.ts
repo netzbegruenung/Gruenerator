@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 import { rankByQuery } from '@ggraphic/editor/utils/filterUtils';
 
 import type { ElementItem } from './elementTypes';

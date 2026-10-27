@@ -1,5 +1,6 @@
+// SPDX-License-Identifier: MPL-2.0
 import { useCanvasEditorServices } from '@ggraphic/editor/CanvasEditorProvider';
-import { STOCK_CATEGORY_LABELS } from '@gruenerator/contracts';
+import { plainAssetImageUrls, registeredAssetCatalog } from '@ggraphic/editor/utils/canvasAssets';
 import { useQuery, type QueryClient } from '@tanstack/react-query';
 
 import type { ElementItem } from './elementTypes';
@@ -7,24 +8,10 @@ import type { StockImage, StockImageAttribution } from '@ggraphic/editor/common/
 
 const STOCK_PHOTOS_QUERY_KEY = ['canvas', 'stock-photos'] as const;
 
-/**
- * German names for the catalogue's `category`, so "Mobilität" finds the whole
- * group. Single words only: a word list per category made every photo in it
- * match "Wind" or "Fahrrad"; the search's own German→English dictionary reaches
- * the English tags and alt text of the right photos instead.
- */
-const CATEGORY_NAMES: Record<string, string> = {
-  agriculture: 'Landwirtschaft',
-  economy: 'Wirtschaft',
-  health: 'Gesundheit',
-  housing: 'Wohnen',
-  media: 'Medien',
-  urban: 'Stadt',
-};
-
+/** The host's German name for the catalogue's `category`, so "Mobilität" finds the whole group. */
 function categoryName(category: string | undefined): string | null {
   if (!category) return null;
-  return STOCK_CATEGORY_LABELS[category] ?? CATEGORY_NAMES[category] ?? null;
+  return registeredAssetCatalog().stockCategoryName?.(category) ?? null;
 }
 
 /** Only a real Unsplash credit travels with the image; the "Unknown" stub does not. */
@@ -34,7 +21,9 @@ function creditOf(image: StockImage): StockImageAttribution | null {
 }
 
 export function stockPhotoItem(image: StockImage): ElementItem {
-  const url = `/api/image-picker/stock-image/${encodeURIComponent(image.filename)}`;
+  const url = (registeredAssetCatalog().imageUrls ?? plainAssetImageUrls).stockPhoto(
+    image.filename
+  );
   const category = categoryName(image.category);
   const credit = creditOf(image);
   const tags = Array.isArray(image.tags)

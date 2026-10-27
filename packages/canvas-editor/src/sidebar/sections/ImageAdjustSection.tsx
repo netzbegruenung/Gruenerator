@@ -11,7 +11,7 @@ import {
 } from '@ggraphic/editor/utils/userImageUtils';
 
 import { colorName } from '@ggraphic/editor/utils/colorNames';
-import { SidebarSlider } from '../components/SidebarSlider';
+import { SidebarSlider } from '@ggraphic/editor/sidebar/components/SidebarSlider';
 
 /** DE Tanne and Klee, AT Dunkel- and Hellgrün. */
 const TINTS = ['#005538', '#008939', '#257639', '#56AF31'];

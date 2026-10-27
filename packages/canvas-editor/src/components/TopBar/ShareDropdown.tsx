@@ -16,7 +16,7 @@ import { FaCheck, FaDownload, FaSave, FaUserPlus } from 'react-icons/fa';
 import { IoShareOutline } from 'react-icons/io5';
 import { PiArrowLeft, PiMegaphone } from 'react-icons/pi';
 
-import { useIsCanvasMobile } from '../../hooks/useIsCanvasMobile';
+import { useIsCanvasMobile } from '@ggraphic/editor/hooks/useIsCanvasMobile';
 import {
   AltTextField,
   useCaptionAltText,

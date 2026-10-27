@@ -72,7 +72,7 @@ import {
   type PrintExportPage,
 } from '../../export/printExport';
 import { exportSlidesPdf } from '@ggraphic/editor/export/slidesPdf';
-import { useIsCanvasMobile } from '../../hooks/useIsCanvasMobile';
+import { useIsCanvasMobile } from '@ggraphic/editor/hooks/useIsCanvasMobile';
 import { useZoomGestures } from '@ggraphic/editor/hooks/useZoomGestures';
 import { HOST_CALLBACK_KEYS } from '../../hostCallbackKeys';
 import { CanvasEditorLayout } from '@ggraphic/editor/layouts/index';

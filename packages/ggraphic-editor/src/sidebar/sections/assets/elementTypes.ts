@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 import {
   ELEMENT_DRAG_TYPE,
   MEDIA_DRAG_TYPE,
@@ -10,7 +11,7 @@ import type { ChartType } from '@ggraphic/editor/utils/chartUtils';
 import type { FrameClipType } from '@ggraphic/editor/utils/frameUtils';
 import type { KawaiiIllustrationType, SvgDef } from '@ggraphic/editor/utils/illustrations/types';
 import type { ShapeType } from '@ggraphic/editor/utils/shapes';
-import type { StickerRef } from '@gruenerator/contracts';
+import type { StickerRef } from '@ggraphic/schema';
 
 /** What a tile does: an element add (icons toggle) or a photo placed as image. */
 export type ElementAction = ElementDragPayload | ({ kind: 'media' } & MediaDragPayload);

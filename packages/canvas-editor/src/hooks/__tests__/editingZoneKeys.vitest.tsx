@@ -8,7 +8,7 @@ import { act, useState } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { usePageUndoRedoShortcuts } from '@ggraphic/editor/components/CanvasEditor/hooks/usePageUndoRedoShortcuts';
-import { SidebarSlider } from '../../sidebar/components/SidebarSlider';
+import { SidebarSlider } from '@ggraphic/editor/sidebar/components/SidebarSlider';
 
 import type { BaseCanvasState } from '@ggraphic/editor/configs/factory/baseTypes';
 import type { CanvasEditorStoreApi } from '@ggraphic/editor/stores/createCanvasEditorStore';

@@ -3,7 +3,7 @@ import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { toolsTab, uploadsTab } from '../../configs/commonSections';
-import { SidebarSlider } from '../../sidebar/components/SidebarSlider';
+import { SidebarSlider } from '@ggraphic/editor/sidebar/components/SidebarSlider';
 import { BalkenSettingsSection } from '../../sidebar/sections/BalkenSettingsSection';
 import { SidebarPanel } from '../../sidebar/SidebarPanel';
 import { SidebarTabBar } from '../../sidebar/SidebarTabBar';

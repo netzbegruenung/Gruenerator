@@ -1,9 +1,14 @@
+// SPDX-License-Identifier: MPL-2.0
+import { plainAssetImageUrls, registeredAssetCatalog } from '@ggraphic/editor/utils/canvasAssets';
+
 import type { CanvasMediaItem } from '@ggraphic/editor/hostServices';
 
 export function buildMediaItemUrl(item: CanvasMediaItem): string | null {
   if (item.mediaUrl) return item.mediaUrl;
-  if (item.shareToken) return `/api/share/${item.shareToken}/download`;
-  return item.thumbnailUrl;
+  const download = item.shareToken
+    ? (registeredAssetCatalog().imageUrls ?? plainAssetImageUrls).shareDownload(item.shareToken)
+    : null;
+  return download ?? item.thumbnailUrl;
 }
 
 export async function mediaItemToFile(item: CanvasMediaItem): Promise<File> {

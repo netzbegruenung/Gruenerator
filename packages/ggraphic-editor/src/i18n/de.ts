@@ -402,6 +402,15 @@ export const de = {
       loadMore: 'Mehr laden',
       loading: 'Wird geladen …',
       noMatch: (noun: string, q: string) => `Keine ${noun} für „${q}“.`,
+      scope: { shop: 'Entdecken', mine: 'Meine', saved: 'Gemerkt' },
+      plural: { sticker: 'Sticker', background: 'Hintergründe' },
+      empty: (noun: string, scope: 'shop' | 'mine' | 'saved') =>
+        scope === 'shop'
+          ? `Unter „Entdecken“ gibt es noch keine ${noun}.`
+          : scope === 'mine'
+            ? `Du hast noch keine eigenen ${noun}.`
+            : `Du hast dir noch keine ${noun} gemerkt.`,
+      loadFailed: (noun: string) => `${noun} konnten nicht geladen werden.`,
       itemLabel: (title: string, sticker: boolean) =>
         `${title} ${sticker ? 'hinzufügen' : 'als Hintergrund verwenden'}`,
     },

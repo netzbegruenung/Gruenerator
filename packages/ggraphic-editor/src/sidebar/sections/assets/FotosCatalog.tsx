@@ -1,9 +1,9 @@
+// SPDX-License-Identifier: MPL-2.0
 import { useCanvasEditorServices } from '@ggraphic/editor/CanvasEditorProvider';
 import { useNoUnsplashSearch, type UnsplashSearchFn } from '@ggraphic/editor/hostServices';
 import { useMessages } from '@ggraphic/editor/i18n/messages';
+import { registeredAssetCatalog } from '@ggraphic/editor/utils/canvasAssets';
 import { useCallback, useEffect, useMemo, type ReactNode } from 'react';
-
-import { UnsplashLimitNotice, UnsplashRemaining } from '../tools/UnsplashLimitNotice';
 
 import { unsplashPhotoItem } from './useStockPhotos';
 
@@ -11,7 +11,10 @@ import type { ElementItem } from './elementTypes';
 
 /** On top of the panel's own 200 ms, so a typing pause, not every key, costs a search. */
 const SEARCH_DEBOUNCE_MS = 400;
-const UNSPLASH_HOME = 'https://unsplash.com/?utm_source=gruenerator&utm_medium=referral';
+
+/** Unsplash asks API users to link back with their application name as `utm_source`. */
+const unsplashHome = () =>
+  `https://unsplash.com/?utm_source=${registeredAssetCatalog().unsplashUtmSource ?? 'ggraphic'}&utm_medium=referral`;
 
 /**
  * The Fotos category: the bundled photos (`children`), and below a search
@@ -28,6 +31,7 @@ export function FotosCatalog({
   children: ReactNode;
 }) {
   const t = useMessages();
+  const { UnsplashLimitNotice, UnsplashRemaining } = registeredAssetCatalog().elementPanel ?? {};
   // `useUnsplashSearch` is a host hook, fixed for the lifetime of the editor.
   const { searchUnsplashImages, useUnsplashSearch = useNoUnsplashSearch } =
     useCanvasEditorServices();
@@ -76,7 +80,7 @@ export function FotosCatalog({
       <section aria-label={t.sidebar.elements.unsplashPhotos} className="flex flex-col gap-2.5">
         <h4 className="m-0 text-sm font-bold text-[var(--editor-text)]">Mehr von Unsplash</h4>
 
-        {limit && <UnsplashLimitNotice retryAt={limit.retryAt} />}
+        {limit && UnsplashLimitNotice && <UnsplashLimitNotice retryAt={limit.retryAt} />}
 
         {isCurrent && searchError && (
           <p role="alert" className="m-0 text-xs text-editor-danger-fg">
@@ -110,11 +114,11 @@ export function FotosCatalog({
 
         {isCurrent && (
           <>
-            {!limit && <UnsplashRemaining remaining={remaining} />}
+            {!limit && UnsplashRemaining && <UnsplashRemaining remaining={remaining} />}
             <p className="m-0 text-[11px] text-[var(--editor-text-muted)]">
               Fotos von{' '}
               <a
-                href={UNSPLASH_HOME}
+                href={unsplashHome()}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="text-[var(--editor-text)] underline"

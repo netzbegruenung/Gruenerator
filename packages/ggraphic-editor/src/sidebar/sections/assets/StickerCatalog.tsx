@@ -1,30 +1,35 @@
+// SPDX-License-Identifier: MPL-2.0
 import { useCanvasEditorServices } from '@ggraphic/editor/CanvasEditorProvider';
-import { type CanvasStudioAssetItem } from '@ggraphic/editor/hostServices';
+import {
+  type CanvasStudioAssetItem,
+  type CanvasStudioAssetScope,
+} from '@ggraphic/editor/hostServices';
 import { useMessages } from '@ggraphic/editor/i18n/messages';
-import { assetStickerId, type StickerRef, type StudioAssetScope } from '@gruenerator/contracts';
-import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { registeredAssetCatalog, studioStickerId } from '@ggraphic/editor/utils/canvasAssets';
+import { type StickerRef } from '@ggraphic/schema';
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { HiPlus } from 'react-icons/hi2';
 
-import { GALLERY_SCOPES, GalleryTabs, StudioGalleryGrid, type GalleryTab } from '../StudioGallery';
+import {
+  GalleryTabs,
+  StudioGalleryGrid,
+  useGalleryScopes,
+  type GalleryTab,
+} from '../StudioGallery';
 
 import { elementDragProps } from './ElementTile';
 import { galleryStickerItem } from './elementTypes';
 
-type StickerTab = 'gruene' | StudioAssetScope;
+type StickerTab = 'catalog' | CanvasStudioAssetScope;
 
 const galleryRef = (item: CanvasStudioAssetItem): StickerRef => ({
-  id: assetStickerId(item.id),
+  id: studioStickerId(item.id),
   src: item.src,
 });
 
-const STICKER_TABS: readonly GalleryTab<StickerTab>[] = [
-  { id: 'gruene', label: 'Grüne' },
-  ...GALLERY_SCOPES,
-];
-
 /**
- * The Sticker category: the system stickers (`children`) under "Grüne", the
- * shared gallery under Entdecken / Meine / Gemerkt. Without
+ * The Sticker category: the catalogue's stickers (`children`) under the host's
+ * label (`elementPanel.stickerListLabel`), the shared gallery under Entdecken / Meine / Gemerkt. Without
  * `onAddStickerAsset` only the system set.
  */
 export function StickerCatalog({
@@ -41,7 +46,13 @@ export function StickerCatalog({
 }) {
   const t = useMessages();
   const { openStickerCreator } = useCanvasEditorServices();
-  const [tab, setTab] = useState<StickerTab>('gruene');
+  const scopes = useGalleryScopes();
+  const listLabel = registeredAssetCatalog().elementPanel?.stickerListLabel ?? 'Standard';
+  const tabs = useMemo<readonly GalleryTab<StickerTab>[]>(
+    () => [{ id: 'catalog', label: listLabel }, ...scopes],
+    [listLabel, scopes]
+  );
+  const [tab, setTab] = useState<StickerTab>('catalog');
   const creatorOpened = useRef(false);
   const [refreshToken, setRefreshToken] = useState(0);
 
@@ -62,7 +73,7 @@ export function StickerCatalog({
     <div className="flex flex-col gap-3 w-full">
       <GalleryTabs
         label={t.sidebar.elements.stickerPicker}
-        tabs={STICKER_TABS}
+        tabs={tabs}
         value={tab}
         onChange={setTab}
       />
@@ -80,7 +91,7 @@ export function StickerCatalog({
           {t.sidebar.elements.createSticker}
         </button>
       )}
-      {tab === 'gruene' ? (
+      {tab === 'catalog' ? (
         children
       ) : (
         <StudioGalleryGrid

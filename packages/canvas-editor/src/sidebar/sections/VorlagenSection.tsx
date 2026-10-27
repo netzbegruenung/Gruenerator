@@ -74,7 +74,7 @@ import {
   seiteDeckOps,
   vorlageDeckOps,
 } from '../../collab/vorlageDeck';
-import { useIsCanvasMobile } from '../../hooks/useIsCanvasMobile';
+import { useIsCanvasMobile } from '@ggraphic/editor/hooks/useIsCanvasMobile';
 import { SlideLayoutPicker } from '../../slides/SlideLayoutPicker';
 import {
   buildSlideLayout,
@@ -84,7 +84,7 @@ import {
 } from '../../slides/slideLayouts';
 import { rankVorlagen } from '../../utils/vorlagenRelevance';
 
-import { GalleryTabs } from './StudioGallery';
+import { GalleryTabs } from '@ggraphic/editor/sidebar/sections/StudioGallery';
 
 import type { BrandLocale } from '../../brand/theme';
 import type {

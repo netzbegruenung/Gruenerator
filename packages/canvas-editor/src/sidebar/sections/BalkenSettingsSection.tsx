@@ -3,8 +3,13 @@ import { cn } from '@ggraphic/editor/utils/cn';
 import { FaCheck, FaChevronLeft, FaChevronRight, FaTrash, FaCopy } from 'react-icons/fa';
 import { HiColorSwatch, HiAdjustments, HiArrowsExpand } from 'react-icons/hi';
 
-import { SidebarSlider } from '../components/SidebarSlider';
-import { ACTION_BTN, ACTION_BTN_DANGER, SECTION_HEADER, SECTION_TITLE } from '@ggraphic/editor/sidebar/sidebarStyles';
+import { SidebarSlider } from '@ggraphic/editor/sidebar/components/SidebarSlider';
+import {
+  ACTION_BTN,
+  ACTION_BTN_DANGER,
+  SECTION_HEADER,
+  SECTION_TITLE,
+} from '@ggraphic/editor/sidebar/sidebarStyles';
 import { SubsectionTabBar, type Subsection } from '../SubsectionTabBar';
 
 import type { ColorScheme } from '../../utils/dreizeilenLayout';

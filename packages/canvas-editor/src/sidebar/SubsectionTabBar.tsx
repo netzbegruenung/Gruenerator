@@ -3,7 +3,7 @@ import { useMessages } from '@ggraphic/editor/i18n/messages';
 import { cn } from '@ggraphic/editor/utils/cn';
 import { useId, useState, type ReactNode } from 'react';
 
-import { useIsCanvasMobile } from '../hooks/useIsCanvasMobile';
+import { useIsCanvasMobile } from '@ggraphic/editor/hooks/useIsCanvasMobile';
 
 import { HIDDEN_SCROLLBAR } from '@ggraphic/editor/sidebar/sidebarStyles';
 

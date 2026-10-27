@@ -1,7 +1,7 @@
 import { loadCanvasConfig } from '@ggraphic/editor/configs/configLoader';
 import { beforeAll, describe, expect, it } from 'vitest';
 
-import type { ExtendedAssetsSectionProps } from '../../sidebar/sections/assets';
+import type { ExtendedAssetsSectionProps } from '@ggraphic/editor/sidebar/sections/assets/index';
 import type { AssetInstance } from '@ggraphic/editor/utils/canvasAssets';
 
 /**

@@ -1,5 +1,10 @@
+// SPDX-License-Identifier: MPL-2.0
 import { getHostStorageKey, onHostStorageKeysChange } from '@ggraphic/editor/utils/hostStorageKeys';
-import { isShareSrc } from '@gruenerator/contracts';
+import {
+  onAssetCatalogChange,
+  plainAssetImageUrls,
+  registeredAssetCatalog,
+} from '@ggraphic/editor/utils/canvasAssets';
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
 
@@ -29,16 +34,16 @@ function isStoredItem(value: unknown): value is ElementItem {
   );
 }
 
-const STOCK_PREFIX = '/api/image-picker/stock-image/';
-
 /**
  * Storage is outside our control: a URL that reaches the canvas must be one the
  * catalogue could have produced, as when a gallery sticker loads from a document.
  */
 function hasTrustedSource(item: ElementItem): boolean {
   const action = item.action;
-  if (action.kind === 'sticker') return isShareSrc(action.ref.src);
-  if (action.kind === 'media') return action.url.startsWith(STOCK_PREFIX);
+  const catalog = registeredAssetCatalog();
+  if (action.kind === 'sticker') return catalog.isInstanceSrc(action.ref.src);
+  if (action.kind === 'media')
+    return (catalog.imageUrls ?? plainAssetImageUrls).isStockPhoto(action.url);
   return true;
 }
 
@@ -83,3 +88,6 @@ onHostStorageKeysChange(() => {
   useRecentElements.persist.setOptions({ name: key });
   void useRecentElements.persist.rehydrate();
 });
+
+// The trust check above reads the host's catalogue, which may register after this store hydrated.
+onAssetCatalogChange(() => void useRecentElements.persist.rehydrate());

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 import { useMessages } from '@ggraphic/editor/i18n/messages';
 import { cn } from '@ggraphic/editor/utils/cn';
 import { onThumbnailHover } from '@ggraphic/editor/utils/illustrations/svgCache';

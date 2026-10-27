@@ -37,7 +37,9 @@ export * from './dreizeilen';
 // =============================================================================
 
 // Preloaded while the editor is idle (usePreloadElements), so the first open is instant.
-export const AssetsSection = lazyWithPreload(() => import('./assets').then((m) => m.AssetsSection));
+export const AssetsSection = lazyWithPreload(() =>
+  import('@ggraphic/editor/sidebar/sections/assets/index').then((m) => m.AssetsSection)
+);
 
 export const GenericShareSection = lazy(() =>
   import('./GenericShareSection').then((m) => ({ default: m.GenericShareSection }))

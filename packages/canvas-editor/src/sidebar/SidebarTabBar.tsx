@@ -3,7 +3,7 @@ import { cn } from '@ggraphic/editor/utils/cn';
 import { memo, useCallback } from 'react';
 
 import { AutoSaveIndicator } from '@ggraphic/editor/components/TopBar/AutoSaveIndicator';
-import { useIsCanvasMobile } from '../hooks/useIsCanvasMobile';
+import { useIsCanvasMobile } from '@ggraphic/editor/hooks/useIsCanvasMobile';
 
 import { SIDEBAR_PANEL_ID } from '@ggraphic/editor/sidebar/sidebarStyles';
 

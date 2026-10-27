@@ -1,12 +1,16 @@
+// SPDX-License-Identifier: MPL-2.0
 import { useCanvasEditorServices } from '@ggraphic/editor/CanvasEditorProvider';
-import { plainImageUrls, type CanvasStudioAssetItem } from '@ggraphic/editor/hostServices';
+import {
+  plainImageUrls,
+  type CanvasStudioAssetItem,
+  type CanvasStudioAssetScope,
+} from '@ggraphic/editor/hostServices';
 import { useMessages } from '@ggraphic/editor/i18n/messages';
+import { registeredAssetCatalog } from '@ggraphic/editor/utils/canvasAssets';
 import { fetchShareImageFile } from '@ggraphic/editor/utils/mediaPlacement';
-import { type StudioAssetScope } from '@gruenerator/contracts';
-import { isShareSrc } from '@gruenerator/contracts';
 import { useRef, useState } from 'react';
 
-import { GALLERY_SCOPES, GalleryTabs, StudioGalleryGrid } from '../StudioGallery';
+import { GalleryTabs, StudioGalleryGrid, useGalleryScopes } from '../StudioGallery';
 
 import type { BackgroundControls } from '@ggraphic/editor/configs/types';
 
@@ -24,7 +28,7 @@ function useBackgroundPick(onImageChange: ImageChange) {
   const [error, setError] = useState<string | null>(null);
 
   const pick = async (item: CanvasStudioAssetItem) => {
-    if (!isShareSrc(item.src)) return;
+    if (!registeredAssetCatalog().isInstanceSrc(item.src)) return;
     const seq = ++seqRef.current;
     setError(null);
     setPendingId(item.id);
@@ -52,14 +56,15 @@ export function BackgroundCatalog({
   searchQuery?: string;
 }) {
   const t = useMessages();
-  const [scope, setScope] = useState<StudioAssetScope>('shop');
+  const [scope, setScope] = useState<CanvasStudioAssetScope>('shop');
+  const scopes = useGalleryScopes();
   const { pick, pendingId, error } = useBackgroundPick(onImageChange);
 
   return (
     <div className="flex flex-col gap-3 w-full">
       <GalleryTabs
         label={t.sidebar.elements.backgroundPicker}
-        tabs={GALLERY_SCOPES}
+        tabs={scopes}
         value={scope}
         onChange={setScope}
       />

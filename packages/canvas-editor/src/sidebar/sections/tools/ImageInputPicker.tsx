@@ -5,7 +5,7 @@ import { cn } from '@ggraphic/editor/utils/cn';
 import { useEffect, useRef, useState } from 'react';
 import { HiArrowUpTray, HiPhoto, HiXMark } from 'react-icons/hi2';
 
-import { mediaItemToFile } from '../../../utils/mediaItemToFile';
+import { mediaItemToFile } from '@ggraphic/editor/utils/mediaItemToFile';
 
 import type { CanvasMediaItem } from '@ggraphic/editor/hostServices';
 
