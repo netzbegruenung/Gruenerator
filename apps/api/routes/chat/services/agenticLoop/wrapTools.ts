@@ -21,6 +21,7 @@
 import { recordDecision } from '../../../../utils/decisionJournal.js';
 import { createLogger } from '../../../../utils/logger.js';
 
+import { LOOP_CLIENT_TOOLS } from './clientToolRegistry.js';
 import { truncateResultForModel } from './truncate.js';
 import { readMcpResult, type PersistedStep } from './types.js';
 
@@ -552,10 +553,11 @@ export function wrapToolsForLoop(tools: ToolSet, ctx: WrapToolsContext): ToolSet
         return { error: 'Warte auf die Antwort der Nutzer*in.' };
       }
 
-      // `check_sharepic` ebenso: der Browser muss erst rendern, das Ergebnis
-      // entsteht in der Fortsetzung. Scheitert das Auflösen des Ziels, geht der
-      // Fehler als gewöhnliches Ergebnis ans Modell und der Zug läuft weiter.
-      if (toolName === 'check_sharepic' && ctx.clientToolGate) {
+      // Browser-Werkzeuge (`LOOP_CLIENT_TOOLS`, z. B. `check_sharepic`) ebenso:
+      // der Browser muss erst ausführen, das Ergebnis entsteht in der
+      // Fortsetzung. Scheitert das Auflösen, geht der Fehler als gewöhnliches
+      // Ergebnis ans Modell und der Zug läuft weiter.
+      if (LOOP_CLIENT_TOOLS.has(toolName) && ctx.clientToolGate) {
         return (
           (await ctx.clientToolGate.hold({ toolName, stepId, args })) ?? {
             error: 'Warte auf die Darstellung im Browser.',

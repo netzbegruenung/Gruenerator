@@ -34,7 +34,6 @@ import {
 } from '../../agents/providers.js';
 import { renderRecipeCatalog } from '../../agents/recipeCatalog.js';
 import { imageDeliveryNote } from '../../agents/searchImageHarvest.js';
-import { resolveCheckSharepicRender } from '../../agents/sharepicCheckTool.js';
 import { quotesSharepicText } from '../../agents/sharepicLoopTools.js';
 import { offerNote } from '../artifactOffer.js';
 import { pruneMessages } from '../contextPruningService.js';
@@ -70,6 +69,7 @@ import {
   wrapAssembledTools,
 } from './catalogAssembly.js';
 import { createClientToolGate, type ClientToolGate } from './clientToolGate.js';
+import { LOOP_CLIENT_TOOLS } from './clientToolRegistry.js';
 import { editedArtifactKinds, guardedArtifactKinds } from './editedArtifacts.js';
 import { isToolScopeEnforced } from './flags.js';
 import {
@@ -412,13 +412,19 @@ export async function streamAgenticResponse(
       ...(grantedOnce ? { grantedOnce } : {}),
     });
     askGate = createAskHumanGate();
-    clientToolGate = createClientToolGate((call) =>
-      finalState.sharepicCheck
-        ? Promise.resolve({
-            error: `In diesem Zug schon geprüft, nicht erneut aufrufen. Ergebnis: ${JSON.stringify(finalState.sharepicCheck)}`,
-          })
-        : resolveCheckSharepicRender(threadId ?? null, finalState, call.args)
-    );
+    clientToolGate = createClientToolGate(async (call) => {
+      const clientTool = LOOP_CLIENT_TOOLS.get(call.toolName);
+      if (!clientTool) return { error: `${call.toolName} läuft nicht im Browser.` };
+      const resolved = await clientTool.resolve({
+        threadId: threadId ?? null,
+        state: finalState,
+        args: call.args,
+        priorSteps: steps,
+      });
+      return 'error' in resolved
+        ? resolved
+        : { clientToolName: clientTool.clientToolName, clientArgs: resolved.clientArgs };
+    });
     // Zwei Beobachter am selben Haken: die Kostenrechnung zählt JEDEN Aufruf,
     // die Rerank-Warnung feuert höchstens einmal je Turn. `composeToolHooks`
     // isoliert dabei jeden Beobachter einzeln — ein werfender Kostenzähler

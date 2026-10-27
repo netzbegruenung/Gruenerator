@@ -38,6 +38,7 @@ import { getContextWindow } from '../agents/providers.js';
 
 import { runToolApprovalResume } from './agenticLoop/approvalResume.js';
 import { runClarificationLoopResume } from './agenticLoop/clarificationResume.js';
+import { routesToLoopClientToolResume } from './agenticLoop/clientToolRegistry.js';
 import { runClientToolLoopResume } from './agenticLoop/clientToolResume.js';
 import { ARTIFACT_CONFIRMATION_TEXTS, buildSharepicConfirmation } from './artifactConfirmations.js';
 import { injectImageAttachments } from './attachmentProcessingService.js';
@@ -47,6 +48,7 @@ import { applyCompaction, pruneMessages } from './contextPruningService.js';
 import { imageVisibility } from './imageVisibility.js';
 import { executeIntentPipeline, reportUnavailableSources } from './intentExecutionService.js';
 import { loopClarificationStateStore } from './loopClarificationStateStore.js';
+import { loopClientToolStateStore } from './loopClientToolStateStore.js';
 import { extractTextContent, lastUserText } from './messageHelpers.js';
 import { createPendingAssistantWriter } from './pendingAssistantWriter.js';
 import { pipelineStateStore } from './pipelineStateStore.js';
@@ -148,9 +150,17 @@ export async function runChatGraphResume({
       });
       return { status: result.status, body: result.body };
     }
-    // Browser-Werkzeug eines Loop-Zuges (`check_sharepic` → `render_sharepic`):
-    // eigener Zustand, eigene agentische Fortsetzung — wie die Loop-Rückfrage.
-    if (resumeInput.kind === 'client_tool' && resumeInput.toolName === 'render_sharepic') {
+    // Browser-Werkzeug eines Loop-Zuges (`LOOP_CLIENT_TOOLS`, z. B.
+    // `check_sharepic` → `render_sharepic`): eigener Zustand, eigene agentische
+    // Fortsetzung — wie die Loop-Rückfrage. Entschieden am gespeicherten
+    // Loop-Zustand, und VOR dem `run_python`-Altzweig der Pre-Loop-Pause.
+    if (
+      resumeInput.kind === 'client_tool' &&
+      routesToLoopClientToolResume(
+        resumeInput.toolName,
+        (await loopClientToolStateStore.get(threadId))?.clientToolName ?? null
+      )
+    ) {
       const clientToolUser = getUser(req);
       if (!clientToolUser?.id) {
         return sseFail(sse, PROGRESS_MESSAGES.unauthorized, { code: 'unauthorized' });
