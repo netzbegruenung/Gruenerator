@@ -84,7 +84,7 @@ import {
 import { createPortal, flushSync } from 'react-dom';
 
 import { fontMarkSupport } from '../utils/fontMarkSupport';
-import { DEFAULT_TEXT_MARKER } from '../utils/markerColors';
+import { defaultTextMarker } from '../utils/markerColors';
 import {
   fontStyleForRun,
   measureTextWidthWithFont,
@@ -596,8 +596,8 @@ function TextEditorRoot({ children }: { children: ReactNode }) {
           // Wert aber unverändert durch.
           ...({
             '--canvas-rte-list-indent': `${listIndent}px`,
-            '--canvas-rte-marker-fill': (session.marker ?? DEFAULT_TEXT_MARKER).fill,
-            '--canvas-rte-marker-color': (session.marker ?? DEFAULT_TEXT_MARKER).color,
+            '--canvas-rte-marker-fill': (session.marker ?? defaultTextMarker()).fill,
+            '--canvas-rte-marker-color': (session.marker ?? defaultTextMarker()).color,
             ...(session.accent && {
               '--canvas-rte-accent-color': session.accent.fill,
               '--canvas-rte-accent-font': session.accent.fontFamily ?? session.fontFamily,

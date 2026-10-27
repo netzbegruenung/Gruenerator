@@ -12,10 +12,10 @@
  */
 
 import { CANVAS_COLORS, DEFAULT_CANVAS_SIZE } from '@gruenerator/contracts';
-import { DEFAULT_BACKGROUND_COLOR, INITIAL_SCALE } from '../types/editorTypes';
 import { PiSquaresFourFill } from 'react-icons/pi';
 
 import { AssetsSection } from '../sidebar/sections';
+import { INITIAL_SCALE } from '../types/editorTypes';
 
 import { chatTab, createCommonSectionEntries, toolsTab, uploadsTab } from './commonSections';
 import { createBaseActions } from './factory/actionFactories';
@@ -92,7 +92,7 @@ function defaultAvatarLayout(): {
 function createProfilbildInitialState(props: Record<string, unknown>): ProfilbildFullState {
   const { position, size } = defaultAvatarLayout();
   const transparentImage = (props.transparentImage as string | undefined) ?? '';
-  const backgroundColor = (props.backgroundColor as string | undefined) ?? DEFAULT_BACKGROUND_COLOR;
+  const backgroundColor = (props.backgroundColor as string | undefined) ?? CANVAS_COLORS.TANNE;
 
   return {
     isDesktop: true,
@@ -133,7 +133,7 @@ const backgroundElement: BackgroundElementConfig<ProfilbildFullState> = {
   width: CANVAS_SIZE,
   height: CANVAS_SIZE,
   colorKey: 'backgroundColor',
-  color: DEFAULT_BACKGROUND_COLOR,
+  color: CANVAS_COLORS.TANNE,
 };
 
 const avatarElement: ImageElementConfig<ProfilbildFullState> = {

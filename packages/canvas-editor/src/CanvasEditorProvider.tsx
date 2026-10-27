@@ -54,7 +54,7 @@ export type {
  * Chat sidebar tab. The component renders inline inside the sidebar panel.
  */
 export interface ChatSectionContentProps {
-  /** Template id (e.g. 'zitat', 'simple', 'dreizeilen'). */
+  /** Template id (e.g. 'zitat', 'simple'). */
   canvasType: string;
   /** Returns a structured German text description of the current canvas. */
   getSharepicText: () => string;
@@ -74,7 +74,7 @@ export interface VorlagePage {
 }
 
 /**
- * The Grünerator-Seiten behind the „Vorlagen" tab of a sharepic, each Vorlage
+ * The host's pages behind the „Vorlagen" tab of a sharepic, each Vorlage
  * slide among them. `composeSeite` turns one into a page (needs the browser:
  * fonts, photo tones) and keeps its spec on it, so the chat can go on editing it.
  */
@@ -90,7 +90,7 @@ export interface CanvasVorlagenService {
    * without this the tab only replaces the design.
    */
   openPrintAsNew?: (vorlage: PrintVorlage) => void;
-  /** The Grünerator-Blöcke of the viewer's country, for the Elemente panel. */
+  /** The host's blocks for the viewer, for the Elemente panel. */
   listBloecke?: () => Promise<SharepicBlock[]>;
   /** Composes a block on `color` in `format` (needs the browser: fonts); the slide holds it alone. */
   composeBlock?: (
@@ -206,7 +206,7 @@ export interface CanvasEditorServices {
    */
   ChatSectionContent?: ComponentType<ChatSectionContentProps>;
 
-  /** Grünerator-Vorlagen for the „Vorlagen" tab; when omitted, the tab is hidden. */
+  /** The host's Vorlagen for the „Vorlagen" tab; when omitted, the tab is hidden. */
   vorlagen?: CanvasVorlagenService;
 
   /**

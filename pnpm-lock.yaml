@@ -2109,6 +2109,9 @@ importers:
 
   packages/ggraphic-editor:
     dependencies:
+      '@ggraphic/core':
+        specifier: workspace:*
+        version: link:../ggraphic-core
       '@ggraphic/schema':
         specifier: workspace:*
         version: link:../ggraphic-schema

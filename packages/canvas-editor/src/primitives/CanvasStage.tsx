@@ -6,6 +6,7 @@
  * regardless of display scaling.
  */
 
+import { activeBrand } from '@ggraphic/editor/brand/brandRegistry';
 import { TransformHud } from '@ggraphic/editor/components/TransformHud';
 import { useHoverOutline } from '@ggraphic/editor/hooks/useHoverOutline';
 import { installAxisLock } from '@ggraphic/editor/utils/axisLock';
@@ -458,9 +459,15 @@ export const CanvasStage = forwardRef<CanvasStageRef, CanvasStageProps>(
                   {/* Solid-color backdrop for non-default formats. Sharepic
                       templates were designed with their own backgrounds (image
                       or color); for non-sharepic formats (Story, Präsentation,
-                      Flyer, Plakat) we render a clean SAND base behind the
+                      Flyer, Plakat) we render the brand's light surface behind the
                       scaled design so it never sits on a transparent canvas. */}
-                  <Rect x={0} y={0} width={width} height={height} fill="#f5f1e9" />
+                  <Rect
+                    x={0}
+                    y={0}
+                    width={width}
+                    height={height}
+                    fill={activeBrand().colors.surface}
+                  />
                   <Group scaleX={width / logicalWidth} scaleY={height / logicalHeight}>
                     {children}
                   </Group>

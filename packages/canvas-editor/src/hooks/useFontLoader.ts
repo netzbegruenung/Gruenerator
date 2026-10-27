@@ -4,7 +4,6 @@
  * NEW: Always renders immediately with fallback font, swaps to custom font when ready.
  * This eliminates the 1.5s blocking delay while maintaining proper font rendering.
  *
- * Extracted from DreizeilenCanvas refactoring (Phase 4)
  * Handles font loading with polling fallback for browsers that don't support document.fonts
  */
 
@@ -151,7 +150,7 @@ export function useFontLoader(options: UseFontLoaderOptions | null): UseFontLoad
    *
    * Bewusst NICHT Teil von `isFontAvailable`: das Tor entscheidet, wann die
    * Leinwand einmalig neu vermisst wird, und eine Familie mit nur einem
-   * Schnitt (GrueneTypeNeue) darf es nicht offen halten. Angefordert wird
+   * Schnitt darf es nicht offen halten. Angefordert wird
    * trotzdem für jede Familie — bei einem einzigen Schnitt trifft die
    * CSS-Schriftzuordnung denselben, und es entsteht keine zweite Anfrage.
    *

@@ -9,11 +9,11 @@
  * re-render optimization as the old create() bound hook.
  */
 
+import { activeBrand } from '@ggraphic/editor/brand/brandRegistry';
 import { immer } from 'zustand/middleware/immer';
 import { createStore } from 'zustand/vanilla';
 
 import { DEFAULT_FORMAT_ID, getCanvasFormatOrDefault } from '../formats';
-import { DEFAULT_BACKGROUND_COLOR } from '../types/editorTypes';
 
 import type { CanvasEditorConfig, CanvasHistoryEntry } from '../types/editorTypes';
 import type { CropAspectId } from '@ggraphic/editor/utils/cropAspect';
@@ -187,7 +187,7 @@ function createInitialState<
     config: {
       width: format.width,
       height: format.height,
-      backgroundColor: DEFAULT_BACKGROUND_COLOR,
+      backgroundColor: activeBrand().defaultBackground,
       responsive: true,
       maxContainerWidth: 600,
     },

@@ -29,7 +29,7 @@ export type ElementDragPayload =
   | { kind: 'frame'; clipType: FrameClipType }
   | { kind: 'balken'; mode: BalkenMode }
   | { kind: 'icon'; iconId: string }
-  /** A Grünerator-Block: composed for the page it lands on, then dropped as its parts. */
+  /** A host block: composed for the page it lands on, then dropped as its parts. */
   | { kind: 'block'; blockId: string };
 
 const ELEMENT_KINDS = new Set<ElementDragPayload['kind']>([

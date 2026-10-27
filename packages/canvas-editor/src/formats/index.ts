@@ -165,7 +165,7 @@ export const CANVAS_FORMATS: ReadonlyArray<CanvasFormat> = [
   printFormat('print-a3-quer', 'Plakat A3 quer', { w: 420, h: 297 }, 4, 1),
   printFormat('print-a1-hoch', 'Plakat A1 hoch', { w: 594, h: 841 }, 10, 1, PRINT_LARGE_EXPORT_DPI),
   printFormat('print-a1-quer', 'Plakat A1 quer', { w: 841, h: 594 }, 10, 1, PRINT_LARGE_EXPORT_DPI),
-  // 18/1 billboard: the artwork is supplied at A2 and enlarged (CD p. 43).
+  // 18/1 billboard: the artwork is supplied at A2 and enlarged (print spec).
   printFormat(
     'print-grossflaeche',
     'Großfläche 18/1 (Vorlage A2)',
@@ -174,9 +174,9 @@ export const CANVAS_FORMATS: ReadonlyArray<CanvasFormat> = [
     1,
     PRINT_LARGE_EXPORT_DPI
   ),
-  // Visible area 230 × 342 mm (CD p. 47): the safe zone ends inside it.
+  // Visible area 230 × 342 mm (print spec): the safe zone ends inside it.
   printFormat('print-citylight', 'Citylight', { w: 237, h: 350 }, 8, 1, PRINT_LARGE_EXPORT_DPI),
-  // Roll fold to DIN lang: panels 100 / 100 / 97 mm, outside and inside (CD p. 29/30).
+  // Roll fold to DIN lang: panels 100 / 100 / 97 mm, outside and inside (print spec).
   printFormat(
     'print-flyer-dinlang',
     'Flyer DIN lang (A4 quer, Wickelfalz)',

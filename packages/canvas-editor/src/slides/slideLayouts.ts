@@ -12,11 +12,11 @@
  * statt Sonnenblume). Die Layout-Ids sind F1: sie können persistiert werden.
  */
 
-import { getBrandTheme, type BrandLocale } from '../brand/theme';
+import { getBrandPack, getBrandTheme, type BrandLocale } from '../brand/theme';
 import { SHAREPIC_COLOR_HEX } from '../composer/chromeParts';
 import { ASSET_TARGET_SIZE, type AssetInstance } from '../utils/canvasAssets';
-import { CHART_PALETTES, type ChartInstance } from '../utils/chartUtils';
-import { BRAND_COLORS, type ShapeInstance } from '../utils/shapes';
+import { type ChartInstance } from '../utils/chartUtils';
+import { type ShapeInstance } from '../utils/shapes';
 
 import type { ComposedSlide } from '../composer/composeTypes';
 import type { AdditionalText } from '../configs/types';
@@ -91,7 +91,7 @@ const PHOTO = {
 // FARBEN UND SCHRIFTEN JE LAND UND GRUND
 // ============================================================================
 
-const brand = (id: string): string => BRAND_COLORS.find((c) => c.id === id)!.value;
+const brand = (id: string): string => getBrandPack('de-DE').palette.find((c) => c.id === id)!.color;
 
 const DE = getBrandTheme('de-DE');
 const AT = getBrandTheme('de-AT');
@@ -416,7 +416,7 @@ function textfolie(b: SlideBuilder) {
 }
 
 function chartColors(locale: BrandLocale, ground: string): string[] {
-  if (locale === 'de-AT') return CHART_PALETTES['de-AT'].filter((c) => c !== ground);
+  if (locale === 'de-AT') return getBrandPack('de-AT').chart.filter((c) => c !== ground);
   // Die Reihen der CD-Vorlage: Klee, Grashalm, Himmel und Gelb.
   return [brand('klee'), brand('grashalm'), brand('himmel'), AT.colors.accent];
 }

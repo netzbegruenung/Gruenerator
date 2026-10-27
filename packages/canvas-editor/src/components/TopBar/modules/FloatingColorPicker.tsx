@@ -1,7 +1,7 @@
 import { cn } from '@ggraphic/editor/utils/cn';
 import React from 'react';
 
-import { BRAND_COLORS } from '../../../utils/shapes';
+import { brandColors, type ColorOption } from '../../../utils/colorOptions';
 import { CustomColorSwatch } from '../../CustomColorSwatch';
 
 interface FloatingColorPickerProps {
@@ -9,7 +9,7 @@ interface FloatingColorPickerProps {
   onColorSelect: (color: string) => void;
   isExpanded?: boolean;
   onExpandChange?: (expanded: boolean) => void;
-  colors?: typeof BRAND_COLORS;
+  colors?: ColorOption[];
   /** 'font' renders an "A" glyph with a colored underline (text elements); 'swatch' a filled chip. */
   variant?: 'font' | 'swatch';
   /** False limits the choice to `colors`. */
@@ -33,7 +33,7 @@ export function FloatingColorPicker({
   variant = 'swatch',
   allowCustom = true,
 }: FloatingColorPickerProps) {
-  const colorOptions = colors ?? BRAND_COLORS;
+  const colorOptions = colors ?? brandColors();
   const [internalExpanded, setInternalExpanded] = React.useState(false);
   const isExpanded = externalExpanded !== undefined ? externalExpanded : internalExpanded;
   const setIsExpanded = onExpandChange || setInternalExpanded;

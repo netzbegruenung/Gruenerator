@@ -6,6 +6,8 @@
  * commonly used for date displays in event templates.
  */
 
+import { activeBrand } from '@ggraphic/editor/brand/brandRegistry';
+
 import type { CircleBadgeInstance, CircleBadgeTextLine } from '../primitives/CircleBadge';
 
 export type { CircleBadgeInstance, CircleBadgeTextLine };
@@ -27,40 +29,44 @@ export interface CircleBadgePreset {
 // PRESETS
 // ============================================================================
 
-export const CIRCLE_BADGE_PRESETS: Record<string, CircleBadgePreset> = {
-  default: {
-    radius: 80,
-    backgroundColor: '#005538',
-    textColor: '#FFFFFF',
-    textLines: [
-      {
-        text: 'Text',
-        yOffset: 0,
-        fontFamily: 'GrueneTypeNeue',
-        fontSize: 32,
-        fontWeight: 'bold',
-      },
-    ],
-    defaultX: 200,
-    defaultY: 200,
-  },
-  'default-inverted': {
-    radius: 80,
-    backgroundColor: '#F5F1E9',
-    textColor: '#005538',
-    textLines: [
-      {
-        text: 'Text',
-        yOffset: 0,
-        fontFamily: 'GrueneTypeNeue',
-        fontSize: 32,
-        fontWeight: 'bold',
-      },
-    ],
-    defaultX: 200,
-    defaultY: 200,
-  },
-};
+/** The presets in the active brand's colours and headline font. */
+function circleBadgePresets(): Record<string, CircleBadgePreset> {
+  const { colors, fonts } = activeBrand();
+  return {
+    default: {
+      radius: 80,
+      backgroundColor: colors.primary,
+      textColor: '#FFFFFF',
+      textLines: [
+        {
+          text: 'Text',
+          yOffset: 0,
+          fontFamily: fonts.headline,
+          fontSize: 32,
+          fontWeight: 'bold',
+        },
+      ],
+      defaultX: 200,
+      defaultY: 200,
+    },
+    'default-inverted': {
+      radius: 80,
+      backgroundColor: colors.surface,
+      textColor: colors.primary,
+      textLines: [
+        {
+          text: 'Text',
+          yOffset: 0,
+          fontFamily: fonts.headline,
+          fontSize: 32,
+          fontWeight: 'bold',
+        },
+      ],
+      defaultX: 200,
+      defaultY: 200,
+    },
+  };
+}
 
 // ============================================================================
 // UTILITY FUNCTIONS
@@ -86,7 +92,8 @@ export function createCircleBadgeInstance(
   presetId: string = 'default',
   overrides: Partial<CircleBadgeInstance> = {}
 ): CircleBadgeInstance {
-  const preset = CIRCLE_BADGE_PRESETS[presetId] ?? CIRCLE_BADGE_PRESETS.default;
+  const presets = circleBadgePresets();
+  const preset = presets[presetId] ?? presets.default;
 
   return {
     id: generateCircleBadgeId(),

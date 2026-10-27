@@ -13,7 +13,7 @@ import { CustomColorSwatch } from '../../components/CustomColorSwatch';
 import {
   addChartRow,
   addChartSeries,
-  CHART_COLORS,
+  chartColors,
   chartLegendPosition,
   chartSeries,
   isRoundChartType,
@@ -60,7 +60,7 @@ export function ChartSettingsSection({
   selectedChart,
   onUpdateChart,
   onRemoveChart,
-  palette = CHART_COLORS,
+  palette = chartColors(),
 }: ChartSettingsSectionProps) {
   const chart = selectedChart;
   if (!chart) return null;

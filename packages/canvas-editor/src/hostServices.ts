@@ -3,9 +3,8 @@
  * library, image shares, image URLs, file delivery, Studio assets, the
  * Unsplash search state, print (impressum, print Vorlagen), blocks and the
  * carousel chrome.
- * Supplied through `CanvasEditorServices`; apps/web passes the
- * @gruenerator/shared implementations and, for print, blocks and the carousel
- * chrome, the composer's (`webCanvasEditorServices.ts`).
+ * Supplied through `CanvasEditorServices`; the host passes its own
+ * implementations, including those for print, blocks and the carousel chrome.
  *
  * The shapes are the structural subset the editor reads, so a host can hand in
  * its own hooks unchanged. The hook-valued services are React hooks: the
@@ -352,7 +351,7 @@ export interface CanvasPrintService {
   };
 }
 
-// ── Blocks (Grünerator-Blöcke in the Elemente panel) ────────────────────────
+// ── Blocks (the host's blocks in the Elemente panel) ────────────────────────
 
 /**
  * Turns a block the host composed (`CanvasVorlagenService.composeBlock`) into

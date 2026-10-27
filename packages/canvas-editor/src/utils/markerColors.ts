@@ -1,38 +1,45 @@
 /**
  * Farben des Textmarkers — für die Box hinter `++Passagen++`, die Textmarker-
- * Formen im Formen-Katalog und den Farbwähler im Text. Limette und Mint sind
- * die Kastenfarben der DE-Posts (siehe `sharepicLayoutConstants.ts` und `slideInk.ts`).
+ * Formen im Formen-Katalog und den Farbwähler im Text. Sie kommen aus dem
+ * aktiven Markenpaket (`markers`): der erste Kasten ist der Standard, `ink`
+ * die dunkle Schrift darauf.
  */
+import { activeBrand } from '@ggraphic/editor/brand/brandRegistry';
 import { contrastRatio, luminance } from '@ggraphic/editor/utils/colorLuminance';
 
+import { asColorOptions, type ColorOption } from './colorOptions';
 import { type TextMarker } from './textUtils';
 
-/** Die dunkle Schrift der DE-Kästen (`SHAREPIC_COLOR_HEX.dunkeltanne`). */
-const MARKER_INK_DARK = '#00261A';
 const MARKER_INK_LIGHT = '#FFFFFF';
 
-export const MARKER_LIME = '#BEFF60';
+/** Die Kastenfarben des aktiven Markenpakets, für den Farbwähler. */
+export const markerSwatches = (): ColorOption[] => asColorOptions(activeBrand().markers.swatches);
 
-export const MARKER_PRESETS = [
-  { id: 'limette', name: 'Limette', value: MARKER_LIME },
-  { id: 'mint', name: 'Mint', value: '#77F6A5' },
-  { id: 'grasgruen', name: 'Grasgrün', value: '#00CC4F' },
-  { id: 'white', name: 'Weiß', value: '#FFFFFF' },
-];
+/** Der erste Kasten des Markenpakets: die Farbe neuer Textmarker-Formen. */
+export const defaultMarkerFill = (): string =>
+  activeBrand().markers.swatches[0]?.color ?? '#FFFFFF';
 
 /**
- * Der Kasten eines Textes, dessen Vorlage keinen Markerstil kennt (alles außer
- * den DE-Sharepics): Limette mit dunkler Schrift.
+ * Der Kasten eines Textes, dessen Vorlage keinen Markerstil kennt: der erste
+ * Kasten des Markenpakets mit dessen dunkler Schrift.
  */
-export const DEFAULT_TEXT_MARKER: TextMarker = { fill: MARKER_LIME, color: MARKER_INK_DARK };
+const textMarkers = new WeakMap<object, TextMarker>();
+export function defaultTextMarker(): TextMarker {
+  const { markers } = activeBrand();
+  let marker = textMarkers.get(markers);
+  if (!marker) {
+    marker = { fill: defaultMarkerFill(), color: markers.ink };
+    textMarkers.set(markers, marker);
+  }
+  return marker;
+}
 
 /** Die lesbarere der beiden Schriftfarben auf einem frei gewählten Kasten. */
 export function markerInkOn(fill: string): string {
+  const inkDark = activeBrand().markers.ink;
   const ground = luminance(fill);
-  if (ground === null) return MARKER_INK_DARK;
-  const dark = luminance(MARKER_INK_DARK)!;
+  if (ground === null) return inkDark;
+  const dark = luminance(inkDark)!;
   const light = luminance(MARKER_INK_LIGHT)!;
-  return contrastRatio(ground, dark) >= contrastRatio(ground, light)
-    ? MARKER_INK_DARK
-    : MARKER_INK_LIGHT;
+  return contrastRatio(ground, dark) >= contrastRatio(ground, light) ? inkDark : MARKER_INK_LIGHT;
 }

@@ -436,7 +436,7 @@ function GenericCanvasWithRef<
   // Rebuilding through createInitialState recomputes the derived fields.
   //
   // Nothing is withheld from the merge. This used to delete `balkenInstances`
-  // so the dreizeilen bar would regenerate from the new text — but that bar is
+  // so the three-line bar would regenerate from the new text — but that bar is
   // one entry in a collection users also add to by hand, and dropping the whole
   // array took every hand-added balken with it (#3421). Which entry a template
   // derives is the template's own knowledge, and `createInitialState` is where

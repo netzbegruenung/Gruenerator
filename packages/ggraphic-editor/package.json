@@ -6,6 +6,7 @@
   "type": "module",
   "sideEffects": false,
   "exports": {
+    "./brand/brandRegistry": "./src/brand/brandRegistry.ts",
     "./brand/composerBrand": "./src/brand/composerBrand.ts",
     "./collab/pagesDoc": "./src/collab/pagesDoc.ts",
     "./collab/useEmitHostStateChanges": "./src/collab/useEmitHostStateChanges.ts",
@@ -78,6 +79,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@ggraphic/core": "workspace:*",
     "@ggraphic/schema": "workspace:*",
     "@iconify-json/bi": "^1.2.7",
     "@iconify-json/flowbite": "^1.2.7",

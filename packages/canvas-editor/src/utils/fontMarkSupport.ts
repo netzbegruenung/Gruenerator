@@ -27,9 +27,9 @@ export interface FontMarkSupport {
  * noch Kursiv angeboten — der sichere Standard, wenn jemand eine Schrift
  * hinzufügt und diese Tabelle vergisst.
  *
- * `GothamNarrow-Bold` ist bewusst NICHT der Fettschnitt von
- * `GothamNarrow-Book`: die drei Gotham-Schnitte sind als je eigene Familie
- * deklariert, `font-weight: bold` auf Book träfe keinen von ihnen.
+ * Ein Schnitt, der als eigene Familie deklariert ist, ist bewusst NICHT der
+ * Fettschnitt seiner Grundfamilie: `font-weight: bold` auf der Grundfamilie
+ * träfe keinen von ihnen.
  *
  * `Vollkorn` ist eine Kursiv-Familie — beide Schnitte sind kursiv, einen
  * aufrechten gibt es nicht. Kursiv anzubieten wäre wirkungslos, Fett dagegen

@@ -1,7 +1,7 @@
 import { cn } from '@ggraphic/editor/utils/cn';
 
 import {
-  CHART_COLORS,
+  chartColors,
   CHART_GROUP_LABELS,
   CHART_GROUP_ORDER,
   CHART_TYPE_DEFS,
@@ -14,9 +14,9 @@ export interface DiagrammeSectionProps {
   onAddChart: (chartType: ChartType) => void;
 }
 
-// Read at render time, not module init: CHART_COLORS lives in another chunk and
+// Read at render time, not module init: the chart series live in another chunk and
 // indexing it here risks the documented prod chunk-order crash (see FormenSection).
-const c = (index: number) => CHART_COLORS[index];
+const c = (index: number) => chartColors()[index];
 
 /**
  * Static mini-chart glyphs (literal brand colors, no live Recharts) — one per

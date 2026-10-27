@@ -1,4 +1,4 @@
-import { MARKER_LIME } from './markerColors';
+import { defaultMarkerFill } from './markerColors';
 
 import type { GradientFill } from '@ggraphic/editor/utils/gradientFill';
 
@@ -695,26 +695,6 @@ export type ShapeBlendMode = 'color';
 /** Eucalyptus (--secondary-600), used as the default neutral color for line variants. */
 export const EUCALYPTUS = '#5F8575';
 
-export const BRAND_COLORS = [
-  { id: 'tanne', name: 'Tanne', value: '#005538' },
-  { id: 'klee', name: 'Klee', value: '#008939' },
-  { id: 'grashalm', name: 'Grashalm', value: '#8ABD24' },
-  { id: 'himmel', name: 'Himmel', value: '#0BA1DD' },
-  { id: 'sand', name: 'Sand', value: '#F5F1E9' },
-  { id: 'hellgruen', name: 'Hellgrün', value: '#6CCD87' },
-  { id: 'dunkelgrau', name: 'Dunkelgrau', value: '#2E2E3D' },
-  { id: 'white', name: 'Weiß', value: '#FFFFFF' },
-  { id: 'black', name: 'Schwarz', value: '#000000' },
-];
-
-export const FONT_COLORS = [
-  { id: 'black', name: 'Schwarz', value: '#000000' },
-  { id: 'white', name: 'Weiß', value: '#FFFFFF' },
-  { id: 'tanne', name: 'Tanne', value: '#005538' },
-  { id: 'sand', name: 'Sand', value: '#F5F1E9' },
-  { id: 'klee', name: 'Klee', value: '#008939' },
-];
-
 export const DEFAULT_SHAPE_SIZE = 300;
 
 const DEFAULT_DIMENSIONS: Partial<Record<ShapeType, { width: number; height: number }>> = {
@@ -799,9 +779,10 @@ const DEFAULT_FILL_OVERRIDE: Partial<Record<ShapeType, string>> = {
   'line-dotted': EUCALYPTUS,
   'line-double': EUCALYPTUS,
   'line-arrow': EUCALYPTUS,
-  'hand-marker': MARKER_LIME,
-  'hand-marker-box': MARKER_LIME,
 };
+
+/** Shapes that start in the brand's first marker colour. */
+const MARKER_SHAPES: ReadonlySet<ShapeType> = new Set(['hand-marker', 'hand-marker-box']);
 
 export const createShape = (
   type: ShapeType,
@@ -821,7 +802,10 @@ export const createShape = (
     y,
     width: dims.width,
     height: dims.height,
-    fill: explicitColor ?? DEFAULT_FILL_OVERRIDE[type] ?? color,
+    fill:
+      explicitColor ??
+      (MARKER_SHAPES.has(type) ? defaultMarkerFill() : DEFAULT_FILL_OVERRIDE[type]) ??
+      color,
     rotation: 0,
     scaleX: 1,
     scaleY: 1,

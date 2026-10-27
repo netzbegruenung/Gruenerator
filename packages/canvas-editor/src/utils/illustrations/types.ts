@@ -85,18 +85,6 @@ export type IllustrationInstance = KawaiiInstance | SvgInstance;
 // SHARED CONSTANTS
 // =============================================================================
 
-export const ILLUSTRATION_COLORS = [
-  { id: 'tanne', label: 'Tanne', color: '#005538' },
-  { id: 'klee', label: 'Klee', color: '#008939' },
-  { id: 'grashalm', label: 'Grashalm', color: '#8ABD24' },
-  { id: 'himmel', label: 'Himmel', color: '#0BA1DD' },
-  { id: 'sand', label: 'Sand', color: '#F5F1E9' },
-  { id: 'hellgruen', label: 'Hellgrün', color: '#6CCD87' },
-  { id: 'dunkelgrau', label: 'Dunkelgrau', color: '#2E2E3D' },
-  { id: 'white', label: 'Weiß', color: '#FFFFFF' },
-  { id: 'black', label: 'Schwarz', color: '#000000' },
-] as const;
-
 export const KAWAII_MOODS: { id: KawaiiMood; label: string; emoji: string }[] = [
   { id: 'happy', label: 'Fröhlich', emoji: '😊' },
   { id: 'blissful', label: 'Glückselig', emoji: '😌' },
