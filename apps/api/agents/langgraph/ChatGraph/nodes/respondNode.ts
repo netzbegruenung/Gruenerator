@@ -891,9 +891,8 @@ export function formatTabularComputeGuidance(
 Die Berechnung über die angehängte Tabelle wurde bereits per Code ausgeführt (siehe BERECHNUNGSERGEBNIS unten). Übernimm die Werte EXAKT und formuliere eine kurze, klare Antwort. Gib KEINEN Code-Block aus und rechne NICHT selbst nach.`;
   }
   // Client cannot execute Python (mobile/voice declare no run_python client
-  // tool). The pandas guidance below would produce a dead "wird automatisch
-  // ausgeführt" code block on those clients — steer the model to derive the
-  // answer from the attached document context instead.
+  // tool). A python block would render there but never run — steer the model
+  // to derive the answer from the attached document context instead.
   if (!state.clientCanRunPython) {
     return `
 
@@ -930,7 +929,7 @@ Der*die Nutzer*in hat eine Tabelle (CSV/Excel/ODS) angehängt. Ihre Daten stehen
 
 Der*die Nutzer*in hat eine Tabelle (CSV/Excel/ODS) angehängt. Ihre Daten stehen im angehängten Dokumentkontext.
 - Beantworte Rechenfragen (Summe, Durchschnitt, Minimum/Maximum, "pro Produkt/Kategorie", Anteile, Zählungen …) direkt aus den Tabellendaten im Dokumentkontext: rechne sorgfältig Schritt für Schritt und zeige den Rechenweg kurz und nachvollziehbar (relevante Werte und Zwischensummen nennen).
-- Gib einen \`\`\`python-Block NUR aus, wenn der*die Nutzer*in ausdrücklich nach Code fragt. Behaupte NIEMALS, dass Code von selbst läuft oder dass das Ergebnis gleich erscheint.
+- Gib einen \`\`\`python-Block NUR aus, wenn der*die Nutzer*in ausdrücklich nach Code fragt. Die Tabelle steht darin als DataFrame \`df\` bereit; der Block läuft erst, wenn die Person ihn startet. Behaupte NIEMALS, dass Code von selbst läuft oder dass das Ergebnis gleich erscheint.
 - Sind die benötigten Zeilen oder Spalten im Kontext nicht vollständig enthalten, sag das ehrlich und nenne, welche Angaben fehlen — erfinde KEINE Zahlen.
 - Wurde bereits ein BERECHNUNGSERGEBNIS geliefert (siehe unten), übernimm dessen Werte EXAKT und rechne nicht neu.`;
 }

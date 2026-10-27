@@ -572,6 +572,8 @@ describe('formatTabularComputeGuidance', () => {
     expect(out).not.toContain('tabelle_auswerten');
     expect(out).toContain('AUS DEN DATEN ANTWORTEN');
     expect(out).not.toContain('automatisch ausgeführt');
+    // Ein ausdrücklich verlangter Block soll den vorgeladenen DataFrame nutzen.
+    expect(out).toContain('DataFrame `df`');
   });
 
   it('loop turn without a user (tool not mounted) never mentions the tool', () => {
@@ -642,8 +644,8 @@ describe('formatTabularComputeGuidance', () => {
     );
     expect(out).toContain('KEIN Python-Interpreter');
     expect(out).not.toContain('```python');
-    // The pandas guidance PROMISES execution ("wird **automatisch ausgeführt**");
-    // the no-capability variant only forbids claiming it.
+    // The old pandas guidance promised execution ("wird **automatisch
+    // ausgeführt**"); no branch does any more, this one forbids claiming it.
     expect(out).not.toContain('**automatisch ausgeführt**');
     expect(out).toContain('NIEMALS, dass Code automatisch ausgeführt wird');
   });
