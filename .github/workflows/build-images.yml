@@ -504,7 +504,7 @@ jobs:
   build-browser-agent:
     needs: detect-changes
     if: >
-      needs.detect-changes.outputs['browser-agent'] == 'true' ||
+      needs.detect-changes.outputs.browser-agent == 'true' ||
       github.event.inputs.force_all == 'true' ||
       github.event_name == 'schedule' ||
       github.event.inputs.build_browser_agent == 'true'
