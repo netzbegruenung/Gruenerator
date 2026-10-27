@@ -1,4 +1,4 @@
-import { layoutRichTextBlock } from '@gruenerator/contracts';
+import { layoutRichTextBlock } from '@ggraphic/schema';
 
 import { runMeasurer } from '../utils/textUtils';
 

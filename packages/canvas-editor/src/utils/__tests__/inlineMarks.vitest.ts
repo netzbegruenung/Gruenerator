@@ -6,8 +6,6 @@
  * KI-Sanitizer gemeinsam, was ein Marker ist — darum stehen die Grenzfälle
  * hier einmal und nicht viermal.
  */
-import { describe, it, expect } from 'vitest';
-
 import {
   foldMarkerIntoAccent,
   hasInlineMarks,
@@ -15,7 +13,8 @@ import {
   parseInlineMarks,
   serializeInlineMarks,
   stripInlineMarks,
-} from '@gruenerator/contracts';
+} from '@ggraphic/schema';
+import { describe, it, expect } from 'vitest';
 
 const plain = (text: string) => ({
   text,

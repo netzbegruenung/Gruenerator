@@ -62,7 +62,7 @@
  * Zustand, wechselte das Feld beim ersten Marker mitten im Tippen den
  * Renderer, und der Editor würde unter der Hand abgeräumt.
  */
-import { PLAIN_STYLE, splitListItems, stripInlineMarks } from '@gruenerator/contracts';
+import { PLAIN_STYLE, splitListItems, stripInlineMarks } from '@ggraphic/schema';
 import {
   createContext,
   useCallback,

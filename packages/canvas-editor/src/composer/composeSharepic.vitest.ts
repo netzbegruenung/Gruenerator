@@ -1,8 +1,8 @@
 import { readdirSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 
+import { layoutRichTextBlock } from '@ggraphic/schema';
 import {
-  layoutRichTextBlock,
   sharepicSpecSchema,
   SHAREPIC_LIMITS,
   SHAREPIC_LOCALE_COLORS,

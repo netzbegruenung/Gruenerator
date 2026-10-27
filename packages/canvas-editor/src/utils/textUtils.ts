@@ -6,12 +6,7 @@
  * DOM-frei, damit die Vorschau hier und der Server-Renderer an derselben
  * Stelle umbrechen. Hier bleibt nur, was ein Canvas braucht: die Messung.
  */
-import {
-  layoutRichTextBlock,
-  wrapLines,
-  type MeasureRun,
-  type RunStyle,
-} from '@gruenerator/contracts';
+import { layoutRichTextBlock, wrapLines, type MeasureRun, type RunStyle } from '@ggraphic/schema';
 
 import { notifyFontLoaded } from '../hooks/useFontGeneration';
 

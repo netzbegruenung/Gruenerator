@@ -1,4 +1,4 @@
-import { markdownLiteToRichText, type CanvasRichTextDoc } from '@gruenerator/contracts';
+import { markdownLiteToRichText, type CanvasRichTextDoc } from '@ggraphic/schema';
 
 import { DEFAULT_TEXT_MARKER, markerInkOn } from '../../utils/markerColors';
 
