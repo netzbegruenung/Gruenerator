@@ -35,7 +35,14 @@ export function classifyDokuLinks(text: string): { known: string[]; unknown: str
       .replace(/[.:;]+$/, '')
       .replace(/\/$/, '');
     // The bare host is a valid pointer, not an invented page.
-    if (path === '' || DOKU_PAGE_PATHS.has(decodeURI(path).toLowerCase())) known.push(match[0]);
+    let decoded: string | null;
+    try {
+      decoded = decodeURI(path).toLowerCase();
+    } catch {
+      // A malformed escape is not a page we serve — fail this case, not the run.
+      decoded = null;
+    }
+    if (path === '' || (decoded !== null && DOKU_PAGE_PATHS.has(decoded))) known.push(match[0]);
     else unknown.push(match[0]);
   }
   return { known, unknown };

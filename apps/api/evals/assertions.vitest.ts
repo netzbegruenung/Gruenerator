@@ -158,6 +158,9 @@ describe('runAssertions — each failure class we hit live', () => {
         })
       ).toBe(true);
     });
+    it('fails a malformed docs link instead of throwing', () => {
+      expect(run({ fullText: 'Siehe https://doku.gruenerator.eu/docs/%E0%A4%A' })).toBe(false);
+    });
     it('fails on an invented docs page, even with a tool call', () => {
       expect(
         run({
