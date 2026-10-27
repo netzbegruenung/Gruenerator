@@ -29,6 +29,7 @@ import {
   generateAiImage,
 } from './services/imageSourceService';
 import { uploadBlobToMediaLibrary } from './services/mediaUploadService';
+import { webCanvasImageUrls } from './webCanvasImageUrls';
 
 import type { CanvasEditorServices } from '@gruenerator/canvas-editor';
 
@@ -67,6 +68,7 @@ export const webCanvasEditorServices: CanvasEditorServices = {
     updateImageShare: (params) => useShareStore.getState().updateImageShare(params),
     publishShare: shareApi.publishShare,
   },
+  imageUrls: webCanvasImageUrls,
   fileDelivery: { downloadBlob, downloadDataUrl, pickShareRoute, shareDataUrlViaNativeHost },
   useStudioAssets,
   useUnsplashSearch,

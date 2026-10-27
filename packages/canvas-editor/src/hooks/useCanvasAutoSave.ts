@@ -1,8 +1,8 @@
 import { useEffect, useLayoutEffect, useRef, useCallback } from 'react';
 
 import { useCanvasEditorServices } from '../CanvasEditorProvider';
+import { plainImageUrls } from '../hostServices';
 import { useAutoSaveStore, useAutoSaveStoreApi } from '../stores/useAutoSaveStore';
-import { originalImageFetchUrl } from '../utils/canvasImageSource';
 
 interface ShareMetadata {
   [key: string]: unknown;
@@ -165,7 +165,7 @@ export const useCanvasAutoSave = (
   const setLastAutoSavedImageSrc = useAutoSaveStore((s) => s.setLastAutoSavedImageSrc);
 
   // Host service; without it the editor does not autosave.
-  const imageShares = useCanvasEditorServices().imageShares;
+  const { imageShares, imageUrls = plainImageUrls } = useCanvasEditorServices();
   const createImageShare = imageShares?.createImageShare;
   const updateImageShare = imageShares?.updateImageShare;
 
@@ -235,7 +235,7 @@ export const useCanvasAutoSave = (
           }
         } else if (currentImageSrc) {
           try {
-            const res = await fetch(originalImageFetchUrl(currentImageSrc));
+            const res = await fetch(imageUrls.originalUrl(currentImageSrc));
             if (res.ok) {
               const blob = await res.blob();
               originalImageBase64 = await fileToBase64(blob);

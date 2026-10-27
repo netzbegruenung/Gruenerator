@@ -62,7 +62,9 @@ describe('slide layouts in the page picker', () => {
 
   it('renders the Austrian layouts for an AT deck', async () => {
     picker('slide-16-9', vi.fn(), 'freeform-at');
-    await waitFor(() => expect(render$).toHaveBeenCalledWith('titel', 'de-AT', expect.any(Number)));
+    await waitFor(() =>
+      expect(render$).toHaveBeenCalledWith('titel', 'de-AT', expect.any(Number), expect.anything())
+    );
   });
 
   it('has no axe violations', async () => {

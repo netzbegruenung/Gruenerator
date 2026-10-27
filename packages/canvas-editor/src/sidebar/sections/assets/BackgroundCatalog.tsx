@@ -2,6 +2,8 @@ import { type StudioAssetItem, type StudioAssetScope } from '@gruenerator/contra
 import { isShareSrc } from '@gruenerator/contracts';
 import { useRef, useState } from 'react';
 
+import { useCanvasEditorServices } from '../../../CanvasEditorProvider';
+import { plainImageUrls } from '../../../hostServices';
 import { fetchShareImageFile } from '../../../utils/mediaPlacement';
 import { GALLERY_SCOPES, GalleryTabs, StudioGalleryGrid } from '../StudioGallery';
 
@@ -15,6 +17,7 @@ type ImageChange = NonNullable<BackgroundControls['onImageChange']>;
  */
 function useBackgroundPick(onImageChange: ImageChange) {
   const seqRef = useRef(0);
+  const { imageUrls = plainImageUrls } = useCanvasEditorServices();
   const [pendingId, setPendingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -24,7 +27,7 @@ function useBackgroundPick(onImageChange: ImageChange) {
     setError(null);
     setPendingId(item.id);
     try {
-      const file = await fetchShareImageFile(item.src, item.title);
+      const file = await fetchShareImageFile(item.src, item.title, imageUrls);
       if (seq === seqRef.current) onImageChange(file, item.src, null);
     } catch {
       if (seq === seqRef.current) setError('Hintergrund konnte nicht geladen werden.');

@@ -24,6 +24,7 @@ import { createRoot } from 'react-dom/client';
 
 import { composeCreatorSharepic } from './freitext/composeForRender';
 import { createSerialQueue } from './serialRenderQueue';
+import { webCanvasImageUrls } from './webCanvasImageUrls';
 
 import type { CanvasConfigId } from '@gruenerator/canvas-editor';
 import type { Root } from 'react-dom/client';
@@ -129,7 +130,7 @@ function runRender(
         resolve(null);
         return;
       }
-      const { StandaloneCanvas, ensureFontsReady } = editor;
+      const { CanvasEditorProvider, StandaloneCanvas, ensureFontsReady } = editor;
 
       const container = document.createElement('div');
       container.style.cssText =
@@ -142,19 +143,24 @@ function runRender(
 
       root = createRoot(container);
       root.render(
-        createElement(StandaloneCanvas, {
-          configId: canvasType as CanvasConfigId,
-          ...(formatId ? { formatId } : {}),
-          initialProps,
-          // Nothing here is ever clicked, dragged or saved. `preview` drops the
-          // editor machinery that would otherwise run in a hidden div: gallery
-          // auto-save (network writes plus its own pixelRatio-2 capture every
-          // 1500ms), keyboard/undo listeners, and Konva's hit graph.
-          preview: true,
-          canvasRef: (ref: CanvasHandle | null) => {
-            canvasRef = ref;
-          },
-        })
+        // A root of its own inherits no context: the editor's image URLs come along.
+        createElement(
+          CanvasEditorProvider,
+          { services: { imageUrls: webCanvasImageUrls } },
+          createElement(StandaloneCanvas, {
+            configId: canvasType as CanvasConfigId,
+            ...(formatId ? { formatId } : {}),
+            initialProps,
+            // Nothing here is ever clicked, dragged or saved. `preview` drops the
+            // editor machinery that would otherwise run in a hidden div: gallery
+            // auto-save (network writes plus its own pixelRatio-2 capture every
+            // 1500ms), keyboard/undo listeners, and Konva's hit graph.
+            preview: true,
+            canvasRef: (ref: CanvasHandle | null) => {
+              canvasRef = ref;
+            },
+          })
+        )
       );
 
       // Awaited once, not once per poll: a capture that beats the brand

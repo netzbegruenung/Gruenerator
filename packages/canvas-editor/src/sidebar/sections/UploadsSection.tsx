@@ -3,10 +3,11 @@ import { useRef, useState } from 'react';
 import { FaTrash } from 'react-icons/fa';
 import { HiArrowUpTray, HiMagnifyingGlass } from 'react-icons/hi2';
 
+import { useCanvasEditorServices } from '../../CanvasEditorProvider';
 import { useIsCanvasMobile } from '../../hooks/useIsCanvasMobile';
+import { plainImageUrls } from '../../hostServices';
 import { cn } from '../../utils/cn';
 import { MEDIA_DRAG_TYPE, type MediaDragPayload } from '../../utils/mediaDrop';
-import { buildPlacementUrl } from '../../utils/mediaPlacement';
 import { downscaleImageForUpload } from '../../utils/userImageUtils';
 import { SidebarHint } from '../components/SidebarHint';
 import { MOBILE_INPUT_TEXT, SIDEBAR_SECTION } from '../sidebarStyles';
@@ -33,6 +34,7 @@ export function UploadsSection({
 }: UploadsSectionProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const isMobile = useIsCanvasMobile();
+  const { imageUrls = plainImageUrls } = useCanvasEditorServices();
   const {
     items,
     isLoading,
@@ -63,7 +65,7 @@ export function UploadsSection({
     try {
       const toUpload = await downscaleImageForUpload(file);
       const result = await upload(toUpload);
-      const url = result ? buildPlacementUrl(result) : null;
+      const url = result ? imageUrls.placementUrl(result) : null;
       if (!url) {
         if (placedId && onRemovePlaced) onRemovePlaced(placedId);
         return;
@@ -94,14 +96,14 @@ export function UploadsSection({
 
   const handlePlace = (item: MediaItem) => {
     if (!onPlaceFromUrl) return;
-    const url = buildPlacementUrl(item);
+    const url = imageUrls.placementUrl(item);
     if (!url) return;
     onPlaceFromUrl(url, item.originalFilename ?? item.title ?? 'image');
   };
 
   // A tile dragged onto a page lands where it is dropped (PageWrapper).
   const tileDragProps = (item: MediaItem) => {
-    const url = buildPlacementUrl(item);
+    const url = imageUrls.placementUrl(item);
     if (!url || !onPlaceFromUrl) return {};
     const payload: MediaDragPayload = {
       url,

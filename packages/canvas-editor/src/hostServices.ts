@@ -1,7 +1,8 @@
 /**
  * What the editor needs from its host for data it does not own: the media
- * library, image shares, file delivery, Studio assets, the Unsplash search
- * state, print (impressum, print Vorlagen), blocks and the carousel chrome.
+ * library, image shares, image URLs, file delivery, Studio assets, the
+ * Unsplash search state, print (impressum, print Vorlagen), blocks and the
+ * carousel chrome.
  * Supplied through `CanvasEditorServices`; apps/web passes the
  * @gruenerator/shared implementations and, for print, blocks and the carousel
  * chrome, the composer's (`webCanvasEditorServices.ts`).
@@ -14,7 +15,7 @@
  *
  * Each `use…` helper below returns the host's implementation or the fallback
  * the editor runs on without it: an empty list, an upload that yields nothing,
- * no autosave, a plain browser download.
+ * no autosave, image URLs as they are, a plain browser download.
  */
 
 import { useState, type ComponentType } from 'react';
@@ -143,6 +144,34 @@ export interface CanvasImageShareService {
   /** Promotes an autosaved draft before the user shares it. */
   publishShare: (shareToken: string) => Promise<unknown>;
 }
+
+// ── Image URLs (working-size variants, originals, placement) ────────────────
+
+/**
+ * Where the editor loads a stored image from. A host that keeps a smaller
+ * variant of its images names it here; the editor draws that variant while an
+ * element is narrow enough for it and the original once it is wider.
+ */
+export interface CanvasImageUrlService {
+  /** Width of the host's variant in px; it is export-quality up to half of it. */
+  previewWidth: number;
+  /** The variant of a stored image, or the URL unchanged when there is none. */
+  previewUrl: (url: string) => string;
+  /** Where the original bytes of a stored image are fetched from. */
+  originalUrl: (url: string) => string;
+  /** The URL a media-library item is placed onto the canvas from. */
+  placementUrl: (
+    item: Pick<MediaItem, 'mediaUrl' | 'shareToken' | 'thumbnailUrl'>
+  ) => string | null;
+}
+
+/** No host: every image is drawn and fetched from the URL it has. */
+export const plainImageUrls: CanvasImageUrlService = {
+  previewWidth: 0,
+  previewUrl: (url) => url,
+  originalUrl: (url) => url,
+  placementUrl: (item) => item.mediaUrl || item.thumbnailUrl,
+};
 
 // ── File delivery (download, share sheet) ───────────────────────────────────
 

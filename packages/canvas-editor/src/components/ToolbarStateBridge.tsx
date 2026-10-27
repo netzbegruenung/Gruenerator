@@ -16,6 +16,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type MutableRefObjec
 import { useCanvasEditorServices } from '../CanvasEditorProvider';
 import { useFloatingModuleHandlers } from '../hooks/useFloatingModuleHandlers';
 import { useFloatingModuleState } from '../hooks/useFloatingModuleState';
+import { plainImageUrls } from '../hostServices';
 import { useOptionalUserUploads } from '../sidebar/UserUploadsProvider';
 import {
   useCanvasStore,
@@ -31,7 +32,7 @@ import {
   expandTarget,
 } from '../utils/expandImage';
 import { pageLayerLabels } from '../utils/layerLabels';
-import { buildPlacementUrl, fetchShareImageFile } from '../utils/mediaPlacement';
+import { fetchShareImageFile } from '../utils/mediaPlacement';
 import { findOrientationDoor } from '../utils/orientElement';
 import { selectionCapabilities } from '../utils/selectionCapabilities';
 import {
@@ -128,7 +129,7 @@ export function ToolbarStateBridge<
   onToolbarStateChange,
 }: ToolbarStateBridgeProps<TState, TActions>) {
   const store = useCanvasStore();
-  const { expandImage } = useCanvasEditorServices();
+  const { expandImage, imageUrls = plainImageUrls } = useCanvasEditorServices();
   const uploads = useOptionalUserUploads();
   // Je Seite höchstens ein Erweitern zugleich; es kostet KI-Budget.
   const [isExpanding, setIsExpanding] = useState(false);
@@ -287,14 +288,14 @@ export function ToolbarStateBridge<
         // Nur „Abbrechen" verwirft; Fertig, Escape und Auswahlwechsel übernehmen das Ergebnis.
         const cancels = cropCancelCount(id);
         const run = async () => {
-          const source = await fetchShareImageFile(target.src, target.fileName);
+          const source = await fetchShareImageFile(target.src, target.fileName, imageUrls);
           const expanded = await expandImage(source, target.aspect);
           const file = new File([expanded], expandedFileName(target.fileName, expanded.type), {
             type: expanded.type,
           });
           // Wie „Ersetzen": erst hochladen, damit keine `blob:`/data-URL gespeichert wird.
           const item = await uploads.upload(file, 'canvas-element');
-          const url = item ? buildPlacementUrl(item) : null;
+          const url = item ? imageUrls.placementUrl(item) : null;
           if (!url) throw new Error(EXPAND_FAILED);
           return { file, url };
         };
