@@ -191,6 +191,8 @@ export interface CanvasFileDeliveryService {
     filename: string,
     options?: { title?: string; text?: string }
   ) => void;
+  /** Leads the name of every exported file (`<prefix>-<type>-…`); default `ggraphic`. */
+  filenamePrefix?: string;
 }
 
 function clickAnchor(href: string, filename: string): void {

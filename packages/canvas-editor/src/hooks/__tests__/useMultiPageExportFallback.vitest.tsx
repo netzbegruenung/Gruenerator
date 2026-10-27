@@ -11,20 +11,23 @@ import type { ReactNode } from 'react';
 const downloadBlob = vi.fn();
 const downloadDataUrl = vi.fn();
 
+const delivery = {
+  downloadBlob: (blob: Blob, name: string) => downloadBlob(blob, name) as Promise<void>,
+  downloadDataUrl: (url: string, name: string) => downloadDataUrl(url, name) as Promise<void>,
+  pickShareRoute: () => null,
+  shareDataUrlViaNativeHost: vi.fn(),
+};
+
 // The host's file delivery, injected the way apps/web does it.
 const wrapper = ({ children }: { children: ReactNode }) => (
-  <CanvasEditorProvider
-    services={{
-      fileDelivery: {
-        downloadBlob: (blob, name) => downloadBlob(blob, name) as Promise<void>,
-        downloadDataUrl: (url, name) => downloadDataUrl(url, name) as Promise<void>,
-        pickShareRoute: () => null,
-        shareDataUrlViaNativeHost: vi.fn(),
-      },
-    }}
-  >
+  <CanvasEditorProvider services={{ fileDelivery: { ...delivery, filenamePrefix: 'gruenerator' } }}>
     {children}
   </CanvasEditorProvider>
+);
+
+// A host that names no prefix.
+const neutralWrapper = ({ children }: { children: ReactNode }) => (
+  <CanvasEditorProvider services={{ fileDelivery: delivery }}>{children}</CanvasEditorProvider>
 );
 
 const refs = ['data:image/png;base64,AA', 'data:image/png;base64,BB'].map((d) => ({
@@ -137,6 +140,39 @@ describe('useMultiPageExport format', () => {
       1,
       'data:image/jpeg;base64,AA',
       'gruenerator-x-seite-1.jpg'
+    );
+  });
+});
+
+describe('useMultiPageExport file names', () => {
+  beforeEach(() => {
+    downloadBlob.mockReset();
+    downloadDataUrl.mockReset().mockResolvedValue(undefined);
+    vi.stubGlobal('fetch', vi.fn());
+  });
+
+  it("start with the host's prefix", async () => {
+    downloadBlob.mockResolvedValue(undefined);
+    const { result } = renderHook(() => useMultiPageExport({ canvasRefs: refs, canvasType: 'x' }), {
+      wrapper,
+    });
+    await act(() => result.current.downloadAllAsZip());
+    expect(downloadBlob.mock.calls[0]?.[1]).toMatch(
+      /^gruenerator-x-\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2}\.zip$/
+    );
+  });
+
+  it('fall back to a neutral prefix without one', async () => {
+    downloadBlob.mockRejectedValue(new NativeDownloadTooLargeError());
+    const { result } = renderHook(() => useMultiPageExport({ canvasRefs: refs, canvasType: 'x' }), {
+      wrapper: neutralWrapper,
+    });
+    await act(() => result.current.downloadAllAsZip());
+    expect(downloadBlob.mock.calls[0]?.[1]).toMatch(/^ggraphic-x-.*\.zip$/);
+    expect(downloadDataUrl).toHaveBeenNthCalledWith(
+      2,
+      'data:image/png;base64,BB',
+      'ggraphic-x-seite-2.png'
     );
   });
 });
