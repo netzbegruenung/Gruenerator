@@ -101,7 +101,7 @@ import type { GradientFill } from '../utils/gradientFill';
 import type { LayerEntry } from '../utils/layerLabels';
 import type { LockState } from '../utils/layerLock';
 import type { TextAlign } from '../utils/textAlign';
-import type { ExportOptions } from '@gruenerator/shared/canvas-editor';
+import type { ExportOptions } from '../types/editorTypes';
 import type { HocuspocusProvider } from '@hocuspocus/provider';
 import type * as Y from 'yjs';
 

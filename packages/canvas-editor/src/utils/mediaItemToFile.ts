@@ -1,4 +1,4 @@
-import type { MediaItem } from '@gruenerator/shared/media-library';
+import type { MediaItem } from '@gruenerator/contracts';
 
 export function buildMediaItemUrl(item: MediaItem): string | null {
   if (item.mediaUrl) return item.mediaUrl;

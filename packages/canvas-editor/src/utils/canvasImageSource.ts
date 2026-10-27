@@ -2,7 +2,7 @@ import {
   CANVAS_PREVIEW_WIDTH,
   shareCanvasPreviewUrl,
   shareTokenFromDownloadUrl,
-} from '@gruenerator/shared/media-library';
+} from '@gruenerator/contracts';
 
 /** The download UI offers 1x/2x export (TopBar/DownloadSection.tsx SCALE_OPTIONS). */
 const EXPORT_PIXEL_RATIO = 2;

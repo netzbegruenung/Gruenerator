@@ -1,5 +1,12 @@
-import { UnsplashLimitError } from '@gruenerator/shared/image-studio';
-import { fireEvent, render, renderHook, screen, within } from '@testing-library/react';
+import { UnsplashLimitError, useUnsplashSearch } from '@gruenerator/shared/image-studio';
+import {
+  fireEvent,
+  render as rtlRender,
+  renderHook,
+  screen,
+  within,
+  type RenderOptions,
+} from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -19,20 +26,22 @@ import {
 } from '../sections/assets/useRecentElements';
 import { stockPhotoItem } from '../sections/assets/useStockPhotos';
 
+import type { CanvasStudioAssetsFilter } from '../../hostServices';
 import type { ElementItem } from '../sections/assets/elementTypes';
 import type { SharepicBlock, StudioAssetItem } from '@gruenerator/contracts';
-import type { StudioAssetsFilter } from '@gruenerator/shared/studio-assets';
+import type { ReactElement, ReactNode } from 'react';
 
 const gallery = vi.hoisted(() => ({
   items: {} as Record<string, StudioAssetItem[]>,
-  filters: [] as StudioAssetsFilter[],
+  filters: [] as CanvasStudioAssetsFilter[],
   refetch: vi.fn(),
 }));
 
-// The real hooks need react-query, which this lane loads with a second React copy.
-vi.mock('@gruenerator/shared/studio-assets', async (importOriginal) => ({
-  ...(await importOriginal<object>()),
-  useStudioAssets: (filter: StudioAssetsFilter) => {
+// The host's hooks, injected through the services seam. The studio-assets one
+// is a fake: the real hook needs react-query, which this lane loads with a
+// second React copy. The Unsplash one is the real @gruenerator/shared hook.
+const hostHooks: CanvasEditorServices = {
+  useStudioAssets: (filter) => {
     gallery.filters.push(filter);
     return {
       items: gallery.items[`${filter.kind}:${filter.scope}`] ?? [],
@@ -44,7 +53,13 @@ vi.mock('@gruenerator/shared/studio-assets', async (importOriginal) => ({
       refetch: gallery.refetch,
     };
   },
-}));
+  useUnsplashSearch,
+};
+const HostWrapper = ({ children }: { children: ReactNode }) => (
+  <CanvasEditorProvider services={hostHooks}>{children}</CanvasEditorProvider>
+);
+const render = (ui: ReactElement, options?: RenderOptions) =>
+  rtlRender(ui, { wrapper: HostWrapper, ...options });
 // The real Icon fetches its set over the network on a timer that can outlive jsdom.
 vi.mock('@iconify/react', () => ({
   Icon: ({ icon }: { icon: string }) => <span data-icon={icon} />,
@@ -166,7 +181,7 @@ describe('StickerCatalog', () => {
   it('opens the host creator, shows "Meine" and refreshes it on return', async () => {
     const openStickerCreator = vi.fn();
     render(
-      <CanvasEditorProvider services={{ openStickerCreator }}>
+      <CanvasEditorProvider services={{ ...hostHooks, openStickerCreator }}>
         <StickerCatalog onAddStickerAsset={() => {}} canDrag={false}>
           {null}
         </StickerCatalog>
@@ -469,7 +484,7 @@ describe('stock photo tiles', () => {
     const trackUnsplashDownloadLive = vi.fn(() => Promise.resolve());
     const { result } = renderHook(() => useTrackUnsplashDownload(), {
       wrapper: ({ children }) => (
-        <CanvasEditorProvider services={{ trackUnsplashDownloadLive }}>
+        <CanvasEditorProvider services={{ ...hostHooks, trackUnsplashDownloadLive }}>
           {children}
         </CanvasEditorProvider>
       ),
@@ -509,6 +524,7 @@ describe('ElementsPanel — Fotos mit Unsplash', () => {
     const onAddImageFromUrl = vi.fn();
     const trackUnsplashDownloadLive = vi.fn(async () => {});
     const services: CanvasEditorServices = {
+      ...hostHooks,
       fetchStockImages: async () => ({ success: true, images: [], categories: [] }),
       trackUnsplashDownloadLive,
       ...(searchUnsplashImages ? { searchUnsplashImages } : {}),

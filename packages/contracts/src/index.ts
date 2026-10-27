@@ -254,3 +254,17 @@ export * from './text/inlineMarks.js';
 export * from './text/handMarks.js';
 export * from './text/canvasRichText.js';
 export * from './text/truncation.js';
+
+// Media-, Sticker- und Leinwand-Bausteine ohne Netz und ohne Store. Hier statt
+// in @gruenerator/shared, damit der Canvas-Editor sie lesen kann, ohne shared
+// zu importieren; shared exportiert dieselben Namen weiter.
+export * from './media/mediaItem.js';
+export * from './media/shareUrl.js';
+export * from './media/srcset.js';
+export * from './media/dataUrl.js';
+export * from './media/stockImages.js';
+export * from './stickers/catalog.js';
+export * from './stickers/profilbildAssets.js';
+export * from './stickers/savedProfilbildSticker.js';
+export * from './canvasPalette.js';
+export * from './studioAssets/labels.js';

@@ -1,4 +1,3 @@
-import { MediaThumb } from '@gruenerator/shared/media-library/ui';
 import { MasonryGrid, MasonryItem } from '@gruenerator/ui';
 import { useEffect, useRef, useState } from 'react';
 import { HiArrowUpTray, HiPhoto, HiXMark } from 'react-icons/hi2';
@@ -7,7 +6,7 @@ import { cn } from '../../../utils/cn';
 import { mediaItemToFile } from '../../../utils/mediaItemToFile';
 import { useUserUploads } from '../../UserUploadsProvider';
 
-import type { MediaItem } from '@gruenerator/shared/media-library';
+import type { MediaItem } from '@gruenerator/contracts';
 
 export interface ImageInputPickerProps {
   value: File | null;
@@ -23,7 +22,7 @@ export function ImageInputPicker({
   disabled,
 }: ImageInputPickerProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const { items } = useUserUploads();
+  const { items, MediaThumb } = useUserUploads();
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [isDragOver, setIsDragOver] = useState(false);
   const [pickError, setPickError] = useState<string | null>(null);

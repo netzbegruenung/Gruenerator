@@ -1,6 +1,7 @@
 import { act, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { CanvasEditorProvider, type CanvasEditorServices } from '../../CanvasEditorProvider';
 import { UserUploadsProvider, useUserUploads } from '../UserUploadsProvider';
 
 /**
@@ -15,23 +16,27 @@ const items = [
   { id: 'b', title: 'B' },
 ];
 
-vi.mock('@gruenerator/shared/media-library', () => ({
-  useMediaLibrary: () => ({
-    items,
-    isLoading: false,
-    error: null,
-    pagination: { hasMore: false },
-    loadMore: async () => {},
-    setFilters: () => {},
-    deleteItem,
-  }),
-  useMediaUpload: () => ({
-    upload: async () => null,
-    isUploading: false,
-    progress: 0,
-    error: null,
-  }),
-}));
+// The host's media library, injected through the services seam.
+const services: CanvasEditorServices = {
+  mediaLibrary: {
+    useMediaLibrary: () => ({
+      items: items as never,
+      isLoading: false,
+      error: null,
+      pagination: { hasMore: false },
+      loadMore: async () => {},
+      setFilters: () => {},
+      deleteItem,
+    }),
+    useMediaUpload: () => ({
+      upload: async () => null,
+      isUploading: false,
+      progress: 0,
+      error: null,
+    }),
+    MediaThumb: () => null,
+  },
+};
 
 const toast = vi.fn<(...args: unknown[]) => void>();
 vi.mock('@gruenerator/ui', () => ({ toast: (...args: unknown[]) => toast(...args) }));
@@ -63,9 +68,11 @@ describe('Uploads löschen mit Rückgängig', () => {
 
   it('blendet sofort aus und löscht erst nach dem Fenster', () => {
     render(
-      <UserUploadsProvider>
-        <Probe />
-      </UserUploadsProvider>
+      <CanvasEditorProvider services={services}>
+        <UserUploadsProvider>
+          <Probe />
+        </UserUploadsProvider>
+      </CanvasEditorProvider>
     );
     act(() => screen.getByRole('button', { name: 'löschen' }).click());
 
@@ -84,9 +91,11 @@ describe('Uploads löschen mit Rückgängig', () => {
 
   it('„Rückgängig“ holt das Bild zurück und löscht nichts', () => {
     render(
-      <UserUploadsProvider>
-        <Probe />
-      </UserUploadsProvider>
+      <CanvasEditorProvider services={services}>
+        <UserUploadsProvider>
+          <Probe />
+        </UserUploadsProvider>
+      </CanvasEditorProvider>
     );
     act(() => screen.getByRole('button', { name: 'löschen' }).click());
     undo();
@@ -100,12 +109,25 @@ describe('Uploads löschen mit Rückgängig', () => {
 
   it('führt ein offenes Löschen aus, wenn der Editor vorher schließt', () => {
     const { unmount } = render(
-      <UserUploadsProvider>
-        <Probe />
-      </UserUploadsProvider>
+      <CanvasEditorProvider services={services}>
+        <UserUploadsProvider>
+          <Probe />
+        </UserUploadsProvider>
+      </CanvasEditorProvider>
     );
     act(() => screen.getByRole('button', { name: 'löschen' }).click());
     unmount();
     expect(deleteItem).toHaveBeenCalledWith('a');
+  });
+});
+
+describe('Uploads ohne Mediathek des Hosts', () => {
+  it('zeigt eine leere Liste statt abzustürzen', () => {
+    const { container } = render(
+      <UserUploadsProvider>
+        <Probe />
+      </UserUploadsProvider>
+    );
+    expect(container.querySelector('p')?.textContent).toBe('');
   });
 });

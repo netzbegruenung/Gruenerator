@@ -1,7 +1,7 @@
 import { CANVAS_ITEM_NAME } from './deepSelect';
 
 import type { CanvasStageRef } from '../primitives/CanvasStage';
-import type { ExportOptions } from '@gruenerator/shared/canvas-editor';
+import type { ExportOptions } from '../types/editorTypes';
 import type Konva from 'konva';
 
 /**

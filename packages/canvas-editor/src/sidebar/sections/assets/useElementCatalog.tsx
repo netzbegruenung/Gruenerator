@@ -1,6 +1,8 @@
-import { sharepicBlockThumbPath, type SharepicBlock } from '@gruenerator/contracts';
-import { shareThumbnailPreviewUrl } from '@gruenerator/shared/media-library';
-import { useStudioAssets } from '@gruenerator/shared/studio-assets';
+import {
+  shareThumbnailPreviewUrl,
+  sharepicBlockThumbPath,
+  type SharepicBlock,
+} from '@gruenerator/contracts';
 import { useQuery } from '@tanstack/react-query';
 import { useMemo, useState, type ReactNode } from 'react';
 import { PiImageFill } from 'react-icons/pi';
@@ -9,6 +11,7 @@ import { useCanvasEditorServices } from '../../../CanvasEditorProvider';
 import { useBlockInsert, type BlockInsertApi } from '../../../components/CanvasEditor/blockInsert';
 import { useEmojiCatalog } from '../../../hooks/useEmojiCatalog';
 import { useAllIconsCatalog, useIconCatalog } from '../../../hooks/useIconCatalog';
+import { useNoStudioAssets } from '../../../hostServices';
 import {
   ALL_ASSETS,
   EMOJI_ASSETS,
@@ -222,6 +225,7 @@ function cover(items: readonly ElementItem[]): ReactNode {
 }
 
 function BackgroundCover() {
+  const { useStudioAssets = useNoStudioAssets } = useCanvasEditorServices();
   const { items } = useStudioAssets({ kind: 'background', scope: 'shop', q: '', sort: 'new' });
   const [failedSrc, setFailedSrc] = useState<string | null>(null);
   const first = items[0];

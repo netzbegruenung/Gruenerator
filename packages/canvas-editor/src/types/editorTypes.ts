@@ -1,6 +1,10 @@
 /**
  * Canvas Editor Types
  * Shared types for interactive canvas editing (web + mobile)
+ *
+ * Moved from @gruenerator/shared/canvas-editor. CANVAS_COLORS and
+ * DEFAULT_CANVAS_SIZE, which the Profilbild tools read too, live in
+ * @gruenerator/contracts.
  */
 
 // =============================================================================
@@ -94,22 +98,11 @@ export interface CanvasHistoryEntry<TComponentState = Record<string, unknown>> {
 // CONSTANTS
 // =============================================================================
 
-export const DEFAULT_CANVAS_SIZE = 1080;
 export const DEFAULT_CANVAS_HEIGHT = 1350;
 export const DEFAULT_BACKGROUND_COLOR = '#005538'; // TANNE
 export const MIN_SCALE = 0.5;
 export const MAX_SCALE = 2.0;
 export const INITIAL_SCALE = 0.85;
-
-export const CANVAS_COLORS = {
-  TANNE: '#005538',
-  KLEE: '#46962b',
-  SONNE: '#f5a623',
-  HIMMEL: '#0088cc',
-  SAND: '#f5f1e9',
-  WHITE: '#ffffff',
-  BLACK: '#000000',
-} as const;
 
 export const DEFAULT_TRANSFORM_CONFIG: TransformConfig = {
   enabledAnchors: ['top-left', 'top-right', 'bottom-left', 'bottom-right'],

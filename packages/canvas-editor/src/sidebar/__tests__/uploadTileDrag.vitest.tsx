@@ -10,10 +10,6 @@ import { UploadsSection } from '../sections/UploadsSection';
  * an). Mitgegeben wird die dauerhafte URL, nie eine blob:-Vorschau.
  */
 
-vi.mock('@gruenerator/shared/media-library/ui', () => ({
-  MediaThumb: ({ alt }: { alt: string }) => <img alt={alt} />,
-}));
-
 vi.mock('../UserUploadsProvider', () => ({
   useUserUploads: () => ({
     items: [
@@ -37,6 +33,8 @@ vi.mock('../UserUploadsProvider', () => ({
     uploadError: null,
     hasMore: false,
     loadMore: async () => {},
+    // The host's thumbnail, handed through the uploads context.
+    MediaThumb: ({ alt }: { alt: string }) => <img alt={alt} />,
   }),
 }));
 

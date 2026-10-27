@@ -4,21 +4,7 @@ import babel from '@rolldown/plugin-babel';
 import { reactCompilerPreset } from '@vitejs/plugin-react';
 import { defineConfig } from 'vitest/config';
 
-// Beide Lanes erben dieses `resolve`: seit vitest 5 erweitern inline
-// `test.projects` die Wurzel-Config, wie in apps/web.
-const resolve = {
-  alias: {
-    // Subpath resolved via vite alias in the apps (no exports-map entry) —
-    // mirror it here so configs importing runtime values from it load.
-    '@gruenerator/shared/canvas-editor': path.resolve(
-      import.meta.dirname,
-      '../shared/src/canvas-editor/index.ts'
-    ),
-  },
-};
-
 export default defineConfig({
-  resolve,
   test: {
     projects: [
       {

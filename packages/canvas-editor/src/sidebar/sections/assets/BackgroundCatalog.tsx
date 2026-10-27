@@ -1,5 +1,5 @@
 import { type StudioAssetItem, type StudioAssetScope } from '@gruenerator/contracts';
-import { isShareSrc } from '@gruenerator/shared/stickers';
+import { isShareSrc } from '@gruenerator/contracts';
 import { useRef, useState } from 'react';
 
 import { fetchShareImageFile } from '../../../utils/mediaPlacement';

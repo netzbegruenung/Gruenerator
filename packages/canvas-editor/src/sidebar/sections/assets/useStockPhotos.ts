@@ -1,4 +1,4 @@
-import { STOCK_CATEGORY_LABELS } from '@gruenerator/shared/image-studio';
+import { STOCK_CATEGORY_LABELS } from '@gruenerator/contracts';
 import { useQuery, type QueryClient } from '@tanstack/react-query';
 
 import { useCanvasEditorServices } from '../../../CanvasEditorProvider';

@@ -1,9 +1,9 @@
-import { useUnsplashSearch, type UnsplashSearchFn } from '@gruenerator/shared/image-studio';
 import { useCallback, useEffect, useState } from 'react';
 import { HiMagnifyingGlass } from 'react-icons/hi2';
 
 import { useCanvasEditorServices } from '../../../CanvasEditorProvider';
 import { useTrackUnsplashDownload } from '../../../hooks/useTrackUnsplashDownload';
+import { useNoUnsplashSearch, type UnsplashSearchFn } from '../../../hostServices';
 import { MOBILE_INPUT_TEXT } from '../../sidebarStyles';
 import { unsplashThumbnailUrl } from '../assets/useStockPhotos';
 
@@ -25,7 +25,9 @@ const UNSPLASH_HOME = 'https://unsplash.com/?utm_source=gruenerator&utm_medium=r
  * unaltered photo, so it never goes through the uploads / Mediathek.
  */
 export function UnsplashTool({ onPlaceImageUrl }: UnsplashToolProps) {
-  const { searchUnsplashImages } = useCanvasEditorServices();
+  // `useUnsplashSearch` is a host hook, fixed for the lifetime of the editor.
+  const { searchUnsplashImages, useUnsplashSearch = useNoUnsplashSearch } =
+    useCanvasEditorServices();
   const trackDownload = useTrackUnsplashDownload();
   const searchFn = useCallback<UnsplashSearchFn>(
     (q, p, pp) =>

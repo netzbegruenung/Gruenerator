@@ -1,3 +1,14 @@
+import {
+  downloadBlob,
+  downloadDataUrl,
+  pickShareRoute,
+  shareDataUrlViaNativeHost,
+} from '@gruenerator/shared';
+import { useUnsplashSearch } from '@gruenerator/shared/image-studio';
+import { useMediaLibrary, useMediaUpload } from '@gruenerator/shared/media-library';
+import { MediaThumb } from '@gruenerator/shared/media-library/ui';
+import { shareApi, useShareStore } from '@gruenerator/shared/share';
+import { useStudioAssets } from '@gruenerator/shared/studio-assets';
 import { lazy } from 'react';
 
 import { generateSlideAltTexts } from './services/altTextService';
@@ -43,4 +54,15 @@ export const webCanvasEditorServices: CanvasEditorServices = {
   generateSlideAltTexts,
   ChatSectionContent: CanvasInlineChatSection,
   apiBaseUrl: (import.meta.env.VITE_API_URL as string | undefined) ?? '',
+  // The @gruenerator/shared implementations the editor used to import itself.
+  mediaLibrary: { useMediaLibrary, useMediaUpload, MediaThumb },
+  imageShares: {
+    // Through the store, as before: it also tracks `currentShare` and `isCreating`.
+    createImageShare: (params) => useShareStore.getState().createImageShare(params),
+    updateImageShare: (params) => useShareStore.getState().updateImageShare(params),
+    publishShare: shareApi.publishShare,
+  },
+  fileDelivery: { downloadBlob, downloadDataUrl, pickShareRoute, shareDataUrlViaNativeHost },
+  useStudioAssets,
+  useUnsplashSearch,
 };

@@ -6,10 +6,11 @@
  * tracking and error states.
  */
 
-import { downloadBlob, downloadDataUrl } from '@gruenerator/shared';
-import { type ExportFormat } from '@gruenerator/shared/canvas-editor';
 import { useState, useCallback, useEffect, useRef, type RefObject } from 'react';
 
+import { useCanvasEditorServices } from '../CanvasEditorProvider';
+import { browserFileDelivery } from '../hostServices';
+import { type ExportFormat } from '../types/editorTypes';
 import { isDownloadTooLarge } from '../utils/downloadError';
 import { zipPageImages } from '../utils/zipPageImages';
 
@@ -45,6 +46,7 @@ export function useMultiPageExport({
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const noticeTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
+  const { fileDelivery = browserFileDelivery } = useCanvasEditorServices();
 
   useEffect(() => () => clearTimeout(noticeTimer.current), []);
 
@@ -111,7 +113,7 @@ export function useMultiPageExport({
         const filename = `gruenerator-${canvasType}-${timestamp}.zip`;
 
         try {
-          await downloadBlob(blob, filename);
+          await fileDelivery.downloadBlob(blob, filename);
         } catch (err) {
           if (!isDownloadTooLarge(err)) throw err;
           // A payload the bridge refuses (any other failure lands in setError
@@ -120,7 +122,7 @@ export function useMultiPageExport({
           try {
             for (let i = 0; i < images.length; i++) {
               setNotice(`Seite ${i + 1} von ${images.length} wird gesendet …`);
-              await downloadDataUrl(
+              await fileDelivery.downloadDataUrl(
                 images[i],
                 `gruenerator-${canvasType}-seite-${i + 1}.${format === 'jpeg' ? 'jpg' : format}`
               );
@@ -146,7 +148,7 @@ export function useMultiPageExport({
         setExportProgress({ current: 0, total: 0 });
       }
     },
-    [canvasRefs, canvasType, exportAllPages]
+    [canvasRefs, canvasType, exportAllPages, fileDelivery]
   );
 
   return {

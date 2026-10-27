@@ -1,4 +1,4 @@
-import { parseDataUrl } from '@gruenerator/shared';
+import { parseDataUrl } from '@gruenerator/contracts';
 import { zipSync } from 'fflate';
 
 const EXTENSION_BY_TYPE: Record<string, string> = {

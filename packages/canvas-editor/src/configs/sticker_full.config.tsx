@@ -7,7 +7,7 @@
  * graphic, saved as a studio asset rather than shared.
  */
 
-import { CANVAS_COLORS } from '@gruenerator/shared/canvas-editor';
+import { CANVAS_COLORS } from '@gruenerator/contracts';
 
 import { getCanvasFormatOrDefault } from '../formats';
 

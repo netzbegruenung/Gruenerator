@@ -17,7 +17,7 @@ import type { ShapeInstance, ShapeType } from '../../utils/shapes';
 import type { TextAlign } from '../../utils/textAlign';
 import type { ElementPlacement, UserImageInstance } from '../../utils/userImageUtils';
 import type { AdditionalText, LayoutResult } from '../types';
-import type { StickerRef } from '@gruenerator/shared/stickers';
+import type { StickerRef } from '@gruenerator/contracts';
 
 // ============================================================================
 // SHARED STATE TYPES

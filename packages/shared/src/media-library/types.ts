@@ -3,60 +3,19 @@
  * Platform-agnostic types for unified media gallery
  */
 
-import { type UPLOAD_SOURCES } from './constants.js';
-import { type ContentOrigin } from './contentOrigin.js';
+import {
+  type MediaImageMetadata,
+  type MediaItem,
+  type MediaType,
+  type UploadSource,
+} from '@gruenerator/contracts';
 
-export type MediaType = 'image' | 'video' | 'audio';
+// Moved to @gruenerator/contracts so the canvas editor can read them without this package.
+export type { MediaImageMetadata, MediaItem, MediaType, UploadSource };
 
 export type MediaStatus = 'processing' | 'ready' | 'failed';
 
-export type UploadSource = (typeof UPLOAD_SOURCES)[number];
-
 export type SortOrder = 'newest' | 'oldest';
-
-/**
- * Media item from the library
- */
-export interface MediaItem {
-  id: string;
-  shareToken: string;
-  mediaType: MediaType;
-  title: string | null;
-  /**
-   * Full-resolution source URL, despite the name: `/api/share/<token>/preview`
-   * with no `w`, which the API answers with the original bytes. Use it where
-   * the real upload is wanted (placing an image on a canvas); for anything
-   * rendered in an `<img>`, build a sized URL from {@link shareToken} with
-   * `buildSharedMediaSrcSet` instead.
-   */
-  thumbnailUrl: string | null;
-  mediaUrl?: string;
-  fileSize: number;
-  mimeType: string;
-  duration?: number;
-  imageType?: string;
-  imageMetadata?: MediaImageMetadata;
-  altText: string | null;
-  uploadSource: UploadSource;
-  /** Which product made it; absent against a backend older than the column. */
-  contentOrigin?: ContentOrigin | null;
-  originalFilename: string | null;
-  downloadCount: number;
-  viewCount: number;
-  createdAt: string;
-}
-
-export interface MediaImageMetadata {
-  width?: number;
-  height?: number;
-  hasOriginalImage?: boolean;
-  originalImageFilename?: string;
-  generatedAt?: string;
-  /** Compact BlurHash for an instant placeholder; set once variants are generated. */
-  blurhash?: string;
-  /** Widths (px) of the pre-generated responsive WebP/AVIF variants. */
-  variants?: number[];
-}
 
 /**
  * Filters for media library queries

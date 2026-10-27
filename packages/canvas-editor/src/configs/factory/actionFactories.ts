@@ -43,7 +43,7 @@ import type {
   UserImagePlacement,
 } from '../../utils/userImageUtils';
 import type { AdditionalText } from '../types';
-import type { StickerRef } from '@gruenerator/shared/stickers';
+import type { StickerRef } from '@gruenerator/contracts';
 
 // ============================================================================
 // TYPE HELPERS

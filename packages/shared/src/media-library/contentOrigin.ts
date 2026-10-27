@@ -15,7 +15,10 @@
  * classification.
  */
 
-export type ContentOrigin = 'ki' | 'sharepic' | 'upload' | 'unknown';
+// Lives in @gruenerator/contracts with the media item that carries it.
+import { type ContentOrigin } from '@gruenerator/contracts';
+
+export type { ContentOrigin };
 
 /** What a client may declare when creating a share. */
 export type DeclarableContentOrigin = 'ki' | 'sharepic';

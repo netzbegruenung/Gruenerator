@@ -2,8 +2,14 @@
  * Canvas Assets Registry
  * Centralized registry of all available decorative assets for canvas editor
  */
-import { SHAREPIC_EMOJI, sharepicEmojiCode, type SharepicEmoji } from '@gruenerator/contracts';
-import { isShareSrc, SYSTEM_STICKERS, type StickerRef } from '@gruenerator/shared/stickers';
+import {
+  isShareSrc,
+  SHAREPIC_EMOJI,
+  sharepicEmojiCode,
+  SYSTEM_STICKERS,
+  type SharepicEmoji,
+  type StickerRef,
+} from '@gruenerator/contracts';
 
 import {
   GRUENE_DECORATION_ASSETS,
@@ -251,7 +257,7 @@ function emojiAssetFromId(id: string): UniversalAsset | undefined {
   };
 }
 
-/** The shared sticker catalogue (`@gruenerator/shared/stickers`), the same set as the Profilbild. */
+/** The shared sticker catalogue (`SYSTEM_STICKERS` in `@gruenerator/contracts`), the same set as the Profilbild. */
 export const STICKER_ASSETS: UniversalAsset[] = SYSTEM_STICKERS.map((s) => ({
   id: s.id,
   src: s.src,

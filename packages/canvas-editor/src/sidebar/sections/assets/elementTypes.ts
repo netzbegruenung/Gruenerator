@@ -10,7 +10,7 @@ import type { ChartType } from '../../../utils/chartUtils';
 import type { FrameClipType } from '../../../utils/frameUtils';
 import type { KawaiiIllustrationType, SvgDef } from '../../../utils/illustrations/types';
 import type { ShapeType } from '../../../utils/shapes';
-import type { StickerRef } from '@gruenerator/shared/stickers';
+import type { StickerRef } from '@gruenerator/contracts';
 
 /** What a tile does: an element add (icons toggle) or a photo placed as image. */
 export type ElementAction = ElementDragPayload | ({ kind: 'media' } & MediaDragPayload);

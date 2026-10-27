@@ -1,4 +1,3 @@
-import { MediaThumb } from '@gruenerator/shared/media-library/ui';
 import { MasonryGrid, MasonryItem } from '@gruenerator/ui';
 import { useRef, useState } from 'react';
 import { FaTrash } from 'react-icons/fa';
@@ -13,7 +12,7 @@ import { SidebarHint } from '../components/SidebarHint';
 import { MOBILE_INPUT_TEXT, SIDEBAR_SECTION } from '../sidebarStyles';
 import { useUserUploads } from '../UserUploadsProvider';
 
-import type { MediaItem } from '@gruenerator/shared/media-library';
+import type { MediaItem } from '@gruenerator/contracts';
 
 export interface UploadsSectionProps {
   /** Place an already-durable URL (used when clicking a prior upload). */
@@ -45,6 +44,7 @@ export function UploadsSection({
     uploadError,
     hasMore,
     loadMore,
+    MediaThumb,
   } = useUserUploads();
 
   const [isDragOver, setIsDragOver] = useState(false);

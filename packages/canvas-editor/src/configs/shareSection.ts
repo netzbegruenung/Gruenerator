@@ -1,5 +1,5 @@
 import { stripInlineMarks } from '@gruenerator/contracts';
-import { photoCreditLine, withPhotoCredit } from '@gruenerator/shared/image-studio';
+import { photoCreditLine, withPhotoCredit } from '../utils/photoCredit';
 import { FaShare } from 'react-icons/fa';
 
 import { GenericShareSection, type GenericShareSectionProps } from '../sidebar';

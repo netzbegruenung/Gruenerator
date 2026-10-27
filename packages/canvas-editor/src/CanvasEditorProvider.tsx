@@ -6,6 +6,13 @@ import type { StockImage, StockImageAttribution } from './common/imageSourceType
 import type { ComposedSlide } from './composer/composeSharepic';
 import type { HeterogeneousPage } from './configs/types';
 import type {
+  CanvasFileDeliveryService,
+  CanvasImageShareService,
+  CanvasMediaLibraryService,
+  UseCanvasStudioAssets,
+  UseCanvasUnsplashSearch,
+} from './hostServices';
+import type {
   CanvasAiCapabilities,
   CanvasAiOperation,
   CanvasAiSnapshot,
@@ -214,6 +221,27 @@ export interface CanvasEditorServices {
 
   /** Grünerator-Vorlagen for the „Vorlagen" tab; when omitted, the tab is hidden. */
   vorlagen?: CanvasVorlagenService;
+
+  /**
+   * The viewer's media library (Uploads tab, image pickers). When omitted, the
+   * list is empty and an upload yields nothing. Hooks: see `hostServices.ts`.
+   */
+  mediaLibrary?: CanvasMediaLibraryService;
+
+  /** Autosave and draft publishing. When omitted, the editor does not autosave. */
+  imageShares?: CanvasImageShareService;
+
+  /**
+   * Hands exports to the user. When omitted, the editor uses a plain browser
+   * download and the Web Share API (`browserFileDelivery`).
+   */
+  fileDelivery?: CanvasFileDeliveryService;
+
+  /** Hook for the sticker and background galleries. When omitted, they stay empty. */
+  useStudioAssets?: UseCanvasStudioAssets;
+
+  /** Hook holding the Unsplash search state. When omitted, searches find nothing. */
+  useUnsplashSearch?: UseCanvasUnsplashSearch;
 }
 
 const CanvasEditorContext = createContext<CanvasEditorServices>({});
