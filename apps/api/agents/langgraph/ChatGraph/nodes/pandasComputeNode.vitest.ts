@@ -160,6 +160,22 @@ describe('pandasComputeNode', () => {
     expect(await pandasComputeNode(state)).toEqual({ pythonCode: null });
   });
 
+  it('reads a vectorized first-turn table from turnTabularTexts (standing grant, no thread row yet)', async () => {
+    const state = makeState('{"related": true, "code": "print(1)"}', {
+      threadAttachments: [],
+      attachmentContext: null,
+      turnTabularTexts: [{ name: 'Buchungen.xlsx', text: 'Kostenstelle | Betrag\nKS-Web | 12,50' }],
+    } as Partial<ChatGraphState>);
+    const { pythonCode } = await pandasComputeNode(state, { mode: 'fill' });
+    expect(pythonCode).toBe('print(1)');
+    const { messages } = requestAt(0) as { messages: Array<{ content: string }> };
+    const prompt = messages[0]!.content;
+    expect(prompt).toContain('Kostenstelle | Betrag');
+    expect(prompt).toContain(
+      'Dateiname(n) im Arbeitsverzeichnis (exakt so verwenden): Buchungen.xlsx\n'
+    );
+  });
+
   it('recovers the exact filename from a labeled first-turn header in fill mode', async () => {
     // Regression: `### name.xlsx (Volltext-Auszug)` used to fail the tabular
     // extension check, dropping the file from the fill-mode prompt entirely.

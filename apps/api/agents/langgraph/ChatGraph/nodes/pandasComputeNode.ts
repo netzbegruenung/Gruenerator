@@ -130,13 +130,17 @@ export function truncateTableContext(text: string): string {
 
 /**
  * Collect column names + sample rows for the codegen prompt: extracted text of
- * tabular thread attachments first (survives across turns), then the current
- * turn's attachment context as fallback.
+ * tabular thread attachments first (survives across turns), then this turn's
+ * tables, then the current turn's attachment context as fallback.
  */
 function buildTableContext(state: ChatGraphState): string {
-  const tabularTexts = (state.threadAttachments ?? [])
+  const fromThread = (state.threadAttachments ?? [])
     .filter((a) => !a.isImage && a.extractedText && isTabularAttachment(a.name, a.mimeType))
     .map((a) => `### ${a.name}\n${a.extractedText}`);
+  const tabularTexts =
+    fromThread.length > 0
+      ? fromThread
+      : (state.turnTabularTexts ?? []).map((t) => `### ${t.name}\n${t.text}`);
 
   const combined = tabularTexts.length
     ? tabularTexts.join('\n\n')
@@ -156,6 +160,8 @@ function tabularFileNames(state: ChatGraphState): string[] {
     .filter((a) => !a.isImage && isTabularAttachment(a.name, a.mimeType))
     .map((a) => a.name);
   if (fromAttachments.length > 0) return fromAttachments;
+  const fromTurn = (state.turnTabularTexts ?? []).map((t) => t.name);
+  if (fromTurn.length > 0) return fromTurn;
 
   return [...(state.attachmentContext ?? '').matchAll(/^### (.+)$/gm)]
     .map((m) => m[1].trim().replace(/\s*\([^)]*\)\s*$/, ''))

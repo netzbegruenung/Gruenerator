@@ -78,10 +78,13 @@ export function createSuspendedTurnStore<
       // Gleiche Begründung wie beim Klärungs-Zustand: die PDF-Formularbytes liegen
       // schon in `requestContext.processedMeta`. Die Bildbytes ebenso in
       // `requestContext.imageAttachments` — seit Bildzüge in den Loop dürfen
-      // (#3841), pausiert auch einer mit mehreren MB Fotos, 24 h lang.
+      // (#3841), pausiert auch einer mit mehreren MB Fotos, 24 h lang. Der
+      // Tabellentext ebenso; nach der Pause liest der Codegen die Thread-Zeile,
+      // die `persistSuspendedTurnAttachments` vor jeder Pause schreibt.
       const {
         pdfFormAttachments: _bytes,
         imageAttachments: _images,
+        turnTabularTexts: _tables,
         ...classifiedState
       } = data.classifiedState;
       const entry = {

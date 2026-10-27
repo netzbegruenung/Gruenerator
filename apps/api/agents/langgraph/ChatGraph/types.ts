@@ -555,6 +555,11 @@ export interface ChatGraphInput {
    *  and is only written after the turn completes — on the very first turn
    *  ("here is my form, fill it in") the DB has nothing yet. */
   pdfFormAttachments?: Array<{ name: string; data: string }> | undefined;
+  /** THIS turn's tabular attachments (name + extracted text), for the pandas
+   *  codegen. Same reason as `pdfFormAttachments`: `threadAttachments` is only
+   *  written after the turn, and a vectorized table is gone from
+   *  `attachmentContext` — the first-turn codegen had neither. */
+  turnTabularTexts?: Array<{ name: string; text: string }> | undefined;
   /**
    * True when the requesting client declared the run_python client tool
    * (clientTools includes 'run_python') — i.e. it can execute the pandas code
@@ -816,6 +821,8 @@ export interface ChatGraphState {
   cloudConnectionCount: number;
   /** See the input-side field: this turn's fillable PDFs, name + base64. */
   pdfFormAttachments: Array<{ name: string; data: string }>;
+  /** See `ChatGraphInput.turnTabularTexts`. */
+  turnTabularTexts?: Array<{ name: string; text: string }> | undefined;
   clientCanRunPython: boolean;
   clientCanUseTabularTool: boolean;
   clientCanRenderSharepic: boolean;

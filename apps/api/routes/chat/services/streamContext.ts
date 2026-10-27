@@ -978,6 +978,14 @@ export async function buildStreamContext({
   // client-sent `isImage` flag.
   const pdfFormAttachments = pdfFormCandidates;
 
+  // Extracted text of THIS turn's tables, for the `tabelle_auswerten` codegen.
+  // A large table is vectorized (attachmentContext cleared) and its thread row
+  // is only written at the end of the turn — with a standing grant the tool
+  // runs before either, and the codegen saw no table at all (live 27.10.2026).
+  const turnTabularTexts = processedMeta
+    .filter((m) => !m.isImage && m.extractedText && isTabularAttachment(m.name, m.mimeType))
+    .map((m) => ({ name: m.name, text: m.extractedText ?? '' }));
+
   // Large prose attachments from earlier turns were embedded into Qdrant — route
   // their document ids through the existing document-chat retrieval fan-out so
   // follow-up questions pull the relevant chunks per query (RAG), instead of the
@@ -1095,6 +1103,7 @@ export async function buildStreamContext({
     threadAttachments: previousAttachments.length > 0 ? previousAttachments : undefined,
     hasTabularAttachment,
     ...(pdfFormAttachments.length > 0 && { pdfFormAttachments }),
+    ...(turnTabularTexts.length > 0 && { turnTabularTexts }),
     clientCanRunPython: clientTools?.includes('run_python') ?? false,
     clientCanUseTabularTool: clientCanUseTabularToolFrom(clientTools),
     clientCanRenderSharepic: clientTools?.includes('render_sharepic') ?? false,
