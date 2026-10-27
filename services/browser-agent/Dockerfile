@@ -45,8 +45,12 @@ ENV PATH="/opt/venv/bin:$PATH"
 
 # requirements.txt ist der gepinnte Laufzeit-Abschluss von pyproject.toml (neu erzeugen:
 # siehe Kopfzeile der Datei; requirements-dev.txt trägt zusätzlich das [dev]-Extra für die CI).
+# --no-deps, weil overrides.txt die exakten Pins von browser-use für Pakete mit offenen
+# Sicherheitsmeldungen anhebt: pip würde den Abschluss sonst gegen genau diese Pins
+# ablehnen. Aufgelöst und geprüft hat ihn schon `uv pip compile`; `pip check` meldet
+# die Overrides absichtlich als Konflikt.
 COPY pyproject.toml requirements.txt ./
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir --no-deps -r requirements.txt
 
 COPY src/ /app/src/
 
