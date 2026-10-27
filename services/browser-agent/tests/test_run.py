@@ -30,6 +30,7 @@ def test_agent_config(tmp_path):
     assert '--proxy-server=http://127.0.0.1:8899' in profile.args
     assert '--proxy-bypass-list=<-loopback>' in profile.args
     assert '--force-webrtc-ip-handling-policy=disable_non_proxied_udp' in profile.args
+    assert a.settings.use_judge is False
 
 
 def test_rules_text_verbatim():
@@ -127,6 +128,8 @@ class FakeAgent:
         self.png_names = png_names
         self.stopped = False
         self.closed = False
+        self.history = SimpleNamespace(final_result=lambda: None, number_of_steps=lambda: self.done_steps)
+        self.done_steps = 0
         (workdir / "profile").mkdir(parents=True, exist_ok=True)
         self.fs_dir = workdir / "fs" / "browseruse_agent_data"
         self.fs_dir.mkdir(parents=True, exist_ok=True)
@@ -136,10 +139,11 @@ class FakeAgent:
             if self.stopped:
                 break
             out = SimpleNamespace(next_goal=f"schritt {n}", thinking=None, action=[_action({"wait": {"seconds": 1}})])
+            for name in self.png_names:
+                (self.fs_dir / name).write_bytes(_png())
             await self.on_step(_state(None), out, n)
+            self.done_steps = n
             await asyncio.sleep(self.delay)
-        for name in self.png_names:
-            (self.fs_dir / name).write_bytes(_png())
         return _History()
 
     def stop(self):
@@ -164,16 +168,39 @@ async def test_saved_counts_disk_not_registry(tmp_path):
     done = events[-1]
     assert done["type"] == "done"
     assert sorted(done["saved"]) == ["eins.png", "zwei.png"]
+    assert done["timed_out"] is False
     assert done["summary"] == "fertig" and done["agent_says_success"] is True and done["steps"] == 2
     assert [e["n"] for e in events if e["type"] == "step"] == [1, 2]
     assert not made[0].workdir.exists()
 
 
-async def test_run_timeout_emits_error(tmp_path):
+async def test_run_timeout_emits_partial_done(tmp_path):
+    made = []
+
     def factory(*, workdir, on_step, **kw):
-        return FakeAgent(workdir, on_step, steps=100, delay=0.05)
+        made.append(FakeAgent(workdir, on_step, steps=100, delay=0.05, png_names=("eins.png",)))
+        return made[0]
 
     req = dict(run_id="r1", task="t", start_url="https://example.org", llm_base_url="http://x", llm_token="t", max_steps=25)
     events = [ev async for ev in execute_run(req, factory, base_dir=tmp_path, max_seconds=0.2)]
-    assert events[-1]["type"] == "error"
+    done = events[-1]
+    assert done["type"] == "done"
+    assert done["timed_out"] is True
+    assert done["agent_says_success"] is None
+    assert done["summary"] == "Zeitlimit von 0 s erreicht – Teilergebnis."
+    assert done["saved"] == ["eins.png"]
+    assert done["steps"] >= 1
+    assert not any(e["type"] == "error" for e in events)
+    assert made[0].stopped
     assert list(tmp_path.iterdir()) == []
+
+
+async def test_run_timeout_uses_partial_final_result(tmp_path):
+    def factory(*, workdir, on_step, **kw):
+        agent = FakeAgent(workdir, on_step, steps=100, delay=0.05)
+        agent.history.final_result = lambda: "halb fertig"
+        return agent
+
+    req = dict(run_id="r1", task="t", start_url="https://example.org", llm_base_url="http://x", llm_token="t", max_steps=25)
+    events = [ev async for ev in execute_run(req, factory, base_dir=tmp_path, max_seconds=0.2)]
+    assert events[-1]["summary"] == "halb fertig" and events[-1]["timed_out"] is True

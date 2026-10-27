@@ -52,7 +52,11 @@ Läufe, darüber `429`.
 - `POST /runs` `{run_id, task, start_url, llm_base_url, llm_token, max_steps≤25}`
   → `application/x-ndjson` mit `step`, `screenshot_saved`, `done` bzw. `error`
   (Formen in `events.py`; die API spiegelt sie als Zod-Schema — Felder nie
-  umbenennen). Laufdeckel 170 s.
+  umbenennen). Laufdeckel 170 s: reißt ein Lauf ihn, endet er mit einem
+  Teilergebnis `done` mit `timed_out: true` und `agent_says_success: null`
+  (Zusammenfassung des Agenten oder „Zeitlimit von 170 s erreicht –
+  Teilergebnis.“); sonst trägt `done` `timed_out: false`. Abbruch per
+  `DELETE` oder Client-Abbruch endet weiter mit `error`.
 - `DELETE /runs/{run_id}` bricht ab (`204`); ein Client-Abbruch des Streams
   ebenso, ohne auf den nächsten Schritt zu warten.
 - `GET /health`.

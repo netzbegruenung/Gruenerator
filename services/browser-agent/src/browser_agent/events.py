@@ -117,7 +117,15 @@ def screenshot_saved_event(path: Path) -> dict:
     }
 
 
-def done_event(summary: str, agent_says_success: bool | None, saved: list[str], steps: int, seconds: float) -> dict:
+def done_event(
+    summary: str,
+    agent_says_success: bool | None,
+    saved: list[str],
+    steps: int,
+    seconds: float,
+    timed_out: bool = False,
+) -> dict:
+    """``timed_out``: Laufdeckel gerissen, ``summary`` ist dann ein Teilergebnis."""
     return {
         "type": "done",
         "summary": summary,
@@ -125,6 +133,7 @@ def done_event(summary: str, agent_says_success: bool | None, saved: list[str], 
         "saved": saved,
         "steps": steps,
         "seconds": round(seconds, 1),
+        "timed_out": timed_out,
     }
 
 

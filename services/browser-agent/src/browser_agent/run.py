@@ -94,6 +94,8 @@ def build_agent(
         register_new_step_callback=on_step,
         # Signale gehören uvicorn, nicht dem Agenten.
         enable_signal_handler=False,
+        # Gespeichertes zählt die Platte; der Richter wäre ein zusätzlicher LLM-Aufruf je Lauf.
+        use_judge=False,
     )
 
 
@@ -184,7 +186,16 @@ async def execute_run(
         except asyncio.CancelledError:
             yield error_event("Lauf abgebrochen.")
         except TimeoutError:
-            yield error_event(f"Zeitlimit von {int(max_seconds)} s erreicht.")
+            # Deckel gerissen: Teilergebnis statt Fehler, mit ausdrücklichem Hinweis.
+            history = agent.history
+            yield done_event(
+                summary=history.final_result() or f"Zeitlimit von {int(max_seconds)} s erreicht – Teilergebnis.",
+                agent_says_success=None,
+                saved=list(seen),
+                steps=history.number_of_steps(),
+                seconds=time.monotonic() - started,
+                timed_out=True,
+            )
         except Exception as e:
             logger.exception("run failed")
             yield error_event(f"Lauf fehlgeschlagen: {e}")
