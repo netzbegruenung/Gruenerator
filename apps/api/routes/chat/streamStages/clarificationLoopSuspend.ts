@@ -32,6 +32,9 @@ export interface SuspendForLoopClarificationParams {
   /** Die vor dem Streamen angelegte Platzhalter-Zeile, falls vorhanden. */
   pendingId: string | null;
   startTime: number;
+  /** Früher im Zug aufgelöste Pausen (die entschiedene Freigabe-Karte) —
+   *  stehen in der Nachricht und reisen im Zustand mit (#5051). */
+  resolvedPause?: Record<string, unknown>;
 }
 
 /**
@@ -56,6 +59,7 @@ export async function suspendForLoopClarification({
   priorSteps,
   pendingId,
   startTime,
+  resolvedPause,
 }: SuspendForLoopClarificationParams): Promise<StreamHandlerResult> {
   const askTurnId = randomUUID();
 
@@ -67,6 +71,7 @@ export async function suspendForLoopClarification({
     priorSteps,
     partialText,
     pausedMessageId: pendingId,
+    ...(resolvedPause ? { resolvedPause } : {}),
     classifiedState,
     requestContext,
   };
@@ -92,6 +97,7 @@ export async function suspendForLoopClarification({
     intent: classifiedState.intent,
     searchCount: 0,
     citations: [],
+    ...resolvedPause,
     toolCalls: priorSteps,
     pendingClarification: {
       askTurnId,
