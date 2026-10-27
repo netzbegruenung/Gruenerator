@@ -112,6 +112,7 @@
 @source "../../../../../packages/wolke/src/**/*.{js,ts,jsx,tsx}";
 @source "../../../../../packages/collab/src/**/*.{js,ts,jsx,tsx}";
 @source "../../../../../packages/canvas-editor/src/**/*.{js,ts,jsx,tsx}";
+@source "../../../../../packages/ggraphic-editor/src/**/*.{js,ts,jsx,tsx}";
 @source "../../../../../packages/sites/src/**/*.{js,ts,jsx,tsx}";
 @source "../../../../../packages/sites-design/src/**/*.{js,ts,jsx,tsx}";
 @source "../../../../../packages/shared/src/media-library/ui/**/*.{js,ts,jsx,tsx}";
