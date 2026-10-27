@@ -64,8 +64,7 @@ export function approvalDecidedLabel(approval: ToolApprovalState): string {
 const INTERNAL_APPROVAL_DISPLAY: Record<string, { title: string; description: string }> = {
   tabelle_auswerten: {
     title: 'Tabelle auswerten',
-    description:
-      'Der Grünerator erzeugt dafür Python-Code und führt ihn in deinem Browser aus (ohne Internetzugriff).',
+    description: 'Der Grünerator erzeugt dafür Python-Code und führt ihn in deinem Browser aus.',
   },
 };
 

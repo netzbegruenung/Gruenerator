@@ -85,7 +85,7 @@ describe('ToolApprovalCard — eigene Werkzeuge', () => {
     expect(screen.getByText('Tabelle auswerten ausführen?')).toBeInTheDocument();
     expect(
       screen.getByText(
-        'Der Grünerator erzeugt dafür Python-Code und führt ihn in deinem Browser aus (ohne Internetzugriff).'
+        'Der Grünerator erzeugt dafür Python-Code und führt ihn in deinem Browser aus.'
       )
     ).toBeInTheDocument();
   });
