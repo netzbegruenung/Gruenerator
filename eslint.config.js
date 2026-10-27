@@ -8,6 +8,7 @@ const WEB_FILES = [
   'apps/web/**/*.{ts,tsx,js,jsx}',
   'apps/desktop/**/*.{ts,tsx,js,jsx}',
   'apps/gruen-o-mat/**/*.{ts,tsx,js,jsx}',
+  'apps/ggraphic-demo/**/*.{ts,tsx,js,jsx}',
   'packages/sites/**/*.{ts,tsx,js,jsx}',
   'packages/chat/**/*.{ts,tsx,js,jsx}',
   'packages/canvas-editor/**/*.{ts,tsx,js,jsx}',

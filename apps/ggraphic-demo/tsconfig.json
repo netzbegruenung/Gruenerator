@@ -1,0 +1,23 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "jsx": "react-jsx",
+    "noEmit": true,
+    "allowImportingTsExtensions": true,
+    "types": ["vite/client", "node"],
+    "baseUrl": ".",
+    "paths": {
+      "@gruenerator/shared": ["../../packages/shared/src/index.ts"],
+      "@gruenerator/shared/*": [
+        "../../packages/shared/src/*/index.ts",
+        "../../packages/shared/src/*"
+      ],
+      "@gruenerator/contracts": ["../../packages/contracts/src/index.ts"]
+    },
+    "noUncheckedIndexedAccess": false,
+    "noPropertyAccessFromIndexSignature": false
+  },
+  "include": ["src/**/*", "vite.config.ts", "importReport.ts"],
+  "exclude": ["node_modules", "dist"]
+}
