@@ -1,0 +1,5 @@
+Verwende JETZT das Tool submit_canvas_operations mit genau einem Stapel von Operationen für folgende Anweisung:
+
+Mach den Text kürzer
+
+Antworte ausschließlich über den Tool-Aufruf — keinen Begleittext.

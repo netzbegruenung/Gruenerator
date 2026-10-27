@@ -1,0 +1,331 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "properties": {
+    "operations": {
+      "maxItems": 8,
+      "type": "array",
+      "items": {
+        "anyOf": [
+          {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "type": "string",
+                "const": "set-text"
+              },
+              "field": {
+                "type": "string",
+                "minLength": 1
+              },
+              "label": {
+                "type": "string",
+                "minLength": 1
+              },
+              "value": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "kind",
+              "field",
+              "label",
+              "value"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "type": "string",
+                "const": "set-color-scheme"
+              },
+              "schemeId": {
+                "type": "string",
+                "minLength": 1
+              }
+            },
+            "required": [
+              "kind",
+              "schemeId"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "type": "string",
+                "const": "set-background-color"
+              },
+              "color": {
+                "type": "string",
+                "pattern": "^#[0-9a-fA-F]{6}$",
+                "description": "CSS hex color in `#rrggbb` format."
+              }
+            },
+            "required": [
+              "kind",
+              "color"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "type": "string",
+                "const": "set-color-mode"
+              },
+              "mode": {
+                "type": "string",
+                "enum": [
+                  "light",
+                  "dark"
+                ]
+              }
+            },
+            "required": [
+              "kind",
+              "mode"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "type": "string",
+                "const": "add-illustration"
+              },
+              "illustrationId": {
+                "type": "string",
+                "minLength": 1
+              },
+              "color": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "pattern": "^#[0-9a-fA-F]{6}$",
+                    "description": "CSS hex color in `#rrggbb` format."
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              }
+            },
+            "required": [
+              "kind",
+              "illustrationId"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "type": "string",
+                "const": "add-asset"
+              },
+              "assetId": {
+                "type": "string",
+                "minLength": 1
+              }
+            },
+            "required": [
+              "kind",
+              "assetId"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "type": "string",
+                "const": "remove-element"
+              },
+              "elementId": {
+                "type": "string",
+                "minLength": 1
+              }
+            },
+            "required": [
+              "kind",
+              "elementId"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "type": "string",
+                "const": "toggle-sunflower"
+              },
+              "visible": {
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "kind",
+              "visible"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "type": "string",
+                "const": "set-font-size"
+              },
+              "field": {
+                "type": "string",
+                "minLength": 1
+              },
+              "label": {
+                "type": "string",
+                "minLength": 1
+              },
+              "size": {
+                "type": "integer",
+                "exclusiveMinimum": 0,
+                "maximum": 500
+              }
+            },
+            "required": [
+              "kind",
+              "field",
+              "label",
+              "size"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "type": "string",
+                "const": "update-element"
+              },
+              "elementId": {
+                "type": "string",
+                "minLength": 1
+              },
+              "patch": {
+                "type": "object",
+                "properties": {
+                  "color": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "pattern": "^#[0-9a-fA-F]{6}$",
+                        "description": "CSS hex color in `#rrggbb` format."
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "opacity": {
+                    "anyOf": [
+                      {
+                        "type": "number",
+                        "minimum": 0,
+                        "maximum": 1
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "scale": {
+                    "anyOf": [
+                      {
+                        "type": "number",
+                        "exclusiveMinimum": 0,
+                        "maximum": 10
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "rotation": {
+                    "anyOf": [
+                      {
+                        "type": "number",
+                        "minimum": -360,
+                        "maximum": 360
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "x": {
+                    "type": [
+                      "number",
+                      "null"
+                    ]
+                  },
+                  "y": {
+                    "type": [
+                      "number",
+                      "null"
+                    ]
+                  }
+                },
+                "additionalProperties": false
+              }
+            },
+            "required": [
+              "kind",
+              "elementId",
+              "patch"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "type": "string",
+                "const": "set-background-image"
+              },
+              "query": {
+                "type": "string",
+                "minLength": 2,
+                "maxLength": 120
+              }
+            },
+            "required": [
+              "kind",
+              "query"
+            ],
+            "additionalProperties": false
+          }
+        ]
+      }
+    },
+    "summary": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 120
+    },
+    "reply": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 300
+    }
+  },
+  "required": [
+    "operations",
+    "summary",
+    "reply"
+  ],
+  "additionalProperties": false
+}
