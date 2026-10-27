@@ -6,7 +6,7 @@
  * (`CanvasBlockService` in `hostServices.ts`); the Grünerator host cuts them
  * out of a composed sharepic slide (`composer/liftBlock.ts`).
  */
-import { layoutRichTextBlock } from '@gruenerator/contracts';
+import { layoutRichTextBlock } from '@ggraphic/schema';
 
 import { runMeasurer } from '../utils/textUtils';
 

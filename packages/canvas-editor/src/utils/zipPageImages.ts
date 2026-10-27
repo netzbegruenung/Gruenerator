@@ -1,4 +1,4 @@
-import { parseDataUrl } from '@gruenerator/contracts';
+import { parseDataUrl } from '@ggraphic/schema';
 import { zipSync } from 'fflate';
 
 const EXTENSION_BY_TYPE: Record<string, string> = {

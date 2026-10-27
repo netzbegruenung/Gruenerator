@@ -1,8 +1,8 @@
-import { stripInlineMarks } from '@gruenerator/contracts';
-import { photoCreditLine, withPhotoCredit } from '../utils/photoCredit';
+import { stripInlineMarks } from '@ggraphic/schema';
 import { FaShare } from 'react-icons/fa';
 
 import { GenericShareSection, type GenericShareSectionProps } from '../sidebar';
+import { photoCreditLine, withPhotoCredit } from '../utils/photoCredit';
 import { pagePhotoCredits } from '../utils/photoCredits';
 
 import { makeSectionDefiner } from './factory/defineSection';

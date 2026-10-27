@@ -4,12 +4,8 @@
  * the AT arrow assets, text measurement. Kept apart so the page ops, which
  * every canvas editor loads, do not pull in the whole composer.
  */
-import {
-  layoutRichTextBlock,
-  type MeasureRun,
-  type SharepicColor,
-  type SharepicCreatorLocale,
-} from '@gruenerator/contracts';
+import { layoutRichTextBlock, type MeasureRun } from '@ggraphic/schema';
+import { type SharepicColor, type SharepicCreatorLocale } from '@gruenerator/contracts';
 
 import { getBrandTheme } from '../brand/theme';
 import { COLORS } from '../utils/dreizeilenLayout';

@@ -5,15 +5,14 @@
  * sonst schriebe jeder Tastendruck im Editor eine andere Form in den Zustand,
  * und die Versionshistorie füllte sich mit Nicht-Änderungen.
  */
-import { describe, it, expect } from 'vitest';
-
 import {
   markdownLiteToRichText,
   richTextMarkSchema,
   richTextToMarkdownLite,
-} from '@gruenerator/contracts';
+} from '@ggraphic/schema';
+import { describe, it, expect } from 'vitest';
 
-import type { RichTextDoc } from '@gruenerator/contracts';
+import type { RichTextDoc } from '@ggraphic/schema';
 
 describe('markdownLiteToRichText', () => {
   it('macht aus jeder Zeile einen Absatz und aus Läufen Textknoten mit Marks', () => {

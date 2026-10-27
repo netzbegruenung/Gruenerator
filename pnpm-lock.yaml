@@ -1504,6 +1504,9 @@ importers:
       '@ggraphic/core':
         specifier: workspace:*
         version: link:../ggraphic-core
+      '@ggraphic/schema':
+        specifier: workspace:*
+        version: link:../ggraphic-schema
       '@gruenerator/collab':
         specifier: workspace:*
         version: link:../collab

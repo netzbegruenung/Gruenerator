@@ -3,7 +3,8 @@
  * Before, the card kept the composer's height until an AI edit recomposed the
  * page, and the new point hung below it.
  */
-import { layoutRichTextBlock, type SharepicSpec } from '@gruenerator/contracts';
+import { layoutRichTextBlock } from '@ggraphic/schema';
+import { type SharepicSpec } from '@gruenerator/contracts';
 import { describe, expect, it } from 'vitest';
 
 import { createFreeformFullConfig, type FreeformState } from '../configs/freeform_full.config';
