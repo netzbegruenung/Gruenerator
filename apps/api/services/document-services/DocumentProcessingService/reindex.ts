@@ -39,7 +39,6 @@ export interface ReindexDeps {
   db: { query: <T>(sql: string, params: unknown[]) => Promise<T[]> };
   access: (notebookId: string, userId: string) => Promise<NotebookAccess>;
   isInNotebook: (notebookId: string, documentId: string) => Promise<boolean>;
-  collectionDocumentIds: (notebookId: string) => Promise<string[]>;
   hasAiConsent: (userId: string) => Promise<boolean>;
   kick: () => void;
 }
@@ -57,10 +56,6 @@ async function defaultDeps(): Promise<ReindexDeps> {
     },
     access: checkNotebookAccess,
     isInNotebook: (notebookId, documentId) => helper.isDocumentInCollection(notebookId, documentId),
-    collectionDocumentIds: async (notebookId) =>
-      (await helper.getCollectionDocuments(notebookId, { rethrow: true })).map(
-        (d) => d.document_id
-      ),
     hasAiConsent,
     kick: kickIngestWorker,
   };
@@ -145,60 +140,4 @@ export async function reindexDocument(
 
   await enqueue(deps, [{ id: row.id, origin }]);
   return { status: 'queued', message: REINDEX_QUEUED_MESSAGE };
-}
-
-export type ReindexNotebookResult =
-  | { status: 'ok'; queued: string[]; unavailable: number; consentMissing: number }
-  | { status: 'not_found' }
-  | { status: 'forbidden' }
-  | { status: 'consent_missing' };
-
-/** Alle erreichbaren Quellen eines Notebooks einreihen. */
-export async function reindexNotebookSources(
-  collectionId: string,
-  userId: string,
-  injected?: ReindexDeps
-): Promise<ReindexNotebookResult> {
-  const deps = injected ?? (await defaultDeps());
-  const access = await deps.access(collectionId, userId);
-  if (!access.exists || !access.canRead) return { status: 'not_found' };
-  if (!access.canEdit) return { status: 'forbidden' };
-  if (!(await deps.hasAiConsent(userId))) return { status: 'consent_missing' };
-
-  const ids = await deps.collectionDocumentIds(collectionId);
-  if (ids.length === 0) return { status: 'ok', queued: [], unavailable: 0, consentMissing: 0 };
-
-  const rows = await deps.db.query<ReindexRow>(
-    `SELECT ${ROW_COLUMNS} FROM documents WHERE id = ANY($1) AND deleted_at IS NULL`,
-    [ids]
-  );
-
-  const consent = new Map<string, boolean>([[userId, true]]);
-  const toEnqueue: Array<{ id: string; origin: ReindexOrigin }> = [];
-  const queued: string[] = [];
-  let unavailable = 0;
-  let consentMissing = 0;
-
-  for (const row of rows) {
-    const origin = reindexOrigin(row);
-    if (!origin) {
-      unavailable++;
-      continue;
-    }
-    if (row.status && IN_FLIGHT.has(row.status)) {
-      queued.push(row.id);
-      continue;
-    }
-    const owner = row.user_id ?? userId;
-    if (!consent.has(owner)) consent.set(owner, await deps.hasAiConsent(owner));
-    if (!consent.get(owner)) {
-      consentMissing++;
-      continue;
-    }
-    toEnqueue.push({ id: row.id, origin });
-    queued.push(row.id);
-  }
-
-  await enqueue(deps, toEnqueue);
-  return { status: 'ok', queued, unavailable, consentMissing };
 }

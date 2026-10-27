@@ -36,8 +36,7 @@ vi.mock('./chunkingPipeline.js', () => ({
 vi.mock('../../../middleware/requireAiConsent.js', () => ({ hasAiConsent: async () => true }));
 vi.mock('./documentIngestWorker.js', () => ({ kickIngestWorker: vi.fn() }));
 
-const { reindexDocument, reindexNotebookSources, REINDEX_UNAVAILABLE_MESSAGE } =
-  await import('./reindex.js');
+const { reindexDocument, REINDEX_UNAVAILABLE_MESSAGE } = await import('./reindex.js');
 const { reindexOrigin, isReindexable } = await import('./reindexOrigin.js');
 const { processUploadedDocument } = await import('./fileProcessing.js');
 
@@ -56,11 +55,6 @@ const row = (over: Partial<ReindexRow> = {}): ReindexRow => ({
 });
 
 const WOLKE = row({ wolke_share_link_id: 'share-1', wolke_file_path: '/public.php/webdav/a.pdf' });
-const WOLKE_2 = row({
-  id: 'doc-2',
-  wolke_share_link_id: 'share-1',
-  wolke_file_path: '/public.php/webdav/b.pdf',
-});
 const UPLOAD = row({ id: 'doc-3' });
 
 const access = (a: Partial<NotebookAccess>): NotebookAccess => ({
@@ -92,7 +86,6 @@ function fakeDeps(rows: ReindexRow[], over: Partial<ReindexDeps> = {}) {
     },
     access: vi.fn(async () => access({ canEdit: true })),
     isInNotebook: vi.fn(async () => true),
-    collectionDocumentIds: vi.fn(async () => rows.map((r) => r.id)),
     hasAiConsent: vi.fn(async () => true),
     kick: vi.fn(),
     ...over,
@@ -189,45 +182,6 @@ describe('reindexDocument — welche Quelle ein Original hat', () => {
     const again = await reindexDocument('doc-1', OWNER, {}, deps);
     expect(again.status).toBe('queued');
     expect(updates).toEqual(['doc-1']);
-  });
-});
-
-describe('reindexNotebookSources', () => {
-  it('reiht nur erreichbare Quellen ein und zählt den Rest', async () => {
-    const { deps, updates } = fakeDeps([WOLKE, WOLKE_2, UPLOAD]);
-    const result = await reindexNotebookSources('nb-1', EDITOR, deps);
-    expect(result).toEqual({
-      status: 'ok',
-      queued: ['doc-1', 'doc-2'],
-      unavailable: 1,
-      consentMissing: 0,
-    });
-    expect(updates).toEqual(['doc-1', 'doc-2']);
-  });
-
-  it('verweigert ohne Schreibrecht', async () => {
-    const { deps, updates } = fakeDeps([WOLKE], {
-      access: vi.fn(async () => access({ canEdit: false })),
-    });
-    expect(await reindexNotebookSources('nb-1', EDITOR, deps)).toEqual({ status: 'forbidden' });
-    expect(updates).toEqual([]);
-  });
-
-  it('ist beim Wiederholen idempotent', async () => {
-    const { deps, updates } = fakeDeps([WOLKE, WOLKE_2]);
-    await reindexNotebookSources('nb-1', OWNER, deps);
-    const again = await reindexNotebookSources('nb-1', OWNER, deps);
-    expect(again).toMatchObject({ queued: ['doc-1', 'doc-2'] });
-    expect(updates).toEqual(['doc-1', 'doc-2']);
-  });
-
-  it('überspringt Quellen, deren Eigentümer*in nicht eingewilligt hat', async () => {
-    const other = { ...WOLKE_2, id: 'doc-4', user_id: 'other' };
-    const { deps } = fakeDeps([WOLKE, other], {
-      hasAiConsent: vi.fn(async (id: string) => id !== 'other'),
-    });
-    const result = await reindexNotebookSources('nb-1', OWNER, deps);
-    expect(result).toMatchObject({ queued: ['doc-1'], consentMissing: 1 });
   });
 });
 

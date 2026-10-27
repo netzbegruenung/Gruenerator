@@ -25,10 +25,7 @@ import { createExpressEndpoints, initServer } from '@ts-rest/express';
 import { NotebookQdrantHelper } from '../../database/services/NotebookQdrantHelper.js';
 import { getPostgresInstance } from '../../database/services/PostgresService.js';
 import { isQdrantUnavailableError } from '../../database/services/QdrantService/operations/batchOperations.js';
-import {
-  reindexDocument,
-  reindexNotebookSources,
-} from '../../services/document-services/DocumentProcessingService/reindex.js';
+import { reindexDocument } from '../../services/document-services/DocumentProcessingService/reindex.js';
 import { isReindexable } from '../../services/document-services/DocumentProcessingService/reindexOrigin.js';
 import { getQdrantDocumentService } from '../../services/document-services/DocumentSearchService/index.js';
 import {
@@ -68,24 +65,6 @@ const log = createLogger('notebookCollectionsContractRouter');
 
 const AI_CONSENT_MISSING = 'Für die KI-Verarbeitung fehlt die Einwilligung nach Art. 9 DSGVO.';
 
-function describeNotebookReindex(result: {
-  queued: string[];
-  unavailable: number;
-  consentMissing: number;
-}): string {
-  const parts = [
-    result.queued.length === 1
-      ? '1 Quelle wird neu indexiert.'
-      : `${result.queued.length} Quellen werden neu indexiert.`,
-  ];
-  if (result.unavailable > 0) {
-    parts.push(`${result.unavailable} ohne Original übersprungen — diese bitte neu hochladen.`);
-  }
-  if (result.consentMissing > 0) {
-    parts.push(`${result.consentMissing} übersprungen, weil die Einwilligung fehlt.`);
-  }
-  return parts.join(' ');
-}
 const notebookHelper = new NotebookQdrantHelper();
 
 /**
@@ -1331,37 +1310,6 @@ export const notebookCollectionsContractRouter = s.router(notebookCollectionsCon
       }
     } catch (error) {
       log.error('[notebookCollectionsContract.reindexDocument] Error:', error);
-      return { status: 500 as const, body: { error: 'Internal server error' } };
-    }
-  },
-
-  reindexNotebook: async (args) => {
-    try {
-      const userId = getUserId(args.req);
-      const collectionId = fromParam<NotebookId>(args.params.id);
-
-      const result = await reindexNotebookSources(collectionId, userId);
-      switch (result.status) {
-        case 'not_found':
-          return { status: 404 as const, body: { error: 'Notebook nicht gefunden' } };
-        case 'forbidden':
-          return { status: 403 as const, body: { error: 'Keine Berechtigung' } };
-        case 'consent_missing':
-          return { status: 403 as const, body: { error: AI_CONSENT_MISSING } };
-        case 'ok':
-          return {
-            status: 200 as const,
-            body: {
-              success: true as const,
-              queued: result.queued,
-              unavailable: result.unavailable,
-              consent_missing: result.consentMissing,
-              message: describeNotebookReindex(result),
-            },
-          };
-      }
-    } catch (error) {
-      log.error('[notebookCollectionsContract.reindexNotebook] Error:', error);
       return { status: 500 as const, body: { error: 'Internal server error' } };
     }
   },
