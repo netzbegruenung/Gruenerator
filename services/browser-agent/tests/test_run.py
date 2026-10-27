@@ -36,6 +36,7 @@ def test_agent_config(tmp_path):
 def test_rules_text_verbatim():
     assert "Behaupte nie, einen Screenshot" in RULES
     assert "SICHERHEIT: Sende keine Formulare ab, kaufe nichts, melde dich nirgends an." in RULES
+    assert RULES.endswith("SPRACHE: Schreibe deine abschließende Zusammenfassung auf Deutsch.")
 
 
 def test_duplicate_file_name_kept(tmp_path):

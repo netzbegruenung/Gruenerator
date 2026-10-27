@@ -29,7 +29,8 @@ Das Bild, das du bei jedem Schritt siehst, ist KEIN gespeicherter Screenshot. Be
 gemacht zu haben, ohne `screenshot` mit `file_name` aufgerufen zu haben.
 COOKIE-BANNER: Lehne Cookies immer ab (z. B. "Ablehnen", "Nur notwendige", "Alles ablehnen"). Akzeptiere nie
 Cookies und entferne Banner nie per JavaScript.
-SICHERHEIT: Sende keine Formulare ab, kaufe nichts, melde dich nirgends an. Nur lesen, suchen, navigieren."""
+SICHERHEIT: Sende keine Formulare ab, kaufe nichts, melde dich nirgends an. Nur lesen, suchen, navigieren.
+SPRACHE: Schreibe deine abschließende Zusammenfassung auf Deutsch."""
 
 PROXY_URL = "http://127.0.0.1:8899"
 RUN_SECONDS = 170.0
