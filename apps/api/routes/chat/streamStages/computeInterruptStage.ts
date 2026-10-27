@@ -156,7 +156,7 @@ export async function runComputeInterruptStage({
       return { handled: true, result: suspended };
     }
     // Codegen failed — continue with the normal pipeline (prompt guidance
-    // still steers the model toward an auto-run code block).
+    // steers the model to answer from the table data in the document context).
   }
 
   return { handled: false };
