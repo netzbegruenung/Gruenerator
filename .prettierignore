@@ -69,3 +69,4 @@ packages/canvas-editor/src/composer/__golden__/
 apps/api/evals/last-run.json
 apps/api/evals/judge-verdicts.json
 packages/canvas-editor/src/utils/__golden__/
+packages/canvas-editor/src/components/__golden__/
