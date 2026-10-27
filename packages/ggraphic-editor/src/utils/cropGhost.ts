@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 import Konva from 'konva';
 
 import { getActiveImageFilters, imageFilterAttrs } from './imageFilters';

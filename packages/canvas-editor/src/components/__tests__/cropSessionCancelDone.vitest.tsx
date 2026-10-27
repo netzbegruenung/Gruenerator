@@ -14,9 +14,9 @@ import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vite
 import { loadCanvasConfig } from '../../configs/configLoader';
 import { GenericCanvas, type GenericCanvasRef } from '../GenericCanvas';
 
-import type { UserImageInstance } from '../../utils/userImageUtils';
 import type * as StoreModule from '@ggraphic/editor/stores/createCanvasEditorStore';
 import type { CanvasEditorStoreApi } from '@ggraphic/editor/stores/createCanvasEditorStore';
+import type { UserImageInstance } from '@ggraphic/editor/utils/userImageUtils';
 
 const stores = vi.hoisted(() => [] as unknown[]);
 vi.mock('@ggraphic/editor/stores/createCanvasEditorStore', async (importOriginal) => {

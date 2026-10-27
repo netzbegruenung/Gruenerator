@@ -36,16 +36,16 @@
 import { isTextAlign, type TextAlign } from '@ggraphic/editor/utils/textAlign';
 
 import type { IconState } from './baseTypes';
-import type { BalkenInstance } from '../../utils/balkenUtils';
 import type { AssetInstance } from '../../utils/canvasAssets';
-import type { ImageAdjustments, UserImageInstance } from '../../utils/userImageUtils';
 import type { AdditionalText } from '../types';
+import type { BalkenInstance } from '@ggraphic/editor/utils/balkenUtils';
 import type { ChartInstance } from '@ggraphic/editor/utils/chartTypes';
 import type { CircleBadgeInstance } from '@ggraphic/editor/utils/circleBadgeUtils';
 import type { FrameInstance } from '@ggraphic/editor/utils/frameUtils';
 import type { IllustrationInstance } from '@ggraphic/editor/utils/illustrations/types';
 import type { PillBadgeInstance } from '@ggraphic/editor/utils/pillBadgeUtils';
 import type { ShapeInstance } from '@ggraphic/editor/utils/shapes';
+import type { ImageAdjustments, UserImageInstance } from '@ggraphic/editor/utils/userImageUtils';
 
 export interface CarriedInstanceState {
   assetInstances: AssetInstance[];

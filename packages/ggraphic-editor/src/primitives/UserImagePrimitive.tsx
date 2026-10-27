@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /**
  * UserImagePrimitive - Draggable, transformable user-uploaded image
  *
@@ -5,6 +6,9 @@
  * instead of pre-registered asset definitions. Uses the instance's
  * width/height directly (already scaled during creation).
  */
+
+import { useState, useEffect, useRef, useMemo, memo } from 'react';
+import { Image, Group, Rect, Transformer } from 'react-konva';
 
 import { activeBrand } from '@ggraphic/editor/brand/brandRegistry';
 import { LOCKED_TRANSFORMER, useIsItemLocked } from '@ggraphic/editor/components/canvasItemLock';
@@ -39,8 +43,6 @@ import {
   straightSceneFunc,
 } from '@ggraphic/editor/utils/straighten';
 import { touchAnchorStyleFunc } from '@ggraphic/editor/utils/touchInput';
-import { useState, useEffect, useRef, useMemo, memo } from 'react';
-import { Image, Group, Rect, Transformer } from 'react-konva';
 
 import {
   CROP_GHOST_NAME,

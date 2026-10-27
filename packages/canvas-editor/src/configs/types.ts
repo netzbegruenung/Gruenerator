@@ -1,6 +1,6 @@
-import type { SharepicAiCapabilities } from './aiCapabilities';
-import type { StockImageAttribution } from '../common/imageSourceTypes';
 import type { CanvasStageRef } from '../primitives/CanvasStage';
+import type { HostCanvasAiCapabilities } from '@ggraphic/editor/ai/types';
+import type { StockImageAttribution } from '@ggraphic/editor/common/imageSourceTypes';
 import type { BackgroundType, TextFieldConfig } from '@ggraphic/editor/configs/unifiedTabs';
 import type {
   AltTextPage,
@@ -535,7 +535,7 @@ export interface FullCanvasConfig<
    * an AI sidebar tab; templates that don't never see the AI section.
    * See `ai/types.ts` for shape.
    */
-  ai?: SharepicAiCapabilities<TState, TActions>;
+  ai?: HostCanvasAiCapabilities<TState, TActions>;
 }
 
 // ============================================================================

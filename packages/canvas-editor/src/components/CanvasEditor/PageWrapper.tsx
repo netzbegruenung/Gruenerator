@@ -1,7 +1,4 @@
 import { cn } from '@ggraphic/editor/utils/cn';
-import React, { useCallback, useState, memo } from 'react';
-
-import { useTrackUnsplashDownload } from '../../hooks/useTrackUnsplashDownload';
 import {
   isElementDrag,
   isMediaDrag,
@@ -10,7 +7,10 @@ import {
   readElementDrag,
   readMediaDrag,
   readVorlageDrag,
-} from '../../utils/mediaDrop';
+} from '@ggraphic/editor/utils/mediaDrop';
+import React, { useCallback, useState, memo } from 'react';
+
+import { useTrackUnsplashDownload } from '../../hooks/useTrackUnsplashDownload';
 import { GenericCanvas } from '../GenericCanvas';
 import { PageToolbar } from '../PageToolbar';
 import { ZoomableViewport } from '../ZoomableViewport';

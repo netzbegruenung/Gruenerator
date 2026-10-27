@@ -1,5 +1,10 @@
 import { covers, photoRectAround } from '@ggraphic/editor/utils/coverFit';
 import {
+  backgroundKeyCrop,
+  userImageKeyCrop,
+  type CropKey,
+} from '@ggraphic/editor/utils/keyboardCrop';
+import {
   minStraightenZoom,
   straightFramedPhoto,
   straightenWindowPhoto,
@@ -7,9 +12,7 @@ import {
 } from '@ggraphic/editor/utils/straighten';
 import { describe, expect, it } from 'vitest';
 
-import { backgroundKeyCrop, userImageKeyCrop, type CropKey } from './keyboardCrop';
-
-import type { UserImageInstance } from './userImageUtils';
+import type { UserImageInstance } from '@ggraphic/editor/utils/userImageUtils';
 
 const NATURAL = { width: 1200, height: 800 };
 const pan = (dx: number, dy: number): CropKey => ({ pan: { dx, dy } });

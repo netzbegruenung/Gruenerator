@@ -13,6 +13,7 @@ import { useHoverOutline } from '@ggraphic/editor/hooks/useHoverOutline';
 import { installAxisLock } from '@ggraphic/editor/utils/axisLock';
 import { cn } from '@ggraphic/editor/utils/cn';
 import { MOUSE_DRAG_DISTANCE, TOUCH_DRAG_DISTANCE } from '@ggraphic/editor/utils/touchInput';
+import { USER_PHOTO_NODE_NAME } from '@ggraphic/editor/utils/userImageUtils';
 import Konva from 'konva';
 import {
   useRef,
@@ -27,7 +28,6 @@ import { Stage, Layer, Group, Rect } from 'react-konva';
 
 import { withSelectionChromeHidden } from '../utils/captureStage';
 import { BACKGROUND_IMAGE_NODE_ID, printImageInfo } from '../utils/printImageInfo';
-import { USER_PHOTO_NODE_NAME } from '../utils/userImageUtils';
 
 import type { ExportOptions } from '@ggraphic/editor/types/editorTypes';
 

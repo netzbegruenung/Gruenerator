@@ -1,15 +1,15 @@
 import { CustomColorSwatch } from '@ggraphic/editor/components/CustomColorSwatch';
-import { Switch } from '@gruenerator/ui';
-
-import { colorName } from '../../utils/colorNames';
-import { defaultTint, EMPTY_ADJUSTMENTS, IMAGE_PRESETS } from '../../utils/imageFilters';
+import { defaultTint, EMPTY_ADJUSTMENTS, IMAGE_PRESETS } from '@ggraphic/editor/utils/imageFilters';
 import {
   CROP_PRESETS,
   cropPresetUpdate,
   type CropPreset,
   type ImageAdjustments,
   type UserImageInstance,
-} from '../../utils/userImageUtils';
+} from '@ggraphic/editor/utils/userImageUtils';
+import { Switch } from '@gruenerator/ui';
+
+import { colorName } from '../../utils/colorNames';
 import { SidebarSlider } from '../components/SidebarSlider';
 
 /** DE Tanne and Klee, AT Dunkel- and Hellgrün. */

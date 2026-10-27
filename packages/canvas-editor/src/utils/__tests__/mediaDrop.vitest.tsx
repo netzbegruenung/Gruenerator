@@ -4,9 +4,6 @@
  * Vorlagen-Bezugsraum auf das Format. Instanzen leben im Bezugsraum — ein Punkt
  * in Bühnenpixeln setzte das Bild um beide Faktoren daneben.
  */
-import Konva from 'konva';
-import { afterEach, describe, expect, it } from 'vitest';
-
 import {
   ELEMENT_DRAG_TYPE,
   MEDIA_DRAG_TYPE,
@@ -16,7 +13,9 @@ import {
   readElementDrag,
   readMediaDrag,
   type ElementDragPayload,
-} from '../mediaDrop';
+} from '@ggraphic/editor/utils/mediaDrop';
+import Konva from 'konva';
+import { afterEach, describe, expect, it } from 'vitest';
 
 function transfer(data: Record<string, string>): DataTransfer {
   return {

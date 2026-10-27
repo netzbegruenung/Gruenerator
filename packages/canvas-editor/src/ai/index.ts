@@ -7,4 +7,4 @@ export type {
   CanvasAiApplyOverrides,
   CanvasAiNamedOption,
   TemplateAiCapabilities,
-} from './types';
+} from '@ggraphic/editor/ai/types';

@@ -5,8 +5,8 @@ import { canCropBackgroundPhoto } from '../utils/backgroundPhotoCrop';
 import { resolveValue } from '../utils/canvasValueResolver';
 import { findKindItem, type ElementKindName, type KindItem } from '../utils/elementKinds';
 
-import type { StockImageAttribution } from '../common/imageSourceTypes';
 import type { FullCanvasConfig, LayoutResult } from '../configs/types';
+import type { StockImageAttribution } from '@ggraphic/editor/common/imageSourceTypes';
 import type { GradientFill } from '@ggraphic/editor/utils/gradientFill';
 
 /**

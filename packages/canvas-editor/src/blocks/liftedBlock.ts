@@ -12,11 +12,11 @@ import { layoutRichTextBlock } from '@ggraphic/schema';
 import type { IconState } from '../configs/factory/baseTypes';
 import type { AdditionalText } from '../configs/types';
 import type { AssetInstance } from '../utils/canvasAssets';
-import type { UserImageInstance } from '../utils/userImageUtils';
 import type { ChartInstance } from '@ggraphic/editor/utils/chartTypes';
 import type { CircleBadgeInstance } from '@ggraphic/editor/utils/circleBadgeUtils';
 import type { PillBadgeInstance } from '@ggraphic/editor/utils/pillBadgeUtils';
 import type { ShapeInstance } from '@ggraphic/editor/utils/shapes';
+import type { UserImageInstance } from '@ggraphic/editor/utils/userImageUtils';
 
 /** The element collections a block can bring onto a page; all of them the freeform page holds. */
 export const BLOCK_COLLECTIONS = [

@@ -13,7 +13,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import { Layer, Stage } from 'react-konva';
 
-import { ShapePrimitive } from '../../../../../packages/canvas-editor/src/primitives/ShapePrimitive';
+import { ShapePrimitive } from '../../../../../packages/ggraphic-editor/src/primitives/ShapePrimitive';
 import {
   createShape,
   type ShapeInstance,

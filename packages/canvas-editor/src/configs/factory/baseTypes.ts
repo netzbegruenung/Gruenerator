@@ -5,11 +5,10 @@
  * These provide the foundation for the factory pattern.
  */
 
-import type { StockImageAttribution } from '../../common/imageSourceTypes';
-import type { BalkenInstance, BalkenMode } from '../../utils/balkenUtils';
 import type { AssetInstance } from '../../utils/canvasAssets';
-import type { ElementPlacement, UserImageInstance } from '../../utils/userImageUtils';
 import type { AdditionalText, LayoutResult } from '../types';
+import type { StockImageAttribution } from '@ggraphic/editor/common/imageSourceTypes';
+import type { BalkenInstance, BalkenMode } from '@ggraphic/editor/utils/balkenUtils';
 import type { ChartInstance, ChartType } from '@ggraphic/editor/utils/chartTypes';
 import type { CircleBadgeInstance } from '@ggraphic/editor/utils/circleBadgeUtils';
 import type { FrameClipType, FrameInstance } from '@ggraphic/editor/utils/frameUtils';
@@ -17,6 +16,7 @@ import type { IllustrationInstance } from '@ggraphic/editor/utils/illustrations/
 import type { PillBadgeInstance } from '@ggraphic/editor/utils/pillBadgeUtils';
 import type { ShapeInstance, ShapeType } from '@ggraphic/editor/utils/shapes';
 import type { TextAlign } from '@ggraphic/editor/utils/textAlign';
+import type { ElementPlacement, UserImageInstance } from '@ggraphic/editor/utils/userImageUtils';
 import type { StickerRef } from '@ggraphic/schema';
 
 // ============================================================================

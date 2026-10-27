@@ -1,3 +1,18 @@
+// SPDX-License-Identifier: MPL-2.0
+import React, { useRef, useEffect, useState, memo } from 'react';
+import {
+  Rect,
+  Circle,
+  RegularPolygon,
+  Star,
+  Path,
+  Ellipse,
+  Ring,
+  Line,
+  Arrow,
+  Transformer,
+} from 'react-konva';
+
 import { LOCKED_TRANSFORMER, useIsItemLocked } from '@ggraphic/editor/components/canvasItemLock';
 import { useBoxSnap, type SnapProps } from '@ggraphic/editor/hooks/useBoxSnap';
 import { gradientFillProps } from '@ggraphic/editor/utils/gradientFill';
@@ -22,19 +37,6 @@ import {
   shapeNodeScale,
   type PathShapeType,
 } from '@ggraphic/editor/utils/shapeTransform';
-import React, { useRef, useEffect, useState, memo } from 'react';
-import {
-  Rect,
-  Circle,
-  RegularPolygon,
-  Star,
-  Path,
-  Ellipse,
-  Ring,
-  Line,
-  Arrow,
-  Transformer,
-} from 'react-konva';
 
 import { shapeBox } from '../utils/renderedBoxes';
 

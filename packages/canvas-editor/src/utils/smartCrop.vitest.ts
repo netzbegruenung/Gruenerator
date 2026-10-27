@@ -12,8 +12,8 @@ import {
   viewAround,
 } from './smartCrop';
 
-import type { UserImageInstance } from './userImageUtils';
 import type { CanvasElementConfig, LayoutResult } from '../configs/types';
+import type { UserImageInstance } from '@ggraphic/editor/utils/userImageUtils';
 
 const IMAGE: UserImageInstance = {
   id: 'photo',

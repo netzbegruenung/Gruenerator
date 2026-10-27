@@ -1,4 +1,6 @@
 import { framedPhotoRect, visiblePart } from '@ggraphic/editor/utils/coverFit';
+import { tintRamp } from '@ggraphic/editor/utils/imageFilters';
+import { CROP_PRESETS, cropPresetUpdate } from '@ggraphic/editor/utils/userImageUtils';
 import {
   sharepicSpecSchema,
   slidePhotoFilename,
@@ -6,9 +8,6 @@ import {
   type SharepicSpec,
 } from '@gruenerator/contracts';
 import { describe, expect, it } from 'vitest';
-
-import { tintRamp } from '../utils/imageFilters';
-import { CROP_PRESETS, cropPresetUpdate } from '../utils/userImageUtils';
 
 import { composeSharepic } from './composeSharepic';
 import { slideProvenance } from './sharepicProvenance';
