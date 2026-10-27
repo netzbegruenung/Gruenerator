@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import {
   canAutoOpenArtifactPanel,
   useArtifactLiveStore,
+  type BrowserSessionArtifact,
   type ResearchLogArtifact,
 } from './artifactLiveStore';
 
@@ -131,5 +132,60 @@ describe('canAutoOpenArtifactPanel', () => {
     useArtifactLiveStore.getState().setPanelDockable(true);
 
     expect(canAutoOpenArtifactPanel()).toBe(true);
+  });
+});
+
+describe('upsertBrowserSession', () => {
+  const SESSION: BrowserSessionArtifact = {
+    id: 'bs-1',
+    type: 'browser_session',
+    title: 'gruene.de',
+    startUrl: 'https://gruene.de',
+    status: 'running',
+    steps: [],
+    screenshots: [],
+    summary: null,
+  };
+  const step = (n: number, action: string) => ({
+    n,
+    url: 'https://gruene.de',
+    title: 'Start',
+    action,
+    target: null,
+    xPct: null,
+    yPct: null,
+    thought: null,
+    imageUrl: `/img/${n}`,
+  });
+  const active = (): BrowserSessionArtifact => {
+    const a = useArtifactLiveStore.getState().activeArtifact;
+    if (!a || a.type !== 'browser_session') throw new Error('no session active');
+    return a;
+  };
+
+  it('merges steps by n and screenshots by name', () => {
+    const store = useArtifactLiveStore.getState();
+    store.setActiveArtifact(SESSION);
+    store.upsertBrowserSession('bs-1', { steps: [step(1, 'navigate'), step(2, 'click')] });
+    store.upsertBrowserSession('bs-1', { steps: [step(2, 'scroll')] });
+    store.upsertBrowserSession('bs-1', { screenshots: [{ name: 'a', url: '/a1' }] });
+    store.upsertBrowserSession('bs-1', { screenshots: [{ name: 'a', url: '/a2' }] });
+
+    expect(active().steps.map((s) => s.action)).toEqual(['navigate', 'scroll']);
+    expect(active().screenshots).toEqual([{ name: 'a', url: '/a2' }]);
+  });
+
+  it('overwrites scalar fields', () => {
+    const store = useArtifactLiveStore.getState();
+    store.setActiveArtifact(SESSION);
+    store.upsertBrowserSession('bs-1', { status: 'done', summary: 'Fertig' });
+    expect(active().status).toBe('done');
+    expect(active().summary).toBe('Fertig');
+  });
+
+  it('is a no-op for a session that is not active', () => {
+    useArtifactLiveStore.getState().setActiveArtifact(SESSION);
+    useArtifactLiveStore.getState().upsertBrowserSession('other', { status: 'failed' });
+    expect(active().status).toBe('running');
   });
 });

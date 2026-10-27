@@ -4,6 +4,11 @@ import { useReelLiveStore } from './reelLiveStore';
 import { useSharepicLiveStore } from './sharepicLiveStore';
 
 import type { ArtifactData } from '../hooks/useChatGraphStream';
+import type {
+  BrowserSessionScreenshot,
+  BrowserSessionStatus,
+  BrowserSessionStep,
+} from '@gruenerator/contracts';
 
 /**
  * Live state of the generic artifact (HTML/SVG) the user is viewing in the
@@ -63,7 +68,26 @@ export interface ResearchLogArtifact {
   documentId?: string;
 }
 
-export type ActiveArtifact = CodeArtifact | DocumentArtifact | ResearchLogArtifact;
+/**
+ * A `website_erkunden` run in progress: the browser agent's steps with their
+ * screenshots. Same shape of life as the research log — one start, then partial
+ * updates. Steps merge by `n`, saved screenshots by `name`.
+ */
+export interface BrowserSessionArtifact {
+  id: string;
+  type: 'browser_session';
+  title: string;
+  startUrl: string;
+  status: BrowserSessionStatus;
+  steps: BrowserSessionStep[];
+  screenshots: BrowserSessionScreenshot[];
+  summary: string | null;
+}
+
+export type BrowserSessionPatch = Partial<Omit<BrowserSessionArtifact, 'id' | 'type'>>;
+
+export type ActiveArtifact =
+  CodeArtifact | DocumentArtifact | ResearchLogArtifact | BrowserSessionArtifact;
 
 interface ArtifactLiveStore {
   activeArtifact: ActiveArtifact | null;
@@ -93,6 +117,11 @@ interface ArtifactLiveStore {
    * re-open the panel over whatever they are looking at now.
    */
   upsertResearchLog: (id: string, patch: Partial<Omit<ResearchLogArtifact, 'id' | 'type'>>) => void;
+  /**
+   * Merge a partial browser-session update into the open session. A no-op
+   * unless that session is the active artifact (same reasoning as the log).
+   */
+  upsertBrowserSession: (id: string, patch: BrowserSessionPatch) => void;
 }
 
 /** Merge by id, preserving first-seen order; unknown ids append. */
@@ -105,6 +134,30 @@ function mergeSteps(current: ResearchLogStep[], incoming: ResearchLogStep[]): Re
     else next.push(step);
   }
   return next;
+}
+
+function mergeBy<T>(current: T[], incoming: T[], key: (item: T) => string | number): T[] {
+  if (incoming.length === 0) return current;
+  const next = [...current];
+  for (const item of incoming) {
+    const at = next.findIndex((c) => key(c) === key(item));
+    if (at >= 0) next[at] = item;
+    else next.push(item);
+  }
+  return next;
+}
+
+/** Pure merge of a patch into a session; steps by `n`, screenshots by `name`. */
+export function mergeBrowserSession(
+  current: BrowserSessionArtifact,
+  patch: BrowserSessionPatch
+): BrowserSessionArtifact {
+  return {
+    ...current,
+    ...patch,
+    steps: mergeBy(current.steps, patch.steps ?? [], (s) => s.n),
+    screenshots: mergeBy(current.screenshots, patch.screenshots ?? [], (s) => s.name),
+  };
 }
 
 export const useArtifactLiveStore = create<ArtifactLiveStore>((set) => ({
@@ -138,6 +191,12 @@ export const useArtifactLiveStore = create<ArtifactLiveStore>((set) => ({
           steps: mergeSteps(active.steps, patch.steps ?? []),
         },
       };
+    }),
+  upsertBrowserSession: (id, patch) =>
+    set((state) => {
+      const active = state.activeArtifact;
+      if (!active || active.type !== 'browser_session' || active.id !== id) return state;
+      return { activeArtifact: mergeBrowserSession(active, patch) };
     }),
 }));
 

@@ -1,4 +1,6 @@
-import { describe, it, expect, vi } from 'vitest';
+import { beforeEach, describe, it, expect, vi } from 'vitest';
+
+import { useArtifactLiveStore } from '../../stores/artifactLiveStore';
 
 import { parseSSEStream } from './parseSSEStream';
 
@@ -767,5 +769,78 @@ describe('parseSSEStream — mcp_tool_grant', () => {
       args: grant,
       result: { kind: 'tool_grant' },
     });
+  });
+});
+
+describe('parseSSEStream browser_session handling', () => {
+  const STEP = {
+    n: 1,
+    url: 'https://gruene.de',
+    title: 'Start',
+    action: 'navigate',
+    target: null,
+    xPct: null,
+    yPct: null,
+    thought: null,
+    imageUrl: '/i/1',
+  };
+  const START = {
+    event: 'browser_session_start',
+    data: { id: 'bs-1', url: 'https://gruene.de', title: 'gruene.de' },
+  };
+
+  async function run(
+    events: Array<{ event: string; data: unknown }>,
+    onYield?: () => void
+  ): Promise<{ custom: Record<string, unknown> | undefined; outcome: StreamOutcome }> {
+    const outcome: StreamOutcome = { interrupted: false, indexedDocumentIds: [] };
+    let custom: Record<string, unknown> | undefined;
+    for await (const r of parseSSEStream(sseResponse(events), callbacks, outcome)) {
+      custom = (r as unknown as { metadata?: { custom?: Record<string, unknown> } }).metadata
+        ?.custom;
+      onYield?.();
+    }
+    return { custom, outcome };
+  }
+
+  beforeEach(() => {
+    useArtifactLiveStore.setState({ activeArtifact: null, panelDockable: false });
+  });
+
+  it('opens the panel on start only where it can dock', async () => {
+    await run([START]);
+    expect(useArtifactLiveStore.getState().activeArtifact).toBeNull();
+
+    useArtifactLiveStore.setState({ panelDockable: true });
+    await run([START], () => {
+      expect(useArtifactLiveStore.getState().activeArtifact?.type).toBe('browser_session');
+    });
+  });
+
+  it('puts the session on the message even when the panel stays closed', async () => {
+    const { custom } = await run([
+      START,
+      { event: 'browser_session_update', data: { id: 'bs-1', step: STEP } },
+      { event: 'browser_session_update', data: { id: 'bs-1', step: { ...STEP, action: 'click' } } },
+      {
+        event: 'browser_session_update',
+        data: { id: 'bs-1', screenshot: { name: 's', url: '/s' }, status: 'done', summary: 'Ok' },
+      },
+    ]);
+    expect(custom?.browserSession).toMatchObject({
+      id: 'bs-1',
+      startUrl: 'https://gruene.de',
+      status: 'done',
+      summary: 'Ok',
+      screenshots: [{ name: 's', url: '/s' }],
+    });
+    expect((custom?.browserSession as { steps: unknown[] }).steps).toHaveLength(1);
+  });
+
+  it('settles a running session as failed when the stream breaks off', async () => {
+    useArtifactLiveStore.setState({ panelDockable: true });
+    await run([START]);
+    const a = useArtifactLiveStore.getState().activeArtifact;
+    expect(a?.type === 'browser_session' && a.status).toBe('failed');
   });
 });

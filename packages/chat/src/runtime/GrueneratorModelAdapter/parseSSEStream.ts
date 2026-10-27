@@ -5,6 +5,9 @@ import {
   chatStreamEventSchemas,
   notebookAnswerModeReasonSchema,
   notebookResolvedAnswerModeSchema,
+  type BrowserSessionMeta,
+  type BrowserSessionStart,
+  type BrowserSessionUpdate,
   type ChatErrorEventPayload,
   type NotebookAnswerModeReason,
   type NotebookResolvedAnswerMode,
@@ -127,6 +130,15 @@ export async function* parseSSEStream(
     const active = useArtifactLiveStore.getState().activeArtifact;
     if (id && active?.type === 'research_log' && active.id === id && active.status === 'running') {
       useArtifactLiveStore.getState().upsertResearchLog(id, { status: 'failed' });
+    }
+    const browserId = outcome.openedBrowserSessionId;
+    if (
+      browserId &&
+      active?.type === 'browser_session' &&
+      active.id === browserId &&
+      active.status === 'running'
+    ) {
+      useArtifactLiveStore.getState().upsertBrowserSession(browserId, { status: 'failed' });
     }
   }
 }
@@ -266,6 +278,9 @@ async function* parseStream(
   let receivedTraceId: string | null = null;
   let receivedConfirmAction: ConfirmActionData | null = null;
   let receivedCreatedDocument: DocumentCreatedData | null = null;
+  // The session as this message carries it (persisted shape). Kept apart from
+  // the store: the panel only opens where it can dock, the message always gets it.
+  let receivedBrowserSession: BrowserSessionMeta | null = null;
   let receivedReelProcessing: ReelProcessingData | null = null;
   let receivedReelPicker: ReelPickerData | null = null;
   let evidenceWeakAccum: string | null = null;
@@ -410,6 +425,7 @@ async function* parseStream(
       custom.followUpSuggestions = receivedFollowUpSuggestions;
     if (receivedConfirmAction) custom.confirmAction = receivedConfirmAction;
     if (receivedCreatedDocument) custom.createdDocument = receivedCreatedDocument;
+    if (receivedBrowserSession) custom.browserSession = receivedBrowserSession;
     if (receivedReelProcessing) custom.reelProcessing = receivedReelProcessing;
     if (receivedReelPicker) custom.reelPicker = receivedReelPicker;
     if (evidenceWeakAccum) custom.evidenceWeak = evidenceWeakAccum;
@@ -812,6 +828,68 @@ async function* parseStream(
           if (patch.id) {
             const { id, ...rest } = patch;
             useArtifactLiveStore.getState().upsertResearchLog(id, rest);
+          }
+          yield buildResult();
+          break;
+        }
+
+        // `website_erkunden`: a browser agent is working. Same two-event shape as
+        // the research log, but the panel opens only where it can dock — the
+        // session is on the message either way.
+        case 'browser_session_start': {
+          const { id, url, title } = data as BrowserSessionStart;
+          if (id) {
+            outcome.openedBrowserSessionId = id;
+            receivedBrowserSession = {
+              id,
+              startUrl: url,
+              status: 'running',
+              steps: [],
+              screenshots: [],
+              summary: '',
+            };
+            if (!muted() && canAutoOpenArtifactPanel()) {
+              useArtifactLiveStore.getState().setActiveArtifact({
+                id,
+                type: 'browser_session',
+                title,
+                startUrl: url,
+                status: 'running',
+                steps: [],
+                screenshots: [],
+                summary: null,
+              });
+            }
+          }
+          yield buildResult();
+          break;
+        }
+
+        case 'browser_session_update': {
+          const patch = data as BrowserSessionUpdate;
+          if (patch.id) {
+            const { id, step, screenshot, status, summary } = patch;
+            const store = useArtifactLiveStore.getState();
+            store.upsertBrowserSession(id, {
+              ...(step ? { steps: [step] } : {}),
+              ...(screenshot ? { screenshots: [screenshot] } : {}),
+              ...(status ? { status } : {}),
+              ...(summary !== undefined ? { summary } : {}),
+            });
+            if (receivedBrowserSession && receivedBrowserSession.id === id) {
+              const cur: BrowserSessionMeta = receivedBrowserSession;
+              receivedBrowserSession = {
+                ...cur,
+                steps: step
+                  ? [...cur.steps.filter((x) => x.n !== step.n), step].sort((a, b) => a.n - b.n)
+                  : cur.steps,
+                screenshots: screenshot
+                  ? [...cur.screenshots.filter((x) => x.name !== screenshot.name), screenshot]
+                  : cur.screenshots,
+                status: status ?? cur.status,
+                summary: summary ?? cur.summary,
+              };
+            }
           }
           yield buildResult();
           break;

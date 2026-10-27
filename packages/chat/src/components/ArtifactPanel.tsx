@@ -89,7 +89,13 @@ export function ArtifactPanel({ className }: { className?: string }) {
   // fence, not the sandbox attribute alone. Document previews skip this
   // entirely — they iframe the real (same-origin, trusted) editor route.
   const srcDoc = useMemo(() => {
-    if (!active || active.type === 'document' || active.type === 'research_log') return '';
+    if (
+      !active ||
+      active.type === 'document' ||
+      active.type === 'research_log' ||
+      active.type === 'browser_session'
+    )
+      return '';
     const body =
       active.type === 'svg'
         ? `<div style="display:flex;align-items:center;justify-content:center;min-height:100vh;padding:12px;box-sizing:border-box">${active.content}</div>`
@@ -105,7 +111,12 @@ export function ArtifactPanel({ className }: { className?: string }) {
   const close = () => useArtifactLiveStore.getState().setActiveArtifact(null);
 
   const download = () => {
-    if (active.type === 'document' || active.type === 'research_log') return;
+    if (
+      active.type === 'document' ||
+      active.type === 'research_log' ||
+      active.type === 'browser_session'
+    )
+      return;
     const mime = active.type === 'svg' ? 'image/svg+xml' : 'text/html';
     const ext = active.type === 'svg' ? 'svg' : 'html';
     const blob = new Blob([active.content], { type: mime });
