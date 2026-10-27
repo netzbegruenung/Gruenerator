@@ -23,6 +23,7 @@ import { carryInstanceState } from './factory/carryInstanceState';
 import { makeSectionDefiner } from './factory/defineSection';
 import { injectFeatureProps } from './featureInjector';
 
+import type { SharepicAiCapabilities } from './aiCapabilities';
 import type { BaseCanvasState } from './factory/baseTypes';
 import type {
   BackgroundElementConfig,
@@ -30,7 +31,6 @@ import type {
   ImageElementConfig,
   LayoutResult,
 } from './types';
-import type { TemplateAiCapabilities } from '../ai/types';
 import type { BackgroundColorOption } from '../sidebar/types';
 import type { CanvasAiSnapshot } from '@gruenerator/contracts';
 
@@ -156,7 +156,7 @@ const avatarElement: ImageElementConfig<ProfilbildFullState> = {
 // AI CAPABILITIES
 // ============================================================================
 
-const profilbildAiCapabilities: TemplateAiCapabilities<ProfilbildFullState, ProfilbildFullActions> =
+const profilbildAiCapabilities: SharepicAiCapabilities<ProfilbildFullState, ProfilbildFullActions> =
   {
     supportedOperations: ['set-background-color', 'update-element'],
 

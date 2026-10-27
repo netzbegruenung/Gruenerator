@@ -5,5 +5,7 @@ export * from './text/inlineMarks.js';
 export * from './text/handMarks.js';
 export * from './text/canvasRichText.js';
 export * from './media/dataUrl.js';
+export * from './ai/operations.js';
+export * from './ai/wrappers.js';
 export * from './media/stockImages.js';
 export * from './media/stickerRef.js';

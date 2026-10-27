@@ -1,4 +1,4 @@
-import type { TemplateAiCapabilities } from '../ai/types';
+import type { SharepicAiCapabilities } from './aiCapabilities';
 import type { StockImageAttribution } from '../common/imageSourceTypes';
 import type { CanvasStageRef } from '../primitives/CanvasStage';
 import type { BackgroundType, TextFieldConfig } from '@ggraphic/editor/configs/unifiedTabs';
@@ -523,7 +523,7 @@ export interface FullCanvasConfig<
    * an AI sidebar tab; templates that don't never see the AI section.
    * See `ai/types.ts` for shape.
    */
-  ai?: TemplateAiCapabilities<TState, TActions>;
+  ai?: SharepicAiCapabilities<TState, TActions>;
 }
 
 // ============================================================================

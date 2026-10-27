@@ -6,147 +6,61 @@
  *   - Backend Zod validation of LLM tool-call arguments
  *   - JSON-schema fed to the LLM via tool calling (`toolInputJsonSchema` in apps/api)
  *
+ * The neutral operation vocabulary and the wrappers that carry it live in
+ * `@ggraphic/schema` (ai/operations.ts, ai/wrappers.ts). This file composes
+ * the Grünerator's brand operation (`toggle-sunflower`) and element kind
+ * (`balken`) on top, at the positions they always had: the option order is
+ * the `anyOf` order of the tool schema the model sees, pinned by
+ * apps/api/routes/canvas/services/canvasAiSchemas.golden.vitest.ts.
+ *
  * Design notes:
  *   - All fields use `.nullish()` per the 2026-04-12 production-incident rule
  *     for any optional field traversed at runtime.
- *   - The discriminator key is `kind` for consistency with the rest of the
- *     canvas-editor package (which already uses `kind` in CanvasAiOperation).
- *   - When adding a new operation kind, the exhaustive switch in
- *     packages/canvas-editor/src/ai/applyOperation.ts will fail to compile —
- *     that is intentional defensive design.
+ *   - The discriminator key is `kind`; kind strings are F0.
  */
+import {
+  addAssetOperation,
+  addIllustrationOperation,
+  CORE_CANVAS_AI_ELEMENT_KINDS,
+  createCanvasAiOperationSchema,
+  createCanvasAiSchemas,
+  createCanvasAiSnapshotSchema,
+  removeElementOperation,
+  setBackgroundColorOperation,
+  setBackgroundImageOperation,
+  setColorModeOperation,
+  setColorSchemeOperation,
+  setFontSizeOperation,
+  setTextOperation,
+  updateElementOperation,
+} from '@ggraphic/schema';
 import { z } from 'zod';
 
+export {
+  addAssetOperation,
+  addIllustrationOperation,
+  canvasAiCapabilitiesSchema,
+  canvasAiUpdatePatchSchema,
+  removeElementOperation,
+  setBackgroundColorOperation,
+  setBackgroundImageOperation,
+  setColorModeOperation,
+  setColorSchemeOperation,
+  setFontSizeOperation,
+  setTextOperation,
+  updateElementOperation,
+  type CanvasAiCapabilities,
+  type CanvasAiUpdatePatch,
+} from '@ggraphic/schema';
+
 // ── Operations ──────────────────────────────────────────────────────────────
-
-const HexColor = z
-  .string()
-  .regex(/^#[0-9a-fA-F]{6}$/)
-  .describe('CSS hex color in `#rrggbb` format.');
-
-export const setTextOperation = z.object({
-  kind: z.literal('set-text'),
-  /**
-   * Field identifier scoped to the active template (e.g. `headline`,
-   * `subtext`, `quote`, `line1`, `title`). For freeform: an existing
-   * additionalText id, or `new-body` to add a fresh body text.
-   */
-  field: z.string().min(1),
-  /** Human-readable label for UI preview (e.g. "Headline"). */
-  label: z.string().min(1),
-  value: z.string(),
-});
-
-export const setColorSchemeOperation = z.object({
-  kind: z.literal('set-color-scheme'),
-  /** Color scheme id from TemplateAiCapabilities.colorSchemes. */
-  schemeId: z.string().min(1),
-});
-
-export const setBackgroundColorOperation = z.object({
-  kind: z.literal('set-background-color'),
-  color: HexColor,
-});
-
-export const setColorModeOperation = z.object({
-  kind: z.literal('set-color-mode'),
-  mode: z.enum(['light', 'dark']),
-});
-
-export const addIllustrationOperation = z.object({
-  kind: z.literal('add-illustration'),
-  /** Illustration id from TemplateAiCapabilities.illustrations. */
-  illustrationId: z.string().min(1),
-  color: HexColor.nullish(),
-});
-
-export const addAssetOperation = z.object({
-  kind: z.literal('add-asset'),
-  /** Asset id from TemplateAiCapabilities.assets. */
-  assetId: z.string().min(1),
-});
-
-export const removeElementOperation = z.object({
-  kind: z.literal('remove-element'),
-  /** Existing element instance id. */
-  elementId: z.string().min(1),
-});
 
 export const toggleSunflowerOperation = z.object({
   kind: z.literal('toggle-sunflower'),
   visible: z.boolean(),
 });
 
-export const setFontSizeOperation = z.object({
-  kind: z.literal('set-font-size'),
-  /**
-   * Field identifier scoped to the active template (`headline`, `subtext`,
-   * `quote`, `line1`, `title`, …). Templates with primary/secondary text
-   * fields accept the canonical `primary` / `secondary` aliases too.
-   */
-  field: z.string().min(1),
-  /** Human-readable label for UI preview (e.g. "Headline"). */
-  label: z.string().min(1),
-  /** Pixel size. Templates clamp to their min/max; values outside are coerced. */
-  size: z.number().int().positive().max(500),
-});
-
-/**
- * Mutate an existing on-canvas element by id. The AI only sees elements
- * listed in CanvasAiSnapshot.elementsSummary, so it can only target ids
- * the snapshot exposed.
- *
- * Each patch field is independently optional. The applier dispatches by
- * looking up the element's kind from current state and forwarding the
- * patch to the appropriate update action (updateIllustration, etc.).
- */
-/**
- * Patch shape for `update-element`. Exported separately so the canvas-editor
- * applier can use it as the canonical update-action parameter type.
- *
- * All fields independently optional; the discriminated-union variant below
- * enforces "at least one field" at parse time.
- */
-export const canvasAiUpdatePatchSchema = z.object({
-  color: HexColor.nullish(),
-  opacity: z.number().min(0).max(1).nullish(),
-  scale: z.number().positive().max(10).nullish(),
-  rotation: z.number().min(-360).max(360).nullish(),
-  x: z.number().nullish(),
-  y: z.number().nullish(),
-});
-
-export type CanvasAiUpdatePatch = z.infer<typeof canvasAiUpdatePatchSchema>;
-
-export const updateElementOperation = z.object({
-  kind: z.literal('update-element'),
-  elementId: z.string().min(1),
-  patch: canvasAiUpdatePatchSchema.refine(
-    (p) =>
-      p.color != null ||
-      p.opacity != null ||
-      p.scale != null ||
-      p.rotation != null ||
-      p.x != null ||
-      p.y != null,
-    { message: 'patch must include at least one field' }
-  ),
-});
-
-/**
- * Swap the stock background photo. The LLM provides a German search query;
- * the SERVER resolves it to a concrete stock image via ImageSelectionService
- * before the operation reaches any state patch. The client-side applier
- * cannot resolve queries and rejects this kind (studio users change the
- * background via the Hintergrund tab instead).
- */
-export const setBackgroundImageOperation = z.object({
-  kind: z.literal('set-background-image'),
-  /** German stock-photo search query, e.g. "Windräder im Sonnenuntergang". */
-  query: z.string().min(2).max(120),
-});
-
-export const canvasAiOperationSchema = z.discriminatedUnion('kind', [
+export const canvasAiOperationSchema = createCanvasAiOperationSchema([
   setTextOperation,
   setColorSchemeOperation,
   setBackgroundColorOperation,
@@ -163,87 +77,32 @@ export const canvasAiOperationSchema = z.discriminatedUnion('kind', [
 export type CanvasAiOperation = z.infer<typeof canvasAiOperationSchema>;
 export type CanvasAiOperationKind = CanvasAiOperation['kind'];
 
+const wrappers = createCanvasAiSchemas(canvasAiOperationSchema);
+
 // ── Suggestions ─────────────────────────────────────────────────────────────
 
-export const canvasAiSuggestionSchema = z.object({
-  /**
-   * Stable id for React keys + apply-results tracking. Models often omit
-   * it; `.default` synthesises one at parse time. The output type is
-   * still `string` (not `string | undefined`), so consumers don't need
-   * to handle a missing id.
-   */
-  id: z
-    .string()
-    .min(1)
-    .default(() =>
-      typeof crypto !== 'undefined' && 'randomUUID' in crypto
-        ? crypto.randomUUID()
-        : `s-${Math.random().toString(36).slice(2, 11)}`
-    ),
-  /** Short headline for the suggestion card (max 80 chars). */
-  title: z.string().min(1).max(80),
-  /** Optional longer explanation of what this suggestion changes. */
-  description: z.string().max(280).nullish(),
-  operations: z.array(canvasAiOperationSchema).min(1).max(8),
-});
+export const canvasAiSuggestionSchema = wrappers.suggestion;
 
 export type CanvasAiSuggestion = z.infer<typeof canvasAiSuggestionSchema>;
 
 // ── Snapshot (canvas → AI input) ────────────────────────────────────────────
 
-export const canvasAiSnapshotSchema = z.object({
-  /** Canvas template id (e.g. 'simple', 'dreizeilen'). */
-  template: z.string().min(1),
-  /** Named text fields the AI may target with set-text. */
-  textFields: z.array(
-    z.object({
-      field: z.string().min(1),
-      label: z.string().min(1),
-      value: z.string(),
-    })
-  ),
-  /** Active color scheme id, if applicable. */
-  currentColorScheme: z.string().nullish(),
-  /** Active solid background color in #rrggbb, if applicable. */
-  currentBackgroundColor: HexColor.nullish(),
-  /** Active presentation color mode, if applicable. */
-  currentColorMode: z.enum(['light', 'dark']).nullish(),
-  /** Canvas size in the element coordinate space (origin top left). */
-  canvasSize: z.object({ width: z.number().positive(), height: z.number().positive() }).nullish(),
-  /** Existing on-canvas elements the AI may reference / remove. */
-  elementsSummary: z.array(
-    z.object({
-      id: z.string().min(1),
-      kind: z.enum([
-        'illustration',
-        'asset',
-        'shape',
-        'icon',
-        'pill-badge',
-        'circle-badge',
-        'balken',
-        'frame',
-        'user-image',
-        'text',
-        'chart',
-      ]),
-      label: z.string(),
-    })
-  ),
-});
+/** Core element kinds plus the brand's `balken`, after `circle-badge`. */
+const [illustration, asset, shape, icon, pillBadge, circleBadge, ...afterBadges] =
+  CORE_CANVAS_AI_ELEMENT_KINDS;
+
+export const canvasAiSnapshotSchema = createCanvasAiSnapshotSchema([
+  illustration,
+  asset,
+  shape,
+  icon,
+  pillBadge,
+  circleBadge,
+  'balken',
+  ...afterBadges,
+]);
 
 export type CanvasAiSnapshot = z.infer<typeof canvasAiSnapshotSchema>;
-
-// ── Capabilities (canvas → AI prompt context) ───────────────────────────────
-
-export const canvasAiCapabilitiesSchema = z.object({
-  supportedOperations: z.array(z.string().min(1)).min(1),
-  colorSchemes: z.array(z.object({ id: z.string().min(1), label: z.string().min(1) })).nullish(),
-  illustrations: z.array(z.object({ id: z.string().min(1), label: z.string().min(1) })).nullish(),
-  assets: z.array(z.object({ id: z.string().min(1), label: z.string().min(1) })).nullish(),
-});
-
-export type CanvasAiCapabilities = z.infer<typeof canvasAiCapabilitiesSchema>;
 
 // ── Response ─────────────────────────────────────────────────────────────────
 
@@ -251,9 +110,7 @@ export type CanvasAiCapabilities = z.infer<typeof canvasAiCapabilitiesSchema>;
  * Legacy suggestions shape, unused by the planner (it emits
  * `canvasAiPlannedBatchSchema`); kept for type re-exports.
  */
-export const canvasAiSuggestResponseSchema = z.object({
-  suggestions: z.array(canvasAiSuggestionSchema).min(0).max(6),
-});
+export const canvasAiSuggestResponseSchema = wrappers.suggestResponse;
 
 export type CanvasAiSuggestResponse = z.infer<typeof canvasAiSuggestResponseSchema>;
 
@@ -261,10 +118,7 @@ export type CanvasAiSuggestResponse = z.infer<typeof canvasAiSuggestResponseSche
  * The planner's actual output: ONE operation batch with a short German title.
  * Planner-internal, not on the wire.
  */
-export const canvasAiPlannedBatchSchema = z.object({
-  title: z.string().min(1).max(80),
-  operations: z.array(canvasAiOperationSchema).min(1).max(8),
-});
+export const canvasAiPlannedBatchSchema = wrappers.plannedBatch;
 
 export type CanvasAiPlannedBatch = z.infer<typeof canvasAiPlannedBatchSchema>;
 
@@ -272,59 +126,25 @@ export type CanvasAiPlannedBatch = z.infer<typeof canvasAiPlannedBatchSchema>;
 
 /**
  * Tool-call response shape for the chat's `sharepic_edit` intent: ONE batch
- * of operations that is applied immediately (unlike `suggestions`, which the
- * studio user picks from). `summary` becomes the version-history label,
- * `reply` the assistant's confirmation text in the thread.
+ * of operations that is applied immediately. `summary` (German, e.g. "Zeile 2
+ * gekürzt") becomes the version-history label, `reply` the assistant's
+ * confirmation text in the thread.
  */
-export const sharepicEditResponseSchema = z.object({
-  operations: z.array(canvasAiOperationSchema).min(1).max(8),
-  /** Version-history label, German, e.g. "Zeile 2 gekürzt". */
-  summary: z.string().min(1).max(120),
-  /** Assistant confirmation shown in the chat thread, German, 1–2 sentences. */
-  reply: z.string().min(1).max(300),
-});
+export const sharepicEditResponseSchema = wrappers.editResponse;
 
 export type SharepicEditResponse = z.infer<typeof sharepicEditResponseSchema>;
 
-/**
- * Model output may decline an edit; applied edits still require operations.
- * A fresh array, not `.shape.operations.min(0)`: zod 4 keeps the earlier
- * `.min(1)` next to a later bound instead of replacing it.
- */
-export const sharepicEditDecisionSchema = sharepicEditResponseSchema.extend({
-  operations: z.array(canvasAiOperationSchema).max(8),
-});
+/** Model output may decline an edit; applied edits still require operations. */
+export const sharepicEditDecisionSchema = wrappers.editDecision;
 
 // ── Slider deck operations (multi-page chat editing) ────────────────────────
 
 /**
- * Deck-level wrapper around the single-page operation vocabulary: slider
- * carousels are edited per slide (1-based, slide 1 = cover, last slide =
- * closing). `edit-slide` reuses `canvasAiOperationSchema` unchanged, so the
- * per-page interpreter (`sharepicOpsToStatePatch`) keeps doing the
- * clamping/rejecting.
+ * Deck-level wrapper around the single-page operation vocabulary. `edit-slide`
+ * reuses `canvasAiOperationSchema` unchanged, so the per-page interpreter
+ * (`sharepicOpsToStatePatch`) keeps doing the clamping/rejecting.
  */
-export const sliderDeckOperationSchema = z.discriminatedUnion('kind', [
-  z.object({
-    kind: z.literal('edit-slide'),
-    /** 1-based slide number as shown in the snapshot. */
-    slide: z.number().int().min(1).max(10),
-    operations: z.array(canvasAiOperationSchema).min(1).max(6),
-  }),
-  z.object({
-    kind: z.literal('add-slide'),
-    /** Insert after this 1-based slide; defaults to before the closing slide. */
-    afterSlide: z.number().int().min(1).max(9).nullish(),
-    headline: z.string().min(1),
-    subtext: z.string().nullish(),
-    subtext2: z.string().nullish(),
-  }),
-  z.object({
-    kind: z.literal('remove-slide'),
-    /** 1-based; cover (1) and the closing slide cannot be removed. */
-    slide: z.number().int().min(2).max(10),
-  }),
-]);
+export const sliderDeckOperationSchema = wrappers.deckOperation;
 
 export type SliderDeckOperation = z.infer<typeof sliderDeckOperationSchema>;
 
