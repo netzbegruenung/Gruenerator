@@ -123,11 +123,8 @@ export const SYSTEM_STICKERS = [
 
 export type SystemSticker = (typeof SYSTEM_STICKERS)[number];
 
-/** A placed or saved sticker: the catalog id and src, or `asset:<uuid>` and a share path. */
-export interface StickerRef {
-  id: string;
-  src: string;
-}
+// Moved to @ggraphic/schema (the editor core places stickers); kept so existing imports resolve.
+export type { StickerRef } from '@ggraphic/schema/media/stickerRef';
 
 export type AssetStickerId = `asset:${string}`;
 

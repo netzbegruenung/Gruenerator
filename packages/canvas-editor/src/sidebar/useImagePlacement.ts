@@ -1,11 +1,9 @@
 import { useCallback } from 'react';
 
 import { useCanvasEditorServices } from '../CanvasEditorProvider';
-import { plainImageUrls } from '../hostServices';
+import { plainImageUrls, type CanvasUploadSource } from '../hostServices';
 
 import { useUserUploads } from './UserUploadsProvider';
-
-import type { UploadSource } from '@gruenerator/contracts';
 
 export interface PlacedImage {
   /** Durable, placeable URL for the uploaded file (null if none could be resolved). */
@@ -25,7 +23,7 @@ export function useImagePlacement(onPlaceUrl?: (url: string, fileName: string) =
   const { imageUrls = plainImageUrls } = useCanvasEditorServices();
 
   const place = useCallback(
-    async (file: File, source: UploadSource): Promise<PlacedImage> => {
+    async (file: File, source: CanvasUploadSource): Promise<PlacedImage> => {
       const item = await upload(file, source);
       if (!item) throw new Error('Upload fehlgeschlagen');
       const name = item.originalFilename ?? item.title ?? file.name;

@@ -13,7 +13,7 @@ import { SidebarHint } from '../components/SidebarHint';
 import { MOBILE_INPUT_TEXT, SIDEBAR_SECTION } from '../sidebarStyles';
 import { useUserUploads } from '../UserUploadsProvider';
 
-import type { MediaItem } from '@gruenerator/contracts';
+import type { CanvasMediaItem } from '../../hostServices';
 
 export interface UploadsSectionProps {
   /** Place an already-durable URL (used when clicking a prior upload). */
@@ -94,7 +94,7 @@ export function UploadsSection({
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
-  const handlePlace = (item: MediaItem) => {
+  const handlePlace = (item: CanvasMediaItem) => {
     if (!onPlaceFromUrl) return;
     const url = imageUrls.placementUrl(item);
     if (!url) return;
@@ -102,7 +102,7 @@ export function UploadsSection({
   };
 
   // A tile dragged onto a page lands where it is dropped (PageWrapper).
-  const tileDragProps = (item: MediaItem) => {
+  const tileDragProps = (item: CanvasMediaItem) => {
     const url = imageUrls.placementUrl(item);
     if (!url || !onPlaceFromUrl) return {};
     const payload: MediaDragPayload = {

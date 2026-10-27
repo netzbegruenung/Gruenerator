@@ -4,14 +4,13 @@ import {
   shareThumbnailPreviewUrl,
   STUDIO_ASSET_PLURAL,
   STUDIO_ASSET_SCOPES,
-  type StudioAssetItem,
   type StudioAssetKind,
   type StudioAssetScope,
 } from '@gruenerator/contracts';
 import { useEffect, useRef, type ButtonHTMLAttributes } from 'react';
 
 import { useCanvasEditorServices } from '../../CanvasEditorProvider';
-import { useNoStudioAssets } from '../../hostServices';
+import { useNoStudioAssets, type CanvasStudioAssetItem } from '../../hostServices';
 
 export const GALLERY_SCOPES: readonly GalleryTab<StudioAssetScope>[] = STUDIO_ASSET_SCOPES.map(
   (s) => ({ id: s.value, label: s.label })
@@ -90,10 +89,10 @@ export function StudioGalleryGrid({
   selectedSrc?: string | null;
   /** Bumping it refetches the list (the query cache would otherwise keep it for minutes). */
   refreshToken?: number;
-  onPick: (item: StudioAssetItem) => void;
+  onPick: (item: CanvasStudioAssetItem) => void;
   /** Lets a tile be dragged onto a page; unset leaves the tiles click-only. */
   dragProps?: (
-    item: StudioAssetItem
+    item: CanvasStudioAssetItem
   ) => Pick<ButtonHTMLAttributes<HTMLButtonElement>, 'draggable' | 'onDragStart' | 'onDragEnd'>;
 }) {
   const q = query.trim().slice(0, MAX_QUERY);
