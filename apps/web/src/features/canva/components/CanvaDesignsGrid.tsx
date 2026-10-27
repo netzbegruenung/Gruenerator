@@ -23,18 +23,18 @@ const CanvaDesignsGrid = memo(({ connected }: { connected: boolean }): JSX.Eleme
       <h3 className="text-sm font-medium text-foreground-heading mb-sm">Deine Designs</h3>
 
       {isLoading && (
-        <p className="flex items-center justify-center gap-2 text-sm text-grey-400 py-md">
+        <p className="flex items-center justify-center gap-2 text-sm text-foreground-muted py-md">
           <FiLoader className="animate-spin" size={14} />
           Designs werden geladen…
         </p>
       )}
 
       {!isLoading && isError && (
-        <p className="text-sm text-grey-400 py-sm">Designs konnten nicht geladen werden.</p>
+        <p className="text-sm text-foreground-muted py-sm">Designs konnten nicht geladen werden.</p>
       )}
 
       {!isLoading && !isError && designs.length === 0 && (
-        <p className="text-sm text-grey-400 py-sm">Keine Designs gefunden.</p>
+        <p className="text-sm text-foreground-muted py-sm">Keine Designs gefunden.</p>
       )}
 
       {designs.length > 0 && (
@@ -64,7 +64,7 @@ const CanvaDesignsGrid = memo(({ connected }: { connected: boolean }): JSX.Eleme
                   <span className="truncate">{design.title}</span>
                   <FiExternalLink
                     size={11}
-                    className="shrink-0 text-grey-400 opacity-0 group-hover:opacity-100 transition-opacity"
+                    className="shrink-0 text-foreground-muted opacity-0 group-hover:opacity-100 transition-opacity"
                   />
                 </span>
               </a>
@@ -79,7 +79,7 @@ const CanvaDesignsGrid = memo(({ connected }: { connected: boolean }): JSX.Eleme
             type="button"
             onClick={() => void fetchNextPage()}
             disabled={isFetchingNextPage}
-            className="flex items-center gap-2 text-xs px-md py-1.5 rounded-md border border-grey-300 dark:border-grey-600 text-grey-600 dark:text-grey-300 hover:border-primary-400 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            className="flex items-center gap-2 text-xs px-md py-1.5 rounded-md border border-grey-300 dark:border-grey-600 text-foreground hover:border-primary-400 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {isFetchingNextPage ? (
               <>

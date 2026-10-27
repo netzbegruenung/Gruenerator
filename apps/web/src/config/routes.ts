@@ -332,6 +332,7 @@ const CanvasLandingPage = lazy(() => import('../features/image-studio/CanvasLand
 const SharepicVorlageInstantiatePage = lazy(
   () => import('../features/vorlagen/SharepicVorlageInstantiatePage')
 );
+const CanvaStudioPage = lazy(() => import('../features/canva/CanvaStudioPage'));
 const FreitextSharepicPage = lazy(
   () => import('../features/image-studio/freitext/FreitextSharepicPage')
 );
@@ -919,6 +920,13 @@ const standardRoutes: RouteConfig[] = [
     component: CollabCanvasStudioPage,
     layoutMode: 'immersive',
     fallback: createElement(CanvasEditorSkeleton),
+  },
+  // Canva-Autofill from the Studio composer (instance admins until Canva's review).
+  {
+    accent: 'studio',
+    path: '/studio/canva',
+    component: CanvaStudioPage,
+    layoutMode: 'sidebarOnly',
   },
   // Experimental free-text creator — literal path, before /studio/:category.
   {

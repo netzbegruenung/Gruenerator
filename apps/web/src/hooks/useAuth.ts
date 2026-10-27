@@ -390,6 +390,10 @@ const buildE2EBypassAuthData = (): AuthData => {
       email: 'dev@gruenerator.de',
       display_name: 'Test User',
       avatar_robot_id: 1,
+      // Admin-Oberflächen lokal zeigen (Canva-Konnektor, Studio-Moderation …).
+      // Die API prüft `profiles.is_admin` selbst, die Zeile des Bypass-Nutzers
+      // muss dafür in der lokalen DB ebenfalls `is_admin = true` tragen.
+      is_admin: import.meta.env.VITE_E2E_AUTH_BYPASS_ADMIN === 'true',
       beta_features: { workplace: true },
       user_defaults: {},
       locale: 'de-DE',

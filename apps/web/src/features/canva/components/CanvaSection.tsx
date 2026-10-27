@@ -1,13 +1,12 @@
+import { Button } from '@gruenerator/ui';
 import { memo, useCallback, useEffect, useRef, useState } from 'react';
-import { FiCheck, FiLoader } from 'react-icons/fi';
+import { FiAlertCircle, FiCheck, FiLoader } from 'react-icons/fi';
 
 import { useCanvaStatus, useDisconnectCanva, useInvalidateCanvaStatus } from '../hooks/useCanva';
 import { CANVA_AUTH_START_URL } from '../lib/canvaApi';
 
 import CanvaDesignsGrid from './CanvaDesignsGrid';
-import { CanvaLogo, PoweredByCanva } from './CanvaLogo';
-
-import { cn } from '@/utils/cn';
+import { CANVA_BUTTON_BORDER, CanvaLogo, PoweredByCanva } from './CanvaLogo';
 
 interface CanvaSectionProps {
   onSuccess?: (message: string) => void;
@@ -69,81 +68,90 @@ const CanvaSection = memo(({ onSuccess, onError }: CanvaSectionProps) => {
   }, [disconnect, onSuccess, onError]);
 
   const connected = status?.connected ?? false;
+  const needsReconnect = connected && (status?.needsReconnect ?? false);
   const isBusy = isConnecting || disconnect.isPending;
 
+  // Colours: neutral text tokens on the neutral card only — no green text on a
+  // green surface, and the Canva mark keeps its own colours (brand guidelines).
+  const connectButton = (label: string) => (
+    <Button
+      variant="outline"
+      size="sm"
+      className={CANVA_BUTTON_BORDER}
+      onClick={handleConnect}
+      disabled={isBusy}
+    >
+      {isConnecting ? (
+        <FiLoader className="animate-spin" aria-hidden />
+      ) : (
+        <CanvaLogo size={16} variant="icon" decorative />
+      )}
+      {label}
+    </Button>
+  );
+
   return (
-    <div className="mt-xl">
+    <section aria-labelledby="canva-heading" className="mt-xl">
       <div className="flex items-center gap-sm mb-md">
-        <CanvaLogo size={24} />
-        <h2 className="text-xl font-semibold text-foreground-heading m-0">Canva</h2>
-        <span className="text-xs bg-secondary-100 text-secondary-700 px-sm py-0.5 rounded-full font-medium">
-          Experimentell
+        <CanvaLogo size={24} variant="icon" />
+        <h2 id="canva-heading" className="text-xl font-semibold text-foreground-heading m-0">
+          Canva
+        </h2>
+        <span className="text-xs border border-grey-300 dark:border-grey-600 text-foreground px-sm py-0.5 rounded-full font-medium">
+          Nur Admins
         </span>
       </div>
 
-      {isLoading && <p className="text-sm text-grey-400 text-center py-sm">Lade Verbindung...</p>}
+      {isLoading && (
+        <p className="text-sm text-foreground-muted text-center py-sm">Lade Verbindung …</p>
+      )}
 
       {!isLoading && (
         <>
-          <div
-            className={cn(
-              'flex items-center justify-between p-md rounded-lg border bg-background-pure transition-colors',
-              connected
-                ? 'border-primary-300 dark:border-primary-700'
-                : 'border-grey-200 dark:border-grey-700'
-            )}
-          >
-            <div className="flex items-center gap-md">
-              <CanvaLogo size={20} />
-              <div className="flex flex-col gap-0.5">
-                <span className="text-sm font-medium text-foreground-heading">Canva</span>
-                <span className="text-xs text-grey-400">
-                  {connected && status?.displayName
-                    ? status.displayName
-                    : 'Designs, Brand-Vorlagen, Assets'}
+          <div className="flex flex-col gap-md p-md rounded-lg border border-grey-200 dark:border-grey-700 bg-background-pure sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex items-center gap-md min-w-0">
+              <CanvaLogo size={20} variant="icon" />
+              <div className="flex flex-col gap-0.5 min-w-0">
+                <span className="text-sm font-medium text-foreground-heading">
+                  {connected && status?.displayName ? status.displayName : 'Canva'}
+                </span>
+                <span className="text-xs text-foreground-muted">
+                  Sticker und Hintergründe aus dem Marktplatz in deine Canva-Uploads
                 </span>
               </div>
             </div>
 
-            <div className="flex items-center gap-sm">
-              {connected && (
-                <span className="flex items-center gap-1 text-xs text-primary-600 dark:text-primary-400">
-                  <FiCheck size={12} />
+            <div className="flex flex-wrap items-center gap-sm">
+              {connected && !needsReconnect && (
+                <span className="flex items-center gap-1 text-xs font-medium text-foreground">
+                  <FiCheck size={12} aria-hidden />
                   Verbunden
                 </span>
               )}
-
+              {needsReconnect && (
+                <span className="flex items-center gap-1 text-xs font-medium text-foreground">
+                  <FiAlertCircle size={12} aria-hidden />
+                  Neue Berechtigung nötig
+                </span>
+              )}
+              {needsReconnect && connectButton('Neu verbinden')}
               {connected ? (
-                <button
-                  type="button"
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className={CANVA_BUTTON_BORDER}
                   onClick={handleDisconnect}
                   disabled={isBusy}
-                  className={cn(
-                    'text-xs px-sm py-1 rounded-md cursor-pointer transition-colors',
-                    'bg-transparent border border-grey-300 dark:border-grey-600',
-                    'text-grey-500 hover:text-[var(--error-red)] hover:border-[var(--error-red)]',
-                    isBusy && 'opacity-50 cursor-not-allowed'
-                  )}
+                  aria-label="Canva-Verbindung trennen"
                 >
                   {disconnect.isPending ? (
-                    <FiLoader className="animate-spin" size={12} />
+                    <FiLoader className="animate-spin" aria-hidden />
                   ) : (
                     'Trennen'
                   )}
-                </button>
+                </Button>
               ) : (
-                <button
-                  type="button"
-                  onClick={handleConnect}
-                  disabled={isBusy}
-                  className={cn(
-                    'text-xs px-md py-1 rounded-md cursor-pointer transition-colors font-medium',
-                    'bg-primary-500 text-white hover:bg-primary-600 border-none',
-                    isBusy && 'opacity-50 cursor-not-allowed'
-                  )}
-                >
-                  {isConnecting ? <FiLoader className="animate-spin" size={12} /> : 'Verbinden'}
-                </button>
+                connectButton('Mit Canva verbinden')
               )}
             </div>
           </div>
@@ -151,7 +159,7 @@ const CanvaSection = memo(({ onSuccess, onError }: CanvaSectionProps) => {
           <PoweredByCanva className="mt-sm" />
         </>
       )}
-    </div>
+    </section>
   );
 });
 CanvaSection.displayName = 'CanvaSection';

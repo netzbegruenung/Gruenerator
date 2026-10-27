@@ -10,7 +10,12 @@ import { env } from '../../../config/env.js';
 import { getPostgresInstance } from '../../../database/services/PostgresService.js';
 import { createLogger } from '../../../utils/logger.js';
 import { decryptCredential, encryptCredential } from '../../../utils/validation/encryption.js';
-import { refreshTokens, type CanvaTokenResponse } from '../../api-clients/canvaClient.js';
+import {
+  missingCanvaScopes,
+  refreshTokens,
+  revokeToken,
+  type CanvaTokenResponse,
+} from '../../api-clients/canvaClient.js';
 
 const log = createLogger('canva-connection');
 
@@ -30,6 +35,8 @@ export interface CanvaConnectionStatus {
   connected: boolean;
   displayName: string | null;
   connectedAt: string | null;
+  /** The grant predates a scope the integration now asks for; only a new authorization adds it. */
+  needsReconnect: boolean;
 }
 
 export interface CanvaCredentials {
@@ -97,13 +104,16 @@ export class CanvaConnectionManager {
   private static toRecord(
     tokens: CanvaTokenResponse,
     displayName: string | null,
-    connectedAt: string
+    connectedAt: string,
+    previousScope: string | null = null
   ): CanvaConnectionRecord {
     return {
       access_token_encrypted: encryptCredential(tokens.access_token),
       refresh_token_encrypted: encryptCredential(tokens.refresh_token),
       expires_at: new Date(Date.now() + tokens.expires_in * 1000).toISOString(),
-      scope: tokens.scope ?? null,
+      // A refresh response may leave `scope` out; the grant is unchanged then,
+      // and dropping it would make `needsReconnect` flag a healthy connection.
+      scope: tokens.scope ?? previousScope,
       display_name: displayName,
       connected_at: connectedAt,
     };
@@ -122,18 +132,32 @@ export class CanvaConnectionManager {
   static async getStatus(userId: string): Promise<CanvaConnectionStatus> {
     const record = await this.getRecord(userId);
     if (!record) {
-      return { connected: false, displayName: null, connectedAt: null };
+      return { connected: false, displayName: null, connectedAt: null, needsReconnect: false };
     }
     return {
       connected: true,
       displayName: record.display_name,
       connectedAt: record.connected_at,
+      needsReconnect: missingCanvaScopes(record.scope).length > 0,
     };
   }
 
+  /**
+   * Revoke the grant at Canva, then forget it here. The revoke is best-effort:
+   * a Canva outage must not keep a user from disconnecting, and the local copy
+   * is what our app could misuse. A failed revoke is logged (without the token).
+   */
   static async disconnect(userId: string): Promise<void> {
     const record = await this.getRecord(userId);
     if (!record) return;
+    try {
+      await revokeToken(getCanvaCredentials(), decryptCredential(record.refresh_token_encrypted));
+    } catch (error) {
+      log.warn('Canva token revoke failed — removing the local connection anyway', {
+        userId,
+        error: (error as Error).message,
+      });
+    }
     await this.writeRecord(userId, null);
     log.info('Canva connection removed', { userId });
   }
@@ -158,7 +182,10 @@ export class CanvaConnectionManager {
     const creds = getCanvaCredentials();
     const refreshToken = decryptCredential(record.refresh_token_encrypted);
     const tokens = await refreshTokens(creds, refreshToken);
-    await this.writeRecord(userId, this.toRecord(tokens, record.display_name, record.connected_at));
+    await this.writeRecord(
+      userId,
+      this.toRecord(tokens, record.display_name, record.connected_at, record.scope)
+    );
     return tokens.access_token;
   }
 }

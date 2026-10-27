@@ -1,12 +1,11 @@
 # Canva brand assets (official)
 
-These files are required for Canva Connect brand compliance and are **not** checked
-in by default because they are Canva trademarks that must be downloaded from the
-official source.
-
-Download the approved logo kit from the Canva Developer Portal / brand guidelines
-ZIP (<https://www.canva.dev/docs/connect/guidelines/brand/>) and place the
-following **unmodified** SVGs here:
+These files are required for Canva brand compliance. They are Canva trademarks,
+copied **byte for byte** from the official logo kit
+(<https://www.canva.dev/assets/connect/Canva-logos.zip>, linked from Canva's brand
+guidelines, fetched 27.10.2026):
+`svg/Canva Icon logo.svg` → `canva-icon.svg`, `svg/Canva type logo.svg` →
+`canva-logo.svg`. Replace them only with a newer official file, never an edited one.
 
 | File             | Use              | Brand rule                         |
 | ---------------- | ---------------- | ---------------------------------- |
@@ -20,5 +19,5 @@ Rules (from Canva's brand guidelines — enforced by `CanvaLogo.tsx`):
 - Do not combine with other logos without Canva's permission.
 
 The app references these via `apps/web/src/features/canva/components/CanvaLogo.tsx`.
-Until the files are added, the `CanvaLogo` component renders a labelled fallback
+Should a file go missing, the `CanvaLogo` component renders a labelled fallback
 box instead of a broken image.
