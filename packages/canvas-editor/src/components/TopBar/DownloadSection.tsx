@@ -14,17 +14,16 @@ import {
 import { useId, useState, type FormEvent } from 'react';
 import { FaDownload } from 'react-icons/fa';
 
-import {
-  IMPRESSUM_LABELS,
-  isFilled,
-  isImpressumComplete,
-  parseImpressumLine,
-  type ImpressumLocale,
-  type ImpressumParts,
-} from '../../composer/printImpressum';
+import { useCanvasEditorServices } from '../../CanvasEditorProvider';
 import { MOBILE_INPUT_TEXT } from '../../sidebar/sidebarStyles';
 import { downloadErrorMessage } from '../../utils/downloadError';
 import { DownloadNotice } from '../DownloadNotice';
+
+import type {
+  CanvasImpressumLocale,
+  CanvasImpressumParts,
+  CanvasImpressumService,
+} from '../../hostServices';
 
 export type CanvasDownloadChoice = 'png' | 'jpeg' | 'webp';
 
@@ -48,10 +47,12 @@ export interface SlideDeckExportProps {
   /** Meldet nach jeder geschriebenen Folie den Fortschritt. */
   onDownloadPptx: (onProgress: (done: number, total: number) => void) => Promise<void>;
   /** Welche Hausschriften das Deck trägt: deutsche oder österreichische Marke. */
-  locale: ImpressumLocale;
+  locale: DeckLocale;
 }
 
-const PPTX_FONT_HINT: Record<ImpressumLocale, string> = {
+type DeckLocale = 'de-DE' | 'de-AT';
+
+const PPTX_FONT_HINT: Record<DeckLocale, string> = {
   'de-DE':
     'Damit die Folien wie im Grünerator aussehen, installiere die Schriften GrueneType Neue und PT Sans – sonst ersetzt PowerPoint sie.',
   'de-AT':
@@ -61,22 +62,29 @@ const PPTX_FONT_HINT: Record<ImpressumLocale, string> = {
 export interface PrintImpressumGate {
   /** False until every poster page has reported its state; no warning until then. */
   ready: boolean;
-  locale: ImpressumLocale;
+  locale: CanvasImpressumLocale;
   /** The impressum line on the canvas; null when the element is gone. */
   text: string | null;
   /** Writes the line to the canvas (updates the element, or re-adds it). */
-  onSubmit: (parts: ImpressumParts) => void;
+  onSubmit: (parts: CanvasImpressumParts) => void;
 }
 
-function ImpressumForm({ gate }: { gate: PrintImpressumGate }) {
+function ImpressumForm({
+  gate,
+  impressum,
+}: {
+  gate: PrintImpressumGate;
+  impressum: CanvasImpressumService;
+}) {
+  const { isFilled } = impressum;
   const fieldId = useId();
-  const labels = IMPRESSUM_LABELS[gate.locale];
-  const current = parseImpressumLine(gate.locale, gate.text ?? '');
+  const labels = impressum.labels[gate.locale];
+  const current = impressum.parse(gate.locale, gate.text ?? '');
   const initial = (value: string) => (isFilled(value) ? value : '');
   const [name, setName] = useState(initial(current.name));
   const [anschrift, setAnschrift] = useState(initial(current.anschrift));
   const [touched, setTouched] = useState(false);
-  const valid = isImpressumComplete({ name, anschrift });
+  const valid = impressum.isComplete({ name, anschrift });
   const nameError = touched && !isFilled(name) ? `Bitte ${labels.name} eintragen.` : null;
   const anschriftError = touched && !isFilled(anschrift) ? 'Bitte Anschrift eintragen.' : null;
 
@@ -197,12 +205,15 @@ export function DownloadSection({
   const [isDownloading, setIsDownloading] = useState(false);
   const [downloadError, setDownloadError] = useState<string | null>(null);
   const fieldId = useId();
+  // Without the host's print service no format carries an impressum.
+  const impressum = useCanvasEditorServices().print?.impressum ?? null;
 
   const isPdf = choice === 'pdf' && printExport !== null;
-  const impressumGate = isPdf ? (printExport?.impressum ?? null) : null;
+  const impressumGate = isPdf && impressum ? (printExport?.impressum ?? null) : null;
   const impressumMissing =
+    impressum !== null &&
     impressumGate?.ready === true &&
-    !isImpressumComplete(parseImpressumLine(impressumGate.locale, impressumGate.text ?? ''));
+    !impressum.isComplete(impressum.parse(impressumGate.locale, impressumGate.text ?? ''));
   const isSlidesPdf = choice === 'pdf' && slideDeck !== null;
   const isPptx = choice === 'pptx' && slideDeck !== null;
   const isMultiPage = pageCount > 1 && onDownloadAllZip && !isPdf && !isSlidesPdf && !isPptx;
@@ -331,12 +342,12 @@ export function DownloadSection({
       )}
       {pptxProgress && pptxProgress.total > 0 && <ProgressBar progress={pptxProgress} />}
 
-      {impressumMissing && impressumGate && (
+      {impressumMissing && impressumGate && impressum && (
         <>
           <DownloadNotice tone="info">
             Noch kein vollständiges Impressum – herunterladen kannst du trotzdem.
           </DownloadNotice>
-          <ImpressumForm gate={impressumGate} />
+          <ImpressumForm gate={impressumGate} impressum={impressum} />
         </>
       )}
 

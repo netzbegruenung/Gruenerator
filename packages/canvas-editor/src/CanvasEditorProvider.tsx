@@ -9,6 +9,7 @@ import type {
   CanvasFileDeliveryService,
   CanvasImageShareService,
   CanvasMediaLibraryService,
+  CanvasPrintService,
   UseCanvasStudioAssets,
   UseCanvasUnsplashSearch,
 } from './hostServices';
@@ -85,7 +86,7 @@ export interface CanvasVorlagenService {
   composeSeite: (seite: SharepicSeite, format: SharepicFormat) => Promise<VorlagePage[]>;
   /** Vorlagen saved as finished pages, for every format; the tab shows the document's. */
   listCanvas?: () => Promise<CanvasVorlage[]>;
-  /** The print Vorlagen of the viewer's country; their specs compose here (`composePrint`). */
+  /** The print Vorlagen of the viewer's country; their specs compose through `print.composePrint`. */
   listPrint?: () => Promise<PrintVorlage[]>;
   /**
    * Copies a print Vorlage into a new design of the viewer's own and opens it;
@@ -242,6 +243,13 @@ export interface CanvasEditorServices {
 
   /** Hook holding the Unsplash search state. When omitted, searches find nothing. */
   useUnsplashSearch?: UseCanvasUnsplashSearch;
+
+  /**
+   * The impressum gate and print Vorlagen (`CanvasPrintService` in
+   * `hostServices.ts`). When omitted, no format carries an impressum and the
+   * „Vorlagen" tab lists no print Vorlagen; the PDF export still works.
+   */
+  print?: CanvasPrintService;
 }
 
 const CanvasEditorContext = createContext<CanvasEditorServices>({});

@@ -2,6 +2,8 @@ import { SHAREPIC_SOURCE_KEY } from '@gruenerator/contracts';
 import { describe, expect, it } from 'vitest';
 import * as Y from 'yjs';
 
+import { grueneratorPrint } from '../composer/printService';
+
 import { getPagesMap, readPages, replaceDeck, seedPagesIfEmpty } from './pagesDoc';
 import {
   carryImpressum,
@@ -141,6 +143,7 @@ describe('carryImpressum', () => {
 
   it('writes the filled-in line of the design into the Vorlage', () => {
     const [page] = carryImpressum(
+      grueneratorPrint.impressum,
       [poster('freeform', 'V.i.S.d.P.: Anna Muster, Hauptstr. 1, 12345 Stadt')],
       [poster('freeform', VORLAGE_DE)]
     );
@@ -152,12 +155,17 @@ describe('carryImpressum', () => {
 
   it('keeps the Vorlage placeholder while the design has no filled-in line', () => {
     const next = [poster('freeform', VORLAGE_DE)];
-    expect(carryImpressum([poster('freeform', VORLAGE_DE)], next)).toEqual(next);
-    expect(carryImpressum([poster('freeform', null)], next)).toEqual(next);
+    expect(
+      carryImpressum(grueneratorPrint.impressum, [poster('freeform', VORLAGE_DE)], next)
+    ).toEqual(next);
+    expect(carryImpressum(grueneratorPrint.impressum, [poster('freeform', null)], next)).toEqual(
+      next
+    );
   });
 
   it('takes the first filled-in page and speaks the Vorlage country', () => {
     const [page] = carryImpressum(
+      grueneratorPrint.impressum,
       [
         poster('freeform', 'V.i.S.d.P.: '),
         poster('freeform', 'V.i.S.d.P.: Anna Muster, Hauptstr. 1, 12345 Stadt'),
@@ -170,7 +178,11 @@ describe('carryImpressum', () => {
   it('leaves pages without an impressum alone', () => {
     const card = { configId: 'freeform', state: { additionalTexts: [{ id: 'name', text: 'X' }] } };
     expect(
-      carryImpressum([poster('freeform', 'V.i.S.d.P.: Anna Muster, Hauptstr. 1, Stadt')], [card])
+      carryImpressum(
+        grueneratorPrint.impressum,
+        [poster('freeform', 'V.i.S.d.P.: Anna Muster, Hauptstr. 1, Stadt')],
+        [card]
+      )
     ).toEqual([card]);
   });
 });

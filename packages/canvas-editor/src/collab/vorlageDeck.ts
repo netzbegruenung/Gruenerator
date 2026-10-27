@@ -1,16 +1,9 @@
 import { SHAREPIC_SOURCE_KEY } from '@gruenerator/contracts';
 
-import { PRINT_IMPRESSUM_ID } from '../composer/composePrint';
-import {
-  impressumLine,
-  impressumLocaleOf,
-  isImpressumComplete,
-  parseImpressumLine,
-  type ImpressumParts,
-} from '../composer/printImpressum';
 import { CARRIED_INSTANCE_KEYS } from '../configs/factory/carryInstanceState';
 
 import type { ReplaceDeckOps } from './pagesDoc';
+import type { CanvasImpressumParts, CanvasImpressumService } from '../hostServices';
 
 interface DeckPage {
   configId: string;
@@ -168,14 +161,20 @@ const textsOf = (state: Record<string, unknown>): TextElement[] =>
  * export gate rejects. When the design being replaced already has a filled-in
  * line, that line goes into the Vorlage's pages instead — written in the
  * country form of each Vorlage page — so the replace does not undo it.
+ * The line and its rules come from the host's print service.
  */
-export function carryImpressum<P extends DeckPage>(current: readonly DeckPage[], next: P[]): P[] {
-  let parts: ImpressumParts | null = null;
+export function carryImpressum<P extends DeckPage>(
+  impressum: CanvasImpressumService,
+  current: readonly DeckPage[],
+  next: P[]
+): P[] {
+  const id = impressum.elementId;
+  let parts: CanvasImpressumParts | null = null;
   for (const page of current) {
-    const element = textsOf(page.state).find((t) => t.id === PRINT_IMPRESSUM_ID);
+    const element = textsOf(page.state).find((t) => t.id === id);
     if (!element) continue;
-    const parsed = parseImpressumLine(impressumLocaleOf(page), element.text ?? '');
-    if (isImpressumComplete(parsed)) {
+    const parsed = impressum.parse(impressum.localeOf(page), element.text ?? '');
+    if (impressum.isComplete(parsed)) {
       parts = parsed;
       break;
     }
@@ -184,13 +183,13 @@ export function carryImpressum<P extends DeckPage>(current: readonly DeckPage[],
   if (!filled) return next;
   return next.map((page) => {
     const texts = textsOf(page.state);
-    if (!texts.some((t) => t.id === PRINT_IMPRESSUM_ID)) return page;
-    const text = impressumLine(impressumLocaleOf(page), filled);
+    if (!texts.some((t) => t.id === id)) return page;
+    const text = impressum.line(impressum.localeOf(page), filled);
     return {
       ...page,
       state: {
         ...page.state,
-        additionalTexts: texts.map((t) => (t.id === PRINT_IMPRESSUM_ID ? { ...t, text } : t)),
+        additionalTexts: texts.map((t) => (t.id === id ? { ...t, text } : t)),
       },
     };
   });

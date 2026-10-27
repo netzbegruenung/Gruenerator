@@ -3,8 +3,10 @@ import userEvent from '@testing-library/user-event';
 import { useState } from 'react';
 import { describe, expect, it, vi } from 'vitest';
 
+import { CanvasEditorProvider } from '../../../CanvasEditorProvider';
 import { composePrintImpressum, PRINT_IMPRESSUM_ID } from '../../../composer/composePrint';
 import { impressumLine, type ImpressumLocale } from '../../../composer/printImpressum';
+import { grueneratorPrint } from '../../../composer/printService';
 import { DownloadSection } from '../DownloadSection';
 
 /** Stands in for the editor: the gate text lives in "canvas state" and the form writes to it. */
@@ -13,30 +15,34 @@ function Harness({
   initial,
   onDownloadPdf,
   withGate = true,
+  withPrintService = true,
 }: {
   locale: ImpressumLocale;
   initial: string | null;
   onDownloadPdf: () => Promise<void>;
   withGate?: boolean;
+  withPrintService?: boolean;
 }) {
   const [text, setText] = useState<string | null>(initial);
   return (
-    <DownloadSection
-      onDownload={vi.fn()}
-      pageCount={1}
-      printExport={{
-        onDownloadPdf,
-        getWarnings: () => [],
-        impressum: withGate
-          ? {
-              ready: true,
-              locale,
-              text,
-              onSubmit: (parts) => setText(impressumLine(locale, parts)),
-            }
-          : null,
-      }}
-    />
+    <CanvasEditorProvider services={withPrintService ? { print: grueneratorPrint } : {}}>
+      <DownloadSection
+        onDownload={vi.fn()}
+        pageCount={1}
+        printExport={{
+          onDownloadPdf,
+          getWarnings: () => [],
+          impressum: withGate
+            ? {
+                ready: true,
+                locale,
+                text,
+                onSubmit: (parts) => setText(impressumLine(locale, parts)),
+              }
+            : null,
+        }}
+      />
+    </CanvasEditorProvider>
   );
 }
 
@@ -84,6 +90,22 @@ describe('print impressum gate', () => {
     await userEvent.type(screen.getByLabelText('Anschrift'), 'Hauptstr. 1, 10115 Berlin');
     await userEvent.click(screen.getByRole('button', { name: 'Übernehmen' }));
     await waitFor(() => expect(screen.queryByText('Impressum ergänzen')).toBeNull());
+    expect(screen.queryByText(/kein vollständiges Impressum/)).toBeNull();
+    await userEvent.click(download());
+    await waitFor(() => expect(onDownloadPdf).toHaveBeenCalledTimes(1));
+  });
+
+  it('shows neither warning nor form without the host print service', async () => {
+    const onDownloadPdf = vi.fn().mockResolvedValue(undefined);
+    render(
+      <Harness
+        locale="de-DE"
+        initial={null}
+        onDownloadPdf={onDownloadPdf}
+        withPrintService={false}
+      />
+    );
+    expect(screen.queryByText('Impressum ergänzen')).toBeNull();
     expect(screen.queryByText(/kein vollständiges Impressum/)).toBeNull();
     await userEvent.click(download());
     await waitFor(() => expect(onDownloadPdf).toHaveBeenCalledTimes(1));

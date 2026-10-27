@@ -1,3 +1,4 @@
+import { grueneratorPrint } from '@gruenerator/canvas-editor';
 import {
   downloadBlob,
   downloadDataUrl,
@@ -65,4 +66,6 @@ export const webCanvasEditorServices: CanvasEditorServices = {
   fileDelivery: { downloadBlob, downloadDataUrl, pickShareRoute, shareDataUrlViaNativeHost },
   useStudioAssets,
   useUnsplashSearch,
+  // Impressum gate and print Vorlagen: the Grünerator composer, also in /mobile-editor.
+  print: grueneratorPrint,
 };
