@@ -1,6 +1,6 @@
 // Red probes for the ggraphic boundary guard: a clean in-memory package must
 // pass, and each probe — the clean package plus one leak — must trip its rule.
-import { checkFiles } from './rules.mjs';
+import { PROVENANCE_NOTICE, checkFiles } from './rules.mjs';
 import { buildSfnt, toWoff, toWoff2 } from './syntheticFonts.mjs';
 
 const PKG = 'packages/ggraphic-core';
@@ -56,6 +56,7 @@ function pkg({ files = [], assets = [], manifest = null } = {}) {
         'export const b = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(y)}`;\n' +
         `export const docs = 'https://example.org/api/v1/items';\n`
     ),
+    text('NOTICE', PROVENANCE_NOTICE),
     text(
       'assets.json',
       manifest ??
@@ -279,6 +280,11 @@ const PROBES = [
   ['e', 'host root concatenated', `export const s = '/illustrations/' + name;`],
   ['e', 'asset path with query', `export const s = '/x.svg?v=2';`],
   ['e', 'unquoted host url()', { files: [css('a { background: url(/imagine/previews/x.jpg); }')] }],
+  [
+    'a',
+    'NOTICE with more than the provenance statement',
+    { files: [text('NOTICE', `${PROVENANCE_NOTICE}Thanks to the Gruenerator team.\n`)] },
+  ],
   ['f', 'missing SPDX header', { files: [text('src/probe.ts', 'export const s = 1;\n')] }],
 ];
 
