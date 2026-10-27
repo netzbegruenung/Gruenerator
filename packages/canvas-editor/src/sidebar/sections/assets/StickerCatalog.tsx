@@ -1,13 +1,9 @@
-import {
-  assetStickerId,
-  type StickerRef,
-  type StudioAssetItem,
-  type StudioAssetScope,
-} from '@gruenerator/contracts';
+import { assetStickerId, type StickerRef, type StudioAssetScope } from '@gruenerator/contracts';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { HiPlus } from 'react-icons/hi2';
 
 import { useCanvasEditorServices } from '../../../CanvasEditorProvider';
+import { type CanvasStudioAssetItem } from '../../../hostServices';
 import { GALLERY_SCOPES, GalleryTabs, StudioGalleryGrid, type GalleryTab } from '../StudioGallery';
 
 import { elementDragProps } from './ElementTile';
@@ -15,7 +11,7 @@ import { galleryStickerItem } from './elementTypes';
 
 type StickerTab = 'gruene' | StudioAssetScope;
 
-const galleryRef = (item: StudioAssetItem): StickerRef => ({
+const galleryRef = (item: CanvasStudioAssetItem): StickerRef => ({
   id: assetStickerId(item.id),
   src: item.src,
 });

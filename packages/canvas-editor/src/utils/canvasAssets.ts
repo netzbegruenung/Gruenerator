@@ -9,7 +9,7 @@ import {
   GRUENE_TEMPLATE_ASSETS,
 } from '../brand/grueneAssets';
 
-import type { StickerRef } from '@gruenerator/contracts';
+import type { StickerRef } from '@ggraphic/schema';
 
 export type AssetAudience = 'de-DE' | 'de-AT' | 'all';
 
