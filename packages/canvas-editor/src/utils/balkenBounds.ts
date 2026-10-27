@@ -8,7 +8,7 @@ import { type RunStyle } from '@ggraphic/schema';
 
 import { DREIZEILEN_CONFIG } from './dreizeilenLayout';
 
-import type { BalkenInstance, BalkenMode } from '../primitives/BalkenGroup';
+import type { BalkenInstance, BalkenMode } from '../utils/balkenUtils';
 
 export interface BalkenLayout {
   x: number;

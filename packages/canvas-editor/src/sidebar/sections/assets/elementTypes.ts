@@ -5,7 +5,7 @@ import {
   type MediaDragPayload,
 } from '../../../utils/mediaDrop';
 
-import type { BalkenMode } from '../../../primitives/BalkenGroup';
+import type { BalkenMode } from '../../../utils/balkenUtils';
 import type { ChartType } from '@ggraphic/editor/utils/chartUtils';
 import type { FrameClipType } from '@ggraphic/editor/utils/frameUtils';
 import type { KawaiiIllustrationType, SvgDef } from '@ggraphic/editor/utils/illustrations/types';

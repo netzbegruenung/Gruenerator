@@ -6,7 +6,7 @@ import { SidebarSlider } from '../components/SidebarSlider';
 import { ACTION_BTN, ACTION_BTN_DANGER, SECTION_HEADER, SECTION_TITLE } from '../sidebarStyles';
 import { SubsectionTabBar, type Subsection } from '../SubsectionTabBar';
 
-import type { BalkenInstance } from '../../primitives/BalkenGroup';
+import type { BalkenInstance } from '../../utils/balkenUtils';
 import type { ColorScheme } from '../../utils/dreizeilenLayout';
 
 export interface BalkenSettingsSectionProps {

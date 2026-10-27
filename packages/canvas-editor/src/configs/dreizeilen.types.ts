@@ -7,9 +7,8 @@
 
 import type { IconState } from './factory/baseTypes';
 import type { AdditionalText } from './types';
-import type { BalkenInstance } from '../primitives/BalkenGroup';
 import type { StockImageAttribution } from '../sidebar/types';
-import type { BalkenMode } from '../utils/balkenUtils';
+import type { BalkenInstance, BalkenMode } from '../utils/balkenUtils';
 import type { AssetInstance } from '../utils/canvasAssets';
 import type {
   ElementPlacement,

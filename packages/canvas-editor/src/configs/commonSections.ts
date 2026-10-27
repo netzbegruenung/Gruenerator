@@ -14,9 +14,9 @@ import { makeSectionDefiner } from './factory/defineSection';
 
 import type { SharepicAiCapabilities } from './aiCapabilities';
 import type { CanvasAiEditBridge } from '../CanvasEditorProvider';
-import type { BalkenInstance } from '../primitives/BalkenGroup';
 import type { ChatSectionProps, ToolsSectionProps, UploadsSectionProps } from '../sidebar/sections';
 import type { SidebarTab } from '../sidebar/types';
+import type { BalkenInstance } from '../utils/balkenUtils';
 import type {
   ImageAdjustments,
   UserImageInstance,

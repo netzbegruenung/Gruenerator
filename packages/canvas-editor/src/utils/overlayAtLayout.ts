@@ -16,9 +16,8 @@
 
 import { wrapTextAccurate } from '@ggraphic/editor/utils/textUtils';
 
+import { SYSTEM_ASSETS } from '../brand/grueneAssets';
 import { getBrandTheme } from '../brand/theme';
-
-import { SYSTEM_ASSETS } from './canvasAssets';
 
 const AT = getBrandTheme('de-AT');
 

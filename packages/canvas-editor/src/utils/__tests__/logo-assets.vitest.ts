@@ -5,7 +5,8 @@ import { fileURLToPath } from 'node:url';
 import { describe, it, expect } from 'vitest';
 
 import { buildAssetCapability, filterAssetOptionsForLocale } from '../../ai/assetCapability';
-import { LOGO_ASSETS, hasDarkPreview, sortLogoAssets } from '../canvasAssets';
+import { LOGO_ASSETS, sortLogoAssets } from '../../brand/grueneAssets';
+import { hasDarkPreview } from '../canvasAssets';
 
 const PUBLIC_DIR = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),

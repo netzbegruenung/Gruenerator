@@ -16,14 +16,13 @@ import { useMemo, useState, type ReactNode } from 'react';
 import { PiImageFill } from 'react-icons/pi';
 
 import { EMOJI_ASSETS, stickerAssetsForLocale } from '../../../brand/grueneAssetCatalog';
+import { ALL_ASSETS, sortLogoAssets } from '../../../brand/grueneAssets';
 import { useCanvasEditorServices } from '../../../CanvasEditorProvider';
 import { useBlockInsert, type BlockInsertApi } from '../../../components/CanvasEditor/blockInsert';
 import { useEmojiCatalog } from '../../../hooks/useEmojiCatalog';
 import { useNoStudioAssets } from '../../../hostServices';
 import {
-  ALL_ASSETS,
   hasDarkPreview,
-  sortLogoAssets,
   type AssetAudience,
   type UniversalAsset,
 } from '../../../utils/canvasAssets';

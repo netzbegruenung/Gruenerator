@@ -18,13 +18,13 @@ import { PiFrameCornersFill, PiSquaresFourFill, PiTextAa } from 'react-icons/pi'
 import { buildAssetCapability } from '../ai/assetCapability';
 import { describeCanvasElements } from '../ai/describeCanvasElements';
 import { buildIllustrationCapability } from '../ai/illustrationCapability';
+import { CANVAS_RECOMMENDED_ASSETS } from '../brand/grueneAssets';
 import { withCardFollowingText } from '../composer/cardFollowsText';
 import { SHAREPIC_COLOR_HEX } from '../composer/composeSharepic';
 import { type LiftedBlock } from '../composer/liftBlock';
 import { AssetsSection } from '../sidebar';
 import { CombinedTextSection } from '../sidebar/sections/CombinedTextSection';
 import { FrameSettingsSection } from '../sidebar/sections/FrameSettingsSection';
-import { CANVAS_RECOMMENDED_ASSETS } from '../utils/canvasAssets';
 
 import { chatTab, createCommonSectionEntries, toolsTab, uploadsTab } from './commonSections';
 import { createBaseActions } from './factory/actionFactories';

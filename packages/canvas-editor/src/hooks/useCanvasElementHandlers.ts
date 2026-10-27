@@ -9,7 +9,7 @@ import {
 } from '../utils/templateRotation';
 
 import type { FullCanvasConfig, LayoutResult, AdditionalText } from '../configs/types';
-import type { BalkenMode } from '../primitives/BalkenGroup';
+import type { BalkenMode } from '../utils/balkenUtils';
 import type {
   ElementPlacement,
   UserImageInstance,

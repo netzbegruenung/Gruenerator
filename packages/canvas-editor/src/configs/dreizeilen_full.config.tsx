@@ -19,12 +19,13 @@ import { PiFrameCornersFill, PiSquaresFourFill, PiTextAa } from 'react-icons/pi'
 import { buildAssetCapability } from '../ai/assetCapability';
 import { describeCanvasElements } from '../ai/describeCanvasElements';
 import { buildIllustrationCapability } from '../ai/illustrationCapability';
+import { CANVAS_RECOMMENDED_ASSETS, SYSTEM_ASSETS } from '../brand/grueneAssets';
+import { dreizeilenShareMetadata } from '../brand/grueneShareMetadata';
 import { AssetsSection } from '../sidebar';
 import { BalkenSettingsSection } from '../sidebar/sections/BalkenSettingsSection';
 import { CombinedTextSection } from '../sidebar/sections/CombinedTextSection';
 import { FrameSettingsSection } from '../sidebar/sections/FrameSettingsSection';
 import { balkenExtent, fitBalkenAfterTextEdit, fitBalkenToCanvas } from '../utils/balkenBounds';
-import { CANVAS_RECOMMENDED_ASSETS, SYSTEM_ASSETS } from '../utils/canvasAssets';
 import {
   calculateDreizeilenLayout,
   COLOR_SCHEMES,
@@ -66,7 +67,7 @@ import type {
   AdditionalText,
 } from './types';
 import type { StockImageAttribution } from '../common/imageSourceTypes';
-import type { BalkenInstance } from '../primitives/BalkenGroup';
+import type { BalkenInstance } from '../utils/balkenUtils';
 import type { AssetInstance } from '../utils/canvasAssets';
 import type { UserImageInstance } from '../utils/userImageUtils';
 import type { ChartInstance } from '@ggraphic/editor/utils/chartUtils';
@@ -374,6 +375,7 @@ const section = makeSectionDefiner<DreizeilenFullState, DreizeilenFullActions>()
 
 export const dreizeilenFullConfig: FullCanvasConfig<DreizeilenFullState, DreizeilenFullActions> = {
   id: 'dreizeilen',
+  shareMetadata: dreizeilenShareMetadata,
 
   canvas: {
     width: CANVAS_WIDTH,

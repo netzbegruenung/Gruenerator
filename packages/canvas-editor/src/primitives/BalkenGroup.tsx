@@ -30,26 +30,14 @@ import {
   flattenPoints,
 } from '../utils/dreizeilenLayout';
 
+import type { BalkenInstance, BalkenMode } from '../utils/balkenUtils';
 import type { SnapTarget } from '@ggraphic/editor/utils/snapping';
 import type Konva from 'konva';
 
 // Rahmen für Snap und Geometrie-Meldung, pro Aufruf neu beschrieben (synchron, ohne Allokation).
 const dragFrame = createBoxFrame();
 
-export type BalkenMode = 'single' | 'triple';
-
-export interface BalkenInstance {
-  id: string;
-  mode: BalkenMode;
-  colorSchemeId: string;
-  widthScale: number;
-  offset: { x: number; y: number };
-  scale: number;
-  texts: string[];
-  rotation: number;
-  opacity?: number;
-  barOffsets?: [number, number, number];
-}
+export type { BalkenInstance, BalkenMode };
 
 export interface BalkenGroupProps {
   /** Id des Elements — unter ihr öffnet „Text bearbeiten“ die erste Zeile. */

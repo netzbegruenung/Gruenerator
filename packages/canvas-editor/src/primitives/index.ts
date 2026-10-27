@@ -19,8 +19,7 @@ export type { CanvasImageProps } from './CanvasImage';
 
 export { CanvasIcons } from './CanvasIcons';
 
-export { BalkenGroup } from './BalkenGroup';
-export type { BalkenGroupProps, BalkenMode, BalkenInstance } from './BalkenGroup';
+export type { BalkenMode, BalkenInstance } from '../utils/balkenUtils';
 
 export { ShapePrimitive } from './ShapePrimitive';
 

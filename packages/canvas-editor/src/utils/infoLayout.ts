@@ -9,7 +9,7 @@
  * - Body text with first sentence bold
  */
 
-import { SYSTEM_ASSETS } from './canvasAssets';
+import { SYSTEM_ASSETS } from '../brand/grueneAssets';
 
 export const INFO_CONFIG = {
   canvas: {

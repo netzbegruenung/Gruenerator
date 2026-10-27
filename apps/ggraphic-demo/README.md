@@ -44,7 +44,7 @@ Dazu kommen `@ggraphic/editor` (82 Module, 75 eager), `@ggraphic/schema` (5) und
 
 **Markenpakete:** Paletten, Textmarker, Diagrammreihen und die Standardfarben neuer Elemente liest der Editor aus dem aktiven `BrandPack` (`@ggraphic/editor/brand/brandRegistry`). Der Grünerator trägt `[GRUENE_DE, GRUENE_AT]` beim Start ein; ohne Host, wie hier, gilt `brandDefault`.
 
-**Was vom Grünerator im Editor-Teil noch mitkommt:** `brand/grueneAssets.ts` (Logos, Sonnenblumen, Info-Hintergründe), weil `SYSTEM_ASSETS` in `utils/canvasAssets.ts` darauf zeigt und `brand/theme.ts` sowie die Layouts es lesen.
+**Balken und Grünerator-Grafiken hängen nicht mehr am Kern.** Die Balken sind eine Elementart, die der Host zeichnet (`hostRendered` in `utils/elementKinds.ts`): Der Editor hält ihren Zustand, stapelt, wählt und löscht sie, das Aussehen kommt über `registerKindRenderers` aus `brand/grueneKinds.tsx`. Eingetragen wird es im Paket-Einstieg `src/index.ts` (in `package.json` unter `sideEffects`, sonst verwirft der Bundler den Aufruf), nicht beim Start von apps/web, weil die Renderer Konva mitbringen. Über diesen Einstieg kommen `BalkenGroup` und das Dreizeilen-Layout deshalb vorerst noch in die Demo, bis `ConfigCanvas` selbst umzieht. `SYSTEM_ASSETS`, `ALL_ASSETS`, `TEMPLATE_ASSETS` und die empfohlenen Grafiken je Vorlage stehen in `brand/grueneAssets.ts`; `utils/canvasAssets.ts` kennt nur noch das Register (`registerAssetCatalog`). Den Glanz einer Hintergrundfarbe liest `utils/surfaceGlow.ts` aus den eingetragenen Markenpaketen statt aus `brand/theme.ts`. Was der Kern dort noch selbst kennt: den Emoji-Pfad `/emoji/` in `utils/canvasAssets.ts`.
 
 `@gruenerator/collab` kommt eager über `GenericCanvas` → `collab/useSelectionAwareness.ts` (`useAwarenessState`).
 
