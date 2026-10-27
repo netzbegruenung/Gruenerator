@@ -134,6 +134,38 @@ describe('runAssertions — each failure class we hit live', () => {
     expect(names(rs)['internalOnly']).toBe(true);
   });
 
+  /**
+   * `productGrounded` — die Fehlklasse aus der Live-Probe vom 27.10.2026: bei
+   * „Was ist Panda?" rief der Loop weder Doku noch Produktwissen auf und
+   * antwortete aus dem Vorwissen (Panda Security).
+   */
+  describe('productGrounded', () => {
+    const run = (over: Partial<ChatTrace>) =>
+      names(runAssertions(trace(over), { productGrounded: true }))['productGrounded'];
+
+    it('fails an answer from priors', () => {
+      expect(run({ fullText: 'Panda Security ist eine Antivirensoftware.' })).toBe(false);
+    });
+    it('passes when a product tool ran', () => {
+      expect(run({ toolCalls: [{ toolName: 'gruenerator_docs_search', args: {}, ok: true }] })).toBe(true);
+    });
+    it('passes on a deep link to an existing docs page', () => {
+      expect(
+        run({
+          fullText: 'Siehe https://doku.gruenerator.eu/docs/chat/ki-modelle#verfügbare-modelle.',
+        })
+      ).toBe(true);
+    });
+    it('fails on an invented docs page, even with a tool call', () => {
+      expect(
+        run({
+          toolCalls: [{ toolName: 'product_knowledge', args: {}, ok: true }],
+          fullText: 'Anleitung: https://doku.gruenerator.eu/docs/features/panda',
+        })
+      ).toBe(false);
+    });
+  });
+
   it('noInventedUrls fails on a 404 scrape (the guessed gruene.de URL)', () => {
     const rs = runAssertions(
       trace({
