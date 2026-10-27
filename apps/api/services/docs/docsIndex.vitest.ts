@@ -97,10 +97,30 @@ describe('searchDocs', () => {
     const hits = searchDocs('grünerator', 5);
     const perPage = new Map<string, number>();
     for (const hit of hits) {
-      const page = hit.url.split('#')[0]!;
-      perPage.set(page, (perPage.get(page) ?? 0) + 1);
+      const [page, anchor] = hit.url.split('#');
+      // The page intro is exempt from the cap — it carries the summary facts.
+      if (anchor === undefined) continue;
+      perPage.set(page!, (perPage.get(page!) ?? 0) + 1);
     }
     for (const count of perPage.values()) expect(count).toBeLessThanOrEqual(2);
+  });
+
+  // The questions the chat got wrong live on 27.10.2026 although the answer
+  // was on the website — in a generated component, past the old 1200-char
+  // truncation, or in a page intro the per-page cap dropped.
+  it('keeps a page intro that two subsections of the same page outrank', () => {
+    const hits = searchDocs('gelöschte Dokumente wiederfinden Aufbewahrungsfrist Papierkorb', 5);
+    expect(hits.some((h) => h.snippet.includes('30 Tage'))).toBe(true);
+  });
+
+  it('finds what only a generated component says (SettingsOverview)', () => {
+    const hits = searchDocs('Konto endgültig löschen', 5);
+    expect(hits.some((h) => h.url.includes('/docs/sonstiges/einstellungen'))).toBe(true);
+  });
+
+  it('finds the tail of a long section instead of truncating it', () => {
+    const hits = searchDocs('Transkription GreenPT', 5);
+    expect(hits.some((h) => h.url.includes('/docs/basics/gruenerator-pro-eu'))).toBe(true);
   });
 
   it('returns nothing for an empty or stopword-only query instead of throwing', () => {

@@ -56,9 +56,9 @@ const CATEGORY_LABELS = {
 };
 
 const LEAD_MAX_CHARS = 200;
-// Also the guard that keeps expanded ChatTables sections (COMPONENT_EXPANSIONS)
-// from inflating the corpus statistics — raising it to fit fuller rows flipped
-// a borderline BM25 ranking; the expansions are compact instead.
+// Chunk size, not a cut: longer sections are split by `chunkSection`. Keeping
+// chunks this small also keeps expanded components from inflating the BM25
+// length statistics — raising it once flipped a borderline ranking.
 const SECTION_MAX_CHARS = 1200;
 
 function walk(dir, relBase = '') {
@@ -142,6 +142,26 @@ function loadManifest(name) {
 }
 
 /**
+ * The hand-written halves of the generated components (tab notes, tool notes,
+ * example questions). They are TypeScript data modules; Node 22 strips the
+ * types on import. Missing or broken → that expansion degrades to the
+ * manifest alone, never fails the build.
+ */
+async function loadNotes(rel, exportName) {
+  try {
+    const mod = await import(path.join(REPO_ROOT, 'documentation/src/components', rel));
+    return mod[exportName] ?? null;
+  } catch {
+    return null;
+  }
+}
+const NOTES = {
+  tabNotes: await loadNotes('SettingsOverview/tabNotes.ts', 'TAB_NOTES'),
+  toolNotes: await loadNotes('ToolOverview/toolNotes.ts', 'TOOL_NOTES'),
+  examples: await loadNotes('ChatCapabilities/examples.ts', 'EXAMPLES'),
+};
+
+/**
  * `stripInline` drops every JSX tag, so a table rendered by a React component
  * would vanish from the BM25 corpus — the chat's `gruenerator_docs_search`
  * could then no longer answer "welche Rezepte gibt es?" from the very page
@@ -181,6 +201,78 @@ const COMPONENT_EXPANSIONS = {
     manifest: 'models.json',
     inline: true,
     expand: (m) => m.hosts.join(', '),
+  },
+  // The three below join a manifest with the component's hand-written notes
+  // (NOTES), exactly as the component does. Without them the chat could not
+  // find what only these components say — „Konto löschen" lives in
+  // SettingsOverview alone (live 27.10.2026: the chat sent people to support).
+  // Long expansions are chunked by `chunkSection`, not truncated.
+  SettingsOverview: {
+    manifest: 'settings.json',
+    expand: (m) =>
+      m.tabs
+        .map((tab) => {
+          const note = NOTES.tabNotes?.find((n) => n.tab === tab.value);
+          const rows = Object.values(m.rows)
+            .filter((r) => r.tab === tab.value)
+            .map((r) => `${r.title}: ${r.description}`);
+          // Same tab-specific extras the component renders.
+          const choices =
+            tab.value === 'allgemein'
+              ? [
+                  ['Aussehen', m.choices.theme],
+                  ['Sprache & Region', m.choices.locale],
+                  ['Startseite', m.choices.startPage],
+                ].map(([title, items]) => `${title}: ${items.map((c) => c.label).join(', ')}`)
+              : [];
+          const notifications =
+            tab.value === 'benachrichtigungen'
+              ? [
+                  ...m.notifications.levels.map((l) => `${l.label}: ${l.description}`),
+                  ...m.notifications.types.map((t) => `${t.label}: ${t.description}`),
+                ]
+              : [];
+          return [
+            `${tab.label}.`,
+            note?.intro,
+            ...rows,
+            ...choices,
+            ...notifications,
+            ...(note?.extras ?? []),
+          ]
+            .filter(Boolean)
+            .join(' ');
+        })
+        .join('\n\n'),
+  },
+  ToolOverview: {
+    manifest: 'tools.json',
+    expand: (m) =>
+      m.groups
+        .map((group) =>
+          [
+            `${group.title}.`,
+            ...group.tools.map(
+              (t) => `${t.title}: ${NOTES.toolNotes?.[t.id]?.note ?? t.description}`
+            ),
+          ].join(' ')
+        )
+        .join('\n\n'),
+  },
+  ToolOverviewCount: {
+    manifest: 'tools.json',
+    inline: true,
+    expand: (m) => String(m.groups.reduce((n, g) => n + g.tools.length, 0)),
+  },
+  ChatCapabilities: {
+    manifest: 'chat-capabilities.json',
+    // Only intents the code still has — the component filters the same way,
+    // so a retired capability drops out of the page AND the index.
+    expand: (m) =>
+      (NOTES.examples ?? [])
+        .filter((e) => m.intents.includes(e.intent))
+        .map((e) => `${e.label}${e.hint ? ` — ${e.hint}` : ''}: ${e.questions.join(' ')}`)
+        .join('\n\n'),
   },
 };
 
@@ -270,11 +362,26 @@ function firstParagraph(body) {
   return candidates.length > 0 ? truncateLead(candidates[0]) : '';
 }
 
-/** Cap at the last word boundary before the limit — never mid-word. */
-function truncateSection(text) {
-  if (text.length <= SECTION_MAX_CHARS) return text;
-  const cut = text.lastIndexOf(' ', SECTION_MAX_CHARS - 1);
-  return `${text.slice(0, cut > 0 ? cut : SECTION_MAX_CHARS - 1).trimEnd()}…`;
+/**
+ * Split a long section into chunks of at most SECTION_MAX_CHARS, at a sentence
+ * end where possible, else at a word boundary. It used to be truncated: the
+ * tail of every long section — the Öko-Modus in „Unsere europäischen Partner",
+ * 33 of 59 recipes — was simply not searchable. Each chunk keeps the section's
+ * heading and anchor, so a hit still deep-links to the right place.
+ */
+function chunkSection(text) {
+  const chunks = [];
+  let rest = text;
+  while (rest.length > SECTION_MAX_CHARS) {
+    const window = rest.slice(0, SECTION_MAX_CHARS);
+    const sentenceEnd = Math.max(window.lastIndexOf('. '), window.lastIndexOf('? '));
+    const cut = sentenceEnd > SECTION_MAX_CHARS / 2 ? sentenceEnd + 1 : window.lastIndexOf(' ');
+    const at = cut > 0 ? cut : SECTION_MAX_CHARS;
+    chunks.push(rest.slice(0, at).trim());
+    rest = rest.slice(at).trim();
+  }
+  if (rest) chunks.push(rest);
+  return chunks;
 }
 
 function truncateLead(text) {
@@ -322,14 +429,16 @@ function build() {
     for (const section of splitSections(body, title)) {
       const text = stripMarkdown(section.lines.join('\n'));
       if (text.length < 40) continue;
-      sections.push({
-        url,
-        pageTitle: title,
-        heading: section.heading,
-        anchor: section.anchor,
-        category,
-        text: truncateSection(text),
-      });
+      for (const chunk of chunkSection(text)) {
+        sections.push({
+          url,
+          pageTitle: title,
+          heading: section.heading,
+          anchor: section.anchor,
+          category,
+          text: chunk,
+        });
+      }
     }
   }
 

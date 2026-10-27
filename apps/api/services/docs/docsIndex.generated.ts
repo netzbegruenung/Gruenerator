@@ -137,6 +137,12 @@ export const DOCS_PAGES: readonly DocPage[] = [
     "lead": "Ein Dokument ist der Ort für Fließtext: Anträge, Pressemitteilungen, Protokolle, Notizen, Einladungen. Du legst es über Leeres Dokument an oder startest über Vorlagen aus einer Vorlage."
   },
   {
+    "url": "/docs/features/explainables",
+    "title": "Explainables",
+    "category": "Features",
+    "lead": "Ein Explainable ist eine Erklärseite in einfacher Sprache: ein Thema in kurzen Abschnitten, dazu zwei bis drei gemalte Erklärbilder, die einen Ablauf, einen Aufbau oder ein Vorher-Nachher zeigen. Ged…"
+  },
+  {
     "url": "/docs/features/intro",
     "title": "Features",
     "category": "Features",
@@ -177,6 +183,12 @@ export const DOCS_PAGES: readonly DocPage[] = [
     "title": "Papierkorb",
     "category": "Features",
     "lead": "Was du im Grünerator löschst, ist nicht sofort weg: Es liegt zunächst 30 Tage im Papierkorb. Bis dahin kannst du es wiederherstellen; danach wird es endgültig gelöscht."
+  },
+  {
+    "url": "/docs/features/podcasts",
+    "title": "Podcasts",
+    "category": "Features",
+    "lead": "Aus einer Antwort im Chat oder im Notebook macht der Grünerator einen kurzen Podcast: ein Gespräch zweier KI-Stimmen. Eine Stimme moderiert und stellt die Fragen, die sich Zuhörende ohne Vorwissen st…"
   },
   {
     "url": "/docs/features/praesentationen",
@@ -453,7 +465,15 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Der aktuelle Stand: teilweise konform",
     "anchor": "#der-aktuelle-stand-teilweise-konform",
     "category": "Basics",
-    "text": "Behoben und nachgemessen sind unter anderem: Die eingeklappte Hauptnavigation. Sie war mit Screenreader unbenutzbar — die Beschriftungen der Knöpfe waren nicht nur unsichtbar, sondern vollständig aus der Vorlesereihenfolge entfernt. Das war mit Abstand die schwerste Barriere. Die Tastaturfalle im Untertitel-Werkzeug. Die Tabulatortaste kam aus der Segmentliste nicht mehr heraus. Jetzt wechseln die Pfeiltasten das Segment, und Tab bleibt Tab. Aufgabenkarten auf Boards haben einen echten Ziehgriff, der per Tastatur bedienbar ist. Ziehen mit der Maus funktioniert weiter auf der ganzen Karte. Weißer Text auf den Markenfarben erreichte den geforderten Kontrast nicht. Das betraf den Marken-Button und alle Abzeichen in Eukalyptus-Grün. Graue Textstufen erreichen jetzt in hellem wie dunklem Modus die geforderten 4,5:1. Die Initialen im Avatar (sichtbar, solange kein Bild hinterlegt ist) standen weiß auf einem Grün mit 3,73:1. Sie erreichen jetzt 7,24:1. Rund 300 Bedienelemente der Mobil-App hatten keinen vorlesbaren Namen — mit Screenreader hörte man nur „Schaltfläche\", ohne zu erfahren, welche. Alle haben jetzt einen. Der Sharepic- und Canvas-Editor ist ohne Maus bedienbar, siehe den…"
+    "text": "Behoben und nachgemessen sind unter anderem: Die eingeklappte Hauptnavigation. Sie war mit Screenreader unbenutzbar — die Beschriftungen der Knöpfe waren nicht nur unsichtbar, sondern vollständig aus der Vorlesereihenfolge entfernt. Das war mit Abstand die schwerste Barriere. Die Tastaturfalle im Untertitel-Werkzeug. Die Tabulatortaste kam aus der Segmentliste nicht mehr heraus. Jetzt wechseln die Pfeiltasten das Segment, und Tab bleibt Tab. Aufgabenkarten auf Boards haben einen echten Ziehgriff, der per Tastatur bedienbar ist. Ziehen mit der Maus funktioniert weiter auf der ganzen Karte. Weißer Text auf den Markenfarben erreichte den geforderten Kontrast nicht. Das betraf den Marken-Button und alle Abzeichen in Eukalyptus-Grün. Graue Textstufen erreichen jetzt in hellem wie dunklem Modus die geforderten 4,5:1. Die Initialen im Avatar (sichtbar, solange kein Bild hinterlegt ist) standen weiß auf einem Grün mit 3,73:1. Sie erreichen jetzt 7,24:1. Rund 300 Bedienelemente der Mobil-App hatten keinen vorlesbaren Namen — mit Screenreader hörte man nur „Schaltfläche\", ohne zu erfahren, welche. Alle haben jetzt einen."
+  },
+  {
+    "url": "/docs/basics/barrierefreiheit",
+    "pageTitle": "Barrierefreiheit",
+    "heading": "Der aktuelle Stand: teilweise konform",
+    "anchor": "#der-aktuelle-stand-teilweise-konform",
+    "category": "Basics",
+    "text": "Der Sharepic- und Canvas-Editor ist ohne Maus bedienbar, siehe den eigenen Abschnitt weiter unten."
   },
   {
     "url": "/docs/basics/barrierefreiheit",
@@ -493,7 +513,23 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Sharepic- und Canvas-Editor",
     "anchor": "#sharepic--und-canvas-editor",
     "category": "Basics",
-    "text": "Der Editor zeichnet seine Fläche auf eine Leinwand. Damit er trotzdem ohne Maus und mit Screenreader nutzbar ist, gibt es zu allem Sichtbaren einen Zwilling im Bedienbaum. Was per Tastatur geht: Sprunglink „Zu den Ebenen\": Er ist per Tab erreichbar (nach der Chatliste und dem Feedback-Knopf) und öffnet die Ebenen-Liste. Ebenen-Liste: Sie führt alle Elemente der Seite, vorn zuerst. Pfeiltasten, Pos1 und Ende wählen, Leertaste schaltet die Auswahl um, Umschalt erweitert sie. Enter oder F2 bearbeitet den Text beziehungsweise tauscht das Bild eines Rahmens. Textbearbeitung: Der Texteditor trägt einen Namen, Escape schließt ihn, und der Fokus kehrt an die Stelle zurück, an der die Bearbeitung begann. Balken (zum Beispiel im Dreizeiler): Enter oder F2 auf dem Eintrag öffnet die erste Zeile („Zeile 1 bearbeiten\"), Tab springt zur nächsten Zeile, Umschalt+Tab zur vorigen; hinter der letzten Zeile geht der Fokus an den Eintrag zurück. Störer und Badges öffnen ihren Text genauso. Verschieben: Alt+Pfeiltaste schiebt das ausgewählte Element um 1 Einheit, mit zusätzlich Umschalt um 10. Zahlenfelder für Position und Größe sowie Knöpfe zum Drehen und Spiegeln in der Kontextleiste ersetzen das…"
+    "text": "Der Editor zeichnet seine Fläche auf eine Leinwand. Damit er trotzdem ohne Maus und mit Screenreader nutzbar ist, gibt es zu allem Sichtbaren einen Zwilling im Bedienbaum. Was per Tastatur geht: Sprunglink „Zu den Ebenen\": Er ist per Tab erreichbar (nach der Chatliste und dem Feedback-Knopf) und öffnet die Ebenen-Liste. Ebenen-Liste: Sie führt alle Elemente der Seite, vorn zuerst. Pfeiltasten, Pos1 und Ende wählen, Leertaste schaltet die Auswahl um, Umschalt erweitert sie. Enter oder F2 bearbeitet den Text beziehungsweise tauscht das Bild eines Rahmens. Textbearbeitung: Der Texteditor trägt einen Namen, Escape schließt ihn, und der Fokus kehrt an die Stelle zurück, an der die Bearbeitung begann. Balken (zum Beispiel im Dreizeiler): Enter oder F2 auf dem Eintrag öffnet die erste Zeile („Zeile 1 bearbeiten\"), Tab springt zur nächsten Zeile, Umschalt+Tab zur vorigen; hinter der letzten Zeile geht der Fokus an den Eintrag zurück. Störer und Badges öffnen ihren Text genauso. Verschieben: Alt+Pfeiltaste schiebt das ausgewählte Element um 1 Einheit, mit zusätzlich Umschalt um 10."
+  },
+  {
+    "url": "/docs/basics/barrierefreiheit",
+    "pageTitle": "Barrierefreiheit",
+    "heading": "Sharepic- und Canvas-Editor",
+    "anchor": "#sharepic--und-canvas-editor",
+    "category": "Basics",
+    "text": "Zahlenfelder für Position und Größe sowie Knöpfe zum Drehen und Spiegeln in der Kontextleiste ersetzen das freie Ziehen mit der Maus. Foto zuschneiden: Ausschnitt mit den Pfeiltasten verschieben und zoomen, Enter beendet. Löschen, Rückgängig, Kopieren, Duplizieren, Alles auswählen laufen über die üblichen Tastenkürzel und über die Leiste. Ist eine Aktion ohne sichtbare Rückmeldung geschehen, sagt eine Statusmeldung sie an („Gelöscht: …\", „Rückgängig gemacht\"). Alternativtext für das fertige Bild lässt sich im Bereich Herunterladen und Teilen und im Teilen-Menü der Kopfleiste eintragen und kopieren. In den Beitragstext beim Teilen geht er nur, wenn „Bildbeschreibung im Beitragstext mitschicken“ angehakt ist. Mobil (unter 900 px) hat dieselben Wege: die Bereichsleiste ist eine benannte Navigation („Editor-Bereiche“), die Auswahl-Leiste und die Leiste am Objekt sind benannte Werkzeugleisten. Bekannte Grenzen: Die gezeichnete Fläche beschreibt sich nur mit einer Kurzfassung („Seite 1: Text: …, Balken: …, Hintergrund\"), nicht mit ihrem Aussehen."
+  },
+  {
+    "url": "/docs/basics/barrierefreiheit",
+    "pageTitle": "Barrierefreiheit",
+    "heading": "Sharepic- und Canvas-Editor",
+    "anchor": "#sharepic--und-canvas-editor",
+    "category": "Basics",
+    "text": "Freies Ziehen, Drehen und Skalieren mit der Maus hat Ersatzwege (Alt+Pfeiltasten, Zahlenfelder, Dreh- und Spiegelknöpfe), aber keine gleichwertig flüssige Tastaturgeste. Feste Elemente einer Vorlage (zum Beispiel der Balken im Dreizeiler) lassen sich nicht löschen; Entf sagt dann an, dass sie zur Vorlage gehören. Alternativtext je Seite gibt es noch nicht. Ein Durchlauf mit Screenreadern (NVDA, VoiceOver, TalkBack) steht aus; geprüft sind Bedienbaum, Tastaturwege und axe-Regeln."
   },
   {
     "url": "/docs/basics/barrierefreiheit",
@@ -509,7 +545,15 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Was noch nicht erfüllt ist",
     "anchor": "#was-noch-nicht-erfüllt-ist",
     "category": "Basics",
-    "text": "Statusmeldungen werden kaum angesagt. Wenn eine Chat-Antwort beginnt oder endet, ein Werkzeug arbeitet, ein Upload fertig wird oder ein Formular einen Fehler meldet, erfährt ein Screenreader das in den meisten Fällen nicht. Das ist derzeit die größte offene Lücke. Videos haben keine Untertitelspur. Der Grünerator kann Untertitel erzeugen, verlangt sie aber bei eingebetteten Videos nicht. Einzelne Farbpaare liegen weiter unter dem geforderten Wert — bekannt sind ein Blau-auf-Blau-Paar im Bereich Projekte, das weiße Herz-Symbol auf grünem Grund bei gemerkten Vorlagen und Stellen im dunklen Modus, an denen das Primärgrün noch zu wenig Kontrast bietet. Die Seitenstruktur ist uneinheitlich. Nicht jede Seite kennzeichnet ihren Hauptbereich und ihre Navigationsleisten so, dass ein Screenreader direkt dorthin springen kann. Die Mobil-App ist nicht auf einem Gerät geprüft. Die Namen der Bedienelemente sind gesetzt, aber Kontrast, Reihenfolge beim Durchtippen und die tatsächlichen Ansagen von VoiceOver und TalkBack sind ungeprüft. Der Sharepic- und Canvas-Editor zeigt seine Fläche nur als Bild. Die Fläche ist gezeichnet; ein Screenreader bekommt den Inhalt über die Ebenen-Liste und die…"
+    "text": "Statusmeldungen werden kaum angesagt. Wenn eine Chat-Antwort beginnt oder endet, ein Werkzeug arbeitet, ein Upload fertig wird oder ein Formular einen Fehler meldet, erfährt ein Screenreader das in den meisten Fällen nicht. Das ist derzeit die größte offene Lücke. Videos haben keine Untertitelspur. Der Grünerator kann Untertitel erzeugen, verlangt sie aber bei eingebetteten Videos nicht. Einzelne Farbpaare liegen weiter unter dem geforderten Wert — bekannt sind ein Blau-auf-Blau-Paar im Bereich Projekte, das weiße Herz-Symbol auf grünem Grund bei gemerkten Vorlagen und Stellen im dunklen Modus, an denen das Primärgrün noch zu wenig Kontrast bietet. Die Seitenstruktur ist uneinheitlich. Nicht jede Seite kennzeichnet ihren Hauptbereich und ihre Navigationsleisten so, dass ein Screenreader direkt dorthin springen kann. Die Mobil-App ist nicht auf einem Gerät geprüft. Die Namen der Bedienelemente sind gesetzt, aber Kontrast, Reihenfolge beim Durchtippen und die tatsächlichen Ansagen von VoiceOver und TalkBack sind ungeprüft. Der Sharepic- und Canvas-Editor zeigt seine Fläche nur als Bild."
+  },
+  {
+    "url": "/docs/basics/barrierefreiheit",
+    "pageTitle": "Barrierefreiheit",
+    "heading": "Was noch nicht erfüllt ist",
+    "anchor": "#was-noch-nicht-erfüllt-ist",
+    "category": "Basics",
+    "text": "Die Fläche ist gezeichnet; ein Screenreader bekommt den Inhalt über die Ebenen-Liste und die Kurzbeschreibung der Seite, nicht aus den Pixeln. Wie ein Motiv aussieht, Farben und Anordnung eingeschlossen, sagen sie nicht. Alternativtexte gibt es im Editor für das fertige Bild, nicht je Seite. Bei mehrseitigen Entwürfen gilt ein Text für das Ganze. Nicht gemessen wurden bisher: die veröffentlichten Kandidat:innen-Seiten, die Desktop-App und diese Dokumentationsseite selbst."
   },
   {
     "url": "/docs/basics/barrierefreiheit",
@@ -541,7 +585,23 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Unsere europäischen Partner",
     "anchor": "#unsere-europäischen-partner",
     "category": "Basics",
-    "text": "Mistral AI (Frankreich) — Mistral Large 4 (mistral-large-4) für die Stufe Ultra, Sharepic-Texte, Rechenschritte und als Ausweichweg (seit Oktober 2026 anstelle von Mistral Medium 3.5), Suche und Notebooks mit mistral-embed, Transkription mit Voxtral (wenn Sprecherinnen erkannt werden sollen, sonst als Ausweichweg) KugelAudio (Berlin, Deutschland) — Sprachausgabe mit kugel-3: das Vorlesen von Antworten und die Stimme im Sprachdialog, ausschließlich über den EU-Endpunkt api.eu.kugelaudio.com. Seit September 2026 anstelle von Mistral Speech. Keine dauerhafte Speicherung der Inhalte, kein Training; jede erzeugte Audiodatei trägt ein Wasserzeichen nach Art. 50 KI-VO Black Forest Labs (Freiburg, Deutschland) — Bilderzeugung und -bearbeitung mit FLUX 3 (flux-3-image, seit Oktober 2026 anstelle von FLUX 2 Pro/Max) und FLUX 2 Klein, ausschließlich über den EU-Endpunkt api.eu.bfl.ai; die Websuche des Modells (grounding) ist abgeschaltet Cortecs (Vermittler, EU) — vermittelt Gemma 4 (gemma-4-31b-it) an Infercom SCS (Luxemburg, Verarbeitung in Deutschland). Seit August 2026 das Modell, das die meisten Chat-Antworten und fertigen Texte schreibt sowie lange Dokumente zusammenfasst; seit Oktober…"
+    "text": "Mistral AI (Frankreich) — Mistral Large 4 (mistral-large-4) für die Stufe Ultra, Sharepic-Texte, Rechenschritte und als Ausweichweg (seit Oktober 2026 anstelle von Mistral Medium 3.5), Suche und Notebooks mit mistral-embed, Transkription mit Voxtral (wenn Sprecherinnen erkannt werden sollen, sonst als Ausweichweg) KugelAudio (Berlin, Deutschland) — Sprachausgabe mit kugel-3: das Vorlesen von Antworten und die Stimme im Sprachdialog, ausschließlich über den EU-Endpunkt api.eu.kugelaudio.com. Seit September 2026 anstelle von Mistral Speech. Keine dauerhafte Speicherung der Inhalte, kein Training; jede erzeugte Audiodatei trägt ein Wasserzeichen nach Art. 50 KI-VO Black Forest Labs (Freiburg, Deutschland) — Bilderzeugung und -bearbeitung mit FLUX 3 (flux-3-image, seit Oktober 2026 anstelle von FLUX 2 Pro/Max) und FLUX 2 Klein, ausschließlich über den EU-Endpunkt api.eu.bfl.ai; die Websuche des Modells (grounding) ist abgeschaltet Cortecs (Vermittler, EU) — vermittelt Gemma 4 (gemma-4-31b-it) an Infercom SCS (Luxemburg, Verarbeitung in Deutschland)."
+  },
+  {
+    "url": "/docs/basics/gruenerator-pro-eu",
+    "pageTitle": "Grünerator Pro-EU",
+    "heading": "Unsere europäischen Partner",
+    "anchor": "#unsere-europäischen-partner",
+    "category": "Basics",
+    "text": "Seit August 2026 das Modell, das die meisten Chat-Antworten und fertigen Texte schreibt sowie lange Dokumente zusammenfasst; seit Oktober 2026 auch Notebook-Antworten, Dokument-Bearbeitung im Chat und das Lesen von Bildern. Cortecs bekommt bei jeder Anfrage die Weisung, nur in der EU ansässige Anbieter mit Zero Data Retention einzusetzen; welcher Anbieter tatsächlich gerechnet hat, steht in jeder Antwort und wird protokolliert GreenPT (Utrecht, Niederlande; Verarbeitung in Paris, Frankreich) — Anfragen einordnen und Werkzeug-Planung mit Mistral Small (Ausweichwege über Cortecs, Mistral und Melious; die Reihenfolge hängt von der Aufgabe ab), erzeugte Dateien (PDFs, Präsentationen, Tabellen, Dokumente) mit Gemma 4, das Sortieren von Suchergebnissen (Reranking) sowie die Transkription im Öko-Modus (Standard, solange keine Sprecherinnen erkannt werden sollen), 100 % erneuerbare Energie Melious (Saarbrücken, Deutschland; Gemma 4 und DeepSeek laufen auf Melious-Knoten in Finnland) — die freischaltpflichtige Modellstufe Panda (DeepSeek v4.1 Flash), Ausweichweg für Gemma 4 (Kreativtexte und Werkzeug-Planung), Bilderzeugung mit FLUX 2 Klein, unter anderem für „KI-Bild erstellen“ im"
+  },
+  {
+    "url": "/docs/basics/gruenerator-pro-eu",
+    "pageTitle": "Grünerator Pro-EU",
+    "heading": "Unsere europäischen Partner",
+    "anchor": "#unsere-europäischen-partner",
+    "category": "Basics",
+    "text": "Sharepic-Editor, sowie Gemma 4 für die experimentellen Boxen im Bild-Editor (Bildelemente erkennen, Layout planen) DeepL (Köln) — maschinelle Übersetzung von Texten und Dokumenten im Übersetzer und im Chat-Werkzeug textuebersetzen; Dokumente werden nach dem Abruf bei DeepL gelöscht verdigado eG (Deutschland / Finnland) — Infrastruktur und Datenbank. Die selbst gehostete Modell-Instanz bediente bis zum 29.08.2026 auch Sprachmodell-Anfragen; sie tut es nicht mehr (siehe Nachhaltigkeit) Linkup (Paris) — Websuche mit Quellenangaben im Chat und in der Recherche SearXNG (selbstgehostet, Deutschland) — Suche Hetzner (Deutschland) — Hosting, an deutschen Standorten mit 100 % Wasserkraft Wer europäische Werte vertritt, sollte europäische Werkzeuge nutzen. Der Grünerator zeigt, dass das ohne Qualitätsverlust möglich ist. Wie nachhaltig diese Partner arbeiten, zeigt Wie nachhaltig ist der Grünerator?. Details zu allen Anbietern findest du in unserer Datenschutzerklärung."
   },
   {
     "url": "/docs/basics/intro",
@@ -661,7 +721,15 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "So entsteht eine Zahl",
     "anchor": "#so-entsteht-eine-zahl",
     "category": "Basics",
-    "text": "Die Transparenz-Seite veröffentlicht die Eingaben und das Ergebnis je Anbieter. Damit lässt sich nachvollziehen, wie eine Summe zustande kommt, ohne technische Modellnamen kennen zu müssen. Direkt gemessene Anfragen: Wir übernehmen die Energie und CO₂-Werte aus der Antwort des Anbieters. 1 kWh = 1.000 Wh; die CO₂-Angabe wird unverändert in Gramm ausgewiesen. Geschätzte Textanfragen: Für jede Anfrage rechnen wir Energie = Eingabe-Tokens × Eingabe-Faktor + Ausgabe-Tokens × Ausgabe-Faktor + Anfragen × Grundwert. Ausgabe-Tokens zählen deutlich stärker, weil das Erzeugen einer Antwort mehr Rechenzeit benötigt als das Einlesen einer Anfrage. Rechenzentrum: Der geschätzte Energiebedarf wird mit dem PUE des Rechenzentrums korrigiert. Ist kein PUE veröffentlicht, kennzeichnen wir den standortbasierten Ersatzwert als Schätzung. CO₂: CO₂ = Energie in kWh × Netzintensität in g CO₂/kWh. Die Transparenz-Seite zeigt für jeden Anbieter die verwendete Netzintensität und den PUE direkt neben dessen Anteil. Für direkt gemessene Anfragen fallen keine zusätzlichen Annahmen an. Für geschätzte Anfragen zeigt die Transparenz-Seite getrennt, welcher Anteil gemessen, mit einem kalibrierten Faktor geschätzt…"
+    "text": "Die Transparenz-Seite veröffentlicht die Eingaben und das Ergebnis je Anbieter. Damit lässt sich nachvollziehen, wie eine Summe zustande kommt, ohne technische Modellnamen kennen zu müssen. Direkt gemessene Anfragen: Wir übernehmen die Energie und CO₂-Werte aus der Antwort des Anbieters. 1 kWh = 1.000 Wh; die CO₂-Angabe wird unverändert in Gramm ausgewiesen. Geschätzte Textanfragen: Für jede Anfrage rechnen wir Energie = Eingabe-Tokens × Eingabe-Faktor + Ausgabe-Tokens × Ausgabe-Faktor + Anfragen × Grundwert. Ausgabe-Tokens zählen deutlich stärker, weil das Erzeugen einer Antwort mehr Rechenzeit benötigt als das Einlesen einer Anfrage. Rechenzentrum: Der geschätzte Energiebedarf wird mit dem PUE des Rechenzentrums korrigiert. Ist kein PUE veröffentlicht, kennzeichnen wir den standortbasierten Ersatzwert als Schätzung. CO₂: CO₂ = Energie in kWh × Netzintensität in g CO₂/kWh. Die Transparenz-Seite zeigt für jeden Anbieter die verwendete Netzintensität und den PUE direkt neben dessen Anteil. Für direkt gemessene Anfragen fallen keine zusätzlichen Annahmen an."
+  },
+  {
+    "url": "/docs/basics/nachhaltigkeit",
+    "pageTitle": "Wie nachhaltig ist der Grünerator?",
+    "heading": "So entsteht eine Zahl",
+    "anchor": "#so-entsteht-eine-zahl",
+    "category": "Basics",
+    "text": "Für geschätzte Anfragen zeigt die Transparenz-Seite getrennt, welcher Anteil gemessen, mit einem kalibrierten Faktor geschätzt oder noch nicht bewertbar ist. Wo die Einordnung nur eine plausible Bandbreite zulässt, veröffentlichen wir Untergrenze, Mittelwert und Obergrenze statt einer einzelnen scheinpräzisen Zahl. Die Methode bleibt bei einem Wechsel der eingesetzten Technik gleich: Neue Systeme liefern entweder eigene Messwerte oder erhalten vor dem Einsatz ein versioniertes Berechnungsprofil. Die Seite zeigt immer die aktuellen Summen und Annahmen aus dem laufenden System – nicht eine von Hand gepflegte Modellliste."
   },
   {
     "url": "/docs/basics/nachhaltigkeit",
@@ -677,7 +745,15 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Vergleichswerte zur Einordnung",
     "anchor": "#vergleichswerte-zur-einordnung",
     "category": "Basics",
-    "text": "Vergleiche sollen eine Größenordnung vermitteln, nicht eine zweite Bilanz behaupten. In der Oberfläche verwenden wir deshalb nur den klar abgegrenzten Vergleich Pkw im deutschen Durchschnitt: 164 g CO₂e pro Personenkilometer. Das entspricht bei durchschnittlich 1,4 Personen pro Pkw etwa 6,1 Metern Pkw-Fahrt pro Gramm CO₂e. Der UBA-Wert enthält die Bereitstellung und Umwandlung der Energieträger; er ist kein Wert pro Fahrzeugkilometer. Umgerechnet wären das rund 230 g CO₂e je Fahrzeugkilometer. Weitere Vergleichswerte helfen bei der Einordnung, werden aber nicht in eine individuelle KI-Bilanz eingerechnet: Vergleich | Wert | Abgrenzung | ------------------------------------------------------- | ------------------------------------------: | ----------------------------------------------------------------------------------- | Pkw, Benzin / Diesel / Elektro | 165 / 175 / 70 g CO₂e pro Personenkilometer | Deutschland, durchschnittlicher Strommix bzw. Energievorkette enthalten (UBA, 2024) | Zug im Fernverkehr / Fernlinienbus / Flugzeug im Inland | 30 / 30 / 297 g CO₂e pro Personenkilometer | Deutschland, Bezugsjahr 2023 (UBA) | Kaffee mit 7 g / 10 g gemahlenem Kaffee | 58,8 / 84 g CO₂e…"
+    "text": "Vergleiche sollen eine Größenordnung vermitteln, nicht eine zweite Bilanz behaupten. In der Oberfläche verwenden wir deshalb nur den klar abgegrenzten Vergleich Pkw im deutschen Durchschnitt: 164 g CO₂e pro Personenkilometer. Das entspricht bei durchschnittlich 1,4 Personen pro Pkw etwa 6,1 Metern Pkw-Fahrt pro Gramm CO₂e. Der UBA-Wert enthält die Bereitstellung und Umwandlung der Energieträger; er ist kein Wert pro Fahrzeugkilometer. Umgerechnet wären das rund 230 g CO₂e je Fahrzeugkilometer. Weitere Vergleichswerte helfen bei der Einordnung, werden aber nicht in eine individuelle KI-Bilanz eingerechnet: Vergleich | Wert | Abgrenzung | ------------------------------------------------------- | ------------------------------------------: | ----------------------------------------------------------------------------------- | Pkw, Benzin / Diesel / Elektro | 165 / 175 / 70 g CO₂e pro Personenkilometer | Deutschland, durchschnittlicher Strommix bzw."
+  },
+  {
+    "url": "/docs/basics/nachhaltigkeit",
+    "pageTitle": "Wie nachhaltig ist der Grünerator?",
+    "heading": "Vergleichswerte zur Einordnung",
+    "anchor": "#vergleichswerte-zur-einordnung",
+    "category": "Basics",
+    "text": "Energievorkette enthalten (UBA, 2024) | Zug im Fernverkehr / Fernlinienbus / Flugzeug im Inland | 30 / 30 / 297 g CO₂e pro Personenkilometer | Deutschland, Bezugsjahr 2023 (UBA) | Kaffee mit 7 g / 10 g gemahlenem Kaffee | 58,8 / 84 g CO₂e pro Tasse | nur Kaffeepulver; ohne Zubereitungsstrom, Milch oder Becher (ADEME AGRIBALYSE) | Die Werte haben unterschiedliche Systemgrenzen. Besonders der Kaffeewert ist kein Vergleich für ein fertiges Getränk, und Verkehrswerte gelten pro transportierter Person. Deshalb nennen wir jeweils Einheit, Jahr und Auslassungen direkt mit."
   },
   {
     "url": "/docs/basics/nachhaltigkeit",
@@ -773,7 +849,31 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Das Fundament",
     "anchor": "#das-fundament",
     "category": "Basics",
-    "text": "Unter all diesen Funktionen liegt ein Fundament aus bewährten Open-Source-Bausteinen: React ist die Grundlage der gesamten Benutzeroberfläche – im Web wie in der App. Die von Meta entwickelte Bibliothek setzt aus einzelnen Komponenten zusammen, was du auf dem Bildschirm siehst, und aktualisiert Inhalte automatisch, sobald sich etwas ändert. GitHub · NPM Tauri verwandelt den Grünerator in eine echte Desktop-App für Windows und Mac. Anders als ältere Lösungen ist Tauri in der Programmiersprache Rust geschrieben und nutzt den im Betriebssystem vorhandenen Browser – dadurch werden die Programme deutlich kleiner und sparsamer. Es kümmert sich außerdem um Dinge wie automatische Updates und Benachrichtigungen. GitHub · NPM Expo & React Native sind die Grundlage der mobilen App für iPhone und Android. React Native erlaubt es, die App einmal zu schreiben und auf beiden Systemen als echte App laufen zu lassen; Expo liefert dazu die Werkzeuge und den Zugriff auf Funktionen wie Kamera, Mikrofon und Mitteilungen. Expo: GitHub · NPM React Native: GitHub · NPM Express ist der Server, der im Hintergrund alle Anfragen entgegennimmt. Das schlanke Standard-Framework für Node.js leitet jede Anfrage…"
+    "text": "Unter all diesen Funktionen liegt ein Fundament aus bewährten Open-Source-Bausteinen: React ist die Grundlage der gesamten Benutzeroberfläche – im Web wie in der App. Die von Meta entwickelte Bibliothek setzt aus einzelnen Komponenten zusammen, was du auf dem Bildschirm siehst, und aktualisiert Inhalte automatisch, sobald sich etwas ändert. GitHub · NPM Tauri verwandelt den Grünerator in eine echte Desktop-App für Windows und Mac. Anders als ältere Lösungen ist Tauri in der Programmiersprache Rust geschrieben und nutzt den im Betriebssystem vorhandenen Browser – dadurch werden die Programme deutlich kleiner und sparsamer. Es kümmert sich außerdem um Dinge wie automatische Updates und Benachrichtigungen. GitHub · NPM Expo & React Native sind die Grundlage der mobilen App für iPhone und Android. React Native erlaubt es, die App einmal zu schreiben und auf beiden Systemen als echte App laufen zu lassen; Expo liefert dazu die Werkzeuge und den Zugriff auf Funktionen wie Kamera, Mikrofon und Mitteilungen. Expo: GitHub · NPM React Native: GitHub · NPM Express ist der Server, der im Hintergrund alle Anfragen entgegennimmt."
+  },
+  {
+    "url": "/docs/basics/open-source",
+    "pageTitle": "Worauf der Grünerator aufbaut",
+    "heading": "Das Fundament",
+    "anchor": "#das-fundament",
+    "category": "Basics",
+    "text": "Das schlanke Standard-Framework für Node.js leitet jede Anfrage an die richtige Stelle weiter – egal ob du etwas grünerierst, eine Datei hochlädst oder eine Recherche startest. GitHub · NPM Vercel AI SDK ist der KI-Motor des Grünerators. Es verbindet den Grünerator mit den Sprachmodellen, liefert ihre Antworten Wort für Wort aus, während du zuschaust, und steuert auch die mehrstufigen Abläufe dahinter – etwa wenn der Chat erst recherchiert und dann eine Antwort formuliert oder eine Tiefenrecherche Teilfragen an mehrere Helfer verteilt. GitHub · NPM PostgreSQL ist die Datenbank, in der der Grünerator deine Inhalte sicher speichert – von Dokumenten über Boards bis zu deinen Einstellungen. Sie ist seit Jahrzehnten erprobt und gilt als eine der zuverlässigsten Open-Source-Datenbanken überhaupt. GitHub Redis ist der schnelle Zwischenspeicher im Hintergrund. Er hält Anmeldesitzungen, merkt sich häufig gebrauchte Daten und begrenzt die Zahl der Anfragen pro Person, damit der Dienst für alle stabil bleibt. GitHub · NPM Better Auth kümmert sich um die Anmeldung. Die quelloffene Authentifizierungs-Bibliothek verwaltet Konten und Sitzungen und fügt sich in den Server des Grünerators ein."
+  },
+  {
+    "url": "/docs/basics/open-source",
+    "pageTitle": "Worauf der Grünerator aufbaut",
+    "heading": "Das Fundament",
+    "anchor": "#das-fundament",
+    "category": "Basics",
+    "text": "GitHub · NPM Drizzle ORM, Zod & ts-rest halten Daten und Schnittstellen zusammen. Drizzle beschreibt die Datenbanktabellen als Code, Zod prüft, ob eingehende Daten die erwartete Form haben, und ts-rest legt die Schnittstelle zwischen App und Server einmal fest – beide Seiten teilen sich dieselben Typen, Abweichungen fallen schon beim Entwickeln auf. Drizzle: GitHub · NPM Zod: GitHub · NPM ts-rest: GitHub · NPM Vite, Tailwind CSS & shadcn/ui formen die Weboberfläche. Vite baut die Seite und liefert sie schnell aus, Tailwind CSS stellt das Gerüst fürs Styling bereit, und shadcn/ui liefert zugängliche Bausteine wie Dialoge und Menüs, die auf Radix UI und Base UI aufbauen. Vite: GitHub · NPM Tailwind CSS: GitHub · NPM shadcn/ui: GitHub Zustand & TanStack Query steuern, was die App weiß. Zustand hält den Zustand auf deinem Gerät, etwa geöffnete Menüs oder Einstellungen. TanStack Query lädt Daten vom Server, merkt sie sich zwischen und aktualisiert sie, wenn sich etwas ändert. Zustand: GitHub · NPM TanStack Query: GitHub · NPM pdf.js, pdf-lib & docx lesen und erzeugen Dateien."
+  },
+  {
+    "url": "/docs/basics/open-source",
+    "pageTitle": "Worauf der Grünerator aufbaut",
+    "heading": "Das Fundament",
+    "anchor": "#das-fundament",
+    "category": "Basics",
+    "text": "pdf.js liest den Inhalt hochgeladener PDFs aus, pdf-lib und docx erstellen die PDF- und Word-Dateien, die du aus Dokumenten herunterladen kannst. pdf.js: GitHub · NPM pdf-lib: GitHub · NPM docx: GitHub · NPM Recharts zeichnet die Diagramme und Auswertungen. GitHub · NPM TypeScript ist die Programmiersprache, in der fast der gesamte Grünerator geschrieben ist. Die von Microsoft entwickelte Erweiterung von JavaScript prüft den Code schon beim Entwickeln auf Fehler, bevor sie bei dir ankommen – das macht den Grünerator stabiler und zuverlässiger. GitHub · NPM All diese Projekte werden offen und gemeinschaftlich entwickelt und stehen damit allen zur Verfügung. Genau wie bei der europäischen Infrastruktur setzt der Grünerator damit bewusst auf Transparenz statt Blackbox."
   },
   {
     "url": "/docs/basics/open-source",
@@ -965,7 +1065,23 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Verbotene KI-Praktiken (Artikel 5 des AI Act)",
     "anchor": "#verbotene-ki-praktiken-artikel-5-des-ai-act",
     "category": "Basics",
-    "text": "#### Manipulative KI-Systeme Verboten sind KI-Systeme, die menschliches Verhalten durch unterschwellige Beeinflussung oder die Ausnutzung von Schwachstellen einer Person oder Gruppe (z.B. Alter, Behinderung, soziale/wirtschaftliche Situation) erheblich nachteilig beeinflussen und dadurch physischen, psychischen oder finanziellen Schaden verursachen können. Im politischen Kontext könnte dies beispielsweise ein KI-System sein, das Wähler manipuliert, indem es auf nicht wahrnehmbare Weise Emotionen oder Vorurteile anspricht. #### Soziale Bewertung (Social Scoring) KI-Systeme, die Menschen oder Gruppen über einen bestimmten Zeitraum anhand ihres sozialen Verhaltens oder ihrer persönlichen Merkmale bewerten oder klassifizieren und dies zu Diskriminierung oder Ausgrenzung führt, sind verboten. Ein kommunalpolitisches Beispiel wäre ein System, das Bürger nach ihrem Engagement in der Gemeinde bewertet und dies dann für den Zugang zu öffentlichen Dienstleistungen verwendet. #### Echtzeit-Biometrische Fernidentifizierung Diese Praxis ist grundsätzlich verboten, da sie massiv in die Privatsphäre eingreift und ein Gefühl ständiger Überwachung erzeugen kann. Es gibt nur eng definierte und…"
+    "text": "#### Manipulative KI-Systeme Verboten sind KI-Systeme, die menschliches Verhalten durch unterschwellige Beeinflussung oder die Ausnutzung von Schwachstellen einer Person oder Gruppe (z.B. Alter, Behinderung, soziale/wirtschaftliche Situation) erheblich nachteilig beeinflussen und dadurch physischen, psychischen oder finanziellen Schaden verursachen können. Im politischen Kontext könnte dies beispielsweise ein KI-System sein, das Wähler manipuliert, indem es auf nicht wahrnehmbare Weise Emotionen oder Vorurteile anspricht. #### Soziale Bewertung (Social Scoring) KI-Systeme, die Menschen oder Gruppen über einen bestimmten Zeitraum anhand ihres sozialen Verhaltens oder ihrer persönlichen Merkmale bewerten oder klassifizieren und dies zu Diskriminierung oder Ausgrenzung führt, sind verboten. Ein kommunalpolitisches Beispiel wäre ein System, das Bürger nach ihrem Engagement in der Gemeinde bewertet und dies dann für den Zugang zu öffentlichen Dienstleistungen verwendet. #### Echtzeit-Biometrische Fernidentifizierung Diese Praxis ist grundsätzlich verboten, da sie massiv in die Privatsphäre eingreift und ein Gefühl ständiger Überwachung erzeugen kann."
+  },
+  {
+    "url": "/docs/basics/risiken-und-gefahren-von-llms",
+    "pageTitle": "Risiken und Gefahren",
+    "heading": "Verbotene KI-Praktiken (Artikel 5 des AI Act)",
+    "anchor": "#verbotene-ki-praktiken-artikel-5-des-ai-act",
+    "category": "Basics",
+    "text": "Es gibt nur eng definierte und streng begrenzte Ausnahmen, beispielsweise für die Suche nach Opfern von Straftaten, zur Abwehr von Terroranschlägen oder zur Identifizierung von Tätern bei besonders schweren Verbrechen. Diese Ausnahmen erfordern eine vorherige Genehmigung durch eine Justiz- oder Verwaltungsbehörde und sind zeitlich, geografisch und personenbezogen beschränkt. #### Risikobewertung von Straftaten basierend auf Profiling KI-Systeme, die das Risiko einer Person, eine Straftat zu begehen oder erneut zu begehen, ausschließlich auf Basis ihres Profilings oder persönlicher Eigenschaften vorhersagen, sind verboten. Eine KI-gestützte Vorhersage, dass ein Bürger aufgrund seiner sozioökonomischen Daten wahrscheinlich kriminell wird, wäre ein solches verbotenes System. #### Weitere verbotene Praktiken Ungezieltes Auslesen von Gesichtsbildern zur Datenbankerstellung: Das Erstellen oder Erweitern von Gesichtserkennungsdatenbanken durch das ungezielte Auslesen von Gesichtsbildern aus dem Internet oder von Videoüberwachungsaufnahmen ist untersagt."
+  },
+  {
+    "url": "/docs/basics/risiken-und-gefahren-von-llms",
+    "pageTitle": "Risiken und Gefahren",
+    "heading": "Verbotene KI-Praktiken (Artikel 5 des AI Act)",
+    "anchor": "#verbotene-ki-praktiken-artikel-5-des-ai-act",
+    "category": "Basics",
+    "text": "Emotionserkennung am Arbeitsplatz und in Bildungseinrichtungen: Der Einsatz von KI-Systemen zur Ableitung von Emotionen von Personen in diesen Kontexten ist verboten, es sei denn, es dient medizinischen oder Sicherheitszwecken. Biometrische Kategorisierung sensibler Attribute: Das Kategorisieren von Personen anhand biometrischer Daten zur Ableitung von Rasse, politischen Ansichten, sexueller Orientierung oder religiösen Überzeugungen ist verboten."
   },
   {
     "url": "/docs/basics/risiken-und-gefahren-von-llms",
@@ -989,7 +1105,15 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Die Oberfläche hat zwei Tabs",
     "anchor": "#die-oberfläche-hat-zwei-tabs",
     "category": "Basics",
-    "text": "Oben in der Mitte sitzen zwei Umschalter, und dahinter steckt die wichtigste Entscheidung: Chat ist die Startseite. Hier schreibst du in normalem Deutsch, was du brauchst, und der Grünerator wählt selbst, was er dafür tut — nachschlagen, recherchieren, rechnen, etwas erstellen. Für die meisten Aufgaben ist das der schnellste Weg, und du musst kein Werkzeug kennen. Was dort alles möglich ist, steht unter Was kann ich fragen?. Arbeiten ist die Werkzeugkiste. Hierher gehst du, wenn du gezielt etwas öffnen willst — ein bestimmtes Board, die Bildbearbeitung, deine Notebooks. Viele Werkzeuge auf dieser Seite lassen sich auch aus dem Chat heraus auslösen. „Mach mir daraus ein Sharepic\" oder „Erstell eine Tabelle mit den Zahlen\" führt ans selbe Ziel, ohne dass du den Bereich wechselst. Ein Doppelklick auf einen Text auf der Leinwand öffnet ihn zum Bearbeiten, mit einer kleinen Werkzeugleiste darüber: Aufzählung, nummerierte Liste und Unterstreichen (⌘U) überall, in den längeren Textfeldern — dem Text der Info-Vorlage und den Unterzeilen des Sliders — zusätzlich fett und kursiv, auch per ⌘B/⌘I. Das geht auch per Chat: „Setz den ersten Satz fett\" oder „Mach aus den drei Punkten eine…"
+    "text": "Oben in der Mitte sitzen zwei Umschalter, und dahinter steckt die wichtigste Entscheidung: Chat ist die Startseite. Hier schreibst du in normalem Deutsch, was du brauchst, und der Grünerator wählt selbst, was er dafür tut — nachschlagen, recherchieren, rechnen, etwas erstellen. Für die meisten Aufgaben ist das der schnellste Weg, und du musst kein Werkzeug kennen. Was dort alles möglich ist, steht unter Was kann ich fragen?. Arbeiten ist die Werkzeugkiste. Hierher gehst du, wenn du gezielt etwas öffnen willst — ein bestimmtes Board, die Bildbearbeitung, deine Notebooks. Viele Werkzeuge auf dieser Seite lassen sich auch aus dem Chat heraus auslösen. „Mach mir daraus ein Sharepic\" oder „Erstell eine Tabelle mit den Zahlen\" führt ans selbe Ziel, ohne dass du den Bereich wechselst. Ein Doppelklick auf einen Text auf der Leinwand öffnet ihn zum Bearbeiten, mit einer kleinen Werkzeugleiste darüber: Aufzählung, nummerierte Liste und Unterstreichen (⌘U) überall, in den längeren Textfeldern — dem Text der Info-Vorlage und den Unterzeilen des Sliders — zusätzlich fett und kursiv, auch per ⌘B/⌘I."
+  },
+  {
+    "url": "/docs/basics/tools",
+    "pageTitle": "Alle Werkzeuge",
+    "heading": "Die Oberfläche hat zwei Tabs",
+    "anchor": "#die-oberfläche-hat-zwei-tabs",
+    "category": "Basics",
+    "text": "Das geht auch per Chat: „Setz den ersten Satz fett\" oder „Mach aus den drei Punkten eine Aufzählung\" ändert das Sharepic entsprechend. Überschriften, Dreizeiler und Zitate bleiben bewusst ohne Fett und Kursiv — die Hausschrift hat nur einen Schnitt."
   },
   {
     "url": "/docs/basics/tools",
@@ -997,7 +1121,39 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Drei Bereiche, dann die Einzelwerkzeuge",
     "anchor": "#drei-bereiche-dann-die-einzelwerkzeuge",
     "category": "Basics",
-    "text": "Der Arbeiten-Tab gliedert sich in drei große Bereiche — Office für Text und Zahlen, Studio für Bilder und Videos, Wissen für Recherche. Jeder öffnet eine eigene Seite mit den zugehörigen Werkzeugen. Daneben liegen die Werkzeuge zum Organisieren und ein Menü mit dem Rest. Insgesamt sind es Werkzeuge:"
+    "text": "Der Arbeiten-Tab gliedert sich in drei große Bereiche — Office für Text und Zahlen, Studio für Bilder und Videos, Wissen für Recherche. Jeder öffnet eine eigene Seite mit den zugehörigen Werkzeugen. Daneben liegen die Werkzeuge zum Organisieren und ein Menü mit dem Rest. Insgesamt sind es 27 Werkzeuge: Die drei Bereiche. Office: Der Sammelpunkt für alles, woran man schreibt und plant: Dokumente, Boards, Tabellen und Präsentationen. Alle vier liegen im selben System, teilen sich Ordner und Freigaben und lassen sich gemeinsam bearbeiten. Studio: Alles Visuelle: KI-Bilder, Sharepics aus Vorlagen und untertitelte Reels. Nimm den Bereich, wenn am Ende ein Bild oder ein Video herauskommen soll — für Text und Zahlen ist Office richtig. Wissen: Recherche und Notebooks: eigene Quellensammlungen anlegen, durchsuchen und im Chat als Grundlage verwenden. Hier liegt auch der Monitor mit Themen und Umfragen. Office — Dokumente, Boards, Tabellen, Folien. Vorlagen: Startet ein neues Dokument aus einer fertigen Vorlage statt aus einem leeren Blatt — etwa ein Antrag oder eine Pressemitteilung mit passender Gliederung."
+  },
+  {
+    "url": "/docs/basics/tools",
+    "pageTitle": "Alle Werkzeuge",
+    "heading": "Drei Bereiche, dann die Einzelwerkzeuge",
+    "anchor": "#drei-bereiche-dann-die-einzelwerkzeuge",
+    "category": "Basics",
+    "text": "Leeres Dokument: Ein Textdokument für Anträge, Pressemitteilungen, Protokolle und Notizen. Mehrere Personen können gleichzeitig schreiben. Leeres Board: Ein Kanban-Board für Aufgaben und Redaktionsplanung. Der Grünerator kann in Karten mitarbeiten und ganze Spalten automatisch befüllen. Leere Tabelle: Eine Kalkulationstabelle mit Formeln, Filtern und bedingter Formatierung. Bestehende Excel- und CSV-Dateien lassen sich importieren. Leere Präsentation: Eine Foliensammlung mit Präsentationsmodus. Aus einem Rechercheauftrag im Chat kann direkt ein fertiger Foliensatz entstehen. Studio — Bilder, Sharepics, Reels. Vorlagen: Fertige Design-Vorlagen im grünen Erscheinungsbild — Ausgangspunkt für Sharepics, wenn du nicht bei null anfangen willst. KI-Bilder: Bilder mit KI erzeugen und bearbeiten. Gut für Motive, für die es kein passendes Foto gibt. Simple Reel: Untertitelt Videoclips automatisch und brennt die Untertitel ein. Gedacht für kurze Social-Clips. Voice: Grünerator Voice verwandelt Text in gesprochene Sprache — als Sprechertext für ein Reel, Ansage für den Anrufbeantworter, Vorlesefassung eines Textes oder Audiodeskription. Die Datei landet in der Mediathek."
+  },
+  {
+    "url": "/docs/basics/tools",
+    "pageTitle": "Alle Werkzeuge",
+    "heading": "Drei Bereiche, dann die Einzelwerkzeuge",
+    "anchor": "#drei-bereiche-dann-die-einzelwerkzeuge",
+    "category": "Basics",
+    "text": "Studio — Weitere Tools. Profilbild: Macht aus einem Foto ein Profilbild: Person freistellen und den Hintergrund per Klick wechseln — als Farbe, Verlauf, Vorlage oder eigenes Bild. Im Editor setzt du Sticker und verschiebst Person und Sticker direkt im Bild. Sticker & Hintergründe: Sticker und Hintergründe für dein Profilbild: unter „Entdecken“ öffnet sich der Marktplatz mit dem, was andere geteilt haben: liken, merken oder melden. Eigene Sticker bleiben privat, bis du sie mit Bestätigung der Bildrechte öffentlich machst. Bild erweitern: Erweitert ein Bild per KI auf ein anderes Format, zum Beispiel von Quer- auf Hochformat. Eine Vorschau zeigt vorab, welche Flächen die KI ergänzt. Hintergrund entfernen: Entfernt den Hintergrund eines Bildes und liefert die Person oder das Motiv als PNG mit transparentem Hintergrund. Mediathek: Alle deine Bilder, Sharepics, KI-Bilder, Videos und Audios an einem Ort: hochladen (auch per Drag & Drop), nach Art filtern, durchsuchen, Titel und Alt-Text pflegen, herunterladen, teilen oder in den Papierkorb legen — ohne Obergrenze. Bildgenerator: Nur für Österreich: ein Link zum Sharepic-Bildgenerator der Grünen Österreich auf bildgenerator.gruene.at."
+  },
+  {
+    "url": "/docs/basics/tools",
+    "pageTitle": "Alle Werkzeuge",
+    "heading": "Drei Bereiche, dann die Einzelwerkzeuge",
+    "anchor": "#drei-bereiche-dann-die-einzelwerkzeuge",
+    "category": "Basics",
+    "text": "Er läuft außerhalb des Grünerators — was du dort erstellst, landet nicht in deiner Mediathek. Organisieren. Marktplatz: Offizielle, Landesverbands- und öffentliche Agents, Rezepte, Vorlagen, Sticker und Hintergründe: stöbern, ausprobieren, zu deinen Grüneratoren holen und Eigenes teilen. Projekte: Projekte bündeln Chats, Dokumente und Mitglieder zu einem Arbeitszusammenhang — etwa für eine Kampagne oder einen Ortsverband. Weitere Werkzeuge. Übersetzer: Übersetzt Texte und ganze Dokumente (DOCX, PPTX, PDF …) mit DeepL — das gepflegte Grünen-Glossar wird automatisch angewendet. Apps & MCP: Verbindet den Grünerator mit ChatGPT, Claude oder Le Chat, sodass du dort auf grüne Programme und Beschlüsse zugreifen kannst. Transkription: Verschriftlicht Audioaufnahmen — für Interviews, Sitzungen und Sprachnotizen. Scanner: Wandelt Fotos und Scans in bearbeitbaren Text um — praktisch für abfotografierte Anträge oder Handzettel. Zeichenzähler: Zählt Zeichen und Wörter, mit den Grenzwerten der gängigen Social-Media-Plattformen. Newsletter: Der Grünerator-Newsletter mit neuen Funktionen und Beispielen. Führt auf ein externes Anmeldeformular."
+  },
+  {
+    "url": "/docs/basics/tools",
+    "pageTitle": "Alle Werkzeuge",
+    "heading": "Drei Bereiche, dann die Einzelwerkzeuge",
+    "anchor": "#drei-bereiche-dann-die-einzelwerkzeuge",
+    "category": "Basics",
+    "text": "Transparenz: Zeigt, was der Grünerator insgesamt an KI verbraucht — Tokens, Energie und CO₂, mit den Konstanten, mit denen gerechnet wurde. In der Expertinnenübersicht lässt sich nach Bereich (etwa Chat oder Monitor) und nach Eingabe- und Ausgabe-Tokens aufschlüsseln."
   },
   {
     "url": "/docs/basics/tools",
@@ -1061,7 +1217,15 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Der Lernprozess (Training)",
     "anchor": "#der-lernprozess-training",
     "category": "Basics",
-    "text": "Damit ein LLM menschenähnlich sprechen kann, muss es \"lernen\". Dieser Lernprozess, das Training, ist entscheidend: Riesige Datenmengen: Modelle wie GPT-4, das lange Zeit die Basis für ChatGPT bildete, wurden mit gigantischen Textmengen trainiert – für GPT-4 waren das 300 Milliarden Wörter. Diese Texte stammen aus dem Internet, aber das Modell weiß nicht, welche spezifischen Dokumente Teil seines Trainings waren. Es lernt daraus Sprachmuster, Grammatik, Fakten und Zusammenhänge, ohne diese explizit als Regeln programmiert bekommen zu haben. Menschliche Aufsicht: Der Lernprozess wird oft durch menschliches Feedback verbessert. Das Modell erhält positives oder negatives Feedback zu seinen Antworten, wodurch es seine Fähigkeiten weiter verfeinert, kohärentere und passendere Texte zu erzeugen. Hyperparameter: Das sind wie die \"Lernregeln\" des Modells. Sie beeinflussen, wie schnell und präzise das Modell lernt, indem sie ihm helfen, den Kontext besser zu erkennen und verschiedene Eingaben und Ausgaben zu verwalten. Das Transformer-Modell ist die spezielle Architektur eines neuronalen Netzwerks, die bei ChatGPT zum Einsatz kommt und besonders gut darin ist, zusammenhängende Textsequenzen…"
+    "text": "Damit ein LLM menschenähnlich sprechen kann, muss es \"lernen\". Dieser Lernprozess, das Training, ist entscheidend: Riesige Datenmengen: Modelle wie GPT-4, das lange Zeit die Basis für ChatGPT bildete, wurden mit gigantischen Textmengen trainiert – für GPT-4 waren das 300 Milliarden Wörter. Diese Texte stammen aus dem Internet, aber das Modell weiß nicht, welche spezifischen Dokumente Teil seines Trainings waren. Es lernt daraus Sprachmuster, Grammatik, Fakten und Zusammenhänge, ohne diese explizit als Regeln programmiert bekommen zu haben. Menschliche Aufsicht: Der Lernprozess wird oft durch menschliches Feedback verbessert. Das Modell erhält positives oder negatives Feedback zu seinen Antworten, wodurch es seine Fähigkeiten weiter verfeinert, kohärentere und passendere Texte zu erzeugen. Hyperparameter: Das sind wie die \"Lernregeln\" des Modells. Sie beeinflussen, wie schnell und präzise das Modell lernt, indem sie ihm helfen, den Kontext besser zu erkennen und verschiedene Eingaben und Ausgaben zu verwalten."
+  },
+  {
+    "url": "/docs/basics/wie-llms-funktionieren",
+    "pageTitle": "Wie LLMs funktionieren",
+    "heading": "Der Lernprozess (Training)",
+    "anchor": "#der-lernprozess-training",
+    "category": "Basics",
+    "text": "Das Transformer-Modell ist die spezielle Architektur eines neuronalen Netzwerks, die bei ChatGPT zum Einsatz kommt und besonders gut darin ist, zusammenhängende Textsequenzen zu verarbeiten und zu generieren."
   },
   {
     "url": "/docs/basics/wie-llms-funktionieren",
@@ -1229,7 +1393,23 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Rezepte auswählen",
     "anchor": "#rezepte-auswählen",
     "category": "Chat",
-    "text": "Rezepte sind spezialisierte Schreib-Modi, die auf bestimmte Textarten optimiert sind — sie kennen den richtigen Ton, die Struktur und die Längenvorgaben der jeweiligen Plattform. So wählst du ein Rezept: Tippe @ im Eingabefeld und wähle aus der Liste — Rezepte stehen dort ganz oben, oder öffne das „+\"-Menü im Eingabefeld — dort findest du auch die Rezept-Bibliothek mit allen Rezepten @presse Pressemitteilung @instagram Instagram @facebook Facebook @twitter Twitter / X @linkedin LinkedIn @reel Reel / TikTok @aktion Aktionsideen @wahlpruefstein Wahlprüfsteine @buergermail Bürgerinnen-Mail @antrag Antrag für Stadt- oder Gemeinderat @presse-berlin-fraktion PM Berlin (Fraktion) @presse-berlin-partei PM Berlin (Partei) @insta-berlin Insta Berlin @presse-mv-fraktion PM MV (Fraktion) @presse-mv-partei PM MV (Partei) @insta-mv Insta MV @presse-thueringen PM Thüringen @insta-thueringen Insta Thüringen @presse-brandenburg PM Brandenburg @insta-brandenburg Insta Brandenburg @presse-bayern-fraktion PM Bayern (Fraktion) @presse-bayern-partei PM Bayern (Partei) @presse-hessen-fraktion PM Hessen (Fraktion) @presse-hessen-partei PM Hessen (Partei) @presse-at Aussendung (AT) @presse-saarland PM…"
+    "text": "Rezepte sind spezialisierte Schreib-Modi, die auf bestimmte Textarten optimiert sind — sie kennen den richtigen Ton, die Struktur und die Längenvorgaben der jeweiligen Plattform. So wählst du ein Rezept: Tippe @ im Eingabefeld und wähle aus der Liste — Rezepte stehen dort ganz oben, oder öffne das „+\"-Menü im Eingabefeld — dort findest du auch die Rezept-Bibliothek mit allen Rezepten @presse Pressemitteilung @instagram Instagram @facebook Facebook @twitter Twitter / X @linkedin LinkedIn @reel Reel / TikTok @aktion Aktionsideen @wahlpruefstein Wahlprüfsteine @buergermail Bürgerinnen-Mail @antrag Antrag für Stadt- oder Gemeinderat @presse-berlin-fraktion PM Berlin (Fraktion) @presse-berlin-partei PM Berlin (Partei) @insta-berlin Insta Berlin @presse-mv-fraktion PM MV (Fraktion) @presse-mv-partei PM MV (Partei) @insta-mv Insta MV @presse-thueringen PM Thüringen @insta-thueringen Insta Thüringen @presse-brandenburg PM Brandenburg @insta-brandenburg Insta Brandenburg @presse-bayern-fraktion PM Bayern (Fraktion) @presse-bayern-partei PM Bayern (Partei) @presse-hessen-fraktion PM Hessen (Fraktion) @presse-hessen-partei PM Hessen (Partei) @presse-at Aussendung (AT) @presse-saarland PM"
+  },
+  {
+    "url": "/docs/chat/ki-chat",
+    "pageTitle": "KI-Chat",
+    "heading": "Rezepte auswählen",
+    "anchor": "#rezepte-auswählen",
+    "category": "Chat",
+    "text": "Saarland @presse-sachsen-anhalt-fraktion PM Sachsen-Anhalt (Fraktion) @presse-sachsen-anhalt-partei PM Sachsen-Anhalt (Partei) @insta-saarland Insta Saarland @insta-bayern Insta Bayern @insta-hessen Insta Hessen @insta-sachsen-anhalt Insta Sachsen-Anhalt @insta-at Insta Österreich @buerger-at Bürgerinnen-Mail Österreich @buerger-bayern Bürgerinnen-Mail Bayern @buerger-berlin Bürgerinnen-Mail Berlin @buerger-brandenburg Bürgerinnen-Mail Brandenburg @buerger-hamburg Bürgerinnen-Mail Hamburg @buerger-hessen Bürgerinnen-Mail Hessen @buerger-mv Bürgerinnen-Mail Mecklenburg-Vorpommern @buerger-saarland Bürgerinnen-Mail Saarland @buerger-sachsen-anhalt Bürgerinnen-Mail Sachsen-Anhalt @buerger-schleswig-holstein Bürgerinnen-Mail Schleswig-Holstein @buerger-thueringen Bürgerinnen-Mail Thüringen @beschluss-bayern Beschlussantrag Bayern @beschluss-berlin Beschlussantrag Berlin @beschluss-brandenburg Beschlussantrag Brandenburg @beschluss-hessen Beschlussantrag Hessen @beschluss-mv Beschlussantrag Mecklenburg-Vorpommern @beschluss-saarland Beschlussantrag Saarland @beschluss-sachsen-anhalt Beschlussantrag Sachsen-Anhalt @beschluss-thueringen Beschlussantrag Thüringen @wahlprogramm-bayern"
+  },
+  {
+    "url": "/docs/chat/ki-chat",
+    "pageTitle": "KI-Chat",
+    "heading": "Rezepte auswählen",
+    "anchor": "#rezepte-auswählen",
+    "category": "Chat",
+    "text": "Wahlprogramm Bayern @wahlprogramm-berlin Wahlprogramm Berlin @wahlprogramm-brandenburg Wahlprogramm Brandenburg @wahlprogramm-sachsen-anhalt Wahlprogramm Sachsen-Anhalt @wahlprogramm-thueringen Wahlprogramm Thüringen @reisekosten-nrw Reisekosten NRW (Beta) @reisekosten-nrw-vorbereiten Reise vorbereiten NRW (Beta) Neben den mitgelieferten Rezepten oben zeigt die @-Liste auch deine eigenen Rezepte, mit deinen Projekten geteilte und öffentliche Rezepte anderer aus dem Marktplatz. Sie stehen in eigenen Abschnitten: „aus deinen Gruppen\" und „von anderen\" (in der App: „Rezepte aus deinen Gruppen\", „Rezepte von anderen\"). Auf der Detailseite eines Rezepts aus dem Marktplatz öffnet Im Chat verwenden den Chat direkt mit diesem Rezept aktiviert. Du kannst ein Rezept mit Quellen und Werkzeugen kombinieren. Zum Beispiel: @presse @grundsatz Klimaschutz in Kommunen schreibt eine Pressemitteilung auf Basis des Grundsatzprogramms."
   },
   {
     "url": "/docs/chat/ki-chat",
@@ -1245,7 +1425,15 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Werkzeuge nutzen",
     "anchor": "#werkzeuge-nutzen",
     "category": "Chat",
-    "text": "Werkzeuge erweitern die Fähigkeiten des Chats über die reine Textgenerierung hinaus. Du kannst sie per @-Mention im Eingabefeld aktivieren — von der Recherche über Bildgenerierung bis zum Erstellen von Dokumenten, Tabellen und Präsentationen. @abgeordnetenwatch Abgeordnetenwatch @board-erstellen Board erstellen @bundestag Bundestag @canva Canva @diagramm Diagramm @verlauf Chatverlauf @rechnen Rechnen @connect Verbundene Accounts @wiederkehrend Wiederkehrende Aufgabe @deepresearch Tiefenrecherche @docs Dokument einfügen @dokument-erstellen Dokument erstellen @beispiele Beispiele @explainable-erstellen Explainable erstellen @doku Hilfe & Anleitungen @bildgenerieren Bildgenerierung @stadtbegruenen Stadt begrünen @bildbearbeiten Bild bearbeiten @pdf-erstellen PDF erstellen @praesentation-erstellen Präsentation erstellen @pressemitteilungen Pressemitteilungen @recherche Recherche @dokumente Dokumente @sharepic Sharepic @tabelle-erstellen Tabelle erstellen @zusammenfassung Zusammenfassung @umfragen Umfragen @vorlage Sharepic-Vorlage @link Link @wolke Wolke Was du mit jeder dieser Fähigkeiten konkret fragen kannst, zeigt dir die Seite Was kann ich fragen? mit Musterfragen zu jeder…"
+    "text": "Werkzeuge erweitern die Fähigkeiten des Chats über die reine Textgenerierung hinaus. Du kannst sie per @-Mention im Eingabefeld aktivieren — von der Recherche über Bildgenerierung bis zum Erstellen von Dokumenten, Tabellen und Präsentationen. @abgeordnetenwatch Abgeordnetenwatch @board-erstellen Board erstellen @bundestag Bundestag @canva Canva @diagramm Diagramm @verlauf Chatverlauf @rechnen Rechnen @connect Verbundene Accounts @wiederkehrend Wiederkehrende Aufgabe @deepresearch Tiefenrecherche @docs Dokument einfügen @dokument-erstellen Dokument erstellen @beispiele Beispiele @explainable-erstellen Explainable erstellen @doku Hilfe & Anleitungen @bildgenerieren Bildgenerierung @stadtbegruenen Stadt begrünen @bildbearbeiten Bild bearbeiten @pdf-erstellen PDF erstellen @praesentation-erstellen Präsentation erstellen @pressemitteilungen Pressemitteilungen @recherche Recherche @dokumente Dokumente @sharepic Sharepic @tabelle-erstellen Tabelle erstellen @zusammenfassung Zusammenfassung @umfragen Umfragen @vorlage Sharepic-Vorlage @link Link @wolke Wolke Was du mit jeder dieser Fähigkeiten konkret fragen kannst, zeigt dir die Seite Was kann ich fragen?"
+  },
+  {
+    "url": "/docs/chat/ki-chat",
+    "pageTitle": "KI-Chat",
+    "heading": "Werkzeuge nutzen",
+    "anchor": "#werkzeuge-nutzen",
+    "category": "Chat",
+    "text": "mit Musterfragen zu jeder Funktion. Im „+\"-Menü links im Eingabefeld stehen die Werkzeuge, mit denen du etwas erzeugst — Bild, Sharepic, Diagramm, Zusammenfassung, Dokument, Tabelle, Präsentation, Board — unter Erstellen. Ein Klick setzt die passende @-Erwähnung in deine Nachricht, und sie gilt jeweils für diese eine Nachricht. Werkzeuge, die etwas nachschlagen (@bundestag, @umfragen, @doku, @verlauf …), stehen bewusst nicht im Menü: sie sind Quellen, keine Handlungen. Du erreichst sie, indem du @ tippst — die Liste filtert mit. Zwei Schalter im Menü bleiben dagegen dauerhaft gesetzt, bis du sie wieder umlegst: Websuche und Dokumentensuche. Beide sind ab Werk an. Tiefenrecherche direkt darunter ist kein Schalter, sondern gilt nur für die nächste Nachricht."
   },
   {
     "url": "/docs/chat/ki-modelle",
@@ -1277,7 +1465,15 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Verfügbare Modelle",
     "anchor": "#verfügbare-modelle",
     "category": "Chat",
-    "text": "Du wählst eine Größe, kein Herstellermodell – dieselben drei Stufen findest du auch in der Chrome-Erweiterung. Im Excel-Add-in stehen Klein und Mittel zur Wahl. Klein – Am schnellsten, für kurze Aufgaben. Offenes Modell (Open Weights) bei einem europäischen Anbieter. Mittel – Eine gute Mischung aus Tempo und Qualität, besonders für Kreativtexte. Offenes Modell (Open Weights) bei einem europäischen Anbieter. Ultra – Die beste Qualität, für Recherche und lange Aufgaben. Läuft auf EU-Servern (Mistral AI, Frankreich). Panda – Für sehr anspruchsvolle Aufgaben, mit sichtbarem Nachdenken vor der Antwort. Dahinter steht DeepSeek, ein offenes Modell (Open Weights) aus China, das bei einem europäischen Anbieter läuft (Melious, Finnland) – deine Eingaben gehen nicht nach China. Panda ist nicht für alle sichtbar: Eine Administratorin oder ein Administrator deiner Instanz schaltet die Stufe nach einer Schulung für dein Konto frei. Fällt das Modell aus, antwortet Ultra. Im Notebook findest du Panda als vierte Suchtiefe nach Ultra: Gesucht wird wie bei Ultra, die Antwort schreibt Panda. Welches Modell hinter einer Stufe steckt, kann sich ändern, wenn ein besseres verfügbar wird – die Stufe…"
+    "text": "Du wählst eine Größe, kein Herstellermodell – dieselben drei Stufen findest du auch in der Chrome-Erweiterung. Im Excel-Add-in stehen Klein und Mittel zur Wahl. Klein – Am schnellsten, für kurze Aufgaben. Offenes Modell (Open Weights) bei einem europäischen Anbieter. Mittel – Eine gute Mischung aus Tempo und Qualität, besonders für Kreativtexte. Offenes Modell (Open Weights) bei einem europäischen Anbieter. Ultra – Die beste Qualität, für Recherche und lange Aufgaben. Läuft auf EU-Servern (Mistral AI, Frankreich). Panda – Für sehr anspruchsvolle Aufgaben, mit sichtbarem Nachdenken vor der Antwort. Dahinter steht DeepSeek, ein offenes Modell (Open Weights) aus China, das bei einem europäischen Anbieter läuft (Melious, Finnland) – deine Eingaben gehen nicht nach China. Panda ist nicht für alle sichtbar: Eine Administratorin oder ein Administrator deiner Instanz schaltet die Stufe nach einer Schulung für dein Konto frei. Fällt das Modell aus, antwortet Ultra. Im Notebook findest du Panda als vierte Suchtiefe nach Ultra: Gesucht wird wie bei Ultra, die Antwort schreibt Panda."
+  },
+  {
+    "url": "/docs/chat/ki-modelle",
+    "pageTitle": "KI-Modelle",
+    "heading": "Verfügbare Modelle",
+    "anchor": "#verfügbare-modelle",
+    "category": "Chat",
+    "text": "Welches Modell hinter einer Stufe steckt, kann sich ändern, wenn ein besseres verfügbar wird – die Stufe bleibt. Welche Anbieter aktuell dahinterstehen, steht jederzeit in der Datenschutzerklärung. Für die Bildgenerierung kommen eigene Modelle zum Einsatz (u. a. Flux von Black Forest Labs, Deutschland). Auch hier gilt: Verarbeitung auf europäischen Servern."
   },
   {
     "url": "/docs/chat/was-kann-ich-fragen",
@@ -1301,7 +1497,55 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Was du fragen kannst",
     "anchor": "#was-du-fragen-kannst",
     "category": "Chat",
-    "text": "Anfordern musst du nichts davon — es genügt, die Frage zu stellen. Die Kennzeichnungen an den Karten bedeuten: @kürzel — für diese Fähigkeit gibt es zusätzlich eine Erwähnung, mit der du sie im Eingabefeld vorwählen kannst. Nur ein Teil der Fähigkeiten hat so ein Kürzel, und das ist Absicht: Erwähnungen gibt es dort, wo die Vorauswahl wirklich etwas ändert — bei Quellen, die man gezielt ansteuert, und bei Formaten, die man bewusst wählt. Vieles erkennt der Grünerator auch ohne Erwähnung zuverlässig an der Formulierung allein. @wetter gibt es zusätzlich als Kürzel, sobald der Wetterdienst als Zusatzquelle verbunden ist — genau wie bei Bahn, tagesschau, trivago und Gesetze (siehe unten). experimentell — noch jung. Funktioniert, kann sich aber in Bedienung und Ergebnis noch ändern und ist nicht überall verfügbar. Verlass dich für etwas Wichtiges nicht blind darauf. Werkzeug: … — diese Fähigkeit lässt sich in eigenen Agents gezielt an- und abschalten. Zusatzquelle: … — dahinter steckt ein externer Dienst (Bahn, Wetterdienst, tagesschau, trivago, Gesetze), der pro Umgebung angebunden wird. Fehlt die Anbindung gerade, bleibt die Frage nicht unbeantwortet: der Grünerator weicht auf die…"
+    "text": "Anfordern musst du nichts davon — es genügt, die Frage zu stellen. Die Kennzeichnungen an den Karten bedeuten: @kürzel — für diese Fähigkeit gibt es zusätzlich eine Erwähnung, mit der du sie im Eingabefeld vorwählen kannst. Nur ein Teil der Fähigkeiten hat so ein Kürzel, und das ist Absicht: Erwähnungen gibt es dort, wo die Vorauswahl wirklich etwas ändert — bei Quellen, die man gezielt ansteuert, und bei Formaten, die man bewusst wählt. Vieles erkennt der Grünerator auch ohne Erwähnung zuverlässig an der Formulierung allein. @wetter gibt es zusätzlich als Kürzel, sobald der Wetterdienst als Zusatzquelle verbunden ist — genau wie bei Bahn, tagesschau, trivago und Gesetze (siehe unten). experimentell — noch jung. Funktioniert, kann sich aber in Bedienung und Ergebnis noch ändern und ist nicht überall verfügbar. Verlass dich für etwas Wichtiges nicht blind darauf. Werkzeug: … — diese Fähigkeit lässt sich in eigenen Agents gezielt an- und abschalten. Zusatzquelle: … — dahinter steckt ein externer Dienst (Bahn, Wetterdienst, tagesschau, trivago, Gesetze), der pro Umgebung angebunden wird."
+  },
+  {
+    "url": "/docs/chat/was-kann-ich-fragen",
+    "pageTitle": "Was kann ich fragen?",
+    "heading": "Was du fragen kannst",
+    "anchor": "#was-du-fragen-kannst",
+    "category": "Chat",
+    "text": "Fehlt die Anbindung gerade, bleibt die Frage nicht unbeantwortet: der Grünerator weicht auf die Websuche aus — bei Zugverbindungen dann ohne Live-Daten. Grüne Programme und Beschlüsse: Was steht im Grundsatzprogramm zum Thema Mieten? Welche Beschlüsse gibt es zur Kindergrundsicherung? @dokumente Wie positionieren wir uns zum Verbrenner-Aus? Websuche: Was ist diese Woche beim EU-Renaturierungsgesetz passiert? Wie viele Windräder wurden 2025 in Bayern genehmigt? Recherche in der Tiefe — Dieselbe Funktion wie „Recherche\" — bei aufwendigen Fragen wertet der Grünerator von sich aus mehrere Quellen aus und belegt die Antwort mit nummerierten Fundstellen. Umstellen musst du nichts, ausführliche Formulierungen genügen.: Recherchiere ausführlich, wie andere Kommunen die Wärmeplanung finanzieren. Mach mir eine gründliche Recherche zum Stand der Krankenhausreform mit Quellen. Positionen vergleichen — Zwei oder mehr Quellen werden gegenübergestellt statt nacheinander zusammengefasst.: Vergleiche unsere Position zum Klimageld mit der im Bundestagswahlprogramm. Was unterscheidet das Wahlprogramm Bayern vom Grundsatzprogramm beim Thema Landwirtschaft?"
+  },
+  {
+    "url": "/docs/chat/was-kann-ich-fragen",
+    "pageTitle": "Was kann ich fragen?",
+    "heading": "Was du fragen kannst",
+    "anchor": "#was-du-fragen-kannst",
+    "category": "Chat",
+    "text": "Beispiel-Posts aus dem Fundus — Zeigt echte Social-Media-Beiträge zu einem Thema als Vorlage oder Inspiration.: Zeig mir Beispiel-Posts zum Thema Radverkehr. Wie haben andere über den Kohleausstieg gepostet? Beispiel-Pressemitteilungen — Sucht bestehende Pressemitteilungen als Muster für Aufbau und Tonalität.: Gibt es Beispiel-Pressemitteilungen zum Thema ÖPNV-Ausbau? Zeig mir, wie andere Kreisverbände eine PM zum Haushalt geschrieben haben. Webseite lesen — Der Grünerator ruft eine Adresse auf, die du nennst, und arbeitet mit deren Inhalt weiter.: Lies https://www.gruene.de/artikel/… und fasse es in fünf Punkten zusammen. Was steht auf dieser Seite? https://… Hilfe zum Grünerator — Fragen zum Grünerator selbst werden in dieser Dokumentation nachgeschlagen und mit Link auf den passenden Artikel beantwortet.: Wie erstelle ich ein Sharepic? Wie verbinde ich meine Grüne Wolke? @doku Was kann der Untertitler? Frühere Chats und eigene Inhalte — Durchsucht deine bisherigen Unterhaltungen und deine gespeicherten Texte, Dokumente und Notizen.: Worüber haben wir letzte Woche zum Thema Haushalt gesprochen? Finde meinen Entwurf für die Rede zum Stadtfest."
+  },
+  {
+    "url": "/docs/chat/was-kann-ich-fragen",
+    "pageTitle": "Was kann ich fragen?",
+    "heading": "Was du fragen kannst",
+    "anchor": "#was-du-fragen-kannst",
+    "category": "Chat",
+    "text": "Bundestag: Welche Drucksachen gibt es zum Gebäudeenergiegesetz? Was hat unsere Fraktion in der letzten Debatte zum Klimaschutz gesagt? Abgeordnetenwatch: Wie hat die Union beim Lieferkettengesetz abgestimmt? Welche Nebentätigkeiten hat diese Abgeordnete gemeldet? Umfragen: Wie stehen wir aktuell in der Sonntagsfrage? Was sagen die Umfragen zur Landtagswahl in Sachsen-Anhalt? Bild erzeugen: Erstelle ein Bild von einem Lastenrad vor einem Rathaus. Generiere ein Hintergrundbild mit Windrädern im Sonnenaufgang. Bild bearbeiten — Hänge ein Bild an und beschreibe die Änderung. Für den Sonderfall „mehr Grün in die Stadt\" gibt es zusätzlich @stadtbegruenen.: Mach den Hintergrund auf diesem Bild heller. Entferne das Auto links im Bild. Sharepic — Aus einer Kernaussage wird eine fertige Grafik im grünen Design. Nur in der Web-Version.: Mach ein Sharepic mit der Aussage „Wärmepumpe statt Gasheizung\". Erstelle ein Sharepic zum Ausbau der Kinderbetreuung. Tabelle: Erstelle eine Tabelle mit unseren Wahlkampfterminen und Verantwortlichen. Leg eine Kalkulation für das Budget des Sommerfests an. Präsentation: Mach mir eine Präsentation über unser Mobilitätskonzept, zehn Folien."
+  },
+  {
+    "url": "/docs/chat/was-kann-ich-fragen",
+    "pageTitle": "Was kann ich fragen?",
+    "heading": "Was du fragen kannst",
+    "anchor": "#was-du-fragen-kannst",
+    "category": "Chat",
+    "text": "Erstelle Folien für den Rechenschaftsbericht der Fraktion. Als Dokument speichern: Speichere das als Dokument. Schreib daraus ein Dokument, das ich weiterbearbeiten kann. PDF erstellen — Fertige, barrierefreie PDFs zum Herunterladen — als Dokument, Brief mit Briefkopf oder ausfüllbares Formular.: Mach aus diesem Text ein PDF zum Ausdrucken. Schreib einen Brief an die Bürgermeisterin als PDF mit Briefkopf. Erstelle ein ausfüllbares Anmeldeformular für unser Sommerfest als PDF. Explainable — Ein Thema einfach erklärt, mit Erklärbildern. Startet über die Erwähnung @explainable-erstellen.: @explainable-erstellen Wie funktioniert eine Wärmepumpe? @explainable-erstellen Erklär das Klimageld so, dass es jeder versteht. Diagramm — Zahlen werden als Balken-, Linien- oder Kreisdiagramm dargestellt.: Stell die Umfragewerte der letzten sechs Monate als Diagramm dar. Mach ein Balkendiagramm aus diesen Mitgliederzahlen. Interaktive Darstellung — Kleine anzeigbare Ergebnisse wie Grafiken, Zeitstrahle oder Übersichten direkt im Chat.: Bau mir einen Zeitstrahl der Beschlüsse zur Wärmewende. Zeig die Struktur unseres Kreisverbands als Schaubild."
+  },
+  {
+    "url": "/docs/chat/was-kann-ich-fragen",
+    "pageTitle": "Was kann ich fragen?",
+    "heading": "Was du fragen kannst",
+    "anchor": "#was-du-fragen-kannst",
+    "category": "Chat",
+    "text": "Wiederkehrende Aufgabe: Schick mir jeden Montag eine Zusammenfassung der Nachrichten zur Klimapolitik. Erinnere mich monatlich daran, die Umfragewerte zu prüfen. Zusammenfassen: Fass dieses PDF in zehn Stichpunkten zusammen. Worum ging es in unserem Gespräch bisher? Rechnen und auszählen — Rechnungen, Umrechnungen, Datums- und Zählaufgaben werden tatsächlich gerechnet statt geschätzt.: Wie viele Tage sind es noch bis zur Kommunalwahl? Rechne aus, was 12.000 Euro auf 18 Monate pro Monat bedeuten. Ein erwähntes Dokument ändern — Erwähne das Dokument mit @ und sag, was geändert werden soll.: @Antrag Radwege kürze den Text auf eine Seite. Ergänze in @Pressemitteilung ein Zitat der Fraktionsvorsitzenden. Eine erstellte Tabelle ändern — Direkt nach dem Erstellen weiterschreiben — der Grünerator merkt sich die zuletzt erstellte Tabelle.: Mach die erste Zeile fett. Ergänze eine Summenzeile am Ende der Tabelle. Das offene Dokument ändern — Im Editor mit geöffneter Chat-Seitenleiste bezieht sich jede Anweisung auf das Dokument vor dir.: Formuliere den zweiten Absatz sachlicher. Füg am Ende eine Zusammenfassung in drei Punkten an."
+  },
+  {
+    "url": "/docs/chat/was-kann-ich-fragen",
+    "pageTitle": "Was kann ich fragen?",
+    "heading": "Was du fragen kannst",
+    "anchor": "#was-du-fragen-kannst",
+    "category": "Chat",
+    "text": "Ein erwähntes Board ändern — Aufgabenkarten auf einem Board anlegen, verschieben oder umbenennen.: Leg in @Wahlkampf-Board Karten für alle Infostand-Termine an. Verschieb die erledigten Aufgaben in @Projektboard nach „Fertig\". Das offene Board ändern — Wie oben, nur ohne Erwähnung — es gilt das Board, das gerade offen ist.: Erstell aus dieser Liste Aufgabenkarten. Ordne die Karten nach Fälligkeit. Dokument teilen — Ein Dokument mit einer Gruppe teilen, in der du Mitglied bist.: Teil das Dokument mit meiner Kreisverbands-Gruppe. Gib @Wahlprogramm-Entwurf für die Vorstandsgruppe frei."
   },
   {
     "url": "/docs/chat/was-kann-ich-fragen",
@@ -1309,7 +1553,15 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Wenn etwas nicht geht",
     "anchor": "#wenn-etwas-nicht-geht",
     "category": "Chat",
-    "text": "Manches ist nur in der Web-Version möglich. Excel-/CSV-Vorlagen über den Chat ausfüllen geht nur in der Web-Version unter gruenerator.eu; gespeicherte Tabellen öffnet die App aber im eingebetteten Editor. Reel-Untertitel bearbeitest du im Chat bislang nur in der Web-Version unter gruenerator.eu. Sharepics entstehen dagegen auch in der App — du siehst sie direkt im Gespräch, kannst sie teilen und speichern; zum Feinschliff öffnet sich der Editor eingebettet, ohne dass du die App verlässt. Einige Quellen decken nur Deutschland ab. Bundestag, Abgeordnetenwatch, Bahn, tagesschau und Gesetze (deutsches Bundesrecht) beziehen sich auf deutsche Daten. Bei österreichischen Fragen weicht der Grünerator auf die Websuche aus. Nicht jede Zusatzquelle ist überall angebunden. Bahn, Wetterdienst, tagesschau, trivago und Gesetze werden pro Umgebung eingerichtet. Fehlt eine, greift der Grünerator auf die Websuche zurück und sagt dazu, worauf die Antwort beruht — erfundene Abfahrtszeiten gibt es nicht. Erfindet der Grünerator nichts? Bei Recherchen und Datenquellen nennt er die Belege. Prüfe Zahlen und Zitate trotzdem, bevor sie nach außen gehen — mehr dazu unter Risiken und Gefahren von LLMs. Du…"
+    "text": "Manches ist nur in der Web-Version möglich. Excel-/CSV-Vorlagen über den Chat ausfüllen geht nur in der Web-Version unter gruenerator.eu; gespeicherte Tabellen öffnet die App aber im eingebetteten Editor. Reel-Untertitel bearbeitest du im Chat bislang nur in der Web-Version unter gruenerator.eu. Sharepics entstehen dagegen auch in der App — du siehst sie direkt im Gespräch, kannst sie teilen und speichern; zum Feinschliff öffnet sich der Editor eingebettet, ohne dass du die App verlässt. Einige Quellen decken nur Deutschland ab. Bundestag, Abgeordnetenwatch, Bahn, tagesschau und Gesetze (deutsches Bundesrecht) beziehen sich auf deutsche Daten. Bei österreichischen Fragen weicht der Grünerator auf die Websuche aus. Nicht jede Zusatzquelle ist überall angebunden. Bahn, Wetterdienst, tagesschau, trivago und Gesetze werden pro Umgebung eingerichtet. Fehlt eine, greift der Grünerator auf die Websuche zurück und sagt dazu, worauf die Antwort beruht — erfundene Abfahrtszeiten gibt es nicht. Erfindet der Grünerator nichts? Bei Recherchen und Datenquellen nennt er die Belege. Prüfe Zahlen und Zitate trotzdem, bevor sie nach außen gehen — mehr dazu unter Risiken und Gefahren von LLMs."
+  },
+  {
+    "url": "/docs/chat/was-kann-ich-fragen",
+    "pageTitle": "Was kann ich fragen?",
+    "heading": "Wenn etwas nicht geht",
+    "anchor": "#wenn-etwas-nicht-geht",
+    "category": "Chat",
+    "text": "Du nutzt den Grünerator in ChatGPT, Claude oder Le Chat? Dort steht ein kleinerer Funktionsumfang bereit — was dann möglich ist, steht unter Was kann ich den Grünerator-MCP-Server fragen?. Namen, Beschreibungen und Kürzel stammen direkt aus dem Programmcode des Grünerators. Kommt eine neue Fähigkeit dazu, meldet sich die Doku-Prüfung automatisch mit einem Hinweis, bis sie hier mit Musterfragen beschrieben ist — die Liste kann also nicht stillschweigend veralten."
   },
   {
     "url": "/docs/features/boards",
@@ -1333,7 +1585,15 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Den Grünerator in einer Karte fragen",
     "anchor": "#den-grünerator-in-einer-karte-fragen",
     "category": "Features",
-    "text": "Schreib in einem Kartenkommentar @Grünerator und dahinter deinen Auftrag. Die Antwort erscheint als Kommentar an derselben Karte — der Zusammenhang bleibt also dort, wo die Aufgabe steht. „@Grünerator recherchier den aktuellen Stand beim Radwegeausbau und fass das kurz zusammen.\" Standardmäßig antwortet er als Kommentar. Sagst du ausdrücklich, dass etwas anderes herauskommen soll, erzeugt er stattdessen ein eigenes Dokument und hängt es an die Karte: Was du schreibst | Was entsteht | ----------------------------------- | -------------------------------------------- | „…und mach eine Tabelle daraus\" | eine Tabelle, verknüpft mit der Karte | „…als Präsentation\" | eine Foliensammlung, verknüpft mit der Karte | „…leg daraus Aufgaben an\" | neue Karten im selben Board | „…und erledige sie\" | neue Karten, die er danach selbst bearbeitet | „…schreib ein Dokument dazu\" | ein Textdokument, verknüpft mit der Karte | Tabellen, Präsentationen und Aufgabenlisten entstehen nur, wenn du sie ausdrücklich nennst. Das ist Absicht: Wer nur eine Frage stellt, soll eine Antwort bekommen und nicht ungefragt ein neues Dokument. Beim Erledigen bearbeitet er nur die Karten, die reine Text- und…"
+    "text": "Schreib in einem Kartenkommentar @Grünerator und dahinter deinen Auftrag. Die Antwort erscheint als Kommentar an derselben Karte — der Zusammenhang bleibt also dort, wo die Aufgabe steht. „@Grünerator recherchier den aktuellen Stand beim Radwegeausbau und fass das kurz zusammen.\" Standardmäßig antwortet er als Kommentar. Sagst du ausdrücklich, dass etwas anderes herauskommen soll, erzeugt er stattdessen ein eigenes Dokument und hängt es an die Karte: Was du schreibst | Was entsteht | ----------------------------------- | -------------------------------------------- | „…und mach eine Tabelle daraus\" | eine Tabelle, verknüpft mit der Karte | „…als Präsentation\" | eine Foliensammlung, verknüpft mit der Karte | „…leg daraus Aufgaben an\" | neue Karten im selben Board | „…und erledige sie\" | neue Karten, die er danach selbst bearbeitet | „…schreib ein Dokument dazu\" | ein Textdokument, verknüpft mit der Karte | Tabellen, Präsentationen und Aufgabenlisten entstehen nur, wenn du sie ausdrücklich nennst. Das ist Absicht: Wer nur eine Frage stellt, soll eine Antwort bekommen und nicht ungefragt ein neues Dokument."
+  },
+  {
+    "url": "/docs/features/boards",
+    "pageTitle": "Boards",
+    "heading": "Den Grünerator in einer Karte fragen",
+    "anchor": "#den-grünerator-in-einer-karte-fragen",
+    "category": "Features",
+    "text": "Beim Erledigen bearbeitet er nur die Karten, die reine Text- und Recherchearbeit sind; Karten für Menschen (Termine, Druck, Absprachen) bleiben liegen. Baut ein Schritt auf einem anderen auf, wartet er, bis der vorige fertig ist, und liest dessen Ergebnis mit. Scheitert ein Schritt, brechen die darauf aufbauenden ab. Jedes Ergebnis landet an seiner eigenen Karte. Erzeugte Dokumente erben die Freigabe des Boards. Wer das Board sehen darf, sieht auch das Ergebnis — du musst nichts zusätzlich freigeben."
   },
   {
     "url": "/docs/features/boards",
@@ -1416,6 +1676,30 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "text": "Der Editor arbeitet mit Blöcken: Jeder Absatz, jede Überschrift, jede Liste ist ein eigener Baustein. Mit / mitten im Text öffnest du die Auswahl der Blocktypen — Überschrift, Liste, Zitat, Tabelle, Trennlinie."
   },
   {
+    "url": "/docs/features/explainables",
+    "pageTitle": "Explainables",
+    "heading": "Explainables",
+    "anchor": "",
+    "category": "Features",
+    "text": "Ein Explainable ist eine Erklärseite in einfacher Sprache: ein Thema in kurzen Abschnitten, dazu zwei bis drei gemalte Erklärbilder, die einen Ablauf, einen Aufbau oder ein Vorher-Nachher zeigen. Gedacht ist es für Menschen ohne Vorwissen — etwa um einen Beschluss, ein Gesetz oder eine Forderung verständlich zu machen."
+  },
+  {
+    "url": "/docs/features/explainables",
+    "pageTitle": "Explainables",
+    "heading": "Ansehen und teilen",
+    "anchor": "#ansehen-und-teilen",
+    "category": "Features",
+    "text": "Deine Explainables öffnest du unter /erklaert/…. Zum Teilen gibt es einen eigenen Link (/e/…), den auch Menschen ohne Grünerator-Konto öffnen können. Ein gelöschtes Explainable landet im Papierkorb."
+  },
+  {
+    "url": "/docs/features/explainables",
+    "pageTitle": "Explainables",
+    "heading": "So entsteht ein Explainable",
+    "anchor": "#so-entsteht-ein-explainable",
+    "category": "Features",
+    "text": "Im Chat: Tippe @explainable-erstellen und dahinter dein Thema, oder bitte den Chat ausdrücklich um ein Explainable. Aus einer Antwort: Unter einer Antwort öffnet das Dokument-Menü Als Explainable öffnen — die Antwort wird dann zur Erklärseite. Ein Erklärbild gehört zu einem Abschnitt; höchstens drei Abschnitte bekommen eines."
+  },
+  {
     "url": "/docs/features/intro",
     "pageTitle": "Features",
     "heading": "Features",
@@ -1461,7 +1745,15 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Landesverband-Agents",
     "anchor": "",
     "category": "Features",
-    "text": "Der Grünerator hat für mehrere Landesverbände eigene, regional getunte Agents. Sie schreiben nicht generisch-grün, sondern im konkreten Stil des jeweiligen Landesverbands — mit den richtigen Sprecher*innen, den lokalen Themen und der typischen Tonalität. Im Hintergrund recherchieren sie automatisch in der Wissensdatenbank des Landesverbands (Pressemitteilungen, Beschlüsse, Wahlprogramme); eine Websuche haben nur die Öffentlichkeitsarbeit- und die Beschluss-Agents. Es gibt bis zu fünf Sorten von Landesverband-Agents: Öffentlichkeitsarbeit — schreibt Pressemitteilungen und Social-Media-Posts im Stil des Landesverbands. Bürger*innenanfragen — formuliert versandfertige, recherchebasierte Antwort-E-Mails auf Anfragen von Bürger*innen. Wahlprüfsteine — beantwortet Fragenkataloge von Verbänden und Initiativen, im Format des Katalogs und im Stil des Landesverbands. Beschlussanträge — schreibt Beschlussanträge in der Beschlusssprache des Landesverbands, im Anschluss an seine bestehenden Beschlüsse. Nur wo die Beschlüsse des Landesverbands in der Wissensdatenbank liegen. Wahlprogramm — schlägt im Wahlprogramm des Landesverbands nach und prüft Aussagen dagegen. Nur wo das Wahlprogramm in der…"
+    "text": "Der Grünerator hat für mehrere Landesverbände eigene, regional getunte Agents. Sie schreiben nicht generisch-grün, sondern im konkreten Stil des jeweiligen Landesverbands — mit den richtigen Sprecher*innen, den lokalen Themen und der typischen Tonalität. Im Hintergrund recherchieren sie automatisch in der Wissensdatenbank des Landesverbands (Pressemitteilungen, Beschlüsse, Wahlprogramme); eine Websuche haben nur die Öffentlichkeitsarbeit- und die Beschluss-Agents. Es gibt bis zu fünf Sorten von Landesverband-Agents: Öffentlichkeitsarbeit — schreibt Pressemitteilungen und Social-Media-Posts im Stil des Landesverbands. Bürger*innenanfragen — formuliert versandfertige, recherchebasierte Antwort-E-Mails auf Anfragen von Bürger*innen. Wahlprüfsteine — beantwortet Fragenkataloge von Verbänden und Initiativen, im Format des Katalogs und im Stil des Landesverbands. Beschlussanträge — schreibt Beschlussanträge in der Beschlusssprache des Landesverbands, im Anschluss an seine bestehenden Beschlüsse. Nur wo die Beschlüsse des Landesverbands in der Wissensdatenbank liegen. Wahlprogramm — schlägt im Wahlprogramm des Landesverbands nach und prüft Aussagen dagegen."
+  },
+  {
+    "url": "/docs/features/landesverbaende",
+    "pageTitle": "Landesverband-Agents",
+    "heading": "Landesverband-Agents",
+    "anchor": "",
+    "category": "Features",
+    "text": "Nur wo das Wahlprogramm in der Wissensdatenbank liegt. Die Agents, Rezepte und Notebooks eines Landesverbands sind seinen Leuten zugeteilt: Sie erscheinen, sobald du in deinem Profil die Rolle Mitarbeiter*in Landesgeschäftsstelle (Österreich: Landesorganisation) mit deinem Bundesland hinterlegt hast. Wie das geht, steht unter Für deinen Landesverband einrichten."
   },
   {
     "url": "/docs/features/landesverbaende",
@@ -1477,7 +1769,15 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Beschlussanträge schreiben und Wahlprogramm nachschlagen",
     "anchor": "#beschlussanträge-schreiben-und-wahlprogramm-nachschlagen",
     "category": "Features",
-    "text": "Der Beschlussanträge-Agent schreibt Anträge so, wie der Landesverband beschließt: mit seiner Einleitungsformel, seinem Aufbau (Antragstext, Begründung), seinen Forderungsformeln und seiner Schreibweise. Vorher sucht er in den Beschlüssen des Landesverbands, was dazu schon beschlossen ist, und knüpft daran an; Zahlen und Rechtsstand holt er aus der Websuche. Was vor der Antragstellung noch zu klären ist, markiert er am Ende unter Offene Punkte. Der Wahlprogramm-Agent sucht ausschließlich im Wahlprogramm und nennt zu jeder Aussage Kapitel und Wortlaut. Gibst du ihm eine Aussage, prüft er, ob das Programm sie deckt. Landesverband | Beschlussanträge | Wahlprogramm | ---------------------- | --------------------------- | ------------------------------ | Berlin | @beschluss-berlin | @wahlprogramm-berlin | Mecklenburg-Vorpommern | @beschluss-mv | — | Thüringen | @beschluss-thueringen | @wahlprogramm-thueringen | Brandenburg | @beschluss-brandenburg | @wahlprogramm-brandenburg | Bayern | @beschluss-bayern | @wahlprogramm-bayern | Hessen | @beschluss-hessen | — | Sachsen-Anhalt | @beschluss-sachsen-anhalt | @wahlprogramm-sachsen-anhalt | Saarland | @beschluss-saarland | — | Tippst du die…"
+    "text": "Der Beschlussanträge-Agent schreibt Anträge so, wie der Landesverband beschließt: mit seiner Einleitungsformel, seinem Aufbau (Antragstext, Begründung), seinen Forderungsformeln und seiner Schreibweise. Vorher sucht er in den Beschlüssen des Landesverbands, was dazu schon beschlossen ist, und knüpft daran an; Zahlen und Rechtsstand holt er aus der Websuche. Was vor der Antragstellung noch zu klären ist, markiert er am Ende unter Offene Punkte. Der Wahlprogramm-Agent sucht ausschließlich im Wahlprogramm und nennt zu jeder Aussage Kapitel und Wortlaut. Gibst du ihm eine Aussage, prüft er, ob das Programm sie deckt."
+  },
+  {
+    "url": "/docs/features/landesverbaende",
+    "pageTitle": "Landesverband-Agents",
+    "heading": "Beschlussanträge schreiben und Wahlprogramm nachschlagen",
+    "anchor": "#beschlussanträge-schreiben-und-wahlprogramm-nachschlagen",
+    "category": "Features",
+    "text": "Landesverband | Beschlussanträge | Wahlprogramm | ---------------------- | --------------------------- | ------------------------------ | Berlin | @beschluss-berlin | @wahlprogramm-berlin | Mecklenburg-Vorpommern | @beschluss-mv | — | Thüringen | @beschluss-thueringen | @wahlprogramm-thueringen | Brandenburg | @beschluss-brandenburg | @wahlprogramm-brandenburg | Bayern | @beschluss-bayern | @wahlprogramm-bayern | Hessen | @beschluss-hessen | — | Sachsen-Anhalt | @beschluss-sachsen-anhalt | @wahlprogramm-sachsen-anhalt | Saarland | @beschluss-saarland | — | Tippst du die Abkürzung im normalen Chat, arbeitet der Chat wie der Agent: er schreibt den Antrag bzw. sucht für diese Anfrage nur im Programm des Landesverbands."
   },
   {
     "url": "/docs/features/landesverbaende",
@@ -1485,7 +1785,15 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Bürger*innenanfragen beantworten",
     "anchor": "#bürgerinnenanfragen-beantworten",
     "category": "Features",
-    "text": "Die Bürger*innenanfragen-Agents helfen dir, eingehende E-Mails von Bürger*innen zu beantworten. Du fügst die Anfrage ein, der Agent recherchiert die Positionen des Landesverbands (die Treffer erscheinen als Recherche-Karten im Chat) und formuliert eine versandfertige Antwort-E-Mail nach festem Aufbau: Anrede → Dank → inhaltliche Antwort → weiterführende Links. Du erreichst sie über die Landesverband-Seite (z. B. /agents/gruene-berlin) — dort wählst du den Bürger*innenservice statt der Öffentlichkeitsarbeit. Der Agent schreibt immer mit dem Rezept seines Landesverbands: Absender, Selbstbezeichnung, Genderschreibweise und Signatur folgen dem Verband. Im normalen Chat geht es auch ohne Agent: tippe die Rezept-Abkürzung deines Landesverbands und füge die Anfrage dahinter ein. Landesverband | Bürger*innen-Mail | ---------------------- | ------------------------- | Berlin | @buerger-berlin | Mecklenburg-Vorpommern | @buerger-mv | Thüringen | @buerger-thueringen | Brandenburg | @buerger-brandenburg | Bayern | @buerger-bayern | Hessen | @buerger-hessen | Sachsen-Anhalt | @buerger-sachsen-anhalt | Saarland | @buerger-saarland | Österreich | @buerger-at | Fügst du eine Anfrage ganz ohne…"
+    "text": "Die Bürger*innenanfragen-Agents helfen dir, eingehende E-Mails von Bürger*innen zu beantworten. Du fügst die Anfrage ein, der Agent recherchiert die Positionen des Landesverbands (die Treffer erscheinen als Recherche-Karten im Chat) und formuliert eine versandfertige Antwort-E-Mail nach festem Aufbau: Anrede → Dank → inhaltliche Antwort → weiterführende Links. Du erreichst sie über die Landesverband-Seite (z. B. /agents/gruene-berlin) — dort wählst du den Bürger*innenservice statt der Öffentlichkeitsarbeit. Der Agent schreibt immer mit dem Rezept seines Landesverbands: Absender, Selbstbezeichnung, Genderschreibweise und Signatur folgen dem Verband. Im normalen Chat geht es auch ohne Agent: tippe die Rezept-Abkürzung deines Landesverbands und füge die Anfrage dahinter ein."
+  },
+  {
+    "url": "/docs/features/landesverbaende",
+    "pageTitle": "Landesverband-Agents",
+    "heading": "Bürger*innenanfragen beantworten",
+    "anchor": "#bürgerinnenanfragen-beantworten",
+    "category": "Features",
+    "text": "Landesverband | Bürger*innen-Mail | ---------------------- | ------------------------- | Berlin | @buerger-berlin | Mecklenburg-Vorpommern | @buerger-mv | Thüringen | @buerger-thueringen | Brandenburg | @buerger-brandenburg | Bayern | @buerger-bayern | Hessen | @buerger-hessen | Sachsen-Anhalt | @buerger-sachsen-anhalt | Saarland | @buerger-saarland | Österreich | @buerger-at | Fügst du eine Anfrage ganz ohne Abkürzung ein und hast die Rolle genau eines Landesverbands hinterlegt, nimmt der Chat von sich aus die Variante deines Verbands. Eine ausdrücklich getippte Abkürzung wie @buergermail gilt dagegen immer so, wie du sie gewählt hast."
   },
   {
     "url": "/docs/features/landesverbaende",
@@ -1501,7 +1809,15 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "LV-Rezepte im Überblick",
     "anchor": "#lv-rezepte-im-überblick",
     "category": "Features",
-    "text": "Für diese Landesverbände gibt es eigene Rezept-Abkürzungen für Pressemitteilung und Instagram: Landesverband | Pressemitteilung | Instagram | ---------------------- | ------------------------------------------------------------------- | ----------------------- | Berlin | @presse-berlin-partei · @presse-berlin-fraktion | @insta-berlin | Mecklenburg-Vorpommern | @presse-mv-partei · @presse-mv-fraktion | @insta-mv | Thüringen | @presse-thueringen | @insta-thueringen | Brandenburg | @presse-brandenburg | @insta-brandenburg | Bayern | @presse-bayern-partei · @presse-bayern-fraktion | @insta-bayern | Hessen | @presse-hessen-partei · @presse-hessen-fraktion | @insta-hessen | Sachsen-Anhalt | @presse-sachsen-anhalt-partei · @presse-sachsen-anhalt-fraktion | @insta-sachsen-anhalt | Saarland | @presse-saarland | @insta-saarland | Wo zwei Presse-Rezepte stehen, schreibt das eine für den Landesverband und das andere für die Landtagsfraktion. Die Ebene entscheidet, an welchen Beispiel-Pressemitteilungen sich der Text ausrichtet — nimm die, für die du schreibst. Verbände mit nur einer Abkürzung führen im Korpus keine getrennten Ebenen. Unabhängig vom Landesverband gibt es allgemeine Rezepte für…"
+    "text": "Für diese Landesverbände gibt es eigene Rezept-Abkürzungen für Pressemitteilung und Instagram: Landesverband | Pressemitteilung | Instagram | ---------------------- | ------------------------------------------------------------------- | ----------------------- | Berlin | @presse-berlin-partei · @presse-berlin-fraktion | @insta-berlin | Mecklenburg-Vorpommern | @presse-mv-partei · @presse-mv-fraktion | @insta-mv | Thüringen | @presse-thueringen | @insta-thueringen | Brandenburg | @presse-brandenburg | @insta-brandenburg | Bayern | @presse-bayern-partei · @presse-bayern-fraktion | @insta-bayern | Hessen | @presse-hessen-partei · @presse-hessen-fraktion | @insta-hessen | Sachsen-Anhalt | @presse-sachsen-anhalt-partei · @presse-sachsen-anhalt-fraktion | @insta-sachsen-anhalt | Saarland | @presse-saarland | @insta-saarland | Wo zwei Presse-Rezepte stehen, schreibt das eine für den Landesverband und das andere für die Landtagsfraktion. Die Ebene entscheidet, an welchen Beispiel-Pressemitteilungen sich der Text ausrichtet — nimm die, für die du schreibst. Verbände mit nur einer Abkürzung führen im Korpus keine getrennten Ebenen."
+  },
+  {
+    "url": "/docs/features/landesverbaende",
+    "pageTitle": "Landesverband-Agents",
+    "heading": "LV-Rezepte im Überblick",
+    "anchor": "#lv-rezepte-im-überblick",
+    "category": "Features",
+    "text": "Unabhängig vom Landesverband gibt es allgemeine Rezepte für jede Plattform: @presse, @instagram, @facebook, @twitter, @linkedin und @reel. Sie greifen auf Beispiele aus allen Landesverbänden zurück. Die LV-Rezepte oben sind die Spezialversion mit eingebautem Regional-Stil."
   },
   {
     "url": "/docs/features/landesverbaende",
@@ -1541,7 +1857,15 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Deine Grüneratoren",
     "anchor": "#deine-grüneratoren",
     "category": "Features",
-    "text": "Die Seite Grüneratoren zeigt, womit du arbeitest, in drei Abschnitten: Agents, Rezepte und Wiederkehrende Aufgaben. Dazu gehört dreierlei: was du selbst gebaut hast, was jemand in einem deiner Projekte geteilt hat, was du dir aus dem Marktplatz dazugeholt hast. Woher eine Karte stammt, steht in ihrer grauen Zeile unter dem Titel. Weitere Aktionen liegen im Menü mit den drei Punkten: Bearbeiten, Teilen und Löschen bei Eigenem, Aus meinen Grüneratoren entfernen bei Dazugeholtem. Oben rechts stehen drei Schaltflächen: die Suche über Titel, Beschreibung und @-Namen, das Laden-Symbol (Marktplatz), das den Marktplatz mit Agents und Rezepten als Fenster über deiner Seite öffnet, Neu, um einen Agent, ein Rezept oder eine Wiederkehrende Aufgabe anzulegen. Unter Verlauf & Steuerung im selben Menü siehst du, wann deine wiederkehrenden Aufgaben gelaufen sind. Rechts neben der ersten Überschrift schaltest du zwischen drei und vier Karten pro Zeile um. Ein Agent kann auch nach Zeitplan laufen, etwa „jeden Montag eine Presseschau“. Angelegt wird er über Neu → Wiederkehrende Aufgabe. Im Editor erscheint dann ein zusätzlicher Zeitplan-Tab. Denselben Tab siehst du, wenn du später einen Agenten mit…"
+    "text": "Die Seite Grüneratoren zeigt, womit du arbeitest, in drei Abschnitten: Agents, Rezepte und Wiederkehrende Aufgaben. Dazu gehört dreierlei: was du selbst gebaut hast, was jemand in einem deiner Projekte geteilt hat, was du dir aus dem Marktplatz dazugeholt hast. Woher eine Karte stammt, steht in ihrer grauen Zeile unter dem Titel. Weitere Aktionen liegen im Menü mit den drei Punkten: Bearbeiten, Teilen und Löschen bei Eigenem, Aus meinen Grüneratoren entfernen bei Dazugeholtem. Oben rechts stehen drei Schaltflächen: die Suche über Titel, Beschreibung und @-Namen, das Laden-Symbol (Marktplatz), das den Marktplatz mit Agents und Rezepten als Fenster über deiner Seite öffnet, Neu, um einen Agent, ein Rezept oder eine Wiederkehrende Aufgabe anzulegen. Unter Verlauf & Steuerung im selben Menü siehst du, wann deine wiederkehrenden Aufgaben gelaufen sind. Rechts neben der ersten Überschrift schaltest du zwischen drei und vier Karten pro Zeile um. Ein Agent kann auch nach Zeitplan laufen, etwa „jeden Montag eine Presseschau“. Angelegt wird er über Neu → Wiederkehrende Aufgabe. Im Editor erscheint dann ein zusätzlicher Zeitplan-Tab."
+  },
+  {
+    "url": "/docs/features/marktplatz",
+    "pageTitle": "Grüneratoren und Marktplatz",
+    "heading": "Deine Grüneratoren",
+    "anchor": "#deine-grüneratoren",
+    "category": "Features",
+    "text": "Denselben Tab siehst du, wenn du später einen Agenten mit Zeitplan bearbeitest."
   },
   {
     "url": "/docs/features/marktplatz",
@@ -1549,7 +1873,15 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Der Marktplatz",
     "anchor": "#der-marktplatz",
     "category": "Features",
-    "text": "Den ganzen Marktplatz erreichst du unter /marktplatz. Oben wählst du die Art: Start: die Startseite des Marktplatzes. Oben steht ein Eintrag Im Fokus, darunter, was es aus deinem Landesverband, neu im Marktplatz und beliebt gibt, Vorlagen, Sticker und Hintergründe zum Gestalten und der Einstieg Nach Art stöbern. Ein Abschnitt erscheint erst, wenn genug darin liegt. Sobald du suchst oder nach Herkunft oder Sortierung filterst, siehst du stattdessen die Treffer, nach Art geordnet. Mit Alle anzeigen geht es zur ganzen Liste. Agents und Rezepte. Vorlagen: Vorlagen, die andere öffentlich geteilt haben. Die offiziellen Grünerator- und Druckvorlagen stehen weiter auf der Seite Vorlagen. Sticker und Hintergründe für dein Profilbild. Notebooks, die andere öffentlich gelistet haben. Du kannst sie öffnen und ihnen Fragen stellen, sie liken, kommentieren und merken. Gemerkte Notebooks findest du auf der Wissen-Seite unter Gemerkt. Die Kachel Öffentlich dort öffnet den Marktplatz direkt bei den Notebooks. Den Marktplatz gibt es auch als Fenster an den Stellen, wo du ihn brauchst, schon passend vorgefiltert: über deinen Grüneratoren (Agents und Rezepte), auf der Seite Vorlagen über Öffentliche…"
+    "text": "Den ganzen Marktplatz erreichst du unter /marktplatz. Oben wählst du die Art: Start: die Startseite des Marktplatzes. Oben steht ein Eintrag Im Fokus, darunter, was es aus deinem Landesverband, neu im Marktplatz und beliebt gibt, Vorlagen, Sticker und Hintergründe zum Gestalten und der Einstieg Nach Art stöbern. Ein Abschnitt erscheint erst, wenn genug darin liegt. Sobald du suchst oder nach Herkunft oder Sortierung filterst, siehst du stattdessen die Treffer, nach Art geordnet. Mit Alle anzeigen geht es zur ganzen Liste. Agents und Rezepte. Vorlagen: Vorlagen, die andere öffentlich geteilt haben. Die offiziellen Grünerator- und Druckvorlagen stehen weiter auf der Seite Vorlagen. Sticker und Hintergründe für dein Profilbild. Notebooks, die andere öffentlich gelistet haben. Du kannst sie öffnen und ihnen Fragen stellen, sie liken, kommentieren und merken. Gemerkte Notebooks findest du auf der Wissen-Seite unter Gemerkt. Die Kachel Öffentlich dort öffnet den Marktplatz direkt bei den Notebooks."
+  },
+  {
+    "url": "/docs/features/marktplatz",
+    "pageTitle": "Grüneratoren und Marktplatz",
+    "heading": "Der Marktplatz",
+    "anchor": "#der-marktplatz",
+    "category": "Features",
+    "text": "Den Marktplatz gibt es auch als Fenster an den Stellen, wo du ihn brauchst, schon passend vorgefiltert: über deinen Grüneratoren (Agents und Rezepte), auf der Seite Vorlagen über Öffentliche Vorlagen, bei Sticker & Hintergründe über Entdecken und im Profilbild-Editor. Dort genügt ein Klick auf einen Sticker oder Hintergrund, und er landet in deinem Bild. Im Marktplatz öffnen oben im Fenster bringt dich zur vollen Seite."
   },
   {
     "url": "/docs/features/marktplatz",
@@ -1565,7 +1897,15 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Detailseiten",
     "anchor": "#detailseiten",
     "category": "Features",
-    "text": "Jeder Agent und jedes Rezept hat eine eigene Detailseite, wie ein Produkt im Laden. Im Marktplatz kommst du über Alle Details dorthin. Agents (/agentura/agent/...): Kopfbereich mit den Aktionen Im Chat öffnen und dem Stern. Bei Agents, die nicht dir gehören, kommt Zu meinen Grüneratoren dazu. Bei deinen eigenen Agents gibt es Teilen, bei allen anderen heißt dieselbe Schaltfläche Link kopieren. Übersicht: Beschreibung des Agenten. Gesprächsbeginn: Begrüßungsnachricht und eine Vorschau auf Beispiel-Antworten. Fähigkeiten: welche Werkzeuge der Agent nutzt und auf welches Wissen er zugreift. Verwandte: ähnliche Agents, die zum Thema passen. Rezepte (/agentura/rezept/...): Kopfbereich mit den Aktionen Im Chat verwenden und dem Stern. Bei Rezepten, die nicht dir gehören, kommt Zu meinen Grüneratoren dazu. Bei deinen eigenen Rezepten gibt es Bearbeiten, Teilen und Löschen, bei allen anderen heißt die Teilen-Schaltfläche Link kopieren. Mitgelieferte Rezepte, die du anpassen darfst (z. B. Presse, Instagram, Landesverbands-Rezepte), haben im Kopfbereich zusätzlich Mit eigenen Beispielen anpassen. Hast du schon einen eigenen Stil hinterlegt, heißt dieselbe Schaltfläche Angepassten Stil…"
+    "text": "Jeder Agent und jedes Rezept hat eine eigene Detailseite, wie ein Produkt im Laden. Im Marktplatz kommst du über Alle Details dorthin. Agents (/agentura/agent/...): Kopfbereich mit den Aktionen Im Chat öffnen und dem Stern. Bei Agents, die nicht dir gehören, kommt Zu meinen Grüneratoren dazu. Bei deinen eigenen Agents gibt es Teilen, bei allen anderen heißt dieselbe Schaltfläche Link kopieren. Übersicht: Beschreibung des Agenten. Gesprächsbeginn: Begrüßungsnachricht und eine Vorschau auf Beispiel-Antworten. Fähigkeiten: welche Werkzeuge der Agent nutzt und auf welches Wissen er zugreift. Verwandte: ähnliche Agents, die zum Thema passen. Rezepte (/agentura/rezept/...): Kopfbereich mit den Aktionen Im Chat verwenden und dem Stern. Bei Rezepten, die nicht dir gehören, kommt Zu meinen Grüneratoren dazu. Bei deinen eigenen Rezepten gibt es Bearbeiten, Teilen und Löschen, bei allen anderen heißt die Teilen-Schaltfläche Link kopieren. Mitgelieferte Rezepte, die du anpassen darfst (z. B. Presse, Instagram, Landesverbands-Rezepte), haben im Kopfbereich zusätzlich Mit eigenen Beispielen anpassen."
+  },
+  {
+    "url": "/docs/features/marktplatz",
+    "pageTitle": "Grüneratoren und Marktplatz",
+    "heading": "Detailseiten",
+    "anchor": "#detailseiten",
+    "category": "Features",
+    "text": "Hast du schon einen eigenen Stil hinterlegt, heißt dieselbe Schaltfläche Angepassten Stil bearbeiten, und ein Abzeichen zeigt Du hast diesen Stil angepasst. Der vollständige Rezept-Text als Markdown. So siehst du genau, was das Rezept macht, bevor du es nutzt. Eine Vorlage und verwandte Rezepte."
   },
   {
     "url": "/docs/features/marktplatz",
@@ -1597,7 +1937,15 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Eigenes veröffentlichen",
     "anchor": "#eigenes-veröffentlichen",
     "category": "Features",
-    "text": "Was du baust oder hochlädst, bleibt privat, bis du es selbst freigibst. Am schnellsten geht das im Marktplatz: Das Plus oben rechts öffnet Element hinzufügen. Dort wählst du zuerst die Art (Agent, Rezept, Vorlage, Sticker, Hintergrund oder Notebook), dann eines deiner eigenen Elemente und zuletzt, wer es sehen soll: Privat: nur du. So nimmst du auch eine Freigabe wieder zurück. Projekt: die Mitglieder der Projekte, die du ankreuzt. Das geht für Agents, Rezepte und Notebooks. Bei Vorlagen, Stickern und Hintergründen steht die Option da, ist aber noch gesperrt. Öffentlich im Marktplatz: alle. Bei Agents, Rezepten und Notebooks bestätigst du, dass du die Inhalte besitzt oder sie veröffentlichen darfst, bei Stickern und Hintergründen die Bildrechte. Eine Vorlage reichst du damit zur Prüfung ein. Neue Elemente legst du dort an, wo sie zu Hause sind, nicht im Marktplatz. Freigeben kannst du sie auch dort: Agents: in deinen Grüneratoren über Teilen am Agenten. Schalte dort Auf „Öffentlich“ listen ein. Rezepte: genauso über Teilen und Auf „Öffentlich“ listen. Dabei bestätigst du einmal, dass du die Inhalte besitzt oder sie veröffentlichen darfst. Vorlagen: auf der Seite Vorlagen unter…"
+    "text": "Was du baust oder hochlädst, bleibt privat, bis du es selbst freigibst. Am schnellsten geht das im Marktplatz: Das Plus oben rechts öffnet Element hinzufügen. Dort wählst du zuerst die Art (Agent, Rezept, Vorlage, Sticker, Hintergrund oder Notebook), dann eines deiner eigenen Elemente und zuletzt, wer es sehen soll: Privat: nur du. So nimmst du auch eine Freigabe wieder zurück. Projekt: die Mitglieder der Projekte, die du ankreuzt. Das geht für Agents, Rezepte und Notebooks. Bei Vorlagen, Stickern und Hintergründen steht die Option da, ist aber noch gesperrt. Öffentlich im Marktplatz: alle. Bei Agents, Rezepten und Notebooks bestätigst du, dass du die Inhalte besitzt oder sie veröffentlichen darfst, bei Stickern und Hintergründen die Bildrechte. Eine Vorlage reichst du damit zur Prüfung ein. Neue Elemente legst du dort an, wo sie zu Hause sind, nicht im Marktplatz. Freigeben kannst du sie auch dort: Agents: in deinen Grüneratoren über Teilen am Agenten. Schalte dort Auf „Öffentlich“ listen ein. Rezepte: genauso über Teilen und Auf „Öffentlich“ listen. Dabei bestätigst du einmal, dass du die Inhalte besitzt oder sie veröffentlichen darfst."
+  },
+  {
+    "url": "/docs/features/marktplatz",
+    "pageTitle": "Grüneratoren und Marktplatz",
+    "heading": "Eigenes veröffentlichen",
+    "anchor": "#eigenes-veröffentlichen",
+    "category": "Features",
+    "text": "Vorlagen: auf der Seite Vorlagen unter Meine Vorlagen, im Menü der Vorlage über Zur Galerie einreichen. Das Grünerator-Team prüft eine eingereichte Vorlage, bevor sie im Marktplatz erscheint. Privat machen nimmt sie wieder heraus. Sticker und Hintergründe: bei Sticker & Hintergründe über Öffentlich machen an der Karte. Dabei bestätigst du, dass du die Bildrechte hast. Was du veröffentlichst, erscheint unter Öffentlich, und zwar für das Land, das in deinem Konto steht."
   },
   {
     "url": "/docs/features/marktplatz",
@@ -1693,7 +2041,15 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Häufige Fragen",
     "anchor": "#häufige-fragen",
     "category": "Features",
-    "text": "Wo schalte ich ein Notebook öffentlich? Nicht mehr in der Erstellung. Öffne das Notebook über Bearbeiten und klicke oben rechts auf „Teilen\". Wähle im Dialog die Sichtbarkeit „Mit Anmeldung\" und aktiviere „Auf ‚Öffentlich' listen\", damit es im Marktplatz unter Notebooks auffindbar wird. Alternativ im Marktplatz über das Plus → Notebook. Was passiert mit Dokumenten, wenn ich ein Notebook lösche? Die Dokumente bleiben in deiner persönlichen Dokumenten-Bibliothek erhalten — nur die Sammlung wird gelöscht. Kann ich dasselbe Dokument in mehrere Notebooks aufnehmen? Ja. Beim Bearbeiten eines Notebooks kannst du beliebige Dokumente aus deiner Bibliothek auswählen. Wie lange dauert die Indexierung? Bei Text-PDFs und reinen Textdateien meist nur Sekunden. Eingescannte PDFs (mit OCR) und sehr große Dateien können einige Minuten brauchen. Das Notebook ist trotzdem sofort nutzbar — neue Dokumente erscheinen in den Antworten, sobald die Indexierung abgeschlossen ist. Mein Dokument wird nicht akzeptiert. Prüfe die Dateiendung (PDF, DOCX, PPTX, TXT, MD, CSV, PNG, JPG, AVIF) und die Dateigröße (max. 50 MB). Andere Formate — darunter .doc, .odt und .rtf — musst du vorher als PDF oder DOCX…"
+    "text": "Wo schalte ich ein Notebook öffentlich? Nicht mehr in der Erstellung. Öffne das Notebook über Bearbeiten und klicke oben rechts auf „Teilen\". Wähle im Dialog die Sichtbarkeit „Mit Anmeldung\" und aktiviere „Auf ‚Öffentlich' listen\", damit es im Marktplatz unter Notebooks auffindbar wird. Alternativ im Marktplatz über das Plus → Notebook. Was passiert mit Dokumenten, wenn ich ein Notebook lösche? Die Dokumente bleiben in deiner persönlichen Dokumenten-Bibliothek erhalten — nur die Sammlung wird gelöscht. Kann ich dasselbe Dokument in mehrere Notebooks aufnehmen? Ja. Beim Bearbeiten eines Notebooks kannst du beliebige Dokumente aus deiner Bibliothek auswählen. Wie lange dauert die Indexierung? Bei Text-PDFs und reinen Textdateien meist nur Sekunden. Eingescannte PDFs (mit OCR) und sehr große Dateien können einige Minuten brauchen. Das Notebook ist trotzdem sofort nutzbar — neue Dokumente erscheinen in den Antworten, sobald die Indexierung abgeschlossen ist. Mein Dokument wird nicht akzeptiert. Prüfe die Dateiendung (PDF, DOCX, PPTX, TXT, MD, CSV, PNG, JPG, AVIF) und die Dateigröße (max. 50 MB)."
+  },
+  {
+    "url": "/docs/features/notebooks",
+    "pageTitle": "Notebooks",
+    "heading": "Häufige Fragen",
+    "anchor": "#häufige-fragen",
+    "category": "Features",
+    "text": "Andere Formate — darunter .doc, .odt und .rtf — musst du vorher als PDF oder DOCX speichern. Ein Dokument ist rot als „Nicht durchsuchbar\" markiert. Dann ließ sich beim Verarbeiten kein Text daraus gewinnen; der Grund steht in der Zeile. Häufigster Fall ist eine leere oder beschädigte Datei. Das Dokument bleibt im Notebook, taucht aber in keiner Antwort auf — entferne es und lade es in einem anderen Format erneut hoch."
   },
   {
     "url": "/docs/features/notebooks",
@@ -1824,6 +2180,30 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "text": "Leere Chats ohne eine einzige Nachricht werden sofort gelöscht — es gibt nichts wiederherzustellen. Der Chat an einem Dokument wird beim Löschen sofort geleert. Geschützt ist hier das Dokument selbst: Löschst du das Dokument, landet es im Papierkorb."
   },
   {
+    "url": "/docs/features/podcasts",
+    "pageTitle": "Podcasts",
+    "heading": "Podcasts",
+    "anchor": "",
+    "category": "Features",
+    "text": "Aus einer Antwort im Chat oder im Notebook macht der Grünerator einen kurzen Podcast: ein Gespräch zweier KI-Stimmen. Eine Stimme moderiert und stellt die Fragen, die sich Zuhörende ohne Vorwissen stellen; die andere erklärt, mit Beispielen aus dem Alltag. Beide sprechen einfache Sprache, denn der Podcast wird gehört, nicht gelesen."
+  },
+  {
+    "url": "/docs/features/podcasts",
+    "pageTitle": "Podcasts",
+    "heading": "Anhören und behalten",
+    "anchor": "#anhören-und-behalten",
+    "category": "Features",
+    "text": "Der Podcast öffnet sich auf einer eigenen Player-Seite. Die MP3-Datei liegt zusätzlich als eigenes Audio in deiner Mediathek und bleibt dort, auch wenn du den Podcast selbst löschst. Ein gelöschter Podcast landet im Papierkorb. Willst du einen eigenen Text vorlesen lassen statt eines Gesprächs, nimm Grünerator Voice."
+  },
+  {
+    "url": "/docs/features/podcasts",
+    "pageTitle": "Podcasts",
+    "heading": "So entsteht ein Podcast",
+    "anchor": "#so-entsteht-ein-podcast",
+    "category": "Features",
+    "text": "Unter einer Antwort öffnet das Dokument-Menü Als Podcast anhören. Der Grünerator schreibt daraus ein Gesprächsskript — nur mit den Fakten aus der Antwort, nichts dazu erfunden — und vertont es. Eine Folge dauert etwa zwei bis fünf Minuten."
+  },
+  {
     "url": "/docs/features/praesentationen",
     "pageTitle": "Präsentationen",
     "heading": "Präsentationen",
@@ -1901,7 +2281,15 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Formen in Deutschland und Österreich",
     "anchor": "#formen-in-deutschland-und-österreich",
     "category": "Features",
-    "text": "Die 15 Formen stehen in beiden Ländern zur Verfügung: Form | Was entsteht | ------------- | ------------------------------------------------------------------------------- | Einzelbild | eine große Aussage auf einer Farbfläche oder einem Foto | Zitat | eine Aussage mit Name, Funktion und optionaler Quelle | Karussell | drei bis acht zusammenhängende Slides | Interview | Cover-Zitat, danach Slides mit Frage und Antwort und ein Schluss | Infografik | kurze Informationen als Raster, Ablauf, Mengenvergleich, Anteil oder große Zahl | Diagramm | Werte als Balken, Balken quer, Linie, Kreis oder Donut | Große Zahl | eine Kennzahl über Text, als Riesenzahl oder im Countdown-Kreis | Rechnung | Zahlen oder Begriffe, die Schritt für Schritt verrechnet werden | Termine | zwei bis sechs Termine gemeinsam auf einer Slide | Schlagzeile | eine Meldung als Zeitungsausriss oder Karte; dazu gehört auch „Good News“ | Bingo | neun oder 16 kurze Aussagen in einem Raster | Vergleich | zwei Positionen oder Pläne direkt gegenübergestellt | Faktencheck | bis zu drei Paare aus Mythos und Fakt | Faktenbild | eine Zahl oder ein Diagramm vor einem eigens KI-generierten Hintergrundmotiv | Veranstaltung | ein…"
+    "text": "Die 15 Formen stehen in beiden Ländern zur Verfügung: Form | Was entsteht | ------------- | ------------------------------------------------------------------------------- | Einzelbild | eine große Aussage auf einer Farbfläche oder einem Foto | Zitat | eine Aussage mit Name, Funktion und optionaler Quelle | Karussell | drei bis acht zusammenhängende Slides | Interview | Cover-Zitat, danach Slides mit Frage und Antwort und ein Schluss | Infografik | kurze Informationen als Raster, Ablauf, Mengenvergleich, Anteil oder große Zahl | Diagramm | Werte als Balken, Balken quer, Linie, Kreis oder Donut | Große Zahl | eine Kennzahl über Text, als Riesenzahl oder im Countdown-Kreis | Rechnung | Zahlen oder Begriffe, die Schritt für Schritt verrechnet werden | Termine | zwei bis sechs Termine gemeinsam auf einer Slide | Schlagzeile | eine Meldung als Zeitungsausriss oder Karte; dazu gehört auch „Good News“ | Bingo | neun oder 16 kurze Aussagen in einem Raster | Vergleich | zwei Positionen oder Pläne direkt gegenübergestellt | Faktencheck | bis zu drei Paare aus Mythos und Fakt | Faktenbild | eine Zahl oder ein Diagramm vor einem eigens KI-generierten Hintergrundmotiv | Veranstaltung | ein"
+  },
+  {
+    "url": "/docs/features/sharepics",
+    "pageTitle": "Sharepics: alle Varianten auf einen Blick",
+    "heading": "Formen in Deutschland und Österreich",
+    "anchor": "#formen-in-deutschland-und-österreich",
+    "category": "Features",
+    "text": "einzelner Termin mit Datum, Uhrzeit und Ort |"
   },
   {
     "url": "/docs/features/sharepics",
@@ -1909,7 +2297,15 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Gemeinsame Gestaltungsmöglichkeiten",
     "anchor": "#gemeinsame-gestaltungsmöglichkeiten",
     "category": "Features",
-    "text": "Die Formen lassen sich mit diesen Bausteinen kombinieren: Bereich | Varianten | -------------------- | ------------------------------------------------------------------------------------------------ | Ausgabe | eine Slide; Karussell mit drei bis acht Slides | Format | 4:5; 3:4 | Hintergrund | Farbfläche; Foto über die ganze Fläche; Foto oben; Foto unten | Foto in der Slide | Streifen oben; Streifen unten; Karte; Kreis; freigestellte Person | Fotofilter | grün eingefärbt; Graustufen; Original | Text | Dachzeile; mehrzeilige Überschrift; kurzer Text; Absatz; Zitat; Frage und Antwort; Button | Hervorhebungen | farbiges Schlüsselwort; handgezeichneter Kreis; handgezeichnete Unterstreichung | Listen | Punkte; Ziffern; Pfeile; Haken; Emojis; Iconliste | Daten und Fakten | fünf Diagrammarten im Feinschliff; Vergleich; Faktencheck; Rechnung; Termine; Bingo; Schlagzeile | Große Zahl | Zahl über Text; Riesenzahl; Countdown | Infografik | Raster; Ablauf; Mengen; Anteil; große Zahl | Karussell-Navigation | keine; Pfeil; Pfeil und Punkte; Pfeil und Seitenzahl; nur Seitenzahl | Nummerierung | aus; große Ziffer; Ziffer im Hintergrund | Schluss-Slide | Ausruf; Kernsatz; Petition | Im…"
+    "text": "Die Formen lassen sich mit diesen Bausteinen kombinieren: Bereich | Varianten | -------------------- | ------------------------------------------------------------------------------------------------ | Ausgabe | eine Slide; Karussell mit drei bis acht Slides | Format | 4:5; 3:4 | Hintergrund | Farbfläche; Foto über die ganze Fläche; Foto oben; Foto unten | Foto in der Slide | Streifen oben; Streifen unten; Karte; Kreis; freigestellte Person | Fotofilter | grün eingefärbt; Graustufen; Original | Text | Dachzeile; mehrzeilige Überschrift; kurzer Text; Absatz; Zitat; Frage und Antwort; Button | Hervorhebungen | farbiges Schlüsselwort; handgezeichneter Kreis; handgezeichnete Unterstreichung | Listen | Punkte; Ziffern; Pfeile; Haken; Emojis; Iconliste | Daten und Fakten | fünf Diagrammarten im Feinschliff; Vergleich; Faktencheck; Rechnung; Termine; Bingo; Schlagzeile | Große Zahl | Zahl über Text; Riesenzahl; Countdown | Infografik | Raster; Ablauf; Mengen; Anteil; große Zahl | Karussell-Navigation | keine; Pfeil; Pfeil und Punkte; Pfeil und Seitenzahl; nur Seitenzahl | Nummerierung | aus; große Ziffer; Ziffer im Hintergrund | Schluss-Slide | Ausruf; Kernsatz; Petition | Im"
+  },
+  {
+    "url": "/docs/features/sharepics",
+    "pageTitle": "Sharepics: alle Varianten auf einen Blick",
+    "heading": "Gemeinsame Gestaltungsmöglichkeiten",
+    "anchor": "#gemeinsame-gestaltungsmöglichkeiten",
+    "category": "Features",
+    "text": "vollständigen Canvas-Editor kannst du bei Diagrammen zusätzlich die Art Fläche auswählen. Außerdem kann der Creator Datum, Uhrzeit, Ort, Störer und Quellenangaben ergänzen. Alle sechs Beispiele auf dieser Seite wurden vollständig mit dem aktuellen Sharepic-Renderer des Grünerators erzeugt."
   },
   {
     "url": "/docs/features/sharepics",
@@ -2013,7 +2409,15 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "So geht's",
     "anchor": "#so-gehts",
     "category": "Guides",
-    "text": "Chat starten. Nutze einfach das Eingabefeld auf der Startseite unter /start, direkt unter der Begrüßung. Präzisen Auftrag schreiben. Die Qualität des Entwurfs hängt von deinen Angaben ab. Definiere klar: Wer soll was tun, bis wann, woher kommt das Geld und was ist der konkrete Anlass? Gib zudem die gewünschten Abschnitte an. Wichtig: Vage Formulierungen wie „Wir wollen was zu Trinkwasser\" führen zu unpräzisen Ergebnissen. Nur wenn Zieljahr, Menge und Zuständigkeit im Auftrag stehen, landen sie auch im Beschlussvorschlag — und genau über den wird abgestimmt. Verwende die Begriffe, die euer Gremium verwendet. In Österreich heißt das Gremium Gemeinderat und der Haushalt Budget oder Voranschlag. Nenne beides im Auftrag beim Namen. Beschlussvorschlag prüfen. Dies ist der einzige Teil, über den tatsächlich abgestimmt wird. Er muss in sich geschlossen und ohne den Rest des Dokuments verständlich sein: eine Handlung, eine Zuständigkeit, eine Frist. Alle Erklärungen gehören stattdessen in den Sachverhalt oder die Begründung. Ergebnis verfeinern. Nutze den Chat, um Details nachzuschärfen. Zum Beispiel: „Formuliere den Beschlussvorschlag präziser\", „Ergänze einen Prüfauftrag zur…"
+    "text": "Chat starten. Nutze einfach das Eingabefeld auf der Startseite unter /start, direkt unter der Begrüßung. Präzisen Auftrag schreiben. Die Qualität des Entwurfs hängt von deinen Angaben ab. Definiere klar: Wer soll was tun, bis wann, woher kommt das Geld und was ist der konkrete Anlass? Gib zudem die gewünschten Abschnitte an. Wichtig: Vage Formulierungen wie „Wir wollen was zu Trinkwasser\" führen zu unpräzisen Ergebnissen. Nur wenn Zieljahr, Menge und Zuständigkeit im Auftrag stehen, landen sie auch im Beschlussvorschlag — und genau über den wird abgestimmt. Verwende die Begriffe, die euer Gremium verwendet. In Österreich heißt das Gremium Gemeinderat und der Haushalt Budget oder Voranschlag. Nenne beides im Auftrag beim Namen. Beschlussvorschlag prüfen. Dies ist der einzige Teil, über den tatsächlich abgestimmt wird. Er muss in sich geschlossen und ohne den Rest des Dokuments verständlich sein: eine Handlung, eine Zuständigkeit, eine Frist. Alle Erklärungen gehören stattdessen in den Sachverhalt oder die Begründung. Ergebnis verfeinern. Nutze den Chat, um Details nachzuschärfen."
+  },
+  {
+    "url": "/docs/guides/einsteigerinnen/antrag-stadtrat",
+    "pageTitle": "Wie erstelle ich einen Antrag für meinen Stadt- oder Gemeinderat?",
+    "heading": "So geht's",
+    "anchor": "#so-gehts",
+    "category": "Guides",
+    "text": "Zum Beispiel: „Formuliere den Beschlussvorschlag präziser\", „Ergänze einen Prüfauftrag zur Barrierefreiheit\" oder „Wandle den Antrag in eine Anfrage um\"."
   },
   {
     "url": "/docs/guides/einsteigerinnen/antrag-stadtrat",
@@ -2037,7 +2441,15 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Änderungen für andere vorschlagen",
     "anchor": "#änderungen-für-andere-vorschlagen",
     "category": "Guides",
-    "text": "Mit „Änderungen nachverfolgen (Experimentell)“ arbeitest du ähnlich wie im Änderungsmodus einer Textverarbeitung: Deine Bearbeitungen werden markiert und können später angenommen oder abgelehnt werden. Klicke oben rechts auf die drei Punkte („Mehr Aktionen“). Wähle „Änderungen nachverfolgen (Experimentell)“. Ein Häkchen im Menü zeigt, dass der Modus aktiv ist. Bearbeite den Text wie gewohnt. Einfügungen, Löschungen und Formatierungen werden nun als Vorschläge markiert. Der Modus gilt für das ganze Dokument und wird auch mit anderen Bearbeiter*innen synchronisiert. Klicke auf eine markierte Änderung, um „Annehmen“ oder „Ablehnen“ direkt am Text zu wählen. In der Seitenleiste „Änderungen“ kannst du zu jedem Vorschlag springen und ihn einzeln prüfen. Mit „Alle annehmen“ oder „Alle ablehnen“ entscheidest du über sämtliche offenen Vorschläge auf einmal; anschließend musst du die Auswahl noch bestätigen. Auf einem kleinen Bildschirm öffnet sich die Seitenleiste nicht automatisch. Öffne dann erneut „Mehr Aktionen“ und wähle „Änderungen prüfen“. KI-Bearbeitung und Änderungsmodus können nicht gleichzeitig verwendet werden. Übernimm oder verwirf zuerst einen offenen KI-Vorschlag. Beende…"
+    "text": "Mit „Änderungen nachverfolgen (Experimentell)“ arbeitest du ähnlich wie im Änderungsmodus einer Textverarbeitung: Deine Bearbeitungen werden markiert und können später angenommen oder abgelehnt werden. Klicke oben rechts auf die drei Punkte („Mehr Aktionen“). Wähle „Änderungen nachverfolgen (Experimentell)“. Ein Häkchen im Menü zeigt, dass der Modus aktiv ist. Bearbeite den Text wie gewohnt. Einfügungen, Löschungen und Formatierungen werden nun als Vorschläge markiert. Der Modus gilt für das ganze Dokument und wird auch mit anderen Bearbeiter*innen synchronisiert. Klicke auf eine markierte Änderung, um „Annehmen“ oder „Ablehnen“ direkt am Text zu wählen. In der Seitenleiste „Änderungen“ kannst du zu jedem Vorschlag springen und ihn einzeln prüfen. Mit „Alle annehmen“ oder „Alle ablehnen“ entscheidest du über sämtliche offenen Vorschläge auf einmal; anschließend musst du die Auswahl noch bestätigen. Auf einem kleinen Bildschirm öffnet sich die Seitenleiste nicht automatisch. Öffne dann erneut „Mehr Aktionen“ und wähle „Änderungen prüfen“. KI-Bearbeitung und Änderungsmodus können nicht gleichzeitig verwendet werden. Übernimm oder verwirf zuerst einen offenen KI-Vorschlag."
+  },
+  {
+    "url": "/docs/guides/einsteigerinnen/dokument-bearbeiten",
+    "pageTitle": "Wie bearbeite ich ein Dokument?",
+    "heading": "Änderungen für andere vorschlagen",
+    "anchor": "#änderungen-für-andere-vorschlagen",
+    "category": "Guides",
+    "text": "Beende umgekehrt den Änderungsmodus, bevor du den Chat um eine Bearbeitung bittest."
   },
   {
     "url": "/docs/guides/einsteigerinnen/dokument-bearbeiten",
@@ -2093,7 +2505,15 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "So geht's",
     "anchor": "#so-gehts",
     "category": "Guides",
-    "text": "Zur Wissen-Seite. Öffne Wissen (/wissen) — dort liegen alle Notebooks an einem Ort. Hast du noch keins, steht in der Notebook-Leiste die Karte „Neues erstellen\"; ein Klick öffnet den Editor. Sobald du eins besitzt, heißt die Karte „Eigene Notebooks\" und klappt den Abschnitt „Eigene\" mit dem Button „Notebook erstellen\" auf. Dateien hochladen. Der Editor führt dich durch drei Schritte: Quellen → Details → Überprüfen. Im ersten wählst du die Kachel Dateien hochladen und ziehst deine Dokumente ins Fenster oder suchst sie im Dateibrowser. Sie sammeln sich als Vorschau „Bereit zum Hochladen\", wo du einzelne wieder entfernen kannst, dann startest du mit „Hochladen\". Angenommen werden PDF, DOCX, PPTX, TXT, MD, CSV und Bilder (PNG, JPG, AVIF), bis 50 MB pro Datei. Ältere Formate wie .doc oder .odt speicherst du vorher einmal als PDF. Neben dem Upload gibt es drei weitere Quellarten — Wolke, Docs und WordPress-Websites —, die auf der Seite Notebooks beschrieben sind. Name, Beschreibung, Labels. Den Namen schlägt der Editor aus deiner ersten Datei vor; du kannst ihn überschreiben. Die Beschreibung ist optional, hilft aber später beim Wiederfinden — genau wie die bis zu zehn frei wählbaren…"
+    "text": "Zur Wissen-Seite. Öffne Wissen (/wissen) — dort liegen alle Notebooks an einem Ort. Hast du noch keins, steht in der Notebook-Leiste die Karte „Neues erstellen\"; ein Klick öffnet den Editor. Sobald du eins besitzt, heißt die Karte „Eigene Notebooks\" und klappt den Abschnitt „Eigene\" mit dem Button „Notebook erstellen\" auf. Dateien hochladen. Der Editor führt dich durch drei Schritte: Quellen → Details → Überprüfen. Im ersten wählst du die Kachel Dateien hochladen und ziehst deine Dokumente ins Fenster oder suchst sie im Dateibrowser. Sie sammeln sich als Vorschau „Bereit zum Hochladen\", wo du einzelne wieder entfernen kannst, dann startest du mit „Hochladen\". Angenommen werden PDF, DOCX, PPTX, TXT, MD, CSV und Bilder (PNG, JPG, AVIF), bis 50 MB pro Datei. Ältere Formate wie .doc oder .odt speicherst du vorher einmal als PDF. Neben dem Upload gibt es drei weitere Quellarten — Wolke, Docs und WordPress-Websites —, die auf der Seite Notebooks beschrieben sind. Name, Beschreibung, Labels. Den Namen schlägt der Editor aus deiner ersten Datei vor; du kannst ihn überschreiben."
+  },
+  {
+    "url": "/docs/guides/einsteigerinnen/eigenes-notebook-erstellen",
+    "pageTitle": "Wie erstelle ich ein eigenes Notebook?",
+    "heading": "So geht's",
+    "anchor": "#so-gehts",
+    "category": "Guides",
+    "text": "Die Beschreibung ist optional, hilft aber später beim Wiederfinden — genau wie die bis zu zehn frei wählbaren Labels. Erstellen. Im dritten Schritt siehst du die Zusammenfassung. „Notebook erstellen\" wird aktiv, sobald ein Name steht und mindestens ein Dokument hochgeladen ist. Danach landest du direkt im Bearbeiten-Bereich. Das Hochladen ist sofort durch; damit der Inhalt durchsuchbar wird, läuft die Indexierung im Hintergrund weiter (erkennbar am Hinweis „Wird verarbeitet…\"). Du kannst das Notebook trotzdem schon erstellen und benutzen — neue Dokumente tauchen in den Antworten auf, sobald sie fertig sind. Beim Erstellen gehört das Notebook nur dir. Ob und für wen es sichtbar wird, entscheidest du danach im „Teilen\"-Menü — beschrieben unter Notebooks."
   },
   {
     "url": "/docs/guides/einsteigerinnen/eigenes-notebook-erstellen",
@@ -2117,7 +2537,15 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "So geht's",
     "anchor": "#so-gehts",
     "category": "Guides",
-    "text": "Einstellungen öffnen. Klicke unten in der Seitenleiste auf dein Profilbild und wähle Einstellungen. Direkt dorthin führt auch /settings/erinnerungen. Erinnerungen auswählen. Klicke links auf Erinnerungen. Lass den Schalter Gedächtnis eingeschaltet, damit der Grünerator gespeicherte Erinnerungen verwendet und neue anlegen kann. Klicke anschließend oben rechts auf Hinzufügen. Art wählen und Inhalt eintragen. Entscheide zuerst, wie der Grünerator die Erinnerung verwenden soll: Fakt wird genutzt, wenn er zu deiner Frage passt — etwa deine Funktion oder dein Ortsverband. Anweisung gilt bei jeder Antwort — etwa eine dauerhaft gewünschte Ansprache oder Schreibweise. Trage anschließend eine einzelne, kurze Aussage ein, zum Beispiel als Fakt: Klicke danach auf Speichern. Eine Erinnerung darf höchstens 400 Zeichen lang sein. Erinnerungen pflegen. Mit dem Stift auf einer Erinnerung kannst du ihren Text berichtigen. Mit dem Papierkorb entfernst du sie einzeln. Über das Suchfeld und die Filter Alle, Anweisung und Fakt findest du Einträge schnell wieder; Exportieren lädt alle Erinnerungen als JSON-Datei herunter. „Ich bin im Kreisverband Beispielstadt und möchte kurze Pressemitteilungen\"…"
+    "text": "Einstellungen öffnen. Klicke unten in der Seitenleiste auf dein Profilbild und wähle Einstellungen. Direkt dorthin führt auch /settings/erinnerungen. Erinnerungen auswählen. Klicke links auf Erinnerungen. Lass den Schalter Gedächtnis eingeschaltet, damit der Grünerator gespeicherte Erinnerungen verwendet und neue anlegen kann. Klicke anschließend oben rechts auf Hinzufügen. Art wählen und Inhalt eintragen. Entscheide zuerst, wie der Grünerator die Erinnerung verwenden soll: Fakt wird genutzt, wenn er zu deiner Frage passt — etwa deine Funktion oder dein Ortsverband. Anweisung gilt bei jeder Antwort — etwa eine dauerhaft gewünschte Ansprache oder Schreibweise. Trage anschließend eine einzelne, kurze Aussage ein, zum Beispiel als Fakt: Klicke danach auf Speichern. Eine Erinnerung darf höchstens 400 Zeichen lang sein. Erinnerungen pflegen. Mit dem Stift auf einer Erinnerung kannst du ihren Text berichtigen. Mit dem Papierkorb entfernst du sie einzeln. Über das Suchfeld und die Filter Alle, Anweisung und Fakt findest du Einträge schnell wieder; Exportieren lädt alle Erinnerungen als JSON-Datei herunter."
+  },
+  {
+    "url": "/docs/guides/einsteigerinnen/erinnerungen-erstellen",
+    "pageTitle": "Wie erstelle ich Erinnerungen?",
+    "heading": "So geht's",
+    "anchor": "#so-gehts",
+    "category": "Guides",
+    "text": "„Ich bin im Kreisverband Beispielstadt und möchte kurze Pressemitteilungen\" speicherst du besser als zwei Erinnerungen. Dann kannst du eine davon ändern, ohne die andere anzufassen. Im Chat speichert der Grünerator nur etwas, wenn du ihn ausdrücklich darum bittest — zum Beispiel mit „Merk dir, dass …\". Schau gelegentlich in diesen Bereich, korrigiere Veraltetes und lösche, was der Grünerator nicht mehr berücksichtigen soll. Alle löschen entfernt sämtliche gespeicherten Erinnerungen nach einer Sicherheitsabfrage."
   },
   {
     "url": "/docs/guides/einsteigerinnen/erinnerungen-erstellen",
@@ -2141,7 +2569,15 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Beiträge, Erwähnungen und Benachrichtigungen",
     "anchor": "#beiträge-erwähnungen-und-benachrichtigungen",
     "category": "Guides",
-    "text": "Im Feed einer Gruppe öffnet „Schreib etwas an die Gruppe …“ den Beitragseditor. Schreibe deinen Text, hänge bei Bedarf über „Dateien“ Anhänge an und klicke auf „Posten“. Ein Beitrag darf bis zu 5.000 Zeichen und zehn Dateien mit jeweils höchstens 25 MiB enthalten; auch ein Beitrag nur mit Dateien ist möglich. Über die Sprechblase unter einem Beitrag oder geteilten Inhalt öffnest du die Kommentare. Schreibe ins Kommentarfeld und klicke auf „Senden“. Auf vorhandene Kommentare kannst du antworten; Antworten werden als Thread zusammengefasst. Kommentare dürfen bis zu 2.000 Zeichen enthalten. Über das Stecknadel-Symbol können Admins bis zu drei Einträge anheften. Eine weitere Anheftung löst die älteste. Die anderen Mitglieder bekommen eine Benachrichtigung, wenn jemand einen Beitrag schreibt oder einen Inhalt teilt. Tippe @ und wähle eine Person aus der Liste, um sie gezielt anzusprechen. Sie bekommt eine eigene Benachrichtigung. Mit @alle benachrichtigst du alle Mitglieder der Gruppe. Antwortest du auf einen Kommentar, ist die Person, der du antwortest, schon erwähnt. Wie viele Benachrichtigungen du bekommst und welche auch per E-Mail kommen, stellst du in den Einstellungen unter…"
+    "text": "Im Feed einer Gruppe öffnet „Schreib etwas an die Gruppe …“ den Beitragseditor. Schreibe deinen Text, hänge bei Bedarf über „Dateien“ Anhänge an und klicke auf „Posten“. Ein Beitrag darf bis zu 5.000 Zeichen und zehn Dateien mit jeweils höchstens 25 MiB enthalten; auch ein Beitrag nur mit Dateien ist möglich. Über die Sprechblase unter einem Beitrag oder geteilten Inhalt öffnest du die Kommentare. Schreibe ins Kommentarfeld und klicke auf „Senden“. Auf vorhandene Kommentare kannst du antworten; Antworten werden als Thread zusammengefasst. Kommentare dürfen bis zu 2.000 Zeichen enthalten. Über das Stecknadel-Symbol können Admins bis zu drei Einträge anheften. Eine weitere Anheftung löst die älteste. Die anderen Mitglieder bekommen eine Benachrichtigung, wenn jemand einen Beitrag schreibt oder einen Inhalt teilt. Tippe @ und wähle eine Person aus der Liste, um sie gezielt anzusprechen. Sie bekommt eine eigene Benachrichtigung. Mit @alle benachrichtigst du alle Mitglieder der Gruppe. Antwortest du auf einen Kommentar, ist die Person, der du antwortest, schon erwähnt."
+  },
+  {
+    "url": "/docs/guides/einsteigerinnen/gemeinsames-projekt-erstellen",
+    "pageTitle": "Wie erstelle ich ein gemeinsames Projekt?",
+    "heading": "Beiträge, Erwähnungen und Benachrichtigungen",
+    "anchor": "#beiträge-erwähnungen-und-benachrichtigungen",
+    "category": "Guides",
+    "text": "Wie viele Benachrichtigungen du bekommst und welche auch per E-Mail kommen, stellst du in den Einstellungen unter Benachrichtigungen ein. „Benachrichtigungen stummschalten“ im Drei-Punkte-Menü der Gruppe stoppt die E-Mails dieser Gruppe; in der Glocke erscheinen sie weiterhin."
   },
   {
     "url": "/docs/guides/einsteigerinnen/gemeinsames-projekt-erstellen",
@@ -2221,7 +2657,15 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "So geht's",
     "anchor": "#so-gehts",
     "category": "Guides",
-    "text": "Einstellungen öffnen. Klicke unten in der Seitenleiste auf dein Profilbild und wähle Einstellungen. Alternativ öffnest du direkt /settings/personalisierung. Zu Personalisierung wechseln. Wähle links Personalisierung. Oben findest du das Feld Anweisungen; darunter kannst du bei Bedarf deine Rolle hinzufügen. Dauerhafte Anweisungen formulieren. Schreibe kurz, was der Grünerator immer beachten soll. Gute Anweisungen sind konkret und gelten für viele deiner Aufgaben, etwa: Namen, Fristen oder einmalige Aufträge gehören dagegen in den jeweiligen Chat. Speichern. Sobald du das Feld änderst, erscheint der Button Speichern. Klicke darauf. Die Anweisung gilt anschließend auf allen Geräten, auf denen du mit deinem Konto angemeldet bist. Rolle ergänzen (optional). Über Erste Rolle hinzufügen legst du fest, aus welchem Arbeitskontext du schreibst — etwa für einen Kreisverband, eine Fraktion oder einen Landesverband. Der Grünerator kann seine Vorschläge dadurch besser auf deine Perspektive zuschneiden. Starte mit einer oder zwei Anweisungen. Wenn Antworten trotzdem nicht passen, ergänze eine konkrete Regel oder formuliere eine bestehende klarer. So bleibt nachvollziehbar, warum der Grünerator…"
+    "text": "Einstellungen öffnen. Klicke unten in der Seitenleiste auf dein Profilbild und wähle Einstellungen. Alternativ öffnest du direkt /settings/personalisierung. Zu Personalisierung wechseln. Wähle links Personalisierung. Oben findest du das Feld Anweisungen; darunter kannst du bei Bedarf deine Rolle hinzufügen. Dauerhafte Anweisungen formulieren. Schreibe kurz, was der Grünerator immer beachten soll. Gute Anweisungen sind konkret und gelten für viele deiner Aufgaben, etwa: Namen, Fristen oder einmalige Aufträge gehören dagegen in den jeweiligen Chat. Speichern. Sobald du das Feld änderst, erscheint der Button Speichern. Klicke darauf. Die Anweisung gilt anschließend auf allen Geräten, auf denen du mit deinem Konto angemeldet bist. Rolle ergänzen (optional). Über Erste Rolle hinzufügen legst du fest, aus welchem Arbeitskontext du schreibst — etwa für einen Kreisverband, eine Fraktion oder einen Landesverband. Der Grünerator kann seine Vorschläge dadurch besser auf deine Perspektive zuschneiden. Starte mit einer oder zwei Anweisungen. Wenn Antworten trotzdem nicht passen, ergänze eine konkrete Regel oder formuliere eine bestehende klarer."
+  },
+  {
+    "url": "/docs/guides/einsteigerinnen/gruenerator-personalisieren",
+    "pageTitle": "Wie personalisiere ich den Grünerator?",
+    "heading": "So geht's",
+    "anchor": "#so-gehts",
+    "category": "Guides",
+    "text": "So bleibt nachvollziehbar, warum der Grünerator auf eine bestimmte Weise schreibt."
   },
   {
     "url": "/docs/guides/einsteigerinnen/gruenerator-personalisieren",
@@ -2269,7 +2713,15 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Einzelne Elemente gezielt ändern (Expertenmodus)",
     "anchor": "#einzelne-elemente-gezielt-ändern-expertenmodus",
     "category": "Guides",
-    "text": "Manchmal soll nur ein Ding im Bild anders werden: ein Sonnenschirm weg, ein E-Scooter durch ein Lastenrad ersetzt. Dafür gibt es oben rechts den Expertenmodus (experimentell). Klicke auf Expertenmodus. Die KI erkennt die Elemente des Bildes und legt um jedes einen dezenten Rahmen. Fährst du mit der Maus darüber, erscheint sein Name, etwa „Sonnenschirm 2“. Klicke auf das Element, das sich ändern soll. Daneben öffnet sich ein kleines Menü. Schreibe unter Ersetzen durch …, was stattdessen dort sein soll, oder klicke auf Entfernen. Ziehst du den Rahmen, wandert das Element an die neue Stelle; der Punkt unten rechts ändert die Größe. Rückgängig setzt das Element zurück. Mit + in der Leiste unter dem Bild fügst du ein neues Element hinzu und beschreibst, was dort entstehen soll. Klicke auf Anwenden. Die Änderungen erscheinen im Chat, zum Beispiel „E-Scooter → ein Lastenrad mit grünem Rahmen“, und als neue Version. Die Erkennung startet erst, wenn du den Expertenmodus zum ersten Mal einschaltest, und dauert je nach Bild bis zu einer halben Minute. Danach wird jede neue Version im Hintergrund erkannt. Schreibst du im Expertenmodus eine Nachricht in den Chat, nimmt sie die geänderten…"
+    "text": "Manchmal soll nur ein Ding im Bild anders werden: ein Sonnenschirm weg, ein E-Scooter durch ein Lastenrad ersetzt. Dafür gibt es oben rechts den Expertenmodus (experimentell). Klicke auf Expertenmodus. Die KI erkennt die Elemente des Bildes und legt um jedes einen dezenten Rahmen. Fährst du mit der Maus darüber, erscheint sein Name, etwa „Sonnenschirm 2“. Klicke auf das Element, das sich ändern soll. Daneben öffnet sich ein kleines Menü. Schreibe unter Ersetzen durch …, was stattdessen dort sein soll, oder klicke auf Entfernen. Ziehst du den Rahmen, wandert das Element an die neue Stelle; der Punkt unten rechts ändert die Größe. Rückgängig setzt das Element zurück. Mit + in der Leiste unter dem Bild fügst du ein neues Element hinzu und beschreibst, was dort entstehen soll. Klicke auf Anwenden. Die Änderungen erscheinen im Chat, zum Beispiel „E-Scooter → ein Lastenrad mit grünem Rahmen“, und als neue Version. Die Erkennung startet erst, wenn du den Expertenmodus zum ersten Mal einschaltest, und dauert je nach Bild bis zu einer halben Minute. Danach wird jede neue Version im Hintergrund erkannt."
+  },
+  {
+    "url": "/docs/guides/einsteigerinnen/ki-bilder-erstellen",
+    "pageTitle": "Wie erstelle ich KI-Bilder?",
+    "heading": "Einzelne Elemente gezielt ändern (Expertenmodus)",
+    "anchor": "#einzelne-elemente-gezielt-ändern-expertenmodus",
+    "category": "Guides",
+    "text": "Schreibst du im Expertenmodus eine Nachricht in den Chat, nimmt sie die geänderten Rahmen mit. Auf dem Handy wechselt die Ansicht beim Einschalten in die Vorschau."
   },
   {
     "url": "/docs/guides/einsteigerinnen/ki-bilder-erstellen",
@@ -2285,7 +2737,15 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "So geht's",
     "anchor": "#so-gehts",
     "category": "Guides",
-    "text": "Studio öffnen. Öffne im Bereich Arbeiten das Studio. Dort gibt es ein einziges Eingabefeld, in dem du nur tippst, was du brauchst. Schreibe dabei „Bild“, „Foto“ oder „Illustration“, dann erkennt Auto rechts im Feld ein KI-Bild („Auto · KI-Bild“). Du kannst den Modus auch selbst auf Bild stellen. Bild konkret beschreiben. Du nennst Motiv, Ort, Perspektive, Licht und Stimmung. Zum Beispiel: „Eine schöne Stadt“ ist zu allgemein. „Geschützte Radwege“, die Tageszeit und der dokumentarische Stil geben dem Bild dagegen eine klare Richtung. Stil und Format im Text nennen. Du wählst beides nicht mehr aus, die KI liest es aus deiner Beschreibung. Ohne Hinweis entsteht ein realistisches Foto im Format 4:5. „Aquarell“, „Zeichnung“ oder „Comic“ ergeben eine Illustration, „Banner“ oder „Titelbild“ ein breites Bild (16:9), „Story“ ein schmales (9:16), „Profilbild“ ein quadratisches (1:1). Ein genanntes Seitenverhältnis gilt immer. Absenden. Drücke Enter oder klicke auf den lila Pfeil. Das Bild entsteht im Bild-Editor, der sich in einem neuen Tab öffnet: links der Chat mit deinen Anweisungen, rechts die Vorschau. Solange das Bild entsteht, zeigt die Vorschau eine Platzhalter-Karte. Auf dem Handy…"
+    "text": "Studio öffnen. Öffne im Bereich Arbeiten das Studio. Dort gibt es ein einziges Eingabefeld, in dem du nur tippst, was du brauchst. Schreibe dabei „Bild“, „Foto“ oder „Illustration“, dann erkennt Auto rechts im Feld ein KI-Bild („Auto · KI-Bild“). Du kannst den Modus auch selbst auf Bild stellen. Bild konkret beschreiben. Du nennst Motiv, Ort, Perspektive, Licht und Stimmung. Zum Beispiel: „Eine schöne Stadt“ ist zu allgemein. „Geschützte Radwege“, die Tageszeit und der dokumentarische Stil geben dem Bild dagegen eine klare Richtung. Stil und Format im Text nennen. Du wählst beides nicht mehr aus, die KI liest es aus deiner Beschreibung. Ohne Hinweis entsteht ein realistisches Foto im Format 4:5. „Aquarell“, „Zeichnung“ oder „Comic“ ergeben eine Illustration, „Banner“ oder „Titelbild“ ein breites Bild (16:9), „Story“ ein schmales (9:16), „Profilbild“ ein quadratisches (1:1). Ein genanntes Seitenverhältnis gilt immer. Absenden. Drücke Enter oder klicke auf den lila Pfeil. Das Bild entsteht im Bild-Editor, der sich in einem neuen Tab öffnet: links der Chat mit deinen Anweisungen, rechts die Vorschau. Solange das Bild entsteht, zeigt die Vorschau eine Platzhalter-Karte."
+  },
+  {
+    "url": "/docs/guides/einsteigerinnen/ki-bilder-erstellen",
+    "pageTitle": "Wie erstelle ich KI-Bilder?",
+    "heading": "So geht's",
+    "anchor": "#so-gehts",
+    "category": "Guides",
+    "text": "Auf dem Handy wechselst du über die Reiter Chat und Vorschau. Kennzeichnung. Jedes Bild aus dem Bild-Editor trägt sichtbar „KI-Generiert mit dem Grünerator“; die maschinenlesbare Kennzeichnung steht zusätzlich in den Metadaten. Ergebnis prüfen. Prüfe anschließend Format und Kennzeichnung sowie Menschen, Gegenstände, Schilder und die politische Aussage: KI-Bilder können überzeugend wirken und trotzdem falsche oder unplausible Details enthalten."
   },
   {
     "url": "/docs/guides/einsteigerinnen/ki-bilder-erstellen",
@@ -2325,7 +2785,15 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "So geht's",
     "anchor": "#so-gehts",
     "category": "Guides",
-    "text": "Notebook öffnen. Gehe zu Wissen und öffne das Notebook Berlin. Im Tab Chat findest du das Eingabefeld. Magic Search auswählen. Klicke rechts im Eingabefeld auf den aktuellen Antwortmodus und wähle Magic Search. Der Modus ist als „Empfohlen“ gekennzeichnet und passt sich deiner Eingabe an. Mit Stichworten suchen. Gib Hitzeschutz ein. Beim Tippen erscheinen passende Beschlüsse, Pressemitteilungen, Wahlprogramme und Wahlprüfsteine. Die Treffer kommen direkt aus den Quellen — ohne KI-Zusammenfassung. Volltext und Fundstellen lesen. Klicke auf eine Trefferkarte. Der Volltext öffnet sich im Notebook: relevante Textstellen sind farbig hinterlegt und nummeriert, der Suchbegriff ist darin fett markiert. Rechts stehen alle relevanten Stellen. Klicke sie an oder nutze „Vorherige Stelle“ und „Nächste Stelle“. „Im Web öffnen“ führt zum Original, „Ergebnisse“ zurück. Darunter bringen dich zwei Buttons mit dem Dokument in den Chat: „Mit KI zusammenfassen“ startet einen neuen Chat und lässt das Dokument gleich zusammenfassen. „Im Chat besprechen“ hängt es an einen neuen Chat, und du stellst deine Fragen selbst. In beiden Fällen bleibt das Dokument für das ganze Gespräch angehängt, auch für…"
+    "text": "Notebook öffnen. Gehe zu Wissen und öffne das Notebook Berlin. Im Tab Chat findest du das Eingabefeld. Magic Search auswählen. Klicke rechts im Eingabefeld auf den aktuellen Antwortmodus und wähle Magic Search. Der Modus ist als „Empfohlen“ gekennzeichnet und passt sich deiner Eingabe an. Mit Stichworten suchen. Gib Hitzeschutz ein. Beim Tippen erscheinen passende Beschlüsse, Pressemitteilungen, Wahlprogramme und Wahlprüfsteine. Die Treffer kommen direkt aus den Quellen — ohne KI-Zusammenfassung. Volltext und Fundstellen lesen. Klicke auf eine Trefferkarte. Der Volltext öffnet sich im Notebook: relevante Textstellen sind farbig hinterlegt und nummeriert, der Suchbegriff ist darin fett markiert. Rechts stehen alle relevanten Stellen. Klicke sie an oder nutze „Vorherige Stelle“ und „Nächste Stelle“. „Im Web öffnen“ führt zum Original, „Ergebnisse“ zurück. Darunter bringen dich zwei Buttons mit dem Dokument in den Chat: „Mit KI zusammenfassen“ startet einen neuen Chat und lässt das Dokument gleich zusammenfassen. „Im Chat besprechen“ hängt es an einen neuen Chat, und du stellst deine Fragen selbst."
+  },
+  {
+    "url": "/docs/guides/einsteigerinnen/magic-search-in-notebooks-nutzen",
+    "pageTitle": "Wie nutze ich Magic Search in einem Notebook?",
+    "heading": "So geht's",
+    "anchor": "#so-gehts",
+    "category": "Guides",
+    "text": "In beiden Fällen bleibt das Dokument für das ganze Gespräch angehängt, auch für Folgefragen. Eine Frage stellen. Formuliere stattdessen eine vollständige Frage, zum Beispiel: Magic Search erkennt die Frage am Satzbau oder Fragezeichen. Der Button „Suchen“ wird zu „Nachricht senden“; beim Absenden öffnet sich die Unterhaltung in einem neuen Browser-Tab. Deine Trefferliste bleibt im bisherigen Tab erhalten."
   },
   {
     "url": "/docs/guides/einsteigerinnen/magic-search-in-notebooks-nutzen",
@@ -2509,7 +2977,15 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "So geht's",
     "anchor": "#so-gehts",
     "category": "Guides",
-    "text": "Sharepic öffnen. Öffne dein vorhandenes Sharepic im Studio. Du siehst die bearbeitbaren Seiten und unten ihre Miniaturen. Klicke auf die gewünschte Seite. Wenn du noch keinen Entwurf hast, beginne mit Sharepic erstellen. Text ändern. Doppelklicke auf einen Text auf der Leinwand und schreibe deine Korrektur. Mit einem Klick außerhalb beendest du die Eingabe. Alternativ öffnest du links Text und bearbeitest die vorhandenen Textfelder. Dort kannst du auch neue Texte hinzufügen. Gestaltung anpassen. Klicke ein Element an: Oben erscheint die dazu passende Werkzeugleiste, etwa für Textfarbe, Schriftgröße, Ausrichtung und Deckkraft. Ziehe das Element an seine neue Position oder nutze die Griffe am Auswahlrahmen zum Vergrößern und Verkleinern. Während der direkten Texteingabe kannst du Textstellen markieren und die angebotene Textformatierung verwenden. Bilder oder Elemente ergänzen. Unter Elemente findest du unter anderem Formen, Icons und Fotos. Eigene Bilder fügst du über Uploads hinzu. Anschließend wählst du das eingefügte Objekt auf der Leinwand aus und passt Größe und Position an. Karussell ordnen. Wechsle über die Miniaturen zwischen den Seiten. Die Pfeile oberhalb einer Seite…"
+    "text": "Sharepic öffnen. Öffne dein vorhandenes Sharepic im Studio. Du siehst die bearbeitbaren Seiten und unten ihre Miniaturen. Klicke auf die gewünschte Seite. Wenn du noch keinen Entwurf hast, beginne mit Sharepic erstellen. Text ändern. Doppelklicke auf einen Text auf der Leinwand und schreibe deine Korrektur. Mit einem Klick außerhalb beendest du die Eingabe. Alternativ öffnest du links Text und bearbeitest die vorhandenen Textfelder. Dort kannst du auch neue Texte hinzufügen. Gestaltung anpassen. Klicke ein Element an: Oben erscheint die dazu passende Werkzeugleiste, etwa für Textfarbe, Schriftgröße, Ausrichtung und Deckkraft. Ziehe das Element an seine neue Position oder nutze die Griffe am Auswahlrahmen zum Vergrößern und Verkleinern. Während der direkten Texteingabe kannst du Textstellen markieren und die angebotene Textformatierung verwenden. Bilder oder Elemente ergänzen. Unter Elemente findest du unter anderem Formen, Icons und Fotos. Eigene Bilder fügst du über Uploads hinzu. Anschließend wählst du das eingefügte Objekt auf der Leinwand aus und passt Größe und Position an. Karussell ordnen. Wechsle über die Miniaturen zwischen den Seiten."
+  },
+  {
+    "url": "/docs/guides/einsteigerinnen/sharepics-im-editor-bearbeiten",
+    "pageTitle": "Wie bearbeite ich Sharepics im Editor?",
+    "heading": "So geht's",
+    "anchor": "#so-gehts",
+    "category": "Guides",
+    "text": "Die Pfeile oberhalb einer Seite verschieben sie nach oben oder unten. Seite duplizieren übernimmt ihren Aufbau in eine weitere Seite. Mit dem Plus unten ergänzt du eine Seite; Seite löschen entfernt eine Seite. Ergebnis herunterladen. Öffne oben rechts Teilen, dann Download. Für eine einzelne Seite wählst du PNG, JPG oder WebP und einfache oder doppelte Auflösung. Für das gesamte Karussell wählst du im Seitenmenü alle Seiten als ZIP und startest den Download. Das ZIP enthält PNG-Dateien mit festen Einstellungen; Formatwahl, Auflösung und Transparenz gelten dafür nicht."
   },
   {
     "url": "/docs/guides/einsteigerinnen/sharepics-im-editor-bearbeiten",
@@ -2621,7 +3097,23 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "So geht's",
     "anchor": "#so-gehts",
     "category": "Guides",
-    "text": "Voice öffnen. Öffne im Bereich Arbeiten unter Weitere den Eintrag Voice. Direkt erreichbar ist das Werkzeug auch unter /voice. Text einfügen und für das Hören prüfen. Trage in das Textfeld den Text ein, der gesprochen werden soll. Voice liest grundsätzlich das vor, was dort steht. Schreibe deshalb Abkürzungen aus und entferne Links, Fußnoten oder Zeichen, die nicht mitgesprochen werden sollen. Wenn du noch keinen fertigen Text hast, klicke unter dem Textfeld auf „Text mit KI entwerfen“ (auf dem Handy das Funkel-Symbol). Je nach Aufnahmeart fragt der Grünerator nach den nötigen Angaben und setzt anschließend einen Entwurf in das Textfeld. Der Entwurf wird noch nicht vertont: Lies ihn vollständig durch und korrigiere Namen, Telefonnummern, Uhrzeiten und Aussprache. Liegt der Text schon als Datei vor, etwa ein Antrag oder eine Pressemitteilung, klicke auf „Datei einfügen“ (auf dem Handy das Dokument-Symbol) und wähle eine PDF- oder Word-Datei (DOCX). Der Text landet an der Stelle des Cursors. Seitenzahlen, am Zeilenende getrennte Wörter und Zeilenumbrüche aus dem Layout räumt Voice dabei auf; Kopf- und Fußzeilen, Fußnoten und Tabellen prüfst du selbst. Ist die Datei länger als das,…"
+    "text": "Voice öffnen. Öffne im Bereich Arbeiten unter Weitere den Eintrag Voice. Direkt erreichbar ist das Werkzeug auch unter /voice. Text einfügen und für das Hören prüfen. Trage in das Textfeld den Text ein, der gesprochen werden soll. Voice liest grundsätzlich das vor, was dort steht. Schreibe deshalb Abkürzungen aus und entferne Links, Fußnoten oder Zeichen, die nicht mitgesprochen werden sollen. Wenn du noch keinen fertigen Text hast, klicke unter dem Textfeld auf „Text mit KI entwerfen“ (auf dem Handy das Funkel-Symbol). Je nach Aufnahmeart fragt der Grünerator nach den nötigen Angaben und setzt anschließend einen Entwurf in das Textfeld. Der Entwurf wird noch nicht vertont: Lies ihn vollständig durch und korrigiere Namen, Telefonnummern, Uhrzeiten und Aussprache. Liegt der Text schon als Datei vor, etwa ein Antrag oder eine Pressemitteilung, klicke auf „Datei einfügen“ (auf dem Handy das Dokument-Symbol) und wähle eine PDF- oder Word-Datei (DOCX). Der Text landet an der Stelle des Cursors. Seitenzahlen, am Zeilenende getrennte Wörter und Zeilenumbrüche aus dem Layout räumt Voice dabei auf; Kopf- und Fußzeilen, Fußnoten und Tabellen prüfst du selbst."
+  },
+  {
+    "url": "/docs/guides/einsteigerinnen/text-vertonen",
+    "pageTitle": "Wie vertone ich einen Text?",
+    "heading": "So geht's",
+    "anchor": "#so-gehts",
+    "category": "Guides",
+    "text": "Ist die Datei länger als das, was ins Textfeld passt, fügt Voice nur den Anfang ein und sagt dir, wie viel fehlt. Pausen setzen. Setze den Cursor an die gewünschte Stelle und klicke auf „Pause einfügen“ (auf dem Handy das Pause-Symbol). Im Text erscheint [Pause]; in der fertigen Aufnahme dauert diese Pause eine halbe Sekunde. Für eine längere Pause kannst du die Schaltfläche mehrfach verwenden. Einstellungen prüfen. Unter dem Textfeld steht in einer Zeile, was gerade eingestellt ist, zum Beispiel „Vorlesefassung · Männlich 1 · Normal“. Klicke darauf, um die Einstellungen aufzuklappen (auf dem Handy öffnen sie sich von unten): Art der Aufnahme: Vorlesefassung macht aus einem geschriebenen Text eine Hörfassung und ist voreingestellt. Anrufbeantworter erstellt eine Ansage für ein Büro, eine Ortsgruppe oder ein Abgeordnetenbüro. Audiodeskription beschreibt ein Sharepic, Plakat oder Video für Menschen, die es nicht sehen. Die Art ändert die Hinweise im Textfeld und die erlaubte Textlänge. Stimme: Mit dem Lautsprecher neben der Auswahl hörst du eine Probe. Tempo: „Langsam“, „Normal“ oder „Schnell“."
+  },
+  {
+    "url": "/docs/guides/einsteigerinnen/text-vertonen",
+    "pageTitle": "Wie vertone ich einen Text?",
+    "heading": "So geht's",
+    "anchor": "#so-gehts",
+    "category": "Guides",
+    "text": "Neben der Schaltfläche „Vertonen“ zeigt Voice während des Schreibens die ungefähr erwartete Audiodauer an. Audio erzeugen. Klicke auf „Vertonen“ und warte, bis die Aufnahme fertig ist. Längere Vorlesefassungen teilt Voice automatisch in mehrere Abschnitte und setzt sie wieder zu einer Datei zusammen. Ergebnis prüfen und verwenden. Spiele die Aufnahme zuerst direkt im Browser ab. Über „Herunterladen“ wählst du das passende Format: MP3 eignet sich für Messenger, Websites und Podcasts. Telefon-WAV ist für Telefonanlagen wie Fritz!Box, Asterisk und 3CX vorbereitet. Mit „Link kopieren“ teilst du eine abspielbare Version. Das Ergebnis wird außerdem automatisch in der Mediathek gespeichert; über „Zuletzt vertont“ findest du es später wieder. Änderst du danach Text oder Einstellungen, weist Voice darauf hin — mit „Neu vertonen“ entsteht eine aktualisierte Datei."
   },
   {
     "url": "/docs/guides/einsteigerinnen/text-vertonen",
@@ -2661,7 +3153,15 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Einen Text übersetzen",
     "anchor": "#einen-text-übersetzen",
     "category": "Guides",
-    "text": "Übersetzer öffnen. Öffne im Bereich Arbeiten unter Weitere den Eintrag Übersetzer. Direkt erreichbar ist das Werkzeug auch unter /uebersetzer. Der Bereich „Text“ ist beim Öffnen bereits ausgewählt. Sprachen wählen. Links unter „Von“ legst du die Ausgangssprache fest. In den meisten Fällen kannst du „Automatisch erkennen“ ausgewählt lassen. Rechts unter „Nach“ wählst du die gewünschte Zielsprache. Häufig verwendete Sprachen stehen direkt in der Leiste; über den Pfeil öffnest du die vollständige Liste. Wenn die Zielsprache verschiedene Anreden unterstützt, erscheint rechts ein Regler-Symbol mit dem Namen „Anrede“. Dort kannst du „Standard“, „Förmlich (Sie)“ oder „Vertraut (du)“ wählen. Text eingeben oder einfügen. Schreibe den Ausgangstext in das linke Feld. Bei Texten mit höchstens 2.000 Zeichen beginnt die Übersetzung automatisch, sobald du kurz nicht mehr tippst. Du musst keine Schaltfläche drücken. Lange Texte bewusst starten. Hat der Text mehr als 2.000 Zeichen, erscheint der Hinweis „Langer Text — auf Knopfdruck übersetzen.“ Klicke dann auf „Übersetzen“. Insgesamt sind bis zu 50.000 Zeichen möglich. Ergebnis prüfen und kopieren. Die Übersetzung erscheint rechts. Bei…"
+    "text": "Übersetzer öffnen. Öffne im Bereich Arbeiten unter Weitere den Eintrag Übersetzer. Direkt erreichbar ist das Werkzeug auch unter /uebersetzer. Der Bereich „Text“ ist beim Öffnen bereits ausgewählt. Sprachen wählen. Links unter „Von“ legst du die Ausgangssprache fest. In den meisten Fällen kannst du „Automatisch erkennen“ ausgewählt lassen. Rechts unter „Nach“ wählst du die gewünschte Zielsprache. Häufig verwendete Sprachen stehen direkt in der Leiste; über den Pfeil öffnest du die vollständige Liste. Wenn die Zielsprache verschiedene Anreden unterstützt, erscheint rechts ein Regler-Symbol mit dem Namen „Anrede“. Dort kannst du „Standard“, „Förmlich (Sie)“ oder „Vertraut (du)“ wählen. Text eingeben oder einfügen. Schreibe den Ausgangstext in das linke Feld. Bei Texten mit höchstens 2.000 Zeichen beginnt die Übersetzung automatisch, sobald du kurz nicht mehr tippst. Du musst keine Schaltfläche drücken. Lange Texte bewusst starten. Hat der Text mehr als 2.000 Zeichen, erscheint der Hinweis „Langer Text — auf Knopfdruck übersetzen.“ Klicke dann auf „Übersetzen“. Insgesamt sind bis zu 50.000 Zeichen möglich. Ergebnis prüfen und kopieren. Die Übersetzung erscheint rechts."
+  },
+  {
+    "url": "/docs/guides/einsteigerinnen/texte-dokumente-uebersetzen",
+    "pageTitle": "Wie übersetze ich Texte und Dokumente?",
+    "heading": "Einen Text übersetzen",
+    "anchor": "#einen-text-übersetzen",
+    "category": "Guides",
+    "text": "Bei automatischer Erkennung wird darunter die erkannte Ausgangssprache angezeigt. Dort siehst du auch, ob das Grünen-Glossar angewendet wurde. Klicke auf „Kopieren“, um die Übersetzung in die Zwischenablage zu übernehmen. Mit der Schaltfläche „Sprachen tauschen“ kannst du Ausgangs- und Zielsprache wechseln. Wenn die Ausgangssprache automatisch erkannt wird, ist die Schaltfläche verfügbar, sobald die erste Übersetzung fertig ist."
   },
   {
     "url": "/docs/guides/einsteigerinnen/texte-dokumente-uebersetzen",
@@ -2925,7 +3425,15 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Vom Chat zum Formular: Tally und Typeform mit dem Grünerator nutzen",
     "anchor": "",
     "category": "Guides",
-    "text": "Eine Anmeldung fürs Sommerfest, eine Workshop-Abfrage oder ein kurzes Feedbackformular: Beschreibe im Grünerator, was du brauchst, und lass den verbundenen Formulardienst einen Entwurf anlegen. Anschließend prüfst du das Formular in Tally oder Typeform und passt es an. Dieser Guide zeigt einen fiktiven Anmeldebogen. Die Chat-Screenshots stammen aus echten Durchläufen mit neu angelegten Demo-Formularen. Bestehende Formulare und Antworten wurden dafür nicht ausgewertet. Konnektoren sind experimentell. Ein Auftrag kann mehrere Werkzeugaufrufe und Korrekturen benötigen. Prüfe das Formular selbst, bevor du es veröffentlichst oder den Link teilst. Tally: Der Grünerator hat den Demo-Entwurf und seine Fragen angelegt. Bei Feldregeln war Nacharbeit nötig; die gezeigte Vorschau enthält auch manuelle Korrekturen im Tally-Editor. Typeform: Anmeldung, Konto-/Workspace-Auswahl und Anlage eines leeren Demo-Entwurfs funktionierten. Der weitere Fragenaufbau blieb bei wiederholten Validierungsversuchen hängen und wurde abgebrochen. Ein vollständiges Typeform-Formular aus diesem Chat-Auftrag ist damit noch nicht belegt. Die Typeform-Schritte zeigen den vorgesehenen Weg und die geprüften Freigaben,…"
+    "text": "Eine Anmeldung fürs Sommerfest, eine Workshop-Abfrage oder ein kurzes Feedbackformular: Beschreibe im Grünerator, was du brauchst, und lass den verbundenen Formulardienst einen Entwurf anlegen. Anschließend prüfst du das Formular in Tally oder Typeform und passt es an. Dieser Guide zeigt einen fiktiven Anmeldebogen. Die Chat-Screenshots stammen aus echten Durchläufen mit neu angelegten Demo-Formularen. Bestehende Formulare und Antworten wurden dafür nicht ausgewertet. Konnektoren sind experimentell. Ein Auftrag kann mehrere Werkzeugaufrufe und Korrekturen benötigen. Prüfe das Formular selbst, bevor du es veröffentlichst oder den Link teilst. Tally: Der Grünerator hat den Demo-Entwurf und seine Fragen angelegt. Bei Feldregeln war Nacharbeit nötig; die gezeigte Vorschau enthält auch manuelle Korrekturen im Tally-Editor. Typeform: Anmeldung, Konto-/Workspace-Auswahl und Anlage eines leeren Demo-Entwurfs funktionierten. Der weitere Fragenaufbau blieb bei wiederholten Validierungsversuchen hängen und wurde abgebrochen. Ein vollständiges Typeform-Formular aus diesem Chat-Auftrag ist damit noch nicht belegt."
+  },
+  {
+    "url": "/docs/guides/fortgeschrittene/formulare-mit-tally-und-typeform",
+    "pageTitle": "Vom Chat zum Formular: Tally und Typeform mit dem Grünerator nutzen",
+    "heading": "Vom Chat zum Formular: Tally und Typeform mit dem Grünerator nutzen",
+    "anchor": "",
+    "category": "Guides",
+    "text": "Die Typeform-Schritte zeigen den vorgesehenen Weg und die geprüften Freigaben, keinen abgeschlossenen Formularaufbau."
   },
   {
     "url": "/docs/guides/fortgeschrittene/formulare-mit-tally-und-typeform",
@@ -2957,7 +3465,15 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "4. Den Entwurf öffnen und verbessern",
     "anchor": "#4-den-entwurf-öffnen-und-verbessern",
     "category": "Guides",
-    "text": "Öffne den Bearbeitungslink aus der Antwort oder das neue Demo-Formular direkt beim Anbieter. Prüfe die tatsächlichen Felder; verlasse dich nicht allein auf die Zusammenfassung im Chat. Die Fragen stammen aus dem Chat-Auftrag. Die optionale Helfer*innen-Frage und die Zahlenbegrenzung wurden für diese Vorschau anschließend im Tally-Editor nachgearbeitet. Aufbau und Abbau sind gleichzeitig ausgewählt; es wurde keine Antwort abgeschickt. Kontrolliere besonders: Pflichtfelder: Vorname, E-Mail und Personenanzahl sind Pflicht; freiwillige Hilfe ist optional. Eingaben: Die Personenanzahl erlaubt nur 1 bis 5. Ein Platzhalter „1–5“ allein setzt noch keine Begrenzung. Mehrfachauswahl: Aufbau und Abbau können gemeinsam ausgewählt werden. Texte: Titel, Einleitung, Fragen und Dankeseite passen zur Veranstaltung. Status: Der Entwurf ist noch nicht veröffentlicht. Korrekturen kannst du gezielt im Chat anfordern. Wähle den Dienst dafür erneut über @ aus und nenne den bestehenden Entwurf eindeutig, etwa mit seinem Bearbeitungslink: Ändere mit @tally ausschließlich den eben erstellten Entwurf „Demo – Anmeldung zum Sommerfest“ unter [Bearbeitungslink]. Die Frage „Freiwillige Hilfe“ soll optional…"
+    "text": "Öffne den Bearbeitungslink aus der Antwort oder das neue Demo-Formular direkt beim Anbieter. Prüfe die tatsächlichen Felder; verlasse dich nicht allein auf die Zusammenfassung im Chat. Die Fragen stammen aus dem Chat-Auftrag. Die optionale Helfer*innen-Frage und die Zahlenbegrenzung wurden für diese Vorschau anschließend im Tally-Editor nachgearbeitet. Aufbau und Abbau sind gleichzeitig ausgewählt; es wurde keine Antwort abgeschickt. Kontrolliere besonders: Pflichtfelder: Vorname, E-Mail und Personenanzahl sind Pflicht; freiwillige Hilfe ist optional. Eingaben: Die Personenanzahl erlaubt nur 1 bis 5. Ein Platzhalter „1–5“ allein setzt noch keine Begrenzung. Mehrfachauswahl: Aufbau und Abbau können gemeinsam ausgewählt werden. Texte: Titel, Einleitung, Fragen und Dankeseite passen zur Veranstaltung. Status: Der Entwurf ist noch nicht veröffentlicht. Korrekturen kannst du gezielt im Chat anfordern. Wähle den Dienst dafür erneut über @ aus und nenne den bestehenden Entwurf eindeutig, etwa mit seinem Bearbeitungslink: Ändere mit @tally ausschließlich den eben erstellten Entwurf „Demo – Anmeldung zum Sommerfest“ unter [Bearbeitungslink]."
+  },
+  {
+    "url": "/docs/guides/fortgeschrittene/formulare-mit-tally-und-typeform",
+    "pageTitle": "Vom Chat zum Formular: Tally und Typeform mit dem Grünerator nutzen",
+    "heading": "4. Den Entwurf öffnen und verbessern",
+    "anchor": "#4-den-entwurf-öffnen-und-verbessern",
+    "category": "Guides",
+    "text": "Die Frage „Freiwillige Hilfe“ soll optional sein. Die Personenanzahl muss auf 1 bis 5 begrenzt sein. Lege kein neues Formular an und veröffentliche nichts. Für Typeform kannst du denselben Folgeauftrag mit der passenden Typeform-Mention versuchen; der vollständige Aufbau war in unserem Test noch nicht erfolgreich. Falls eine Änderung nicht gelingt, kannst du sie im Formular-Editor vornehmen. Im Test waren Korrekturen und mehrere Freigaben nötig; der erste Auftrag war kein verlässlich fertiges Formular."
   },
   {
     "url": "/docs/guides/fortgeschrittene/formulare-mit-tally-und-typeform",
@@ -3213,7 +3729,15 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Neue oder geänderte Werkzeuge freigeben",
     "anchor": "#neue-oder-geänderte-werkzeuge-freigeben",
     "category": "Guides",
-    "text": "Bei einem eigenen MCP-Server merkt sich der Grünerator, welche Werkzeuge er beim Verbinden angeboten hat. Bietet der Server später etwas anderes an, siehst du das in seiner Zeile unter Verbunden: Neue Werkzeuge bleiben ungenutzt, bis du sie freigibst. Die bisherigen Werkzeuge funktionieren weiter. Geänderte Werkzeug-Beschreibungen sperren den ganzen Server, bis du sie freigibst. Eine Werkzeug-Beschreibung ist eine Anweisung an die KI. Ändert ein Server sie unbemerkt, könnte er der KI darüber neue Anweisungen unterschieben. Der Chat zeigt dir die Änderung direkt im Gespräch, sobald du den Server ansprichst: eine Karte nennt die neuen oder geänderten Werkzeuge und bietet drei Antworten an: Ablehnen: Die Werkzeuge bekommen die Stufe Aus. Der Rest des Servers läuft weiter. Nur dieses Gespräch: Die Werkzeuge stehen in diesem Gespräch zur Verfügung, in anderen Gesprächen fragt der Chat erneut. Immer: Die Werkzeuge sind überall freigegeben. Die Antwort gilt ab deiner nächsten Nachricht. Dieselbe Entscheidung kannst du auch in den Einstellungen treffen: Prüfe die angezeigten Werkzeuge und klicke auf Werkzeuge freigeben. Willst du sie nicht nutzen, klicke auf Diese Werkzeuge abschalten:…"
+    "text": "Bei einem eigenen MCP-Server merkt sich der Grünerator, welche Werkzeuge er beim Verbinden angeboten hat. Bietet der Server später etwas anderes an, siehst du das in seiner Zeile unter Verbunden: Neue Werkzeuge bleiben ungenutzt, bis du sie freigibst. Die bisherigen Werkzeuge funktionieren weiter. Geänderte Werkzeug-Beschreibungen sperren den ganzen Server, bis du sie freigibst. Eine Werkzeug-Beschreibung ist eine Anweisung an die KI. Ändert ein Server sie unbemerkt, könnte er der KI darüber neue Anweisungen unterschieben. Der Chat zeigt dir die Änderung direkt im Gespräch, sobald du den Server ansprichst: eine Karte nennt die neuen oder geänderten Werkzeuge und bietet drei Antworten an: Ablehnen: Die Werkzeuge bekommen die Stufe Aus. Der Rest des Servers läuft weiter. Nur dieses Gespräch: Die Werkzeuge stehen in diesem Gespräch zur Verfügung, in anderen Gesprächen fragt der Chat erneut. Immer: Die Werkzeuge sind überall freigegeben. Die Antwort gilt ab deiner nächsten Nachricht. Dieselbe Entscheidung kannst du auch in den Einstellungen treffen: Prüfe die angezeigten Werkzeuge und klicke auf Werkzeuge freigeben."
+  },
+  {
+    "url": "/docs/guides/fortgeschrittene/konnektoren-einrichten",
+    "pageTitle": "Wie richte ich Konnektoren für den Chat ein?",
+    "heading": "Neue oder geänderte Werkzeuge freigeben",
+    "anchor": "#neue-oder-geänderte-werkzeuge-freigeben",
+    "category": "Guides",
+    "text": "Willst du sie nicht nutzen, klicke auf Diese Werkzeuge abschalten: Sie bekommen die Stufe Aus, und der Rest des Servers läuft wieder. Hat sich die Beschreibung eines Werkzeugs geändert, das du auf Immer erlauben gestellt hattest, fragt der Chat nach der Freigabe wieder nach. Ab der nächsten Chat-Anfrage gilt der neue Stand. Dienste aus dem Verzeichnis und bereitgestellte Dienste prüft der Grünerator nicht auf diese Weise. Ihre Anbieter haben wir vorab ausgewählt. Das Entfernen löscht die im Grünerator gespeicherte Verbindung. Ob beim Anbieter zusätzlich eine erteilte Berechtigung besteht, hängt vom jeweiligen Dienst ab; diese kannst du bei Bedarf auch dort widerrufen. Ein Konnektor arbeitet mit den Berechtigungen, die du beim jeweiligen Anbieter bestätigst. Verbinde nur Dienste, denen du vertraust, und prüfe vor Änderungen die im Chat angezeigte Aktion."
   },
   {
     "url": "/docs/guides/fortgeschrittene/konnektoren-einrichten",
@@ -3277,7 +3801,15 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "3. Das richtige Gespräch auswählen",
     "anchor": "#3-das-richtige-gespräch-auswählen",
     "category": "Guides",
-    "text": "Öffne einen neuen Grünerator-Chat. Tippe @sally und wähle Sally aus den Vorschlägen, sodass die Mention als Chip erscheint. Grenze die Suche ein, statt sofort alle Gespräche abrufen zu lassen. Suche mit @sally nach dem Meeting „Planung Sommerfest“ vom 20. Oktober 2026. Zeige mir zunächst nur die passenden Termine mit Datum und Titel. Rufe noch keine vollständigen Transkripte ab. Dieser Screenshot zeigt die Auswahl und einen Anfrageentwurf. Die Suche wurde für das Bild nicht abgeschickt; es wurden keine echten Meetings abgerufen. Alle Beispiele in diesem Guide sind fiktiv. Ersetze Titel, Datum und Thema durch deine Angaben. Bei mehreren Treffern legst du zuerst fest, welches Gespräch gemeint ist. Verwende den zweiten Treffer. Hole die Zusammenfassung und das Transkript dieser Aufzeichnung. Erstelle ein Ergebnisprotokoll mit den Abschnitten Beschlüsse, offene Fragen und nächste Schritte. Trenne beschlossene Punkte von bloßen Vorschlägen. Ergänze zu wichtigen Aussagen Zeitstempel, soweit die Quelle sie enthält. Erfinde keine Angaben. Prüfe die Werkzeuganfragen im Chat, bevor du sie freigibst. Die im Screenshot sichtbaren Werkzeuge umfassen neben Such- und Abruffunktionen auch…"
+    "text": "Öffne einen neuen Grünerator-Chat. Tippe @sally und wähle Sally aus den Vorschlägen, sodass die Mention als Chip erscheint. Grenze die Suche ein, statt sofort alle Gespräche abrufen zu lassen. Suche mit @sally nach dem Meeting „Planung Sommerfest“ vom 20. Oktober 2026. Zeige mir zunächst nur die passenden Termine mit Datum und Titel. Rufe noch keine vollständigen Transkripte ab. Dieser Screenshot zeigt die Auswahl und einen Anfrageentwurf. Die Suche wurde für das Bild nicht abgeschickt; es wurden keine echten Meetings abgerufen. Alle Beispiele in diesem Guide sind fiktiv. Ersetze Titel, Datum und Thema durch deine Angaben. Bei mehreren Treffern legst du zuerst fest, welches Gespräch gemeint ist. Verwende den zweiten Treffer. Hole die Zusammenfassung und das Transkript dieser Aufzeichnung. Erstelle ein Ergebnisprotokoll mit den Abschnitten Beschlüsse, offene Fragen und nächste Schritte. Trenne beschlossene Punkte von bloßen Vorschlägen. Ergänze zu wichtigen Aussagen Zeitstempel, soweit die Quelle sie enthält. Erfinde keine Angaben. Prüfe die Werkzeuganfragen im Chat, bevor du sie freigibst."
+  },
+  {
+    "url": "/docs/guides/fortgeschrittene/sally-meetings-transkribieren",
+    "pageTitle": "Von der Videokonferenz zum Protokoll: Sally mit dem Grünerator nutzen",
+    "heading": "3. Das richtige Gespräch auswählen",
+    "anchor": "#3-das-richtige-gespräch-auswählen",
+    "category": "Guides",
+    "text": "Die im Screenshot sichtbaren Werkzeuge umfassen neben Such- und Abruffunktionen auch Aktionen zum Ändern von Daten. Für ein Protokoll brauchst du zunächst nur die passenden Such- und Lesewerkzeuge; kontrolliere daher die konkrete Aktion und ihre Übergabewerte."
   },
   {
     "url": "/docs/guides/fortgeschrittene/sally-meetings-transkribieren",
@@ -3373,7 +3905,15 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Schritt 1: Deine Rolle eintragen",
     "anchor": "#schritt-1-deine-rolle-eintragen",
     "category": "Guides",
-    "text": "Öffne die Einstellungen — über dein Profilbild unten in der Seitenleiste oder direkt über /settings. Geh zu Personalisierung. Wenn du den Grünerator zum ersten Mal benutzt, ist das gleich der erste Schritt der Einrichtung („Was machst du bei den Grünen?“). Unter Deine Rollen auf Hinzufügen. Wähle nacheinander: Ebene: Land Bundesland: dein Landesverband Rolle: Mitarbeiter*in Landesgeschäftsstelle (in Österreich: Mitarbeiter*in Landesorganisation) Der Assistent zeigt dir zum Schluss, was diese Rolle freischaltet — zum Beispiel „4 Agenten und 5 Rezepte sowie das Notebook Hessen erscheinen künftig im Marktplatz und im Chat“. Speichern, fertig. Danach steht unter deinen Rollen ein Knopf „Zu deinem Landesverband“, der den Marktplatz direkt bei deinem Landesverband öffnet. Die Inhalte eines Landesverbands hängen an der Geschäftsstellen-Rolle und nur an ihr. Landtagsfraktion, MdL-Büro, Kreisverband oder Ortsverband geben zwar auch ein Bundesland an, schalten die LV-Agents aber nicht frei — sie sind das Material eines bestimmten Landesverbands, kein allgemeiner Bestand. Umgekehrt gilt: Ohne passende Rolle siehst du die LV-Inhalte nicht. Das ist Absicht und kein Fehler — vor der Zuteilung…"
+    "text": "Öffne die Einstellungen — über dein Profilbild unten in der Seitenleiste oder direkt über /settings. Geh zu Personalisierung. Wenn du den Grünerator zum ersten Mal benutzt, ist das gleich der erste Schritt der Einrichtung („Was machst du bei den Grünen?“). Unter Deine Rollen auf Hinzufügen. Wähle nacheinander: Ebene: Land Bundesland: dein Landesverband Rolle: Mitarbeiter*in Landesgeschäftsstelle (in Österreich: Mitarbeiter*in Landesorganisation) Der Assistent zeigt dir zum Schluss, was diese Rolle freischaltet — zum Beispiel „4 Agenten und 5 Rezepte sowie das Notebook Hessen erscheinen künftig im Marktplatz und im Chat“. Speichern, fertig. Danach steht unter deinen Rollen ein Knopf „Zu deinem Landesverband“, der den Marktplatz direkt bei deinem Landesverband öffnet. Die Inhalte eines Landesverbands hängen an der Geschäftsstellen-Rolle und nur an ihr. Landtagsfraktion, MdL-Büro, Kreisverband oder Ortsverband geben zwar auch ein Bundesland an, schalten die LV-Agents aber nicht frei — sie sind das Material eines bestimmten Landesverbands, kein allgemeiner Bestand. Umgekehrt gilt: Ohne passende Rolle siehst du die LV-Inhalte nicht."
+  },
+  {
+    "url": "/docs/guides/landesverbaende/landesverband-einrichten",
+    "pageTitle": "Wie richte ich den Grünerator für meinen Landesverband ein?",
+    "heading": "Schritt 1: Deine Rolle eintragen",
+    "anchor": "#schritt-1-deine-rolle-eintragen",
+    "category": "Guides",
+    "text": "Das ist Absicht und kein Fehler — vor der Zuteilung stand in der Agentura ein Regal mit elf fremden Landesverbänden, das für alle anderen nur Rauschen war. Du kannst mehrere Rollen anlegen (etwa Landesgeschäftsstelle und Kreisverband). Im Chat wählst du dann über das + links im Eingabefeld aus, in welcher Rolle du gerade schreibst; das Kürzel der aktiven Rolle steht als Chip daneben (z. B. LGS)."
   },
   {
     "url": "/docs/guides/landesverbaende/landesverband-einrichten",
@@ -3381,7 +3921,15 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Schritt 2: Was du jetzt hast",
     "anchor": "#schritt-2-was-du-jetzt-hast",
     "category": "Guides",
-    "text": "Eine eigene Herkunft im Marktplatz. Sie trägt den Namen deines Landesverbands (bei Hessen also „Grüne Hessen“). Darunter stehen die drei Agents deines Verbands, Öffentlichkeitsarbeit, Bürger*innenanfragen und Wahlprüfsteine, und eure Rezepte. Im Chat erreichst du die Rezepte außerdem über @ (siehe unten). Mit Zu meinen Grüneratoren holst du dir, was du täglich brauchst, auf deine eigene Seite. In der App ist es derselbe Filter. Eure Rezepte im Chat. Die Presse- und Instagram-Rezepte deines Landesverbands tauchen jetzt in der Rezept-Liste des Chats auf und lassen sich mit @ erwähnen, etwa @presse-hessen-partei oder @insta-hessen. Welche es je Landesverband gibt, steht unter Landesverband-Agents. Euer Notebook. Die Wissensdatenbank deines Landesverbands (Pressemitteilungen, Beschlüsse, Wahlprogramme) erscheint in der Auswahl und lässt sich im Chat als Quelle erwähnen. Und die Automatik: Bittest du den Chat einfach um „eine Pressemitteilung zu …“, nimmt er von selbst eure Vorlage statt der allgemeinen. Du musst dafür nichts erwähnen und nichts einstellen — die Rolle in deinem Profil genügt. Das gilt im normalen Chat genauso wie dann, wenn du gerade in einer Rolle aus der Auswahlliste…"
+    "text": "Eine eigene Herkunft im Marktplatz. Sie trägt den Namen deines Landesverbands (bei Hessen also „Grüne Hessen“). Darunter stehen die drei Agents deines Verbands, Öffentlichkeitsarbeit, Bürger*innenanfragen und Wahlprüfsteine, und eure Rezepte. Im Chat erreichst du die Rezepte außerdem über @ (siehe unten). Mit Zu meinen Grüneratoren holst du dir, was du täglich brauchst, auf deine eigene Seite. In der App ist es derselbe Filter. Eure Rezepte im Chat. Die Presse- und Instagram-Rezepte deines Landesverbands tauchen jetzt in der Rezept-Liste des Chats auf und lassen sich mit @ erwähnen, etwa @presse-hessen-partei oder @insta-hessen. Welche es je Landesverband gibt, steht unter Landesverband-Agents. Euer Notebook. Die Wissensdatenbank deines Landesverbands (Pressemitteilungen, Beschlüsse, Wahlprogramme) erscheint in der Auswahl und lässt sich im Chat als Quelle erwähnen. Und die Automatik: Bittest du den Chat einfach um „eine Pressemitteilung zu …“, nimmt er von selbst eure Vorlage statt der allgemeinen. Du musst dafür nichts erwähnen und nichts einstellen — die Rolle in deinem Profil genügt."
+  },
+  {
+    "url": "/docs/guides/landesverbaende/landesverband-einrichten",
+    "pageTitle": "Wie richte ich den Grünerator für meinen Landesverband ein?",
+    "heading": "Schritt 2: Was du jetzt hast",
+    "anchor": "#schritt-2-was-du-jetzt-hast",
+    "category": "Guides",
+    "text": "Das gilt im normalen Chat genauso wie dann, wenn du gerade in einer Rolle aus der Auswahlliste schreibst. Rollen, die du selbst formuliert hast, statt sie aus der Liste zu wählen, bringen ihre eigene Beschreibung mit — und die hat dann Vorrang vor der Automatik. Solange so eine Rolle im Chat aktiv ist, schlägt der Grünerator von sich aus keine Vorlage vor, auch nicht die allgemeine. Erwähnst du eine ausdrücklich (@presse-hessen-partei), gilt sie trotzdem. Wenn du die Automatik willst, wählst du eine Rolle aus der Liste — oder „Chat“ ganz ohne Rolle. Unter der fertigen Antwort steht dann, welches Rezept gewirkt hat: Wo es zwei Presse-Rezepte gibt, schreibt das eine für den Landesverband, das andere für die Landtagsfraktion. Die Automatik nimmt die Partei-Variante. Willst du den Fraktionsstil, erwähne das Rezept ausdrücklich (@presse-hessen-fraktion) — eine ausdrückliche Wahl wird nie übersteuert."
   },
   {
     "url": "/docs/guides/landesverbaende/landesverband-einrichten",
@@ -3581,7 +4129,15 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Wie machen wir das?",
     "anchor": "#wie-machen-wir-das",
     "category": "Archiv",
-    "text": "Ich will für verschiedene Organisationen sogenannte „Notebooks\" erstellen. Notebooks speisen sich aus öffentlichen Daten: Ganze Webseiten von Fraktionen und Landesverbänden, Grünen Wikis, Beschlüssen etc. Jedes Notebook kann individuell durch den Grünerator abgerufen werden. Dafür habe ich ein neues Interface geschaffen, das aus den Dokumenten zitiert. Du kannst also ganz genau nachprüfen, ob das auch wirklich stimmt, was die KI erzählt. Zukünftig können wir alles Wissen unserer Partei per Klick verfügbar machen. Was haben wir auf der BDK beschlossen? Was steht im Wahlprogramm der Grünen in Schleswig-Holstein? Wie mache ich meine Heimatstadt zur Schwammstadt? Frag einfach den Grünerator. Wir schaffen dafür eine einheitliche Datenbank von maschinenlesbaren Daten aus öffentlichen Quellen unserer Partei. Diese liegen sicher bei der Netzbegrünung ab. Man kann sie dann über verschiedene Wege abrufen: Der Grünerator selbst soll im Laufe dieses Jahres Apps für alle Plattformen erhalten. Außerdem sollt ihr die Datenbank des Grünerators auch mit ChatGPT, Claude und Co verbinden können – über einen sogenannten „MCP-Server\". Die Datenbank ist über die Netzbegrünung zudem öffentlich, es…"
+    "text": "Ich will für verschiedene Organisationen sogenannte „Notebooks\" erstellen. Notebooks speisen sich aus öffentlichen Daten: Ganze Webseiten von Fraktionen und Landesverbänden, Grünen Wikis, Beschlüssen etc. Jedes Notebook kann individuell durch den Grünerator abgerufen werden. Dafür habe ich ein neues Interface geschaffen, das aus den Dokumenten zitiert. Du kannst also ganz genau nachprüfen, ob das auch wirklich stimmt, was die KI erzählt. Zukünftig können wir alles Wissen unserer Partei per Klick verfügbar machen. Was haben wir auf der BDK beschlossen? Was steht im Wahlprogramm der Grünen in Schleswig-Holstein? Wie mache ich meine Heimatstadt zur Schwammstadt? Frag einfach den Grünerator. Wir schaffen dafür eine einheitliche Datenbank von maschinenlesbaren Daten aus öffentlichen Quellen unserer Partei. Diese liegen sicher bei der Netzbegrünung ab. Man kann sie dann über verschiedene Wege abrufen: Der Grünerator selbst soll im Laufe dieses Jahres Apps für alle Plattformen erhalten. Außerdem sollt ihr die Datenbank des Grünerators auch mit ChatGPT, Claude und Co verbinden können – über einen sogenannten „MCP-Server\"."
+  },
+  {
+    "url": "/docs/sonstiges/archiv/newsletter/2026-01-jahr-der-daten",
+    "pageTitle": "Januar 2026: Jahr der Daten",
+    "heading": "Wie machen wir das?",
+    "anchor": "#wie-machen-wir-das",
+    "category": "Archiv",
+    "text": "Die Datenbank ist über die Netzbegrünung zudem öffentlich, es können also weitere Projekte auf dieser Datenbank aufbauen."
   },
   {
     "url": "/docs/sonstiges/archiv/newsletter/2026-03-ki-chat-launch",
@@ -3605,7 +4161,15 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Darf ich vorstellen? Chat!",
     "anchor": "#darf-ich-vorstellen-chat",
     "category": "Archiv",
-    "text": "Deshalb veröffentliche ich heute den Grünerator Chat. Ein vollständiger KI-Chat — vergleichbar mit ChatGPT oder Claude — aber ausschließlich auf unseren europäischen Servern, ohne militärische Verträge, ohne Überwachung, ohne dass deine Daten zum Training verwendet werden. Was kann der Chat? Spezialisierte Assistenten für Anträge, Pressemitteilungen, Social Media, Reden und mehr — tippe dafür / im Eingabefeld. In der Regel erkennt der Grünerator diese aber automatisch. Grüne Quellen durchsuchen: Landesverbände, die ein Notebook gekauft haben, können mit @ (z.B. @Thueringen) direkt mit ihren Dokumenten chatten und damit z.B. Bürger*innenanfragen beantworten. Websuche für aktuelle Nachrichten und Fakten. Dateien hochladen — PDFs und Bilder als Kontext nutzen (experimentell). Quellenangaben mit Zitaten, die du nachprüfen kannst. Alles in einer Oberfläche, die du von ChatGPT kennst — nur grüner. Aber Achtung: Das Chat-Feature ist in der Beta-Phase. Es kann zu Fehlern kommen. Zudem braucht die UI hier und da noch Feinschliff. Bitte sichere wichtige Texte außerhalb des Grünerators, etwa indem du sie als Docx herunterlädst. Ich habe mich dazu entschieden, den Launch vorzuziehen, um ihn…"
+    "text": "Deshalb veröffentliche ich heute den Grünerator Chat. Ein vollständiger KI-Chat — vergleichbar mit ChatGPT oder Claude — aber ausschließlich auf unseren europäischen Servern, ohne militärische Verträge, ohne Überwachung, ohne dass deine Daten zum Training verwendet werden. Was kann der Chat? Spezialisierte Assistenten für Anträge, Pressemitteilungen, Social Media, Reden und mehr — tippe dafür / im Eingabefeld. In der Regel erkennt der Grünerator diese aber automatisch. Grüne Quellen durchsuchen: Landesverbände, die ein Notebook gekauft haben, können mit @ (z.B. @Thueringen) direkt mit ihren Dokumenten chatten und damit z.B. Bürger*innenanfragen beantworten. Websuche für aktuelle Nachrichten und Fakten. Dateien hochladen — PDFs und Bilder als Kontext nutzen (experimentell). Quellenangaben mit Zitaten, die du nachprüfen kannst. Alles in einer Oberfläche, die du von ChatGPT kennst — nur grüner. Aber Achtung: Das Chat-Feature ist in der Beta-Phase. Es kann zu Fehlern kommen. Zudem braucht die UI hier und da noch Feinschliff. Bitte sichere wichtige Texte außerhalb des Grünerators, etwa indem du sie als Docx herunterlädst."
+  },
+  {
+    "url": "/docs/sonstiges/archiv/newsletter/2026-03-ki-chat-launch",
+    "pageTitle": "März 2026: Grünerator Chat",
+    "heading": "Darf ich vorstellen? Chat!",
+    "anchor": "#darf-ich-vorstellen-chat",
+    "category": "Archiv",
+    "text": "Ich habe mich dazu entschieden, den Launch vorzuziehen, um ihn anhand deines Feedbacks zu verbessern. Bitte gib Feedback und berichte Fehler, die du findest. Ich will den Chat schnellstmöglich zu einer echten Alternative ausbauen. Eines meiner Lieblings-Features ist etwas versteckt: Grünerierst du dir einen neuen Text mit den bekannten Grüneratoren, kannst du auf die drei Punkte klicken und dann „Im Chat besprechen\" auswählen. Dann gibt dir der Grünerator Chat direkt Feedback zu deinem Text und ihr könnt ihn gemeinsam bearbeiten. Eine ausführliche Anleitung mit allen Assistenten, Quellen und Werkzeugen findest du in der Chat-Dokumentation."
   },
   {
     "url": "/docs/sonstiges/archiv/newsletter/2026-03-ki-chat-launch",
@@ -3613,7 +4177,15 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Hintergrund: Was ist passiert?",
     "anchor": "#hintergrund-was-ist-passiert",
     "category": "Archiv",
-    "text": "Das Pentagon — von der Trump-Regierung in „Department of War\" umbenannt — hat Rahmenverträge mit KI-Anbietern wie Anthropic, OpenAI, Google und xAI geschlossen. Ziel: KI in Waffenentwicklung, Geheimdienstarbeit und Gefechtsführung einzusetzen. Als Anthropic sich weigerte, seine roten Linien gegen autonome Waffen und Massenüberwachung aufzugeben, drohte das Pentagon, das Unternehmen als „Lieferkettenrisiko\" einzustufen — eine Kategorie, die sonst feindlichen Staaten vorbehalten ist. Und setzt dies nun um. OpenAI – die Firma hinter ChatGPT – sprang ein. OpenAI-Chef Sam Altman unterschrieb einen Deal, der dem Militär Zugang zu OpenAIs Modellen auf geheimen Netzen gewährt. Die roten Linien? Stehen im Vertrag. Ob sie durchgesetzt werden? Offen. Altman bezeichnete das Abkommen später als überhastet. Da war das Kind aber schon in den Brunnen gefallen. Und dann nutzten die USA KI-Systeme (ironischerweise von Anthropic) für den Angriff auf den Iran. Für was genau, dafür gibt es in US-Medien Vermutungen. Hunderte Mitarbeitende bei Google DeepMind und OpenAI haben in offenen Briefen dieselben roten Linien wie Anthropic gefordert: Nein zu Massenüberwachung, Nein zu autonomen Waffen ohne…"
+    "text": "Das Pentagon — von der Trump-Regierung in „Department of War\" umbenannt — hat Rahmenverträge mit KI-Anbietern wie Anthropic, OpenAI, Google und xAI geschlossen. Ziel: KI in Waffenentwicklung, Geheimdienstarbeit und Gefechtsführung einzusetzen. Als Anthropic sich weigerte, seine roten Linien gegen autonome Waffen und Massenüberwachung aufzugeben, drohte das Pentagon, das Unternehmen als „Lieferkettenrisiko\" einzustufen — eine Kategorie, die sonst feindlichen Staaten vorbehalten ist. Und setzt dies nun um. OpenAI – die Firma hinter ChatGPT – sprang ein. OpenAI-Chef Sam Altman unterschrieb einen Deal, der dem Militär Zugang zu OpenAIs Modellen auf geheimen Netzen gewährt. Die roten Linien? Stehen im Vertrag. Ob sie durchgesetzt werden? Offen. Altman bezeichnete das Abkommen später als überhastet. Da war das Kind aber schon in den Brunnen gefallen. Und dann nutzten die USA KI-Systeme (ironischerweise von Anthropic) für den Angriff auf den Iran. Für was genau, dafür gibt es in US-Medien Vermutungen."
+  },
+  {
+    "url": "/docs/sonstiges/archiv/newsletter/2026-03-ki-chat-launch",
+    "pageTitle": "März 2026: Grünerator Chat",
+    "heading": "Hintergrund: Was ist passiert?",
+    "anchor": "#hintergrund-was-ist-passiert",
+    "category": "Archiv",
+    "text": "Hunderte Mitarbeitende bei Google DeepMind und OpenAI haben in offenen Briefen dieselben roten Linien wie Anthropic gefordert: Nein zu Massenüberwachung, Nein zu autonomen Waffen ohne menschliche Kontrolle."
   },
   {
     "url": "/docs/sonstiges/archiv/newsletter/2026-04-work-update",
@@ -3685,7 +4257,15 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Mai 2026: Das Notebook-Update",
     "anchor": "",
     "category": "Archiv",
-    "text": "Newsletter Mai 2026 --- Hallo zusammen, ab sofort kannst du im Grünerator deine eigenen Notebooks erstellen – mit eigenen Quellen, eigenen Fragen, eigenen Antworten. Ein Notebook ist im Grunde dein persönliches Archiv: Du wirfst Dokumente rein, und der Grünerator beantwortet deine Fragen ausschließlich auf Basis dieser Dokumente – mit nachprüfbaren Quellenangaben. Lade einfach Dokumente hoch, verbinde einen Ordner aus der Grünen Wolke oder importiere eigene Grünerator Docs als Quelle. Offen gesagt: Ich glaube, Notebooks können die Art und Weise, wie wir Parteiarbeit machen, für immer verändern. Wissen wird durchsuchbar und verständlich wie nie. Um dieses Feature dauerhaft für uns als Basis kostenfrei und unbegrenzt verfügbar zu machen, können sich Landesverbände (in Österreich der Bundesverband) spezielle Notebooks einkaufen, die über 1.000 Dokumente beinhalten, die sich automatisiert aus den öffentlichen Beschlüssen und Pressemitteilungen speisen. Cool, oder? Die bestehenden Notebooks findest du online. Wenn das für deinen Landesverband interessant ist, melde dich gern! Um ein Notebook zu erstellen, klicke unten auf Zu den Notebooks und dann rechts bei „Eigene\" auf das Plus-Icon.…"
+    "text": "Newsletter Mai 2026 --- Hallo zusammen, ab sofort kannst du im Grünerator deine eigenen Notebooks erstellen – mit eigenen Quellen, eigenen Fragen, eigenen Antworten. Ein Notebook ist im Grunde dein persönliches Archiv: Du wirfst Dokumente rein, und der Grünerator beantwortet deine Fragen ausschließlich auf Basis dieser Dokumente – mit nachprüfbaren Quellenangaben. Lade einfach Dokumente hoch, verbinde einen Ordner aus der Grünen Wolke oder importiere eigene Grünerator Docs als Quelle. Offen gesagt: Ich glaube, Notebooks können die Art und Weise, wie wir Parteiarbeit machen, für immer verändern. Wissen wird durchsuchbar und verständlich wie nie. Um dieses Feature dauerhaft für uns als Basis kostenfrei und unbegrenzt verfügbar zu machen, können sich Landesverbände (in Österreich der Bundesverband) spezielle Notebooks einkaufen, die über 1.000 Dokumente beinhalten, die sich automatisiert aus den öffentlichen Beschlüssen und Pressemitteilungen speisen. Cool, oder? Die bestehenden Notebooks findest du online. Wenn das für deinen Landesverband interessant ist, melde dich gern! Um ein Notebook zu erstellen, klicke unten auf Zu den Notebooks und dann rechts bei „Eigene\" auf das Plus-Icon."
+  },
+  {
+    "url": "/docs/sonstiges/archiv/newsletter/2026-05-erstelle-dein-notebook",
+    "pageTitle": "Mai 2026: Das Notebook-Update",
+    "heading": "Mai 2026: Das Notebook-Update",
+    "anchor": "",
+    "category": "Archiv",
+    "text": "Aber Achtung: Das Feature ist neu und ich konnte noch nicht jede Kombination aus Quelle, Sichtbarkeit und Gruppenrolle durchtesten. Schreib mir bitte, wenn etwas hakt."
   },
   {
     "url": "/docs/sonstiges/archiv/newsletter/2026-05-erstelle-dein-notebook",
@@ -3781,7 +4361,23 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Mai 2026: Das Notebook-Update",
     "anchor": "",
     "category": "Archiv",
-    "text": "Verschickt am 19. Mai 2026 als Signal-Broadcast · Kurzfassung zum Newsletter Mai 2026. --- Die Karte unten zeigt die Nachricht, wie sie in Signal-Gruppen verschickt wurde — in ihr-Form, weil Signal mehrere Leute gleichzeitig erreicht. Mit einem Klick auf „Für Signal kopieren\" landet der Text in der Zwischenablage: Links als reine URL, Genderstern als Doppelpunkt, Fett wird weggelassen (Signal rendert keine Markdown-Sternchen) — wenn du Fett brauchst, einfach im Chat manuell setzen. Das Bild lädst du mit dem zweiten Button herunter und hängst es in Signal an. Hallo zusammen, ab sofort könnt ihr im Grünerator eure eigenen Notebooks erstellen – mit eigenen Quellen, eigenen Fragen, eigenen Antworten. Ein Notebook ist euer persönliches Archiv: Ihr werft Dokumente rein, und der Grünerator beantwortet eure Fragen ausschließlich auf Basis dieser Dokumente – mit nachprüfbaren Quellenangaben. Offen gesagt: Ich glaube, Notebooks können die Art und Weise, wie wir Parteiarbeit machen, für immer verändern. Wissen wird durchsuchbar wie nie. Damit das Feature für die Basis kostenfrei bleibt, können sich Landesverbände (in Österreich der Bundesverband) spezielle Notebooks mit über 1.000 Dokumenten…"
+    "text": "Verschickt am 19. Mai 2026 als Signal-Broadcast · Kurzfassung zum Newsletter Mai 2026. --- Die Karte unten zeigt die Nachricht, wie sie in Signal-Gruppen verschickt wurde — in ihr-Form, weil Signal mehrere Leute gleichzeitig erreicht. Mit einem Klick auf „Für Signal kopieren\" landet der Text in der Zwischenablage: Links als reine URL, Genderstern als Doppelpunkt, Fett wird weggelassen (Signal rendert keine Markdown-Sternchen) — wenn du Fett brauchst, einfach im Chat manuell setzen. Das Bild lädst du mit dem zweiten Button herunter und hängst es in Signal an. Hallo zusammen, ab sofort könnt ihr im Grünerator eure eigenen Notebooks erstellen – mit eigenen Quellen, eigenen Fragen, eigenen Antworten. Ein Notebook ist euer persönliches Archiv: Ihr werft Dokumente rein, und der Grünerator beantwortet eure Fragen ausschließlich auf Basis dieser Dokumente – mit nachprüfbaren Quellenangaben. Offen gesagt: Ich glaube, Notebooks können die Art und Weise, wie wir Parteiarbeit machen, für immer verändern. Wissen wird durchsuchbar wie nie."
+  },
+  {
+    "url": "/docs/sonstiges/archiv/signal-nachrichten/2026-05-erstelle-dein-notebook",
+    "pageTitle": "Mai 2026: Das Notebook-Update",
+    "heading": "Mai 2026: Das Notebook-Update",
+    "anchor": "",
+    "category": "Archiv",
+    "text": "Damit das Feature für die Basis kostenfrei bleibt, können sich Landesverbände (in Österreich der Bundesverband) spezielle Notebooks mit über 1.000 Dokumenten einkaufen, die sich automatisiert aus öffentlichen Beschlüssen und Pressemitteilungen speisen. Um ein Notebook zu erstellen: gruenerator.eu/notebooks, rechts bei „Eigene\" auf das Plus-Icon. Außerdem neu im Mai-Update: Neuer Dokumenten-Chat. Jedes Grünerator-Dokument hat jetzt einen eigenen Chat. Mit dem Toggle „AN\" schreibt die KI direkt ins Dokument, ihr behaltet die Kontrolle. Tippt „/\" im Editor und wählt „KI\" zum Weiterschreiben. Diktieren geht auch. Neue Agents. Im Chat gibt es neue Spezialist*innen für Öffentlichkeitsarbeit und Kommunalpolitik, dazu einen „Tweet-wie-Ricarda\"-Agent (nur DE). Mit @wolke hängt ihr Dateien aus der Grünen Wolke an, mit @recherche startet ihr tiefe Websuchen. Außerdem ein neues, sehr gutes Mistral-Modell aus Frankreich. Bilder erstellen und bearbeiten. Auf der Startseite und direkt aus dem Chat, unter anderem mit Flux Max für noch bessere Ergebnisse. Der Grünerator befindet sich derzeit in besonders aktiver Entwicklung – es können zwischendurch Fehler auftreten. Dabei zählt jede Rückmeldung."
+  },
+  {
+    "url": "/docs/sonstiges/archiv/signal-nachrichten/2026-05-erstelle-dein-notebook",
+    "pageTitle": "Mai 2026: Das Notebook-Update",
+    "heading": "Mai 2026: Das Notebook-Update",
+    "anchor": "",
+    "category": "Archiv",
+    "text": "Schreibt mir bitte, wenn etwas hakt. Viel Spaß beim Grünerieren! Moritz Die ausführliche Fassung mit Hintergründen zu Landesverband-Notebooks, Diktier-Tipps und der Robert-Parenthese steht im Newsletter Mai 2026."
   },
   {
     "url": "/docs/sonstiges/einstellungen",
@@ -3790,6 +4386,94 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "anchor": "",
     "category": "Sonstiges",
     "text": "Alles, was du am Grünerator für dich einstellen kannst, liegt in einem Fenster: Einstellungen. Du öffnest es über dein Profilbild unten in der Seitenleiste oder direkt über die Adresse /settings. Es legt sich über die Seite, auf der du gerade bist — du verlierst also nichts, was du angefangen hast. Was du hier änderst, gilt für dein Konto und damit auf allen Geräten, an denen du angemeldet bist. Gespeichert wird sofort; nur bei längeren Texten wie den Anweisungen gibt es einen Speichern-Knopf. Zwei Dinge werden häufig hier gesucht und sind woanders: Was der Chat kann — steht unter KI-Chat Einstellungen einzelner Agents (Region, Modell, Werkzeuge) — die gehören zum jeweiligen Agenten, nicht zu deinem Konto, siehe Eigene Agents erstellen"
+  },
+  {
+    "url": "/docs/sonstiges/einstellungen",
+    "pageTitle": "Einstellungen",
+    "heading": "Die Bereiche im Einzelnen",
+    "anchor": "#die-bereiche-im-einzelnen",
+    "category": "Sonstiges",
+    "text": "Onboarding. Die einmalige Einrichtung: drei Schritte, die den Grünerator auf dich einstellen — deine Rolle, dein Friend und der Hintergrund deiner Startseite. Der Bereich steht ganz oben, solange er offen ist, und verschwindet danach aus der Liste. Jeder Schritt lässt sich überspringen, einzeln oder alle auf einmal — übersprungen heißt: es bleibt beim Standard, nichts wird später nachgefragt. Die drei Schritte zeigen dieselben Bereiche, die es auch einzeln gibt („Personalisierung\", „Friends\", „Hintergrund\"). Was du hier einstellst, ist sofort gespeichert und dort später änderbar. Zurückholen kannst du die Einrichtung jederzeit über Allgemein → Einrichtung erneut starten. Allgemein. Aussehen und Grundverhalten der Oberfläche — und ganz oben, wer du bist. Änderungen greifen sofort und gelten auf allen Geräten, an denen du angemeldet bist."
+  },
+  {
+    "url": "/docs/sonstiges/einstellungen",
+    "pageTitle": "Einstellungen",
+    "heading": "Die Bereiche im Einzelnen",
+    "anchor": "#die-bereiche-im-einzelnen",
+    "category": "Sonstiges",
+    "text": "Konto: Name, Benutzername und E-Mail stammen aus deinem Grünen Login und werden dort geändert Aussehen: Farbschema der Oberfläche Sprache & Region: Wortwahl und Inhalte für Deutschland oder Österreich Startseite: Welcher Bereich sich auf der Startseite zuerst zeigt Stimme: Mit welcher Stimme dir der Grünerator Texte vorliest Feedback-Button: Darstellung des schwebenden Feedback-Buttons: mit Text, nur als Icon oder ganz ausgeblendet — er lässt sich in jede Bildschirmecke ziehen Einführungs-Touren zurücksetzen: Zeigt die Touren durch Workplace, Dokumente, Tabellen, Präsentationen und das Sharepic-Studio beim nächsten Öffnen wieder an. Einrichtung erneut starten: Holt den Bereich „Onboarding\" zurück und führt noch einmal durch Rolle, Friend und Hintergrund. Papierkorb: Gelöschte Inhalte 30 Tage lang wiederherstellen oder vorher endgültig löschen Aussehen: Hell, Dunkel, System Sprache & Region: Deutsch (Deutschland), Deutsch (Österreich) Startseite: Chat, Arbeiten Die Zeile Konto zeigt Anzeigename, Benutzername und E-Mail. Die drei kommen aus deinem Grünen Login und lassen sich nur dort ändern, wo du dich anmeldest."
+  },
+  {
+    "url": "/docs/sonstiges/einstellungen",
+    "pageTitle": "Einstellungen",
+    "heading": "Die Bereiche im Einzelnen",
+    "anchor": "#die-bereiche-im-einzelnen",
+    "category": "Sonstiges",
+    "text": "Dein Profilbild ist ein Grünerator Friend — ausgewählt wird er im Bereich „Friends\". Die Sprachwahl entscheidet nicht nur über Wortwahl, sondern auch über Inhalte: Mit „Deutsch (Österreich)\" bekommst du österreichische Quellen und Begriffe statt deutscher. Die Zeile Papierkorb öffnet die Seite mit allem, was du gelöscht hast. Dort bleibt es 30 Tage, lässt sich wiederherstellen oder vorher endgültig löschen. Erreichbar ist sie auch über das Kontomenü in der Seitenleiste und über „Zuletzt\" im Workplace. Ganz unten kannst du dein Konto endgültig löschen. Das entfernt deine Inhalte und lässt sich nicht rückgängig machen. Hintergrund. Der farbige Schimmer auf deiner Startseite — der Fläche, auf der du nach dem Anmelden stehst. Jede Kachel zeigt den Verlauf, den sie einstellt; ein Klick übernimmt ihn sofort. Startseiten-Hintergrund: Färbt den Schimmer hinter dem Chat-Start und den Senden-Button darauf Die Auswahl ist zweigeteilt: Bunt verteilt mehrere Farben über die Fläche, Einfarbig legt einen Ton darüber. Innerhalb von „Bunt\" unterscheiden sich Nebel, Klarer Kern und Dunst von unten nicht in der Farbe — sie nutzen dieselben vier Töne hinter unterschiedlich viel weißem Schleier."
+  },
+  {
+    "url": "/docs/sonstiges/einstellungen",
+    "pageTitle": "Einstellungen",
+    "heading": "Die Bereiche im Einzelnen",
+    "anchor": "#die-bereiche-im-einzelnen",
+    "category": "Sonstiges",
+    "text": "Der Senden-Button unter dem Composer übernimmt die Farbe des gewählten Hintergrunds — die Kachel zeigt ihn als Punkt mit an. Neutral schaltet den Verlauf ganz ab; dann steht dort die normale Seitenfläche. Im Dunkelmodus bleiben dieselben Presets, nur gedämpft — die Kacheln zeigen die Fassung, die zu deinem Farbschema gehört. Personalisierung. Dauerhafte Hinweise, die der Grünerator bei jeder Antwort mitdenkt — ohne dass du sie jedes Mal neu schreiben musst. Rollen: Deine Ämter und Ebenen — der Grünerator richtet Ansprache und Inhalte danach aus. Anlegen und Ändern am Rechner. Anweisungen: ein freies Textfeld für Vorlieben wie „Duze die Leserinnen und schreibe knapp.\" Deine Rollen: Ebene (Bund, Land, Kommune), Bundesland und Funktion. Daraus weiß der Grünerator, aus welcher Perspektive du schreibst, und schlägt passende Quellen und Formulierungen vor. Erinnerungen. Was sich der Grünerator aus euren Gesprächen dauerhaft gemerkt hat. Du siehst jeden Eintrag, kannst suchen, einzelne löschen oder eigene hinzufügen. Gedächtnis: Der Grünerator merkt sich nur, was du ihm ausdrücklich sagst („merk dir …\") — und berücksichtigt es in jedem Chat. Aus: nichts wird gespeichert oder verwendet."
+  },
+  {
+    "url": "/docs/sonstiges/einstellungen",
+    "pageTitle": "Einstellungen",
+    "heading": "Die Bereiche im Einzelnen",
+    "anchor": "#die-bereiche-im-einzelnen",
+    "category": "Sonstiges",
+    "text": "Erinnerungen entstehen im Gespräch von selbst — dieser Bereich ist die Kontrolle darüber, nicht die einzige Quelle. Alles auf einmal löschen ist möglich und wird vorher abgefragt. Friends. Dein Profilbild: eine Galerie gezeichneter Grünerator-Figuren, aus der du deinen „Friend\" wählst. Er erscheint überall dort, wo du auftauchst — in Chats, Projekten und Kommentaren. Dein Friend: Das Profilbild, das dich in Chats, Projekten und Kommentaren vertritt Solange die Einrichtung läuft, stehen drei zur Wahl — Feuri, Robosam und Schildi. Die übrige Truppe kommt dazu, sobald du sie abgeschlossen hast. Ein Klick auf eine Figur übernimmt sie sofort; ein Foto-Upload ist nicht vorgesehen. Wolki ist zunächst gesperrt und wird freigeschaltet, sobald du deine Grüne Wolke verbunden hast. Benachrichtigungen. Worüber und wie du informiert wirst. Am einfachsten wählst du eine der drei Stufen; wer es genauer mag, schaltet jede Meldungsart einzeln pro Kanal. Wie viel wir melden: Wenig meldet nur Kritisches und Persönliches, Mittel die wichtigen Ereignisse, Viele alles. E-Mail-Zustellung testen: Sendet dir sofort eine Test-E-Mail an deine Profil-Adresse, um die Zustellung zu prüfen."
+  },
+  {
+    "url": "/docs/sonstiges/einstellungen",
+    "pageTitle": "Einstellungen",
+    "heading": "Die Bereiche im Einzelnen",
+    "anchor": "#die-bereiche-im-einzelnen",
+    "category": "Sonstiges",
+    "text": "Wenig: Nur kritische & persönliche Benachrichtigungen Mittel: Empfohlen – wichtige Ereignisse Viele: Alle Benachrichtigungen Dokument geteilt: Wenn ein Dokument mit dir geteilt wird Berechtigung geändert: Wenn deine Berechtigung an einem Dokument geändert wird Zugriff entzogen: Wenn dein Zugriff auf ein Dokument entzogen wird Aufgaben-Updates: Updates zu deinen Board-Aufgaben Neue Kommentare: Neue Kommentare auf Karten Antworten: Antworten auf deine Kommentare Erwähnungen: Wenn du in einem Kommentar erwähnt wirst Zuweisungen: Wenn dir eine Karte zugewiesen wird Statusänderungen: Wenn sich der Status einer beobachteten Karte ändert Neue Anhänge: Wenn eine Datei an eine beobachtete Karte angehängt wird Fälligkeits-Erinnerung: Erinnerung, wenn eine Karte demnächst fällig ist Beobachtete Karten: Aktivität auf Karten, die du beobachtest Lauf erledigt: Wenn eine wiederkehrende Aufgabe oder ein Board-Zeitplan fertig ist Lauf fehlgeschlagen: Wenn ein geplanter Lauf nicht ausgeführt werden konnte Lauf wartet auf Freigabe: Wenn ein geplanter Lauf auf deine Freigabe wartet Mitglied tritt bei: Wenn ein Mitglied einer deiner Gruppen beitritt Mitglied tritt aus: Wenn ein Mitglied eine deiner"
+  },
+  {
+    "url": "/docs/sonstiges/einstellungen",
+    "pageTitle": "Einstellungen",
+    "heading": "Die Bereiche im Einzelnen",
+    "anchor": "#die-bereiche-im-einzelnen",
+    "category": "Sonstiges",
+    "text": "Gruppen verlässt Rollenänderung: Wenn sich eine Rolle in der Gruppe ändert Geteilte Inhalte: Wenn Inhalte in einer deiner Gruppen geteilt werden Kommentare in Gruppen: Wenn jemand deinen geteilten Inhalt oder einen Beitrag kommentiert, den du kommentiert hast Neue Beiträge: Wenn jemand in einem deiner Projekte einen Beitrag schreibt Erwähnungen: Wenn dich jemand in einem Projekt mit @Name erwähnt @alle: Wenn jemand in einem deiner Projekte alle mit @alle anspricht Gruppe aufgelöst: Wenn eine deiner Gruppen aufgelöst wird Beitrittsanfragen: Wenn jemand deiner öffentlichen Gruppe beitreten möchte Beitritt angenommen: Wenn deine Beitrittsanfrage angenommen wird Beitritt abgelehnt: Wenn deine Beitrittsanfrage abgelehnt wird Transfer-Download: Wenn jemand deine geteilte Datei herunterlädt Notebook-Likes: Wenn jemand dein öffentliches Notebook mag Vorlagen-Likes: Wenn jemand deine veröffentlichte Vorlage mag Vorlage freigegeben: Wenn deine eingereichte Vorlage freigegeben wird Vorlage abgelehnt: Wenn deine eingereichte Vorlage abgelehnt wird Neue Wolke-Dateien: Neue Dateien in den Wolke-Ordnern deiner Notebooks Neue Avatare: Wenn neue Profil-Avatare verfügbar sind Briefe."
+  },
+  {
+    "url": "/docs/sonstiges/einstellungen",
+    "pageTitle": "Einstellungen",
+    "heading": "Die Bereiche im Einzelnen",
+    "anchor": "#die-bereiche-im-einzelnen",
+    "category": "Sonstiges",
+    "text": "Absenderangaben für den PDF-Export von Briefen. Du kannst mehrere Briefköpfe anlegen — etwa einen für den Kreisverband und einen für die Fraktion — und beim Export auswählen, welcher oben links erscheint. Genau ein Briefkopf ist der Standard; der Export schlägt ihn vor. Löschst du den Standard, rückt automatisch ein anderer nach. Konnektoren. Externe Dienste, die der Chat mitbenutzen darf. Ist einer verbunden, kannst du ihn im Gespräch ansprechen — wie das im Detail geht, steht unter Konnektoren. Konnektoren: Verbundene Dienste, die im Chat als eigene Quelle ansprechbar sind Wolke. Die Verbindung zur Grünen Wolke (Nextcloud). Ist sie eingerichtet, kannst du Dateien von dort direkt im Chat und in den Notebooks nutzen und Ergebnisse dorthin zurückspeichern. Meine Websites. Eigene Websites verbinden, damit ihre Beiträge in Notebooks zur Verfügung stehen — etwa die Seite deines Kreisverbands als Quelle für Recherche und Textentwürfe. Funktioniert mit WordPress-Websites, deren REST-Schnittstelle öffentlich erreichbar ist. Die Kategorien der Website werden einmal abgefragt und stehen danach überall zur Auswahl. Datenschutz & Barrierefreiheit. Ein Bereich mit zwei Gruppen."
+  },
+  {
+    "url": "/docs/sonstiges/einstellungen",
+    "pageTitle": "Einstellungen",
+    "heading": "Die Bereiche im Einzelnen",
+    "anchor": "#die-bereiche-im-einzelnen",
+    "category": "Sonstiges",
+    "text": "Oben die beiden Einwilligungen, die der Grünerator von dir einholt: Beide gelten mit Wirkung für die Zukunft und lassen sich jederzeit zurücknehmen — was bereits verarbeitet wurde, bleibt davon unberührt. Unten die Einstellungen, die die Oberfläche zugänglicher machen: Sie folgen zunächst den Vorgaben deines Betriebssystems und lassen sich hier gezielt übersteuern. Reichweitenmessung: Anonyme Statistik mit Umami (eigene Server, EU). Nur nach Einwilligung — jederzeit widerrufbar Einwilligung in die KI-Verarbeitung: Ausdrückliche Einwilligung nach Art. 9 DSGVO, weil sich aus deinen Eingaben politische Meinungen ergeben können Animationen reduzieren: Schaltet dekorative Animationen und Übergänge ab — folgt sonst automatisch der Einstellung deines Betriebssystems Transparenz reduzieren: Entfernt durchscheinende Flächen und Unschärfe-Effekte — folgt sonst automatisch der Einstellung deines Betriebssystems Reichweitenmessung steuert die anonyme Statistik mit Umami, die wir auf eigenen Servern in der EU betreiben. Ohne deine Zustimmung wird das Skript gar nicht erst geladen; der Schalter gilt für den Browser, in dem du ihn umlegst."
+  },
+  {
+    "url": "/docs/sonstiges/einstellungen",
+    "pageTitle": "Einstellungen",
+    "heading": "Die Bereiche im Einzelnen",
+    "anchor": "#die-bereiche-im-einzelnen",
+    "category": "Sonstiges",
+    "text": "Einwilligung in die KI-Verarbeitung ist die ausdrückliche Einwilligung nach Art. 9 DSGVO: Weil über den Grünerator politische Inhalte entstehen, können sich aus deinen Eingaben politische Meinungen ergeben. Nimmst du sie zurück, fragen wir beim nächsten Aufruf der KI-Funktionen erneut. Animationen reduzieren und Transparenz reduzieren schalten dekorative Bewegung bzw. durchscheinende Flächen und Unschärfe ab — hilfreich bei Reizempfindlichkeit oder auf schwächerer Hardware. Sie gelten auf allen Geräten, an denen du angemeldet bist, und greifen sofort. Der Link /settings/barrierefreiheit führt weiterhin hierher — bis zum 28.08.2026 war das ein eigener Bereich. Bäume. Dein tägliches Guthaben für alles, was spürbar Rechenleistung braucht: KI-Bilder, Grünerator Voice, den Übersetzer und die Tiefenrecherche. Ein Baum ist die gemeinsame Einheit dahinter — jedes dieser Werkzeuge zeigt an, wie viele dir noch bleiben. Bäume: Dein tägliches Kontingent für Bilder, Sprachausgabe, Übersetzungen und Tiefenrecherche Jedes Konto hat 10 Bäume am Tag; sie werden um Mitternacht (UTC) zurückgesetzt, angezeigt in deiner Ortszeit."
+  },
+  {
+    "url": "/docs/sonstiges/einstellungen",
+    "pageTitle": "Einstellungen",
+    "heading": "Die Bereiche im Einzelnen",
+    "anchor": "#die-bereiche-im-einzelnen",
+    "category": "Sonstiges",
+    "text": "Wer den Grünerator-Newsletter abonniert hat, bekommt 5 Bäume mehr — 15 statt 10. Das zählt nur, wenn die abonnierte Adresse dieselbe ist wie die deines Grünerator-Kontos. Ein Baum entspricht einem KI-Bild mit dem Standardmodell (0,5 beim kleinen, 2 beim großen), 3 Minuten Sprachausgabe, 20.000 Zeichen Übersetzung (2,5 für ein ganzes Dokument) oder einer Tiefenrecherche. Auf manchen Instanzen (etwa bgst) ist das Kontingent unbegrenzt. Nutzung. Was dein Konto verbraucht hat — echte Zahlen statt einer abstrakten Quote: KI-Anfragen und Tokens pro Tag, dazu erzeugte Bilder, Transkriptionen und Web-Recherchen. Nutzung: Wie viele Anfragen, Tokens, Bilder und Recherchen auf dein Konto gehen Der Zeitraum ist umschaltbar (7, 30 oder 90 Tage); Tabellen schlüsseln den Verbrauch nach Bereich und nach Modell auf. Hier gibt es nichts einzustellen — der Bereich zeigt nur an. Automatische Hintergrundprozesse zählen nicht mit. Support. Kontaktwege, wenn etwas klemmt oder dir etwas fehlt: der Chat-Kanal der Community und eine E-Mail-Adresse. Hier gibt es nichts einzustellen. Support: Wo du Hilfe bekommst und Rückmeldung loswirst"
   },
   {
     "url": "/docs/sonstiges/einstellungen",
@@ -4005,7 +4689,15 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Drei Schichten, drei Verfahren",
     "anchor": "#drei-schichten-drei-verfahren",
     "category": "Sonstiges",
-    "text": "Schicht | Wer macht es | Kann es sich irren? | ------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------- | Listen und Namen — Werkzeuge, Einstellungen, Chat-Fähigkeiten, Dateilimits | Ein Programm liest den Quellcode aus. Keine KI beteiligt. | Nein. Es steht wörtlich das da, was im Code steht — oder der Bau der Seite schlägt fehl. | Erklärender Text — Anleitungen, Beispiele, Einordnungen | Überwiegend eine KI, die den Quellcode mitliest. Ein Mensch beauftragt, liest gegen und gibt frei. | Ja. Text kann danebenliegen oder veralten. | Prüfung — Stimmt der Text noch mit der App überein? | Eine zweite KI, die nur lesen darf: Sie vergleicht Artikel und Code und meldet Abweichungen, ändert aber nichts. | Ja. Sie meldet Verdachtsfälle, entscheiden tun Menschen. | Die zweite und die dritte Zeile sind bewusst getrennt. Beim Schreiben arbeitet die KI in einer beauftragten Sitzung: Ein Mensch gibt vor, was dokumentiert werden soll, die KI liest den zugehörigen Code und…"
+    "text": "Schicht | Wer macht es | Kann es sich irren? | ------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------- | Listen und Namen — Werkzeuge, Einstellungen, Chat-Fähigkeiten, Dateilimits | Ein Programm liest den Quellcode aus. Keine KI beteiligt. | Nein. Es steht wörtlich das da, was im Code steht — oder der Bau der Seite schlägt fehl. | Erklärender Text — Anleitungen, Beispiele, Einordnungen | Überwiegend eine KI, die den Quellcode mitliest. Ein Mensch beauftragt, liest gegen und gibt frei. | Ja. Text kann danebenliegen oder veralten. | Prüfung — Stimmt der Text noch mit der App überein? | Eine zweite KI, die nur lesen darf: Sie vergleicht Artikel und Code und meldet Abweichungen, ändert aber nichts. | Ja. Sie meldet Verdachtsfälle, entscheiden tun Menschen. | Die zweite und die dritte Zeile sind bewusst getrennt."
+  },
+  {
+    "url": "/docs/sonstiges/wie-diese-doku-entsteht",
+    "pageTitle": "Wie diese Doku entsteht",
+    "heading": "Drei Schichten, drei Verfahren",
+    "anchor": "#drei-schichten-drei-verfahren",
+    "category": "Sonstiges",
+    "text": "Beim Schreiben arbeitet die KI in einer beauftragten Sitzung: Ein Mensch gibt vor, was dokumentiert werden soll, die KI liest den zugehörigen Code und formuliert; veröffentlicht wird erst, wenn ein Mensch die Änderung geprüft und übernommen hat. Nichts davon geht ungelesen online. Die Prüf-KI dagegen läuft unbeaufsichtigt nach Zeitplan — und darf deshalb ausschließlich lesen. Sie hat kein Schreibrecht auf die Dateien und kann nichts veröffentlichen; was sie findet, wird zu einer Aufgabe für einen Menschen."
   },
   {
     "url": "/docs/sonstiges/wie-diese-doku-entsteht",
@@ -4037,7 +4729,15 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Was die KI prüft",
     "anchor": "#was-die-ki-prüft",
     "category": "Sonstiges",
-    "text": "Ein Knopfname lässt sich maschinell abgleichen, ein Erklärabsatz nicht — er kann veralten, ohne dass ein einziges Wort im Code fehlt. Deshalb bekommt der geschriebene Teil eine eigene, wiederkehrende Prüfung: Jeden Freitagmorgen geht ein KI-Agent alle Anleitungsartikel durch. Er liest den Artikel, sucht die passenden Stellen im Quellcode und beantwortet eine Frage: Gibt es diesen Knopf, dieses Menü, diesen Ablauf noch so, wie der Text es behauptet? Bei Änderungen am Code läuft dieselbe Prüfung sofort — allerdings nur für die Artikel, die zum geänderten Bereich gehören. Das Ergebnis erscheint als Kommentar am Änderungsvorschlag, noch bevor er übernommen wird. Jeder Befund nennt Belege: die zitierte Stelle aus dem Artikel, die dazugehörige Stelle im Code und einen Vorschlag. Daraus wird eine Aufgabe auf GitHub, öffentlich einsehbar. Der Agent arbeitet mit einem Sprachmodell der Claude-Familie und ist auf Lesewerkzeuge beschränkt: Dateien lesen, Text suchen, Dateien finden. Schreiben, Befehle ausführen und ins Internet gehen kann er nicht. Nicht geprüft werden Bereiche, denen kein Code gegenübersteht: das Newsletter-Archiv, die Grundlagenartikel über KI im Allgemeinen und interne…"
+    "text": "Ein Knopfname lässt sich maschinell abgleichen, ein Erklärabsatz nicht — er kann veralten, ohne dass ein einziges Wort im Code fehlt. Deshalb bekommt der geschriebene Teil eine eigene, wiederkehrende Prüfung: Jeden Freitagmorgen geht ein KI-Agent alle Anleitungsartikel durch. Er liest den Artikel, sucht die passenden Stellen im Quellcode und beantwortet eine Frage: Gibt es diesen Knopf, dieses Menü, diesen Ablauf noch so, wie der Text es behauptet? Bei Änderungen am Code läuft dieselbe Prüfung sofort — allerdings nur für die Artikel, die zum geänderten Bereich gehören. Das Ergebnis erscheint als Kommentar am Änderungsvorschlag, noch bevor er übernommen wird. Jeder Befund nennt Belege: die zitierte Stelle aus dem Artikel, die dazugehörige Stelle im Code und einen Vorschlag. Daraus wird eine Aufgabe auf GitHub, öffentlich einsehbar. Der Agent arbeitet mit einem Sprachmodell der Claude-Familie und ist auf Lesewerkzeuge beschränkt: Dateien lesen, Text suchen, Dateien finden. Schreiben, Befehle ausführen und ins Internet gehen kann er nicht."
+  },
+  {
+    "url": "/docs/sonstiges/wie-diese-doku-entsteht",
+    "pageTitle": "Wie diese Doku entsteht",
+    "heading": "Was die KI prüft",
+    "anchor": "#was-die-ki-prüft",
+    "category": "Sonstiges",
+    "text": "Nicht geprüft werden Bereiche, denen kein Code gegenübersteht: das Newsletter-Archiv, die Grundlagenartikel über KI im Allgemeinen und interne Ablagen."
   },
   {
     "url": "/docs/sonstiges/wie-diese-doku-entsteht",
@@ -4045,7 +4745,23 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Was direkt aus dem Code kommt",
     "anchor": "#was-direkt-aus-dem-code-kommt",
     "category": "Sonstiges",
-    "text": "Für die Teile, die reine Aufzählung sind, gibt es keine abgetippte Kopie in der Doku. Ein Skript liest die Konfigurationsdateien des Grünerators und schreibt daraus eine Datenliste, die die Doku-Seite beim Bauen einbindet: Was | Woraus | Wo du es siehst | ------------------------------------------------- | ----------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------- | Werkzeuge und ihre Gruppen | Die Kachel- und Katalog-Konfiguration der Weboberfläche | Alle Werkzeuge | Chat-Fähigkeiten | Die Liste der Absichten, die der Chat erkennen kann, plus die @-Erwähnungen | Was kann ich fragen? | Einstellungen | Der Aufbau des Einstellungen-Dialogs und alle Schalter darin | Einstellungen | Office-Funktionen | Die Verträge zwischen App und KI — und was der Editor davon wirklich ausführt | Office-Überblick | Dateilimits, Sammlungen, Konnektoren | Die Upload-Prüfung und die Konnektor-Registry | Dateien hinzufügen, Konnektoren | Namen von Werkzeugen und Menüpunkten im Fließtext | Dieselben Konfigurationen | überall dort, wo ein Name genannt wird | Zwei…"
+    "text": "Für die Teile, die reine Aufzählung sind, gibt es keine abgetippte Kopie in der Doku. Ein Skript liest die Konfigurationsdateien des Grünerators und schreibt daraus eine Datenliste, die die Doku-Seite beim Bauen einbindet: Was | Woraus | Wo du es siehst | ------------------------------------------------- | ----------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------- | Werkzeuge und ihre Gruppen | Die Kachel- und Katalog-Konfiguration der Weboberfläche | Alle Werkzeuge | Chat-Fähigkeiten | Die Liste der Absichten, die der Chat erkennen kann, plus die @-Erwähnungen | Was kann ich fragen?"
+  },
+  {
+    "url": "/docs/sonstiges/wie-diese-doku-entsteht",
+    "pageTitle": "Wie diese Doku entsteht",
+    "heading": "Was direkt aus dem Code kommt",
+    "anchor": "#was-direkt-aus-dem-code-kommt",
+    "category": "Sonstiges",
+    "text": "| Einstellungen | Der Aufbau des Einstellungen-Dialogs und alle Schalter darin | Einstellungen | Office-Funktionen | Die Verträge zwischen App und KI — und was der Editor davon wirklich ausführt | Office-Überblick | Dateilimits, Sammlungen, Konnektoren | Die Upload-Prüfung und die Konnektor-Registry | Dateien hinzufügen, Konnektoren | Namen von Werkzeugen und Menüpunkten im Fließtext | Dieselben Konfigurationen | überall dort, wo ein Name genannt wird | Zwei Eigenschaften dieses Verfahrens sind entscheidend: Es wird nichts geraten. Das Skript liest den Code als Struktur, so wie ein Editor das tut, und übernimmt nur Zeichenketten daraus. Die App selbst wird dabei nie ausgeführt. Veraltung bricht den Bau. Wird im Grünerator ein Werkzeug umbenannt und die Liste nicht neu erzeugt, schlägt die Prüfung im Pull Request fehl. Eine falsche Bezeichnung kann hier nicht unbemerkt online gehen. Was das Verfahren nicht leistet: Es beschreibt, was die App anbietet — nicht, ob es gut funktioniert oder wann man es benutzen sollte. Deshalb steht neben jeder ausgelesenen Liste geschriebener Text: Beispielfragen, Hinweise, Einordnung."
+  },
+  {
+    "url": "/docs/sonstiges/wie-diese-doku-entsteht",
+    "pageTitle": "Wie diese Doku entsteht",
+    "heading": "Was direkt aus dem Code kommt",
+    "anchor": "#was-direkt-aus-dem-code-kommt",
+    "category": "Sonstiges",
+    "text": "Das ist die Hälfte aus der zweiten Zeile der Tabelle — meist von der KI formuliert, immer von einem Menschen freigegeben."
   },
   {
     "url": "/docs/webinare",
@@ -4093,7 +4809,15 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "GRÜNERATOR – KI für die kommunalpolitische Arbeit nutzen",
     "anchor": "#grünerator--ki-für-die-kommunalpolitische-arbeit-nutzen",
     "category": "Allgemein",
-    "text": "Du möchtest Pressemitteilungen schneller erstellen oder Deine Social-Media-Präsenz stärken? Der Grünerator macht's möglich. Im Webinar zeige ich Dir, wie Du das KI-Tool optimal einsetzt, um Deine Arbeit vor Ort zu unterstützen. Der Grünerator ist ein speziell für die Grünen entwickeltes KI-Tool, das grüne Inhalte nach Wahl erstellen kann. Das Tool ist einfach und selbsterklärend. Du gibst Deine Stichworte in die vorgegebenen Felder ein – der Grünerator erstellt unter Berücksichtigung grüner Sprache und Werte Grünen Content. Das Ergebnis ist ein Vorschlag, den Du weiterbearbeiten kannst. Egal ob für die tägliche Fraktionsarbeit, Wahlkampf oder Social Media – der Grünerator ist Dein digitaler Partner. Das lernst Du im Webinar: Erste Hands-on Übungen: Gemeinsam erstellen wir Pressemitteilungen und Social Media Posts Workflow-Optimierung: Wir lernen zusammen, wie du den Grünerator in deine Workflows einbaust Praktische Tipps und Tricks: Wie Du die KI optimal für Deine kommunalpolitische Arbeit nutzt Über den Referenten Moritz Wächter ist der Entwickler des Grünerators. Er ist Kreisvorsitzender der Grünen im Rhein-Sieg-Kreis und seit zehn Jahren ehrenamtlich auf kommunaler Ebene…"
+    "text": "Du möchtest Pressemitteilungen schneller erstellen oder Deine Social-Media-Präsenz stärken? Der Grünerator macht's möglich. Im Webinar zeige ich Dir, wie Du das KI-Tool optimal einsetzt, um Deine Arbeit vor Ort zu unterstützen. Der Grünerator ist ein speziell für die Grünen entwickeltes KI-Tool, das grüne Inhalte nach Wahl erstellen kann. Das Tool ist einfach und selbsterklärend. Du gibst Deine Stichworte in die vorgegebenen Felder ein – der Grünerator erstellt unter Berücksichtigung grüner Sprache und Werte Grünen Content. Das Ergebnis ist ein Vorschlag, den Du weiterbearbeiten kannst. Egal ob für die tägliche Fraktionsarbeit, Wahlkampf oder Social Media – der Grünerator ist Dein digitaler Partner. Das lernst Du im Webinar: Erste Hands-on Übungen: Gemeinsam erstellen wir Pressemitteilungen und Social Media Posts Workflow-Optimierung: Wir lernen zusammen, wie du den Grünerator in deine Workflows einbaust Praktische Tipps und Tricks: Wie Du die KI optimal für Deine kommunalpolitische Arbeit nutzt Über den Referenten Moritz Wächter ist der Entwickler des Grünerators."
+  },
+  {
+    "url": "/docs/webinare",
+    "pageTitle": "Webinare",
+    "heading": "GRÜNERATOR – KI für die kommunalpolitische Arbeit nutzen",
+    "anchor": "#grünerator--ki-für-die-kommunalpolitische-arbeit-nutzen",
+    "category": "Allgemein",
+    "text": "Er ist Kreisvorsitzender der Grünen im Rhein-Sieg-Kreis und seit zehn Jahren ehrenamtlich auf kommunaler Ebene unterwegs. ---"
   },
   {
     "url": "/docs/webinare",
@@ -4157,6 +4881,14 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Webinar-Einladung: KI-Basics - Künstliche Intelligenz für ehrenamtliche Politik",
     "anchor": "#webinar-einladung-ki-basics---künstliche-intelligenz-für-ehrenamtliche-politik",
     "category": "Allgemein",
-    "text": "Liebe Grüne, wir laden euch herzlich zu unserem kostenlosen Online-Webinar \"KI-Basics: Künstliche Intelligenz für ehrenamtliche Politik\" ein. Webinar-Details Thema: KI-Basics - Künstliche Intelligenz für ehrenamtliche Politik Dauer: 90 Minuten Level: Anfänger (keine Vorkenntnisse erforderlich) Format: Interaktives Online-Webinar mit praktischen Übungen Kosten: Kostenlos Darum geht es Ehrenamtliche Arbeit ist ganz schön zeitaufwendig. Manchmal wünschen wir uns ein paar helfende Hände, die uns bei den ausführenden Tätigkeiten unterstützen. Dafür gibt es jetzt Künstliche Intelligenz. Sie kann uns die Arbeit im Ortsverband oder in der Fraktion erleichtern. Doch ist mit Blick auf Datenschutz, Falschinformationen und Klimaverträglichkeit Vorsicht geboten. Im Webinar zeige ich dir, wie ChatGPT und Co funktionieren und welche Tools dich am besten in der Arbeit vor Ort unterstützen. Das lernst Du im Webinar Wie KI wie ChatGPT Texte und Bilder erstellen kann Welche Tools du am besten für kommunalpolitische Arbeit nutzen kannst Praktische Tipps und Tricks: Wie Du die KI optimal für Deine kommunalpolitische Arbeit nutzt Für wen ist dieses Webinar geeignet? Grüne in Ortsverbänden und…"
+    "text": "Liebe Grüne, wir laden euch herzlich zu unserem kostenlosen Online-Webinar \"KI-Basics: Künstliche Intelligenz für ehrenamtliche Politik\" ein. Webinar-Details Thema: KI-Basics - Künstliche Intelligenz für ehrenamtliche Politik Dauer: 90 Minuten Level: Anfänger (keine Vorkenntnisse erforderlich) Format: Interaktives Online-Webinar mit praktischen Übungen Kosten: Kostenlos Darum geht es Ehrenamtliche Arbeit ist ganz schön zeitaufwendig. Manchmal wünschen wir uns ein paar helfende Hände, die uns bei den ausführenden Tätigkeiten unterstützen. Dafür gibt es jetzt Künstliche Intelligenz. Sie kann uns die Arbeit im Ortsverband oder in der Fraktion erleichtern. Doch ist mit Blick auf Datenschutz, Falschinformationen und Klimaverträglichkeit Vorsicht geboten. Im Webinar zeige ich dir, wie ChatGPT und Co funktionieren und welche Tools dich am besten in der Arbeit vor Ort unterstützen. Das lernst Du im Webinar Wie KI wie ChatGPT Texte und Bilder erstellen kann Welche Tools du am besten für kommunalpolitische Arbeit nutzen kannst Praktische Tipps und Tricks: Wie Du die KI optimal für Deine kommunalpolitische Arbeit nutzt Für wen ist dieses Webinar geeignet?"
+  },
+  {
+    "url": "/docs/webinare",
+    "pageTitle": "Webinare",
+    "heading": "Webinar-Einladung: KI-Basics - Künstliche Intelligenz für ehrenamtliche Politik",
+    "anchor": "#webinar-einladung-ki-basics---künstliche-intelligenz-für-ehrenamtliche-politik",
+    "category": "Allgemein",
+    "text": "Grüne in Ortsverbänden und Fraktionen Alle, die ihre ehrenamtliche Arbeit effizienter gestalten möchten Einsteiger ohne technische Vorkenntnisse Alle, die KI verantwortungsvoll und klimabewusst einsetzen möchten Über den Referenten Moritz Wächter ist der Entwickler des Grünerators. Er ist Kreisvorsitzender der Grünen im Rhein-Sieg-Kreis und seit zehn Jahren ehrenamtlich auf kommunaler Ebene unterwegs. ---"
   }
 ];

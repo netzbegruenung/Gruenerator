@@ -37,10 +37,7 @@ import { z } from 'zod';
 import { lastUserText } from '../../../agents/langgraph/ChatGraph/nodes/classifierHeuristics.js';
 import { looksLikeRecurringOrder } from '../../../agents/langgraph/ChatGraph/nodes/classifierSignals.js';
 import { forbidsNewResearch } from '../../../agents/langgraph/ChatGraph/nodes/fastPathGuards.js';
-import {
-  buildProductKnowledgeBlock,
-  isProductMetaQuestion,
-} from '../../../services/chat/productKnowledge.js';
+import { buildProductKnowledgeBlock } from '../../../services/chat/productKnowledge.js';
 import { crawlAndDistill } from '../../../services/search/index.js';
 import { getDeepLService } from '../../../services/translation/DeepLService.js';
 import { createLogger } from '../../../utils/logger.js';
@@ -854,19 +851,19 @@ NICHT für eine Zusammenfassung des ganzen Dokuments — dafür gibt es \`summar
         attachedCloudShareLinks(state.attachedWebpageUrls).length > 0 ||
         wolkeInText);
     // Product self-knowledge: what Grünerator itself offers (Grüneratoren,
-    // Werkzeuge, MCP-Server, Wissenssammlungen). Same builder respondNode
-    // injects when the meta regex matches — the loop inherits that system
-    // prompt, so the tool is only mounted for turns the regex MISSED (the
-    // model decides); otherwise the block would land in context twice and the
-    // connected-servers DB read would run twice per turn.
-    if (
-      state.enabledTools?.['product_knowledge'] !== false &&
-      !isProductMetaQuestion(state.lastUserTextNoMentions ?? lastUserText(state))
-    ) {
+    // Werkzeuge, Begriffe, MCP-Server, Wissenssammlungen). Mounted on EVERY
+    // loop turn: the loop prompt names the product vocabulary
+    // (buildGlossaryVocabularyNote) and the model decides whether to look a
+    // term up. It used to be mounted only when the meta regex missed, to
+    // avoid the block landing twice — but a regex is not what should decide
+    // here (live 27.10.2026: „Was ist Panda?" went to web_search). The block
+    // only lands twice if the model calls the tool on a turn that already
+    // carries it, and the connected-servers read runs only on MCP questions.
+    if (state.enabledTools?.['product_knowledge'] !== false) {
       tools.product_knowledge = tool({
-        description: `Beantwortet Fragen über den Grünerator selbst: verfügbare Grüneratoren (Assistenten), Werkzeuge, MCP-Server/Anbindungen und durchsuchbare Wissenssammlungen.
+        description: `Beantwortet Fragen über den Grünerator selbst: verfügbare Grüneratoren (Assistenten), Werkzeuge, eigene Begriffe (Modellstufen Klein/Mittel/Ultra/Panda, Explainable, Podcast, Öko-Modus, Marktplatz, Papierkorb, Konto, App …), MCP-Server/Anbindungen und durchsuchbare Wissenssammlungen.
 
-NUTZE WENN nach Funktionen, Fähigkeiten oder Anbindungen des Grünerators gefragt wird ("was kannst du", "welche MCP-Server kennst du", "wie erstelle ich ein Sharepic"). NICHT für politische Inhalte oder Recherche — und NICHT für die persönlichen Wolke-/Nextcloud-Verbindungen oder -Dateien der Person: welche Wolke-Links verbunden sind, beantwortet 'cloud_files' (list_connections).`,
+NUTZE WENN nach Funktionen, Begriffen, Fähigkeiten oder Anbindungen des Grünerators gefragt wird ("was kannst du", "was ist Panda", "welche MCP-Server kennst du", "wie erstelle ich ein Sharepic"). NICHT für politische Inhalte oder Recherche — und NICHT für die persönlichen Wolke-/Nextcloud-Verbindungen oder -Dateien der Person: welche Wolke-Links verbunden sind, beantwortet 'cloud_files' (list_connections).`,
         inputSchema: z.object({
           topic: z
             .string()

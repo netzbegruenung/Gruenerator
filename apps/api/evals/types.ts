@@ -258,6 +258,13 @@ export const evalExpectSchema = z
     /** No scrape_url call errored (model-invented / dead URL). */
     noInventedUrls: z.boolean().optional(),
     /**
+     * Product question about the Grünerator itself: the answer must rest on the
+     * product sources — a `product_knowledge` / `gruenerator_docs_search` call,
+     * or at least one doku.gruenerator.eu link that exists in the docs index.
+     * A doku link to a page that does not exist fails in any case.
+     */
+    productGrounded: z.boolean().optional(),
+    /**
      * `warning` event codes the turn must emit (search_degraded,
      * deep_research_quota_spent, unknown_model_id, …).
      *
