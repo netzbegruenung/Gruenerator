@@ -23,6 +23,7 @@
 
 /* Scan canvas-editor source for Tailwind class usage */
 @source "../**/*.{ts,tsx}";
+@source "../../../ggraphic-editor/src/**/*.{ts,tsx}";
 
 /* Trefferfläche auf die 44px aus WCAG 2.2 „Target Size" bringen, ohne die
    Optik anzufassen — ein unsichtbares Pseudo-Element deckt die fehlenden
