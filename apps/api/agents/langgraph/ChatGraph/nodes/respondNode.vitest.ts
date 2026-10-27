@@ -538,6 +538,7 @@ describe('formatTabularComputeGuidance', () => {
     hasTabularAttachment: true,
     computedResult: null,
     clientCanRunPython: true,
+    clientCanUseTabularTool: true,
     agentConfig: { userId: 'u1' },
   } as never;
 
@@ -560,6 +561,15 @@ describe('formatTabularComputeGuidance', () => {
   it('loop turn without a user (tool not mounted) never mentions the tool', () => {
     const out = formatTabularComputeGuidance(
       makeState({ ...(mountable as object), agentConfig: { userId: null } } as never),
+      { loop: true }
+    );
+    expect(out).not.toContain('tabelle_auswerten');
+    expect(out).toContain('AUS DEN DATEN ANTWORTEN');
+  });
+
+  it('loop turn from an old client (run_python only, no capability) answers from the data', () => {
+    const out = formatTabularComputeGuidance(
+      makeState({ ...(mountable as object), clientCanUseTabularTool: false } as never),
       { loop: true }
     );
     expect(out).not.toContain('tabelle_auswerten');
@@ -600,6 +610,7 @@ describe('formatTabularComputeGuidance', () => {
         hasTabularAttachment: true,
         computedResult: makeComputeResult(),
         clientCanRunPython: true,
+        clientCanUseTabularTool: true,
         agentConfig: { userId: 'u1' },
       } as never),
       { loop: true }

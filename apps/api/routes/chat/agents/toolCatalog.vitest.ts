@@ -875,32 +875,58 @@ describe('toolCatalog: tabelle_auswerten', () => {
     );
   });
 
+  it('fehlt bei einem alten Client, der nur run_python meldet', () => {
+    expect(
+      catalogFor({
+        hasTabularAttachment: true,
+        clientCanRunPython: true,
+        clientCanUseTabularTool: false,
+      })
+    ).not.toContain('tabelle_auswerten');
+  });
+
   it('fehlt ohne Tabelle', () => {
-    expect(catalogFor({ hasTabularAttachment: false, clientCanRunPython: true })).not.toContain(
-      'tabelle_auswerten'
-    );
+    expect(
+      catalogFor({
+        hasTabularAttachment: false,
+        clientCanRunPython: true,
+        clientCanUseTabularTool: true,
+      })
+    ).not.toContain('tabelle_auswerten');
   });
 
   it('ist da mit Tabelle und Python', () => {
-    expect(catalogFor({ hasTabularAttachment: true, clientCanRunPython: true })).toContain(
-      'tabelle_auswerten'
-    );
+    expect(
+      catalogFor({
+        hasTabularAttachment: true,
+        clientCanRunPython: true,
+        clientCanUseTabularTool: true,
+      })
+    ).toContain('tabelle_auswerten');
   });
 
   it('fehlt ohne angemeldete Person — ohne sie ist das Freigabe-Gate aus', () => {
     expect(
-      catalogFor({ hasTabularAttachment: true, clientCanRunPython: true }, 't1', null)
+      catalogFor(
+        { hasTabularAttachment: true, clientCanRunPython: true, clientCanUseTabularTool: true },
+        't1',
+        null
+      )
     ).not.toContain('tabelle_auswerten');
   });
 
   it('fehlt ohne Thread und wenn die Agentin es abgeschaltet hat', () => {
     expect(
-      catalogFor({ hasTabularAttachment: true, clientCanRunPython: true }, null)
+      catalogFor(
+        { hasTabularAttachment: true, clientCanRunPython: true, clientCanUseTabularTool: true },
+        null
+      )
     ).not.toContain('tabelle_auswerten');
     expect(
       catalogFor({
         hasTabularAttachment: true,
         clientCanRunPython: true,
+        clientCanUseTabularTool: true,
         enabledTools: { tabelle_auswerten: false },
       })
     ).not.toContain('tabelle_auswerten');

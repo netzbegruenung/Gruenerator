@@ -135,8 +135,16 @@ export function getClientToolExecutor(toolName: string): ClientToolExecutor | nu
   return entry && entry.isAvailable() ? entry.execute : null;
 }
 
+/**
+ * Capability, not an executor: tells the server this client resumes a client
+ * tool after an approval, so it may mount the loop tool `tabelle_auswerten`.
+ * Old bundles send only `run_python` and would stall after „Einmal erlauben".
+ */
+const TABULAR_TOOL_CAPABILITY = 'tabelle_auswerten';
+
 export function getAvailableClientTools(): string[] {
-  return Object.entries(CLIENT_TOOLS)
+  const available = Object.entries(CLIENT_TOOLS)
     .filter(([, entry]) => entry.isAvailable())
     .map(([name]) => name);
+  return available.includes('run_python') ? [...available, TABULAR_TOOL_CAPABILITY] : available;
 }

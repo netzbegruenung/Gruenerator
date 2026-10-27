@@ -562,6 +562,9 @@ export interface ChatGraphInput {
    * so their tabular guidance must not promise code execution.
    */
   clientCanRunPython?: boolean | undefined;
+  /** The client also declared the `tabelle_auswerten` capability: it resumes a
+   *  client tool after an approval. Old clients with only `run_python` cannot. */
+  clientCanUseTabularTool?: boolean | undefined;
   /** The client declared the `render_sharepic` client tool — it can render a
    *  chat sharepic to an image for `check_sharepic`. Mobile/voice cannot. */
   clientCanRenderSharepic?: boolean | undefined;
@@ -814,6 +817,7 @@ export interface ChatGraphState {
   /** See the input-side field: this turn's fillable PDFs, name + base64. */
   pdfFormAttachments: Array<{ name: string; data: string }>;
   clientCanRunPython: boolean;
+  clientCanUseTabularTool: boolean;
   clientCanRenderSharepic: boolean;
 
   // Notebook scoping (from @notebook mentions)

@@ -14,7 +14,12 @@ vi.mock('../../../agents/langgraph/ChatGraph/nodes/pandasComputeNode.js', () => 
 }));
 vi.mock('../services/computeAssetStorage.js', () => ({ persistComputeAssets: persistMock }));
 
-import { tabelleAuswertenClientTool, TABELLE_AUSWERTEN_TOOL } from './tabelleAuswertenTool.js';
+import {
+  clientCanUseTabularToolFrom,
+  isTabelleAuswertenMountable,
+  tabelleAuswertenClientTool,
+  TABELLE_AUSWERTEN_TOOL,
+} from './tabelleAuswertenTool.js';
 
 import type { ChatGraphState } from '../../../agents/langgraph/ChatGraph/types.js';
 import type { PersistedStep } from '../services/agenticLoop/types.js';
@@ -24,6 +29,54 @@ import type { SSEWriter } from '../services/sseHelpers.js';
 const state = {
   messages: [{ role: 'user', content: 'Wie viel Umsatz im März?' }],
 } as unknown as ChatGraphState;
+
+/**
+ * Ältere Web-Bundles und ausgelieferte Desktop-Builds melden `run_python`, können
+ * aber nach „Einmal erlauben" keinen Client-Tool-Lauf fortsetzen. Erst die
+ * Fähigkeit `tabelle_auswerten` in `clientTools` montiert das Werkzeug.
+ */
+describe('tabelle_auswerten: Client-Fähigkeit', () => {
+  it('alter Client mit nur run_python ⇒ keine Fähigkeit', () => {
+    expect(clientCanUseTabularToolFrom(['run_python'])).toBe(false);
+    expect(clientCanUseTabularToolFrom(['run_python', 'render_sharepic'])).toBe(false);
+  });
+
+  it('neuer Client mit run_python und tabelle_auswerten ⇒ Fähigkeit', () => {
+    expect(clientCanUseTabularToolFrom(['run_python', 'tabelle_auswerten'])).toBe(true);
+  });
+
+  it('tabelle_auswerten ohne run_python oder ohne clientTools ⇒ keine Fähigkeit', () => {
+    expect(clientCanUseTabularToolFrom(['tabelle_auswerten'])).toBe(false);
+    expect(clientCanUseTabularToolFrom(undefined)).toBe(false);
+    expect(clientCanUseTabularToolFrom([])).toBe(false);
+  });
+
+  const base = {
+    hasTabularAttachment: true,
+    enabledTools: {},
+    agentConfig: { userId: 'u1' },
+  };
+
+  it('alter Client ⇒ nicht montierbar (Routing-Flag und Prompt folgen demselben Prädikat)', () => {
+    expect(
+      isTabelleAuswertenMountable({
+        ...base,
+        clientCanRunPython: true,
+        clientCanUseTabularTool: clientCanUseTabularToolFrom(['run_python']),
+      })
+    ).toBe(false);
+  });
+
+  it('neuer Client ⇒ montierbar', () => {
+    expect(
+      isTabelleAuswertenMountable({
+        ...base,
+        clientCanRunPython: true,
+        clientCanUseTabularTool: clientCanUseTabularToolFrom(['run_python', 'tabelle_auswerten']),
+      })
+    ).toBe(true);
+  });
+});
 
 describe('tabelle_auswerten resolve', () => {
   beforeEach(() => codegenMock.mockReset());

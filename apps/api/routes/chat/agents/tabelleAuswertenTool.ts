@@ -47,18 +47,39 @@ export const tabelleAuswertenInputSchema = z.object({
 });
 
 /**
+ * Can the client finish a `tabelle_auswerten` turn? Old web bundles and shipped
+ * desktop builds declare `run_python` but never run a client tool after an
+ * approval resume — the turn would stall after „Einmal erlauben". New clients
+ * announce the capability additively as `tabelle_auswerten` in `clientTools`.
+ */
+export function clientCanUseTabularToolFrom(
+  clientTools: readonly string[] | null | undefined
+): boolean {
+  return (
+    clientTools != null &&
+    clientTools.includes(TABELLE_AUSWERTEN_TOOL) &&
+    clientTools.includes(RUN_PYTHON_CLIENT_TOOL)
+  );
+}
+
+/**
  * Single source of truth for "is the tool available this turn": the catalog
- * mounts it and the prompt mentions it under exactly this condition (plus the
- * loop). Needs a signed-in user (approval gate) and a client that runs Python.
+ * mounts it, the routing stage sends the turn into the loop, and the prompt
+ * mentions it under exactly this condition (plus the loop). Needs a signed-in
+ * user (approval gate) and a client that runs Python AND resumes client tools.
  */
 export function isTabelleAuswertenMountable(
-  state: Pick<ChatGraphState, 'hasTabularAttachment' | 'clientCanRunPython' | 'enabledTools'> & {
+  state: Pick<
+    ChatGraphState,
+    'hasTabularAttachment' | 'clientCanRunPython' | 'clientCanUseTabularTool' | 'enabledTools'
+  > & {
     agentConfig?: { userId?: string | null | undefined } | null;
   }
 ): boolean {
   return Boolean(
     state.hasTabularAttachment &&
     state.clientCanRunPython &&
+    state.clientCanUseTabularTool &&
     state.agentConfig?.userId != null &&
     state.enabledTools?.[TABELLE_AUSWERTEN_TOOL] !== false
   );

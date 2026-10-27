@@ -147,6 +147,7 @@ export async function initializeChatState(input: ChatGraphInput): Promise<ChatGr
     cloudConnectionCount: input.cloudConnectionCount ?? 0,
     pdfFormAttachments: input.pdfFormAttachments || [],
     clientCanRunPython: input.clientCanRunPython ?? false,
+    clientCanUseTabularTool: input.clientCanUseTabularTool ?? false,
     clientCanRenderSharepic: input.clientCanRenderSharepic ?? false,
 
     // Notebook scoping

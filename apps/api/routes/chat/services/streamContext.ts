@@ -50,6 +50,7 @@ import { ThreadId, UserId } from '../../../utils/types/branded.js';
 import { withTimeout } from '../../../utils/withTimeout.js';
 import { notebookIdFromSteps } from '../agents/notebookSourceTools.js';
 import { getPipelineAgent } from '../agents/pipelines/index.js';
+import { clientCanUseTabularToolFrom } from '../agents/tabelleAuswertenTool.js';
 
 import { priorLookups, priorTurnRetrievalFailed } from './agenticLoop/catalogAssembly.js';
 import { getThreadAttachments } from './attachmentPersistenceService.js';
@@ -1095,6 +1096,7 @@ export async function buildStreamContext({
     hasTabularAttachment,
     ...(pdfFormAttachments.length > 0 && { pdfFormAttachments }),
     clientCanRunPython: clientTools?.includes('run_python') ?? false,
+    clientCanUseTabularTool: clientCanUseTabularToolFrom(clientTools),
     clientCanRenderSharepic: clientTools?.includes('render_sharepic') ?? false,
     computedResult: rawComputedResult ?? undefined,
     notebookIds: notebookIds.length > 0 ? notebookIds : undefined,

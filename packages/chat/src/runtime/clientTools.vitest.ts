@@ -10,6 +10,35 @@ afterEach(() => {
   useChatConfigStore.setState({ renderSharepicSheet: undefined });
 });
 
+/**
+ * Ältere Clients melden nur `run_python` und setzen nach einer Freigabe keinen
+ * Client-Tool-Lauf fort. Die Fähigkeit `tabelle_auswerten` sagt dem Server, dass
+ * dieser Client das kann — nur zusammen mit `run_python`.
+ */
+describe('Fähigkeit tabelle_auswerten', () => {
+  afterEach(() => {
+    useChatConfigStore.setState({ runPython: undefined });
+  });
+
+  it('fehlt ohne run_python', () => {
+    useChatConfigStore.setState({ runPython: undefined });
+    expect(getAvailableClientTools()).not.toContain('run_python');
+    expect(getAvailableClientTools()).not.toContain('tabelle_auswerten');
+  });
+
+  it('wird mit run_python gemeldet, ist aber kein ausführbares Werkzeug', () => {
+    useChatConfigStore.setState({
+      runPython: vi.fn() as unknown as NonNullable<
+        ReturnType<typeof useChatConfigStore.getState>['runPython']
+      >,
+    });
+    expect(getAvailableClientTools()).toEqual(
+      expect.arrayContaining(['run_python', 'tabelle_auswerten'])
+    );
+    expect(getClientToolExecutor('tabelle_auswerten')).toBeNull();
+  });
+});
+
 describe('render_sharepic', () => {
   it('ist nur verfügbar, wenn der Host das Rendern der Karte eingehängt hat', () => {
     expect(getAvailableClientTools()).not.toContain('render_sharepic');
