@@ -2,7 +2,7 @@
  * usePageManager - Hook for multi-page canvas management
  *
  * Each page can have a different template type, enabling documents
- * that mix Zitat, Dreizeilen, Info slides, etc.
+ * that mix quote, headline and info slides, etc.
  *
  * Page structure always lives in a Y.Doc (see collab/pagesDoc.ts): the
  * host-supplied collaborative doc, or a local one this hook owns. One code

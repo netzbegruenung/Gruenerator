@@ -3,7 +3,7 @@ import { PiShuffle, PiDropSimpleFill } from 'react-icons/pi';
 import { Layer, Line, Stage } from 'react-konva';
 
 import { CustomColorSwatch } from '../../../components/CustomColorSwatch';
-import { BRAND_COLORS } from '../../../utils/shapes';
+import { brandColors } from '../../../utils/colorOptions';
 
 import { ToolPanel, type ToolPanelSuccess } from './ToolPanel';
 import { useToolImagePlacement } from './useToolImagePlacement';
@@ -22,7 +22,8 @@ const EXPORT_PIXEL_RATIO = 4; // 220 * 4 = 880px PNG
 const MAX_POINTS = 12;
 const TENSION = 0.6;
 
-const DEFAULT_COLOR = BRAND_COLORS[3]?.value ?? BRAND_COLORS[0]?.value ?? '#8ABD24';
+/** The brand's fourth colour, read when the tool opens. */
+const defaultColor = () => brandColors()[3]?.value ?? brandColors()[0]?.value ?? '#000000';
 
 function randomSeed(): number[] {
   return Array.from({ length: MAX_POINTS }, () => Math.random());
@@ -57,7 +58,7 @@ function ColorRow({
     <div className="flex flex-col gap-1.5">
       <span className="text-xs text-foreground-muted">Farbe</span>
       <div className="flex flex-wrap items-center gap-1.5">
-        {BRAND_COLORS.map((c) => (
+        {brandColors().map((c) => (
           <button
             key={c.id}
             type="button"
@@ -74,7 +75,7 @@ function ColorRow({
         ))}
         <CustomColorSwatch
           value={selected}
-          presets={BRAND_COLORS.map((c) => c.value)}
+          presets={brandColors().map((c) => c.value)}
           onPick={onSelect}
           className="size-6"
           disabled={disabled}
@@ -125,7 +126,7 @@ export function BlobCreatorTool({ onJumpToUploads, onPlaceImageUrl }: BlobCreato
   const [seed, setSeed] = useState<number[]>(randomSeed);
   const [numPoints, setNumPoints] = useState(7);
   const [irregularity, setIrregularity] = useState(0.35);
-  const [color, setColor] = useState(DEFAULT_COLOR);
+  const [color, setColor] = useState(defaultColor);
   const [isBusy, setIsBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<ToolPanelSuccess | null>(null);

@@ -6,9 +6,8 @@
  * AT-Farbpalette im Hintergrund-Picker und in neuen Diagrammen.
  */
 
-import { getBrandTheme } from '../brand/theme';
+import { getBrandPack, getBrandTheme } from '../brand/theme';
 import { SHAREPIC_COLOR_HEX } from '../composer/chromeParts';
-import { CHART_PALETTES } from '../utils/chartUtils';
 
 import {
   createFreeformFullConfig,
@@ -39,7 +38,7 @@ const AT_BACKGROUND_COLORS = [
 export const createFreeformAtFullConfig = (
   format: CanvasFormat
 ): FullCanvasConfig<FreeformState, FreeformActions> => {
-  const base = createFreeformFullConfig(format, { chartColors: CHART_PALETTES['de-AT'] });
+  const base = createFreeformFullConfig(format, { chartColors: getBrandPack('de-AT').chart });
   return {
     ...base,
     id: 'freeform-at',

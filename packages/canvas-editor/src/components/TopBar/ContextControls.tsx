@@ -16,8 +16,9 @@ import { type ShadowPatch } from '../../hooks/useFloatingModuleHandlers';
 import { type FloatingModuleState } from '../../hooks/useFloatingModuleState';
 import { useOptionalUserUploads } from '../../sidebar/UserUploadsProvider';
 import { type SelectionGeometry } from '../../utils/canvasCommands';
+import { brandColors, fontColors } from '../../utils/colorOptions';
 import { type LockState } from '../../utils/layerLock';
-import { BRAND_COLORS, FONT_COLORS, STROKE_ONLY_SHAPES } from '../../utils/shapes';
+import { STROKE_ONLY_SHAPES } from '../../utils/shapes';
 import { useCanvasTextFormatting } from '../CanvasTextOverlay';
 
 import { CropModeControls } from './CropModeControls';
@@ -241,7 +242,7 @@ export function ContextControls({
         isExpanded={isColorPickerExpanded}
         onExpandChange={setIsColorPickerExpanded}
         variant={colorConfig.variant}
-        {...(isText ? { colors: FONT_COLORS } : {})}
+        {...(isText ? { colors: fontColors() } : {})}
       />
     );
   }
@@ -253,7 +254,7 @@ export function ContextControls({
     const known = new Set(own.map((c) => c.value.toLowerCase()));
     const palette = paletteOnly
       ? own
-      : [...own, ...BRAND_COLORS.filter((c) => !known.has(c.value.toLowerCase()))];
+      : [...own, ...brandColors().filter((c) => !known.has(c.value.toLowerCase()))];
     const pickColor =
       isPhoto && !colorReplacesImage && onImageChange
         ? (color: string) => {

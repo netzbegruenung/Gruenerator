@@ -4,7 +4,7 @@
  * Brand fonts load via `font-display: swap`, so a synchronous
  * `stage.toDataURL()` fired before they finish bakes in the fallback face —
  * the intermittent "some AT sharepics render in the wrong font" bug (the
- * heavier de-AT Gotham Narrow set is the most visible offender). Gating the
+ * heaviest brand font sets are the most visible offenders). Gating the
  * user-facing export paths on this makes the snapshot deterministic. Cheap and
  * idempotent after the first call (faces are cached), and best-effort: an
  * export must never hang or fail on font loading.

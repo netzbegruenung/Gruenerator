@@ -117,7 +117,7 @@ export interface OptionalCanvasActions {
   removeChart?: (id: string) => void;
   /**
    * Gehört das Element zur Vorlage, obwohl es in einer Sammlung liegt (der
-   * Balken von Dreizeilen, aus den drei Zeilen abgeleitet)? Dann lässt es
+   * Balken einer Dreizeilen-Vorlage, aus den drei Zeilen abgeleitet)? Dann lässt es
    * sich nicht löschen — siehe `findElementRemover`.
    */
   isTemplateBound?: (id: string) => boolean;

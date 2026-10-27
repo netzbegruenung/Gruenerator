@@ -41,7 +41,7 @@ import { Group, Rect, Text as KonvaText, Transformer } from 'react-konva';
 
 import { overlayBoxForNode, useCanvasTextEditor } from '../components/CanvasTextOverlay';
 import { markerBoxes } from '../utils/markerBoxes';
-import { DEFAULT_TEXT_MARKER, markerInkOn } from '../utils/markerColors';
+import { defaultTextMarker, markerInkOn } from '../utils/markerColors';
 import { runFont, runMeasurer } from '../utils/textUtils';
 
 import { type CanvasTextProps, isWidthOnlyScale } from './CanvasText';
@@ -155,7 +155,7 @@ export function CanvasRichText({
     [lines, lineWidths, align, padding, innerBoxWidth]
   );
   // Ohne Markerstil der Vorlage bekommt ein `++`-Lauf den Standardkasten.
-  const marker = templateMarker ?? DEFAULT_TEXT_MARKER;
+  const marker = templateMarker ?? defaultTextMarker();
   const boxes = useMemo(
     () =>
       markerBoxes(lines, measure, marker, {

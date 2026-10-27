@@ -1,6 +1,6 @@
 import { markdownLiteToRichText, type CanvasRichTextDoc } from '@ggraphic/schema';
 
-import { DEFAULT_TEXT_MARKER, markerInkOn } from '../../utils/markerColors';
+import { defaultTextMarker, markerInkOn } from '../../utils/markerColors';
 
 import type { PptxBullet, PptxParagraph, PptxTextRun } from './types';
 import type { AdditionalText } from '../../configs/types';
@@ -39,7 +39,7 @@ function toRun(node: RichNode, text: AdditionalText, baseBold: boolean, baseItal
   let color = accentColor ?? (asAccent ? text.accent!.fill : text.fill);
   let highlight: string | null = null;
   if (has('marker')) {
-    const marker = text.marker ?? DEFAULT_TEXT_MARKER;
+    const marker = text.marker ?? defaultTextMarker();
     const markerColor = markColor(node, 'marker');
     highlight = markerColor ?? marker.fill;
     color = accentColor ?? (markerColor ? markerInkOn(markerColor) : marker.color);

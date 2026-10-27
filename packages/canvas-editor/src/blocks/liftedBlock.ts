@@ -3,8 +3,8 @@
  * assets, charts, images, badges, icons), carried with their layer order and
  * the box they cover, so the editor can place it on a page and select its
  * parts together. Where its items come from is the host's business
- * (`CanvasBlockService` in `hostServices.ts`); the Grünerator host cuts them
- * out of a composed sharepic slide (`composer/liftBlock.ts`).
+ * (`CanvasBlockService` in `hostServices.ts`); a host may cut them out of a
+ * composed slide.
  */
 import { layoutRichTextBlock } from '@ggraphic/schema';
 

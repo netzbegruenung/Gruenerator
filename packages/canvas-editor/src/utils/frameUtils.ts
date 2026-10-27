@@ -1,3 +1,4 @@
+import { activeBrand } from '@ggraphic/editor/brand/brandRegistry';
 import {
   PiCircleFill,
   PiCircleDashedBold,
@@ -335,7 +336,7 @@ export function createFrameInstance(clipType: FrameClipType, x: number, y: numbe
     imageOffsetX: 0,
     imageOffsetY: 0,
     imageScale: 1,
-    borderColor: '#005538',
+    borderColor: activeBrand().colors.primary,
     borderWidth: 3,
     cornerRadius: clipType === 'rounded-rect' ? 24 : 0,
   };

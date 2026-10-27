@@ -6,6 +6,7 @@
  * width/height directly (already scaled during creation).
  */
 
+import { activeBrand } from '@ggraphic/editor/brand/brandRegistry';
 import { LOCKED_TRANSFORMER, useIsItemLocked } from '@ggraphic/editor/components/canvasItemLock';
 import { useAnnounce } from '@ggraphic/editor/hooks/useAnnounce';
 import { useBoxSnap, type SnapProps } from '@ggraphic/editor/hooks/useBoxSnap';
@@ -487,8 +488,8 @@ function UserImagePrimitiveInner({
               rotateEnabled={false}
               flipEnabled={false}
               anchorSize={10}
-              borderStroke="#005437"
-              anchorStroke="#005437"
+              borderStroke={activeBrand().colors.primary}
+              anchorStroke={activeBrand().colors.primary}
               anchorFill="#ffffff"
               anchorDragBoundFunc={(oldPos, newPos) => {
                 const group = groupRef.current;
@@ -529,7 +530,7 @@ function UserImagePrimitiveInner({
             name="selection-chrome"
             width={width}
             height={height}
-            stroke="#005437"
+            stroke={activeBrand().colors.primary}
             strokeWidth={2 / userImage.scale}
             dash={[5, 5]}
             listening={false}

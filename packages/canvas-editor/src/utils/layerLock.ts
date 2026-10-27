@@ -13,7 +13,7 @@ import type { CanvasItem } from './canvasItem';
 export type LockState = 'all' | 'some' | 'none';
 
 /**
- * Alle Leser gehen hier durch. Das Hintergrundfoto war in `dreizeilen` einmal
+ * Alle Leser gehen hier durch. Das Hintergrundfoto war in einer Vorlage einmal
  * sperrbar; eine gespeicherte Sperre darf den Ausschnitt-Modus nicht lähmen.
  */
 export function lockedIdsOf(state: object): readonly string[] {

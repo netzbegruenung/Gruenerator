@@ -1,3 +1,4 @@
+import { activeBrand } from '@ggraphic/editor/brand/brandRegistry';
 import { LOCKED_TRANSFORMER, useIsItemLocked } from '@ggraphic/editor/components/canvasItemLock';
 import { useBoxSnap, type SnapProps } from '@ggraphic/editor/hooks/useBoxSnap';
 import { ILLUSTRATION_TARGET_SIZE, MOTIF_BASE_SIZE } from '@ggraphic/editor/utils/motifSizes';
@@ -209,7 +210,7 @@ function IllustrationPrimitiveInner({
             y={-BASE_SIZE / 2}
             width={BASE_SIZE}
             height={BASE_SIZE}
-            stroke="#005437"
+            stroke={activeBrand().colors.primary}
             strokeWidth={2 / (illustration.scale * baseScale)}
             dash={[5, 5]}
             listening={false}
