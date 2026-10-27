@@ -78,11 +78,6 @@ import { HOST_CALLBACK_KEYS } from '../../hostCallbackKeys';
 import { CanvasEditorLayout } from '@ggraphic/editor/layouts/index';
 import { SidebarTabBar, SidebarPanel } from '../../sidebar';
 import { LayersSection } from '@ggraphic/editor/sidebar/sections/LayersSection';
-import { usePreloadElements, usePreloadTools } from '../../sidebar/sections/preloadElements';
-import {
-  VorlagenSection,
-  type VorlagenSectionHandle,
-} from '../../sidebar/sections/VorlagenSection';
 import {
   buildSlideLayout,
   slideLayoutConfigId,
@@ -110,9 +105,15 @@ import { FloatingAiSuggestionBanner } from '@ggraphic/editor/components/TopBar/m
 import { MultiSelectionToolbar } from '../TopBar/MultiSelectionToolbar';
 
 import { autoSwitchTab } from '@ggraphic/editor/components/CanvasEditor/autoSwitchTab';
-import { BlockInsertProvider } from './blockInsert';
+import {
+  registeredEditorShell,
+  withEditorTabs,
+  type EditorShellProviderProps,
+  type EditorTabDefinition,
+  type EditorTabDropHandle,
+} from '@ggraphic/editor/components/CanvasEditor/editorShell';
 import { useCanvasContextMenu } from '@ggraphic/editor/components/CanvasEditor/hooks/useCanvasContextMenu';
-import { useLoadedConfigs } from './hooks/useLoadedConfigs';
+import { useLoadedConfigs } from '@ggraphic/editor/components/CanvasEditor/hooks/useLoadedConfigs';
 import { useMobileSheetFit } from '@ggraphic/editor/components/CanvasEditor/hooks/useMobileSheetFit';
 import { usePageRefs } from '@ggraphic/editor/components/CanvasEditor/hooks/usePageRefs';
 import { usePageUndoRedoShortcuts } from '@ggraphic/editor/components/CanvasEditor/hooks/usePageUndoRedoShortcuts';
@@ -126,10 +127,13 @@ import { useToolbarHandlers } from '@ggraphic/editor/components/CanvasEditor/hoo
 import { useWorkAreaDeselect } from '@ggraphic/editor/components/CanvasEditor/hooks/useWorkAreaDeselect';
 import { layersTab, withLayersTab } from '@ggraphic/editor/components/CanvasEditor/layersTab';
 import { getMobileSelectionArea } from '@ggraphic/editor/components/CanvasEditor/mobileSelectionArea';
-import { PageWrapper } from './PageWrapper';
-import { formatHasVorlagen, vorlagenTab, withVorlagenTab } from './vorlagenTab';
+import { PageWrapper } from '@ggraphic/editor/components/CanvasEditor/PageWrapper';
+import './grueneratorEditorShell';
 
-import type { CanvasEditorProps, PageWrapperProps } from './types';
+import type {
+  CanvasEditorProps,
+  PageWrapperProps,
+} from '@ggraphic/editor/components/CanvasEditor/types';
 import type { SidebarTabId } from '@ggraphic/editor/sidebar/types';
 import type {
   AltTextPage,
@@ -160,10 +164,13 @@ const sidebarLoadingFallback = (
   </div>
 );
 
+const NO_EDITOR_TABS: readonly EditorTabDefinition[] = [];
+const NoShellProvider = ({ children }: EditorShellProviderProps) => <>{children}</>;
+
 /** Folien-PDF: 2× der 1920 × 1080-Folie, scharf auch im Vollbild. */
 const SLIDES_PDF_PIXEL_RATIO = 2;
 
-export function CanvasEditor(props: CanvasEditorProps) {
+export function CanvasEditor(props: CanvasEditorProps<CanvasConfigId>) {
   return (
     <AutoSaveStoreProvider initialShareToken={props.initialShareToken ?? null}>
       <CanvasEditorInner {...props} />
@@ -197,7 +204,7 @@ function CanvasEditorInner({
   exportApiRef,
   hostChrome,
   readOnly = false,
-}: CanvasEditorProps) {
+}: CanvasEditorProps<CanvasConfigId>) {
   // Note: onAutoSaveShareToken is threaded down to useCanvasAutoSave (via
   // PageWrapper → GenericCanvas) instead of a store subscription here — a
   // subscription dies with the unmount, losing tokens that resolve after the
@@ -593,19 +600,23 @@ function CanvasEditorInner({
     [hasReplaceDeck]
   );
 
-  // The Vorlagen tab changes the deck, so it needs the synced pages doc.
-  const {
-    vorlagen: vorlagenService,
-    fileDelivery = browserFileDelivery,
-    print: printService,
-  } = useCanvasEditorServices();
-  const showVorlagen =
-    vorlagenService !== undefined && hasReplaceDeck && formatHasVorlagen(formatId);
-  // A tile dropped on a page goes to the open Vorlagen tab: a Seite lands
+  const services = useCanvasEditorServices();
+  const { fileDelivery = browserFileDelivery, print: printService } = services;
+  // The host's document tabs (the Vorlagen) change the deck, so they need the
+  // synced pages doc.
+  const { tabs: editorTabs = NO_EDITOR_TABS, Provider: ShellProvider = NoShellProvider } =
+    registeredEditorShell();
+  const availableEditorTabs = useMemo(
+    () =>
+      hasReplaceDeck ? editorTabs.filter((def) => def.isAvailable({ services, formatId })) : [],
+    [editorTabs, hasReplaceDeck, services, formatId]
+  );
+  const takesPageDrops = availableEditorTabs.some((def) => def.takesPageDrops);
+  // A tile dropped on a page goes to the open document tab: a Seite lands
   // after that page, a print Vorlage asks first on a design with content.
-  const vorlagenRef = useRef<VorlagenSectionHandle>(null);
+  const pageDropRef = useRef<EditorTabDropHandle>(null);
   const handleDropVorlage = useCallback(
-    (id: string, pageId: string) => vorlagenRef.current?.drop(id, pageId),
+    (id: string, pageId: string) => pageDropRef.current?.drop(id, pageId),
     []
   );
 
@@ -1003,14 +1014,9 @@ function CanvasEditorInner({
     }
     // Mobile has room for six areas; the chat gives way to the Vorlagen there for now.
     if (isMobileWeb) tabs = tabs.filter((tab) => tab.id !== 'chat');
-    tabs = withLayersTab(tabs);
-    return showVorlagen ? withVorlagenTab(tabs) : tabs;
-  }, [activeConfig, activeState, activeSelectedElement, showVorlagen, isMobileWeb]);
-
-  usePreloadElements(
-    activeConfig?.tabs.some((tab) => tab.id === 'elements' || tab.id === 'assets') ?? false
-  );
-  usePreloadTools(activeConfig?.tabs.some((tab) => tab.id === 'tools') ?? false);
+    return withEditorTabs(withLayersTab(tabs), availableEditorTabs);
+  }, [activeConfig, activeState, activeSelectedElement, availableEditorTabs, isMobileWeb]);
+  const configTabIds = useMemo(() => activeConfig?.tabs.map((tab) => tab.id) ?? [], [activeConfig]);
 
   // Compute disabled tabs for active config
   const disabledTabs = useMemo(() => {
@@ -1044,12 +1050,12 @@ function CanvasEditorInner({
 
   const isPanelOpen = activeTab !== null;
   const isMobileSheetOpen = isMobileWeb && isPanelOpen;
-  const panelTitle =
-    activeTab === 'vorlagen'
-      ? vorlagenTab.label
-      : activeTab === 'layers'
-        ? layersTab.label
-        : (activeTab && activeConfig?.tabs.find((tab) => tab.id === activeTab)?.label) || 'Auswahl';
+  const activeEditorTab = editorTabs.find((def) => def.tab.id === activeTab) ?? null;
+  const panelTitle = activeEditorTab
+    ? activeEditorTab.tab.label
+    : activeTab === 'layers'
+      ? layersTab.label
+      : (activeTab && activeConfig?.tabs.find((tab) => tab.id === activeTab)?.label) || 'Auswahl';
   useMobileSheetFit({
     enabled: isMobileSheetOpen,
     zoom,
@@ -1181,16 +1187,16 @@ function CanvasEditorInner({
         />
       );
     }
-    if (activeTab === 'vorlagen') {
-      return showVorlagen && specEdit ? (
-        <VorlagenSection
-          ref={vorlagenRef}
+    if (activeEditorTab) {
+      const EditorTabSection = activeEditorTab.Section;
+      return availableEditorTabs.includes(activeEditorTab) && specEdit ? (
+        <EditorTabSection
+          ref={activeEditorTab.takesPageDrops ? pageDropRef : undefined}
           formatId={formatId ?? DEFAULT_FORMAT_ID}
           pages={pages}
           deck={specEdit}
           onShowPage={showPage}
           canAddPage={canAddMore}
-          layoutLocale={layoutLocale}
         />
       ) : null;
     }
@@ -1222,12 +1228,12 @@ function CanvasEditorInner({
     activeConfig,
     shareProps,
     specEdit,
-    showVorlagen,
+    activeEditorTab,
+    availableEditorTabs,
     formatId,
     pages,
     showPage,
     canAddMore,
-    layoutLocale,
     toolbarState?.layers,
     toolbarState?.selectedLayerIds,
     handleLayerSelect,
@@ -1591,11 +1597,12 @@ function CanvasEditorInner({
   return (
     <AnnouncerContext.Provider value={announcer}>
       <CanvasAnnouncer message={liveMessage} />
-      <BlockInsertProvider
+      <ShellProvider
         pages={pages}
         currentPageIndex={currentPageIndex}
         formatId={formatId}
         canvasRefsRef={canvasRefsRef}
+        configTabIds={configTabIds}
       >
         <UserUploadsProvider>
           {/* Die Text-Bearbeitung sitzt an der Wurzel des Editors, nicht je Seite:
@@ -1682,7 +1689,7 @@ function CanvasEditorInner({
                       onMovePage={movePage}
                       onDuplicatePage={duplicatePage}
                       onChangeTemplate={handleOpenTemplateChange}
-                      onDropVorlage={showVorlagen && !readOnly ? handleDropVorlage : undefined}
+                      onDropVorlage={takesPageDrops && !readOnly ? handleDropVorlage : undefined}
                       onExport={handleExport}
                       onCancel={onCancel}
                       callbacks={getCallbacksForPage(page.id, page.configId)}
@@ -1759,11 +1766,14 @@ function CanvasEditorInner({
             )}
           </CanvasTextEditorProvider>
         </UserUploadsProvider>
-      </BlockInsertProvider>
+      </ShellProvider>
     </AnnouncerContext.Provider>
   );
 }
 
-export type { CanvasEditorProps, PageWrapperProps } from './types';
+export type {
+  CanvasEditorProps,
+  PageWrapperProps,
+} from '@ggraphic/editor/components/CanvasEditor/types';
 
 export default CanvasEditor;

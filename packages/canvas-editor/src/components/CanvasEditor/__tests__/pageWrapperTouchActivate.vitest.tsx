@@ -2,7 +2,7 @@ import { createEvent, fireEvent, render } from '@testing-library/react';
 import React from 'react';
 import { describe, expect, it, vi } from 'vitest';
 
-import { PageWrapper } from '../PageWrapper';
+import { PageWrapper } from '@ggraphic/editor/components/CanvasEditor/PageWrapper';
 
 vi.mock('@ggraphic/editor/components/GenericCanvas', () => ({
   GenericCanvas: () => (

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 import { GenericCanvas } from '@ggraphic/editor/components/GenericCanvas';
 import { cn } from '@ggraphic/editor/utils/cn';
 import {
@@ -15,7 +16,7 @@ import { useTrackUnsplashDownload } from '@ggraphic/editor/hooks/useTrackUnsplas
 import { PageToolbar } from '@ggraphic/editor/components/PageToolbar';
 import { ZoomableViewport } from '@ggraphic/editor/components/ZoomableViewport';
 
-import { useBlockInsert } from './blockInsert';
+import { useBlockInsert } from '@ggraphic/editor/components/CanvasEditor/blockInsertContext';
 
 import type { PageWrapperProps } from './types';
 
