@@ -9,6 +9,7 @@
  */
 import { buildSystemMessage } from '../../../../agents/langgraph/ChatGraph/index.js';
 import { createLogger } from '../../../../utils/logger.js';
+import { suspendForLoopClarification } from '../../streamStages/clarificationLoopSuspend.js';
 import { suspendForLoopClientTool } from '../../streamStages/clientToolLoopSuspend.js';
 import { finishResumedLoopTurn } from '../../streamStages/loopResumeEnd.js';
 import { suspendForToolApproval } from '../../streamStages/toolApprovalSuspend.js';
@@ -139,6 +140,41 @@ export async function runToolApprovalResume(params: {
     // Eine Blase: die pausierte Zeile wird fortgeschrieben, nicht ergänzt.
     const mergedText = [stored.partialText, outcome.fullText].filter((t) => t.trim()).join('\n\n');
 
+    // Die entschiedene Freigabe als eigene Größe: jede weitere Pause schreibt
+    // sie in die pausierte Nachricht (sonst verschwindet die Karte beim
+    // Reload), das reguläre Ende in die fertige. Früher im Zug entschiedene
+    // reisen mit (#5051).
+    const resolvedPause = {
+      ...stored.resolvedPause,
+      pendingApproval: {
+        approvalTurnId: stored.approvalTurnId,
+        calls: stored.calls,
+        resolved: true,
+        decisions,
+      },
+    };
+
+    // Eine Rückfrage nach der Freigabe — gewinnt wie im Erst-Zug gegen ein
+    // neues Gate. Ohne diesen Zweig endete der Zug still und die Frage war
+    // verloren, obwohl das Ask-Gate in der Fortsetzung montiert ist.
+    if (outcome.pendingAsk) {
+      await toolApprovalStateStore.delete(threadId);
+      return {
+        ...(await suspendForLoopClarification({
+          sse,
+          threadId,
+          classifiedState,
+          requestContext,
+          pendingAsk: outcome.pendingAsk,
+          partialText: mergedText,
+          priorSteps: outcome.steps,
+          pendingId: stored.pausedMessageId,
+          startTime: Date.now(),
+          resolvedPause,
+        })),
+        handled: true as const,
+      };
+    }
     // Die Fortsetzung ist selbst wieder auf ein Gate gelaufen. Dann erneut
     // pausieren statt zu beenden — sonst zeigt die Karte Knöpfe, hinter denen
     // kein Zustand mehr liegt. Der alte Anspruch wird vorher aufgelöst, damit
@@ -157,21 +193,11 @@ export async function runToolApprovalResume(params: {
           priorSteps: outcome.steps,
           pendingId: stored.pausedMessageId,
           startTime: Date.now(),
+          resolvedPause,
         })),
         handled: true as const,
       };
     }
-    // Die entschiedene Freigabe als eigene Größe: der Client-Suspend schreibt
-    // sie in die pausierte Nachricht (sonst verschwindet die Karte beim
-    // Reload), das reguläre Ende in die fertige.
-    const resolvedPause = {
-      pendingApproval: {
-        approvalTurnId: stored.approvalTurnId,
-        calls: stored.calls,
-        resolved: true,
-        decisions,
-      },
-    };
     if (outcome.pendingClientTool) {
       await toolApprovalStateStore.delete(threadId);
       return {

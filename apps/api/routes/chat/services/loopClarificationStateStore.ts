@@ -28,6 +28,9 @@ export interface StoredLoopClarificationState {
   partialText: string;
   /** Die Nachricht, die fortgeschrieben wird — eine Blase, nicht zwei. */
   pausedMessageId: string | null;
+  /** Früher im Zug aufgelöste Pausen (die entschiedene Freigabe) — reisen bis
+   *  zum Ende des Zuges mit (#5051). */
+  resolvedPause?: Record<string, unknown>;
   classifiedState: ChatGraphState;
   requestContext: StoredRequestContext;
   createdAt: number;

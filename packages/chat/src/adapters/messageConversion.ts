@@ -1,4 +1,9 @@
-import { TOOL_APPROVAL_OPTIONS } from '../lib/toolApproval';
+import {
+  decidedApprovalPills,
+  TOOL_APPROVAL_OPTIONS,
+  type PersistedApprovalPause,
+  type ToolApprovalState,
+} from '../lib/toolApproval';
 import { dropDuplicateToolCalls } from '../lib/toolCallParts';
 import { buildToolDerivedCustom } from '../lib/toolDerivedCustom';
 import { toolGrantPartFields, type McpToolGrant } from '../lib/toolGrant';
@@ -61,17 +66,9 @@ export interface LoadedMessage {
     };
     /** Freigabe-Karten für geänderte Konnektor-Werkzeuge (`resolved` nach der Antwort). */
     toolGrants?: McpToolGrant[];
-    pendingApproval?: {
-      approvalTurnId: string;
-      calls: Array<{
-        toolCallId: string;
-        toolName: string;
-        args?: Record<string, unknown>;
-        title?: string;
-        serverName?: string;
-      }>;
-      resolved?: boolean | 'expired';
-    };
+    pendingApproval?: PersistedApprovalPause;
+    /** Die früher im selben Zug entschiedenen Freigaben (#5051). */
+    decidedApprovals?: PersistedApprovalPause[];
   };
 }
 
@@ -82,11 +79,7 @@ type ToolCallPart = {
   /** JSON-eng gehalten: assistant-ui verlangt ReadonlyJSONObject-kompatible args. */
   readonly args: JsonObject;
   readonly result?: unknown;
-  readonly approval?: {
-    readonly id: string;
-    readonly options?: typeof TOOL_APPROVAL_OPTIONS;
-    readonly resolution?: 'cancelled' | 'expired';
-  };
+  readonly approval?: ToolApprovalState & { readonly options?: typeof TOOL_APPROVAL_OPTIONS };
   readonly title?: string;
   readonly serverName?: string;
 };
@@ -145,8 +138,20 @@ export function convertToThreadMessageLike(messages: LoadedMessage[]): Converted
 
       const contentParts: Array<TextPart | ToolCallPart> = [];
 
+      // Entschiedene Freigaben: die Pille steht vor der Karte ihres Aufrufs —
+      // wie im Web (`threadMessageConversion.ts`).
+      const pills = decidedApprovalPills([
+        ...(m.metadata?.decidedApprovals ?? []),
+        m.metadata?.pendingApproval,
+      ]);
+
       if (m.metadata?.toolCalls) {
         for (const [i, tc] of m.metadata.toolCalls.entries()) {
+          const pill = pills.get(tc.toolCallId);
+          if (pill) {
+            pills.delete(tc.toolCallId);
+            contentParts.push(pill);
+          }
           if (tc.toolName === 'ask_human') {
             // Beantwortete Loop-Rückfrage: echte args (question/options),
             // Antwort als String — die Karte rendert `String(result)`.
@@ -198,6 +203,10 @@ export function convertToThreadMessageLike(messages: LoadedMessage[]): Converted
           },
         });
       }
+
+      // Ein entschiedener Aufruf ohne eigene Karte (z. B. abgelehnt) behält
+      // seine Pille trotzdem.
+      for (const pill of pills.values()) contentParts.push(pill);
 
       // Offene Werkzeug-Freigaben überleben den Reload: volle Argumente und
       // Dienstbeschriftung bleiben sichtbar, und assistant-ui erhält wieder

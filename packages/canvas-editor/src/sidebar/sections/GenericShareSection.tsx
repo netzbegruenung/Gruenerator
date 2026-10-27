@@ -1,6 +1,6 @@
 import { useAutoSaveStore, useAutoSaveStoreApi } from '@ggraphic/editor/stores/useAutoSaveStore';
+import { Skeleton } from '@ggraphic/editor/ui/skeleton';
 import { downloadErrorMessage } from '@ggraphic/editor/utils/downloadError';
-import { Skeleton } from '@gruenerator/ui';
 import { useCallback, useState, useMemo, useRef, useEffect, type CSSProperties } from 'react';
 import { createPortal } from 'react-dom';
 import { FaDownload, FaImages, FaSave, FaCheck, FaFileArchive, FaFileImage } from 'react-icons/fa';
@@ -21,6 +21,8 @@ export interface GenericShareSectionProps {
   exportedImage: string | null;
   shareToken: string | null;
   onCaptureCanvas: () => void;
+  /** Returns the current page as a PNG data URL (or null if not ready); native share awaits it. */
+  captureCanvasImage?: (() => Promise<string | null>) | null;
   onDownload: () => void | Promise<void>;
   onNavigateToGallery: () => void;
   canvasText: string;
@@ -108,6 +110,7 @@ function DownloadShareSubsection({
   exportedImage,
   shareToken,
   onCaptureCanvas,
+  captureCanvasImage,
   onDownload,
   onNavigateToGallery,
   canvasText,
@@ -187,12 +190,7 @@ function DownloadShareSubsection({
 
   const handleNativeShare = useCallback(async () => {
     shareDropdown.setOpen(false);
-    if (!exportedImage) {
-      onCaptureCanvas();
-      await new Promise((resolve) => setTimeout(resolve, 150));
-    }
-
-    const imageToShare = exportedImage || autoSaveStoreApi.getState().autoSavedShareToken;
+    const imageToShare = exportedImage || (await captureCanvasImage?.()) || null;
     if (!imageToShare) return;
 
     setIsSharing(true);
@@ -233,7 +231,7 @@ function DownloadShareSubsection({
     exportedImage,
     canvasText,
     captionAltText,
-    onCaptureCanvas,
+    captureCanvasImage,
     shareDropdown,
     publishDraftIfNeeded,
     shareRoute,
@@ -486,6 +484,7 @@ export function GenericShareSection({
   exportedImage,
   shareToken,
   onCaptureCanvas,
+  captureCanvasImage,
   onDownload,
   onNavigateToGallery,
   canvasText,
@@ -510,6 +509,7 @@ export function GenericShareSection({
             exportedImage={exportedImage}
             shareToken={shareToken}
             onCaptureCanvas={onCaptureCanvas}
+            captureCanvasImage={captureCanvasImage}
             onDownload={onDownload}
             onNavigateToGallery={onNavigateToGallery}
             canvasText={canvasText}
@@ -539,6 +539,7 @@ export function GenericShareSection({
       exportedImage,
       shareToken,
       onCaptureCanvas,
+      captureCanvasImage,
       onDownload,
       onNavigateToGallery,
       canvasText,

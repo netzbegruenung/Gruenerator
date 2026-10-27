@@ -279,8 +279,10 @@ updates:
   # pinned package requires with `==`, derived from the installed metadata
   # (27.10.2026, browser-use 0.13.14: 38 of 106) plus browser-use itself,
   # whose bump changes those pins and is a recompile:
-  #   uv pip compile pyproject.toml --python-version 3.13 \
+  #   uv pip compile pyproject.toml --override overrides.txt --python-version 3.13 \
   #     --python-platform x86_64-unknown-linux-gnu -o requirements.txt
+  # overrides.txt lifts upstream `==` pins that carry security advisories, so
+  # the closure is installed with `pip install --no-deps`.
   # Minor and patch bumps of the remaining packages (fastapi, uvicorn,
   # starlette, certifi, …) still come through. Recompute the list on every
   # browser-use bump.

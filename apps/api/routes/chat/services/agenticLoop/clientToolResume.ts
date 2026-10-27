@@ -158,6 +158,7 @@ export async function runClientToolLoopResume(params: {
           priorSteps: outcome.steps,
           pendingId: stored.pausedMessageId,
           startTime: Date.now(),
+          ...(stored.resolvedPause ? { resolvedPause: stored.resolvedPause } : {}),
         })),
         handled: true as const,
       };
@@ -176,6 +177,7 @@ export async function runClientToolLoopResume(params: {
           priorSteps: outcome.steps,
           pendingId: stored.pausedMessageId,
           startTime: Date.now(),
+          ...(stored.resolvedPause ? { resolvedPause: stored.resolvedPause } : {}),
         })),
         handled: true as const,
       };
