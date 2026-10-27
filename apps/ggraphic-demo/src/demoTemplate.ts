@@ -1,5 +1,5 @@
 import { brandDefault } from '@ggraphic/core';
-import { type AnyCanvasConfig } from '@gruenerator/canvas-editor';
+import { type AnyCanvasConfig } from '@ggraphic/editor/configs/types';
 
 // The stage takes the size of its format (the default one here, 1080 × 1350)
 // and scales the template's own space onto it per axis, so the two match.
