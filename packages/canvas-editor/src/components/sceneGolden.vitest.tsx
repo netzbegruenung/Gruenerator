@@ -4,6 +4,7 @@ import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest
 
 import { composeSharepic } from '../composer/composeSharepic';
 import { MORE_SPECS, SPECS } from '../composer/sharepicSpecFixtures';
+import { loadAllIcons } from '../utils/canvasIcons';
 
 import { StandaloneCanvas } from './StandaloneCanvas';
 
@@ -41,7 +42,14 @@ function dump(node: Konva.Node): SceneNode {
   };
 }
 
-beforeAll(() => {
+beforeAll(async () => {
+  // Icon sets load on demand and the editor redraws once they are in; how
+  // long that import takes decides whether an icon is in the scene. Load
+  // them up front so every case sees the same catalogue. Charts draw through
+  // a lazy recharts import for the same reason: a cold import outlasts the
+  // settle wait and the chart is recorded as its placeholder.
+  await loadAllIcons();
+  await import('recharts');
   // jsdom has no FontFaceSet; the editor waits on it before it draws text.
   Object.defineProperty(document, 'fonts', {
     configurable: true,
@@ -63,8 +71,19 @@ afterEach(() => {
 
 const STILL_MS = 500;
 
-async function sceneOf(configId: string, slide: Record<string, unknown>): Promise<SceneNode> {
-  render(<StandaloneCanvas configId={configId as CanvasConfigId} initialProps={slide} preview />);
+async function sceneOf(
+  configId: string,
+  formatId: string,
+  slide: Record<string, unknown>
+): Promise<SceneNode> {
+  render(
+    <StandaloneCanvas
+      configId={configId as CanvasConfigId}
+      formatId={formatId}
+      initialProps={slide}
+      preview
+    />
+  );
   // The canvas settles in steps (the config loads, the format sizes the
   // stage, async elements mount): take the scene once it holds still for
   // STILL_MS. Measured in time, not samples: waitFor also runs on every DOM
@@ -93,7 +112,9 @@ describe('editor scene golden', () => {
       const page = composeSharepic(spec, options);
       const scenes: SceneNode[] = [];
       for (const slide of page.slides) {
-        scenes.push(await sceneOf(page.templateType, slide as unknown as Record<string, unknown>));
+        scenes.push(
+          await sceneOf(page.templateType, page.format, slide as unknown as Record<string, unknown>)
+        );
       }
       await expect(`${JSON.stringify(scenes, null, 1)}\n`).toMatchFileSnapshot(
         `__golden__/scene/${name}.json`
