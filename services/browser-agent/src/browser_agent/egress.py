@@ -51,6 +51,21 @@ def parse_extra_blocked(value: str) -> list:
     return [ipaddress.ip_network(p.strip(), strict=False) for p in value.split(",") if p.strip()]
 
 
+def resolve_blocked_hosts(value: str) -> list[str]:
+    """Alle A/AAAA-Adressen der kommagetrennten Namen (Env ``BROWSER_EGRESS_BLOCKED_HOSTS``).
+
+    Für Dienste mit öffentlicher Adresse, die der Browser trotzdem nicht
+    erreichen soll (Qdrant): eine IP-Liste in der Konfiguration vergisst leicht
+    eine Adressfamilie. Aufgelöst wird beim Start; scheitert das, scheitert der
+    Start, statt ohne Sperre zu laufen.
+    """
+    ips: list[str] = []
+    for host in (h.strip() for h in value.split(",")):
+        if host:
+            ips += sorted({info[4][0] for info in socket.getaddrinfo(host, 443, type=socket.SOCK_STREAM)})
+    return ips
+
+
 def allowed_ports_from_env() -> frozenset:
     """Erlaubte Zielports (Env ``BROWSER_EGRESS_ALLOWED_PORTS``, Standard 80,443)."""
     raw = os.environ.get("BROWSER_EGRESS_ALLOWED_PORTS", "")

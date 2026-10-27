@@ -27,7 +27,10 @@ import main; main()"`, `src/browser_agent/gateway.py`). Er hält kein
     startet `api.py` keinen Proxy im Prozess.
   - `:8898` Modell: nur `POST /api/browser-agent/llm/v1/chat/completions`, an
     `BROWSER_GATEWAY_API_UPSTREAM` weitergereicht mit nichts als
-    `Authorization` und `Content-Type`; alles andere `404`/`405`. Die API
+    `Authorization` und `Content-Type`; alles andere `404`/`405`. Der Body wird
+    durchgereicht, nicht gepuffert (über 21 MB `413`), höchstens 8 Anfragen
+    gleichzeitig (darüber `503`), Gesamtfrist 110 s samt Lesen des Bodys (`504`).
+    Dazu `mem_limit` in Salt: der Host hat keinen Swap. Die API
     schickt dem Agent diese Adresse als `llm_base_url` (`API_INTERNAL_BASE_URL`).
   - `:8000` Läufe: TCP-Weiterleitung von der API zu
     `BROWSER_GATEWAY_AGENT_UPSTREAM` (`BROWSER_AGENT_URL` der API). Der Agent
@@ -53,6 +56,11 @@ gegen SSRF in interne Netze (Redis, Postgres, Cloud-Metadaten, eigene Host-IPs):
   müssen beim Deployment dort eingetragen werden** — der Code kennt sie nicht
   und sperrt sie sonst nicht. Ein ungültiger Eintrag lässt den Start mit einem
   `ValueError` scheitern (fail-fast), statt still zu ignorieren.
+- Env `BROWSER_EGRESS_BLOCKED_HOSTS` (kommagetrennte Namen, nur im Gateway):
+  alle A/AAAA-Adressen werden beim Start aufgelöst und gesperrt — für Dienste
+  mit öffentlicher Adresse wie Qdrant (`qdrant.netzbegruenung.verdigado.net`
+  hat auch eine IPv4, die eine reine IPv6-Sperre durchließ; gemessen
+  27.10.2026). Scheitert die Auflösung, startet das Gateway nicht.
 
 Rauchtest im Image (braucht Internet für example.com/.org; läuft auch in
 `.github/workflows/browser-agent-image.yml`):

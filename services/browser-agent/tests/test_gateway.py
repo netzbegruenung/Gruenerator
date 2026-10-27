@@ -85,3 +85,46 @@ async def test_tcp_forward_relays_both_ways():
     for s in (fwd, upstream):
         s.close()
         await s.wait_closed()
+
+
+def test_streamed_body_over_the_limit_is_413(monkeypatch):
+    import browser_agent.gateway as gw
+
+    monkeypatch.setattr(gw, "_MAX_BODY", 10)
+    seen.clear()
+
+    def chunks():
+        yield b"x" * 6
+        yield b"x" * 6
+
+    with TestClient(gw.create_llm_app("http://api:3001", transport=httpx.MockTransport(_upstream))) as c:
+        # Ohne Content-Length (chunked): erst das Zählen beim Durchreichen greift.
+        assert c.post(LLM_PATH, content=chunks()).status_code == 413
+
+
+def test_slow_upstream_hits_the_total_deadline(monkeypatch):
+    import browser_agent.gateway as gw
+
+    monkeypatch.setattr(gw, "_UPSTREAM_TIMEOUT", 0.2)
+
+    async def slow(request):
+        await asyncio.sleep(2)
+        return httpx.Response(200)
+
+    with TestClient(gw.create_llm_app("http://api:3001", transport=httpx.MockTransport(slow))) as c:
+        assert c.post(LLM_PATH, content=b"{}").status_code == 504
+
+
+def test_blocked_hosts_resolve_to_every_address(monkeypatch):
+    import socket
+
+    from browser_agent import egress
+
+    def fake(host, port, type=0):
+        assert host == "qdrant.example"
+        return [(0, 0, 0, "", ("203.0.113.7", port)), (0, 0, 0, "", ("2001:db8::7", port, 0, 0)),
+                (0, 0, 0, "", ("203.0.113.7", port))]
+
+    monkeypatch.setattr(socket, "getaddrinfo", fake)
+    assert egress.resolve_blocked_hosts(" qdrant.example, ") == ["2001:db8::7", "203.0.113.7"]
+    assert egress.resolve_blocked_hosts("") == []

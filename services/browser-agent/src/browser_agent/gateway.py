@@ -28,7 +28,7 @@ from starlette.requests import Request
 from starlette.responses import Response
 from starlette.routing import Route
 
-from browser_agent.egress import _tunnel, start_egress_proxy
+from browser_agent.egress import _tunnel, resolve_blocked_hosts, start_egress_proxy
 
 logger = logging.getLogger(__name__)
 
@@ -38,6 +38,12 @@ _MAX_BODY = 21 * 1024 * 1024
 # Über dem Schritt-Timeout der API (75 s), unter dem HTTP-Timeout von browser-use (120 s).
 _UPSTREAM_TIMEOUT = 110.0
 _FORWARD_HEADERS = ("authorization", "content-type")
+# Zwei parallele Läufe (BROWSER_MAX_PARALLEL) mit je einem Modellaufruf; darüber 503.
+_LLM_CONCURRENCY = 8
+
+
+class _TooLarge(Exception):
+    pass
 
 
 def create_llm_app(upstream: str, transport: httpx.AsyncBaseTransport | None = None) -> Starlette:
@@ -47,14 +53,27 @@ def create_llm_app(upstream: str, transport: httpx.AsyncBaseTransport | None = N
         declared = request.headers.get("content-length")
         if declared is not None and (not declared.isdigit() or int(declared) > _MAX_BODY):
             return Response(status_code=413)
-        body = bytearray()
-        async for chunk in request.stream():
-            body += chunk
-            if len(body) > _MAX_BODY:
-                return Response(status_code=413)
+
+        # Durchreichen statt puffern: gleichzeitige 21-MB-Anfragen im Speicher
+        # könnten den Host (ohne Swap) in den OOM-Killer treiben — und der
+        # wählt sein Opfer selbst, womöglich die API.
+        async def body():
+            seen = 0
+            async for chunk in request.stream():
+                seen += len(chunk)
+                if seen > _MAX_BODY:
+                    raise _TooLarge
+                yield chunk
+
         headers = {k: v for k in _FORWARD_HEADERS if (v := request.headers.get(k)) is not None}
         try:
-            up = await client.post(LLM_PATH, content=bytes(body), headers=headers)
+            # Gesamtfrist inkl. Lesen des Bodys: ein tröpfelnder Client hält sonst ewig einen Platz.
+            async with asyncio.timeout(_UPSTREAM_TIMEOUT):
+                up = await client.post(LLM_PATH, content=body(), headers=headers)
+        except _TooLarge:
+            return Response(status_code=413)
+        except TimeoutError:
+            return Response(status_code=504)
         except httpx.HTTPError as e:
             logger.warning("LLM-Upstream nicht erreichbar: %s", type(e).__name__)
             return Response(status_code=502)
@@ -99,9 +118,12 @@ def main() -> None:
 
     async def serve() -> None:
         # Ein ungültiger BROWSER_EGRESS_EXTRA_BLOCKED-Eintrag lässt den Start scheitern.
-        egress = await start_egress_proxy(host, 8899, os.environ.get("BROWSER_EGRESS_EXTRA_BLOCKED", "").split(","))
+        extra = os.environ.get("BROWSER_EGRESS_EXTRA_BLOCKED", "").split(",")
+        extra += resolve_blocked_hosts(os.environ.get("BROWSER_EGRESS_BLOCKED_HOSTS", ""))
+        egress = await start_egress_proxy(host, 8899, extra)
         runs = await start_tcp_forward(host, 8000, agent_host, int(agent_port))
-        llm = uvicorn.Server(uvicorn.Config(create_llm_app(api_upstream), host=host, port=8898, log_level="warning"))
+        llm = uvicorn.Server(uvicorn.Config(create_llm_app(api_upstream), host=host, port=8898, log_level="warning",
+                                                 limit_concurrency=_LLM_CONCURRENCY))
         async with egress, runs:
             await asyncio.gather(egress.serve_forever(), runs.serve_forever(), llm.serve())
 
