@@ -127,7 +127,7 @@ srsly==2.5.4
     #   spacy
     #   thinc
     #   weasel
-starlette==1.9.0
+starlette==1.10.0
     # via fastapi
 thinc==8.3.13
     # via spacy
