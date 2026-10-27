@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
  * Licence gate for the packages that will be published as @ggraphic/* under
- * MPL-2.0 (packages/ggraphic-schema, -core, -editor). Walks the production
+ * MPL-2.0 (packages/ggraphic-schema, -core, -editor, -collab). Walks the production
  * dependency tree (dependencies, peerDependencies, optionalDependencies — not
  * devDependencies) from the installed node_modules and fails when any package
  * declares a licence outside ALLOWED, or none. @iconify-json/* sets must also
@@ -28,7 +28,7 @@ export const ALLOWED = new Set([
   'OFL-1.1',
 ]);
 
-export const ROOT_PACKAGES = ['ggraphic-schema', 'ggraphic-core', 'ggraphic-editor'];
+export const ROOT_PACKAGES = ['ggraphic-schema', 'ggraphic-core', 'ggraphic-editor', 'ggraphic-collab'];
 
 /** True when an SPDX expression is composed only of allowed ids. OR needs one side, AND both. */
 export function expressionAllowed(expression) {
