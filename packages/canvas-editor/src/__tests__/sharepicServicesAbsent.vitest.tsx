@@ -3,6 +3,7 @@
  * editor without the sharepic composer): the editor offers no blocks, and
  * page ops leave the carousel chrome as it is. Nothing throws.
  */
+import { readPages } from '@ggraphic/editor/collab/pagesDoc';
 import { type SharepicBlock } from '@gruenerator/contracts';
 import { act, render, renderHook } from '@testing-library/react';
 import React from 'react';
@@ -10,7 +11,6 @@ import { describe, expect, it } from 'vitest';
 import * as Y from 'yjs';
 
 import { CanvasEditorProvider, type CanvasEditorServices } from '../CanvasEditorProvider';
-import { readPages } from '../collab/pagesDoc';
 import { useYjsPages } from '../collab/useYjsPages';
 import {
   BlockInsertProvider,

@@ -1,3 +1,4 @@
+import { cn } from '@ggraphic/editor/utils/cn';
 import { Popover, PopoverContent, PopoverTrigger } from '@gruenerator/ui';
 import { Slider } from 'radix-ui';
 import { useEffect, useId, useRef, useState, type ChangeEvent } from 'react';
@@ -13,7 +14,6 @@ import { useCanvasEditorServices } from '../../../CanvasEditorProvider';
 import { plainImageUrls } from '../../../hostServices';
 import { MOBILE_INPUT_TEXT } from '../../../sidebar/sidebarStyles';
 import { useUserUploads } from '../../../sidebar/UserUploadsProvider';
-import { cn } from '../../../utils/cn';
 import { fetchShareImageFile } from '../../../utils/mediaPlacement';
 import { downscaleImageForUpload } from '../../../utils/userImageUtils';
 

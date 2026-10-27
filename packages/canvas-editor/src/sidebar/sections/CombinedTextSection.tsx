@@ -1,14 +1,14 @@
+import { cn } from '@ggraphic/editor/utils/cn';
 import { FaTrash } from 'react-icons/fa';
 import { PiPlusBold, PiTextAa, PiTextHBold } from 'react-icons/pi';
 
 import { useIsCanvasMobile } from '../../hooks/useIsCanvasMobile';
-import { cn } from '../../utils/cn';
 import { SidebarHint } from '../components/SidebarHint';
 import { TextField } from '../components/TextFieldPrimitives';
 import { MOBILE_INPUT_TEXT, SIDEBAR_SECTION } from '../sidebarStyles';
 
 import type { AdditionalText } from '../../configs/types';
-import type { TextFieldConfig } from '../../configs/unifiedTabs';
+import type { TextFieldConfig } from '@ggraphic/editor/configs/unifiedTabs';
 
 export interface CombinedTextSectionProps {
   onAddHeader?: () => void;

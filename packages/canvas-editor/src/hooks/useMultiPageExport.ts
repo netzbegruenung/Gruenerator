@@ -6,13 +6,13 @@
  * tracking and error states.
  */
 
+import { zipPageImages } from '@ggraphic/editor/utils/zipPageImages';
 import { useState, useCallback, useEffect, useRef, type RefObject } from 'react';
 
 import { useCanvasEditorServices } from '../CanvasEditorProvider';
 import { browserFileDelivery } from '../hostServices';
 import { type ExportFormat } from '../types/editorTypes';
 import { isDownloadTooLarge } from '../utils/downloadError';
-import { zipPageImages } from '../utils/zipPageImages';
 
 import type { GenericCanvasRef } from '../components/GenericCanvas';
 

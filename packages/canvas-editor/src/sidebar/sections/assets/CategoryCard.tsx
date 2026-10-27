@@ -1,6 +1,5 @@
+import { cn } from '@ggraphic/editor/utils/cn';
 import { memo, type CSSProperties, type ReactNode } from 'react';
-
-import { cn } from '../../../utils/cn';
 
 const FAN =
   'transition-transform duration-[400ms] ease-[cubic-bezier(.2,.8,.2,1)] motion-reduce:transition-none';

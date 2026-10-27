@@ -5,11 +5,10 @@
  * CSS-Variablen, die das Overlay setzt; mit Farbe (`++{#FFFFFF}…++`) trägt die
  * Mark Kasten- und Schriftfarbe selbst.
  */
+import { colorAttribute } from '@ggraphic/editor/components/markColor';
 import { Mark } from '@tiptap/core';
 
 import { markerInkOn } from '../utils/markerColors';
-
-import { colorAttribute } from './markColor';
 
 declare module '@tiptap/core' {
   interface Commands<ReturnType> {

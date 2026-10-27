@@ -6,12 +6,9 @@
  * width/height directly (already scaled during creation).
  */
 
-import { useState, useEffect, useRef, useMemo, memo } from 'react';
-import { Image, Group, Rect, Transformer } from 'react-konva';
-
-import { LOCKED_TRANSFORMER, useIsItemLocked } from '../components/canvasItemLock';
-import { useAnnounce } from '../hooks/useAnnounce';
-import { useBoxSnap, type SnapProps } from '../hooks/useBoxSnap';
+import { LOCKED_TRANSFORMER, useIsItemLocked } from '@ggraphic/editor/components/canvasItemLock';
+import { useAnnounce } from '@ggraphic/editor/hooks/useAnnounce';
+import { useBoxSnap, type SnapProps } from '@ggraphic/editor/hooks/useBoxSnap';
 import {
   clampPan,
   covers,
@@ -19,8 +16,31 @@ import {
   panOfFramedPhoto,
   visiblePart,
   type Rect as Box,
-} from '../utils/coverFit';
-import { cropAspectRatio, frameForAspect, type CropAspectId } from '../utils/cropAspect';
+} from '@ggraphic/editor/utils/coverFit';
+import {
+  cropAspectRatio,
+  frameForAspect,
+  type CropAspectId,
+} from '@ggraphic/editor/utils/cropAspect';
+import { ELEMENT_TRANSFORMER } from '@ggraphic/editor/utils/orientation';
+import { useTrackPendingImage } from '@ggraphic/editor/utils/pendingImages';
+import { recacheNextFrame } from '@ggraphic/editor/utils/recacheNextFrame';
+import {
+  clampPointToStraightPhoto,
+  frameForAspectOnStraightPhoto,
+  panOfStraightPhoto,
+  panStraightPhoto,
+  STRAIGHT_DRAW_ATTR,
+  straightDrawOf,
+  straightFramedPhoto,
+  straightPhotoCovers,
+  straightScaleCrop,
+  straightSceneFunc,
+} from '@ggraphic/editor/utils/straighten';
+import { touchAnchorStyleFunc } from '@ggraphic/editor/utils/touchInput';
+import { useState, useEffect, useRef, useMemo, memo } from 'react';
+import { Image, Group, Rect, Transformer } from 'react-konva';
+
 import {
   CROP_GHOST_NAME,
   CROP_GHOST_OPACITY,
@@ -33,23 +53,7 @@ import {
   imageFilterAttrs,
 } from '../utils/imageFilters';
 import { cropKeyOf, userImageKeyCrop } from '../utils/keyboardCrop';
-import { ELEMENT_TRANSFORMER } from '../utils/orientation';
-import { useTrackPendingImage } from '../utils/pendingImages';
-import { recacheNextFrame } from '../utils/recacheNextFrame';
 import { userImageBox } from '../utils/renderedBoxes';
-import {
-  clampPointToStraightPhoto,
-  frameForAspectOnStraightPhoto,
-  panOfStraightPhoto,
-  panStraightPhoto,
-  STRAIGHT_DRAW_ATTR,
-  straightDrawOf,
-  straightFramedPhoto,
-  straightPhotoCovers,
-  straightScaleCrop,
-  straightSceneFunc,
-} from '../utils/straighten';
-import { touchAnchorStyleFunc } from '../utils/touchInput';
 import { userImageCropUpdate } from '../utils/userImageCrop';
 import { USER_PHOTO_NODE_NAME, type UserImageInstance } from '../utils/userImageUtils';
 

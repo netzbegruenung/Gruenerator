@@ -19,7 +19,7 @@ import { createShape, type ShapeInstance } from '../../utils/shapes';
 import { useCanvasInteractions } from '../useCanvasInteractions';
 
 import type { CanvasEditorStoreApi } from '../../stores/createCanvasEditorStore';
-import type { SnapTarget } from '../../utils/snapping';
+import type { SnapTarget } from '@ggraphic/editor/utils/snapping';
 
 // Die jsdom-Leinwand misst 300×150; größer liest Konva keine Pixel für den Treffertest.
 const STAGE_W = 300;

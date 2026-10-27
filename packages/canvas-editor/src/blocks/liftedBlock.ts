@@ -13,11 +13,11 @@ import { runMeasurer } from '../utils/textUtils';
 import type { IconState } from '../configs/factory/baseTypes';
 import type { AdditionalText } from '../configs/types';
 import type { AssetInstance } from '../utils/canvasAssets';
-import type { ChartInstance } from '../utils/chartTypes';
 import type { CircleBadgeInstance } from '../utils/circleBadgeUtils';
 import type { PillBadgeInstance } from '../utils/pillBadgeUtils';
 import type { ShapeInstance } from '../utils/shapes';
 import type { UserImageInstance } from '../utils/userImageUtils';
+import type { ChartInstance } from '@ggraphic/editor/utils/chartTypes';
 
 /** The element collections a block can bring onto a page; all of them the freeform page holds. */
 export const BLOCK_COLLECTIONS = [

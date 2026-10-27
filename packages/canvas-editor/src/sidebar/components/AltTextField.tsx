@@ -1,7 +1,7 @@
+import { useAnnounce } from '@ggraphic/editor/hooks/useAnnounce';
+import { useAutoSaveStore, useAutoSaveStoreApi } from '@ggraphic/editor/stores/useAutoSaveStore';
 import { useId } from 'react';
 
-import { useAnnounce } from '../../hooks/useAnnounce';
-import { useAutoSaveStore, useAutoSaveStoreApi } from '../../stores/useAutoSaveStore';
 import { MOBILE_INPUT_TEXT } from '../sidebarStyles';
 
 /** Vorschlag aus dem Text auf der Leinwand; ohne Text gibt es keinen Vorschlag. */

@@ -1,12 +1,13 @@
 // „Automatisch": smartcrop schlägt den interessantesten Ausschnitt vor; hier wird er zu Pan/Zoom.
 // Ausschnitt und Zoom: immer der kleinste erlaubte Zoom, ungedreht, auf Deckung.
 
-import { photoRectAround, type Rect, type Size } from './coverFit';
+import { photoRectAround, type Rect, type Size } from '@ggraphic/editor/utils/coverFit';
+import { CANVAS_ITEM_NAME } from '@ggraphic/editor/utils/deepSelect';
+import { BACKGROUND_STRAIGHTEN_KEY, backgroundStraighten } from '@ggraphic/editor/utils/straighten';
+
 import { backgroundCropConfig, userImageOf, type CropUpdate } from './cropTarget';
-import { CANVAS_ITEM_NAME } from './deepSelect';
 import { BACKGROUND_IMAGE_NODE_ID } from './printImageInfo';
 import { coverFitSlot, resolveValue } from './resolveElementValue';
-import { BACKGROUND_STRAIGHTEN_KEY, backgroundStraighten } from './straighten';
 import { templatePositionUpdates } from './templateRotation';
 import { USER_PHOTO_NODE_NAME, type UserImageInstance } from './userImageUtils';
 

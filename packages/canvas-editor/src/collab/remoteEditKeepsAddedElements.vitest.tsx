@@ -18,6 +18,9 @@
  * einem ausgelasteten CI-Läufer zweistellige Sekunden —, und die Lane teilt
  * sich die Kerne mit `freeElementsReachTheDocument`, das dieselbe Bühne baut.
  */
+import { readPages, seedPagesIfEmpty, updatePageStateById } from '@ggraphic/editor/collab/pagesDoc';
+import { createPageSyncedCallbacks } from '@ggraphic/editor/collab/wrapCallbacksWithPageSync';
+import { AutoSaveStoreProvider } from '@ggraphic/editor/stores/AutoSaveStoreProvider';
 import { act, render } from '@testing-library/react';
 import React from 'react';
 import { beforeAll, describe, expect, it } from 'vitest';
@@ -25,12 +28,9 @@ import * as Y from 'yjs';
 
 import { GenericCanvas } from '../components/GenericCanvas';
 import { loadCanvasConfig } from '../configs/configLoader';
-import { AutoSaveStoreProvider } from '../stores/AutoSaveStoreProvider';
 
 import { PAGE_ELEMENT_STATE_KEYS } from './pageElementStateKeys';
-import { readPages, seedPagesIfEmpty, updatePageStateById } from './pagesDoc';
 import { PAGES_STATE_ORIGIN } from './useYjsPages';
-import { createPageSyncedCallbacks } from './wrapCallbacksWithPageSync';
 
 // `useFontLoader` fragt `document.fonts`; jsdom laedt keine Schriften und
 // kennt die FontFaceSet nicht, das Mounten stirbt sonst im Effekt.

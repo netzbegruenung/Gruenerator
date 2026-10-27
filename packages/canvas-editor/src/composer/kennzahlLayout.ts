@@ -1,4 +1,5 @@
-import { onGround } from '../brand/composerBrand';
+import { onGround } from '@ggraphic/editor/brand/composerBrand';
+
 import { createShape } from '../utils/shapes';
 
 import { type Placed, type RechnungItem, type ZahlItem } from './composeTypes';

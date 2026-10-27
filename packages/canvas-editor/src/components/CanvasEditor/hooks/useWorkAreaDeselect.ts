@@ -1,6 +1,5 @@
+import { TOUCH_TAP_SLOP } from '@ggraphic/editor/utils/touchInput';
 import { useCallback, useEffect, useRef } from 'react';
-
-import { TOUCH_TAP_SLOP } from '../../../utils/touchInput';
 
 /**
  * Ein Druck auf die Arbeitsfläche neben den Seiten. Maus: ohne Shift wird

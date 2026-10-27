@@ -1,3 +1,4 @@
+import { KEEP_EDITING_ATTR } from '@ggraphic/editor/utils/keyboardOwnership';
 import { fireEvent, render, renderHook, screen } from '@testing-library/react';
 import { act, useState } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
@@ -6,7 +7,6 @@ import { usePageUndoRedoShortcuts } from '../../components/CanvasEditor/hooks/us
 import { SidebarSlider } from '../../sidebar/components/SidebarSlider';
 import { CanvasStoreProvider, useCanvasStore } from '../../stores/CanvasStoreProvider';
 import { createCanvasEditorStore } from '../../stores/createCanvasEditorStore';
-import { KEEP_EDITING_ATTR } from '../../utils/keyboardOwnership';
 import { useCanvasKeyboardHandlers } from '../useCanvasKeyboardHandlers';
 import { useCanvasUndoRedo } from '../useCanvasUndoRedo';
 

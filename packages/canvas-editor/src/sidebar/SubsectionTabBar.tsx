@@ -1,8 +1,8 @@
+import { useRovingToolbar } from '@ggraphic/editor/hooks/useRovingToolbar';
+import { cn } from '@ggraphic/editor/utils/cn';
 import { useId, useState, type ReactNode } from 'react';
 
 import { useIsCanvasMobile } from '../hooks/useIsCanvasMobile';
-import { useRovingToolbar } from '../hooks/useRovingToolbar';
-import { cn } from '../utils/cn';
 
 import { HIDDEN_SCROLLBAR } from './sidebarStyles';
 

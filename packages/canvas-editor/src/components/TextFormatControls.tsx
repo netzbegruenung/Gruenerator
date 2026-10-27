@@ -7,6 +7,8 @@
  * `variant` wählt nur das Aussehen; welche Knöpfe erscheinen und was sie tun,
  * steht genau einmal hier.
  */
+import { useRovingToolbar } from '@ggraphic/editor/hooks/useRovingToolbar';
+import { KEEP_EDITING_ATTR, keepsEditing } from '@ggraphic/editor/utils/keyboardOwnership';
 import { useEditorState, type Editor } from '@tiptap/react';
 import clsx from 'clsx';
 import {
@@ -21,9 +23,7 @@ import { createPortal } from 'react-dom';
 import { FiBold, FiItalic, FiList, FiUnderline } from 'react-icons/fi';
 import { MdBorderColor, MdFormatListNumbered, MdHighlight } from 'react-icons/md';
 
-import { useRovingToolbar } from '../hooks/useRovingToolbar';
 import { type FontMarkSupport } from '../utils/fontMarkSupport';
-import { KEEP_EDITING_ATTR, keepsEditing } from '../utils/keyboardOwnership';
 import { DEFAULT_TEXT_MARKER, MARKER_PRESETS } from '../utils/markerColors';
 import { BRAND_COLORS } from '../utils/shapes';
 

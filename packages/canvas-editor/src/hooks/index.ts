@@ -1,5 +1,5 @@
-export { useElementSnapping } from './useElementSnapping';
-export type { UseElementSnappingResult } from './useElementSnapping';
+export { useElementSnapping } from '@ggraphic/editor/hooks/useElementSnapping';
+export type { UseElementSnappingResult } from '@ggraphic/editor/hooks/useElementSnapping';
 export { useCanvasUndoRedo } from './useCanvasUndoRedo';
 
 export { useCanvasInteractions } from './useCanvasInteractions';
@@ -13,8 +13,8 @@ export { useCanvasStoreReset } from './useCanvasStoreReset';
 export { useCanvasHistorySetup } from './useCanvasHistorySetup';
 export type { UseCanvasHistorySetupResult } from './useCanvasHistorySetup';
 
-export { useImageCoverFit } from './useImageCoverFit';
-export type { CoverFitDimensions } from './useImageCoverFit';
+export { useImageCoverFit } from '@ggraphic/editor/hooks/useImageCoverFit';
+export type { CoverFitDimensions } from '@ggraphic/editor/hooks/useImageCoverFit';
 
 export { useFloatingModuleState } from './useFloatingModuleState';
 export type { FloatingModuleState, UseFloatingModuleStateOptions } from './useFloatingModuleState';
@@ -34,11 +34,11 @@ export type {
 export { useCanvasKeyboardHandlers } from './useCanvasKeyboardHandlers';
 export type { UseCanvasKeyboardHandlersOptions } from './useCanvasKeyboardHandlers';
 
-export { useFontGeneration } from './useFontGeneration';
+export { useFontGeneration } from '@ggraphic/editor/hooks/useFontGeneration';
 export { useFontLoader } from './useFontLoader';
 export type { UseFontLoaderOptions, UseFontLoaderResult } from './useFontLoader';
 
-export { usePaginatedIcons } from './usePaginatedIcons';
+export { usePaginatedIcons } from '@ggraphic/editor/hooks/usePaginatedIcons';
 
 export { useMultiPageExport } from './useMultiPageExport';
 export type {
@@ -53,4 +53,4 @@ export type { InitialPageDef, UsePageManagerOptions, UsePageManagerReturn } from
 
 export { usePageThumbnails } from './usePageThumbnails';
 
-export { useMobileSheet } from './useMobileSheet';
+export { useMobileSheet } from '@ggraphic/editor/hooks/useMobileSheet';

@@ -5,13 +5,13 @@
  * normalised); the undo must restore the pre-edit state through that echo,
  * but keep every real edit made since, whoever made it and however soon.
  */
+import { getPagesMap } from '@ggraphic/editor/collab/pagesDoc';
+import { YDOC_KEYS } from '@ggraphic/editor/collab/ydocKeys';
 import { act, renderHook } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import * as Y from 'yjs';
 
-import { getPagesMap } from './pagesDoc';
 import { useYjsPages, type NormalizeEcho } from './useYjsPages';
-import { YDOC_KEYS } from './ydocKeys';
 
 const PAGE_1 = {
   headline: 'Eins',

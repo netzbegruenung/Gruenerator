@@ -1,6 +1,7 @@
 import { readdirSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 
+import { type GradientFill } from '@ggraphic/editor/utils/gradientFill';
 import { layoutRichTextBlock } from '@ggraphic/schema';
 import {
   sharepicSpecSchema,
@@ -13,7 +14,6 @@ import { describe, expect, it } from 'vitest';
 
 import { getBrandTheme } from '../brand/theme';
 import { chartSeriesOutlines } from '../utils/chartUtils';
-import { type GradientFill } from '../utils/gradientFill';
 
 import { applySharepicPatch } from './applySharepicPatch';
 import {

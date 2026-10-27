@@ -1,10 +1,10 @@
+import { userFacingError, userFacingMessage } from '@ggraphic/editor/utils/userFacingError';
 import { describe, expect, it } from 'vitest';
 
 import { canCropBackgroundPhoto } from './backgroundPhotoCrop';
 import { canEnterCrop, cropTargetOf } from './cropTarget';
 import { expandedFileName, expandTarget } from './expandImage';
 import { smartCropView } from './smartCrop';
-import { userFacingError, userFacingMessage } from './userFacingError';
 
 import type { CanvasElementConfig } from '../configs/types';
 

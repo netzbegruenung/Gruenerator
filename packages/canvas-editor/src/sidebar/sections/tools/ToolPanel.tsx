@@ -1,8 +1,8 @@
+import { cn } from '@ggraphic/editor/utils/cn';
 import { useState } from 'react';
 import { HiCheckCircle, HiXCircle } from 'react-icons/hi2';
 
 import { Lightbox } from '../../../common/Lightbox';
-import { cn } from '../../../utils/cn';
 import { SIDEBAR_SECTION } from '../../sidebarStyles';
 
 import type { ComponentType, ReactNode } from 'react';

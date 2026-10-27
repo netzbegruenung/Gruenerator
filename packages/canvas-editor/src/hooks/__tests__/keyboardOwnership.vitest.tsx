@@ -1,9 +1,9 @@
+import { isWidgetOwnedKey } from '@ggraphic/editor/utils/keyboardOwnership';
 import { renderHook } from '@testing-library/react';
 import { act } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { createCanvasEditorStore } from '../../stores/createCanvasEditorStore';
-import { isWidgetOwnedKey } from '../../utils/keyboardOwnership';
 import { useCanvasKeyboardHandlers } from '../useCanvasKeyboardHandlers';
 
 import type { BaseCanvasState } from '../../configs/factory/baseTypes';

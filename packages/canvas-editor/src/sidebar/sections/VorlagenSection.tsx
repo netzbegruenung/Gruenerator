@@ -22,6 +22,8 @@
  * Vorlage there; on content it asks first — open the Vorlage as a new design,
  * or replace with it (one undo step, offered back through the top bar banner).
  */
+import { useAnnounce } from '@ggraphic/editor/hooks/useAnnounce';
+import { cn } from '@ggraphic/editor/utils/cn';
 import {
   canvasVorlageThumbPath,
   printVorlageThumbPath,
@@ -69,7 +71,6 @@ import {
   isSlideFormat,
   type PrintCanvasFormat,
 } from '../../formats';
-import { useAnnounce } from '../../hooks/useAnnounce';
 import { useIsCanvasMobile } from '../../hooks/useIsCanvasMobile';
 import { SlideLayoutPicker } from '../../slides/SlideLayoutPicker';
 import {
@@ -79,7 +80,6 @@ import {
   type SlideLayoutId,
 } from '../../slides/slideLayouts';
 import { useCanvasStoreSelector } from '../../stores/CanvasStoreProvider';
-import { cn } from '../../utils/cn';
 import { ensureFontsReady } from '../../utils/ensureFontsReady';
 import { VORLAGE_DRAG_TYPE } from '../../utils/mediaDrop';
 import { rankVorlagen } from '../../utils/vorlagenRelevance';

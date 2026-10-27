@@ -1,4 +1,4 @@
-import { CANVAS_ITEM_NAME } from './deepSelect';
+import { CANVAS_ITEM_NAME } from '@ggraphic/editor/utils/deepSelect';
 
 import type { CanvasStageRef } from '../primitives/CanvasStage';
 import type { ExportOptions } from '../types/editorTypes';

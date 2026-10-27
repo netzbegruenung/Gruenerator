@@ -1,7 +1,7 @@
+import { cn } from '@ggraphic/editor/utils/cn';
 import { memo, type CSSProperties, type DragEvent } from 'react';
 import { FaCheck } from 'react-icons/fa';
 
-import { cn } from '../../../utils/cn';
 import { onThumbnailHover } from '../../../utils/illustrations/svgCache';
 import { takeDropPlaced } from '../../../utils/mediaDrop';
 

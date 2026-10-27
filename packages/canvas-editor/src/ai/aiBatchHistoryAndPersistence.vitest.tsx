@@ -3,18 +3,18 @@
  * sharepic opens in): it must land in the page's Y.Map — otherwise a reload
  * loses it — and one undo (the banner's "Verwerfen") must revert all of it.
  */
+import { readPages, seedPagesIfEmpty, updatePageStateById } from '@ggraphic/editor/collab/pagesDoc';
+import { createPageSyncedCallbacks } from '@ggraphic/editor/collab/wrapCallbacksWithPageSync';
+import { AutoSaveStoreProvider } from '@ggraphic/editor/stores/AutoSaveStoreProvider';
 import { act, render } from '@testing-library/react';
 import { createRef } from 'react';
 import { describe, expect, it, vi } from 'vitest';
 import * as Y from 'yjs';
 
 import { PAGE_PERSISTED_STATE_KEYS } from '../collab/pageElementStateKeys';
-import { readPages, seedPagesIfEmpty, updatePageStateById } from '../collab/pagesDoc';
 import { PAGES_STATE_ORIGIN } from '../collab/useYjsPages';
-import { createPageSyncedCallbacks } from '../collab/wrapCallbacksWithPageSync';
 import { GenericCanvas, type GenericCanvasRef } from '../components/GenericCanvas';
 import { loadCanvasConfig } from '../configs/configLoader';
-import { AutoSaveStoreProvider } from '../stores/AutoSaveStoreProvider';
 
 import type { CanvasAiEditBridge } from '../CanvasEditorProvider';
 import type * as StoreModule from '../stores/createCanvasEditorStore';

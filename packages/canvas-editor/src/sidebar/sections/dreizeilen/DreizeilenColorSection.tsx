@@ -1,3 +1,4 @@
+import { cn } from '@ggraphic/editor/utils/cn';
 import { FaCheck } from 'react-icons/fa';
 
 import { SidebarHint } from '../../components/SidebarHint';
@@ -11,8 +12,6 @@ import {
 } from '../../sidebarStyles';
 
 import type { ColorScheme } from '../../../utils/dreizeilenLayout';
-
-import { cn } from '../../../utils/cn';
 
 export interface DreizeilenColorSectionProps {
   colorSchemes: ColorScheme[];

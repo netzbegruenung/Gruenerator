@@ -2,15 +2,14 @@
  * Wohin der Fokus geht, wenn das, was ihn hatte, verschwindet: zurück zum
  * Ebenen-Eintrag, sonst auf den Knopf der Seite — nie auf `<body>`.
  */
-import { waitFor } from '@testing-library/react';
-import { afterEach, describe, expect, it, vi } from 'vitest';
-
 import {
   captureFocusOrigin,
   pageFocusTarget,
   returnFocus,
   returnFocusToPage,
-} from '../editorFocus';
+} from '@ggraphic/editor/utils/editorFocus';
+import { waitFor } from '@testing-library/react';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 function mountEditor() {
   document.body.innerHTML = `

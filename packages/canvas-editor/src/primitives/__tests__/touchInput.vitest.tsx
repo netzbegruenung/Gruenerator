@@ -77,7 +77,7 @@ describe('Transformer-Anker auf Touch-Geräten', () => {
   const hitStrokeFor = async (coarse: boolean) => {
     vi.resetModules();
     vi.stubGlobal('matchMedia', (q: string) => ({ matches: coarse && q === '(pointer: coarse)' }));
-    const { touchAnchorStyleFunc } = await import('../../utils/touchInput');
+    const { touchAnchorStyleFunc } = await import('@ggraphic/editor/utils/touchInput');
     const stageRef = createRef<CanvasStageRef>();
     const rectRef = createRef<Konva.Rect>();
     const trRef = createRef<Konva.Transformer>();

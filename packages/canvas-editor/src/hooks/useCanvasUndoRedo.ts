@@ -1,11 +1,10 @@
+import { useAnnounce } from '@ggraphic/editor/hooks/useAnnounce';
+import { editorSkipsKey } from '@ggraphic/editor/utils/keyboardOwnership';
 import { useEffect, useCallback, useLayoutEffect, useRef, useState } from 'react';
 import { flushSync } from 'react-dom';
 import { useStore } from 'zustand';
 
 import { useCanvasStore } from '../stores/CanvasStoreProvider';
-import { editorSkipsKey } from '../utils/keyboardOwnership';
-
-import { useAnnounce } from './useAnnounce';
 
 import type { CanvasEditorStoreState } from '../stores/createCanvasEditorStore';
 

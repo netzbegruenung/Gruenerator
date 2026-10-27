@@ -17,7 +17,7 @@ function installFonts(status: FakeFonts['status']): FakeFonts {
 async function loadHook() {
   vi.resetModules();
   const { renderHook } = await import('@testing-library/react');
-  const { useFontGeneration } = await import('../useFontGeneration');
+  const { useFontGeneration } = await import('@ggraphic/editor/hooks/useFontGeneration');
   return renderHook(() => useFontGeneration());
 }
 

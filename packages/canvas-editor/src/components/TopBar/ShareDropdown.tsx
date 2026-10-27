@@ -1,3 +1,4 @@
+import { useAutoSaveStoreApi } from '@ggraphic/editor/stores/useAutoSaveStore';
 import { stripInlineMarks } from '@ggraphic/schema';
 import {
   Popover,
@@ -25,7 +26,6 @@ import {
   useShareAltText,
   withAltText,
 } from '../../sidebar/components/AltTextField';
-import { useAutoSaveStoreApi } from '../../stores/useAutoSaveStore';
 import { withPhotoCredit } from '../../utils/photoCredit';
 
 import {

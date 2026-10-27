@@ -3,7 +3,8 @@
  * Formen im Formen-Katalog und den Farbwähler im Text. Limette und Mint sind
  * die Kastenfarben der DE-Posts (siehe `sharepicLayoutConstants.ts` und `slideInk.ts`).
  */
-import { contrastRatio, luminance } from './colorLuminance';
+import { contrastRatio, luminance } from '@ggraphic/editor/utils/colorLuminance';
+
 import { type TextMarker } from './textUtils';
 
 /** Die dunkle Schrift der DE-Kästen (`SHAREPIC_COLOR_HEX.dunkeltanne`). */

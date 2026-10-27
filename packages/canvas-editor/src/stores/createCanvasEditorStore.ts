@@ -16,8 +16,8 @@ import { DEFAULT_FORMAT_ID, getCanvasFormatOrDefault } from '../formats';
 import { DEFAULT_BACKGROUND_COLOR } from '../types/editorTypes';
 
 import type { CanvasEditorConfig, CanvasHistoryEntry } from '../types/editorTypes';
-import type { CropAspectId } from '../utils/cropAspect';
-import type { SnapTarget, SnapLine } from '../utils/snapping';
+import type { CropAspectId } from '@ggraphic/editor/utils/cropAspect';
+import type { SnapTarget, SnapLine } from '@ggraphic/editor/utils/snapping';
 
 // =============================================================================
 // TYPES

@@ -5,6 +5,8 @@
  * Migrated from monolithic 1,107-line DreizeilenCanvas component.
  */
 
+import { zoomBackground } from '@ggraphic/editor/utils/coverFit';
+import { straightenResetFor } from '@ggraphic/editor/utils/straighten';
 import {
   buildSharepicSnapshot,
   getSharepicTemplateDescriptor,
@@ -23,14 +25,12 @@ import { CombinedTextSection } from '../sidebar/sections/CombinedTextSection';
 import { FrameSettingsSection } from '../sidebar/sections/FrameSettingsSection';
 import { balkenExtent, fitBalkenAfterTextEdit, fitBalkenToCanvas } from '../utils/balkenBounds';
 import { CANVAS_RECOMMENDED_ASSETS, SYSTEM_ASSETS } from '../utils/canvasAssets';
-import { zoomBackground } from '../utils/coverFit';
 import {
   calculateDreizeilenLayout,
   COLOR_SCHEMES,
   getColorScheme,
   DREIZEILEN_CONFIG,
 } from '../utils/dreizeilenLayout';
-import { straightenResetFor } from '../utils/straighten';
 
 import { DEFAULT_PHOTO_BACKGROUND_DE, PHOTO_BACKGROUND_COLORS_DE } from './backgroundPalettes';
 import { chatTab, createCommonSectionEntries, toolsTab, uploadsTab } from './commonSections';

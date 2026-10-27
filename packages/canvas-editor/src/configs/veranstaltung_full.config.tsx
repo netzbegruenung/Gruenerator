@@ -3,13 +3,13 @@
  * Event sharepic with photo, green section, and date circle
  */
 
+import { zoomBackground } from '@ggraphic/editor/utils/coverFit';
+import { straightenResetFor } from '@ggraphic/editor/utils/straighten';
 import { PiFrameCornersFill, PiSquaresFourFill, PiTextAa } from 'react-icons/pi';
 
 import { AssetsSection, FrameSettingsSection } from '../sidebar/sections';
 import { CombinedTextSection } from '../sidebar/sections/CombinedTextSection';
 import { CANVAS_RECOMMENDED_ASSETS, type AssetInstance } from '../utils/canvasAssets';
-import { zoomBackground } from '../utils/coverFit';
-import { straightenResetFor } from '../utils/straighten';
 import { VERANSTALTUNG_CONFIG, calculateVeranstaltungLayout } from '../utils/veranstaltungLayout';
 
 import { chatTab, createCommonSectionEntries, toolsTab, uploadsTab } from './commonSections';

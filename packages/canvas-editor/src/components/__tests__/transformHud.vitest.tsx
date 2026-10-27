@@ -1,8 +1,7 @@
+import { TransformHud } from '@ggraphic/editor/components/TransformHud';
 import { render } from '@testing-library/react';
 import Konva from 'konva';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-
-import { TransformHud } from '../TransformHud';
 
 // Konva's Transformer fires `transform` / `transformend` on itself without
 // bubbling; the HUD must listen there, not on the stage.

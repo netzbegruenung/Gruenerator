@@ -12,7 +12,7 @@ import { axe } from '../test-utils';
 import { Lightbox } from './Lightbox';
 
 const mockState = vi.hoisted(() => ({ status: null as string | null }));
-vi.mock('../stores/useAutoSaveStore', () => ({
+vi.mock('@ggraphic/editor/stores/useAutoSaveStore', () => ({
   useAutoSaveStore: (selector: (s: unknown) => unknown) =>
     selector({ autoSaveStatus: mockState.status, retryAutoSave: () => {} }),
 }));

@@ -1,3 +1,5 @@
+import { useDebounce } from '@ggraphic/editor/hooks/useDebounce';
+import { cn } from '@ggraphic/editor/utils/cn';
 import {
   useCallback,
   useDeferredValue,
@@ -11,10 +13,8 @@ import { PiCaretLeftBold, PiMagnifyingGlass, PiX } from 'react-icons/pi';
 
 import { useCanvasEditorServices } from '../../../CanvasEditorProvider';
 import { useBlockInsert } from '../../../components/CanvasEditor/blockInsert';
-import { useDebounce } from '../../../hooks/useDebounce';
 import { useIsCanvasMobile } from '../../../hooks/useIsCanvasMobile';
 import { useTrackUnsplashDownload } from '../../../hooks/useTrackUnsplashDownload';
-import { cn } from '../../../utils/cn';
 import { MAX_ICON_SELECTIONS } from '../../../utils/iconInstances';
 import { MOBILE_INPUT_TEXT } from '../../sidebarStyles';
 import { IllustrationSettings } from '../IllustrationSettings';

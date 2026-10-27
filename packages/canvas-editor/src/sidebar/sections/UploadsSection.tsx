@@ -1,3 +1,4 @@
+import { cn } from '@ggraphic/editor/utils/cn';
 import { MasonryGrid, MasonryItem } from '@gruenerator/ui';
 import { useRef, useState } from 'react';
 import { FaTrash } from 'react-icons/fa';
@@ -6,7 +7,6 @@ import { HiArrowUpTray, HiMagnifyingGlass } from 'react-icons/hi2';
 import { useCanvasEditorServices } from '../../CanvasEditorProvider';
 import { useIsCanvasMobile } from '../../hooks/useIsCanvasMobile';
 import { plainImageUrls } from '../../hostServices';
-import { cn } from '../../utils/cn';
 import { MEDIA_DRAG_TYPE, type MediaDragPayload } from '../../utils/mediaDrop';
 import { downscaleImageForUpload } from '../../utils/userImageUtils';
 import { SidebarHint } from '../components/SidebarHint';

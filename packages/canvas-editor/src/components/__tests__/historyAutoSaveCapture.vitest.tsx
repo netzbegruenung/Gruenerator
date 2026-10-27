@@ -3,11 +3,11 @@
  * step) only feeds auto-save. With `autoSave={false}` — collab and multi-page
  * decks — it used to run anyway: a wasted main-thread encode after every edit.
  */
+import { AutoSaveStoreProvider } from '@ggraphic/editor/stores/AutoSaveStoreProvider';
 import { act, render } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { loadCanvasConfig } from '../../configs/configLoader';
-import { AutoSaveStoreProvider } from '../../stores/AutoSaveStoreProvider';
 import { captureStageImage } from '../../utils/captureStage';
 import { GenericCanvas } from '../GenericCanvas';
 

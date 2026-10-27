@@ -1,6 +1,6 @@
 import { MARKER_LIME } from './markerColors';
 
-import type { GradientFill } from './gradientFill';
+import type { GradientFill } from '@ggraphic/editor/utils/gradientFill';
 
 /**
  * Shapes rendered as strokes (Konva Line/Arrow) with no fill area — a gradient

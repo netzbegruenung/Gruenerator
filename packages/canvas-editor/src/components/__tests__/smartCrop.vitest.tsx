@@ -3,6 +3,7 @@
  * (hier gemockt) schlägt den Ausschnitt vor, die Bühne zeigt ihn, Abbrechen nimmt
  * ihn zurück, und ein Fehlschlag ändert nichts.
  */
+import { AutoSaveStoreProvider } from '@ggraphic/editor/stores/AutoSaveStoreProvider';
 import { createCanvas } from '@napi-rs/canvas';
 import { act, cleanup, render, waitFor } from '@testing-library/react';
 import Konva from 'konva';
@@ -10,7 +11,6 @@ import { createRef } from 'react';
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { loadCanvasConfig } from '../../configs/configLoader';
-import { AutoSaveStoreProvider } from '../../stores/AutoSaveStoreProvider';
 import { GenericCanvas, type GenericCanvasRef } from '../GenericCanvas';
 
 import type * as StoreModule from '../../stores/createCanvasEditorStore';

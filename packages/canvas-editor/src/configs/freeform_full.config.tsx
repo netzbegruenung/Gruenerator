@@ -8,6 +8,8 @@
  * balkens, badges, frames — all features the config system offers.
  */
 
+import { zoomBackground } from '@ggraphic/editor/utils/coverFit';
+import { straightenResetFor } from '@ggraphic/editor/utils/straighten';
 import { CANVAS_COLORS } from '@gruenerator/contracts';
 import { PiFrameCornersFill, PiSquaresFourFill, PiTextAa } from 'react-icons/pi';
 
@@ -23,9 +25,7 @@ import { CombinedTextSection } from '../sidebar/sections/CombinedTextSection';
 import { FrameSettingsSection } from '../sidebar/sections/FrameSettingsSection';
 import { CANVAS_RECOMMENDED_ASSETS } from '../utils/canvasAssets';
 import { CHART_PALETTES } from '../utils/chartUtils';
-import { zoomBackground } from '../utils/coverFit';
 import { COMPOSER_PLANE_IDS, photoStripBeside } from '../utils/shapes';
-import { straightenResetFor } from '../utils/straighten';
 
 import { chatTab, createCommonSectionEntries, toolsTab, uploadsTab } from './commonSections';
 import { createBaseActions } from './factory/actionFactories';

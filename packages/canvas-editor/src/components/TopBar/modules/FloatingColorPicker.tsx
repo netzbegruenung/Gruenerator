@@ -1,6 +1,6 @@
+import { cn } from '@ggraphic/editor/utils/cn';
 import React from 'react';
 
-import { cn } from '../../../utils/cn';
 import { BRAND_COLORS } from '../../../utils/shapes';
 import { CustomColorSwatch } from '../../CustomColorSwatch';
 

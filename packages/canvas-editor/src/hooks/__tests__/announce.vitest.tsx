@@ -1,3 +1,8 @@
+import {
+  AnnouncerContext,
+  useAnnounce,
+  useLiveAnnouncer,
+} from '@ggraphic/editor/hooks/useAnnounce';
 import { act, render, screen } from '@testing-library/react';
 import { useEffect } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -5,7 +10,6 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { CanvasAnnouncer } from '../../components/CanvasAnnouncer';
 import { CanvasStoreProvider, useCanvasStore } from '../../stores/CanvasStoreProvider';
 import { axe } from '../../test-utils';
-import { AnnouncerContext, useAnnounce, useLiveAnnouncer } from '../useAnnounce';
 import {
   SELECTION_ANNOUNCE_DELAY_MS,
   selectionMessage,

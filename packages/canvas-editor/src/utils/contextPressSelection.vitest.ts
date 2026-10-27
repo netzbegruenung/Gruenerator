@@ -1,6 +1,5 @@
+import { contextPressSelection } from '@ggraphic/editor/utils/deepSelect';
 import { describe, expect, it } from 'vitest';
-
-import { contextPressSelection } from './deepSelect';
 
 describe('contextPressSelection', () => {
   it('wählt das oberste Element, wenn nichts Ausgewähltes darunter liegt', () => {

@@ -6,9 +6,8 @@
  * DOM-frei, damit die Vorschau hier und der Server-Renderer an derselben
  * Stelle umbrechen. Hier bleibt nur, was ein Canvas braucht: die Messung.
  */
+import { notifyFontLoaded } from '@ggraphic/editor/hooks/useFontGeneration';
 import { layoutRichTextBlock, wrapLines, type MeasureRun, type RunStyle } from '@ggraphic/schema';
-
-import { notifyFontLoaded } from '../hooks/useFontGeneration';
 
 import { primaryFontFamily } from './fontMarkSupport';
 

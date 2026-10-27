@@ -1,13 +1,13 @@
-import { describe, expect, it } from 'vitest';
-
-import { covers, photoRectAround } from './coverFit';
-import { backgroundKeyCrop, userImageKeyCrop, type CropKey } from './keyboardCrop';
+import { covers, photoRectAround } from '@ggraphic/editor/utils/coverFit';
 import {
   minStraightenZoom,
   straightFramedPhoto,
   straightenWindowPhoto,
   straightPhotoCovers,
-} from './straighten';
+} from '@ggraphic/editor/utils/straighten';
+import { describe, expect, it } from 'vitest';
+
+import { backgroundKeyCrop, userImageKeyCrop, type CropKey } from './keyboardCrop';
 
 import type { UserImageInstance } from './userImageUtils';
 
