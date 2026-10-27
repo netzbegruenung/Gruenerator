@@ -29,6 +29,7 @@ Antworte AUSSCHLIESSLICH mit einem JSON-Objekt:
 
 Als NICHT plausibel gilt nur, was klar erkennbar falsch ist:
 - Das Ergebnis beantwortet eine andere Frage als gestellt (falsche Spalte, falsche Gruppierung).
+- Eine Einschränkung, die in der Frage ausdrücklich steht (Zeitraum wie „dieses Jahr", „heuer", „2025"; Status; Ort; Kategorie), fehlt im Code. Der Hinweis nennt die fehlende Einschränkung. Was die Frage nicht nennt, verlangst du nicht.
 - Der Code leitet eine vorhandene Spalte doppelt her oder addiert Unzusammenhängendes.
 - Werte sind offensichtlich unmöglich (negative Anzahl, leeres Ergebnis trotz Daten).
 Im Zweifel: {"plausible": true}. Du kennst die Rohdaten nicht — beurteile nur Code-Logik vs. Frage.`;
@@ -85,7 +86,10 @@ export async function verifyComputeResult(params: {
       lane: 'chat_compute_verify',
       pinned: 'compute',
       system: VERIFIER_PROMPT,
-      prompt: `${questionBlock}
+      // Ohne Datum nannte der Hinweis „z. B. 2025" für „dieses Jahr" — und der
+      // Loop hätte mit dem falschen Jahr neu gerechnet.
+      prompt: `Heutiges Datum (ISO): ${new Date().toISOString().slice(0, 10)}
+${questionBlock}
 
 Ausgeführter Code:
 ${code}

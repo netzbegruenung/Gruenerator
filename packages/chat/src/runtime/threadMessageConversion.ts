@@ -22,7 +22,11 @@ import {
 import { ATTACHMENT_META_PART_NAME, type AttachmentMetaData } from '../lib/attachmentMeta';
 import { mapRawCitationsToChat } from '../lib/citationUtils';
 import { isPastedTextAttachment, PASTED_TEXT_PREVIEW_PART_NAME } from '../lib/pastedText';
-import { TOOL_APPROVAL_OPTIONS } from '../lib/toolApproval';
+import {
+  decidedApprovalPills,
+  TOOL_APPROVAL_OPTIONS,
+  type PersistedApprovalPause,
+} from '../lib/toolApproval';
 import { dropDuplicateToolCalls } from '../lib/toolCallParts';
 import { buildToolDerivedCustom } from '../lib/toolDerivedCustom';
 import { toolGrantPartFields, type McpToolGrant } from '../lib/toolGrant';
@@ -105,24 +109,10 @@ export interface LoadedMessage {
     /** Werkzeugaufrufe, die auf eine Freigabe warten (oder gewartet haben).
      *  Solange `resolved` falsch ist, zeigt der Thread nach einem Reload wieder
      *  die Karte und kann entschieden werden. */
-    pendingApproval?: {
-      approvalTurnId: string;
-      calls: Array<{
-        toolCallId: string;
-        toolName: string;
-        args?: Record<string, unknown>;
-        title?: string;
-        serverName?: string;
-      }>;
-      resolved?: boolean | 'expired';
-      /** Mit `resolved: true` gespeichert (`approvalResume`): was entschieden wurde. */
-      decisions?: Array<{
-        toolCallId: string;
-        approved: boolean;
-        optionId?: string;
-        reason?: string;
-      }>;
-    };
+    pendingApproval?: PersistedApprovalPause;
+    /** Die früher im selben Zug entschiedenen Freigaben — `pendingApproval`
+     *  trägt nur die letzte Pause (#5051). */
+    decidedApprovals?: PersistedApprovalPause[];
     /** Eine Loop-Rückfrage (`ask_human`, #3220). Solange `resolved` falsch ist,
      *  zeigt der Thread nach einem Reload wieder die beantwortbare Karte. */
     pendingClarification?: {
@@ -160,40 +150,6 @@ function persistedCardArgs(tc: PersistedToolCall): ToolCallMessagePart['args'] {
     query: String(args.query ?? ''),
     ...(typeof args.auftrag === 'string' ? { auftrag: args.auftrag } : {}),
   };
-}
-
-type ResolvedApproval = NonNullable<NonNullable<LoadedMessage['metadata']>['pendingApproval']>;
-
-/**
- * Eine entschiedene Freigabe → die eingeklappte Pille („Tabelle auswerten ·
- * Erlaubt"), die live über der Karte des Aufrufs stand. Eigene Id, weil der
- * ausgeführte Aufruf dieselbe toolCallId als Karte trägt; ein Ergebnis, damit
- * der Part nicht als offen gilt.
- */
-function decidedApprovalPills(pending: ResolvedApproval | undefined): Map<string, ToolCallLike> {
-  const pills = new Map<string, ToolCallLike>();
-  if (pending?.resolved !== true) return pills;
-  for (const decision of pending.decisions ?? []) {
-    const call = pending.calls.find((c) => c.toolCallId === decision.toolCallId);
-    if (!call) continue;
-    pills.set(call.toolCallId, {
-      type: 'tool-call' as const,
-      toolCallId: `${call.toolCallId}__approval`,
-      toolName: call.toolName,
-      args: {},
-      result: { approved: decision.approved },
-      approval: {
-        id: call.toolCallId,
-        options: TOOL_APPROVAL_OPTIONS,
-        approved: decision.approved,
-        ...(decision.optionId != null ? { optionId: decision.optionId } : {}),
-        ...(decision.reason != null ? { reason: decision.reason } : {}),
-      },
-      ...(call.title != null && { title: call.title }),
-      ...(call.serverName != null && { serverName: call.serverName }),
-    });
-  }
-  return pills;
 }
 
 /**
@@ -480,7 +436,10 @@ export function convertToThreadMessageLike(messages: LoadedMessage[]): ThreadMes
       });
 
       // Entschiedene Freigaben: die Pille steht vor der Karte ihres Aufrufs.
-      const pills = decidedApprovalPills(m.metadata?.pendingApproval);
+      const pills = decidedApprovalPills([
+        ...(m.metadata?.decidedApprovals ?? []),
+        m.metadata?.pendingApproval,
+      ]);
       const pushPillFor = (toolCallId: string, parentId?: string): void => {
         const pill = pills.get(toolCallId);
         if (!pill) return;

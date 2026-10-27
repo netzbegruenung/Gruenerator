@@ -1,11 +1,7 @@
 import { type ComposerBrand, onGround } from '@ggraphic/editor/brand/composerBrand';
 import { createCircleBadgeInstance } from '@ggraphic/editor/utils/circleBadgeUtils';
 import { createShape } from '@ggraphic/editor/utils/shapes';
-import {
-  type SharepicColor,
-  type SharepicSeitenzahl,
-  type SharepicSlide,
-} from '@gruenerator/contracts';
+import { type SharepicSeitenzahl, type SharepicSlide } from '@gruenerator/contracts';
 
 import { ASSET_TARGET_SIZE } from '../utils/canvasAssets';
 import { COLORS } from '../utils/dreizeilenLayout';
@@ -38,7 +34,6 @@ export interface ChromeInputs {
   areaTop: number;
   blockTop: number;
   total: number;
-  surface: SharepicColor | 'foto';
   circle: { x: number; y: number; radius: number } | null;
   ortInColumn: boolean;
   ortBesideCircle: boolean;
@@ -92,7 +87,6 @@ export function drawSlideChrome(ctx: SlideCtx, inputs: ChromeInputs): void {
     areaTop,
     blockTop,
     total,
-    surface,
     circle,
     ortInColumn,
     ortBesideCircle,
@@ -203,9 +197,9 @@ export function drawSlideChrome(ctx: SlideCtx, inputs: ChromeInputs): void {
       ? { background: themed.fill, text: themed.ink }
       : isAt
         ? { background: theme.colors.stoerer, text: VERANSTALTUNG_CONFIG.circle.textColor }
-        : surface === 'foto' || surface === 'tanne' || surface === 'dunkeltanne'
-          ? { background: SHAREPIC_COLOR_HEX.grasgruen, text: COLORS.TANNE }
-          : { background: COLORS.TANNE, text: '#ffffff' };
+        : darkInk
+          ? { background: COLORS.TANNE, text: '#ffffff' }
+          : { background: SHAREPIC_COLOR_HEX.grasgruen, text: COLORS.TANNE };
     const c = VERANSTALTUNG_CONFIG.circle;
     const t = VERANSTALTUNG_CONFIG.circleText;
     // The template's type is set for its radius; a smaller circle scales it.

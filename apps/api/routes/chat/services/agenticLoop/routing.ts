@@ -1066,6 +1066,10 @@ export interface AgenticDecisionInput {
    *  notebook unless the model happens to call `notebooks(search)` itself.
    *  Flipping this flag is therefore a deliberate, measured change — not a
    *  leftover. Do not remove it on the strength of the tool existing.
+   *  One measured exception: a table turn (`isTabularAnalysisTurn`). Single-pass
+   *  has no `tabelle_auswerten` and answered from the excerpt; the loop seeds the
+   *  notebook through the same fan-out `searchNode` uses (`seedAttachedDocuments`
+   *  with `includeNotebooks`), so the notebook is read without the model.
    *  `isCompound` covered only the NAMED-agent half of this; the universal agent
    *  reached the loop unguarded. Separate flag rather than a widened
    *  `isCompound`, because that name means "gather-then-apply pipeline" and
@@ -1208,7 +1212,7 @@ export function decideRunAgentic(p: AgenticDecisionInput): boolean {
     gateOpen &&
     (!p.forcedTool || p.forcedLoop) &&
     !p.isCompound &&
-    (!p.hasSelectedNotebook || p.mustLoop) &&
+    (!p.hasSelectedNotebook || p.mustLoop || p.isTabularAnalysisTurn === true) &&
     secondaryAllowed &&
     !imageStaysSinglePass;
   recordDecision('router.run_agentic', runAgentic ? 'loop' : 'single_pass', {

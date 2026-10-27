@@ -385,6 +385,7 @@ export async function streamAgenticResponse(
       toolName: ATTACHED_DOCS_TOOL,
       isMounted: ATTACHED_DOCS_TOOL in tools,
       skipTables: 'tabelle_auswerten' in tools,
+      includeNotebooks: 'tabelle_auswerten' in tools,
       onInfo: (m) => log.info(m),
       onError: (m) => log.warn(m),
     });
