@@ -29,6 +29,7 @@ const base = {
   summaryAsk: false,
   attachedSeedDelivered: false,
   resumesSuspendedTurn: false,
+  tabularToolMounted: false,
 };
 
 const force = (over: Partial<typeof base> = {}) => shouldForceFirstToolCall({ ...base, ...over });
@@ -48,6 +49,30 @@ describe('shouldForceFirstToolCall', () => {
     expect(
       force({ hasAttachedDocuments: true, summaryAsk: true, resumesSuspendedTurn: true })
     ).toBeNull();
+  });
+
+  // Live 27.10.2026, 4 von ~20 Tabellen-Läufen: ein Agent mit Standard-Notebook
+  // schob den Turn nach `search`, der erzwungene Schritt sah nur
+  // [gruenerator_search], der Planer hing ⇒ steps=0. Bei einer Anschlussfrage
+  // dasselbe mit web_search. Mit montiertem `tabelle_auswerten` entscheidet
+  // der Planer frei.
+  it('Tabellen-Turn mit montiertem tabelle_auswerten ⇒ kein named_intent/followup-Zwang', () => {
+    expect(force({ intent: 'search', tabularToolMounted: true })).toBeNull();
+    expect(
+      force({
+        intent: 'agentic',
+        priorTurnRetrieved: true,
+        lastUserText: 'Und im Februar?',
+        tabularToolMounted: true,
+      })
+    ).toBeNull();
+  });
+
+  it('ohne Tabellen-Werkzeug bleiben named_intent und followup', () => {
+    expect(force({ intent: 'search' })).toBe('named_intent');
+    expect(
+      force({ intent: 'agentic', priorTurnRetrieved: true, lastUserText: 'Und im Februar?' })
+    ).toBe('followup');
   });
 
   it('ein frischer Zug bleibt unverändert', () => {

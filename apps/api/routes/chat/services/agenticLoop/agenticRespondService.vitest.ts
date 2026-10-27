@@ -563,6 +563,16 @@ describe('streamAgenticResponse — Zuschnitt des erzwungenen ersten Schritts (#
     expect(p.firstStepTools).toEqual(['gruenerator_search']);
   });
 
+  it('Tabellen-Turn: mit montiertem tabelle_auswerten kein Zwang auf die Suche', async () => {
+    const p = await loopParams(
+      fakeState({ intent: 'search' }),
+      'Wie viel Umsatz im März?',
+      catalogWith([...MOUNTED, 'tabelle_auswerten'])
+    );
+    expect(p.forceFirstToolCall).toBe(false);
+    expect(p.firstStepTools).toBeNull();
+  });
+
   it('Fortsetzung desselben Zuges: kein erneuter Zwang auf den ersten Schritt', async () => {
     const p = await loopParams(fakeState({ intent: 'search' }), 'Frage?', catalogWith(MOUNTED), {
       resumeApproval: {

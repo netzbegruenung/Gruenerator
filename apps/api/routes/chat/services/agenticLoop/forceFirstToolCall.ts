@@ -83,6 +83,8 @@ export function shouldForceFirstToolCall(input: {
   /** Der Zug wird fortgesetzt (Freigabe, Client-Werkzeug, Rückfrage —
    *  `resumeApproval`): sein erster Schritt lief schon vor der Pause. */
   resumesSuspendedTurn?: boolean;
+  /** `tabelle_auswerten` hängt im Katalog: der Turn rechnet über eine Tabelle. */
+  tabularToolMounted?: boolean;
 }): ForceReason | null {
   // Der Bann vetoed alles. `toolChoice: 'required'` ist kein Vorschlag, den das
   // Modell gegen den Satz des Nutzers abwägen kann — unter „ohne neue Recherche"
@@ -229,6 +231,11 @@ export function shouldForceFirstToolCall(input: {
   //
   // Eigenes Material sticht auch hier, aus demselben Grund wie beim
   // Demotions-Zweig.
+  // Ein Tabellen-Turn holt nichts nach: die Daten liegen im Anhang, gerechnet
+  // wird mit `tabelle_auswerten`. Ein Zwang auf die Suchwerkzeuge liess den
+  // Planer hängen oder im Web suchen (live 27.10.2026, named_intent/followup).
+  if (input.tabularToolMounted) return null;
+
   if (
     input.priorTurnRetrieved &&
     input.intent === 'agentic' &&

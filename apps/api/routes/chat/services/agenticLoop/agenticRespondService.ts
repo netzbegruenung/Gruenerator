@@ -669,6 +669,7 @@ export async function streamAgenticResponse(
       artifactEditOrder: finalState.artifactEditOrder === true,
       attachedSeedDelivered: seeded.delivered,
       resumesSuspendedTurn: resumeApproval != null,
+      tabularToolMounted: 'tabelle_auswerten' in wrapped,
     });
     const forceFirstToolCall = forceReason !== null;
 
