@@ -1,8 +1,7 @@
 import { framedPhotoRect, visiblePart } from '@ggraphic/editor/utils/coverFit';
+import { userImageCropUpdate } from '@ggraphic/editor/utils/userImageCrop';
+import { type UserImageInstance } from '@ggraphic/editor/utils/userImageUtils';
 import { describe, expect, it } from 'vitest';
-
-import { userImageCropUpdate } from './userImageCrop';
-import { type UserImageInstance } from './userImageUtils';
 
 const natural = { width: 1200, height: 800 };
 const image: UserImageInstance = {

@@ -1,3 +1,4 @@
+import { backgroundAdjustments } from '@ggraphic/editor/utils/imageFilters';
 import { HiArrowUpTray, HiChatBubbleLeftRight, HiWrenchScrewdriver } from 'react-icons/hi2';
 
 import { applyOperation, type ApplyResult, type CanvasAiActionsBase } from '../ai/applyOperation';
@@ -6,7 +7,6 @@ import { BalkenSettingsSection } from '../sidebar/sections/BalkenSettingsSection
 import { ChartSettingsSection } from '../sidebar/sections/ChartSettingsSection';
 import { ImageAdjustSection } from '../sidebar/sections/ImageAdjustSection';
 import { COLOR_SCHEMES } from '../utils/dreizeilenLayout';
-import { backgroundAdjustments } from '../utils/imageFilters';
 import { BACKGROUND_IMAGE_NODE_ID } from '../utils/printImageInfo';
 
 import { buildSharepicText } from './buildSharepicText';
@@ -16,13 +16,13 @@ import type { SharepicAiCapabilities } from './aiCapabilities';
 import type { CanvasAiEditBridge } from '../CanvasEditorProvider';
 import type { ChatSectionProps, ToolsSectionProps, UploadsSectionProps } from '../sidebar/sections';
 import type { SidebarTab } from '../sidebar/types';
-import type { BalkenInstance } from '../utils/balkenUtils';
+import type { BalkenInstance } from '@ggraphic/editor/utils/balkenUtils';
+import type { ChartInstance } from '@ggraphic/editor/utils/chartUtils';
 import type {
   ImageAdjustments,
   UserImageInstance,
   UserImagePlacement,
-} from '../utils/userImageUtils';
-import type { ChartInstance } from '@ggraphic/editor/utils/chartUtils';
+} from '@ggraphic/editor/utils/userImageUtils';
 
 interface ActionsWithChart {
   updateChart?: (id: string, partial: Partial<ChartInstance>) => void;

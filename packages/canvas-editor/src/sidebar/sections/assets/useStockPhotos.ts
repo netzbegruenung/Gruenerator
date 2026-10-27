@@ -4,7 +4,7 @@ import { useQuery, type QueryClient } from '@tanstack/react-query';
 import { useCanvasEditorServices } from '../../../CanvasEditorProvider';
 
 import type { ElementItem } from './elementTypes';
-import type { StockImage, StockImageAttribution } from '../../../common/imageSourceTypes';
+import type { StockImage, StockImageAttribution } from '@ggraphic/editor/common/imageSourceTypes';
 
 const STOCK_PHOTOS_QUERY_KEY = ['canvas', 'stock-photos'] as const;
 

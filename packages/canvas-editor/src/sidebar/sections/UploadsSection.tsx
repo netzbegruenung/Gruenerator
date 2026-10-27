@@ -1,5 +1,7 @@
 import { MasonryGrid, MasonryItem } from '@ggraphic/editor/ui/masonry-grid';
 import { cn } from '@ggraphic/editor/utils/cn';
+import { MEDIA_DRAG_TYPE, type MediaDragPayload } from '@ggraphic/editor/utils/mediaDrop';
+import { downscaleImageForUpload } from '@ggraphic/editor/utils/userImageUtils';
 import { useRef, useState } from 'react';
 import { FaTrash } from 'react-icons/fa';
 import { HiArrowUpTray, HiMagnifyingGlass } from 'react-icons/hi2';
@@ -7,8 +9,6 @@ import { HiArrowUpTray, HiMagnifyingGlass } from 'react-icons/hi2';
 import { useCanvasEditorServices } from '../../CanvasEditorProvider';
 import { useIsCanvasMobile } from '../../hooks/useIsCanvasMobile';
 import { plainImageUrls } from '../../hostServices';
-import { MEDIA_DRAG_TYPE, type MediaDragPayload } from '../../utils/mediaDrop';
-import { downscaleImageForUpload } from '../../utils/userImageUtils';
 import { SidebarHint } from '../components/SidebarHint';
 import { MOBILE_INPUT_TEXT, SIDEBAR_SECTION } from '../sidebarStyles';
 import { useUserUploads } from '../UserUploadsProvider';

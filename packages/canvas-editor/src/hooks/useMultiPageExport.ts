@@ -47,6 +47,7 @@ export function useMultiPageExport({
   const [notice, setNotice] = useState<string | null>(null);
   const noticeTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
   const { fileDelivery = browserFileDelivery } = useCanvasEditorServices();
+  const prefix = fileDelivery.filenamePrefix ?? 'ggraphic';
 
   useEffect(() => () => clearTimeout(noticeTimer.current), []);
 
@@ -110,7 +111,7 @@ export function useMultiPageExport({
 
         const blob = zipPageImages(images);
         const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5);
-        const filename = `gruenerator-${canvasType}-${timestamp}.zip`;
+        const filename = `${prefix}-${canvasType}-${timestamp}.zip`;
 
         try {
           await fileDelivery.downloadBlob(blob, filename);
@@ -124,7 +125,7 @@ export function useMultiPageExport({
               setNotice(`Seite ${i + 1} von ${images.length} wird gesendet …`);
               await fileDelivery.downloadDataUrl(
                 images[i],
-                `gruenerator-${canvasType}-seite-${i + 1}.${format === 'jpeg' ? 'jpg' : format}`
+                `${prefix}-${canvasType}-seite-${i + 1}.${format === 'jpeg' ? 'jpg' : format}`
               );
               sent = i + 1;
             }
@@ -148,7 +149,7 @@ export function useMultiPageExport({
         setExportProgress({ current: 0, total: 0 });
       }
     },
-    [canvasRefs, canvasType, exportAllPages, fileDelivery]
+    [canvasRefs, canvasType, exportAllPages, fileDelivery, prefix]
   );
 
   return {

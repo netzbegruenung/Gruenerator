@@ -16,11 +16,11 @@ import { type CircleBadgeInstance } from '@ggraphic/editor/primitives/CircleBadg
 import { createCircleBadgeInstance } from '@ggraphic/editor/utils/circleBadgeUtils';
 import { createShape, type ShapeInstance } from '@ggraphic/editor/utils/shapes';
 import { type TextAccent } from '@ggraphic/editor/utils/textUtils';
+import { type UserImageInstance } from '@ggraphic/editor/utils/userImageUtils';
 import { type PrintImpressum, type PrintKontakt } from '@gruenerator/contracts';
 
 import { getBrandTheme, type BrandTheme } from '../brand/theme';
 import { ASSET_TARGET_SIZE } from '../utils/canvasAssets';
-import { type UserImageInstance } from '../utils/userImageUtils';
 
 import { layoutTextLines, type MeasureText } from './chromeParts';
 import { type ComposedSlide } from './composeSharepic';

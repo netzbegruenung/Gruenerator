@@ -1,7 +1,5 @@
 import { createContext, useContext } from 'react';
 
-import type { ApplyResult } from './ai/types';
-import type { StockImage, StockImageAttribution } from './common/imageSourceTypes';
 import type {
   CanvasCarouselService,
   CanvasFileDeliveryService,
@@ -12,12 +10,14 @@ import type {
   UseCanvasStudioAssets,
   UseCanvasUnsplashSearch,
 } from './hostServices';
-import type { AltTextPage, CanvasSpecEditBridge } from '@ggraphic/editor/editorSeamTypes';
 import type {
-  CanvasAiCapabilities,
-  CanvasAiOperation,
-  CanvasAiSnapshot,
-} from '@gruenerator/contracts';
+  ApplyResult,
+  HostCanvasAiOperation,
+  HostCanvasAiSnapshot,
+} from '@ggraphic/editor/ai/types';
+import type { StockImage, StockImageAttribution } from '@ggraphic/editor/common/imageSourceTypes';
+import type { AltTextPage, CanvasSpecEditBridge } from '@ggraphic/editor/editorSeamTypes';
+import type { CanvasAiCapabilities } from '@ggraphic/schema';
 import type { ComponentType, PropsWithChildren } from 'react';
 
 /**
@@ -30,9 +30,9 @@ export interface CanvasAiEditBridge {
   /** Capability list to send with the suggest request. */
   capabilityList: CanvasAiCapabilities;
   /** Builds a fresh CanvasAiSnapshot at request-time. */
-  getSnapshot: () => CanvasAiSnapshot;
+  getSnapshot: () => HostCanvasAiSnapshot;
   /** Applies an array of operations and returns one ApplyResult per op. */
-  applyOperations: (ops: CanvasAiOperation[]) => ApplyResult[];
+  applyOperations: (ops: HostCanvasAiOperation[]) => ApplyResult[];
 }
 
 export type {

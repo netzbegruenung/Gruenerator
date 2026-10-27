@@ -9,7 +9,7 @@ import { axe } from '../../../test-utils';
 import { ToolsSection } from './ToolsSection';
 import { UnsplashTool } from './UnsplashTool';
 
-import type { StockImage } from '../../../common/imageSourceTypes';
+import type { StockImage } from '@ggraphic/editor/common/imageSourceTypes';
 
 const photo = (n: number): StockImage => ({
   filename: `annie-${n}-unsplash.jpg`,

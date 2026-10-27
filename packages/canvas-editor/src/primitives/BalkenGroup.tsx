@@ -30,7 +30,7 @@ import {
   flattenPoints,
 } from '../utils/dreizeilenLayout';
 
-import type { BalkenInstance, BalkenMode } from '../utils/balkenUtils';
+import type { BalkenInstance, BalkenMode } from '@ggraphic/editor/utils/balkenUtils';
 import type { SnapTarget } from '@ggraphic/editor/utils/snapping';
 import type Konva from 'konva';
 

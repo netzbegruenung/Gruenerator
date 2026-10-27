@@ -32,6 +32,7 @@ import { useAnnounce } from '@ggraphic/editor/hooks/useAnnounce';
 import { useCanvasStoreSelector } from '@ggraphic/editor/stores/CanvasStoreProvider';
 import { cn } from '@ggraphic/editor/utils/cn';
 import { ensureFontsReady } from '@ggraphic/editor/utils/ensureFontsReady';
+import { VORLAGE_DRAG_TYPE } from '@ggraphic/editor/utils/mediaDrop';
 import {
   canvasVorlageThumbPath,
   printVorlageThumbPath,
@@ -81,7 +82,6 @@ import {
   slideLayoutConfigId,
   type SlideLayoutId,
 } from '../../slides/slideLayouts';
-import { VORLAGE_DRAG_TYPE } from '../../utils/mediaDrop';
 import { rankVorlagen } from '../../utils/vorlagenRelevance';
 
 import { GalleryTabs } from './StudioGallery';

@@ -2211,9 +2211,15 @@ importers:
       react-konva:
         specifier: ^19.3.2
         version: 19.3.2(@types/react@19.3.0)(konva@10.9.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
+      recharts:
+        specifier: 3.10.1
+        version: 3.10.1(@types/react@19.3.0)(react-dom@19.3.0(react@19.3.0))(react-is@19.2.8)(react@19.3.0)(redux@5.0.1)
       tailwind-merge:
         specifier: ^3.7.0
         version: 3.7.0
+      use-image:
+        specifier: ^1.1.4
+        version: 1.1.4(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
       uuid:
         specifier: '>=14.0.2'
         version: 14.0.3
