@@ -1,9 +1,10 @@
 /**
  * What the editor needs from its host for data it does not own: the media
  * library, image shares, file delivery, Studio assets, the Unsplash search
- * state and print (impressum, print Vorlagen). Supplied through
- * `CanvasEditorServices`; apps/web passes the @gruenerator/shared
- * implementations and, for print, the composer's (`webCanvasEditorServices.ts`).
+ * state, print (impressum, print Vorlagen), blocks and the carousel chrome.
+ * Supplied through `CanvasEditorServices`; apps/web passes the
+ * @gruenerator/shared implementations and, for print, blocks and the carousel
+ * chrome, the composer's (`webCanvasEditorServices.ts`).
  *
  * The shapes are the structural subset the editor reads, so a host can hand in
  * its own hooks unchanged. The hook-valued services are React hooks: the
@@ -17,13 +18,17 @@
  */
 
 import { useState, type ComponentType } from 'react';
+import { type Doc } from 'yjs';
 
+import type { BlockSlide, LiftedBlock } from './blocks/liftedBlock';
 import type { AdditionalText } from './configs/types';
 import type {
   MediaItem,
   MediaType,
   PrintFormatId,
   PrintSpec,
+  SharepicColor,
+  SharepicCreatorLocale,
   StockImage,
   StudioAssetItem,
   StudioAssetKind,
@@ -316,4 +321,39 @@ export interface CanvasPrintService {
     templateType: string;
     slides: readonly Record<string, unknown>[];
   };
+}
+
+// ── Blocks (Grünerator-Blöcke in the Elemente panel) ────────────────────────
+
+/**
+ * Turns a block the host composed (`CanvasVorlagenService.composeBlock`) into
+ * items for a page. The editor places the result (`placeBlock`) and selects
+ * its parts.
+ *
+ * Without it the editor offers no blocks: no „Blöcke" category in the
+ * Elemente panel and no block drop onto a page, as without a block catalogue.
+ */
+export interface CanvasBlockService {
+  /** The colour to compose a block on for a page with this background. */
+  ground: (
+    locale: SharepicCreatorLocale,
+    page: { backgroundMode?: unknown; backgroundColor?: unknown },
+    fallback: SharepicColor
+  ) => SharepicColor;
+  /** The elements of `items` cut loose from the composed slide, ids made unique by `token`. */
+  lift: (slide: BlockSlide, items: readonly number[], token: string) => LiftedBlock;
+}
+
+// ── Carousel chrome (page number, swipe arrow) ──────────────────────────────
+
+/**
+ * Keeps a deck's chrome true after a structural page op (add, insert,
+ * duplicate, remove, move, replace the deck).
+ *
+ * Without it page ops leave every page's state as it is: a composed page
+ * number or swipe arrow stays what it was.
+ */
+export interface CanvasCarouselService {
+  /** Rewrites the chrome of the pages document; called inside the page op's transaction. */
+  refreshChrome: (doc: Doc) => void;
 }

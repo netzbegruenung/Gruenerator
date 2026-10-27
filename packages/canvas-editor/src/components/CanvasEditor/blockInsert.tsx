@@ -14,7 +14,6 @@ import {
 } from 'react';
 
 import { useCanvasEditorServices } from '../../CanvasEditorProvider';
-import { blockGround, liftBlock } from '../../composer/liftBlock';
 
 import type { GenericCanvasRef } from '../GenericCanvas';
 
@@ -34,7 +33,7 @@ export interface BlockInsertApi {
 /** Exported for tests; the editor provides it through `BlockInsertProvider`. */
 export const BlockInsertContext = createContext<BlockInsertApi | null>(null);
 
-/** The editor's blocks; null outside the editor or without a catalogue service. */
+/** The editor's blocks; null outside the editor or without the catalogue and block services. */
 export const useBlockInsert = (): BlockInsertApi | null => useContext(BlockInsertContext);
 
 /** Pages the composer lays blocks out for: a sharepic page of either country. */
@@ -58,8 +57,9 @@ interface BlockInsertProviderProps {
 
 /**
  * Loads the Grünerator-Blöcke and drops one onto a page: composed by the host
- * for the page's country, format and background, cut loose (`liftBlock`) and
- * added through the page's canvas handle as one undo step.
+ * for the page's country, format and background, cut loose (the host's
+ * `blocks.lift`) and added through the page's canvas handle as one undo step.
+ * Without the host's `blocks` service there are no blocks, as without a catalogue.
  */
 export function BlockInsertProvider({
   pages,
@@ -68,12 +68,12 @@ export function BlockInsertProvider({
   canvasRefsRef,
   children,
 }: BlockInsertProviderProps) {
-  const { vorlagen } = useCanvasEditorServices();
+  const { vorlagen, blocks } = useCanvasEditorServices();
   const format = sharepicFormatSchema.safeParse(formatId).data ?? null;
   const locale = blockLocaleOf(pages[currentPageIndex]?.configId);
   const listBloecke = vorlagen?.listBloecke;
   const composeBlock = vorlagen?.composeBlock;
-  const enabled = !!(listBloecke && composeBlock && format && locale);
+  const enabled = !!(listBloecke && composeBlock && blocks && format && locale);
 
   // Loaded once the first page that takes blocks is shown; the host caches the list.
   const [all, setAll] = useState<SharepicBlock[] | null>(null);
@@ -98,12 +98,13 @@ export function BlockInsertProvider({
       const pageLocale = blockLocaleOf(pages[pageIndex]?.configId);
       const block = all?.find((b) => b.id === blockId);
       const ref = canvasRefsRef.current[pageIndex]?.current;
-      if (!block || !ref || !composeBlock || !format || block.locale !== pageLocale) return false;
+      if (!block || !ref || !composeBlock || !blocks || !format || block.locale !== pageLocale)
+        return false;
       try {
         return await ref.insertBlock(async (page) => {
-          const color = blockGround(block.locale, page, block.color);
+          const color = blocks.ground(block.locale, page, block.color);
           const slide = await composeBlock(block, { format, color });
-          return liftBlock(
+          return blocks.lift(
             slide,
             block.items.map((_, i) => i),
             token()
@@ -114,7 +115,7 @@ export function BlockInsertProvider({
         return false;
       }
     },
-    [all, pages, currentPageIndex, canvasRefsRef, composeBlock, format]
+    [all, pages, currentPageIndex, canvasRefsRef, composeBlock, blocks, format]
   );
 
   const value = useMemo<BlockInsertApi | null>(
