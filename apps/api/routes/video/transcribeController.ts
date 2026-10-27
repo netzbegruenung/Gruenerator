@@ -84,38 +84,28 @@ const transcribeSchema = z.object({
 /**
  * Transcribes a media file on disk and answers in the video editor format:
  * { results: { main: { words: [{ word, start, end }] } } } (start/end in seconds).
- * The file is removed afterwards, whether the provider succeeded or not.
+ * The file is removed before the answer goes out, whether the provider
+ * succeeded or not.
  */
 async function respondWithTranscription(
   res: Response,
   tempPath: string,
   locale: Locale
 ): Promise<void> {
+  let words: { word: string; start: number; end: number }[];
   try {
     const result = await transcribeWithProvider(tempPath, true, null, locale);
-
-    const words = (result.words || []).map((w) => ({
-      word: w.word,
-      start: w.start,
-      end: w.end,
-    }));
-
-    res.json({
-      results: {
-        main: {
-          words,
-        },
-      },
-    });
-
-    log.info(`Transcription complete: ${words.length} words`);
+    words = (result.words || []).map((w) => ({ word: w.word, start: w.start, end: w.end }));
   } catch (error: unknown) {
     const errMsg = error instanceof Error ? error.message : String(error);
     log.error(`Transcription failed: ${errMsg}`);
-    res.status(500).json({ error: errMsg || 'Transcription failed' });
-  } finally {
     await cleanupTempFile(tempPath);
+    res.status(500).json({ error: errMsg || 'Transcription failed' });
+    return;
   }
+  await cleanupTempFile(tempPath);
+  res.json({ results: { main: { words } } });
+  log.info(`Transcription complete: ${words.length} words`);
 }
 
 /**
