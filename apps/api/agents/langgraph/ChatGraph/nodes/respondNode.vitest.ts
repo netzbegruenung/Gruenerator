@@ -534,12 +534,13 @@ describe('formatTabularComputeGuidance', () => {
     expect(out).toBe('');
   });
 
-  it('emits the code-block guidance for a tabular attachment without a result', () => {
+  it('default branch never promises automatic execution', () => {
     const out = formatTabularComputeGuidance(
-      makeState({ hasTabularAttachment: true, computedResult: null })
+      makeState({ hasTabularAttachment: true, computedResult: null, clientCanRunPython: true })
     );
-    expect(out).toContain('```python');
-    expect(out).toContain('automatisch ausgeführt');
+    expect(out).not.toContain('automatisch ausgeführt');
+    expect(out).not.toMatch(/Fordere NICHT zum Klicken/);
+    expect(out).toContain('AUS DEN DATEN ANTWORTEN');
   });
 
   it('suppresses code emission when a FRESH result exists (run-then-answer resume)', () => {
@@ -555,13 +556,12 @@ describe('formatTabularComputeGuidance', () => {
     expect(out).not.toContain('```python');
   });
 
-  it('keeps the code-block guidance when the result is only forwarded from the last turn', () => {
-    // A stale lastComputeStore result must not block a NEW follow-up
-    // computation (e.g. on clients without the run_python capability).
+  it('keeps the default guidance when the result is only forwarded from the last turn', () => {
+    // A stale lastComputeStore result must not block a NEW follow-up computation.
     const out = formatTabularComputeGuidance(
       makeState({ hasTabularAttachment: true, computedResult: makeComputeResult() })
     );
-    expect(out).toContain('```python');
+    expect(out).toContain('AUS DEN DATEN ANTWORTEN');
   });
 
   it('never promises code execution to clients without the run_python capability', () => {
