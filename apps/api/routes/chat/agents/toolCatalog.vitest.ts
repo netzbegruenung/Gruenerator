@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
+import { env } from '../../../config/env.js';
 import { ATTACHED_DOC_SNIPPET_CHARS } from '../services/agenticLoop/attachedDocuments.js';
 import { createSourceRegistry } from '../services/agenticLoop/sourceRegistry.js';
 
@@ -297,6 +298,31 @@ describe('toolCatalog domain tool mounting', () => {
       buildChatToolCatalog({ agentConfig, sourceRegistry, loop: { sse, state } }).toolNames
     ).not.toContain('text_uebersetzen');
     deeplConfigured.current = false;
+  });
+
+  it('mounts website_erkunden only with the service URL and an API-only token secret', () => {
+    const saved = {
+      url: env.BROWSER_AGENT_URL,
+      service: env.BROWSER_AGENT_SECRET,
+      token: env.BROWSER_AGENT_TOKEN_SECRET,
+    };
+    try {
+      env.BROWSER_AGENT_URL = 'http://browser-agent.test';
+      env.BROWSER_AGENT_SECRET = 'service-secret';
+      env.BROWSER_AGENT_TOKEN_SECRET = 'token-secret';
+      expect(catalogFor('search').toolNames).toContain('website_erkunden');
+
+      env.BROWSER_AGENT_TOKEN_SECRET = undefined;
+      expect(catalogFor('search').toolNames).not.toContain('website_erkunden');
+
+      // Same value as the secret the browser container holds: still off.
+      env.BROWSER_AGENT_TOKEN_SECRET = 'service-secret';
+      expect(catalogFor('search').toolNames).not.toContain('website_erkunden');
+    } finally {
+      env.BROWSER_AGENT_URL = saved.url;
+      env.BROWSER_AGENT_SECRET = saved.service;
+      env.BROWSER_AGENT_TOKEN_SECRET = saved.token;
+    }
   });
 
   it('mounts no domain tools without a loop context (unit-test / non-loop path)', () => {

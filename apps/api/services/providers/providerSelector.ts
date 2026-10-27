@@ -5,6 +5,7 @@
 
 import { GEMMA_31B_PRIMARY } from '../ai/gemmaHosts.js';
 import { intermediateLane } from '../ai/intermediateLanes.js';
+import { MELIOUS_WIDE_MODEL } from '../ai/meliousThinkingFetch.js';
 
 import type {
   ProviderName,
@@ -260,6 +261,12 @@ export function selectProviderAndModel({
   ) {
     provider = LANE.provider;
     model = options.model || LANE.model;
+  }
+  // Browser-Agent — Gemma 4 bei Melious auf `:speed`. Spiegel von
+  // `browser_agent` in services/ai/lanes.ts (Begründung dort).
+  else if (type === 'browser_agent') {
+    provider = 'melious';
+    model = options.model || MELIOUS_WIDE_MODEL;
   }
 
   // Respect explicit provider at top-level if present (routes may set data.provider)

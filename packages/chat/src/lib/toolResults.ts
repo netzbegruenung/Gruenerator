@@ -194,6 +194,19 @@ const TOOL_METADATA: Record<string, ToolMeta> = {
     iconKey: 'external-link',
     accent: 'external',
   },
+  website_erkunden: {
+    label: 'Website erkunden',
+    activeLabel: 'Erkunde die Website',
+    iconKey: 'globe',
+    accent: 'external',
+  },
+  website_werkzeug_laden: {
+    label: 'Website erkunden',
+    activeLabel: 'Öffne das Website-Werkzeug',
+    iconKey: 'globe',
+    accent: 'external',
+    summarize: () => 'Website-Werkzeug freigeschaltet',
+  },
   gruenerator_pressemitteilung_examples: {
     label: 'Pressemitteilungen',
     activeLabel: 'Suche Pressemitteilungen',

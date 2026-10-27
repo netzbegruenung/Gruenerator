@@ -494,6 +494,66 @@ export const researchLogUpdateSchema = z.object({
 export type ResearchLogUpdate = z.infer<typeof researchLogUpdateSchema>;
 
 /**
+ * `browser_session_*` SSE payloads — the live view of a `website_erkunden` run
+ * (a real browser the agent operates on the person's behalf).
+ *
+ * Same two-event pattern as `research_log_*`: `browser_session_start` opens the
+ * view, every `browser_session_update` merges into it — a step is appended, a
+ * saved screenshot is added, the status and summary arrive at the end. Images
+ * travel as authenticated asset URLs, never as base64. Clients that do not know
+ * these event names ignore them.
+ */
+export const browserSessionStatusSchema = z.enum(['running', 'done', 'failed']);
+export type BrowserSessionStatus = z.infer<typeof browserSessionStatusSchema>;
+
+export const browserSessionStepSchema = z.object({
+  n: z.number(),
+  url: z.string(),
+  title: z.string(),
+  action: z.string(),
+  target: z.string().nullable(),
+  /** Click position as a percentage of the viewport (0–100), when the action had one. */
+  xPct: z.number().nullable(),
+  yPct: z.number().nullable(),
+  thought: z.string().nullable(),
+  imageUrl: z.string(),
+});
+export type BrowserSessionStep = z.infer<typeof browserSessionStepSchema>;
+
+export const browserSessionScreenshotSchema = z.object({
+  name: z.string(),
+  url: z.string(),
+});
+export type BrowserSessionScreenshot = z.infer<typeof browserSessionScreenshotSchema>;
+
+export const browserSessionStartSchema = z.object({
+  id: z.string(),
+  url: z.string(),
+  title: z.string(),
+});
+export type BrowserSessionStart = z.infer<typeof browserSessionStartSchema>;
+
+export const browserSessionUpdateSchema = z.object({
+  id: z.string(),
+  step: browserSessionStepSchema.optional(),
+  screenshot: browserSessionScreenshotSchema.optional(),
+  status: browserSessionStatusSchema.optional(),
+  summary: z.string().optional(),
+});
+export type BrowserSessionUpdate = z.infer<typeof browserSessionUpdateSchema>;
+
+/** Persisted as `metadata.browserSession`, so the session view survives a reload. */
+export const browserSessionMetaSchema = z.object({
+  id: z.string(),
+  startUrl: z.string(),
+  status: browserSessionStatusSchema,
+  steps: z.array(browserSessionStepSchema),
+  screenshots: z.array(browserSessionScreenshotSchema),
+  summary: z.string(),
+});
+export type BrowserSessionMeta = z.infer<typeof browserSessionMetaSchema>;
+
+/**
  * `compute` SSE payload — the deterministic result of the `compute` intent.
  * The backend runs the calculation in plain JS (never the LLM), then streams
  * the verified numbers so the frontend can render a transparent "Berechnung"
@@ -733,6 +793,8 @@ export const chatStreamEventSchemas: Record<string, z.ZodTypeAny> = {
   artifact: z.object({ artifact: artifactPayloadSchema.passthrough().optional() }).passthrough(),
   research_log_start: researchLogStartSchema.passthrough(),
   research_log_update: researchLogUpdateSchema.passthrough(),
+  browser_session_start: browserSessionStartSchema.passthrough(),
+  browser_session_update: browserSessionUpdateSchema.passthrough(),
   compute: z.object({ compute: computePayloadSchema.passthrough().optional() }).passthrough(),
   bahn: z.object({ bahn: bahnPayloadSchema.passthrough().optional() }).passthrough(),
   // variants stay unknown[] here: per-item validation (sharepicVariantSchema)

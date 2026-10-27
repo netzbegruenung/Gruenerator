@@ -1,0 +1,110 @@
+# The browser-agent image is built on PRs, before a merge.
+#
+# ci.yml's `Browser Agent (Python)` job runs pytest on an actions/setup-python
+# interpreter and never reads the Dockerfile; build-images.yml builds this
+# image only on push to master, i.e. after the fact. Chromium and its system
+# libraries are installed in the image only, so a broken Dockerfile (or a
+# Playwright bump that no longer finds the chrome binary) would otherwise
+# surface after the merge, like #3304 did for the nlp image.
+#
+# Its own workflow rather than a job in ci.yml: this needs a `paths:` filter so
+# it stays off the ~400 PRs that do not touch services/browser-agent, and
+# ci.yml's `pull_request:` trigger is deliberately unfiltered (see the comment
+# there).
+name: Browser Agent Image
+
+on:
+  pull_request:
+    paths:
+      - 'services/browser-agent/**'
+      - '.github/workflows/browser-agent-image.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build browser-agent image
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      # Reuses the buildcache build-images.yml writes on master, so the
+      # Chromium layer is normally a hit rather than a fresh download. A cold
+      # or unreadable cache just builds from scratch; `cache-from` failing is
+      # not fatal. The login only lifts the registry rate limit and is skipped
+      # on fork PRs.
+      - name: Log in to Container Registry
+        if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+        uses: docker/login-action@v4.7.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build
+        uses: docker/build-push-action@v7
+        with:
+          context: ./services/browser-agent
+          file: services/browser-agent/Dockerfile
+          push: false
+          load: true
+          tags: gruenerator-browser-agent:pr
+          cache-from: type=registry,ref=ghcr.io/${{ github.repository_owner }}/gruenerator-browser-agent:buildcache
+
+      # A green build is NOT the check: run the image. The Chromium symlink,
+      # the package import and the console entry point are what the CMD needs.
+      - name: Verify the image can actually launch Chromium
+        run: |
+          docker run --rm gruenerator-browser-agent:pr python -c "
+          import browser_agent.api
+          print('browser_agent imports OK')
+          "
+          docker run --rm gruenerator-browser-agent:pr chromium --version
+          # Launch it for real, as the image's default (non-root) user, over
+          # CDP like run.py does. Not `chromium --dump-dom`: the image's
+          # managed URLBlocklist policy silently disables Chromium's
+          # headless command handler, so that prints nothing even when the
+          # browser works.
+          docker run --rm gruenerator-browser-agent:pr python -c "
+          import asyncio, tempfile
+          from pathlib import Path
+          from browser_use import BrowserSession
+          from browser_agent.run import build_profile
+          async def main():
+              s = BrowserSession(browser_profile=build_profile(Path(tempfile.mkdtemp())))
+              await s.start()
+              cdp = await s.get_or_create_cdp_session()
+              r = await cdp.cdp_client.send.Runtime.evaluate(params={'expression': '1 + 1', 'returnByValue': True}, session_id=cdp.session_id)
+              assert r['result']['value'] == 2, r
+              await s.kill()
+              print('Chromium launched over CDP')
+          asyncio.run(main())
+          "
+
+      # The egress proxy and the URL policy are the binding barrier, so prove
+      # them in the image: every "blocked" case must be one that loads without
+      # the block (see the module docstring). evals/ is not in the image
+      # (.dockerignore), hence the mount.
+      - name: Smoke-test egress proxy and URL policy
+        run: |
+          docker run --rm -v "$PWD/services/browser-agent/evals:/evals" \
+            gruenerator-browser-agent:pr python /evals/proxy_smoke.py
+
+      # In production Chromium (no sandbox) sits alone on an internal network;
+      # the internet and the one model path of the API are reachable only
+      # through the browser-gateway container. Prove that topology: no direct
+      # route out, no host service, no direct link between agent and API, the
+      # run.py profile loads through the gateway, which forwards nothing else.
+      - name: Smoke-test the isolated network topology
+        run: services/browser-agent/evals/topology_smoke.sh gruenerator-browser-agent:pr
