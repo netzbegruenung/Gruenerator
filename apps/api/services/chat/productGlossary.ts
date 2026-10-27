@@ -15,7 +15,8 @@
  * - {@link formatGlossaryDefinitions}: the definitions inside the product
  *   knowledge block (`product_knowledge` tool and the meta-question prompt).
  * - {@link GLOSSARY_TERM_RE}: the classifier's feature-noun gate for the
- *   `hilfe` intent — only a door into the loop, never a decision.
+ *   `hilfe` intent, distinctive terms only — a door into the loop, never a
+ *   decision.
  */
 
 import { MODEL_OPTIONS } from '@gruenerator/core';
@@ -29,6 +30,14 @@ interface GlossaryEntry {
    * ("klein", "mittel") would turn ordinary questions into product questions.
    */
   readonly terms: RegExp;
+  /**
+   * The spellings distinctive enough to route a question to `hilfe` — only
+   * words nobody uses outside the product (Panda, Explainable, Öko-Modus).
+   * `null` for everyday words (App, Konto, Projekt, Rezept, Agent): they still
+   * get their definition into the prompt, but must not move „Wie baue ich
+   * eine App für Bürgerbeteiligung?" into the docs lane.
+   */
+  readonly routes: RegExp | null;
   readonly definition: string;
   /** Site-relative docs page, when one exists. */
   readonly docsPath: string | null;
@@ -55,6 +64,7 @@ export const PRODUCT_GLOSSARY = [
     id: 'modellstufen',
     label: 'Klein/Mittel/Ultra/Panda (Modellstufen)',
     terms: /\b(ultra|panda|modellstufe\w*|modellw[äa]hler\w*|ki-modell\w*|sprachmodell\w*)\b/i,
+    routes: /\b(ultra|panda|modellstufe\w*|modellw[äa]hler\w*)\b/i,
     definition: tierDefinition(),
     docsPath: '/docs/chat/ki-modelle',
   },
@@ -62,6 +72,7 @@ export const PRODUCT_GLOSSARY = [
     id: 'explainable',
     label: 'Explainable',
     terms: /\bexplainables?\b/i,
+    routes: /\bexplainables?\b/i,
     definition:
       'Eine Erklärseite in einfacher Sprache mit bis zu drei gemalten Erklärbildern. Entsteht im Chat (@explainable-erstellen) oder per „Einfach erklären" unter einer Notebook-Antwort und lässt sich per Link teilen.',
     docsPath: null,
@@ -70,6 +81,7 @@ export const PRODUCT_GLOSSARY = [
     id: 'podcast',
     label: 'Podcast',
     terms: /\bpodcasts?\b/i,
+    routes: /\bpodcasts?\b/i,
     definition:
       'Eine Chat- oder Notebook-Antwort als Gespräch zweier KI-Stimmen (Moderation und Erklärung), erstellt über „Als Podcast anhören" im Dokument-Menü. Das MP3 liegt danach in der Mediathek.',
     docsPath: null,
@@ -78,6 +90,7 @@ export const PRODUCT_GLOSSARY = [
     id: 'voice',
     label: 'Grünerator Voice',
     terms: /\b(gr[üu]nerator[- ]voice|vertonen|vertonung)\b/i,
+    routes: /\b(gr[üu]nerator[- ]voice|vertonen|vertonung)\b/i,
     definition:
       'Text zu Audio (/voice), etwa eine Vorlesefassung oder Ansage; im Chat über das Werkzeug vertonen.',
     docsPath: '/docs/guides/einsteigerinnen/text-vertonen',
@@ -87,6 +100,7 @@ export const PRODUCT_GLOSSARY = [
     label: 'Öko-Modus',
     // `\b` before „Ö" never matches (ASCII word boundary), hence the lookbehind.
     terms: /(?<!\p{L})(ö|oe|o)ko[- ]?modus\b/iu,
+    routes: /(?<!\p{L})(ö|oe|o)ko[- ]?modus\b/iu,
     definition:
       'Option der Transkription (Audio verschriftlichen): die Aufnahme geht an GreenPT statt an Voxtral von Mistral. Im Web an, solange „Sprecher*innen erkennen" aus ist.',
     docsPath: '/docs/basics/gruenerator-pro-eu',
@@ -95,6 +109,7 @@ export const PRODUCT_GLOSSARY = [
     id: 'marktplatz',
     label: 'Marktplatz',
     terms: /\b(marktplatz|agentura)\b/i,
+    routes: /\b(marktplatz|agentura)\b/i,
     definition:
       'Das Schaufenster (/marktplatz) für Agents, Rezepte, Vorlagen, Sticker und Hintergründe, mit den Herkünften Offiziell, Landesverband und Öffentlich. Jede Person sieht die Angebote ihres Landes.',
     docsPath: '/docs/features/marktplatz',
@@ -103,6 +118,7 @@ export const PRODUCT_GLOSSARY = [
     id: 'rezepte',
     label: 'Rezepte',
     terms: /\brezept\w*\b/i,
+    routes: null,
     definition:
       'Schreibvorgaben je Textsorte und Plattform (Pressemitteilung, Instagram, Landesverbands-Varianten …), im Chat per @-Erwähnung oder automatisch angewendet; eigene Rezepte lassen sich anlegen und teilen.',
     docsPath: '/docs/guides/fortgeschrittene/eigene-rezepte-erstellen',
@@ -111,6 +127,7 @@ export const PRODUCT_GLOSSARY = [
     id: 'agents',
     label: 'Agents',
     terms: /\b(agents?|agent(en|innen|\*innen))\b/i,
+    routes: null,
     definition:
       'Spezialisierte KI-Persönlichkeiten, z. B. für Landesverbände; eigene Agents lassen sich bauen und teilen. Agents, Rezepte und wiederkehrende Aufgaben heißen zusammen Grüneratoren.',
     docsPath: '/docs/guides/fortgeschrittene/eigene-agentinnen-erstellen',
@@ -119,6 +136,7 @@ export const PRODUCT_GLOSSARY = [
     id: 'projekte',
     label: 'Projekte',
     terms: /\bprojekte?\b/i,
+    routes: null,
     definition:
       'Gemeinsame Arbeitsbereiche fürs Team mit Feed, Kommentaren und geteilten Inhalten (Notebooks, Dokumente, Agents …); persönliche Projekte sind nur für dich.',
     docsPath: '/docs/guides/einsteigerinnen/gemeinsames-projekt-erstellen',
@@ -127,6 +145,7 @@ export const PRODUCT_GLOSSARY = [
     id: 'papierkorb',
     label: 'Papierkorb',
     terms: /\b(papierkorb|wiederherstell\w*)\b/i,
+    routes: /\bpapierkorb\b/i,
     definition:
       'Gelöschte Inhalte liegen 30 Tage im Papierkorb (/papierkorb) und lassen sich bis dahin wiederherstellen; danach sind sie endgültig weg. Leere Chats werden sofort gelöscht.',
     docsPath: '/docs/features/papierkorb',
@@ -135,6 +154,7 @@ export const PRODUCT_GLOSSARY = [
     id: 'konto',
     label: 'Konto',
     terms: /\b(konto|account|benutzerkonto)\b/i,
+    routes: null,
     definition:
       'Einstellungen → Allgemein: ganz oben die Kontodaten aus dem Grünen Login, ganz unten „Konto löschen" — endgültig, ohne Papierkorb. Auch in der App möglich.',
     docsPath: '/docs/sonstiges/einstellungen',
@@ -143,6 +163,7 @@ export const PRODUCT_GLOSSARY = [
     id: 'app',
     label: 'App (Android/iPhone)',
     terms: /\b(app|handy|smartphone|iphone|ipad|android)\b/i,
+    routes: null,
     definition:
       'Die Grünerator-App gibt es für Android (Google Play) und iPhone/iPad (TestFlight); sonst läuft alles im Browser unter gruenerator.eu.',
     docsPath: '/docs/guides/experimentell/android-app-installieren',
@@ -151,6 +172,7 @@ export const PRODUCT_GLOSSARY = [
     id: 'sharepic-formen',
     label: 'Sharepic-Formen (Steckbrief, Infografik, Faktenbild)',
     terms: /\b(steckbrief\w*|infografik\w*|faktenbild\w*)\b/i,
+    routes: /\b(steckbrief\w*|infografik\w*|faktenbild\w*)\b/i,
     definition:
       'Formen im Sharepic-Creator: Steckbrief (eine Person mit „Hallo, ich bin …" und Stichworten mit handgezeichneten Pfeilen), Infografik (Punkte, Schritte oder Mengen mit kleinen gemalten Illustrationen), Faktenbild (gemaltes Foto-Motiv mit Zahl oder Diagramm).',
     docsPath: '/docs/features/sharepics',
@@ -159,9 +181,9 @@ export const PRODUCT_GLOSSARY = [
 
 export type GlossaryTermId = (typeof PRODUCT_GLOSSARY)[number]['id'];
 
-/** Any glossary term — the classifier's feature-noun extension. */
+/** The distinctive glossary terms — the classifier's feature-noun extension. */
 export const GLOSSARY_TERM_RE = new RegExp(
-  PRODUCT_GLOSSARY.map((e) => e.terms.source).join('|'),
+  PRODUCT_GLOSSARY.flatMap((e) => (e.routes ? [e.routes.source] : [])).join('|'),
   'iu'
 );
 
