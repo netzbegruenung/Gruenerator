@@ -40,6 +40,7 @@ import type {
   GroupAudience,
   CreateRecurringTaskBody,
   McpToolGrant,
+  BrowserSessionMeta,
 } from '@gruenerator/contracts';
 import type { RoleLandesverbandInput } from '@gruenerator/shared/agents';
 import type { ArtifactCreateKind } from '@gruenerator/shared/chat-intents';
@@ -1123,6 +1124,14 @@ export interface ChatGraphState {
    * treated as usable material rather than as research context.
    */
   webImageResults?: WebImageResult[];
+
+  /**
+   * The browser session a `website_erkunden` call ran this turn (steps,
+   * screenshots, summary — asset URLs only, never base64). Set by the tool,
+   * persisted as `metadata.browserSession` so the session view survives a
+   * reload.
+   */
+  browserSession?: BrowserSessionMeta;
 
   // Clarification (HITL interrupt)
   needsClarification: boolean;

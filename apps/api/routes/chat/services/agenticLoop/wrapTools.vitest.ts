@@ -133,6 +133,69 @@ describe('wrapToolsForLoop', () => {
     expect(seen?.aborted).toBe(true);
   });
 
+  function runWithTurn(name: string, turn: AbortSignal) {
+    const { ctx } = makeCtx({ perCallTimeoutMs: 5_000 });
+    let seen: AbortSignal | undefined;
+    const tools = wrapToolsForLoop(
+      {
+        [name]: {
+          execute: (_i: unknown, o: { abortSignal?: AbortSignal }) => {
+            seen = o.abortSignal;
+            return Promise.resolve({ ok: true });
+          },
+        },
+      } as unknown as ToolSet,
+      ctx
+    );
+    const exec = (
+      tools[name] as {
+        execute: (
+          i: unknown,
+          o: { toolCallId: string; abortSignal: AbortSignal }
+        ) => Promise<unknown>;
+      }
+    ).execute;
+    return { pending: exec({}, { toolCallId: 'c1', abortSignal: turn }), seen: () => seen };
+  }
+
+  it('does not pass the turn abort to a tool that has not opted in', async () => {
+    // The turn signal also fires when a SIBLING call pauses for approval or a
+    // question; a generation tool seeing it would skip its commit mid-run.
+    const turn = new AbortController();
+    const { pending, seen } = runWithTurn('create_document', turn.signal);
+    await pending;
+    turn.abort();
+    expect(seen()?.aborted).toBe(false);
+  });
+
+  it('passes the turn abort to website_erkunden (TURN_ABORTABLE_TOOLS)', async () => {
+    // A Stop must end the browser run instead of letting it bill on to the cap.
+    const turn = new AbortController();
+    const { pending, seen } = runWithTurn('website_erkunden', turn.signal);
+    await pending;
+    turn.abort();
+    expect(seen()?.aborted).toBe(true);
+    expect((seen()?.reason as Error | undefined)?.name).not.toBe('TimeoutError');
+  });
+
+  it('marks a per-call timeout with a TimeoutError reason', async () => {
+    const { ctx } = makeCtx({ perCallTimeoutMs: 20 });
+    let seen: AbortSignal | undefined;
+    const tools = wrapToolsForLoop(
+      {
+        hang: {
+          execute: (_i: unknown, o: { abortSignal?: AbortSignal }) => {
+            seen = o.abortSignal;
+            return new Promise(() => {});
+          },
+        },
+      } as unknown as ToolSet,
+      ctx
+    );
+    await run(tools, 'hang', {});
+    expect((seen?.reason as Error | undefined)?.name).toBe('TimeoutError');
+  });
+
   it('leaves the signal untouched when the tool returns in time', async () => {
     const { ctx } = makeCtx({ perCallTimeoutMs: 200 });
     let seen: AbortSignal | undefined;
