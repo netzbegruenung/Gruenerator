@@ -5,6 +5,9 @@ import {
   chatStreamEventSchemas,
   notebookAnswerModeReasonSchema,
   notebookResolvedAnswerModeSchema,
+  type BrowserSessionMeta,
+  type BrowserSessionStart,
+  type BrowserSessionUpdate,
   type ChatErrorEventPayload,
   type NotebookAnswerModeReason,
   type NotebookResolvedAnswerMode,
@@ -127,6 +130,15 @@ export async function* parseSSEStream(
     const active = useArtifactLiveStore.getState().activeArtifact;
     if (id && active?.type === 'research_log' && active.id === id && active.status === 'running') {
       useArtifactLiveStore.getState().upsertResearchLog(id, { status: 'failed' });
+    }
+    const browserId = outcome.openedBrowserSessionId;
+    if (
+      browserId &&
+      active?.type === 'browser_session' &&
+      active.id === browserId &&
+      active.status === 'running'
+    ) {
+      useArtifactLiveStore.getState().upsertBrowserSession(browserId, { status: 'failed' });
     }
   }
 }
@@ -266,6 +278,9 @@ async function* parseStream(
   let receivedTraceId: string | null = null;
   let receivedConfirmAction: ConfirmActionData | null = null;
   let receivedCreatedDocument: DocumentCreatedData | null = null;
+  // The session as this message carries it (persisted shape). Kept apart from
+  // the store: the panel only opens where it can dock, the message always gets it.
+  let receivedBrowserSession: BrowserSessionMeta | null = null;
   let receivedReelProcessing: ReelProcessingData | null = null;
   let receivedReelPicker: ReelPickerData | null = null;
   let evidenceWeakAccum: string | null = null;
@@ -410,6 +425,7 @@ async function* parseStream(
       custom.followUpSuggestions = receivedFollowUpSuggestions;
     if (receivedConfirmAction) custom.confirmAction = receivedConfirmAction;
     if (receivedCreatedDocument) custom.createdDocument = receivedCreatedDocument;
+    if (receivedBrowserSession) custom.browserSession = receivedBrowserSession;
     if (receivedReelProcessing) custom.reelProcessing = receivedReelProcessing;
     if (receivedReelPicker) custom.reelPicker = receivedReelPicker;
     if (evidenceWeakAccum) custom.evidenceWeak = evidenceWeakAccum;
@@ -456,1158 +472,1240 @@ async function* parseStream(
         yield new TextEncoder().encode(fullText!);
       })();
 
-  for await (const value of chunks) {
-    buffer += decoder.decode(value, { stream: true });
-    const lines = buffer.split('\n');
-    buffer = lines.pop() || '';
+  try {
+    for await (const value of chunks) {
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split('\n');
+      buffer = lines.pop() || '';
 
-    for (const line of lines) {
-      const { event, data: rawData, parseError } = parseSSELine(line, currentEvent);
-      if (parseError) {
-        // A few unparseable frames can be tolerated; a run of them means the
-        // stream is corrupt and the user must not be shown a partial answer
-        // as if it were complete.
-        if (++consecutiveParseErrors >= MAX_CONSECUTIVE_PARSE_ERRORS) {
-          throw new ChatStreamError('Die Antwort des Servers war beschädigt.', {
-            code: 'stream_interrupted',
-            retryable: true,
-          });
-        }
-        continue;
-      }
-      // Reset only on a line that actually carried a parsed event. SSE framing
-      // puts an `event:` line and a blank line between any two `data:` lines,
-      // so resetting on every non-error line made the counter unreachable —
-      // it never got past 1.
-      if (event && rawData) consecutiveParseErrors = 0;
-      if (!event || !rawData) continue;
-      eventIndex++;
-      outcome.eventsSeen = eventIndex + 1;
-
-      // Contract gate: every known event is validated against its wire
-      // schema BEFORE the switch — the `as` casts below therefore assert on
-      // schema-checked data instead of trusting the stream blindly. A
-      // malformed event is dropped with a warning; unknown event names pass
-      // through untouched (forward compatibility).
-      const eventSchema = chatStreamEventSchemas[event];
-      let data: unknown = rawData;
-      if (eventSchema) {
-        const gate = eventSchema.safeParse(rawData);
-        if (!gate.success) {
-          console.warn(
-            `[GrueneratorModelAdapter] Dropping malformed "${event}" event:`,
-            gate.error.issues[0],
-            rawData
-          );
-          // An `error` event must NEVER be dropped: schema drift on the fatal
-          // event would silently swallow the very failure it reports. Salvage
-          // whatever string the payload has, else fall back to generic copy.
-          if (event === 'error') {
-            const raw = rawData as { error?: unknown };
-            throw new ChatStreamError(
-              typeof raw?.error === 'string' && raw.error.trim()
-                ? raw.error
-                : 'Es ist ein Fehler aufgetreten. Bitte versuche es erneut.',
-              { code: 'internal' }
-            );
+      for (const line of lines) {
+        const { event, data: rawData, parseError } = parseSSELine(line, currentEvent);
+        if (parseError) {
+          // A few unparseable frames can be tolerated; a run of them means the
+          // stream is corrupt and the user must not be shown a partial answer
+          // as if it were complete.
+          if (++consecutiveParseErrors >= MAX_CONSECUTIVE_PARSE_ERRORS) {
+            throw new ChatStreamError('Die Antwort des Servers war beschädigt.', {
+              code: 'stream_interrupted',
+              retryable: true,
+            });
           }
           continue;
         }
-        data = gate.data;
-      }
+        // Reset only on a line that actually carried a parsed event. SSE framing
+        // puts an `event:` line and a blank line between any two `data:` lines,
+        // so resetting on every non-error line made the counter unreachable —
+        // it never got past 1.
+        if (event && rawData) consecutiveParseErrors = 0;
+        if (!event || !rawData) continue;
+        eventIndex++;
+        outcome.eventsSeen = eventIndex + 1;
 
-      switch (event) {
-        case 'stream_started': {
-          outcome.streamId = (data as { streamId: string }).streamId;
-          break;
+        // Contract gate: every known event is validated against its wire
+        // schema BEFORE the switch — the `as` casts below therefore assert on
+        // schema-checked data instead of trusting the stream blindly. A
+        // malformed event is dropped with a warning; unknown event names pass
+        // through untouched (forward compatibility).
+        const eventSchema = chatStreamEventSchemas[event];
+        let data: unknown = rawData;
+        if (eventSchema) {
+          const gate = eventSchema.safeParse(rawData);
+          if (!gate.success) {
+            console.warn(
+              `[GrueneratorModelAdapter] Dropping malformed "${event}" event:`,
+              gate.error.issues[0],
+              rawData
+            );
+            // An `error` event must NEVER be dropped: schema drift on the fatal
+            // event would silently swallow the very failure it reports. Salvage
+            // whatever string the payload has, else fall back to generic copy.
+            if (event === 'error') {
+              const raw = rawData as { error?: unknown };
+              throw new ChatStreamError(
+                typeof raw?.error === 'string' && raw.error.trim()
+                  ? raw.error
+                  : 'Es ist ein Fehler aufgetreten. Bitte versuche es erneut.',
+                { code: 'internal' }
+              );
+            }
+            continue;
+          }
+          data = gate.data;
         }
 
-        case 'thread_created': {
-          const { threadId: tid } = data as { threadId: string };
-          if (!muted()) callbacks.onThreadCreated?.(tid);
-          // Backend has now persisted any seeded initialAssistantMessage as
-          // the first row of this thread. Drop the local copy so a future
-          // new-thread creation doesn't replay a stale seed.
-          useAgentStore.getState().setPendingInitialAssistantMessage(null);
-          break;
-        }
+        switch (event) {
+          case 'stream_started': {
+            outcome.streamId = (data as { streamId: string }).streamId;
+            break;
+          }
 
-        case 'intent': {
-          const { intent, message, reasoning, searchQuery, subQueries, searchSources, agentic } =
-            data as {
-              intent: SearchIntent;
-              message: string;
-              reasoning?: string;
-              searchQuery?: string;
-              subQueries?: string[] | null;
-              searchSources?: string[] | null;
-              agentic?: boolean;
-            };
-          let stage: ProgressStage = 'searching';
-          if (NO_RETRIEVAL_STAGE_INTENTS.has(intent) || intent === 'artifact') stage = 'generating';
-          else if (ARTIFACT_STAGE_INTENTS.has(intent)) stage = 'generating_artifact';
-          else if (intent === 'image' || intent === 'sharepic' || intent === 'social_post')
-            stage = 'generating_image';
-          else if (intent === 'summary') stage = 'summarizing';
-          transitionStep(stage);
-          currentProgress = { stage, message, intent, reasoning };
+          case 'thread_created': {
+            const { threadId: tid } = data as { threadId: string };
+            if (!muted()) callbacks.onThreadCreated?.(tid);
+            // Backend has now persisted any seeded initialAssistantMessage as
+            // the first row of this thread. Drop the local copy so a future
+            // new-thread creation doesn't replay a stale seed.
+            useAgentStore.getState().setPendingInitialAssistantMessage(null);
+            break;
+          }
 
-          // Agentic respond path: the model drives the tool loop, so real
-          // tool_step_* cards will arrive. Skip the intent-fabricated tool card
-          // (and its search_complete result stamping) — otherwise a ghost card
-          // would sit alongside the real ones.
-          const toolName = agentic ? undefined : INTENT_TO_TOOL[intent];
-          if (toolName) {
-            const hasMultiSearch =
-              (subQueries && subQueries.length > 0) || (searchSources && searchSources.length > 1);
+          case 'intent': {
+            const { intent, message, reasoning, searchQuery, subQueries, searchSources, agentic } =
+              data as {
+                intent: SearchIntent;
+                message: string;
+                reasoning?: string;
+                searchQuery?: string;
+                subQueries?: string[] | null;
+                searchSources?: string[] | null;
+                agentic?: boolean;
+              };
+            let stage: ProgressStage = 'searching';
+            if (NO_RETRIEVAL_STAGE_INTENTS.has(intent) || intent === 'artifact')
+              stage = 'generating';
+            else if (ARTIFACT_STAGE_INTENTS.has(intent)) stage = 'generating_artifact';
+            else if (intent === 'image' || intent === 'sharepic' || intent === 'social_post')
+              stage = 'generating_image';
+            else if (intent === 'summary') stage = 'summarizing';
+            transitionStep(stage);
+            currentProgress = { stage, message, intent, reasoning };
 
-            if (hasMultiSearch) {
-              const queries = subQueries?.length ? subQueries : [searchQuery ?? ''];
-              const sources =
-                searchSources?.length && searchSources.length > 1 ? searchSources : [null];
+            // Agentic respond path: the model drives the tool loop, so real
+            // tool_step_* cards will arrive. Skip the intent-fabricated tool card
+            // (and its search_complete result stamping) — otherwise a ghost card
+            // would sit alongside the real ones.
+            const toolName = agentic ? undefined : INTENT_TO_TOOL[intent];
+            if (toolName) {
+              const hasMultiSearch =
+                (subQueries && subQueries.length > 0) ||
+                (searchSources && searchSources.length > 1);
 
-              for (let i = 0; i < queries.length; i++) {
-                for (const src of sources) {
-                  const effToolName =
-                    src === 'web'
-                      ? 'web_search'
-                      : src === 'documents'
-                        ? 'gruenerator_search'
-                        : toolName;
-                  const card: ToolCallPart = {
-                    type: 'tool-call',
-                    toolCallId: `tc_${++syntheticSeq}_${i}_${src || 'default'}`,
-                    toolName: effToolName,
-                    args: { query: queries[i] },
-                    argsText: JSON.stringify({ query: queries[i] }),
-                  };
-                  allToolCalls.push(card);
-                  orderPushCard(card);
+              if (hasMultiSearch) {
+                const queries = subQueries?.length ? subQueries : [searchQuery ?? ''];
+                const sources =
+                  searchSources?.length && searchSources.length > 1 ? searchSources : [null];
+
+                for (let i = 0; i < queries.length; i++) {
+                  for (const src of sources) {
+                    const effToolName =
+                      src === 'web'
+                        ? 'web_search'
+                        : src === 'documents'
+                          ? 'gruenerator_search'
+                          : toolName;
+                    const card: ToolCallPart = {
+                      type: 'tool-call',
+                      toolCallId: `tc_${++syntheticSeq}_${i}_${src || 'default'}`,
+                      toolName: effToolName,
+                      args: { query: queries[i] },
+                      argsText: JSON.stringify({ query: queries[i] }),
+                    };
+                    allToolCalls.push(card);
+                    orderPushCard(card);
+                  }
                 }
+                activeToolCall = null;
+              } else {
+                // Don't fall back to `message` (the German status copy) — that
+                // would display the status as the user's query. Empty string lets
+                // the UI hide the chip text gracefully.
+                const toolArgs = { query: searchQuery ?? '' };
+                activeToolCall = {
+                  type: 'tool-call',
+                  toolCallId: `tc_${++syntheticSeq}`,
+                  toolName,
+                  args: toolArgs,
+                  argsText: JSON.stringify(toolArgs),
+                };
+                orderPushCard(activeToolCall);
               }
-              activeToolCall = null;
-            } else {
-              // Don't fall back to `message` (the German status copy) — that
-              // would display the status as the user's query. Empty string lets
-              // the UI hide the chip text gracefully.
-              const toolArgs = { query: searchQuery ?? '' };
-              activeToolCall = {
-                type: 'tool-call',
-                toolCallId: `tc_${++syntheticSeq}`,
-                toolName,
-                args: toolArgs,
-                argsText: JSON.stringify(toolArgs),
-              };
-              orderPushCard(activeToolCall);
             }
-          }
-          yield buildResult();
-          break;
-        }
-
-        case 'search_start': {
-          const { message } = data as { message: string };
-          transitionStep('searching');
-          currentProgress = { ...currentProgress, stage: 'searching', message };
-          yield buildResult();
-          break;
-        }
-
-        case 'search_complete': {
-          const { message, resultCount, results, images, researchMeta, examplesResult } = data as {
-            message: string;
-            resultCount: number;
-            results?: SearchResult[];
-            images?: SearchImage[];
-            researchMeta?: unknown;
-            examplesResult?: { press?: unknown[]; social?: unknown[]; message?: string };
-          };
-          if (results) receivedSearchResults = results;
-          // Deliberately NOT merged into `receivedSearchResults`: those feed the
-          // tool card's result data and the source list, and an image carries no
-          // text to cite. They travel as their own metadata field instead.
-          if (images?.length) receivedSearchImages = images;
-          // Update searching step label with result count
-          const searchStep = progressSteps.find((s) => s.stage === 'searching');
-          if (searchStep) {
-            searchStep.label = `${resultCount} Ergebnisse`;
-            searchStep.status = 'completed';
-            searchStep.completedAt = Date.now();
-          }
-          transitionStep('generating');
-          currentProgress = {
-            ...currentProgress,
-            stage: 'generating',
-            message,
-            resultCount,
-          };
-
-          // Pick the right result shape per tool:
-          // - research → researchMeta (rich orchestrator result)
-          // - gruenerator_pressemitteilung_examples → { examples: press[], results }
-          // - gruenerator_examples_search → { examples: social[], results }
-          // - everything else → { results }
-          const resultForTool = (toolName: string) => {
-            /**
-             * @deprecated `researchMeta` is the legacy dossier shape — no path emits
-             * it since 2026-07-30, dossiers ship as message text now. Pre-2026-07-30
-             * turns still carry their dossier ONLY in this field (the assistant
-             * message itself was just two framing sentences); keep until a backfill
-             * moves `researchMeta.answer` into message content.
-             */
-            if (toolName === 'research' && researchMeta != null) {
-              return researchMeta as Record<string, unknown>;
-            }
-            if (toolName === 'gruenerator_pressemitteilung_examples' && examplesResult?.press) {
-              return { results: results || [], examples: examplesResult.press };
-            }
-            if (toolName === 'gruenerator_examples_search' && examplesResult?.social) {
-              return { results: results || [], examples: examplesResult.social };
-            }
-            return { results: results || [] };
-          };
-
-          for (let i = 0; i < allToolCalls.length; i++) {
-            if (!allToolCalls[i].result) {
-              allToolCalls[i] = {
-                ...allToolCalls[i],
-                result: resultForTool(allToolCalls[i].toolName),
-              };
-              orderReplaceCard(allToolCalls[i]);
-            }
-          }
-          if (activeToolCall) {
-            activeToolCall = Object.assign({}, activeToolCall, {
-              result: resultForTool(activeToolCall.toolName),
-            });
-            orderReplaceCard(activeToolCall);
-          }
-          yield buildResult();
-          break;
-        }
-
-        // The loop's channel for image hits. Deliberately touches NOTHING but the
-        // image list: unlike `search_complete` it must not move the progress
-        // stage, because it arrives mid-loop while the model is still working.
-        // The payload is the full list for the turn, so replacing is correct —
-        // a second search's event supersedes the first.
-        case 'search_images': {
-          const { images } = data as { images: SearchImage[] };
-          if (images.length > 0) {
-            receivedSearchImages = images;
             yield buildResult();
+            break;
           }
-          break;
-        }
 
-        // `vorlagen_vorschlagen`: catalogue Vorlagen picked for the post. Same
-        // shape as the persisted tool result (`buildToolDerivedCustom`).
-        case 'vorlagen_suggestions': {
-          const parsed = sharepicVorlagenSuggestionsSchema.safeParse(data);
-          if (parsed.success) {
-            receivedVorlagenSuggestions = parsed.data;
+          case 'search_start': {
+            const { message } = data as { message: string };
+            transitionStep('searching');
+            currentProgress = { ...currentProgress, stage: 'searching', message };
             yield buildResult();
+            break;
           }
-          break;
-        }
 
-        case 'summary_start': {
-          const { message } = data as { message: string };
-          transitionStep('summarizing');
-          currentProgress = { ...currentProgress, stage: 'summarizing', message };
-          yield buildResult();
-          break;
-        }
-
-        case 'summary_complete': {
-          const { message } = data as { message: string };
-          transitionStep('generating');
-          currentProgress = { ...currentProgress, stage: 'generating', message };
-          yield buildResult();
-          break;
-        }
-
-        case 'image_start': {
-          const { message } = data as { message: string };
-          transitionStep('generating_image');
-          currentProgress = { ...currentProgress, stage: 'generating_image', message };
-          yield buildResult();
-          break;
-        }
-
-        case 'image_complete': {
-          const {
-            message,
-            image,
-            error: imageError,
-          } = data as {
-            message: string;
-            image?: GeneratedImage;
-            error?: string;
-          };
-          if (image) receivedImage = image;
-          transitionStep(imageError ? 'error' : 'generating');
-          currentProgress = {
-            ...currentProgress,
-            stage: imageError ? 'error' : 'generating',
-            message,
-          };
-          yield buildResult();
-          break;
-        }
-
-        case 'chart_data': {
-          const { chart } = data as { chart?: ChartData };
-          if (chart) receivedChartData = chart;
-          yield buildResult();
-          break;
-        }
-
-        case 'artifact': {
-          const { artifact } = data as {
-            artifact?: { type: 'html' | 'svg'; title: string; content: string };
-          };
-          if (artifact) {
-            const active: CodeArtifact = { id: `artifact-${Date.now()}`, ...artifact };
-            receivedArtifactData = active;
-            // Open the docked panel immediately — nur dort, wo sie andocken
-            // kann. Auf schmalen Geräten bleibt es bei der Karte im Faden.
-            if (!muted() && canAutoOpenArtifactPanel()) {
-              useArtifactLiveStore.getState().setActiveArtifact(active);
-            }
-          }
-          yield buildResult();
-          break;
-        }
-
-        // A deep research run has started: open the panel so the user can watch
-        // it work. The run takes minutes, so this is the only feedback there is
-        // until the document appears at the end.
-        case 'research_log_start': {
-          const { id, title } = data as { id?: string; title?: string };
-          if (id) {
-            outcome.openedResearchLogId = id;
-            useArtifactLiveStore.getState().setActiveArtifact({
-              id,
-              type: 'research_log',
-              title: title ?? 'Recherche',
-              plan: [],
-              steps: [],
-              status: 'running',
-            });
-          }
-          yield buildResult();
-          break;
-        }
-
-        case 'research_log_update': {
-          const patch = data as {
-            id?: string;
-            plan?: ResearchLogStep[];
-            steps?: ResearchLogStep[];
-            status?: 'running' | 'done' | 'failed';
-            documentUrl?: string;
-            documentId?: string;
-          };
-          if (patch.id) {
-            const { id, ...rest } = patch;
-            useArtifactLiveStore.getState().upsertResearchLog(id, rest);
-          }
-          yield buildResult();
-          break;
-        }
-
-        case 'compute': {
-          const { compute } = data as { compute?: ComputeData };
-          if (compute) receivedComputeData = compute;
-          yield buildResult();
-          break;
-        }
-
-        case 'bahn': {
-          const { bahn } = data as { bahn?: BahnPayload };
-          if (bahn) receivedBahnData = bahn;
-          yield buildResult();
-          break;
-        }
-
-        case 'sharepic_complete': {
-          const payload = data as {
-            message: string;
-            variants?: unknown;
-            canvasType?: string;
-            initialProps?: Record<string, unknown>;
-            alternatives?: unknown[];
-            error?: string;
-          };
-          if (!payload.error) {
-            // Validate at the boundary: only variants with a canonical
-            // canvasType are kept, so a malformed type can never reach the
-            // studio handoff / canvas mint.
-            const validated = coerceSharepicVariants(payload.variants);
-            if (validated) {
-              receivedSharepicData = { variants: validated };
-              useSharepicLiveStore.getState().followRevision(validated);
-            } else if (isCanvasTemplateType(payload.canvasType) && payload.initialProps) {
-              const legacyId =
-                typeof crypto !== 'undefined' && 'randomUUID' in crypto
-                  ? crypto.randomUUID()
-                  : `legacy-${Date.now()}`;
-              receivedSharepicData = {
-                variants: [
-                  {
-                    id: legacyId,
-                    canvasType: payload.canvasType,
-                    initialProps: payload.initialProps,
-                  },
-                ],
+          case 'search_complete': {
+            const { message, resultCount, results, images, researchMeta, examplesResult } =
+              data as {
+                message: string;
+                resultCount: number;
+                results?: SearchResult[];
+                images?: SearchImage[];
+                researchMeta?: unknown;
+                examplesResult?: { press?: unknown[]; social?: unknown[]; message?: string };
               };
+            if (results) receivedSearchResults = results;
+            // Deliberately NOT merged into `receivedSearchResults`: those feed the
+            // tool card's result data and the source list, and an image carries no
+            // text to cite. They travel as their own metadata field instead.
+            if (images?.length) receivedSearchImages = images;
+            // Update searching step label with result count
+            const searchStep = progressSteps.find((s) => s.stage === 'searching');
+            if (searchStep) {
+              searchStep.label = `${resultCount} Ergebnisse`;
+              searchStep.status = 'completed';
+              searchStep.completedAt = Date.now();
             }
-          }
-          transitionStep(payload.error ? 'error' : 'generating');
-          currentProgress = {
-            ...currentProgress,
-            stage: payload.error ? 'error' : 'generating',
-            message: payload.message,
-          };
-          yield buildResult();
-          break;
-        }
-
-        case 'social_post_complete': {
-          const payload = data as {
-            message: string;
-            post?: SocialPostPayload;
-            error?: string;
-          };
-          if (!payload.error && payload.post) {
-            receivedSocialPostData = payload.post;
-            useSocialPostLiveStore.getState().upsertEntry(payload.post);
-          }
-          // Text half only — the sharepic half drives the stage transitions
-          // via its own sharepic_complete; don't flip to error here when just
-          // the text failed (the card shows the degradation).
-          yield buildResult();
-          break;
-        }
-
-        case 'social_post_updated': {
-          const payload = data as {
-            postId: string;
-            post: SocialPostPayload;
-            summary: string;
-          };
-          useSocialPostLiveStore.getState().upsertEntry(payload.post);
-          break;
-        }
-
-        case 'social_post_edit_error': {
-          const { error } = data as { postId?: string; error: string };
-          console.warn('[GrueneratorModelAdapter] social_post_edit_error:', error);
-          toastError('Post konnte nicht bearbeitet werden', error);
-          break;
-        }
-
-        case 'sharepic_minted': {
-          const { variantId, canvasId } = data as { variantId: string; canvasId: string };
-          useSharepicLiveStore.getState().upsertEntry(variantId, { canvasId });
-          break;
-        }
-
-        case 'sharepic_updated': {
-          // Validated by the contract gate above — canvasType is guaranteed
-          // canonical, so junk template types can never enter the live store.
-          const payload = data as SharepicUpdatedEvent;
-          useSharepicLiveStore.getState().upsertEntry(payload.variantId, {
-            canvasId: payload.canvasId,
-            canvasType: payload.canvasType,
-            version: payload.version,
-            state: payload.state ?? null,
-            ...(payload.pages ? { pages: payload.pages } : {}),
-            summary: payload.summary,
-            thumbnailDirty: true,
-          });
-          break;
-        }
-
-        case 'sharepic_edit_error': {
-          const { error } = data as { variantId?: string; error: string };
-          console.warn('[GrueneratorModelAdapter] sharepic_edit_error:', error);
-          toastError('Sharepic konnte nicht bearbeitet werden', error);
-          break;
-        }
-
-        case 'reel_processing': {
-          receivedReelProcessing = data as { uploadId: string; filename: string };
-          yield buildResult();
-          break;
-        }
-
-        case 'reel_picker': {
-          receivedReelPicker = data as ReelPickerData;
-          yield buildResult();
-          break;
-        }
-
-        case 'reel_updated': {
-          const payload = data as {
-            projectId: string;
-            title: string;
-            segments: Array<{ id: number; startTime: number; endTime: number; text: string }>;
-            summary: string;
-            changedIndices: number[];
-          };
-          const reelStore = useReelLiveStore.getState();
-          reelStore.upsertEntry(payload.projectId, {
-            title: payload.title,
-            segments: payload.segments,
-            summary: payload.summary,
-            changedIndices: payload.changedIndices,
-          });
-          // Auto-open the docked panel on the edited reel.
-          if (reelStore.activeReel?.projectId !== payload.projectId) {
-            reelStore.setActiveReel({ projectId: payload.projectId, title: payload.title });
-          }
-          break;
-        }
-
-        case 'reel_edit_error': {
-          const { error } = data as { projectId?: string; error: string };
-          console.warn('[GrueneratorModelAdapter] reel_edit_error:', error);
-          toastError('Untertitel konnten nicht bearbeitet werden', error);
-          break;
-        }
-
-        // Agentic tool loop (sharepic edit + general respond loop): each tool
-        // step renders as a tool-call part, mirroring the thinking_step
-        // archive-and-replace mechanics (including the duplicate-stepId guard).
-        case 'tool_step_start': {
-          breakReasoningBlock();
-          const stepData = data as ToolStepStartData;
-          const { stepId, toolName } = stepData;
-          // Associate narration with this card: prefer the server-stamped value
-          // (also survives reload); else drain the client buffer (old server).
-          const cardNarration =
-            stepData.narration ??
-            (pendingNarration.length > 0 ? pendingNarration.join(' ') : undefined);
-          pendingNarration = [];
-          const title = toolStepTitle(stepData);
-          const alreadyKnown =
-            knownToolCallIds.has(stepId) ||
-            toolStepsById.has(stepId) ||
-            allToolCalls.some((tc) => tc.toolCallId === stepId);
-          if (!alreadyKnown) {
-            const toolCall = buildToolStepCard(stepData, title, cardNarration);
-            // Push immediately so a parallel sibling's start doesn't orphan this
-            // card; the result updates it in place. orderPushCard breaks the
-            // current text run so a preceding text_delta stays a separate segment.
-            toolStepsById.set(stepId, toolCall);
-            allToolCalls.push(toolCall);
-            orderPushCard(toolCall);
-          }
-          // Narration now lives on the card; clear the transient status line.
-          // A generation tool gets its own stage — see ARTIFACT_TOOL_NAMES. The
-          // step is also transitioned so the tracker stops showing the previous
-          // stage as still running while a 90s generation goes on beneath it.
-          const toolStage: ProgressStage = ARTIFACT_TOOL_NAMES.has(toolName)
-            ? 'generating_artifact'
-            : 'searching';
-          if (toolStage !== currentProgress.stage) transitionStep(toolStage);
-          currentProgress = { stage: toolStage, message: title, pendingNarration: [] };
-          yield buildResult();
-          break;
-        }
-
-        case 'tool_step_result': {
-          const resultData = data as ToolStepResultData;
-          const { stepId } = resultData;
-          const pending = toolStepsById.get(stepId);
-          if (pending) {
-            // Stamp the rich per-tool result so the tool-ui card renders
-            // mid-stream from the real tool output (see applyToolStepResult).
-            const updated = applyToolStepResult(pending, resultData);
-            toolStepsById.set(stepId, updated);
-            const idx = allToolCalls.indexOf(pending);
-            if (idx >= 0) allToolCalls[idx] = updated;
-            // The step object is REPLACED (not mutated) here, so mirror the swap
-            // into orderedContent by toolCallId — otherwise the card would keep
-            // its pre-result state on screen.
-            orderReplaceCard(updated);
-          }
-          // The STEP has to move with the stage, not just the message: the step
-          // list is what the tracker labels itself from, so a finished tool that
-          // only flipped `currentProgress` left "Suche läuft" standing over the
-          // rest of the turn.
-          //
-          // …but only once NOTHING is still running. A model step may call two
-          // tools at once (loopGuards allows two concurrent searches), and the
-          // first result back would otherwise complete the step while its
-          // sibling is still working — the tracker would claim the retrieval was
-          // done and go on to "Formuliere Antwort".
-          const stepStillOpen = [...toolStepsById.values()].some((s) => s.result == null);
-          const message = toolStepResultMessage(resultData);
-          if (stepStillOpen) {
-            currentProgress = { ...currentProgress, message };
-          } else {
             transitionStep('generating');
-            currentProgress = { stage: 'generating', message };
+            currentProgress = {
+              ...currentProgress,
+              stage: 'generating',
+              message,
+              resultCount,
+            };
+
+            // Pick the right result shape per tool:
+            // - research → researchMeta (rich orchestrator result)
+            // - gruenerator_pressemitteilung_examples → { examples: press[], results }
+            // - gruenerator_examples_search → { examples: social[], results }
+            // - everything else → { results }
+            const resultForTool = (toolName: string) => {
+              /**
+               * @deprecated `researchMeta` is the legacy dossier shape — no path emits
+               * it since 2026-07-30, dossiers ship as message text now. Pre-2026-07-30
+               * turns still carry their dossier ONLY in this field (the assistant
+               * message itself was just two framing sentences); keep until a backfill
+               * moves `researchMeta.answer` into message content.
+               */
+              if (toolName === 'research' && researchMeta != null) {
+                return researchMeta as Record<string, unknown>;
+              }
+              if (toolName === 'gruenerator_pressemitteilung_examples' && examplesResult?.press) {
+                return { results: results || [], examples: examplesResult.press };
+              }
+              if (toolName === 'gruenerator_examples_search' && examplesResult?.social) {
+                return { results: results || [], examples: examplesResult.social };
+              }
+              return { results: results || [] };
+            };
+
+            for (let i = 0; i < allToolCalls.length; i++) {
+              if (!allToolCalls[i].result) {
+                allToolCalls[i] = {
+                  ...allToolCalls[i],
+                  result: resultForTool(allToolCalls[i].toolName),
+                };
+                orderReplaceCard(allToolCalls[i]);
+              }
+            }
+            if (activeToolCall) {
+              activeToolCall = Object.assign({}, activeToolCall, {
+                result: resultForTool(activeToolCall.toolName),
+              });
+              orderReplaceCard(activeToolCall);
+            }
+            yield buildResult();
+            break;
           }
-          yield buildResult();
-          break;
-        }
 
-        case 'response_start': {
-          // Split mode's synth phase starts here — its thinking is a new block,
-          // not a continuation of the planner's.
-          breakReasoningBlock();
-          const { message } = data as { message: string };
-          transitionStep('generating');
-          currentProgress = { ...currentProgress, stage: 'generating', message };
-          yield buildResult();
-          break;
-        }
+          // The loop's channel for image hits. Deliberately touches NOTHING but the
+          // image list: unlike `search_complete` it must not move the progress
+          // stage, because it arrives mid-loop while the model is still working.
+          // The payload is the full list for the turn, so replacing is correct —
+          // a second search's event supersedes the first.
+          case 'search_images': {
+            const { images } = data as { images: SearchImage[] };
+            if (images.length > 0) {
+              receivedSearchImages = images;
+              yield buildResult();
+            }
+            break;
+          }
 
-        case 'thinking_step': {
-          const { stepId, toolName, title, status, args, result } = data as {
-            stepId: string;
-            toolName: string;
-            title: string;
-            status: 'in_progress' | 'completed';
-            args?: Record<string, unknown>;
-            result?: {
-              resultCount?: number;
-              results?: unknown[];
-              image?: unknown;
+          // `vorlagen_vorschlagen`: catalogue Vorlagen picked for the post. Same
+          // shape as the persisted tool result (`buildToolDerivedCustom`).
+          case 'vorlagen_suggestions': {
+            const parsed = sharepicVorlagenSuggestionsSchema.safeParse(data);
+            if (parsed.success) {
+              receivedVorlagenSuggestions = parsed.data;
+              yield buildResult();
+            }
+            break;
+          }
+
+          case 'summary_start': {
+            const { message } = data as { message: string };
+            transitionStep('summarizing');
+            currentProgress = { ...currentProgress, stage: 'summarizing', message };
+            yield buildResult();
+            break;
+          }
+
+          case 'summary_complete': {
+            const { message } = data as { message: string };
+            transitionStep('generating');
+            currentProgress = { ...currentProgress, stage: 'generating', message };
+            yield buildResult();
+            break;
+          }
+
+          case 'image_start': {
+            const { message } = data as { message: string };
+            transitionStep('generating_image');
+            currentProgress = { ...currentProgress, stage: 'generating_image', message };
+            yield buildResult();
+            break;
+          }
+
+          case 'image_complete': {
+            const {
+              message,
+              image,
+              error: imageError,
+            } = data as {
+              message: string;
+              image?: GeneratedImage;
               error?: string;
             };
-          };
-
-          const mappedToolName = DEEP_TOOL_MAP[toolName] || toolName;
-
-          if (status === 'in_progress') {
-            // A re-sent stepId must not become a SECOND card: if it matches the
-            // current activeToolCall, or is already in allToolCalls, skip the
-            // archive-and-replace below — otherwise we'd render two tool-call
-            // parts with the same toolCallId and trip assistant-ui's
-            // `tapResources` with "Duplicate key toolCallId-…".
-            //
-            // Note this only dedupes; it does not make a repeat HARMLESS. Every
-            // `thinking_step` opens a card that stays on screen until a matching
-            // `completed` closes it, so this event is for real tools only —
-            // internal stages narrate through `progress_step` (see below).
-            const isDuplicateStepId =
-              knownToolCallIds.has(stepId) ||
-              (activeToolCall !== null && activeToolCall.toolCallId === stepId) ||
-              allToolCalls.some((tc) => tc.toolCallId === stepId);
-            if (!isDuplicateStepId) {
-              // Preserve any pre-existing activeToolCall (e.g. the intent-derived
-              // gruenerator_examples_search tool-call set by the `intent` event)
-              // before overwriting with this thinking_step's tool. Otherwise the
-              // examples tool-call is orphaned and search_complete's result has
-              // nowhere to land — leaving the UI with classify/rerank chips and
-              // no examples card.
-              if (activeToolCall !== null && !allToolCalls.includes(activeToolCall)) {
-                allToolCalls.push(activeToolCall);
-              }
-              const toolArgs = { query: (args?.query as string) || title, ...args };
-              activeToolCall = {
-                type: 'tool-call',
-                toolCallId: stepId,
-                toolName: mappedToolName,
-                args: toolArgs as Record<string, string | number | boolean | null>,
-                argsText: JSON.stringify(toolArgs),
-              };
-              orderPushCard(activeToolCall);
-            }
-            currentProgress = { stage: 'searching', message: title };
-          } else if (status === 'completed') {
-            if (activeToolCall?.toolCallId === stepId) {
-              activeToolCall = { ...activeToolCall, result: result || {} };
-              orderReplaceCard(activeToolCall);
-              allToolCalls.push(activeToolCall);
-              activeToolCall = null;
-            }
-            currentProgress = { stage: 'generating', message: title };
-          }
-          yield buildResult();
-          break;
-        }
-
-        case 'progress_step': {
-          // Internal pipeline stage (classify, rerank, brief). Updates the
-          // progress indicator but MUST NOT touch activeToolCall/allToolCalls
-          // — those are reserved for user-facing tools dispatched via the
-          // `intent` event + `thinking_step`. Conflating the two is what
-          // caused the search→rerank race that orphaned the rich
-          // examples/search/web tool-cards (see PR history).
-          const { stepId, title, status } = data as {
-            stepId: string;
-            toolName: string;
-            title: string;
-            status: 'in_progress' | 'completed';
-          };
-          if (status === 'in_progress') {
-            // Until 14.08.2026 `title` only ever reached `currentProgress.message`,
-            // which the ProgressTracker does not read — `selectStatusLabel` takes
-            // the step label ahead of `message`, and there is always a step list.
-            // So a pipeline agent's after-steps ran for minutes under step 1's
-            // label ("Feile …"), indistinguishable from a hang. The step now
-            // enters the list, under the same stage as before but under its OWN
-            // key, so it never overwrites a real search step's label. Guarded so
-            // the 3s heartbeat re-send does not churn the list.
-            if (currentProgress.stage !== 'searching' || currentProgress.message !== title) {
-              transitionStep('searching', title, `progress:${stepId}`);
-            }
-            currentProgress = { ...currentProgress, stage: 'searching', message: title };
-          } else if (status === 'completed') {
-            currentProgress = { ...currentProgress, message: title };
-          }
-          yield buildResult();
-          break;
-        }
-
-        case 'gather_narration': {
-          // Live narration during the tool phase. Accumulated (not overwritten)
-          // into pendingNarration so nothing is lost between tool starts; the
-          // consumer paces the display (min-visible time), and the whole run
-          // lands on the next tool card as durable `narration`. `message` is
-          // still set so Mobile's simple status field and non-agentic paths
-          // keep a value.
-          const narration = (data as { text: string }).text;
-          pendingNarration = [...pendingNarration, narration];
-          currentProgress = { ...currentProgress, message: narration, pendingNarration };
-          const now = performance.now();
-          if (now - lastYieldTime >= YIELD_INTERVAL) {
-            lastYieldTime = now;
-            yield buildResult();
-          }
-          break;
-        }
-
-        case 'text_delta': {
-          const delta = (data as { text: string }).text;
-          appendText(delta);
-          // Synthesis has started: any trailing narration after the last tool
-          // call (never associated with a card) is now stale — drop it so the
-          // status line doesn't linger behind the streaming answer.
-          if (pendingNarration.length > 0) {
-            pendingNarration = [];
-            currentProgress = { ...currentProgress, pendingNarration: [] };
-          }
-          const now = performance.now();
-          if (now - lastYieldTime >= YIELD_INTERVAL) {
-            lastYieldTime = now;
-            yield buildResult();
-          }
-          break;
-        }
-
-        case 'reasoning_delta': {
-          accumulatedReasoning += (data as { text: string }).text;
-          const now = performance.now();
-          if (now - lastYieldTime >= YIELD_INTERVAL) {
-            lastYieldTime = now;
-            yield buildResult();
-          }
-          break;
-        }
-
-        case 'fallback': {
-          // Server switched models silently — log only, no UI.
-          const info = data as FallbackInfo;
-          console.warn(
-            `[GrueneratorModelAdapter] Model fallback: ${info.from.id} → ${info.to.id} (${info.reason})`
-          );
-          break;
-        }
-
-        case 'warning': {
-          // Non-fatal degradation carrying a ready-made German message.
-          // Note: `evidence_weak` is a statement about THIS answer, not a
-          // disruption — it goes under the text (custom.evidenceWeak), not in
-          // a toast that sits above the page and belongs to no message.
-          const { code, message } = data as { code: string; message: string };
-          console.warn(`[GrueneratorModelAdapter] warning (${code}): ${message}`);
-          // Superseded by the grant card (`mcp_tool_grant`), which names the
-          // tools and can be answered in place; the server keeps sending the
-          // warning for binaries that predate the card.
-          if (code === 'mcp_tools_drifted') break;
-          if (code === 'evidence_weak') {
-            if (message) evidenceWeakAccum = message;
-            break;
-          }
-          if (message) toastWarning(message);
-          break;
-        }
-
-        case 'mcp_tool_grant': {
-          const fields = toolGrantPartFields(data as McpToolGrant);
-          if (knownToolCallIds.has(fields.toolCallId) || toolStepsById.has(fields.toolCallId)) {
-            break;
-          }
-          const part: ToolCallPart = {
-            type: 'tool-call',
-            ...fields,
-            // Arrays in den Argumenten: der Part-Typ ist enger als das, was
-            // assistant-ui als JSON-Argumente annimmt.
-            args: fields.args as unknown as ToolCallPart['args'],
-            argsText: JSON.stringify(fields.args),
-          };
-          toolStepsById.set(part.toolCallId, part);
-          allToolCalls.push(part);
-          orderPushCard(part);
-          yield buildResult();
-          break;
-        }
-
-        case 'interrupt': {
-          const payload = data as {
-            interruptType?: 'clarification' | 'client_tool' | 'tool_approval';
-            toolName?: string;
-            args?: Record<string, unknown>;
-            threadId?: string;
-            approvalTurnId?: string;
-            calls?: Array<{
-              toolCallId: string;
-              toolName: string;
-              args?: Record<string, unknown>;
-              title?: string;
-              serverName?: string;
-            }>;
-          };
-          if (payload.interruptType === 'client_tool' && payload.toolName) {
-            clientToolPending = true;
-            outcome.clientToolInterrupt = {
-              toolName: payload.toolName,
-              args: payload.args ?? {},
-              ...(payload.threadId != null && { threadId: payload.threadId }),
+            if (image) receivedImage = image;
+            transitionStep(imageError ? 'error' : 'generating');
+            currentProgress = {
+              ...currentProgress,
+              stage: imageError ? 'error' : 'generating',
+              message,
             };
-          } else if (payload.interruptType === 'tool_approval' && payload.calls?.length) {
-            // Jeder zurückgehaltene Aufruf wird eine Karte mit Freigabe-Gate.
-            // Das Gate selbst hält den Zug an (assistant-ui: eine unentschiedene
-            // Freigabe blockiert die Fortsetzung), `interruptPending` sorgt für
-            // den `requires-action`-Status, den die Laufzeit dafür verlangt.
-            for (const call of payload.calls) {
-              if (knownToolCallIds.has(call.toolCallId)) continue;
-              const args = { ...(call.args ?? {}) };
-              const part: ToolCallPart = {
-                type: 'tool-call',
-                toolCallId: call.toolCallId,
-                toolName: call.toolName,
-                args: args as Record<string, string | number | boolean | null>,
-                argsText: JSON.stringify(args),
-                approval: {
-                  id: call.toolCallId,
-                  options: TOOL_APPROVAL_OPTIONS,
-                },
-                // Ohne die beiden nennt die Karte nur den Katalognamen — und
-                // genau die Auskunft, welcher Dienst da angesprochen wird, ist
-                // der Grund für die Rückfrage.
-                ...(call.title != null && { title: call.title }),
-                ...(call.serverName != null && { serverName: call.serverName }),
-              };
-              toolStepsById.set(call.toolCallId, part);
-              allToolCalls.push(part);
-              orderPushCard(part);
-            }
-            if (payload.approvalTurnId != null) {
-              outcome.toolApprovalPending = { approvalTurnId: payload.approvalTurnId };
-            }
-            interruptPending = true;
-          } else {
-            interruptPending = true;
-          }
-          yield buildResult();
-          break;
-        }
-
-        case 'done': {
-          sawTerminalEvent = true;
-          const {
-            citations: cit,
-            generatedImage: img,
-            metadata,
-            interrupted,
-          } = data as {
-            threadId?: string;
-            citations?: Citation[];
-            generatedImage?: GeneratedImage;
-            metadata?: StreamMetadata;
-            interrupted?: boolean;
-          };
-          if (cit) receivedCitations = cit;
-          if (img) receivedImage = img;
-          if (metadata) receivedMetadata = metadata;
-          if (interrupted && !clientToolPending) interruptPending = true;
-          transitionStep('complete');
-          currentProgress = { stage: 'complete', message: '' };
-          break;
-        }
-
-        case 'confirm_action': {
-          receivedConfirmAction = data as ConfirmActionData;
-          yield buildResult();
-          break;
-        }
-
-        case 'document_created': {
-          const created = data as DocumentCreatedData;
-          receivedCreatedDocument = created;
-          // Mirror the 'artifact' case: dock the panel immediately instead of
-          // waiting for a click on DocumentCreatedCard's button. PDFs are
-          // excluded — their url is an authenticated asset endpoint (needs
-          // configFetch + blob), not something a plain iframe src can load.
-          // Explainables too: their url is a full app page, not an editor
-          // with an `embedded` mode.
-          // Only where an ArtifactPanel is actually mounted (/chat thread view):
-          // elsewhere the write is invisible AND would close a docked
-          // sharepic/reel via the one-panel rule with nothing replacing it.
-          if (
-            !muted() &&
-            created.background !== true &&
-            useArtifactLiveStore.getState().panelMounted &&
-            canAutoOpenArtifactPanel() &&
-            subtypeToArtifactKind(created.subtype) !== 'pdf' &&
-            subtypeToArtifactKind(created.subtype) !== 'explainable'
-          ) {
-            useArtifactLiveStore.getState().setActiveArtifact({
-              id: `document-${created.documentId}`,
-              type: 'document',
-              documentId: created.documentId,
-              subtype: created.subtype,
-              title: created.title,
-              url: created.url,
-            });
-          }
-          yield buildResult();
-          break;
-        }
-
-        case 'document_indexed': {
-          const { documentId } = data as { documentId: string };
-          outcome.indexedDocumentIds.push(documentId);
-          break;
-        }
-
-        case 'trigger_doc_edit': {
-          if (muted()) break;
-          // Live document edit (docs editor surface). The loop's `edit_document`
-          // tool decided the edit and wrote the instruction; the docs frontend
-          // dispatches it into BlockNote's AIExtension, which applies it as
-          // suggestions. Handlers are keyed by documentId — there's exactly one
-          // docs surface per document, registered when DocsAssistantChat mounts.
-          const parsed = triggerDocEditSchema.safeParse(data);
-          if (!parsed.success) {
-            console.warn('[ChatAdapter] trigger_doc_edit payload failed validation', parsed.error);
-            toastError('Dokument konnte nicht bearbeitet werden', 'Die Anweisung war ungültig.');
+            yield buildResult();
             break;
           }
-          const payload = parsed.data;
-          const handler = useChatConfigStore
-            .getState()
-            .documentEditHandlers.get(payload.targetDocumentId);
-          if (handler) {
-            try {
-              await handler(payload);
-            } catch (err) {
-              console.warn('[ChatAdapter] documentEditHandler threw', err);
-              toastError(
-                'Dokument konnte nicht bearbeitet werden',
-                'Die Änderung konnte nicht angewendet werden.'
+
+          case 'chart_data': {
+            const { chart } = data as { chart?: ChartData };
+            if (chart) receivedChartData = chart;
+            yield buildResult();
+            break;
+          }
+
+          case 'artifact': {
+            const { artifact } = data as {
+              artifact?: { type: 'html' | 'svg'; title: string; content: string };
+            };
+            if (artifact) {
+              const active: CodeArtifact = { id: `artifact-${Date.now()}`, ...artifact };
+              receivedArtifactData = active;
+              // Open the docked panel immediately — nur dort, wo sie andocken
+              // kann. Auf schmalen Geräten bleibt es bei der Karte im Faden.
+              if (!muted() && canAutoOpenArtifactPanel()) {
+                useArtifactLiveStore.getState().setActiveArtifact(active);
+              }
+            }
+            yield buildResult();
+            break;
+          }
+
+          // A deep research run has started: open the panel so the user can watch
+          // it work. The run takes minutes, so this is the only feedback there is
+          // until the document appears at the end.
+          case 'research_log_start': {
+            const { id, title } = data as { id?: string; title?: string };
+            if (id) {
+              outcome.openedResearchLogId = id;
+              useArtifactLiveStore.getState().setActiveArtifact({
+                id,
+                type: 'research_log',
+                title: title ?? 'Recherche',
+                plan: [],
+                steps: [],
+                status: 'running',
+              });
+            }
+            yield buildResult();
+            break;
+          }
+
+          case 'research_log_update': {
+            const patch = data as {
+              id?: string;
+              plan?: ResearchLogStep[];
+              steps?: ResearchLogStep[];
+              status?: 'running' | 'done' | 'failed';
+              documentUrl?: string;
+              documentId?: string;
+            };
+            if (patch.id) {
+              const { id, ...rest } = patch;
+              useArtifactLiveStore.getState().upsertResearchLog(id, rest);
+            }
+            yield buildResult();
+            break;
+          }
+
+          // `website_erkunden`: a browser agent is working. Same two-event shape as
+          // the research log, but the panel opens only where it can dock — the
+          // session is on the message either way.
+          case 'browser_session_start': {
+            const { id, url, title } = data as BrowserSessionStart;
+            if (id) {
+              outcome.openedBrowserSessionId = id;
+              receivedBrowserSession = {
+                id,
+                startUrl: url,
+                status: 'running',
+                steps: [],
+                screenshots: [],
+                summary: '',
+              };
+              if (!muted() && canAutoOpenArtifactPanel()) {
+                useArtifactLiveStore.getState().setActiveArtifact({
+                  id,
+                  type: 'browser_session',
+                  title,
+                  startUrl: url,
+                  status: 'running',
+                  steps: [],
+                  screenshots: [],
+                  summary: null,
+                });
+              }
+            }
+            yield buildResult();
+            break;
+          }
+
+          case 'browser_session_update': {
+            const patch = data as BrowserSessionUpdate;
+            if (patch.id) {
+              const { id, step, screenshot, status, summary } = patch;
+              const store = useArtifactLiveStore.getState();
+              store.upsertBrowserSession(id, {
+                ...(step ? { steps: [step] } : {}),
+                ...(screenshot ? { screenshots: [screenshot] } : {}),
+                ...(status ? { status } : {}),
+                ...(summary !== undefined ? { summary } : {}),
+              });
+              if (receivedBrowserSession && receivedBrowserSession.id === id) {
+                const cur: BrowserSessionMeta = receivedBrowserSession;
+                receivedBrowserSession = {
+                  ...cur,
+                  steps: step
+                    ? [...cur.steps.filter((x) => x.n !== step.n), step].sort((a, b) => a.n - b.n)
+                    : cur.steps,
+                  screenshots: screenshot
+                    ? [...cur.screenshots.filter((x) => x.name !== screenshot.name), screenshot]
+                    : cur.screenshots,
+                  status: status ?? cur.status,
+                  summary: summary ?? cur.summary,
+                };
+              }
+            }
+            yield buildResult();
+            break;
+          }
+
+          case 'compute': {
+            const { compute } = data as { compute?: ComputeData };
+            if (compute) receivedComputeData = compute;
+            yield buildResult();
+            break;
+          }
+
+          case 'bahn': {
+            const { bahn } = data as { bahn?: BahnPayload };
+            if (bahn) receivedBahnData = bahn;
+            yield buildResult();
+            break;
+          }
+
+          case 'sharepic_complete': {
+            const payload = data as {
+              message: string;
+              variants?: unknown;
+              canvasType?: string;
+              initialProps?: Record<string, unknown>;
+              alternatives?: unknown[];
+              error?: string;
+            };
+            if (!payload.error) {
+              // Validate at the boundary: only variants with a canonical
+              // canvasType are kept, so a malformed type can never reach the
+              // studio handoff / canvas mint.
+              const validated = coerceSharepicVariants(payload.variants);
+              if (validated) {
+                receivedSharepicData = { variants: validated };
+                useSharepicLiveStore.getState().followRevision(validated);
+              } else if (isCanvasTemplateType(payload.canvasType) && payload.initialProps) {
+                const legacyId =
+                  typeof crypto !== 'undefined' && 'randomUUID' in crypto
+                    ? crypto.randomUUID()
+                    : `legacy-${Date.now()}`;
+                receivedSharepicData = {
+                  variants: [
+                    {
+                      id: legacyId,
+                      canvasType: payload.canvasType,
+                      initialProps: payload.initialProps,
+                    },
+                  ],
+                };
+              }
+            }
+            transitionStep(payload.error ? 'error' : 'generating');
+            currentProgress = {
+              ...currentProgress,
+              stage: payload.error ? 'error' : 'generating',
+              message: payload.message,
+            };
+            yield buildResult();
+            break;
+          }
+
+          case 'social_post_complete': {
+            const payload = data as {
+              message: string;
+              post?: SocialPostPayload;
+              error?: string;
+            };
+            if (!payload.error && payload.post) {
+              receivedSocialPostData = payload.post;
+              useSocialPostLiveStore.getState().upsertEntry(payload.post);
+            }
+            // Text half only — the sharepic half drives the stage transitions
+            // via its own sharepic_complete; don't flip to error here when just
+            // the text failed (the card shows the degradation).
+            yield buildResult();
+            break;
+          }
+
+          case 'social_post_updated': {
+            const payload = data as {
+              postId: string;
+              post: SocialPostPayload;
+              summary: string;
+            };
+            useSocialPostLiveStore.getState().upsertEntry(payload.post);
+            break;
+          }
+
+          case 'social_post_edit_error': {
+            const { error } = data as { postId?: string; error: string };
+            console.warn('[GrueneratorModelAdapter] social_post_edit_error:', error);
+            toastError('Post konnte nicht bearbeitet werden', error);
+            break;
+          }
+
+          case 'sharepic_minted': {
+            const { variantId, canvasId } = data as { variantId: string; canvasId: string };
+            useSharepicLiveStore.getState().upsertEntry(variantId, { canvasId });
+            break;
+          }
+
+          case 'sharepic_updated': {
+            // Validated by the contract gate above — canvasType is guaranteed
+            // canonical, so junk template types can never enter the live store.
+            const payload = data as SharepicUpdatedEvent;
+            useSharepicLiveStore.getState().upsertEntry(payload.variantId, {
+              canvasId: payload.canvasId,
+              canvasType: payload.canvasType,
+              version: payload.version,
+              state: payload.state ?? null,
+              ...(payload.pages ? { pages: payload.pages } : {}),
+              summary: payload.summary,
+              thumbnailDirty: true,
+            });
+            break;
+          }
+
+          case 'sharepic_edit_error': {
+            const { error } = data as { variantId?: string; error: string };
+            console.warn('[GrueneratorModelAdapter] sharepic_edit_error:', error);
+            toastError('Sharepic konnte nicht bearbeitet werden', error);
+            break;
+          }
+
+          case 'reel_processing': {
+            receivedReelProcessing = data as { uploadId: string; filename: string };
+            yield buildResult();
+            break;
+          }
+
+          case 'reel_picker': {
+            receivedReelPicker = data as ReelPickerData;
+            yield buildResult();
+            break;
+          }
+
+          case 'reel_updated': {
+            const payload = data as {
+              projectId: string;
+              title: string;
+              segments: Array<{ id: number; startTime: number; endTime: number; text: string }>;
+              summary: string;
+              changedIndices: number[];
+            };
+            const reelStore = useReelLiveStore.getState();
+            reelStore.upsertEntry(payload.projectId, {
+              title: payload.title,
+              segments: payload.segments,
+              summary: payload.summary,
+              changedIndices: payload.changedIndices,
+            });
+            // Auto-open the docked panel on the edited reel.
+            if (reelStore.activeReel?.projectId !== payload.projectId) {
+              reelStore.setActiveReel({ projectId: payload.projectId, title: payload.title });
+            }
+            break;
+          }
+
+          case 'reel_edit_error': {
+            const { error } = data as { projectId?: string; error: string };
+            console.warn('[GrueneratorModelAdapter] reel_edit_error:', error);
+            toastError('Untertitel konnten nicht bearbeitet werden', error);
+            break;
+          }
+
+          // Agentic tool loop (sharepic edit + general respond loop): each tool
+          // step renders as a tool-call part, mirroring the thinking_step
+          // archive-and-replace mechanics (including the duplicate-stepId guard).
+          case 'tool_step_start': {
+            breakReasoningBlock();
+            const stepData = data as ToolStepStartData;
+            const { stepId, toolName } = stepData;
+            // Associate narration with this card: prefer the server-stamped value
+            // (also survives reload); else drain the client buffer (old server).
+            const cardNarration =
+              stepData.narration ??
+              (pendingNarration.length > 0 ? pendingNarration.join(' ') : undefined);
+            pendingNarration = [];
+            const title = toolStepTitle(stepData);
+            const alreadyKnown =
+              knownToolCallIds.has(stepId) ||
+              toolStepsById.has(stepId) ||
+              allToolCalls.some((tc) => tc.toolCallId === stepId);
+            if (!alreadyKnown) {
+              const toolCall = buildToolStepCard(stepData, title, cardNarration);
+              // Push immediately so a parallel sibling's start doesn't orphan this
+              // card; the result updates it in place. orderPushCard breaks the
+              // current text run so a preceding text_delta stays a separate segment.
+              toolStepsById.set(stepId, toolCall);
+              allToolCalls.push(toolCall);
+              orderPushCard(toolCall);
+            }
+            // Narration now lives on the card; clear the transient status line.
+            // A generation tool gets its own stage — see ARTIFACT_TOOL_NAMES. The
+            // step is also transitioned so the tracker stops showing the previous
+            // stage as still running while a 90s generation goes on beneath it.
+            const toolStage: ProgressStage = ARTIFACT_TOOL_NAMES.has(toolName)
+              ? 'generating_artifact'
+              : 'searching';
+            if (toolStage !== currentProgress.stage) transitionStep(toolStage);
+            currentProgress = { stage: toolStage, message: title, pendingNarration: [] };
+            yield buildResult();
+            break;
+          }
+
+          case 'tool_step_result': {
+            const resultData = data as ToolStepResultData;
+            const { stepId } = resultData;
+            const pending = toolStepsById.get(stepId);
+            if (pending) {
+              // Stamp the rich per-tool result so the tool-ui card renders
+              // mid-stream from the real tool output (see applyToolStepResult).
+              const updated = applyToolStepResult(pending, resultData);
+              toolStepsById.set(stepId, updated);
+              const idx = allToolCalls.indexOf(pending);
+              if (idx >= 0) allToolCalls[idx] = updated;
+              // The step object is REPLACED (not mutated) here, so mirror the swap
+              // into orderedContent by toolCallId — otherwise the card would keep
+              // its pre-result state on screen.
+              orderReplaceCard(updated);
+            }
+            // The STEP has to move with the stage, not just the message: the step
+            // list is what the tracker labels itself from, so a finished tool that
+            // only flipped `currentProgress` left "Suche läuft" standing over the
+            // rest of the turn.
+            //
+            // …but only once NOTHING is still running. A model step may call two
+            // tools at once (loopGuards allows two concurrent searches), and the
+            // first result back would otherwise complete the step while its
+            // sibling is still working — the tracker would claim the retrieval was
+            // done and go on to "Formuliere Antwort".
+            const stepStillOpen = [...toolStepsById.values()].some((s) => s.result == null);
+            const message = toolStepResultMessage(resultData);
+            if (stepStillOpen) {
+              currentProgress = { ...currentProgress, message };
+            } else {
+              transitionStep('generating');
+              currentProgress = { stage: 'generating', message };
+            }
+            yield buildResult();
+            break;
+          }
+
+          case 'response_start': {
+            // Split mode's synth phase starts here — its thinking is a new block,
+            // not a continuation of the planner's.
+            breakReasoningBlock();
+            const { message } = data as { message: string };
+            transitionStep('generating');
+            currentProgress = { ...currentProgress, stage: 'generating', message };
+            yield buildResult();
+            break;
+          }
+
+          case 'thinking_step': {
+            const { stepId, toolName, title, status, args, result } = data as {
+              stepId: string;
+              toolName: string;
+              title: string;
+              status: 'in_progress' | 'completed';
+              args?: Record<string, unknown>;
+              result?: {
+                resultCount?: number;
+                results?: unknown[];
+                image?: unknown;
+                error?: string;
+              };
+            };
+
+            const mappedToolName = DEEP_TOOL_MAP[toolName] || toolName;
+
+            if (status === 'in_progress') {
+              // A re-sent stepId must not become a SECOND card: if it matches the
+              // current activeToolCall, or is already in allToolCalls, skip the
+              // archive-and-replace below — otherwise we'd render two tool-call
+              // parts with the same toolCallId and trip assistant-ui's
+              // `tapResources` with "Duplicate key toolCallId-…".
+              //
+              // Note this only dedupes; it does not make a repeat HARMLESS. Every
+              // `thinking_step` opens a card that stays on screen until a matching
+              // `completed` closes it, so this event is for real tools only —
+              // internal stages narrate through `progress_step` (see below).
+              const isDuplicateStepId =
+                knownToolCallIds.has(stepId) ||
+                (activeToolCall !== null && activeToolCall.toolCallId === stepId) ||
+                allToolCalls.some((tc) => tc.toolCallId === stepId);
+              if (!isDuplicateStepId) {
+                // Preserve any pre-existing activeToolCall (e.g. the intent-derived
+                // gruenerator_examples_search tool-call set by the `intent` event)
+                // before overwriting with this thinking_step's tool. Otherwise the
+                // examples tool-call is orphaned and search_complete's result has
+                // nowhere to land — leaving the UI with classify/rerank chips and
+                // no examples card.
+                if (activeToolCall !== null && !allToolCalls.includes(activeToolCall)) {
+                  allToolCalls.push(activeToolCall);
+                }
+                const toolArgs = { query: (args?.query as string) || title, ...args };
+                activeToolCall = {
+                  type: 'tool-call',
+                  toolCallId: stepId,
+                  toolName: mappedToolName,
+                  args: toolArgs as Record<string, string | number | boolean | null>,
+                  argsText: JSON.stringify(toolArgs),
+                };
+                orderPushCard(activeToolCall);
+              }
+              currentProgress = { stage: 'searching', message: title };
+            } else if (status === 'completed') {
+              if (activeToolCall?.toolCallId === stepId) {
+                activeToolCall = { ...activeToolCall, result: result || {} };
+                orderReplaceCard(activeToolCall);
+                allToolCalls.push(activeToolCall);
+                activeToolCall = null;
+              }
+              currentProgress = { stage: 'generating', message: title };
+            }
+            yield buildResult();
+            break;
+          }
+
+          case 'progress_step': {
+            // Internal pipeline stage (classify, rerank, brief). Updates the
+            // progress indicator but MUST NOT touch activeToolCall/allToolCalls
+            // — those are reserved for user-facing tools dispatched via the
+            // `intent` event + `thinking_step`. Conflating the two is what
+            // caused the search→rerank race that orphaned the rich
+            // examples/search/web tool-cards (see PR history).
+            const { stepId, title, status } = data as {
+              stepId: string;
+              toolName: string;
+              title: string;
+              status: 'in_progress' | 'completed';
+            };
+            if (status === 'in_progress') {
+              // Until 14.08.2026 `title` only ever reached `currentProgress.message`,
+              // which the ProgressTracker does not read — `selectStatusLabel` takes
+              // the step label ahead of `message`, and there is always a step list.
+              // So a pipeline agent's after-steps ran for minutes under step 1's
+              // label ("Feile …"), indistinguishable from a hang. The step now
+              // enters the list, under the same stage as before but under its OWN
+              // key, so it never overwrites a real search step's label. Guarded so
+              // the 3s heartbeat re-send does not churn the list.
+              if (currentProgress.stage !== 'searching' || currentProgress.message !== title) {
+                transitionStep('searching', title, `progress:${stepId}`);
+              }
+              currentProgress = { ...currentProgress, stage: 'searching', message: title };
+            } else if (status === 'completed') {
+              currentProgress = { ...currentProgress, message: title };
+            }
+            yield buildResult();
+            break;
+          }
+
+          case 'gather_narration': {
+            // Live narration during the tool phase. Accumulated (not overwritten)
+            // into pendingNarration so nothing is lost between tool starts; the
+            // consumer paces the display (min-visible time), and the whole run
+            // lands on the next tool card as durable `narration`. `message` is
+            // still set so Mobile's simple status field and non-agentic paths
+            // keep a value.
+            const narration = (data as { text: string }).text;
+            pendingNarration = [...pendingNarration, narration];
+            currentProgress = { ...currentProgress, message: narration, pendingNarration };
+            const now = performance.now();
+            if (now - lastYieldTime >= YIELD_INTERVAL) {
+              lastYieldTime = now;
+              yield buildResult();
+            }
+            break;
+          }
+
+          case 'text_delta': {
+            const delta = (data as { text: string }).text;
+            appendText(delta);
+            // Synthesis has started: any trailing narration after the last tool
+            // call (never associated with a card) is now stale — drop it so the
+            // status line doesn't linger behind the streaming answer.
+            if (pendingNarration.length > 0) {
+              pendingNarration = [];
+              currentProgress = { ...currentProgress, pendingNarration: [] };
+            }
+            const now = performance.now();
+            if (now - lastYieldTime >= YIELD_INTERVAL) {
+              lastYieldTime = now;
+              yield buildResult();
+            }
+            break;
+          }
+
+          case 'reasoning_delta': {
+            accumulatedReasoning += (data as { text: string }).text;
+            const now = performance.now();
+            if (now - lastYieldTime >= YIELD_INTERVAL) {
+              lastYieldTime = now;
+              yield buildResult();
+            }
+            break;
+          }
+
+          case 'fallback': {
+            // Server switched models silently — log only, no UI.
+            const info = data as FallbackInfo;
+            console.warn(
+              `[GrueneratorModelAdapter] Model fallback: ${info.from.id} → ${info.to.id} (${info.reason})`
+            );
+            break;
+          }
+
+          case 'warning': {
+            // Non-fatal degradation carrying a ready-made German message.
+            // Note: `evidence_weak` is a statement about THIS answer, not a
+            // disruption — it goes under the text (custom.evidenceWeak), not in
+            // a toast that sits above the page and belongs to no message.
+            const { code, message } = data as { code: string; message: string };
+            console.warn(`[GrueneratorModelAdapter] warning (${code}): ${message}`);
+            // Superseded by the grant card (`mcp_tool_grant`), which names the
+            // tools and can be answered in place; the server keeps sending the
+            // warning for binaries that predate the card.
+            if (code === 'mcp_tools_drifted') break;
+            if (code === 'evidence_weak') {
+              if (message) evidenceWeakAccum = message;
+              break;
+            }
+            if (message) toastWarning(message);
+            break;
+          }
+
+          case 'mcp_tool_grant': {
+            const fields = toolGrantPartFields(data as McpToolGrant);
+            if (knownToolCallIds.has(fields.toolCallId) || toolStepsById.has(fields.toolCallId)) {
+              break;
+            }
+            const part: ToolCallPart = {
+              type: 'tool-call',
+              ...fields,
+              // Arrays in den Argumenten: der Part-Typ ist enger als das, was
+              // assistant-ui als JSON-Argumente annimmt.
+              args: fields.args as unknown as ToolCallPart['args'],
+              argsText: JSON.stringify(fields.args),
+            };
+            toolStepsById.set(part.toolCallId, part);
+            allToolCalls.push(part);
+            orderPushCard(part);
+            yield buildResult();
+            break;
+          }
+
+          case 'interrupt': {
+            const payload = data as {
+              interruptType?: 'clarification' | 'client_tool' | 'tool_approval';
+              toolName?: string;
+              args?: Record<string, unknown>;
+              threadId?: string;
+              approvalTurnId?: string;
+              calls?: Array<{
+                toolCallId: string;
+                toolName: string;
+                args?: Record<string, unknown>;
+                title?: string;
+                serverName?: string;
+              }>;
+            };
+            if (payload.interruptType === 'client_tool' && payload.toolName) {
+              clientToolPending = true;
+              outcome.clientToolInterrupt = {
+                toolName: payload.toolName,
+                args: payload.args ?? {},
+                ...(payload.threadId != null && { threadId: payload.threadId }),
+              };
+            } else if (payload.interruptType === 'tool_approval' && payload.calls?.length) {
+              // Jeder zurückgehaltene Aufruf wird eine Karte mit Freigabe-Gate.
+              // Das Gate selbst hält den Zug an (assistant-ui: eine unentschiedene
+              // Freigabe blockiert die Fortsetzung), `interruptPending` sorgt für
+              // den `requires-action`-Status, den die Laufzeit dafür verlangt.
+              for (const call of payload.calls) {
+                if (knownToolCallIds.has(call.toolCallId)) continue;
+                const args = { ...(call.args ?? {}) };
+                const part: ToolCallPart = {
+                  type: 'tool-call',
+                  toolCallId: call.toolCallId,
+                  toolName: call.toolName,
+                  args: args as Record<string, string | number | boolean | null>,
+                  argsText: JSON.stringify(args),
+                  approval: {
+                    id: call.toolCallId,
+                    options: TOOL_APPROVAL_OPTIONS,
+                  },
+                  // Ohne die beiden nennt die Karte nur den Katalognamen — und
+                  // genau die Auskunft, welcher Dienst da angesprochen wird, ist
+                  // der Grund für die Rückfrage.
+                  ...(call.title != null && { title: call.title }),
+                  ...(call.serverName != null && { serverName: call.serverName }),
+                };
+                toolStepsById.set(call.toolCallId, part);
+                allToolCalls.push(part);
+                orderPushCard(part);
+              }
+              if (payload.approvalTurnId != null) {
+                outcome.toolApprovalPending = { approvalTurnId: payload.approvalTurnId };
+              }
+              interruptPending = true;
+            } else {
+              interruptPending = true;
+            }
+            yield buildResult();
+            break;
+          }
+
+          case 'done': {
+            sawTerminalEvent = true;
+            const {
+              citations: cit,
+              generatedImage: img,
+              metadata,
+              interrupted,
+            } = data as {
+              threadId?: string;
+              citations?: Citation[];
+              generatedImage?: GeneratedImage;
+              metadata?: StreamMetadata;
+              interrupted?: boolean;
+            };
+            if (cit) receivedCitations = cit;
+            if (img) receivedImage = img;
+            if (metadata) receivedMetadata = metadata;
+            if (interrupted && !clientToolPending) interruptPending = true;
+            transitionStep('complete');
+            currentProgress = { stage: 'complete', message: '' };
+            break;
+          }
+
+          case 'confirm_action': {
+            receivedConfirmAction = data as ConfirmActionData;
+            yield buildResult();
+            break;
+          }
+
+          case 'document_created': {
+            const created = data as DocumentCreatedData;
+            receivedCreatedDocument = created;
+            // Mirror the 'artifact' case: dock the panel immediately instead of
+            // waiting for a click on DocumentCreatedCard's button. PDFs are
+            // excluded — their url is an authenticated asset endpoint (needs
+            // configFetch + blob), not something a plain iframe src can load.
+            // Explainables too: their url is a full app page, not an editor
+            // with an `embedded` mode.
+            // Only where an ArtifactPanel is actually mounted (/chat thread view):
+            // elsewhere the write is invisible AND would close a docked
+            // sharepic/reel via the one-panel rule with nothing replacing it.
+            if (
+              !muted() &&
+              created.background !== true &&
+              useArtifactLiveStore.getState().panelMounted &&
+              canAutoOpenArtifactPanel() &&
+              subtypeToArtifactKind(created.subtype) !== 'pdf' &&
+              subtypeToArtifactKind(created.subtype) !== 'explainable'
+            ) {
+              useArtifactLiveStore.getState().setActiveArtifact({
+                id: `document-${created.documentId}`,
+                type: 'document',
+                documentId: created.documentId,
+                subtype: created.subtype,
+                title: created.title,
+                url: created.url,
+              });
+            }
+            yield buildResult();
+            break;
+          }
+
+          case 'document_indexed': {
+            const { documentId } = data as { documentId: string };
+            outcome.indexedDocumentIds.push(documentId);
+            break;
+          }
+
+          case 'trigger_doc_edit': {
+            if (muted()) break;
+            // Live document edit (docs editor surface). The loop's `edit_document`
+            // tool decided the edit and wrote the instruction; the docs frontend
+            // dispatches it into BlockNote's AIExtension, which applies it as
+            // suggestions. Handlers are keyed by documentId — there's exactly one
+            // docs surface per document, registered when DocsAssistantChat mounts.
+            const parsed = triggerDocEditSchema.safeParse(data);
+            if (!parsed.success) {
+              console.warn(
+                '[ChatAdapter] trigger_doc_edit payload failed validation',
+                parsed.error
+              );
+              toastError('Dokument konnte nicht bearbeitet werden', 'Die Anweisung war ungültig.');
+              break;
+            }
+            const payload = parsed.data;
+            const handler = useChatConfigStore
+              .getState()
+              .documentEditHandlers.get(payload.targetDocumentId);
+            if (handler) {
+              try {
+                await handler(payload);
+              } catch (err) {
+                console.warn('[ChatAdapter] documentEditHandler threw', err);
+                toastError(
+                  'Dokument konnte nicht bearbeitet werden',
+                  'Die Änderung konnte nicht angewendet werden.'
+                );
+              }
+            } else {
+              console.warn(
+                '[ChatAdapter] trigger_doc_edit received but no handler registered for doc',
+                payload.targetDocumentId
+              );
+              toastWarning(
+                'Dokument nicht verbunden',
+                'Öffne die Datei, damit Änderungen angewendet werden können.'
               );
             }
-          } else {
-            console.warn(
-              '[ChatAdapter] trigger_doc_edit received but no handler registered for doc',
-              payload.targetDocumentId
-            );
-            toastWarning(
-              'Dokument nicht verbunden',
-              'Öffne die Datei, damit Änderungen angewendet werden können.'
-            );
-          }
-          break;
-        }
-
-        case 'editor_operations': {
-          if (muted()) break;
-          // Tool-based editor edit (CHAT_EDIT_TOOL_SURFACES): the agentic loop's
-          // edit_document tool planned ops server-side; apply them in place via
-          // the surface's registered handler (Univer / Yjs / Konva bridge).
-          // Keyed by targetId, parallel to the trigger_doc_edit path (which stays
-          // the fallback when the backend flag is off).
-          const parsed = editorOperationsEventSchema.safeParse(data);
-          if (!parsed.success) {
-            console.warn('[ChatAdapter] editor_operations payload failed validation', parsed.error);
-            toastError(
-              'Editor-Inhalt konnte nicht bearbeitet werden',
-              'Die Anweisung war ungültig.'
-            );
             break;
           }
-          const payload = parsed.data;
-          const handler = useChatConfigStore.getState().editorOpsHandlers.get(payload.targetId);
-          if (handler) {
-            try {
-              await handler(payload);
-            } catch (err) {
-              console.warn('[ChatAdapter] editorOpsHandler threw', err);
+
+          case 'editor_operations': {
+            if (muted()) break;
+            // Tool-based editor edit (CHAT_EDIT_TOOL_SURFACES): the agentic loop's
+            // edit_document tool planned ops server-side; apply them in place via
+            // the surface's registered handler (Univer / Yjs / Konva bridge).
+            // Keyed by targetId, parallel to the trigger_doc_edit path (which stays
+            // the fallback when the backend flag is off).
+            const parsed = editorOperationsEventSchema.safeParse(data);
+            if (!parsed.success) {
+              console.warn(
+                '[ChatAdapter] editor_operations payload failed validation',
+                parsed.error
+              );
               toastError(
                 'Editor-Inhalt konnte nicht bearbeitet werden',
-                'Die Änderung konnte nicht angewendet werden.'
+                'Die Anweisung war ungültig.'
+              );
+              break;
+            }
+            const payload = parsed.data;
+            const handler = useChatConfigStore.getState().editorOpsHandlers.get(payload.targetId);
+            if (handler) {
+              try {
+                await handler(payload);
+              } catch (err) {
+                console.warn('[ChatAdapter] editorOpsHandler threw', err);
+                toastError(
+                  'Editor-Inhalt konnte nicht bearbeitet werden',
+                  'Die Änderung konnte nicht angewendet werden.'
+                );
+              }
+            } else {
+              console.warn(
+                '[ChatAdapter] editor_operations received but no handler registered for target',
+                payload.targetId
+              );
+              toastWarning(
+                'Editor-Inhalt nicht verbunden',
+                'Öffne die Datei, damit Änderungen angewendet werden können.'
               );
             }
-          } else {
-            console.warn(
-              '[ChatAdapter] editor_operations received but no handler registered for target',
-              payload.targetId
-            );
-            toastWarning(
-              'Editor-Inhalt nicht verbunden',
-              'Öffne die Datei, damit Änderungen angewendet werden können.'
-            );
+            break;
           }
-          break;
-        }
 
-        // ── Search mode events ──
-        case 'sources_preview': {
-          const { results: previewResults, resultCount } = data as {
-            results?: SearchResult[];
-            resultCount?: number;
-          };
-          if (previewResults) {
-            receivedSearchResults = previewResults;
-            // Create synthetic search_sources tool call for sources-first rendering
-            const sourcesToolCall: ToolCallPart = {
-              type: 'tool-call',
-              toolCallId: `tc_sources_${++syntheticSeq}`,
-              toolName: 'search_sources',
-              argsText: '{}',
-              args: {},
-              result: {
-                results: previewResults,
-                resultCount: resultCount || previewResults.length,
-              },
+          // ── Search mode events ──
+          case 'sources_preview': {
+            const { results: previewResults, resultCount } = data as {
+              results?: SearchResult[];
+              resultCount?: number;
             };
-            allToolCalls.push(sourcesToolCall);
-            orderPushCard(sourcesToolCall);
-          }
-          transitionStep('generating', 'Generierung');
-          break;
-        }
-
-        case 'suggestions': {
-          const { suggestions: sugg } = data as { suggestions?: string[] };
-          if (sugg) {
-            receivedFollowUpSuggestions = sugg;
-          }
-          break;
-        }
-
-        case 'research_step': {
-          const { step, message } = data as { step: string; message: string };
-          transitionStep(step as ProgressStage, message);
-          currentProgress = { stage: step as ProgressStage, message };
-          break;
-        }
-
-        // ── Notebook mode events ──
-        case 'answer_mode': {
-          // Read from the raw frame: the wire gate coerces an unknown mode to
-          // `chat`, and a guessed chip is worse than none. Same rule as web.
-          const raw = rawData as { resolved?: unknown; reason?: unknown };
-          const resolved = notebookResolvedAnswerModeSchema.safeParse(raw.resolved);
-          if (!resolved.success) break;
-          receivedAnswerMode = resolved.data;
-          const reason = notebookAnswerModeReasonSchema.safeParse(raw.reason);
-          receivedAnswerModeReason = reason.success ? reason.data : null;
-          if (receivedAnswerMode === 'praezision') {
-            transitionStep('searching', PRAEZISION_PROGRESS_MESSAGE);
-            currentProgress = { stage: 'searching', message: PRAEZISION_PROGRESS_MESSAGE };
-          }
-          yield buildResult();
-          break;
-        }
-
-        case 'completion': {
-          sawTerminalEvent = true;
-          // `completion` carries EITHER shape (see the union in the wire
-          // schema): notebook citations key their source as `index: string`
-          // with snake_case document fields, while the citation clamp on the
-          // chat paths re-sends the chat shape it already had. Mapping every
-          // payload as notebook — the previous behaviour — turned a clamped
-          // chat turn's citations into `id: NaN` with empty titles until the
-          // trailing `done` event happened to overwrite them again.
-          type NotebookWireCitation = {
-            index: string;
-            cited_text?: string;
-            document_title?: string;
-            document_id?: string;
-            source_url?: string | null;
-            similarity_score?: number;
-            chunk_index?: number;
-            collection_id?: string;
-            collection_name?: string;
-          };
-          const completionData = data as {
-            text?: string;
-            citations?: Array<NotebookWireCitation | Citation>;
-            metadata?: { traceId?: string };
-          };
-          if (typeof completionData.metadata?.traceId === 'string') {
-            receivedTraceId = completionData.metadata.traceId;
-          }
-          const isNotebookCitation = (
-            c: NotebookWireCitation | Citation
-          ): c is NotebookWireCitation => typeof (c as NotebookWireCitation).index === 'string';
-          if (completionData.text) {
-            // Flatten fallback: `completion` replaces the whole answer (e.g.
-            // after a citation clamp), so we have ONE final text with no per-tool
-            // offsets. Drop every streamed text segment and append a single
-            // trailing one; cards keep their positions in orderedContent.
-            // buildResult re-normalizes [cite:N] → [N] on emit.
-            for (let i = orderedContent.length - 1; i >= 0; i--) {
-              if (orderedContent[i].type === 'text') orderedContent.splice(i, 1);
+            if (previewResults) {
+              receivedSearchResults = previewResults;
+              // Create synthetic search_sources tool call for sources-first rendering
+              const sourcesToolCall: ToolCallPart = {
+                type: 'tool-call',
+                toolCallId: `tc_sources_${++syntheticSeq}`,
+                toolName: 'search_sources',
+                argsText: '{}',
+                args: {},
+                result: {
+                  results: previewResults,
+                  resultCount: resultCount || previewResults.length,
+                },
+              };
+              allToolCalls.push(sourcesToolCall);
+              orderPushCard(sourcesToolCall);
             }
-            const finalSeg: TextSegment = { type: 'text', text: completionData.text };
-            orderedContent.push(finalSeg);
-            currentTextSegment = finalSeg;
+            transitionStep('generating', 'Generierung');
+            break;
           }
-          if (completionData.citations) {
-            receivedCitations = completionData.citations.map((c) =>
-              isNotebookCitation(c)
-                ? {
-                    id: parseInt(c.index, 10),
-                    title: c.document_title ?? '',
-                    url: c.source_url ?? '',
-                    snippet: c.cited_text ?? '',
-                    citedText: c.cited_text,
-                    source: c.collection_name ?? '',
-                    collectionName: c.collection_name,
-                    documentId: c.document_id,
-                    chunkIndex: c.chunk_index,
-                    similarityScore: c.similarity_score,
-                    collectionId: c.collection_id,
-                  }
-                : c
-            );
-          }
-          transitionStep('complete');
-          currentProgress = { stage: 'complete', message: '' };
-          break;
-        }
 
-        case 'error': {
-          const payload = data as ChatErrorEventPayload;
-          transitionStep('error');
-          throw new ChatStreamError(payload.error ?? 'Es ist ein Fehler aufgetreten.', payload);
+          case 'suggestions': {
+            const { suggestions: sugg } = data as { suggestions?: string[] };
+            if (sugg) {
+              receivedFollowUpSuggestions = sugg;
+            }
+            break;
+          }
+
+          case 'research_step': {
+            const { step, message } = data as { step: string; message: string };
+            transitionStep(step as ProgressStage, message);
+            currentProgress = { stage: step as ProgressStage, message };
+            break;
+          }
+
+          // ── Notebook mode events ──
+          case 'answer_mode': {
+            // Read from the raw frame: the wire gate coerces an unknown mode to
+            // `chat`, and a guessed chip is worse than none. Same rule as web.
+            const raw = rawData as { resolved?: unknown; reason?: unknown };
+            const resolved = notebookResolvedAnswerModeSchema.safeParse(raw.resolved);
+            if (!resolved.success) break;
+            receivedAnswerMode = resolved.data;
+            const reason = notebookAnswerModeReasonSchema.safeParse(raw.reason);
+            receivedAnswerModeReason = reason.success ? reason.data : null;
+            if (receivedAnswerMode === 'praezision') {
+              transitionStep('searching', PRAEZISION_PROGRESS_MESSAGE);
+              currentProgress = { stage: 'searching', message: PRAEZISION_PROGRESS_MESSAGE };
+            }
+            yield buildResult();
+            break;
+          }
+
+          case 'completion': {
+            sawTerminalEvent = true;
+            // `completion` carries EITHER shape (see the union in the wire
+            // schema): notebook citations key their source as `index: string`
+            // with snake_case document fields, while the citation clamp on the
+            // chat paths re-sends the chat shape it already had. Mapping every
+            // payload as notebook — the previous behaviour — turned a clamped
+            // chat turn's citations into `id: NaN` with empty titles until the
+            // trailing `done` event happened to overwrite them again.
+            type NotebookWireCitation = {
+              index: string;
+              cited_text?: string;
+              document_title?: string;
+              document_id?: string;
+              source_url?: string | null;
+              similarity_score?: number;
+              chunk_index?: number;
+              collection_id?: string;
+              collection_name?: string;
+            };
+            const completionData = data as {
+              text?: string;
+              citations?: Array<NotebookWireCitation | Citation>;
+              metadata?: { traceId?: string };
+            };
+            if (typeof completionData.metadata?.traceId === 'string') {
+              receivedTraceId = completionData.metadata.traceId;
+            }
+            const isNotebookCitation = (
+              c: NotebookWireCitation | Citation
+            ): c is NotebookWireCitation => typeof (c as NotebookWireCitation).index === 'string';
+            if (completionData.text) {
+              // Flatten fallback: `completion` replaces the whole answer (e.g.
+              // after a citation clamp), so we have ONE final text with no per-tool
+              // offsets. Drop every streamed text segment and append a single
+              // trailing one; cards keep their positions in orderedContent.
+              // buildResult re-normalizes [cite:N] → [N] on emit.
+              for (let i = orderedContent.length - 1; i >= 0; i--) {
+                if (orderedContent[i].type === 'text') orderedContent.splice(i, 1);
+              }
+              const finalSeg: TextSegment = { type: 'text', text: completionData.text };
+              orderedContent.push(finalSeg);
+              currentTextSegment = finalSeg;
+            }
+            if (completionData.citations) {
+              receivedCitations = completionData.citations.map((c) =>
+                isNotebookCitation(c)
+                  ? {
+                      id: parseInt(c.index, 10),
+                      title: c.document_title ?? '',
+                      url: c.source_url ?? '',
+                      snippet: c.cited_text ?? '',
+                      citedText: c.cited_text,
+                      source: c.collection_name ?? '',
+                      collectionName: c.collection_name,
+                      documentId: c.document_id,
+                      chunkIndex: c.chunk_index,
+                      similarityScore: c.similarity_score,
+                      collectionId: c.collection_id,
+                    }
+                  : c
+              );
+            }
+            transitionStep('complete');
+            currentProgress = { stage: 'complete', message: '' };
+            break;
+          }
+
+          case 'error': {
+            const payload = data as ChatErrorEventPayload;
+            transitionStep('error');
+            throw new ChatStreamError(payload.error ?? 'Es ist ein Fehler aufgetreten.', payload);
+          }
+          default:
+            // Unknown event names pass through untouched (forward compatibility).
+            break;
         }
-        default:
-          // Unknown event names pass through untouched (forward compatibility).
-          break;
       }
     }
+  } catch (err) {
+    // Stop button / network drop: the run never sent its closing status. Settle
+    // the session on the message too (not only in the store, which may not be
+    // docked), then let the failure through.
+    if (receivedBrowserSession?.status === 'running') {
+      receivedBrowserSession = { ...receivedBrowserSession, status: 'failed' };
+      yield buildResult();
+    }
+    throw err;
   }
 
   // Client half of the truncation cross-check: the server runs the same
