@@ -55,3 +55,21 @@ export function approvalDecidedLabel(approval: ToolApprovalState): string {
   if (approval.approved === false) return 'Abgelehnt';
   return approval.optionId === 'allow-always' ? 'Immer erlaubt' : 'Erlaubt';
 }
+
+/**
+ * Eigene Werkzeuge mit Freigabe-Gate: der Server schickt für sie weder Titel
+ * noch Dienst, der Katalogname allein sagt Nutzer*innen nichts.
+ */
+const INTERNAL_APPROVAL_DISPLAY: Record<string, { title: string; description: string }> = {
+  tabelle_auswerten: {
+    title: 'Tabelle auswerten',
+    description:
+      'Der Grünerator erzeugt dafür Python-Code und führt ihn in deinem Browser aus (ohne Internetzugriff).',
+  },
+};
+
+export function internalApprovalDisplay(
+  toolName: string
+): { title: string; description: string } | null {
+  return INTERNAL_APPROVAL_DISPLAY[toolName] ?? null;
+}

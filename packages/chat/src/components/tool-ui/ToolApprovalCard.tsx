@@ -8,6 +8,7 @@ import {
   REJECT_REASON_PLACEHOLDER,
   TOOL_APPROVAL_OPTIONS,
   approvalDecidedLabel,
+  internalApprovalDisplay,
   isApprovalDecided,
   type ToolApprovalState,
 } from '../../lib/toolApproval';
@@ -47,7 +48,8 @@ export const ToolApprovalCard = memo(function ToolApprovalCard({
   const [busy, setBusy] = useState(false);
   const [rejecting, setRejecting] = useState(false);
   const [reason, setReason] = useState('');
-  const label = title ?? formatNamespacedToolLabel(toolName, serverName);
+  const internal = internalApprovalDisplay(toolName);
+  const label = title ?? internal?.title ?? formatNamespacedToolLabel(toolName, serverName);
   const decided = isApprovalDecided(approval);
 
   if (decided) {
@@ -92,7 +94,7 @@ export const ToolApprovalCard = memo(function ToolApprovalCard({
           <p className="mt-0.5 text-xs text-foreground-muted">
             {serverName
               ? `${serverName} ist ein verbundener Dienst — der Aufruf verlässt den Grünerator.`
-              : 'Dieses Werkzeug wirkt über die Antwort hinaus.'}
+              : (internal?.description ?? 'Dieses Werkzeug wirkt über die Antwort hinaus.')}
           </p>
         </div>
       </div>

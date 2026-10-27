@@ -387,7 +387,7 @@ export function createGrueneratorModelAdapter(
             );
           }
 
-          const resumeOutcome: StreamOutcome = { interrupted: false, indexedDocumentIds: [] };
+          let resumeOutcome: StreamOutcome = { interrupted: false, indexedDocumentIds: [] };
           yield* parseSSEStream(
             resumeResponse,
             callbacks,
@@ -395,6 +395,18 @@ export function createGrueneratorModelAdapter(
             config.agentId ? { agentId: config.agentId } : undefined,
             { knownToolCallIds }
           );
+          // Ein freigegebenes Werkzeug kann im Browser weiterlaufen
+          // (`tabelle_auswerten` → `run_python`): ausführen und fortsetzen wie
+          // nach dem Hauptstrom, sonst bleibt der Zug am Interrupt stehen.
+          if (resumeOutcome.clientToolInterrupt) {
+            resumeOutcome = yield* runClientToolResumes({
+              outcome: resumeOutcome,
+              fallbackThreadId: config.threadId,
+              callbacks,
+              agentInfo: config.agentId ? { agentId: config.agentId } : undefined,
+              abortSignal,
+            });
+          }
           if (resumeOutcome.interrupted) {
             interruptedThreadId = config.threadId;
           }
