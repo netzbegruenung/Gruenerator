@@ -424,7 +424,8 @@ jobs:
       # path-filtered — so a PR that does not touch documentation/ skips it and
       # can still merge stale. As an always-on required check these catch the
       # cross-branch drift that broke master repeatedly (docs index, UiLabel
-      # manifest, settings catalog).
+      # manifest, settings catalog). docs-build.yml's trigger relies on this
+      # step covering EVERY manifest generator — add new ones here.
       - name: Generated artifacts in sync
         run: |
           pnpm --filter @gruenerator/documentation labels:check
@@ -440,6 +441,14 @@ jobs:
           # documentation/ can add a tool and leave the guide's table a
           # row short — exactly the cross-branch drift this block is for.
           pnpm --filter @gruenerator/documentation agent-tools:check
+          # The other manifests read from packages/ and apps/api too. Behind
+          # docs-build.yml's path filters they went stale with CI green
+          # whenever a filter named the wrong file (#5014) — ~1 s for all five.
+          pnpm --filter @gruenerator/documentation tools:check
+          pnpm --filter @gruenerator/documentation office:check
+          pnpm --filter @gruenerator/documentation agentura:check
+          pnpm --filter @gruenerator/documentation reference:check
+          pnpm --filter @gruenerator/documentation models:check
 
   # No `needs:` on test/build. Gating them behind the quality job bought
   # nothing — Actions minutes are free on a public repo, wall-clock is the
