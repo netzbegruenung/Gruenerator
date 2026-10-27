@@ -36,6 +36,7 @@ Regeln für den Code:
 - Verwende die ECHTEN Spaltennamen aus dem Tabellen-Kontext (exakte Schreibweise).
 - Arbeitsmappen mit mehreren Blättern: \`df\` ist das ERSTE Blatt; ALLE Blätter sind als \`sheets["Blattname"]\` verfügbar (Namen stehen im Tabellen-Kontext). Wähle das Blatt, dessen Spalten zur Frage passen.
 - Gib jedes Ergebnis mit \`print("Label:", wert)\` aus — ein klares deutsches Label pro Zeile (z.B. \`print("Gesamtgewinn:", round(gewinn, 2))\`).
+- In der print-Ausgabe deutsche Schreibweise (nie in exportierten Dateien): Dezimalzahlen als \`f"{wert:,.2f}".replace(",", " ").replace(".", ",").replace(" ", ".")\` (→ 2.114,23), Datumswerte als \`wert.strftime("%d.%m.%Y")\` (→ 31.01.2004). Erst rechnen, dann formatieren.
 - Halte den Code kurz und robust; keine Datei-/Netzwerkzugriffe, keine Plots.
 - Rechne mit fehlenden Werten: nutze dropna() vor idxmax()/idxmin() und prüfe, dass Gruppierungs-Ergebnisse nicht NaN als Schlüssel liefern.
 - Enthält die Tabelle bereits eine Spalte für die gefragte Größe (z.B. "Umsatz"), verwende NUR diese Spalte — leite sie NICHT zusätzlich aus anderen Spalten her (z.B. Menge*Einzelpreis) und addiere niemals beides.

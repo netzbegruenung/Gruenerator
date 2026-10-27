@@ -997,6 +997,80 @@ describe('convertToThreadMessageLike — offene Loop-Rückfrage (#3220)', () => 
   });
 });
 
+describe('convertToThreadMessageLike — entschiedene Freigabe (#5043)', () => {
+  const pendingApproval = {
+    approvalTurnId: 'appr-1',
+    calls: [
+      {
+        toolCallId: 'call_tab',
+        toolName: 'tabelle_auswerten',
+        args: { auftrag: 'Summe der Beträge je Monat' },
+      },
+    ],
+    resolved: true as const,
+    decisions: [{ toolCallId: 'call_tab', approved: true, optionId: 'allow-once' }],
+  };
+  const step = {
+    toolCallId: 'call_tab',
+    toolName: 'tabelle_auswerten',
+    args: { auftrag: 'Summe der Beträge je Monat' },
+    result: { code: 'print(1)', stdout: '1' },
+  };
+
+  it.each([
+    ['ohne Versätze', step],
+    ['mit Versätzen', { ...step, textOffset: 0 }],
+  ])('zeigt Pille und Auftragszeile nach dem Reload (%s)', (_label, persisted) => {
+    const [msg] = convertToThreadMessageLike([
+      {
+        id: 'm1',
+        role: 'assistant',
+        content: 'Die Summe ist 1.',
+        metadata: { pendingApproval, toolCalls: [persisted] },
+      },
+    ]);
+    const parts = (msg!.content as unknown as Array<Record<string, unknown>>).filter(
+      (p) => p.type === 'tool-call'
+    );
+    // Pille zuerst, dann die Karte des ausgeführten Aufrufs — wie live.
+    expect(parts).toHaveLength(2);
+    expect(parts[0]).toMatchObject({
+      toolCallId: 'call_tab__approval',
+      toolName: 'tabelle_auswerten',
+      approval: { approved: true, optionId: 'allow-once' },
+    });
+    expect(parts[1]).toMatchObject({
+      toolCallId: 'call_tab',
+      args: { auftrag: 'Summe der Beträge je Monat' },
+      result: { code: 'print(1)' },
+    });
+    expect(parts[1]).not.toHaveProperty('approval');
+    expect(msg!.status).toBeUndefined();
+  });
+
+  it('zeigt eine abgelehnte Freigabe auch ohne Karte des Aufrufs', () => {
+    const [msg] = convertToThreadMessageLike([
+      {
+        id: 'm1',
+        role: 'assistant',
+        content: 'Dann eben nicht.',
+        metadata: {
+          pendingApproval: {
+            ...pendingApproval,
+            decisions: [{ toolCallId: 'call_tab', approved: false, optionId: 'reject-once' }],
+          },
+        },
+      },
+    ]);
+    const parts = (msg!.content as unknown as Array<Record<string, unknown>>).filter(
+      (p) => p.type === 'tool-call'
+    );
+    expect(parts).toEqual([
+      expect.objectContaining({ approval: expect.objectContaining({ approved: false }) }),
+    ]);
+  });
+});
+
 describe('convertToThreadMessageLike — grant cards', () => {
   it('restores the grant card as a tool-call part with the grant as args', () => {
     const grant = {

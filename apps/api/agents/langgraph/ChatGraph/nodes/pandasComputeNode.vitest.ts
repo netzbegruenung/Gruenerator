@@ -183,4 +183,17 @@ describe('pandasComputeNode', () => {
     executeProvider.mockRejectedValue(new Error('provider down'));
     expect(await pandasComputeNode(state)).toEqual({ pythonCode: null, computeFailed: true });
   });
+
+  it('asks for German number and date output in the analysis prompt only (#5043)', async () => {
+    // Pandas prints 2114.23 and 2004-01-31 00:00:00; the card shows stdout
+    // verbatim and the answer copies it.
+    await pandasComputeNode(makeState('{"related": true, "code": "print(1)"}'));
+    const analyse = requestAt(0).systemPrompt as string;
+    expect(analyse).toContain('→ 2.114,23');
+    expect(analyse).toContain('strftime("%d.%m.%Y")');
+
+    // Filling writes cells — formatted strings there would break the workbook.
+    await pandasComputeNode(makeState('{"related": true, "code": "print(1)"}'), { mode: 'fill' });
+    expect(requestAt(0).systemPrompt as string).not.toContain('→ 2.114,23');
+  });
 });

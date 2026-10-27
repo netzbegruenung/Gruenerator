@@ -54,6 +54,19 @@ const text = z
   .transform((value) => value.replace(CITATION_MARKER_RE, '').trim())
   .pipe(z.string().min(1));
 
+/**
+ * A tile value the model wrote as a number (`"value": 2114.23` — the prompt's
+ * „Zahlen als Zahl" rule invites it) is shown German-style instead of failing
+ * the block and leaking the raw JSON fence into the answer (#5043).
+ */
+const figure = z.union([
+  text,
+  z
+    .number()
+    .finite()
+    .transform((n) => n.toLocaleString('de-DE', { maximumFractionDigits: 2 })),
+]);
+
 /** Semantic colours; each client maps them onto its own theme tokens. */
 export const visualToneSchema = z.enum([
   'primary',
@@ -111,7 +124,7 @@ export const statsBlockSchema = z.object({
     .array(
       z.object({
         label: text,
-        value: text,
+        value: figure,
         /** Change line, free text: "+3,2 % ggü. 2020". */
         change: text.optional(),
         trend: z.enum(['up', 'down', 'flat']).optional(),
