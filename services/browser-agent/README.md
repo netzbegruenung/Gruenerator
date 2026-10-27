@@ -8,18 +8,30 @@ Modell-Key im Dienst: das Modell kommt ausschließlich über die API-Lane
 ## Egress-Proxy (`src/browser_agent/egress.py`)
 
 Der Browser wird per `--proxy-server` durch einen filternden Proxy gezwungen.
-Chromium läuft ohne Sandbox (siehe Dockerfile); damit ein Renderer-Exploit den
-Proxy nicht einfach umgeht, läuft er im Betrieb als **eigener Container**:
+Chromium läuft ohne Sandbox (siehe Dockerfile). Ein übernommener Renderer soll
+deshalb weder den Proxy umgehen noch die API erreichen können; im Betrieb
+trennt das die Netz-Topologie (Salt `docker-compose.yml.j2`):
 
-- `browser-agent` hängt nur im Netz `gruenerator-browser` (`internal: true`,
-  `gateway_mode_ipv4/ipv6: isolated`). Ohne `isolated` bleibt ein Dienst auf
-  dem Host über die Gateway-IP erreichbar (gemessen 27.10.2026, Docker 29.5);
-  die Option braucht Docker ≥ 28.
-- `browser-egress` (dasselbe Image, `python -c "from browser_agent.egress import
-main; main()"`, lauscht auf `:8899`) hängt zusätzlich in einem Netz mit
-  Ausgang. Der Agent bekommt ihn per Env `BROWSER_EGRESS_PROXY=http://browser-egress:8899`;
-  ist die Env gesetzt, startet `api.py` keinen Proxy im Prozess.
-- Die API erreicht der Agent für das Modell direkt über das interne Netz.
+- `browser-agent` hängt allein im Netz `gruenerator-browser`, die API (neben
+  ihrem normalen Netz) im Netz `gruenerator-browser-control`. Beide sind
+  `internal: true` mit `gateway_mode_ipv4/ipv6: isolated` — ohne `isolated`
+  bleibt ein Dienst auf dem Host über die Gateway-IP erreichbar (gemessen
+  27.10.2026, Docker 29.5); die Option braucht Docker ≥ 28, Salt rollt den
+  Dienst darunter nicht aus.
+- Der einzige Container in beiden Netzen und im Internet ist
+  `browser-gateway` (dasselbe Image, `python -c "from browser_agent.gateway
+import main; main()"`, `src/browser_agent/gateway.py`). Er hält kein
+  Geheimnis und hat drei Türen:
+  - `:8899` Egress-Proxy (unten). Der Agent bekommt ihn per
+    `BROWSER_EGRESS_PROXY=http://browser-gateway:8899`; ist die Env gesetzt,
+    startet `api.py` keinen Proxy im Prozess.
+  - `:8898` Modell: nur `POST /api/browser-agent/llm/v1/chat/completions`, an
+    `BROWSER_GATEWAY_API_UPSTREAM` weitergereicht mit nichts als
+    `Authorization` und `Content-Type`; alles andere `404`/`405`. Die API
+    schickt dem Agent diese Adresse als `llm_base_url` (`API_INTERNAL_BASE_URL`).
+  - `:8000` Läufe: TCP-Weiterleitung von der API zu
+    `BROWSER_GATEWAY_AGENT_UPSTREAM` (`BROWSER_AGENT_URL` der API). Der Agent
+    prüft dort selbst `X-Browser-Agent-Secret`.
 
 Ohne `BROWSER_EGRESS_PROXY` (lokal, Rauchtest `proxy_smoke.py`) startet
 `api.py` den Proxy im Prozess auf `127.0.0.1:8899`. Der Proxy ist die Sperre
@@ -51,9 +63,11 @@ docker run --rm -v "$PWD/services/browser-agent/evals:/evals" \
     gruenerator-browser-agent python /evals/proxy_smoke.py
 ```
 
-Die Topologie selbst (kein direkter Ausgang, kein Host-Dienst erreichbar,
-Chromium mit dem Profil aus `run.py` lädt über den Proxy-Container) prüft
-`evals/topology_smoke.sh <image>`, ebenfalls in der Image-CI.
+Die Topologie selbst prüft `evals/topology_smoke.sh <image>`, ebenfalls in der
+Image-CI: kein direkter Ausgang, kein Host-Dienst, keine direkte Verbindung
+zwischen Agent und API (in beide Richtungen), Chromium mit dem Profil aus
+`run.py` lädt über das Gateway, und das Gateway reicht nur den Modell-Pfad
+durch.
 
 Jeder „gesperrt“-Fall in `proxy_smoke.py` lädt nachweislich ohne die Sperre (example.org vor
 und nach der Zusatzsperre, ein lokaler Server mit Abrufzähler, eine

@@ -99,9 +99,17 @@ const envSchema = z.object({
    * `website_erkunden` wird nicht montiert.
    */
   BROWSER_AGENT_TOKEN_SECRET: z.string().optional(),
-  /** Basis-URL des Browser-Dienstes. Optional; ohne sie bleibt das Feature aus. */
+  /**
+   * Basis-URL des Browser-Dienstes. Optional; ohne sie bleibt das Feature aus.
+   * Im Betrieb der Container `browser-gateway` (`:8000`), nie der Agent direkt:
+   * API und Agent teilen kein Netz (`services/browser-agent/src/browser_agent/gateway.py`).
+   */
   BROWSER_AGENT_URL: z.string().optional(),
-  /** Wie der Browser-Dienst die API erreicht (für den Modell-Proxy). Default `http://localhost:3001`. */
+  /**
+   * Wie der Browser-Dienst die API erreicht (für den Modell-Proxy). Default
+   * `http://localhost:3001`; im Betrieb `browser-gateway:8898`, das nur den
+   * Modell-Pfad durchlässt.
+   */
   API_INTERNAL_BASE_URL: z.string().optional(),
   /**
    * Where generated thumbnail variants are cached. Defaults to

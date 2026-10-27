@@ -54,10 +54,11 @@ COPY src/ /app/src/
 # Die Chromium-Sandbox bleibt trotzdem aus: browser-use hängt im Container
 # (IN_DOCKER) --no-sandbox an, und ohne zusätzliche Capabilities/seccomp-Profil
 # kann Chromium als Nicht-root keine User-Namespaces anlegen. Bindend ist
-# daher das Netz, nicht die Sandbox: im Betrieb hängt dieser Container nur in
-# einem Docker-Netz ohne Ausgang und Gateway-Adresse, und der Egress-Proxy
-# (egress.py) läuft als eigener Container `browser-egress` aus demselben Image
-# (Salt: docker-compose.yml.j2; geprüft von evals/topology_smoke.sh).
+# daher das Netz, nicht die Sandbox: im Betrieb hängt dieser Container allein
+# in einem Docker-Netz ohne Ausgang und Gateway-Adresse, und der einzige Weg
+# hinaus (Internet über den Egress-Proxy, der Modell-Pfad der API) ist der
+# Container `browser-gateway` aus demselben Image (gateway.py; Salt:
+# docker-compose.yml.j2; geprüft von evals/topology_smoke.sh).
 RUN useradd --create-home --uid 10001 agent
 USER agent
 

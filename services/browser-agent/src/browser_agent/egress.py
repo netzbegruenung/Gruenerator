@@ -1,9 +1,9 @@
 """Filternder Egress-Proxy: der Browser darf nur ins öffentliche Netz.
 
 Chromium wird per ``--proxy-server`` durch diesen Proxy gezwungen. Im Betrieb
-läuft er als eigener Container (``main``) zwischen einem Docker-Netz ohne
-Ausgang, in dem der Browser hängt, und dem Internet; lokal startet ``api.py``
-ihn im selben Prozess. Er löst DNS selbst auf, prüft **jede** aufgelöste Adresse und
+läuft er im Container ``browser-gateway`` (``gateway.py``) zwischen einem
+Docker-Netz ohne Ausgang, in dem der Browser hängt, und dem Internet; lokal
+startet ``api.py`` ihn im selben Prozess. Er löst DNS selbst auf, prüft **jede** aufgelöste Adresse und
 verbindet dann zur geprüften IP (nicht noch einmal zum Namen), damit ein
 zweiter, abweichender DNS-Lookup (Rebinding) nichts ändern kann.
 """
@@ -207,16 +207,3 @@ async def start_egress_proxy(
     ports = frozenset(allowed_ports) if allowed_ports is not None else allowed_ports_from_env()
     return await asyncio.start_server(lambda r, w: _handle(r, w, extra, ports), host, port)
 
-
-def main() -> None:
-    """Proxy als eigener Dienst (Container ``browser-egress``)."""
-    host = os.environ.get("BROWSER_EGRESS_HOST", "0.0.0.0")
-    port = int(os.environ.get("BROWSER_EGRESS_PORT", "8899"))
-
-    async def serve() -> None:
-        # Ein ungültiger BROWSER_EGRESS_EXTRA_BLOCKED-Eintrag lässt den Start scheitern.
-        server = await start_egress_proxy(host, port, os.environ.get("BROWSER_EGRESS_EXTRA_BLOCKED", "").split(","))
-        async with server:
-            await server.serve_forever()
-
-    asyncio.run(serve())
