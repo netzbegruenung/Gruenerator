@@ -147,7 +147,11 @@ function mergeBy<T>(current: T[], incoming: T[], key: (item: T) => string | numb
   return next;
 }
 
-/** Pure merge of a patch into a session; steps by `n`, screenshots by `name`. */
+/**
+ * Pure merge of a patch into a session; steps by `n`, screenshots by `name`.
+ * Steps are kept sorted by `n` — the message copy in parseSSEStream sorts the
+ * same way, so the panel and the reopened message never disagree on order.
+ */
 export function mergeBrowserSession(
   current: BrowserSessionArtifact,
   patch: BrowserSessionPatch
@@ -155,7 +159,7 @@ export function mergeBrowserSession(
   return {
     ...current,
     ...patch,
-    steps: mergeBy(current.steps, patch.steps ?? [], (s) => s.n),
+    steps: [...mergeBy(current.steps, patch.steps ?? [], (s) => s.n)].sort((a, b) => a.n - b.n),
     screenshots: mergeBy(current.screenshots, patch.screenshots ?? [], (s) => s.name),
   };
 }

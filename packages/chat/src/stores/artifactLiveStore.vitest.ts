@@ -175,6 +175,16 @@ describe('upsertBrowserSession', () => {
     expect(active().screenshots).toEqual([{ name: 'a', url: '/a2' }]);
   });
 
+  it('orders steps by n, not by arrival — the same rule as the message copy', () => {
+    const store = useArtifactLiveStore.getState();
+    store.setActiveArtifact(SESSION);
+    store.upsertBrowserSession('bs-1', { steps: [step(3, 'click')] });
+    store.upsertBrowserSession('bs-1', { steps: [step(1, 'navigate')] });
+    store.upsertBrowserSession('bs-1', { steps: [step(2, 'scroll')] });
+
+    expect(active().steps.map((s) => s.n)).toEqual([1, 2, 3]);
+  });
+
   it('overwrites scalar fields', () => {
     const store = useArtifactLiveStore.getState();
     store.setActiveArtifact(SESSION);
