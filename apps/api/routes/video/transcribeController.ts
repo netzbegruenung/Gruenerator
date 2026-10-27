@@ -39,7 +39,10 @@ async function ensureTempDir(): Promise<void> {
 async function downloadToTempFile(url: string): Promise<string> {
   await ensureTempDir();
 
-  const ext = new URL(url).pathname.split('.').pop()?.split('?')[0] || 'mp4';
+  // The extension comes from the caller's URL: only plain alphanumerics may
+  // reach the path, or "a./../x" would write outside TEMP_DIR.
+  const urlExt = new URL(url).pathname.split('.').pop() ?? '';
+  const ext = /^[a-z0-9]{1,8}$/i.test(urlExt) ? urlExt : 'mp4';
   const filename = `${crypto.randomUUID()}.${ext}`;
   const tempPath = `${TEMP_DIR}/${filename}`;
 
@@ -70,13 +73,6 @@ const transcribeSchema = z.object({
   targetLanguage: z.string().optional(),
 });
 
-/**
- * POST /api/video/transcribe
- *
- * Accepts { url, targetLanguage? } and returns word-level transcription
- * in the format the video editor expects:
- * { results: { main: { words: [{ word, start, end }] } } }
- */
 /**
  * Transcribes a media file on disk and answers in the video editor format:
  * { results: { main: { words: [{ word, start, end }] } } } (start/end in seconds).
