@@ -15,6 +15,8 @@ const router = express.Router();
 
 const CONTENT_TYPE_BY_EXT: Record<string, string> = {
   png: 'image/png',
+  // Browser-session frames (website_erkunden).
+  jpg: 'image/jpeg',
   csv: 'text/csv',
   json: 'application/json',
   txt: 'text/plain',

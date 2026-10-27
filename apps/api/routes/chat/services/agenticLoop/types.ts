@@ -210,6 +210,9 @@ export const DEFAULT_LOOP_BUDGET: LoopBudget = {
  */
 export const TOOL_TIMEOUT_OVERRIDES_MS: Record<string, number> = {
   research: 30_000,
+  // Ein echter Browser-Lauf: der Dienst deckelt ihn bei 170 s und schickt dann
+  // ein Teilergebnis; 10 s Luft für Bilder speichern und den Rückweg.
+  website_erkunden: 180_000,
   // Ein ganzes Notebook durchsuchen und dazu Postgres + Qdrant für jede Quelle —
   // bei großen Notebooks mehr als die Standardfrist. grep/stats lesen bis zu
   // 4 Mio. Zeichen, stats mit Lemmata wartet dazu bis 30 s auf den NLP-Dienst.

@@ -21,8 +21,9 @@
  * Zuwachs fangen, nicht eine Umformulierung.
  */
 import { asSchema } from '@ai-sdk/provider-utils';
-import { describe, it, expect } from 'vitest';
+import { afterAll, beforeAll, describe, it, expect } from 'vitest';
 
+import { env } from '../../../../config/env.js';
 import { buildChatToolCatalog } from '../../agents/toolCatalog.js';
 import { createSourceRegistry } from './sourceRegistry.js';
 import { createToolScope, DEFERRABLE_GROUPS } from './toolScope.js';
@@ -37,6 +38,16 @@ const sse = new Proxy({}, { get: () => () => undefined }) as unknown as SSEWrite
 const agentConfig = { identifier: 'gruenerator-universal' } as unknown as AgentConfig;
 
 const RECHERCHE_TURN = 'Was steht im Wahlprogramm zu Windkraft?';
+
+// `website_erkunden` wird nur montiert, wo der Browser-Dienst läuft. Hier
+// gesetzt, damit die `website`-Gruppe mitgemessen wird wie in Produktion.
+const browserAgentUrl = env.BROWSER_AGENT_URL;
+beforeAll(() => {
+  env.BROWSER_AGENT_URL = 'http://browser-agent.test';
+});
+afterAll(() => {
+  env.BROWSER_AGENT_URL = browserAgentUrl;
+});
 
 function buildFor(userText: string): ToolSet {
   const state = {

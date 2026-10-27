@@ -504,6 +504,9 @@ export async function persistAssistantResponse(params: PersistParams): Promise<P
       // one (messagesController), which also keeps the "signed at the moment of
       // handing out" rule true on reload.
       ...(finalState.webImageResults?.length ? { searchImages: finalState.webImageResults } : {}),
+      // The browser session of a `website_erkunden` call — asset URLs only, so
+      // the session view survives a reload without base64 in the row.
+      ...(finalState.browserSession != null && { browserSession: finalState.browserSession }),
       generatedImage: generatedImage
         ? {
             url: generatedImage.url,
