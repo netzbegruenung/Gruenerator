@@ -174,6 +174,7 @@
     "./utils/illustrations/registry": "./src/utils/illustrations/registry.ts",
     "./utils/illustrations/svgCache": "./src/utils/illustrations/svgCache.ts",
     "./utils/illustrations/types": "./src/utils/illustrations/types.ts",
+    "./utils/hostStorageKeys": "./src/utils/hostStorageKeys.ts",
     "./utils/imageElementComparison": "./src/utils/imageElementComparison.ts",
     "./utils/imageFilters": "./src/utils/imageFilters.ts",
     "./utils/keyboardCrop": "./src/utils/keyboardCrop.ts",
