@@ -33,7 +33,7 @@ import { makeSectionDefiner } from './factory/defineSection';
 import { injectFeatureProps } from './featureInjector';
 import { createShareSection } from './shareSection';
 
-import type { TemplateAiCapabilities } from '../ai/types';
+import type { SharepicAiCapabilities } from './aiCapabilities';
 import type {
   BaseCanvasState,
   ImageBackgroundState,
@@ -104,7 +104,7 @@ const calculateLayout = (_state: FreeformState): LayoutResult => ({});
 const createFreeformAiCapabilities = (
   width: number,
   height: number
-): TemplateAiCapabilities<FreeformState, FreeformActions> => ({
+): SharepicAiCapabilities<FreeformState, FreeformActions> => ({
   supportedOperations: [
     'set-text',
     'set-background-color',
@@ -256,7 +256,7 @@ export const createFreeformFullConfig = (
   );
 
 const withFreeformAi = (
-  ai: TemplateAiCapabilities<FreeformState, FreeformActions>,
+  ai: SharepicAiCapabilities<FreeformState, FreeformActions>,
   width: number,
   height: number,
   fontColor: string,

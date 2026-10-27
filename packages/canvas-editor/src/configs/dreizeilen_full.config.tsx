@@ -58,13 +58,13 @@ import { injectFeatureProps } from './featureInjector';
 import { PLACEHOLDER_TEXT } from './placeholders';
 import { createShareSection } from './shareSection';
 
+import type { SharepicAiCapabilities } from './aiCapabilities';
 import type { DreizeilenFullState, DreizeilenFullActions } from './dreizeilen.types';
 import type {
   FullCanvasConfig,
   LayoutResult as GenericLayoutResult,
   AdditionalText,
 } from './types';
-import type { TemplateAiCapabilities } from '../ai/types';
 import type { StockImageAttribution } from '../common/imageSourceTypes';
 import type { BalkenInstance } from '../primitives/BalkenGroup';
 import type { AssetInstance } from '../utils/canvasAssets';
@@ -304,7 +304,7 @@ function fitAfterTextEdit(
   return { ...fitted, balkenInstances: reconcileBalkenInstances(fitted, fitted.balkenInstances) };
 }
 
-const dreizeilenAiCapabilities: TemplateAiCapabilities<DreizeilenFullState, DreizeilenFullActions> =
+const dreizeilenAiCapabilities: SharepicAiCapabilities<DreizeilenFullState, DreizeilenFullActions> =
   {
     supportedOperations: [
       'set-text',

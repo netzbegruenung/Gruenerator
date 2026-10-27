@@ -149,6 +149,12 @@ export function createCanvasAiSnapshotSchema<const K extends readonly [string, .
   });
 }
 
+export const coreCanvasAiSnapshotSchema = createCanvasAiSnapshotSchema(
+  CORE_CANVAS_AI_ELEMENT_KINDS
+);
+
+export type CoreCanvasAiSnapshot = z.infer<typeof coreCanvasAiSnapshotSchema>;
+
 /** Canvas → model prompt context: what a template offers. */
 export const canvasAiCapabilitiesSchema = z.object({
   supportedOperations: z.array(z.string().min(1)).min(1),

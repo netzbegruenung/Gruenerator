@@ -2,8 +2,8 @@ import { buildAssetCapability } from '../../ai/assetCapability';
 import { buildIllustrationCapability } from '../../ai/illustrationCapability';
 
 import type { CanvasAiActionsBase } from '../../ai/applyOperation';
-import type { TemplateAiCapabilities } from '../../ai/types';
 import type { CanvasConfigId } from '../../templates/registry';
+import type { SharepicAiCapabilities } from '../aiCapabilities';
 import type { CanvasAiOperationKind, CanvasAiSnapshot } from '@gruenerator/contracts';
 
 const BASE_OPERATIONS: readonly CanvasAiOperationKind[] = [
@@ -58,7 +58,7 @@ export interface CreateAiCapabilitiesOptions<TState, TActions> {
  */
 export function createAiCapabilities<TState, TActions extends CanvasAiActionsBase>(
   options: CreateAiCapabilitiesOptions<TState, TActions>
-): TemplateAiCapabilities<TState, TActions> {
+): SharepicAiCapabilities<TState, TActions> {
   const { id, errorLabel, fields, background } = options;
 
   const supportedOperations: CanvasAiOperationKind[] = background

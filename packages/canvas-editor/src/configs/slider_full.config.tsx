@@ -38,6 +38,7 @@ import { fromLayout } from './factory/layoutAccessors';
 import { injectFeatureProps } from './featureInjector';
 import { createShareSection } from './shareSection';
 
+import type { SharepicAiCapabilities } from './aiCapabilities';
 import type {
   FullCanvasConfig,
   LayoutResult,
@@ -47,7 +48,6 @@ import type {
   ImageElementConfig,
   AdditionalText,
 } from './types';
-import type { TemplateAiCapabilities } from '../ai/types';
 import type { BackgroundColorOption, StockImageAttribution } from '../sidebar/types';
 import type { BalkenInstance, BalkenMode } from '../utils/balkenUtils';
 import type { AssetInstance } from '../utils/canvasAssets';
@@ -484,7 +484,7 @@ const createTextElements = (style: SliderStyle): TextElementConfig<SliderState>[
 
 const createAiCapabilities = (
   brand: SliderBrand
-): TemplateAiCapabilities<SliderState, SliderActions> => ({
+): SharepicAiCapabilities<SliderState, SliderActions> => ({
   supportedOperations: ['set-text', 'set-color-scheme', 'set-font-size'],
 
   colorSchemes: brand.aiColorSchemes,

@@ -31,7 +31,7 @@ import { injectFeatureProps } from './featureInjector';
 import { PLACEHOLDER_TEXT } from './placeholders';
 import { createShareSection } from './shareSection';
 
-import type { TemplateAiCapabilities } from '../ai/types';
+import type { SharepicAiCapabilities } from './aiCapabilities';
 import type { StockImageAttribution } from '../common/imageSourceTypes';
 import type { CircleBadgeInstance, CircleBadgeTextLine } from '../primitives';
 import type { FullCanvasConfig, LayoutResult, AdditionalText } from './types';
@@ -320,7 +320,7 @@ function carryDateCircleBadges(
 // AI CAPABILITY
 // ============================================================================
 
-const veranstaltungAiCapabilities: TemplateAiCapabilities<
+const veranstaltungAiCapabilities: SharepicAiCapabilities<
   VeranstaltungFullState,
   VeranstaltungFullActions
 > = {
