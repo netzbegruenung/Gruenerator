@@ -1,7 +1,7 @@
+import { cn } from '@ggraphic/editor/utils/cn';
 import React, { useCallback, useState, memo } from 'react';
 
 import { useTrackUnsplashDownload } from '../../hooks/useTrackUnsplashDownload';
-import { cn } from '../../utils/cn';
 import {
   isElementDrag,
   isMediaDrag,

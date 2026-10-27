@@ -1,8 +1,8 @@
+import { cn } from '@ggraphic/editor/utils/cn';
 import { memo, useCallback } from 'react';
 
 import { AutoSaveIndicator } from '../components/TopBar/AutoSaveIndicator';
 import { useIsCanvasMobile } from '../hooks/useIsCanvasMobile';
-import { cn } from '../utils/cn';
 
 import { SIDEBAR_PANEL_ID } from './sidebarStyles';
 

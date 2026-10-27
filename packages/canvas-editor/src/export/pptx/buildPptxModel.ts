@@ -9,6 +9,9 @@
  * Ids in `layerOrder`, dann der Rest in der Standardreihenfolge der Arten.
  */
 
+import { ICON_TARGET_SIZE, ILLUSTRATION_TARGET_SIZE } from '@ggraphic/editor/utils/motifSizes';
+import { backgroundStraighten } from '@ggraphic/editor/utils/straighten';
+
 import { carryInstanceState } from '../../configs/factory/carryInstanceState';
 import { ASSET_TARGET_SIZE } from '../../utils/canvasAssets';
 import {
@@ -19,9 +22,7 @@ import {
   type ChartInstance,
   type ChartType,
 } from '../../utils/chartUtils';
-import { ICON_TARGET_SIZE, ILLUSTRATION_TARGET_SIZE } from '../../utils/motifSizes';
 import { photoStripBeside, type ShapeInstance } from '../../utils/shapes';
-import { backgroundStraighten } from '../../utils/straighten';
 
 import {
   estimateMeasure,

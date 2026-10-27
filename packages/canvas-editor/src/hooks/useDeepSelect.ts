@@ -1,8 +1,8 @@
+import { itemBodyRect, itemsUnderPointer, nextDeepTarget } from '@ggraphic/editor/utils/deepSelect';
 import Konva from 'konva';
 import { useEffect, useRef } from 'react';
 
 import { useCanvasStore } from '../stores/CanvasStoreProvider';
-import { itemBodyRect, itemsUnderPointer, nextDeepTarget } from '../utils/deepSelect';
 
 import type { CanvasStageRef } from '../primitives/CanvasStage';
 

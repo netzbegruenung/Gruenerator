@@ -8,13 +8,13 @@
  * Grenze zum Konva-Reconciler überqueren muss — eine Prüfung am Hook allein
  * bliebe grün, wenn diese Brücke risse.
  */
+import { AutoSaveStoreProvider } from '@ggraphic/editor/stores/AutoSaveStoreProvider';
 import { act, render } from '@testing-library/react';
 import Konva from 'konva';
 import React, { createRef } from 'react';
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { loadCanvasConfig } from '../configs/configLoader';
-import { AutoSaveStoreProvider } from '../stores/AutoSaveStoreProvider';
 
 import { GenericCanvas, type GenericCanvasRef } from './GenericCanvas';
 

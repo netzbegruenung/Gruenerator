@@ -1,5 +1,3 @@
-import { describe, expect, it } from 'vitest';
-
 import {
   boxFrame,
   calculateCenteredSnapPosition,
@@ -10,7 +8,8 @@ import {
   snapByBounds,
   snapEdgesByBounds,
   type SnapTarget,
-} from './snapping';
+} from '@ggraphic/editor/utils/snapping';
+import { describe, expect, it } from 'vitest';
 
 const STAGE_W = 1080;
 const STAGE_H = 1350;

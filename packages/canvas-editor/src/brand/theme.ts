@@ -18,12 +18,11 @@
  */
 
 import { type BrandPack } from '@ggraphic/core';
+import { type ComposerBrand } from '@ggraphic/editor/brand/composerBrand';
 
 import { SYSTEM_ASSETS } from '../utils/canvasAssets';
 
-import { type ComposerBrand } from './composerBrand';
-
-import type { BackgroundColorOption } from '../sidebar/tabTypes';
+import type { BackgroundColorOption } from '@ggraphic/editor/sidebar/tabTypes';
 
 export type BrandLocale = 'de-DE' | 'de-AT';
 

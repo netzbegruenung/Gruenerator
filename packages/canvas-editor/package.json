@@ -80,6 +80,7 @@
   },
   "dependencies": {
     "@ggraphic/core": "workspace:*",
+    "@ggraphic/editor": "workspace:*",
     "@ggraphic/schema": "workspace:*",
     "@gruenerator/collab": "workspace:*",
     "@gruenerator/contracts": "workspace:*",

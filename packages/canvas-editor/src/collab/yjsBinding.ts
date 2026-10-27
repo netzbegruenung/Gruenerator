@@ -1,6 +1,5 @@
+import { YDOC_KEYS } from '@ggraphic/editor/collab/ydocKeys';
 import * as Y from 'yjs';
-
-import { YDOC_KEYS } from './ydocKeys';
 
 import type { CanvasEditorStoreApi } from '../stores/createCanvasEditorStore';
 import type { CanvasEditorConfig } from '../types/editorTypes';

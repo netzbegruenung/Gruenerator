@@ -1,10 +1,10 @@
+import { LOCKED_TRANSFORMER, useIsItemLocked } from '@ggraphic/editor/components/canvasItemLock';
+import { useBoxSnap, type SnapProps } from '@ggraphic/editor/hooks/useBoxSnap';
+import { coverPhotoRect } from '@ggraphic/editor/utils/coverFit';
+import { ELEMENT_TRANSFORMER, normalizeRotation } from '@ggraphic/editor/utils/orientation';
 import React, { useRef, useEffect, useState, useCallback, memo } from 'react';
 import { Circle, Group, Image as KonvaImage, Line, Rect, Shape, Transformer } from 'react-konva';
 
-import { LOCKED_TRANSFORMER, useIsItemLocked } from '../components/canvasItemLock';
-import { useBoxSnap, type SnapProps } from '../hooks/useBoxSnap';
-import { coverPhotoRect } from '../utils/coverFit';
-import { ELEMENT_TRANSFORMER, normalizeRotation } from '../utils/orientation';
 import { frameBox } from '../utils/renderedBoxes';
 import { assertNever } from '../utils/shapes';
 

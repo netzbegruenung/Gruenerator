@@ -2,6 +2,7 @@
  * TemplatePickerFlyout - Flyout for selecting a template when adding a new page
  */
 
+import { cn } from '@ggraphic/editor/utils/cn';
 import React, { useCallback, useState, useRef, useEffect, memo } from 'react';
 import { createPortal } from 'react-dom';
 import { HiOutlineDuplicate, HiX, HiPlus, HiTemplate, HiBookOpen, HiStop } from 'react-icons/hi';
@@ -10,7 +11,6 @@ import { type BrandLocale } from '../brand/theme';
 import { getCanvasFormatOrDefault, isSlideFormat } from '../formats';
 import { SlideLayoutPicker } from '../slides/SlideLayoutPicker';
 import { type SlideLayoutId } from '../slides/slideLayouts';
-import { cn } from '../utils/cn';
 import {
   getTemplatesForLocale,
   TEMPLATE_REGISTRY,

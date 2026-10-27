@@ -9,12 +9,14 @@
  * lazily so it only enters the bundle when a chart is actually placed.
  */
 
+import { LOCKED_TRANSFORMER, useIsItemLocked } from '@ggraphic/editor/components/canvasItemLock';
+import { useBoxSnap, type SnapProps } from '@ggraphic/editor/hooks/useBoxSnap';
+import { ELEMENT_TRANSFORMER } from '@ggraphic/editor/utils/orientation';
+import { useTrackPendingImage } from '@ggraphic/editor/utils/pendingImages';
 import { memo, useEffect, useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import { Image, Group, Rect, Transformer } from 'react-konva';
 
-import { LOCKED_TRANSFORMER, useIsItemLocked } from '../components/canvasItemLock';
-import { useBoxSnap, type SnapProps } from '../hooks/useBoxSnap';
 import {
   CHART_INK_DARK,
   chartInk,
@@ -23,8 +25,6 @@ import {
   chartSeriesOutlines,
   type ChartInstance,
 } from '../utils/chartUtils';
-import { ELEMENT_TRANSFORMER } from '../utils/orientation';
-import { useTrackPendingImage } from '../utils/pendingImages';
 import { chartBox } from '../utils/renderedBoxes';
 
 import type Konva from 'konva';

@@ -21,11 +21,11 @@ export {
   useAutoSaveStore,
   useAutoSaveStoreApi,
   useAutoSaveStoreShallow,
-} from './useAutoSaveStore';
+} from '@ggraphic/editor/stores/useAutoSaveStore';
 export type {
   AutoSaveStore,
   AutoSaveStoreApi,
   AutoSaveState,
   AutoSaveActions,
   AutoSaveStatus,
-} from './useAutoSaveStore';
+} from '@ggraphic/editor/stores/useAutoSaveStore';

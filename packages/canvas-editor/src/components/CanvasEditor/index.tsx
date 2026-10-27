@@ -23,6 +23,11 @@
  * - useToolbarHandlers     — bundled toolbar actions for the active page
  */
 
+import { serializeDeck } from '@ggraphic/editor/collab/pagesDoc';
+import { createPageSyncedCallbacks } from '@ggraphic/editor/collab/wrapCallbacksWithPageSync';
+import { AnnouncerContext, useLiveAnnouncer } from '@ggraphic/editor/hooks/useAnnounce';
+import { AutoSaveStoreProvider } from '@ggraphic/editor/stores/useAutoSaveStore';
+import { cn } from '@ggraphic/editor/utils/cn';
 import { Skeleton } from '@gruenerator/ui';
 import Konva from 'konva';
 import React, {
@@ -38,8 +43,6 @@ import React, {
 
 import { useCanvasEditorServices } from '../../CanvasEditorProvider';
 import { PAGE_PERSISTED_STATE_KEYS } from '../../collab/pageElementStateKeys';
-import { serializeDeck } from '../../collab/pagesDoc';
-import { createPageSyncedCallbacks } from '../../collab/wrapCallbacksWithPageSync';
 import { shareImageText } from '../../configs/shareSection';
 import { exportPptxDeck } from '../../export/pptx/exportPptxDeck';
 import {
@@ -57,7 +60,6 @@ import {
   isSlideFormat,
 } from '../../formats';
 import { usePageManager, useMultiPageExport, usePageThumbnails } from '../../hooks';
-import { AnnouncerContext, useLiveAnnouncer } from '../../hooks/useAnnounce';
 import { useDeckAutoSave } from '../../hooks/useDeckAutoSave';
 import { useIsCanvasMobile } from '../../hooks/useIsCanvasMobile';
 import { useZoomGestures } from '../../hooks/useZoomGestures';
@@ -78,9 +80,7 @@ import {
   type SlideLayoutId,
 } from '../../slides/slideLayouts';
 import { useCanvasStoreSelector } from '../../stores/CanvasStoreProvider';
-import { AutoSaveStoreProvider } from '../../stores/useAutoSaveStore';
 import { type CanvasConfigId } from '../../templates/registry';
-import { cn } from '../../utils/cn';
 import { collectAltTextPages as collectCapturedAltTextPages } from '../../utils/collectAltTextPages';
 import { ensureFontsReady } from '../../utils/ensureFontsReady';
 import { sameLayerEntries } from '../../utils/layerLabels';

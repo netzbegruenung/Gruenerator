@@ -14,10 +14,21 @@ import {
   unionBox,
   type AlignDirection,
   type Delta,
-} from './alignment';
+} from '@ggraphic/editor/utils/alignment';
+import { itemBodyRect } from '@ggraphic/editor/utils/deepSelect';
+import { findDragNodes, selectableItemIds } from '@ggraphic/editor/utils/multiSelect';
+import {
+  axisAlignedBounds,
+  centreOf,
+  normalizeRotation,
+  placeKeepingCentre,
+  readNodeFrame,
+  type Box,
+  type NodeFrame,
+} from '@ggraphic/editor/utils/orientation';
+
 import { CanvasClipboard } from './canvasClipboard';
 import { moveLayerTo, type CanvasItem, type LayerStep } from './canvasLayerManager';
-import { itemBodyRect } from './deepSelect';
 import {
   DUPLICATE_OFFSET,
   duplicateElementInState,
@@ -30,16 +41,6 @@ import {
 import { layerLabel } from './layerLabels';
 import { lockedIdsOf, toggledLocks } from './layerLock';
 import { locateDrop } from './mediaDrop';
-import { findDragNodes, selectableItemIds } from './multiSelect';
-import {
-  axisAlignedBounds,
-  centreOf,
-  normalizeRotation,
-  placeKeepingCentre,
-  readNodeFrame,
-  type Box,
-  type NodeFrame,
-} from './orientation';
 import {
   findOrientationDoor,
   type OrientableKind,
@@ -55,11 +56,11 @@ import {
 } from './selectionCapabilities';
 import { openTextEditor } from './textEditorOpeners';
 
-import type { PageCommandId } from './canvasCommandRegistry';
 import type { BaseCanvasState } from '../configs/factory/baseTypes';
 import type { CanvasElementConfig, LayoutResult } from '../configs/types';
 import type { OptionalCanvasActions } from '../hooks/useCanvasElementHandlers';
 import type { CanvasEditorStoreApi } from '../stores/createCanvasEditorStore';
+import type { PageCommandId } from '@ggraphic/editor/utils/canvasCommandRegistry';
 import type Konva from 'konva';
 
 export interface ClientPoint {

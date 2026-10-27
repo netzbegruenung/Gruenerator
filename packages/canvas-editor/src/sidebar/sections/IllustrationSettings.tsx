@@ -1,7 +1,7 @@
+import { cn } from '@ggraphic/editor/utils/cn';
 import { FaTrash, FaCopy } from 'react-icons/fa';
 
 import { CustomColorSwatch } from '../../components/CustomColorSwatch';
-import { cn } from '../../utils/cn';
 import { ILLUSTRATION_COLORS } from '../../utils/illustrations/types';
 import { SidebarSlider } from '../components/SidebarSlider';
 import { ACTION_BTN, ACTION_BTN_DANGER, SECTION_HEADER, SECTION_TITLE } from '../sidebarStyles';

@@ -15,9 +15,8 @@
  * dahin sah man nichts, und klappte die Palette vorher zu, ging die Farbe
  * samt Listener verloren. Beim Abbauen wird eine offene Wahl noch übernommen.
  */
+import { cn } from '@ggraphic/editor/utils/cn';
 import { useEffect, useRef, type CSSProperties, type InputHTMLAttributes } from 'react';
-
-import { cn } from '../utils/cn';
 
 const HEX6 = /^#[0-9a-f]{6}$/i;
 const DRAG_COMMIT_MS = 250;

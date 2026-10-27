@@ -1,8 +1,8 @@
+import { AutoSaveStoreProvider } from '@ggraphic/editor/stores/AutoSaveStoreProvider';
 import { act, renderHook } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 
 import { CanvasEditorProvider, type CanvasEditorServices } from '../../CanvasEditorProvider';
-import { AutoSaveStoreProvider } from '../../stores/AutoSaveStoreProvider';
 import { useCanvasAutoSave } from '../useCanvasAutoSave';
 
 import type { ReactNode } from 'react';

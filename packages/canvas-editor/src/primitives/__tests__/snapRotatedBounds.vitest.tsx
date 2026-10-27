@@ -9,7 +9,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { CanvasStage, type CanvasStageRef } from '../CanvasStage';
 import { CanvasText } from '../CanvasText';
 
-import type { SnapTarget } from '../../utils/snapping';
+import type { SnapTarget } from '@ggraphic/editor/utils/snapping';
 import type Konva from 'konva';
 
 function renderRotatedText(

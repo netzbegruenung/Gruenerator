@@ -1,3 +1,7 @@
+import {
+  TOOLBAR_ITEMS_WITH_INPUTS,
+  useRovingToolbar,
+} from '@ggraphic/editor/hooks/useRovingToolbar';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { PiImage, PiTextAa } from 'react-icons/pi';
@@ -5,7 +9,6 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { SubsectionTabBar } from '../../sidebar/SubsectionTabBar';
 import { axe } from '../../test-utils';
-import { TOOLBAR_ITEMS_WITH_INPUTS, useRovingToolbar } from '../useRovingToolbar';
 
 function Bar() {
   const roving = useRovingToolbar<HTMLDivElement>();

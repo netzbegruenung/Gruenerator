@@ -3,7 +3,6 @@ import { createContext, useContext } from 'react';
 import type { ApplyResult } from './ai/types';
 import type { BlockSlide } from './blocks/liftedBlock';
 import type { StockImage, StockImageAttribution } from './common/imageSourceTypes';
-import type { AltTextPage, CanvasSpecEditBridge } from './editorSeamTypes';
 import type {
   CanvasBlockService,
   CanvasCarouselService,
@@ -15,6 +14,7 @@ import type {
   UseCanvasStudioAssets,
   UseCanvasUnsplashSearch,
 } from './hostServices';
+import type { AltTextPage, CanvasSpecEditBridge } from '@ggraphic/editor/editorSeamTypes';
 import type {
   CanvasAiCapabilities,
   CanvasAiOperation,
@@ -43,7 +43,11 @@ export interface CanvasAiEditBridge {
   applyOperations: (ops: CanvasAiOperation[]) => ApplyResult[];
 }
 
-export type { AltTextPage, AltTextScope, CanvasSpecEditBridge } from './editorSeamTypes';
+export type {
+  AltTextPage,
+  AltTextScope,
+  CanvasSpecEditBridge,
+} from '@ggraphic/editor/editorSeamTypes';
 
 /**
  * Props passed to the host-supplied chat component when the user opens the

@@ -1,11 +1,11 @@
-import { useCallback, useEffect, useRef } from 'react';
-
-import { CanvasClipboard } from '../../../utils/canvasClipboard';
 import {
   isMacPlatform,
   isPageCommand,
   type CanvasCommandId,
-} from '../../../utils/canvasCommandRegistry';
+} from '@ggraphic/editor/utils/canvasCommandRegistry';
+import { useCallback, useEffect, useRef } from 'react';
+
+import { CanvasClipboard } from '../../../utils/canvasClipboard';
 import { buildCanvasMenu, type CanvasMenuSnapshot } from '../../CanvasContextMenu/canvasMenuModel';
 
 import type { ClientPoint } from '../../../utils/canvasCommands';

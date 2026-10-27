@@ -29,8 +29,9 @@
  * `lineHeight`, eine zentrierte Headline kaeme also linksbuendig heraus.
  */
 
+import { centreOf } from '@ggraphic/editor/utils/orientation';
+
 import { ASSET_TARGET_SIZE, getAssetBySrc } from './canvasAssets';
-import { centreOf } from './orientation';
 import { resolveImageElementBox } from './resolveElementValue';
 import { templateRotationOf } from './templateRotation';
 

@@ -18,8 +18,8 @@
  * Katalog zieht `@iconify` nach und hat in der Node-Lane nichts zu suchen.
  */
 
-import type { IconDef } from './canvasIcons';
 import type { IconState } from '../configs/factory/baseTypes';
+import type { IconDef } from '@ggraphic/editor/utils/canvasIcons';
 
 /**
  * Zum Auflösen zählt nur dieses eine Feld. Der Renderer hält seinen eigenen,

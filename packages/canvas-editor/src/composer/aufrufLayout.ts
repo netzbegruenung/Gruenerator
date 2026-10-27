@@ -1,4 +1,5 @@
-import { onGround } from '../brand/composerBrand';
+import { onGround } from '@ggraphic/editor/brand/composerBrand';
+
 import { createPillBadgeInstance } from '../utils/pillBadgeUtils';
 
 import { AT_EMPHASIS_STYLE } from './chromeParts';

@@ -4,13 +4,13 @@
  * beides zurück, und der Wiederaufbau über `createInitialState` behält die
  * Drehung. Hintergrundfoto und cover-gefüllte Bilder bekommen keinen Drehgriff.
  */
+import { AutoSaveStoreProvider } from '@ggraphic/editor/stores/AutoSaveStoreProvider';
 import { act, cleanup, render } from '@testing-library/react';
 import Konva from 'konva';
 import { createRef } from 'react';
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 
 import { GenericCanvas, type GenericCanvasRef } from '../../components/GenericCanvas';
-import { AutoSaveStoreProvider } from '../../stores/AutoSaveStoreProvider';
 import { templateElementToEntry } from '../../utils/templateElementInstance';
 import { isTemplateElementRotatable } from '../../utils/templateRotation';
 import { loadCanvasConfig } from '../configLoader';

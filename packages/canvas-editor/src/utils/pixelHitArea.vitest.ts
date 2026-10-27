@@ -1,6 +1,9 @@
+import {
+  applyPixelHitArea,
+  HIT_ALPHA_THRESHOLD,
+  hitCacheRatios,
+} from '@ggraphic/editor/utils/pixelHitArea';
 import { describe, expect, it, vi } from 'vitest';
-
-import { applyPixelHitArea, HIT_ALPHA_THRESHOLD, hitCacheRatios } from './pixelHitArea';
 
 import type Konva from 'konva';
 

@@ -1,8 +1,12 @@
 export { CanvasStage } from './CanvasStage';
 export type { CanvasStageProps, CanvasStageRef } from './CanvasStage';
 
-export { CanvasBackground } from './CanvasBackground';
-export type { CanvasBackgroundProps, GradientConfig, GradientStop } from './CanvasBackground';
+export { CanvasBackground } from '@ggraphic/editor/primitives/CanvasBackground';
+export type {
+  CanvasBackgroundProps,
+  GradientConfig,
+  GradientStop,
+} from '@ggraphic/editor/primitives/CanvasBackground';
 
 export { CanvasText } from './CanvasText';
 export type { CanvasTextProps } from './CanvasText';

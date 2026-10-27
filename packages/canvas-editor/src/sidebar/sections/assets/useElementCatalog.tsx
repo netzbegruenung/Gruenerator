@@ -1,3 +1,4 @@
+import { useAllIconsCatalog, useIconCatalog } from '@ggraphic/editor/hooks/useIconCatalog';
 import {
   shareThumbnailPreviewUrl,
   sharepicBlockThumbPath,
@@ -11,7 +12,6 @@ import { EMOJI_ASSETS, stickerAssetsForLocale } from '../../../brand/grueneAsset
 import { useCanvasEditorServices } from '../../../CanvasEditorProvider';
 import { useBlockInsert, type BlockInsertApi } from '../../../components/CanvasEditor/blockInsert';
 import { useEmojiCatalog } from '../../../hooks/useEmojiCatalog';
-import { useAllIconsCatalog, useIconCatalog } from '../../../hooks/useIconCatalog';
 import { useNoStudioAssets } from '../../../hostServices';
 import {
   ALL_ASSETS,
@@ -35,8 +35,8 @@ import { useStockPhotos } from './useStockPhotos';
 import type { ExtendedAssetsSectionProps } from './AssetsSection';
 import type { AssetView } from './constants';
 import type { ElementAction, ElementItem } from './elementTypes';
-import type { IconDef } from '../../../utils/canvasIcons';
 import type { IllustrationDef } from '../../../utils/illustrations/types';
+import type { IconDef } from '@ggraphic/editor/utils/canvasIcons';
 
 export type CategoryId = Exclude<AssetView, 'browse'>;
 

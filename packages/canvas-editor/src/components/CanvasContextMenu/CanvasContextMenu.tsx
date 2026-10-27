@@ -3,7 +3,7 @@ import React, { useEffect, useImperativeHandle, useRef, useState } from 'react';
 import { PiCaretRight, PiCheck } from 'react-icons/pi';
 
 import type { CanvasMenu, CanvasMenuEntry } from './canvasMenuModel';
-import type { CanvasCommandId } from '../../utils/canvasCommandRegistry';
+import type { CanvasCommandId } from '@ggraphic/editor/utils/canvasCommandRegistry';
 
 export interface CanvasMenuRequest {
   point: { clientX: number; clientY: number };

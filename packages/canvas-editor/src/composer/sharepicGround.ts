@@ -1,5 +1,6 @@
+import { type GradientFill } from '@ggraphic/editor/utils/gradientFill';
+
 import { HELLGRUEN_GLOW } from '../brand/theme';
-import { type GradientFill } from '../utils/gradientFill';
 
 import { type PhotoTone } from './composeTypes';
 

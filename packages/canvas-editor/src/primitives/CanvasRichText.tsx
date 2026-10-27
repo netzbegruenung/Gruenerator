@@ -22,21 +22,26 @@
  * Tippen Fett statt Sternchen.
  */
 
+import { LOCKED_TRANSFORMER, useIsItemLocked } from '@ggraphic/editor/components/canvasItemLock';
+import { useFontGeneration } from '@ggraphic/editor/hooks/useFontGeneration';
+import { useGeometryReporter } from '@ggraphic/editor/hooks/useGeometryReporter';
+import { useSnapScheduler } from '@ggraphic/editor/hooks/useSnapScheduler';
+import { gradientFillProps } from '@ggraphic/editor/utils/gradientFill';
+import { isGroupDrag } from '@ggraphic/editor/utils/multiSelect';
+import { ELEMENT_TRANSFORMER, normalizeRotation } from '@ggraphic/editor/utils/orientation';
+import {
+  boxFrame,
+  createBoxFrame,
+  frameBounds,
+  snapByBounds,
+} from '@ggraphic/editor/utils/snapping';
 import { layoutRichTextBlock } from '@ggraphic/schema';
 import { useRef, useEffect, useCallback, useMemo, useState, Fragment } from 'react';
 import { Group, Rect, Text as KonvaText, Transformer } from 'react-konva';
 
-import { LOCKED_TRANSFORMER, useIsItemLocked } from '../components/canvasItemLock';
 import { overlayBoxForNode, useCanvasTextEditor } from '../components/CanvasTextOverlay';
-import { useFontGeneration } from '../hooks/useFontGeneration';
-import { useGeometryReporter } from '../hooks/useGeometryReporter';
-import { useSnapScheduler } from '../hooks/useSnapScheduler';
-import { gradientFillProps } from '../utils/gradientFill';
 import { markerBoxes } from '../utils/markerBoxes';
 import { DEFAULT_TEXT_MARKER, markerInkOn } from '../utils/markerColors';
-import { isGroupDrag } from '../utils/multiSelect';
-import { ELEMENT_TRANSFORMER, normalizeRotation } from '../utils/orientation';
-import { boxFrame, createBoxFrame, frameBounds, snapByBounds } from '../utils/snapping';
 import { runFont, runMeasurer } from '../utils/textUtils';
 
 import { type CanvasTextProps, isWidthOnlyScale } from './CanvasText';

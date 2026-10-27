@@ -1,7 +1,3 @@
-import { type SharepicSlide, type SharepicSpec } from '@gruenerator/contracts';
-import { describe, expect, it } from 'vitest';
-import * as Y from 'yjs';
-
 import {
   duplicatePageById,
   getPagesMap,
@@ -9,7 +5,10 @@ import {
   readPages,
   removePageById,
   seedPagesIfEmpty,
-} from '../collab/pagesDoc';
+} from '@ggraphic/editor/collab/pagesDoc';
+import { type SharepicSlide, type SharepicSpec } from '@gruenerator/contracts';
+import { describe, expect, it } from 'vitest';
+import * as Y from 'yjs';
 
 import {
   type ChromePage,

@@ -10,7 +10,7 @@ export {
   loadAllIcons,
   loadIconSetCatalog,
   type IconDef,
-} from './canvasIcons';
+} from '@ggraphic/editor/utils/canvasIcons';
 export {
   loadEmojiCatalog,
   type EmojiCatalogEntry,

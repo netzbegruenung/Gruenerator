@@ -1,22 +1,30 @@
+import { LOCKED_TRANSFORMER, useIsItemLocked } from '@ggraphic/editor/components/canvasItemLock';
+import {
+  useGeometryReporter,
+  type GeometryReporter,
+} from '@ggraphic/editor/hooks/useGeometryReporter';
+import { useSnapScheduler } from '@ggraphic/editor/hooks/useSnapScheduler';
+import { isGroupDrag } from '@ggraphic/editor/utils/multiSelect';
+import { ELEMENT_TRANSFORMER, signedScale } from '@ggraphic/editor/utils/orientation';
+import { useTrackPendingImage } from '@ggraphic/editor/utils/pendingImages';
+import { applyPixelHitArea } from '@ggraphic/editor/utils/pixelHitArea';
+import {
+  boxFrame,
+  createBoxFrame,
+  frameBounds,
+  snapByBounds,
+} from '@ggraphic/editor/utils/snapping';
 import React, { useState, useEffect, useRef, useCallback, memo } from 'react';
 import { Image, Group, Rect, Transformer } from 'react-konva';
 
-import { LOCKED_TRANSFORMER, useIsItemLocked } from '../components/canvasItemLock';
-import { useGeometryReporter, type GeometryReporter } from '../hooks/useGeometryReporter';
-import { useSnapScheduler } from '../hooks/useSnapScheduler';
 import {
   ASSET_TARGET_SIZE,
   isStickerLikeInstance,
   resolveAssetInstanceSrc,
 } from '../utils/canvasAssets';
-import { isGroupDrag } from '../utils/multiSelect';
-import { ELEMENT_TRANSFORMER, signedScale } from '../utils/orientation';
-import { useTrackPendingImage } from '../utils/pendingImages';
-import { applyPixelHitArea } from '../utils/pixelHitArea';
-import { boxFrame, createBoxFrame, frameBounds, snapByBounds } from '../utils/snapping';
 
 import type { AssetInstance } from '../utils/canvasAssets';
-import type { SnapLine, SnapTarget } from '../utils/snapping';
+import type { SnapLine, SnapTarget } from '@ggraphic/editor/utils/snapping';
 import type Konva from 'konva';
 
 // Rahmen für Snap und Geometrie-Meldung, pro Aufruf neu beschrieben (synchron, ohne Allokation).

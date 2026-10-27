@@ -23,10 +23,9 @@
  * Pure apart from `refreshCarouselChromeInDoc`, which applies the result to
  * the pages document inside the caller's transaction.
  */
+import { readPages, updatePageStateById } from '@ggraphic/editor/collab/pagesDoc';
 import { type SharepicColor, type SharepicCreatorLocale } from '@gruenerator/contracts';
 import { type Doc } from 'yjs';
-
-import { readPages, updatePageStateById } from '../collab/pagesDoc';
 
 import {
   BRUSH_ARROW,

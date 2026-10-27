@@ -15,7 +15,7 @@ import { Line } from 'react-konva';
 
 import { useCanvasStoreShallow } from '../stores/CanvasStoreProvider';
 
-import type { SnapLine } from '../utils/snapping';
+import type { SnapLine } from '@ggraphic/editor/utils/snapping';
 
 export interface SnapGuidelinesProps {
   color?: string;

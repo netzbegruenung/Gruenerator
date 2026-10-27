@@ -1,16 +1,20 @@
-import type { BackgroundType, TextFieldConfig } from './unifiedTabs';
 import type { TemplateAiCapabilities } from '../ai/types';
 import type { StockImageAttribution } from '../common/imageSourceTypes';
+import type { CanvasStageRef } from '../primitives/CanvasStage';
+import type { TextAccent, TextMarker } from '../utils/textUtils';
+import type { BackgroundType, TextFieldConfig } from '@ggraphic/editor/configs/unifiedTabs';
 import type {
   AltTextPage,
   AltTextScope,
   CanvasSpecEditBridge,
   HeterogeneousPage,
-} from '../editorSeamTypes';
-import type { CanvasStageRef } from '../primitives/CanvasStage';
-import type { BackgroundColorOption, SidebarTabId, SidebarTab } from '../sidebar/tabTypes';
-import type { GradientFill } from '../utils/gradientFill';
-import type { TextAccent, TextMarker } from '../utils/textUtils';
+} from '@ggraphic/editor/editorSeamTypes';
+import type {
+  BackgroundColorOption,
+  SidebarTabId,
+  SidebarTab,
+} from '@ggraphic/editor/sidebar/tabTypes';
+import type { GradientFill } from '@ggraphic/editor/utils/gradientFill';
 
 // ============================================================================
 // ELEMENT CONFIGURATION TYPES

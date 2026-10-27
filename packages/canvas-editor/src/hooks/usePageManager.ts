@@ -12,12 +12,12 @@
  * (locally or remotely) never silently retargets the selection.
  */
 
+import { readPages } from '@ggraphic/editor/collab/pagesDoc';
 import { useState, useCallback, useMemo, useRef, useEffect } from 'react';
 import { v4 as uuid } from 'uuid';
 import * as Y from 'yjs';
 
 import { HOST_EMITTED_STATE_KEYS } from '../collab/pageElementStateKeys';
-import { readPages } from '../collab/pagesDoc';
 import { useYjsPages, type NormalizeEcho, type YjsPagesApi } from '../collab/useYjsPages';
 import { loadCanvasConfig, isValidCanvasType } from '../configs/configLoader';
 import { extractInheritablePageState } from '../configs/pageInheritance';

@@ -1,8 +1,9 @@
 // „Erweitern": die KI ergänzt das Foto auf das Seitenverhältnis seines Rahmens; danach liegt es wie neu eingesetzt.
 
+import { BACKGROUND_STRAIGHTEN_KEY, backgroundStraighten } from '@ggraphic/editor/utils/straighten';
+
 import { cropTargetOf, type CropUpdate } from './cropTarget';
 import { resolveValue } from './resolveElementValue';
-import { BACKGROUND_STRAIGHTEN_KEY, backgroundStraighten } from './straighten';
 
 import type { CanvasElementConfig, LayoutResult } from '../configs/types';
 

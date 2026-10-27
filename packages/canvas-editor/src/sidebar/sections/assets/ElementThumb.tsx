@@ -1,7 +1,7 @@
+import { cn } from '@ggraphic/editor/utils/cn';
 import { shareCanvasPreviewUrl, shareThumbnailPreviewUrl } from '@gruenerator/contracts';
 import { Icon } from '@iconify/react';
 
-import { cn } from '../../../utils/cn';
 import { SingleBalkenPreviewIcon, TripleBalkenPreviewIcon } from '../BadgePreviewIcons';
 import { ChartTypePreview } from '../DiagrammeSection';
 import { ALL_PALETTE_SHAPES, getShapeVariant } from '../FormenSection';

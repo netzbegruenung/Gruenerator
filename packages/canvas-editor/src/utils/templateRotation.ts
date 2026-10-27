@@ -11,8 +11,9 @@
  * `BACKGROUND_IMAGE_NODE_ID` ist `'background-image'`.
  */
 
+import { normalizeRotation } from '@ggraphic/editor/utils/orientation';
+
 import { resolveValue } from './canvasValueResolver';
-import { normalizeRotation } from './orientation';
 import { BACKGROUND_IMAGE_NODE_ID } from './printImageInfo';
 
 import type { CanvasElementConfig, LayoutResult } from '../configs/types';

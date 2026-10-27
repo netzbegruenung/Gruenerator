@@ -12,6 +12,7 @@ const WEB_FILES = [
   'packages/sites/**/*.{ts,tsx,js,jsx}',
   'packages/chat/**/*.{ts,tsx,js,jsx}',
   'packages/canvas-editor/**/*.{ts,tsx,js,jsx}',
+  'packages/ggraphic-editor/**/*.{ts,tsx,js,jsx}',
 ];
 
 // React Native: eigener a11y-Regelsatz (react-native-a11y statt jsx-a11y),

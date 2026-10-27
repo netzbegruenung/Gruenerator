@@ -32,9 +32,7 @@ import { ELEMENT_KINDS, type ElementKindName } from './elementKinds';
 import { catalogIconId } from './iconInstances';
 
 import type { AssetInstance } from './canvasAssets';
-import type { ChartInstance } from './chartTypes';
 import type { FrameInstance } from './frameUtils';
-import type { GradientFill } from './gradientFill';
 import type { IllustrationInstance } from './illustrations/types';
 import type { PillBadgeInstance } from './pillBadgeUtils';
 import type { ShapeInstance } from './shapes';
@@ -43,6 +41,8 @@ import type { BaseCanvasState, IconState } from '../configs/factory/baseTypes';
 import type { AdditionalText } from '../configs/types';
 import type { BalkenInstance } from '../primitives/BalkenGroup';
 import type { CircleBadgeInstance } from '../primitives/CircleBadge';
+import type { ChartInstance } from '@ggraphic/editor/utils/chartTypes';
+import type { GradientFill } from '@ggraphic/editor/utils/gradientFill';
 
 /** Standardversatz einer Kopie gegenüber dem Original, in Canvas-Pixeln. */
 export const DUPLICATE_OFFSET = 20;

@@ -5,12 +5,22 @@
  * Uses the same layout calculations as calculateDreizeilenLayout.
  */
 
+import { LOCKED_TRANSFORMER, useIsItemLocked } from '@ggraphic/editor/components/canvasItemLock';
+import { useFontGeneration } from '@ggraphic/editor/hooks/useFontGeneration';
+import { useSnapScheduler } from '@ggraphic/editor/hooks/useSnapScheduler';
+import {
+  captureFocusOrigin,
+  returnFocus,
+  type FocusOrigin,
+} from '@ggraphic/editor/utils/editorFocus';
+import { followStage } from '@ggraphic/editor/utils/followStage';
+import { isGroupDrag } from '@ggraphic/editor/utils/multiSelect';
+import { ELEMENT_TRANSFORMER, normalizeRotation } from '@ggraphic/editor/utils/orientation';
+import { boxFrame, createBoxFrame, snapByBounds } from '@ggraphic/editor/utils/snapping';
+import { stageCssScale } from '@ggraphic/editor/utils/stageCssScale';
 import { useRef, useCallback, useMemo, useEffect, useState, memo } from 'react';
 import { Group, Line, Text, Rect, Transformer } from 'react-konva';
 
-import { LOCKED_TRANSFORMER, useIsItemLocked } from '../components/canvasItemLock';
-import { useFontGeneration } from '../hooks/useFontGeneration';
-import { useSnapScheduler } from '../hooks/useSnapScheduler';
 import { calculateBalkenLayouts } from '../utils/balkenBounds';
 import {
   DREIZEILEN_CONFIG,
@@ -18,15 +28,9 @@ import {
   calculateParallelogramPoints,
   flattenPoints,
 } from '../utils/dreizeilenLayout';
-import { captureFocusOrigin, returnFocus, type FocusOrigin } from '../utils/editorFocus';
-import { followStage } from '../utils/followStage';
-import { isGroupDrag } from '../utils/multiSelect';
-import { ELEMENT_TRANSFORMER, normalizeRotation } from '../utils/orientation';
-import { boxFrame, createBoxFrame, snapByBounds } from '../utils/snapping';
-import { stageCssScale } from '../utils/stageCssScale';
 import { useTextEditorOpener } from '../utils/textEditorOpeners';
 
-import type { SnapTarget } from '../utils/snapping';
+import type { SnapTarget } from '@ggraphic/editor/utils/snapping';
 import type Konva from 'konva';
 
 // Rahmen für Snap und Geometrie-Meldung, pro Aufruf neu beschrieben (synchron, ohne Allokation).

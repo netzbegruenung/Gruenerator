@@ -7,13 +7,24 @@
  * 3. Callbacks are stabilized via useCallback in parent
  */
 
+import { type GeometryReporter } from '@ggraphic/editor/hooks/useGeometryReporter';
+import { useTrackPendingImage } from '@ggraphic/editor/utils/pendingImages';
+import {
+  assertAsString,
+  assertAsNumber,
+  assertAsPosition,
+  assertAsOpacity,
+  getStateValue,
+  getOptionalStateValue,
+} from '@ggraphic/editor/utils/stateTypeAssertions';
+import { backgroundStraighten } from '@ggraphic/editor/utils/straighten';
+import { templateTextAlignOf } from '@ggraphic/editor/utils/textAlign';
 import React, { memo, useCallback, useMemo } from 'react';
 import { Group, Rect, Circle, Text } from 'react-konva';
 import useImage from 'use-image';
 
 import { surfaceGlow } from '../brand/theme';
 import { useCanvasEditorServices } from '../CanvasEditorProvider';
-import { type GeometryReporter } from '../hooks/useGeometryReporter';
 import { plainImageUrls } from '../hostServices';
 import { CanvasText, CanvasImage, CanvasBackground } from '../primitives';
 import {
@@ -25,7 +36,6 @@ import { canCropBackgroundPhoto, imageElementInteraction } from '../utils/backgr
 import { canvasImageSourceUrl } from '../utils/canvasImageSource';
 import { imageRenderInputsAreEqual } from '../utils/imageElementComparison';
 import { backgroundAdjustments } from '../utils/imageFilters';
-import { useTrackPendingImage } from '../utils/pendingImages';
 import { BACKGROUND_IMAGE_NODE_ID } from '../utils/printImageInfo';
 // Die Aufloesung von x/y/width/height/opacity steht seit #3403 ausserhalb:
 // `templateElementToEntry` braucht dieselbe Rechnung, und zwei Fassungen
@@ -36,17 +46,7 @@ import {
   resolveImageElementBox,
   resolveValue,
 } from '../utils/resolveElementValue';
-import {
-  assertAsString,
-  assertAsNumber,
-  assertAsPosition,
-  assertAsOpacity,
-  getStateValue,
-  getOptionalStateValue,
-} from '../utils/stateTypeAssertions';
-import { backgroundStraighten } from '../utils/straighten';
 import { isTemplateElementRotatable, templateRotationOf } from '../utils/templateRotation';
-import { templateTextAlignOf } from '../utils/textAlign';
 
 import type {
   CanvasElementConfig,
@@ -59,7 +59,7 @@ import type {
   LayoutResult,
   PositionValue,
 } from '../configs/types';
-import type { SnapTarget, SnapLine } from '../utils/snapping';
+import type { SnapTarget, SnapLine } from '@ggraphic/editor/utils/snapping';
 
 // ============================================================================
 // MEMOIZED TEXT ELEMENT

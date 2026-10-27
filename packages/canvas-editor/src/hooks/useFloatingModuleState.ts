@@ -1,13 +1,13 @@
+import { templateTextAlignOf, type TextAlign } from '@ggraphic/editor/utils/textAlign';
 import { useMemo, useRef } from 'react';
 
 import { canCropBackgroundPhoto } from '../utils/backgroundPhotoCrop';
 import { resolveValue } from '../utils/canvasValueResolver';
 import { findKindItem, type ElementKindName, type KindItem } from '../utils/elementKinds';
-import { templateTextAlignOf, type TextAlign } from '../utils/textAlign';
 
 import type { StockImageAttribution } from '../common/imageSourceTypes';
 import type { FullCanvasConfig, LayoutResult } from '../configs/types';
-import type { GradientFill } from '../utils/gradientFill';
+import type { GradientFill } from '@ggraphic/editor/utils/gradientFill';
 
 /**
  * Floating Module State - Determines active floating toolbar module

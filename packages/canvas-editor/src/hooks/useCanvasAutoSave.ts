@@ -1,8 +1,8 @@
+import { useAutoSaveStore, useAutoSaveStoreApi } from '@ggraphic/editor/stores/useAutoSaveStore';
 import { useEffect, useLayoutEffect, useRef, useCallback } from 'react';
 
 import { useCanvasEditorServices } from '../CanvasEditorProvider';
 import { plainImageUrls } from '../hostServices';
-import { useAutoSaveStore, useAutoSaveStoreApi } from '../stores/useAutoSaveStore';
 
 interface ShareMetadata {
   [key: string]: unknown;

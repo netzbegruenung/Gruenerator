@@ -1,11 +1,10 @@
-import { describe, it, expect } from 'vitest';
-
 import {
   calculateCenteredSnapPosition,
   calculateElementSnapPosition,
   createSnapHysteresis,
   type SnapTarget,
-} from '../snapping';
+} from '@ggraphic/editor/utils/snapping';
+import { describe, it, expect } from 'vitest';
 
 const STAGE = 1080;
 

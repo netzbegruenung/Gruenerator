@@ -3,11 +3,11 @@
  * synced; a reopened one (no `previewBeforeSync`) must not, its initial_state
  * may be stale. A reopened one shows its locally cached doc pages instead.
  */
+import { seedPagesIfEmpty } from '@ggraphic/editor/collab/pagesDoc';
 import { renderHook } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import * as Y from 'yjs';
 
-import { seedPagesIfEmpty } from '../../collab/pagesDoc';
 import { usePageManager, type InitialPageDef } from '../usePageManager';
 
 const initialPages: InitialPageDef[] = [

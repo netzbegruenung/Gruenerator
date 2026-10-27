@@ -9,6 +9,7 @@
  * Pure. The provenance is rebuilt from the baseline (ids, kinds and texts),
  * so nothing beyond the stored source is needed, and the lift measures no text.
  */
+import { BACKGROUND_STRAIGHTEN_KEY, backgroundStraighten } from '@ggraphic/editor/utils/straighten';
 import {
   type SharepicBaseline,
   type SharepicFingerprint,
@@ -19,7 +20,6 @@ import {
 } from '@gruenerator/contracts';
 
 import { DEFAULT_FORMAT_ID } from '../formats';
-import { BACKGROUND_STRAIGHTEN_KEY, backgroundStraighten } from '../utils/straighten';
 
 import { withCardResizedFor } from './cardFollowsText';
 import { type ComposedSlide } from './composeSharepic';

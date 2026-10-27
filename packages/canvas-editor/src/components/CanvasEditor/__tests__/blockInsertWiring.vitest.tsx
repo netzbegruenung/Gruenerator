@@ -5,6 +5,7 @@
  * page as its own elements. Runs on the real freeform page and the real
  * composer; the host's `composeBlock` is the composition apps/web runs.
  */
+import { AutoSaveStoreProvider } from '@ggraphic/editor/stores/AutoSaveStoreProvider';
 import { sharepicBlockSpec, type SharepicBlock } from '@gruenerator/contracts';
 import { act, cleanup, render } from '@testing-library/react';
 import Konva from 'konva';
@@ -15,7 +16,6 @@ import { CanvasEditorProvider, type CanvasEditorServices } from '../../../Canvas
 import { composeSharepic, SHAREPIC_COLOR_HEX } from '../../../composer/composeSharepic';
 import { grueneratorBlocks } from '../../../composer/sharepicServices';
 import { loadCanvasConfig } from '../../../configs/configLoader';
-import { AutoSaveStoreProvider } from '../../../stores/AutoSaveStoreProvider';
 import { GenericCanvas, type GenericCanvasRef } from '../../GenericCanvas';
 import { BlockInsertProvider, useBlockInsert, type BlockInsertApi } from '../blockInsert';
 

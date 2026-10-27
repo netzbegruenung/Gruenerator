@@ -1,13 +1,12 @@
-import Konva from 'konva';
-import { afterEach, beforeAll, describe, expect, it } from 'vitest';
-
-import { CANVAS_ITEM_NAME } from '../deepSelect';
+import { CANVAS_ITEM_NAME } from '@ggraphic/editor/utils/deepSelect';
 import {
   ELEMENT_TRANSFORMER,
   chooseRotaterAngle,
   elementAnchorStyleFunc,
   rotaterRects,
-} from '../orientation';
+} from '@ggraphic/editor/utils/orientation';
+import Konva from 'konva';
+import { afterEach, beforeAll, describe, expect, it } from 'vitest';
 
 beforeAll(() => {
   Konva.autoDrawEnabled = false;
