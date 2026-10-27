@@ -551,6 +551,15 @@ describe('formatTabularComputeGuidance', () => {
     expect(out).not.toMatch(/Fordere NICHT zum Klicken/);
   });
 
+  it('after a denial the tool branch only reports missing data when it is really missing', () => {
+    // Live: after „Ablehnen" the model claimed „Liste unvollständig" although the
+    // whole table stood in the context.
+    const out = formatTabularComputeGuidance(makeState(mountable), { loop: true });
+    expect(out).not.toContain('Sind Zeilen oder Spalten dort unvollständig');
+    expect(out).toContain('tatsächlich');
+    expect(out).toContain('NICHT, die Tabelle sei unvollständig');
+  });
+
   it('single-pass turn never mentions the tool and answers from the data', () => {
     const out = formatTabularComputeGuidance(makeState(mountable));
     expect(out).not.toContain('tabelle_auswerten');

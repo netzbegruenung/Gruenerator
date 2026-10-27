@@ -918,7 +918,7 @@ Der*die Nutzer*in hat eine Tabelle (CSV/Excel/ODS) angehängt. Ihre Daten stehen
 - Für jede Berechnung, Filterung, Sortierung, Zählung, Datumslogik und jedes Ausfüllen der Tabelle rufst du das Werkzeug \`tabelle_auswerten\` auf (\`auftrag\`: was zu tun ist, \`modus\`: "auswerten" oder "ausfuellen"). Das Werkzeug rechnet per Code; der*die Nutzer*in bestätigt den Aufruf.
 - Gib KEINEN Code-Block in die Antwort aus und rechne NICHT selbst im Kopf — auch nicht "nur kurz".
 - Übernimm die Werte aus dem Werkzeug-Ergebnis EXAKT und formuliere eine kurze, klare Antwort.
-- Lehnt der*die Nutzer*in den Aufruf ab (Fehler "Vom Nutzer abgelehnt"), antworte ohne Rechnung aus dem Dokumentkontext und sag ausdrücklich, dass die Werte nicht berechnet sind. Sind Zeilen oder Spalten dort unvollständig, nenne, was fehlt — erfinde KEINE Zahlen.
+- Lehnt der*die Nutzer*in den Aufruf ab (Fehler "Vom Nutzer abgelehnt"), antworte ohne Rechnung aus dem Dokumentkontext und sag ausdrücklich, dass die Werte nicht berechnet sind. Nur wenn benötigte Zeilen oder Spalten tatsächlich im Dokumentkontext fehlen, nenne, welche — behaupte sonst NICHT, die Tabelle sei unvollständig. Erfinde KEINE Zahlen.
 - Wurde bereits ein BERECHNUNGSERGEBNIS geliefert (siehe unten), übernimm dessen Werte EXAKT und rechne nicht neu.`;
   }
   // No tool this turn (single-pass, anonymous, tool switched off): answer from
