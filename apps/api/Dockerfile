@@ -28,6 +28,7 @@ COPY tsconfig.base.json tsconfig.strict-migration.json ./
 COPY packages/shared/package.json ./packages/shared/
 COPY packages/query/package.json ./packages/query/
 COPY packages/core/package.json ./packages/core/
+COPY packages/ggraphic-schema/package.json ./packages/ggraphic-schema/
 COPY packages/contracts/package.json ./packages/contracts/
 COPY services/hocuspocus/package.json ./services/hocuspocus/
 COPY apps/api/package.json ./apps/api/
@@ -48,6 +49,7 @@ RUN --mount=type=cache,id=pnpm,target=/root/.local/share/pnpm/store \
 COPY packages/shared ./packages/shared
 COPY packages/query ./packages/query
 COPY packages/core ./packages/core
+COPY packages/ggraphic-schema ./packages/ggraphic-schema
 COPY packages/contracts ./packages/contracts
 COPY services/hocuspocus ./services/hocuspocus
 COPY apps/api ./apps/api
@@ -63,6 +65,10 @@ RUN pnpm exec tsc --project tsconfig.json
 # Compile shared package (API imports @gruenerator/shared/utils at runtime)
 WORKDIR /app/packages/shared
 RUN pnpm exec tsc --project tsconfig.server.json
+
+# Compile ggraphic-schema (contracts re-exports its text model at runtime; must build first)
+WORKDIR /app/packages/ggraphic-schema
+RUN pnpm exec tsc --project tsconfig.build.json
 
 # Compile contracts package (API imports @gruenerator/contracts at runtime)
 WORKDIR /app/packages/contracts
@@ -129,6 +135,7 @@ COPY --from=builder --chown=gruenerator:gruenerator /app/patches ./patches
 COPY --from=builder --chown=gruenerator:gruenerator /app/packages/shared/package.json ./packages/shared/
 COPY --from=builder --chown=gruenerator:gruenerator /app/packages/query/package.json ./packages/query/
 COPY --from=builder --chown=gruenerator:gruenerator /app/packages/core/package.json ./packages/core/
+COPY --from=builder --chown=gruenerator:gruenerator /app/packages/ggraphic-schema/package.json ./packages/ggraphic-schema/
 COPY --from=builder --chown=gruenerator:gruenerator /app/packages/contracts/package.json ./packages/contracts/
 COPY --from=builder --chown=gruenerator:gruenerator /app/services/hocuspocus/package.json ./services/hocuspocus/
 COPY --from=builder --chown=gruenerator:gruenerator /app/apps/api/package.json ./apps/api/
@@ -167,6 +174,7 @@ RUN --mount=type=cache,id=pnpm-prod,target=/home/gruenerator/.local/share/pnpm/s
 COPY --from=builder --chown=gruenerator:gruenerator /app/packages/shared/dist ./packages/shared/dist
 COPY --from=builder --chown=gruenerator:gruenerator /app/packages/query/dist ./packages/query/dist
 COPY --from=builder --chown=gruenerator:gruenerator /app/packages/core/dist ./packages/core/dist
+COPY --from=builder --chown=gruenerator:gruenerator /app/packages/ggraphic-schema/dist ./packages/ggraphic-schema/dist
 COPY --from=builder --chown=gruenerator:gruenerator /app/packages/contracts/dist ./packages/contracts/dist
 COPY --from=builder --chown=gruenerator:gruenerator /app/services/hocuspocus/dist ./services/hocuspocus/dist
 
