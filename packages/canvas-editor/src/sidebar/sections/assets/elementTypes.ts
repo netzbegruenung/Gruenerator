@@ -5,11 +5,11 @@ import {
   type MediaDragPayload,
 } from '../../../utils/mediaDrop';
 
-import type { BalkenMode } from '../../../primitives/BalkenGroup';
-import type { ChartType } from '../../../utils/chartUtils';
-import type { FrameClipType } from '../../../utils/frameUtils';
-import type { KawaiiIllustrationType, SvgDef } from '../../../utils/illustrations/types';
-import type { ShapeType } from '../../../utils/shapes';
+import type { BalkenMode } from '../../../utils/balkenUtils';
+import type { ChartType } from '@ggraphic/editor/utils/chartUtils';
+import type { FrameClipType } from '@ggraphic/editor/utils/frameUtils';
+import type { KawaiiIllustrationType, SvgDef } from '@ggraphic/editor/utils/illustrations/types';
+import type { ShapeType } from '@ggraphic/editor/utils/shapes';
 import type { StickerRef } from '@gruenerator/contracts';
 
 /** What a tile does: an element add (icons toggle) or a photo placed as image. */

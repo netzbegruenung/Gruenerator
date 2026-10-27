@@ -1,6 +1,5 @@
+import { TEXT_ALIGNS, type TextAlign } from '@ggraphic/editor/utils/textAlign';
 import { PiTextAlignCenter, PiTextAlignLeft, PiTextAlignRight } from 'react-icons/pi';
-
-import { TEXT_ALIGNS, type TextAlign } from '../../../utils/textAlign';
 
 import type { IconType } from 'react-icons';
 

@@ -23,6 +23,20 @@
  * - useToolbarHandlers     — bundled toolbar actions for the active page
  */
 
+import { serializeDeck } from '@ggraphic/editor/collab/pagesDoc';
+import { createPageSyncedCallbacks } from '@ggraphic/editor/collab/wrapCallbacksWithPageSync';
+import { CanvasTextEditorProvider } from '@ggraphic/editor/components/CanvasTextOverlay';
+import {
+  DEFAULT_FORMAT_ID,
+  getCanvasFormatOrDefault,
+  isPrintFormat,
+  isSlideFormat,
+} from '@ggraphic/editor/formats/index';
+import { AnnouncerContext, useLiveAnnouncer } from '@ggraphic/editor/hooks/useAnnounce';
+import { useCanvasStoreSelector } from '@ggraphic/editor/stores/CanvasStoreProvider';
+import { AutoSaveStoreProvider } from '@ggraphic/editor/stores/useAutoSaveStore';
+import { cn } from '@ggraphic/editor/utils/cn';
+import { ensureFontsReady } from '@ggraphic/editor/utils/ensureFontsReady';
 import { Skeleton } from '@gruenerator/ui';
 import Konva from 'konva';
 import React, {
@@ -38,8 +52,6 @@ import React, {
 
 import { useCanvasEditorServices } from '../../CanvasEditorProvider';
 import { PAGE_PERSISTED_STATE_KEYS } from '../../collab/pageElementStateKeys';
-import { serializeDeck } from '../../collab/pagesDoc';
-import { createPageSyncedCallbacks } from '../../collab/wrapCallbacksWithPageSync';
 import { shareImageText } from '../../configs/shareSection';
 import { exportPptxDeck } from '../../export/pptx/exportPptxDeck';
 import {
@@ -50,14 +62,7 @@ import {
   type PrintExportPage,
 } from '../../export/printExport';
 import { exportSlidesPdf } from '../../export/slidesPdf';
-import {
-  DEFAULT_FORMAT_ID,
-  getCanvasFormatOrDefault,
-  isPrintFormat,
-  isSlideFormat,
-} from '../../formats';
 import { usePageManager, useMultiPageExport, usePageThumbnails } from '../../hooks';
-import { AnnouncerContext, useLiveAnnouncer } from '../../hooks/useAnnounce';
 import { useDeckAutoSave } from '../../hooks/useDeckAutoSave';
 import { useIsCanvasMobile } from '../../hooks/useIsCanvasMobile';
 import { useZoomGestures } from '../../hooks/useZoomGestures';
@@ -77,12 +82,8 @@ import {
   slideLayoutConfigId,
   type SlideLayoutId,
 } from '../../slides/slideLayouts';
-import { useCanvasStoreSelector } from '../../stores/CanvasStoreProvider';
-import { AutoSaveStoreProvider } from '../../stores/useAutoSaveStore';
 import { type CanvasConfigId } from '../../templates/registry';
-import { cn } from '../../utils/cn';
 import { collectAltTextPages as collectCapturedAltTextPages } from '../../utils/collectAltTextPages';
-import { ensureFontsReady } from '../../utils/ensureFontsReady';
 import { sameLayerEntries } from '../../utils/layerLabels';
 import { photoCreditLine } from '../../utils/photoCredit';
 import { pagePhotoCredits } from '../../utils/photoCredits';
@@ -92,7 +93,6 @@ import { CanvasAnnouncer } from '../CanvasAnnouncer';
 import { CanvasContextMenu } from '../CanvasContextMenu/CanvasContextMenu';
 import { CanvasPageSkeleton, CanvasTabRailSkeleton } from '../CanvasEditorSkeleton';
 import { CanvasMetaBar, CanvasZoomIndicator } from '../CanvasMetaBar';
-import { CanvasTextEditorProvider } from '../CanvasTextOverlay';
 import { MobileSelectionPill } from '../MobileSelectionPill';
 import { PageThumbnailStrip } from '../PageThumbnailStrip';
 import { SlideNotesPanel } from '../SlideNotesPanel';
@@ -127,9 +127,9 @@ import { formatHasVorlagen, vorlagenTab, withVorlagenTab } from './vorlagenTab';
 import type { CanvasEditorProps, PageWrapperProps } from './types';
 import type { AltTextPage, AltTextScope, CanvasSpecEditBridge } from '../../CanvasEditorProvider';
 import type { SidebarTabId } from '../../sidebar/types';
-import type { ExportOptions } from '../../types/editorTypes';
-import type { LayerSelectionChange } from '../../utils/layerSelection';
 import type { ToolbarStateReport } from '../GenericCanvas';
+import type { ExportOptions } from '@ggraphic/editor/types/editorTypes';
+import type { LayerSelectionChange } from '@ggraphic/editor/utils/layerSelection';
 
 // Hoisted static JSX elements (Rule 6.3: avoids re-creation every render)
 const sidebarLoadingFallback = (

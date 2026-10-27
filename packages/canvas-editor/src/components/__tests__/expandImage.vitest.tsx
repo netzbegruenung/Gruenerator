@@ -5,6 +5,8 @@
  * Ein Fehlschlag ändert nichts. Dazu: „Automatisch" verwirft seinen Vorschlag,
  * wenn das Foto während der Analyse ersetzt wurde.
  */
+import { AutoSaveStoreProvider } from '@ggraphic/editor/stores/AutoSaveStoreProvider';
+import { userFacingError } from '@ggraphic/editor/utils/userFacingError';
 import { createCanvas } from '@napi-rs/canvas';
 import { act, cleanup, render, waitFor } from '@testing-library/react';
 import Konva from 'konva';
@@ -14,13 +16,11 @@ import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vite
 import { CanvasEditorProvider } from '../../CanvasEditorProvider';
 import { loadCanvasConfig } from '../../configs/configLoader';
 import { plainImageUrls, type CanvasImageUrlService } from '../../hostServices';
-import { AutoSaveStoreProvider } from '../../stores/AutoSaveStoreProvider';
-import { userFacingError } from '../../utils/userFacingError';
 import { GenericCanvas, type GenericCanvasRef, type ToolbarStateReport } from '../GenericCanvas';
 
-import type * as StoreModule from '../../stores/createCanvasEditorStore';
-import type { CanvasEditorStoreApi } from '../../stores/createCanvasEditorStore';
 import type { UserImageInstance } from '../../utils/userImageUtils';
+import type * as StoreModule from '@ggraphic/editor/stores/createCanvasEditorStore';
+import type { CanvasEditorStoreApi } from '@ggraphic/editor/stores/createCanvasEditorStore';
 
 const mocks = vi.hoisted(() => ({
   stores: [] as unknown[],
@@ -47,7 +47,7 @@ vi.mock('../../utils/mediaPlacement', async (importOriginal) => {
   return { ...original, fetchShareImageFile: mocks.fetchFile };
 });
 
-vi.mock('../../stores/createCanvasEditorStore', async (importOriginal) => {
+vi.mock('@ggraphic/editor/stores/createCanvasEditorStore', async (importOriginal) => {
   const original = await importOriginal<typeof StoreModule>();
   return {
     ...original,

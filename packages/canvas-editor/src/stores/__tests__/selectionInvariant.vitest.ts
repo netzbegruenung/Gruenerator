@@ -3,9 +3,8 @@
  * wenn es ein einziges Element ist. Alle Einzel-Oberflächen lesen nur
  * `selectedElement` und treten bei Mehrfachauswahl so von selbst zurück.
  */
+import { createCanvasEditorStore } from '@ggraphic/editor/stores/createCanvasEditorStore';
 import { describe, expect, it } from 'vitest';
-
-import { createCanvasEditorStore } from '../createCanvasEditorStore';
 
 const selection = (store: ReturnType<typeof createCanvasEditorStore>) => {
   const { selectedLayerIds, selectedElement } = store.getState();

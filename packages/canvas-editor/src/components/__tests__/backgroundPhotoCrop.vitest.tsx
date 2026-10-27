@@ -3,14 +3,14 @@
  * Griffe und zieht nicht; erst der Ausschnitt-Modus (Doppelklick/Doppeltipp)
  * gibt Verschieben und Zoomen frei.
  */
+import { AutoSaveStoreProvider } from '@ggraphic/editor/stores/AutoSaveStoreProvider';
+import { findDragNodes } from '@ggraphic/editor/utils/multiSelect';
 import { act, cleanup, render } from '@testing-library/react';
 import Konva from 'konva';
 import { createRef } from 'react';
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 
 import { loadCanvasConfig } from '../../configs/configLoader';
-import { AutoSaveStoreProvider } from '../../stores/AutoSaveStoreProvider';
-import { findDragNodes } from '../../utils/multiSelect';
 import { GenericCanvas, type GenericCanvasRef } from '../GenericCanvas';
 
 vi.mock('use-image', async () => {

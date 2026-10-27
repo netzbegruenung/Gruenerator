@@ -72,7 +72,7 @@ const PAGE_STYLE_STATE_KEYS = [
   'logoOpacity',
   'logoOffset',
   'logoPosition',
-  // dreizeilen bar
+  // three-line bar
   'balkenWidthScale',
   'barOffsets',
   'balkenOffset',

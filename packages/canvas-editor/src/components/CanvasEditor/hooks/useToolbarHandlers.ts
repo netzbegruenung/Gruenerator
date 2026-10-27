@@ -1,11 +1,11 @@
 import { useMemo } from 'react';
 
 import type { ShadowPatch } from '../../../hooks/useFloatingModuleHandlers';
-import type { PageCommandId } from '../../../utils/canvasCommandRegistry';
-import type { CropAspectId } from '../../../utils/cropAspect';
-import type { GradientFill } from '../../../utils/gradientFill';
-import type { TextAlign } from '../../../utils/textAlign';
 import type { GenericCanvasRef, ToolbarStateReport } from '../../GenericCanvas';
+import type { PageCommandId } from '@ggraphic/editor/utils/canvasCommandRegistry';
+import type { CropAspectId } from '@ggraphic/editor/utils/cropAspect';
+import type { GradientFill } from '@ggraphic/editor/utils/gradientFill';
+import type { TextAlign } from '@ggraphic/editor/utils/textAlign';
 import type React from 'react';
 
 interface UseToolbarHandlersParams {

@@ -12,17 +12,17 @@ import { BACKGROUND_IMAGE_NODE_ID } from '../utils/printImageInfo';
 import { buildSharepicText } from './buildSharepicText';
 import { makeSectionDefiner } from './factory/defineSection';
 
-import type { TemplateAiCapabilities } from '../ai/types';
+import type { SharepicAiCapabilities } from './aiCapabilities';
 import type { CanvasAiEditBridge } from '../CanvasEditorProvider';
-import type { BalkenInstance } from '../primitives/BalkenGroup';
 import type { ChatSectionProps, ToolsSectionProps, UploadsSectionProps } from '../sidebar/sections';
 import type { SidebarTab } from '../sidebar/types';
-import type { ChartInstance } from '../utils/chartUtils';
+import type { BalkenInstance } from '../utils/balkenUtils';
 import type {
   ImageAdjustments,
   UserImageInstance,
   UserImagePlacement,
 } from '../utils/userImageUtils';
+import type { ChartInstance } from '@ggraphic/editor/utils/chartUtils';
 
 interface ActionsWithChart {
   updateChart?: (id: string, partial: Partial<ChartInstance>) => void;
@@ -207,7 +207,7 @@ export const chatTab: SidebarTab = {
  */
 export function createCommonSectionEntries<TState, TActions extends CanvasAiActionsBase>(
   canvasType: string,
-  capabilities?: TemplateAiCapabilities<TState, TActions>
+  capabilities?: SharepicAiCapabilities<TState, TActions>
 ) {
   return {
     tools: toolsSectionEntry,
@@ -231,7 +231,7 @@ export function createCommonSectionEntries<TState, TActions extends CanvasAiActi
  */
 export function createChatSection<TState, TActions extends CanvasAiActionsBase>(
   canvasType: string,
-  capabilities?: TemplateAiCapabilities<TState, TActions>
+  capabilities?: SharepicAiCapabilities<TState, TActions>
 ) {
   const defineSection = makeSectionDefiner<TState, TActions>();
   return defineSection({

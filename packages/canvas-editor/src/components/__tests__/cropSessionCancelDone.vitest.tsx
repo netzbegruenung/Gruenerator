@@ -3,6 +3,8 @@
  * Abbrechen stellt den Zuschnitt vom Betreten her und hinterlässt keinen
  * Schritt, der ihn zurückbrächte; jedes andere Ende behält ihn als einen Schritt.
  */
+import { AutoSaveStoreProvider } from '@ggraphic/editor/stores/AutoSaveStoreProvider';
+import { straightPhotoCovers, type StraightDraw } from '@ggraphic/editor/utils/straighten';
 import { createCanvas } from '@napi-rs/canvas';
 import { act, cleanup, render, waitFor } from '@testing-library/react';
 import Konva from 'konva';
@@ -10,16 +12,14 @@ import { createRef } from 'react';
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { loadCanvasConfig } from '../../configs/configLoader';
-import { AutoSaveStoreProvider } from '../../stores/AutoSaveStoreProvider';
-import { straightPhotoCovers, type StraightDraw } from '../../utils/straighten';
 import { GenericCanvas, type GenericCanvasRef } from '../GenericCanvas';
 
-import type * as StoreModule from '../../stores/createCanvasEditorStore';
-import type { CanvasEditorStoreApi } from '../../stores/createCanvasEditorStore';
 import type { UserImageInstance } from '../../utils/userImageUtils';
+import type * as StoreModule from '@ggraphic/editor/stores/createCanvasEditorStore';
+import type { CanvasEditorStoreApi } from '@ggraphic/editor/stores/createCanvasEditorStore';
 
 const stores = vi.hoisted(() => [] as unknown[]);
-vi.mock('../../stores/createCanvasEditorStore', async (importOriginal) => {
+vi.mock('@ggraphic/editor/stores/createCanvasEditorStore', async (importOriginal) => {
   const original = await importOriginal<typeof StoreModule>();
   return {
     ...original,

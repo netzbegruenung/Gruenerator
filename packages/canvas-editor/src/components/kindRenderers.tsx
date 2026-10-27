@@ -1,27 +1,27 @@
+import { type GeometryReporter } from '@ggraphic/editor/hooks/useGeometryReporter';
+import { CircleBadge } from '@ggraphic/editor/primitives/CircleBadge';
+import { IconPrimitive } from '@ggraphic/editor/primitives/IconPrimitive';
+import { PillBadge } from '@ggraphic/editor/primitives/PillBadge';
+import { useIsElementSelected } from '@ggraphic/editor/stores/CanvasStoreProvider';
+import { getIconMapSync } from '@ggraphic/editor/utils/canvasIcons';
 import React, { memo } from 'react';
 
-import { type GeometryReporter } from '../hooks/useGeometryReporter';
 import { CanvasText } from '../primitives';
 import { AssetPrimitive } from '../primitives/AssetPrimitive';
-import { BalkenGroup } from '../primitives/BalkenGroup';
 import { ChartPrimitive } from '../primitives/ChartPrimitive';
-import { CircleBadge } from '../primitives/CircleBadge';
 import { FramePrimitive } from '../primitives/FramePrimitive';
-import { IconPrimitive } from '../primitives/IconPrimitive';
 import { IllustrationPrimitive } from '../primitives/IllustrationPrimitive';
-import { PillBadge } from '../primitives/PillBadge';
 import { ShapePrimitive } from '../primitives/ShapePrimitive';
 import { UserImagePrimitive } from '../primitives/UserImagePrimitive';
-import { useIsElementSelected } from '../stores/CanvasStoreProvider';
-import { getIconMapSync } from '../utils/canvasIcons';
 import { resolveIconDef } from '../utils/iconInstances';
 
 import type { CanvasItem } from '../utils/canvasLayerManager';
-import type { CropAspectId } from '../utils/cropAspect';
-import type { FrameInstance } from '../utils/frameUtils';
-import type { ShapeInstance } from '../utils/shapes';
-import type { SnapLine, SnapTarget } from '../utils/snapping';
+import type { HostRenderedKindName } from '../utils/elementKinds';
 import type { UserImageInstance } from '../utils/userImageUtils';
+import type { CropAspectId } from '@ggraphic/editor/utils/cropAspect';
+import type { FrameInstance } from '@ggraphic/editor/utils/frameUtils';
+import type { ShapeInstance } from '@ggraphic/editor/utils/shapes';
+import type { SnapLine, SnapTarget } from '@ggraphic/editor/utils/snapping';
 
 type KindName = Exclude<CanvasItem['type'], 'element'>;
 
@@ -168,7 +168,7 @@ export interface RenderCtx {
 // Selectable wrapper factory: each wrapper subscribes to the store for its
 // element's selected state, so only 2 elements re-render per click.
 // Primitives keep their selected/isSelected prop for testability.
-function createSelectableWrapper<P extends object>(
+export function createSelectableWrapper<P extends object>(
   Component: React.ComponentType<P>,
   propName: 'selected' | 'isSelected' = 'selected'
 ) {
@@ -179,7 +179,6 @@ function createSelectableWrapper<P extends object>(
   });
 }
 
-const SelectableBalkenGroup = createSelectableWrapper(BalkenGroup);
 const SelectableIconPrimitive = createSelectableWrapper(IconPrimitive);
 const SelectableShapePrimitive = createSelectableWrapper(ShapePrimitive, 'isSelected');
 const SelectableFramePrimitive = createSelectableWrapper(FramePrimitive, 'isSelected');
@@ -194,47 +193,37 @@ const SelectableCanvasText = createSelectableWrapper(CanvasText);
 const SelectableUserImagePrimitive = createSelectableWrapper(UserImagePrimitive, 'isSelected');
 const SelectableChartPrimitive = createSelectableWrapper(ChartPrimitive, 'isSelected');
 
+/** How one kind is drawn: its item from the layer list, and the layer's context. */
+export type KindRenderer<K extends KindName> = (
+  item: Extract<CanvasItem, { type: K }>,
+  ctx: RenderCtx
+) => React.ReactNode;
+
 type KindRenderers = {
-  [K in KindName]: (item: Extract<CanvasItem, { type: K }>, ctx: RenderCtx) => React.ReactNode;
+  [K in Exclude<KindName, HostRenderedKindName>]: KindRenderer<K>;
 };
+
+/** The renderers a host supplies for the kinds it draws (`hostRendered` in `ELEMENT_KINDS`). */
+export type HostKindRenderers = { [K in HostRenderedKindName]?: KindRenderer<K> };
+
+/**
+ * A module-level registry, like the asset catalogue: offscreen renders draw
+ * the layer list without a React context. Without a host, its kinds draw
+ * nothing.
+ */
+let hostRenderers: HostKindRenderers = {};
+
+/** The host's renderers, installed once at startup; replaces the ones before. */
+export function registerKindRenderers(renderers: HostKindRenderers): void {
+  hostRenderers = renderers;
+}
 
 /**
  * How each element kind is drawn. Keyed by kind, so a kind added to
- * `CanvasItem` does not compile until it has a renderer here.
+ * `CanvasItem` does not compile until it has a renderer here or is marked
+ * `hostRendered`.
  */
 export const KIND_RENDERERS: KindRenderers = {
-  // Render Balken
-  balken: (item, ctx) => {
-    const { handlers, handleSnapChange, setSnapLines, getSnapTargets, stageWidth, stageHeight } =
-      ctx;
-    const balken = item.data;
-    return (
-      <SelectableBalkenGroup
-        key={balken.id}
-        elementId={balken.id}
-        id={balken.id}
-        mode={balken.mode}
-        colorSchemeId={balken.colorSchemeId}
-        offset={balken.offset}
-        scale={balken.scale}
-        widthScale={balken.widthScale}
-        texts={balken.texts}
-        rotation={balken.rotation}
-        barOffsets={balken.barOffsets}
-        onSelect={() => handlers.handleBalkenSelect(balken.id)}
-        onTextChange={(idx, txt) => handlers.handleBalkenTextChange(balken.id, idx, txt)}
-        onDragEnd={(x, y) => handlers.handleBalkenDragEnd(balken.id, x, y)}
-        onTransformEnd={(x, y, s, r) => handlers.handleBalkenTransformEnd(balken.id, x, y, s, r)}
-        onSnapChange={handleSnapChange}
-        onSnapLinesChange={(lines) => setSnapLines(lines as SnapLine[])}
-        getSnapTargets={getSnapTargets}
-        stageWidth={stageWidth}
-        stageHeight={stageHeight}
-        opacity={balken.opacity ?? 1}
-      />
-    );
-  },
-
   // Render Icon
   icon: (item, ctx) => {
     const {
@@ -642,10 +631,14 @@ export const KIND_RENDERERS: KindRenderers = {
   },
 };
 
-/** Draws one item of a kind through its table entry. */
+/** Draws one item of a kind through its table entry, or the host's renderer. */
 export function renderKindItem(item: Exclude<CanvasItem, { type: 'element' }>, ctx: RenderCtx) {
-  // The table is keyed by `item.type`, so the entry takes exactly this item;
+  // The tables are keyed by `item.type`, so the entry takes exactly this item;
   // TypeScript cannot correlate the two through the lookup.
-  const render = KIND_RENDERERS[item.type] as (item: CanvasItem, ctx: RenderCtx) => React.ReactNode;
-  return render(item, ctx);
+  const render = (
+    item.type in KIND_RENDERERS
+      ? KIND_RENDERERS[item.type as keyof KindRenderers]
+      : hostRenderers[item.type as HostRenderedKindName]
+  ) as ((item: CanvasItem, ctx: RenderCtx) => React.ReactNode) | undefined;
+  return render ? render(item, ctx) : null;
 }

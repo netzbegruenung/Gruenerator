@@ -1,11 +1,8 @@
 import { createContext, useContext } from 'react';
 
 import type { ApplyResult } from './ai/types';
-import type { BlockSlide } from './blocks/liftedBlock';
 import type { StockImage, StockImageAttribution } from './common/imageSourceTypes';
-import type { AltTextPage, CanvasSpecEditBridge } from './editorSeamTypes';
 import type {
-  CanvasBlockService,
   CanvasCarouselService,
   CanvasFileDeliveryService,
   CanvasImageShareService,
@@ -15,16 +12,11 @@ import type {
   UseCanvasStudioAssets,
   UseCanvasUnsplashSearch,
 } from './hostServices';
+import type { AltTextPage, CanvasSpecEditBridge } from '@ggraphic/editor/editorSeamTypes';
 import type {
   CanvasAiCapabilities,
   CanvasAiOperation,
   CanvasAiSnapshot,
-  SharepicFormat,
-  CanvasVorlage,
-  PrintVorlage,
-  SharepicBlock,
-  SharepicColor,
-  SharepicSeite,
 } from '@gruenerator/contracts';
 import type { ComponentType, PropsWithChildren } from 'react';
 
@@ -43,14 +35,18 @@ export interface CanvasAiEditBridge {
   applyOperations: (ops: CanvasAiOperation[]) => ApplyResult[];
 }
 
-export type { AltTextPage, AltTextScope, CanvasSpecEditBridge } from './editorSeamTypes';
+export type {
+  AltTextPage,
+  AltTextScope,
+  CanvasSpecEditBridge,
+} from '@ggraphic/editor/editorSeamTypes';
 
 /**
  * Props passed to the host-supplied chat component when the user opens the
  * Chat sidebar tab. The component renders inline inside the sidebar panel.
  */
 export interface ChatSectionContentProps {
-  /** Template id (e.g. 'zitat', 'simple', 'dreizeilen'). */
+  /** Template id (e.g. 'zitat', 'simple'). */
   canvasType: string;
   /** Returns a structured German text description of the current canvas. */
   getSharepicText: () => string;
@@ -63,39 +59,15 @@ export interface ChatSectionContentProps {
   specEdit?: CanvasSpecEditBridge;
 }
 
-/** A page a Vorlage composes to, ready for `replaceDeck`. */
-export interface VorlagePage {
-  configId: string;
-  state: Record<string, unknown>;
-}
-
 /**
- * The Grünerator-Seiten behind the „Vorlagen" tab of a sharepic, each Vorlage
- * slide among them. `composeSeite` turns one into a page (needs the browser:
- * fonts, photo tones) and keeps its spec on it, so the chat can go on editing it.
+ * Services only a host's own UI reads. Empty here: a host declares its members
+ * by augmenting this interface (`declare module`), and `CanvasEditorServices`
+ * carries them.
  */
-export interface CanvasVorlagenService {
-  listSeiten: () => Promise<SharepicSeite[]>;
-  composeSeite: (seite: SharepicSeite, format: SharepicFormat) => Promise<VorlagePage[]>;
-  /** Vorlagen saved as finished pages, for every format; the tab shows the document's. */
-  listCanvas?: () => Promise<CanvasVorlage[]>;
-  /** The print Vorlagen of the viewer's country; their specs compose through `print.composePrint`. */
-  listPrint?: () => Promise<PrintVorlage[]>;
-  /**
-   * Copies a print Vorlage into a new design of the viewer's own and opens it;
-   * without this the tab only replaces the design.
-   */
-  openPrintAsNew?: (vorlage: PrintVorlage) => void;
-  /** The Grünerator-Blöcke of the viewer's country, for the Elemente panel. */
-  listBloecke?: () => Promise<SharepicBlock[]>;
-  /** Composes a block on `color` in `format` (needs the browser: fonts); the slide holds it alone. */
-  composeBlock?: (
-    block: SharepicBlock,
-    options: { format: SharepicFormat; color: SharepicColor }
-  ) => Promise<BlockSlide>;
-}
+// eslint-disable-next-line @typescript-eslint/no-empty-object-type -- filled by host augmentation
+export interface CanvasEditorHostServices {}
 
-export interface CanvasEditorServices {
+export interface CanvasEditorServices extends CanvasEditorHostServices {
   /** Fetch curated stock images by category */
   fetchStockImages?: (category?: string | null) => Promise<{
     success: boolean;
@@ -202,9 +174,6 @@ export interface CanvasEditorServices {
    */
   ChatSectionContent?: ComponentType<ChatSectionContentProps>;
 
-  /** Grünerator-Vorlagen for the „Vorlagen" tab; when omitted, the tab is hidden. */
-  vorlagen?: CanvasVorlagenService;
-
   /**
    * The viewer's media library (Uploads tab, image pickers). When omitted, the
    * list is empty and an upload yields nothing. Hooks: see `hostServices.ts`.
@@ -234,18 +203,10 @@ export interface CanvasEditorServices {
   useUnsplashSearch?: UseCanvasUnsplashSearch;
 
   /**
-   * The impressum gate and print Vorlagen (`CanvasPrintService` in
-   * `hostServices.ts`). When omitted, no format carries an impressum and the
-   * „Vorlagen" tab lists no print Vorlagen; the PDF export still works.
+   * The impressum gate (`CanvasPrintService` in `hostServices.ts`). When
+   * omitted, no format carries an impressum; the PDF export still works.
    */
   print?: CanvasPrintService;
-
-  /**
-   * Turns composed blocks into page items (`CanvasBlockService` in
-   * `hostServices.ts`). When omitted, the editor offers no blocks, even with
-   * `vorlagen.listBloecke` and `vorlagen.composeBlock`.
-   */
-  blocks?: CanvasBlockService;
 
   /**
    * Keeps the carousel chrome true after page ops (`CanvasCarouselService`).

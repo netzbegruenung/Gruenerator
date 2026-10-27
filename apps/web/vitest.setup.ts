@@ -1,3 +1,11 @@
+import {
+  GRUENE_ASSET_CATALOG,
+  registerAssetCatalog,
+} from '@gruenerator/canvas-editor/grueneAssetCatalog';
+import {
+  GRUENE_BRAND_PACKS,
+  registerBrandPacks,
+} from '@gruenerator/canvas-editor/grueneBrandPacks';
 import * as jestDomMatchers from '@testing-library/jest-dom/matchers';
 import { cleanup, configure } from '@testing-library/react';
 import { afterAll, afterEach, beforeAll, expect } from 'vitest';
@@ -22,6 +30,11 @@ expect.extend(axeMatchers);
 configure({ asyncUtilTimeout: 3000 });
 
 installMatchMediaStub();
+
+// As `src/index.tsx` does before the first render: the canvas editor's
+// stickers, emoji and logos are host data.
+registerAssetCatalog(GRUENE_ASSET_CATALOG);
+registerBrandPacks(GRUENE_BRAND_PACKS);
 
 // jsdom kennt beides nicht. Popup-Komponenten (Base UI, Radix) messen ihren
 // Anker, cmdk scrollt zum aktiven Eintrag — beides beim Mounten und ungeprüft.

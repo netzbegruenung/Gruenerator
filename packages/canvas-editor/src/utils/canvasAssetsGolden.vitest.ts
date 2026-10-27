@@ -6,7 +6,7 @@ import {
   LOGO_ASSETS,
   SYSTEM_ASSETS,
   TEMPLATE_ASSETS,
-} from './canvasAssets';
+} from '../brand/grueneAssets';
 
 /**
  * The asset catalogue as the editor sees it, pinned as JSON: the picker's

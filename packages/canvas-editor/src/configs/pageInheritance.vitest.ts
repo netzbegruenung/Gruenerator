@@ -1,12 +1,12 @@
+import { extractInheritablePageState } from '@ggraphic/editor/configs/pageInheritance';
 import { type SharepicSlide } from '@gruenerator/contracts';
 import { beforeAll, describe, it, expect } from 'vitest';
 
 import { composeSharepic } from '../composer/composeSharepic';
 
 import { loadCanvasConfig } from './configLoader';
-import { extractInheritablePageState } from './pageInheritance';
 
-import type { ShapeInstance } from '../utils/shapes';
+import type { ShapeInstance } from '@ggraphic/editor/utils/shapes';
 
 describe('extractInheritablePageState', () => {
   it('mirrors the image source into both keys', () => {

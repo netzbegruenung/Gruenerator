@@ -3,7 +3,7 @@ import { FaMinus, FaPlus } from 'react-icons/fa';
 
 import { MOBILE_INPUT_TEXT } from '../sidebarStyles';
 
-import type { TextFieldConfig } from '../../configs/unifiedTabs';
+import type { TextFieldConfig } from '@ggraphic/editor/configs/unifiedTabs';
 
 // ============================================================================
 // FONT SIZE STEPPER

@@ -10,6 +10,12 @@
  * exposes bridge handlers via a mutable ref for GenericCanvasInner's useImperativeHandle.
  */
 
+import {
+  useCanvasStore,
+  useCanvasStoreSelector,
+  useCanvasStoreShallow,
+} from '@ggraphic/editor/stores/CanvasStoreProvider';
+import { userFacingMessage } from '@ggraphic/editor/utils/userFacingError';
 import { toast } from '@gruenerator/ui';
 import { useCallback, useEffect, useMemo, useRef, useState, type MutableRefObject } from 'react';
 
@@ -18,11 +24,6 @@ import { useFloatingModuleHandlers } from '../hooks/useFloatingModuleHandlers';
 import { useFloatingModuleState } from '../hooks/useFloatingModuleState';
 import { plainImageUrls } from '../hostServices';
 import { useOptionalUserUploads } from '../sidebar/UserUploadsProvider';
-import {
-  useCanvasStore,
-  useCanvasStoreSelector,
-  useCanvasStoreShallow,
-} from '../stores/CanvasStoreProvider';
 import { cropRotationOf, cropRotationUpdate } from '../utils/cropSession';
 import { canEnterCrop, type CropUpdate } from '../utils/cropTarget';
 import {
@@ -42,7 +43,6 @@ import {
   suggestSmartCrop,
 } from '../utils/smartCrop';
 import { findTemplateEntry } from '../utils/templateElementInstance';
-import { userFacingMessage } from '../utils/userFacingError';
 
 import type { ToolbarStateReport } from './GenericCanvas';
 import type { BaseCanvasState } from '../configs/factory/baseTypes';
@@ -51,10 +51,10 @@ import type { OptionalCanvasActions } from '../hooks/useCanvasElementHandlers';
 import type { ShadowPatch } from '../hooks/useFloatingModuleHandlers';
 import type { FloatingModuleState } from '../hooks/useFloatingModuleState';
 import type { CanvasItem } from '../utils/canvasLayerManager';
-import type { Rect } from '../utils/coverFit';
-import type { CropAspectId } from '../utils/cropAspect';
-import type { GradientFill } from '../utils/gradientFill';
-import type { TextAlign } from '../utils/textAlign';
+import type { Rect } from '@ggraphic/editor/utils/coverFit';
+import type { CropAspectId } from '@ggraphic/editor/utils/cropAspect';
+import type { GradientFill } from '@ggraphic/editor/utils/gradientFill';
+import type { TextAlign } from '@ggraphic/editor/utils/textAlign';
 import type Konva from 'konva';
 
 export interface ToolbarBridgeState {

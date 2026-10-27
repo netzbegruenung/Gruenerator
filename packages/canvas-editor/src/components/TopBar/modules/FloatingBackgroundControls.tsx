@@ -1,3 +1,4 @@
+import { cn } from '@ggraphic/editor/utils/cn';
 import { Popover, PopoverContent, PopoverTrigger } from '@gruenerator/ui';
 import { Slider } from 'radix-ui';
 import { useEffect, useId, useRef, useState, type ChangeEvent } from 'react';
@@ -13,13 +14,12 @@ import { useCanvasEditorServices } from '../../../CanvasEditorProvider';
 import { plainImageUrls } from '../../../hostServices';
 import { MOBILE_INPUT_TEXT } from '../../../sidebar/sidebarStyles';
 import { useUserUploads } from '../../../sidebar/UserUploadsProvider';
-import { cn } from '../../../utils/cn';
 import { fetchShareImageFile } from '../../../utils/mediaPlacement';
 import { downscaleImageForUpload } from '../../../utils/userImageUtils';
 
 import type { StockImageAttribution } from '../../../common/imageSourceTypes';
 import type { BackgroundControls } from '../../../configs/types';
-import type { MediaItem } from '@gruenerator/contracts';
+import type { CanvasMediaItem } from '../../../hostServices';
 
 const ICON_BTN =
   'inline-flex items-center justify-center size-8 shrink-0 rounded-md border-none bg-transparent cursor-pointer text-[var(--editor-text)] transition-colors duration-150 hover:bg-[var(--editor-surface-hover)] hover:text-[var(--editor-active-fg)]';
@@ -79,7 +79,7 @@ export function BackgroundImagePicker({
     }
   };
 
-  const pickUpload = (item: MediaItem) => {
+  const pickUpload = (item: CanvasMediaItem) => {
     const url = imageUrls.placementUrl(item);
     if (!url) return;
     void apply(item.id, async () => ({

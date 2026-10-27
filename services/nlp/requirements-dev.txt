@@ -18,7 +18,7 @@ catalogue==2.0.10
     #   spacy
     #   srsly
     #   thinc
-certifi==2026.10.19
+certifi==2026.10.23
     # via
     #   httpcore
     #   httpx
@@ -41,7 +41,7 @@ cymem==2.0.13
     #   preshed
     #   spacy
     #   thinc
-fastapi==0.143.2
+fastapi==0.162.0
     # via gruenerator-nlp (pyproject.toml)
 h11==0.16.0
     # via
@@ -119,13 +119,13 @@ requests==2.34.2
     # via spacy
 rich==15.0.0
     # via typer
-setuptools==84.1.0
+setuptools==84.2.1
     # via
     #   spacy
     #   thinc
 shellingham==1.5.4
     # via typer
-smart-open==8.0.3
+smart-open==8.0.4
     # via weasel
 spacy==3.8.16
     # via gruenerator-nlp (pyproject.toml)
@@ -138,7 +138,7 @@ srsly==2.5.4
     #   spacy
     #   thinc
     #   weasel
-starlette==1.8.0
+starlette==1.9.0
     # via fastapi
 thinc==8.3.13
     # via spacy
@@ -175,7 +175,7 @@ watchfiles==1.3.0
     # via uvicorn
 weasel==1.0.0
     # via spacy
-websockets==17.2
+websockets==17.3
     # via uvicorn
 wrapt==2.5.1
     # via smart-open

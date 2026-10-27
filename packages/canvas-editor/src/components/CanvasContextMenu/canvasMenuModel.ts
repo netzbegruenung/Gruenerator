@@ -11,7 +11,7 @@ import {
   formatShortcut,
   shortcutOf,
   type CanvasCommandId,
-} from '../../utils/canvasCommandRegistry';
+} from '@ggraphic/editor/utils/canvasCommandRegistry';
 
 import type { BackgroundControls } from '../../configs/types';
 import type { FloatingModuleState } from '../../hooks/useFloatingModuleState';

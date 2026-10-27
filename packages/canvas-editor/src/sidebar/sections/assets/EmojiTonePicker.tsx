@@ -1,6 +1,5 @@
+import { cn } from '@ggraphic/editor/utils/cn';
 import { useRef, type KeyboardEvent } from 'react';
-
-import { cn } from '../../../utils/cn';
 
 const SKIN_TONES = [
   { label: 'Standard', color: '#fcc21b' },

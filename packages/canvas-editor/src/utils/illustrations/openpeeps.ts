@@ -6,7 +6,7 @@
  * atoms are intentionally excluded — only complete illustrations here.
  */
 
-import type { SvgDef } from './types';
+import type { SvgDef } from '@ggraphic/editor/utils/illustrations/types';
 
 export const OPENPEEPS: SvgDef[] = [
   {

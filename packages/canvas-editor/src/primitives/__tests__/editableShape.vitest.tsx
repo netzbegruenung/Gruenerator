@@ -1,9 +1,9 @@
+import { createShape, type ShapeInstance } from '@ggraphic/editor/utils/shapes';
 import { render } from '@testing-library/react';
 import Konva from 'konva';
 import { createRef } from 'react';
 import { describe, expect, it } from 'vitest';
 
-import { createShape, type ShapeInstance } from '../../utils/shapes';
 import { CanvasStage, type CanvasStageRef } from '../CanvasStage';
 import { ShapePrimitive } from '../ShapePrimitive';
 

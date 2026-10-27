@@ -1,6 +1,3 @@
-import Konva from 'konva';
-import { describe, expect, it } from 'vitest';
-
 import {
   axisAlignedBounds,
   centreOf,
@@ -11,7 +8,9 @@ import {
   readNodeFrame,
   signedScale,
   type NodeFrame,
-} from './orientation';
+} from '@ggraphic/editor/utils/orientation';
+import Konva from 'konva';
+import { describe, expect, it } from 'vitest';
 
 const topLeft = (rotation: number): NodeFrame => ({
   x: 10,

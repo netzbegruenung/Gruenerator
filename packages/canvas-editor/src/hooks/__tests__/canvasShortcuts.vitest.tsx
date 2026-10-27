@@ -1,17 +1,17 @@
+import { createCanvasEditorStore } from '@ggraphic/editor/stores/createCanvasEditorStore';
+import {
+  CANVAS_COMMAND_IDS,
+  shortcutOf,
+  type CanvasCommandId,
+} from '@ggraphic/editor/utils/canvasCommandRegistry';
+import { CANVAS_ITEM_ID_ATTR, CANVAS_ITEM_NAME } from '@ggraphic/editor/utils/deepSelect';
 import { renderHook } from '@testing-library/react';
 import Konva from 'konva';
 import { act } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { createCanvasEditorStore } from '../../stores/createCanvasEditorStore';
 import { CanvasClipboard } from '../../utils/canvasClipboard';
-import {
-  CANVAS_COMMAND_IDS,
-  shortcutOf,
-  type CanvasCommandId,
-} from '../../utils/canvasCommandRegistry';
 import { createCanvasCommands, type CanvasCommands } from '../../utils/canvasCommands';
-import { CANVAS_ITEM_ID_ATTR, CANVAS_ITEM_NAME } from '../../utils/deepSelect';
 import { useCanvasKeyboardHandlers } from '../useCanvasKeyboardHandlers';
 
 import type { BaseCanvasState } from '../../configs/factory/baseTypes';

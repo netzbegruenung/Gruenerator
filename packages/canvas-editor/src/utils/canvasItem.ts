@@ -1,13 +1,13 @@
 import type { AssetInstance } from './canvasAssets';
-import type { ChartInstance } from './chartTypes';
-import type { FrameInstance } from './frameUtils';
-import type { IllustrationInstance } from './illustrations/types';
-import type { PillBadgeInstance } from './pillBadgeUtils';
-import type { ShapeInstance } from './shapes';
 import type { UserImageInstance } from './userImageUtils';
 import type { AdditionalText, CanvasElementConfig } from '../configs/types';
-import type { BalkenInstance } from '../primitives/BalkenGroup';
-import type { CircleBadgeInstance } from '../utils/circleBadgeUtils';
+import type { BalkenInstance } from '../utils/balkenUtils';
+import type { ChartInstance } from '@ggraphic/editor/utils/chartTypes';
+import type { CircleBadgeInstance } from '@ggraphic/editor/utils/circleBadgeUtils';
+import type { FrameInstance } from '@ggraphic/editor/utils/frameUtils';
+import type { IllustrationInstance } from '@ggraphic/editor/utils/illustrations/types';
+import type { PillBadgeInstance } from '@ggraphic/editor/utils/pillBadgeUtils';
+import type { ShapeInstance } from '@ggraphic/editor/utils/shapes';
 
 /**
  * One item of a page's layer list. Its own module so the element-kind

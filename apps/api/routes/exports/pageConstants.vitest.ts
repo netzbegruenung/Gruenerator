@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { CANVAS_FORMATS } from '../../../../packages/canvas-editor/src/formats/index.js';
+import { CANVAS_FORMATS } from '../../../../packages/ggraphic-editor/src/formats/index.js';
 
 import { crossesFormatCategory, formatCategory, SERVER_FORMATS } from './pageConstants.js';
 

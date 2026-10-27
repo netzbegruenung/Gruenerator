@@ -4,10 +4,10 @@
  * update-element must reach texts — otherwise "Verschieb den Text nach oben"
  * and "Schrift größer" have nothing to act on.
  */
+import { getCanvasFormatOrDefault } from '@ggraphic/editor/formats/index';
 import { describe, expect, it, vi } from 'vitest';
 
 import { createFreeformFullConfig, type FreeformState } from '../configs/freeform_full.config';
-import { getCanvasFormatOrDefault } from '../formats';
 
 import { applyOperation, type RotateElement } from './applyOperation';
 

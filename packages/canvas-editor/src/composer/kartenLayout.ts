@@ -1,4 +1,4 @@
-import { createShape } from '../utils/shapes';
+import { createShape } from '@ggraphic/editor/utils/shapes';
 
 import {
   type BingoItem,

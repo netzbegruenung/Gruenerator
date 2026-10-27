@@ -1,16 +1,20 @@
-import type { BackgroundType, TextFieldConfig } from './unifiedTabs';
-import type { TemplateAiCapabilities } from '../ai/types';
+import type { SharepicAiCapabilities } from './aiCapabilities';
 import type { StockImageAttribution } from '../common/imageSourceTypes';
+import type { CanvasStageRef } from '../primitives/CanvasStage';
+import type { BackgroundType, TextFieldConfig } from '@ggraphic/editor/configs/unifiedTabs';
 import type {
   AltTextPage,
   AltTextScope,
   CanvasSpecEditBridge,
   HeterogeneousPage,
-} from '../editorSeamTypes';
-import type { CanvasStageRef } from '../primitives/CanvasStage';
-import type { BackgroundColorOption, SidebarTabId, SidebarTab } from '../sidebar/tabTypes';
-import type { GradientFill } from '../utils/gradientFill';
-import type { TextAccent, TextMarker } from '../utils/textUtils';
+} from '@ggraphic/editor/editorSeamTypes';
+import type {
+  BackgroundColorOption,
+  SidebarTabId,
+  SidebarTab,
+} from '@ggraphic/editor/sidebar/tabTypes';
+import type { GradientFill } from '@ggraphic/editor/utils/gradientFill';
+import type { TextAccent, TextMarker } from '@ggraphic/editor/utils/textUtils';
 
 // ============================================================================
 // ELEMENT CONFIGURATION TYPES
@@ -111,8 +115,8 @@ export interface TextElementConfig<
   /**
    * Der Text trägt Markdown-lite (`**fett**`, `_kursiv_`, `<u>…</u>`, Listen)
    * und wird mit dem Rich-Text-Editor bearbeitet. Nur für Felder in einer
-   * Schrift mit echten Fett-/Kursiv-Schnitten (PT Sans) setzen — GrueneTypeNeue
-   * hat nur einen Schnitt, dort würde beides synthetisiert.
+   * Schrift mit echten Fett-/Kursiv-Schnitten (PT Sans) setzen — eine Display-Schrift
+   * mit nur einem Schnitt, dort würde beides synthetisiert.
    */
   richText?: boolean;
   /** Enable dragging */
@@ -413,6 +417,12 @@ export interface BackgroundControls {
 // FULL CANVAS CONFIGURATION
 // ============================================================================
 
+/** A design as the host's gallery describes it (`FullCanvasConfig.shareMetadata`). */
+export interface ShareDescription {
+  content: Record<string, unknown>;
+  styling: Record<string, unknown>;
+}
+
 export interface FullCanvasConfig<
   TState = Record<string, unknown>,
   TActions = Record<string, unknown>,
@@ -439,6 +449,12 @@ export interface FullCanvasConfig<
    *  repairs what a writer without font metrics (the chat edit path) left
    *  behind. Returns the repaired state, or null when there is nothing to do. */
   normalizeLoadedState?: (state: TState) => TState | null;
+  /**
+   * What the host's gallery stores about an auto-saved design of this
+   * template (`content`, `styling`). Without it, the whole state goes into
+   * `content`.
+   */
+  shareMetadata?: (state: TState) => ShareDescription;
   /** Create action handlers. Both history savers snapshot the committed
    *  state after the action's update; their argument is ignored. */
   createActions: (
@@ -450,7 +466,7 @@ export interface FullCanvasConfig<
   ) => TActions;
   /** The background's colour and photo controls for the context bar. */
   background?: (state: TState, actions: TActions) => BackgroundControls;
-  /** Series colours for charts on this page, its country's palette; absent: `CHART_COLORS`. */
+  /** Series colours for charts on this page, its country's palette; absent: the active brand's (`chartColors()`). */
   chartColors?: readonly string[];
   /** Optional function to determine disabled tabs */
   getDisabledTabs?: (state: TState) => SidebarTabId[];
@@ -506,7 +522,7 @@ export interface FullCanvasConfig<
   useUnifiedTabs?: boolean;
   /** Font configuration for canvas rendering */
   fonts?: {
-    /** Primary font family used in canvas (e.g., 'GrueneTypeNeue') */
+    /** Primary font family used in canvas (e.g., 'PT Sans') */
     primary: string;
     /** Font size for preloading (affects text metrics) */
     fontSize: number;
@@ -517,13 +533,13 @@ export interface FullCanvasConfig<
   /**
    * Optional AI capability declaration. Templates that supply this gain
    * an AI sidebar tab; templates that don't never see the AI section.
-   * See @gruenerator/canvas-editor/src/ai/types.ts for shape.
+   * See `ai/types.ts` for shape.
    */
-  ai?: TemplateAiCapabilities<TState, TActions>;
+  ai?: SharepicAiCapabilities<TState, TActions>;
 }
 
 // ============================================================================
-// LEGACY SIDEBAR-ONLY CONFIG (for backward compatibility with Dreizeilen)
+// LEGACY SIDEBAR-ONLY CONFIG (for backward compatibility with older templates)
 // ============================================================================
 
 export interface CanvasConfig<

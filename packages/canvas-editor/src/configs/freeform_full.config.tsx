@@ -8,24 +8,23 @@
  * balkens, badges, frames — all features the config system offers.
  */
 
+import { insertScaleFor, isSlideFormat, type CanvasFormat } from '@ggraphic/editor/formats/index';
+import { zoomBackground } from '@ggraphic/editor/utils/coverFit';
+import { COMPOSER_PLANE_IDS, photoStripBeside } from '@ggraphic/editor/utils/shapes';
+import { straightenResetFor } from '@ggraphic/editor/utils/straighten';
 import { CANVAS_COLORS } from '@gruenerator/contracts';
 import { PiFrameCornersFill, PiSquaresFourFill, PiTextAa } from 'react-icons/pi';
 
 import { buildAssetCapability } from '../ai/assetCapability';
 import { describeCanvasElements } from '../ai/describeCanvasElements';
 import { buildIllustrationCapability } from '../ai/illustrationCapability';
+import { CANVAS_RECOMMENDED_ASSETS } from '../brand/grueneAssets';
 import { withCardFollowingText } from '../composer/cardFollowsText';
 import { SHAREPIC_COLOR_HEX } from '../composer/composeSharepic';
 import { type LiftedBlock } from '../composer/liftBlock';
-import { insertScaleFor, isSlideFormat, type CanvasFormat } from '../formats';
 import { AssetsSection } from '../sidebar';
 import { CombinedTextSection } from '../sidebar/sections/CombinedTextSection';
 import { FrameSettingsSection } from '../sidebar/sections/FrameSettingsSection';
-import { CANVAS_RECOMMENDED_ASSETS } from '../utils/canvasAssets';
-import { CHART_PALETTES } from '../utils/chartUtils';
-import { zoomBackground } from '../utils/coverFit';
-import { COMPOSER_PLANE_IDS, photoStripBeside } from '../utils/shapes';
-import { straightenResetFor } from '../utils/straighten';
 
 import { chatTab, createCommonSectionEntries, toolsTab, uploadsTab } from './commonSections';
 import { createBaseActions } from './factory/actionFactories';
@@ -34,7 +33,7 @@ import { makeSectionDefiner } from './factory/defineSection';
 import { injectFeatureProps } from './featureInjector';
 import { createShareSection } from './shareSection';
 
-import type { TemplateAiCapabilities } from '../ai/types';
+import type { SharepicAiCapabilities } from './aiCapabilities';
 import type {
   BaseCanvasState,
   ImageBackgroundState,
@@ -43,7 +42,7 @@ import type {
 import type { FullCanvasConfig, LayoutResult, AdditionalText } from './types';
 import type { StockImageAttribution } from '../common/imageSourceTypes';
 import type { BackgroundColorOption } from '../sidebar/types';
-import type { ShapeInstance } from '../utils/shapes';
+import type { ShapeInstance } from '@ggraphic/editor/utils/shapes';
 import type { CanvasAiSnapshot } from '@gruenerator/contracts';
 
 // ============================================================================
@@ -105,7 +104,7 @@ const calculateLayout = (_state: FreeformState): LayoutResult => ({});
 const createFreeformAiCapabilities = (
   width: number,
   height: number
-): TemplateAiCapabilities<FreeformState, FreeformActions> => ({
+): SharepicAiCapabilities<FreeformState, FreeformActions> => ({
   supportedOperations: [
     'set-text',
     'set-background-color',
@@ -242,8 +241,8 @@ export const createFreeformFullConfig = (
   {
     /** Colour of newly added text; white suits the default Tanne sheet. */
     fontColor = '#FFFFFF',
-    /** Series colours of a new chart, the country's palette. */
-    chartColors = CHART_PALETTES['de-DE'],
+    /** Series colours of a new chart; absent = the active brand's, read when a chart is made. */
+    chartColors,
   }: { fontColor?: string; chartColors?: readonly string[] } = {}
 ): FullCanvasConfig<FreeformState, FreeformActions> =>
   withFreeformAi(
@@ -257,17 +256,17 @@ export const createFreeformFullConfig = (
   );
 
 const withFreeformAi = (
-  ai: TemplateAiCapabilities<FreeformState, FreeformActions>,
+  ai: SharepicAiCapabilities<FreeformState, FreeformActions>,
   width: number,
   height: number,
   fontColor: string,
-  chartColors: readonly string[],
+  chartColors: readonly string[] | undefined,
   maxPages: number,
   insertScale: number
 ): FullCanvasConfig<FreeformState, FreeformActions> => ({
   id: 'freeform',
 
-  chartColors,
+  ...(chartColors ? { chartColors } : {}),
 
   canvas: { width, height },
 

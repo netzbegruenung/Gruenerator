@@ -8,6 +8,7 @@
  * - docs_ai: AI document editing (BlockNote xl-ai)
  * - pdf_export: PDF document export
  * - gruen_o_mat: Public Gruen-O-Mat chat (IP-based)
+ * - browser_agent: `website_erkunden` runs (a real browser, ~1 min each)
  *
  * User Tiers:
  * - anonymous: Unauthenticated users (session/IP-based)
@@ -43,6 +44,7 @@ export interface RateLimitConfig {
     docs_ai: ResourceConfig;
     pdf_export: ResourceConfig;
     gruen_o_mat: ResourceConfig;
+    browser_agent: ResourceConfig;
   };
   anonymousIdentifierStrategy: ('sessionID' | 'ip')[];
   enableAnalytics: boolean;
@@ -89,6 +91,14 @@ const rateLimitConfig: RateLimitConfig = {
       anonymous: { limit: 20, window: 'daily' },
       authenticated: { limit: 50, window: 'daily' },
       premium: { limit: Infinity, window: 'daily' },
+    },
+
+    // Website-Erkundung im Chat: jeder Lauf hält einen Chromium bis zu 170 s
+    // und viele Modellaufrufe — 10 pro Stunde und Person.
+    browser_agent: {
+      anonymous: { limit: 0, window: 'hourly' },
+      authenticated: { limit: 10, window: 'hourly' },
+      premium: { limit: 10, window: 'hourly' },
     },
   },
 

@@ -1,3 +1,4 @@
+import { framedPhotoRect, visiblePart } from '@ggraphic/editor/utils/coverFit';
 import {
   sharepicSpecSchema,
   slidePhotoFilename,
@@ -7,7 +8,6 @@ import {
 import { describe, expect, it } from 'vitest';
 
 import { tintRamp } from '../utils/imageFilters';
-import { framedPhotoRect, visiblePart } from '../utils/coverFit';
 import { CROP_PRESETS, cropPresetUpdate } from '../utils/userImageUtils';
 
 import { composeSharepic } from './composeSharepic';

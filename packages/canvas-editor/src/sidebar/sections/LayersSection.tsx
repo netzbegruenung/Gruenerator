@@ -11,6 +11,8 @@
  * Seite (`hooks/useCanvasKeyboardHandlers.ts`, Regel R1).
  */
 
+import { cn } from '@ggraphic/editor/utils/cn';
+import { isFocusLost } from '@ggraphic/editor/utils/editorFocus';
 import {
   useEffect,
   useLayoutEffect,
@@ -20,11 +22,8 @@ import {
   type MouseEvent,
 } from 'react';
 
-import { cn } from '../../utils/cn';
-import { isFocusLost } from '../../utils/editorFocus';
-
 import type { LayerEntry } from '../../utils/layerLabels';
-import type { LayerSelectionChange } from '../../utils/layerSelection';
+import type { LayerSelectionChange } from '@ggraphic/editor/utils/layerSelection';
 
 export interface LayersSectionProps {
   layers: readonly LayerEntry[];

@@ -9,12 +9,9 @@
  * lazily so it only enters the bundle when a chart is actually placed.
  */
 
-import { memo, useEffect, useRef, useState } from 'react';
-import { createRoot } from 'react-dom/client';
-import { Image, Group, Rect, Transformer } from 'react-konva';
-
-import { LOCKED_TRANSFORMER, useIsItemLocked } from '../components/canvasItemLock';
-import { useBoxSnap, type SnapProps } from '../hooks/useBoxSnap';
+import { activeBrand } from '@ggraphic/editor/brand/brandRegistry';
+import { LOCKED_TRANSFORMER, useIsItemLocked } from '@ggraphic/editor/components/canvasItemLock';
+import { useBoxSnap, type SnapProps } from '@ggraphic/editor/hooks/useBoxSnap';
 import {
   CHART_INK_DARK,
   chartInk,
@@ -22,9 +19,13 @@ import {
   chartSeries,
   chartSeriesOutlines,
   type ChartInstance,
-} from '../utils/chartUtils';
-import { ELEMENT_TRANSFORMER } from '../utils/orientation';
-import { useTrackPendingImage } from '../utils/pendingImages';
+} from '@ggraphic/editor/utils/chartUtils';
+import { ELEMENT_TRANSFORMER } from '@ggraphic/editor/utils/orientation';
+import { useTrackPendingImage } from '@ggraphic/editor/utils/pendingImages';
+import { memo, useEffect, useRef, useState } from 'react';
+import { createRoot } from 'react-dom/client';
+import { Image, Group, Rect, Transformer } from 'react-konva';
+
 import { chartBox } from '../utils/renderedBoxes';
 
 import type Konva from 'konva';
@@ -536,7 +537,7 @@ function ChartPrimitiveInner({
             name="selection-chrome"
             width={width}
             height={height}
-            stroke="#005437"
+            stroke={activeBrand().colors.primary}
             strokeWidth={2 / chart.scale}
             dash={[6, 6]}
             listening={false}

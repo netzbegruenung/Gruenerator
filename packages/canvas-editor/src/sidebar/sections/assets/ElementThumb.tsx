@@ -1,7 +1,7 @@
+import { cn } from '@ggraphic/editor/utils/cn';
 import { shareCanvasPreviewUrl, shareThumbnailPreviewUrl } from '@gruenerator/contracts';
 import { Icon } from '@iconify/react';
 
-import { cn } from '../../../utils/cn';
 import { SingleBalkenPreviewIcon, TripleBalkenPreviewIcon } from '../BadgePreviewIcons';
 import { ChartTypePreview } from '../DiagrammeSection';
 import { ALL_PALETTE_SHAPES, getShapeVariant } from '../FormenSection';
@@ -11,7 +11,7 @@ import { FramePresetPreview } from '../RahmenSection';
 import { PREVIEW_COMPONENTS } from './constants';
 
 import type { ElementThumbSpec } from './elementTypes';
-import type { ShapeType } from '../../../utils/shapes';
+import type { ShapeType } from '@ggraphic/editor/utils/shapes';
 
 const PALETTE_BY_TYPE = new Map(ALL_PALETTE_SHAPES.map((shape) => [shape.id, shape]));
 

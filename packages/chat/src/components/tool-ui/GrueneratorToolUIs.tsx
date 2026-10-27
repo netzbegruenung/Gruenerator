@@ -12,6 +12,7 @@ import { ToolNarration } from '../message-parts/ToolNarration';
 import { ToolCallUI } from '../ToolCallUI';
 
 import { AskHumanToolUI } from './AskHumanToolUI';
+import { BrowserSessionToolRender } from './BrowserSessionCard';
 import { McpToolUI } from './McpToolUI';
 import { PressemitteilungExamplesToolRender } from './PressemitteilungExamplesToolRender';
 import { ResearchToolRender } from './ResearchToolRender';
@@ -97,6 +98,9 @@ const DEDICATED_RENDERS: Partial<Record<UiToolName, (props: ToolRenderProps) => 
     <AskHumanToolUI args={args ?? {}} result={result} addResult={addResult} />
   ),
   run_python: ({ args, result }) => <RunPythonToolUI args={args ?? {}} result={result} />,
+  website_erkunden: ({ args, result }) => (
+    <BrowserSessionToolRender args={args ?? {}} result={result} />
+  ),
   tabelle_auswerten: ({ args, result }) => (
     <TabelleAuswertenToolUI args={args ?? {}} result={result} />
   ),

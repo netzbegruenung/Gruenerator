@@ -1,12 +1,12 @@
+import { cn } from '@ggraphic/editor/utils/cn';
 import { MasonryGrid, MasonryItem } from '@gruenerator/ui';
 import { useEffect, useRef, useState } from 'react';
 import { HiArrowUpTray, HiPhoto, HiXMark } from 'react-icons/hi2';
 
-import { cn } from '../../../utils/cn';
 import { mediaItemToFile } from '../../../utils/mediaItemToFile';
 import { useUserUploads } from '../../UserUploadsProvider';
 
-import type { MediaItem } from '@gruenerator/contracts';
+import type { CanvasMediaItem } from '../../../hostServices';
 
 export interface ImageInputPickerProps {
   value: File | null;
@@ -42,7 +42,7 @@ export function ImageInputPicker({
     if (file) onChange(file);
   };
 
-  const handlePickFromUploads = async (item: MediaItem) => {
+  const handlePickFromUploads = async (item: CanvasMediaItem) => {
     setPickError(null);
     try {
       const file = await mediaItemToFile(item);

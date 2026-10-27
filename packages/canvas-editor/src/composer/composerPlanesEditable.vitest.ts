@@ -1,6 +1,5 @@
+import { isComposerPlane } from '@ggraphic/editor/utils/shapes';
 import { describe, expect, it } from 'vitest';
-
-import { isComposerPlane } from '../utils/shapes';
 
 import { composeSharepic } from './composeSharepic';
 

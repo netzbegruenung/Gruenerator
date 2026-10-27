@@ -1,7 +1,10 @@
+import { type GradientFill } from '@ggraphic/editor/utils/gradientFill';
+import {
+  alphaBands,
+  alphaIntervals,
+  translucentHitFunc,
+} from '@ggraphic/editor/utils/gradientHitArea';
 import { describe, expect, it } from 'vitest';
-
-import { type GradientFill } from './gradientFill';
-import { alphaBands, alphaIntervals, translucentHitFunc } from './gradientHitArea';
 
 const linear = (angle: number, ...colors: [number, string][]): GradientFill => ({
   type: 'linear',

@@ -1,13 +1,14 @@
+import { activeBrand } from '@ggraphic/editor/brand/brandRegistry';
+import { LOCKED_TRANSFORMER, useIsItemLocked } from '@ggraphic/editor/components/canvasItemLock';
+import { useBoxSnap, type SnapProps } from '@ggraphic/editor/hooks/useBoxSnap';
+import { ILLUSTRATION_TARGET_SIZE, MOTIF_BASE_SIZE } from '@ggraphic/editor/utils/motifSizes';
+import { ELEMENT_TRANSFORMER, signedScale } from '@ggraphic/editor/utils/orientation';
 import { useState, useEffect, useRef, memo } from 'react';
 import { Image, Group, Rect, Transformer } from 'react-konva';
 
 import { useCanvasEditorServices } from '../CanvasEditorProvider';
-import { LOCKED_TRANSFORMER, useIsItemLocked } from '../components/canvasItemLock';
-import { useBoxSnap, type SnapProps } from '../hooks/useBoxSnap';
 import { getIllustrationPath, findIllustrationById } from '../utils/illustrations/registry';
 import { getCachedSVG, getSVG } from '../utils/illustrations/svgCache';
-import { ILLUSTRATION_TARGET_SIZE, MOTIF_BASE_SIZE } from '../utils/motifSizes';
-import { ELEMENT_TRANSFORMER, signedScale } from '../utils/orientation';
 import { illustrationBox } from '../utils/renderedBoxes';
 
 import type {
@@ -15,7 +16,7 @@ import type {
   KawaiiIllustrationType,
   SvgDef,
   KawaiiInstance,
-} from '../utils/illustrations/types';
+} from '@ggraphic/editor/utils/illustrations/types';
 import type Konva from 'konva';
 
 // react-kawaii and react-dom/server are only needed once a kawaii
@@ -209,7 +210,7 @@ function IllustrationPrimitiveInner({
             y={-BASE_SIZE / 2}
             width={BASE_SIZE}
             height={BASE_SIZE}
-            stroke="#005437"
+            stroke={activeBrand().colors.primary}
             strokeWidth={2 / (illustration.scale * baseScale)}
             dash={[5, 5]}
             listening={false}

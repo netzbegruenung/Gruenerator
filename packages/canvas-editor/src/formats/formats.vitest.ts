@@ -1,6 +1,3 @@
-import { canvasFormatIdSchema, PRINT_VARIANTEN, printSeitenOf } from '@gruenerator/contracts';
-import { describe, expect, it } from 'vitest';
-
 import {
   CANVAS_FORMAT_GROUP_ORDER,
   CANVAS_FORMATS,
@@ -13,7 +10,9 @@ import {
   printGeometry,
   UnsupportedCanvasFormatError,
   type PrintCanvasFormat,
-} from './index';
+} from '@ggraphic/editor/formats/index';
+import { canvasFormatIdSchema, PRINT_VARIANTEN, printSeitenOf } from '@gruenerator/contracts';
+import { describe, expect, it } from 'vitest';
 
 const print = (id: string): PrintCanvasFormat => {
   const format = getCanvasFormat(id);

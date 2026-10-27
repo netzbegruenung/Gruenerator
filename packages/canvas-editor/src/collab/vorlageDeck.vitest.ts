@@ -1,10 +1,15 @@
+import {
+  getPagesMap,
+  readPages,
+  replaceDeck,
+  seedPagesIfEmpty,
+} from '@ggraphic/editor/collab/pagesDoc';
 import { SHAREPIC_SOURCE_KEY } from '@gruenerator/contracts';
 import { describe, expect, it } from 'vitest';
 import * as Y from 'yjs';
 
 import { grueneratorPrint } from '../composer/printService';
 
-import { getPagesMap, readPages, replaceDeck, seedPagesIfEmpty } from './pagesDoc';
 import {
   carryImpressum,
   isDeckEmpty,

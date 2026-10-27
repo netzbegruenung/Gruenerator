@@ -1,6 +1,6 @@
+import { iconSetsLoaded, loadIconSetsFor } from '@ggraphic/editor/utils/canvasIcons';
 import { useEffect, useState } from 'react';
 
-import { iconSetsLoaded, loadIconSetsFor } from '../utils/canvasIcons';
 import { selectedCatalogIconIds, type IconIdCarrier } from '../utils/iconInstances';
 
 /**

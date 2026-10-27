@@ -1,4 +1,4 @@
-import { FRAME_PRESET_PATHS, type FrameClipType } from '../../utils/frameUtils';
+import { FRAME_PRESET_PATHS, type FrameClipType } from '@ggraphic/editor/utils/frameUtils';
 
 const PREVIEW_GRADIENT_ID = 'rahmen-preset-preview-gradient';
 

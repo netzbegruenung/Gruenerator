@@ -1,10 +1,10 @@
+import { useMobileSheet } from '@ggraphic/editor/hooks/useMobileSheet';
+import { cn } from '@ggraphic/editor/utils/cn';
+import { isFocusLost, isKeyboardModality } from '@ggraphic/editor/utils/editorFocus';
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { PiX } from 'react-icons/pi';
 
 import { useIsCanvasMobile } from '../hooks/useIsCanvasMobile';
-import { useMobileSheet } from '../hooks/useMobileSheet';
-import { cn } from '../utils/cn';
-import { isFocusLost, isKeyboardModality } from '../utils/editorFocus';
 
 import { SIDEBAR_PANEL_ID } from './sidebarStyles';
 

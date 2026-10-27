@@ -3,13 +3,14 @@
  * Event sharepic with photo, green section, and date circle
  */
 
+import { zoomBackground } from '@ggraphic/editor/utils/coverFit';
+import { straightenResetFor } from '@ggraphic/editor/utils/straighten';
 import { PiFrameCornersFill, PiSquaresFourFill, PiTextAa } from 'react-icons/pi';
 
+import { CANVAS_RECOMMENDED_ASSETS } from '../brand/grueneAssets';
 import { AssetsSection, FrameSettingsSection } from '../sidebar/sections';
 import { CombinedTextSection } from '../sidebar/sections/CombinedTextSection';
-import { CANVAS_RECOMMENDED_ASSETS, type AssetInstance } from '../utils/canvasAssets';
-import { zoomBackground } from '../utils/coverFit';
-import { straightenResetFor } from '../utils/straighten';
+import { type AssetInstance } from '../utils/canvasAssets';
 import { VERANSTALTUNG_CONFIG, calculateVeranstaltungLayout } from '../utils/veranstaltungLayout';
 
 import { chatTab, createCommonSectionEntries, toolsTab, uploadsTab } from './commonSections';
@@ -31,17 +32,17 @@ import { injectFeatureProps } from './featureInjector';
 import { PLACEHOLDER_TEXT } from './placeholders';
 import { createShareSection } from './shareSection';
 
-import type { TemplateAiCapabilities } from '../ai/types';
+import type { SharepicAiCapabilities } from './aiCapabilities';
 import type { StockImageAttribution } from '../common/imageSourceTypes';
 import type { CircleBadgeInstance, CircleBadgeTextLine } from '../primitives';
 import type { FullCanvasConfig, LayoutResult, AdditionalText } from './types';
 import type { BalkenInstance, BalkenMode } from '../utils/balkenUtils';
-import type { ChartInstance } from '../utils/chartUtils';
-import type { FrameClipType, FrameInstance } from '../utils/frameUtils';
-import type { IllustrationInstance } from '../utils/illustrations/types';
-import type { PillBadgeInstance } from '../utils/pillBadgeUtils';
-import type { ShapeInstance, ShapeType } from '../utils/shapes';
 import type { ElementPlacement, UserImageInstance } from '../utils/userImageUtils';
+import type { ChartInstance } from '@ggraphic/editor/utils/chartUtils';
+import type { FrameClipType, FrameInstance } from '@ggraphic/editor/utils/frameUtils';
+import type { IllustrationInstance } from '@ggraphic/editor/utils/illustrations/types';
+import type { PillBadgeInstance } from '@ggraphic/editor/utils/pillBadgeUtils';
+import type { ShapeInstance, ShapeType } from '@ggraphic/editor/utils/shapes';
 import type { CanvasAiSnapshot, StickerRef } from '@gruenerator/contracts';
 
 // ============================================================================
@@ -320,7 +321,7 @@ function carryDateCircleBadges(
 // AI CAPABILITY
 // ============================================================================
 
-const veranstaltungAiCapabilities: TemplateAiCapabilities<
+const veranstaltungAiCapabilities: SharepicAiCapabilities<
   VeranstaltungFullState,
   VeranstaltungFullActions
 > = {

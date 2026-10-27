@@ -23,6 +23,16 @@
  * or replace with it (one undo step, offered back through the top bar banner).
  */
 import {
+  getCanvasFormat,
+  isPrintFormat,
+  isSlideFormat,
+  type PrintCanvasFormat,
+} from '@ggraphic/editor/formats/index';
+import { useAnnounce } from '@ggraphic/editor/hooks/useAnnounce';
+import { useCanvasStoreSelector } from '@ggraphic/editor/stores/CanvasStoreProvider';
+import { cn } from '@ggraphic/editor/utils/cn';
+import { ensureFontsReady } from '@ggraphic/editor/utils/ensureFontsReady';
+import {
   canvasVorlageThumbPath,
   printVorlageThumbPath,
   sharepicFormatSchema,
@@ -63,13 +73,6 @@ import {
   seiteDeckOps,
   vorlageDeckOps,
 } from '../../collab/vorlageDeck';
-import {
-  getCanvasFormat,
-  isPrintFormat,
-  isSlideFormat,
-  type PrintCanvasFormat,
-} from '../../formats';
-import { useAnnounce } from '../../hooks/useAnnounce';
 import { useIsCanvasMobile } from '../../hooks/useIsCanvasMobile';
 import { SlideLayoutPicker } from '../../slides/SlideLayoutPicker';
 import {
@@ -78,22 +81,19 @@ import {
   slideLayoutConfigId,
   type SlideLayoutId,
 } from '../../slides/slideLayouts';
-import { useCanvasStoreSelector } from '../../stores/CanvasStoreProvider';
-import { cn } from '../../utils/cn';
-import { ensureFontsReady } from '../../utils/ensureFontsReady';
 import { VORLAGE_DRAG_TYPE } from '../../utils/mediaDrop';
 import { rankVorlagen } from '../../utils/vorlagenRelevance';
 
 import { GalleryTabs } from './StudioGallery';
 
 import type { BrandLocale } from '../../brand/theme';
+import type { CanvasSpecEditBridge } from '../../CanvasEditorProvider';
+import type { HeterogeneousPage } from '../../configs/types';
 import type {
-  CanvasSpecEditBridge,
+  CanvasPrintService,
   CanvasVorlagenService,
   VorlagePage,
-} from '../../CanvasEditorProvider';
-import type { HeterogeneousPage } from '../../configs/types';
-import type { CanvasPrintService } from '../../hostServices';
+} from '../../grueneratorHostServices';
 
 /** Lets the editor hand a tile dropped on a page to the tab. */
 export interface VorlagenSectionHandle {

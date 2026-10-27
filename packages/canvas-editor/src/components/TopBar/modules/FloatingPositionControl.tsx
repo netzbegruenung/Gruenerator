@@ -1,3 +1,4 @@
+import { CANVAS_COMMANDS } from '@ggraphic/editor/utils/canvasCommandRegistry';
 import { Popover, PopoverContent, PopoverTrigger } from '@gruenerator/ui';
 import React, { useId, useState } from 'react';
 import {
@@ -11,8 +12,6 @@ import {
   PiColumns,
   PiRows,
 } from 'react-icons/pi';
-
-import { CANVAS_COMMANDS } from '../../../utils/canvasCommandRegistry';
 
 import type { SelectionGeometry } from '../../../utils/canvasCommands';
 import type { IconType } from 'react-icons';

@@ -2,8 +2,8 @@ import Konva from 'konva';
 
 import { getActiveImageFilters, imageFilterAttrs } from './imageFilters';
 
-import type { Mirror, Rect } from './coverFit';
 import type { ImageAdjustments } from './userImageUtils';
+import type { Mirror, Rect } from '@ggraphic/editor/utils/coverFit';
 
 /**
  * Konva-Name des abgedunkelten ganzen Fotos im Zuschneide-Modus (Hintergrund

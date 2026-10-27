@@ -1,6 +1,5 @@
+import { lockToAxis } from '@ggraphic/editor/utils/axisLock';
 import { describe, expect, it } from 'vitest';
-
-import { lockToAxis } from './axisLock';
 
 describe('lockToAxis', () => {
   const origin = { x: 100, y: 100 };

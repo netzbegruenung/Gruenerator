@@ -1,7 +1,6 @@
+import { zipPageImages } from '@ggraphic/editor/utils/zipPageImages';
 import { unzipSync } from 'fflate';
 import { describe, expect, it } from 'vitest';
-
-import { zipPageImages } from './zipPageImages';
 
 const png = (bytes: number[]) => `data:image/png;base64,${btoa(String.fromCharCode(...bytes))}`;
 

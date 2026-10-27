@@ -1,5 +1,5 @@
-import { onGround } from '../brand/composerBrand';
-import { createPillBadgeInstance } from '../utils/pillBadgeUtils';
+import { onGround } from '@ggraphic/editor/brand/composerBrand';
+import { createPillBadgeInstance } from '@ggraphic/editor/utils/pillBadgeUtils';
 
 import { AT_EMPHASIS_STYLE } from './chromeParts';
 import { type AufrufItem, type Placed } from './composeTypes';

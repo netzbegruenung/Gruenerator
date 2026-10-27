@@ -45,6 +45,25 @@ describe('brandDefault', () => {
     expect(contrast(colors.textOnDark, colors.attention)).toBeGreaterThanOrEqual(4.5);
   });
 
+  it('keeps swatch ids unique within each picker', () => {
+    for (const swatches of [
+      brandDefault.palette,
+      brandDefault.textPalette,
+      brandDefault.markers.swatches,
+    ]) {
+      const ids = swatches.map((swatch) => swatch.id);
+      expect(new Set(ids).size).toBe(ids.length);
+    }
+  });
+
+  it('sets the marker ink at 4.5:1 or more on every marker box', () => {
+    for (const swatch of brandDefault.markers.swatches) {
+      expect(contrast(brandDefault.markers.ink, swatch.color), swatch.id).toBeGreaterThanOrEqual(
+        4.5
+      );
+    }
+  });
+
   it('names only font families the core may ship', () => {
     expect(OPEN_FAMILIES).toEqual(expect.arrayContaining(Object.values(brandDefault.fonts)));
   });

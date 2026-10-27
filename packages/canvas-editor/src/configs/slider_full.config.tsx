@@ -12,12 +12,13 @@
  * `slider-at` (Österreich: Ein-Balken-Logo, Dunkelgrün/Hellgrün, Gotham).
  */
 
+import { zoomBackground } from '@ggraphic/editor/utils/coverFit';
+import { createPillBadgeInstance } from '@ggraphic/editor/utils/pillBadgeUtils';
+import { straightenResetFor } from '@ggraphic/editor/utils/straighten';
 import { PiFrameCornersFill, PiSquaresFourFill, PiTextAa } from 'react-icons/pi';
 
 import { AssetsSection, CombinedTextSection, FrameSettingsSection } from '../sidebar/sections';
-import { zoomBackground } from '../utils/coverFit';
 import { recolorIconInstances } from '../utils/iconInstances';
-import { createPillBadgeInstance } from '../utils/pillBadgeUtils';
 import {
   SLIDER_AT_LOGO,
   SLIDER_AT_STYLE,
@@ -28,7 +29,6 @@ import {
   getSliderColorsForState,
   isSliderColorScheme,
 } from '../utils/sliderLayout';
-import { straightenResetFor } from '../utils/straighten';
 
 import { chatTab, createCommonSectionEntries, toolsTab, uploadsTab } from './commonSections';
 import { createBaseActions } from './factory/actionFactories';
@@ -38,6 +38,7 @@ import { fromLayout } from './factory/layoutAccessors';
 import { injectFeatureProps } from './featureInjector';
 import { createShareSection } from './shareSection';
 
+import type { SharepicAiCapabilities } from './aiCapabilities';
 import type {
   FullCanvasConfig,
   LayoutResult,
@@ -47,18 +48,17 @@ import type {
   ImageElementConfig,
   AdditionalText,
 } from './types';
-import type { TemplateAiCapabilities } from '../ai/types';
 import type { BackgroundColorOption, StockImageAttribution } from '../sidebar/types';
 import type { BalkenInstance, BalkenMode } from '../utils/balkenUtils';
 import type { AssetInstance } from '../utils/canvasAssets';
-import type { CircleBadgeInstance } from '../utils/circleBadgeUtils';
-import type { FrameClipType, FrameInstance } from '../utils/frameUtils';
 import type { BaseCanvasState, IconState } from './factory/baseTypes';
-import type { IllustrationInstance } from '../utils/illustrations/types';
-import type { PillBadgeInstance } from '../utils/pillBadgeUtils';
-import type { ShapeInstance, ShapeType } from '../utils/shapes';
 import type { SliderColorScheme, SliderStyle } from '../utils/sliderLayout';
 import type { ElementPlacement } from '../utils/userImageUtils';
+import type { CircleBadgeInstance } from '@ggraphic/editor/utils/circleBadgeUtils';
+import type { FrameClipType, FrameInstance } from '@ggraphic/editor/utils/frameUtils';
+import type { IllustrationInstance } from '@ggraphic/editor/utils/illustrations/types';
+import type { PillBadgeInstance } from '@ggraphic/editor/utils/pillBadgeUtils';
+import type { ShapeInstance, ShapeType } from '@ggraphic/editor/utils/shapes';
 import type { CanvasAiSnapshot, StickerRef } from '@gruenerator/contracts';
 
 // Default arrow icon ID (HeroIcons chevron-right, resolved via canvasIcons.ts)
@@ -484,7 +484,7 @@ const createTextElements = (style: SliderStyle): TextElementConfig<SliderState>[
 
 const createAiCapabilities = (
   brand: SliderBrand
-): TemplateAiCapabilities<SliderState, SliderActions> => ({
+): SharepicAiCapabilities<SliderState, SliderActions> => ({
   supportedOperations: ['set-text', 'set-color-scheme', 'set-font-size'],
 
   colorSchemes: brand.aiColorSchemes,

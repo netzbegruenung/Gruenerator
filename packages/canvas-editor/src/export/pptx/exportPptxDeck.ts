@@ -4,13 +4,13 @@
  * gehen an das Stage der jeweiligen Seite, Bilder werden als PNG/JPEG geladen.
  */
 
-import { measureTextWidthWithFont } from '../../utils/textUtils';
+import { measureTextWidthWithFont } from '@ggraphic/editor/utils/textUtils';
 
 import { buildPptxModel, type PptxPageState } from './buildPptxModel';
 import { writePptx, type PptxLoadedImage, type PptxRasterImage } from './writePptx';
 
 import type { PptxRasterRequest } from './types';
-import type { CanvasFormat } from '../../formats';
+import type { CanvasFormat } from '@ggraphic/editor/formats/index';
 
 const PPTX_IMAGE_TYPES = ['image/png', 'image/jpeg'];
 /** SVGs ohne Eigenmaße werden in dieser Breite gerastert. */

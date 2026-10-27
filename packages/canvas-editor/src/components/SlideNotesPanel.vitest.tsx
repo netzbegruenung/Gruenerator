@@ -1,9 +1,9 @@
+import { getCanvasFormatOrDefault, isSlideFormat } from '@ggraphic/editor/formats/index';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { useState } from 'react';
 import { describe, expect, it, vi } from 'vitest';
 
-import { getCanvasFormatOrDefault, isSlideFormat } from '../formats';
 import { axe } from '../test-utils';
 
 import { SlideNotesPanel } from './SlideNotesPanel';

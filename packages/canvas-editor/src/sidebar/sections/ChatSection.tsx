@@ -1,8 +1,8 @@
+import { useAnnounce } from '@ggraphic/editor/hooks/useAnnounce';
 import { useMemo } from 'react';
 
 import { filterAssetOptionsForLocale } from '../../ai/assetCapability';
 import { useCanvasEditorServices } from '../../CanvasEditorProvider';
-import { useAnnounce } from '../../hooks/useAnnounce';
 import { SIDEBAR_HINT } from '../sidebarStyles';
 
 import type { CanvasAiEditBridge, CanvasSpecEditBridge } from '../../CanvasEditorProvider';

@@ -3,6 +3,7 @@
  * (hier gemockt) schlägt den Ausschnitt vor, die Bühne zeigt ihn, Abbrechen nimmt
  * ihn zurück, und ein Fehlschlag ändert nichts.
  */
+import { AutoSaveStoreProvider } from '@ggraphic/editor/stores/AutoSaveStoreProvider';
 import { createCanvas } from '@napi-rs/canvas';
 import { act, cleanup, render, waitFor } from '@testing-library/react';
 import Konva from 'konva';
@@ -10,12 +11,11 @@ import { createRef } from 'react';
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { loadCanvasConfig } from '../../configs/configLoader';
-import { AutoSaveStoreProvider } from '../../stores/AutoSaveStoreProvider';
 import { GenericCanvas, type GenericCanvasRef } from '../GenericCanvas';
 
-import type * as StoreModule from '../../stores/createCanvasEditorStore';
-import type { CanvasEditorStoreApi } from '../../stores/createCanvasEditorStore';
 import type { UserImageInstance } from '../../utils/userImageUtils';
+import type * as StoreModule from '@ggraphic/editor/stores/createCanvasEditorStore';
+import type { CanvasEditorStoreApi } from '@ggraphic/editor/stores/createCanvasEditorStore';
 
 const mocks = vi.hoisted(() => ({
   stores: [] as unknown[],
@@ -35,7 +35,7 @@ vi.mock('@gruenerator/ui', async (importOriginal) => {
   return { ...original, toast: Object.assign(vi.fn(), { error: mocks.toastError }) };
 });
 
-vi.mock('../../stores/createCanvasEditorStore', async (importOriginal) => {
+vi.mock('@ggraphic/editor/stores/createCanvasEditorStore', async (importOriginal) => {
   const original = await importOriginal<typeof StoreModule>();
   return {
     ...original,

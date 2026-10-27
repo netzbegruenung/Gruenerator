@@ -1,4 +1,4 @@
-import { mmToPx, type PrintCanvasFormat } from '../formats';
+import { mmToPx, type PrintCanvasFormat } from '@ggraphic/editor/formats/index';
 
 import {
   buildPrintPdf,

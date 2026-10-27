@@ -1,16 +1,16 @@
+import { commandForKey } from '@ggraphic/editor/utils/canvasCommandRegistry';
+import { isPageFocusTarget, returnFocusToPage } from '@ggraphic/editor/utils/editorFocus';
+import { isTextEditingTarget, isWidgetOwnedKey } from '@ggraphic/editor/utils/keyboardOwnership';
+import { assertAsPosition } from '@ggraphic/editor/utils/stateTypeAssertions';
 import { useEffect, useRef } from 'react';
 
-import { commandForKey } from '../utils/canvasCommandRegistry';
-import { isPageFocusTarget, returnFocusToPage } from '../utils/editorFocus';
-import { isTextEditingTarget, isWidgetOwnedKey } from '../utils/keyboardOwnership';
 import { isLayerLocked } from '../utils/layerLock';
-import { assertAsPosition } from '../utils/stateTypeAssertions';
 
 import type { OptionalCanvasActions } from './useCanvasElementHandlers';
 import type { BaseCanvasState } from '../configs/factory/baseTypes';
 import type { CanvasElementConfig } from '../configs/types';
-import type { CanvasEditorStoreApi } from '../stores/createCanvasEditorStore';
 import type { CanvasCommands } from '../utils/canvasCommands';
+import type { CanvasEditorStoreApi } from '@ggraphic/editor/stores/createCanvasEditorStore';
 
 /**
  * Canvas Keyboard Handlers - Keyboard shortcuts for canvas

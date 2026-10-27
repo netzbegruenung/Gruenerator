@@ -1,8 +1,8 @@
+import { serializeDeck, type SerializedPage } from '@ggraphic/editor/collab/pagesDoc';
+import { useAutoSaveStore, useAutoSaveStoreApi } from '@ggraphic/editor/stores/useAutoSaveStore';
 import { useEffect, useRef, useCallback } from 'react';
 
 import { useCanvasEditorServices } from '../CanvasEditorProvider';
-import { serializeDeck, type SerializedPage } from '../collab/pagesDoc';
-import { useAutoSaveStore, useAutoSaveStoreApi } from '../stores/useAutoSaveStore';
 
 import type * as Y from 'yjs';
 

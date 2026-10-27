@@ -1,6 +1,5 @@
+import { editorSkipsKey } from '@ggraphic/editor/utils/keyboardOwnership';
 import { useEffect } from 'react';
-
-import { editorSkipsKey } from '../../../utils/keyboardOwnership';
 
 /**
  * Markiert ein Overlay über dem Editor (Präsentationsmodus): Tasten aus ihm

@@ -10,12 +10,12 @@
  * Used by: Zitat Pure, Info
  */
 
+import { contrastRatio, luminance } from '@ggraphic/editor/utils/colorLuminance';
+import { zoomBackground } from '@ggraphic/editor/utils/coverFit';
+import { straightenResetFor } from '@ggraphic/editor/utils/straighten';
 import { PiFrameCornersFill, PiSquaresFourFill, PiTextAa } from 'react-icons/pi';
 
 import { AssetsSection, CombinedTextSection, FrameSettingsSection } from '../../sidebar/sections';
-import { contrastRatio, luminance } from '../../utils/colorLuminance';
-import { zoomBackground } from '../../utils/coverFit';
-import { straightenResetFor } from '../../utils/straighten';
 import { chatTab, createCommonSectionEntries, toolsTab, uploadsTab } from '../commonSections';
 import { injectFeatureProps } from '../featureInjector';
 import { getPlaceholder } from '../placeholders';
@@ -30,14 +30,14 @@ import type { StockImageAttribution } from '../../common/imageSourceTypes';
 import type { BackgroundColorOption } from '../../sidebar/types';
 import type { BalkenInstance, BalkenMode } from '../../utils/balkenUtils';
 import type { AssetInstance } from '../../utils/canvasAssets';
-import type { ChartInstance } from '../../utils/chartUtils';
-import type { CircleBadgeInstance } from '../../utils/circleBadgeUtils';
-import type { FrameClipType, FrameInstance } from '../../utils/frameUtils';
-import type { IllustrationInstance } from '../../utils/illustrations/types';
-import type { PillBadgeInstance } from '../../utils/pillBadgeUtils';
-import type { ShapeInstance, ShapeType } from '../../utils/shapes';
 import type { ElementPlacement, UserImageInstance } from '../../utils/userImageUtils';
 import type { FullCanvasConfig, LayoutResult, CanvasElementConfig, AdditionalText } from '../types';
+import type { ChartInstance } from '@ggraphic/editor/utils/chartUtils';
+import type { CircleBadgeInstance } from '@ggraphic/editor/utils/circleBadgeUtils';
+import type { FrameClipType, FrameInstance } from '@ggraphic/editor/utils/frameUtils';
+import type { IllustrationInstance } from '@ggraphic/editor/utils/illustrations/types';
+import type { PillBadgeInstance } from '@ggraphic/editor/utils/pillBadgeUtils';
+import type { ShapeInstance, ShapeType } from '@ggraphic/editor/utils/shapes';
 import type { StickerRef } from '@gruenerator/contracts';
 
 // ============================================================================

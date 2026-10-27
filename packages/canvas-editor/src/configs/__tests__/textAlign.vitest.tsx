@@ -5,6 +5,7 @@
  * bliebe zentriert. Ein Undo nimmt die Wahl zurück, der Wiederaufbau über
  * `createInitialState` behält sie.
  */
+import { AutoSaveStoreProvider } from '@ggraphic/editor/stores/AutoSaveStoreProvider';
 import { act, cleanup, render } from '@testing-library/react';
 import Konva from 'konva';
 import { createRef } from 'react';
@@ -12,7 +13,6 @@ import { afterEach, beforeAll, describe, expect, it } from 'vitest';
 
 import { GenericCanvas, type GenericCanvasRef } from '../../components/GenericCanvas';
 import { floatingModuleFor } from '../../hooks/useFloatingModuleState';
-import { AutoSaveStoreProvider } from '../../stores/AutoSaveStoreProvider';
 import { loadCanvasConfig } from '../configLoader';
 import { carryInstanceState } from '../factory/carryInstanceState';
 

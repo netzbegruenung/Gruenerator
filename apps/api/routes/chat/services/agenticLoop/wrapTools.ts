@@ -23,7 +23,12 @@ import { createLogger } from '../../../../utils/logger.js';
 
 import { LOOP_CLIENT_TOOLS } from './clientToolRegistry.js';
 import { truncateResultForModel } from './truncate.js';
-import { readMcpResult, UNRECORDED_TOOLS, type PersistedStep } from './types.js';
+import {
+  readMcpResult,
+  TURN_ABORTABLE_TOOLS,
+  UNRECORDED_TOOLS,
+  type PersistedStep,
+} from './types.js';
 
 import type { AskHumanGate } from './askHumanGate.js';
 import type { ClientToolGate } from './clientToolGate.js';
@@ -661,10 +666,20 @@ export function wrapToolsForLoop(tools: ToolSet, ctx: WrapToolsContext): ToolSet
         ctx.toolActivity?.begin();
         try {
           const timeoutMs = ctx.perCallTimeoutOverridesMs?.[toolName] ?? ctx.perCallTimeoutMs;
+          // Only opted-in tools also see the turn signal (see
+          // TURN_ABORTABLE_TOOLS): it carries more than Stop — the approval/ask
+          // gates and the hard cap — and would abort sibling calls such as
+          // create_document mid-commit. Everyone else stays timeout-only. The
+          // timeout aborts with a `TimeoutError` reason so a tool can tell
+          // "time limit" from "user stopped".
+          const toolSignal =
+            options.abortSignal && TURN_ABORTABLE_TOOLS.has(toolName)
+              ? AbortSignal.any([options.abortSignal, abandoned.signal])
+              : abandoned.signal;
           output = await withTimeout(
-            Promise.resolve(original(input, { ...options, abortSignal: abandoned.signal })),
+            Promise.resolve(original(input, { ...options, abortSignal: toolSignal })),
             timeoutMs,
-            () => abandoned.abort()
+            () => abandoned.abort(new DOMException('Tool call timed out', 'TimeoutError'))
           );
         } catch (err) {
           const message = err instanceof Error ? err.message : String(err);

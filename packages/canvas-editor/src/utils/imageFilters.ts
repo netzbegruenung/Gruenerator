@@ -4,6 +4,7 @@
  * array of filters that read node attrs). See https://konvajs.org/api/Konva.Filters.html
  */
 
+import { activeBrand } from '@ggraphic/editor/brand/brandRegistry';
 import Konva from 'konva';
 
 import type { ImageAdjustments } from './userImageUtils';
@@ -25,8 +26,8 @@ export const TemperatureFilter: KonvaFilter = function (imageData) {
   }
 };
 
-/** The tint colour when an image has a strength but no colour of its own: DE Klee. */
-export const DEFAULT_TINT = '#008939';
+/** The tint colour when an image has a strength but no colour of its own: the brand accent. */
+export const defaultTint = (): string => activeBrand().colors.accent;
 
 const hexRgb = (hex: string): [number, number, number] => {
   const n = Number.parseInt(hex.replace('#', '').slice(0, 6), 16) || 0;
@@ -58,7 +59,7 @@ export function tintRamp(tint: string): Uint8ClampedArray {
 export const TintFilter: KonvaFilter = function (imageData) {
   const strength = Math.max(0, Math.min(1, (this.getAttr('tintStrength') as number) || 0));
   if (!strength) return;
-  const ramp = tintRamp((this.getAttr('tint') as string | undefined) || DEFAULT_TINT);
+  const ramp = tintRamp((this.getAttr('tint') as string | undefined) || defaultTint());
   const d = imageData.data;
   for (let i = 0; i < d.length; i += 4) {
     const l = Math.round(0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2]);

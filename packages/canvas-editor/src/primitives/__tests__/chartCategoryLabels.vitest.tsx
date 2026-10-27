@@ -1,8 +1,8 @@
+import { createChartInstance } from '@ggraphic/editor/utils/chartUtils';
 import { render } from '@testing-library/react';
 import * as recharts from 'recharts';
 import { beforeAll, describe, expect, it, vi } from 'vitest';
 
-import { createChartInstance } from '../../utils/chartUtils';
 import { buildChartElement } from '../ChartPrimitive';
 
 const RANKING = [

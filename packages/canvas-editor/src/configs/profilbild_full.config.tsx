@@ -11,8 +11,8 @@
  * route through the FullCanvasConfig pipeline and gain `aiEdit` parity.
  */
 
+import { INITIAL_SCALE } from '@ggraphic/editor/types/editorTypes';
 import { CANVAS_COLORS, DEFAULT_CANVAS_SIZE } from '@gruenerator/contracts';
-import { DEFAULT_BACKGROUND_COLOR, INITIAL_SCALE } from '../types/editorTypes';
 import { PiSquaresFourFill } from 'react-icons/pi';
 
 import { AssetsSection } from '../sidebar/sections';
@@ -23,6 +23,7 @@ import { carryInstanceState } from './factory/carryInstanceState';
 import { makeSectionDefiner } from './factory/defineSection';
 import { injectFeatureProps } from './featureInjector';
 
+import type { SharepicAiCapabilities } from './aiCapabilities';
 import type { BaseCanvasState } from './factory/baseTypes';
 import type {
   BackgroundElementConfig,
@@ -30,7 +31,6 @@ import type {
   ImageElementConfig,
   LayoutResult,
 } from './types';
-import type { TemplateAiCapabilities } from '../ai/types';
 import type { BackgroundColorOption } from '../sidebar/types';
 import type { CanvasAiSnapshot } from '@gruenerator/contracts';
 
@@ -92,7 +92,7 @@ function defaultAvatarLayout(): {
 function createProfilbildInitialState(props: Record<string, unknown>): ProfilbildFullState {
   const { position, size } = defaultAvatarLayout();
   const transparentImage = (props.transparentImage as string | undefined) ?? '';
-  const backgroundColor = (props.backgroundColor as string | undefined) ?? DEFAULT_BACKGROUND_COLOR;
+  const backgroundColor = (props.backgroundColor as string | undefined) ?? CANVAS_COLORS.TANNE;
 
   return {
     isDesktop: true,
@@ -133,7 +133,7 @@ const backgroundElement: BackgroundElementConfig<ProfilbildFullState> = {
   width: CANVAS_SIZE,
   height: CANVAS_SIZE,
   colorKey: 'backgroundColor',
-  color: DEFAULT_BACKGROUND_COLOR,
+  color: CANVAS_COLORS.TANNE,
 };
 
 const avatarElement: ImageElementConfig<ProfilbildFullState> = {
@@ -156,7 +156,7 @@ const avatarElement: ImageElementConfig<ProfilbildFullState> = {
 // AI CAPABILITIES
 // ============================================================================
 
-const profilbildAiCapabilities: TemplateAiCapabilities<ProfilbildFullState, ProfilbildFullActions> =
+const profilbildAiCapabilities: SharepicAiCapabilities<ProfilbildFullState, ProfilbildFullActions> =
   {
     supportedOperations: ['set-background-color', 'update-element'],
 

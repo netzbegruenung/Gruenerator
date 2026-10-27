@@ -24,9 +24,13 @@ export default defineConfig({
           // Sicher, solange keine Testdatei Modulzustand mutiert: hier gibt es
           // kein vi.mock, kein Global-/Env-Stubbing, keine Schreibzugriffe auf
           // die Config-Singletons — Tests lesen nur und erzeugen Zustand über
-          // createInitialState frisch.
+          // createInitialState frisch. Der Asset-Katalog des Hosts ist das eine
+          // Modul-Register: das Setup trägt den des Grünerators ein, und
+          // `assetCatalog.vitest.ts` setzt ihn nach seinem Probe-Katalog sofort
+          // zurück.
           isolate: false,
           maxWorkers: 1,
+          setupFiles: ['./vitest.setup.assets.ts'],
           // Getrennte Gruppen, weil die Lanes verschiedene `maxWorkers`
           // haben — vitest 4 lehnt sonst den ganzen Lauf ab. Die schnelle
           // Node-Lane zuerst.
@@ -53,7 +57,7 @@ export default defineConfig({
           server: { deps: { inline: ['@tanstack/react-query'] } },
           include: ['**/*.vitest.tsx'],
           environment: 'jsdom',
-          setupFiles: ['./vitest.setup.ts'],
+          setupFiles: ['./vitest.setup.assets.ts', './vitest.setup.kinds.ts', './vitest.setup.ts'],
           sequence: { groupOrder: 1 },
         },
       },

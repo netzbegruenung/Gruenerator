@@ -12,6 +12,15 @@
  *
  * Pure: no React, no Konva. Text is measured through the injected `measure`.
  */
+import { onGround } from '@ggraphic/editor/brand/composerBrand';
+import {
+  DEFAULT_FORMAT_ID,
+  getCanvasFormatOrDefault,
+  type CanvasFormat,
+} from '@ggraphic/editor/formats/index';
+import { createPillBadgeInstance } from '@ggraphic/editor/utils/pillBadgeUtils';
+import { createShape, type ShapeInstance } from '@ggraphic/editor/utils/shapes';
+import { type TextAccent } from '@ggraphic/editor/utils/textUtils';
 import {
   accentLines,
   type SharepicColor,
@@ -26,13 +35,8 @@ import {
   type SharepicThema,
 } from '@gruenerator/contracts';
 
-import { onGround } from '../brand/composerBrand';
 import { getBrandPack, getBrandTheme } from '../brand/theme';
-import { DEFAULT_FORMAT_ID, getCanvasFormatOrDefault, type CanvasFormat } from '../formats';
 import { ASSET_TARGET_SIZE } from '../utils/canvasAssets';
-import { createPillBadgeInstance } from '../utils/pillBadgeUtils';
-import { createShape, type ShapeInstance } from '../utils/shapes';
-import { type TextAccent } from '../utils/textUtils';
 import { VERANSTALTUNG_CONFIG } from '../utils/veranstaltungLayout';
 
 import { layoutAufruf } from './aufrufLayout';

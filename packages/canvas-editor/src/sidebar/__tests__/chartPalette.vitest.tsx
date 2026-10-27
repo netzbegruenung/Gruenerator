@@ -1,19 +1,23 @@
-import { fireEvent, render, screen } from '@testing-library/react';
-import { describe, expect, it, vi } from 'vitest';
-
-import { chartSettingsSectionEntry } from '../../configs/commonSections';
-import { createFreeformAtFullConfig } from '../../configs/freeform_at_full.config';
-import { createFreeformFullConfig, type FreeformState } from '../../configs/freeform_full.config';
-import { getCanvasFormatOrDefault } from '../../formats';
+import { getCanvasFormatOrDefault } from '@ggraphic/editor/formats/index';
 import {
-  CHART_PALETTES,
   createChartInstance,
   type ChartInstance,
   type ChartType,
-} from '../../utils/chartUtils';
+} from '@ggraphic/editor/utils/chartUtils';
+import { fireEvent, render, screen } from '@testing-library/react';
+import { describe, expect, it, vi } from 'vitest';
+
+import { getBrandPack } from '../../brand/theme';
+import { chartSettingsSectionEntry } from '../../configs/commonSections';
+import { createFreeformAtFullConfig } from '../../configs/freeform_at_full.config';
+import { createFreeformFullConfig, type FreeformState } from '../../configs/freeform_full.config';
 import { ChartSettingsSection } from '../sections/ChartSettingsSection';
 
 const format = getCanvasFormatOrDefault(null);
+const CHART_PALETTES = {
+  'de-DE': getBrandPack('de-DE').chart,
+  'de-AT': getBrandPack('de-AT').chart,
+};
 
 function addChartOn(config: ReturnType<typeof createFreeformFullConfig>): ChartInstance {
   let state = { chartInstances: [] } as unknown as FreeformState;

@@ -5,6 +5,8 @@
  * Migrated from monolithic 1,107-line DreizeilenCanvas component.
  */
 
+import { zoomBackground } from '@ggraphic/editor/utils/coverFit';
+import { straightenResetFor } from '@ggraphic/editor/utils/straighten';
 import {
   buildSharepicSnapshot,
   getSharepicTemplateDescriptor,
@@ -17,20 +19,19 @@ import { PiFrameCornersFill, PiSquaresFourFill, PiTextAa } from 'react-icons/pi'
 import { buildAssetCapability } from '../ai/assetCapability';
 import { describeCanvasElements } from '../ai/describeCanvasElements';
 import { buildIllustrationCapability } from '../ai/illustrationCapability';
+import { CANVAS_RECOMMENDED_ASSETS, SYSTEM_ASSETS } from '../brand/grueneAssets';
+import { dreizeilenShareMetadata } from '../brand/grueneShareMetadata';
 import { AssetsSection } from '../sidebar';
 import { BalkenSettingsSection } from '../sidebar/sections/BalkenSettingsSection';
 import { CombinedTextSection } from '../sidebar/sections/CombinedTextSection';
 import { FrameSettingsSection } from '../sidebar/sections/FrameSettingsSection';
 import { balkenExtent, fitBalkenAfterTextEdit, fitBalkenToCanvas } from '../utils/balkenBounds';
-import { CANVAS_RECOMMENDED_ASSETS, SYSTEM_ASSETS } from '../utils/canvasAssets';
-import { zoomBackground } from '../utils/coverFit';
 import {
   calculateDreizeilenLayout,
   COLOR_SCHEMES,
   getColorScheme,
   DREIZEILEN_CONFIG,
 } from '../utils/dreizeilenLayout';
-import { straightenResetFor } from '../utils/straighten';
 
 import { DEFAULT_PHOTO_BACKGROUND_DE, PHOTO_BACKGROUND_COLORS_DE } from './backgroundPalettes';
 import { chatTab, createCommonSectionEntries, toolsTab, uploadsTab } from './commonSections';
@@ -58,23 +59,23 @@ import { injectFeatureProps } from './featureInjector';
 import { PLACEHOLDER_TEXT } from './placeholders';
 import { createShareSection } from './shareSection';
 
+import type { SharepicAiCapabilities } from './aiCapabilities';
 import type { DreizeilenFullState, DreizeilenFullActions } from './dreizeilen.types';
 import type {
   FullCanvasConfig,
   LayoutResult as GenericLayoutResult,
   AdditionalText,
 } from './types';
-import type { TemplateAiCapabilities } from '../ai/types';
 import type { StockImageAttribution } from '../common/imageSourceTypes';
-import type { BalkenInstance } from '../primitives/BalkenGroup';
+import type { BalkenInstance } from '../utils/balkenUtils';
 import type { AssetInstance } from '../utils/canvasAssets';
-import type { ChartInstance } from '../utils/chartUtils';
-import type { CircleBadgeInstance } from '../utils/circleBadgeUtils';
-import type { FrameInstance } from '../utils/frameUtils';
-import type { IllustrationInstance } from '../utils/illustrations/types';
-import type { PillBadgeInstance } from '../utils/pillBadgeUtils';
-import type { ShapeInstance } from '../utils/shapes';
 import type { UserImageInstance } from '../utils/userImageUtils';
+import type { ChartInstance } from '@ggraphic/editor/utils/chartUtils';
+import type { CircleBadgeInstance } from '@ggraphic/editor/utils/circleBadgeUtils';
+import type { FrameInstance } from '@ggraphic/editor/utils/frameUtils';
+import type { IllustrationInstance } from '@ggraphic/editor/utils/illustrations/types';
+import type { PillBadgeInstance } from '@ggraphic/editor/utils/pillBadgeUtils';
+import type { ShapeInstance } from '@ggraphic/editor/utils/shapes';
 
 // ============================================================================
 // CONSTANTS
@@ -304,7 +305,7 @@ function fitAfterTextEdit(
   return { ...fitted, balkenInstances: reconcileBalkenInstances(fitted, fitted.balkenInstances) };
 }
 
-const dreizeilenAiCapabilities: TemplateAiCapabilities<DreizeilenFullState, DreizeilenFullActions> =
+const dreizeilenAiCapabilities: SharepicAiCapabilities<DreizeilenFullState, DreizeilenFullActions> =
   {
     supportedOperations: [
       'set-text',
@@ -374,6 +375,7 @@ const section = makeSectionDefiner<DreizeilenFullState, DreizeilenFullActions>()
 
 export const dreizeilenFullConfig: FullCanvasConfig<DreizeilenFullState, DreizeilenFullActions> = {
   id: 'dreizeilen',
+  shareMetadata: dreizeilenShareMetadata,
 
   canvas: {
     width: CANVAS_WIDTH,

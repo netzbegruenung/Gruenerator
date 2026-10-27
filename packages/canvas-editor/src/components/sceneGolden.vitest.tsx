@@ -1,11 +1,11 @@
+import { DEFAULT_FORMAT_ID } from '@ggraphic/editor/formats/index';
+import { loadAllIcons } from '@ggraphic/editor/utils/canvasIcons';
 import { cleanup, render, waitFor } from '@testing-library/react';
 import Konva from 'konva';
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 
 import { composeSharepic } from '../composer/composeSharepic';
 import { MORE_SPECS, SPECS } from '../composer/sharepicSpecFixtures';
-import { DEFAULT_FORMAT_ID } from '../formats';
-import { loadAllIcons } from '../utils/canvasIcons';
 
 import { StandaloneCanvas } from './StandaloneCanvas';
 

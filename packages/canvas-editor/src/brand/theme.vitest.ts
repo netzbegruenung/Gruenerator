@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { SYSTEM_ASSETS } from '../utils/canvasAssets';
-
+import { SYSTEM_ASSETS } from './grueneAssets';
 import { BRAND_THEMES, GRUENE_AT, GRUENE_DE, HELLGRUEN_GLOW, surfaceGlow } from './theme';
 
 // BRAND_THEMES as it stood before the themes became brand packs, copied

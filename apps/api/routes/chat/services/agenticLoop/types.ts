@@ -208,8 +208,20 @@ export const DEFAULT_LOOP_BUDGET: LoopBudget = {
  * 90s is the honest ceiling for one generate + one repair; a generation tool is
  * idempotent per turn (`state.createdDocument`), so this cannot stack.
  */
+/**
+ * Tools that receive the TURN abort signal (Stop, disconnect, hard cap, pause
+ * gates) in addition to their own per-call timeout. Opt-in, because that
+ * signal also fires when a sibling call pauses for approval or a question —
+ * a generation tool would then skip its commit mid-run. Listed here only:
+ * long-running tools billed per step that must stop when the person stops.
+ */
+export const TURN_ABORTABLE_TOOLS: ReadonlySet<string> = new Set(['website_erkunden']);
+
 export const TOOL_TIMEOUT_OVERRIDES_MS: Record<string, number> = {
   research: 30_000,
+  // Ein echter Browser-Lauf: der Dienst deckelt ihn bei 170 s und schickt dann
+  // ein Teilergebnis; 10 s Luft für Bilder speichern und den Rückweg.
+  website_erkunden: 180_000,
   // Ein ganzes Notebook durchsuchen und dazu Postgres + Qdrant für jede Quelle —
   // bei großen Notebooks mehr als die Standardfrist. grep/stats lesen bis zu
   // 4 Mio. Zeichen, stats mit Lemmata wartet dazu bis 30 s auf den NLP-Dienst.

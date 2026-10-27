@@ -3,25 +3,25 @@
  * übersprungen — und in einer Mehrfachauswahl trotzdem umrahmt, auch wenn der
  * Gruppenzug es stehen lässt.
  */
+import { CanvasItemLockContext } from '@ggraphic/editor/components/canvasItemLock';
+import { MultiSelectionTransformer } from '@ggraphic/editor/components/MultiSelectionTransformer';
+import {
+  CanvasStoreProvider,
+  useCanvasStore,
+  useCanvasStoreSelector,
+} from '@ggraphic/editor/stores/CanvasStoreProvider';
+import { findDragNodes } from '@ggraphic/editor/utils/multiSelect';
+import { createShape, type ShapeInstance } from '@ggraphic/editor/utils/shapes';
 import { act, render } from '@testing-library/react';
 import { createRef } from 'react';
 import { Group } from 'react-konva';
 import { describe, expect, it } from 'vitest';
 
-import { CanvasItemLockContext } from '../../components/canvasItemLock';
-import { MultiSelectionTransformer } from '../../components/MultiSelectionTransformer';
 import { CanvasStage, type CanvasStageRef } from '../../primitives/CanvasStage';
 import { ShapePrimitive } from '../../primitives/ShapePrimitive';
-import {
-  CanvasStoreProvider,
-  useCanvasStore,
-  useCanvasStoreSelector,
-} from '../../stores/CanvasStoreProvider';
-import { findDragNodes } from '../../utils/multiSelect';
-import { createShape, type ShapeInstance } from '../../utils/shapes';
 import { useCanvasInteractions } from '../useCanvasInteractions';
 
-import type { CanvasEditorStoreApi } from '../../stores/createCanvasEditorStore';
+import type { CanvasEditorStoreApi } from '@ggraphic/editor/stores/createCanvasEditorStore';
 import type Konva from 'konva';
 
 const box = (id: string, x: number, y: number): ShapeInstance => ({

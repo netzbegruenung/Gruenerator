@@ -1,11 +1,11 @@
+import { AnnouncerContext } from '@ggraphic/editor/hooks/useAnnounce';
+import { AutoSaveStoreProvider } from '@ggraphic/editor/stores/AutoSaveStoreProvider';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { CanvasEditorProvider, type CanvasEditorServices } from '../../../CanvasEditorProvider';
-import { AnnouncerContext } from '../../../hooks/useAnnounce';
 import { browserFileDelivery } from '../../../hostServices';
-import { AutoSaveStoreProvider } from '../../../stores/AutoSaveStoreProvider';
 import { axe } from '../../../test-utils';
 import { GenericShareSection } from '../GenericShareSection';
 

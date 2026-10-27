@@ -250,6 +250,7 @@ router.get('/', async (req, res) => {
             generatedImage?: Record<string, unknown>;
             createdDocument?: Record<string, unknown>;
             computeData?: Record<string, unknown>;
+            browserSession?: Record<string, unknown>;
             agentId?: string;
             answerMode?: NotebookResolvedAnswerMode;
             answerModeReason?: NotebookAnswerModeReason;
@@ -300,6 +301,10 @@ router.get('/', async (req, res) => {
               : {}),
             ...(meta.computeData && typeof meta.computeData === 'object'
               ? { computeData: meta.computeData as Record<string, unknown> }
+              : {}),
+            // website_erkunden: steps + screenshots as asset URLs (no base64).
+            ...(meta.browserSession && typeof meta.browserSession === 'object'
+              ? { browserSession: meta.browserSession as Record<string, unknown> }
               : {}),
             ...(typeof meta.agentId === 'string' && { agentId: meta.agentId }),
             // Notebook-Seite: in welchem Antwortmodus die Antwort lief — trägt

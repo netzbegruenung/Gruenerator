@@ -9,8 +9,6 @@
  * Ids in `layerOrder`, dann der Rest in der Standardreihenfolge der Arten.
  */
 
-import { carryInstanceState } from '../../configs/factory/carryInstanceState';
-import { ASSET_TARGET_SIZE } from '../../utils/canvasAssets';
 import {
   chartInk,
   chartLegendPosition,
@@ -18,10 +16,13 @@ import {
   isRoundChartType,
   type ChartInstance,
   type ChartType,
-} from '../../utils/chartUtils';
-import { ICON_TARGET_SIZE, ILLUSTRATION_TARGET_SIZE } from '../../utils/motifSizes';
-import { photoStripBeside, type ShapeInstance } from '../../utils/shapes';
-import { backgroundStraighten } from '../../utils/straighten';
+} from '@ggraphic/editor/utils/chartUtils';
+import { ICON_TARGET_SIZE, ILLUSTRATION_TARGET_SIZE } from '@ggraphic/editor/utils/motifSizes';
+import { photoStripBeside, type ShapeInstance } from '@ggraphic/editor/utils/shapes';
+import { backgroundStraighten } from '@ggraphic/editor/utils/straighten';
+
+import { carryInstanceState } from '../../configs/factory/carryInstanceState';
+import { ASSET_TARGET_SIZE } from '../../utils/canvasAssets';
 
 import {
   estimateMeasure,
@@ -42,10 +43,10 @@ import type {
   PptxSlideModel,
 } from './types';
 import type { AdditionalText } from '../../configs/types';
-import type { CanvasFormat } from '../../formats';
-import type { CircleBadgeInstance } from '../../utils/circleBadgeUtils';
-import type { PillBadgeInstance } from '../../utils/pillBadgeUtils';
 import type { ImageAdjustments, UserImageInstance } from '../../utils/userImageUtils';
+import type { CanvasFormat } from '@ggraphic/editor/formats/index';
+import type { CircleBadgeInstance } from '@ggraphic/editor/utils/circleBadgeUtils';
+import type { PillBadgeInstance } from '@ggraphic/editor/utils/pillBadgeUtils';
 
 /** Ein Seitenzustand, wie er in `pages[i].state` steht. */
 export type PptxPageState = Readonly<Record<string, unknown>>;

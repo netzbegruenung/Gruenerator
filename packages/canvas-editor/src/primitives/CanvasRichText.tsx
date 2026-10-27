@@ -22,26 +22,33 @@
  * Tippen Fett statt Sternchen.
  */
 
+import { LOCKED_TRANSFORMER, useIsItemLocked } from '@ggraphic/editor/components/canvasItemLock';
+import {
+  overlayBoxForNode,
+  useCanvasTextEditor,
+} from '@ggraphic/editor/components/CanvasTextOverlay';
+import { useFontGeneration } from '@ggraphic/editor/hooks/useFontGeneration';
+import { useGeometryReporter } from '@ggraphic/editor/hooks/useGeometryReporter';
+import { useSnapScheduler } from '@ggraphic/editor/hooks/useSnapScheduler';
+import { gradientFillProps } from '@ggraphic/editor/utils/gradientFill';
+import { markerBoxes } from '@ggraphic/editor/utils/markerBoxes';
+import { defaultTextMarker, markerInkOn } from '@ggraphic/editor/utils/markerColors';
+import { isGroupDrag } from '@ggraphic/editor/utils/multiSelect';
+import { ELEMENT_TRANSFORMER, normalizeRotation } from '@ggraphic/editor/utils/orientation';
+import {
+  boxFrame,
+  createBoxFrame,
+  frameBounds,
+  snapByBounds,
+} from '@ggraphic/editor/utils/snapping';
+import { runFont, runMeasurer } from '@ggraphic/editor/utils/textUtils';
 import { layoutRichTextBlock } from '@ggraphic/schema';
 import { useRef, useEffect, useCallback, useMemo, useState, Fragment } from 'react';
 import { Group, Rect, Text as KonvaText, Transformer } from 'react-konva';
 
-import { LOCKED_TRANSFORMER, useIsItemLocked } from '../components/canvasItemLock';
-import { overlayBoxForNode, useCanvasTextEditor } from '../components/CanvasTextOverlay';
-import { useFontGeneration } from '../hooks/useFontGeneration';
-import { useGeometryReporter } from '../hooks/useGeometryReporter';
-import { useSnapScheduler } from '../hooks/useSnapScheduler';
-import { gradientFillProps } from '../utils/gradientFill';
-import { markerBoxes } from '../utils/markerBoxes';
-import { DEFAULT_TEXT_MARKER, markerInkOn } from '../utils/markerColors';
-import { isGroupDrag } from '../utils/multiSelect';
-import { ELEMENT_TRANSFORMER, normalizeRotation } from '../utils/orientation';
-import { boxFrame, createBoxFrame, frameBounds, snapByBounds } from '../utils/snapping';
-import { runFont, runMeasurer } from '../utils/textUtils';
-
 import { type CanvasTextProps, isWidthOnlyScale } from './CanvasText';
 
-import type { TransformAnchor } from '../types/editorTypes';
+import type { TransformAnchor } from '@ggraphic/editor/types/editorTypes';
 import type Konva from 'konva';
 
 // Rahmen für Snap und Geometrie-Meldung, pro Aufruf neu beschrieben (synchron, ohne Allokation).
@@ -150,7 +157,7 @@ export function CanvasRichText({
     [lines, lineWidths, align, padding, innerBoxWidth]
   );
   // Ohne Markerstil der Vorlage bekommt ein `++`-Lauf den Standardkasten.
-  const marker = templateMarker ?? DEFAULT_TEXT_MARKER;
+  const marker = templateMarker ?? defaultTextMarker();
   const boxes = useMemo(
     () =>
       markerBoxes(lines, measure, marker, {

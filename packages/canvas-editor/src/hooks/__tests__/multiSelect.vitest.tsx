@@ -3,29 +3,29 @@
  * gemeinsame Transformer zieht sie zusammen, und jedes schreibt seine neue
  * Position über seinen eigenen `dragend` zurück.
  */
+import { MultiSelectionTransformer } from '@ggraphic/editor/components/MultiSelectionTransformer';
+import { useCanvasHistorySetup } from '@ggraphic/editor/hooks/useCanvasHistorySetup';
+import {
+  CanvasStoreProvider,
+  useCanvasStore,
+  useCanvasStoreSelector,
+} from '@ggraphic/editor/stores/CanvasStoreProvider';
+import {
+  findDragNodes,
+  isGroupDrag,
+  MULTI_SELECTION_TRANSFORMER_NAME,
+} from '@ggraphic/editor/utils/multiSelect';
+import { createShape, type ShapeInstance } from '@ggraphic/editor/utils/shapes';
 import { act, render } from '@testing-library/react';
 import { createRef, useCallback, useLayoutEffect, useRef, useState } from 'react';
 import { Group } from 'react-konva';
 import { describe, expect, it } from 'vitest';
 
-import { MultiSelectionTransformer } from '../../components/MultiSelectionTransformer';
 import { CanvasStage, type CanvasStageRef } from '../../primitives/CanvasStage';
 import { ShapePrimitive } from '../../primitives/ShapePrimitive';
-import {
-  CanvasStoreProvider,
-  useCanvasStore,
-  useCanvasStoreSelector,
-} from '../../stores/CanvasStoreProvider';
-import {
-  findDragNodes,
-  isGroupDrag,
-  MULTI_SELECTION_TRANSFORMER_NAME,
-} from '../../utils/multiSelect';
-import { createShape, type ShapeInstance } from '../../utils/shapes';
-import { useCanvasHistorySetup } from '../useCanvasHistorySetup';
 import { useCanvasInteractions } from '../useCanvasInteractions';
 
-import type { CanvasEditorStoreApi } from '../../stores/createCanvasEditorStore';
+import type { CanvasEditorStoreApi } from '@ggraphic/editor/stores/createCanvasEditorStore';
 import type Konva from 'konva';
 
 // Mittelpunkt-verankert; die jsdom-Leinwand misst 300×150.

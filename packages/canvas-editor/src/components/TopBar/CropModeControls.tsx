@@ -1,9 +1,13 @@
+import { cn } from '@ggraphic/editor/utils/cn';
+import {
+  CROP_ASPECT_PRESETS,
+  isCropAspectId,
+  type CropAspectId,
+} from '@ggraphic/editor/utils/cropAspect';
+import { clampStraighten, STRAIGHTEN_LIMIT } from '@ggraphic/editor/utils/straighten';
 import React, { useState } from 'react';
 
 import { HIDDEN_SCROLLBAR } from '../../sidebar/sidebarStyles';
-import { cn } from '../../utils/cn';
-import { CROP_ASPECT_PRESETS, isCropAspectId, type CropAspectId } from '../../utils/cropAspect';
-import { clampStraighten, STRAIGHTEN_LIMIT } from '../../utils/straighten';
 
 const TEXT_BTN =
   'inline-flex items-center h-8 max-canvas-mobile:h-11 shrink-0 rounded-md border-none px-3 cursor-pointer text-[13px] font-medium transition-colors duration-150';

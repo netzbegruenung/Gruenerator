@@ -1,11 +1,10 @@
+import { CustomColorSwatch } from '@ggraphic/editor/components/CustomColorSwatch';
+import { brandColors } from '@ggraphic/editor/utils/colorOptions';
+import { createDefaultGradient, type GradientFill } from '@ggraphic/editor/utils/gradientFill';
 import { Popover, PopoverContent, PopoverTrigger } from '@gruenerator/ui';
 import { Slider } from 'radix-ui';
 import React, { useId } from 'react';
 import { PiPaintBucket } from 'react-icons/pi';
-
-import { createDefaultGradient, type GradientFill } from '../../../utils/gradientFill';
-import { BRAND_COLORS } from '../../../utils/shapes';
-import { CustomColorSwatch } from '../../CustomColorSwatch';
 
 interface FloatingGradientControlProps {
   currentColor: string;
@@ -25,7 +24,7 @@ function StopSwatches({
 }) {
   return (
     <div className="flex flex-wrap items-center gap-1.5">
-      {BRAND_COLORS.map((c) => (
+      {brandColors().map((c) => (
         <button
           key={c.id}
           className="size-6 rounded-full border border-black/10 hover:scale-110 transition-transform"
@@ -43,7 +42,7 @@ function StopSwatches({
       ))}
       <CustomColorSwatch
         value={selected}
-        presets={BRAND_COLORS.map((c) => c.value)}
+        presets={brandColors().map((c) => c.value)}
         onPick={onSelect}
         className="size-5"
         outlineOffset={1}

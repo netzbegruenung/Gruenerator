@@ -1,3 +1,19 @@
+import { CustomColorSwatch } from '@ggraphic/editor/components/CustomColorSwatch';
+import {
+  addChartRow,
+  addChartSeries,
+  chartColors,
+  chartLegendPosition,
+  chartSeries,
+  isRoundChartType,
+  removeChartRow,
+  removeChartSeries,
+  renameChartSeries,
+  setChartValue,
+  type ChartInstance,
+  type ChartLegendPosition,
+  type ChartType,
+} from '@ggraphic/editor/utils/chartUtils';
 import { Switch } from '@gruenerator/ui';
 import { FaTrash, FaPlus } from 'react-icons/fa';
 import {
@@ -9,22 +25,6 @@ import {
   PiChartPie,
 } from 'react-icons/pi';
 
-import { CustomColorSwatch } from '../../components/CustomColorSwatch';
-import {
-  addChartRow,
-  addChartSeries,
-  CHART_COLORS,
-  chartLegendPosition,
-  chartSeries,
-  isRoundChartType,
-  removeChartRow,
-  removeChartSeries,
-  renameChartSeries,
-  setChartValue,
-  type ChartInstance,
-  type ChartLegendPosition,
-  type ChartType,
-} from '../../utils/chartUtils';
 import { MOBILE_INPUT_TEXT } from '../sidebarStyles';
 
 import type { IconType } from 'react-icons';
@@ -60,7 +60,7 @@ export function ChartSettingsSection({
   selectedChart,
   onUpdateChart,
   onRemoveChart,
-  palette = CHART_COLORS,
+  palette = chartColors(),
 }: ChartSettingsSectionProps) {
   const chart = selectedChart;
   if (!chart) return null;

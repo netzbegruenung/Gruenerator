@@ -8,7 +8,7 @@
  * its accent in yellow Vollkorn Black Italic, the subline Gotham Book, the
  * Störer Magenta. No sunflower.
  */
-import { type TextAccent } from '../utils/textUtils';
+import { type TextAccent } from '@ggraphic/editor/utils/textUtils';
 
 import { AT_EMPHASIS_STYLE } from './chromeParts';
 import { type ComposedSlide } from './composeSharepic';

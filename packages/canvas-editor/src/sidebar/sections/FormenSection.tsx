@@ -1,3 +1,15 @@
+import { cn } from '@ggraphic/editor/utils/cn';
+import { brandColors } from '@ggraphic/editor/utils/colorOptions';
+import { handDrawnPath, type HandShapeType } from '@ggraphic/editor/utils/handDrawn';
+import { defaultMarkerFill } from '@ggraphic/editor/utils/markerColors';
+import {
+  CATEGORY_LABELS,
+  CATEGORY_ORDER,
+  EUCALYPTUS,
+  getShapeDef,
+  type ShapeCategory,
+  type ShapeType,
+} from '@ggraphic/editor/utils/shapes';
 import { useMemo } from 'react';
 import {
   PiStarFill,
@@ -36,18 +48,6 @@ import {
   PiSunFill,
 } from 'react-icons/pi';
 
-import { cn } from '../../utils/cn';
-import { handDrawnPath, type HandShapeType } from '../../utils/handDrawn';
-import { MARKER_LIME } from '../../utils/markerColors';
-import {
-  BRAND_COLORS,
-  CATEGORY_LABELS,
-  CATEGORY_ORDER,
-  EUCALYPTUS,
-  getShapeDef,
-  type ShapeCategory,
-  type ShapeType,
-} from '../../utils/shapes';
 import { CARD_GRID, CARD_PREVIEW, SELECTABLE_CARD, SIDEBAR_SECTION } from '../sidebarStyles';
 
 export interface FormenSectionProps {
@@ -643,34 +643,33 @@ const DARK_PREVIEW_OVERRIDES: Partial<Record<string, string>> = {
   tanne: '!text-editor-tanne-preview',
 };
 /** Textmarker come in the marker colour, not the brand cycle. */
-const FIXED_VARIANT_COLOR: Partial<Record<ShapeType, string>> = {
-  'hand-marker': MARKER_LIME,
-  'hand-marker-box': MARKER_LIME,
-};
+const MARKER_SHAPES: ReadonlySet<ShapeType> = new Set(['hand-marker', 'hand-marker-box']);
 
 /**
  * Brand color variants cycled across shape tiles (Canva-style); clicking inserts the
  * shown color. Keyed by the shape's global palette index so the same shape shows the
  * same color in the strip, the drill-down groups, and search results.
- * Lazy for the same chunk-init reason as getShapesByCategory below (BRAND_COLORS is a
- * cross-chunk import).
+ * A brand that names none of these colours cycles its first five. Lazy for the
+ * same chunk-init reason as getShapesByCategory below, and because the host
+ * registers its brand at startup.
  */
 let shapeVariantByType: Map<ShapeType, ShapeVariant> | null = null;
 export function getShapeVariant(type: ShapeType): ShapeVariant {
   if (!shapeVariantByType) {
-    const variants = SHAPE_VARIANT_COLOR_IDS.map((id) => ({
-      color: BRAND_COLORS.find((c) => c.id === id)?.value ?? EUCALYPTUS,
-      darkPreviewClass: DARK_PREVIEW_OVERRIDES[id] ?? '',
+    const palette = brandColors();
+    const named = SHAPE_VARIANT_COLOR_IDS.flatMap((id) => palette.filter((c) => c.id === id));
+    const variants = (named.length > 0 ? named : palette.slice(0, 5)).map((c) => ({
+      color: c.value,
+      darkPreviewClass: DARK_PREVIEW_OVERRIDES[c.id] ?? '',
     }));
     shapeVariantByType = new Map(
       ALL_PALETTE_SHAPES.map((shape, index) => [shape.id, variants[index % variants.length]])
     );
   }
-  const fixed = FIXED_VARIANT_COLOR[type];
-  if (fixed) return { color: fixed, darkPreviewClass: '' };
+  if (MARKER_SHAPES.has(type)) return { color: defaultMarkerFill(), darkPreviewClass: '' };
   return (
     shapeVariantByType.get(type) ?? {
-      color: BRAND_COLORS[0]?.value ?? EUCALYPTUS,
+      color: brandColors()[0]?.value ?? EUCALYPTUS,
       darkPreviewClass: '',
     }
   );

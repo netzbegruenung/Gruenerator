@@ -1,3 +1,5 @@
+import { cn } from '@ggraphic/editor/utils/cn';
+import { brandColors } from '@ggraphic/editor/utils/colorOptions';
 import { Suspense, useEffect, useId, useState } from 'react';
 import { HiSparkles } from 'react-icons/hi';
 import {
@@ -11,8 +13,6 @@ import { PiArrowLeft, PiCaretRightBold, PiDropSimpleFill, PiPath } from 'react-i
 
 import { useCanvasEditorServices } from '../../../CanvasEditorProvider';
 import { useIsCanvasMobile } from '../../../hooks/useIsCanvasMobile';
-import { cn } from '../../../utils/cn';
-import { BRAND_COLORS } from '../../../utils/shapes';
 import { lazyWithPreload } from '../lazyWithPreload';
 import { whenIdle } from '../whenIdle';
 
@@ -81,7 +81,7 @@ interface ToolCard {
   available: boolean;
 }
 
-const brandColor = (id: string) => BRAND_COLORS.find((c) => c.id === id)?.value;
+const brandColor = (id: string) => brandColors().find((c) => c.id === id)?.value;
 
 // The letters carry the gradient themselves, so the tile shows what the tool makes.
 function GradientTextIcon({ size = 24, className }: { size?: number; className?: string }) {

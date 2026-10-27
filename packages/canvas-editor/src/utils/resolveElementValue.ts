@@ -19,7 +19,7 @@ import {
   assertAsScale,
   assertAsSize,
   getOptionalStateValue,
-} from './stateTypeAssertions';
+} from '@ggraphic/editor/utils/stateTypeAssertions';
 
 import type { ImageElementConfig, LayoutResult } from '../configs/types';
 

@@ -180,6 +180,18 @@ export const DEFERRABLE_GROUPS = [
     opened:
       'Werkzeuge für die eigenen Inhalte sind jetzt verfügbar: find_content, search_threads, documents, read_artifact, boards_tasks, groups, media, notebooks, notebook_quellen. Rufe im nächsten Schritt das passende auf.',
   },
+  {
+    // Der Browser-Agent wird selten gebraucht; seine Beschreibung soll nicht
+    // auf jeden werkzeugtragenden Aufruf einzahlen.
+    id: 'website',
+    loaderTool: 'website_werkzeug_laden',
+    tools: ['website_erkunden'],
+    hint: /erkunde|klick|screenshot|bildschirmfoto|durchsuch.*(seite|website)/i,
+    loaderDescription:
+      'Schaltet website_erkunden frei: ein echter Browser, der eine Website bedient (klicken, Suchfeld nutzen, Cookie-Banner ablehnen, Screenshots speichern).\n\nNUTZE WENN eine Seite bedient oder abfotografiert werden muss. NICHT zum bloßen Lesen einer URL — dafür scrape_url.',
+    opened:
+      'website_erkunden ist jetzt verfügbar. Rufe es im nächsten Schritt mit url und auftrag auf.',
+  },
 ] as const satisfies readonly DeferrableGroup[];
 
 export type DeferrableGroupId = (typeof DEFERRABLE_GROUPS)[number]['id'];

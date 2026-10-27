@@ -1,7 +1,12 @@
-import type { SidebarTab, SidebarTabId } from './tabTypes';
 import type { AdditionalText } from '../configs/types';
+import type { SidebarTab, SidebarTabId } from '@ggraphic/editor/sidebar/tabTypes';
 
-export type { BackgroundColorOption, CoreSidebarTabId, SidebarTab, SidebarTabId } from './tabTypes';
+export type {
+  BackgroundColorOption,
+  CoreSidebarTabId,
+  SidebarTab,
+  SidebarTabId,
+} from '@ggraphic/editor/sidebar/tabTypes';
 
 export interface TextSectionProps {
   quote: string;

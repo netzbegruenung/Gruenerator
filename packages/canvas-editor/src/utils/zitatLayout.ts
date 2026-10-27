@@ -10,8 +10,9 @@
  * - Quote mark is white
  */
 
-import { SYSTEM_ASSETS } from './canvasAssets';
-import { wrapText } from './textUtils';
+import { wrapText } from '@ggraphic/editor/utils/textUtils';
+
+import { SYSTEM_ASSETS } from '../brand/grueneAssets';
 
 export const ZITAT_CONFIG = {
   canvas: {

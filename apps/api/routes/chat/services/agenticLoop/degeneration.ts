@@ -40,7 +40,8 @@
  *
  *  - It stays SILENT until {@link DEGEN_MIN_LENGTH} (8.000 chars), far past
  *    where detection alone would work. Below that the loop is cheap and the
- *    false hit is not.
+ *    false hit is not. The one exception is a tail with no letters in it
+ *    ({@link LOW_INFO_MIN_LENGTH}): there is no prose there to amputate.
  *  - When it does cut, it SAYS SO — {@link DEGENERATION_NOTICE} rides along
  *    with the kept prefix. That is what turns a wrong call from silent
  *    corruption into a visible, re-runnable failure.
@@ -184,6 +185,106 @@ export function isStructuralScaffolding(sample: string): boolean {
   return substance / sample.length < SCAFFOLD_SUBSTANCE_FLOOR;
 }
 
+// ── Letterless runs ──────────────────────────────────────────────────────────
+//
+// The failure both metrics above are blind to (live 27.10.2026): the answer
+// dissolved into thousands of shuffled emoji (🎉🎁🎈🎂), in a local repro into ZWJ
+// family sequences (👨‍👩‍👧‍👦 — 11 UTF-16 units each). Without whitespace a run is ONE
+// "word", so the diversity metric reports healthy; shuffling defeats the
+// periodicity metric (~0.62 on 2-unit emoji), and ZWJ cycles have periods past
+// MAX_PERIOD anyway. The guard fired at 8.002 chars on something else and still
+// kept 2.739 chars ending in emoji. So this check counts GRAPHEMES, not code
+// units, and asks the one question shuffling cannot hide: is there any language
+// in here at all?
+
+const graphemeSegmenter = new Intl.Segmenter('de', { granularity: 'grapheme' });
+/** A grapheme that carries language: any letter or digit. */
+const LETTER_OR_DIGIT = /\p{L}|\p{N}/u;
+/** Non-whitespace graphemes a window needs before its letter share is judged… */
+const LOW_INFO_MIN_GRAPHEMES = 300;
+/** …or this many non-whitespace UTF-16 units. The check judges a
+ *  {@link DEGEN_WINDOW}-unit tail, and 2.000 units of 11-unit ZWJ emoji are
+ *  only ~180 graphemes: with the grapheme floor alone the live repro (👨‍👩‍👧‍👦…)
+ *  never fired at all. A thousand units is ample material either way. */
+const LOW_INFO_MIN_UNITS = 1000;
+/** Below this share of letter/digit graphemes, a window says nothing. Prose
+ *  with emoji sprinkled in sits near 1. */
+const LOW_INFO_LETTER_FLOOR = 0.1;
+/** The letterless check speaks from here on, not from {@link DEGEN_MIN_LENGTH}.
+ *  The 8.000-char wait exists because a false hit amputates good prose; a
+ *  window with under 10% letters has no prose to amputate, and every stride
+ *  of waiting is junk the user watches. */
+export const LOW_INFO_MIN_LENGTH = 1500;
+
+/** Share of letter/digit graphemes among the non-whitespace ones, or null when
+ *  there is too little material — under `minGraphemes` graphemes AND under
+ *  `minUnits` code units — to judge. */
+function letterShare(sample: string, minGraphemes: number, minUnits: number): number | null {
+  let total = 0;
+  let units = 0;
+  let lettered = 0;
+  for (const { segment } of graphemeSegmenter.segment(sample)) {
+    if (/^\s+$/.test(segment)) continue;
+    total++;
+    units += segment.length;
+    if (LETTER_OR_DIGIT.test(segment)) lettered++;
+  }
+  if (total === 0 || (total < minGraphemes && units < minUnits)) return null;
+  return lettered / total;
+}
+
+function lowInformation(sample: string, minGraphemes: number, minUnits = Infinity): boolean {
+  const share = letterShare(sample, minGraphemes, minUnits);
+  if (share === null || share >= LOW_INFO_LETTER_FLOOR) return false;
+  // Same gate as everywhere else: a table skeleton has no letters either.
+  return !isStructuralScaffolding(sample);
+}
+
+/** Whether a tail carries (almost) no language: ≥ 300 non-whitespace graphemes
+ *  (or ≥ 1.000 units of them) of which under 10% hold a letter or digit, and
+ *  not table scaffolding. */
+export function isLowInformationTail(sample: string): boolean {
+  return lowInformation(sample, LOW_INFO_MIN_GRAPHEMES, LOW_INFO_MIN_UNITS);
+}
+
+/** Graphemes a backscan window of ~600 units needs to be judged letterless —
+ *  the full-window floor would need 3.300 units of 11-unit ZWJ emoji. */
+const SCAN_MIN_GRAPHEMES = 40;
+/** How far a letterless judgement looks at either side of a cut. */
+const LETTERLESS_REACH = 600;
+/** Graphemes after the last letter that may still close its sentence
+ *  (`du …`, `fertig!"`). Capped, because punctuation alone is junk too: a
+ *  `:-):-)` run is nothing but punctuation and would otherwise all count. */
+const CLOSING_REACH = 3;
+
+/** Where the language before `pos` ends: after the last letter/digit grapheme
+ *  in the `LETTERLESS_REACH` units before it, plus the punctuation closing that
+ *  sentence. `pos` when no letter is in reach. */
+function languageEnd(text: string, pos: number): number {
+  const from = Math.max(0, pos - LETTERLESS_REACH);
+  const segments = [...graphemeSegmenter.segment(text.slice(from, pos))];
+  let last = -1;
+  for (let i = segments.length - 1; i >= 0; i--) {
+    if (LETTER_OR_DIGIT.test(segments[i].segment)) {
+      last = i;
+      break;
+    }
+  }
+  if (last < 0) return pos;
+  let end = last;
+  for (let i = last + 1; i < segments.length && i <= last + CLOSING_REACH; i++) {
+    const segment = segments[i].segment;
+    if (/^\p{P}+$/u.test(segment)) end = i;
+    else if (!/^\s+$/.test(segment)) break;
+  }
+  return from + segments[end].index + segments[end].segment.length;
+}
+
+/** Whether what follows `pos` is a letterless run. */
+function precedesLetterlessRun(text: string, pos: number): boolean {
+  return lowInformation(text.slice(pos, pos + LETTERLESS_REACH), SCAN_MIN_GRAPHEMES);
+}
+
 /** Whether a text SAMPLE of ~{@link DEGEN_WINDOW} chars reads as degenerate.
  *  The word-diversity floor is calibrated to THIS window size (distinct count
  *  stays constant in spam while total grows) — do not reuse it on smaller
@@ -192,7 +293,8 @@ export function isDegenerateSample(sample: string): boolean {
   // Before either metric: neither of them can tell layout from repetition.
   if (isStructuralScaffolding(sample)) return false;
   if (wordDiversity(sample, MIN_WORDS) < WORD_DIVERSITY_FLOOR) return true;
-  return selfSimilarity(sample) >= SELF_SIMILARITY_FLOOR;
+  if (selfSimilarity(sample) >= SELF_SIMILARITY_FLOOR) return true;
+  return isLowInformationTail(sample);
 }
 
 /**
@@ -209,10 +311,67 @@ export function isDegenerateSample(sample: string): boolean {
  * reaches the boundary; the floor only wins when everything scanned is spam.
  */
 export function findDegenerationCut(text: string, detectedAt: number): number {
-  const SCAN_WINDOW = 600;
-  const SCAN_STEP = 200;
-  const MAX_BACKSCAN = 6000;
-  const spamVocab = new Set(words(text.slice(Math.max(0, detectedAt - DEGEN_WINDOW), detectedAt)));
+  return backscan(
+    text,
+    detectedAt,
+    new Set(words(text.slice(Math.max(0, detectedAt - DEGEN_WINDOW), detectedAt)))
+  );
+}
+
+const SCAN_WINDOW = 600;
+const SCAN_STEP = 200;
+const MAX_BACKSCAN = 6000;
+/** Below this word diversity (lettered words only), the window in front of a
+ *  letterless run is junk too. Measured on 600 units: German prose 0.87, a
+ *  400-unit stretch of terminator spam 0.45, a markdown table 0.44. Not the
+ *  0.16 floor — that one is calibrated to 2.000-unit windows, where a junk
+ *  vocabulary has been drawn often enough to look small.
+ *
+ *  The knowing trade: a templated bullet list measures 0.22, so a list that
+ *  directly precedes a letterless run is cut along with it. Its numbers and
+ *  names should then count as lost in {@link cutLostContent}, so the notice
+ *  would ride along — expected, not measured. */
+const LETTERED_JUNK_DIVERSITY = 0.5;
+const LETTERED_JUNK_MIN_WORDS = 20;
+
+/** Whether a token carries language — emoji clusters and smileys do not. */
+const isLettered = (token: string): boolean => LETTER_OR_DIGIT.test(token);
+
+/** Start of the run of junk tokens — spam vocabulary, scaffolding or letterless —
+ *  that ends at `pos`, within the scan window before it; `pos` when the last
+ *  token is language. */
+function spamRunStart(text: string, pos: number, spamVocab: Set<string>): number {
+  const from = Math.max(0, pos - SCAN_WINDOW);
+  const tokens = [...text.slice(from, pos).matchAll(/\S+/g)];
+  let start = pos;
+  let last = tokens.length - 1;
+  // A token the scan position cuts in half ("Fert|ig.**") is in no vocabulary;
+  // it goes either way, so step over it rather than stop on it.
+  const tail = tokens[last];
+  if (tail && from + (tail.index ?? 0) + tail[0].length === pos && /\S/.test(text[pos] ?? '')) {
+    start = from + (tail.index ?? 0);
+    last--;
+  }
+  for (let i = last; i >= 0; i--) {
+    const token = tokens[i][0];
+    if (!spamVocab.has(token) && !SCAFFOLD_TOKEN.test(token) && isLettered(token)) break;
+    start = from + (tokens[i].index ?? 0);
+  }
+  return start;
+}
+
+/** @param exactTail set when the scan continues behind a letterless run and
+ *  `spamVocab` is the junk standing in front of it. Letterless tokens then
+ *  count as junk too (the two kinds alternate), and the window the scan stops
+ *  at is trimmed of its trailing junk instead of being kept whole — up to ~300
+ *  units of spam at window granularity. */
+function backscan(
+  text: string,
+  detectedAt: number,
+  spamVocab: Set<string>,
+  exactTail = false
+): number {
+  let crossingLetterless = false;
   const readsAsSpam = (sample: string): boolean => {
     // The same gate the detector uses, for the same reason — without it the fix
     // only moves the bug one function along. A table window keeps almost no
@@ -224,7 +383,7 @@ export function findDegenerationCut(text: string, detectedAt: number): number {
     const w = words(sample);
     if (w.length >= 5) {
       let hits = 0;
-      for (const word of w) if (spamVocab.has(word)) hits++;
+      for (const word of w) if (spamVocab.has(word) || (exactTail && !isLettered(word))) hits++;
       return hits / w.length >= 0.5;
     }
     return selfSimilarity(sample) >= SELF_SIMILARITY_FLOOR;
@@ -233,7 +392,32 @@ export function findDegenerationCut(text: string, detectedAt: number): number {
   for (let pos = detectedAt; pos >= floor; pos -= SCAN_STEP) {
     const sample = text.slice(Math.max(0, pos - SCAN_WINDOW), pos);
     if (sample.length === 0) return 0;
-    if (!readsAsSpam(sample)) return pos;
+    // Letterless junk (see isLowInformationTail) has no words to compare, and
+    // shuffled or ZWJ runs defeat the periodicity test. Crossing it, the first
+    // window with letters is the boundary — NOT a question for the vocabulary
+    // test: a letterless run fires early, its detection window still holds
+    // the healthy answer, and that answer's words would all read as "spam".
+    // The window may end in up to ~500 units of the run (50 family emoji), so
+    // the cut goes where the language stops, not at `pos`.
+    if (lowInformation(sample, SCAN_MIN_GRAPHEMES)) {
+      crossingLetterless = true;
+      continue;
+    }
+    if (crossingLetterless) {
+      const end = languageEnd(text, pos);
+      // Junk with letters can stand in front of the letterless run (`Fertig.**
+      // --- Ende.**` then `:-):-)`). Ask the window right before the run, with
+      // a window-sized floor and over its LETTERED words only (each emoji
+      // cluster would count as a distinct word) — and if it is junk, keep
+      // scanning against ITS vocabulary: the detection window's would hold the
+      // healthy answer.
+      const adjacent = words(text.slice(Math.max(0, end - SCAN_WINDOW), end)).filter(isLettered);
+      if (adjacent.length < LETTERED_JUNK_MIN_WORDS) return end;
+      const vocab = new Set(adjacent);
+      if (vocab.size / adjacent.length >= LETTERED_JUNK_DIVERSITY) return end;
+      return backscan(text, end, vocab, true);
+    }
+    if (!readsAsSpam(sample)) return exactTail ? spamRunStart(text, pos, spamVocab) : pos;
   }
   return floor;
 }
@@ -259,15 +443,24 @@ export function snapToBoundary(text: string, pos: number): number {
   const window = text.slice(from, pos);
 
   const paragraph = window.lastIndexOf('\n\n');
-  if (paragraph >= 0) return from + paragraph;
+  if (paragraph >= 0) return toGraphemeBoundary(text, from + paragraph);
   const line = window.lastIndexOf('\n');
-  if (line >= 0) return from + line;
+  if (line >= 0) return toGraphemeBoundary(text, from + line);
 
   let sentence = -1;
   for (const match of window.matchAll(/[.!?:][)"»']?\s/g)) {
     sentence = (match.index ?? 0) + match[0].length;
   }
-  return sentence >= 0 ? from + sentence : pos;
+  return toGraphemeBoundary(text, sentence >= 0 ? from + sentence : pos);
+}
+
+/** The nearest grapheme boundary at or before `pos`. Without it a cut with no
+ *  readable boundary in reach lands on an arbitrary UTF-16 offset — inside a
+ *  surrogate pair or a ZWJ sequence, which the client renders as tofu. The
+ *  newline rungs need it too: `\r\n` is one grapheme. */
+function toGraphemeBoundary(text: string, pos: number): number {
+  if (pos <= 0 || pos >= text.length) return pos;
+  return graphemeSegmenter.segment(text).containing(pos)?.index ?? pos;
 }
 
 /** Distinct words the cut removed that the kept text does not already contain.
@@ -290,7 +483,10 @@ export function cutLostContent(kept: string, removed: string): boolean {
   const known = new Set(words(kept));
   const novel = new Set<string>();
   for (const word of words(removed)) {
-    if (known.has(word)) continue;
+    // Letterless tokens carry no content: a shuffled emoji run split by the odd
+    // space yields hundreds of distinct "words" and would announce a loss that
+    // is not there.
+    if (known.has(word) || !isLettered(word)) continue;
     novel.add(word);
     if (novel.size > LOST_VOCAB_FLOOR) return true;
   }
@@ -404,7 +600,7 @@ export interface DegenerationGuard {
 }
 
 export function createDegenerationGuard(): DegenerationGuard {
-  let nextCheckAt = DEGEN_MIN_LENGTH;
+  let nextCheckAt = LOW_INFO_MIN_LENGTH;
   let fired = false;
   /** Set only by the long-range detector: the exact offset at which the model
    *  started repeating itself. */
@@ -463,14 +659,30 @@ export function createDegenerationGuard(): DegenerationGuard {
       if (fired) return true;
       if (text.length < nextCheckAt) return false;
       nextCheckAt = text.length + DEGEN_CHECK_STRIDE;
-      if (scanForRepeats(text) || isDegenerateSample(text.slice(-DEGEN_WINDOW))) {
+      const tail = text.slice(-DEGEN_WINDOW);
+      // Below DEGEN_MIN_LENGTH only the letterless check speaks — it is the one
+      // whose false hit cannot cost prose (see LOW_INFO_MIN_LENGTH).
+      if (text.length < DEGEN_MIN_LENGTH) {
+        if (!isLowInformationTail(tail)) return false;
+        fired = true;
+        return true;
+      }
+      if (scanForRepeats(text) || isDegenerateSample(tail)) {
         fired = true;
         return true;
       }
       return false;
     },
     cutAt(text: string): number {
-      const snapped = snapToBoundary(text, rawCut(text));
+      const raw = rawCut(text);
+      // Snapping retreats to a sentence end so the answer does not stop
+      // mid-word. Where a letterless run starts there is no word to break, and
+      // the retreat would only throw away the sentence the junk interrupted —
+      // the live 27.10. text fell back from "…Grünerator könntest du …" to
+      // "Übrigens:". Grapheme rounding still applies.
+      const snapped = precedesLetterlessRun(text, raw)
+        ? toGraphemeBoundary(text, raw)
+        : snapToBoundary(text, raw);
       // Last: the backscan cannot cross a scaffold row, so it may have stopped
       // ON one. Only trimming, never extending — the offset can shrink.
       return trimTrailingScaffoldLine(text.slice(0, snapped)).length;
@@ -493,6 +705,11 @@ export function createDegenerationGuard(): DegenerationGuard {
     // back from a junk run still holds the healthy prose that preceded it, and
     // the mixture measures healthy — which is the whole question here.
     const before = text.slice(Math.max(0, repeatOnset - ONSET_PROBE), repeatOnset);
+    // A letterless block repeated as a whole: the subtraction below assumes
+    // a period under MIN_REPEAT_DISTANCE and lands inside a longer block
+    // (measured: ~120 party emoji kept). The probe window is pure junk by the
+    // argument above, so the backscan starts in the run and finds the language.
+    if (lowInformation(before, SCAN_MIN_GRAPHEMES)) return findDegenerationCut(text, repeatOnset);
     if (!isDegenerateSample(before)) return repeatOnset;
 
     // Junk: subtract exactly the distance the run needed in order to exist.

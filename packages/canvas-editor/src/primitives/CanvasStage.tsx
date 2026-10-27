@@ -6,6 +6,13 @@
  * regardless of display scaling.
  */
 
+import { activeBrand } from '@ggraphic/editor/brand/brandRegistry';
+import { CanvasTextEditorProvider } from '@ggraphic/editor/components/CanvasTextOverlay';
+import { TransformHud } from '@ggraphic/editor/components/TransformHud';
+import { useHoverOutline } from '@ggraphic/editor/hooks/useHoverOutline';
+import { installAxisLock } from '@ggraphic/editor/utils/axisLock';
+import { cn } from '@ggraphic/editor/utils/cn';
+import { MOUSE_DRAG_DISTANCE, TOUCH_DRAG_DISTANCE } from '@ggraphic/editor/utils/touchInput';
 import Konva from 'konva';
 import {
   useRef,
@@ -18,17 +25,11 @@ import {
 } from 'react';
 import { Stage, Layer, Group, Rect } from 'react-konva';
 
-import { CanvasTextEditorProvider } from '../components/CanvasTextOverlay';
-import { TransformHud } from '../components/TransformHud';
-import { useHoverOutline } from '../hooks/useHoverOutline';
-import { installAxisLock } from '../utils/axisLock';
 import { withSelectionChromeHidden } from '../utils/captureStage';
-import { cn } from '../utils/cn';
 import { BACKGROUND_IMAGE_NODE_ID, printImageInfo } from '../utils/printImageInfo';
-import { MOUSE_DRAG_DISTANCE, TOUCH_DRAG_DISTANCE } from '../utils/touchInput';
 import { USER_PHOTO_NODE_NAME } from '../utils/userImageUtils';
 
-import type { ExportOptions } from '../types/editorTypes';
+import type { ExportOptions } from '@ggraphic/editor/types/editorTypes';
 
 export interface CanvasStageProps {
   width: number;
@@ -458,9 +459,15 @@ export const CanvasStage = forwardRef<CanvasStageRef, CanvasStageProps>(
                   {/* Solid-color backdrop for non-default formats. Sharepic
                       templates were designed with their own backgrounds (image
                       or color); for non-sharepic formats (Story, Präsentation,
-                      Flyer, Plakat) we render a clean SAND base behind the
+                      Flyer, Plakat) we render the brand's light surface behind the
                       scaled design so it never sits on a transparent canvas. */}
-                  <Rect x={0} y={0} width={width} height={height} fill="#f5f1e9" />
+                  <Rect
+                    x={0}
+                    y={0}
+                    width={width}
+                    height={height}
+                    fill={activeBrand().colors.surface}
+                  />
                   <Group scaleX={width / logicalWidth} scaleY={height / logicalHeight}>
                     {children}
                   </Group>

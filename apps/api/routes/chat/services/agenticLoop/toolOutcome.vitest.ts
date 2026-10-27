@@ -302,6 +302,80 @@ describe('buildToolPayloadNote', () => {
     );
   });
 
+  it('macht aus dem Ergebnis von website_erkunden Prosa für den Schreiber', () => {
+    const note = buildToolPayloadNote([
+      step({
+        toolName: 'website_erkunden',
+        result: {
+          summary: 'Fertig.',
+          screenshots: [{ name: 'start.png', url: '/x.png' }],
+          fehlend: 1,
+          schritte: 3,
+          abgebrochen: false,
+        },
+      }),
+    ]);
+    expect(note).toContain('### Website-Erkundung im Browser (website_erkunden)');
+    expect(note).toContain('1 Screenshot(s) wurden gespeichert');
+    expect(note).toContain('start.png');
+    expect(note).toContain('1 der gewünschten Screenshots fehlen');
+    expect(note).toContain('Bericht des Browsers');
+    // Asset-URLs gehören in die Galerie, nicht in den Prompt.
+    expect(note).not.toContain('/x.png');
+  });
+
+  it('meldet ein Zeitlimit als Teilergebnis, nicht als Erfolg', () => {
+    const note = buildToolPayloadNote([
+      step({
+        toolName: 'website_erkunden',
+        result: {
+          summary: 'Teilergebnis (Zeitlimit erreicht, der Browser wurde vorzeitig gestoppt): Halb.',
+          screenshots: [{ name: 'start.png', url: '/x.png' }],
+          fehlend: 1,
+          schritte: 7,
+          abgebrochen: false,
+          zeitlimit: true,
+        },
+      }),
+    ]);
+    expect(note).toContain('Teilergebnis – Zeitlimit erreicht');
+    expect(note).toContain('nach 7 Schritten vorzeitig gestoppt');
+    expect(note).toContain('Bis zum Stopp gespeichert');
+    expect(note).toContain('start.png');
+    expect(note).toContain('1 der gewünschten Screenshots fehlen');
+    expect(note).not.toContain('erfolgreich');
+    expect(note).not.toContain('Du HAST');
+  });
+
+  it('überlässt einen gescheiterten website_erkunden dem Fehler-Hinweis', () => {
+    expect(
+      buildToolPayloadNote([
+        step({ toolName: 'website_erkunden', result: { error: 'Limit', screenshots: [] } }),
+      ])
+    ).toBe('');
+  });
+
+  it('nennt bei einem gescheiterten Lauf die Screenshots, die es trotzdem gibt', () => {
+    const note = buildToolPayloadNote([
+      step({
+        toolName: 'website_erkunden',
+        result: {
+          error: 'Die Website konnte nicht erkundet werden.',
+          screenshots: [{ name: 'start.png', url: '/x.png' }],
+          fehlend: 2,
+          schritte: 4,
+        },
+      }),
+    ]);
+    expect(note).toContain('### Website-Erkundung im Browser (website_erkunden)');
+    expect(note).toContain('gescheitert: Die Website konnte nicht erkundet werden.');
+    expect(note).toContain('NICHT erledigt');
+    expect(note).toContain('start.png');
+    expect(note).toContain('2 der gewünschten Screenshots fehlen');
+    expect(note).not.toContain('erfolgreich');
+    expect(note).not.toContain('/x.png');
+  });
+
   it('lässt einen gleichnamigen Konnektor bei buildMcpOutcomeNote', () => {
     expect(
       buildToolPayloadNote([

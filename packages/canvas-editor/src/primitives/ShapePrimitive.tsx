@@ -1,3 +1,27 @@
+import { LOCKED_TRANSFORMER, useIsItemLocked } from '@ggraphic/editor/components/canvasItemLock';
+import { useBoxSnap, type SnapProps } from '@ggraphic/editor/hooks/useBoxSnap';
+import { gradientFillProps } from '@ggraphic/editor/utils/gradientFill';
+import { translucentHitFunc } from '@ggraphic/editor/utils/gradientHitArea';
+import { handDrawnPath } from '@ggraphic/editor/utils/handDrawn';
+import {
+  ELEMENT_TRANSFORMER,
+  MIRROR_X_ATTR,
+  nodeRotation,
+  signedScale,
+} from '@ggraphic/editor/utils/orientation';
+import {
+  assertNever,
+  isComposerPlane,
+  STROKE_ONLY_SHAPES,
+  type ShapeInstance,
+} from '@ggraphic/editor/utils/shapes';
+import {
+  PATH_OFFSETS,
+  PATH_VIEWBOX,
+  resizedShapeSize,
+  shapeNodeScale,
+  type PathShapeType,
+} from '@ggraphic/editor/utils/shapeTransform';
 import React, { useRef, useEffect, useState, memo } from 'react';
 import {
   Rect,
@@ -12,31 +36,7 @@ import {
   Transformer,
 } from 'react-konva';
 
-import { LOCKED_TRANSFORMER, useIsItemLocked } from '../components/canvasItemLock';
-import { useBoxSnap, type SnapProps } from '../hooks/useBoxSnap';
-import { gradientFillProps } from '../utils/gradientFill';
-import { translucentHitFunc } from '../utils/gradientHitArea';
-import { handDrawnPath } from '../utils/handDrawn';
-import {
-  ELEMENT_TRANSFORMER,
-  MIRROR_X_ATTR,
-  nodeRotation,
-  signedScale,
-} from '../utils/orientation';
 import { shapeBox } from '../utils/renderedBoxes';
-import {
-  assertNever,
-  isComposerPlane,
-  STROKE_ONLY_SHAPES,
-  type ShapeInstance,
-} from '../utils/shapes';
-import {
-  PATH_OFFSETS,
-  PATH_VIEWBOX,
-  resizedShapeSize,
-  shapeNodeScale,
-  type PathShapeType,
-} from '../utils/shapeTransform';
 
 import type Konva from 'konva';
 

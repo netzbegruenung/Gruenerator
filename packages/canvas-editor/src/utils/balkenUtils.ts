@@ -1,80 +1,21 @@
 /**
- * Balken Utilities
- *
- * Presets, types, and helper functions for the reusable balken (parallelogram bar) element.
- * A balken group renders 1 or 3 skewed bars with text, used as a branded decorative element.
+ * Balken — the data of a bar group on the canvas: one or three skewed bars
+ * with a text each. The kind's slot (`balkenInstances`, its actions) is the
+ * editor's; how a group looks is supplied by the host as a kind renderer
+ * (`registerKindRenderers`), and its presets live with the host's brand.
  */
 
-import type { BalkenInstance, BalkenMode } from '../primitives/BalkenGroup';
+export type BalkenMode = 'single' | 'triple';
 
-export type { BalkenInstance, BalkenMode };
-
-// ============================================================================
-// PRESET TYPES
-// ============================================================================
-
-export interface BalkenPreset {
+export interface BalkenInstance {
+  id: string;
   mode: BalkenMode;
   colorSchemeId: string;
-  texts: string[];
   widthScale: number;
-}
-
-// ============================================================================
-// PRESETS
-// ============================================================================
-
-export const BALKEN_PRESETS: Record<string, BalkenPreset> = {
-  single: {
-    mode: 'single',
-    colorSchemeId: 'tanne-sand',
-    texts: ['GRÜNE'],
-    widthScale: 1,
-  },
-  triple: {
-    mode: 'triple',
-    colorSchemeId: 'tanne-sand',
-    texts: ['DIE', 'GRÜNEN', 'BEGRÜNUNG'],
-    widthScale: 1,
-  },
-};
-
-// ============================================================================
-// UTILITY FUNCTIONS
-// ============================================================================
-
-let instanceCounter = 0;
-
-/**
- * Generate a unique ID for balken instances
- */
-export function generateBalkenId(): string {
-  instanceCounter += 1;
-  return `balken-${Date.now()}-${instanceCounter}`;
-}
-
-/**
- * Create a new balken instance from a preset mode
- *
- * @param mode - 'single' or 'triple'
- * @param overrides - Optional overrides for specific properties
- */
-export function createBalkenInstanceFromPreset(
-  mode: BalkenMode,
-  overrides: Partial<BalkenInstance> = {}
-): BalkenInstance {
-  const preset = BALKEN_PRESETS[mode] ?? BALKEN_PRESETS.single;
-
-  return {
-    id: generateBalkenId(),
-    mode: preset.mode,
-    colorSchemeId: preset.colorSchemeId,
-    widthScale: preset.widthScale,
-    offset: { x: 0, y: 0 },
-    scale: 1,
-    texts: [...preset.texts],
-    rotation: 0,
-    opacity: 1,
-    ...overrides,
-  };
+  offset: { x: number; y: number };
+  scale: number;
+  texts: string[];
+  rotation: number;
+  opacity?: number;
+  barOffsets?: [number, number, number];
 }

@@ -1,8 +1,8 @@
+import { CustomColorSwatch } from '@ggraphic/editor/components/CustomColorSwatch';
 import { Switch } from '@gruenerator/ui';
 
-import { CustomColorSwatch } from '../../components/CustomColorSwatch';
 import { colorName } from '../../utils/colorNames';
-import { DEFAULT_TINT, EMPTY_ADJUSTMENTS, IMAGE_PRESETS } from '../../utils/imageFilters';
+import { defaultTint, EMPTY_ADJUSTMENTS, IMAGE_PRESETS } from '../../utils/imageFilters';
 import {
   CROP_PRESETS,
   cropPresetUpdate,
@@ -151,12 +151,12 @@ export function ImageAdjustSection({
               onClick={() => set({ tint: c, tintStrength: adj.tintStrength || 1 })}
               title={colorName(c)}
               aria-label={`Einfärben in ${colorName(c)}`}
-              aria-pressed={(adj.tint ?? DEFAULT_TINT) === c && !!adj.tintStrength}
+              aria-pressed={(adj.tint ?? defaultTint()) === c && !!adj.tintStrength}
               className="size-6 rounded-full border border-black/10 transition-transform hover:scale-110"
               style={{
                 backgroundColor: c,
                 outline:
-                  (adj.tint ?? DEFAULT_TINT) === c && adj.tintStrength
+                  (adj.tint ?? defaultTint()) === c && adj.tintStrength
                     ? '2px solid var(--editor-accent, #005538)'
                     : 'none',
                 outlineOffset: '2px',

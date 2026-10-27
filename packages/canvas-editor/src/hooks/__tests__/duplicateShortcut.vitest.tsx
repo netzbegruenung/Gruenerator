@@ -1,8 +1,8 @@
+import { createCanvasEditorStore } from '@ggraphic/editor/stores/createCanvasEditorStore';
 import { renderHook } from '@testing-library/react';
 import { act } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { createCanvasEditorStore } from '../../stores/createCanvasEditorStore';
 import { createCanvasCommands } from '../../utils/canvasCommands';
 import { useCanvasKeyboardHandlers } from '../useCanvasKeyboardHandlers';
 

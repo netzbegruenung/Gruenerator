@@ -1,6 +1,5 @@
+import { createCanvasEditorStore } from '@ggraphic/editor/stores/createCanvasEditorStore';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-
-import { createCanvasEditorStore } from '../stores/createCanvasEditorStore';
 
 import { createCanvasCommands } from './canvasCommands';
 

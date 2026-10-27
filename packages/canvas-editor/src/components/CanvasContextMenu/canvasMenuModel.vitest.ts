@@ -1,6 +1,5 @@
+import { formatShortcut, shortcutOf } from '@ggraphic/editor/utils/canvasCommandRegistry';
 import { describe, expect, it } from 'vitest';
-
-import { formatShortcut, shortcutOf } from '../../utils/canvasCommandRegistry';
 
 import {
   buildCanvasMenu,

@@ -2,8 +2,8 @@ import { SHAREPIC_SOURCE_KEY } from '@gruenerator/contracts';
 
 import { CARRIED_INSTANCE_KEYS } from '../configs/factory/carryInstanceState';
 
-import type { ReplaceDeckOps } from './pagesDoc';
 import type { CanvasImpressumParts, CanvasImpressumService } from '../hostServices';
+import type { ReplaceDeckOps } from '@ggraphic/editor/collab/pagesDoc';
 
 interface DeckPage {
   configId: string;

@@ -7,14 +7,13 @@
  * should use useCanvasStoreSelector((s) => s.selectedElement) directly.
  */
 
+import { useCanvasStore } from '@ggraphic/editor/stores/CanvasStoreProvider';
 import { useCallback, useEffect, useRef } from 'react';
-
-import { useCanvasStore } from '../stores/CanvasStoreProvider';
 
 import { useMarqueeSelection } from './useMarqueeSelection';
 
 import type { CanvasStageRef } from '../primitives/CanvasStage';
-import type { SnapTarget } from '../utils/snapping';
+import type { SnapTarget } from '@ggraphic/editor/utils/snapping';
 import type Konva from 'konva';
 
 export interface UseCanvasInteractionsOptions {

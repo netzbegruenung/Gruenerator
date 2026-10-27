@@ -9,18 +9,18 @@ import {
 } from '../utils/templateRotation';
 
 import type { FullCanvasConfig, LayoutResult, AdditionalText } from '../configs/types';
-import type { BalkenMode } from '../primitives/BalkenGroup';
-import type { CircleBadgeInstance } from '../primitives/CircleBadge';
-import type { ChartInstance, ChartType } from '../utils/chartTypes';
-import type { FrameClipType, FrameInstance } from '../utils/frameUtils';
-import type { PillBadgeInstance } from '../utils/pillBadgeUtils';
-import type { ShapeInstance, ShapeType } from '../utils/shapes';
+import type { BalkenMode } from '../utils/balkenUtils';
 import type {
   ElementPlacement,
   UserImageInstance,
   UserImagePlacement,
 } from '../utils/userImageUtils';
-import type { StickerRef } from '@gruenerator/contracts';
+import type { CircleBadgeInstance } from '@ggraphic/editor/primitives/CircleBadge';
+import type { ChartInstance, ChartType } from '@ggraphic/editor/utils/chartTypes';
+import type { FrameClipType, FrameInstance } from '@ggraphic/editor/utils/frameUtils';
+import type { PillBadgeInstance } from '@ggraphic/editor/utils/pillBadgeUtils';
+import type { ShapeInstance, ShapeType } from '@ggraphic/editor/utils/shapes';
+import type { StickerRef } from '@ggraphic/schema';
 
 /**
  * Canvas Element Handlers - Handlers for all element interactions
@@ -117,7 +117,7 @@ export interface OptionalCanvasActions {
   removeChart?: (id: string) => void;
   /**
    * Gehört das Element zur Vorlage, obwohl es in einer Sammlung liegt (der
-   * Balken von Dreizeilen, aus den drei Zeilen abgeleitet)? Dann lässt es
+   * Balken einer Dreizeilen-Vorlage, aus den drei Zeilen abgeleitet)? Dann lässt es
    * sich nicht löschen — siehe `findElementRemover`.
    */
   isTemplateBound?: (id: string) => boolean;

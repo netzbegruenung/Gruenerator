@@ -2,7 +2,13 @@
 import { type BrandPack } from './brandPack';
 
 const NIGHT = '#1D3557';
+const OCEAN = '#457B9D';
+const SUN = '#F4C542';
+const RUST = '#B5470F';
+const SIGNAL = '#D62839';
+const PAPER = '#F6F4EF';
 const WHITE = '#FFFFFF';
+const BLACK = '#000000';
 
 /**
  * The neutral pack: what ggraphic renders before an organisation brings its
@@ -14,18 +20,45 @@ export const brandDefault: BrandPack = {
   name: 'ggraphic',
   colors: {
     primary: NIGHT,
-    secondary: '#457B9D',
-    accent: '#F4C542',
-    accentOnLight: '#B5470F',
-    attention: '#D62839',
+    secondary: OCEAN,
+    accent: SUN,
+    accentOnLight: RUST,
+    attention: SIGNAL,
     textOnDark: WHITE,
     textOnLight: NIGHT,
+    surface: PAPER,
   },
   backgrounds: [
     { id: 'night', label: 'Night', color: NIGHT, ink: WHITE },
-    { id: 'paper', label: 'Paper', color: '#F6F4EF', ink: NIGHT },
+    { id: 'paper', label: 'Paper', color: PAPER, ink: NIGHT },
   ],
   defaultBackground: NIGHT,
+  palette: [
+    { id: 'night', label: 'Night', color: NIGHT },
+    { id: 'ocean', label: 'Ocean', color: OCEAN },
+    { id: 'sun', label: 'Sun', color: SUN },
+    { id: 'rust', label: 'Rust', color: RUST },
+    { id: 'signal', label: 'Signal', color: SIGNAL },
+    { id: 'paper', label: 'Paper', color: PAPER },
+    { id: 'white', label: 'White', color: WHITE },
+    { id: 'black', label: 'Black', color: BLACK },
+  ],
+  textPalette: [
+    { id: 'black', label: 'Black', color: BLACK },
+    { id: 'white', label: 'White', color: WHITE },
+    { id: 'night', label: 'Night', color: NIGHT },
+    { id: 'paper', label: 'Paper', color: PAPER },
+  ],
+  markers: {
+    swatches: [
+      { id: 'sun', label: 'Sun', color: SUN },
+      { id: 'sky', label: 'Sky', color: '#A8DADC' },
+      { id: 'white', label: 'White', color: WHITE },
+    ],
+    ink: NIGHT,
+  },
+  // Light colours never open the list: on white they only read next to a dark one.
+  chart: [NIGHT, OCEAN, SIGNAL, RUST, SUN],
   fonts: {
     headline: 'Raleway',
     body: 'PT Sans',

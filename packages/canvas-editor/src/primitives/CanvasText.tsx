@@ -7,24 +7,34 @@
  * - This prevents re-renders during drag for smooth UX
  */
 
+import { LOCKED_TRANSFORMER, useIsItemLocked } from '@ggraphic/editor/components/canvasItemLock';
+import {
+  overlayBoxForNode,
+  useCanvasTextEditor,
+} from '@ggraphic/editor/components/CanvasTextOverlay';
+import {
+  useGeometryReporter,
+  type GeometryReporter,
+} from '@ggraphic/editor/hooks/useGeometryReporter';
+import { useSnapScheduler } from '@ggraphic/editor/hooks/useSnapScheduler';
+import { gradientFillProps, type GradientFill } from '@ggraphic/editor/utils/gradientFill';
+import { isGroupDrag } from '@ggraphic/editor/utils/multiSelect';
+import { ELEMENT_TRANSFORMER, normalizeRotation } from '@ggraphic/editor/utils/orientation';
+import {
+  boxFrame,
+  createBoxFrame,
+  frameBounds,
+  snapByBounds,
+} from '@ggraphic/editor/utils/snapping';
 import { hasInlineMarks, hasListMarkers } from '@ggraphic/schema';
 import { useRef, useEffect, useState, useCallback, memo } from 'react';
 import { Text as KonvaText, Transformer } from 'react-konva';
 
-import { LOCKED_TRANSFORMER, useIsItemLocked } from '../components/canvasItemLock';
-import { overlayBoxForNode, useCanvasTextEditor } from '../components/CanvasTextOverlay';
-import { useGeometryReporter, type GeometryReporter } from '../hooks/useGeometryReporter';
-import { useSnapScheduler } from '../hooks/useSnapScheduler';
-import { gradientFillProps, type GradientFill } from '../utils/gradientFill';
-import { isGroupDrag } from '../utils/multiSelect';
-import { ELEMENT_TRANSFORMER, normalizeRotation } from '../utils/orientation';
-import { boxFrame, createBoxFrame, frameBounds, snapByBounds } from '../utils/snapping';
-
 import { CanvasRichText } from './CanvasRichText';
 
-import type { TransformConfig, TransformAnchor } from '../types/editorTypes';
-import type { SnapTarget, SnapLine } from '../utils/snapping';
-import type { TextAccent, TextMarker } from '../utils/textUtils';
+import type { TransformConfig, TransformAnchor } from '@ggraphic/editor/types/editorTypes';
+import type { SnapTarget, SnapLine } from '@ggraphic/editor/utils/snapping';
+import type { TextAccent, TextMarker } from '@ggraphic/editor/utils/textUtils';
 import type Konva from 'konva';
 
 // Rahmen für Snap und Geometrie-Meldung, pro Aufruf neu beschrieben (synchron, ohne Allokation).

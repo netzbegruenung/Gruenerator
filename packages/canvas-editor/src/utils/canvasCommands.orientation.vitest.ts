@@ -1,11 +1,10 @@
+import { createCanvasEditorStore } from '@ggraphic/editor/stores/createCanvasEditorStore';
+import { CANVAS_ITEM_ID_ATTR, CANVAS_ITEM_NAME } from '@ggraphic/editor/utils/deepSelect';
+import { centreOf, readNodeFrame } from '@ggraphic/editor/utils/orientation';
 import Konva from 'konva';
 import { describe, expect, it, vi } from 'vitest';
 
-import { createCanvasEditorStore } from '../stores/createCanvasEditorStore';
-
 import { createCanvasCommands } from './canvasCommands';
-import { CANVAS_ITEM_ID_ATTR, CANVAS_ITEM_NAME } from './deepSelect';
-import { centreOf, readNodeFrame } from './orientation';
 
 import type { BaseCanvasState } from '../configs/factory/baseTypes';
 import type { LayoutResult } from '../configs/types';

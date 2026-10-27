@@ -7,6 +7,31 @@
  * Refactored to use extracted hooks, utilities, and components for better maintainability.
  */
 
+import { useEmitHostStateChanges } from '@ggraphic/editor/collab/useEmitHostStateChanges';
+import { useYjsCanvasBinding } from '@ggraphic/editor/collab/useYjsCanvasBinding';
+import { stateKeyOfCallback } from '@ggraphic/editor/collab/wrapCallbacksWithPageSync';
+import { PrintGuides } from '@ggraphic/editor/components/PrintGuides';
+import { getCanvasFormatOrDefault } from '@ggraphic/editor/formats/index';
+import { useAnnounce } from '@ggraphic/editor/hooks/useAnnounce';
+import { useSelectionAnnouncement } from '@ggraphic/editor/hooks/useSelectionAnnouncement';
+import {
+  CanvasStoreProvider,
+  useCanvasStore,
+  useCanvasStoreSelector,
+} from '@ggraphic/editor/stores/CanvasStoreProvider';
+import { useAutoSaveStore } from '@ggraphic/editor/stores/useAutoSaveStore';
+import { type CropAspectId } from '@ggraphic/editor/utils/cropAspect';
+import { itemBodyRect } from '@ggraphic/editor/utils/deepSelect';
+import { ensureFontsReady } from '@ggraphic/editor/utils/ensureFontsReady';
+import {
+  applyLayerSelection,
+  type LayerSelectionChange,
+} from '@ggraphic/editor/utils/layerSelection';
+import { selectableItemIds } from '@ggraphic/editor/utils/multiSelect';
+import { type ViewportRect, rotaterRects, visibleArea } from '@ggraphic/editor/utils/orientation';
+import { PendingImagesContext } from '@ggraphic/editor/utils/pendingImages';
+import { stageCssScale } from '@ggraphic/editor/utils/stageCssScale';
+import { getOptimalContainerWidth } from '@ggraphic/editor/utils/viewport';
 import Konva from 'konva';
 import React, {
   useRef,
@@ -21,12 +46,8 @@ import React, {
 
 import { blockElementIds, placeBlock, type LiftedBlock } from '../blocks/liftedBlock';
 import { HOST_EMITTED_STATE_KEYS } from '../collab/pageElementStateKeys';
-import { useEmitHostStateChanges } from '../collab/useEmitHostStateChanges';
 import { useSelectionAwareness } from '../collab/useSelectionAwareness';
-import { useYjsCanvasBinding } from '../collab/useYjsCanvasBinding';
 import { useYjsPageStateSync } from '../collab/useYjsPageStateSync';
-import { stateKeyOfCallback } from '../collab/wrapCallbacksWithPageSync';
-import { getCanvasFormatOrDefault } from '../formats';
 import {
   useCanvasInteractions,
   useCanvasStoreReset,
@@ -34,7 +55,6 @@ import {
   useFontGeneration,
   useFontLoader,
 } from '../hooks';
-import { useAnnounce } from '../hooks/useAnnounce';
 import { useCanvasAutoSave } from '../hooks/useCanvasAutoSave';
 import { useCanvasElementHandlers } from '../hooks/useCanvasElementHandlers';
 import { useCanvasKeyboardHandlers } from '../hooks/useCanvasKeyboardHandlers';
@@ -42,14 +62,7 @@ import { useContextPress } from '../hooks/useContextPress';
 import { useCropSession } from '../hooks/useCropSession';
 import { useDeepSelect } from '../hooks/useDeepSelect';
 import { floatingModuleFor } from '../hooks/useFloatingModuleState';
-import { useSelectionAnnouncement } from '../hooks/useSelectionAnnouncement';
 import { CanvasStage, SnapGuidelines } from '../primitives';
-import {
-  CanvasStoreProvider,
-  useCanvasStore,
-  useCanvasStoreSelector,
-} from '../stores/CanvasStoreProvider';
-import { useAutoSaveStore } from '../stores/useAutoSaveStore';
 import {
   createCanvasCommands,
   type ClientPoint,
@@ -63,28 +76,18 @@ import {
   rasterizeStageElement,
   visibleStageTexts,
 } from '../utils/captureStage';
-import { type CropAspectId } from '../utils/cropAspect';
-import { itemBodyRect } from '../utils/deepSelect';
-import { ensureFontsReady } from '../utils/ensureFontsReady';
 import { MAX_ICON_SELECTIONS, selectedCatalogIconIds } from '../utils/iconInstances';
 import { layerLabel, pageLayerLabels, stageSummary } from '../utils/layerLabels';
-import { applyLayerSelection, type LayerSelectionChange } from '../utils/layerSelection';
 import { locateDrop, type ElementDragPayload, type MediaDragPayload } from '../utils/mediaDrop';
-import { selectableItemIds } from '../utils/multiSelect';
-import { type ViewportRect, rotaterRects, visibleArea } from '../utils/orientation';
-import { PendingImagesContext } from '../utils/pendingImages';
-import { stageCssScale } from '../utils/stageCssScale';
 import { findTemplateEntry } from '../utils/templateElementInstance';
-import { getOptimalContainerWidth } from '../utils/viewport';
 
 import { CanvasRenderLayer } from './CanvasRenderLayer';
 import { CropGhostOverlay } from './CropGhostOverlay';
-import { PrintGuides } from './PrintGuides';
 import { ToolbarStateBridge } from './ToolbarStateBridge';
 
 import type { CanvasMenuSnapshot } from './CanvasContextMenu/canvasMenuModel';
-import type { RemoteSelector } from './RemoteSelectionOverlay';
 import type { ToolbarBridgeState } from './ToolbarStateBridge';
+import type { RemoteSelector } from '@ggraphic/editor/components/RemoteSelectionOverlay';
 
 const EMPTY_CALLBACKS: Record<string, ((val: unknown) => void) | undefined> = {};
 const HOST_EMITTED_KEY_SET: ReadonlySet<string> = new Set(HOST_EMITTED_STATE_KEYS);
@@ -95,13 +98,13 @@ import type { OptionalCanvasActions } from '../hooks/useCanvasElementHandlers';
 import type { ShadowPatch } from '../hooks/useFloatingModuleHandlers';
 import type { FloatingModuleState } from '../hooks/useFloatingModuleState';
 import type { CanvasStageRef } from '../primitives/CanvasStage';
-import type { CanvasEditorStoreApi } from '../stores/createCanvasEditorStore';
-import type { PageCommandId } from '../utils/canvasCommandRegistry';
-import type { GradientFill } from '../utils/gradientFill';
 import type { LayerEntry } from '../utils/layerLabels';
 import type { LockState } from '../utils/layerLock';
-import type { TextAlign } from '../utils/textAlign';
-import type { ExportOptions } from '../types/editorTypes';
+import type { CanvasEditorStoreApi } from '@ggraphic/editor/stores/createCanvasEditorStore';
+import type { ExportOptions } from '@ggraphic/editor/types/editorTypes';
+import type { PageCommandId } from '@ggraphic/editor/utils/canvasCommandRegistry';
+import type { GradientFill } from '@ggraphic/editor/utils/gradientFill';
+import type { TextAlign } from '@ggraphic/editor/utils/textAlign';
 import type { HocuspocusProvider } from '@hocuspocus/provider';
 import type * as Y from 'yjs';
 
@@ -436,7 +439,7 @@ function GenericCanvasWithRef<
   // Rebuilding through createInitialState recomputes the derived fields.
   //
   // Nothing is withheld from the merge. This used to delete `balkenInstances`
-  // so the dreizeilen bar would regenerate from the new text — but that bar is
+  // so the three-line bar would regenerate from the new text — but that bar is
   // one entry in a collection users also add to by hand, and dropping the whole
   // array took every hand-added balken with it (#3421). Which entry a template
   // derives is the template's own knowledge, and `createInitialState` is where
@@ -646,9 +649,12 @@ function GenericCanvasWithRef<
     []
   );
 
+  const describeForShare = config.shareMetadata;
   useCanvasAutoSave(exportedImage, {
     canvasType: config.id,
     canvasState: state,
+    // The hook hands back the `state` passed beside it, typed as its default.
+    shareMetadata: describeForShare && ((s) => describeForShare(s as TState)),
     enabled: autoSaveEnabled,
     captureImage: captureForAutoSaveFlush,
     onShareToken: onAutoSaveShareToken,

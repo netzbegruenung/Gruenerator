@@ -18,12 +18,11 @@
  */
 
 import { type BrandPack } from '@ggraphic/core';
+import { type ComposerBrand } from '@ggraphic/editor/brand/composerBrand';
 
-import { SYSTEM_ASSETS } from '../utils/canvasAssets';
+import { SYSTEM_ASSETS } from './grueneAssets';
 
-import { type ComposerBrand } from './composerBrand';
-
-import type { BackgroundColorOption } from '../sidebar/tabTypes';
+import type { BackgroundColorOption } from '@ggraphic/editor/sidebar/tabTypes';
 
 export type BrandLocale = 'de-DE' | 'de-AT';
 
@@ -112,12 +111,45 @@ export const GRUENE_DE: GruenePack = {
     attention: '#00CC4F', // Grasgrün — Störer, as on the current posts
     textOnDark: '#ffffff',
     textOnLight: '#005538',
+    surface: '#F5F1E9', // Sand
   },
   backgrounds: [
     { id: 'tanne', label: 'Tanne', color: '#005538', ink: '#ffffff' },
     { id: 'sand', label: 'Sand', color: '#F5F1E9', ink: '#005538' },
   ],
   defaultBackground: '#005538',
+  palette: [
+    { id: 'tanne', label: 'Tanne', color: '#005538' },
+    { id: 'klee', label: 'Klee', color: '#008939' },
+    { id: 'grashalm', label: 'Grashalm', color: '#8ABD24' },
+    { id: 'himmel', label: 'Himmel', color: '#0BA1DD' },
+    { id: 'sand', label: 'Sand', color: '#F5F1E9' },
+    { id: 'hellgruen', label: 'Hellgrün', color: '#6CCD87' },
+    { id: 'dunkelgrau', label: 'Dunkelgrau', color: '#2E2E3D' },
+    { id: 'white', label: 'Weiß', color: '#FFFFFF' },
+    { id: 'black', label: 'Schwarz', color: '#000000' },
+  ],
+  textPalette: [
+    { id: 'black', label: 'Schwarz', color: '#000000' },
+    { id: 'white', label: 'Weiß', color: '#FFFFFF' },
+    { id: 'tanne', label: 'Tanne', color: '#005538' },
+    { id: 'sand', label: 'Sand', color: '#F5F1E9' },
+    { id: 'klee', label: 'Klee', color: '#008939' },
+  ],
+  // Limette and Mint are the box colours of the DE posts (see
+  // `sharepicLayoutConstants.ts` and `slideInk.ts`).
+  markers: {
+    swatches: [
+      { id: 'limette', label: 'Limette', color: DE_LIME },
+      { id: 'mint', label: 'Mint', color: '#77F6A5' },
+      { id: 'grasgruen', label: 'Grasgrün', color: DE_GRASGRUEN },
+      { id: 'white', label: 'Weiß', color: '#FFFFFF' },
+    ],
+    ink: DE_DUNKELTANNE,
+  },
+  // Light ones (grass green and lime) never open the list: on white they only
+  // read next to a dark green.
+  chart: [DE_DUNKELTANNE, DE_KLEE, DE_GRASGRUEN, DE_TANNE, DE_LIME],
   fonts: {
     headline: 'GrueneTypeNeue',
     body: 'PT Sans',
@@ -205,12 +237,37 @@ export const GRUENE_AT: GruenePack = {
     attention: AT_MAGENTA, // Störer
     textOnDark: '#ffffff',
     textOnLight: '#257639',
+    surface: '#FFFFFF',
   },
   backgrounds: [
     { id: 'dunkelgruen', label: 'Dunkelgrün', color: '#257639', ink: '#ffffff' },
     { id: 'hellgruen', label: 'Hellgrün', color: '#56af31', ink: '#ffffff', glow: HELLGRUEN_GLOW },
   ],
   defaultBackground: '#257639',
+  // Palette, text colours and markers are not in use yet: the editor takes its
+  // defaults from the first registered pack, GRUENE_DE, in both countries.
+  palette: [
+    { id: 'dunkelgruen', label: 'Dunkelgrün', color: AT_DUNKELGRUEN },
+    { id: 'hellgruen', label: 'Hellgrün', color: '#56af31' },
+    { id: 'gelb', label: 'Gelb', color: AT_GELB },
+    { id: 'magenta', label: 'Magenta', color: AT_MAGENTA },
+    { id: 'white', label: 'Weiß', color: '#FFFFFF' },
+    { id: 'black', label: 'Schwarz', color: '#000000' },
+  ],
+  textPalette: [
+    { id: 'black', label: 'Schwarz', color: '#000000' },
+    { id: 'white', label: 'Weiß', color: '#FFFFFF' },
+    { id: 'dunkelgruen', label: 'Dunkelgrün', color: AT_DUNKELGRUEN },
+  ],
+  markers: {
+    swatches: [
+      { id: 'gelb', label: 'Gelb', color: AT_GELB },
+      { id: 'white', label: 'Weiß', color: '#FFFFFF' },
+    ],
+    ink: AT_DUNKELGRUEN,
+  },
+  // Yellow never opens the list: on white it only reads next to a dark green.
+  chart: [AT_DUNKELGRUEN, '#56af31', AT_GELB, '#0B6620', '#7CC650'],
   fonts: {
     headline: 'GothamNarrow-Ultra',
     body: 'GothamNarrow-Book',
@@ -218,6 +275,8 @@ export const GRUENE_AT: GruenePack = {
     // Bold fiel als einziges AT-Sujet aus der Reihe.
     quoteShort: 'GothamNarrow-Ultra',
     quoteEmphasis: 'Vollkorn',
+    // Gotham Book has no bold cut of its own; Bold is declared as a family.
+    boldFamilies: { 'GothamNarrow-Book': 'GothamNarrow-Bold' },
   },
   fontFaces: [],
   lineHeightFactor: 0.9,
@@ -310,7 +369,12 @@ function themeOf(locale: BrandLocale, pack: GruenePack): BrandTheme {
     backgroundColors: pack.backgrounds.map(({ id, label, color }) => ({ id, label, color })),
     defaultBackgroundColor: pack.defaultBackground,
     textColorMap: Object.fromEntries(pack.backgrounds.map((ground) => [ground.color, ground.ink])),
-    fonts: { ...pack.fonts },
+    fonts: {
+      headline: pack.fonts.headline,
+      body: pack.fonts.body,
+      quoteShort: pack.fonts.quoteShort,
+      quoteEmphasis: pack.fonts.quoteEmphasis,
+    },
     lineHeightFactor: pack.lineHeightFactor,
     logo: pack.logo,
     quoteMark: pack.quoteMark,
@@ -322,22 +386,8 @@ export const BRAND_THEMES: Record<BrandLocale, BrandTheme> = {
   'de-AT': themeOf('de-AT', GRUENE_AT),
 };
 
-const SURFACE_GLOWS: Record<string, readonly string[]> = Object.fromEntries(
-  [GRUENE_DE, GRUENE_AT].flatMap((pack) =>
-    pack.backgrounds.flatMap((ground) =>
-      ground.glow ? [[ground.color.toLowerCase(), ground.glow] as const] : []
-    )
-  )
-);
-
-/**
- * The radial glow a stored plane colour is drawn as, centre first — null when
- * it is drawn flat. The stored value stays what documents, descriptors and
- * swatches carry; only the paint changes.
- */
-export function surfaceGlow(color: string): readonly string[] | null {
-  return SURFACE_GLOWS[color.toLowerCase()] ?? null;
-}
+/** Read from the registered packs, which apps/web installs from these two. */
+export { surfaceGlow } from '../utils/surfaceGlow';
 
 /** Resolve a brand pack, falling back to de-DE for unknown/undefined locales. */
 export function getBrandPack(locale?: BrandLocale | string | null): GruenePack {

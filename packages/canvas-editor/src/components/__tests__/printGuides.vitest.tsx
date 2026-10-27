@@ -2,14 +2,18 @@
  * Hilfslinien für Druckformate: nur bei Print vorhanden, als `selection-chrome`
  * getaggt, damit kein Export sie sieht; digitale Formate bekommen keinen Knoten.
  */
+import { PrintGuides } from '@ggraphic/editor/components/PrintGuides';
+import {
+  CANVAS_FORMATS,
+  printGeometry,
+  type PrintCanvasFormat,
+} from '@ggraphic/editor/formats/index';
 import { render } from '@testing-library/react';
 import { createRef } from 'react';
 import { describe, expect, it } from 'vitest';
 
-import { CANVAS_FORMATS, printGeometry, type PrintCanvasFormat } from '../../formats';
 import { CanvasStage, type CanvasStageRef } from '../../primitives/CanvasStage';
 import { withSelectionChromeHidden } from '../../utils/captureStage';
-import { PrintGuides } from '../PrintGuides';
 
 import type Konva from 'konva';
 
