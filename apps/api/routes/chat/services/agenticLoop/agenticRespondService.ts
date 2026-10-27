@@ -962,7 +962,7 @@ export async function streamAgenticResponse(
         askGate?.hasPending()
           ? '[Agentic] Zug pausiert — Rückfrage an die Nutzer*in offen'
           : clientToolGate?.hasPending()
-            ? '[Agentic] Zug pausiert — Browser rendert das Sharepic'
+            ? `[Agentic] Zug pausiert — Browser führt ${clientToolGate.pending()?.clientToolName ?? 'ein Werkzeug'} aus`
             : `[Agentic] Zug pausiert — ${approvalGate?.pending().length ?? 0} Freigabe(n) offen`
       );
     } else {
