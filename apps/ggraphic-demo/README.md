@@ -27,16 +27,16 @@ Je `@gruenerator/*`-Paket steht im JSON:
 - `editorImporters`: die Editor-Dateien im Bundle, die ein Modul dieses Pakets importieren, das selbst oder über seine Barrels Code ins Bundle bringt;
 - `firstChain`: der kürzeste Importpfad vom Einstieg zum ersten Modul des Pakets, das im Bundle steht. Der Pfad läuft über den ganzen Modulgraphen, kann also durch Barrels führen, die selbst nichts ausliefern.
 
-## Stand: 27.10.2026, Basis #5037 plus zweite Umzugsrunde
+## Stand: 27.10.2026, Basis #5047 plus dritte Umzugsrunde
 
-856 Module im Bundle, 323 davon eager. **89 Module stammen aus zwei `@gruenerator/*`-Paketen:**
+860 Module im Bundle, 327 davon eager. **77 Module stammen aus zwei `@gruenerator/*`-Paketen:**
 
 | Paket                        | Module | davon eager |   Code | Editor-Dateien, die es importieren | erster Pfad über                        |
 | ---------------------------- | -----: | ----------: | -----: | ---------------------------------: | --------------------------------------- |
-| `@gruenerator/canvas-editor` |     87 |          79 | 733 KB |                                  – | `index.ts` → `CanvasEditorProvider.tsx` |
+| `@gruenerator/canvas-editor` |     75 |          67 | 628 KB |                                  – | `index.ts` → `CanvasEditorProvider.tsx` |
 | `@gruenerator/collab`        |      2 |           2 |   2 KB |                                  1 | `collab/useSelectionAwareness.ts`       |
 
-Dazu kommen `@ggraphic/editor` (82 Module, 75 eager), `@ggraphic/schema` (5) und `@ggraphic/core` (1). Nach der ersten Umzugsrunde (#5035) waren es 118 Module aus `@gruenerator/canvas-editor` und 50 in `@ggraphic/editor`, mit #5033 lagen alle 168 noch in `@gruenerator/canvas-editor`. Vorher (Basis #5031) waren es 1083 Module, davon 396 aus vier Paketen: `@gruenerator/contracts` stand mit 225 da, alle eager, und `@gruenerator/core` (1) kam nur über `contracts`. Noch davor (mit `StandaloneCanvas`, Basis #5026) waren es 1307 Module aus fünf Paketen.
+Dazu kommen `@ggraphic/editor` (96 Module, 89 eager), `@ggraphic/schema` (7) und `@ggraphic/core` (1). Nach der zweiten Umzugsrunde (#5039) waren es 87 Module aus `@gruenerator/canvas-editor` und 82 in `@ggraphic/editor`. Nach der ersten Umzugsrunde (#5035) waren es 118 Module aus `@gruenerator/canvas-editor` und 50 in `@ggraphic/editor`, mit #5033 lagen alle 168 noch in `@gruenerator/canvas-editor`. Vorher (Basis #5031) waren es 1083 Module, davon 396 aus vier Paketen: `@gruenerator/contracts` stand mit 225 da, alle eager, und `@gruenerator/core` (1) kam nur über `contracts`. Noch davor (mit `StandaloneCanvas`, Basis #5026) waren es 1307 Module aus fünf Paketen.
 
 **`@gruenerator/contracts` ist weg.** Die letzte Editor-Datei, die zur Laufzeit aus dem Barrel importierte, war `utils/canvasAssets.ts`. Kuratierte Emoji, die Sticker (`SYSTEM_STICKERS`) und die Regel, welche `src` eine Instanz selbst tragen darf (`isShareSrc`), stehen jetzt in `brand/grueneAssetCatalog.ts`, und der Kern fragt nur noch das Register, das der Host füllt (`registerAssetCatalog`, eingetragen in `apps/web/src/index.tsx`). Ein Register auf Modulebene statt eines Felds in `CanvasEditorServices`, weil die Abfragen auch in Befehlen, Aktions-Fabriken und Offscreen-Wurzeln laufen, die keinen React-Kontext haben. Ohne Host, wie hier, kennt der Editor keine Katalog-Grafik, zeichnet ein Emoji allein aus seiner Id und ignoriert jede `src` einer Instanz. Die Text-Helfer und `parseDataUrl` kommen aus `@ggraphic/schema`, die Share-Adressen über `CanvasEditorServices.imageUrls`. Das Paket erklärt weiterhin keine `sideEffects`; ein einziger Laufzeit-Import aus dem Barrel brächte die 225 Module zurück (#5027).
 
