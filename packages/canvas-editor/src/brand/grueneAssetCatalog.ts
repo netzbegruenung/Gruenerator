@@ -19,7 +19,7 @@ import {
   type AssetAudience,
   type CanvasAssetCatalog,
   emojiCodeAssetId,
-  emojiCodeSrc,
+  type IllustrationSources,
   type UniversalAsset,
 } from '../utils/canvasAssets';
 
@@ -74,6 +74,9 @@ const EMOJI_NAMES: Record<SharepicEmoji, [label: string, ...tags: string[]]> = {
   '🌈': ['Regenbogen', 'vielfalt', 'pride'],
 };
 
+/** The vendored Noto file of an emoji (`public/emoji/`, F0: stored in canvases by id). */
+export const emojiCodeSrc = (code: string): string => `/emoji/emoji_u${code}.svg`;
+
 /** The asset an emoji of a sharepic list is drawn with. */
 export const emojiAssetId = (emoji: SharepicEmoji): string =>
   emojiCodeAssetId(sharepicEmojiCode(emoji));
@@ -110,7 +113,31 @@ export function stickerAssetsForLocale(locale: AssetAudience): UniversalAsset[] 
  * Sticker stehen zuletzt: einige teilen ihre Datei mit einer Sonnenblume, und
  * `getAssetBySrc` soll dafuer weiter die Katalog-Grafik finden.
  */
+/**
+ * The illustration sets under `public/illustrations/`, each a lazy chunk. unDraw
+ * is the Grünerator's, never the editor core's: its licence keeps it out of a
+ * neutral bundle.
+ */
+const GRUENE_ILLUSTRATIONS: IllustrationSources = {
+  basePath: '/illustrations',
+  loadKawaii: () => import('../utils/illustrations/kawaii').then((m) => m.KAWAII_ILLUSTRATIONS),
+  loadSvg: async () =>
+    (
+      await Promise.all([
+        import('../utils/illustrations/opendoodles').then((m) => m.OPENDOODLES),
+        import('../utils/illustrations/illlustrations').then((m) => m.ILLLUSTRATIONS),
+        import('../utils/illustrations/gophers').then((m) => m.GOPHERS),
+        import('../utils/illustrations/transhumans').then((m) => m.TRANSHUMANS),
+        import('../utils/illustrations/humaaans').then((m) => m.HUMAAANS),
+        import('../utils/illustrations/openpeeps').then((m) => m.OPENPEEPS),
+        import('../utils/illustrations/undrawAll').then((m) => m.UNDRAW_ALL),
+      ])
+    ).flat(),
+};
+
 export const GRUENE_ASSET_CATALOG: CanvasAssetCatalog = {
   assets: [...ALL_ASSETS, ...TEMPLATE_ASSETS, ...EMOJI_ASSETS, ...STICKER_ASSETS],
   isInstanceSrc: isShareSrc,
+  emojiSrc: emojiCodeSrc,
+  illustrations: GRUENE_ILLUSTRATIONS,
 };

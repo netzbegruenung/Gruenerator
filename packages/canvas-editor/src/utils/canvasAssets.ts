@@ -4,6 +4,7 @@
  * knows none of them by name.
  */
 
+import type { KawaiiDef, SvgDef } from '@ggraphic/editor/utils/illustrations/types';
 import type { StickerRef } from '@ggraphic/schema';
 
 export type AssetAudience = 'de-DE' | 'de-AT' | 'all';
@@ -36,7 +37,7 @@ export const ASSET_TARGET_SIZE = 150;
 export interface AssetInstance {
   id: string;
   assetId: string; // Reference to UniversalAsset.id, or `asset:<uuid>` for a shop sticker
-  /** Own image of a shop sticker: a `/api/share/<token>/download` path. */
+  /** Own image of a shop sticker: a share path the host's `isInstanceSrc` accepts. */
   src?: string;
   x: number;
   y: number;
@@ -79,23 +80,23 @@ export const createStickerInstance = (
   return resolveAssetInstanceSrc(instance, catalog) ? instance : null;
 };
 
-/** Any vendored Noto emoji by its file code ("1f600", "1f9d1_1f3fb"). */
+/** Any emoji by its file code ("1f600", "1f9d1_1f3fb"). */
 export const emojiCodeAssetId = (code: string): string => `emoji-${code}`;
-export const emojiCodeSrc = (code: string): string => `/emoji/emoji_u${code}.svg`;
 
 const EMOJI_ID = /^emoji-([0-9a-f]{4,6}(?:_[0-9a-f]{4,6})*)$/;
 
 /**
  * The full catalogue (`utils/emoji/emojiCatalog`) loads lazily, but a placed
- * emoji must draw without it: its id alone names the file. The pattern keeps
- * persisted state from pointing anywhere but `/emoji/`.
+ * emoji must draw without it: its id alone names the file, through the host's
+ * `emojiSrc`. The pattern keeps persisted state from naming anything but an
+ * emoji code.
  */
-function emojiAssetFromId(id: string): UniversalAsset | undefined {
+function emojiAssetFromId(id: string, catalog: CanvasAssetCatalog): UniversalAsset | undefined {
   const code = EMOJI_ID.exec(id)?.[1];
-  if (!code) return undefined;
+  if (!code || !catalog.emojiSrc) return undefined;
   return {
     id,
-    src: emojiCodeSrc(code),
+    src: catalog.emojiSrc(code),
     label: String.fromCodePoint(...code.split('_').map((cp) => parseInt(cp, 16))),
     category: 'emoji',
     tags: ['emoji'],
@@ -116,19 +117,40 @@ export interface CanvasAssetCatalog {
    * an instance draws from its own `src`; any other `src` is ignored.
    */
   isInstanceSrc: (src: string) => boolean;
+  /**
+   * Where the file of an emoji lives, by its code ("1f600", "1f9d1_1f3fb").
+   * Without it the editor knows no emoji file and a placed emoji draws nothing.
+   */
+  emojiSrc?: (code: string) => string;
+  /** The illustration catalogues; without them the editor offers none. */
+  illustrations?: IllustrationSources;
+}
+
+/** The illustration sets a host offers, loaded on the first lookup. */
+export interface IllustrationSources {
+  loadKawaii: () => Promise<KawaiiDef[]>;
+  /** Every SVG set, in catalogue order. */
+  loadSvg: () => Promise<SvgDef[]>;
+  /** Where the SVG files and their `thumbs/` PNGs live, before `<source>/<filename>`. */
+  basePath: string;
 }
 
 /**
  * A module-level registry, not a `CanvasEditorServices` field: the lookups run
  * in commands, action factories and offscreen renders that have no React
- * context. Without a host the editor knows no catalogue graphic, draws a
- * placed emoji from its id alone, and ignores every instance `src`.
+ * context. Without a host the editor knows no catalogue graphic, no emoji
+ * file and no illustration, and ignores every instance `src`.
  */
 let registered: CanvasAssetCatalog = { assets: [], isInstanceSrc: () => false };
 
 /** The host's catalogue, installed once at startup; replaces the one before. */
 export function registerAssetCatalog(catalog: CanvasAssetCatalog): void {
   registered = catalog;
+}
+
+/** The catalogue lookups answer from (`utils/illustrations/registry`). */
+export function registeredAssetCatalog(): CanvasAssetCatalog {
+  return registered;
 }
 
 export function hasDarkPreview(asset: UniversalAsset): boolean {
@@ -147,7 +169,7 @@ export function getAssetById(
   id: string,
   catalog: CanvasAssetCatalog = registered
 ): UniversalAsset | undefined {
-  return catalog.assets.find((asset) => asset.id === id) ?? emojiAssetFromId(id);
+  return catalog.assets.find((asset) => asset.id === id) ?? emojiAssetFromId(id, catalog);
 }
 
 /**
