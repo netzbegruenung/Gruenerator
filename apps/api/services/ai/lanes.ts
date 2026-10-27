@@ -22,6 +22,7 @@
 
 import { GEMMA_31B_PRIMARY } from './gemmaHosts.js';
 import { intermediateLane } from './intermediateLanes.js';
+import { MELIOUS_WIDE_MODEL } from './meliousThinkingFetch.js';
 
 import type { ProviderName } from './providers.js';
 
@@ -211,6 +212,12 @@ export const AI_LANES = {
   //   6–7k Zeichen beim langen Brief), ohne die erfundenen Beispielzitate, die
   //   Mistral in den systemRole schrieb.
   creator_draft: { provider: GEMMA_31B_PRIMARY.provider, model: GEMMA_4, structuredMode: 'tool' },
+
+  // — Browser-Agent (`services/browser-agent`, browser-use): jeder Schritt
+  //   trägt einen Screenshot im Prompt. `:speed` (infercom/DE, ~130k Fenster)
+  //   gemessen; `:balanced` (FI-Knoten, ~45k) lief im Browser-Spike in
+  //   Zeitüberschreitungen. Rückfall über `laneFallback` (cortecs, mistral).
+  browser_agent: { provider: 'melious', model: MELIOUS_WIDE_MODEL, structuredMode: 'tool' },
 } as const satisfies Record<string, LaneConfig>;
 
 export type LaneId = keyof typeof AI_LANES;

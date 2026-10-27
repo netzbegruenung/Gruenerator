@@ -45,6 +45,7 @@ import { mountBoardSchedulesContractRouter } from './routes/boards/boardSchedule
 import { mountBoardsContractRouter } from './routes/boards/boardsContractRouter.js';
 import { mountBoardSubscriptionsContractRouter } from './routes/boards/boardSubscriptionsContractRouter.js';
 import { mountPublicBoardsContractRouter } from './routes/boards/publicBoardsContractRouter.js';
+import browserAgentLlmRouter from './routes/browserAgent/llmProxyRouter.js';
 import { mountCanvasContractRouter } from './routes/canvas/canvasContractRouter.js';
 import { mountChatGraphContractRouter } from './routes/chat/chatGraphContractRouter.js';
 import { mountChatThreadSharingContractRouter } from './routes/chat/chatThreadSharingContractRouter.js';
@@ -500,6 +501,12 @@ export async function setupRoutes(app: Application): Promise<void> {
   app.use('/api/v1/chat/completions', v1ChatCompletionsRouter);
   // Modell-Discovery: OpenAI-kompatible Clients fragen ${baseUrl}/models ab.
   app.use('/api/v1/models', v1ModelsRouter);
+  // Modell-Endpunkt des Browser-Dienstes (browser-use, OpenAI-kompatibel).
+  // Einzige Auth ist das Run-Token als Bearer, im Router geprüft — keine
+  // Sitzung, deshalb nicht unter /api/internal (requireAdminToken). Der Präfix
+  // steht in CUSTOM_BODY_PARSER_PATHS; der Router parst selbst (20 MB für
+  // Screenshots), und zwar erst NACH der Token-Prüfung.
+  app.use('/api/browser-agent/llm', browserAgentLlmRouter);
   // Public MCP collection catalog (unauthenticated, rate-limited).
   app.use('/api/v1/collections', publicReadLimiter, v1CollectionsRouter);
   // ts-rest contract router for /api/documents — mounts BEFORE the legacy documentsRouter
