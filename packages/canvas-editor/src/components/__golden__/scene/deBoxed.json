@@ -56,7 +56,7 @@
           "attrs": {
            "x": 0,
            "y": 0,
-           "width": 302.25,
+           "width": 372.40000000000003,
            "height": 88,
            "fill": "#FFFFFF",
            "cornerRadius": 15
@@ -105,7 +105,7 @@
           "attrs": {
            "x": 0,
            "y": 0,
-           "width": 194.41000366210938,
+           "width": 247.00000000000003,
            "height": 88,
            "fill": "#00CC4F",
            "cornerRadius": 15
@@ -154,7 +154,7 @@
           "attrs": {
            "x": 0,
            "y": 0,
-           "width": 523.5599975585938,
+           "width": 609,
            "height": 61,
            "fill": "#FFFFFF",
            "cornerRadius": 11
@@ -203,7 +203,7 @@
           "attrs": {
            "x": 0,
            "y": 0,
-           "width": 548.6300048828125,
+           "width": 696.45,
            "height": 61,
            "fill": "#FFFFFF",
            "cornerRadius": 11
@@ -252,7 +252,7 @@
           "attrs": {
            "x": 0,
            "y": 0,
-           "width": 267.7799987792969,
+           "width": 299.20000000000005,
            "height": 48,
            "fill": "#FFFFFF",
            "cornerRadius": 8

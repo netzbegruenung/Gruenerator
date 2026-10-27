@@ -140,7 +140,7 @@
          "x": 100,
          "y": 505.34,
          "width": 880,
-         "height": 436.32000000000005,
+         "height": 545.4000000000001,
          "rotation": 0,
          "opacity": 1,
          "draggable": true,
@@ -151,7 +151,7 @@
           "className": "Rect",
           "attrs": {
            "width": 880,
-           "height": 436.32000000000005,
+           "height": 545.4000000000001,
            "fill": "transparent"
           }
          },
@@ -159,7 +159,7 @@
           "className": "Text",
           "attrs": {
            "text": "Wir bauen",
-           "x": 209.83999633789062,
+           "x": 190.02499999999998,
            "y": 0,
            "fontSize": 101,
            "fontFamily": "GothamNarrow-Ultra",
@@ -177,7 +177,7 @@
           "className": "Text",
           "attrs": {
            "text": "Wohnungen für",
-           "x": 67.885009765625,
+           "x": 78.92499999999995,
            "y": 109.08000000000001,
            "fontSize": 101,
            "fontFamily": "Vollkorn",
@@ -195,7 +195,7 @@
           "className": "Text",
           "attrs": {
            "text": "alle ",
-           "x": 97.47499752044678,
+           "x": 23.375,
            "y": 218.16000000000003,
            "fontSize": 101,
            "fontFamily": "Vollkorn",
@@ -213,7 +213,7 @@
           "className": "Text",
           "attrs": {
            "text": "und lassen",
-           "x": 293.99500370025635,
+           "x": 301.125,
            "y": 218.16000000000003,
            "fontSize": 101,
            "fontFamily": "GothamNarrow-Ultra",
@@ -230,9 +230,27 @@
          {
           "className": "Text",
           "attrs": {
-           "text": "niemanden zurück.",
-           "x": 13.31500244140625,
+           "text": "niemanden",
+           "x": 190.02499999999998,
            "y": 327.24,
+           "fontSize": 101,
+           "fontFamily": "GothamNarrow-Ultra",
+           "fontStyle": "normal",
+           "textDecoration": "",
+           "fill": "#FFFFFF",
+           "fillAfterStrokeEnabled": false,
+           "lineJoin": "round",
+           "lineHeight": 1.08,
+           "wrap": "none",
+           "listening": false
+          }
+         },
+         {
+          "className": "Text",
+          "attrs": {
+           "text": "zurück.",
+           "x": 245.575,
+           "y": 436.32000000000005,
            "fontSize": 101,
            "fontFamily": "GothamNarrow-Ultra",
            "fontStyle": "normal",

@@ -698,7 +698,7 @@
           "className": "Text",
           "attrs": {
            "text": "Grün",
-           "x": 332.299991607666,
+           "x": 357.5,
            "y": 0,
            "fontSize": 130,
            "fontFamily": "Vollkorn",
@@ -801,7 +801,7 @@
           "className": "Text",
           "attrs": {
            "text": "Bahn",
-           "x": 43.959999084472656,
+           "x": 77,
            "y": 0,
            "fontSize": 70,
            "fontFamily": "GothamNarrow-Book",
@@ -834,7 +834,7 @@
           "className": "Text",
           "attrs": {
            "text": "Rad",
-           "x": 43.959999084472656,
+           "x": 77,
            "y": 91,
            "fontSize": 70,
            "fontFamily": "GothamNarrow-Book",
@@ -903,7 +903,7 @@
           "className": "Text",
           "attrs": {
            "text": "klar",
-           "x": 192.08999633789062,
+           "x": 198,
            "y": 0,
            "fontSize": 72,
            "fontFamily": "Vollkorn",
@@ -921,7 +921,7 @@
           "className": "Text",
           "attrs": {
            "text": ".",
-           "x": 320.1999969482422,
+           "x": 356.4,
            "y": 0,
            "fontSize": 72,
            "fontFamily": "GothamNarrow-Ultra",
