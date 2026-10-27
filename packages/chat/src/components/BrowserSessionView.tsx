@@ -59,8 +59,9 @@ export function BrowserSessionView({ artifact }: { artifact: BrowserSessionArtif
             Der Browser-Agent arbeitet …
           </p>
         )}
-        {status === 'failed' && <p className="font-medium text-foreground">Abgebrochen</p>}
-        {status === 'done' && summary && <p className="text-foreground">{summary}</p>}
+        {/* Abbruch und Fehler kommen beide als `failed`; die Zusammenfassung sagt welcher. */}
+        {status === 'failed' && <p className="font-medium text-foreground">Nicht abgeschlossen</p>}
+        {status !== 'running' && summary && <p className="text-foreground">{summary}</p>}
       </div>
 
       {steps.length > 0 && (

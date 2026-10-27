@@ -95,10 +95,25 @@ describe('a run with steps', () => {
 });
 
 describe('how a run ends', () => {
-  it('says „Abgebrochen" when the run failed', () => {
+  it('says „Nicht abgeschlossen" when the run failed', () => {
     render(<BrowserSessionView artifact={artifact({ steps: [step(1)], status: 'failed' })} />);
 
-    expect(screen.getByText('Abgebrochen')).toBeInTheDocument();
+    expect(screen.getByText('Nicht abgeschlossen')).toBeInTheDocument();
+  });
+
+  it('shows why a failed run ended', () => {
+    render(
+      <BrowserSessionView
+        artifact={artifact({
+          steps: [step(1)],
+          status: 'failed',
+          summary: 'Die Website konnte nicht erkundet werden.',
+        })}
+      />
+    );
+
+    expect(screen.getByText('Nicht abgeschlossen')).toBeInTheDocument();
+    expect(screen.getByText('Die Website konnte nicht erkundet werden.')).toBeInTheDocument();
   });
 
   it('shows the summary once the run is done', () => {
