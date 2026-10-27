@@ -92,6 +92,8 @@ const envSchema = z.object({
   BROWSER_AGENT_SECRET: z.string().optional(),
   /** Basis-URL des Browser-Dienstes. Optional; ohne sie bleibt das Feature aus. */
   BROWSER_AGENT_URL: z.string().optional(),
+  /** Wie der Browser-Dienst die API erreicht (für den Modell-Proxy). Default `http://localhost:3001`. */
+  API_INTERNAL_BASE_URL: z.string().optional(),
   /**
    * Where generated thumbnail variants are cached. Defaults to
    * `apps/api/uploads/thumb-cache`. Point it elsewhere to size or wipe the
