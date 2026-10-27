@@ -71,13 +71,13 @@ import {
   printPdfFilename,
   type PrintExportPage,
 } from '../../export/printExport';
-import { exportSlidesPdf } from '../../export/slidesPdf';
+import { exportSlidesPdf } from '@ggraphic/editor/export/slidesPdf';
 import { useIsCanvasMobile } from '../../hooks/useIsCanvasMobile';
-import { useZoomGestures } from '../../hooks/useZoomGestures';
+import { useZoomGestures } from '@ggraphic/editor/hooks/useZoomGestures';
 import { HOST_CALLBACK_KEYS } from '../../hostCallbackKeys';
-import { CanvasEditorLayout } from '../../layouts';
+import { CanvasEditorLayout } from '@ggraphic/editor/layouts/index';
 import { SidebarTabBar, SidebarPanel } from '../../sidebar';
-import { LayersSection } from '../../sidebar/sections/LayersSection';
+import { LayersSection } from '@ggraphic/editor/sidebar/sections/LayersSection';
 import { usePreloadElements, usePreloadTools } from '../../sidebar/sections/preloadElements';
 import {
   VorlagenSection,
@@ -89,48 +89,48 @@ import {
   type SlideLayoutId,
 } from '../../slides/slideLayouts';
 import { type CanvasConfigId } from '../../templates/registry';
-import { collectAltTextPages as collectCapturedAltTextPages } from '../../utils/collectAltTextPages';
+import { collectAltTextPages as collectCapturedAltTextPages } from '@ggraphic/editor/utils/collectAltTextPages';
 import { photoCreditLine } from '../../utils/photoCredit';
-import { pagePhotoCredits } from '../../utils/photoCredits';
-import { scrollBehavior } from '../../utils/scrollBehavior';
+import { pagePhotoCredits } from '@ggraphic/editor/utils/photoCredits';
+import { scrollBehavior } from '@ggraphic/editor/utils/scrollBehavior';
 import { getCategoryForTemplate } from '../../utils/templateRegistry';
-import { CanvasAnnouncer } from '../CanvasAnnouncer';
-import { CanvasContextMenu } from '../CanvasContextMenu/CanvasContextMenu';
+import { CanvasAnnouncer } from '@ggraphic/editor/components/CanvasAnnouncer';
+import { CanvasContextMenu } from '@ggraphic/editor/components/CanvasContextMenu/CanvasContextMenu';
 import { CanvasPageSkeleton, CanvasTabRailSkeleton } from '../CanvasEditorSkeleton';
-import { CanvasMetaBar, CanvasZoomIndicator } from '../CanvasMetaBar';
-import { MobileSelectionPill } from '../MobileSelectionPill';
+import { CanvasMetaBar, CanvasZoomIndicator } from '@ggraphic/editor/components/CanvasMetaBar';
+import { MobileSelectionPill } from '@ggraphic/editor/components/MobileSelectionPill';
 import { PageThumbnailStrip } from '../PageThumbnailStrip';
-import { SlideNotesPanel } from '../SlideNotesPanel';
+import { SlideNotesPanel } from '@ggraphic/editor/components/SlideNotesPanel';
 import { AddPageButton, TemplatePickerFlyout } from '../TemplatePickerFlyout';
 import { Toolbar } from '../Toolbar';
 import { ContextToolbar } from '../TopBar/ContextToolbar';
 import { MobileSelectionBar } from '../TopBar/MobileSelectionBar';
 import { MobileSelectionControls } from '../TopBar/MobileSelectionControls';
-import { FloatingAiSuggestionBanner } from '../TopBar/modules/FloatingAiSuggestionBanner';
+import { FloatingAiSuggestionBanner } from '@ggraphic/editor/components/TopBar/modules/FloatingAiSuggestionBanner';
 import { MultiSelectionToolbar } from '../TopBar/MultiSelectionToolbar';
 
-import { autoSwitchTab } from './autoSwitchTab';
+import { autoSwitchTab } from '@ggraphic/editor/components/CanvasEditor/autoSwitchTab';
 import { BlockInsertProvider } from './blockInsert';
-import { useCanvasContextMenu } from './hooks/useCanvasContextMenu';
+import { useCanvasContextMenu } from '@ggraphic/editor/components/CanvasEditor/hooks/useCanvasContextMenu';
 import { useLoadedConfigs } from './hooks/useLoadedConfigs';
-import { useMobileSheetFit } from './hooks/useMobileSheetFit';
-import { usePageRefs } from './hooks/usePageRefs';
-import { usePageUndoRedoShortcuts } from './hooks/usePageUndoRedoShortcuts';
+import { useMobileSheetFit } from '@ggraphic/editor/components/CanvasEditor/hooks/useMobileSheetFit';
+import { usePageRefs } from '@ggraphic/editor/components/CanvasEditor/hooks/usePageRefs';
+import { usePageUndoRedoShortcuts } from '@ggraphic/editor/components/CanvasEditor/hooks/usePageUndoRedoShortcuts';
 import {
   needsImpressum,
   usePrintImpressumGate,
   type ObservedPages,
 } from './hooks/usePrintImpressumGate';
-import { useScrollToAddedPage } from './hooks/useScrollToAddedPage';
-import { useToolbarHandlers } from './hooks/useToolbarHandlers';
-import { useWorkAreaDeselect } from './hooks/useWorkAreaDeselect';
-import { layersTab, withLayersTab } from './layersTab';
-import { getMobileSelectionArea } from './mobileSelectionArea';
+import { useScrollToAddedPage } from '@ggraphic/editor/components/CanvasEditor/hooks/useScrollToAddedPage';
+import { useToolbarHandlers } from '@ggraphic/editor/components/CanvasEditor/hooks/useToolbarHandlers';
+import { useWorkAreaDeselect } from '@ggraphic/editor/components/CanvasEditor/hooks/useWorkAreaDeselect';
+import { layersTab, withLayersTab } from '@ggraphic/editor/components/CanvasEditor/layersTab';
+import { getMobileSelectionArea } from '@ggraphic/editor/components/CanvasEditor/mobileSelectionArea';
 import { PageWrapper } from './PageWrapper';
 import { formatHasVorlagen, vorlagenTab, withVorlagenTab } from './vorlagenTab';
 
 import type { CanvasEditorProps, PageWrapperProps } from './types';
-import type { SidebarTabId } from '../../sidebar/types';
+import type { SidebarTabId } from '@ggraphic/editor/sidebar/types';
 import type {
   AltTextPage,
   AltTextScope,

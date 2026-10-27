@@ -4,7 +4,7 @@ import { Slider } from 'radix-ui';
 import React, { useId } from 'react';
 import { PiTextAa } from 'react-icons/pi';
 
-import { colorName } from '../../../utils/colorNames';
+import { colorName } from '@ggraphic/editor/utils/colorNames';
 
 interface FloatingOutlineControlProps {
   stroke?: string;

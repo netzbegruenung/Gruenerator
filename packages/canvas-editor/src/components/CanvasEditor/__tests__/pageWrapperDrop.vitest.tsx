@@ -11,8 +11,8 @@ import { BlockInsertContext, type BlockInsertApi } from '../blockInsert';
 import { PageWrapper } from '../PageWrapper';
 
 vi.mock('@ggraphic/editor/components/GenericCanvas', () => ({ GenericCanvas: () => <canvas /> }));
-vi.mock('../../PageToolbar', () => ({ PageToolbar: () => null }));
-vi.mock('../../ZoomableViewport', () => ({
+vi.mock('@ggraphic/editor/components/PageToolbar', () => ({ PageToolbar: () => null }));
+vi.mock('@ggraphic/editor/components/ZoomableViewport', () => ({
   ZoomableViewport: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
 }));
 

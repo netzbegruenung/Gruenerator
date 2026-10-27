@@ -1,4 +1,4 @@
-import { rankByQuery } from '../../../utils/filterUtils';
+import { rankByQuery } from '@ggraphic/editor/utils/filterUtils';
 
 import type { ElementItem } from './elementTypes';
 import type { CatalogCategory, CategoryId } from './useElementCatalog';

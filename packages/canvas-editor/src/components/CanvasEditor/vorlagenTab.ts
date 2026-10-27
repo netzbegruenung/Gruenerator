@@ -2,7 +2,7 @@ import { DEFAULT_FORMAT_ID } from '@ggraphic/editor/formats/index';
 import { canvasFormatIdSchema } from '@gruenerator/contracts';
 import { PiLayoutFill } from 'react-icons/pi';
 
-import type { SidebarTab } from '../../sidebar/types';
+import type { SidebarTab } from '@ggraphic/editor/sidebar/types';
 
 /**
  * The „Vorlagen" tab acts on the whole document, not on the active page, so

@@ -3,10 +3,10 @@ import { useUserUploads } from '@ggraphic/editor/sidebar/UserUploadsProvider';
 import { useCallback, useState } from 'react';
 import { HiPencilSquare } from 'react-icons/hi2';
 
-import { MOBILE_INPUT_TEXT } from '../../sidebarStyles';
+import { MOBILE_INPUT_TEXT } from '@ggraphic/editor/sidebar/sidebarStyles';
 
 import { ImageInputPicker } from './ImageInputPicker';
-import { ToolPanel, type ToolPanelSuccess } from './ToolPanel';
+import { ToolPanel, type ToolPanelSuccess } from '@ggraphic/editor/sidebar/sections/tools/ToolPanel';
 
 const MIN_INSTRUCTION_LENGTH = 15;
 const MAX_INSTRUCTION_LENGTH = 500;

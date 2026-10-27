@@ -1,4 +1,4 @@
-import type { SidebarTabId } from '../../sidebar/types';
+import type { SidebarTabId } from '@ggraphic/editor/sidebar/types';
 import type { CanvasConfigId } from '../../templates/registry';
 import type {
   GenericCanvasRef,

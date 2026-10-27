@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { FaTrash } from 'react-icons/fa';
 
-import { ACTION_BTN_DANGER, SECTION_HEADER, SECTION_TITLE } from '../sidebarStyles';
+import { ACTION_BTN_DANGER, SECTION_HEADER, SECTION_TITLE } from '@ggraphic/editor/sidebar/sidebarStyles';
 
 import { ImageInputPicker } from './tools/ImageInputPicker';
 

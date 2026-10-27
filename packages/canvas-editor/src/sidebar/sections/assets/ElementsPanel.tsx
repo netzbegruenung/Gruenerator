@@ -15,18 +15,18 @@ import { PiCaretLeftBold, PiMagnifyingGlass, PiX } from 'react-icons/pi';
 
 import { useBlockInsert } from '../../../components/CanvasEditor/blockInsert';
 import { useIsCanvasMobile } from '../../../hooks/useIsCanvasMobile';
-import { useTrackUnsplashDownload } from '../../../hooks/useTrackUnsplashDownload';
-import { MOBILE_INPUT_TEXT } from '../../sidebarStyles';
+import { useTrackUnsplashDownload } from '@ggraphic/editor/hooks/useTrackUnsplashDownload';
+import { MOBILE_INPUT_TEXT } from '@ggraphic/editor/sidebar/sidebarStyles';
 import { IllustrationSettings } from '../IllustrationSettings';
-import { FramePreviewDefs } from '../RahmenSection';
+import { FramePreviewDefs } from '@ggraphic/editor/sidebar/sections/RahmenSection';
 
 import { BackgroundCatalog } from './BackgroundCatalog';
-import { CategoryCard } from './CategoryCard';
+import { CategoryCard } from '@ggraphic/editor/sidebar/sections/assets/CategoryCard';
 import { ElementGrid } from './ElementGrid';
 import { searchElements } from './elementSearch';
 import { ElementTile } from './ElementTile';
 import { galleryStickerItem, type ElementItem } from './elementTypes';
-import { EmojiTonePicker } from './EmojiTonePicker';
+import { EmojiTonePicker } from '@ggraphic/editor/sidebar/sections/assets/EmojiTonePicker';
 import { FotosCatalog } from './FotosCatalog';
 import { RecentCarousel } from './RecentCarousel';
 import { StickerCatalog } from './StickerCatalog';

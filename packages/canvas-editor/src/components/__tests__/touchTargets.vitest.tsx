@@ -10,17 +10,17 @@ import { useLayoutEffect } from 'react';
 import { PiTextAa } from 'react-icons/pi';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { SidebarHint } from '../../sidebar/components/SidebarHint';
-import { FontSizeStepper } from '../../sidebar/components/TextFieldPrimitives';
+import { SidebarHint } from '@ggraphic/editor/sidebar/components/SidebarHint';
+import { FontSizeStepper } from '@ggraphic/editor/sidebar/components/TextFieldPrimitives';
 import { CombinedTextSection } from '../../sidebar/sections/CombinedTextSection';
 import { SidebarPanel } from '../../sidebar/SidebarPanel';
 import { SubsectionTabBar } from '../../sidebar/SubsectionTabBar';
-import { AutoSaveIndicator } from '../TopBar/AutoSaveIndicator';
+import { AutoSaveIndicator } from '@ggraphic/editor/components/TopBar/AutoSaveIndicator';
 import { ContextControls } from '../TopBar/ContextControls';
-import { FloatingColorPicker } from '../TopBar/modules/FloatingColorPicker';
-import { FloatingFontSizeControl } from '../TopBar/modules/FloatingFontSizeControl';
-import { FloatingHistoryControls } from '../TopBar/modules/FloatingHistoryControls';
-import { FloatingLayerControls } from '../TopBar/modules/FloatingLayerControls';
+import { FloatingColorPicker } from '@ggraphic/editor/components/TopBar/modules/FloatingColorPicker';
+import { FloatingFontSizeControl } from '@ggraphic/editor/components/TopBar/modules/FloatingFontSizeControl';
+import { FloatingHistoryControls } from '@ggraphic/editor/components/TopBar/modules/FloatingHistoryControls';
+import { FloatingLayerControls } from '@ggraphic/editor/components/TopBar/modules/FloatingLayerControls';
 
 import type { FloatingModuleState } from '@ggraphic/editor/hooks/useFloatingModuleState';
 

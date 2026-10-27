@@ -28,15 +28,15 @@ import { ALL_ASSETS, sortLogoAssets } from '../../../brand/grueneAssets';
 import { useBlockInsert, type BlockInsertApi } from '../../../components/CanvasEditor/blockInsert';
 import { useEmojiCatalog } from '../../../hooks/useEmojiCatalog';
 import { withTone } from '../../../utils/emoji/emojiCatalog';
-import { KAWAII_ILLUSTRATIONS } from '../../../utils/illustrations/kawaii';
+import { KAWAII_ILLUSTRATIONS } from '@ggraphic/editor/utils/illustrations/kawaii';
 import { UNDRAW_FEATURED } from '../../../utils/illustrations/undraw';
-import { ALL_PALETTE_SHAPES, getShapeVariant } from '../FormenSection';
+import { ALL_PALETTE_SHAPES, getShapeVariant } from '@ggraphic/editor/sidebar/sections/FormenSection';
 
 import { ElementThumb } from './ElementThumb';
 import { useStockPhotos } from './useStockPhotos';
 
 import type { ExtendedAssetsSectionProps } from './AssetsSection';
-import type { AssetView } from './constants';
+import type { AssetView } from '@ggraphic/editor/sidebar/sections/assets/constants';
 import type { ElementAction, ElementItem } from './elementTypes';
 import type { IconDef } from '@ggraphic/editor/utils/canvasIcons';
 import type { IllustrationDef } from '@ggraphic/editor/utils/illustrations/types';

@@ -4,8 +4,8 @@ import { useCallback, useMemo, useRef, useState } from 'react';
 import { PiShuffle, PiDropSimpleFill } from 'react-icons/pi';
 import { Layer, Line, Stage } from 'react-konva';
 
-import { ToolPanel, type ToolPanelSuccess } from './ToolPanel';
-import { useToolImagePlacement } from './useToolImagePlacement';
+import { ToolPanel, type ToolPanelSuccess } from '@ggraphic/editor/sidebar/sections/tools/ToolPanel';
+import { useToolImagePlacement } from '@ggraphic/editor/sidebar/sections/tools/useToolImagePlacement';
 
 import type Konva from 'konva';
 

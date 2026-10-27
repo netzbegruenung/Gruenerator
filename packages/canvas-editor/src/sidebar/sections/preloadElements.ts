@@ -4,7 +4,7 @@ import { DEFAULT_ICON_SET, loadIconSetCatalog } from '@ggraphic/editor/utils/can
 import { QueryClientContext } from '@tanstack/react-query';
 import { useContext, useEffect } from 'react';
 
-import { whenIdle } from './whenIdle';
+import { whenIdle } from '@ggraphic/editor/sidebar/sections/whenIdle';
 
 import { AssetsSection, ToolsSection } from './index';
 

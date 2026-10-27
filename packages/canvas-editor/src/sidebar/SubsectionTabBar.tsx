@@ -4,7 +4,7 @@ import { useId, useState, type ReactNode } from 'react';
 
 import { useIsCanvasMobile } from '../hooks/useIsCanvasMobile';
 
-import { HIDDEN_SCROLLBAR } from './sidebarStyles';
+import { HIDDEN_SCROLLBAR } from '@ggraphic/editor/sidebar/sidebarStyles';
 
 import type { IconType } from 'react-icons';
 

@@ -3,10 +3,10 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { flushSync } from 'react-dom';
 import { HiQrCode } from 'react-icons/hi2';
 
-import { MOBILE_INPUT_TEXT } from '../../sidebarStyles';
+import { MOBILE_INPUT_TEXT } from '@ggraphic/editor/sidebar/sidebarStyles';
 
-import { ToolPanel, type ToolPanelSuccess } from './ToolPanel';
-import { useToolImagePlacement } from './useToolImagePlacement';
+import { ToolPanel, type ToolPanelSuccess } from '@ggraphic/editor/sidebar/sections/tools/ToolPanel';
+import { useToolImagePlacement } from '@ggraphic/editor/sidebar/sections/tools/useToolImagePlacement';
 
 export interface QRCodeToolProps {
   onJumpToUploads?: () => void;

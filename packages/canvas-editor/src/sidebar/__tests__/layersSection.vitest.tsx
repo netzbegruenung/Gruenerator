@@ -18,7 +18,7 @@ import { useStore } from 'zustand';
 import { useShallow } from 'zustand/react/shallow';
 
 import { axe } from '../../test-utils';
-import { LayersSection } from '../sections/LayersSection';
+import { LayersSection } from '@ggraphic/editor/sidebar/sections/LayersSection';
 
 import type { BaseCanvasState } from '@ggraphic/editor/configs/factory/baseTypes';
 import type { LayoutResult } from '@ggraphic/editor/configs/types';

@@ -8,7 +8,7 @@
 
 import { strFromU8, strToU8, unzipSync, zipSync } from 'fflate';
 
-import { parseColor, pptxRotation, pptxUnits, transparencyOf, type PptxUnits } from './pptxUnits';
+import { parseColor, pptxRotation, pptxUnits, transparencyOf, type PptxUnits } from '@ggraphic/editor/export/pptx/pptxUnits';
 import { shadowProps, textBoxOptions, textRuns } from './writeText';
 
 import type {
@@ -18,7 +18,7 @@ import type {
   PptxImageItem,
   PptxRasterRequest,
   PptxShapeItem,
-} from './types';
+} from '@ggraphic/editor/export/pptx/types';
 import type PptxGenJS from 'pptxgenjs';
 
 export const PPTX_MIME_TYPE =

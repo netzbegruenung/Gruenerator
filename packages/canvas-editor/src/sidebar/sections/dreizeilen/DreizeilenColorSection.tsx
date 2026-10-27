@@ -1,7 +1,7 @@
 import { cn } from '@ggraphic/editor/utils/cn';
 import { FaCheck } from 'react-icons/fa';
 
-import { SidebarHint } from '../../components/SidebarHint';
+import { SidebarHint } from '@ggraphic/editor/sidebar/components/SidebarHint';
 import {
   CARD_CHECK,
   CARD_GRID,
@@ -9,7 +9,7 @@ import {
   SELECTABLE_CARD_ACTIVE,
   SELECTABLE_CARD_WITH_LABEL,
   SIDEBAR_SECTION,
-} from '../../sidebarStyles';
+} from '@ggraphic/editor/sidebar/sidebarStyles';
 
 import type { ColorScheme } from '../../../utils/dreizeilenLayout';
 

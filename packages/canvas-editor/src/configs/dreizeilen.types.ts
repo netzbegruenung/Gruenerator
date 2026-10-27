@@ -5,7 +5,7 @@
  * These types provide full type safety for the config-based architecture.
  */
 
-import type { StockImageAttribution } from '../sidebar/types';
+import type { StockImageAttribution } from '@ggraphic/editor/sidebar/types';
 import type { IconState } from '@ggraphic/editor/configs/factory/baseTypes';
 import type { AdditionalText } from '@ggraphic/editor/configs/types';
 import type { BalkenInstance, BalkenMode } from '@ggraphic/editor/utils/balkenUtils';

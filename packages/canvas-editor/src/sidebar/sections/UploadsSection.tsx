@@ -10,8 +10,8 @@ import { FaTrash } from 'react-icons/fa';
 import { HiArrowUpTray, HiMagnifyingGlass } from 'react-icons/hi2';
 
 import { useIsCanvasMobile } from '../../hooks/useIsCanvasMobile';
-import { SidebarHint } from '../components/SidebarHint';
-import { MOBILE_INPUT_TEXT, SIDEBAR_SECTION } from '../sidebarStyles';
+import { SidebarHint } from '@ggraphic/editor/sidebar/components/SidebarHint';
+import { MOBILE_INPUT_TEXT, SIDEBAR_SECTION } from '@ggraphic/editor/sidebar/sidebarStyles';
 
 import type { CanvasMediaItem } from '@ggraphic/editor/hostServices';
 

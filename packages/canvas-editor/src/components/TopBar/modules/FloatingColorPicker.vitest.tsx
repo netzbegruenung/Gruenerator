@@ -5,7 +5,7 @@ import { describe, expect, it, vi } from 'vitest';
 
 import { axe } from '../../../test-utils';
 
-import { FloatingColorPicker } from './FloatingColorPicker';
+import { FloatingColorPicker } from '@ggraphic/editor/components/TopBar/modules/FloatingColorPicker';
 
 function Harness({
   onSelect,

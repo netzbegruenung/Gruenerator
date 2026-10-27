@@ -11,7 +11,7 @@ vi.mock('@ggraphic/editor/sidebar/UserUploadsProvider', () => ({
   useOptionalUserUploads: () => (uploads.available ? { upload: async () => null } : null),
 }));
 import { ContextControls } from '../ContextControls';
-import { CropModeControls } from '../CropModeControls';
+import { CropModeControls } from '@ggraphic/editor/components/TopBar/CropModeControls';
 import { MobileSelectionBar } from '../MobileSelectionBar';
 
 function setup(cropping = false, locked = false) {

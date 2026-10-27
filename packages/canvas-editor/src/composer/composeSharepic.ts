@@ -63,7 +63,7 @@ import { layoutInfografik } from './infografikLayout';
 import { layoutBingo, layoutSchlagzeile, layoutTermine } from './kartenLayout';
 import { layoutRechnung, layoutZahl } from './kennzahlLayout';
 import { layoutIconliste, layoutListe } from './listeLayout';
-import { foldMarkers, stripMarks } from './marks';
+import { foldMarkers, stripMarks } from '@ggraphic/editor/composer/marks';
 import {
   GRADIENTS,
   SCRIM_DARK,
@@ -100,8 +100,8 @@ import { drawSlideChrome } from './slideChrome';
 import { type BuildPass, type SlideCtx } from './slideContext';
 import { slideInk } from './slideInk';
 import { fadeIntoGround, steckbriefAround } from './steckbriefCompose';
-import { steckbriefPerson } from './steckbriefLayout';
-import { balancedWrap, largestSizeWordsFit, STOERER_RADII, wrapWords } from './textFit';
+import { steckbriefPerson } from '@ggraphic/editor/composer/steckbriefLayout';
+import { balancedWrap, largestSizeWordsFit, STOERER_RADII, wrapWords } from '@ggraphic/editor/composer/textFit';
 import { layoutFaktencheck, layoutVergleich } from './vergleichLayout';
 import { layoutFrage, layoutZitat } from './zitatLayout';
 
@@ -116,7 +116,7 @@ export {
   largestSizeWordsFit,
   STOERER_LINE_STEP,
   wrapWords,
-} from './textFit';
+} from '@ggraphic/editor/composer/textFit';
 
 /** A photo tinted green, as the posts set people: DE in Klee, AT in its light green. */
 const BILD_TINT: Record<SharepicCreatorLocale, string> = { 'de-DE': '#008939', 'de-AT': '#56AF31' };

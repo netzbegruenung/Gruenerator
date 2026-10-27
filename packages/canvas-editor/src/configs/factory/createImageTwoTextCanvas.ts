@@ -17,13 +17,13 @@ import { PiFrameCornersFill, PiSquaresFourFill, PiTextAa } from 'react-icons/pi'
 import { AssetsSection, CombinedTextSection, FrameSettingsSection } from '../../sidebar/sections';
 import { chatTab, createCommonSectionEntries, toolsTab, uploadsTab } from '../commonSections';
 import { injectFeatureProps } from '../featureInjector';
-import { getPlaceholder } from '../placeholders';
+import { getPlaceholder } from '@ggraphic/editor/configs/placeholders';
 import { createShareSection } from '../shareSection';
 
 import { createBaseActions } from './actionFactories';
-import { makeSectionDefiner } from './defineSection';
+import { makeSectionDefiner } from '@ggraphic/editor/configs/factory/defineSection';
 
-import type { BackgroundColorOption } from '../../sidebar/types';
+import type { BackgroundColorOption } from '@ggraphic/editor/sidebar/types';
 import type { StockImageAttribution } from '@ggraphic/editor/common/imageSourceTypes';
 import type {
   CanvasFeatures,

@@ -13,10 +13,10 @@ import {
 import { PiArrowLeft, PiCaretRightBold, PiDropSimpleFill, PiPath } from 'react-icons/pi';
 
 import { useIsCanvasMobile } from '../../../hooks/useIsCanvasMobile';
-import { lazyWithPreload } from '../lazyWithPreload';
-import { whenIdle } from '../whenIdle';
+import { lazyWithPreload } from '@ggraphic/editor/sidebar/sections/lazyWithPreload';
+import { whenIdle } from '@ggraphic/editor/sidebar/sections/whenIdle';
 
-import { ToolTile, type ToolTileId } from './ToolTiles';
+import { ToolTile, type ToolTileId } from '@ggraphic/editor/sidebar/sections/tools/ToolTiles';
 
 import type { AltTextPagesSource } from './AltTextTool';
 import type { UserImagePlacement } from '@ggraphic/editor/utils/userImageUtils';
@@ -30,7 +30,7 @@ const PANELS = {
   'remove-bg': lazyWithPreload(() =>
     import('./RemoveBackgroundTool').then((m) => m.RemoveBackgroundTool)
   ),
-  'ai-create': lazyWithPreload(() => import('./AiCreateTool').then((m) => m.AiCreateTool)),
+  'ai-create': lazyWithPreload(() => import('@ggraphic/editor/sidebar/sections/tools/AiCreateTool').then((m) => m.AiCreateTool)),
   'ai-edit': lazyWithPreload(() => import('./AiEditTool').then((m) => m.AiEditTool)),
   'alt-text': lazyWithPreload(() => import('./AltTextTool').then((m) => m.AltTextTool)),
   unsplash: lazyWithPreload(() => import('./UnsplashTool').then((m) => m.UnsplashTool)),

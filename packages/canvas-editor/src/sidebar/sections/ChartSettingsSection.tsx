@@ -25,7 +25,7 @@ import {
   PiChartPie,
 } from 'react-icons/pi';
 
-import { MOBILE_INPUT_TEXT } from '../sidebarStyles';
+import { MOBILE_INPUT_TEXT } from '@ggraphic/editor/sidebar/sidebarStyles';
 
 import type { IconType } from 'react-icons';
 

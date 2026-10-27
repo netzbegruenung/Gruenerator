@@ -7,7 +7,7 @@ import { cn } from '@ggraphic/editor/utils/cn';
 import React from 'react';
 import { PiCheckBold, PiSlidersHorizontal } from 'react-icons/pi';
 
-import { HIDDEN_SCROLLBAR } from '../../sidebar/sidebarStyles';
+import { HIDDEN_SCROLLBAR } from '@ggraphic/editor/sidebar/sidebarStyles';
 
 import { ContextControls, showsCropModeBar, type ContextControlsProps } from './ContextControls';
 

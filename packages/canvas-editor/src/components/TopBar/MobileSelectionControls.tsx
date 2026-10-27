@@ -2,7 +2,7 @@ import { useCanvasStoreSelector } from '@ggraphic/editor/stores/CanvasStoreProvi
 import { cn } from '@ggraphic/editor/utils/cn';
 import React from 'react';
 
-import { HIDDEN_SCROLLBAR } from '../../sidebar/sidebarStyles';
+import { HIDDEN_SCROLLBAR } from '@ggraphic/editor/sidebar/sidebarStyles';
 
 import { ContextControls, type ContextControlsProps } from './ContextControls';
 

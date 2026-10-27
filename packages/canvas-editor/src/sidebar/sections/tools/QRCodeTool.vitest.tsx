@@ -6,7 +6,7 @@ import { QRCodeTool } from './QRCodeTool';
 
 const finish = vi.fn(async (_file: File) => ({ itemName: 'qr', placedOnCanvas: true }));
 
-vi.mock('./useToolImagePlacement', () => ({
+vi.mock('@ggraphic/editor/sidebar/sections/tools/useToolImagePlacement', () => ({
   useToolImagePlacement: () => ({ finish, isUploading: false }),
 }));
 

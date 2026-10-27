@@ -6,9 +6,9 @@ import { PiX } from 'react-icons/pi';
 
 import { useIsCanvasMobile } from '../hooks/useIsCanvasMobile';
 
-import { SIDEBAR_PANEL_ID } from './sidebarStyles';
+import { SIDEBAR_PANEL_ID } from '@ggraphic/editor/sidebar/sidebarStyles';
 
-import type { SidebarPanelProps } from './types';
+import type { SidebarPanelProps } from '@ggraphic/editor/sidebar/types';
 
 interface ExtendedSidebarPanelProps extends SidebarPanelProps {
   /** Sheet title on mobile — the label of the active area. */

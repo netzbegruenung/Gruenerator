@@ -4,9 +4,9 @@ import { SLIDE_ALT_TEXT_MAX_CHARS } from '@gruenerator/contracts';
 import { useCallback, useId, useState } from 'react';
 import { HiChatBubbleBottomCenterText } from 'react-icons/hi2';
 
-import { MOBILE_INPUT_TEXT } from '../../sidebarStyles';
+import { MOBILE_INPUT_TEXT } from '@ggraphic/editor/sidebar/sidebarStyles';
 
-import { ToolPanel } from './ToolPanel';
+import { ToolPanel } from '@ggraphic/editor/sidebar/sections/tools/ToolPanel';
 
 import type { AltTextPage, AltTextScope } from '@ggraphic/editor/CanvasEditorProvider';
 

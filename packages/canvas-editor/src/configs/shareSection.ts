@@ -3,9 +3,9 @@ import { FaShare } from 'react-icons/fa';
 
 import { GenericShareSection, type GenericShareSectionProps } from '../sidebar';
 import { photoCreditLine, withPhotoCredit } from '../utils/photoCredit';
-import { pagePhotoCredits } from '../utils/photoCredits';
+import { pagePhotoCredits } from '@ggraphic/editor/utils/photoCredits';
 
-import { makeSectionDefiner } from './factory/defineSection';
+import { makeSectionDefiner } from '@ggraphic/editor/configs/factory/defineSection';
 
 import type { SectionConfig } from '@ggraphic/editor/configs/types';
 

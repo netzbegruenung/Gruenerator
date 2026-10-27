@@ -4,10 +4,10 @@ import Konva from 'konva';
 import { useCallback, useEffect, useState } from 'react';
 import { PiPath } from 'react-icons/pi';
 
-import { MOBILE_INPUT_TEXT } from '../../sidebarStyles';
+import { MOBILE_INPUT_TEXT } from '@ggraphic/editor/sidebar/sidebarStyles';
 
-import { ToolPanel, type ToolPanelSuccess } from './ToolPanel';
-import { useToolImagePlacement } from './useToolImagePlacement';
+import { ToolPanel, type ToolPanelSuccess } from '@ggraphic/editor/sidebar/sections/tools/ToolPanel';
+import { useToolImagePlacement } from '@ggraphic/editor/sidebar/sections/tools/useToolImagePlacement';
 
 export interface TextPathCreatorToolProps {
   onJumpToUploads?: () => void;

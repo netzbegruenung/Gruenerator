@@ -3,9 +3,9 @@ import { FaTrash } from 'react-icons/fa';
 import { PiPlusBold, PiTextAa, PiTextHBold } from 'react-icons/pi';
 
 import { useIsCanvasMobile } from '../../hooks/useIsCanvasMobile';
-import { SidebarHint } from '../components/SidebarHint';
-import { TextField } from '../components/TextFieldPrimitives';
-import { MOBILE_INPUT_TEXT, SIDEBAR_SECTION } from '../sidebarStyles';
+import { SidebarHint } from '@ggraphic/editor/sidebar/components/SidebarHint';
+import { TextField } from '@ggraphic/editor/sidebar/components/TextFieldPrimitives';
+import { MOBILE_INPUT_TEXT, SIDEBAR_SECTION } from '@ggraphic/editor/sidebar/sidebarStyles';
 
 import type { AdditionalText } from '@ggraphic/editor/configs/types';
 import type { TextFieldConfig } from '@ggraphic/editor/configs/unifiedTabs';

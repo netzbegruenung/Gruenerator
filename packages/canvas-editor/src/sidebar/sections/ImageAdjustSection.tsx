@@ -9,7 +9,7 @@ import {
   type UserImageInstance,
 } from '@ggraphic/editor/utils/userImageUtils';
 
-import { colorName } from '../../utils/colorNames';
+import { colorName } from '@ggraphic/editor/utils/colorNames';
 import { SidebarSlider } from '../components/SidebarSlider';
 
 /** DE Tanne and Klee, AT Dunkel- and Hellgrün. */

@@ -20,23 +20,23 @@ import { type TextAlign } from '@ggraphic/editor/utils/textAlign';
 import React, { useState } from 'react';
 import { PiCopy, PiLockSimple, PiLockSimpleOpen, PiTrash } from 'react-icons/pi';
 
-import { CropModeControls } from './CropModeControls';
+import { CropModeControls } from '@ggraphic/editor/components/TopBar/CropModeControls';
 import {
   BackgroundImagePicker,
   BackgroundRemoveImageButton,
   BackgroundRestoreImageButton,
   BackgroundZoomControl,
   SetAsBackgroundButton,
-} from './modules/FloatingBackgroundControls';
-import { FloatingColorPicker } from './modules/FloatingColorPicker';
-import { FloatingFontSizeControl } from './modules/FloatingFontSizeControl';
-import { FloatingGradientControl } from './modules/FloatingGradientControl';
-import { FloatingLayerControls } from './modules/FloatingLayerControls';
-import { FloatingOpacityControl } from './modules/FloatingOpacityControl';
+} from '@ggraphic/editor/components/TopBar/modules/FloatingBackgroundControls';
+import { FloatingColorPicker } from '@ggraphic/editor/components/TopBar/modules/FloatingColorPicker';
+import { FloatingFontSizeControl } from '@ggraphic/editor/components/TopBar/modules/FloatingFontSizeControl';
+import { FloatingGradientControl } from '@ggraphic/editor/components/TopBar/modules/FloatingGradientControl';
+import { FloatingLayerControls } from '@ggraphic/editor/components/TopBar/modules/FloatingLayerControls';
+import { FloatingOpacityControl } from '@ggraphic/editor/components/TopBar/modules/FloatingOpacityControl';
 import { FloatingOutlineControl } from './modules/FloatingOutlineControl';
-import { FloatingPositionControl, type PositionCommandId } from './modules/FloatingPositionControl';
+import { FloatingPositionControl, type PositionCommandId } from '@ggraphic/editor/components/TopBar/modules/FloatingPositionControl';
 import { FloatingShadowControl } from './modules/FloatingShadowControl';
-import { FloatingTextAlignControl } from './modules/FloatingTextAlignControl';
+import { FloatingTextAlignControl } from '@ggraphic/editor/components/TopBar/modules/FloatingTextAlignControl';
 
 export interface ContextControlsProps {
   selectedElement: string | null;
