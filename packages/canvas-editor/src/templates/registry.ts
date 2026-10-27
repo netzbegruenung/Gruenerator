@@ -1,11 +1,15 @@
 /**
- * Template registry — the one place that lists every canvas template.
+ * The Grünerator's template catalogue — every built-in canvas template.
  *
  * The built-in templates and what the editor needs to know about each of them
  * (config loader, host callback keys, how a host's stored state seeds the
  * editor, picker metadata) live in `BUILTIN_TEMPLATES`. `CanvasConfigId`, the
- * loader, the router, `HOST_CALLBACK_KEYS` and `TEMPLATE_REGISTRY` all derive
- * from that list.
+ * router, `HOST_CALLBACK_KEYS` and `TEMPLATE_REGISTRY` all derive from that
+ * list. The lookup itself is the editor core's (`@ggraphic/editor/templates/
+ * registry`): this module registers the catalogue there when it is evaluated,
+ * so every entry that can look a template up imports it — the package entry
+ * (`src/index.ts`) and the `config-loader` subpath (`builtinConfigLoader.ts`).
+ * `package.json` lists this file under `sideEffects`.
  *
  * A host can add its own templates with `registerTemplates(defineTemplate(…))`
  * and mount them through `StandaloneCanvas` by id, or skip the registry and
@@ -17,50 +21,36 @@
  */
 
 import { getCanvasFormatOrDefault } from '@ggraphic/editor/formats/index';
+import {
+  defineTemplate,
+  registerTemplates,
+  type TemplateDefinition,
+  type TemplateId,
+  type TemplatePickerInfo as CoreTemplatePickerInfo,
+} from '@ggraphic/editor/templates/registry';
 
 import type { BrandLocale } from '../brand/theme';
-import type { FullCanvasConfig } from '../configs/types';
+import type { AnyCanvasConfig } from '../configs/types';
 import type { StockImageAttribution } from '@ggraphic/editor/common/imageSourceTypes';
 
-// Configs differ in state/action types; the loader hands them out untyped.
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export type AnyCanvasConfig = FullCanvasConfig<any, any>;
-
-/** What any template, built-in or host-registered, must provide. */
-export interface TemplateDefinition<TId extends string = string> {
-  id: TId;
-  /**
-   * Loads the template's config, lazily so each template is its own chunk.
-   * `formatId` is the canvas's format; only templates that follow the format
-   * read it, every other one keeps its own sheet.
-   */
-  load: (formatId?: string) => Promise<AnyCanvasConfig>;
-}
+// Re-exported from here so the package entry evaluates the catalogue (and
+// registers it) before a host can register its own templates.
+export { defineTemplate, registerTemplates };
+export type { AnyCanvasConfig, TemplateDefinition, TemplateId };
 
 export type TemplateCategory = 'sharepic' | 'slider' | 'profilbild';
 
 /** Which audience a template is offered to. Undefined is treated as 'de-DE'. */
 export type TemplateAudience = 'all' | BrandLocale;
 
-/** Picker metadata of a built-in template (see `TemplateInfo`). */
-export interface TemplatePickerInfo {
-  label: string;
-  description: string;
-  previewImage: string;
-  category: TemplateCategory;
-  /** Audience gating — omitted defaults to 'de-DE'. */
-  audience?: TemplateAudience;
-  /**
-   * Lays out on the canvas's own format (see `load`). Without it the
-   * template has one fixed 4:5 sheet and belongs only in 4:5 documents.
-   */
-  followsFormat?: true;
-  /** Opened by its own host only (the sticker creator), never offered in a picker. */
-  hiddenFromPicker?: true;
-}
+/** Picker metadata of a built-in template (see `TemplateInfo`). Audience omitted defaults to 'de-DE'. */
+export type TemplatePickerInfo = CoreTemplatePickerInfo<TemplateCategory, TemplateAudience>;
 
 /** A built-in template: everything the full editor reads about it. */
-interface BuiltinTemplateDefinition<TId extends string = string> extends TemplateDefinition<TId> {
+interface BuiltinTemplateDefinition<TId extends string = string> extends TemplateDefinition<
+  TId,
+  AnyCanvasConfig
+> {
   /**
    * The state keys `ControllableCanvasWrapper` declares an `on<Key>Change`
    * callback for. Template text fields and the background image live here;
@@ -76,16 +66,6 @@ interface BuiltinTemplateDefinition<TId extends string = string> extends Templat
    */
   seedProps?: (state: Record<string, unknown>, imageSrc?: string) => Record<string, unknown>;
   info: TemplatePickerInfo;
-}
-
-/**
- * Declares a host template. Identity at runtime; it keeps the id literal so a
- * host can derive its own id union the same way `CanvasConfigId` is derived.
- */
-export function defineTemplate<const TId extends string>(
-  definition: TemplateDefinition<TId>
-): TemplateDefinition<TId> {
-  return definition;
 }
 
 function defineBuiltin<const TId extends string>(
@@ -522,14 +502,11 @@ export const BUILTIN_TEMPLATES = [
 /** The built-in template ids (F0). */
 export type CanvasConfigId = (typeof BUILTIN_TEMPLATES)[number]['id'];
 
-/** A built-in id or the id of a host-registered template. */
-export type TemplateId = CanvasConfigId | (string & {});
-
 const BUILTIN_BY_ID = new Map<string, BuiltinTemplateDefinition<CanvasConfigId>>(
   BUILTIN_TEMPLATES.map((t) => [t.id, t])
 );
 
-const hostTemplates = new Map<string, TemplateDefinition>();
+registerTemplates(...BUILTIN_TEMPLATES);
 
 /** Is this one of the built-in template ids? Host templates are not. */
 export function isValidCanvasType(type: string): type is CanvasConfigId {
@@ -538,23 +515,4 @@ export function isValidCanvasType(type: string): type is CanvasConfigId {
 
 export function getBuiltinTemplate(id: CanvasConfigId): BuiltinTemplateDefinition<CanvasConfigId> {
   return BUILTIN_BY_ID.get(id)!;
-}
-
-/** A built-in or host-registered template, or undefined. */
-export function getTemplate(id: string): TemplateDefinition | undefined {
-  return BUILTIN_BY_ID.get(id) ?? hostTemplates.get(id);
-}
-
-/**
- * Adds host templates to the registry. An id may be registered once; a
- * built-in id can never be replaced (it is stored in users' canvases).
- * Registering the same definition again is a no-op.
- */
-export function registerTemplates(...definitions: TemplateDefinition[]): void {
-  for (const definition of definitions) {
-    const existing = getTemplate(definition.id);
-    if (existing === definition) continue;
-    if (existing) throw new Error(`Template "${definition.id}" is already registered`);
-    hostTemplates.set(definition.id, definition);
-  }
 }

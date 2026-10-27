@@ -12,32 +12,29 @@
  */
 
 import { styledFontSpecs } from '@ggraphic/editor/hooks/useFontLoader';
+import { getTemplate, type TemplateId } from '@ggraphic/editor/templates/registry';
 
-import {
-  getTemplate,
-  isValidCanvasType,
-  type AnyCanvasConfig,
-  type CanvasConfigId,
-} from '../templates/registry';
 import { canvasFontFamilies } from '../utils/canvasFontFamilies';
 
-export { isValidCanvasType };
+import type { AnyCanvasConfig } from './types';
 
 /**
- * Load a built-in canvas configuration dynamically based on type. Each
- * template's loader lives in its entry in `templates/registry.ts`.
+ * Load a registered canvas configuration dynamically based on type. Each
+ * template's loader lives in its registry entry; the host registers its
+ * catalogue before the first lookup.
  * @param type - The canvas type to load
  * @param formatId - The canvas's format; only freeform lays out on it, every
  *   other template keeps its own 4:5 sheet
  * @returns Promise resolving to the canvas configuration
  */
 export async function loadCanvasConfig(
-  type: CanvasConfigId,
+  type: TemplateId,
   formatId?: string
 ): Promise<AnyCanvasConfig> {
   const template = getTemplate(type);
   if (!template) throw new Error(`Unknown canvas type: ${type}`);
-  return template.load(formatId);
+  // Boundary cast: the registry holds every template's config untyped.
+  return (await template.load(formatId)) as AnyCanvasConfig;
 }
 
 /**
@@ -50,7 +47,7 @@ export async function loadCanvasConfig(
  * requests going earlier.
  */
 export async function preloadCanvasTemplate(type: string, formatId?: string): Promise<void> {
-  if (!isValidCanvasType(type) || typeof document === 'undefined' || !document.fonts) return;
+  if (getTemplate(type) === undefined || typeof document === 'undefined' || !document.fonts) return;
   try {
     const config = await loadCanvasConfig(type, formatId);
     if (config.fonts?.requireFontLoad === false) return;

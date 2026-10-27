@@ -62,7 +62,12 @@ import {
   type PrintExportPage,
 } from '../../export/printExport';
 import { exportSlidesPdf } from '../../export/slidesPdf';
-import { usePageManager, useMultiPageExport, usePageThumbnails } from '../../hooks';
+import {
+  usePageManager,
+  useMultiPageExport,
+  usePageThumbnails,
+  type InitialPageDef,
+} from '../../hooks';
 import { useDeckAutoSave } from '../../hooks/useDeckAutoSave';
 import { useIsCanvasMobile } from '../../hooks/useIsCanvasMobile';
 import { useZoomGestures } from '../../hooks/useZoomGestures';
@@ -218,12 +223,14 @@ function CanvasEditorInner({
     canUndoPageOp,
     canRedoPageOp,
     isPreview,
-  } = usePageManager({
+  } = usePageManager<CanvasConfigId>({
     initialConfigId,
     formatId,
     initialProps,
     maxPages,
-    initialPages,
+    // Persisted page JSON: `parseInitialPages` only checks that `configId` is
+    // a string; an unknown id fails when its config loads.
+    initialPages: initialPages as InitialPageDef<CanvasConfigId>[] | undefined,
     collaborative,
     announce: announcer.announce,
   });

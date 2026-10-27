@@ -14,11 +14,12 @@
  * For the full editing experience with sidebar/toolbar, use ControllableCanvasWrapper.
  */
 
+import { getTemplate, type TemplateId } from '@ggraphic/editor/templates/registry';
 import { useState, useRef, memo } from 'react';
 
-import { getTemplate, type AnyCanvasConfig, type TemplateId } from '../templates/registry';
-
 import { ConfigCanvas, type ConfigCanvasProps } from './ConfigCanvas';
+
+import type { AnyCanvasConfig } from '../configs/types';
 
 /** Which template to draw: a registered id, or a config object. Read once on mount. */
 type StandaloneCanvasSource =
@@ -43,7 +44,8 @@ function StandaloneCanvasInner({ configId, config: configProp, ...canvas }: Stan
         .load(canvas.formatId)
         .then((loaded) => {
           if (configIdRef.current === configId) {
-            setConfig(loaded);
+            // Boundary cast: the registry holds every template's config untyped.
+            setConfig(loaded as AnyCanvasConfig);
           }
         })
         .catch((err) => {
