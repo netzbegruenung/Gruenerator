@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 import { CustomColorSwatch } from '@ggraphic/editor/components/CustomColorSwatch';
 import { useMessages, type Messages } from '@ggraphic/editor/i18n/messages';
 import { Switch } from '@ggraphic/editor/ui/switch';
@@ -261,7 +262,7 @@ export function ChartSettingsSection({
               className="size-6 rounded-full border border-black/10 transition-transform hover:scale-110"
               style={{
                 backgroundColor: c,
-                outline: chart.colors[0] === c ? '2px solid var(--editor-accent, #005538)' : 'none',
+                outline: chart.colors[0] === c ? '2px solid var(--editor-accent)' : 'none',
                 outlineOffset: '2px',
               }}
             />

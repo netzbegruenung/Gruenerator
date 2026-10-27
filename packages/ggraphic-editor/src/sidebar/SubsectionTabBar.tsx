@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 import { useRovingToolbar } from '@ggraphic/editor/hooks/useRovingToolbar';
 import { useMessages } from '@ggraphic/editor/i18n/messages';
 import { cn } from '@ggraphic/editor/utils/cn';

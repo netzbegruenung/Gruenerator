@@ -1,10 +1,11 @@
+// SPDX-License-Identifier: MPL-2.0
 import { useCallback, useSyncExternalStore } from 'react';
 
 /** Mirrors `--breakpoint-canvas-mobile` (900px) — the `max-canvas-mobile:` variant in JS. */
 export const CANVAS_MOBILE_QUERY = '(max-width: 899px)';
 
-// The body of @gruenerator/shared's `useMediaQuery`, kept here so the editor
-// needs nothing from that package. Fires only when the result changes.
+// A `useMediaQuery` kept here so the editor needs nothing from the host.
+// Fires only when the result changes.
 function useMediaQuery(query: string): boolean {
   const subscribe = useCallback(
     (onStoreChange: () => void) => {

@@ -1,7 +1,10 @@
 import { useCanvasStoreSelector } from '@ggraphic/editor/stores/CanvasStoreProvider';
 import React from 'react';
 
-import { ContextControls, type ContextControlsProps } from './ContextControls';
+import {
+  ContextControls,
+  type ContextControlsProps,
+} from '@ggraphic/editor/components/TopBar/ContextControls';
 
 /**
  * ContextToolbar — desktop floating formatting card, centered over the canvas

@@ -14,8 +14,8 @@ import { lazyWithPreload } from '@ggraphic/editor/sidebar/sections/lazyWithPrelo
 // STATIC EXPORTS - Lightweight sections loaded immediately
 // =============================================================================
 
-export { CombinedTextSection } from './CombinedTextSection';
-export type { CombinedTextSectionProps } from './CombinedTextSection';
+export { CombinedTextSection } from '@ggraphic/editor/sidebar/sections/CombinedTextSection';
+export type { CombinedTextSectionProps } from '@ggraphic/editor/sidebar/sections/CombinedTextSection';
 export { ChatSection } from './ChatSection';
 export type { ChatSectionProps } from './ChatSection';
 // Static: IconsSection used to be statically imported by AssetsSection, so the
@@ -40,9 +40,11 @@ export * from './dreizeilen';
 export const AssetsSection = lazyWithPreload(() => import('./assets').then((m) => m.AssetsSection));
 
 export const GenericShareSection = lazy(() =>
-  import('./GenericShareSection').then((m) => ({ default: m.GenericShareSection }))
+  import('@ggraphic/editor/sidebar/sections/GenericShareSection').then((m) => ({
+    default: m.GenericShareSection,
+  }))
 );
-export type { GenericShareSectionProps } from './GenericShareSection';
+export type { GenericShareSectionProps } from '@ggraphic/editor/sidebar/sections/GenericShareSection';
 
 export const UploadsSection = lazy(() =>
   import('./UploadsSection').then((m) => ({ default: m.UploadsSection }))

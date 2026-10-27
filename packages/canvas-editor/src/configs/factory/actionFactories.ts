@@ -5,6 +5,7 @@
  * These eliminate the need to duplicate action logic across configs.
  */
 
+import { activeBrand } from '@ggraphic/editor/brand/brandRegistry';
 import { createAssetInstance, createStickerInstance } from '@ggraphic/editor/utils/canvasAssets';
 import {
   createChartInstance,
@@ -48,7 +49,7 @@ import type {
   UserImageInstance,
   UserImagePlacement,
 } from '@ggraphic/editor/utils/userImageUtils';
-import type { StickerRef } from '@gruenerator/contracts';
+import type { StickerRef } from '@ggraphic/schema';
 
 // ============================================================================
 // TYPE HELPERS
@@ -342,32 +343,40 @@ export function createIllustrationActions<
 // ADDITIONAL TEXT ACTIONS
 // ============================================================================
 
-const ADDITIONAL_TEXT_DEFAULTS = {
-  header: {
-    fontSize: 48,
-    fontFamily: 'GrueneTypeNeue, Arial, sans-serif',
-    fontStyle: 'normal' as const,
-    width: 400,
-  },
-  subheader: {
-    fontSize: 36,
-    fontFamily: 'GrueneTypeNeue, Arial, sans-serif',
-    fontStyle: 'normal' as const,
-    width: 400,
-  },
-  body: {
-    fontSize: 32,
-    fontFamily: 'PT Sans, Arial, sans-serif',
-    width: 400,
-  },
-};
+// Read per call, not at import: the brand packs are registered after the modules load.
+function additionalTextDefaults() {
+  const { fonts } = activeBrand();
+  return {
+    header: {
+      fontSize: 48,
+      fontFamily: `${fonts.headline}, Arial, sans-serif`,
+      fontStyle: 'normal' as const,
+      width: 400,
+    },
+    subheader: {
+      fontSize: 36,
+      fontFamily: `${fonts.headline}, Arial, sans-serif`,
+      fontStyle: 'normal' as const,
+      width: 400,
+    },
+    body: {
+      fontSize: 32,
+      fontFamily: `${fonts.body}, Arial, sans-serif`,
+      width: 400,
+    },
+  };
+}
 
 /**
  * Voreinstellung einer Textart, mit `insertScale` vergrößert; zentriert über
  * der Seitenmitte. Bei 1 genau die Sharepic-Werte.
  */
-function textPreset(type: keyof typeof ADDITIONAL_TEXT_DEFAULTS, canvasWidth: number, s: number) {
-  const preset = ADDITIONAL_TEXT_DEFAULTS[type];
+function textPreset(
+  type: keyof ReturnType<typeof additionalTextDefaults>,
+  canvasWidth: number,
+  s: number
+) {
+  const preset = additionalTextDefaults()[type];
   const width = preset.width * s;
   return {
     ...preset,

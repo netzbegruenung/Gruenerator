@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 
-import { buildIllustrationCapability } from './illustrationCapability';
+import { GRUENE_AI_ILLUSTRATIONS } from './grueneAiIllustrations';
 
 // The curated {id, label} pairs are baked statically so the AI capability
 // module never pulls the ~280 KB undraw catalog into an eager chunk. This
@@ -12,7 +12,7 @@ describe('curated AI illustration ids', () => {
     const { OPENDOODLES } = await import('@ggraphic/editor/utils/illustrations/opendoodles');
     const knownIds = new Set([...UNDRAW_ALL, ...OPENDOODLES].map((def) => def.id));
 
-    for (const option of buildIllustrationCapability()) {
+    for (const option of GRUENE_AI_ILLUSTRATIONS) {
       expect(knownIds.has(option.id), `unknown illustration id: ${option.id}`).toBe(true);
     }
   });

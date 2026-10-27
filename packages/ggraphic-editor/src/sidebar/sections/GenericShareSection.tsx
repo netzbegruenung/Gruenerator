@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 import { useCanvasEditorServices } from '@ggraphic/editor/CanvasEditorProvider';
 import { browserFileDelivery } from '@ggraphic/editor/hostServices';
 import { useAutoSaveStore, useAutoSaveStoreApi } from '@ggraphic/editor/stores/useAutoSaveStore';
@@ -194,26 +195,28 @@ function DownloadShareSubsection({
     if (!imageToShare) return;
 
     setIsSharing(true);
+    const fileName = `${fileDelivery.filenamePrefix ?? 'ggraphic'}.png`;
+    const title = fileDelivery.shareTitle ?? 'ggraphic';
     try {
       if (shareRoute === 'native-host') {
-        fileDelivery.shareDataUrlViaNativeHost(imageToShare, 'gruenerator.png', {
-          title: 'Grünerator Share',
+        fileDelivery.shareDataUrlViaNativeHost(imageToShare, fileName, {
+          title,
           text: withAltText(canvasText, captionAltText),
         });
       } else {
         const blob = await (await fetch(imageToShare)).blob();
-        const file = new File([blob], 'gruenerator.png', { type: 'image/png' });
+        const file = new File([blob], fileName, { type: 'image/png' });
 
         if (navigator.canShare?.({ files: [file] })) {
           await navigator.share({
             files: [file],
             text: withAltText(canvasText, captionAltText),
-            title: 'Grünerator Share',
+            title,
           });
         } else {
           await navigator.share({
             text: withAltText(canvasText, captionAltText),
-            title: 'Grünerator Share',
+            title,
           });
         }
       }

@@ -5,7 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { SidebarPanel } from '../SidebarPanel';
 import { SidebarTabBar } from '../SidebarTabBar';
-import { SubsectionTabBar } from '../SubsectionTabBar';
+import { SubsectionTabBar } from '@ggraphic/editor/sidebar/SubsectionTabBar';
 
 import type { SidebarTab } from '@ggraphic/editor/sidebar/types';
 

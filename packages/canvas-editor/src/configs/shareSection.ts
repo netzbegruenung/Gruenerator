@@ -2,7 +2,7 @@ import { stripInlineMarks } from '@ggraphic/schema';
 import { FaShare } from 'react-icons/fa';
 
 import { GenericShareSection, type GenericShareSectionProps } from '../sidebar';
-import { photoCreditLine, withPhotoCredit } from '../utils/photoCredit';
+import { photoCreditLine, withPhotoCredit } from '@ggraphic/editor/utils/photoCredit';
 import { pagePhotoCredits } from '@ggraphic/editor/utils/photoCredits';
 
 import { makeSectionDefiner } from '@ggraphic/editor/configs/factory/defineSection';

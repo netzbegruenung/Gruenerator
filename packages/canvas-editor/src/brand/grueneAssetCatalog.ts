@@ -22,6 +22,7 @@ import {
   type SharepicEmoji,
 } from '@gruenerator/contracts';
 
+import { GRUENE_AI_ILLUSTRATIONS } from './grueneAiIllustrations';
 import { ALL_ASSETS, TEMPLATE_ASSETS } from './grueneAssets';
 
 export { registerAssetCatalog } from '@ggraphic/editor/utils/canvasAssets';
@@ -119,7 +120,9 @@ export function stickerAssetsForLocale(locale: AssetAudience): UniversalAsset[] 
  */
 const GRUENE_ILLUSTRATIONS: IllustrationSources = {
   basePath: '/illustrations',
-  loadKawaii: () => import('@ggraphic/editor/utils/illustrations/kawaii').then((m) => m.KAWAII_ILLUSTRATIONS),
+  aiPicks: GRUENE_AI_ILLUSTRATIONS,
+  loadKawaii: () =>
+    import('@ggraphic/editor/utils/illustrations/kawaii').then((m) => m.KAWAII_ILLUSTRATIONS),
   loadSvg: async () =>
     (
       await Promise.all([

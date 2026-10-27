@@ -16,7 +16,7 @@ import { render, screen, act } from '@testing-library/react';
 import { useEffect } from 'react';
 import { beforeAll, describe, expect, it, vi } from 'vitest';
 
-import { ContextControls } from '../ContextControls';
+import { ContextControls } from '@ggraphic/editor/components/TopBar/ContextControls';
 
 import type { TextEditSession } from '@ggraphic/editor/components/CanvasTextOverlay';
 import type { FloatingModuleState } from '@ggraphic/editor/hooks/useFloatingModuleState';

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 import { fromLayout } from '@ggraphic/editor/configs/factory/layoutAccessors';
 
 import type {
@@ -11,7 +12,7 @@ import type {
  * Shared shape for the primary/secondary text-element factories.
  *
  * Encodes what every factory-template text element looks like: layout-driven
- * x/y/fontSize, static width/font, the standard Grünerator defaults
+ * x/y/fontSize, static width/font, the standard defaults
  * (`align: 'left'`, `wrap: 'word'`, `padding: 0`, `editable: true`,
  * `draggable: true`), and a `fillFallback` hook for templates that read a
  * theme colour from `layout._meta.fontColor` (zitat-pure, info).

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /**
  * Applies a canvas-AI operation to the active template's actions.
  *
@@ -10,7 +11,7 @@
  *     at the end forces every core kind to be handled — adding a kind to the
  *     core schema breaks compilation here until it's mapped.
  *     Use them when the conventional action name doesn't apply (e.g.
- *     dreizeilen's `setLine1/2/3`, presentation's `setColorMode`).
+ *     a template's `setLine1/2/3`, presentation's `setColorMode`).
  *   - Each op is wrapped in try/catch so one bad op in a multi-op
  *     suggestion doesn't abort the rest.
  */

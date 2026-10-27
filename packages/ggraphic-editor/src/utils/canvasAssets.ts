@@ -5,6 +5,7 @@
  * knows none of them by name.
  */
 
+import type { CanvasAiNamedOption } from '@ggraphic/editor/ai/types';
 import type { KawaiiDef, SvgDef } from '@ggraphic/editor/utils/illustrations/types';
 import type { StickerRef } from '@ggraphic/schema';
 
@@ -134,6 +135,11 @@ export interface IllustrationSources {
   loadSvg: () => Promise<SvgDef[]>;
   /** Where the SVG files and their `thumbs/` PNGs live, before `<source>/<filename>`. */
   basePath: string;
+  /**
+   * The few ids the AI planner may reference with `add-illustration`: the full
+   * catalogue is far too large for a prompt. Every id must resolve in the sets.
+   */
+  aiPicks?: readonly CanvasAiNamedOption[];
 }
 
 /**

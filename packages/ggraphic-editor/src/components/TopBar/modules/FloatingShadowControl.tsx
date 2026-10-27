@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: MPL-2.0
+import { activeBrand } from '@ggraphic/editor/brand/brandRegistry';
 import { CustomColorSwatch } from '@ggraphic/editor/components/CustomColorSwatch';
 import { useMessages } from '@ggraphic/editor/i18n/messages';
 import { Popover, PopoverContent, PopoverTrigger } from '@ggraphic/editor/ui/popover';
@@ -17,8 +19,6 @@ interface FloatingShadowControlProps {
   shadowOpacity?: number;
   onChange: (patch: ShadowPatch) => void;
 }
-
-const SHADOW_COLORS = ['#000000', '#316049', '#40200e', '#1f3a5f'];
 
 const SHADOW_DEFAULTS: ShadowPatch = {
   shadowColor: '#000000',
@@ -83,6 +83,7 @@ export function FloatingShadowControl({
   shadowOpacity,
   onChange,
 }: FloatingShadowControlProps) {
+  const { shadows } = activeBrand().effects;
   const t = useMessages();
   const enabled = !!shadowColor;
 
@@ -132,7 +133,7 @@ export function FloatingShadowControl({
         {enabled && (
           <>
             <div className="flex items-center gap-2">
-              {SHADOW_COLORS.map((c) => (
+              {shadows.map((c) => (
                 <button
                   key={c}
                   className="size-6 rounded-full border border-black/10 hover:scale-110 transition-transform"
@@ -150,7 +151,7 @@ export function FloatingShadowControl({
               ))}
               <CustomColorSwatch
                 value={shadowColor}
-                presets={SHADOW_COLORS}
+                presets={shadows}
                 onPick={(color) => onChange({ shadowColor: color })}
                 className="size-6"
               />

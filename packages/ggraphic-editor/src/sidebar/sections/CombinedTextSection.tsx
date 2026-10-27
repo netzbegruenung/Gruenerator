@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: MPL-2.0
+import { activeBrand } from '@ggraphic/editor/brand/brandRegistry';
 import { messages, useMessages } from '@ggraphic/editor/i18n/messages';
 import { cn } from '@ggraphic/editor/utils/cn';
 import { FaTrash } from 'react-icons/fa';
@@ -119,7 +121,10 @@ export function CombinedTextSection({
                 onClick={onAddHeader}
                 className="w-full text-left py-3 px-4 bg-[var(--card-background)] border border-[var(--card-border)] rounded-lg cursor-pointer transition-all duration-150 hover:bg-hover-alt hover:border-editor-border-strong"
               >
-                <span className="font-[GrueneTypeNeue,Arial,sans-serif] text-xl font-bold text-foreground">
+                <span
+                  className="text-xl font-bold text-foreground"
+                  style={{ fontFamily: `${activeBrand().fonts.headline}, Arial, sans-serif` }}
+                >
                   {t.sidebar.text.labelTitle}
                 </span>
               </button>
@@ -130,7 +135,10 @@ export function CombinedTextSection({
                 onClick={onAddSubheader}
                 className="w-full text-left py-2.5 px-4 bg-[var(--card-background)] border border-[var(--card-border)] rounded-lg cursor-pointer transition-all duration-150 hover:bg-hover-alt hover:border-editor-border-strong"
               >
-                <span className="font-[GrueneTypeNeue,Arial,sans-serif] text-base font-bold text-foreground">
+                <span
+                  className="text-base font-bold text-foreground"
+                  style={{ fontFamily: `${activeBrand().fonts.headline}, Arial, sans-serif` }}
+                >
                   {t.sidebar.text.labelSubtitle}
                 </span>
               </button>

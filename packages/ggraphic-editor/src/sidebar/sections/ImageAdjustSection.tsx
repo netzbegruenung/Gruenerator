@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: MPL-2.0
+import { activeBrand } from '@ggraphic/editor/brand/brandRegistry';
 import { CustomColorSwatch } from '@ggraphic/editor/components/CustomColorSwatch';
 import { useMessages } from '@ggraphic/editor/i18n/messages';
 import { Switch } from '@ggraphic/editor/ui/switch';
@@ -12,11 +14,6 @@ import {
 
 import { colorName } from '@ggraphic/editor/utils/colorNames';
 import { SidebarSlider } from '../components/SidebarSlider';
-
-/** DE Tanne and Klee, AT Dunkel- and Hellgrün. */
-const TINTS = ['#005538', '#008939', '#257639', '#56AF31'];
-/** Schattenfarben des Bildes, wie in der Kontextleiste. */
-const SHADOW_COLORS = ['#000000', '#316049', '#40200e', '#1f3a5f'];
 
 function naturalSize(src: string): Promise<{ width: number; height: number }> {
   return new Promise((resolve, reject) => {
@@ -45,6 +42,7 @@ export function ImageAdjustSection({
   onUpdateImage,
   backgroundPhoto = null,
 }: ImageAdjustSectionProps) {
+  const { tints, shadows } = activeBrand().effects;
   const t = useMessages();
   const img = selectedImage;
   const adj: ImageAdjustments | null = img ?? backgroundPhoto?.adjustments ?? null;
@@ -146,7 +144,7 @@ export function ImageAdjustSection({
       <div className="flex flex-col gap-2">
         <span className={GROUP_LABEL}>{t.sidebar.imageAdjust.tint}</span>
         <div className="flex items-center gap-1.5">
-          {TINTS.map((c) => (
+          {tints.map((c) => (
             <button
               key={c}
               type="button"
@@ -159,7 +157,7 @@ export function ImageAdjustSection({
                 backgroundColor: c,
                 outline:
                   (adj.tint ?? defaultTint()) === c && adj.tintStrength
-                    ? '2px solid var(--editor-accent, #005538)'
+                    ? '2px solid var(--editor-accent)'
                     : 'none',
                 outlineOffset: '2px',
               }}
@@ -167,7 +165,7 @@ export function ImageAdjustSection({
           ))}
           <CustomColorSwatch
             value={adj.tintStrength ? adj.tint : null}
-            presets={TINTS}
+            presets={tints}
             onPick={(color) => set({ tint: color, tintStrength: adj.tintStrength || 1 })}
             className="size-6"
           />
@@ -271,7 +269,7 @@ export function ImageAdjustSection({
           {shadowOn && (
             <>
               <div className="flex items-center gap-1.5">
-                {SHADOW_COLORS.map((c) => (
+                {shadows.map((c) => (
                   <button
                     key={c}
                     type="button"
@@ -282,15 +280,14 @@ export function ImageAdjustSection({
                     className="size-6 rounded-full border border-black/10 transition-transform hover:scale-110"
                     style={{
                       backgroundColor: c,
-                      outline:
-                        img.shadowColor === c ? '2px solid var(--editor-accent, #005538)' : 'none',
+                      outline: img.shadowColor === c ? '2px solid var(--editor-accent)' : 'none',
                       outlineOffset: '2px',
                     }}
                   />
                 ))}
                 <CustomColorSwatch
                   value={img.shadowColor}
-                  presets={SHADOW_COLORS}
+                  presets={shadows}
                   onPick={(color) => setShadow({ shadowColor: color })}
                   className="size-6"
                 />

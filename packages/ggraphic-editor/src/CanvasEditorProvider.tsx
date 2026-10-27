@@ -86,6 +86,12 @@ export interface CanvasEditorServices extends CanvasEditorHostServices {
     perPage?: number
   ) => Promise<{ results: StockImage[]; total: number; total_pages: number }>;
 
+  /**
+   * The `utm_source` of links to Unsplash (API Terms: name the app). Defaults
+   * to `ggraphic`.
+   */
+  unsplashUtmSource?: string;
+
   /** Track Unsplash download (API compliance) */
   trackUnsplashDownload?: (image: StockImage) => Promise<void>;
 

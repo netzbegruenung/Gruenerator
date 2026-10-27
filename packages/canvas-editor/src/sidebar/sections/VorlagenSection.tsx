@@ -74,7 +74,7 @@ import {
   seiteDeckOps,
   vorlageDeckOps,
 } from '../../collab/vorlageDeck';
-import { useIsCanvasMobile } from '../../hooks/useIsCanvasMobile';
+import { useIsCanvasMobile } from '@ggraphic/editor/hooks/useIsCanvasMobile';
 import { SlideLayoutPicker } from '../../slides/SlideLayoutPicker';
 import {
   buildSlideLayout,

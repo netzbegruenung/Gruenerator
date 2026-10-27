@@ -17,10 +17,10 @@ import { useLayoutEffect } from 'react';
 import { PiTextAa } from 'react-icons/pi';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { CombinedTextSection } from '../../sidebar/sections/CombinedTextSection';
+import { CombinedTextSection } from '@ggraphic/editor/sidebar/sections/CombinedTextSection';
 import { SidebarPanel } from '../../sidebar/SidebarPanel';
-import { SubsectionTabBar } from '../../sidebar/SubsectionTabBar';
-import { ContextControls } from '../TopBar/ContextControls';
+import { SubsectionTabBar } from '@ggraphic/editor/sidebar/SubsectionTabBar';
+import { ContextControls } from '@ggraphic/editor/components/TopBar/ContextControls';
 
 import type { FloatingModuleState } from '@ggraphic/editor/hooks/useFloatingModuleState';
 

@@ -10,8 +10,13 @@
  * - Aufzählungszeichen gelten je Absatz und stehen am ersten Lauf.
  */
 
-import { pptxFont } from './pptxFonts';
-import { parseColor, pptxRotation, transparencyOf, type PptxUnits } from '@ggraphic/editor/export/pptx/pptxUnits';
+import { pptxFont } from '@ggraphic/editor/export/pptx/pptxFonts';
+import {
+  parseColor,
+  pptxRotation,
+  transparencyOf,
+  type PptxUnits,
+} from '@ggraphic/editor/export/pptx/pptxUnits';
 
 import type { PptxShadow, PptxTextItem, PptxTextRun } from '@ggraphic/editor/export/pptx/types';
 import type PptxGenJS from 'pptxgenjs';

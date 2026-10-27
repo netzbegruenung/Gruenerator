@@ -23,7 +23,7 @@ import { SidebarPanel } from '../../sidebar/SidebarPanel';
 import { SidebarTabBar } from '../../sidebar/SidebarTabBar';
 import { axe } from '../../test-utils';
 import { MobileSelectionPill } from '@ggraphic/editor/components/MobileSelectionPill';
-import { ContextControls } from '../TopBar/ContextControls';
+import { ContextControls } from '@ggraphic/editor/components/TopBar/ContextControls';
 import { MobileSelectionBar } from '../TopBar/MobileSelectionBar';
 
 import type { SidebarTab } from '@ggraphic/editor/sidebar/types';

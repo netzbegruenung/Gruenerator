@@ -3,7 +3,7 @@ import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { toolsTab, uploadsTab } from '../../configs/commonSections';
-import { SidebarSlider } from '../../sidebar/components/SidebarSlider';
+import { SidebarSlider } from '@ggraphic/editor/sidebar/components/SidebarSlider';
 import { BalkenSettingsSection } from '../../sidebar/sections/BalkenSettingsSection';
 import { SidebarPanel } from '../../sidebar/SidebarPanel';
 import { SidebarTabBar } from '../../sidebar/SidebarTabBar';
@@ -14,7 +14,7 @@ import { PageToolbar } from '@ggraphic/editor/components/PageToolbar';
 import { FloatingColorPicker } from '@ggraphic/editor/components/TopBar/modules/FloatingColorPicker';
 import { FloatingFontSizeControl } from '@ggraphic/editor/components/TopBar/modules/FloatingFontSizeControl';
 import { FloatingOpacityControl } from '@ggraphic/editor/components/TopBar/modules/FloatingOpacityControl';
-import { FloatingShadowControl } from '../TopBar/modules/FloatingShadowControl';
+import { FloatingShadowControl } from '@ggraphic/editor/components/TopBar/modules/FloatingShadowControl';
 
 import type { SidebarTab } from '@ggraphic/editor/sidebar/types';
 import type { BalkenInstance } from '@ggraphic/editor/utils/balkenUtils';

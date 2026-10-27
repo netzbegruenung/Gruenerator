@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 import { Slider } from 'radix-ui';
 import * as React from 'react';
 
@@ -53,7 +54,7 @@ export function SidebarSlider({
           <Slider.Range className="absolute rounded-full h-full bg-primary-500" />
         </Slider.Track>
         <Slider.Thumb
-          className="block size-3 max-canvas-mobile:size-5 bg-editor-surface rounded-[10px] shadow-[0_1px_4px_rgba(0,0,0,0.2)] cursor-pointer border-[1.5px] border-primary-500 transition-[transform,background-color] duration-100 hover:scale-110 hover:bg-editor-active-soft focus:outline-none focus:shadow-[0_0_0_3px_rgba(70,150,43,0.2)]"
+          className="block size-3 max-canvas-mobile:size-5 bg-editor-surface rounded-[10px] shadow-[0_1px_4px_rgba(0,0,0,0.2)] cursor-pointer border-[1.5px] border-primary-500 transition-[transform,background-color] duration-100 hover:scale-110 hover:bg-editor-active-soft focus:outline-none focus:shadow-[0_0_0_3px_color-mix(in_srgb,var(--editor-accent)_20%,transparent)]"
           aria-label={label}
           aria-valuetext={unit === '%' ? `${Math.round(value * 100)} %` : `${value} ${unit}`.trim()}
         />

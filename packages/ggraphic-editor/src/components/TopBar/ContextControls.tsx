@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 import { useCanvasEditorServices } from '@ggraphic/editor/CanvasEditorProvider';
 import { useCanvasTextFormatting } from '@ggraphic/editor/components/CanvasTextOverlay';
 import { type BackgroundControls } from '@ggraphic/editor/configs/types';
@@ -17,6 +18,7 @@ import { focusPage, isKeyboardModality } from '@ggraphic/editor/utils/editorFocu
 import { type GradientFill } from '@ggraphic/editor/utils/gradientFill';
 import { type LockState } from '@ggraphic/editor/utils/layerLock';
 import { STROKE_ONLY_SHAPES } from '@ggraphic/editor/utils/shapes';
+import { useUnsplashHome } from '@ggraphic/editor/utils/unsplashLinks';
 import { type TextAlign } from '@ggraphic/editor/utils/textAlign';
 import React, { useState } from 'react';
 import { PiCopy, PiLockSimple, PiLockSimpleOpen, PiTrash } from 'react-icons/pi';
@@ -35,7 +37,10 @@ import { FloatingGradientControl } from '@ggraphic/editor/components/TopBar/modu
 import { FloatingLayerControls } from '@ggraphic/editor/components/TopBar/modules/FloatingLayerControls';
 import { FloatingOpacityControl } from '@ggraphic/editor/components/TopBar/modules/FloatingOpacityControl';
 import { FloatingOutlineControl } from './modules/FloatingOutlineControl';
-import { FloatingPositionControl, type PositionCommandId } from '@ggraphic/editor/components/TopBar/modules/FloatingPositionControl';
+import {
+  FloatingPositionControl,
+  type PositionCommandId,
+} from '@ggraphic/editor/components/TopBar/modules/FloatingPositionControl';
 import { FloatingShadowControl } from './modules/FloatingShadowControl';
 import { FloatingTextAlignControl } from '@ggraphic/editor/components/TopBar/modules/FloatingTextAlignControl';
 
@@ -127,8 +132,6 @@ const DANGER_BTN =
 const CROP_BTN =
   'inline-flex items-center gap-1.5 h-8 max-canvas-mobile:h-11 shrink-0 rounded-md border-none bg-transparent px-2 cursor-pointer text-[13px] font-medium text-[var(--editor-text)] transition-colors duration-150 hover:bg-[var(--editor-surface-hover)] hover:text-[var(--editor-active-fg)] aria-pressed:bg-[var(--editor-active-bg)] aria-pressed:text-[var(--editor-active-fg)]';
 
-const UNSPLASH_HOME = 'https://unsplash.com/?utm_source=gruenerator&utm_medium=referral';
-
 const SEP = 'w-px h-[22px] bg-[var(--editor-border-soft)] mx-1 shrink-0';
 
 /**
@@ -163,6 +166,7 @@ export function ContextControls({
   cropLayout = 'inline',
 }: ContextControlsProps) {
   const t = useMessages();
+  const unsplashHome = useUnsplashHome();
   const [isColorPickerExpanded, setIsColorPickerExpanded] = useState(false);
   // Fett/Kursiv/… nur, solange wirklich getippt wird: die Knöpfe bedienen die
   // Auswahl IM Text, und ohne offenen Editor gibt es keine.
@@ -526,7 +530,7 @@ export function ContextControls({
         </a>
         auf
         <a
-          href={UNSPLASH_HOME}
+          href={unsplashHome}
           target="_blank"
           rel="noopener noreferrer"
           className="text-[var(--editor-text)] underline"
