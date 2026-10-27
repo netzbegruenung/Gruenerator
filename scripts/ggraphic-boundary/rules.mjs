@@ -291,7 +291,12 @@ function readManifest(packageDir, files, fail) {
   return entries;
 }
 
-export function checkFiles(files) {
+/**
+ * `options.packageDir` lets the export dry-run (scripts/ggraphic-export-dryrun.mjs)
+ * run the same rules over the future repo's layout (`packages/core`, …); the
+ * monorepo guard keeps the default.
+ */
+export function checkFiles(files, { packageDir: packageDirPattern = PACKAGE_DIR } = {}) {
   const failures = [];
   const warnings = [];
   const fail = (rule, path, message) => failures.push({ rule, path, message });
@@ -302,7 +307,7 @@ export function checkFiles(files) {
     fail('scope', CORE_PATHSPEC, 'no files matched — is the package gone or the pathspec wrong?');
   }
 
-  const packageDirs = new Set(files.map((f) => PACKAGE_DIR.exec(f.path)?.[0]).filter(Boolean));
+  const packageDirs = new Set(files.map((f) => packageDirPattern.exec(f.path)?.[0]).filter(Boolean));
   const manifest = new Map();
   for (const dir of packageDirs) {
     for (const [path, asset] of readManifest(dir, files, fail)) manifest.set(path, asset);
@@ -314,7 +319,7 @@ export function checkFiles(files) {
 
   for (const { path: rawPath, bytes, link } of files) {
     const path = rawPath.normalize('NFC');
-    const packageDir = PACKAGE_DIR.exec(path)?.[0] ?? '';
+    const packageDir = packageDirPattern.exec(path)?.[0] ?? '';
     const brandPath = BRAND_PATHS.find((pattern) => pattern.test(path));
     if (brandPath) fail('c', path, `brand asset or party content by file name (${brandPath})`);
     // The export to the ggraphic repo copies files; a link would point back here.
