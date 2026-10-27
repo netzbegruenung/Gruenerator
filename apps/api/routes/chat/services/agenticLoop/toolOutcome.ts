@@ -246,7 +246,16 @@ const PAYLOAD_TOOLS: Record<string, PayloadSpec> = {
   // Im System-Prompt steht es schon als BERECHNUNGSERGEBNIS — weit oben, vor
   // dem Tabellenauszug als Quelle [1]. Dort nahm der Schreiber die grösste
   // Buchung aus dem Auszug statt aus der Rechnung (live 27.10.2026, #5043).
-  tabelle_auswerten: { field: 'ergebnis', label: 'Per Code berechnetes Ergebnis über die Tabelle' },
+  // Die Antwortregel reist mit: der Schreiber sieht das tool-result nicht, und
+  // ohne sie behauptete er „in diesem Jahr" über eine Summe aller Jahre.
+  tabelle_auswerten: {
+    render: (r) => {
+      if (typeof r['ergebnis'] !== 'string' || r['ergebnis'].trim() === '') return null;
+      const rule = typeof r['antwortregel'] === 'string' ? r['antwortregel'] : '';
+      return rule ? `${r['ergebnis']}\n\nRegel für dieses Ergebnis: ${rule}` : r['ergebnis'];
+    },
+    label: 'Per Code berechnetes Ergebnis über die Tabelle',
+  },
 };
 
 /** Wie `MCP_CONTENT_CAP`, und aus demselben Grund: die Regel unten verlangt,

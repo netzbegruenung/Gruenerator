@@ -44,6 +44,18 @@ describe('verifyComputeResult', () => {
     expect(String(call.prompt)).toContain('df["Menge"]');
   });
 
+  it('kennt das heutige Datum, damit „dieses Jahr" prüfbar ist', async () => {
+    // Live 27.10.2026: der Auftrag verlor „dieses Jahr", ohne Datum riet die
+    // Prüfung im Hinweis 2025.
+    aiTextMock.mockResolvedValue('{"plausible": true}');
+    await verifyComputeResult(WRONG_COLUMN);
+    const call = aiTextMock.mock.calls[0]?.[0] as Record<string, unknown>;
+    expect(String(call.prompt)).toContain(
+      `Heutiges Datum (ISO): ${new Date().toISOString().slice(0, 10)}`
+    );
+    expect(String(call.system)).toContain('fehlt im Code');
+  });
+
   it('unplausibel ohne Hinweistext ⇒ allgemeiner Hinweis', async () => {
     aiTextMock.mockResolvedValue('{"plausible": false}');
     expect(await verifyComputeResult(WRONG_COLUMN)).toMatch(/passt vermutlich nicht/);
