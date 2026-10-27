@@ -1510,9 +1510,6 @@ importers:
       '@ggraphic/schema':
         specifier: workspace:*
         version: link:../ggraphic-schema
-      '@gruenerator/collab':
-        specifier: workspace:*
-        version: link:../collab
       '@gruenerator/contracts':
         specifier: workspace:*
         version: link:../contracts
