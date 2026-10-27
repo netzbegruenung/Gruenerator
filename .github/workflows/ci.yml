@@ -370,6 +370,14 @@ jobs:
       - name: node_modules deckt sich mit dem Lockfile
         run: node scripts/check-installed-lockfile-drift.mjs
 
+      # The @ggraphic/* packages are published under MPL-2.0: every production
+      # dependency (incl. peers) and every @iconify-json set must carry an
+      # allowed licence. Reads the installed tree, hence this job.
+      - name: ggraphic dependency licences
+        run: |
+          node scripts/check-ggraphic-licenses.mjs --self-test
+          node scripts/check-ggraphic-licenses.mjs
+
       - name: TypeScript type check
         run: pnpm typecheck
 

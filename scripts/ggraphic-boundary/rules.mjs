@@ -164,6 +164,13 @@ function locate(text, pattern) {
   return `line ${text.slice(0, match.index).split('\n').length}: "${match[0]}"`;
 }
 
+// The one place the core may name where it came from: a package-root NOTICE
+// holding exactly this statement. Any other text in it is scanned as usual.
+export const PROVENANCE_NOTICE =
+  'Originally developed as part of netzbegruenung/Gruenerator (AGPL-3.0);\n' +
+  'relicensed by the copyright holder under MPL-2.0.\n';
+const PACKAGE_NOTICE = /^packages\/ggraphic-[^/]+\/NOTICE$/;
+
 function checkText(path, bytes, packageDir, fail, warn) {
   const utf8 = bytes.toString('utf8').normalize('NFC');
   const sources = utf8.includes('�') ? [utf8, bytes.toString('latin1').normalize('NFC')] : [utf8];
@@ -184,7 +191,9 @@ function checkText(path, bytes, packageDir, fail, warn) {
     }
   };
 
-  for (const [pattern, label] of IDENTITY) scan('a', label, [pattern], (w) => `${label} (${w})`);
+  const isProvenance = PACKAGE_NOTICE.test(path) && utf8 === PROVENANCE_NOTICE;
+  if (!isProvenance)
+    for (const [pattern, label] of IDENTITY) scan('a', label, [pattern], (w) => `${label} (${w})`);
   scan('b', 'colour', CD_COLOUR, (w) => `corporate-design colour (${w})`);
   // A listed SVG's license covers what it embeds.
   if (!ASSET_EXT.test(path)) {
