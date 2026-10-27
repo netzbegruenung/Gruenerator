@@ -1,10 +1,9 @@
+import { CanvasEditorProvider } from '@ggraphic/editor/CanvasEditorProvider';
+import { useMultiPageExport } from '@ggraphic/editor/hooks/useMultiPageExport';
 import { NativeDownloadTooLargeError } from '@gruenerator/shared';
 import { act, renderHook, waitFor } from '@testing-library/react';
 import { unzipSync } from 'fflate';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-
-import { CanvasEditorProvider } from '../../CanvasEditorProvider';
-import { useMultiPageExport } from '../useMultiPageExport';
 
 import type { ReactNode } from 'react';
 

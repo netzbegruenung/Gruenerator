@@ -1,3 +1,5 @@
+import { useCanvasEditorServices } from '@ggraphic/editor/CanvasEditorProvider';
+import { browserFileDelivery } from '@ggraphic/editor/hostServices';
 import { useAutoSaveStore, useAutoSaveStoreApi } from '@ggraphic/editor/stores/useAutoSaveStore';
 import { Skeleton } from '@ggraphic/editor/ui/skeleton';
 import { downloadErrorMessage } from '@ggraphic/editor/utils/downloadError';
@@ -6,9 +8,7 @@ import { createPortal } from 'react-dom';
 import { FaDownload, FaImages, FaSave, FaCheck, FaFileArchive, FaFileImage } from 'react-icons/fa';
 import { IoCheckmarkOutline, IoShareOutline } from 'react-icons/io5';
 
-import { useCanvasEditorServices } from '../../CanvasEditorProvider';
 import { DownloadNotice } from '../../components/DownloadNotice';
-import { browserFileDelivery } from '../../hostServices';
 import {
   AltTextField,
   useCaptionAltText,

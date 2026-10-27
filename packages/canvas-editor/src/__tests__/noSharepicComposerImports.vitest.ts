@@ -57,7 +57,9 @@ describe('no sharepic composer imports in canvas-editor core code', () => {
     expect(SHAREPIC_IMPORT.test(`import '../composer/liftBlock';`)).toBe(true);
     expect(SHAREPIC_IMPORT.test(`// cut out by composer/liftBlock`)).toBe(false);
     expect(SHAREPIC_IMPORT.test(`import { a } from '../composer/chromeParts';`)).toBe(false);
-    expect(SHAREPIC_IMPORT.test(`import { a } from '../blocks/liftedBlock';`)).toBe(false);
+    expect(SHAREPIC_IMPORT.test(`import { a } from '@ggraphic/editor/blocks/liftedBlock';`)).toBe(
+      false
+    );
   });
 
   it('only the allowlisted files import them, and every allowlisted file still does', () => {

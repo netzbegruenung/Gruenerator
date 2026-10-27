@@ -4,17 +4,16 @@
  * selection-chrome aus), jenseits der Bühne zeichnet ihn `CropGhostOverlay`.
  * Es ist nur im Modus da und folgt Pan und Zoom, beim Ziehen ohne React-Zustand.
  */
+import { GenericCanvas, type GenericCanvasRef } from '@ggraphic/editor/components/GenericCanvas';
+import { loadCanvasConfig } from '@ggraphic/editor/configs/configLoader';
 import { AutoSaveStoreProvider } from '@ggraphic/editor/stores/AutoSaveStoreProvider';
+import { withSelectionChromeHidden } from '@ggraphic/editor/utils/captureStage';
 import { CROP_GHOST_NAME, paintCropGhosts } from '@ggraphic/editor/utils/cropGhost';
 import { createCanvas } from '@napi-rs/canvas';
 import { act, cleanup, render, waitFor } from '@testing-library/react';
 import Konva from 'konva';
 import { createRef } from 'react';
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
-
-import { loadCanvasConfig } from '../../configs/configLoader';
-import { withSelectionChromeHidden } from '../../utils/captureStage';
-import { GenericCanvas, type GenericCanvasRef } from '../GenericCanvas';
 
 import type * as StoreModule from '@ggraphic/editor/stores/createCanvasEditorStore';
 import type { CanvasEditorStoreApi } from '@ggraphic/editor/stores/createCanvasEditorStore';

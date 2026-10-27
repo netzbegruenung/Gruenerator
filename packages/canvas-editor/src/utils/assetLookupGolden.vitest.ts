@@ -1,15 +1,14 @@
-import { describe, expect, it } from 'vitest';
-
-import { EMOJI_ASSETS, STICKER_ASSETS } from '../brand/grueneAssetCatalog';
-import { ALL_ASSETS, TEMPLATE_ASSETS } from '../brand/grueneAssets';
-
 import {
   createStickerInstance,
   getAssetById,
   getAssetBySrc,
   isStickerLikeInstance,
   resolveAssetInstanceSrc,
-} from './canvasAssets';
+} from '@ggraphic/editor/utils/canvasAssets';
+import { describe, expect, it } from 'vitest';
+
+import { EMOJI_ASSETS, STICKER_ASSETS } from '../brand/grueneAssetCatalog';
+import { ALL_ASSETS, TEMPLATE_ASSETS } from '../brand/grueneAssets';
 
 const SHOP_ID = 'asset:0b6f3c1e-8a4d-4f5e-9c2a-7d1e5b3a9f10';
 const SHARE_SRC = '/api/share/0123456789abcdef0123456789abcdef/download';

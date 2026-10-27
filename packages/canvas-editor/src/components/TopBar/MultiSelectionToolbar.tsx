@@ -7,6 +7,7 @@ import {
   shortcutOf,
   type CanvasCommandId,
 } from '@ggraphic/editor/utils/canvasCommandRegistry';
+import { type LockState } from '@ggraphic/editor/utils/layerLock';
 import React from 'react';
 import {
   PiCopy,
@@ -17,8 +18,6 @@ import {
   PiLockSimpleOpen,
   PiTrash,
 } from 'react-icons/pi';
-
-import { type LockState } from '../../utils/layerLock';
 
 import { ContextCard } from './ContextToolbar';
 import { FloatingPositionControl, type PositionCommandId } from './modules/FloatingPositionControl';

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 
-import type { FullCanvasConfig } from '../../../configs/types';
 import type { CanvasConfigId } from '../../../templates/registry';
+import type { FullCanvasConfig } from '@ggraphic/editor/configs/types';
 
 interface UseLoadedConfigsParams {
   pages: Array<{ configId: CanvasConfigId }>;

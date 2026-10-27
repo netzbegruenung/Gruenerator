@@ -1,7 +1,7 @@
+import { useCanvasEditorServices } from '@ggraphic/editor/CanvasEditorProvider';
+import { useNoUnsplashSearch, type UnsplashSearchFn } from '@ggraphic/editor/hostServices';
 import { useCallback, useEffect, useMemo, type ReactNode } from 'react';
 
-import { useCanvasEditorServices } from '../../../CanvasEditorProvider';
-import { useNoUnsplashSearch, type UnsplashSearchFn } from '../../../hostServices';
 import { UnsplashLimitNotice, UnsplashRemaining } from '../tools/UnsplashLimitNotice';
 
 import { unsplashPhotoItem } from './useStockPhotos';

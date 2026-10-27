@@ -2,15 +2,18 @@
  * Der Reiter „Vorlagen" hängt der Editor selbst ein — direkt über „Text", nur
  * wenn der Host Vorlagen liefert und es für das Format welche gibt.
  */
+import {
+  CanvasEditorProvider,
+  type CanvasEditorServices,
+} from '@ggraphic/editor/CanvasEditorProvider';
 import { act, render, screen } from '@testing-library/react';
 import Konva from 'konva';
 import React from 'react';
 import { describe, expect, it, vi } from 'vitest';
 
-import { CanvasEditorProvider, type CanvasEditorServices } from '../../../CanvasEditorProvider';
 import { CanvasEditor } from '../index';
 
-vi.mock('../../../sidebar/UserUploadsProvider', () => ({
+vi.mock('@ggraphic/editor/sidebar/UserUploadsProvider', () => ({
   // ToolbarStateBridge liest die Uploads optional (Erweitern).
   useOptionalUserUploads: () => null,
   UserUploadsProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,

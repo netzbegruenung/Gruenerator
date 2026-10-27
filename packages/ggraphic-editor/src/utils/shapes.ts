@@ -1,4 +1,6 @@
 // SPDX-License-Identifier: MPL-2.0
+import { messages } from '@ggraphic/editor/i18n/messages';
+
 import { defaultMarkerFill } from './markerColors';
 
 import type { GradientFill } from '@ggraphic/editor/utils/gradientFill';
@@ -129,439 +131,585 @@ export interface ShapeDef<T extends ShapeType = ShapeType> {
 const SHAPE_DEFS: { readonly [K in ShapeType]: ShapeDef<K> } = {
   rect: {
     id: 'rect',
-    name: 'Rechteck',
+    get name() {
+      return messages().shapes['rect'];
+    },
     tags: ['rechteck', 'rectangle', 'quadrat', 'square', 'box', 'kasten'],
     category: 'basic',
   },
   'rounded-rect': {
     id: 'rounded-rect',
-    name: 'Abgerundetes Rechteck',
+    get name() {
+      return messages().shapes['rounded-rect'];
+    },
     tags: ['abgerundet', 'rounded', 'rechteck', 'rectangle', 'pille', 'pill', 'soft'],
     category: 'basic',
   },
   circle: {
     id: 'circle',
-    name: 'Kreis',
+    get name() {
+      return messages().shapes['circle'];
+    },
     tags: ['kreis', 'circle', 'rund', 'round', 'punkt', 'dot'],
     category: 'basic',
   },
   ellipse: {
     id: 'ellipse',
-    name: 'Ellipse',
+    get name() {
+      return messages().shapes['ellipse'];
+    },
     tags: ['ellipse', 'oval', 'eierform', 'lang'],
     category: 'basic',
   },
   ring: {
     id: 'ring',
-    name: 'Ring',
+    get name() {
+      return messages().shapes['ring'];
+    },
     tags: ['ring', 'donut', 'donat', 'kranz', 'kreis', 'rahmen'],
     category: 'basic',
   },
   triangle: {
     id: 'triangle',
-    name: 'Dreieck',
+    get name() {
+      return messages().shapes['triangle'];
+    },
     tags: ['dreieck', 'triangle', 'spitz', 'pyramide'],
     category: 'polygons',
   },
   diamond: {
     id: 'diamond',
-    name: 'Raute',
+    get name() {
+      return messages().shapes['diamond'];
+    },
     tags: ['raute', 'diamond', 'rhombus', 'karo', 'fokus'],
     category: 'polygons',
   },
   pentagon: {
     id: 'pentagon',
-    name: 'Fünfeck',
+    get name() {
+      return messages().shapes['pentagon'];
+    },
     tags: ['fuenfeck', 'fünfeck', 'pentagon', 'fuenf', 'fünf'],
     category: 'polygons',
   },
   hexagon: {
     id: 'hexagon',
-    name: 'Sechseck',
+    get name() {
+      return messages().shapes['hexagon'];
+    },
     tags: ['sechseck', 'hexagon', 'wabe', 'badge', 'sechs'],
     category: 'polygons',
   },
   arrow: {
     id: 'arrow',
-    name: 'Pfeil',
+    get name() {
+      return messages().shapes['arrow'];
+    },
     tags: ['pfeil', 'arrow', 'richtung', 'zeiger', 'hinweis'],
     category: 'arrows',
   },
   chevron: {
     id: 'chevron',
-    name: 'Chevron',
+    get name() {
+      return messages().shapes['chevron'];
+    },
     tags: ['chevron', 'pfeilspitze', 'spitze', 'pfeil', 'weiter', 'next'],
     category: 'arrows',
   },
   'double-arrow': {
     id: 'double-arrow',
-    name: 'Doppelpfeil',
+    get name() {
+      return messages().shapes['double-arrow'];
+    },
     tags: ['doppelpfeil', 'double', 'arrow', 'beidseitig', 'vergleich', 'versus'],
     category: 'arrows',
   },
   'arrow-curved': {
     id: 'arrow-curved',
-    name: 'Geschwungener Pfeil',
+    get name() {
+      return messages().shapes['arrow-curved'];
+    },
     tags: ['pfeil', 'arrow', 'curved', 'geschwungen', 'bogen', 'rueckkehr'],
     category: 'arrows',
   },
   line: {
     id: 'line',
-    name: 'Linie',
+    get name() {
+      return messages().shapes['line'];
+    },
     tags: ['linie', 'line', 'strich', 'trenner', 'divider', 'duenn', 'dünn'],
     category: 'lines',
   },
   'line-thick': {
     id: 'line-thick',
-    name: 'Dicke Linie',
+    get name() {
+      return messages().shapes['line-thick'];
+    },
     tags: ['dicke', 'thick', 'linie', 'line', 'balken', 'fett', 'bold'],
     category: 'lines',
   },
   'line-dashed': {
     id: 'line-dashed',
-    name: 'Gestrichelte Linie',
+    get name() {
+      return messages().shapes['line-dashed'];
+    },
     tags: ['gestrichelt', 'dashed', 'linie', 'line', 'strich', 'unterbrochen'],
     category: 'lines',
   },
   'line-dotted': {
     id: 'line-dotted',
-    name: 'Gepunktete Linie',
+    get name() {
+      return messages().shapes['line-dotted'];
+    },
     tags: ['gepunktet', 'dotted', 'linie', 'line', 'punkte', 'dots'],
     category: 'lines',
   },
   'line-double': {
     id: 'line-double',
-    name: 'Doppellinie',
+    get name() {
+      return messages().shapes['line-double'];
+    },
     tags: ['doppellinie', 'double', 'linie', 'line', 'zwei', 'parallel'],
     category: 'lines',
   },
   'line-arrow': {
     id: 'line-arrow',
-    name: 'Linie mit Pfeil',
+    get name() {
+      return messages().shapes['line-arrow'];
+    },
     tags: ['pfeillinie', 'pfeil', 'arrow', 'linie', 'line', 'richtung'],
     category: 'lines',
   },
   wavy: {
     id: 'wavy',
-    name: 'Wellenlinie',
+    get name() {
+      return messages().shapes['wavy'];
+    },
     tags: ['welle', 'wave', 'wellenlinie', 'linie', 'trenner', 'divider'],
     category: 'lines',
   },
   'hand-kreis': {
     id: 'hand-kreis',
-    name: 'Kringel',
+    get name() {
+      return messages().shapes['hand-kreis'];
+    },
     tags: ['kringel', 'handgezeichnet', 'hand', 'einkreisen', 'kreis', 'circle', 'markieren'],
     category: 'hand',
   },
   'hand-unterstrich': {
     id: 'hand-unterstrich',
-    name: 'Unterstrich',
+    get name() {
+      return messages().shapes['hand-unterstrich'];
+    },
     tags: ['unterstrich', 'unterstreichen', 'handgezeichnet', 'hand', 'pinsel', 'underline'],
     category: 'hand',
   },
   'hand-pfeil': {
     id: 'hand-pfeil',
-    name: 'Handpfeil',
+    get name() {
+      return messages().shapes['hand-pfeil'];
+    },
     tags: ['pfeil', 'arrow', 'handgezeichnet', 'hand', 'geschwungen', 'swoosh', 'weiter'],
     category: 'hand',
   },
   'hand-ausruf': {
     id: 'hand-ausruf',
-    name: 'Ausrufstriche',
+    get name() {
+      return messages().shapes['hand-ausruf'];
+    },
     tags: ['ausruf', 'striche', 'handgezeichnet', 'hand', 'betonung', 'burst', 'funkeln'],
     category: 'hand',
   },
   'hand-marker': {
     id: 'hand-marker',
-    name: 'Textmarker-Strich',
+    get name() {
+      return messages().shapes['hand-marker'];
+    },
     tags: ['textmarker', 'marker', 'highlight', 'markieren', 'hervorheben', 'pinsel', 'hand'],
     category: 'hand',
   },
   'hand-marker-box': {
     id: 'hand-marker-box',
-    name: 'Textmarker-Box',
+    get name() {
+      return messages().shapes['hand-marker-box'];
+    },
     tags: ['textmarker', 'marker', 'highlight', 'markieren', 'hervorheben', 'kasten', 'box'],
     category: 'hand',
   },
   'hand-pfeil-schlaufe': {
     id: 'hand-pfeil-schlaufe',
-    name: 'Schlaufenpfeil',
+    get name() {
+      return messages().shapes['hand-pfeil-schlaufe'];
+    },
     tags: ['pfeil', 'arrow', 'handgezeichnet', 'hand', 'schlaufe', 'kringel', 'loop'],
     category: 'hand',
   },
   'hand-pfeil-welle': {
     id: 'hand-pfeil-welle',
-    name: 'Wellenpfeil',
+    get name() {
+      return messages().shapes['hand-pfeil-welle'];
+    },
     tags: ['pfeil', 'arrow', 'handgezeichnet', 'hand', 'welle', 'wellig', 'wave'],
     category: 'hand',
   },
   'hand-pfeil-bogen': {
     id: 'hand-pfeil-bogen',
-    name: 'Bogenpfeil',
+    get name() {
+      return messages().shapes['hand-pfeil-bogen'];
+    },
     tags: ['pfeil', 'arrow', 'handgezeichnet', 'hand', 'bogen', 'kurve', 'curve'],
     category: 'hand',
   },
   'hand-pfeil-haken': {
     id: 'hand-pfeil-haken',
-    name: 'Hakenpfeil',
+    get name() {
+      return messages().shapes['hand-pfeil-haken'];
+    },
     tags: ['pfeil', 'arrow', 'handgezeichnet', 'hand', 'haken', 'kurve', 'hook'],
     category: 'hand',
   },
   'hand-pfeil-herz': {
     id: 'hand-pfeil-herz',
-    name: 'Herzpfeil',
+    get name() {
+      return messages().shapes['hand-pfeil-herz'];
+    },
     tags: ['pfeil', 'arrow', 'handgezeichnet', 'hand', 'herz', 'liebe', 'heart'],
     category: 'hand',
   },
   'hand-pfeil-spirale': {
     id: 'hand-pfeil-spirale',
-    name: 'Kringelpfeil',
+    get name() {
+      return messages().shapes['hand-pfeil-spirale'];
+    },
     tags: ['pfeil', 'arrow', 'handgezeichnet', 'hand', 'kringel', 'spirale', 'curl'],
     category: 'hand',
   },
   'hand-winken': {
     id: 'hand-winken',
-    name: 'Winkende Hand',
+    get name() {
+      return messages().shapes['hand-winken'];
+    },
     tags: ['winken', 'hand', 'hallo', 'gruss', 'handgezeichnet', 'wave'],
     category: 'hand',
   },
   star: {
     id: 'star',
-    name: 'Stern',
+    get name() {
+      return messages().shapes['star'];
+    },
     tags: ['stern', 'star', 'sterne'],
     category: 'stars',
   },
   sparkle: {
     id: 'sparkle',
-    name: 'Funkeln',
+    get name() {
+      return messages().shapes['sparkle'];
+    },
     tags: ['funkeln', 'sparkle', 'glanz', 'glitzern', 'magie', 'twinkle'],
     category: 'stars',
   },
   asterisk: {
     id: 'asterisk',
-    name: 'Asterisk',
+    get name() {
+      return messages().shapes['asterisk'];
+    },
     tags: ['asterisk', 'sternchen', 'stern', 'sechs', 'arme', 'quadratischer stern'],
     category: 'stars',
   },
   'star-burst': {
     id: 'star-burst',
-    name: 'Sternenexplosion',
+    get name() {
+      return messages().shapes['star-burst'];
+    },
     tags: ['sternenexplosion', 'starburst', 'explosion', 'stern', 'strahlen'],
     category: 'stars',
   },
   'speech-round': {
     id: 'speech-round',
-    name: 'Sprechblase',
+    get name() {
+      return messages().shapes['speech-round'];
+    },
     tags: ['sprechblase', 'speech', 'bubble', 'zitat', 'quote', 'sagen', 'rund'],
     category: 'speech',
   },
   'speech-rect': {
     id: 'speech-rect',
-    name: 'Sprechblase eckig',
+    get name() {
+      return messages().shapes['speech-rect'];
+    },
     tags: ['sprechblase', 'speech', 'bubble', 'zitat', 'quote', 'eckig', 'rectangle'],
     category: 'speech',
   },
   'speech-cloud': {
     id: 'speech-cloud',
-    name: 'Denkblase',
+    get name() {
+      return messages().shapes['speech-cloud'];
+    },
     tags: ['denkblase', 'thought', 'bubble', 'wolke', 'denken', 'idee'],
     category: 'speech',
   },
   'speech-pointed': {
     id: 'speech-pointed',
-    name: 'Spitze Sprechblase',
+    get name() {
+      return messages().shapes['speech-pointed'];
+    },
     tags: ['sprechblase', 'speech', 'spitz', 'pointed', 'tag', 'banner'],
     category: 'speech',
   },
   cloud: {
     id: 'cloud',
-    name: 'Wolke',
+    get name() {
+      return messages().shapes['cloud'];
+    },
     tags: ['wolke', 'cloud', 'himmel', 'sky', 'wetter'],
     category: 'clouds',
   },
   'cloud-fluffy': {
     id: 'cloud-fluffy',
-    name: 'Flauschige Wolke',
+    get name() {
+      return messages().shapes['cloud-fluffy'];
+    },
     tags: ['wolke', 'cloud', 'flauschig', 'fluffy', 'rund'],
     category: 'clouds',
   },
   'cloud-puff': {
     id: 'cloud-puff',
-    name: 'Wölkchen',
+    get name() {
+      return messages().shapes['cloud-puff'];
+    },
     tags: ['woelkchen', 'wölkchen', 'cloud', 'klein', 'puff', 'mini'],
     category: 'clouds',
   },
   'cloud-thin': {
     id: 'cloud-thin',
-    name: 'Schwaden',
+    get name() {
+      return messages().shapes['cloud-thin'];
+    },
     tags: ['schwaden', 'cloud', 'flach', 'thin', 'stratus', 'lang'],
     category: 'clouds',
   },
   heart: {
     id: 'heart',
-    name: 'Herz',
+    get name() {
+      return messages().shapes['heart'];
+    },
     tags: ['herz', 'heart', 'liebe', 'love', 'romantik'],
     category: 'hearts',
   },
   'heart-broken': {
     id: 'heart-broken',
-    name: 'Gebrochenes Herz',
+    get name() {
+      return messages().shapes['heart-broken'];
+    },
     tags: ['herz', 'heart', 'gebrochen', 'broken', 'liebeskummer'],
     category: 'hearts',
   },
   'heart-double': {
     id: 'heart-double',
-    name: 'Doppeltes Herz',
+    get name() {
+      return messages().shapes['heart-double'];
+    },
     tags: ['herz', 'heart', 'doppel', 'double', 'zwei', 'paar'],
     category: 'hearts',
   },
   'heart-arrow': {
     id: 'heart-arrow',
-    name: 'Herz mit Pfeil',
+    get name() {
+      return messages().shapes['heart-arrow'];
+    },
     tags: ['herz', 'heart', 'pfeil', 'arrow', 'amor', 'cupid', 'liebe'],
     category: 'hearts',
   },
   drop: {
     id: 'drop',
-    name: 'Tropfen',
+    get name() {
+      return messages().shapes['drop'];
+    },
     tags: ['tropfen', 'drop', 'tear', 'träne', 'wasser', 'water'],
     category: 'drops',
   },
   'drop-pin': {
     id: 'drop-pin',
-    name: 'Stecknadel',
+    get name() {
+      return messages().shapes['drop-pin'];
+    },
     tags: ['stecknadel', 'pin', 'map', 'standort', 'location', 'marker'],
     category: 'drops',
   },
   'drop-tear': {
     id: 'drop-tear',
-    name: 'Träne',
+    get name() {
+      return messages().shapes['drop-tear'];
+    },
     tags: ['träne', 'traene', 'tear', 'tropfen', 'klein'],
     category: 'drops',
   },
   'drop-flame': {
     id: 'drop-flame',
-    name: 'Flamme',
+    get name() {
+      return messages().shapes['drop-flame'];
+    },
     tags: ['flamme', 'flame', 'feuer', 'fire', 'heiß', 'heiss'],
     category: 'drops',
   },
   'banner-ribbon': {
     id: 'banner-ribbon',
-    name: 'Banner',
+    get name() {
+      return messages().shapes['banner-ribbon'];
+    },
     tags: ['banner', 'ribbon', 'fahne', 'titel', 'header'],
     category: 'banners',
   },
   'banner-flag': {
     id: 'banner-flag',
-    name: 'Wimpel',
+    get name() {
+      return messages().shapes['banner-flag'];
+    },
     tags: ['wimpel', 'flag', 'fahne', 'banner', 'pennant'],
     category: 'banners',
   },
   'banner-tag': {
     id: 'banner-tag',
-    name: 'Etikett',
+    get name() {
+      return messages().shapes['banner-tag'];
+    },
     tags: ['etikett', 'tag', 'label', 'preis', 'banner'],
     category: 'banners',
   },
   'banner-scroll': {
     id: 'banner-scroll',
-    name: 'Schriftrolle',
+    get name() {
+      return messages().shapes['banner-scroll'];
+    },
     tags: ['schriftrolle', 'scroll', 'banner', 'rolle', 'titel'],
     category: 'banners',
   },
   gear: {
     id: 'gear',
-    name: 'Zahnrad',
+    get name() {
+      return messages().shapes['gear'];
+    },
     tags: ['zahnrad', 'gear', 'cog', 'einstellungen', 'settings', 'mechanik'],
     category: 'gears',
   },
   'gear-12': {
     id: 'gear-12',
-    name: 'Zahnrad fein',
+    get name() {
+      return messages().shapes['gear-12'];
+    },
     tags: ['zahnrad', 'gear', 'cog', 'fein', 'zwoelf', 'mechanik'],
     category: 'gears',
   },
   'gear-6': {
     id: 'gear-6',
-    name: 'Zahnrad grob',
+    get name() {
+      return messages().shapes['gear-6'];
+    },
     tags: ['zahnrad', 'gear', 'cog', 'grob', 'sechs', 'einfach'],
     category: 'gears',
   },
   'gear-fine': {
     id: 'gear-fine',
-    name: 'Zahnrad feinverzahnt',
+    get name() {
+      return messages().shapes['gear-fine'];
+    },
     tags: ['zahnrad', 'gear', 'cog', 'feinverzahnt', 'praezise', 'mechanik'],
     category: 'gears',
   },
   blob: {
     id: 'blob',
-    name: 'Blob',
+    get name() {
+      return messages().shapes['blob'];
+    },
     tags: ['blob', 'organisch', 'klecks', 'form', 'modern', 'fluid', 'abstrakt'],
     category: 'organic',
   },
   flower: {
     id: 'flower',
-    name: 'Blume',
+    get name() {
+      return messages().shapes['flower'];
+    },
     tags: ['blume', 'flower', 'blüte', 'organisch', 'natur', 'sechs'],
     category: 'organic',
   },
   'flower-8': {
     id: 'flower-8',
-    name: 'Blüte',
+    get name() {
+      return messages().shapes['flower-8'];
+    },
     tags: ['blüte', 'bluete', 'flower', 'acht', 'blume', 'gross'],
     category: 'organic',
   },
   'blob-2': {
     id: 'blob-2',
-    name: 'Blob 2',
+    get name() {
+      return messages().shapes['blob-2'];
+    },
     tags: ['blob', 'organisch', 'klecks', 'rund', 'fluid', 'abstrakt'],
     category: 'organic',
   },
   leaf: {
     id: 'leaf',
-    name: 'Blatt',
+    get name() {
+      return messages().shapes['leaf'];
+    },
     tags: ['blatt', 'leaf', 'natur', 'nature', 'grün', 'gruen', 'pflanze', 'oeko'],
     category: 'nature',
   },
   tree: {
     id: 'tree',
-    name: 'Baum',
+    get name() {
+      return messages().shapes['tree'];
+    },
     tags: ['baum', 'tree', 'natur', 'wald', 'pflanze'],
     category: 'nature',
   },
   mountain: {
     id: 'mountain',
-    name: 'Berg',
+    get name() {
+      return messages().shapes['mountain'];
+    },
     tags: ['berg', 'mountain', 'gipfel', 'natur', 'landschaft'],
     category: 'nature',
   },
   sun: {
     id: 'sun',
-    name: 'Sonne',
+    get name() {
+      return messages().shapes['sun'];
+    },
     tags: ['sonne', 'sun', 'strahlen', 'natur', 'sommer', 'wetter'],
     category: 'nature',
   },
   checkmark: {
     id: 'checkmark',
-    name: 'Häkchen',
+    get name() {
+      return messages().shapes['checkmark'];
+    },
     tags: ['haekchen', 'häkchen', 'check', 'checkmark', 'ja', 'erledigt', 'tick', 'ok'],
     category: 'symbols',
   },
   plus: {
     id: 'plus',
-    name: 'Plus',
+    get name() {
+      return messages().shapes['plus'];
+    },
     tags: ['plus', 'mehr', 'add', 'kreuz'],
     category: 'symbols',
   },
   minus: {
     id: 'minus',
-    name: 'Minus',
+    get name() {
+      return messages().shapes['minus'];
+    },
     tags: ['minus', 'weniger', 'remove', 'subtract', 'strich'],
     category: 'symbols',
   },
   'x-mark': {
     id: 'x-mark',
-    name: 'Kreuz',
+    get name() {
+      return messages().shapes['x-mark'];
+    },
     tags: ['kreuz', 'cross', 'x', 'nein', 'no', 'close', 'schliessen'],
     category: 'symbols',
   },
@@ -593,21 +741,51 @@ export const CATEGORY_ORDER: readonly ShapeCategory[] = [
 ];
 
 export const CATEGORY_LABELS: Record<ShapeCategory, string> = {
-  basic: 'Grundformen',
-  polygons: 'Vielecke',
-  arrows: 'Pfeile',
-  lines: 'Linien',
-  hand: 'Handgezeichnet',
-  stars: 'Sterne',
-  speech: 'Sprechblasen',
-  clouds: 'Wolken',
-  hearts: 'Herzen',
-  drops: 'Tropfen',
-  banners: 'Banner',
-  gears: 'Zahnräder',
-  organic: 'Organische Formen',
-  nature: 'Natur',
-  symbols: 'Symbole',
+  get basic() {
+    return messages().shapeCategories.basic;
+  },
+  get polygons() {
+    return messages().shapeCategories.polygons;
+  },
+  get arrows() {
+    return messages().shapeCategories.arrows;
+  },
+  get lines() {
+    return messages().shapeCategories.lines;
+  },
+  get hand() {
+    return messages().shapeCategories.hand;
+  },
+  get stars() {
+    return messages().shapeCategories.stars;
+  },
+  get speech() {
+    return messages().shapeCategories.speech;
+  },
+  get clouds() {
+    return messages().shapeCategories.clouds;
+  },
+  get hearts() {
+    return messages().shapeCategories.hearts;
+  },
+  get drops() {
+    return messages().shapeCategories.drops;
+  },
+  get banners() {
+    return messages().shapeCategories.banners;
+  },
+  get gears() {
+    return messages().shapeCategories.gears;
+  },
+  get organic() {
+    return messages().shapeCategories.organic;
+  },
+  get nature() {
+    return messages().shapeCategories.nature;
+  },
+  get symbols() {
+    return messages().shapeCategories.symbols;
+  },
 };
 
 /**

@@ -1,4 +1,8 @@
 import {
+  CanvasEditorProvider,
+  type CanvasEditorServices,
+} from '@ggraphic/editor/CanvasEditorProvider';
+import {
   ELEMENT_DRAG_TYPE,
   MEDIA_DRAG_TYPE,
   markDropPlaced,
@@ -15,7 +19,6 @@ import {
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { CanvasEditorProvider, type CanvasEditorServices } from '../../CanvasEditorProvider';
 import { BlockInsertContext, type BlockInsertApi } from '../../components/CanvasEditor/blockInsert';
 import { useTrackUnsplashDownload } from '../../hooks/useTrackUnsplashDownload';
 import { axe } from '../../test-utils';
@@ -30,8 +33,8 @@ import {
 } from '../sections/assets/useRecentElements';
 import { stockPhotoItem } from '../sections/assets/useStockPhotos';
 
-import type { CanvasStudioAssetsFilter } from '../../hostServices';
 import type { ElementItem } from '../sections/assets/elementTypes';
+import type { CanvasStudioAssetsFilter } from '@ggraphic/editor/hostServices';
 import type { SharepicBlock, StudioAssetItem } from '@gruenerator/contracts';
 import type { ReactElement, ReactNode } from 'react';
 

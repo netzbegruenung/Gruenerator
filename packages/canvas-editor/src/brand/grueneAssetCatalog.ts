@@ -7,6 +7,14 @@
  * stored in canvases and templates.
  */
 import {
+  assetMatchesLocale,
+  type AssetAudience,
+  type CanvasAssetCatalog,
+  emojiCodeAssetId,
+  type IllustrationSources,
+  type UniversalAsset,
+} from '@ggraphic/editor/utils/canvasAssets';
+import {
   isShareSrc,
   SHAREPIC_EMOJI,
   sharepicEmojiCode,
@@ -14,18 +22,9 @@ import {
   type SharepicEmoji,
 } from '@gruenerator/contracts';
 
-import {
-  assetMatchesLocale,
-  type AssetAudience,
-  type CanvasAssetCatalog,
-  emojiCodeAssetId,
-  type IllustrationSources,
-  type UniversalAsset,
-} from '../utils/canvasAssets';
-
 import { ALL_ASSETS, TEMPLATE_ASSETS } from './grueneAssets';
 
-export { registerAssetCatalog } from '../utils/canvasAssets';
+export { registerAssetCatalog } from '@ggraphic/editor/utils/canvasAssets';
 
 const EMOJI_NAMES: Record<SharepicEmoji, [label: string, ...tags: string[]]> = {
   '🗳️': ['Wahlurne', 'wahl', 'wählen', 'stimme'],

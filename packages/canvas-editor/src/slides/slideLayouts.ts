@@ -12,15 +12,15 @@
  * statt Sonnenblume). Die Layout-Ids sind F1: sie können persistiert werden.
  */
 
+import { ASSET_TARGET_SIZE, type AssetInstance } from '@ggraphic/editor/utils/canvasAssets';
 import { type ChartInstance } from '@ggraphic/editor/utils/chartUtils';
 import { type ShapeInstance } from '@ggraphic/editor/utils/shapes';
 
 import { getBrandPack, getBrandTheme, type BrandLocale } from '../brand/theme';
 import { SHAREPIC_COLOR_HEX } from '../composer/chromeParts';
-import { ASSET_TARGET_SIZE, type AssetInstance } from '../utils/canvasAssets';
 
 import type { ComposedSlide } from '../composer/composeTypes';
-import type { AdditionalText } from '../configs/types';
+import type { AdditionalText } from '@ggraphic/editor/configs/types';
 import type { TextAccent } from '@ggraphic/editor/utils/textUtils';
 
 export const SLIDE_LAYOUTS = [

@@ -4,7 +4,7 @@ import { describe, expect, it, vi } from 'vitest';
 
 import { PageWrapper } from '../PageWrapper';
 
-vi.mock('../../GenericCanvas', () => ({
+vi.mock('@ggraphic/editor/components/GenericCanvas', () => ({
   GenericCanvas: () => (
     <div className="konvajs-content">
       <canvas data-testid="stage" />

@@ -4,16 +4,19 @@
  * placeholder line — given the host's print service, which apps/web always
  * passes. A slide deck names the fonts of the country of its first page.
  */
+import {
+  CanvasEditorProvider,
+  type CanvasEditorServices,
+} from '@ggraphic/editor/CanvasEditorProvider';
 import { act, render, screen } from '@testing-library/react';
 import Konva from 'konva';
 import React from 'react';
 import { describe, expect, it, vi } from 'vitest';
 
-import { CanvasEditorProvider, type CanvasEditorServices } from '../../../CanvasEditorProvider';
 import { grueneratorPrint } from '../../../composer/printService';
 import { CanvasEditor } from '../index';
 
-vi.mock('../../../sidebar/UserUploadsProvider', () => ({
+vi.mock('@ggraphic/editor/sidebar/UserUploadsProvider', () => ({
   useOptionalUserUploads: () => null,
   UserUploadsProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,
   useUserUploads: () => ({ uploads: [], refresh: () => {} }),

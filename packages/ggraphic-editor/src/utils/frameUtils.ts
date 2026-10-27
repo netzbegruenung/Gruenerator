@@ -19,6 +19,7 @@ import {
 } from 'react-icons/pi';
 
 import { activeBrand } from '@ggraphic/editor/brand/brandRegistry';
+import { messages } from '@ggraphic/editor/i18n/messages';
 
 import type { IconType } from 'react-icons';
 
@@ -100,121 +101,161 @@ export interface FramePreset<T extends FrameClipType = FrameClipType> {
 const FRAME_PRESET_DEFS: { readonly [K in FrameClipType]: FramePreset<K> } = {
   circle: {
     id: 'circle',
-    name: 'Kreisrahmen',
+    get name() {
+      return messages().frames['circle'];
+    },
     tags: ['kreis', 'circle', 'rund', 'round', 'rahmen', 'frame', 'bild', 'foto'],
     category: 'soft',
   },
   oval: {
     id: 'oval',
-    name: 'Ovaler Rahmen',
+    get name() {
+      return messages().frames['oval'];
+    },
     tags: ['oval', 'ellipse', 'ei', 'egg', 'rahmen', 'frame'],
     category: 'soft',
   },
   ring: {
     id: 'ring',
-    name: 'Ringrahmen',
+    get name() {
+      return messages().frames['ring'];
+    },
     tags: ['ring', 'donut', 'kranz', 'rahmen', 'frame'],
     category: 'soft',
   },
   square: {
     id: 'square',
-    name: 'Rechteckrahmen',
+    get name() {
+      return messages().frames['square'];
+    },
     tags: ['rechteck', 'quadrat', 'square', 'rahmen', 'frame', 'eckig'],
     category: 'geometric',
   },
   'rounded-rect': {
     id: 'rounded-rect',
-    name: 'Abgerundeter Rahmen',
+    get name() {
+      return messages().frames['rounded-rect'];
+    },
     tags: ['rechteck', 'rectangle', 'rahmen', 'frame', 'bild', 'foto', 'abgerundet', 'rounded'],
     category: 'geometric',
   },
   triangle: {
     id: 'triangle',
-    name: 'Dreieck',
+    get name() {
+      return messages().frames['triangle'];
+    },
     tags: ['dreieck', 'triangle', 'rahmen', 'frame', 'spitz'],
     category: 'geometric',
   },
   diamond: {
     id: 'diamond',
-    name: 'Raute',
+    get name() {
+      return messages().frames['diamond'];
+    },
     tags: ['raute', 'diamond', 'rhombus', 'karo', 'rahmen', 'frame'],
     category: 'geometric',
   },
   pentagon: {
     id: 'pentagon',
-    name: 'Fünfeck',
+    get name() {
+      return messages().frames['pentagon'];
+    },
     tags: ['fuenfeck', 'fünfeck', 'pentagon', 'rahmen', 'frame'],
     category: 'geometric',
   },
   hexagon: {
     id: 'hexagon',
-    name: 'Sechseck',
+    get name() {
+      return messages().frames['hexagon'];
+    },
     tags: ['sechseck', 'hexagon', 'wabe', 'rahmen', 'frame'],
     category: 'geometric',
   },
   octagon: {
     id: 'octagon',
-    name: 'Achteck',
+    get name() {
+      return messages().frames['octagon'];
+    },
     tags: ['achteck', 'octagon', 'rahmen', 'frame', 'stop'],
     category: 'geometric',
   },
   arch: {
     id: 'arch',
-    name: 'Bogen',
+    get name() {
+      return messages().frames['arch'];
+    },
     tags: ['bogen', 'arch', 'tor', 'fenster', 'rahmen', 'frame'],
     category: 'geometric',
   },
   drop: {
     id: 'drop',
-    name: 'Tropfen',
+    get name() {
+      return messages().frames['drop'];
+    },
     tags: ['tropfen', 'drop', 'wasser', 'rahmen', 'frame'],
     category: 'organic',
   },
   leaf: {
     id: 'leaf',
-    name: 'Blatt',
+    get name() {
+      return messages().frames['leaf'];
+    },
     tags: ['blatt', 'leaf', 'natur', 'gruen', 'rahmen', 'frame'],
     category: 'organic',
   },
   heart: {
     id: 'heart',
-    name: 'Herz',
+    get name() {
+      return messages().frames['heart'];
+    },
     tags: ['herz', 'heart', 'liebe', 'love', 'rahmen', 'frame'],
     category: 'organic',
   },
   cloud: {
     id: 'cloud',
-    name: 'Wolke',
+    get name() {
+      return messages().frames['cloud'];
+    },
     tags: ['wolke', 'cloud', 'himmel', 'rahmen', 'frame'],
     category: 'organic',
   },
   blob: {
     id: 'blob',
-    name: 'Blob',
+    get name() {
+      return messages().frames['blob'];
+    },
     tags: ['blob', 'organisch', 'klecks', 'rahmen', 'frame', 'modern'],
     category: 'organic',
   },
   star: {
     id: 'star',
-    name: 'Stern',
+    get name() {
+      return messages().frames['star'];
+    },
     tags: ['stern', 'star', 'rahmen', 'frame'],
     category: 'stars',
   },
   'speech-bubble': {
     id: 'speech-bubble',
-    name: 'Sprechblase',
+    get name() {
+      return messages().frames['speech-bubble'];
+    },
     tags: ['sprechblase', 'speech', 'bubble', 'zitat', 'quote', 'rahmen', 'frame'],
     category: 'speech',
   },
   'banner-tag': {
     id: 'banner-tag',
-    name: 'Etikett',
+    get name() {
+      return messages().frames['banner-tag'];
+    },
     tags: ['etikett', 'tag', 'label', 'banner', 'rahmen', 'frame'],
     category: 'banners',
   },
   ribbon: {
     id: 'ribbon',
-    name: 'Banner',
+    get name() {
+      return messages().frames['ribbon'];
+    },
     tags: ['banner', 'ribbon', 'fahne', 'header', 'rahmen', 'frame'],
     category: 'banners',
   },

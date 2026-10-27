@@ -9,8 +9,8 @@
  * does the package barrel, so the augmentation is in every program that sees
  * them.
  */
-import type { BlockSlide, LiftedBlock } from './blocks/liftedBlock';
-import type { CanvasPrintService } from './hostServices';
+import type { BlockSlide, LiftedBlock } from '@ggraphic/editor/blocks/liftedBlock';
+import type { CanvasPrintService } from '@ggraphic/editor/hostServices';
 import type {
   CanvasVorlage,
   PrintSpec,
@@ -76,7 +76,7 @@ export interface CanvasBlockService {
   lift: (slide: BlockSlide, items: readonly number[], token: string) => LiftedBlock;
 }
 
-declare module './CanvasEditorProvider' {
+declare module '@ggraphic/editor/CanvasEditorProvider' {
   interface CanvasEditorHostServices {
     /** The host's Vorlagen for the „Vorlagen" tab; when omitted, the tab is hidden. */
     vorlagen?: CanvasVorlagenService;
@@ -90,7 +90,7 @@ declare module './CanvasEditorProvider' {
   }
 }
 
-declare module './hostServices' {
+declare module '@ggraphic/editor/hostServices' {
   interface CanvasPrintService {
     /**
      * The pages of a print Vorlage's spec (measures text: fonts must be ready).

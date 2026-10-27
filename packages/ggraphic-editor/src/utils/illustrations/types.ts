@@ -3,6 +3,8 @@
  * Shared types and constants for illustration registry
  */
 
+import { messages } from '@ggraphic/editor/i18n/messages';
+
 // =============================================================================
 // TYPES
 // =============================================================================
@@ -87,9 +89,39 @@ export type IllustrationInstance = KawaiiInstance | SvgInstance;
 // =============================================================================
 
 export const KAWAII_MOODS: { id: KawaiiMood; label: string; emoji: string }[] = [
-  { id: 'happy', label: 'Fröhlich', emoji: '😊' },
-  { id: 'blissful', label: 'Glückselig', emoji: '😌' },
-  { id: 'lovestruck', label: 'Verliebt', emoji: '😍' },
-  { id: 'shocked', label: 'Überrascht', emoji: '😲' },
-  { id: 'sad', label: 'Traurig', emoji: '😢' },
+  {
+    id: 'happy',
+    get label() {
+      return messages().moods.happy;
+    },
+    emoji: '😊',
+  },
+  {
+    id: 'blissful',
+    get label() {
+      return messages().moods.blissful;
+    },
+    emoji: '😌',
+  },
+  {
+    id: 'lovestruck',
+    get label() {
+      return messages().moods.lovestruck;
+    },
+    emoji: '😍',
+  },
+  {
+    id: 'shocked',
+    get label() {
+      return messages().moods.shocked;
+    },
+    emoji: '😲',
+  },
+  {
+    id: 'sad',
+    get label() {
+      return messages().moods.sad;
+    },
+    emoji: '😢',
+  },
 ];

@@ -2,12 +2,11 @@
  * Ein gedrehtes Element rastet mit seiner sichtbaren Box ein und meldet sie
  * auch als Snap-Ziel — nicht die ungedrehte Box.
  */
+import { CanvasStage, type CanvasStageRef } from '@ggraphic/editor/primitives/CanvasStage';
+import { CanvasText } from '@ggraphic/editor/primitives/CanvasText';
 import { act, render } from '@testing-library/react';
 import { createRef } from 'react';
 import { describe, expect, it, vi } from 'vitest';
-
-import { CanvasStage, type CanvasStageRef } from '../CanvasStage';
-import { CanvasText } from '../CanvasText';
 
 import type { SnapTarget } from '@ggraphic/editor/utils/snapping';
 import type Konva from 'konva';

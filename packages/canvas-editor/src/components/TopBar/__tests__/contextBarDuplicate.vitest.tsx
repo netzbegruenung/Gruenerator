@@ -4,7 +4,7 @@ import { describe, expect, it, vi } from 'vitest';
 
 import { ContextControls } from '../ContextControls';
 
-import type { FloatingModuleState } from '../../../hooks/useFloatingModuleState';
+import type { FloatingModuleState } from '@ggraphic/editor/hooks/useFloatingModuleState';
 
 /**
  * Der Duplizieren-Knopf in der Kontextleiste.

@@ -3,6 +3,8 @@
  * ein Gruppenzug mit dem Umriss aller gezogenen Elemente.
  */
 import { MultiSelectionTransformer } from '@ggraphic/editor/components/MultiSelectionTransformer';
+import { useCanvasInteractions } from '@ggraphic/editor/hooks/useCanvasInteractions';
+import { CanvasStage, type CanvasStageRef } from '@ggraphic/editor/primitives/CanvasStage';
 import { ShapePrimitive } from '@ggraphic/editor/primitives/ShapePrimitive';
 import {
   CanvasStoreProvider,
@@ -14,9 +16,6 @@ import { act, render } from '@testing-library/react';
 import { createRef } from 'react';
 import { Group } from 'react-konva';
 import { describe, expect, it } from 'vitest';
-
-import { CanvasStage, type CanvasStageRef } from '../../primitives/CanvasStage';
-import { useCanvasInteractions } from '../useCanvasInteractions';
 
 import type { CanvasEditorStoreApi } from '@ggraphic/editor/stores/createCanvasEditorStore';
 import type { SnapTarget } from '@ggraphic/editor/utils/snapping';

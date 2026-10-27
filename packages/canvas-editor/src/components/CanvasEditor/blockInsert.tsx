@@ -1,3 +1,4 @@
+import { useCanvasEditorServices } from '@ggraphic/editor/CanvasEditorProvider';
 import {
   sharepicFormatSchema,
   type SharepicBlock,
@@ -13,9 +14,7 @@ import {
   type ReactNode,
 } from 'react';
 
-import { useCanvasEditorServices } from '../../CanvasEditorProvider';
-
-import type { GenericCanvasRef } from '../GenericCanvas';
+import type { GenericCanvasRef } from '@ggraphic/editor/components/GenericCanvas';
 
 /** Where a block goes: a page (default the active one), centred on the drop point if any. */
 export interface BlockTarget {

@@ -3,11 +3,10 @@
  * nicht erst beim Doppeltipp (#4384). Sonst käme der Fokus nach der Geste,
  * und iOS zeigte keine Tastatur.
  */
+import { CanvasStage } from '@ggraphic/editor/primitives/CanvasStage';
+import { CanvasText } from '@ggraphic/editor/primitives/CanvasText';
 import { cleanup, render } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-
-import { CanvasStage } from '../../primitives/CanvasStage';
-import { CanvasText } from '../../primitives/CanvasText';
 
 const loads = vi.hoisted(() => ({ count: 0 }));
 

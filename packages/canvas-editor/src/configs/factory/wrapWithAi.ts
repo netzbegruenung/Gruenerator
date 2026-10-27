@@ -3,7 +3,7 @@ import { createChatSection } from '../commonSections';
 import type { CanvasAiActionsBase } from '../../ai/applyOperation';
 import type { CanvasConfigId } from '../../templates/registry';
 import type { SharepicAiCapabilities } from '../aiCapabilities';
-import type { FullCanvasConfig } from '../types';
+import type { FullCanvasConfig } from '@ggraphic/editor/configs/types';
 
 /**
  * Overlays the AI capability declaration + capability-aware chat section onto

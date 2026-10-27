@@ -1,6 +1,11 @@
 import { fromLayout } from './layoutAccessors';
 
-import type { FillValue, LayoutResult, PositionValue, TextElementConfig } from '../types';
+import type {
+  FillValue,
+  LayoutResult,
+  PositionValue,
+  TextElementConfig,
+} from '@ggraphic/editor/configs/types';
 
 /**
  * Shared shape for the primary/secondary text-element factories.
