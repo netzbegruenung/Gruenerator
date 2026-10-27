@@ -45,8 +45,11 @@ function dump(node: Konva.Node): SceneNode {
 beforeAll(async () => {
   // Icon sets load on demand and the editor redraws once they are in; how
   // long that import takes decides whether an icon is in the scene. Load
-  // them up front so every case sees the same catalogue.
+  // them up front so every case sees the same catalogue. Charts draw through
+  // a lazy recharts import for the same reason: a cold import outlasts the
+  // settle wait and the chart is recorded as its placeholder.
   await loadAllIcons();
+  await import('recharts');
   // jsdom has no FontFaceSet; the editor waits on it before it draws text.
   Object.defineProperty(document, 'fonts', {
     configurable: true,
