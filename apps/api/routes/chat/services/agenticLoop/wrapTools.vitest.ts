@@ -133,38 +133,49 @@ describe('wrapToolsForLoop', () => {
     expect(seen?.aborted).toBe(true);
   });
 
-  it('passes the turn abort through to the tool', async () => {
-    // A Stop/disconnect aborts the TURN signal. The wrapper used to replace it
-    // with its own timeout-only signal, so a long tool ran on after a Stop.
+  function runWithTurn(name: string, turn: AbortSignal) {
     const { ctx } = makeCtx({ perCallTimeoutMs: 5_000 });
-    const turn = new AbortController();
     let seen: AbortSignal | undefined;
     const tools = wrapToolsForLoop(
       {
-        slow: {
+        [name]: {
           execute: (_i: unknown, o: { abortSignal?: AbortSignal }) => {
             seen = o.abortSignal;
-            return new Promise((resolve) => {
-              o.abortSignal?.addEventListener('abort', () => resolve({ stopped: true }));
-            });
+            return Promise.resolve({ ok: true });
           },
         },
       } as unknown as ToolSet,
       ctx
     );
     const exec = (
-      tools.slow as {
+      tools[name] as {
         execute: (
           i: unknown,
           o: { toolCallId: string; abortSignal: AbortSignal }
         ) => Promise<unknown>;
       }
     ).execute;
-    const pending = exec({}, { toolCallId: 'c1', abortSignal: turn.signal });
+    return { pending: exec({}, { toolCallId: 'c1', abortSignal: turn }), seen: () => seen };
+  }
+
+  it('does not pass the turn abort to a tool that has not opted in', async () => {
+    // The turn signal also fires when a SIBLING call pauses for approval or a
+    // question; a generation tool seeing it would skip its commit mid-run.
+    const turn = new AbortController();
+    const { pending, seen } = runWithTurn('create_document', turn.signal);
+    await pending;
     turn.abort();
-    await expect(pending).resolves.toEqual({ stopped: true });
-    expect(seen?.aborted).toBe(true);
-    expect((seen?.reason as Error | undefined)?.name).not.toBe('TimeoutError');
+    expect(seen()?.aborted).toBe(false);
+  });
+
+  it('passes the turn abort to website_erkunden (TURN_ABORTABLE_TOOLS)', async () => {
+    // A Stop must end the browser run instead of letting it bill on to the cap.
+    const turn = new AbortController();
+    const { pending, seen } = runWithTurn('website_erkunden', turn.signal);
+    await pending;
+    turn.abort();
+    expect(seen()?.aborted).toBe(true);
+    expect((seen()?.reason as Error | undefined)?.name).not.toBe('TimeoutError');
   });
 
   it('marks a per-call timeout with a TimeoutError reason', async () => {
