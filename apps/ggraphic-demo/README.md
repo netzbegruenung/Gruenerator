@@ -27,20 +27,20 @@ Je `@gruenerator/*`-Paket steht im JSON:
 - `editorImporters`: die Editor-Dateien im Bundle, die ein Modul dieses Pakets importieren, das selbst oder über seine Barrels Code ins Bundle bringt;
 - `firstChain`: der kürzeste Importpfad vom Einstieg zum ersten Modul des Pakets, das im Bundle steht. Der Pfad läuft über den ganzen Modulgraphen, kann also durch Barrels führen, die selbst nichts ausliefern.
 
-## Stand: 27.10.2026, Basis #5030 plus Bildadressen als Host-Dienst
+## Stand: 27.10.2026, Basis #5031 plus Asset-Katalog als Host-Daten
 
-1083 Module im Bundle, 550 davon eager. **396 Module stammen aus vier `@gruenerator/*`-Paketen:**
+855 Module im Bundle, 322 davon eager. **170 Module stammen aus zwei `@gruenerator/*`-Paketen:**
 
 | Paket                        | Module | davon eager |   Code | Editor-Dateien, die es importieren | erster Pfad über                        |
 | ---------------------------- | -----: | ----------: | -----: | ---------------------------------: | --------------------------------------- |
-| `@gruenerator/contracts`     |    225 |         225 | 498 KB |                                  1 | `utils/canvasAssets.ts`                 |
-| `@gruenerator/canvas-editor` |    168 |         153 | 926 KB |                                  – | `index.ts` → `CanvasEditorProvider.tsx` |
+| `@gruenerator/canvas-editor` |    168 |         153 | 923 KB |                                  – | `index.ts` → `CanvasEditorProvider.tsx` |
 | `@gruenerator/collab`        |      2 |           2 |   2 KB |                                  1 | `collab/useSelectionAwareness.ts`       |
-| `@gruenerator/core`          |      1 |           1 |   1 KB |           0 (nur über `contracts`) | `contracts/src/schemas/userProfile.ts`  |
 
-Dazu kommen `@ggraphic/schema` (5 Module) und `@ggraphic/core` (1). Vorher (mit `StandaloneCanvas`, Basis #5026) waren es 1307 Module, davon 535 aus fünf Paketen: der Editor stand mit 296 da, weil `StandaloneCanvas` die Vorlagen-Registry importiert und deren Configs als faule Chunks mitkamen, und `@gruenerator/ui` (6) kam nur über diese Chunks.
+Dazu kommen `@ggraphic/schema` (5 Module) und `@ggraphic/core` (1). Vorher (Basis #5031) waren es 1083 Module, davon 396 aus vier Paketen: `@gruenerator/contracts` stand mit 225 da, alle eager, und `@gruenerator/core` (1) kam nur über `contracts`. Noch davor (mit `StandaloneCanvas`, Basis #5026) waren es 1307 Module aus fünf Paketen.
 
-**`@gruenerator/contracts` ist der größte Brocken, und er hängt fast vollständig am Barrel.** Eine Editor-Datei importiert noch aus `@gruenerator/contracts`, also aus `src/index.ts`, und mit ihm kommen die Schemas und die ts-rest-Verträge, fast alle eager: `utils/canvasAssets.ts`, der Asset-Katalog des Grünerators (Sticker, Emoji, Logos, Sonnenblume). Die Text-Helfer und `parseDataUrl` kommen inzwischen aus `@ggraphic/schema`, die Standardgröße der Bühne aus dem Standardformat, und die Share-Adressen liefert der Host über `CanvasEditorServices.imageUrls`. Solange diese eine Datei bleibt, kommt das ganze Barrel mit; die Zahl fällt erst, wenn sie weg ist. Das Paket erklärt keine `sideEffects`, und Rolldown behält deshalb jede Modul-Top-Level-Anweisung (`z.object(…)`, `initContract().router(…)`). Ob `"sideEffects": false` für die anderen Verbraucher sicher ist, ist ungeprüft (#5027).
+**`@gruenerator/contracts` ist weg.** Die letzte Editor-Datei, die zur Laufzeit aus dem Barrel importierte, war `utils/canvasAssets.ts`. Kuratierte Emoji, die Sticker (`SYSTEM_STICKERS`) und die Regel, welche `src` eine Instanz selbst tragen darf (`isShareSrc`), stehen jetzt in `brand/grueneAssetCatalog.ts`, und der Kern fragt nur noch das Register, das der Host füllt (`registerAssetCatalog`, eingetragen in `apps/web/src/index.tsx`). Ein Register auf Modulebene statt eines Felds in `CanvasEditorServices`, weil die Abfragen auch in Befehlen, Aktions-Fabriken und Offscreen-Wurzeln laufen, die keinen React-Kontext haben. Ohne Host, wie hier, kennt der Editor keine Katalog-Grafik, zeichnet ein Emoji allein aus seiner Id und ignoriert jede `src` einer Instanz. Die Text-Helfer und `parseDataUrl` kommen aus `@ggraphic/schema`, die Share-Adressen über `CanvasEditorServices.imageUrls`. Das Paket erklärt weiterhin keine `sideEffects`; ein einziger Laufzeit-Import aus dem Barrel brächte die 225 Module zurück (#5027).
+
+**Was vom Grünerator im Editor-Teil noch mitkommt:** `brand/grueneAssets.ts` (Logos, Sonnenblumen, Info-Hintergründe), weil `SYSTEM_ASSETS` in `utils/canvasAssets.ts` darauf zeigt und `brand/theme.ts` sowie die Layouts es lesen.
 
 `@gruenerator/collab` kommt eager über `GenericCanvas` → `collab/useSelectionAwareness.ts` (`useAwarenessState`).
 

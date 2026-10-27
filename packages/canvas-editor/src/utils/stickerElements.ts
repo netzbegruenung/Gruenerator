@@ -2,7 +2,8 @@
  * The canvas editor's emoji and icon catalogues for the sticker creator: the
  * same Noto set and Iconify sets, the same German-aware ranking.
  */
-export { EMOJI_ASSETS, type UniversalAsset } from './canvasAssets';
+export { EMOJI_ASSETS } from '../brand/grueneAssetCatalog';
+export { type UniversalAsset } from './canvasAssets';
 export {
   DEFAULT_ICON_SET,
   generateIconDataUrl,

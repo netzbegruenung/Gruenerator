@@ -1,6 +1,7 @@
 import { beforeAll, describe, expect, it } from 'vitest';
 
-import { ALL_ASSETS, stickerAssetsForLocale } from '../../../utils/canvasAssets';
+import { stickerAssetsForLocale } from '../../../brand/grueneAssetCatalog';
+import { ALL_ASSETS } from '../../../utils/canvasAssets';
 import { loadAllIcons } from '../../../utils/canvasIcons';
 import { getAllIllustrations } from '../../../utils/illustrations/registry';
 

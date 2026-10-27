@@ -1,16 +1,15 @@
 import { SYSTEM_STICKERS } from '@gruenerator/shared/stickers';
 import { describe, expect, it } from 'vitest';
 
+import { EMOJI_ASSETS, STICKER_ASSETS, stickerAssetsForLocale } from '../brand/grueneAssetCatalog';
+
 import {
   ALL_ASSETS,
   createStickerInstance,
-  EMOJI_ASSETS,
   getAssetById,
   getAssetBySrc,
   isStickerLikeInstance,
   resolveAssetInstanceSrc,
-  STICKER_ASSETS,
-  stickerAssetsForLocale,
   TEMPLATE_ASSETS,
 } from './canvasAssets';
 
