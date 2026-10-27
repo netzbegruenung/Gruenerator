@@ -236,4 +236,50 @@ describe('website_erkunden', () => {
     expect(meta).not.toContain(B64);
     expect(JSON.stringify(sent)).not.toContain(B64);
   });
+
+  it('stores nothing for a step without a frame', async () => {
+    runBrowserAgent.mockImplementation(
+      streamOf([{ ...step(1), screenshot_jpeg_b64: '' } as BrowserAgentEvent, done()])
+    );
+    const { ctx, state } = makeCtx();
+    await run(makeWebsiteErkundenTool(ctx), INPUT);
+    expect(storeBinaryAsset).not.toHaveBeenCalled();
+    expect(state.browserSession?.steps[0]?.imageUrl).toBe('');
+  });
+
+  it('stops reading the service stream after done', async () => {
+    let pulledAfterDone = false;
+    let closed = false;
+    runBrowserAgent.mockImplementation(async function* () {
+      try {
+        yield step(1);
+        yield done();
+        pulledAfterDone = true;
+        yield step(2);
+      } finally {
+        closed = true;
+      }
+    });
+    const { ctx, state } = makeCtx();
+    await run(makeWebsiteErkundenTool(ctx), INPUT);
+    expect(pulledAfterDone).toBe(false);
+    expect(closed).toBe(true);
+    expect(state.browserSession?.steps).toHaveLength(1);
+  });
+
+  it('stops reading after an error event and still reports fehlend', async () => {
+    let pulledAfterError = false;
+    runBrowserAgent.mockImplementation(async function* () {
+      yield saved('a.png');
+      yield { type: 'error', message: 'boom' } as BrowserAgentEvent;
+      pulledAfterError = true;
+      yield done();
+    });
+    const { ctx } = makeCtx();
+    const result = await run(makeWebsiteErkundenTool(ctx), { ...INPUT, screenshots_erwartet: 3 });
+    expect(pulledAfterError).toBe(false);
+    expect(result.error).toEqual(expect.any(String));
+    expect(result.fehlend).toBe(2);
+    expect(result.screenshots).toHaveLength(1);
+  });
 });

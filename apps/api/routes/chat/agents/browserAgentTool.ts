@@ -136,11 +136,16 @@ Sendet keine Formulare ab, kauft nichts und meldet sich nirgends an.`,
           signal: abortSignal ?? new AbortController().signal,
         })) {
           if (event.type === 'step') {
-            const image = await storeBinaryAsset(
-              userId,
-              Buffer.from(event.screenshot_jpeg_b64, 'base64'),
-              'jpg'
-            );
+            // A step without a frame (screenshot failed) keeps its row but no image.
+            const imageUrl = event.screenshot_jpeg_b64
+              ? (
+                  await storeBinaryAsset(
+                    userId,
+                    Buffer.from(event.screenshot_jpeg_b64, 'base64'),
+                    'jpg'
+                  )
+                ).url
+              : '';
             const s: BrowserSessionStep = {
               n: event.n,
               url: event.url,
@@ -150,7 +155,7 @@ Sendet keine Formulare ab, kauft nichts und meldet sich nirgends an.`,
               xPct: event.x_pct,
               yPct: event.y_pct,
               thought: event.thought,
-              imageUrl: image.url,
+              imageUrl,
             };
             steps.push(s);
             sse.send('browser_session_update', { id, step: s });
@@ -173,6 +178,9 @@ Sendet keine Formulare ab, kauft nichts und meldet sich nirgends an.`,
             error = 'Die Website konnte nicht erkundet werden.';
           }
           persist();
+          // `done`/`error` are terminal; leaving the loop closes the stream, and
+          // the service cleans up on disconnect instead of us waiting for EOF.
+          if (status !== 'running') break;
         }
         if (status === 'running') {
           status = 'failed';
@@ -202,11 +210,12 @@ Sendet keine Formulare ab, kauft nichts und meldet sich nirgends an.`,
       persist();
       sse.send('browser_session_update', { id, status, summary });
 
-      if (error) return { error, screenshots, schritte: steps.length };
+      const fehlend = Math.max(0, (screenshots_erwartet ?? 0) - screenshots.length);
+      if (error) return { error, screenshots, fehlend, schritte: steps.length };
       return {
         summary,
         screenshots,
-        fehlend: Math.max(0, (screenshots_erwartet ?? 0) - screenshots.length),
+        fehlend,
         schritte: steps.length,
         abgebrochen,
         zeitlimit,
