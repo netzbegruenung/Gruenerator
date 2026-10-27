@@ -159,6 +159,12 @@
   --color-editor-danger-fg: var(--editor-danger-fg);
   --color-editor-danger-bg: var(--editor-danger-bg);
   --color-editor-tanne-preview: var(--editor-tanne-preview);
+  --color-editor-control-border: var(--editor-control-border);
+  --color-editor-control-bg: var(--editor-control-bg);
+  --color-editor-control-bg-hover: var(--editor-control-bg-hover);
+  --color-editor-icon-button-bg: var(--editor-icon-button-bg);
+  --color-editor-icon-button-bg-hover: var(--editor-icon-button-bg-hover);
+  --color-editor-icon-button-fg: var(--editor-icon-button-fg);
 
   /* Spacing System */
   --spacing-xxs: var(--spacing-xxsmall);
