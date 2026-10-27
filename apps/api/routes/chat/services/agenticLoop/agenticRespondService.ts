@@ -34,7 +34,6 @@ import {
 } from '../../agents/providers.js';
 import { renderRecipeCatalog } from '../../agents/recipeCatalog.js';
 import { imageDeliveryNote } from '../../agents/searchImageHarvest.js';
-import { resolveCheckSharepicRender } from '../../agents/sharepicCheckTool.js';
 import { quotesSharepicText } from '../../agents/sharepicLoopTools.js';
 import { offerNote } from '../artifactOffer.js';
 import { pruneMessages } from '../contextPruningService.js';
@@ -54,6 +53,7 @@ import { resolveAbortOutcome } from '../turnAbortOutcome.js';
 import { turnMaterialChars } from '../turnMaterial.js';
 import { withInstructionHierarchy } from '../untrustedContent.js';
 
+import { approvalGateEnabled } from './approvalPolicy.js';
 import { buildPreLoopEditNotes, editOutcomeAfterPreamble } from './artifactNotes.js';
 import { createAskHumanGate, type AskHumanGate } from './askHumanGate.js';
 import { ATTACHED_DOCS_TOOL, retrievableAttachedSources } from './attachedDocuments.js';
@@ -70,6 +70,7 @@ import {
   wrapAssembledTools,
 } from './catalogAssembly.js';
 import { createClientToolGate, type ClientToolGate } from './clientToolGate.js';
+import { LOOP_CLIENT_TOOLS } from './clientToolRegistry.js';
 import { editedArtifactKinds, guardedArtifactKinds } from './editedArtifacts.js';
 import { isToolScopeEnforced } from './flags.js';
 import {
@@ -165,6 +166,13 @@ export interface AgenticResponseOutcome {
    *  hat (`check_sharepic` → `render_sharepic`). */
   pendingClientTool?: PendingClientToolRequest;
   /**
+   * Nur neben `pendingApproval`: ein Browser-Aufruf desselben Steps, der das
+   * Freigabe-Gate schon passiert hatte (#5044). Die Freigabe gewinnt, der
+   * Aufruf reist in der Pause mit und läuft nach der Entscheidung — sonst
+   * fragt das Gate beim Neuaufruf ein zweites Mal.
+   */
+  heldClientTool?: PendingClientToolRequest;
+  /**
    * Wie der Nie-Werfen-Vertrag diesen Zug aufgelöst hat. Fehlt ⇒ echte
    * Antwort. Der Request-Pfad ignoriert das Feld (der Text IST dort die
    * ehrliche Auskunft an die Person); ein headless Aufrufer (#3221) braucht
@@ -215,6 +223,8 @@ export async function streamAgenticResponse(
       priorSteps: PersistedStep[];
       approved: PendingToolCall[];
       denied: Array<{ call: PendingToolCall; reason?: string }>;
+      /** Der mitgereiste Browser-Aufruf (`heldClientTool`) — läuft nach den entschiedenen. */
+      heldClientTool?: PendingClientToolRequest;
     };
   },
   deps: AgenticRespondDeps = defaultDeps
@@ -357,6 +367,7 @@ export async function streamAgenticResponse(
         threadId,
         sourceRegistry,
         toolHistory: toolHistory ?? null,
+        skipTables: 'tabelle_auswerten' in tools,
         onInfo: (m) => log.info(m),
         onError: (m) => log.warn(m),
       });
@@ -373,6 +384,7 @@ export async function streamAgenticResponse(
       sourceRegistry,
       toolName: ATTACHED_DOCS_TOOL,
       isMounted: ATTACHED_DOCS_TOOL in tools,
+      skipTables: 'tabelle_auswerten' in tools,
       onInfo: (m) => log.info(m),
       onError: (m) => log.warn(m),
     });
@@ -396,8 +408,13 @@ export async function streamAgenticResponse(
     const approvalUserId = agentConfig.userId ?? null;
     // `disableMcp` (headless): ohne Connectoren kann das Gate nicht feuern —
     // der Allowlist-Read wäre bei jedem Hintergrundlauf reine Kosten, und eine
-    // Karte, die niemand sieht, hielte den Lauf für immer an.
-    const approvalEnabled = !disableMcp && approvalUserId != null;
+    // Karte, die niemand sieht, hielte den Lauf für immer an. Ausnahme: ein
+    // internes Pflichtwerkzeug im Katalog (`tabelle_auswerten`) fragt trotzdem.
+    const approvalEnabled = approvalGateEnabled({
+      disableMcp: disableMcp === true,
+      userId: approvalUserId,
+      toolNames: Object.keys(tools),
+    });
     approvalGate = createToolApprovalGate({
       enabled: approvalEnabled,
       allowlist: approvalEnabled
@@ -412,13 +429,19 @@ export async function streamAgenticResponse(
       ...(grantedOnce ? { grantedOnce } : {}),
     });
     askGate = createAskHumanGate();
-    clientToolGate = createClientToolGate((call) =>
-      finalState.sharepicCheck
-        ? Promise.resolve({
-            error: `In diesem Zug schon geprüft, nicht erneut aufrufen. Ergebnis: ${JSON.stringify(finalState.sharepicCheck)}`,
-          })
-        : resolveCheckSharepicRender(threadId ?? null, finalState, call.args)
-    );
+    clientToolGate = createClientToolGate(async (call) => {
+      const clientTool = LOOP_CLIENT_TOOLS.get(call.toolName);
+      if (!clientTool) return { error: `${call.toolName} läuft nicht im Browser.` };
+      const resolved = await clientTool.resolve({
+        threadId: threadId ?? null,
+        state: finalState,
+        args: call.args,
+        priorSteps: steps,
+      });
+      return 'error' in resolved
+        ? resolved
+        : { clientToolName: clientTool.clientToolName, clientArgs: resolved.clientArgs };
+    });
     // Zwei Beobachter am selben Haken: die Kostenrechnung zählt JEDEN Aufruf,
     // die Rerank-Warnung feuert höchstens einmal je Turn. `composeToolHooks`
     // isoliert dabei jeden Beobachter einzeln — ein werfender Kostenzähler
@@ -484,6 +507,15 @@ export async function streamAgenticResponse(
           summary: error,
           result: { error },
         });
+      }
+      // Nach den entschiedenen Aufrufen, damit deren Schritte vor der
+      // Browser-Pause im Verlauf stehen. Das Wiedereinsetzen bricht den Zug ab
+      // wie ein frisch gehaltener Aufruf; die Fortsetzung pausiert dann für den
+      // Browser. Hat ein freigegebener Aufruf das Gate schon belegt, gewinnt er.
+      if (resumeApproval.heldClientTool && !clientToolGate.restore(resumeApproval.heldClientTool)) {
+        log.warn(
+          `[Freigabe] ${resumeApproval.heldClientTool.toolName} nicht wieder eingesetzt — ein anderer Browser-Aufruf hält schon`
+        );
       }
       toolReplayMessages = [
         ...toolReplayMessages,
@@ -656,6 +688,8 @@ export async function streamAgenticResponse(
       sharepicOrder: await isSharepicOrder(),
       artifactEditOrder: finalState.artifactEditOrder === true,
       attachedSeedDelivered: seeded.delivered,
+      resumesSuspendedTurn: resumeApproval != null,
+      tabularToolMounted: 'tabelle_auswerten' in wrapped,
     });
     const forceFirstToolCall = forceReason !== null;
 
@@ -949,7 +983,7 @@ export async function streamAgenticResponse(
         askGate?.hasPending()
           ? '[Agentic] Zug pausiert — Rückfrage an die Nutzer*in offen'
           : clientToolGate?.hasPending()
-            ? '[Agentic] Zug pausiert — Browser rendert das Sharepic'
+            ? `[Agentic] Zug pausiert — Browser führt ${clientToolGate.pending()?.clientToolName ?? 'ein Werkzeug'} aus`
             : `[Agentic] Zug pausiert — ${approvalGate?.pending().length ?? 0} Freigabe(n) offen`
       );
     } else {
@@ -994,6 +1028,10 @@ export async function streamAgenticResponse(
       pendingAsk,
     };
   }
+  // Die Freigabe GEWINNT gegen einen gehaltenen Browser-Aufruf: ihre Karte hat
+  // die Person noch nicht gesehen. Der Browser-Aufruf hatte das Gate aber schon
+  // passiert — er reist als `heldClientTool` mit, statt beim Neuaufruf ein
+  // zweites Mal gefragt zu werden (#5044).
   const pendingClientTool = clientToolGate?.pending() ?? null;
   if (pendingClientTool && !approvalGate?.hasPending()) {
     costLedger.log();
@@ -1015,6 +1053,7 @@ export async function streamAgenticResponse(
       sources: sourceRegistry.getResults(MAX_SOURCES),
       modelName: resolution?.modelName ?? agentConfig.model,
       pendingApproval: approvalGate.pending(),
+      ...(pendingClientTool ? { heldClientTool: pendingClientTool } : {}),
     };
   }
 

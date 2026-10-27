@@ -5,6 +5,7 @@ import {
   loopClientToolStateStore,
   type StoredLoopClientToolState,
 } from '../services/loopClientToolStateStore.js';
+import { persistSuspendedTurnAttachments } from '../services/postResponseService.js';
 import {
   createMessage,
   finalizeAssistantMessage,
@@ -31,6 +32,10 @@ export interface SuspendForLoopClientToolParams {
   /** Die vor dem Streamen angelegte Platzhalter-Zeile, falls vorhanden. */
   pendingId: string | null;
   startTime: number;
+  /** Eine vor dieser Pause aufgelöste Pause (die entschiedene Freigabe-Karte) —
+   *  steht in der Nachricht, damit die Karte einen Reload übersteht, und reist
+   *  im Zustand mit bis zum Ende des Zuges. */
+  resolvedPause?: Record<string, unknown>;
 }
 
 /**
@@ -38,7 +43,7 @@ export interface SuspendForLoopClientToolParams {
  * (`check_sharepic` → `render_sharepic`).
  *
  * Das Muster von `suspendForLoopClarification` — erst persistieren, dann
- * pausieren — mit der Wire-Form des Pre-Loop-`run_python`: ein
+ * pausieren — mit der Wire-Form des früheren Pre-Loop-`run_python`: ein
  * `client_tool`-Interrupt, den der Client-Adapter selbst ausführt und mit
  * `{threadId, toolName, result}` beantwortet. Keine Karte für den
  * zurückgehaltenen Aufruf: sie entsteht erst in der Fortsetzung, mit Ergebnis.
@@ -53,6 +58,7 @@ export async function suspendForLoopClientTool({
   priorSteps,
   pendingId,
   startTime,
+  resolvedPause,
 }: SuspendForLoopClientToolParams): Promise<StreamHandlerResult> {
   const payload: Omit<StoredLoopClientToolState, 'createdAt'> = {
     clientToolTurnId: randomUUID(),
@@ -66,6 +72,7 @@ export async function suspendForLoopClientTool({
     pausedMessageId: pendingId,
     classifiedState,
     requestContext,
+    ...(resolvedPause ? { resolvedPause } : {}),
   };
   const stored = await loopClientToolStateStore.store(threadId, payload);
 
@@ -74,17 +81,23 @@ export async function suspendForLoopClientTool({
     // abbrechen als den Browser rendern lassen, dessen Ergebnis ins Leere führt.
     log.error(`[Client-Tool] Zustand nicht speicherbar (Thread ${threadId}) — Zug wird beendet`);
     sse.send('error', {
-      error: 'Die Prüfung konnte nicht vorbereitet werden. Bitte stelle die Anfrage noch einmal.',
+      error:
+        'Der Schritt im Browser konnte nicht vorbereitet werden. Bitte stelle die Anfrage noch einmal.',
     });
     sse.send('done', { threadId, citations: [], interrupted: false });
     sse.end();
     return { status: 200 as const, body: undefined };
   }
 
+  // Erst die Anhänge des Turns sichern, dann fragen: der Browser holt die
+  // Tabellen-Bytes für Pyodide aus diesen Zeilen (auch nach einem Reload).
+  await persistSuspendedTurnAttachments(threadId, requestContext);
+
   const metadata: Record<string, unknown> = {
     intent: classifiedState.intent,
     searchCount: 0,
     citations: [],
+    ...resolvedPause,
     toolCalls: priorSteps,
   };
 

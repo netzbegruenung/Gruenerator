@@ -970,6 +970,7 @@ export const CHAT_WARNINGS = {
     severity: 'info',
     attribution: 'system',
   },
+  // No sender since the pre-loop run_python path is gone; kept as an F0 contract value.
   compute_failed: {
     message: 'Die Berechnung ist fehlgeschlagen — Zahlen in der Antwort sind ungeprüft.',
     severity: 'warning',

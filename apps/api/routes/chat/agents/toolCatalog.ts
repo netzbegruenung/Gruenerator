@@ -116,6 +116,11 @@ import { agentAllowsWebSearch, createSearchTools } from './searchTools.js';
 import { makeCheckSharepicTool } from './sharepicCheckTool.js';
 import { makeEditSharepicTool, makeReadSharepicTool } from './sharepicLoopTools.js';
 import { hasThreadSheet, makeEditSheetTool, makeReadSheetTool } from './sheetLoopTools.js';
+import {
+  isTabelleAuswertenMountable,
+  makeDirektAntwortenTool,
+  makeTabelleAuswertenTool,
+} from './tabelleAuswertenTool.js';
 import { makeRecipesTool } from './textFormTools.js';
 import { threadHasArtifact } from './threadArtifactTarget.js';
 import { makeTranslateTool } from './translationTools.js';
@@ -1166,6 +1171,14 @@ NUTZE WENN nach Funktionen, Begriffen, Fähigkeiten oder Anbindungen des Grüner
       const pdfCtx = { state, sse, threadId: loop.threadId ?? null };
       tools.read_pdf_form = makeReadPdfFormTool(pdfCtx);
       tools.fill_pdf_form = makeFillPdfFormTool(pdfCtx);
+    }
+    // Tabellen rechnen: Code läuft im Browser (Pyodide), also nur mit einer
+    // Oberfläche, die das kann, und mit Thread — die Pause hängt an ihm. Vor dem
+    // Lauf fragt das Freigabe-Gate (INTERNAL_APPROVAL_REQUIRED_TOOLS) — das
+    // ohne angemeldete Person aus ist; dann lieber gar nicht montieren.
+    if (loop.threadId && isTabelleAuswertenMountable({ ...state, agentConfig })) {
+      tools.tabelle_auswerten = makeTabelleAuswertenTool();
+      tools.direkt_antworten = makeDirektAntwortenTool();
     }
     // Reisekostenabrechnung (Beta). Nur in Reisekosten-Turns: das Eingabeschema
     // ist gross und zählte sonst gegen das Katalogbudget jedes Recherche-Turns.

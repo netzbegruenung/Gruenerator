@@ -3,7 +3,7 @@
  *
  * Ein kleiner Modell-Richter über Aufgabe vs. Ergebnis eines Hintergrundlaufs
  * (wiederkehrende Aufgaben, Board-Agent) — das gebundene Gegenstück zu
- * LobeHubs Verifier-Agent, nach dem Vorbild von `computeVerifierNode`:
+ * LobeHubs Verifier-Agent, nach dem Vorbild des entfernten `computeVerifierNode`:
  * fail-open (die Prüfung darf nie ein funktionierendes Ergebnis blockieren),
  * begrenzte Eingaben, exportierter Parser für Tests. Geliefert wird immer; das
  * Verdikt steht daneben (`recurring_task_runs.verdict`, `agent_tasks.verdict`)

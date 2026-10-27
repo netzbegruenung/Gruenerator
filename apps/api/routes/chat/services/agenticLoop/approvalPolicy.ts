@@ -14,14 +14,37 @@ export type ApprovalVerdict =
   | { required: true; scopeKey: string };
 
 /**
- * Interne Werkzeuge mit Seiteneffekt, die das Gate abdecken soll. Bewusst leer:
+ * Interne Werkzeuge mit Seiteneffekt, die das Gate abdecken soll. Bewusst klein:
  * die Schreibpfade in `personalDataTools.ts` fragen bereits über `confirm_action`
  * bzw. ihr eigenes `confirm=true`, und die Generierungswerkzeuge (`create_*`)
- * ruft `createAfterGather` am UNgewrappten Katalog auf — ein Eintrag hier würde
- * dort stillschweigend übergangen. Wer die Menge füllt, muss zuerst die
- * Garantie-Schicht mit demselben Gate versehen.
+ * ruft `createAfterGather` am UNgewrappten Katalog auf — ein Eintrag für sie
+ * würde dort stillschweigend übergangen. Wer ein Werkzeug einträgt, prüft
+ * zuerst, dass die Garantie-Schicht (`loopGuarantees.ts`) es nicht direkt ruft.
+ *
+ * `tabelle_auswerten` lässt erzeugten Python-Code im Browser der Person laufen;
+ * die Garantie-Schicht kennt es nicht.
  */
-export const INTERNAL_APPROVAL_REQUIRED_TOOLS: ReadonlySet<string> = new Set<string>();
+export const INTERNAL_APPROVAL_REQUIRED_TOOLS: ReadonlySet<string> = new Set<string>([
+  'tabelle_auswerten',
+]);
+
+/**
+ * Ist das Gate in diesem Zug scharf? Mit `disableMcp` (headless) gibt es keine
+ * Konnektoren, also nichts zu fragen — AUSSER ein internes Pflichtwerkzeug ist
+ * montiert: dann liefe es sonst ungefragt.
+ */
+export function approvalGateEnabled(params: {
+  disableMcp: boolean;
+  userId: string | null;
+  toolNames: Iterable<string>;
+}): boolean {
+  if (params.userId == null) return false;
+  if (!params.disableMcp) return true;
+  for (const name of params.toolNames) {
+    if (INTERNAL_APPROVAL_REQUIRED_TOOLS.has(name)) return true;
+  }
+  return false;
+}
 
 /** Fragen schon selbst — ein zweites Gate wäre eine doppelte Rückfrage. */
 export const CONFIRM_ACTION_GATED_TOOLS: ReadonlySet<string> = new Set([

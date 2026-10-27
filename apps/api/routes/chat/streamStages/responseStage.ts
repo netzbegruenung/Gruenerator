@@ -87,6 +87,8 @@ export interface ResponseStageOutput {
   pendingAsk?: PendingAskRequest;
   /** Gesetzt ⇒ der Zug pausiert, bis der Browser ein Loop-Werkzeug ausgeführt hat. */
   pendingClientTool?: PendingClientToolRequest;
+  /** Nur neben `pendingApproval`: der mitreisende Browser-Aufruf (#5044). */
+  heldClientTool?: PendingClientToolRequest;
 }
 
 export async function runResponseStage({
@@ -249,6 +251,7 @@ export async function runResponseStage({
         ...(pendingApproval && pendingApproval.length > 0 ? { pendingApproval } : {}),
         ...(agentic.pendingAsk ? { pendingAsk: agentic.pendingAsk } : {}),
         ...(agentic.pendingClientTool ? { pendingClientTool: agentic.pendingClientTool } : {}),
+        ...(agentic.heldClientTool ? { heldClientTool: agentic.heldClientTool } : {}),
       };
     }
   } else {

@@ -5,7 +5,11 @@ import redisClient from '../../../utils/redis/client.js';
 import { DEFAULT_LOOP_BUDGET } from './agenticLoop/types.js';
 import { type StoredRequestContext } from './pipelineStateStore.js';
 
-import type { PendingToolCall, PersistedStep } from './agenticLoop/types.js';
+import type {
+  PendingClientToolRequest,
+  PendingToolCall,
+  PersistedStep,
+} from './agenticLoop/types.js';
 import type { ChatGraphState } from '../../../agents/langgraph/ChatGraph/types.js';
 
 const log = createLogger('SuspendedTurnStore');
@@ -29,6 +33,9 @@ const CLAIM_TTL_SECONDS = DEFAULT_LOOP_BUDGET.hardCapMs / 1000 + 600;
 export interface StoredApprovalState {
   approvalTurnId: string;
   calls: PendingToolCall[];
+  /** Ein schon freigegebener Browser-Aufruf desselben Steps, den die Freigabe
+   *  überholt hat (#5044) — die Fortsetzung setzt ihn nach der Entscheidung ein. */
+  heldClientTool?: PendingClientToolRequest;
   /** Die Schritte, die vor dem Gate schon gelaufen sind — Grundlage des Replays. */
   priorSteps: PersistedStep[];
   /** Die bereits gestreamte Teilantwort. */
@@ -71,10 +78,13 @@ export function createSuspendedTurnStore<
       // Gleiche Begründung wie beim Klärungs-Zustand: die PDF-Formularbytes liegen
       // schon in `requestContext.processedMeta`. Die Bildbytes ebenso in
       // `requestContext.imageAttachments` — seit Bildzüge in den Loop dürfen
-      // (#3841), pausiert auch einer mit mehreren MB Fotos, 24 h lang.
+      // (#3841), pausiert auch einer mit mehreren MB Fotos, 24 h lang. Der
+      // Tabellentext ebenso; nach der Pause liest der Codegen die Thread-Zeile,
+      // die `persistSuspendedTurnAttachments` vor jeder Pause schreibt.
       const {
         pdfFormAttachments: _bytes,
         imageAttachments: _images,
+        turnTabularTexts: _tables,
         ...classifiedState
       } = data.classifiedState;
       const entry = {

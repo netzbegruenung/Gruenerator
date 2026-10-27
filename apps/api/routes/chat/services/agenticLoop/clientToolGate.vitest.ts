@@ -45,4 +45,39 @@ describe('createClientToolGate', () => {
     expect(b).toEqual({ error: expect.any(String) });
     expect(gate.pending()?.toolCallId).toBe('c1');
   });
+
+  // #5044: ein Aufruf, den eine Freigabe-Pause überholt hat, kommt in der
+  // Fortsetzung zurück — schon aufgelöst, ohne zweiten Codegen.
+  it('setzt einen mitgereisten Aufruf wieder ein, ohne erneut aufzulösen', () => {
+    const resolve = vi.fn(async () => resolved);
+    const gate = createClientToolGate(resolve);
+    const held = {
+      toolCallId: 't1',
+      toolName: 'tabelle_auswerten',
+      args: { auftrag: 'Summe' },
+      clientToolName: 'run_python',
+      clientArgs: { code: 'print(1)' },
+    };
+
+    expect(gate.restore(held)).toBe(true);
+    expect(gate.pending()).toEqual(held);
+    expect(gate.signal.aborted).toBe(true);
+    expect(resolve).not.toHaveBeenCalled();
+  });
+
+  it('hält schon ein anderer Aufruf, entfällt der wiedereingesetzte', async () => {
+    const gate = createClientToolGate(async () => resolved);
+    await gate.hold({ toolName: 'check_sharepic', stepId: 'c1', args: {} });
+
+    expect(
+      gate.restore({
+        toolCallId: 't1',
+        toolName: 'tabelle_auswerten',
+        args: {},
+        clientToolName: 'run_python',
+        clientArgs: {},
+      })
+    ).toBe(false);
+    expect(gate.pending()?.toolCallId).toBe('c1');
+  });
 });

@@ -11,7 +11,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 import { ATTACHED_DOC_SNIPPET_CHARS } from './attachedDocuments.js';
-import { seedAttachedDocuments } from './catalogAssembly.js';
+import { rehydrateCarriedSources, seedAttachedDocuments } from './catalogAssembly.js';
 import { createSourceRegistry } from './sourceRegistry.js';
 
 import type { ChatGraphState } from '../../../../agents/langgraph/ChatGraph/types.js';
@@ -182,6 +182,45 @@ describe('seedAttachedDocuments', () => {
     expect(fanout).not.toHaveBeenCalled();
   });
 
+  // Live 27.10.2026: der Tabellenauszug als Quelle [1] stach das berechnete
+  // Ergebnis aus — der Schreiber zitierte B-0142 statt B-0060.
+  it('legt mit montiertem tabelle_auswerten keinen Tabellenauszug als Quelle hin', async () => {
+    const table = {
+      ...hit,
+      source: 'documentchat:doc-2',
+      title: 'Buchungen.xlsx',
+      content: '| B-0142 |',
+    };
+    fanout.mockResolvedValue({
+      perSourceResults: { 'doc-1': [hit], 'doc-2': [table] },
+      searchedCollections: [],
+      errors: [],
+    });
+    const state = stateWith({
+      documentSources: [
+        { kind: 'document_chat', id: 'doc-1', label: 'Beschluss.pdf' },
+        { kind: 'document_chat', id: 'doc-2', label: 'Buchungen.xlsx' },
+      ],
+    });
+
+    const { sourceRegistry } = await run(state, { skipTables: true });
+
+    expect(sourceRegistry.renderAll()).toContain('Radverkehr wird ausgebaut.');
+    expect(sourceRegistry.renderAll()).not.toContain('B-0142');
+  });
+
+  it('ohne tabelle_auswerten bleibt der Tabellenauszug zitierbar', async () => {
+    fanout.mockResolvedValue({
+      perSourceResults: { 'doc-1': [{ ...hit, title: 'Buchungen.xlsx', content: '| B-0142 |' }] },
+      searchedCollections: [],
+      errors: [],
+    });
+
+    const { sourceRegistry } = await run(stateWith());
+
+    expect(sourceRegistry.renderAll()).toContain('B-0142');
+  });
+
   it('bleibt still, wenn der Abruf nichts findet', async () => {
     fanout.mockResolvedValue({ perSourceResults: {}, searchedCollections: [], errors: [] });
 
@@ -206,5 +245,34 @@ describe('seedAttachedDocuments', () => {
     expect(replay).toEqual([]);
     expect(delivered).toBe(false);
     expect(onError).toHaveBeenCalledOnce();
+  });
+});
+
+describe('rehydrateCarriedSources — Tabellen', () => {
+  const prior = [
+    { source: 's1', title: 'Beschluss.pdf', content: 'Radverkehr wird ausgebaut.' },
+    { source: 's2', title: 'Buchungen.xlsx', content: '| B-0142 |' },
+  ];
+  const run = async (skipTables: boolean) => {
+    const sourceRegistry = createSourceRegistry();
+    await rehydrateCarriedSources({
+      threadId: 't1',
+      sourceRegistry,
+      toolHistory: { sources: () => prior } as never,
+      skipTables,
+      onInfo: () => {},
+      onError: () => {},
+    });
+    return sourceRegistry.renderAll();
+  };
+
+  it('führt mit montiertem tabelle_auswerten keinen Tabellenauszug mit', async () => {
+    const rendered = await run(true);
+    expect(rendered).toContain('Radverkehr wird ausgebaut.');
+    expect(rendered).not.toContain('B-0142');
+  });
+
+  it('führt ihn ohne das Werkzeug weiter mit', async () => {
+    expect(await run(false)).toContain('B-0142');
   });
 });
