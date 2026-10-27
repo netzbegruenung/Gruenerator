@@ -1,3 +1,4 @@
+import { matchRoutes } from 'react-router-dom';
 import { describe, expect, it } from 'vitest';
 
 import { isPublicPage } from '../utils/authRedirect';
@@ -72,5 +73,22 @@ describe('route auth gating', () => {
       .map((r) => r.path.replace(/:[^/]+/g, 'x').replace(/\*$/, 'x'));
 
     expect(concrete.filter((path) => !isPublicPage(path))).toEqual([]);
+  });
+});
+
+describe('studio reel paths', () => {
+  const resolve = (pathname: string) =>
+    matchRoutes(
+      routes.map((r) => ({ path: r.path, id: r.path })),
+      pathname
+    )?.at(-1)?.route.path;
+
+  it('routes the full video editor to its own page, not the retired-category redirect', () => {
+    expect(resolve('/studio/videoeditor')).toBe('/studio/videoeditor');
+  });
+
+  it('keeps Simple Reel on its existing paths', () => {
+    expect(resolve('/studio/video')).toBe('/studio/video');
+    expect(resolve('/reel')).toBe('/reel');
   });
 });

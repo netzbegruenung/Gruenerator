@@ -93,6 +93,7 @@ export { connectorTestContract } from './connectorTestContract.js';
 export { connectionsContract } from './connectionsContract.js';
 export { skillVisibilityContract } from './skillVisibilityContract.js';
 export { instanceAdminOverviewContract } from './instanceAdminOverviewContract.js';
+export { adminStatsContract } from './adminStatsContract.js';
 export { translationContract } from './translationContract.js';
 export { lvAdminAssignmentContract } from './lvAdminAssignmentContract.js';
 export { landesverbandAdminContract } from './landesverbandAdminContract.js';

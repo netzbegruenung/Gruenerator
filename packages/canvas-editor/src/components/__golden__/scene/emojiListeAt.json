@@ -182,7 +182,7 @@
           "className": "Text",
           "attrs": {
            "text": "wählen",
-           "x": 130.08000373840332,
+           "x": 132,
            "y": 0,
            "fontSize": 60,
            "fontFamily": "GothamNarrow-Bold",
@@ -199,8 +199,8 @@
          {
           "className": "Text",
           "attrs": {
-           "text": ", denn jede",
-           "x": 320.22000312805176,
+           "text": ", denn",
+           "x": 330,
            "y": 0,
            "fontSize": 60,
            "fontFamily": "GothamNarrow-Book",
@@ -217,7 +217,7 @@
          {
           "className": "Text",
           "attrs": {
-           "text": "Stimme zählt",
+           "text": "jede Stimme zählt",
            "x": 0,
            "y": 75,
            "fontSize": 60,
@@ -295,7 +295,7 @@
           "className": "Text",
           "attrs": {
            "text": "informiert ",
-           "x": 150.08999824523926,
+           "x": 198,
            "y": 0,
            "fontSize": 60,
            "fontFamily": "GothamNarrow-Bold",
@@ -312,8 +312,8 @@
          {
           "className": "Text",
           "attrs": {
-           "text": "und lies",
-           "x": 416.810001373291,
+           "text": "und",
+           "x": 561,
            "y": 0,
            "fontSize": 60,
            "fontFamily": "GothamNarrow-Book",
@@ -330,7 +330,7 @@
          {
           "className": "Text",
           "attrs": {
-           "text": "nach",
+           "text": "lies nach",
            "x": 0,
            "y": 75,
            "fontSize": 60,
@@ -408,7 +408,7 @@
           "className": "Text",
           "attrs": {
            "text": "Demo ",
-           "x": 290.0400047302246,
+           "x": 297,
            "y": 0,
            "fontSize": 60,
            "fontFamily": "GothamNarrow-Bold",
@@ -426,7 +426,7 @@
           "className": "Text",
           "attrs": {
            "text": "in",
-           "x": 466.76000785827637,
+           "x": 462,
            "y": 0,
            "fontSize": 60,
            "fontFamily": "GothamNarrow-Book",
@@ -521,7 +521,7 @@
           "className": "Text",
           "attrs": {
            "text": "weiter",
-           "x": 203.47000122070312,
+           "x": 231,
            "y": 0,
            "fontSize": 60,
            "fontFamily": "GothamNarrow-Bold",

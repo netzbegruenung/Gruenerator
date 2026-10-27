@@ -51,6 +51,14 @@ export const CATALOG: ToolCatalogEntry[] = [
     keywords: ['reel', 'video', 'untertitel', 'subtitle', 'clip', 'social', 'tiktok', 'story'],
   },
   {
+    id: 'tool-videoeditor',
+    title: 'Video Editor',
+    subtitle: 'Videos schneiden, Text & Musik',
+    path: '/studio/videoeditor',
+    icon: nav('videoEditor'),
+    keywords: ['video', 'editor', 'schneiden', 'timeline', 'reel', 'musik', 'clip'],
+  },
+  {
     id: 'tool-studio',
     title: 'Studio',
     subtitle: 'Sharepics, KI-Bilder & Videos',

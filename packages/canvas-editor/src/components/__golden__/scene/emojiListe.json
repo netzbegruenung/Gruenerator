@@ -202,7 +202,7 @@
           "className": "Text",
           "attrs": {
            "text": "wählen",
-           "x": 106.38000202178955,
+           "x": 121.00000000000001,
            "y": 0,
            "fontSize": 55,
            "fontFamily": "PT Sans",
@@ -221,7 +221,7 @@
           "className": "Text",
           "attrs": {
            "text": ", denn jede",
-           "x": 278.26000690460205,
+           "x": 302.50000000000006,
            "y": 0,
            "fontSize": 55,
            "fontFamily": "PT Sans",
@@ -319,7 +319,7 @@
           "className": "Text",
           "attrs": {
            "text": "informiert ",
-           "x": 135.24999713897705,
+           "x": 181.5,
            "y": 0,
            "fontSize": 55,
            "fontFamily": "PT Sans",
@@ -337,8 +337,8 @@
          {
           "className": "Text",
           "attrs": {
-           "text": "und lies",
-           "x": 386.2199954986572,
+           "text": "und",
+           "x": 514.25,
            "y": 0,
            "fontSize": 55,
            "fontFamily": "PT Sans",
@@ -356,7 +356,7 @@
          {
           "className": "Text",
           "attrs": {
-           "text": "nach",
+           "text": "lies nach",
            "x": 0,
            "y": 68.75,
            "fontSize": 55,
@@ -436,7 +436,7 @@
           "className": "Text",
           "attrs": {
            "text": "Demo ",
-           "x": 252.02000617980957,
+           "x": 272.25000000000006,
            "y": 0,
            "fontSize": 55,
            "fontFamily": "PT Sans",
@@ -454,8 +454,8 @@
          {
           "className": "Text",
           "attrs": {
-           "text": "in deiner",
-           "x": 404.7600088119507,
+           "text": "in",
+           "x": 423.50000000000006,
            "y": 0,
            "fontSize": 55,
            "fontFamily": "PT Sans",
@@ -473,7 +473,7 @@
          {
           "className": "Text",
           "attrs": {
-           "text": "Stadt",
+           "text": "deiner Stadt",
            "x": 0,
            "y": 68.75,
            "fontSize": 55,
@@ -553,7 +553,7 @@
           "className": "Text",
           "attrs": {
            "text": "weiter",
-           "x": 166.4999942779541,
+           "x": 211.75000000000003,
            "y": 0,
            "fontSize": 55,
            "fontFamily": "PT Sans",

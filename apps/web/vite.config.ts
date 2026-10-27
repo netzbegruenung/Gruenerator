@@ -455,6 +455,14 @@ export default defineConfig(({ command }) => ({
           },
         }),
       },
+      // Video editor (/studio/videoeditor), mirroring nginx's
+      // `/videoeditor/app/` in prod. The app lives in the private
+      // gruenerator-videoeditor repo; run its dev server (`npm run dev`, :3020)
+      // next to this one. `ws` carries its HMR socket through.
+      '/videoeditor/app': {
+        target: process.env.VITE_DEV_VIDEOEDITOR || 'http://localhost:3020',
+        ws: true,
+      },
     },
   },
   // `vite preview` serves the production build (apps/web/build). It does not

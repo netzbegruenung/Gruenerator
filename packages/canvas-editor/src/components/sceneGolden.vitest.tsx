@@ -1,6 +1,6 @@
 import { cleanup, render, waitFor } from '@testing-library/react';
 import Konva from 'konva';
-import { afterEach, beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest';
 
 import { composeSharepic } from '../composer/composeSharepic';
 import { MORE_SPECS, SPECS } from '../composer/sharepicSpecFixtures';
@@ -42,6 +42,9 @@ function dump(node: Konva.Node): SceneNode {
   };
 }
 
+let measureContext: { measureText: unknown } | null = null;
+let realMeasureText: unknown = null;
+
 beforeAll(async () => {
   // Icon sets load on demand and the editor redraws once they are in; how
   // long that import takes decides whether an icon is in the scene. Load
@@ -50,6 +53,35 @@ beforeAll(async () => {
   // settle wait and the chart is recorded as its placeholder.
   await loadAllIcons();
   await import('recharts');
+  // Text is measured with whatever fonts the machine has, so widths differ
+  // between macOS and the Linux CI runner. Measure with a fixed advance of
+  // 0.55 em per character instead: the layout built on the widths is pinned,
+  // the platform's fonts are not.
+  const { createCanvas } = await import('@napi-rs/canvas');
+  const context = Object.getPrototypeOf(createCanvas(1, 1).getContext('2d')) as {
+    measureText(this: { font: string }, text: string): unknown;
+    font: string;
+  };
+  realMeasureText = context.measureText;
+  context.measureText = function measureText(this: { font: string }, text: string) {
+    const size = Number(/(\d+(?:\.\d+)?)px/.exec(this.font)?.[1] ?? 10);
+    const width = [...text].length * size * 0.55;
+    return {
+      width,
+      actualBoundingBoxLeft: 0,
+      actualBoundingBoxRight: width,
+      actualBoundingBoxAscent: size * 0.8,
+      actualBoundingBoxDescent: size * 0.2,
+      fontBoundingBoxAscent: size * 0.9,
+      fontBoundingBoxDescent: size * 0.25,
+      emHeightAscent: size * 0.8,
+      emHeightDescent: size * 0.2,
+      alphabeticBaseline: 0,
+      hangingBaseline: size * 0.8,
+      ideographicBaseline: -size * 0.2,
+    };
+  };
+  measureContext = context;
   // jsdom has no FontFaceSet; the editor waits on it before it draws text.
   Object.defineProperty(document, 'fonts', {
     configurable: true,
@@ -62,6 +94,10 @@ beforeAll(async () => {
       removeEventListener() {},
     },
   });
+});
+
+afterAll(() => {
+  if (measureContext) measureContext.measureText = realMeasureText;
 });
 
 afterEach(() => {

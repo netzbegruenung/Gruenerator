@@ -522,7 +522,7 @@
           "className": "Text",
           "attrs": {
            "text": "Mehr Busse",
-           "x": 43.959999084472656,
+           "x": 77,
            "y": 0,
            "fontSize": 70,
            "fontFamily": "GothamNarrow-Book",
@@ -555,7 +555,7 @@
           "className": "Text",
           "attrs": {
            "text": "Mehr Bahn",
-           "x": 43.959999084472656,
+           "x": 77,
            "y": 91,
            "fontSize": 70,
            "fontFamily": "GothamNarrow-Book",
