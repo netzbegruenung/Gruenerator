@@ -8,6 +8,7 @@
 
 import crypto from 'crypto';
 import fs from 'fs';
+import path from 'path';
 import { pipeline } from 'stream/promises';
 
 import { Router, type NextFunction, type Response } from 'express';
@@ -28,6 +29,13 @@ const router = Router();
 const TEMP_DIR = '/tmp/video-transcribe';
 const MAX_FILE_SIZE = 500 * 1024 * 1024; // 500MB, same as /api/video/uploads
 
+/** A file in TEMP_DIR by name; anything resolving outside it is refused. */
+function tempFilePath(name: string): string {
+  const resolved = path.resolve(TEMP_DIR, name);
+  if (!resolved.startsWith(TEMP_DIR + path.sep)) throw new Error('Invalid temp file name');
+  return resolved;
+}
+
 async function ensureTempDir(): Promise<void> {
   try {
     await fs.promises.mkdir(TEMP_DIR, { recursive: true });
@@ -44,7 +52,7 @@ async function downloadToTempFile(url: string): Promise<string> {
   const urlExt = new URL(url).pathname.split('.').pop() ?? '';
   const ext = /^[a-z0-9]{1,8}$/i.test(urlExt) ? urlExt : 'mp4';
   const filename = `${crypto.randomUUID()}.${ext}`;
-  const tempPath = `${TEMP_DIR}/${filename}`;
+  const tempPath = tempFilePath(filename);
 
   const response = await safeFetch(url);
   if (!response.ok) {
@@ -200,7 +208,11 @@ router.post(
 
     log.info(`Transcription requested for upload (${(req.file.size / 1024 / 1024).toFixed(1)}MB)`);
 
-    await respondWithTranscription(res, req.file.path, req.user?.locale ?? 'de-DE');
+    await respondWithTranscription(
+      res,
+      tempFilePath(req.file.filename),
+      req.user?.locale ?? 'de-DE'
+    );
   }
 );
 
