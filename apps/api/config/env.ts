@@ -84,12 +84,21 @@ const envSchema = z.object({
   MEDIA_URL_SIGNING_SECRET: z.string().optional(),
   MEDIA_URL_SIGNING_SECRET_PREVIOUS: z.string().optional(),
   /**
-   * Signiert die Run-Tokens, mit denen der Browser-Dienst (`services/browser-agent`)
-   * unseren Modell-Endpunkt `/api/browser-agent/llm` ruft
-   * (`services/browserAgent/runToken.ts`). Optional: ohne ihn antwortet der
-   * Endpunkt 503 und es startet kein Lauf.
+   * Das Geheimnis, mit dem sich die API beim Browser-Dienst (`services/browser-agent`)
+   * ausweist (Header `X-Browser-Agent-Secret`). Der Dienst kennt es — darum
+   * signiert es KEINE Run-Tokens, siehe `BROWSER_AGENT_TOKEN_SECRET`.
    */
   BROWSER_AGENT_SECRET: z.string().optional(),
+  /**
+   * Signiert die Run-Tokens, mit denen der Browser-Dienst unseren
+   * Modell-Endpunkt `/api/browser-agent/llm` ruft
+   * (`services/browserAgent/runToken.ts`). Liegt NUR in der API, nie im
+   * Browser-Container: wer den Container übernimmt, soll sich keine Tokens
+   * für fremde Personen ausstellen können. Optional: ohne ihn (oder wenn er
+   * gleich `BROWSER_AGENT_SECRET` ist) antwortet der Endpunkt 503 und
+   * `website_erkunden` wird nicht montiert.
+   */
+  BROWSER_AGENT_TOKEN_SECRET: z.string().optional(),
   /** Basis-URL des Browser-Dienstes. Optional; ohne sie bleibt das Feature aus. */
   BROWSER_AGENT_URL: z.string().optional(),
   /** Wie der Browser-Dienst die API erreicht (für den Modell-Proxy). Default `http://localhost:3001`. */

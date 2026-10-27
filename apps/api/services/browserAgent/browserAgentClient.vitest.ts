@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 
 const envMock = {
   BROWSER_AGENT_SECRET: 'test-secret' as string | null,
+  BROWSER_AGENT_TOKEN_SECRET: 'test-token-secret' as string | null,
   BROWSER_AGENT_URL: 'http://agent:8000' as string | null,
   API_INTERNAL_BASE_URL: 'http://api:3001' as string | null,
 };

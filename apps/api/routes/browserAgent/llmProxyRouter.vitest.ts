@@ -16,7 +16,10 @@ import { getUsageUserId } from '../../utils/usageContext.js';
 
 import type { AiCall } from '../../services/ai/generate.js';
 
-const envMock = { BROWSER_AGENT_SECRET: 'test-secret' as string | undefined };
+const envMock = {
+  BROWSER_AGENT_TOKEN_SECRET: 'test-token-secret' as string | undefined,
+  BROWSER_AGENT_SECRET: 'test-service-secret' as string | undefined,
+};
 vi.mock('../../config/env.js', () => ({ env: envMock }));
 
 const aiTextMock = vi.fn<(call: AiCall) => Promise<string>>();
@@ -47,7 +50,7 @@ afterAll(async () => {
 
 beforeEach(() => {
   aiTextMock.mockReset();
-  envMock.BROWSER_AGENT_SECRET = 'test-secret';
+  envMock.BROWSER_AGENT_TOKEN_SECRET = 'test-token-secret';
 });
 
 const PNG = 'data:image/png;base64,iVBORw0KGgo=';
@@ -91,9 +94,9 @@ describe('POST /api/browser-agent/llm/v1/chat/completions', () => {
     expect(aiTextMock).not.toHaveBeenCalled();
   });
 
-  it('503 when the secret is not configured', async () => {
+  it('503 when the token secret is not configured', async () => {
     const t = token();
-    envMock.BROWSER_AGENT_SECRET = undefined;
+    envMock.BROWSER_AGENT_TOKEN_SECRET = undefined;
     const res = await post(baseBody, t);
     expect(res.status).toBe(503);
     expect(aiTextMock).not.toHaveBeenCalled();

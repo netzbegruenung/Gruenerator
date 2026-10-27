@@ -42,11 +42,14 @@ const RECHERCHE_TURN = 'Was steht im Wahlprogramm zu Windkraft?';
 // `website_erkunden` wird nur montiert, wo der Browser-Dienst läuft. Hier
 // gesetzt, damit die `website`-Gruppe mitgemessen wird wie in Produktion.
 const browserAgentUrl = env.BROWSER_AGENT_URL;
+const browserAgentTokenSecret = env.BROWSER_AGENT_TOKEN_SECRET;
 beforeAll(() => {
   env.BROWSER_AGENT_URL = 'http://browser-agent.test';
+  env.BROWSER_AGENT_TOKEN_SECRET = 'token-secret-for-the-budget-test';
 });
 afterAll(() => {
   env.BROWSER_AGENT_URL = browserAgentUrl;
+  env.BROWSER_AGENT_TOKEN_SECRET = browserAgentTokenSecret;
 });
 
 function buildFor(userText: string): ToolSet {

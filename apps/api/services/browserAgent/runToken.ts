@@ -24,15 +24,21 @@ export interface RunTokenClaims {
   userId: string;
 }
 
+/** Toleranz für Uhrenversatz bei der Obergrenze der Laufzeit eines Tokens. */
+const RUN_TOKEN_SKEW_MS = 30 * 1000;
+
 /**
- * Kein Rückfall auf SESSION_SECRET: dasselbe Geheimnis muss im Dienst NICHT
- * liegen (der prüft nichts), aber ein Token, das ein Modell bezahlt, soll sich
- * unabhängig von den Sitzungen widerrufen lassen. Ohne Geheimnis bleibt das
- * Feature aus.
+ * Eigenes Geheimnis, nur in der API. `BROWSER_AGENT_SECRET` taugt dafür nicht:
+ * das liegt im Browser-Container (er prüft damit unseren Header), und wer den
+ * Container übernimmt, könnte sich sonst Tokens für beliebige Personen und
+ * Laufzeiten ausstellen. Kein Rückfall auf SESSION_SECRET, damit sich Tokens
+ * unabhängig von den Sitzungen widerrufen lassen. Ist es nicht gesetzt — oder
+ * versehentlich gleich dem Dienst-Geheimnis —, bleibt das Feature aus.
  */
 function getSecret(): string | null {
-  const secret = env.BROWSER_AGENT_SECRET;
+  const secret = env.BROWSER_AGENT_TOKEN_SECRET;
   if (!secret || secret.trim().length === 0) return null;
+  if (secret === env.BROWSER_AGENT_SECRET) return null;
   return secret;
 }
 
@@ -44,10 +50,10 @@ function computeSignature(secret: string, payload: string): string {
   return createHmac('sha256', secret).update(payload).digest('base64url');
 }
 
-/** `<base64url(JSON)>.<sig>`. Wirft ohne `BROWSER_AGENT_SECRET`. */
+/** `<base64url(JSON)>.<sig>`. Wirft ohne `BROWSER_AGENT_TOKEN_SECRET`. */
 export function signRunToken(claims: RunTokenClaims & { expiresAt: number }): string {
   const secret = getSecret();
-  if (!secret) throw new Error('BROWSER_AGENT_SECRET is not configured');
+  if (!secret) throw new Error('BROWSER_AGENT_TOKEN_SECRET is not configured');
   const payload = Buffer.from(
     JSON.stringify({ runId: claims.runId, userId: claims.userId, expiresAt: claims.expiresAt })
   ).toString('base64url');
@@ -82,5 +88,7 @@ export function verifyRunToken(token: string, now = Date.now()): RunTokenClaims 
   if (typeof expiresAt !== 'number' || !Number.isFinite(expiresAt) || expiresAt <= now) {
     return null;
   }
+  // Ein Token, das länger gilt, als wir je ausstellen, stammt nicht von uns.
+  if (expiresAt - now > RUN_TOKEN_TTL_MS + RUN_TOKEN_SKEW_MS) return null;
   return { runId, userId };
 }

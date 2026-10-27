@@ -38,6 +38,7 @@ import { lastUserText } from '../../../agents/langgraph/ChatGraph/nodes/classifi
 import { looksLikeRecurringOrder } from '../../../agents/langgraph/ChatGraph/nodes/classifierSignals.js';
 import { forbidsNewResearch } from '../../../agents/langgraph/ChatGraph/nodes/fastPathGuards.js';
 import { env } from '../../../config/env.js';
+import { isBrowserAgentConfigured } from '../../../services/browserAgent/runToken.js';
 import { buildProductKnowledgeBlock } from '../../../services/chat/productKnowledge.js';
 import { crawlAndDistill } from '../../../services/search/index.js';
 import { getDeepLService } from '../../../services/translation/DeepLService.js';
@@ -571,8 +572,15 @@ NUTZE WENN:
   // website_erkunden: a real browser that OPERATES a page (click, search,
   // screenshots) — the interactive sibling of scrape_url, under the same two
   // gates (research ban, web capability). Mounted only where the browser
-  // service is deployed; without it there is nothing to call.
-  if (loop && !researchBanned && webAllowed && env.BROWSER_AGENT_URL) {
+  // service is deployed AND the API holds its own run-token secret; without
+  // either the model endpoint answers 503 and a run could not take a step.
+  if (
+    loop &&
+    !researchBanned &&
+    webAllowed &&
+    env.BROWSER_AGENT_URL &&
+    isBrowserAgentConfigured()
+  ) {
     tools.website_erkunden = makeWebsiteErkundenTool({
       sse: loop.sse,
       state: loop.state,

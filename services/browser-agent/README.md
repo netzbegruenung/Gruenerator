@@ -46,7 +46,11 @@ Start: `PYTHONPATH=src python -c "from browser_agent.api import main; main()"`
 (startet auch den Egress-Proxy auf `127.0.0.1:8899`).
 
 Alle Läufe verlangen den Header `X-Browser-Agent-Secret: $BROWSER_AGENT_SECRET`
-(leer = alles `401`). `BROWSER_MAX_PARALLEL` (Standard 2) begrenzt parallele
+(leer = alles `401`). Die Run-Tokens, mit denen der Dienst das Modell ruft
+(`llm_token`), signiert die API mit einem **eigenen** Geheimnis
+`BROWSER_AGENT_TOKEN_SECRET`, das nie in diesen Container gehört — sonst könnte
+ein übernommener Browser sich Tokens für beliebige Personen ausstellen.
+`BROWSER_MAX_PARALLEL` (Standard 2) begrenzt parallele
 Läufe, darüber `429`.
 
 - `POST /runs` `{run_id, task, start_url, llm_base_url, llm_token, max_steps≤25}`
