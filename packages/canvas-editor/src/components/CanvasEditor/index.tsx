@@ -40,7 +40,6 @@ import { useCanvasEditorServices } from '../../CanvasEditorProvider';
 import { PAGE_PERSISTED_STATE_KEYS } from '../../collab/pageElementStateKeys';
 import { serializeDeck } from '../../collab/pagesDoc';
 import { createPageSyncedCallbacks } from '../../collab/wrapCallbacksWithPageSync';
-import { impressumLocaleOf } from '../../composer/printImpressum';
 import { shareImageText } from '../../configs/shareSection';
 import { type CanvasConfigId } from '../../configs/types';
 import { exportPptxDeck } from '../../export/pptx/exportPptxDeck';
@@ -584,8 +583,11 @@ function CanvasEditorInner({
   );
 
   // The Vorlagen tab changes the deck, so it needs the synced pages doc.
-  const { vorlagen: vorlagenService, fileDelivery = browserFileDelivery } =
-    useCanvasEditorServices();
+  const {
+    vorlagen: vorlagenService,
+    fileDelivery = browserFileDelivery,
+    print: printService,
+  } = useCanvasEditorServices();
   const showVorlagen =
     vorlagenService !== undefined && hasReplaceDeck && formatHasVorlagen(formatId);
   // A tile dropped on a page goes to the open Vorlagen tab: a Seite lands
@@ -1256,7 +1258,7 @@ function CanvasEditorInner({
   const canvasHeight = activeConfig?.canvas.height ?? 1080;
 
   // Als String, damit Notiz-Tippen (neues `pages`) die Leiste nicht neu baut
-  const deckLocale = impressumLocaleOf(pages[0] ?? null);
+  const deckLocale: 'de-DE' | 'de-AT' = pages[0]?.configId === 'freeform-at' ? 'de-AT' : 'de-DE';
   const noop = useCallback(() => {}, []);
   const getPhotoCredit = useCallback(
     () => photoCreditLine(serializeDeck(pagesDoc).flatMap((page) => pagePhotoCredits(page.state))),
@@ -1676,7 +1678,9 @@ function CanvasEditorInner({
                       multiPageExport={index === 0 ? multiPageExportProps : undefined}
                       onStateChange={handlePageStateChange}
                       onObservedState={
-                        needsImpressum(printFormat) ? handleObservedState : undefined
+                        printService && needsImpressum(printFormat)
+                          ? handleObservedState
+                          : undefined
                       }
                       onToolbarStateChange={
                         isActive && !isPreview ? handleToolbarStateChange : undefined

@@ -12,8 +12,9 @@
  * The host's canvas Vorlagen of the format follow, if there are any.
  *
  * Every other format shows the Vorlagen of exactly its size, both from the
- * host: the print Vorlagen (`listPrint`), whose specs compose here
- * (`composePrint`), and the canvas Vorlagen — finished pages such as the
+ * host: the print Vorlagen (`listPrint`), whose specs compose through the
+ * host's print service (`print.composePrint`; without it there are no print
+ * Vorlagen), and the canvas Vorlagen — finished pages such as the
  * stickers (`listCanvas`). A print Vorlage of several pages comes as one tile
  * per page, so the sides of different Vorlagen mix: such a tile takes the
  * place of the open page, or of the page it is dragged onto. A pick lands on
@@ -62,7 +63,6 @@ import {
   seiteDeckOps,
   vorlageDeckOps,
 } from '../../collab/vorlageDeck';
-import { composePrint } from '../../composer/composePrint';
 import {
   getCanvasFormat,
   isPrintFormat,
@@ -93,6 +93,7 @@ import type {
   VorlagePage,
 } from '../../CanvasEditorProvider';
 import type { HeterogeneousPage } from '../../configs/types';
+import type { CanvasPrintService } from '../../hostServices';
 
 /** Lets the editor hand a tile dropped on a page to the tab. */
 export interface VorlagenSectionHandle {
@@ -135,6 +136,7 @@ type Load<T> = { status: 'loading' } | { status: 'error' } | { status: 'ready'; 
 function printCards(
   vorlage: PrintVorlage,
   format: PrintCanvasFormat,
+  composePrint: CanvasPrintService['composePrint'],
   openPrintAsNew: CanvasVorlagenService['openPrintAsNew']
 ): VorlageCard[] {
   const of = format.print.seiten;
@@ -371,7 +373,7 @@ export function VorlagenSection({
   canAddPage,
   layoutLocale,
 }: VorlagenSectionProps) {
-  const { vorlagen: service } = useCanvasEditorServices();
+  const { vorlagen: service, print: printService } = useCanvasEditorServices();
   const canDrag = !useIsCanvasMobile();
   const setPending = useCanvasStoreSelector((s) => s.setPendingAiSuggestion);
   const announce = useAnnounce();
@@ -397,6 +399,8 @@ export function VorlagenSection({
   const listCanvas = service?.listCanvas;
   const listPrint = service?.listPrint;
   const openPrintAsNew = service?.openPrintAsNew;
+  const composePrint = printService?.composePrint;
+  const impressum = printService?.impressum;
 
   useEffect(() => {
     if (!listSeiten || !seitenFormat) return;
@@ -426,11 +430,11 @@ export function VorlagenSection({
     let live = true;
     // On a print format the print Vorlagen of the format come first.
     const print: Promise<VorlageCard[]> =
-      printFormat && listPrint
+      printFormat && listPrint && composePrint
         ? listPrint().then((vorlagen) =>
             vorlagen
               .filter((v) => v.spec.format === printFormat.id)
-              .flatMap((v) => printCards(v, printFormat, openPrintAsNew))
+              .flatMap((v) => printCards(v, printFormat, composePrint, openPrintAsNew))
           )
         : Promise.resolve([]);
     const canvas: Promise<VorlageCard[]> = listCanvas
@@ -450,7 +454,16 @@ export function VorlagenSection({
     return () => {
       live = false;
     };
-  }, [listPrint, listCanvas, openPrintAsNew, seitenFormat, printFormat, formatId, wholeAttempt]);
+  }, [
+    listPrint,
+    composePrint,
+    listCanvas,
+    openPrintAsNew,
+    seitenFormat,
+    printFormat,
+    formatId,
+    wholeAttempt,
+  ]);
 
   const wholeCards = wholeLoad.status === 'ready' ? wholeLoad.items : [];
 
@@ -459,7 +472,8 @@ export function VorlagenSection({
     setApplyError(null);
     try {
       const current = deck.getPages();
-      const next = carryImpressum(current, await vorlage.compose());
+      const composed = await vorlage.compose();
+      const next = impressum ? carryImpressum(impressum, current, composed) : composed;
       const { seite } = vorlage;
       if (seite && !isDeckEmpty(current)) {
         const page = next[seite.n - 1];

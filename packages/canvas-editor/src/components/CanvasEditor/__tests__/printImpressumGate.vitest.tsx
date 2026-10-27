@@ -1,7 +1,10 @@
 import { render, renderHook, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { type ReactNode } from 'react';
 import { describe, expect, it, vi } from 'vitest';
 
+import { CanvasEditorProvider } from '../../../CanvasEditorProvider';
+import { grueneratorPrint } from '../../../composer/printService';
 import { getCanvasFormat, isPrintFormat, type PrintCanvasFormat } from '../../../formats';
 import { DownloadSection } from '../../TopBar/DownloadSection';
 import {
@@ -36,8 +39,19 @@ const observed = (
 const byId = (...reports: ObservedPageState[]): ObservedPages =>
   Object.fromEntries(reports.map((r) => [r.pageId, r]));
 
+/** The web host's print service, as WebCanvasEditorProvider hands it in. */
+function wrapper({ children }: { children: ReactNode }) {
+  return (
+    <CanvasEditorProvider services={{ print: grueneratorPrint }}>{children}</CanvasEditorProvider>
+  );
+}
+
 /** The gate as CanvasEditor wires it into the share popover. */
-function Gated({
+function Gated(props: Parameters<typeof GatedInner>[0]) {
+  return wrapper({ children: <GatedInner {...props} /> });
+}
+
+function GatedInner({
   observedState,
   pages = [page1],
   format = poster,
@@ -93,9 +107,20 @@ describe('usePrintImpressumGate', () => {
     expect(downloadDisabled()).toBe(false);
   });
 
+  it('has no gate without the host print service, even on a poster', () => {
+    const { result } = renderHook(() =>
+      usePrintImpressumGate(poster, [page1], byId(observed(PLACEHOLDER)))
+    );
+    expect(result.current).toBeNull();
+  });
+
   it('never gates business cards or digital canvases', () => {
-    expect(renderHook(() => usePrintImpressumGate(card, [page1], {})).result.current).toBeNull();
-    expect(renderHook(() => usePrintImpressumGate(null, [page1], {})).result.current).toBeNull();
+    expect(
+      renderHook(() => usePrintImpressumGate(card, [page1], {}), { wrapper }).result.current
+    ).toBeNull();
+    expect(
+      renderHook(() => usePrintImpressumGate(null, [page1], {}), { wrapper }).result.current
+    ).toBeNull();
   });
 
   it('updates the existing element on page 1', async () => {
@@ -162,8 +187,14 @@ describe('usePrintImpressumGate: where the format wants the line', () => {
   const page3 = { id: 'p3', configId: 'freeform' };
 
   it('asks a flyer for its first page only', () => {
-    const { result } = renderHook(() =>
-      usePrintImpressumGate(flyer, [page1, page2], byId(observed(FILLED), observed(null, {}, 'p2')))
+    const { result } = renderHook(
+      () =>
+        usePrintImpressumGate(
+          flyer,
+          [page1, page2],
+          byId(observed(FILLED), observed(null, {}, 'p2'))
+        ),
+      { wrapper }
     );
     expect(result.current?.ready).toBe(true);
     expect(result.current?.text).toBe(FILLED);
@@ -172,16 +203,18 @@ describe('usePrintImpressumGate: where the format wants the line', () => {
   it('asks the newspaper for its last page only and writes it there', () => {
     const add = vi.fn();
     const first = vi.fn();
-    const { result } = renderHook(() =>
-      usePrintImpressumGate(
-        zeitung,
-        [page1, page2, page3],
-        byId(
-          observed(null, { addAdditionalTextElement: first }),
-          observed(null, {}, 'p2'),
-          observed(null, { addAdditionalTextElement: add }, 'p3')
-        )
-      )
+    const { result } = renderHook(
+      () =>
+        usePrintImpressumGate(
+          zeitung,
+          [page1, page2, page3],
+          byId(
+            observed(null, { addAdditionalTextElement: first }),
+            observed(null, {}, 'p2'),
+            observed(null, { addAdditionalTextElement: add }, 'p3')
+          )
+        ),
+      { wrapper }
     );
     expect(result.current?.text).toBeNull();
     result.current?.onSubmit({ name: 'Erika Muster', anschrift: 'Hauptstr. 1, 10115 Berlin' });
@@ -190,8 +223,9 @@ describe('usePrintImpressumGate: where the format wants the line', () => {
   });
 
   it('leaves the letterhead alone', () => {
-    const { result } = renderHook(() =>
-      usePrintImpressumGate(brief, [page1, page2], byId(observed(null)))
+    const { result } = renderHook(
+      () => usePrintImpressumGate(brief, [page1, page2], byId(observed(null))),
+      { wrapper }
     );
     expect(result.current).toBeNull();
   });

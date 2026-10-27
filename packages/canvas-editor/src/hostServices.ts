@@ -1,8 +1,9 @@
 /**
  * What the editor needs from its host for data it does not own: the media
- * library, image shares, file delivery, Studio assets and the Unsplash search
- * state. Supplied through `CanvasEditorServices`; apps/web passes the
- * @gruenerator/shared implementations (`webCanvasEditorServices.ts`).
+ * library, image shares, file delivery, Studio assets, the Unsplash search
+ * state and print (impressum, print Vorlagen). Supplied through
+ * `CanvasEditorServices`; apps/web passes the @gruenerator/shared
+ * implementations and, for print, the composer's (`webCanvasEditorServices.ts`).
  *
  * The shapes are the structural subset the editor reads, so a host can hand in
  * its own hooks unchanged. The hook-valued services are React hooks: the
@@ -17,9 +18,12 @@
 
 import { useState, type ComponentType } from 'react';
 
+import type { AdditionalText } from './configs/types';
 import type {
   MediaItem,
   MediaType,
+  PrintFormatId,
+  PrintSpec,
   StockImage,
   StudioAssetItem,
   StudioAssetKind,
@@ -258,3 +262,58 @@ export const useNoUnsplashSearch: UseCanvasUnsplashSearch = () => {
     loadMoreResults: () => Promise.resolve(),
   };
 };
+
+// ── Print (V.i.S.d.P. / Impressum, print Vorlagen) ──────────────────────────
+
+/** The country form an impressum line is written in. */
+export type CanvasImpressumLocale = 'de-DE' | 'de-AT';
+
+export interface CanvasImpressumParts {
+  /** Name (DE) or Medieninhaber (AT). */
+  name: string;
+  anschrift: string;
+}
+
+export interface CanvasImpressumLabels {
+  name: string;
+  namePlaceholder: string;
+  hint: string;
+}
+
+/**
+ * The legal line a printed poster carries, as one text element on the page.
+ * The editor's export gate reads it back through these functions, so what
+ * counts as filled in is decided by the host.
+ */
+export interface CanvasImpressumService {
+  /** Id of the text element that carries the line on a page. */
+  elementId: string;
+  /** Which country form a page's line is written in. */
+  localeOf: (page: { configId: string } | null) => CanvasImpressumLocale;
+  line: (locale: CanvasImpressumLocale, parts: CanvasImpressumParts) => string;
+  parse: (locale: CanvasImpressumLocale, text: string) => CanvasImpressumParts;
+  /** A field counts once it is non-empty and not a placeholder. */
+  isFilled: (value: string) => boolean;
+  isComplete: (parts: CanvasImpressumParts) => boolean;
+  labels: Record<CanvasImpressumLocale, CanvasImpressumLabels>;
+  /** The element at its standard position on a page of `formatId`, for re-adding a deleted line. */
+  composeElement: (formatId: PrintFormatId, isAt: boolean, text: string) => AdditionalText;
+}
+
+/**
+ * What the editor needs for print beyond the PDF export itself: the
+ * impressum gate and the composition of print Vorlagen.
+ *
+ * Without it the editor treats every format as one without an impressum —
+ * no warning or form in the download view, no impressum carried over when a
+ * Vorlage replaces the design — and the „Vorlagen" tab lists no print
+ * Vorlagen. The PDF export is unaffected.
+ */
+export interface CanvasPrintService {
+  impressum: CanvasImpressumService;
+  /** The pages of a print Vorlage's spec (measures text: fonts must be ready). */
+  composePrint: (spec: PrintSpec) => {
+    templateType: string;
+    slides: readonly Record<string, unknown>[];
+  };
+}
