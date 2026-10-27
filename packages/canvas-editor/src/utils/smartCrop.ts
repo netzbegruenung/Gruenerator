@@ -4,12 +4,15 @@
 import { photoRectAround, type Rect, type Size } from '@ggraphic/editor/utils/coverFit';
 import { CANVAS_ITEM_NAME } from '@ggraphic/editor/utils/deepSelect';
 import { BACKGROUND_STRAIGHTEN_KEY, backgroundStraighten } from '@ggraphic/editor/utils/straighten';
+import {
+  USER_PHOTO_NODE_NAME,
+  type UserImageInstance,
+} from '@ggraphic/editor/utils/userImageUtils';
 
 import { backgroundCropConfig, userImageOf, type CropUpdate } from './cropTarget';
 import { BACKGROUND_IMAGE_NODE_ID } from './printImageInfo';
 import { coverFitSlot, resolveValue } from './resolveElementValue';
 import { templatePositionUpdates } from './templateRotation';
-import { USER_PHOTO_NODE_NAME, type UserImageInstance } from './userImageUtils';
 
 import type { CanvasElementConfig, LayoutResult } from '../configs/types';
 import type Konva from 'konva';

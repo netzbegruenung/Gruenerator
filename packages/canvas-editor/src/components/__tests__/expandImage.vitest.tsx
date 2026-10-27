@@ -18,9 +18,9 @@ import { loadCanvasConfig } from '../../configs/configLoader';
 import { plainImageUrls, type CanvasImageUrlService } from '../../hostServices';
 import { GenericCanvas, type GenericCanvasRef, type ToolbarStateReport } from '../GenericCanvas';
 
-import type { UserImageInstance } from '../../utils/userImageUtils';
 import type * as StoreModule from '@ggraphic/editor/stores/createCanvasEditorStore';
 import type { CanvasEditorStoreApi } from '@ggraphic/editor/stores/createCanvasEditorStore';
+import type { UserImageInstance } from '@ggraphic/editor/utils/userImageUtils';
 
 const mocks = vi.hoisted(() => ({
   stores: [] as unknown[],

@@ -3,7 +3,7 @@ import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { loadCanvasConfig } from '../configLoader';
 
 import type { ToolsSectionProps, UploadsSectionProps } from '../../sidebar/sections';
-import type { UserImageInstance } from '../../utils/userImageUtils';
+import type { UserImageInstance } from '@ggraphic/editor/utils/userImageUtils';
 
 /**
  * Dreizeilen assembled its actions by hand and left out the user-image

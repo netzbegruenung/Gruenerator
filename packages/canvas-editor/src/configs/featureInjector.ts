@@ -19,14 +19,14 @@ import { MAX_ICON_SELECTIONS, selectedCatalogIconIds } from '../utils/iconInstan
 import type { IconState } from './factory/baseTypes';
 import type { SectionContext } from './types';
 import type { ExtendedAssetsSectionProps } from '../sidebar/sections/assets';
-import type { BalkenInstance } from '../utils/balkenUtils';
-import type { UserImagePlacement } from '../utils/userImageUtils';
 import type { CircleBadgeInstance } from '@ggraphic/editor/primitives/CircleBadge';
+import type { BalkenInstance } from '@ggraphic/editor/utils/balkenUtils';
 import type { ChartInstance } from '@ggraphic/editor/utils/chartUtils';
 import type { FrameInstance } from '@ggraphic/editor/utils/frameUtils';
 import type { IllustrationInstance } from '@ggraphic/editor/utils/illustrations/types';
 import type { PillBadgeInstance } from '@ggraphic/editor/utils/pillBadgeUtils';
 import type { ShapeInstance } from '@ggraphic/editor/utils/shapes';
+import type { UserImagePlacement } from '@ggraphic/editor/utils/userImageUtils';
 
 interface FeatureStateWithIcons {
   selectedIcons?: string[];

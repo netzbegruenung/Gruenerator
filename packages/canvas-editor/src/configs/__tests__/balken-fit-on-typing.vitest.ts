@@ -9,8 +9,8 @@ import { balkenExtent } from '../../utils/balkenBounds';
 import { dreizeilenFullConfig } from '../dreizeilen_full.config';
 import { veranstaltungFullConfig } from '../veranstaltung_full.config';
 
-import type { BalkenInstance } from '../../utils/balkenUtils';
 import type { FullCanvasConfig } from '../types';
+import type { BalkenInstance } from '@ggraphic/editor/utils/balkenUtils';
 
 const LONG = 'Mehr Windräder für saubere Energie';
 

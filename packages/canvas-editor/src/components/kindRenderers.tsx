@@ -1,27 +1,27 @@
 import { type GeometryReporter } from '@ggraphic/editor/hooks/useGeometryReporter';
+import { ChartPrimitive } from '@ggraphic/editor/primitives/ChartPrimitive';
 import { CircleBadge } from '@ggraphic/editor/primitives/CircleBadge';
+import { FramePrimitive } from '@ggraphic/editor/primitives/FramePrimitive';
 import { IconPrimitive } from '@ggraphic/editor/primitives/IconPrimitive';
 import { PillBadge } from '@ggraphic/editor/primitives/PillBadge';
+import { ShapePrimitive } from '@ggraphic/editor/primitives/ShapePrimitive';
+import { UserImagePrimitive } from '@ggraphic/editor/primitives/UserImagePrimitive';
 import { useIsElementSelected } from '@ggraphic/editor/stores/CanvasStoreProvider';
 import { getIconMapSync } from '@ggraphic/editor/utils/canvasIcons';
 import React, { memo } from 'react';
 
 import { CanvasText } from '../primitives';
 import { AssetPrimitive } from '../primitives/AssetPrimitive';
-import { ChartPrimitive } from '../primitives/ChartPrimitive';
-import { FramePrimitive } from '../primitives/FramePrimitive';
 import { IllustrationPrimitive } from '../primitives/IllustrationPrimitive';
-import { ShapePrimitive } from '../primitives/ShapePrimitive';
-import { UserImagePrimitive } from '../primitives/UserImagePrimitive';
 import { resolveIconDef } from '../utils/iconInstances';
 
 import type { CanvasItem } from '../utils/canvasLayerManager';
 import type { HostRenderedKindName } from '../utils/elementKinds';
-import type { UserImageInstance } from '../utils/userImageUtils';
 import type { CropAspectId } from '@ggraphic/editor/utils/cropAspect';
 import type { FrameInstance } from '@ggraphic/editor/utils/frameUtils';
 import type { ShapeInstance } from '@ggraphic/editor/utils/shapes';
 import type { SnapLine, SnapTarget } from '@ggraphic/editor/utils/snapping';
+import type { UserImageInstance } from '@ggraphic/editor/utils/userImageUtils';
 
 type KindName = Exclude<CanvasItem['type'], 'element'>;
 

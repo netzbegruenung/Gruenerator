@@ -24,11 +24,11 @@ import {
 import { isLayerLocked } from '../utils/layerLock';
 import { findElementRemover } from '../utils/removeElement';
 
-import type { ApplyResult, TemplateAiCapabilities } from './types';
 import type { BaseCanvasState } from '../configs/factory/baseTypes';
 import type { AdditionalText } from '../configs/types';
-import type { BalkenInstance } from '../utils/balkenUtils';
+import type { ApplyResult, TemplateAiCapabilities } from '@ggraphic/editor/ai/types';
 import type { CircleBadgeInstance } from '@ggraphic/editor/primitives/CircleBadge';
+import type { BalkenInstance } from '@ggraphic/editor/utils/balkenUtils';
 import type { FrameInstance } from '@ggraphic/editor/utils/frameUtils';
 import type { PillBadgeInstance } from '@ggraphic/editor/utils/pillBadgeUtils';
 

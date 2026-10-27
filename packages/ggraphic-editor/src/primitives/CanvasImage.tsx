@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /**
  * CanvasImage - Draggable, transformable image layer
  *
@@ -11,6 +12,10 @@
  * - Throttled snap line updates via requestAnimationFrame
  * - Single bounds calculation (removed from dragBoundFunc, only in handleDragMove)
  */
+
+import Konva from 'konva';
+import { useRef, useEffect, useCallback, useMemo, memo } from 'react';
+import { Image as KonvaImage, Transformer } from 'react-konva';
 
 import { LOCKED_TRANSFORMER, useIsItemLocked } from '@ggraphic/editor/components/canvasItemLock';
 import {
@@ -45,9 +50,6 @@ import {
   windowPhotoOfStraight,
   zoomStraightPhoto,
 } from '@ggraphic/editor/utils/straighten';
-import Konva from 'konva';
-import { useRef, useEffect, useCallback, useMemo, memo } from 'react';
-import { Image as KonvaImage, Transformer } from 'react-konva';
 
 import {
   CROP_GHOST_NAME,

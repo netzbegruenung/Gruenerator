@@ -20,9 +20,9 @@ import type {
   PptxTextItem,
 } from './types';
 import type { AdditionalText } from '../../configs/types';
-import type { UserImageInstance } from '../../utils/userImageUtils';
 import type { ChartInstance } from '@ggraphic/editor/utils/chartUtils';
 import type { ShapeInstance } from '@ggraphic/editor/utils/shapes';
+import type { UserImageInstance } from '@ggraphic/editor/utils/userImageUtils';
 
 /** Das Folienformat (`slide-16-9`) entsteht parallel; hier inline mit denselben Maßen. */
 const SLIDE: CanvasFormat = {

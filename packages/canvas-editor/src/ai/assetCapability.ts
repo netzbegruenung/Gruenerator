@@ -12,7 +12,7 @@
 import { ALL_ASSETS, CANVAS_RECOMMENDED_ASSETS } from '../brand/grueneAssets';
 import { assetMatchesLocale, getAssetById, type AssetAudience } from '../utils/canvasAssets';
 
-import type { CanvasAiNamedOption } from './types';
+import type { CanvasAiNamedOption } from '@ggraphic/editor/ai/types';
 
 export function buildAssetCapability(canvasType: string): CanvasAiNamedOption[] {
   const recommendedIds = CANVAS_RECOMMENDED_ASSETS[canvasType] ?? [];

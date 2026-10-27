@@ -49,16 +49,16 @@ import type {
   AdditionalText,
 } from './types';
 import type { BackgroundColorOption, StockImageAttribution } from '../sidebar/types';
-import type { BalkenInstance, BalkenMode } from '../utils/balkenUtils';
 import type { AssetInstance } from '../utils/canvasAssets';
 import type { BaseCanvasState, IconState } from './factory/baseTypes';
 import type { SliderColorScheme, SliderStyle } from '../utils/sliderLayout';
-import type { ElementPlacement } from '../utils/userImageUtils';
+import type { BalkenInstance, BalkenMode } from '@ggraphic/editor/utils/balkenUtils';
 import type { CircleBadgeInstance } from '@ggraphic/editor/utils/circleBadgeUtils';
 import type { FrameClipType, FrameInstance } from '@ggraphic/editor/utils/frameUtils';
 import type { IllustrationInstance } from '@ggraphic/editor/utils/illustrations/types';
 import type { PillBadgeInstance } from '@ggraphic/editor/utils/pillBadgeUtils';
 import type { ShapeInstance, ShapeType } from '@ggraphic/editor/utils/shapes';
+import type { ElementPlacement } from '@ggraphic/editor/utils/userImageUtils';
 import type { CanvasAiSnapshot, StickerRef } from '@gruenerator/contracts';
 
 // Default arrow icon ID (HeroIcons chevron-right, resolved via canvasIcons.ts)

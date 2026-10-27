@@ -2,7 +2,7 @@ import { useCallback } from 'react';
 
 import { useCanvasEditorServices } from '../CanvasEditorProvider';
 
-import type { StockImageAttribution } from '../common/imageSourceTypes';
+import type { StockImageAttribution } from '@ggraphic/editor/common/imageSourceTypes';
 
 /**
  * Unsplash API Terms: every placement of an Unsplash photo pings its
