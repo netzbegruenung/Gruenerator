@@ -9,11 +9,11 @@
  * Upload: Extraktion mit Seitenmarken, Zerlegen, Punkte ersetzen. Die
  * Dokument-ID bleibt, damit auch Notebook-Mitgliedschaft, Tags und Metadaten.
  *
- * Nur Wolke-Dateien (siehe `reindexOrigin.ts`, warum nicht URL/WordPress).
- * Ein Upload ohne erreichbares Original wird NICHT eingereiht: die Datei ist
- * nach der Verarbeitung gelöscht (`fileProcessing.ts`), und ein „Neu
- * indexieren" aus dem gespeicherten Text brächte keine Seitenzahlen, würde
- * aber so aussehen.
+ * Wolke-Dateien und gescheiterte Uploads, deren Datei noch liegt (siehe
+ * `reindexOrigin.ts`, warum nicht URL/WordPress). Ein Upload ohne Datei wird
+ * NICHT eingereiht: nach erfolgreicher Verarbeitung ist sie gelöscht
+ * (`fileProcessing.ts`), und ein „Neu indexieren" aus dem gespeicherten Text
+ * brächte keine Seitenzahlen, würde aber so aussehen.
  */
 import { getPostgresInstance } from '../../../database/services/PostgresService.js';
 import { hasAiConsent } from '../../../middleware/requireAiConsent.js';
@@ -67,7 +67,7 @@ async function defaultDeps(): Promise<ReindexDeps> {
 }
 
 const ROW_COLUMNS =
-  'id, user_id, filename, status, wolke_share_link_id, wolke_file_path, vector_count';
+  'id, user_id, filename, status, wolke_share_link_id, wolke_file_path, vector_count, metadata';
 
 /**
  * Setzt eingereihte Zeilen zurück auf `uploaded`. Die Bedingung auf den Status

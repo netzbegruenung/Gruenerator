@@ -8,7 +8,7 @@ import fs from 'fs';
 import { hasAiConsent } from '../../../middleware/requireAiConsent.js';
 
 import { chunkAndEmbedText } from './chunkingPipeline.js';
-import { fetchOriginal, reindexOrigin, type ReindexOrigin } from './reindexOrigin.js';
+import { fetchOriginal, wolkeOrigin, type WolkeOrigin } from './reindexOrigin.js';
 import {
   capStoredText,
   extractDocumentFromFile,
@@ -144,7 +144,7 @@ export async function processUploadedDocument(
   let filePath: string | null = null;
   // Gesetzt, wenn die Zeile über „Neu indexieren" kam und das Original erst
   // geholt werden muss. Bis `vectorsReplaced` bleiben die alten Punkte stehen.
-  let reindex: ReindexOrigin | null = null;
+  let reindex: WolkeOrigin | null = null;
   let vectorsReplaced = false;
   // Nur wer vorher durchsuchbar war, fällt bei einem Fehlschlag auf die alte
   // Fassung zurück; eine schon kaputte Quelle bleibt `failed`, mit Grund.
@@ -213,7 +213,7 @@ export async function processUploadedDocument(
       };
     } else {
       reindex = metadata?.reindex_origin
-        ? reindexOrigin({
+        ? wolkeOrigin({
             id: documentId,
             user_id: userId,
             filename: document.filename ?? null,
@@ -361,7 +361,9 @@ export async function processUploadedDocument(
         await postgresDocumentService.updateDocumentMetadata(documentId, userId, {
           status: 'failed',
           additionalMetadata: {
-            ...(reindex ? REINDEX_DONE : {}),
+            // Auch ein neu eingereihter Upload (Datei auf der Platte, `reindex`
+            // bleibt null) trägt die Markierungen — sie gehen in jedem Fall weg.
+            ...REINDEX_DONE,
             processing_error: reindex
               ? `Neu indexieren fehlgeschlagen: ${error instanceof Error ? error.message : 'unbekannter Fehler'}`
               : error instanceof Error
@@ -376,14 +378,9 @@ export async function processUploadedDocument(
       // Ignore status update failure
     }
 
-    // Clean up temp file on error
-    if (filePath) {
-      try {
-        if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
-      } catch {
-        // Non-critical
-      }
-    }
+    // Die Datei bleibt liegen: sie ist das einzige Original, und ohne sie
+    // ließe sich ein gescheiterter Upload nie neu indexieren (`reindexOrigin.ts`).
+    // Abgeräumt wird sie vom `pending`-Sweep nach 7 Tagen.
 
     throw error;
   }

@@ -3,19 +3,29 @@
  * Worker es holt. Getrennt von `reindex.ts`, weil `fileProcessing.ts` es
  * braucht und `reindex.ts` den Worker anstößt — sonst ein Importkreis.
  *
- * NUR WOLKE-DATEIEN. URL- und WordPress-Quellen gewännen keine Seitenzahlen,
- * und WordPress verlöre dabei: sein Text kommt beim Import aus der REST-API,
- * ein Neu-Crawl ersetzte ihn durch die gerenderte Seite samt Navigation.
+ * WOLKE-DATEIEN und GESCHEITERTE UPLOADS. URL- und WordPress-Quellen gewännen
+ * keine Seitenzahlen, und WordPress verlöre dabei: sein Text kommt beim Import
+ * aus der REST-API, ein Neu-Crawl ersetzte ihn durch die gerenderte Seite samt
+ * Navigation.
+ *
+ * Ein Upload behält seine Datei nur, solange er nicht fertig ist: erfolgreich
+ * verarbeitet wird sie gelöscht, gescheitert bleibt sie liegen, bis der
+ * `pending`-Sweep (`uploadsCleanupService.ts`, 7 Tage) sie abräumt. Solange sie
+ * da ist, liest der Worker sie über `metadata.filePath` wie beim ersten Lauf.
  */
+import fs from 'fs';
+
 import { resolveDocumentUploadFormat } from '@gruenerator/contracts';
 
 import type { UploadedFile } from './types.js';
 
-export interface ReindexOrigin {
+export interface WolkeOrigin {
   kind: 'wolke';
   shareLinkId: string;
   filePath: string;
 }
+
+export type ReindexOrigin = WolkeOrigin | { kind: 'upload' };
 
 export interface ReindexRow {
   id: string;
@@ -25,13 +35,19 @@ export interface ReindexRow {
   wolke_share_link_id: string | null;
   wolke_file_path?: string | null;
   vector_count?: number | null;
+  /** Objekt oder JSON-Text, je nach Leser. */
+  metadata?: unknown;
 }
 
 /**
  * Woher das Original kommt — `null` heißt: nur noch der gespeicherte Text.
- * Eine Wolke-Datei zählt nur, wenn der Upload-Pfad ihr Format lesen kann.
  */
 export function reindexOrigin(row: ReindexRow): ReindexOrigin | null {
+  return wolkeOrigin(row) ?? (hasKeptUpload(row) ? { kind: 'upload' } : null);
+}
+
+/** Eine Wolke-Datei zählt nur, wenn der Upload-Pfad ihr Format lesen kann. */
+export function wolkeOrigin(row: ReindexRow): WolkeOrigin | null {
   if (
     row.wolke_share_link_id &&
     row.wolke_file_path &&
@@ -40,6 +56,12 @@ export function reindexOrigin(row: ReindexRow): ReindexOrigin | null {
     return { kind: 'wolke', shareLinkId: row.wolke_share_link_id, filePath: row.wolke_file_path };
   }
   return null;
+}
+
+function hasKeptUpload(row: ReindexRow): boolean {
+  const meta: unknown = typeof row.metadata === 'string' ? JSON.parse(row.metadata) : row.metadata;
+  const filePath = (meta as { filePath?: unknown } | null | undefined)?.filePath;
+  return typeof filePath === 'string' && fs.existsSync(filePath);
 }
 
 /**
@@ -55,7 +77,7 @@ export function isReindexable(row: Omit<ReindexRow, 'wolke_file_path'>): boolean
  * Nutzer*in versteht — sie landet als `processing_error` an der Zeile.
  */
 export async function fetchOriginal(
-  origin: ReindexOrigin,
+  origin: WolkeOrigin,
   document: { filename?: string | null | undefined },
   ownerUserId: string
 ): Promise<UploadedFile> {

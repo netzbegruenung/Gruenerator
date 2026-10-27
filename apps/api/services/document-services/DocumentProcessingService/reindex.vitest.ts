@@ -3,7 +3,11 @@
  * ein zweiter Klick nichts doppelt einreiht. Die Identität der Quelle (ID,
  * Tags, Notebook-Mitgliedschaft) bleibt — geprüft an `processUploadedDocument`.
  */
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import fs from 'fs';
+import os from 'os';
+import path from 'path';
+
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 import type { ReindexDeps } from './reindex.js';
 import type { ReindexRow } from './reindexOrigin.js';
@@ -435,5 +439,74 @@ describe('processUploadedDocument — neu indexieren', () => {
       OWNER,
       expect.objectContaining({ status: 'failed' })
     );
+  });
+});
+
+describe('gescheiterter Upload — das Original bleibt, „Neu indexieren" geht', () => {
+  let dir: string;
+  let filePath: string;
+  beforeEach(() => {
+    dir = fs.mkdtempSync(path.join(os.tmpdir(), 'reindex-upload-'));
+    filePath = path.join(dir, 'antrag.pdf');
+    fs.writeFileSync(filePath, '%PDF');
+    extractDocumentFromFile.mockReset().mockRejectedValue(new Error('OCR 503'));
+  });
+  afterEach(() => fs.rmSync(dir, { recursive: true, force: true }));
+
+  const failedUpload = () =>
+    row({ id: 'doc-5', status: 'failed', vector_count: 0, metadata: { filePath } });
+
+  it('behält die Datei, wenn die Verarbeitung scheitert', async () => {
+    const updateDocumentMetadata = vi.fn(async () => undefined);
+    await expect(
+      processUploadedDocument(
+        {
+          updateDocumentMetadata,
+          getDocumentById: vi.fn(async () => ({
+            id: 'doc-5',
+            title: 'Antrag',
+            filename: 'antrag.pdf',
+            metadata: { filePath, mimetype: 'application/pdf', reindex_origin: 'upload' },
+          })),
+        } as never,
+        { storeDocumentVectors: vi.fn(), deleteDocumentVectors: vi.fn() } as never,
+        'doc-5',
+        OWNER
+      )
+    ).rejects.toThrow('OCR 503');
+
+    expect(fs.existsSync(filePath)).toBe(true);
+    expect(updateDocumentMetadata).toHaveBeenLastCalledWith(
+      'doc-5',
+      OWNER,
+      expect.objectContaining({
+        status: 'failed',
+        // Die Markierungen eines Neu-Indexierens gehen auch beim Upload weg.
+        additionalMetadata: expect.objectContaining({
+          processing_error: 'OCR 503',
+          reindex_origin: undefined,
+          queued_at: undefined,
+        }),
+      })
+    );
+  });
+
+  it('gilt als neu indexierbar, solange die Datei da ist', () => {
+    expect(reindexOrigin(failedUpload())).toEqual({ kind: 'upload' });
+    expect(isReindexable(failedUpload())).toBe(true);
+    // Die Notebook-Liste liest metadata als JSON-Text.
+    expect(isReindexable({ ...failedUpload(), metadata: JSON.stringify({ filePath }) })).toBe(true);
+    fs.rmSync(filePath);
+    expect(reindexOrigin(failedUpload())).toBeNull();
+  });
+
+  it('reiht ihn wieder ein', async () => {
+    const { deps, updates } = fakeDeps([failedUpload()]);
+    expect(await reindexDocument('doc-5', OWNER, {}, deps)).toEqual({
+      status: 'queued',
+      message: 'Wird neu indexiert.',
+    });
+    expect(updates).toEqual(['doc-5']);
+    expect(deps.kick).toHaveBeenCalledTimes(1);
   });
 });
