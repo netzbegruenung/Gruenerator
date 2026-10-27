@@ -78,7 +78,7 @@
         },
         {
           "id": "reels-untertitel",
-          "title": "Reels",
+          "title": "Simple Reel",
           "description": "Untertitel für Clips",
           "path": "/studio/video"
         },

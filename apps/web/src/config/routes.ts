@@ -294,6 +294,7 @@ const SubtitlerBetaPage = lazy(
   () => import('../features/subtitler-beta/components/SubtitlerBetaPage')
 );
 const SubStudioPage = lazy(() => import('../features/subtitler-beta/components/SubStudioPage'));
+const VideoEditorPage = lazy(() => import('../features/videoeditor/VideoEditorPage'));
 const SharedVideoPage = lazy(() => import('../features/subtitler/components/SharedVideoPage'));
 const SharedMediaPage = lazy(() => import('../features/shared-media/SharedMediaPage'));
 const SharedChatPage = lazy(() => import('../features/chat/SharedChatPage'));
@@ -910,6 +911,12 @@ const standardRoutes: RouteConfig[] = [
   { path: '/studio/ki', component: ImageStudioKiRedirect },
   { path: '/studio/ki/:type', component: ImageStudioKiTypeRedirect },
   { path: '/studio/video', component: GrueneratorenBundle.Reel },
+  {
+    accent: 'studio',
+    path: '/studio/videoeditor',
+    component: VideoEditorPage,
+    layoutMode: 'immersive',
+  },
   { path: '/studio/gallery', component: MediathekRedirect },
   // Collaborative canvas — must come before /studio/:category so the literal
   // "canvas" segment matches first instead of being interpreted as a category.
