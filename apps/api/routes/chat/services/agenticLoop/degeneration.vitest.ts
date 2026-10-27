@@ -4,12 +4,15 @@ import {
   createDegenerationGuard,
   findDegenerationCut,
   isDegenerateSample,
+  isLowInformationTail,
   isStructuralScaffolding,
   trimTrailingScaffoldLine,
   cutLostContent,
   DEGEN_MIN_LENGTH,
   REPEAT_RUN_CHARS,
   snapToBoundary,
+  trimDegenerate,
+  type DegenerationGuard,
 } from './degeneration.js';
 
 // ── Samples ──────────────────────────────────────────────────────────────────
@@ -57,6 +60,40 @@ function variedProse(chunk: number): string {
   const s = sentences[chunk % sentences.length];
   return `Im Abschnitt ${chunk} zum Thema ${chunk * 7} heißt es: ${s} — beschlossen mit ${chunk * 3} Stimmen bei einem Budget von ${chunk * 11} Millionen Euro. `;
 }
+
+// Letterless runs (live 27.10.2026): thousands of emoji, shuffled party emoji
+// and — in the local repro — ZWJ family sequences. Every metric above counted
+// UTF-16 units and split words on whitespace, so these read as healthy.
+const FAMILY = ['👨‍👩‍👧‍👦', '👩‍👩‍👦‍👦', '👨‍👩‍👧‍👧', '👩‍👩‍👧‍👦', '👩‍👩‍👦‍👧'];
+const PARTY = ['🎉', '🎁', '🎈', '🎂'];
+
+/** `n` items drawn from `pool` by a fixed LCG, with an occasional space. */
+function shuffled(pool: string[], n: number, seed = 1): string {
+  let state = seed;
+  let out = '';
+  for (let i = 0; i < n; i++) {
+    state = (Math.imul(state, 1103515245) + 12345) >>> 0;
+    out += pool[(state >>> 16) % pool.length];
+    if ((state >>> 8) % 17 === 0) out += ' ';
+  }
+  return out;
+}
+
+const liveCase =
+  'Übrigens: Mit dem Grünerator könntest du … 🌿📊✨💚🌻🐝🌈🏳️‍🌈🏳️‍⚧️♿️🧕🧑‍🦽‍➡️' + shuffled(FAMILY, 900);
+
+/** Feed `check` the way a stream does, in stride-sized steps; the length at
+ *  the first `true`, or Infinity when it never fires. */
+function firstFiringLength(guard: DegenerationGuard, text: string): number {
+  for (let len = 250; ; len += 250) {
+    const at = Math.min(len, text.length);
+    if (guard.check(text.slice(0, at))) return at;
+    if (at === text.length) return Infinity;
+  }
+}
+
+const graphemes = (s: string): string[] =>
+  [...new Intl.Segmenter('de', { granularity: 'grapheme' }).segment(s)].map((g) => g.segment);
 
 // ── isDegenerateSample ───────────────────────────────────────────────────────
 
@@ -283,8 +320,10 @@ describe('createDegenerationGuard', () => {
   });
 
   it('never judges anything under the minimum length', () => {
+    // Letter-bearing on purpose: a letterless run (`:-)`) is judged from
+    // LOW_INFO_MIN_LENGTH on — see the emoji-run suite below.
     const guard = createDegenerationGuard();
-    expect(guard.check(repeatTo(':-)', DEGEN_MIN_LENGTH - 1))).toBe(false);
+    expect(guard.check(terminatorSpam(DEGEN_MIN_LENGTH - 1))).toBe(false);
   });
 });
 
@@ -470,5 +509,80 @@ describe('snapToBoundary', () => {
 
   it('handles a cut at the very start', () => {
     expect(snapToBoundary('irgendwas', 0)).toBe(0);
+  });
+});
+
+// ── Letterless runs ──────────────────────────────────────────────────────────
+
+describe('isLowInformationTail', () => {
+  it('flags a shuffled party-emoji run', () =>
+    expect(isLowInformationTail(shuffled(PARTY, 1000).slice(-2000))).toBe(true));
+  it('flags a ZWJ family run', () =>
+    expect(isLowInformationTail(shuffled(FAMILY, 300))).toBe(true));
+  it('leaves prose with a few emoji alone', () =>
+    expect(isLowInformationTail(variedProse(2000) + ' 😊🌻')).toBe(false));
+  it('leaves a long stretch of varied prose with emoji alone', () => {
+    const text = Array.from({ length: 15 }, (_, i) => `${variedProse(i)}🌻 `).join('');
+    expect(isLowInformationTail(text.slice(-2000))).toBe(false);
+  });
+  it('leaves a markdown table alone', () =>
+    expect(isLowInformationTail('| a | b |\n|---|---|\n'.repeat(60))).toBe(false));
+});
+
+describe('createDegenerationGuard — emoji runs', () => {
+  it('fires before 8000 units on a low-information tail', () => {
+    const g = createDegenerationGuard();
+    const t = 'Antwort.\n\n' + shuffled(PARTY, 1200);
+    expect(firstFiringLength(g, t)).toBeLessThan(DEGEN_MIN_LENGTH);
+  });
+
+  it('cuts the live case before the emoji run, on a grapheme boundary', () => {
+    const g = createDegenerationGuard();
+    const len = firstFiringLength(g, liveCase);
+    const kept = trimDegenerate(liveCase.slice(0, len), g.cutAt(liveCase.slice(0, len)));
+    expect(kept).toMatch(/Grünerator könntest du/);
+    expect(graphemes(kept).filter((s) => /\p{Extended_Pictographic}/u.test(s)).length).toBeLessThan(
+      20
+    );
+    expect(kept).not.toMatch(
+      /[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/
+    );
+  });
+
+  it('keeps none of a punctuation-only smiley run', () => {
+    const g = createDegenerationGuard();
+    const t = 'Das ist die Antwort. Sie endet hier' + repeatTo(':-)', 3000);
+    const len = firstFiringLength(g, t);
+    expect(len).toBeLessThan(DEGEN_MIN_LENGTH);
+    const kept = trimDegenerate(t.slice(0, len), g.cutAt(t.slice(0, len)));
+    expect(kept).toMatch(/^Das ist die Antwort\./);
+    expect(kept).not.toContain(':-):-)');
+  });
+
+  it('keeps the sentence the run interrupted, with its punctuation', () => {
+    const g = createDegenerationGuard();
+    const t = 'Antwort.\n\nDas Ergebnis lautet: fertig! ' + shuffled(PARTY, 1500);
+    const len = firstFiringLength(g, t);
+    const kept = trimDegenerate(t.slice(0, len), g.cutAt(t.slice(0, len)));
+    expect(kept.startsWith('Antwort.\n\nDas Ergebnis lautet: fertig!')).toBe(true);
+    expect(graphemes(kept).filter((x) => /\p{Extended_Pictographic}/u.test(x))).toHaveLength(0);
+  });
+
+  it('stays quiet on a long healthy answer sprinkled with emoji', () => {
+    const g = createDegenerationGuard();
+    let text = '';
+    for (let i = 0; i < 120; i++) {
+      text += `${variedProse(i)}🎉🌻 `;
+      expect(g.check(text)).toBe(false);
+    }
+  });
+});
+
+describe('snapToBoundary — graphemes', () => {
+  it('never splits a ZWJ sequence when no boundary is in reach', () => {
+    const run = FAMILY[0].repeat(100);
+    const snapped = snapToBoundary(run, 505);
+    expect(snapped % FAMILY[0].length).toBe(0);
+    expect(snapped).toBeLessThanOrEqual(505);
   });
 });
