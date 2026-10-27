@@ -146,10 +146,13 @@ describe('delete racing an in-flight switch (GlitchTip #566)', () => {
 
     // 3. The guarded delete — exactly what useSafeThreadAction('delete') does
     //    while the URL still names the clicked thread: park on a new thread
-    //    (bumps the switch generation), then delete.
+    //    (bumps the switch generation), then delete. Not awaited: since
+    //    @assistant-ui/core 0.3.31 mutations of one thread run in order, so
+    //    the delete queues behind the gated unarchive.
+    let deletePromise: Promise<unknown> | undefined;
     await act(async () => {
       await runtime.threads.switchToNewThread();
-      await core.delete('archived-thread');
+      deletePromise = core.delete('archived-thread');
     });
 
     // 4. Let the in-flight switch resume. Without the guard it would claim the
@@ -157,6 +160,7 @@ describe('delete racing an in-flight switch (GlitchTip #566)', () => {
     await act(async () => {
       gated.releaseUnarchive();
       await switchPromise;
+      await deletePromise;
     });
 
     const state = runtime.threads.getState();
