@@ -843,4 +843,35 @@ describe('parseSSEStream browser_session handling', () => {
     const a = useArtifactLiveStore.getState().activeArtifact;
     expect(a?.type === 'browser_session' && a.status).toBe('failed');
   });
+
+  it('marks the message session failed on a thrown abort, docked or not', async () => {
+    for (const panelDockable of [true, false]) {
+      useArtifactLiveStore.setState({ activeArtifact: null, panelDockable });
+      const enc = new TextEncoder();
+      let sent = false;
+      const body = new ReadableStream<Uint8Array>({
+        pull(controller) {
+          if (sent) {
+            controller.error(new DOMException('aborted', 'AbortError'));
+            return;
+          }
+          sent = true;
+          controller.enqueue(
+            enc.encode(`event: browser_session_start\ndata: ${JSON.stringify(START.data)}\n\n`)
+          );
+        },
+      });
+      const outcome: StreamOutcome = { interrupted: false, indexedDocumentIds: [] };
+      let last: Record<string, unknown> | undefined;
+      await expect(
+        (async () => {
+          for await (const r of parseSSEStream(new Response(body), callbacks, outcome)) {
+            last = (r as unknown as { metadata?: { custom?: Record<string, unknown> } }).metadata
+              ?.custom;
+          }
+        })()
+      ).rejects.toBeDefined();
+      expect((last?.browserSession as { status: string }).status).toBe('failed');
+    }
+  });
 });
