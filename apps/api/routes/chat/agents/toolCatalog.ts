@@ -1148,9 +1148,11 @@ NUTZE WENN nach Funktionen, Begriffen, Fähigkeiten oder Anbindungen des Grüner
     }
     // Tabellen rechnen: Code läuft im Browser (Pyodide), also nur mit einer
     // Oberfläche, die das kann, und mit Thread — die Pause hängt an ihm. Vor dem
-    // Lauf fragt das Freigabe-Gate (INTERNAL_APPROVAL_REQUIRED_TOOLS).
+    // Lauf fragt das Freigabe-Gate (INTERNAL_APPROVAL_REQUIRED_TOOLS) — das
+    // ohne angemeldete Person aus ist; dann lieber gar nicht montieren.
     if (
       loop.threadId &&
+      agentConfig.userId != null &&
       state.hasTabularAttachment &&
       state.clientCanRunPython &&
       state.enabledTools?.['tabelle_auswerten'] !== false

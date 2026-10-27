@@ -848,13 +848,17 @@ describe('toolCatalog: Formularwerkzeuge hängen am Formular, nicht am MIME-Typ'
  * Oberfläche, die Python kann, und in einem Thread (die Pause braucht ihn).
  */
 describe('toolCatalog: tabelle_auswerten', () => {
-  const catalogFor = (state: Record<string, unknown>, threadId: string | null = 't1') => {
+  const catalogFor = (
+    state: Record<string, unknown>,
+    threadId: string | null = 't1',
+    userId: string | null = 'u1'
+  ) => {
     const sourceRegistry = createSourceRegistry();
     const sse = { send: () => {} } as unknown as NonNullable<
       Parameters<typeof buildChatToolCatalog>[0]['loop']
     >['sse'];
     const { toolNames } = buildChatToolCatalog({
-      agentConfig,
+      agentConfig: { ...agentConfig, ...(userId ? { userId } : {}) } as AgentConfig,
       sourceRegistry,
       loop: {
         sse,
@@ -881,6 +885,12 @@ describe('toolCatalog: tabelle_auswerten', () => {
     expect(catalogFor({ hasTabularAttachment: true, clientCanRunPython: true })).toContain(
       'tabelle_auswerten'
     );
+  });
+
+  it('fehlt ohne angemeldete Person — ohne sie ist das Freigabe-Gate aus', () => {
+    expect(
+      catalogFor({ hasTabularAttachment: true, clientCanRunPython: true }, 't1', null)
+    ).not.toContain('tabelle_auswerten');
   });
 
   it('fehlt ohne Thread und wenn die Agentin es abgeschaltet hat', () => {

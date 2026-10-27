@@ -82,6 +82,39 @@ describe('tabelle_auswerten resolve', () => {
     });
   });
 
+  const failedRun = (n: number): PersistedStep => ({
+    toolCallId: `c${n}`,
+    toolName: TABELLE_AUSWERTEN_TOOL,
+    args: { auftrag: 'Summe' },
+    result: { error: 'KeyError', code: `print(${n})` },
+    ok: false,
+  });
+
+  it('nach drei gescheiterten Läufen (Original + 2 Wiederholungen) ⇒ kein Codegen mehr', async () => {
+    const out = await tabelleAuswertenClientTool.resolve({
+      threadId: 't1',
+      state,
+      args: { auftrag: 'Summe der Spalte Umsatz' },
+      priorSteps: [failedRun(1), failedRun(2), failedRun(3)],
+    });
+    expect(out).toEqual({
+      error: 'Nicht mehr erneut versuchen — antworte ohne Rechnung und sag das.',
+    });
+    expect(codegenMock).not.toHaveBeenCalled();
+  });
+
+  it('nach zwei gescheiterten Läufen ⇒ noch ein Versuch', async () => {
+    codegenMock.mockResolvedValueOnce({ pythonCode: 'print(9)' });
+    const out = await tabelleAuswertenClientTool.resolve({
+      threadId: 't1',
+      state,
+      args: { auftrag: 'Summe der Spalte Umsatz' },
+      priorSteps: [failedRun(1), failedRun(2)],
+    });
+    expect(out).toEqual({ clientArgs: { code: 'print(9)' } });
+    expect(codegenMock).toHaveBeenCalledTimes(1);
+  });
+
   it('pythonCode null ⇒ Fehler „nicht aus der Tabelle berechnen"', async () => {
     codegenMock.mockResolvedValueOnce({ pythonCode: null });
     const out = await tabelleAuswertenClientTool.resolve({

@@ -29,6 +29,9 @@ export const TABELLE_AUSWERTEN_TOOL = 'tabelle_auswerten';
 const RUN_PYTHON_CLIENT_TOOL = 'run_python';
 
 const MAX_ERROR_CHARS = 1500;
+/** Original plus zwei Wiederholungen. Serverseitig gezählt: jede Fortsetzung
+ *  baut frische Loop-Guards, die den Verlauf vor der Pause nicht kennen. */
+const MAX_FAILED_RUNS = 3;
 const MAX_OUTPUT_CHARS = 4000;
 
 export const tabelleAuswertenInputSchema = z.object({
@@ -55,19 +58,19 @@ Bei einem Fehler (\`error\`) rufe es mit einem präzisierten \`auftrag\` erneut 
   });
 }
 
+/** Ein gelaufener, gescheiterter Code — eine Ablehnung trägt keinen. */
+function failedRunOf(step: PersistedStep): { code: string; error: string } | null {
+  if (step.toolName !== TABELLE_AUSWERTEN_TOOL) return null;
+  const result = step.result as { error?: unknown; code?: unknown } | null;
+  return typeof result?.error === 'string' && typeof result.code === 'string'
+    ? { code: result.code, error: result.error }
+    : null;
+}
+
 /** Der jüngste gescheiterte Lauf dieses Zuges — sein Code und Fehler gehen in die Korrektur. */
 function lastFailedRun(priorSteps: PersistedStep[]): { code: string; error: string } | null {
-  for (let i = priorSteps.length - 1; i >= 0; i--) {
-    const step = priorSteps[i];
-    if (step?.toolName !== TABELLE_AUSWERTEN_TOOL) continue;
-    const result = step.result as { error?: unknown; code?: unknown } | null;
-    // Nur ein gelaufener Code zählt; eine Ablehnung trägt keinen.
-    if (typeof result?.error === 'string' && typeof result.code === 'string') {
-      return { code: result.code, error: result.error };
-    }
-    return null;
-  }
-  return null;
+  const last = [...priorSteps].reverse().find((step) => step.toolName === TABELLE_AUSWERTEN_TOOL);
+  return last ? failedRunOf(last) : null;
 }
 
 function clientErrorOf(result: unknown): string {
@@ -84,6 +87,9 @@ export const tabelleAuswertenClientTool: LoopClientTool = {
   async resolve({ state, args, priorSteps }) {
     const auftrag = typeof args.auftrag === 'string' ? args.auftrag.trim() : '';
     if (!auftrag) return { error: 'Der Auftrag fehlt.' };
+    if (priorSteps.filter((step) => failedRunOf(step) != null).length >= MAX_FAILED_RUNS) {
+      return { error: 'Nicht mehr erneut versuchen — antworte ohne Rechnung und sag das.' };
+    }
     const mode = args.modus === 'ausfuellen' ? ('fill' as const) : ('analyze' as const);
     const failed = lastFailedRun(priorSteps);
 
