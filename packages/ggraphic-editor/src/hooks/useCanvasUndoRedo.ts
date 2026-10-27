@@ -1,0 +1,256 @@
+// SPDX-License-Identifier: MPL-2.0
+import { useEffect, useCallback, useLayoutEffect, useRef, useState } from 'react';
+import { flushSync } from 'react-dom';
+import { useStore } from 'zustand';
+
+import { useAnnounce } from '@ggraphic/editor/hooks/useAnnounce';
+import { editorSkipsKey } from '@ggraphic/editor/utils/keyboardOwnership';
+
+import { useCanvasStore } from '../stores/CanvasStoreProvider';
+
+import type { CanvasEditorStoreState } from '../stores/createCanvasEditorStore';
+
+interface UseCanvasUndoRedoReturn<
+  TComponentState extends Record<string, unknown> = Record<string, unknown>,
+> {
+  undo: () => void;
+  redo: () => void;
+  canUndo: boolean;
+  canRedo: boolean;
+  saveToHistory: (componentState?: TComponentState) => void;
+  debouncedSaveToHistory: (componentState?: TComponentState) => void;
+  /** Saves `componentState` right away, even when `readState` is given. */
+  saveNow: (componentState?: TComponentState) => void;
+  /** Commits a pending immediate save now, as its own entry. */
+  commitPendingSave: () => void;
+}
+
+// Stable selectors defined outside component
+const selectCanUndo = (s: CanvasEditorStoreState) => s.historyIndex > 0;
+const selectCanRedo = (s: CanvasEditorStoreState) => s.historyIndex < s.history.length - 1;
+
+/**
+ * Hook for canvas undo/redo functionality
+ * - Provides keyboard shortcuts (Ctrl/Cmd+Z for undo, Ctrl/Cmd+Y or Ctrl/Cmd+Shift+Z for redo)
+ * - Returns store actions and history state
+ * - Includes debounced save for text input scenarios
+ * - Uses getState() for stable store access without re-renders
+ * - Accepts optional onRestore callback to restore component-level state
+ *
+ * The generic `TComponentState` parameter ties the saved state shape to the
+ * restoration callback shape so per-config templates get end-to-end typing
+ * (`saveToHistory(getState())` is checked against `onRestore`'s parameter).
+ *
+ * With `readState`, a save ignores its argument and snapshots the COMMITTED
+ * state instead: an immediate save is taken in a layout effect after the
+ * update it follows has committed, a debounced one when its timer fires.
+ * Callers hand over their render-time state, which misses the change they
+ * just made (#4246).
+ */
+export function useCanvasUndoRedo<
+  TComponentState extends Record<string, unknown> = Record<string, unknown>,
+>(
+  debounceMs = 250,
+  onRestore?: (state: TComponentState) => void,
+  shortcutsEnabled = true,
+  readState?: () => TComponentState
+): UseCanvasUndoRedoReturn<TComponentState> {
+  const store = useCanvasStore();
+  const announce = useAnnounce();
+  const announceRef = useRef(announce);
+  announceRef.current = announce;
+  // Use individual selectors to avoid subscribing to entire store
+  const canUndo = useStore(store, selectCanUndo);
+  const canRedo = useStore(store, selectCanRedo);
+  const debounceTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pendingComponentStateRef = useRef<Record<string, unknown> | undefined>(undefined);
+  const onRestoreRef = useRef(onRestore);
+  onRestoreRef.current = onRestore;
+  const readStateRef = useRef(readState);
+  readStateRef.current = readState;
+  const pendingImmediateSaveRef = useRef(false);
+  const [, setSaveTick] = useState(0);
+
+  // Use getState() for stable access to store actions without subscription
+  const getStore = store.getState;
+
+  // Flush any pending debounced snapshot. Called when an immediate
+  // saveToHistory is requested or when undo/redo runs, so the boundary
+  // between debouncing-style edits (typing) and immediate-style edits
+  // (drag-end, color pick) is preserved as separate history entries
+  // rather than merging into the trailing debounced snapshot.
+  const flushDebouncedSave = useCallback(() => {
+    if (debounceTimeoutRef.current) {
+      clearTimeout(debounceTimeoutRef.current);
+      debounceTimeoutRef.current = null;
+      const pending = readStateRef.current?.() ?? pendingComponentStateRef.current;
+      pendingComponentStateRef.current = undefined;
+      getStore().saveToHistory(pending);
+    }
+  }, []);
+
+  const flushImmediateSave = useCallback(() => {
+    if (!pendingImmediateSaveRef.current) return;
+    pendingImmediateSaveRef.current = false;
+    getStore().saveToHistory(readStateRef.current?.());
+  }, []);
+
+  // Runs after every commit; the tick bump guarantees one even when the
+  // update that went with the save bailed out.
+  useLayoutEffect(() => {
+    flushImmediateSave();
+  });
+
+  // Register restoration callback on mount (using ref for stable callback).
+  // Variance bridge: the provider store is typed at the default
+  // `Record<string, unknown>`, while this hook is parameterised in
+  // `TComponentState extends Record<string, unknown>`. Function-parameter
+  // contravariance prevents direct assignment, but at runtime the values
+  // are interchangeable — the typed callback only ever receives state that
+  // the same template's `getState()` produced.
+  useEffect(() => {
+    if (onRestoreRef.current) {
+      const callback = (state: TComponentState) => {
+        onRestoreRef.current?.(state);
+      };
+      getStore().setStateRestorationCallback(callback as (state: Record<string, unknown>) => void);
+      return () => {
+        getStore().setStateRestorationCallback(null);
+      };
+    }
+    return undefined;
+  }, []);
+
+  // Stable undo function - flushes pending debounce so the in-flight
+  // edit becomes its own history entry before we step backwards
+  const undo = useCallback(() => {
+    flushImmediateSave();
+    flushDebouncedSave();
+    if (!getStore().canUndo()) return;
+    getStore().undo();
+    announceRef.current('Rückgängig gemacht');
+  }, [flushDebouncedSave, flushImmediateSave]);
+
+  // Stable redo function
+  const redo = useCallback(() => {
+    flushImmediateSave();
+    flushDebouncedSave();
+    if (!getStore().canRedo()) return;
+    getStore().redo();
+    announceRef.current('Wiederhergestellt');
+  }, [flushDebouncedSave, flushImmediateSave]);
+
+  // Stable saveToHistory function - flushes any pending debounce first
+  // so this immediate snapshot creates a clean boundary instead of being
+  // swallowed by the next debounced fire.
+  // `TComponentState extends Record<string, unknown>` means the value is
+  // structurally compatible with the default-typed store's parameter.
+  const saveNow = useCallback(
+    (componentState?: TComponentState) => {
+      flushDebouncedSave();
+      getStore().saveToHistory(componentState);
+    },
+    [flushDebouncedSave]
+  );
+  // A sync update forces the commit the pending save waits for; its layout
+  // effect then takes the entry from the committed state.
+  const commitPendingSave = useCallback(() => {
+    if (pendingImmediateSaveRef.current) flushSync(() => setSaveTick((t) => t + 1));
+  }, []);
+  const saveToHistory = useCallback(
+    (componentState?: TComponentState) => {
+      if (!readStateRef.current) {
+        saveNow(componentState);
+        return;
+      }
+      // The debounced edit before this one is already committed: flush it as
+      // its own entry now, before this save's update commits.
+      flushDebouncedSave();
+      pendingImmediateSaveRef.current = true;
+      setSaveTick((t) => t + 1);
+    },
+    [flushDebouncedSave, saveNow]
+  );
+
+  // Keyboard shortcuts — off for inactive pages of a multi-page editor, whose
+  // window listeners would otherwise undo on every page at once.
+  useEffect(() => {
+    if (!shortcutsEnabled) return undefined;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Skip while typing (incl. the open text editor's format toolbar) or
+      // when a widget already consumed the key.
+      if (editorSkipsKey(e)) return;
+
+      const isMac = navigator.platform.toLowerCase().includes('mac');
+      const modKey = isMac ? e.metaKey : e.ctrlKey;
+
+      // Undo: Ctrl/Cmd + Z (without Shift)
+      if (modKey && e.key.toLowerCase() === 'z' && !e.shiftKey) {
+        e.preventDefault();
+        flushImmediateSave();
+        flushDebouncedSave();
+        const store = getStore();
+        if (store.canUndo()) {
+          store.undo();
+          announceRef.current('Rückgängig gemacht');
+        }
+      }
+
+      // Redo: Ctrl/Cmd + Y OR Ctrl/Cmd + Shift + Z
+      if (
+        (modKey && e.key.toLowerCase() === 'y') ||
+        (modKey && e.shiftKey && e.key.toLowerCase() === 'z')
+      ) {
+        e.preventDefault();
+        flushImmediateSave();
+        flushDebouncedSave();
+        const store = getStore();
+        if (store.canRedo()) {
+          store.redo();
+          announceRef.current('Wiederhergestellt');
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [shortcutsEnabled]);
+
+  // Cleanup debounce timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (debounceTimeoutRef.current) {
+        clearTimeout(debounceTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  // Debounced save for text input scenarios - stable reference
+  const debouncedSaveToHistory = useCallback(
+    (componentState?: TComponentState) => {
+      pendingComponentStateRef.current = componentState;
+      if (debounceTimeoutRef.current) {
+        clearTimeout(debounceTimeoutRef.current);
+      }
+      debounceTimeoutRef.current = setTimeout(() => {
+        debounceTimeoutRef.current = null;
+        getStore().saveToHistory(readStateRef.current?.() ?? pendingComponentStateRef.current);
+        pendingComponentStateRef.current = undefined;
+      }, debounceMs);
+    },
+    [debounceMs]
+  );
+
+  return {
+    undo,
+    redo,
+    canUndo,
+    canRedo,
+    saveToHistory,
+    debouncedSaveToHistory,
+    saveNow,
+    commitPendingSave,
+  };
+}

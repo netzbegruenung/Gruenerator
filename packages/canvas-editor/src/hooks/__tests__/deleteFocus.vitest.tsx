@@ -3,11 +3,11 @@
  * er auf dem Knopf der Seite, nicht auf `<body>`. Aus der Ebenen-Liste heraus
  * übernimmt die Liste selbst (nächster Eintrag), siehe `layersSection.vitest.tsx`.
  */
+import { createCanvasEditorStore } from '@ggraphic/editor/stores/createCanvasEditorStore';
 import { renderHook, waitFor } from '@testing-library/react';
 import { act } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { createCanvasEditorStore } from '../../stores/createCanvasEditorStore';
 import { useCanvasKeyboardHandlers } from '../useCanvasKeyboardHandlers';
 
 import type { BaseCanvasState } from '../../configs/factory/baseTypes';

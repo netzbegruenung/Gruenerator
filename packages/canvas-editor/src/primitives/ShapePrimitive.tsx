@@ -10,6 +10,12 @@ import {
   signedScale,
 } from '@ggraphic/editor/utils/orientation';
 import {
+  assertNever,
+  isComposerPlane,
+  STROKE_ONLY_SHAPES,
+  type ShapeInstance,
+} from '@ggraphic/editor/utils/shapes';
+import {
   PATH_OFFSETS,
   PATH_VIEWBOX,
   resizedShapeSize,
@@ -31,12 +37,6 @@ import {
 } from 'react-konva';
 
 import { shapeBox } from '../utils/renderedBoxes';
-import {
-  assertNever,
-  isComposerPlane,
-  STROKE_ONLY_SHAPES,
-  type ShapeInstance,
-} from '../utils/shapes';
 
 import type Konva from 'konva';
 

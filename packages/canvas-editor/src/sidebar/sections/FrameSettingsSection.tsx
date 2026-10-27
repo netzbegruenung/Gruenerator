@@ -5,7 +5,7 @@ import { ACTION_BTN_DANGER, SECTION_HEADER, SECTION_TITLE } from '../sidebarStyl
 
 import { ImageInputPicker } from './tools/ImageInputPicker';
 
-import type { FrameInstance } from '../../utils/frameUtils';
+import type { FrameInstance } from '@ggraphic/editor/utils/frameUtils';
 
 export interface FrameSettingsSectionProps {
   selectedFrame: FrameInstance | null;

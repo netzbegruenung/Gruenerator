@@ -11,7 +11,7 @@ import { FramePresetPreview } from '../RahmenSection';
 import { PREVIEW_COMPONENTS } from './constants';
 
 import type { ElementThumbSpec } from './elementTypes';
-import type { ShapeType } from '../../../utils/shapes';
+import type { ShapeType } from '@ggraphic/editor/utils/shapes';
 
 const PALETTE_BY_TYPE = new Map(ALL_PALETTE_SHAPES.map((shape) => [shape.id, shape]));
 

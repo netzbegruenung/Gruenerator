@@ -6,18 +6,17 @@
  * (`CanvasBlockService` in `hostServices.ts`); a host may cut them out of a
  * composed slide.
  */
+import { runMeasurer } from '@ggraphic/editor/utils/textUtils';
 import { layoutRichTextBlock } from '@ggraphic/schema';
-
-import { runMeasurer } from '../utils/textUtils';
 
 import type { IconState } from '../configs/factory/baseTypes';
 import type { AdditionalText } from '../configs/types';
 import type { AssetInstance } from '../utils/canvasAssets';
-import type { CircleBadgeInstance } from '../utils/circleBadgeUtils';
-import type { PillBadgeInstance } from '../utils/pillBadgeUtils';
-import type { ShapeInstance } from '../utils/shapes';
 import type { UserImageInstance } from '../utils/userImageUtils';
 import type { ChartInstance } from '@ggraphic/editor/utils/chartTypes';
+import type { CircleBadgeInstance } from '@ggraphic/editor/utils/circleBadgeUtils';
+import type { PillBadgeInstance } from '@ggraphic/editor/utils/pillBadgeUtils';
+import type { ShapeInstance } from '@ggraphic/editor/utils/shapes';
 
 /** The element collections a block can bring onto a page; all of them the freeform page holds. */
 export const BLOCK_COLLECTIONS = [

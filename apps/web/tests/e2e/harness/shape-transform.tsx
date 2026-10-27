@@ -18,7 +18,7 @@ import {
   createShape,
   type ShapeInstance,
   type ShapeType,
-} from '../../../../../packages/canvas-editor/src/utils/shapes';
+} from '../../../../../packages/ggraphic-editor/src/utils/shapes';
 
 import type Konva from 'konva';
 

@@ -11,7 +11,7 @@ import { CanvasText } from '../../primitives/CanvasText';
 
 const attempts = vi.hoisted(() => ({ count: 0 }));
 
-vi.mock('../RichTextField', () => {
+vi.mock('@ggraphic/editor/components/RichTextField', () => {
   attempts.count += 1;
   throw new Error('chunk load failed');
 });

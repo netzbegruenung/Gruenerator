@@ -59,8 +59,8 @@ import {
 import { getActiveImageFilters, imageFilterAttrs } from '../utils/imageFilters';
 import { backgroundKeyCrop, cropKeyOf, type CropKey } from '../utils/keyboardCrop';
 
-import type { TransformConfig, TransformAnchor } from '../types/editorTypes';
 import type { ImageAdjustments } from '../utils/userImageUtils';
+import type { TransformConfig, TransformAnchor } from '@ggraphic/editor/types/editorTypes';
 import type { SnapTarget, SnapLine } from '@ggraphic/editor/utils/snapping';
 
 // Rahmen für Snap und Geometrie-Meldung, pro Aufruf neu beschrieben (synchron, ohne Allokation).

@@ -1,9 +1,8 @@
+import { CustomColorSwatch } from '@ggraphic/editor/components/CustomColorSwatch';
+import { brandColors } from '@ggraphic/editor/utils/colorOptions';
 import { useCallback, useMemo, useRef, useState } from 'react';
 import { PiShuffle, PiDropSimpleFill } from 'react-icons/pi';
 import { Layer, Line, Stage } from 'react-konva';
-
-import { CustomColorSwatch } from '../../../components/CustomColorSwatch';
-import { brandColors } from '../../../utils/colorOptions';
 
 import { ToolPanel, type ToolPanelSuccess } from './ToolPanel';
 import { useToolImagePlacement } from './useToolImagePlacement';

@@ -1,8 +1,7 @@
+import { useCanvasStore } from '@ggraphic/editor/stores/CanvasStoreProvider';
 import { isMacPlatform } from '@ggraphic/editor/utils/canvasCommandRegistry';
 import { contextPressSelection, itemsUnderPointer } from '@ggraphic/editor/utils/deepSelect';
 import { useEffect } from 'react';
-
-import { useCanvasStore } from '../stores/CanvasStoreProvider';
 
 import type { CanvasStageRef } from '../primitives/CanvasStage';
 

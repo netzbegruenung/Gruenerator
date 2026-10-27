@@ -1,3 +1,4 @@
+import { createCanvasEditorStore } from '@ggraphic/editor/stores/createCanvasEditorStore';
 import {
   CANVAS_COMMAND_IDS,
   shortcutOf,
@@ -9,7 +10,6 @@ import Konva from 'konva';
 import { act } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { createCanvasEditorStore } from '../../stores/createCanvasEditorStore';
 import { CanvasClipboard } from '../../utils/canvasClipboard';
 import { createCanvasCommands, type CanvasCommands } from '../../utils/canvasCommands';
 import { useCanvasKeyboardHandlers } from '../useCanvasKeyboardHandlers';

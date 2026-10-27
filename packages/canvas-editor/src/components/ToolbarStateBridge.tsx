@@ -10,6 +10,11 @@
  * exposes bridge handlers via a mutable ref for GenericCanvasInner's useImperativeHandle.
  */
 
+import {
+  useCanvasStore,
+  useCanvasStoreSelector,
+  useCanvasStoreShallow,
+} from '@ggraphic/editor/stores/CanvasStoreProvider';
 import { userFacingMessage } from '@ggraphic/editor/utils/userFacingError';
 import { toast } from '@gruenerator/ui';
 import { useCallback, useEffect, useMemo, useRef, useState, type MutableRefObject } from 'react';
@@ -19,11 +24,6 @@ import { useFloatingModuleHandlers } from '../hooks/useFloatingModuleHandlers';
 import { useFloatingModuleState } from '../hooks/useFloatingModuleState';
 import { plainImageUrls } from '../hostServices';
 import { useOptionalUserUploads } from '../sidebar/UserUploadsProvider';
-import {
-  useCanvasStore,
-  useCanvasStoreSelector,
-  useCanvasStoreShallow,
-} from '../stores/CanvasStoreProvider';
 import { cropRotationOf, cropRotationUpdate } from '../utils/cropSession';
 import { canEnterCrop, type CropUpdate } from '../utils/cropTarget';
 import {

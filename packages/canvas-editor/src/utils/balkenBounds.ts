@@ -3,10 +3,10 @@
  * group lands on the canvas once its offset, scale and rotation are applied.
  */
 
+import { runMeasurer } from '@ggraphic/editor/utils/textUtils';
 import { type RunStyle } from '@ggraphic/schema';
 
 import { DREIZEILEN_CONFIG } from './dreizeilenLayout';
-import { runMeasurer } from './textUtils';
 
 import type { BalkenInstance, BalkenMode } from '../primitives/BalkenGroup';
 

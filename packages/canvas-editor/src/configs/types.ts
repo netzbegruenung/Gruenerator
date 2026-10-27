@@ -1,7 +1,6 @@
 import type { TemplateAiCapabilities } from '../ai/types';
 import type { StockImageAttribution } from '../common/imageSourceTypes';
 import type { CanvasStageRef } from '../primitives/CanvasStage';
-import type { TextAccent, TextMarker } from '../utils/textUtils';
 import type { BackgroundType, TextFieldConfig } from '@ggraphic/editor/configs/unifiedTabs';
 import type {
   AltTextPage,
@@ -15,6 +14,7 @@ import type {
   SidebarTab,
 } from '@ggraphic/editor/sidebar/tabTypes';
 import type { GradientFill } from '@ggraphic/editor/utils/gradientFill';
+import type { TextAccent, TextMarker } from '@ggraphic/editor/utils/textUtils';
 
 // ============================================================================
 // ELEMENT CONFIGURATION TYPES

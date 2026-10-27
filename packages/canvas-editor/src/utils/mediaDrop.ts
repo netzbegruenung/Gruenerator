@@ -1,8 +1,8 @@
-import type { FrameClipType } from './frameUtils';
-import type { ShapeType } from './shapes';
 import type { StockImageAttribution } from '../common/imageSourceTypes';
 import type { BalkenMode } from '../primitives/BalkenGroup';
 import type { ChartType } from '@ggraphic/editor/utils/chartTypes';
+import type { FrameClipType } from '@ggraphic/editor/utils/frameUtils';
+import type { ShapeType } from '@ggraphic/editor/utils/shapes';
 import type { StickerRef } from '@gruenerator/contracts';
 import type Konva from 'konva';
 

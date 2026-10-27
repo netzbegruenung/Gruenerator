@@ -27,20 +27,22 @@ Je `@gruenerator/*`-Paket steht im JSON:
 - `editorImporters`: die Editor-Dateien im Bundle, die ein Modul dieses Pakets importieren, das selbst oder über seine Barrels Code ins Bundle bringt;
 - `firstChain`: der kürzeste Importpfad vom Einstieg zum ersten Modul des Pakets, das im Bundle steht. Der Pfad läuft über den ganzen Modulgraphen, kann also durch Barrels führen, die selbst nichts ausliefern.
 
-## Stand: 27.10.2026, Basis #5033 plus `@ggraphic/editor`
+## Stand: 27.10.2026, Basis #5037 plus zweite Umzugsrunde
 
-855 Module im Bundle, 322 davon eager. **120 Module stammen aus zwei `@gruenerator/*`-Paketen:**
+856 Module im Bundle, 323 davon eager. **89 Module stammen aus zwei `@gruenerator/*`-Paketen:**
 
 | Paket                        | Module | davon eager |   Code | Editor-Dateien, die es importieren | erster Pfad über                        |
 | ---------------------------- | -----: | ----------: | -----: | ---------------------------------: | --------------------------------------- |
-| `@gruenerator/canvas-editor` |    118 |         106 | 814 KB |                                  – | `index.ts` → `CanvasEditorProvider.tsx` |
+| `@gruenerator/canvas-editor` |     87 |          79 | 733 KB |                                  – | `index.ts` → `CanvasEditorProvider.tsx` |
 | `@gruenerator/collab`        |      2 |           2 |   2 KB |                                  1 | `collab/useSelectionAwareness.ts`       |
 
-Dazu kommen `@ggraphic/editor` (50 Module, 47 eager), `@ggraphic/schema` (5) und `@ggraphic/core` (1). Mit #5033 lagen die 50 Module noch in `@gruenerator/canvas-editor` (168). Vorher (Basis #5031) waren es 1083 Module, davon 396 aus vier Paketen: `@gruenerator/contracts` stand mit 225 da, alle eager, und `@gruenerator/core` (1) kam nur über `contracts`. Noch davor (mit `StandaloneCanvas`, Basis #5026) waren es 1307 Module aus fünf Paketen.
+Dazu kommen `@ggraphic/editor` (82 Module, 75 eager), `@ggraphic/schema` (5) und `@ggraphic/core` (1). Nach der ersten Umzugsrunde (#5035) waren es 118 Module aus `@gruenerator/canvas-editor` und 50 in `@ggraphic/editor`, mit #5033 lagen alle 168 noch in `@gruenerator/canvas-editor`. Vorher (Basis #5031) waren es 1083 Module, davon 396 aus vier Paketen: `@gruenerator/contracts` stand mit 225 da, alle eager, und `@gruenerator/core` (1) kam nur über `contracts`. Noch davor (mit `StandaloneCanvas`, Basis #5026) waren es 1307 Module aus fünf Paketen.
 
 **`@gruenerator/contracts` ist weg.** Die letzte Editor-Datei, die zur Laufzeit aus dem Barrel importierte, war `utils/canvasAssets.ts`. Kuratierte Emoji, die Sticker (`SYSTEM_STICKERS`) und die Regel, welche `src` eine Instanz selbst tragen darf (`isShareSrc`), stehen jetzt in `brand/grueneAssetCatalog.ts`, und der Kern fragt nur noch das Register, das der Host füllt (`registerAssetCatalog`, eingetragen in `apps/web/src/index.tsx`). Ein Register auf Modulebene statt eines Felds in `CanvasEditorServices`, weil die Abfragen auch in Befehlen, Aktions-Fabriken und Offscreen-Wurzeln laufen, die keinen React-Kontext haben. Ohne Host, wie hier, kennt der Editor keine Katalog-Grafik, zeichnet ein Emoji allein aus seiner Id und ignoriert jede `src` einer Instanz. Die Text-Helfer und `parseDataUrl` kommen aus `@ggraphic/schema`, die Share-Adressen über `CanvasEditorServices.imageUrls`. Das Paket erklärt weiterhin keine `sideEffects`; ein einziger Laufzeit-Import aus dem Barrel brächte die 225 Module zurück (#5027).
 
-**`@ggraphic/editor` ist das neutrale Paket, in das der Editor von unten nach oben umzieht.** Eine Datei zieht um, wenn sie keine Markeninhalte trägt und alles, was sie importiert, schon umgezogen ist. Die erste Runde sind 66 Dateien: Geometrie und Einrasten, Auswahl und Tastatur, der Icon-Katalog, der Autosave-Store, das Yjs-Seitendokument und die Bühnen-Bausteine, die sonst nichts brauchen. Jede Datei ist ein eigener Einstieg (`@ggraphic/editor/utils/snapping`), deshalb bleibt ein Modul dasselbe Modul und lässt sich in Tests unter diesem Pfad ersetzen.
+**`@ggraphic/editor` ist das neutrale Paket, in das der Editor von unten nach oben umzieht.** Eine Datei zieht um, wenn sie keine Markeninhalte trägt und alles, was sie importiert, schon umgezogen ist. Die erste Runde (#5035) waren 66 Dateien: Geometrie und Einrasten, Auswahl und Tastatur, der Icon-Katalog, der Autosave-Store, das Yjs-Seitendokument und die Bühnen-Bausteine, die sonst nichts brauchen. Die zweite Runde sind 37 Dateien, frei geworden, seit Farben und Schriften als Daten in den Markenpaketen stehen (#5037): Store und Store-Provider, Formate, Formen, Text-Messung und Textmarker, Rich-Text-Feld und Textleiste, Diagramm-, Rahmen- und Abzeichen-Helfer, Undo/Redo und die Yjs-Bindung. Jede Datei ist ein eigener Einstieg (`@ggraphic/editor/utils/snapping`), deshalb bleibt ein Modul dasselbe Modul und lässt sich in Tests unter diesem Pfad ersetzen.
+
+**Markenpakete:** Paletten, Textmarker, Diagrammreihen und die Standardfarben neuer Elemente liest der Editor aus dem aktiven `BrandPack` (`@ggraphic/editor/brand/brandRegistry`). Der Grünerator trägt `[GRUENE_DE, GRUENE_AT]` beim Start ein; ohne Host, wie hier, gilt `brandDefault`.
 
 **Was vom Grünerator im Editor-Teil noch mitkommt:** `brand/grueneAssets.ts` (Logos, Sonnenblumen, Info-Hintergründe), weil `SYSTEM_ASSETS` in `utils/canvasAssets.ts` darauf zeigt und `brand/theme.ts` sowie die Layouts es lesen.
 

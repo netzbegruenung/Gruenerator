@@ -1,6 +1,6 @@
+import { CANVAS_FORMATS, DEFAULT_FORMAT_ID } from '@ggraphic/editor/formats/index';
 import { describe, it, expect, beforeAll } from 'vitest';
 
-import { CANVAS_FORMATS, DEFAULT_FORMAT_ID } from '../../formats';
 import { TEMPLATE_REGISTRY, templateFitsFormat } from '../../utils/templateRegistry';
 import { loadCanvasConfig } from '../configLoader';
 

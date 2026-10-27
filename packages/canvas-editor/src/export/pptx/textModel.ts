@@ -1,6 +1,5 @@
+import { defaultTextMarker, markerInkOn } from '@ggraphic/editor/utils/markerColors';
 import { markdownLiteToRichText, type CanvasRichTextDoc } from '@ggraphic/schema';
-
-import { defaultTextMarker, markerInkOn } from '../../utils/markerColors';
 
 import type { PptxBullet, PptxParagraph, PptxTextRun } from './types';
 import type { AdditionalText } from '../../configs/types';

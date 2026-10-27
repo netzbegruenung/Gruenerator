@@ -1,11 +1,10 @@
+import { CustomColorSwatch } from '@ggraphic/editor/components/CustomColorSwatch';
+import { brandColors } from '@ggraphic/editor/utils/colorOptions';
 import { createDefaultGradient, type GradientFill } from '@ggraphic/editor/utils/gradientFill';
 import { Popover, PopoverContent, PopoverTrigger } from '@gruenerator/ui';
 import { Slider } from 'radix-ui';
 import React, { useId } from 'react';
 import { PiPaintBucket } from 'react-icons/pi';
-
-import { brandColors } from '../../../utils/colorOptions';
-import { CustomColorSwatch } from '../../CustomColorSwatch';
 
 interface FloatingGradientControlProps {
   currentColor: string;

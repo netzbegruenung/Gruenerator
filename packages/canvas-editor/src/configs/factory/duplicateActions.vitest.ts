@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { createBalkenActions, createIllustrationActions } from './actionFactories';
 
 import type { BalkenInstance } from '../../utils/balkenUtils';
-import type { IllustrationInstance } from '../../utils/illustrations/types';
+import type { IllustrationInstance } from '@ggraphic/editor/utils/illustrations/types';
 
 /**
  * Die beiden Seitenleisten-Aktionen laufen durch dieselbe Tür wie Strg+D

@@ -1,10 +1,10 @@
+import { createChartInstance, type ChartInstance } from '@ggraphic/editor/utils/chartUtils';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { useState } from 'react';
 import { describe, expect, it } from 'vitest';
 
 import { axe } from '../../test-utils';
-import { createChartInstance, type ChartInstance } from '../../utils/chartUtils';
 
 import { ChartSettingsSection } from './ChartSettingsSection';
 

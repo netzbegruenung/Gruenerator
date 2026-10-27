@@ -5,6 +5,16 @@
  * These eliminate the need to duplicate action logic across configs.
  */
 
+import {
+  createChartInstance,
+  type ChartInstance,
+  type ChartType,
+} from '@ggraphic/editor/utils/chartUtils';
+import { createCircleBadgeInstance } from '@ggraphic/editor/utils/circleBadgeUtils';
+import { brandColors } from '@ggraphic/editor/utils/colorOptions';
+import { createFrameInstance } from '@ggraphic/editor/utils/frameUtils';
+import { createPillBadgeInstance } from '@ggraphic/editor/utils/pillBadgeUtils';
+import { createShape } from '@ggraphic/editor/utils/shapes';
 import { v4 as uuid } from 'uuid';
 
 import {
@@ -15,15 +25,9 @@ import {
 } from '../../utils/balkenBounds';
 import { createBalkenInstanceFromPreset } from '../../utils/balkenUtils';
 import { createAssetInstance, createStickerInstance } from '../../utils/canvasAssets';
-import { createChartInstance, type ChartInstance, type ChartType } from '../../utils/chartUtils';
-import { createCircleBadgeInstance } from '../../utils/circleBadgeUtils';
-import { brandColors } from '../../utils/colorOptions';
 import { duplicateElementInState } from '../../utils/duplicateElement';
-import { createFrameInstance } from '../../utils/frameUtils';
 import { iconInstanceIdsFor } from '../../utils/iconInstances';
 import { createIllustration } from '../../utils/illustrations/registry';
-import { createPillBadgeInstance } from '../../utils/pillBadgeUtils';
-import { createShape } from '../../utils/shapes';
 import {
   createUserImageInstance,
   createUserImageInstanceFromUrl,
@@ -32,11 +36,6 @@ import {
 import type { IconState, BaseCanvasState } from './baseTypes';
 import type { BalkenInstance, BalkenMode } from '../../utils/balkenUtils';
 import type { AssetInstance } from '../../utils/canvasAssets';
-import type { CircleBadgeInstance } from '../../utils/circleBadgeUtils';
-import type { FrameClipType, FrameInstance } from '../../utils/frameUtils';
-import type { IllustrationInstance } from '../../utils/illustrations/types';
-import type { PillBadgeInstance } from '../../utils/pillBadgeUtils';
-import type { ShapeInstance, ShapeType } from '../../utils/shapes';
 import type {
   ElementPlacement,
   ImageAdjustments,
@@ -44,6 +43,11 @@ import type {
   UserImagePlacement,
 } from '../../utils/userImageUtils';
 import type { AdditionalText } from '../types';
+import type { CircleBadgeInstance } from '@ggraphic/editor/utils/circleBadgeUtils';
+import type { FrameClipType, FrameInstance } from '@ggraphic/editor/utils/frameUtils';
+import type { IllustrationInstance } from '@ggraphic/editor/utils/illustrations/types';
+import type { PillBadgeInstance } from '@ggraphic/editor/utils/pillBadgeUtils';
+import type { ShapeInstance, ShapeType } from '@ggraphic/editor/utils/shapes';
 import type { StickerRef } from '@gruenerator/contracts';
 
 // ============================================================================

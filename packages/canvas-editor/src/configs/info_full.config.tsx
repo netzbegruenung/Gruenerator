@@ -5,8 +5,9 @@
  * Uses createColorTwoTextCanvas factory + Phase A/B helpers.
  */
 
+import { wrapTextAccurate } from '@ggraphic/editor/utils/textUtils';
+
 import { INFO_CONFIG } from '../utils/infoLayout';
-import { wrapTextAccurate } from '../utils/textUtils';
 
 import {
   createAiCapabilities,

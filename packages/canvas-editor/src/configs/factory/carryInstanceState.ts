@@ -38,14 +38,14 @@ import { isTextAlign, type TextAlign } from '@ggraphic/editor/utils/textAlign';
 import type { IconState } from './baseTypes';
 import type { BalkenInstance } from '../../utils/balkenUtils';
 import type { AssetInstance } from '../../utils/canvasAssets';
-import type { CircleBadgeInstance } from '../../utils/circleBadgeUtils';
-import type { FrameInstance } from '../../utils/frameUtils';
-import type { IllustrationInstance } from '../../utils/illustrations/types';
-import type { PillBadgeInstance } from '../../utils/pillBadgeUtils';
-import type { ShapeInstance } from '../../utils/shapes';
 import type { ImageAdjustments, UserImageInstance } from '../../utils/userImageUtils';
 import type { AdditionalText } from '../types';
 import type { ChartInstance } from '@ggraphic/editor/utils/chartTypes';
+import type { CircleBadgeInstance } from '@ggraphic/editor/utils/circleBadgeUtils';
+import type { FrameInstance } from '@ggraphic/editor/utils/frameUtils';
+import type { IllustrationInstance } from '@ggraphic/editor/utils/illustrations/types';
+import type { PillBadgeInstance } from '@ggraphic/editor/utils/pillBadgeUtils';
+import type { ShapeInstance } from '@ggraphic/editor/utils/shapes';
 
 export interface CarriedInstanceState {
   assetInstances: AssetInstance[];

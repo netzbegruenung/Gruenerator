@@ -13,6 +13,9 @@
  *
  * Pure: no React, no Konva. Text is measured through the injected `measure`.
  */
+
+import { getCanvasFormat, isPrintFormat } from '@ggraphic/editor/formats/index';
+import { type TextAccent } from '@ggraphic/editor/utils/textUtils';
 import {
   type PrintFormatId,
   type PrintSpec,
@@ -22,9 +25,6 @@ import {
   type PrintImpressum,
   printFotoSrc,
 } from '@gruenerator/contracts';
-
-import { getCanvasFormat, isPrintFormat } from '../formats';
-import { type TextAccent } from '../utils/textUtils';
 
 import {
   AT_EMPHASIS_STYLE,

@@ -1,4 +1,4 @@
-import { createShape } from '../utils/shapes';
+import { createShape } from '@ggraphic/editor/utils/shapes';
 
 import { type InfografikItem, type Placed } from './composeTypes';
 import { SHAREPIC_ICON_FILLED, SHAREPIC_ICON_IDS } from './sharepicIcons';

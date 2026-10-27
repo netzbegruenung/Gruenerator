@@ -1,3 +1,4 @@
+import { useCanvasStore } from '@ggraphic/editor/stores/CanvasStoreProvider';
 import {
   canStartMarquee,
   itemsInRect,
@@ -5,8 +6,6 @@ import {
   syncOutlines,
 } from '@ggraphic/editor/utils/multiSelect';
 import { useCallback, useEffect, useRef } from 'react';
-
-import { useCanvasStore } from '../stores/CanvasStoreProvider';
 
 import type { CanvasStageRef } from '../primitives/CanvasStage';
 import type Konva from 'konva';

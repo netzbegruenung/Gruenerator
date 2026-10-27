@@ -3,20 +3,20 @@
  * Before, the card kept the composer's height until an AI edit recomposed the
  * page, and the new point hung below it.
  */
+import { getCanvasFormatOrDefault } from '@ggraphic/editor/formats/index';
+import { runMeasurer } from '@ggraphic/editor/utils/textUtils';
 import { layoutRichTextBlock } from '@ggraphic/schema';
 import { type SharepicSpec } from '@gruenerator/contracts';
 import { describe, expect, it } from 'vitest';
 
 import { createFreeformFullConfig, type FreeformState } from '../configs/freeform_full.config';
-import { getCanvasFormatOrDefault } from '../formats';
-import { runMeasurer } from '../utils/textUtils';
 
 import { composeSharepic } from './composeSharepic';
 import { fingerprint, liftPage, recomposePage } from './liftSharepicPage';
 import { farbe, options } from './sharepicSpecFixtures';
 
 import type { AdditionalText } from '../configs/types';
-import type { ShapeInstance } from '../utils/shapes';
+import type { ShapeInstance } from '@ggraphic/editor/utils/shapes';
 
 const specOf = (headline: string, items: string[]): SharepicSpec => ({
   locale: 'de-DE',

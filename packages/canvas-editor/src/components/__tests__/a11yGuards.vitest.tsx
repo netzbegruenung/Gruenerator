@@ -8,6 +8,11 @@
  * jsdom hat kein Layout: Kontrast und Zielgröße misst die Playwright-Lane
  * (`apps/web/tests/e2e/a11y.spec.ts`), hier geht es um Namen, Rollen, ARIA.
  */
+import {
+  CanvasTextEditorProvider,
+  preloadRichText,
+} from '@ggraphic/editor/components/CanvasTextOverlay';
+import { CanvasStoreProvider } from '@ggraphic/editor/stores/CanvasStoreProvider';
 import { act, cleanup, render, screen } from '@testing-library/react';
 import { createRef } from 'react';
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
@@ -16,9 +21,7 @@ import { CanvasStage, type CanvasStageRef } from '../../primitives/CanvasStage';
 import { CanvasText } from '../../primitives/CanvasText';
 import { SidebarPanel } from '../../sidebar/SidebarPanel';
 import { SidebarTabBar } from '../../sidebar/SidebarTabBar';
-import { CanvasStoreProvider } from '../../stores/CanvasStoreProvider';
 import { axe } from '../../test-utils';
-import { CanvasTextEditorProvider, preloadRichText } from '../CanvasTextOverlay';
 import { MobileSelectionPill } from '../MobileSelectionPill';
 import { ContextControls } from '../TopBar/ContextControls';
 import { MobileSelectionBar } from '../TopBar/MobileSelectionBar';

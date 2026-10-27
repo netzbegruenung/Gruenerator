@@ -12,17 +12,18 @@
  *   - Each op is wrapped in try/catch so one bad op in a multi-op
  *     suggestion doesn't abort the rest.
  */
+import { type ShapeInstance } from '@ggraphic/editor/utils/shapes';
+
 import { isLayerLocked } from '../utils/layerLock';
 import { findElementRemover } from '../utils/removeElement';
-import { type ShapeInstance } from '../utils/shapes';
 
 import type { ApplyResult, TemplateAiCapabilities } from './types';
 import type { BaseCanvasState } from '../configs/factory/baseTypes';
 import type { AdditionalText } from '../configs/types';
 import type { BalkenInstance } from '../primitives/BalkenGroup';
-import type { CircleBadgeInstance } from '../primitives/CircleBadge';
-import type { FrameInstance } from '../utils/frameUtils';
-import type { PillBadgeInstance } from '../utils/pillBadgeUtils';
+import type { CircleBadgeInstance } from '@ggraphic/editor/primitives/CircleBadge';
+import type { FrameInstance } from '@ggraphic/editor/utils/frameUtils';
+import type { PillBadgeInstance } from '@ggraphic/editor/utils/pillBadgeUtils';
 import type { CanvasAiOperation, CanvasAiUpdatePatch } from '@gruenerator/contracts';
 
 export type { ApplyResult };

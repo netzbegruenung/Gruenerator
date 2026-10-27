@@ -8,7 +8,9 @@
  * balkens, badges, frames — all features the config system offers.
  */
 
+import { insertScaleFor, isSlideFormat, type CanvasFormat } from '@ggraphic/editor/formats/index';
 import { zoomBackground } from '@ggraphic/editor/utils/coverFit';
+import { COMPOSER_PLANE_IDS, photoStripBeside } from '@ggraphic/editor/utils/shapes';
 import { straightenResetFor } from '@ggraphic/editor/utils/straighten';
 import { CANVAS_COLORS } from '@gruenerator/contracts';
 import { PiFrameCornersFill, PiSquaresFourFill, PiTextAa } from 'react-icons/pi';
@@ -19,12 +21,10 @@ import { buildIllustrationCapability } from '../ai/illustrationCapability';
 import { withCardFollowingText } from '../composer/cardFollowsText';
 import { SHAREPIC_COLOR_HEX } from '../composer/composeSharepic';
 import { type LiftedBlock } from '../composer/liftBlock';
-import { insertScaleFor, isSlideFormat, type CanvasFormat } from '../formats';
 import { AssetsSection } from '../sidebar';
 import { CombinedTextSection } from '../sidebar/sections/CombinedTextSection';
 import { FrameSettingsSection } from '../sidebar/sections/FrameSettingsSection';
 import { CANVAS_RECOMMENDED_ASSETS } from '../utils/canvasAssets';
-import { COMPOSER_PLANE_IDS, photoStripBeside } from '../utils/shapes';
 
 import { chatTab, createCommonSectionEntries, toolsTab, uploadsTab } from './commonSections';
 import { createBaseActions } from './factory/actionFactories';
@@ -42,7 +42,7 @@ import type {
 import type { FullCanvasConfig, LayoutResult, AdditionalText } from './types';
 import type { StockImageAttribution } from '../common/imageSourceTypes';
 import type { BackgroundColorOption } from '../sidebar/types';
-import type { ShapeInstance } from '../utils/shapes';
+import type { ShapeInstance } from '@ggraphic/editor/utils/shapes';
 import type { CanvasAiSnapshot } from '@gruenerator/contracts';
 
 // ============================================================================

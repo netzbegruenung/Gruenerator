@@ -4,8 +4,9 @@
  * canvases match the sharepics it produced
  */
 
+import { measureTextWidthWithFont } from '@ggraphic/editor/utils/textUtils';
+
 import { SYSTEM_ASSETS } from './canvasAssets';
-import { measureTextWidthWithFont } from './textUtils';
 
 export interface ColorPair {
   background: string;

@@ -1,4 +1,11 @@
 import { useAllIconsCatalog, useIconCatalog } from '@ggraphic/editor/hooks/useIconCatalog';
+import { CHART_TYPE_DEFS } from '@ggraphic/editor/utils/chartUtils';
+import {
+  FRAME_CATEGORY_ORDER,
+  FRAME_PRESETS,
+  getFramePreset,
+} from '@ggraphic/editor/utils/frameUtils';
+import { getShapeDef } from '@ggraphic/editor/utils/shapes';
 import {
   shareThumbnailPreviewUrl,
   sharepicBlockThumbPath,
@@ -20,13 +27,10 @@ import {
   type AssetAudience,
   type UniversalAsset,
 } from '../../../utils/canvasAssets';
-import { CHART_TYPE_DEFS } from '../../../utils/chartUtils';
 import { withTone } from '../../../utils/emoji/emojiCatalog';
-import { FRAME_CATEGORY_ORDER, FRAME_PRESETS, getFramePreset } from '../../../utils/frameUtils';
 import { KAWAII_ILLUSTRATIONS } from '../../../utils/illustrations/kawaii';
 import { getAllIllustrations } from '../../../utils/illustrations/registry';
 import { UNDRAW_FEATURED } from '../../../utils/illustrations/undraw';
-import { getShapeDef } from '../../../utils/shapes';
 import { ALL_PALETTE_SHAPES, getShapeVariant } from '../FormenSection';
 
 import { ElementThumb } from './ElementThumb';
@@ -35,8 +39,8 @@ import { useStockPhotos } from './useStockPhotos';
 import type { ExtendedAssetsSectionProps } from './AssetsSection';
 import type { AssetView } from './constants';
 import type { ElementAction, ElementItem } from './elementTypes';
-import type { IllustrationDef } from '../../../utils/illustrations/types';
 import type { IconDef } from '@ggraphic/editor/utils/canvasIcons';
+import type { IllustrationDef } from '@ggraphic/editor/utils/illustrations/types';
 
 export type CategoryId = Exclude<AssetView, 'browse'>;
 

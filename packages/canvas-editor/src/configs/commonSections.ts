@@ -17,12 +17,12 @@ import type { CanvasAiEditBridge } from '../CanvasEditorProvider';
 import type { BalkenInstance } from '../primitives/BalkenGroup';
 import type { ChatSectionProps, ToolsSectionProps, UploadsSectionProps } from '../sidebar/sections';
 import type { SidebarTab } from '../sidebar/types';
-import type { ChartInstance } from '../utils/chartUtils';
 import type {
   ImageAdjustments,
   UserImageInstance,
   UserImagePlacement,
 } from '../utils/userImageUtils';
+import type { ChartInstance } from '@ggraphic/editor/utils/chartUtils';
 
 interface ActionsWithChart {
   updateChart?: (id: string, partial: Partial<ChartInstance>) => void;

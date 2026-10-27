@@ -1,7 +1,7 @@
+import { CanvasStoreProvider } from '@ggraphic/editor/stores/CanvasStoreProvider';
 import { render, screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 
-import { CanvasStoreProvider } from '../../../stores/CanvasStoreProvider';
 import { MobileSelectionControls } from '../MobileSelectionControls';
 
 /**

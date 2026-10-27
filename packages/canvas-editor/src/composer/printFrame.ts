@@ -5,15 +5,21 @@
  *
  * Pure: no React, no Konva. Text is measured through the injected `measure`.
  */
+
+import {
+  mmToPx,
+  printGeometry,
+  type PrintCanvasFormat,
+  type PrintRect,
+} from '@ggraphic/editor/formats/index';
+import { type CircleBadgeInstance } from '@ggraphic/editor/primitives/CircleBadge';
+import { createCircleBadgeInstance } from '@ggraphic/editor/utils/circleBadgeUtils';
+import { createShape, type ShapeInstance } from '@ggraphic/editor/utils/shapes';
+import { type TextAccent } from '@ggraphic/editor/utils/textUtils';
 import { type PrintImpressum, type PrintKontakt } from '@gruenerator/contracts';
 
 import { getBrandTheme, type BrandTheme } from '../brand/theme';
-import { mmToPx, printGeometry, type PrintCanvasFormat, type PrintRect } from '../formats';
-import { type CircleBadgeInstance } from '../primitives/CircleBadge';
 import { ASSET_TARGET_SIZE } from '../utils/canvasAssets';
-import { createCircleBadgeInstance } from '../utils/circleBadgeUtils';
-import { createShape, type ShapeInstance } from '../utils/shapes';
-import { type TextAccent } from '../utils/textUtils';
 import { type UserImageInstance } from '../utils/userImageUtils';
 
 import { layoutTextLines, type MeasureText } from './chromeParts';

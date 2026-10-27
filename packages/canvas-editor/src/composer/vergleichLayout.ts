@@ -1,4 +1,4 @@
-import { createShape } from '../utils/shapes';
+import { createShape } from '@ggraphic/editor/utils/shapes';
 
 import { LIME, SHAREPIC_COLOR_HEX } from './chromeParts';
 import { type FaktencheckItem, type Placed, type VergleichItem } from './composeTypes';

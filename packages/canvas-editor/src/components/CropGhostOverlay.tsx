@@ -1,6 +1,6 @@
+import { useCanvasStoreSelector } from '@ggraphic/editor/stores/CanvasStoreProvider';
 import { useLayoutEffect, useRef } from 'react';
 
-import { useCanvasStoreSelector } from '../stores/CanvasStoreProvider';
 import { paintCropGhosts, visibleContainerRect } from '../utils/cropGhost';
 
 import type Konva from 'konva';

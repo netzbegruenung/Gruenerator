@@ -3,12 +3,12 @@
  * ihren Bericht und wählt über ihren Store aus — eine Auswahl auf der Fläche
  * erscheint in der Liste, eine in der Liste auf der Fläche.
  */
+import { defaultCanvasEditorStore } from '@ggraphic/editor/stores/createCanvasEditorStore';
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import Konva from 'konva';
 import React from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { defaultCanvasEditorStore } from '../../../stores/createCanvasEditorStore';
 import { axe } from '../../../test-utils';
 import { CanvasEditor } from '../index';
 

@@ -1,10 +1,10 @@
+import { useCanvasStore } from '@ggraphic/editor/stores/CanvasStoreProvider';
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef } from 'react';
 
-import { useCanvasStore } from '../stores/CanvasStoreProvider';
 import { restoreCropSnapshot, takeCropSnapshot, type CropSnapshot } from '../utils/cropSession';
 
 import type { CanvasElementConfig } from '../configs/types';
-import type { HistorySessionMark } from '../stores/createCanvasEditorStore';
+import type { HistorySessionMark } from '@ggraphic/editor/stores/createCanvasEditorStore';
 
 interface CropSession {
   id: string;

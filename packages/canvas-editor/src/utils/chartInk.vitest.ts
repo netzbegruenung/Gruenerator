@@ -1,6 +1,5 @@
+import { CHART_INK_DARK, chartInk } from '@ggraphic/editor/utils/chartUtils';
 import { describe, expect, it } from 'vitest';
-
-import { CHART_INK_DARK, chartInk } from './chartUtils';
 
 describe('chartInk', () => {
   it('writes white on a dark ground', () => {

@@ -1,10 +1,10 @@
+import { createShape, type ShapeInstance } from '@ggraphic/editor/utils/shapes';
 import { SHAREPIC_LOCALE_COLORS } from '@gruenerator/contracts';
 import { beforeAll, describe, expect, it } from 'vitest';
 
 import { applyOperation, type CanvasAiActionsBase } from '../../ai/applyOperation';
 import { getBrandTheme } from '../../brand/theme';
 import { SHAREPIC_COLOR_HEX } from '../../composer/composeSharepic';
-import { createShape, type ShapeInstance } from '../../utils/shapes';
 import { loadCanvasConfig } from '../configLoader';
 
 import type { TemplateAiCapabilities } from '../../ai/types';

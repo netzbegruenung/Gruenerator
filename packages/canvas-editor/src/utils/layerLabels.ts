@@ -5,10 +5,11 @@
  * damit Bühnen-Beschriftung, Alt-Text und Ansagen dieselben Namen lesen.
  */
 
+import { getShapeDef } from '@ggraphic/editor/utils/shapes';
+
 import { getAssetById, isStickerLikeInstance } from './canvasAssets';
 import { isLayerLocked } from './layerLock';
 import { BACKGROUND_IMAGE_NODE_ID } from './printImageInfo';
-import { getShapeDef } from './shapes';
 
 import type { CanvasItem } from './canvasLayerManager';
 import type { CanvasElementConfig } from '../configs/types';
