@@ -230,6 +230,6 @@ export function buildGlossaryDefinitionsNote(text: string): string {
   return `
 
 ## GRÜNERATOR-BEGRIFFE IN DIESER NACHRICHT
-So heißen diese Wörter im Grünerator — beantworte Fragen danach aus diesen Angaben, nicht aus allgemeinem Wissen:
+So heißen diese Wörter im Grünerator — beantworte Fragen danach aus diesen Angaben, nicht aus allgemeinem Wissen, und gib den Doku-Link mit, wo einer steht:
 ${named.map(formatEntry).join('\n')}`;
 }
