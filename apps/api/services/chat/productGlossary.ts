@@ -63,16 +63,16 @@ export const PRODUCT_GLOSSARY = [
     label: 'Explainable',
     terms: /\bexplainables?\b/i,
     definition:
-      'Eine Erklärseite in einfacher Sprache mit bis zu drei gemalten Erklärbildern. Entsteht im Chat (@explainable-erstellen) oder per „Einfach erklären" unter einer Notebook-Antwort und lässt sich per Link teilen.',
-    docsPath: null,
+      'Eine Erklärseite in einfacher Sprache mit zwei bis drei gemalten Erklärbildern. Entsteht im Chat (@explainable-erstellen) oder aus einer Antwort über „Als Explainable öffnen" im Dokument-Menü und lässt sich per Link auch mit Menschen ohne Konto teilen.',
+    docsPath: '/docs/features/explainables',
   },
   {
     id: 'podcast',
     label: 'Podcast',
     terms: /\bpodcasts?\b/i,
     definition:
-      'Eine Chat- oder Notebook-Antwort als Gespräch zweier KI-Stimmen (Moderation und Erklärung), erstellt über „Als Podcast anhören" im Dokument-Menü. Das MP3 liegt danach in der Mediathek.',
-    docsPath: null,
+      'Eine Chat- oder Notebook-Antwort als Gespräch zweier KI-Stimmen (Moderation und Erklärung, zwei bis fünf Minuten), erstellt über „Als Podcast anhören" im Dokument-Menü. Das MP3 liegt danach in der Mediathek.',
+    docsPath: '/docs/features/podcasts',
   },
   {
     id: 'voice',
