@@ -17,13 +17,13 @@ import { createPillBadgeInstance } from '@ggraphic/editor/utils/pillBadgeUtils';
 import { createShape } from '@ggraphic/editor/utils/shapes';
 import { v4 as uuid } from 'uuid';
 
+import { createBalkenInstanceFromPreset } from '../../brand/balkenPresets';
 import {
   BALKEN_FIT_MARGIN,
   BALKEN_FIT_MIN_SCALE,
   balkenExtent,
   fitBalkenAfterTextEdit,
 } from '../../utils/balkenBounds';
-import { createBalkenInstanceFromPreset } from '../../utils/balkenUtils';
 import { createAssetInstance, createStickerInstance } from '../../utils/canvasAssets';
 import { duplicateElementInState } from '../../utils/duplicateElement';
 import { iconInstanceIdsFor } from '../../utils/iconInstances';

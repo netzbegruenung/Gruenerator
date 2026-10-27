@@ -14,6 +14,12 @@
     "noUncheckedIndexedAccess": false,
     "noPropertyAccessFromIndexSignature": false
   },
-  "include": ["src/**/*", "vitest.config.ts", "vitest.setup.ts", "vitest.setup.assets.ts"],
+  "include": [
+    "src/**/*",
+    "vitest.config.ts",
+    "vitest.setup.ts",
+    "vitest.setup.assets.ts",
+    "vitest.setup.kinds.ts"
+  ],
   "exclude": ["node_modules", "dist"]
 }

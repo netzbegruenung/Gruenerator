@@ -6,7 +6,7 @@
 import { measureTextWidthWithFont } from '@ggraphic/editor/utils/textUtils';
 import { describe, expect, it } from 'vitest';
 
-import { type BalkenInstance } from '../primitives/BalkenGroup';
+import { type BalkenInstance } from '../utils/balkenUtils';
 
 import { calculateBalkenLayouts, fitBalkenToCanvas } from './balkenBounds';
 import { DREIZEILEN_CONFIG } from './dreizeilenLayout';

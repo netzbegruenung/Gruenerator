@@ -18,8 +18,8 @@ import { MAX_ICON_SELECTIONS, selectedCatalogIconIds } from '../utils/iconInstan
 
 import type { IconState } from './factory/baseTypes';
 import type { SectionContext } from './types';
-import type { BalkenInstance } from '../primitives/BalkenGroup';
 import type { ExtendedAssetsSectionProps } from '../sidebar/sections/assets';
+import type { BalkenInstance } from '../utils/balkenUtils';
 import type { UserImagePlacement } from '../utils/userImageUtils';
 import type { CircleBadgeInstance } from '@ggraphic/editor/primitives/CircleBadge';
 import type { ChartInstance } from '@ggraphic/editor/utils/chartUtils';

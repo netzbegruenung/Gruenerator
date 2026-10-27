@@ -66,7 +66,7 @@ import type {
 } from './types';
 import type { TemplateAiCapabilities } from '../ai/types';
 import type { StockImageAttribution } from '../common/imageSourceTypes';
-import type { BalkenInstance } from '../primitives/BalkenGroup';
+import type { BalkenInstance } from '../utils/balkenUtils';
 import type { AssetInstance } from '../utils/canvasAssets';
 import type { UserImageInstance } from '../utils/userImageUtils';
 import type { ChartInstance } from '@ggraphic/editor/utils/chartUtils';

@@ -35,7 +35,7 @@ import type { AssetInstance } from './canvasAssets';
 import type { UserImageInstance } from './userImageUtils';
 import type { BaseCanvasState, IconState } from '../configs/factory/baseTypes';
 import type { AdditionalText } from '../configs/types';
-import type { BalkenInstance } from '../primitives/BalkenGroup';
+import type { BalkenInstance } from '../utils/balkenUtils';
 import type { CircleBadgeInstance } from '@ggraphic/editor/primitives/CircleBadge';
 import type { ChartInstance } from '@ggraphic/editor/utils/chartTypes';
 import type { FrameInstance } from '@ggraphic/editor/utils/frameUtils';

@@ -1,5 +1,5 @@
 import type { StockImageAttribution } from '../common/imageSourceTypes';
-import type { BalkenMode } from '../primitives/BalkenGroup';
+import type { BalkenMode } from '../utils/balkenUtils';
 import type { ChartType } from '@ggraphic/editor/utils/chartTypes';
 import type { FrameClipType } from '@ggraphic/editor/utils/frameUtils';
 import type { ShapeType } from '@ggraphic/editor/utils/shapes';
