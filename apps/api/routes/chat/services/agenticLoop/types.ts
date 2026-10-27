@@ -278,6 +278,14 @@ export function editToolNameFor(
  * MCP/connector tools already skip this heuristic via `serverNameFor`
  * (`wrapTools.ts`); these are its internal-tool equivalent.
  */
+/**
+ * Werkzeuge, die nur eine ENTSCHEIDUNG des Planers tragen und nichts tun:
+ * keine Karte, kein gespeicherter Schritt, keine Wächter. `direkt_antworten`
+ * ist die Gegenwahl zu `tabelle_auswerten` auf dem erzwungenen ersten Schritt
+ * eines Tabellen-Turns (`tabular_decision`, #5042).
+ */
+export const UNRECORDED_TOOLS: ReadonlySet<string> = new Set(['direkt_antworten']);
+
 export const NEAR_DUPLICATE_EXEMPT_TOOLS: ReadonlySet<string> = new Set([
   'create_board',
   // Zwei Absätze desselben Flyers teilen sich fast jedes Token — jeder Aufruf

@@ -30,6 +30,8 @@ const log = createLogger('TabelleAuswerten');
 
 export const TABELLE_AUSWERTEN_TOOL = 'tabelle_auswerten';
 const RUN_PYTHON_CLIENT_TOOL = 'run_python';
+/** Die Gegenwahl auf dem erzwungenen ersten Schritt (siehe `UNRECORDED_TOOLS`). */
+export const DIREKT_ANTWORTEN_TOOL = 'direkt_antworten';
 
 const MAX_ERROR_CHARS = 1500;
 /** Original plus zwei Wiederholungen. Serverseitig gezählt: jede Fortsetzung
@@ -106,6 +108,25 @@ Rufe es direkt auf — die Freigabe fragt das System selbst ab. Bitte nie im Tex
 Bei einem Fehler (\`error\`) oder einem berechtigten \`hinweis\` der Plausibilitätsprüfung rufe es mit einem präzisierten \`auftrag\` erneut auf (z. B. mit dem richtigen Spaltennamen) — höchstens zweimal. Hat die Person die Ausführung abgelehnt, antworte ohne Rechnung aus dem Kontext und sag deutlich, dass die Zahlen nicht berechnet wurden.`,
     inputSchema: tabelleAuswertenInputSchema,
     execute: async () => ({ error: 'tabelle_auswerten wird nie direkt ausgeführt.' }),
+  });
+}
+
+/**
+ * Ein Tabellen-Turn verlangt auf dem ersten Schritt eine Wahl: rechnen oder
+ * ausdrücklich nicht. Ohne sie schwieg der Planer bei Anschlussfragen, und der
+ * werkzeuglose Schreiber rechnete aus dem Tabellenauszug — falsch (#5042).
+ */
+export function makeDirektAntwortenTool(): Tool {
+  return tool({
+    description: `Wähle das, wenn die Antwort KEINE neue Rechnung über die angehängte Tabelle braucht — etwa Dank, Umformulieren einer früheren Antwort, eine Frage zum Gesprächsverlauf oder etwas, das gar nicht in der Tabelle steht. Danach stehen dir alle anderen Werkzeuge wieder zur Verfügung.
+
+Jede Zahl, Summe, Zählung, Liste, Filterung, Sortierung oder Einzelangabe AUS der Tabelle braucht stattdessen \`tabelle_auswerten\`.`,
+    inputSchema: z.object({}),
+    execute: async () => ({
+      ok: true,
+      hinweis:
+        'Antworte ohne neue Tabellen-Rechnung. Brauchst du doch Werte aus der Tabelle, rufe tabelle_auswerten auf.',
+    }),
   });
 }
 

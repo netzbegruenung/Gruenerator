@@ -808,6 +808,26 @@ describe('wrapToolsForLoop — tabelle_auswerten: Freigabe vor Codegen', () => {
   });
 });
 
+describe('wrapToolsForLoop — reine Entscheidung (direkt_antworten, #5042)', () => {
+  it('läuft ohne Karte, ohne Schritt und ohne Freigabe-Gate', async () => {
+    const { ctx, events, steps } = makeCtx({
+      approvalGate: createToolApprovalGate({
+        enabled: true,
+        allowlist: new Set(),
+        originFor: () => null,
+      }),
+    });
+    const tools = wrapToolsForLoop(
+      { direkt_antworten: { execute: async () => ({ ok: true }) } } as unknown as ToolSet,
+      ctx
+    );
+
+    expect(await run(tools, 'direkt_antworten', {})).toEqual({ ok: true });
+    expect(events).toEqual([]);
+    expect(steps).toEqual([]);
+  });
+});
+
 describe('wrapToolsForLoop — interne Felder', () => {
   it('entfernt rerankDegraded aus dem Modell-Ergebnis, meldet es aber an den Hook', async () => {
     const seen: unknown[] = [];

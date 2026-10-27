@@ -113,7 +113,11 @@ import { agentAllowsWebSearch, createSearchTools } from './searchTools.js';
 import { makeCheckSharepicTool } from './sharepicCheckTool.js';
 import { makeEditSharepicTool, makeReadSharepicTool } from './sharepicLoopTools.js';
 import { hasThreadSheet, makeEditSheetTool, makeReadSheetTool } from './sheetLoopTools.js';
-import { isTabelleAuswertenMountable, makeTabelleAuswertenTool } from './tabelleAuswertenTool.js';
+import {
+  isTabelleAuswertenMountable,
+  makeDirektAntwortenTool,
+  makeTabelleAuswertenTool,
+} from './tabelleAuswertenTool.js';
 import { makeRecipesTool } from './textFormTools.js';
 import { threadHasArtifact } from './threadArtifactTarget.js';
 import { makeTranslateTool } from './translationTools.js';
@@ -1152,6 +1156,7 @@ NUTZE WENN nach Funktionen, Begriffen, Fähigkeiten oder Anbindungen des Grüner
     // ohne angemeldete Person aus ist; dann lieber gar nicht montieren.
     if (loop.threadId && isTabelleAuswertenMountable({ ...state, agentConfig })) {
       tools.tabelle_auswerten = makeTabelleAuswertenTool();
+      tools.direkt_antworten = makeDirektAntwortenTool();
     }
     // Reisekostenabrechnung (Beta). Nur in Reisekosten-Turns: das Eingabeschema
     // ist gross und zählte sonst gegen das Katalogbudget jedes Recherche-Turns.

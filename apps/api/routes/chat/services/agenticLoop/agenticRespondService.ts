@@ -367,6 +367,7 @@ export async function streamAgenticResponse(
         threadId,
         sourceRegistry,
         toolHistory: toolHistory ?? null,
+        skipTables: 'tabelle_auswerten' in tools,
         onInfo: (m) => log.info(m),
         onError: (m) => log.warn(m),
       });
@@ -383,6 +384,7 @@ export async function streamAgenticResponse(
       sourceRegistry,
       toolName: ATTACHED_DOCS_TOOL,
       isMounted: ATTACHED_DOCS_TOOL in tools,
+      skipTables: 'tabelle_auswerten' in tools,
       onInfo: (m) => log.info(m),
       onError: (m) => log.warn(m),
     });

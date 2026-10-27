@@ -56,8 +56,11 @@ describe('shouldForceFirstToolCall', () => {
   // [gruenerator_search], der Planer hing ⇒ steps=0. Bei einer Anschlussfrage
   // dasselbe mit web_search. Mit montiertem `tabelle_auswerten` entscheidet
   // der Planer frei.
-  it('Tabellen-Turn mit montiertem tabelle_auswerten ⇒ kein named_intent/followup-Zwang', () => {
-    expect(force({ intent: 'search', tabularToolMounted: true })).toBeNull();
+  // Ganz ohne Zwang schwieg der Planer bei Anschlussfragen, und der Schreiber
+  // rechnete aus dem Auszug (#5042). Der Zwang ist eine Wahl zwischen
+  // `tabelle_auswerten` und `direkt_antworten`, nie eine Suche.
+  it('Tabellen-Turn mit montiertem tabelle_auswerten ⇒ tabular_decision statt named_intent/followup', () => {
+    expect(force({ intent: 'search', tabularToolMounted: true })).toBe('tabular_decision');
     expect(
       force({
         intent: 'agentic',
@@ -65,7 +68,12 @@ describe('shouldForceFirstToolCall', () => {
         lastUserText: 'Und im Februar?',
         tabularToolMounted: true,
       })
-    ).toBeNull();
+    ).toBe('tabular_decision');
+  });
+
+  it('Tabellen-Turn: Fortsetzung und Recherche-Bann vetoen die Wahl', () => {
+    expect(force({ tabularToolMounted: true, resumesSuspendedTurn: true })).toBeNull();
+    expect(force({ tabularToolMounted: true, researchBanned: true })).toBeNull();
   });
 
   it('ohne Tabellen-Werkzeug bleiben named_intent und followup', () => {
@@ -814,6 +822,21 @@ describe('forcedFirstStepTools', () => {
     'gruenerator_examples_search',
     'gruenerator_pressemitteilung_examples',
   ]);
+  it('tabular_decision sieht nur rechnen oder direkt antworten', () => {
+    expect(
+      forcedFirstStepTools({
+        reason: 'tabular_decision',
+        intent: 'search',
+        mounted: [...MOUNTED, 'tabelle_auswerten', 'direkt_antworten'],
+        mcpToolNames: [],
+        priorToolNames: ['gruenerator_search'],
+        isLookupTool: (name) => !NOT_LOOKUP.has(name),
+        attachedDocsTool: 'dokumente_lesen',
+        userText: 'Welche Buchung war die größte?',
+      })
+    ).toEqual(['tabelle_auswerten', 'direkt_antworten']);
+  });
+
   const tools = (
     over: Partial<Parameters<typeof forcedFirstStepTools>[0]> & { reason: ForceReason }
   ) =>

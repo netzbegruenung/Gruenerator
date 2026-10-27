@@ -33,7 +33,8 @@ export type ForceReason =
   | 'followup'
   | 'named_intent'
   | 'sharepic_order'
-  | 'artifact_edit_order';
+  | 'artifact_edit_order'
+  | 'tabular_decision';
 
 /**
  * Darf der Loop dem Planer einen Werkzeugaufruf ABVERLANGEN (`toolChoice: required`)?
@@ -234,7 +235,9 @@ export function shouldForceFirstToolCall(input: {
   // Ein Tabellen-Turn holt nichts nach: die Daten liegen im Anhang, gerechnet
   // wird mit `tabelle_auswerten`. Ein Zwang auf die Suchwerkzeuge liess den
   // Planer hängen oder im Web suchen (live 27.10.2026, named_intent/followup).
-  if (input.tabularToolMounted) return null;
+  // Ganz ohne Zwang schwieg er dagegen bei Anschlussfragen, und der Schreiber
+  // rechnete aus dem Auszug (#5042) — also eine Wahl zwischen zwei Werkzeugen.
+  if (input.tabularToolMounted) return 'tabular_decision';
 
   if (
     input.priorTurnRetrieved &&
@@ -412,6 +415,9 @@ export function forcedFirstStepTools(input: {
       break;
     case 'sharepic_order':
       candidates = ['edit_sharepic', 'read_sharepic', 'check_sharepic'];
+      break;
+    case 'tabular_decision':
+      candidates = ['tabelle_auswerten', 'direkt_antworten'];
       break;
     case 'artifact_edit_order':
       candidates = [

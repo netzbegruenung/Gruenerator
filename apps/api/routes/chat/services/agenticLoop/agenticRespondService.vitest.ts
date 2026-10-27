@@ -581,14 +581,14 @@ describe('streamAgenticResponse — Zuschnitt des erzwungenen ersten Schritts (#
     expect(p.firstStepTools).toEqual(['gruenerator_search']);
   });
 
-  it('Tabellen-Turn: mit montiertem tabelle_auswerten kein Zwang auf die Suche', async () => {
+  it('Tabellen-Turn: kein Zwang auf die Suche, sondern die Wahl rechnen/direkt antworten (#5042)', async () => {
     const p = await loopParams(
       fakeState({ intent: 'search' }),
       'Wie viel Umsatz im März?',
-      catalogWith([...MOUNTED, 'tabelle_auswerten'])
+      catalogWith([...MOUNTED, 'tabelle_auswerten', 'direkt_antworten'])
     );
-    expect(p.forceFirstToolCall).toBe(false);
-    expect(p.firstStepTools).toBeNull();
+    expect(p.forceFirstToolCall).toBe(true);
+    expect(p.firstStepTools).toEqual(['tabelle_auswerten', 'direkt_antworten']);
   });
 
   it('Fortsetzung desselben Zuges: kein erneuter Zwang auf den ersten Schritt', async () => {

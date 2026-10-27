@@ -235,6 +235,28 @@ describe('buildSynthSystem — Eröffnungssatz und Rezept', () => {
   });
 });
 
+describe('buildSynthSystem — Tabellen-Werkzeug (#5042)', () => {
+  const tabelleTools = { tabelle_auswerten: {} } as unknown as ToolSet;
+
+  it('sagt dem werkzeuglosen Schreiber, dass die Auswertung nicht lief', () => {
+    const prompt = buildSynthSystem('', ctx({ tools: tabelleTools }));
+    expect(prompt).toContain('TABELLE IN DIESEM TURN NICHT AUSGEWERTET');
+    expect(prompt).toContain('auch nicht als JSON');
+  });
+
+  it('schweigt, wenn das Werkzeug in diesem Turn lief', () => {
+    const steps = [
+      { toolCallId: 't1', toolName: 'tabelle_auswerten', args: {}, result: { ergebnis: '42' } },
+    ] as PersistedStep[];
+    const prompt = buildSynthSystem('', ctx({ tools: tabelleTools, steps }));
+    expect(prompt).not.toContain('NICHT AUSGEWERTET');
+  });
+
+  it('schweigt ohne montiertes Werkzeug', () => {
+    expect(buildSynthSystem('', ctx())).not.toContain('NICHT AUSGEWERTET');
+  });
+});
+
 describe('buildSynthSystem — Reihenfolge und Rahmen', () => {
   it('setzt Systemnachricht, Connector-Notiz und Quellen in dieser Folge', () => {
     const prompt = buildSynthSystem('[1] Antrag', ctx({ mcpNote: '\n\nMCPNOTE' }));
