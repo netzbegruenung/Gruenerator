@@ -129,6 +129,10 @@ export function runRoutingStage({
       lastUserTextNoMentions,
       classifiedState.messages
     ),
+    // Die Tabelle entscheidet, nicht die Frage: `tabelle_auswerten` hängt nur im
+    // Loop, und eine Tabellenfrage landet oft als `compute` im Einzeldurchlauf.
+    isTabularAnalysisTurn:
+      classifiedState.hasTabularAttachment === true && classifiedState.clientCanRunPython === true,
     classifierContradictedResearch: classifiedState.classifierContradictedResearch === true,
     // Same question the classifier's Tier 3.5 asks, asked again here because a
     // turn can reach this gate without having passed that tier (confident
