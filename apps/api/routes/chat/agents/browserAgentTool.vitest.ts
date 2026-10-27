@@ -40,8 +40,8 @@ const step = (n: number): BrowserAgentEvent => ({
   title: `Seite ${n}`,
   action: 'click',
   target: 'Suche',
-  x_pct: 0.5,
-  y_pct: 0.25,
+  x_pct: 50,
+  y_pct: 25,
   thought: 'Ich klicke auf Suche',
   screenshot_jpeg_b64: B64,
 });
@@ -130,8 +130,8 @@ describe('website_erkunden', () => {
         url: 'https://example.org/1',
         action: 'click',
         target: 'Suche',
-        xPct: 0.5,
-        yPct: 0.25,
+        xPct: 50,
+        yPct: 25,
         imageUrl: '/api/asset/f1.jpg',
       },
     });

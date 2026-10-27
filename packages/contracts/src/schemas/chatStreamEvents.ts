@@ -512,7 +512,7 @@ export const browserSessionStepSchema = z.object({
   title: z.string(),
   action: z.string(),
   target: z.string().nullable(),
-  /** Click position as a share of the viewport (0–1), when the action had one. */
+  /** Click position as a percentage of the viewport (0–100), when the action had one. */
   xPct: z.number().nullable(),
   yPct: z.number().nullable(),
   thought: z.string().nullable(),
