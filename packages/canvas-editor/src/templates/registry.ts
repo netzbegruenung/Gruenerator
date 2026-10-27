@@ -16,7 +16,7 @@
  * Never rename or drop one; `registerTemplates` refuses to replace one.
  */
 
-import { getCanvasFormatOrDefault } from '../formats';
+import { getCanvasFormatOrDefault } from '@ggraphic/editor/formats/index';
 
 import type { BrandLocale } from '../brand/theme';
 import type { StockImageAttribution } from '../common/imageSourceTypes';

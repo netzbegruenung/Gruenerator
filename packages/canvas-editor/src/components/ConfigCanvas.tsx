@@ -9,9 +9,8 @@
  * To open a template by id, use StandaloneCanvas.
  */
 
+import { DEFAULT_FORMAT_ID, formatIdForSize } from '@ggraphic/editor/formats/index';
 import { memo, useRef } from 'react';
-
-import { DEFAULT_FORMAT_ID, formatIdForSize } from '../formats';
 
 import { GenericCanvas } from './GenericCanvas';
 

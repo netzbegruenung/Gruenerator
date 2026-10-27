@@ -1,3 +1,4 @@
+import { downloadErrorMessage } from '@ggraphic/editor/utils/downloadError';
 import { PRINT_UNGETESTET_HINWEIS } from '@gruenerator/contracts';
 import {
   Button,
@@ -16,7 +17,6 @@ import { FaDownload } from 'react-icons/fa';
 
 import { useCanvasEditorServices } from '../../CanvasEditorProvider';
 import { MOBILE_INPUT_TEXT } from '../../sidebar/sidebarStyles';
-import { downloadErrorMessage } from '../../utils/downloadError';
 import { DownloadNotice } from '../DownloadNotice';
 
 import type {

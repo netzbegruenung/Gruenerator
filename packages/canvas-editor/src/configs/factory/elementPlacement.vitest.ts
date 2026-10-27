@@ -12,9 +12,9 @@ import {
 
 import type { BalkenInstance } from '../../utils/balkenUtils';
 import type { AssetInstance } from '../../utils/canvasAssets';
-import type { ChartInstance } from '../../utils/chartUtils';
-import type { FrameInstance } from '../../utils/frameUtils';
-import type { ShapeInstance } from '../../utils/shapes';
+import type { ChartInstance } from '@ggraphic/editor/utils/chartUtils';
+import type { FrameInstance } from '@ggraphic/editor/utils/frameUtils';
+import type { ShapeInstance } from '@ggraphic/editor/utils/shapes';
 
 /**
  * An Elemente tile dropped on the page lands centred on the drop point; a click

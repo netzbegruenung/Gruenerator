@@ -7,9 +7,8 @@
  * should use useCanvasStoreSelector((s) => s.selectedElement) directly.
  */
 
+import { useCanvasStore } from '@ggraphic/editor/stores/CanvasStoreProvider';
 import { useCallback, useEffect, useRef } from 'react';
-
-import { useCanvasStore } from '../stores/CanvasStoreProvider';
 
 import { useMarqueeSelection } from './useMarqueeSelection';
 

@@ -1,7 +1,7 @@
 import { useCanvasEditorServices } from '../../CanvasEditorProvider';
 import { getIllustrationPath, getIllustrationThumbPath } from '../../utils/illustrations/registry';
 
-import type { SvgDef } from '../../utils/illustrations/types';
+import type { SvgDef } from '@ggraphic/editor/utils/illustrations/types';
 
 /** Illustration thumbnail that falls back to the full SVG when no pre-rendered thumb exists. */
 export function IllustrationThumb({

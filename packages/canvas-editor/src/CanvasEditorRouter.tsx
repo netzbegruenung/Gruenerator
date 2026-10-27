@@ -4,7 +4,9 @@ import './canvas-editor.css';
 import { CanvasEditor } from './components/CanvasEditor';
 import { CanvasEditorSkeleton } from './components/CanvasEditorSkeleton';
 import { loadCanvasConfig, isValidCanvasType } from './configs/configLoader';
-import { getCanvasFormatOrDefault, isUnsupportedFormatId } from './formats';
+
+import { getCanvasFormatOrDefault, isUnsupportedFormatId } from '@ggraphic/editor/formats/index';
+
 import { getBuiltinTemplate } from './templates/registry';
 
 import type {

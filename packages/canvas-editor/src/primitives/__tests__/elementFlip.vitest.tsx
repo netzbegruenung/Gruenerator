@@ -1,10 +1,10 @@
 import { IconPrimitive } from '@ggraphic/editor/primitives/IconPrimitive';
+import { createShape, type ShapeInstance } from '@ggraphic/editor/utils/shapes';
 import { act, render } from '@testing-library/react';
 import Konva from 'konva';
 import { createRef, useState } from 'react';
 import { beforeAll, describe, expect, it, vi } from 'vitest';
 
-import { createShape, type ShapeInstance } from '../../utils/shapes';
 import { AssetPrimitive } from '../AssetPrimitive';
 import { CanvasStage, type CanvasStageRef } from '../CanvasStage';
 import { IllustrationPrimitive } from '../IllustrationPrimitive';

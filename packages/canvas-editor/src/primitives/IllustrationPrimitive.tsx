@@ -16,7 +16,7 @@ import type {
   KawaiiIllustrationType,
   SvgDef,
   KawaiiInstance,
-} from '../utils/illustrations/types';
+} from '@ggraphic/editor/utils/illustrations/types';
 import type Konva from 'konva';
 
 // react-kawaii and react-dom/server are only needed once a kawaii

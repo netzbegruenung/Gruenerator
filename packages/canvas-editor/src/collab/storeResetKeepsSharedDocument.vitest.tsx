@@ -16,16 +16,14 @@
  * Flaeche. Die Bindung haengt dabei in einem Kind-Effekt; React raeumt den
  * Eltern-Effekt zuerst ab, die Subscription lebt also noch.
  */
+import { useYjsCanvasBinding } from '@ggraphic/editor/collab/useYjsCanvasBinding';
+import { useCanvasStoreReset } from '@ggraphic/editor/hooks/useCanvasStoreReset';
+import { CanvasStoreProvider, useCanvasStore } from '@ggraphic/editor/stores/CanvasStoreProvider';
 import { render } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import * as Y from 'yjs';
 
-import { useCanvasStoreReset } from '../hooks/useCanvasStoreReset';
-import { CanvasStoreProvider, useCanvasStore } from '../stores/CanvasStoreProvider';
-
-import { useYjsCanvasBinding } from './useYjsCanvasBinding';
-
-import type { CanvasEditorStoreApi } from '../stores/createCanvasEditorStore';
+import type { CanvasEditorStoreApi } from '@ggraphic/editor/stores/createCanvasEditorStore';
 
 /** Bindung sitzt wie in `GenericCanvas` unter dem Reset, nicht daneben. */
 function BoundPage({ resetKey, parent }: { resetKey: string | null; parent: Y.Map<unknown> }) {

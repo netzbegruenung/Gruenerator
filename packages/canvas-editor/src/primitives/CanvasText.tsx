@@ -9,6 +9,10 @@
 
 import { LOCKED_TRANSFORMER, useIsItemLocked } from '@ggraphic/editor/components/canvasItemLock';
 import {
+  overlayBoxForNode,
+  useCanvasTextEditor,
+} from '@ggraphic/editor/components/CanvasTextOverlay';
+import {
   useGeometryReporter,
   type GeometryReporter,
 } from '@ggraphic/editor/hooks/useGeometryReporter';
@@ -26,13 +30,11 @@ import { hasInlineMarks, hasListMarkers } from '@ggraphic/schema';
 import { useRef, useEffect, useState, useCallback, memo } from 'react';
 import { Text as KonvaText, Transformer } from 'react-konva';
 
-import { overlayBoxForNode, useCanvasTextEditor } from '../components/CanvasTextOverlay';
-
 import { CanvasRichText } from './CanvasRichText';
 
-import type { TransformConfig, TransformAnchor } from '../types/editorTypes';
-import type { TextAccent, TextMarker } from '../utils/textUtils';
+import type { TransformConfig, TransformAnchor } from '@ggraphic/editor/types/editorTypes';
 import type { SnapTarget, SnapLine } from '@ggraphic/editor/utils/snapping';
+import type { TextAccent, TextMarker } from '@ggraphic/editor/utils/textUtils';
 import type Konva from 'konva';
 
 // Rahmen für Snap und Geometrie-Meldung, pro Aufruf neu beschrieben (synchron, ohne Allokation).

@@ -1,8 +1,8 @@
+import { createChartInstance, type ChartType } from '@ggraphic/editor/utils/chartUtils';
+import { createShape } from '@ggraphic/editor/utils/shapes';
 import { type SharepicChartKind } from '@gruenerator/contracts';
 
 import { getBrandPack } from '../brand/theme';
-import { createChartInstance, type ChartType } from '../utils/chartUtils';
-import { createShape } from '../utils/shapes';
 
 import { type DiagrammItem, type Placed } from './composeTypes';
 import { GAP } from './sharepicLayoutConstants';

@@ -1,7 +1,7 @@
 import { type ComposerBrand, onGround } from '@ggraphic/editor/brand/composerBrand';
+import { type TextAccent, type TextMarker } from '@ggraphic/editor/utils/textUtils';
 
 import { type BrandTheme, type GrueneBrandId } from '../brand/theme';
-import { type TextAccent, type TextMarker } from '../utils/textUtils';
 
 import { AT_EMPHASIS_STYLE, inkOn, LIME, SHAREPIC_COLOR_HEX } from './chromeParts';
 import { type BildItem } from './composeTypes';

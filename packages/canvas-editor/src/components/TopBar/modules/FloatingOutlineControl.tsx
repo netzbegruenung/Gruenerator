@@ -1,10 +1,10 @@
+import { CustomColorSwatch } from '@ggraphic/editor/components/CustomColorSwatch';
 import { Popover, PopoverContent, PopoverTrigger } from '@gruenerator/ui';
 import { Slider } from 'radix-ui';
 import React, { useId } from 'react';
 import { PiTextAa } from 'react-icons/pi';
 
 import { colorName } from '../../../utils/colorNames';
-import { CustomColorSwatch } from '../../CustomColorSwatch';
 
 interface FloatingOutlineControlProps {
   stroke?: string;

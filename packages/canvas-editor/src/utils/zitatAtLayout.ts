@@ -10,8 +10,9 @@
  * Übernommen vom inzwischen entfernten serverseitigen Zitat-AT-Renderer.
  */
 
+import { wrapTextAccurate } from '@ggraphic/editor/utils/textUtils';
+
 import { SYSTEM_ASSETS } from './canvasAssets';
-import { wrapTextAccurate } from './textUtils';
 
 export const ZITAT_AT_CONFIG = {
   canvas: { width: 1080, height: 1350 },

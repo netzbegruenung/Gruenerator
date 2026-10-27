@@ -12,10 +12,11 @@
  * Übernommen vom inzwischen entfernten serverseitigen Info-AT-Renderer.
  */
 
+import { measureTextWidthWithFont, wrapTextAccurate } from '@ggraphic/editor/utils/textUtils';
+
 import { getBrandTheme } from '../brand/theme';
 
 import { SYSTEM_ASSETS } from './canvasAssets';
-import { measureTextWidthWithFont, wrapTextAccurate } from './textUtils';
 
 const AT = getBrandTheme('de-AT');
 const LOGO_ASPECT = 1239 / 1410;

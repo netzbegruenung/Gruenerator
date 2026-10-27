@@ -11,11 +11,11 @@
  * route through the FullCanvasConfig pipeline and gain `aiEdit` parity.
  */
 
+import { INITIAL_SCALE } from '@ggraphic/editor/types/editorTypes';
 import { CANVAS_COLORS, DEFAULT_CANVAS_SIZE } from '@gruenerator/contracts';
 import { PiSquaresFourFill } from 'react-icons/pi';
 
 import { AssetsSection } from '../sidebar/sections';
-import { INITIAL_SCALE } from '../types/editorTypes';
 
 import { chatTab, createCommonSectionEntries, toolsTab, uploadsTab } from './commonSections';
 import { createBaseActions } from './factory/actionFactories';

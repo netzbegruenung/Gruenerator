@@ -16,7 +16,7 @@ import type {
   IllustrationDef,
   IllustrationInstance,
   KawaiiIllustrationType,
-} from './types';
+} from '@ggraphic/editor/utils/illustrations/types';
 
 // Re-export types and constants for convenience
 export type {
@@ -28,9 +28,9 @@ export type {
   SvgInstance,
   KawaiiMood,
   KawaiiIllustrationType,
-} from './types';
+} from '@ggraphic/editor/utils/illustrations/types';
 
-export { KAWAII_MOODS } from './types';
+export { KAWAII_MOODS } from '@ggraphic/editor/utils/illustrations/types';
 
 // =============================================================================
 // ASYNC LOADERS

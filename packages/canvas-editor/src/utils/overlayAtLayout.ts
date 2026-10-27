@@ -14,10 +14,11 @@
  * headlineAtLayout.ts.
  */
 
+import { wrapTextAccurate } from '@ggraphic/editor/utils/textUtils';
+
 import { getBrandTheme } from '../brand/theme';
 
 import { SYSTEM_ASSETS } from './canvasAssets';
-import { wrapTextAccurate } from './textUtils';
 
 const AT = getBrandTheme('de-AT');
 

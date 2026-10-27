@@ -18,11 +18,11 @@ import { loadCanvasConfig } from '../configs/configLoader';
 import { PAGE_PERSISTED_STATE_KEYS } from './pageElementStateKeys';
 import { PAGES_STATE_ORIGIN } from './useYjsPages';
 
-import type * as StoreModule from '../stores/createCanvasEditorStore';
-import type { CanvasEditorStoreApi } from '../stores/createCanvasEditorStore';
+import type * as StoreModule from '@ggraphic/editor/stores/createCanvasEditorStore';
+import type { CanvasEditorStoreApi } from '@ggraphic/editor/stores/createCanvasEditorStore';
 
 const stores = vi.hoisted(() => [] as unknown[]);
-vi.mock('../stores/createCanvasEditorStore', async (importOriginal) => {
+vi.mock('@ggraphic/editor/stores/createCanvasEditorStore', async (importOriginal) => {
   const original = await importOriginal<typeof StoreModule>();
   return {
     ...original,

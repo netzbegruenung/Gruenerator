@@ -15,6 +15,7 @@
  * motif area; ground panels cover the rest. So it stays replaceable through
  * the background like any sharepic photo, and the print export checks its dpi.
  */
+import { type TextAccent } from '@ggraphic/editor/utils/textUtils';
 import {
   printFotoSrc,
   type PrintImpressum,
@@ -22,8 +23,6 @@ import {
   type PrintMitwirkende,
   type PrintSpec,
 } from '@gruenerator/contracts';
-
-import { type TextAccent } from '../utils/textUtils';
 
 import { LIME, SHAREPIC_COLOR_HEX } from './chromeParts';
 import { type ComposedSlide } from './composeSharepic';

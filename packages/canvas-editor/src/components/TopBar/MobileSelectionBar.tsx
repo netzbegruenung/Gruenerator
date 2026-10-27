@@ -2,12 +2,12 @@ import {
   TOOLBAR_ITEMS_WITH_INPUTS,
   useRovingToolbar,
 } from '@ggraphic/editor/hooks/useRovingToolbar';
+import { useCanvasStoreSelector } from '@ggraphic/editor/stores/CanvasStoreProvider';
 import { cn } from '@ggraphic/editor/utils/cn';
 import React from 'react';
 import { PiCheckBold, PiSlidersHorizontal } from 'react-icons/pi';
 
 import { HIDDEN_SCROLLBAR } from '../../sidebar/sidebarStyles';
-import { useCanvasStoreSelector } from '../../stores/CanvasStoreProvider';
 
 import { ContextControls, showsCropModeBar, type ContextControlsProps } from './ContextControls';
 

@@ -15,8 +15,8 @@ import {
   type FreeformActions,
 } from './freeform_full.config';
 
-import type { CanvasFormat } from '../formats';
 import type { FullCanvasConfig } from './types';
+import type { CanvasFormat } from '@ggraphic/editor/formats/index';
 
 const AT = getBrandTheme('de-AT');
 

@@ -23,7 +23,7 @@ import {
 } from 'react';
 
 import type { LayerEntry } from '../../utils/layerLabels';
-import type { LayerSelectionChange } from '../../utils/layerSelection';
+import type { LayerSelectionChange } from '@ggraphic/editor/utils/layerSelection';
 
 export interface LayersSectionProps {
   layers: readonly LayerEntry[];

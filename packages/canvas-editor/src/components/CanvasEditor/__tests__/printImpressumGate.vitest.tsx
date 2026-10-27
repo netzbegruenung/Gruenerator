@@ -1,3 +1,8 @@
+import {
+  getCanvasFormat,
+  isPrintFormat,
+  type PrintCanvasFormat,
+} from '@ggraphic/editor/formats/index';
 import { render, renderHook, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { type ReactNode } from 'react';
@@ -5,7 +10,6 @@ import { describe, expect, it, vi } from 'vitest';
 
 import { CanvasEditorProvider } from '../../../CanvasEditorProvider';
 import { grueneratorPrint } from '../../../composer/printService';
-import { getCanvasFormat, isPrintFormat, type PrintCanvasFormat } from '../../../formats';
 import { DownloadSection } from '../../TopBar/DownloadSection';
 import {
   usePrintImpressumGate,

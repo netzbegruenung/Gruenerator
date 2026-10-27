@@ -9,9 +9,9 @@
 
 import type { PptxPageState } from './buildPptxModel';
 import type { AdditionalText } from '../../configs/types';
-import type { ChartInstance } from '../../utils/chartUtils';
-import type { ShapeInstance } from '../../utils/shapes';
 import type { UserImageInstance } from '../../utils/userImageUtils';
+import type { ChartInstance } from '@ggraphic/editor/utils/chartUtils';
+import type { ShapeInstance } from '@ggraphic/editor/utils/shapes';
 
 interface FixtureBrand {
   locale: 'de-DE' | 'de-AT';

@@ -7,6 +7,7 @@
  */
 
 import { activeBrand } from '@ggraphic/editor/brand/brandRegistry';
+import { CanvasTextEditorProvider } from '@ggraphic/editor/components/CanvasTextOverlay';
 import { TransformHud } from '@ggraphic/editor/components/TransformHud';
 import { useHoverOutline } from '@ggraphic/editor/hooks/useHoverOutline';
 import { installAxisLock } from '@ggraphic/editor/utils/axisLock';
@@ -24,12 +25,11 @@ import {
 } from 'react';
 import { Stage, Layer, Group, Rect } from 'react-konva';
 
-import { CanvasTextEditorProvider } from '../components/CanvasTextOverlay';
 import { withSelectionChromeHidden } from '../utils/captureStage';
 import { BACKGROUND_IMAGE_NODE_ID, printImageInfo } from '../utils/printImageInfo';
 import { USER_PHOTO_NODE_NAME } from '../utils/userImageUtils';
 
-import type { ExportOptions } from '../types/editorTypes';
+import type { ExportOptions } from '@ggraphic/editor/types/editorTypes';
 
 export interface CanvasStageProps {
   width: number;

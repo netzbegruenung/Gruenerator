@@ -1,7 +1,6 @@
+import { useCanvasStoreSelector } from '@ggraphic/editor/stores/CanvasStoreProvider';
 import { useAwarenessState } from '@gruenerator/collab';
 import { useEffect, useMemo } from 'react';
-
-import { useCanvasStoreSelector } from '../stores/CanvasStoreProvider';
 
 import type { HocuspocusProvider } from '@hocuspocus/provider';
 

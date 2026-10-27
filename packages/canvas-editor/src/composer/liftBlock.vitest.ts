@@ -1,8 +1,8 @@
+import { getCanvasFormatOrDefault } from '@ggraphic/editor/formats/index';
 import { sharepicBlockSpec, sharepicSpecSchema } from '@gruenerator/contracts';
 import { describe, expect, it, vi } from 'vitest';
 
 import { createFreeformFullConfig, type FreeformState } from '../configs/freeform_full.config';
-import { getCanvasFormatOrDefault } from '../formats';
 
 import { SHAREPIC_COLOR_HEX } from './chromeParts';
 import { composeSharepic } from './composeSharepic';
@@ -17,7 +17,7 @@ import {
 import { farbe, options } from './sharepicSpecFixtures';
 
 import type { AdditionalText } from '../configs/types';
-import type { ShapeInstance } from '../utils/shapes';
+import type { ShapeInstance } from '@ggraphic/editor/utils/shapes';
 import type { SharepicSlide } from '@gruenerator/contracts';
 
 const slideOf = (locale: 'de-DE' | 'de-AT', items: SharepicSlide['items']) =>

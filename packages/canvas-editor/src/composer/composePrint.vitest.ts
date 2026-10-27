@@ -1,8 +1,13 @@
+import {
+  getCanvasFormat,
+  isPrintFormat,
+  printGeometry,
+  type PrintRect,
+} from '@ggraphic/editor/formats/index';
 import { printSpecSchema, type PrintSpec } from '@gruenerator/contracts';
 import { describe, expect, it } from 'vitest';
 
 import { getBrandTheme } from '../brand/theme';
-import { getCanvasFormat, isPrintFormat, printGeometry, type PrintRect } from '../formats';
 import { ASSET_TARGET_SIZE, type AssetInstance } from '../utils/canvasAssets';
 
 import { layoutTextLines, LIME, SHAREPIC_COLOR_HEX } from './chromeParts';

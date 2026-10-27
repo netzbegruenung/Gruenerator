@@ -1,11 +1,10 @@
+import { useCanvasUndoRedo } from '@ggraphic/editor/hooks/useCanvasUndoRedo';
+import { CanvasStoreProvider, useCanvasStore } from '@ggraphic/editor/stores/CanvasStoreProvider';
 import { render } from '@testing-library/react';
 import { act } from 'react';
 import { describe, expect, it } from 'vitest';
 
-import { CanvasStoreProvider, useCanvasStore } from '../../stores/CanvasStoreProvider';
-import { useCanvasUndoRedo } from '../useCanvasUndoRedo';
-
-import type { CanvasEditorStoreApi } from '../../stores/createCanvasEditorStore';
+import type { CanvasEditorStoreApi } from '@ggraphic/editor/stores/createCanvasEditorStore';
 
 /**
  * Jede Seite des Mehrseiten-Editors hat ihren eigenen Store und hängt ihren

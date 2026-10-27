@@ -1,8 +1,8 @@
 import { activeBrand } from '@ggraphic/editor/brand/brandRegistry';
+import { CustomColorSwatch } from '@ggraphic/editor/components/CustomColorSwatch';
 import { cn } from '@ggraphic/editor/utils/cn';
 import { FaTrash, FaCopy } from 'react-icons/fa';
 
-import { CustomColorSwatch } from '../../components/CustomColorSwatch';
 import { SidebarSlider } from '../components/SidebarSlider';
 import { ACTION_BTN, ACTION_BTN_DANGER, SECTION_HEADER, SECTION_TITLE } from '../sidebarStyles';
 
@@ -10,7 +10,7 @@ import type {
   IllustrationInstance,
   KawaiiMood,
   KawaiiInstance,
-} from '../../utils/illustrations/types';
+} from '@ggraphic/editor/utils/illustrations/types';
 
 const MOOD_OPTIONS: { id: KawaiiMood; label: string }[] = [
   { id: 'happy', label: '😊' },

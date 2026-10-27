@@ -9,8 +9,8 @@ import { isLayerLocked } from '../utils/layerLock';
 import type { OptionalCanvasActions } from './useCanvasElementHandlers';
 import type { BaseCanvasState } from '../configs/factory/baseTypes';
 import type { CanvasElementConfig } from '../configs/types';
-import type { CanvasEditorStoreApi } from '../stores/createCanvasEditorStore';
 import type { CanvasCommands } from '../utils/canvasCommands';
+import type { CanvasEditorStoreApi } from '@ggraphic/editor/stores/createCanvasEditorStore';
 
 /**
  * Canvas Keyboard Handlers - Keyboard shortcuts for canvas

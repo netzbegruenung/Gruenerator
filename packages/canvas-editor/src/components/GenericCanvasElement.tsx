@@ -8,6 +8,11 @@
  */
 
 import { type GeometryReporter } from '@ggraphic/editor/hooks/useGeometryReporter';
+import {
+  useCanvasStore,
+  useCanvasStoreSelector,
+  useIsElementSelected,
+} from '@ggraphic/editor/stores/CanvasStoreProvider';
 import { useTrackPendingImage } from '@ggraphic/editor/utils/pendingImages';
 import {
   assertAsString,
@@ -27,11 +32,6 @@ import { surfaceGlow } from '../brand/theme';
 import { useCanvasEditorServices } from '../CanvasEditorProvider';
 import { plainImageUrls } from '../hostServices';
 import { CanvasText, CanvasImage, CanvasBackground } from '../primitives';
-import {
-  useCanvasStore,
-  useCanvasStoreSelector,
-  useIsElementSelected,
-} from '../stores/CanvasStoreProvider';
 import { canCropBackgroundPhoto, imageElementInteraction } from '../utils/backgroundPhotoCrop';
 import { canvasImageSourceUrl } from '../utils/canvasImageSource';
 import { imageRenderInputsAreEqual } from '../utils/imageElementComparison';

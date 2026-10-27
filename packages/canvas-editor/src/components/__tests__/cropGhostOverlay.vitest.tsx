@@ -16,12 +16,12 @@ import { withSelectionChromeHidden } from '../../utils/captureStage';
 import { CROP_GHOST_NAME, paintCropGhosts } from '../../utils/cropGhost';
 import { GenericCanvas, type GenericCanvasRef } from '../GenericCanvas';
 
-import type * as StoreModule from '../../stores/createCanvasEditorStore';
-import type { CanvasEditorStoreApi } from '../../stores/createCanvasEditorStore';
 import type { UserImageInstance } from '../../utils/userImageUtils';
+import type * as StoreModule from '@ggraphic/editor/stores/createCanvasEditorStore';
+import type { CanvasEditorStoreApi } from '@ggraphic/editor/stores/createCanvasEditorStore';
 
 const stores = vi.hoisted(() => [] as unknown[]);
-vi.mock('../../stores/createCanvasEditorStore', async (importOriginal) => {
+vi.mock('@ggraphic/editor/stores/createCanvasEditorStore', async (importOriginal) => {
   const original = await importOriginal<typeof StoreModule>();
   return {
     ...original,

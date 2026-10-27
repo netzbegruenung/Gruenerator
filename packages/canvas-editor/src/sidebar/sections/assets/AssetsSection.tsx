@@ -1,18 +1,18 @@
+import { type ShapeInstance, type ShapeType } from '@ggraphic/editor/utils/shapes';
 import { useEffect } from 'react';
 
 import { type AssetInstance } from '../../../utils/canvasAssets';
 import { prefetchBackground } from '../../../utils/illustrations/svgCache';
 import { UNDRAW_FEATURED } from '../../../utils/illustrations/undraw';
-import { type ShapeInstance, type ShapeType } from '../../../utils/shapes';
 import { type UserImagePlacement } from '../../../utils/userImageUtils';
 
 import { ElementsPanel } from './ElementsPanel';
 
 import type { BackgroundControls } from '../../../configs/types';
 import type { BalkenInstance, BalkenMode } from '../../../primitives';
-import type { ChartInstance, ChartType } from '../../../utils/chartUtils';
-import type { FrameClipType, FrameInstance } from '../../../utils/frameUtils';
-import type { IllustrationInstance } from '../../../utils/illustrations/types';
+import type { ChartInstance, ChartType } from '@ggraphic/editor/utils/chartUtils';
+import type { FrameClipType, FrameInstance } from '@ggraphic/editor/utils/frameUtils';
+import type { IllustrationInstance } from '@ggraphic/editor/utils/illustrations/types';
 import type { StickerRef } from '@gruenerator/contracts';
 
 export interface ExtendedAssetsSectionProps {

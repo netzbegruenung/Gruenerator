@@ -1,10 +1,11 @@
+import { isComposerPlane } from '@ggraphic/editor/utils/shapes';
+
 import {
   buildCanvasItems,
   buildSortedRenderList,
   type CanvasItem,
 } from '../utils/canvasLayerManager';
 import { isLayerLocked } from '../utils/layerLock';
-import { isComposerPlane } from '../utils/shapes';
 
 import type { BaseCanvasState } from '../configs/factory/baseTypes';
 import type { FullCanvasConfig } from '../configs/types';

@@ -8,14 +8,14 @@
 import type { StockImageAttribution } from '../../common/imageSourceTypes';
 import type { BalkenInstance, BalkenMode } from '../../utils/balkenUtils';
 import type { AssetInstance } from '../../utils/canvasAssets';
-import type { CircleBadgeInstance } from '../../utils/circleBadgeUtils';
-import type { FrameClipType, FrameInstance } from '../../utils/frameUtils';
-import type { IllustrationInstance } from '../../utils/illustrations/types';
-import type { PillBadgeInstance } from '../../utils/pillBadgeUtils';
-import type { ShapeInstance, ShapeType } from '../../utils/shapes';
 import type { ElementPlacement, UserImageInstance } from '../../utils/userImageUtils';
 import type { AdditionalText, LayoutResult } from '../types';
 import type { ChartInstance, ChartType } from '@ggraphic/editor/utils/chartTypes';
+import type { CircleBadgeInstance } from '@ggraphic/editor/utils/circleBadgeUtils';
+import type { FrameClipType, FrameInstance } from '@ggraphic/editor/utils/frameUtils';
+import type { IllustrationInstance } from '@ggraphic/editor/utils/illustrations/types';
+import type { PillBadgeInstance } from '@ggraphic/editor/utils/pillBadgeUtils';
+import type { ShapeInstance, ShapeType } from '@ggraphic/editor/utils/shapes';
 import type { TextAlign } from '@ggraphic/editor/utils/textAlign';
 import type { StickerRef } from '@gruenerator/contracts';
 

@@ -1,12 +1,11 @@
-import { cn } from '@ggraphic/editor/utils/cn';
-
 import {
   chartColors,
   CHART_GROUP_LABELS,
   CHART_GROUP_ORDER,
   CHART_TYPE_DEFS,
   type ChartType,
-} from '../../utils/chartUtils';
+} from '@ggraphic/editor/utils/chartUtils';
+import { cn } from '@ggraphic/editor/utils/cn';
 
 import type { ReactNode } from 'react';
 

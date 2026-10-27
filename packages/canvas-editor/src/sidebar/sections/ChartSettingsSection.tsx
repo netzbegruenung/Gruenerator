@@ -1,15 +1,4 @@
-import { Switch } from '@gruenerator/ui';
-import { FaTrash, FaPlus } from 'react-icons/fa';
-import {
-  PiChartBar,
-  PiChartBarHorizontal,
-  PiChartDonut,
-  PiChartLine,
-  PiChartLineUp,
-  PiChartPie,
-} from 'react-icons/pi';
-
-import { CustomColorSwatch } from '../../components/CustomColorSwatch';
+import { CustomColorSwatch } from '@ggraphic/editor/components/CustomColorSwatch';
 import {
   addChartRow,
   addChartSeries,
@@ -24,7 +13,18 @@ import {
   type ChartInstance,
   type ChartLegendPosition,
   type ChartType,
-} from '../../utils/chartUtils';
+} from '@ggraphic/editor/utils/chartUtils';
+import { Switch } from '@gruenerator/ui';
+import { FaTrash, FaPlus } from 'react-icons/fa';
+import {
+  PiChartBar,
+  PiChartBarHorizontal,
+  PiChartDonut,
+  PiChartLine,
+  PiChartLineUp,
+  PiChartPie,
+} from 'react-icons/pi';
+
 import { MOBILE_INPUT_TEXT } from '../sidebarStyles';
 
 import type { IconType } from 'react-icons';

@@ -18,6 +18,7 @@ import { isGroupDrag } from '@ggraphic/editor/utils/multiSelect';
 import { ELEMENT_TRANSFORMER, normalizeRotation } from '@ggraphic/editor/utils/orientation';
 import { boxFrame, createBoxFrame, snapByBounds } from '@ggraphic/editor/utils/snapping';
 import { stageCssScale } from '@ggraphic/editor/utils/stageCssScale';
+import { useTextEditorOpener } from '@ggraphic/editor/utils/textEditorOpeners';
 import { useRef, useCallback, useMemo, useEffect, useState, memo } from 'react';
 import { Group, Line, Text, Rect, Transformer } from 'react-konva';
 
@@ -28,7 +29,6 @@ import {
   calculateParallelogramPoints,
   flattenPoints,
 } from '../utils/dreizeilenLayout';
-import { useTextEditorOpener } from '../utils/textEditorOpeners';
 
 import type { SnapTarget } from '@ggraphic/editor/utils/snapping';
 import type Konva from 'konva';

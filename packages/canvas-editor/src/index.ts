@@ -21,7 +21,7 @@ export type {
 
 export { StandaloneCanvas } from './components/StandaloneCanvas';
 export { ConfigCanvas } from './components/ConfigCanvas';
-export { commitOpenTextEdit } from './components/CanvasTextOverlay';
+export { commitOpenTextEdit } from '@ggraphic/editor/components/CanvasTextOverlay';
 export type { StandaloneCanvasProps } from './components/StandaloneCanvas';
 export type { ConfigCanvasProps } from './components/ConfigCanvas';
 export { GenericCanvas } from './components/GenericCanvas';
@@ -75,7 +75,7 @@ export {
   mmToPx,
   printGeometry,
   UnsupportedCanvasFormatError,
-} from './formats';
+} from '@ggraphic/editor/formats/index';
 export type {
   CanvasFormat,
   CanvasFormatCategory,
@@ -85,7 +85,7 @@ export type {
   CanvasPrintSpec,
   PrintCanvasFormat,
   PrintRect,
-} from './formats';
+} from '@ggraphic/editor/formats/index';
 
 export {
   CanvasStoreProvider,
@@ -93,14 +93,14 @@ export {
   useCanvasStoreSelector,
   useCanvasStoreShallow,
   useIsElementSelected,
-} from './stores/CanvasStoreProvider';
+} from '@ggraphic/editor/stores/CanvasStoreProvider';
 export type {
   CanvasEditorStoreApi,
   CanvasEditorStoreState,
   CanvasEditorState,
   CanvasEditorActions,
   CanvasEditorGetters,
-} from './stores/createCanvasEditorStore';
-export type { CanvasHistoryEntry } from './types/editorTypes';
+} from '@ggraphic/editor/stores/createCanvasEditorStore';
+export type { CanvasHistoryEntry } from '@ggraphic/editor/types/editorTypes';
 
 export * from './collab';

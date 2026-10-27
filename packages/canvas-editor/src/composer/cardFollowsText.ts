@@ -1,9 +1,8 @@
+import { runMeasurer } from '@ggraphic/editor/utils/textUtils';
 import { layoutRichTextBlock } from '@ggraphic/schema';
 
-import { runMeasurer } from '../utils/textUtils';
-
 import type { AdditionalText } from '../configs/types';
-import type { ShapeInstance } from '../utils/shapes';
+import type { ShapeInstance } from '@ggraphic/editor/utils/shapes';
 
 interface CardPage {
   additionalTexts: AdditionalText[];

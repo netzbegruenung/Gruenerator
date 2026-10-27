@@ -1,6 +1,5 @@
+import { createCanvasEditorStore } from '@ggraphic/editor/stores/createCanvasEditorStore';
 import { describe, expect, it } from 'vitest';
-
-import { createCanvasEditorStore } from '../createCanvasEditorStore';
 
 function storeWith(...values: number[]) {
   const store = createCanvasEditorStore();

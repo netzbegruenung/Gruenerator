@@ -1,8 +1,7 @@
+import { CustomColorSwatch } from '@ggraphic/editor/components/CustomColorSwatch';
 import { cn } from '@ggraphic/editor/utils/cn';
+import { brandColors, type ColorOption } from '@ggraphic/editor/utils/colorOptions';
 import React from 'react';
-
-import { brandColors, type ColorOption } from '../../../utils/colorOptions';
-import { CustomColorSwatch } from '../../CustomColorSwatch';
 
 interface FloatingColorPickerProps {
   currentColor: string;

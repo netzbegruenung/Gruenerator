@@ -3,7 +3,7 @@
  * 33 hand-drawn SVG illustrations with German names and tags
  */
 
-import type { SvgDef } from './types';
+import type { SvgDef } from '@ggraphic/editor/utils/illustrations/types';
 
 export const OPENDOODLES: SvgDef[] = [
   {

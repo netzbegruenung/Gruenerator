@@ -13,6 +13,7 @@
  */
 
 import { readPages } from '@ggraphic/editor/collab/pagesDoc';
+import { extractInheritablePageState } from '@ggraphic/editor/configs/pageInheritance';
 import { useState, useCallback, useMemo, useRef, useEffect } from 'react';
 import { v4 as uuid } from 'uuid';
 import * as Y from 'yjs';
@@ -20,7 +21,6 @@ import * as Y from 'yjs';
 import { HOST_EMITTED_STATE_KEYS } from '../collab/pageElementStateKeys';
 import { useYjsPages, type NormalizeEcho, type YjsPagesApi } from '../collab/useYjsPages';
 import { loadCanvasConfig, isValidCanvasType } from '../configs/configLoader';
-import { extractInheritablePageState } from '../configs/pageInheritance';
 
 import type { HeterogeneousPage, FullCanvasConfig } from '../configs/types';
 import type { CanvasConfigId } from '../templates/registry';

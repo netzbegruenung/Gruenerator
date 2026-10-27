@@ -1,8 +1,8 @@
+import { createChartInstance, type ChartInstance } from '@ggraphic/editor/utils/chartUtils';
 import { render } from '@testing-library/react';
 import * as recharts from 'recharts';
 import { beforeAll, describe, expect, it, vi } from 'vitest';
 
-import { createChartInstance, type ChartInstance } from '../../utils/chartUtils';
 import { buildChartElement } from '../ChartPrimitive';
 
 const GLYPH = 8;

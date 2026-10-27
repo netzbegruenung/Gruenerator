@@ -4,10 +4,9 @@
  * host's button opens it.
  */
 import { AutoSaveStoreProvider } from '@ggraphic/editor/stores/AutoSaveStoreProvider';
+import { CanvasStoreProvider } from '@ggraphic/editor/stores/CanvasStoreProvider';
 import { render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-
-import { CanvasStoreProvider } from '../stores/CanvasStoreProvider';
 
 import { Toolbar } from './Toolbar';
 

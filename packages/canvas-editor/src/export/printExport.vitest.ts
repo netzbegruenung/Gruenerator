@@ -1,8 +1,12 @@
+import {
+  getCanvasFormat,
+  isPrintFormat,
+  mmToPx,
+  type PrintCanvasFormat,
+} from '@ggraphic/editor/formats/index';
 import { createCanvas } from '@napi-rs/canvas';
 import { PDFDocument } from 'pdf-lib';
 import { describe, expect, it, vi } from 'vitest';
-
-import { getCanvasFormat, isPrintFormat, mmToPx, type PrintCanvasFormat } from '../formats';
 
 import {
   exportPrintPdf,

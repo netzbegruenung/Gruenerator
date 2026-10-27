@@ -1,6 +1,5 @@
+import { useCanvasStoreSelector } from '@ggraphic/editor/stores/CanvasStoreProvider';
 import React, { memo } from 'react';
-
-import { useCanvasStoreSelector } from '../stores/CanvasStoreProvider';
 
 import { AutoSaveIndicator } from './TopBar/AutoSaveIndicator';
 import { FloatingAiSuggestionBanner } from './TopBar/modules/FloatingAiSuggestionBanner';
