@@ -67,6 +67,6 @@ ENV BROWSER_USE_CLOUD_SYNC=false
 EXPOSE 8000
 
 HEALTHCHECK --interval=30s --timeout=10s --start-period=20s --retries=3 \
-    CMD python -c "import httpx; httpx.get('http://localhost:8000/health').raise_for_status()" || exit 1
+    CMD python -c "import httpx; httpx.get('http://127.0.0.1:8000/health').raise_for_status()" || exit 1
 
 CMD ["python", "-c", "from browser_agent.api import main; main()"]
