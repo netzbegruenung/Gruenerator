@@ -39,3 +39,26 @@ pytest
 
 Die Tests brauchen kein Internet: Resolver und `is_blocked` werden nur im
 jeweiligen Test auf einen lokalen Stub umgebogen.
+
+## Lauf (`src/browser_agent/api.py`, `run.py`, `events.py`)
+
+Start: `PYTHONPATH=src python -c "from browser_agent.api import main; main()"`
+(startet auch den Egress-Proxy auf `127.0.0.1:8899`).
+
+Alle Läufe verlangen den Header `X-Browser-Agent-Secret: $BROWSER_AGENT_SECRET`
+(leer = alles `401`). `BROWSER_MAX_PARALLEL` (Standard 2) begrenzt parallele
+Läufe, darüber `429`.
+
+- `POST /runs` `{run_id, task, start_url, llm_base_url, llm_token, max_steps≤25}`
+  → `application/x-ndjson` mit `step`, `screenshot_saved`, `done` bzw. `error`
+  (Formen in `events.py`; die API spiegelt sie als Zod-Schema — Felder nie
+  umbenennen). Laufdeckel 170 s.
+- `DELETE /runs/{run_id}` bricht ab (`204`); ein Client-Abbruch des Streams
+  ebenso, ohne auf den nächsten Schritt zu warten.
+- `GET /health`.
+
+browser-use läuft mit `use_vision='auto'` (sonst entfernt es die Aktion
+`screenshot`), ohne `save_as_pdf`, mit frischem Profil je Lauf (danach
+gelöscht). Gespeicherte Screenshots werden **auf der Platte** gezählt, weil
+browser-use sie nicht registriert (Upstream #6177); gleiche Dateinamen werden
+zu `name-(1).png` statt überschrieben.
