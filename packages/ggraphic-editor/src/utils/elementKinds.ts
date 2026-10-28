@@ -1,4 +1,6 @@
 // SPDX-License-Identifier: MPL-2.0
+import { registerStateKeyMigrations, type StateKeyMigration } from '@ggraphic/schema';
+
 import type {
   CanvasItem,
   HostElementData,
@@ -139,6 +141,13 @@ export interface ElementKindRegistration<K extends HostElementKindName = HostEle
   pageStateKeys?: readonly string[];
   /** Page-state keys the layout of the kind's templates reads; a change recomputes it. */
   layoutStateKeys?: readonly string[];
+  /**
+   * The list's stored-format steps, `from: 1` onwards: each lifts the list
+   * under `stateKey` one version on load (`migrateDocument`). Pure,
+   * deterministic and idempotent. Without steps the list is at version 1,
+   * and a document carrying a newer one opens read-only.
+   */
+  migrations?: readonly StateKeyMigration[];
 }
 
 const hostKinds = new Map<string, ElementKindRegistration>();
@@ -154,6 +163,7 @@ export function registerElementKind<K extends HostElementKindName>(
   if (isCoreElementKind(registration.kind)) {
     throw new Error(`"${registration.kind}" is a core element kind`);
   }
+  registerStateKeyMigrations(registration.stateKey, registration.migrations ?? []);
   hostKinds.set(registration.kind, registration as unknown as ElementKindRegistration);
   hostKindsVersion += 1;
 }

@@ -22,6 +22,7 @@
     "./brand/brandRegistry": "./src/brand/brandRegistry.ts",
     "./brand/composerBrand": "./src/brand/composerBrand.ts",
     "./CanvasEditorProvider": "./src/CanvasEditorProvider.tsx",
+    "./collab/documentVersion": "./src/collab/documentVersion.ts",
     "./collab/pageElementStateKeys": "./src/collab/pageElementStateKeys.ts",
     "./collab/pagesDoc": "./src/collab/pagesDoc.ts",
     "./collab/useAwarenessState": "./src/collab/useAwarenessState.ts",
