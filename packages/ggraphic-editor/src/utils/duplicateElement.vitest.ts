@@ -22,7 +22,6 @@ function stateWithOneOfEach() {
   return {
     shapeInstances: [{ id: 'shape-1', x: 10, y: 20, dash: [4, 4] }],
     additionalTexts: [{ id: 'text-1', x: 10, y: 20 }],
-    balkenInstances: [{ id: 'balken-1', offset: { x: 10, y: 20 }, texts: ['NORD'] }],
     illustrationInstances: [{ id: 'ill-1', x: 10, y: 20 }],
     assetInstances: [{ id: 'asset-1', x: 10, y: 20 }],
     pillBadgeInstances: [{ id: 'pill-1', x: 10, y: 20 }],
@@ -43,7 +42,6 @@ function stateWithOneOfEach() {
 const CASES: { type: DuplicableType; field: string; id: string }[] = [
   { type: 'shape', field: 'shapeInstances', id: 'shape-1' },
   { type: 'additional-text', field: 'additionalTexts', id: 'text-1' },
-  { type: 'balken', field: 'balkenInstances', id: 'balken-1' },
   { type: 'illustration', field: 'illustrationInstances', id: 'ill-1' },
   { type: 'asset', field: 'assetInstances', id: 'asset-1' },
   { type: 'pill-badge', field: 'pillBadgeInstances', id: 'pill-1' },
@@ -76,20 +74,6 @@ describe('duplicateElementInState', () => {
     expect(copy.y).toBe(40);
   });
 
-  /**
-   * Balken kennt kein `x`/`y` — seine Lage ist ein Versatz zur Layout-Basis.
-   * Wer das übersieht, erzeugt eine Kopie, die exakt auf dem Original liegt.
-   */
-  it('versetzt beim Balken `offset` statt x/y', () => {
-    const result = duplicateElementInState(stateWithOneOfEach(), 'balken-1');
-    const copy = listOf(result!.state, 'balkenInstances')[1] as unknown as {
-      offset: { x: number; y: number };
-      x?: number;
-    };
-    expect(copy.offset).toEqual({ x: 30, y: 40 });
-    expect(copy.x).toBeUndefined();
-  });
-
   it('nimmt einen eigenen Versatz an', () => {
     const result = duplicateElementInState(stateWithOneOfEach(), 'shape-1', { offset: 0 });
     const copy = listOf(result!.state, 'shapeInstances')[1];
@@ -97,24 +81,16 @@ describe('duplicateElementInState', () => {
   });
 
   // „Hier einfügen“ verschiebt je Achse anders.
-  it.each(CASES.filter((c) => c.type !== 'balken'))(
-    'versetzt $type um einen Vektor',
-    ({ field, id }) => {
-      const result = duplicateElementInState(stateWithOneOfEach(), id, {
-        offset: { x: 5, y: -15 },
-      });
-      const copy = listOf(result!.state, field)[1];
-      expect([copy.x, copy.y]).toEqual([15, 5]);
-    }
-  );
-
-  it('versetzt Balken und Icon um einen Vektor', () => {
-    const offset = { x: 5, y: -15 };
-    const balken = duplicateElementInState(stateWithOneOfEach(), 'balken-1', { offset })!;
-    expect((listOf(balken.state, 'balkenInstances')[1] as { offset?: unknown }).offset).toEqual({
-      x: 15,
-      y: 5,
+  it.each(CASES)('versetzt $type um einen Vektor', ({ field, id }) => {
+    const result = duplicateElementInState(stateWithOneOfEach(), id, {
+      offset: { x: 5, y: -15 },
     });
+    const copy = listOf(result!.state, field)[1];
+    expect([copy.x, copy.y]).toEqual([15, 5]);
+  });
+
+  it('versetzt ein Icon um einen Vektor', () => {
+    const offset = { x: 5, y: -15 };
     const icon = duplicateElementInState(stateWithOneOfEach(), 'tabler-sun', { offset })!;
     expect(icon.state.iconStates?.[icon.newId]).toMatchObject({ x: 15, y: 5 });
   });
@@ -140,7 +116,6 @@ describe('tiefe Kopien', () => {
   it.each([
     ['chart-1', 'chartInstances', 'data'],
     ['chart-1', 'chartInstances', 'colors'],
-    ['balken-1', 'balkenInstances', 'texts'],
     ['circle-1', 'circleBadgeInstances', 'textLines'],
     ['shape-1', 'shapeInstances', 'dash'],
   ])('%s teilt %s.%s nicht mit dem Original', (id, field, key) => {

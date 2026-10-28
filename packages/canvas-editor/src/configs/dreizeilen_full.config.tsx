@@ -50,10 +50,10 @@ import {
   createIllustrationActions,
   createPillBadgeActions,
   createCircleBadgeActions,
-  createBalkenActions,
   createFrameActions,
   createUserImageActions,
-} from './factory/actionFactories';
+} from '@ggraphic/editor/configs/factory/actionFactories';
+import { createBalkenActions } from './factory/balkenActions';
 import { makeSectionDefiner } from '@ggraphic/editor/configs/factory/defineSection';
 import { injectFeatureProps } from '@ggraphic/editor/configs/featureInjector';
 import { PLACEHOLDER_TEXT } from '@ggraphic/editor/configs/placeholders';
@@ -67,7 +67,7 @@ import type {
   LayoutResult as GenericLayoutResult,
   AdditionalText,
 } from '@ggraphic/editor/configs/types';
-import type { BalkenInstance } from '@ggraphic/editor/utils/balkenUtils';
+import type { BalkenInstance } from '../utils/balkenUtils';
 import type { AssetInstance } from '@ggraphic/editor/utils/canvasAssets';
 import type { ChartInstance } from '@ggraphic/editor/utils/chartUtils';
 import type { CircleBadgeInstance } from '@ggraphic/editor/utils/circleBadgeUtils';

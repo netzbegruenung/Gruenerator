@@ -54,7 +54,7 @@ import { stageCssScale } from '@ggraphic/editor/utils/stageCssScale';
 import { getOptimalContainerWidth } from '@ggraphic/editor/utils/viewport';
 
 import { blockElementIds, placeBlock, type LiftedBlock } from '../blocks/liftedBlock.js';
-import { HOST_EMITTED_STATE_KEYS } from '../collab/pageElementStateKeys.js';
+import { hostEmittedStateKeys } from '../collab/pageElementStateKeys.js';
 import { useSelectionAwareness } from '../collab/useSelectionAwareness.js';
 import { useYjsPageStateSync } from '../collab/useYjsPageStateSync.js';
 import {
@@ -79,6 +79,7 @@ import {
 } from '../utils/canvasCommands.js';
 import { canvasFontFamilies } from '../utils/canvasFontFamilies.js';
 import { buildCanvasItems, buildSortedRenderList } from '../utils/canvasLayerManager.js';
+import { addHostElement, fromHostKinds } from '../utils/elementKinds.js';
 import {
   captureStageImage,
   captureStageImageAsync,
@@ -97,7 +98,7 @@ import type { ToolbarBridgeState } from './ToolbarStateBridge.js';
 import type { RemoteSelector } from '@ggraphic/editor/components/RemoteSelectionOverlay';
 
 const EMPTY_CALLBACKS: Record<string, ((val: unknown) => void) | undefined> = {};
-const HOST_EMITTED_KEY_SET: ReadonlySet<string> = new Set(HOST_EMITTED_STATE_KEYS);
+const hostLayoutKeys = fromHostKinds((kinds) => kinds.flatMap((k) => k.layoutStateKeys ?? []));
 
 import type { BaseCanvasState } from '../configs/factory/baseTypes.js';
 import type { CanvasElementConfig, FullCanvasConfig, LayoutResult } from '../configs/types.js';
@@ -416,7 +417,7 @@ function GenericCanvasWithRef<
   // The config stores change both only in local component state (unlike text
   // fields, which sync through their own callbacks), so without this the chosen
   // background image and every added element is lost on reload (#3416).
-  useEmitHostStateChanges(state as Record<string, unknown>, callbacks, HOST_EMITTED_STATE_KEYS);
+  useEmitHostStateChanges(state as Record<string, unknown>, callbacks, hostEmittedStateKeys());
 
   const fontFamilies = useMemo(() => canvasFontFamilies(config), [config]);
 
@@ -445,10 +446,10 @@ function GenericCanvasWithRef<
   // the Hocuspocus internal API) merge into the live component state.
   // Rebuilding through createInitialState recomputes the derived fields.
   //
-  // Nothing is withheld from the merge. This used to delete `balkenInstances`
-  // so the three-line bar would regenerate from the new text — but that bar is
-  // one entry in a collection users also add to by hand, and dropping the whole
-  // array took every hand-added balken with it (#3421). Which entry a template
+  // Nothing is withheld from the merge. This used to delete a host kind's list
+  // so a template-derived entry would regenerate from the new text — but that
+  // entry sits in a collection users also add to by hand, and dropping the whole
+  // array took every hand-added one with it (#3421). Which entry a template
   // derives is the template's own knowledge, and `createInitialState` is where
   // it already lives.
   const [remoteStateCount, setRemoteStateCount] = useState(0);
@@ -497,16 +498,17 @@ function GenericCanvasWithRef<
       // it shifted. Only host-emitted keys are dropped: useEmitHostStateChanges
       // reports their removal to the page document, whereas any other deleted
       // key would never reach it and canvas and document would diverge.
+      const emitted = new Set(hostEmittedStateKeys());
       setStateRaw((p) => {
         const next: Record<string, unknown> = { ...p, ...restoredState };
         for (const key of Object.keys(p)) {
-          if (!(key in restoredState) && HOST_EMITTED_KEY_SET.has(key)) delete next[key];
+          if (!(key in restoredState) && emitted.has(key)) delete next[key];
         }
         return next as TState;
       });
       for (const [name, callback] of Object.entries(callbacks)) {
         const key = stateKeyOfCallback(name);
-        if (!key || !(key in restoredState) || HOST_EMITTED_KEY_SET.has(key)) continue;
+        if (!key || !(key in restoredState) || emitted.has(key)) continue;
         if (JSON.stringify(restoredState[key]) === JSON.stringify(prev[key])) continue;
         callback?.(restoredState[key]);
       }
@@ -592,12 +594,10 @@ function GenericCanvasWithRef<
       s.colorSchemeId,
       s.colorScheme,
       s.backgroundColor,
-      // Layout positioning
-      s.balkenOffset,
-      s.barOffsets,
-      s.balkenWidthScale,
       // Variants
       s.slideVariant,
+      // What the layouts of the host kinds' templates read (`layoutStateKeys`).
+      ...hostLayoutKeys().map((key) => s[key]),
     ]);
   }, [state]);
 
@@ -995,10 +995,6 @@ function GenericCanvasWithRef<
             if (!actions.addFrame) return false;
             actions.addFrame(payload.clipType, placement);
             return true;
-          case 'balken':
-            if (!actions.addBalken) return false;
-            actions.addBalken(payload.mode, placement);
-            return true;
           case 'icon': {
             if (!actions.toggleIcon) return false;
             // This page's icons; the sidebar's limit counts the active page's.
@@ -1014,6 +1010,9 @@ function GenericCanvasWithRef<
           // Composed asynchronously: the page wrapper hands it to `insertBlock`.
           case 'block':
             return false;
+          // A host kind's tile, added through its registered action.
+          default:
+            return addHostElement(payload, actions, placement);
         }
       },
       undo,

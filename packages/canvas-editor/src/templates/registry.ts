@@ -55,7 +55,7 @@ interface BuiltinTemplateDefinition<TId extends string = string> extends Templat
    * The state keys `ControllableCanvasWrapper` declares an `on<Key>Change`
    * callback for. Template text fields and the background image live here;
    * the remaining persisted keys are minted per page
-   * (PAGE_PERSISTED_STATE_KEYS). CanvasEditor also mints a page-state writer
+   * (pagePersistedStateKeys()). CanvasEditor also mints a page-state writer
    * for each of a page's OWN type, so a page of another template in the deck
    * keeps its text edits.
    */

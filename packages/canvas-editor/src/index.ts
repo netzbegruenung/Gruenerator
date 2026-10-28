@@ -52,6 +52,7 @@ export type { TemplateDefinition, TemplateId, AnyCanvasConfig } from './template
 
 export * from '@ggraphic/editor/primitives/index';
 export { BalkenGroup } from './primitives/BalkenGroup';
+export type { BalkenInstance, BalkenMode } from './utils/balkenUtils';
 export type { BalkenGroupProps } from './primitives/BalkenGroup';
 export * from './composed';
 export * from './utils';
@@ -87,8 +88,8 @@ export type {
 
 export {
   CANVAS_FORMATS,
-  CANVAS_FORMAT_GROUP_LABEL,
-  CANVAS_FORMAT_GROUP_ORDER,
+  canvasFormatGroupLabel,
+  canvasFormatGroupOrder,
   canvasFormats,
   DEFAULT_FORMAT_ID,
   getCanvasFormat,
@@ -98,12 +99,15 @@ export {
   isUnsupportedFormatId,
   mmToPx,
   printGeometry,
+  registerCanvasFormatGroups,
   registerCanvasFormats,
   UnsupportedCanvasFormatError,
 } from '@ggraphic/editor/formats/index';
 export type {
+  BuiltInCanvasFormatGroup,
   CanvasFormat,
   CanvasFormatCategory,
+  CanvasFormatGroupDef,
   CanvasFormatGroup,
   CanvasFormatIconKey,
   CanvasExportType,

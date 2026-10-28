@@ -120,7 +120,6 @@ export const de = {
     area: 'Fläche',
     shapeCircle: 'Form: Kreis',
     group: 'Gruppe',
-    bar: 'Balken',
     icon: 'Icon',
     shape: (name: string) => `Form: ${name}`,
     frame: 'Rahmen',
@@ -173,6 +172,16 @@ export const de = {
     partlySent: (sent: number) =>
       `${sent === 1 ? 'Seite 1 wurde' : `Die Seiten 1 bis ${sent} wurden`} einzeln gesendet, Seite ${sent + 1} nicht.`,
     allSent: 'Die Seiten wurden einzeln gesendet.',
+  },
+
+  formats: {
+    groups: {
+      sharepic: 'Sharepics',
+      'sharepic-tall': 'Sharepics 3:4',
+      profilbild: 'Profilbild',
+      praesentation: 'Präsentationen',
+      print: 'Print',
+    },
   },
 
   uploads: {
@@ -439,16 +448,6 @@ export const de = {
       seriesName: (n: number) => `Name der Reihe ${n}`,
       removeSeries: (name: string) => `${name} entfernen`,
     },
-    bars: {
-      duplicate: 'Balken duplizieren',
-      remove: 'Balken entfernen',
-      colorScheme: 'Farbschema',
-      width: 'Balkenbreite',
-      fineTune: 'Feinabstimmung',
-      selected: 'Ausgewählter Balken',
-      colorHint:
-        'Wähle ein Farbschema, das die Lesbarkeit deiner Balken optimiert. Die Vorschau zeigt dir, wie die drei Balken eingefärbt werden. Achte auf guten Kontrast zwischen Balkenfarbe und Text.',
-    },
     text: {
       placeholderHeader: 'Überschrift...',
       placeholderSubheader: 'Untertitel...',
@@ -476,10 +475,6 @@ export const de = {
     badges: {
       addPill: 'Pill-Badge hinzufügen',
       addCircle: 'Störer hinzufügen',
-      addBar: 'Einzelnen Balken hinzufügen',
-      oneBar: '1 Balken',
-      addTripleBar: 'Dreifach-Balken hinzufügen',
-      threeBars: '3 Balken',
       circle: 'Störer',
     },
     tools: {
@@ -665,11 +660,50 @@ export const de = {
     shared: 'Geteilt!',
     download: 'Herunterladen',
     downloading: 'Wird heruntergeladen...',
+    downloadAndShare: 'Download & Teilen',
+    downloadImage: 'Bild herunterladen',
+    shareImage: 'Bild teilen',
+    downloadTab: 'Download',
+    template: 'Vorlage',
+    saveAsTemplate: 'Als Vorlage speichern',
+    templateHint:
+      'Speichere dieses Sharepic als Vorlage für dich – oder reiche es für die öffentliche Vorlagen-Galerie ein.',
+    thisPagePng: 'Diese Seite (PNG)',
+    allPagesZip: (n: number) => `Alle ${n} Seiten (ZIP)`,
+    exporting: 'Exportiere...',
+    shareThisPage: 'Diese Seite teilen',
+    shareAllPages: 'Alle Seiten teilen',
+    pagesProgress: (current: number, total: number) => `${current}/${total} Seiten`,
+    retry: 'Erneut versuchen',
+    syncing: 'Wird synchronisiert...',
+    savedToGallery: 'In Galerie gesichert',
+    toGallery: 'Zur Galerie',
+    saveError: 'Fehler beim Speichern',
+    people: 'Personen',
+    feedback: 'Feedback',
+    copied: 'Kopiert',
+    copyPhotoCredit: 'Bildnachweis kopieren',
+    schemaRefusal: {
+      newer:
+        'Dieses Design wurde mit einer neueren Version gespeichert und kann hier nicht bearbeitet werden. Aktualisiere die App oder lade die Seite neu.',
+      invalid: 'Dieses Design kann hier nicht sicher geöffnet werden und bleibt unverändert.',
+    },
     downloadPanel: {
       format: 'Format',
       pdfPrint: 'PDF (Druck)',
       resolution: 'Auflösung',
       transparentBackground: 'Transparenter Hintergrund',
+      currentPage: 'Aktuelle Seite',
+      selectPages: 'Seiten auswählen',
+      defaultMark: '(Standard)',
+      impressumMissingNotice:
+        'Noch kein vollständiges Impressum – herunterladen kannst du trotzdem.',
+      impressumHeading: 'Impressum ergänzen',
+      impressumNameRequired: (field: string) => `Bitte ${field} eintragen.`,
+      impressumAddress: 'Anschrift',
+      impressumAddressPlaceholder: 'Straße Nr., PLZ Ort',
+      impressumAddressRequired: 'Bitte Anschrift eintragen.',
+      impressumSubmit: 'Übernehmen',
     },
   },
 

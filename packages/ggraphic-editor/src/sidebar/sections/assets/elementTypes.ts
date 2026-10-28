@@ -6,7 +6,7 @@ import {
   type MediaDragPayload,
 } from '@ggraphic/editor/utils/mediaDrop';
 
-import type { BalkenMode } from '@ggraphic/editor/utils/balkenUtils';
+import type { HostElementKindName, HostElementPayload } from '@ggraphic/editor/utils/canvasItem';
 import type { ChartType } from '@ggraphic/editor/utils/chartUtils';
 import type { FrameClipType } from '@ggraphic/editor/utils/frameUtils';
 import type { KawaiiIllustrationType, SvgDef } from '@ggraphic/editor/utils/illustrations/types';
@@ -30,7 +30,13 @@ export type ElementThumbSpec =
   | { t: 'kawaii'; id: KawaiiIllustrationType }
   | { t: 'svg'; def: SvgDef }
   | { t: 'icon'; iconId: string }
-  | { t: 'balken'; mode: BalkenMode };
+  /** A host kind's tile, drawn by the host (`ElementPanelHost.HostThumb`). */
+  | HostElementThumb;
+
+/** The preview of a host kind's tile: its `kind` as `t`, and its payload. */
+export type HostElementThumb = {
+  [K in HostElementKindName]: { t: K } & HostElementPayload<K>;
+}[HostElementKindName];
 
 export interface ElementItem {
   /** Stable across sessions: the recent list and React keys use it. */

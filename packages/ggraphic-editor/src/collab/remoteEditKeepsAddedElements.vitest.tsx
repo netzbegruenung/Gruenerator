@@ -4,9 +4,9 @@
  *
  * `handleRemotePageState` mischt den eingehenden Ausschnitt in den lebenden
  * Zustand und baut ihn über `createInitialState` neu auf. Bis #3421 nahm es
- * dabei `balkenInstances` ganz aus der Eingabe, damit der abgeleitete Balken
- * der Vorlage dem neuen Text folgt — und riss jeden von Hand hinzugefügten
- * Balken mit heraus. Bis #3420 kam `layerOrder` auf den meisten Vorlagen gar
+ * dabei eine ganze Sammlung aus der Eingabe, damit ihr abgeleiteter Eintrag
+ * dem neuen Text der Vorlage folgt — und riss jeden von Hand hinzugefügten
+ * Eintrag mit heraus. Bis #3420 kam `layerOrder` auf den meisten Vorlagen gar
  * nicht erst aus den Props zurück, die Ebenen sprangen also zusätzlich in die
  * Standardreihenfolge.
  *
@@ -19,7 +19,7 @@
  * einem ausgelasteten CI-Läufer zweistellige Sekunden —, und die Lane teilt
  * sich die Kerne mit `freeElementsReachTheDocument`, das dieselbe Bühne baut.
  */
-import { PAGE_ELEMENT_STATE_KEYS } from '@ggraphic/editor/collab/pageElementStateKeys';
+import { pageElementStateKeys } from '@ggraphic/editor/collab/pageElementStateKeys';
 import { readPages, seedPagesIfEmpty, updatePageStateById } from '@ggraphic/editor/collab/pagesDoc';
 import { PAGES_STATE_ORIGIN } from '@ggraphic/editor/collab/useYjsPages';
 import { createPageSyncedCallbacks } from '@ggraphic/editor/collab/wrapCallbacksWithPageSync';
@@ -100,7 +100,7 @@ async function mount(configId: ConfigId, seed: Record<string, unknown>): Promise
             () => ({}),
             (partial) =>
               doc.transact(() => updatePageStateById(doc, PAGE_ID, partial), PAGES_STATE_ORIGIN),
-            PAGE_ELEMENT_STATE_KEYS
+            pageElementStateKeys()
           )}
           autoSave={false}
           onLiveState={(liveState, liveActions) => {

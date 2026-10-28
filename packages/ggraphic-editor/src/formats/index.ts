@@ -1,14 +1,19 @@
 // SPDX-License-Identifier: MPL-2.0
+import { messages } from '../i18n/messages.js';
+
 export type CanvasFormatCategory = 'digital' | 'print';
 
 /**
  * UI-level grouping shown as section headers on the /studio page. 3:4 is its
  * own group because only freeform lays out on it; the templates stay 4:5.
  * The square belongs to the profile picture alone. `print` is not one of the
- * studio groups (see CANVAS_FORMAT_GROUP_ORDER).
+ * studio groups (see canvasFormatGroupOrder).
  */
-export type CanvasFormatGroup =
+export type BuiltInCanvasFormatGroup =
   'sharepic' | 'sharepic-tall' | 'profilbild' | 'praesentation' | 'print';
+
+/** A built-in group, or the id of a host group (see `registerCanvasFormatGroups`). */
+export type CanvasFormatGroup = BuiltInCanvasFormatGroup | (string & {});
 
 export type CanvasFormatIconKey = 'portrait' | 'square' | 'landscape';
 
@@ -49,16 +54,16 @@ export interface CanvasFormat {
 
 export type PrintCanvasFormat = CanvasFormat & { category: 'print'; print: CanvasPrintSpec };
 
-export const CANVAS_FORMAT_GROUP_LABEL: Record<CanvasFormatGroup, string> = {
-  sharepic: 'Sharepics',
-  'sharepic-tall': 'Sharepics 3:4',
-  profilbild: 'Profilbild',
-  praesentation: 'Präsentationen',
-  print: 'Print',
-};
+const BUILT_IN_GROUPS: ReadonlyArray<BuiltInCanvasFormatGroup> = [
+  'sharepic',
+  'sharepic-tall',
+  'profilbild',
+  'praesentation',
+  'print',
+];
 
 /** The studio groups. Print stays out until the studio picker can create print canvases. */
-export const CANVAS_FORMAT_GROUP_ORDER: ReadonlyArray<CanvasFormatGroup> = [
+const STUDIO_GROUPS: ReadonlyArray<BuiltInCanvasFormatGroup> = [
   'sharepic',
   'sharepic-tall',
   'profilbild',
@@ -227,14 +232,66 @@ export const DEFAULT_FORMAT_ID = 'post-portrait';
  */
 let hostFormats: ReadonlyArray<CanvasFormat> = [];
 
-/** Replaces the host's formats (an empty list clears them). Ids must be unique and not built-in. */
+/** Replaces the host's formats (an empty list clears them). Ids must be unique and not built-in; groups must be built-in or registered. */
 export function registerCanvasFormats(formats: ReadonlyArray<CanvasFormat>): void {
   const seen = new Set(CANVAS_FORMATS.map((f) => f.id));
   for (const f of formats) {
     if (seen.has(f.id)) throw new Error(`Canvas format id '${f.id}' is already taken`);
+    if (!isKnownGroup(f.group)) {
+      throw new Error(`Canvas format '${f.id}' uses unknown group '${f.group}'`);
+    }
     seen.add(f.id);
   }
   hostFormats = [...formats];
+}
+
+export interface CanvasFormatGroupDef {
+  id: string;
+  label: string;
+}
+
+/** Host groups: module-level like the formats, read in non-React code. */
+let hostGroups: ReadonlyArray<CanvasFormatGroupDef> = [];
+
+function isKnownGroup(id: string): boolean {
+  return (
+    (BUILT_IN_GROUPS as ReadonlyArray<string>).includes(id) || hostGroups.some((g) => g.id === id)
+  );
+}
+
+/**
+ * Replaces the host's format groups (an empty list clears them). Ids must be
+ * unique and not built-in. Register groups before formats: a replacement that
+ * would leave an already registered host format without its group throws, so
+ * clear or re-register the formats first.
+ */
+export function registerCanvasFormatGroups(groups: ReadonlyArray<CanvasFormatGroupDef>): void {
+  const seen = new Set<string>(BUILT_IN_GROUPS);
+  for (const g of groups) {
+    if (seen.has(g.id)) throw new Error(`Canvas format group id '${g.id}' is already taken`);
+    seen.add(g.id);
+  }
+  for (const f of hostFormats) {
+    if (!seen.has(f.group)) {
+      throw new Error(
+        `Canvas format '${f.id}' still uses group '${f.group}', which the replacement removes`
+      );
+    }
+  }
+  hostGroups = [...groups];
+}
+
+/** The studio groups, host groups after the built-ins. Read lazily. */
+export function canvasFormatGroupOrder(): ReadonlyArray<CanvasFormatGroup> {
+  return [...STUDIO_GROUPS, ...hostGroups.map((g) => g.id)];
+}
+
+/** Display label of a group: the active catalogue for built-ins, the host's label otherwise. */
+export function canvasFormatGroupLabel(id: CanvasFormatGroup): string {
+  const host = hostGroups.find((g) => g.id === id);
+  if (host) return host.label;
+  const labels: Readonly<Record<string, string>> = messages().formats.groups;
+  return labels[id] ?? id;
 }
 
 /** The built-in formats followed by the registered ones. */

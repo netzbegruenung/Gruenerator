@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MPL-2.0
 import { useCanvasEditorServices } from '@ggraphic/editor/CanvasEditorProvider';
 import { browserFileDelivery } from '@ggraphic/editor/hostServices';
+import { useMessages } from '@ggraphic/editor/i18n/messages';
 import { useAutoSaveStore, useAutoSaveStoreApi } from '@ggraphic/editor/stores/useAutoSaveStore';
 import { Skeleton } from '@ggraphic/editor/ui/skeleton';
 import { downloadErrorMessage } from '@ggraphic/editor/utils/downloadError';
@@ -124,6 +125,7 @@ function DownloadShareSubsection({
   exportError,
   exportNotice,
 }: Omit<GenericShareSectionProps, 'canvasType'>) {
+  const t = useMessages();
   const [altText, setAltText] = useShareAltText(imageText);
   const captionAltText = useCaptionAltText(altText);
   const [downloadState, setDownloadState] = useState<'idle' | 'capturing' | 'success'>('idle');
@@ -268,7 +270,7 @@ function DownloadShareSubsection({
 
   return (
     <div className="flex flex-col gap-3">
-      <h3 className="text-sm font-semibold text-foreground m-0">Download & Teilen</h3>
+      <h3 className="text-sm font-semibold text-foreground m-0">{t.shell.downloadAndShare}</h3>
 
       <div className="flex items-center gap-2">
         <div className="relative">
@@ -277,8 +279,8 @@ function DownloadShareSubsection({
             className={iconBtn}
             onClick={handleDownloadClick}
             disabled={downloadState !== 'idle' && !isMultiPage}
-            title="Herunterladen"
-            aria-label="Bild herunterladen"
+            title={t.shell.download}
+            aria-label={t.shell.downloadImage}
             aria-haspopup={isMultiPage ? 'menu' : undefined}
             aria-expanded={isMultiPage ? dlDropdown.open : undefined}
             type="button"
@@ -308,7 +310,7 @@ function DownloadShareSubsection({
                   type="button"
                 >
                   <FaFileImage />
-                  <span>Diese Seite (PNG)</span>
+                  <span>{t.shell.thisPagePng}</span>
                 </button>
                 <button
                   className={dropdownOption}
@@ -320,12 +322,12 @@ function DownloadShareSubsection({
                   {isMultiExporting ? (
                     <>
                       <Skeleton className="size-4 rounded-full" />
-                      <span>Exportiere...</span>
+                      <span>{t.shell.exporting}</span>
                     </>
                   ) : (
                     <>
                       <FaFileArchive />
-                      <span>Alle {pageCount} Seiten (ZIP)</span>
+                      <span>{t.shell.allPagesZip(pageCount)}</span>
                     </>
                   )}
                 </button>
@@ -341,8 +343,8 @@ function DownloadShareSubsection({
               className={iconBtn}
               onClick={handleShareClick}
               disabled={isSharing}
-              title="Teilen"
-              aria-label="Bild teilen"
+              title={t.shell.share}
+              aria-label={t.shell.shareImage}
               aria-haspopup={isMultiPage && onShareAllPages ? 'menu' : undefined}
               aria-expanded={isMultiPage && onShareAllPages ? shareDropdown.open : undefined}
               type="button"
@@ -373,7 +375,7 @@ function DownloadShareSubsection({
                     type="button"
                   >
                     <IoShareOutline />
-                    <span>Diese Seite teilen</span>
+                    <span>{t.shell.shareThisPage}</span>
                   </button>
                   <button
                     className={dropdownOption}
@@ -383,7 +385,7 @@ function DownloadShareSubsection({
                     type="button"
                   >
                     <FaImages />
-                    <span>Alle Seiten teilen</span>
+                    <span>{t.shell.shareAllPages}</span>
                   </button>
                 </div>,
                 document.body
@@ -401,7 +403,7 @@ function DownloadShareSubsection({
             style={{ width: `${(exportProgress.current / exportProgress.total) * 100}%` }}
           />
           <span className="absolute inset-0 flex items-center justify-center text-xs font-medium text-foreground">
-            {exportProgress.current}/{exportProgress.total} Seiten
+            {t.shell.pagesProgress(exportProgress.current, exportProgress.total)}
           </span>
         </div>
       )}
@@ -419,7 +421,7 @@ function DownloadShareSubsection({
               onClick={() => void lastExportOpRef.current?.()}
               type="button"
             >
-              Erneut versuchen
+              {t.shell.retry}
             </button>
           )}
         </DownloadNotice>
@@ -428,7 +430,7 @@ function DownloadShareSubsection({
       {downloadState === 'success' && autoSaveStatus === 'saving' && (
         <div className="flex items-center gap-2 text-sm text-foreground-muted">
           <Skeleton className="size-3 rounded-full" />
-          <span>Wird synchronisiert...</span>
+          <span>{t.shell.syncing}</span>
         </div>
       )}
 
@@ -436,24 +438,24 @@ function DownloadShareSubsection({
         <>
           <div className="flex items-center gap-2 text-sm text-primary-600">
             <IoCheckmarkOutline />
-            <span>In Galerie gesichert</span>
+            <span>{t.shell.savedToGallery}</span>
           </div>
           <button className={secondaryBtn} onClick={onNavigateToGallery} type="button">
             <FaImages />
-            Zur Galerie
+            {t.shell.toGallery}
           </button>
         </>
       )}
 
       {autoSaveStatus === 'error' && (
         <div className="flex items-center gap-2 text-sm text-red-600">
-          <span>Fehler beim Speichern</span>
+          <span>{t.shell.saveError}</span>
           <button
             className="bg-transparent border-none p-0 cursor-pointer text-sm font-medium text-primary-600 hover:underline"
             onClick={() => autoSaveStoreApi.getState().retryAutoSave?.()}
             type="button"
           >
-            Erneut versuchen
+            {t.shell.retry}
           </button>
         </div>
       )}
@@ -467,17 +469,15 @@ function DownloadShareSubsection({
  * deliberately does not. Rendered only when the host supplies the callback.
  */
 function TemplateSubsection({ onSaveAsTemplate }: { onSaveAsTemplate: () => void }) {
+  const t = useMessages();
   return (
     <div className="flex flex-col gap-3">
-      <h3 className="text-sm font-semibold text-foreground m-0">Vorlage</h3>
+      <h3 className="text-sm font-semibold text-foreground m-0">{t.shell.template}</h3>
 
-      <p className="m-0 text-xs text-foreground-muted">
-        Speichere dieses Sharepic als Vorlage für dich – oder reiche es für die öffentliche
-        Vorlagen-Galerie ein.
-      </p>
+      <p className="m-0 text-xs text-foreground-muted">{t.shell.templateHint}</p>
 
       <button className={primaryBtn} onClick={onSaveAsTemplate} type="button">
-        <FaSave /> Als Vorlage speichern
+        <FaSave /> {t.shell.saveAsTemplate}
       </button>
     </div>
   );
@@ -501,12 +501,13 @@ export function GenericShareSection({
   exportNotice,
   onSaveAsTemplate,
 }: GenericShareSectionProps) {
+  const t = useMessages();
   const subsections = useMemo(
     () => [
       {
         id: 'download',
         icon: FaDownload,
-        label: 'Download',
+        label: t.shell.downloadTab,
         content: (
           <DownloadShareSubsection
             exportedImage={exportedImage}
@@ -532,7 +533,7 @@ export function GenericShareSection({
             {
               id: 'template',
               icon: FaSave,
-              label: 'Vorlage',
+              label: t.shell.template,
               content: <TemplateSubsection onSaveAsTemplate={onSaveAsTemplate} />,
             },
           ]
@@ -555,6 +556,7 @@ export function GenericShareSection({
       exportError,
       exportNotice,
       onSaveAsTemplate,
+      t,
     ]
   );
 

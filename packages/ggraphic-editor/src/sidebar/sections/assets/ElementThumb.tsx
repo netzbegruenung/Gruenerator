@@ -125,9 +125,9 @@ export function ElementThumb({
           <Icon icon={thumb.iconId} width={34} height={34} />
         </span>
       );
-    case 'balken': {
-      const BalkenPreview = catalog.elementPanel?.BalkenPreview;
-      return BalkenPreview ? <BalkenPreview mode={thumb.mode} size={60} /> : null;
+    default: {
+      const HostThumb = catalog.elementPanel?.HostThumb;
+      return HostThumb ? <HostThumb thumb={thumb} size={60} /> : null;
     }
   }
 }

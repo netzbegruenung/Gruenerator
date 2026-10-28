@@ -8,7 +8,7 @@
 import type { StockImageAttribution } from '@ggraphic/editor/sidebar/types';
 import type { IconState } from '@ggraphic/editor/configs/factory/baseTypes';
 import type { AdditionalText } from '@ggraphic/editor/configs/types';
-import type { BalkenInstance, BalkenMode } from '@ggraphic/editor/utils/balkenUtils';
+import type { BalkenInstance, BalkenMode } from '../utils/balkenUtils';
 import type { AssetInstance } from '@ggraphic/editor/utils/canvasAssets';
 import type { ChartInstance } from '@ggraphic/editor/utils/chartUtils';
 import type { CircleBadgeInstance } from '@ggraphic/editor/utils/circleBadgeUtils';

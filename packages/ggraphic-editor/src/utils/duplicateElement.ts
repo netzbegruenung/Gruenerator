@@ -3,8 +3,8 @@
  * Duplizieren von Canvas-Elementen — die eine Stelle.
  *
  * Vorher lag dieselbe Logik vierfach im Paket: im Strg+D-Zweig und im
- * Einfügen-Zweig von `useCanvasKeyboardHandlers`, und als `duplicateIllustration`
- * / `duplicateBalken` in `actionFactories`. Jede Fassung deckte eine andere
+ * Einfügen-Zweig von `useCanvasKeyboardHandlers`, und zweimal als `duplicate…`-Aktion
+ * in `actionFactories`. Jede Fassung deckte eine andere
  * Teilmenge der Elementarten ab, und keine pflegte `layerOrder`.
  *
  * Drei Dinge, die hier zusammengehalten werden und einzeln leicht verloren gehen:
@@ -13,15 +13,16 @@
  *    ganz nach oben — und `moveLayer` gibt die Liste unverändert zurück, die
  *    Ebenen-Knöpfe sind für so eine Kopie also tot. Darum setzt `insertInstance`
  *    die neue ID direkt über das Original, wenn das Original geführt wird.
- * 2. **Tiefe Kopien.** `chart.data`, `balken.texts`, `circleBadge.textLines`,
+ * 2. **Tiefe Kopien.** `chart.data`, `circleBadge.textLines`,
  *    `shape.dash` und die Verlaufs-Stops sind Arrays. Ein flacher Spread teilt
  *    sie zwischen Original und Kopie: das Bearbeiten des einen ändert das andere.
- * 3. **Balken versetzt `offset`, nicht `x`/`y`.**
+ * 3. **Eine Host-Art kopiert sich selbst** (`duplicate` ihrer Registrierung,
+ *    `registerElementKind`) — etwa mit einem Versatz statt `x`/`y`.
  *
  * Nicht jede Art liegt in einer Liste von Objekten: ein Icon steht als ID in
  * `selectedIcons` und mit seinem Zustand in `iconStates`. Darum besteht ein
  * Registry-Eintrag aus `find` und `insert` statt aus einem Feldnamen — `listSpec`
- * baut das Paar für die zehn Listen-Arten, das Icon bringt sein eigenes mit.
+ * baut das Paar für die neun Listen-Arten, das Icon bringt sein eigenes mit.
  *
  * Vorlagen-Elemente stehen fest in der Vorlage, nicht im Zustand. Sie kommen als
  * `template`-Nachschlag herein (`findTemplateEntry`), der aus der aufgelösten
@@ -29,14 +30,22 @@
  * sie `null`.
  */
 
-import { ELEMENT_KINDS, type ElementKindName } from './elementKinds.js';
+import {
+  ELEMENT_KINDS,
+  hostElementKind,
+  hostElementKinds,
+  isCoreElementKind,
+  type CoreElementKindName,
+  type ElementKindName,
+  type ElementKindRegistration,
+} from './elementKinds.js';
 import { catalogIconId } from './iconInstances.js';
 
 import type { AssetInstance } from './canvasAssets.js';
+import type { HostElementData, HostElementKindName } from './canvasItem.js';
 import type { BaseCanvasState, IconState } from '../configs/factory/baseTypes.js';
 import type { AdditionalText } from '../configs/types.js';
 import type { CircleBadgeInstance } from '@ggraphic/editor/primitives/CircleBadge';
-import type { BalkenInstance } from '@ggraphic/editor/utils/balkenUtils';
 import type { ChartInstance } from '@ggraphic/editor/utils/chartTypes';
 import type { FrameInstance } from '@ggraphic/editor/utils/frameUtils';
 import type { GradientFill } from '@ggraphic/editor/utils/gradientFill';
@@ -69,11 +78,10 @@ export interface IconInstanceData extends IconState {
   iconId: string;
 }
 
-/** Nutzlast je Art — spiegelt `ClipboardDataMap`, ergänzt um `chart` und `icon`. */
-export interface DuplicableDataMap {
+/** Nutzlast je Art der Kerns — spiegelt `ClipboardDataMap`, ergänzt um `chart` und `icon`. */
+interface CoreDuplicableDataMap {
   shape: ShapeInstance;
   'additional-text': AdditionalText;
-  balken: BalkenInstance;
   illustration: IllustrationInstance;
   asset: AssetInstance;
   'pill-badge': PillBadgeInstance;
@@ -83,6 +91,11 @@ export interface DuplicableDataMap {
   chart: ChartInstance;
   icon: IconInstanceData;
 }
+
+/** Nutzlast je Art, die Arten des Hosts eingeschlossen. */
+export type DuplicableDataMap = CoreDuplicableDataMap & {
+  [K in HostElementKindName]: HostElementData<K>;
+};
 
 /** Diskriminierte Union: `entry.type` verengt `entry.data` automatisch. */
 export type DuplicableEntry = {
@@ -114,10 +127,16 @@ interface DuplicableSpec<T> {
 
 /** Der Normalfall: eine Art, die als Liste von `{ id, … }` unter ihrem `stateKey` liegt. */
 function listSpec<T extends { id: string }>(
-  kind: Exclude<DuplicableType, 'icon'>,
+  kind: Exclude<CoreElementKindName, 'icon'>,
   clone: (data: T, id: string, offset: InsertOffset) => T
 ): DuplicableSpec<T> {
-  const field = ELEMENT_KINDS.find((k) => k.kind === kind)!.stateKey;
+  return fieldSpec(ELEMENT_KINDS.find((k) => k.kind === kind)!.stateKey, clone);
+}
+
+function fieldSpec<T extends { id: string }>(
+  field: string,
+  clone: (data: T, id: string, offset: InsertOffset) => T
+): DuplicableSpec<T> {
   return {
     find: (state, id) => (readList(state, field).find((i) => i.id === id) as T | undefined) ?? null,
     insert: (state, data, newId, offset) => ({
@@ -132,7 +151,7 @@ function listSpec<T extends { id: string }>(
  * bis sie hier steht — der Rest dieser Datei und alle vier Aufrufer ziehen
  * dann automatisch nach.
  */
-const DUPLICABLE: { [K in DuplicableType]: DuplicableSpec<DuplicableDataMap[K]> } = {
+const DUPLICABLE: { [K in CoreElementKindName]: DuplicableSpec<CoreDuplicableDataMap[K]> } = {
   shape: listSpec('shape', (d, id, o) => ({
     ...d,
     id,
@@ -147,14 +166,6 @@ const DUPLICABLE: { [K in DuplicableType]: DuplicableSpec<DuplicableDataMap[K]> 
     x: d.x + o.x,
     y: d.y + o.y,
     ...(d.fillGradient !== undefined ? { fillGradient: cloneGradient(d.fillGradient) } : {}),
-  })),
-  // Balken kennt kein x/y — seine Lage ist ein Versatz zur Layout-Basis.
-  balken: listSpec('balken', (d, id, o) => ({
-    ...d,
-    id,
-    offset: { x: (d.offset?.x ?? 0) + o.x, y: (d.offset?.y ?? 0) + o.y },
-    texts: [...d.texts],
-    ...(d.barOffsets ? { barOffsets: [...d.barOffsets] as [number, number, number] } : {}),
   })),
   illustration: listSpec('illustration', (d, id, o) => ({
     ...d,
@@ -222,7 +233,26 @@ const DUPLICABLE: { [K in DuplicableType]: DuplicableSpec<DuplicableDataMap[K]> 
   },
 };
 
-export const DUPLICABLE_TYPES = Object.keys(DUPLICABLE) as DuplicableType[];
+/** Die duplizierbaren Arten des Kerns; dazu kommen die des Hosts mit `duplicate`. */
+export const DUPLICABLE_TYPES = Object.keys(DUPLICABLE) as CoreElementKindName[];
+
+/** Eine Art des Hosts: Liste unter ihrem `stateKey`, Kopie über ihr `duplicate`. */
+function hostSpec(kind: ElementKindRegistration): DuplicableSpec<{ id: string }> | null {
+  const duplicate = kind.duplicate?.bind(kind);
+  if (!duplicate) return null;
+  // Boundary: the registration copies its own instances; the list holds only those.
+  return fieldSpec<{ id: string }>(
+    kind.stateKey,
+    (data, id, offset) => duplicate(data as never, id, offset) as { id: string }
+  );
+}
+
+/** Die Registry-Zeile einer Art, Kern oder Host; `null` für eine Host-Art ohne `duplicate`. */
+function specOf(type: DuplicableType): DuplicableSpec<unknown> | null {
+  if (isCoreElementKind(type)) return DUPLICABLE[type] as DuplicableSpec<unknown>;
+  const host = hostElementKind(type);
+  return host ? (hostSpec(host) as DuplicableSpec<unknown> | null) : null;
+}
 
 /**
  * Setzt `newId` direkt hinter `afterId` (= eine Ebene darüber, die Liste ist
@@ -264,7 +294,8 @@ export function insertInstance<TState extends Partial<BaseCanvasState>>(
   // Eine Art pro Zweig: `entry.type` und `entry.data` bleiben korreliert, solange
   // sie nicht destrukturiert werden. Der Zugriff über den Registry-Schlüssel ist
   // die Grenze, an der der String-Schlüssel auf den getypten Zustand trifft.
-  const spec = DUPLICABLE[entry.type] as DuplicableSpec<unknown>;
+  const spec = specOf(entry.type);
+  if (!spec) return { state, newId };
   const nextState = {
     ...state,
     ...spec.insert(state, entry.data, newId, toOffset(offset)),
@@ -302,6 +333,10 @@ export function findDuplicableEntry<TState extends Partial<BaseCanvasState>>(
   for (const type of DUPLICABLE_TYPES) {
     const found = (DUPLICABLE[type] as DuplicableSpec<unknown>).find(state, elementId);
     if (found) return { type, data: found } as DuplicableEntry;
+  }
+  for (const host of hostElementKinds()) {
+    const found = hostSpec(host)?.find(state, elementId);
+    if (found) return { type: host.kind, data: found as unknown } as DuplicableEntry;
   }
   return template?.(elementId) ?? null;
 }

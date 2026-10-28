@@ -239,7 +239,7 @@ export function ShareDropdown({
               <IconButton
                 size="sm"
                 icon={<FaDownload />}
-                label="Download"
+                label={t.shell.downloadTab}
                 onClick={() => setView('download')}
               />
 
@@ -265,7 +265,7 @@ export function ShareDropdown({
                 <IconButton
                   size="sm"
                   icon={<FaSave />}
-                  label="Vorlage"
+                  label={t.shell.template}
                   onClick={() => {
                     setOpen(false);
                     onSaveAsTemplate();
@@ -277,7 +277,7 @@ export function ShareDropdown({
                 <IconButton
                   size="sm"
                   icon={<FaUserPlus />}
-                  label="Personen"
+                  label={t.shell.people}
                   onClick={() => {
                     setOpen(false);
                     onInvitePeople();
@@ -290,7 +290,7 @@ export function ShareDropdown({
                 <IconButton
                   size="sm"
                   icon={<PiMegaphone />}
-                  label="Feedback"
+                  label={t.shell.feedback}
                   onClick={() => {
                     setOpen(false);
                     feedback?.request();
@@ -323,7 +323,7 @@ export function ShareDropdown({
               }}
             >
               {creditCopied ? <FaCheck className="size-3" /> : null}
-              {creditCopied ? 'Kopiert' : 'Bildnachweis kopieren'}
+              {creditCopied ? t.shell.copied : t.shell.copyPhotoCredit}
             </Button>
           </div>
         )}

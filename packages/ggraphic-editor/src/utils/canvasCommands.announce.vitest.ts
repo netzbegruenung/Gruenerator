@@ -147,16 +147,17 @@ describe('Ansagen der Befehle', () => {
 });
 
 describe('Entf auf einem Element der Vorlage', () => {
-  const balken = { id: 'b1', texts: ['Klimaschutz', 'jetzt', 'handeln'] };
+  // Wie die Pille der Slider-Vorlage: aus den Textfeldern der Vorlage abgeleitet.
+  const pill = { id: 'b1', text: 'Klimaschutz jetzt handeln' };
   const headline = { id: 'headline', type: 'text', textKey: 'headline' };
 
   function templatePage(locked: string[] = []) {
     const state = {
-      balkenInstances: [balken],
+      pillBadgeInstances: [pill],
       headline: 'Wärme',
       lockedLayerIds: locked,
     } as unknown as BaseCanvasState;
-    const removeBalken = vi.fn();
+    const removePillBadge = vi.fn();
     const announce = vi.fn<(text: string) => void>();
     const store = createCanvasEditorStore();
     const commands = createCanvasCommands<BaseCanvasState>({
@@ -165,12 +166,12 @@ describe('Entf auf einem Element der Vorlage', () => {
       setState: vi.fn(),
       saveToHistory: vi.fn(),
       runHistoryBatch: (fn) => fn(),
-      getActions: () => ({ removeBalken, isTemplateBound: (id: string) => id === 'b1' }),
+      getActions: () => ({ removePillBadge, isTemplateBound: (id: string) => id === 'b1' }),
       template: () => null,
       getRenderList: () =>
         [
           { id: 'headline', type: 'element', data: headline },
-          { id: 'b1', type: 'balken', data: balken },
+          { id: 'b1', type: 'pill-badge', data: pill },
         ] as unknown as CanvasItem[],
       getStage: () => null,
       logicalScale: () => 1,
@@ -181,16 +182,16 @@ describe('Entf auf einem Element der Vorlage', () => {
       announce,
     });
     const select = (...ids: string[]) => store.getState().setSelectedLayers(ids);
-    return { commands, announce, removeBalken, select };
+    return { commands, announce, removePillBadge, select };
   }
 
-  it('sagt einmal an, warum der Balken der Vorlage stehen bleibt', () => {
+  it('sagt einmal an, warum die Pille der Vorlage stehen bleibt', () => {
     const p = templatePage();
     p.select('b1');
     p.commands.remove();
-    expect(p.removeBalken).not.toHaveBeenCalled();
+    expect(p.removePillBadge).not.toHaveBeenCalled();
     expect(p.announce).toHaveBeenCalledExactlyOnceWith(
-      'Gehört zur Vorlage und lässt sich nicht löschen: Balken: Klimaschutz / jetzt / handeln'
+      'Gehört zur Vorlage und lässt sich nicht löschen: Badge: Klimaschutz jetzt handeln'
     );
   });
 
@@ -216,12 +217,12 @@ describe('Entf auf einem Element der Vorlage', () => {
   });
 
   it('nennt bei gemischter Auswahl nur, was wirklich gelöscht wurde', () => {
-    const extra = { id: 'b2', texts: ['Wärme', 'für', 'alle'] };
+    const extra = { id: 'b2', text: 'Wärme für alle' };
     const state = {
-      balkenInstances: [balken, extra],
+      pillBadgeInstances: [pill, extra],
       lockedLayerIds: [],
     } as unknown as BaseCanvasState;
-    const removeBalken = vi.fn();
+    const removePillBadge = vi.fn();
     const announce = vi.fn<(text: string) => void>();
     const store = createCanvasEditorStore();
     const commands = createCanvasCommands<BaseCanvasState>({
@@ -230,12 +231,12 @@ describe('Entf auf einem Element der Vorlage', () => {
       setState: vi.fn(),
       saveToHistory: vi.fn(),
       runHistoryBatch: (fn) => fn(),
-      getActions: () => ({ removeBalken, isTemplateBound: (id: string) => id === 'b1' }),
+      getActions: () => ({ removePillBadge, isTemplateBound: (id: string) => id === 'b1' }),
       template: () => null,
       getRenderList: () =>
         [
-          { id: 'b1', type: 'balken', data: balken },
-          { id: 'b2', type: 'balken', data: extra },
+          { id: 'b1', type: 'pill-badge', data: pill },
+          { id: 'b2', type: 'pill-badge', data: extra },
         ] as unknown as CanvasItem[],
       getStage: () => null,
       logicalScale: () => 1,
@@ -247,8 +248,8 @@ describe('Entf auf einem Element der Vorlage', () => {
     });
     store.getState().setSelectedLayers(['b1', 'b2']);
     commands.remove();
-    expect(removeBalken).toHaveBeenCalledExactlyOnceWith('b2');
-    expect(announce).toHaveBeenCalledExactlyOnceWith('Gelöscht: Balken: Wärme / für / alle');
+    expect(removePillBadge).toHaveBeenCalledExactlyOnceWith('b2');
+    expect(announce).toHaveBeenCalledExactlyOnceWith('Gelöscht: Badge: Wärme für alle');
   });
 
   it('sagt beim Ausschneiden nichts zur Vorlage', () => {

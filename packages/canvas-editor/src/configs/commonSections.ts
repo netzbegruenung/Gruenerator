@@ -20,7 +20,7 @@ import type { SharepicAiCapabilities } from './aiCapabilities';
 import type { ChatSectionProps, ToolsSectionProps, UploadsSectionProps } from '../sidebar/sections';
 import type { SidebarTab } from '@ggraphic/editor/sidebar/types';
 import type { CanvasAiEditBridge } from '@ggraphic/editor/CanvasEditorProvider';
-import type { BalkenInstance } from '@ggraphic/editor/utils/balkenUtils';
+import type { BalkenInstance } from '../utils/balkenUtils';
 import type { ChartInstance } from '@ggraphic/editor/utils/chartUtils';
 import type {
   ImageAdjustments,

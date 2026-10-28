@@ -12,6 +12,7 @@
 
 import { carryInstanceState } from '@ggraphic/editor/configs/factory/carryInstanceState';
 import { ASSET_TARGET_SIZE } from '@ggraphic/editor/utils/canvasAssets';
+import { fromHostKinds, hostElementKinds, kindList } from '@ggraphic/editor/utils/elementKinds';
 import {
   chartInk,
   chartLegendPosition,
@@ -76,7 +77,6 @@ export const PPTX_MAPPED_PAGE_KEYS = [
   'assetInstances',
   'illustrationInstances',
   'frameInstances',
-  'balkenInstances',
   'selectedIcons',
   'iconStates',
   'layerOrder',
@@ -102,6 +102,16 @@ const KNOWN_KEYS: ReadonlySet<string> = new Set([
   ...PPTX_MAPPED_PAGE_KEYS,
   ...Object.keys(PPTX_UNMAPPED_PAGE_KEYS),
 ]);
+
+/** The lists of the host kinds that go onto the slide (`registerElementKind` with `pptx`). */
+const hostPptxKeys = fromHostKinds(
+  (kinds) => new Set<string>(kinds.filter((kind) => kind.pptx).map((kind) => kind.stateKey))
+);
+
+/** The mapped page keys, the host kinds' lists included. */
+export function pptxMappedPageKeys(): readonly string[] {
+  return [...PPTX_MAPPED_PAGE_KEYS, ...hostPptxKeys()];
+}
 
 /** Formen, die PowerPoint selbst zeichnet; alle anderen werden gerastert. */
 const NATIVE_SHAPES: Partial<Record<ShapeInstance['type'], PptxShapeKind>> = {
@@ -569,10 +579,13 @@ function buildSlide(
   const add = (id: string, map: () => PptxItem | PptxItem[]) =>
     entries.push([id, () => [map()].flat()]);
 
-  for (const balken of carried.balkenInstances) {
-    add(balken.id, () =>
-      raster(balken.id, { box: page, rotation: balken.rotation || 0 }, 'balken', false)
-    );
+  for (const kind of hostElementKinds()) {
+    const pptx = kind.pptx?.bind(kind);
+    if (!pptx) continue;
+    for (const data of kindList(state, kind.stateKey) as { id: string }[]) {
+      // Boundary: the list under this registration's own key holds its instances.
+      add(data.id, () => pptx(data as never, page));
+    }
   }
   for (const iconId of carried.selectedIcons) {
     const icon = carried.iconStates[iconId];
@@ -614,7 +627,10 @@ function buildSlide(
   for (const chart of carried.chartInstances) add(chart.id, () => mapChart(chart));
 
   // Unbekannte Sammlungen von Elementen mit Id: gerastert statt verloren.
-  const unknownKeys = Object.keys(state).filter((key) => !KNOWN_KEYS.has(key));
+  const hostKeys = hostPptxKeys();
+  const unknownKeys = Object.keys(state).filter(
+    (key) => !KNOWN_KEYS.has(key) && !hostKeys.has(key)
+  );
   for (const key of unknownKeys) {
     const value = state[key];
     if (!isIdList(value)) continue;

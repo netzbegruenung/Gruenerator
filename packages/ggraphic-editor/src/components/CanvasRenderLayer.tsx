@@ -30,7 +30,7 @@ import type { SnapLine, SnapTarget } from '@ggraphic/editor/utils/snapping';
  * CanvasRenderLayer - Renders all canvas elements in layer order
  *
  * Maps over sortedRenderList and renders the appropriate component
- * for each item type (element, balken, icon, shape, illustration, text).
+ * for each item type (element, icon, shape, illustration, text, host kinds).
  */
 
 interface CanvasRenderLayerProps<

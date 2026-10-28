@@ -17,8 +17,9 @@ import { AssetPrimitive } from '../primitives/AssetPrimitive.js';
 import { IllustrationPrimitive } from '../primitives/IllustrationPrimitive.js';
 import { resolveIconDef } from '../utils/iconInstances.js';
 
+import type { OptionalCanvasActions } from '../hooks/useCanvasElementHandlers.js';
 import type { CanvasItem } from '../utils/canvasLayerManager.js';
-import type { HostRenderedKindName } from '../utils/elementKinds.js';
+import type { HostElementKindName } from '../utils/canvasItem.js';
 import type { CropAspectId } from '@ggraphic/editor/utils/cropAspect';
 import type { FrameInstance } from '@ggraphic/editor/utils/frameUtils';
 import type { ShapeInstance } from '@ggraphic/editor/utils/shapes';
@@ -59,6 +60,8 @@ interface AdditionalTextAttrs {
 }
 
 export interface CanvasRenderHandlers {
+  /** The config's actions, for the renderers of the host's kinds (`registerKindRenderers`). */
+  actions: OptionalCanvasActions;
   handleElementSelect: (id: string) => void;
   handleTextChange: (id: string, text: string) => void;
   handleFontSizeChange: (id: string, size: number) => void;
@@ -73,16 +76,6 @@ export interface CanvasRenderHandlers {
     rotation: number
   ) => void;
   handleTemplateTransformEnd: (id: string, x: number, y: number, rotation: number) => void;
-  handleBalkenSelect: (id: string) => void;
-  handleBalkenDragEnd: (id: string, x: number, y: number) => void;
-  handleBalkenTransformEnd: (
-    id: string,
-    x: number,
-    y: number,
-    scale: number,
-    rotation: number
-  ) => void;
-  handleBalkenTextChange: (id: string, index: number, text: string) => void;
   handleIconDragEnd: (id: string, x: number, y: number) => void;
   handleIconTransformEnd: (
     id: string,
@@ -202,11 +195,11 @@ export type KindRenderer<K extends KindName> = (
 ) => React.ReactNode;
 
 type KindRenderers = {
-  [K in Exclude<KindName, HostRenderedKindName>]: KindRenderer<K>;
+  [K in Exclude<KindName, HostElementKindName>]: KindRenderer<K>;
 };
 
-/** The renderers a host supplies for the kinds it draws (`hostRendered` in `ELEMENT_KINDS`). */
-export type HostKindRenderers = { [K in HostRenderedKindName]?: KindRenderer<K> };
+/** The renderers a host supplies for its own kinds (`HostElementKinds`, `registerElementKind`). */
+export type HostKindRenderers = { [K in HostElementKindName]?: KindRenderer<K> };
 
 /**
  * A module-level registry, like the asset catalogue: offscreen renders draw
@@ -221,9 +214,9 @@ export function registerKindRenderers(renderers: HostKindRenderers): void {
 }
 
 /**
- * How each element kind is drawn. Keyed by kind, so a kind added to
- * `CanvasItem` does not compile until it has a renderer here or is marked
- * `hostRendered`.
+ * How each core element kind is drawn. Keyed by kind, so a kind added to
+ * `ELEMENT_KINDS` does not compile until it has a renderer here; a host's
+ * kinds are drawn by `registerKindRenderers`.
  */
 export const KIND_RENDERERS: KindRenderers = {
   // Render Icon
@@ -640,7 +633,7 @@ export function renderKindItem(item: Exclude<CanvasItem, { type: 'element' }>, c
   const render = (
     item.type in KIND_RENDERERS
       ? KIND_RENDERERS[item.type as keyof KindRenderers]
-      : hostRenderers[item.type as HostRenderedKindName]
+      : hostRenderers[item.type as HostElementKindName]
   ) as ((item: CanvasItem, ctx: RenderCtx) => React.ReactNode) | undefined;
   return render ? render(item, ctx) : null;
 }

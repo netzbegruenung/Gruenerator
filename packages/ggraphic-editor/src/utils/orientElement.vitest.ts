@@ -18,7 +18,6 @@ function setup(state: Record<string, unknown>, elements: unknown[] = []) {
     updateChart: vi.fn(),
     updateCircleBadge: vi.fn(),
     updatePillBadge: vi.fn(),
-    updateBalken: vi.fn(),
     updateUserImage: vi.fn(),
     updateAdditionalText: vi.fn(),
   };
@@ -94,14 +93,6 @@ describe('findOrientationDoor', () => {
     expect(door.flipY).toBe(true);
     door.apply({ rotation: 90 });
     expect(t.actions.updateIcon).toHaveBeenCalledWith('i', { rotation: 90 });
-  });
-
-  it('balken receives rotation only', () => {
-    const t = setup({ balkenInstances: [item('b')] });
-    const door = t.door('b')!;
-    expect(door.canFlip).toBe(false);
-    door.apply({ x: 5, y: 6, rotation: 90, flipX: true });
-    expect(t.actions.updateBalken).toHaveBeenCalledWith('b', { rotation: 90 });
   });
 
   it('returns null when the action is missing', () => {

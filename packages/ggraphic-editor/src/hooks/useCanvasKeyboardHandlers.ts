@@ -6,6 +6,7 @@ import { isPageFocusTarget, returnFocusToPage } from '@ggraphic/editor/utils/edi
 import { isTextEditingTarget, isWidgetOwnedKey } from '@ggraphic/editor/utils/keyboardOwnership';
 import { assertAsPosition } from '@ggraphic/editor/utils/stateTypeAssertions';
 
+import { findHostInstance, updateHostInstance } from '../utils/elementKinds.js';
 import { isLayerLocked } from '../utils/layerLock.js';
 
 import type { OptionalCanvasActions } from './useCanvasElementHandlers.js';
@@ -279,13 +280,14 @@ export function useCanvasKeyboardHandlers<TState extends Partial<BaseCanvasState
           currentActions.updateIcon(selectedElement, { x: icon.x + dx, y: icon.y + dy });
           return;
         }
-        const balken = currentState.balkenInstances?.find((b) => b.id === selectedElement);
-        if (balken && currentActions.updateBalken) {
-          e.preventDefault();
-          currentActions.updateBalken(selectedElement, {
-            offset: { x: (balken.offset?.x ?? 0) + dx, y: (balken.offset?.y ?? 0) + dy },
-          });
-          return;
+        // A host kind moves by the patch its registration builds (`nudge`).
+        const host = findHostInstance(currentState, selectedElement);
+        if (host?.kind.nudge) {
+          const patch = host.kind.nudge(host.data as never, { x: dx, y: dy });
+          if (updateHostInstance(currentActions, host.kind, selectedElement, patch)) {
+            e.preventDefault();
+            return;
+          }
         }
 
         // Config-Elemente der Vorlage (Pfeil, Sonnenblume, Zitatzeichen …).

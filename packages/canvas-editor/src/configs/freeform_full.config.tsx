@@ -28,7 +28,7 @@ import { CombinedTextSection } from '@ggraphic/editor/sidebar/sections/CombinedT
 import { FrameSettingsSection } from '@ggraphic/editor/sidebar/sections/FrameSettingsSection';
 
 import { chatTab, createCommonSectionEntries, toolsTab, uploadsTab } from './commonSections';
-import { createBaseActions } from './factory/actionFactories';
+import { createBaseActions } from './factory/baseActions';
 import { makeSectionDefiner } from '@ggraphic/editor/configs/factory/defineSection';
 import { injectFeatureProps } from '@ggraphic/editor/configs/featureInjector';
 import { createShareSection } from '@ggraphic/editor/configs/shareSection';

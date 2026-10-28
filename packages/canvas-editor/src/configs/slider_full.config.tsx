@@ -32,7 +32,7 @@ import {
 } from '../utils/sliderLayout';
 
 import { chatTab, createCommonSectionEntries, toolsTab, uploadsTab } from './commonSections';
-import { createBaseActions } from './factory/actionFactories';
+import { createBaseActions } from './factory/baseActions';
 import { makeSectionDefiner } from '@ggraphic/editor/configs/factory/defineSection';
 import { fromLayout } from '@ggraphic/editor/configs/factory/layoutAccessors';
 import { injectFeatureProps } from '@ggraphic/editor/configs/featureInjector';
@@ -51,7 +51,7 @@ import type {
   ImageElementConfig,
   AdditionalText,
 } from '@ggraphic/editor/configs/types';
-import type { BalkenInstance, BalkenMode } from '@ggraphic/editor/utils/balkenUtils';
+import type { BalkenInstance, BalkenMode } from '../utils/balkenUtils';
 import type { AssetInstance } from '@ggraphic/editor/utils/canvasAssets';
 import type { CircleBadgeInstance } from '@ggraphic/editor/utils/circleBadgeUtils';
 import type { FrameClipType, FrameInstance } from '@ggraphic/editor/utils/frameUtils';

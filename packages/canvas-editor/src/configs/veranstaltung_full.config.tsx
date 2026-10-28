@@ -22,11 +22,11 @@ import {
   createShapeActions,
   createIllustrationActions,
   createPillBadgeActions,
-  createBalkenActions,
   createCircleBadgeActions,
   createFrameActions,
   createUserImageActions,
-} from './factory/actionFactories';
+} from '@ggraphic/editor/configs/factory/actionFactories';
+import { createBalkenActions } from './factory/balkenActions';
 import { makeSectionDefiner } from '@ggraphic/editor/configs/factory/defineSection';
 import { injectFeatureProps } from '@ggraphic/editor/configs/featureInjector';
 import { PLACEHOLDER_TEXT } from '@ggraphic/editor/configs/placeholders';
@@ -40,7 +40,7 @@ import type {
   AdditionalText,
 } from '@ggraphic/editor/configs/types';
 import type { CircleBadgeInstance, CircleBadgeTextLine } from '@ggraphic/editor/primitives/index';
-import type { BalkenInstance, BalkenMode } from '@ggraphic/editor/utils/balkenUtils';
+import type { BalkenInstance, BalkenMode } from '../utils/balkenUtils';
 import type { ChartInstance } from '@ggraphic/editor/utils/chartUtils';
 import type { FrameClipType, FrameInstance } from '@ggraphic/editor/utils/frameUtils';
 import type { IllustrationInstance } from '@ggraphic/editor/utils/illustrations/types';
