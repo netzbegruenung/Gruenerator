@@ -9,7 +9,7 @@ import { Image } from 'expo-image';
 import { useState } from 'react';
 import { ActivityIndicator, Alert, Pressable, StyleSheet, Text, View } from 'react-native';
 
-import { groupPostFileUrl, shareGroupPostFile } from '../../hooks/useGroupContent';
+import { groupPostFileUrl, openGroupPostFile } from '../../hooks/useGroupContent';
 import { useTheme } from '../../hooks/useTheme';
 import { BODY_FONT } from '../../theme';
 
@@ -44,7 +44,7 @@ export function GroupPostBody({ groupId, postId, post, token }: GroupPostBodyPro
     const file = post.files.find((f) => f.id === fileId);
     if (!file || loadingId) return;
     setLoadingId(file.id);
-    shareGroupPostFile(groupId, postId, file)
+    openGroupPostFile(groupId, postId, file)
       .catch((error: unknown) =>
         Alert.alert('Datei konnte nicht geladen werden', errMessage(error, file.name))
       )
