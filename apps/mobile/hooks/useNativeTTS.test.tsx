@@ -62,6 +62,7 @@ describe('useNativeTTS', () => {
     await act(() => result.current.play('Erster Satz. Zweiter Satz.'));
 
     expect(setAudioModeAsync).toHaveBeenCalledWith({
+      playsInSilentMode: true,
       shouldPlayInBackground: true,
       interruptionMode: 'doNotMix',
     });
@@ -76,6 +77,7 @@ describe('useNativeTTS', () => {
     expect(result.current.state).toBe('idle');
     expect(mockPlayer.clearLockScreenControls).toHaveBeenCalled();
     expect(setAudioModeAsync).toHaveBeenLastCalledWith({
+      playsInSilentMode: true,
       shouldPlayInBackground: false,
       interruptionMode: 'mixWithOthers',
     });

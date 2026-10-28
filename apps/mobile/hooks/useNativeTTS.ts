@@ -122,9 +122,19 @@ async function fetchSentenceChunks(
 
 // Reading aloud keeps going on the lock screen and pauses other apps' audio, like
 // a podcast. Only for as long as it reads: the rest of the app, the voice call's
-// ready tone included, keeps expo-audio's defaults.
-const READ_ALOUD_MODE = { shouldPlayInBackground: true, interruptionMode: 'doNotMix' } as const;
-const DEFAULT_MODE = { shouldPlayInBackground: false, interruptionMode: 'mixWithOthers' } as const;
+// ready tone included, keeps expo-audio's defaults. `playsInSilentMode` must be
+// sent: a partial mode resets it to false, and iOS rejects background playback
+// without it ("Impossible audio mode").
+const READ_ALOUD_MODE = {
+  playsInSilentMode: true,
+  shouldPlayInBackground: true,
+  interruptionMode: 'doNotMix',
+} as const;
+const DEFAULT_MODE = {
+  playsInSilentMode: true,
+  shouldPlayInBackground: false,
+  interruptionMode: 'mixWithOthers',
+} as const;
 
 function endReadAloud(player: AudioPlayer | null): void {
   player?.clearLockScreenControls();
@@ -203,7 +213,10 @@ export function useNativeTTS() {
         playerRef.current = player;
       }
       const player = playerRef.current;
-      await setAudioModeAsync(READ_ALOUD_MODE);
+      // Without the mode it still reads, just not past the lock screen.
+      await setAudioModeAsync(READ_ALOUD_MODE).catch((error: unknown) =>
+        console.warn('[useNativeTTS] background audio mode refused', error)
+      );
       if (controller.signal.aborted) return;
       player.replace({ uri: wavFile.uri });
       player.setActiveForLockScreen(true, {
