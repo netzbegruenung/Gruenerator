@@ -1,9 +1,24 @@
 /**
- * Deterministische Filter aus dem Wortlaut der Frage: Drucksachetyp, Urheber,
- * Zeitraum. Was wörtlich in der Frage steht, darf nicht vom Modell abhängen.
+ * Deterministische Filter aus dem Wortlaut der Frage: Wahlperiode, Drucksachetyp,
+ * Urheber, Zeitraum. Was wörtlich in der Frage steht, darf nicht vom Modell abhängen.
  * Reine Funktionen, werfen nie.
  */
 import { type BundestagFilter } from '@gruenerator/contracts';
+
+/** Die laufende Wahlperiode (seit 2025). */
+export const CURRENT_WAHLPERIODE = 21;
+
+const WP_RE = /\b(?:wp|wahlperiode)\s*(\d{1,2})\b/i;
+// „diese/aktuelle/laufende Wahlperiode", „seit der Wahl", „diese Regierung/Koalition" meinen die laufende.
+const CURRENT_WP_RE =
+  /\b(?:diese[rnms]?|aktuelle[nrms]?|laufende[nrms]?)\s+wahlperiode\b|\bseit\s+der\s+wahl\b|\bdiese[rn]?\s+(?:bundes)?(?:regierung|koalition)\b/i;
+
+function detectWahlperiode(question: string): number[] {
+  const wp = question.match(WP_RE);
+  // Nur 1..30 sind Wahlperioden (wie im Contract); „WP 99" ignorieren.
+  if (wp && Number(wp[1]) >= 1 && Number(wp[1]) <= 30) return [Number(wp[1])];
+  return CURRENT_WP_RE.test(question) ? [CURRENT_WAHLPERIODE] : [];
+}
 
 type Typ = NonNullable<BundestagFilter['drucksachetyp']>[number];
 type Beratungsstand = NonNullable<BundestagFilter['beratungsstand']>[number];
@@ -144,6 +159,8 @@ export function detectZeitraum(question: string): { datumVon?: string; datumBis?
 /** Alles zusammen; nur gesetzte Schlüssel. */
 export function detectFromWording(question: string): BundestagFilter {
   const found: BundestagFilter = {};
+  const wahlperiode = detectWahlperiode(question);
+  if (wahlperiode.length) found.wahlperiode = wahlperiode;
   const typ = detectDrucksachetyp(question);
   if (typ.length) found.drucksachetyp = typ;
   const urheber = detectUrheber(question);

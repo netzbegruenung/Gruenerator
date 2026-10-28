@@ -87,6 +87,23 @@ describe('detectFromWording', () => {
   });
 });
 
+describe('detectFromWording: Wahlperiode', () => {
+  it('„dieser Wahlperiode" ist die laufende', () => {
+    expect(
+      detectFromWording(
+        'Wie viele Kleine Anfragen hat die grüne Bundestagsfraktion in dieser Wahlperiode gestellt?'
+      ).wahlperiode
+    ).toEqual([21]);
+  });
+  it('eine genannte Wahlperiode schlägt „diese"', () => {
+    expect(detectFromWording('Anträge in der Wahlperiode 20').wahlperiode).toEqual([20]);
+    expect(detectFromWording('WP 99').wahlperiode).toBeUndefined();
+  });
+  it('ohne Hinweis keine Wahlperiode', () => {
+    expect(detectFromWording('Anträge zur Windkraft').wahlperiode).toBeUndefined();
+  });
+});
+
 describe('detectBeratungsstand', () => {
   it.each([
     'Was wurde im Bundestag zu Artenschutz beschlossen?',
