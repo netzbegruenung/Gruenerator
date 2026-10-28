@@ -78,7 +78,15 @@ describe('response_format: json_object', () => {
   // `auto` (#5112): "`json_object` response type with tools is only compatible
   // with `tool_choice: auto`". A forced tool call is already structured, so the
   // forced choice wins and JSON mode is dropped — on every hop of the chain.
-  for (const toolChoice of ['required', { type: 'tool', name: 'plan' }] as const) {
+  // `none` is not forced and stays with JSON mode: Mistral accepts that pair
+  // (probed 28.10.2026, only `any`/named returned error 3051).
+  for (const [toolChoice, sdkChoice] of [
+    ['required', 'required'],
+    [
+      { type: 'tool', name: 'plan' },
+      { type: 'tool', toolName: 'plan' },
+    ],
+  ] as const) {
     it(`drops JSON mode under a forced tool_choice ${JSON.stringify(toolChoice)}`, async () => {
       vi.mocked(ToolHandler.prepareToolsPayload).mockReturnValueOnce({
         tools: [{ name: 'plan', description: 'x', input_schema: { type: 'object' } }],
@@ -92,9 +100,7 @@ describe('response_format: json_object', () => {
       );
 
       expect(wrapLanguageModel).not.toHaveBeenCalled();
-      expect(generateText).toHaveBeenCalledWith(
-        expect.objectContaining({ toolChoice: expect.anything() })
-      );
+      expect(generateText).toHaveBeenCalledWith(expect.objectContaining({ toolChoice: sdkChoice }));
     });
   }
 
