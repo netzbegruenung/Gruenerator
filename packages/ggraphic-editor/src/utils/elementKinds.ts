@@ -156,6 +156,11 @@ let hostKindsVersion = 0;
 /**
  * Registers a host element kind, once at startup before the first render,
  * next to the asset catalogue. Registering the same kind again replaces it.
+ *
+ * Also registers the kind's document migrations, so it must run before the
+ * first document load (`migrateDocument`, `readInitialDocument`, a Y.Doc's
+ * open): a load before it treats the kind's list as opaque data — neither
+ * lifted nor refused when newer.
  */
 export function registerElementKind<K extends HostElementKindName>(
   registration: ElementKindRegistration<K>

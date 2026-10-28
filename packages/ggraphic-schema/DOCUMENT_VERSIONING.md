@@ -49,7 +49,7 @@ and stay as they are.
 | --------------------------------------------------------------------------------------- | ---------- | -------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Collaborative Y.Doc (the host's sync server) and the local Y.Doc of a non-collab editor | read/write | `collab/useYjsPages.ts` (setup effect after sync, seeding), `collab/pagesDoc.ts`       | `migrateYDocument` runs in the setup transaction after the legacy lift; seeding stamps the version into `meta`; a newer doc refuses writes            |
 | Page state ↔ component state                                                            | read/write | `useYjsPageStateSync`, `wrapCallbacksWithPageSync`, `yjsBinding.ts` (`config`)         | Runs only on a doc that passed the version check (the page manager mounts no live pages for a refused doc)                                            |
-| Initial document of a canvas (the host's stored initial state)                          | read       | host → `readInitialDocument` (`usePageManager.ts`) → `initialPages` seed / preview     | `migrateDocument`; a newer or malformed envelope comes back as a refusal the host turns into read-only                                                |
+| Initial document of a canvas (the host's stored initial state)                          | read       | host → `readInitialDocument` (`usePageManager.ts`) → `initialPages` seed / preview     | `migrateDocument`; a newer or malformed envelope comes back as a refusal and no pages; the host mounts no writing editor                              |
 | Gallery deck autosave (`metadata.content`)                                              | write      | `hooks/useDeckAutoSave.ts`                                                             | Stamped with `stampDocument` (`schemaVersion` beside `pages`, additive). No reader of `content.pages` exists today                                    |
 | Legacy per-page autosave (`metadata.content.canvasState`)                               | write      | `hooks/useCanvasAutoSave.ts`                                                           | Disabled in the multi-page editor (`autoSave={false}`); left as is, its shape stays read-only for old drafts                                          |
 | Host template snapshots (a template freezes a copy of a canvas)                         | read/write | host server: copies the Y.Doc's pages into a new canvas's initial state                | Read back through the initial-document path above. Server side not versioned in this change — see risks                                               |
@@ -88,10 +88,22 @@ default registry (`documentMigrations`) ships with **no** steps, so
   (`registerStateKeyMigrations`). A kind without steps is registered too, at
   version 1, so the registry knows the key and can refuse a newer one.
 - Every step must be **pure, deterministic and idempotent**
-  (`f(f(x)) = f(x)`). Determinism makes two clients migrating the same doc
-  write identical values, which Yjs merges into one. Idempotence makes it
-  harmless when a step meets data that is already lifted (a server seed that
-  copied migrated pages but no stamp, two clients racing).
+  (`f(f(x)) = f(x)`, and `f` of already lifted data is a no-op). This is
+  tested, not trusted: `verifyMigrationRegistry(registry, corpus)` checks
+  every registered core and host step over a corpus of stored documents, and
+  the core and each host run it in their tests with their kinds registered.
+  Determinism makes two clients migrating the same doc write identical
+  values, which Yjs merges into one. Idempotence makes it harmless when a
+  step meets data that is already lifted (a server seed that copied migrated
+  pages but no stamp, two clients racing).
+- Idempotence is **not** a repair mechanism. Steps run only when the stored
+  version is below this build's. Data written in the old shape _after_ the
+  stamp was raised — by an old bundle, or by a peer that lost the race but
+  kept writing before its observer fired — reads as current, and no step
+  runs again (see "Old writers" below).
+- Host kinds register before the first load (`registerElementKind` at start
+  up, before the first render). A load before that treats the kind's list as
+  opaque: it is neither lifted nor refused.
 
 ### (c) `migrateDocument(raw)` on every load, stamp on write
 
@@ -118,9 +130,10 @@ shape into a newer document. `newer` and `invalid` both become a refusal:
   marks the doc refused and its mutators do nothing. `usePageManager` then
   shows the doc's pages as a read-only preview (no page is bound to its
   Y.Map) and returns `schemaRefusal`; the shell shows an alert
-  (`shell.newerSchema`).
-- Initial document: `readInitialDocument` returns the refusal; the host passes
-  `readOnly` and tells the user.
+  (`shell.schemaRefusal`).
+- Initial document: `readInitialDocument` returns the refusal and no pages.
+  The host must not mount a writing editor on it; the reference host shows an
+  alert page instead, with the same wording as the shell.
 
 ### (e) Yjs
 
@@ -140,7 +153,9 @@ shape into a newer document. `newer` and `invalid` both become a refusal:
   makes the newer client re-run its idempotent migration and stamp again; the
   older one, now seeing a newer stamp, stops writing. No loop: a client writes
   only while the stored version is below its own, and stops once it is equal
-  or above.
+  or above. The re-lift is triggered by the **stamp**, not the data: if the
+  newer stamp wins, whatever the older client wrote in its own shape before
+  it saw that stamp stays as written.
 - Migrations must keep the page ids; a step that changes the set of pages is
   rejected as `invalid` on a Y.Doc (structural page ops are not migrations).
 
@@ -168,14 +183,36 @@ gallery deck drafts.
 - **Per-element versions.** One number per namespace (core, each host kind) is
   enough; an element-level version would multiply the states to test.
 
+## Old writers
+
+A writer that does not run this mechanism writes the old shape into a
+document whose stamp is already raised: bundles from before it (desktop
+builds, cached service workers, open tabs), server-side writers (below), a
+peer in the short window before its observer sees a newer stamp. Such a
+writer never touches the stamp, so every newer client then reads the doc as
+`current` and never lifts that data. Idempotence does not help there. What
+does:
+
+- **Lenient readers.** For N releases after a step ships, the code that reads
+  the migrated keys also accepts the previous shape (the step's input), so
+  old-shape data written late still renders and edits correctly. Only after
+  that window may a reader drop the old shape.
+- **Old-shape detection.** A step whose input shape is recognisable can come
+  with a detector; a load that finds old-shape data under a current stamp then
+  re-lifts those keys (steps are idempotent, so this is safe). Not built yet:
+  the first real step brings its detector, or justifies why lenient readers
+  are enough.
+
 ## Risks
 
-- Server-side Y.Doc writers bypass the client migration (see above). With
-  version 1 harmless; the first v2 is blocked on them.
-- Long-lived old bundles (desktop builds, cached service workers, released
-  mobile WebViews of an old web deploy) predate this mechanism and will write
-  v1 shapes into a v2 doc without looking. Idempotent steps make the next
-  migrating client repair that, but only for keys a step rewrites.
+- **Server-side and out-of-hook Y.Doc writers** bypass the client lift and
+  never check the stamp: the host's sync-server seed and state patches, its
+  deck-changes endpoint, version restore, and the AI/chat edit paths that
+  write a canvas through the server. With version 1 harmless; before the
+  first v2 each must refuse a newer doc, or migrate what it writes, and the
+  snapshot copies must carry the stamp.
+- **Old bundles** keep writing the old shape (see "Old writers"): mitigated
+  only by lenient readers and detectors, not by the stamp.
 - A migration that rewrites a whole instance list races with a concurrent edit
   of that list on a not-yet-migrated peer; Yjs keeps one of the two values.
 - Host top-level keys outside `pages` (the reference host's flat cover
