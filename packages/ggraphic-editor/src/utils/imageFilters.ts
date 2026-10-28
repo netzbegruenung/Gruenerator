@@ -10,7 +10,7 @@ import Konva from 'konva';
 import { activeBrand } from '@ggraphic/editor/brand/brandRegistry';
 import { messages } from '@ggraphic/editor/i18n/messages';
 
-import type { ImageAdjustments } from './userImageUtils';
+import type { ImageAdjustments } from './userImageUtils.js';
 
 type KonvaFilter = typeof Konva.Filters.Grayscale;
 

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MPL-2.0
-import { type NodeFrame, normalizeRotation } from './orientation';
+import { type NodeFrame, normalizeRotation } from './orientation.js';
 
 /** Text of the angle/size badge shown while a Transformer is active; null when nothing to show. */
 export function transformHudLabel(

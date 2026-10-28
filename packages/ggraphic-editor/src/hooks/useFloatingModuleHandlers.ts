@@ -3,10 +3,10 @@ import { useCallback } from 'react';
 
 import { withTemplateTextAlign, type TextAlign } from '@ggraphic/editor/utils/textAlign';
 
-import type { OptionalCanvasActions } from './useCanvasElementHandlers';
-import type { FloatingModuleState } from './useFloatingModuleState';
-import type { BaseCanvasState } from '../configs/factory/baseTypes';
-import type { FullCanvasConfig } from '../configs/types';
+import type { OptionalCanvasActions } from './useCanvasElementHandlers.js';
+import type { FloatingModuleState } from './useFloatingModuleState.js';
+import type { BaseCanvasState } from '../configs/factory/baseTypes.js';
+import type { FullCanvasConfig } from '../configs/types.js';
 import type { GradientFill } from '@ggraphic/editor/utils/gradientFill';
 
 /** Partial shadow patch shared by shape/text/user-image update actions. */

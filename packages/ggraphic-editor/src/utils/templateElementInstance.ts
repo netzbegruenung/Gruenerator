@@ -32,12 +32,12 @@
 
 import { centreOf } from '@ggraphic/editor/utils/orientation';
 
-import { ASSET_TARGET_SIZE, getAssetBySrc } from './canvasAssets';
-import { resolveImageElementBox } from './resolveElementValue';
-import { templateRotationOf } from './templateRotation';
+import { ASSET_TARGET_SIZE, getAssetBySrc } from './canvasAssets.js';
+import { resolveImageElementBox } from './resolveElementValue.js';
+import { templateRotationOf } from './templateRotation.js';
 
-import type { DuplicableEntry } from './duplicateElement';
-import type { CanvasElementConfig, ImageElementConfig, LayoutResult } from '../configs/types';
+import type { DuplicableEntry } from './duplicateElement.js';
+import type { CanvasElementConfig, ImageElementConfig, LayoutResult } from '../configs/types.js';
 
 /** Die Quelle eines Vorlagen-Bildes, soweit sie ohne Zustandsschluessel feststeht. */
 function staticSrc<TState extends Record<string, unknown>>(

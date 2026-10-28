@@ -32,7 +32,7 @@ import {
   snapByBounds,
 } from '@ggraphic/editor/utils/snapping';
 
-import { CanvasRichText } from './CanvasRichText';
+import { CanvasRichText } from './CanvasRichText.js';
 
 import type { TransformConfig, TransformAnchor } from '@ggraphic/editor/types/editorTypes';
 import type { SnapTarget, SnapLine } from '@ggraphic/editor/utils/snapping';

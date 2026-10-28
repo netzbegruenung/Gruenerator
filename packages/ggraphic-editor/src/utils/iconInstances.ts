@@ -19,7 +19,7 @@
  * Katalog zieht `@iconify` nach und hat in der Node-Lane nichts zu suchen.
  */
 
-import type { IconState } from '../configs/factory/baseTypes';
+import type { IconState } from '../configs/factory/baseTypes.js';
 import type { IconDef } from '@ggraphic/editor/utils/canvasIcons';
 
 /**

@@ -29,12 +29,12 @@
  * sie `null`.
  */
 
-import { ELEMENT_KINDS, type ElementKindName } from './elementKinds';
-import { catalogIconId } from './iconInstances';
+import { ELEMENT_KINDS, type ElementKindName } from './elementKinds.js';
+import { catalogIconId } from './iconInstances.js';
 
-import type { AssetInstance } from './canvasAssets';
-import type { BaseCanvasState, IconState } from '../configs/factory/baseTypes';
-import type { AdditionalText } from '../configs/types';
+import type { AssetInstance } from './canvasAssets.js';
+import type { BaseCanvasState, IconState } from '../configs/factory/baseTypes.js';
+import type { AdditionalText } from '../configs/types.js';
 import type { CircleBadgeInstance } from '@ggraphic/editor/primitives/CircleBadge';
 import type { BalkenInstance } from '@ggraphic/editor/utils/balkenUtils';
 import type { ChartInstance } from '@ggraphic/editor/utils/chartTypes';

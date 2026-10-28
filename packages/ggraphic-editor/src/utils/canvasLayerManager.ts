@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: MPL-2.0
-import { ELEMENT_KINDS, kindItem, kindList } from './elementKinds';
+import { ELEMENT_KINDS, kindItem, kindList } from './elementKinds.js';
 
-import type { AssetInstance } from './canvasAssets';
-import type { CanvasItem } from './canvasItem';
-import type { AdditionalText, CanvasElementConfig, FullCanvasConfig } from '../configs/types';
+import type { AssetInstance } from './canvasAssets.js';
+import type { CanvasItem } from './canvasItem.js';
+import type { AdditionalText, CanvasElementConfig, FullCanvasConfig } from '../configs/types.js';
 import type { BalkenInstance } from '@ggraphic/editor/utils/balkenUtils';
 import type { ChartInstance } from '@ggraphic/editor/utils/chartTypes';
 import type { CircleBadgeInstance } from '@ggraphic/editor/utils/circleBadgeUtils';

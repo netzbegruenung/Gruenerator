@@ -14,10 +14,10 @@
 
 import { normalizeRotation } from '@ggraphic/editor/utils/orientation';
 
-import { resolveValue } from './canvasValueResolver';
-import { BACKGROUND_IMAGE_NODE_ID } from './printImageInfo';
+import { resolveValue } from './canvasValueResolver.js';
+import { BACKGROUND_IMAGE_NODE_ID } from './printImageInfo.js';
 
-import type { CanvasElementConfig, LayoutResult } from '../configs/types';
+import type { CanvasElementConfig, LayoutResult } from '../configs/types.js';
 
 export function isTemplateElementRotatable<TState extends Record<string, unknown>>(
   config: CanvasElementConfig<TState>

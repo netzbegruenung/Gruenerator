@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MPL-2.0
-import { CARRIED_INSTANCE_KEYS } from '../configs/factory/carryInstanceState';
+import { CARRIED_INSTANCE_KEYS } from '../configs/factory/carryInstanceState.js';
 
 /**
  * Die Zustandsschlüssel, die eine Seite selbst nach außen tragen muss.

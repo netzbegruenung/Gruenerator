@@ -9,9 +9,9 @@ import { ILLUSTRATION_TARGET_SIZE, MOTIF_BASE_SIZE } from '@ggraphic/editor/util
 import { ELEMENT_TRANSFORMER, signedScale } from '@ggraphic/editor/utils/orientation';
 import { illustrationBox } from '@ggraphic/editor/utils/renderedBoxes';
 
-import { useCanvasEditorServices } from '../CanvasEditorProvider';
-import { getIllustrationPath, findIllustrationById } from '../utils/illustrations/registry';
-import { getCachedSVG, getSVG } from '../utils/illustrations/svgCache';
+import { useCanvasEditorServices } from '../CanvasEditorProvider.js';
+import { getIllustrationPath, findIllustrationById } from '../utils/illustrations/registry.js';
+import { getCachedSVG, getSVG } from '../utils/illustrations/svgCache.js';
 
 import type {
   IllustrationInstance,

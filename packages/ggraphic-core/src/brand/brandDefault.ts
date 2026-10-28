@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MPL-2.0
-import { type BrandPack } from './brandPack';
+import { type BrandPack } from './brandPack.js';
 
 const NIGHT = '#1D3557';
 const OCEAN = '#457B9D';

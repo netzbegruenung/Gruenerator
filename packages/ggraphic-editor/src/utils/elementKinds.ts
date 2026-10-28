@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MPL-2.0
-import type { CanvasItem } from './canvasItem';
-import type { OptionalCanvasActions } from '../hooks/useCanvasElementHandlers';
+import type { CanvasItem } from './canvasItem.js';
+import type { OptionalCanvasActions } from '../hooks/useCanvasElementHandlers.js';
 
 /** The element kinds a canvas holds beside the config's own elements. */
 export type ElementKindName = Exclude<CanvasItem['type'], 'element'>;

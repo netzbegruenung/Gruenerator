@@ -26,11 +26,11 @@ import { useRovingToolbar } from '@ggraphic/editor/hooks/useRovingToolbar';
 import { useMessages } from '@ggraphic/editor/i18n/messages';
 import { KEEP_EDITING_ATTR, keepsEditing } from '@ggraphic/editor/utils/keyboardOwnership';
 
-import { brandColors, type ColorOption } from '../utils/colorOptions';
-import { type FontMarkSupport } from '../utils/fontMarkSupport';
-import { defaultTextMarker, markerSwatches } from '../utils/markerColors';
+import { brandColors, type ColorOption } from '../utils/colorOptions.js';
+import { type FontMarkSupport } from '../utils/fontMarkSupport.js';
+import { defaultTextMarker, markerSwatches } from '../utils/markerColors.js';
 
-import { CustomColorSwatch } from './CustomColorSwatch';
+import { CustomColorSwatch } from './CustomColorSwatch.js';
 
 /**
  * Die Leiste, die gerade diesen Editor bedient — die schwebende Karte oder die

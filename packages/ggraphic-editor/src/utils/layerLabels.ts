@@ -9,12 +9,12 @@
 import { messages } from '@ggraphic/editor/i18n/messages';
 import { getShapeDef } from '@ggraphic/editor/utils/shapes';
 
-import { getAssetById, isStickerLikeInstance } from './canvasAssets';
-import { isLayerLocked } from './layerLock';
-import { BACKGROUND_IMAGE_NODE_ID } from './printImageInfo';
+import { getAssetById, isStickerLikeInstance } from './canvasAssets.js';
+import { isLayerLocked } from './layerLock.js';
+import { BACKGROUND_IMAGE_NODE_ID } from './printImageInfo.js';
 
-import type { CanvasItem } from './canvasLayerManager';
-import type { CanvasElementConfig } from '../configs/types';
+import type { CanvasItem } from './canvasLayerManager.js';
+import type { CanvasElementConfig } from '../configs/types.js';
 
 /** Ein Eintrag der Ebenen-Liste. */
 export interface LayerEntry {

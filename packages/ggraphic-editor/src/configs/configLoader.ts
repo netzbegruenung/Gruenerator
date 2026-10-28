@@ -15,9 +15,9 @@
 import { styledFontSpecs } from '@ggraphic/editor/hooks/useFontLoader';
 import { getTemplate, type TemplateId } from '@ggraphic/editor/templates/registry';
 
-import { canvasFontFamilies } from '../utils/canvasFontFamilies';
+import { canvasFontFamilies } from '../utils/canvasFontFamilies.js';
 
-import type { AnyCanvasConfig } from './types';
+import type { AnyCanvasConfig } from './types.js';
 
 /**
  * Load a registered canvas configuration dynamically based on type. Each

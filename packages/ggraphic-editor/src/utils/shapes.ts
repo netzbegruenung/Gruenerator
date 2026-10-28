@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MPL-2.0
 import { messages } from '@ggraphic/editor/i18n/messages';
 
-import { defaultMarkerFill } from './markerColors';
+import { defaultMarkerFill } from './markerColors.js';
 
 import type { GradientFill } from '@ggraphic/editor/utils/gradientFill';
 

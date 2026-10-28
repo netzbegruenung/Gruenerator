@@ -11,7 +11,7 @@
 
 import { Group, Line, Rect } from 'react-konva';
 
-import { isPrintFormat, printGeometry, type CanvasFormat } from '../formats';
+import { isPrintFormat, printGeometry, type CanvasFormat } from '../formats/index.js';
 
 const TRIM_STROKE = '#e6007e';
 const SAFE_STROKE = 'rgb(0, 161, 255)';

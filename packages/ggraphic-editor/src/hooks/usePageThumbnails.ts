@@ -2,8 +2,8 @@
 import Konva from 'konva';
 import { useEffect, useMemo, useRef, useState } from 'react';
 
-import type { GenericCanvasRef } from '../components/GenericCanvas';
-import type { HeterogeneousPage } from '../configs/types';
+import type { GenericCanvasRef } from '../components/GenericCanvas.js';
+import type { HeterogeneousPage } from '../configs/types.js';
 
 // A shot taken while an image is still loading lacks the photo, and its
 // arrival does not change `page.state`: leave the page dirty so the next tick
