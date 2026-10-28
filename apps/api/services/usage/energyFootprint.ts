@@ -393,6 +393,10 @@ const GRID_INTENSITY_G_PER_KWH: Readonly<Record<string, number>> = {
   // verarbeitet nach der Cortecs-DPA vom 11.08.2026 in DEUTSCHLAND — daher
   // derselbe Wert wie litellm/Hetzner und nicht Scaleways 24.
   infercom: 344, // Deutschland 2025, Umweltbundesamt
+  // aki bedient `kolibri-1` (Aleph Alpha, Lane `bundestag_read`), Standort
+  // Deutschland — wie bei infercom der UBA-Wert. Ohne Zeile fiele aki auf den
+  // EU-Schnitt (213) und läge um ein Drittel zu tief.
+  aki: 344,
   // berget ist der zweite Endpunkt desselben Modells. Der Header NENNT es
   // inzwischen: am 29.08.2026 mit `allowed_providers: ['berget']` erzwungen,
   // HTTP 200, `x-cortecs-provider: berget` (Messung in services/ai/gemmaHosts.ts).

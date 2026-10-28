@@ -87,7 +87,18 @@ export const AI_LANES = {
   // — Bundestags-Fragen (services/bundestag/qa): Plan der Suche, Lesen eines
   //   Dokumentfensters, Antwort aus den belegten Punkten. Gemma 4 wie die QA-Lanes.
   bundestag_plan: { provider: GEMMA_31B_PRIMARY.provider, model: GEMMA_4, structuredMode: 'tool' },
-  bundestag_read: { provider: GEMMA_31B_PRIMARY.provider, model: GEMMA_4, structuredMode: 'tool' },
+  //   Das Lesen läuft auf Kolibri-1 (Aleph Alpha, über Cortecs/aki, Standort DE).
+  //   Gemessen 28.10.2026 an denselben abgerufenen Dokumenten (Teil B in
+  //   task-10-report.md): belegte Punkte Gemma 31B 24, Kolibri-1 32, Gemma 26B 33;
+  //   Wandzeit 49,5 s, 32,0 s, 52,7 s; Kosten 0,090 €, 0,055 €, 0,123 €. Kolibri
+  //   ist das schnellste und billigste, bei 6 % Verwerfungen (Gemma 0 %), und es
+  //   erkennt als einziges neben 26B das Schlüsseldokument in B4. Gemma 26B ist
+  //   ausgeschieden, weil Melious bei ihm Tool-Aufrufe ablehnt und in 4 von 30
+  //   Aufrufen leer antwortete. B2 zählt nicht mit: dort war die Kandidatenmenge
+  //   falsch (WP 20), kein Modell konnte etwas belegen. Die Tool-Eigenheiten
+  //   (kein json_object, reasoning_effort none, erzwungener Tool-Aufruf als
+  //   json_schema) stehen in cortecsRequestPolicy.ts.
+  bundestag_read: { provider: 'cortecs', model: 'kolibri-1', structuredMode: 'tool' },
   bundestag_answer: {
     provider: GEMMA_31B_PRIMARY.provider,
     model: GEMMA_4,

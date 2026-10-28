@@ -228,11 +228,15 @@ export function selectProviderAndModel({
     type === 'qa_planner' ||
     type === 'qa_repair' ||
     type === 'bundestag_plan' ||
-    type === 'bundestag_read' ||
     type === 'bundestag_answer'
   ) {
     provider = TEXT_PROVIDER;
     model = options.model || TEXT_MODEL;
+  }
+  // Bundestags-Lesen: Kolibri-1 auf Cortecs, Begründung an der Zeile in lanes.ts
+  else if (type === 'bundestag_read') {
+    provider = 'cortecs';
+    model = options.model || 'kolibri-1';
   }
   // Strukturierte Erstellung — Mistral Large 4. Siehe STRUCTURE_TYPES.
   //

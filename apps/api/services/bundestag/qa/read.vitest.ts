@@ -66,6 +66,7 @@ describe('Fensterwahl', () => {
       auftrag: 'frage',
       docs: [doc('21/1', text)],
       budget,
+      target: { provider: 'cortecs', model: 'gemma-4-31b-it' },
     });
     // 150k-Absätze: 1 je Fenster (2 passen nicht in 240k)
     expect(r!.windowsTotal).toBe(6);
@@ -84,6 +85,7 @@ describe('Fensterwahl', () => {
       auftrag: 'zusammenfassung',
       docs: [doc('21/1', text)],
       budget,
+      target: { provider: 'cortecs', model: 'gemma-4-31b-it' },
     });
     const prompts = aiObject.mock.calls.map((c) => c[0].prompt as string);
     expect(prompts.map((p) => /Teil (\d)\/6/.exec(p)![1]).sort()).toEqual(['1', '2', '3']);
@@ -239,7 +241,7 @@ describe('Parallelität', () => {
 describe('Fenstergröße folgt dem Modell', () => {
   // Zwei Absätze à 300k: bei 240k wird jeder hart in 240k+60k geschnitten (4 Fenster), bei 800k passt alles in eins.
   const text = ['p'.repeat(300_000), 'q'.repeat(300_000)].join('\n\n');
-  it('Lane-Modell (gemma-4-31b-it): 240k', async () => {
+  it('Lane-Modell (kolibri-1 seit 28.10.2026): 800k ohne target', async () => {
     respond(() => ({ relevant: false, punkte: [] }));
     const [r] = await readDocuments({
       question: 'q',
@@ -247,6 +249,18 @@ describe('Fenstergröße folgt dem Modell', () => {
       auftrag: 'frage',
       docs: [doc('21/1', text)],
       budget,
+    });
+    expect(r!.windowsTotal).toBe(1);
+  });
+  it('target gemma-4-31b-it: 240k', async () => {
+    respond(() => ({ relevant: false, punkte: [] }));
+    const [r] = await readDocuments({
+      question: 'q',
+      keywords: [],
+      auftrag: 'frage',
+      docs: [doc('21/1', text)],
+      budget,
+      target: { provider: 'cortecs', model: 'gemma-4-31b-it' },
     });
     expect(r!.windowsTotal).toBe(4);
   });

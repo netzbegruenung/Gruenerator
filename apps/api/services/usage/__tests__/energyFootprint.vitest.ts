@@ -40,6 +40,12 @@ describe('emissionsFromEnergy', () => {
 });
 
 describe('gridIntensityFor', () => {
+  it('bucht aki (Kolibri-1 über Cortecs) mit dem deutschen Netz, nicht mit dem EU-Schnitt', () => {
+    // Ohne Zeile fiele aki auf 213 (EU-Schnitt) und läge um ein Drittel zu tief.
+    expect(gridIntensityFor('aki')).toBe(344); // Deutschland 2025, UBA
+    expect(gridIntensityFor('aki')).toBe(gridIntensityFor('litellm'));
+  });
+
   it('separates the French and German upstreams', () => {
     // The recorded provider is the upstream, so Scaleway-routed Mistral Medium
     // must not inherit the German mix.
