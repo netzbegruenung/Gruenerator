@@ -214,8 +214,8 @@ describe('balken duplicate', () => {
   afterEach(() => vi.restoreAllMocks());
 
   it('copies deep, shifts the offset and stacks the copy over the original', () => {
-    const s = { ...state(), layerOrder: ['balken-1', 'shape-1'] };
-    const result = duplicateElementInState(s as never, 'balken-1')!;
+    const s: Record<string, unknown> = { ...state(), layerOrder: ['balken-1', 'shape-1'] };
+    const result = duplicateElementInState(s, 'balken-1')!;
     expect(result.newId).toBe('balken-1700000000000-4fzzzxjyl');
     const bars = result.state.balkenInstances as Array<Record<string, unknown>>;
     expect(bars[2]).toEqual({
@@ -233,7 +233,7 @@ describe('balken duplicate', () => {
   });
 
   it('takes a given offset', () => {
-    const result = duplicateElementInState(state() as never, 'balken-1', {
+    const result = duplicateElementInState(state(), 'balken-1', {
       offset: { x: 5, y: 7 },
     })!;
     const bars = result.state.balkenInstances as Array<{ offset: unknown }>;
