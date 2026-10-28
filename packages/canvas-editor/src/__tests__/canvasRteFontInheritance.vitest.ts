@@ -35,7 +35,7 @@ import { describe, it, expect } from 'vitest';
  * einmal das Gegenteil der Wahrheit bestätigt (siehe canvasRteListStyles).
  */
 const HIER = path.dirname(fileURLToPath(import.meta.url));
-const CSS = path.resolve(HIER, '../canvas-editor.css');
+const CSS = path.resolve(HIER, '../../../ggraphic-editor/src/styles/editor.css');
 
 describe('Schriftvererbung im Rich-Text-Feld', () => {
   const css = readFileSync(CSS, 'utf8');

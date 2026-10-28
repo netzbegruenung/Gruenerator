@@ -5,10 +5,12 @@
   "license": "MPL-2.0",
   "type": "module",
   "sideEffects": [
+    "**/*.css",
     "**/hooks/useFontGeneration.js",
     "**/hooks/useFontGeneration.ts"
   ],
   "exports": {
+    "./styles": "./src/styles/editor.css",
     "./ai/applyOperation": "./src/ai/applyOperation.ts",
     "./ai/describeCanvasElements": "./src/ai/describeCanvasElements.ts",
     "./ai/illustrationCapability": "./src/ai/illustrationCapability.ts",
@@ -466,6 +468,7 @@
   ],
   "publishConfig": {
     "exports": {
+      "./styles": "./dist/styles/editor.css",
       "./*": {
         "types": "./dist/*.d.ts",
         "import": "./dist/*.js",
