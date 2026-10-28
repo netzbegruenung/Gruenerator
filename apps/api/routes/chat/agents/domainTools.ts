@@ -38,7 +38,10 @@ import { CHAT_BUDGET } from '../../../services/bundestag/qa/budget.js';
 import { einheitLabel, formatCount } from '../../../services/bundestag/qa/count.js';
 import { bundestagDocTitle } from '../../../services/bundestag/qa/docTitle.js';
 import { countBundestagDocs, readBundestagRefs } from '../../../services/bundestag/qa/index.js';
-import { detectFromWording } from '../../../services/bundestag/qa/planDetect.js';
+import {
+  detectFromWording,
+  drucksachetypAusTitel,
+} from '../../../services/bundestag/qa/planDetect.js';
 import {
   describeRedenFilter,
   redeTitle,
@@ -249,9 +252,18 @@ Nicht für Inhalte, dafür parlament_lesen. Nicht für Reden im Plenum, dafür b
         (state.messages ? lastUserText(state.messages) : null) ??
         ''
       ).trim();
+      // Leere Listen (`deskriptor: []`) sind „nichts gesetzt" und überstimmen den Wortlaut nicht.
       const fromArgs = Object.fromEntries(
-        Object.entries(args).filter(([, v]) => v !== undefined)
+        Object.entries(args).filter(
+          ([, v]) => v !== undefined && !(Array.isArray(v) && v.length === 0)
+        )
       ) as typeof args;
+      // „Kleine Anfrage" als Titel ist die Drucksachenart, keine Titelsuche (live: 1 statt 524).
+      const titelTyp = fromArgs.titel ? drucksachetypAusTitel(fromArgs.titel) : null;
+      if (titelTyp) {
+        delete fromArgs.titel;
+        fromArgs.drucksachetyp = [...new Set([...(fromArgs.drucksachetyp ?? []), titelTyp])];
+      }
       // Ein Aufruf nur mit Filtern ist ein vollständiger Auftrag (das Rezept
       // verlangt ihn so); ohne Filter und Suchbegriff ist die Frage selbst das Thema.
       const hasFilters = Object.values(fromArgs).some((v) => !(Array.isArray(v) && v.length === 0));

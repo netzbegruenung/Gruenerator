@@ -17,12 +17,21 @@ const TYP_RULES: [RegExp, Typ][] = [
   [/(?<!\p{L})änderungsantr(?:ag|äge|ägen|ages)(?!\p{L})/iu, 'Änderungsantrag'],
   [/\bkleine[nrsm]?\s+anfrage[n]?\b/i, 'Kleine Anfrage'],
   [/\bgro(?:ß|ss)e[nrsm]?\s+anfrage[n]?\b/i, 'Große Anfrage'],
-  [/\bgesetzes?entw(?:urf|ürfe|ürfen|urfs)\b/i, 'Gesetzentwurf'],
+  [/\bgesetz(?:es)?entw(?:urf|ürfe|ürfen|urfs)\b/i, 'Gesetzentwurf'],
   [/\bbeschlussempfehlung(?:en)?\b/i, 'Beschlussempfehlung und Bericht'],
   [/\bunterrichtung(?:en)?\b/i, 'Unterrichtung'],
   [/\b(?:antwort(?:en)?|geantwortet|antwortet)\b/i, 'Antwort'],
   [/\bantr(?:ag|äge|ägen|ages)\b/i, 'Antrag'],
 ];
+
+/** Der Titel besteht nur aus einer Drucksachenart („Kleine Anfragen") — dann ist es der Typ, kein Titelfilter. */
+export function drucksachetypAusTitel(titel: string): Typ | null {
+  const t = titel.trim();
+  for (const [re, typ] of TYP_RULES) {
+    if (new RegExp(`^(?:${re.source})$`, re.flags).test(t)) return typ;
+  }
+  return null;
+}
 
 export function detectDrucksachetyp(question: string): Typ[] {
   const out: Typ[] = [];

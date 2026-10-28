@@ -6,6 +6,7 @@ import {
   detectFromWording,
   detectUrheber,
   detectZeitraum,
+  drucksachetypAusTitel,
 } from './planDetect.js';
 
 describe('detectDrucksachetyp', () => {
@@ -119,4 +120,23 @@ describe('detectBeratungsstand', () => {
       4
     );
   });
+});
+
+describe('drucksachetypAusTitel', () => {
+  it.each([
+    ['Kleine Anfrage', 'Kleine Anfrage'],
+    ['kleine anfragen', 'Kleine Anfrage'],
+    ['  Große Anfragen ', 'Große Anfrage'],
+    ['Gesetzentwurf', 'Gesetzentwurf'],
+    ['Anträge', 'Antrag'],
+  ])('%s ist ein Drucksachetyp', (titel, typ) => {
+    expect(drucksachetypAusTitel(titel)).toBe(typ);
+  });
+
+  it.each(['Kleine Anfrage zur Bahn', 'Klimaschutz', 'Antrag auf Fristverlängerung', ''])(
+    '%s bleibt ein Titelfilter',
+    (titel) => {
+      expect(drucksachetypAusTitel(titel)).toBeNull();
+    }
+  );
 });

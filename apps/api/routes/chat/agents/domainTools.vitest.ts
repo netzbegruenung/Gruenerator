@@ -624,6 +624,40 @@ describe('bundestag: modus zaehlen, ref', () => {
     expect(out['uiCard'].zaehlung.gruppen).toEqual([{ label: 'Fraktion der SPD', n: 10 }]);
   });
 
+  it('zaehlen: ein Titel, der ein Drucksachetyp ist, zählt als Typ; leere Listen überstimmen nichts', async () => {
+    countBundestagDocs.mockResolvedValue({
+      einheit: 'Drucksachen',
+      gesamt: 524,
+      gruppen: [],
+      gruppiertNach: 'monat',
+      filters: {},
+      notes: [],
+      aufrufe: 1,
+    });
+    await exec(
+      makeBundestagTool({
+        state: {
+          ...state,
+          lastUserTextNoMentions: 'Wie viele Kleine Anfragen hat die grüne Fraktion gestellt?',
+        } as ChatGraphState,
+        sourceRegistry: createSourceRegistry(),
+      }),
+      {
+        modus: 'zaehlen',
+        gruppieren: 'monat',
+        urheber: ['Fraktion BÜNDNIS 90/DIE GRÜNEN'],
+        deskriptor: [],
+        titel: 'Kleine Anfrage',
+      }
+    );
+    const filters = (
+      countBundestagDocs.mock.calls.at(-1)?.[0] as { filters: Record<string, unknown> }
+    ).filters;
+    expect(filters['titel']).toBeUndefined();
+    expect(filters['deskriptor']).toBeUndefined();
+    expect(filters['drucksachetyp']).toEqual(['Kleine Anfrage']);
+  });
+
   it('Landtag-Frage: der Geltungsbereich geht als `fuerSchreiber` mit, nicht als Planer-`hinweis`', async () => {
     countBundestagDocs.mockResolvedValue({
       einheit: 'Drucksachen',
