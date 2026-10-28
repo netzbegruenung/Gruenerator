@@ -85,9 +85,11 @@ export function UserUploadsProvider({ children }: { children: ReactNode }) {
       if (!result) return null;
       return {
         id: result.id,
-        shareToken: result.shareToken,
+        shareToken: result.shareToken ?? '',
+        ...(result.url ? { mediaUrl: result.url } : {}),
         title: null,
-        thumbnailUrl: null,
+        // A url-only result has no host thumb: the tile draws the url itself.
+        thumbnailUrl: result.url ?? null,
         altText: null,
         originalFilename: file.name,
       };

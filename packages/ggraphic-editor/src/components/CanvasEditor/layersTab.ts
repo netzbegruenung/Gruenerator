@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: MPL-2.0
 import { PiStack } from 'react-icons/pi';
 
+import { messages } from '@ggraphic/editor/i18n/messages';
+
 import type { SidebarTab } from '../../sidebar/types.js';
 
 /**
@@ -15,8 +17,13 @@ import type { SidebarTab } from '../../sidebar/types.js';
 export const layersTab: SidebarTab = {
   id: 'layers',
   icon: PiStack,
-  label: 'Ebenen',
-  ariaLabel: 'Ebenen: alle Elemente der Seite',
+  // Lazily, so the language registered later still applies.
+  get label() {
+    return messages().sidebar.layers.title;
+  },
+  get ariaLabel() {
+    return messages().sidebar.layers.tabAriaLabel;
+  },
 };
 
 /** Als letzter Bereich: mobil der sechste Platz der festen Leiste. */

@@ -395,6 +395,7 @@ export const de = {
     },
     layers: {
       title: 'Ebenen',
+      tabAriaLabel: 'Ebenen: alle Elemente der Seite',
       hint: 'Oben steht das vorderste Element.',
       empty: 'Auf dieser Seite liegen keine Elemente.',
     },
@@ -648,6 +649,30 @@ export const de = {
     fontSize: 'Schriftgröße',
   },
 
+  shell: {
+    addPage: 'Seite hinzufügen',
+    addNewPage: 'Neue Seite hinzufügen',
+    editPage: (n: number) => `Seite ${n} bearbeiten`,
+    pageThumbnail: (n: number, selected: boolean) => `Seite ${n}${selected ? ' (ausgewählt)' : ''}`,
+    pageOf: (n: number, total: number) => `Seite ${n} von ${total}`,
+    zoomOut: 'Verkleinern',
+    zoomIn: 'Vergrößern',
+    fullscreen: 'Vollbild',
+    exitFullscreen: 'Vollbild beenden',
+    skipToLayers: 'Zu den Ebenen',
+    share: 'Teilen',
+    shareTabAriaLabel: 'Teilen: Bild weitergeben',
+    shared: 'Geteilt!',
+    download: 'Herunterladen',
+    downloading: 'Wird heruntergeladen...',
+    downloadPanel: {
+      format: 'Format',
+      pdfPrint: 'PDF (Druck)',
+      resolution: 'Auflösung',
+      transparentBackground: 'Transparenter Hintergrund',
+    },
+  },
+
   topBar: {
     editSelection: 'Auswahl bearbeiten',
     nothingDeletable: 'Nichts davon lässt sich löschen',
@@ -669,6 +694,7 @@ export const de = {
     autoCrop: 'Ausschnitt automatisch wählen',
     cancelCrop: 'Abbrechen (Zuschnitt verwerfen)',
     doneCrop: 'Fertig (Esc)',
+    saved: 'Gespeichert',
     saveShort: 'Speichert …',
     saveErrorShort: 'Fehler beim Speichern',
     saving: 'Wird gespeichert...',

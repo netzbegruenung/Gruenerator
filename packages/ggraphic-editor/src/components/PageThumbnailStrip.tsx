@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: MPL-2.0
 import { cn } from '@ggraphic/editor/utils/cn';
+import { useMessages } from '@ggraphic/editor/i18n/messages';
 import { memo, useCallback, useRef, useState } from 'react';
 import { PiCaretDown, PiPlus } from 'react-icons/pi';
 
@@ -41,6 +42,7 @@ export const PageThumbnailStrip = memo(function PageThumbnailStrip({
   quickAddOpensPicker,
   renderPicker,
 }: PageThumbnailStripProps) {
+  const t = useMessages();
   const [isFlyoutOpen, setIsFlyoutOpen] = useState(false);
   const chevronRef = useRef<HTMLButtonElement>(null);
 
@@ -84,7 +86,7 @@ export const PageThumbnailStrip = memo(function PageThumbnailStrip({
             onClick={() => onSelect(index)}
             role="button"
             tabIndex={0}
-            aria-label={`Seite ${index + 1}${isActive ? ' (ausgewählt)' : ''}`}
+            aria-label={t.shell.pageThumbnail(index + 1, isActive)}
             aria-pressed={isActive}
             onKeyDown={(e) => {
               if (e.key === 'Enter' || e.key === ' ') {
@@ -117,8 +119,8 @@ export const PageThumbnailStrip = memo(function PageThumbnailStrip({
             className="h-8 max-canvas-mobile:h-11 max-canvas-mobile:min-w-11 px-2.5 flex items-center justify-center text-[var(--editor-text-secondary)] hover:bg-[var(--editor-surface-hover)] hover:text-[var(--editor-active-fg)] transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
             onClick={handleQuickAdd}
             disabled={!currentTemplateId}
-            title="Seite hinzufügen"
-            aria-label="Seite hinzufügen"
+            title={t.shell.addPage}
+            aria-label={t.shell.addPage}
             type="button"
           >
             <PiPlus size={16} />

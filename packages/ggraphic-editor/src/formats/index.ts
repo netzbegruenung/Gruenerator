@@ -220,6 +220,29 @@ export const CANVAS_FORMATS: ReadonlyArray<CanvasFormat> = [
 export const DEFAULT_FORMAT_ID = 'post-portrait';
 
 /**
+ * Formats a host adds to the built-ins. A module-level register, like the
+ * brand packs, because lookups run in commands and offscreen roots without
+ * React context. `CANVAS_FORMATS` stays the built-ins only; everything that
+ * must also see host formats reads `canvasFormats()`.
+ */
+let hostFormats: ReadonlyArray<CanvasFormat> = [];
+
+/** Replaces the host's formats (an empty list clears them). Ids must be unique and not built-in. */
+export function registerCanvasFormats(formats: ReadonlyArray<CanvasFormat>): void {
+  const seen = new Set(CANVAS_FORMATS.map((f) => f.id));
+  for (const f of formats) {
+    if (seen.has(f.id)) throw new Error(`Canvas format id '${f.id}' is already taken`);
+    seen.add(f.id);
+  }
+  hostFormats = [...formats];
+}
+
+/** The built-in formats followed by the registered ones. */
+export function canvasFormats(): ReadonlyArray<CanvasFormat> {
+  return hostFormats.length === 0 ? CANVAS_FORMATS : [...CANVAS_FORMATS, ...hostFormats];
+}
+
+/**
  * Templates whose fixed sheet is not 4:5. A document of such a template must
  * carry exactly this format: the stage takes the document's format and scales
  * the sheet to it per axis, so the square profile picture on a 4:5 document
@@ -241,13 +264,13 @@ export function pinnedFormatId(templateId: string): string | null {
  */
 export function formatIdForSize(width: number, height: number): string | null {
   return (
-    CANVAS_FORMATS.find((f) => !isPrintFormat(f) && f.width === width && f.height === height)?.id ??
-    null
+    canvasFormats().find((f) => !isPrintFormat(f) && f.width === width && f.height === height)
+      ?.id ?? null
   );
 }
 
 export function getCanvasFormat(id: string): CanvasFormat | null {
-  return CANVAS_FORMATS.find((f) => f.id === id) ?? null;
+  return canvasFormats().find((f) => f.id === id) ?? null;
 }
 
 /** Die eine Stelle, die beantwortet: ist das eine Präsentation? */

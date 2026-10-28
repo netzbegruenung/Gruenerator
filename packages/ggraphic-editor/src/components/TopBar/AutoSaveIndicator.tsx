@@ -31,8 +31,10 @@ export function AutoSaveIndicator({ onDark = false }: { onDark?: boolean }) {
     autoSaveStatus === 'saving'
       ? t.topBar.saveShort
       : autoSaveStatus === 'saved'
-        ? 'Gespeichert'
-        : t.topBar.saveErrorShort;
+        ? t.topBar.saved
+        : autoSaveStatus === 'error'
+          ? t.topBar.saveErrorShort
+          : '';
 
   return (
     <div
@@ -45,7 +47,7 @@ export function AutoSaveIndicator({ onDark = false }: { onDark?: boolean }) {
         autoSaveStatus === 'saving'
           ? t.topBar.saving
           : autoSaveStatus === 'saved'
-            ? 'Gespeichert'
+            ? t.topBar.saved
             : autoSaveStatus === 'error'
               ? t.topBar.saveErrorRetry
               : ''
