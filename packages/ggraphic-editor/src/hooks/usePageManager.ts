@@ -13,6 +13,7 @@
  * (locally or remotely) never silently retargets the selection.
  */
 
+import { migrateDocument, type DocumentRefusal } from '@ggraphic/schema';
 import { useState, useCallback, useMemo, useRef, useEffect } from 'react';
 import { v4 as uuid } from 'uuid';
 import * as Y from 'yjs';
@@ -63,6 +64,24 @@ export function parseInitialPages(raw: unknown): InitialPageDef[] | undefined {
     });
   }
   return pages.length > 0 ? pages : undefined;
+}
+
+/**
+ * A stored initial document (a host's saved canvas state: `{ pages, … }`,
+ * optionally versioned) read through `migrateDocument` into seed pages. A
+ * document from a newer build, or a malformed envelope, comes back as a
+ * refusal and no pages: the host opens it read-only, and nothing is seeded
+ * from it.
+ */
+export function readInitialDocument(raw: unknown): {
+  pages: InitialPageDef[] | undefined;
+  refusal: DocumentRefusal | null;
+} {
+  const result = migrateDocument(raw);
+  if (result.status === 'newer' || result.status === 'invalid') {
+    return { pages: undefined, refusal: result };
+  }
+  return { pages: parseInitialPages(result.document.pages), refusal: null };
 }
 
 export interface UsePageManagerOptions<TId extends string = TemplateId> {
@@ -138,6 +157,11 @@ export interface UsePageManagerReturn<TId extends string = TemplateId> {
   canRedoPageOp: boolean;
   /** Pages come from the initial state or the unsynced cache: show them, edit nothing. */
   isPreview: boolean;
+  /**
+   * The doc carries a newer document version (or a malformed stamp): it is
+   * shown as a preview and this build writes nothing to it.
+   */
+  schemaRefusal: DocumentRefusal | null;
 }
 
 /**
@@ -200,7 +224,10 @@ export function usePageManager<TId extends string = TemplateId>({
     );
   }, []);
 
-  const yjsPages = useYjsPages(ydoc, isSynced, normalizeEcho);
+  const docPagesApi = useYjsPages(ydoc, isSynced, normalizeEcho);
+  // A doc this build must not write is previewed like the unsynced cache.
+  const schemaRefusal = docPagesApi?.schemaRefusal ?? null;
+  const yjsPages = schemaRefusal ? null : docPagesApi;
 
   // seedIfEmpty early-returns once pages exist (or the doc carries the
   // server-seed watermark), so re-runs from changing initialProps identity
@@ -223,12 +250,13 @@ export function usePageManager<TId extends string = TemplateId>({
   // that here so memo'd PageWrappers only re-render for pages that changed.
   const pageCacheRef = useRef(new Map<string, { view: unknown; page: HeterogeneousPage<TId> }>());
   const prevPagesRef = useRef<HeterogeneousPage<TId>[]>([]);
-  const cachedViews = useMemo(
-    () => (!yjsPages && collaborative?.isLocalLoaded ? readPages(ydoc) : []),
-    [yjsPages, collaborative?.isLocalLoaded, ydoc]
-  );
+  const cachedViews = useMemo(() => {
+    if (schemaRefusal && docPagesApi) return docPagesApi.pages;
+    return !yjsPages && collaborative?.isLocalLoaded ? readPages(ydoc) : [];
+  }, [yjsPages, docPagesApi, schemaRefusal, collaborative?.isLocalLoaded, ydoc]);
   const isPreview =
-    !yjsPages && (collaborative?.previewBeforeSync === true || cachedViews.length > 0);
+    !yjsPages &&
+    (collaborative?.previewBeforeSync === true || cachedViews.length > 0 || schemaRefusal !== null);
   const previewPages = useMemo((): HeterogeneousPage<TId>[] => {
     if (!isPreview) return [];
     if (cachedViews.length > 0) {
@@ -442,10 +470,12 @@ export function usePageManager<TId extends string = TemplateId>({
 
   const getPageYMap = useCallback(
     (index: number): Y.Map<unknown> | null => {
+      // A refused doc's pages are never bound: a mounted binding would write their config.
+      if (schemaRefusal) return null;
       const view = yjsPages ? yjsPages.pages[index] : cachedViews[index];
       return view ? view.yMap : null;
     },
-    [yjsPages, cachedViews]
+    [yjsPages, cachedViews, schemaRefusal]
   );
 
   const currentPage = useMemo(() => pages[currentPageIndex], [pages, currentPageIndex]);
@@ -495,5 +525,6 @@ export function usePageManager<TId extends string = TemplateId>({
     canUndoPageOp,
     canRedoPageOp,
     isPreview,
+    schemaRefusal,
   };
 }

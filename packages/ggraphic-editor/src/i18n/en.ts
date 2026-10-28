@@ -672,6 +672,10 @@ export const en: Messages = {
     feedback: 'Feedback',
     copied: 'Copied',
     copyPhotoCredit: 'Copy photo credit',
+    schemaRefusal: {
+      newer: 'This design was saved with a newer version. You can view it here, but not edit it.',
+      invalid: 'This design cannot be opened safely here. You can view it, but not edit it.',
+    },
     downloadPanel: {
       format: 'Format',
       pdfPrint: 'PDF (print)',

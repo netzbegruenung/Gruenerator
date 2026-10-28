@@ -237,6 +237,7 @@ function CanvasEditorInner({
     canUndoPageOp,
     canRedoPageOp,
     isPreview,
+    schemaRefusal,
   } = usePageManager<string>({
     initialConfigId,
     formatId,
@@ -1654,9 +1655,18 @@ function CanvasEditorInner({
               mobileSheetOpen={isMobileSheetOpen}
               onCanvasBackdropPointerDown={isMobileSheetOpen ? handlePanelClose : undefined}
             >
+              {schemaRefusal && (
+                // Read-only for good, not loading: say why nothing can be edited.
+                <p
+                  role="alert"
+                  className="mx-auto mt-sm max-w-prose rounded-md border border-[var(--editor-border-strong)] bg-[var(--editor-surface)] px-3 py-2 text-[length:var(--font-size-small)] text-[var(--editor-text)]"
+                >
+                  {t.shell.schemaRefusal[schemaRefusal.status]}
+                </p>
+              )}
               <div
                 inert={isPreview || hasPendingSuggestion}
-                aria-busy={isPreview}
+                aria-busy={isPreview && !schemaRefusal}
                 ref={pagesContainerCallbackRef}
                 onPointerDown={handleWorkAreaPointerDown}
                 className={cn(

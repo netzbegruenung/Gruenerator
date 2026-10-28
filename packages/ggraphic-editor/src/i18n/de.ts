@@ -683,6 +683,12 @@ export const de = {
     feedback: 'Feedback',
     copied: 'Kopiert',
     copyPhotoCredit: 'Bildnachweis kopieren',
+    schemaRefusal: {
+      newer:
+        'Dieses Design wurde mit einer neueren Version gespeichert. Du kannst es ansehen, aber hier nicht bearbeiten.',
+      invalid:
+        'Dieses Design kann hier nicht sicher geöffnet werden. Du kannst es ansehen, aber nicht bearbeiten.',
+    },
     downloadPanel: {
       format: 'Format',
       pdfPrint: 'PDF (Druck)',
