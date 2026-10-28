@@ -16,14 +16,18 @@ import { DipClient } from '../dip/dipClient.js';
 
 import { composeAnswer } from './answer.js';
 import { CHAT_BUDGET, ENDPOINT_BUDGET, type Budget } from './budget.js';
+import { countBundestag, type CountGroupBy, type CountResult } from './count.js';
 import { fetchTexts, resolveRefs, type TextCache } from './fetchTexts.js';
-import { findCandidates, type FindDip, type FindMcp } from './find.js';
+import { findCandidates, type FindDip, type FindMcp, type FindResult } from './find.js';
 import { keywordsFromQuestion, planFilters } from './plan.js';
 import { readDocuments, type ReadResult } from './read.js';
 
 type DocumentInfo = BundestagAnswerResponse['documents'][number];
 export type ReadDocumentInfo = DocumentInfo &
-  Pick<BundestagCandidate, 'dokumentnummer' | 'datum' | 'urheber' | 'pdfUrl'>;
+  Pick<BundestagCandidate, 'dokumentnummer' | 'datum' | 'urheber' | 'pdfUrl'> & {
+    /** Nur mit `fokus`: stand der Anker im Dokument? Sonst `null`. */
+    fokusGefunden: boolean | null;
+  };
 
 /** Austauschbare Außenwelt; Produktion nimmt die Singletons. */
 export interface QaDeps {
@@ -209,12 +213,15 @@ export async function readBundestagRefs({
   refs,
   auftrag = 'frage',
   budget = CHAT_BUDGET,
+  fokus,
   deps,
 }: {
   question: string;
   refs: string[];
   auftrag?: BundestagAuftrag;
   budget?: Budget;
+  /** Abschnitt/Artikel/Paragraf, auf den sich das Lesen richtet. */
+  fokus?: string | undefined;
   deps?: QaDeps;
 }): Promise<{ documents: ReadDocumentInfo[]; notes: string[] }> {
   const { dip, redis } = deps ?? (await defaultDeps());
@@ -228,6 +235,7 @@ export async function readBundestagRefs({
     docs,
     budget,
     signal,
+    fokus,
   });
   // Der Chat braucht für Titel und Link mehr als der Endpunkt: Nummer, Datum, Urheber, PDF.
   return {
@@ -237,7 +245,52 @@ export async function readBundestagRefs({
       datum: r.doc.datum,
       urheber: r.doc.urheber,
       pdfUrl: r.doc.pdfUrl,
+      fokusGefunden: r.fokusFound,
     })),
     notes,
   };
+}
+
+/** Zählt Drucksachen (bzw. Vorgänge) für die Filter, optional gruppiert (Chat-Werkzeug `bundestag`, modus 'zaehlen'). */
+export async function countBundestagDocs(args: {
+  filters: BundestagFilter;
+  gruppieren?: CountGroupBy | undefined;
+  deps?: Pick<QaDeps, 'dip'>;
+}): Promise<CountResult> {
+  const dip = args.deps?.dip ?? getDip();
+  return countBundestag({
+    filters: args.filters,
+    gruppieren: args.gruppieren,
+    dip,
+  });
+}
+
+/** Mehr als die 6 der Liste: eine Gesetzgebungs-Familie hat Entwurf, Beschlussempfehlung, Lesungen, Bundesrat. */
+const FAMILY_MAX_DOCUMENTS = 15;
+
+/**
+ * Alle Dokumente des Vorgangs, zu dem die Drucksache `ref` gehört (samt
+ * Beratungsabschnitten und Beratungsverlauf). Nur Drucksachen-Refs: für ein
+ * Plenarprotokoll gibt es bei DIP keinen Weg vom Protokoll zum Vorgang ohne Suche.
+ */
+export async function bundestagFamily(
+  ref: string,
+  deps?: Pick<QaDeps, 'dip' | 'mcp'>
+): Promise<FindResult & { filters: BundestagFilter }> {
+  const { dip, mcp } = deps ?? (await defaultDeps());
+  const wahlperiode = Number(ref.split('/')[0]);
+  const filters: BundestagFilter = {
+    dokumentnummer: [ref],
+    mitBeratung: true,
+    wahlperiode: [wahlperiode],
+  };
+  const found = await findCandidates({
+    question: ref,
+    filters,
+    assumedWahlperiode: false,
+    budget: { ...CHAT_BUDGET, maxDocuments: FAMILY_MAX_DOCUMENTS },
+    dip,
+    mcp,
+  });
+  return { ...found, filters };
 }

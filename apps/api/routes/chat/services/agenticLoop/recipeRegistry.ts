@@ -92,15 +92,31 @@ const PRECEDENCE_NOTE =
   'Widersprechen sie sich in der Form, gilt das Rezept.';
 
 /**
- * Dieselbe Regel, sobald ein Methoden-Rezept mitläuft: drei Geber, drei
- * Zuständigkeiten. Geteilt mit dem Single-Pass-Pfad (`buildSystemMessage`),
- * damit beide Wege denselben Satz sprechen.
+ * Dieselbe Regel, sobald ein Methoden-Rezept mitläuft. Geteilt mit dem
+ * Single-Pass-Pfad (`buildSystemMessage`), damit beide Wege denselben Satz
+ * sprechen.
+ *
+ * Mit Textsorte: drei Geber, drei Zuständigkeiten — die Methode regelt nur
+ * Recherche, Belege und Lücken. Ohne Textsorte bestimmt die Methode auch die
+ * Antwortform: der Bundestag-Rezepttext trägt bewusst Formregeln
+ * (vollständige Antworten, Fundstellen zuerst bei „wo/wann"), und
+ * `buildSystemMessage` führt sie dann als Formatgeber.
  */
 export const METHOD_PRECEDENCE_NOTE =
   'Die Recherche-Methode bestimmt RECHERCHE, BELEGE und ZITIERWEISE. ' +
   'Die Textsorte (AKTIVE PLATTFORM) bestimmt die FORM (Länge, Aufbau, Plattformkonventionen). ' +
   'Die persönlichen Anweisungen bestimmen TON und KONTEXT. ' +
   'Widersprechen sie sich, gilt für Belege die Methode und für die Form die Textsorte.';
+
+export const METHOD_ONLY_PRECEDENCE_NOTE =
+  'Die Recherche-Methode bestimmt RECHERCHE, BELEGE und ZITIERWEISE. ' +
+  'Ohne Textsorte bestimmt die Methode auch die Antwortform. ' +
+  'Die persönlichen Anweisungen bestimmen TON und KONTEXT. ' +
+  'Widersprechen sie sich in der Form, gilt die Methode — außer die Person gibt selbst eine Form vor.';
+
+export function methodPrecedenceNote(hasTextForm: boolean): string {
+  return hasTextForm ? METHOD_PRECEDENCE_NOTE : METHOD_ONLY_PRECEDENCE_NOTE;
+}
 
 /** Überschrift eines Methoden-Rezepts — eigene Zeile, damit es nicht als Plattform gelesen wird. */
 export function renderMethodRecipeBlock(title: string, body: string): string {
@@ -111,7 +127,13 @@ const roleOf = (r: LoadedRecipe): RecipeRole => r.rolle ?? 'textsorte';
 
 export function createRecipeRegistry(
   maxRecipes: number = MAX_RECIPES_PER_TURN,
-  maxMethods: number = MAX_METHOD_RECIPES_PER_TURN
+  maxMethods: number = MAX_METHOD_RECIPES_PER_TURN,
+  /**
+   * Steht schon eine Textsorte im Systemprompt (ausdrücklich gewählt, per id
+   * gepinnt)? Dann gibt die Methode keine Form vor, auch wenn die Registry
+   * selbst keine Textsorte trägt.
+   */
+  textFormElsewhere = false
 ): RecipeRegistry {
   const loaded = new Map<string, LoadedRecipe>();
   const countOf = (rolle: RecipeRole): number =>
@@ -163,7 +185,10 @@ export function createRecipeRegistry(
       const forms = all
         .filter((r) => roleOf(r) === 'textsorte')
         .map((r) => `## AKTIVE PLATTFORM: ${r.title}\n${r.body}` + tools(r));
-      const note = methods.length > 0 ? METHOD_PRECEDENCE_NOTE : PRECEDENCE_NOTE;
+      const note =
+        methods.length > 0
+          ? methodPrecedenceNote(forms.length > 0 || textFormElsewhere)
+          : PRECEDENCE_NOTE;
       return `\n\n${[...methods, ...forms].join('\n\n')}\n\n${note}`;
     },
   };

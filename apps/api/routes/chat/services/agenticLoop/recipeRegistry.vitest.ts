@@ -5,6 +5,7 @@ import {
   createRecipeRegistry,
   MAX_METHOD_RECIPES_PER_TURN,
   MAX_RECIPES_PER_TURN,
+  METHOD_ONLY_PRECEDENCE_NOTE,
   METHOD_PRECEDENCE_NOTE,
 } from './recipeRegistry.js';
 
@@ -89,6 +90,27 @@ describe('createRecipeRegistry', () => {
     expect(out).toContain('## AKTIVE PLATTFORM: Titel buerger-berlin');
     expect(out.indexOf('RECHERCHE-METHODE')).toBeLessThan(out.indexOf('AKTIVE PLATTFORM'));
     expect(out).toContain(METHOD_PRECEDENCE_NOTE);
+  });
+
+  it('lets the method own the form when no text form is loaded anywhere', () => {
+    const reg = createRecipeRegistry();
+    reg.register({ ...recipe('bundestagsrecherche'), preloaded: true, rolle: 'methode' });
+    expect(reg.render()).toContain(METHOD_ONLY_PRECEDENCE_NOTE);
+    expect(reg.render()).toContain('Ohne Textsorte bestimmt die Methode auch die Antwortform.');
+  });
+
+  it('hands the form back to a text form picked outside the registry', () => {
+    const reg = createRecipeRegistry(undefined, undefined, true);
+    reg.register({ ...recipe('bundestagsrecherche'), preloaded: true, rolle: 'methode' });
+    expect(reg.render()).toContain(METHOD_PRECEDENCE_NOTE);
+    expect(reg.render()).not.toContain(METHOD_ONLY_PRECEDENCE_NOTE);
+  });
+
+  it('switches to the three-way note once the model loads a text form mid-loop', () => {
+    const reg = createRecipeRegistry();
+    reg.register({ ...recipe('bundestagsrecherche'), preloaded: true, rolle: 'methode' });
+    reg.register(recipe('presse'));
+    expect(reg.render()).toContain(METHOD_PRECEDENCE_NOTE);
   });
 
   it('keeps the plain precedence note when no method is loaded', () => {

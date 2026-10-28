@@ -799,4 +799,27 @@ describe('Blockliste — Auswahl und Reihenfolge', () => {
     expect(loop).not.toContain('RECHERCHE-METHODE');
     expect(loop).toContain('## AKTIVE PLATTFORM: Instagram');
   });
+
+  // Ohne Textsorte gibt die Methode die Form vor — der Bundestag-Rezepttext
+  // trägt Formregeln (vollständige Antworten, Fundstellen zuerst), und die
+  // Standardregel „2–4 Absätze" brächte die zu kurzen Antworten zurück.
+  it('lässt ein Methoden-Rezept ohne Textsorte die Antwortform bestimmen', async () => {
+    const plain = await buildSystemMessage(makeState({}));
+    expect(plain).not.toContain('Form und Umfang gibt die oben aktive Textform vor');
+
+    const single = await buildSystemMessage(
+      makeState({ methodSkillMentions: ['bundestagsrecherche'] } as never)
+    );
+    expect(single).toContain('## RECHERCHE-METHODE: Bundestag-Recherche');
+    expect(single).toContain('Ohne Textsorte bestimmt die Methode auch die Antwortform.');
+    expect(single).toContain('Form und Umfang gibt die oben aktive Textform vor');
+
+    // Im Loop steht der Rumpf in der Registry — die Formatregel folgt trotzdem der Methode.
+    const loop = await buildSystemMessage(
+      makeState({ methodSkillMentions: ['bundestagsrecherche'] } as never),
+      { loop: true, retrievalExpected: true }
+    );
+    expect(loop).not.toContain('RECHERCHE-METHODE');
+    expect(loop).toContain('Form und Umfang gibt die oben aktive Textform vor');
+  });
 });

@@ -223,7 +223,13 @@ export async function assembleToolCatalog(
   // ihren Landesverbands-Ausschnitt zuzuschneiden, und muss die Registry daher
   // schon beim Bauen des Katalogs kennen. Der Zugriff selbst passiert erst zur
   // Aufrufzeit — bis dahin ist die Registry gefüllt.
-  const recipeRegistry = createRecipeRegistry();
+  // Eine gewählte Textsorte steht im Systemprompt, nicht in der Registry — die
+  // Vorrangnotiz einer Methode muss trotzdem wissen, dass die Form vergeben ist.
+  const recipeRegistry = createRecipeRegistry(
+    undefined,
+    undefined,
+    !!(state.activeSkillMention || state.activeRecipeId)
+  );
 
   const { tools } = deps.buildChatToolCatalog({
     agentConfig,

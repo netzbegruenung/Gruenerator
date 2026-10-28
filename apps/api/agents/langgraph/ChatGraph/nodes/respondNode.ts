@@ -13,7 +13,7 @@ import { type ChatIntentId, isGroundableProse } from '@gruenerator/shared/chat-i
 import { roleAwareDefaultRecipeMention } from '../../../../routes/chat/agents/lvRecipePreference.js';
 import { isTabelleAuswertenMountable } from '../../../../routes/chat/agents/tabelleAuswertenTool.js';
 import {
-  METHOD_PRECEDENCE_NOTE,
+  methodPrecedenceNote,
   renderMethodRecipeBlock,
 } from '../../../../routes/chat/services/agenticLoop/recipeRegistry.js';
 import {
@@ -2214,28 +2214,29 @@ async function buildPromptBlockContext(state: ChatGraphState, opts: SystemMessag
 
   // Methoden-Rezepte (`@bundestag` → Bundestag-Recherche, Rechtsstand) stehen
   // NEBEN der Textsorte, nicht an ihrer Stelle — eigene Überschrift, eigene
-  // Vorrangregel. Im Loop trägt sie die Rezept-Registry (`catalogAssembly`),
-  // hier stünden sie sonst doppelt im Prompt.
-  const methodRecipes = opts.loop
-    ? []
-    : (
-        await Promise.all(
-          (state.methodSkillMentions ?? [])
-            .filter((mention) => mention !== resolved?.mention)
-            .map((mention) =>
-              resolveRecipeBody({
-                mention,
-                recipeId: null,
-                userId: isNeutralTurn ? null : (agentConfig.userId ?? null),
-              })
-            )
+  // Vorrangregel. Aufgelöst wird auf beiden Pfaden (der Titel entscheidet unten
+  // über den Formatgeber), in den Prompt kommt der Rumpf nur im Einzelpfad: im
+  // Loop trägt ihn die Rezept-Registry (`catalogAssembly`), hier stünde er
+  // sonst doppelt.
+  const resolvedMethods = (
+    await Promise.all(
+      (state.methodSkillMentions ?? [])
+        .filter((mention) => mention !== resolved?.mention)
+        .map((mention) =>
+          resolveRecipeBody({
+            mention,
+            recipeId: null,
+            userId: isNeutralTurn ? null : (agentConfig.userId ?? null),
+          })
         )
-      ).filter((r): r is NonNullable<typeof r> => r !== null);
+    )
+  ).filter((r): r is NonNullable<typeof r> => r !== null);
+  const methodRecipes = opts.loop ? [] : resolvedMethods;
   const methodFragment = methodRecipes.length
     ? `\n\n${methodRecipes.map((r) => renderMethodRecipeBlock(r.title, r.body)).join('\n\n')}`
     : '';
   const skillFragment = methodFragment
-    ? `${methodFragment}${textFormFragment}\n\n${METHOD_PRECEDENCE_NOTE}`
+    ? `${methodFragment}${textFormFragment}\n\n${methodPrecedenceNote(textFormFragment !== '')}`
     : textFormFragment;
 
   // Dieselbe Vokabel wie die Werkzeug-Tür (`[recipeTools] [Rezept] gewählt=…
@@ -2247,7 +2248,14 @@ async function buildPromptBlockContext(state: ChatGraphState, opts: SystemMessag
   // Was das Modell wirklich vor sich hat — `quelle=fehlt`, wenn kein Rezepttext
   // gefunden wurde. Die Formatregel unten hängt daran, nicht an der blossen
   // Absicht.
-  const activeTextFormTitle = resolved ? resolved.title : null;
+  //
+  // Ohne Textsorte gibt ein Methoden-Rezept die Form vor: der Bundestag-
+  // Rezepttext trägt bewusst Formregeln (vollständige Antworten, alle
+  // einschlägigen Drucksachen, Fundstellen zuerst bei „wo/wann") — die
+  // Standardregel „2–4 Absätze" würde genau die zu kurzen Antworten
+  // zurückbringen, die das Rezept behebt. Mit Textsorte regelt die Methode nur
+  // Recherche, Belege und Lücken.
+  const activeTextFormTitle = resolved ? resolved.title : (resolvedMethods[0]?.title ?? null);
 
   if (effectiveSkillMention || effectiveRecipe.recipeId) {
     const quelle = resolved?.source ?? 'fehlt';
