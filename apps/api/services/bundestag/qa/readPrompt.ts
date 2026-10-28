@@ -10,6 +10,7 @@ const BASE = `Du liest einen Ausschnitt aus einem Dokument des Deutschen Bundest
 Regeln:
 - Jedes "zitat" ist wörtlich aus dem Ausschnitt übernommen (keine Kürzung mit „…", keine Umformulierung) und belegt seine "aussage".
 - Keine Punkte ohne Beleg. Was nicht im Ausschnitt steht, meldest du nicht.
+- Relevant ist, was in der Sache zum Thema der Frage gehört, auch wenn der Ausschnitt es mit anderen Worten sagt (Synonyme, die zugrunde liegende Regelung; z. B. Regelaltersgrenze oder Renteneintrittsalter zu „Rente mit 70").
 - Höchstens ${MAX_POINTS_PER_WINDOW} Punkte. "relevant" ist false, wenn der Ausschnitt nichts zum Auftrag beiträgt; dann ist "punkte" leer.`;
 
 const SUMMARY_FOCUS = `
