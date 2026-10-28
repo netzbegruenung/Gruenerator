@@ -36,6 +36,7 @@ function result(ref: string, n: number, extra: Partial<ReadResult> = {}): ReadRe
     windowsRead: 1,
     windowsTotal: 1,
     skipped: null,
+    charsRead: 0,
     usage: null,
     ...extra,
   };
