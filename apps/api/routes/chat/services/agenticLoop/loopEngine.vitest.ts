@@ -682,6 +682,19 @@ describe('runAgenticLoop — split (planner/executor)', () => {
       expect(synthSystems[0]).toContain('Behaupte NICHT, du hättest keinen Zugriff');
     });
 
+    it('drops the failure note when afterGather rescued the pinned tool', async () => {
+      const { deps, synthSystems } = recordingDeps(() => [{ type: 'error', error: rejected() }]);
+      await runAgenticLoop(
+        baseParams({
+          mode: 'split',
+          plannerFallbackModels: [fallbackModel],
+          afterGather: async () => true,
+        }),
+        deps
+      );
+      expect(synthSystems[0]).not.toContain('technisch gescheitert');
+    });
+
     it('never repeats a phase that already emitted a tool call', async () => {
       const { deps, calls, synthSystems } = recordingDeps(() => [
         { type: 'tool-call' },

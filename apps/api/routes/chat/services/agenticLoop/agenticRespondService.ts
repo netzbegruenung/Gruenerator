@@ -628,6 +628,8 @@ export async function streamAgenticResponse(
       sourceRegistry,
       sse,
       recordStep: (step) => steps.push(step),
+      wrappedTools: wrapped,
+      calledToolNames: () => steps.map((s) => s.toolName),
       emitOpeningBeforeTool: () => emitter.emitOpeningBeforeTool(),
       answerText: () => emitter.text,
       onInfo: (m) => log.info(m),

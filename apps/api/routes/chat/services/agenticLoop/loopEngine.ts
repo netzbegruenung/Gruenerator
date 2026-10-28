@@ -647,7 +647,7 @@ export interface LoopEngineParams {
    *  the generation fat tool (it treats the turn as pure research and stops), so
    *  this hook force-creates the artifact from the gathered sources when the
    *  planner didn't, before the synth announces it. */
-  afterGather?: () => Promise<void>;
+  afterGather?: () => Promise<boolean | void>;
   /**
    * Split mode only: output-integrity check on the ACCEPTED answer (after the
    * refusal/tool-plan verdicts). Returns a system suffix describing what to fix
@@ -727,8 +727,10 @@ export async function runAgenticLoop(
   }
   const outcome = await gather(p, deps);
   if (p.suspended?.()) throw new TurnSuspendedError();
-  if (p.afterGather) await p.afterGather();
-  return synthesize(p, deps, outcome);
+  // Hat die Zusicherung das benannte Werkzeug nachgeholt, hat der Schreiber
+  // Quellen — der Ausfallhinweis wäre dann gelogen.
+  const rescued = p.afterGather ? await p.afterGather() : false;
+  return synthesize(p, deps, rescued === true ? { failedBeforeAnyTool: false } : outcome);
 }
 
 /** Unified mode: one model holds the tools and streams the answer. */
