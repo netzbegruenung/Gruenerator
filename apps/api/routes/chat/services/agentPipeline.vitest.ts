@@ -15,6 +15,8 @@
 
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 
+import { GEMMA_31B_ALTERNATE, GEMMA_31B_PRIMARY } from '../../../services/ai/gemmaHosts.js';
+
 const executeProvider = vi.fn();
 vi.mock('../../../services/ai/execution/index.js', () => ({
   executeProvider: (...args: unknown[]) => executeProvider(...args) as unknown,
@@ -27,6 +29,10 @@ const { resolveOriginalText, checkAndRevise, trimSectionFrame } =
 
 import type { ThreadAttachment } from '../../../agents/langgraph/ChatGraph/types.js';
 import type { PipelineAgent } from '../agents/pipelines/index.js';
+
+/** Die beiden Gemma-Hosts der Prüf-Stufe, aus gemmaHosts.ts — seit 28.10.2026 Melious voran. */
+const GEMMA_PRIMAER = GEMMA_31B_PRIMARY.provider;
+const GEMMA_ZWEITER = GEMMA_31B_ALTERNATE.provider;
 
 const ES = getPipelineAgent('gruenerator-einfache-sprache') as PipelineAgent;
 const LS = getPipelineAgent('gruenerator-leichte-sprache') as PipelineAgent;
@@ -266,8 +272,8 @@ describe('checkAndRevise', () => {
     await promise;
 
     expect(calls.find((c) => c.type === UEBER_TYPE)?.provider).toBe('mistral');
-    expect(calls.find((c) => c.type === PRUEF_TYPE)?.provider).toBe('cortecs');
-    expect(calls.find((c) => c.type === NACH_TYPE)?.provider).toBe('cortecs');
+    expect(calls.find((c) => c.type === PRUEF_TYPE)?.provider).toBe(GEMMA_PRIMAER);
+    expect(calls.find((c) => c.type === NACH_TYPE)?.provider).toBe(GEMMA_PRIMAER);
   });
 
   it('bricht nach MAX_ROUNDS (2) ab, wenn ein HOCH-Punkt offen bleibt', async () => {
@@ -487,7 +493,7 @@ describe('checkAndRevise — Sibling bei Langsamkeit', () => {
     const { calls } = poolNachProvider(async (_p, type) => antwort(type, 'Fertig.'));
     await laufe();
 
-    expect(calls.map((c) => c.provider)).toEqual(['cortecs', 'cortecs']);
+    expect(calls.map((c) => c.provider)).toEqual([GEMMA_PRIMAER, GEMMA_PRIMAER]);
   });
 
   it('lässt den Sibling gewinnen, wenn der Primär über die Frist hinaus schweigt', async () => {
@@ -495,20 +501,20 @@ describe('checkAndRevise — Sibling bei Langsamkeit', () => {
     try {
       const { calls } = poolNachProvider(async (provider, type) => {
         // Der Primär antwortet nie — der langsame Lauf vom 14.08. im Extrem.
-        if (provider === 'cortecs') return new Promise<Answer>(() => {});
+        if (provider === GEMMA_PRIMAER) return new Promise<Answer>(() => {});
         return antwort(type, 'Vom Sibling.');
       });
       const promise = laufe();
 
       // Vor der Frist (30 s für die Rückübersetzung) darf nichts passieren.
       await vi.advanceTimersByTimeAsync(20_000);
-      expect(calls.map((c) => c.provider)).toEqual(['cortecs']);
+      expect(calls.map((c) => c.provider)).toEqual([GEMMA_PRIMAER]);
 
       // Reichlich: die Prüfung hat ihre eigene, längere Frist.
       await vi.advanceTimersByTimeAsync(300_000);
       const out = await promise;
 
-      expect(calls.filter((c) => c.provider === 'melious')).not.toHaveLength(0);
+      expect(calls.filter((c) => c.provider === GEMMA_ZWEITER)).not.toHaveLength(0);
       expect(out.protokoll).toContain('Vom Sibling.');
       // Und nicht als Ausfall verbucht: beide Schritte haben geliefert.
       expect(out.endstand).toBe('FREIGABE');
@@ -525,7 +531,7 @@ describe('checkAndRevise — Sibling bei Langsamkeit', () => {
     vi.useFakeTimers();
     try {
       poolNachProvider(async (provider, type) =>
-        provider === 'cortecs' ? new Promise<Answer>(() => {}) : antwort(type, 'Vom Sibling.')
+        provider === GEMMA_PRIMAER ? new Promise<Answer>(() => {}) : antwort(type, 'Vom Sibling.')
       );
       const ersterLauf = laufe();
       await vi.advanceTimersByTimeAsync(300_000);
@@ -535,7 +541,7 @@ describe('checkAndRevise — Sibling bei Langsamkeit', () => {
       await laufe();
 
       // Kein Tick auf der Uhr, und der Primär wurde gar nicht erst gefragt.
-      expect(zweiter.calls.map((c) => c.provider)).toEqual(['melious', 'melious']);
+      expect(zweiter.calls.map((c) => c.provider)).toEqual([GEMMA_ZWEITER, GEMMA_ZWEITER]);
     } finally {
       vi.useRealTimers();
     }
@@ -561,7 +567,7 @@ describe('checkAndRevise — Sibling bei Langsamkeit', () => {
       // fragt Melious mit dessen Standardmodell, der Hedge mit
       // `gemma-4-31b:balanced`, dem Modell, für das diese Stufe ausgewählt
       // wurde.
-      const PRIMAER_UND_KETTE = 3; // cortecs → melious → mistral
+      const PRIMAER_UND_KETTE = 3; // Gemma-Primär → zweiter Gemma-Host → mistral
       let rueckAufrufe = 0;
       const { calls } = poolNachProvider(async (_provider, type) => {
         if (type !== RUECK_TYPE) return null;
@@ -576,11 +582,11 @@ describe('checkAndRevise — Sibling bei Langsamkeit', () => {
       // Je Schritt Primär, dessen Ausfallkette — und dann sofort der Sibling.
       const rueck = calls.filter((c) => c.type === RUECK_TYPE);
       expect(rueck.map((c) => c.provider)).toEqual([
-        'cortecs',
-        'melious',
+        GEMMA_PRIMAER,
+        GEMMA_ZWEITER,
         'mistral',
         // Der Hedge: derselbe Prüfer beim anderen Vertragspartner.
-        'melious',
+        GEMMA_ZWEITER,
       ]);
       expect((await promise).protokoll).toContain('Vom Sibling.');
     } finally {

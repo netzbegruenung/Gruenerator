@@ -20,7 +20,7 @@
  * an override and keeps its existing contract schema.
  */
 
-import { GEMMA_31B_PRIMARY } from './gemmaHosts.js';
+import { GEMMA_31B_ALTERNATE, GEMMA_31B_PRIMARY } from './gemmaHosts.js';
 import { intermediateLane } from './intermediateLanes.js';
 import { MELIOUS_WIDE_MODEL } from './meliousThinkingFetch.js';
 
@@ -301,17 +301,19 @@ export function providerForModel(modelName = ''): ProviderName {
  * PINNED call has no lane row to derive it from (see `AiCall.pinned` in
  * `generate.ts`) and must not be routed through `resolveLane` to get one.
  *
- * Cortecs führt seit dem 28.08.2026 — es ist der Host des dichten Gemma 4 31B
- * (`gemmaHosts.ts`), also desselben Modells, das schon Primär von 15 Textlanes
- * ist, und mit 210,7 tok/s der schnellste gemessene. Für die Lanes, die es
- * bereits als Primär führen, ändert das nichts: `laneFallback` filtert den
- * eigenen Primär heraus. Es ändert die Kette genau für die anderen — allen
- * voran `doc_generation` auf GreenPT, dessen Ausweichkette bis dahin keinen
+ * Die beiden Gemma-Hosts führen, in der Reihenfolge von `gemmaHosts.ts`:
+ * Primär zuerst, dann der andere Vertragspartner. Abgeleitet statt notiert,
+ * damit ein Hostwechsel dort die Ketten hier mitnimmt — bis zum 28.10.2026
+ * stand hier `'cortecs'` fest an erster Stelle, und der Wechsel auf Melious
+ * hätte jede Mistral- und GreenPT-Lane weiter zuerst an Cortecs geschickt. Für
+ * die Gemma-Lanes selbst ändert die Reihenfolge nichts: `laneFallback` filtert
+ * den eigenen Primär heraus. Sie wirkt für die anderen — allen voran
+ * `doc_generation` auf GreenPT, dessen Ausweichkette bis zum 28.08.2026 keinen
  * einzigen Host derselben Modellfamilie enthielt.
  *
- * Der Preis steht in `gemmaHosts.ts`: Cortecs ist VORAUSBEZAHLT, ein leeres
- * Guthaben antwortet mit 401. Das ist ein schneller Fehlschlag, und die
- * verbleibenden Anbieter stehen unverändert dahinter.
+ * Der Preis steht in `gemmaHosts.ts`: beide Hosts sind VORAUSBEZAHLT, ein
+ * leeres Guthaben ist ein schneller Fehlschlag, und die verbleibenden Anbieter
+ * stehen unverändert dahinter.
  *
  * ── 29.08.2026: `litellm` ist raus, und das ist der Kern von #3064 ──
  *
@@ -326,7 +328,11 @@ export function providerForModel(modelName = ''): ProviderName {
  * Und einen anderen hatte der Proxy nicht: sein zweiter Alias
  * (`verdigado-think`) denkt ebenfalls, unabschaltbar.
  */
-export const GENERIC_FALLBACK: readonly ProviderName[] = ['cortecs', 'melious', 'mistral'];
+export const GENERIC_FALLBACK: readonly ProviderName[] = [
+  GEMMA_31B_PRIMARY.provider,
+  GEMMA_31B_ALTERNATE.provider,
+  'mistral',
+];
 
 /**
  * Failover order after the primary. Two chains: sharepics lead with Mistral
@@ -336,7 +342,7 @@ export const GENERIC_FALLBACK: readonly ProviderName[] = ['cortecs', 'melious', 
 export function laneFallback(lane: LaneId): readonly ProviderName[] {
   const primary = AI_LANES[lane].provider;
   const chain = lane.startsWith('sharepic_')
-    ? (['mistral', 'cortecs', 'melious'] as const)
+    ? (['mistral', GEMMA_31B_PRIMARY.provider, GEMMA_31B_ALTERNATE.provider] as const)
     : GENERIC_FALLBACK;
   return chain.filter((p) => p !== primary);
 }
