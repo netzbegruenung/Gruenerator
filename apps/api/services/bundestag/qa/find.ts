@@ -1,0 +1,320 @@
+/**
+ * Stufe „find": aus den Filtern der Planung werden Kandidaten (Drucksachen
+ * und Beratungsabschnitte) bei DIP gesucht. Der Volltext wird hier nie
+ * angefasst — `drucksache-text?f.vorgang=` ignoriert DIP und liefert die
+ * gesamte Liste (~290k Dokumente), deshalb geht der Weg zu den Dokumenten
+ * eines Vorgangs ausschliesslich über `vorgangsposition`.
+ */
+import {
+  type BundestagCandidate,
+  type BundestagFilter,
+  type BtSemanticHit,
+} from '@gruenerator/contracts';
+
+import {
+  type DipDrucksache,
+  type DipListPage,
+  type DipParams,
+  type DipVorgang,
+  type DipVorgangsposition,
+  type DipEndpoint,
+} from '../dip/dipClient.js';
+
+import { type Budget } from './budget.js';
+
+/** Soviele Vorgänge werden pro Suche zu Positionen ausgeklappt. */
+const MAX_EXPANDED_VORGAENGE = 8;
+/** Darunter gilt die Suche als zu dünn und löst Wiederholung bzw. MCP-Rückfall aus. */
+const MIN_CANDIDATES = 3;
+const MCP_LIMIT = 10;
+const NUMMER_RE = /^\d{1,2}\/\d{1,6}$/;
+
+export interface FindDip {
+  list<T>(endpoint: DipEndpoint, params: DipParams): Promise<DipListPage<T>>;
+}
+
+export interface FindMcp {
+  semanticSearch(opts: {
+    query: string;
+    wahlperiode?: number;
+    limit?: number;
+  }): Promise<{ items: BtSemanticHit[] }>;
+}
+
+export interface FindResult {
+  candidates: BundestagCandidate[];
+  totals: { vorgaenge: number; drucksachen: number };
+  notes: string[];
+}
+
+export function drucksacheRef(dokumentnummer: string): string {
+  return dokumentnummer;
+}
+
+/** `PlPr 21/80 S. 9553-9572` — `protokollNummer` ist die Dokumentnummer des Protokolls („21/80"). */
+export function beratungRef(
+  protokollNummer: string,
+  anfangsseite: number,
+  endseite: number
+): string {
+  return `PlPr ${protokollNummer} S. ${anfangsseite}-${endseite}`;
+}
+
+/** Leere Arrays heissen bei DIP „kein Filter" — der Schlüssel fehlt dann ganz. */
+function withList(
+  params: DipParams,
+  key: string,
+  values: readonly (string | number)[] | undefined
+) {
+  if (values && values.length > 0) params[key] = values;
+}
+
+function baseParams(f: BundestagFilter, wahlperiode: readonly number[] | undefined): DipParams {
+  const params: DipParams = { 'f.zuordnung': 'BT' };
+  withList(params, 'f.wahlperiode', wahlperiode);
+  if (f.datumVon) params['f.datum.start'] = f.datumVon;
+  if (f.datumBis) params['f.datum.end'] = f.datumBis;
+  if (f.titel) params['f.titel'] = f.titel;
+  return params;
+}
+
+function fromDrucksache(d: DipDrucksache): BundestagCandidate {
+  return {
+    ref: drucksacheRef(d.dokumentnummer),
+    dipId: d.id,
+    kind: 'drucksache',
+    dokumentnummer: d.dokumentnummer,
+    drucksachetyp: d.drucksachetyp ?? '',
+    titel: d.titel ?? '',
+    datum: d.datum ?? '',
+    urheber: (d.urheber ?? []).flatMap((u) => (u.titel ? [u.titel] : [])),
+    pdfUrl: d.fundstelle?.pdf_url ?? null,
+    vorgangId: d.vorgangsbezug?.[0]?.id ?? null,
+    vorgangTitel: d.vorgangsbezug?.[0]?.titel ?? null,
+    abstract: null,
+    aktualisiert: d.aktualisiert ?? null,
+    beratung: null,
+  };
+}
+
+/** Eine Position wird zur Drucksache, zur Beratung oder (ohne Fundstelle) zu nichts. */
+function fromPosition(
+  p: DipVorgangsposition,
+  v: VorgangRef,
+  includeBeratung: boolean,
+  types: readonly string[] | undefined
+): BundestagCandidate | null {
+  const fs = p.fundstelle;
+  if (!fs?.id || !fs.dokumentnummer) return null;
+  const common = {
+    dipId: fs.id,
+    datum: p.datum ?? '',
+    urheber: v.initiative ?? [],
+    vorgangId: v.id,
+    vorgangTitel: v.titel ?? null,
+    abstract: v.abstract ?? null,
+    aktualisiert: null,
+    pdfUrl: fs.pdf_url ?? null,
+  };
+  if (fs.xml_url && fs.anfangsseite != null && fs.endseite != null) {
+    if (!includeBeratung) return null;
+    return {
+      ...common,
+      ref: beratungRef(fs.dokumentnummer, fs.anfangsseite, fs.endseite),
+      kind: 'beratung',
+      dokumentnummer: fs.dokumentnummer,
+      drucksachetyp: 'Plenarprotokoll',
+      titel: [p.vorgangsposition, v.titel].filter(Boolean).join(' – '),
+      beratung: { xmlUrl: fs.xml_url, anfangsseite: fs.anfangsseite, endseite: fs.endseite },
+    };
+  }
+  if (!fs.drucksachetyp) return null;
+  if (types && types.length > 0 && !types.includes(fs.drucksachetyp)) return null;
+  return {
+    ...common,
+    ref: drucksacheRef(fs.dokumentnummer),
+    kind: 'drucksache',
+    dokumentnummer: fs.dokumentnummer,
+    drucksachetyp: fs.drucksachetyp,
+    titel: v.titel ?? '',
+    beratung: null,
+  };
+}
+
+async function positionsOf(
+  dip: FindDip,
+  vorgang: VorgangRef,
+  f: BundestagFilter
+): Promise<BundestagCandidate[]> {
+  const page = await dip.list<DipVorgangsposition>('vorgangsposition', {
+    'f.vorgang': vorgang.id,
+    'f.zuordnung': 'BT',
+  });
+  return page.documents.flatMap((p) => {
+    const c = fromPosition(p, vorgang, f.mitBeratung === true, f.drucksachetyp);
+    return c ? [c] : [];
+  });
+}
+
+/** Was von einem Vorgang an den Kandidaten weitergereicht wird. */
+interface VorgangRef {
+  id: string;
+  titel?: string | undefined;
+  initiative?: string[] | undefined;
+  abstract?: string | undefined;
+}
+
+interface Collected {
+  candidates: BundestagCandidate[];
+  vorgaenge: number;
+  drucksachen: number | null;
+}
+
+/** Eine Nummer: die Drucksache selbst, dann ihre Geschwister aus demselben Vorgang. */
+async function byNummer(dip: FindDip, f: BundestagFilter): Promise<Collected> {
+  const page = await dip.list<DipDrucksache>('drucksache', {
+    'f.zuordnung': 'BT',
+    'f.dokumentnummer': f.dokumentnummer ?? [],
+  });
+  const own = page.documents.map(fromDrucksache);
+  const siblings: BundestagCandidate[] = [];
+  const seenVorgang = new Set<string>();
+  for (const d of page.documents) {
+    const bezug = d.vorgangsbezug?.[0];
+    if (!bezug || seenVorgang.has(bezug.id)) continue;
+    seenVorgang.add(bezug.id);
+    siblings.push(...(await positionsOf(dip, { id: bezug.id, titel: bezug.titel }, f)));
+  }
+  return {
+    candidates: [...own, ...siblings],
+    vorgaenge: seenVorgang.size,
+    drucksachen: page.numFound,
+  };
+}
+
+async function byVorgang(
+  dip: FindDip,
+  f: BundestagFilter,
+  wahlperiode: readonly number[] | undefined
+): Promise<Collected> {
+  const params = baseParams(f, wahlperiode);
+  withList(params, 'f.deskriptor', f.deskriptor);
+  withList(params, 'f.initiative', f.urheber);
+  const page = await dip.list<DipVorgang>('vorgang', params);
+  const candidates: BundestagCandidate[] = [];
+  for (const v of page.documents.slice(0, MAX_EXPANDED_VORGAENGE)) {
+    candidates.push(...(await positionsOf(dip, v, f)));
+  }
+  return { candidates, vorgaenge: page.numFound, drucksachen: null };
+}
+
+async function byDrucksache(
+  dip: FindDip,
+  f: BundestagFilter,
+  wahlperiode: readonly number[] | undefined
+): Promise<Collected> {
+  const params = baseParams(f, wahlperiode);
+  withList(params, 'f.drucksachetyp', f.drucksachetyp);
+  withList(params, 'f.urheber', f.urheber);
+  const page = await dip.list<DipDrucksache>('drucksache', params);
+  return {
+    candidates: page.documents.map(fromDrucksache),
+    vorgaenge: 0,
+    drucksachen: page.numFound,
+  };
+}
+
+async function collect(
+  dip: FindDip,
+  f: BundestagFilter,
+  wahlperiode: readonly number[] | undefined
+): Promise<Collected> {
+  if (f.dokumentnummer && f.dokumentnummer.length > 0) return byNummer(dip, f);
+  const hasTypes = (f.drucksachetyp?.length ?? 0) > 0;
+  const hasUrheber = (f.urheber?.length ?? 0) > 0;
+  const viaVorgang =
+    (f.deskriptor?.length ?? 0) > 0 || Boolean(f.titel) || (hasUrheber && !hasTypes);
+  return viaVorgang ? byVorgang(dip, f, wahlperiode) : byDrucksache(dip, f, wahlperiode);
+}
+
+/** Entfernt Duplikate nach `dipId` und behält die Reihenfolge. */
+function dedupe(list: BundestagCandidate[]): BundestagCandidate[] {
+  const seen = new Set<string>();
+  return list.filter((c) => (seen.has(c.dipId) ? false : (seen.add(c.dipId), true)));
+}
+
+/** Rückfall über die semantische Suche: Treffer → Dokumentnummern → Metadaten bei DIP. */
+async function viaMcp(
+  question: string,
+  f: BundestagFilter,
+  wahlperiode: number | null,
+  dip: FindDip,
+  mcp: FindMcp
+): Promise<BundestagCandidate[]> {
+  const { items } = await mcp.semanticSearch({
+    query: question,
+    ...(wahlperiode != null ? { wahlperiode } : {}),
+    limit: MCP_LIMIT,
+  });
+  const nummern = [
+    ...new Set(
+      items.flatMap((h) =>
+        h.dokumentnummer && NUMMER_RE.test(h.dokumentnummer) ? [h.dokumentnummer] : []
+      )
+    ),
+  ];
+  if (nummern.length === 0) return [];
+  const params: DipParams = { 'f.zuordnung': 'BT', 'f.dokumentnummer': nummern };
+  withList(params, 'f.drucksachetyp', f.drucksachetyp);
+  const page = await dip.list<DipDrucksache>('drucksache', params);
+  // Reihenfolge der Treffer (Relevanz) bleibt erhalten.
+  const byNummerMap = new Map(page.documents.map((d) => [d.dokumentnummer, d]));
+  return nummern.flatMap((n) => {
+    const d = byNummerMap.get(n);
+    return d ? [fromDrucksache(d)] : [];
+  });
+}
+
+export async function findCandidates(args: {
+  question: string;
+  filters: BundestagFilter;
+  assumedWahlperiode: boolean;
+  budget: Budget;
+  dip: FindDip;
+  mcp: FindMcp;
+}): Promise<FindResult> {
+  const { question, filters, assumedWahlperiode, budget, dip, mcp } = args;
+  const notes: string[] = [];
+  const hasNummer = (filters.dokumentnummer?.length ?? 0) > 0;
+
+  const first = await collect(dip, filters, filters.wahlperiode);
+  let candidates = dedupe(first.candidates);
+  const totals = { vorgaenge: first.vorgaenge, drucksachen: first.drucksachen ?? 0 };
+  let droppedWahlperiode = false;
+
+  if (!hasNummer && candidates.length < MIN_CANDIDATES) {
+    if (assumedWahlperiode && (filters.wahlperiode?.length ?? 0) > 0) {
+      const retry = await collect(dip, filters, undefined);
+      candidates = dedupe([...candidates, ...retry.candidates]);
+      totals.vorgaenge = Math.max(totals.vorgaenge, retry.vorgaenge);
+      totals.drucksachen = Math.max(totals.drucksachen, retry.drucksachen ?? 0);
+      droppedWahlperiode = true;
+      notes.push('Wenig Treffer in der angenommenen Wahlperiode, daher ohne Wahlperiode gesucht.');
+    }
+    if (candidates.length < MIN_CANDIDATES) {
+      try {
+        const wp = droppedWahlperiode ? null : (filters.wahlperiode?.[0] ?? null);
+        const extra = await viaMcp(question, filters, wp, dip, mcp);
+        if (extra.length > 0) {
+          candidates = dedupe([...candidates, ...extra]);
+          notes.push('Wenig Treffer bei DIP, ergänzt durch die semantische Suche.');
+        }
+      } catch {
+        notes.push('Die semantische Suche war nicht erreichbar.');
+      }
+    }
+  }
+
+  if (!totals.drucksachen) totals.drucksachen = candidates.length;
+  return { candidates: candidates.slice(0, budget.maxDocuments), totals, notes };
+}
