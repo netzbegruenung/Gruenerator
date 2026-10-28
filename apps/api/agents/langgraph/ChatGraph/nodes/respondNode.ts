@@ -83,6 +83,9 @@ const log = createLogger('ChatGraph:Respond');
  * Attachment context limits.
  * These prevent large documents from consuming the entire token budget.
  */
+/** Methoden-Rezepte, die im Einzeldurchlauf nur bei diesem Intent in den Prompt gehören. */
+const METHOD_NEEDS_INTENT: Record<string, string> = { bundestagsrecherche: 'bundestag' };
+
 const ATTACHMENT_LIMITS = {
   /** Floor per document; the effective per-doc limit follows the total budget. */
   PER_DOCUMENT_CHARS: 25000,
@@ -2218,10 +2221,17 @@ async function buildPromptBlockContext(state: ChatGraphState, opts: SystemMessag
   // über den Formatgeber), in den Prompt kommt der Rumpf nur im Einzelpfad: im
   // Loop trägt ihn die Rezept-Registry (`catalogAssembly`), hier stünde er
   // sonst doppelt.
+  // Die Bundestag-Methode beschreibt den Umgang mit `bundestag`/`parlament_lesen`.
+  // Läuft der Turn ohne Schleife, bleibt der Intent nur dann `bundestag`, wenn der
+  // Abruf wirklich Bundestagsquellen geliefert hat; fiel er auf `web` zurück
+  // (`loop_only_degraded`), stünde die Methode im Prompt, ohne dass ihre
+  // Werkzeuge existieren, und gäbe dort sogar die Antwortform vor.
+  const methodRunsHere = (mention: string): boolean =>
+    opts.loop === true || (METHOD_NEEDS_INTENT[mention] ?? state.intent) === state.intent;
   const resolvedMethods = (
     await Promise.all(
       (state.methodSkillMentions ?? [])
-        .filter((mention) => mention !== resolved?.mention)
+        .filter((mention) => mention !== resolved?.mention && methodRunsHere(mention))
         .map((mention) =>
           resolveRecipeBody({
             mention,
