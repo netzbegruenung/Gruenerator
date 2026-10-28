@@ -5,7 +5,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { grueneratorPrint } from '../../composer/printService';
 import { axe } from '../../test-utils';
 
-import { DownloadSection, type PrintImpressumGate } from './DownloadSection';
+import { DownloadSection, type PrintImpressumGate } from '@ggraphic/editor/components/TopBar/DownloadSection';
 
 function renderGate(locale: PrintImpressumGate['locale']) {
   const gate: PrintImpressumGate = {

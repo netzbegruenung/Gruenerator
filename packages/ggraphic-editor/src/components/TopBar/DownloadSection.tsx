@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 import { useCanvasEditorServices } from '@ggraphic/editor/CanvasEditorProvider';
 import { Button } from '@ggraphic/editor/ui/button';
 import { Input } from '@ggraphic/editor/ui/input';
@@ -12,7 +13,6 @@ import {
 import { Skeleton } from '@ggraphic/editor/ui/skeleton';
 import { Switch } from '@ggraphic/editor/ui/switch';
 import { downloadErrorMessage } from '@ggraphic/editor/utils/downloadError';
-import { PRINT_UNGETESTET_HINWEIS } from '@gruenerator/contracts';
 import { useId, useState, type FormEvent } from 'react';
 import { FaDownload } from 'react-icons/fa';
 
@@ -51,13 +51,6 @@ export interface SlideDeckExportProps {
 }
 
 type DeckLocale = 'de-DE' | 'de-AT';
-
-const PPTX_FONT_HINT: Record<DeckLocale, string> = {
-  'de-DE':
-    'Damit die Folien wie im Grünerator aussehen, installiere die Schriften GrueneType Neue und PT Sans – sonst ersetzt PowerPoint sie.',
-  'de-AT':
-    'Damit die Folien wie im Grünerator aussehen, installiere die Schriften Gotham Narrow Book, Bold und Ultra – sonst ersetzt PowerPoint sie.',
-};
 
 export interface PrintImpressumGate {
   /** False until every poster page has reported its state; no warning until then. */
@@ -206,7 +199,8 @@ export function DownloadSection({
   const [downloadError, setDownloadError] = useState<string | null>(null);
   const fieldId = useId();
   // Without the host's print service no format carries an impressum.
-  const impressum = useCanvasEditorServices().print?.impressum ?? null;
+  const { print, carousel } = useCanvasEditorServices();
+  const impressum = print?.impressum ?? null;
 
   const isPdf = choice === 'pdf' && printExport !== null;
   const impressumGate = isPdf && impressum ? (printExport?.impressum ?? null) : null;
@@ -351,9 +345,11 @@ export function DownloadSection({
         </>
       )}
 
-      {isPdf && <DownloadNotice tone="info">{PRINT_UNGETESTET_HINWEIS}</DownloadNotice>}
-      {isPptx && slideDeck && (
-        <DownloadNotice tone="info">{PPTX_FONT_HINT[slideDeck.locale]}</DownloadNotice>
+      {isPdf && print?.untestedNotice && (
+        <DownloadNotice tone="info">{print.untestedNotice}</DownloadNotice>
+      )}
+      {isPptx && slideDeck && carousel?.pptxFontHint && (
+        <DownloadNotice tone="info">{carousel.pptxFontHint[slideDeck.locale]}</DownloadNotice>
       )}
       {isPdf &&
         printWarnings.map((warning) => (

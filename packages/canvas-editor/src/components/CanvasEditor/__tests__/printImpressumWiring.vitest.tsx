@@ -14,6 +14,7 @@ import React from 'react';
 import { describe, expect, it, vi } from 'vitest';
 
 import { grueneratorPrint } from '../../../composer/printService';
+import { grueneratorCarousel } from '../../../composer/sharepicServices';
 import { CanvasEditor } from '../index';
 
 vi.mock('@ggraphic/editor/sidebar/UserUploadsProvider', () => ({
@@ -105,7 +106,7 @@ describe('CanvasEditor: print impressum wiring', () => {
   });
 
   it('names the Austrian fonts for a deck whose first page is Austrian', async () => {
-    await openDownload({}, { configId: 'freeform-at', formatId: 'slide-16-9', initialProps: {} });
+    await openDownload({ carousel: grueneratorCarousel }, { configId: 'freeform-at', formatId: 'slide-16-9', initialProps: {} });
     expect(await screen.findByText(/Gotham Narrow/)).toBeInTheDocument();
   });
 });

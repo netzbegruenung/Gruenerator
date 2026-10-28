@@ -19,4 +19,10 @@ export const grueneratorBlocks: CanvasBlockService = {
 
 export const grueneratorCarousel: CanvasCarouselService = {
   refreshChrome: refreshCarouselChromeInDoc,
+  pptxFontHint: {
+    'de-DE':
+      'Damit die Folien wie im Grünerator aussehen, installiere die Schriften GrueneType Neue und PT Sans – sonst ersetzt PowerPoint sie.',
+    'de-AT':
+      'Damit die Folien wie im Grünerator aussehen, installiere die Schriften Gotham Narrow Book, Bold und Ultra – sonst ersetzt PowerPoint sie.',
+  },
 };

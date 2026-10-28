@@ -34,11 +34,8 @@ export type {
   CanvasAiEditBridge,
   CanvasSpecEditBridge,
 } from '@ggraphic/editor/CanvasEditorProvider';
-export type {
-  CanvasFeedbackService,
-  CanvasVorlagenService,
-  VorlagePage,
-} from './grueneratorHostServices';
+export type { CanvasFeedbackService } from '@ggraphic/editor/hostServices';
+export type { CanvasVorlagenService, VorlagePage } from './grueneratorHostServices';
 
 export { StandaloneCanvas } from '@ggraphic/editor/components/StandaloneCanvas';
 export { ConfigCanvas } from '@ggraphic/editor/components/ConfigCanvas';
