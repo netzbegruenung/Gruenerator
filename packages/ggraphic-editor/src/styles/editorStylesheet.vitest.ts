@@ -146,7 +146,7 @@ describe('core tailwind entry', () => {
     for (const file of sourceFiles(SRC)) {
       const text = stripComments(readFileSync(file, 'utf8'));
       for (const m of text.matchAll(
-        /(?<![\w-])(?:bg|text|border|ring|fill|stroke|from|to|via|outline|divide|shadow|decoration|accent|caret)-(editor-[a-z-]+[a-z])/g
+        /(?:^|[^\w-])(?:bg|text|border|ring|fill|stroke|from|to|via|outline|divide|shadow|decoration|accent|caret)-(editor-[a-z-]+[a-z])/g
       )) {
         if (!mapped.has(`--color-${m[1]}`))
           missing.add(`--color-${m[1]} (${path.relative(SRC, file)})`);
