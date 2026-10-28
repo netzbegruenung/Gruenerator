@@ -51,7 +51,7 @@
     },
     "bundestag": {
       "title": "Bundestag",
-      "description": "Drucksachen, Reden & Gesetzgebung aus dem Bundestag",
+      "description": "Drucksachen, Beschlüsse und Debatten finden und belegt auswerten",
       "mention": "@bundestag",
       "audience": "de-DE"
     },
@@ -351,6 +351,14 @@
       "description": "Anträge für Stadtrat, Gemeinderat und Kreistag",
       "avatar": "🏛️",
       "category": "dokumente"
+    },
+    {
+      "command": "@bundestagsrecherche",
+      "title": "Bundestag-Recherche",
+      "description": "Drucksachen und Debatten finden, lesen und belegt auswerten",
+      "avatar": "🏛️",
+      "category": "recherche",
+      "audience": "de-DE"
     },
     {
       "command": "@presse-berlin-fraktion",
