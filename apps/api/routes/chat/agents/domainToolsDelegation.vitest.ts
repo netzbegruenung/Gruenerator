@@ -26,6 +26,12 @@ const awSearch = vi.fn<(q: string) => Promise<unknown>>();
 vi.mock('../../../services/bundestag/BundestagEnrichedService.js', () => ({
   getBundestagEnrichedService: () => ({ search: (q: string) => btSearch(q) }),
 }));
+// Die Listensuche (Planstufe) ist hier eine Attrappe: Thema der Datei ist, dass
+// der Kern die Anreicherung erreicht; die Planstufe prüft `retrieveBundestag.vitest.ts`.
+const planQuestion = vi.fn<(a: unknown) => Promise<unknown>>();
+vi.mock('../../../services/bundestag/qa/index.js', () => ({
+  planBundestagQuestion: (a: unknown): Promise<unknown> => planQuestion(a),
+}));
 vi.mock('../../../services/abgeordnetenwatch/index.js', () => ({
   getEnrichedPoliticianService: () => ({ search: (q: string) => awSearch(q) }),
 }));
@@ -97,6 +103,9 @@ describe('Parlaments-Werkzeuge erreichen ihren Dienst', () => {
   beforeEach(() => {
     btSearch.mockReset();
     awSearch.mockReset();
+    planQuestion.mockReset();
+    // Standard: Planstufe fällt aus, der Altpfad trägt (wie bisher geprüft).
+    planQuestion.mockRejectedValue(new Error('plan down'));
   });
 
   it('das Bundestags-Werkzeug fragt die DIP und meldet ihre Treffer', async () => {
@@ -111,6 +120,51 @@ describe('Parlaments-Werkzeuge erreichen ihren Dienst', () => {
     expect(out.error).toBeUndefined();
     expect(out.resultCount).toBeGreaterThan(0);
     expect(out.sources).toContain('Drucksache 21/123');
+  });
+
+  it('Filter erreichen die Planstufe, die Liste kommt mit Hinweis und Gesamtzahlen', async () => {
+    btSearch.mockResolvedValue(DRUCKSACHE);
+    planQuestion.mockResolvedValue({
+      filters: {},
+      keywords: [],
+      notes: [],
+      totals: { vorgaenge: 3, drucksachen: 7 },
+      candidates: [
+        {
+          ref: '21/1928',
+          dipId: '1',
+          kind: 'drucksache',
+          dokumentnummer: '21/1928',
+          drucksachetyp: 'Gesetzentwurf',
+          titel: 'Gebäudeenergie',
+          datum: '2025-10-01',
+          urheber: ['Bundesregierung'],
+          pdfUrl: 'https://dserver.bundestag.de/btd/21/019/2101928.pdf',
+          vorgangId: null,
+          vorgangTitel: 'GEG-Novelle',
+          abstract: null,
+          aktualisiert: null,
+          beratung: null,
+        },
+      ],
+    });
+
+    const out = (await exec(
+      makeBundestagTool({ state: stateWith(), sourceRegistry: createSourceRegistry() }),
+      { query: 'Heizung', wahlperiode: [21], urheber: ['Bundesregierung'] }
+    )) as { resultCount: number; sources: string; gesamt: unknown; hinweis: string };
+
+    expect(planQuestion).toHaveBeenCalledWith(
+      expect.objectContaining({
+        question: 'Heizung',
+        filters: { wahlperiode: [21], urheber: ['Bundesregierung'] },
+      })
+    );
+    expect(out.resultCount).toBe(1);
+    expect(out.gesamt).toEqual({ vorgaenge: 3, drucksachen: 7 });
+    expect(out.hinweis).toContain('parlament_lesen');
+    expect(out.sources).toContain('BT-Drs. 21/1928 · Gesetzentwurf · 01.10.2025 · Bundesregierung');
+    expect(out.sources).toContain('Ref: 21/1928');
   });
 
   it('das Abgeordnetenwatch-Werkzeug fragt seinen Dienst und meldet dessen Treffer', async () => {

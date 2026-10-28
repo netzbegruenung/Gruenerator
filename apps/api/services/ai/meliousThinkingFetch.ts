@@ -1,3 +1,4 @@
+import { contentAsToolCall, forcedToolAsJsonSchema } from './forcedToolJsonSchema.js';
 import { captureMeliousImpact, meliousModelFromRequest, replayAsStream } from './meliousImpact.js';
 
 /**
@@ -58,56 +59,7 @@ export function meliousWireModel(body: Record<string, unknown>): string | null {
  * den Text überhaupt sieht. Ein Zug mit mehreren Werkzeugen (Agenten-Schleife)
  * bleibt unberührt und scheitert laut.
  */
-const NO_TOOL_CALL_MODELS = new Set(['gemma-4-26b-a4b']);
-
-interface ToolDef {
-  function?: { name?: unknown; parameters?: unknown };
-}
-
-/** Gibt den Werkzeugnamen zurück, wenn umgeschrieben wurde. */
-function forcedToolAsJsonSchema(body: Record<string, unknown>): string | null {
-  if (typeof body.model !== 'string' || !NO_TOOL_CALL_MODELS.has(body.model)) return null;
-  const tools = body.tools;
-  if (!Array.isArray(tools) || tools.length !== 1 || body.tool_choice !== 'required') return null;
-  if (body.stream === true) return null;
-  const fn = (tools[0] as ToolDef).function;
-  if (typeof fn?.name !== 'string' || typeof fn.parameters !== 'object') return null;
-  body.response_format = {
-    type: 'json_schema',
-    json_schema: { name: fn.name, schema: fn.parameters },
-  };
-  delete body.tools;
-  delete body.tool_choice;
-  return fn.name;
-}
-
-interface ChatCompletion {
-  choices?: { message?: Record<string, unknown>; finish_reason?: unknown }[];
-}
-
-/** Legt den JSON-Text der Antwort als Aufruf des erzwungenen Werkzeugs zurück. */
-async function contentAsToolCall(response: Response, toolName: string): Promise<Response> {
-  const json = (await response.json()) as ChatCompletion;
-  const choice = json.choices?.[0];
-  const content = choice?.message?.content;
-  if (choice?.message && typeof content === 'string' && content.trim()) {
-    choice.message.content = null;
-    choice.message.tool_calls = [
-      {
-        id: `call_${Date.now().toString(36)}`,
-        type: 'function',
-        function: { name: toolName, arguments: content },
-      },
-    ];
-    // Ein abgeschnittenes JSON bleibt `length`, damit `aiObject` es als Torso erkennt.
-    if (choice.finish_reason === 'stop') choice.finish_reason = 'tool_calls';
-  }
-  return new Response(JSON.stringify(json), {
-    status: response.status,
-    statusText: response.statusText,
-    headers: response.headers,
-  });
-}
+const NO_TOOL_CALL_MODELS: ReadonlySet<string> = new Set(['gemma-4-26b-a4b']);
 
 /**
  * Ein gestreamter Aufruf MIT Werkzeugen ist die Werkzeugphase des Loops
@@ -152,7 +104,7 @@ export const meliousFetch: typeof fetch = async (input, init) => {
       if (parsed.model && parsed.messages) {
         if (parsed.reasoning_effort == null) parsed.reasoning_effort = 'none';
         parsed.model = meliousWireModel(parsed) ?? parsed.model;
-        forcedTool = forcedToolAsJsonSchema(parsed);
+        forcedTool = forcedToolAsJsonSchema(parsed, NO_TOOL_CALL_MODELS);
         if (isToolPhaseStream(parsed)) {
           replay = true;
           parsed.stream = false;

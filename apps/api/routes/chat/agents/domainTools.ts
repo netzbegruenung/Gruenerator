@@ -15,6 +15,7 @@
  * pick them even when the classifier routed to plain `search`; a general
  * per-turn catalog selector is Phase 3n.
  */
+import { bundestagFilterSchema } from '@gruenerator/contracts';
 import { tool, type Tool } from 'ai';
 import { z } from 'zod';
 
@@ -91,14 +92,17 @@ NUTZE WENN der*die Nutzer*in um eine Zusammenfassung bittet ("fasse zusammen", "
   });
 }
 
+const BUNDESTAG_HINWEIS =
+  "Die Liste enthält nur Metadaten. Für Inhalte `parlament_lesen` mit quelle 'bundestag' und bis zu 6 Refs aufrufen.";
+
 /**
  * `bundestag`: official DIP documentation (Drucksachen, Plenarprotokolle,
  * speeches, people, Vorgänge) via `retrieveBundestag`. Behaves like
  * the search family: registers the flat results into the source registry and
  * returns the lean `{ resultCount, sources }` — the numbered snippet block is
- * the model's grounding, the citations footer shows the documents. Speech
- * excerpts run up to ~600 chars upstream, so registration raises the snippet
- * cap to 700 to keep them intact. DE-only — der Kern liefert für de-AT eine
+ * the model's grounding, the citations footer shows the documents. Die Liste
+ * (Refs, nur Metadaten) kommt aus der Planstufe des Bundestag-Q&A; Personen
+ * behalten Reden und Aktivitäten dahinter, die Schnipselkappe steht auf 3000. DE-only — der Kern liefert für de-AT eine
  * begründete Absage statt leerer Daten.
  *
  * Ruft `retrieveBundestag` und nicht mehr `searchNode`: die Vorrede des Knotens
@@ -112,21 +116,26 @@ export function makeBundestagTool(ctx: {
 }): Tool {
   const { state, sourceRegistry } = ctx;
   return tool({
-    description: `Durchsucht die offizielle Bundestags-Dokumentation (DIP): Drucksachen, Plenarprotokolle, Reden, Personen und Vorgänge.
+    description: `Findet Bundestags-Dokumente (DIP): Drucksachen und Plenardebatten, mit Filtern (Wahlperiode, Typ, Urheber, Datum, Deskriptor, Titel). Liefert eine Liste mit Refs, nur Metadaten; Inhalte über parlament_lesen. Nur Deutschland.
 
-NUTZE WENN nach Aktivitäten, Reden, Gesetzgebungsverfahren oder Dokumenten des Deutschen Bundestags gefragt wird. Übergib einen präzisen Suchbegriff (Person, Thema oder Drucksachennummer). Nur für Deutschland verfügbar.
-
-NICHT für das Abstimmungsverhalten oder die Nebentätigkeiten einer konkreten Person — dafür gibt es abgeordnetenwatch. DIP kennt Abstimmungen nur als Station eines Vorgangs, nicht als Stimme einer*eines Abgeordneten.`,
+NICHT für Abstimmungsverhalten oder Nebentätigkeiten einzelner Abgeordneter — dafür abgeordnetenwatch.`,
     inputSchema: z.object({
       query: z.string().min(1).describe('Suchbegriff: Person, Thema oder Drucksachennummer'),
+      ...bundestagFilterSchema.omit({ dokumentnummer: true }).shape,
     }),
-    execute: async ({ query }) => {
-      const results = await retrieveBundestag(query, state.userLocale);
+    execute: async ({ query, ...filters }) => {
+      const { results, totals } = await retrieveBundestag(query, state.userLocale, filters);
       if (results.length === 0) {
         return { resultCount: 0, sources: '', error: 'Keine passenden Bundestags-Daten gefunden.' };
       }
-      const sources = sourceRegistry.register(results);
-      return { resultCount: results.length, sources: sources ?? '' };
+      // Listenzeilen tragen Titel, Vorgang und Abstract: 3000 Zeichen halten sie ganz.
+      const sources = sourceRegistry.register(results, { snippetChars: 3000 });
+      return {
+        resultCount: results.length,
+        sources: sources ?? '',
+        ...(totals ? { gesamt: totals } : {}),
+        hinweis: BUNDESTAG_HINWEIS,
+      };
     },
   });
 }

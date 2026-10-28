@@ -19,10 +19,11 @@ const imageNode = vi.fn<(s: unknown) => Promise<unknown>>();
 // Die beiden Parlaments-Werkzeuge rufen den Kern, nicht den Knoten — deshalb
 // steht die Attrappe hier am Kern. Dass der Kern seinen Dienst wirklich
 // erreicht, prüft `domainToolsDelegation.vitest.ts` am ECHTEN Knoten.
-const retrieveBundestag = vi.fn<(q: string, l: unknown) => Promise<unknown>>();
+const retrieveBundestag = vi.fn<(q: string, l: unknown, f: unknown) => Promise<unknown>>();
 const retrieveAbgeordnetenwatch = vi.fn<(q: string, l: unknown) => Promise<unknown>>();
 vi.mock('../../../agents/langgraph/ChatGraph/nodes/searchNode.js', () => ({
-  retrieveBundestag: (q: string, l: unknown): Promise<unknown> => retrieveBundestag(q, l),
+  retrieveBundestag: (q: string, l: unknown, f: unknown): Promise<unknown> =>
+    retrieveBundestag(q, l, f),
   retrieveAbgeordnetenwatch: (q: string, l: unknown): Promise<unknown> =>
     retrieveAbgeordnetenwatch(q, l),
 }));
@@ -108,14 +109,17 @@ describe('makeBundestagTool', () => {
 
   it('registers results with a raised snippet cap and returns the lean sources shape', async () => {
     const longExcerpt = `Rede zur Klimapolitik. ${'x'.repeat(500)} ENDE`;
-    retrieveBundestag.mockResolvedValue([
-      {
-        source: 'bundestag',
-        url: 'https://dip.bundestag.de/x',
-        title: 'Drucksache 21/50 · Antrag',
-        content: longExcerpt,
-      },
-    ]);
+    retrieveBundestag.mockResolvedValue({
+      results: [
+        {
+          source: 'bundestag',
+          url: 'https://dip.bundestag.de/x',
+          title: 'Drucksache 21/50 · Antrag',
+          content: longExcerpt,
+        },
+      ],
+      totals: { vorgaenge: 4, drucksachen: 9 },
+    });
     const sourceRegistry = createSourceRegistry();
     const out = (await exec(
       makeBundestagTool({
@@ -123,8 +127,17 @@ describe('makeBundestagTool', () => {
         sourceRegistry,
       }),
       { query: 'Klima' }
-    )) as { resultCount?: number; sources?: string };
+    )) as {
+      resultCount?: number;
+      sources?: string;
+      gesamt?: unknown;
+      hinweis?: string;
+    };
     expect(out.resultCount).toBe(1);
+    expect(out.gesamt).toEqual({ vorgaenge: 4, drucksachen: 9 });
+    expect(out.hinweis).toBe(
+      "Die Liste enthält nur Metadaten. Für Inhalte `parlament_lesen` mit quelle 'bundestag' und bis zu 6 Refs aufrufen."
+    );
     // The 700-char registration cap keeps the full ~530-char excerpt intact
     // (the default 320 would cut it before "ENDE").
     expect(out.sources).toContain('ENDE');
@@ -132,18 +145,37 @@ describe('makeBundestagTool', () => {
     expect(sourceRegistry.renderAll()).toContain('ENDE');
     expect(sourceRegistry.size).toBe(1);
     // Der Kern bekommt die Anfrage des Modells und das Locale des Turns.
-    expect(retrieveBundestag).toHaveBeenCalledWith('Klima', 'de-DE');
+    expect(retrieveBundestag).toHaveBeenCalledWith('Klima', 'de-DE', {});
+  });
+
+  it('reicht die Filter des Modells an den Kern weiter, aber nicht die Anfrage selbst', async () => {
+    retrieveBundestag.mockResolvedValue({ results: [], totals: null });
+    await exec(
+      makeBundestagTool({
+        state: { ...baseState, intent: 'bundestag' } as ChatGraphState,
+        sourceRegistry: createSourceRegistry(),
+      }),
+      { query: 'Heizung', wahlperiode: [21], drucksachetyp: ['Antrag'], datumVon: '2025-01-01' }
+    );
+    expect(retrieveBundestag).toHaveBeenCalledWith('Heizung', 'de-DE', {
+      wahlperiode: [21],
+      drucksachetyp: ['Antrag'],
+      datumVon: '2025-01-01',
+    });
   });
 
   it('registers the de-AT decline note as a citable source', async () => {
-    retrieveBundestag.mockResolvedValue([
-      {
-        source: 'bundestag',
-        url: '',
-        title: 'Nur für Deutschland verfügbar',
-        content: 'Nur für Deutschland.',
-      },
-    ]);
+    retrieveBundestag.mockResolvedValue({
+      results: [
+        {
+          source: 'bundestag',
+          url: '',
+          title: 'Nur für Deutschland verfügbar',
+          content: 'Nur für Deutschland.',
+        },
+      ],
+      totals: null,
+    });
     const out = (await exec(
       makeBundestagTool({
         state: { ...baseState, intent: 'bundestag' } as ChatGraphState,
@@ -156,7 +188,7 @@ describe('makeBundestagTool', () => {
   });
 
   it('returns an error shape when the search comes back empty', async () => {
-    retrieveBundestag.mockResolvedValue([]);
+    retrieveBundestag.mockResolvedValue({ results: [], totals: null });
     const out = (await exec(
       makeBundestagTool({
         state: { ...baseState, intent: 'bundestag' } as ChatGraphState,
