@@ -236,6 +236,14 @@ const TOOL_METADATA: Record<string, ToolMeta> = {
     iconKey: 'globe',
     accent: 'external',
   },
+  // toolScope.ts: Lader der Parlamentsgruppe — nur Statuszeile, keine Karte.
+  parlament_werkzeuge_laden: {
+    label: 'Parlamentswerkzeuge',
+    activeLabel: 'Öffne die Parlamentswerkzeuge',
+    iconKey: 'book',
+    accent: 'retrieval',
+    summarize: () => 'Parlamentswerkzeuge freigeschaltet',
+  },
   website_werkzeug_laden: {
     label: 'Website erkunden',
     activeLabel: 'Öffne das Website-Werkzeug',

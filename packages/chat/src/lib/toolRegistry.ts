@@ -112,6 +112,8 @@ export const UI_TOOL_NAMES = z.enum([
   // renders from `custom.browserSession`; the card here is the plain fallback.
   'website_erkunden',
   'website_werkzeug_laden',
+  // Lader der Parlamentsgruppe (parlament_lesen, bundestag_reden, …).
+  'parlament_werkzeuge_laden',
 ]);
 export type UiToolName = z.infer<typeof UI_TOOL_NAMES>;
 
@@ -1290,6 +1292,10 @@ export const TOOL_REGISTRY: Record<UiToolName, ToolRegistryEntry> = {
   website_werkzeug_laden: entry('website_werkzeug_laden', 'text-note', () => ({
     kind: 'text-note',
     text: 'Website-Werkzeug freigeschaltet',
+  })),
+  parlament_werkzeuge_laden: entry('parlament_werkzeuge_laden', 'text-note', () => ({
+    kind: 'text-note',
+    text: 'Parlamentswerkzeuge freigeschaltet',
   })),
 };
 
