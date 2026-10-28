@@ -1,146 +1,17 @@
 /* SPDX-License-Identifier: MPL-2.0 */
 /**
- * @ggraphic/editor — editor stylesheet
+ * @ggraphic/editor — editor rules
  *
  * Structural, layout, motion, rich-text and touch rules for the editor
- * components, plus a neutral default for every `--editor-*` token the core
- * reads. Import it once from the host's entry stylesheet:
- *
- *   @import '@ggraphic/editor/styles';
+ * components. Declares no `--editor-*` token: the values come from the host, or
+ * from `tokens.css` (`@ggraphic/editor/styles` imports both).
  *
  * Not shipped here: compiled Tailwind. The components carry Tailwind utility
  * classes (including theme colours such as `bg-editor-tile`), so the host's
  * Tailwind build must scan the core with an `@source` for
  * `node_modules/@ggraphic/editor/**` and map `--color-editor-*` to these
  * tokens in its `@theme`.
- *
- * Token defaults sit in `:where()` (specificity 0): any host value declared on
- * `:root` or `[data-theme="dark"]` wins, wherever it appears in the cascade.
- * New `--editor-*` token => a default in all three blocks below
- * (editorStylesheetTokens.vitest.ts guards it).
  */
-
-/* ── Neutral token defaults (light) ── */
-:where(:root) {
-  --editor-ease-out: cubic-bezier(0.23, 1, 0.32, 1);
-  --editor-ease-drawer: cubic-bezier(0.32, 0.72, 0, 1);
-  --editor-topbar-height: 56px;
-
-  --editor-bg: #f4f4f3;
-  --editor-surface-hover: #eeeeec;
-  --editor-text: #262626;
-  --editor-accent: #2563eb;
-  --editor-active-fg: #1d4ed8;
-  --editor-active-bg: #dbeafe;
-  --editor-active-soft: #eff6ff;
-  --editor-switch-off: #bdbdbd;
-  --editor-switch-thumb-on: #ffffff;
-  --editor-switch-thumb-off: #ffffff;
-  --editor-stack-back: #93c5fd;
-  --editor-stack-mid: #bfdbfe;
-  --editor-green-deep: #1e3a8a;
-  --editor-menubar-gradient: linear-gradient(90deg, #1e3a8a 0%, #2563eb 55%, #60a5fa 100%);
-
-  --editor-canvas-bg: #ebebea;
-  --editor-surface: #ffffff;
-  --editor-inset: #fafafa;
-  --editor-tile: #f3f3f2;
-  --editor-canvas-hover: #dfdfdd;
-  --editor-border: #e7e7e5;
-  --editor-border-soft: #e2e2df;
-  --editor-border-strong: #d6d6d3;
-  --editor-text-secondary: #4a4a48;
-  --editor-text-muted: #6a6a67;
-  --editor-placeholder: #9a9a96;
-  --editor-secondary-fg: #1d4ed8;
-  --editor-danger-fg: #d32f2f;
-  --editor-danger-bg: #fef2f2;
-  --editor-tanne-preview: #1e3a8a;
-  --editor-control-border: #dcdcdc;
-  --editor-control-bg: transparent;
-  --editor-control-bg-hover: transparent;
-  --editor-icon-button-bg: #ffffff;
-  --editor-icon-button-bg-hover: #f9f9f9;
-  --editor-icon-button-fg: #1d4ed8;
-  --editor-icon-button-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
-}
-
-/* ── Neutral token defaults (dark) ──
-   Two blocks, as in the hosts: the OS preference unless the theme is forced
-   light, and an explicit dark theme. */
-@media (prefers-color-scheme: dark) {
-  :where(:root:not([data-theme='light'])) {
-    --editor-bg: #1a1a1a;
-    --editor-surface-hover: rgba(255, 255, 255, 0.06);
-    --editor-text: #f0f0ee;
-    --editor-active-fg: #93c5fd;
-    --editor-active-bg: #1e3a8a;
-    --editor-active-soft: #172554;
-    --editor-switch-off: #656565;
-    --editor-switch-thumb-on: #ffffff;
-    --editor-switch-thumb-off: #f0f0ee;
-    --editor-stack-back: #1e40af;
-    --editor-stack-mid: #1d4ed8;
-    --editor-canvas-bg: #3d3d3d;
-    --editor-surface: #1e1e1e;
-    --editor-inset: #464646;
-    --editor-tile: #464646;
-    --editor-canvas-hover: #525252;
-    --editor-border: rgba(255, 255, 255, 0.08);
-    --editor-border-soft: rgba(255, 255, 255, 0.1);
-    --editor-border-strong: #656565;
-    --editor-text-secondary: #bdbdbd;
-    --editor-text-muted: #b5b5b5;
-    --editor-placeholder: #7c7c7c;
-    --editor-secondary-fg: #93c5fd;
-    --editor-danger-fg: #f87171;
-    --editor-danger-bg: #450a0a;
-    --editor-tanne-preview: #93c5fd;
-    --editor-control-border: #525252;
-    --editor-control-bg: rgba(55, 65, 81, 0.3);
-    --editor-control-bg-hover: rgba(55, 65, 81, 0.5);
-    --editor-icon-button-bg: #525252;
-    --editor-icon-button-bg-hover: #656565;
-    --editor-icon-button-fg: #dcdcdc;
-    --editor-icon-button-shadow: none;
-  }
-}
-
-:where([data-theme='dark']) {
-  --editor-bg: #1a1a1a;
-  --editor-surface-hover: rgba(255, 255, 255, 0.06);
-  --editor-text: #f0f0ee;
-  --editor-active-fg: #93c5fd;
-  --editor-active-bg: #1e3a8a;
-  --editor-active-soft: #172554;
-  --editor-switch-off: #656565;
-  --editor-switch-thumb-on: #ffffff;
-  --editor-switch-thumb-off: #f0f0ee;
-  --editor-stack-back: #1e40af;
-  --editor-stack-mid: #1d4ed8;
-  --editor-canvas-bg: #3d3d3d;
-  --editor-surface: #1e1e1e;
-  --editor-inset: #464646;
-  --editor-tile: #464646;
-  --editor-canvas-hover: #525252;
-  --editor-border: rgba(255, 255, 255, 0.08);
-  --editor-border-soft: rgba(255, 255, 255, 0.1);
-  --editor-border-strong: #656565;
-  --editor-text-secondary: #bdbdbd;
-  --editor-text-muted: #b5b5b5;
-  --editor-placeholder: #7c7c7c;
-  --editor-secondary-fg: #93c5fd;
-  --editor-danger-fg: #f87171;
-  --editor-danger-bg: #450a0a;
-  --editor-tanne-preview: #93c5fd;
-  --editor-control-border: #525252;
-  --editor-control-bg: rgba(55, 65, 81, 0.3);
-  --editor-control-bg-hover: rgba(55, 65, 81, 0.5);
-  --editor-icon-button-bg: #525252;
-  --editor-icon-button-bg-hover: #656565;
-  --editor-icon-button-fg: #dcdcdc;
-  --editor-icon-button-shadow: none;
-}
 
 /* ── CanvasStage border overlay: neutral colours from the tokens. A host with
       its own palette re-declares these rules after the import. ── */

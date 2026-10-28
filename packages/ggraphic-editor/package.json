@@ -10,7 +10,9 @@
     "**/hooks/useFontGeneration.ts"
   ],
   "exports": {
-    "./styles": "./src/styles/editor.css",
+    "./styles": "./src/styles/index.css",
+    "./styles/editor": "./src/styles/editor.css",
+    "./styles/tokens": "./src/styles/tokens.css",
     "./ai/applyOperation": "./src/ai/applyOperation.ts",
     "./ai/describeCanvasElements": "./src/ai/describeCanvasElements.ts",
     "./ai/illustrationCapability": "./src/ai/illustrationCapability.ts",
@@ -468,7 +470,9 @@
   ],
   "publishConfig": {
     "exports": {
-      "./styles": "./dist/styles/editor.css",
+      "./styles": "./dist/styles/index.css",
+      "./styles/editor": "./dist/styles/editor.css",
+      "./styles/tokens": "./dist/styles/tokens.css",
       "./*": {
         "types": "./dist/*.d.ts",
         "import": "./dist/*.js",

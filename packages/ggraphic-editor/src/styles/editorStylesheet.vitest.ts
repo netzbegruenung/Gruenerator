@@ -9,7 +9,8 @@ import { describe, expect, it } from 'vitest';
 // the only place a standalone host gets the tokens from, so every token the
 // core reads needs a neutral default there.
 const SRC = path.resolve(import.meta.dirname, '..');
-const STYLESHEET = path.join(SRC, 'styles/editor.css');
+const TOKENS = path.join(SRC, 'styles/tokens.css');
+const RULES = path.join(SRC, 'styles/editor.css');
 
 function sourceFiles(dir: string): string[] {
   return readdirSync(dir).flatMap((name) => {
@@ -32,7 +33,13 @@ function blocks(css: string): { selector: string; body: string }[] {
 const declaredIn = (body: string) => [...body.matchAll(/(--editor-[\w-]+)\s*:/g)].map((m) => m[1]);
 
 describe('core editor stylesheet', () => {
-  const css = readFileSync(STYLESHEET, 'utf8');
+  const css = readFileSync(TOKENS, 'utf8');
+
+  // A host that declares the tokens itself imports editor.css alone; a token
+  // declared there would override the host (unlayered beats layered).
+  it('declares no --editor-* custom property in editor.css', () => {
+    expect(declaredIn(stripComments(readFileSync(RULES, 'utf8')))).toEqual([]);
+  });
 
   it('declares a default for every --editor-* token the core reads', () => {
     const lightDefaults = new Set(
