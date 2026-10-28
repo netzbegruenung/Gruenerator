@@ -181,7 +181,10 @@ let richTextLoading: Promise<RichTextModules> | null = null;
  * danach, liegt sein Fokus außerhalb der Geste, und iOS zeigt keine Tastatur.
  */
 export function preloadRichText(): Promise<RichTextModules> {
-  richTextLoading ??= Promise.all([import('./RichTextField.js'), import('./TextFormatControls.js')]).then(
+  richTextLoading ??= Promise.all([
+    import('./RichTextField.js'),
+    import('./TextFormatControls.js'),
+  ]).then(
     ([field, controls]) =>
       (richTextModules = {
         RichTextField: field.RichTextField,

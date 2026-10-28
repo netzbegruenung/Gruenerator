@@ -18,7 +18,10 @@ export { useImageCoverFit } from '@ggraphic/editor/hooks/useImageCoverFit';
 export type { CoverFitDimensions } from '@ggraphic/editor/hooks/useImageCoverFit';
 
 export { useFloatingModuleState } from './useFloatingModuleState.js';
-export type { FloatingModuleState, UseFloatingModuleStateOptions } from './useFloatingModuleState.js';
+export type {
+  FloatingModuleState,
+  UseFloatingModuleStateOptions,
+} from './useFloatingModuleState.js';
 
 export { useFloatingModuleHandlers } from './useFloatingModuleHandlers.js';
 export type {
@@ -53,7 +56,11 @@ export type {
 
 export { usePageManager, parseInitialPages } from './usePageManager.js';
 export { useDeckAutoSave, SHARE_ORIGINAL_IMAGE_SRC } from './useDeckAutoSave.js';
-export type { InitialPageDef, UsePageManagerOptions, UsePageManagerReturn } from './usePageManager.js';
+export type {
+  InitialPageDef,
+  UsePageManagerOptions,
+  UsePageManagerReturn,
+} from './usePageManager.js';
 
 export { usePageThumbnails } from './usePageThumbnails.js';
 
