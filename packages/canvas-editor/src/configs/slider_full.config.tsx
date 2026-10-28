@@ -36,7 +36,7 @@ import { createBaseActions } from './factory/actionFactories';
 import { makeSectionDefiner } from '@ggraphic/editor/configs/factory/defineSection';
 import { fromLayout } from '@ggraphic/editor/configs/factory/layoutAccessors';
 import { injectFeatureProps } from '@ggraphic/editor/configs/featureInjector';
-import { createShareSection } from './shareSection';
+import { createShareSection } from '@ggraphic/editor/configs/shareSection';
 
 import type { SharepicAiCapabilities } from './aiCapabilities';
 import type { BackgroundColorOption, StockImageAttribution } from '@ggraphic/editor/sidebar/types';

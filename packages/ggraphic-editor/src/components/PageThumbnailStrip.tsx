@@ -1,28 +1,32 @@
+// SPDX-License-Identifier: MPL-2.0
 import { cn } from '@ggraphic/editor/utils/cn';
 import { memo, useCallback, useRef, useState } from 'react';
 import { PiCaretDown, PiPlus } from 'react-icons/pi';
 
-import { TemplatePickerFlyout } from './TemplatePickerFlyout';
-
-import type { SlideLayoutId } from '../slides/slideLayouts';
-import type { CanvasConfigId } from '../templates/registry';
-import type { TemplateCategory } from '../utils/templateRegistry';
 import type { FullCanvasConfig, HeterogeneousPage } from '@ggraphic/editor/configs/types';
+import type React from 'react';
+
+/** Renders the host's page picker, anchored to a button; see `EditorShellExtensions.pagePicker`. */
+export type PagePickerSlot = (open: {
+  isOpen: boolean;
+  anchorRef: React.RefObject<HTMLElement | null>;
+  onClose: () => void;
+}) => React.ReactNode;
 
 interface PageThumbnailStripProps {
-  pages: HeterogeneousPage<CanvasConfigId>[];
+  pages: HeterogeneousPage[];
   currentPageIndex: number;
   thumbnails: Map<string, string>;
-  loadedConfigs: Map<CanvasConfigId, FullCanvasConfig>;
-  currentTemplateId: CanvasConfigId | undefined;
+  loadedConfigs: Map<string, FullCanvasConfig>;
+  currentTemplateId: string | undefined;
   canAddMore: boolean;
   onSelect: (index: number) => void;
-  onAddPage: (configId: CanvasConfigId) => void;
-  onDuplicateCurrent: () => void;
-  onAddSliderVariant?: (variant: 'cover' | 'content' | 'last') => void;
-  templateFilter?: TemplateCategory;
-  formatId?: string;
-  onAddSlideLayout?: (layoutId: SlideLayoutId) => void;
+  /** „+": a page of this template, the active page's. */
+  onAddPage: (configId: string) => void;
+  /** „+" opens the picker instead (a slider page is a Start, Text or Ende slide). */
+  quickAddOpensPicker: boolean;
+  /** Null without a host picker: no „Vorlage auswählen" then. */
+  renderPicker: PagePickerSlot | null;
 }
 
 export const PageThumbnailStrip = memo(function PageThumbnailStrip({
@@ -34,11 +38,8 @@ export const PageThumbnailStrip = memo(function PageThumbnailStrip({
   canAddMore,
   onSelect,
   onAddPage,
-  onDuplicateCurrent,
-  onAddSliderVariant,
-  templateFilter,
-  formatId,
-  onAddSlideLayout,
+  quickAddOpensPicker,
+  renderPicker,
 }: PageThumbnailStripProps) {
   const [isFlyoutOpen, setIsFlyoutOpen] = useState(false);
   const chevronRef = useRef<HTMLButtonElement>(null);
@@ -47,12 +48,12 @@ export const PageThumbnailStrip = memo(function PageThumbnailStrip({
   // Start (green pill), Text or Ende slide — so "+" opens the variant picker
   // instead of silently appending a content slide.
   const handleQuickAdd = useCallback(() => {
-    if (onAddSliderVariant) {
+    if (quickAddOpensPicker) {
       setIsFlyoutOpen(true);
       return;
     }
     if (currentTemplateId) onAddPage(currentTemplateId);
-  }, [onAddSliderVariant, currentTemplateId, onAddPage]);
+  }, [quickAddOpensPicker, currentTemplateId, onAddPage]);
 
   const handleToggleFlyout = useCallback(() => {
     setIsFlyoutOpen((v) => !v);
@@ -122,30 +123,27 @@ export const PageThumbnailStrip = memo(function PageThumbnailStrip({
           >
             <PiPlus size={16} />
           </button>
-          <div className="w-px h-4 bg-[var(--editor-border)]" />
-          <button
-            ref={chevronRef}
-            className="h-8 max-canvas-mobile:h-11 max-canvas-mobile:min-w-11 px-1.5 flex items-center justify-center text-[var(--editor-text-secondary)] hover:bg-[var(--editor-surface-hover)] hover:text-[var(--editor-active-fg)] transition-colors"
-            onClick={handleToggleFlyout}
-            title="Vorlage auswählen"
-            aria-label="Vorlage auswählen"
-            type="button"
-            aria-expanded={isFlyoutOpen}
-          >
-            <PiCaretDown size={14} />
-          </button>
-          <TemplatePickerFlyout
-            isOpen={isFlyoutOpen}
-            anchorRef={chevronRef}
-            onSelectTemplate={onAddPage}
-            onDuplicateCurrent={onDuplicateCurrent}
-            onClose={handleCloseFlyout}
-            currentTemplateId={currentTemplateId}
-            onAddSliderVariant={onAddSliderVariant}
-            templateFilter={templateFilter}
-            formatId={formatId}
-            onAddSlideLayout={onAddSlideLayout}
-          />
+          {renderPicker && (
+            <>
+              <div className="w-px h-4 bg-[var(--editor-border)]" />
+              <button
+                ref={chevronRef}
+                className="h-8 max-canvas-mobile:h-11 max-canvas-mobile:min-w-11 px-1.5 flex items-center justify-center text-[var(--editor-text-secondary)] hover:bg-[var(--editor-surface-hover)] hover:text-[var(--editor-active-fg)] transition-colors"
+                onClick={handleToggleFlyout}
+                title="Vorlage auswählen"
+                aria-label="Vorlage auswählen"
+                type="button"
+                aria-expanded={isFlyoutOpen}
+              >
+                <PiCaretDown size={14} />
+              </button>
+              {renderPicker({
+                isOpen: isFlyoutOpen,
+                anchorRef: chevronRef,
+                onClose: handleCloseFlyout,
+              })}
+            </>
+          )}
         </div>
       )}
     </div>

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 import { mmToPx, type PrintCanvasFormat } from '@ggraphic/editor/formats/index';
 
 import {
@@ -28,8 +29,12 @@ export function printPixelRatio(format: PrintCanvasFormat): number {
   return format.print.exportDpi / 25.4 / mmToPx(format, 1);
 }
 
-/** The PDF filename for a document title (no path characters, never empty). */
-export function printPdfFilename(title: string | null): string {
+/**
+ * The PDF filename for a document title (no path characters, never empty).
+ * Without a title it is `<prefix>-druck.pdf`, the prefix being the host's
+ * `fileDelivery.filenamePrefix`.
+ */
+export function printPdfFilename(title: string | null, prefix = 'ggraphic'): string {
   const cleaned = Array.from(title ?? '')
     .map((ch) => (ch.charCodeAt(0) < 32 || /[\\/:*?"<>|]/.test(ch) ? ' ' : ch))
     .join('')
@@ -37,7 +42,7 @@ export function printPdfFilename(title: string | null): string {
     .trim()
     .replace(/^\.+/, '')
     .trim();
-  return `${cleaned || 'gruenerator-druck'}.pdf`;
+  return `${cleaned || `${prefix}-druck`}.pdf`;
 }
 
 /**

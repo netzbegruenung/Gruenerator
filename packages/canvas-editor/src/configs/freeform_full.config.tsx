@@ -31,7 +31,7 @@ import { chatTab, createCommonSectionEntries, toolsTab, uploadsTab } from './com
 import { createBaseActions } from './factory/actionFactories';
 import { makeSectionDefiner } from '@ggraphic/editor/configs/factory/defineSection';
 import { injectFeatureProps } from '@ggraphic/editor/configs/featureInjector';
-import { createShareSection } from './shareSection';
+import { createShareSection } from '@ggraphic/editor/configs/shareSection';
 
 import type { SharepicAiCapabilities } from './aiCapabilities';
 import type { BackgroundColorOption } from '@ggraphic/editor/sidebar/types';

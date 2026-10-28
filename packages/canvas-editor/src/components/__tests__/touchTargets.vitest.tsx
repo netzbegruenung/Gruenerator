@@ -167,8 +167,12 @@ describe('44pt-Ziele', () => {
   // (fit + zoom shrink it to ~145×18 on a phone); it counter-scales back to
   // its 44 px height. CanvasEditor is too heavy to render here.
   it('Seite hinzufügen unter der Fläche', () => {
+    // the shell lives in the core package
     const source = readFileSync(
-      path.resolve(import.meta.dirname, '../CanvasEditor/index.tsx'),
+      path.resolve(
+        import.meta.dirname,
+        '../../../../ggraphic-editor/src/components/CanvasEditor/CanvasEditorShell.tsx'
+      ),
       'utf8'
     );
     const wrapper = /<div className="([^"]*canvas-mobile:hidden[^"]*)">\s*<AddPageButton/.exec(

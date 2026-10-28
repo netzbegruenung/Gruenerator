@@ -1,7 +1,11 @@
+// SPDX-License-Identifier: MPL-2.0
 import { stripInlineMarks } from '@ggraphic/schema';
 import { FaShare } from 'react-icons/fa';
 
-import { GenericShareSection, type GenericShareSectionProps } from '../sidebar';
+import {
+  GenericShareSection,
+  type GenericShareSectionProps,
+} from '@ggraphic/editor/sidebar/sections/index';
 import { photoCreditLine, withPhotoCredit } from '@ggraphic/editor/utils/photoCredit';
 import { pagePhotoCredits } from '@ggraphic/editor/utils/photoCredits';
 

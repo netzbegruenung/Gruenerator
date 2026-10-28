@@ -30,7 +30,7 @@ import {
 import { makeSectionDefiner } from '@ggraphic/editor/configs/factory/defineSection';
 import { injectFeatureProps } from '@ggraphic/editor/configs/featureInjector';
 import { PLACEHOLDER_TEXT } from '@ggraphic/editor/configs/placeholders';
-import { createShareSection } from './shareSection';
+import { createShareSection } from '@ggraphic/editor/configs/shareSection';
 
 import type { SharepicAiCapabilities } from './aiCapabilities';
 import type { StockImageAttribution } from '@ggraphic/editor/common/imageSourceTypes';

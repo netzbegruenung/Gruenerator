@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /**
  * Druckfertiges PDF aus gerasterten Kacheln: Endformat + Beschnitt +
  * Markenrand mit Schnittmarken. Reine Funktionen über explizite Parameter —

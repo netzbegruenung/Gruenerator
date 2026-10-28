@@ -15,7 +15,7 @@ import {
   printPdfFilename,
   printPixelRatio,
   type PrintExportPage,
-} from './printExport';
+} from '@ggraphic/editor/export/printExport';
 
 function printFormat(id: string): PrintCanvasFormat {
   const f = getCanvasFormat(id);
@@ -110,7 +110,8 @@ describe('printPdfFilename', () => {
     expect(printPdfFilename('Plakat\u0000Wahl\n2026')).toBe('Plakat Wahl 2026.pdf');
     expect(printPdfFilename('Größe für Österreich')).toBe('Größe für Österreich.pdf');
     expect(printPdfFilename('../geheim')).toBe('geheim.pdf');
-    expect(printPdfFilename('   ')).toBe('gruenerator-druck.pdf');
-    expect(printPdfFilename(null)).toBe('gruenerator-druck.pdf');
+    expect(printPdfFilename('   ', 'gruenerator')).toBe('gruenerator-druck.pdf');
+    expect(printPdfFilename(null, 'gruenerator')).toBe('gruenerator-druck.pdf');
+    expect(printPdfFilename(null)).toBe('ggraphic-druck.pdf');
   });
 });

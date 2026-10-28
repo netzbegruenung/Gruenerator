@@ -18,7 +18,7 @@ import { AssetsSection, CombinedTextSection, FrameSettingsSection } from '../../
 import { chatTab, createCommonSectionEntries, toolsTab, uploadsTab } from '../commonSections';
 import { injectFeatureProps } from '@ggraphic/editor/configs/featureInjector';
 import { getPlaceholder } from '@ggraphic/editor/configs/placeholders';
-import { createShareSection } from '../shareSection';
+import { createShareSection } from '@ggraphic/editor/configs/shareSection';
 
 import { createBaseActions } from './actionFactories';
 import { makeSectionDefiner } from '@ggraphic/editor/configs/factory/defineSection';
