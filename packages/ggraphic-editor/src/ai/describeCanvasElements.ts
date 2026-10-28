@@ -4,17 +4,22 @@ import {
   buildSortedRenderList,
   type CanvasItem,
 } from '@ggraphic/editor/utils/canvasLayerManager';
+import { hostElementKind } from '@ggraphic/editor/utils/elementKinds';
 import { isLayerLocked } from '@ggraphic/editor/utils/layerLock';
 import { isComposerPlane } from '@ggraphic/editor/utils/shapes';
 
 import type { BaseCanvasState } from '@ggraphic/editor/configs/factory/baseTypes';
 import type { FullCanvasConfig } from '@ggraphic/editor/configs/types';
 import type { HostCanvasAiSnapshot } from '@ggraphic/editor/ai/types';
+import type { HostElementKindName } from '@ggraphic/editor/utils/canvasItem';
 
 type HostEntry = HostCanvasAiSnapshot['elementsSummary'][number];
 // `balken` is the one kind the core itself draws but its own snapshot schema
-// leaves to the host (the host binds it through `CanvasAiHostTypes`).
-type SummaryEntry = Omit<HostEntry, 'kind'> & { kind: HostEntry['kind'] | 'balken' };
+// leaves to the host (the host binds it through `CanvasAiHostTypes`), and a
+// host kind is named by its registration; the host's snapshot lists both.
+type SummaryEntry = Omit<HostEntry, 'kind'> & {
+  kind: HostEntry['kind'] | 'balken' | HostElementKindName;
+};
 
 /** Keeps the prompt bounded on crowded canvases. */
 const MAX_ENTRIES = 40;
@@ -26,6 +31,9 @@ const size = (w: number, h: number) => `${r(w)}×${r(h)}`;
 /** Drehung um die Mitte, wie `update-element` sie setzt; ungedreht steht nichts da. */
 const turned = (deg: number | undefined) => (deg ? ` · gedreht ${r(deg)}°` : '');
 const quote = (text: string) => `"${text.replace(/\s+/g, ' ').trim().slice(0, 40)}"`;
+
+/** The wording of the element lines, for a host kind's `describe` (`registerElementKind`). */
+export const aiLabelFormat = { position: pos, size, turned, quote } as const;
 
 /**
  * One compact German line per user-placed element, in z-order (Ebene 1 is at
@@ -151,5 +159,15 @@ function describeItem(item: CanvasItem, state: BaseCanvasState): SummaryEntry | 
       };
     case 'element':
       return null;
+    default:
+      return describeHostItem(item);
   }
+}
+
+/** A host kind's line, by its registration's `describe`; none without one. */
+function describeHostItem(item: { id: string; type: string; data: unknown }): SummaryEntry | null {
+  const host = hostElementKind(item.type);
+  if (!host?.describe) return null;
+  // Boundary: the item of this host kind carries the registration's own instance.
+  return { id: item.id, kind: host.kind, label: host.describe(item.data as never) };
 }

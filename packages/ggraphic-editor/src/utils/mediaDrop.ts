@@ -1,4 +1,6 @@
 // SPDX-License-Identifier: MPL-2.0
+import { hostElementKind, type HostElementAction } from './elementKinds.js';
+
 import type { StockImageAttribution } from '../common/imageSourceTypes.js';
 import type { BalkenMode } from '../utils/balkenUtils.js';
 import type { ChartType } from '@ggraphic/editor/utils/chartTypes';
@@ -31,9 +33,11 @@ export type ElementDragPayload =
   | { kind: 'balken'; mode: BalkenMode }
   | { kind: 'icon'; iconId: string }
   /** A host block: composed for the page it lands on, then dropped as its parts. */
-  | { kind: 'block'; blockId: string };
+  | { kind: 'block'; blockId: string }
+  /** A host element kind's tile (`registerElementKind` with `add`). */
+  | HostElementAction;
 
-const ELEMENT_KINDS = new Set<ElementDragPayload['kind']>([
+const ELEMENT_KINDS = new Set<string>([
   'asset',
   'sticker',
   'shape',
@@ -56,7 +60,7 @@ export function readElementDrag(dataTransfer: DataTransfer | null): ElementDragP
   try {
     const parsed = JSON.parse(raw) as { kind?: unknown };
     return typeof parsed.kind === 'string' &&
-      ELEMENT_KINDS.has(parsed.kind as ElementDragPayload['kind'])
+      (ELEMENT_KINDS.has(parsed.kind) || !!hostElementKind(parsed.kind)?.add)
       ? (parsed as ElementDragPayload)
       : null;
   } catch {

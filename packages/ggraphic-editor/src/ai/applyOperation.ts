@@ -16,6 +16,7 @@
  *     suggestion doesn't abort the rest.
  */
 import { isLayerLocked } from '@ggraphic/editor/utils/layerLock';
+import { findHostInstance, kindAction } from '@ggraphic/editor/utils/elementKinds';
 import { findElementRemover } from '@ggraphic/editor/utils/removeElement';
 import { type ShapeInstance } from '@ggraphic/editor/utils/shapes';
 import {
@@ -397,7 +398,15 @@ function withScaleXY(patch: Patch, el: { scaleX: number; scaleY: number }) {
   };
 }
 
-const GEOMETRY: readonly PatchKey[] = ['x', 'y', 'rotation', 'opacity', 'scale'];
+/** Where an element is and how it looks: the fields every placed kind takes. */
+export const CANVAS_AI_GEOMETRY_FIELDS: readonly PatchKey[] = [
+  'x',
+  'y',
+  'rotation',
+  'opacity',
+  'scale',
+];
+const GEOMETRY = CANVAS_AI_GEOMETRY_FIELDS;
 
 /**
  * Each kind names its colour and size differently (`fill`, `backgroundColor`,
@@ -464,6 +473,17 @@ function dispatchUpdate<TState>(
   }
   if (find(state.circleBadgeInstances)) {
     return run('circle-badge', actions.updateCircleBadge, [...GEOMETRY, 'color'], badgeColor);
+  }
+
+  const host = findHostInstance(state, elementId);
+  if (host) {
+    const { kind, data } = host;
+    const update = kindAction(actions, kind.actions.update) as
+      ((id: string, partial: Record<string, unknown>) => void) | null;
+    // Boundary: the instance found under this registration's own list.
+    return run(kind.kind, update ?? undefined, kind.aiUpdate?.fields ?? [], () =>
+      kind.aiUpdate ? kind.aiUpdate.patch(patch, data as never) : {}
+    );
   }
 
   const balken = find(state.balkenInstances);

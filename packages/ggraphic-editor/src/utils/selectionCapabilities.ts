@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: MPL-2.0
 import { canMoveLayer, type CanvasItem } from './canvasLayerManager.js';
+import { hostElementKind } from './elementKinds.js';
 import { findDuplicableEntry, type TemplateEntryLookup } from './duplicateElement.js';
 import { isLockable, lockedIdsOf, lockStateOf, type LockState } from './layerLock.js';
 import { findElementRemover } from './removeElement.js';
@@ -91,6 +92,7 @@ export function selectionCapabilities({
 function isEditableText(renderList: readonly CanvasItem[], id: string): boolean {
   const item = renderList.find((i) => i.id === id);
   if (item?.type === 'additional-text' || item?.type === 'balken') return true;
+  if (item && hostElementKind(item.type)?.editableText) return true;
   if (item?.type === 'circle-badge' || item?.type === 'pill-badge') return true;
   return item?.type === 'element' && item.data.type === 'text' && item.data.editable === true;
 }

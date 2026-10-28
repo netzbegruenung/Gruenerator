@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MPL-2.0
-import { ELEMENT_KINDS, kindList } from './elementKinds.js';
+import { ELEMENT_KINDS, hostElementKinds, kindAction, kindList } from './elementKinds.js';
 import { isLayerLocked } from './layerLock.js';
 
 import type { CanvasItem } from './canvasItem.js';
@@ -25,6 +25,11 @@ export function findElementRemover(
   const has = (list: readonly WithId[] | undefined) => !!list?.some((item) => item.id === id);
   const bind = (remove: ((id: string) => void) | undefined) => (remove ? () => remove(id) : null);
 
+  for (const kind of hostElementKinds()) {
+    if (!has(kindList(state, kind.stateKey) as readonly WithId[])) continue;
+    const remove = kindAction(actions, kind.actions.remove) as ((id: string) => void) | null;
+    return remove ? () => remove(id) : null;
+  }
   for (const { stateKey, remove } of ELEMENT_KINDS) {
     const list = kindList(state, stateKey);
     if (remove === null) {

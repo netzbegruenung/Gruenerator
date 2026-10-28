@@ -22,7 +22,7 @@ import { extractInheritablePageState } from '@ggraphic/editor/configs/pageInheri
 import { messages } from '@ggraphic/editor/i18n/messages';
 import { getTemplate, type TemplateId } from '@ggraphic/editor/templates/registry';
 
-import { HOST_EMITTED_STATE_KEYS } from '../collab/pageElementStateKeys.js';
+import { hostEmittedStateKeys } from '../collab/pageElementStateKeys.js';
 import { useYjsPages, type NormalizeEcho, type YjsPagesApi } from '../collab/useYjsPages.js';
 import { loadCanvasConfig } from '../configs/configLoader.js';
 
@@ -194,10 +194,9 @@ export function usePageManager<TId extends string = TemplateId>({
     if (!config) return null;
     const rebuilt = config.createInitialState(state) as Record<string, unknown>;
     return Object.fromEntries(
-      HOST_EMITTED_STATE_KEYS.filter((key) => Object.hasOwn(rebuilt, key)).map((key) => [
-        key,
-        rebuilt[key],
-      ])
+      hostEmittedStateKeys()
+        .filter((key) => Object.hasOwn(rebuilt, key))
+        .map((key) => [key, rebuilt[key]])
     );
   }, []);
 

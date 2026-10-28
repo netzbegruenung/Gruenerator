@@ -19,7 +19,7 @@
  * einem ausgelasteten CI-Läufer zweistellige Sekunden —, und die Lane teilt
  * sich die Kerne mit `freeElementsReachTheDocument`, das dieselbe Bühne baut.
  */
-import { PAGE_ELEMENT_STATE_KEYS } from '@ggraphic/editor/collab/pageElementStateKeys';
+import { pageElementStateKeys } from '@ggraphic/editor/collab/pageElementStateKeys';
 import { readPages, seedPagesIfEmpty, updatePageStateById } from '@ggraphic/editor/collab/pagesDoc';
 import { PAGES_STATE_ORIGIN } from '@ggraphic/editor/collab/useYjsPages';
 import { createPageSyncedCallbacks } from '@ggraphic/editor/collab/wrapCallbacksWithPageSync';
@@ -100,7 +100,7 @@ async function mount(configId: ConfigId, seed: Record<string, unknown>): Promise
             () => ({}),
             (partial) =>
               doc.transact(() => updatePageStateById(doc, PAGE_ID, partial), PAGES_STATE_ORIGIN),
-            PAGE_ELEMENT_STATE_KEYS
+            pageElementStateKeys()
           )}
           autoSave={false}
           onLiveState={(liveState, liveActions) => {

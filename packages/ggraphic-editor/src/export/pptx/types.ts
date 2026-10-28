@@ -9,6 +9,8 @@
  * Konva dreht meist um die linke obere Ecke; `buildPptxModel` rechnet das um.
  */
 
+import type { HostElementKindName } from '../../utils/canvasItem.js';
+
 export interface PptxBox {
   x: number;
   y: number;
@@ -129,7 +131,9 @@ export type PptxRasterReason =
   | 'asset'
   | 'frame'
   | 'balken'
-  | 'unknown';
+  | 'unknown'
+  /** A host kind rasters under its own name (`registerElementKind`). */
+  | HostElementKindName;
 
 /**
  * Ein Element, das der Writer vom Stage rastert. `elementId` ist die Id im

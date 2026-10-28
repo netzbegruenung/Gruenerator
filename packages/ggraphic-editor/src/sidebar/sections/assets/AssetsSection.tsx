@@ -43,6 +43,10 @@ export interface ExtendedAssetsSectionProps {
   onUpdateBalken?: (id: string, partial: Partial<BalkenInstance>) => void;
   onRemoveBalken?: (id: string) => void;
   onDuplicateBalken?: (id: string) => void;
+  /** The host kinds this editor can add (`registerElementKind` with `add`). */
+  addableHostKinds?: readonly string[];
+  /** The config's actions the host kinds' tiles add through. */
+  hostElementActions?: object;
   shapeInstances?: ShapeInstance[];
   selectedShapeId?: string | null;
   onAddShape?: (type: ShapeType, color?: string) => void;

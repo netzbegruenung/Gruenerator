@@ -1,5 +1,12 @@
 // SPDX-License-Identifier: MPL-2.0
-import { findKindItem, type ElementKindName, type KindItem } from './elementKinds.js';
+import {
+  findKindItem,
+  hostElementKind,
+  isCoreElementKind,
+  kindAction,
+  type CoreElementKindName,
+  type KindItem,
+} from './elementKinds.js';
 import { isLayerLocked } from './layerLock.js';
 import {
   isTemplateElementRotatable,
@@ -8,6 +15,7 @@ import {
   withTemplateRotation,
 } from './templateRotation.js';
 
+import type { HostElementKindName } from './canvasItem.js';
 import type { BaseCanvasState } from '../configs/factory/baseTypes.js';
 import type { CanvasElementConfig, LayoutResult } from '../configs/types.js';
 import type { OptionalCanvasActions } from '../hooks/useCanvasElementHandlers.js';
@@ -25,7 +33,8 @@ export type OrientableKind =
   | 'user-image'
   | 'text'
   | 'template-text'
-  | 'template-image';
+  | 'template-image'
+  | HostElementKindName;
 
 /** Text-tragende Kinds bleiben lesbar, Vorlagen-Bilder sind CI-Marken: nie spiegeln. */
 export const FLIPPABLE_KINDS: ReadonlySet<OrientableKind> = new Set<OrientableKind>([
@@ -73,7 +82,8 @@ type UpdateAction = Extract<keyof OptionalCanvasActions, `update${string}`>;
 
 interface KindDoor<I extends KindItem> {
   kind: OrientableKind;
-  action: UpdateAction;
+  /** A core kind's update action; a host kind's by its registered name. */
+  action: UpdateAction | (string & {});
   /** Where rotation and flips are read; the instance itself unless given. */
   read?: (item: I, state: Partial<BaseCanvasState>) => Oriented | null;
   /** The patch the update action receives; the patch without `translate` unless given. */
@@ -82,8 +92,8 @@ interface KindDoor<I extends KindItem> {
 
 const withoutTranslate = ({ translate: _, ...rest }: OrientationPatch) => rest;
 
-/** The orientation door per element kind. */
-const KIND_DOORS: { [K in ElementKindName]: KindDoor<Extract<KindItem, { type: K }>> } = {
+/** The orientation door per core element kind; a host kind brings its own (`orient`). */
+const KIND_DOORS: { [K in CoreElementKindName]: KindDoor<Extract<KindItem, { type: K }>> } = {
   balken: {
     kind: 'balken',
     action: 'updateBalken',
@@ -117,6 +127,23 @@ const KIND_DOORS: { [K in ElementKindName]: KindDoor<Extract<KindItem, { type: K
 };
 
 /**
+ * The door of a kind: the core's table, or a host kind's `orient` (rotation
+ * and moves only — a host kind does not flip). `null` for a host kind without one.
+ */
+function kindDoor(type: KindItem['type']): KindDoor<KindItem> | null {
+  if (isCoreElementKind(type)) return KIND_DOORS[type] as KindDoor<KindItem>;
+  const host = hostElementKind(type);
+  const orient = host?.orient?.bind(host);
+  if (!host || !orient) return null;
+  return {
+    kind: host.kind,
+    action: host.actions.update,
+    // Boundary: the item of this host kind carries the registration's own instance.
+    shape: (patch, item) => orient(patch, (item as { data?: unknown }).data as never),
+  };
+}
+
+/**
  * Drehen & Spiegeln eines Canvas-Elements — eine Tür für Werkzeugleiste,
  * Kontextmenü und Tastenkürzel. Instanzen zuerst (`findKindItem`), dann Vorlagen-Elemente.
  * `null`, wenn das Element nicht drehbar ist: unbekannt, gesperrt, Hintergrund,
@@ -131,8 +158,9 @@ export function findOrientationDoor<TState extends Partial<BaseCanvasState>>(
 
   const found = findKindItem(state, id);
   if (found) {
-    const door = KIND_DOORS[found.type] as KindDoor<KindItem>;
-    const update = actions[door.action] as ((id: string, patch: object) => void) | undefined;
+    const door = kindDoor(found.type);
+    if (!door) return null;
+    const update = kindAction(actions, door.action) as ((id: string, patch: object) => void) | null;
     if (!update) return null;
     const item = door.read ? door.read(found, state) : (found as { data: Oriented }).data;
     return {

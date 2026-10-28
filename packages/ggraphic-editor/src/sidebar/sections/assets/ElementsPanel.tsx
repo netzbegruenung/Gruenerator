@@ -4,6 +4,7 @@ import { useDebounce } from '@ggraphic/editor/hooks/useDebounce';
 import { useMessages } from '@ggraphic/editor/i18n/messages';
 import { registeredAssetCatalog } from '@ggraphic/editor/utils/canvasAssets';
 import { cn } from '@ggraphic/editor/utils/cn';
+import { addHostElement } from '@ggraphic/editor/utils/elementKinds';
 import { MAX_ICON_SELECTIONS } from '@ggraphic/editor/utils/iconInstances';
 import {
   useCallback,
@@ -247,6 +248,9 @@ export function ElementsPanel(props: ExtendedAssetsSectionProps) {
           if (isOn) return;
           break;
         }
+        default:
+          addHostElement(action, p.hostElementActions);
+          break;
       }
       remember(item);
     },
@@ -288,6 +292,7 @@ export function ElementsPanel(props: ExtendedAssetsSectionProps) {
       props.onAddChart,
       props.onAddFrame,
       props.onAddBalken,
+      props.addableHostKinds,
       props.onAddImageFromUrl,
       props.onIconToggle,
       blocks,

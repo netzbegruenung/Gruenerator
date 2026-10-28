@@ -11,9 +11,14 @@ import {
   type ContextControlsProps,
 } from '@ggraphic/editor/components/TopBar/ContextControls';
 
-import type { FloatingModuleState } from '@ggraphic/editor/hooks/useFloatingModuleState';
+import { hostElementKind } from '@ggraphic/editor/utils/elementKinds';
 
-const selectionLabels = (t: Messages): Record<FloatingModuleState['type'], string> => ({
+import type {
+  CoreFloatingModuleType,
+  FloatingModuleState,
+} from '@ggraphic/editor/hooks/useFloatingModuleState';
+
+const selectionLabels = (t: Messages): Record<CoreFloatingModuleType, string> => ({
   text: t.common.text,
   image: t.common.image,
   'user-image': t.common.image,
@@ -28,6 +33,13 @@ const selectionLabels = (t: Messages): Record<FloatingModuleState['type'], strin
   'pill-badge': t.layers.badgePill,
   'circle-badge': t.layers.badgePill,
 });
+
+/** The selection's kind for the label: a core module's, or a host kind's name. */
+function selectionLabel(t: Messages, type: FloatingModuleState['type']): string {
+  const host = hostElementKind(type);
+  // Not a host kind: one of the core's modules.
+  return host ? host.name() : selectionLabels(t)[type as CoreFloatingModuleType];
+}
 
 /**
  * MobileSelectionControls — the "Auswahl" block at the top of the mobile area
@@ -47,7 +59,7 @@ export function MobileSelectionControls(props: ContextControlsProps) {
     <div className="flex flex-col gap-2">
       <span className="text-[13px] font-bold text-[var(--editor-text-muted)]">
         {t.topBar.selection}
-        {type ? ` · ${selectionLabels(t)[type]}` : ''}
+        {type ? ` · ${selectionLabel(t, type)}` : ''}
       </span>
       <div
         className={cn(

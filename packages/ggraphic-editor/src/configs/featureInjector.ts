@@ -15,6 +15,7 @@
  * This eliminates 60+ lines of manual prop passing per config (83% code reduction).
  */
 
+import { canAddHostElement, hostElementKinds } from '@ggraphic/editor/utils/elementKinds';
 import { MAX_ICON_SELECTIONS, selectedCatalogIconIds } from '@ggraphic/editor/utils/iconInstances';
 
 import type { ExtendedAssetsSectionProps } from '@ggraphic/editor/sidebar/sections/assets/index';
@@ -189,6 +190,17 @@ export function injectFeatureProps<S extends object, A extends object>(
     if ('duplicateBalken' in actions) {
       injected.onDuplicateBalken = actions.duplicateBalken as (id: string) => void;
     }
+  }
+
+  // === HOST KINDS ===
+  // A host kind's tiles run where the state holds its list and the config has
+  // its add action (`registerElementKind` with `add`).
+  const addable = hostElementKinds()
+    .map((kind) => kind.kind)
+    .filter((kind) => canAddHostElement(kind, state, actions));
+  if (addable.length > 0) {
+    injected.addableHostKinds = addable;
+    injected.hostElementActions = actions;
   }
 
   // === PILL BADGE FEATURE ===

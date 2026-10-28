@@ -29,7 +29,7 @@
 
 import { useCanvasEditorServices } from '@ggraphic/editor/CanvasEditorProvider';
 import { useMessages } from '@ggraphic/editor/i18n/messages';
-import { PAGE_PERSISTED_STATE_KEYS } from '@ggraphic/editor/collab/pageElementStateKeys';
+import { pagePersistedStateKeys } from '@ggraphic/editor/collab/pageElementStateKeys';
 import { serializeDeck } from '@ggraphic/editor/collab/pagesDoc';
 import { createPageSyncedCallbacks } from '@ggraphic/editor/collab/wrapCallbacksWithPageSync';
 import { CanvasTextEditorProvider } from '@ggraphic/editor/components/CanvasTextOverlay';
@@ -284,7 +284,7 @@ function CanvasEditorInner({
       const wrapped = createPageSyncedCallbacks(
         () => callbacksRef.current,
         (partial) => updatePageStateRef.current(pageId, partial),
-        [...pageCallbackKeys(configId), ...PAGE_PERSISTED_STATE_KEYS]
+        [...pageCallbackKeys(configId), ...pagePersistedStateKeys()]
       );
       cache.set(pageId, { configId, wrapped });
       return wrapped;

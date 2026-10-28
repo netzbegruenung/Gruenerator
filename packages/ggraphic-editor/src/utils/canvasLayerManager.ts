@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MPL-2.0
-import { ELEMENT_KINDS, kindItem, kindList } from './elementKinds.js';
+import { ELEMENT_KINDS, hostElementKinds, kindItem, kindList } from './elementKinds.js';
 
 import type { AssetInstance } from './canvasAssets.js';
 import type { CanvasItem } from './canvasItem.js';
@@ -40,7 +40,8 @@ interface StateWithFeatures {
  * Build flat list of all canvas items in default order
  *
  * Default order: the config elements (sorted by their `order` property), then
- * every kind in the order of `ELEMENT_KINDS`.
+ * the host's kinds (`registerElementKind`), then every kind in the order of
+ * `ELEMENT_KINDS`.
  */
 export function buildCanvasItems<
   TState extends StateWithFeatures = StateWithFeatures,
@@ -57,8 +58,9 @@ export function buildCanvasItems<
     items.push({ id: el.id, type: 'element', data: el as CanvasElementConfig })
   );
 
-  // 2. Every element kind, in the order `ELEMENT_KINDS` lists them.
-  for (const { kind, stateKey } of ELEMENT_KINDS) {
+  // 2. The host's kinds in registration order, then every core kind in the
+  // order `ELEMENT_KINDS` lists them.
+  for (const { kind, stateKey } of [...hostElementKinds(), ...ELEMENT_KINDS]) {
     for (const entry of kindList(state, stateKey)) items.push(kindItem(kind, entry));
   }
 

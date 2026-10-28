@@ -4,7 +4,7 @@
  * `balkenFitPending`; the canvas fits once its fonts are ready, clears the
  * marker and writes both back to the page.
  */
-import { PAGE_PERSISTED_STATE_KEYS } from '@ggraphic/editor/collab/pageElementStateKeys';
+import { pagePersistedStateKeys } from '@ggraphic/editor/collab/pageElementStateKeys';
 import { readPages, seedPagesIfEmpty, updatePageStateById } from '@ggraphic/editor/collab/pagesDoc';
 import { PAGES_STATE_ORIGIN } from '@ggraphic/editor/collab/useYjsPages';
 import { createPageSyncedCallbacks } from '@ggraphic/editor/collab/wrapCallbacksWithPageSync';
@@ -43,7 +43,7 @@ async function mountDreizeilen(seed: Record<string, unknown>, opts: { collab: bo
         () => ({ onLine1Change: noop, onLine2Change: noop, onLine3Change: noop }),
         (partial) =>
           doc.transact(() => updatePageStateById(doc, PAGE_ID, partial), PAGES_STATE_ORIGIN),
-        PAGE_PERSISTED_STATE_KEYS
+        pagePersistedStateKeys()
       )
     : {};
   const live: { state: Record<string, unknown> } = { state: {} };

@@ -142,6 +142,8 @@ export interface UseCanvasElementHandlersOptions<
 }
 
 export interface UseCanvasElementHandlersResult {
+  /** The config's actions, for the renderers of the host's kinds (`registerKindRenderers`). */
+  actions: OptionalCanvasActions;
   handleElementSelect: (id: string) => void;
   handleTextChange: (id: string, text: string) => void;
   handleFontSizeChange: (id: string, size: number) => void;
@@ -655,6 +657,7 @@ export function useCanvasElementHandlers<
 
   return useMemo(
     () => ({
+      actions,
       handleElementSelect,
       handleTextChange,
       handleFontSizeChange,
@@ -691,6 +694,7 @@ export function useCanvasElementHandlers<
       handleChartTransformEnd,
     }),
     [
+      actions,
       handleElementSelect,
       handleTextChange,
       handleFontSizeChange,

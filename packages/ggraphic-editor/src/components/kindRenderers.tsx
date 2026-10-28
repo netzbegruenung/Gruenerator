@@ -17,6 +17,7 @@ import { AssetPrimitive } from '../primitives/AssetPrimitive.js';
 import { IllustrationPrimitive } from '../primitives/IllustrationPrimitive.js';
 import { resolveIconDef } from '../utils/iconInstances.js';
 
+import type { OptionalCanvasActions } from '../hooks/useCanvasElementHandlers.js';
 import type { CanvasItem } from '../utils/canvasLayerManager.js';
 import type { HostRenderedKindName } from '../utils/elementKinds.js';
 import type { CropAspectId } from '@ggraphic/editor/utils/cropAspect';
@@ -59,6 +60,8 @@ interface AdditionalTextAttrs {
 }
 
 export interface CanvasRenderHandlers {
+  /** The config's actions, for the renderers of the host's kinds (`registerKindRenderers`). */
+  actions: OptionalCanvasActions;
   handleElementSelect: (id: string) => void;
   handleTextChange: (id: string, text: string) => void;
   handleFontSizeChange: (id: string, size: number) => void;

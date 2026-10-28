@@ -24,7 +24,7 @@ import React, { useState } from 'react';
 import { describe, expect, it, vi } from 'vitest';
 import * as Y from 'yjs';
 
-import { PAGE_ELEMENT_STATE_KEYS } from '@ggraphic/editor/collab/pageElementStateKeys';
+import { pageElementStateKeys } from '@ggraphic/editor/collab/pageElementStateKeys';
 import { readPages, seedPagesIfEmpty, updatePageStateById } from '@ggraphic/editor/collab/pagesDoc';
 import { useEmitHostStateChanges } from '@ggraphic/editor/collab/useEmitHostStateChanges';
 import { PAGES_STATE_ORIGIN } from '@ggraphic/editor/collab/useYjsPages';
@@ -65,7 +65,7 @@ const pageCallbacks = (doc: Y.Doc, hostCallbacks: Record<string, (val: unknown) 
   createPageSyncedCallbacks(
     () => hostCallbacks,
     (partial) => doc.transact(() => updatePageStateById(doc, PAGE_ID, partial), PAGES_STATE_ORIGIN),
-    PAGE_ELEMENT_STATE_KEYS
+    pageElementStateKeys()
   );
 
 describe('freie Elemente an der echten Flaeche', () => {
@@ -144,7 +144,7 @@ function Page({
 }) {
   const [state, setState] = useState<Record<string, unknown>>(() => pageState(doc));
   const [callbacks] = useState(() => pageCallbacks(doc, hostCallbacks));
-  useEmitHostStateChanges(state, callbacks, PAGE_ELEMENT_STATE_KEYS);
+  useEmitHostStateChanges(state, callbacks, pageElementStateKeys());
   onReady(setState);
   return null;
 }
@@ -193,7 +193,7 @@ describe('freie Elemente im gemeinsamen Dokument', () => {
       backgroundImageAdjustments: { vignette: 0.4, flipX: true },
       backgroundImageRotation: -6,
     };
-    expect(Object.keys(edited)).toEqual([...PAGE_ELEMENT_STATE_KEYS]);
+    expect(Object.keys(edited)).toEqual([...pageElementStateKeys()]);
 
     edit(edited);
 

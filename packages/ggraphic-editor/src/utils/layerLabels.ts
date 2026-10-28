@@ -10,6 +10,7 @@ import { messages } from '@ggraphic/editor/i18n/messages';
 import { getShapeDef } from '@ggraphic/editor/utils/shapes';
 
 import { getAssetById, isStickerLikeInstance } from './canvasAssets.js';
+import { hostElementKind } from './elementKinds.js';
 import { isLayerLocked } from './layerLock.js';
 import { BACKGROUND_IMAGE_NODE_ID } from './printImageInfo.js';
 
@@ -122,7 +123,17 @@ function kindLabel(item: CanvasItem, state: Record<string, unknown>): string {
       return messages().common.image;
     case 'chart':
       return named(messages().layers.chart, item.data.title ?? '');
+    default:
+      return hostKindLabel(item);
   }
+}
+
+/** A host kind's name (`registerElementKind`), with its content after it. */
+function hostKindLabel(item: { type: string; data: unknown }): string {
+  const host = hostElementKind(item.type);
+  if (!host) return messages().common.element;
+  // Boundary: the item of this host kind carries the registration's own instance.
+  return named(host.name(), host.layerContent?.(item.data as never) ?? '');
 }
 
 /** Der Name eines Elements, mit „, gesperrt“, wenn es gesperrt ist. */

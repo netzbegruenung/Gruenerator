@@ -29,10 +29,19 @@
  * sie `null`.
  */
 
-import { ELEMENT_KINDS, type ElementKindName } from './elementKinds.js';
+import {
+  ELEMENT_KINDS,
+  hostElementKind,
+  hostElementKinds,
+  isCoreElementKind,
+  type CoreElementKindName,
+  type ElementKindName,
+  type ElementKindRegistration,
+} from './elementKinds.js';
 import { catalogIconId } from './iconInstances.js';
 
 import type { AssetInstance } from './canvasAssets.js';
+import type { HostElementData, HostElementKindName } from './canvasItem.js';
 import type { BaseCanvasState, IconState } from '../configs/factory/baseTypes.js';
 import type { AdditionalText } from '../configs/types.js';
 import type { CircleBadgeInstance } from '@ggraphic/editor/primitives/CircleBadge';
@@ -69,8 +78,8 @@ export interface IconInstanceData extends IconState {
   iconId: string;
 }
 
-/** Nutzlast je Art — spiegelt `ClipboardDataMap`, ergänzt um `chart` und `icon`. */
-export interface DuplicableDataMap {
+/** Nutzlast je Art der Kerns — spiegelt `ClipboardDataMap`, ergänzt um `chart` und `icon`. */
+interface CoreDuplicableDataMap {
   shape: ShapeInstance;
   'additional-text': AdditionalText;
   balken: BalkenInstance;
@@ -83,6 +92,11 @@ export interface DuplicableDataMap {
   chart: ChartInstance;
   icon: IconInstanceData;
 }
+
+/** Nutzlast je Art, die Arten des Hosts eingeschlossen. */
+export type DuplicableDataMap = CoreDuplicableDataMap & {
+  [K in HostElementKindName]: HostElementData<K>;
+};
 
 /** Diskriminierte Union: `entry.type` verengt `entry.data` automatisch. */
 export type DuplicableEntry = {
@@ -114,10 +128,16 @@ interface DuplicableSpec<T> {
 
 /** Der Normalfall: eine Art, die als Liste von `{ id, … }` unter ihrem `stateKey` liegt. */
 function listSpec<T extends { id: string }>(
-  kind: Exclude<DuplicableType, 'icon'>,
+  kind: Exclude<CoreElementKindName, 'icon'>,
   clone: (data: T, id: string, offset: InsertOffset) => T
 ): DuplicableSpec<T> {
-  const field = ELEMENT_KINDS.find((k) => k.kind === kind)!.stateKey;
+  return fieldSpec(ELEMENT_KINDS.find((k) => k.kind === kind)!.stateKey, clone);
+}
+
+function fieldSpec<T extends { id: string }>(
+  field: string,
+  clone: (data: T, id: string, offset: InsertOffset) => T
+): DuplicableSpec<T> {
   return {
     find: (state, id) => (readList(state, field).find((i) => i.id === id) as T | undefined) ?? null,
     insert: (state, data, newId, offset) => ({
@@ -132,7 +152,7 @@ function listSpec<T extends { id: string }>(
  * bis sie hier steht — der Rest dieser Datei und alle vier Aufrufer ziehen
  * dann automatisch nach.
  */
-const DUPLICABLE: { [K in DuplicableType]: DuplicableSpec<DuplicableDataMap[K]> } = {
+const DUPLICABLE: { [K in CoreElementKindName]: DuplicableSpec<CoreDuplicableDataMap[K]> } = {
   shape: listSpec('shape', (d, id, o) => ({
     ...d,
     id,
@@ -222,7 +242,26 @@ const DUPLICABLE: { [K in DuplicableType]: DuplicableSpec<DuplicableDataMap[K]> 
   },
 };
 
-export const DUPLICABLE_TYPES = Object.keys(DUPLICABLE) as DuplicableType[];
+/** Die duplizierbaren Arten des Kerns; dazu kommen die des Hosts mit `duplicate`. */
+export const DUPLICABLE_TYPES = Object.keys(DUPLICABLE) as CoreElementKindName[];
+
+/** Eine Art des Hosts: Liste unter ihrem `stateKey`, Kopie über ihr `duplicate`. */
+function hostSpec(kind: ElementKindRegistration): DuplicableSpec<{ id: string }> | null {
+  const duplicate = kind.duplicate?.bind(kind);
+  if (!duplicate) return null;
+  // Boundary: the registration copies its own instances; the list holds only those.
+  return fieldSpec<{ id: string }>(
+    kind.stateKey,
+    (data, id, offset) => duplicate(data as never, id, offset) as { id: string }
+  );
+}
+
+/** Die Registry-Zeile einer Art, Kern oder Host; `null` für eine Host-Art ohne `duplicate`. */
+function specOf(type: DuplicableType): DuplicableSpec<unknown> | null {
+  if (isCoreElementKind(type)) return DUPLICABLE[type] as DuplicableSpec<unknown>;
+  const host = hostElementKind(type);
+  return host ? (hostSpec(host) as DuplicableSpec<unknown> | null) : null;
+}
 
 /**
  * Setzt `newId` direkt hinter `afterId` (= eine Ebene darüber, die Liste ist
@@ -264,7 +303,8 @@ export function insertInstance<TState extends Partial<BaseCanvasState>>(
   // Eine Art pro Zweig: `entry.type` und `entry.data` bleiben korreliert, solange
   // sie nicht destrukturiert werden. Der Zugriff über den Registry-Schlüssel ist
   // die Grenze, an der der String-Schlüssel auf den getypten Zustand trifft.
-  const spec = DUPLICABLE[entry.type] as DuplicableSpec<unknown>;
+  const spec = specOf(entry.type);
+  if (!spec) return { state, newId };
   const nextState = {
     ...state,
     ...spec.insert(state, entry.data, newId, toOffset(offset)),
@@ -302,6 +342,10 @@ export function findDuplicableEntry<TState extends Partial<BaseCanvasState>>(
   for (const type of DUPLICABLE_TYPES) {
     const found = (DUPLICABLE[type] as DuplicableSpec<unknown>).find(state, elementId);
     if (found) return { type, data: found } as DuplicableEntry;
+  }
+  for (const host of hostElementKinds()) {
+    const found = hostSpec(host)?.find(state, elementId);
+    if (found) return { type: host.kind, data: found as unknown } as DuplicableEntry;
   }
   return template?.(elementId) ?? null;
 }

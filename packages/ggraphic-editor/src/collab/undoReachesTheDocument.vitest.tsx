@@ -5,7 +5,7 @@
  * callback; a restore that only set the component state left the document
  * on the undone value, so a reload (or another client) showed it again.
  */
-import { PAGE_PERSISTED_STATE_KEYS } from '@ggraphic/editor/collab/pageElementStateKeys';
+import { pagePersistedStateKeys } from '@ggraphic/editor/collab/pageElementStateKeys';
 import { readPages, seedPagesIfEmpty, updatePageStateById } from '@ggraphic/editor/collab/pagesDoc';
 import { PAGES_STATE_ORIGIN } from '@ggraphic/editor/collab/useYjsPages';
 import { createPageSyncedCallbacks } from '@ggraphic/editor/collab/wrapCallbacksWithPageSync';
@@ -61,7 +61,7 @@ async function mountCanvas(
   const callbacks = createPageSyncedCallbacks(
     () => hostCallbacks,
     (partial) => doc.transact(() => updatePageStateById(doc, PAGE_ID, partial), PAGES_STATE_ORIGIN),
-    PAGE_PERSISTED_STATE_KEYS
+    pagePersistedStateKeys()
   );
   const live: { state: Record<string, unknown>; actions: Record<string, unknown> } = {
     state: {},

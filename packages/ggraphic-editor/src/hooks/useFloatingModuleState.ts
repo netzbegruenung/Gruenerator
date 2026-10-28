@@ -5,9 +5,16 @@ import { templateTextAlignOf, type TextAlign } from '@ggraphic/editor/utils/text
 
 import { canCropBackgroundPhoto } from '../utils/backgroundPhotoCrop.js';
 import { resolveValue } from '../utils/canvasValueResolver.js';
-import { findKindItem, type ElementKindName, type KindItem } from '../utils/elementKinds.js';
+import {
+  findKindItem,
+  hostElementKind,
+  isCoreElementKind,
+  type CoreElementKindName,
+  type KindItem,
+} from '../utils/elementKinds.js';
 
 import type { FullCanvasConfig, LayoutResult } from '../configs/types.js';
+import type { HostElementKindName } from '../utils/canvasItem.js';
 import type { StockImageAttribution } from '@ggraphic/editor/common/imageSourceTypes';
 import type { GradientFill } from '@ggraphic/editor/utils/gradientFill';
 
@@ -18,21 +25,24 @@ import type { GradientFill } from '@ggraphic/editor/utils/gradientFill';
  * should be shown (text, image, shape, icon, illustration, asset) and their current values.
  */
 
+/** The core's toolbar modules; a host kind's module is named after the kind. */
+export type CoreFloatingModuleType =
+  | 'text'
+  | 'image'
+  | 'shape'
+  | 'icon'
+  | 'illustration'
+  | 'asset'
+  | 'background'
+  | 'balken'
+  | 'frame'
+  | 'user-image'
+  | 'chart'
+  | 'pill-badge'
+  | 'circle-badge';
+
 export interface FloatingModuleState {
-  type:
-    | 'text'
-    | 'image'
-    | 'shape'
-    | 'icon'
-    | 'illustration'
-    | 'asset'
-    | 'background'
-    | 'balken'
-    | 'frame'
-    | 'user-image'
-    | 'chart'
-    | 'pill-badge'
-    | 'circle-badge';
+  type: CoreFloatingModuleType | HostElementKindName;
   data: {
     id: string;
     fontSize?: number;
@@ -138,7 +148,7 @@ function floatingModuleEqual(
 }
 
 type KindModules = {
-  [K in ElementKindName]: (
+  [K in CoreElementKindName]: (
     item: Extract<KindItem, { type: K }>,
     state: Record<string, unknown>
   ) => FloatingModuleState;
@@ -200,9 +210,16 @@ const KIND_MODULES: KindModules = {
 
 type KindModule = (item: KindItem, state: Record<string, unknown>) => FloatingModuleState;
 
-function kindModule(item: KindItem, state: Record<string, unknown>): FloatingModuleState {
+function kindModule(item: KindItem, state: Record<string, unknown>): FloatingModuleState | null {
   // Boundary: `item.type` picks the entry that takes exactly this item.
-  return (KIND_MODULES[item.type] as KindModule)(item, state);
+  if (isCoreElementKind(item.type)) return (KIND_MODULES[item.type] as KindModule)(item, state);
+  const host = hostElementKind(item.type);
+  if (!host?.floating) return null;
+  // Boundary: the item of this host kind carries the registration's own instance.
+  return {
+    type: host.kind,
+    data: { id: item.id, ...host.floating((item as { data?: unknown }).data as never) },
+  };
 }
 
 /**
