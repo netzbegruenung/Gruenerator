@@ -105,4 +105,28 @@ describe('DipClient', () => {
     expect(calledUrl(1).searchParams.get('cursor')).toBe('A');
     expect(calledUrl(2).searchParams.get('cursor')).toBe('B');
   });
+
+  it('hält den Abstand pacingMs auch bei gleichzeitigen Aufrufen ein', async () => {
+    vi.useFakeTimers();
+    try {
+      const times: number[] = [];
+      fetchMock.mockImplementation(() => {
+        times.push(Date.now());
+        return Promise.resolve(respond({ numFound: 0, documents: [] }));
+      });
+      const client = new DipClient('key', { pacingMs: 1000, rateLimitCooldownMs: 0 });
+      // Erster Aufruf setzt den Takt; zwei weitere laufen gleichzeitig.
+      const first = client.list('vorgang', {});
+      await vi.advanceTimersByTimeAsync(0);
+      const both = Promise.all([client.list('vorgang', {}), client.list('vorgang', {})]);
+      await vi.advanceTimersByTimeAsync(5000);
+      await first;
+      await both;
+      expect(times).toHaveLength(3);
+      expect(times[1]! - times[0]!).toBeGreaterThanOrEqual(1000);
+      expect(times[2]! - times[1]!).toBeGreaterThanOrEqual(1000);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
 });

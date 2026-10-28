@@ -141,6 +141,8 @@ export interface DipClientOptions {
 
 export class DipClient {
   #lastRequestAt = 0;
+  /** Kette der Takt-Plätze: gleichzeitige Aufrufer stellen sich hinten an, statt alle wait<=0 zu sehen. */
+  #slot: Promise<void> = Promise.resolve();
   readonly #timeoutMs: number;
   readonly #maxAttempts: number;
   readonly #pacingMs: number;
@@ -185,6 +187,23 @@ export class DipClient {
     }
   }
 
+  /** Wartet auf den Vorgänger, hält den Abstand ein und gibt den Platz erst nach dem Stempel frei. */
+  async #takeSlot(): Promise<void> {
+    const previous = this.#slot;
+    let release!: () => void;
+    this.#slot = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    await previous;
+    try {
+      const wait = this.#lastRequestAt + this.#pacingMs - Date.now();
+      if (wait > 0) await sleep(wait);
+      this.#lastRequestAt = Date.now();
+    } finally {
+      release();
+    }
+  }
+
   async #get<T>(endpoint: string, params: DipParams): Promise<DipPage<T>> {
     const url = new URL(`${BASE_URL}/${endpoint}`);
     url.searchParams.set('apikey', this.apiKey);
@@ -198,9 +217,7 @@ export class DipClient {
     }
 
     for (let attempt = 1; ; attempt++) {
-      const wait = this.#lastRequestAt + this.#pacingMs - Date.now();
-      if (wait > 0) await sleep(wait);
-      this.#lastRequestAt = Date.now();
+      await this.#takeSlot();
 
       let res: Response;
       try {
