@@ -51,14 +51,14 @@ describe('bundestagFilterSchema', () => {
     expect(bundestagFilterSchema.safeParse({ titel: 'x'.repeat(201) }).success).toBe(false);
   });
 
-  it('hält Typ × Urheber bei höchstens 8 ODER-Abfragen', () => {
-    const typ = ['Antrag', 'Gesetzentwurf', 'Kleine Anfrage'];
+  it('begrenzt Typ und Urheber auf je 4', () => {
+    const typ = ['Antrag', 'Gesetzentwurf', 'Kleine Anfrage', 'Antwort', 'Bericht'];
     expect(bundestagFilterSchema.safeParse({ drucksachetyp: typ }).success).toBe(false);
     const urheber = Array(5).fill('Fraktion der SPD');
     expect(bundestagFilterSchema.safeParse({ urheber }).success).toBe(false);
     expect(
       bundestagFilterSchema.safeParse({
-        drucksachetyp: typ.slice(0, 2),
+        drucksachetyp: typ.slice(0, 4),
         urheber: urheber.slice(0, 4),
       }).success
     ).toBe(true);
