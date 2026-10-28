@@ -208,7 +208,9 @@ export function validateDraft(
    * conversation material that `given` also carries. A date named here
    * belongs on the sharepic.
    */
-  order: string = given
+  order: string = given,
+  /** Stock photos beyond our catalogue: found live this turn, or kept from the current draft. */
+  livePhotos: readonly string[] = []
 ): StructuredValidation<SharepicSpec> {
   const base = fromZod(sharepicSpecSchema, {
     ...(tightenAccentMarksDeep(input) as object),
@@ -291,7 +293,7 @@ export function validateDraft(
         ? uploadIds.includes(filename)
         : isSharepicSceneRef(filename) || isSharepicVorlageRef(filename)
           ? sceneRefs.includes(filename)
-          : hasStockPhoto(filename);
+          : hasStockPhoto(filename) || livePhotos.includes(filename);
     if (slide.background.kind !== 'farbe') {
       const { filename } = slide.background;
       if (!photoKnown(filename)) {

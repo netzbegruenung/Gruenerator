@@ -75,6 +75,8 @@ export interface StockImage {
   category?: string;
 }
 
+export type UnsplashOrientation = 'landscape' | 'portrait' | 'squarish';
+
 export interface SearchResult {
   results: StockImage[];
   total: number;
@@ -97,6 +99,9 @@ const UNSPLASH_API_BASE = 'https://api.unsplash.com';
 // Matches the hourly quota window: a repeated query costs nothing for an hour.
 const CACHE_TTL_MS = 60 * 60 * 1000;
 const RATE_LIMIT_WINDOW_MS = 60 * 60 * 1000;
+// A photo's URLs and credit do not change: a draft, its render and its later
+// revisions resolve the same photo without asking Unsplash again.
+const PHOTO_CACHE_TTL_MS = 24 * 60 * 60 * 1000;
 const REQUEST_TIMEOUT_MS = 10000; // 10 seconds
 
 // ============================================================================
@@ -138,6 +143,7 @@ class SimpleCache<T> {
 }
 
 const searchCache = new SimpleCache<SearchResult>();
+const photoCache = new SimpleCache<StockImage>();
 
 // One key serves every user. Once Unsplash refuses, further searches would only
 // burn requests on the same refusal, so they are answered locally until the window ends.
@@ -314,7 +320,7 @@ export class UnsplashApiService {
 
       if (isRateLimitResponse(response, errorBody)) {
         rateLimitedUntil = Date.now() + RATE_LIMIT_WINDOW_MS;
-        // One line per hit, so the logs tell how often the 50/h quota runs out.
+        // One line per hit, so the logs tell how often the hourly quota runs out.
         console.warn(
           `[UnsplashAPI] Rate limit reached (HTTP ${response.status}), searches blocked until ${new Date(rateLimitedUntil).toISOString()}`
         );
@@ -334,15 +340,21 @@ export class UnsplashApiService {
    * @param query - Search query (e.g., "nature", "green", "politics")
    * @param page - Page number (1-indexed)
    * @param perPage - Results per page (max 30)
+   * @param orientation - Landscape suits the editor's backgrounds; a sharepic is portrait
    * @returns Search results with transformed photos
    */
-  async searchPhotos(query: string, page: number = 1, perPage: number = 20): Promise<SearchResult> {
+  async searchPhotos(
+    query: string,
+    page: number = 1,
+    perPage: number = 20,
+    orientation: UnsplashOrientation = 'landscape'
+  ): Promise<SearchResult> {
     if (!query || query.trim().length === 0) {
       return { results: [], total: 0, total_pages: 0 };
     }
 
     // Check cache first
-    const cacheKey = `search:${query}:${page}:${perPage}`;
+    const cacheKey = `search:${query}:${page}:${perPage}:${orientation}`;
     const cached = searchCache.get(cacheKey);
     if (cached) {
       console.log(`[UnsplashAPI] Cache hit for: ${cacheKey}`);
@@ -358,7 +370,8 @@ export class UnsplashApiService {
     url.searchParams.set('query', query.trim());
     url.searchParams.set('page', page.toString());
     url.searchParams.set('per_page', Math.min(perPage, 30).toString());
-    url.searchParams.set('orientation', 'landscape'); // Prefer landscape for backgrounds
+    url.searchParams.set('orientation', orientation);
+    url.searchParams.set('content_filter', 'high');
 
     console.log(`[UnsplashAPI] Searching: ${query} (page ${page})`);
 
@@ -379,6 +392,9 @@ export class UnsplashApiService {
 
       // Cache the results
       searchCache.set(cacheKey, result);
+      for (const image of result.results) {
+        photoCache.set(image.attribution.photoId, image, PHOTO_CACHE_TTL_MS);
+      }
 
       const remaining = rateLimitRemaining(response);
 
@@ -403,7 +419,10 @@ export class UnsplashApiService {
    * @returns Photo details as StockImage
    */
   async getPhoto(photoId: string): Promise<StockImage> {
-    const url = `${UNSPLASH_API_BASE}/photos/${photoId}`;
+    const cached = photoCache.get(photoId);
+    if (cached) return cached;
+
+    const url = `${UNSPLASH_API_BASE}/photos/${encodeURIComponent(photoId)}`;
 
     console.log(`[UnsplashAPI] Fetching photo: ${photoId}`);
 
@@ -413,8 +432,9 @@ export class UnsplashApiService {
         headers: this.getHeaders(),
       });
 
-      const photo = await this.handleResponse<UnsplashPhoto>(response);
-      return transformPhotoToStockImage(photo);
+      const photo = transformPhotoToStockImage(await this.handleResponse<UnsplashPhoto>(response));
+      photoCache.set(photoId, photo, PHOTO_CACHE_TTL_MS);
+      return photo;
     } catch (error) {
       if (error instanceof UnsplashApiError) {
         console.error(`[UnsplashAPI] API Error:`, error.message);
@@ -471,6 +491,7 @@ export class UnsplashApiService {
    */
   clearCache(): void {
     searchCache.clear();
+    photoCache.clear();
     rateLimitedUntil = 0;
     console.log('[UnsplashAPI] Cache cleared');
   }

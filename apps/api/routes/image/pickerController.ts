@@ -15,6 +15,7 @@ import ImageSelectionService from '../../services/image/ImageSelectionService.js
 import { enhanceWithAttribution } from '../../services/image/index.js';
 import { getThumbnailVariant, openVariant } from '../../services/media/thumbnailCache.js';
 import { isThumbnailFormat, isThumbnailWidth } from '../../services/media/thumbnailUrl.js';
+import { liveStockPhoto } from '../../services/sharepicCreator/catalog.js';
 import { toUserFacingMessage } from '../../utils/errors/index.js';
 import { createLogger } from '../../utils/logger.js';
 import { safeFetch } from '../../utils/validation/urlSecurity.js';
@@ -353,6 +354,8 @@ const STOCK_DIR = join(__dirname, '../../public/sharepic_example_bg');
 // The URLs carry no content version, so not `immutable`: a replaced file
 // reaches clients within a week, and SWR hides the revalidation.
 const STOCK_CACHE_CONTROL = 'public, max-age=604800, stale-while-revalidate=86400';
+// Unsplash may retire a photo; a day keeps the redirect from outliving it long.
+const LIVE_STOCK_CACHE_CONTROL = 'public, max-age=86400';
 
 /**
  * GET /stock-image/:filename
@@ -365,6 +368,9 @@ const STOCK_CACHE_CONTROL = 'public, max-age=604800, stale-while-revalidate=8640
  *                     1080px scene.
  * A `w` outside `THUMBNAIL_WIDTHS` serves the original rather than an error:
  * a wrong size is a slower image, a 400 is a missing one.
+ * A photo the sharepic creator found live on Unsplash is not on disk and may
+ * not be re-hosted (API Terms): it redirects to Unsplash's image host, whose
+ * `w` parameter does the resizing.
  */
 router.get(
   '/stock-image/:filename',
@@ -372,6 +378,19 @@ router.get(
     const { filename } = req.params;
     const { size, w, fmt } = req.query as StockImageQuery;
     const sanitizedFilename = basename(filename);
+
+    if (!(await fs.promises.stat(join(STOCK_DIR, sanitizedFilename)).catch(() => null))) {
+      const live = await liveStockPhoto(sanitizedFilename);
+      if (!live) {
+        res.status(404).json({ error: 'Image not found' });
+        return;
+      }
+      const target = new URL(size === 'thumb' ? live.thumb_url : live.url);
+      if (size !== 'thumb' && isThumbnailWidth(Number(w))) target.searchParams.set('w', String(w));
+      res.set('Cache-Control', LIVE_STOCK_CACHE_CONTROL);
+      res.redirect(302, target.href);
+      return;
+    }
 
     const sendStockFile = (imagePath: string) => {
       res.set('Cache-Control', STOCK_CACHE_CONTROL);
