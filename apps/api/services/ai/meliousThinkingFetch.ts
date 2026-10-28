@@ -45,6 +45,71 @@ export function meliousWireModel(body: Record<string, unknown>): string | null {
 }
 
 /**
+ * Modelle, die bei Melious keine Werkzeugaufrufe können. `gemma-4-26b-a4b`
+ * (Scaleway/FR), gemessen 28.10.2026: `tool_choice: 'required'` → HTTP 503
+ * „The model returned an invalid tool call response", ein benanntes
+ * `tool_choice` → Fliesstext ohne Aufruf. `response_format: json_schema` mit
+ * demselben Schema liefert dagegen sauberes JSON.
+ *
+ * Umgeschrieben wird nur die Form von `aiObject`: GENAU EIN Werkzeug, erzwungen,
+ * nicht gestreamt. Aus ihm wird ein `json_schema`, und die Antwort wird auf dem
+ * Rückweg wieder zum Werkzeugaufruf — sonst wirft das SDK selbst („did not
+ * contain a tool call even though tool choice was required"), bevor `aiObject`
+ * den Text überhaupt sieht. Ein Zug mit mehreren Werkzeugen (Agenten-Schleife)
+ * bleibt unberührt und scheitert laut.
+ */
+const NO_TOOL_CALL_MODELS = new Set(['gemma-4-26b-a4b']);
+
+interface ToolDef {
+  function?: { name?: unknown; parameters?: unknown };
+}
+
+/** Gibt den Werkzeugnamen zurück, wenn umgeschrieben wurde. */
+function forcedToolAsJsonSchema(body: Record<string, unknown>): string | null {
+  if (typeof body.model !== 'string' || !NO_TOOL_CALL_MODELS.has(body.model)) return null;
+  const tools = body.tools;
+  if (!Array.isArray(tools) || tools.length !== 1 || body.tool_choice !== 'required') return null;
+  if (body.stream === true) return null;
+  const fn = (tools[0] as ToolDef).function;
+  if (typeof fn?.name !== 'string' || typeof fn.parameters !== 'object') return null;
+  body.response_format = {
+    type: 'json_schema',
+    json_schema: { name: fn.name, schema: fn.parameters },
+  };
+  delete body.tools;
+  delete body.tool_choice;
+  return fn.name;
+}
+
+interface ChatCompletion {
+  choices?: { message?: Record<string, unknown>; finish_reason?: unknown }[];
+}
+
+/** Legt den JSON-Text der Antwort als Aufruf des erzwungenen Werkzeugs zurück. */
+async function contentAsToolCall(response: Response, toolName: string): Promise<Response> {
+  const json = (await response.json()) as ChatCompletion;
+  const choice = json.choices?.[0];
+  const content = choice?.message?.content;
+  if (choice?.message && typeof content === 'string' && content.trim()) {
+    choice.message.content = null;
+    choice.message.tool_calls = [
+      {
+        id: `call_${Date.now().toString(36)}`,
+        type: 'function',
+        function: { name: toolName, arguments: content },
+      },
+    ];
+    // Ein abgeschnittenes JSON bleibt `length`, damit `aiObject` es als Torso erkennt.
+    if (choice.finish_reason === 'stop') choice.finish_reason = 'tool_calls';
+  }
+  return new Response(JSON.stringify(json), {
+    status: response.status,
+    statusText: response.statusText,
+    headers: response.headers,
+  });
+}
+
+/**
  * Ein gestreamter Aufruf MIT Werkzeugen ist die Werkzeugphase des Loops
  * (`gather` in loopEngine.ts); die Synthese läuft ohne Werkzeuge. Melious sendet
  * `environment_impact` nur nicht-gestreamt, also fragt diese Phase nicht-
@@ -80,12 +145,14 @@ function isToolPhaseStream(body: Record<string, unknown>): boolean {
 export const meliousFetch: typeof fetch = async (input, init) => {
   const logicalModel = meliousModelFromRequest(init?.body);
   let replay = false;
+  let forcedTool: string | null = null;
   if (init?.body && typeof init.body === 'string') {
     try {
       const parsed = JSON.parse(init.body) as Record<string, unknown>;
       if (parsed.model && parsed.messages) {
         if (parsed.reasoning_effort == null) parsed.reasoning_effort = 'none';
         parsed.model = meliousWireModel(parsed) ?? parsed.model;
+        forcedTool = forcedToolAsJsonSchema(parsed);
         if (isToolPhaseStream(parsed)) {
           replay = true;
           parsed.stream = false;
@@ -99,5 +166,6 @@ export const meliousFetch: typeof fetch = async (input, init) => {
   }
   // Die HTTP-Grenze ist der einzige Ort, an dem Melious' Umweltdaten überleben.
   const response = captureMeliousImpact(await fetch(input, init), logicalModel, init?.signal);
+  if (forcedTool && response.ok) return contentAsToolCall(response, forcedTool);
   return replay && response.ok ? replayAsStream(await response.json()) : response;
 };

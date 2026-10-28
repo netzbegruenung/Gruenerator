@@ -5,7 +5,12 @@
  * Uses the direct search functions from the chat agents module.
  */
 
-import { dipSearchUrl, btpProtokollPdfUrl as btpPdfUrl } from '@gruenerator/contracts';
+import {
+  dipSearchUrl,
+  btpProtokollPdfUrl as btpPdfUrl,
+  type BundestagCandidate,
+  type BundestagFilter,
+} from '@gruenerator/contracts';
 import { isIntentAllowedForLocale, intentDeclineNote } from '@gruenerator/shared/chat-intents';
 
 import { NOTEBOOK_GATE } from '../../../../config/notebookCollectionMap.js';
@@ -31,6 +36,8 @@ import { resolveReferentialQuery } from '../../../../routes/chat/services/refere
 import { getEnrichedPoliticianService } from '../../../../services/abgeordnetenwatch/index.js';
 import { type AwEnrichedResult } from '../../../../services/abgeordnetenwatch/types.js';
 import { getBundestagEnrichedService } from '../../../../services/bundestag/BundestagEnrichedService.js';
+import { CHAT_BUDGET } from '../../../../services/bundestag/qa/budget.js';
+import { planBundestagQuestion } from '../../../../services/bundestag/qa/index.js';
 import {
   type BtEnrichedResult,
   type BtDrucksache,
@@ -268,6 +275,38 @@ function btDrucksacheResult(d: BtDrucksache, relevance: number): SearchResult {
   };
 }
 
+/** „2025-10-01" → „01.10.2025"; alles andere bleibt, wie DIP es liefert. */
+function deDate(iso: string): string {
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(iso);
+  return m ? `${m[3]}.${m[2]}.${m[1]}` : iso;
+}
+
+/**
+ * Kandidat der Planstufe → Treffer. Nur Metadaten: der Volltext kommt erst über
+ * `parlament_lesen`, die `Ref:`-Zeile ist der Schlüssel dafür.
+ */
+export function candidateToSearchResult(c: BundestagCandidate, i: number): SearchResult {
+  const plpr = /^PlPr \d{1,2}\/\d{1,4}/.exec(c.ref)?.[0];
+  const title = plpr
+    ? `Plenardebatte ${plpr} · ${deDate(c.datum)}`
+    : [
+        `BT-Drs. ${c.dokumentnummer}`,
+        c.drucksachetyp,
+        deDate(c.datum),
+        c.urheber.join(', ') || null,
+      ]
+        .filter(Boolean)
+        .join(' · ');
+  const content = [c.titel, c.vorgangTitel, c.abstract, `Ref: ${c.ref}`].filter(Boolean).join('\n');
+  return {
+    source: 'bundestag',
+    title,
+    content,
+    ...(c.pdfUrl ? { url: c.pdfUrl } : {}),
+    relevance: 1 - 0.02 * i,
+  };
+}
+
 function btSpeechResult(s: BtSpeech, title: string, relevance: number): SearchResult {
   const url = btpPdfUrl(s.protokollNummer, s.herausgeber);
   return {
@@ -423,10 +462,17 @@ function buildBundestagResults(enriched: BtEnrichedResult, standalone = true): S
  * sie verlangt ein Recherche-VERB ohne eigenes Subjekt ("recherchier das mal"),
  * was ein Suchbegriff aus dem Werkzeug-Parameter per Konstruktion nicht ist.
  */
+/** Treffer plus die Gesamtzahlen der Planstufe (`null`, wenn sie nichts lieferte). */
+export interface BundestagRetrieval {
+  results: SearchResult[];
+  totals: { vorgaenge: number; drucksachen: number } | null;
+}
+
 export async function retrieveBundestag(
   query: string,
-  locale: string | null | undefined
-): Promise<SearchResult[]> {
+  locale: string | null | undefined,
+  filters?: BundestagFilter
+): Promise<BundestagRetrieval> {
   const startTime = Date.now();
   // DE-only source: for AT users return a graceful decline instead of empty
   // data. Der Loop gattert schon an der Montage (`toolCatalog`), der
@@ -434,21 +480,50 @@ export async function retrieveBundestag(
   // und seit dem Fall der Einzeldurchlauf-Tür der einzige Punkt, den keine
   // Aufrufform umgeht.
   if (!isIntentAllowedForLocale('bundestag', locale)) {
-    return [
-      {
-        source: 'bundestag',
-        title: 'Nur für Deutschland verfügbar',
-        content: intentDeclineNote('bundestag') ?? '',
-        relevance: 1,
-      },
-    ];
+    return {
+      results: [
+        {
+          source: 'bundestag',
+          title: 'Nur für Deutschland verfügbar',
+          content: intentDeclineNote('bundestag') ?? '',
+          relevance: 1,
+        },
+      ],
+      totals: null,
+    };
   }
-  const enriched = await getBundestagEnrichedService().search(query);
-  const results = buildBundestagResults(enriched);
+  // Die Anreicherung liefert Person und Altpfad, die Planstufe die Liste mit
+  // Refs. Beide laufen nebeneinander; wirft die Planstufe, trägt der Altpfad.
+  const [enriched, plan] = await Promise.all([
+    getBundestagEnrichedService().search(query),
+    planBundestagQuestion({
+      question: query,
+      ...(filters ? { filters } : {}),
+      budget: CHAT_BUDGET,
+    }).catch((err: unknown) => {
+      log.warn(
+        `[Search] Bundestag-Planstufe fehlgeschlagen, alte Ergebnisse: ${err instanceof Error ? err.message : String(err)}`
+      );
+      return null;
+    }),
+  ]);
+  const legacy = buildBundestagResults(enriched);
+
+  let results: SearchResult[];
+  if (!plan) {
+    results = legacy;
+  } else if (plan.candidates.length === 0) {
+    log.info('[Search] Bundestag-Planstufe ohne Kandidaten, alte Ergebnisse');
+    results = legacy;
+  } else {
+    results = plan.candidates.map(candidateToSearchResult);
+    // Personen: Reden und Aktivitäten bleiben, hinter der Liste.
+    if (enriched.kind === 'person') results = [...results, ...legacy];
+  }
   log.info(
     `[Search] Bundestag (${enriched.kind}): ${results.length} results in ${Date.now() - startTime}ms`
   );
-  return results;
+  return { results, totals: plan?.totals ?? null };
 }
 
 /** Schwester von `retrieveBundestag` — gleicher Schnitt, gleiche Begründung. */

@@ -98,6 +98,7 @@ export {
   skillPromptContract,
   agentVisibilityContract,
   chunkInspectorContract,
+  bundestagQaContract,
   connectorTestContract,
   connectionsContract,
   skillVisibilityContract,
