@@ -321,4 +321,10 @@ export const NEAR_DUPLICATE_EXEMPT_TOOLS: ReadonlySet<string> = new Set([
   // Ein korrigierter Wiederholungsauftrag ähnelt dem gescheiterten naturgemäss;
   // die Wiederholungen begrenzt MAX_FAILED_RUNS im Werkzeug selbst.
   'tabelle_auswerten',
+  // Strukturierte Filter: eine Verfeinerung („Wasserstoff" + Typ Antrag) enthält
+  // alle Wörter der ersten Suche und galt als Duplikat — live fünfmal blockiert,
+  // der Turn endete ohne Lesen. Das Rezept verlangt genau dieses Eingrenzen.
+  'bundestag',
+  // Ein zweiter Lese-Aufruf mit weiteren Refs teilt Quelle und Frage mit dem ersten.
+  'parlament_lesen',
 ]);
