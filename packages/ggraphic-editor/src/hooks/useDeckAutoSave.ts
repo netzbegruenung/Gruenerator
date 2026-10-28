@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: MPL-2.0
+import { stampDocument } from '@ggraphic/schema';
 import { useEffect, useRef, useCallback } from 'react';
 
 import { serializeDeck, type SerializedPage } from '@ggraphic/editor/collab/pagesDoc';
@@ -161,7 +162,8 @@ export function useDeckAutoSave({
       const metadata = {
         sharepicType: r.deckType,
         hasOriginalImage: originalImageBase64 !== null,
-        content: { pages },
+        // The stored deck is a canvas document: stamp its format version.
+        content: stampDocument({ pages }),
         styling: {},
         generatedAt: new Date().toISOString(),
       };
