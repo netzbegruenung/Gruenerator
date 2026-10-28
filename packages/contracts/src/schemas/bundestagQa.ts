@@ -61,8 +61,10 @@ export const bundestagGruppierenSchema = z.enum(['fraktion', 'monat', 'typ']);
 
 export const bundestagFilterSchema = z.object({
   wahlperiode: z.array(z.number().int().min(1).max(30)).max(3).optional(),
-  drucksachetyp: z.array(bundestagDrucksachetypSchema).optional(),
-  urheber: z.array(bundestagUrheberSchema).optional(),
+  // Typ × Urheber wird als ODER in Einzelabfragen zerlegt (höchstens 8, siehe
+  // MAX_OR_QUERIES in qa/find.ts): 2 × 4 hält das Produkt darunter.
+  drucksachetyp: z.array(bundestagDrucksachetypSchema).max(2).optional(),
+  urheber: z.array(bundestagUrheberSchema).max(4).optional(),
   beratungsstand: z.array(bundestagBeratungsstandSchema).max(11).optional(),
   datumVon: z
     .string()

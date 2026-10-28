@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import { countBundestag, formatCount } from './count.js';
+import { MAX_COUNT_CALLS, countBundestag, formatCount } from './count.js';
 
 /** DIP-Attrappe: numFound aus einer Funktion der Parameter. */
 function dipWith(numFound: (endpoint: string, p: Record<string, unknown>) => number) {
@@ -142,6 +142,36 @@ describe('countBundestag', () => {
 });
 
 describe('countBundestag: mehrere Werte', () => {
+  it('kappt die ungruppierte Summe bei MAX_COUNT_CALLS und nennt, was fehlt', async () => {
+    const { dip, list } = dipWith(() => 1);
+    const typen = [
+      'Gesetzentwurf',
+      'Antrag',
+      'Kleine Anfrage',
+      'Große Anfrage',
+      'Antwort',
+      'Unterrichtung',
+    ] as const;
+    const r = await countBundestag({
+      filters: {
+        drucksachetyp: [...typen],
+        urheber: [
+          'Fraktion der CDU/CSU',
+          'Fraktion der SPD',
+          'Fraktion der AfD',
+          'Fraktion BÜNDNIS 90/DIE GRÜNEN',
+          'Fraktion DIE LINKE',
+        ],
+        wahlperiode: [21],
+      },
+      dip,
+    });
+    expect(list.mock.calls.length).toBeLessThanOrEqual(MAX_COUNT_CALLS);
+    expect(r.aufrufe).toBe(list.mock.calls.length);
+    expect(r.notes.join(' ')).toMatch(/nicht gezählt/);
+    expect(r.notes.join(' ')).toContain('Unterrichtung');
+  });
+
   it('zählt zwei Typen einzeln und addiert (DIP verknüpft wiederholte Werte mit UND)', async () => {
     const { dip, list } = dipWith((_e, p) =>
       (p['f.drucksachetyp'] as string[]).length > 1 ? 0 : 5

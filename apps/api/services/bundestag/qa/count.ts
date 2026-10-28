@@ -148,9 +148,19 @@ export async function countBundestag({
   };
   // DIP verknüpft wiederholte `f.drucksachetyp`/`f.urheber` mit UND (gemessen 28.10.2026:
   // zwei Typen liefern 0). Mehrere Werte werden deshalb einzeln gezählt und addiert.
-  const typVals: (string | undefined)[] =
-    !viaVorgang && (f.drucksachetyp?.length ?? 0) > 1 ? f.drucksachetyp! : [undefined];
   const urhVals: (string | undefined)[] = (f.urheber?.length ?? 0) > 1 ? f.urheber! : [undefined];
+  const typAll: (string | undefined)[] =
+    !viaVorgang && (f.drucksachetyp?.length ?? 0) > 1 ? f.drucksachetyp! : [undefined];
+  // Die Summe läuft Typ × Urheber nacheinander durch den getakteten Client: ohne Deckel
+  // wären es bis zu 10 × 7 Abfragen. Zuerst fallen die hinteren Typen weg, und die Notiz nennt sie.
+  const typVals = typAll.slice(0, Math.max(1, Math.floor(MAX_COUNT_CALLS / urhVals.length)));
+  if (typVals.length < typAll.length) {
+    notes.push(
+      `Mehr als ${MAX_COUNT_CALLS} DIP-Abfragen wären nötig gewesen; nicht gezählt wurden: ${typAll
+        .slice(typVals.length)
+        .join(', ')}. Die Gesamtzahl ist unvollständig.`
+    );
+  }
   const countFor = async (
     extra: { urheber?: string; typ?: string; von?: string; bis?: string } = {}
   ): Promise<number> => {

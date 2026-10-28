@@ -139,6 +139,26 @@ describe('findCandidates', () => {
     expect(r.candidates).toHaveLength(4);
   });
 
+  it('nennt in einer Notiz, welche Kombinationen über das ODER-Limit hinaus nicht abgefragt wurden', async () => {
+    const dip = makeDip((e) => (e === 'drucksache' ? [{ id: 'x', dokumentnummer: '21/1' }] : []));
+    const r = await findCandidates({
+      question: 'x',
+      // Direkt am Schema vorbei (Wortlauterkennung): 3 × 3 = 9 Kombinationen, 8 Abfragen.
+      filters: {
+        drucksachetyp: ['Antrag', 'Gesetzentwurf', 'Kleine Anfrage'],
+        urheber: ['Fraktion BÜNDNIS 90/DIE GRÜNEN', 'Fraktion DIE LINKE', 'Fraktion der SPD'],
+      },
+      assumedWahlperiode: false,
+      budget,
+      dip,
+      mcp: mcpNone,
+    });
+    expect(dip.calls.filter((c) => c.endpoint === 'drucksache')).toHaveLength(8);
+    const note = r.notes.find((n) => n.includes('nicht abgefragt'));
+    expect(note).toContain('Kleine Anfrage');
+    expect(note).toContain('Fraktion der SPD');
+  });
+
   it('entfernt Duplikate nach dipId und kappt auf maxDocuments', async () => {
     const dip = makeDip((e) =>
       e === 'drucksache'
