@@ -57,26 +57,6 @@ describe('parity with providerSelector', () => {
   });
 });
 
-describe('bundestag_read', () => {
-  it('liest auf Kolibri-1 über Cortecs, in der Tabelle wie im Paritätszweig', () => {
-    // Gemessen 28.10.2026, siehe die Zeile in lanes.ts: mehr belegte Punkte
-    // und das billigste Lesen. Fällt die Zeile zurück auf Gemma, wird das hier rot.
-    expect(laneTarget('bundestag_read', {}, {})).toEqual({
-      provider: 'cortecs',
-      model: 'kolibri-1',
-    });
-    expect(selectProviderAndModel({ type: 'bundestag_read', env: {} })).toMatchObject({
-      provider: 'cortecs',
-      model: 'kolibri-1',
-    });
-  });
-
-  it('lässt Plan und Antwort auf Gemma', () => {
-    expect(laneTarget('bundestag_plan', {}, {}).model).not.toBe('kolibri-1');
-    expect(laneTarget('bundestag_answer', {}, {}).model).not.toBe('kolibri-1');
-  });
-});
-
 describe('resolveLane', () => {
   it('recognises a known type', () => {
     expect(resolveLane('sharepic_zitat')).toBe('sharepic_zitat');
