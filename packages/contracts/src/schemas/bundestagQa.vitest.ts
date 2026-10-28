@@ -1,0 +1,102 @@
+import { describe, expect, it } from 'vitest';
+
+import {
+  bundestagAnswerResponseSchema,
+  bundestagFilterSchema,
+  bundestagPlanRequestSchema,
+  bundestagRefSchema,
+} from './bundestagQa.js';
+
+describe('bundestagRefSchema', () => {
+  it.each(['20/1234', '21/1', '9/123456', 'PlPr 21/45 S. 12-15'])('akzeptiert %s', (ref) => {
+    expect(bundestagRefSchema.safeParse(ref).success).toBe(true);
+  });
+  it.each(['123', '20/', '20/1234567', '210/1', 'PlPr 21/45 S. 12', 'plpr 21/45 S. 1-2', ''])(
+    'lehnt %j ab',
+    (ref) => {
+      expect(bundestagRefSchema.safeParse(ref).success).toBe(false);
+    }
+  );
+});
+
+describe('bundestagFilterSchema', () => {
+  it('akzeptiert einen leeren Filter', () => {
+    expect(bundestagFilterSchema.safeParse({}).success).toBe(true);
+  });
+  it('lehnt einen unbekannten Drucksachetyp ab', () => {
+    expect(bundestagFilterSchema.safeParse({ drucksachetyp: ['Flugblatt'] }).success).toBe(false);
+  });
+  it('akzeptiert bekannte Typ und Urheber', () => {
+    const r = bundestagFilterSchema.safeParse({
+      drucksachetyp: ['Antrag'],
+      urheber: ['Fraktion BÜNDNIS 90/DIE GRÜNEN'],
+      wahlperiode: [21],
+      datumVon: '2025-01-31',
+    });
+    expect(r.success).toBe(true);
+  });
+  it('prüft Datum, Wahlperiode und Mengenlimits', () => {
+    expect(bundestagFilterSchema.safeParse({ datumVon: '31.01.2025' }).success).toBe(false);
+    expect(bundestagFilterSchema.safeParse({ wahlperiode: [0] }).success).toBe(false);
+    expect(bundestagFilterSchema.safeParse({ wahlperiode: [1, 2, 3, 4] }).success).toBe(false);
+    expect(
+      bundestagFilterSchema.safeParse({ dokumentnummer: Array(11).fill('20/1') }).success
+    ).toBe(false);
+    expect(bundestagFilterSchema.safeParse({ deskriptor: ['a'] }).success).toBe(false);
+    expect(bundestagFilterSchema.safeParse({ deskriptor: ['Klima', 'Energie'] }).success).toBe(
+      true
+    );
+    expect(bundestagFilterSchema.safeParse({ titel: 'x'.repeat(201) }).success).toBe(false);
+  });
+});
+
+describe('Anfrage- und Antwortschemas', () => {
+  it('Plan-Anfrage verlangt 3 bis 1000 Zeichen', () => {
+    expect(bundestagPlanRequestSchema.safeParse({ question: 'ab' }).success).toBe(false);
+    expect(bundestagPlanRequestSchema.safeParse({ question: 'Was ist mit Gas?' }).success).toBe(
+      true
+    );
+  });
+  it('Antwort nimmt Quellen mit Zitat und Status', () => {
+    const r = bundestagAnswerResponseSchema.safeParse({
+      answer: 'x [1]',
+      citations: [
+        {
+          n: 1,
+          ref: '21/100',
+          drucksachetyp: 'Antrag',
+          datum: '2025-06-01',
+          titel: 'T',
+          pdfUrl: null,
+          aussage: 'a',
+          zitat: 'z',
+        },
+      ],
+      documents: [
+        {
+          ref: '21/100',
+          drucksachetyp: 'Antrag',
+          titel: 'T',
+          textSource: 'pdf',
+          relevant: true,
+          points: [{ aussage: 'a', zitat: 'z', method: 'exact' }],
+          droppedPoints: 0,
+          windowsRead: 1,
+          windowsTotal: 1,
+          skipped: null,
+        },
+      ],
+      filters: {},
+      notes: [],
+      stats: {
+        msTotal: 1,
+        msRead: 1,
+        charsRead: 1,
+        pointsVerified: 1,
+        pointsDropped: 0,
+        invalidCitations: 0,
+      },
+    });
+    expect(r.success).toBe(true);
+  });
+});
