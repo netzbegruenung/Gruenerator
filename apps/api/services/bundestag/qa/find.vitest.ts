@@ -189,6 +189,7 @@ describe('findCandidates', () => {
     });
     expect(ra.candidates).toHaveLength(3);
     expect(a.calls).toHaveLength(2);
+    expect(a.calls[1].params).not.toHaveProperty('f.wahlperiode');
     const b = mk();
     const rb = await findCandidates({
       question: 'x',
@@ -249,6 +250,93 @@ describe('findCandidates', () => {
     expect(mcp.semanticSearch).toHaveBeenCalledTimes(1);
     expect(r.candidates.map((c) => c.ref)).toEqual(['21/9']);
     expect(r.notes.length).toBe(1);
+  });
+
+  it('ruft MCP schon bei genau 2 Kandidaten', async () => {
+    const mcp = { semanticSearch: vi.fn(async () => ({ items: [] })) };
+    const dip = makeDip(() => [
+      { id: '1', dokumentnummer: '21/1' },
+      { id: '2', dokumentnummer: '21/2' },
+    ]);
+    await findCandidates({
+      question: 'x',
+      filters: { drucksachetyp: ['Antrag'] },
+      assumedWahlperiode: false,
+      budget,
+      dip,
+      mcp,
+    });
+    expect(mcp.semanticSearch).toHaveBeenCalledTimes(1);
+  });
+
+  it('unterscheidet MCP-Ausfall von DIP-Fehler im Rückfall', async () => {
+    const hit = {
+      dokumentnummer: '21/9',
+      docType: 'd',
+      docId: '9',
+      entityType: null,
+      title: 't',
+      abstract: null,
+      date: null,
+      wahlperiode: 21,
+      score: 1,
+    };
+    const dip = makeDip((_e, p) => {
+      if ('f.dokumentnummer' in p) throw new Error('dip down');
+      return [];
+    });
+    const r1 = await findCandidates({
+      question: 'x',
+      filters: { drucksachetyp: ['Antrag'] },
+      assumedWahlperiode: false,
+      budget,
+      dip,
+      mcp: { semanticSearch: vi.fn(async () => ({ items: [hit] })) },
+    });
+    expect(r1.notes[0]).toMatch(/DIP/);
+    const r2 = await findCandidates({
+      question: 'x',
+      filters: { drucksachetyp: ['Antrag'] },
+      assumedWahlperiode: false,
+      budget,
+      dip: makeDip(() => []),
+      mcp: {
+        semanticSearch: vi.fn(async () => {
+          throw new Error('mcp down');
+        }),
+      },
+    });
+    expect(r2.notes[0]).toMatch(/semantische Suche war nicht erreichbar/);
+  });
+
+  it('behält zwei Debatten desselben Protokolls (gleiche fundstelle.id)', async () => {
+    const pos = (a: number, e: number) => ({
+      vorgangsposition: 'Beratung',
+      datum: '2025-02-01',
+      fundstelle: {
+        id: '5795',
+        dokumentnummer: '21/80',
+        drucksachetyp: 'Plenarprotokoll',
+        xml_url: 'https://dserver.bundestag.de/btp/21/21080.xml',
+        anfangsseite: a,
+        endseite: e,
+      },
+    });
+    const dip = makeDip((e) =>
+      e === 'vorgang' ? [vorgang] : e === 'vorgangsposition' ? [pos(100, 110), pos(200, 210)] : []
+    );
+    const r = await findCandidates({
+      question: 'x',
+      filters: { deskriptor: ['Heizung'], mitBeratung: true },
+      assumedWahlperiode: false,
+      budget,
+      dip,
+      mcp: mcpNone,
+    });
+    expect(r.candidates.map((c) => c.ref)).toEqual([
+      'PlPr 21/80 S. 100-110',
+      'PlPr 21/80 S. 200-210',
+    ]);
   });
 
   it('ruft drucksache-text nie mit f.vorgang auf', async () => {

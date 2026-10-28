@@ -237,11 +237,15 @@ async function collect(
   return viaVorgang ? byVorgang(dip, f, wahlperiode) : byDrucksache(dip, f, wahlperiode);
 }
 
-/** Entfernt Duplikate nach `dipId` und behält die Reihenfolge. */
+/** Entfernt Duplikate nach `ref` und behält die Reihenfolge. */
 function dedupe(list: BundestagCandidate[]): BundestagCandidate[] {
   const seen = new Set<string>();
-  return list.filter((c) => (seen.has(c.dipId) ? false : (seen.add(c.dipId), true)));
+  // `dipId` taugt nicht: eine Beratung trägt die Id des Protokolls, mehrere Debatten teilen sie.
+  return list.filter((c) => (seen.has(c.ref) ? false : (seen.add(c.ref), true)));
 }
+
+/** Unterscheidet einen MCP-Ausfall von einem DIP-Fehler im Rückfall. */
+class McpUnavailableError extends Error {}
 
 /** Rückfall über die semantische Suche: Treffer → Dokumentnummern → Metadaten bei DIP. */
 async function viaMcp(
@@ -251,11 +255,16 @@ async function viaMcp(
   dip: FindDip,
   mcp: FindMcp
 ): Promise<BundestagCandidate[]> {
-  const { items } = await mcp.semanticSearch({
-    query: question,
-    ...(wahlperiode != null ? { wahlperiode } : {}),
-    limit: MCP_LIMIT,
-  });
+  let items: BtSemanticHit[];
+  try {
+    ({ items } = await mcp.semanticSearch({
+      query: question,
+      ...(wahlperiode != null ? { wahlperiode } : {}),
+      limit: MCP_LIMIT,
+    }));
+  } catch {
+    throw new McpUnavailableError();
+  }
   const nummern = [
     ...new Set(
       items.flatMap((h) =>
@@ -309,8 +318,12 @@ export async function findCandidates(args: {
           candidates = dedupe([...candidates, ...extra]);
           notes.push('Wenig Treffer bei DIP, ergänzt durch die semantische Suche.');
         }
-      } catch {
-        notes.push('Die semantische Suche war nicht erreichbar.');
+      } catch (error: unknown) {
+        notes.push(
+          error instanceof McpUnavailableError
+            ? 'Die semantische Suche war nicht erreichbar.'
+            : 'Die Abfrage der Treffer der semantischen Suche bei DIP ist fehlgeschlagen.'
+        );
       }
     }
   }
