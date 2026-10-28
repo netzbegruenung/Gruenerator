@@ -387,7 +387,7 @@
     "./utils/zipPageImages": "./src/utils/zipPageImages.ts"
   },
   "scripts": {
-    "build": "tsc --project tsconfig.build.json",
+    "build": "tsc --project tsconfig.build.json && node -e \"require('node:fs').cpSync('src', 'dist', { recursive: true, filter: (f) => !/\\.tsx?$/.test(f) })\"",
     "lint": "eslint .",
     "test": "vitest run",
     "typecheck": "tsc --noEmit"
@@ -421,6 +421,9 @@
     "clsx": "^2.1.1",
     "fflate": "^0.8.3",
     "lucide-react": "^1.61.0",
+    "pdf-lib": "^1.17.1",
+    "pptxgenjs": "~4.0.1",
+    "qrcode.react": "^4.2.0",
     "radix-ui": "^1.8.1",
     "react-icons": "^5.7.0",
     "react-kawaii": "^1.6.0",
