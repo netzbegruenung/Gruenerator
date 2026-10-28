@@ -182,6 +182,12 @@ const TOOL_METADATA: Record<string, ToolMeta> = {
     iconKey: 'book',
     accent: 'retrieval',
   },
+  parlament_lesen: {
+    label: 'Bundestagsdokumente lesen',
+    activeLabel: 'Liest Bundestagsdokumente …',
+    iconKey: 'book',
+    accent: 'retrieval',
+  },
   research: {
     label: 'Deep Research',
     activeLabel: 'Recherchiere',

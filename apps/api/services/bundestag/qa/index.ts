@@ -22,6 +22,8 @@ import { keywordsFromQuestion, planFilters } from './plan.js';
 import { readDocuments, type ReadResult } from './read.js';
 
 type DocumentInfo = BundestagAnswerResponse['documents'][number];
+export type ReadDocumentInfo = DocumentInfo &
+  Pick<BundestagCandidate, 'dokumentnummer' | 'datum' | 'urheber' | 'pdfUrl'>;
 
 /** Austauschbare Außenwelt; Produktion nimmt die Singletons. */
 export interface QaDeps {
@@ -214,7 +216,7 @@ export async function readBundestagRefs({
   auftrag?: BundestagAuftrag;
   budget?: Budget;
   deps?: QaDeps;
-}): Promise<{ documents: DocumentInfo[]; notes: string[] }> {
+}): Promise<{ documents: ReadDocumentInfo[]; notes: string[] }> {
   const { dip, redis } = deps ?? (await defaultDeps());
   const signal = AbortSignal.timeout(budget.deadlineMs);
   const { candidates, notes } = await candidatesForRefs(refs, budget, dip);
@@ -227,5 +229,15 @@ export async function readBundestagRefs({
     budget,
     signal,
   });
-  return { documents: results.map(toDocumentInfo), notes };
+  // Der Chat braucht für Titel und Link mehr als der Endpunkt: Nummer, Datum, Urheber, PDF.
+  return {
+    documents: results.map((r) => ({
+      ...toDocumentInfo(r),
+      dokumentnummer: r.doc.dokumentnummer,
+      datum: r.doc.datum,
+      urheber: r.doc.urheber,
+      pdfUrl: r.doc.pdfUrl,
+    })),
+    notes,
+  };
 }

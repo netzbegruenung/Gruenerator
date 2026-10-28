@@ -15,7 +15,12 @@
  * pick them even when the classifier routed to plain `search`; a general
  * per-turn catalog selector is Phase 3n.
  */
-import { bundestagFilterSchema } from '@gruenerator/contracts';
+import {
+  bundestagAuftragSchema,
+  bundestagFilterSchema,
+  bundestagRefSchema,
+} from '@gruenerator/contracts';
+import { intentDeclineNote, isIntentAllowedForLocale } from '@gruenerator/shared/chat-intents';
 import { tool, type Tool } from 'ai';
 import { z } from 'zod';
 
@@ -26,6 +31,9 @@ import {
 } from '../../../agents/langgraph/ChatGraph/nodes/searchNode.js';
 import { summarizeNode } from '../../../agents/langgraph/ChatGraph/nodes/summarizeNode.js';
 import { relatedDocsPages, searchDocs } from '../../../services/docs/docsIndex.js';
+import { bundestagDocTitle } from '../../../services/bundestag/qa/docTitle.js';
+import { CHAT_BUDGET } from '../../../services/bundestag/qa/budget.js';
+import { readBundestagRefs } from '../../../services/bundestag/qa/index.js';
 import { lookupUmfragen } from '../../../services/monitor/UmfragenService.js';
 import { DRAFT_LIMIT_TEXTS } from '../../../services/sharepicCreator/draftFailure.js';
 import {
@@ -135,6 +143,73 @@ NICHT für Abstimmungsverhalten oder Nebentätigkeiten einzelner Abgeordneter �
         sources: sources ?? '',
         ...(totals ? { gesamt: totals } : {}),
         hinweis: BUNDESTAG_HINWEIS,
+      };
+    },
+  });
+}
+
+/** Gründe, aus denen ein Dokument keine Punkte lieferte, in Worten für das Modell. */
+const NICHT_GELESEN_GRUND = {
+  budget: 'Lesebudget erschöpft',
+  deadline: 'Zeitlimit erreicht',
+  missing: 'kein Volltext verfügbar',
+} as const;
+
+/**
+ * `parlament_lesen`: liest die Dokumente, die `bundestag` als Refs geliefert hat,
+ * vollständig und je Dokument isoliert (`readBundestagRefs`, `CHAT_BUDGET`) und
+ * gibt belegte Aussagen mit wörtlichem Zitat zurück. Je Dokument mit Punkten ein
+ * Treffer in der Quellenliste; Dokumente ohne Punkte stehen mit Grund in
+ * `nichtGelesen`. Gleiche Locale-Sperre wie `bundestag`: nur Deutschland.
+ */
+export function makeParlamentLesenTool(ctx: {
+  state: ChatGraphState;
+  sourceRegistry: SourceRegistry;
+}): Tool {
+  const { state, sourceRegistry } = ctx;
+  return tool({
+    description: `Liest Bundestags-Dokumente vollständig und isoliert und liefert belegte Aussagen mit wörtlichem Zitat. Refs stammen aus \`bundestag\`. Bis zu 6 Dokumente je Aufruf. Für „fasse zusammen“ gilt auftrag 'zusammenfassung'. Nur Deutschland.`,
+    inputSchema: z.object({
+      quelle: z.enum(['bundestag']),
+      dokumente: z
+        .array(bundestagRefSchema)
+        .min(1)
+        .max(6)
+        .describe('Refs aus der Liste von `bundestag` (Zeile „Ref: …“)'),
+      frage: z.string().min(3).max(1000).describe('Die Frage, die die Dokumente beantworten sollen'),
+      auftrag: bundestagAuftragSchema.default('frage'),
+    }),
+    execute: async ({ dokumente, frage, auftrag }) => {
+      if (!isIntentAllowedForLocale('bundestag', state.userLocale)) {
+        return { resultCount: 0, sources: '', error: intentDeclineNote('bundestag') ?? '' };
+      }
+      const { documents, notes } = await readBundestagRefs({
+        question: frage,
+        refs: dokumente,
+        auftrag,
+        budget: CHAT_BUDGET,
+      });
+      const results: SearchResult[] = documents
+        .filter((d) => d.points.length > 0)
+        .map((d, i) => ({
+          source: 'bundestag',
+          title: bundestagDocTitle(d),
+          content: d.points.map((p) => `• ${p.aussage} — „${p.zitat}“`).join('\n'),
+          ...(d.pdfUrl ? { url: d.pdfUrl } : {}),
+          relevance: 1 - 0.02 * i,
+        }));
+      const nichtGelesen = documents
+        .filter((d) => d.points.length === 0)
+        .map((d) => ({
+          ref: d.ref,
+          grund: d.skipped ? NICHT_GELESEN_GRUND[d.skipped] : 'keine belegte Aussage zur Frage',
+        }));
+      const sources = results.length > 0 ? sourceRegistry.register(results, { snippetChars: 3000 }) : null;
+      return {
+        resultCount: results.length,
+        sources: sources ?? '',
+        nichtGelesen,
+        ...(notes.length > 0 ? { hinweise: notes } : {}),
       };
     },
   });

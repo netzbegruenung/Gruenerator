@@ -848,6 +848,8 @@ NICHT für eine Zusammenfassung des ganzen Dokuments — dafür gibt es \`summar
     // downgrade actually take effect on the loop path.
     if (isIntentAllowedForLocale('bundestag', state.userLocale)) {
       tools.bundestag = makeBundestagTool({ state, sourceRegistry });
+      // Zwilling von `bundestag` (liest dessen Refs): gleiche Sperre, fällt mit ihm weg.
+      tools.parlament_lesen = makeParlamentLesenTool({ state, sourceRegistry });
     }
     if (isIntentAllowedForLocale('abgeordnetenwatch', state.userLocale)) {
       tools.abgeordnetenwatch = makeAbgeordnetenwatchTool({ state, sourceRegistry });

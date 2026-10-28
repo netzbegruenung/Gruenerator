@@ -122,6 +122,15 @@ describe('retrieveBundestag: Zusammenführung', () => {
     expect(totals).toBeNull();
   });
 
+  it('Wurf der Anreicherung: Kandidaten bleiben', async () => {
+    btSearch.mockRejectedValue(new Error('enriched down'));
+    plan.mockResolvedValue(planWith([candidate({})]));
+    const { results, totals } = await retrieveBundestag('x', 'de-DE');
+    expect(results).toHaveLength(1);
+    expect(results[0].title).toContain('21/1928');
+    expect(totals).toEqual({ vorgaenge: 1, drucksachen: 2 });
+  });
+
   it('de-AT: Absage, keiner der Dienste wird gefragt', async () => {
     const { results } = await retrieveBundestag('x', 'de-AT');
     expect(results[0].title).toBe('Nur für Deutschland verfügbar');

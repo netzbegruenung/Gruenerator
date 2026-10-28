@@ -495,7 +495,14 @@ export async function retrieveBundestag(
   // Die Anreicherung liefert Person und Altpfad, die Planstufe die Liste mit
   // Refs. Beide laufen nebeneinander; wirft die Planstufe, trägt der Altpfad.
   const [enriched, plan] = await Promise.all([
-    getBundestagEnrichedService().search(query),
+    getBundestagEnrichedService()
+      .search(query)
+      .catch((err: unknown) => {
+        log.warn(
+          `[Search] Bundestag-Anreicherung fehlgeschlagen, nur Planstufe: ${err instanceof Error ? err.message : String(err)}`
+        );
+        return null;
+      }),
     planBundestagQuestion({
       question: query,
       ...(filters ? { filters } : {}),
@@ -507,7 +514,7 @@ export async function retrieveBundestag(
       return null;
     }),
   ]);
-  const legacy = buildBundestagResults(enriched);
+  const legacy = enriched ? buildBundestagResults(enriched) : [];
 
   let results: SearchResult[];
   if (!plan) {
@@ -518,10 +525,10 @@ export async function retrieveBundestag(
   } else {
     results = plan.candidates.map(candidateToSearchResult);
     // Personen: Reden und Aktivitäten bleiben, hinter der Liste.
-    if (enriched.kind === 'person') results = [...results, ...legacy];
+    if (enriched?.kind === 'person') results = [...results, ...legacy];
   }
   log.info(
-    `[Search] Bundestag (${enriched.kind}): ${results.length} results in ${Date.now() - startTime}ms`
+    `[Search] Bundestag (${enriched?.kind ?? 'ohne Anreicherung'}): ${results.length} results in ${Date.now() - startTime}ms`
   );
   return { results, totals: plan?.totals ?? null };
 }
