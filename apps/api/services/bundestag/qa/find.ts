@@ -27,6 +27,15 @@ const MAX_EXPANDED_VORGAENGE = 8;
 /** Darunter gilt die Suche als zu dünn und löst Wiederholung bzw. MCP-Rückfall aus. */
 const MIN_CANDIDATES = 3;
 const MCP_LIMIT = 10;
+/** Dokumentarten, deren Urheber der Initiator des Vorgangs ist; bei anderen (Antwort, Beschlussempfehlung …) weicht er ab. */
+const INITIATOR_TYPES = [
+  'Antrag',
+  'Gesetzentwurf',
+  'Kleine Anfrage',
+  'Große Anfrage',
+  'Entschließungsantrag',
+  'Änderungsantrag',
+];
 const NUMMER_RE = /^\d{1,2}\/\d{1,6}$/;
 
 export interface FindDip {
@@ -109,7 +118,7 @@ function fromPosition(
   const common = {
     dipId: fs.id,
     datum: p.datum ?? '',
-    urheber: v.initiative ?? [],
+    urheber: fs.urheber && fs.urheber.length > 0 ? fs.urheber : (v.initiative ?? []),
     vorgangId: v.id,
     vorgangTitel: v.titel ?? null,
     abstract: v.abstract ?? null,
@@ -141,10 +150,26 @@ function fromPosition(
   };
 }
 
+function urheberMatches(have: readonly string[], want: readonly string[]): boolean {
+  const norm = (x: string) => x.toLowerCase();
+  return want.some((w) => have.some((h) => norm(h).includes(norm(w)) || norm(w).includes(norm(h))));
+}
+
+/** Meldet, dass eine Position ohne Urheber trotz Urheber-Filter behalten wurde. */
+interface UrheberSink {
+  missing: boolean;
+}
+
+/**
+ * `urheber` filtert die ausgeklappten Drucksachen, wenn der Vorgang nicht über
+ * `f.initiative` eingegrenzt werden konnte. Positionen ohne Urheber-Angabe
+ * bleiben (nichts still verwerfen) und werden einmal angemerkt.
+ */
 async function positionsOf(
   dip: FindDip,
   vorgang: VorgangRef,
-  f: BundestagFilter
+  f: BundestagFilter,
+  urheber?: { want: readonly string[]; sink: UrheberSink }
 ): Promise<BundestagCandidate[]> {
   const page = await dip.list<DipVorgangsposition>('vorgangsposition', {
     'f.vorgang': vorgang.id,
@@ -152,7 +177,13 @@ async function positionsOf(
   });
   return page.documents.flatMap((p) => {
     const c = fromPosition(p, vorgang, f.mitBeratung === true, f.drucksachetyp);
-    return c ? [c] : [];
+    if (!c) return [];
+    if (urheber && c.kind === 'drucksache') {
+      const own = p.fundstelle?.urheber;
+      if (!own || own.length === 0) urheber.sink.missing = true;
+      else if (!urheberMatches(own, urheber.want)) return [];
+    }
+    return [c];
   });
 }
 
@@ -211,13 +242,24 @@ async function byVorgang(
 ): Promise<Collected> {
   const params = baseParams(f, wahlperiode);
   withList(params, 'f.deskriptor', f.deskriptor);
-  withList(params, 'f.initiative', f.urheber);
+  // Nur bei Typen, die der Initiator des Vorgangs verfasst, ist `urheber` = `f.initiative`.
+  const types = f.drucksachetyp ?? [];
+  const byInitiative = types.length === 0 || types.every((t) => INITIATOR_TYPES.includes(t));
+  const filterUrheber = !byInitiative && (f.urheber?.length ?? 0) > 0;
+  if (byInitiative) withList(params, 'f.initiative', f.urheber);
   const page = await dip.list<DipVorgang>('vorgang', params);
+  const sink: UrheberSink = { missing: false };
+  const urheber = filterUrheber && f.urheber ? { want: f.urheber, sink } : undefined;
   const candidates: BundestagCandidate[] = [];
   for (const v of page.documents.slice(0, MAX_EXPANDED_VORGAENGE)) {
-    candidates.push(...(await positionsOf(dip, v, f)));
+    candidates.push(...(await positionsOf(dip, v, f, urheber)));
   }
-  return { candidates, vorgaenge: page.numFound, drucksachen: null };
+  const notes = sink.missing
+    ? [
+        'Bei einigen Dokumenten fehlt im DIP die Urheber-Angabe; sie wurden nicht nach Urheber gefiltert.',
+      ]
+    : [];
+  return { notes, candidates, vorgaenge: page.numFound, drucksachen: null };
 }
 
 async function byDrucksache(

@@ -1,5 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 
+import { type BundestagFilter } from '@gruenerator/contracts';
+
 import { type FindDip, findCandidates } from './find.js';
 
 const budget = { maxDocuments: 12, maxReadChars: 1, deadlineMs: 1 };
@@ -392,5 +394,94 @@ describe('findCandidates', () => {
     expect(dip.calls.some((c) => c.endpoint === 'drucksache-text' && 'f.vorgang' in c.params)).toBe(
       false
     );
+  });
+
+  describe('urheber über Vorgang', () => {
+    const antwortVorgang = { id: '77', titel: 'Wärmepumpen', initiative: ['Fraktion der AfD'] };
+    const antwortPositions = [
+      {
+        vorgangsposition: 'Kleine Anfrage',
+        datum: '2025-01-01',
+        fundstelle: {
+          id: 'k1',
+          dokumentnummer: '21/100',
+          drucksachetyp: 'Kleine Anfrage',
+          urheber: ['Fraktion der AfD'],
+        },
+      },
+      {
+        vorgangsposition: 'Antwort',
+        datum: '2025-02-01',
+        fundstelle: {
+          id: 'a1',
+          dokumentnummer: '21/200',
+          drucksachetyp: 'Antwort',
+          urheber: ['Bundesregierung'],
+        },
+      },
+      {
+        vorgangsposition: 'Antwort',
+        datum: '2025-02-02',
+        fundstelle: {
+          id: 'a2',
+          dokumentnummer: '21/201',
+          drucksachetyp: 'Antwort',
+          urheber: ['Fraktion der SPD'],
+        },
+      },
+      {
+        vorgangsposition: 'Antwort',
+        datum: '2025-02-03',
+        fundstelle: { id: 'a3', dokumentnummer: '21/202', drucksachetyp: 'Antwort' },
+      },
+    ];
+    const dipFor = () =>
+      makeDip((e) =>
+        e === 'vorgang' ? [antwortVorgang] : e === 'vorgangsposition' ? antwortPositions : []
+      );
+
+    it('sendet f.initiative nicht bei Antwort und filtert stattdessen nach Fundstellen-Urheber', async () => {
+      const dip = dipFor();
+      const r = await findCandidates({
+        question: 'x',
+        filters: {
+          drucksachetyp: ['Antwort'],
+          urheber: ['Bundesregierung'],
+          deskriptor: ['Wärmepumpe'],
+        },
+        assumedWahlperiode: false,
+        budget,
+        dip,
+        mcp: mcpNone,
+      });
+      expect(Object.keys(dip.calls[0].params)).not.toContain('f.initiative');
+      // Fraktions-Antwort fliegt raus, die ohne Urheber bleibt und wird einmal angemerkt.
+      expect(r.candidates.map((c) => c.ref)).toEqual(['21/200', '21/202']);
+      expect(r.candidates[0].urheber).toEqual(['Bundesregierung']);
+      expect(r.notes.filter((n) => n.includes('Urheber-Angabe'))).toHaveLength(1);
+    });
+
+    it('sendet f.initiative bei Initiator-Typen oder ohne Typ weiter', async () => {
+      const cases: BundestagFilter[] = [
+        {
+          drucksachetyp: ['Antrag', 'Kleine Anfrage'],
+          urheber: ['Fraktion der AfD'],
+          deskriptor: ['x'],
+        },
+        { urheber: ['Fraktion der AfD'] },
+      ];
+      for (const filters of cases) {
+        const dip = dipFor();
+        await findCandidates({
+          question: 'x',
+          filters,
+          assumedWahlperiode: false,
+          budget,
+          dip,
+          mcp: mcpNone,
+        });
+        expect(dip.calls[0].params['f.initiative']).toEqual(['Fraktion der AfD']);
+      }
+    });
   });
 });

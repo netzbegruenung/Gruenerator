@@ -101,6 +101,8 @@ export interface DipVorgangspositionFundstelle {
   xml_url?: string;
   anfangsseite?: number;
   endseite?: number;
+  /** Urheber des Dokuments (bei Drucksachen z. B. `["Bundesregierung"]`), nicht der Initiator des Vorgangs. */
+  urheber?: string[];
 }
 
 export interface DipVorgangsposition {
