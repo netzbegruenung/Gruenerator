@@ -1142,6 +1142,55 @@ describe('bundestag / parlament_lesen cards', () => {
     ]);
   });
 
+  it('shows the count mode as a table and the ref mode as a family', () => {
+    const count = resolveToolEntry('bundestag').parse(
+      {},
+      {
+        uiCard: {
+          query: '',
+          modus: 'zaehlen',
+          filter: ['Wahlperiode: 21'],
+          zaehlung: {
+            einheit: 'Drucksachen',
+            gesamt: 40,
+            gruppen: [{ label: 'Fraktion der SPD', n: 10 }],
+            hinweise: ['Hinweis A'],
+          },
+          dokumente: [],
+        },
+      }
+    );
+    if (count.kind !== 'key-value') throw new Error(count.kind);
+    expect(count.entries).toEqual([
+      { label: 'Wahlperiode', value: '21' },
+      { label: 'Modus', value: 'Zählung' },
+      { label: 'Gesamt', value: '40 Drucksachen' },
+      { label: 'Fraktion der SPD', value: '10' },
+      { label: 'Hinweis', value: 'Hinweis A' },
+    ]);
+    const family = resolveToolEntry('bundestag').parse(
+      {},
+      { uiCard: { query: 'Familie von BT-Drs. 21/3546', ref: 'BT-Drs. 21/3546', dokumente: [] } }
+    );
+    if (family.kind !== 'key-value') throw new Error(family.kind);
+    expect(family.entries).toEqual([{ label: 'Familie von', value: 'BT-Drs. 21/3546' }]);
+  });
+
+  it('shows fokus on parlament_lesen and Wortlaut on bundestag_reden', () => {
+    const lesen = resolveToolEntry('parlament_lesen').parse(
+      {},
+      { uiCard: { frage: 'Was?', fokus: 'Artikel 3', gelesen: [], nichtGelesen: [] } }
+    );
+    if (lesen.kind !== 'key-value') throw new Error(lesen.kind);
+    expect(lesen.entries).toContainEqual({ label: 'Fokus', value: 'Artikel 3' });
+    const reden = resolveToolEntry('bundestag_reden').parse(
+      {},
+      { uiCard: { thema: 'Zeitenwende', wortlaut: true, filter: [], reden: [] } }
+    );
+    if (reden.kind !== 'key-value') throw new Error(reden.kind);
+    expect(reden.entries).toEqual([{ label: 'Wortlaut', value: 'Zeitenwende' }]);
+  });
+
   it('renders bundestag_reden with topic, filters and one citation per speech', () => {
     const vm = resolveToolEntry('bundestag_reden').parse(
       { thema: 'Wärmeplanung' },

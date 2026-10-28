@@ -39,7 +39,7 @@ import { type AwEnrichedResult } from '../../../../services/abgeordnetenwatch/ty
 import { getBundestagEnrichedService } from '../../../../services/bundestag/BundestagEnrichedService.js';
 import { CHAT_BUDGET } from '../../../../services/bundestag/qa/budget.js';
 import { bundestagDocTitle } from '../../../../services/bundestag/qa/docTitle.js';
-import { planBundestagQuestion } from '../../../../services/bundestag/qa/index.js';
+import { bundestagFamily, planBundestagQuestion } from '../../../../services/bundestag/qa/index.js';
 import {
   type BtEnrichedResult,
   type BtDrucksache,
@@ -484,6 +484,30 @@ export interface BundestagRetrieval {
   verfahren?: { titel: string; zeilen: string[] }[];
 }
 
+/** Die Listenzeilen, Karten-Metadaten und Verläufe einer Kandidatenliste. */
+function describeCandidates(
+  candidates: BundestagCandidate[]
+): Pick<BundestagRetrieval, 'documents' | 'verfahren'> {
+  const documents = candidates.map((c) => ({
+    ref: c.ref,
+    drucksachetyp: c.drucksachetyp,
+    datum: c.datum,
+    titel: c.titel,
+    urheber: c.urheber,
+    pdfUrl: c.pdfUrl,
+  }));
+  const verfahren = new Map<string, { titel: string; zeilen: string[] }>();
+  for (const c of candidates) {
+    if (!c.vorgangId || !c.verlauf || verfahren.has(c.vorgangId)) continue;
+    const zeilen = bundestagVerlaufLines(c.verlauf);
+    if (zeilen.length > 0) verfahren.set(c.vorgangId, { titel: c.vorgangTitel ?? c.titel, zeilen });
+  }
+  return {
+    ...(documents.length > 0 ? { documents } : {}),
+    ...(verfahren.size > 0 ? { verfahren: [...verfahren.values()] } : {}),
+  };
+}
+
 export async function retrieveBundestag(
   query: string,
   locale: string | null | undefined,
@@ -551,26 +575,50 @@ export async function retrieveBundestag(
   log.info(
     `[Search] Bundestag (${enriched?.kind ?? 'ohne Anreicherung'}): ${results.length} results in ${Date.now() - startTime}ms`
   );
-  const documents = (plan?.candidates ?? []).map((c) => ({
-    ref: c.ref,
-    drucksachetyp: c.drucksachetyp,
-    datum: c.datum,
-    titel: c.titel,
-    urheber: c.urheber,
-    pdfUrl: c.pdfUrl,
-  }));
-  const verfahren = new Map<string, { titel: string; zeilen: string[] }>();
-  for (const c of plan?.candidates ?? []) {
-    if (!c.vorgangId || !c.verlauf || verfahren.has(c.vorgangId)) continue;
-    const zeilen = bundestagVerlaufLines(c.verlauf);
-    if (zeilen.length > 0) verfahren.set(c.vorgangId, { titel: c.vorgangTitel ?? c.titel, zeilen });
-  }
   return {
     results,
     totals: plan?.totals ?? null,
-    ...(documents.length > 0 ? { documents } : {}),
+    ...describeCandidates(plan?.candidates ?? []),
     ...(plan ? { filters: plan.filters } : {}),
-    ...(verfahren.size > 0 ? { verfahren: [...verfahren.values()] } : {}),
+  };
+}
+
+/**
+ * Die Familie einer Drucksache: alle Dokumente ihres Vorgangs samt
+ * Beratungsabschnitten und Beratungsverlauf (Werkzeug `bundestag` mit `ref`).
+ * Kein Modell, keine Anreicherung: die Nummer legt den Vorgang fest.
+ */
+export async function retrieveBundestagFamily(
+  ref: string,
+  locale: string | null | undefined
+): Promise<BundestagRetrieval & { notes: string[] }> {
+  if (!isIntentAllowedForLocale('bundestag', locale)) {
+    return {
+      results: [
+        {
+          source: 'bundestag',
+          title: 'Nur für Deutschland verfügbar',
+          content: intentDeclineNote('bundestag') ?? '',
+          relevance: 1,
+        },
+      ],
+      totals: null,
+      notes: [],
+    };
+  }
+  const found = await bundestagFamily(ref);
+  const seenVorgang = new Set<string>();
+  const results = found.candidates.map((c, i) => {
+    const first = c.vorgangId != null && !seenVorgang.has(c.vorgangId);
+    if (c.vorgangId != null) seenVorgang.add(c.vorgangId);
+    return candidateToSearchResult(c, i, first || c.vorgangId == null);
+  });
+  return {
+    results,
+    totals: found.totals,
+    ...describeCandidates(found.candidates),
+    filters: found.filters,
+    notes: found.notes,
   };
 }
 

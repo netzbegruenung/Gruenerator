@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 
 import {
   describeRedenFilter,
+  phraseKeywords,
   redeTitle,
   redeUrl,
   redenFilterFromWording,
@@ -38,6 +39,68 @@ describe('redenPartei', () => {
     ['BSW', 'BSW'],
   ] as const)('%s → %s', (lang, kurz) => {
     expect(redenPartei(lang)).toBe(kurz);
+  });
+});
+
+describe('phraseKeywords', () => {
+  it('zerlegt eine Phrase in Wörter ab drei Zeichen, klein und ohne Anführungszeichen', () => {
+    expect(phraseKeywords('„mit Leben füllt“')).toEqual(['mit', 'leben', 'füllt']);
+    expect(phraseKeywords('im')).toEqual(['im']);
+  });
+});
+
+describe('searchBundestagReden: wortlaut', () => {
+  const rede = (excerpt: string) => ({
+    speaker: 'A',
+    party: 'GRÜNE',
+    date: '2025-05-23',
+    excerpt,
+    protokollNummer: '21/8',
+    wahlperiode: 21,
+    herausgeber: 'BT',
+    topTitle: null,
+    score: 0.5,
+  });
+
+  it('fordert die Phrase hart an, holt 50 Kandidaten und prüft den Redetext nach', async () => {
+    const searchSpeechesFull = vi.fn(async (_opts: Record<string, unknown>) => ({
+      items: [
+        rede('Das ist eine „Zeitenwende“ in der Politik.'),
+        rede('Wende und Zeit sind getrennte Wörter.'),
+        rede('Nach der ZEITENWENDE kam die Haushaltsdebatte.'),
+      ],
+      wpFallback: false,
+    }));
+    const client = { searchSpeechesFull } as unknown as RedenClient;
+    const r = await searchBundestagReden(
+      { thema: 'Zeitenwende', wortlaut: true, limit: 5 },
+      client
+    );
+    expect(searchSpeechesFull).toHaveBeenCalledWith(
+      expect.objectContaining({
+        query: 'Zeitenwende',
+        requiredKeywords: ['zeitenwende'],
+        limit: 50,
+      })
+    );
+    expect(r.speeches).toHaveLength(2);
+  });
+
+  it('kürzt auf limit und läuft ohne wortlaut wie bisher', async () => {
+    const searchSpeechesFull = vi.fn(async (_opts: Record<string, unknown>) => ({
+      items: [rede('Zeitenwende eins'), rede('Zeitenwende zwei')],
+      wpFallback: false,
+    }));
+    const client = { searchSpeechesFull } as unknown as RedenClient;
+    const r = await searchBundestagReden(
+      { thema: 'Zeitenwende', wortlaut: true, limit: 1 },
+      client
+    );
+    expect(r.speeches).toHaveLength(1);
+    await searchBundestagReden({ thema: 'Zeitenwende' }, client);
+    const plain = searchSpeechesFull.mock.calls[1]![0];
+    expect(plain).not.toHaveProperty('requiredKeywords');
+    expect(plain['limit']).toBe(5);
   });
 });
 

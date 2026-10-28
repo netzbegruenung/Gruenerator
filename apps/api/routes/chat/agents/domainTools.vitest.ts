@@ -24,8 +24,10 @@ const imageNode = vi.fn<(s: unknown) => Promise<unknown>>();
 // erreicht, prüft `domainToolsDelegation.vitest.ts` am ECHTEN Knoten.
 const retrieveBundestag = vi.fn<(q: string, l: unknown, f: unknown) => Promise<unknown>>();
 const readBundestagRefs = vi.fn<(o: unknown) => Promise<unknown>>();
+const countBundestagDocs = vi.fn<(o: unknown) => Promise<unknown>>();
 vi.mock('../../../services/bundestag/qa/index.js', () => ({
   readBundestagRefs: (o: unknown): Promise<unknown> => readBundestagRefs(o),
+  countBundestagDocs: (o: unknown): Promise<unknown> => countBundestagDocs(o),
 }));
 // Nur die Suche ist Attrappe; Filter, Titel und URL laufen echt.
 const searchBundestagReden = vi.fn<(s: unknown) => Promise<unknown>>();
@@ -34,7 +36,10 @@ vi.mock('../../../services/bundestag/reden.js', async (importOriginal) => ({
   searchBundestagReden: (s: unknown): Promise<unknown> => searchBundestagReden(s),
 }));
 const retrieveAbgeordnetenwatch = vi.fn<(q: string, l: unknown) => Promise<unknown>>();
+const retrieveBundestagFamily = vi.fn<(r: string, l: unknown) => Promise<unknown>>();
 vi.mock('../../../agents/langgraph/ChatGraph/nodes/searchNode.js', () => ({
+  retrieveBundestagFamily: (r: string, l: unknown): Promise<unknown> =>
+    retrieveBundestagFamily(r, l),
   retrieveBundestag: (q: string, l: unknown, f: unknown): Promise<unknown> =>
     retrieveBundestag(q, l, f),
   retrieveAbgeordnetenwatch: (q: string, l: unknown): Promise<unknown> =>
@@ -494,6 +499,217 @@ describe('Karten-Daten (uiCard)', () => {
     )) as { uiCard: { gelesen: { aussagen: number }[]; nichtGelesen: { grund: string }[] } };
     expect(out.uiCard.gelesen[0]?.aussagen).toBe(1);
     expect(out.uiCard.nichtGelesen[0]?.grund).toBe('kein Volltext verfügbar');
+  });
+});
+
+describe('bundestag: modus zaehlen, ref', () => {
+  const state = { ...baseState, intent: 'bundestag' } as ChatGraphState;
+  beforeEach(() => {
+    retrieveBundestag.mockReset();
+    retrieveBundestagFamily.mockReset();
+    countBundestagDocs.mockReset();
+  });
+  const schemaOf = (t: unknown) =>
+    (t as { inputSchema: { safeParse: (v: unknown) => { success: boolean } } }).inputSchema;
+
+  it('das Schema nimmt die neuen Felder an, die alten Aufrufe bleiben gültig', () => {
+    const schema = schemaOf(makeBundestagTool({ state, sourceRegistry: createSourceRegistry() }));
+    expect(schema.safeParse({ query: 'Klima' }).success).toBe(true);
+    expect(schema.safeParse({ query: 'x', modus: 'zaehlen', gruppieren: 'monat' }).success).toBe(
+      true
+    );
+    expect(schema.safeParse({ ref: '21/3546' }).success).toBe(true);
+    expect(schema.safeParse({ query: 'x', modus: 'summe' }).success).toBe(false);
+    expect(schema.safeParse({ query: 'x', gruppieren: 'land' }).success).toBe(false);
+  });
+
+  it('zaehlen: Filter aus Argumenten und Wortlaut, Zahlen als Quelle und Karte, keine Suche', async () => {
+    countBundestagDocs.mockResolvedValue({
+      einheit: 'Drucksachen',
+      gesamt: 40,
+      gruppen: [{ label: 'Fraktion der SPD', n: 10 }],
+      gruppiertNach: 'fraktion',
+      filters: { wahlperiode: [21], drucksachetyp: ['Kleine Anfrage'] },
+      notes: ['Hinweis A'],
+      aufrufe: 8,
+    });
+    const sourceRegistry = createSourceRegistry();
+    const out = (await exec(
+      makeBundestagTool({
+        state: {
+          ...state,
+          lastUserTextNoMentions: 'Wie viele Kleine Anfragen gab es je Fraktion?',
+        } as ChatGraphState,
+        sourceRegistry,
+      }),
+      { modus: 'zaehlen', gruppieren: 'fraktion', wahlperiode: [21] }
+    )) as Record<string, any>;
+    expect(retrieveBundestag).not.toHaveBeenCalled();
+    expect(countBundestagDocs).toHaveBeenCalledWith({
+      filters: { drucksachetyp: ['Kleine Anfrage'], wahlperiode: [21] },
+      gruppieren: 'fraktion',
+    });
+    expect(out['gesamt']).toBe(40);
+    expect(out['einheit']).toBe('Drucksachen');
+    expect(out['sources']).toContain('| Fraktion der SPD | 10 |');
+    expect(out['uiCard'].modus).toBe('zaehlen');
+    expect(out['uiCard'].zaehlung.gruppen).toEqual([{ label: 'Fraktion der SPD', n: 10 }]);
+  });
+
+  it('zaehlen meldet einen DIP-Ausfall als Fehler', async () => {
+    countBundestagDocs.mockRejectedValue(new Error('down'));
+    const out = (await exec(makeBundestagTool({ state, sourceRegistry: createSourceRegistry() }), {
+      modus: 'zaehlen',
+    })) as { error: string; resultCount: number };
+    expect(out.resultCount).toBe(0);
+    expect(out.error).toMatch(/nicht erreichbar/);
+  });
+
+  it('ref: Familie statt Suche, Wortlautfilter gelten nicht, Karte zeigt die Ref', async () => {
+    retrieveBundestagFamily.mockResolvedValue({
+      results: [
+        { source: 'bundestag', title: 'Drucksache 21/3546 · Kleine Anfrage', content: 'a' },
+        { source: 'bundestag', title: 'Drucksache 21/4000 · Antwort', content: 'b' },
+      ],
+      totals: { vorgaenge: 1, drucksachen: 2 },
+      documents: [
+        {
+          ref: '21/4000',
+          drucksachetyp: 'Antwort',
+          datum: '2026-01-01',
+          titel: 'T',
+          urheber: [],
+          pdfUrl: null,
+        },
+      ],
+      verfahren: [{ titel: 'V', zeilen: ['z'] }],
+      notes: [],
+    });
+    const out = (await exec(
+      makeBundestagTool({
+        state: {
+          ...state,
+          lastUserTextNoMentions: 'Gibt es eine Antwort der Grünen?',
+        } as ChatGraphState,
+        sourceRegistry: createSourceRegistry(),
+      }),
+      { ref: '21/3546' }
+    )) as Record<string, any>;
+    expect(retrieveBundestagFamily).toHaveBeenCalledWith('21/3546', 'de-DE');
+    expect(retrieveBundestag).not.toHaveBeenCalled();
+    expect(out['resultCount']).toBe(2);
+    expect(out['sources']).toContain('Antwort');
+    expect(out['uiCard'].ref).toBe('BT-Drs. 21/3546');
+    expect(out['uiCard'].dokumente[0].ref).toBe('BT-Drs. 21/4000');
+  });
+
+  it('ohne query und ref sowie bei PlPr-Ref gibt es einen Fehler', async () => {
+    const tool = makeBundestagTool({ state, sourceRegistry: createSourceRegistry() });
+    expect(((await exec(tool, {})) as { error: string }).error).toMatch(/fehlt/);
+    const plpr = (await exec(tool, { ref: 'PlPr 21/80 S. 1-2' })) as { error: string };
+    expect(plpr.error).toMatch(/nur für Drucksachen/);
+    expect(retrieveBundestagFamily).not.toHaveBeenCalled();
+  });
+});
+
+describe('parlament_lesen: fokus', () => {
+  beforeEach(() => readBundestagRefs.mockReset());
+  const doc = {
+    ref: '21/1928',
+    dokumentnummer: '21/1928',
+    drucksachetyp: 'Gesetzentwurf',
+    titel: 'T',
+    datum: '2025-10-01',
+    urheber: [],
+    pdfUrl: null,
+    textSource: 'dip',
+    relevant: true,
+    points: [{ aussage: 'a', zitat: 'z z z z', method: 'exact' }],
+    droppedPoints: 0,
+    windowsRead: 1,
+    windowsTotal: 1,
+    skipped: null,
+    fokusGefunden: true,
+  };
+  const make = () =>
+    makeParlamentLesenTool({
+      state: { ...baseState, userLocale: 'de-DE' } as ChatGraphState,
+      sourceRegistry: createSourceRegistry(),
+    });
+
+  it('reicht den Fokus durch, zeigt ihn auf der Karte und meldet einen fehlenden Anker', async () => {
+    readBundestagRefs.mockResolvedValue({
+      documents: [doc, { ...doc, ref: '21/2', fokusGefunden: false }],
+      notes: [],
+    });
+    const out = (await exec(make(), {
+      quelle: 'bundestag',
+      dokumente: ['21/1928', '21/2'],
+      frage: 'Was regelt Artikel 3?',
+      fokus: 'Artikel 3',
+    })) as { hinweise: string[]; uiCard: { fokus: string } };
+    expect(readBundestagRefs.mock.calls[0]![0]).toMatchObject({ fokus: 'Artikel 3' });
+    expect(out.uiCard.fokus).toBe('Artikel 3');
+    expect(out.hinweise).toEqual([
+      expect.stringContaining('„Artikel 3“ wurde in BT-Drs. 21/2 nicht gefunden'),
+    ]);
+  });
+
+  it('ohne Fokus: kein fokus-Argument an den Dienst, kein Kartenfeld', async () => {
+    readBundestagRefs.mockResolvedValue({
+      documents: [{ ...doc, fokusGefunden: null }],
+      notes: [],
+    });
+    const out = (await exec(make(), {
+      quelle: 'bundestag',
+      dokumente: ['21/1928'],
+      frage: 'Frage?',
+    })) as { uiCard: Record<string, unknown>; hinweise?: unknown };
+    expect(readBundestagRefs.mock.calls[0]![0]).not.toHaveProperty('fokus');
+    expect(out.uiCard).not.toHaveProperty('fokus');
+    expect(out.hinweise).toBeUndefined();
+  });
+});
+
+describe('bundestag_reden: wortlaut', () => {
+  beforeEach(() => searchBundestagReden.mockReset());
+  const rede = {
+    speaker: 'A',
+    party: 'GRÜNE',
+    date: '2025-05-23',
+    excerpt: 'Zeitenwende!',
+    protokollNummer: '21/8',
+    wahlperiode: 21,
+    herausgeber: 'BT',
+    topTitle: null,
+    score: 1,
+  };
+  const make = () =>
+    makeBundestagRedenTool({ state: baseState, sourceRegistry: createSourceRegistry() });
+
+  it('reicht wortlaut durch, kennzeichnet Ergebnis und Karte', async () => {
+    searchBundestagReden.mockResolvedValue({ speeches: [rede], wpFallback: false });
+    const out = (await exec(make(), { thema: 'Zeitenwende', wortlaut: true })) as Record<
+      string,
+      any
+    >;
+    expect(searchBundestagReden).toHaveBeenCalledWith({ thema: 'Zeitenwende', wortlaut: true });
+    expect(out['wortlaut']).toMatch(/wörtlichen Formulierung/);
+    expect(out['uiCard'].wortlaut).toBe(true);
+  });
+
+  it('ohne wortlaut bleibt der Aufruf wie bisher', async () => {
+    searchBundestagReden.mockResolvedValue({ speeches: [rede], wpFallback: false });
+    const out = (await exec(make(), { thema: 'Zeitenwende' })) as Record<string, any>;
+    expect(searchBundestagReden).toHaveBeenCalledWith({ thema: 'Zeitenwende' });
+    expect(out['wortlaut']).toBeUndefined();
+    expect(out['uiCard']).not.toHaveProperty('wortlaut');
+  });
+
+  it('keine Phrase gefunden: der Fehler sagt, dass die Suche nicht erschöpfend ist', async () => {
+    searchBundestagReden.mockResolvedValue({ speeches: [], wpFallback: false });
+    const out = (await exec(make(), { thema: 'xyz abc', wortlaut: true })) as { error: string };
+    expect(out.error).toContain('nicht erschöpfend');
   });
 });
 

@@ -107,12 +107,48 @@ export function redenFilterFromWording(text: string, hasRedner: boolean): RedenF
 export interface RedenSuche extends RedenFilter {
   thema: string;
   limit?: number;
+  /**
+   * Wörtliche Phrase statt Bedeutungssuche: `thema` ist dann die Phrase. Der MCP
+   * filtert `requiredKeywords` (die Einzelwörter) hart auf dem Redetext, aber erst
+   * NACH der semantischen Suche; wir holen deshalb die Höchstzahl Kandidaten und
+   * prüfen die Phrase am Redetext selbst nach. Nicht erschöpfend.
+   */
+  wortlaut?: boolean;
 }
 
 export interface RedenErgebnis {
   speeches: BtSpeech[];
   /** Keine Treffer in der aktuellen Wahlperiode, daher über alle gesucht. */
   wpFallback: boolean;
+}
+
+/** Kandidaten, die die Wortlautsuche beim MCP anfordert (Höchstwert des Werkzeugs). */
+const WORTLAUT_CANDIDATES = 50;
+
+function normalizePhrase(text: string): string {
+  return text
+    .replace(/[„“”"«»‚‘’']/g, '')
+    .replace(/\s+/g, ' ')
+    .toLowerCase()
+    .trim();
+}
+
+/**
+ * `requiredKeywords` des MCP prüft ein Wort als Teilstring, eine Phrase mit
+ * Leerzeichen trifft nie (gemessen 28.10.2026: „mit Leben füllt" → 0 Treffer, die
+ * Einzelwörter → 5). Deshalb gehen die Wörter einzeln hinein; die Phrase prüft
+ * `containsPhrase` danach am Redetext.
+ */
+export function phraseKeywords(phrase: string): string[] {
+  const words = normalizePhrase(phrase)
+    .split(' ')
+    .filter((w) => w.length >= 3);
+  return words.length > 0 ? [...new Set(words)] : [phrase];
+}
+
+/** Kommt die Phrase wörtlich (ohne Rücksicht auf Groß-/Kleinschreibung, Anführungszeichen, Leerraum) im Text vor? */
+export function containsPhrase(text: string, phrase: string): boolean {
+  return normalizePhrase(text).includes(normalizePhrase(phrase));
 }
 
 /** Die Suchschnittstelle des MCP-Clients, die hier gebraucht wird (Tests reichen einen Stub). */
@@ -125,17 +161,22 @@ export async function searchBundestagReden(
   suche: RedenSuche,
   client: RedenClient = getBundestagMCPClient()
 ): Promise<RedenErgebnis> {
+  const limit = Math.min(Math.max(suche.limit ?? 5, 1), 10);
+  const phrase = suche.wortlaut ? suche.thema.trim() : null;
   const { items, wpFallback } = await client.searchSpeechesFull({
     query: suche.thema,
+    ...(phrase ? { requiredKeywords: phraseKeywords(phrase) } : {}),
     ...(suche.redner ? { speaker: suche.redner } : {}),
     ...(suche.fraktion ? { speakerParty: redenPartei(suche.fraktion) } : {}),
     ...(suche.wahlperiode ? { wahlperiode: suche.wahlperiode } : {}),
     ...(suche.datumVon ? { dateFrom: suche.datumVon } : {}),
     ...(suche.datumBis ? { dateTo: suche.datumBis } : {}),
-    limit: Math.min(Math.max(suche.limit ?? 5, 1), 10),
+    limit: phrase ? WORTLAUT_CANDIDATES : limit,
     sort: SORT[suche.sortierung ?? 'relevanz'],
   });
-  return { speeches: items, wpFallback };
+  if (!phrase) return { speeches: items, wpFallback };
+  const hits = items.filter((s) => containsPhrase(s.excerpt, phrase)).slice(0, limit);
+  return { speeches: hits, wpFallback };
 }
 
 function deDate(iso: string): string {

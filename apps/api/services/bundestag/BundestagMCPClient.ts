@@ -560,9 +560,24 @@ class BundestagMCPClient {
     dateTo?: string;
     limit?: number;
     sort?: BtSort;
+    /** Harter Filter des MCP auf dem Redetext (nach der Suche); für die Wortlautsuche. */
+    requiredKeywords?: string[];
   }): Promise<BtListResult<BtSpeech>> {
-    const { query, speaker, speakerParty, wahlperiode, dateFrom, dateTo, limit = 5, sort } = opts;
-    const key = `${CACHE_NS}:speechfull:${query.toLowerCase()}:${speaker?.toLowerCase() ?? ''}:${speakerParty ?? ''}:${wahlperiode ?? 'cur'}:${dateFrom ?? ''}:${dateTo ?? ''}:${limit}:${sort ?? 'rel'}`;
+    const {
+      query,
+      speaker,
+      speakerParty,
+      wahlperiode,
+      dateFrom,
+      dateTo,
+      limit = 5,
+      sort,
+      requiredKeywords,
+    } = opts;
+    const required = requiredKeywords?.length
+      ? `:req=${requiredKeywords.join('|').toLowerCase()}`
+      : '';
+    const key = `${CACHE_NS}:speechfull:${query.toLowerCase()}:${speaker?.toLowerCase() ?? ''}:${speakerParty ?? ''}:${wahlperiode ?? 'cur'}:${dateFrom ?? ''}:${dateTo ?? ''}:${limit}:${sort ?? 'rel'}${required}`;
     const fetchAt = (wp: number | undefined) =>
       this.fetchTrimmed(
         'bundestag_search_speeches',
@@ -575,6 +590,7 @@ class BundestagMCPClient {
           dateTo,
           limit,
           sort,
+          ...(requiredKeywords?.length ? { requiredKeywords } : {}),
           fields: 'full',
         },
         rawSpeechSchema,

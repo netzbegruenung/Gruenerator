@@ -16,8 +16,12 @@ Regeln:
 const SUMMARY_FOCUS = `
 Auftrag ist eine Zusammenfassung. Achte auf: Ziel, Maßnahmen, Kosten und Fristen, Begründung.`;
 
-export function readSystem(auftrag: BundestagAuftrag): string {
-  return auftrag === 'zusammenfassung' ? BASE + SUMMARY_FOCUS : BASE;
+const fokusRegel = (fokus: string) =>
+  `\nFokus: Konzentriere dich auf „${fokus}“. Melde nur Punkte aus diesem Teil des Dokuments (Abschnitt, Artikel, Paragraf); steht er nicht im Ausschnitt, ist "relevant" false.`;
+
+export function readSystem(auftrag: BundestagAuftrag, fokus?: string | null): string {
+  const base = auftrag === 'zusammenfassung' ? BASE + SUMMARY_FOCUS : BASE;
+  return fokus ? base + fokusRegel(fokus) : base;
 }
 
 export interface WindowHeader {
@@ -33,7 +37,8 @@ export function readPrompt(
   question: string,
   auftrag: BundestagAuftrag,
   header: WindowHeader,
-  window: string
+  window: string,
+  fokus?: string | null
 ): string {
   const label = auftrag === 'zusammenfassung' ? 'Auftrag' : 'Frage';
   const kopf = [
@@ -43,5 +48,6 @@ export function readPrompt(
     `Urheber: ${header.urheber.join(', ') || 'unbekannt'}`,
     `Teil ${header.teil}/${header.teile}`,
   ].join('\n');
-  return `${label}: ${question}\n\n--- Ausschnitt ---\n${kopf}\n\n${window}`;
+  const fokusZeile = fokus ? `Fokus: ${fokus}\n` : '';
+  return `${label}: ${question}\n${fokusZeile}\n--- Ausschnitt ---\n${kopf}\n\n${window}`;
 }

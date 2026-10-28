@@ -53,6 +53,12 @@ export const bundestagRefSchema = z
 
 export const bundestagAuftragSchema = z.enum(['frage', 'zusammenfassung']);
 
+/** Chat-Werkzeug `bundestag`: Liste der Fundstellen oder exakte Zählung (additiv seit 28.10.2026). */
+export const bundestagModusSchema = z.enum(['liste', 'zaehlen']);
+
+/** Gruppierung der Zählung: eine DIP-Abfrage je Gruppenwert. */
+export const bundestagGruppierenSchema = z.enum(['fraktion', 'monat', 'typ']);
+
 export const bundestagFilterSchema = z.object({
   wahlperiode: z.array(z.number().int().min(1).max(30)).max(3).optional(),
   drucksachetyp: z.array(bundestagDrucksachetypSchema).optional(),
@@ -215,6 +221,8 @@ export type BundestagDrucksachetyp = z.infer<typeof bundestagDrucksachetypSchema
 export type BundestagUrheber = z.infer<typeof bundestagUrheberSchema>;
 export type BundestagRef = z.infer<typeof bundestagRefSchema>;
 export type BundestagAuftrag = z.infer<typeof bundestagAuftragSchema>;
+export type BundestagModus = z.infer<typeof bundestagModusSchema>;
+export type BundestagGruppieren = z.infer<typeof bundestagGruppierenSchema>;
 export type BundestagFilter = z.infer<typeof bundestagFilterSchema>;
 export type BundestagVerlaufSchritt = z.infer<typeof bundestagVerlaufSchrittSchema>;
 export type BundestagVerlauf = z.infer<typeof bundestagVerlaufSchema>;

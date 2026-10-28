@@ -35,6 +35,8 @@ export interface ReadResult {
   windowsRead: number;
   windowsTotal: number;
   skipped: 'budget' | 'deadline' | 'missing' | null;
+  /** Nur mit Fokus: stand der Anker im Text? Ohne Fokus `null`. */
+  fokusFound?: boolean | null;
   /** `aiObject` meldet keine Tokens; bis das ändert, bleibt es null statt erfunden. */
   /** Summe der Fensterlängen, die tatsächlich ans Modell gingen. */
   charsRead: number;
@@ -50,6 +52,8 @@ export interface ReadParams {
   signal?: AbortSignal;
   /** `AiCall.pinned`; nur der Vergleichslauf aus Task 10 setzt es. */
   target?: AiCall['pinned'];
+  /** Abschnitt, Artikel oder Paragraf, auf den sich das Lesen richtet („Artikel 3", „§ 14", „Kosten"). */
+  fokus?: string | undefined;
 }
 
 const READ_JSON_SCHEMA = {
@@ -124,9 +128,59 @@ export function splitWindows(text: string, size: number): string[] {
   return windows;
 }
 
+const escapeRe = (x: string) => x.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+/**
+ * Muster für den Fokus: „Art."/„Artikel" und „§"/„Paragraf" werden vereinheitlicht,
+ * „Artikel 3 Absatz 2" gilt als „Artikel 3". Alles andere ist eine Überschrift
+ * oder ein Stichwort („Begründung", „Erfüllungsaufwand"). `null` bei leerem Fokus.
+ */
+export function focusPattern(fokus: string): string | null {
+  const f = fokus.trim();
+  if (!f) return null;
+  const art = /^(?:artikel|art\.?)\s*(\d+\s?[a-z]?)(?![\p{L}\d])/iu.exec(f);
+  if (art) return `(?:Artikel|Art\\.)\\s*${escapeRe(art[1]!.replace(/\s+/g, ''))}(?![\\p{L}\\d])`;
+  const par = /^(?:§§?|paragraf|paragraph)\s*(\d+\s?[a-z]?)(?![\p{L}\d])/iu.exec(f);
+  if (par)
+    return `(?:§§?|Paragraf|Paragraph)\\s*${escapeRe(par[1]!.replace(/\s+/g, ''))}(?![\\p{L}\\d])`;
+  return escapeRe(f).replace(/\s+/g, '\\s+');
+}
+
+/**
+ * Wie gut ein Fenster den Anker trägt: jede Zeile, die mit dem Anker BEGINNT
+ * (Überschrift, auch „Zu Artikel 3" in der Begründung), zählt 10, jede weitere
+ * Erwähnung 1. 0 heißt: der Anker steht nicht im Fenster.
+ */
+export function focusScore(window: string, fokus: string): number {
+  const pattern = focusPattern(fokus);
+  if (!pattern) return 0;
+  const head = new RegExp(`^\\s*(?:#+\\s*)?(?:Zu\\s+)?${pattern}`, 'imu');
+  const any = new RegExp(pattern, 'giu');
+  let score = 0;
+  for (const line of window.split('\n')) {
+    if (head.test(line)) score += 10;
+  }
+  score += window.match(any)?.length ?? 0;
+  return score;
+}
+
 /** Indizes der zu lesenden Fenster, aufsteigend. */
-function pickWindows(windows: string[], auftrag: BundestagAuftrag, keywords: string[]): number[] {
+function pickWindows(
+  windows: string[],
+  auftrag: BundestagAuftrag,
+  keywords: string[],
+  fokus?: string
+): number[] {
   if (windows.length <= MAX_WINDOWS_PER_DOC) return windows.map((_, i) => i);
+  const focused = fokus
+    ? windows
+        .map((w, index) => ({ index, score: focusScore(w, fokus) }))
+        .filter((s) => s.score > 0)
+        .sort((a, b) => b.score - a.score || a.index - b.index)
+        .slice(0, MAX_WINDOWS_PER_DOC)
+        .map((s) => s.index)
+    : [];
+  if (focused.length > 0) return focused.sort((a, b) => a - b);
   if (auftrag === 'zusammenfassung') return [0, 1, 2];
   const lower = keywords.map((k) => k.toLowerCase());
   const scored = windows.slice(1).map((w, i) => {
@@ -171,6 +225,7 @@ interface Plan {
   /** Fenster, die gelesen werden (Text + Teil-Nummer, 1-basiert). */
   picked: { text: string; part: number }[];
   skipped: ReadResult['skipped'];
+  fokusFound: boolean | null;
 }
 
 export async function readDocuments({
@@ -181,6 +236,7 @@ export async function readDocuments({
   budget,
   signal,
   target,
+  fokus,
 }: ReadParams): Promise<ReadResult[]> {
   const startedAt = Date.now();
   const size = readWindowChars(modelFor(target));
@@ -190,11 +246,11 @@ export async function readDocuments({
   let reserved = 0;
   const plans: Plan[] = docs.map((doc) => {
     if (doc.textSource === 'missing' || !doc.text) {
-      return { doc, total: 0, picked: [], skipped: 'missing' };
+      return { doc, total: 0, picked: [], skipped: 'missing', fokusFound: fokus ? false : null };
     }
     const windows = splitWindows(doc.text, size);
     const picked: Plan['picked'] = [];
-    for (const index of pickWindows(windows, auftrag, keywords)) {
+    for (const index of pickWindows(windows, auftrag, keywords, fokus)) {
       const text = windows[index]!;
       if (reserved >= budget.maxReadChars) break;
       reserved += text.length;
@@ -205,11 +261,14 @@ export async function readDocuments({
       total: windows.length,
       picked,
       skipped: picked.length === 0 ? 'budget' : null,
+      fokusFound: fokus ? windows.some((w) => focusScore(w, fokus) > 0) : null,
     };
   });
 
   const readOne = async (plan: Plan): Promise<ReadResult> => {
     const { doc, total, picked } = plan;
+    // Steht der Anker nirgends im Dokument, liest es ohne Schwerpunkt statt leer auszugehen.
+    const lensFokus = plan.fokusFound ? fokus : undefined;
     const result: ReadResult = {
       doc,
       relevant: false,
@@ -218,6 +277,7 @@ export async function readDocuments({
       windowsRead: 0,
       windowsTotal: total,
       skipped: plan.skipped,
+      fokusFound: plan.fokusFound,
       charsRead: 0,
       usage: null,
     };
@@ -239,7 +299,7 @@ export async function readDocuments({
             timeoutMs: remaining,
             // Ein zweiter Versuch würde die Deadline überschreiten; ein Fenster, dessen JSON einmal scheitert, entfällt.
             attempts: 1,
-            system: readSystem(auftrag),
+            system: readSystem(auftrag, lensFokus),
             prompt: readPrompt(
               question,
               auftrag,
@@ -251,7 +311,8 @@ export async function readDocuments({
                 teil: win.part,
                 teile: total,
               },
-              win.text
+              win.text,
+              lensFokus
             ),
             toolName: 'belege_melden',
             toolDescription: 'Melde belegte Aussagen mit wörtlichem Zitat aus dem Ausschnitt.',

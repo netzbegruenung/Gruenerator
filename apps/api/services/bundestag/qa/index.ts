@@ -245,7 +245,7 @@ export async function readBundestagRefs({
       datum: r.doc.datum,
       urheber: r.doc.urheber,
       pdfUrl: r.doc.pdfUrl,
-      fokusGefunden: r.fokusFound,
+      fokusGefunden: r.fokusFound ?? null,
     })),
     notes,
   };

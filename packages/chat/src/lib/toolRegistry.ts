@@ -999,7 +999,9 @@ function parseBundestagCard(args: unknown, result: unknown): ToolResultVM {
 
   const entries: KeyValueEntry[] = [];
   const query = getString(card, 'query') ?? getString(args, 'query');
-  if (query) entries.push({ label: 'Suche', value: query });
+  const ref = getString(card, 'ref');
+  if (ref) entries.push({ label: 'Familie von', value: ref });
+  else if (query) entries.push({ label: 'Suche', value: query });
   for (const line of getArray(card, 'filter') ?? []) {
     if (typeof line !== 'string') continue;
     const at = line.indexOf(': ');
@@ -1008,6 +1010,22 @@ function parseBundestagCard(args: unknown, result: unknown): ToolResultVM {
         ? { label: line.slice(0, at), value: line.slice(at + 2) }
         : { label: 'Filter', value: line }
     );
+  }
+  // Zählmodus: Gesamtzahl und je Gruppe eine Zeile.
+  const zaehlung = getObject(card, 'zaehlung');
+  if (zaehlung) {
+    const einheit = getString(zaehlung, 'einheit') ?? 'Treffer';
+    entries.push({ label: 'Modus', value: 'Zählung' });
+    const gesamtZahl = getNumber(zaehlung, 'gesamt');
+    if (gesamtZahl != null) entries.push({ label: 'Gesamt', value: `${gesamtZahl} ${einheit}` });
+    for (const g of getArray(zaehlung, 'gruppen') ?? []) {
+      const label = getString(g, 'label');
+      const n = getNumber(g, 'n');
+      if (label && n != null) entries.push({ label, value: String(n) });
+    }
+    for (const h of getArray(zaehlung, 'hinweise') ?? []) {
+      if (typeof h === 'string') entries.push({ label: 'Hinweis', value: h });
+    }
   }
   const gesamt = getObject(card, 'gesamt');
   const vorgaenge = getNumber(gesamt, 'vorgaenge');
@@ -1052,6 +1070,8 @@ function parseParlamentLesenCard(args: unknown, result: unknown): ToolResultVM {
   const entries: KeyValueEntry[] = [];
   const frage = getString(card, 'frage') ?? getString(args, 'frage');
   if (frage) entries.push({ label: 'Frage', value: frage });
+  const fokus = getString(card, 'fokus') ?? getString(args, 'fokus');
+  if (fokus) entries.push({ label: 'Fokus', value: fokus });
 
   const citations = (getArray(card, 'gelesen') ?? []).map((doc, i) => {
     const ref = getString(doc, 'ref') ?? '';
@@ -1082,7 +1102,10 @@ function parseBundestagRedenCard(args: unknown, result: unknown): ToolResultVM {
 
   const entries: KeyValueEntry[] = [];
   const thema = getString(card, 'thema') ?? getString(args, 'thema');
-  if (thema) entries.push({ label: 'Thema', value: thema });
+  if (thema) {
+    const wortlaut = card['wortlaut'] === true;
+    entries.push({ label: wortlaut ? 'Wortlaut' : 'Thema', value: thema });
+  }
   for (const line of getArray(card, 'filter') ?? []) {
     if (typeof line !== 'string') continue;
     const at = line.indexOf(': ');

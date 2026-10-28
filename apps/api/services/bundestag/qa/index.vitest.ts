@@ -22,6 +22,7 @@ vi.mock('../BundestagMCPClient.js', () => ({ getBundestagMCPClient: () => ({}) }
 
 import {
   answerBundestagQuestion,
+  bundestagFamily,
   planBundestagQuestion,
   readBundestagRefs,
   resetDipForTests,
@@ -188,5 +189,49 @@ describe('Fassade', () => {
     } finally {
       envMock.DIP_API_KEY = 'k';
     }
+  });
+});
+
+describe('bundestagFamily', () => {
+  it('sucht über die Nummer mit Beratungen und lässt mehr als sechs Dokumente zu', async () => {
+    m.findCandidates.mockResolvedValue({ candidates: [cand], totals: {}, notes: [] });
+    const out = await bundestagFamily('21/3546', deps as never);
+    const call = m.findCandidates.mock.calls[0]![0];
+    expect(call.filters).toEqual({
+      dokumentnummer: ['21/3546'],
+      mitBeratung: true,
+      wahlperiode: [21],
+    });
+    expect(call.assumedWahlperiode).toBe(false);
+    expect(call.budget.maxDocuments).toBeGreaterThan(6);
+    expect(out.candidates).toEqual([cand]);
+  });
+});
+
+describe('readBundestagRefs: fokus', () => {
+  it('reicht den Fokus an die Lesestufe und meldet, ob er gefunden wurde', async () => {
+    m.resolveRefs.mockResolvedValue([cand]);
+    m.readDocuments.mockResolvedValue([
+      {
+        doc: { ...cand, dokumentnummer: '21/9', urheber: [], pdfUrl: null, textSource: 'dip' },
+        relevant: false,
+        points: [],
+        droppedPoints: 0,
+        windowsRead: 1,
+        windowsTotal: 1,
+        skipped: null,
+        fokusFound: false,
+        charsRead: 1,
+        usage: null,
+      },
+    ]);
+    const out = await readBundestagRefs({
+      question: 'Was steht in Artikel 3?',
+      refs: ['21/9'],
+      fokus: 'Artikel 3',
+      deps: deps as never,
+    });
+    expect(m.readDocuments.mock.calls[0]![0].fokus).toBe('Artikel 3');
+    expect(out.documents[0]!.fokusGefunden).toBe(false);
   });
 });

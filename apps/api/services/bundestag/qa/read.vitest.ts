@@ -4,7 +4,7 @@ const aiObject = vi.fn();
 vi.mock('../../ai/generate.js', () => ({ aiObject: (c: unknown) => aiObject(c) }));
 
 import { type FetchedDoc } from './fetchTexts.js';
-import { readDocuments, splitWindows } from './read.js';
+import { focusPattern, focusScore, readDocuments, splitWindows } from './read.js';
 
 const budget = { maxDocuments: 12, maxReadChars: 10_000_000, deadlineMs: 60_000 };
 
@@ -274,5 +274,88 @@ describe('Fenstergröße folgt dem Modell', () => {
     });
     expect(r!.windowsTotal).toBe(1);
     expect(aiObject.mock.calls[0]![0].pinned).toEqual({ provider: 'mistral', model: 'kolibri-1' });
+  });
+});
+
+describe('Fokus', () => {
+  const para = (tag: string) => tag + ' ' + 'y'.repeat(150_000);
+  const text = [
+    'a0 Inhalt',
+    'a1',
+    'Artikel 2\nÄnderung des Gesetzes',
+    'a3',
+    'Artikel 1\nÄnderung des Grundgesetzes',
+    'a5',
+  ]
+    .map(para)
+    .join('\n\n');
+
+  it('normalisiert Artikel, Art. und Paragraf', () => {
+    expect(focusScore('Artikel 3\nText', 'Art. 3')).toBeGreaterThan(0);
+    expect(focusScore('Art. 3 Abs. 2', 'Artikel 3')).toBeGreaterThan(0);
+    expect(focusScore('§ 14 Fristen', 'Paragraf 14')).toBeGreaterThan(0);
+    expect(focusScore('Paragraf 14', '§ 14')).toBeGreaterThan(0);
+  });
+
+  it('Artikel 1 trifft nicht Artikel 10 oder 1a', () => {
+    expect(focusScore('Artikel 10\nText', 'Artikel 1')).toBe(0);
+    expect(focusScore('Artikel 1a\nText', 'Artikel 1')).toBe(0);
+    expect(focusPattern('  ')).toBeNull();
+  });
+
+  it('eine Überschriftenzeile zählt mehr als eine Erwähnung', () => {
+    expect(focusScore('Artikel 3\nText', 'Artikel 3')).toBeGreaterThan(
+      focusScore('siehe Artikel 3 oben', 'Artikel 3')
+    );
+    expect(focusScore('Zu Artikel 3 (Änderung)\nText', 'Artikel 3')).toBeGreaterThanOrEqual(10);
+  });
+
+  it('liest bei vielen Fenstern die mit dem Anker, gibt den Fokus an den Leser weiter', async () => {
+    respond(() => ({ relevant: false, punkte: [] }));
+    const [r] = await readDocuments({
+      question: 'Was steht in Artikel 1?',
+      keywords: [],
+      auftrag: 'frage',
+      docs: [doc('21/1', text)],
+      budget,
+      fokus: 'Artikel 1',
+    });
+    expect(r!.fokusFound).toBe(true);
+    expect(r!.windowsRead).toBe(1);
+    const call = aiObject.mock.calls[0]![0] as { prompt: string; system: string };
+    expect(call.prompt).toContain('Teil 5/6');
+    expect(call.prompt).toContain('Fokus: Artikel 1');
+    expect(call.system).toContain('Konzentriere dich auf „Artikel 1“');
+  });
+
+  it('ohne Fokus bleibt die Auswahl unverändert', async () => {
+    respond(() => ({ relevant: false, punkte: [] }));
+    const [r] = await readDocuments({
+      question: 'q',
+      keywords: [],
+      auftrag: 'zusammenfassung',
+      docs: [doc('21/1', text)],
+      budget,
+    });
+    expect(r!.fokusFound ?? null).toBeNull();
+    const prompts = aiObject.mock.calls.map((c) => c[0].prompt as string);
+    expect(prompts.every((p) => !p.includes('Fokus:'))).toBe(true);
+    expect(prompts.map((p) => /Teil (\d)\/6/.exec(p)![1]).sort()).toEqual(['1', '2', '3']);
+  });
+
+  it('fehlt der Anker, wird ohne Schwerpunkt gelesen und das gemeldet', async () => {
+    respond(() => ({ relevant: false, punkte: [] }));
+    const [r] = await readDocuments({
+      question: 'q',
+      keywords: [],
+      auftrag: 'zusammenfassung',
+      docs: [doc('21/1', text)],
+      budget,
+      fokus: 'Artikel 9',
+    });
+    expect(r!.fokusFound).toBe(false);
+    const call = aiObject.mock.calls[0]![0] as { prompt: string; system: string };
+    expect(call.prompt).not.toContain('Fokus:');
+    expect(call.system).not.toContain('Konzentriere dich');
   });
 });
