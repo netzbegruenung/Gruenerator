@@ -159,6 +159,19 @@ describe('findCandidates', () => {
     expect(note).toContain('Fraktion der SPD');
   });
 
+  it('verwirft Kandidaten außerhalb des Zeitraums und sagt es', async () => {
+    const r = await findCandidates({
+      question: 'Heizung',
+      filters: { deskriptor: ['Heizung'], datumVon: '2025-02-15', datumBis: '2025-03-31' },
+      assumedWahlperiode: false,
+      budget,
+      dip: vorgangDip(),
+      mcp: mcpNone,
+    });
+    expect(r.candidates.map((c) => c.ref)).toEqual(['21/7009']);
+    expect(r.notes.some((n) => n.includes('außerhalb des Zeitraums'))).toBe(true);
+  });
+
   it('entfernt Duplikate nach dipId und kappt auf maxDocuments', async () => {
     const dip = makeDip((e) =>
       e === 'drucksache'

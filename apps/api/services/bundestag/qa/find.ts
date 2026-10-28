@@ -510,6 +510,23 @@ export async function findCandidates(args: {
     }
   }
 
+  // DIP filtert Vorgänge nach ihrem letzten Datum, und der MCP-Rückfall kennt den
+  // Zeitraum gar nicht: ohne diesen Schnitt kamen für „letzte Woche" (21.–28.10.2026)
+  // Drucksachen von 2025 zurück und wurden als Wochenarbeit ausgegeben.
+  if (!hasNummer && (filters.datumVon || filters.datumBis)) {
+    const imFenster = (d: string) =>
+      d !== '' &&
+      (!filters.datumVon || d >= filters.datumVon) &&
+      (!filters.datumBis || d <= filters.datumBis);
+    const vorher = candidates.length;
+    candidates = candidates.filter((c) => imFenster(c.datum));
+    if (candidates.length < vorher) {
+      notes.push(
+        `${vorher - candidates.length} Treffer lagen außerhalb des Zeitraums und wurden verworfen.`
+      );
+    }
+  }
+
   if (!totals.drucksachen) totals.drucksachen = candidates.length;
   // Jeder Kandidat eines ausgeklappten Vorgangs trägt dessen Verlauf — auch die
   // Drucksache, über deren Nummer der Vorgang gefunden wurde.

@@ -41,7 +41,10 @@ import { CHAT_BUDGET } from '../../../services/bundestag/qa/budget.js';
 import { einheitLabel, formatCount } from '../../../services/bundestag/qa/count.js';
 import { bundestagDocTitle } from '../../../services/bundestag/qa/docTitle.js';
 import { countBundestagDocs, readBundestagRefs } from '../../../services/bundestag/qa/index.js';
-import { detectFromWording } from '../../../services/bundestag/qa/planDetect.js';
+import {
+  detectFromWording,
+  drucksachetypAusTitel,
+} from '../../../services/bundestag/qa/planDetect.js';
 import {
   describeRedenFilter,
   redeTitle,
@@ -169,23 +172,25 @@ const BUNDESTAG_HINWEIS =
 const BUNDESTAG_MAX_CALLS_PER_TURN = 4;
 const BUNDESTAG_CAP_HINWEIS = `Schon ${BUNDESTAG_MAX_CALLS_PER_TURN} Bundestag-Suchen in diesem Zug — antworte jetzt mit den vorliegenden Treffern und nenne, was offen bleibt.`;
 const LANDTAG_RE = /landtag|abgeordnetenhaus|bürgerschaft|buergerschaft|landesparlament/i;
-// Berlin hat ein eigenes Werkzeug (`landtag`); der Hinweis schickt dorthin statt „nicht durchsucht".
+// Berlin hat ein eigenes Werkzeug (`landtag`): dorthin schickt ein Hinweis an den
+// Planer, denn nur er ruft Werkzeuge. Jeder andere Landtag geht als `fuerSchreiber`
+// mit, nicht als `hinweis`: `hinweis` liest nur der Planer, der werkzeuglose
+// Schreiber des split-Modus nie (live 28.10.2026: 2 von 3 Antworten gaben
+// Websuche-Treffer als Landtag-Inhalt aus).
 const BERLIN_RE = /berlin|abgeordnetenhaus/i;
 const LANDTAG_HINWEIS =
   'Die Frage nennt ein Landesparlament: Sag ZUERST, dass dieses Werkzeug nur den Bundestag abdeckt und Dokumente von Landtagen hier nicht durchsucht werden; danach, was der Bundestag dazu hergibt.';
 const BERLIN_HINWEIS =
   "Die Frage nennt das Berliner Abgeordnetenhaus: Dessen Dokumente findet `landtag` mit parlament 'berlin', nicht dieses Werkzeug.";
 
-/** Geltungsbereich, wenn die Frage ein Landesparlament nennt — sonst null. */
-function landtagNote(userText: string): string | null {
-  if (!LANDTAG_RE.test(userText)) return null;
-  return BERLIN_RE.test(userText) ? BERLIN_HINWEIS : LANDTAG_HINWEIS;
-}
-
-/** `BUNDESTAG_HINWEIS` (bzw. ein anderer Basistext) plus der Geltungsbereich, wenn die Frage einen Landtag nennt. */
-function withLandtagNote(base: string, userText: string): string {
-  const note = landtagNote(userText);
-  return note ? `${base} ${note}` : base;
+/** Der Geltungsbereich, wenn die Frage einen Landtag nennt: Berlin an den Planer, sonst an den Schreiber. */
+function landtagNote(
+  userText: string
+): { fuerSchreiber: string } | { landtagHinweis: string } | Record<string, never> {
+  if (!LANDTAG_RE.test(userText)) return {};
+  return BERLIN_RE.test(userText)
+    ? { landtagHinweis: BERLIN_HINWEIS }
+    : { fuerSchreiber: LANDTAG_HINWEIS };
 }
 
 /**
@@ -262,9 +267,18 @@ Nicht für Inhalte, dafür parlament_lesen. Nicht für Reden im Plenum, dafür b
         (state.messages ? lastUserText(state.messages) : null) ??
         ''
       ).trim();
+      // Leere Listen (`deskriptor: []`) sind „nichts gesetzt" und überstimmen den Wortlaut nicht.
       const fromArgs = Object.fromEntries(
-        Object.entries(args).filter(([, v]) => v !== undefined)
+        Object.entries(args).filter(
+          ([, v]) => v !== undefined && !(Array.isArray(v) && v.length === 0)
+        )
       ) as typeof args;
+      // „Kleine Anfrage" als Titel ist die Drucksachenart, keine Titelsuche (live: 1 statt 524).
+      const titelTyp = fromArgs.titel ? drucksachetypAusTitel(fromArgs.titel) : null;
+      if (titelTyp) {
+        delete fromArgs.titel;
+        fromArgs.drucksachetyp = [...new Set([...(fromArgs.drucksachetyp ?? []), titelTyp])];
+      }
       // Ein Aufruf nur mit Filtern ist ein vollständiger Auftrag (das Rezept
       // verlangt ihn so); ohne Filter und Suchbegriff ist die Frage selbst das Thema.
       const hasFilters = Object.values(fromArgs).some((v) => !(Array.isArray(v) && v.length === 0));
@@ -289,7 +303,8 @@ Nicht für Inhalte, dafür parlament_lesen. Nicht für Reden im Plenum, dafür b
         return {
           resultCount: family.results.length,
           sources: sources ?? '',
-          hinweis: withLandtagNote(BUNDESTAG_HINWEIS, userText),
+          hinweis: BUNDESTAG_HINWEIS,
+          ...landtagNote(userText),
           ...(family.notes.length > 0 ? { hinweise: family.notes } : {}),
           uiCard: {
             query: query ?? `Familie von ${bundestagRefLabel(ref)}`,
@@ -340,7 +355,7 @@ Nicht für Inhalte, dafür parlament_lesen. Nicht für Reden im Plenum, dafür b
           resultCount: 1,
           sources: sources ?? '',
           modus: 'zaehlen',
-          ...(landtagNote(userText) ? { hinweis: landtagNote(userText) } : {}),
+          ...landtagNote(userText),
           einheit: zaehlung.einheit,
           bezeichnung: einheitLabel(zaehlung),
           gesamt: zaehlung.gesamt,
@@ -378,7 +393,8 @@ Nicht für Inhalte, dafür parlament_lesen. Nicht für Reden im Plenum, dafür b
         resultCount: results.length,
         sources: sources ?? '',
         ...(totals ? { gesamt: totals } : {}),
-        hinweis: withLandtagNote(BUNDESTAG_HINWEIS, userText),
+        hinweis: BUNDESTAG_HINWEIS,
+        ...landtagNote(userText),
         // Nur für die Karte; wrapTools nimmt das Feld vor dem Modell heraus.
         uiCard: {
           query: question,

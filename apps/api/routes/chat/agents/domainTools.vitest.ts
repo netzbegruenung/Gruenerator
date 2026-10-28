@@ -629,6 +629,63 @@ describe('bundestag: modus zaehlen, ref', () => {
     expect(out['uiCard'].zaehlung.gruppen).toEqual([{ label: 'Fraktion der SPD', n: 10 }]);
   });
 
+  it('zaehlen: ein Titel, der ein Drucksachetyp ist, zählt als Typ; leere Listen überstimmen nichts', async () => {
+    countBundestagDocs.mockResolvedValue({
+      einheit: 'Drucksachen',
+      gesamt: 524,
+      gruppen: [],
+      gruppiertNach: 'monat',
+      filters: {},
+      notes: [],
+      aufrufe: 1,
+    });
+    await exec(
+      makeBundestagTool({
+        state: {
+          ...state,
+          lastUserTextNoMentions: 'Wie viele Kleine Anfragen hat die grüne Fraktion gestellt?',
+        } as ChatGraphState,
+        sourceRegistry: createSourceRegistry(),
+      }),
+      {
+        modus: 'zaehlen',
+        gruppieren: 'monat',
+        urheber: ['Fraktion BÜNDNIS 90/DIE GRÜNEN'],
+        deskriptor: [],
+        titel: 'Kleine Anfrage',
+      }
+    );
+    const filters = (
+      countBundestagDocs.mock.calls.at(-1)?.[0] as { filters: Record<string, unknown> }
+    ).filters;
+    expect(filters['titel']).toBeUndefined();
+    expect(filters['deskriptor']).toBeUndefined();
+    expect(filters['drucksachetyp']).toEqual(['Kleine Anfrage']);
+  });
+
+  it('Landtag-Frage: der Geltungsbereich geht als `fuerSchreiber` mit, nicht als Planer-`hinweis`', async () => {
+    countBundestagDocs.mockResolvedValue({
+      einheit: 'Drucksachen',
+      gesamt: 1,
+      filters: {},
+      notes: [],
+      aufrufe: 1,
+    });
+    const run = (text: string) =>
+      exec(
+        makeBundestagTool({
+          state: { ...state, lastUserTextNoMentions: text } as ChatGraphState,
+          sourceRegistry: createSourceRegistry(),
+        }),
+        { modus: 'zaehlen' }
+      ) as Promise<Record<string, unknown>>;
+    const landtag = await run('Was hat der Landtag in NRW zu Windkraft beschlossen?');
+    expect(landtag['fuerSchreiber']).toMatch(/nur den Bundestag/);
+    expect(String(landtag['hinweis'] ?? '')).not.toMatch(/Landesparlament/);
+    const bund = await run('Wie viele Anträge zu Windkraft gab es?');
+    expect(bund['fuerSchreiber']).toBeUndefined();
+  });
+
   it('zaehlen meldet einen DIP-Ausfall als Fehler', async () => {
     countBundestagDocs.mockRejectedValue(new Error('down'));
     const out = (await exec(makeBundestagTool({ state, sourceRegistry: createSourceRegistry() }), {
@@ -689,9 +746,11 @@ describe('bundestag: modus zaehlen, ref', () => {
         sourceRegistry: createSourceRegistry(),
       }),
       { query: 'Radwege' }
-    )) as { hinweis: string };
-    expect(out.hinweis).toMatch(/`landtag` mit parlament 'berlin'/);
-    expect(out.hinweis).not.toMatch(/nicht durchsucht/);
+    )) as { hinweis: string; landtagHinweis?: string; fuerSchreiber?: string };
+    expect(out.landtagHinweis).toMatch(/`landtag` mit parlament 'berlin'/);
+    // Der Planer behält seinen Bundestag-Hinweis; der Schreiber bekommt kein „nicht durchsucht".
+    expect(out.hinweis).toBeTruthy();
+    expect(out.fuerSchreiber).toBeUndefined();
   });
 
   it('Landtag in der Frage: der Hinweis verlangt zuerst den Geltungsbereich, der Aufruf läuft weiter', async () => {
@@ -707,19 +766,19 @@ describe('bundestag: modus zaehlen, ref', () => {
         sourceRegistry: createSourceRegistry(),
       }),
       { query: 'Windkraft' }
-    )) as { hinweis: string; resultCount: number };
+    )) as { hinweis: string; fuerSchreiber?: string; resultCount: number };
     expect(retrieveBundestag).toHaveBeenCalled();
     expect(out.resultCount).toBe(1);
-    expect(out.hinweis).toMatch(/nur den Bundestag/);
-    expect(out.hinweis).toMatch(/Landesparlament|Landtag/);
+    expect(out.fuerSchreiber).toMatch(/nur den Bundestag/);
+    expect(out.fuerSchreiber).toMatch(/Landesparlament|Landtag/);
     const ohne = (await exec(
       makeBundestagTool({
         state: { ...state, lastUserTextNoMentions: 'Windkraft im Bundestag' } as ChatGraphState,
         sourceRegistry: createSourceRegistry(),
       }),
       { query: 'Windkraft' }
-    )) as { hinweis: string };
-    expect(ohne.hinweis).not.toMatch(/nur den Bundestag/);
+    )) as { hinweis: string; fuerSchreiber?: string };
+    expect(ohne.fuerSchreiber).toBeUndefined();
   });
 
   it('ab dem 5. Aufruf im Zug fragt das Werkzeug DIP nicht mehr, ein neuer Zug zählt neu', async () => {

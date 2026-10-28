@@ -5,6 +5,7 @@ import {
   buildEmptyResultNote,
   buildToolFailureNote,
   buildToolPayloadNote,
+  buildWriterNotes,
   mcpHasFailure,
 } from './toolOutcome.js';
 import { readMcpResult } from './types.js';
@@ -417,5 +418,38 @@ describe('buildToolPayloadNote', () => {
     ]);
     expect(note).toContain('Digest');
     expect(note).toContain('Der Grünerator kann …');
+  });
+});
+
+describe('buildWriterNotes', () => {
+  it('reicht `fuerSchreiber` eines Werkzeugergebnisses als Anweisung weiter', () => {
+    const note = buildWriterNotes([
+      step({ toolName: 'bundestag', result: { resultCount: 3, fuerSchreiber: 'Nur Bundestag.' } }),
+    ]);
+    expect(note).toContain('Nur Bundestag.');
+  });
+
+  it('lässt `hinweis` aus: das ist Planer-Anweisung, nicht Schreiber-Anweisung', () => {
+    expect(
+      buildWriterNotes([
+        step({ toolName: 'bundestag', result: { hinweis: 'Rufe parlament_lesen auf.' } }),
+      ])
+    ).toBe('');
+  });
+
+  it('nennt dieselbe Notiz nur einmal, auch bei mehreren Aufrufen', () => {
+    const s = step({ toolName: 'bundestag', result: { fuerSchreiber: 'Nur Bundestag.' } });
+    const note = buildWriterNotes([s, s]);
+    expect(note.split('Nur Bundestag.')).toHaveLength(2);
+  });
+
+  it('ignoriert Fehlschläge, leere Notizen und MCP-Schritte', () => {
+    expect(
+      buildWriterNotes([
+        step({ result: { fuerSchreiber: 'x' }, ok: false }),
+        step({ result: { fuerSchreiber: '  ' } }),
+        step({ serverName: 'Notion', result: { fuerSchreiber: 'fremd' } }),
+      ])
+    ).toBe('');
   });
 });

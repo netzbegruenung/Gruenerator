@@ -304,7 +304,17 @@ export function formatCount(r: CountResult): string {
     : r.filters.wahlperiode?.length
       ? `, Wahlperiode ${r.filters.wahlperiode.join('/')}`
       : '';
-  const kopf = `${r.gesamt} ${einheit} (DIP-Trefferzahl, Bundestag${fenster})`;
+  // Die Filter gehören in die Quelle: ohne sie liest der Schreiber eine nach Urheber
+  // gefilterte Zahl als Gesamtzahl (live 28.10.2026: „wie viele davon von den Grünen,
+  // geht aus den Daten nicht hervor" — bei einer Zählung NUR der grünen Anfragen).
+  const gefiltert = [
+    r.filters.urheber?.length ? `Urheber: ${r.filters.urheber.join(' oder ')}` : '',
+    r.filters.beratungsstand?.length ? `Stand: ${r.filters.beratungsstand.join(' oder ')}` : '',
+    r.filters.deskriptor?.length ? `Schlagwort: ${r.filters.deskriptor.join(' und ')}` : '',
+    r.filters.titel ? `Titel enthält „${r.filters.titel}“` : '',
+  ].filter(Boolean);
+  const filterText = gefiltert.length ? `; nur ${gefiltert.join('; ')}` : '';
+  const kopf = `${r.gesamt} ${einheit} (DIP-Trefferzahl, Bundestag${fenster}${filterText})`;
   if (!r.gruppen) return kopf;
   const zeilen = r.gruppen.map((g) => `| ${g.label} | ${g.n} |`);
   return [kopf, '', `| ${r.gruppiertNach} | ${einheit} |`, '|---|---|', ...zeilen].join('\n');

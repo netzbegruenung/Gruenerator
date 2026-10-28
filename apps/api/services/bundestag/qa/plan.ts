@@ -12,11 +12,10 @@ import { aiObject } from '../../ai/generate.js';
 import { BARE_DRS_RE, EXPLICIT_DRS_RE } from '../BundestagEnrichedService.js';
 import { type DipClient } from '../dip/dipClient.js';
 
-import { detectFromWording } from './planDetect.js';
+import { CURRENT_WAHLPERIODE, detectFromWording } from './planDetect.js';
 
 const log = createLogger('BundestagQaPlan');
 
-const CURRENT_WAHLPERIODE = 21;
 const MAX_KEYWORDS = 8;
 
 /** Nur `list` wird gebraucht — so lässt sich der Client im Test ersetzen. */
@@ -78,25 +77,16 @@ export function keywordsFromQuestion(question: string): string[] {
   return out;
 }
 
-const WP_RE = /\b(?:wp|wahlperiode)\s*(\d{1,2})\b/i;
-// „diese/aktuelle/laufende Wahlperiode", „seit der Wahl", „diese Regierung/Koalition" meinen die laufende.
-const CURRENT_WP_RE =
-  /\b(?:diese[rnms]?|aktuelle[nrms]?|laufende[nrms]?)\s+wahlperiode\b|\bseit\s+der\s+wahl\b|\bdiese[rn]?\s+(?:bundes)?(?:regierung|koalition)\b/i;
-
 function detectDeterministic(question: string): BundestagFilter {
-  const found: BundestagFilter = {};
-  const wp = question.match(WP_RE);
-  // Nur 1..30 sind Wahlperioden (wie im Contract); „WP 99" ignorieren.
-  if (wp && Number(wp[1]) >= 1 && Number(wp[1]) <= 30) found.wahlperiode = [Number(wp[1])];
-  if (!found.wahlperiode && CURRENT_WP_RE.test(question)) found.wahlperiode = [CURRENT_WAHLPERIODE];
+  // Wahlperiode, Typ, Urheber, Zeitraum aus dem Wortlaut: davon darf nichts am Modell hängen.
+  const found: BundestagFilter = detectFromWording(question);
   const drs = question.match(EXPLICIT_DRS_RE) ?? question.match(BARE_DRS_RE);
   if (drs) {
     found.dokumentnummer = [`${drs[1]}/${drs[2]}`];
     // „Drucksache 20/123" nennt die Wahlperiode schon.
     found.wahlperiode ??= [Number(drs[1])];
   }
-  // Typ, Urheber, Zeitraum aus dem Wortlaut: davon darf nichts am Modell hängen.
-  return { ...detectFromWording(question), ...found };
+  return found;
 }
 
 /**
