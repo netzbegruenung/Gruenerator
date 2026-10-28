@@ -5,6 +5,7 @@ import { createSourceRegistry } from '../services/agenticLoop/sourceRegistry.js'
 
 import {
   makeAbgeordnetenwatchTool,
+  makeBundestagRedenTool,
   makeBundestagTool,
   makeCreateBoardTool,
   makeCreateDocTool,
@@ -25,6 +26,12 @@ const retrieveBundestag = vi.fn<(q: string, l: unknown, f: unknown) => Promise<u
 const readBundestagRefs = vi.fn<(o: unknown) => Promise<unknown>>();
 vi.mock('../../../services/bundestag/qa/index.js', () => ({
   readBundestagRefs: (o: unknown): Promise<unknown> => readBundestagRefs(o),
+}));
+// Nur die Suche ist Attrappe; Filter, Titel und URL laufen echt.
+const searchBundestagReden = vi.fn<(s: unknown) => Promise<unknown>>();
+vi.mock('../../../services/bundestag/reden.js', async (importOriginal) => ({
+  ...(await importOriginal<Record<string, unknown>>()),
+  searchBundestagReden: (s: unknown): Promise<unknown> => searchBundestagReden(s),
 }));
 const retrieveAbgeordnetenwatch = vi.fn<(q: string, l: unknown) => Promise<unknown>>();
 vi.mock('../../../agents/langgraph/ChatGraph/nodes/searchNode.js', () => ({
@@ -107,6 +114,96 @@ describe('makeSummaryTool', () => {
     expect(out.summary).toBeUndefined();
     // summary_complete still fires so the progress indicator resolves.
     expect(events.map((e) => e.type)).toEqual(['summary_start', 'summary_complete']);
+  });
+});
+
+describe('makeBundestagRedenTool', () => {
+  // Block statt Ausdruck: ein von beforeEach zurückgegebener Wert gilt als
+  // Aufräum-Funktion, und Vitest riefe die Attrappe sonst nach dem Test auf.
+  beforeEach(() => {
+    searchBundestagReden.mockReset();
+  });
+
+  const rede = {
+    speaker: 'Katrin Uhlig',
+    party: 'GRÜNE',
+    date: '2025-05-23',
+    excerpt: 'Wärmeplanung ist Planungssicherheit. ENDE',
+    protokollNummer: '21/8',
+    wahlperiode: 21,
+    herausgeber: 'BT',
+    topTitle: null,
+    score: 0.75,
+  };
+  const make = (state: Partial<ChatGraphState> = {}, sourceRegistry = createSourceRegistry()) =>
+    makeBundestagRedenTool({
+      state: { ...baseState, ...state } as ChatGraphState,
+      sourceRegistry,
+    });
+
+  it('registriert je Rede eine Quelle mit Redetext und Protokoll-PDF, Karte nur in uiCard', async () => {
+    searchBundestagReden.mockResolvedValue({ speeches: [rede], wpFallback: false });
+    const sourceRegistry = createSourceRegistry();
+    const out = (await exec(
+      make(
+        { lastUserTextNoMentions: 'Wann hat Katrin Uhlig zuletzt über Wärmeplanung gesprochen?' },
+        sourceRegistry
+      ),
+      { thema: 'Wärmeplanung', redner: 'Katrin Uhlig' }
+    )) as { resultCount: number; sources: string; uiCard: Record<string, unknown> };
+    expect(searchBundestagReden).toHaveBeenCalledWith({
+      thema: 'Wärmeplanung',
+      redner: 'Katrin Uhlig',
+      sortierung: 'neueste',
+    });
+    expect(out.resultCount).toBe(1);
+    expect(out.sources).toContain('Rede Katrin Uhlig (GRÜNE) · Plenarprotokoll 21/8 · 23.05.2025');
+    expect(out.sources).toContain('ENDE');
+    expect(sourceRegistry.renderAll()).toContain('https://dserver.bundestag.de/btp/21/21008.pdf');
+    expect(out.uiCard).toEqual({
+      thema: 'Wärmeplanung',
+      filter: ['Redner*in: Katrin Uhlig', 'Sortierung: neueste zuerst'],
+      reden: [
+        {
+          redner: 'Katrin Uhlig',
+          partei: 'GRÜNE',
+          datum: '2025-05-23',
+          protokoll: '21/8',
+          top: null,
+          url: 'https://dserver.bundestag.de/btp/21/21008.pdf',
+        },
+      ],
+    });
+  });
+
+  it('gesetzte Argumente schlagen den Wortlaut', async () => {
+    searchBundestagReden.mockResolvedValue({ speeches: [], wpFallback: false });
+    const out = (await exec(make({ lastUserTextNoMentions: 'Was sagt die SPD seit 2025?' }), {
+      thema: 'Rente',
+      fraktion: 'Union',
+    })) as { error?: string };
+    expect(searchBundestagReden).toHaveBeenCalledWith({
+      thema: 'Rente',
+      datumVon: '2025-01-01',
+      fraktion: 'Union',
+    });
+    expect(out.error).toBe('Keine passenden Reden gefunden.');
+  });
+
+  it('meldet einen Ausfall als Ausfall', async () => {
+    searchBundestagReden.mockImplementation(async () => {
+      throw new Error('down');
+    });
+    const out = (await exec(make(), { thema: 'x y' })) as { error?: string };
+    expect(out.error).toContain('nicht erreichbar');
+  });
+
+  it('sperrt Österreich, ohne zu suchen', async () => {
+    const out = (await exec(make({ userLocale: 'de-AT' }), { thema: 'x y' })) as {
+      error?: string;
+    };
+    expect(out.error).toBeTruthy();
+    expect(searchBundestagReden).not.toHaveBeenCalled();
   });
 });
 

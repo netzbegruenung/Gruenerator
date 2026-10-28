@@ -37,6 +37,7 @@ export const UI_TOOL_NAMES = z.enum([
   'web_search',
   'bundestag',
   'parlament_lesen',
+  'bundestag_reden',
   'research',
   'gruenerator_examples_search',
   'gruenerator_pressemitteilung_examples',
@@ -1018,6 +1019,15 @@ function parseBundestagCard(args: unknown, result: unknown): ToolResultVM {
     });
   }
 
+  // Beratungsverlauf je Vorgang: eine Zeile je Beschluss, der Vorgang davor.
+  for (const v of getArray(card, 'verfahren') ?? []) {
+    const titel = getString(v, 'titel');
+    if (titel) entries.push({ label: 'Verfahren', value: titel });
+    for (const zeile of getArray(v, 'zeilen') ?? []) {
+      if (typeof zeile === 'string') entries.push({ label: 'Verlauf', value: zeile });
+    }
+  }
+
   const citations = (getArray(card, 'dokumente') ?? []).map((doc, i) => {
     const ref = getString(doc, 'ref') ?? '';
     const datum = getString(doc, 'datum');
@@ -1066,6 +1076,46 @@ function parseParlamentLesenCard(args: unknown, result: unknown): ToolResultVM {
   return { kind: 'key-value', entries, citations, markdown: null, imageUrl: null };
 }
 
+function parseBundestagRedenCard(args: unknown, result: unknown): ToolResultVM {
+  const card = getObject(result, 'uiCard');
+  if (!card) return { kind: 'citations', citations: parseSearchCitations(result) };
+
+  const entries: KeyValueEntry[] = [];
+  const thema = getString(card, 'thema') ?? getString(args, 'thema');
+  if (thema) entries.push({ label: 'Thema', value: thema });
+  for (const line of getArray(card, 'filter') ?? []) {
+    if (typeof line !== 'string') continue;
+    const at = line.indexOf(': ');
+    entries.push(
+      at > 0
+        ? { label: line.slice(0, at), value: line.slice(at + 2) }
+        : { label: 'Filter', value: line }
+    );
+  }
+
+  const citations = (getArray(card, 'reden') ?? []).map((rede, i) => {
+    const redner = getString(rede, 'redner') ?? 'Rede';
+    const partei = getString(rede, 'partei');
+    const protokoll = getString(rede, 'protokoll');
+    const datum = getString(rede, 'datum');
+    const snippet = [
+      protokoll ? `Plenarprotokoll ${protokoll}` : null,
+      datum ? isoToDe(datum) : null,
+      getString(rede, 'top'),
+    ]
+      .filter(Boolean)
+      .join(' · ');
+    return {
+      id: `bundestag-rede-${i}`,
+      href: docHref(getString(rede, 'url'), protokoll ?? redner),
+      title: partei ? `${redner} (${partei})` : redner,
+      ...(snippet ? { snippet } : {}),
+      type: 'document' as const,
+    };
+  });
+  return { kind: 'key-value', entries, citations, markdown: null, imageUrl: null };
+}
+
 function entry(name: UiToolName, kind: ToolViewKind, parse: ToolRegistryEntry['parse']) {
   return { meta: getToolMeta(name), kind, parse };
 }
@@ -1099,6 +1149,7 @@ export const TOOL_REGISTRY: Record<UiToolName, ToolRegistryEntry> = {
   // früher gespeicherte Threads) fallen auf die Zitatliste zurück.
   bundestag: entry('bundestag', 'key-value', parseBundestagCard),
   parlament_lesen: entry('parlament_lesen', 'key-value', parseParlamentLesenCard),
+  bundestag_reden: entry('bundestag_reden', 'key-value', parseBundestagRedenCard),
   research: entry('research', 'markdown-report', (_a, r) => ({
     kind: 'markdown-report',
     ...parseResearchResult(r),

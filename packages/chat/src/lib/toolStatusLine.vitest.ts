@@ -27,6 +27,7 @@ describe('isSearchProgressTool', () => {
   it('gives bundestag and parlament_lesen a card of their own', () => {
     expect(isSearchProgressTool('bundestag')).toBe(false);
     expect(isSearchProgressTool('parlament_lesen')).toBe(false);
+    expect(isSearchProgressTool('bundestag_reden')).toBe(false);
   });
 
   it('keeps the tools whose card IS the result', () => {

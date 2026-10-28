@@ -1,0 +1,176 @@
+/**
+ * Redensuche für das Chat-Werkzeug `bundestag_reden`: „Wann hat Katrin Uhlig
+ * über Wärmeplanung gesprochen?" — die semantische Suche des Bundestag-MCP über
+ * die Plenarprotokolle, mit Redner, Fraktion, Zeitraum und Sortierung.
+ *
+ * Fraktionen: die Redensammlung des MCP speichert KURZE Namen („GRÜNE"), die
+ * DIP-Filter LANGE („Fraktion BÜNDNIS 90/DIE GRÜNEN"). Das Werkzeug nimmt beide
+ * und bildet hier auf die kurzen ab.
+ */
+import { btpProtokollPdfUrl, type BtSpeech } from '@gruenerator/contracts';
+import { z } from 'zod';
+
+import { type BtSort, getBundestagMCPClient } from './BundestagMCPClient.js';
+import { detectUrheber, detectZeitraum } from './qa/planDetect.js';
+
+/** Kurze Namen der Redensammlung (MCP `speakerParty`). */
+export const REDEN_PARTEIEN = [
+  'CDU/CSU',
+  'SPD',
+  'GRÜNE',
+  'AfD',
+  'DIE LINKE',
+  'FDP',
+  'BSW',
+] as const;
+export type RedenPartei = (typeof REDEN_PARTEIEN)[number];
+
+/** Was das Modell als `fraktion` schicken darf: kurz, lang (wie bei `bundestag`) oder umgangssprachlich. */
+export const redenFraktionSchema = z.enum([
+  ...REDEN_PARTEIEN,
+  'Fraktion BÜNDNIS 90/DIE GRÜNEN',
+  'BÜNDNIS 90/DIE GRÜNEN',
+  'Grüne',
+  'Fraktion der CDU/CSU',
+  'Union',
+  'Fraktion der SPD',
+  'Fraktion der AfD',
+  'Fraktion DIE LINKE',
+  'Linke',
+  'Fraktion der FDP',
+]);
+export type RedenFraktion = z.infer<typeof redenFraktionSchema>;
+
+/** Vollständig über alle Nicht-Kurznamen: ein neuer Wert im Schema bricht hier den Typcheck. */
+const LANG_ZU_KURZ: Record<Exclude<RedenFraktion, RedenPartei>, RedenPartei> = {
+  'Fraktion BÜNDNIS 90/DIE GRÜNEN': 'GRÜNE',
+  'BÜNDNIS 90/DIE GRÜNEN': 'GRÜNE',
+  Grüne: 'GRÜNE',
+  'Fraktion der CDU/CSU': 'CDU/CSU',
+  Union: 'CDU/CSU',
+  'Fraktion der SPD': 'SPD',
+  'Fraktion der AfD': 'AfD',
+  'Fraktion DIE LINKE': 'DIE LINKE',
+  Linke: 'DIE LINKE',
+  'Fraktion der FDP': 'FDP',
+};
+
+function isPartei(f: RedenFraktion): f is RedenPartei {
+  return (REDEN_PARTEIEN as readonly string[]).includes(f);
+}
+
+export const redenSortierungSchema = z.enum(['relevanz', 'neueste', 'aelteste']);
+export type RedenSortierung = z.infer<typeof redenSortierungSchema>;
+
+const SORT: Record<RedenSortierung, BtSort> = {
+  relevanz: 'relevance',
+  neueste: 'newest',
+  aelteste: 'oldest',
+};
+
+export function redenPartei(fraktion: RedenFraktion): RedenPartei {
+  return isPartei(fraktion) ? fraktion : LANG_ZU_KURZ[fraktion];
+}
+
+export interface RedenFilter {
+  redner?: string;
+  fraktion?: RedenFraktion;
+  wahlperiode?: number;
+  datumVon?: string;
+  datumBis?: string;
+  sortierung?: RedenSortierung;
+}
+
+const NEUESTE_RE =
+  /\b(?:zuletzt|neueste[nrs]?|jüngst\w*|aktuellste[nrs]?|letzte[nrs]?\s+(?:mal|rede))\b/i;
+const AELTESTE_RE = /\b(?:erstmals|zum\s+ersten\s+mal|früheste[nrs]?|älteste[nrs]?)\b/i;
+
+/**
+ * Was der Wortlaut der Nachricht an Filtern hergibt: Zeitraum, Sortierung und
+ * — nur ohne Redner — genau eine Fraktion. Mit Redner ist die Fraktion
+ * überflüssig und gefährlich: „Was hat Uhlig der Union erwidert?" nennt die
+ * Union, ohne dass Uhlig in ihr säße.
+ */
+export function redenFilterFromWording(text: string, hasRedner: boolean): RedenFilter {
+  const out: RedenFilter = { ...detectZeitraum(text) };
+  if (NEUESTE_RE.test(text)) out.sortierung = 'neueste';
+  else if (AELTESTE_RE.test(text)) out.sortierung = 'aelteste';
+  if (!hasRedner) {
+    const parteien = detectUrheber(text).filter((u) => u !== 'Bundesregierung');
+    const only = parteien.length === 1 ? parteien[0] : null;
+    const parsed = only ? redenFraktionSchema.safeParse(only) : null;
+    if (parsed?.success) out.fraktion = parsed.data;
+  }
+  return out;
+}
+
+export interface RedenSuche extends RedenFilter {
+  thema: string;
+  limit?: number;
+}
+
+export interface RedenErgebnis {
+  speeches: BtSpeech[];
+  /** Keine Treffer in der aktuellen Wahlperiode, daher über alle gesucht. */
+  wpFallback: boolean;
+}
+
+/** Die Suchschnittstelle des MCP-Clients, die hier gebraucht wird (Tests reichen einen Stub). */
+export interface RedenClient {
+  searchSpeechesFull: ReturnType<typeof getBundestagMCPClient>['searchSpeechesFull'];
+}
+
+/** Wirft, wenn der MCP nicht erreichbar ist. */
+export async function searchBundestagReden(
+  suche: RedenSuche,
+  client: RedenClient = getBundestagMCPClient()
+): Promise<RedenErgebnis> {
+  const { items, wpFallback } = await client.searchSpeechesFull({
+    query: suche.thema,
+    ...(suche.redner ? { speaker: suche.redner } : {}),
+    ...(suche.fraktion ? { speakerParty: redenPartei(suche.fraktion) } : {}),
+    ...(suche.wahlperiode ? { wahlperiode: suche.wahlperiode } : {}),
+    ...(suche.datumVon ? { dateFrom: suche.datumVon } : {}),
+    ...(suche.datumBis ? { dateTo: suche.datumBis } : {}),
+    limit: Math.min(Math.max(suche.limit ?? 5, 1), 10),
+    sort: SORT[suche.sortierung ?? 'relevanz'],
+  });
+  return { speeches: items, wpFallback };
+}
+
+function deDate(iso: string): string {
+  const [y, m, d] = iso.slice(0, 10).split('-');
+  return y && m && d ? `${d}.${m}.${y}` : iso;
+}
+
+/** „Rede Katrin Uhlig (GRÜNE) · Plenarprotokoll 21/8 · 23.05.2025" (+ Tagesordnungspunkt). */
+export function redeTitle(s: BtSpeech): string {
+  const wer = `Rede ${s.speaker}${s.party ? ` (${s.party})` : ''}`;
+  const protokoll = s.protokollNummer
+    ? `${s.herausgeber === 'BR' ? 'BR-Plenarprotokoll' : 'Plenarprotokoll'} ${s.protokollNummer}`
+    : null;
+  return [wer, protokoll, s.date ? deDate(s.date) : null, s.topTitle].filter(Boolean).join(' · ');
+}
+
+/** PDF des Plenarprotokolls (nur Bundestag, Muster `btp/21/21008.pdf`), sonst `null`. */
+export function redeUrl(s: BtSpeech): string | null {
+  return btpProtokollPdfUrl(s.protokollNummer, s.herausgeber);
+}
+
+/** Die Filter in Worten für die Karte im Chat, eine Zeile je Filter. */
+export function describeRedenFilter(f: RedenFilter): string[] {
+  const lines: string[] = [];
+  if (f.redner) lines.push(`Redner*in: ${f.redner}`);
+  if (f.fraktion) lines.push(`Fraktion: ${redenPartei(f.fraktion)}`);
+  if (f.wahlperiode) lines.push(`Wahlperiode: ${f.wahlperiode}`);
+  if (f.datumVon && f.datumBis) {
+    lines.push(`Zeitraum: ${deDate(f.datumVon)} bis ${deDate(f.datumBis)}`);
+  } else if (f.datumVon) {
+    lines.push(`Zeitraum: ab ${deDate(f.datumVon)}`);
+  } else if (f.datumBis) {
+    lines.push(`Zeitraum: bis ${deDate(f.datumBis)}`);
+  }
+  if (f.sortierung === 'neueste') lines.push('Sortierung: neueste zuerst');
+  if (f.sortierung === 'aelteste') lines.push('Sortierung: älteste zuerst');
+  return lines;
+}

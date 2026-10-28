@@ -81,6 +81,7 @@ import {
   makeAbgeordnetenwatchTool,
   makeBundestagTool,
   makeParlamentLesenTool,
+  makeBundestagRedenTool,
   makeCreateBoardTool,
   makeCreateDocTool,
   makeCreateExplainableTool,
@@ -851,6 +852,8 @@ NICHT für eine Zusammenfassung des ganzen Dokuments — dafür gibt es \`summar
       tools.bundestag = makeBundestagTool({ state, sourceRegistry });
       // Zwilling von `bundestag` (liest dessen Refs): gleiche Sperre, fällt mit ihm weg.
       tools.parlament_lesen = makeParlamentLesenTool({ state, sourceRegistry });
+      // Reden im Plenum (Bundestag-MCP): dieselbe Sperre, derselbe Agent-Schlüssel `bundestag`.
+      tools.bundestag_reden = makeBundestagRedenTool({ state, sourceRegistry });
     }
     if (isIntentAllowedForLocale('abgeordnetenwatch', state.userLocale)) {
       tools.abgeordnetenwatch = makeAbgeordnetenwatchTool({ state, sourceRegistry });

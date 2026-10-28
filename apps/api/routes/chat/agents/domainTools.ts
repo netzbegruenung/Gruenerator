@@ -35,6 +35,16 @@ import { CHAT_BUDGET } from '../../../services/bundestag/qa/budget.js';
 import { bundestagDocTitle } from '../../../services/bundestag/qa/docTitle.js';
 import { readBundestagRefs } from '../../../services/bundestag/qa/index.js';
 import { detectFromWording } from '../../../services/bundestag/qa/planDetect.js';
+import {
+  describeRedenFilter,
+  redeTitle,
+  redeUrl,
+  redenFilterFromWording,
+  redenFraktionSchema,
+  redenSortierungSchema,
+  searchBundestagReden,
+  type RedenFilter,
+} from '../../../services/bundestag/reden.js';
 import { relatedDocsPages, searchDocs } from '../../../services/docs/docsIndex.js';
 import { lookupUmfragen } from '../../../services/monitor/UmfragenService.js';
 import { DRAFT_LIMIT_TEXTS } from '../../../services/sharepicCreator/draftFailure.js';
@@ -161,9 +171,9 @@ export function makeBundestagTool(ctx: {
 }): Tool {
   const { state, sourceRegistry } = ctx;
   return tool({
-    description: `Findet Bundestags-Dokumente (DIP): Drucksachen und Plenardebatten, mit Filtern (Wahlperiode, Typ, Urheber, Datum, Deskriptor, Titel). Liefert eine Liste mit Refs, nur Metadaten. Nur Deutschland.
+    description: `Findet Bundestags-Dokumente (DIP): Drucksachen und Plenardebatten, mit Filtern (Wahlperiode, Typ, Urheber, Datum, Deskriptor, Titel). Liefert eine Liste mit Refs, nur Metadaten, und je Vorgang den Beratungsverlauf (Beratungen, Beschlüsse mit Plenarprotokoll und Seite, Bundesrat, Verkündung). Nur Deutschland.
 
-Nicht für Inhalte, dafür parlament_lesen. Nicht für Abstimmungsverhalten oder Nebentätigkeiten, dafür abgeordnetenwatch.`,
+Nicht für Inhalte, dafür parlament_lesen. Nicht für das, was eine Person oder Fraktion im Plenum gesagt hat, dafür bundestag_reden. Nicht für Abstimmungsverhalten oder Nebentätigkeiten, dafür abgeordnetenwatch.`,
     inputSchema: z.object({
       query: z.string().min(1).describe('Suchbegriff: Person, Thema oder Drucksachennummer'),
       ...bundestagFilterSchema.omit({ dokumentnummer: true }).shape,
@@ -185,6 +195,7 @@ Nicht für Inhalte, dafür parlament_lesen. Nicht für Abstimmungsverhalten oder
         totals,
         documents,
         filters: applied,
+        verfahren,
       } = await retrieveBundestag(query, state.userLocale, filters);
       if (results.length === 0) {
         return { resultCount: 0, sources: '', error: 'Keine passenden Bundestags-Daten gefunden.' };
@@ -207,6 +218,118 @@ Nicht für Inhalte, dafür parlament_lesen. Nicht für Abstimmungsverhalten oder
             datum: d.datum,
             titel: d.titel,
             url: d.pdfUrl,
+          })),
+          ...(verfahren ? { verfahren: verfahren.slice(0, 3) } : {}),
+        },
+      };
+    },
+  });
+}
+
+/**
+ * `bundestag_reden`: was eine Person oder Fraktion im Plenum zu einem Thema
+ * gesagt hat — die Redensuche des Bundestag-MCP (`searchBundestagReden`). Je
+ * Rede ein Treffer mit dem Redetext (bis 4000 Zeichen), damit das Modell
+ * wörtlich zitieren kann; die Quelle ist das PDF des Plenarprotokolls. Gleiche
+ * Locale-Sperre wie `bundestag`: nur Deutschland.
+ */
+export function makeBundestagRedenTool(ctx: {
+  state: ChatGraphState;
+  sourceRegistry: SourceRegistry;
+}): Tool {
+  const { state, sourceRegistry } = ctx;
+  return tool({
+    description: `Findet Reden im Bundestag zu einem Thema (Plenarprotokolle, semantische Suche): wer wann was gesagt hat, mit Redetext zum Zitieren. Filter: Redner*in, Fraktion, Wahlperiode, Zeitraum, Sortierung. Nur Deutschland.
+
+Nicht für Drucksachen, Gesetzentwürfe oder Beschlüsse, dafür bundestag. Nicht für den Inhalt von Drucksachen, dafür parlament_lesen. Nicht für Abstimmungsverhalten, dafür abgeordnetenwatch.`,
+    inputSchema: z.object({
+      thema: z.string().min(2).max(300).describe('Worüber gesprochen wurde, z. B. „Wärmeplanung"'),
+      redner: z
+        .string()
+        .min(2)
+        .max(100)
+        .optional()
+        .describe('Name der Person, z. B. „Katrin Uhlig"'),
+      fraktion: redenFraktionSchema.optional(),
+      wahlperiode: z.number().int().min(1).max(30).optional(),
+      datumVon: z
+        .string()
+        .regex(/^\d{4}-\d{2}-\d{2}$/)
+        .optional(),
+      datumBis: z
+        .string()
+        .regex(/^\d{4}-\d{2}-\d{2}$/)
+        .optional(),
+      sortierung: redenSortierungSchema
+        .optional()
+        .describe("'neueste' für „zuletzt“, 'aelteste' für „erstmals“, sonst Relevanz"),
+      limit: z.number().int().min(1).max(10).optional(),
+    }),
+    execute: async ({ thema, limit, ...args }) => {
+      if (!isIntentAllowedForLocale('bundestag', state.userLocale)) {
+        return { resultCount: 0, sources: '', error: intentDeclineNote('bundestag') ?? '' };
+      }
+      // Wie bei `bundestag`: Zeitraum, Sortierung und (ohne Redner) Fraktion aus
+      // dem Wortlaut gelten mit, gesetzte Argumente gehen vor.
+      const userText =
+        state.lastUserTextNoMentions ??
+        (state.messages ? lastUserText(state.messages) : null) ??
+        '';
+      const fromArgs = Object.fromEntries(
+        Object.entries(args).filter(([, v]) => v !== undefined)
+      ) as RedenFilter;
+      const filter: RedenFilter = {
+        ...redenFilterFromWording(userText, Boolean(args.redner)),
+        ...fromArgs,
+      };
+      const ergebnis = await searchBundestagReden({
+        thema,
+        ...filter,
+        ...(limit ? { limit } : {}),
+      }).catch(() => null);
+      if (!ergebnis) {
+        return {
+          resultCount: 0,
+          sources: '',
+          error: 'Die Redensuche des Bundestags ist gerade nicht erreichbar.',
+        };
+      }
+      const { speeches, wpFallback } = ergebnis;
+      if (speeches.length === 0) {
+        return { resultCount: 0, sources: '', error: 'Keine passenden Reden gefunden.' };
+      }
+      const results: SearchResult[] = speeches.map((s, i) => {
+        const url = redeUrl(s);
+        return {
+          source: 'bundestag',
+          title: redeTitle(s),
+          content: s.excerpt,
+          ...(url ? { url } : {}),
+          relevance: 1 - 0.02 * i,
+        };
+      });
+      // Der Redetext ist der Beleg; gekappt wird schon am Client (4000 Zeichen).
+      const sources = sourceRegistry.register(results, { snippetChars: 4000 });
+      return {
+        resultCount: results.length,
+        sources: sources ?? '',
+        ...(wpFallback
+          ? {
+              hinweis:
+                'Keine Treffer in der aktuellen Wahlperiode, daher über alle Wahlperioden gesucht.',
+            }
+          : {}),
+        // Nur für die Karte; wrapTools nimmt das Feld vor dem Modell heraus.
+        uiCard: {
+          thema,
+          filter: describeRedenFilter(filter),
+          reden: speeches.map((s) => ({
+            redner: s.speaker,
+            partei: s.party,
+            datum: s.date,
+            protokoll: s.protokollNummer,
+            top: s.topTitle,
+            url: redeUrl(s),
           })),
         },
       };
@@ -320,7 +443,7 @@ export function makeAbgeordnetenwatchTool(ctx: {
   return tool({
     description: `Ruft Mandats- und Abstimmungsdaten von abgeordnetenwatch.de ab: Abstimmungsverhalten, Nebentätigkeiten und Mandate einzelner Abgeordneter.
 
-NUTZE WENN nach dem Abstimmungsverhalten, den Nebentätigkeiten oder dem Mandat einer*eines konkreten Abgeordneten gefragt wird. Übergib den Namen der Person (oder ein Thema). Nur für Deutschland verfügbar. Nicht für Drucksachen oder Reden, dafür bundestag und parlament_lesen.`,
+NUTZE WENN nach dem Abstimmungsverhalten, den Nebentätigkeiten oder dem Mandat einer*eines konkreten Abgeordneten gefragt wird. Übergib den Namen der Person (oder ein Thema). Nur für Deutschland verfügbar. Nicht für Drucksachen, dafür bundestag und parlament_lesen. Nicht für Reden, dafür bundestag_reden.`,
     inputSchema: z.object({
       query: z.string().min(1).describe('Name der*des Abgeordneten oder ein Thema'),
     }),

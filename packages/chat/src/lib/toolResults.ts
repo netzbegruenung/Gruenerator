@@ -206,6 +206,18 @@ const TOOL_METADATA: Record<string, ToolMeta> = {
       return `${gelesen} von ${gelesen + ungelesen} gelesen`;
     },
   },
+  bundestag_reden: {
+    label: 'Reden im Bundestag',
+    activeLabel: 'Durchsuche Bundestagsreden',
+    iconKey: 'book',
+    accent: 'retrieval',
+    queryKeys: ['thema', 'redner'],
+    summarize: (_args, result) => {
+      const n = getArray(getObject(result, 'uiCard'), 'reden')?.length ?? 0;
+      if (n === 0) return null;
+      return `${n} ${n === 1 ? 'Rede' : 'Reden'}`;
+    },
+  },
   research: {
     label: 'Deep Research',
     activeLabel: 'Recherchiere',

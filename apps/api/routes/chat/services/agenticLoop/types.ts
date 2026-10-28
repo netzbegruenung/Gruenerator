@@ -327,4 +327,6 @@ export const NEAR_DUPLICATE_EXEMPT_TOOLS: ReadonlySet<string> = new Set([
   'bundestag',
   // Ein zweiter Lese-Aufruf mit weiteren Refs teilt Quelle und Frage mit dem ersten.
   'parlament_lesen',
+  // Gleiches Thema, anderer Redner oder Zeitraum: die Verfeinerung teilt die Wörter.
+  'bundestag_reden',
 ]);

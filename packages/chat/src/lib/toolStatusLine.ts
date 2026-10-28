@@ -28,9 +28,9 @@ const SEARCH_PROGRESS_TOOLS: ReadonlySet<string> = new Set([
   'gruenerator_search',
   'gruenerator_docs_search',
   'search_sources',
-  // `bundestag` / `parlament_lesen` are deliberately NOT here: their card shows
-  // what was searched, found and read (query, filters, documents) — the user
-  // cannot see that anywhere else.
+  // `bundestag` / `parlament_lesen` / `bundestag_reden` are deliberately NOT
+  // here: their card shows what was searched, found and read (query, filters,
+  // documents, speeches) — the user cannot see that anywhere else.
   // `abgeordnetenwatch`: {resultCount, sources}, hits re-surface in the
   // message's Quellen-Liste — so it belongs in the line, not in a card.
   'abgeordnetenwatch',

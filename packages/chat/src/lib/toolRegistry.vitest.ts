@@ -1112,4 +1112,65 @@ describe('bundestag / parlament_lesen cards', () => {
   it('keeps legacy results without uiCard on the citation list', () => {
     expect(resolveToolEntry('bundestag').parse({}, { results: [] }).kind).toBe('citations');
   });
+
+  it('shows the Beratungsverlauf per Vorgang', () => {
+    const vm = resolveToolEntry('bundestag').parse(
+      {},
+      {
+        uiCard: {
+          query: 'Jagd',
+          verfahren: [
+            {
+              titel: 'Bundesjagdgesetz',
+              zeilen: [
+                '3. Beratung (Bundestag) 05.03.2026: Annahme — Plenarprotokoll 21/62 S. 7524B',
+              ],
+            },
+          ],
+          dokumente: [],
+        },
+      }
+    );
+    if (vm.kind !== 'key-value') throw new Error(vm.kind);
+    expect(vm.entries).toEqual([
+      { label: 'Suche', value: 'Jagd' },
+      { label: 'Verfahren', value: 'Bundesjagdgesetz' },
+      {
+        label: 'Verlauf',
+        value: '3. Beratung (Bundestag) 05.03.2026: Annahme — Plenarprotokoll 21/62 S. 7524B',
+      },
+    ]);
+  });
+
+  it('renders bundestag_reden with topic, filters and one citation per speech', () => {
+    const vm = resolveToolEntry('bundestag_reden').parse(
+      { thema: 'Wärmeplanung' },
+      {
+        uiCard: {
+          thema: 'Wärmeplanung',
+          filter: ['Redner*in: Katrin Uhlig'],
+          reden: [
+            {
+              redner: 'Katrin Uhlig',
+              partei: 'GRÜNE',
+              datum: '2025-05-23',
+              protokoll: '21/8',
+              top: null,
+              url: 'https://dserver.bundestag.de/btp/21/21008.pdf',
+            },
+          ],
+        },
+      }
+    );
+    if (vm.kind !== 'key-value') throw new Error(vm.kind);
+    expect(vm.entries).toEqual([
+      { label: 'Thema', value: 'Wärmeplanung' },
+      { label: 'Redner*in', value: 'Katrin Uhlig' },
+    ]);
+    expect(vm.citations[0]).toMatchObject({
+      title: 'Katrin Uhlig (GRÜNE)',
+      snippet: 'Plenarprotokoll 21/8 · 23.05.2025',
+      href: 'https://dserver.bundestag.de/btp/21/21008.pdf',
+    });
+  });
 });

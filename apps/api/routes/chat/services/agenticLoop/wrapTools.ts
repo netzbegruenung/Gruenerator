@@ -102,7 +102,7 @@ const BEFORE_HOOK_TIMEOUT_MS = 500;
  * Felder, die ein Werkzeugergebnis nur für die Hooks trägt.
  *
  * `uiCard` ist die Ausnahme von „nur Hooks": strukturierte Zeilen für die Karte
- * im Chat (`bundestag`, `parlament_lesen`) — Filter, Refs, Titel, Zähler. Das
+ * im Chat (`bundestag`, `parlament_lesen`, `bundestag_reden`) — Filter, Refs, Titel, Zähler. Das
  * Modell hat dieselben Dinge schon als Text in `sources`; die Karte soll sie
  * nicht ein zweites Mal im Kontext kosten.
  *

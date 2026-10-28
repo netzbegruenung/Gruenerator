@@ -221,8 +221,9 @@ describe('toolCatalog domain tool mounting', () => {
     expect(toolNames).toEqual(expect.arrayContaining(['bundestag', 'abgeordnetenwatch']));
   });
 
-  it('mounts parlament_lesen together with bundestag, and only for de-DE', () => {
+  it('mounts parlament_lesen and bundestag_reden together with bundestag, and only for de-DE', () => {
     expect(catalogFor('search').toolNames).toContain('parlament_lesen');
+    expect(catalogFor('search').toolNames).toContain('bundestag_reden');
     const sourceRegistry = createSourceRegistry();
     const state = {
       intent: 'search',
@@ -236,6 +237,7 @@ describe('toolCatalog domain tool mounting', () => {
     });
     expect(toolNames).not.toContain('bundestag');
     expect(toolNames).not.toContain('parlament_lesen');
+    expect(toolNames).not.toContain('bundestag_reden');
   });
 
   // Mounted on every turn, `summarize` was the planner's pick for any ask about
