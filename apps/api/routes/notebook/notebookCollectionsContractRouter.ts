@@ -248,7 +248,7 @@ async function enrichNotebookCollection(
         wolke_share_link_id: row.wolke_share_link_id,
         status: row.status,
         processing_error: typeof meta.processing_error === 'string' ? meta.processing_error : null,
-        reindexable: isReindexable(row),
+        reindexable: isReindexable({ ...row, metadata: meta }),
       } as DocumentRecord & { processing_error: string | null; reindexable: boolean };
     });
   }

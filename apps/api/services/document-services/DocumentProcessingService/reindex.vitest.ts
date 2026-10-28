@@ -454,6 +454,12 @@ describe('gescheiterter Upload — das Original bleibt, „Neu indexieren" geht'
     expect(reindexOrigin(failedUpload())).toBeNull();
   });
 
+  it('prüft bei einer fertigen Quelle das Dateisystem gar nicht erst', () => {
+    // Die Datei liegt noch — trotzdem nein: fertig heißt, sie ist gelöscht,
+    // und die Notebook-Liste soll pro fertiger Zeile keinen fs-Aufruf zahlen.
+    expect(isReindexable({ ...failedUpload(), status: 'completed' })).toBe(false);
+  });
+
   it('reiht ihn wieder ein', async () => {
     const { deps, updates } = fakeDeps([failedUpload()]);
     expect(await reindexDocument('doc-5', OWNER, {}, deps)).toEqual({

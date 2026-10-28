@@ -58,7 +58,13 @@ export function wolkeOrigin(row: ReindexRow): WolkeOrigin | null {
   return null;
 }
 
+/**
+ * Läuft je Zeile bei jedem Lesen eines Notebooks. Eine fertige Quelle hat ihre
+ * Datei nie mehr (sie wird bei Erfolg gelöscht) — und das ist die große
+ * Mehrheit; sie kommt ohne Parsen und ohne Dateisystem-Aufruf davon.
+ */
 function hasKeptUpload(row: ReindexRow): boolean {
+  if (row.status === 'completed') return false;
   const meta: unknown = typeof row.metadata === 'string' ? JSON.parse(row.metadata) : row.metadata;
   const filePath = (meta as { filePath?: unknown } | null | undefined)?.filePath;
   return typeof filePath === 'string' && fs.existsSync(filePath);
