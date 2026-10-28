@@ -9,6 +9,8 @@ import {
 import { photoCreditLine, withPhotoCredit } from '@ggraphic/editor/utils/photoCredit';
 import { pagePhotoCredits } from '@ggraphic/editor/utils/photoCredits';
 
+import { messages } from '@ggraphic/editor/i18n/messages';
+
 import { makeSectionDefiner } from '@ggraphic/editor/configs/factory/defineSection';
 
 import type { SectionConfig } from '@ggraphic/editor/configs/types';
@@ -16,8 +18,12 @@ import type { SectionConfig } from '@ggraphic/editor/configs/types';
 export const shareTab = {
   id: 'share' as const,
   icon: FaShare,
-  label: 'Teilen',
-  ariaLabel: 'Teilen: Bild weitergeben',
+  get label() {
+    return messages().shell.share;
+  },
+  get ariaLabel() {
+    return messages().shell.shareTabAriaLabel;
+  },
 };
 
 /**

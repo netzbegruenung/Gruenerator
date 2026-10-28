@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: MPL-2.0
+import { useMessages } from '@ggraphic/editor/i18n/messages';
 import { cn } from '@ggraphic/editor/utils/cn';
 import { useRef, useState } from 'react';
 import { HiPlus } from 'react-icons/hi';
@@ -22,6 +23,7 @@ export function AddPageButton({
   disabled = false,
   compact = false,
 }: AddPageButtonProps) {
+  const t = useMessages();
   const [isOpen, setIsOpen] = useState(false);
   const buttonRef = useRef<HTMLButtonElement>(null);
 
@@ -36,10 +38,10 @@ export function AddPageButton({
         onClick={renderPicker ? () => setIsOpen(!isOpen) : onAddPage}
         disabled={disabled}
         type="button"
-        title="Neue Seite hinzufügen"
+        title={t.shell.addNewPage}
       >
         <HiPlus />
-        <span>Seite hinzufügen</span>
+        <span>{t.shell.addPage}</span>
       </button>
 
       {renderPicker?.({ isOpen, anchorRef: buttonRef, onClose: () => setIsOpen(false) })}

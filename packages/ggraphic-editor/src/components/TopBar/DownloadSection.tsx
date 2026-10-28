@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: MPL-2.0
 import { useCanvasEditorServices } from '@ggraphic/editor/CanvasEditorProvider';
+import { useMessages } from '@ggraphic/editor/i18n/messages';
 import { Button } from '@ggraphic/editor/ui/button';
 import { Input } from '@ggraphic/editor/ui/input';
 import { Label } from '@ggraphic/editor/ui/label';
@@ -187,6 +188,7 @@ export function DownloadSection({
   printExport = null,
   slideDeck = null,
 }: DownloadSectionProps) {
+  const t = useMessages();
   const [choice, setChoice] = useState<DownloadChoice>(
     printExport ? 'pdf' : slideDeck ? 'pptx' : 'png'
   );
@@ -251,14 +253,14 @@ export function DownloadSection({
     <div className="flex flex-col gap-3">
       <div className="flex flex-col gap-1.5">
         <Label htmlFor={`${fieldId}-format`} className="text-xs font-medium text-foreground-muted">
-          Format
+          {t.shell.downloadPanel.format}
         </Label>
         <Select value={choice} onValueChange={(v) => setChoice(v as DownloadChoice)}>
           <SelectTrigger id={`${fieldId}-format`} size="sm" className="w-full">
             <SelectValue />
           </SelectTrigger>
           <SelectContent position="popper" className="z-[10001]">
-            {printExport && <SelectItem value="pdf">PDF (Druck)</SelectItem>}
+            {printExport && <SelectItem value="pdf">{t.shell.downloadPanel.pdfPrint}</SelectItem>}
             {slideDeck && <SelectItem value="pptx">PowerPoint (.pptx)</SelectItem>}
             {slideDeck && <SelectItem value="pdf">PDF</SelectItem>}
             <SelectItem value="png">PNG</SelectItem>
@@ -277,7 +279,7 @@ export function DownloadSection({
               htmlFor={`${fieldId}-scale`}
               className="text-xs font-medium text-foreground-muted"
             >
-              Auflösung
+              {t.shell.downloadPanel.resolution}
             </Label>
             <Select value={String(scale)} onValueChange={(v) => setScale(Number(v))}>
               <SelectTrigger id={`${fieldId}-scale`} size="sm" className="w-full">
@@ -299,7 +301,7 @@ export function DownloadSection({
                 htmlFor={`${fieldId}-transparent`}
                 className="text-xs font-medium text-foreground-muted"
               >
-                Transparenter Hintergrund
+                {t.shell.downloadPanel.transparentBackground}
               </Label>
               <Switch
                 id={`${fieldId}-transparent`}
@@ -372,7 +374,7 @@ export function DownloadSection({
         ) : (
           <FaDownload className="size-3.5" />
         )}
-        {isDownloading ? 'Wird heruntergeladen...' : 'Herunterladen'}
+        {isDownloading ? t.shell.downloading : t.shell.download}
       </Button>
     </div>
   );

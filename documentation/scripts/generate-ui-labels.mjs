@@ -38,7 +38,6 @@ const SOURCES = [
   { group: 'canvas', file: 'packages/canvas-editor/src/configs/freeform_full.config.tsx' },
   { group: 'canvas', file: 'packages/canvas-editor/src/configs/commonSections.ts' },
   { group: 'canvas', file: 'packages/canvas-editor/src/components/CanvasEditor/vorlagenTab.ts' },
-  { group: 'canvas', file: 'packages/ggraphic-editor/src/configs/shareSection.ts' },
 ];
 
 function stringProp(obj, name) {
@@ -127,6 +126,12 @@ function generate() {
     if (!title) throw new Error(`Cannot read canvas command label: ${id}`);
     out[`canvas-command.${id}`] = { title };
   }
+  // The share tab reads its label from the catalogue (`shareTab` is a getter).
+  const shell =
+    catalogue && ts.isObjectLiteralExpression(catalogue) && objectProp(catalogue, 'shell');
+  const shareTitle = shell && stringProp(shell, 'share');
+  if (!shareTitle) throw new Error('Cannot read the share label of the German message catalogue');
+  out['canvas.share'] = { title: shareTitle };
   // Download has no catalog id. Identify its actual JSX button by its icon,
   // so changing the label flows through, while removing the button fails here.
   const downloads = [];
