@@ -82,12 +82,16 @@ export function keywordsFromQuestion(question: string): string[] {
 }
 
 const WP_RE = /\b(?:wp|wahlperiode)\s*(\d{1,2})\b/i;
+// „diese/aktuelle/laufende Wahlperiode", „seit der Wahl", „diese Regierung/Koalition" meinen die laufende.
+const CURRENT_WP_RE =
+  /\b(?:diese[rnms]?|aktuelle[nrms]?|laufende[nrms]?)\s+wahlperiode\b|\bseit\s+der\s+wahl\b|\bdiese[rn]?\s+(?:bundes)?(?:regierung|koalition)\b/i;
 
 function detectDeterministic(question: string): BundestagFilter {
   const found: BundestagFilter = {};
   const wp = question.match(WP_RE);
   // Nur 1..30 sind Wahlperioden (wie im Contract); „WP 99" ignorieren.
   if (wp && Number(wp[1]) >= 1 && Number(wp[1]) <= 30) found.wahlperiode = [Number(wp[1])];
+  if (!found.wahlperiode && CURRENT_WP_RE.test(question)) found.wahlperiode = [CURRENT_WAHLPERIODE];
   const drs = question.match(EXPLICIT_DRS_RE) ?? question.match(BARE_DRS_RE);
   if (drs) {
     found.dokumentnummer = [`${drs[1]}/${drs[2]}`];
@@ -143,11 +147,42 @@ function isoDate(value: string | undefined, name: string, notes: string[]): bool
   return false;
 }
 
+// Wörter, die keinen Themenbegriff tragen: Dokumenttypen, Fraktionen, Bundesregierung.
+const NON_TOPIC_RE =
+  /^(?:antr|anfrag|antwort|gesetzentw|entschließ|änderungs|beschlussempf|unterricht|fraktion|bundesregier|bundestag|regierung|grüne|grünen|bündnis|cdu|csu|spd|afd|linke|union|abgeordnet|wahlperiode|drucksache|vorgang|vorgäng)/i;
+
+const MAX_EXTRA_COUNTS = 6;
+
+/** Einfache Einzahlformen: so wie sie ist, dann ohne -n, -en, -s. */
+function singularForms(word: string): string[] {
+  const cap = word.charAt(0).toUpperCase() + word.slice(1);
+  const forms = [cap];
+  for (const suffix of ['n', 'en', 's']) {
+    if (cap.endsWith(suffix) && cap.length - suffix.length >= 4)
+      forms.push(cap.slice(0, -suffix.length));
+  }
+  return [...new Set(forms)];
+}
+
+function topicWords(keywords: string[]): string[] {
+  const out: string[] = [];
+  for (const k of keywords) {
+    for (const w of k.split(/\s+/)) {
+      const word = w.replace(/^[^\p{L}\p{N}]+|[^\p{L}\p{N}]+$/gu, '');
+      if (word.length < 5 || NON_TOPIC_RE.test(word) || STOPWORDS.has(word.toLowerCase())) continue;
+      if (!out.some((o) => o.toLowerCase() === word.toLowerCase())) out.push(word);
+    }
+  }
+  return out;
+}
+
 const SYSTEM = `Du übersetzt eine Frage zum Deutschen Bundestag in Suchfilter für die DIP-Datenbank.
 Gib nur Filter an, die die Frage wirklich nennt oder klar nahelegt. Lass alles andere weg.
 - drucksachetyp, erlaubte Werte: ${bundestagDrucksachetypSchema.options.join(' | ')}
 - urheber, erlaubte Werte: ${bundestagUrheberSchema.options.join(' | ')}. „Grüne" bedeutet „Fraktion BÜNDNIS 90/DIE GRÜNEN".
-- deskriptor: Deskriptoren sind Thesaurus-Schlagwörter im Singular (z. B. „Wärmepumpe", nicht „Wärmepumpen"). Höchstens 4.
+- Die aktuelle Wahlperiode ist die ${CURRENT_WAHLPERIODE}. (seit 2025). „diese/aktuelle/laufende Wahlperiode" = ${CURRENT_WAHLPERIODE}. Die 20. war 2021–2025 (Ampel).
+- deskriptor: Deskriptoren sind Thesaurus-Schlagwörter im Singular. Schlage für jedes inhaltliche Themennomen der Frage 1–2 Deskriptoren vor (Wärmepumpen → Wärmepumpe; Wärmepumpenförderung → Wärmepumpe; Mietpreisbremse → Mietpreisbremse; Kindergrundsicherung → Kindergrundsicherung). Höchstens 4.
+- Fraktionsnamen, Dokumenttypen und „Bundesregierung" gehören nie in keywords oder deskriptor.
 - datumVon / datumBis im Format JJJJ-MM-TT.
 - keywords: 3 bis 8 Suchwörter aus der Frage.`;
 
@@ -244,6 +279,39 @@ export async function planFilters({
     }
     if (kept.length) filters.deskriptor = kept;
     else delete filters.deskriptor;
+  }
+
+  // Ohne tragenden Deskriptor wäre die Suche themenlos: aus den Suchwörtern ableiten.
+  if (!filters.deskriptor?.length && !filters.dokumentnummer?.length && !filters.titel) {
+    const words = topicWords(keywords);
+    const hits: { name: string; n: number }[] = [];
+    let calls = 0;
+    for (const w of words) {
+      for (const form of singularForms(w)) {
+        if (calls >= MAX_EXTRA_COUNTS) break;
+        calls++;
+        try {
+          const page = await dip.list('vorgang', {
+            'f.deskriptor': form,
+            'f.wahlperiode': filters.wahlperiode ?? [CURRENT_WAHLPERIODE],
+          });
+          if (page.numFound > 0) {
+            hits.push({ name: form, n: page.numFound });
+            break;
+          }
+        } catch {
+          break;
+        }
+      }
+    }
+    if (hits.length) {
+      const best = hits.sort((a, b) => b.n - a.n).slice(0, 2);
+      filters.deskriptor = best.map((h) => h.name);
+      notes.push(`Deskriptor aus den Suchwörtern abgeleitet: ${filters.deskriptor.join(', ')}.`);
+    } else if (words.length) {
+      filters.titel = [...words].sort((a, b) => b.length - a.length)[0];
+      notes.push(`Kein Deskriptor gefunden, gesucht wird im Titel nach „${filters.titel}".`);
+    }
   }
 
   return { filters, keywords, notes, assumedWahlperiode };

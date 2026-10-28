@@ -167,6 +167,45 @@ describe('findCandidates', () => {
     expect(r.candidates.map((c) => c.ref)).toEqual(['21/6019', '21/7009']);
   });
 
+  it('merkt an, wenn zu einer Drucksache noch keine Antwort vorliegt', async () => {
+    const mk = (withAntwort: boolean) =>
+      makeDip((e) =>
+        e === 'drucksache'
+          ? [
+              {
+                id: '1',
+                dokumentnummer: '21/8725',
+                drucksachetyp: 'Kleine Anfrage',
+                vorgangsbezug: [{ id: '9', titel: 'KA' }],
+              },
+            ]
+          : e === 'vorgangsposition'
+            ? withAntwort
+              ? [
+                  {
+                    vorgangsposition: 'Antwort',
+                    datum: '2025-01-01',
+                    fundstelle: { id: '2', dokumentnummer: '21/9000', drucksachetyp: 'Antwort' },
+                  },
+                ]
+              : []
+            : []
+      );
+    const run = (dip: ReturnType<typeof mk>) =>
+      findCandidates({
+        question: 'x',
+        filters: { dokumentnummer: ['21/8725'], drucksachetyp: ['Antwort'] },
+        assumedWahlperiode: false,
+        budget,
+        dip,
+        mcp: mcpNone,
+      });
+    expect((await run(mk(false))).notes).toContain(
+      'Zu Drucksache 21/8725 liegt im DIP noch keine Antwort vor.'
+    );
+    expect((await run(mk(true))).notes).toEqual([]);
+  });
+
   it('wiederholt ohne Wahlperiode nur, wenn sie angenommen war', async () => {
     const mk = () =>
       makeDip((_e, p) =>

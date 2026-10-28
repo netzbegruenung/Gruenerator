@@ -165,6 +165,7 @@ interface VorgangRef {
 }
 
 interface Collected {
+  notes?: string[];
   candidates: BundestagCandidate[];
   vorgaenge: number;
   drucksachen: number | null;
@@ -179,13 +180,24 @@ async function byNummer(dip: FindDip, f: BundestagFilter): Promise<Collected> {
   const own = page.documents.map(fromDrucksache);
   const siblings: BundestagCandidate[] = [];
   const seenVorgang = new Set<string>();
+  const notes: string[] = [];
+  const wantsAntwort = f.drucksachetyp?.includes('Antwort') === true;
   for (const d of page.documents) {
     const bezug = d.vorgangsbezug?.[0];
     if (!bezug || seenVorgang.has(bezug.id)) continue;
     seenVorgang.add(bezug.id);
-    siblings.push(...(await positionsOf(dip, { id: bezug.id, titel: bezug.titel }, f)));
+    const found = await positionsOf(dip, { id: bezug.id, titel: bezug.titel }, f);
+    siblings.push(...found);
+    if (
+      wantsAntwort &&
+      d.drucksachetyp !== 'Antwort' &&
+      !found.some((c) => c.drucksachetyp === 'Antwort')
+    ) {
+      notes.push(`Zu Drucksache ${d.dokumentnummer} liegt im DIP noch keine Antwort vor.`);
+    }
   }
   return {
+    notes,
     candidates: [...own, ...siblings],
     vorgaenge: seenVorgang.size,
     drucksachen: page.numFound,
@@ -297,6 +309,7 @@ export async function findCandidates(args: {
   const hasNummer = (filters.dokumentnummer?.length ?? 0) > 0;
 
   const first = await collect(dip, filters, filters.wahlperiode);
+  notes.push(...(first.notes ?? []));
   let candidates = dedupe(first.candidates);
   const totals = { vorgaenge: first.vorgaenge, drucksachen: first.drucksachen ?? 0 };
   let droppedWahlperiode = false;

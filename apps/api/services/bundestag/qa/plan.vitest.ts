@@ -137,6 +137,55 @@ describe('planFilters Randfälle', () => {
   });
 });
 
+describe('planFilters Runde 2', () => {
+  it('erkennt „diese Wahlperiode" als 21 (erkannt, nicht angenommen)', async () => {
+    model({
+      keywords: ['wärmepumpe', 'förderung', 'antrag'],
+      wahlperiode: [20],
+      deskriptor: ['Wärmepumpe'],
+    });
+    const r = await planFilters({
+      question: 'Was wurde in dieser Wahlperiode zur Wärmepumpe beantragt?',
+      explicit: {},
+      dip: dipWith({ Wärmepumpe: 19 }),
+    });
+    expect(r.filters.wahlperiode).toEqual([21]);
+    expect(r.assumedWahlperiode).toBe(false);
+  });
+
+  it('nennt die 21. Wahlperiode im Prompt', async () => {
+    model({ keywords: ['klima', 'schutz', 'gesetz'] });
+    await planFilters({ question: 'Klima', explicit: {}, dip: dipWith({}) });
+    expect(aiObject.mock.calls[0][0].system).toContain('21. (seit 2025)');
+  });
+
+  it('leitet ohne Deskriptor einen aus den Suchwörtern ab (Singularform)', async () => {
+    model({ keywords: ['Anträge', 'grüne Bundestagsfraktion', 'Wärmepumpen'] });
+    const dip = dipWith({ Wärmepumpe: 19 });
+    const r = await planFilters({ question: 'Anträge zu Wärmepumpen', explicit: {}, dip });
+    expect(r.filters.deskriptor).toEqual(['Wärmepumpe']);
+    const counted = dip.list.mock.calls.map((c) => c[1]['f.deskriptor']);
+    expect(counted).not.toContain('Anträge');
+    expect(counted).not.toContain('Bundestagsfraktion');
+    expect(counted.length).toBeLessThanOrEqual(6);
+  });
+
+  it('fällt ohne Deskriptor-Treffer auf den längsten Themenbegriff als Titel zurück', async () => {
+    model({ keywords: ['Bundesregierung', 'Wärmepumpenförderung', 'Antwort'] });
+    const r = await planFilters({ question: 'x', explicit: {}, dip: dipWith({}) });
+    expect(r.filters.deskriptor).toBeUndefined();
+    expect(r.filters.titel).toBe('Wärmepumpenförderung');
+    expect(r.notes.some((n) => n.includes('Titel'))).toBe(true);
+  });
+
+  it('lässt bei Dokumentnummer die Ableitung aus', async () => {
+    model({ keywords: ['Wärmepumpen', 'förderung', 'gesetz'] });
+    const dip = dipWith({});
+    await planFilters({ question: 'Drucksache 21/123', explicit: {}, dip });
+    expect(dip.list).not.toHaveBeenCalled();
+  });
+});
+
 describe('keywordsFromQuestion', () => {
   it('nimmt Wörter ab 5 Zeichen, klein, ohne Dubletten und Stoppwörter, max 8', () => {
     const k = keywordsFromQuestion(
