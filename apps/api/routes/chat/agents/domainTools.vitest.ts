@@ -699,6 +699,43 @@ describe('bundestag: modus zaehlen, ref', () => {
     expect(ohne.hinweis).not.toMatch(/nur den Bundestag/);
   });
 
+  it('ab dem 5. Aufruf im Zug fragt das Werkzeug DIP nicht mehr, ein neuer Zug zählt neu', async () => {
+    retrieveBundestag.mockResolvedValue({
+      results: [{ source: 'bundestag', title: 'Drucksache 21/50', content: 'x' }],
+    });
+    countBundestagDocs.mockResolvedValue({
+      einheit: 'Drucksachen',
+      gesamt: 1,
+      gruppen: null,
+      gruppiertNach: null,
+      filters: {},
+      notes: [],
+      aufrufe: 1,
+    });
+    const make = () => makeBundestagTool({ state, sourceRegistry: createSourceRegistry() });
+    const tool = make();
+    for (let i = 0; i < 4; i++) {
+      const ok = (await exec(tool, { query: `Klima ${i}` })) as { resultCount: number };
+      expect(ok.resultCount).toBe(1);
+    }
+    const capped = (await exec(tool, { modus: 'zaehlen', query: 'Klima' })) as {
+      resultCount: number;
+      sources: string;
+      hinweis: string;
+    };
+    expect(capped.resultCount).toBe(0);
+    expect(capped.sources).toBe('');
+    expect(capped.hinweis).toMatch(/4 Bundestag-Suchen/);
+    expect(retrieveBundestag).toHaveBeenCalledTimes(4);
+    expect(countBundestagDocs).not.toHaveBeenCalled();
+    const refCall = (await exec(tool, { ref: '21/3546' })) as { resultCount: number };
+    expect(refCall.resultCount).toBe(0);
+    expect(retrieveBundestagFamily).not.toHaveBeenCalled();
+    // Neuer Zug = neues Werkzeug = frischer Zähler.
+    const fresh = (await exec(make(), { query: 'Klima' })) as { resultCount: number };
+    expect(fresh.resultCount).toBe(1);
+  });
+
   it('ohne query und ref sowie bei PlPr-Ref gibt es einen Fehler', async () => {
     const tool = makeBundestagTool({ state, sourceRegistry: createSourceRegistry() });
     expect(((await exec(tool, {})) as { error: string }).error).toMatch(/fehlt/);

@@ -160,6 +160,9 @@ const BUNDESTAG_SNIPPET_CHARS = 3500;
 const BUNDESTAG_HINWEIS =
   "Die Liste enthält nur Metadaten. Für Inhalte `parlament_lesen` mit quelle 'bundestag' aufrufen: bei einer Themen- oder Listenfrage alle einschlägigen Refs (bis zu 6) in einem Aufruf, nicht nur das erste Dokument.";
 
+/** Obergrenze der `bundestag`-Aufrufe je Zug; danach fragt das Werkzeug DIP nicht mehr. */
+const BUNDESTAG_MAX_CALLS_PER_TURN = 4;
+const BUNDESTAG_CAP_HINWEIS = `Schon ${BUNDESTAG_MAX_CALLS_PER_TURN} Bundestag-Suchen in diesem Zug — antworte jetzt mit den vorliegenden Treffern und nenne, was offen bleibt.`;
 const LANDTAG_RE = /landtag|abgeordnetenhaus|bürgerschaft|buergerschaft|landesparlament/i;
 const LANDTAG_HINWEIS =
   'Die Frage nennt ein Landesparlament: Sag ZUERST, dass dieses Werkzeug nur den Bundestag abdeckt und Dokumente von Landtagen hier nicht durchsucht werden; danach, was der Bundestag dazu hergibt.';
@@ -189,6 +192,9 @@ export function makeBundestagTool(ctx: {
   sourceRegistry: SourceRegistry;
 }): Tool {
   const { state, sourceRegistry } = ctx;
+  // Das Werkzeug entsteht je Zug neu (`assembleToolCatalog` läuft einmal je Antwort),
+  // der Zähler lebt also genau einen Zug lang.
+  let callsThisTurn = 0;
   return tool({
     description: `Findet Bundestags-Dokumente (DIP): Drucksachen und Plenardebatten, mit Filtern. Liefert Refs (nur Metadaten) und je Vorgang den Beratungsverlauf (Beschlüsse mit Plenarprotokoll und Seite, Bundesrat, Verkündung).
 
@@ -218,6 +224,12 @@ Nicht für Inhalte, dafür parlament_lesen. Nicht für Reden im Plenum, dafür b
       ...bundestagFilterSchema.omit({ dokumentnummer: true, mitBeratung: true }).shape,
     }),
     execute: async ({ query, modus, gruppieren, ref, ...args }) => {
+      // `bundestag` ist von der Near-Duplicate-Sperre ausgenommen (Verfeinerungen müssen
+      // durch), das Modell hat aber schon sechsmal nahezu dasselbe gefragt (65 s).
+      callsThisTurn++;
+      if (callsThisTurn > BUNDESTAG_MAX_CALLS_PER_TURN) {
+        return { resultCount: 0, sources: '', hinweis: BUNDESTAG_CAP_HINWEIS };
+      }
       if (ref && ref.startsWith('PlPr')) {
         return {
           resultCount: 0,
