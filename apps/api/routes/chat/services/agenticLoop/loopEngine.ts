@@ -401,7 +401,7 @@ export function buildPrepareStep(
      * Hinweis steht am Ende, wo er die Zuordnung weiter oben überstimmt.
      */
     const namedStepNote = (name: string) =>
-      `\n\n## DIESER SCHRITT\nDer Nutzer hat \`${name}\` festgelegt: Dein einziger Aufruf in diesem Schritt ist \`${name}\`. Die Werkzeug-Zuordnung oben (z. B. \`bundestag_reden\` für Reden) gilt erst für die folgenden Schritte; sie steht diesem Schritt nicht zur Wahl.`;
+      `\n\n## DIESER SCHRITT\nDein einziger Aufruf in diesem Schritt ist \`${name}\`. Andere Werkzeuge aus der Zuordnung oben gelten erst für die folgenden Schritte; sie stehen diesem Schritt nicht zur Wahl.`;
     if (stepNumber >= maxSteps - 1 || forceFinish()) {
       return {
         toolChoice: 'none' as const,

@@ -80,9 +80,9 @@ describe('buildPrepareStep — forceFirstToolCall', () => {
     );
     const first = prep({ stepNumber: 0 }).system ?? '';
     expect(first.startsWith('sys')).toBe(true);
-    expect(first).toContain('`bundestag` festgelegt');
-    expect(first).toContain('steht diesem Schritt nicht zur Wahl');
-    expect(prep({ stepNumber: 1 }).system).toContain('`web_search` festgelegt');
+    expect(first).toContain('Aufruf in diesem Schritt ist `bundestag`');
+    expect(first).toContain('stehen diesem Schritt nicht zur Wahl');
+    expect(prep({ stepNumber: 1 }).system).toContain('Aufruf in diesem Schritt ist `web_search`');
   });
 
   it('ohne Namen (required) bleibt der Systemprompt unberührt', () => {
