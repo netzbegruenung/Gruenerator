@@ -38,6 +38,13 @@ const IDENTITY = [
     /\b(?:GrueneType|Gotham|BalkenGroup|DE_WORDMARK|dreizeilen|toggle-sunflower)\w*|\blogo(?:De|At)(?:White|Weiss|Black|Schwarz|Dark|Light)?\b/,
     'Grünerator brand identifier',
   ],
+  // The Balken are a Grünerator element kind, registered by the host
+  // (`registerElementKind`). Only the identifiers: the plain word is also
+  // German for a bar chart (`ChartGroup` 'balken', emoji and shape tags).
+  [
+    /\bbalken(?:Instances|Utils|Offset|WidthScale|Opacity|Scale|Rotation|FitPending)\b|\bBalken(?:Instance|Mode|Actions|Preview|Kind)\b|(?:[aA]dd|[uU]pdate|[rR]emove|[dD]uplicate|[sS]elected|handle)Balken|\bsetBalkenText\b|\b(?:kind|type|t)\s*(?:[!=]==?|:)\s*['"`]balken['"`]|\bcase\s+['"`]balken['"`]/,
+    'Balken element kind',
+  ],
 ];
 // Any quoted or url() path that climbs with ../ — imports, CSS, new URL(), references.
 const PATH_REFERENCE = /(?:['"`]|url\(\s*)(\.\.\/[^'"`\s)$]*)/g;
