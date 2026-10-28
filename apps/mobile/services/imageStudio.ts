@@ -49,7 +49,7 @@ export async function base64ToFileUri(
   }
 
   // Write to file
-  file.write(bytes);
+  file.writeSync(bytes);
 
   return file.uri;
 }

@@ -1,15 +1,7 @@
 import { Ionicons } from '@react-native-vector-icons/ionicons';
 import { Image as ProviderImage } from 'expo-image';
 import { useState } from 'react';
-import {
-  ActivityIndicator,
-  Pressable,
-  StyleSheet,
-  Text,
-  View,
-  useColorScheme,
-  type ImageSourcePropType,
-} from 'react-native';
+import { ActivityIndicator, Pressable, StyleSheet, Text, View, useColorScheme } from 'react-native';
 
 import { useTheme } from '../../hooks/useTheme';
 import { login } from '../../services/auth';
@@ -23,9 +15,9 @@ import { BODY_FONT, borderRadius, colors, spacing, typography } from '../../them
 import { goHome } from '../../utils/navigation';
 
 /* eslint-disable @typescript-eslint/no-require-imports */
-const PROVIDER_LOGO: Partial<Record<LoginProviderId, ImageSourcePropType>> = {
-  'gruenes-netz': require('../../assets/images/sonnenblume.png') as ImageSourcePropType,
-  'gruene-oesterreich': require('../../assets/images/gruene-at-logo.png') as ImageSourcePropType,
+const PROVIDER_LOGO: Partial<Record<LoginProviderId, number>> = {
+  'gruenes-netz': require('../../assets/images/sonnenblume.png') as number,
+  'gruene-oesterreich': require('../../assets/images/gruene-at-logo.png') as number,
   // `gruenerator` has no mark of its own — on web it falls back to an emoji,
   // and so does the row below.
 };

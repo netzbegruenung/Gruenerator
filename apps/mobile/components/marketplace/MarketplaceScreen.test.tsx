@@ -154,7 +154,7 @@ function setup({ sections = [] as MarketplaceSection[], items = [] as Marketplac
 }
 
 async function renderScreen(tab: 'alle' | 'agents' | 'sticker' = 'alle') {
-  render(<MarketplaceScreen initialFilters={{ ...DEFAULT_MARKETPLACE_FILTERS, tab }} />);
+  await render(<MarketplaceScreen initialFilters={{ ...DEFAULT_MARKETPLACE_FILTERS, tab }} />);
   await act(async () => {});
 }
 
@@ -176,7 +176,7 @@ describe('MarketplaceScreen', () => {
       ],
     });
     // The screen opens on the front page (MarketplaceFrontpage.test.tsx); the sheet keeps the aisles.
-    render(<MarketplaceSheet visible onClose={jest.fn()} />);
+    await render(<MarketplaceSheet visible onClose={jest.fn()} />);
     await act(async () => {});
 
     expect(mockSections).toHaveBeenLastCalledWith(
@@ -190,7 +190,7 @@ describe('MarketplaceScreen', () => {
     expect(screen.getByLabelText('Sonnenblume merken')).toBeTruthy();
     expect(screen.getByLabelText('Pressestelle zu meinen Grüneratoren')).toBeTruthy();
 
-    fireEvent.press(screen.getByRole('button', { name: 'Alle Sticker anzeigen' }));
+    await fireEvent.press(screen.getByRole('button', { name: 'Alle Sticker anzeigen' }));
     expect(mockKind).toHaveBeenLastCalledWith(
       expect.objectContaining({ kind: 'sticker', enabled: true })
     );
@@ -208,15 +208,15 @@ describe('MarketplaceScreen', () => {
 
   it('offers the Landesverband origin only to people with one, and no origins for Vorlagen', async () => {
     setup({ items: [sticker] });
-    render(<MarketplaceSheet visible onClose={jest.fn()} />);
+    await render(<MarketplaceSheet visible onClose={jest.fn()} />);
     await act(async () => {});
     expect(screen.getByRole('button', { name: 'Offiziell' })).toBeTruthy();
     expect(screen.queryByRole('button', { name: /Landesverband/ })).toBeNull();
 
     // Sticker and Hintergründe can be official too.
-    fireEvent.press(screen.getByRole('button', { name: 'Sticker' }));
+    await fireEvent.press(screen.getByRole('button', { name: 'Sticker' }));
     expect(screen.getByRole('button', { name: 'Offiziell' })).toBeTruthy();
-    fireEvent.press(screen.getByRole('button', { name: 'Vorlagen' }));
+    await fireEvent.press(screen.getByRole('button', { name: 'Vorlagen' }));
     expect(screen.queryByRole('button', { name: 'Offiziell' })).toBeNull();
   });
 
@@ -230,7 +230,7 @@ describe('MarketplaceScreen', () => {
     setup({ items: [publicAgent] });
     await renderScreen('agents');
 
-    fireEvent.press(screen.getByRole('button', { name: 'Kommunal-Helfer' }));
+    await fireEvent.press(screen.getByRole('button', { name: 'Kommunal-Helfer' }));
     expect(mockSetQueryData).toHaveBeenCalledWith(expect.anything(), publicAgent);
     expect(router.push).toHaveBeenCalledWith({
       pathname: '/(focused)/marktplatz',
@@ -242,7 +242,7 @@ describe('MarketplaceScreen', () => {
 async function renderItemPage(item: MarketplaceItem) {
   setup({ items: [item] });
   mockItem.mockReturnValue({ data: item, isError: false });
-  render(
+  await render(
     <MarketplaceScreen
       initialFilters={{
         ...DEFAULT_MARKETPLACE_FILTERS,
@@ -260,12 +260,12 @@ describe('MarketplaceScreen item page', () => {
     // The navigation bar leads back; the page has no link of its own.
     expect(screen.queryByRole('button', { name: 'Zurück: Marktplatz' })).toBeNull();
 
-    fireEvent.press(screen.getByText('Zu meinen Grüneratoren'));
+    await fireEvent.press(screen.getByText('Zu meinen Grüneratoren'));
     expect(mockSave).toHaveBeenCalledWith(publicAgent, expect.anything());
     // Someone else's public agent can be reported.
     expect(screen.getByRole('button', { name: 'Melden' })).toBeTruthy();
 
-    fireEvent.press(screen.getByText('Alle Details'));
+    await fireEvent.press(screen.getByText('Alle Details'));
     expect(router.push).toHaveBeenCalledWith({
       pathname: '/(focused)/grueneratoren/agent/[slug]',
       params: { slug: 'u1' },
@@ -277,7 +277,7 @@ describe('MarketplaceScreen detail', () => {
   it('opens the item of a shared link, loading it when no list holds it', async () => {
     setup();
     mockItem.mockReturnValue({ data: publicAgent, isError: false });
-    render(
+    await render(
       <MarketplaceScreen
         initialFilters={{
           ...DEFAULT_MARKETPLACE_FILTERS,
@@ -298,7 +298,7 @@ describe('MarketplaceScreen detail', () => {
   it('says so when the shared item is gone', async () => {
     setup();
     mockItem.mockReturnValue({ data: undefined, isError: true });
-    render(
+    await render(
       <MarketplaceScreen
         initialFilters={{ ...DEFAULT_MARKETPLACE_FILTERS, item: { kind: 'agent', ref: 'weg' } }}
       />
@@ -308,10 +308,12 @@ describe('MarketplaceScreen detail', () => {
   });
 
   it('shares the web Marktplatz with the item open', async () => {
-    const share = jest.spyOn(Share, 'share').mockResolvedValue({ action: 'sharedAction' });
+    const share = jest
+      .spyOn(Share, 'share')
+      .mockResolvedValue({ action: 'sharedAction', activityType: undefined });
     await renderItemPage(publicAgent);
 
-    fireEvent.press(screen.getByRole('button', { name: 'Teilen' }));
+    await fireEvent.press(screen.getByRole('button', { name: 'Teilen' }));
     expect(share).toHaveBeenCalledWith(
       expect.objectContaining({
         url: 'https://gruenerator.eu/marktplatz?item=agent%3Au1',
@@ -348,10 +350,12 @@ describe('MarketplaceScreen detail', () => {
 describe('MarketplaceSheet', () => {
   it('opens a detail without a report form', async () => {
     setup({ items: [publicAgent] });
-    render(<MarketplaceSheet visible onClose={jest.fn()} kinds={['agent']} initialTab="agents" />);
+    await render(
+      <MarketplaceSheet visible onClose={jest.fn()} kinds={['agent']} initialTab="agents" />
+    );
     await act(async () => {});
 
-    fireEvent.press(screen.getByRole('button', { name: 'Kommunal-Helfer' }));
+    await fireEvent.press(screen.getByRole('button', { name: 'Kommunal-Helfer' }));
     expect(screen.getByRole('header', { name: 'Kommunal-Helfer' })).toBeTruthy();
     // In place of the list, with a way back to it.
     expect(screen.getByRole('button', { name: 'Zurück: Marktplatz' })).toBeTruthy();
@@ -363,7 +367,7 @@ describe('MarketplaceSheet', () => {
     setup({ items: [sticker] });
     const onPick = jest.fn();
     const onClose = jest.fn();
-    render(
+    await render(
       <MarketplaceSheet
         visible
         onClose={onClose}
@@ -376,7 +380,7 @@ describe('MarketplaceSheet', () => {
 
     // One kind: no tabs to choose from.
     expect(screen.queryByRole('button', { name: 'Agents' })).toBeNull();
-    fireEvent.press(screen.getByRole('button', { name: 'Sonnenblume' }));
+    await fireEvent.press(screen.getByRole('button', { name: 'Sonnenblume' }));
     expect(onPick).toHaveBeenCalledWith(sticker);
     expect(onClose).toHaveBeenCalled();
   });
