@@ -84,6 +84,16 @@ export const AI_LANES = {
   qa_planner: { provider: GEMMA_31B_PRIMARY.provider, model: GEMMA_4, structuredMode: 'tool' },
   qa_repair: { provider: GEMMA_31B_PRIMARY.provider, model: GEMMA_4, structuredMode: 'tool' },
 
+  // — Bundestags-Fragen (services/bundestag/qa): Plan der Suche, Lesen eines
+  //   Dokumentfensters, Antwort aus den belegten Punkten. Gemma 4 wie die QA-Lanes.
+  bundestag_plan: { provider: GEMMA_31B_PRIMARY.provider, model: GEMMA_4, structuredMode: 'tool' },
+  bundestag_read: { provider: GEMMA_31B_PRIMARY.provider, model: GEMMA_4, structuredMode: 'tool' },
+  bundestag_answer: {
+    provider: GEMMA_31B_PRIMARY.provider,
+    model: GEMMA_4,
+    structuredMode: 'tool',
+  },
+
   // — Fertige Texte. Gemma 4 schreibt das beste Deutsch; es sitzt aus demselben
   //   Grund im Synth-Slot des Chat-Loops. Siehe TEXT_TYPES in
   //   services/providers/providerSelector.ts.
