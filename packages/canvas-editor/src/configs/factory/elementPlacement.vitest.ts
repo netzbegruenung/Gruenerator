@@ -1,14 +1,15 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import { balkenExtent } from '../../utils/balkenBounds';
-
 import {
   createAssetActions,
-  createBalkenActions,
   createChartActions,
   createFrameActions,
   createShapeActions,
-} from './actionFactories';
+} from '@ggraphic/editor/configs/factory/actionFactories';
+
+import { balkenExtent } from '../../utils/balkenBounds';
+
+import { createBalkenActions } from './balkenActions';
 
 import type { BalkenInstance } from '@ggraphic/editor/utils/balkenUtils';
 import type { AssetInstance } from '@ggraphic/editor/utils/canvasAssets';

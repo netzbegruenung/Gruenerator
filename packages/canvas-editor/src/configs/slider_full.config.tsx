@@ -32,7 +32,7 @@ import {
 } from '../utils/sliderLayout';
 
 import { chatTab, createCommonSectionEntries, toolsTab, uploadsTab } from './commonSections';
-import { createBaseActions } from './factory/actionFactories';
+import { createBaseActions } from './factory/baseActions';
 import { makeSectionDefiner } from '@ggraphic/editor/configs/factory/defineSection';
 import { fromLayout } from '@ggraphic/editor/configs/factory/layoutAccessors';
 import { injectFeatureProps } from '@ggraphic/editor/configs/featureInjector';

@@ -19,7 +19,7 @@ import { PiSquaresFourFill } from 'react-icons/pi';
 import { AssetsSection } from '../sidebar/sections';
 
 import { chatTab, createCommonSectionEntries, toolsTab, uploadsTab } from './commonSections';
-import { createBaseActions } from './factory/actionFactories';
+import { createBaseActions } from './factory/baseActions';
 import { makeSectionDefiner } from '@ggraphic/editor/configs/factory/defineSection';
 import { injectFeatureProps } from '@ggraphic/editor/configs/featureInjector';
 

@@ -4,7 +4,7 @@
  *
  * Vorher lag dieselbe Logik vierfach im Paket: im Strg+D-Zweig und im
  * Einfügen-Zweig von `useCanvasKeyboardHandlers`, und als `duplicateIllustration`
- * / `duplicateBalken` in `actionFactories`. Jede Fassung deckte eine andere
+ * / `duplicateBalken` in `actionFactories` (heute Kern bzw. `balkenActions`). Jede Fassung deckte eine andere
  * Teilmenge der Elementarten ab, und keine pflegte `layerOrder`.
  *
  * Drei Dinge, die hier zusammengehalten werden und einzeln leicht verloren gehen:

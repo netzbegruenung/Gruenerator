@@ -20,7 +20,7 @@ import { injectFeatureProps } from '@ggraphic/editor/configs/featureInjector';
 import { getPlaceholder } from '@ggraphic/editor/configs/placeholders';
 import { createShareSection } from '@ggraphic/editor/configs/shareSection';
 
-import { createBaseActions } from './actionFactories';
+import { createBaseActions } from './baseActions';
 import { makeSectionDefiner } from '@ggraphic/editor/configs/factory/defineSection';
 
 import type { BackgroundColorOption } from '@ggraphic/editor/sidebar/types';
