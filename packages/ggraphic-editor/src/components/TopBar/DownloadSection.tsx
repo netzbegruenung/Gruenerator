@@ -288,7 +288,7 @@ export function DownloadSection({
               <SelectContent position="popper" className="z-[10001]">
                 {SCALE_OPTIONS.map((s) => (
                   <SelectItem key={s} value={String(s)}>
-                    {s}× {s === DEFAULT_RASTER_PIXEL_RATIO ? '(Standard)' : ''}
+                    {s}× {s === DEFAULT_RASTER_PIXEL_RATIO ? t.shell.downloadPanel.defaultMark : ''}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -316,7 +316,7 @@ export function DownloadSection({
       {isMultiPage && (
         <div className="flex flex-col gap-1.5">
           <Label htmlFor={`${fieldId}-pages`} className="text-xs font-medium text-foreground-muted">
-            Seiten auswählen
+            {t.shell.downloadPanel.selectPages}
           </Label>
           <Select
             value={pageSelection}
@@ -326,8 +326,8 @@ export function DownloadSection({
               <SelectValue />
             </SelectTrigger>
             <SelectContent position="popper" className="z-[10001]">
-              <SelectItem value="current">Aktuelle Seite</SelectItem>
-              <SelectItem value="all">Alle {pageCount} Seiten (ZIP)</SelectItem>
+              <SelectItem value="current">{t.shell.downloadPanel.currentPage}</SelectItem>
+              <SelectItem value="all">{t.shell.allPagesZip(pageCount)}</SelectItem>
             </SelectContent>
           </Select>
         </div>

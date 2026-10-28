@@ -132,24 +132,11 @@ function generate() {
   const shareTitle = shell && stringProp(shell, 'share');
   if (!shareTitle) throw new Error('Cannot read the share label of the German message catalogue');
   out['canvas.share'] = { title: shareTitle };
-  // Download has no catalog id. Identify its actual JSX button by its icon,
-  // so changing the label flows through, while removing the button fails here.
-  const downloads = [];
-  walk(parse('packages/ggraphic-editor/src/components/TopBar/ShareDropdown.tsx'), (node) => {
-    if (!ts.isJsxSelfClosingElement(node) || node.tagName.getText() !== 'IconButton') return;
-    const attrs = node.attributes.properties.filter(ts.isJsxAttribute);
-    const icon = attrs.find((attr) => attr.name.getText() === 'icon')?.initializer;
-    if (!icon || !ts.isJsxExpression(icon) || !icon.expression) return;
-    if (
-      !ts.isJsxSelfClosingElement(icon.expression) ||
-      icon.expression.tagName.getText() !== 'FaDownload'
-    )
-      return;
-    const label = attrs.find((attr) => attr.name.getText() === 'label')?.initializer;
-    if (label && ts.isStringLiteral(label)) downloads.push(label.text);
-  });
-  if (downloads.length !== 1) throw new Error('Expected one Download IconButton in ShareDropdown');
-  out['canvas.download'] = { title: downloads[0] };
+  // The Download button of the share popover reads its label from the catalogue too.
+  const downloadTitle = shell && stringProp(shell, 'downloadTab');
+  if (!downloadTitle)
+    throw new Error('Cannot read the download label of the German message catalogue');
+  out['canvas.download'] = { title: downloadTitle };
   // Sort keys for stable, diff-friendly output.
   const sorted = {};
   for (const key of Object.keys(out).sort()) sorted[key] = out[key];
