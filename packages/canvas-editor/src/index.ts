@@ -87,8 +87,8 @@ export type {
 
 export {
   CANVAS_FORMATS,
-  CANVAS_FORMAT_GROUP_LABEL,
-  CANVAS_FORMAT_GROUP_ORDER,
+  canvasFormatGroupLabel,
+  canvasFormatGroupOrder,
   canvasFormats,
   DEFAULT_FORMAT_ID,
   getCanvasFormat,
@@ -98,12 +98,15 @@ export {
   isUnsupportedFormatId,
   mmToPx,
   printGeometry,
+  registerCanvasFormatGroups,
   registerCanvasFormats,
   UnsupportedCanvasFormatError,
 } from '@ggraphic/editor/formats/index';
 export type {
+  BuiltInCanvasFormatGroup,
   CanvasFormat,
   CanvasFormatCategory,
+  CanvasFormatGroupDef,
   CanvasFormatGroup,
   CanvasFormatIconKey,
   CanvasExportType,

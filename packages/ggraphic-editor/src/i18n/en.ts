@@ -166,6 +166,16 @@ export const en: Messages = {
     allSent: 'The pages were sent individually.',
   },
 
+  formats: {
+    groups: {
+      sharepic: 'Sharepics',
+      'sharepic-tall': 'Sharepics 3:4',
+      profilbild: 'Profile picture',
+      praesentation: 'Presentations',
+      print: 'Print',
+    },
+  },
+
   uploads: {
     imageDeleted: 'Image deleted',
   },

@@ -175,6 +175,16 @@ export const de = {
     allSent: 'Die Seiten wurden einzeln gesendet.',
   },
 
+  formats: {
+    groups: {
+      sharepic: 'Sharepics',
+      'sharepic-tall': 'Sharepics 3:4',
+      profilbild: 'Profilbild',
+      praesentation: 'Präsentationen',
+      print: 'Print',
+    },
+  },
+
   uploads: {
     imageDeleted: 'Bild gelöscht',
   },
