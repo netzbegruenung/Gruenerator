@@ -23,6 +23,10 @@ import { readPrompt, readSystem } from './readPrompt.js';
 
 const log = createLogger('BundestagQaRead');
 
+/** Ein Beleg unter dieser Länge (ein Wort, eine Zahl) steht fast überall im Text und belegt nichts. */
+const MIN_QUOTE_WORDS = 4;
+const MIN_QUOTE_CHARS = 25;
+
 export interface ReadResult {
   doc: FetchedDoc;
   relevant: boolean;
@@ -229,6 +233,8 @@ export async function readDocuments({
             temperature: 0,
             maxOutputTokens: 1500,
             timeoutMs: remaining,
+            // Ein zweiter Versuch würde die Deadline überschreiten; ein Fenster, dessen JSON einmal scheitert, entfällt.
+            attempts: 1,
             system: readSystem(auftrag),
             prompt: readPrompt(
               question,
@@ -257,7 +263,13 @@ export async function readDocuments({
           if (res.data.relevant) result.relevant = true;
           for (const p of res.data.punkte) {
             const hit = locateQuote(win.text, p.zitat);
-            if (!hit.found) {
+            const words = hit.found ? hit.matched.trim().split(/\s+/).length : 0;
+            if (
+              !hit.found ||
+              words < MIN_QUOTE_WORDS ||
+              hit.matched.trim().length < MIN_QUOTE_CHARS ||
+              !p.aussage.trim()
+            ) {
               result.droppedPoints++;
               continue;
             }

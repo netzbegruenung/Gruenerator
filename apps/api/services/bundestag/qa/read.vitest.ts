@@ -52,8 +52,7 @@ describe('splitWindows', () => {
 });
 
 describe('Fensterwahl', () => {
-  // 6 Fenster à ~1 Absatz: Fenstergröße 240k geht nicht; Modell über target auf Default drücken ist unnötig,
-  // darum großer Text mit Absatzgröße nahe der Fenstergröße.
+  // Sechs Absätze à 150k: bei 240k Fenstergröße passt nur einer in ein Fenster, also sechs Fenster.
   const para = (tag: string) => tag + ' ' + 'y'.repeat(150_000);
   const text = ['a0', 'a1', 'a2', 'a3 Wärmepumpe Förderung', 'a4 Wärmepumpe', 'a5']
     .map(para)
@@ -98,7 +97,7 @@ describe('Belegprüfung', () => {
     respond(() => ({
       relevant: true,
       punkte: [
-        { aussage: 'echt', zitat: 'die Förderung zu erhöhen' },
+        { aussage: 'echt', zitat: 'aufgefordert, die Förderung zu erhöhen' },
         { aussage: 'erfunden', zitat: 'Der Mond besteht aus Käse und Bundeshaushalt' },
       ],
     }));
@@ -114,9 +113,50 @@ describe('Belegprüfung', () => {
     expect(r!.points).toHaveLength(1);
     expect(r!.points[0]).toMatchObject({
       method: 'normalized',
-      zitat: 'die Förderung  zu erhöhen',
+      zitat: 'aufgefordert,   die Förderung  zu erhöhen',
     });
     expect(r!.usage).toBeNull();
+  });
+
+  it('ein Einwort-Zitat, das im Text steht, entfällt', async () => {
+    respond(() => ({ relevant: true, punkte: [{ aussage: 'dünn', zitat: 'Förderung' }] }));
+    const [r] = await readDocuments({
+      question: 'q',
+      keywords: [],
+      auftrag: 'frage',
+      docs: [doc('21/1', src)],
+      budget,
+    });
+    expect(r!.points).toEqual([]);
+    expect(r!.droppedPoints).toBe(1);
+  });
+
+  it('leere Aussage entfällt', async () => {
+    respond(() => ({
+      relevant: true,
+      punkte: [{ aussage: '  ', zitat: 'aufgefordert, die Förderung zu erhöhen' }],
+    }));
+    const [r] = await readDocuments({
+      question: 'q',
+      keywords: [],
+      auftrag: 'frage',
+      docs: [doc('21/1', src)],
+      budget,
+    });
+    expect(r!.points).toEqual([]);
+    expect(r!.droppedPoints).toBe(1);
+  });
+
+  it('aiObject bekommt attempts: 1', async () => {
+    respond(() => ({ relevant: false, punkte: [] }));
+    await readDocuments({
+      question: 'q',
+      keywords: [],
+      auftrag: 'frage',
+      docs: [doc('21/1', src)],
+      budget,
+    });
+    expect(aiObject.mock.calls[0]![0].attempts).toBe(1);
   });
 
   it('gescheitertes Fenster lässt das Dokument nicht ausfallen', async () => {
@@ -196,7 +236,7 @@ describe('Parallelität', () => {
 });
 
 describe('Fenstergröße folgt dem Modell', () => {
-  // Zwei Absätze à 300k: bei 240k je ein Fenster (2), bei 800k ein Fenster (1).
+  // Zwei Absätze à 300k: bei 240k wird jeder hart in 240k+60k geschnitten (4 Fenster), bei 800k passt alles in eins.
   const text = ['p'.repeat(300_000), 'q'.repeat(300_000)].join('\n\n');
   it('Lane-Modell (gemma-4-31b-it): 240k', async () => {
     respond(() => ({ relevant: false, punkte: [] }));
@@ -207,7 +247,7 @@ describe('Fenstergröße folgt dem Modell', () => {
       docs: [doc('21/1', text)],
       budget,
     });
-    expect(r!.windowsTotal).toBeGreaterThanOrEqual(2);
+    expect(r!.windowsTotal).toBe(4);
   });
   it('target kolibri-1: 800k', async () => {
     respond(() => ({ relevant: false, punkte: [] }));
