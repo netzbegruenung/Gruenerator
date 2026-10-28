@@ -474,15 +474,6 @@ export class UnsplashApiService {
     rateLimitedUntil = 0;
     console.log('[UnsplashAPI] Cache cleared');
   }
-
-  /**
-   * Get cache statistics
-   */
-  getCacheStats(): { size: number } {
-    return {
-      size: searchCache.size(),
-    };
-  }
 }
 
 // ============================================================================

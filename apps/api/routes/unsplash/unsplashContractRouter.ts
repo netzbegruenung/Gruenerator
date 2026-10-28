@@ -5,10 +5,6 @@
  *   GET  /api/unsplash/search          — search photos
  *   POST /api/unsplash/track-download  — track a download (API compliance)
  *
- * Mount BEFORE the legacy unsplashRouter in routes.ts so ts-rest matches
- * its own routes first; unmatched paths (GET /stats, POST /clear-cache)
- * fall through to the legacy router.
- *
  * Authentication: requireAuth sits on the /api/unsplash prefix in routes.ts,
  * mounted BEFORE this call — createExpressEndpoints registers handlers directly
  * on `app`, so a guard added after it would never run for these routes.
@@ -129,7 +125,6 @@ export const unsplashContractRouter = s.router(unsplashContract, {
 
 /**
  * Mount the Unsplash contract router onto an Express app.
- * Call from routes.ts BEFORE the legacy unsplashRouter.
  */
 export function mountUnsplashContractRouter(app: Application): void {
   createExpressEndpoints(unsplashContract, unsplashContractRouter, app, {

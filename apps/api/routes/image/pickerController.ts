@@ -17,7 +17,6 @@ import { getThumbnailVariant, openVariant } from '../../services/media/thumbnail
 import { isThumbnailFormat, isThumbnailWidth } from '../../services/media/thumbnailUrl.js';
 import { toUserFacingMessage } from '../../utils/errors/index.js';
 import { createLogger } from '../../utils/logger.js';
-import { safeFetch } from '../../utils/validation/urlSecurity.js';
 
 import type {
   AuthenticatedRequest,
@@ -43,11 +42,6 @@ const selectBodySchema = z.object({
 
 const validateBodySchema = z.object({
   filename: z.string(),
-});
-
-const downloadTrackBodySchema = z.object({
-  filename: z.string(),
-  downloadLocation: z.string().optional(),
 });
 
 const __filename = fileURLToPath(import.meta.url);
@@ -304,46 +298,6 @@ router.get(
         error: 'Failed to get stock image catalog',
         code: 'STOCK_CATALOG_ERROR',
         message: toUserFacingMessage(err),
-      });
-    }
-  }
-);
-
-/**
- * POST /download-track
- * Track Unsplash image download (required by Unsplash API guidelines)
- * Called when user selects an image for use in canvas
- */
-router.post(
-  '/download-track',
-  validateBody(downloadTrackBodySchema),
-  async (req: TypedRequest<{ filename: string; downloadLocation?: string }>, res: Response) => {
-    try {
-      const { filename, downloadLocation } = req.body;
-
-      // Only track if downloadLocation exists (real Unsplash images)
-      // Local stock images won't have this field
-      if (downloadLocation) {
-        try {
-          await safeFetch(downloadLocation, {}, { allowedHosts: ['api.unsplash.com'] });
-          log.debug(`[ImagePicker API] Download tracked for ${filename}`);
-        } catch (error) {
-          log.warn(`[ImagePicker API] Failed to track download for ${filename}:`, error);
-        }
-      }
-
-      return res.json({
-        success: true,
-        tracked: !!downloadLocation,
-        timestamp: new Date().toISOString(),
-      });
-    } catch (error) {
-      log.error('[ImagePicker API] Download track error:', error);
-
-      return res.status(500).json({
-        success: false,
-        error: 'Failed to track download',
-        code: 'DOWNLOAD_TRACK_ERROR',
       });
     }
   }

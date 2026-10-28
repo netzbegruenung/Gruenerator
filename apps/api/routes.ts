@@ -356,7 +356,6 @@ export async function setupRoutes(app: Application): Promise<void> {
     await import('./routes/sharepicCreator/sharepicCreatorContractRouter.js');
   const { mountSharepicVorlagenRouter } =
     await import('./routes/sharepicVorlagen/sharepicVorlagenRouter.js');
-  const { default: unsplashRouter } = await import('./routes/unsplash/unsplashRoutes.js');
   const { default: docsRouter } = await import('./routes/docs/index.js');
 
   const { default: publicDocRouter } = await import('./routes/docs/publicDocController.js');
@@ -1059,7 +1058,6 @@ export async function setupRoutes(app: Application): Promise<void> {
   app.use('/api/image-picker', imagePickerRoute);
   app.use('/api/unsplash', requireAuth, publicReadLimiter);
   mountUnsplashContractRouter(app);
-  app.use('/api/unsplash', unsplashRouter);
   // Serves a web-search image hit through us so the reader's browser never
   // contacts the source host. requireAuth on the prefix even though every handle
   // is HMAC-signed: the signature says "we returned this URL", not "this caller
