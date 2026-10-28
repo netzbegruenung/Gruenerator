@@ -92,6 +92,21 @@ describe('modelHealth', () => {
     expect(modelHealthSnapshot()[0]?.p50TokensPerSec).toBe(80);
   });
 
+  it('Prefill-lastige Proben unter der Längenschwelle beurteilen den Durchsatz nicht', () => {
+    // 28k Prompt, 282 Ausgabe-Tokens (~99×): unter Last 9 tok/s, das Modell war gesund.
+    warmUp();
+    for (let i = 0; i < 3; i++) {
+      recordModelSample({
+        provider: P,
+        model: M,
+        outputTokens: 282,
+        durationMs: (282 / 9) * 1000,
+        inputTokens: 28_000,
+      });
+    }
+    expect(isModelSlow(P, M)).toBe(false);
+  });
+
   it('zähe Proben mit normal langem Prompt vermerken weiterhin', () => {
     warmUp();
     for (let i = 0; i < 2; i++) {

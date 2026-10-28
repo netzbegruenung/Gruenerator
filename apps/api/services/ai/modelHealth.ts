@@ -63,6 +63,15 @@ const MIN_OUTPUT_TOKENS = 16;
 /** Ab dieser Prompt-Länge misst die Wandzeit vor allem das Prefill (Punkt 4 oben). */
 const LONG_PROMPT_TOKENS = 30_000;
 
+/**
+ * Dasselbe unterhalb der Schwelle: ein Prompt mit dem 50-Fachen der Ausgabe
+ * misst ebenfalls vor allem das Prefill. Gemessen 28.10.2026: Bundestag-
+ * Lesefenster lagen bei 99–283×, Chat-Antworten meist bei 10–50×; ein
+ * 28k-Fenster mit 282 Ausgabe-Tokens fiel unter Last auf 9 tok/s und schaltete
+ * die Gemma-Lanes um.
+ */
+const PREFILL_DOMINATED_RATIO = 50;
+
 /** Wie weit unter die Basislinie eine Probe fallen muss, um als zäh zu gelten. */
 const SLOW_FACTOR = 3;
 
@@ -183,6 +192,11 @@ export function recordModelSample(sample: ModelSampleInput): void {
 
   if (sample.durationMs <= 0 || sample.outputTokens < MIN_OUTPUT_TOKENS) return;
   if (sample.inputTokens != null && sample.inputTokens >= LONG_PROMPT_TOKENS) return;
+  if (
+    sample.inputTokens != null &&
+    sample.inputTokens > sample.outputTokens * PREFILL_DOMINATED_RATIO
+  )
+    return;
 
   const rate = sample.outputTokens / (sample.durationMs / 1000);
   if (!Number.isFinite(rate) || rate <= 0) return;
