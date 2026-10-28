@@ -22,7 +22,7 @@ export type {
   ColorTwoTextOptions,
 } from './createColorTwoTextCanvas';
 
-export { createBaseActions } from './actionFactories';
+export { createBaseActions } from './baseActions';
 
 export { wrapWithAi } from './wrapWithAi';
 export { createAiCapabilities } from './createAiCapabilities';

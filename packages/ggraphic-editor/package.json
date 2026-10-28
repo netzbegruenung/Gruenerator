@@ -108,6 +108,7 @@
     "./composer/textFit": "./src/composer/textFit.ts",
     "./configs/buildSharepicText": "./src/configs/buildSharepicText.ts",
     "./configs/configLoader": "./src/configs/configLoader.ts",
+    "./configs/factory/actionFactories": "./src/configs/factory/actionFactories.ts",
     "./configs/factory/baseTypes": "./src/configs/factory/baseTypes.ts",
     "./configs/factory/carryInstanceState": "./src/configs/factory/carryInstanceState.ts",
     "./configs/factory/createTextElement": "./src/configs/factory/createTextElement.ts",

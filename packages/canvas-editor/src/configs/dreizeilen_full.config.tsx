@@ -50,10 +50,10 @@ import {
   createIllustrationActions,
   createPillBadgeActions,
   createCircleBadgeActions,
-  createBalkenActions,
   createFrameActions,
   createUserImageActions,
-} from './factory/actionFactories';
+} from '@ggraphic/editor/configs/factory/actionFactories';
+import { createBalkenActions } from './factory/balkenActions';
 import { makeSectionDefiner } from '@ggraphic/editor/configs/factory/defineSection';
 import { injectFeatureProps } from '@ggraphic/editor/configs/featureInjector';
 import { PLACEHOLDER_TEXT } from '@ggraphic/editor/configs/placeholders';

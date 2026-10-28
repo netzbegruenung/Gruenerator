@@ -1,6 +1,7 @@
+// SPDX-License-Identifier: MPL-2.0
 import { describe, expect, it, vi } from 'vitest';
 
-import { createIconActions } from './actionFactories';
+import { createIconActions } from './actionFactories.js';
 
 import type { IconState } from '@ggraphic/editor/configs/factory/baseTypes';
 
@@ -22,7 +23,7 @@ function harness(initial: IconTestState) {
   };
   const saveToHistory = vi.fn();
   const actions = createIconActions(() => state, setState, saveToHistory, vi.fn(), 1080, 1080, {
-    defaultColor: '#005538',
+    defaultColor: '#123456',
   });
   return { actions, current: () => state, saveToHistory };
 }
