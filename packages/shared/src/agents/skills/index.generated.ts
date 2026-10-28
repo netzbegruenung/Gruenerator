@@ -180,6 +180,7 @@ export const SKILLS = [
     mention: 'rechtsstand',
     skillCategory: 'recherche',
     promptTemplate: 'Klär den Rechtsstand zu: ',
+    rolle: 'methode',
     instances: ['bgst', 'local'],
   },
   {
@@ -193,6 +194,7 @@ export const SKILLS = [
     skillCategory: 'recherche',
     audience: 'de-DE',
     promptTemplate: 'Recherchiere im Bundestag: ',
+    rolle: 'methode',
   },
   {
     identifier: 'gruenerator-oeffentlichkeitsarbeit-berlin',

@@ -279,6 +279,9 @@ export const SKILL_CATEGORY_LABELS: Record<SkillCategory, string> = {
  */
 export type LvEbene = 'partei' | 'fraktion';
 
+/** Siehe `Skill.rolle`. */
+export type SkillRole = 'textsorte' | 'methode';
+
 export interface Skill {
   identifier: string;
   title: string;
@@ -299,6 +302,11 @@ export interface Skill {
    * überwiegend in Fraktions-PMs. Siehe `skillFrontmatterSchema`.
    */
   lvEbene?: LvEbene;
+  /**
+   * `textsorte` (Vorgabe) gibt die Form vor und ist exklusiv; `methode` regelt
+   * Recherche und Belege und stapelt sich daneben. Siehe `skillFrontmatterSchema`.
+   */
+  rolle?: SkillRole;
   /**
    * Die Instanzen, auf denen dieses Rezept angeboten wird. Fehlt = überall.
    * Ausgewertet von `agents/skillInstances.ts`; `build-skills.ts` prüft die

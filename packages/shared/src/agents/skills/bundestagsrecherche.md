@@ -7,6 +7,7 @@ avatar: '🏛️'
 backgroundColor: '#316049'
 mention: 'bundestagsrecherche'
 skillCategory: recherche
+rolle: methode
 audience: 'de-DE'
 promptTemplate: 'Recherchiere im Bundestag: '
 order: 26
