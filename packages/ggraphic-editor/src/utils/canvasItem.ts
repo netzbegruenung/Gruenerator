@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: MPL-2.0
 import type { AssetInstance } from './canvasAssets.js';
 import type { AdditionalText, CanvasElementConfig } from '../configs/types.js';
-import type { BalkenInstance } from '@ggraphic/editor/utils/balkenUtils';
 import type { ChartInstance } from '@ggraphic/editor/utils/chartTypes';
 import type { CircleBadgeInstance } from '@ggraphic/editor/utils/circleBadgeUtils';
 import type { FrameInstance } from '@ggraphic/editor/utils/frameUtils';
@@ -72,7 +71,6 @@ export type HostCanvasItem = {
  */
 export type CanvasItem =
   | { id: string; type: 'element'; data: CanvasElementConfig }
-  | { id: string; type: 'balken'; data: BalkenInstance }
   | { id: string; type: 'icon' }
   | { id: string; type: 'shape'; data: ShapeInstance }
   | { id: string; type: 'frame'; data: FrameInstance }

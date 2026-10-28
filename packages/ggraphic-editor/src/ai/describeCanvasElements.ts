@@ -14,12 +14,9 @@ import type { HostCanvasAiSnapshot } from '@ggraphic/editor/ai/types';
 import type { HostElementKindName } from '@ggraphic/editor/utils/canvasItem';
 
 type HostEntry = HostCanvasAiSnapshot['elementsSummary'][number];
-// `balken` is the one kind the core itself draws but its own snapshot schema
-// leaves to the host (the host binds it through `CanvasAiHostTypes`), and a
-// host kind is named by its registration; the host's snapshot lists both.
-type SummaryEntry = Omit<HostEntry, 'kind'> & {
-  kind: HostEntry['kind'] | 'balken' | HostElementKindName;
-};
+// A host kind is named by its registration; the core's snapshot schema leaves
+// it to the host, which binds its own through `CanvasAiHostTypes`.
+type SummaryEntry = Omit<HostEntry, 'kind'> & { kind: HostEntry['kind'] | HostElementKindName };
 
 /** Keeps the prompt bounded on crowded canvases. */
 const MAX_ENTRIES = 40;
@@ -41,7 +38,7 @@ export const aiLabelFormat = { position: pos, size, turned, quote } as const;
  * remove-element and reason about where things are.
  */
 export function describeCanvasElements(state: BaseCanvasState): HostEntry[] {
-  // Boundary cast: see SummaryEntry — the host's snapshot lists `balken`.
+  // Boundary cast: see SummaryEntry — the host's snapshot lists its kinds.
   return describeEntries(state) as HostEntry[];
 }
 
@@ -151,12 +148,6 @@ function describeItem(item: CanvasItem, state: BaseCanvasState): SummaryEntry | 
         label: `Rahmen ${f.clipType} · ${pos(f.x, f.y)}${turned(f.rotation)} · ${size(f.width * f.scaleX, f.height * f.scaleY)}`,
       };
     }
-    case 'balken':
-      return {
-        id: item.id,
-        kind: 'balken',
-        label: `Balken ${quote(item.data.texts.join(' / '))} · Versatz ${pos(item.data.offset.x, item.data.offset.y)}${turned(item.data.rotation)}`,
-      };
     case 'element':
       return null;
     default:

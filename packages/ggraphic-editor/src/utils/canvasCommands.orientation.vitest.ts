@@ -1,11 +1,13 @@
 // SPDX-License-Identifier: MPL-2.0
 import Konva from 'konva';
-import { describe, expect, it, vi } from 'vitest';
+import { beforeAll, describe, expect, it, vi } from 'vitest';
 
 import { createCanvasEditorStore } from '@ggraphic/editor/stores/createCanvasEditorStore';
 import { createCanvasCommands } from '@ggraphic/editor/utils/canvasCommands';
 import { CANVAS_ITEM_ID_ATTR, CANVAS_ITEM_NAME } from '@ggraphic/editor/utils/deepSelect';
 import { centreOf, readNodeFrame } from '@ggraphic/editor/utils/orientation';
+
+import { registerStampKind } from '../testing/stampKind.js';
 
 import type { BaseCanvasState } from '@ggraphic/editor/configs/factory/baseTypes';
 import type { LayoutResult } from '@ggraphic/editor/configs/types';
@@ -16,6 +18,9 @@ import type { LayoutResult } from '@ggraphic/editor/configs/types';
  */
 
 type State = Record<string, unknown>;
+
+// A host kind placed by an offset instead of x/y (`testing/stampKind.ts`).
+beforeAll(registerStampKind);
 
 function page(state: State, opts: { readOnly?: boolean } = {}) {
   let current = state;
@@ -35,7 +40,7 @@ function page(state: State, opts: { readOnly?: boolean } = {}) {
     updateShape: vi.fn(patchList('shapeInstances')),
     updateChart: vi.fn(patchList('chartInstances')),
     updateAdditionalText: vi.fn(patchList('additionalTexts')),
-    updateBalken: vi.fn(patchList('balkenInstances')),
+    updateStamp: vi.fn(patchList('stampInstances')),
   };
   const runHistoryBatch = vi.fn((fn: () => void) => {
     history.push(current);
@@ -188,23 +193,23 @@ describe('flip', () => {
     expect(p.state).toBe(before);
   });
 
-  it('verschiebt einen Balken in der Mehrfachauswahl über seinen offset', () => {
+  it('verschiebt eine Host-Art in der Mehrfachauswahl über ihren offset', () => {
     const p = page({
       shapeInstances: [{ id: 's' }],
-      balkenInstances: [{ id: 'b', offset: { x: 5, y: 7 }, rotation: 20 }],
+      stampInstances: [{ id: 'b', offset: { x: 5, y: 7 }, rotation: 20 }],
     });
     p.add('s', centred(50, 50, 20, 20));
     p.add('b', centred(150, 50, 20, 20, 20));
     p.select(['s', 'b']);
     p.commands.flip('x');
 
-    const bar = (p.state.balkenInstances as Array<{ offset: { x: number; y: number } }>)[0]!;
+    const bar = (p.state.stampInstances as Array<{ offset: { x: number; y: number } }>)[0]!;
     const shape = (p.state.shapeInstances as Array<{ x: number }>)[0]!;
-    // Gespiegelt an der Mitte m der Auswahl: Form 50 → 2m − 50, Balken 150 → 2m − 150.
-    // Der Balken wandert also um 2m − 300 = shape.x − 250, und das landet im offset.
-    expect(p.actions.updateBalken).toHaveBeenCalledTimes(1);
-    expect(p.actions.updateBalken.mock.calls[0]![1]).toMatchObject({ rotation: -20 });
-    expect(p.actions.updateBalken.mock.calls[0]![1]).not.toHaveProperty('x');
+    // Gespiegelt an der Mitte m der Auswahl: Form 50 → 2m − 50, Stempel 150 → 2m − 150.
+    // Der Stempel wandert also um 2m − 300 = shape.x − 250, und das landet im offset.
+    expect(p.actions.updateStamp).toHaveBeenCalledTimes(1);
+    expect(p.actions.updateStamp.mock.calls[0]![1]).toMatchObject({ rotation: -20 });
+    expect(p.actions.updateStamp.mock.calls[0]![1]).not.toHaveProperty('x');
     expect(bar.offset.x).toBeCloseTo(5 + shape.x - 250, 6);
     expect(bar.offset.y).toBeCloseTo(7, 6);
     expect(shape.x).toBeGreaterThan(150);

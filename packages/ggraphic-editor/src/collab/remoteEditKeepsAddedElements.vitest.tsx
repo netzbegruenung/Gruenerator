@@ -4,9 +4,9 @@
  *
  * `handleRemotePageState` mischt den eingehenden Ausschnitt in den lebenden
  * Zustand und baut ihn über `createInitialState` neu auf. Bis #3421 nahm es
- * dabei `balkenInstances` ganz aus der Eingabe, damit der abgeleitete Balken
- * der Vorlage dem neuen Text folgt — und riss jeden von Hand hinzugefügten
- * Balken mit heraus. Bis #3420 kam `layerOrder` auf den meisten Vorlagen gar
+ * dabei eine ganze Sammlung aus der Eingabe, damit ihr abgeleiteter Eintrag
+ * dem neuen Text der Vorlage folgt — und riss jeden von Hand hinzugefügten
+ * Eintrag mit heraus. Bis #3420 kam `layerOrder` auf den meisten Vorlagen gar
  * nicht erst aus den Props zurück, die Ebenen sprangen also zusätzlich in die
  * Standardreihenfolge.
  *

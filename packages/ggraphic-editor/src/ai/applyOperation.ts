@@ -29,7 +29,6 @@ import type { ApplyResult, TemplateAiCapabilities } from '@ggraphic/editor/ai/ty
 import type { BaseCanvasState } from '@ggraphic/editor/configs/factory/baseTypes';
 import type { AdditionalText } from '@ggraphic/editor/configs/types';
 import type { CircleBadgeInstance } from '@ggraphic/editor/primitives/CircleBadge';
-import type { BalkenInstance } from '@ggraphic/editor/utils/balkenUtils';
 import type { FrameInstance } from '@ggraphic/editor/utils/frameUtils';
 import type { PillBadgeInstance } from '@ggraphic/editor/utils/pillBadgeUtils';
 
@@ -80,7 +79,6 @@ export interface CanvasAiActionsBase {
   removeShape?: (id: string) => void;
   removePillBadge?: (id: string) => void;
   removeCircleBadge?: (id: string) => void;
-  removeBalken?: (id: string) => void;
   removeFrame?: (id: string) => void;
   removeUserImage?: (id: string) => void;
   removeAdditionalText?: (id: string) => void;
@@ -99,7 +97,6 @@ export interface CanvasAiActionsBase {
   updateShape?: (id: string, partial: Partial<ShapeInstance>) => void;
   updatePillBadge?: (id: string, partial: Partial<PillBadgeInstance>) => void;
   updateCircleBadge?: (id: string, partial: Partial<CircleBadgeInstance>) => void;
-  updateBalken?: (id: string, partial: Partial<BalkenInstance>) => void;
   updateFrame?: (id: string, partial: Partial<FrameInstance>) => void;
   updateUserImage?: (id: string, partial: Partial<CanvasAiCleanPatch>) => void;
   updateIcon?: (id: string, partial: Partial<CanvasAiCleanPatch>) => void;
@@ -484,20 +481,6 @@ function dispatchUpdate<TState>(
     return run(kind.kind, update ?? undefined, kind.aiUpdate?.fields ?? [], () =>
       kind.aiUpdate ? kind.aiUpdate.patch(patch, data as never) : {}
     );
-  }
-
-  const balken = find(state.balkenInstances);
-  if (balken) {
-    return run('balken', actions.updateBalken, GEOMETRY, () => {
-      const { x, y, scale, ...rest } = patch;
-      return {
-        ...rest,
-        ...(scale != null && { scale: balken.scale * scale }),
-        ...((x != null || y != null) && {
-          offset: { x: x ?? balken.offset.x, y: y ?? balken.offset.y },
-        }),
-      };
-    });
   }
 
   if (find(state.illustrationInstances)) {

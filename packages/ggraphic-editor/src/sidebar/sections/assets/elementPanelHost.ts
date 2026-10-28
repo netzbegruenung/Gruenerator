@@ -28,19 +28,15 @@ export interface ElementPanelHost {
   /** The line under an empty search result. */
   noResultsHint?: (locale: AssetAudience) => string;
   /**
-   * Tiles for the brand category, between the logos and the marks;
-   * `canAddBalken`: whether this editor can place a Balken, `canAdd`: whether
-   * it can add a host kind (`registerElementKind` with `add`).
+   * Tiles for the brand category, between the logos and the marks; `canAdd`:
+   * whether this editor can add a host kind (`registerElementKind` with `add`).
    */
   brandItems?: (context: {
     locale: AssetAudience;
-    canAddBalken: boolean;
     canAdd: (kind: HostElementKindName) => boolean;
   }) => ElementItem[];
   /** Hook: the block catalogue, or null while there is none. Called once per render. */
   useBlocks?: () => ElementBlocks | null;
   /** Preview of a host kind's tile. */
   HostThumb?: ComponentType<{ thumb: HostElementThumb; size: number }>;
-  /** Preview of a Balken tile. */
-  BalkenPreview?: ComponentType<{ mode: 'single' | 'triple'; size: number }>;
 }

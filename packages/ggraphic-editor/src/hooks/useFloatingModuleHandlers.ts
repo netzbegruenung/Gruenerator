@@ -190,10 +190,6 @@ export function useFloatingModuleHandlers<
             debouncedSaveToHistory(next);
           }
         }
-      } else if (type === 'balken') {
-        if (actions.updateBalken) {
-          actions.updateBalken(id, { opacity });
-        }
       } else if (type === 'user-image') {
         if (actions.updateUserImage) {
           actions.updateUserImage(id, { opacity });

@@ -52,6 +52,7 @@ export type { TemplateDefinition, TemplateId, AnyCanvasConfig } from './template
 
 export * from '@ggraphic/editor/primitives/index';
 export { BalkenGroup } from './primitives/BalkenGroup';
+export type { BalkenInstance, BalkenMode } from './utils/balkenUtils';
 export type { BalkenGroupProps } from './primitives/BalkenGroup';
 export * from './composed';
 export * from './utils';

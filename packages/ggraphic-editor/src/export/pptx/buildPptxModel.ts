@@ -77,7 +77,6 @@ export const PPTX_MAPPED_PAGE_KEYS = [
   'assetInstances',
   'illustrationInstances',
   'frameInstances',
-  'balkenInstances',
   'selectedIcons',
   'iconStates',
   'layerOrder',
@@ -106,7 +105,7 @@ const KNOWN_KEYS: ReadonlySet<string> = new Set([
 
 /** The lists of the host kinds that go onto the slide (`registerElementKind` with `pptx`). */
 const hostPptxKeys = fromHostKinds(
-  (kinds) => new Set(kinds.filter((kind) => kind.pptx).map((kind) => kind.stateKey))
+  (kinds) => new Set<string>(kinds.filter((kind) => kind.pptx).map((kind) => kind.stateKey))
 );
 
 /** The mapped page keys, the host kinds' lists included. */
@@ -587,11 +586,6 @@ function buildSlide(
       // Boundary: the list under this registration's own key holds its instances.
       add(data.id, () => pptx(data as never, page));
     }
-  }
-  for (const balken of carried.balkenInstances) {
-    add(balken.id, () =>
-      raster(balken.id, { box: page, rotation: balken.rotation || 0 }, 'balken', false)
-    );
   }
   for (const iconId of carried.selectedIcons) {
     const icon = carried.iconStates[iconId];

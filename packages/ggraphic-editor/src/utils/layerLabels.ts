@@ -95,8 +95,6 @@ function kindLabel(item: CanvasItem, state: Record<string, unknown>): string {
   switch (item.type) {
     case 'element':
       return elementLabel(item.data, state);
-    case 'balken':
-      return named(messages().layers.bar, item.data.texts.filter((t) => t.trim()).join(' / '));
     case 'icon':
       return messages().layers.icon;
     case 'shape':

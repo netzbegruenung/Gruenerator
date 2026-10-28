@@ -78,14 +78,6 @@ const PAGE_STYLE_STATE_KEYS = [
   'logoOpacity',
   'logoOffset',
   'logoPosition',
-  // three-line bar
-  'balkenWidthScale',
-  'barOffsets',
-  'balkenOffset',
-  'balkenOpacity',
-  'balkenScale',
-  'balkenRotation',
-  'balkenFitPending',
   // slider
   'slideVariant',
   'subtext2',

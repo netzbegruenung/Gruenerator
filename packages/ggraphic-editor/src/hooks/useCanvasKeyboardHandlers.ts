@@ -289,14 +289,6 @@ export function useCanvasKeyboardHandlers<TState extends Partial<BaseCanvasState
             return;
           }
         }
-        const balken = currentState.balkenInstances?.find((b) => b.id === selectedElement);
-        if (balken && currentActions.updateBalken) {
-          e.preventDefault();
-          currentActions.updateBalken(selectedElement, {
-            offset: { x: (balken.offset?.x ?? 0) + dx, y: (balken.offset?.y ?? 0) + dy },
-          });
-          return;
-        }
 
         // Config-Elemente der Vorlage (Pfeil, Sonnenblume, Zitatzeichen …).
         // Sie sind keine Instanz in einer Liste, ihre Position steht im

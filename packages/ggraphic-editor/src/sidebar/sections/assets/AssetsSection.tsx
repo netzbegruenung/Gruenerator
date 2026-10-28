@@ -8,7 +8,6 @@ import { useEffect } from 'react';
 import { ElementsPanel } from './ElementsPanel.js';
 
 import type { BackgroundControls } from '@ggraphic/editor/configs/types';
-import type { BalkenInstance, BalkenMode } from '@ggraphic/editor/primitives/index';
 import type { ChartInstance, ChartType } from '@ggraphic/editor/utils/chartUtils';
 import type { FrameClipType, FrameInstance } from '@ggraphic/editor/utils/frameUtils';
 import type { IllustrationInstance } from '@ggraphic/editor/utils/illustrations/types';
@@ -37,12 +36,6 @@ export interface ExtendedAssetsSectionProps {
   selectedIcons?: string[];
   onIconToggle?: (iconId: string, selected: boolean) => void;
   maxIconSelections?: number;
-  balkenInstances?: BalkenInstance[];
-  selectedBalkenId?: string | null;
-  onAddBalken?: (mode: BalkenMode) => void;
-  onUpdateBalken?: (id: string, partial: Partial<BalkenInstance>) => void;
-  onRemoveBalken?: (id: string) => void;
-  onDuplicateBalken?: (id: string) => void;
   /** The host kinds this editor can add (`registerElementKind` with `add`). */
   addableHostKinds?: readonly string[];
   /** The config's actions the host kinds' tiles add through. */

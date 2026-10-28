@@ -120,7 +120,6 @@ export const de = {
     area: 'Fläche',
     shapeCircle: 'Form: Kreis',
     group: 'Gruppe',
-    bar: 'Balken',
     icon: 'Icon',
     shape: (name: string) => `Form: ${name}`,
     frame: 'Rahmen',
@@ -449,16 +448,6 @@ export const de = {
       seriesName: (n: number) => `Name der Reihe ${n}`,
       removeSeries: (name: string) => `${name} entfernen`,
     },
-    bars: {
-      duplicate: 'Balken duplizieren',
-      remove: 'Balken entfernen',
-      colorScheme: 'Farbschema',
-      width: 'Balkenbreite',
-      fineTune: 'Feinabstimmung',
-      selected: 'Ausgewählter Balken',
-      colorHint:
-        'Wähle ein Farbschema, das die Lesbarkeit deiner Balken optimiert. Die Vorschau zeigt dir, wie die drei Balken eingefärbt werden. Achte auf guten Kontrast zwischen Balkenfarbe und Text.',
-    },
     text: {
       placeholderHeader: 'Überschrift...',
       placeholderSubheader: 'Untertitel...',
@@ -486,10 +475,6 @@ export const de = {
     badges: {
       addPill: 'Pill-Badge hinzufügen',
       addCircle: 'Störer hinzufügen',
-      addBar: 'Einzelnen Balken hinzufügen',
-      oneBar: '1 Balken',
-      addTripleBar: 'Dreifach-Balken hinzufügen',
-      threeBars: '3 Balken',
       circle: 'Störer',
     },
     tools: {

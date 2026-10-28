@@ -1017,7 +1017,7 @@ function CanvasEditorInner({
     return [];
   }, [activeConfig, activeState]);
 
-  // Auto-switch tabs based on config (e.g., switch to 'settings' when a balken is selected).
+  // Auto-switch tabs based on config (e.g., switch to 'settings' when a host element is selected).
   // Desktop only: on mobile a tap just selects — the canvas keeps its size, and
   // the selection's area opens from the bottom bar's "Mehr" button instead.
   const mobileSelectionArea = isMobileWeb

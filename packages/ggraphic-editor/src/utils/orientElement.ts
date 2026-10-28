@@ -29,7 +29,6 @@ export type OrientableKind =
   | 'asset'
   | 'circle-badge'
   | 'pill-badge'
-  | 'balken'
   | 'user-image'
   | 'text'
   | 'template-text'
@@ -52,8 +51,9 @@ export interface OrientationPatch {
   flipX?: boolean;
   flipY?: boolean;
   /**
-   * Verschiebung um (dx, dy) — für Kinds, deren Lage nicht in x/y steht. Nur der
-   * Balken liest sie (als Zuwachs auf `offset`); alle anderen nehmen x/y.
+   * Verschiebung um (dx, dy) — für Kinds, deren Lage nicht in x/y steht. Nur
+   * Host-Arten lesen sie (`orient` ihrer Registrierung, etwa als Zuwachs auf
+   * einen Versatz); die Arten des Kerns nehmen x/y.
    */
   translate?: { x: number; y: number };
 }
@@ -94,21 +94,6 @@ const withoutTranslate = ({ translate: _, ...rest }: OrientationPatch) => rest;
 
 /** The orientation door per core element kind; a host kind brings its own (`orient`). */
 const KIND_DOORS: { [K in CoreElementKindName]: KindDoor<Extract<KindItem, { type: K }>> } = {
-  balken: {
-    kind: 'balken',
-    action: 'updateBalken',
-    // Dreht um die Mitte und speichert einen `offset`: x/y gehören nicht in den Patch,
-    // eine Verschiebung (Spiegeln in der Mehrfachauswahl) wandert in den `offset`.
-    shape: (patch, { data: balken }) => ({
-      ...(patch.rotation != null && { rotation: patch.rotation }),
-      ...(patch.translate && {
-        offset: {
-          x: balken.offset.x + patch.translate.x,
-          y: balken.offset.y + patch.translate.y,
-        },
-      }),
-    }),
-  },
   // Icons stehen als blanke Id in `selectedIcons`; ihre Lage steht in `iconStates`.
   icon: {
     kind: 'icon',

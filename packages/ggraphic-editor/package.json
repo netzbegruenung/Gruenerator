@@ -285,7 +285,6 @@
     "./utils/alignment": "./src/utils/alignment.ts",
     "./utils/axisLock": "./src/utils/axisLock.ts",
     "./utils/backgroundPhotoCrop": "./src/utils/backgroundPhotoCrop.ts",
-    "./utils/balkenUtils": "./src/utils/balkenUtils.ts",
     "./utils/canvasAssets": "./src/utils/canvasAssets.ts",
     "./utils/canvasClipboard": "./src/utils/canvasClipboard.ts",
     "./utils/canvasCommandRegistry": "./src/utils/canvasCommandRegistry.ts",

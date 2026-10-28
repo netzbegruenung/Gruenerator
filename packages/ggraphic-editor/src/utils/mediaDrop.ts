@@ -2,7 +2,6 @@
 import { hostElementKind, type HostElementAction } from './elementKinds.js';
 
 import type { StockImageAttribution } from '../common/imageSourceTypes.js';
-import type { BalkenMode } from '../utils/balkenUtils.js';
 import type { ChartType } from '@ggraphic/editor/utils/chartTypes';
 import type { FrameClipType } from '@ggraphic/editor/utils/frameUtils';
 import type { ShapeType } from '@ggraphic/editor/utils/shapes';
@@ -30,7 +29,6 @@ export type ElementDragPayload =
   | { kind: 'illustration'; id: string }
   | { kind: 'chart'; chartType: ChartType }
   | { kind: 'frame'; clipType: FrameClipType }
-  | { kind: 'balken'; mode: BalkenMode }
   | { kind: 'icon'; iconId: string }
   /** A host block: composed for the page it lands on, then dropped as its parts. */
   | { kind: 'block'; blockId: string }
@@ -44,7 +42,6 @@ const ELEMENT_KINDS = new Set<string>([
   'illustration',
   'chart',
   'frame',
-  'balken',
   'icon',
   'block',
 ]);

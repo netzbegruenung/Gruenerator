@@ -52,7 +52,7 @@ function nest(under: Tree, over: Tree): Tree {
 function update(): void {
   const host = hostTexts[baseLocale] ?? hostTexts.de;
   // Boundary: the host's texts complete the catalogue to `Messages`.
-  registered = (host ? nest(base as Tree, host as Tree) : base) as Messages;
+  registered = (host ? nest(base as Tree, host as unknown as Tree) : base) as Messages;
   for (const listener of listeners) listener();
 }
 

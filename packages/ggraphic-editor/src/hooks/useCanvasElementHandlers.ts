@@ -11,7 +11,6 @@ import {
 
 import type { FullCanvasConfig, LayoutResult, AdditionalText } from '../configs/types.js';
 import type { CircleBadgeInstance } from '@ggraphic/editor/primitives/CircleBadge';
-import type { BalkenMode } from '@ggraphic/editor/utils/balkenUtils';
 import type { ChartInstance, ChartType } from '@ggraphic/editor/utils/chartTypes';
 import type { FrameClipType, FrameInstance } from '@ggraphic/editor/utils/frameUtils';
 import type { PillBadgeInstance } from '@ggraphic/editor/utils/pillBadgeUtils';
@@ -26,24 +25,22 @@ import type { StickerRef } from '@ggraphic/schema';
 /**
  * Canvas Element Handlers - Handlers for all element interactions
  *
- * Manages interactions for config elements (text, image), balkens, icons, shapes,
+ * Manages interactions for config elements (text, image), icons, shapes,
  * and additional texts. Handles selection, text changes, position changes, transforms, etc.
  */
 
 /**
+ * The actions of the host's element kinds (`registerElementKind`), under the
+ * names their registrations give. Empty in the core; a host augments it
+ * (`declare module '@ggraphic/editor/hooks/useCanvasElementHandlers'`).
+ */
+// eslint-disable-next-line @typescript-eslint/no-empty-object-type
+export interface HostCanvasActions {}
+
+/**
  * Optional canvas action methods that may be present in specific configs
  */
-export interface OptionalCanvasActions {
-  updateBalken?: (
-    id: string,
-    attrs: Partial<{
-      offset: { x: number; y: number };
-      scale?: number;
-      rotation?: number;
-      opacity?: number;
-    }>
-  ) => void;
-  setBalkenText?: (id: string, index: number, text: string) => void;
+export interface OptionalCanvasActions extends HostCanvasActions {
   updateIcon?: (
     id: string,
     attrs: Partial<{
@@ -101,11 +98,9 @@ export interface OptionalCanvasActions {
   addIllustration?: (id: string, options?: ElementPlacement) => void;
   addChart?: (chartType: ChartType, options?: ElementPlacement) => void;
   addFrame?: (clipType: FrameClipType, options?: ElementPlacement) => void;
-  addBalken?: (mode: BalkenMode, options?: ElementPlacement) => void;
 
   // Removal / toggle actions (consumed by useCanvasKeyboardHandlers for
   // delete-key shortcuts; same factory-provided implementations).
-  removeBalken?: (id: string) => void;
   toggleIcon?: (id: string, enabled: boolean, options?: ElementPlacement) => void;
   removeShape?: (id: string) => void;
   removeAdditionalText?: (id: string) => void;
@@ -117,9 +112,9 @@ export interface OptionalCanvasActions {
   removeUserImage?: (id: string) => void;
   removeChart?: (id: string) => void;
   /**
-   * Gehört das Element zur Vorlage, obwohl es in einer Sammlung liegt (der
-   * Balken einer Dreizeilen-Vorlage, aus den drei Zeilen abgeleitet)? Dann lässt es
-   * sich nicht löschen — siehe `findElementRemover`.
+   * Gehört das Element zur Vorlage, obwohl es in einer Sammlung liegt (eins,
+   * das die Vorlage aus ihren Textfeldern ableitet)? Dann lässt es sich nicht
+   * löschen — siehe `findElementRemover`.
    */
   isTemplateBound?: (id: string) => boolean;
 }
@@ -159,16 +154,6 @@ export interface UseCanvasElementHandlersResult {
   ) => void;
   /** Vorlagen-Text nach dem Transformer: Position und Drehung als ein Schritt. */
   handleTemplateTransformEnd: (id: string, x: number, y: number, rotation: number) => void;
-  handleBalkenSelect: (id: string) => void;
-  handleBalkenDragEnd: (id: string, x: number, y: number) => void;
-  handleBalkenTransformEnd: (
-    id: string,
-    x: number,
-    y: number,
-    scale: number,
-    rotation: number
-  ) => void;
-  handleBalkenTextChange: (id: string, index: number, text: string) => void;
   handleIconDragEnd: (id: string, x: number, y: number) => void;
   handleIconTransformEnd: (
     id: string,
@@ -411,40 +396,6 @@ export function useCanvasElementHandlers<
     [config.elements, setState, saveToHistory, state]
   );
 
-  const handleBalkenSelect = useCallback(
-    (id: string) => {
-      selectElement(id);
-    },
-    [selectElement]
-  );
-
-  const handleBalkenDragEnd = useCallback(
-    (id: string, x: number, y: number) => {
-      if (actions.updateBalken) {
-        actions.updateBalken(id, { offset: { x, y } });
-      }
-    },
-    [actions]
-  );
-
-  const handleBalkenTransformEnd = useCallback(
-    (id: string, x: number, y: number, scale: number, rotation: number) => {
-      if (actions.updateBalken) {
-        actions.updateBalken(id, { offset: { x, y }, scale, rotation });
-      }
-    },
-    [actions]
-  );
-
-  const handleBalkenTextChange = useCallback(
-    (id: string, index: number, text: string) => {
-      if (actions.setBalkenText) {
-        actions.setBalkenText(id, index, text);
-      }
-    },
-    [actions]
-  );
-
   const handleIconDragEnd = useCallback(
     (id: string, x: number, y: number) => {
       if (actions.updateIcon) {
@@ -665,10 +616,6 @@ export function useCanvasElementHandlers<
       handleImageDragEnd,
       handleImageTransformEnd,
       handleTemplateTransformEnd,
-      handleBalkenSelect,
-      handleBalkenDragEnd,
-      handleBalkenTransformEnd,
-      handleBalkenTextChange,
       handleIconDragEnd,
       handleIconTransformEnd,
       handleShapeChange,
@@ -702,10 +649,6 @@ export function useCanvasElementHandlers<
       handleImageDragEnd,
       handleImageTransformEnd,
       handleTemplateTransformEnd,
-      handleBalkenSelect,
-      handleBalkenDragEnd,
-      handleBalkenTransformEnd,
-      handleBalkenTextChange,
       handleIconDragEnd,
       handleIconTransformEnd,
       handleShapeChange,

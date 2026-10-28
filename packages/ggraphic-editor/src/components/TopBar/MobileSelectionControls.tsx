@@ -27,7 +27,6 @@ const selectionLabels = (t: Messages): Record<CoreFloatingModuleType, string> =>
   illustration: t.layers.illustration,
   asset: t.layers.graphic,
   background: t.layers.background,
-  balken: t.layers.bar,
   frame: t.layers.frame,
   chart: t.layers.chart,
   'pill-badge': t.layers.badgePill,

@@ -45,7 +45,6 @@ import {
 } from '../utils/userImageUtils.js';
 
 import type { AnyCanvasConfig, FullCanvasConfig } from '../configs/types.js';
-import type { BalkenMode } from '../utils/balkenUtils.js';
 import type { ChartType } from '../utils/chartTypes.js';
 import type { StockImageAttribution } from '@ggraphic/editor/common/imageSourceTypes';
 
@@ -112,7 +111,6 @@ const COLLECTIONS = {
   AdditionalText: 'additionalTexts',
   PillBadge: 'pillBadgeInstances',
   CircleBadge: 'circleBadgeInstances',
-  Balken: 'balkenInstances',
   Frame: 'frameInstances',
   UserImage: 'userImageInstances',
   Chart: 'chartInstances',
@@ -128,7 +126,6 @@ function baseState(props: Record<string, unknown>) {
     additionalTexts: list('additionalTexts'),
     pillBadgeInstances: list('pillBadgeInstances'),
     circleBadgeInstances: list('circleBadgeInstances'),
-    balkenInstances: list('balkenInstances'),
     frameInstances: list('frameInstances'),
     userImageInstances: list('userImageInstances'),
     chartInstances: list('chartInstances'),
@@ -197,18 +194,6 @@ function collectionActions(
     append('chartInstances', createChartInstance(chartType, WIDTH, HEIGHT));
   actions.addFrame = (clipType: FrameClipType) =>
     append('frameInstances', createFrameInstance(clipType, WIDTH / 2, HEIGHT / 2));
-  actions.addBalken = (mode: BalkenMode) =>
-    append('balkenInstances', {
-      id: `balken-${Date.now()}`,
-      mode,
-      colorSchemeId: 'fixture',
-      widthScale: 1,
-      offset: { x: 0, y: 0 },
-      scale: 1,
-      texts: mode === 'single' ? ['Sample'] : ['One', 'Two', 'Three'],
-      rotation: 0,
-      opacity: 1,
-    });
   actions.addUserImageFromUrl = (url: string, fileName: string, options?: UserImagePlacement) => {
     void createUserImageInstanceFromUrl(url, fileName, WIDTH, HEIGHT, options).then((instance) => {
       setState((prev) => ({ ...prev, userImageInstances: [...prev.userImageInstances, instance] }));

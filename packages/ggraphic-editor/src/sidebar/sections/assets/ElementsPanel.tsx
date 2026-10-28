@@ -224,9 +224,6 @@ export function ElementsPanel(props: ExtendedAssetsSectionProps) {
         case 'frame':
           p.onAddFrame?.(action.clipType);
           break;
-        case 'balken':
-          p.onAddBalken?.(action.mode);
-          break;
         case 'media':
           if (!p.onAddImageFromUrl) return;
           trackDownload(action.name, action.attribution);
@@ -291,7 +288,6 @@ export function ElementsPanel(props: ExtendedAssetsSectionProps) {
       props.onAddIllustration,
       props.onAddChart,
       props.onAddFrame,
-      props.onAddBalken,
       props.addableHostKinds,
       props.onAddImageFromUrl,
       props.onIconToggle,

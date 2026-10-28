@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 
 import { createBalkenActions } from './balkenActions';
 
-import type { BalkenInstance } from '@ggraphic/editor/utils/balkenUtils';
+import type { BalkenInstance } from '../../utils/balkenUtils';
 
 /**
  * Die beiden Seitenleisten-Aktionen laufen durch dieselbe Tür wie Strg+D

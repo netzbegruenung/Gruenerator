@@ -34,7 +34,6 @@ export type CoreFloatingModuleType =
   | 'illustration'
   | 'asset'
   | 'background'
-  | 'balken'
   | 'frame'
   | 'user-image'
   | 'chart'
@@ -186,7 +185,6 @@ const KIND_MODULES: KindModules = {
       align: t.align ?? 'left',
     },
   }),
-  balken: ({ id, data }) => ({ type: 'balken', data: { id, opacity: data.opacity ?? 1 } }),
   illustration: ({ id, data }) => ({ type: 'illustration', data: { ...data, id } }),
   frame: ({ id, data }) => ({ type: 'frame', data: { ...data, id } }),
   asset: ({ id, data }) => ({ type: 'asset', data: { ...data, id } }),

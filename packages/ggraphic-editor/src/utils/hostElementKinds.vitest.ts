@@ -21,6 +21,7 @@ import { buildPptxModel, pptxMappedPageKeys } from '../export/pptx/buildPptxMode
 import { floatingModuleFor } from '../hooks/useFloatingModuleState.js';
 import { messages, registerHostMessages, registerMessages } from '../i18n/messages.js';
 import { canRun } from '../sidebar/sections/assets/useElementCatalog.js';
+import { registerStampKind, STAMP_KIND, type Stamp } from '../testing/stampKind.js';
 
 import { buildCanvasItems, buildSortedRenderList } from './canvasLayerManager.js';
 import { duplicateElementInState } from './duplicateElement.js';
@@ -29,7 +30,6 @@ import {
   findKindItem,
   hostElementKind,
   registerElementKind,
-  type ElementKindRegistration,
 } from './elementKinds.js';
 import { layerLabel } from './layerLabels.js';
 import { readElementDrag } from './mediaDrop.js';
@@ -38,61 +38,7 @@ import { findElementRemover } from './removeElement.js';
 
 import type { FullCanvasConfig, LayoutResult } from '../configs/types.js';
 
-interface Stamp {
-  id: string;
-  label: string;
-  offset: { x: number; y: number };
-  rotation: number;
-  opacity?: number;
-}
-
-const STAMP = {
-  kind: 'stamp',
-  stateKey: 'stampInstances',
-  actions: { update: 'updateStamp', remove: 'removeStamp' },
-  add: { action: 'addStamp', args: (payload: { label: string }) => [payload.label] },
-  name: () => 'Stempel',
-  layerContent: (d: Stamp) => d.label,
-  duplicate: (d: Stamp, id: string, o: { x: number; y: number }) => ({
-    ...d,
-    id,
-    offset: { x: d.offset.x + o.x, y: d.offset.y + o.y },
-  }),
-  orient: (patch: { rotation?: number; translate?: { x: number; y: number } }, d: Stamp) => ({
-    ...(patch.rotation != null && { rotation: patch.rotation }),
-    ...(patch.translate && {
-      offset: { x: d.offset.x + patch.translate.x, y: d.offset.y + patch.translate.y },
-    }),
-  }),
-  nudge: (d: Stamp, delta: { x: number; y: number }) => ({
-    offset: { x: d.offset.x + delta.x, y: d.offset.y + delta.y },
-  }),
-  floating: (d: Stamp) => ({ opacity: d.opacity ?? 1 }),
-  editableText: true,
-  describe: (d: Stamp) => `Stempel "${d.label}"`,
-  aiUpdate: {
-    fields: ['x', 'y', 'opacity'],
-    patch: ({ x, y, ...rest }: Record<string, unknown>, d: Stamp) => ({
-      ...rest,
-      ...((x != null || y != null) && {
-        offset: { x: (x as number) ?? d.offset.x, y: (y as number) ?? d.offset.y },
-      }),
-    }),
-  },
-  pptx: (d: Stamp, page: { x: number; y: number; width: number; height: number }) => ({
-    kind: 'raster',
-    elementId: d.id,
-    box: page,
-    rotation: d.rotation,
-    reason: 'stamp',
-    boxExact: false,
-  }),
-  pageStateKeys: ['stampColour'],
-  layoutStateKeys: ['stampColour'],
-};
-
-// The core declares no host kind; the probe is registered past the types.
-beforeAll(() => registerElementKind(STAMP as unknown as ElementKindRegistration<never>));
+beforeAll(registerStampKind);
 
 const layout = { centerX: 500, centerY: 500 } as unknown as LayoutResult;
 const config = { elements: [] } as unknown as FullCanvasConfig<Record<string, unknown>>;
@@ -118,7 +64,7 @@ const stampActions = () => ({
 
 describe('registerElementKind', () => {
   it('refuses a core kind', () => {
-    expect(() => registerElementKind({ ...STAMP, kind: 'shape' } as never)).toThrow(/core/);
+    expect(() => registerElementKind({ ...STAMP_KIND, kind: 'shape' } as never)).toThrow(/core/);
   });
 
   it('knows the kind by name', () => {

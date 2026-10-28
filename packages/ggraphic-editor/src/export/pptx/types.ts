@@ -130,7 +130,6 @@ export type PptxRasterReason =
   | 'illustration'
   | 'asset'
   | 'frame'
-  | 'balken'
   | 'unknown'
   /** A host kind rasters under its own name (`registerElementKind`). */
   | HostElementKindName;
@@ -147,7 +146,7 @@ export interface PptxRasterRequest {
   rotation: number;
   reason: PptxRasterReason;
   /**
-   * `false`: die Größe steht nicht im Zustand (Asset-Bildmaße, Balken), die
+   * `false`: die Größe steht nicht im Zustand (Asset-Bildmaße, manche Host-Art), die
    * Box ist eine Schätzung — der Writer nimmt die Maße des Knotens.
    */
   boxExact: boolean;

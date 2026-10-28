@@ -3,8 +3,8 @@
  * Duplizieren von Canvas-Elementen — die eine Stelle.
  *
  * Vorher lag dieselbe Logik vierfach im Paket: im Strg+D-Zweig und im
- * Einfügen-Zweig von `useCanvasKeyboardHandlers`, und als `duplicateIllustration`
- * / `duplicateBalken` in `actionFactories` (heute Kern bzw. `balkenActions`). Jede Fassung deckte eine andere
+ * Einfügen-Zweig von `useCanvasKeyboardHandlers`, und zweimal als `duplicate…`-Aktion
+ * in `actionFactories`. Jede Fassung deckte eine andere
  * Teilmenge der Elementarten ab, und keine pflegte `layerOrder`.
  *
  * Drei Dinge, die hier zusammengehalten werden und einzeln leicht verloren gehen:
@@ -13,15 +13,16 @@
  *    ganz nach oben — und `moveLayer` gibt die Liste unverändert zurück, die
  *    Ebenen-Knöpfe sind für so eine Kopie also tot. Darum setzt `insertInstance`
  *    die neue ID direkt über das Original, wenn das Original geführt wird.
- * 2. **Tiefe Kopien.** `chart.data`, `balken.texts`, `circleBadge.textLines`,
+ * 2. **Tiefe Kopien.** `chart.data`, `circleBadge.textLines`,
  *    `shape.dash` und die Verlaufs-Stops sind Arrays. Ein flacher Spread teilt
  *    sie zwischen Original und Kopie: das Bearbeiten des einen ändert das andere.
- * 3. **Balken versetzt `offset`, nicht `x`/`y`.**
+ * 3. **Eine Host-Art kopiert sich selbst** (`duplicate` ihrer Registrierung,
+ *    `registerElementKind`) — etwa mit einem Versatz statt `x`/`y`.
  *
  * Nicht jede Art liegt in einer Liste von Objekten: ein Icon steht als ID in
  * `selectedIcons` und mit seinem Zustand in `iconStates`. Darum besteht ein
  * Registry-Eintrag aus `find` und `insert` statt aus einem Feldnamen — `listSpec`
- * baut das Paar für die zehn Listen-Arten, das Icon bringt sein eigenes mit.
+ * baut das Paar für die neun Listen-Arten, das Icon bringt sein eigenes mit.
  *
  * Vorlagen-Elemente stehen fest in der Vorlage, nicht im Zustand. Sie kommen als
  * `template`-Nachschlag herein (`findTemplateEntry`), der aus der aufgelösten
@@ -45,7 +46,6 @@ import type { HostElementData, HostElementKindName } from './canvasItem.js';
 import type { BaseCanvasState, IconState } from '../configs/factory/baseTypes.js';
 import type { AdditionalText } from '../configs/types.js';
 import type { CircleBadgeInstance } from '@ggraphic/editor/primitives/CircleBadge';
-import type { BalkenInstance } from '@ggraphic/editor/utils/balkenUtils';
 import type { ChartInstance } from '@ggraphic/editor/utils/chartTypes';
 import type { FrameInstance } from '@ggraphic/editor/utils/frameUtils';
 import type { GradientFill } from '@ggraphic/editor/utils/gradientFill';
@@ -82,7 +82,6 @@ export interface IconInstanceData extends IconState {
 interface CoreDuplicableDataMap {
   shape: ShapeInstance;
   'additional-text': AdditionalText;
-  balken: BalkenInstance;
   illustration: IllustrationInstance;
   asset: AssetInstance;
   'pill-badge': PillBadgeInstance;
@@ -167,14 +166,6 @@ const DUPLICABLE: { [K in CoreElementKindName]: DuplicableSpec<CoreDuplicableDat
     x: d.x + o.x,
     y: d.y + o.y,
     ...(d.fillGradient !== undefined ? { fillGradient: cloneGradient(d.fillGradient) } : {}),
-  })),
-  // Balken kennt kein x/y — seine Lage ist ein Versatz zur Layout-Basis.
-  balken: listSpec('balken', (d, id, o) => ({
-    ...d,
-    id,
-    offset: { x: (d.offset?.x ?? 0) + o.x, y: (d.offset?.y ?? 0) + o.y },
-    texts: [...d.texts],
-    ...(d.barOffsets ? { barOffsets: [...d.barOffsets] as [number, number, number] } : {}),
   })),
   illustration: listSpec('illustration', (d, id, o) => ({
     ...d,

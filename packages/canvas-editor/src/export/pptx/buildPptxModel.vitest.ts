@@ -6,7 +6,7 @@ import { at, deCarousel, options } from '../../composer/sharepicSpecFixtures';
 
 import {
   buildPptxModel,
-  PPTX_MAPPED_PAGE_KEYS,
+  pptxMappedPageKeys,
   PPTX_UNMAPPED_PAGE_KEYS,
   type PptxPageState,
 } from '@ggraphic/editor/export/pptx/buildPptxModel';
@@ -258,8 +258,9 @@ describe('buildPptxModel — fixtures', () => {
   });
 
   it('lists every key of the freeform state as mapped or deliberately unmapped', () => {
+    // The Balken's list is mapped through its registration (`brand/balkenKind.ts`).
     const known = new Set<string>([
-      ...PPTX_MAPPED_PAGE_KEYS,
+      ...pptxMappedPageKeys(),
       ...Object.keys(PPTX_UNMAPPED_PAGE_KEYS),
     ]);
     expect(Object.keys(everyKind).filter((key) => !known.has(key))).toEqual([]);

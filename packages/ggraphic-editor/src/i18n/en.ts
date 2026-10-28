@@ -111,7 +111,6 @@ export const en: Messages = {
     area: 'Area',
     shapeCircle: 'Shape: Circle',
     group: 'Group',
-    bar: 'Banner',
     icon: 'Icon',
     shape: (name) => `Shape: ${name}`,
     frame: 'Frame',
@@ -440,16 +439,6 @@ export const en: Messages = {
       seriesName: (n: number) => `Name of series ${n}`,
       removeSeries: (name: string) => `Remove ${name}`,
     },
-    bars: {
-      duplicate: 'Duplicate bar',
-      remove: 'Remove bar',
-      colorScheme: 'Color scheme',
-      width: 'Bar width',
-      fineTune: 'Fine tuning',
-      selected: 'Selected bar',
-      colorHint:
-        'Choose a color scheme that makes your bars easy to read. The preview shows how the three bars will be colored. Make sure there is good contrast between the bar color and the text.',
-    },
     text: {
       placeholderHeader: 'Heading...',
       placeholderSubheader: 'Subtitle...',
@@ -477,10 +466,6 @@ export const en: Messages = {
     badges: {
       addPill: 'Add pill badge',
       addCircle: 'Add burst badge',
-      addBar: 'Add single bar',
-      oneBar: '1 bar',
-      addTripleBar: 'Add triple bar',
-      threeBars: '3 bars',
       circle: 'Burst badge',
     },
     tools: {

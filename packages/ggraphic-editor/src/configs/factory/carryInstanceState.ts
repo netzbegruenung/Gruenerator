@@ -10,7 +10,7 @@
  * `[]` was erased on the next chat edit.
  *
  * Collections a template derives from its own text fields (the slider pill,
- * the event date circle, the three-line balken) are still owned by that
+ * the event date circle) are still owned by that
  * template: spread this first, then override the derived key.
  *
  * `layerOrder` rides along because it is the z-order OF these collections and
@@ -41,7 +41,6 @@ import type { IconState } from './baseTypes.js';
 import type { AssetInstance } from '../../utils/canvasAssets.js';
 import type { HostElementState } from '../../utils/canvasItem.js';
 import type { AdditionalText } from '../types.js';
-import type { BalkenInstance } from '@ggraphic/editor/utils/balkenUtils';
 import type { ChartInstance } from '@ggraphic/editor/utils/chartTypes';
 import type { CircleBadgeInstance } from '@ggraphic/editor/utils/circleBadgeUtils';
 import type { FrameInstance } from '@ggraphic/editor/utils/frameUtils';
@@ -60,7 +59,6 @@ export interface CarriedInstanceState extends HostElementState {
   additionalTexts: AdditionalText[];
   pillBadgeInstances: PillBadgeInstance[];
   circleBadgeInstances: CircleBadgeInstance[];
-  balkenInstances: BalkenInstance[];
   frameInstances: FrameInstance[];
   chartInstances: ChartInstance[];
   userImageInstances: UserImageInstance[];
@@ -85,7 +83,6 @@ export const CARRIED_INSTANCE_KEYS = [
   'additionalTexts',
   'pillBadgeInstances',
   'circleBadgeInstances',
-  'balkenInstances',
   'frameInstances',
   'chartInstances',
   'userImageInstances',
@@ -120,7 +117,6 @@ export function carryInstanceState(props: Record<string, unknown>): CarriedInsta
     additionalTexts: list<AdditionalText>(props.additionalTexts),
     pillBadgeInstances: list<PillBadgeInstance>(props.pillBadgeInstances),
     circleBadgeInstances: list<CircleBadgeInstance>(props.circleBadgeInstances),
-    balkenInstances: list<BalkenInstance>(props.balkenInstances),
     frameInstances: list<FrameInstance>(props.frameInstances),
     chartInstances: list<ChartInstance>(props.chartInstances),
     userImageInstances: list<UserImageInstance>(props.userImageInstances),

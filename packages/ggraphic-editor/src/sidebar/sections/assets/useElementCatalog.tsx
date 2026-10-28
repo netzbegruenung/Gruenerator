@@ -172,8 +172,6 @@ export function canRun(
       return props.onAddChart !== undefined;
     case 'frame':
       return props.onAddFrame !== undefined;
-    case 'balken':
-      return props.onAddBalken !== undefined;
     case 'media':
       return props.onAddImageFromUrl !== undefined;
     case 'icon':
@@ -250,7 +248,6 @@ export function useElementCatalog(
   const recommendedAssetIds = props.recommendedAssetIds ?? NO_RECOMMENDED;
 
   const hasAssets = props.onAddAsset !== undefined;
-  const hasBalken = props.onAddBalken !== undefined;
   const addableHostKinds = props.addableHostKinds;
   const hasIcons = props.onIconToggle !== undefined && props.selectedIcons !== undefined;
   const hasIllustrations = props.onAddIllustration !== undefined;
@@ -287,9 +284,9 @@ export function useElementCatalog(
           .map(assetItem)
       : [];
     const canAdd = (kind: string) => addableHostKinds?.includes(kind) ?? false;
-    const hostItems = panelHost?.brandItems?.({ locale, canAddBalken: hasBalken, canAdd }) ?? [];
+    const hostItems = panelHost?.brandItems?.({ locale, canAdd }) ?? [];
     return [...sortedLogos, ...hostItems, ...marks];
-  }, [hasAssets, hasBalken, addableHostKinds, recommendedAssetIds, locale, panelHost]);
+  }, [hasAssets, addableHostKinds, recommendedAssetIds, locale, panelHost]);
 
   const stickerItems = useMemo(
     () =>

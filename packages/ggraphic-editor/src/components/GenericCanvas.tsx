@@ -446,10 +446,10 @@ function GenericCanvasWithRef<
   // the Hocuspocus internal API) merge into the live component state.
   // Rebuilding through createInitialState recomputes the derived fields.
   //
-  // Nothing is withheld from the merge. This used to delete `balkenInstances`
-  // so the three-line bar would regenerate from the new text — but that bar is
-  // one entry in a collection users also add to by hand, and dropping the whole
-  // array took every hand-added balken with it (#3421). Which entry a template
+  // Nothing is withheld from the merge. This used to delete a host kind's list
+  // so a template-derived entry would regenerate from the new text — but that
+  // entry sits in a collection users also add to by hand, and dropping the whole
+  // array took every hand-added one with it (#3421). Which entry a template
   // derives is the template's own knowledge, and `createInitialState` is where
   // it already lives.
   const [remoteStateCount, setRemoteStateCount] = useState(0);
@@ -594,10 +594,6 @@ function GenericCanvasWithRef<
       s.colorSchemeId,
       s.colorScheme,
       s.backgroundColor,
-      // Layout positioning
-      s.balkenOffset,
-      s.barOffsets,
-      s.balkenWidthScale,
       // Variants
       s.slideVariant,
       // What the layouts of the host kinds' templates read (`layoutStateKeys`).
@@ -998,10 +994,6 @@ function GenericCanvasWithRef<
           case 'frame':
             if (!actions.addFrame) return false;
             actions.addFrame(payload.clipType, placement);
-            return true;
-          case 'balken':
-            if (!actions.addBalken) return false;
-            actions.addBalken(payload.mode, placement);
             return true;
           case 'icon': {
             if (!actions.toggleIcon) return false;

@@ -2,7 +2,7 @@
 /**
  * Freie Elemente muessen im gemeinsamen Dokument landen.
  *
- * Dekoratives, Formen, freie Texte, Diagramme, Rahmen, Badges, Balken und
+ * Dekoratives, Formen, freie Texte, Diagramme, Rahmen, Badges und
  * hochgeladene Bilder aendert die Vorlage ueber ihre eigenen Aktionen
  * (`setState`) — kein Host erklaert dafuer ein `on<Key>Change`. Bis #3416 gab
  * es damit keinen einzigen Pfad aus dem Komponentenzustand in
@@ -108,7 +108,6 @@ describe('freie Elemente an der echten Flaeche', () => {
     await call('addCircleBadge');
     await call('addChart', 'bar');
     await call('addFrame', 'circle');
-    await call('addBalken', 'single');
     await call('toggleIcon', 'icon-1', true);
 
     const state = pageState(doc);
@@ -119,7 +118,6 @@ describe('freie Elemente an der echten Flaeche', () => {
     expect(state.circleBadgeInstances).toHaveLength(1);
     expect(state.chartInstances).toHaveLength(1);
     expect(state.frameInstances).toHaveLength(1);
-    expect(state.balkenInstances).toHaveLength(1);
     expect(state.selectedIcons).toEqual(['icon-1']);
     expect(state.iconStates).toBeDefined();
     // 30 s reichten, solange dies die einzige Datei der jsdom-Lane war, die
@@ -182,7 +180,6 @@ describe('freie Elemente im gemeinsamen Dokument', () => {
       additionalTexts: [{ id: 'text-1', text: 'frei' }],
       pillBadgeInstances: [{ id: 'pill-1' }],
       circleBadgeInstances: [{ id: 'circle-1' }],
-      balkenInstances: [{ id: 'balken-1' }],
       frameInstances: [{ id: 'frame-1', clipType: 'circle' }],
       chartInstances: [{ id: 'chart-1', chartType: 'bar' }],
       userImageInstances: [{ id: 'img-1', src: 'blob:x' }],

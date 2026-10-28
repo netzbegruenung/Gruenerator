@@ -13,7 +13,7 @@ import {
   fitBalkenAfterTextEdit,
 } from '../../utils/balkenBounds';
 
-import type { BalkenInstance, BalkenMode } from '@ggraphic/editor/utils/balkenUtils';
+import type { BalkenInstance, BalkenMode } from '../../utils/balkenUtils';
 import type { ElementPlacement } from '@ggraphic/editor/utils/userImageUtils';
 
 type StateSetter<TState> = (partial: Partial<TState> | ((prev: TState) => TState)) => void;

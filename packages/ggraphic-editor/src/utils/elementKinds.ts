@@ -29,24 +29,17 @@ export interface ElementKindDef {
    * in `selectedIcons`, and deleting one switches it off (`toggleIcon`).
    */
   remove: Extract<keyof OptionalCanvasActions, `remove${string}`> | null;
-  /**
-   * The host draws the kind: the editor holds its state, stacks, selects and
-   * removes it, but its renderer comes from `registerKindRenderers`. Without
-   * one, the kind draws nothing.
-   */
-  hostRendered?: true;
 }
 
 /**
- * The element kinds a canvas holds, in the order they stack after the
- * config's own elements. A new kind is added here: `buildCanvasItems`,
+ * The core's element kinds, in the order they stack after the config's own
+ * elements and the host's kinds (`registerElementKind`). A new kind is added here: `buildCanvasItems`,
  * `findElementRemover` and `findKindItem` follow, the per-kind tables
  * (`KIND_RENDERERS`, the floating modules, the orientation doors, the
  * duplicate specs) fail to compile until they name it, and a test holds
  * `CARRIED_INSTANCE_KEYS` to it, so a re-seed cannot drop the kind's state.
  */
 export const ELEMENT_KINDS = [
-  { kind: 'balken', stateKey: 'balkenInstances', remove: 'removeBalken', hostRendered: true },
   { kind: 'icon', stateKey: 'selectedIcons', remove: null },
   { kind: 'shape', stateKey: 'shapeInstances', remove: 'removeShape' },
   { kind: 'frame', stateKey: 'frameInstances', remove: 'removeFrame' },
@@ -61,10 +54,6 @@ export const ELEMENT_KINDS = [
 
 /** The core's own kinds: every per-kind table of the core is keyed by these. */
 export type CoreElementKindName = (typeof ELEMENT_KINDS)[number]['kind'];
-
-/** The kinds whose renderer the host registers (`hostRendered`, and every host kind). */
-export type HostRenderedKindName =
-  Extract<(typeof ELEMENT_KINDS)[number], { hostRendered: true }>['kind'] | HostElementKindName;
 
 const CORE_KINDS: ReadonlySet<string> = new Set(ELEMENT_KINDS.map((k) => k.kind));
 

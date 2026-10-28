@@ -4,7 +4,6 @@ import { ELEMENT_KINDS, hostElementKinds, kindItem, kindList } from './elementKi
 import type { AssetInstance } from './canvasAssets.js';
 import type { CanvasItem } from './canvasItem.js';
 import type { AdditionalText, CanvasElementConfig, FullCanvasConfig } from '../configs/types.js';
-import type { BalkenInstance } from '@ggraphic/editor/utils/balkenUtils';
 import type { ChartInstance } from '@ggraphic/editor/utils/chartTypes';
 import type { CircleBadgeInstance } from '@ggraphic/editor/utils/circleBadgeUtils';
 import type { FrameInstance } from '@ggraphic/editor/utils/frameUtils';
@@ -23,7 +22,6 @@ import type { UserImageInstance } from '@ggraphic/editor/utils/userImageUtils';
 export type { CanvasItem };
 
 interface StateWithFeatures {
-  balkenInstances?: BalkenInstance[];
   selectedIcons?: string[];
   shapeInstances?: ShapeInstance[];
   additionalTexts?: AdditionalText[];

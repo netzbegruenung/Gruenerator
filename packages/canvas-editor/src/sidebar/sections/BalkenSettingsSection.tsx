@@ -13,7 +13,7 @@ import {
 import { SubsectionTabBar, type Subsection } from '@ggraphic/editor/sidebar/SubsectionTabBar';
 
 import type { ColorScheme } from '../../utils/dreizeilenLayout';
-import type { BalkenInstance } from '@ggraphic/editor/utils/balkenUtils';
+import type { BalkenInstance } from '../../utils/balkenUtils';
 
 export interface BalkenSettingsSectionProps {
   selectedBalken: BalkenInstance | null;

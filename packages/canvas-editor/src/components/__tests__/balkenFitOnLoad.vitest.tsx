@@ -17,7 +17,7 @@ import * as Y from 'yjs';
 
 import { balkenExtent } from '../../utils/balkenBounds';
 
-import type { BalkenInstance } from '@ggraphic/editor/utils/balkenUtils';
+import type { BalkenInstance } from '../../utils/balkenUtils';
 
 Object.defineProperty(document, 'fonts', {
   configurable: true,

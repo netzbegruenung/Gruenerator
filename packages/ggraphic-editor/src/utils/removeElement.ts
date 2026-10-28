@@ -45,8 +45,7 @@ export function findElementRemover(
 
 /**
  * Bleibt `id` stehen, weil es zur Vorlage gehört — ein Element der Config oder
- * eins, das die Vorlage selbst ableitet (`isTemplateBound`, etwa der Balken einer
- * Dreizeilen-Vorlage)? Gesperrte zählen nicht: sie bleiben wegen des Schlosses stehen.
+ * eins, das die Vorlage selbst aus ihren Textfeldern ableitet (`isTemplateBound`)? Gesperrte zählen nicht: sie bleiben wegen des Schlosses stehen.
  */
 export function isTemplateBound(
   state: Partial<BaseCanvasState>,

@@ -21,16 +21,6 @@ const layout = { centerX: 500, centerY: 500 } as unknown as LayoutResult;
 /** One instance per kind, with the fields each lookup reads. */
 function everyKindState(): Record<string, unknown> {
   return {
-    balkenInstances: [
-      {
-        id: 'balken-1',
-        offset: { x: 3, y: 4 },
-        texts: ['NORD', 'WIRKT'],
-        rotation: 7,
-        opacity: 0.4,
-        barOffsets: [1, 2, 3],
-      },
-    ],
     selectedIcons: ['tabler-sun'],
     iconStates: {
       'tabler-sun': { x: 10, y: 20, scale: 2, rotation: 15, flipY: true, color: '#ff0000' },
@@ -158,7 +148,6 @@ function everyKindState(): Record<string, unknown> {
 
 /** The id of the single instance each kind holds in `everyKindState`. */
 const KIND_IDS = {
-  balken: 'balken-1',
   icon: 'tabler-sun',
   shape: 'shape-1',
   frame: 'frame-1',
@@ -249,7 +238,6 @@ function orientSetup(state: Record<string, unknown>) {
     updateChart: vi.fn(),
     updateCircleBadge: vi.fn(),
     updatePillBadge: vi.fn(),
-    updateBalken: vi.fn(),
     updateUserImage: vi.fn(),
     updateAdditionalText: vi.fn(),
   };
