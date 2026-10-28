@@ -25,6 +25,7 @@ import {
   resolveToolChoice,
 } from './adapterUtils.js';
 
+import type { SdkToolChoice } from './adapterUtils.js';
 import type { ProviderName } from '../providers.js';
 import type { AIRequestData, AIRequestOptions, AiResult } from '../types.js';
 import type { LanguageModel } from 'ai';
@@ -93,12 +94,26 @@ function samplingFor(data: AIRequestData, options: AIRequestOptions): Sampling {
  * Wrapped OUTSIDE `getModel` on purpose: `getModel` already wraps for usage
  * accounting, and wrapping the other way round would put this between the
  * accountant and the model.
+ *
+ * A FORCED tool call (`'required'` or a named tool) wins over JSON mode: it is
+ * already structured, and Mistral and Melious reject the pair outright —
+ * "`json_object` response type with tools is only compatible with
+ * `tool_choice: auto`" — so `aiObject` with `json: true` failed on every hop of
+ * the chain (#5112). `auto` keeps both, the model may still answer in prose.
  */
-function modelFor(provider: ProviderName, model: string, options: AIRequestOptions): LanguageModel {
+function modelFor(
+  provider: ProviderName,
+  model: string,
+  options: AIRequestOptions,
+  toolChoice: SdkToolChoice | undefined
+): LanguageModel {
   const base = getModel(provider, model);
+  const forcedTool = toolChoice === 'required' || typeof toolChoice === 'object';
   // `LanguageModel` also admits a bare gateway id string, which cannot be
   // wrapped. `getModel` never returns one — same narrowing as `withUsageTracking`.
-  if (options.response_format?.type !== 'json_object' || typeof base === 'string') return base;
+  if (options.response_format?.type !== 'json_object' || forcedTool || typeof base === 'string') {
+    return base;
+  }
   return wrapLanguageModel({
     model: base,
     middleware: defaultSettingsMiddleware({ settings: { responseFormat: { type: 'json' } } }),
@@ -152,7 +167,7 @@ export async function execute(
     // against the error message, so a provider that reworded its errors silently
     // stopped being retried. The SDK reads the structured `APICallError`.
     const result = await deps.generateText({
-      model: modelFor(provider, model, options),
+      model: modelFor(provider, model, options, toolChoice),
       ...(system != null && { system }),
       messages: modelMessages,
       temperature: sampling.temperature,
