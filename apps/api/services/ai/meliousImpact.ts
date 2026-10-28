@@ -104,9 +104,12 @@ export function captureMeliousImpact(
 }
 
 /**
- * Melious keeps `environment_impact` off the wire on streamed responses
+ * Melious kept `environment_impact` off the wire on streamed responses
  * (docs.melious.ai/guides/streaming: "use the non-streaming shape if you need
- * them"; no lookup endpoint exists). A caller that needs the measurement asks
+ * them"; no lookup endpoint exists). Since October 2026 the final chunk does
+ * carry it, with or without `include_usage` (measured 2026-10-28, `gemma-4-31b`),
+ * and `captureMeliousImpact` reads it from streams too; whether the replay below
+ * is still needed is unverified (#5109). A caller that needs the measurement asks
  * non-streaming and hands the SDK this replay: the finished completion as the
  * chunk sequence a stream would have produced.
  */

@@ -288,4 +288,54 @@ describe('streamWithReasoning — Melious bucht Tokens samt Cache-Anteil', () =>
       cachedInputTokens: 11520,
     });
   });
+
+  /**
+   * Seit Melious der Gemma-Primär ist (28.10.2026), läuft der Chat mit Denken
+   * über diesen Strom. Melious meldet seine Messung im letzten Chunk; die
+   * gemeldeten Werte gehen als gemessen in die Nutzung, nicht der Koeffizient.
+   * Form des Chunks: Live-Probe vom 28.10.2026.
+   */
+  it('verbucht Melious’ gemeldetes environment_impact als Messung', async () => {
+    vi.resetModules();
+    process.env.MELIOUS_API_KEY = 'mel-key';
+    const recordTokenUsage = vi.fn();
+    const recordImpact = vi.fn();
+    vi.doMock('../../usage/UsageTrackingService.js', () => ({ recordTokenUsage, recordImpact }));
+    const { streamWithReasoning: stream } = await import('../openAiReasoningStream.js');
+
+    const sse = [
+      `data: ${JSON.stringify({ choices: [{ delta: { content: 'Hallo' } }] })}`,
+      `data: ${JSON.stringify({
+        choices: [],
+        usage: { prompt_tokens: 17, completion_tokens: 9 },
+        environment_impact: {
+          energy_kwh: 0.0025,
+          carbon_g_co2: 1.5,
+          provider_id: 'infercom',
+          location: 'DE',
+        },
+      })}`,
+      'data: [DONE]',
+      '',
+    ].join('\n');
+    vi.stubGlobal('fetch', async () => new Response(sse, { status: 200 }));
+
+    for await (const _chunk of stream({
+      provider: 'melious',
+      model: 'gemma-4-31b:balanced',
+      messages: [{ role: 'user', content: 'Sag hallo.' }],
+      temperature: 0,
+    })) {
+      // Strom leeren.
+    }
+
+    expect(recordImpact).toHaveBeenCalledWith({
+      provider: 'melious',
+      model: 'gemma-4-31b:balanced',
+      energyWms: 0.0025 * 3_600_000_000,
+      emissionsUg: 1.5 * 1_000_000,
+      inputTokens: 17,
+      outputTokens: 9,
+    });
+  });
 });

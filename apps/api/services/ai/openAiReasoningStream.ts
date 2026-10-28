@@ -17,11 +17,12 @@
  */
 
 import { env } from '../../config/env.js';
-import { recordTokenUsage } from '../usage/UsageTrackingService.js';
+import { recordImpact, recordTokenUsage } from '../usage/UsageTrackingService.js';
 
 import { cortecsBaseUrl } from './cortecsEndpoint.js';
 import { assertSovereignUpstream, SOVEREIGN_ZDR_PROVIDERS } from './cortecsRequestPolicy.js';
 import { createGemmaChannelFilter } from './gemmaChannelFilter.js';
+import { parseMeliousImpact } from './meliousImpact.js';
 import { meliousWireModel } from './meliousThinkingFetch.js';
 import { recordModelSample } from './modelHealth.js';
 import { MELIOUS_BASE_URL } from './providerInstances.js';
@@ -235,6 +236,10 @@ export async function* streamWithReasoning(
   let buffer = '';
   let firstTextAt: number | null = null;
   let usage: StreamUsage | null = null;
+  // Melious' eigene Messung steht im letzten Chunk (gemessen 28.10.2026, auch
+  // ohne `include_usage`). `recordImpact` bucht sie als gemessen; der
+  // Koeffizient in energyFootprint.ts greift dann nur noch für den Rest.
+  let impact: ReturnType<typeof parseMeliousImpact> = null;
   // Mit `enable_thinking` trennt der Host das Denken selbst; der Filter fängt
   // einen Upstream ohne Parser ab (Cortecs wechselt zwischen zweien).
   const channels = createGemmaChannelFilter();
@@ -262,6 +267,7 @@ export async function* streamWithReasoning(
         }
 
         usage = extractUsage(parsed) ?? usage;
+        if (params.provider === 'melious') impact = parseMeliousImpact(parsed) ?? impact;
         const delta = extractDelta(parsed);
         if (delta.reasoning) yield { type: 'reasoning', delta: delta.reasoning };
         const text = delta.text ? channels.push(delta.text) : '';
@@ -293,6 +299,7 @@ export async function* streamWithReasoning(
     });
     // Nur, wer `include_usage` sendet, bekommt hier Zahlen (heute Melious).
     if (usage) recordTokenUsage({ provider: params.provider, model: params.model, ...usage });
+    if (impact) recordImpact({ provider: params.provider, model: params.model, ...impact });
   }
 }
 
