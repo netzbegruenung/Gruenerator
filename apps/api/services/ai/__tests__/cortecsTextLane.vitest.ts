@@ -231,3 +231,57 @@ describe('cortecs text lane', () => {
     expect(lane.hedge?.provider).not.toBe(lane.provider);
   });
 });
+
+/**
+ * Kolibri-1 (Unteranbieter aki) denkt per Default und weist `json_object` ab —
+ * beides am 28.10.2026 gegen api.cortecs.ai gemessen: ohne `none` steht die
+ * Antwort in `reasoning_content` und `content` bleibt leer; mit
+ * `response_format: {type:'json_object'}` kommt HTTP 400 („Only json_schema,
+ * regex, grammar, choice are allowed"). Werkzeugaufrufe mit `tool_choice:
+ * 'required'` gehen mit `none` durch.
+ */
+describe('cortecs kolibri-1', () => {
+  it('pinnt reasoning_effort none', async () => {
+    const sent = await sentBody({ model: 'kolibri-1', messages: [], max_tokens: 20 });
+    expect((JSON.parse(String(sent)) as Record<string, unknown>).reasoning_effort).toBe('none');
+  });
+
+  it('nimmt json_object vom Draht, weil der Unteranbieter es mit 400 ablehnt', async () => {
+    const sent = await sentBody({
+      model: 'kolibri-1',
+      messages: [],
+      response_format: { type: 'json_object' },
+    });
+    expect(JSON.parse(String(sent))).not.toHaveProperty('response_format');
+  });
+
+  it('lässt json_object auf anderen Modellen stehen', async () => {
+    const sent = await sentBody({
+      model: 'gemma-4-31b-it',
+      messages: [],
+      response_format: { type: 'json_object' },
+    });
+    expect((JSON.parse(String(sent)) as Record<string, unknown>).response_format).toEqual({
+      type: 'json_object',
+    });
+  });
+
+  // tool_choice 'required' hält kolibri-1 nicht ein (28.10.2026: 3 von 6 Läufen
+  // Fliesstext statt Aufruf); json_schema traf 6 von 6.
+  it('macht aus dem erzwungenen Werkzeug ein json_schema', async () => {
+    const schema = { type: 'object', properties: { a: { type: 'string' } } };
+    const sent = await sentBody({
+      model: 'kolibri-1',
+      messages: [],
+      tools: [{ type: 'function', function: { name: 'melden', parameters: schema } }],
+      tool_choice: 'required',
+      response_format: { type: 'json_object' },
+    });
+    const parsed = JSON.parse(String(sent)) as Record<string, unknown>;
+    expect(parsed).not.toHaveProperty('tools');
+    expect(parsed.response_format).toEqual({
+      type: 'json_schema',
+      json_schema: { name: 'melden', schema },
+    });
+  });
+});

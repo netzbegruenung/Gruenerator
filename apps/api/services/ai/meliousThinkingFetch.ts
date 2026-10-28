@@ -50,14 +50,7 @@ export function meliousWireModel(body: Record<string, unknown>): string | null {
  * (Scaleway/FR), gemessen 28.10.2026: `tool_choice: 'required'` → HTTP 503
  * „The model returned an invalid tool call response", ein benanntes
  * `tool_choice` → Fliesstext ohne Aufruf. `response_format: json_schema` mit
- * demselben Schema liefert dagegen sauberes JSON.
- *
- * Umgeschrieben wird nur die Form von `aiObject`: GENAU EIN Werkzeug, erzwungen,
- * nicht gestreamt. Aus ihm wird ein `json_schema`, und die Antwort wird auf dem
- * Rückweg wieder zum Werkzeugaufruf — sonst wirft das SDK selbst („did not
- * contain a tool call even though tool choice was required"), bevor `aiObject`
- * den Text überhaupt sieht. Ein Zug mit mehreren Werkzeugen (Agenten-Schleife)
- * bleibt unberührt und scheitert laut.
+ * demselben Schema liefert dagegen sauberes JSON. Umbau: `forcedToolJsonSchema.ts`.
  */
 const NO_TOOL_CALL_MODELS: ReadonlySet<string> = new Set(['gemma-4-26b-a4b']);
 
