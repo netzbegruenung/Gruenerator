@@ -243,7 +243,7 @@ describe('makeBundestagTool', () => {
     expect(out.resultCount).toBe(1);
     expect(out.gesamt).toEqual({ vorgaenge: 4, drucksachen: 9 });
     expect(out.hinweis).toBe(
-      "Die Liste enthält nur Metadaten. Für Inhalte `parlament_lesen` mit quelle 'bundestag' und bis zu 6 Refs aufrufen."
+      "Die Liste enthält nur Metadaten. Für Inhalte `parlament_lesen` mit quelle 'bundestag' aufrufen: bei einer Themen- oder Listenfrage alle einschlägigen Refs (bis zu 6) in einem Aufruf, nicht nur das erste Dokument."
     );
     // The 700-char registration cap keeps the full ~530-char excerpt intact
     // (the default 320 would cut it before "ENDE").
@@ -268,6 +268,26 @@ describe('makeBundestagTool', () => {
       wahlperiode: [21],
       drucksachetyp: ['Antrag'],
       datumVon: '2025-01-01',
+    });
+  });
+
+  it('ergänzt Filter aus dem Wortlaut der Nachricht, wenn das Modell nur das Thema übergibt', async () => {
+    retrieveBundestag.mockResolvedValue({ results: [], totals: null });
+    await exec(
+      makeBundestagTool({
+        state: {
+          ...baseState,
+          intent: 'bundestag',
+          lastUserTextNoMentions: 'Welche Anträge der Grünen zum Artenschutz wurden abgelehnt?',
+        } as ChatGraphState,
+        sourceRegistry: createSourceRegistry(),
+      }),
+      { query: 'Artenschutz', drucksachetyp: ['Gesetzentwurf'] }
+    );
+    expect(retrieveBundestag).toHaveBeenCalledWith('Artenschutz', 'de-DE', {
+      drucksachetyp: ['Gesetzentwurf'],
+      urheber: ['Fraktion BÜNDNIS 90/DIE GRÜNEN'],
+      beratungsstand: ['Abgelehnt'],
     });
   });
 

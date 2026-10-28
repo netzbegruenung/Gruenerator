@@ -34,6 +34,7 @@ import { summarizeNode } from '../../../agents/langgraph/ChatGraph/nodes/summari
 import { CHAT_BUDGET } from '../../../services/bundestag/qa/budget.js';
 import { bundestagDocTitle } from '../../../services/bundestag/qa/docTitle.js';
 import { readBundestagRefs } from '../../../services/bundestag/qa/index.js';
+import { detectFromWording } from '../../../services/bundestag/qa/planDetect.js';
 import { relatedDocsPages, searchDocs } from '../../../services/docs/docsIndex.js';
 import { lookupUmfragen } from '../../../services/monitor/UmfragenService.js';
 import { DRAFT_LIMIT_TEXTS } from '../../../services/sharepicCreator/draftFailure.js';
@@ -137,7 +138,7 @@ export function describeBundestagFilter(filters: BundestagFilter | undefined): s
 }
 
 const BUNDESTAG_HINWEIS =
-  "Die Liste enthält nur Metadaten. Für Inhalte `parlament_lesen` mit quelle 'bundestag' und bis zu 6 Refs aufrufen.";
+  "Die Liste enthält nur Metadaten. Für Inhalte `parlament_lesen` mit quelle 'bundestag' aufrufen: bei einer Themen- oder Listenfrage alle einschlägigen Refs (bis zu 6) in einem Aufruf, nicht nur das erste Dokument.";
 
 /**
  * `bundestag`: official DIP documentation (Drucksachen, Plenarprotokolle,
@@ -167,7 +168,18 @@ Nicht für Inhalte, dafür parlament_lesen. Nicht für Abstimmungsverhalten oder
       query: z.string().min(1).describe('Suchbegriff: Person, Thema oder Drucksachennummer'),
       ...bundestagFilterSchema.omit({ dokumentnummer: true }).shape,
     }),
-    execute: async ({ query, ...filters }) => {
+    execute: async ({ query, ...args }) => {
+      // Das Modell kürzt die Frage oft aufs Thema („Artenschutz") und verliert
+      // dabei „beschlossen", „Grüne" oder „seit Januar". Was der Wortlaut der
+      // Nachricht hergibt, gilt deshalb mit — gesetzte Argumente gehen vor.
+      const userText =
+        state.lastUserTextNoMentions ??
+        (state.messages ? lastUserText(state.messages) : null) ??
+        '';
+      const fromArgs = Object.fromEntries(
+        Object.entries(args).filter(([, v]) => v !== undefined)
+      ) as typeof args;
+      const filters = { ...detectFromWording(userText), ...fromArgs };
       const {
         results,
         totals,
