@@ -208,7 +208,9 @@ describe('meliousFetch — gemma-4-26b-a4b Antwort als Werkzeugaufruf', () => {
         new Response(
           JSON.stringify({
             model: 'gemma-4-26b-a4b',
-            choices: [{ message: { role: 'assistant', content: '{"a":"x"}' }, finish_reason: 'stop' }],
+            choices: [
+              { message: { role: 'assistant', content: '{"a":"x"}' }, finish_reason: 'stop' },
+            ],
           }),
           { status: 200, headers: { 'content-type': 'application/json' } }
         )
@@ -223,7 +225,10 @@ describe('meliousFetch — gemma-4-26b-a4b Antwort als Werkzeugaufruf', () => {
       }),
     });
     const json = (await res.json()) as {
-      choices: { message: { content: unknown; tool_calls: { function: unknown }[] }; finish_reason: string }[];
+      choices: {
+        message: { content: unknown; tool_calls: { function: unknown }[] };
+        finish_reason: string;
+      }[];
     };
     expect(json.choices[0].message.content).toBeNull();
     expect(json.choices[0].message.tool_calls[0].function).toEqual({
