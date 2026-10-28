@@ -213,7 +213,7 @@ export const DEFERRABLE_GROUPS = [
     loaderTool: 'parlament_werkzeuge_laden',
     tools: ['parlament_lesen', 'bundestag_reden', 'abgeordnetenwatch', 'umfragen'],
     opensOn: ['bundestag'],
-    hint: /bundestag|drucksache|plenar|parlament|landtag|abgeordnet|ab(ge)?stimm|nebent[aä]tig|nebenjob|nebeneink|mandat|umfrage|sonntagsfrage|nationalrat|(?<![\d/])2[01]\/\d{1,5}(?![\d/])/i,
+    hint: /bundestag|drucksache|plenar|parlament|landtag|abgeordnet|ab(ge)?stimm|gestimmt|stimmverhalten|prognose|wahltrend|hochrechnung|nebent[aä]tig|nebenjob|nebeneink|mandat|umfrage|sonntagsfrage|nationalrat|(?<![\d/])2[01]\/\d{1,5}(?![\d/])/i,
     loaderDescription:
       'Schaltet die Parlaments-Werkzeuge frei, soweit vorhanden: parlament_lesen (Drucksachen/Plenarprotokolle lesen), bundestag_reden (Reden im Plenum), abgeordnetenwatch (Abstimmungen, Nebentätigkeiten, Mandate) und umfragen (Sonntagsfrage).\n\nNUTZE WENN Parlamentsdokumente gelesen, Reden gesucht, Abgeordnete nachgeschlagen oder Umfragen gebraucht werden. Die Liste liefert bundestag, immer bereit.',
     opened:

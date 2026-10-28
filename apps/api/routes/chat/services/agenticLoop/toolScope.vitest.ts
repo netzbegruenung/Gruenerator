@@ -234,6 +234,19 @@ describe('createToolScope — Parlaments-Gruppe', () => {
     }
   });
 
+  it('erkennt Prognose, Wahltrend, Hochrechnung und Stimmverhalten am Hinweis', () => {
+    for (const userText of [
+      'Wie sieht die Prognose für die nächste Wahl aus?',
+      'Gibt es einen Wahltrend für die Grünen?',
+      'Die letzte Hochrechnung bitte',
+      'Wie hat Merz gestimmt?',
+      'Wie war das Stimmverhalten der AfD?',
+    ]) {
+      const active = scope({ userText }).activeTools();
+      expect(active === undefined || FOLGE.every((t) => active.includes(t)), userText).toBe(true);
+    }
+  });
+
   it('zeigt sie auf Schritt 0 bei @bundestag (festgezurrter Einstieg)', () => {
     const active = scope({
       userText: 'Anträge zum Artenschutz',
