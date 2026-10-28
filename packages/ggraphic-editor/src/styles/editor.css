@@ -7,10 +7,10 @@
  * from `tokens.css` (`@ggraphic/editor/styles` imports both).
  *
  * Not shipped here: compiled Tailwind. The components carry Tailwind utility
- * classes (including theme colours such as `bg-editor-tile`), so the host's
- * Tailwind build must scan the core with an `@source` for
- * `node_modules/@ggraphic/editor/**` and map `--color-editor-*` to these
- * tokens in its `@theme`.
+ * classes (including theme colours such as `bg-editor-tile`). A host on
+ * Tailwind v4 imports `@ggraphic/editor/styles/tailwind` (scan, theme mapping,
+ * `touch-target`, `element-enter`, the `kbd` variant); any other host scans
+ * the core with an `@source` and maps the same names in its own `@theme`.
  */
 
 /* ── CanvasStage border overlay: neutral colours from the tokens. A host with
