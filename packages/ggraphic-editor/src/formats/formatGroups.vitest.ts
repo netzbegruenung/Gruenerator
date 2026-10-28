@@ -79,4 +79,19 @@ describe('format groups', () => {
     ).toThrow(/'a'/);
     expect(canvasFormatGroupOrder()).toHaveLength(4);
   });
+
+  it('rejects a replacement that orphans a registered format, keeping the groups', () => {
+    registerCanvasFormatGroups([{ id: 'story', label: 'Stories' }]);
+    registerCanvasFormats([story]);
+    expect(() => registerCanvasFormatGroups([{ id: 'other', label: 'Other' }])).toThrow(
+      /story-9-16.*story/
+    );
+    expect(() => registerCanvasFormatGroups([])).toThrow(/story-9-16/);
+    expect(canvasFormatGroupLabel('story')).toBe('Stories');
+    registerCanvasFormatGroups([
+      { id: 'story', label: 'Geschichten' },
+      { id: 'other', label: 'Other' },
+    ]);
+    expect(canvasFormatGroupLabel('story')).toBe('Geschichten');
+  });
 });
