@@ -37,6 +37,7 @@ import { getEnrichedPoliticianService } from '../../../../services/abgeordnetenw
 import { type AwEnrichedResult } from '../../../../services/abgeordnetenwatch/types.js';
 import { getBundestagEnrichedService } from '../../../../services/bundestag/BundestagEnrichedService.js';
 import { CHAT_BUDGET } from '../../../../services/bundestag/qa/budget.js';
+import { bundestagDocTitle } from '../../../../services/bundestag/qa/docTitle.js';
 import { planBundestagQuestion } from '../../../../services/bundestag/qa/index.js';
 import {
   type BtEnrichedResult,
@@ -275,28 +276,12 @@ function btDrucksacheResult(d: BtDrucksache, relevance: number): SearchResult {
   };
 }
 
-/** „2025-10-01" → „01.10.2025"; alles andere bleibt, wie DIP es liefert. */
-function deDate(iso: string): string {
-  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(iso);
-  return m ? `${m[3]}.${m[2]}.${m[1]}` : iso;
-}
-
 /**
  * Kandidat der Planstufe → Treffer. Nur Metadaten: der Volltext kommt erst über
  * `parlament_lesen`, die `Ref:`-Zeile ist der Schlüssel dafür.
  */
 export function candidateToSearchResult(c: BundestagCandidate, i: number): SearchResult {
-  const plpr = /^PlPr \d{1,2}\/\d{1,4}/.exec(c.ref)?.[0];
-  const title = plpr
-    ? `Plenardebatte ${plpr} · ${deDate(c.datum)}`
-    : [
-        `BT-Drs. ${c.dokumentnummer}`,
-        c.drucksachetyp,
-        deDate(c.datum),
-        c.urheber.join(', ') || null,
-      ]
-        .filter(Boolean)
-        .join(' · ');
+  const title = bundestagDocTitle(c);
   const content = [c.titel, c.vorgangTitel, c.abstract, `Ref: ${c.ref}`].filter(Boolean).join('\n');
   return {
     source: 'bundestag',
