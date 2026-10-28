@@ -329,4 +329,6 @@ export const NEAR_DUPLICATE_EXEMPT_TOOLS: ReadonlySet<string> = new Set([
   'parlament_lesen',
   // Gleiches Thema, anderer Redner oder Zeitraum: die Verfeinerung teilt die Wörter.
   'bundestag_reden',
+  // Wie `bundestag`: die Verfeinerung (Fraktion, Art, Zeitraum) teilt die Wörter der ersten Suche.
+  'landtag',
 ]);

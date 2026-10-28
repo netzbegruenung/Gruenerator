@@ -22,6 +22,9 @@ import {
   bundestagModusSchema,
   type BundestagFilter,
   bundestagRefSchema,
+  landtagParlamentSchema,
+  landtagRefSchema,
+  type LandtagParlament,
 } from '@gruenerator/contracts';
 import { intentDeclineNote, isIntentAllowedForLocale } from '@gruenerator/shared/chat-intents';
 import { tool, type Tool } from 'ai';
@@ -50,6 +53,8 @@ import {
   type RedenFilter,
 } from '../../../services/bundestag/reden.js';
 import { relatedDocsPages, searchDocs } from '../../../services/docs/docsIndex.js';
+import { landtagDocTitle } from '../../../services/landtag/docTitle.js';
+import { LANDTAGE, parlamentOfRef, readLandtagRefs } from '../../../services/landtag/index.js';
 import { lookupUmfragen } from '../../../services/monitor/UmfragenService.js';
 import { DRAFT_LIMIT_TEXTS } from '../../../services/sharepicCreator/draftFailure.js';
 import {
@@ -116,9 +121,9 @@ NUTZE WENN der*die Nutzer*in um eine Zusammenfassung bittet ("fasse zusammen", "
   });
 }
 
-/** „PlPr 21/80 S. 12" bleibt, „21/1928" wird „BT-Drs. 21/1928". */
+/** „PlPr 21/80 S. 12" und Landtags-Refs („BE 19/3519") bleiben, „21/1928" wird „BT-Drs. 21/1928". */
 function bundestagRefLabel(ref: string): string {
-  return ref.startsWith('PlPr') ? ref : `BT-Drs. ${ref}`;
+  return ref.startsWith('PlPr') || /^[A-Z]{2} /.test(ref) ? ref : `BT-Drs. ${ref}`;
 }
 
 function filterDate(iso: string): string {
@@ -490,16 +495,18 @@ export function makeParlamentLesenTool(ctx: {
 }): Tool {
   const { state, sourceRegistry } = ctx;
   return tool({
-    description: `Liest Bundestags-Dokumente vollständig und isoliert und liefert belegte Aussagen mit wörtlichem Zitat. Refs stammen aus \`bundestag\`. Bis zu 6 Dokumente je Aufruf. Für „fasse zusammen“ gilt auftrag 'zusammenfassung'. Nur Deutschland.
+    description: `Liest Parlamentsdokumente (Bundestag, Landesparlamente) vollständig und isoliert und liefert belegte Aussagen mit wörtlichem Zitat. quelle 'bundestag' mit Refs aus \`bundestag\`, quelle = Landesparlament (z. B. 'berlin') mit Refs aus \`landtag\` ("BE 19/3519", Schriftliche Anfrage "BE 19/S27288"; die Anfrage liegt samt Antwort vor). Bis zu 6 Dokumente je Aufruf. Für „fasse zusammen“ gilt auftrag 'zusammenfassung'. Nur Deutschland.
 
 Nicht für Abstimmungsverhalten, dafür abgeordnetenwatch. Nicht für Positionen der Grünen, dafür gruenerator_search mit collection 'bundestagsfraktion'.`,
     inputSchema: z.object({
-      quelle: z.enum(['bundestag']),
+      quelle: z.union([z.literal('bundestag'), landtagParlamentSchema]),
       dokumente: z
-        .array(bundestagRefSchema)
+        .array(z.union([bundestagRefSchema, landtagRefSchema]))
         .min(1)
         .max(6)
-        .describe('Refs aus der Liste von `bundestag` (Zeile „Ref: …“)'),
+        .describe(
+          'Refs aus der Liste von `bundestag` bzw. `landtag` (Zeile „Ref: …“), alle aus der angegebenen quelle'
+        ),
       frage: z
         .string()
         .min(3)
@@ -515,22 +522,48 @@ Nicht für Abstimmungsverhalten, dafür abgeordnetenwatch. Nicht für Positionen
           'Abschnitt, auf den sich das Lesen richten soll, wenn die Frage eine Stelle nennt: „Artikel 3“, „§ 14“, „Begründung“, „Erfüllungsaufwand“. Sonst weglassen.'
         ),
     }),
-    execute: async ({ dokumente, frage, auftrag = 'frage', fokus }) => {
+    execute: async ({ quelle, dokumente, frage, auftrag = 'frage', fokus }) => {
       if (!isIntentAllowedForLocale('bundestag', state.userLocale)) {
         return { resultCount: 0, sources: '', error: intentDeclineNote('bundestag') ?? '' };
       }
-      const { documents, notes } = await readBundestagRefs({
-        question: frage,
-        refs: dokumente,
-        auftrag,
-        budget: CHAT_BUDGET,
-        ...(fokus ? { fokus } : {}),
-      });
+      // Die Ref-Form gehört zur Quelle: ein Landtags-Ref beim Bundestag fände nichts und umgekehrt.
+      const parlament: LandtagParlament | null = quelle === 'bundestag' ? null : quelle;
+      const landtag = parlament ? LANDTAGE[parlament] : null;
+      const fremd = dokumente.filter((r) =>
+        parlament ? parlamentOfRef(r) !== parlament : !bundestagRefSchema.safeParse(r).success
+      );
+      if (fremd.length > 0) {
+        return {
+          resultCount: 0,
+          sources: '',
+          error: `Die Refs ${fremd.join(', ')} gehören nicht zur quelle '${quelle}'. ${
+            landtag
+              ? `Refs für ${landtag.kurz} beginnen mit "${landtag.refPrefix} ".`
+              : 'Bundestags-Refs sehen aus wie "21/1928".'
+          }`,
+        };
+      }
+      const { documents, notes } = parlament
+        ? await readLandtagRefs({
+            parlament,
+            question: frage,
+            refs: dokumente,
+            auftrag,
+            budget: CHAT_BUDGET,
+            ...(fokus ? { fokus } : {}),
+          })
+        : await readBundestagRefs({
+            question: frage,
+            refs: dokumente,
+            auftrag,
+            budget: CHAT_BUDGET,
+            ...(fokus ? { fokus } : {}),
+          });
       const results: SearchResult[] = documents
         .filter((d) => d.points.length > 0)
         .map((d, i) => ({
-          source: 'bundestag',
-          title: bundestagDocTitle(d),
+          source: landtag ? 'landtag' : 'bundestag',
+          title: landtag ? landtagDocTitle(landtag, d) : bundestagDocTitle(d),
           content: d.points.map((p) => `• ${p.aussage} — „${p.zitat}“`).join('\n'),
           ...(d.pdfUrl ? { url: d.pdfUrl } : {}),
           relevance: 1 - 0.02 * i,
@@ -554,6 +587,8 @@ Nicht für Abstimmungsverhalten, dafür abgeordnetenwatch. Nicht für Positionen
       return {
         resultCount: results.length,
         sources: sources ?? '',
+        // Die Lizenz verlangt die Namensnennung; das Modell soll sie in der Antwort tragen.
+        ...(landtag ? { quelle: landtag.quellenangabe } : {}),
         nichtGelesen,
         ...(notes.length > 0 || fokusNotes.length > 0
           ? { hinweise: [...notes, ...fokusNotes] }
@@ -562,6 +597,7 @@ Nicht für Abstimmungsverhalten, dafür abgeordnetenwatch. Nicht für Positionen
         uiCard: {
           frage,
           ...(fokus ? { fokus } : {}),
+          ...(landtag ? { quelle: landtag.quellenangabe, portal: landtag.portalUrl } : {}),
           gelesen: documents
             .filter((d) => d.points.length > 0)
             .map((d) => ({

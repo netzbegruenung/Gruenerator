@@ -1191,6 +1191,54 @@ describe('bundestag / parlament_lesen cards', () => {
     expect(reden.entries).toEqual([{ label: 'Wortlaut', value: 'Zeitenwende' }]);
   });
 
+  it('renders landtag with parlament, filters, Trefferzahl, Hinweis, Lizenz-Quelle and PDF links', () => {
+    const vm = resolveToolEntry('landtag').parse(
+      { parlament: 'berlin' },
+      {
+        uiCard: {
+          parlament: 'Berlin',
+          query: 'Verkehrswende',
+          filter: ['Art: Antrag', 'Fraktion: Grüne'],
+          gesamt: 12,
+          hinweise: ['Zu wenige Titeltreffer; zusätzlich im Volltext gesucht.'],
+          quelle: 'Quelle: Abgeordnetenhaus Berlin, PARDOK, DL-DE BY 2.0',
+          portal: 'https://pardok.parlament-berlin.de/portala/',
+          dokumente: [
+            {
+              ref: 'BE 19/2601',
+              typ: 'Antrag',
+              datum: '2025-07-08',
+              titel: 'Kiezblocks retten',
+              url: 'https://pardok.parlament-berlin.de/starweb/adis/citat/VT/19/DruckSachen/d19-2601.pdf',
+            },
+            {
+              ref: 'BE 19/S1',
+              typ: 'Schriftliche Anfrage',
+              datum: '',
+              titel: 'Ohne PDF',
+              url: null,
+            },
+          ],
+        },
+      }
+    );
+    if (vm.kind !== 'key-value') throw new Error(vm.kind);
+    expect(vm.entries).toEqual([
+      { label: 'Parlament', value: 'Berlin' },
+      { label: 'Suche', value: 'Verkehrswende' },
+      { label: 'Art', value: 'Antrag' },
+      { label: 'Fraktion', value: 'Grüne' },
+      { label: 'Gefunden', value: '12 Treffer' },
+      { label: 'Hinweis', value: 'Zu wenige Titeltreffer; zusätzlich im Volltext gesucht.' },
+      { label: 'Quelle', value: 'Abgeordnetenhaus Berlin, PARDOK, DL-DE BY 2.0' },
+    ]);
+    expect(vm.citations?.map((c) => c.href)).toEqual([
+      'https://pardok.parlament-berlin.de/starweb/adis/citat/VT/19/DruckSachen/d19-2601.pdf',
+      'https://pardok.parlament-berlin.de/portala/',
+    ]);
+    expect(vm.citations?.[0]?.snippet).toBe('BE 19/2601 · Antrag · 08.07.2025');
+  });
+
   it('renders bundestag_reden with topic, filters and one citation per speech', () => {
     const vm = resolveToolEntry('bundestag_reden').parse(
       { thema: 'Wärmeplanung' },

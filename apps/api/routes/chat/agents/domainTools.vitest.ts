@@ -25,6 +25,11 @@ const imageNode = vi.fn<(s: unknown) => Promise<unknown>>();
 const retrieveBundestag = vi.fn<(q: string, l: unknown, f: unknown) => Promise<unknown>>();
 const readBundestagRefs = vi.fn<(o: unknown) => Promise<unknown>>();
 const countBundestagDocs = vi.fn<(o: unknown) => Promise<unknown>>();
+const readLandtagRefs = vi.fn<(o: unknown) => Promise<unknown>>();
+vi.mock('../../../services/landtag/index.js', async (importOriginal) => ({
+  ...(await importOriginal<Record<string, unknown>>()),
+  readLandtagRefs: (o: unknown): Promise<unknown> => readLandtagRefs(o),
+}));
 vi.mock('../../../services/bundestag/qa/index.js', () => ({
   readBundestagRefs: (o: unknown): Promise<unknown> => readBundestagRefs(o),
   countBundestagDocs: (o: unknown): Promise<unknown> => countBundestagDocs(o),
@@ -609,6 +614,77 @@ describe('bundestag: modus zaehlen, ref', () => {
     const plpr = (await exec(tool, { ref: 'PlPr 21/80 S. 1-2' })) as { error: string };
     expect(plpr.error).toMatch(/nur für Drucksachen/);
     expect(retrieveBundestagFamily).not.toHaveBeenCalled();
+  });
+});
+
+describe('parlament_lesen: quelle Landtag', () => {
+  beforeEach(() => {
+    readLandtagRefs.mockReset();
+    readBundestagRefs.mockReset();
+  });
+  const make = () =>
+    makeParlamentLesenTool({
+      state: baseState,
+      sourceRegistry: createSourceRegistry(),
+    });
+  const doc = {
+    ref: 'BE 19/S27288',
+    dokumentnummer: '19/S27288',
+    drucksachetyp: 'Schriftliche Anfrage',
+    titel: 'DiVerso',
+    datum: '2026-10-12',
+    urheber: ['Freier-Winterwerb, Alexander (SPD)'],
+    pdfUrl: 'https://pardok.parlament-berlin.de/starweb/adis/citat/VT/19/SchrAnfr/S19-27288.pdf',
+    textSource: 'pdf',
+    relevant: true,
+    points: [{ aussage: 'Keine Zusage.', zitat: 'keine verlässlichen Aussagen', method: 'exact' }],
+    droppedPoints: 0,
+    windowsRead: 1,
+    windowsTotal: 1,
+    skipped: null,
+    fokusGefunden: null,
+  };
+
+  it('liest mit dem Landtags-Dienst, titelt mit Landtags-Nummer und nennt die Lizenz-Quelle', async () => {
+    readLandtagRefs.mockResolvedValue({ documents: [doc], notes: [] });
+    const out = (await exec(make(), {
+      quelle: 'berlin',
+      dokumente: ['BE 19/S27288'],
+      frage: 'Wird DiVerso weiterfinanziert?',
+    })) as {
+      sources: string;
+      quelle: string;
+      uiCard: { quelle: string; gelesen: { ref: string }[] };
+    };
+    expect(readBundestagRefs).not.toHaveBeenCalled();
+    expect(readLandtagRefs).toHaveBeenCalledWith({
+      parlament: 'berlin',
+      question: 'Wird DiVerso weiterfinanziert?',
+      refs: ['BE 19/S27288'],
+      auftrag: 'frage',
+      budget: CHAT_BUDGET,
+    });
+    expect(out.sources).toContain('BE Schriftliche Anfrage 19/27288 · 12.10.2026');
+    expect(out.quelle).toBe('Quelle: Abgeordnetenhaus Berlin, PARDOK, DL-DE BY 2.0');
+    expect(out.uiCard.quelle).toBe(out.quelle);
+    expect(out.uiCard.gelesen[0]!.ref).toBe('BE 19/S27288');
+  });
+
+  it('weist Refs ab, die nicht zur Quelle passen (in beide Richtungen)', async () => {
+    const a = (await exec(make(), {
+      quelle: 'berlin',
+      dokumente: ['21/1928'],
+      frage: 'Was regelt das?',
+    })) as { error: string };
+    expect(a.error).toMatch(/gehören nicht zur quelle 'berlin'.*"BE "/);
+    const b = (await exec(make(), {
+      quelle: 'bundestag',
+      dokumente: ['BE 19/3519'],
+      frage: 'Was regelt das?',
+    })) as { error: string };
+    expect(b.error).toMatch(/gehören nicht zur quelle 'bundestag'/);
+    expect(readLandtagRefs).not.toHaveBeenCalled();
+    expect(readBundestagRefs).not.toHaveBeenCalled();
   });
 });
 

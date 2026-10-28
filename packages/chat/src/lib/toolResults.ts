@@ -206,6 +206,21 @@ const TOOL_METADATA: Record<string, ToolMeta> = {
       return `${gelesen} von ${gelesen + ungelesen} gelesen`;
     },
   },
+  landtag: {
+    label: 'Landtag',
+    activeLabel: 'Durchsuche den Landtag',
+    iconKey: 'book',
+    accent: 'retrieval',
+    queryKeys: ['query'],
+    summarize: (_args, result) => {
+      const n = getArray(getObject(result, 'uiCard'), 'dokumente')?.length ?? 0;
+      if (n === 0) return null;
+      const gesamt = getNumber(getObject(result, 'uiCard'), 'gesamt');
+      return gesamt != null && gesamt > n
+        ? `${n} von ${gesamt} Dokumenten`
+        : `${n} ${n === 1 ? 'Dokument' : 'Dokumente'}`;
+    },
+  },
   bundestag_reden: {
     label: 'Reden im Bundestag',
     activeLabel: 'Durchsuche Bundestagsreden',

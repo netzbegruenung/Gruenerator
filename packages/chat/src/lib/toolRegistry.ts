@@ -38,6 +38,7 @@ export const UI_TOOL_NAMES = z.enum([
   'bundestag',
   'parlament_lesen',
   'bundestag_reden',
+  'landtag',
   'research',
   'gruenerator_examples_search',
   'gruenerator_pressemitteilung_examples',
@@ -1072,6 +1073,8 @@ function parseParlamentLesenCard(args: unknown, result: unknown): ToolResultVM {
   if (frage) entries.push({ label: 'Frage', value: frage });
   const fokus = getString(card, 'fokus') ?? getString(args, 'fokus');
   if (fokus) entries.push({ label: 'Fokus', value: fokus });
+  const quelle = getString(card, 'quelle');
+  if (quelle) entries.push({ label: 'Quelle', value: quelle.replace(/^Quelle:\s*/, '') });
 
   const citations = (getArray(card, 'gelesen') ?? []).map((doc, i) => {
     const ref = getString(doc, 'ref') ?? '';
@@ -1093,6 +1096,53 @@ function parseParlamentLesenCard(args: unknown, result: unknown): ToolResultVM {
       value: [ref, titel, grund ? `(${grund})` : null].filter(Boolean).join(' · '),
     });
   }
+  return { kind: 'key-value', entries, citations, markdown: null, imageUrl: null };
+}
+
+/** Karte des Werkzeugs `landtag`: Parlament, Suche, Filter, Trefferzahl, Hinweise, Lizenz-Quelle und die Dokumentliste. */
+function parseLandtagCard(args: unknown, result: unknown): ToolResultVM {
+  const card = getObject(result, 'uiCard');
+  if (!card) return { kind: 'citations', citations: parseSearchCitations(result) };
+
+  const entries: KeyValueEntry[] = [];
+  const parlament = getString(card, 'parlament');
+  if (parlament) entries.push({ label: 'Parlament', value: parlament });
+  const query = getString(card, 'query') ?? getString(args, 'query');
+  if (query) entries.push({ label: 'Suche', value: query });
+  for (const line of getArray(card, 'filter') ?? []) {
+    if (typeof line !== 'string') continue;
+    const at = line.indexOf(': ');
+    entries.push(
+      at > 0
+        ? { label: line.slice(0, at), value: line.slice(at + 2) }
+        : { label: 'Filter', value: line }
+    );
+  }
+  const gesamt = getNumber(card, 'gesamt');
+  if (gesamt != null) {
+    entries.push({ label: 'Gefunden', value: `${gesamt} Treffer` });
+  }
+  for (const h of getArray(card, 'hinweise') ?? []) {
+    if (typeof h === 'string') entries.push({ label: 'Hinweis', value: h });
+  }
+  const quelle = getString(card, 'quelle');
+  if (quelle) entries.push({ label: 'Quelle', value: quelle.replace(/^Quelle:\s*/, '') });
+
+  const portal = getString(card, 'portal');
+  const citations = (getArray(card, 'dokumente') ?? []).map((doc, i) => {
+    const ref = getString(doc, 'ref') ?? '';
+    const datum = getString(doc, 'datum');
+    const snippet = [ref, getString(doc, 'typ'), datum ? isoToDe(datum) : null]
+      .filter(Boolean)
+      .join(' · ');
+    return {
+      id: `landtag-doc-${i}`,
+      href: getString(doc, 'url') ?? portal ?? '',
+      title: getString(doc, 'titel') || ref || 'Landtagsdokument',
+      ...(snippet ? { snippet } : {}),
+      type: 'document' as const,
+    };
+  });
   return { kind: 'key-value', entries, citations, markdown: null, imageUrl: null };
 }
 
@@ -1173,6 +1223,7 @@ export const TOOL_REGISTRY: Record<UiToolName, ToolRegistryEntry> = {
   bundestag: entry('bundestag', 'key-value', parseBundestagCard),
   parlament_lesen: entry('parlament_lesen', 'key-value', parseParlamentLesenCard),
   bundestag_reden: entry('bundestag_reden', 'key-value', parseBundestagRedenCard),
+  landtag: entry('landtag', 'key-value', parseLandtagCard),
   research: entry('research', 'markdown-report', (_a, r) => ({
     kind: 'markdown-report',
     ...parseResearchResult(r),
