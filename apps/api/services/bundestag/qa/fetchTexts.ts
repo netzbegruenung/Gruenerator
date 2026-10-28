@@ -16,7 +16,12 @@ import { validateUrlForFetch } from '../../../utils/validation/urlSecurity.js';
 import { extractPdfText } from '../../pdf/pdfText.js';
 import { type DipClient, type DipDrucksache, type DipDrucksacheText } from '../dip/dipClient.js';
 
-import { PDF_MAX_BYTES, TEXT_CACHE_TTL_S } from './budget.js';
+import {
+  PDF_FALLBACK_CONCURRENCY,
+  PDF_MAX_BYTES,
+  TEXT_CACHE_TTL_S,
+  createLimiter,
+} from './budget.js';
 
 const log = createLogger('BundestagQaFetch');
 
@@ -346,6 +351,7 @@ export async function fetchTexts(
     toLoad.map((c) => c.dipId),
     dip
   );
+  const limitPdf = createLimiter(PDF_FALLBACK_CONCURRENCY);
   await Promise.all(
     toLoad.map(async (c) => {
       const doc = fromDip.get(c.dipId);
@@ -354,7 +360,9 @@ export async function fetchTexts(
       if (dipText) {
         value = { text: dipText, textSource: 'dip' };
       } else {
-        const pdfText = await pdfFallback(c.pdfUrl ?? doc?.fundstelle?.pdf_url ?? null, signal);
+        const pdfText = await limitPdf(() =>
+          pdfFallback(c.pdfUrl ?? doc?.fundstelle?.pdf_url ?? null, signal)
+        );
         value = pdfText
           ? { text: pdfText, textSource: 'pdf' }
           : { text: '', textSource: 'missing' };

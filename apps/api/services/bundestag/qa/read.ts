@@ -16,6 +16,7 @@ import {
   MAX_POINTS_PER_WINDOW,
   MAX_WINDOWS_PER_DOC,
   READ_CONCURRENCY,
+  createLimiter,
   readWindowChars,
 } from './budget.js';
 import { type FetchedDoc } from './fetchTexts.js';
@@ -191,32 +192,6 @@ function pickWindows(
   scored.sort((a, b) => b.hits - a.hits || a.index - b.index);
   const rest = scored.slice(0, MAX_WINDOWS_PER_DOC - 1).map((s) => s.index);
   return [0, ...rest].sort((a, b) => a - b);
-}
-
-/** Lässt höchstens `limit` Aufgaben gleichzeitig laufen. */
-function createLimiter(limit: number) {
-  let active = 0;
-  const queue: (() => void)[] = [];
-  const next = () => {
-    if (active >= limit) return;
-    const run = queue.shift();
-    if (run) {
-      active++;
-      run();
-    }
-  };
-  return <T>(task: () => Promise<T>): Promise<T> =>
-    new Promise<T>((resolve, reject) => {
-      queue.push(() => {
-        task()
-          .then(resolve, reject)
-          .finally(() => {
-            active--;
-            next();
-          });
-      });
-      next();
-    });
 }
 
 interface Plan {
