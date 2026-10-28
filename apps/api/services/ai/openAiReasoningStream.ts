@@ -290,6 +290,7 @@ export async function* streamWithReasoning(
       outputTokens: usage?.outputTokens ?? 0,
       durationMs: Date.now() - startedAt,
       ttftMs: firstTextAt === null ? null : firstTextAt - startedAt,
+      inputTokens: usage?.inputTokens ?? null,
     });
     // Nur, wer `include_usage` sendet, bekommt hier Zahlen (heute Melious).
     if (usage) recordTokenUsage({ provider: params.provider, model: params.model, ...usage });

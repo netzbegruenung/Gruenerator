@@ -73,6 +73,39 @@ describe('modelHealth', () => {
     expect(modelHealthSnapshot()[0]?.samples).toBe(14);
   });
 
+  it('Antworten auf lange Prompts beurteilen den Durchsatz nicht (Prefill)', () => {
+    // 28.10.2026: ein Bundestag-Lesefenster mit ~60k Prompt-Tokens rechnete die
+    // Prefill-Zeit in die Rate (5,9 statt ~31 tok/s) und leitete fünf Minuten
+    // lang JEDE Gemma-Lane auf den Sibling um.
+    warmUp();
+    for (let i = 0; i < 3; i++) {
+      recordModelSample({
+        provider: P,
+        model: M,
+        outputTokens: 400,
+        durationMs: (400 / 5.9) * 1000,
+        inputTokens: 60_000,
+      });
+    }
+    expect(isModelSlow(P, M)).toBe(false);
+    expect(modelHealthSnapshot()[0]?.samples).toBe(15);
+    expect(modelHealthSnapshot()[0]?.p50TokensPerSec).toBe(80);
+  });
+
+  it('zähe Proben mit normal langem Prompt vermerken weiterhin', () => {
+    warmUp();
+    for (let i = 0; i < 2; i++) {
+      recordModelSample({
+        provider: P,
+        model: M,
+        outputTokens: 200,
+        durationMs: (200 / 3.7) * 1000,
+        inputTokens: 4_000,
+      });
+    }
+    expect(isModelSlow(P, M)).toBe(true);
+  });
+
   it('ein ausdrückliches Verdikt zählt wie eine zähe Probe', () => {
     recordSlowVerdict(P, M, 'First-Token-Frist gerissen');
     expect(isModelSlow(P, M)).toBe(false);
