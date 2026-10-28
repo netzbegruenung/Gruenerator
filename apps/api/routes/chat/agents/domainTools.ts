@@ -210,23 +210,29 @@ Nicht für Inhalte, dafür parlament_lesen. Nicht für das, was eine Person oder
             'Die Dokumentfamilie gibt es nur für Drucksachen (z. B. 21/3546). Für ein Plenarprotokoll `parlament_lesen` mit dieser Ref nutzen.',
         };
       }
-      if (!ref && !query && modus !== 'zaehlen') {
-        return {
-          resultCount: 0,
-          sources: '',
-          error: 'Suchbegriff (query) oder Drucksachennummer (ref) fehlt.',
-        };
-      }
       // Das Modell kürzt die Frage oft aufs Thema („Artenschutz") und verliert
       // dabei „beschlossen", „Grüne" oder „seit Januar". Was der Wortlaut der
       // Nachricht hergibt, gilt deshalb mit — gesetzte Argumente gehen vor.
-      const userText =
+      const userText = (
         state.lastUserTextNoMentions ??
         (state.messages ? lastUserText(state.messages) : null) ??
-        '';
+        ''
+      ).trim();
       const fromArgs = Object.fromEntries(
         Object.entries(args).filter(([, v]) => v !== undefined)
       ) as typeof args;
+      // Ein Aufruf nur mit Filtern ist ein vollständiger Auftrag (das Rezept
+      // verlangt ihn so); ohne Filter und Suchbegriff ist die Frage selbst das Thema.
+      const hasFilters = Object.values(fromArgs).some((v) => !(Array.isArray(v) && v.length === 0));
+      if (!ref && !query && !hasFilters && !userText && modus !== 'zaehlen') {
+        return {
+          resultCount: 0,
+          sources: '',
+          error:
+            'Es fehlt ein Suchbegriff (query), eine Drucksachennummer (ref) oder ein Filter, und die Nachricht nennt kein Thema.',
+        };
+      }
+      const question = query ?? userText;
       const filters = { ...detectFromWording(userText), ...fromArgs };
       if (ref) {
         // Die Nummer legt den Vorgang fest; Filter aus dem Wortlaut (Typ, Urheber)
@@ -309,7 +315,7 @@ Nicht für Inhalte, dafür parlament_lesen. Nicht für das, was eine Person oder
         documents,
         filters: applied,
         verfahren,
-      } = await retrieveBundestag(query ?? '', state.userLocale, filters);
+      } = await retrieveBundestag(question, state.userLocale, filters);
       if (results.length === 0) {
         return { resultCount: 0, sources: '', error: 'Keine passenden Bundestags-Daten gefunden.' };
       }
@@ -322,7 +328,7 @@ Nicht für Inhalte, dafür parlament_lesen. Nicht für das, was eine Person oder
         hinweis: BUNDESTAG_HINWEIS,
         // Nur für die Karte; wrapTools nimmt das Feld vor dem Modell heraus.
         uiCard: {
-          query,
+          query: question,
           filter: describeBundestagFilter(applied ?? filters),
           ...(totals ? { gesamt: totals } : {}),
           dokumente: (documents ?? []).map((d) => ({

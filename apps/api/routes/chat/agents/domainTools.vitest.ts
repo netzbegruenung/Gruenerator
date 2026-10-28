@@ -393,6 +393,55 @@ describe('makeBundestagTool', () => {
     });
   });
 
+  it('nimmt einen Aufruf nur mit Filtern an und reicht die Frage als Thema weiter', async () => {
+    retrieveBundestag.mockResolvedValue({ results: [], totals: null });
+    const out = (await exec(
+      makeBundestagTool({
+        state: {
+          ...baseState,
+          intent: 'bundestag',
+          lastUserTextNoMentions: 'Was wurde zum Artenschutz beschlossen?',
+        } as ChatGraphState,
+        sourceRegistry: createSourceRegistry(),
+      }),
+      { deskriptor: ['Artenschutz'], beratungsstand: ['Angenommen'] }
+    )) as { error?: string };
+    expect(out.error).toBe('Keine passenden Bundestags-Daten gefunden.');
+    expect(retrieveBundestag).toHaveBeenCalledWith(
+      'Was wurde zum Artenschutz beschlossen?',
+      'de-DE',
+      expect.objectContaining({ deskriptor: ['Artenschutz'], beratungsstand: ['Angenommen'] })
+    );
+  });
+
+  it('nimmt einen Aufruf ganz ohne Argumente an, wenn die Nachricht das Thema trägt', async () => {
+    retrieveBundestag.mockResolvedValue({ results: [], totals: null });
+    await exec(
+      makeBundestagTool({
+        state: {
+          ...baseState,
+          intent: 'bundestag',
+          lastUserTextNoMentions: 'Welche Anträge zum Artenschutz gab es?',
+        } as ChatGraphState,
+        sourceRegistry: createSourceRegistry(),
+      }),
+      {}
+    );
+    expect(retrieveBundestag.mock.calls[0]![0]).toBe('Welche Anträge zum Artenschutz gab es?');
+  });
+
+  it('lehnt nur ab, wenn weder Suchbegriff noch Ref noch Filter noch Nachricht da sind', async () => {
+    const out = (await exec(
+      makeBundestagTool({
+        state: { ...baseState, intent: 'bundestag', lastUserTextNoMentions: '' } as ChatGraphState,
+        sourceRegistry: createSourceRegistry(),
+      }),
+      { deskriptor: [] }
+    )) as { error?: string };
+    expect(out.error).toMatch(/fehlt/);
+    expect(retrieveBundestag).not.toHaveBeenCalled();
+  });
+
   it('registers the de-AT decline note as a citable source', async () => {
     retrieveBundestag.mockResolvedValue({
       results: [
