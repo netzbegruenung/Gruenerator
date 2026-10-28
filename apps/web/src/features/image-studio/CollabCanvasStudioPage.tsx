@@ -108,7 +108,7 @@ function CollabCanvasStudioContent() {
     () => (canvas ? readInitialDocument(canvas.initial_state) : null),
     [canvas]
   );
-  const initialPages: InitialPageDef[] | undefined = initialDocument?.pages;
+  const initialPages: InitialPageDef[] | null = initialDocument?.pages ?? null;
   const documentRefusal = initialDocument?.refusal ?? null;
 
   const canEdit = canvas?.can_edit === true;
@@ -357,11 +357,12 @@ function CollabCanvasStudioContent() {
           </div>
         )}
         <p className="z-10 p-md text-sm text-foreground" role="alert">
+          {/* Refusal texts: same wording as the editor's `shell.schemaRefusal`. */}
           {accessError ??
             (documentRefusal?.status === 'newer'
-              ? 'Dieser Canvas wurde mit einer neueren Version des Grünerators gespeichert. Lade die Seite neu, um ihn zu öffnen.'
+              ? 'Dieses Design wurde mit einer neueren Version gespeichert und kann hier nicht bearbeitet werden. Aktualisiere die App oder lade die Seite neu.'
               : documentRefusal
-                ? 'Dieser Canvas kann nicht sicher geöffnet werden.'
+                ? 'Dieses Design kann hier nicht sicher geöffnet werden und bleibt unverändert.'
                 : 'Der Canvas konnte nicht geladen werden.')}
         </p>
       </div>
@@ -383,7 +384,7 @@ function CollabCanvasStudioContent() {
               formatId={canvas.format}
               documentTitle={canvas.title}
               initialState={canvas.initial_state}
-              initialPages={initialPages}
+              {...(initialPages ? { initialPages } : {})}
               onExport={handleExport}
               onDownload={refreshThumbnail}
               onCollabSnapshot={refreshThumbnail}

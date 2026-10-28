@@ -685,9 +685,8 @@ export const de = {
     copyPhotoCredit: 'Bildnachweis kopieren',
     schemaRefusal: {
       newer:
-        'Dieses Design wurde mit einer neueren Version gespeichert. Du kannst es ansehen, aber hier nicht bearbeiten.',
-      invalid:
-        'Dieses Design kann hier nicht sicher geöffnet werden. Du kannst es ansehen, aber nicht bearbeiten.',
+        'Dieses Design wurde mit einer neueren Version gespeichert und kann hier nicht bearbeitet werden. Aktualisiere die App oder lade die Seite neu.',
+      invalid: 'Dieses Design kann hier nicht sicher geöffnet werden und bleibt unverändert.',
     },
     downloadPanel: {
       format: 'Format',

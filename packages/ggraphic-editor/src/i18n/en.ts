@@ -673,8 +673,9 @@ export const en: Messages = {
     copied: 'Copied',
     copyPhotoCredit: 'Copy photo credit',
     schemaRefusal: {
-      newer: 'This design was saved with a newer version. You can view it here, but not edit it.',
-      invalid: 'This design cannot be opened safely here. You can view it, but not edit it.',
+      newer:
+        'This design was saved with a newer version and cannot be edited here. Update the app or reload the page.',
+      invalid: 'This design cannot be opened safely here and stays unchanged.',
     },
     downloadPanel: {
       format: 'Format',

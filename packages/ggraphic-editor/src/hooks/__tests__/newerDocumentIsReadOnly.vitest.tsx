@@ -107,12 +107,12 @@ describe('readInitialDocument', () => {
   });
 
   it('reads a document without pages as no pages', () => {
-    expect(readInitialDocument({ headline: 'flat' })).toEqual({ pages: undefined, refusal: null });
+    expect(readInitialDocument({ headline: 'flat' })).toEqual({ pages: null, refusal: null });
   });
 
   it('refuses a newer document', () => {
     const read = readInitialDocument({ schemaVersion: 9, pages: [] });
     expect(read.refusal).toMatchObject({ status: 'newer', version: 9 });
-    expect(read.pages).toBeUndefined();
+    expect(read.pages).toBeNull();
   });
 });

@@ -39,7 +39,7 @@ vi.mock('@gruenerator/canvas-editor', () => ({
   getCanvasFormatOrDefault: (id: string) => ({ id }),
   isSlideFormat: (format: { id: string }) => format.id === 'slide-16-9',
   preloadCanvasTemplate: () => Promise.resolve(),
-  readInitialDocument: () => ({ pages: undefined, refusal: initialRead.refusal }),
+  readInitialDocument: () => ({ pages: null, refusal: initialRead.refusal }),
   MasterCanvasEditor: (props: {
     chromeCenter?: React.ReactNode;
     collaborative?: { previewBeforeSync?: boolean };
@@ -161,7 +161,7 @@ describe('CollabCanvasStudioPage', () => {
     initialRead.refusal = { status: 'newer' };
     renderPage('/studio/canvas/c1');
     expect(await screen.findByRole('alert')).toHaveTextContent(
-      'Dieser Canvas wurde mit einer neueren Version des Grünerators gespeichert.'
+      'Dieses Design wurde mit einer neueren Version gespeichert und kann hier nicht bearbeitet werden. Aktualisiere die App oder lade die Seite neu.'
     );
     expect(collab.editorProps).toEqual([]);
   });

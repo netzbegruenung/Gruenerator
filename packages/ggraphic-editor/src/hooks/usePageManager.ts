@@ -74,14 +74,14 @@ export function parseInitialPages(raw: unknown): InitialPageDef[] | undefined {
  * from it.
  */
 export function readInitialDocument(raw: unknown): {
-  pages: InitialPageDef[] | undefined;
+  pages: InitialPageDef[] | null;
   refusal: DocumentRefusal | null;
 } {
   const result = migrateDocument(raw);
   if (result.status === 'newer' || result.status === 'invalid') {
-    return { pages: undefined, refusal: result };
+    return { pages: null, refusal: result };
   }
-  return { pages: parseInitialPages(result.document.pages), refusal: null };
+  return { pages: parseInitialPages(result.document.pages) ?? null, refusal: null };
 }
 
 export interface UsePageManagerOptions<TId extends string = TemplateId> {
