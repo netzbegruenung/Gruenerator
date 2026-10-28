@@ -70,6 +70,7 @@ function ImpressumForm({
   gate: PrintImpressumGate;
   impressum: CanvasImpressumService;
 }) {
+  const t = useMessages();
   const { isFilled } = impressum;
   const fieldId = useId();
   const labels = impressum.labels[gate.locale];
@@ -79,8 +80,10 @@ function ImpressumForm({
   const [anschrift, setAnschrift] = useState(initial(current.anschrift));
   const [touched, setTouched] = useState(false);
   const valid = impressum.isComplete({ name, anschrift });
-  const nameError = touched && !isFilled(name) ? `Bitte ${labels.name} eintragen.` : null;
-  const anschriftError = touched && !isFilled(anschrift) ? 'Bitte Anschrift eintragen.' : null;
+  const nameError =
+    touched && !isFilled(name) ? t.shell.downloadPanel.impressumNameRequired(labels.name) : null;
+  const anschriftError =
+    touched && !isFilled(anschrift) ? t.shell.downloadPanel.impressumAddressRequired : null;
 
   const submit = (event: FormEvent) => {
     event.preventDefault();
@@ -90,7 +93,9 @@ function ImpressumForm({
 
   return (
     <form onSubmit={submit} className="flex flex-col gap-2" noValidate>
-      <h4 className="m-0 text-sm font-semibold text-foreground">Impressum ergänzen</h4>
+      <h4 className="m-0 text-sm font-semibold text-foreground">
+        {t.shell.downloadPanel.impressumHeading}
+      </h4>
       <p className="m-0 text-xs text-foreground-muted">{labels.hint}</p>
       <div className="flex flex-col gap-1.5">
         <Label htmlFor={`${fieldId}-name`} className="text-xs font-medium text-foreground-muted">
@@ -116,13 +121,13 @@ function ImpressumForm({
           htmlFor={`${fieldId}-anschrift`}
           className="text-xs font-medium text-foreground-muted"
         >
-          Anschrift
+          {t.shell.downloadPanel.impressumAddress}
         </Label>
         <Input
           id={`${fieldId}-anschrift`}
           className={MOBILE_INPUT_TEXT}
           value={anschrift}
-          placeholder="Straße Nr., PLZ Ort"
+          placeholder={t.shell.downloadPanel.impressumAddressPlaceholder}
           onChange={(e) => setAnschrift(e.target.value)}
           aria-invalid={anschriftError !== null}
           {...(anschriftError ? { 'aria-describedby': `${fieldId}-anschrift-error` } : {})}
@@ -138,7 +143,7 @@ function ImpressumForm({
         )}
       </div>
       <Button type="submit" variant="brand" className="w-full rounded-lg">
-        Übernehmen
+        {t.shell.downloadPanel.impressumSubmit}
       </Button>
     </form>
   );
@@ -341,7 +346,7 @@ export function DownloadSection({
       {impressumMissing && impressumGate && impressum && (
         <>
           <DownloadNotice tone="info">
-            Noch kein vollständiges Impressum – herunterladen kannst du trotzdem.
+            {t.shell.downloadPanel.impressumMissingNotice}
           </DownloadNotice>
           <ImpressumForm gate={impressumGate} impressum={impressum} />
         </>
