@@ -2,10 +2,14 @@
  * Canvas Editor — Grünerator overrides
  *
  * The brand-neutral rules (layout, mobile sheet, motion, rich text, touch
- * baseline) and the neutral `--editor-*` token defaults live in the core
- * stylesheet, packages/ggraphic-editor/src/styles/editor.css, imported first
- * so everything below wins at equal specificity. What stays here names
- * Grünerator palette tokens (--primary-*, --grey-*, --tanne) or sticker UI.
+ * baseline) live in the core stylesheet,
+ * packages/ggraphic-editor/src/styles/editor.css, imported first so everything
+ * below wins at equal specificity. What stays here names Grünerator palette
+ * tokens (--primary-*, --grey-*, --tanne) or sticker UI.
+ *
+ * Do not import the core's tokens.css or index.css here: apps/web loads this
+ * file unlayered, so the neutral `--editor-*` defaults would beat the
+ * Grünerator values that variables.css declares in layer(legacy).
  */
 @import '../../ggraphic-editor/src/styles/editor.css';
 
