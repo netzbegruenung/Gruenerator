@@ -6,7 +6,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { dreizeilenFullConfig } from '../dreizeilen_full.config';
-import { shareImageText } from '../shareSection';
+import { shareImageText } from '@ggraphic/editor/configs/shareSection';
 
 describe('shareImageText', () => {
   it('liest beim Dreizeiler die drei Zeilen wie die Seitenleiste', () => {

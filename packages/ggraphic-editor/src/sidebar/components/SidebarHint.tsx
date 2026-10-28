@@ -4,7 +4,7 @@ import { cn } from '@ggraphic/editor/utils/cn';
 import { useState, useRef, useEffect } from 'react';
 import { FaQuestionCircle, FaTimes } from 'react-icons/fa';
 
-import { SIDEBAR_HINT } from '../sidebarStyles';
+import { SIDEBAR_HINT } from '../sidebarStyles.js';
 
 interface SidebarHintProps {
   children: React.ReactNode;

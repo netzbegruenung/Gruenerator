@@ -6,7 +6,7 @@ import { describe, expect, it } from 'vitest';
 
 import { EMOJI_ASSETS } from '../../brand/grueneAssetCatalog';
 
-import { loadEmojiCatalog, withTone } from './emojiCatalog';
+import { loadEmojiCatalog, withTone } from '@ggraphic/editor/utils/emoji/emojiCatalog';
 
 const PUBLIC_DIR = path.resolve(import.meta.dirname, '../../../../../apps/web/public');
 

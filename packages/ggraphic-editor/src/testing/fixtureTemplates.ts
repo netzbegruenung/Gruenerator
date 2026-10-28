@@ -24,29 +24,29 @@ import { defineTemplate, registerTemplates } from '@ggraphic/editor/templates/re
 import {
   carryBackgroundAdjustments,
   carryBackgroundRotation,
-} from '../configs/factory/carryInstanceState';
+} from '../configs/factory/carryInstanceState.js';
 import {
   createAssetInstance,
   registerAssetCatalog,
   type CanvasAssetCatalog,
-} from '../utils/canvasAssets';
-import { createChartInstance } from '../utils/chartUtils';
-import { createCircleBadgeInstance } from '../utils/circleBadgeUtils';
-import { zoomBackground } from '../utils/coverFit';
-import { createFrameInstance, type FrameClipType } from '../utils/frameUtils';
-import { createPillBadgeInstance } from '../utils/pillBadgeUtils';
-import { createShape, type ShapeType } from '../utils/shapes';
-import { straightenResetFor } from '../utils/straighten';
+} from '../utils/canvasAssets.js';
+import { createChartInstance } from '../utils/chartUtils.js';
+import { createCircleBadgeInstance } from '../utils/circleBadgeUtils.js';
+import { zoomBackground } from '../utils/coverFit.js';
+import { createFrameInstance, type FrameClipType } from '../utils/frameUtils.js';
+import { createPillBadgeInstance } from '../utils/pillBadgeUtils.js';
+import { createShape, type ShapeType } from '../utils/shapes.js';
+import { straightenResetFor } from '../utils/straighten.js';
 import {
   createUserImageInstanceFromUrl,
   type ElementPlacement,
   type UserImageInstance,
   type UserImagePlacement,
-} from '../utils/userImageUtils';
+} from '../utils/userImageUtils.js';
 
-import type { AnyCanvasConfig, FullCanvasConfig } from '../configs/types';
-import type { BalkenMode } from '../utils/balkenUtils';
-import type { ChartType } from '../utils/chartTypes';
+import type { AnyCanvasConfig, FullCanvasConfig } from '../configs/types.js';
+import type { BalkenMode } from '../utils/balkenUtils.js';
+import type { ChartType } from '../utils/chartTypes.js';
 import type { StockImageAttribution } from '@ggraphic/editor/common/imageSourceTypes';
 
 const WIDTH = 1080;

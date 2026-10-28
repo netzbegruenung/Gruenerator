@@ -402,6 +402,15 @@ export const de = {
       loadMore: 'Mehr laden',
       loading: 'Wird geladen …',
       noMatch: (noun: string, q: string) => `Keine ${noun} für „${q}“.`,
+      scope: { shop: 'Entdecken', mine: 'Meine', saved: 'Gemerkt' },
+      plural: { sticker: 'Sticker', background: 'Hintergründe' },
+      empty: (noun: string, scope: 'shop' | 'mine' | 'saved') =>
+        scope === 'shop'
+          ? `Unter „Entdecken“ gibt es noch keine ${noun}.`
+          : scope === 'mine'
+            ? `Du hast noch keine eigenen ${noun}.`
+            : `Du hast dir noch keine ${noun} gemerkt.`,
+      loadFailed: (noun: string) => `${noun} konnten nicht geladen werden.`,
       itemLabel: (title: string, sticker: boolean) =>
         `${title} ${sticker ? 'hinzufügen' : 'als Hintergrund verwenden'}`,
     },
@@ -484,6 +493,16 @@ export const de = {
       editError: 'Fehler beim Bearbeiten',
       editPlaceholder:
         'Bearbeitungsanweisung (z.B. "Ersetze den Himmel durch einen Sonnenuntergang")',
+      imageNoUrl: 'Bild hat keine ladbare URL',
+      imageFetchFailed: 'Bild konnte nicht geladen werden',
+      unsplashLimit: {
+        title: 'Unsplash-Suche gerade ausgeschöpft',
+        body: (owner: string, time: string) =>
+          `${owner} teilt sich 50 Unsplash-Suchen pro Stunde. Wieder möglich ab ca. ${time} Uhr. Die eingebauten Fotos funktionieren weiter.`,
+        defaultOwner: 'Der Editor',
+        remaining: (n: number) =>
+          `Noch ${n} ${n === 1 ? 'Unsplash-Suche' : 'Unsplash-Suchen'} in dieser Stunde`,
+      },
       altText: {
         capturing: 'Seiten werden erfasst…',
         writingAlt: 'Alt-Text wird geschrieben…',

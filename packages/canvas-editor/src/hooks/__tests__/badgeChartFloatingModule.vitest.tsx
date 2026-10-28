@@ -12,7 +12,7 @@ import { useFloatingModuleState } from '@ggraphic/editor/hooks/useFloatingModule
 import { render, renderHook, screen } from '@testing-library/react';
 import { beforeAll, describe, expect, it, vi } from 'vitest';
 
-import { ContextControls } from '../../components/TopBar/ContextControls';
+import { ContextControls } from '@ggraphic/editor/components/TopBar/ContextControls';
 
 import type { FullCanvasConfig, LayoutResult } from '@ggraphic/editor/configs/types';
 import type { OptionalCanvasActions } from '@ggraphic/editor/hooks/useCanvasElementHandlers';

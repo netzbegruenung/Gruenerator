@@ -10,7 +10,12 @@
  * re-render optimization as the old create() bound hook.
  */
 
+// Gives tsc a resolvable `immer` specifier for the declaration emit: with an isolated
+// node_modules layout the inferred store type otherwise fails with TS2883
+// (cannot name WritableNonArrayDraft without a .pnpm path).
+import type {} from 'immer';
 import { immer } from 'zustand/middleware/immer';
+
 import { createStore } from 'zustand/vanilla';
 
 import { activeBrand } from '@ggraphic/editor/brand/brandRegistry';

@@ -17,10 +17,10 @@ import { useLayoutEffect } from 'react';
 import { PiTextAa } from 'react-icons/pi';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { CombinedTextSection } from '../../sidebar/sections/CombinedTextSection';
-import { SidebarPanel } from '../../sidebar/SidebarPanel';
-import { SubsectionTabBar } from '../../sidebar/SubsectionTabBar';
-import { ContextControls } from '../TopBar/ContextControls';
+import { CombinedTextSection } from '@ggraphic/editor/sidebar/sections/CombinedTextSection';
+import { SidebarPanel } from '@ggraphic/editor/sidebar/SidebarPanel';
+import { SubsectionTabBar } from '@ggraphic/editor/sidebar/SubsectionTabBar';
+import { ContextControls } from '@ggraphic/editor/components/TopBar/ContextControls';
 
 import type { FloatingModuleState } from '@ggraphic/editor/hooks/useFloatingModuleState';
 
@@ -167,8 +167,12 @@ describe('44pt-Ziele', () => {
   // (fit + zoom shrink it to ~145×18 on a phone); it counter-scales back to
   // its 44 px height. CanvasEditor is too heavy to render here.
   it('Seite hinzufügen unter der Fläche', () => {
+    // the shell lives in the core package
     const source = readFileSync(
-      path.resolve(import.meta.dirname, '../CanvasEditor/index.tsx'),
+      path.resolve(
+        import.meta.dirname,
+        '../../../../ggraphic-editor/src/components/CanvasEditor/CanvasEditorShell.tsx'
+      ),
       'utf8'
     );
     const wrapper = /<div className="([^"]*canvas-mobile:hidden[^"]*)">\s*<AddPageButton/.exec(

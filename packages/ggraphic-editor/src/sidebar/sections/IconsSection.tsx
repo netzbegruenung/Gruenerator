@@ -15,7 +15,7 @@ import {
   SELECTABLE_CARD,
   SELECTABLE_CARD_DISABLED,
   SIDEBAR_SECTION,
-} from '../sidebarStyles';
+} from '../sidebarStyles.js';
 
 export interface IconsSectionProps {
   selectedIcons: string[];

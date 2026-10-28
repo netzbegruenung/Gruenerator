@@ -1,7 +1,7 @@
 import { render, screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 
-import { CanvasEditorSkeleton } from './CanvasEditorSkeleton';
+import { CanvasEditorSkeleton } from '@ggraphic/editor/components/CanvasEditorSkeleton';
 
 describe('CanvasEditorSkeleton', () => {
   it('announces itself as one busy status region', () => {

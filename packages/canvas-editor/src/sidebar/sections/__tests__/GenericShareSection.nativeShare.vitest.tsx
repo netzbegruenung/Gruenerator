@@ -7,7 +7,7 @@ import { AutoSaveStoreProvider } from '@ggraphic/editor/stores/AutoSaveStoreProv
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { GenericShareSection } from '../GenericShareSection';
+import { GenericShareSection } from '@ggraphic/editor/sidebar/sections/GenericShareSection';
 
 const DATA_URL = 'data:image/png;base64,AAAA';
 const shareDataUrlViaNativeHost = vi.fn();

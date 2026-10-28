@@ -17,21 +17,21 @@ import { CANVAS_COLORS } from '@gruenerator/contracts';
 import { PiFrameCornersFill, PiSquaresFourFill, PiTextAa } from 'react-icons/pi';
 
 import { buildAssetCapability } from '../ai/assetCapability';
-import { describeCanvasElements } from '../ai/describeCanvasElements';
-import { buildIllustrationCapability } from '../ai/illustrationCapability';
+import { describeCanvasElements } from '@ggraphic/editor/ai/describeCanvasElements';
+import { buildIllustrationCapability } from '@ggraphic/editor/ai/illustrationCapability';
 import { CANVAS_RECOMMENDED_ASSETS } from '../brand/grueneAssets';
 import { withCardFollowingText } from '@ggraphic/editor/composer/cardFollowsText';
 import { SHAREPIC_COLOR_HEX } from '../composer/composeSharepic';
 import { type LiftedBlock } from '../composer/liftBlock';
 import { AssetsSection } from '../sidebar';
-import { CombinedTextSection } from '../sidebar/sections/CombinedTextSection';
-import { FrameSettingsSection } from '../sidebar/sections/FrameSettingsSection';
+import { CombinedTextSection } from '@ggraphic/editor/sidebar/sections/CombinedTextSection';
+import { FrameSettingsSection } from '@ggraphic/editor/sidebar/sections/FrameSettingsSection';
 
 import { chatTab, createCommonSectionEntries, toolsTab, uploadsTab } from './commonSections';
 import { createBaseActions } from './factory/actionFactories';
 import { makeSectionDefiner } from '@ggraphic/editor/configs/factory/defineSection';
-import { injectFeatureProps } from './featureInjector';
-import { createShareSection } from './shareSection';
+import { injectFeatureProps } from '@ggraphic/editor/configs/featureInjector';
+import { createShareSection } from '@ggraphic/editor/configs/shareSection';
 
 import type { SharepicAiCapabilities } from './aiCapabilities';
 import type { BackgroundColorOption } from '@ggraphic/editor/sidebar/types';

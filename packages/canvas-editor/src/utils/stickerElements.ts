@@ -15,5 +15,5 @@ export {
   loadEmojiCatalog,
   type EmojiCatalogEntry,
   type EmojiCatalogGroup,
-} from './emoji/emojiCatalog';
+} from '@ggraphic/editor/utils/emoji/emojiCatalog';
 export { rankByQuery } from '@ggraphic/editor/utils/filterUtils';

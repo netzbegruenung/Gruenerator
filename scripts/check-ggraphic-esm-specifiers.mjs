@@ -20,7 +20,7 @@ import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-export const PACKAGES = ['ggraphic-schema', 'ggraphic-core', 'ggraphic-editor'];
+export const PACKAGES = ['ggraphic-schema', 'ggraphic-core', 'ggraphic-editor', 'ggraphic-collab'];
 
 const SPEC = /(?:\bfrom\s*|\bimport\s*\(\s*|\bimport\s+|\brequire\s*\(\s*)(['"])(\.{1,2}(?:\/[^'"]*)?)\1/g;
 const OK_EXT = /\.(?:js|mjs|cjs|json|css|svg)$/;

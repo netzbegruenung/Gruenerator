@@ -59,6 +59,11 @@ export const brandDefault: BrandPack = {
   },
   // Light colours never open the list: on white they only read next to a dark one.
   chart: [NIGHT, OCEAN, SIGNAL, RUST, SUN],
+  effects: {
+    tints: [NIGHT, OCEAN, RUST, SUN],
+    shadows: [BLACK, NIGHT, '#3D2B1F', OCEAN],
+    outlines: [WHITE, BLACK, NIGHT, SIGNAL],
+  },
   fonts: {
     headline: 'Raleway',
     body: 'PT Sans',

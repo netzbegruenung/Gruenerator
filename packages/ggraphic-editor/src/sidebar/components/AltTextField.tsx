@@ -4,7 +4,7 @@ import { useMessages } from '@ggraphic/editor/i18n/messages';
 import { useAutoSaveStore, useAutoSaveStoreApi } from '@ggraphic/editor/stores/useAutoSaveStore';
 import { useId } from 'react';
 
-import { MOBILE_INPUT_TEXT } from '../sidebarStyles';
+import { MOBILE_INPUT_TEXT } from '../sidebarStyles.js';
 
 /** Vorschlag aus dem Text auf der Leinwand; ohne Text gibt es keinen Vorschlag. */
 export function composeAltText(canvasText: string): string {

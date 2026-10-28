@@ -8,9 +8,9 @@ import { CanvasStoreProvider } from '@ggraphic/editor/stores/CanvasStoreProvider
 import { render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { Toolbar } from './Toolbar';
+import { Toolbar } from '@ggraphic/editor/components/Toolbar';
 
-import type { ShareDropdownProps } from './TopBar/ShareDropdown';
+import type { ShareDropdownProps } from '@ggraphic/editor/components/TopBar/ShareDropdown';
 
 const shareProps: ShareDropdownProps = {
   onCaptureCanvas: async () => null,

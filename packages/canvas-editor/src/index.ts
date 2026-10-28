@@ -19,7 +19,7 @@ export type { ControllableCanvasWrapperProps, CanvasInitialPropsMap } from './Ca
 export type {
   CanvasEditorExportApi,
   CanvasEditorHostChrome,
-} from './components/CanvasEditor/types';
+} from '@ggraphic/editor/components/CanvasEditor/types';
 export { EDITOR_KEY_SHIELD_ATTRIBUTE } from '@ggraphic/editor/components/CanvasEditor/hooks/usePageUndoRedoShortcuts';
 export { templateFitsFormat } from './utils/templateRegistry';
 export {
@@ -34,11 +34,8 @@ export type {
   CanvasAiEditBridge,
   CanvasSpecEditBridge,
 } from '@ggraphic/editor/CanvasEditorProvider';
-export type {
-  CanvasFeedbackService,
-  CanvasVorlagenService,
-  VorlagePage,
-} from './grueneratorHostServices';
+export type { CanvasFeedbackService } from '@ggraphic/editor/hostServices';
+export type { CanvasVorlagenService, VorlagePage } from './grueneratorHostServices';
 
 export { StandaloneCanvas } from '@ggraphic/editor/components/StandaloneCanvas';
 export { ConfigCanvas } from '@ggraphic/editor/components/ConfigCanvas';

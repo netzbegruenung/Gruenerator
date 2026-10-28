@@ -11,6 +11,7 @@
     ".": "./src/index.ts"
   },
   "scripts": {
+    "build": "tsc --project tsconfig.build.json",
     "test": "vitest run",
     "typecheck": "tsc --noEmit"
   },
@@ -26,5 +27,23 @@
   },
   "peerDependencies": {
     "react": "^19.0.0"
-  }
+  },
+  "publishConfig": {
+    "main": "./dist/index.js",
+    "types": "./dist/index.d.ts",
+    "exports": {
+      ".": {
+        "types": "./dist/index.d.ts",
+        "import": "./dist/index.js",
+        "default": "./dist/index.js"
+      }
+    }
+  },
+  "files": [
+    "dist",
+    "LICENSE",
+    "NOTICE",
+    "README.md",
+    "THIRD_PARTY_NOTICES"
+  ]
 }

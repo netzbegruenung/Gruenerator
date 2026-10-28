@@ -11,7 +11,7 @@ import {
 } from '@ggraphic/editor/utils/canvasCommandRegistry';
 import { useCallback, useEffect, useRef } from 'react';
 
-import type { CanvasContextMenuHandle } from '../../CanvasContextMenu/CanvasContextMenu';
+import type { CanvasContextMenuHandle } from '../../CanvasContextMenu/CanvasContextMenu.js';
 import type { GenericCanvasRef } from '@ggraphic/editor/components/GenericCanvas';
 import type { ClientPoint } from '@ggraphic/editor/utils/canvasCommands';
 import type React from 'react';

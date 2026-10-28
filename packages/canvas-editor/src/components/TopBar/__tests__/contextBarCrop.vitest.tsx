@@ -10,9 +10,9 @@ const uploads = vi.hoisted(() => ({ available: true }));
 vi.mock('@ggraphic/editor/sidebar/UserUploadsProvider', () => ({
   useOptionalUserUploads: () => (uploads.available ? { upload: async () => null } : null),
 }));
-import { ContextControls } from '../ContextControls';
+import { ContextControls } from '@ggraphic/editor/components/TopBar/ContextControls';
 import { CropModeControls } from '@ggraphic/editor/components/TopBar/CropModeControls';
-import { MobileSelectionBar } from '../MobileSelectionBar';
+import { MobileSelectionBar } from '@ggraphic/editor/components/TopBar/MobileSelectionBar';
 
 function setup(cropping = false, locked = false) {
   const crop = vi.fn();

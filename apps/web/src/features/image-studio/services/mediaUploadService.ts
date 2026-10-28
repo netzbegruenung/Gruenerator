@@ -25,7 +25,7 @@ interface MediaUploadResponse {
  * upload response's `shareUrl` — that is the human-facing share *page* (HTML),
  * which a canvas background can't render. This matches how the rest of the
  * canvas editor resolves a media item to an image (`buildPlacementUrl`,
- * UploadsSection, mediaItemToFile).
+ * UploadsSection).
  */
 export async function uploadBlobToMediaLibrary(
   blob: Blob,
