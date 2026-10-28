@@ -1102,11 +1102,18 @@ export async function streamAgenticResponse(
     sse.send('completion', { text: emitter.text, citations: sourceRegistry.getCitations() });
   }
 
-  // Nachvollziehbarkeit: selbst geladene Rezepte (`rezept_laden`) gewinnen —
-  // war die Wahl explizit (@presse), ist die Registry gar nicht montiert und
-  // der Wert aus `buildSystemMessage` bleibt stehen.
+  // Nachvollziehbarkeit: was die Registry trägt (`rezept_laden`, Agent-Default,
+  // Methoden-Rezepte wie `@bundestag`) kommt ZU dem, was `buildSystemMessage`
+  // schon ausgewiesen hat (eine ausdrücklich gewählte Textsorte) — beide
+  // standen im Prompt, die Zeile „Rezept: …" nennt beide.
   const loadedRecipes = loadedRecipeRegistry?.summaries() ?? [];
-  if (loadedRecipes.length > 0) finalState.usedRecipes = [...loadedRecipes];
+  if (loadedRecipes.length > 0) {
+    const fromPrompt = finalState.usedRecipes ?? [];
+    finalState.usedRecipes = [
+      ...fromPrompt,
+      ...loadedRecipes.filter((r) => !fromPrompt.some((p) => p.mention === r.mention)),
+    ];
+  }
   // A turn that pauses for approval above does not reach this line, so its
   // grant card lives only in the stream. That is acceptable: the drift stays
   // pending and the next turn on this server shows the card again.

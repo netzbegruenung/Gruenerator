@@ -9,7 +9,7 @@ router.intent_override           = (not reached)
 router.implicit_recipe           = (not reached)
 router.persistent_action_gate    = (not reached)
 classifier.tier                  = tier3.5_loop_demotion          confidence=0.5 demotable=true effectiveConfidence=0.5 heuristicIntent=direct selfContained=false
-respond.answer_format            = own_format                     complexity=moderate formatOwner=textform:Bundestag-Recherche intent=bundestag retrievalExpected=true sourceCount=0 synthesisMode=none taskShape=none
+respond.answer_format            = standard                       complexity=moderate intent=bundestag retrievalExpected=true sourceCount=0 synthesisMode=none taskShape=none
 loop.tool_guard                  = (none)
 loop.synth_verdict               = accepted                       textLength=135
 notebook.answer_mode             = (not reached)

@@ -775,4 +775,28 @@ describe('Blockliste — Auswahl und Reihenfolge', () => {
       )
     ).toContain('skill-fragment');
   });
+
+  // Mehrere Rezepte: die Methode (Bundestag-Recherche) steht NEBEN der Textsorte,
+  // im Einzelpfad im Prompt — im Loop trägt sie die Registry, nicht doppelt hier.
+  it('legt ein Methoden-Rezept neben die Textsorte, nur im Einzelpfad', async () => {
+    const state = makeState({
+      activeSkillMention: 'instagram',
+      methodSkillMentions: ['bundestagsrecherche'],
+    } as never);
+    const single = await buildSystemMessage(state);
+    expect(single).toContain('## RECHERCHE-METHODE: Bundestag-Recherche');
+    expect(single).toContain('## AKTIVE PLATTFORM: Instagram');
+    expect(single).toContain('RECHERCHE, BELEGE und ZITIERWEISE');
+    expect(state.usedRecipes?.map((r) => r.mention)).toEqual(['bundestagsrecherche', 'instagram']);
+
+    const loop = await buildSystemMessage(
+      makeState({
+        activeSkillMention: 'instagram',
+        methodSkillMentions: ['bundestagsrecherche'],
+      } as never),
+      { loop: true }
+    );
+    expect(loop).not.toContain('RECHERCHE-METHODE');
+    expect(loop).toContain('## AKTIVE PLATTFORM: Instagram');
+  });
 });

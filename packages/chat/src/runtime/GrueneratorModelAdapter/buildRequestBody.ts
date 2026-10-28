@@ -319,6 +319,16 @@ export function buildRequestBody(params: BuildRequestBodyParams): Record<string,
     // message is the explicit order. The backend prefers the durable
     // `skill:`-token anyway; this field is the compat carrier.
     activeSkillMention: typedSkillMention ?? (config.activeSkillMention || undefined),
+    // Der Composer-Chip, wenn die Nachricht zusätzlich ein Rezept nennt: der
+    // Server legt ein Methoden-Rezept (Bundestag-Recherche, Rechtsstand) dann
+    // NEBEN die Textsorte, statt dass die getippte Wahl den Chip still
+    // verdrängt. Zwei Textsorten entscheidet weiter der Server (getippt gewinnt).
+    ambientSkillMention:
+      typedSkillMention &&
+      config.activeSkillMention &&
+      config.activeSkillMention !== typedSkillMention
+        ? config.activeSkillMention
+        : undefined,
     // Only carried alongside the ambient (popover-selected) mention: a typed
     // `/mention` in the message text resolves its own skill server-side and
     // has no id at this layer. Set only when the active text form is a user

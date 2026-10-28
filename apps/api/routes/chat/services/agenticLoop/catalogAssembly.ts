@@ -325,6 +325,31 @@ export async function assembleToolCatalog(
     }
   }
 
+  // Methoden-Rezepte des Turns (`@bundestag` → Bundestag-Recherche, oder
+  // ausdrücklich gewählt): vorab in die Registry, als `methode`. Sie belegen den
+  // Textsorten-Platz nicht — `rezept_laden` unten bleibt deshalb montiert, und
+  // eine gewählte Textsorte steht weiter im Systemprompt (`buildSystemMessage`).
+  // Der Single-Pass-Pfad lädt dieselbe Liste im Prompt; hier nicht doppelt,
+  // weil der Loop-Prompt mit `loop: true` gebaut wird und die Methoden dort
+  // auslässt.
+  for (const mention of state.methodSkillMentions ?? []) {
+    const resolved = await deps.resolveRecipe({ mention, userId: userId ?? null });
+    if (!resolved) {
+      log.warn(`[Rezept] Methode nicht verfügbar: ${mention}`);
+      continue;
+    }
+    const outcome = recipeRegistry.register({
+      mention,
+      title: resolved.title,
+      body: resolved.body,
+      source: resolved.source,
+      recommendedTools: recommendedToolsFor(mention, isMounted),
+      preloaded: true,
+      rolle: 'methode',
+    });
+    log.info(`[Rezept] Methode vorab geladen=${mention} (${outcome})`);
+  }
+
   // Self-loading recipes. Mounted async like the MCP catalogs (the user's
   // learned text forms need a DB read), and only when nothing already
   // decides the writing form for this turn:

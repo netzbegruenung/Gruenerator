@@ -83,9 +83,32 @@ describe('eine einzelne Erwähnung zurrt ihren Intent fest', () => {
     expect(state.mentionPinnedTool).toBe('bundestag');
   });
 
-  it('@bundestag lädt zusätzlich das Rezept bundestagsrecherche', async () => {
+  // Bundestag-Recherche ist ein METHODEN-Rezept: es regelt Recherche und
+  // Belege, nicht die Form, und belegt den exklusiven Textsorten-Platz nicht —
+  // sonst bliebe `rezept_laden` zu und die Bürgeranfrage fände ihr Rezept nie.
+  it('@bundestag lädt zusätzlich das Rezept bundestagsrecherche — als Methode', async () => {
     const { state } = await run(['bundestag']);
-    expect(state.activeSkillMention).toBe('bundestagsrecherche');
+    expect(state.methodSkillMentions).toEqual(['bundestagsrecherche']);
+    expect(state.activeSkillMention ?? null).toBe(null);
+  });
+
+  it('@bundestag lässt eine gewählte Textsorte stehen und legt die Methode daneben', async () => {
+    const { state } = await run(['bundestag'], { state: { activeSkillMention: 'buerger-berlin' } });
+    expect(state.activeSkillMention).toBe('buerger-berlin');
+    expect(state.methodSkillMentions).toEqual(['bundestagsrecherche']);
+  });
+
+  it('eine Textsorten-Erwähnung nach @bundestag bekommt den freien Platz', async () => {
+    const { state } = await run(['bundestag', 'pressemitteilung_examples']);
+    expect(state.activeSkillMention).toBe('presse');
+    expect(state.methodSkillMentions).toEqual(['bundestagsrecherche']);
+  });
+
+  it('stapelt dieselbe Methode nicht doppelt', async () => {
+    const { state } = await run(['bundestag'], {
+      state: { methodSkillMentions: ['bundestagsrecherche'] },
+    });
+    expect(state.methodSkillMentions).toEqual(['bundestagsrecherche']);
   });
 
   it('setzt die Markierung nicht ohne Erwähnung', async () => {

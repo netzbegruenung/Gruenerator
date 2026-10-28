@@ -71,8 +71,9 @@ export interface LoopScenario {
    * schreibt — und Letzteres ist sonst nirgends beobachtbar, weil die
    * Entscheidungskarte den Systemtext nicht rendert. Der Rezepttext selbst ist
    * parteiintern und in der Prüfung gedoppelt (`internalPromptsMock`).
+   * Mehrere Stücke als Liste — jedes muss vorkommen (Methode UND Textsorte).
    */
-  systemIncludes?: string;
+  systemIncludes?: string | readonly string[];
   /**
    * Ein Textstück, das im Systemtext des SCHREIBERS stehen MUSS (split: der
    * letzte Aufruf des Turns).
@@ -295,8 +296,30 @@ export const LOOP_SCENARIOS: readonly LoopScenario[] = [
     mustDecide: [{ point: 'router.run_agentic', chose: 'loop' }],
     firstToolChoice: 'bundestag',
     // `@bundestag` laedt das Rezept `bundestagsrecherche` mit (`activatesSkill`) —
-    // ein Eintrag im Menue statt zwei. Wie bei `presse` traegt der Titel den Beleg.
-    systemIncludes: '## AKTIVE PLATTFORM: Bundestag-Recherche',
+    // ein Eintrag im Menue statt zwei. Es ist ein METHODEN-Rezept: eigene
+    // Ueberschrift aus der Rezept-Registry, nicht der Textsorten-Platz.
+    systemIncludes: '## RECHERCHE-METHODE: Bundestag-Recherche',
+  },
+  // Mehrere Rezepte in einem Turn: die Bundestag-Recherche (Methode, aus
+  // `@bundestag`) und die gewaehlte Buergeranfrage (Textsorte, Composer-Chip)
+  // stehen BEIDE im Systemtext. Bis 10/2026 belegte `@bundestag` den einzigen
+  // Rezept-Platz; mit gewaehlter Textsorte lud es sein Rezept gar nicht.
+  {
+    id: 'mention-bundestag-plus-textsorte',
+    category: 'mention-lane',
+    note: 'Keine Modellannahme: `@bundestag` zurrt Intent und Methode deterministisch fest (forcedIntentStage), die Textsorte kommt aus dem Body (`activeSkillMention`). Beide Rezepte landen ohne Modellentscheidung im Prompt — die Methode ueber die Registry, die Textsorte ueber `buildSystemMessage`.',
+    prompt: 'Recherchiere im Bundestag zum Heizungsgesetz und beantworte diese Buergeranfrage.',
+    body: { forcedTools: ['bundestag'], activeSkillMention: 'buerger-berlin' },
+    streams: [
+      { calls: [{ tool: 'bundestag', args: { query: 'Heizungsgesetz' } }] },
+      { text: GERMAN_ANSWER },
+    ],
+    mustDecide: [{ point: 'router.run_agentic', chose: 'loop' }],
+    firstToolChoice: 'bundestag',
+    systemIncludes: [
+      '## RECHERCHE-METHODE: Bundestag-Recherche',
+      '## AKTIVE PLATTFORM: Bürger*innen-Mail Berlin',
+    ],
   },
   // Der Degradierungsfall, den Phase N erst nötig gemacht hat: die dünne
   // Einzeldurchlauf-Tür der Parlaments-Abrufe ist gefallen, der Kern hängt nur

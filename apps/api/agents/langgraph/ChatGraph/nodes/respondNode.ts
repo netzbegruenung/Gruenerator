@@ -13,6 +13,10 @@ import { type ChatIntentId, isGroundableProse } from '@gruenerator/shared/chat-i
 import { roleAwareDefaultRecipeMention } from '../../../../routes/chat/agents/lvRecipePreference.js';
 import { isTabelleAuswertenMountable } from '../../../../routes/chat/agents/tabelleAuswertenTool.js';
 import {
+  METHOD_PRECEDENCE_NOTE,
+  renderMethodRecipeBlock,
+} from '../../../../routes/chat/services/agenticLoop/recipeRegistry.js';
+import {
   EDITOR_SURFACE_NOUNS,
   looksLikeChitchatTurn,
   resolveEditorSurfaceKind,
@@ -2204,9 +2208,35 @@ async function buildPromptBlockContext(state: ChatGraphState, opts: SystemMessag
   // („## AKTIVE PLATTFORM: PM Hessen (Partei)"), auch wenn der Rumpf ein
   // angelernter Stil ist — der Stil ersetzt den Rezepttext, nicht das Rezept.
   // Nur die freie Mention ohne Systemrezept läuft unter ihrem eigenen Namen.
-  const skillFragment = resolved
+  const textFormFragment = resolved
     ? `\n\n## AKTIVE ${resolved.replacesSystem || resolved.source === 'system' ? 'PLATTFORM' : 'TEXTFORM'}: ${resolved.title}\n${resolved.body}${offerNote(state, [resolved.mention])}`
     : '';
+
+  // Methoden-Rezepte (`@bundestag` → Bundestag-Recherche, Rechtsstand) stehen
+  // NEBEN der Textsorte, nicht an ihrer Stelle — eigene Überschrift, eigene
+  // Vorrangregel. Im Loop trägt sie die Rezept-Registry (`catalogAssembly`),
+  // hier stünden sie sonst doppelt im Prompt.
+  const methodRecipes = opts.loop
+    ? []
+    : (
+        await Promise.all(
+          (state.methodSkillMentions ?? [])
+            .filter((mention) => mention !== resolved?.mention)
+            .map((mention) =>
+              resolveRecipeBody({
+                mention,
+                recipeId: null,
+                userId: isNeutralTurn ? null : (agentConfig.userId ?? null),
+              })
+            )
+        )
+      ).filter((r): r is NonNullable<typeof r> => r !== null);
+  const methodFragment = methodRecipes.length
+    ? `\n\n${methodRecipes.map((r) => renderMethodRecipeBlock(r.title, r.body)).join('\n\n')}`
+    : '';
+  const skillFragment = methodFragment
+    ? `${methodFragment}${textFormFragment}\n\n${METHOD_PRECEDENCE_NOTE}`
+    : textFormFragment;
 
   // Dieselbe Vokabel wie die Werkzeug-Tür (`[recipeTools] [Rezept] gewählt=…
   // quelle=…`), damit im Log vergleichbar wird, welcher der beiden Wege ein
@@ -2235,15 +2265,17 @@ async function buildPromptBlockContext(state: ChatGraphState, opts: SystemMessag
   // gepinntes Rezept läuft unter seinem eigenen Namen, und die Abzeichenzeile
   // soll dasselbe nennen wie die Überschrift im Prompt (#2939). Der Prompttext
   // bleibt draußen — hier steht nur, WAS galt.
-  if (resolved) {
-    state.usedRecipes = [
-      {
-        mention: resolved.mention,
-        title: resolved.title,
-        source: resolved.source,
-        ...(resolved.id ? { id: resolved.id } : {}),
-      },
-    ];
+  const promptRecipes = [...methodRecipes, ...(resolved ? [resolved] : [])];
+  if (methodRecipes.length) {
+    log.info(`[Rezept] Methoden im Prompt: ${methodRecipes.map((r) => r.mention).join(',')}`);
+  }
+  if (promptRecipes.length > 0) {
+    state.usedRecipes = promptRecipes.map((r) => ({
+      mention: r.mention,
+      title: r.title,
+      source: r.source,
+      ...(r.id ? { id: r.id } : {}),
+    }));
   }
 
   const shared = {

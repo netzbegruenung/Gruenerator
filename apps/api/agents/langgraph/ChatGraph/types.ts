@@ -647,6 +647,8 @@ export interface ChatGraphInput {
   /** Die im Turn aktive Rolle (aufgelöste `roleRef`) — Quelle des LV-Rezept-Vorzugs. */
   activeRole?: RoleLandesverbandInput | null | undefined;
   activeSkillMention?: string | undefined;
+  /** Gewählte Methoden-Rezepte (`skillRole === 'methode'`). Siehe `ChatGraphState.methodSkillMentions`. */
+  methodSkillMentions?: string[] | undefined;
   /** Zeilen-id der gewählten Textform. Schlägt die Mention beim Nachschlag. */
   activeRecipeId?: string | undefined;
   userInstructions?: string | undefined;
@@ -960,6 +962,15 @@ export interface ChatGraphState {
   // Mention key of the active skill (e.g. 'instagram'). When set, respondNode
   // appends the skill's `skillSystemPrompt` as an additive section.
   activeSkillMention: string | null;
+
+  // Methoden-Rezepte des Turns (Bundestag-Recherche, Rechtsstand): sie regeln
+  // Recherche, Belege und Zitierweise und belegen NICHT den exklusiven
+  // Textsorten-Platz `activeSkillMention` — eine Bürgeranfrage mit
+  // Bundestag-Recherche braucht beide. Gesetzt aus der Wahl der Person
+  // (`skill:`-Token/Composer, streamContext) und aus `activatesSkill` einer
+  // Erwähnung wie `@bundestag` (forcedIntentStage). Geladen im Single-Pass von
+  // `buildSystemMessage`, im Loop über die Rezept-Registry (`catalogAssembly`).
+  methodSkillMentions?: string[];
 
   // Zeilen-id der gewählten angelernten Textform. Sie ist der stabile
   // Schlüssel: eine Umbenennung der Mention tauscht das Rezept damit nicht
