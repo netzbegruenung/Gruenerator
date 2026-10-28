@@ -79,6 +79,26 @@ describe('countBundestag', () => {
     expect(list.mock.calls[1]![1]).not.toHaveProperty('f.wahlperiode');
   });
 
+  it('endet das genannte Fenster heute (Berlin), nicht am Monatsende', async () => {
+    // Live 28.10.2026: „25.03.2025 bis 31.10.2026“ stand als Fenster, obwohl heute der 28. ist.
+    const { dip } = dipWith(() => 4);
+    const r = await countBundestag({
+      filters: { wahlperiode: [21] },
+      gruppieren: 'monat',
+      dip,
+      today: new Date(Date.UTC(2026, 9, 28, 12)),
+    });
+    expect(r.filters.datumBis).toBe('2026-10-28');
+    // 23:30 UTC am 28.10. ist in Berlin (MEZ) schon der 29.
+    const spaet = await countBundestag({
+      filters: { wahlperiode: [21] },
+      gruppieren: 'monat',
+      dip,
+      today: new Date(Date.UTC(2026, 9, 28, 23, 30)),
+    });
+    expect(spaet.filters.datumBis).toBe('2026-10-29');
+  });
+
   it('zählt bei Wahlperiode ohne Zeitraum ab Beginn der Wahlperiode und nennt das Fenster', async () => {
     // Live 28.10.2026 (z1): „in dieser Wahlperiode" ergab nur die letzten zwölf Monate.
     const { dip, list } = dipWith(() => 4);

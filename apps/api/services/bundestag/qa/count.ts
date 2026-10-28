@@ -65,6 +65,11 @@ const MONTH_NAMES = [
   'Dezember',
 ];
 
+/** Das Berliner Kalenderdatum (ISO) zu einem Zeitpunkt; um Mitternacht UTC ist es dort schon der Folgetag. */
+function berlinDate(d: Date): string {
+  return new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Berlin' }).format(d);
+}
+
 interface Month {
   y: number;
   m: number;
@@ -189,7 +194,8 @@ export async function countBundestag({
   // (der Zeitraum trägt allein).
   let months: Month[] = [];
   if (groupBy === 'monat') {
-    const endM: Month = { y: today.getUTCFullYear(), m: today.getUTCMonth() + 1 };
+    const heute = berlinDate(today);
+    const endM: Month = { y: Number(heute.slice(0, 4)), m: Number(heute.slice(5, 7)) };
     const ranges = (f.wahlperiode ?? []).map((w) => WAHLPERIODE_RANGE[w]);
     if (!f.datumVon && !f.datumBis && ranges.length > 0 && ranges.every((r) => r != null)) {
       // „in dieser Wahlperiode“ meint die ganze Wahlperiode, nicht ein Jahr davon.
@@ -205,7 +211,8 @@ export async function countBundestag({
       f.datumVon = `${Math.floor(idx / 12)}-${p2((idx % 12) + 1)}-01`;
       notes.push(`Kein Zeitraum genannt, gezählt wurden die letzten ${DEFAULT_MONTHS} Monate.`);
     }
-    f.datumBis ??= `${endM.y}-${p2(endM.m)}-${p2(lastDay(endM.y, endM.m))}`;
+    // Das Fenster endet heute, nicht am Monatsende: „bis 31.10.“ am 28.10. wäre eine falsche Angabe.
+    f.datumBis ??= heute;
     f.datumVon ??= `${f.datumBis.slice(0, 4)}-01-01`;
     months = monthsBetween(f.datumVon, f.datumBis);
     if (months.length > MAX_MONTHS) {
