@@ -680,6 +680,13 @@ export const en: Messages = {
       currentPage: 'Current page',
       selectPages: 'Select pages',
       defaultMark: '(default)',
+      impressumMissingNotice: 'The imprint is not complete yet – you can still download.',
+      impressumHeading: 'Complete the imprint',
+      impressumNameRequired: (field) => `Please enter ${field}.`,
+      impressumAddress: 'Address',
+      impressumAddressPlaceholder: 'Street no., postcode city',
+      impressumAddressRequired: 'Please enter the address.',
+      impressumSubmit: 'Apply',
     },
   },
 

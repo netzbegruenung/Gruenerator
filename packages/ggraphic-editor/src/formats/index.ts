@@ -259,12 +259,24 @@ function isKnownGroup(id: string): boolean {
   );
 }
 
-/** Replaces the host's format groups (an empty list clears them). Ids must be unique and not built-in. */
+/**
+ * Replaces the host's format groups (an empty list clears them). Ids must be
+ * unique and not built-in. Register groups before formats: a replacement that
+ * would leave an already registered host format without its group throws, so
+ * clear or re-register the formats first.
+ */
 export function registerCanvasFormatGroups(groups: ReadonlyArray<CanvasFormatGroupDef>): void {
   const seen = new Set<string>(BUILT_IN_GROUPS);
   for (const g of groups) {
     if (seen.has(g.id)) throw new Error(`Canvas format group id '${g.id}' is already taken`);
     seen.add(g.id);
+  }
+  for (const f of hostFormats) {
+    if (!seen.has(f.group)) {
+      throw new Error(
+        `Canvas format '${f.id}' still uses group '${f.group}', which the replacement removes`
+      );
+    }
   }
   hostGroups = [...groups];
 }

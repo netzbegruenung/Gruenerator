@@ -691,6 +691,14 @@ export const de = {
       currentPage: 'Aktuelle Seite',
       selectPages: 'Seiten auswählen',
       defaultMark: '(Standard)',
+      impressumMissingNotice:
+        'Noch kein vollständiges Impressum – herunterladen kannst du trotzdem.',
+      impressumHeading: 'Impressum ergänzen',
+      impressumNameRequired: (field: string) => `Bitte ${field} eintragen.`,
+      impressumAddress: 'Anschrift',
+      impressumAddressPlaceholder: 'Straße Nr., PLZ Ort',
+      impressumAddressRequired: 'Bitte Anschrift eintragen.',
+      impressumSubmit: 'Übernehmen',
     },
   },
 
