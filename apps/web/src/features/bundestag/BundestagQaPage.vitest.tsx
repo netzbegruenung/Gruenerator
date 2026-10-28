@@ -132,6 +132,43 @@ describe('BundestagQaPage', () => {
     await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent(text));
   });
 
+  it('schickt bearbeitete Filter und Auswahl an answer; erster Plan ohne, Neu-Suche mit Filtern', async () => {
+    const planBodies: Array<Record<string, unknown>> = [];
+    let sent: { filters: { drucksachetyp?: string[] }; refs: string[] } | null = null;
+    const two = {
+      ...planBody,
+      candidates: [
+        planBody.candidates[0],
+        { ...planBody.candidates[0], ref: '21/101', dokumentnummer: '21/101', dipId: '2' },
+      ],
+    };
+    server.use(
+      http.post(PLAN, async ({ request }) => {
+        planBodies.push((await request.json()) as Record<string, unknown>);
+        return HttpResponse.json(two);
+      }),
+      http.post(ANSWER, async ({ request }) => {
+        sent = (await request.json()) as typeof sent;
+        return HttpResponse.json(answerBody);
+      })
+    );
+    const { user } = renderWithProviders(<BundestagQaPage />);
+    await askAndPlan(user);
+    expect(planBodies[0]).not.toHaveProperty('filters');
+
+    await user.click(screen.getByLabelText('Antrag'));
+    await user.click(screen.getByLabelText('Gesetzentwurf'));
+    await user.click(screen.getByRole('checkbox', { name: /21\/101/ }));
+    await user.click(screen.getByRole('button', { name: 'Frage beantworten' }));
+    await screen.findByRole('button', { name: 'Zu Beleg 1 springen' });
+    expect(sent!.refs).toEqual(['21/100']);
+    expect(sent!.filters.drucksachetyp).toEqual(['Gesetzentwurf']);
+
+    await user.click(screen.getByRole('button', { name: 'Mit diesen Filtern neu suchen' }));
+    await waitFor(() => expect(planBodies).toHaveLength(2));
+    expect(planBodies[1]).toHaveProperty('filters');
+  });
+
   it('zeigt bei plan 403 eine Meldung', async () => {
     server.use(http.post(PLAN, () => HttpResponse.json({ error: 'x' }, { status: 403 })));
     const { user } = renderWithProviders(<BundestagQaPage />);

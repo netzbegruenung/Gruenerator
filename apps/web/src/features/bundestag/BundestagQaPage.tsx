@@ -209,7 +209,7 @@ export function BundestagQaPage() {
             </Button>
           </div>
           {plan.isError && (
-            <p role="alert" className="text-error-600">
+            <p role="alert" className="text-error">
               {plan.error.message}
             </p>
           )}
@@ -315,7 +315,7 @@ export function BundestagQaPage() {
                         onClick={() =>
                           setFilters((f) => ({ ...f, deskriptor: toggle(f.deskriptor, d) }))
                         }
-                        className="rounded-full border border-border bg-background-muted px-sm py-0.5 text-sm focus-visible:outline-2 focus-visible:outline-primary-500"
+                        className="rounded-full border border-border bg-muted px-sm py-0.5 text-sm focus-visible:outline-2 focus-visible:outline-primary-500"
                       >
                         {d} ×
                       </button>
@@ -362,7 +362,7 @@ export function BundestagQaPage() {
                           href={c.pdfUrl}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="ml-lg text-sm text-primary-600 underline"
+                          className="ml-lg text-sm text-primary-600 underline focus-visible:outline-2 focus-visible:outline-primary-500"
                         >
                           PDF öffnen<span className="sr-only"> ({c.ref}, neues Fenster)</span>
                         </a>
@@ -372,7 +372,7 @@ export function BundestagQaPage() {
                 </ul>
               )}
               {overLimit && (
-                <p role="alert" className="text-error-600">
+                <p role="alert" className="text-error">
                   Höchstens {MAX_REFS} Dokumente auswählen.
                 </p>
               )}
@@ -419,7 +419,7 @@ export function BundestagQaPage() {
                 </p>
               )}
               {answer.isError && (
-                <p role="alert" className="text-error-600">
+                <p role="alert" className="text-error">
                   {answer.error.message}
                 </p>
               )}
@@ -448,7 +448,7 @@ export function BundestagQaPage() {
                   key={c.n}
                   id={`beleg-${c.n}`}
                   tabIndex={-1}
-                  className="rounded-md border border-border p-sm focus-visible:outline-2 focus-visible:outline-primary-500"
+                  className="rounded-md border border-border p-sm focus:outline-2 focus:outline-primary-500"
                 >
                   <p className="font-medium">
                     [{c.n}] {c.ref} · {c.drucksachetyp} · {c.datum}
@@ -463,7 +463,7 @@ export function BundestagQaPage() {
                       href={c.pdfUrl}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="text-sm text-primary-600 underline"
+                      className="text-sm text-primary-600 underline focus-visible:outline-2 focus-visible:outline-primary-500"
                     >
                       PDF öffnen<span className="sr-only"> (Beleg {c.n}, neues Fenster)</span>
                     </a>
@@ -474,7 +474,7 @@ export function BundestagQaPage() {
 
             <h3 className="text-lg font-semibold text-foreground-heading">Diagnose je Dokument</h3>
             <div className="overflow-x-auto">
-              <table className="w-full text-left text-sm">
+              <table className="w-full text-left text-sm [&_td]:p-xs [&_th]:p-xs">
                 <caption className="sr-only">Diagnose je gelesenem Dokument</caption>
                 <thead>
                   <tr>
