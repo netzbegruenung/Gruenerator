@@ -86,7 +86,8 @@ const WP_RE = /\b(?:wp|wahlperiode)\s*(\d{1,2})\b/i;
 function detectDeterministic(question: string): BundestagFilter {
   const found: BundestagFilter = {};
   const wp = question.match(WP_RE);
-  if (wp) found.wahlperiode = [Number(wp[1])];
+  // Nur 1..30 sind Wahlperioden (wie im Contract); „WP 99" ignorieren.
+  if (wp && Number(wp[1]) >= 1 && Number(wp[1]) <= 30) found.wahlperiode = [Number(wp[1])];
   const drs = question.match(EXPLICIT_DRS_RE) ?? question.match(BARE_DRS_RE);
   if (drs) {
     found.dokumentnummer = [`${drs[1]}/${drs[2]}`];
@@ -102,8 +103,9 @@ const modelOutputSchema = z.object({
   wahlperiode: z.array(z.number().int().min(1).max(30)).max(3).optional(),
   drucksachetyp: z.array(z.string()).optional(),
   urheber: z.array(z.string()).optional(),
-  datumVon: bundestagFilterSchema.shape.datumVon,
-  datumBis: bundestagFilterSchema.shape.datumBis,
+  // Datum nur als String prüfen; ein krummes Datum soll nicht die ganze Antwort kippen.
+  datumVon: z.string().optional(),
+  datumBis: z.string().optional(),
   deskriptor: z.array(z.string().min(2).max(80)).max(4).optional(),
   titel: bundestagFilterSchema.shape.titel,
 });
@@ -130,6 +132,15 @@ function keepKnown<T extends string>(values: string[] | undefined, schema: z.Zod
     if (p.success && !out.includes(p.data)) out.push(p.data);
   }
   return out;
+}
+
+const ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+
+function isoDate(value: string | undefined, name: string, notes: string[]): boolean {
+  if (!value) return false;
+  if (ISO_DATE_RE.test(value)) return true;
+  notes.push(`${name} „${value}" ist kein Datum im Format JJJJ-MM-TT und wurde verworfen.`);
+  return false;
 }
 
 const SYSTEM = `Du übersetzt eine Frage zum Deutschen Bundestag in Suchfilter für die DIP-Datenbank.
@@ -188,8 +199,8 @@ export async function planFilters({
         ...(out.wahlperiode?.length ? { wahlperiode: out.wahlperiode } : {}),
         ...(drucksachetyp.length ? { drucksachetyp } : {}),
         ...(urheber.length ? { urheber } : {}),
-        ...(out.datumVon ? { datumVon: out.datumVon } : {}),
-        ...(out.datumBis ? { datumBis: out.datumBis } : {}),
+        ...(isoDate(out.datumVon, 'datumVon', notes) ? { datumVon: out.datumVon } : {}),
+        ...(isoDate(out.datumBis, 'datumBis', notes) ? { datumBis: out.datumBis } : {}),
         ...(out.deskriptor?.length ? { deskriptor: out.deskriptor } : {}),
         ...(out.titel ? { titel: out.titel } : {}),
       };
@@ -202,7 +213,19 @@ export async function planFilters({
   }
 
   // Vorrang: explicit > deterministisch erkannt > Modell.
-  const filters: BundestagFilter = { ...fromModel, ...detected, ...explicit };
+  // Schlüssel mit Wert undefined dürfen erkannte Filter nicht überschreiben.
+  const given = Object.fromEntries(
+    Object.entries(explicit).filter(([, v]) => v !== undefined)
+  ) as BundestagFilter;
+  const filters: BundestagFilter = { ...fromModel, ...detected, ...given };
+
+  // Die Vorbelegung gilt schon fürs Zählen, damit es dieselbe Periode nutzt wie die Suche.
+  let assumedWahlperiode = false;
+  if (!filters.wahlperiode?.length) {
+    filters.wahlperiode = [CURRENT_WAHLPERIODE];
+    assumedWahlperiode = true;
+    notes.push(`Keine Wahlperiode genannt, angenommen wurde die ${CURRENT_WAHLPERIODE}.`);
+  }
 
   if (filters.deskriptor?.length) {
     const kept: string[] = [];
@@ -221,13 +244,6 @@ export async function planFilters({
     }
     if (kept.length) filters.deskriptor = kept;
     else delete filters.deskriptor;
-  }
-
-  let assumedWahlperiode = false;
-  if (!filters.wahlperiode?.length) {
-    filters.wahlperiode = [CURRENT_WAHLPERIODE];
-    assumedWahlperiode = true;
-    notes.push(`Keine Wahlperiode genannt, angenommen wurde die ${CURRENT_WAHLPERIODE}.`);
   }
 
   return { filters, keywords, notes, assumedWahlperiode };

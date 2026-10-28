@@ -93,6 +93,50 @@ describe('planFilters', () => {
   });
 });
 
+describe('planFilters Randfälle', () => {
+  it('verwirft ein krummes Datum mit Notiz, behält den Rest', async () => {
+    model({
+      keywords: ['klima', 'schutz', 'gesetz'],
+      datumVon: '1.1.2024',
+      datumBis: '2024-12-31',
+    });
+    const r = await planFilters({ question: 'Klimaschutz', explicit: {}, dip: dipWith({}) });
+    expect(r.filters.datumVon).toBeUndefined();
+    expect(r.filters.datumBis).toBe('2024-12-31');
+    expect(r.notes.some((n) => n.includes('datumVon'))).toBe(true);
+  });
+
+  it('ignoriert Wahlperiode 99', async () => {
+    model({ keywords: ['klima', 'schutz', 'gesetz'] });
+    const r = await planFilters({
+      question: 'Wahlperiode 99 Klima',
+      explicit: {},
+      dip: dipWith({}),
+    });
+    expect(r.filters.wahlperiode).toEqual([21]);
+  });
+
+  it('zählt Deskriptoren mit der vorbelegten Wahlperiode 21', async () => {
+    model({ keywords: ['wärme', 'pumpe', 'förderung'], deskriptor: ['Wärmepumpe'] });
+    const dip = dipWith({ Wärmepumpe: 3 });
+    await planFilters({ question: 'Wärmepumpe', explicit: {}, dip });
+    expect(dip.list).toHaveBeenCalledWith(
+      'vorgang',
+      expect.objectContaining({ 'f.wahlperiode': [21] })
+    );
+  });
+
+  it('explicit mit undefined-Werten überschreibt Erkanntes nicht', async () => {
+    model({ keywords: ['klima', 'schutz', 'gesetz'] });
+    const r = await planFilters({
+      question: 'WP 20 Klima',
+      explicit: { wahlperiode: undefined },
+      dip: dipWith({}),
+    });
+    expect(r.filters.wahlperiode).toEqual([20]);
+  });
+});
+
 describe('keywordsFromQuestion', () => {
   it('nimmt Wörter ab 5 Zeichen, klein, ohne Dubletten und Stoppwörter, max 8', () => {
     const k = keywordsFromQuestion(
