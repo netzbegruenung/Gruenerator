@@ -1,9 +1,8 @@
 /**
  * The Grünerator's part of the editor shell: the „Vorlagen" tab and, around
  * the editor, its blocks and the idle warm-ups of the Elemente and Tools tabs;
- * the menu bar with its share menu and Impressum gate; the page picker with
- * the slider variants and the CD slide layouts; and the host callbacks each
- * template declares. The shell (`./index.tsx`) imports this file for its side
+ * the page picker with the slider variants and the CD slide layouts; the
+ * host callbacks each template declares; and a deck's country (fonts). The shell (`./index.tsx`) imports this file for its side
  * effect, so every program that renders the editor has them installed.
  */
 import {
@@ -11,9 +10,8 @@ import {
   type EditorPagePickerProps,
   type EditorShellProviderProps,
   type EditorTabSectionProps,
-  type EditorToolbarProps,
 } from '@ggraphic/editor/components/CanvasEditor/editorShell';
-import { useCallback, useMemo } from 'react';
+import { useCallback } from 'react';
 
 import { HOST_CALLBACK_KEYS } from '../../hostCallbackKeys';
 import { usePreloadElements, usePreloadTools } from '../../sidebar/sections/preloadElements';
@@ -25,10 +23,8 @@ import {
 } from '../../slides/slideLayouts';
 import { getCategoryForTemplate } from '../../utils/templateRegistry';
 import { TemplatePickerFlyout } from '../TemplatePickerFlyout';
-import { Toolbar } from '../Toolbar';
 
 import { BlockInsertProvider } from './blockInsert';
-import { usePrintImpressumGate } from './hooks/usePrintImpressumGate';
 import { formatHasVorlagen, vorlagenTab, vorlagenTabIndex } from './vorlagenTab';
 
 import type { CanvasConfigId } from '../../templates/registry';
@@ -54,25 +50,6 @@ function GrueneratorEditorProvider({
   usePreloadElements(configTabIds.some((id) => id === 'elements' || id === 'assets'));
   usePreloadTools(configTabIds.includes('tools'));
   return <BlockInsertProvider {...blocks}>{children}</BlockInsertProvider>;
-}
-
-/** The menu bar; adds the Impressum gate and the deck's font hint to the share menu. */
-function GrueneratorToolbar({ share, pages, observedPages, ...bar }: EditorToolbarProps) {
-  // Every poster page should carry a filled-in V.i.S.d.P. / Impressum, whichever
-  // page is active; the download warns (never blocks) once every page has reported.
-  const impressum = usePrintImpressumGate(share?.printExport?.format ?? null, pages, observedPages);
-  // Als String, damit Notiz-Tippen (neues `pages`) die Leiste nicht neu baut
-  const deckLocale = deckLocaleOf(pages);
-  const shareProps = useMemo(
-    () =>
-      share && {
-        ...share,
-        printExport: share.printExport && { ...share.printExport, impressum },
-        slideDeck: share.slideDeck && { ...share.slideDeck, locale: deckLocale },
-      },
-    [share, impressum, deckLocale]
-  );
-  return <Toolbar {...bar} shareProps={shareProps ?? undefined} />;
 }
 
 /** The template picker: the country's templates, slider variants and slide layouts. */
@@ -148,7 +125,6 @@ registerEditorShell({
     },
   ],
   Provider: GrueneratorEditorProvider,
-  Toolbar: GrueneratorToolbar,
   pagePicker: {
     Picker: GrueneratorPagePicker,
     // Slider decks have no sensible single "quick add" — a page is explicitly a
@@ -158,4 +134,5 @@ registerEditorShell({
   // Boundary: a page of an unknown template declares no host callbacks.
   pageCallbackKeys: (configId) =>
     (HOST_CALLBACK_KEYS as Partial<Record<string, readonly string[]>>)[configId] ?? [],
+  deckLocale: deckLocaleOf,
 });

@@ -10,7 +10,7 @@ import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { ShareDropdown } from '../ShareDropdown';
+import { ShareDropdown } from '@ggraphic/editor/components/TopBar/ShareDropdown';
 
 /**
  * Androids System-WebView kennt kein `navigator.share` — in der App verschwand
@@ -21,7 +21,14 @@ import { ShareDropdown } from '../ShareDropdown';
 const DATA_URL = 'data:image/png;base64,aGVsbG8=';
 
 // The @gruenerator/shared file delivery, injected the way apps/web does it.
-const fileDelivery = { downloadBlob, downloadDataUrl, pickShareRoute, shareDataUrlViaNativeHost };
+const fileDelivery = {
+  downloadBlob,
+  downloadDataUrl,
+  pickShareRoute,
+  shareDataUrlViaNativeHost,
+  filenamePrefix: 'gruenerator',
+  shareTitle: 'Grünerator Share',
+};
 
 function renderDropdown() {
   return render(

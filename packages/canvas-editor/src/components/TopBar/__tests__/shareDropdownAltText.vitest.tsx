@@ -8,7 +8,7 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { ShareDropdown } from '../ShareDropdown';
+import { ShareDropdown } from '@ggraphic/editor/components/TopBar/ShareDropdown';
 
 // The host's file delivery says the page can use the Web Share API.
 const services: CanvasEditorServices = {

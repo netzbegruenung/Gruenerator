@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 import { useCanvasEditorServices } from '@ggraphic/editor/CanvasEditorProvider';
 import { browserFileDelivery } from '@ggraphic/editor/hostServices';
 import { useAutoSaveStoreApi } from '@ggraphic/editor/stores/useAutoSaveStore';
@@ -124,6 +125,8 @@ export function ShareDropdown({
   const autoSaveStoreApi = useAutoSaveStoreApi();
   const { fileDelivery = browserFileDelivery, imageShares, feedback } = useCanvasEditorServices();
   const shareRoute = fileDelivery.pickShareRoute();
+  const shareFileName = `${fileDelivery.filenamePrefix ?? 'ggraphic'}.png`;
+  const shareTitle = fileDelivery.shareTitle ?? 'ggraphic';
 
   const publishDraftIfNeeded = useCallback(async () => {
     const token = shareToken || autoSaveStoreApi.getState().autoSavedShareToken;
@@ -142,18 +145,18 @@ export function ShareDropdown({
       const dataUrl = await onCaptureCanvas();
       if (!dataUrl) return;
       if (shareRoute === 'native-host') {
-        fileDelivery.shareDataUrlViaNativeHost(dataUrl, 'gruenerator.png', {
-          title: 'Grünerator Share',
+        fileDelivery.shareDataUrlViaNativeHost(dataUrl, shareFileName, {
+          title: shareTitle,
           text: shareText,
         });
       } else {
         const blob = await (await fetch(dataUrl)).blob();
-        const file = new File([blob], 'gruenerator.png', { type: 'image/png' });
+        const file = new File([blob], shareFileName, { type: 'image/png' });
 
         if (navigator.canShare?.({ files: [file] })) {
-          await navigator.share({ files: [file], text: shareText, title: 'Grünerator Share' });
+          await navigator.share({ files: [file], text: shareText, title: shareTitle });
         } else {
-          await navigator.share({ text: shareText, title: 'Grünerator Share' });
+          await navigator.share({ text: shareText, title: shareTitle });
         }
       }
       void publishDraftIfNeeded();
@@ -164,7 +167,15 @@ export function ShareDropdown({
     } finally {
       setIsSharing(false);
     }
-  }, [onCaptureCanvas, shareText, publishDraftIfNeeded, shareRoute, fileDelivery]);
+  }, [
+    onCaptureCanvas,
+    shareText,
+    publishDraftIfNeeded,
+    shareRoute,
+    fileDelivery,
+    shareFileName,
+    shareTitle,
+  ]);
 
   return (
     <Popover

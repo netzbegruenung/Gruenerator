@@ -97,6 +97,7 @@ import { MobileSelectionPill } from '@ggraphic/editor/components/MobileSelection
 import { PageThumbnailStrip, type PagePickerSlot } from '../PageThumbnailStrip';
 import { SlideNotesPanel } from '@ggraphic/editor/components/SlideNotesPanel';
 import { AddPageButton } from '../AddPageButton';
+import { Toolbar } from '../Toolbar';
 import { ContextToolbar } from '@ggraphic/editor/components/TopBar/ContextToolbar';
 import { MobileSelectionBar } from '@ggraphic/editor/components/TopBar/MobileSelectionBar';
 import { MobileSelectionControls } from '@ggraphic/editor/components/TopBar/MobileSelectionControls';
@@ -110,14 +111,17 @@ import {
   type EditorShellProviderProps,
   type EditorTabDefinition,
   type EditorTabDropHandle,
-  type EditorToolbarShare,
-  type ObservedPages,
 } from '@ggraphic/editor/components/CanvasEditor/editorShell';
 import { useCanvasContextMenu } from '@ggraphic/editor/components/CanvasEditor/hooks/useCanvasContextMenu';
 import { useLoadedConfigs } from '@ggraphic/editor/components/CanvasEditor/hooks/useLoadedConfigs';
 import { useMobileSheetFit } from '@ggraphic/editor/components/CanvasEditor/hooks/useMobileSheetFit';
 import { usePageRefs } from '@ggraphic/editor/components/CanvasEditor/hooks/usePageRefs';
 import { usePageUndoRedoShortcuts } from '@ggraphic/editor/components/CanvasEditor/hooks/usePageUndoRedoShortcuts';
+import {
+  needsImpressum,
+  usePrintImpressumGate,
+  type ObservedPages,
+} from '@ggraphic/editor/components/CanvasEditor/hooks/usePrintImpressumGate';
 import { useScrollToAddedPage } from '@ggraphic/editor/components/CanvasEditor/hooks/useScrollToAddedPage';
 import { useToolbarHandlers } from '@ggraphic/editor/components/CanvasEditor/hooks/useToolbarHandlers';
 import { useWorkAreaDeselect } from '@ggraphic/editor/components/CanvasEditor/hooks/useWorkAreaDeselect';
@@ -162,6 +166,7 @@ const sidebarLoadingFallback = (
 const NO_EDITOR_TABS: readonly EditorTabDefinition[] = [];
 const NoShellProvider = ({ children }: EditorShellProviderProps) => <>{children}</>;
 const NO_CALLBACK_KEYS = (): readonly string[] => [];
+const DEFAULT_DECK_LOCALE = (): 'de-DE' | 'de-AT' => 'de-DE';
 
 /** Folien-PDF: 2× der 1920 × 1080-Folie, scharf auch im Vollbild. */
 const SLIDES_PDF_PIXEL_RATIO = 2;
@@ -248,9 +253,9 @@ function CanvasEditorInner({
   const {
     tabs: editorTabs = NO_EDITOR_TABS,
     Provider: ShellProvider = NoShellProvider,
-    Toolbar,
     pagePicker,
     pageCallbackKeys = NO_CALLBACK_KEYS,
+    deckLocale: deckLocaleOf = DEFAULT_DECK_LOCALE,
   } = registeredEditorShell();
 
   // Template-field callbacks dual-write into the page's `state` map so other
@@ -957,10 +962,9 @@ function CanvasEditorInner({
     );
   }, [exportAllPages, documentTitle, fileDelivery, filenamePrefix]);
 
-  // Each page reports its state for the host's Impressum gate (see the toolbar),
-  // only on formats that carry one.
-  const observesPrintPages =
-    !!printService && printFormat !== null && printFormat.print.impressum !== null;
+  // Every poster page should carry a filled-in V.i.S.d.P. / Impressum, whichever
+  // page is active; the download warns (never blocks) once every page has reported.
+  const impressumGate = usePrintImpressumGate(printFormat, pages, observedPages);
 
   const getPrintWarnings = useCallback(
     () => (printFormat ? lowResolutionWarnings(printFormat, printPages()) : []),
@@ -1264,7 +1268,9 @@ function CanvasEditorInner({
     () => photoCreditLine(serializeDeck(pagesDoc).flatMap((page) => pagePhotoCredits(page.state))),
     [pagesDoc]
   );
-  const toolbarShareProps = useMemo<EditorToolbarShare>(
+  // Als String, damit Notiz-Tippen (neues `pages`) die Leiste nicht neu baut
+  const deckLocale = deckLocaleOf(pages);
+  const toolbarShareProps = useMemo(
     () => ({
       getPhotoCredit,
       onCaptureCanvas: handleCaptureCanvas,
@@ -1288,13 +1294,14 @@ function CanvasEditorInner({
         ? {
             onDownloadPdf: handleDownloadPdf,
             getWarnings: getPrintWarnings,
-            format: printFormat,
+            impressum: impressumGate,
           }
         : null,
       slideDeck: isSlideDeck
         ? {
             onDownloadPdf: handleDownloadSlidesPdf,
             onDownloadPptx: handleDownloadPptx,
+            locale: deckLocale,
           }
         : null,
     }),
@@ -1303,7 +1310,9 @@ function CanvasEditorInner({
       isSlideDeck,
       handleDownloadSlidesPdf,
       handleDownloadPptx,
+      deckLocale,
       printFormat,
+      impressumGate,
       handleDownloadPdf,
       getPrintWarnings,
       handleCaptureCanvas,
@@ -1346,26 +1355,23 @@ function CanvasEditorInner({
   // visible during the pre-sync "Synchronisiere..." phase in collab mode,
   // when toolbarState is still null.
   const showToolbar = toolbarState !== null || chromeLeft || chromeCenter || chromeRight;
-  const toolbarElement =
-    Toolbar && showToolbar ? (
-      <Toolbar
-        canUndo={canUndo}
-        canRedo={canRedo}
-        handlers={toolbarHandlers}
-        share={toolbarState && showShare ? toolbarShareProps : null}
-        pages={pages}
-        observedPages={observedPages}
-        chromeLeft={chromeLeft}
-        chromeCenter={chromeCenter}
-        chromeRight={chromeRight}
-        suggestionInBar={isMobileWeb}
-        hostShare={
-          hostChrome
-            ? { open: hostChrome.shareOpen, onOpenChange: hostChrome.onShareOpenChange }
-            : undefined
-        }
-      />
-    ) : null;
+  const toolbarElement = showToolbar ? (
+    <Toolbar
+      canUndo={canUndo}
+      canRedo={canRedo}
+      handlers={toolbarHandlers}
+      shareProps={toolbarState && showShare ? toolbarShareProps : undefined}
+      chromeLeft={chromeLeft}
+      chromeCenter={chromeCenter}
+      chromeRight={chromeRight}
+      suggestionInBar={isMobileWeb}
+      hostShare={
+        hostChrome
+          ? { open: hostChrome.shareOpen, onOpenChange: hostChrome.onShareOpenChange }
+          : undefined
+      }
+    />
+  ) : null;
 
   // Selection-driven formatting controls live outside the menu bar: a floating
   // card over the canvas (desktop); on mobile a bottom selection bar in the
@@ -1686,7 +1692,11 @@ function CanvasEditorInner({
                       callbacks={getCallbacksForPage(page.id, page.configId)}
                       multiPageExport={index === 0 ? multiPageExportProps : undefined}
                       onStateChange={handlePageStateChange}
-                      onObservedState={observesPrintPages ? handleObservedState : undefined}
+                      onObservedState={
+                        printService && needsImpressum(printFormat)
+                          ? handleObservedState
+                          : undefined
+                      }
                       onToolbarStateChange={
                         isActive && !isPreview ? handleToolbarStateChange : undefined
                       }

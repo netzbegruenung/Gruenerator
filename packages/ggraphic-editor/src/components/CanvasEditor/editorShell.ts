@@ -5,7 +5,6 @@ import type {
 } from '@ggraphic/editor/CanvasEditorProvider';
 import type { GenericCanvasRef } from '@ggraphic/editor/components/GenericCanvas';
 import type { HeterogeneousPage } from '@ggraphic/editor/configs/types';
-import type { PrintCanvasFormat } from '@ggraphic/editor/formats/index';
 import type { SidebarTab, SidebarTabId } from '@ggraphic/editor/sidebar/types';
 import type React from 'react';
 
@@ -86,86 +85,11 @@ export interface EditorPagePicker {
   quickAddOpensPicker?: (pages: readonly HeterogeneousPage[]) => boolean;
 }
 
-/** What a page last reported, for the host's print checks (the Impressum gate). */
-export interface ObservedPageState {
-  pageId: string;
-  state: Record<string, unknown>;
-  actions: Record<string, unknown>;
-}
-
-/** The latest report per page id; reports from removed pages are ignored. */
-export type ObservedPages = Readonly<Record<string, ObservedPageState>>;
-
-export type EditorDownloadChoice = 'png' | 'jpeg' | 'webp';
-
-/** The share menu's inputs as the editor has them: exports, page count, the image text. */
-export interface EditorToolbarShare {
-  onCaptureCanvas: () => Promise<string | null>;
-  onDownload: (
-    format: EditorDownloadChoice,
-    pixelRatio: number,
-    transparent: boolean
-  ) => void | Promise<void>;
-  onNavigateToGallery: () => void;
-  canvasText: string;
-  canvasType: string;
-  canvasWidth: number;
-  canvasHeight: number;
-  shareToken: string | null;
-  pageCount: number;
-  onDownloadAllZip: (format?: EditorDownloadChoice) => Promise<void>;
-  onShareAllPages: () => Promise<void>;
-  isMultiExporting: boolean;
-  exportProgress: { current: number; total: number };
-  exportError: string | null;
-  exportNotice: string | null;
-  onInvitePeople?: () => void;
-  onSaveAsTemplate?: () => void;
-  getPhotoCredit: () => string;
-  /** Print formats: the print PDF. `format` and the observed pages feed the host's Impressum gate. */
-  printExport: {
-    onDownloadPdf: () => Promise<void>;
-    getWarnings: () => string[];
-    format: PrintCanvasFormat;
-  } | null;
-  /** Slide formats: PowerPoint and a PDF of all pages. */
-  slideDeck: {
-    onDownloadPdf: () => Promise<void>;
-    onDownloadPptx: (onProgress: (done: number, total: number) => void) => Promise<void>;
-  } | null;
-}
-
-/** What the host's menu bar gets. */
-export interface EditorToolbarProps {
-  canUndo: boolean;
-  canRedo: boolean;
-  handlers: {
-    undo: () => void;
-    /** Page-level undo, for a suggestion that replaced the deck. */
-    undoPages: () => void;
-    redo: () => void;
-  };
-  /** Null: no share menu. */
-  share: EditorToolbarShare | null;
-  pages: HeterogeneousPage[];
-  /** Each page's last report; collected only for formats that carry an Impressum. */
-  observedPages: ObservedPages;
-  chromeLeft?: React.ReactNode;
-  chromeCenter?: React.ReactNode;
-  chromeRight?: React.ReactNode;
-  /** Mobile: the pending-suggestion banner lives in the bar. */
-  suggestionInBar: boolean;
-  /** The host draws the bar; the share menu opens on its request. */
-  hostShare?: { open: boolean; onOpenChange: (open: boolean) => void };
-}
-
 export interface EditorShellExtensions {
   /** Document tabs, inserted in this order. */
   tabs?: readonly EditorTabDefinition[];
   /** Wraps the editor: contexts for the host's sections and pages, idle warm-ups. */
   Provider?: React.ComponentType<EditorShellProviderProps>;
-  /** The menu bar (undo/redo, share). Without one the editor shows none. */
-  Toolbar?: React.ComponentType<EditorToolbarProps>;
   /** The page picker. Without one, „Seite hinzufügen" adds a page like the active one. */
   pagePicker?: EditorPagePicker;
   /**
@@ -173,6 +97,8 @@ export interface EditorShellExtensions {
    * for; each page writes them into its state too. Default: none.
    */
   pageCallbackKeys?: (configId: string) => readonly string[];
+  /** Whose house fonts a slide deck carries (the PowerPoint font hint). Default `de-DE`. */
+  deckLocale?: (pages: readonly HeterogeneousPage[]) => 'de-DE' | 'de-AT';
 }
 
 /**
