@@ -819,7 +819,7 @@ async function streamWithTools(
  *  tool loop only advances as the stream is drained. */
 /** How the tool phase ended — `synthesize` reads it. */
 interface GatherOutcome {
-  /** The phase threw before the planner emitted a single tool call, on every
+  /** The phase threw before a single tool came back with a result, on every
    *  lane it tried. The writer then has nothing but the prompt — and without
    *  being told, it explains the missing results as a missing ability
    *  ("Da ich ein KI-Modell bin, kann ich keine Formulare bauen"). */
@@ -832,6 +832,13 @@ interface GatherAttempt {
   /** The planner emitted at least one tool call — it may have executed, so the
    *  attempt must not be repeated (a retry could create the same form twice). */
   sawToolCall: boolean;
+  /** A tool came back with a result. A CALL alone does not mean that: an
+   *  enforced `toolChoice` the response ignored throws AFTER its tool-call part
+   *  arrived (`ToolChoiceViolationError`, live 28.10.2026: GreenPT called
+   *  `web_search` under a pinned `bundestag`) — nothing ran, but `sawToolCall`
+   *  already said so, and the writer, missing the failure note, announced a
+   *  research plan with tool names and asked „Soll ich starten?". */
+  sawToolResult: boolean;
   /** Reasoning or narration already reached the client. A second lane would
    *  stream its own next to it, so the attempt is not repeated either. */
   sawOutput: boolean;
@@ -853,7 +860,10 @@ async function gather(p: LoopEngineParams, deps: LoopDeps): Promise<GatherOutcom
   for (const [i, model] of lanes.entries()) {
     const hasNext = i < lanes.length - 1;
     const attempt = await gatherOn(p, deps, model, i === 0, hasNext);
-    if (attempt.error == null || attempt.sawToolCall) return { failedBeforeAnyTool: false };
+    if (attempt.error == null) return { failedBeforeAnyTool: false };
+    // A call may have executed — no second lane — but only a result means the
+    // registry holds anything the writer can answer from.
+    if (attempt.sawToolCall) return { failedBeforeAnyTool: !attempt.sawToolResult };
     if (
       !hasNext ||
       attempt.sawOutput ||
@@ -897,6 +907,7 @@ async function gatherOn(
     ? createIdleDeadline(firstResponseMs, () => new ToolPhaseStallError(firstResponseMs))
     : null;
   let sawToolCall = false;
+  let sawToolResult = false;
   let sawOutput = false;
   try {
     const result: Drainable = deps.streamText({
@@ -952,6 +963,7 @@ async function gatherOn(
         }
         if (part.type === 'error') throw part.error;
         if (part.type === 'tool-call') sawToolCall = true;
+        if (part.type === 'tool-result') sawToolResult = true;
         if (part.type === 'tool-input-start' || part.type === 'tool-call') {
           chunker?.flush();
           p.onToolCallStart?.();
@@ -973,7 +985,7 @@ async function gatherOn(
     } finally {
       chunker?.flush();
     }
-    return { error: null, sawToolCall, sawOutput };
+    return { error: null, sawToolCall, sawToolResult, sawOutput };
   } catch (err) {
     // Tools that already ran filled the registry before any error — degrade to
     // synthesis over whatever was collected rather than failing the whole turn.
@@ -995,7 +1007,7 @@ async function gatherOn(
       // zahlen will (siehe seinen Kopfkommentar).
       if (isPrimaryLane) p.onToolPhaseStall?.();
     }
-    return { error: err, sawToolCall, sawOutput };
+    return { error: err, sawToolCall, sawToolResult, sawOutput };
   } finally {
     idle.clear();
     firstResponse?.clear();

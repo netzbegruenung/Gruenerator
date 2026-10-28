@@ -685,6 +685,7 @@ describe('runAgenticLoop — split (planner/executor)', () => {
     it('never repeats a phase that already emitted a tool call', async () => {
       const { deps, calls, synthSystems } = recordingDeps(() => [
         { type: 'tool-call' },
+        { type: 'tool-result', toolName: 'web_search', output: { results: [] } },
         { type: 'error', error: rejected() },
       ]);
       await runAgenticLoop(
@@ -693,6 +694,27 @@ describe('runAgenticLoop — split (planner/executor)', () => {
       );
       expect(calls).toEqual(['planner']);
       expect(synthSystems[0]).not.toContain('technisch gescheitert');
+    });
+
+    // Live 28.10.2026: GreenPT ignored the pinned `bundestag` and called
+    // `web_search`; the SDK threw ToolChoiceViolationError after the tool-call
+    // part. Nothing ran — but the writer, never told, wrote a research plan with
+    // tool names and asked „Soll ich diese Recherche jetzt starten?".
+    it('tells the writer the phase failed when a call came back without a result', async () => {
+      const { deps, calls, synthSystems } = recordingDeps(() => [
+        { type: 'tool-call', toolName: 'web_search' },
+        {
+          type: 'error',
+          error: new Error("did not contain a call to the required tool 'bundestag'"),
+        },
+      ]);
+      await runAgenticLoop(
+        baseParams({ mode: 'split', plannerFallbackModels: [fallbackModel] }),
+        deps
+      );
+      // Still no second lane: the call may have executed.
+      expect(calls).toEqual(['planner']);
+      expect(synthSystems[0]).toContain('technisch gescheitert');
     });
 
     it('reads the status behind an exhausted SDK retry (503 → RetryError)', async () => {
