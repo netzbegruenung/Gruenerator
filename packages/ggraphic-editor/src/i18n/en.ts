@@ -386,6 +386,7 @@ export const en: Messages = {
     },
     layers: {
       title: 'Layers',
+      tabAriaLabel: 'Layers: all elements on the page',
       hint: 'The frontmost element is at the top.',
       empty: 'There are no elements on this page.',
     },
@@ -635,6 +636,30 @@ export const en: Messages = {
     fontSizeIncrease: 'Increase font size',
     showHint: 'Show hint',
     fontSize: 'Font size',
+  },
+
+  shell: {
+    addPage: 'Add page',
+    addNewPage: 'Add new page',
+    editPage: (n) => `Edit page ${n}`,
+    pageThumbnail: (n, selected) => `Page ${n}${selected ? ' (selected)' : ''}`,
+    pageOf: (n, total) => `Page ${n} of ${total}`,
+    zoomOut: 'Zoom out',
+    zoomIn: 'Zoom in',
+    fullscreen: 'Fullscreen',
+    exitFullscreen: 'Exit fullscreen',
+    skipToLayers: 'Skip to layers',
+    share: 'Share',
+    shareTabAriaLabel: 'Share: pass the image on',
+    shared: 'Shared!',
+    download: 'Download',
+    downloading: 'Downloading...',
+    downloadPanel: {
+      format: 'Format',
+      pdfPrint: 'PDF (print)',
+      resolution: 'Resolution',
+      transparentBackground: 'Transparent background',
+    },
   },
 
   topBar: {

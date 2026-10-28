@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: MPL-2.0
 import { useCanvasEditorServices } from '@ggraphic/editor/CanvasEditorProvider';
+import { useMessages } from '@ggraphic/editor/i18n/messages';
 import { browserFileDelivery } from '@ggraphic/editor/hostServices';
 import { useAutoSaveStoreApi } from '@ggraphic/editor/stores/useAutoSaveStore';
 import { Button } from '@ggraphic/editor/ui/button';
@@ -106,6 +107,7 @@ export function ShareDropdown({
   hostControl,
   getPhotoCredit,
 }: ShareDropdownProps) {
+  const t = useMessages();
   const isMobile = useIsCanvasMobile();
   const [ownOpen, setOwnOpen] = useState(false);
   const open = hostControl ? hostControl.open : ownOpen;
@@ -194,7 +196,7 @@ export function ShareDropdown({
             className="ml-auto h-9 rounded-full bg-white px-4 font-extrabold text-[var(--editor-green-deep)] hover:bg-white/90 max-canvas-mobile:h-8 max-canvas-mobile:px-3"
           >
             <IoShareOutline className="size-4" />
-            <span>Teilen</span>
+            <span>{t.shell.share}</span>
           </Button>
         </PopoverTrigger>
       )}
@@ -230,7 +232,7 @@ export function ShareDropdown({
           <>
             {/* Main view — icon buttons */}
             <div className="px-4 pt-4 pb-2">
-              <h3 className="text-base font-semibold text-foreground m-0">Teilen</h3>
+              <h3 className="text-base font-semibold text-foreground m-0">{t.shell.share}</h3>
             </div>
 
             <IconButtonRow gap="lg" padding="md" className="justify-center py-3">
@@ -253,7 +255,7 @@ export function ShareDropdown({
                       <IoShareOutline />
                     )
                   }
-                  label={shareSuccess ? 'Geteilt!' : 'Teilen'}
+                  label={shareSuccess ? t.shell.shared : t.shell.share}
                   onClick={handleNativeShare}
                   disabled={isSharing}
                 />

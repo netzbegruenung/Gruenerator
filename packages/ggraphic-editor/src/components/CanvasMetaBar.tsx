@@ -8,6 +8,8 @@ import {
   PiMagnifyingGlassPlus,
 } from 'react-icons/pi';
 
+import { useMessages } from '@ggraphic/editor/i18n/messages';
+
 interface CanvasMetaBarProps {
   pageCount: number;
   currentPageIndex: number;
@@ -27,6 +29,7 @@ export const CanvasMetaBar = memo(function CanvasMetaBar({
   minZoom = 0.25,
   maxZoom = 1.5,
 }: CanvasMetaBarProps) {
+  const t = useMessages();
   const [isFullscreen, setIsFullscreen] = useState(false);
 
   useEffect(() => {
@@ -54,8 +57,8 @@ export const CanvasMetaBar = memo(function CanvasMetaBar({
       <button
         className={zoomBtn}
         onClick={() => onZoomChange(Math.max(minZoom, zoom - 0.1))}
-        title="Verkleinern"
-        aria-label="Verkleinern"
+        title={t.shell.zoomOut}
+        aria-label={t.shell.zoomOut}
         type="button"
       >
         <PiMagnifyingGlassMinus size={14} />
@@ -73,8 +76,8 @@ export const CanvasMetaBar = memo(function CanvasMetaBar({
       <button
         className={zoomBtn}
         onClick={() => onZoomChange(Math.min(maxZoom, zoom + 0.1))}
-        title="Vergrößern"
-        aria-label="Vergrößern"
+        title={t.shell.zoomIn}
+        aria-label={t.shell.zoomIn}
         type="button"
       >
         <PiMagnifyingGlassPlus size={14} />
@@ -85,8 +88,8 @@ export const CanvasMetaBar = memo(function CanvasMetaBar({
 
       <span
         className="flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-[var(--editor-inset)] text-[11px] text-[var(--editor-text-secondary)] select-none"
-        title={`Seite ${currentPageIndex + 1} von ${pageCount}`}
-        aria-label={`Seite ${currentPageIndex + 1} von ${pageCount}`}
+        title={t.shell.pageOf(currentPageIndex + 1, pageCount)}
+        aria-label={t.shell.pageOf(currentPageIndex + 1, pageCount)}
       >
         <PiFile size={11} />
         {currentPageIndex + 1}/{pageCount}
@@ -94,8 +97,8 @@ export const CanvasMetaBar = memo(function CanvasMetaBar({
       <button
         className={zoomBtn}
         onClick={handleFullscreen}
-        title={isFullscreen ? 'Vollbild beenden' : 'Vollbild'}
-        aria-label="Vollbild"
+        title={isFullscreen ? t.shell.exitFullscreen : t.shell.fullscreen}
+        aria-label={t.shell.fullscreen}
         aria-pressed={isFullscreen}
         type="button"
       >

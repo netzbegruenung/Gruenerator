@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: MPL-2.0
 import { GenericCanvas } from '@ggraphic/editor/components/GenericCanvas';
+import { useMessages } from '@ggraphic/editor/i18n/messages';
 import { cn } from '@ggraphic/editor/utils/cn';
 import {
   isElementDrag,
@@ -52,6 +53,7 @@ export const PageWrapper = memo(function PageWrapper({
   pageRef,
   readOnly = false,
 }: PageWrapperProps) {
+  const t = useMessages();
   // Active page pushes its live state/actions/selection up so the shared
   // sidebar renders synchronously with edits (replaces the old 200ms poll).
   const handleLiveState = useCallback(
@@ -168,7 +170,7 @@ export const PageWrapper = memo(function PageWrapper({
       onDrop={readOnly ? undefined : handleDrop}
       onClick={handleClick}
       role="group"
-      aria-label={`Seite ${index + 1}`}
+      aria-label={t.common.page(index + 1)}
       aria-current={isActive ? 'page' : undefined}
     >
       {/* Der eine Fokuspunkt der Seite: ein echter Knopf, der nichts
@@ -182,7 +184,7 @@ export const PageWrapper = memo(function PageWrapper({
         onClick={() => onSelect(index)}
         className="sr-only kbd:focus:not-sr-only kbd:focus:absolute kbd:focus:left-1 kbd:focus:top-1 kbd:focus:z-10 kbd:focus:min-h-6 kbd:focus:rounded-lg kbd:focus:px-2 kbd:focus:py-1 kbd:focus:text-xs kbd:focus:font-medium kbd:focus:bg-[var(--editor-canvas-hover)] kbd:focus:text-[var(--editor-text)] outline-none kbd:focus-visible:outline-2 kbd:focus-visible:outline-solid kbd:focus-visible:outline-[var(--editor-accent)]"
       >
-        {`Seite ${index + 1} bearbeiten`}
+        {t.shell.editPage(index + 1)}
       </button>
       {!readOnly && (
         <PageToolbar
