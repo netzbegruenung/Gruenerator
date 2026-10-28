@@ -277,6 +277,9 @@ function btDrucksacheResult(d: BtDrucksache, relevance: number): SearchResult {
   };
 }
 
+/** Obergrenze des Abstracts in der Listenzeile; der Verlauf hat Vorrang vor ihm. */
+const ABSTRACT_MAX_CHARS = 600;
+
 /**
  * Kandidat der Planstufe → Treffer. Nur Metadaten: der Volltext kommt erst über
  * `parlament_lesen`, die `Ref:`-Zeile ist der Schlüssel dafür.
@@ -295,13 +298,17 @@ export function candidateToSearchResult(
     withVerlauf && c.verlauf
       ? ['Beratungsverlauf des Vorgangs:', ...bundestagVerlaufLines(c.verlauf).map((l) => `• ${l}`)]
       : [];
+  // Die Zeile kappt hinten (`snippetLine`). Wichtigstes zuerst: Titel, Ref (Schlüssel
+  // für `parlament_lesen`), Vorgang, Verlauf („wo beschlossen"); das Abstract ist
+  // Beiwerk, kommt zuletzt und ist selbst gedeckelt, damit es den Verlauf nicht verdrängt.
   const content = [
     c.titel,
-    c.vorgangTitel,
-    c.abstract,
     `Ref: ${c.ref}`,
-    // Hinter der Ref: kappt die Schnipselgrenze, verliert das Modell den Verlauf, nicht den Schlüssel.
+    c.vorgangTitel,
     ...verlauf,
+    c.abstract && c.abstract.length > ABSTRACT_MAX_CHARS
+      ? `${c.abstract.slice(0, ABSTRACT_MAX_CHARS)}…`
+      : c.abstract,
   ]
     .filter(Boolean)
     .join('\n');

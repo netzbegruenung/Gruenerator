@@ -6,14 +6,7 @@ const PERSONAL = DEFERRABLE_GROUPS[0].tools;
 const LOADER = DEFERRABLE_GROUPS[0].loaderTool;
 
 /** Ein realistischer Katalog: Recherche-Familie + die persönliche Gruppe. */
-const MOUNTED = [
-  'gruenerator_search',
-  'web_search',
-  'scrape_url',
-  'summarize',
-  'umfragen',
-  ...PERSONAL,
-];
+const MOUNTED = ['gruenerator_search', 'web_search', 'scrape_url', 'summarize', ...PERSONAL];
 
 const scopeFor = (userText: string) =>
   createToolScope({ toolNames: MOUNTED, userText, enforce: true });
@@ -213,5 +206,90 @@ describe('createToolScope — Schattenbetrieb', () => {
       userText: 'Zeig mir meine Dokumente',
     });
     expect(scope.misses(['documents'])).toEqual([]);
+  });
+});
+
+describe('createToolScope — Parlaments-Gruppe', () => {
+  const PARLAMENT = DEFERRABLE_GROUPS.find((g) => g.id === 'parlament')!;
+  const FOLGE = ['parlament_lesen', 'bundestag_reden', 'abgeordnetenwatch', 'umfragen', 'landtag'];
+  const mounted = ['bundestag', 'gruenerator_search', 'web_search', ...FOLGE];
+  const scope = (opts: { userText: string; pinnedTool?: string; priorToolNames?: string[] }) =>
+    createToolScope({ toolNames: mounted, enforce: true, ...opts });
+
+  it('hält Leser und Reden auf einer allgemeinen Frage zurück, den Einstieg nie', () => {
+    const active = scope({ userText: 'Was steht im Wahlprogramm zu Windkraft?' }).activeTools();
+    expect(active).toContain('bundestag');
+    for (const t of FOLGE) expect(active).not.toContain(t);
+    expect(active).toContain(PARLAMENT.loaderTool);
+  });
+
+  it('zeigt sie auf Schritt 0, wenn der Text von Parlament handelt', () => {
+    for (const userText of [
+      'Welche Reden gab es im Bundestag zur Wehrpflicht?',
+      'Lies die Drucksache 21/1928',
+      'Wie hat Merz abgestimmt?',
+    ]) {
+      const active = scope({ userText }).activeTools();
+      expect(active === undefined || FOLGE.every((t) => active.includes(t))).toBe(true);
+    }
+  });
+
+  it('öffnet die Gruppe samt landtag bei einer Berlin-Frage', () => {
+    for (const userText of [
+      'Was steht in den Drucksachen des Abgeordnetenhauses zu Mietendeckel?',
+      'Gibt es im Landtag Berlin eine Anfrage zur Radwegen?',
+      'Lies BE 19/3519',
+    ]) {
+      const active = scope({ userText }).activeTools();
+      expect(active === undefined || FOLGE.every((t) => active.includes(t)), userText).toBe(true);
+    }
+  });
+
+  it('erkennt Prognose, Wahltrend, Hochrechnung und Stimmverhalten am Hinweis', () => {
+    for (const userText of [
+      'Wie sieht die Prognose für die nächste Wahl aus?',
+      'Gibt es einen Wahltrend für die Grünen?',
+      'Die letzte Hochrechnung bitte',
+      'Wie hat Merz gestimmt?',
+      'Wie war das Stimmverhalten der AfD?',
+    ]) {
+      const active = scope({ userText }).activeTools();
+      expect(active === undefined || FOLGE.every((t) => active.includes(t)), userText).toBe(true);
+    }
+  });
+
+  it('zeigt sie auf Schritt 0 bei @bundestag (festgezurrter Einstieg)', () => {
+    const active = scope({
+      userText: 'Anträge zum Artenschutz',
+      pinnedTool: 'bundestag',
+    }).activeTools();
+    expect(active === undefined || FOLGE.every((t) => active.includes(t))).toBe(true);
+  });
+
+  it('öffnet sie, sobald bundestag in diesem Turn ein Ergebnis geliefert hat', () => {
+    const s = scope({ userText: 'Anträge zum Artenschutz' });
+    expect(s.activeTools()).not.toContain('parlament_lesen');
+    const active = s.activeTools([{ content: [{ type: 'tool-result', toolName: 'bundestag' }] }]);
+    expect(active === undefined || FOLGE.every((t) => active.includes(t))).toBe(true);
+    // bleibt offen, auch wenn der nächste Schritt ohne Ergebnisse gefragt wird
+    expect(s.activeTools([])).toEqual(active);
+  });
+
+  it('bleibt in einem Folge-Turn offen, wenn bundestag früher im Thread lief', () => {
+    const active = scope({
+      userText: 'und die dazu?',
+      priorToolNames: ['bundestag'],
+    }).activeTools();
+    expect(active === undefined || FOLGE.every((t) => active.includes(t))).toBe(true);
+  });
+
+  it('öffnet über den Lader', async () => {
+    const s = scope({ userText: 'Erzähl mir was' });
+    const loader = s.loaderTools()[PARLAMENT.loaderTool] as unknown as {
+      execute: () => Promise<unknown>;
+    };
+    await loader.execute();
+    const active = s.activeTools();
+    expect(active === undefined || FOLGE.every((t) => active.includes(t))).toBe(true);
   });
 });

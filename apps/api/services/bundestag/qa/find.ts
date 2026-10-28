@@ -108,11 +108,18 @@ async function listAnyOf<T extends { id: string; datum?: string }>(
   endpoint: DipEndpoint,
   params: DipParams,
   alternatives: Record<string, readonly string[] | undefined>
-): Promise<{ documents: T[]; numFound: number }> {
+): Promise<{ documents: T[]; numFound: number; notes: string[] }> {
   let combos: DipParams[] = [{}];
   for (const [key, values] of Object.entries(alternatives)) {
     if (!values || values.length === 0) continue;
     combos = combos.flatMap((c) => values.map((v) => ({ ...c, [key]: v })));
+  }
+  const notes: string[] = [];
+  if (combos.length > MAX_OR_QUERIES) {
+    const dropped = combos.slice(MAX_OR_QUERIES).map((c) => Object.values(c).join(' × '));
+    notes.push(
+      `Bei ${combos.length} Kombinationen aus Typ und Urheber wurden nur die ersten ${MAX_OR_QUERIES} abgefragt; nicht abgefragt: ${dropped.join('; ')}. Die Liste und die Gesamtzahl sind unvollständig.`
+    );
   }
   const pages = await Promise.all(
     combos.slice(0, MAX_OR_QUERIES).map((c) => dip.list<T>(endpoint, { ...params, ...c }))
@@ -122,7 +129,7 @@ async function listAnyOf<T extends { id: string; datum?: string }>(
     .flatMap((pg) => pg.documents)
     .filter((d) => (seen.has(d.id) ? false : (seen.add(d.id), true)))
     .sort((a, b) => (b.datum ?? '').localeCompare(a.datum ?? ''));
-  return { documents, numFound: pages.reduce((n, pg) => n + pg.numFound, 0) };
+  return { documents, numFound: pages.reduce((n, pg) => n + pg.numFound, 0), notes };
 }
 
 function baseParams(f: BundestagFilter, wahlperiode: readonly number[] | undefined): DipParams {
@@ -356,11 +363,14 @@ async function byVorgang(
   for (const v of page.documents.slice(0, MAX_EXPANDED_VORGAENGE)) {
     candidates.push(...(await positionsOf(dip, v, f, verlaeufe, urheber)));
   }
-  const notes = sink.missing
-    ? [
-        'Bei einigen Dokumenten fehlt im DIP die Urheber-Angabe; sie wurden nicht nach Urheber gefiltert.',
-      ]
-    : [];
+  const notes = [
+    ...page.notes,
+    ...(sink.missing
+      ? [
+          'Bei einigen Dokumenten fehlt im DIP die Urheber-Angabe; sie wurden nicht nach Urheber gefiltert.',
+        ]
+      : []),
+  ];
   if (f.beratungsstand && f.beratungsstand.length > 0) {
     // Stabil: innerhalb eines Rangs bleibt die DIP-Reihenfolge der Vorgänge.
     const rank = (c: BundestagCandidate) => DECISION_RANK[c.drucksachetyp] ?? 3;
@@ -379,6 +389,7 @@ async function byDrucksache(
     'f.urheber': f.urheber,
   });
   return {
+    notes: page.notes,
     candidates: page.documents.map(fromDrucksache),
     verlaeufe: new Map(),
     vorgaenge: 0,

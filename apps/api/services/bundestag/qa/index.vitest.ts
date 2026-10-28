@@ -179,6 +179,29 @@ describe('Fassade', () => {
     expect(out.stats.charsRead).toBe(100);
   });
 
+  it('readBundestagRefs reicht das Abbruchsignal des Werkzeugs an Holen und Lesen weiter', async () => {
+    m.resolveRefs.mockResolvedValue([cand]);
+    const ctrl = new AbortController();
+    await readBundestagRefs({ question: 'Frage', refs: ['21/9'], deps, abortSignal: ctrl.signal });
+    const fetchSignal = m.fetchTexts.mock.calls[0]![1].signal as AbortSignal;
+    const readSignal = m.readDocuments.mock.calls[0]![0].signal as AbortSignal;
+    expect(fetchSignal.aborted).toBe(false);
+    ctrl.abort();
+    expect(fetchSignal.aborted).toBe(true);
+    expect(readSignal.aborted).toBe(true);
+  });
+
+  it('Endpunkt: Frist ab Anfragebeginn für das Lesen, Restzeit für die Antwort', async () => {
+    m.resolveRefs.mockResolvedValue([cand]);
+    const before = Date.now();
+    await answerBundestagQuestion({ question: 'Frage', refs: ['21/9'], deps });
+    const read = m.readDocuments.mock.calls[0]![0];
+    expect(read.deadlineAt).toBeGreaterThanOrEqual(before + 150_000);
+    expect(read.deadlineAt).toBeLessThanOrEqual(Date.now() + 150_000);
+    const answer = m.composeAnswer.mock.calls[0]![0];
+    expect(answer.timeoutMs).toBeGreaterThanOrEqual(15_000);
+  });
+
   it('wirft klar, wenn DIP_API_KEY fehlt', async () => {
     envMock.DIP_API_KEY = undefined;
     resetDipForTests();

@@ -84,7 +84,7 @@ describe('retrieveBundestag: Zusammenführung', () => {
       'BT-Drs. 21/1928 · Gesetzentwurf · 01.10.2025 · Bundesregierung',
       'Plenardebatte PlPr 21/80 · 21.05.2026',
     ]);
-    expect(results[0].content).toBe('Titel\nVorgang\nKurz\nRef: 21/1928');
+    expect(results[0].content).toBe('Titel\nRef: 21/1928\nVorgang\nKurz');
     expect(results[0].url).toBe('https://dserver.bundestag.de/x.pdf');
     expect(results[1].relevance).toBeCloseTo(0.98);
     expect(totals).toEqual({ vorgaenge: 1, drucksachen: 2 });

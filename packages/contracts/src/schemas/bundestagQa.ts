@@ -51,6 +51,12 @@ export const bundestagRefSchema = z
   .string()
   .regex(/^(\d{1,2}\/\d{1,6}|PlPr \d{1,2}\/\d{1,4} S\. \d+-\d+)$/);
 
+/** Woher der Text eines Dokuments stammt (`missing`: nirgends zu holen). */
+export const bundestagTextSourceSchema = z.enum(['dip', 'pdf', 'protokoll', 'missing']);
+
+/** Warum ein Dokument nicht gelesen wurde. */
+export const bundestagReadSkippedSchema = z.enum(['budget', 'deadline', 'missing']);
+
 export const bundestagAuftragSchema = z.enum(['frage', 'zusammenfassung']);
 
 /** Chat-Werkzeug `bundestag`: Liste der Fundstellen oder exakte Zählung (additiv seit 28.10.2026). */
@@ -61,8 +67,11 @@ export const bundestagGruppierenSchema = z.enum(['fraktion', 'monat', 'typ']);
 
 export const bundestagFilterSchema = z.object({
   wahlperiode: z.array(z.number().int().min(1).max(30)).max(3).optional(),
-  drucksachetyp: z.array(bundestagDrucksachetypSchema).optional(),
-  urheber: z.array(bundestagUrheberSchema).optional(),
+  // Typ × Urheber wird als ODER in Einzelabfragen zerlegt (höchstens 8, siehe
+  // MAX_OR_QUERIES in qa/find.ts). Darüber fragt find.ts nicht alles ab und
+  // sagt das in einer Notiz — besser als ein abgelehnter Werkzeugaufruf.
+  drucksachetyp: z.array(bundestagDrucksachetypSchema).max(4).optional(),
+  urheber: z.array(bundestagUrheberSchema).max(4).optional(),
   beratungsstand: z.array(bundestagBeratungsstandSchema).max(11).optional(),
   datumVon: z
     .string()
@@ -194,13 +203,13 @@ export const bundestagAnswerResponseSchema = z.object({
       ref: bundestagRefSchema,
       drucksachetyp: z.string(),
       titel: z.string(),
-      textSource: z.enum(['dip', 'pdf', 'protokoll', 'missing']),
+      textSource: bundestagTextSourceSchema,
       relevant: z.boolean(),
       points: z.array(bundestagPointSchema),
       droppedPoints: z.number().int(),
       windowsRead: z.number().int(),
       windowsTotal: z.number().int(),
-      skipped: z.enum(['budget', 'deadline', 'missing']).nullable(),
+      skipped: bundestagReadSkippedSchema.nullable(),
     })
   ),
   filters: bundestagFilterSchema,
@@ -221,6 +230,8 @@ export type BundestagDrucksachetyp = z.infer<typeof bundestagDrucksachetypSchema
 export type BundestagUrheber = z.infer<typeof bundestagUrheberSchema>;
 export type BundestagRef = z.infer<typeof bundestagRefSchema>;
 export type BundestagAuftrag = z.infer<typeof bundestagAuftragSchema>;
+export type BundestagTextSource = z.infer<typeof bundestagTextSourceSchema>;
+export type BundestagReadSkipped = z.infer<typeof bundestagReadSkippedSchema>;
 export type BundestagModus = z.infer<typeof bundestagModusSchema>;
 export type BundestagGruppieren = z.infer<typeof bundestagGruppierenSchema>;
 export type BundestagFilter = z.infer<typeof bundestagFilterSchema>;

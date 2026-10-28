@@ -782,6 +782,7 @@ describe('Blockliste — Auswahl und Reihenfolge', () => {
     const state = makeState({
       activeSkillMention: 'instagram',
       methodSkillMentions: ['bundestagsrecherche'],
+      intent: 'bundestag',
     } as never);
     const single = await buildSystemMessage(state);
     expect(single).toContain('## RECHERCHE-METHODE: Bundestag-Recherche');
@@ -800,6 +801,19 @@ describe('Blockliste — Auswahl und Reihenfolge', () => {
     expect(loop).toContain('## AKTIVE PLATTFORM: Instagram');
   });
 
+  // Fiel der Turn ohne Schleife auf `web` zurück (loop_only_degraded), fehlen die
+  // Bundestag-Werkzeuge: die Methode bleibt draußen und gibt keine Form vor.
+  it('lässt die Bundestag-Methode im Einzelpfad weg, wenn der Intent auf web degradiert ist', async () => {
+    const state = makeState({
+      methodSkillMentions: ['bundestagsrecherche'],
+      intent: 'web',
+    } as never);
+    const single = await buildSystemMessage(state);
+    expect(single).not.toContain('RECHERCHE-METHODE');
+    expect(single).not.toContain('Ohne Textsorte bestimmt die Methode auch die Antwortform.');
+    expect(state.usedRecipes ?? []).toEqual([]);
+  });
+
   // Ohne Textsorte gibt die Methode die Form vor — der Bundestag-Rezepttext
   // trägt Formregeln (vollständige Antworten, Fundstellen zuerst), und die
   // Standardregel „2–4 Absätze" brächte die zu kurzen Antworten zurück.
@@ -808,7 +822,7 @@ describe('Blockliste — Auswahl und Reihenfolge', () => {
     expect(plain).not.toContain('Form und Umfang gibt die oben aktive Textform vor');
 
     const single = await buildSystemMessage(
-      makeState({ methodSkillMentions: ['bundestagsrecherche'] } as never)
+      makeState({ methodSkillMentions: ['bundestagsrecherche'], intent: 'bundestag' } as never)
     );
     expect(single).toContain('## RECHERCHE-METHODE: Bundestag-Recherche');
     expect(single).toContain('Ohne Textsorte bestimmt die Methode auch die Antwortform.');

@@ -31,7 +31,7 @@ const SYSTEM_SKILL = vi.hoisted(() => ({
 
 vi.mock('@gruenerator/chat', async (importOriginal) => ({
   ...(await importOriginal<Record<string, unknown>>()),
-  agentsList: [SYSTEM_SKILL],
+  listedAgentsList: [SYSTEM_SKILL],
   useHiddenSkillMentions: () => [],
 }));
 

@@ -8,7 +8,7 @@
  * deren Rede in der Seitenspanne beginnt. Fremde URLs nur auf
  * dserver.bundestag.de über https und erst nach `validateUrlForFetch`.
  */
-import { type BundestagCandidate } from '@gruenerator/contracts';
+import { type BundestagCandidate, type BundestagTextSource } from '@gruenerator/contracts';
 import * as cheerio from 'cheerio';
 
 import { createLogger } from '../../../utils/logger.js';
@@ -16,7 +16,12 @@ import { validateUrlForFetch } from '../../../utils/validation/urlSecurity.js';
 import { extractPdfText } from '../../pdf/pdfText.js';
 import { type DipClient, type DipDrucksache, type DipDrucksacheText } from '../dip/dipClient.js';
 
-import { PDF_MAX_BYTES, TEXT_CACHE_TTL_S } from './budget.js';
+import {
+  PDF_FALLBACK_CONCURRENCY,
+  PDF_MAX_BYTES,
+  TEXT_CACHE_TTL_S,
+  createLimiter,
+} from './budget.js';
 
 const log = createLogger('BundestagQaFetch');
 
@@ -26,7 +31,7 @@ const DIP_PAGE_SIZE = 10;
 const FETCH_TIMEOUT_MS = 60_000;
 const DEBATE_REF_RE = /^PlPr (\d{1,2})\/(\d{1,4}) S\. (\d+)-(\d+)$/;
 
-export type TextSource = 'dip' | 'pdf' | 'protokoll' | 'missing';
+export type TextSource = BundestagTextSource;
 export type FetchedDoc = BundestagCandidate & { text: string; textSource: TextSource };
 
 /** Das Minimum, das wir vom Redis-Client brauchen; Tests reichen eine Map-Attrappe herein. */
@@ -358,6 +363,7 @@ export async function fetchTexts(
     toLoad.map((c) => c.dipId),
     dip
   );
+  const limitPdf = createLimiter(PDF_FALLBACK_CONCURRENCY);
   await Promise.all(
     toLoad.map(async (c) => {
       const doc = fromDip.get(c.dipId);
@@ -366,7 +372,9 @@ export async function fetchTexts(
       if (dipText) {
         value = { text: dipText, textSource: 'dip' };
       } else {
-        const pdfText = await pdfFallback(c.pdfUrl ?? doc?.fundstelle?.pdf_url ?? null, signal);
+        const pdfText = await limitPdf(() =>
+          pdfFallback(c.pdfUrl ?? doc?.fundstelle?.pdf_url ?? null, signal)
+        );
         value = pdfText
           ? { text: pdfText, textSource: 'pdf' }
           : { text: '', textSource: 'missing' };

@@ -38,7 +38,7 @@ import {
 } from '../../../agents/langgraph/ChatGraph/nodes/searchNode.js';
 import { summarizeNode } from '../../../agents/langgraph/ChatGraph/nodes/summarizeNode.js';
 import { CHAT_BUDGET } from '../../../services/bundestag/qa/budget.js';
-import { formatCount } from '../../../services/bundestag/qa/count.js';
+import { einheitLabel, formatCount } from '../../../services/bundestag/qa/count.js';
 import { bundestagDocTitle } from '../../../services/bundestag/qa/docTitle.js';
 import { countBundestagDocs, readBundestagRefs } from '../../../services/bundestag/qa/index.js';
 import { detectFromWording } from '../../../services/bundestag/qa/planDetect.js';
@@ -156,6 +156,9 @@ export function describeBundestagFilter(filters: BundestagFilter | undefined): s
   return lines;
 }
 
+/** Schnipselkappe der Bundestag-Liste; die Kappe der Zeile selbst steht in `candidateToSearchResult`. */
+const BUNDESTAG_SNIPPET_CHARS = 3500;
+
 const BUNDESTAG_HINWEIS =
   "Die Liste enthält nur Metadaten. Für Inhalte `parlament_lesen` mit quelle 'bundestag' aufrufen: bei einer Themen- oder Listenfrage alle einschlägigen Refs (bis zu 6) in einem Aufruf, nicht nur das erste Dokument.";
 
@@ -180,31 +183,32 @@ export function makeBundestagTool(ctx: {
 }): Tool {
   const { state, sourceRegistry } = ctx;
   return tool({
-    description: `Findet Bundestags-Dokumente (DIP): Drucksachen und Plenardebatten, mit Filtern (Wahlperiode, Typ, Urheber, Datum, Deskriptor, Titel). Liefert eine Liste mit Refs, nur Metadaten, und je Vorgang den Beratungsverlauf (Beratungen, Beschlüsse mit Plenarprotokoll und Seite, Bundesrat, Verkündung). Mit modus 'zaehlen' exakte Zahlen statt Liste, mit ref alle Dokumente eines Vorgangs. Nur Deutschland.
+    description: `Findet Bundestags-Dokumente (DIP): Drucksachen und Plenardebatten, mit Filtern. Liefert Refs (nur Metadaten) und je Vorgang den Beratungsverlauf (Beschlüsse mit Plenarprotokoll und Seite, Bundesrat, Verkündung).
 
-Nicht für Inhalte, dafür parlament_lesen. Nicht für das, was eine Person oder Fraktion im Plenum gesagt hat, dafür bundestag_reden. Nicht für Abstimmungsverhalten oder Nebentätigkeiten, dafür abgeordnetenwatch.`,
+Nicht für Inhalte, dafür parlament_lesen. Nicht für Reden im Plenum, dafür bundestag_reden. Nicht für Abstimmungsverhalten oder Nebentätigkeiten, dafür abgeordnetenwatch.`,
     inputSchema: z.object({
       query: z
         .string()
         .min(1)
         .optional()
-        .describe('Suchbegriff: Person, Thema oder Drucksachennummer; bei `ref` entbehrlich'),
+        .describe('Person, Thema oder Drucksachennummer; entbehrlich mit `ref` oder Filtern'),
       modus: bundestagModusSchema
         .optional()
         .describe(
-          "'zaehlen' bei „wie viele“, „wie oft“, „Anzahl“: liefert exakte Zahlen (DIP-Trefferzahl) statt einer Liste; das Thema dann über `titel` oder `deskriptor` eingrenzen, `query` zählt nicht mit. Sonst weglassen."
+          "'zaehlen' bei „wie viele“, „wie oft“, „Anzahl“: exakte DIP-Zahl statt Liste; Thema dann über `titel`/`deskriptor`, `query` zählt nicht mit. Sonst weglassen."
         ),
       gruppieren: bundestagGruppierenSchema
         .optional()
         .describe(
-          "Nur mit modus 'zaehlen': Aufteilung nach 'fraktion' („welche Fraktion“), 'monat' („pro Monat“, „Verlauf“) oder 'typ' (Art der Drucksache)"
+          "Nur mit 'zaehlen': nach 'fraktion' („welche Fraktion“), 'monat' („pro Monat“) oder 'typ' (Drucksachenart)"
         ),
       ref: bundestagRefSchema
         .optional()
         .describe(
-          "Drucksachennummer, z. B. '21/3546': liefert alle Dokumente desselben Vorgangs (Anfrage und Antwort; Entwurf, Beschlussempfehlung, Lesungen, Bundesrat, Verkündung) und den Beratungsverlauf. Für „wie ging es weiter“, „gibt es eine Antwort“."
+          "Drucksachennummer, z. B. '21/3546': alle Dokumente des Vorgangs samt Beratungsverlauf. Für „wie ging es weiter“, „gibt es eine Antwort“."
         ),
-      ...bundestagFilterSchema.omit({ dokumentnummer: true }).shape,
+      // `mitBeratung` steuert nur den Kern (Beratungsabschnitte im Volltext), kein Modellargument.
+      ...bundestagFilterSchema.omit({ dokumentnummer: true, mitBeratung: true }).shape,
     }),
     execute: async ({ query, modus, gruppieren, ref, ...args }) => {
       if (ref && ref.startsWith('PlPr')) {
@@ -215,23 +219,29 @@ Nicht für Inhalte, dafür parlament_lesen. Nicht für das, was eine Person oder
             'Die Dokumentfamilie gibt es nur für Drucksachen (z. B. 21/3546). Für ein Plenarprotokoll `parlament_lesen` mit dieser Ref nutzen.',
         };
       }
-      if (!ref && !query && modus !== 'zaehlen') {
-        return {
-          resultCount: 0,
-          sources: '',
-          error: 'Suchbegriff (query) oder Drucksachennummer (ref) fehlt.',
-        };
-      }
       // Das Modell kürzt die Frage oft aufs Thema („Artenschutz") und verliert
       // dabei „beschlossen", „Grüne" oder „seit Januar". Was der Wortlaut der
       // Nachricht hergibt, gilt deshalb mit — gesetzte Argumente gehen vor.
-      const userText =
+      const userText = (
         state.lastUserTextNoMentions ??
         (state.messages ? lastUserText(state.messages) : null) ??
-        '';
+        ''
+      ).trim();
       const fromArgs = Object.fromEntries(
         Object.entries(args).filter(([, v]) => v !== undefined)
       ) as typeof args;
+      // Ein Aufruf nur mit Filtern ist ein vollständiger Auftrag (das Rezept
+      // verlangt ihn so); ohne Filter und Suchbegriff ist die Frage selbst das Thema.
+      const hasFilters = Object.values(fromArgs).some((v) => !(Array.isArray(v) && v.length === 0));
+      if (!ref && !query && !hasFilters && !userText && modus !== 'zaehlen') {
+        return {
+          resultCount: 0,
+          sources: '',
+          error:
+            'Es fehlt ein Suchbegriff (query), eine Drucksachennummer (ref) oder ein Filter, und die Nachricht nennt kein Thema.',
+        };
+      }
+      const question = query ?? userText;
       const filters = { ...detectFromWording(userText), ...fromArgs };
       if (ref) {
         // Die Nummer legt den Vorgang fest; Filter aus dem Wortlaut (Typ, Urheber)
@@ -265,7 +275,10 @@ Nicht für Inhalte, dafür parlament_lesen. Nicht für das, was eine Person oder
         if (!isIntentAllowedForLocale('bundestag', state.userLocale)) {
           return { resultCount: 0, sources: '', error: intentDeclineNote('bundestag') ?? '' };
         }
-        const zaehlung = await countBundestagDocs({ filters, gruppieren }).catch(() => null);
+        const zaehlung = await countBundestagDocs({
+          filters,
+          ...(gruppieren ? { gruppieren } : {}),
+        }).catch(() => null);
         if (!zaehlung) {
           return {
             resultCount: 0,
@@ -277,7 +290,7 @@ Nicht für Inhalte, dafür parlament_lesen. Nicht für das, was eine Person oder
           [
             {
               source: 'bundestag',
-              title: `DIP-Zählung: ${zaehlung.einheit}`,
+              title: `DIP-Zählung: ${einheitLabel(zaehlung)}`,
               content: formatCount(zaehlung),
               url: 'https://dip.bundestag.de',
               relevance: 1,
@@ -290,6 +303,7 @@ Nicht für Inhalte, dafür parlament_lesen. Nicht für das, was eine Person oder
           sources: sources ?? '',
           modus: 'zaehlen',
           einheit: zaehlung.einheit,
+          bezeichnung: einheitLabel(zaehlung),
           gesamt: zaehlung.gesamt,
           ...(zaehlung.gruppen ? { gruppen: zaehlung.gruppen } : {}),
           ...(zaehlung.notes.length > 0 ? { hinweise: zaehlung.notes } : {}),
@@ -314,12 +328,13 @@ Nicht für Inhalte, dafür parlament_lesen. Nicht für das, was eine Person oder
         documents,
         filters: applied,
         verfahren,
-      } = await retrieveBundestag(query ?? '', state.userLocale, filters);
+      } = await retrieveBundestag(question, state.userLocale, filters);
       if (results.length === 0) {
         return { resultCount: 0, sources: '', error: 'Keine passenden Bundestags-Daten gefunden.' };
       }
-      // Listenzeilen tragen Titel, Vorgang und Abstract: 3000 Zeichen halten sie ganz.
-      const sources = sourceRegistry.register(results, { snippetChars: 3000 });
+      // Listenzeilen tragen Titel, Ref, Vorgang, Verlauf und Abstract (gedeckelt, zuletzt):
+      // 3500 Zeichen halten sie ganz, auch bei langem Verlauf (gemessen 5203 vor dem Umbau).
+      const sources = sourceRegistry.register(results, { snippetChars: BUNDESTAG_SNIPPET_CHARS });
       return {
         resultCount: results.length,
         sources: sources ?? '',
@@ -327,7 +342,7 @@ Nicht für Inhalte, dafür parlament_lesen. Nicht für das, was eine Person oder
         hinweis: BUNDESTAG_HINWEIS,
         // Nur für die Karte; wrapTools nimmt das Feld vor dem Modell heraus.
         uiCard: {
-          query,
+          query: question,
           filter: describeBundestagFilter(applied ?? filters),
           ...(totals ? { gesamt: totals } : {}),
           dokumente: (documents ?? []).map((d) => ({
@@ -522,7 +537,7 @@ Nicht für Abstimmungsverhalten, dafür abgeordnetenwatch. Nicht für Positionen
           'Abschnitt, auf den sich das Lesen richten soll, wenn die Frage eine Stelle nennt: „Artikel 3“, „§ 14“, „Begründung“, „Erfüllungsaufwand“. Sonst weglassen.'
         ),
     }),
-    execute: async ({ quelle, dokumente, frage, auftrag = 'frage', fokus }) => {
+    execute: async ({ quelle, dokumente, frage, auftrag = 'frage', fokus }, options) => {
       if (!isIntentAllowedForLocale('bundestag', state.userLocale)) {
         return { resultCount: 0, sources: '', error: intentDeclineNote('bundestag') ?? '' };
       }
@@ -551,6 +566,8 @@ Nicht für Abstimmungsverhalten, dafür abgeordnetenwatch. Nicht für Positionen
             auftrag,
             budget: CHAT_BUDGET,
             ...(fokus ? { fokus } : {}),
+            // Der Loop schreibt den Aufruf nach seiner Frist ab; dieses Signal stoppt dann das Weiterlesen.
+            ...(options?.abortSignal ? { abortSignal: options.abortSignal } : {}),
           })
         : await readBundestagRefs({
             question: frage,
@@ -558,6 +575,8 @@ Nicht für Abstimmungsverhalten, dafür abgeordnetenwatch. Nicht für Positionen
             auftrag,
             budget: CHAT_BUDGET,
             ...(fokus ? { fokus } : {}),
+            // Der Loop schreibt den Aufruf nach seiner Frist ab; dieses Signal stoppt dann das Weiterlesen.
+            ...(options?.abortSignal ? { abortSignal: options.abortSignal } : {}),
           });
       const results: SearchResult[] = documents
         .filter((d) => d.points.length > 0)
@@ -584,12 +603,27 @@ Nicht für Abstimmungsverhalten, dafür abgeordnetenwatch. Nicht für Positionen
         : [];
       const sources =
         results.length > 0 ? sourceRegistry.register(results, { snippetChars: 3000 }) : null;
+      // Nichts gelesen ist ein Fehlschlag, kein leeres Ergebnis: ohne `error`
+      // stand „0 Ergebnisse" mit ok=true da (21/8813, 28.10.2026 — die PDF der
+      // frisch veröffentlichten Antwort war noch nicht abrufbar), und der
+      // Schreiber musste den Grund erraten.
+      const nichtsGelesen =
+        results.length === 0 && nichtGelesen.length > 0
+          ? {
+              error: `Nichts gelesen — ${nichtGelesen.map((n) => `${n.ref}: ${n.grund}`).join('; ')}.${
+                nichtGelesen.some((n) => n.grund === NICHT_GELESEN_GRUND.missing)
+                  ? ' Bei einer frisch veröffentlichten Drucksache liegt der Text oft noch nicht vor (DIP ohne Text, PDF noch nicht abrufbar); das der Person so sagen, nicht raten.'
+                  : ''
+              }`,
+            }
+          : {};
       return {
         resultCount: results.length,
         sources: sources ?? '',
         // Die Lizenz verlangt die Namensnennung; das Modell soll sie in der Antwort tragen.
         ...(landtag ? { quelle: landtag.quellenangabe } : {}),
         nichtGelesen,
+        ...nichtsGelesen,
         ...(notes.length > 0 || fokusNotes.length > 0
           ? { hinweise: [...notes, ...fokusNotes] }
           : {}),

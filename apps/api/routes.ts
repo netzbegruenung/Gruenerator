@@ -930,10 +930,12 @@ export async function setupRoutes(app: Application): Promise<void> {
   // pro Handler — dieselbe Bauform wie die Admin-Router oben.
   app.use('/api/auth/admin/chunk-inspector', requireAuth);
   mountChunkInspectorContractRouter(app);
-  // Bundestag-Q&A: Anmeldung und KI-Einwilligung am Präfix, das Tageslimit nur
-  // auf der Antwort (der Plan ruft kein Lesemodell). Vor dem Router, denn
-  // Contract-Router erben keine später eingehängte Middleware.
+  // Bundestag-Q&A: Anmeldung und KI-Einwilligung am Präfix, ein Tageslimit je
+  // Endpunkt (Antwort: Lesemodell; Plan: Planmodell und DIP-Fächer, eigenes,
+  // höheres Limit). Vor dem Router, denn Contract-Router erben keine später
+  // eingehängte Middleware.
   app.use('/api/bundestag', requireAuth, requireAiConsent);
+  app.use('/api/bundestag/plan', rateLimitMiddleware('bundestag_plan', { autoIncrement: true }));
   app.use('/api/bundestag/answer', rateLimitMiddleware('bundestag_qa', { autoIncrement: true }));
   mountBundestagQaContractRouter(app);
   // Konnektor-Testseite: Google/Microsoft über Nango vor der Freigabe prüfen.

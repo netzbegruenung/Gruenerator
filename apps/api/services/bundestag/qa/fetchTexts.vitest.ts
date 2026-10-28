@@ -13,6 +13,7 @@ vi.mock('../../../utils/validation/urlSecurity.js', () => ({
   validateUrlForFetch: (u: string) => validateUrlForFetch(u),
 }));
 
+import { PDF_FALLBACK_CONCURRENCY } from './budget.js';
 import { fetchTexts, parseDebate, resolveRefs } from './fetchTexts.js';
 
 const FIXTURE = readFileSync(
@@ -207,6 +208,32 @@ describe('fetchTexts: Drucksachen', () => {
     );
     expect(out2[0]).toMatchObject({ text: '', textSource: 'missing' });
     expect(redis2.set).not.toHaveBeenCalled();
+  });
+
+  it('lässt höchstens PDF_FALLBACK_CONCURRENCY PDF-Rückfälle gleichzeitig laufen', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => new Response(new Uint8Array([1]), { headers: { 'content-length': '1' } }))
+    );
+    let active = 0;
+    let peak = 0;
+    extractPdfText.mockImplementation(async () => {
+      active++;
+      peak = Math.max(peak, active);
+      await new Promise((r) => setTimeout(r, 5));
+      active--;
+      return 'PDF';
+    });
+    const dip = { list: vi.fn().mockResolvedValue(page([], null)) };
+    const cands = Array.from({ length: 8 }, (_, i) =>
+      cand({
+        dipId: String(i + 1),
+        pdfUrl: `https://dserver.bundestag.de/btd/21/0${i}/210000${i}.pdf`,
+      })
+    );
+    await fetchTexts(cands, { dip, redis: redisMock(), signal: new AbortController().signal });
+    expect(peak).toBeGreaterThan(0);
+    expect(peak).toBeLessThanOrEqual(PDF_FALLBACK_CONCURRENCY);
   });
 
   it('lehnt einen fremden Host ab, ohne zu holen', async () => {

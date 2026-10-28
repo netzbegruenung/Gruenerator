@@ -53,6 +53,7 @@ export async function readLandtagRefs({
   auftrag = 'frage',
   budget = CHAT_BUDGET,
   fokus,
+  abortSignal,
 }: {
   parlament: LandtagParlament;
   question: string;
@@ -60,10 +61,13 @@ export async function readLandtagRefs({
   auftrag?: BundestagAuftrag;
   budget?: Budget;
   fokus?: string | undefined;
+  /** Signal des Werkzeugaufrufs: nach dem Timeout im Loop beginnt kein weiteres Fenster. */
+  abortSignal?: AbortSignal;
 }): Promise<{ documents: ReadDocumentInfo[]; notes: string[] }> {
   const meta = LANDTAGE[parlament];
   const backend = LANDTAG_BACKENDS[parlament]();
-  const signal = AbortSignal.timeout(budget.deadlineMs);
+  const deadline = AbortSignal.timeout(budget.deadlineMs);
+  const signal = abortSignal ? AbortSignal.any([abortSignal, deadline]) : deadline;
   const notes: string[] = [];
 
   const resolved = await backend.resolveRefs(refs);

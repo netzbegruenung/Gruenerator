@@ -45,6 +45,8 @@ const SEARCH_PROGRESS_TOOLS: ReadonlySet<string> = new Set([
   'meine_inhalte_laden',
   // Same for the website group's loader.
   'website_werkzeug_laden',
+  // … and the parliament group's.
+  'parlament_werkzeuge_laden',
 ]);
 
 /** Whether this tool reports through the status line instead of a card. */

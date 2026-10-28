@@ -3,7 +3,11 @@
  * Fenster einzeln und isoliert gelesen. Ein Punkt zählt nur, wenn sein Zitat
  * im Fenster auffindbar ist (`locateQuote`); sonst entfällt er.
  */
-import { type BundestagAuftrag, type BundestagPoint } from '@gruenerator/contracts';
+import {
+  type BundestagAuftrag,
+  type BundestagPoint,
+  type BundestagReadSkipped,
+} from '@gruenerator/contracts';
 
 import { createLogger } from '../../../utils/logger.js';
 import { aiObject, type AiCall } from '../../ai/generate.js';
@@ -16,6 +20,7 @@ import {
   MAX_POINTS_PER_WINDOW,
   MAX_WINDOWS_PER_DOC,
   READ_CONCURRENCY,
+  createLimiter,
   readWindowChars,
 } from './budget.js';
 import { type FetchedDoc } from './fetchTexts.js';
@@ -34,7 +39,7 @@ export interface ReadResult {
   droppedPoints: number;
   windowsRead: number;
   windowsTotal: number;
-  skipped: 'budget' | 'deadline' | 'missing' | null;
+  skipped: BundestagReadSkipped | null;
   /** Nur mit Fokus: stand der Anker im Text? Ohne Fokus `null`. */
   fokusFound?: boolean | null;
   /** `aiObject` meldet keine Tokens; bis das ändert, bleibt es null statt erfunden. */
@@ -50,6 +55,8 @@ export interface ReadParams {
   docs: FetchedDoc[];
   budget: Budget;
   signal?: AbortSignal;
+  /** Absolute Frist (ms seit Epoche). Ohne Angabe läuft `budget.deadlineMs` ab Beginn des Lesens; mit ihr zählt der Anfragebeginn. */
+  deadlineAt?: number;
   /** `AiCall.pinned`; nur der Vergleichslauf aus Task 10 setzt es. */
   target?: AiCall['pinned'];
   /** Abschnitt, Artikel oder Paragraf, auf den sich das Lesen richtet („Artikel 3", „§ 14", „Kosten"). */
@@ -195,32 +202,6 @@ function pickWindows(
   return [0, ...rest].sort((a, b) => a - b);
 }
 
-/** Lässt höchstens `limit` Aufgaben gleichzeitig laufen. */
-function createLimiter(limit: number) {
-  let active = 0;
-  const queue: (() => void)[] = [];
-  const next = () => {
-    if (active >= limit) return;
-    const run = queue.shift();
-    if (run) {
-      active++;
-      run();
-    }
-  };
-  return <T>(task: () => Promise<T>): Promise<T> =>
-    new Promise<T>((resolve, reject) => {
-      queue.push(() => {
-        task()
-          .then(resolve, reject)
-          .finally(() => {
-            active--;
-            next();
-          });
-      });
-      next();
-    });
-}
-
 interface Plan {
   doc: FetchedDoc;
   total: number;
@@ -237,11 +218,12 @@ export async function readDocuments({
   docs,
   budget,
   signal,
+  deadlineAt: deadlineAtParam,
   target,
   fokus,
   herkunft,
 }: ReadParams): Promise<ReadResult[]> {
-  const startedAt = Date.now();
+  const deadlineAt = deadlineAtParam ?? Date.now() + budget.deadlineMs;
   const size = readWindowChars(modelFor(target));
   const limit = createLimiter(READ_CONCURRENCY);
 
@@ -289,10 +271,10 @@ export async function readDocuments({
     await Promise.all(
       picked.map((win) =>
         limit(async () => {
-          if (signal?.aborted || Date.now() - startedAt >= budget.deadlineMs) return;
+          if (signal?.aborted || Date.now() >= deadlineAt) return;
           result.windowsRead++;
           result.charsRead += win.text.length;
-          const remaining = Math.max(1, budget.deadlineMs - (Date.now() - startedAt));
+          const remaining = Math.max(1, deadlineAt - Date.now());
           const res = await aiObject<RawWindow>({
             lane: 'bundestag_read',
             ...(target ? { pinned: target } : {}),

@@ -14,12 +14,12 @@
           "role": "primary"
         },
         {
-          "model": "gemma-4-31b-it",
-          "code": "gemma-4-31b-it",
-          "label": "Gemma 4 (31 Mrd.)",
-          "provider": "cortecs",
-          "host": "Cortecs",
-          "flag": "🇱🇺",
+          "model": "gemma-4-31b:balanced",
+          "code": "gemma-4-31b:balanced",
+          "label": "Gemma 4 (31 Mrd., Melious Balanced)",
+          "provider": "melious",
+          "host": "Melious",
+          "flag": "🇪🇺",
           "role": "fallback"
         }
       ]
@@ -29,21 +29,21 @@
       "task": "Kreativtexte, Antworten schreiben",
       "models": [
         {
-          "model": "gemma-4-31b-it",
-          "code": "gemma-4-31b-it",
-          "label": "Gemma 4 (31 Mrd.)",
-          "provider": "cortecs",
-          "host": "Cortecs",
-          "flag": "🇱🇺",
-          "role": "primary"
-        },
-        {
           "model": "gemma-4-31b:balanced",
           "code": "gemma-4-31b:balanced",
           "label": "Gemma 4 (31 Mrd., Melious Balanced)",
           "provider": "melious",
           "host": "Melious",
           "flag": "🇪🇺",
+          "role": "primary"
+        },
+        {
+          "model": "gemma-4-31b-it",
+          "code": "gemma-4-31b-it",
+          "label": "Gemma 4 (31 Mrd.)",
+          "provider": "cortecs",
+          "host": "Cortecs",
+          "flag": "🇱🇺",
           "role": "fallback"
         }
       ]
@@ -77,12 +77,12 @@
       "task": "Lange Dokumente zusammenfassen",
       "models": [
         {
-          "model": "gemma-4-31b-it",
-          "code": "gemma-4-31b-it",
-          "label": "Gemma 4 (31 Mrd.)",
-          "provider": "cortecs",
-          "host": "Cortecs",
-          "flag": "🇱🇺",
+          "model": "gemma-4-31b:balanced",
+          "code": "gemma-4-31b:balanced",
+          "label": "Gemma 4 (31 Mrd., Melious Balanced)",
+          "provider": "melious",
+          "host": "Melious",
+          "flag": "🇪🇺",
           "role": "primary"
         }
       ]
@@ -137,12 +137,12 @@
       "task": "Bilder verstehen",
       "models": [
         {
-          "model": "gemma-4-31b-it",
-          "code": "gemma-4-31b-it",
-          "label": "Gemma 4 (31 Mrd.)",
-          "provider": "cortecs",
-          "host": "Cortecs",
-          "flag": "🇱🇺",
+          "model": "gemma-4-31b:balanced",
+          "code": "gemma-4-31b:balanced",
+          "label": "Gemma 4 (31 Mrd., Melious Balanced)",
+          "provider": "melious",
+          "host": "Melious",
+          "flag": "🇪🇺",
           "role": "primary"
         }
       ]
