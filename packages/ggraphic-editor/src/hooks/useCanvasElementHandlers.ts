@@ -1,15 +1,15 @@
 // SPDX-License-Identifier: MPL-2.0
 import { useCallback, useMemo } from 'react';
 
-import { type LiftedBlock } from '../blocks/liftedBlock';
-import { resolveValue } from '../utils/canvasValueResolver';
+import { type LiftedBlock } from '../blocks/liftedBlock.js';
+import { resolveValue } from '../utils/canvasValueResolver.js';
 import {
   isTemplateElementRotatable,
   templatePositionUpdates,
   withTemplateRotation,
-} from '../utils/templateRotation';
+} from '../utils/templateRotation.js';
 
-import type { FullCanvasConfig, LayoutResult, AdditionalText } from '../configs/types';
+import type { FullCanvasConfig, LayoutResult, AdditionalText } from '../configs/types.js';
 import type { CircleBadgeInstance } from '@ggraphic/editor/primitives/CircleBadge';
 import type { BalkenMode } from '@ggraphic/editor/utils/balkenUtils';
 import type { ChartInstance, ChartType } from '@ggraphic/editor/utils/chartTypes';

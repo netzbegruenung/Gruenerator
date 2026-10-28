@@ -50,16 +50,16 @@ import {
   CROP_GHOST_OPACITY,
   cropGhostAttrs,
   cropGhostSource,
-} from '../utils/cropGhost';
+} from '../utils/cropGhost.js';
 import {
   getActiveImageFilters,
   hasActiveImageFilters,
   imageFilterAttrs,
-} from '../utils/imageFilters';
-import { cropKeyOf, userImageKeyCrop } from '../utils/keyboardCrop';
-import { userImageBox } from '../utils/renderedBoxes';
-import { userImageCropUpdate } from '../utils/userImageCrop';
-import { USER_PHOTO_NODE_NAME, type UserImageInstance } from '../utils/userImageUtils';
+} from '../utils/imageFilters.js';
+import { cropKeyOf, userImageKeyCrop } from '../utils/keyboardCrop.js';
+import { userImageBox } from '../utils/renderedBoxes.js';
+import { userImageCropUpdate } from '../utils/userImageCrop.js';
+import { USER_PHOTO_NODE_NAME, type UserImageInstance } from '../utils/userImageUtils.js';
 
 import type Konva from 'konva';
 

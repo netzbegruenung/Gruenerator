@@ -14,10 +14,10 @@ import { type ExportFormat } from '@ggraphic/editor/types/editorTypes';
 import { isDownloadTooLarge } from '@ggraphic/editor/utils/downloadError';
 import { zipPageImages } from '@ggraphic/editor/utils/zipPageImages';
 
-import { useCanvasEditorServices } from '../CanvasEditorProvider';
-import { browserFileDelivery } from '../hostServices';
+import { useCanvasEditorServices } from '../CanvasEditorProvider.js';
+import { browserFileDelivery } from '../hostServices.js';
 
-import type { GenericCanvasRef } from '../components/GenericCanvas';
+import type { GenericCanvasRef } from '../components/GenericCanvas.js';
 
 const NOTICE_LIFETIME_MS = 5000;
 

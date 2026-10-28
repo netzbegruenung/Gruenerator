@@ -9,8 +9,8 @@
  * 4. RequestIdleCallback for non-blocking background loads
  */
 
-import { recordCacheHit, recordCacheMiss, recordNetworkRequest } from './prefetchAnalytics';
-import { getIllustrationPath } from './registry';
+import { recordCacheHit, recordCacheMiss, recordNetworkRequest } from './prefetchAnalytics.js';
+import { getIllustrationPath } from './registry.js';
 
 import type { SvgDef } from '@ggraphic/editor/utils/illustrations/types';
 

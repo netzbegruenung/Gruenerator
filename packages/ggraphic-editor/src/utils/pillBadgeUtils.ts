@@ -10,7 +10,7 @@
 import { activeBrand } from '@ggraphic/editor/brand/brandRegistry';
 import { messages } from '@ggraphic/editor/i18n/messages';
 
-import { measureTextWidthWithFont } from './textUtils';
+import { measureTextWidthWithFont } from './textUtils.js';
 
 // ============================================================================
 // TYPE DEFINITIONS

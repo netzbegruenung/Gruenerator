@@ -53,60 +53,60 @@ import { PendingImagesContext } from '@ggraphic/editor/utils/pendingImages';
 import { stageCssScale } from '@ggraphic/editor/utils/stageCssScale';
 import { getOptimalContainerWidth } from '@ggraphic/editor/utils/viewport';
 
-import { blockElementIds, placeBlock, type LiftedBlock } from '../blocks/liftedBlock';
-import { HOST_EMITTED_STATE_KEYS } from '../collab/pageElementStateKeys';
-import { useSelectionAwareness } from '../collab/useSelectionAwareness';
-import { useYjsPageStateSync } from '../collab/useYjsPageStateSync';
+import { blockElementIds, placeBlock, type LiftedBlock } from '../blocks/liftedBlock.js';
+import { HOST_EMITTED_STATE_KEYS } from '../collab/pageElementStateKeys.js';
+import { useSelectionAwareness } from '../collab/useSelectionAwareness.js';
+import { useYjsPageStateSync } from '../collab/useYjsPageStateSync.js';
 import {
   useCanvasInteractions,
   useCanvasStoreReset,
   useCanvasHistorySetup,
   useFontGeneration,
   useFontLoader,
-} from '../hooks';
-import { useCanvasAutoSave } from '../hooks/useCanvasAutoSave';
-import { useCanvasElementHandlers } from '../hooks/useCanvasElementHandlers';
-import { useCanvasKeyboardHandlers } from '../hooks/useCanvasKeyboardHandlers';
-import { useContextPress } from '../hooks/useContextPress';
-import { useCropSession } from '../hooks/useCropSession';
-import { useDeepSelect } from '../hooks/useDeepSelect';
-import { floatingModuleFor } from '../hooks/useFloatingModuleState';
-import { CanvasStage, SnapGuidelines } from '../primitives';
+} from '../hooks/index.js';
+import { useCanvasAutoSave } from '../hooks/useCanvasAutoSave.js';
+import { useCanvasElementHandlers } from '../hooks/useCanvasElementHandlers.js';
+import { useCanvasKeyboardHandlers } from '../hooks/useCanvasKeyboardHandlers.js';
+import { useContextPress } from '../hooks/useContextPress.js';
+import { useCropSession } from '../hooks/useCropSession.js';
+import { useDeepSelect } from '../hooks/useDeepSelect.js';
+import { floatingModuleFor } from '../hooks/useFloatingModuleState.js';
+import { CanvasStage, SnapGuidelines } from '../primitives/index.js';
 import {
   createCanvasCommands,
   type ClientPoint,
   type SelectionGeometry,
-} from '../utils/canvasCommands';
-import { canvasFontFamilies } from '../utils/canvasFontFamilies';
-import { buildCanvasItems, buildSortedRenderList } from '../utils/canvasLayerManager';
+} from '../utils/canvasCommands.js';
+import { canvasFontFamilies } from '../utils/canvasFontFamilies.js';
+import { buildCanvasItems, buildSortedRenderList } from '../utils/canvasLayerManager.js';
 import {
   captureStageImage,
   captureStageImageAsync,
   rasterizeStageElement,
   visibleStageTexts,
-} from '../utils/captureStage';
-import { MAX_ICON_SELECTIONS, selectedCatalogIconIds } from '../utils/iconInstances';
-import { layerLabel, pageLayerLabels, stageSummary } from '../utils/layerLabels';
-import { findTemplateEntry } from '../utils/templateElementInstance';
+} from '../utils/captureStage.js';
+import { MAX_ICON_SELECTIONS, selectedCatalogIconIds } from '../utils/iconInstances.js';
+import { layerLabel, pageLayerLabels, stageSummary } from '../utils/layerLabels.js';
+import { findTemplateEntry } from '../utils/templateElementInstance.js';
 
-import { CanvasRenderLayer } from './CanvasRenderLayer';
-import { ToolbarStateBridge } from './ToolbarStateBridge';
+import { CanvasRenderLayer } from './CanvasRenderLayer.js';
+import { ToolbarStateBridge } from './ToolbarStateBridge.js';
 
-import type { CanvasMenuSnapshot } from './CanvasContextMenu/canvasMenuModel';
-import type { ToolbarBridgeState } from './ToolbarStateBridge';
+import type { CanvasMenuSnapshot } from './CanvasContextMenu/canvasMenuModel.js';
+import type { ToolbarBridgeState } from './ToolbarStateBridge.js';
 import type { RemoteSelector } from '@ggraphic/editor/components/RemoteSelectionOverlay';
 
 const EMPTY_CALLBACKS: Record<string, ((val: unknown) => void) | undefined> = {};
 const HOST_EMITTED_KEY_SET: ReadonlySet<string> = new Set(HOST_EMITTED_STATE_KEYS);
 
-import type { BaseCanvasState } from '../configs/factory/baseTypes';
-import type { CanvasElementConfig, FullCanvasConfig, LayoutResult } from '../configs/types';
-import type { OptionalCanvasActions } from '../hooks/useCanvasElementHandlers';
-import type { ShadowPatch } from '../hooks/useFloatingModuleHandlers';
-import type { FloatingModuleState } from '../hooks/useFloatingModuleState';
-import type { CanvasStageRef } from '../primitives/CanvasStage';
-import type { LayerEntry } from '../utils/layerLabels';
-import type { LockState } from '../utils/layerLock';
+import type { BaseCanvasState } from '../configs/factory/baseTypes.js';
+import type { CanvasElementConfig, FullCanvasConfig, LayoutResult } from '../configs/types.js';
+import type { OptionalCanvasActions } from '../hooks/useCanvasElementHandlers.js';
+import type { ShadowPatch } from '../hooks/useFloatingModuleHandlers.js';
+import type { FloatingModuleState } from '../hooks/useFloatingModuleState.js';
+import type { CanvasStageRef } from '../primitives/CanvasStage.js';
+import type { LayerEntry } from '../utils/layerLabels.js';
+import type { LockState } from '../utils/layerLock.js';
 import type { CanvasEditorStoreApi } from '@ggraphic/editor/stores/createCanvasEditorStore';
 import type { ExportOptions } from '@ggraphic/editor/types/editorTypes';
 import type { PageCommandId } from '@ggraphic/editor/utils/canvasCommandRegistry';

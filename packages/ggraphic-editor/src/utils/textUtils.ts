@@ -12,7 +12,7 @@ import { layoutRichTextBlock, wrapLines, type MeasureRun, type RunStyle } from '
 import { registeredBrands } from '@ggraphic/editor/brand/brandRegistry';
 import { notifyFontLoaded } from '@ggraphic/editor/hooks/useFontGeneration';
 
-import { primaryFontFamily } from './fontMarkSupport';
+import { primaryFontFamily } from './fontMarkSupport.js';
 
 // The bundler replaces `process.env.NODE_ENV`; outside one, `process` may not exist.
 declare const process: { env: Record<string, string | undefined> };

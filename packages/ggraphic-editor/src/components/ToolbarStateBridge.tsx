@@ -22,38 +22,38 @@ import {
 import { toast } from '@ggraphic/editor/utils/editorToast';
 import { userFacingMessage } from '@ggraphic/editor/utils/userFacingError';
 
-import { useCanvasEditorServices } from '../CanvasEditorProvider';
-import { useFloatingModuleHandlers } from '../hooks/useFloatingModuleHandlers';
-import { useFloatingModuleState } from '../hooks/useFloatingModuleState';
-import { plainImageUrls } from '../hostServices';
-import { useOptionalUserUploads } from '../sidebar/UserUploadsProvider';
-import { cropRotationOf, cropRotationUpdate } from '../utils/cropSession';
-import { canEnterCrop, type CropUpdate } from '../utils/cropTarget';
+import { useCanvasEditorServices } from '../CanvasEditorProvider.js';
+import { useFloatingModuleHandlers } from '../hooks/useFloatingModuleHandlers.js';
+import { useFloatingModuleState } from '../hooks/useFloatingModuleState.js';
+import { plainImageUrls } from '../hostServices.js';
+import { useOptionalUserUploads } from '../sidebar/UserUploadsProvider.js';
+import { cropRotationOf, cropRotationUpdate } from '../utils/cropSession.js';
+import { canEnterCrop, type CropUpdate } from '../utils/cropTarget.js';
 import {
   cropImageSrc,
   expandedFileName,
   expandResetPatch,
   expandTarget,
-} from '../utils/expandImage';
-import { pageLayerLabels } from '../utils/layerLabels';
-import { fetchShareImageFile } from '../utils/mediaPlacement';
-import { findOrientationDoor } from '../utils/orientElement';
-import { selectionCapabilities } from '../utils/selectionCapabilities';
+} from '../utils/expandImage.js';
+import { pageLayerLabels } from '../utils/layerLabels.js';
+import { fetchShareImageFile } from '../utils/mediaPlacement.js';
+import { findOrientationDoor } from '../utils/orientElement.js';
+import { selectionCapabilities } from '../utils/selectionCapabilities.js';
 import {
   smartCropSource,
   smartCropUpdate,
   smartCropView,
   suggestSmartCrop,
-} from '../utils/smartCrop';
-import { findTemplateEntry } from '../utils/templateElementInstance';
+} from '../utils/smartCrop.js';
+import { findTemplateEntry } from '../utils/templateElementInstance.js';
 
-import type { ToolbarStateReport } from './GenericCanvas';
-import type { BaseCanvasState } from '../configs/factory/baseTypes';
-import type { CanvasElementConfig, FullCanvasConfig, LayoutResult } from '../configs/types';
-import type { OptionalCanvasActions } from '../hooks/useCanvasElementHandlers';
-import type { ShadowPatch } from '../hooks/useFloatingModuleHandlers';
-import type { FloatingModuleState } from '../hooks/useFloatingModuleState';
-import type { CanvasItem } from '../utils/canvasLayerManager';
+import type { ToolbarStateReport } from './GenericCanvas.js';
+import type { BaseCanvasState } from '../configs/factory/baseTypes.js';
+import type { CanvasElementConfig, FullCanvasConfig, LayoutResult } from '../configs/types.js';
+import type { OptionalCanvasActions } from '../hooks/useCanvasElementHandlers.js';
+import type { ShadowPatch } from '../hooks/useFloatingModuleHandlers.js';
+import type { FloatingModuleState } from '../hooks/useFloatingModuleState.js';
+import type { CanvasItem } from '../utils/canvasLayerManager.js';
 import type { Rect } from '@ggraphic/editor/utils/coverFit';
 import type { CropAspectId } from '@ggraphic/editor/utils/cropAspect';
 import type { GradientFill } from '@ggraphic/editor/utils/gradientFill';

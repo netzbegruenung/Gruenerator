@@ -24,9 +24,9 @@ import {
   ASSET_TARGET_SIZE,
   isStickerLikeInstance,
   resolveAssetInstanceSrc,
-} from '../utils/canvasAssets';
+} from '../utils/canvasAssets.js';
 
-import type { AssetInstance } from '../utils/canvasAssets';
+import type { AssetInstance } from '../utils/canvasAssets.js';
 import type { SnapLine, SnapTarget } from '@ggraphic/editor/utils/snapping';
 import type Konva from 'konva';
 

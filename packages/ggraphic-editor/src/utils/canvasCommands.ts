@@ -31,8 +31,8 @@ import {
 } from '@ggraphic/editor/utils/orientation';
 import { openTextEditor } from '@ggraphic/editor/utils/textEditorOpeners';
 
-import { CanvasClipboard } from './canvasClipboard';
-import { moveLayerTo, type CanvasItem, type LayerStep } from './canvasLayerManager';
+import { CanvasClipboard } from './canvasClipboard.js';
+import { moveLayerTo, type CanvasItem, type LayerStep } from './canvasLayerManager.js';
 import {
   DUPLICATE_OFFSET,
   duplicateElementInState,
@@ -41,26 +41,26 @@ import {
   type DuplicableEntry,
   type InsertOffset,
   type TemplateEntryLookup,
-} from './duplicateElement';
-import { layerLabel } from './layerLabels';
-import { lockedIdsOf, toggledLocks } from './layerLock';
+} from './duplicateElement.js';
+import { layerLabel } from './layerLabels.js';
+import { lockedIdsOf, toggledLocks } from './layerLock.js';
 import {
   findOrientationDoor,
   type OrientableKind,
   type OrientationDoor,
   type OrientationDoorInput,
   type OrientationPatch,
-} from './orientElement';
-import { findElementRemover, isTemplateBound } from './removeElement';
+} from './orientElement.js';
+import { findElementRemover, isTemplateBound } from './removeElement.js';
 import {
   lockableIds,
   selectionCapabilities,
   type SelectionCapabilities,
-} from './selectionCapabilities';
+} from './selectionCapabilities.js';
 
-import type { BaseCanvasState } from '../configs/factory/baseTypes';
-import type { CanvasElementConfig, LayoutResult } from '../configs/types';
-import type { OptionalCanvasActions } from '../hooks/useCanvasElementHandlers';
+import type { BaseCanvasState } from '../configs/factory/baseTypes.js';
+import type { CanvasElementConfig, LayoutResult } from '../configs/types.js';
+import type { OptionalCanvasActions } from '../hooks/useCanvasElementHandlers.js';
 import type { CanvasEditorStoreApi } from '@ggraphic/editor/stores/createCanvasEditorStore';
 import type { PageCommandId } from '@ggraphic/editor/utils/canvasCommandRegistry';
 import type Konva from 'konva';

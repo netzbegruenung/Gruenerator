@@ -3,11 +3,11 @@ import { useMemo, useRef } from 'react';
 
 import { templateTextAlignOf, type TextAlign } from '@ggraphic/editor/utils/textAlign';
 
-import { canCropBackgroundPhoto } from '../utils/backgroundPhotoCrop';
-import { resolveValue } from '../utils/canvasValueResolver';
-import { findKindItem, type ElementKindName, type KindItem } from '../utils/elementKinds';
+import { canCropBackgroundPhoto } from '../utils/backgroundPhotoCrop.js';
+import { resolveValue } from '../utils/canvasValueResolver.js';
+import { findKindItem, type ElementKindName, type KindItem } from '../utils/elementKinds.js';
 
-import type { FullCanvasConfig, LayoutResult } from '../configs/types';
+import type { FullCanvasConfig, LayoutResult } from '../configs/types.js';
 import type { StockImageAttribution } from '@ggraphic/editor/common/imageSourceTypes';
 import type { GradientFill } from '@ggraphic/editor/utils/gradientFill';
 

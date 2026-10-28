@@ -22,7 +22,7 @@ import {
   getOptionalStateValue,
 } from '@ggraphic/editor/utils/stateTypeAssertions';
 
-import type { ImageElementConfig, LayoutResult } from '../configs/types';
+import type { ImageElementConfig, LayoutResult } from '../configs/types.js';
 
 /** Loest einen Wert auf, der statisch oder aus Zustand und Layout abgeleitet ist. */
 export function resolveValue<T, TState extends Record<string, unknown> = Record<string, unknown>>(

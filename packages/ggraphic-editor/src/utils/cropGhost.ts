@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: MPL-2.0
 import Konva from 'konva';
 
-import { getActiveImageFilters, imageFilterAttrs } from './imageFilters';
+import { getActiveImageFilters, imageFilterAttrs } from './imageFilters.js';
 
-import type { ImageAdjustments } from './userImageUtils';
+import type { ImageAdjustments } from './userImageUtils.js';
 import type { Mirror, Rect } from '@ggraphic/editor/utils/coverFit';
 
 /**

@@ -293,6 +293,13 @@ jobs:
           node scripts/check-ggraphic-core-boundary.mjs --self-test
           node scripts/check-ggraphic-core-boundary.mjs
 
+      # The @ggraphic/* dist is plain tsc output loaded by Node without a
+      # bundler: a relative import without .js breaks only outside the repo.
+      - name: ggraphic relative imports carry .js
+        run: |
+          node scripts/check-ggraphic-esm-specifiers.mjs --self-test
+          node scripts/check-ggraphic-esm-specifiers.mjs
+
       # Decision-point ids in DECISION_POINTS (apps/api/utils/decisionJournal.ts)
       # land in committed decision-map snapshots, which makes them F1 —
       # internally frozen (see CLAUDE.md). Catch drift before tsc even runs:

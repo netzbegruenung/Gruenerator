@@ -9,9 +9,9 @@
 
 import { useEffect, useRef } from 'react';
 
-import { useCanvasStore } from '../stores/CanvasStoreProvider';
+import { useCanvasStore } from '../stores/CanvasStoreProvider.js';
 
-import type { CanvasEditorStoreApi } from '../stores/createCanvasEditorStore';
+import type { CanvasEditorStoreApi } from '../stores/createCanvasEditorStore.js';
 
 const openers = new WeakMap<CanvasEditorStoreApi, Map<string, () => void>>();
 

@@ -24,7 +24,7 @@ import { type Doc } from 'yjs';
 
 import { messages } from '@ggraphic/editor/i18n/messages';
 
-import type { AdditionalText } from './configs/types';
+import type { AdditionalText } from './configs/types.js';
 import type { StockImage, UnsplashSearchResult } from '@ggraphic/schema';
 
 // ── Media library ───────────────────────────────────────────────────────────

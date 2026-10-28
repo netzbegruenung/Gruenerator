@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MPL-2.0
 import { useQuery, keepPreviousData } from '@tanstack/react-query';
 
-import { searchIcons, type IconSearchResult } from '../utils/canvasIcons';
+import { searchIcons, type IconSearchResult } from '../utils/canvasIcons.js';
 
 const SEARCH_LIMIT = 64;
 

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MPL-2.0
-import type { CanvasStageRef } from '../primitives/CanvasStage';
+import type { CanvasStageRef } from '../primitives/CanvasStage.js';
 import type { HostCanvasAiCapabilities } from '@ggraphic/editor/ai/types';
 import type { StockImageAttribution } from '@ggraphic/editor/common/imageSourceTypes';
 import type { BackgroundType, TextFieldConfig } from '@ggraphic/editor/configs/unifiedTabs';

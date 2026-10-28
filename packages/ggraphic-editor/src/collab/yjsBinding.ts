@@ -3,8 +3,8 @@ import * as Y from 'yjs';
 
 import { YDOC_KEYS } from '@ggraphic/editor/collab/ydocKeys';
 
-import type { CanvasEditorStoreApi } from '../stores/createCanvasEditorStore';
-import type { CanvasEditorConfig } from '../types/editorTypes';
+import type { CanvasEditorStoreApi } from '../stores/createCanvasEditorStore.js';
+import type { CanvasEditorConfig } from '../types/editorTypes.js';
 
 const LOCAL_ORIGIN = Symbol('canvas-editor-local');
 

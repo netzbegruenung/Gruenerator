@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: MPL-2.0
 // Worauf die Zuschneide-Werkzeuge (Begradigen, Automatisch, Erweitern) wirken: eine Tür für alle drei.
 
-import { canCropBackgroundPhoto } from './backgroundPhotoCrop';
-import { BACKGROUND_IMAGE_NODE_ID } from './printImageInfo';
+import { canCropBackgroundPhoto } from './backgroundPhotoCrop.js';
+import { BACKGROUND_IMAGE_NODE_ID } from './printImageInfo.js';
 
-import type { CanvasElementConfig, ImageElementConfig } from '../configs/types';
+import type { CanvasElementConfig, ImageElementConfig } from '../configs/types.js';
 import type { UserImageInstance } from '@ggraphic/editor/utils/userImageUtils';
 
 /** Was ein Zuschneide-Werkzeug schreibt: Seitenzustand der Vorlage oder ein Patch am eigenen Bild. */

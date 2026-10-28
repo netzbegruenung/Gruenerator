@@ -22,11 +22,11 @@ import { extractInheritablePageState } from '@ggraphic/editor/configs/pageInheri
 import { messages } from '@ggraphic/editor/i18n/messages';
 import { getTemplate, type TemplateId } from '@ggraphic/editor/templates/registry';
 
-import { HOST_EMITTED_STATE_KEYS } from '../collab/pageElementStateKeys';
-import { useYjsPages, type NormalizeEcho, type YjsPagesApi } from '../collab/useYjsPages';
-import { loadCanvasConfig } from '../configs/configLoader';
+import { HOST_EMITTED_STATE_KEYS } from '../collab/pageElementStateKeys.js';
+import { useYjsPages, type NormalizeEcho, type YjsPagesApi } from '../collab/useYjsPages.js';
+import { loadCanvasConfig } from '../configs/configLoader.js';
 
-import type { HeterogeneousPage, FullCanvasConfig } from '../configs/types';
+import type { HeterogeneousPage, FullCanvasConfig } from '../configs/types.js';
 
 /** Pre-populated page definition for initializing multi-page with content */
 export interface InitialPageDef<TId extends string = TemplateId> {

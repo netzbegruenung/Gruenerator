@@ -4,7 +4,7 @@ import { useEffect, useRef } from 'react';
 import { useAnnouncer } from '@ggraphic/editor/hooks/useAnnounce';
 import { messages } from '@ggraphic/editor/i18n/messages';
 
-import type { CanvasEditorStoreApi } from '../stores/createCanvasEditorStore';
+import type { CanvasEditorStoreApi } from '../stores/createCanvasEditorStore.js';
 
 /** So lange ruht die Auswahl, bevor sie angesagt wird: Pfeiltasten in der Ebenen-Liste ziehen vorbei. */
 export const SELECTION_ANNOUNCE_DELAY_MS = 400;

@@ -38,7 +38,7 @@ import {
   type PathShapeType,
 } from '@ggraphic/editor/utils/shapeTransform';
 
-import { shapeBox } from '../utils/renderedBoxes';
+import { shapeBox } from '../utils/renderedBoxes.js';
 
 import type Konva from 'konva';
 

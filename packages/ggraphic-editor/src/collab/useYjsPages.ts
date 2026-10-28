@@ -26,9 +26,9 @@ import {
 } from '@ggraphic/editor/collab/pagesDoc';
 import { YDOC_KEYS } from '@ggraphic/editor/collab/ydocKeys';
 
-import { useCanvasEditorServices } from '../CanvasEditorProvider';
+import { useCanvasEditorServices } from '../CanvasEditorProvider.js';
 
-import type { CanvasCarouselService } from '../hostServices';
+import type { CanvasCarouselService } from '../hostServices.js';
 
 // Structural page ops (add/remove/duplicate/move/convert) — tracked by the
 // page UndoManager.
