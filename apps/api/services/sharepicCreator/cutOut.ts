@@ -15,10 +15,11 @@ import { fileURLToPath } from 'node:url';
 import { SHAREPIC_SCENE_REF } from '@gruenerator/contracts';
 
 import { createLogger } from '../../utils/logger.js';
+import { safeFetch } from '../../utils/validation/urlSecurity.js';
 import { removeBackgroundWithRembg } from '../image/rembgIntegration.js';
 import { getSharedMediaService } from '../sharedMediaService.js';
 
-import { hasStockPhoto } from './catalog.js';
+import { hasStockPhoto, liveStockPhoto } from './catalog.js';
 import { loadOwnPhoto } from './photoAnalysis.js';
 
 const log = createLogger('sharepicCreator:cutOut');
@@ -29,14 +30,20 @@ const STOCK_DIR = path.join(__dirname, '../../public/sharepic_example_bg');
 export type CutOutPainter = (quelle: string) => Promise<string | null>;
 
 /**
- * The bytes behind a `bild` source, read from our own storage only. An own
- * upload (`upload:N`) is not: its URL stays on the client.
+ * The bytes behind a `bild` source: our own storage, or a live stock photo
+ * from Unsplash's image host. An own upload (`upload:N`) is not: its URL
+ * stays on the client.
  */
 async function loadSource(quelle: string, userId: string): Promise<Buffer | null> {
   const token = SHAREPIC_SCENE_REF.exec(quelle)?.[1];
   if (token) return loadOwnPhoto(`/api/share/${token}/download`, userId, getSharedMediaService());
   // Only a catalogue name reaches the disk: no path from the model is joined.
-  return hasStockPhoto(quelle) ? fs.readFile(path.join(STOCK_DIR, quelle)) : null;
+  if (hasStockPhoto(quelle)) return fs.readFile(path.join(STOCK_DIR, quelle));
+  const live = await liveStockPhoto(quelle);
+  if (!live) return null;
+  // The URL comes from Unsplash's API answer, not from the model.
+  const response = await safeFetch(live.url, {}, { allowedHosts: ['images.unsplash.com'] });
+  return response.ok ? Buffer.from(await response.arrayBuffer()) : null;
 }
 
 const CACHE_MAX = 500;

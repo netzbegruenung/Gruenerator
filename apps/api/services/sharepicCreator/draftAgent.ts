@@ -23,6 +23,7 @@ import {
   type SharepicDraftFocus,
   type SharepicDraftResponse,
   type SharepicOwnPhoto,
+  type SharepicSlide,
   type SharepicSpec,
   sharepicFormLabel,
   type SharepicFormId,
@@ -31,10 +32,10 @@ import {
 import { createLogger } from '../../utils/logger.js';
 import { GEMMA_31B_ON_MELIOUS } from '../ai/gemmaHosts.js';
 import { aiObject, type AiObjectCall } from '../ai/generate.js';
-import { getAttribution } from '../image/UnsplashAttributionService.js';
+import { getUnsplashService } from '../unsplash/UnsplashApiService.js';
 
 import { carouselLookProblems } from './carouselLook.js';
-import { searchStockPhotos, type StockPhoto } from './catalog.js';
+import { findStockPhotos, stockPhotoCredit, type FoundPhoto } from './catalog.js';
 import { type DraftFailure, DraftFailedError } from './draftFailure.js';
 import { paintIllustrations, cutOutBilder, type SharepicPainters } from './draftPainting.js';
 import { SCENE_PENDING, takeScene, type DraftScene } from './draftScene.js';
@@ -85,7 +86,17 @@ export function lacksStructure(input: unknown): boolean {
   });
 }
 
-function describePhotos(photos: StockPhoto[]): string {
+/** Every photo a draft shows: backgrounds and `bild` sources. */
+function photoNames(slides: readonly SharepicSlide[]): string[] {
+  return slides.flatMap((slide) =>
+    [
+      slide.background.kind !== 'farbe' ? slide.background.filename : '',
+      ...slide.items.map((item) => (item.type === 'bild' ? item.quelle : '')),
+    ].filter(Boolean)
+  );
+}
+
+function describePhotos(photos: FoundPhoto[]): string {
   return photos.map((p) => `- ${p.filename}: ${p.alt_text}`).join('\n');
 }
 
@@ -165,11 +176,7 @@ export async function draftSharepic(
   // it keeps its form, so only a form the request names brings its own.
   const wanted = current ? { kapitel: [], anlass: [] } : needs.data;
   const chapters = [...new Set([...(recipe?.kapitel ?? []), ...wanted.kapitel])];
-  const photos = [
-    ...new Map(
-      needs.data.fotos_suchen.flatMap((q) => searchStockPhotos(q)).map((p) => [p.filename, p])
-    ).values(),
-  ];
+  const photos = await findStockPhotos(needs.data.fotos_suchen);
 
   const context = [
     basicsText(locale),
@@ -207,13 +214,11 @@ export async function draftSharepic(
       )
     )
   );
+  const currentPhotos = photoNames(current?.slides ?? []);
   // Own photos already on the draft stay usable in a revision, even without the photo list.
-  const keptUploads = (current?.slides ?? []).flatMap((slide) =>
-    [
-      slide.background.kind !== 'farbe' ? slide.background.filename : '',
-      ...slide.items.map((item) => (item.type === 'bild' ? item.quelle : '')),
-    ].filter(isSharepicUploadId)
-  );
+  const keptUploads = currentPhotos.filter(isSharepicUploadId);
+  // So do its live stock photos, which this process may never have searched.
+  const livePhotos = [...photos.filter((p) => p.live).map((p) => p.filename), ...currentPhotos];
   // Without a painter a Faktenbild cannot get its scene; it falls back to a colour.
   const checkForm = form === 'faktenbild' && !painters.scene ? null : form;
   // "Karussell mit Bingo": both hold — three slides and the bingo.
@@ -256,7 +261,8 @@ export async function draftSharepic(
         current ? `${prompt}\n${JSON.stringify(current)}` : prompt,
         [...ownPhotos.map((p) => p.id), ...keptUploads],
         taken.scene ? [SCENE_PENDING, ...keptScenes] : keptScenes,
-        order
+        order,
+        livePhotos
       );
       if (!checked.ok) return checked;
       const notSingle =
@@ -356,28 +362,40 @@ export async function draftSharepic(
     ]
       .filter(Boolean)
       .join(' ') || null;
+  // Unsplash counts a photo as used once it lands on a draft (API Terms).
+  for (const name of new Set(photoNames(spec.slides))) {
+    const location = photos.find((p) => p.filename === name)?.live?.attribution.downloadLocation;
+    if (location) {
+      getUnsplashService()
+        .trackDownload(location)
+        .catch((error: unknown) => log.warn(`download tracking failed: ${String(error)}`));
+    }
+  }
+  const credits = await Promise.all(
+    spec.slides.map(async (slide) => {
+      const photo = slidePhotoFilename(slide);
+      return photo &&
+        !isSharepicUploadId(photo) &&
+        !isSharepicSceneRef(photo) &&
+        !isSharepicVorlageRef(photo)
+        ? stockPhotoCredit(photo)
+        : null;
+    })
+  );
   return {
     spec,
     ...(hinweis && { hinweis }),
     ...(form && { form }),
     ...(alternativen.length && { alternativen: alternativen.slice(0, 2) }),
     chapters,
-    attributions: spec.slides.map((slide) => {
-      const photo = slidePhotoFilename(slide);
-      const credit =
-        photo &&
-        !isSharepicUploadId(photo) &&
-        !isSharepicSceneRef(photo) &&
-        !isSharepicVorlageRef(photo)
-          ? getAttribution(photo)
-          : null;
-      return credit
+    attributions: credits.map((credit) =>
+      credit
         ? {
             photographer: credit.photographer,
             profileUrl: credit.profileUrl,
             photoUrl: credit.photoUrl,
           }
-        : null;
-    }),
+        : null
+    ),
   };
 }
