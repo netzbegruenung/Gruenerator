@@ -64,11 +64,20 @@ describe('the envelope', () => {
     ['version 0', { schemaVersion: 0, pages: [] }],
     ['a fractional version', { schemaVersion: 1.5, pages: [] }],
     ['a kind version below 1', { kindVersions: { stampInstances: 0 }, pages: [] }],
-    ['pages that are no list', { pages: {} }],
     ['no object', 'pages'],
     ['null', null],
   ])('refuses %s', (_name, raw) => {
     expect(migrateDocument(raw).status).toBe('invalid');
+  });
+
+  it.each([
+    ['pages that are no list', { pages: {} }],
+    ['null pages', { pages: null }],
+    ['no pages', { headline: 'flat' }],
+  ])('accepts a stored document with %s, unchanged', (_name, raw) => {
+    const result = migrateDocument(raw);
+    expect(result.status).toBe('current');
+    if (result.status === 'current') expect(result.document).toBe(raw);
   });
 
   it('passes unknown top-level keys through', () => {
@@ -158,7 +167,7 @@ describe('the test-only v1 → v2 chain', () => {
     if (result.status !== 'migrated') throw new Error(result.status);
     expect(result.document.schemaVersion).toBeUndefined();
     expect(result.document.kindVersions).toEqual({ stampInstances: 2 });
-    expect(result.document.pages?.[1]).toEqual(v1().pages[1]);
+    expect((result.document.pages as unknown[])[1]).toEqual(v1().pages[1]);
   });
 
   it('stamps both versions on write', () => {

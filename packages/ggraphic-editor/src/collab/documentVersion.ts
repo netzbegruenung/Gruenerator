@@ -150,7 +150,8 @@ export function migrateYDocument(
   if (result.status === 'newer' || result.status === 'invalid') return result;
   if (result.status === 'current') return result;
 
-  const lifted = (result.document.pages ?? []).map((entry) => canvasPageSchema.safeParse(entry));
+  const liftedPages: unknown[] = Array.isArray(result.document.pages) ? result.document.pages : [];
+  const lifted = liftedPages.map((entry) => canvasPageSchema.safeParse(entry));
   const sameSet =
     lifted.length === pages.length &&
     lifted.every((page, i) => page.success && page.data.id === pages[i]!.id);

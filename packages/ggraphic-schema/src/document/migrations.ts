@@ -15,16 +15,18 @@ export const CANVAS_DOCUMENT_VERSION = 1;
 const versionSchema = z.number().int().min(1);
 
 /**
- * The envelope. Only the version fields and the page list's type are checked;
- * pages and every other key pass through untouched, so a host's own keys and
- * a page this build cannot read survive a load.
+ * The envelope. Only the version fields are checked; pages and every other
+ * key pass through untouched, so a host's own keys and a page this build
+ * cannot read survive a load. `pages` is not even required to be a list:
+ * stored documents predate this schema, and refusing one that opened before
+ * would be a regression — a non-list simply has no pages to migrate.
  */
 export const canvasDocumentSchema = z.looseObject({
   /** Core format version; absent = 1. */
   schemaVersion: versionSchema.optional(),
   /** Version of each host kind's list, by its state key; absent = 1. */
   kindVersions: z.record(z.string(), versionSchema).optional(),
-  pages: z.array(z.unknown()).optional(),
+  pages: z.unknown().optional(),
 });
 
 export type CanvasDocument = z.infer<typeof canvasDocumentSchema>;
@@ -59,7 +61,7 @@ export function mapPages(
   doc: CanvasDocument,
   fn: (page: CanvasPage) => CanvasPage
 ): CanvasDocument {
-  if (!doc.pages) return doc;
+  if (!Array.isArray(doc.pages)) return doc;
   return {
     ...doc,
     pages: doc.pages.map((entry) => {
