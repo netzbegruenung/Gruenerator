@@ -1,0 +1,53 @@
+{
+  "pages": [
+    {
+      "id": "seed-0",
+      "configId": "freeform",
+      "state": {
+        "backgroundMode": "image",
+        "backgroundColor": "#000000",
+        "currentImageSrc": "upload:cover",
+        "hasBackgroundImage": true,
+        "imageOffset": { "x": -40, "y": 0 },
+        "imageScale": 1.2,
+        "additionalTexts": [
+          { "id": "t1", "text": "Title", "x": 80, "y": 900, "width": 920, "fontSize": 96 }
+        ]
+      },
+      "config": { "width": 1080, "height": 1350 }
+    },
+    {
+      "id": "seed-1",
+      "configId": "freeform",
+      "state": {
+        "backgroundMode": "color",
+        "backgroundColor": "#f4f1ea",
+        "hasBackgroundImage": false,
+        "additionalTexts": [
+          { "id": "t2", "text": "1. one\n2. two", "x": 80, "y": 200, "width": 920, "fontSize": 48 }
+        ],
+        "shapeInstances": [
+          {
+            "id": "s2",
+            "type": "circle",
+            "x": 900,
+            "y": 1200,
+            "width": 80,
+            "height": 80,
+            "fill": "#2a4d69"
+          }
+        ]
+      }
+    },
+    {
+      "id": "9b2d6a0e-5c1f-4f61-9d0a-2c43a9f3e7b1",
+      "configId": "freeform",
+      "state": {
+        "backgroundMode": "color",
+        "backgroundColor": "#2a4d69",
+        "hasBackgroundImage": false
+      },
+      "config": {}
+    }
+  ]
+}
