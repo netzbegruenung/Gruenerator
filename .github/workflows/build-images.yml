@@ -186,6 +186,7 @@ jobs:
               - 'packages/sheets/**'
               - 'packages/ui/**'
               - 'packages/collab/**'
+              - 'packages/ggraphic-collab/**'
               - 'packages/ggraphic-core/**'
               - 'packages/ggraphic-editor/**'
               - 'packages/wolke/**'
@@ -224,6 +225,7 @@ jobs:
               - 'packages/query/**'
               - 'packages/ui/**'
               - 'packages/collab/**'
+              - 'packages/ggraphic-collab/**'
               - *install
               - *tsconfig
             nlp:
