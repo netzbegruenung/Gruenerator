@@ -102,6 +102,20 @@ describe('composeAnswer', () => {
     expect(call.prompt).toContain('Lesebudget');
   });
 
+  it('gibt die Trefferliste als eigenen Metadatenblock mit, auch für Dokumente ohne Punkte', async () => {
+    aiText.mockResolvedValueOnce('Ok [1].');
+    await composeAnswer({
+      question: 'Frage?',
+      filters: {},
+      results: [result('21/1', 1), result('21/2', 0)],
+    });
+    const prompt = aiText.mock.calls.at(-1)![0].prompt as string;
+    expect(prompt).toContain('Trefferliste (nur Metadaten, keine Inhalte):');
+    const liste = prompt.split('Trefferliste (nur Metadaten, keine Inhalte):')[1];
+    expect(liste).toContain('21/1 · Antrag · 2025-01-01 · Fraktion der SPD · Titel 21/1');
+    expect(liste).toContain('21/2 · Antrag · 2025-01-01 · Fraktion der SPD · Titel 21/2');
+  });
+
   it('nennt teilweise gelesene Dokumente in der Lückenliste', async () => {
     aiText.mockResolvedValueOnce('Ok [1].');
     await composeAnswer({
@@ -132,6 +146,13 @@ describe('ANSWER_SYSTEM', () => {
     expect(ANSWER_SYSTEM).toContain('JEDES einschlägige Dokument');
     expect(ANSWER_SYSTEM).toContain('Nummer, Typ, Datum und Urheber');
     expect(ANSWER_SYSTEM).not.toContain('knapp');
+  });
+
+  it('urteilt nach Thema statt Wortlaut und führt Listenfragen über die Trefferliste', () => {
+    expect(ANSWER_SYSTEM).toContain('nach dem Thema, nicht nach dem exakten Wortlaut');
+    expect(ANSWER_SYSTEM).toContain('Schreibe nie „nichts gefunden“');
+    expect(ANSWER_SYSTEM).toContain('Trefferliste (nur Metadaten, keine Inhalte)');
+    expect(ANSWER_SYSTEM).toContain('(Drucksache 21/1234)');
   });
 
   it('behält Beleg-, Vorwissen- und Lückenregeln bei höchstens 10 Regelzeilen', () => {

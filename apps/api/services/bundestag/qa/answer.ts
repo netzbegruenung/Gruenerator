@@ -34,6 +34,8 @@ export const ANSWER_SYSTEM = [
   '- Jede inhaltliche Aussage trägt den Beleg [n] des Punktes, aus dem sie stammt. Nutze nur Nummern, die in der Liste vorkommen.',
   '- Verwende kein Vorwissen und ergänze nichts, was nicht in den Punkten steht.',
   '- Benenne Lücken offen: was die Punkte nicht beantworten, Dokumente ohne Text und Dokumente, die nicht gelesen wurden (mit dem genannten Grund).',
+  '- Urteile nach dem Thema, nicht nach dem exakten Wortlaut: betreffen Punkte den Gegenstand der Frage mit anderen Worten (z. B. Regelaltersgrenze oder Kopplung an die Lebenserwartung bei „Rente mit 70“), beantworte die Frage aus ihnen und sage, wie sie zur Frage stehen. Schreibe nie „nichts gefunden“, solange einschlägige Punkte vorliegen.',
+  '- Zusätzlich bekommst du eine „Trefferliste (nur Metadaten, keine Inhalte)“ mit allen gelesenen Dokumenten. Bei Listenfragen („welche … gibt es / haben … eingebracht“) nenne die passenden Dokumente aus der Trefferliste mit ihrer Nummer. Tatsachen, die nur aus der Trefferliste stammen (Nummer, Typ, Datum, Urheber, Titel), belegst du mit „(Drucksache 21/1234)“ statt mit [n]; Inhalte stammen weiterhin nur aus den Punkten mit [n].',
   '- Widersprechen sich Punkte, gib beide Seiten mit ihren Belegen wieder.',
 ].join('\n');
 
@@ -189,11 +191,18 @@ export async function composeAnswer({
       `[${c.n}] ${c.ref} · ${c.drucksachetyp} · ${c.datum} · ${urheber[i]}: ${c.aussage} — „${c.zitat}“`
   );
   const unused = unusedDocuments(results);
+  const trefferliste = results.map(
+    (r) =>
+      `${r.doc.ref} · ${r.doc.drucksachetyp} · ${r.doc.datum} · ${r.doc.urheber.join(', ') || 'Urheber unbekannt'} · ${r.doc.titel}`
+  );
   const prompt = [
     `Frage: ${question}`,
     '',
     'Punkte:',
     ...pointLines,
+    '',
+    'Trefferliste (nur Metadaten, keine Inhalte):',
+    ...trefferliste,
     '',
     unused.length > 0
       ? ['Dokumente ohne Punkte oder nur teilweise gelesen:', ...unused.map((d) => `- ${d}`)].join(
