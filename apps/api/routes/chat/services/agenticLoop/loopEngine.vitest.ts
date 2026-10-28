@@ -57,10 +57,37 @@ describe('buildPrepareStep — forceFirstToolCall', () => {
     );
     expect(prep({ stepNumber: 0 })).toEqual({
       toolChoice: { type: 'tool', toolName: 'bundestag' },
+      system: expect.stringContaining('DIESER SCHRITT'),
       activeTools: ['bundestag'],
     });
     // Danach entscheidet wieder der Planer.
     expect(prep({ stepNumber: 1 })).toEqual({});
+  });
+
+  // Stillstand vom 28.10.2026: der Prompt sagt „Fragen nach Reden gehen immer an
+  // `bundestag_reden`, nicht an `bundestag`", der Schritt erzwingt `bundestag` —
+  // Cortecs/Melious schwiegen 15 s. Der Hinweis steht NACH dem Prompt.
+  it('hängt an einen benannten Schritt den Hinweis, dass nur dieses Werkzeug zur Wahl steht', () => {
+    const prep = buildPrepareStep(
+      'sys',
+      'suffix',
+      5,
+      never,
+      true,
+      () => 'web_search',
+      undefined,
+      'bundestag'
+    );
+    const first = prep({ stepNumber: 0 }).system ?? '';
+    expect(first.startsWith('sys')).toBe(true);
+    expect(first).toContain('`bundestag` festgelegt');
+    expect(first).toContain('steht diesem Schritt nicht zur Wahl');
+    expect(prep({ stepNumber: 1 }).system).toContain('`web_search` festgelegt');
+  });
+
+  it('ohne Namen (required) bleibt der Systemprompt unberührt', () => {
+    const prep = buildPrepareStep('sys', 'suffix', 5, never, true);
+    expect(prep({ stepNumber: 0 }).system).toBeUndefined();
   });
 
   it('ohne den Zwang wirkt der Name gar nicht — der Bann vetot zuerst', () => {
@@ -115,6 +142,7 @@ describe('buildPrepareStep — forceFirstToolCall', () => {
   it('ein benanntes Werkzeug schlägt die Menge des ersten Schritts', () => {
     const named = {
       toolChoice: { type: 'tool', toolName: 'bundestag' },
+      system: expect.stringContaining('DIESER SCHRITT'),
       activeTools: ['bundestag'],
     };
     const bare = buildPrepareStep(
@@ -210,10 +238,12 @@ describe('buildPrepareStep — welche Werkzeuge mitgehen', () => {
     // "ein benanntes Werkzeug geht allein".
     expect(prep({ stepNumber: 0 })).toEqual({
       toolChoice: { type: 'tool', toolName: 'bundestag' },
+      system: expect.stringContaining('DIESER SCHRITT'),
       activeTools: ['bundestag'],
     });
     expect(prep({ stepNumber: 1 })).toEqual({
       toolChoice: { type: 'tool', toolName: 'web_search' },
+      system: expect.stringContaining('DIESER SCHRITT'),
       activeTools: ['web_search'],
     });
   });
@@ -263,6 +293,7 @@ describe('buildPrepareStep — ein benanntes Werkzeug geht allein', () => {
     );
     expect(prep({ stepNumber: 0 })).toEqual({
       toolChoice: { type: 'tool', toolName: 'documents' },
+      system: expect.stringContaining('DIESER SCHRITT'),
       activeTools: ['documents'],
     });
   });
@@ -281,6 +312,7 @@ describe('buildPrepareStep — ein benanntes Werkzeug geht allein', () => {
     );
     expect(prep({ stepNumber: 1 })).toEqual({
       toolChoice: { type: 'tool', toolName: 'documents' },
+      system: expect.stringContaining('DIESER SCHRITT'),
       activeTools: ['documents'],
     });
   });
@@ -299,6 +331,7 @@ describe('buildPrepareStep — ein benanntes Werkzeug geht allein', () => {
     );
     expect(prep({ stepNumber: 1 })).toEqual({
       toolChoice: { type: 'tool', toolName: 'gruenerator_search' },
+      system: expect.stringContaining('DIESER SCHRITT'),
       activeTools: ['gruenerator_search'],
     });
   });
@@ -313,6 +346,7 @@ describe('buildPrepareStep — forced fallback tool', () => {
     const prep = buildPrepareStep('sys', 'suffix', 5, never, false, () => 'web_search');
     expect(prep({ stepNumber: 1 })).toEqual({
       toolChoice: { type: 'tool', toolName: 'web_search' },
+      system: expect.stringContaining('DIESER SCHRITT'),
       activeTools: ['web_search'],
     });
   });
@@ -334,6 +368,7 @@ describe('buildPrepareStep — forced fallback tool', () => {
     forced = 'web_search';
     expect(prep({ stepNumber: 2 })).toEqual({
       toolChoice: { type: 'tool', toolName: 'web_search' },
+      system: expect.stringContaining('DIESER SCHRITT'),
       activeTools: ['web_search'],
     });
   });

@@ -391,6 +391,17 @@ export function buildPrepareStep(
      * `forcedTool`, `firstToolName`, was danach kommt.
      */
     const onlyTool = (name: string) => ({ activeTools: [name] as readonly string[] });
+    /**
+     * Der Systemprompt zieht das Modell sonst zu einem Werkzeug, das dieser
+     * Schritt nicht mehr führt: „Fragen nach Reden gehen immer an
+     * `bundestag_reden`, nicht an `bundestag`" bei erzwungenem `bundestag` —
+     * Stillstand vom 28.10.2026 („Wann hat Katrin Uhlig … gesprochen?"):
+     * Cortecs und Melious schwiegen je 15 s, GreenPT rief nichts. Gleiche Frage
+     * mit gestrichener Zeile oder mit diesem Hinweis: Aufruf nach 2–3 s. Der
+     * Hinweis steht am Ende, wo er die Zuordnung weiter oben überstimmt.
+     */
+    const namedStepNote = (name: string) =>
+      `\n\n## DIESER SCHRITT\nDer Nutzer hat \`${name}\` festgelegt: Dein einziger Aufruf in diesem Schritt ist \`${name}\`. Die Werkzeug-Zuordnung oben (z. B. \`bundestag_reden\` für Reden) gilt erst für die folgenden Schritte; sie steht diesem Schritt nicht zur Wahl.`;
     if (stepNumber >= maxSteps - 1 || forceFinish()) {
       return {
         toolChoice: 'none' as const,
@@ -416,9 +427,10 @@ export function buildPrepareStep(
       const choice = firstToolName
         ? ({ type: 'tool' as const, toolName: firstToolName } as const)
         : ('required' as const);
+      const system = `${baseSystem}${extra}${firstToolName ? namedStepNote(firstToolName) : ''}`;
       return {
         toolChoice: choice,
-        ...(extra && { system: `${baseSystem}${extra}` }),
+        ...(system !== baseSystem && { system }),
         ...(firstToolName
           ? onlyTool(firstToolName)
           : firstStepTools
@@ -433,7 +445,7 @@ export function buildPrepareStep(
       if (toolName)
         return {
           toolChoice: { type: 'tool' as const, toolName },
-          ...(extra && { system: `${baseSystem}${extra}` }),
+          system: `${baseSystem}${extra}${namedStepNote(toolName)}`,
           ...onlyTool(toolName),
         };
     }
