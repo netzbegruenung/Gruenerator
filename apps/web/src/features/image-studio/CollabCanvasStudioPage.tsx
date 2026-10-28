@@ -3,8 +3,8 @@ import {
   getCanvasFormatOrDefault,
   isSlideFormat,
   MasterCanvasEditor,
-  parseInitialPages,
   preloadCanvasTemplate,
+  readInitialDocument,
   type CanvasEditorExportApi,
   type InitialPageDef,
   type SidebarTabId,
@@ -102,10 +102,14 @@ function CollabCanvasStudioContent() {
     if (templateType) void preloadCanvasTemplate(templateType, canvasFormat);
   }, [templateType, canvasFormat]);
 
-  const initialPages = useMemo(
-    (): InitialPageDef[] | undefined => parseInitialPages(canvas?.initial_state.pages),
+  // initial_state is a stored canvas document: read it through the version
+  // check, so a document from a newer build is never seeded or written here.
+  const initialDocument = useMemo(
+    () => (canvas ? readInitialDocument(canvas.initial_state) : null),
     [canvas]
   );
+  const initialPages: InitialPageDef[] | undefined = initialDocument?.pages;
+  const documentRefusal = initialDocument?.refusal ?? null;
 
   const canEdit = canvas?.can_edit === true;
 
@@ -342,7 +346,7 @@ function CollabCanvasStudioContent() {
     </button>
   );
 
-  if (isError || accessError) {
+  if (isError || accessError || documentRefusal) {
     return (
       <div className="relative flex flex-col h-dvh bg-background">
         <DottedBackground />
@@ -353,7 +357,12 @@ function CollabCanvasStudioContent() {
           </div>
         )}
         <p className="z-10 p-md text-sm text-foreground" role="alert">
-          {accessError ?? 'Der Canvas konnte nicht geladen werden.'}
+          {accessError ??
+            (documentRefusal?.status === 'newer'
+              ? 'Dieser Canvas wurde mit einer neueren Version des Grünerators gespeichert. Lade die Seite neu, um ihn zu öffnen.'
+              : documentRefusal
+                ? 'Dieser Canvas kann nicht sicher geöffnet werden.'
+                : 'Der Canvas konnte nicht geladen werden.')}
         </p>
       </div>
     );
