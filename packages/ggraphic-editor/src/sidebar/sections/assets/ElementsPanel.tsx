@@ -246,7 +246,7 @@ export function ElementsPanel(props: ExtendedAssetsSectionProps) {
           break;
         }
         default:
-          addHostElement(action, p.hostElementActions);
+          addHostElement(action, p.hostElementActions ?? null);
           break;
       }
       remember(item);

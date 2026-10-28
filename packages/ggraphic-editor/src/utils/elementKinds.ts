@@ -10,7 +10,10 @@ import type { InsertOffset } from './duplicateElement.js';
 import type { OrientationPatch } from './orientElement.js';
 import type { CanvasAiCleanPatch } from '../ai/applyOperation.js';
 import type { PptxBox, PptxItem } from '../export/pptx/types.js';
-import type { OptionalCanvasActions } from '../hooks/useCanvasElementHandlers.js';
+import type {
+  HostCanvasActions,
+  OptionalCanvasActions,
+} from '../hooks/useCanvasElementHandlers.js';
 import type { FloatingModuleState } from '../hooks/useFloatingModuleState.js';
 
 /** The element kinds a canvas holds beside the config's own elements, the host's included. */
@@ -66,6 +69,12 @@ export function isCoreElementKind(kind: string): kind is CoreElementKindName {
 // HOST KINDS
 // ============================================================================
 
+/**
+ * The name of one of the host's actions (`HostCanvasActions`): a registration
+ * names only actions the host declared, so a misspelt one does not compile.
+ */
+export type HostActionName = Extract<keyof HostCanvasActions, string>;
+
 /** A host kind's patch to its own instance, written through its update action. */
 type KindPatch = Record<string, unknown>;
 
@@ -91,13 +100,13 @@ export interface ElementKindRegistration<K extends HostElementKindName = HostEle
    * The config's actions the kind changes through, by name: `update(id, patch)`
    * and `remove(id)`. A config without them cannot change the kind.
    */
-  actions: { update: string; remove: string };
+  actions: { update: HostActionName; remove: HostActionName };
   /**
    * The config's action an Elemente tile or a drop adds the kind with, and its
    * arguments for the tile's `payload`; the drop appends its placement.
    */
   add?: {
-    action: string;
+    action: HostActionName;
     args(payload: HostElementPayload<K>): readonly unknown[];
   };
   /** The kind's name in the layer list and the selection label. */
@@ -193,10 +202,10 @@ export function findHostInstance(
 
 /** The config's action `name`, if it has one. */
 export function kindAction(
-  actions: object | null | undefined,
+  actions: object | null,
   name: string
 ): ((...args: never[]) => unknown) | null {
-  const action = (actions as Record<string, unknown> | null | undefined)?.[name];
+  const action = actions ? (actions as Record<string, unknown>)[name] : null;
   return typeof action === 'function' ? (action as (...args: never[]) => unknown) : null;
 }
 
@@ -222,8 +231,8 @@ export type HostElementAction = {
 /** Can this config add a host kind (state list and add action present)? */
 export function canAddHostElement(
   kind: string,
-  state: object | null | undefined,
-  actions: object | null | undefined
+  state: object | null,
+  actions: object | null
 ): boolean {
   const registration = hostElementKind(kind);
   return (
@@ -237,7 +246,7 @@ export function canAddHostElement(
 /** Adds a host kind for a tile or drop; `false` when the config cannot. */
 export function addHostElement(
   payload: { kind: string },
-  actions: object | null | undefined,
+  actions: object | null,
   placement?: object
 ): boolean {
   const add = hostElementKind(payload.kind)?.add;

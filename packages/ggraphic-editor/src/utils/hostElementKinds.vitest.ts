@@ -204,6 +204,13 @@ describe('a host kind as a tile', () => {
     expect(canRun(tile, injectFeatureProps({}, stampActions()))).toBe(false);
   });
 
+  it('hands out the same addable kinds while they stay the same', () => {
+    const first = injectFeatureProps(state(), stampActions()).addableHostKinds;
+    const second = injectFeatureProps(state(), stampActions()).addableHostKinds;
+    expect(first).toEqual(['stamp']);
+    expect(second).toBe(first);
+  });
+
   it('adds through its action, a drop with its placement', () => {
     const actions = stampActions();
     expect(addHostElement({ kind: 'stamp', label: 'A' } as never, actions)).toBe(true);

@@ -63,6 +63,19 @@ interface FeatureActionsBase {
 }
 
 /**
+ * The same array for the same kinds: the panel's memos depend on it, and
+ * `getProps` runs on every render.
+ */
+const addableKindLists = new Map<string, readonly string[]>();
+function stableKinds(kinds: readonly string[]): readonly string[] {
+  const key = kinds.join('\u0000');
+  const known = addableKindLists.get(key);
+  if (known) return known;
+  addableKindLists.set(key, kinds);
+  return kinds;
+}
+
+/**
  * Auto-inject feature props for AssetsSection based on state/action presence
  *
  * @param state - Canvas state (checked for feature properties)
@@ -173,7 +186,7 @@ export function injectFeatureProps<S extends object, A extends object>(
     .map((kind) => kind.kind)
     .filter((kind) => canAddHostElement(kind, state, actions));
   if (addable.length > 0) {
-    injected.addableHostKinds = addable;
+    injected.addableHostKinds = stableKinds(addable);
     injected.hostElementActions = actions;
   }
 

@@ -477,8 +477,9 @@ function dispatchUpdate<TState>(
     const { kind, data } = host;
     const update = kindAction(actions, kind.actions.update) as
       ((id: string, partial: Record<string, unknown>) => void) | null;
+    if (!update) return { ok: false, reason: `template does not support updating ${kind.kind}` };
     // Boundary: the instance found under this registration's own list.
-    return run(kind.kind, update ?? undefined, kind.aiUpdate?.fields ?? [], () =>
+    return run(kind.kind, update, kind.aiUpdate?.fields ?? [], () =>
       kind.aiUpdate ? kind.aiUpdate.patch(patch, data as never) : {}
     );
   }
