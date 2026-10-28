@@ -5,7 +5,7 @@ import { type ShapeInstance, type ShapeType } from '@ggraphic/editor/utils/shape
 import { type UserImagePlacement } from '@ggraphic/editor/utils/userImageUtils';
 import { useEffect } from 'react';
 
-import { ElementsPanel } from './ElementsPanel';
+import { ElementsPanel } from './ElementsPanel.js';
 
 import type { BackgroundControls } from '@ggraphic/editor/configs/types';
 import type { BalkenInstance, BalkenMode } from '@ggraphic/editor/primitives/index';

@@ -15,10 +15,10 @@ import {
   StudioGalleryGrid,
   useGalleryScopes,
   type GalleryTab,
-} from '../StudioGallery';
+} from '../StudioGallery.js';
 
-import { elementDragProps } from './ElementTile';
-import { galleryStickerItem } from './elementTypes';
+import { elementDragProps } from './ElementTile.js';
+import { galleryStickerItem } from './elementTypes.js';
 
 type StickerTab = 'catalog' | CanvasStudioAssetScope;
 

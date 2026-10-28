@@ -8,7 +8,7 @@
 import { measureTextWidthWithFont } from '@ggraphic/editor/utils/textUtils';
 
 import { buildPptxModel, type PptxPageState } from '@ggraphic/editor/export/pptx/buildPptxModel';
-import { writePptx, type PptxLoadedImage, type PptxRasterImage } from './writePptx';
+import { writePptx, type PptxLoadedImage, type PptxRasterImage } from './writePptx.js';
 
 import type { PptxRasterRequest } from '@ggraphic/editor/export/pptx/types';
 import type { CanvasFormat } from '@ggraphic/editor/formats/index';

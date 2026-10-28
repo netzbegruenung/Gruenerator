@@ -31,7 +31,7 @@ import {
   type CanvasDownloadChoice,
   type PrintExportProps,
   type SlideDeckExportProps,
-} from './DownloadSection';
+} from './DownloadSection.js';
 
 export interface ShareDropdownProps {
   onCaptureCanvas: () => Promise<string | null>;

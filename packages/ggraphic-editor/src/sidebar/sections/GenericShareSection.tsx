@@ -16,7 +16,7 @@ import {
   useShareAltText,
   withAltText,
 } from '@ggraphic/editor/sidebar/components/AltTextField';
-import { SubsectionTabBar } from '../SubsectionTabBar';
+import { SubsectionTabBar } from '../SubsectionTabBar.js';
 
 export interface GenericShareSectionProps {
   exportedImage: string | null;

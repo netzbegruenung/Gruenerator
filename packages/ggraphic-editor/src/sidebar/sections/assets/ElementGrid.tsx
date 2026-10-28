@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: MPL-2.0
 import { useEffect, useRef, useState } from 'react';
 
-import { ElementTile } from './ElementTile';
+import { ElementTile } from './ElementTile.js';
 
-import type { ElementItem } from './elementTypes';
+import type { ElementItem } from './elementTypes.js';
 
 const PAGE_SIZE = 48;
 

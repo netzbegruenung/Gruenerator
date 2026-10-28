@@ -3,7 +3,7 @@ import { useCanvasEditorServices } from '@ggraphic/editor/CanvasEditorProvider';
 import { plainAssetImageUrls, registeredAssetCatalog } from '@ggraphic/editor/utils/canvasAssets';
 import { useQuery, type QueryClient } from '@tanstack/react-query';
 
-import type { ElementItem } from './elementTypes';
+import type { ElementItem } from './elementTypes.js';
 import type { StockImage, StockImageAttribution } from '@ggraphic/editor/common/imageSourceTypes';
 
 const STOCK_PHOTOS_QUERY_KEY = ['canvas', 'stock-photos'] as const;

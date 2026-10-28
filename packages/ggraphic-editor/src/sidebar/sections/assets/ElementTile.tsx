@@ -6,9 +6,9 @@ import { takeDropPlaced } from '@ggraphic/editor/utils/mediaDrop';
 import { memo, type CSSProperties, type DragEvent } from 'react';
 import { FaCheck } from 'react-icons/fa';
 
-import { ElementThumb, thumbFillsTile, thumbNeedsDarkTile } from './ElementThumb';
-import { dragDataFor, type ElementItem } from './elementTypes';
-import { useRecentElements } from './useRecentElements';
+import { ElementThumb, thumbFillsTile, thumbNeedsDarkTile } from './ElementThumb.js';
+import { dragDataFor, type ElementItem } from './elementTypes.js';
+import { useRecentElements } from './useRecentElements.js';
 
 /**
  * - `grid`: category and search grids, label under the tile.

@@ -5,7 +5,7 @@ import { useUserUploads } from '@ggraphic/editor/sidebar/UserUploadsProvider';
 import { useCallback, useState } from 'react';
 import { HiScissors } from 'react-icons/hi2';
 
-import { ImageInputPicker } from './ImageInputPicker';
+import { ImageInputPicker } from './ImageInputPicker.js';
 import {
   ToolPanel,
   type ToolPanelSuccess,

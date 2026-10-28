@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: MPL-2.0
 import { useCallback } from 'react';
 
-import { useImagePlacement } from '../../useImagePlacement';
+import { useImagePlacement } from '../../useImagePlacement.js';
 
-import type { ToolPanelSuccess } from './ToolPanel';
+import type { ToolPanelSuccess } from './ToolPanel.js';
 
 interface Options {
   /** When present, the generated image is placed straight onto the canvas. */

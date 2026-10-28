@@ -5,7 +5,7 @@ import React, { memo } from 'react';
 import { AutoSaveIndicator } from '@ggraphic/editor/components/TopBar/AutoSaveIndicator';
 import { FloatingAiSuggestionBanner } from '@ggraphic/editor/components/TopBar/modules/FloatingAiSuggestionBanner';
 import { FloatingHistoryControls } from '@ggraphic/editor/components/TopBar/modules/FloatingHistoryControls';
-import { ShareDropdown, type ShareDropdownProps } from './TopBar/ShareDropdown';
+import { ShareDropdown, type ShareDropdownProps } from './TopBar/ShareDropdown.js';
 import { TopBar } from '@ggraphic/editor/components/TopBar/TopBar';
 
 /**

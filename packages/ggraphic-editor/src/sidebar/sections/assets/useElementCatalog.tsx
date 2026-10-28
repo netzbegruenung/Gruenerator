@@ -23,21 +23,21 @@ import { useQuery } from '@tanstack/react-query';
 import { useMemo, useState, type ReactNode } from 'react';
 import { PiImageFill } from 'react-icons/pi';
 
-import { useEmojiCatalog } from '../../../hooks/useEmojiCatalog';
-import { withTone } from '../../../utils/emoji/emojiCatalog';
+import { useEmojiCatalog } from '../../../hooks/useEmojiCatalog.js';
+import { withTone } from '../../../utils/emoji/emojiCatalog.js';
 import { KAWAII_ILLUSTRATIONS } from '@ggraphic/editor/utils/illustrations/kawaii';
 import {
   ALL_PALETTE_SHAPES,
   getShapeVariant,
 } from '@ggraphic/editor/sidebar/sections/FormenSection';
 
-import { ElementThumb } from './ElementThumb';
-import { useStockPhotos } from './useStockPhotos';
+import { ElementThumb } from './ElementThumb.js';
+import { useStockPhotos } from './useStockPhotos.js';
 
-import type { ElementBlocks } from './elementPanelHost';
-import type { ExtendedAssetsSectionProps } from './AssetsSection';
+import type { ElementBlocks } from './elementPanelHost.js';
+import type { ExtendedAssetsSectionProps } from './AssetsSection.js';
 import type { AssetView } from '@ggraphic/editor/sidebar/sections/assets/constants';
-import type { ElementAction, ElementItem } from './elementTypes';
+import type { ElementAction, ElementItem } from './elementTypes.js';
 import type { IconDef } from '@ggraphic/editor/utils/canvasIcons';
 import type { IllustrationDef } from '@ggraphic/editor/utils/illustrations/types';
 

@@ -9,9 +9,9 @@ import {
 } from '@ggraphic/editor/sidebar/sections/tools/UnsplashLimitNotice';
 import { useCallback, useEffect, useMemo, type ReactNode } from 'react';
 
-import { unsplashPhotoItem } from './useStockPhotos';
+import { unsplashPhotoItem } from './useStockPhotos.js';
 
-import type { ElementItem } from './elementTypes';
+import type { ElementItem } from './elementTypes.js';
 
 /** On top of the panel's own 200 ms, so a typing pause, not every key, costs a search. */
 const SEARCH_DEBOUNCE_MS = 400;

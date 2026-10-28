@@ -8,7 +8,7 @@ import {
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
 
-import type { ElementItem } from './elementTypes';
+import type { ElementItem } from './elementTypes.js';
 
 export const RECENT_ELEMENTS_LIMIT = 12;
 

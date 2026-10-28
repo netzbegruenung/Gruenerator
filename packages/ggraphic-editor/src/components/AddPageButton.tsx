@@ -3,7 +3,7 @@ import { cn } from '@ggraphic/editor/utils/cn';
 import { useRef, useState } from 'react';
 import { HiPlus } from 'react-icons/hi';
 
-import type { PagePickerSlot } from './PageThumbnailStrip';
+import type { PagePickerSlot } from './PageThumbnailStrip.js';
 
 interface AddPageButtonProps {
   /** Without a host picker: adds a page like the active one. */

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MPL-2.0
-import { type SidebarTabId } from '../../sidebar/types';
+import { type SidebarTabId } from '../../sidebar/types.js';
 
 /**
  * The sidebar tab after the selection changed: a selected element opens its

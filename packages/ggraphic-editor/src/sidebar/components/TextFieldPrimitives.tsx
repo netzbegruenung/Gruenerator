@@ -3,7 +3,7 @@ import { useMessages } from '@ggraphic/editor/i18n/messages';
 import { useCallback, useRef, useEffect } from 'react';
 import { FaMinus, FaPlus } from 'react-icons/fa';
 
-import { MOBILE_INPUT_TEXT } from '../sidebarStyles';
+import { MOBILE_INPUT_TEXT } from '../sidebarStyles.js';
 
 import type { TextFieldConfig } from '@ggraphic/editor/configs/unifiedTabs';
 

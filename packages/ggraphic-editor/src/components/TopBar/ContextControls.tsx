@@ -36,12 +36,12 @@ import { FloatingFontSizeControl } from '@ggraphic/editor/components/TopBar/modu
 import { FloatingGradientControl } from '@ggraphic/editor/components/TopBar/modules/FloatingGradientControl';
 import { FloatingLayerControls } from '@ggraphic/editor/components/TopBar/modules/FloatingLayerControls';
 import { FloatingOpacityControl } from '@ggraphic/editor/components/TopBar/modules/FloatingOpacityControl';
-import { FloatingOutlineControl } from './modules/FloatingOutlineControl';
+import { FloatingOutlineControl } from './modules/FloatingOutlineControl.js';
 import {
   FloatingPositionControl,
   type PositionCommandId,
 } from '@ggraphic/editor/components/TopBar/modules/FloatingPositionControl';
-import { FloatingShadowControl } from './modules/FloatingShadowControl';
+import { FloatingShadowControl } from './modules/FloatingShadowControl.js';
 import { FloatingTextAlignControl } from '@ggraphic/editor/components/TopBar/modules/FloatingTextAlignControl';
 
 export interface ContextControlsProps {

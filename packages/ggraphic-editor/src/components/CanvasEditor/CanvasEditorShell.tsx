@@ -66,7 +66,7 @@ import React, {
   startTransition,
 } from 'react';
 
-import { shareImageText } from '../../configs/shareSection';
+import { shareImageText } from '../../configs/shareSection.js';
 import { exportPptxDeck } from '@ggraphic/editor/export/pptx/exportPptxDeck';
 import {
   exportPrintPdf,
@@ -74,7 +74,7 @@ import {
   PRINT_JPEG_QUALITY,
   printPdfFilename,
   type PrintExportPage,
-} from '../../export/printExport';
+} from '../../export/printExport.js';
 import { exportSlidesPdf } from '@ggraphic/editor/export/slidesPdf';
 import { useIsCanvasMobile } from '@ggraphic/editor/hooks/useIsCanvasMobile';
 import { useZoomGestures } from '@ggraphic/editor/hooks/useZoomGestures';
@@ -94,10 +94,10 @@ import {
 } from '@ggraphic/editor/components/CanvasEditorSkeleton';
 import { CanvasMetaBar, CanvasZoomIndicator } from '@ggraphic/editor/components/CanvasMetaBar';
 import { MobileSelectionPill } from '@ggraphic/editor/components/MobileSelectionPill';
-import { PageThumbnailStrip, type PagePickerSlot } from '../PageThumbnailStrip';
+import { PageThumbnailStrip, type PagePickerSlot } from '../PageThumbnailStrip.js';
 import { SlideNotesPanel } from '@ggraphic/editor/components/SlideNotesPanel';
-import { AddPageButton } from '../AddPageButton';
-import { Toolbar } from '../Toolbar';
+import { AddPageButton } from '../AddPageButton.js';
+import { Toolbar } from '../Toolbar.js';
 import { ContextToolbar } from '@ggraphic/editor/components/TopBar/ContextToolbar';
 import { MobileSelectionBar } from '@ggraphic/editor/components/TopBar/MobileSelectionBar';
 import { MobileSelectionControls } from '@ggraphic/editor/components/TopBar/MobileSelectionControls';

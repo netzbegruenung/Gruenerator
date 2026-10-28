@@ -16,27 +16,27 @@ import {
 } from 'react';
 import { PiCaretLeftBold, PiMagnifyingGlass, PiX } from 'react-icons/pi';
 
-import { useIsCanvasMobile } from '../../../hooks/useIsCanvasMobile';
+import { useIsCanvasMobile } from '../../../hooks/useIsCanvasMobile.js';
 import { useTrackUnsplashDownload } from '@ggraphic/editor/hooks/useTrackUnsplashDownload';
 import { MOBILE_INPUT_TEXT } from '@ggraphic/editor/sidebar/sidebarStyles';
-import { IllustrationSettings } from '../IllustrationSettings';
+import { IllustrationSettings } from '../IllustrationSettings.js';
 import { FramePreviewDefs } from '@ggraphic/editor/sidebar/sections/RahmenSection';
 
-import { BackgroundCatalog } from './BackgroundCatalog';
+import { BackgroundCatalog } from './BackgroundCatalog.js';
 import { CategoryCard } from '@ggraphic/editor/sidebar/sections/assets/CategoryCard';
-import { ElementGrid } from './ElementGrid';
-import { searchElements } from './elementSearch';
-import { ElementTile } from './ElementTile';
-import { galleryStickerItem, type ElementItem } from './elementTypes';
+import { ElementGrid } from './ElementGrid.js';
+import { searchElements } from './elementSearch.js';
+import { ElementTile } from './ElementTile.js';
+import { galleryStickerItem, type ElementItem } from './elementTypes.js';
 import { EmojiTonePicker } from '@ggraphic/editor/sidebar/sections/assets/EmojiTonePicker';
-import { FotosCatalog } from './FotosCatalog';
-import { RecentCarousel } from './RecentCarousel';
-import { StickerCatalog } from './StickerCatalog';
-import { canRun, useElementCatalog, type CategoryId } from './useElementCatalog';
-import { useRecentElements } from './useRecentElements';
+import { FotosCatalog } from './FotosCatalog.js';
+import { RecentCarousel } from './RecentCarousel.js';
+import { StickerCatalog } from './StickerCatalog.js';
+import { canRun, useElementCatalog, type CategoryId } from './useElementCatalog.js';
+import { useRecentElements } from './useRecentElements.js';
 
-import type { ExtendedAssetsSectionProps } from './AssetsSection';
-import type { ElementBlocks } from './elementPanelHost';
+import type { ExtendedAssetsSectionProps } from './AssetsSection.js';
+import type { ElementBlocks } from './elementPanelHost.js';
 import type { StickerRef } from '@ggraphic/schema';
 
 /**

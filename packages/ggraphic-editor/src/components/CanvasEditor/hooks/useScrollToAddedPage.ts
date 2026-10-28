@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MPL-2.0
 import { useEffect, useRef } from 'react';
 
-import { scrollBehavior } from '../../../utils/scrollBehavior';
+import { scrollBehavior } from '../../../utils/scrollBehavior.js';
 
 import type React from 'react';
 

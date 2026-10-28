@@ -18,7 +18,7 @@ import { ZoomableViewport } from '@ggraphic/editor/components/ZoomableViewport';
 
 import { useBlockInsert } from '@ggraphic/editor/components/CanvasEditor/blockInsertContext';
 
-import type { PageWrapperProps } from './types';
+import type { PageWrapperProps } from './types.js';
 
 /**
  * Memoized page wrapper component (Rule 5.2: enables early returns before computation)

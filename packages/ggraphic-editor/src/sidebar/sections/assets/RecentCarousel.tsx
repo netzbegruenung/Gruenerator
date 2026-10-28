@@ -7,9 +7,9 @@ import { PiCaretRightBold } from 'react-icons/pi';
 import { scrollBehavior } from '@ggraphic/editor/utils/scrollBehavior';
 import { HIDDEN_SCROLLBAR } from '@ggraphic/editor/sidebar/sidebarStyles';
 
-import { ElementTile } from './ElementTile';
+import { ElementTile } from './ElementTile.js';
 
-import type { ElementItem } from './elementTypes';
+import type { ElementItem } from './elementTypes.js';
 
 /** One "page" of the carousel: two 88px tiles and their gaps. */
 const SCROLL_STEP = 192;

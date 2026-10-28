@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: MPL-2.0
 import { rankByQuery } from '@ggraphic/editor/utils/filterUtils';
 
-import type { ElementItem } from './elementTypes';
-import type { CatalogCategory, CategoryId } from './useElementCatalog';
+import type { ElementItem } from './elementTypes.js';
+import type { CatalogCategory, CategoryId } from './useElementCatalog.js';
 
 /** Caps per kind in the search across all categories; a category's own search pages instead. */
 const GLOBAL_CAP: Partial<Record<CategoryId, number>> = {

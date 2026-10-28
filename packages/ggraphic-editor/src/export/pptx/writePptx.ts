@@ -16,7 +16,7 @@ import {
   transparencyOf,
   type PptxUnits,
 } from '@ggraphic/editor/export/pptx/pptxUnits';
-import { shadowProps, textBoxOptions, textRuns } from './writeText';
+import { shadowProps, textBoxOptions, textRuns } from './writeText.js';
 
 import type {
   PptxBox,

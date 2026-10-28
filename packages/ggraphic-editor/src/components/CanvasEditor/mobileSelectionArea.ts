@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MPL-2.0
-import type { SidebarTabId } from '../../sidebar/types';
+import type { SidebarTabId } from '../../sidebar/types.js';
 import type { FloatingModuleState } from '@ggraphic/editor/hooks/useFloatingModuleState';
 
 type SelectionType = FloatingModuleState['type'];

@@ -7,7 +7,7 @@ import {
   planTiles,
   type PrintPdfPage,
   type PrintTile,
-} from './printPdf';
+} from './printPdf.js';
 
 export const PRINT_JPEG_QUALITY = 0.92;
 /** A photo warns below this share of its format's export resolution (150 of 300 dpi). */

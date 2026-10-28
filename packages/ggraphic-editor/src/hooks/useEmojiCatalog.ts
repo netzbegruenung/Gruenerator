@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MPL-2.0
 import { useQuery } from '@tanstack/react-query';
 
-import { loadEmojiCatalog, type EmojiCatalogGroup } from '../utils/emoji/emojiCatalog';
+import { loadEmojiCatalog, type EmojiCatalogGroup } from '../utils/emoji/emojiCatalog.js';
 
 /** The full emoji catalogue, loaded once someone browses or searches emoji. */
 export function useEmojiCatalog(enabled: boolean) {

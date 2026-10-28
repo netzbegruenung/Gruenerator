@@ -44,7 +44,7 @@ const PANELS = {
   'alt-text': lazyWithPreload(() =>
     import('@ggraphic/editor/sidebar/sections/tools/AltTextTool').then((m) => m.AltTextTool)
   ),
-  unsplash: lazyWithPreload(() => import('./UnsplashTool').then((m) => m.UnsplashTool)),
+  unsplash: lazyWithPreload(() => import('./UnsplashTool.js').then((m) => m.UnsplashTool)),
   'qr-code': lazyWithPreload(() =>
     import('@ggraphic/editor/sidebar/sections/tools/QRCodeTool').then((m) => m.QRCodeTool)
   ),

@@ -13,7 +13,7 @@ import { useCanvasEditorServices } from '@ggraphic/editor/CanvasEditorProvider';
 import { type PrintCanvasFormat } from '@ggraphic/editor/formats/index';
 import { useMemo } from 'react';
 
-import { type PrintImpressumGate } from '../../TopBar/DownloadSection';
+import { type PrintImpressumGate } from '../../TopBar/DownloadSection.js';
 
 import type { AdditionalText } from '@ggraphic/editor/configs/types';
 import type { CanvasImpressumService } from '@ggraphic/editor/hostServices';

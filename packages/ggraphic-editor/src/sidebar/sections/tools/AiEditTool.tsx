@@ -7,7 +7,7 @@ import { HiPencilSquare } from 'react-icons/hi2';
 
 import { MOBILE_INPUT_TEXT } from '@ggraphic/editor/sidebar/sidebarStyles';
 
-import { ImageInputPicker } from './ImageInputPicker';
+import { ImageInputPicker } from './ImageInputPicker.js';
 import {
   ToolPanel,
   type ToolPanelSuccess,

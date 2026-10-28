@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MPL-2.0
-import type { ElementItem } from './elementTypes';
+import type { ElementItem } from './elementTypes.js';
 import type { AssetAudience } from '@ggraphic/editor/utils/canvasAssets';
 import type { ComponentType } from 'react';
 

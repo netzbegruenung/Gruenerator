@@ -21,7 +21,7 @@ import {
   PiTrash,
 } from 'react-icons/pi';
 
-import { ContextCard } from './ContextToolbar';
+import { ContextCard } from './ContextToolbar.js';
 import {
   FloatingPositionControl,
   type PositionCommandId,

@@ -17,7 +17,7 @@ import {
   HiOutlineTrash,
 } from 'react-icons/hi2';
 
-import { MOBILE_INPUT_TEXT } from '../../../sidebar/sidebarStyles';
+import { MOBILE_INPUT_TEXT } from '../../../sidebar/sidebarStyles.js';
 
 import type { StockImageAttribution } from '@ggraphic/editor/common/imageSourceTypes';
 import type { BackgroundControls } from '@ggraphic/editor/configs/types';

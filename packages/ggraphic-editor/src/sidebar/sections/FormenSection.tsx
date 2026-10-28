@@ -49,7 +49,7 @@ import {
   PiSunFill,
 } from 'react-icons/pi';
 
-import { CARD_GRID, CARD_PREVIEW, SELECTABLE_CARD, SIDEBAR_SECTION } from '../sidebarStyles';
+import { CARD_GRID, CARD_PREVIEW, SELECTABLE_CARD, SIDEBAR_SECTION } from '../sidebarStyles.js';
 
 export interface FormenSectionProps {
   onAddShape: (type: ShapeType, color?: string) => void;

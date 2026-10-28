@@ -10,7 +10,7 @@ import { registeredAssetCatalog } from '@ggraphic/editor/utils/canvasAssets';
 import { fetchShareImageFile } from '@ggraphic/editor/utils/mediaPlacement';
 import { useRef, useState } from 'react';
 
-import { GalleryTabs, StudioGalleryGrid, useGalleryScopes } from '../StudioGallery';
+import { GalleryTabs, StudioGalleryGrid, useGalleryScopes } from '../StudioGallery.js';
 
 import type { BackgroundControls } from '@ggraphic/editor/configs/types';
 
