@@ -1,5 +1,5 @@
 import { stripForSpeech, useChatConfigStore } from '@gruenerator/chat';
-import { createAudioPlayer, type AudioPlayer } from 'expo-audio';
+import { createAudioPlayer, setAudioModeAsync, type AudioPlayer } from 'expo-audio';
 import { File, Paths } from 'expo-file-system';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
@@ -120,6 +120,17 @@ async function fetchSentenceChunks(
   return chunks;
 }
 
+// Reading aloud keeps going on the lock screen and pauses other apps' audio, like
+// a podcast. Only for as long as it reads: the rest of the app, the voice call's
+// ready tone included, keeps expo-audio's defaults.
+const READ_ALOUD_MODE = { shouldPlayInBackground: true, interruptionMode: 'doNotMix' } as const;
+const DEFAULT_MODE = { shouldPlayInBackground: false, interruptionMode: 'mixWithOthers' } as const;
+
+function endReadAloud(player: AudioPlayer | null): void {
+  player?.clearLockScreenControls();
+  void setAudioModeAsync(DEFAULT_MODE);
+}
+
 export function useNativeTTS() {
   const [state, setState] = useState<TTSState>('idle');
   const abortRef = useRef<AbortController | null>(null);
@@ -130,6 +141,8 @@ export function useNativeTTS() {
     () => () => {
       // Aborting makes an in-flight `play` return before it creates a player.
       abortRef.current?.abort();
+      // Rows unmount while scrolling; only the one reading hands the session back.
+      if (playerRef.current?.playing) endReadAloud(playerRef.current);
       playerRef.current?.release();
       playerRef.current = null;
     },
@@ -180,9 +193,24 @@ export function useNativeTTS() {
       const wavFile = new File(Paths.cache, 'tts-playback.wav');
       wavFile.writeSync(wavBytes);
 
-      if (!playerRef.current) playerRef.current = createAudioPlayer(null);
-      playerRef.current.replace({ uri: wavFile.uri });
-      playerRef.current.play();
+      if (!playerRef.current) {
+        const player = createAudioPlayer(null);
+        player.addListener('playbackStatusUpdate', (status) => {
+          if (!status.didJustFinish) return;
+          endReadAloud(player);
+          setState('idle');
+        });
+        playerRef.current = player;
+      }
+      const player = playerRef.current;
+      await setAudioModeAsync(READ_ALOUD_MODE);
+      if (controller.signal.aborted) return;
+      player.replace({ uri: wavFile.uri });
+      player.setActiveForLockScreen(true, {
+        title: sentences[0]?.slice(0, 80),
+        artist: 'Grünerator',
+      });
+      player.play();
       setState('playing');
     },
     [state, fetchFn, apiBaseUrl]
@@ -192,6 +220,7 @@ export function useNativeTTS() {
     abortRef.current?.abort();
     abortRef.current = null;
     playerRef.current?.pause();
+    endReadAloud(playerRef.current);
     setState('idle');
   }, []);
 
