@@ -172,10 +172,13 @@ export async function composeAnswer({
   question,
   results,
   filters,
+  timeoutMs,
 }: {
   question: string;
   results: readonly ReadResult[];
   filters: BundestagFilter;
+  /** Frist für den Antwort-Aufruf; ohne Angabe gilt die Vorgabe der Fassade. */
+  timeoutMs?: number;
 }): Promise<ComposedAnswer> {
   const { citations, urheber, capped } = numberPoints(results);
   if (citations.length === 0) {
@@ -218,6 +221,7 @@ export async function composeAnswer({
     prompt,
     temperature: 0.2,
     maxOutputTokens: 2000,
+    ...(timeoutMs != null ? { timeoutMs } : {}),
   });
   const { text, invalid } = stripInvalidCitations(raw, citations.length);
   return { answer: text, citations, capped, invalidCitations: invalid };

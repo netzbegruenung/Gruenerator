@@ -41,6 +41,9 @@ export const CHAT_BUDGET: Budget = {
   deadlineMs: 70_000,
 };
 
+/** Untergrenze für den Antwort-Aufruf, auch wenn die Frist des Endpunkts beim Lesen aufgebraucht wurde. */
+export const ANSWER_MIN_TIMEOUT_MS = 15_000;
+
 /** Eine Woche. */
 export const TEXT_CACHE_TTL_S = 604_800;
 export const PDF_MAX_BYTES = 30 * 1024 * 1024;

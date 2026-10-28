@@ -120,7 +120,7 @@ export async function countBundestag({
   today = new Date(),
 }: {
   filters: BundestagFilter;
-  gruppieren?: CountGroupBy | undefined;
+  gruppieren?: CountGroupBy;
   dip: FindDip;
   today?: Date;
 }): Promise<CountResult> {

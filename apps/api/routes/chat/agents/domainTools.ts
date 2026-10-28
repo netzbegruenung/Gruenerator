@@ -270,7 +270,10 @@ Nicht für Inhalte, dafür parlament_lesen. Nicht für Reden im Plenum, dafür b
         if (!isIntentAllowedForLocale('bundestag', state.userLocale)) {
           return { resultCount: 0, sources: '', error: intentDeclineNote('bundestag') ?? '' };
         }
-        const zaehlung = await countBundestagDocs({ filters, gruppieren }).catch(() => null);
+        const zaehlung = await countBundestagDocs({
+          filters,
+          ...(gruppieren ? { gruppieren } : {}),
+        }).catch(() => null);
         if (!zaehlung) {
           return {
             resultCount: 0,
@@ -527,7 +530,7 @@ Nicht für Abstimmungsverhalten, dafür abgeordnetenwatch. Nicht für Positionen
           'Abschnitt, auf den sich das Lesen richten soll, wenn die Frage eine Stelle nennt: „Artikel 3“, „§ 14“, „Begründung“, „Erfüllungsaufwand“. Sonst weglassen.'
         ),
     }),
-    execute: async ({ dokumente, frage, auftrag = 'frage', fokus }) => {
+    execute: async ({ dokumente, frage, auftrag = 'frage', fokus }, options) => {
       if (!isIntentAllowedForLocale('bundestag', state.userLocale)) {
         return { resultCount: 0, sources: '', error: intentDeclineNote('bundestag') ?? '' };
       }
@@ -537,6 +540,8 @@ Nicht für Abstimmungsverhalten, dafür abgeordnetenwatch. Nicht für Positionen
         auftrag,
         budget: CHAT_BUDGET,
         ...(fokus ? { fokus } : {}),
+        // Der Loop schreibt den Aufruf nach seiner Frist ab; dieses Signal stoppt dann das Weiterlesen.
+        ...(options?.abortSignal ? { abortSignal: options.abortSignal } : {}),
       });
       const results: SearchResult[] = documents
         .filter((d) => d.points.length > 0)

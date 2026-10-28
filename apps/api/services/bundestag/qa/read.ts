@@ -51,10 +51,12 @@ export interface ReadParams {
   docs: FetchedDoc[];
   budget: Budget;
   signal?: AbortSignal;
+  /** Absolute Frist (ms seit Epoche). Ohne Angabe läuft `budget.deadlineMs` ab Beginn des Lesens; mit ihr zählt der Anfragebeginn. */
+  deadlineAt?: number;
   /** `AiCall.pinned`; nur der Vergleichslauf aus Task 10 setzt es. */
   target?: AiCall['pinned'];
   /** Abschnitt, Artikel oder Paragraf, auf den sich das Lesen richtet („Artikel 3", „§ 14", „Kosten"). */
-  fokus?: string | undefined;
+  fokus?: string;
 }
 
 const READ_JSON_SCHEMA = {
@@ -210,10 +212,11 @@ export async function readDocuments({
   docs,
   budget,
   signal,
+  deadlineAt: deadlineAtParam,
   target,
   fokus,
 }: ReadParams): Promise<ReadResult[]> {
-  const startedAt = Date.now();
+  const deadlineAt = deadlineAtParam ?? Date.now() + budget.deadlineMs;
   const size = readWindowChars(modelFor(target));
   const limit = createLimiter(READ_CONCURRENCY);
 
@@ -261,10 +264,10 @@ export async function readDocuments({
     await Promise.all(
       picked.map((win) =>
         limit(async () => {
-          if (signal?.aborted || Date.now() - startedAt >= budget.deadlineMs) return;
+          if (signal?.aborted || Date.now() >= deadlineAt) return;
           result.windowsRead++;
           result.charsRead += win.text.length;
-          const remaining = Math.max(1, budget.deadlineMs - (Date.now() - startedAt));
+          const remaining = Math.max(1, deadlineAt - Date.now());
           const res = await aiObject<RawWindow>({
             lane: 'bundestag_read',
             ...(target ? { pinned: target } : {}),

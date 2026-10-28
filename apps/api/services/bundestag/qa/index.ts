@@ -15,7 +15,7 @@ import { getBundestagMCPClient } from '../BundestagMCPClient.js';
 import { DipClient } from '../dip/dipClient.js';
 
 import { composeAnswer } from './answer.js';
-import { CHAT_BUDGET, ENDPOINT_BUDGET, type Budget } from './budget.js';
+import { ANSWER_MIN_TIMEOUT_MS, CHAT_BUDGET, ENDPOINT_BUDGET, type Budget } from './budget.js';
 import { countBundestag, type CountGroupBy, type CountResult } from './count.js';
 import { fetchTexts, resolveRefs, type TextCache } from './fetchTexts.js';
 import { findCandidates, type FindDip, type FindMcp, type FindResult } from './find.js';
@@ -151,6 +151,7 @@ export async function answerBundestagQuestion({
 }): Promise<BundestagAnswerResponse> {
   const startedAt = Date.now();
   const { dip, mcp, redis } = deps ?? (await defaultDeps());
+  const deadlineAt = startedAt + budget.deadlineMs;
   const signal = AbortSignal.timeout(budget.deadlineMs);
 
   let usedFilters: BundestagFilter;
@@ -179,10 +180,24 @@ export async function answerBundestagQuestion({
 
   const docs = await fetchTexts(candidates, { dip, redis, signal });
   const readStart = Date.now();
-  const results = await readDocuments({ question, keywords, auftrag, docs, budget, signal });
+  const results = await readDocuments({
+    question,
+    keywords,
+    auftrag,
+    docs,
+    budget,
+    signal,
+    deadlineAt,
+  });
   const msRead = Date.now() - readStart;
 
-  const composed = await composeAnswer({ question, results, filters: usedFilters });
+  // Die Antwort bekommt, was von der Frist übrig ist, mindestens aber genug für einen Aufruf.
+  const composed = await composeAnswer({
+    question,
+    results,
+    filters: usedFilters,
+    timeoutMs: Math.max(ANSWER_MIN_TIMEOUT_MS, deadlineAt - Date.now()),
+  });
   if (composed.capped > 0) {
     notes = [
       ...notes,
@@ -214,6 +229,7 @@ export async function readBundestagRefs({
   auftrag = 'frage',
   budget = CHAT_BUDGET,
   fokus,
+  abortSignal,
   deps,
 }: {
   question: string;
@@ -221,11 +237,14 @@ export async function readBundestagRefs({
   auftrag?: BundestagAuftrag;
   budget?: Budget;
   /** Abschnitt/Artikel/Paragraf, auf den sich das Lesen richtet. */
-  fokus?: string | undefined;
+  fokus?: string;
+  /** Signal des Werkzeugaufrufs: nach dem Timeout im Loop beginnt kein weiteres Fenster. */
+  abortSignal?: AbortSignal;
   deps?: QaDeps;
 }): Promise<{ documents: ReadDocumentInfo[]; notes: string[] }> {
   const { dip, redis } = deps ?? (await defaultDeps());
-  const signal = AbortSignal.timeout(budget.deadlineMs);
+  const deadline = AbortSignal.timeout(budget.deadlineMs);
+  const signal = abortSignal ? AbortSignal.any([abortSignal, deadline]) : deadline;
   const { candidates, notes } = await candidatesForRefs(refs, budget, dip);
   const docs = await fetchTexts(candidates, { dip, redis, signal });
   const results = await readDocuments({
@@ -235,7 +254,7 @@ export async function readBundestagRefs({
     docs,
     budget,
     signal,
-    fokus,
+    ...(fokus ? { fokus } : {}),
   });
   // Der Chat braucht für Titel und Link mehr als der Endpunkt: Nummer, Datum, Urheber, PDF.
   return {
@@ -254,13 +273,13 @@ export async function readBundestagRefs({
 /** Zählt Drucksachen (bzw. Vorgänge) für die Filter, optional gruppiert (Chat-Werkzeug `bundestag`, modus 'zaehlen'). */
 export async function countBundestagDocs(args: {
   filters: BundestagFilter;
-  gruppieren?: CountGroupBy | undefined;
+  gruppieren?: CountGroupBy;
   deps?: Pick<QaDeps, 'dip'>;
 }): Promise<CountResult> {
   const dip = args.deps?.dip ?? getDip();
   return countBundestag({
     filters: args.filters,
-    gruppieren: args.gruppieren,
+    ...(args.gruppieren ? { gruppieren: args.gruppieren } : {}),
     dip,
   });
 }
