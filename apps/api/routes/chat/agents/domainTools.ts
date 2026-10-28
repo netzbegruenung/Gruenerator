@@ -151,6 +151,9 @@ export function describeBundestagFilter(filters: BundestagFilter | undefined): s
   return lines;
 }
 
+/** Schnipselkappe der Bundestag-Liste; die Kappe der Zeile selbst steht in `candidateToSearchResult`. */
+const BUNDESTAG_SNIPPET_CHARS = 3500;
+
 const BUNDESTAG_HINWEIS =
   "Die Liste enthält nur Metadaten. Für Inhalte `parlament_lesen` mit quelle 'bundestag' aufrufen: bei einer Themen- oder Listenfrage alle einschlägigen Refs (bis zu 6) in einem Aufruf, nicht nur das erste Dokument.";
 
@@ -319,8 +322,9 @@ Nicht für Inhalte, dafür parlament_lesen. Nicht für das, was eine Person oder
       if (results.length === 0) {
         return { resultCount: 0, sources: '', error: 'Keine passenden Bundestags-Daten gefunden.' };
       }
-      // Listenzeilen tragen Titel, Vorgang und Abstract: 3000 Zeichen halten sie ganz.
-      const sources = sourceRegistry.register(results, { snippetChars: 3000 });
+      // Listenzeilen tragen Titel, Ref, Vorgang, Verlauf und Abstract (gedeckelt, zuletzt):
+      // 3500 Zeichen halten sie ganz, auch bei langem Verlauf (gemessen 5203 vor dem Umbau).
+      const sources = sourceRegistry.register(results, { snippetChars: BUNDESTAG_SNIPPET_CHARS });
       return {
         resultCount: results.length,
         sources: sources ?? '',
