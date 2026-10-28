@@ -183,6 +183,18 @@ export const SKILLS = [
     instances: ['bgst', 'local'],
   },
   {
+    identifier: 'gruenerator-bundestag',
+    title: 'Bundestag-Recherche',
+    description: 'Drucksachen und Debatten finden, lesen und belegt auswerten',
+    iconKey: 'PiBank',
+    avatar: '🏛️',
+    backgroundColor: '#316049',
+    mention: 'bundestagsrecherche',
+    skillCategory: 'recherche',
+    audience: 'de-DE',
+    promptTemplate: 'Recherchiere im Bundestag: ',
+  },
+  {
     identifier: 'gruenerator-oeffentlichkeitsarbeit-berlin',
     title: 'PM Berlin (Fraktion)',
     description:
