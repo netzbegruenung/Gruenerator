@@ -106,7 +106,10 @@ describe('CanvasEditor: print impressum wiring', () => {
   });
 
   it('names the Austrian fonts for a deck whose first page is Austrian', async () => {
-    await openDownload({ carousel: grueneratorCarousel }, { configId: 'freeform-at', formatId: 'slide-16-9', initialProps: {} });
+    await openDownload(
+      { carousel: grueneratorCarousel },
+      { configId: 'freeform-at', formatId: 'slide-16-9', initialProps: {} }
+    );
     expect(await screen.findByText(/Gotham Narrow/)).toBeInTheDocument();
   });
 });
