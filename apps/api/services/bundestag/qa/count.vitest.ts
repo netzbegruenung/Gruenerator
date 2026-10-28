@@ -79,6 +79,24 @@ describe('countBundestag', () => {
     expect(list.mock.calls[1]![1]).not.toHaveProperty('f.wahlperiode');
   });
 
+  it('zählt bei Wahlperiode ohne Zeitraum ab Beginn der Wahlperiode und nennt das Fenster', async () => {
+    // Live 28.10.2026 (z1): „in dieser Wahlperiode" ergab nur die letzten zwölf Monate.
+    const { dip, list } = dipWith(() => 4);
+    const r = await countBundestag({
+      filters: { wahlperiode: [21], drucksachetyp: ['Kleine Anfrage'] },
+      gruppieren: 'monat',
+      dip,
+      today: new Date(Date.UTC(2026, 9, 28)),
+    });
+    expect(r.gruppen).toHaveLength(20);
+    expect(r.gruppen![0]!.label).toBe('März 2025');
+    expect(r.gruppen![19]!.label).toBe('Oktober 2026');
+    expect(r.filters.datumVon).toBe('2025-03-25');
+    expect(r.notes.join(' ')).toContain('Wahlperiode 21');
+    expect(r.notes.join(' ')).not.toContain('letzten 12 Monate');
+    expect(list.mock.calls.length).toBeLessThanOrEqual(25);
+  });
+
   it('kappt einen langen Zeitraum auf 24 Monate (höchstens 25 Abfragen)', async () => {
     const { dip, list } = dipWith(() => 1);
     const r = await countBundestag({
@@ -166,5 +184,26 @@ describe('formatCount', () => {
     });
     expect(text).toContain('12 Drucksachen');
     expect(text).toContain('| SPD | 5 |');
+  });
+
+  it('nennt bei einem Typfilter den Typ statt „Drucksachen“ und das Zeitfenster', () => {
+    const text = formatCount({
+      einheit: 'Drucksachen',
+      gesamt: 386,
+      gruppen: [{ label: 'März 2025', n: 3 }],
+      gruppiertNach: 'monat',
+      filters: {
+        drucksachetyp: ['Kleine Anfrage'],
+        wahlperiode: [21],
+        datumVon: '2025-03-25',
+        datumBis: '2026-10-31',
+      },
+      notes: [],
+      aufrufe: 2,
+    });
+    expect(text).toContain('386 Kleine Anfragen');
+    expect(text).toContain('25.03.2025');
+    expect(text).toContain('31.10.2026');
+    expect(text).toContain('| monat | Kleine Anfragen |');
   });
 });

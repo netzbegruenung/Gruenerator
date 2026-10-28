@@ -24,6 +24,12 @@ export const MAX_COUNT_CALLS = 25;
 const MAX_MONTHS = 24;
 const DEFAULT_MONTHS = 12;
 const CURRENT_WAHLPERIODE = 21;
+/** Beginn und Ende der Wahlperioden (konstituierende Sitzung bis Tag vor der nächsten). */
+const WAHLPERIODE_RANGE: Record<number, { von: string; bis: string | null }> = {
+  19: { von: '2017-10-24', bis: '2021-10-25' },
+  20: { von: '2021-10-26', bis: '2025-03-24' },
+  21: { von: '2025-03-25', bis: null },
+};
 
 export interface CountRow {
   label: string;
@@ -174,7 +180,17 @@ export async function countBundestag({
   let months: Month[] = [];
   if (groupBy === 'monat') {
     const endM: Month = { y: today.getUTCFullYear(), m: today.getUTCMonth() + 1 };
-    if (!f.datumVon && !f.datumBis) {
+    const ranges = (f.wahlperiode ?? []).map((w) => WAHLPERIODE_RANGE[w]);
+    if (!f.datumVon && !f.datumBis && ranges.length > 0 && ranges.every((r) => r != null)) {
+      // „in dieser Wahlperiode“ meint die ganze Wahlperiode, nicht ein Jahr davon.
+      const sorted = ranges.map((r) => r!);
+      f.datumVon = sorted.map((r) => r.von).sort()[0]!;
+      const ends = sorted.map((r) => r.bis);
+      if (ends.every((e) => e != null)) f.datumBis = ends.sort().at(-1)!;
+      notes.push(
+        `Kein Zeitraum genannt, gezählt wurde die Wahlperiode ${f.wahlperiode!.join('/')} ab ${f.datumVon}.`
+      );
+    } else if (!f.datumVon && !f.datumBis) {
       const idx = endM.y * 12 + endM.m - 1 - (DEFAULT_MONTHS - 1);
       f.datumVon = `${Math.floor(idx / 12)}-${p2((idx % 12) + 1)}-01`;
       notes.push(`Kein Zeitraum genannt, gezählt wurden die letzten ${DEFAULT_MONTHS} Monate.`);
@@ -265,8 +281,35 @@ export async function countBundestag({
 
 /** Kompakte Tabelle für das Modell und die Quellenliste. */
 export function formatCount(r: CountResult): string {
-  const kopf = `${r.gesamt} ${r.einheit} (DIP-Trefferzahl, Bundestag)`;
+  const einheit = einheitLabel(r);
+  const fenster = [r.filters.datumVon, r.filters.datumBis].some(Boolean)
+    ? `, Zeitraum ${r.filters.datumVon ? deDate(r.filters.datumVon) : 'offen'} bis ${r.filters.datumBis ? deDate(r.filters.datumBis) : 'offen'}`
+    : r.filters.wahlperiode?.length
+      ? `, Wahlperiode ${r.filters.wahlperiode.join('/')}`
+      : '';
+  const kopf = `${r.gesamt} ${einheit} (DIP-Trefferzahl, Bundestag${fenster})`;
   if (!r.gruppen) return kopf;
   const zeilen = r.gruppen.map((g) => `| ${g.label} | ${g.n} |`);
-  return [kopf, '', `| ${r.gruppiertNach} | ${r.einheit} |`, '|---|---|', ...zeilen].join('\n');
+  return [kopf, '', `| ${r.gruppiertNach} | ${einheit} |`, '|---|---|', ...zeilen].join('\n');
+}
+
+const deDate = (iso: string): string => `${iso.slice(8, 10)}.${iso.slice(5, 7)}.${iso.slice(0, 4)}`;
+
+/** Plural eines gefilterten Drucksachentyps; ohne Typfilter bleibt es bei der Einheit. */
+const TYP_PLURAL: Record<string, string> = {
+  Gesetzentwurf: 'Gesetzentwürfe',
+  Antrag: 'Anträge',
+  'Kleine Anfrage': 'Kleine Anfragen',
+  'Große Anfrage': 'Große Anfragen',
+  Antwort: 'Antworten',
+  'Beschlussempfehlung und Bericht': 'Beschlussempfehlungen und Berichte',
+  Unterrichtung: 'Unterrichtungen',
+  Entschließungsantrag: 'Entschließungsanträge',
+  Änderungsantrag: 'Änderungsanträge',
+  Bericht: 'Berichte',
+};
+
+export function einheitLabel(r: Pick<CountResult, 'einheit' | 'filters'>): string {
+  const typen = r.einheit === 'Drucksachen' ? (r.filters.drucksachetyp ?? []) : [];
+  return typen.length > 0 ? typen.map((t) => TYP_PLURAL[t] ?? t).join(' und ') : r.einheit;
 }

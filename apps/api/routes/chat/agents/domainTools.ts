@@ -35,7 +35,7 @@ import {
 } from '../../../agents/langgraph/ChatGraph/nodes/searchNode.js';
 import { summarizeNode } from '../../../agents/langgraph/ChatGraph/nodes/summarizeNode.js';
 import { CHAT_BUDGET } from '../../../services/bundestag/qa/budget.js';
-import { formatCount } from '../../../services/bundestag/qa/count.js';
+import { einheitLabel, formatCount } from '../../../services/bundestag/qa/count.js';
 import { bundestagDocTitle } from '../../../services/bundestag/qa/docTitle.js';
 import { countBundestagDocs, readBundestagRefs } from '../../../services/bundestag/qa/index.js';
 import { detectFromWording } from '../../../services/bundestag/qa/planDetect.js';
@@ -282,7 +282,7 @@ Nicht für Inhalte, dafür parlament_lesen. Nicht für Reden im Plenum, dafür b
           [
             {
               source: 'bundestag',
-              title: `DIP-Zählung: ${zaehlung.einheit}`,
+              title: `DIP-Zählung: ${einheitLabel(zaehlung)}`,
               content: formatCount(zaehlung),
               url: 'https://dip.bundestag.de',
               relevance: 1,
@@ -295,6 +295,7 @@ Nicht für Inhalte, dafür parlament_lesen. Nicht für Reden im Plenum, dafür b
           sources: sources ?? '',
           modus: 'zaehlen',
           einheit: zaehlung.einheit,
+          bezeichnung: einheitLabel(zaehlung),
           gesamt: zaehlung.gesamt,
           ...(zaehlung.gruppen ? { gruppen: zaehlung.gruppen } : {}),
           ...(zaehlung.notes.length > 0 ? { hinweise: zaehlung.notes } : {}),
