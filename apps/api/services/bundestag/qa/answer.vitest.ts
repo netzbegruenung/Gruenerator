@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 const aiText = vi.hoisted(() => vi.fn());
 vi.mock('../../ai/generate.js', () => ({ aiText }));
 
-import { composeAnswer, numberPoints, stripInvalidCitations } from './answer.js';
+import { ANSWER_SYSTEM, composeAnswer, numberPoints, stripInvalidCitations } from './answer.js';
 import { type ReadResult } from './read.js';
 
 function result(ref: string, n: number, extra: Partial<ReadResult> = {}): ReadResult {
@@ -123,5 +123,23 @@ describe('composeAnswer', () => {
     expect(out.citations).toEqual([]);
     expect(out.answer).toContain('Wahlperiode 21');
     expect(out.answer).toContain('21/1');
+  });
+});
+
+describe('ANSWER_SYSTEM', () => {
+  it('verlangt Vollständigkeit und bei Listenfragen jedes Dokument mit Kopfdaten', () => {
+    expect(ANSWER_SYSTEM).toContain('vollständig sein, nicht kurz');
+    expect(ANSWER_SYSTEM).toContain('JEDES einschlägige Dokument');
+    expect(ANSWER_SYSTEM).toContain('Nummer, Typ, Datum und Urheber');
+    expect(ANSWER_SYSTEM).not.toContain('knapp');
+  });
+
+  it('behält Beleg-, Vorwissen- und Lückenregeln bei höchstens 10 Regelzeilen', () => {
+    expect(ANSWER_SYSTEM).toContain('[n]');
+    expect(ANSWER_SYSTEM).toContain('kein Vorwissen');
+    expect(ANSWER_SYSTEM).toContain('Lücken');
+    expect(ANSWER_SYSTEM.split('\n').filter((l) => l.startsWith('- ')).length).toBeLessThanOrEqual(
+      10
+    );
   });
 });

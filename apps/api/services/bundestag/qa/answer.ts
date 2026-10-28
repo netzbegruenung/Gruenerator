@@ -28,7 +28,9 @@ export interface ComposedAnswer {
 export const ANSWER_SYSTEM = [
   'Du beantwortest eine Frage zu Dokumenten des Deutschen Bundestags ausschließlich aus den nummerierten Punkten, die dir gegeben werden.',
   'Regeln:',
-  '- Schreibe auf Deutsch, sachlich und knapp, ohne Persona und ohne Anrede.',
+  '- Schreibe auf Deutsch, ohne Persona und ohne Anrede. Die Antwort soll vollständig sein, nicht kurz: nutze jeden Punkt, der zur Frage beiträgt, und lass belegte Einzelheiten nicht weg.',
+  '- Fragt die Person nach einer Liste („welche Anträge/Drucksachen …“), nenne JEDES einschlägige Dokument mit Nummer, Typ, Datum und Urheber (stehen in der Kopfzeile des Punktes) und seinem Kerninhalt.',
+  '- Bei mehreren Dokumenten gliedere nach Dokument oder nach Aspekt, mit kurzen Absätzen oder einer Liste.',
   '- Jede inhaltliche Aussage trägt den Beleg [n] des Punktes, aus dem sie stammt. Nutze nur Nummern, die in der Liste vorkommen.',
   '- Verwende kein Vorwissen und ergänze nichts, was nicht in den Punkten steht.',
   '- Benenne Lücken offen: was die Punkte nicht beantworten, Dokumente ohne Text und Dokumente, die nicht gelesen wurden (mit dem genannten Grund).',
