@@ -106,6 +106,39 @@ describe('findCandidates', () => {
     expect(r.candidates.map((c) => c.ref)).toEqual(['21/6019']);
   });
 
+  it('fragt mehrere Typen und Urheber als ODER ab — je Kombination eine Abfrage', async () => {
+    // DIP verknüpft wiederholte f.drucksachetyp/f.urheber mit UND (live: 806 + 2903 → 0).
+    let n = 0;
+    const dip = makeDip((e, p) =>
+      e === 'drucksache'
+        ? [
+            {
+              id: `${String(p['f.drucksachetyp'])}|${String(p['f.urheber'])}`,
+              dokumentnummer: `21/${++n}`,
+            },
+          ]
+        : []
+    );
+    const r = await findCandidates({
+      question: 'x',
+      filters: {
+        drucksachetyp: ['Antrag', 'Kleine Anfrage'],
+        urheber: ['Fraktion BÜNDNIS 90/DIE GRÜNEN', 'Fraktion DIE LINKE'],
+      },
+      assumedWahlperiode: false,
+      budget,
+      dip,
+      mcp: mcpNone,
+    });
+    const calls = dip.calls.filter((c) => c.endpoint === 'drucksache');
+    expect(calls).toHaveLength(4);
+    for (const c of calls) {
+      expect(typeof c.params['f.drucksachetyp']).toBe('string');
+      expect(typeof c.params['f.urheber']).toBe('string');
+    }
+    expect(r.candidates).toHaveLength(4);
+  });
+
   it('entfernt Duplikate nach dipId und kappt auf maxDocuments', async () => {
     const dip = makeDip((e) =>
       e === 'drucksache'
@@ -126,7 +159,7 @@ describe('findCandidates', () => {
       mcp: mcpNone,
     });
     expect(r.candidates.map((c) => c.dipId)).toEqual(['a', 'b', 'c']);
-    expect(dip.calls[0].params['f.drucksachetyp']).toEqual(['Antrag']);
+    expect(dip.calls[0].params['f.drucksachetyp']).toBe('Antrag');
   });
 
   it('sendet nie leere Arrays', async () => {
@@ -480,7 +513,7 @@ describe('findCandidates', () => {
           dip,
           mcp: mcpNone,
         });
-        expect(dip.calls[0].params['f.initiative']).toEqual(['Fraktion der AfD']);
+        expect(dip.calls[0].params['f.initiative']).toBe('Fraktion der AfD');
       }
     });
   });

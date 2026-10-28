@@ -92,6 +92,39 @@ function withList(
   if (values && values.length > 0) params[key] = values;
 }
 
+/** Höchstens so viele Einzelabfragen ersetzen eine ODER-Liste (Typ × Urheber). */
+const MAX_OR_QUERIES = 8;
+
+/**
+ * DIP verknüpft wiederholte `f.drucksachetyp`, `f.urheber` und `f.initiative`
+ * mit UND — live 28.10.2026: Antrag (806) und Kleine Anfrage (2903) zusammen 0,
+ * Grüne (884) und Linke zusammen 10 gemeinsame. Gemeint ist ODER: eine Abfrage
+ * je Wertekombination, Treffer nach Datum zusammengeführt. Wiederholtes
+ * `f.deskriptor` bleibt bewusst UND, `f.beratungsstand` und `f.id` sind ODER.
+ * `numFound` ist die Summe und kann Dokumente mehrerer Urheber doppelt zählen.
+ */
+async function listAnyOf<T extends { id: string; datum?: string }>(
+  dip: FindDip,
+  endpoint: DipEndpoint,
+  params: DipParams,
+  alternatives: Record<string, readonly string[] | undefined>
+): Promise<{ documents: T[]; numFound: number }> {
+  let combos: DipParams[] = [{}];
+  for (const [key, values] of Object.entries(alternatives)) {
+    if (!values || values.length === 0) continue;
+    combos = combos.flatMap((c) => values.map((v) => ({ ...c, [key]: v })));
+  }
+  const pages = await Promise.all(
+    combos.slice(0, MAX_OR_QUERIES).map((c) => dip.list<T>(endpoint, { ...params, ...c }))
+  );
+  const seen = new Set<string>();
+  const documents = pages
+    .flatMap((pg) => pg.documents)
+    .filter((d) => (seen.has(d.id) ? false : (seen.add(d.id), true)))
+    .sort((a, b) => (b.datum ?? '').localeCompare(a.datum ?? ''));
+  return { documents, numFound: pages.reduce((n, pg) => n + pg.numFound, 0) };
+}
+
 function baseParams(f: BundestagFilter, wahlperiode: readonly number[] | undefined): DipParams {
   const params: DipParams = { 'f.zuordnung': 'BT' };
   withList(params, 'f.wahlperiode', wahlperiode);
@@ -312,9 +345,10 @@ async function byVorgang(
   const types = f.drucksachetyp ?? [];
   const byInitiative = types.length === 0 || types.every((t) => INITIATOR_TYPES.includes(t));
   const filterUrheber = !byInitiative && (f.urheber?.length ?? 0) > 0;
-  if (byInitiative) withList(params, 'f.initiative', f.urheber);
   withList(params, 'f.beratungsstand', f.beratungsstand);
-  const page = await dip.list<DipVorgang>('vorgang', params);
+  const page = await listAnyOf<DipVorgang>(dip, 'vorgang', params, {
+    'f.initiative': byInitiative ? f.urheber : undefined,
+  });
   const sink: UrheberSink = { missing: false };
   const urheber = filterUrheber && f.urheber ? { want: f.urheber, sink } : undefined;
   const candidates: BundestagCandidate[] = [];
@@ -340,10 +374,10 @@ async function byDrucksache(
   f: BundestagFilter,
   wahlperiode: readonly number[] | undefined
 ): Promise<Collected> {
-  const params = baseParams(f, wahlperiode);
-  withList(params, 'f.drucksachetyp', f.drucksachetyp);
-  withList(params, 'f.urheber', f.urheber);
-  const page = await dip.list<DipDrucksache>('drucksache', params);
+  const page = await listAnyOf<DipDrucksache>(dip, 'drucksache', baseParams(f, wahlperiode), {
+    'f.drucksachetyp': f.drucksachetyp,
+    'f.urheber': f.urheber,
+  });
   return {
     candidates: page.documents.map(fromDrucksache),
     verlaeufe: new Map(),
@@ -404,9 +438,12 @@ async function viaMcp(
     ),
   ];
   if (nummern.length === 0) return [];
-  const params: DipParams = { 'f.zuordnung': 'BT', 'f.dokumentnummer': nummern };
-  withList(params, 'f.drucksachetyp', f.drucksachetyp);
-  const page = await dip.list<DipDrucksache>('drucksache', params);
+  const page = await listAnyOf<DipDrucksache>(
+    dip,
+    'drucksache',
+    { 'f.zuordnung': 'BT', 'f.dokumentnummer': nummern },
+    { 'f.drucksachetyp': f.drucksachetyp }
+  );
   // Reihenfolge der Treffer (Relevanz) bleibt erhalten.
   const byNummerMap = new Map(page.documents.map((d) => [d.dokumentnummer, d]));
   return nummern.flatMap((n) => {
