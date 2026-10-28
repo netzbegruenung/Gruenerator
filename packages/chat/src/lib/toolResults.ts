@@ -193,8 +193,8 @@ const TOOL_METADATA: Record<string, ToolMeta> = {
     },
   },
   parlament_lesen: {
-    label: 'Bundestagsdokumente lesen',
-    activeLabel: 'Liest Bundestagsdokumente …',
+    label: 'Parlamentsdokumente lesen',
+    activeLabel: 'Liest Parlamentsdokumente …',
     iconKey: 'book',
     accent: 'retrieval',
     queryKeys: ['frage'],
