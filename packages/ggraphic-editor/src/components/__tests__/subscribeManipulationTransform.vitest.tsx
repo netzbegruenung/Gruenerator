@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /**
  * Die Pille am Objekt soll beim Transformieren verschwinden. Konva feuert
  * `transformstart`/`transformend` aber ohne Bubbling, die Bühne hört sie nie —
@@ -7,11 +8,14 @@
  */
 import { GenericCanvas, type GenericCanvasRef } from '@ggraphic/editor/components/GenericCanvas';
 import { loadCanvasConfig } from '@ggraphic/editor/configs/configLoader';
-import { AutoSaveStoreProvider } from '@ggraphic/editor/stores/AutoSaveStoreProvider';
+
+import '../../testing/fixtureTemplates';
 import { act, render } from '@testing-library/react';
 import Konva from 'konva';
 import React, { createRef } from 'react';
 import { describe, expect, it, vi } from 'vitest';
+
+import { AutoSaveStoreProvider } from '@ggraphic/editor/stores/AutoSaveStoreProvider';
 
 Object.defineProperty(document, 'fonts', {
   configurable: true,
@@ -26,7 +30,7 @@ describe('subscribeManipulation', () => {
   // in drei Läufen hintereinander über die 5-s-Vorgabe (#3998). Der Vorgabewert
   // ist für Fälle gedacht, die nicht den ganzen Editor hochziehen.
   it('meldet Beginn und Ende einer Anker-Transformation', { timeout: 30_000 }, async () => {
-    const config = await loadCanvasConfig('dreizeilen');
+    const config = await loadCanvasConfig('fixture-poster');
     const ref = createRef<GenericCanvasRef>();
     await act(async () => {
       render(
@@ -43,7 +47,7 @@ describe('subscribeManipulation', () => {
                   x: 100,
                   y: 100,
                   fontSize: 60,
-                  fontFamily: 'GrueneTypeNeue, Arial, sans-serif',
+                  fontFamily: 'Arial, sans-serif',
                   fontStyle: 'bold',
                   fill: '#ffffff',
                   width: 400,

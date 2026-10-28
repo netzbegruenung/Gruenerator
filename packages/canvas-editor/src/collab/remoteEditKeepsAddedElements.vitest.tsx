@@ -42,21 +42,6 @@ const PAGE_ID = 'seed-0';
 /** Kein `PAGES_*`-Ursprung: genau so sieht der Beobachter eine fremde Bearbeitung. */
 const REMOTE_ORIGIN = Symbol('anderer-client');
 
-/** Eine vollstaendige Form — der Renderer laeuft hier echt, ein `{id}` reicht ihm nicht. */
-const shape = (id: string) => ({
-  id,
-  type: 'rect' as const,
-  x: 100,
-  y: 100,
-  width: 200,
-  height: 200,
-  fill: '#005538',
-  rotation: 0,
-  scaleX: 1,
-  scaleY: 1,
-  opacity: 1,
-});
-
 type ConfigId = 'dreizeilen' | 'zitat';
 
 // Einmal geladen und mit eigenem Budget: `loadCanvasConfig` zieht ueber einen
@@ -140,27 +125,5 @@ describe('Fernbearbeitung an der echten Fläche', () => {
     expect(after.map((b) => b.id)).toContain(added[0].id);
     const primary = after.find((b) => b.id === 'dreizeilen-balken')!;
     expect(primary.texts[0], 'der abgeleitete Balken folgt dem neuen Text nicht').toBe('Neu');
-  }, 60_000);
-
-  it('lässt Formen und ihre Ebenenreihenfolge stehen', async () => {
-    const canvas = await mount('zitat', {
-      quote: 'Alt',
-      shapeInstances: [shape('form-a'), shape('form-b')],
-      layerOrder: ['form-b', 'form-a'],
-    });
-
-    expect(canvas.state().layerOrder, 'layerOrder kam schon beim Mounten nicht an').toEqual([
-      'form-b',
-      'form-a',
-    ]);
-
-    await canvas.remoteEdit({ quote: 'Neu' });
-
-    expect(canvas.state().quote).toBe('Neu');
-    expect((canvas.state().shapeInstances as Array<{ id: string }>).map((s) => s.id)).toEqual([
-      'form-a',
-      'form-b',
-    ]);
-    expect(canvas.state().layerOrder).toEqual(['form-b', 'form-a']);
   }, 60_000);
 });

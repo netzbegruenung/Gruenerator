@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /**
  * An undone text edit must be written back to the page's Y.Map (#4247).
  * Text fields reach the document only through their `on<Key>Change`
@@ -10,7 +11,9 @@ import { PAGES_STATE_ORIGIN } from '@ggraphic/editor/collab/useYjsPages';
 import { createPageSyncedCallbacks } from '@ggraphic/editor/collab/wrapCallbacksWithPageSync';
 import { GenericCanvas, type GenericCanvasRef } from '@ggraphic/editor/components/GenericCanvas';
 import { loadCanvasConfig } from '@ggraphic/editor/configs/configLoader';
+import '../testing/fixtureTemplates';
 import { AutoSaveStoreProvider } from '@ggraphic/editor/stores/AutoSaveStoreProvider';
+
 import { act, render } from '@testing-library/react';
 import { createRef } from 'react';
 import { describe, expect, it, vi } from 'vitest';
@@ -43,7 +46,7 @@ const pageState = (doc: Y.Doc): Record<string, unknown> =>
   readPages(doc).find((p) => p.id === PAGE_ID)!.state;
 
 async function mountCanvas(
-  configId: 'dreizeilen' | 'zitat',
+  configId: 'fixture-poster' | 'fixture-note',
   seed: Record<string, unknown>,
   hostKeys: string[]
 ) {
@@ -96,9 +99,9 @@ async function mountCanvas(
 }
 
 describe('undo writes text fields back to the document', () => {
-  it('dreizeilen line1', async () => {
+  it('fixture-poster line1', async () => {
     const { doc, ref, live, hostCalls } = await mountCanvas(
-      'dreizeilen',
+      'fixture-poster',
       { line1: 'alt', line2: 'Zwei', line3: 'Drei' },
       ['onLine1Change', 'onLine2Change', 'onLine3Change']
     );
@@ -122,21 +125,22 @@ describe('undo writes text fields back to the document', () => {
     expect(pageState(doc).line1).toBe('neu');
   }, 90_000);
 
-  it('zitat quote', async () => {
-    const { doc, ref, live } = await mountCanvas('zitat', { quote: 'Altes Zitat', name: 'Anna' }, [
-      'onQuoteChange',
-      'onNameChange',
-    ]);
+  it('fixture-note primary', async () => {
+    const { doc, ref, live } = await mountCanvas(
+      'fixture-note',
+      { primary: 'Altes Zitat', secondary: 'Anna' },
+      ['onPrimaryChange', 'onSecondaryChange']
+    );
 
     await act(async () => {
       (live.actions.setPrimary as (t: string) => void)('Neues Zitat');
     });
-    expect(pageState(doc).quote).toBe('Neues Zitat');
+    expect(pageState(doc).primary).toBe('Neues Zitat');
 
     await act(async () => {
       ref.current!.undo!();
     });
-    expect(live.state.quote).toBe('Altes Zitat');
-    expect(pageState(doc).quote).toBe('Altes Zitat');
+    expect(live.state.primary).toBe('Altes Zitat');
+    expect(pageState(doc).primary).toBe('Altes Zitat');
   }, 90_000);
 });
