@@ -20,6 +20,7 @@ describe('isSearchProgressTool', () => {
       'gruenerator_docs_search',
       'search_sources',
       'bundestag',
+      'parlament_lesen',
     ]) {
       expect(isSearchProgressTool(name)).toBe(true);
     }

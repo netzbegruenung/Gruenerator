@@ -30,10 +30,10 @@ import {
   retrieveBundestag,
 } from '../../../agents/langgraph/ChatGraph/nodes/searchNode.js';
 import { summarizeNode } from '../../../agents/langgraph/ChatGraph/nodes/summarizeNode.js';
-import { relatedDocsPages, searchDocs } from '../../../services/docs/docsIndex.js';
-import { bundestagDocTitle } from '../../../services/bundestag/qa/docTitle.js';
 import { CHAT_BUDGET } from '../../../services/bundestag/qa/budget.js';
+import { bundestagDocTitle } from '../../../services/bundestag/qa/docTitle.js';
 import { readBundestagRefs } from '../../../services/bundestag/qa/index.js';
+import { relatedDocsPages, searchDocs } from '../../../services/docs/docsIndex.js';
 import { lookupUmfragen } from '../../../services/monitor/UmfragenService.js';
 import { DRAFT_LIMIT_TEXTS } from '../../../services/sharepicCreator/draftFailure.js';
 import {
@@ -176,10 +176,14 @@ export function makeParlamentLesenTool(ctx: {
         .min(1)
         .max(6)
         .describe('Refs aus der Liste von `bundestag` (Zeile „Ref: …“)'),
-      frage: z.string().min(3).max(1000).describe('Die Frage, die die Dokumente beantworten sollen'),
+      frage: z
+        .string()
+        .min(3)
+        .max(1000)
+        .describe('Die Frage, die die Dokumente beantworten sollen'),
       auftrag: bundestagAuftragSchema.default('frage'),
     }),
-    execute: async ({ dokumente, frage, auftrag }) => {
+    execute: async ({ dokumente, frage, auftrag = 'frage' }) => {
       if (!isIntentAllowedForLocale('bundestag', state.userLocale)) {
         return { resultCount: 0, sources: '', error: intentDeclineNote('bundestag') ?? '' };
       }
@@ -204,7 +208,8 @@ export function makeParlamentLesenTool(ctx: {
           ref: d.ref,
           grund: d.skipped ? NICHT_GELESEN_GRUND[d.skipped] : 'keine belegte Aussage zur Frage',
         }));
-      const sources = results.length > 0 ? sourceRegistry.register(results, { snippetChars: 3000 }) : null;
+      const sources =
+        results.length > 0 ? sourceRegistry.register(results, { snippetChars: 3000 }) : null;
       return {
         resultCount: results.length,
         sources: sources ?? '',

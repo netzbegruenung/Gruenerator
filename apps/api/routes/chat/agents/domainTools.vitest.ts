@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
+import { CHAT_BUDGET } from '../../../services/bundestag/qa/budget.js';
 import { createSourceRegistry } from '../services/agenticLoop/sourceRegistry.js';
 
 import {
@@ -9,6 +10,7 @@ import {
   makeCreateDocTool,
   makeCreateSharepicTool,
   makeImageTool,
+  makeParlamentLesenTool,
   makeSummaryTool,
 } from './domainTools.js';
 
@@ -20,6 +22,10 @@ const imageNode = vi.fn<(s: unknown) => Promise<unknown>>();
 // steht die Attrappe hier am Kern. Dass der Kern seinen Dienst wirklich
 // erreicht, prüft `domainToolsDelegation.vitest.ts` am ECHTEN Knoten.
 const retrieveBundestag = vi.fn<(q: string, l: unknown, f: unknown) => Promise<unknown>>();
+const readBundestagRefs = vi.fn<(o: unknown) => Promise<unknown>>();
+vi.mock('../../../services/bundestag/qa/index.js', () => ({
+  readBundestagRefs: (o: unknown): Promise<unknown> => readBundestagRefs(o),
+}));
 const retrieveAbgeordnetenwatch = vi.fn<(q: string, l: unknown) => Promise<unknown>>();
 vi.mock('../../../agents/langgraph/ChatGraph/nodes/searchNode.js', () => ({
   retrieveBundestag: (q: string, l: unknown, f: unknown): Promise<unknown> =>
@@ -101,6 +107,107 @@ describe('makeSummaryTool', () => {
     expect(out.summary).toBeUndefined();
     // summary_complete still fires so the progress indicator resolves.
     expect(events.map((e) => e.type)).toEqual(['summary_start', 'summary_complete']);
+  });
+});
+
+describe('makeParlamentLesenTool', () => {
+  beforeEach(() => readBundestagRefs.mockReset());
+
+  const doc = {
+    ref: '21/1928',
+    dokumentnummer: '21/1928',
+    drucksachetyp: 'Gesetzentwurf',
+    titel: 'T',
+    datum: '2025-10-01',
+    urheber: ['Bundesregierung'],
+    pdfUrl: 'https://dserver.bundestag.de/btd/21/019/2101928.pdf',
+    textSource: 'pdf',
+    relevant: true,
+    points: [{ aussage: 'Das Gesetz kommt.', zitat: 'Es tritt in Kraft.', method: 'exact' }],
+    droppedPoints: 0,
+    windowsRead: 1,
+    windowsTotal: 1,
+    skipped: null,
+  };
+  const make = (locale = 'de-DE') =>
+    makeParlamentLesenTool({
+      state: { ...baseState, userLocale: locale } as ChatGraphState,
+      sourceRegistry: createSourceRegistry(),
+    });
+
+  it('reicht Refs, Auftrag und CHAT_BUDGET an den Dienst und registriert die Treffer', async () => {
+    readBundestagRefs.mockResolvedValue({ documents: [doc], notes: [] });
+    const out = (await exec(make(), {
+      quelle: 'bundestag',
+      dokumente: ['21/1928'],
+      frage: 'Was regelt das Gesetz?',
+      auftrag: 'zusammenfassung',
+    })) as { resultCount: number; sources: string; nichtGelesen: unknown[] };
+    expect(readBundestagRefs).toHaveBeenCalledWith({
+      question: 'Was regelt das Gesetz?',
+      refs: ['21/1928'],
+      auftrag: 'zusammenfassung',
+      budget: CHAT_BUDGET,
+    });
+    expect(out.resultCount).toBe(1);
+    expect(out.nichtGelesen).toEqual([]);
+    expect(out.sources).toContain('BT-Drs. 21/1928 · Gesetzentwurf · 01.10.2025 · Bundesregierung');
+    expect(out.sources).toContain('• Das Gesetz kommt. — „Es tritt in Kraft.“');
+  });
+
+  it('listet übersprungene Dokumente mit Grund unter nichtGelesen', async () => {
+    readBundestagRefs.mockResolvedValue({
+      documents: [
+        doc,
+        { ...doc, ref: '21/2', points: [], skipped: 'missing' },
+        { ...doc, ref: '21/3', points: [], skipped: 'budget' },
+        { ...doc, ref: '21/4', points: [], skipped: null },
+      ],
+      notes: ['Nicht gefunden bei DIP: 21/5.'],
+    });
+    const out = (await exec(make(), {
+      quelle: 'bundestag',
+      dokumente: ['21/1928', '21/2', '21/3', '21/4'],
+      frage: 'Frage?',
+    })) as {
+      resultCount: number;
+      nichtGelesen: { ref: string; grund: string }[];
+      hinweise: string[];
+    };
+    expect(readBundestagRefs.mock.calls[0]![0]).toMatchObject({ auftrag: 'frage' });
+    expect(out.resultCount).toBe(1);
+    expect(out.nichtGelesen).toEqual([
+      { ref: '21/2', grund: 'kein Volltext verfügbar' },
+      { ref: '21/3', grund: 'Lesebudget erschöpft' },
+      { ref: '21/4', grund: 'keine belegte Aussage zur Frage' },
+    ]);
+    expect(out.hinweise).toEqual(['Nicht gefunden bei DIP: 21/5.']);
+  });
+
+  it('lehnt für de-AT ab, ohne den Dienst zu rufen', async () => {
+    const out = (await exec(make('de-AT'), {
+      quelle: 'bundestag',
+      dokumente: ['21/1'],
+      frage: 'Frage?',
+    })) as { resultCount: number; error: string };
+    expect(readBundestagRefs).not.toHaveBeenCalled();
+    expect(out.resultCount).toBe(0);
+    expect(out.error).toBeTruthy();
+  });
+
+  it('das Schema lehnt ungültige Refs, leere Listen und mehr als 6 Dokumente ab', () => {
+    const schema = (
+      make() as unknown as { inputSchema: { safeParse: (v: unknown) => { success: boolean } } }
+    ).inputSchema;
+    const ok = { quelle: 'bundestag', dokumente: ['21/1'], frage: 'Frage?' };
+    expect(schema.safeParse(ok).success).toBe(true);
+    expect(schema.safeParse({ ...ok, dokumente: ['kaputt'] }).success).toBe(false);
+    expect(schema.safeParse({ ...ok, dokumente: [] }).success).toBe(false);
+    expect(
+      schema.safeParse({ ...ok, dokumente: Array.from({ length: 7 }, (_, i) => `21/${i + 1}`) })
+        .success
+    ).toBe(false);
+    expect(schema.safeParse({ ...ok, quelle: 'bundesrat' }).success).toBe(false);
   });
 });
 

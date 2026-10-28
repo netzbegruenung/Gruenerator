@@ -103,6 +103,40 @@ describe('Fassade', () => {
     expect(out.notes[0]).toContain('21/10');
   });
 
+  it('readBundestagRefs reicht Nummer, Datum, Urheber und PDF für den Chat durch', async () => {
+    const doc = {
+      ref: '21/9',
+      dokumentnummer: '21/9',
+      drucksachetyp: 'Antrag',
+      titel: 'T',
+      datum: '2025-10-01',
+      urheber: ['SPD'],
+      pdfUrl: 'https://dserver.bundestag.de/btd/21/000/2100009.pdf',
+      textSource: 'pdf',
+    };
+    m.resolveRefs.mockResolvedValue([doc]);
+    m.readDocuments.mockResolvedValue([
+      {
+        doc,
+        relevant: true,
+        points: [{ aussage: 'a', zitat: 'z', method: 'exact' }],
+        droppedPoints: 0,
+        windowsRead: 1,
+        windowsTotal: 1,
+        skipped: null,
+        charsRead: 10,
+        usage: null,
+      },
+    ]);
+    const out = await readBundestagRefs({ question: 'Frage', refs: ['21/9'], deps });
+    expect(out.documents[0]).toMatchObject({
+      dokumentnummer: '21/9',
+      datum: '2025-10-01',
+      urheber: ['SPD'],
+      pdfUrl: doc.pdfUrl,
+    });
+  });
+
   it('refs mit Filtern: Notiz, dass die Filter nicht angewendet wurden', async () => {
     m.resolveRefs.mockResolvedValue([cand]);
     const out = await answerBundestagQuestion({

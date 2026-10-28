@@ -80,6 +80,7 @@ import { makeEditDocumentTextTool, makeReadDocumentTool } from './documentLoopTo
 import {
   makeAbgeordnetenwatchTool,
   makeBundestagTool,
+  makeParlamentLesenTool,
   makeCreateBoardTool,
   makeCreateDocTool,
   makeCreateExplainableTool,

@@ -221,6 +221,23 @@ describe('toolCatalog domain tool mounting', () => {
     expect(toolNames).toEqual(expect.arrayContaining(['bundestag', 'abgeordnetenwatch']));
   });
 
+  it('mounts parlament_lesen together with bundestag, and only for de-DE', () => {
+    expect(catalogFor('search').toolNames).toContain('parlament_lesen');
+    const sourceRegistry = createSourceRegistry();
+    const state = {
+      intent: 'search',
+      userLocale: 'de-AT',
+      enabledTools: {},
+    } as unknown as ChatGraphState;
+    const { toolNames } = buildChatToolCatalog({
+      agentConfig,
+      sourceRegistry,
+      loop: { sse: { send: () => {} } as never, state },
+    });
+    expect(toolNames).not.toContain('bundestag');
+    expect(toolNames).not.toContain('parlament_lesen');
+  });
+
   // Mounted on every turn, `summarize` was the planner's pick for any ask about
   // an attachment — live 29.09.2026 a spelling correction of a pasted
   // newsletter came back as its summary. Gated on state, not wording: the

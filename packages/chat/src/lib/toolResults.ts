@@ -187,6 +187,7 @@ const TOOL_METADATA: Record<string, ToolMeta> = {
     activeLabel: 'Liest Bundestagsdokumente …',
     iconKey: 'book',
     accent: 'retrieval',
+    queryKeys: ['frage'],
   },
   research: {
     label: 'Deep Research',
