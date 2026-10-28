@@ -169,12 +169,23 @@ const BUNDESTAG_HINWEIS =
 const BUNDESTAG_MAX_CALLS_PER_TURN = 4;
 const BUNDESTAG_CAP_HINWEIS = `Schon ${BUNDESTAG_MAX_CALLS_PER_TURN} Bundestag-Suchen in diesem Zug — antworte jetzt mit den vorliegenden Treffern und nenne, was offen bleibt.`;
 const LANDTAG_RE = /landtag|abgeordnetenhaus|bürgerschaft|buergerschaft|landesparlament/i;
+// Berlin hat ein eigenes Werkzeug (`landtag`); der Hinweis schickt dorthin statt „nicht durchsucht".
+const BERLIN_RE = /berlin|abgeordnetenhaus/i;
 const LANDTAG_HINWEIS =
   'Die Frage nennt ein Landesparlament: Sag ZUERST, dass dieses Werkzeug nur den Bundestag abdeckt und Dokumente von Landtagen hier nicht durchsucht werden; danach, was der Bundestag dazu hergibt.';
+const BERLIN_HINWEIS =
+  "Die Frage nennt das Berliner Abgeordnetenhaus: Dessen Dokumente findet `landtag` mit parlament 'berlin', nicht dieses Werkzeug.";
+
+/** Geltungsbereich, wenn die Frage ein Landesparlament nennt — sonst null. */
+function landtagNote(userText: string): string | null {
+  if (!LANDTAG_RE.test(userText)) return null;
+  return BERLIN_RE.test(userText) ? BERLIN_HINWEIS : LANDTAG_HINWEIS;
+}
 
 /** `BUNDESTAG_HINWEIS` (bzw. ein anderer Basistext) plus der Geltungsbereich, wenn die Frage einen Landtag nennt. */
 function withLandtagNote(base: string, userText: string): string {
-  return LANDTAG_RE.test(userText) ? `${base} ${LANDTAG_HINWEIS}` : base;
+  const note = landtagNote(userText);
+  return note ? `${base} ${note}` : base;
 }
 
 /**
@@ -329,7 +340,7 @@ Nicht für Inhalte, dafür parlament_lesen. Nicht für Reden im Plenum, dafür b
           resultCount: 1,
           sources: sources ?? '',
           modus: 'zaehlen',
-          ...(LANDTAG_RE.test(userText) ? { hinweis: LANDTAG_HINWEIS } : {}),
+          ...(landtagNote(userText) ? { hinweis: landtagNote(userText) } : {}),
           einheit: zaehlung.einheit,
           bezeichnung: einheitLabel(zaehlung),
           gesamt: zaehlung.gesamt,

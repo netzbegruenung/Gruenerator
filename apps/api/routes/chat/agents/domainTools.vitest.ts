@@ -676,6 +676,24 @@ describe('bundestag: modus zaehlen, ref', () => {
     expect(out['uiCard'].dokumente[0].ref).toBe('BT-Drs. 21/4000');
   });
 
+  it('Berliner Abgeordnetenhaus: der Hinweis schickt zu `landtag` statt „nicht durchsucht"', async () => {
+    retrieveBundestag.mockResolvedValue({
+      results: [{ source: 'bundestag', title: 'Drucksache 21/50', content: 'x' }],
+    });
+    const out = (await exec(
+      makeBundestagTool({
+        state: {
+          ...state,
+          lastUserTextNoMentions: 'Was hat das Abgeordnetenhaus Berlin zu Radwegen beschlossen?',
+        } as ChatGraphState,
+        sourceRegistry: createSourceRegistry(),
+      }),
+      { query: 'Radwege' }
+    )) as { hinweis: string };
+    expect(out.hinweis).toMatch(/`landtag` mit parlament 'berlin'/);
+    expect(out.hinweis).not.toMatch(/nicht durchsucht/);
+  });
+
   it('Landtag in der Frage: der Hinweis verlangt zuerst den Geltungsbereich, der Aufruf läuft weiter', async () => {
     retrieveBundestag.mockResolvedValue({
       results: [{ source: 'bundestag', title: 'Drucksache 21/50', content: 'x' }],
