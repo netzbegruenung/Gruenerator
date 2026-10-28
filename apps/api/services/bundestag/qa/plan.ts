@@ -17,6 +17,8 @@ import { aiObject } from '../../ai/generate.js';
 import { BARE_DRS_RE, EXPLICIT_DRS_RE } from '../BundestagEnrichedService.js';
 import { type DipClient } from '../dip/dipClient.js';
 
+import { detectFromWording } from './planDetect.js';
+
 const log = createLogger('BundestagQaPlan');
 
 const CURRENT_WAHLPERIODE = 21;
@@ -98,7 +100,8 @@ function detectDeterministic(question: string): BundestagFilter {
     // „Drucksache 20/123" nennt die Wahlperiode schon.
     found.wahlperiode ??= [Number(drs[1])];
   }
-  return found;
+  // Typ, Urheber, Zeitraum aus dem Wortlaut: davon darf nichts am Modell hängen.
+  return { ...detectFromWording(question), ...found };
 }
 
 /** Was das Modell liefern darf: die übrigen Filter plus Suchwörter. Unbekannte Enum-Werte fallen weg. */

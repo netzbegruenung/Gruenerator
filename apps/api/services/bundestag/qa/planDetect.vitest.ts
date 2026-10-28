@@ -1,0 +1,86 @@
+import { describe, expect, it } from 'vitest';
+
+import {
+  detectDrucksachetyp,
+  detectFromWording,
+  detectUrheber,
+  detectZeitraum,
+} from './planDetect.js';
+
+describe('detectDrucksachetyp', () => {
+  it.each([
+    ['Welche Entschließungsanträge gab es?', ['Entschließungsantrag']],
+    ['ein Entschliessungsantrag', ['Entschließungsantrag']],
+    ['Änderungsanträge zum Haushalt', ['Änderungsantrag']],
+    ['Kleine Anfragen zur Bahn', ['Kleine Anfrage']],
+    ['die Große Anfrage', ['Große Anfrage']],
+    ['Gesetzentwürfe und Gesetzesentwurf', ['Gesetzentwurf']],
+    ['Beschlussempfehlungen', ['Beschlussempfehlung und Bericht']],
+    ['Unterrichtung der Regierung', ['Unterrichtung']],
+    ['Die Regierung hat geantwortet', ['Antwort']],
+    ['Antworten auf Anfragen', ['Antwort']],
+    ['Welche Anträge gab es?', ['Antrag']],
+    ['Antrag und Änderungsantrag', ['Änderungsantrag', 'Antrag']],
+    ['Welche Drucksachen und Dokumente?', []],
+  ])('%s', (q, expected) => {
+    expect(detectDrucksachetyp(q)).toEqual(expected);
+  });
+
+  it('Zusammensetzung zählt nicht als Antrag', () => {
+    expect(detectDrucksachetyp('Entschließungsanträge')).not.toContain('Antrag');
+  });
+});
+
+describe('detectUrheber', () => {
+  it.each([
+    ['von den Grünen', ['Fraktion BÜNDNIS 90/DIE GRÜNEN']],
+    ['Bündnis 90', ['Fraktion BÜNDNIS 90/DIE GRÜNEN']],
+    ['die grüne Fraktion', ['Fraktion BÜNDNIS 90/DIE GRÜNEN']],
+    ['der Union', ['Fraktion der CDU/CSU']],
+    ['CSU', ['Fraktion der CDU/CSU']],
+    ['SPD', ['Fraktion der SPD']],
+    ['AfD', ['Fraktion der AfD']],
+    ['die Linken', ['Fraktion DIE LINKE']],
+    ['FDP', ['Fraktion der FDP']],
+    [
+      'Antwort der Bundesregierung auf die Anfrage der Grünen',
+      ['Fraktion BÜNDNIS 90/DIE GRÜNEN', 'Bundesregierung'],
+    ],
+    ['grünen Wasserstoff und linke Politik', []],
+    ['die Europäische Union', []],
+  ])('%s', (q, expected) => {
+    expect(detectUrheber(q)).toEqual(expected);
+  });
+});
+
+describe('detectZeitraum', () => {
+  it.each([
+    ['seit Januar 2026', { datumVon: '2026-01-01' }],
+    ['seit März 2025', { datumVon: '2025-03-01' }],
+    ['seit 2024', { datumVon: '2024-01-01' }],
+    ['im Jahr 2023', { datumVon: '2023-01-01', datumBis: '2023-12-31' }],
+    ['in 2023', { datumVon: '2023-01-01', datumBis: '2023-12-31' }],
+    ['vor Februar 2024', { datumBis: '2024-02-29' }],
+    ['bis Dezember 2025', { datumBis: '2025-12-31' }],
+    ['bis 2025', { datumBis: '2025-12-31' }],
+    ['seit Januar 2026 bis Juni 2026', { datumVon: '2026-01-01', datumBis: '2026-06-30' }],
+    ['seit 1800', {}],
+    ['ohne Datum', {}],
+  ])('%s', (q, expected) => {
+    expect(detectZeitraum(q)).toEqual(expected);
+  });
+});
+
+describe('detectFromWording', () => {
+  it('Beispielfrage aus dem Live-Test', () => {
+    expect(
+      detectFromWording(
+        'Welche Entschließungsanträge haben die Grünen seit Januar 2026 eingebracht?'
+      )
+    ).toEqual({
+      drucksachetyp: ['Entschließungsantrag'],
+      urheber: ['Fraktion BÜNDNIS 90/DIE GRÜNEN'],
+      datumVon: '2026-01-01',
+    });
+  });
+});

@@ -42,6 +42,33 @@ describe('planFilters', () => {
     expect(r.assumedWahlperiode).toBe(false);
   });
 
+  it('Wortlaut liefert Typ, Urheber und Datum auch bei dünner Modellantwort', async () => {
+    model({ keywords: ['entschließungsanträge', 'grünen'], wahlperiode: [21] });
+    const r = await planFilters({
+      question: 'Welche Entschließungsanträge haben die Grünen seit Januar 2026 eingebracht?',
+      explicit: {},
+      dip: dipWith({}),
+    });
+    expect(r.filters.drucksachetyp).toEqual(['Entschließungsantrag']);
+    expect(r.filters.urheber).toEqual(['Fraktion BÜNDNIS 90/DIE GRÜNEN']);
+    expect(r.filters.datumVon).toBe('2026-01-01');
+  });
+
+  it('erkannt schlägt Modell, explicit schlägt erkannt', async () => {
+    model({
+      keywords: ['anträge', 'grünen'],
+      drucksachetyp: ['Gesetzentwurf'],
+      urheber: ['Fraktion der SPD'],
+    });
+    const r = await planFilters({
+      question: 'Welche Anträge der Grünen?',
+      explicit: { urheber: ['Fraktion der AfD'] },
+      dip: dipWith({}),
+    });
+    expect(r.filters.drucksachetyp).toEqual(['Antrag']);
+    expect(r.filters.urheber).toEqual(['Fraktion der AfD']);
+  });
+
   it('explicit schlägt Erkanntes', async () => {
     model({ keywords: ['a1234', 'b1234', 'c1234'], wahlperiode: [19] });
     const r = await planFilters({
