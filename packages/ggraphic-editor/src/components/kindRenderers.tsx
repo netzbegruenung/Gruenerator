@@ -12,13 +12,13 @@ import { UserImagePrimitive } from '@ggraphic/editor/primitives/UserImagePrimiti
 import { useIsElementSelected } from '@ggraphic/editor/stores/CanvasStoreProvider';
 import { getIconMapSync } from '@ggraphic/editor/utils/canvasIcons';
 
-import { CanvasText } from '../primitives';
-import { AssetPrimitive } from '../primitives/AssetPrimitive';
-import { IllustrationPrimitive } from '../primitives/IllustrationPrimitive';
-import { resolveIconDef } from '../utils/iconInstances';
+import { CanvasText } from '../primitives/index.js';
+import { AssetPrimitive } from '../primitives/AssetPrimitive.js';
+import { IllustrationPrimitive } from '../primitives/IllustrationPrimitive.js';
+import { resolveIconDef } from '../utils/iconInstances.js';
 
-import type { CanvasItem } from '../utils/canvasLayerManager';
-import type { HostRenderedKindName } from '../utils/elementKinds';
+import type { CanvasItem } from '../utils/canvasLayerManager.js';
+import type { HostRenderedKindName } from '../utils/elementKinds.js';
 import type { CropAspectId } from '@ggraphic/editor/utils/cropAspect';
 import type { FrameInstance } from '@ggraphic/editor/utils/frameUtils';
 import type { ShapeInstance } from '@ggraphic/editor/utils/shapes';

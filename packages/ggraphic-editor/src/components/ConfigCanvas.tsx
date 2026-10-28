@@ -14,10 +14,10 @@ import { memo, useRef } from 'react';
 
 import { DEFAULT_FORMAT_ID, formatIdForSize } from '@ggraphic/editor/formats/index';
 
-import { GenericCanvas } from './GenericCanvas';
+import { GenericCanvas } from './GenericCanvas.js';
 
-import type { GenericCanvasRef } from './GenericCanvas';
-import type { AnyCanvasConfig } from '../configs/types';
+import type { GenericCanvasRef } from './GenericCanvas.js';
+import type { AnyCanvasConfig } from '../configs/types.js';
 import type React from 'react';
 
 export interface ConfigCanvasProps {

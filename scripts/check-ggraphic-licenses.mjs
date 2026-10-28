@@ -30,6 +30,13 @@ export const ALLOWED = new Set([
 
 export const ROOT_PACKAGES = ['ggraphic-schema', 'ggraphic-core', 'ggraphic-editor'];
 
+// Packages whose manifest declares no licence although they ship one. Keyed by exact
+// version, so a bump falls back to the manifest and needs a fresh look.
+const VERIFIED_LICENSES = new Map([
+  // LICENSE.md is the MIT text; package.json and the registry carry no `license`.
+  ['react-kawaii@1.6.0', 'MIT'],
+]);
+
 /** True when an SPDX expression is composed only of allowed ids. OR needs one side, AND both. */
 export function expressionAllowed(expression) {
   const tokens = expression.replace(/([()])/g, ' $1 ').split(/\s+/).filter(Boolean);
@@ -113,7 +120,7 @@ export function checkLicenses(rootDirs) {
     const label = trail.join(' > ');
     const isRoot = trail.length === 1;
     if (!isRoot) {
-      const license = declaredLicense(pkg);
+      const license = declaredLicense(pkg) ?? VERIFIED_LICENSES.get(id) ?? null;
       if (!license) problems.push({ path: label, message: `${id}: no license field` });
       else if (!expressionAllowed(license))
         problems.push({ path: label, message: `${id}: license "${license}" is not allowed` });

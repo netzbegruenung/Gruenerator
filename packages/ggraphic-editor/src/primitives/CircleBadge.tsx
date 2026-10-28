@@ -24,7 +24,7 @@ import { ELEMENT_TRANSFORMER, normalizeRotation } from '@ggraphic/editor/utils/o
 import { boxFrame, createBoxFrame, snapByBounds } from '@ggraphic/editor/utils/snapping';
 import { stageCssScale } from '@ggraphic/editor/utils/stageCssScale';
 
-import { useTextEditorOpener } from '../utils/textEditorOpeners';
+import { useTextEditorOpener } from '../utils/textEditorOpeners.js';
 
 import type { SnapTarget } from '@ggraphic/editor/utils/snapping';
 import type Konva from 'konva';

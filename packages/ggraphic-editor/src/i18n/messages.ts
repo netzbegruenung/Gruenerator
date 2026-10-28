@@ -9,8 +9,8 @@
  */
 import { useSyncExternalStore } from 'react';
 
-import { de, type Messages } from './de';
-import { en } from './en';
+import { de, type Messages } from './de.js';
+import { en } from './en.js';
 
 export type { Messages };
 export type MessageLocale = 'de' | 'en';

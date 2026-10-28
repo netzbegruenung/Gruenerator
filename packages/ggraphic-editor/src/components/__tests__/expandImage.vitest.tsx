@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /**
  * „Erweitern" im Zuschneide-Modus: der Dienst des Hosts (hier gemockt) erweitert
  * das Foto auf das Rahmenformat, das Ergebnis wird wie bei „Ersetzen" hochgeladen
@@ -12,10 +13,12 @@ import {
   type ToolbarStateReport,
 } from '@ggraphic/editor/components/GenericCanvas';
 import { loadCanvasConfig } from '@ggraphic/editor/configs/configLoader';
+import '../../testing/fixtureTemplates';
 import { plainImageUrls, type CanvasImageUrlService } from '@ggraphic/editor/hostServices';
 import { AutoSaveStoreProvider } from '@ggraphic/editor/stores/AutoSaveStoreProvider';
 import { registerToast } from '@ggraphic/editor/utils/editorToast';
 import { userFacingError } from '@ggraphic/editor/utils/userFacingError';
+
 import { createCanvas } from '@napi-rs/canvas';
 import { act, cleanup, render, waitFor } from '@testing-library/react';
 import Konva from 'konva';
@@ -81,10 +84,10 @@ const shareHost: CanvasImageUrlService = {
   ...plainImageUrls,
   placementUrl: (item) =>
     item.mediaUrl ||
-    (item.shareToken ? `/api/share/${item.shareToken}/download` : item.thumbnailUrl),
+    (item.shareToken ? `https://example.org/share/${item.shareToken}/download` : item.thumbnailUrl),
 };
 
-const DURABLE = '/api/share/tok-1/download';
+const DURABLE = 'https://example.org/share/tok-1/download';
 const CREDIT = {
   photographer: 'Ada',
   profileUrl: 'https://unsplash.com/@ada',
@@ -112,7 +115,7 @@ beforeEach(() => {
 
 let config: Awaited<ReturnType<typeof loadCanvasConfig>>;
 beforeAll(async () => {
-  config = await loadCanvasConfig('dreizeilen');
+  config = await loadCanvasConfig('fixture-poster');
 }, 120_000);
 
 afterEach(() => {
@@ -122,7 +125,7 @@ afterEach(() => {
 
 const PHOTO: UserImageInstance = {
   id: 'photo',
-  src: '/photo.jpg',
+  src: 'https://example.org/photo.jpg',
   fileName: 'photo.jpg',
   x: 50,
   y: 80,
@@ -261,7 +264,10 @@ describe('Zuschneide-Modus: Erweitern', () => {
     expect(canvas.store.getState().croppingElement).toBeNull();
 
     await canvas.run(() => canvas.ref.current!.undo!());
-    expect(canvas.userImage()).toMatchObject({ src: '/photo.jpg', cropRotation: -20 });
+    expect(canvas.userImage()).toMatchObject({
+      src: 'https://example.org/photo.jpg',
+      cropRotation: -20,
+    });
   }, 90_000);
 
   it('meldet einen Fehlschlag als Toast und ändert nichts', async () => {
@@ -294,7 +300,7 @@ describe('Zuschneide-Modus: Erweitern', () => {
       'Erweitern hat nicht geklappt. Bitte versuche es noch einmal.'
     );
     expect(mocks.toastError).not.toHaveBeenCalledWith('Failed to fetch');
-    expect(canvas.userImage().src).toBe('/photo.jpg');
+    expect(canvas.userImage().src).toBe('https://example.org/photo.jpg');
   }, 90_000);
 
   it('meldet den Ladezustand und startet kein zweites Erweitern', async () => {

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MPL-2.0
 import { messages } from '@ggraphic/editor/i18n/messages';
 
-import { type StockImageAttribution } from '../common/imageSourceTypes';
+import { type StockImageAttribution } from '../common/imageSourceTypes.js';
 
 export interface UserImageInstance {
   id: string;

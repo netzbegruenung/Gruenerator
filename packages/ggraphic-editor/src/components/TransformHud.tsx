@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: MPL-2.0
 import { useEffect, useRef } from 'react';
 
-import { readNodeFrame, type NodeFrame } from '../utils/orientation';
-import { transformHudLabel } from '../utils/transformHudLabel';
+import { readNodeFrame, type NodeFrame } from '../utils/orientation.js';
+import { transformHudLabel } from '../utils/transformHudLabel.js';
 
 import type Konva from 'konva';
 

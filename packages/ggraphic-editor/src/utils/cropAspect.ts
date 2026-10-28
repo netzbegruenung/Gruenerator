@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MPL-2.0
 import { messages } from '@ggraphic/editor/i18n/messages';
 
-import { type Rect, type Size } from './coverFit';
+import { type Rect, type Size } from './coverFit.js';
 
 /** Seitenverhältnis-Vorgaben im Zuschneide-Modus eigener Bilder, in Anzeige-Reihenfolge. */
 export const CROP_ASPECT_PRESETS = [

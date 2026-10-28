@@ -6,7 +6,7 @@
 
 import { useState, useCallback } from 'react';
 
-import type { SnapTarget, SnapLine } from '../utils/snapping';
+import type { SnapTarget, SnapLine } from '../utils/snapping.js';
 
 export interface UseElementSnappingResult {
   positions: Record<string, SnapTarget>;

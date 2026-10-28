@@ -15,7 +15,7 @@ import {
   type DuplicableDataMap,
   type DuplicableEntry,
   type DuplicableType,
-} from './duplicateElement';
+} from './duplicateElement.js';
 
 export type ClipboardItemType = DuplicableType;
 export type ClipboardDataMap = DuplicableDataMap;

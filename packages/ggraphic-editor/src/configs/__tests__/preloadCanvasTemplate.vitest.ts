@@ -1,5 +1,8 @@
+// SPDX-License-Identifier: MPL-2.0
 import { loadCanvasConfig, preloadCanvasTemplate } from '@ggraphic/editor/configs/configLoader';
+import '../../testing/fixtureTemplates';
 import { canvasFontFamilies } from '@ggraphic/editor/utils/canvasFontFamilies';
+
 import { afterEach, beforeAll, beforeEach, describe, it, expect, vi } from 'vitest';
 
 /**
@@ -15,7 +18,7 @@ describe('preloadCanvasTemplate', () => {
   // Kaltstart-Import vor dem Stub: Abhängigkeiten der Config fassen beim
   // Import `document` an, das der Stub nicht nachbildet.
   beforeAll(async () => {
-    config = await loadCanvasConfig('zitat');
+    config = await loadCanvasConfig('fixture-poster');
   }, 30_000);
 
   beforeEach(() => {
@@ -32,7 +35,7 @@ describe('preloadCanvasTemplate', () => {
     const families = canvasFontFamilies(config);
     expect(families.length).toBeGreaterThan(0);
 
-    await preloadCanvasTemplate('zitat');
+    await preloadCanvasTemplate('fixture-poster');
 
     const specs = load.mock.calls.map(([spec]) => spec);
     expect(specs).toEqual(
@@ -53,6 +56,6 @@ describe('preloadCanvasTemplate', () => {
 
   it('schluckt eine fehlgeschlagene Schriftanfrage', async () => {
     load.mockImplementation(() => Promise.reject(new Error('offline')));
-    await expect(preloadCanvasTemplate('zitat')).resolves.toBeUndefined();
+    await expect(preloadCanvasTemplate('fixture-poster')).resolves.toBeUndefined();
   });
 });

@@ -5,7 +5,7 @@ import { useEffect, useRef } from 'react';
 import { useCanvasStore } from '@ggraphic/editor/stores/CanvasStoreProvider';
 import { itemBodyRect, itemsUnderPointer, nextDeepTarget } from '@ggraphic/editor/utils/deepSelect';
 
-import type { CanvasStageRef } from '../primitives/CanvasStage';
+import type { CanvasStageRef } from '../primitives/CanvasStage.js';
 
 const OUTLINE_STROKE = 'rgb(0, 161, 255)';
 

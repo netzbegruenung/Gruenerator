@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /**
  * The history-synced capture (pixelRatio-2 PNG, 1500 ms after each history
  * step) only feeds auto-save. With `autoSave={false}` — collab and multi-page
@@ -5,8 +6,10 @@
  */
 import { GenericCanvas } from '@ggraphic/editor/components/GenericCanvas';
 import { loadCanvasConfig } from '@ggraphic/editor/configs/configLoader';
+import '../../testing/fixtureTemplates';
 import { AutoSaveStoreProvider } from '@ggraphic/editor/stores/AutoSaveStoreProvider';
 import { captureStageImage } from '@ggraphic/editor/utils/captureStage';
+
 import { act, render } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -26,7 +29,7 @@ vi.mock('@ggraphic/editor/stores/createCanvasEditorStore', async (importOriginal
   };
 });
 vi.mock('@ggraphic/editor/utils/captureStage', () => ({
-  captureStageImage: vi.fn(() => 'data:image/png;base64,AAAA'),
+  captureStageImage: vi.fn(() => 'blob:fixture-capture'),
 }));
 // Das eigentliche Speichern (Share-Store, Netz) ist nicht Gegenstand hier.
 vi.mock('@ggraphic/editor/hooks/useCanvasAutoSave', () => ({
@@ -41,7 +44,7 @@ Object.defineProperty(document, 'fonts', {
 const capture = vi.mocked(captureStageImage);
 
 async function mountAndEdit(autoSave: boolean) {
-  const config = await loadCanvasConfig('dreizeilen');
+  const config = await loadCanvasConfig('fixture-poster');
   const live: { actions: Record<string, unknown> } = { actions: {} };
   stores.length = 0;
 

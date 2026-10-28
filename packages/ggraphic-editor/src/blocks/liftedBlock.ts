@@ -11,9 +11,9 @@ import { layoutRichTextBlock } from '@ggraphic/schema';
 
 import { runMeasurer } from '@ggraphic/editor/utils/textUtils';
 
-import type { IconState } from '../configs/factory/baseTypes';
-import type { AdditionalText } from '../configs/types';
-import type { AssetInstance } from '../utils/canvasAssets';
+import type { IconState } from '../configs/factory/baseTypes.js';
+import type { AdditionalText } from '../configs/types.js';
+import type { AssetInstance } from '../utils/canvasAssets.js';
 import type { ChartInstance } from '@ggraphic/editor/utils/chartTypes';
 import type { CircleBadgeInstance } from '@ggraphic/editor/utils/circleBadgeUtils';
 import type { PillBadgeInstance } from '@ggraphic/editor/utils/pillBadgeUtils';

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /**
  * `imagesSettled()` hält die Offscreen-Vorschau im Chat zurück, bis das
  * Hintergrundbild geladen ist. Ohne das fotografierte sie den Dreizeiler nach
@@ -8,19 +9,22 @@
  * Grenze zum Konva-Reconciler überqueren muss — eine Prüfung am Hook allein
  * bliebe grün, wenn diese Brücke risse.
  */
-import { GenericCanvas, type GenericCanvasRef } from '@ggraphic/editor/components/GenericCanvas';
-import { loadCanvasConfig } from '@ggraphic/editor/configs/configLoader';
-import { AutoSaveStoreProvider } from '@ggraphic/editor/stores/AutoSaveStoreProvider';
 import { act, render } from '@testing-library/react';
 import Konva from 'konva';
 import React, { createRef } from 'react';
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { GenericCanvas, type GenericCanvasRef } from '@ggraphic/editor/components/GenericCanvas';
+import { loadCanvasConfig } from '@ggraphic/editor/configs/configLoader';
+import { AutoSaveStoreProvider } from '@ggraphic/editor/stores/AutoSaveStoreProvider';
+
+import { FIXTURE_ASSET_ID, registerFixtureAssets } from '../testing/fixtureTemplates';
+
 type Status = 'loading' | 'loaded' | 'failed';
 
 // Wie das echte `use-image`: der Hook abonniert seinen Ladezustand und rendert
 // sich selbst neu, wenn das Bild ankommt. Gesteuert wird nur das Stockbild —
-// die Sonnenblume der Vorlage ist auch ein Bild-Element und gilt als geladen.
+// die Zierde der Vorlage ist auch ein Bild-Element und gilt als geladen.
 const imageStatus = vi.hoisted(() => {
   let current: Status = 'loading';
   const listeners = new Set<() => void>();
@@ -37,7 +41,7 @@ const imageStatus = vi.hoisted(() => {
   };
 });
 
-const STOCK = vi.hoisted(() => '/api/image-picker/stock-image/');
+const STOCK = vi.hoisted(() => 'https://example.org/stock-image/');
 
 vi.mock('use-image', async () => {
   const { useSyncExternalStore } = await import('react');
@@ -72,7 +76,7 @@ Object.defineProperty(document, 'fonts', {
 let config: Awaited<ReturnType<typeof loadCanvasConfig>>;
 
 beforeAll(async () => {
-  config = await loadCanvasConfig('dreizeilen');
+  config = await loadCanvasConfig('fixture-poster');
 }, 120_000);
 
 async function mount(initialProps: Record<string, unknown>) {
@@ -156,7 +160,7 @@ describe('GenericCanvasRef.imagesSettled with assets', () => {
 
   const STICKER = {
     id: 'sticker-1',
-    assetId: 'regenbogen',
+    assetId: FIXTURE_ASSET_ID,
     x: 10,
     y: 10,
     scale: 1,
@@ -165,6 +169,7 @@ describe('GenericCanvasRef.imagesSettled with assets', () => {
   };
 
   beforeEach(() => {
+    registerFixtureAssets();
     created.length = 0;
     imageStatus.set('loaded');
     vi.stubGlobal('Image', FakeImage);
@@ -180,7 +185,7 @@ describe('GenericCanvasRef.imagesSettled with assets', () => {
 
   it('waits for a sticker image, then settles', async () => {
     const { ref } = await mount({ ...SLOGAN, assetInstances: [STICKER] });
-    const sticker = created.find((img) => img.src.includes('regenbogen'));
+    const sticker = created.find((img) => img.src.includes(FIXTURE_ASSET_ID));
     expect(sticker).toBeDefined();
     expect(ref.current!.imagesSettled()).toBe(false);
 
@@ -195,7 +200,7 @@ describe('GenericCanvasRef.imagesSettled with assets', () => {
   it('does not wait on a sticker that fails to load', async () => {
     const { ref } = await mount({ ...SLOGAN, assetInstances: [STICKER] });
     await act(async () => {
-      created.find((img) => img.src.includes('regenbogen'))!.onerror?.();
+      created.find((img) => img.src.includes(FIXTURE_ASSET_ID))!.onerror?.();
     });
     expect(ref.current!.imagesSettled()).toBe(true);
   });

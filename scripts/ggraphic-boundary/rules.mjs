@@ -169,7 +169,6 @@ function locate(text, pattern) {
 export const PROVENANCE_NOTICE =
   'Originally developed as part of netzbegruenung/Gruenerator (AGPL-3.0);\n' +
   'relicensed by the copyright holder under MPL-2.0.\n';
-const PACKAGE_NOTICE = /^packages\/ggraphic-[^/]+\/NOTICE$/;
 
 function checkText(path, bytes, packageDir, fail, warn) {
   const utf8 = bytes.toString('utf8').normalize('NFC');
@@ -191,7 +190,7 @@ function checkText(path, bytes, packageDir, fail, warn) {
     }
   };
 
-  const isProvenance = PACKAGE_NOTICE.test(path) && utf8 === PROVENANCE_NOTICE;
+  const isProvenance = path === `${packageDir}/NOTICE` && utf8 === PROVENANCE_NOTICE;
   if (!isProvenance)
     for (const [pattern, label] of IDENTITY) scan('a', label, [pattern], (w) => `${label} (${w})`);
   scan('b', 'colour', CD_COLOUR, (w) => `corporate-design colour (${w})`);

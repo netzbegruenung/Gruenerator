@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MPL-2.0
-import { type CanvasImageUrlService } from '../hostServices';
+import { type CanvasImageUrlService } from '../hostServices.js';
 
 /** The download UI offers 1x/2x export (TopBar/DownloadSection.tsx SCALE_OPTIONS). */
 const EXPORT_PIXEL_RATIO = 2;

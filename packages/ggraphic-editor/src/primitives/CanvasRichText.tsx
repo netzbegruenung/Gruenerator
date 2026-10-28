@@ -48,7 +48,7 @@ import {
 } from '@ggraphic/editor/utils/snapping';
 import { runFont, runMeasurer } from '@ggraphic/editor/utils/textUtils';
 
-import { type CanvasTextProps, isWidthOnlyScale } from './CanvasText';
+import { type CanvasTextProps, isWidthOnlyScale } from './CanvasText.js';
 
 import type { TransformAnchor } from '@ggraphic/editor/types/editorTypes';
 import type Konva from 'konva';

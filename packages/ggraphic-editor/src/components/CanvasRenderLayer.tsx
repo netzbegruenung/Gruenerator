@@ -12,18 +12,18 @@ import { type GeometryReporter } from '@ggraphic/editor/hooks/useGeometryReporte
 import { useCanvasStoreSelector } from '@ggraphic/editor/stores/CanvasStoreProvider';
 import { CANVAS_ITEM_NAME } from '@ggraphic/editor/utils/deepSelect';
 
-import { useIconSetsFor } from '../hooks/useIconSetsFor';
-import { lockedIdsOf } from '../utils/layerLock';
+import { useIconSetsFor } from '../hooks/useIconSetsFor.js';
+import { lockedIdsOf } from '../utils/layerLock.js';
 
-import { GenericCanvasElement } from './GenericCanvasElement';
+import { GenericCanvasElement } from './GenericCanvasElement.js';
 import {
   renderKindItem,
   type CanvasRenderHandlers,
   type OptionalCanvasStateProperties,
-} from './kindRenderers';
+} from './kindRenderers.js';
 
-import type { CanvasElementConfig, FullCanvasConfig, LayoutResult } from '../configs/types';
-import type { CanvasItem } from '../utils/canvasLayerManager';
+import type { CanvasElementConfig, FullCanvasConfig, LayoutResult } from '../configs/types.js';
+import type { CanvasItem } from '../utils/canvasLayerManager.js';
 import type { SnapLine, SnapTarget } from '@ggraphic/editor/utils/snapping';
 
 /**

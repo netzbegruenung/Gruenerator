@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: MPL-2.0
 import Konva from 'konva';
 
-import { gradientToKonvaProps, type GradientFill, type LocalRect } from './gradientFill';
-import { HIT_ALPHA_THRESHOLD } from './pixelHitArea';
+import { gradientToKonvaProps, type GradientFill, type LocalRect } from './gradientFill.js';
+import { HIT_ALPHA_THRESHOLD } from './pixelHitArea.js';
 
 /** Beyond the gradient axis' ends the colour is clamped; a band reaching an end runs on this far. */
 const OPEN_END = 1e3;
