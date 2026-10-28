@@ -259,7 +259,7 @@ allowBuilds:
 # `y-indexeddb@9.0.12` chains `.then()` onto its `_db` open promise twice
 # without a catch: in the constructor (the initial load) and in `destroy()`.
 # When the open fails, both derived promises reject unhandled even though the
-# caller catches `_db` itself (packages/collab useCollaboration does). Chrome
+# caller catches `_db` itself (packages/ggraphic-collab useCollaboration does). Chrome
 # Android rejects the open with "AbortError: The connection was closed" when
 # the page is torn down mid-open, which Sentry reported as an unhandled
 # rejection (GlitchTip #682). Neither promise is reachable from outside, so no

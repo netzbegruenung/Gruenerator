@@ -31,6 +31,7 @@ COPY packages/chat/package.json ./packages/chat/
 COPY packages/voice/package.json ./packages/voice/
 COPY packages/ui/package.json ./packages/ui/
 COPY packages/collab/package.json ./packages/collab/
+COPY packages/ggraphic-collab/package.json ./packages/ggraphic-collab/
 COPY apps/gruen-o-mat/package.json ./apps/gruen-o-mat/
 
 # Install only gruen-o-mat + transitive workspace deps
@@ -54,6 +55,7 @@ COPY packages/chat ./packages/chat
 COPY packages/voice ./packages/voice
 COPY packages/ui ./packages/ui
 COPY packages/collab ./packages/collab
+COPY packages/ggraphic-collab ./packages/ggraphic-collab
 COPY apps/gruen-o-mat ./apps/gruen-o-mat
 
 # Build the frontend
