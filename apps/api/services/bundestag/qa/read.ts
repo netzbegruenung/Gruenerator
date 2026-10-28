@@ -54,6 +54,8 @@ export interface ReadParams {
   target?: AiCall['pinned'];
   /** Abschnitt, Artikel oder Paragraf, auf den sich das Lesen richtet („Artikel 3", „§ 14", „Kosten"). */
   fokus?: string | undefined;
+  /** Herkunft im Prompt („des Abgeordnetenhauses von Berlin"); ohne Angabe der Bundestag. */
+  herkunft?: string | undefined;
 }
 
 const READ_JSON_SCHEMA = {
@@ -237,6 +239,7 @@ export async function readDocuments({
   signal,
   target,
   fokus,
+  herkunft,
 }: ReadParams): Promise<ReadResult[]> {
   const startedAt = Date.now();
   const size = readWindowChars(modelFor(target));
@@ -299,7 +302,7 @@ export async function readDocuments({
             timeoutMs: remaining,
             // Ein zweiter Versuch würde die Deadline überschreiten; ein Fenster, dessen JSON einmal scheitert, entfällt.
             attempts: 1,
-            system: readSystem(auftrag, lensFokus),
+            system: readSystem(auftrag, lensFokus, herkunft),
             prompt: readPrompt(
               question,
               auftrag,

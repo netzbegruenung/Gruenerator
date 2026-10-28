@@ -6,7 +6,9 @@ import { type BundestagAuftrag } from '@gruenerator/contracts';
 
 import { MAX_POINTS_PER_WINDOW } from './budget.js';
 
-const BASE = `Du liest einen Ausschnitt aus einem Dokument des Deutschen Bundestags und meldest belegte Aussagen.
+const base = (
+  herkunft: string
+) => `Du liest einen Ausschnitt aus einem Dokument ${herkunft} und meldest belegte Aussagen.
 Regeln:
 - Jedes "zitat" ist wörtlich aus dem Ausschnitt übernommen (keine Kürzung mit „…", keine Umformulierung) und belegt seine "aussage".
 - Keine Punkte ohne Beleg. Was nicht im Ausschnitt steht, meldest du nicht.
@@ -19,9 +21,14 @@ Auftrag ist eine Zusammenfassung. Achte auf: Ziel, Maßnahmen, Kosten und Friste
 const fokusRegel = (fokus: string) =>
   `\nFokus: Konzentriere dich auf „${fokus}“. Melde nur Punkte aus diesem Teil des Dokuments (Abschnitt, Artikel, Paragraf); steht er nicht im Ausschnitt, ist "relevant" false.`;
 
-export function readSystem(auftrag: BundestagAuftrag, fokus?: string | null): string {
-  const base = auftrag === 'zusammenfassung' ? BASE + SUMMARY_FOCUS : BASE;
-  return fokus ? base + fokusRegel(fokus) : base;
+/** `herkunft` ist der Genitiv-Halbsatz der Quelle; ohne Angabe der Bundestag, die Landtage reichen ihren eigenen herein. */
+export function readSystem(
+  auftrag: BundestagAuftrag,
+  fokus?: string | null,
+  herkunft = 'des Deutschen Bundestags'
+): string {
+  const text = auftrag === 'zusammenfassung' ? base(herkunft) + SUMMARY_FOCUS : base(herkunft);
+  return fokus ? text + fokusRegel(fokus) : text;
 }
 
 export interface WindowHeader {

@@ -120,14 +120,14 @@ export async function resolveRefs(
 // ---------------------------------------------------------------------------
 
 /** Wirft, wenn die URL nicht https://dserver.bundestag.de ist oder die Validierung scheitert. */
-async function safeUrl(raw: string): Promise<URL> {
+async function safeUrl(raw: string, allowedHost: string = ALLOWED_HOST): Promise<URL> {
   let parsed: URL;
   try {
     parsed = new URL(raw);
   } catch {
     throw new Error('ungültige URL');
   }
-  if (parsed.protocol !== 'https:' || parsed.hostname !== ALLOWED_HOST) {
+  if (parsed.protocol !== 'https:' || parsed.hostname !== allowedHost) {
     throw new Error(`Host nicht erlaubt: ${parsed.hostname}`);
   }
   const checked = await validateUrlForFetch(parsed.toString());
@@ -135,9 +135,17 @@ async function safeUrl(raw: string): Promise<URL> {
   return checked.url;
 }
 
-/** Lädt höchstens `PDF_MAX_BYTES`: erst der Header, dann der Strom mit eigenem Zähler. */
-async function fetchBytes(raw: string, signal: AbortSignal): Promise<Uint8Array> {
-  const url = await safeUrl(raw);
+/**
+ * Lädt höchstens `PDF_MAX_BYTES`: erst der Header, dann der Strom mit eigenem Zähler.
+ * `allowedHost` ist der eine Host, den die Quelle ausliefert — die Landtage nutzen
+ * dieselbe Sperre mit ihrem eigenen (`services/landtag/`).
+ */
+export async function fetchBytes(
+  raw: string,
+  signal: AbortSignal,
+  allowedHost: string = ALLOWED_HOST
+): Promise<Uint8Array> {
+  const url = await safeUrl(raw, allowedHost);
   const res = await fetch(url, {
     redirect: 'error',
     signal: AbortSignal.any([signal, AbortSignal.timeout(FETCH_TIMEOUT_MS)]),
@@ -234,12 +242,12 @@ export interface FetchTextsDeps {
   signal: AbortSignal;
 }
 
-interface CachedText {
+export interface CachedText {
   text: string;
   textSource: TextSource;
 }
 
-async function readCache(redis: TextCache | null, key: string): Promise<CachedText | null> {
+export async function readCache(redis: TextCache | null, key: string): Promise<CachedText | null> {
   if (!redis) return null;
   try {
     const raw = await redis.get(key);
@@ -255,7 +263,11 @@ async function readCache(redis: TextCache | null, key: string): Promise<CachedTe
 }
 
 /** Leere Texte werden nicht gecacht: ein später gefüllter DIP-Text soll nicht eine Woche lang fehlen. */
-async function writeCache(redis: TextCache | null, key: string, value: CachedText): Promise<void> {
+export async function writeCache(
+  redis: TextCache | null,
+  key: string,
+  value: CachedText
+): Promise<void> {
   if (!redis || !value.text) return;
   try {
     await redis.set(key, JSON.stringify(value), { EX: TEXT_CACHE_TTL_S });
