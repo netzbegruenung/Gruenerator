@@ -8,13 +8,13 @@ import { createPortal } from 'react-dom';
 import { FaDownload, FaImages, FaSave, FaCheck, FaFileArchive, FaFileImage } from 'react-icons/fa';
 import { IoCheckmarkOutline, IoShareOutline } from 'react-icons/io5';
 
-import { DownloadNotice } from '../../components/DownloadNotice';
+import { DownloadNotice } from '@ggraphic/editor/components/DownloadNotice';
 import {
   AltTextField,
   useCaptionAltText,
   useShareAltText,
   withAltText,
-} from '../components/AltTextField';
+} from '@ggraphic/editor/sidebar/components/AltTextField';
 import { SubsectionTabBar } from '../SubsectionTabBar';
 
 export interface GenericShareSectionProps {

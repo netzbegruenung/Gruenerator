@@ -28,9 +28,9 @@ export { wrapWithAi } from './wrapWithAi';
 export { createAiCapabilities } from './createAiCapabilities';
 export type { AiTextField, CreateAiCapabilitiesOptions } from './createAiCapabilities';
 
-export { fromLayout } from './layoutAccessors';
+export { fromLayout } from '@ggraphic/editor/configs/factory/layoutAccessors';
 export { createPrimaryText, createSecondaryText } from './createTextElement';
-export { makeSectionDefiner } from './defineSection';
+export { makeSectionDefiner } from '@ggraphic/editor/configs/factory/defineSection';
 export {
   carryInstanceState,
   CARRIED_INSTANCE_KEYS,

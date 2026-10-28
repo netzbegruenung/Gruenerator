@@ -7,7 +7,7 @@ import { fireEvent, render, renderHook, screen } from '@testing-library/react';
 import { act, useState } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { usePageUndoRedoShortcuts } from '../../components/CanvasEditor/hooks/usePageUndoRedoShortcuts';
+import { usePageUndoRedoShortcuts } from '@ggraphic/editor/components/CanvasEditor/hooks/usePageUndoRedoShortcuts';
 import { SidebarSlider } from '../../sidebar/components/SidebarSlider';
 
 import type { BaseCanvasState } from '@ggraphic/editor/configs/factory/baseTypes';

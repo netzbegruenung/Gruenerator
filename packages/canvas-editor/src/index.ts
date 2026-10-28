@@ -20,7 +20,7 @@ export type {
   CanvasEditorExportApi,
   CanvasEditorHostChrome,
 } from './components/CanvasEditor/types';
-export { EDITOR_KEY_SHIELD_ATTRIBUTE } from './components/CanvasEditor/hooks/usePageUndoRedoShortcuts';
+export { EDITOR_KEY_SHIELD_ATTRIBUTE } from '@ggraphic/editor/components/CanvasEditor/hooks/usePageUndoRedoShortcuts';
 export { templateFitsFormat } from './utils/templateRegistry';
 export {
   CanvasEditorProvider,
@@ -40,10 +40,10 @@ export type {
   VorlagePage,
 } from './grueneratorHostServices';
 
-export { StandaloneCanvas } from './components/StandaloneCanvas';
+export { StandaloneCanvas } from '@ggraphic/editor/components/StandaloneCanvas';
 export { ConfigCanvas } from '@ggraphic/editor/components/ConfigCanvas';
 export { commitOpenTextEdit } from '@ggraphic/editor/components/CanvasTextOverlay';
-export type { StandaloneCanvasProps } from './components/StandaloneCanvas';
+export type { StandaloneCanvasProps } from '@ggraphic/editor/components/StandaloneCanvas';
 export type { ConfigCanvasProps } from '@ggraphic/editor/components/ConfigCanvas';
 export { GenericCanvas } from '@ggraphic/editor/components/GenericCanvas';
 export type {
@@ -60,7 +60,7 @@ export * from './composed';
 export * from './utils';
 export * from '@ggraphic/editor/hooks/index';
 export * from './sidebar';
-export * from './layouts';
+export * from '@ggraphic/editor/layouts/index';
 export * from './composer';
 
 export type { StockImage } from '@ggraphic/editor/common/imageSourceTypes';

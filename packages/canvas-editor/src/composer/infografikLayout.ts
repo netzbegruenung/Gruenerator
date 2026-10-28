@@ -4,7 +4,7 @@ import { type InfografikItem, type Placed } from './composeTypes';
 import { SHAREPIC_ICON_FILLED, SHAREPIC_ICON_IDS } from './sharepicIcons';
 import { GAP } from './sharepicLayoutConstants';
 import { type BuildPass, type SlideCtx } from './slideContext';
-import { balancedWrap, largestSizeWordsFit } from './textFit';
+import { balancedWrap, largestSizeWordsFit } from '@ggraphic/editor/composer/textFit';
 
 /**
  * The smallest quantity's side, as a share of the largest one's. Area-true

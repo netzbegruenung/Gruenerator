@@ -1,0 +1,129 @@
+// SPDX-License-Identifier: MPL-2.0
+import { memo, useCallback, useEffect, useState } from 'react';
+import {
+  PiArrowCounterClockwise,
+  PiArrowsOut,
+  PiFile,
+  PiMagnifyingGlassMinus,
+  PiMagnifyingGlassPlus,
+} from 'react-icons/pi';
+
+interface CanvasMetaBarProps {
+  pageCount: number;
+  currentPageIndex: number;
+  zoom: number;
+  onZoomChange: (value: number) => void;
+  fullscreenTargetRef?: React.RefObject<HTMLElement | null>;
+  minZoom?: number;
+  maxZoom?: number;
+}
+
+export const CanvasMetaBar = memo(function CanvasMetaBar({
+  pageCount,
+  currentPageIndex,
+  zoom,
+  onZoomChange,
+  fullscreenTargetRef,
+  minZoom = 0.25,
+  maxZoom = 1.5,
+}: CanvasMetaBarProps) {
+  const [isFullscreen, setIsFullscreen] = useState(false);
+
+  useEffect(() => {
+    const handler = () => setIsFullscreen(Boolean(document.fullscreenElement));
+    document.addEventListener('fullscreenchange', handler);
+    return () => document.removeEventListener('fullscreenchange', handler);
+  }, []);
+
+  const handleFullscreen = useCallback(() => {
+    if (document.fullscreenElement) {
+      document.exitFullscreen().catch(() => {});
+      return;
+    }
+    const target = fullscreenTargetRef?.current ?? document.documentElement;
+    target.requestFullscreen?.().catch(() => {});
+  }, [fullscreenTargetRef]);
+
+  const zoomPercent = Math.round(zoom * 100);
+
+  const zoomBtn =
+    'size-6 rounded-md flex items-center justify-center text-[var(--editor-text-secondary)] hover:bg-[var(--editor-surface-hover)] hover:text-[var(--editor-active-fg)] transition-colors';
+
+  return (
+    <div className="canvas-meta-bar flex items-center gap-2 px-2 py-1">
+      <button
+        className={zoomBtn}
+        onClick={() => onZoomChange(Math.max(minZoom, zoom - 0.1))}
+        title="Verkleinern"
+        aria-label="Verkleinern"
+        type="button"
+      >
+        <PiMagnifyingGlassMinus size={14} />
+      </button>
+      <input
+        type="range"
+        min={Math.round(minZoom * 100)}
+        max={Math.round(maxZoom * 100)}
+        step={5}
+        value={zoomPercent}
+        onChange={(e) => onZoomChange(Number(e.currentTarget.value) / 100)}
+        className="w-28 accent-[var(--editor-accent)] cursor-pointer"
+        aria-label="Zoom"
+      />
+      <button
+        className={zoomBtn}
+        onClick={() => onZoomChange(Math.min(maxZoom, zoom + 0.1))}
+        title="Vergrößern"
+        aria-label="Vergrößern"
+        type="button"
+      >
+        <PiMagnifyingGlassPlus size={14} />
+      </button>
+      <span className="text-[11px] font-medium text-[var(--editor-text)] tabular-nums w-9 text-center select-none">
+        {zoomPercent}%
+      </span>
+
+      <span
+        className="flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-[var(--editor-inset)] text-[11px] text-[var(--editor-text-secondary)] select-none"
+        title={`Seite ${currentPageIndex + 1} von ${pageCount}`}
+        aria-label={`Seite ${currentPageIndex + 1} von ${pageCount}`}
+      >
+        <PiFile size={11} />
+        {currentPageIndex + 1}/{pageCount}
+      </span>
+      <button
+        className={zoomBtn}
+        onClick={handleFullscreen}
+        title={isFullscreen ? 'Vollbild beenden' : 'Vollbild'}
+        aria-label="Vollbild"
+        aria-pressed={isFullscreen}
+        type="button"
+      >
+        <PiArrowsOut size={14} />
+      </button>
+    </div>
+  );
+});
+
+/** Mobile: the zoom level, shown only while zoomed; tapping resets to 100 %. */
+export function CanvasZoomIndicator({
+  zoom,
+  onZoomChange,
+}: {
+  zoom: number;
+  onZoomChange: (value: number) => void;
+}) {
+  const percent = Math.round(zoom * 100);
+  if (percent === 100) return null;
+  return (
+    <button
+      type="button"
+      onClick={() => onZoomChange(1)}
+      aria-label="Zoom auf 100 % zurücksetzen"
+      className="relative flex h-9 items-center gap-1.5 rounded-full border border-[var(--editor-border-soft)] bg-[var(--editor-surface)] px-3 text-xs font-medium tabular-nums text-[var(--editor-text)] shadow-[0_2px_8px_rgba(0,0,0,0.12)] active:bg-[var(--editor-surface-hover)] after:absolute after:-inset-1 after:content-['']"
+    >
+      {percent}%
+      <PiArrowCounterClockwise size={14} aria-hidden />
+    </button>
+  );
+}

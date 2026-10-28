@@ -9,12 +9,12 @@ import { ChartSettingsSection } from '../sidebar/sections/ChartSettingsSection';
 import { ImageAdjustSection } from '../sidebar/sections/ImageAdjustSection';
 import { COLOR_SCHEMES } from '../utils/dreizeilenLayout';
 
-import { buildSharepicText } from './buildSharepicText';
-import { makeSectionDefiner } from './factory/defineSection';
+import { buildSharepicText } from '@ggraphic/editor/configs/buildSharepicText';
+import { makeSectionDefiner } from '@ggraphic/editor/configs/factory/defineSection';
 
 import type { SharepicAiCapabilities } from './aiCapabilities';
 import type { ChatSectionProps, ToolsSectionProps, UploadsSectionProps } from '../sidebar/sections';
-import type { SidebarTab } from '../sidebar/types';
+import type { SidebarTab } from '@ggraphic/editor/sidebar/types';
 import type { CanvasAiEditBridge } from '@ggraphic/editor/CanvasEditorProvider';
 import type { BalkenInstance } from '@ggraphic/editor/utils/balkenUtils';
 import type { ChartInstance } from '@ggraphic/editor/utils/chartUtils';

@@ -10,7 +10,7 @@ import {
   steckbriefFace,
   steckbriefOutline,
   steckbriefPerson,
-} from './steckbriefLayout';
+} from '@ggraphic/editor/composer/steckbriefLayout';
 
 const slideOf = (spec: SharepicSpec) => composeSharepic(spec, options).slides[0]!;
 const withSlide = (

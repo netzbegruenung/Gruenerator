@@ -1,5 +1,6 @@
 import { useCanvasEditorServices } from '@ggraphic/editor/CanvasEditorProvider';
 import { useNoUnsplashSearch, type UnsplashSearchFn } from '@ggraphic/editor/hostServices';
+import { useMessages } from '@ggraphic/editor/i18n/messages';
 import { useCallback, useEffect, useMemo, type ReactNode } from 'react';
 
 import { UnsplashLimitNotice, UnsplashRemaining } from '../tools/UnsplashLimitNotice';
@@ -26,6 +27,7 @@ export function FotosCatalog({
   grid: (items: readonly ElementItem[]) => ReactNode;
   children: ReactNode;
 }) {
+  const t = useMessages();
   // `useUnsplashSearch` is a host hook, fixed for the lifetime of the editor.
   const { searchUnsplashImages, useUnsplashSearch = useNoUnsplashSearch } =
     useCanvasEditorServices();
@@ -71,7 +73,7 @@ export function FotosCatalog({
     <div className="flex flex-col gap-3 w-full">
       {children}
 
-      <section aria-label="Fotos von Unsplash" className="flex flex-col gap-2.5">
+      <section aria-label={t.sidebar.elements.unsplashPhotos} className="flex flex-col gap-2.5">
         <h4 className="m-0 text-sm font-bold text-[var(--editor-text)]">Mehr von Unsplash</h4>
 
         {limit && <UnsplashLimitNotice retryAt={limit.retryAt} />}
@@ -92,7 +94,7 @@ export function FotosCatalog({
 
         {isLoadingSearch && (
           <p role="status" className="m-0 text-xs text-[var(--editor-text-muted)]">
-            Sucht auf Unsplash …
+            {t.sidebar.elements.unsplashSearching}
           </p>
         )}
 

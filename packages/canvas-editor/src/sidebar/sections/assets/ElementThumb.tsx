@@ -3,12 +3,15 @@ import { shareCanvasPreviewUrl, shareThumbnailPreviewUrl } from '@gruenerator/co
 import { Icon } from '@iconify/react';
 
 import { SingleBalkenPreviewIcon, TripleBalkenPreviewIcon } from '../BadgePreviewIcons';
-import { ChartTypePreview } from '../DiagrammeSection';
-import { ALL_PALETTE_SHAPES, getShapeVariant } from '../FormenSection';
-import { IllustrationThumb } from '../IllustrationThumb';
-import { FramePresetPreview } from '../RahmenSection';
+import { ChartTypePreview } from '@ggraphic/editor/sidebar/sections/DiagrammeSection';
+import {
+  ALL_PALETTE_SHAPES,
+  getShapeVariant,
+} from '@ggraphic/editor/sidebar/sections/FormenSection';
+import { IllustrationThumb } from '@ggraphic/editor/sidebar/sections/IllustrationThumb';
+import { FramePresetPreview } from '@ggraphic/editor/sidebar/sections/RahmenSection';
 
-import { PREVIEW_COMPONENTS } from './constants';
+import { PREVIEW_COMPONENTS } from '@ggraphic/editor/sidebar/sections/assets/constants';
 
 import type { ElementThumbSpec } from './elementTypes';
 import type { ShapeType } from '@ggraphic/editor/utils/shapes';

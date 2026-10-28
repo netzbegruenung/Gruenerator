@@ -1,4 +1,5 @@
 import { useMobileSheet } from '@ggraphic/editor/hooks/useMobileSheet';
+import { useMessages } from '@ggraphic/editor/i18n/messages';
 import { cn } from '@ggraphic/editor/utils/cn';
 import { isFocusLost, isKeyboardModality } from '@ggraphic/editor/utils/editorFocus';
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
@@ -6,9 +7,9 @@ import { PiX } from 'react-icons/pi';
 
 import { useIsCanvasMobile } from '../hooks/useIsCanvasMobile';
 
-import { SIDEBAR_PANEL_ID } from './sidebarStyles';
+import { SIDEBAR_PANEL_ID } from '@ggraphic/editor/sidebar/sidebarStyles';
 
-import type { SidebarPanelProps } from './types';
+import type { SidebarPanelProps } from '@ggraphic/editor/sidebar/types';
 
 interface ExtendedSidebarPanelProps extends SidebarPanelProps {
   /** Sheet title on mobile — the label of the active area. */
@@ -47,6 +48,7 @@ const FOCUS_RING =
   'outline-none kbd:focus-visible:outline-2 kbd:focus-visible:outline-solid kbd:focus-visible:-outline-offset-2 kbd:focus-visible:outline-[var(--editor-accent)]';
 
 export function SidebarPanel({ isOpen, title, children, onClose }: ExtendedSidebarPanelProps) {
+  const t = useMessages();
   const isDesktop = !useIsCanvasMobile();
 
   // Reports the panel's desktop-rail width so CanvasEditorLayout can indent the
@@ -261,7 +263,7 @@ export function SidebarPanel({ isOpen, title, children, onClose }: ExtendedSideb
               <button
                 type="button"
                 onClick={onClose}
-                aria-label={`${sheetTitle ?? 'Bereich'} schließen`}
+                aria-label={t.ui.closeSection(sheetTitle ?? null)}
                 className="flex-none size-8 max-canvas-mobile:size-11 rounded-full border-none bg-[var(--editor-tile)] text-[var(--editor-text-secondary)] flex items-center justify-center cursor-pointer"
               >
                 <PiX size={16} />
@@ -306,8 +308,8 @@ export function SidebarPanel({ isOpen, title, children, onClose }: ExtendedSideb
         <button
           type="button"
           onClick={onClose}
-          aria-label="Panel einklappen"
-          title="Panel einklappen"
+          aria-label={t.ui.collapsePanel}
+          title={t.ui.collapsePanel}
           className="absolute top-1/2 -right-[13px] -translate-y-1/2 flex items-center justify-center w-[26px] h-[52px] rounded-r-lg border border-l-0 border-[var(--editor-border-soft)] bg-[var(--editor-surface)] text-[var(--editor-text-muted)] shadow-[2px_0_6px_rgba(0,0,0,0.05)] cursor-pointer transition-colors duration-150 hover:text-[var(--editor-active-fg)]"
         >
           <svg

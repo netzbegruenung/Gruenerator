@@ -7,7 +7,7 @@ import { SidebarPanel } from '../SidebarPanel';
 import { SidebarTabBar } from '../SidebarTabBar';
 import { SubsectionTabBar } from '../SubsectionTabBar';
 
-import type { SidebarTab } from '../types';
+import type { SidebarTab } from '@ggraphic/editor/sidebar/types';
 
 /**
  * Mobile Leiste und Sheet: eine feste Leiste, ein Sheet-Muster, Filter-Chips

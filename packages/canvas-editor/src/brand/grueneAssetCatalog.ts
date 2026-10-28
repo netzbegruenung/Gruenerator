@@ -119,16 +119,17 @@ export function stickerAssetsForLocale(locale: AssetAudience): UniversalAsset[] 
  */
 const GRUENE_ILLUSTRATIONS: IllustrationSources = {
   basePath: '/illustrations',
-  loadKawaii: () => import('../utils/illustrations/kawaii').then((m) => m.KAWAII_ILLUSTRATIONS),
+  loadKawaii: () =>
+    import('@ggraphic/editor/utils/illustrations/kawaii').then((m) => m.KAWAII_ILLUSTRATIONS),
   loadSvg: async () =>
     (
       await Promise.all([
-        import('../utils/illustrations/opendoodles').then((m) => m.OPENDOODLES),
-        import('../utils/illustrations/illlustrations').then((m) => m.ILLLUSTRATIONS),
-        import('../utils/illustrations/gophers').then((m) => m.GOPHERS),
-        import('../utils/illustrations/transhumans').then((m) => m.TRANSHUMANS),
-        import('../utils/illustrations/humaaans').then((m) => m.HUMAAANS),
-        import('../utils/illustrations/openpeeps').then((m) => m.OPENPEEPS),
+        import('@ggraphic/editor/utils/illustrations/opendoodles').then((m) => m.OPENDOODLES),
+        import('@ggraphic/editor/utils/illustrations/illlustrations').then((m) => m.ILLLUSTRATIONS),
+        import('@ggraphic/editor/utils/illustrations/gophers').then((m) => m.GOPHERS),
+        import('@ggraphic/editor/utils/illustrations/transhumans').then((m) => m.TRANSHUMANS),
+        import('@ggraphic/editor/utils/illustrations/humaaans').then((m) => m.HUMAAANS),
+        import('@ggraphic/editor/utils/illustrations/openpeeps').then((m) => m.OPENPEEPS),
         import('../utils/illustrations/undrawAll').then((m) => m.UNDRAW_ALL),
       ])
     ).flat(),

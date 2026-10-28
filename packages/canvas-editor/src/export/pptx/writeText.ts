@@ -11,9 +11,14 @@
  */
 
 import { pptxFont } from './pptxFonts';
-import { parseColor, pptxRotation, transparencyOf, type PptxUnits } from './pptxUnits';
+import {
+  parseColor,
+  pptxRotation,
+  transparencyOf,
+  type PptxUnits,
+} from '@ggraphic/editor/export/pptx/pptxUnits';
 
-import type { PptxShadow, PptxTextItem, PptxTextRun } from './types';
+import type { PptxShadow, PptxTextItem, PptxTextRun } from '@ggraphic/editor/export/pptx/types';
 import type PptxGenJS from 'pptxgenjs';
 
 /** Hängender Einzug der Aufzählung, wie `BULLET_INDENT` in `textModel.ts`. */

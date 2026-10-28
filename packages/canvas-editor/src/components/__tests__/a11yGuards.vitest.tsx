@@ -22,11 +22,11 @@ import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import { SidebarPanel } from '../../sidebar/SidebarPanel';
 import { SidebarTabBar } from '../../sidebar/SidebarTabBar';
 import { axe } from '../../test-utils';
-import { MobileSelectionPill } from '../MobileSelectionPill';
+import { MobileSelectionPill } from '@ggraphic/editor/components/MobileSelectionPill';
 import { ContextControls } from '../TopBar/ContextControls';
 import { MobileSelectionBar } from '../TopBar/MobileSelectionBar';
 
-import type { SidebarTab } from '../../sidebar/types';
+import type { SidebarTab } from '@ggraphic/editor/sidebar/types';
 import type { FloatingModuleState } from '@ggraphic/editor/hooks/useFloatingModuleState';
 
 vi.hoisted(() => {

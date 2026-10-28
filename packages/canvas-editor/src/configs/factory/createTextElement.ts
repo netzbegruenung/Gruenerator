@@ -1,4 +1,4 @@
-import { fromLayout } from './layoutAccessors';
+import { fromLayout } from '@ggraphic/editor/configs/factory/layoutAccessors';
 
 import type {
   FillValue,

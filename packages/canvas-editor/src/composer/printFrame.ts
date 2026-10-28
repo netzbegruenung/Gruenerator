@@ -24,7 +24,7 @@ import { getBrandTheme, type BrandTheme } from '../brand/theme';
 
 import { layoutTextLines, type MeasureText } from './chromeParts';
 import { type ComposedSlide } from './composeSharepic';
-import { fitStoererText, STOERER_LINE_STEP } from './textFit';
+import { fitStoererText, STOERER_LINE_STEP } from '@ggraphic/editor/composer/textFit';
 
 import type { AdditionalText } from '@ggraphic/editor/configs/types';
 

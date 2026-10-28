@@ -1,11 +1,11 @@
 import { useCanvasStoreSelector } from '@ggraphic/editor/stores/CanvasStoreProvider';
 import React, { memo } from 'react';
 
-import { AutoSaveIndicator } from './TopBar/AutoSaveIndicator';
-import { FloatingAiSuggestionBanner } from './TopBar/modules/FloatingAiSuggestionBanner';
-import { FloatingHistoryControls } from './TopBar/modules/FloatingHistoryControls';
+import { AutoSaveIndicator } from '@ggraphic/editor/components/TopBar/AutoSaveIndicator';
+import { FloatingAiSuggestionBanner } from '@ggraphic/editor/components/TopBar/modules/FloatingAiSuggestionBanner';
+import { FloatingHistoryControls } from '@ggraphic/editor/components/TopBar/modules/FloatingHistoryControls';
 import { ShareDropdown, type ShareDropdownProps } from './TopBar/ShareDropdown';
-import { TopBar } from './TopBar/TopBar';
+import { TopBar } from '@ggraphic/editor/components/TopBar/TopBar';
 
 /**
  * Toolbar — the green menu bar (3a/3b design).

@@ -54,9 +54,9 @@ import {
   createFrameActions,
   createUserImageActions,
 } from './factory/actionFactories';
-import { makeSectionDefiner } from './factory/defineSection';
+import { makeSectionDefiner } from '@ggraphic/editor/configs/factory/defineSection';
 import { injectFeatureProps } from './featureInjector';
-import { PLACEHOLDER_TEXT } from './placeholders';
+import { PLACEHOLDER_TEXT } from '@ggraphic/editor/configs/placeholders';
 import { createShareSection } from './shareSection';
 
 import type { SharepicAiCapabilities } from './aiCapabilities';

@@ -2,7 +2,7 @@ import { render, screen } from '@testing-library/react';
 import { Suspense } from 'react';
 import { describe, expect, it, vi } from 'vitest';
 
-import { lazyWithPreload } from './lazyWithPreload';
+import { lazyWithPreload } from '@ggraphic/editor/sidebar/sections/lazyWithPreload';
 
 const Hello = ({ name }: { name: string }) => <p>Hallo {name}</p>;
 

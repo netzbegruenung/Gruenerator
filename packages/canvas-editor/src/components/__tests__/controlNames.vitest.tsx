@@ -9,14 +9,14 @@ import { SidebarPanel } from '../../sidebar/SidebarPanel';
 import { SidebarTabBar } from '../../sidebar/SidebarTabBar';
 import { axe } from '../../test-utils';
 import { COLOR_SCHEMES } from '../../utils/dreizeilenLayout';
-import { CanvasMetaBar } from '../CanvasMetaBar';
-import { PageToolbar } from '../PageToolbar';
-import { FloatingColorPicker } from '../TopBar/modules/FloatingColorPicker';
-import { FloatingFontSizeControl } from '../TopBar/modules/FloatingFontSizeControl';
-import { FloatingOpacityControl } from '../TopBar/modules/FloatingOpacityControl';
+import { CanvasMetaBar } from '@ggraphic/editor/components/CanvasMetaBar';
+import { PageToolbar } from '@ggraphic/editor/components/PageToolbar';
+import { FloatingColorPicker } from '@ggraphic/editor/components/TopBar/modules/FloatingColorPicker';
+import { FloatingFontSizeControl } from '@ggraphic/editor/components/TopBar/modules/FloatingFontSizeControl';
+import { FloatingOpacityControl } from '@ggraphic/editor/components/TopBar/modules/FloatingOpacityControl';
 import { FloatingShadowControl } from '../TopBar/modules/FloatingShadowControl';
 
-import type { SidebarTab } from '../../sidebar/types';
+import type { SidebarTab } from '@ggraphic/editor/sidebar/types';
 import type { BalkenInstance } from '@ggraphic/editor/utils/balkenUtils';
 
 beforeEach(() => {

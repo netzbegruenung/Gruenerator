@@ -1,16 +1,21 @@
 import { useCanvasEditorServices } from '@ggraphic/editor/CanvasEditorProvider';
+import { useMessages } from '@ggraphic/editor/i18n/messages';
 import { useUserUploads } from '@ggraphic/editor/sidebar/UserUploadsProvider';
 import { useCallback, useState } from 'react';
 import { HiScissors } from 'react-icons/hi2';
 
 import { ImageInputPicker } from './ImageInputPicker';
-import { ToolPanel, type ToolPanelSuccess } from './ToolPanel';
+import {
+  ToolPanel,
+  type ToolPanelSuccess,
+} from '@ggraphic/editor/sidebar/sections/tools/ToolPanel';
 
 export interface RemoveBackgroundToolProps {
   onJumpToUploads?: () => void;
 }
 
 export function RemoveBackgroundTool({ onJumpToUploads }: RemoveBackgroundToolProps) {
+  const t = useMessages();
   const { removeBackgroundFromImage } = useCanvasEditorServices();
   const { upload, isUploading } = useUserUploads();
 
@@ -26,13 +31,13 @@ export function RemoveBackgroundTool({ onJumpToUploads }: RemoveBackgroundToolPr
     setError(null);
     setSuccess(null);
     setIsBusy(true);
-    setProgressMessage('Bild wird optimiert…');
+    setProgressMessage(t.sidebar.tools.optimizing);
 
     try {
       const { file } = await removeBackgroundFromImage(input, (p) => setProgressMessage(p.message));
-      setProgressMessage('Speichern in Uploads…');
+      setProgressMessage(t.sidebar.tools.savingToUploads);
       const item = await upload(file);
-      if (!item) throw new Error('Upload fehlgeschlagen');
+      if (!item) throw new Error(t.sidebar.uploadFailed);
       const objectUrl = URL.createObjectURL(file);
       setSuccess({
         thumbnailUrl: objectUrl,
@@ -41,20 +46,20 @@ export function RemoveBackgroundTool({ onJumpToUploads }: RemoveBackgroundToolPr
       });
       setInput(null);
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Fehler beim Entfernen des Hintergrunds';
+      const message = err instanceof Error ? err.message : t.sidebar.tools.removeBgError;
       setError(message);
     } finally {
       setIsBusy(false);
       setProgressMessage(null);
     }
-  }, [input, removeBackgroundFromImage, upload, onJumpToUploads]);
+  }, [t, input, removeBackgroundFromImage, upload, onJumpToUploads]);
 
   if (!removeBackgroundFromImage) return null;
 
   return (
     <ToolPanel
       body={<ImageInputPicker value={input} onChange={setInput} disabled={isBusy || isUploading} />}
-      actionLabel="Hintergrund entfernen"
+      actionLabel={t.sidebar.tools.removeBg}
       actionIcon={HiScissors}
       canSubmit={!!input}
       isBusy={isBusy || isUploading}

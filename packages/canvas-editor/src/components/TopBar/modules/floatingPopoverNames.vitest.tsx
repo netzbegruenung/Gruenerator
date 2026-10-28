@@ -9,8 +9,8 @@ import { describe, expect, it } from 'vitest';
 
 import { axe } from '../../../test-utils';
 
-import { BackgroundZoomControl } from './FloatingBackgroundControls';
-import { FloatingGradientControl } from './FloatingGradientControl';
+import { BackgroundZoomControl } from '@ggraphic/editor/components/TopBar/modules/FloatingBackgroundControls';
+import { FloatingGradientControl } from '@ggraphic/editor/components/TopBar/modules/FloatingGradientControl';
 import { FloatingOutlineControl } from './FloatingOutlineControl';
 import { FloatingShadowControl } from './FloatingShadowControl';
 

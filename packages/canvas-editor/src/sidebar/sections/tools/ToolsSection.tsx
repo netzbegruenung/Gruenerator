@@ -1,4 +1,5 @@
 import { useCanvasEditorServices } from '@ggraphic/editor/CanvasEditorProvider';
+import { useMessages } from '@ggraphic/editor/i18n/messages';
 import { cn } from '@ggraphic/editor/utils/cn';
 import { brandColors } from '@ggraphic/editor/utils/colorOptions';
 import { Suspense, useEffect, useId, useState } from 'react';
@@ -13,10 +14,10 @@ import {
 import { PiArrowLeft, PiCaretRightBold, PiDropSimpleFill, PiPath } from 'react-icons/pi';
 
 import { useIsCanvasMobile } from '../../../hooks/useIsCanvasMobile';
-import { lazyWithPreload } from '../lazyWithPreload';
-import { whenIdle } from '../whenIdle';
+import { lazyWithPreload } from '@ggraphic/editor/sidebar/sections/lazyWithPreload';
+import { whenIdle } from '@ggraphic/editor/sidebar/sections/whenIdle';
 
-import { ToolTile, type ToolTileId } from './ToolTiles';
+import { ToolTile, type ToolTileId } from '@ggraphic/editor/sidebar/sections/tools/ToolTiles';
 
 import type { AltTextPagesSource } from './AltTextTool';
 import type { UserImagePlacement } from '@ggraphic/editor/utils/userImageUtils';
@@ -30,7 +31,9 @@ const PANELS = {
   'remove-bg': lazyWithPreload(() =>
     import('./RemoveBackgroundTool').then((m) => m.RemoveBackgroundTool)
   ),
-  'ai-create': lazyWithPreload(() => import('./AiCreateTool').then((m) => m.AiCreateTool)),
+  'ai-create': lazyWithPreload(() =>
+    import('@ggraphic/editor/sidebar/sections/tools/AiCreateTool').then((m) => m.AiCreateTool)
+  ),
   'ai-edit': lazyWithPreload(() => import('./AiEditTool').then((m) => m.AiEditTool)),
   'alt-text': lazyWithPreload(() => import('./AltTextTool').then((m) => m.AltTextTool)),
   unsplash: lazyWithPreload(() => import('./UnsplashTool').then((m) => m.UnsplashTool)),
@@ -75,7 +78,7 @@ interface ToolCard {
   label: string;
   /** One-sentence hint shown under the label in the mobile list. */
   description: string;
-  /** Generative tools, grouped under "Mit KI" on mobile. */
+  /** Generative tools, grouped under t.sidebar.tools.tiles.withAi on mobile. */
   ai: boolean;
   icon: IconType | ComponentType<{ size?: number; className?: string }>;
   available: boolean;
@@ -203,6 +206,7 @@ export function ToolsSection({
   onPlaceImageUrl,
   altTextPages,
 }: ToolsSectionProps) {
+  const t = useMessages();
   const {
     removeBackgroundFromImage,
     generateAiImage,
@@ -216,73 +220,73 @@ export function ToolsSection({
   const cards: ToolCard[] = [
     {
       id: 'remove-bg',
-      description: 'Person oder Objekt freistellen',
+      description: t.sidebar.tools.tiles.removeBgDesc,
       ai: false,
-      label: 'Hintergrund entfernen',
+      label: t.sidebar.tools.tiles.removeBgLabel,
       icon: HiScissors,
       available: !!removeBackgroundFromImage,
     },
     {
       id: 'ai-create',
-      description: 'Motiv per Beschreibung erzeugen',
+      description: t.sidebar.tools.tiles.aiCreateDesc,
       ai: true,
-      label: 'KI-Bild erstellen',
+      label: t.sidebar.tools.tiles.aiCreateLabel,
       icon: HiSparkles,
       available: !!generateAiImage,
     },
     {
       id: 'ai-edit',
-      description: 'Foto per Befehl verändern',
+      description: t.sidebar.tools.tiles.aiEditDesc,
       ai: true,
-      label: 'Mit KI bearbeiten',
+      label: t.sidebar.tools.tiles.aiEditLabel,
       icon: HiPencilSquare,
       available: !!editAiImage,
     },
     {
       id: 'alt-text',
-      description: 'Bildbeschreibung für Screenreader',
+      description: t.sidebar.tools.tiles.altDesc,
       ai: true,
-      label: 'Alt-Texte',
+      label: t.sidebar.tools.tiles.altLabel,
       icon: HiChatBubbleBottomCenterText,
       available: !!generateSlideAltTexts && !!altTextPages,
     },
     {
       id: 'unsplash',
-      description: 'Freie Fotos suchen und einfügen',
+      description: t.sidebar.tools.tiles.unsplashDesc,
       ai: false,
-      label: 'Unsplash-Fotos',
+      label: t.sidebar.tools.tiles.unsplashLabel,
       icon: HiPhoto,
       available: !!searchUnsplashImages && !!onPlaceImageUrl,
     },
     {
       id: 'qr-code',
-      description: 'Link als scanbaren Code',
+      description: t.sidebar.tools.tiles.qrDesc,
       ai: false,
-      label: 'QR-Code erstellen',
+      label: t.sidebar.tools.tiles.qrLabel,
       icon: HiQrCode,
       available: true,
     },
     {
       id: 'gradient-text',
-      description: 'Schriftzug mit Farbverlauf gestalten',
+      description: t.sidebar.tools.tiles.gradientDesc,
       ai: false,
-      label: 'Text mit Farbverlauf',
+      label: t.sidebar.tools.tiles.gradientLabel,
       icon: GradientTextIcon,
       available: true,
     },
     {
       id: 'blob',
-      description: 'Organische Form als Hintergrund',
+      description: t.sidebar.tools.tiles.blobDesc,
       ai: false,
-      label: 'Blob erstellen',
+      label: t.sidebar.tools.tiles.blobLabel,
       icon: PiDropSimpleFill,
       available: true,
     },
     {
       id: 'text-path',
-      description: 'Text entlang einer Kurve setzen',
+      description: t.sidebar.tools.tiles.pathDesc,
       ai: false,
-      label: 'Pfadtext erstellen',
+      label: t.sidebar.tools.tiles.pathLabel,
       icon: PiPath,
       available: true,
     },
@@ -297,21 +301,19 @@ export function ToolsSection({
   );
 
   if (availableCards.length === 0) {
-    return (
-      <div className="p-4 text-xs text-foreground-muted">Keine KI-Werkzeuge konfiguriert.</div>
-    );
+    return <div className="p-4 text-xs text-foreground-muted">{t.sidebar.tools.tiles.none}</div>;
   }
 
   if (activeView === 'browse' && isMobile) {
     return (
       <div className="flex flex-col gap-4 w-full min-w-0">
         <ToolListGroup
-          label="Mit KI"
+          label={t.sidebar.tools.tiles.withAi}
           cards={availableCards.filter((c) => c.ai)}
           onSelect={setActiveView}
         />
         <ToolListGroup
-          label="Erstellen"
+          label={t.sidebar.tools.tiles.create}
           cards={availableCards.filter((c) => !c.ai)}
           onSelect={setActiveView}
         />

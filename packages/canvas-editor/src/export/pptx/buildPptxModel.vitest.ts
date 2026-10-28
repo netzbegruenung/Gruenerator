@@ -9,7 +9,7 @@ import {
   PPTX_MAPPED_PAGE_KEYS,
   PPTX_UNMAPPED_PAGE_KEYS,
   type PptxPageState,
-} from './buildPptxModel';
+} from '@ggraphic/editor/export/pptx/buildPptxModel';
 
 import type {
   PptxChartItem,
@@ -18,7 +18,7 @@ import type {
   PptxRasterRequest,
   PptxShapeItem,
   PptxTextItem,
-} from './types';
+} from '@ggraphic/editor/export/pptx/types';
 import type { AdditionalText } from '@ggraphic/editor/configs/types';
 import type { ChartInstance } from '@ggraphic/editor/utils/chartUtils';
 import type { ShapeInstance } from '@ggraphic/editor/utils/shapes';

@@ -11,10 +11,10 @@ vi.mock('@ggraphic/editor/components/GenericCanvas', () => ({
     </div>
   ),
 }));
-vi.mock('../../PageToolbar', () => ({
+vi.mock('@ggraphic/editor/components/PageToolbar', () => ({
   PageToolbar: () => <button data-testid="toolbar-btn">Hoch</button>,
 }));
-vi.mock('../../ZoomableViewport', () => ({
+vi.mock('@ggraphic/editor/components/ZoomableViewport', () => ({
   ZoomableViewport: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
 }));
 

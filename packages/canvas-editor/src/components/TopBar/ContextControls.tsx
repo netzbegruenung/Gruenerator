@@ -3,6 +3,7 @@ import { useCanvasTextFormatting } from '@ggraphic/editor/components/CanvasTextO
 import { type BackgroundControls } from '@ggraphic/editor/configs/types';
 import { type ShadowPatch } from '@ggraphic/editor/hooks/useFloatingModuleHandlers';
 import { type FloatingModuleState } from '@ggraphic/editor/hooks/useFloatingModuleState';
+import { useMessages } from '@ggraphic/editor/i18n/messages';
 import { useOptionalUserUploads } from '@ggraphic/editor/sidebar/UserUploadsProvider';
 import {
   formatShortcut,
@@ -20,23 +21,26 @@ import { type TextAlign } from '@ggraphic/editor/utils/textAlign';
 import React, { useState } from 'react';
 import { PiCopy, PiLockSimple, PiLockSimpleOpen, PiTrash } from 'react-icons/pi';
 
-import { CropModeControls } from './CropModeControls';
+import { CropModeControls } from '@ggraphic/editor/components/TopBar/CropModeControls';
 import {
   BackgroundImagePicker,
   BackgroundRemoveImageButton,
   BackgroundRestoreImageButton,
   BackgroundZoomControl,
   SetAsBackgroundButton,
-} from './modules/FloatingBackgroundControls';
-import { FloatingColorPicker } from './modules/FloatingColorPicker';
-import { FloatingFontSizeControl } from './modules/FloatingFontSizeControl';
-import { FloatingGradientControl } from './modules/FloatingGradientControl';
-import { FloatingLayerControls } from './modules/FloatingLayerControls';
-import { FloatingOpacityControl } from './modules/FloatingOpacityControl';
+} from '@ggraphic/editor/components/TopBar/modules/FloatingBackgroundControls';
+import { FloatingColorPicker } from '@ggraphic/editor/components/TopBar/modules/FloatingColorPicker';
+import { FloatingFontSizeControl } from '@ggraphic/editor/components/TopBar/modules/FloatingFontSizeControl';
+import { FloatingGradientControl } from '@ggraphic/editor/components/TopBar/modules/FloatingGradientControl';
+import { FloatingLayerControls } from '@ggraphic/editor/components/TopBar/modules/FloatingLayerControls';
+import { FloatingOpacityControl } from '@ggraphic/editor/components/TopBar/modules/FloatingOpacityControl';
 import { FloatingOutlineControl } from './modules/FloatingOutlineControl';
-import { FloatingPositionControl, type PositionCommandId } from './modules/FloatingPositionControl';
+import {
+  FloatingPositionControl,
+  type PositionCommandId,
+} from '@ggraphic/editor/components/TopBar/modules/FloatingPositionControl';
 import { FloatingShadowControl } from './modules/FloatingShadowControl';
-import { FloatingTextAlignControl } from './modules/FloatingTextAlignControl';
+import { FloatingTextAlignControl } from '@ggraphic/editor/components/TopBar/modules/FloatingTextAlignControl';
 
 export interface ContextControlsProps {
   selectedElement: string | null;
@@ -88,7 +92,7 @@ export interface ContextControlsProps {
     /** Ausrichtung des Textes in seiner Box — freie und Vorlagen-Texte. */
     handleTextAlignChange?: (id: string, align: TextAlign) => void;
     handleToggleLock?: () => void;
-    /** Opens the image-adjust ("Bearbeiten") panel for the selected image. */
+    /** Opens the image-adjust (t.topBar.edit) panel for the selected image. */
     onEditImage?: () => void;
   };
   /** The page's background controls (colour plane and photo), if the template has them. */
@@ -161,6 +165,7 @@ export function ContextControls({
   hideObjectActions = false,
   cropLayout = 'inline',
 }: ContextControlsProps) {
+  const t = useMessages();
   const [isColorPickerExpanded, setIsColorPickerExpanded] = useState(false);
   // Fett/Kursiv/… nur, solange wirklich getippt wird: die Knöpfe bedienen die
   // Auswahl IM Text, und ohne offenen Editor gibt es keine.
@@ -285,7 +290,7 @@ export function ContextControls({
     groups.push(
       <BackgroundImagePicker
         key="background-image"
-        label={background.currentImageSrc ? 'Ersetzen' : 'Bild'}
+        label={background.currentImageSrc ? t.topBar.replace : t.common.image}
         currentImageSrc={background.currentImageSrc}
         onImageChange={onImageChange}
         openRequest={backgroundPickerRequest}
@@ -322,12 +327,12 @@ export function ContextControls({
             // Wie beim Zuschneiden eigener Bilder: per Tastatur gehören die Pfeile danach der Seite.
             if (!isCropping && isKeyboardModality()) focusPage(e.currentTarget);
           }}
-          title="Ausschnitt anpassen (oder Doppelklick aufs Foto)"
-          aria-label="Ausschnitt anpassen"
+          title={t.topBar.adjustCropPhoto}
+          aria-label={t.topBar.adjustCrop}
           aria-pressed={isCropping}
         >
           <CropIcon />
-          Ausschnitt
+          {t.topBar.crop}
         </button>
       );
     }
@@ -452,7 +457,7 @@ export function ContextControls({
     );
   }
 
-  // Images edit their shadow inside the "Bearbeiten" panel, not the context bar.
+  // Images edit their shadow inside the t.topBar.edit panel, not the context bar.
   if ((type === 'shape' || isEffectText) && activeFloatingModule && handlers.handleShadowChange) {
     groups.push(
       <FloatingShadowControl
@@ -491,7 +496,7 @@ export function ContextControls({
           // Seite beendet den Ausschnitt (useCanvasKeyboardHandlers).
           if (!isCropping && isKeyboardModality()) focusPage(e.currentTarget);
         }}
-        title="Zuschneiden (oder Doppelklick aufs Bild; Enter zum Beenden)"
+        title={t.topBar.cropImage}
         aria-pressed={isCropping}
         type="button"
       >
@@ -584,12 +589,8 @@ export function ContextControls({
         className={ICON_BTN}
         onClick={handlers.handleDuplicate}
         disabled={!canDuplicate}
-        title={
-          canDuplicate
-            ? 'Duplizieren (Strg+D)'
-            : 'Dieses Element gehört zur Vorlage und lässt sich nicht duplizieren'
-        }
-        aria-label="Duplizieren (Strg+D)"
+        title={canDuplicate ? t.topBar.duplicate : t.topBar.templateNoDuplicate}
+        aria-label={t.topBar.duplicate}
         type="button"
       >
         <PiCopy size={18} />
@@ -611,11 +612,7 @@ export function ContextControls({
         className={`${ICON_BTN} aria-pressed:bg-[var(--editor-active-bg)] aria-pressed:text-[var(--editor-active-fg)]`}
         onClick={handlers.handleToggleLock}
         aria-pressed={isLocked}
-        title={
-          isLocked
-            ? 'Entsperren — wieder bewegen und löschen'
-            : 'Sperren — Lage und Größe festhalten'
-        }
+        title={isLocked ? t.topBar.unlockHint : t.topBar.lockHint}
         aria-label={label}
         type="button"
       >
@@ -625,20 +622,16 @@ export function ContextControls({
   }
 
   if (selectedElement && showObjectActions && !hideObjectActions && onDeleteElement) {
-    const label = `Löschen (${formatShortcut(shortcutOf('delete')!, isMacPlatform())})`;
+    const label = t.topBar.deleteWithShortcut(
+      formatShortcut(shortcutOf('delete')!, isMacPlatform())
+    );
     groups.push(
       <button
         key="delete-element"
         className={DANGER_BTN}
         onClick={onDeleteElement}
         disabled={!canDelete}
-        title={
-          canDelete
-            ? label
-            : isLocked
-              ? 'Gesperrt — zum Löschen erst entsperren'
-              : 'Dieses Element gehört zur Vorlage und lässt sich nicht löschen'
-        }
+        title={canDelete ? label : isLocked ? t.topBar.lockedNoDelete : t.topBar.templateNoDelete}
         aria-label={label}
         type="button"
       >
@@ -653,12 +646,12 @@ export function ContextControls({
         key="delete"
         className="inline-flex items-center justify-center size-8 max-canvas-mobile:size-11 shrink-0 rounded-md border-none bg-transparent cursor-pointer text-[var(--editor-text-secondary)] transition-colors duration-150 hover:text-[var(--editor-danger-fg)] hover:bg-[var(--editor-danger-bg)]"
         onClick={() => {
-          if (window.confirm('Seite wirklich löschen?')) {
+          if (window.confirm(t.topBar.confirmDeletePage)) {
             onDeletePage();
           }
         }}
-        title="Seite löschen"
-        aria-label="Seite löschen"
+        title={t.topBar.deletePage}
+        aria-label={t.topBar.deletePage}
         type="button"
       >
         <svg
@@ -688,8 +681,8 @@ export function ContextControls({
         key="deselect"
         className={ICON_BTN}
         onClick={onDeselect}
-        title="Auswahl aufheben (Esc)"
-        aria-label="Auswahl aufheben (Esc)"
+        title={t.topBar.clearSelection}
+        aria-label={t.topBar.clearSelection}
       >
         <svg
           width="18"
@@ -720,13 +713,14 @@ export function ContextControls({
   );
 }
 
-/** Opens the "Bearbeiten" panel: filters, presets, flip — for a free image or the background photo. */
+/** Opens the t.topBar.edit panel: filters, presets, flip — for a free image or the background photo. */
 function EditImageButton({ onClick }: { onClick: () => void }) {
+  const t = useMessages();
   return (
     <button
       className="inline-flex items-center gap-1.5 h-8 max-canvas-mobile:h-11 shrink-0 rounded-md border-none bg-transparent px-2 cursor-pointer text-[13px] font-medium text-[var(--editor-text)] transition-colors duration-150 hover:bg-[var(--editor-surface-hover)] hover:text-[var(--editor-active-fg)]"
       onClick={onClick}
-      title="Bild anpassen (Filter, Helligkeit, Kontrast…)"
+      title={t.topBar.adjustImage}
       type="button"
     >
       <svg
@@ -742,7 +736,7 @@ function EditImageButton({ onClick }: { onClick: () => void }) {
         <circle cx="12" cy="12" r="3" />
         <path d="M12 3v2M12 19v2M3 12h2M19 12h2M5.6 5.6l1.4 1.4M17 17l1.4 1.4M18.4 5.6L17 7M7 17l-1.4 1.4" />
       </svg>
-      Bearbeiten
+      {t.topBar.edit}
     </button>
   );
 }

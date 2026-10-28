@@ -3,7 +3,11 @@ import { describe, expect, it, vi } from 'vitest';
 
 import { writePptx, type WritePptxDeps } from './writePptx';
 
-import type { PptxDeckModel, PptxRasterRequest, PptxTextItem } from './types';
+import type {
+  PptxDeckModel,
+  PptxRasterRequest,
+  PptxTextItem,
+} from '@ggraphic/editor/export/pptx/types';
 
 /** 1 × 1 px, transparent. */
 const PNG =
