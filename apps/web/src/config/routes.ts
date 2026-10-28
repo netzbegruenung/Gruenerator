@@ -246,6 +246,7 @@ const ConnectorTestPage = lazy(() => import('../features/admin/ConnectorTestPage
 // const PlaygroundPage = lazy(() => import('../features/playground/PlaygroundPage'));
 const IconAnimationTestPage = lazy(() => import('../features/playground/IconAnimationTestPage'));
 const KugelVoiceTestPage = lazy(() => import('../features/playground/KugelVoiceTestPage'));
+const BundestagQaPage = lazy(() => import('../features/bundestag/BundestagQaPage'));
 // Auth-Komponenten importieren (only components still used after Authentic integration)
 const LoginPage = lazy(() => import('../features/auth/pages/LoginPage'));
 const OAuthConsentPage = lazy(() => import('../features/auth/pages/OAuthConsentPage'));
@@ -593,6 +594,7 @@ const standardRoutes: RouteConfig[] = [
   // { path: '/playground', component: PlaygroundPage },
   { path: '/icon-test', component: IconAnimationTestPage, channel: 'internal' },
   { path: '/kugel-test', component: KugelVoiceTestPage, channel: 'internal' },
+  { path: '/labor/bundestag', component: BundestagQaPage, channel: 'internal' },
   { path: '/voice-agent-test', component: VoiceAgentTestPage, channel: 'internal' },
   {
     path: '/voice-agent-test/mobil',
