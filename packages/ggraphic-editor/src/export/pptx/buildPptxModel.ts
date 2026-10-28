@@ -29,7 +29,7 @@ import {
   textParagraphs,
   wrappedLineCount,
   type PptxMeasureText,
-} from './textModel';
+} from './textModel.js';
 
 import type {
   PptxBox,
@@ -41,7 +41,7 @@ import type {
   PptxShadow,
   PptxShapeKind,
   PptxSlideModel,
-} from './types';
+} from './types.js';
 import type { AdditionalText } from '@ggraphic/editor/configs/types';
 import type { CanvasFormat } from '@ggraphic/editor/formats/index';
 import type { CircleBadgeInstance } from '@ggraphic/editor/utils/circleBadgeUtils';

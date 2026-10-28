@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MPL-2.0
-import { foldUmlauts, GERMAN_PLURAL_ENDINGS, translateWord } from './searchTranslations';
+import { foldUmlauts, GERMAN_PLURAL_ENDINGS, translateWord } from './searchTranslations.js';
 
 /**
  * Asset search matches whole words, never substrings: "car" must not hit

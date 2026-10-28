@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MPL-2.0
 import { PiStack } from 'react-icons/pi';
 
-import type { SidebarTab } from '../../sidebar/types';
+import type { SidebarTab } from '../../sidebar/types.js';
 
 /**
  * „Ebenen": jedes Element der aktiven Seite als Liste (`LayersSection`), der

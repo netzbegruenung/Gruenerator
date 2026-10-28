@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 
 import './canvas-editor.css';
 import { CanvasEditor } from './components/CanvasEditor';
-import { CanvasEditorSkeleton } from './components/CanvasEditorSkeleton';
+import { CanvasEditorSkeleton } from '@ggraphic/editor/components/CanvasEditorSkeleton';
 
 import { loadCanvasConfig } from '@ggraphic/editor/configs/configLoader';
 import { getCanvasFormatOrDefault, isUnsupportedFormatId } from '@ggraphic/editor/formats/index';
@@ -12,7 +12,7 @@ import { getBuiltinTemplate, isValidCanvasType } from './templates/registry';
 import type {
   CanvasEditorExportApi,
   CanvasEditorHostChrome,
-} from './components/CanvasEditor/types';
+} from '@ggraphic/editor/components/CanvasEditor/types';
 import type { SidebarTabId } from '@ggraphic/editor/sidebar/types';
 import type { FullCanvasConfig } from '@ggraphic/editor/configs/types';
 import type { InitialPageDef } from '@ggraphic/editor/hooks/usePageManager';

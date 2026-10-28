@@ -19,12 +19,12 @@ import { act, cleanup, render, screen } from '@testing-library/react';
 import { createRef } from 'react';
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 
-import { SidebarPanel } from '../../sidebar/SidebarPanel';
-import { SidebarTabBar } from '../../sidebar/SidebarTabBar';
+import { SidebarPanel } from '@ggraphic/editor/sidebar/SidebarPanel';
+import { SidebarTabBar } from '@ggraphic/editor/sidebar/SidebarTabBar';
 import { axe } from '../../test-utils';
 import { MobileSelectionPill } from '@ggraphic/editor/components/MobileSelectionPill';
-import { ContextControls } from '../TopBar/ContextControls';
-import { MobileSelectionBar } from '../TopBar/MobileSelectionBar';
+import { ContextControls } from '@ggraphic/editor/components/TopBar/ContextControls';
+import { MobileSelectionBar } from '@ggraphic/editor/components/TopBar/MobileSelectionBar';
 
 import type { SidebarTab } from '@ggraphic/editor/sidebar/types';
 import type { FloatingModuleState } from '@ggraphic/editor/hooks/useFloatingModuleState';

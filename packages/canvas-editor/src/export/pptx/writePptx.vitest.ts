@@ -1,7 +1,7 @@
 import { strFromU8, unzipSync } from 'fflate';
 import { describe, expect, it, vi } from 'vitest';
 
-import { writePptx, type WritePptxDeps } from './writePptx';
+import { writePptx, type WritePptxDeps } from '@ggraphic/editor/export/pptx/writePptx';
 
 import type {
   PptxDeckModel,

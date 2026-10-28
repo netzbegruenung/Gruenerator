@@ -10,7 +10,7 @@ import { type DreizeilenFullState } from '../configs/dreizeilen.types';
 import { dreizeilenFullConfig } from '../configs/dreizeilen_full.config';
 import { balkenExtent } from '../utils/balkenBounds';
 
-import { applyOperation } from './applyOperation';
+import { applyOperation } from '@ggraphic/editor/ai/applyOperation';
 
 function dreizeilen(lines = { line1: 'Mehr Radwege', line2: 'für alle', line3: 'jetzt' }) {
   let state = dreizeilenFullConfig.createInitialState({

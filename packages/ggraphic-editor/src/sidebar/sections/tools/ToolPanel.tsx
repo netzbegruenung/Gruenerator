@@ -4,8 +4,8 @@ import { cn } from '@ggraphic/editor/utils/cn';
 import { useState } from 'react';
 import { HiCheckCircle, HiXCircle } from 'react-icons/hi2';
 
-import { Lightbox } from '../../../common/Lightbox';
-import { SIDEBAR_SECTION } from '../../sidebarStyles';
+import { Lightbox } from '../../../common/Lightbox.js';
+import { SIDEBAR_SECTION } from '../../sidebarStyles.js';
 
 import type { ComponentType, ReactNode } from 'react';
 import type { IconType } from 'react-icons';

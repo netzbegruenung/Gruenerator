@@ -18,10 +18,17 @@ import {
   isShareSrc,
   SHAREPIC_EMOJI,
   sharepicEmojiCode,
+  shareCanvasPreviewUrl,
+  shareThumbnailPreviewUrl,
+  STOCK_CATEGORY_LABELS,
   SYSTEM_STICKERS,
   type SharepicEmoji,
 } from '@gruenerator/contracts';
 
+import { GRUENE_AI_ILLUSTRATIONS } from './grueneAiIllustrations';
+import { UNDRAW_FEATURED } from '../utils/illustrations/undraw';
+
+import { GRUENE_ELEMENT_PANEL } from './grueneElementPanel';
 import { ALL_ASSETS, TEMPLATE_ASSETS } from './grueneAssets';
 
 export { registerAssetCatalog } from '@ggraphic/editor/utils/canvasAssets';
@@ -119,6 +126,10 @@ export function stickerAssetsForLocale(locale: AssetAudience): UniversalAsset[] 
  */
 const GRUENE_ILLUSTRATIONS: IllustrationSources = {
   basePath: '/illustrations',
+  aiPicks: GRUENE_AI_ILLUSTRATIONS,
+  featured: UNDRAW_FEATURED,
+  // The Kawaii characters keep the brand tanne.
+  kawaiiColor: '#005437',
   loadKawaii: () =>
     import('@ggraphic/editor/utils/illustrations/kawaii').then((m) => m.KAWAII_ILLUSTRATIONS),
   loadSvg: async () =>
@@ -135,9 +146,38 @@ const GRUENE_ILLUSTRATIONS: IllustrationSources = {
     ).flat(),
 };
 
+/**
+ * German names for the bundled stock photos' `category`, so "Mobilität" finds
+ * the whole group. Single words only: a word list per category made every
+ * photo in it match "Wind" or "Fahrrad"; the search's own German→English
+ * dictionary reaches the English tags and alt text of the right photos instead.
+ */
+const STOCK_CATEGORY_NAMES: Record<string, string> = {
+  agriculture: 'Landwirtschaft',
+  economy: 'Wirtschaft',
+  health: 'Gesundheit',
+  housing: 'Wohnen',
+  media: 'Medien',
+  urban: 'Stadt',
+};
+
+const STOCK_PHOTO_PATH = '/api/image-picker/stock-image/';
+
 export const GRUENE_ASSET_CATALOG: CanvasAssetCatalog = {
   assets: [...ALL_ASSETS, ...TEMPLATE_ASSETS, ...EMOJI_ASSETS, ...STICKER_ASSETS],
+  // The template variants resolve but are not offered in the picker.
+  offered: [...ALL_ASSETS, ...EMOJI_ASSETS, ...STICKER_ASSETS],
   isInstanceSrc: isShareSrc,
   emojiSrc: emojiCodeSrc,
   illustrations: GRUENE_ILLUSTRATIONS,
+  imageUrls: {
+    thumbnail: shareThumbnailPreviewUrl,
+    preview: (src, width) => shareCanvasPreviewUrl(src, width) ?? src,
+    shareDownload: (shareToken) => `/api/share/${shareToken}/download`,
+    stockPhoto: (filename) => `${STOCK_PHOTO_PATH}${encodeURIComponent(filename)}`,
+    isStockPhoto: (url) => url.startsWith(STOCK_PHOTO_PATH),
+  },
+  stockCategoryName: (category) =>
+    STOCK_CATEGORY_LABELS[category] ?? STOCK_CATEGORY_NAMES[category] ?? null,
+  elementPanel: GRUENE_ELEMENT_PANEL,
 };

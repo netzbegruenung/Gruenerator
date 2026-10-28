@@ -393,6 +393,15 @@ export const en: Messages = {
       loadMore: 'Load more',
       loading: 'Loading …',
       noMatch: (noun: string, q: string) => `No ${noun} for “${q}”.`,
+      scope: { shop: 'Discover', mine: 'Mine', saved: 'Saved' },
+      plural: { sticker: 'stickers', background: 'backgrounds' },
+      empty: (noun: string, scope: 'shop' | 'mine' | 'saved') =>
+        scope === 'shop'
+          ? `There are no ${noun} under “Discover” yet.`
+          : scope === 'mine'
+            ? `You have no ${noun} of your own yet.`
+            : `You have not saved any ${noun} yet.`,
+      loadFailed: (noun: string) => `Could not load ${noun}.`,
       itemLabel: (title: string, sticker: boolean) =>
         `${sticker ? 'Add' : 'Use as background:'} ${title}`,
     },
@@ -474,6 +483,16 @@ export const en: Messages = {
       savingToUploads: 'Saving to uploads…',
       editError: 'Could not edit the image',
       editPlaceholder: 'Editing instruction (e.g. "Replace the sky with a sunset")',
+      imageNoUrl: 'The image has no loadable URL',
+      imageFetchFailed: 'The image could not be loaded',
+      unsplashLimit: {
+        title: 'Unsplash search used up for now',
+        body: (owner: string, time: string) =>
+          `${owner} shares 50 Unsplash searches per hour. Available again at about ${time}. The built-in photos keep working.`,
+        defaultOwner: 'The editor',
+        remaining: (n: number) =>
+          `${n} ${n === 1 ? 'Unsplash search' : 'Unsplash searches'} left this hour`,
+      },
       altText: {
         capturing: 'Capturing pages…',
         writingAlt: 'Writing alt text…',

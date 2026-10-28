@@ -5,10 +5,10 @@ import { useUserUploads } from '@ggraphic/editor/sidebar/UserUploadsProvider';
 import { useCallback, useState } from 'react';
 import { HiSparkles } from 'react-icons/hi';
 
-import { useAiImageGeneration, type AiVariant } from '../../../hooks/useAiImageGeneration';
-import { MOBILE_INPUT_TEXT } from '../../sidebarStyles';
+import { useAiImageGeneration, type AiVariant } from '../../../hooks/useAiImageGeneration.js';
+import { MOBILE_INPUT_TEXT } from '../../sidebarStyles.js';
 
-import { ToolPanel, type ToolPanelSuccess } from './ToolPanel';
+import { ToolPanel, type ToolPanelSuccess } from './ToolPanel.js';
 
 const aiVariantOptions = (t: Messages): { value: AiVariant; label: string }[] => [
   { value: 'realistic', label: t.sidebar.tools.variantRealistic },

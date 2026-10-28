@@ -24,3 +24,8 @@ export function activeBrand(): BrandPack {
 export function registeredBrands(): readonly BrandPack[] {
   return registered;
 }
+
+/** The active brand's headline family as a CSS stack, for canvas and SVG text a tool draws itself. */
+export function headlineFontStack(): string {
+  return `"${activeBrand().fonts.headline}", sans-serif`;
+}

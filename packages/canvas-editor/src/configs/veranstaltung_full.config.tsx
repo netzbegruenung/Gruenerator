@@ -11,7 +11,7 @@ import { PiFrameCornersFill, PiSquaresFourFill, PiTextAa } from 'react-icons/pi'
 
 import { CANVAS_RECOMMENDED_ASSETS } from '../brand/grueneAssets';
 import { AssetsSection, FrameSettingsSection } from '../sidebar/sections';
-import { CombinedTextSection } from '../sidebar/sections/CombinedTextSection';
+import { CombinedTextSection } from '@ggraphic/editor/sidebar/sections/CombinedTextSection';
 import { VERANSTALTUNG_CONFIG, calculateVeranstaltungLayout } from '../utils/veranstaltungLayout';
 
 import { chatTab, createCommonSectionEntries, toolsTab, uploadsTab } from './commonSections';
@@ -28,9 +28,9 @@ import {
   createUserImageActions,
 } from './factory/actionFactories';
 import { makeSectionDefiner } from '@ggraphic/editor/configs/factory/defineSection';
-import { injectFeatureProps } from './featureInjector';
+import { injectFeatureProps } from '@ggraphic/editor/configs/featureInjector';
 import { PLACEHOLDER_TEXT } from '@ggraphic/editor/configs/placeholders';
-import { createShareSection } from './shareSection';
+import { createShareSection } from '@ggraphic/editor/configs/shareSection';
 
 import type { SharepicAiCapabilities } from './aiCapabilities';
 import type { StockImageAttribution } from '@ggraphic/editor/common/imageSourceTypes';

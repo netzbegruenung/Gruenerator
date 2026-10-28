@@ -5,9 +5,9 @@ export {
   type CollaborationConfig,
   type CollaborationState,
   type UseCollaborationOptions,
-} from './useCollaboration';
+} from './useCollaboration.js';
 export {
   createDocCacheRegistry,
   type DocCacheRegistry,
   type DocCacheStorage,
-} from './docCacheRegistry';
+} from './docCacheRegistry.js';

@@ -38,7 +38,7 @@ const SOURCES = [
   { group: 'canvas', file: 'packages/canvas-editor/src/configs/freeform_full.config.tsx' },
   { group: 'canvas', file: 'packages/canvas-editor/src/configs/commonSections.ts' },
   { group: 'canvas', file: 'packages/canvas-editor/src/components/CanvasEditor/vorlagenTab.ts' },
-  { group: 'canvas', file: 'packages/canvas-editor/src/configs/shareSection.ts' },
+  { group: 'canvas', file: 'packages/ggraphic-editor/src/configs/shareSection.ts' },
 ];
 
 function stringProp(obj, name) {
@@ -130,7 +130,7 @@ function generate() {
   // Download has no catalog id. Identify its actual JSX button by its icon,
   // so changing the label flows through, while removing the button fails here.
   const downloads = [];
-  walk(parse('packages/canvas-editor/src/components/TopBar/ShareDropdown.tsx'), (node) => {
+  walk(parse('packages/ggraphic-editor/src/components/TopBar/ShareDropdown.tsx'), (node) => {
     if (!ts.isJsxSelfClosingElement(node) || node.tagName.getText() !== 'IconButton') return;
     const attrs = node.attributes.properties.filter(ts.isJsxAttribute);
     const icon = attrs.find((attr) => attr.name.getText() === 'icon')?.initializer;

@@ -1,7 +1,7 @@
-export { applyOperation } from './applyOperation';
-export type { ApplyResult, CanvasAiActionsBase } from './applyOperation';
+export { applyOperation } from '@ggraphic/editor/ai/applyOperation';
+export type { ApplyResult, CanvasAiActionsBase } from '@ggraphic/editor/ai/applyOperation';
 export { buildAssetCapability } from './assetCapability';
-export { buildIllustrationCapability } from './illustrationCapability';
+export { buildIllustrationCapability } from '@ggraphic/editor/ai/illustrationCapability';
 export type {
   CanvasAiApplyOverride,
   CanvasAiApplyOverrides,

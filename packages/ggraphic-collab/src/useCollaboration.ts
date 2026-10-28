@@ -4,7 +4,7 @@ import * as Y from 'yjs';
 import { HocuspocusProvider } from '@hocuspocus/provider';
 import { IndexeddbPersistence } from 'y-indexeddb';
 
-import { createDocCacheRegistry, type DocCacheStorage } from './docCacheRegistry';
+import { createDocCacheRegistry, type DocCacheStorage } from './docCacheRegistry.js';
 
 export interface CollaborationConfig {
   url: string;

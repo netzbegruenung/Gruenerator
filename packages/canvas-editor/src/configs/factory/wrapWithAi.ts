@@ -1,6 +1,6 @@
 import { createChatSection } from '../commonSections';
 
-import type { CanvasAiActionsBase } from '../../ai/applyOperation';
+import type { CanvasAiActionsBase } from '@ggraphic/editor/ai/applyOperation';
 import type { CanvasConfigId } from '../../templates/registry';
 import type { SharepicAiCapabilities } from '../aiCapabilities';
 import type { FullCanvasConfig } from '@ggraphic/editor/configs/types';

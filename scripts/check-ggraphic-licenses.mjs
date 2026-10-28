@@ -26,6 +26,7 @@ export const ALLOWED = new Set([
   'MPL-2.0',
   'CC0-1.0',
   'OFL-1.1',
+  'Zlib',
 ]);
 
 export const ROOT_PACKAGES = ['ggraphic-schema', 'ggraphic-core', 'ggraphic-editor', 'ggraphic-collab'];

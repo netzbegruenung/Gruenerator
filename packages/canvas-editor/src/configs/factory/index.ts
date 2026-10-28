@@ -29,7 +29,10 @@ export { createAiCapabilities } from './createAiCapabilities';
 export type { AiTextField, CreateAiCapabilitiesOptions } from './createAiCapabilities';
 
 export { fromLayout } from '@ggraphic/editor/configs/factory/layoutAccessors';
-export { createPrimaryText, createSecondaryText } from './createTextElement';
+export {
+  createPrimaryText,
+  createSecondaryText,
+} from '@ggraphic/editor/configs/factory/createTextElement';
 export { makeSectionDefiner } from '@ggraphic/editor/configs/factory/defineSection';
 export {
   carryInstanceState,

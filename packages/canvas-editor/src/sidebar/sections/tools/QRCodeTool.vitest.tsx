@@ -1,8 +1,9 @@
+import { CanvasEditorProvider } from '@ggraphic/editor/CanvasEditorProvider';
 import { act, fireEvent, render, screen } from '@testing-library/react';
 import { useEffect, useRef } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { QRCodeTool } from './QRCodeTool';
+import { QRCodeTool } from '@ggraphic/editor/sidebar/sections/tools/QRCodeTool';
 
 const finish = vi.fn(async (_file: File) => ({ itemName: 'qr', placedOnCanvas: true }));
 
@@ -36,7 +37,11 @@ describe('QRCodeTool', () => {
   afterEach(() => vi.useRealTimers());
 
   it('redraws the preview only once typing pauses', () => {
-    render(<QRCodeTool />);
+    render(
+      <CanvasEditorProvider services={{ qrPreviewUrl: 'https://gruenerator.eu' }}>
+        <QRCodeTool />
+      </CanvasEditorProvider>
+    );
     const qr = screen.getByTestId('qr');
 
     typeInto('https://a');
@@ -56,7 +61,11 @@ describe('QRCodeTool', () => {
   });
 
   it('inserts the current input even before the preview caught up', async () => {
-    render(<QRCodeTool />);
+    render(
+      <CanvasEditorProvider services={{ qrPreviewUrl: 'https://gruenerator.eu' }}>
+        <QRCodeTool />
+      </CanvasEditorProvider>
+    );
     typeInto('https://gruene.de');
 
     await act(async () => {

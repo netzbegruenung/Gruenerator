@@ -9,8 +9,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { axe } from '../../../test-utils';
 
-import { ToolsSection } from './ToolsSection';
-import { UnsplashTool } from './UnsplashTool';
+import { ToolsSection } from '@ggraphic/editor/sidebar/sections/tools/ToolsSection';
+import { UnsplashTool } from '@ggraphic/editor/sidebar/sections/tools/UnsplashTool';
 
 import type { StockImage } from '@ggraphic/editor/common/imageSourceTypes';
 
@@ -37,6 +37,7 @@ function setup(total = 3) {
   const onPlaceImageUrl = vi.fn();
   const services: CanvasEditorServices = {
     searchUnsplashImages,
+    unsplashUtmSource: 'gruenerator',
     trackUnsplashDownloadLive,
     uploadImage,
     // The host's search-state hook, as apps/web passes it.

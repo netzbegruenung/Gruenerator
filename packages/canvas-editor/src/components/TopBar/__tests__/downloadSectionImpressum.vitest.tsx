@@ -7,7 +7,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { composePrintImpressum, PRINT_IMPRESSUM_ID } from '../../../composer/composePrint';
 import { impressumLine, type ImpressumLocale } from '../../../composer/printImpressum';
 import { grueneratorPrint } from '../../../composer/printService';
-import { DownloadSection } from '../DownloadSection';
+import { DownloadSection } from '@ggraphic/editor/components/TopBar/DownloadSection';
 
 /** Stands in for the editor: the gate text lives in "canvas state" and the form writes to it. */
 function Harness({

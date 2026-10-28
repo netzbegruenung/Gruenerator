@@ -1,9 +1,11 @@
+import { CanvasEditorProvider } from '@ggraphic/editor/CanvasEditorProvider';
 import { PRINT_UNGETESTET_HINWEIS } from '@gruenerator/contracts';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 
-import { DownloadSection } from '../DownloadSection';
+import { grueneratorPrint } from '../../../composer/printService';
+import { DownloadSection } from '@ggraphic/editor/components/TopBar/DownloadSection';
 
 describe('DownloadSection print export', () => {
   it('defaults to the PDF and downloads it instead of the raster export', async () => {
@@ -38,11 +40,13 @@ describe('DownloadSection print export', () => {
 
   it('says that the print results are untested', () => {
     render(
-      <DownloadSection
-        onDownload={vi.fn()}
-        pageCount={1}
-        printExport={{ onDownloadPdf: vi.fn(), getWarnings: () => [] }}
-      />
+      <CanvasEditorProvider services={{ print: grueneratorPrint }}>
+        <DownloadSection
+          onDownload={vi.fn()}
+          pageCount={1}
+          printExport={{ onDownloadPdf: vi.fn(), getWarnings: () => [] }}
+        />
+      </CanvasEditorProvider>
     );
     expect(screen.getByText(PRINT_UNGETESTET_HINWEIS)).toBeTruthy();
   });

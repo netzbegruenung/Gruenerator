@@ -3,7 +3,7 @@ import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { MobileSelectionBar } from '../MobileSelectionBar';
+import { MobileSelectionBar } from '@ggraphic/editor/components/TopBar/MobileSelectionBar';
 
 /**
  * Mobil öffnet eine Auswahl kein Sheet mehr: die untere Leiste trägt die
