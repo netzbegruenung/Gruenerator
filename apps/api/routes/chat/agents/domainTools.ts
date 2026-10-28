@@ -178,31 +178,32 @@ export function makeBundestagTool(ctx: {
 }): Tool {
   const { state, sourceRegistry } = ctx;
   return tool({
-    description: `Findet Bundestags-Dokumente (DIP): Drucksachen und Plenardebatten, mit Filtern (Wahlperiode, Typ, Urheber, Datum, Deskriptor, Titel). Liefert eine Liste mit Refs, nur Metadaten, und je Vorgang den Beratungsverlauf (Beratungen, Beschlüsse mit Plenarprotokoll und Seite, Bundesrat, Verkündung). Mit modus 'zaehlen' exakte Zahlen statt Liste, mit ref alle Dokumente eines Vorgangs. Nur Deutschland.
+    description: `Findet Bundestags-Dokumente (DIP): Drucksachen und Plenardebatten, mit Filtern. Liefert Refs (nur Metadaten) und je Vorgang den Beratungsverlauf (Beschlüsse mit Plenarprotokoll und Seite, Bundesrat, Verkündung).
 
-Nicht für Inhalte, dafür parlament_lesen. Nicht für das, was eine Person oder Fraktion im Plenum gesagt hat, dafür bundestag_reden. Nicht für Abstimmungsverhalten oder Nebentätigkeiten, dafür abgeordnetenwatch.`,
+Nicht für Inhalte, dafür parlament_lesen. Nicht für Reden im Plenum, dafür bundestag_reden. Nicht für Abstimmungsverhalten oder Nebentätigkeiten, dafür abgeordnetenwatch.`,
     inputSchema: z.object({
       query: z
         .string()
         .min(1)
         .optional()
-        .describe('Suchbegriff: Person, Thema oder Drucksachennummer; bei `ref` entbehrlich'),
+        .describe('Person, Thema oder Drucksachennummer; entbehrlich mit `ref` oder Filtern'),
       modus: bundestagModusSchema
         .optional()
         .describe(
-          "'zaehlen' bei „wie viele“, „wie oft“, „Anzahl“: liefert exakte Zahlen (DIP-Trefferzahl) statt einer Liste; das Thema dann über `titel` oder `deskriptor` eingrenzen, `query` zählt nicht mit. Sonst weglassen."
+          "'zaehlen' bei „wie viele“, „wie oft“, „Anzahl“: exakte DIP-Zahl statt Liste; Thema dann über `titel`/`deskriptor`, `query` zählt nicht mit. Sonst weglassen."
         ),
       gruppieren: bundestagGruppierenSchema
         .optional()
         .describe(
-          "Nur mit modus 'zaehlen': Aufteilung nach 'fraktion' („welche Fraktion“), 'monat' („pro Monat“, „Verlauf“) oder 'typ' (Art der Drucksache)"
+          "Nur mit 'zaehlen': nach 'fraktion' („welche Fraktion“), 'monat' („pro Monat“) oder 'typ' (Drucksachenart)"
         ),
       ref: bundestagRefSchema
         .optional()
         .describe(
-          "Drucksachennummer, z. B. '21/3546': liefert alle Dokumente desselben Vorgangs (Anfrage und Antwort; Entwurf, Beschlussempfehlung, Lesungen, Bundesrat, Verkündung) und den Beratungsverlauf. Für „wie ging es weiter“, „gibt es eine Antwort“."
+          "Drucksachennummer, z. B. '21/3546': alle Dokumente des Vorgangs samt Beratungsverlauf. Für „wie ging es weiter“, „gibt es eine Antwort“."
         ),
-      ...bundestagFilterSchema.omit({ dokumentnummer: true }).shape,
+      // `mitBeratung` steuert nur den Kern (Beratungsabschnitte im Volltext), kein Modellargument.
+      ...bundestagFilterSchema.omit({ dokumentnummer: true, mitBeratung: true }).shape,
     }),
     execute: async ({ query, modus, gruppieren, ref, ...args }) => {
       if (ref && ref.startsWith('PlPr')) {

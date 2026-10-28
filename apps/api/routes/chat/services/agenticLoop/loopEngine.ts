@@ -351,7 +351,8 @@ export function buildPrepareStep(
    * `extraSystem`: die Menge wächst mitten im Lauf, wenn das Modell einen Lader
    * ruft. Ein einmal eingefangenes Array wäre der Stand von Schritt 0.
    */
-  activeTools: () => readonly string[] | undefined = () => undefined,
+  activeTools: (steps?: ReadonlyArray<PreparedStepView>) => readonly string[] | undefined = () =>
+    undefined,
   /**
    * Welche Werkzeuge der ERZWUNGENE erste Schritt sieht (`forcedFirstStepTools`),
    * oder `null` für den vollen Umfang. Nur auf Schritt 0 gelesen, und nur
@@ -366,7 +367,7 @@ export function buildPrepareStep(
   // Eine Nudge pro Zug: scheitert auch der zweite Versuch, bleibt es dabei.
   let retryNudged = false;
   return ({ stepNumber, steps }) => {
-    const active = activeTools();
+    const active = activeTools(steps);
     // Auf JEDEM Zweig, nicht nur dem letzten: `toolChoice: 'none'` unterdrückt
     // den Aufruf, nicht die Definitionen — der Katalog wird auch auf dem
     // Schlussschritt mitgeschickt und bezahlt.
@@ -603,7 +604,7 @@ export interface LoopEngineParams {
    * alle, also das Verhalten vor `toolScope.ts`. Getter: eine zurückgestellte
    * Gruppe kann sich mitten im Lauf öffnen.
    */
-  activeTools?: () => readonly string[] | undefined;
+  activeTools?: (steps?: ReadonlyArray<PreparedStepView>) => readonly string[] | undefined;
   /** Names the tool that first step must call, when an @-mention pinned one. */
   firstToolName?: string | null;
   /** Tool set the forced first step sees (`forcedFirstStepTools`); null = full scope. */

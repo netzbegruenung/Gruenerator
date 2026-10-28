@@ -814,7 +814,7 @@ export async function streamAgenticResponse(
       // Der Katalog ist vollständig montiert; welcher Schritt was davon
       // mitschickt, entscheidet der Umfang (toolScope.ts). Getter, weil ein
       // Lader die Menge mitten im Lauf erweitern kann.
-      activeTools: () => assembled.toolScope.activeTools(),
+      activeTools: (steps) => assembled.toolScope.activeTools(steps),
       forceFirstToolCall,
       firstToolName,
       firstStepTools,
