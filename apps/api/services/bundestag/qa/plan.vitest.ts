@@ -244,14 +244,19 @@ describe('planFilters beratungsstand', () => {
       'Bundesrat hat zugestimmt',
     ]);
   });
-  it('Modellwert gilt ohne Wortlaut, unbekannte Werte fallen weg; explicit schlägt erkannt', async () => {
-    model({ keywords: ['artenschutz'], beratungsstand: ['Abgelehnt', 'Quatsch'] });
+  it('Modell setzt keinen Stand (nur Wortlaut oder explicit); explicit schlägt erkannt', async () => {
+    model({
+      keywords: ['artenschutz'],
+      beratungsstand: ['Abgelehnt'],
+      urheber: ['Fraktion der SPD'],
+    });
     const r = await planFilters({
       question: 'Artenschutz im Bundestag',
       explicit: {},
       dip: dipWith({}),
     });
-    expect(r.filters.beratungsstand).toEqual(['Abgelehnt']);
+    expect(r.filters.beratungsstand).toBeUndefined();
+    expect(r.filters.urheber).toBeUndefined();
     model({ keywords: ['artenschutz'] });
     const e = await planFilters({
       question,

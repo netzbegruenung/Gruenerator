@@ -4,13 +4,7 @@
  * ein Modellaufruf für den Rest. Die Stufe wirft nie — fällt das Modell aus,
  * bleiben die deterministischen Filter plus Notiz.
  */
-import {
-  bundestagDrucksachetypSchema,
-  bundestagFilterSchema,
-  bundestagBeratungsstandSchema,
-  bundestagUrheberSchema,
-  type BundestagFilter,
-} from '@gruenerator/contracts';
+import { bundestagFilterSchema, type BundestagFilter } from '@gruenerator/contracts';
 import { z } from 'zod';
 
 import { createLogger } from '../../../utils/logger.js';
@@ -105,13 +99,16 @@ function detectDeterministic(question: string): BundestagFilter {
   return { ...detectFromWording(question), ...found };
 }
 
-/** Was das Modell liefern darf: die übrigen Filter plus Suchwörter. Unbekannte Enum-Werte fallen weg. */
+/**
+ * Was das Modell liefern darf: offene Filter plus Suchwörter. Typ, Urheber und
+ * Beratungsstand kommen nur aus dem Wortlaut (`detectDeterministic`) oder von
+ * der Aufrufer*in: live setzte das Modell auf „Was wurde zu Artenschutz
+ * beschlossen?" alle sieben Urheber und drei Typen und engte die Suche damit
+ * auf drei Treffer ein.
+ */
 const modelOutputSchema = z.object({
   keywords: z.array(z.string().min(2).max(60)).min(1).max(MAX_KEYWORDS),
   wahlperiode: z.array(z.number().int().min(1).max(30)).max(3).optional(),
-  drucksachetyp: z.array(z.string()).optional(),
-  urheber: z.array(z.string()).optional(),
-  beratungsstand: z.array(z.string()).optional(),
   // Datum nur als String prüfen; ein krummes Datum soll nicht die ganze Antwort kippen.
   datumVon: z.string().optional(),
   datumBis: z.string().optional(),
@@ -124,9 +121,6 @@ const MODEL_JSON_SCHEMA = {
   properties: {
     keywords: { type: 'array', items: { type: 'string' } },
     wahlperiode: { type: 'array', items: { type: 'integer' } },
-    drucksachetyp: { type: 'array', items: { type: 'string' } },
-    urheber: { type: 'array', items: { type: 'string' } },
-    beratungsstand: { type: 'array', items: { type: 'string' } },
     datumVon: { type: 'string' },
     datumBis: { type: 'string' },
     deskriptor: { type: 'array', items: { type: 'string' } },
@@ -134,15 +128,6 @@ const MODEL_JSON_SCHEMA = {
   },
   required: ['keywords'],
 };
-
-function keepKnown<T extends string>(values: string[] | undefined, schema: z.ZodType<T>): T[] {
-  const out: T[] = [];
-  for (const v of values ?? []) {
-    const p = schema.safeParse(v);
-    if (p.success && !out.includes(p.data)) out.push(p.data);
-  }
-  return out;
-}
 
 const ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -184,9 +169,6 @@ function topicWords(keywords: string[]): string[] {
 
 const SYSTEM = `Du übersetzt eine Frage zum Deutschen Bundestag in Suchfilter für die DIP-Datenbank.
 Gib nur Filter an, die die Frage wirklich nennt oder klar nahelegt. Lass alles andere weg.
-- drucksachetyp, erlaubte Werte: ${bundestagDrucksachetypSchema.options.join(' | ')}
-- urheber, erlaubte Werte: ${bundestagUrheberSchema.options.join(' | ')}. „Grüne" bedeutet „Fraktion BÜNDNIS 90/DIE GRÜNEN".
-- beratungsstand (Stand des Vorgangs), erlaubte Werte: ${bundestagBeratungsstandSchema.options.join(' | ')}. „beschlossen/verabschiedet/in Kraft" = Verkündet, Angenommen, Verabschiedet; „abgelehnt" = Abgelehnt. Nur setzen, wenn die Frage einen Stand nennt.
 - Die aktuelle Wahlperiode ist die ${CURRENT_WAHLPERIODE}. (seit 2025). „diese/aktuelle/laufende Wahlperiode" = ${CURRENT_WAHLPERIODE}. Die 20. war 2021–2025 (Ampel).
 - deskriptor: Deskriptoren sind Thesaurus-Schlagwörter im Singular. Schlage für jedes inhaltliche Themennomen der Frage 1–2 Deskriptoren vor (Wärmepumpen → Wärmepumpe; Wärmepumpenförderung → Wärmepumpe; Mietpreisbremse → Mietpreisbremse; Kindergrundsicherung → Kindergrundsicherung). Höchstens 4.
 - Fraktionsnamen, Dokumenttypen und „Bundesregierung" gehören nie in keywords oder deskriptor.
@@ -235,14 +217,8 @@ export async function planFilters({
     const out = await modelFilters(question);
     if (out) {
       keywords = out.keywords;
-      const drucksachetyp = keepKnown(out.drucksachetyp, bundestagDrucksachetypSchema);
-      const urheber = keepKnown(out.urheber, bundestagUrheberSchema);
-      const beratungsstand = keepKnown(out.beratungsstand, bundestagBeratungsstandSchema);
       fromModel = {
         ...(out.wahlperiode?.length ? { wahlperiode: out.wahlperiode } : {}),
-        ...(drucksachetyp.length ? { drucksachetyp } : {}),
-        ...(urheber.length ? { urheber } : {}),
-        ...(beratungsstand.length ? { beratungsstand } : {}),
         ...(isoDate(out.datumVon, 'datumVon', notes) ? { datumVon: out.datumVon } : {}),
         ...(isoDate(out.datumBis, 'datumBis', notes) ? { datumBis: out.datumBis } : {}),
         ...(out.deskriptor?.length ? { deskriptor: out.deskriptor } : {}),
