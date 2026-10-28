@@ -63,7 +63,7 @@ import React, {
 } from 'react';
 
 import { shareImageText } from '../../configs/shareSection';
-import { exportPptxDeck } from '../../export/pptx/exportPptxDeck';
+import { exportPptxDeck } from '@ggraphic/editor/export/pptx/exportPptxDeck';
 import {
   exportPrintPdf,
   lowResolutionWarnings,
@@ -101,11 +101,11 @@ import { PageThumbnailStrip } from '../PageThumbnailStrip';
 import { SlideNotesPanel } from '@ggraphic/editor/components/SlideNotesPanel';
 import { AddPageButton, TemplatePickerFlyout } from '../TemplatePickerFlyout';
 import { Toolbar } from '../Toolbar';
-import { ContextToolbar } from '../TopBar/ContextToolbar';
-import { MobileSelectionBar } from '../TopBar/MobileSelectionBar';
-import { MobileSelectionControls } from '../TopBar/MobileSelectionControls';
+import { ContextToolbar } from '@ggraphic/editor/components/TopBar/ContextToolbar';
+import { MobileSelectionBar } from '@ggraphic/editor/components/TopBar/MobileSelectionBar';
+import { MobileSelectionControls } from '@ggraphic/editor/components/TopBar/MobileSelectionControls';
 import { FloatingAiSuggestionBanner } from '@ggraphic/editor/components/TopBar/modules/FloatingAiSuggestionBanner';
-import { MultiSelectionToolbar } from '../TopBar/MultiSelectionToolbar';
+import { MultiSelectionToolbar } from '@ggraphic/editor/components/TopBar/MultiSelectionToolbar';
 
 import { autoSwitchTab } from '@ggraphic/editor/components/CanvasEditor/autoSwitchTab';
 import {

@@ -9,8 +9,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { axe } from '../../../test-utils';
 
-import { ToolsSection } from './ToolsSection';
-import { UnsplashTool } from './UnsplashTool';
+import { ToolsSection } from '@ggraphic/editor/sidebar/sections/tools/ToolsSection';
+import { UnsplashTool } from '@ggraphic/editor/sidebar/sections/tools/UnsplashTool';
 
 import type { StockImage } from '@ggraphic/editor/common/imageSourceTypes';
 

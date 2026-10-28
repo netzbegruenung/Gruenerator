@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 import {
   TOOLBAR_ITEMS_WITH_INPUTS,
   useRovingToolbar,

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 import { useMessages, type Messages } from '@ggraphic/editor/i18n/messages';
 import { useCanvasStoreSelector } from '@ggraphic/editor/stores/CanvasStoreProvider';
 import { cn } from '@ggraphic/editor/utils/cn';

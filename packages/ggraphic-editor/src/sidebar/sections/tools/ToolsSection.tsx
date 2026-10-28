@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 import { useCanvasEditorServices } from '@ggraphic/editor/CanvasEditorProvider';
 import { headlineFontStack } from '@ggraphic/editor/brand/brandRegistry';
 import { useMessages } from '@ggraphic/editor/i18n/messages';

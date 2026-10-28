@@ -26,8 +26,8 @@ export { BadgeSection } from './BadgeSection';
 export type { BadgeSectionProps } from './BadgeSection';
 export { BalkenSettingsSection } from './BalkenSettingsSection';
 export type { BalkenSettingsSectionProps } from './BalkenSettingsSection';
-export { FrameSettingsSection } from './FrameSettingsSection';
-export type { FrameSettingsSectionProps } from './FrameSettingsSection';
+export { FrameSettingsSection } from '@ggraphic/editor/sidebar/sections/FrameSettingsSection';
+export type { FrameSettingsSectionProps } from '@ggraphic/editor/sidebar/sections/FrameSettingsSection';
 export { FormenSection } from '@ggraphic/editor/sidebar/sections/FormenSection';
 export type { FormenSectionProps } from '@ggraphic/editor/sidebar/sections/FormenSection';
 export * from './dreizeilen';
@@ -49,10 +49,14 @@ export const GenericShareSection = lazy(() =>
 export type { GenericShareSectionProps } from '@ggraphic/editor/sidebar/sections/GenericShareSection';
 
 export const UploadsSection = lazy(() =>
-  import('./UploadsSection').then((m) => ({ default: m.UploadsSection }))
+  import('@ggraphic/editor/sidebar/sections/UploadsSection').then((m) => ({
+    default: m.UploadsSection,
+  }))
 );
-export type { UploadsSectionProps } from './UploadsSection';
+export type { UploadsSectionProps } from '@ggraphic/editor/sidebar/sections/UploadsSection';
 
 // Preloaded while the editor is idle (usePreloadTools), so the first open is instant.
-export const ToolsSection = lazyWithPreload(() => import('./tools').then((m) => m.ToolsSection));
-export type { ToolsSectionProps } from './tools';
+export const ToolsSection = lazyWithPreload(() =>
+  import('@ggraphic/editor/sidebar/sections/tools/index').then((m) => m.ToolsSection)
+);
+export type { ToolsSectionProps } from '@ggraphic/editor/sidebar/sections/tools/index';

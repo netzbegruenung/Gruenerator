@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 import { useMessages } from '@ggraphic/editor/i18n/messages';
 import { useCallback, useEffect, useState } from 'react';
 import { FaTrash } from 'react-icons/fa';

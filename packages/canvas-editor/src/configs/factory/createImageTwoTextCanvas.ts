@@ -16,7 +16,7 @@ import { PiFrameCornersFill, PiSquaresFourFill, PiTextAa } from 'react-icons/pi'
 
 import { AssetsSection, CombinedTextSection, FrameSettingsSection } from '../../sidebar/sections';
 import { chatTab, createCommonSectionEntries, toolsTab, uploadsTab } from '../commonSections';
-import { injectFeatureProps } from '../featureInjector';
+import { injectFeatureProps } from '@ggraphic/editor/configs/featureInjector';
 import { getPlaceholder } from '@ggraphic/editor/configs/placeholders';
 import { createShareSection } from '../shareSection';
 

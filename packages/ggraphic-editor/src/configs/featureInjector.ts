@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /**
  * Feature Injector - Convention-Based Auto-Wiring
  *

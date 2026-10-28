@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 import { useMobileSheet } from '@ggraphic/editor/hooks/useMobileSheet';
 import { useMessages } from '@ggraphic/editor/i18n/messages';
 import { cn } from '@ggraphic/editor/utils/cn';

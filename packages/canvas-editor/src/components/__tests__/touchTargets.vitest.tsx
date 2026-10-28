@@ -18,7 +18,7 @@ import { PiTextAa } from 'react-icons/pi';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { CombinedTextSection } from '@ggraphic/editor/sidebar/sections/CombinedTextSection';
-import { SidebarPanel } from '../../sidebar/SidebarPanel';
+import { SidebarPanel } from '@ggraphic/editor/sidebar/SidebarPanel';
 import { SubsectionTabBar } from '@ggraphic/editor/sidebar/SubsectionTabBar';
 import { ContextControls } from '@ggraphic/editor/components/TopBar/ContextControls';
 

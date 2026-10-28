@@ -3,8 +3,8 @@ import userEvent from '@testing-library/user-event';
 import { PiImage, PiTextAa } from 'react-icons/pi';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { SidebarPanel } from '../SidebarPanel';
-import { SidebarTabBar } from '../SidebarTabBar';
+import { SidebarPanel } from '@ggraphic/editor/sidebar/SidebarPanel';
+import { SidebarTabBar } from '@ggraphic/editor/sidebar/SidebarTabBar';
 import { SubsectionTabBar } from '@ggraphic/editor/sidebar/SubsectionTabBar';
 
 import type { SidebarTab } from '@ggraphic/editor/sidebar/types';

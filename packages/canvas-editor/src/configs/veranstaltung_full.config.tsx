@@ -28,7 +28,7 @@ import {
   createUserImageActions,
 } from './factory/actionFactories';
 import { makeSectionDefiner } from '@ggraphic/editor/configs/factory/defineSection';
-import { injectFeatureProps } from './featureInjector';
+import { injectFeatureProps } from '@ggraphic/editor/configs/featureInjector';
 import { PLACEHOLDER_TEXT } from '@ggraphic/editor/configs/placeholders';
 import { createShareSection } from './shareSection';
 

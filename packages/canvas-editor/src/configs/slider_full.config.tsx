@@ -35,7 +35,7 @@ import { chatTab, createCommonSectionEntries, toolsTab, uploadsTab } from './com
 import { createBaseActions } from './factory/actionFactories';
 import { makeSectionDefiner } from '@ggraphic/editor/configs/factory/defineSection';
 import { fromLayout } from '@ggraphic/editor/configs/factory/layoutAccessors';
-import { injectFeatureProps } from './featureInjector';
+import { injectFeatureProps } from '@ggraphic/editor/configs/featureInjector';
 import { createShareSection } from './shareSection';
 
 import type { SharepicAiCapabilities } from './aiCapabilities';

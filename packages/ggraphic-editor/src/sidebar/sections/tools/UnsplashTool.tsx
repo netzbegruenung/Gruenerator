@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 import { useCanvasEditorServices } from '@ggraphic/editor/CanvasEditorProvider';
 import { useNoUnsplashSearch, type UnsplashSearchFn } from '@ggraphic/editor/hostServices';
 import { useMessages } from '@ggraphic/editor/i18n/messages';

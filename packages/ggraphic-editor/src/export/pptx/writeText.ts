@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /**
  * Ein Textfeld des Modells → `slide.addText`-Läufe und -Optionen.
  *

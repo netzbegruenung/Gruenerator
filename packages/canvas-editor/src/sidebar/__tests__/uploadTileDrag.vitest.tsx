@@ -5,7 +5,7 @@ import { fireEvent, render, screen } from '@testing-library/react';
 import React from 'react';
 import { describe, expect, it, vi } from 'vitest';
 
-import { UploadsSection } from '../sections/UploadsSection';
+import { UploadsSection } from '@ggraphic/editor/sidebar/sections/UploadsSection';
 
 /**
  * Eine Upload-Kachel lässt sich auf eine Seite ziehen (PageWrapper nimmt sie
