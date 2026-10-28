@@ -1,4 +1,7 @@
-import { type UserAgentShareMode } from '@gruenerator/contracts';
+import {
+  type SkillRole as ContractSkillRole,
+  type UserAgentShareMode,
+} from '@gruenerator/contracts';
 
 import { type LandesverbandContentType } from '../search/collections/landesverbandSources.js';
 
@@ -280,7 +283,7 @@ export const SKILL_CATEGORY_LABELS: Record<SkillCategory, string> = {
 export type LvEbene = 'partei' | 'fraktion';
 
 /** Siehe `Skill.rolle`. */
-export type SkillRole = 'textsorte' | 'methode';
+export type SkillRole = ContractSkillRole;
 
 export interface Skill {
   identifier: string;

@@ -8,7 +8,7 @@
  * deren Rede in der Seitenspanne beginnt. Fremde URLs nur auf
  * dserver.bundestag.de über https und erst nach `validateUrlForFetch`.
  */
-import { type BundestagCandidate } from '@gruenerator/contracts';
+import { type BundestagCandidate, type BundestagTextSource } from '@gruenerator/contracts';
 import * as cheerio from 'cheerio';
 
 import { createLogger } from '../../../utils/logger.js';
@@ -31,7 +31,7 @@ const DIP_PAGE_SIZE = 10;
 const FETCH_TIMEOUT_MS = 60_000;
 const DEBATE_REF_RE = /^PlPr (\d{1,2})\/(\d{1,4}) S\. (\d+)-(\d+)$/;
 
-export type TextSource = 'dip' | 'pdf' | 'protokoll' | 'missing';
+export type TextSource = BundestagTextSource;
 export type FetchedDoc = BundestagCandidate & { text: string; textSource: TextSource };
 
 /** Das Minimum, das wir vom Redis-Client brauchen; Tests reichen eine Map-Attrappe herein. */

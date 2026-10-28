@@ -19,6 +19,7 @@
  * Shaped after `sourceRegistry`, which solves the same gather→synthesise
  * hand-off for citations.
  */
+import { type SkillRole } from '@gruenerator/contracts';
 
 /**
  * How many TEXTSORTEN one turn may load. See `register`. Methoden-Rezepte
@@ -30,7 +31,7 @@ export const MAX_RECIPES_PER_TURN = 2;
 export const MAX_METHOD_RECIPES_PER_TURN = 2;
 
 /** Siehe `Skill.rolle`: `textsorte` formt den Text, `methode` die Recherche. */
-export type RecipeRole = 'textsorte' | 'methode';
+export type RecipeRole = SkillRole;
 
 export interface LoadedRecipe {
   mention: string;

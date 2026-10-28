@@ -3,7 +3,11 @@
  * Fenster einzeln und isoliert gelesen. Ein Punkt zählt nur, wenn sein Zitat
  * im Fenster auffindbar ist (`locateQuote`); sonst entfällt er.
  */
-import { type BundestagAuftrag, type BundestagPoint } from '@gruenerator/contracts';
+import {
+  type BundestagAuftrag,
+  type BundestagPoint,
+  type BundestagReadSkipped,
+} from '@gruenerator/contracts';
 
 import { createLogger } from '../../../utils/logger.js';
 import { aiObject, type AiCall } from '../../ai/generate.js';
@@ -35,7 +39,7 @@ export interface ReadResult {
   droppedPoints: number;
   windowsRead: number;
   windowsTotal: number;
-  skipped: 'budget' | 'deadline' | 'missing' | null;
+  skipped: BundestagReadSkipped | null;
   /** Nur mit Fokus: stand der Anker im Text? Ohne Fokus `null`. */
   fokusFound?: boolean | null;
   /** `aiObject` meldet keine Tokens; bis das ändert, bleibt es null statt erfunden. */
