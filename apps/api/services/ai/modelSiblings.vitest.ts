@@ -89,9 +89,10 @@ describe('modelSiblings', () => {
 
   it('für ein Modell ohne Geschwister liefert die Kette den nächsten Anbieter', () => {
     markSlow('greenpt', 'gemma4');
+    // Erstes Glied von GENERIC_FALLBACK = der Gemma-Primär, seit 28.10.2026 Melious.
     expect(resolveAlternative('greenpt', 'gemma4')).toEqual({
-      provider: 'cortecs',
-      model: 'gemma-4-31b-it',
+      provider: 'melious',
+      model: 'gemma-4-31b:balanced',
     });
   });
 
