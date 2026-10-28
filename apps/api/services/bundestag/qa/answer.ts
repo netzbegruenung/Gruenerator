@@ -41,16 +41,23 @@ const SKIP_REASON: Record<NonNullable<ReadResult['skipped']>, string> = {
   missing: 'nicht gelesen (kein Text verfügbar)',
 };
 
+function partial(r: ReadResult): boolean {
+  return r.skipped === null && r.windowsRead > 0 && r.windowsRead < r.windowsTotal;
+}
+
 /** Dokumente, die nichts zu den Punkten beigetragen haben, samt Grund. */
 export function unusedDocuments(results: readonly ReadResult[]): string[] {
   return results
-    .filter((r) => r.skipped !== null || r.points.length === 0)
+    .filter((r) => r.skipped !== null || r.points.length === 0 || partial(r))
     .map((r) => {
-      const reason = r.skipped
+      let reason = r.skipped
         ? SKIP_REASON[r.skipped]
-        : r.relevant
-          ? 'gelesen, aber ohne belegbare Aussage'
-          : 'gelesen, ohne Treffer zur Frage';
+        : r.points.length > 0
+          ? 'hat Punkte geliefert'
+          : r.relevant
+            ? 'gelesen, aber ohne belegbare Aussage'
+            : 'gelesen, ohne Treffer zur Frage';
+      if (partial(r)) reason += ' — nur teilweise gelesen';
       return `${r.doc.ref} (${r.doc.drucksachetyp}, ${r.doc.titel}): ${reason}`;
     });
 }
@@ -69,19 +76,24 @@ export function describeFilters(filters: BundestagFilter): string {
   return parts.length ? parts.join('; ') : 'keine Einschränkung';
 }
 
-/** Punkte global 1..n: je Dokument höchstens 4, in Dokumentreihenfolge, insgesamt höchstens `MAX_ANSWER_POINTS`. */
+/**
+ * Punkte global 1..n in Dokumentreihenfolge. Bis `MAX_ANSWER_POINTS` bleibt
+ * alles; erst darüber gilt „höchstens 4 je Dokument", danach der harte Schnitt.
+ */
 export function numberPoints(results: readonly ReadResult[]): {
   citations: Citation[];
   /** Parallel zu `citations`: Urheber des Dokuments, nur für den Prompt. */
   urheber: string[];
   capped: number;
 } {
+  const total = results.reduce((n, r) => n + r.points.length, 0);
+  const perDoc = total > MAX_ANSWER_POINTS ? MAX_POINTS_PER_DOC_IN_ANSWER : Infinity;
   const citations: Citation[] = [];
   const urheber: string[] = [];
   let capped = 0;
   for (const r of results) {
     r.points.forEach((p, i) => {
-      if (i >= MAX_POINTS_PER_DOC_IN_ANSWER || citations.length >= MAX_ANSWER_POINTS) {
+      if (i >= perDoc || citations.length >= MAX_ANSWER_POINTS) {
         capped++;
         return;
       }
@@ -182,7 +194,9 @@ export async function composeAnswer({
     ...pointLines,
     '',
     unused.length > 0
-      ? ['Dokumente ohne verwertbare Punkte:', ...unused.map((d) => `- ${d}`)].join('\n')
+      ? ['Dokumente ohne Punkte oder nur teilweise gelesen:', ...unused.map((d) => `- ${d}`)].join(
+          '\n'
+        )
       : 'Alle Dokumente wurden gelesen und haben Punkte geliefert.',
   ].join('\n');
 

@@ -116,6 +116,7 @@ describe('Belegprüfung', () => {
       zitat: 'aufgefordert,   die Förderung  zu erhöhen',
     });
     expect(r!.usage).toBeNull();
+    expect(r!.charsRead).toBe(src.length);
   });
 
   it('ein Einwort-Zitat, das im Text steht, entfällt', async () => {

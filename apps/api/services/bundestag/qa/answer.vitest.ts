@@ -51,14 +51,18 @@ describe('numberPoints', () => {
     ]);
   });
 
-  it('kappt auf 4 je Dokument und 40 insgesamt', () => {
-    const one = numberPoints([result('21/1', 9)]);
-    expect(one.citations).toHaveLength(4);
-    expect(one.capped).toBe(5);
-    const many = numberPoints(Array.from({ length: 14 }, (_, i) => result(`21/${i + 1}`, 4)));
-    expect(many.citations).toHaveLength(40);
-    expect(many.citations.at(-1)?.n).toBe(40);
-    expect(many.capped).toBe(16);
+  it('behält alles bis 40 Punkte, auch mehr als 4 je Dokument', () => {
+    const out = numberPoints([result('21/1', 9), result('21/2', 9), result('21/3', 9)]);
+    expect(out.citations).toHaveLength(27);
+    expect(out.capped).toBe(0);
+  });
+
+  it('kappt über 40 auf 4 je Dokument in Reihenfolge, hart bei 40', () => {
+    const out = numberPoints(Array.from({ length: 14 }, (_, i) => result(`21/${i + 1}`, 5)));
+    expect(out.citations).toHaveLength(40);
+    expect(out.citations.filter((c) => c.ref === '21/1')).toHaveLength(4);
+    expect(out.citations.at(-1)?.ref).toBe('21/10');
+    expect(out.capped).toBe(30);
   });
 });
 
@@ -95,6 +99,16 @@ describe('composeAnswer', () => {
     );
     expect(call.prompt).toContain('21/2');
     expect(call.prompt).toContain('Lesebudget');
+  });
+
+  it('nennt teilweise gelesene Dokumente in der Lückenliste', async () => {
+    aiText.mockResolvedValueOnce('Ok [1].');
+    await composeAnswer({
+      question: 'Frage?',
+      filters: {},
+      results: [result('21/1', 1, { windowsRead: 1, windowsTotal: 3 })],
+    });
+    expect(aiText.mock.calls.at(-1)![0].prompt).toContain('nur teilweise gelesen');
   });
 
   it('ruft das Modell bei null Punkten nicht auf', async () => {

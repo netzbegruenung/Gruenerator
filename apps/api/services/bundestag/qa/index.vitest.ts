@@ -16,11 +16,16 @@ vi.mock('./find.js', () => ({ findCandidates: m.findCandidates }));
 vi.mock('./fetchTexts.js', () => ({ resolveRefs: m.resolveRefs, fetchTexts: m.fetchTexts }));
 vi.mock('./read.js', () => ({ readDocuments: m.readDocuments, splitWindows: () => [] }));
 vi.mock('./answer.js', () => ({ composeAnswer: m.composeAnswer }));
-vi.mock('../../ai/lanes.js', () => ({ laneTarget: () => ({ model: 'gemma-4-31b-it' }) }));
-vi.mock('../../../config/env.js', () => ({ env: { DIP_API_KEY: 'k' } }));
+const envMock = vi.hoisted(() => ({ DIP_API_KEY: 'k' as string | undefined }));
+vi.mock('../../../config/env.js', () => ({ env: envMock }));
 vi.mock('../BundestagMCPClient.js', () => ({ getBundestagMCPClient: () => ({}) }));
 
-import { answerBundestagQuestion, planBundestagQuestion, readBundestagRefs } from './index.js';
+import {
+  answerBundestagQuestion,
+  planBundestagQuestion,
+  readBundestagRefs,
+  resetDipForTests,
+} from './index.js';
 
 const deps = { dip: { list: vi.fn() }, mcp: { semanticSearch: vi.fn() }, redis: null };
 const cand = { ref: '21/9', drucksachetyp: 'Antrag', titel: 'T', datum: 'd' };
@@ -96,5 +101,58 @@ describe('Fassade', () => {
     expect(m.composeAnswer).not.toHaveBeenCalled();
     expect(out.documents).toEqual([]);
     expect(out.notes[0]).toContain('21/10');
+  });
+
+  it('refs mit Filtern: Notiz, dass die Filter nicht angewendet wurden', async () => {
+    m.resolveRefs.mockResolvedValue([cand]);
+    const out = await answerBundestagQuestion({
+      question: 'Frage',
+      refs: ['21/9'],
+      filters: { wahlperiode: [20] },
+      deps,
+    });
+    expect(out.notes.join(' ')).toContain('nicht angewendet');
+  });
+
+  it('sammelt charsRead aus den Leseergebnissen', async () => {
+    m.resolveRefs.mockResolvedValue([cand]);
+    m.readDocuments.mockResolvedValue([
+      {
+        doc: cand,
+        relevant: false,
+        points: [],
+        droppedPoints: 0,
+        windowsRead: 1,
+        windowsTotal: 1,
+        skipped: null,
+        charsRead: 70,
+        usage: null,
+      },
+      {
+        doc: cand,
+        relevant: false,
+        points: [],
+        droppedPoints: 0,
+        windowsRead: 1,
+        windowsTotal: 1,
+        skipped: null,
+        charsRead: 30,
+        usage: null,
+      },
+    ]);
+    const out = await answerBundestagQuestion({ question: 'Frage', refs: ['21/9'], deps });
+    expect(out.stats.charsRead).toBe(100);
+  });
+
+  it('wirft klar, wenn DIP_API_KEY fehlt', async () => {
+    envMock.DIP_API_KEY = undefined;
+    resetDipForTests();
+    try {
+      await expect(answerBundestagQuestion({ question: 'Frage', refs: ['21/9'] })).rejects.toThrow(
+        'DIP_API_KEY is not set'
+      );
+    } finally {
+      envMock.DIP_API_KEY = 'k';
+    }
   });
 });

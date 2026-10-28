@@ -11,16 +11,15 @@ import {
 } from '@gruenerator/contracts';
 
 import { env } from '../../../config/env.js';
-import { laneTarget } from '../../ai/lanes.js';
 import { getBundestagMCPClient } from '../BundestagMCPClient.js';
 import { DipClient } from '../dip/dipClient.js';
 
 import { composeAnswer } from './answer.js';
-import { CHAT_BUDGET, ENDPOINT_BUDGET, type Budget, readWindowChars } from './budget.js';
+import { CHAT_BUDGET, ENDPOINT_BUDGET, type Budget } from './budget.js';
 import { fetchTexts, resolveRefs, type TextCache } from './fetchTexts.js';
 import { findCandidates, type FindDip, type FindMcp } from './find.js';
 import { keywordsFromQuestion, planFilters } from './plan.js';
-import { readDocuments, splitWindows, type ReadResult } from './read.js';
+import { readDocuments, type ReadResult } from './read.js';
 
 type DocumentInfo = BundestagAnswerResponse['documents'][number];
 
@@ -61,6 +60,11 @@ async function defaultDeps(): Promise<QaDeps> {
   };
 }
 
+/** Nur für Tests: setzt den Singleton zurück. */
+export function resetDipForTests(): void {
+  dipSingleton = null;
+}
+
 export function toDocumentInfo(r: ReadResult): DocumentInfo {
   return {
     ref: r.doc.ref,
@@ -74,27 +78,6 @@ export function toDocumentInfo(r: ReadResult): DocumentInfo {
     windowsTotal: r.windowsTotal,
     skipped: r.skipped,
   };
-}
-
-/**
- * `ReadResult` führt die gelesenen Zeichen nicht mit. Bis das ändert, wird sie
- * aus den Fenstern abgeleitet: gelesen wurden die ersten `windowsRead` Fenster
- * (bei Auswahl nach Stichwörtern ist das eine Näherung nach oben/unten).
- */
-export function charsReadOf(results: readonly ReadResult[]): number {
-  const size = readWindowChars(laneTarget('bundestag_read').model ?? '');
-  let sum = 0;
-  for (const r of results) {
-    if (r.windowsRead === 0) continue;
-    if (r.windowsRead >= r.windowsTotal) {
-      sum += r.doc.text.length;
-      continue;
-    }
-    sum += splitWindows(r.doc.text, size)
-      .slice(0, r.windowsRead)
-      .reduce((n, w) => n + w.length, 0);
-  }
-  return sum;
 }
 
 async function candidatesForRefs(
@@ -171,8 +154,10 @@ export async function answerBundestagQuestion({
   if (refs && refs.length > 0) {
     // Refs haben Vorrang: kein Plan-Aufruf, die Filter laufen nur durch.
     usedFilters = filters ?? {};
+    const hasFilters = Object.values(usedFilters).some((v) => v !== undefined);
     keywords = keywordsFromQuestion(question);
     ({ candidates, notes } = await candidatesForRefs(refs, budget, dip));
+    if (hasFilters) notes.push('Die Filter wurden auf die angegebenen Dokumente nicht angewendet.');
   } else {
     const plan = await planBundestagQuestion({
       question,
@@ -208,7 +193,7 @@ export async function answerBundestagQuestion({
     stats: {
       msTotal: Date.now() - startedAt,
       msRead,
-      charsRead: charsReadOf(results),
+      charsRead: results.reduce((n, r) => n + r.charsRead, 0),
       pointsVerified: results.reduce((n, r) => n + r.points.length, 0),
       pointsDropped: results.reduce((n, r) => n + r.droppedPoints, 0),
       invalidCitations: composed.invalidCitations,

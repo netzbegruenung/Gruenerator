@@ -36,6 +36,8 @@ export interface ReadResult {
   windowsTotal: number;
   skipped: 'budget' | 'deadline' | 'missing' | null;
   /** `aiObject` meldet keine Tokens; bis das ändert, bleibt es null statt erfunden. */
+  /** Summe der Fensterlängen, die tatsächlich ans Modell gingen. */
+  charsRead: number;
   usage: { inputTokens: number; outputTokens: number } | null;
 }
 
@@ -216,6 +218,7 @@ export async function readDocuments({
       windowsRead: 0,
       windowsTotal: total,
       skipped: plan.skipped,
+      charsRead: 0,
       usage: null,
     };
     if (plan.skipped) return result;
@@ -225,6 +228,7 @@ export async function readDocuments({
         limit(async () => {
           if (signal?.aborted || Date.now() - startedAt >= budget.deadlineMs) return;
           result.windowsRead++;
+          result.charsRead += win.text.length;
           const remaining = Math.max(1, budget.deadlineMs - (Date.now() - startedAt));
           const res = await aiObject<RawWindow>({
             lane: 'bundestag_read',
