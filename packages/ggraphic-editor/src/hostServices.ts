@@ -59,7 +59,10 @@ export interface CanvasMediaLibraryState {
 
 export interface CanvasMediaUploadResult {
   id: string;
-  shareToken: string;
+  /** Hosts that store uploads behind a share link; others return `url` instead. */
+  shareToken?: string;
+  /** A direct image URL; it becomes the item's `mediaUrl`, which placement prefers. */
+  url?: string;
 }
 
 export interface CanvasMediaUploadState {
