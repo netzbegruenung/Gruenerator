@@ -286,6 +286,25 @@ describe('makeParlamentLesenTool', () => {
     expect(out.hinweise).toEqual(['Nicht gefunden bei DIP: 21/5.']);
   });
 
+  it('meldet einen Fehler mit Grund, wenn kein einziges Dokument gelesen wurde', async () => {
+    // Live 28.10.2026, Antwort 21/8813: die PDF lag noch nicht auf dem Server
+    // (404), das Ergebnis war ein nacktes „0 Ergebnisse" mit ok=true.
+    readBundestagRefs.mockResolvedValue({
+      documents: [{ ...doc, ref: '21/8813', points: [], skipped: 'missing' }],
+      notes: [],
+    });
+    const out = (await exec(make(), {
+      quelle: 'bundestag',
+      dokumente: ['21/8813'],
+      frage: 'Was hat die Bundesregierung geantwortet?',
+    })) as { resultCount: number; error: string; nichtGelesen: { ref: string }[] };
+    expect(out.resultCount).toBe(0);
+    expect(out.error).toContain('Nichts gelesen');
+    expect(out.error).toContain('21/8813: kein Volltext verfügbar');
+    expect(out.error).toContain('noch nicht');
+    expect(out.nichtGelesen).toHaveLength(1);
+  });
+
   it('lehnt für de-AT ab, ohne den Dienst zu rufen', async () => {
     const out = (await exec(make('de-AT'), {
       quelle: 'bundestag',

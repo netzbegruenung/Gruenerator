@@ -562,10 +562,25 @@ Nicht für Abstimmungsverhalten, dafür abgeordnetenwatch. Nicht für Positionen
         : [];
       const sources =
         results.length > 0 ? sourceRegistry.register(results, { snippetChars: 3000 }) : null;
+      // Nichts gelesen ist ein Fehlschlag, kein leeres Ergebnis: ohne `error`
+      // stand „0 Ergebnisse" mit ok=true da (21/8813, 28.10.2026 — die PDF der
+      // frisch veröffentlichten Antwort war noch nicht abrufbar), und der
+      // Schreiber musste den Grund erraten.
+      const nichtsGelesen =
+        results.length === 0 && nichtGelesen.length > 0
+          ? {
+              error: `Nichts gelesen — ${nichtGelesen.map((n) => `${n.ref}: ${n.grund}`).join('; ')}.${
+                nichtGelesen.some((n) => n.grund === NICHT_GELESEN_GRUND.missing)
+                  ? ' Bei einer frisch veröffentlichten Drucksache liegt der Text oft noch nicht vor (DIP ohne Text, PDF noch nicht abrufbar); das der Person so sagen, nicht raten.'
+                  : ''
+              }`,
+            }
+          : {};
       return {
         resultCount: results.length,
         sources: sources ?? '',
         nichtGelesen,
+        ...nichtsGelesen,
         ...(notes.length > 0 || fokusNotes.length > 0
           ? { hinweise: [...notes, ...fokusNotes] }
           : {}),
