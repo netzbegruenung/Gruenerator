@@ -3,6 +3,7 @@ import { createContext, useContext } from 'react';
 
 import type {
   CanvasCarouselService,
+  CanvasFeedbackService,
   CanvasFileDeliveryService,
   CanvasImageShareService,
   CanvasImageUrlService,
@@ -223,6 +224,12 @@ export interface CanvasEditorServices extends CanvasEditorHostServices {
    * omitted, no format carries an impressum; the PDF export still works.
    */
   print?: CanvasPrintService;
+
+  /**
+   * Where the host's feedback form opens from. When omitted, or while
+   * `canRequest()` is false, the share menu offers no „Feedback" entry.
+   */
+  feedback?: CanvasFeedbackService;
 
   /**
    * Keeps the carousel chrome true after page ops (`CanvasCarouselService`).

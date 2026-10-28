@@ -100,7 +100,7 @@ import { MobileSelectionPill } from '@ggraphic/editor/components/MobileSelection
 import { PageThumbnailStrip } from '../PageThumbnailStrip';
 import { SlideNotesPanel } from '@ggraphic/editor/components/SlideNotesPanel';
 import { AddPageButton, TemplatePickerFlyout } from '../TemplatePickerFlyout';
-import { Toolbar } from '../Toolbar';
+import { Toolbar } from '@ggraphic/editor/components/Toolbar';
 import { ContextToolbar } from '@ggraphic/editor/components/TopBar/ContextToolbar';
 import { MobileSelectionBar } from '@ggraphic/editor/components/TopBar/MobileSelectionBar';
 import { MobileSelectionControls } from '@ggraphic/editor/components/TopBar/MobileSelectionControls';
@@ -124,7 +124,7 @@ import {
   needsImpressum,
   usePrintImpressumGate,
   type ObservedPages,
-} from './hooks/usePrintImpressumGate';
+} from '@ggraphic/editor/components/CanvasEditor/hooks/usePrintImpressumGate';
 import { useScrollToAddedPage } from '@ggraphic/editor/components/CanvasEditor/hooks/useScrollToAddedPage';
 import { useToolbarHandlers } from '@ggraphic/editor/components/CanvasEditor/hooks/useToolbarHandlers';
 import { useWorkAreaDeselect } from '@ggraphic/editor/components/CanvasEditor/hooks/useWorkAreaDeselect';

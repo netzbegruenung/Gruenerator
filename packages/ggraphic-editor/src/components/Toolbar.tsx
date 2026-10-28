@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 import { useCanvasStoreSelector } from '@ggraphic/editor/stores/CanvasStoreProvider';
 import React, { memo } from 'react';
 

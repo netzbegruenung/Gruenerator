@@ -370,6 +370,18 @@ export interface CanvasImpressumService {
  */
 export interface CanvasPrintService {
   impressum: CanvasImpressumService;
+  /** Shown in the download view next to the print PDF; omitted, there is no notice. */
+  untestedNotice?: string;
+}
+
+/**
+ * Lets surfaces that hide the host's floating feedback launcher (the mobile
+ * editor) offer „Feedback geben" in their own menu.
+ */
+export interface CanvasFeedbackService {
+  /** True while a feedback form is registered; read on every render. */
+  canRequest: () => boolean;
+  request: () => void;
 }
 
 // ── Carousel chrome (page number, swipe arrow) ──────────────────────────────
@@ -384,4 +396,9 @@ export interface CanvasPrintService {
 export interface CanvasCarouselService {
   /** Rewrites the chrome of the pages document; called inside the page op's transaction. */
   refreshChrome: (doc: Doc) => void;
+  /**
+   * The note under the PowerPoint download, per deck locale (which house
+   * fonts the deck carries). Without it the download view shows no note.
+   */
+  pptxFontHint?: Readonly<Record<'de-DE' | 'de-AT', string>>;
 }

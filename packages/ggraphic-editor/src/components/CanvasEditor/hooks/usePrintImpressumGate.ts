@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /**
  * Export warning for the V.i.S.d.P. / Impressum. The format says which pages
  * carry it: every poster page is a printed poster of its own, so each needs a

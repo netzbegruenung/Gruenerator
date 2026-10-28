@@ -3,7 +3,7 @@ import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 
-import { DownloadSection } from '../DownloadSection';
+import { DownloadSection } from '@ggraphic/editor/components/TopBar/DownloadSection';
 
 describe('DownloadSection too-large download', () => {
   it('shows the German notice instead of an unhandled rejection', async () => {
