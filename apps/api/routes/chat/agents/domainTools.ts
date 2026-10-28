@@ -160,6 +160,15 @@ const BUNDESTAG_SNIPPET_CHARS = 3500;
 const BUNDESTAG_HINWEIS =
   "Die Liste enthält nur Metadaten. Für Inhalte `parlament_lesen` mit quelle 'bundestag' aufrufen: bei einer Themen- oder Listenfrage alle einschlägigen Refs (bis zu 6) in einem Aufruf, nicht nur das erste Dokument.";
 
+const LANDTAG_RE = /landtag|abgeordnetenhaus|bürgerschaft|buergerschaft|landesparlament/i;
+const LANDTAG_HINWEIS =
+  'Die Frage nennt ein Landesparlament: Sag ZUERST, dass dieses Werkzeug nur den Bundestag abdeckt und Dokumente von Landtagen hier nicht durchsucht werden; danach, was der Bundestag dazu hergibt.';
+
+/** `BUNDESTAG_HINWEIS` (bzw. ein anderer Basistext) plus der Geltungsbereich, wenn die Frage einen Landtag nennt. */
+function withLandtagNote(base: string, userText: string): string {
+  return LANDTAG_RE.test(userText) ? `${base} ${LANDTAG_HINWEIS}` : base;
+}
+
 /**
  * `bundestag`: official DIP documentation (Drucksachen, Plenarprotokolle,
  * speeches, people, Vorgänge) via `retrieveBundestag`. Behaves like
@@ -252,7 +261,7 @@ Nicht für Inhalte, dafür parlament_lesen. Nicht für Reden im Plenum, dafür b
         return {
           resultCount: family.results.length,
           sources: sources ?? '',
-          hinweis: BUNDESTAG_HINWEIS,
+          hinweis: withLandtagNote(BUNDESTAG_HINWEIS, userText),
           ...(family.notes.length > 0 ? { hinweise: family.notes } : {}),
           uiCard: {
             query: query ?? `Familie von ${bundestagRefLabel(ref)}`,
@@ -303,6 +312,7 @@ Nicht für Inhalte, dafür parlament_lesen. Nicht für Reden im Plenum, dafür b
           resultCount: 1,
           sources: sources ?? '',
           modus: 'zaehlen',
+          ...(LANDTAG_RE.test(userText) ? { hinweis: LANDTAG_HINWEIS } : {}),
           einheit: zaehlung.einheit,
           bezeichnung: einheitLabel(zaehlung),
           gesamt: zaehlung.gesamt,
@@ -340,7 +350,7 @@ Nicht für Inhalte, dafür parlament_lesen. Nicht für Reden im Plenum, dafür b
         resultCount: results.length,
         sources: sources ?? '',
         ...(totals ? { gesamt: totals } : {}),
-        hinweis: BUNDESTAG_HINWEIS,
+        hinweis: withLandtagNote(BUNDESTAG_HINWEIS, userText),
         // Nur für die Karte; wrapTools nimmt das Feld vor dem Modell heraus.
         uiCard: {
           query: question,

@@ -671,6 +671,34 @@ describe('bundestag: modus zaehlen, ref', () => {
     expect(out['uiCard'].dokumente[0].ref).toBe('BT-Drs. 21/4000');
   });
 
+  it('Landtag in der Frage: der Hinweis verlangt zuerst den Geltungsbereich, der Aufruf läuft weiter', async () => {
+    retrieveBundestag.mockResolvedValue({
+      results: [{ source: 'bundestag', title: 'Drucksache 21/50', content: 'x' }],
+    });
+    const out = (await exec(
+      makeBundestagTool({
+        state: {
+          ...state,
+          lastUserTextNoMentions: 'Was hat der Landtag NRW zu Windkraft beschlossen?',
+        } as ChatGraphState,
+        sourceRegistry: createSourceRegistry(),
+      }),
+      { query: 'Windkraft' }
+    )) as { hinweis: string; resultCount: number };
+    expect(retrieveBundestag).toHaveBeenCalled();
+    expect(out.resultCount).toBe(1);
+    expect(out.hinweis).toMatch(/nur den Bundestag/);
+    expect(out.hinweis).toMatch(/Landesparlament|Landtag/);
+    const ohne = (await exec(
+      makeBundestagTool({
+        state: { ...state, lastUserTextNoMentions: 'Windkraft im Bundestag' } as ChatGraphState,
+        sourceRegistry: createSourceRegistry(),
+      }),
+      { query: 'Windkraft' }
+    )) as { hinweis: string };
+    expect(ohne.hinweis).not.toMatch(/nur den Bundestag/);
+  });
+
   it('ohne query und ref sowie bei PlPr-Ref gibt es einen Fehler', async () => {
     const tool = makeBundestagTool({ state, sourceRegistry: createSourceRegistry() });
     expect(((await exec(tool, {})) as { error: string }).error).toMatch(/fehlt/);
