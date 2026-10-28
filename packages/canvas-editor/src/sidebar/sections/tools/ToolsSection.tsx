@@ -31,7 +31,9 @@ const PANELS = {
   'remove-bg': lazyWithPreload(() =>
     import('./RemoveBackgroundTool').then((m) => m.RemoveBackgroundTool)
   ),
-  'ai-create': lazyWithPreload(() => import('@ggraphic/editor/sidebar/sections/tools/AiCreateTool').then((m) => m.AiCreateTool)),
+  'ai-create': lazyWithPreload(() =>
+    import('@ggraphic/editor/sidebar/sections/tools/AiCreateTool').then((m) => m.AiCreateTool)
+  ),
   'ai-edit': lazyWithPreload(() => import('./AiEditTool').then((m) => m.AiEditTool)),
   'alt-text': lazyWithPreload(() => import('./AltTextTool').then((m) => m.AltTextTool)),
   unsplash: lazyWithPreload(() => import('./UnsplashTool').then((m) => m.UnsplashTool)),

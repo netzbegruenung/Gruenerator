@@ -31,7 +31,10 @@ import { useEmojiCatalog } from '../../../hooks/useEmojiCatalog';
 import { withTone } from '../../../utils/emoji/emojiCatalog';
 import { KAWAII_ILLUSTRATIONS } from '@ggraphic/editor/utils/illustrations/kawaii';
 import { UNDRAW_FEATURED } from '../../../utils/illustrations/undraw';
-import { ALL_PALETTE_SHAPES, getShapeVariant } from '@ggraphic/editor/sidebar/sections/FormenSection';
+import {
+  ALL_PALETTE_SHAPES,
+  getShapeVariant,
+} from '@ggraphic/editor/sidebar/sections/FormenSection';
 
 import { ElementThumb } from './ElementThumb';
 import { useStockPhotos } from './useStockPhotos';

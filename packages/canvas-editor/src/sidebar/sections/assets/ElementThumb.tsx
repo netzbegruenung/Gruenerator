@@ -4,7 +4,10 @@ import { Icon } from '@iconify/react';
 
 import { SingleBalkenPreviewIcon, TripleBalkenPreviewIcon } from '../BadgePreviewIcons';
 import { ChartTypePreview } from '@ggraphic/editor/sidebar/sections/DiagrammeSection';
-import { ALL_PALETTE_SHAPES, getShapeVariant } from '@ggraphic/editor/sidebar/sections/FormenSection';
+import {
+  ALL_PALETTE_SHAPES,
+  getShapeVariant,
+} from '@ggraphic/editor/sidebar/sections/FormenSection';
 import { IllustrationThumb } from '@ggraphic/editor/sidebar/sections/IllustrationThumb';
 import { FramePresetPreview } from '@ggraphic/editor/sidebar/sections/RahmenSection';
 

@@ -119,7 +119,8 @@ export function stickerAssetsForLocale(locale: AssetAudience): UniversalAsset[] 
  */
 const GRUENE_ILLUSTRATIONS: IllustrationSources = {
   basePath: '/illustrations',
-  loadKawaii: () => import('@ggraphic/editor/utils/illustrations/kawaii').then((m) => m.KAWAII_ILLUSTRATIONS),
+  loadKawaii: () =>
+    import('@ggraphic/editor/utils/illustrations/kawaii').then((m) => m.KAWAII_ILLUSTRATIONS),
   loadSvg: async () =>
     (
       await Promise.all([

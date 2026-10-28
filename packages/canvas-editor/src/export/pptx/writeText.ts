@@ -11,7 +11,12 @@
  */
 
 import { pptxFont } from './pptxFonts';
-import { parseColor, pptxRotation, transparencyOf, type PptxUnits } from '@ggraphic/editor/export/pptx/pptxUnits';
+import {
+  parseColor,
+  pptxRotation,
+  transparencyOf,
+  type PptxUnits,
+} from '@ggraphic/editor/export/pptx/pptxUnits';
 
 import type { PptxShadow, PptxTextItem, PptxTextRun } from '@ggraphic/editor/export/pptx/types';
 import type PptxGenJS from 'pptxgenjs';

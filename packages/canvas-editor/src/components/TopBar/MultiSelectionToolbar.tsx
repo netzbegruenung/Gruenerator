@@ -21,7 +21,10 @@ import {
 } from 'react-icons/pi';
 
 import { ContextCard } from './ContextToolbar';
-import { FloatingPositionControl, type PositionCommandId } from '@ggraphic/editor/components/TopBar/modules/FloatingPositionControl';
+import {
+  FloatingPositionControl,
+  type PositionCommandId,
+} from '@ggraphic/editor/components/TopBar/modules/FloatingPositionControl';
 
 export interface MultiSelectionToolbarProps {
   count: number;

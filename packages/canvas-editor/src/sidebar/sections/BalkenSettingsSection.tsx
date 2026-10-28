@@ -4,7 +4,12 @@ import { FaCheck, FaChevronLeft, FaChevronRight, FaTrash, FaCopy } from 'react-i
 import { HiColorSwatch, HiAdjustments, HiArrowsExpand } from 'react-icons/hi';
 
 import { SidebarSlider } from '../components/SidebarSlider';
-import { ACTION_BTN, ACTION_BTN_DANGER, SECTION_HEADER, SECTION_TITLE } from '@ggraphic/editor/sidebar/sidebarStyles';
+import {
+  ACTION_BTN,
+  ACTION_BTN_DANGER,
+  SECTION_HEADER,
+  SECTION_TITLE,
+} from '@ggraphic/editor/sidebar/sidebarStyles';
 import { SubsectionTabBar, type Subsection } from '../SubsectionTabBar';
 
 import type { ColorScheme } from '../../utils/dreizeilenLayout';

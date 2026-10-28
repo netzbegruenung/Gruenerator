@@ -101,7 +101,12 @@ import { type BuildPass, type SlideCtx } from './slideContext';
 import { slideInk } from './slideInk';
 import { fadeIntoGround, steckbriefAround } from './steckbriefCompose';
 import { steckbriefPerson } from '@ggraphic/editor/composer/steckbriefLayout';
-import { balancedWrap, largestSizeWordsFit, STOERER_RADII, wrapWords } from '@ggraphic/editor/composer/textFit';
+import {
+  balancedWrap,
+  largestSizeWordsFit,
+  STOERER_RADII,
+  wrapWords,
+} from '@ggraphic/editor/composer/textFit';
 import { layoutFaktencheck, layoutVergleich } from './vergleichLayout';
 import { layoutFrage, layoutZitat } from './zitatLayout';
 

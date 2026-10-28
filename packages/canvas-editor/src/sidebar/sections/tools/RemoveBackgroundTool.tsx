@@ -5,7 +5,10 @@ import { useCallback, useState } from 'react';
 import { HiScissors } from 'react-icons/hi2';
 
 import { ImageInputPicker } from './ImageInputPicker';
-import { ToolPanel, type ToolPanelSuccess } from '@ggraphic/editor/sidebar/sections/tools/ToolPanel';
+import {
+  ToolPanel,
+  type ToolPanelSuccess,
+} from '@ggraphic/editor/sidebar/sections/tools/ToolPanel';
 
 export interface RemoveBackgroundToolProps {
   onJumpToUploads?: () => void;

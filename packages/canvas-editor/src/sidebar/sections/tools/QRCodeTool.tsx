@@ -6,7 +6,10 @@ import { HiQrCode } from 'react-icons/hi2';
 
 import { MOBILE_INPUT_TEXT } from '@ggraphic/editor/sidebar/sidebarStyles';
 
-import { ToolPanel, type ToolPanelSuccess } from '@ggraphic/editor/sidebar/sections/tools/ToolPanel';
+import {
+  ToolPanel,
+  type ToolPanelSuccess,
+} from '@ggraphic/editor/sidebar/sections/tools/ToolPanel';
 import { useToolImagePlacement } from '@ggraphic/editor/sidebar/sections/tools/useToolImagePlacement';
 
 export interface QRCodeToolProps {
