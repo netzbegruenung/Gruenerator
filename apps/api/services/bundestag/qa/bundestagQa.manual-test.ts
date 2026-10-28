@@ -288,7 +288,6 @@ async function probe(): Promise<boolean> {
     const res = await aiObject<{ antwort: string }>({
       lane: 'bundestag_read',
       ...(spec.target ? { pinned: spec.target } : {}),
-      json: true,
       temperature: 0,
       maxOutputTokens: 200,
       attempts: 1,

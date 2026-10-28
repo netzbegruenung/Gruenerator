@@ -233,7 +233,7 @@ export async function readDocuments({
           const res = await aiObject<RawWindow>({
             lane: 'bundestag_read',
             ...(target ? { pinned: target } : {}),
-            json: true,
+            // Kein `json: true`: das erzwungene Tool liefert die Struktur, und Mistral (letzter Rückfall) lehnt json_object neben erzwungenem Tool ab.
             temperature: 0,
             maxOutputTokens: 1500,
             timeoutMs: remaining,

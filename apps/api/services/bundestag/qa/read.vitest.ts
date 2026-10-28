@@ -160,6 +160,18 @@ describe('Belegprüfung', () => {
     expect(aiObject.mock.calls[0]![0].attempts).toBe(1);
   });
 
+  it('ohne json-Modus: Mistral lehnt json_object neben erzwungenem Tool ab', async () => {
+    respond(() => ({ relevant: false, punkte: [] }));
+    await readDocuments({
+      question: 'q',
+      keywords: [],
+      auftrag: 'frage',
+      docs: [doc('21/1', src)],
+      budget,
+    });
+    expect(aiObject.mock.calls[0]![0]).not.toHaveProperty('json');
+  });
+
   it('gescheitertes Fenster lässt das Dokument nicht ausfallen', async () => {
     aiObject.mockResolvedValue({ ok: false, error: 'boom' });
     const [r] = await readDocuments({

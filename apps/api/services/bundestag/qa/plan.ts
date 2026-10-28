@@ -189,7 +189,7 @@ Gib nur Filter an, die die Frage wirklich nennt oder klar nahelegt. Lass alles a
 async function modelFilters(question: string) {
   const res = await aiObject({
     lane: 'bundestag_plan',
-    json: true,
+    // Kein `json: true`: das erzwungene Tool liefert die Struktur, und Mistral (letzter Rückfall) lehnt json_object neben erzwungenem Tool ab.
     temperature: 0,
     system: SYSTEM,
     prompt: `Frage: ${question}`,

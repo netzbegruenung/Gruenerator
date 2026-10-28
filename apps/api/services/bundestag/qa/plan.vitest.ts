@@ -159,6 +159,12 @@ describe('planFilters Runde 2', () => {
     expect(aiObject.mock.calls[0][0].system).toContain('21. (seit 2025)');
   });
 
+  it('ohne json-Modus: Mistral lehnt json_object neben erzwungenem Tool ab', async () => {
+    model({ keywords: ['klima', 'schutz', 'gesetz'] });
+    await planFilters({ question: 'Klima', explicit: {}, dip: dipWith({}) });
+    expect(aiObject.mock.calls[0][0]).not.toHaveProperty('json');
+  });
+
   it('leitet ohne Deskriptor einen aus den Suchwörtern ab (Singularform)', async () => {
     model({ keywords: ['Anträge', 'grüne Bundestagsfraktion', 'Wärmepumpen'] });
     const dip = dipWith({ Wärmepumpe: 19 });
