@@ -164,12 +164,15 @@ const BUNDESTAG_HINWEIS =
 const BUNDESTAG_MAX_CALLS_PER_TURN = 4;
 const BUNDESTAG_CAP_HINWEIS = `Schon ${BUNDESTAG_MAX_CALLS_PER_TURN} Bundestag-Suchen in diesem Zug — antworte jetzt mit den vorliegenden Treffern und nenne, was offen bleibt.`;
 const LANDTAG_RE = /landtag|abgeordnetenhaus|bürgerschaft|buergerschaft|landesparlament/i;
+// Geht als `fuerSchreiber` mit, nicht als `hinweis`: `hinweis` liest nur der Planer,
+// der werkzeuglose Schreiber des split-Modus nie (live 28.10.2026: 2 von 3 Antworten
+// gaben Websuche-Treffer als Landtag-Inhalt aus).
 const LANDTAG_HINWEIS =
   'Die Frage nennt ein Landesparlament: Sag ZUERST, dass dieses Werkzeug nur den Bundestag abdeckt und Dokumente von Landtagen hier nicht durchsucht werden; danach, was der Bundestag dazu hergibt.';
 
-/** `BUNDESTAG_HINWEIS` (bzw. ein anderer Basistext) plus der Geltungsbereich, wenn die Frage einen Landtag nennt. */
-function withLandtagNote(base: string, userText: string): string {
-  return LANDTAG_RE.test(userText) ? `${base} ${LANDTAG_HINWEIS}` : base;
+/** Der Geltungsbereich als Schreiber-Notiz, wenn die Frage einen Landtag nennt. */
+function landtagNote(userText: string): { fuerSchreiber: string } | Record<string, never> {
+  return LANDTAG_RE.test(userText) ? { fuerSchreiber: LANDTAG_HINWEIS } : {};
 }
 
 /**
@@ -273,7 +276,8 @@ Nicht für Inhalte, dafür parlament_lesen. Nicht für Reden im Plenum, dafür b
         return {
           resultCount: family.results.length,
           sources: sources ?? '',
-          hinweis: withLandtagNote(BUNDESTAG_HINWEIS, userText),
+          hinweis: BUNDESTAG_HINWEIS,
+          ...landtagNote(userText),
           ...(family.notes.length > 0 ? { hinweise: family.notes } : {}),
           uiCard: {
             query: query ?? `Familie von ${bundestagRefLabel(ref)}`,
@@ -324,7 +328,7 @@ Nicht für Inhalte, dafür parlament_lesen. Nicht für Reden im Plenum, dafür b
           resultCount: 1,
           sources: sources ?? '',
           modus: 'zaehlen',
-          ...(LANDTAG_RE.test(userText) ? { hinweis: LANDTAG_HINWEIS } : {}),
+          ...landtagNote(userText),
           einheit: zaehlung.einheit,
           bezeichnung: einheitLabel(zaehlung),
           gesamt: zaehlung.gesamt,
@@ -362,7 +366,8 @@ Nicht für Inhalte, dafür parlament_lesen. Nicht für Reden im Plenum, dafür b
         resultCount: results.length,
         sources: sources ?? '',
         ...(totals ? { gesamt: totals } : {}),
-        hinweis: withLandtagNote(BUNDESTAG_HINWEIS, userText),
+        hinweis: BUNDESTAG_HINWEIS,
+        ...landtagNote(userText),
         // Nur für die Karte; wrapTools nimmt das Feld vor dem Modell heraus.
         uiCard: {
           query: question,

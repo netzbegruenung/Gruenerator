@@ -77,6 +77,30 @@ function carriedRegistry() {
   return registry;
 }
 
+describe('buildSynthSystem — Schreiber-Notizen der Werkzeuge', () => {
+  it('trägt `fuerSchreiber` des Werkzeugergebnisses als Anweisung in den Prompt', () => {
+    const steps: PersistedStep[] = [
+      {
+        toolCallId: 'c1',
+        toolName: 'bundestag',
+        args: {},
+        result: { resultCount: 2, fuerSchreiber: 'Sag ZUERST: nur Bundestag.' },
+      },
+    ];
+    const prompt = buildSynthSystem('[1] Antrag — https://example.org/a', ctx({ steps }));
+    expect(prompt).toContain('Sag ZUERST: nur Bundestag.');
+  });
+
+  it('ohne `fuerSchreiber` bleibt der Prompt frei davon', () => {
+    const steps: PersistedStep[] = [
+      { toolCallId: 'c1', toolName: 'bundestag', args: {}, result: { hinweis: 'Planer-Text' } },
+    ];
+    const prompt = buildSynthSystem('[1] Antrag', ctx({ steps }));
+    expect(prompt).not.toContain('Planer-Text');
+    expect(prompt).not.toContain('ANWEISUNG DER WERKZEUGE');
+  });
+});
+
 describe('buildSynthSystem — Quellenblock', () => {
   it('hängt Liste und Zitiergebot an, wenn Quellen da sind', () => {
     const prompt = buildSynthSystem('[1] Antrag — https://example.org/a', ctx());

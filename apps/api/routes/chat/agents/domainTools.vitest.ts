@@ -624,6 +624,29 @@ describe('bundestag: modus zaehlen, ref', () => {
     expect(out['uiCard'].zaehlung.gruppen).toEqual([{ label: 'Fraktion der SPD', n: 10 }]);
   });
 
+  it('Landtag-Frage: der Geltungsbereich geht als `fuerSchreiber` mit, nicht als Planer-`hinweis`', async () => {
+    countBundestagDocs.mockResolvedValue({
+      einheit: 'Drucksachen',
+      gesamt: 1,
+      filters: {},
+      notes: [],
+      aufrufe: 1,
+    });
+    const run = (text: string) =>
+      exec(
+        makeBundestagTool({
+          state: { ...state, lastUserTextNoMentions: text } as ChatGraphState,
+          sourceRegistry: createSourceRegistry(),
+        }),
+        { modus: 'zaehlen' }
+      ) as Promise<Record<string, unknown>>;
+    const landtag = await run('Was hat der Landtag in NRW zu Windkraft beschlossen?');
+    expect(landtag['fuerSchreiber']).toMatch(/nur den Bundestag/);
+    expect(String(landtag['hinweis'] ?? '')).not.toMatch(/Landesparlament/);
+    const bund = await run('Wie viele Anträge zu Windkraft gab es?');
+    expect(bund['fuerSchreiber']).toBeUndefined();
+  });
+
   it('zaehlen meldet einen DIP-Ausfall als Fehler', async () => {
     countBundestagDocs.mockRejectedValue(new Error('down'));
     const out = (await exec(makeBundestagTool({ state, sourceRegistry: createSourceRegistry() }), {
@@ -684,19 +707,19 @@ describe('bundestag: modus zaehlen, ref', () => {
         sourceRegistry: createSourceRegistry(),
       }),
       { query: 'Windkraft' }
-    )) as { hinweis: string; resultCount: number };
+    )) as { hinweis: string; fuerSchreiber?: string; resultCount: number };
     expect(retrieveBundestag).toHaveBeenCalled();
     expect(out.resultCount).toBe(1);
-    expect(out.hinweis).toMatch(/nur den Bundestag/);
-    expect(out.hinweis).toMatch(/Landesparlament|Landtag/);
+    expect(out.fuerSchreiber).toMatch(/nur den Bundestag/);
+    expect(out.fuerSchreiber).toMatch(/Landesparlament|Landtag/);
     const ohne = (await exec(
       makeBundestagTool({
         state: { ...state, lastUserTextNoMentions: 'Windkraft im Bundestag' } as ChatGraphState,
         sourceRegistry: createSourceRegistry(),
       }),
       { query: 'Windkraft' }
-    )) as { hinweis: string };
-    expect(ohne.hinweis).not.toMatch(/nur den Bundestag/);
+    )) as { hinweis: string; fuerSchreiber?: string };
+    expect(ohne.fuerSchreiber).toBeUndefined();
   });
 
   it('ab dem 5. Aufruf im Zug fragt das Werkzeug DIP nicht mehr, ein neuer Zug zählt neu', async () => {

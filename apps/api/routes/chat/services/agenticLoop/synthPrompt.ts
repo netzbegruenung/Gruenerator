@@ -31,6 +31,7 @@ import {
   buildEmptyResultNote,
   buildToolFailureNote,
   buildToolPayloadNote,
+  buildWriterNotes,
   mcpHasFailure,
 } from './toolOutcome.js';
 import { type PersistedStep } from './types.js';
@@ -164,6 +165,8 @@ Die Suche für diesen Turn ist bereits GELAUFEN — ihre Treffer stehen oben. De
   // (`summarize`, `product_knowledge`) — ohne das hier verpufft ihre Arbeit,
   // siehe `PAYLOAD_TOOLS`.
   const toolPayload = buildToolPayloadNote(ctx.steps);
+  // Notizen, die ein Werkzeug an den Schreiber richtet (`fuerSchreiber`).
+  const writerNotes = buildWriterNotes(ctx.steps);
   // Computed BEFORE buildArtifactNotes so its outcomeClause can tell a clean
   // success from a turn where something else also failed this same turn.
   const hasFailures = toolFailures.length > 0 || mcpHasFailure(ctx.steps);
@@ -269,6 +272,6 @@ Die Suche für diesen Turn ist bereits GELAUFEN — ihre Treffer stehen oben. De
   // prepareStep — mirroring how `carriedNote` is injected for unified
   // BECAUSE split gets it here.
   return withInstructionHierarchy(
-    `${ctx.systemMessage}${ctx.mcpNote}${cite}${artifacts}${mcpOutcome}${toolPayload}${toolFailures}${toolEmpties}${capabilityNote}${phantomNote}${openingNote}${honestyNote}${tabularNote}${ctx.recipeRegistry.render()}${offerNote(ctx.state, ctx.recipeRegistry.mentions)}\n\nAntworte auf Deutsch (Du-Form, Genderstern).`
+    `${ctx.systemMessage}${ctx.mcpNote}${cite}${artifacts}${mcpOutcome}${toolPayload}${writerNotes}${toolFailures}${toolEmpties}${capabilityNote}${phantomNote}${openingNote}${honestyNote}${tabularNote}${ctx.recipeRegistry.render()}${offerNote(ctx.state, ctx.recipeRegistry.mentions)}\n\nAntworte auf Deutsch (Du-Form, Genderstern).`
   );
 }
