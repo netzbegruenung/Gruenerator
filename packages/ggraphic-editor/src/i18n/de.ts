@@ -669,6 +669,7 @@ export const de = {
     autoCrop: 'Ausschnitt automatisch wählen',
     cancelCrop: 'Abbrechen (Zuschnitt verwerfen)',
     doneCrop: 'Fertig (Esc)',
+    saved: 'Gespeichert',
     saveShort: 'Speichert …',
     saveErrorShort: 'Fehler beim Speichern',
     saving: 'Wird gespeichert...',

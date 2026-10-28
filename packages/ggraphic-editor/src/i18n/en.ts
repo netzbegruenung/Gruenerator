@@ -658,6 +658,7 @@ export const en: Messages = {
     autoCrop: 'Choose crop automatically',
     cancelCrop: 'Cancel (discard crop)',
     doneCrop: 'Done (Esc)',
+    saved: 'Saved',
     saveShort: 'Saving …',
     saveErrorShort: 'Could not save',
     saving: 'Saving...',
