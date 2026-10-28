@@ -238,3 +238,60 @@ describe('meliousFetch — gemma-4-26b-a4b Antwort als Werkzeugaufruf', () => {
     expect(json.choices[0].finish_reason).toBe('tool_calls');
   });
 });
+
+describe('meliousFetch — gemma-4-26b-a4b: was der Umbau NICHT anfasst', () => {
+  let originalFetch: typeof fetch;
+
+  beforeEach(() => {
+    originalFetch = globalThis.fetch;
+    globalThis.fetch = vi.fn(
+      async () =>
+        new Response(
+          JSON.stringify({
+            model: 'gemma-4-26b-a4b',
+            choices: [{ message: { role: 'assistant', content: 'x' }, finish_reason: 'stop' }],
+          }),
+          { status: 200, headers: { 'content-type': 'application/json' } }
+        )
+    ) as typeof fetch;
+  });
+
+  afterEach(() => {
+    globalThis.fetch = originalFetch;
+  });
+
+  const tool = { type: 'function', function: { name: 'melden', parameters: { type: 'object' } } };
+
+  // Die Werkzeugphase des Loops streamt; sie bleibt beim Wiederabspielen statt beim json_schema.
+  it('lässt einen gestreamten erzwungenen Zug unberührt und spielt ihn weiter als Strom ab', async () => {
+    const res = await meliousFetch('https://api.melious.ai/v1/chat/completions', {
+      method: 'POST',
+      body: JSON.stringify({
+        model: 'gemma-4-26b-a4b',
+        messages: [{ role: 'user', content: 'x' }],
+        tools: [tool],
+        tool_choice: 'required',
+        stream: true,
+      }),
+    });
+    const [, init] = (globalThis.fetch as ReturnType<typeof vi.fn>).mock.calls[0];
+    const sent = JSON.parse((init as RequestInit).body as string) as Record<string, unknown>;
+    expect(sent.tool_choice).toBe('required');
+    expect(sent).not.toHaveProperty('response_format');
+    expect(sent.stream).toBe(false);
+    expect(res.headers.get('content-type')).toContain('text/event-stream');
+  });
+
+  it("lässt tool_choice 'auto' unberührt", async () => {
+    const body = await sentBody(
+      JSON.stringify({
+        model: 'gemma-4-26b-a4b',
+        messages: [{ role: 'user', content: 'x' }],
+        tools: [tool],
+        tool_choice: 'auto',
+      })
+    );
+    expect(body.tool_choice).toBe('auto');
+    expect(body).not.toHaveProperty('response_format');
+  });
+});

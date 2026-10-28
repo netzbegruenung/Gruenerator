@@ -284,4 +284,56 @@ describe('cortecs kolibri-1', () => {
       json_schema: { name: 'melden', schema },
     });
   });
+
+  // Die Antwortseite: nach der Souveränitätsprüfung wird das JSON zum Werkzeugaufruf.
+  it('legt die JSON-Antwort als Aufruf des erzwungenen Werkzeugs zurück', async () => {
+    const original = globalThis.fetch;
+    globalThis.fetch = (() =>
+      Promise.resolve(
+        new Response(
+          JSON.stringify({
+            model: 'kolibri-1',
+            choices: [
+              { message: { role: 'assistant', content: '{"a":"x"}' }, finish_reason: 'stop' },
+            ],
+          }),
+          {
+            status: 200,
+            headers: {
+              'content-type': 'application/json',
+              'x-cortecs-provider': 'aki',
+              'x-cortecs-model': 'kolibri-1',
+            },
+          }
+        )
+      )) as typeof fetch;
+    try {
+      const res = await cortecsFetchWithPolicy('https://example.invalid/chat/completions', {
+        method: 'POST',
+        body: JSON.stringify({
+          model: 'kolibri-1',
+          messages: [],
+          tools: [
+            { type: 'function', function: { name: 'melden', parameters: { type: 'object' } } },
+          ],
+          tool_choice: 'required',
+        }),
+      });
+      const json = (await res.json()) as {
+        choices: {
+          message: { content: unknown; tool_calls: { function: unknown }[] };
+          finish_reason: string;
+        }[];
+      };
+      expect(json.choices[0].message.content).toBeNull();
+      expect(json.choices[0].message.tool_calls[0].function).toEqual({
+        name: 'melden',
+        arguments: '{"a":"x"}',
+      });
+      expect(json.choices[0].finish_reason).toBe('tool_calls');
+      expect(res.headers.get('x-cortecs-provider')).toBe('aki');
+    } finally {
+      globalThis.fetch = original;
+    }
+  });
 });

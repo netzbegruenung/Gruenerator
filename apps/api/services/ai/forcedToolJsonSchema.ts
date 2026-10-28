@@ -14,6 +14,7 @@
  * Nur nicht gestreamt und nur bei genau einem Werkzeug: ein Zug mit mehreren
  * Werkzeugen (Agenten-Schleife) bleibt unberührt und scheitert laut.
  */
+import { randomUUID } from 'node:crypto';
 
 interface ToolDef {
   function?: { name?: unknown; parameters?: unknown };
@@ -29,7 +30,9 @@ export function forcedToolAsJsonSchema(
   if (!Array.isArray(tools) || tools.length !== 1 || body.tool_choice !== 'required') return null;
   if (body.stream === true) return null;
   const fn = (tools[0] as ToolDef).function;
-  if (typeof fn?.name !== 'string' || typeof fn.parameters !== 'object') return null;
+  if (typeof fn?.name !== 'string' || typeof fn.parameters !== 'object' || fn.parameters === null) {
+    return null;
+  }
   body.response_format = {
     type: 'json_schema',
     json_schema: { name: fn.name, schema: fn.parameters },
@@ -43,21 +46,34 @@ interface ChatCompletion {
   choices?: { message?: Record<string, unknown>; finish_reason?: unknown }[];
 }
 
-/** Legt den JSON-Text der Antwort als Aufruf des erzwungenen Werkzeugs zurück. */
+/** Ist `content` ein vollständiges JSON-Objekt? Abgeschnittenes oder Fliesstext ist es nicht. */
+function isJsonObject(content: string): boolean {
+  try {
+    const value: unknown = JSON.parse(content);
+    return typeof value === 'object' && value !== null && !Array.isArray(value);
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Legt den JSON-Text der Antwort als Aufruf des erzwungenen Werkzeugs zurück —
+ * nur, wenn er ein vollständiges JSON-Objekt ist. Alles andere (Fliesstext,
+ * abgeschnittenes JSON, leer) bleibt Text, so wie das Modell es geschickt hat.
+ */
 export async function contentAsToolCall(response: Response, toolName: string): Promise<Response> {
   const json = (await response.json()) as ChatCompletion;
   const choice = json.choices?.[0];
   const content = choice?.message?.content;
-  if (choice?.message && typeof content === 'string' && content.trim()) {
+  if (choice?.message && typeof content === 'string' && isJsonObject(content)) {
     choice.message.content = null;
     choice.message.tool_calls = [
       {
-        id: `call_${Date.now().toString(36)}`,
+        id: `call_${randomUUID()}`,
         type: 'function',
         function: { name: toolName, arguments: content },
       },
     ];
-    // Ein abgeschnittenes JSON bleibt `length`, damit `aiObject` es als Torso erkennt.
     if (choice.finish_reason === 'stop') choice.finish_reason = 'tool_calls';
   }
   return new Response(JSON.stringify(json), {
