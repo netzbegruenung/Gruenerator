@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import {
   detectDrucksachetyp,
+  detectBeratungsstand,
   detectFromWording,
   detectUrheber,
   detectZeitraum,
@@ -82,5 +83,40 @@ describe('detectFromWording', () => {
       urheber: ['Fraktion BÜNDNIS 90/DIE GRÜNEN'],
       datumVon: '2026-01-01',
     });
+  });
+});
+
+describe('detectBeratungsstand', () => {
+  it.each([
+    'Was wurde im Bundestag zu Artenschutz beschlossen?',
+    'Welche Gesetze zu Wasserstoff wurden verabschiedet?',
+    'Ist das Gesetz in Kraft getreten?',
+    'Welche Anträge wurden angenommen?',
+  ])('beschlossen: %s', (q) => {
+    expect(detectBeratungsstand(q)).toEqual([
+      'Verkündet',
+      'Angenommen',
+      'Verabschiedet',
+      'Bundesrat hat zugestimmt',
+    ]);
+  });
+  it('abgelehnt schlägt beschlossen', () => {
+    expect(detectBeratungsstand('Welche Anträge wurden abgelehnt?')).toEqual(['Abgelehnt']);
+    expect(detectBeratungsstand('Was ist abgelehnt und nicht beschlossen worden?')).toEqual([
+      'Abgelehnt',
+    ]);
+  });
+  it('noch in Beratung schlägt „beschlossen"', () => {
+    const r = detectBeratungsstand('Was ist noch nicht beschlossen, sondern in Beratung?');
+    expect(r).toContain('Überwiesen');
+    expect(r).not.toContain('Verkündet');
+  });
+  it('nennt ohne Stand nichts', () => {
+    expect(detectBeratungsstand('Welche Anfragen zum Artenschutz gibt es?')).toEqual([]);
+  });
+  it('landet in detectFromWording', () => {
+    expect(detectFromWording('Was wurde zu Artenschutz beschlossen?').beratungsstand).toHaveLength(
+      4
+    );
   });
 });

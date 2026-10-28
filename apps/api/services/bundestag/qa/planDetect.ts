@@ -6,6 +6,7 @@
 import { type BundestagFilter } from '@gruenerator/contracts';
 
 type Typ = NonNullable<BundestagFilter['drucksachetyp']>[number];
+type Beratungsstand = NonNullable<BundestagFilter['beratungsstand']>[number];
 type Urheber = NonNullable<BundestagFilter['urheber']>[number];
 
 // Zusammensetzungen: „Entschließungsantrag" darf nicht zusätzlich als „Antrag" zählen,
@@ -49,6 +50,38 @@ export function detectUrheber(question: string): Urheber[] {
     if (re.test(question) && !out.includes(u)) out.push(u);
   }
   return out;
+}
+
+const BESCHLOSSEN: Beratungsstand[] = [
+  'Verkündet',
+  'Angenommen',
+  'Verabschiedet',
+  'Bundesrat hat zugestimmt',
+];
+const IN_BERATUNG: Beratungsstand[] = [
+  'Beschlussempfehlung liegt vor',
+  'In der Beratung (Einzelheiten siehe Vorgangsablauf)',
+  'Überwiesen',
+  'Noch nicht beraten',
+];
+
+// „abgelehnt" zuerst: „abgelehnt und nicht beschlossen" soll nicht als beschlossen zählen.
+const BERATUNGSSTAND_RULES: [RegExp, Beratungsstand[]][] = [
+  [/\b(?:abgelehnt\w*|ablehnung|gescheitert)\b/i, ['Abgelehnt']],
+  [
+    /\bnoch\s+(?:in\s+(?:der\s+)?beratung|nicht\s+(?:beschlossen|verabschiedet|entschieden))\b|\b(?:geplant\w*|laufend\w*|in\s+beratung|anhängig\w*)\b/i,
+    IN_BERATUNG,
+  ],
+  [
+    /\b(?:beschlossen\w*|verabschiedet\w*|angenommen\w*|beschluss|beschlüsse\w*|gesetz\s+geworden|in\s+kraft(?:\s+getreten)?)\b/i,
+    BESCHLOSSEN,
+  ],
+];
+
+/** Erste passende Regel gewinnt; leer, wenn die Frage keinen Stand nennt. */
+export function detectBeratungsstand(question: string): Beratungsstand[] {
+  for (const [re, stand] of BERATUNGSSTAND_RULES) if (re.test(question)) return [...stand];
+  return [];
 }
 
 const MONTHS: Record<string, number> = {
@@ -106,5 +139,7 @@ export function detectFromWording(question: string): BundestagFilter {
   if (typ.length) found.drucksachetyp = typ;
   const urheber = detectUrheber(question);
   if (urheber.length) found.urheber = urheber;
+  const stand = detectBeratungsstand(question);
+  if (stand.length) found.beratungsstand = stand;
   return { ...found, ...detectZeitraum(question) };
 }

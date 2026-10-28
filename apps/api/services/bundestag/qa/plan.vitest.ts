@@ -231,3 +231,33 @@ describe('keywordsFromQuestion', () => {
     expect(k.every((w) => w === w.toLowerCase() && w.length >= 5)).toBe(true);
   });
 });
+
+describe('planFilters beratungsstand', () => {
+  const question = 'Was wurde im Bundestag zu Artenschutz beschlossen?';
+  it('erkennt „beschlossen" aus dem Wortlaut trotz Modell ohne Stand', async () => {
+    model({ keywords: ['artenschutz'], deskriptor: ['Artenschutz'] });
+    const r = await planFilters({ question, explicit: {}, dip: dipWith({ Artenschutz: 5 }) });
+    expect(r.filters.beratungsstand).toEqual([
+      'Verkündet',
+      'Angenommen',
+      'Verabschiedet',
+      'Bundesrat hat zugestimmt',
+    ]);
+  });
+  it('Modellwert gilt ohne Wortlaut, unbekannte Werte fallen weg; explicit schlägt erkannt', async () => {
+    model({ keywords: ['artenschutz'], beratungsstand: ['Abgelehnt', 'Quatsch'] });
+    const r = await planFilters({
+      question: 'Artenschutz im Bundestag',
+      explicit: {},
+      dip: dipWith({}),
+    });
+    expect(r.filters.beratungsstand).toEqual(['Abgelehnt']);
+    model({ keywords: ['artenschutz'] });
+    const e = await planFilters({
+      question,
+      explicit: { beratungsstand: ['Abgelehnt'] },
+      dip: dipWith({}),
+    });
+    expect(e.filters.beratungsstand).toEqual(['Abgelehnt']);
+  });
+});

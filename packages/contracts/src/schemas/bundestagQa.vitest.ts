@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import {
   bundestagAnswerResponseSchema,
+  bundestagBeratungsstandSchema,
   bundestagFilterSchema,
   bundestagPlanRequestSchema,
   bundestagRefSchema,
@@ -98,5 +99,19 @@ describe('Anfrage- und Antwortschemas', () => {
       },
     });
     expect(r.success).toBe(true);
+  });
+});
+
+describe('beratungsstand', () => {
+  it('akzeptiert exakte DIP-Werte und lehnt andere ab', () => {
+    expect(
+      bundestagFilterSchema.safeParse({ beratungsstand: ['Verkündet', 'Abgelehnt'] }).success
+    ).toBe(true);
+    expect(bundestagFilterSchema.safeParse({ beratungsstand: ['Verabschiedung'] }).success).toBe(
+      false
+    );
+    expect(bundestagBeratungsstandSchema.options).toContain(
+      'In der Beratung (Einzelheiten siehe Vorgangsablauf)'
+    );
   });
 });

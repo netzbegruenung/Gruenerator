@@ -72,6 +72,7 @@ export function describeFilters(filters: BundestagFilter): string {
   if (filters.wahlperiode?.length) parts.push(`Wahlperiode ${filters.wahlperiode.join(', ')}`);
   if (filters.drucksachetyp?.length) parts.push(`Typ ${filters.drucksachetyp.join(', ')}`);
   if (filters.urheber?.length) parts.push(`Urheber ${filters.urheber.join(', ')}`);
+  if (filters.beratungsstand?.length) parts.push(`Stand ${filters.beratungsstand.join(', ')}`);
   if (filters.datumVon) parts.push(`ab ${filters.datumVon}`);
   if (filters.datumBis) parts.push(`bis ${filters.datumBis}`);
   if (filters.dokumentnummer?.length) parts.push(`Drucksache ${filters.dokumentnummer.join(', ')}`);

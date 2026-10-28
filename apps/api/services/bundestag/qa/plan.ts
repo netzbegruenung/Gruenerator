@@ -7,6 +7,7 @@
 import {
   bundestagDrucksachetypSchema,
   bundestagFilterSchema,
+  bundestagBeratungsstandSchema,
   bundestagUrheberSchema,
   type BundestagFilter,
 } from '@gruenerator/contracts';
@@ -110,6 +111,7 @@ const modelOutputSchema = z.object({
   wahlperiode: z.array(z.number().int().min(1).max(30)).max(3).optional(),
   drucksachetyp: z.array(z.string()).optional(),
   urheber: z.array(z.string()).optional(),
+  beratungsstand: z.array(z.string()).optional(),
   // Datum nur als String prüfen; ein krummes Datum soll nicht die ganze Antwort kippen.
   datumVon: z.string().optional(),
   datumBis: z.string().optional(),
@@ -124,6 +126,7 @@ const MODEL_JSON_SCHEMA = {
     wahlperiode: { type: 'array', items: { type: 'integer' } },
     drucksachetyp: { type: 'array', items: { type: 'string' } },
     urheber: { type: 'array', items: { type: 'string' } },
+    beratungsstand: { type: 'array', items: { type: 'string' } },
     datumVon: { type: 'string' },
     datumBis: { type: 'string' },
     deskriptor: { type: 'array', items: { type: 'string' } },
@@ -183,6 +186,7 @@ const SYSTEM = `Du übersetzt eine Frage zum Deutschen Bundestag in Suchfilter f
 Gib nur Filter an, die die Frage wirklich nennt oder klar nahelegt. Lass alles andere weg.
 - drucksachetyp, erlaubte Werte: ${bundestagDrucksachetypSchema.options.join(' | ')}
 - urheber, erlaubte Werte: ${bundestagUrheberSchema.options.join(' | ')}. „Grüne" bedeutet „Fraktion BÜNDNIS 90/DIE GRÜNEN".
+- beratungsstand (Stand des Vorgangs), erlaubte Werte: ${bundestagBeratungsstandSchema.options.join(' | ')}. „beschlossen/verabschiedet/in Kraft" = Verkündet, Angenommen, Verabschiedet; „abgelehnt" = Abgelehnt. Nur setzen, wenn die Frage einen Stand nennt.
 - Die aktuelle Wahlperiode ist die ${CURRENT_WAHLPERIODE}. (seit 2025). „diese/aktuelle/laufende Wahlperiode" = ${CURRENT_WAHLPERIODE}. Die 20. war 2021–2025 (Ampel).
 - deskriptor: Deskriptoren sind Thesaurus-Schlagwörter im Singular. Schlage für jedes inhaltliche Themennomen der Frage 1–2 Deskriptoren vor (Wärmepumpen → Wärmepumpe; Wärmepumpenförderung → Wärmepumpe; Mietpreisbremse → Mietpreisbremse; Kindergrundsicherung → Kindergrundsicherung). Höchstens 4.
 - Fraktionsnamen, Dokumenttypen und „Bundesregierung" gehören nie in keywords oder deskriptor.
@@ -233,10 +237,12 @@ export async function planFilters({
       keywords = out.keywords;
       const drucksachetyp = keepKnown(out.drucksachetyp, bundestagDrucksachetypSchema);
       const urheber = keepKnown(out.urheber, bundestagUrheberSchema);
+      const beratungsstand = keepKnown(out.beratungsstand, bundestagBeratungsstandSchema);
       fromModel = {
         ...(out.wahlperiode?.length ? { wahlperiode: out.wahlperiode } : {}),
         ...(drucksachetyp.length ? { drucksachetyp } : {}),
         ...(urheber.length ? { urheber } : {}),
+        ...(beratungsstand.length ? { beratungsstand } : {}),
         ...(isoDate(out.datumVon, 'datumVon', notes) ? { datumVon: out.datumVon } : {}),
         ...(isoDate(out.datumBis, 'datumBis', notes) ? { datumBis: out.datumBis } : {}),
         ...(out.deskriptor?.length ? { deskriptor: out.deskriptor } : {}),

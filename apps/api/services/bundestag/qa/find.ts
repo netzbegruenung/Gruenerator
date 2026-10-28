@@ -36,6 +36,17 @@ const INITIATOR_TYPES = [
   'Entschließungsantrag',
   'Änderungsantrag',
 ];
+/** Bei gesetztem `beratungsstand` zuerst die Dokumente, die den Beschluss tragen; Anfragen zuletzt. */
+const DECISION_RANK: Record<string, number> = {
+  'Beschlussempfehlung und Bericht': 0,
+  Gesetzentwurf: 1,
+  Antrag: 2,
+  Entschließungsantrag: 2,
+  Änderungsantrag: 2,
+  'Kleine Anfrage': 4,
+  'Große Anfrage': 4,
+  Antwort: 4,
+};
 const NUMMER_RE = /^\d{1,2}\/\d{1,6}$/;
 
 export interface FindDip {
@@ -247,6 +258,7 @@ async function byVorgang(
   const byInitiative = types.length === 0 || types.every((t) => INITIATOR_TYPES.includes(t));
   const filterUrheber = !byInitiative && (f.urheber?.length ?? 0) > 0;
   if (byInitiative) withList(params, 'f.initiative', f.urheber);
+  withList(params, 'f.beratungsstand', f.beratungsstand);
   const page = await dip.list<DipVorgang>('vorgang', params);
   const sink: UrheberSink = { missing: false };
   const urheber = filterUrheber && f.urheber ? { want: f.urheber, sink } : undefined;
@@ -259,6 +271,11 @@ async function byVorgang(
         'Bei einigen Dokumenten fehlt im DIP die Urheber-Angabe; sie wurden nicht nach Urheber gefiltert.',
       ]
     : [];
+  if (f.beratungsstand && f.beratungsstand.length > 0) {
+    // Stabil: innerhalb eines Rangs bleibt die DIP-Reihenfolge der Vorgänge.
+    const rank = (c: BundestagCandidate) => DECISION_RANK[c.drucksachetyp] ?? 3;
+    candidates.sort((a, b) => rank(a) - rank(b));
+  }
   return { notes, candidates, vorgaenge: page.numFound, drucksachen: null };
 }
 
@@ -287,7 +304,10 @@ async function collect(
   const hasTypes = (f.drucksachetyp?.length ?? 0) > 0;
   const hasUrheber = (f.urheber?.length ?? 0) > 0;
   const viaVorgang =
-    (f.deskriptor?.length ?? 0) > 0 || Boolean(f.titel) || (hasUrheber && !hasTypes);
+    (f.deskriptor?.length ?? 0) > 0 ||
+    Boolean(f.titel) ||
+    (f.beratungsstand?.length ?? 0) > 0 ||
+    (hasUrheber && !hasTypes);
   return viaVorgang ? byVorgang(dip, f, wahlperiode) : byDrucksache(dip, f, wahlperiode);
 }
 

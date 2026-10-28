@@ -2,6 +2,7 @@ import {
   type BundestagAuftrag,
   type BundestagFilter,
   type BundestagPlanResponse,
+  bundestagBeratungsstandSchema,
   bundestagDrucksachetypSchema,
   bundestagUrheberSchema,
 } from '@gruenerator/contracts';
@@ -16,6 +17,7 @@ import { useBundestagAnswer, useBundestagPlan } from './useBundestagQa';
 const MAX_REFS = 12;
 const TYPEN = bundestagDrucksachetypSchema.options;
 const URHEBER = bundestagUrheberSchema.options;
+const STAND = bundestagBeratungsstandSchema.options;
 
 const fieldClass =
   'rounded-md border border-border bg-background px-sm py-xs text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-500';
@@ -31,6 +33,7 @@ function cleanFilters(f: BundestagFilter): BundestagFilter {
   if (f.wahlperiode?.length) out.wahlperiode = f.wahlperiode;
   if (f.drucksachetyp?.length) out.drucksachetyp = f.drucksachetyp;
   if (f.urheber?.length) out.urheber = f.urheber;
+  if (f.beratungsstand?.length) out.beratungsstand = f.beratungsstand;
   if (f.datumVon) out.datumVon = f.datumVon;
   if (f.datumBis) out.datumBis = f.datumBis;
   if (f.deskriptor?.length) out.deskriptor = f.deskriptor;
@@ -246,6 +249,14 @@ export function BundestagQaPage() {
                   options={URHEBER}
                   selected={filters.urheber}
                   onToggle={(v) => setFilters((f) => ({ ...f, urheber: toggle(f.urheber, v) }))}
+                />
+                <CheckGroup
+                  legend="Stand"
+                  options={STAND}
+                  selected={filters.beratungsstand}
+                  onToggle={(v) =>
+                    setFilters((f) => ({ ...f, beratungsstand: toggle(f.beratungsstand, v) }))
+                  }
                 />
               </div>
               <div className="grid gap-md md:grid-cols-3">

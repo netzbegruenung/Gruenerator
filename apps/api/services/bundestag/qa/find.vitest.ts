@@ -485,3 +485,34 @@ describe('findCandidates', () => {
     });
   });
 });
+
+describe('findCandidates beratungsstand', () => {
+  const fs = (id: string, nr: string, typ: string) => ({
+    vorgangsposition: typ,
+    datum: '2025-03-01',
+    fundstelle: { id, dokumentnummer: nr, drucksachetyp: typ, pdf_url: `https://x/${id}.pdf` },
+  });
+  it('schickt f.beratungsstand an den Vorgang, nimmt den Vorgangsweg und stellt den Beschluss voran', async () => {
+    const dip = makeDip((e) => {
+      if (e === 'vorgang') return [vorgang];
+      return [
+        fs('a', '21/1', 'Kleine Anfrage'),
+        fs('b', '21/2', 'Antwort'),
+        fs('c', '21/3', 'Gesetzentwurf'),
+        fs('d', '21/4', 'Beschlussempfehlung und Bericht'),
+      ];
+    });
+    const r = await findCandidates({
+      question: 'q',
+      filters: { beratungsstand: ['Verkündet', 'Angenommen'], wahlperiode: [21] },
+      assumedWahlperiode: false,
+      budget,
+      dip,
+      mcp: mcpNone,
+    });
+    expect(dip.calls.every((c) => c.endpoint !== 'drucksache')).toBe(true);
+    expect(dip.calls[0].endpoint).toBe('vorgang');
+    expect(dip.calls[0].params['f.beratungsstand']).toEqual(['Verkündet', 'Angenommen']);
+    expect(r.candidates.map((c) => c.ref)).toEqual(['21/4', '21/3', '21/1', '21/2']);
+  });
+});

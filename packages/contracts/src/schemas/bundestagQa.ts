@@ -32,6 +32,21 @@ export const bundestagUrheberSchema = z.enum([
   'Bundesregierung',
 ]);
 
+/** Exakte DIP-Werte von `f.beratungsstand` (Vorgang), am 28.10.2026 mit Treffern in WP 20/21 geprüft. */
+export const bundestagBeratungsstandSchema = z.enum([
+  'Verkündet',
+  'Angenommen',
+  'Verabschiedet',
+  'Bundesrat hat zugestimmt',
+  'Abgelehnt',
+  'Zurückgezogen',
+  'Für erledigt erklärt',
+  'Beschlussempfehlung liegt vor',
+  'Überwiesen',
+  'In der Beratung (Einzelheiten siehe Vorgangsablauf)',
+  'Noch nicht beraten',
+]);
+
 export const bundestagRefSchema = z
   .string()
   .regex(/^(\d{1,2}\/\d{1,6}|PlPr \d{1,2}\/\d{1,4} S\. \d+-\d+)$/);
@@ -42,6 +57,7 @@ export const bundestagFilterSchema = z.object({
   wahlperiode: z.array(z.number().int().min(1).max(30)).max(3).optional(),
   drucksachetyp: z.array(bundestagDrucksachetypSchema).optional(),
   urheber: z.array(bundestagUrheberSchema).optional(),
+  beratungsstand: z.array(bundestagBeratungsstandSchema).max(11).optional(),
   datumVon: z
     .string()
     .regex(/^\d{4}-\d{2}-\d{2}$/)
