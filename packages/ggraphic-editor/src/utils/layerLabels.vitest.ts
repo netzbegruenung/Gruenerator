@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MPL-2.0
+import { describe, expect, it } from 'vitest';
+
 import {
   isListedLayer,
   layerLabel,
@@ -5,10 +8,17 @@ import {
   sameLayerEntries,
   stageSummary,
 } from '@ggraphic/editor/utils/layerLabels';
-import { describe, expect, it } from 'vitest';
+
+import {
+  FIXTURE_ASSET_ID,
+  FIXTURE_INSTANCE_SRC_PREFIX,
+  registerFixtureAssets,
+} from '../testing/fixtureTemplates';
 
 import type { CanvasElementConfig } from '@ggraphic/editor/configs/types';
 import type { CanvasItem } from '@ggraphic/editor/utils/canvasLayerManager';
+
+registerFixtureAssets();
 
 /** Nur die Felder, die die Namen lesen; der Rest der Instanzen spielt keine Rolle. */
 const item = (value: unknown) => value as CanvasItem;
@@ -52,15 +62,18 @@ describe('layerLabel', () => {
     ['Illustration', item({ id: 'ill-1', type: 'illustration', data: {} }), 'Illustration'],
     [
       'Grafik aus dem Katalog',
-      item({ id: 'a-1', type: 'asset', data: { assetId: 'sunflower' } }),
-      'Sonnenblume (Gelb)',
+      item({ id: 'a-1', type: 'asset', data: { assetId: FIXTURE_ASSET_ID } }),
+      'Fixture badge',
     ],
     [
       'Sticker',
       item({
         id: 'a-2',
         type: 'asset',
-        data: { assetId: 'asset:1234', src: '/api/share/abcdef0123456789/download' },
+        data: {
+          assetId: 'asset:1234',
+          src: `${FIXTURE_INSTANCE_SRC_PREFIX}abcdef0123456789/download`,
+        },
       }),
       'Sticker',
     ],

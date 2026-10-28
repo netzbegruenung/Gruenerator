@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /**
  * „Automatisch" im Zuschneide-Modus (Hintergrundfoto und eigenes Bild): smartcrop
  * (hier gemockt) schlägt den Ausschnitt vor, die Bühne zeigt ihn, Abbrechen nimmt
@@ -5,13 +6,16 @@
  */
 import { GenericCanvas, type GenericCanvasRef } from '@ggraphic/editor/components/GenericCanvas';
 import { loadCanvasConfig } from '@ggraphic/editor/configs/configLoader';
-import { AutoSaveStoreProvider } from '@ggraphic/editor/stores/AutoSaveStoreProvider';
-import { registerToast } from '@ggraphic/editor/utils/editorToast';
+
+import '../../testing/fixtureTemplates';
 import { createCanvas } from '@napi-rs/canvas';
 import { act, cleanup, render, waitFor } from '@testing-library/react';
 import Konva from 'konva';
 import { createRef } from 'react';
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+
+import { AutoSaveStoreProvider } from '@ggraphic/editor/stores/AutoSaveStoreProvider';
+import { registerToast } from '@ggraphic/editor/utils/editorToast';
 
 import type * as StoreModule from '@ggraphic/editor/stores/createCanvasEditorStore';
 import type { CanvasEditorStoreApi } from '@ggraphic/editor/stores/createCanvasEditorStore';
@@ -77,7 +81,7 @@ beforeEach(() => {
 
 let config: Awaited<ReturnType<typeof loadCanvasConfig>>;
 beforeAll(async () => {
-  config = await loadCanvasConfig('dreizeilen');
+  config = await loadCanvasConfig('fixture-poster');
 }, 120_000);
 
 afterEach(() => {
@@ -87,7 +91,7 @@ afterEach(() => {
 
 const PHOTO: UserImageInstance = {
   id: 'photo',
-  src: '/photo.jpg',
+  src: 'https://example.org/photo.jpg',
   fileName: 'photo.jpg',
   x: 50,
   y: 80,

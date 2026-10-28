@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /**
  * Freie Elemente muessen im gemeinsamen Dokument landen.
  *
@@ -5,12 +6,12 @@
  * hochgeladene Bilder aendert die Vorlage ueber ihre eigenen Aktionen
  * (`setState`) — kein Host erklaert dafuer ein `on<Key>Change`. Bis #3416 gab
  * es damit keinen einzigen Pfad aus dem Komponentenzustand in
- * `pages[i].state`: die Sonnenblume erschien auf der Flaeche, Hocuspocus sah
+ * `pages[i].state`: das Asset erschien auf der Flaeche, Hocuspocus sah
  * nie ein Update, und nach dem Neuladen war sie weg.
  *
  * Zwei Ebenen, weil keine allein reicht:
  *
- * 1. Die echte Flaeche (`GenericCanvas` mit der echten `zitat`-Vorlage und
+ * 1. Die echte Flaeche (`GenericCanvas` mit der Fixture-Vorlage `fixture-note` und
  *    einem echten Y.Doc). Nur sie beweist, dass die Verdrahtung ueberhaupt
  *    haengt — eine Pruefung am Haken allein bliebe gruen, wenn `GenericCanvas`
  *    `useEmitHostStateChanges` nicht mehr riefe.
@@ -18,6 +19,11 @@
  *    Illustrationen und Uploads laden im Browser nach, und jsdom rastert
  *    nichts, also fuehrt keine echte Aktion dort hin.
  */
+import { act, render } from '@testing-library/react';
+import React, { useState } from 'react';
+import { describe, expect, it, vi } from 'vitest';
+import * as Y from 'yjs';
+
 import { PAGE_ELEMENT_STATE_KEYS } from '@ggraphic/editor/collab/pageElementStateKeys';
 import { readPages, seedPagesIfEmpty, updatePageStateById } from '@ggraphic/editor/collab/pagesDoc';
 import { useEmitHostStateChanges } from '@ggraphic/editor/collab/useEmitHostStateChanges';
@@ -26,10 +32,8 @@ import { createPageSyncedCallbacks } from '@ggraphic/editor/collab/wrapCallbacks
 import { GenericCanvas } from '@ggraphic/editor/components/GenericCanvas';
 import { loadCanvasConfig } from '@ggraphic/editor/configs/configLoader';
 import { AutoSaveStoreProvider } from '@ggraphic/editor/stores/AutoSaveStoreProvider';
-import { act, render } from '@testing-library/react';
-import React, { useState } from 'react';
-import { describe, expect, it, vi } from 'vitest';
-import * as Y from 'yjs';
+
+import { FIXTURE_ASSET_ID } from '../testing/fixtureTemplates';
 
 // `useFontLoader` fragt `document.fonts`; jsdom laedt keine Schriften und
 // kennt die FontFaceSet nicht, das Mounten stirbt sonst im Effekt.
@@ -43,7 +47,7 @@ const PAGE_ID = 'seed-0';
 function seedDoc(state: Record<string, unknown> = {}) {
   const doc = new Y.Doc();
   seedPagesIfEmpty(doc, [
-    { id: PAGE_ID, configId: 'zitat', state: { quote: 'Grün wirkt', ...state } },
+    { id: PAGE_ID, configId: 'fixture-note', state: { primary: 'Wirkt', ...state } },
   ]);
   return doc;
 }
@@ -66,7 +70,7 @@ const pageCallbacks = (doc: Y.Doc, hostCallbacks: Record<string, (val: unknown) 
 
 describe('freie Elemente an der echten Flaeche', () => {
   it('traegt jedes hinzugefuegte Element in den Seitenzustand ein', async () => {
-    const config = await loadCanvasConfig('zitat');
+    const config = await loadCanvasConfig('fixture-note');
     const doc = seedDoc();
     const page = readPages(doc)[0];
     let actions: Record<string, unknown> = {};
@@ -97,7 +101,7 @@ describe('freie Elemente an der echten Flaeche', () => {
       });
     };
 
-    await call('addAsset', 'sonnenblume-gelb');
+    await call('addAsset', FIXTURE_ASSET_ID);
     await call('addShape', 'rect');
     await call('addText');
     await call('addPillBadge');

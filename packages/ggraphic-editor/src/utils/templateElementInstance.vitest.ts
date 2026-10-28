@@ -1,10 +1,14 @@
+// SPDX-License-Identifier: MPL-2.0
+import { describe, expect, it } from 'vitest';
+
 import { ASSET_TARGET_SIZE } from '@ggraphic/editor/utils/canvasAssets';
 import { duplicateElementInState } from '@ggraphic/editor/utils/duplicateElement';
 import {
   findTemplateEntry,
   templateElementToEntry,
 } from '@ggraphic/editor/utils/templateElementInstance';
-import { describe, expect, it } from 'vitest';
+
+import { registerFixtureAssets } from '../testing/fixtureTemplates';
 
 import type { BaseCanvasState } from '@ggraphic/editor/configs/factory/baseTypes';
 import type {
@@ -12,6 +16,8 @@ import type {
   ImageElementConfig,
   LayoutResult,
 } from '@ggraphic/editor/configs/types';
+
+registerFixtureAssets();
 
 type S = Record<string, unknown>;
 
@@ -23,7 +29,7 @@ const quoteMark = (extra: Partial<ImageElementConfig<S>> = {}): ImageElementConf
   y: 200,
   width: 300,
   height: 300,
-  src: '/quote.svg',
+  src: 'https://example.org/assets/quote-mark.svg',
   ...extra,
 });
 
@@ -85,7 +91,11 @@ describe('templateElementToEntry', () => {
 
   it('lässt eine Grafik ohne Katalog-Eintrag in Ruhe', () => {
     expect(
-      templateElementToEntry(quoteMark({ src: '/Info_bg_tanne.png' }), {}, NO_LAYOUT)
+      templateElementToEntry(
+        quoteMark({ src: 'https://example.org/assets/unlisted.png' }),
+        {},
+        NO_LAYOUT
+      )
     ).toBeNull();
   });
 
