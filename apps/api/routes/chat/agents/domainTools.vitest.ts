@@ -308,6 +308,78 @@ describe('makeBundestagTool', () => {
   });
 });
 
+describe('Karten-Daten (uiCard)', () => {
+  it('bundestag liefert Filter in Worten und die Dokumentliste', async () => {
+    retrieveBundestag.mockResolvedValue({
+      results: [{ source: 'bundestag', title: 'T', content: 'c' }],
+      totals: { vorgaenge: 62, drucksachen: 10 },
+      filters: { wahlperiode: [21], drucksachetyp: ['Antrag'], datumVon: '2025-01-01' },
+      documents: [
+        {
+          ref: '21/1928',
+          drucksachetyp: 'Antrag',
+          datum: '2025-10-01',
+          titel: 'Titel',
+          urheber: [],
+          pdfUrl: null,
+        },
+      ],
+    });
+    const out = (await exec(
+      makeBundestagTool({
+        state: { ...baseState, intent: 'bundestag' } as ChatGraphState,
+        sourceRegistry: createSourceRegistry(),
+      }),
+      { query: 'Heizung' }
+    )) as { uiCard: { filter: string[]; dokumente: { ref: string }[] } };
+    expect(out.uiCard.filter).toEqual([
+      'Wahlperiode: 21',
+      'Typ: Antrag',
+      'Zeitraum: ab 01.01.2025',
+    ]);
+    expect(out.uiCard.dokumente[0]?.ref).toBe('BT-Drs. 21/1928');
+  });
+
+  it('parlament_lesen liefert gelesen und nichtGelesen', async () => {
+    readBundestagRefs.mockResolvedValue({
+      documents: [
+        {
+          ref: '21/1928',
+          titel: 'T',
+          drucksachetyp: 'Antrag',
+          datum: '2025-10-01',
+          urheber: [],
+          dokumentnummer: '21/1928',
+          pdfUrl: null,
+          points: [{ aussage: 'a', zitat: 'z', method: 'exact' }],
+          skipped: null,
+        },
+        {
+          ref: '21/2',
+          titel: 'U',
+          drucksachetyp: 'Antrag',
+          datum: '2025-10-01',
+          urheber: [],
+          dokumentnummer: '21/2',
+          pdfUrl: null,
+          points: [],
+          skipped: 'missing',
+        },
+      ],
+      notes: [],
+    });
+    const out = (await exec(
+      makeParlamentLesenTool({
+        state: { ...baseState, userLocale: 'de-DE' } as ChatGraphState,
+        sourceRegistry: createSourceRegistry(),
+      }),
+      { quelle: 'bundestag', dokumente: ['21/1928', '21/2'], frage: 'Frage?' }
+    )) as { uiCard: { gelesen: { aussagen: number }[]; nichtGelesen: { grund: string }[] } };
+    expect(out.uiCard.gelesen[0]?.aussagen).toBe(1);
+    expect(out.uiCard.nichtGelesen[0]?.grund).toBe('kein Volltext verfügbar');
+  });
+});
+
 describe('makeAbgeordnetenwatchTool', () => {
   beforeEach(() => retrieveAbgeordnetenwatch.mockReset());
 

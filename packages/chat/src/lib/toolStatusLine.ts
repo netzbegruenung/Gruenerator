@@ -28,10 +28,11 @@ const SEARCH_PROGRESS_TOOLS: ReadonlySet<string> = new Set([
   'gruenerator_search',
   'gruenerator_docs_search',
   'search_sources',
-  'bundestag',
-  'parlament_lesen',
-  // Same shape and role as `bundestag` — {resultCount, sources}, hits re-surface
-  // in the message's Quellen-Liste — so they belong in the line, not in a card.
+  // `bundestag` / `parlament_lesen` are deliberately NOT here: their card shows
+  // what was searched, found and read (query, filters, documents) — the user
+  // cannot see that anywhere else.
+  // `abgeordnetenwatch`: {resultCount, sources}, hits re-surface in the
+  // message's Quellen-Liste — so it belongs in the line, not in a card.
   'abgeordnetenwatch',
   // Attachment readers: the turn's own documents. A card per slice would narrate
   // the plumbing of a document the user attached themselves.

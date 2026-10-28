@@ -181,6 +181,16 @@ const TOOL_METADATA: Record<string, ToolMeta> = {
     activeLabel: 'Durchsuche den Bundestag',
     iconKey: 'book',
     accent: 'retrieval',
+    // Persistente Karte; die Kopfzeile nennt die Gesamtzahlen der Planstufe.
+    summarize: (_args, result) => {
+      const gesamt = getObject(getObject(result, 'uiCard'), 'gesamt');
+      const vorgaenge = getNumber(gesamt, 'vorgaenge');
+      const drucksachen = getNumber(gesamt, 'drucksachen');
+      if (vorgaenge != null && drucksachen != null) {
+        return `${vorgaenge} ${vorgaenge === 1 ? 'Vorgang' : 'Vorgänge'}, ${drucksachen} ${drucksachen === 1 ? 'Drucksache' : 'Drucksachen'}`;
+      }
+      return null;
+    },
   },
   parlament_lesen: {
     label: 'Bundestagsdokumente lesen',
@@ -188,6 +198,13 @@ const TOOL_METADATA: Record<string, ToolMeta> = {
     iconKey: 'book',
     accent: 'retrieval',
     queryKeys: ['frage'],
+    summarize: (_args, result) => {
+      const card = getObject(result, 'uiCard');
+      const gelesen = getArray(card, 'gelesen')?.length ?? 0;
+      const ungelesen = getArray(card, 'nichtGelesen')?.length ?? 0;
+      if (!card || gelesen + ungelesen === 0) return null;
+      return `${gelesen} von ${gelesen + ungelesen} gelesen`;
+    },
   },
   research: {
     label: 'Deep Research',

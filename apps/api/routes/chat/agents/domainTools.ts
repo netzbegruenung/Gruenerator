@@ -18,6 +18,7 @@
 import {
   bundestagAuftragSchema,
   bundestagFilterSchema,
+  type BundestagFilter,
   bundestagRefSchema,
 } from '@gruenerator/contracts';
 import { intentDeclineNote, isIntentAllowedForLocale } from '@gruenerator/shared/chat-intents';
@@ -100,6 +101,41 @@ NUTZE WENN der*die Nutzer*in um eine Zusammenfassung bittet ("fasse zusammen", "
   });
 }
 
+/** „PlPr 21/80 S. 12" bleibt, „21/1928" wird „BT-Drs. 21/1928". */
+function bundestagRefLabel(ref: string): string {
+  return ref.startsWith('PlPr') ? ref : `BT-Drs. ${ref}`;
+}
+
+function filterDate(iso: string): string {
+  const [y, m, d] = iso.split('-');
+  return y && m && d ? `${d}.${m}.${y}` : iso;
+}
+
+/**
+ * Die angewandten Filter in Worten, eine Zeile je Filter, für die Karte im Chat.
+ * Leere Listen und `undefined` fallen weg; `dokumentnummer` und `mitBeratung`
+ * sind Steuerung, kein Suchkriterium, das man der Person zeigen müsste.
+ */
+export function describeBundestagFilter(filters: BundestagFilter | undefined): string[] {
+  if (!filters) return [];
+  const lines: string[] = [];
+  if (filters.wahlperiode?.length) {
+    lines.push(`Wahlperiode: ${filters.wahlperiode.join(', ')}`);
+  }
+  if (filters.drucksachetyp?.length) lines.push(`Typ: ${filters.drucksachetyp.join(', ')}`);
+  if (filters.urheber?.length) lines.push(`Urheber: ${filters.urheber.join(', ')}`);
+  if (filters.datumVon && filters.datumBis) {
+    lines.push(`Zeitraum: ${filterDate(filters.datumVon)} bis ${filterDate(filters.datumBis)}`);
+  } else if (filters.datumVon) {
+    lines.push(`Zeitraum: ab ${filterDate(filters.datumVon)}`);
+  } else if (filters.datumBis) {
+    lines.push(`Zeitraum: bis ${filterDate(filters.datumBis)}`);
+  }
+  if (filters.deskriptor?.length) lines.push(`Schlagwort: ${filters.deskriptor.join(', ')}`);
+  if (filters.titel) lines.push(`Titel enthält: ${filters.titel}`);
+  return lines;
+}
+
 const BUNDESTAG_HINWEIS =
   "Die Liste enthält nur Metadaten. Für Inhalte `parlament_lesen` mit quelle 'bundestag' und bis zu 6 Refs aufrufen.";
 
@@ -132,7 +168,12 @@ NICHT für Abstimmungsverhalten oder Nebentätigkeiten einzelner Abgeordneter �
       ...bundestagFilterSchema.omit({ dokumentnummer: true }).shape,
     }),
     execute: async ({ query, ...filters }) => {
-      const { results, totals } = await retrieveBundestag(query, state.userLocale, filters);
+      const {
+        results,
+        totals,
+        documents,
+        filters: applied,
+      } = await retrieveBundestag(query, state.userLocale, filters);
       if (results.length === 0) {
         return { resultCount: 0, sources: '', error: 'Keine passenden Bundestags-Daten gefunden.' };
       }
@@ -143,6 +184,19 @@ NICHT für Abstimmungsverhalten oder Nebentätigkeiten einzelner Abgeordneter �
         sources: sources ?? '',
         ...(totals ? { gesamt: totals } : {}),
         hinweis: BUNDESTAG_HINWEIS,
+        // Nur für die Karte; wrapTools nimmt das Feld vor dem Modell heraus.
+        uiCard: {
+          query,
+          filter: describeBundestagFilter(applied ?? filters),
+          ...(totals ? { gesamt: totals } : {}),
+          dokumente: (documents ?? []).map((d) => ({
+            ref: bundestagRefLabel(d.ref),
+            typ: d.drucksachetyp,
+            datum: d.datum,
+            titel: d.titel,
+            url: d.pdfUrl,
+          })),
+        },
       };
     },
   });
@@ -215,6 +269,25 @@ export function makeParlamentLesenTool(ctx: {
         sources: sources ?? '',
         nichtGelesen,
         ...(notes.length > 0 ? { hinweise: notes } : {}),
+        // Nur für die Karte; wrapTools nimmt das Feld vor dem Modell heraus.
+        uiCard: {
+          frage,
+          gelesen: documents
+            .filter((d) => d.points.length > 0)
+            .map((d) => ({
+              ref: bundestagRefLabel(d.ref),
+              titel: d.titel,
+              aussagen: d.points.length,
+              url: d.pdfUrl,
+            })),
+          nichtGelesen: documents
+            .filter((d) => d.points.length === 0)
+            .map((d, i) => ({
+              ref: bundestagRefLabel(d.ref),
+              titel: d.titel,
+              grund: nichtGelesen[i]?.grund ?? '',
+            })),
+        },
       };
     },
   });

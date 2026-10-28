@@ -101,6 +101,11 @@ const BEFORE_HOOK_TIMEOUT_MS = 500;
 /**
  * Felder, die ein Werkzeugergebnis nur für die Hooks trägt.
  *
+ * `uiCard` ist die Ausnahme von „nur Hooks": strukturierte Zeilen für die Karte
+ * im Chat (`bundestag`, `parlament_lesen`) — Filter, Refs, Titel, Zähler. Das
+ * Modell hat dieselben Dinge schon als Text in `sources`; die Karte soll sie
+ * nicht ein zweites Mal im Kontext kosten.
+ *
  * Sie gehen an Karte, persistierten Schritt und `afterToolCall` — aber NICHT an
  * das Modell: `rerankDegraded` ist eine Aussage über unsere Infrastruktur, nicht
  * über die Fundstellen, und ein Planer, der sie liest, fängt an, sie in der
@@ -110,7 +115,7 @@ const BEFORE_HOOK_TIMEOUT_MS = 500;
  * `mcpReplay.ts`s `shortValue` für den späteren Turn-Replay desselben
  * persistierten Schritts (`buildToolObservationReplay`).
  */
-const INTERNAL_RESULT_FIELDS: readonly string[] = ['rerankDegraded'];
+const INTERNAL_RESULT_FIELDS: readonly string[] = ['rerankDegraded', 'uiCard'];
 
 export function stripInternalFields<T>(output: T): T {
   if (!output || typeof output !== 'object' || Array.isArray(output)) return output;

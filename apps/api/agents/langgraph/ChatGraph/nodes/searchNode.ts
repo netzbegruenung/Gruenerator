@@ -451,6 +451,13 @@ function buildBundestagResults(enriched: BtEnrichedResult, standalone = true): S
 export interface BundestagRetrieval {
   results: SearchResult[];
   totals: { vorgaenge: number; drucksachen: number } | null;
+  /** Die Listenzeilen der Planstufe als Metadaten, für die Karte im Chat (nicht fürs Modell). */
+  documents?: Pick<
+    BundestagCandidate,
+    'ref' | 'drucksachetyp' | 'datum' | 'titel' | 'urheber' | 'pdfUrl'
+  >[];
+  /** Die Filter, die die Planstufe tatsächlich angewandt hat (Modell-Filter plus Erkanntes). */
+  filters?: BundestagFilter;
 }
 
 export async function retrieveBundestag(
@@ -515,7 +522,20 @@ export async function retrieveBundestag(
   log.info(
     `[Search] Bundestag (${enriched?.kind ?? 'ohne Anreicherung'}): ${results.length} results in ${Date.now() - startTime}ms`
   );
-  return { results, totals: plan?.totals ?? null };
+  const documents = (plan?.candidates ?? []).map((c) => ({
+    ref: c.ref,
+    drucksachetyp: c.drucksachetyp,
+    datum: c.datum,
+    titel: c.titel,
+    urheber: c.urheber,
+    pdfUrl: c.pdfUrl,
+  }));
+  return {
+    results,
+    totals: plan?.totals ?? null,
+    ...(documents.length > 0 ? { documents } : {}),
+    ...(plan ? { filters: plan.filters } : {}),
+  };
 }
 
 /** Schwester von `retrieveBundestag` — gleicher Schnitt, gleiche Begründung. */

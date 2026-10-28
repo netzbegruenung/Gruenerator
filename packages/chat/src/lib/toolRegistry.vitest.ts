@@ -1049,3 +1049,67 @@ describe('creating tools never show the note meant for the model', () => {
     });
   });
 });
+
+describe('bundestag / parlament_lesen cards', () => {
+  it('renders query, filters, totals and the document list from uiCard', () => {
+    const vm = resolveToolEntry('bundestag').parse(
+      { query: 'Heizung' },
+      {
+        resultCount: 1,
+        sources: 'x',
+        uiCard: {
+          query: 'Heizung',
+          filter: ['Wahlperiode: 21', 'Zeitraum: ab 01.01.2025'],
+          gesamt: { vorgaenge: 62, drucksachen: 10 },
+          dokumente: [
+            {
+              ref: 'BT-Drs. 21/1928',
+              typ: 'Antrag',
+              datum: '2025-10-01',
+              titel: 'Heizungsgesetz',
+              url: 'https://dserver.bundestag.de/btd/21/019/2101928.pdf',
+            },
+          ],
+        },
+      }
+    );
+    expect(vm.kind).toBe('key-value');
+    if (vm.kind !== 'key-value') return;
+    expect(vm.entries).toEqual([
+      { label: 'Suche', value: 'Heizung' },
+      { label: 'Wahlperiode', value: '21' },
+      { label: 'Zeitraum', value: 'ab 01.01.2025' },
+      { label: 'Gefunden', value: '62 Vorgänge, 10 Drucksachen' },
+    ]);
+    expect(vm.citations[0]).toMatchObject({
+      title: 'Heizungsgesetz',
+      snippet: 'BT-Drs. 21/1928 · Antrag · 01.10.2025',
+      href: 'https://dserver.bundestag.de/btd/21/019/2101928.pdf',
+    });
+  });
+
+  it('lists read documents with statement counts and unread ones with the reason', () => {
+    const vm = resolveToolEntry('parlament_lesen').parse(
+      {},
+      {
+        uiCard: {
+          frage: 'Was regelt das?',
+          gelesen: [{ ref: 'BT-Drs. 21/1', titel: 'T', aussagen: 2, url: null }],
+          nichtGelesen: [{ ref: 'BT-Drs. 21/2', titel: 'U', grund: 'kein Volltext verfügbar' }],
+        },
+      }
+    );
+    expect(vm.kind).toBe('key-value');
+    if (vm.kind !== 'key-value') return;
+    expect(vm.citations[0]?.snippet).toBe('BT-Drs. 21/1 · 2 belegte Aussagen');
+    expect(vm.citations[0]?.href).toContain('dip.bundestag.de');
+    expect(vm.entries).toContainEqual({
+      label: 'Nicht gelesen',
+      value: 'BT-Drs. 21/2 · U · (kein Volltext verfügbar)',
+    });
+  });
+
+  it('keeps legacy results without uiCard on the citation list', () => {
+    expect(resolveToolEntry('bundestag').parse({}, { results: [] }).kind).toBe('citations');
+  });
+});
