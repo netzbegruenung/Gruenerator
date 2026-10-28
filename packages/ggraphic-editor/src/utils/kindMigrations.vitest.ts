@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MPL-2.0
 import { documentMigrations, migrateDocument } from '@ggraphic/schema';
 import { STAMP_V2_STEP } from '@ggraphic/schema/document/__fixtures__/v2Fixture';
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it } from 'vitest';
 
 import { STAMP_KIND } from '../testing/stampKind.js';
 
@@ -12,6 +12,9 @@ const register = (migrations?: ElementKindRegistration['migrations']) =>
     ...(STAMP_KIND as unknown as ElementKindRegistration<never>),
     ...(migrations ? { migrations } : {}),
   });
+
+// The registry is module-wide: leave it as the next test file expects it.
+afterEach(() => documentMigrations.unregisterStateKey('stampInstances'));
 
 describe('a host kind registers its document migrations', () => {
   it('at version 1 without steps, so a newer list is refused', () => {

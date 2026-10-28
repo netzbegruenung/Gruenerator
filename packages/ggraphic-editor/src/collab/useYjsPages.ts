@@ -266,8 +266,12 @@ export function useYjsPages(
     // stamp raced down by an older client is lifted again (the steps are
     // idempotent), a newer one turns this client read-only. Neither loops —
     // this client writes only while the stored version is below its own.
+    // The trigger is the stamp, not the data: old-shape data written under
+    // a current stamp (an old bundle, a peer before it saw the newer stamp)
+    // is never lifted here — see "Old writers" in DOCUMENT_VERSIONING.md.
+    let disposed = false;
     const settleVersion = () => {
-      if (readYDocRefusal(ydoc)) return;
+      if (disposed || readYDocRefusal(ydoc)) return;
       const outcome = ydoc.transact(() => migrateYDocument(ydoc), SETUP_ORIGIN);
       if (outcome.status === 'invalid' || outcome.status === 'newer') {
         console.error('[useYjsPages] document version not lifted:', outcome);
@@ -325,6 +329,7 @@ export function useYjsPages(
 
     setVersion((v) => v + 1);
     return () => {
+      disposed = true;
       meta.unobserve(onMeta);
       pagesMap.unobserveDeep(onChange);
       undoManager.off('stack-item-added', onUndoChange);
