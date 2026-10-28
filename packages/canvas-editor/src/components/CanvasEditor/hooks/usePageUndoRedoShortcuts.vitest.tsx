@@ -1,7 +1,10 @@
 import { renderHook } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { EDITOR_KEY_SHIELD_ATTRIBUTE, usePageUndoRedoShortcuts } from '@ggraphic/editor/components/CanvasEditor/hooks/usePageUndoRedoShortcuts';
+import {
+  EDITOR_KEY_SHIELD_ATTRIBUTE,
+  usePageUndoRedoShortcuts,
+} from '@ggraphic/editor/components/CanvasEditor/hooks/usePageUndoRedoShortcuts';
 
 function setup() {
   const undoPageOp = vi.fn();

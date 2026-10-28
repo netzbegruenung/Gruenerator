@@ -8,7 +8,13 @@
 
 import { strFromU8, strToU8, unzipSync, zipSync } from 'fflate';
 
-import { parseColor, pptxRotation, pptxUnits, transparencyOf, type PptxUnits } from '@ggraphic/editor/export/pptx/pptxUnits';
+import {
+  parseColor,
+  pptxRotation,
+  pptxUnits,
+  transparencyOf,
+  type PptxUnits,
+} from '@ggraphic/editor/export/pptx/pptxUnits';
 import { shadowProps, textBoxOptions, textRuns } from './writeText';
 
 import type {
