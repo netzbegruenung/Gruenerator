@@ -14,6 +14,7 @@ import {
   RESEARCH_LOOP_TOOLS,
   pinnedToolForMention,
   skillForMention,
+  isSkillAbsorbedByMention,
   type ChatIntentId,
 } from './index.js';
 
@@ -228,8 +229,15 @@ describe('skillForMention', () => {
   });
 
   it('gibt null für eine Erwähnung ohne Rezept — und das heisst NICHT „lösche"', () => {
-    expect(skillForMention('bundestag')).toBe(null);
     expect(skillForMention('umfragen')).toBe(null);
+  });
+
+  it('@bundestag lädt das Rezept bundestagsrecherche und listet es nicht einzeln', () => {
+    expect(skillForMention('bundestag')).toBe('bundestagsrecherche');
+    expect(pinnedToolForMention('bundestag')).toBe('bundestag');
+    expect(isSkillAbsorbedByMention('bundestagsrecherche')).toBe(true);
+    // `/presse` bleibt ein eigener Einstieg, auch wenn @pressemitteilungen es lädt.
+    expect(isSkillAbsorbedByMention('presse')).toBe(false);
   });
 
   // Die beiden Achsen kreuzen sich genau einmal, und das ist die Aussage von

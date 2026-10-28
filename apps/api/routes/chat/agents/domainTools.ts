@@ -160,9 +160,9 @@ export function makeBundestagTool(ctx: {
 }): Tool {
   const { state, sourceRegistry } = ctx;
   return tool({
-    description: `Findet Bundestags-Dokumente (DIP): Drucksachen und Plenardebatten, mit Filtern (Wahlperiode, Typ, Urheber, Datum, Deskriptor, Titel). Liefert eine Liste mit Refs, nur Metadaten; Inhalte über parlament_lesen. Nur Deutschland.
+    description: `Findet Bundestags-Dokumente (DIP): Drucksachen und Plenardebatten, mit Filtern (Wahlperiode, Typ, Urheber, Datum, Deskriptor, Titel). Liefert eine Liste mit Refs, nur Metadaten. Nur Deutschland.
 
-NICHT für Abstimmungsverhalten oder Nebentätigkeiten einzelner Abgeordneter — dafür abgeordnetenwatch.`,
+Nicht für Inhalte, dafür parlament_lesen. Nicht für Abstimmungsverhalten oder Nebentätigkeiten, dafür abgeordnetenwatch.`,
     inputSchema: z.object({
       query: z.string().min(1).describe('Suchbegriff: Person, Thema oder Drucksachennummer'),
       ...bundestagFilterSchema.omit({ dokumentnummer: true }).shape,
@@ -222,7 +222,9 @@ export function makeParlamentLesenTool(ctx: {
 }): Tool {
   const { state, sourceRegistry } = ctx;
   return tool({
-    description: `Liest Bundestags-Dokumente vollständig und isoliert und liefert belegte Aussagen mit wörtlichem Zitat. Refs stammen aus \`bundestag\`. Bis zu 6 Dokumente je Aufruf. Für „fasse zusammen“ gilt auftrag 'zusammenfassung'. Nur Deutschland.`,
+    description: `Liest Bundestags-Dokumente vollständig und isoliert und liefert belegte Aussagen mit wörtlichem Zitat. Refs stammen aus \`bundestag\`. Bis zu 6 Dokumente je Aufruf. Für „fasse zusammen“ gilt auftrag 'zusammenfassung'. Nur Deutschland.
+
+Nicht für Abstimmungsverhalten, dafür abgeordnetenwatch. Nicht für Positionen der Grünen, dafür gruenerator_search mit collection 'bundestagsfraktion'.`,
     inputSchema: z.object({
       quelle: z.enum(['bundestag']),
       dokumente: z
@@ -306,7 +308,7 @@ export function makeAbgeordnetenwatchTool(ctx: {
   return tool({
     description: `Ruft Mandats- und Abstimmungsdaten von abgeordnetenwatch.de ab: Abstimmungsverhalten, Nebentätigkeiten und Mandate einzelner Abgeordneter.
 
-NUTZE WENN nach dem Abstimmungsverhalten, den Nebentätigkeiten oder dem Mandat einer*eines konkreten Abgeordneten gefragt wird. Übergib den Namen der Person (oder ein Thema). Nur für Deutschland verfügbar.`,
+NUTZE WENN nach dem Abstimmungsverhalten, den Nebentätigkeiten oder dem Mandat einer*eines konkreten Abgeordneten gefragt wird. Übergib den Namen der Person (oder ein Thema). Nur für Deutschland verfügbar. Nicht für Drucksachen oder Reden, dafür bundestag und parlament_lesen.`,
     inputSchema: z.object({
       query: z.string().min(1).describe('Name der*des Abgeordneten oder ein Thema'),
     }),

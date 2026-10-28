@@ -294,6 +294,9 @@ export const LOOP_SCENARIOS: readonly LoopScenario[] = [
     ],
     mustDecide: [{ point: 'router.run_agentic', chose: 'loop' }],
     firstToolChoice: 'bundestag',
+    // `@bundestag` laedt das Rezept `bundestagsrecherche` mit (`activatesSkill`) —
+    // ein Eintrag im Menue statt zwei. Wie bei `presse` traegt der Titel den Beleg.
+    systemIncludes: '## AKTIVE PLATTFORM: Bundestag-Recherche',
   },
   // Der Degradierungsfall, den Phase N erst nötig gemacht hat: die dünne
   // Einzeldurchlauf-Tür der Parlaments-Abrufe ist gefallen, der Kern hängt nur

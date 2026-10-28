@@ -83,6 +83,11 @@ describe('eine einzelne Erwähnung zurrt ihren Intent fest', () => {
     expect(state.mentionPinnedTool).toBe('bundestag');
   });
 
+  it('@bundestag lädt zusätzlich das Rezept bundestagsrecherche', async () => {
+    const { state } = await run(['bundestag']);
+    expect(state.activeSkillMention).toBe('bundestagsrecherche');
+  });
+
   it('setzt die Markierung nicht ohne Erwähnung', async () => {
     const { state } = await run([]);
     expect(state.mentionPinnedTool).toBeUndefined();

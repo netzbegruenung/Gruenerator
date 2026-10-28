@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
+import { isSkillAbsorbedByMention } from '../chat-intents/index.js';
 import { isAdminVisibleAgent } from './agentVisibility.js';
 import { getVisibleSystemAgentsForLocale, isAgentVisibleForPlatform } from './audience.js';
 import { isLandesverbandIdentifier } from './landesverbaende.js';
@@ -30,6 +31,7 @@ interface Inputs {
 function webToday(i: Inputs) {
   const allSkills = agentsList.filter(
     (s) =>
+      !isSkillAbsorbedByMention(s.mention) && // deliberate divergence: one @bundestag entry
       (s.audience === undefined || s.audience === 'all' || s.audience === i.locale) &&
       isAdminVisibleSkill(s.mention, i.hiddenSkillMentions) &&
       isSkillOfferedIn(s, i.instanceId)
@@ -57,6 +59,7 @@ function mobileToday(i: Inputs) {
     (a) => isAgentVisibleForPlatform(a, 'mobile') && isLvItemVisibleForRoles(a.identifier, i.lvIds)
   );
   const skills = agentsList.filter((s) => {
+    if (isSkillAbsorbedByMention(s.mention)) return false; // deliberate divergence: one @bundestag entry
     if (s.audience !== undefined && s.audience !== 'all' && s.audience !== i.locale) return false;
     if (!isAdminVisibleSkill(s.mention, i.hiddenSkillMentions)) return false;
     if (!isSkillOfferedIn(s, i.instanceId)) return false;
@@ -124,6 +127,13 @@ describe('selectOfficialCatalog — the union of both rule sets', () => {
     hiddenAgentIds: [],
     hiddenSkillMentions: [],
   };
+
+  it('lists a recipe once: bundestagsrecherche is reached through @bundestag, presse stays', () => {
+    const { skills } = selectOfficialCatalog({ ...base, platform: 'web' });
+    const mentions = skills.map((s) => s.mention);
+    expect(mentions).not.toContain('bundestagsrecherche');
+    expect(mentions).toContain('presse');
+  });
 
   it('applies the admin agent block on mobile too (mobile ignored it)', () => {
     const out = selectOfficialCatalog({
