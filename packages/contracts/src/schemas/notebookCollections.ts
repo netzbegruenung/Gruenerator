@@ -418,18 +418,6 @@ export const reindexDocumentResponseSchema = z.object({
 });
 export type ReindexDocumentResponse = z.infer<typeof reindexDocumentResponseSchema>;
 
-export const reindexNotebookResponseSchema = z.object({
-  success: z.literal(true),
-  /** Eingereiht oder schon in Arbeit — diese IDs kann der Client beobachten. */
-  queued: z.array(z.string()),
-  /** Quellen ohne erreichbares Original, übersprungen. */
-  unavailable: z.number(),
-  /** Quellen, deren Eigentümer*in der KI-Verarbeitung nicht zugestimmt hat. */
-  consent_missing: z.number(),
-  message: z.string(),
-});
-export type ReindexNotebookResponse = z.infer<typeof reindexNotebookResponseSchema>;
-
 /**
  * Quellen an ein bestehendes Notebook anhängen, ohne die Menge zu ersetzen.
  * Der Hub speichert jede Aktion sofort; ein read-modify-write über
