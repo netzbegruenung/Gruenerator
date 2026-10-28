@@ -372,14 +372,24 @@ export function buildPrepareStep(
     // Schlussschritt mitgeschickt und bezahlt.
     const scope = active ? { activeTools: active } : {};
     /**
-     * Ein BENANNTES Werkzeug muss mitgehen, auch wenn der Umfang es
-     * zurückgestellt hat — sonst verlangt derselbe Schritt einen Aufruf und
-     * schickt die Definition dazu nicht mit. Die Absicherung sitzt hier und
-     * nicht nur bei `createToolScope`, weil jeder künftige Zwang durch diesen
-     * Trichter läuft: `forcedTool`, `firstToolName`, was danach kommt.
+     * Ein BENANNTER Schritt schickt NUR das benannte Werkzeug mit. Das deckt
+     * zweierlei: die Definition geht mit, auch wenn der Umfang sie
+     * zurückgestellt hat (sonst verlangt der Schritt einen Aufruf ohne
+     * Definition), und kein anderes Werkzeug steht daneben.
+     *
+     * Das Zweite ist der Stillstand vom 28.10.2026: `tool_choice` mit Namen über
+     * den vollen Katalog (25 Werkzeuge, ~44k Zeichen Schemata) liess Gemma 4 bei
+     * Cortecs 26 214 unsichtbare Tokens bis `finish_reason: length` erzeugen
+     * (60 s, kein Delta) und bei Melious nach ~30 s mit „malformed" scheitern —
+     * jedes Mal, sobald der Prompt das Modell zu einem anderen ersten Werkzeug
+     * zog (Bürger*innen-Mail: „Schritt 1: gruenerator_search"). GreenPT setzt
+     * den Namen gar nicht durch und rief `web_search`. Mit nur dem benannten
+     * Werkzeug antworteten alle drei in 2–5 s. Mehr als dieses eine kann der
+     * Schritt ohnehin nicht rufen; die anderen Definitionen sind nur Ablenkung.
+     * Die Absicherung sitzt hier, weil jeder Zwang durch diesen Trichter läuft:
+     * `forcedTool`, `firstToolName`, was danach kommt.
      */
-    const withTool = (name: string): typeof scope =>
-      active && !active.includes(name) ? { activeTools: [...active, name] } : scope;
+    const onlyTool = (name: string) => ({ activeTools: [name] as readonly string[] });
     if (stepNumber >= maxSteps - 1 || forceFinish()) {
       return {
         toolChoice: 'none' as const,
@@ -409,7 +419,7 @@ export function buildPrepareStep(
         toolChoice: choice,
         ...(extra && { system: `${baseSystem}${extra}` }),
         ...(firstToolName
-          ? withTool(firstToolName)
+          ? onlyTool(firstToolName)
           : firstStepTools
             ? { activeTools: firstStepTools }
             : scope),
@@ -423,7 +433,7 @@ export function buildPrepareStep(
         return {
           toolChoice: { type: 'tool' as const, toolName },
           ...(extra && { system: `${baseSystem}${extra}` }),
-          ...withTool(toolName),
+          ...onlyTool(toolName),
         };
     }
     return extra ? { system: `${baseSystem}${extra}`, ...scope } : { ...scope };

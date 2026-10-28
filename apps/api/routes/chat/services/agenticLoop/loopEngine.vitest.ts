@@ -57,6 +57,7 @@ describe('buildPrepareStep — forceFirstToolCall', () => {
     );
     expect(prep({ stepNumber: 0 })).toEqual({
       toolChoice: { type: 'tool', toolName: 'bundestag' },
+      activeTools: ['bundestag'],
     });
     // Danach entscheidet wieder der Planer.
     expect(prep({ stepNumber: 1 })).toEqual({});
@@ -112,7 +113,10 @@ describe('buildPrepareStep — forceFirstToolCall', () => {
   });
 
   it('ein benanntes Werkzeug schlägt die Menge des ersten Schritts', () => {
-    const named = { toolChoice: { type: 'tool', toolName: 'bundestag' } };
+    const named = {
+      toolChoice: { type: 'tool', toolName: 'bundestag' },
+      activeTools: ['bundestag'],
+    };
     const bare = buildPrepareStep(
       'sys',
       'suffix',
@@ -138,7 +142,7 @@ describe('buildPrepareStep — forceFirstToolCall', () => {
       () => ['a'],
       ['web_search']
     );
-    expect(scoped({ stepNumber: 0 })).toEqual({ ...named, activeTools: ['a', 'bundestag'] });
+    expect(scoped({ stepNumber: 0 })).toEqual(named);
   });
 
   it('die Menge des ersten Schritts wird ohne Zwang nie gelesen', () => {
@@ -202,15 +206,15 @@ describe('buildPrepareStep — welche Werkzeuge mitgehen', () => {
       'bundestag',
       scope
     );
-    // Beide benannten Werkzeuge hängen sich an den Umfang an — siehe
-    // "ein benanntes Werkzeug geht immer mit".
+    // Ein benannter Schritt schickt nur sein Werkzeug — siehe
+    // "ein benanntes Werkzeug geht allein".
     expect(prep({ stepNumber: 0 })).toEqual({
       toolChoice: { type: 'tool', toolName: 'bundestag' },
-      activeTools: ['gruenerator_search', 'meine_inhalte_laden', 'bundestag'],
+      activeTools: ['bundestag'],
     });
     expect(prep({ stepNumber: 1 })).toEqual({
       toolChoice: { type: 'tool', toolName: 'web_search' },
-      activeTools: ['gruenerator_search', 'meine_inhalte_laden', 'web_search'],
+      activeTools: ['web_search'],
     });
   });
 
@@ -237,14 +241,15 @@ describe('buildPrepareStep — welche Werkzeuge mitgehen', () => {
   });
 });
 
-describe('buildPrepareStep — ein benanntes Werkzeug geht immer mit', () => {
+describe('buildPrepareStep — ein benanntes Werkzeug geht allein', () => {
   const never = () => false;
   // Der Umfang zeigt `documents` nicht. Wird es trotzdem benannt, muss die
   // Definition mit — sonst verlangt derselbe Schritt einen Aufruf und liefert
-  // das Werkzeug nicht mit.
+  // das Werkzeug nicht mit. Und NUR sie: ein Name über dem vollen Katalog liess
+  // Gemma 4 bei Cortecs und Melious bis zum Abbruch stumm generieren (28.10.2026).
   const eng = () => ['gruenerator_search', 'meine_inhalte_laden'];
 
-  it('hängt das erwähnte Werkzeug an den Umfang an', () => {
+  it('schickt nur das erwähnte Werkzeug, auch wenn der Umfang es zurückstellt', () => {
     const prep = buildPrepareStep(
       'sys',
       'suffix',
@@ -258,11 +263,11 @@ describe('buildPrepareStep — ein benanntes Werkzeug geht immer mit', () => {
     );
     expect(prep({ stepNumber: 0 })).toEqual({
       toolChoice: { type: 'tool', toolName: 'documents' },
-      activeTools: ['gruenerator_search', 'meine_inhalte_laden', 'documents'],
+      activeTools: ['documents'],
     });
   });
 
-  it('hängt das erzwungene Ausweich-Werkzeug an den Umfang an', () => {
+  it('schickt nur das erzwungene Ausweich-Werkzeug', () => {
     const prep = buildPrepareStep(
       'sys',
       'suffix',
@@ -276,11 +281,11 @@ describe('buildPrepareStep — ein benanntes Werkzeug geht immer mit', () => {
     );
     expect(prep({ stepNumber: 1 })).toEqual({
       toolChoice: { type: 'tool', toolName: 'documents' },
-      activeTools: ['gruenerator_search', 'meine_inhalte_laden', 'documents'],
+      activeTools: ['documents'],
     });
   });
 
-  it('dupliziert nicht, wenn das Werkzeug ohnehin mitgeht', () => {
+  it('schneidet den Umfang weg, auch wenn das Werkzeug ohnehin mitgeht', () => {
     const prep = buildPrepareStep(
       'sys',
       'suffix',
@@ -294,7 +299,7 @@ describe('buildPrepareStep — ein benanntes Werkzeug geht immer mit', () => {
     );
     expect(prep({ stepNumber: 1 })).toEqual({
       toolChoice: { type: 'tool', toolName: 'gruenerator_search' },
-      activeTools: ['gruenerator_search', 'meine_inhalte_laden'],
+      activeTools: ['gruenerator_search'],
     });
   });
 });
@@ -308,6 +313,7 @@ describe('buildPrepareStep — forced fallback tool', () => {
     const prep = buildPrepareStep('sys', 'suffix', 5, never, false, () => 'web_search');
     expect(prep({ stepNumber: 1 })).toEqual({
       toolChoice: { type: 'tool', toolName: 'web_search' },
+      activeTools: ['web_search'],
     });
   });
 
@@ -328,6 +334,7 @@ describe('buildPrepareStep — forced fallback tool', () => {
     forced = 'web_search';
     expect(prep({ stepNumber: 2 })).toEqual({
       toolChoice: { type: 'tool', toolName: 'web_search' },
+      activeTools: ['web_search'],
     });
   });
 
