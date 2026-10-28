@@ -298,10 +298,16 @@ const PROBES = [
     { files: [text('NOTICE', `${PROVENANCE_NOTICE}Thanks to the Gruenerator team.\n`)] },
   ],
   ['f', 'missing SPDX header', { files: [text('src/probe.ts', 'export const s = 1;\n')] }],
+  [
+    'g',
+    'production import of a test fixture',
+    `import { V2_CORE_STEP } from '@ggraphic/schema/document/__fixtures__/v2Fixture';`,
+  ],
 ];
 
-// + the clean package, the ambiguous word, the bar chart and the empty file list below
-export const PROBE_COUNT = PROBES.length + 4;
+// + the clean package, the ambiguous word, the bar chart, the test fixture import
+// and the empty file list below
+export const PROBE_COUNT = PROBES.length + 5;
 
 export function runSelfTest() {
   const problems = [];
@@ -336,6 +342,20 @@ export function runSelfTest() {
   );
   if (chart.failures.length > 0 || chart.warnings.length === 0) {
     problems.push('probe "bar chart group" must warn without failing');
+  }
+  // A test may import a fixture.
+  const fixtureInTest = checkFiles(
+    pkg({
+      files: [
+        text(
+          'src/probe.vitest.ts',
+          `${SPDX}import { V2_CORE_STEP } from './__fixtures__/v2Fixture.js';\n`
+        ),
+      ],
+    })
+  );
+  if (fixtureInTest.failures.length > 0) {
+    problems.push('probe "fixture import in a test" must pass');
   }
   if (!checkFiles([]).failures.some((f) => f.message.includes('no files'))) {
     problems.push('probe "empty file list" must fail — a moved package would pass silently');
