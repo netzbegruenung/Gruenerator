@@ -104,3 +104,16 @@ describe('Upload-Ergebnis behält seine URL', () => {
     expect(item.mediaUrl).toBeUndefined();
   });
 });
+
+describe('Upload-Ergebnis braucht einen Link', () => {
+  it('verlangt shareToken oder url', () => {
+    const ok: CanvasMediaUploadResult[] = [
+      { id: 'a', shareToken: 't' },
+      { id: 'b', url: 'https://x/y.png' },
+    ];
+    // @ts-expect-error weder shareToken noch url
+    const bad: CanvasMediaUploadResult = { id: 'x' };
+    expect(ok).toHaveLength(2);
+    expect(bad.id).toBe('x');
+  });
+});
