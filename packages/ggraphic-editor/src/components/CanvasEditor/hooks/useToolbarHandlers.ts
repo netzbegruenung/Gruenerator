@@ -7,6 +7,7 @@ import type {
 } from '@ggraphic/editor/components/GenericCanvas';
 import type { ShadowPatch } from '@ggraphic/editor/hooks/useFloatingModuleHandlers';
 import type { PageCommandId } from '@ggraphic/editor/utils/canvasCommandRegistry';
+import { type SelectionGeometry } from '@ggraphic/editor/utils/canvasCommands';
 import type { CropAspectId } from '@ggraphic/editor/utils/cropAspect';
 import type { GradientFill } from '@ggraphic/editor/utils/gradientFill';
 import type { TextAlign } from '@ggraphic/editor/utils/textAlign';
@@ -78,7 +79,7 @@ export function useToolbarHandlers({
         page()?.handleOpacityChange?.(id, opacity, type),
       handleFontSizeChange: (id: string, size: number) => page()?.handleFontSizeChange?.(id, size),
       runCommand: (id: PageCommandId) => page()?.runCommand?.(id, null),
-      getGeometry: () => page()?.getGeometry?.() ?? null,
+      getGeometry: (): SelectionGeometry | null => page()?.getGeometry?.() ?? null,
       handlePositionChange: (patch: { x?: number; y?: number }) => page()?.setPosition?.(patch),
       handleSizeChange: (patch: { width?: number; height?: number }) => page()?.setSize?.(patch),
       handleShadowChange: (id: string, patch: ShadowPatch, type: string) =>
