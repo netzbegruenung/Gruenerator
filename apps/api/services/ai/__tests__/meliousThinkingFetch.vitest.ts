@@ -262,8 +262,8 @@ describe('meliousFetch — gemma-4-26b-a4b: was der Umbau NICHT anfasst', () => 
 
   const tool = { type: 'function', function: { name: 'melden', parameters: { type: 'object' } } };
 
-  // Die Werkzeugphase des Loops streamt; sie bleibt beim Wiederabspielen statt beim json_schema.
-  it('lässt einen gestreamten erzwungenen Zug unberührt und spielt ihn weiter als Strom ab', async () => {
+  // Die Werkzeugphase des Loops streamt; der Umbau auf json_schema greift nur nicht gestreamt.
+  it('lässt einen gestreamten erzwungenen Zug unberührt', async () => {
     const res = await meliousFetch('https://api.melious.ai/v1/chat/completions', {
       method: 'POST',
       body: JSON.stringify({
@@ -278,8 +278,8 @@ describe('meliousFetch — gemma-4-26b-a4b: was der Umbau NICHT anfasst', () => 
     const sent = JSON.parse((init as RequestInit).body as string) as Record<string, unknown>;
     expect(sent.tool_choice).toBe('required');
     expect(sent).not.toHaveProperty('response_format');
-    expect(sent.stream).toBe(false);
-    expect(res.headers.get('content-type')).toContain('text/event-stream');
+    expect(sent.stream).toBe(true);
+    expect(res.ok).toBe(true);
   });
 
   it("lässt tool_choice 'auto' unberührt", async () => {
