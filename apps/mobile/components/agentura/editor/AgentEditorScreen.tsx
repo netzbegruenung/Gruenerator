@@ -249,7 +249,9 @@ function EditorForm({
   // Ungespeicherte Änderungen: vor dem Verlassen nachfragen. Wer schon geht
   // (gespeichert, gelöscht, verworfen), wird nur durchgelassen.
   const dirty = useAgentEditorStore((s) => s.dirty);
-  usePreventRemove(dirty, ({ repeat }) => {
+  // A kept draft stays dirty, so leaving with it lifts the block explicitly.
+  const [keepingDraft, setKeepingDraft] = useState(false);
+  usePreventRemove(dirty && !keepingDraft, ({ repeat }) => {
     if (leavingRef.current) {
       repeat();
       return;
@@ -263,6 +265,7 @@ function EditorForm({
           text: 'Entwurf behalten',
           onPress: () => {
             leavingRef.current = true;
+            setKeepingDraft(true);
             repeat();
           },
         },
