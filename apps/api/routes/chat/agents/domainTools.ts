@@ -57,6 +57,7 @@ import { landtagDocTitle } from '../../../services/landtag/docTitle.js';
 import { LANDTAGE, parlamentOfRef, readLandtagRefs } from '../../../services/landtag/index.js';
 import { lookupUmfragen } from '../../../services/monitor/UmfragenService.js';
 import { DRAFT_LIMIT_TEXTS } from '../../../services/sharepicCreator/draftFailure.js';
+import { createLogger } from '../../../utils/logger.js';
 import {
   withResearchedSources,
   type SourceRegistry,
@@ -84,6 +85,8 @@ import { PROGRESS_MESSAGES, type SSEWriter } from '../services/sseHelpers.js';
 
 import type { ChatGraphState, SearchResult } from '../../../agents/langgraph/ChatGraph/types.js';
 import type { Request } from 'express';
+
+const log = createLogger('DomainTools');
 
 /**
  * `summarize`: map-reduce digest of the turn's attached documents (or, absent
@@ -278,7 +281,10 @@ Nicht für Inhalte, dafür parlament_lesen. Nicht für Reden im Plenum, dafür b
         const zaehlung = await countBundestagDocs({
           filters,
           ...(gruppieren ? { gruppieren } : {}),
-        }).catch(() => null);
+        }).catch((err: unknown) => {
+          log.warn(`[bundestag] Zählung fehlgeschlagen: ${String(err)}`);
+          return null;
+        });
         if (!zaehlung) {
           return {
             resultCount: 0,
@@ -426,7 +432,10 @@ Nicht für Drucksachen, Gesetzentwürfe oder Beschlüsse, dafür bundestag. Nich
         ...filter,
         ...(limit ? { limit } : {}),
         ...(wortlaut ? { wortlaut } : {}),
-      }).catch(() => null);
+      }).catch((err: unknown) => {
+        log.warn(`[bundestag_reden] Redensuche fehlgeschlagen: ${String(err)}`);
+        return null;
+      });
       if (!ergebnis) {
         return {
           resultCount: 0,
