@@ -12,7 +12,7 @@ import { axe } from '../../test-utils';
 import { SidebarPanel } from '../SidebarPanel';
 import { SidebarTabBar } from '../SidebarTabBar';
 
-import type { SidebarTab, SidebarTabId } from '../types';
+import type { SidebarTab, SidebarTabId } from '@ggraphic/editor/sidebar/types';
 
 function setViewport(mobile: boolean) {
   window.matchMedia = vi.fn().mockImplementation((query: string) => ({

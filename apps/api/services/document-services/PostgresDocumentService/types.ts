@@ -62,6 +62,8 @@ export interface DocumentUpdateData {
   /** Extracted plain text, kept so the source never has to be fetched again. */
   markdownContent?: string | null | undefined;
   pageCount?: number | undefined;
+  /** Setzt den Absturzschutz des Ingest-Workers zurück (`documentIngestWorker.ts`). */
+  processingAttempts?: number | undefined;
   additionalMetadata?: Record<string, unknown> | undefined;
 }
 

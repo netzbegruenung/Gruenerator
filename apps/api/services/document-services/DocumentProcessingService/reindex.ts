@@ -9,24 +9,37 @@
  * Upload: Extraktion mit Seitenmarken, Zerlegen, Punkte ersetzen. Die
  * Dokument-ID bleibt, damit auch Notebook-Mitgliedschaft, Tags und Metadaten.
  *
- * Nur Wolke-Dateien (siehe `reindexOrigin.ts`, warum nicht URL/WordPress).
- * Ein Upload ohne erreichbares Original wird NICHT eingereiht: die Datei ist
- * nach der Verarbeitung gelöscht (`fileProcessing.ts`), und ein „Neu
- * indexieren" aus dem gespeicherten Text brächte keine Seitenzahlen, würde
- * aber so aussehen.
+ * Wolke-Dateien und gescheiterte Uploads, deren Datei noch liegt (siehe
+ * `reindexOrigin.ts`, warum nicht URL/WordPress). Ein Upload ohne Datei wird
+ * NICHT eingereiht: nach erfolgreicher Verarbeitung ist sie gelöscht
+ * (`fileProcessing.ts`), und ein „Neu indexieren" aus dem gespeicherten Text
+ * brächte keine Seitenzahlen, würde aber so aussehen.
  */
 import { getPostgresInstance } from '../../../database/services/PostgresService.js';
 import { hasAiConsent } from '../../../middleware/requireAiConsent.js';
 
 import { kickIngestWorker } from './documentIngestWorker.js';
-import { reindexOrigin, type ReindexOrigin, type ReindexRow } from './reindexOrigin.js';
+import {
+  reindexOrigin,
+  rowMetadata,
+  type ReindexOrigin,
+  type ReindexRow,
+} from './reindexOrigin.js';
 
 import type { NotebookAccess } from '../../../routes/notebook/notebookAccess.js';
 
 export const REINDEX_UNAVAILABLE_MESSAGE = 'Original nicht mehr vorhanden — bitte neu hochladen.';
 export const REINDEX_QUEUED_MESSAGE = 'Wird neu indexiert.';
 
-const IN_FLIGHT = new Set(['uploaded', 'processing']);
+/**
+ * Läuft schon oder steht frisch an — ein zweiter Klick ändert nichts. NICHT
+ * dabei: `uploaded` mit `retry_after`, das wartet nach einem Anbieter-Ausfall
+ * (`ingestRetry.ts`); dort soll „Neu indexieren" sofort laufen.
+ */
+function isQueuedOrRunning(row: ReindexRow): boolean {
+  if (row.status === 'processing') return true;
+  return row.status === 'uploaded' && rowMetadata(row).retry_after == null;
+}
 
 export type ReindexDocumentResult =
   | { status: 'queued'; message: string }
@@ -39,7 +52,6 @@ export interface ReindexDeps {
   db: { query: <T>(sql: string, params: unknown[]) => Promise<T[]> };
   access: (notebookId: string, userId: string) => Promise<NotebookAccess>;
   isInNotebook: (notebookId: string, documentId: string) => Promise<boolean>;
-  collectionDocumentIds: (notebookId: string) => Promise<string[]>;
   hasAiConsent: (userId: string) => Promise<boolean>;
   kick: () => void;
 }
@@ -57,17 +69,13 @@ async function defaultDeps(): Promise<ReindexDeps> {
     },
     access: checkNotebookAccess,
     isInNotebook: (notebookId, documentId) => helper.isDocumentInCollection(notebookId, documentId),
-    collectionDocumentIds: async (notebookId) =>
-      (await helper.getCollectionDocuments(notebookId, { rethrow: true })).map(
-        (d) => d.document_id
-      ),
     hasAiConsent,
     kick: kickIngestWorker,
   };
 }
 
 const ROW_COLUMNS =
-  'id, user_id, filename, status, wolke_share_link_id, wolke_file_path, vector_count';
+  'id, user_id, filename, status, wolke_share_link_id, wolke_file_path, vector_count, metadata';
 
 /**
  * Setzt eingereihte Zeilen zurück auf `uploaded`. Die Bedingung auf den Status
@@ -87,15 +95,26 @@ async function enqueue(
               metadata = COALESCE(metadata, '{}'::jsonb) || jsonb_build_object(
                 'reindex_origin', $2::text,
                 'processing_error', NULL,
+                -- Von Hand ausgelöst: sofort, mit vollem Kontingent an
+                -- automatischen Wiederholungen (ingestRetry.ts).
+                'retry_after', NULL,
+                'ingest_retries', NULL,
                 -- War die Quelle vorher durchsuchbar? Nur dann darf ein
                 -- gescheiterter Lauf auf die alte Fassung zurückfallen.
+                -- Wartet die Zeile auf eine automatische Wiederholung, steht
+                -- der Wert schon da und gilt weiter.
                 'reindex_prev_searchable',
-                  (COALESCE(status, '') = 'completed' AND COALESCE(vector_count, 0) > 0),
+                  CASE WHEN status = 'uploaded'
+                       THEN COALESCE((metadata->>'reindex_prev_searchable')::boolean, false)
+                       ELSE (COALESCE(status, '') = 'completed' AND COALESCE(vector_count, 0) > 0)
+                  END,
                 -- Reihenfolge in der Warteschlange: eingereiht jetzt, nicht
                 -- beim ersten Upload — sonst überholt es frische Uploads.
                 'queued_at', NOW()
               )
-        WHERE id = $1 AND COALESCE(status, '') NOT IN ('uploaded', 'processing')`,
+        WHERE id = $1
+          AND (COALESCE(status, '') NOT IN ('uploaded', 'processing')
+               OR (status = 'uploaded' AND metadata->>'retry_after' IS NOT NULL))`,
       [id, origin.kind]
     );
   }
@@ -131,7 +150,7 @@ export async function reindexDocument(
   const origin = reindexOrigin(row);
   if (!origin) return { status: 'unavailable', message: REINDEX_UNAVAILABLE_MESSAGE };
 
-  if (row.status && IN_FLIGHT.has(row.status)) {
+  if (isQueuedOrRunning(row)) {
     return { status: 'queued', message: REINDEX_QUEUED_MESSAGE };
   }
 
@@ -145,60 +164,4 @@ export async function reindexDocument(
 
   await enqueue(deps, [{ id: row.id, origin }]);
   return { status: 'queued', message: REINDEX_QUEUED_MESSAGE };
-}
-
-export type ReindexNotebookResult =
-  | { status: 'ok'; queued: string[]; unavailable: number; consentMissing: number }
-  | { status: 'not_found' }
-  | { status: 'forbidden' }
-  | { status: 'consent_missing' };
-
-/** Alle erreichbaren Quellen eines Notebooks einreihen. */
-export async function reindexNotebookSources(
-  collectionId: string,
-  userId: string,
-  injected?: ReindexDeps
-): Promise<ReindexNotebookResult> {
-  const deps = injected ?? (await defaultDeps());
-  const access = await deps.access(collectionId, userId);
-  if (!access.exists || !access.canRead) return { status: 'not_found' };
-  if (!access.canEdit) return { status: 'forbidden' };
-  if (!(await deps.hasAiConsent(userId))) return { status: 'consent_missing' };
-
-  const ids = await deps.collectionDocumentIds(collectionId);
-  if (ids.length === 0) return { status: 'ok', queued: [], unavailable: 0, consentMissing: 0 };
-
-  const rows = await deps.db.query<ReindexRow>(
-    `SELECT ${ROW_COLUMNS} FROM documents WHERE id = ANY($1) AND deleted_at IS NULL`,
-    [ids]
-  );
-
-  const consent = new Map<string, boolean>([[userId, true]]);
-  const toEnqueue: Array<{ id: string; origin: ReindexOrigin }> = [];
-  const queued: string[] = [];
-  let unavailable = 0;
-  let consentMissing = 0;
-
-  for (const row of rows) {
-    const origin = reindexOrigin(row);
-    if (!origin) {
-      unavailable++;
-      continue;
-    }
-    if (row.status && IN_FLIGHT.has(row.status)) {
-      queued.push(row.id);
-      continue;
-    }
-    const owner = row.user_id ?? userId;
-    if (!consent.has(owner)) consent.set(owner, await deps.hasAiConsent(owner));
-    if (!consent.get(owner)) {
-      consentMissing++;
-      continue;
-    }
-    toEnqueue.push({ id: row.id, origin });
-    queued.push(row.id);
-  }
-
-  await enqueue(deps, toEnqueue);
-  return { status: 'ok', queued, unavailable, consentMissing };
 }

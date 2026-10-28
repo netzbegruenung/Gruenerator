@@ -13,7 +13,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { CanvasEditor } from '../index';
 
-import type { SidebarTabId } from '../../../sidebar/types';
+import type { SidebarTabId } from '@ggraphic/editor/sidebar/types';
 
 vi.mock('@ggraphic/editor/sidebar/UserUploadsProvider', () => ({
   // ToolbarStateBridge liest die Uploads optional (Erweitern).

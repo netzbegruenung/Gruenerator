@@ -1,7 +1,7 @@
 import { render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { TextField } from '../components/TextFieldPrimitives';
+import { TextField } from '@ggraphic/editor/sidebar/components/TextFieldPrimitives';
 import { ElementsPanel } from '../sections/assets/ElementsPanel';
 import { UploadsSection } from '../sections/UploadsSection';
 

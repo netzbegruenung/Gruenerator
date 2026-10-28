@@ -67,7 +67,7 @@ export async function renderSlideLayoutThumbnail(
   if (typeof document === 'undefined') return null;
   // Vor dem Mount: Konva misst Text beim ersten Zeichnen.
   await ensureFontsReady();
-  const { StandaloneCanvas } = await import('../components/StandaloneCanvas');
+  const { StandaloneCanvas } = await import('@ggraphic/editor/components/StandaloneCanvas');
 
   const container = document.createElement('div');
   container.setAttribute('aria-hidden', 'true');

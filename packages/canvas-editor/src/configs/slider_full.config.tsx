@@ -33,13 +33,13 @@ import {
 
 import { chatTab, createCommonSectionEntries, toolsTab, uploadsTab } from './commonSections';
 import { createBaseActions } from './factory/actionFactories';
-import { makeSectionDefiner } from './factory/defineSection';
-import { fromLayout } from './factory/layoutAccessors';
+import { makeSectionDefiner } from '@ggraphic/editor/configs/factory/defineSection';
+import { fromLayout } from '@ggraphic/editor/configs/factory/layoutAccessors';
 import { injectFeatureProps } from './featureInjector';
 import { createShareSection } from './shareSection';
 
 import type { SharepicAiCapabilities } from './aiCapabilities';
-import type { BackgroundColorOption, StockImageAttribution } from '../sidebar/types';
+import type { BackgroundColorOption, StockImageAttribution } from '@ggraphic/editor/sidebar/types';
 import type { SliderColorScheme, SliderStyle } from '../utils/sliderLayout';
 import type { BaseCanvasState, IconState } from '@ggraphic/editor/configs/factory/baseTypes';
 import type {

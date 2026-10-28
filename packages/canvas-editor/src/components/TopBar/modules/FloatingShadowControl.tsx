@@ -1,10 +1,11 @@
 import { CustomColorSwatch } from '@ggraphic/editor/components/CustomColorSwatch';
+import { useMessages } from '@ggraphic/editor/i18n/messages';
 import { Popover, PopoverContent, PopoverTrigger } from '@ggraphic/editor/ui/popover';
 import { Slider } from 'radix-ui';
 import React, { useId } from 'react';
 import { PiDropHalfBottom } from 'react-icons/pi';
 
-import { colorName } from '../../../utils/colorNames';
+import { colorName } from '@ggraphic/editor/utils/colorNames';
 
 import type { ShadowPatch } from '@ggraphic/editor/hooks/useFloatingModuleHandlers';
 
@@ -82,6 +83,7 @@ export function FloatingShadowControl({
   shadowOpacity,
   onChange,
 }: FloatingShadowControlProps) {
+  const t = useMessages();
   const enabled = !!shadowColor;
 
   const toggle = () => {
@@ -99,9 +101,9 @@ export function FloatingShadowControl({
       <PopoverTrigger asChild>
         <button
           className={ICON_BTN}
-          title="Schatten"
+          title={t.topBar.shadow}
           type="button"
-          aria-label="Schatten bearbeiten"
+          aria-label={t.topBar.editShadow}
         >
           <PiDropHalfBottom
             size={17}
@@ -116,7 +118,7 @@ export function FloatingShadowControl({
       >
         <div className="flex items-center justify-between">
           <span id={titleId} className="text-xs font-medium text-[var(--editor-text)]">
-            Schatten
+            {t.topBar.shadow}
           </span>
           <button
             className="text-[11px] font-medium text-[var(--editor-accent)] hover:underline"
@@ -154,7 +156,7 @@ export function FloatingShadowControl({
               />
             </div>
             <LabeledSlider
-              label="Weichheit"
+              label={t.sidebar.imageAdjust.softness}
               value={shadowBlur ?? 0}
               min={0}
               max={40}
@@ -162,7 +164,7 @@ export function FloatingShadowControl({
               onValueChange={(v) => onChange({ shadowBlur: v })}
             />
             <LabeledSlider
-              label="X-Versatz"
+              label={t.sidebar.imageAdjust.offsetX}
               value={shadowOffsetX ?? 0}
               min={-40}
               max={40}
@@ -170,7 +172,7 @@ export function FloatingShadowControl({
               onValueChange={(v) => onChange({ shadowOffsetX: v })}
             />
             <LabeledSlider
-              label="Y-Versatz"
+              label={t.sidebar.imageAdjust.offsetY}
               value={shadowOffsetY ?? 0}
               min={-40}
               max={40}
@@ -178,7 +180,7 @@ export function FloatingShadowControl({
               onValueChange={(v) => onChange({ shadowOffsetY: v })}
             />
             <LabeledSlider
-              label="Deckkraft"
+              label={t.sidebar.imageAdjust.opacity}
               value={(shadowOpacity ?? 0) * 100}
               min={0}
               max={100}

@@ -1,12 +1,13 @@
+import { useMessages } from '@ggraphic/editor/i18n/messages';
 import { cn } from '@ggraphic/editor/utils/cn';
 import { memo, useCallback } from 'react';
 
-import { AutoSaveIndicator } from '../components/TopBar/AutoSaveIndicator';
+import { AutoSaveIndicator } from '@ggraphic/editor/components/TopBar/AutoSaveIndicator';
 import { useIsCanvasMobile } from '../hooks/useIsCanvasMobile';
 
-import { SIDEBAR_PANEL_ID } from './sidebarStyles';
+import { SIDEBAR_PANEL_ID } from '@ggraphic/editor/sidebar/sidebarStyles';
 
-import type { SidebarTabBarProps, SidebarTabId, SidebarTab } from './types';
+import type { SidebarTabBarProps, SidebarTabId, SidebarTab } from '@ggraphic/editor/sidebar/types';
 
 interface TabButtonProps {
   tab: SidebarTab;
@@ -92,6 +93,7 @@ export const SidebarTabBar = memo(function SidebarTabBar({
   disabledTabs = [],
   horizontal = false,
 }: SidebarTabBarProps) {
+  const t = useMessages();
   const isMobile = useIsCanvasMobile();
 
   const isHorizontal = horizontal || isMobile;
@@ -102,7 +104,7 @@ export const SidebarTabBar = memo(function SidebarTabBar({
   if (isMobile) {
     return (
       <nav
-        aria-label="Editor-Bereiche"
+        aria-label={t.ui.editorSections}
         data-suppress-feedback-launcher=""
         className="order-2 flex-none flex h-[calc(64px+env(safe-area-inset-bottom))] pt-2 px-1 pb-[env(safe-area-inset-bottom)] bg-[var(--editor-surface)] border-t border-[var(--editor-border)]"
       >
@@ -122,7 +124,7 @@ export const SidebarTabBar = memo(function SidebarTabBar({
 
   return (
     <nav
-      aria-label="Editor-Bereiche"
+      aria-label={t.ui.editorSections}
       data-tour="canvas-tabs"
       className={cn(
         'sidebar-tab-bar flex flex-col items-center justify-start gap-1 pt-2 shrink-0 w-[76px] h-full bg-[var(--editor-surface)] border-r border-[var(--editor-border)]',

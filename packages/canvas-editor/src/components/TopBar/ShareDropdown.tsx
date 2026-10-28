@@ -22,7 +22,7 @@ import {
   useCaptionAltText,
   useShareAltText,
   withAltText,
-} from '../../sidebar/components/AltTextField';
+} from '@ggraphic/editor/sidebar/components/AltTextField';
 import { withPhotoCredit } from '../../utils/photoCredit';
 
 import {

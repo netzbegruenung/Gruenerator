@@ -13,7 +13,7 @@ import type {
   CanvasEditorExportApi,
   CanvasEditorHostChrome,
 } from './components/CanvasEditor/types';
-import type { SidebarTabId } from './sidebar/types';
+import type { SidebarTabId } from '@ggraphic/editor/sidebar/types';
 import type { FullCanvasConfig } from '@ggraphic/editor/configs/types';
 import type { InitialPageDef } from '@ggraphic/editor/hooks/usePageManager';
 import type { HocuspocusProvider } from '@hocuspocus/provider';

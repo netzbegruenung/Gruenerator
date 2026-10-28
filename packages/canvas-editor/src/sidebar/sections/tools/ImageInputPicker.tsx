@@ -1,3 +1,4 @@
+import { useMessages } from '@ggraphic/editor/i18n/messages';
 import { useUserUploads } from '@ggraphic/editor/sidebar/UserUploadsProvider';
 import { MasonryGrid, MasonryItem } from '@ggraphic/editor/ui/masonry-grid';
 import { cn } from '@ggraphic/editor/utils/cn';
@@ -21,6 +22,7 @@ export function ImageInputPicker({
   uploadsGridSize = 9,
   disabled,
 }: ImageInputPickerProps) {
+  const t = useMessages();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { items, MediaThumb } = useUserUploads();
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
@@ -48,7 +50,7 @@ export function ImageInputPicker({
       const file = await mediaItemToFile(item);
       onChange(file);
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Fehler beim Laden';
+      const message = err instanceof Error ? err.message : t.sidebar.tools.loadError;
       setPickError(message);
     }
   };
@@ -59,12 +61,12 @@ export function ImageInputPicker({
     <div className="flex flex-col gap-2">
       {previewUrl ? (
         <div className="relative w-full aspect-square rounded-lg overflow-hidden bg-[var(--background-alt)] border border-[var(--card-border)]">
-          <img src={previewUrl} alt="Vorschau" className="w-full h-full object-contain" />
+          <img src={previewUrl} alt={t.ui.preview} className="w-full h-full object-contain" />
           <button
             type="button"
             onClick={() => onChange(null)}
             disabled={disabled}
-            aria-label="Bild entfernen"
+            aria-label={t.sidebar.tools.removeImage}
             className="absolute top-2 right-2 size-7 flex items-center justify-center bg-black/60 text-white rounded-md border-none cursor-pointer hover:bg-black/80 disabled:opacity-50"
           >
             <HiXMark size={14} />
@@ -95,7 +97,7 @@ export function ImageInputPicker({
         >
           <HiArrowUpTray size={20} className="text-foreground-muted" />
           <span className="text-xs text-foreground-muted text-center">
-            Bild auswählen oder hierher ziehen
+            {t.sidebar.tools.pickImage}
           </span>
         </button>
       )}
@@ -114,7 +116,7 @@ export function ImageInputPicker({
       {recentItems.length > 0 ? (
         <>
           <span className="text-[10px] font-semibold uppercase tracking-wide text-foreground-muted mt-1 flex items-center gap-1">
-            <HiPhoto size={11} /> Aus Uploads wählen
+            <HiPhoto size={11} /> {t.sidebar.tools.pickFromUploads}
           </span>
           <MasonryGrid columns="2" gap="sm">
             {recentItems.map((item) => (

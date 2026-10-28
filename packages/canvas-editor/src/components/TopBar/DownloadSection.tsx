@@ -16,8 +16,8 @@ import { PRINT_UNGETESTET_HINWEIS } from '@gruenerator/contracts';
 import { useId, useState, type FormEvent } from 'react';
 import { FaDownload } from 'react-icons/fa';
 
-import { MOBILE_INPUT_TEXT } from '../../sidebar/sidebarStyles';
-import { DownloadNotice } from '../DownloadNotice';
+import { MOBILE_INPUT_TEXT } from '@ggraphic/editor/sidebar/sidebarStyles';
+import { DownloadNotice } from '@ggraphic/editor/components/DownloadNotice';
 
 import type {
   CanvasImpressumLocale,

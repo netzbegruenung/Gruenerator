@@ -20,11 +20,11 @@ import { AssetsSection } from '../sidebar/sections';
 
 import { chatTab, createCommonSectionEntries, toolsTab, uploadsTab } from './commonSections';
 import { createBaseActions } from './factory/actionFactories';
-import { makeSectionDefiner } from './factory/defineSection';
+import { makeSectionDefiner } from '@ggraphic/editor/configs/factory/defineSection';
 import { injectFeatureProps } from './featureInjector';
 
 import type { SharepicAiCapabilities } from './aiCapabilities';
-import type { BackgroundColorOption } from '../sidebar/types';
+import type { BackgroundColorOption } from '@ggraphic/editor/sidebar/types';
 import type { BaseCanvasState } from '@ggraphic/editor/configs/factory/baseTypes';
 import type {
   BackgroundElementConfig,

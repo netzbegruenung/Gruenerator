@@ -8,7 +8,7 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { useState } from 'react';
 import { describe, expect, it } from 'vitest';
 
-import { CanvasEditorLayout } from '../CanvasEditorLayout';
+import { CanvasEditorLayout } from '@ggraphic/editor/layouts/CanvasEditorLayout';
 
 function Editor() {
   const [selected, setSelected] = useState(true);

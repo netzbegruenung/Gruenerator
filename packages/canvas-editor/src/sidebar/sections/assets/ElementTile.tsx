@@ -1,3 +1,4 @@
+import { useMessages } from '@ggraphic/editor/i18n/messages';
 import { cn } from '@ggraphic/editor/utils/cn';
 import { onThumbnailHover } from '@ggraphic/editor/utils/illustrations/svgCache';
 import { takeDropPlaced } from '@ggraphic/editor/utils/mediaDrop';
@@ -69,6 +70,7 @@ export const ElementTile = memo(function ElementTile({
   disabled = false,
   eager = false,
 }: ElementTileProps) {
+  const t = useMessages();
   const fills = thumbFillsTile(item.thumb);
   const dark = thumbNeedsDarkTile(item.thumb);
   // `selected`/`disabled` describe the active page; a drag can target another
@@ -91,7 +93,7 @@ export const ElementTile = memo(function ElementTile({
       <button
         type="button"
         title={item.label}
-        aria-label={`${item.label} hinzufügen`}
+        aria-label={t.sidebar.elements.addItem(item.label)}
         {...(item.action.kind === 'icon' ? { 'aria-pressed': selected } : {})}
         aria-disabled={disabled}
         {...(draggable ? elementDragProps(item) : { draggable: false })}

@@ -5,7 +5,7 @@ import { type FaktencheckItem, type Placed, type VergleichItem } from './compose
 import { VERGLEICH_MARKER_IDS } from './sharepicIcons';
 import { GAP, MARKER_PAD_X, TOP_PAD } from './sharepicLayoutConstants';
 import { type BuildPass, type SlideCtx } from './slideContext';
-import { largestSizeWordsFit } from './textFit';
+import { largestSizeWordsFit } from '@ggraphic/editor/composer/textFit';
 
 /** `vergleich` with `stil: "spalten"`, measured on Ddouf0QiL1w/01 at 1080 px. */
 const VERGLEICH_SPALTEN = {

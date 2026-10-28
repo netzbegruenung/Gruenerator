@@ -1,5 +1,6 @@
 import { useCanvasEditorServices } from '@ggraphic/editor/CanvasEditorProvider';
 import { type CanvasStudioAssetItem } from '@ggraphic/editor/hostServices';
+import { useMessages } from '@ggraphic/editor/i18n/messages';
 import { assetStickerId, type StickerRef, type StudioAssetScope } from '@gruenerator/contracts';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { HiPlus } from 'react-icons/hi2';
@@ -38,6 +39,7 @@ export function StickerCatalog({
   canDrag: boolean;
   children: ReactNode;
 }) {
+  const t = useMessages();
   const { openStickerCreator } = useCanvasEditorServices();
   const [tab, setTab] = useState<StickerTab>('gruene');
   const creatorOpened = useRef(false);
@@ -58,7 +60,12 @@ export function StickerCatalog({
 
   return (
     <div className="flex flex-col gap-3 w-full">
-      <GalleryTabs label="Sticker-Auswahl" tabs={STICKER_TABS} value={tab} onChange={setTab} />
+      <GalleryTabs
+        label={t.sidebar.elements.stickerPicker}
+        tabs={STICKER_TABS}
+        value={tab}
+        onChange={setTab}
+      />
       {openStickerCreator && (
         <button
           type="button"
@@ -70,7 +77,7 @@ export function StickerCatalog({
           className="flex w-full items-center justify-center gap-2 h-10 rounded-lg border-[1.5px] border-dashed border-[var(--editor-border-strong)] bg-transparent text-sm font-semibold text-[var(--editor-text-secondary)] cursor-pointer transition-colors duration-150 hover:border-[var(--editor-accent)] hover:text-[var(--editor-text)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--editor-accent)]"
         >
           <HiPlus size={18} aria-hidden="true" />
-          Sticker erstellen
+          {t.sidebar.elements.createSticker}
         </button>
       )}
       {tab === 'gruene' ? (

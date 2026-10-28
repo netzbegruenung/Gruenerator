@@ -6,7 +6,7 @@ import { createCanvas } from '@napi-rs/canvas';
 import { strFromU8, unzipSync } from 'fflate';
 import { describe, expect, it } from 'vitest';
 
-import { buildPptxModel } from './buildPptxModel';
+import { buildPptxModel } from '@ggraphic/editor/export/pptx/buildPptxModel';
 import { PRESENTATION_FIXTURE_DECKS } from './presentationFixtureDeck';
 import { writePptx, type WritePptxDeps } from './writePptx';
 

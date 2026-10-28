@@ -8,7 +8,7 @@
 
 import { lazy } from 'react';
 
-import { lazyWithPreload } from './lazyWithPreload';
+import { lazyWithPreload } from '@ggraphic/editor/sidebar/sections/lazyWithPreload';
 
 // =============================================================================
 // STATIC EXPORTS - Lightweight sections loaded immediately
@@ -21,15 +21,15 @@ export type { ChatSectionProps } from './ChatSection';
 // Static: IconsSection used to be statically imported by AssetsSection, so the
 // previous lazy() wrapper was an ineffective dynamic import
 // (it confused the chunker). Export it directly.
-export { IconsSection } from './IconsSection';
+export { IconsSection } from '@ggraphic/editor/sidebar/sections/IconsSection';
 export { BadgeSection } from './BadgeSection';
 export type { BadgeSectionProps } from './BadgeSection';
 export { BalkenSettingsSection } from './BalkenSettingsSection';
 export type { BalkenSettingsSectionProps } from './BalkenSettingsSection';
 export { FrameSettingsSection } from './FrameSettingsSection';
 export type { FrameSettingsSectionProps } from './FrameSettingsSection';
-export { FormenSection } from './FormenSection';
-export type { FormenSectionProps } from './FormenSection';
+export { FormenSection } from '@ggraphic/editor/sidebar/sections/FormenSection';
+export type { FormenSectionProps } from '@ggraphic/editor/sidebar/sections/FormenSection';
 export * from './dreizeilen';
 
 // =============================================================================

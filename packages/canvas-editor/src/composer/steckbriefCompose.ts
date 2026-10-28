@@ -19,8 +19,8 @@ import {
   steckbriefOutline,
   type Box,
   type PlacedArrow,
-} from './steckbriefLayout';
-import { balancedWrap } from './textFit';
+} from '@ggraphic/editor/composer/steckbriefLayout';
+import { balancedWrap } from '@ggraphic/editor/composer/textFit';
 
 /** What a steckbrief reads from its slide besides `SlideCtx`; all final before `place`. */
 export interface SteckbriefScene {

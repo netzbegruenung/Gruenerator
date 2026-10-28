@@ -11,9 +11,9 @@ import {
 } from '@ggraphic/editor/utils/mediaDrop';
 import React, { useCallback, useState, memo } from 'react';
 
-import { useTrackUnsplashDownload } from '../../hooks/useTrackUnsplashDownload';
-import { PageToolbar } from '../PageToolbar';
-import { ZoomableViewport } from '../ZoomableViewport';
+import { useTrackUnsplashDownload } from '@ggraphic/editor/hooks/useTrackUnsplashDownload';
+import { PageToolbar } from '@ggraphic/editor/components/PageToolbar';
+import { ZoomableViewport } from '@ggraphic/editor/components/ZoomableViewport';
 
 import { useBlockInsert } from './blockInsert';
 

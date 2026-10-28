@@ -20,7 +20,7 @@ import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { BlockInsertContext, type BlockInsertApi } from '../../components/CanvasEditor/blockInsert';
-import { useTrackUnsplashDownload } from '../../hooks/useTrackUnsplashDownload';
+import { useTrackUnsplashDownload } from '@ggraphic/editor/hooks/useTrackUnsplashDownload';
 import { axe } from '../../test-utils';
 import { ElementsPanel } from '../sections/assets/ElementsPanel';
 import { ElementTile } from '../sections/assets/ElementTile';

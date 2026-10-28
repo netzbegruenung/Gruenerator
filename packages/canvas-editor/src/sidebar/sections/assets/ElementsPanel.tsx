@@ -1,5 +1,6 @@
 import { useCanvasEditorServices } from '@ggraphic/editor/CanvasEditorProvider';
 import { useDebounce } from '@ggraphic/editor/hooks/useDebounce';
+import { useMessages } from '@ggraphic/editor/i18n/messages';
 import { cn } from '@ggraphic/editor/utils/cn';
 import { MAX_ICON_SELECTIONS } from '@ggraphic/editor/utils/iconInstances';
 import {
@@ -15,18 +16,18 @@ import { PiCaretLeftBold, PiMagnifyingGlass, PiX } from 'react-icons/pi';
 
 import { useBlockInsert } from '../../../components/CanvasEditor/blockInsert';
 import { useIsCanvasMobile } from '../../../hooks/useIsCanvasMobile';
-import { useTrackUnsplashDownload } from '../../../hooks/useTrackUnsplashDownload';
-import { MOBILE_INPUT_TEXT } from '../../sidebarStyles';
+import { useTrackUnsplashDownload } from '@ggraphic/editor/hooks/useTrackUnsplashDownload';
+import { MOBILE_INPUT_TEXT } from '@ggraphic/editor/sidebar/sidebarStyles';
 import { IllustrationSettings } from '../IllustrationSettings';
-import { FramePreviewDefs } from '../RahmenSection';
+import { FramePreviewDefs } from '@ggraphic/editor/sidebar/sections/RahmenSection';
 
 import { BackgroundCatalog } from './BackgroundCatalog';
-import { CategoryCard } from './CategoryCard';
+import { CategoryCard } from '@ggraphic/editor/sidebar/sections/assets/CategoryCard';
 import { ElementGrid } from './ElementGrid';
 import { searchElements } from './elementSearch';
 import { ElementTile } from './ElementTile';
 import { galleryStickerItem, type ElementItem } from './elementTypes';
-import { EmojiTonePicker } from './EmojiTonePicker';
+import { EmojiTonePicker } from '@ggraphic/editor/sidebar/sections/assets/EmojiTonePicker';
 import { FotosCatalog } from './FotosCatalog';
 import { RecentCarousel } from './RecentCarousel';
 import { StickerCatalog } from './StickerCatalog';
@@ -56,6 +57,7 @@ function SearchField({
   onChange: (value: string) => void;
   placeholder: string;
 }) {
+  const t = useMessages();
   return (
     <label
       className={cn(
@@ -87,7 +89,7 @@ function SearchField({
       {value && (
         <button
           type="button"
-          aria-label="Suche leeren"
+          aria-label={t.sidebar.elements.clearSearch}
           onClick={() => onChange('')}
           className="touch-target size-7 rounded-lg grid place-items-center border-none bg-transparent cursor-pointer text-[var(--editor-text-muted)] hover:bg-[var(--editor-tile)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--editor-accent)]"
         >
@@ -134,6 +136,7 @@ function BlockGroups({
  * the mobile sheet share it; only spacing and drag differ.
  */
 export function ElementsPanel(props: ExtendedAssetsSectionProps) {
+  const t = useMessages();
   const isMobile = useIsCanvasMobile();
   const { userLocale = 'de-DE', searchUnsplashImages } = useCanvasEditorServices();
   // Opened for a selected frame or illustration ("Mehr" on the phone), it starts in that category.
@@ -296,7 +299,9 @@ export function ElementsPanel(props: ExtendedAssetsSectionProps) {
 
   const brand = catalog.find((c) => c.id === 'marke');
   const cards = catalog.filter((c) => c.id !== 'marke');
-  const placeholder = category ? `In ${category.label} suchen` : 'Elemente suchen';
+  const placeholder = category
+    ? t.sidebar.elements.searchIn(category.label)
+    : t.sidebar.elements.searchElements;
   const noResultsHint =
     userLocale === 'de-AT'
       ? 'Versuch es mit „Logo“, „Kreis“ oder „Rahmen“.'
@@ -334,7 +339,9 @@ export function ElementsPanel(props: ExtendedAssetsSectionProps) {
       items.length > 0 ? (
         grid(items)
       ) : category.isLoading ? (
-        <p className="m-0 py-8 text-center text-sm text-[var(--editor-text-muted)]">Lädt …</p>
+        <p className="m-0 py-8 text-center text-sm text-[var(--editor-text-muted)]">
+          {t.sidebar.elements.loading}
+        </p>
       ) : null;
     if (category.id === 'bloecke' && !hasQuery && blocks) {
       return <BlockGroups blocks={blocks.bloecke} items={items} grid={grid} />;
@@ -388,7 +395,7 @@ export function ElementsPanel(props: ExtendedAssetsSectionProps) {
           <button
             type="button"
             onClick={() => setCat(null)}
-            aria-label="Zurück zu allen Elementen"
+            aria-label={t.sidebar.elements.backToAll}
             className="size-9 rounded-[10px] grid place-items-center border-none bg-transparent cursor-pointer text-[var(--editor-text)] hover:bg-[var(--editor-tile)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--editor-accent)]"
           >
             <PiCaretLeftBold size={20} />
@@ -408,8 +415,8 @@ export function ElementsPanel(props: ExtendedAssetsSectionProps) {
         <div className="flex items-baseline justify-between gap-2 -mt-1.5">
           <SectionHeading>
             {results.length > 0
-              ? `${results.length} ${results.length === 1 ? 'Ergebnis' : 'Ergebnisse'} für „${q}“`
-              : `Keine Treffer für „${q}“`}
+              ? t.sidebar.elements.resultsFor(results.length, q)
+              : t.topBar.background.noMatch(q)}
           </SectionHeading>
           {category && (
             <button
@@ -417,7 +424,7 @@ export function ElementsPanel(props: ExtendedAssetsSectionProps) {
               onClick={() => setCat(null)}
               className="p-0 border-none bg-transparent cursor-pointer whitespace-nowrap text-[13px] font-semibold text-[var(--editor-active-fg)] hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--editor-accent)] rounded"
             >
-              Überall suchen
+              {t.sidebar.elements.searchEverywhere}
             </button>
           )}
         </div>
@@ -451,7 +458,7 @@ export function ElementsPanel(props: ExtendedAssetsSectionProps) {
           {recent.length > 0 && (
             <section className="flex flex-col gap-2.5">
               <div className="flex items-baseline justify-between">
-                <SectionHeading>Zuletzt verwendet</SectionHeading>
+                <SectionHeading>{t.sidebar.elements.recent}</SectionHeading>
                 <span className="text-xs text-[var(--editor-text-muted)]">
                   {countLabel(recent.length)}
                 </span>
@@ -468,13 +475,13 @@ export function ElementsPanel(props: ExtendedAssetsSectionProps) {
           {brand && (
             <section className="flex flex-col gap-2.5">
               <div className="flex items-baseline justify-between">
-                <SectionHeading>Eure Marke</SectionHeading>
+                <SectionHeading>{t.sidebar.elements.yourBrand}</SectionHeading>
                 <button
                   type="button"
                   onClick={() => openCategory('marke')}
                   className="touch-target p-0 border-none bg-transparent cursor-pointer text-[13px] font-semibold text-[var(--editor-active-fg)] hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--editor-accent)] rounded"
                 >
-                  Alle anzeigen
+                  {t.sidebar.elements.showAll}
                 </button>
               </div>
               <div className="grid grid-cols-4 gap-2">
@@ -495,7 +502,7 @@ export function ElementsPanel(props: ExtendedAssetsSectionProps) {
 
           {cards.length > 0 && (
             <section className="flex flex-col gap-3.5">
-              <SectionHeading>Kategorien durchsuchen</SectionHeading>
+              <SectionHeading>{t.sidebar.elements.browseCategories}</SectionHeading>
               <div className="grid grid-cols-3 gap-x-3.5 gap-y-[22px]">
                 {cards.map((c, i) => (
                   <CategoryCard

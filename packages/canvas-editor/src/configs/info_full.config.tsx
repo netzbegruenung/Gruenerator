@@ -21,7 +21,7 @@ import {
   type ColorTwoTextState,
 } from './factory';
 
-import type { BackgroundColorOption } from '../sidebar/types';
+import type { BackgroundColorOption } from '@ggraphic/editor/sidebar/types';
 import type { ImageElementConfig, LayoutResult } from '@ggraphic/editor/configs/types';
 
 const BACKGROUND_COLORS: BackgroundColorOption[] = [
