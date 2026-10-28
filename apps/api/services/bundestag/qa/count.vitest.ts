@@ -222,6 +222,19 @@ describe('countBundestag: mehrere Werte', () => {
 });
 
 describe('formatCount', () => {
+  it('nennt die angewendeten Filter, damit eine Teilmenge nicht als Gesamtzahl gelesen wird', () => {
+    const text = formatCount({
+      einheit: 'Drucksachen',
+      gesamt: 524,
+      gruppen: null,
+      gruppiertNach: null,
+      filters: { urheber: ['Fraktion BÜNDNIS 90/DIE GRÜNEN'], wahlperiode: [21] },
+      notes: [],
+      aufrufe: 1,
+    } as never);
+    expect(text).toContain('nur Urheber: Fraktion BÜNDNIS 90/DIE GRÜNEN');
+  });
+
   it('nennt Einheit und Tabelle', () => {
     const text = formatCount({
       einheit: 'Drucksachen',
