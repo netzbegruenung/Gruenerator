@@ -137,4 +137,38 @@ describe('retrieveBundestag: Zusammenführung', () => {
     expect(btSearch).not.toHaveBeenCalled();
     expect(plan).not.toHaveBeenCalled();
   });
+
+  it('hängt den Beratungsverlauf an den ersten Treffer je Vorgang und gibt ihn der Karte', async () => {
+    btSearch.mockResolvedValue(DOKUMENT);
+    const verlauf = {
+      schritte: [
+        {
+          position: '3. Beratung',
+          gremium: 'BT',
+          datum: '2026-03-05',
+          fundstelle: 'Plenarprotokoll 21/62',
+          anfangsseite: 7524,
+          pdfUrl: null,
+          beschluesse: [{ tenor: 'Annahme in Ausschussfassung', seite: '7524B', abstimmung: null }],
+        },
+      ],
+      verkuendung: null,
+    };
+    plan.mockResolvedValue(
+      planWith([
+        candidate({ vorgangId: 'v1', verlauf }),
+        candidate({ ref: '21/2000', vorgangId: 'v1', verlauf }),
+      ])
+    );
+    const { results, verfahren } = await retrieveBundestag('x', 'de-DE');
+    const zeile =
+      '• 3. Beratung (Bundestag) 05.03.2026: Annahme in Ausschussfassung — Plenarprotokoll 21/62 S. 7524B';
+    expect(results[0]?.content).toContain(zeile);
+    // Die Ref steht vor dem Verlauf: kappt die Schnipselgrenze, bleibt der Schlüssel.
+    expect(results[0]?.content.indexOf('Ref: 21/1928')).toBeLessThan(
+      results[0]?.content.indexOf(zeile) ?? 0
+    );
+    expect(results[1]?.content).not.toContain('Beratungsverlauf');
+    expect(verfahren).toEqual([{ titel: 'Vorgang', zeilen: [zeile.slice(2)] }]);
+  });
 });

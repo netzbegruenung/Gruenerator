@@ -1,4 +1,5 @@
 import {
+  bundestagVerlaufLines,
   type BundestagAuftrag,
   type BundestagFilter,
   type BundestagPlanResponse,
@@ -352,7 +353,7 @@ export function BundestagQaPage() {
                 <p>Keine Treffer.</p>
               ) : (
                 <ul className="flex flex-col gap-xs">
-                  {planData.candidates.map((c) => (
+                  {planData.candidates.map((c, i) => (
                     <li key={c.ref} className="rounded-md border border-border p-sm">
                       <label className="flex items-start gap-sm">
                         <input
@@ -368,6 +369,15 @@ export function BundestagQaPage() {
                           {c.titel}
                         </span>
                       </label>
+                      {/* Verlauf nur am ersten Kandidaten seines Vorgangs. */}
+                      {c.verlauf &&
+                        planData.candidates.findIndex((o) => o.vorgangId === c.vorgangId) === i && (
+                          <ul className="ml-lg mt-xs list-disc pl-md text-sm">
+                            {bundestagVerlaufLines(c.verlauf).map((line) => (
+                              <li key={line}>{line}</li>
+                            ))}
+                          </ul>
+                        )}
                       {c.pdfUrl && (
                         <a
                           href={c.pdfUrl}

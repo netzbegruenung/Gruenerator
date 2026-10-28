@@ -6,6 +6,7 @@
  */
 
 import {
+  bundestagVerlaufLines,
   dipSearchUrl,
   btpProtokollPdfUrl as btpPdfUrl,
   type BundestagCandidate,
@@ -279,10 +280,31 @@ function btDrucksacheResult(d: BtDrucksache, relevance: number): SearchResult {
 /**
  * Kandidat der Planstufe → Treffer. Nur Metadaten: der Volltext kommt erst über
  * `parlament_lesen`, die `Ref:`-Zeile ist der Schlüssel dafür.
+ *
+ * `withVerlauf`: der Beratungsverlauf hängt am Vorgang, nicht am Dokument —
+ * nur der erste Treffer je Vorgang trägt ihn, sonst stünde er bei jedem
+ * Geschwister erneut im Kontext.
  */
-export function candidateToSearchResult(c: BundestagCandidate, i: number): SearchResult {
+export function candidateToSearchResult(
+  c: BundestagCandidate,
+  i: number,
+  withVerlauf = true
+): SearchResult {
   const title = bundestagDocTitle(c);
-  const content = [c.titel, c.vorgangTitel, c.abstract, `Ref: ${c.ref}`].filter(Boolean).join('\n');
+  const verlauf =
+    withVerlauf && c.verlauf
+      ? ['Beratungsverlauf des Vorgangs:', ...bundestagVerlaufLines(c.verlauf).map((l) => `• ${l}`)]
+      : [];
+  const content = [
+    c.titel,
+    c.vorgangTitel,
+    c.abstract,
+    `Ref: ${c.ref}`,
+    // Hinter der Ref: kappt die Schnipselgrenze, verliert das Modell den Verlauf, nicht den Schlüssel.
+    ...verlauf,
+  ]
+    .filter(Boolean)
+    .join('\n');
   return {
     source: 'bundestag',
     title,
@@ -458,6 +480,8 @@ export interface BundestagRetrieval {
   >[];
   /** Die Filter, die die Planstufe tatsächlich angewandt hat (Modell-Filter plus Erkanntes). */
   filters?: BundestagFilter;
+  /** Beratungsverlauf je Vorgang als Zeilen, für die Karte im Chat. */
+  verfahren?: { titel: string; zeilen: string[] }[];
 }
 
 export async function retrieveBundestag(
@@ -515,7 +539,12 @@ export async function retrieveBundestag(
     log.info('[Search] Bundestag-Planstufe ohne Kandidaten, alte Ergebnisse');
     results = legacy;
   } else {
-    results = plan.candidates.map(candidateToSearchResult);
+    const seenVorgang = new Set<string>();
+    results = plan.candidates.map((c, i) => {
+      const first = c.vorgangId != null && !seenVorgang.has(c.vorgangId);
+      if (c.vorgangId != null) seenVorgang.add(c.vorgangId);
+      return candidateToSearchResult(c, i, first || c.vorgangId == null);
+    });
     // Personen: Reden und Aktivitäten bleiben, hinter der Liste.
     if (enriched?.kind === 'person') results = [...results, ...legacy];
   }
@@ -530,11 +559,18 @@ export async function retrieveBundestag(
     urheber: c.urheber,
     pdfUrl: c.pdfUrl,
   }));
+  const verfahren = new Map<string, { titel: string; zeilen: string[] }>();
+  for (const c of plan?.candidates ?? []) {
+    if (!c.vorgangId || !c.verlauf || verfahren.has(c.vorgangId)) continue;
+    const zeilen = bundestagVerlaufLines(c.verlauf);
+    if (zeilen.length > 0) verfahren.set(c.vorgangId, { titel: c.vorgangTitel ?? c.titel, zeilen });
+  }
   return {
     results,
     totals: plan?.totals ?? null,
     ...(documents.length > 0 ? { documents } : {}),
     ...(plan ? { filters: plan.filters } : {}),
+    ...(verfahren.size > 0 ? { verfahren: [...verfahren.values()] } : {}),
   };
 }
 

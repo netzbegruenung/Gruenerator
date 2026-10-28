@@ -6,6 +6,7 @@ import {
   bundestagFilterSchema,
   bundestagPlanRequestSchema,
   bundestagRefSchema,
+  bundestagVerlaufLines,
 } from './bundestagQa.js';
 
 describe('bundestagRefSchema', () => {
@@ -113,5 +114,58 @@ describe('beratungsstand', () => {
     expect(bundestagBeratungsstandSchema.options).toContain(
       'In der Beratung (Einzelheiten siehe Vorgangsablauf)'
     );
+  });
+});
+
+describe('bundestagVerlaufLines', () => {
+  it('schreibt je Schritt eine Zeile mit Fundstelle und Seite, plus Verkündung', () => {
+    expect(
+      bundestagVerlaufLines({
+        schritte: [
+          {
+            position: '2. Beratung',
+            gremium: 'BT',
+            datum: '2026-03-05',
+            fundstelle: 'Plenarprotokoll 21/62',
+            anfangsseite: 7517,
+            pdfUrl: null,
+            beschluesse: [
+              { tenor: 'Annahme in Ausschussfassung', seite: '7524B', abstimmung: null },
+              { tenor: 'Annahme einer Entschließung', seite: '7524C', abstimmung: null },
+            ],
+          },
+          {
+            position: '3. Beratung',
+            gremium: 'BT',
+            datum: '2026-03-05',
+            fundstelle: 'Plenarprotokoll 21/62',
+            anfangsseite: 7524,
+            pdfUrl: null,
+            beschluesse: [
+              {
+                tenor: 'Annahme in Ausschussfassung',
+                seite: '7524B',
+                abstimmung: 'Namentliche Abstimmung',
+              },
+            ],
+          },
+          {
+            position: 'Beschlussempfehlung und Bericht',
+            gremium: 'BT',
+            datum: '2026-02-26',
+            fundstelle: 'Drucksache 21/4371',
+            anfangsseite: null,
+            pdfUrl: null,
+            beschluesse: [],
+          },
+        ],
+        verkuendung: { datum: '2026-04-01', fundstelle: 'BGBl I 2026, 87', pdfUrl: null },
+      })
+    ).toEqual([
+      '2. Beratung (Bundestag) 05.03.2026: Annahme in Ausschussfassung (S. 7524B); Annahme einer Entschließung (S. 7524C) — Plenarprotokoll 21/62',
+      '3. Beratung (Bundestag) 05.03.2026: Annahme in Ausschussfassung (Namentliche Abstimmung) — Plenarprotokoll 21/62 S. 7524B',
+      'Beschlussempfehlung und Bericht (Bundestag) 26.02.2026 — Drucksache 21/4371',
+      'Verkündet 01.04.2026: BGBl I 2026, 87',
+    ]);
   });
 });

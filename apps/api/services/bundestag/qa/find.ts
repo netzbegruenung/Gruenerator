@@ -8,6 +8,7 @@
 import {
   type BundestagCandidate,
   type BundestagFilter,
+  type BundestagVerlauf,
   type BtSemanticHit,
 } from '@gruenerator/contracts';
 
@@ -15,12 +16,14 @@ import {
   type DipDrucksache,
   type DipListPage,
   type DipParams,
+  type DipVerkuendung,
   type DipVorgang,
   type DipVorgangsposition,
   type DipEndpoint,
 } from '../dip/dipClient.js';
 
 import { type Budget } from './budget.js';
+import { buildVerlauf } from './verlauf.js';
 
 /** Soviele Vorgänge werden pro Suche zu Positionen ausgeklappt. */
 const MAX_EXPANDED_VORGAENGE = 8;
@@ -171,22 +174,41 @@ interface UrheberSink {
   missing: boolean;
 }
 
+/** Verlauf je Vorgang-Id; gesammelt beim Ausklappen, am Ende an die Kandidaten gehängt. */
+type Verlaeufe = Map<string, BundestagVerlauf | null>;
+
 /**
  * `urheber` filtert die ausgeklappten Drucksachen, wenn der Vorgang nicht über
  * `f.initiative` eingegrenzt werden konnte. Positionen ohne Urheber-Angabe
  * bleiben (nichts still verwerfen) und werden einmal angemerkt.
+ *
+ * Die Positionen kommen OHNE `f.zuordnung`: der Bundesrat (2. Durchgang,
+ * Zustimmung) gehört in den Verlauf. Kandidaten bleiben Bundestagsdokumente.
+ * Ein wiederholtes `f.zuordnung` wäre UND und liefert 0 (gemessen 28.10.2026).
+ * Sprengt der Vorgang die erste Seite, holt ein zweiter Abruf die BT-Positionen
+ * wie zuvor — sonst fielen späte Bundestagsdokumente aus der Liste.
  */
 async function positionsOf(
   dip: FindDip,
   vorgang: VorgangRef,
   f: BundestagFilter,
+  verlaeufe: Verlaeufe,
   urheber?: { want: readonly string[]; sink: UrheberSink }
 ): Promise<BundestagCandidate[]> {
-  const page = await dip.list<DipVorgangsposition>('vorgangsposition', {
+  const all = await dip.list<DipVorgangsposition>('vorgangsposition', {
     'f.vorgang': vorgang.id,
-    'f.zuordnung': 'BT',
   });
-  return page.documents.flatMap((p) => {
+  verlaeufe.set(vorgang.id, buildVerlauf(all.documents, vorgang.verkuendung));
+  const bt =
+    all.numFound > all.documents.length
+      ? (
+          await dip.list<DipVorgangsposition>('vorgangsposition', {
+            'f.vorgang': vorgang.id,
+            'f.zuordnung': 'BT',
+          })
+        ).documents
+      : all.documents.filter((p) => p.zuordnung !== 'BR');
+  return bt.flatMap((p) => {
     const c = fromPosition(p, vorgang, f.mitBeratung === true, f.drucksachetyp);
     if (!c) return [];
     if (urheber && c.kind === 'drucksache') {
@@ -204,11 +226,13 @@ interface VorgangRef {
   titel?: string | undefined;
   initiative?: string[] | undefined;
   abstract?: string | undefined;
+  verkuendung?: DipVerkuendung[] | undefined;
 }
 
 interface Collected {
   notes?: string[];
   candidates: BundestagCandidate[];
+  verlaeufe: Verlaeufe;
   vorgaenge: number;
   drucksachen: number | null;
 }
@@ -223,12 +247,19 @@ async function byNummer(dip: FindDip, f: BundestagFilter): Promise<Collected> {
   const siblings: BundestagCandidate[] = [];
   const seenVorgang = new Set<string>();
   const notes: string[] = [];
+  const verlaeufe: Verlaeufe = new Map();
   const wantsAntwort = f.drucksachetyp?.includes('Antwort') === true;
+  const verkuendung = await verkuendungOfGesetze(dip, page.documents);
   for (const d of page.documents) {
     const bezug = d.vorgangsbezug?.[0];
     if (!bezug || seenVorgang.has(bezug.id)) continue;
     seenVorgang.add(bezug.id);
-    const found = await positionsOf(dip, { id: bezug.id, titel: bezug.titel }, f);
+    const found = await positionsOf(
+      dip,
+      { id: bezug.id, titel: bezug.titel, verkuendung: verkuendung.get(bezug.id) },
+      f,
+      verlaeufe
+    );
     siblings.push(...found);
     if (
       wantsAntwort &&
@@ -241,9 +272,33 @@ async function byNummer(dip: FindDip, f: BundestagFilter): Promise<Collected> {
   return {
     notes,
     candidates: [...own, ...siblings],
+    verlaeufe,
     vorgaenge: seenVorgang.size,
     drucksachen: page.numFound,
   };
+}
+
+/**
+ * Die Verkündung steht nur am Vorgang, den der Nummernweg sonst nie lädt. Ein
+ * Abruf für alle Gesetzgebungs-Vorgänge zusammen; andere Vorgangstypen werden
+ * nicht verkündet und kosten keinen Abruf.
+ */
+async function verkuendungOfGesetze(
+  dip: FindDip,
+  docs: readonly DipDrucksache[]
+): Promise<Map<string, DipVerkuendung[]>> {
+  const ids = [
+    ...new Set(
+      docs.flatMap((d) =>
+        (d.vorgangsbezug ?? [])
+          .slice(0, 1)
+          .flatMap((b) => (b.vorgangstyp === 'Gesetzgebung' ? [b.id] : []))
+      )
+    ),
+  ];
+  if (ids.length === 0) return new Map();
+  const page = await dip.list<DipVorgang>('vorgang', { 'f.id': ids });
+  return new Map(page.documents.flatMap((v) => (v.verkuendung ? [[v.id, v.verkuendung]] : [])));
 }
 
 async function byVorgang(
@@ -263,8 +318,9 @@ async function byVorgang(
   const sink: UrheberSink = { missing: false };
   const urheber = filterUrheber && f.urheber ? { want: f.urheber, sink } : undefined;
   const candidates: BundestagCandidate[] = [];
+  const verlaeufe: Verlaeufe = new Map();
   for (const v of page.documents.slice(0, MAX_EXPANDED_VORGAENGE)) {
-    candidates.push(...(await positionsOf(dip, v, f, urheber)));
+    candidates.push(...(await positionsOf(dip, v, f, verlaeufe, urheber)));
   }
   const notes = sink.missing
     ? [
@@ -276,7 +332,7 @@ async function byVorgang(
     const rank = (c: BundestagCandidate) => DECISION_RANK[c.drucksachetyp] ?? 3;
     candidates.sort((a, b) => rank(a) - rank(b));
   }
-  return { notes, candidates, vorgaenge: page.numFound, drucksachen: null };
+  return { notes, candidates, verlaeufe, vorgaenge: page.numFound, drucksachen: null };
 }
 
 async function byDrucksache(
@@ -290,6 +346,7 @@ async function byDrucksache(
   const page = await dip.list<DipDrucksache>('drucksache', params);
   return {
     candidates: page.documents.map(fromDrucksache),
+    verlaeufe: new Map(),
     vorgaenge: 0,
     drucksachen: page.numFound,
   };
@@ -371,6 +428,7 @@ export async function findCandidates(args: {
   const hasNummer = (filters.dokumentnummer?.length ?? 0) > 0;
 
   const first = await collect(dip, filters, filters.wahlperiode);
+  const verlaeufe: Verlaeufe = new Map(first.verlaeufe);
   notes.push(...(first.notes ?? []));
   let candidates = dedupe(first.candidates);
   const totals = { vorgaenge: first.vorgaenge, drucksachen: first.drucksachen ?? 0 };
@@ -379,6 +437,7 @@ export async function findCandidates(args: {
   if (!hasNummer && candidates.length < MIN_CANDIDATES) {
     if (assumedWahlperiode && (filters.wahlperiode?.length ?? 0) > 0) {
       const retry = await collect(dip, filters, undefined);
+      for (const [id, v] of retry.verlaeufe) verlaeufe.set(id, v);
       candidates = dedupe([...candidates, ...retry.candidates]);
       totals.vorgaenge = Math.max(totals.vorgaenge, retry.vorgaenge);
       totals.drucksachen = Math.max(totals.drucksachen, retry.drucksachen ?? 0);
@@ -404,5 +463,11 @@ export async function findCandidates(args: {
   }
 
   if (!totals.drucksachen) totals.drucksachen = candidates.length;
-  return { candidates: candidates.slice(0, budget.maxDocuments), totals, notes };
+  // Jeder Kandidat eines ausgeklappten Vorgangs trägt dessen Verlauf — auch die
+  // Drucksache, über deren Nummer der Vorgang gefunden wurde.
+  const withVerlauf = candidates.slice(0, budget.maxDocuments).map((c) => {
+    const verlauf = c.vorgangId ? verlaeufe.get(c.vorgangId) : undefined;
+    return verlauf === undefined ? c : { ...c, verlauf };
+  });
+  return { candidates: withVerlauf, totals, notes };
 }

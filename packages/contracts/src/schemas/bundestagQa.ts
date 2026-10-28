@@ -75,6 +75,42 @@ export const bundestagFilterSchema = z.object({
   mitBeratung: z.boolean().optional(),
 });
 
+/**
+ * Ein Schritt im Beratungsverlauf eines Vorgangs: eine Position mit
+ * Beschlussfassung (Beratung, Durchgang) oder die Beschlussempfehlung.
+ * `gremium` ist DIPs `zuordnung` — der Bundesrat gehört zum Verlauf dazu.
+ * `fundstelle` ist das Dokument („Plenarprotokoll 21/62", „Drucksache 21/4371"),
+ * die genaue Seite steht am Beschluss („7524B").
+ */
+export const bundestagVerlaufSchrittSchema = z.object({
+  position: z.string(),
+  gremium: z.enum(['BT', 'BR']).nullable(),
+  datum: z.string(),
+  fundstelle: z.string().nullable(),
+  anfangsseite: z.number().int().nullable(),
+  pdfUrl: z.string().nullable(),
+  beschluesse: z.array(
+    z.object({
+      tenor: z.string(),
+      seite: z.string().nullable(),
+      /** Abstimmungsart und Mehrheit in Worten, wenn DIP sie nennt. */
+      abstimmung: z.string().nullable(),
+    })
+  ),
+});
+
+/** Kompakter Beratungsverlauf eines Vorgangs samt Verkündung (BGBl), wenn es eine gibt. */
+export const bundestagVerlaufSchema = z.object({
+  schritte: z.array(bundestagVerlaufSchrittSchema),
+  verkuendung: z
+    .object({
+      datum: z.string().nullable(),
+      fundstelle: z.string(),
+      pdfUrl: z.string().nullable(),
+    })
+    .nullable(),
+});
+
 /** Ein Treffer der Kandidatensuche, noch ungelesen. */
 export const bundestagCandidateSchema = z.object({
   ref: bundestagRefSchema,
@@ -98,6 +134,12 @@ export const bundestagCandidateSchema = z.object({
       endseite: z.number().int(),
     })
     .nullable(),
+  /**
+   * Beratungsverlauf des Vorgangs (additiv seit 28.10.2026). Fehlt bei
+   * Treffern ohne Vorgang (Rückfall über die semantische Suche); alle
+   * Kandidaten desselben Vorgangs tragen denselben Verlauf.
+   */
+  verlauf: bundestagVerlaufSchema.nullable().optional(),
 });
 
 export const bundestagPlanRequestSchema = z.object({
@@ -174,9 +216,48 @@ export type BundestagUrheber = z.infer<typeof bundestagUrheberSchema>;
 export type BundestagRef = z.infer<typeof bundestagRefSchema>;
 export type BundestagAuftrag = z.infer<typeof bundestagAuftragSchema>;
 export type BundestagFilter = z.infer<typeof bundestagFilterSchema>;
+export type BundestagVerlaufSchritt = z.infer<typeof bundestagVerlaufSchrittSchema>;
+export type BundestagVerlauf = z.infer<typeof bundestagVerlaufSchema>;
 export type BundestagCandidate = z.infer<typeof bundestagCandidateSchema>;
 export type BundestagPlanRequest = z.infer<typeof bundestagPlanRequestSchema>;
 export type BundestagPlanResponse = z.infer<typeof bundestagPlanResponseSchema>;
 export type BundestagAnswerRequest = z.infer<typeof bundestagAnswerRequestSchema>;
 export type BundestagPoint = z.infer<typeof bundestagPointSchema>;
 export type BundestagAnswerResponse = z.infer<typeof bundestagAnswerResponseSchema>;
+
+function deDate(iso: string): string {
+  const [y, m, d] = iso.slice(0, 10).split('-');
+  return y && m && d ? `${d}.${m}.${y}` : iso;
+}
+
+const GREMIUM_NAME = { BT: 'Bundestag', BR: 'Bundesrat' } as const;
+
+/**
+ * Der Verlauf als kurze Zeilen, für das Modell, die Karte im Chat und die
+ * Testseite — eine Form an einer Stelle. Beispiel:
+ * „3. Beratung (Bundestag) 05.03.2026: Annahme in Ausschussfassung — Plenarprotokoll 21/62 S. 7524B".
+ * Mehrere Beschlüsse mit verschiedenen Seiten tragen die Seite je Beschluss.
+ */
+export function bundestagVerlaufLines(verlauf: BundestagVerlauf): string[] {
+  const lines = verlauf.schritte.map((s) => {
+    const head = `${s.position}${s.gremium ? ` (${GREMIUM_NAME[s.gremium]})` : ''}${s.datum ? ` ${deDate(s.datum)}` : ''}`;
+    const seiten = [...new Set(s.beschluesse.map((b) => b.seite).filter(Boolean))];
+    const eineSeite = seiten.length <= 1;
+    const tenor = s.beschluesse
+      .map((b) => {
+        const extra = [b.abstimmung, !eineSeite && b.seite ? `S. ${b.seite}` : null]
+          .filter(Boolean)
+          .join(', ');
+        return extra ? `${b.tenor} (${extra})` : b.tenor;
+      })
+      .join('; ');
+    const seite = eineSeite
+      ? (seiten[0] ?? (s.anfangsseite != null ? String(s.anfangsseite) : null))
+      : null;
+    const wo = s.fundstelle ? `${s.fundstelle}${seite ? ` S. ${seite}` : ''}` : null;
+    return [tenor ? `${head}: ${tenor}` : head, wo].filter(Boolean).join(' — ');
+  });
+  const v = verlauf.verkuendung;
+  if (v) lines.push(`Verkündet${v.datum ? ` ${deDate(v.datum)}` : ''}: ${v.fundstelle}`);
+  return lines;
+}

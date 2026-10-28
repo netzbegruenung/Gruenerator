@@ -515,4 +515,175 @@ describe('findCandidates beratungsstand', () => {
     expect(dip.calls[0].params['f.beratungsstand']).toEqual(['Verkündet', 'Angenommen']);
     expect(r.candidates.map((c) => c.ref)).toEqual(['21/4', '21/3', '21/1', '21/2']);
   });
+
+  describe('Beratungsverlauf', () => {
+    const gesetz = {
+      id: '329526',
+      titel: 'Bundesjagdgesetz',
+      initiative: ['Bundesregierung'],
+      verkuendung: [
+        {
+          verkuendungsdatum: '2026-04-01',
+          fundstelle: 'BGBl I 2026, 87',
+          pdf_url: 'https://www.recht.bund.de/eli/bund/BGBl_1/2026/87',
+        },
+      ],
+    };
+    const gesetzPositions = [
+      {
+        vorgangsposition: 'Gesetzentwurf',
+        zuordnung: 'BT',
+        datum: '2026-01-12',
+        fundstelle: {
+          id: 'g1',
+          dokumentart: 'Drucksache',
+          dokumentnummer: '21/3546',
+          drucksachetyp: 'Gesetzentwurf',
+        },
+      },
+      {
+        vorgangsposition: 'Beschlussempfehlung und Bericht',
+        zuordnung: 'BT',
+        datum: '2026-02-26',
+        fundstelle: {
+          id: 'b1',
+          dokumentart: 'Drucksache',
+          dokumentnummer: '21/4371',
+          drucksachetyp: 'Beschlussempfehlung und Bericht',
+        },
+      },
+      {
+        vorgangsposition: '3. Beratung',
+        zuordnung: 'BT',
+        datum: '2026-03-05',
+        fundstelle: {
+          id: 'p62',
+          dokumentart: 'Plenarprotokoll',
+          dokumentnummer: '21/62',
+          xml_url: 'https://dserver.bundestag.de/btp/21/21062.xml',
+          anfangsseite: 7524,
+          endseite: 7524,
+        },
+        beschlussfassung: [{ beschlusstenor: 'Annahme in Ausschussfassung', seite: '7524B' }],
+      },
+      {
+        vorgangsposition: '2. Durchgang',
+        zuordnung: 'BR',
+        datum: '2026-03-27',
+        fundstelle: {
+          id: 'br1063',
+          dokumentart: 'Plenarprotokoll',
+          dokumentnummer: '1063',
+          xml_url: 'x',
+          anfangsseite: 138,
+          endseite: 139,
+        },
+        beschlussfassung: [{ beschlusstenor: 'Zustimmung', seite: '139' }],
+      },
+      {
+        vorgangsposition: 'Unterrichtung über Gesetzesbeschluss des BT',
+        zuordnung: 'BR',
+        datum: '2026-03-06',
+        fundstelle: {
+          id: 'br117',
+          dokumentart: 'Drucksache',
+          dokumentnummer: '117/26',
+          drucksachetyp: 'Gesetzesbeschluss',
+        },
+      },
+    ];
+
+    it('hängt Beschlüsse aus Bundestag und Bundesrat samt Verkündung an, Kandidaten bleiben BT', async () => {
+      const dip = makeDip((e) =>
+        e === 'vorgang' ? [gesetz] : e === 'vorgangsposition' ? gesetzPositions : []
+      );
+      const r = await findCandidates({
+        question: 'x',
+        filters: { titel: 'Bundesjagdgesetz', mitBeratung: true },
+        assumedWahlperiode: false,
+        budget,
+        dip,
+        mcp: mcpNone,
+      });
+      expect(r.candidates.map((c) => c.ref)).toEqual([
+        '21/3546',
+        '21/4371',
+        'PlPr 21/62 S. 7524-7524',
+      ]);
+      const pos = dip.calls.find((c) => c.endpoint === 'vorgangsposition');
+      expect(pos?.params).not.toHaveProperty('f.zuordnung');
+      const verlauf = r.candidates[0]?.verlauf;
+      expect(verlauf?.schritte.map((s) => s.position)).toEqual([
+        'Beschlussempfehlung und Bericht',
+        '3. Beratung',
+        '2. Durchgang',
+      ]);
+      expect(verlauf?.schritte[2]).toMatchObject({
+        gremium: 'BR',
+        fundstelle: 'BR-Plenarprotokoll 1063',
+        beschluesse: [{ tenor: 'Zustimmung', seite: '139', abstimmung: null }],
+      });
+      expect(verlauf?.verkuendung).toEqual({
+        datum: '2026-04-01',
+        fundstelle: 'BGBl I 2026, 87',
+        pdfUrl: 'https://www.recht.bund.de/eli/bund/BGBl_1/2026/87',
+      });
+      expect(r.candidates.every((c) => c.verlauf === verlauf)).toBe(true);
+    });
+
+    it('holt bei abgeschnittener Positionsliste die BT-Positionen nach', async () => {
+      const calls: Call[] = [];
+      const dip: FindDip = {
+        list: (async (endpoint: string, params: Record<string, unknown>) => {
+          calls.push({ endpoint, params });
+          if (endpoint === 'vorgang') return { numFound: 1, cursor: null, documents: [gesetz] };
+          if (endpoint === 'vorgangsposition' && params['f.zuordnung'] === 'BT') {
+            return { numFound: 1, cursor: null, documents: [gesetzPositions[0]] };
+          }
+          return { numFound: 250, cursor: 'c', documents: gesetzPositions.slice(3) };
+        }) as unknown as FindDip['list'],
+      };
+      const r = await findCandidates({
+        question: 'x',
+        filters: { titel: 'Bundesjagdgesetz' },
+        assumedWahlperiode: false,
+        budget,
+        dip,
+        mcp: mcpNone,
+      });
+      expect(r.candidates.map((c) => c.ref)).toContain('21/3546');
+      expect(calls.filter((c) => c.endpoint === 'vorgangsposition')).toHaveLength(2);
+    });
+
+    it('lädt die Verkündung beim Nummernweg in einem Abruf nur für Gesetzgebung', async () => {
+      const dip = makeDip((e, params) =>
+        e === 'drucksache'
+          ? [
+              {
+                id: 'g1',
+                dokumentnummer: '21/3546',
+                drucksachetyp: 'Gesetzentwurf',
+                vorgangsbezug: [
+                  { id: '329526', titel: 'Bundesjagdgesetz', vorgangstyp: 'Gesetzgebung' },
+                ],
+              },
+            ]
+          : e === 'vorgang'
+            ? (expect(params['f.id']).toEqual(['329526']), [gesetz])
+            : e === 'vorgangsposition'
+              ? gesetzPositions
+              : []
+      );
+      const r = await findCandidates({
+        question: 'x',
+        filters: { dokumentnummer: ['21/3546'] },
+        assumedWahlperiode: false,
+        budget,
+        dip,
+        mcp: mcpNone,
+      });
+      expect(r.candidates[0]?.verlauf?.verkuendung?.fundstelle).toBe('BGBl I 2026, 87');
+      expect(dip.calls.filter((c) => c.endpoint === 'vorgang')).toHaveLength(1);
+    });
+  });
 });

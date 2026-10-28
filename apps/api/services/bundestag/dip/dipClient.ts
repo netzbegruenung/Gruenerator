@@ -87,6 +87,18 @@ export interface DipVorgang {
   sachgebiet?: string[];
   deskriptor?: DipDeskriptor[];
   abstract?: string;
+  beratungsstand?: string;
+  /** Nur bei verkündeten Gesetzen; `fundstelle` ist fertig formatiert („BGBl I 2026, 87"). */
+  verkuendung?: DipVerkuendung[];
+}
+
+export interface DipVerkuendung {
+  verkuendungsdatum?: string;
+  fundstelle?: string;
+  verkuendungsblatt_kuerzel?: string;
+  jahrgang?: string;
+  heftnummer?: string;
+  pdf_url?: string;
 }
 
 /**
@@ -95,6 +107,8 @@ export interface DipVorgang {
  */
 export interface DipVorgangspositionFundstelle {
   id?: string;
+  /** „Drucksache" oder „Plenarprotokoll". */
+  dokumentart?: string;
   dokumentnummer?: string;
   drucksachetyp?: string;
   pdf_url?: string;
@@ -105,11 +119,23 @@ export interface DipVorgangspositionFundstelle {
   urheber?: string[];
 }
 
+/** Ein Beschluss an einer Position; `seite` trägt den Quadranten („7524B"). */
+export interface DipBeschlussfassung {
+  beschlusstenor?: string;
+  seite?: string;
+  dokumentnummer?: string;
+  abstimmungsart?: string;
+  mehrheit?: string;
+}
+
 export interface DipVorgangsposition {
   vorgangsposition?: string;
+  /** `BT` oder `BR`: der Bundesrat steht in derselben Liste. */
+  zuordnung?: string;
   dokumentart?: string;
   datum?: string;
   fundstelle?: DipVorgangspositionFundstelle;
+  beschlussfassung?: DipBeschlussfassung[];
 }
 
 export type DipEndpoint =
