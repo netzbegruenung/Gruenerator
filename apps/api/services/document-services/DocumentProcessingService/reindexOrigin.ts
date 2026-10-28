@@ -65,9 +65,14 @@ export function wolkeOrigin(row: ReindexRow): WolkeOrigin | null {
  */
 function hasKeptUpload(row: ReindexRow): boolean {
   if (row.status === 'completed') return false;
-  const meta: unknown = typeof row.metadata === 'string' ? JSON.parse(row.metadata) : row.metadata;
-  const filePath = (meta as { filePath?: unknown } | null | undefined)?.filePath;
+  const filePath = rowMetadata(row).filePath;
   return typeof filePath === 'string' && fs.existsSync(filePath);
+}
+
+/** `metadata` als Objekt — je nach Leser kommt es als JSON-Text. */
+export function rowMetadata(row: Pick<ReindexRow, 'metadata'>): Record<string, unknown> {
+  const meta: unknown = typeof row.metadata === 'string' ? JSON.parse(row.metadata) : row.metadata;
+  return meta && typeof meta === 'object' ? (meta as Record<string, unknown>) : {};
 }
 
 /**

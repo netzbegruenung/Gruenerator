@@ -75,7 +75,10 @@ function fakeDeps(rows: ReindexRow[], over: Partial<ReindexDeps> = {}) {
       query: vi.fn(async (sql: string, params: unknown[]) => {
         if (sql.includes('UPDATE documents')) {
           const r = table.get(params[0] as string);
-          if (r && !['uploaded', 'processing'].includes(r.status ?? '')) {
+          const waiting =
+            r?.status === 'uploaded' &&
+            (r.metadata as { retry_after?: unknown } | undefined)?.retry_after != null;
+          if (r && (waiting || !['uploaded', 'processing'].includes(r.status ?? ''))) {
             r.status = 'uploaded';
             updates.push(r.id);
           }
@@ -175,6 +178,25 @@ describe('reindexDocument — welche Quelle ein Original hat', () => {
     const { wolke_file_path: _pfad, ...ohnePfad } = WOLKE;
     expect(isReindexable(ohnePfad)).toBe(true);
     expect(isReindexable(UPLOAD)).toBe(false);
+  });
+
+  it('holt eine Quelle aus der Wartezeit nach einem Anbieter-Ausfall sofort heraus', async () => {
+    const waiting = {
+      ...WOLKE,
+      status: 'uploaded',
+      metadata: { retry_after: '2099-01-01T00:00:00.000Z', ingest_retries: 3 },
+    };
+    const { deps, updates } = fakeDeps([waiting]);
+    expect((await reindexDocument('doc-1', OWNER, {}, deps)).status).toBe('queued');
+    expect(updates).toEqual(['doc-1']);
+    expect(deps.kick).toHaveBeenCalledTimes(1);
+    const sql = (deps.db.query as ReturnType<typeof vi.fn>).mock.calls
+      .map((c) => c[0] as string)
+      .find((q) => q.includes('UPDATE documents'));
+    expect(sql).toContain("'retry_after', NULL");
+    expect(sql).toContain("status = 'uploaded' AND metadata->>'retry_after' IS NOT NULL");
+    // Der Vorzustand eines laufenden Neu-Indexierens geht dabei nicht verloren.
+    expect(sql).toContain("THEN COALESCE((metadata->>'reindex_prev_searchable')::boolean, false)");
   });
 
   it('ein zweiter Klick reiht nicht doppelt ein', async () => {

@@ -19,14 +19,27 @@ import { getPostgresInstance } from '../../../database/services/PostgresService.
 import { hasAiConsent } from '../../../middleware/requireAiConsent.js';
 
 import { kickIngestWorker } from './documentIngestWorker.js';
-import { reindexOrigin, type ReindexOrigin, type ReindexRow } from './reindexOrigin.js';
+import {
+  reindexOrigin,
+  rowMetadata,
+  type ReindexOrigin,
+  type ReindexRow,
+} from './reindexOrigin.js';
 
 import type { NotebookAccess } from '../../../routes/notebook/notebookAccess.js';
 
 export const REINDEX_UNAVAILABLE_MESSAGE = 'Original nicht mehr vorhanden — bitte neu hochladen.';
 export const REINDEX_QUEUED_MESSAGE = 'Wird neu indexiert.';
 
-const IN_FLIGHT = new Set(['uploaded', 'processing']);
+/**
+ * Läuft schon oder steht frisch an — ein zweiter Klick ändert nichts. NICHT
+ * dabei: `uploaded` mit `retry_after`, das wartet nach einem Anbieter-Ausfall
+ * (`ingestRetry.ts`); dort soll „Neu indexieren" sofort laufen.
+ */
+function isQueuedOrRunning(row: ReindexRow): boolean {
+  if (row.status === 'processing') return true;
+  return row.status === 'uploaded' && rowMetadata(row).retry_after == null;
+}
 
 export type ReindexDocumentResult =
   | { status: 'queued'; message: string }
@@ -88,13 +101,20 @@ async function enqueue(
                 'ingest_retries', NULL,
                 -- War die Quelle vorher durchsuchbar? Nur dann darf ein
                 -- gescheiterter Lauf auf die alte Fassung zurückfallen.
+                -- Wartet die Zeile auf eine automatische Wiederholung, steht
+                -- der Wert schon da und gilt weiter.
                 'reindex_prev_searchable',
-                  (COALESCE(status, '') = 'completed' AND COALESCE(vector_count, 0) > 0),
+                  CASE WHEN status = 'uploaded'
+                       THEN COALESCE((metadata->>'reindex_prev_searchable')::boolean, false)
+                       ELSE (COALESCE(status, '') = 'completed' AND COALESCE(vector_count, 0) > 0)
+                  END,
                 -- Reihenfolge in der Warteschlange: eingereiht jetzt, nicht
                 -- beim ersten Upload — sonst überholt es frische Uploads.
                 'queued_at', NOW()
               )
-        WHERE id = $1 AND COALESCE(status, '') NOT IN ('uploaded', 'processing')`,
+        WHERE id = $1
+          AND (COALESCE(status, '') NOT IN ('uploaded', 'processing')
+               OR (status = 'uploaded' AND metadata->>'retry_after' IS NOT NULL))`,
       [id, origin.kind]
     );
   }
@@ -130,7 +150,7 @@ export async function reindexDocument(
   const origin = reindexOrigin(row);
   if (!origin) return { status: 'unavailable', message: REINDEX_UNAVAILABLE_MESSAGE };
 
-  if (row.status && IN_FLIGHT.has(row.status)) {
+  if (isQueuedOrRunning(row)) {
     return { status: 'queued', message: REINDEX_QUEUED_MESSAGE };
   }
 
