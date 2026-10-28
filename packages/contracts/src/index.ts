@@ -145,6 +145,7 @@ export * from './schemas/chatStreamEvents.js';
 export * from './schemas/chatVisualBlocks.js';
 export * from './schemas/chunkInspector.js';
 export * from './schemas/bundestagQa.js';
+export * from './schemas/landtagQa.js';
 export * from './schemas/connectorTest.js';
 export * from './schemas/connections.js';
 export * from './schemas/jobErrors.js';
