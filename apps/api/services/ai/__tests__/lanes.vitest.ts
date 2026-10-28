@@ -10,6 +10,7 @@
 import { describe, it, expect } from 'vitest';
 
 import { selectProviderAndModel } from '../../providers/providerSelector.js';
+import { GEMMA_31B_ALTERNATE, GEMMA_31B_PRIMARY } from '../gemmaHosts.js';
 import { AI_LANES, laneFallback, laneTarget, providerForModel, resolveLane } from '../lanes.js';
 import { getDefaultModel } from '../providers.js';
 
@@ -92,33 +93,36 @@ describe('laneFallback', () => {
 
   it('drops the primary from the chain and keeps the rest in order', () => {
     // Short creative German is what Mistral is best at, so sharepics try it
-    // first; everything else leads with Cortecs (the fastest Gemma 4 host).
-    expect(laneFallback('sharepic_zitat')[0]).toBe('cortecs'); // mistral is primary, so dropped
-    expect(laneFallback('default')[0]).toBe('cortecs'); // mistral is primary, so dropped
-    expect(laneFallback('image_picker')[0]).toBe('cortecs');
+    // first; everything else leads with the Gemma 4 primary (gemmaHosts.ts).
+    const gemma = GEMMA_31B_PRIMARY.provider;
+    expect(laneFallback('sharepic_zitat')[0]).toBe(gemma); // mistral is primary, so dropped
+    expect(laneFallback('default')[0]).toBe(gemma); // mistral is primary, so dropped
+    expect(laneFallback('image_picker')[0]).toBe(gemma);
   });
 
   it('leaves the creation families the second Gemma host, then Mistral', () => {
     // Finished texts run on Gemma 4, structured creation on Mistral.
     //
-    // `melious` steht seit dem 14.09.2026 MIT in der Kette der Textlanes, und
-    // das ist ein Gewinn, kein Nebeneffekt: der Gemma-Primär liegt jetzt auf
-    // Cortecs (services/ai/gemmaHosts.ts), also filtert `laneFallback` Melious
-    // nicht mehr als eigenen Primär heraus — und Melious ist der ZWEITE Host
-    // derselben Gewichte (GEMMA_31B_ALTERNATE).
-    //
-    // Cortecs steht seit dem 28.08.2026 in der Kette, taucht hier aber NICHT
-    // auf: es ist der Primär dieser Lanes, und `laneFallback` filtert den.
-    expect(laneFallback('antrag')).toEqual(['melious', 'mistral']);
-    expect(laneFallback('social')).toEqual(['melious', 'mistral']);
+    // Der erste Ausweich ist der ZWEITE Host derselben Gewichte
+    // (GEMMA_31B_ALTERNATE, seit 28.10.2026 Cortecs). Der Primär steht in der
+    // Kette, taucht hier aber NICHT auf: `laneFallback` filtert ihn heraus.
+    const second = GEMMA_31B_ALTERNATE.provider;
+    expect(laneFallback('antrag')).toEqual([second, 'mistral']);
+    expect(laneFallback('social')).toEqual([second, 'mistral']);
   });
 
   it('gives the GreenPT artefact lane a host of its own model family', () => {
     // `doc_generation` liegt auf GreenPT, das in keiner der beiden Ketten
-    // steht — also bleiben alle übrig. Cortecs vorn ist hier der Punkt: bis
-    // zum 28.08.2026 enthielt die Ausweichkette dieser Lane keinen einzigen
-    // Host desselben Gemma 4, auf dem ihr Primär läuft.
-    expect(laneFallback('doc_generation')).toEqual(['cortecs', 'melious', 'mistral']);
+    // steht — also bleiben alle übrig. Die beiden Gemma-Hosts vorn sind hier
+    // der Punkt: bis zum 28.08.2026 enthielt die Ausweichkette dieser Lane
+    // keinen einzigen Host desselben Gemma 4, auf dem ihr Primär läuft.
+    expect(laneFallback('doc_generation')).toEqual([
+      GEMMA_31B_PRIMARY.provider,
+      GEMMA_31B_ALTERNATE.provider,
+      'mistral',
+    ]);
+    // Die beiden Hosts sind zwei Vertragspartner, nicht einer zweimal.
+    expect(GEMMA_31B_PRIMARY.provider).not.toBe(GEMMA_31B_ALTERNATE.provider);
   });
 
   /**

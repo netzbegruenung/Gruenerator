@@ -160,11 +160,12 @@ const MODEL_ENERGY: Readonly<Record<string, EnergyCoefficients>> = {
     basis: 'measured',
   },
   // Melious' `gemma-4-31b` — dieselben Gewichte, aber NICHT der Koeffizient
-  // darüber. Melious meldet nicht-gestreamte Aufrufe selbst
-  // (`environment_impact`, services/ai/meliousImpact.ts); gestreamte bekommen
-  // laut Melious-Doku KEIN `environment_impact` („streaming keeps these fields
-  // off the wire"), und die Chat-Antworten streamen. Für genau diese Zeilen
-  // steht der Eintrag hier, und er ist aus Melious' EIGENEN Meldungen
+  // darüber. Melious meldet seine Aufrufe selbst (`environment_impact`,
+  // services/ai/meliousImpact.ts), seit Oktober 2026 auch gestreamte im letzten
+  // Chunk (gemessen 28.10.2026); gemeldete Zeilen zählen als gemessen und
+  // brauchen diesen Eintrag nicht. Bis dahin bekamen gestreamte Züge laut
+  // Melious-Doku KEIN `environment_impact` („streaming keeps these fields off
+  // the wire"). Für Zeilen ohne Meldung steht der Eintrag hier, und er ist aus Melious' EIGENEN Meldungen
   // kalibriert, damit gestreamte und gemeldete Zeilen desselben Hosts
   // zueinander passen: 9 Aufrufe am 23.09.2026, `reasoning_effort: 'none'`,
   // 16–15.589 Tokens Eingabe, 5–798 Ausgabe. Eingabe 0,021 mWh/Token (zwei

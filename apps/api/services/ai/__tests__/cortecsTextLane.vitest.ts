@@ -207,27 +207,28 @@ describe('cortecs text lane', () => {
     expect(gemeldet.fehler).toEqual([]);
   });
 
-  it('heavy zeigt auf die Cortecs-Lane', () => {
+  it('heavy zeigt auf den Gemma-Primär', () => {
     // Seit 21.08.2026 das dichte 31B statt der MoE-Variante — nicht wegen der
     // Qualität, sondern weil das MoE über Cortecs an einen einzigen
     // Unterauftragnehmer gebunden war und der binnen einer Stunde aus dem
     // Katalog verschwand. Siehe den Doc-Block bei `heavy`.
     // `toMatchObject` wie bei der Prüf-Stufe darunter: geprüft wird, WORAUF die
     // Stufe zeigt, nicht welche Felder eine Lane-Config sonst noch trägt.
+    // Seit 28.10.2026 Melious (gemmaHosts.ts), vorher Cortecs.
     expect(intermediateLane('heavy')).toMatchObject({
-      provider: 'cortecs',
-      model: 'gemma-4-31b-it',
+      provider: 'melious',
+      model: 'gemma-4-31b:balanced',
     });
   });
 
-  it('die Prüf-Stufe liegt auf ZWEI Vertragspartnern, Cortecs voran', () => {
+  it('die Prüf-Stufe liegt auf ZWEI Vertragspartnern, Melious voran', () => {
     // Die ganze Absicht des Hedges: ein Einbruch bei einem Anbieter darf nicht
     // beide Seiten der Stufe nehmen. Stünden Primär und Ausweich beim selben,
     // wäre der Hedge ein zweiter Aufruf ohne Absicherung — teurer, nicht
     // sicherer.
     const lane = intermediateLane('pruefung');
-    expect(lane).toMatchObject({ provider: 'cortecs', model: 'gemma-4-31b-it' });
-    expect(lane.hedge).toEqual({ provider: 'melious', model: 'gemma-4-31b:balanced' });
+    expect(lane).toMatchObject({ provider: 'melious', model: 'gemma-4-31b:balanced' });
+    expect(lane.hedge).toEqual({ provider: 'cortecs', model: 'gemma-4-31b-it' });
     expect(lane.hedge?.provider).not.toBe(lane.provider);
   });
 });
