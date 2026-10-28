@@ -179,8 +179,8 @@ export interface CanvasEditorServices extends CanvasEditorHostServices {
   assetBaseUrl?: string;
 
   /**
-   * Brand locale of the signed-in user. Locale-scoped assets (AT vs DE logos,
-   * Balken) are filtered by this; defaults to 'de-DE' when omitted.
+   * Brand locale of the signed-in user. Locale-scoped assets (AT vs DE logos)
+   * and host tiles are filtered by this; defaults to 'de-DE' when omitted.
    */
   userLocale?: 'de-DE' | 'de-AT';
 

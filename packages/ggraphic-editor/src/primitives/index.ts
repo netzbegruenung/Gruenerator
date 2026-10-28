@@ -20,8 +20,6 @@ export type { CanvasImageProps } from '@ggraphic/editor/primitives/CanvasImage';
 
 export { CanvasIcons } from '@ggraphic/editor/primitives/CanvasIcons';
 
-export type { BalkenMode, BalkenInstance } from '@ggraphic/editor/utils/balkenUtils';
-
 export { ShapePrimitive } from '@ggraphic/editor/primitives/ShapePrimitive';
 
 export { IllustrationPrimitive } from './IllustrationPrimitive.js';

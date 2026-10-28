@@ -4,7 +4,7 @@
  * (`utils/balkenUtils.ts`); the words and the colour scheme are the party's.
  */
 
-import type { BalkenInstance, BalkenMode } from '@ggraphic/editor/utils/balkenUtils';
+import type { BalkenInstance, BalkenMode } from '../utils/balkenUtils';
 
 // ============================================================================
 // PRESET TYPES

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /**
  * Common Action Creators for Canvas Factory
  *
@@ -26,17 +27,8 @@ import {
 } from '@ggraphic/editor/utils/userImageUtils';
 import { v4 as uuid } from 'uuid';
 
-import { createBalkenInstanceFromPreset } from '../../brand/balkenPresets';
-import {
-  BALKEN_FIT_MARGIN,
-  BALKEN_FIT_MIN_SCALE,
-  balkenExtent,
-  fitBalkenAfterTextEdit,
-} from '../../utils/balkenBounds';
-
 import type { IconState, BaseCanvasState } from '@ggraphic/editor/configs/factory/baseTypes';
 import type { AdditionalText } from '@ggraphic/editor/configs/types';
-import type { BalkenInstance, BalkenMode } from '@ggraphic/editor/utils/balkenUtils';
 import type { AssetInstance } from '@ggraphic/editor/utils/canvasAssets';
 import type { CircleBadgeInstance } from '@ggraphic/editor/utils/circleBadgeUtils';
 import type { FrameClipType, FrameInstance } from '@ggraphic/editor/utils/frameUtils';
@@ -557,81 +549,6 @@ export function createCircleBadgeActions<
 }
 
 // ============================================================================
-// BALKEN ACTIONS
-// ============================================================================
-
-export function createBalkenActions<TState extends { balkenInstances: BalkenInstance[] }>(
-  getState: () => TState,
-  setState: StateSetter<TState>,
-  saveToHistory: HistorySaver<TState>,
-  debouncedSaveToHistory: HistorySaver<TState>,
-  canvasWidth: number,
-  canvasHeight: number
-) {
-  return {
-    addBalken: (mode: BalkenMode, options?: ElementPlacement) => {
-      const preset = createBalkenInstanceFromPreset(mode);
-      let newBalken = preset;
-      if (options?.center) {
-        // The bars lay out around the canvas centre; `offset` moves the group.
-        const box = balkenExtent(preset, canvasWidth, canvasHeight);
-        newBalken = {
-          ...preset,
-          offset: {
-            x: options.center.x - (box.left + box.right) / 2,
-            y: options.center.y - (box.top + box.bottom) / 2,
-          },
-        };
-      }
-      setState((prev) => ({
-        ...prev,
-        balkenInstances: [...prev.balkenInstances, newBalken],
-      }));
-      saveToHistory(getState());
-    },
-    updateBalken: (id: string, partial: Partial<BalkenInstance>) => {
-      setState((prev) => ({
-        ...prev,
-        balkenInstances: prev.balkenInstances.map((b) => (b.id === id ? { ...b, ...partial } : b)),
-      }));
-      debouncedSaveToHistory(getState());
-    },
-    setBalkenText: (id: string, index: number, text: string) => {
-      setState((prev) => ({
-        ...prev,
-        balkenInstances: prev.balkenInstances.map((b) => {
-          if (b.id !== id) return b;
-          const next = { ...b, texts: b.texts.map((t, i) => (i === index ? text : t)) };
-          const fit = fitBalkenAfterTextEdit(
-            b,
-            next,
-            canvasWidth,
-            canvasHeight,
-            BALKEN_FIT_MARGIN,
-            BALKEN_FIT_MIN_SCALE
-          );
-          return fit ? { ...next, ...fit } : next;
-        }),
-      }));
-      debouncedSaveToHistory(getState());
-    },
-    removeBalken: (id: string) => {
-      setState((prev) => ({
-        ...prev,
-        balkenInstances: prev.balkenInstances.filter((b) => b.id !== id),
-      }));
-      saveToHistory(getState());
-    },
-    duplicateBalken: (balkenId: string) => {
-      const result = duplicateElementInState(getState(), balkenId);
-      if (!result) return;
-      setState(result.state);
-      saveToHistory(result.state);
-    },
-  };
-}
-
-// ============================================================================
 // CHART ACTIONS
 // ============================================================================
 
@@ -846,7 +763,7 @@ export function createUserImageActions<TState extends { userImageInstances: User
 // COMBINED BASE ACTIONS
 // ============================================================================
 
-export function createBaseActions<TState extends BaseCanvasState>(
+export function createElementActions<TState extends BaseCanvasState>(
   getState: () => TState,
   setState: StateSetter<TState>,
   saveToHistory: HistorySaver<TState>,
@@ -910,14 +827,6 @@ export function createBaseActions<TState extends BaseCanvasState>(
     ),
     ...createPillBadgeActions(getState, setState, saveToHistory, debouncedSaveToHistory),
     ...createCircleBadgeActions(getState, setState, saveToHistory, debouncedSaveToHistory),
-    ...createBalkenActions(
-      getState,
-      setState,
-      saveToHistory,
-      debouncedSaveToHistory,
-      canvasWidth,
-      canvasHeight
-    ),
     ...createChartActions(
       getState,
       setState,

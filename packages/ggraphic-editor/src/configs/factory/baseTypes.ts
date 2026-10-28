@@ -7,9 +7,9 @@
  */
 
 import type { AssetInstance } from '../../utils/canvasAssets.js';
+import type { HostElementState } from '../../utils/canvasItem.js';
 import type { AdditionalText, LayoutResult } from '../types.js';
 import type { StockImageAttribution } from '@ggraphic/editor/common/imageSourceTypes';
-import type { BalkenInstance, BalkenMode } from '@ggraphic/editor/utils/balkenUtils';
 import type { ChartInstance, ChartType } from '@ggraphic/editor/utils/chartTypes';
 import type { CircleBadgeInstance } from '@ggraphic/editor/utils/circleBadgeUtils';
 import type { FrameClipType, FrameInstance } from '@ggraphic/editor/utils/frameUtils';
@@ -24,8 +24,8 @@ import type { StickerRef } from '@ggraphic/schema';
 // SHARED STATE TYPES
 // ============================================================================
 
-/** Base state shared by ALL canvas templates */
-export interface BaseCanvasState {
+/** Base state shared by ALL canvas templates, with the host kinds' lists (`HostElementKinds`). */
+export interface BaseCanvasState extends HostElementState {
   isDesktop: boolean;
   assetInstances: AssetInstance[];
   selectedIcons: string[];
@@ -35,7 +35,6 @@ export interface BaseCanvasState {
   additionalTexts: AdditionalText[];
   pillBadgeInstances: PillBadgeInstance[];
   circleBadgeInstances: CircleBadgeInstance[];
-  balkenInstances: BalkenInstance[];
   frameInstances: FrameInstance[];
   userImageInstances: UserImageInstance[];
   chartInstances: ChartInstance[];
@@ -143,12 +142,6 @@ export interface BaseCanvasActions {
   updateCircleBadge: (id: string, partial: Partial<CircleBadgeInstance>) => void;
   removeCircleBadge: (id: string) => void;
 
-  // Balken management
-  addBalken: (mode: BalkenMode, options?: ElementPlacement) => void;
-  updateBalken: (id: string, partial: Partial<BalkenInstance>) => void;
-  setBalkenText: (id: string, index: number, text: string) => void;
-  removeBalken: (id: string) => void;
-
   // Frame management
   addFrame: (clipType: FrameClipType, options?: ElementPlacement) => void;
   updateFrame: (id: string, partial: Partial<FrameInstance>) => void;
@@ -195,7 +188,6 @@ export interface CanvasFeatures {
   icons?: boolean;
   shapes?: boolean;
   illustrations?: boolean;
-  balken?: boolean;
   pillBadge?: boolean;
   circleBadge?: boolean;
   frames?: boolean;

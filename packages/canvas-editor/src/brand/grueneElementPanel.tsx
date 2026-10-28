@@ -82,11 +82,10 @@ export const GRUENE_ELEMENT_PANEL: ElementPanelHost = {
       ? 'Versuch es mit „Logo“, „Kreis“ oder „Rahmen“.'
       : 'Versuch es mit „Sonnenblume“, „Balken“ oder „Rahmen“.',
   // The Balken are a German design element: Austrian users get none.
-  brandItems: ({ locale, canAddBalken }) =>
-    canAddBalken && locale === 'de-DE' ? BALKEN_ITEMS : [],
+  brandItems: ({ locale, canAdd }) => (canAdd('balken') && locale === 'de-DE' ? BALKEN_ITEMS : []),
   useBlocks: useGrueneBlocks,
-  BalkenPreview: ({ mode, size }) =>
-    mode === 'single' ? (
+  HostThumb: ({ thumb, size }) =>
+    thumb.mode === 'single' ? (
       <SingleBalkenPreviewIcon size={size} />
     ) : (
       <TripleBalkenPreviewIcon size={size} />

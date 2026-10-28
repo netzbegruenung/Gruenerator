@@ -65,7 +65,6 @@ exports[`duplicateElementInState per kind > additional-text 1`] = `
     ],
   },
   "layerOrder": [
-    "balken-1",
     "tabler-sun",
     "shape-1",
     "frame-1",
@@ -107,7 +106,6 @@ exports[`duplicateElementInState per kind > asset 1`] = `
     ],
   },
   "layerOrder": [
-    "balken-1",
     "tabler-sun",
     "shape-1",
     "frame-1",
@@ -121,66 +119,6 @@ exports[`duplicateElementInState per kind > asset 1`] = `
     "chart-1",
   ],
   "newId": "asset-1700000000000-4fzzzxjyl",
-}
-`;
-
-exports[`duplicateElementInState per kind > balken 1`] = `
-{
-  "changed": {
-    "balkenInstances": [
-      {
-        "barOffsets": [
-          1,
-          2,
-          3,
-        ],
-        "id": "balken-1",
-        "offset": {
-          "x": 3,
-          "y": 4,
-        },
-        "opacity": 0.4,
-        "rotation": 7,
-        "texts": [
-          "NORD",
-          "WIRKT",
-        ],
-      },
-      {
-        "barOffsets": [
-          1,
-          2,
-          3,
-        ],
-        "id": "balken-1700000000000-4fzzzxjyl",
-        "offset": {
-          "x": 23,
-          "y": 24,
-        },
-        "opacity": 0.4,
-        "rotation": 7,
-        "texts": [
-          "NORD",
-          "WIRKT",
-        ],
-      },
-    ],
-  },
-  "layerOrder": [
-    "balken-1",
-    "balken-1700000000000-4fzzzxjyl",
-    "tabler-sun",
-    "shape-1",
-    "frame-1",
-    "text-1",
-    "ill-1",
-    "asset-1",
-    "circle-1",
-    "pill-1",
-    "img-1",
-    "chart-1",
-  ],
-  "newId": "balken-1700000000000-4fzzzxjyl",
 }
 `;
 
@@ -233,7 +171,6 @@ exports[`duplicateElementInState per kind > chart 1`] = `
     ],
   },
   "layerOrder": [
-    "balken-1",
     "tabler-sun",
     "shape-1",
     "frame-1",
@@ -285,7 +222,6 @@ exports[`duplicateElementInState per kind > circle-badge 1`] = `
     ],
   },
   "layerOrder": [
-    "balken-1",
     "tabler-sun",
     "shape-1",
     "frame-1",
@@ -333,7 +269,6 @@ exports[`duplicateElementInState per kind > frame 1`] = `
     ],
   },
   "layerOrder": [
-    "balken-1",
     "tabler-sun",
     "shape-1",
     "frame-1",
@@ -378,7 +313,6 @@ exports[`duplicateElementInState per kind > icon 1`] = `
     ],
   },
   "layerOrder": [
-    "balken-1",
     "tabler-sun",
     "icon-1700000000000-4fzzzxjyl",
     "shape-1",
@@ -420,7 +354,6 @@ exports[`duplicateElementInState per kind > illustration 1`] = `
     ],
   },
   "layerOrder": [
-    "balken-1",
     "tabler-sun",
     "shape-1",
     "frame-1",
@@ -466,7 +399,6 @@ exports[`duplicateElementInState per kind > pill-badge 1`] = `
     ],
   },
   "layerOrder": [
-    "balken-1",
     "tabler-sun",
     "shape-1",
     "frame-1",
@@ -526,7 +458,6 @@ exports[`duplicateElementInState per kind > shape 1`] = `
     ],
   },
   "layerOrder": [
-    "balken-1",
     "tabler-sun",
     "shape-1",
     "shape-1700000000000-4fzzzxjyl",
@@ -572,7 +503,6 @@ exports[`duplicateElementInState per kind > user-image 1`] = `
     ],
   },
   "layerOrder": [
-    "balken-1",
     "tabler-sun",
     "shape-1",
     "frame-1",
@@ -639,35 +569,6 @@ exports[`findOrientationDoor per kind > asset asset-1 1`] = `
     "flipY": false,
     "kind": "asset",
     "rotation": 0,
-  },
-  "logoOffset": undefined,
-  "templateRotations": undefined,
-}
-`;
-
-exports[`findOrientationDoor per kind > balken balken-1 1`] = `
-{
-  "calls": {
-    "updateBalken": [
-      [
-        "balken-1",
-        {
-          "offset": {
-            "x": 8,
-            "y": 10,
-          },
-          "rotation": 90,
-        },
-      ],
-    ],
-  },
-  "headlinePosition": undefined,
-  "info": {
-    "canFlip": false,
-    "flipX": false,
-    "flipY": false,
-    "kind": "balken",
-    "rotation": 7,
   },
   "logoOffset": undefined,
   "templateRotations": undefined,
@@ -983,16 +884,6 @@ exports[`floatingModuleFor per kind > asset 1`] = `
     "y": 20,
   },
   "type": "asset",
-}
-`;
-
-exports[`floatingModuleFor per kind > balken 1`] = `
-{
-  "data": {
-    "id": "balken-1",
-    "opacity": 0.4,
-  },
-  "type": "balken",
 }
 `;
 

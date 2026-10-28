@@ -11,7 +11,6 @@ import type { OptionalCanvasActions } from '@ggraphic/editor/hooks/useCanvasElem
 
 /** One instance of every kind; ids are unique, as `createInstanceId` makes them. */
 const STATE = {
-  balkenInstances: [{ id: 'b' }],
   selectedIcons: ['i'],
   shapeInstances: [{ id: 's' }],
   frameInstances: [{ id: 'f' }],
@@ -30,7 +29,6 @@ describe('element kinds', () => {
     const items = buildCanvasItems(config, STATE as never);
     expect(items.map((i) => `${i.type}:${i.id}`)).toEqual([
       'element:el',
-      'balken:b',
       'icon:i',
       'shape:s',
       'frame:f',
@@ -45,7 +43,6 @@ describe('element kinds', () => {
   });
 
   it.each([
-    ['b', 'removeBalken'],
     ['s', 'removeShape'],
     ['f', 'removeFrame'],
     ['t', 'removeAdditionalText'],

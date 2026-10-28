@@ -5,10 +5,15 @@
   "license": "MPL-2.0",
   "type": "module",
   "sideEffects": [
+    "**/*.css",
     "**/hooks/useFontGeneration.js",
     "**/hooks/useFontGeneration.ts"
   ],
   "exports": {
+    "./styles": "./src/styles/index.css",
+    "./styles/editor": "./src/styles/editor.css",
+    "./styles/tokens": "./src/styles/tokens.css",
+    "./styles/tailwind": "./src/styles/tailwind.css",
     "./ai/applyOperation": "./src/ai/applyOperation.ts",
     "./ai/describeCanvasElements": "./src/ai/describeCanvasElements.ts",
     "./ai/illustrationCapability": "./src/ai/illustrationCapability.ts",
@@ -17,6 +22,7 @@
     "./brand/brandRegistry": "./src/brand/brandRegistry.ts",
     "./brand/composerBrand": "./src/brand/composerBrand.ts",
     "./CanvasEditorProvider": "./src/CanvasEditorProvider.tsx",
+    "./collab/documentVersion": "./src/collab/documentVersion.ts",
     "./collab/pageElementStateKeys": "./src/collab/pageElementStateKeys.ts",
     "./collab/pagesDoc": "./src/collab/pagesDoc.ts",
     "./collab/useAwarenessState": "./src/collab/useAwarenessState.ts",
@@ -108,6 +114,7 @@
     "./composer/textFit": "./src/composer/textFit.ts",
     "./configs/buildSharepicText": "./src/configs/buildSharepicText.ts",
     "./configs/configLoader": "./src/configs/configLoader.ts",
+    "./configs/factory/actionFactories": "./src/configs/factory/actionFactories.ts",
     "./configs/factory/baseTypes": "./src/configs/factory/baseTypes.ts",
     "./configs/factory/carryInstanceState": "./src/configs/factory/carryInstanceState.ts",
     "./configs/factory/createTextElement": "./src/configs/factory/createTextElement.ts",
@@ -280,7 +287,6 @@
     "./utils/alignment": "./src/utils/alignment.ts",
     "./utils/axisLock": "./src/utils/axisLock.ts",
     "./utils/backgroundPhotoCrop": "./src/utils/backgroundPhotoCrop.ts",
-    "./utils/balkenUtils": "./src/utils/balkenUtils.ts",
     "./utils/canvasAssets": "./src/utils/canvasAssets.ts",
     "./utils/canvasClipboard": "./src/utils/canvasClipboard.ts",
     "./utils/canvasCommandRegistry": "./src/utils/canvasCommandRegistry.ts",
@@ -466,6 +472,10 @@
   ],
   "publishConfig": {
     "exports": {
+      "./styles": "./dist/styles/index.css",
+      "./styles/editor": "./dist/styles/editor.css",
+      "./styles/tokens": "./dist/styles/tokens.css",
+      "./styles/tailwind": "./dist/styles/tailwind.css",
       "./*": {
         "types": "./dist/*.d.ts",
         "import": "./dist/*.js",

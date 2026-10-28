@@ -2,7 +2,7 @@
 /**
  * Freie Elemente muessen im gemeinsamen Dokument landen.
  *
- * Dekoratives, Formen, freie Texte, Diagramme, Rahmen, Badges, Balken und
+ * Dekoratives, Formen, freie Texte, Diagramme, Rahmen, Badges und
  * hochgeladene Bilder aendert die Vorlage ueber ihre eigenen Aktionen
  * (`setState`) — kein Host erklaert dafuer ein `on<Key>Change`. Bis #3416 gab
  * es damit keinen einzigen Pfad aus dem Komponentenzustand in
@@ -24,7 +24,7 @@ import React, { useState } from 'react';
 import { describe, expect, it, vi } from 'vitest';
 import * as Y from 'yjs';
 
-import { PAGE_ELEMENT_STATE_KEYS } from '@ggraphic/editor/collab/pageElementStateKeys';
+import { pageElementStateKeys } from '@ggraphic/editor/collab/pageElementStateKeys';
 import { readPages, seedPagesIfEmpty, updatePageStateById } from '@ggraphic/editor/collab/pagesDoc';
 import { useEmitHostStateChanges } from '@ggraphic/editor/collab/useEmitHostStateChanges';
 import { PAGES_STATE_ORIGIN } from '@ggraphic/editor/collab/useYjsPages';
@@ -65,7 +65,7 @@ const pageCallbacks = (doc: Y.Doc, hostCallbacks: Record<string, (val: unknown) 
   createPageSyncedCallbacks(
     () => hostCallbacks,
     (partial) => doc.transact(() => updatePageStateById(doc, PAGE_ID, partial), PAGES_STATE_ORIGIN),
-    PAGE_ELEMENT_STATE_KEYS
+    pageElementStateKeys()
   );
 
 describe('freie Elemente an der echten Flaeche', () => {
@@ -108,7 +108,6 @@ describe('freie Elemente an der echten Flaeche', () => {
     await call('addCircleBadge');
     await call('addChart', 'bar');
     await call('addFrame', 'circle');
-    await call('addBalken', 'single');
     await call('toggleIcon', 'icon-1', true);
 
     const state = pageState(doc);
@@ -119,7 +118,6 @@ describe('freie Elemente an der echten Flaeche', () => {
     expect(state.circleBadgeInstances).toHaveLength(1);
     expect(state.chartInstances).toHaveLength(1);
     expect(state.frameInstances).toHaveLength(1);
-    expect(state.balkenInstances).toHaveLength(1);
     expect(state.selectedIcons).toEqual(['icon-1']);
     expect(state.iconStates).toBeDefined();
     // 30 s reichten, solange dies die einzige Datei der jsdom-Lane war, die
@@ -144,7 +142,7 @@ function Page({
 }) {
   const [state, setState] = useState<Record<string, unknown>>(() => pageState(doc));
   const [callbacks] = useState(() => pageCallbacks(doc, hostCallbacks));
-  useEmitHostStateChanges(state, callbacks, PAGE_ELEMENT_STATE_KEYS);
+  useEmitHostStateChanges(state, callbacks, pageElementStateKeys());
   onReady(setState);
   return null;
 }
@@ -182,7 +180,6 @@ describe('freie Elemente im gemeinsamen Dokument', () => {
       additionalTexts: [{ id: 'text-1', text: 'frei' }],
       pillBadgeInstances: [{ id: 'pill-1' }],
       circleBadgeInstances: [{ id: 'circle-1' }],
-      balkenInstances: [{ id: 'balken-1' }],
       frameInstances: [{ id: 'frame-1', clipType: 'circle' }],
       chartInstances: [{ id: 'chart-1', chartType: 'bar' }],
       userImageInstances: [{ id: 'img-1', src: 'blob:x' }],
@@ -193,7 +190,7 @@ describe('freie Elemente im gemeinsamen Dokument', () => {
       backgroundImageAdjustments: { vignette: 0.4, flipX: true },
       backgroundImageRotation: -6,
     };
-    expect(Object.keys(edited)).toEqual([...PAGE_ELEMENT_STATE_KEYS]);
+    expect(Object.keys(edited)).toEqual([...pageElementStateKeys()]);
 
     edit(edited);
 

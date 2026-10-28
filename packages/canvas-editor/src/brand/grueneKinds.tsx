@@ -1,7 +1,7 @@
 /**
  * The element kinds the Grünerator draws itself: the Balken of the
- * three-line sharepics. The editor holds their state and stacks, selects and
- * removes them; the package entry (`src/index.ts`) installs their look
+ * three-line sharepics. What the editor does with them is their registration
+ * (`balkenKind.ts`); the package entry (`src/index.ts`) installs their look
  * (`registerKindRenderers`).
  */
 import {
@@ -22,6 +22,7 @@ export const GRUENE_KIND_RENDERERS: HostKindRenderers = {
     const { handlers, handleSnapChange, setSnapLines, getSnapTargets, stageWidth, stageHeight } =
       ctx;
     const balken = item.data;
+    const { actions } = handlers;
     return (
       <SelectableBalkenGroup
         key={balken.id}
@@ -35,10 +36,12 @@ export const GRUENE_KIND_RENDERERS: HostKindRenderers = {
         texts={balken.texts}
         rotation={balken.rotation}
         barOffsets={balken.barOffsets}
-        onSelect={() => handlers.handleBalkenSelect(balken.id)}
-        onTextChange={(idx, txt) => handlers.handleBalkenTextChange(balken.id, idx, txt)}
-        onDragEnd={(x, y) => handlers.handleBalkenDragEnd(balken.id, x, y)}
-        onTransformEnd={(x, y, s, r) => handlers.handleBalkenTransformEnd(balken.id, x, y, s, r)}
+        onSelect={() => handlers.handleElementSelect(balken.id)}
+        onTextChange={(idx, txt) => actions.setBalkenText?.(balken.id, idx, txt)}
+        onDragEnd={(x, y) => actions.updateBalken?.(balken.id, { offset: { x, y } })}
+        onTransformEnd={(x, y, scale, rotation) =>
+          actions.updateBalken?.(balken.id, { offset: { x, y }, scale, rotation })
+        }
         onSnapChange={handleSnapChange}
         onSnapLinesChange={(lines) => setSnapLines(lines as SnapLine[])}
         getSnapTargets={getSnapTargets}

@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: MPL-2.0
-import type { ElementItem } from './elementTypes.js';
+import type { ElementItem, HostElementThumb } from './elementTypes.js';
+import type { HostElementKindName } from '@ggraphic/editor/utils/canvasItem';
 import type { AssetAudience } from '@ggraphic/editor/utils/canvasAssets';
 import type { ComponentType } from 'react';
 
@@ -26,10 +27,16 @@ export interface ElementPanelHost {
   stickerListLabel?: string;
   /** The line under an empty search result. */
   noResultsHint?: (locale: AssetAudience) => string;
-  /** Tiles for the brand category, between the logos and the marks; `canAddBalken`: whether this editor can place a Balken. */
-  brandItems?: (context: { locale: AssetAudience; canAddBalken: boolean }) => ElementItem[];
+  /**
+   * Tiles for the brand category, between the logos and the marks; `canAdd`:
+   * whether this editor can add a host kind (`registerElementKind` with `add`).
+   */
+  brandItems?: (context: {
+    locale: AssetAudience;
+    canAdd: (kind: HostElementKindName) => boolean;
+  }) => ElementItem[];
   /** Hook: the block catalogue, or null while there is none. Called once per render. */
   useBlocks?: () => ElementBlocks | null;
-  /** Preview of a Balken tile. */
-  BalkenPreview?: ComponentType<{ mode: 'single' | 'triple'; size: number }>;
+  /** Preview of a host kind's tile. */
+  HostThumb?: ComponentType<{ thumb: HostElementThumb; size: number }>;
 }

@@ -172,15 +172,20 @@ export function canRun(
       return props.onAddChart !== undefined;
     case 'frame':
       return props.onAddFrame !== undefined;
-    case 'balken':
-      return props.onAddBalken !== undefined;
     case 'media':
       return props.onAddImageFromUrl !== undefined;
     case 'icon':
       return props.onIconToggle !== undefined && props.selectedIcons !== undefined;
     case 'block':
       return !!blocks?.has(action.blockId);
+    default:
+      return canAddHostKind(props, action);
   }
+}
+
+/** Can this editor add the host kind `kind` (see `injectFeatureProps`)? */
+function canAddHostKind(props: ExtendedAssetsSectionProps, action: { kind: string }): boolean {
+  return props.addableHostKinds?.includes(action.kind) ?? false;
 }
 
 function cover(items: readonly ElementItem[]): ReactNode {
@@ -243,7 +248,7 @@ export function useElementCatalog(
   const recommendedAssetIds = props.recommendedAssetIds ?? NO_RECOMMENDED;
 
   const hasAssets = props.onAddAsset !== undefined;
-  const hasBalken = props.onAddBalken !== undefined;
+  const addableHostKinds = props.addableHostKinds;
   const hasIcons = props.onIconToggle !== undefined && props.selectedIcons !== undefined;
   const hasIllustrations = props.onAddIllustration !== undefined;
   const hasPhotos = props.onAddImageFromUrl !== undefined && fetchStockImages !== undefined;
@@ -278,9 +283,10 @@ export function useElementCatalog(
           .filter((a) => assetMatchesLocale(a, locale))
           .map(assetItem)
       : [];
-    const hostItems = panelHost?.brandItems?.({ locale, canAddBalken: hasBalken }) ?? [];
+    const canAdd = (kind: string) => addableHostKinds?.includes(kind) ?? false;
+    const hostItems = panelHost?.brandItems?.({ locale, canAdd }) ?? [];
     return [...sortedLogos, ...hostItems, ...marks];
-  }, [hasAssets, hasBalken, recommendedAssetIds, locale, panelHost]);
+  }, [hasAssets, addableHostKinds, recommendedAssetIds, locale, panelHost]);
 
   const stickerItems = useMemo(
     () =>

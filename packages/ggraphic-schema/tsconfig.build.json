@@ -8,5 +8,5 @@
     "rootDir": "./src"
   },
   "include": ["src/**/*"],
-  "exclude": ["node_modules", "dist", "src/**/*.vitest.ts"]
+  "exclude": ["node_modules", "dist", "src/**/*.vitest.ts", "src/**/__fixtures__/**"]
 }

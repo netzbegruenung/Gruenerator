@@ -115,7 +115,7 @@ export interface SelectionGeometry {
 /**
  * Die Größe schreibt der Abschluss des Primitivs selbst (`transformend`), wie
  * nach einem Zug am Griff — hier steht nur, wie der Zug auf dem Knoten aussieht.
- * Ohne Eintrag kein „B“/„H“: Balken rechnet beim Abschluss seine Mitte neu,
+ * Ohne Eintrag kein „B“/„H“: eine Host-Art rechnet beim Abschluss ihre Mitte neu,
  * Rahmen und Vorlagen-Bilder zoomen ihr Foto bzw. verwerfen Änderungen unter 3 %.
  */
 const RESIZE_MODES: Partial<Record<OrientableKind, ResizeMode>> = {
@@ -244,7 +244,7 @@ export function createCanvasCommands<TState extends Partial<BaseCanvasState>>(
       return remove ? [{ id, remove }] : [];
     });
     if (removable.length === 0) return false;
-    // Nur was wirklich geht, wird angesagt: ein Vorlagen-Balken in der
+    // Nur was wirklich geht, wird angesagt: ein Vorlagen-Element in der
     // Auswahl bleibt stehen und zählt nicht mit. Vor dem Löschen benannt,
     // danach fehlt der Eintrag in der Render-Liste.
     const removedIds = removable.map((entry) => entry.id);
@@ -381,7 +381,7 @@ export function createCanvasCommands<TState extends Partial<BaseCanvasState>>(
   };
 
   /**
-   * Balken, Pille und Störer melden ihren Editor (`textEditorOpeners`); ein
+   * Host-Arten, Pille und Störer melden ihren Editor (`textEditorOpeners`); ein
    * Text-Knoten öffnet ihn selbst auf den Doppelklick, den die Tür auslöst.
    */
   const editText = () => {
@@ -467,7 +467,7 @@ export function createCanvasCommands<TState extends Partial<BaseCanvasState>>(
           if (axis === 'x') pos.x += 2 * (mid - centre.x);
           else pos.y += 2 * (mid - centre.y);
         }
-        // Kinds ohne x/y (Balken) verschieben um dieselbe Strecke.
+        // Kinds ohne x/y (Host-Arten mit Versatz) verschieben um dieselbe Strecke.
         const translate = { x: pos.x - frame.x, y: pos.y - frame.y };
         const patch: OrientationPatch = { ...pos, rotation, translate };
         if (door.canFlip && axis === 'x') patch.flipX = !door.flipX;
@@ -479,7 +479,7 @@ export function createCanvasCommands<TState extends Partial<BaseCanvasState>>(
 
   const boundsOf = (target: OrientTarget): Box => axisAlignedBounds(target.frame);
 
-  /** Kinds ohne x/y (Balken) lesen `translate`, alle anderen x/y. */
+  /** Kinds ohne x/y (Host-Arten mit Versatz) lesen `translate`, alle anderen x/y. */
   const moveBy =
     ({ door, frame }: OrientTarget, d: Delta) =>
     () =>

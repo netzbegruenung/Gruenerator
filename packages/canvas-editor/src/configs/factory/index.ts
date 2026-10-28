@@ -22,7 +22,7 @@ export type {
   ColorTwoTextOptions,
 } from './createColorTwoTextCanvas';
 
-export { createBaseActions } from './actionFactories';
+export { createBaseActions } from './baseActions';
 
 export { wrapWithAi } from './wrapWithAi';
 export { createAiCapabilities } from './createAiCapabilities';
@@ -36,7 +36,7 @@ export {
 export { makeSectionDefiner } from '@ggraphic/editor/configs/factory/defineSection';
 export {
   carryInstanceState,
-  CARRIED_INSTANCE_KEYS,
+  carriedInstanceKeys,
 } from '@ggraphic/editor/configs/factory/carryInstanceState';
 export type { CarriedInstanceState } from '@ggraphic/editor/configs/factory/carryInstanceState';
 

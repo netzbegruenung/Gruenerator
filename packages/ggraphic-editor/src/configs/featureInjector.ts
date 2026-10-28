@@ -10,18 +10,18 @@
  * - Shapes: state.shapeInstances + actions.addShape
  * - Charts: state.chartInstances + actions.addChart
  * - Illustrations: state.illustrationInstances + actions.addIllustration
- * - Balken: state.balkenInstances + actions.addBalken
+ * - Host kinds: their list (`stateKey`) + their add action (`registerElementKind`)
  *
  * This eliminates 60+ lines of manual prop passing per config (83% code reduction).
  */
 
+import { canAddHostElement, hostElementKinds } from '@ggraphic/editor/utils/elementKinds';
 import { MAX_ICON_SELECTIONS, selectedCatalogIconIds } from '@ggraphic/editor/utils/iconInstances';
 
 import type { ExtendedAssetsSectionProps } from '@ggraphic/editor/sidebar/sections/assets/index';
 import type { IconState } from '@ggraphic/editor/configs/factory/baseTypes';
 import type { SectionContext } from '@ggraphic/editor/configs/types';
 import type { CircleBadgeInstance } from '@ggraphic/editor/primitives/CircleBadge';
-import type { BalkenInstance } from '@ggraphic/editor/utils/balkenUtils';
 import type { ChartInstance } from '@ggraphic/editor/utils/chartUtils';
 import type { FrameInstance } from '@ggraphic/editor/utils/frameUtils';
 import type { IllustrationInstance } from '@ggraphic/editor/utils/illustrations/types';
@@ -46,10 +46,6 @@ interface FeatureStateWithIllustrations {
   illustrationInstances?: IllustrationInstance[];
 }
 
-interface FeatureStateWithBalken {
-  balkenInstances?: BalkenInstance[];
-}
-
 interface FeatureStateWithPillBadge {
   pillBadgeInstances?: PillBadgeInstance[];
 }
@@ -64,6 +60,19 @@ interface FeatureStateWithFrames {
 
 interface FeatureActionsBase {
   [key: string]: ((...args: unknown[]) => unknown) | undefined;
+}
+
+/**
+ * The same array for the same kinds: the panel's memos depend on it, and
+ * `getProps` runs on every render.
+ */
+const addableKindLists = new Map<string, readonly string[]>();
+function stableKinds(kinds: readonly string[]): readonly string[] {
+  const key = kinds.join('\u0000');
+  const known = addableKindLists.get(key);
+  if (known) return known;
+  addableKindLists.set(key, kinds);
+  return kinds;
 }
 
 /**
@@ -170,25 +179,15 @@ export function injectFeatureProps<S extends object, A extends object>(
     }
   }
 
-  // === BALKEN FEATURE ===
-  // Convention: state.balkenInstances + actions.addBalken/updateBalken/removeBalken
-  if ('balkenInstances' in state && 'addBalken' in actions) {
-    const stateWithBalken = state as FeatureStateWithBalken;
-    injected.balkenInstances = stateWithBalken.balkenInstances;
-    injected.selectedBalkenId = context?.selectedElement || null;
-    injected.onAddBalken = actions.addBalken as (mode: string) => void;
-
-    if ('updateBalken' in actions) {
-      injected.onUpdateBalken = actions.updateBalken as (id: string, partial: unknown) => void;
-    }
-
-    if ('removeBalken' in actions) {
-      injected.onRemoveBalken = actions.removeBalken as (id: string) => void;
-    }
-
-    if ('duplicateBalken' in actions) {
-      injected.onDuplicateBalken = actions.duplicateBalken as (id: string) => void;
-    }
+  // === HOST KINDS ===
+  // A host kind's tiles run where the state holds its list and the config has
+  // its add action (`registerElementKind` with `add`).
+  const addable = hostElementKinds()
+    .map((kind) => kind.kind)
+    .filter((kind) => canAddHostElement(kind, state, actions));
+  if (addable.length > 0) {
+    injected.addableHostKinds = stableKinds(addable);
+    injected.hostElementActions = actions;
   }
 
   // === PILL BADGE FEATURE ===

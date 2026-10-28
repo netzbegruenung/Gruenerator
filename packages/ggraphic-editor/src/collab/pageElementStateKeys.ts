@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: MPL-2.0
-import { CARRIED_INSTANCE_KEYS } from '../configs/factory/carryInstanceState.js';
+import { carriedInstanceKeys } from '../configs/factory/carryInstanceState.js';
+import { fromHostKinds } from '../utils/elementKinds.js';
 
 /**
  * Die Zustandsschlüssel, die eine Seite selbst nach außen tragen muss.
@@ -11,14 +12,18 @@ import { CARRIED_INSTANCE_KEYS } from '../configs/factory/carryInstanceState.js'
  * es deshalb keinen einzigen Pfad aus dem Editor in das Dokument — die Elemente
  * standen auf der Fläche und waren nach dem Neuladen weg.
  *
- * Die Liste ist bewusst `CARRIED_INSTANCE_KEYS` selbst, nicht eine zweite
+ * Die Liste ist bewusst `carriedInstanceKeys()` selbst, nicht eine zweite
  * handgepflegte Aufzählung: `carryInstanceState` ist die Stelle, die beim
  * Wiederaufbau (`createInitialState`) genau diese Sammlungen zurückliest. Was
  * hier stünde und dort fehlte, wäre ein toter Schreibvorgang; umgekehrt ein
  * stiller Datenverlust. Genau so war es bis #3420 für `layerOrder`, das hier
  * von Hand angehängt war und das nur zwei Vorlagen zurücklasen.
+ *
+ * Functions, not constants: a host kind (`registerElementKind`) adds its list
+ * and its page keys at startup, after this module loaded. Each hands out the
+ * same array until the next registration.
  */
-export const PAGE_ELEMENT_STATE_KEYS = CARRIED_INSTANCE_KEYS;
+export const pageElementStateKeys: () => readonly string[] = carriedInstanceKeys;
 
 /**
  * Template fields the actions change only via `setState`, with no host
@@ -73,14 +78,6 @@ const PAGE_STYLE_STATE_KEYS = [
   'logoOpacity',
   'logoOffset',
   'logoPosition',
-  // three-line bar
-  'balkenWidthScale',
-  'barOffsets',
-  'balkenOffset',
-  'balkenOpacity',
-  'balkenScale',
-  'balkenRotation',
-  'balkenFitPending',
   // slider
   'slideVariant',
   'subtext2',
@@ -114,8 +111,12 @@ const PAGE_STYLE_STATE_KEYS = [
   'imageOpacity',
 ] as const;
 
-/** Everything a page writes into `pages[i].state` itself. */
-export const PAGE_PERSISTED_STATE_KEYS = [...PAGE_ELEMENT_STATE_KEYS, ...PAGE_STYLE_STATE_KEYS];
+/** Everything a page writes into `pages[i].state` itself, the host kinds' page keys included. */
+export const pagePersistedStateKeys: () => readonly string[] = fromHostKinds((kinds) => [
+  ...pageElementStateKeys(),
+  ...PAGE_STYLE_STATE_KEYS,
+  ...kinds.flatMap((kind) => kind.pageStateKeys ?? []),
+]);
 
 // Background-image state keys that must be synced back to the host (and thus
 // persisted to the collaborative document) when changed in-editor. Each maps to
@@ -138,4 +139,7 @@ const SYNCED_IMAGE_KEYS = [
  * callback anywhere and are served by the writers CanvasEditor mints in
  * createPageSyncedCallbacks.
  */
-export const HOST_EMITTED_STATE_KEYS = [...SYNCED_IMAGE_KEYS, ...PAGE_PERSISTED_STATE_KEYS];
+export const hostEmittedStateKeys: () => readonly string[] = fromHostKinds(() => [
+  ...SYNCED_IMAGE_KEYS,
+  ...pagePersistedStateKeys(),
+]);

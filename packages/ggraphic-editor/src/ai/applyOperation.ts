@@ -16,6 +16,7 @@
  *     suggestion doesn't abort the rest.
  */
 import { isLayerLocked } from '@ggraphic/editor/utils/layerLock';
+import { findHostInstance, kindAction } from '@ggraphic/editor/utils/elementKinds';
 import { findElementRemover } from '@ggraphic/editor/utils/removeElement';
 import { type ShapeInstance } from '@ggraphic/editor/utils/shapes';
 import {
@@ -28,7 +29,6 @@ import type { ApplyResult, TemplateAiCapabilities } from '@ggraphic/editor/ai/ty
 import type { BaseCanvasState } from '@ggraphic/editor/configs/factory/baseTypes';
 import type { AdditionalText } from '@ggraphic/editor/configs/types';
 import type { CircleBadgeInstance } from '@ggraphic/editor/primitives/CircleBadge';
-import type { BalkenInstance } from '@ggraphic/editor/utils/balkenUtils';
 import type { FrameInstance } from '@ggraphic/editor/utils/frameUtils';
 import type { PillBadgeInstance } from '@ggraphic/editor/utils/pillBadgeUtils';
 
@@ -79,7 +79,6 @@ export interface CanvasAiActionsBase {
   removeShape?: (id: string) => void;
   removePillBadge?: (id: string) => void;
   removeCircleBadge?: (id: string) => void;
-  removeBalken?: (id: string) => void;
   removeFrame?: (id: string) => void;
   removeUserImage?: (id: string) => void;
   removeAdditionalText?: (id: string) => void;
@@ -98,7 +97,6 @@ export interface CanvasAiActionsBase {
   updateShape?: (id: string, partial: Partial<ShapeInstance>) => void;
   updatePillBadge?: (id: string, partial: Partial<PillBadgeInstance>) => void;
   updateCircleBadge?: (id: string, partial: Partial<CircleBadgeInstance>) => void;
-  updateBalken?: (id: string, partial: Partial<BalkenInstance>) => void;
   updateFrame?: (id: string, partial: Partial<FrameInstance>) => void;
   updateUserImage?: (id: string, partial: Partial<CanvasAiCleanPatch>) => void;
   updateIcon?: (id: string, partial: Partial<CanvasAiCleanPatch>) => void;
@@ -397,7 +395,15 @@ function withScaleXY(patch: Patch, el: { scaleX: number; scaleY: number }) {
   };
 }
 
-const GEOMETRY: readonly PatchKey[] = ['x', 'y', 'rotation', 'opacity', 'scale'];
+/** Where an element is and how it looks: the fields every placed kind takes. */
+export const CANVAS_AI_GEOMETRY_FIELDS: readonly PatchKey[] = [
+  'x',
+  'y',
+  'rotation',
+  'opacity',
+  'scale',
+];
+const GEOMETRY = CANVAS_AI_GEOMETRY_FIELDS;
 
 /**
  * Each kind names its colour and size differently (`fill`, `backgroundColor`,
@@ -466,18 +472,16 @@ function dispatchUpdate<TState>(
     return run('circle-badge', actions.updateCircleBadge, [...GEOMETRY, 'color'], badgeColor);
   }
 
-  const balken = find(state.balkenInstances);
-  if (balken) {
-    return run('balken', actions.updateBalken, GEOMETRY, () => {
-      const { x, y, scale, ...rest } = patch;
-      return {
-        ...rest,
-        ...(scale != null && { scale: balken.scale * scale }),
-        ...((x != null || y != null) && {
-          offset: { x: x ?? balken.offset.x, y: y ?? balken.offset.y },
-        }),
-      };
-    });
+  const host = findHostInstance(state, elementId);
+  if (host) {
+    const { kind, data } = host;
+    const update = kindAction(actions, kind.actions.update) as
+      ((id: string, partial: Record<string, unknown>) => void) | null;
+    if (!update) return { ok: false, reason: `template does not support updating ${kind.kind}` };
+    // Boundary: the instance found under this registration's own list.
+    return run(kind.kind, update, kind.aiUpdate?.fields ?? [], () =>
+      kind.aiUpdate ? kind.aiUpdate.patch(patch, data as never) : {}
+    );
   }
 
   if (find(state.illustrationInstances)) {

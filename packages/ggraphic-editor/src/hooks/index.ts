@@ -54,7 +54,7 @@ export type {
   ExportProgress,
 } from './useMultiPageExport.js';
 
-export { usePageManager, parseInitialPages } from './usePageManager.js';
+export { usePageManager, parseInitialPages, readInitialDocument } from './usePageManager.js';
 export { useDeckAutoSave, SHARE_ORIGINAL_IMAGE_SRC } from './useDeckAutoSave.js';
 export type {
   InitialPageDef,

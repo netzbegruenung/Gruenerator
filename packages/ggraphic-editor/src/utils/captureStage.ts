@@ -126,7 +126,7 @@ export function visibleStageTexts(stage: Konva.Stage | null): string[] {
     const text = node.text().trim();
     if (!text || BULLET_ONLY.test(text)) continue;
     // A text element carries its own id; the runs of a rich text block, the
-    // lines of a Balken and a badge's label do not — their group does.
+    // lines of a host kind's group and a badge's label do not — their group does.
     const parent = node.getParent();
     const key = !node.id() && parent?.id() ? parent : node;
     const runs = blocks.get(key) ?? [];

@@ -4,17 +4,19 @@ import {
   buildSortedRenderList,
   type CanvasItem,
 } from '@ggraphic/editor/utils/canvasLayerManager';
+import { hostElementKind } from '@ggraphic/editor/utils/elementKinds';
 import { isLayerLocked } from '@ggraphic/editor/utils/layerLock';
 import { isComposerPlane } from '@ggraphic/editor/utils/shapes';
 
 import type { BaseCanvasState } from '@ggraphic/editor/configs/factory/baseTypes';
 import type { FullCanvasConfig } from '@ggraphic/editor/configs/types';
 import type { HostCanvasAiSnapshot } from '@ggraphic/editor/ai/types';
+import type { HostElementKindName } from '@ggraphic/editor/utils/canvasItem';
 
 type HostEntry = HostCanvasAiSnapshot['elementsSummary'][number];
-// `balken` is the one kind the core itself draws but its own snapshot schema
-// leaves to the host (the host binds it through `CanvasAiHostTypes`).
-type SummaryEntry = Omit<HostEntry, 'kind'> & { kind: HostEntry['kind'] | 'balken' };
+// A host kind is named by its registration; the core's snapshot schema leaves
+// it to the host, which binds its own through `CanvasAiHostTypes`.
+type SummaryEntry = Omit<HostEntry, 'kind'> & { kind: HostEntry['kind'] | HostElementKindName };
 
 /** Keeps the prompt bounded on crowded canvases. */
 const MAX_ENTRIES = 40;
@@ -27,13 +29,16 @@ const size = (w: number, h: number) => `${r(w)}×${r(h)}`;
 const turned = (deg: number | undefined) => (deg ? ` · gedreht ${r(deg)}°` : '');
 const quote = (text: string) => `"${text.replace(/\s+/g, ' ').trim().slice(0, 40)}"`;
 
+/** The wording of the element lines, for a host kind's `describe` (`registerElementKind`). */
+export const aiLabelFormat = { position: pos, size, turned, quote } as const;
+
 /**
  * One compact German line per user-placed element, in z-order (Ebene 1 is at
  * the back), so the planner can target any of them with update-element /
  * remove-element and reason about where things are.
  */
 export function describeCanvasElements(state: BaseCanvasState): HostEntry[] {
-  // Boundary cast: see SummaryEntry — the host's snapshot lists `balken`.
+  // Boundary cast: see SummaryEntry — the host's snapshot lists its kinds.
   return describeEntries(state) as HostEntry[];
 }
 
@@ -143,13 +148,17 @@ function describeItem(item: CanvasItem, state: BaseCanvasState): SummaryEntry | 
         label: `Rahmen ${f.clipType} · ${pos(f.x, f.y)}${turned(f.rotation)} · ${size(f.width * f.scaleX, f.height * f.scaleY)}`,
       };
     }
-    case 'balken':
-      return {
-        id: item.id,
-        kind: 'balken',
-        label: `Balken ${quote(item.data.texts.join(' / '))} · Versatz ${pos(item.data.offset.x, item.data.offset.y)}${turned(item.data.rotation)}`,
-      };
     case 'element':
       return null;
+    default:
+      return describeHostItem(item);
   }
+}
+
+/** A host kind's line, by its registration's `describe`; none without one. */
+function describeHostItem(item: { id: string; type: string; data: unknown }): SummaryEntry | null {
+  const host = hostElementKind(item.type);
+  if (!host?.describe) return null;
+  // Boundary: the item of this host kind carries the registration's own instance.
+  return { id: item.id, kind: host.kind, label: host.describe(item.data as never) };
 }

@@ -42,15 +42,6 @@ describe('layerLabel', () => {
     ['Rechteck', element({ id: 'scrim', type: 'rect' }), 'Fläche'],
     ['Kreis', element({ id: 'dot', type: 'circle' }), 'Form: Kreis'],
     ['Gruppe', element({ id: 'g', type: 'group', children: [] }), 'Gruppe'],
-    [
-      'Balken',
-      item({
-        id: 'balken-1',
-        type: 'balken',
-        data: { texts: ['Klimaschutz', 'jetzt', 'handeln'] },
-      }),
-      'Balken: Klimaschutz / jetzt / handeln',
-    ],
     ['Icon', item({ id: 'heart', type: 'icon' }), 'Icon'],
     ['Form', item({ id: 'shape-1', type: 'shape', data: { type: 'circle' } }), 'Form: Kreis'],
     ['Rahmen', item({ id: 'frame-1', type: 'frame', data: {} }), 'Rahmen'],

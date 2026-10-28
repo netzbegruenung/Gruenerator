@@ -29,7 +29,7 @@
 
 import { useCanvasEditorServices } from '@ggraphic/editor/CanvasEditorProvider';
 import { useMessages } from '@ggraphic/editor/i18n/messages';
-import { PAGE_PERSISTED_STATE_KEYS } from '@ggraphic/editor/collab/pageElementStateKeys';
+import { pagePersistedStateKeys } from '@ggraphic/editor/collab/pageElementStateKeys';
 import { serializeDeck } from '@ggraphic/editor/collab/pagesDoc';
 import { createPageSyncedCallbacks } from '@ggraphic/editor/collab/wrapCallbacksWithPageSync';
 import { CanvasTextEditorProvider } from '@ggraphic/editor/components/CanvasTextOverlay';
@@ -237,6 +237,7 @@ function CanvasEditorInner({
     canUndoPageOp,
     canRedoPageOp,
     isPreview,
+    schemaRefusal,
   } = usePageManager<string>({
     initialConfigId,
     formatId,
@@ -284,7 +285,7 @@ function CanvasEditorInner({
       const wrapped = createPageSyncedCallbacks(
         () => callbacksRef.current,
         (partial) => updatePageStateRef.current(pageId, partial),
-        [...pageCallbackKeys(configId), ...PAGE_PERSISTED_STATE_KEYS]
+        [...pageCallbackKeys(configId), ...pagePersistedStateKeys()]
       );
       cache.set(pageId, { configId, wrapped });
       return wrapped;
@@ -1017,7 +1018,7 @@ function CanvasEditorInner({
     return [];
   }, [activeConfig, activeState]);
 
-  // Auto-switch tabs based on config (e.g., switch to 'settings' when a balken is selected).
+  // Auto-switch tabs based on config (e.g., switch to 'settings' when a host element is selected).
   // Desktop only: on mobile a tap just selects — the canvas keeps its size, and
   // the selection's area opens from the bottom bar's "Mehr" button instead.
   const mobileSelectionArea = isMobileWeb
@@ -1654,9 +1655,18 @@ function CanvasEditorInner({
               mobileSheetOpen={isMobileSheetOpen}
               onCanvasBackdropPointerDown={isMobileSheetOpen ? handlePanelClose : undefined}
             >
+              {schemaRefusal && (
+                // Read-only for good, not loading: say why nothing can be edited.
+                <p
+                  role="alert"
+                  className="mx-auto mt-sm max-w-prose rounded-md border border-[var(--editor-border-strong)] bg-[var(--editor-surface)] px-3 py-2 text-[length:var(--font-size-small)] text-[var(--editor-text)]"
+                >
+                  {t.shell.schemaRefusal[schemaRefusal.status]}
+                </p>
+              )}
               <div
                 inert={isPreview || hasPendingSuggestion}
-                aria-busy={isPreview}
+                aria-busy={isPreview && !schemaRefusal}
                 ref={pagesContainerCallbackRef}
                 onPointerDown={handleWorkAreaPointerDown}
                 className={cn(
