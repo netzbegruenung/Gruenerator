@@ -1,10 +1,13 @@
+// SPDX-License-Identifier: MPL-2.0
+import { plainAssetImageUrls, registeredAssetCatalog } from '@ggraphic/editor/utils/canvasAssets';
 import { cn } from '@ggraphic/editor/utils/cn';
-import { shareCanvasPreviewUrl, shareThumbnailPreviewUrl } from '@gruenerator/contracts';
 import { Icon } from '@iconify/react';
 
-import { SingleBalkenPreviewIcon, TripleBalkenPreviewIcon } from '../BadgePreviewIcons';
 import { ChartTypePreview } from '@ggraphic/editor/sidebar/sections/DiagrammeSection';
-import { ALL_PALETTE_SHAPES, getShapeVariant } from '@ggraphic/editor/sidebar/sections/FormenSection';
+import {
+  ALL_PALETTE_SHAPES,
+  getShapeVariant,
+} from '@ggraphic/editor/sidebar/sections/FormenSection';
 import { IllustrationThumb } from '@ggraphic/editor/sidebar/sections/IllustrationThumb';
 import { FramePresetPreview } from '@ggraphic/editor/sidebar/sections/RahmenSection';
 
@@ -15,8 +18,8 @@ import type { ShapeType } from '@ggraphic/editor/utils/shapes';
 
 const PALETTE_BY_TYPE = new Map(ALL_PALETTE_SHAPES.map((shape) => [shape.id, shape]));
 
-/** Kawaii characters keep the brand tanne; the tile behind them stays light. */
-const KAWAII_COLOR = '#005437';
+/** Kawaii characters draw in the host's colour; the tile behind them stays light. */
+const DEFAULT_KAWAII_COLOR = '#555555';
 
 /** A photo fills its tile edge to edge; every other preview sits centred inside it. */
 export function thumbFillsTile(thumb: ElementThumbSpec): boolean {
@@ -55,6 +58,8 @@ export function ElementThumb({
   eager?: boolean;
 }) {
   const loading = eager ? 'eager' : 'lazy';
+  const catalog = registeredAssetCatalog();
+  const urls = catalog.imageUrls ?? plainAssetImageUrls;
   switch (thumb.t) {
     case 'img':
       return (
@@ -70,7 +75,7 @@ export function ElementThumb({
     case 'share':
       return (
         <img
-          src={shareThumbnailPreviewUrl(thumb.src, 200)}
+          src={urls.thumbnail(thumb.src, 200)}
           alt=""
           loading={loading}
           decoding="async"
@@ -81,8 +86,8 @@ export function ElementThumb({
     case 'photo':
       return (
         <img
-          src={shareCanvasPreviewUrl(thumb.src, 200)}
-          srcSet={`${shareCanvasPreviewUrl(thumb.src, 200)} 200w, ${shareCanvasPreviewUrl(thumb.src, 400)} 400w`}
+          src={urls.preview(thumb.src, 200)}
+          srcSet={`${urls.preview(thumb.src, 200)} 200w, ${urls.preview(thumb.src, 400)} 400w`}
           sizes="(max-width: 899px) 33vw, 104px"
           alt=""
           loading={loading}
@@ -104,7 +109,13 @@ export function ElementThumb({
       );
     case 'kawaii': {
       const Kawaii = PREVIEW_COMPONENTS[thumb.id];
-      return <Kawaii size={52} mood="happy" color={KAWAII_COLOR} />;
+      return (
+        <Kawaii
+          size={52}
+          mood="happy"
+          color={catalog.illustrations?.kawaiiColor ?? DEFAULT_KAWAII_COLOR}
+        />
+      );
     }
     case 'svg':
       return <IllustrationThumb def={thumb.def} alt="" className="size-full object-contain" />;
@@ -114,11 +125,9 @@ export function ElementThumb({
           <Icon icon={thumb.iconId} width={34} height={34} />
         </span>
       );
-    case 'balken':
-      return thumb.mode === 'single' ? (
-        <SingleBalkenPreviewIcon size={60} />
-      ) : (
-        <TripleBalkenPreviewIcon size={60} />
-      );
+    case 'balken': {
+      const BalkenPreview = catalog.elementPanel?.BalkenPreview;
+      return BalkenPreview ? <BalkenPreview mode={thumb.mode} size={60} /> : null;
+    }
   }
 }

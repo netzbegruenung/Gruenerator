@@ -13,7 +13,7 @@ import {
 } from '@ggraphic/editor/utils/userImageUtils';
 
 import { colorName } from '@ggraphic/editor/utils/colorNames';
-import { SidebarSlider } from '../components/SidebarSlider';
+import { SidebarSlider } from '@ggraphic/editor/sidebar/components/SidebarSlider';
 
 function naturalSize(src: string): Promise<{ width: number; height: number }> {
   return new Promise((resolve, reject) => {

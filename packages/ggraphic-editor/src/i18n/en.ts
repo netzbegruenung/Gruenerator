@@ -393,6 +393,15 @@ export const en: Messages = {
       loadMore: 'Load more',
       loading: 'Loading …',
       noMatch: (noun: string, q: string) => `No ${noun} for “${q}”.`,
+      scope: { shop: 'Discover', mine: 'Mine', saved: 'Saved' },
+      plural: { sticker: 'stickers', background: 'backgrounds' },
+      empty: (noun: string, scope: 'shop' | 'mine' | 'saved') =>
+        scope === 'shop'
+          ? `There are no ${noun} under “Discover” yet.`
+          : scope === 'mine'
+            ? `You have no ${noun} of your own yet.`
+            : `You have not saved any ${noun} yet.`,
+      loadFailed: (noun: string) => `Could not load ${noun}.`,
       itemLabel: (title: string, sticker: boolean) =>
         `${sticker ? 'Add' : 'Use as background:'} ${title}`,
     },

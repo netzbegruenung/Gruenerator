@@ -1,12 +1,13 @@
+// SPDX-License-Identifier: MPL-2.0
 import { useCanvasEditorServices } from '@ggraphic/editor/CanvasEditorProvider';
 import { useNoUnsplashSearch, type UnsplashSearchFn } from '@ggraphic/editor/hostServices';
 import { useMessages } from '@ggraphic/editor/i18n/messages';
-import { useCallback, useEffect, useMemo, type ReactNode } from 'react';
-
+import { useUnsplashHome } from '@ggraphic/editor/utils/unsplashLinks';
 import {
   UnsplashLimitNotice,
   UnsplashRemaining,
 } from '@ggraphic/editor/sidebar/sections/tools/UnsplashLimitNotice';
+import { useCallback, useEffect, useMemo, type ReactNode } from 'react';
 
 import { unsplashPhotoItem } from './useStockPhotos';
 
@@ -14,7 +15,6 @@ import type { ElementItem } from './elementTypes';
 
 /** On top of the panel's own 200 ms, so a typing pause, not every key, costs a search. */
 const SEARCH_DEBOUNCE_MS = 400;
-const UNSPLASH_HOME = 'https://unsplash.com/?utm_source=gruenerator&utm_medium=referral';
 
 /**
  * The Fotos category: the bundled photos (`children`), and below a search
@@ -31,6 +31,7 @@ export function FotosCatalog({
   children: ReactNode;
 }) {
   const t = useMessages();
+  const unsplashHome = useUnsplashHome();
   // `useUnsplashSearch` is a host hook, fixed for the lifetime of the editor.
   const { searchUnsplashImages, useUnsplashSearch = useNoUnsplashSearch } =
     useCanvasEditorServices();
@@ -117,7 +118,7 @@ export function FotosCatalog({
             <p className="m-0 text-[11px] text-[var(--editor-text-muted)]">
               Fotos von{' '}
               <a
-                href={UNSPLASH_HOME}
+                href={unsplashHome}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="text-[var(--editor-text)] underline"

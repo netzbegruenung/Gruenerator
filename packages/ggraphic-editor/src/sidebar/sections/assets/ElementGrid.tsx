@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 import { useEffect, useRef, useState } from 'react';
 
 import { ElementTile } from './ElementTile';

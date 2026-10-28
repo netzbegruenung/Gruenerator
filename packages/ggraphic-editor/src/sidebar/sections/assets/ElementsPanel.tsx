@@ -1,6 +1,8 @@
+// SPDX-License-Identifier: MPL-2.0
 import { useCanvasEditorServices } from '@ggraphic/editor/CanvasEditorProvider';
 import { useDebounce } from '@ggraphic/editor/hooks/useDebounce';
 import { useMessages } from '@ggraphic/editor/i18n/messages';
+import { registeredAssetCatalog } from '@ggraphic/editor/utils/canvasAssets';
 import { cn } from '@ggraphic/editor/utils/cn';
 import { MAX_ICON_SELECTIONS } from '@ggraphic/editor/utils/iconInstances';
 import {
@@ -14,8 +16,7 @@ import {
 } from 'react';
 import { PiCaretLeftBold, PiMagnifyingGlass, PiX } from 'react-icons/pi';
 
-import { useBlockInsert } from '../../../components/CanvasEditor/blockInsert';
-import { useIsCanvasMobile } from '@ggraphic/editor/hooks/useIsCanvasMobile';
+import { useIsCanvasMobile } from '../../../hooks/useIsCanvasMobile';
 import { useTrackUnsplashDownload } from '@ggraphic/editor/hooks/useTrackUnsplashDownload';
 import { MOBILE_INPUT_TEXT } from '@ggraphic/editor/sidebar/sidebarStyles';
 import { IllustrationSettings } from '../IllustrationSettings';
@@ -31,11 +32,12 @@ import { EmojiTonePicker } from '@ggraphic/editor/sidebar/sections/assets/EmojiT
 import { FotosCatalog } from './FotosCatalog';
 import { RecentCarousel } from './RecentCarousel';
 import { StickerCatalog } from './StickerCatalog';
-import { BLOCK_GRUPPEN, canRun, useElementCatalog, type CategoryId } from './useElementCatalog';
+import { canRun, useElementCatalog, type CategoryId } from './useElementCatalog';
 import { useRecentElements } from './useRecentElements';
 
 import type { ExtendedAssetsSectionProps } from './AssetsSection';
-import type { SharepicBlock, StickerRef } from '@gruenerator/contracts';
+import type { ElementBlocks } from './elementPanelHost';
+import type { StickerRef } from '@ggraphic/schema';
 
 /**
  * Entrance (element-enter in both CSS twins): tiles 0–7 start 30 ms apart, the
@@ -43,6 +45,7 @@ import type { SharepicBlock, StickerRef } from '@gruenerator/contracts';
  */
 const ENTRANCE_MS = 7 * 30 + 250 + 50;
 const BRAND_COUNT = 4;
+const useNoBlocks = (): ElementBlocks | null => null;
 
 function countLabel(n: number): string {
   return `${n} ${n === 1 ? 'Element' : 'Elemente'}`;
@@ -110,19 +113,21 @@ function BlockGroups({
   items,
   grid,
 }: {
-  blocks: readonly SharepicBlock[];
+  blocks: ElementBlocks;
   items: readonly ElementItem[];
   grid: (items: readonly ElementItem[]) => React.ReactNode;
 }) {
-  const gruppeOf = new Map(blocks.map((b) => [`block:${b.id}`, b.gruppe]));
-  const groups = (Object.keys(BLOCK_GRUPPEN) as SharepicBlock['gruppe'][])
-    .map((gruppe) => ({ gruppe, items: items.filter((i) => gruppeOf.get(i.key) === gruppe) }))
+  const groups = blocks.groups
+    .map((group) => ({
+      label: group.label,
+      items: items.filter((i) => group.keys.includes(i.key)),
+    }))
     .filter((g) => g.items.length > 0);
   return (
     <div className="flex flex-col gap-5">
       {groups.map((g) => (
-        <section key={g.gruppe} className="flex flex-col gap-2.5">
-          <SectionHeading>{BLOCK_GRUPPEN[g.gruppe]}</SectionHeading>
+        <section key={g.label} className="flex flex-col gap-2.5">
+          <SectionHeading>{g.label}</SectionHeading>
           {grid(g.items)}
         </section>
       ))}
@@ -186,7 +191,9 @@ export function ElementsPanel(props: ExtendedAssetsSectionProps) {
     propsRef.current = props;
   });
   const remember = useRecentElements((s) => s.remember);
-  const blocks = useBlockInsert();
+  const panelHost = registeredAssetCatalog().elementPanel;
+  const useBlocks = panelHost?.useBlocks ?? useNoBlocks;
+  const blocks = useBlocks();
   const blocksRef = useRef(blocks);
   useLayoutEffect(() => {
     blocksRef.current = blocks;
@@ -302,10 +309,7 @@ export function ElementsPanel(props: ExtendedAssetsSectionProps) {
   const placeholder = category
     ? t.sidebar.elements.searchIn(category.label)
     : t.sidebar.elements.searchElements;
-  const noResultsHint =
-    userLocale === 'de-AT'
-      ? 'Versuch es mit „Logo“, „Kreis“ oder „Rahmen“.'
-      : 'Versuch es mit „Sonnenblume“, „Balken“ oder „Rahmen“.';
+  const noResultsHint = panelHost?.noResultsHint?.(userLocale) ?? null;
   const canDrag = !isMobile;
   const selectedIllustration =
     cat === 'illustrationen' && props.selectedIllustrationId
@@ -344,7 +348,7 @@ export function ElementsPanel(props: ExtendedAssetsSectionProps) {
         </p>
       ) : null;
     if (category.id === 'bloecke' && !hasQuery && blocks) {
-      return <BlockGroups blocks={blocks.bloecke} items={items} grid={grid} />;
+      return <BlockGroups blocks={blocks} items={items} grid={grid} />;
     }
     if (category.id === 'emoji') {
       return (
@@ -433,9 +437,11 @@ export function ElementsPanel(props: ExtendedAssetsSectionProps) {
       {showNoResults ? (
         <div className="flex flex-col items-center gap-1.5 px-3 py-10 text-center">
           <strong className="text-[15px] text-[var(--editor-text)]">Nichts gefunden</strong>
-          <span className="text-sm text-[var(--editor-text-muted)] [text-wrap:pretty]">
-            {noResultsHint}
-          </span>
+          {noResultsHint && (
+            <span className="text-sm text-[var(--editor-text-muted)] [text-wrap:pretty]">
+              {noResultsHint}
+            </span>
+          )}
         </div>
       ) : category ? (
         <>

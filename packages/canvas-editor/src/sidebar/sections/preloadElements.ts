@@ -22,7 +22,7 @@ export function usePreloadElements(enabled: boolean) {
     if (!enabled) return;
     const warm = () => {
       void AssetsSection.preload().catch(() => {});
-      const chunk = import('./assets');
+      const chunk = import('@ggraphic/editor/sidebar/sections/assets/index');
       if (!client) return;
       void client.prefetchQuery({
         queryKey: [...ICON_CATALOG_QUERY_KEY, DEFAULT_ICON_SET],

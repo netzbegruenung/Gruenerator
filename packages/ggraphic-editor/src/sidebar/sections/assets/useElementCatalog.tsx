@@ -1,9 +1,13 @@
+// SPDX-License-Identifier: MPL-2.0
 import { useCanvasEditorServices } from '@ggraphic/editor/CanvasEditorProvider';
 import { useAllIconsCatalog, useIconCatalog } from '@ggraphic/editor/hooks/useIconCatalog';
 import { useNoStudioAssets } from '@ggraphic/editor/hostServices';
 import { useMessages } from '@ggraphic/editor/i18n/messages';
 import {
+  assetMatchesLocale,
   hasDarkPreview,
+  plainAssetImageUrls,
+  registeredAssetCatalog,
   type AssetAudience,
   type UniversalAsset,
 } from '@ggraphic/editor/utils/canvasAssets';
@@ -15,27 +19,22 @@ import {
 } from '@ggraphic/editor/utils/frameUtils';
 import { getAllIllustrations } from '@ggraphic/editor/utils/illustrations/registry';
 import { getShapeDef } from '@ggraphic/editor/utils/shapes';
-import {
-  shareThumbnailPreviewUrl,
-  sharepicBlockThumbPath,
-  type SharepicBlock,
-} from '@gruenerator/contracts';
 import { useQuery } from '@tanstack/react-query';
 import { useMemo, useState, type ReactNode } from 'react';
 import { PiImageFill } from 'react-icons/pi';
 
-import { EMOJI_ASSETS, stickerAssetsForLocale } from '../../../brand/grueneAssetCatalog';
-import { ALL_ASSETS, sortLogoAssets } from '../../../brand/grueneAssets';
-import { useBlockInsert, type BlockInsertApi } from '../../../components/CanvasEditor/blockInsert';
 import { useEmojiCatalog } from '../../../hooks/useEmojiCatalog';
 import { withTone } from '../../../utils/emoji/emojiCatalog';
 import { KAWAII_ILLUSTRATIONS } from '@ggraphic/editor/utils/illustrations/kawaii';
-import { UNDRAW_FEATURED } from '../../../utils/illustrations/undraw';
-import { ALL_PALETTE_SHAPES, getShapeVariant } from '@ggraphic/editor/sidebar/sections/FormenSection';
+import {
+  ALL_PALETTE_SHAPES,
+  getShapeVariant,
+} from '@ggraphic/editor/sidebar/sections/FormenSection';
 
 import { ElementThumb } from './ElementThumb';
 import { useStockPhotos } from './useStockPhotos';
 
+import type { ElementBlocks } from './elementPanelHost';
 import type { ExtendedAssetsSectionProps } from './AssetsSection';
 import type { AssetView } from '@ggraphic/editor/sidebar/sections/assets/constants';
 import type { ElementAction, ElementItem } from './elementTypes';
@@ -108,9 +107,11 @@ export const FRAME_ITEMS: ElementItem[] = [...FRAME_PRESETS]
     thumb: { t: 'frame', clipType: preset.id },
   }));
 
-/** The sharepic set: first in the grid, and all there is until the full catalogue loads. */
-export const EMOJI_ITEMS: ElementItem[] = EMOJI_ASSETS.map(assetItem);
-const SHAREPIC_EMOJI_IDS = new Set(EMOJI_ASSETS.map((a) => a.id));
+/** What the host's catalogue offers under one `category`, in its order. */
+function offeredAssets(category: UniversalAsset['category']): UniversalAsset[] {
+  const catalog = registeredAssetCatalog();
+  return (catalog.offered ?? catalog.assets).filter((a) => a.category === category);
+}
 
 export function illustrationItem(def: IllustrationDef): ElementItem {
   return {
@@ -124,10 +125,11 @@ export function illustrationItem(def: IllustrationDef): ElementItem {
 }
 
 /** Shown before the full catalogue (~2,000 entries) has loaded, and as the card cover. */
-const FEATURED_ILLUSTRATION_ITEMS: ElementItem[] = [
-  ...KAWAII_ILLUSTRATIONS,
-  ...UNDRAW_FEATURED,
-].map(illustrationItem);
+function featuredIllustrationItems(): ElementItem[] {
+  return [...KAWAII_ILLUSTRATIONS, ...(registeredAssetCatalog().illustrations?.featured ?? [])].map(
+    illustrationItem
+  );
+}
 
 export function iconItem(icon: IconDef): ElementItem {
   return {
@@ -139,58 +141,23 @@ export function iconItem(icon: IconDef): ElementItem {
   };
 }
 
-const BALKEN_ITEMS: ElementItem[] = [
-  {
-    key: 'balken:single',
-    label: 'Balken',
-    keywords: ['balken', 'text', 'marke'],
-    action: { kind: 'balken', mode: 'single' },
-    thumb: { t: 'balken', mode: 'single' },
-  },
-  {
-    key: 'balken:triple',
-    label: 'Dreifach-Balken',
-    keywords: ['balken', 'dreizeilen', 'text', 'marke'],
-    action: { kind: 'balken', mode: 'triple' },
-    thumb: { t: 'balken', mode: 'triple' },
-  },
-];
-
 const ILLUSTRATIONS_QUERY_KEY = ['canvas', 'illustrations', 'all'] as const;
 
 const NO_RECOMMENDED: string[] = [];
+const NO_ITEMS: ElementItem[] = [];
+const useNoBlocks = (): ElementBlocks | null => null;
 
 /**
- * The gallery backgrounds come from the Profilbild-Grünerator and are not ready
+ * The gallery backgrounds come from the host's Studio and are not ready
  * for the Elemente tab yet; flip this once they are.
  */
 const SHOW_GALLERY_BACKGROUNDS = false;
-
-/** Group headings of the Blöcke category, in display order. */
-export const BLOCK_GRUPPEN: Record<SharepicBlock['gruppe'], string> = {
-  kopf: 'Kopf',
-  listen: 'Listen',
-  text: 'Text',
-  zahlen: 'Zahlen & Fakten',
-  meldungen: 'Termine & Meldungen',
-};
-
-/** A Grünerator-Block as a tile: its preview is the block alone, cut to its bounds. */
-export function blockItem(block: SharepicBlock): ElementItem {
-  return {
-    key: `block:${block.id}`,
-    label: block.titel,
-    keywords: [block.titel, BLOCK_GRUPPEN[block.gruppe], ...block.stichworte],
-    action: { kind: 'block', blockId: block.id },
-    thumb: { t: 'img', src: sharepicBlockThumbPath(block.id, block.thumbVersion) },
-  };
-}
 
 /** Whether this editor can perform the action — a config without shapes hides shape tiles. */
 export function canRun(
   action: ElementAction,
   props: ExtendedAssetsSectionProps,
-  blocks: BlockInsertApi | null = null
+  blocks: ElementBlocks | null = null
 ): boolean {
   switch (action.kind) {
     case 'asset':
@@ -212,7 +179,7 @@ export function canRun(
     case 'icon':
       return props.onIconToggle !== undefined && props.selectedIcons !== undefined;
     case 'block':
-      return !!blocks?.bloecke.some((b) => b.id === action.blockId);
+      return !!blocks?.has(action.blockId);
   }
 }
 
@@ -238,7 +205,10 @@ function BackgroundCover() {
   const { items } = useStudioAssets({ kind: 'background', scope: 'shop', q: '', sort: 'new' });
   const [failedSrc, setFailedSrc] = useState<string | null>(null);
   const first = items[0];
-  const src = first ? (first.thumbUrl ?? shareThumbnailPreviewUrl(first.src, 200)) : null;
+  const src = first
+    ? (first.thumbUrl ??
+      (registeredAssetCatalog().imageUrls ?? plainAssetImageUrls).thumbnail(first.src, 200))
+    : null;
   if (!src || src === failedSrc)
     return <PiImageFill size={40} className="text-editor-secondary-fg" />;
   return (
@@ -268,11 +238,12 @@ export function useElementCatalog(
 ): CatalogCategory[] {
   const t = useMessages();
   const { userLocale = 'de-DE', fetchStockImages } = useCanvasEditorServices();
+  const panelHost = registeredAssetCatalog().elementPanel;
   const locale: AssetAudience = userLocale;
   const recommendedAssetIds = props.recommendedAssetIds ?? NO_RECOMMENDED;
 
   const hasAssets = props.onAddAsset !== undefined;
-  const hasBalken = props.onAddBalken !== undefined && locale === 'de-DE';
+  const hasBalken = props.onAddBalken !== undefined;
   const hasIcons = props.onIconToggle !== undefined && props.selectedIcons !== undefined;
   const hasIllustrations = props.onAddIllustration !== undefined;
   const hasPhotos = props.onAddImageFromUrl !== undefined && fetchStockImages !== undefined;
@@ -287,23 +258,37 @@ export function useElementCatalog(
     gcTime: Infinity,
   });
   const emojiCatalog = useEmojiCatalog(hasAssets && needFull.emoji);
-  const blocks = useBlockInsert();
-  const blockItems = useMemo(() => blocks?.bloecke.map(blockItem) ?? [], [blocks?.bloecke]);
+  const useBlocks = panelHost?.useBlocks ?? useNoBlocks;
+  const blocks = useBlocks();
+  const blockItems = blocks?.items ?? NO_ITEMS;
   // The photo catalogue is small and gives the Fotos card its cover: load it with the tab.
   const photos = useStockPhotos(hasPhotos);
 
   const markeItems = useMemo(() => {
-    const logos = hasAssets ? sortLogoAssets(recommendedAssetIds, locale).map(assetItem) : [];
-    const marks = hasAssets
-      ? ALL_ASSETS.filter(
-          (a) => a.category === 'mark' && (a.audience === 'all' || a.audience === locale)
-        ).map(assetItem)
+    // Logos in the locale's order, the recommended ones first.
+    const logos = hasAssets
+      ? offeredAssets('decoration').filter((a) => assetMatchesLocale(a, locale))
       : [];
-    return [...logos, ...(hasBalken ? BALKEN_ITEMS : []), ...marks];
-  }, [hasAssets, hasBalken, recommendedAssetIds, locale]);
+    const sortedLogos = [
+      ...logos.filter((a) => recommendedAssetIds.includes(a.id)),
+      ...logos.filter((a) => !recommendedAssetIds.includes(a.id)),
+    ].map(assetItem);
+    const marks = hasAssets
+      ? offeredAssets('mark')
+          .filter((a) => assetMatchesLocale(a, locale))
+          .map(assetItem)
+      : [];
+    const hostItems = panelHost?.brandItems?.({ locale, canAddBalken: hasBalken }) ?? [];
+    return [...sortedLogos, ...hostItems, ...marks];
+  }, [hasAssets, hasBalken, recommendedAssetIds, locale, panelHost]);
 
   const stickerItems = useMemo(
-    () => (hasAssets ? stickerAssetsForLocale(locale).map(assetItem) : []),
+    () =>
+      hasAssets
+        ? offeredAssets('sticker')
+            .filter((a) => assetMatchesLocale(a, locale))
+            .map(assetItem)
+        : [],
     [hasAssets, locale]
   );
 
@@ -312,19 +297,23 @@ export function useElementCatalog(
     [needFull.icons, allIcons, defaultIcons]
   );
 
+  const featuredIllustrations = useMemo(featuredIllustrationItems, []);
   const illustrationItems = useMemo(
-    () => allIllustrations.data?.map(illustrationItem) ?? FEATURED_ILLUSTRATION_ITEMS,
-    [allIllustrations.data]
+    () => allIllustrations.data?.map(illustrationItem) ?? featuredIllustrations,
+    [allIllustrations.data, featuredIllustrations]
   );
 
   const emojiItems = useMemo(() => {
-    if (!emojiCatalog.data) return EMOJI_ITEMS;
+    // The host's curated emoji: first in the grid, and all there is until the full catalogue loads.
+    const curated = offeredAssets('emoji');
+    if (!emojiCatalog.data) return curated.map(assetItem);
     const all = emojiCatalog.data.flatMap((g) => g.emoji);
-    // The catalogue entries of the sharepic set carry their skin tones; keep its order.
+    // The catalogue entries of the curated set carry their skin tones; keep its order.
     const byId = new Map(all.map((e) => [e.id, e]));
-    const sharepic = EMOJI_ASSETS.flatMap((a) => byId.get(a.id) ?? []);
-    const rest = all.filter((e) => !SHAREPIC_EMOJI_IDS.has(e.id));
-    return [...sharepic, ...rest].map((e) => assetItem(withTone(e, emojiTone)));
+    const curatedIds = new Set(curated.map((a) => a.id));
+    const first = curated.flatMap((a) => byId.get(a.id) ?? []);
+    const rest = all.filter((e) => !curatedIds.has(e.id));
+    return [...first, ...rest].map((e) => assetItem(withTone(e, emojiTone)));
   }, [emojiCatalog.data, emojiTone]);
 
   return useMemo(() => {
@@ -348,7 +337,7 @@ export function useElementCatalog(
     if (blocks && (blockItems.length > 0 || blocks.isLoading))
       push({
         id: 'bloecke',
-        label: 'Blöcke',
+        label: blocks.label,
         count: blockItems.length || null,
         items: blockItems,
         isLoading: blocks.isLoading,
@@ -417,7 +406,7 @@ export function useElementCatalog(
         items: illustrationItems,
         isLoading: allIllustrations.isLoading,
         searchable: true,
-        cover: cover(FEATURED_ILLUSTRATION_ITEMS),
+        cover: cover(featuredIllustrations),
       });
     if (hasIcons)
       push({
@@ -456,6 +445,7 @@ export function useElementCatalog(
     allIllustrations.data,
     allIllustrations.isLoading,
     illustrationItems,
+    featuredIllustrations,
     hasIcons,
     iconItems,
     iconsLoading,

@@ -1,10 +1,9 @@
-import { type AssetInstance } from '@ggraphic/editor/utils/canvasAssets';
+// SPDX-License-Identifier: MPL-2.0
+import { registeredAssetCatalog, type AssetInstance } from '@ggraphic/editor/utils/canvasAssets';
 import { prefetchBackground } from '@ggraphic/editor/utils/illustrations/svgCache';
 import { type ShapeInstance, type ShapeType } from '@ggraphic/editor/utils/shapes';
 import { type UserImagePlacement } from '@ggraphic/editor/utils/userImageUtils';
 import { useEffect } from 'react';
-
-import { UNDRAW_FEATURED } from '../../../utils/illustrations/undraw';
 
 import { ElementsPanel } from './ElementsPanel';
 
@@ -13,7 +12,7 @@ import type { BalkenInstance, BalkenMode } from '@ggraphic/editor/primitives/ind
 import type { ChartInstance, ChartType } from '@ggraphic/editor/utils/chartUtils';
 import type { FrameClipType, FrameInstance } from '@ggraphic/editor/utils/frameUtils';
 import type { IllustrationInstance } from '@ggraphic/editor/utils/illustrations/types';
-import type { StickerRef } from '@gruenerator/contracts';
+import type { StickerRef } from '@ggraphic/schema';
 
 export interface ExtendedAssetsSectionProps {
   recommendedAssetIds?: string[];
@@ -71,7 +70,10 @@ export function AssetsSection(props: ExtendedAssetsSectionProps) {
   // Background prefetch only featured/curated SVGs (not all 1,600+)
   useEffect(() => {
     if (!hasIllustrationsFeature) return;
-    const featured = UNDRAW_FEATURED.map((ill) => ({ id: ill.id, def: ill }));
+    const featured = (registeredAssetCatalog().illustrations?.featured ?? []).map((ill) => ({
+      id: ill.id,
+      def: ill,
+    }));
     if (featured.length === 0) return;
     if (typeof requestIdleCallback === 'function') {
       const handle = requestIdleCallback(() => prefetchBackground(featured), { timeout: 5000 });

@@ -7,7 +7,7 @@ import { HiMagnifyingGlass } from 'react-icons/hi2';
 import { useTrackUnsplashDownload } from '@ggraphic/editor/hooks/useTrackUnsplashDownload';
 import { useUnsplashHome } from '@ggraphic/editor/utils/unsplashLinks';
 import { MOBILE_INPUT_TEXT } from '@ggraphic/editor/sidebar/sidebarStyles';
-import { unsplashThumbnailUrl } from '../assets/useStockPhotos';
+import { unsplashThumbnailUrl } from '@ggraphic/editor/sidebar/sections/assets/useStockPhotos';
 
 import {
   UnsplashLimitNotice,

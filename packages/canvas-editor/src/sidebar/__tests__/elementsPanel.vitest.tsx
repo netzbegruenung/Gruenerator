@@ -22,18 +22,18 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { BlockInsertContext, type BlockInsertApi } from '../../components/CanvasEditor/blockInsert';
 import { useTrackUnsplashDownload } from '@ggraphic/editor/hooks/useTrackUnsplashDownload';
 import { axe } from '../../test-utils';
-import { ElementsPanel } from '../sections/assets/ElementsPanel';
-import { ElementTile } from '../sections/assets/ElementTile';
-import { dragDataFor } from '../sections/assets/elementTypes';
-import { StickerCatalog } from '../sections/assets/StickerCatalog';
+import { ElementsPanel } from '@ggraphic/editor/sidebar/sections/assets/ElementsPanel';
+import { ElementTile } from '@ggraphic/editor/sidebar/sections/assets/ElementTile';
+import { dragDataFor } from '@ggraphic/editor/sidebar/sections/assets/elementTypes';
+import { StickerCatalog } from '@ggraphic/editor/sidebar/sections/assets/StickerCatalog';
 import {
   RECENT_ELEMENTS_LIMIT,
   sanitizeRecentItems,
   useRecentElements,
-} from '../sections/assets/useRecentElements';
-import { stockPhotoItem } from '../sections/assets/useStockPhotos';
+} from '@ggraphic/editor/sidebar/sections/assets/useRecentElements';
+import { stockPhotoItem } from '@ggraphic/editor/sidebar/sections/assets/useStockPhotos';
 
-import type { ElementItem } from '../sections/assets/elementTypes';
+import type { ElementItem } from '@ggraphic/editor/sidebar/sections/assets/elementTypes';
 import type { CanvasStudioAssetsFilter } from '@ggraphic/editor/hostServices';
 import type { SharepicBlock, StudioAssetItem } from '@gruenerator/contracts';
 import type { ReactElement, ReactNode } from 'react';

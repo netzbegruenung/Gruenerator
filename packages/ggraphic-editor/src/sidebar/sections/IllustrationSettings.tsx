@@ -1,10 +1,11 @@
+// SPDX-License-Identifier: MPL-2.0
 import { activeBrand } from '@ggraphic/editor/brand/brandRegistry';
 import { CustomColorSwatch } from '@ggraphic/editor/components/CustomColorSwatch';
 import { useMessages } from '@ggraphic/editor/i18n/messages';
 import { cn } from '@ggraphic/editor/utils/cn';
 import { FaTrash, FaCopy } from 'react-icons/fa';
 
-import { SidebarSlider } from '@ggraphic/editor/sidebar/components/SidebarSlider';
+import { SidebarSlider } from '../components/SidebarSlider';
 import {
   ACTION_BTN,
   ACTION_BTN_DANGER,

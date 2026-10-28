@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 import { useQuery } from '@tanstack/react-query';
 
 import { loadEmojiCatalog, type EmojiCatalogGroup } from '../utils/emoji/emojiCatalog';

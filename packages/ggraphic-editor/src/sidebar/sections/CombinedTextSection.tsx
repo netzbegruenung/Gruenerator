@@ -5,7 +5,7 @@ import { cn } from '@ggraphic/editor/utils/cn';
 import { FaTrash } from 'react-icons/fa';
 import { PiPlusBold, PiTextAa, PiTextHBold } from 'react-icons/pi';
 
-import { useIsCanvasMobile } from '../../hooks/useIsCanvasMobile';
+import { useIsCanvasMobile } from '@ggraphic/editor/hooks/useIsCanvasMobile';
 import { SidebarHint } from '@ggraphic/editor/sidebar/components/SidebarHint';
 import { TextField } from '@ggraphic/editor/sidebar/components/TextFieldPrimitives';
 import { MOBILE_INPUT_TEXT, SIDEBAR_SECTION } from '@ggraphic/editor/sidebar/sidebarStyles';

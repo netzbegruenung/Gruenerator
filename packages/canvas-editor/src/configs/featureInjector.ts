@@ -16,7 +16,7 @@
 
 import { MAX_ICON_SELECTIONS, selectedCatalogIconIds } from '@ggraphic/editor/utils/iconInstances';
 
-import type { ExtendedAssetsSectionProps } from '../sidebar/sections/assets';
+import type { ExtendedAssetsSectionProps } from '@ggraphic/editor/sidebar/sections/assets/index';
 import type { IconState } from '@ggraphic/editor/configs/factory/baseTypes';
 import type { SectionContext } from '@ggraphic/editor/configs/types';
 import type { CircleBadgeInstance } from '@ggraphic/editor/primitives/CircleBadge';

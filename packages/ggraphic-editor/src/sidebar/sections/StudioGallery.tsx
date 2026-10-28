@@ -1,20 +1,28 @@
+// SPDX-License-Identifier: MPL-2.0
 import { useCanvasEditorServices } from '@ggraphic/editor/CanvasEditorProvider';
-import { useNoStudioAssets, type CanvasStudioAssetItem } from '@ggraphic/editor/hostServices';
-import { useMessages } from '@ggraphic/editor/i18n/messages';
-import { cn } from '@ggraphic/editor/utils/cn';
 import {
-  galleryScopeEmptyText,
-  shareThumbnailPreviewUrl,
-  STUDIO_ASSET_PLURAL,
-  STUDIO_ASSET_SCOPES,
-  type StudioAssetKind,
-  type StudioAssetScope,
-} from '@gruenerator/contracts';
-import { useEffect, useRef, type ButtonHTMLAttributes } from 'react';
+  useNoStudioAssets,
+  type CanvasStudioAssetItem,
+  type CanvasStudioAssetKind,
+  type CanvasStudioAssetScope,
+} from '@ggraphic/editor/hostServices';
+import { useMessages } from '@ggraphic/editor/i18n/messages';
+import { plainAssetImageUrls, registeredAssetCatalog } from '@ggraphic/editor/utils/canvasAssets';
+import { cn } from '@ggraphic/editor/utils/cn';
+import { useEffect, useMemo, useRef, type ButtonHTMLAttributes } from 'react';
 
-export const GALLERY_SCOPES: readonly GalleryTab<StudioAssetScope>[] = STUDIO_ASSET_SCOPES.map(
-  (s) => ({ id: s.value, label: s.label })
-);
+/** The lists every gallery picker offers, in tab order. */
+export function useGalleryScopes(): readonly GalleryTab<CanvasStudioAssetScope>[] {
+  const t = useMessages();
+  return useMemo(
+    () => [
+      { id: 'shop', label: t.sidebar.studio.scope.shop },
+      { id: 'mine', label: t.sidebar.studio.scope.mine },
+      { id: 'saved', label: t.sidebar.studio.scope.saved },
+    ],
+    [t]
+  );
+}
 
 /** The API caps the search text at 80 characters. */
 const MAX_QUERY = 80;
@@ -80,8 +88,8 @@ export function StudioGalleryGrid({
   onPick,
   dragProps,
 }: {
-  kind: StudioAssetKind;
-  scope: StudioAssetScope;
+  kind: CanvasStudioAssetKind;
+  scope: CanvasStudioAssetScope;
   query?: string;
   /** The item whose pick is still loading; its tile shows as busy. */
   pendingId?: string | null;
@@ -101,7 +109,8 @@ export function StudioGalleryGrid({
   const { useStudioAssets = useNoStudioAssets } = useCanvasEditorServices();
   const { items, isLoading, isError, hasNextPage, isFetchingNextPage, fetchNextPage, refetch } =
     useStudioAssets({ kind, scope, q, sort: 'new' });
-  const noun = STUDIO_ASSET_PLURAL[kind];
+  const noun = t.sidebar.studio.plural[kind];
+  const urls = registeredAssetCatalog().imageUrls ?? plainAssetImageUrls;
 
   const seenToken = useRef(refreshToken);
   useEffect(() => {
@@ -114,7 +123,7 @@ export function StudioGalleryGrid({
   if (isError && items.length === 0)
     return (
       <div role="alert" className="flex flex-col items-center gap-2 py-2">
-        <p className={HINT}>{noun} konnten nicht geladen werden.</p>
+        <p className={HINT}>{t.sidebar.studio.loadFailed(noun)}</p>
         <button type="button" className={SECONDARY_BUTTON} onClick={() => void refetch()}>
           {t.ui.retry}
         </button>
@@ -123,7 +132,7 @@ export function StudioGalleryGrid({
   if (items.length === 0)
     return (
       <p className={HINT}>
-        {q ? t.sidebar.studio.noMatch(noun, q) : galleryScopeEmptyText(kind, scope)}
+        {q ? t.sidebar.studio.noMatch(noun, q) : t.sidebar.studio.empty(noun, scope)}
       </p>
     );
 
@@ -149,7 +158,7 @@ export function StudioGalleryGrid({
             )}
           >
             <img
-              src={item.thumbUrl ?? shareThumbnailPreviewUrl(item.src, 200)}
+              src={item.thumbUrl ?? urls.thumbnail(item.src, 200)}
               alt=""
               loading="lazy"
               className={kind === 'sticker' ? 'size-full object-contain' : 'size-full object-cover'}

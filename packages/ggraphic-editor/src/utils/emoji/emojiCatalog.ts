@@ -1,6 +1,9 @@
-import { emojiCodeAssetId, type UniversalAsset } from '@ggraphic/editor/utils/canvasAssets';
-
-import { EMOJI_ASSETS, emojiCodeSrc } from '../../brand/grueneAssetCatalog';
+// SPDX-License-Identifier: MPL-2.0
+import {
+  emojiCodeAssetId,
+  registeredAssetCatalog,
+  type UniversalAsset,
+} from '@ggraphic/editor/utils/canvasAssets';
 
 /** One emoji of the full Noto set; `tones` are the five uniform skin-tone codes, light → dark. */
 export interface EmojiCatalogEntry extends UniversalAsset {
@@ -18,20 +21,27 @@ interface RawCatalog {
   groups: { label: string; emoji: RawEntry[] }[];
 }
 
-/** The sharepic set keeps its own names and its campaign tags ("wahl", "klima"). */
-const CURATED_BY_ID = new Map(EMOJI_ASSETS.map((a) => [a.id, a]));
+/** Where the host keeps the file of an emoji; empty when it has none. */
+const emojiCodeSrc = (code: string): string => registeredAssetCatalog().emojiSrc?.(code) ?? '';
 
 let catalog: EmojiCatalogGroup[] | null = null;
 
 export async function loadEmojiCatalog(): Promise<EmojiCatalogGroup[]> {
   if (catalog) return catalog;
   // Boundary cast: TS widens the JSON tuples to (string | string[])[].
+  // The host's curated set keeps its own names and its tags.
+  const catalogue = registeredAssetCatalog();
+  const curatedById = new Map(
+    (catalogue.offered ?? catalogue.assets)
+      .filter((a) => a.category === 'emoji')
+      .map((a) => [a.id, a])
+  );
   const raw = (await import('./emojiCatalog.json')).default as unknown as RawCatalog;
   catalog = raw.groups.map((group) => ({
     label: group.label,
     emoji: group.emoji.map(([code, label, tags, tones]) => {
       const id = emojiCodeAssetId(code);
-      const curated = CURATED_BY_ID.get(id);
+      const curated = curatedById.get(id);
       return {
         id,
         src: emojiCodeSrc(code),
