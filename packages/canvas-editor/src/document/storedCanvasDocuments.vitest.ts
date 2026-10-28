@@ -9,7 +9,7 @@ import { readdirSync, readFileSync } from 'node:fs';
 
 import { readInitialDocument } from '@ggraphic/editor/hooks/usePageManager';
 import { registerElementKind } from '@ggraphic/editor/utils/elementKinds';
-import { documentMigrations, migrateDocument } from '@ggraphic/schema';
+import { documentMigrations, migrateDocument, verifyMigrationRegistry } from '@ggraphic/schema';
 import { beforeAll, describe, expect, it } from 'vitest';
 
 import { BALKEN_KIND } from '../brand/balkenKind';
@@ -79,6 +79,11 @@ describe('stored Grünerator canvas documents', () => {
 
   it('knows the Balken at version 1', () => {
     expect(documentMigrations.kindVersion('balkenInstances')).toBe(1);
+  });
+
+  it('every registered step is pure, deterministic and idempotent over the corpus', () => {
+    const samples = CORPUS.map(([, stored]) => JSON.parse(stored) as unknown);
+    expect(verifyMigrationRegistry(documentMigrations, samples)).toEqual([]);
   });
 
   it.each(CORPUS)('%s loads as version 1, unchanged', (_name, stored) => {

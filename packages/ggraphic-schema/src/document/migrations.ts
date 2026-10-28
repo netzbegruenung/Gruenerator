@@ -80,6 +80,8 @@ export interface MigrationRegistry {
   kindVersions(): Readonly<Record<string, number>>;
   /** Registers (or replaces) a host key's steps; no steps means version 1. */
   registerStateKey(stateKey: string, migrations: readonly StateKeyMigration[]): void;
+  /** Forgets a host key (tests reset the shared registry with it). */
+  unregisterStateKey(stateKey: string): void;
   coreSteps(): readonly CoreMigration[];
   stateKeySteps(stateKey: string): readonly StateKeyMigration[];
 }
@@ -108,6 +110,9 @@ export function createMigrationRegistry(core: readonly CoreMigration[]): Migrati
     registerStateKey: (stateKey, migrations) => {
       assertContiguous(migrations, `migrations of "${stateKey}"`);
       hostSteps.set(stateKey, [...migrations]);
+    },
+    unregisterStateKey: (stateKey) => {
+      hostSteps.delete(stateKey);
     },
     coreSteps: () => core,
     stateKeySteps: (stateKey) => hostSteps.get(stateKey) ?? [],

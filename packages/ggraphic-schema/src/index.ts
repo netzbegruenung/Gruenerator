@@ -10,3 +10,4 @@ export * from './ai/wrappers.js';
 export * from './media/stockImages.js';
 export * from './media/stickerRef.js';
 export * from './document/migrations.js';
+export * from './document/verifyMigrations.js';
