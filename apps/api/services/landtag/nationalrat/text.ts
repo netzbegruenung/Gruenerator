@@ -4,11 +4,13 @@
  * (Regierungsvorlage: Gesetzestext, Erläuterungen, Vorblatt …); gelesen wird
  * die HTML-Fassung, wo es sie gibt, sonst das PDF — nie der Scan des
  * Originals (`imfname_`). Sitzungsprotokolle sind eine HTML-Datei je Sitzung
- * (≈ 400 k Zeichen, eine Marke je Rede, keine Seitenzahlen).
+ * (≈ 400 k Zeichen, eine Marke je Rede, keine Seitenzahlen); bis es die gibt,
+ * eine Datei je Rede.
  */
 import { type BundestagCandidate } from '@gruenerator/contracts';
 
 import { createLogger } from '../../../utils/logger.js';
+import { createLimiter } from '../../bundestag/qa/budget.js';
 import {
   type CachedText,
   type FetchedDoc,
@@ -28,8 +30,12 @@ const log = createLogger('NationalratText');
 /** So viele Dokumente einer Detailseite werden gelesen (Gesetzestext, Erläuterungen …). */
 const MAX_DOCS_PER_ITEM = 4;
 
+/** So viele Reden einer Sitzung werden gleichzeitig geladen. */
+const REDEN_CONCURRENCY = 6;
+
 // v2: vorher stand für jede Sitzung ohne Gesamtprotokoll ein gecachtes „fehlt“.
-const cacheKey = (c: BundestagCandidate) => `lt:nr:text:v2:${c.dipId}`;
+// v3: v2 trug für dieselben Sitzungen nur das Inhaltsverzeichnis, nicht die Reden.
+const cacheKey = (c: BundestagCandidate) => `lt:nr:text:v3:${c.dipId}`;
 
 async function htmlText(link: string, signal: AbortSignal): Promise<string> {
   const html = new TextDecoder().decode(
@@ -86,8 +92,31 @@ async function protokollText(
     return text ? { text, textSource: 'html' } : { text: '', textSource: 'missing' };
   }
   // Das Gesamtprotokoll kommt erst Monate nach der Sitzung (am 30.10.2026 fehlte es ab
-  // der 55. Sitzung überall). Bis dahin trägt die Detailseite das Inhaltsverzeichnis des vorläufigen
-  // Protokolls: Tagesordnung und wer wann gesprochen hat, aber nicht den Redetext.
+  // der 55. Sitzung überall). Bis dahin liegt jede Rede als eigene Datei auf der
+  // Detailseite (Sitzung 103: 95 Reden, je ≈ 6 k Zeichen); zusammen ergeben sie den
+  // Text, in dem `fokus` dann wie im Gesamtprotokoll sucht. Fällt eine Rede aus, scheitert
+  // der Abruf ganz: eine lückenhafte Sitzung stünde sonst eine Woche im Cache.
+  const reden = await api.reden(c.dipId, signal);
+  if (reden.length > 0) {
+    const limit = createLimiter(REDEN_CONCURRENCY);
+    const texte = await Promise.all(
+      reden.map((r) =>
+        limit(async () => {
+          const text = await htmlText(r.link, signal);
+          return text ? `## ${r.titel}\n\n${text}` : '';
+        })
+      )
+    );
+    const text = texte.filter(Boolean).join('\n\n');
+    if (text) {
+      return {
+        text: `## Vorläufiges Protokoll (Reden noch nicht autorisiert)\n\nDas Gesamtprotokoll liegt noch nicht vor; jede Rede steht hier im vorläufigen Wortlaut.\n\n${text}`,
+        textSource: 'html',
+      };
+    }
+  }
+  // Ohne Debatte (z. B. eine reine Wahl- oder Festsitzung) bleibt das Inhaltsverzeichnis
+  // des vorläufigen Protokolls: Tagesordnung und wer wann gesprochen hat.
   const verzeichnis = (await api.dokumente(c.dipId, signal)).find(
     (l) => l.type === 'HTML' && l.gruppe.startsWith('Inhaltsverzeichnis')
   );

@@ -59,6 +59,45 @@ describe('NationalratFilterApi.dokumente', () => {
     ]);
   });
 
+  it('liest die Reden einer Sitzung ohne Sprungmarke, ohne Doppelte, in Tagesordnungsfolge', async () => {
+    // Form gemessen am 30.10.2026 (103. Sitzung): Spalte 3 von `stages[].reden.data.rows`.
+    const rede = (url: string, title: string) => ['<a>Name</a>', 'Pro', [{ url, title }], {}];
+    vi.spyOn(globalThis, 'fetch').mockImplementation(async () =>
+      json({
+        content: [
+          {
+            stages: [
+              { text: 'Tagesordnung' },
+              {
+                reden: {
+                  data: {
+                    rows: [
+                      rede('/dokument/XXVIII/NRSITZ/103/A_-_10_43_57_1.html#16', '10:43:57 - A'),
+                      rede('/dokument/XXVIII/NRSITZ/103/A_-_10_43_57_1.html#17', '10:43:57 - A'),
+                    ],
+                  },
+                },
+              },
+              {
+                reden: {
+                  data: {
+                    rows: [rede('/dokument/XXVIII/NRSITZ/103/A_-_12_00_00_2.html', '12:00 - B')],
+                  },
+                },
+              },
+            ],
+          },
+        ],
+      })
+    );
+    expect(await new NationalratFilterApi().reden('/gegenstand/XXVIII/NRSITZ/103', signal)).toEqual(
+      [
+        { titel: '10:43:57 - A', link: '/dokument/XXVIII/NRSITZ/103/A_-_10_43_57_1.html' },
+        { titel: '12:00 - B', link: '/dokument/XXVIII/NRSITZ/103/A_-_12_00_00_2.html' },
+      ]
+    );
+  });
+
   it('gibt eine leere Liste, wenn die Seite keine Dokumente nennt', async () => {
     vi.spyOn(globalThis, 'fetch').mockImplementation(async () => json({ content: [] }));
     expect(
