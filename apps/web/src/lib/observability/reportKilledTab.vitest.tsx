@@ -35,13 +35,27 @@ describe('reportKilledTab', () => {
   it('reports a reload that finds the previous page never unloaded', () => {
     sessionStorage.setItem('gr:tab-alive', String(Date.now() - 5000));
     navigationType('reload');
+    Object.defineProperty(document, 'wasDiscarded', { value: false, configurable: true });
 
     reportKilledTab();
 
     expect(Sentry.captureMessage).toHaveBeenCalledOnce();
     expect(vi.mocked(Sentry.captureMessage).mock.calls[0]?.[1]).toMatchObject({
-      tags: { kind: 'tab-killed' },
+      level: 'error',
+      tags: { kind: 'tab-killed', state: 'foreground', restores: 'distinguishable' },
       extra: { aliveForSeconds: 5 },
+    });
+  });
+
+  it('only warns where a restored session also arrives as a reload', () => {
+    sessionStorage.setItem('gr:tab-alive', String(Date.now() - 5000));
+    navigationType('reload');
+
+    reportKilledTab();
+
+    expect(vi.mocked(Sentry.captureMessage).mock.calls[0]?.[1]).toMatchObject({
+      level: 'warning',
+      tags: { kind: 'tab-killed', state: 'foreground', restores: 'indistinguishable' },
     });
   });
 
