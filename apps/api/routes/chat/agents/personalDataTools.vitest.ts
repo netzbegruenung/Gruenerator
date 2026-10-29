@@ -1000,11 +1000,29 @@ describe('search_threads', () => {
       ],
     });
     listRecentThreads.mockResolvedValue([]);
-    await exec(makeSearchThreadsTool(ctx('u1')), { action: 'search', scope: 'space', limit: 3 });
+    const out = (await exec(makeSearchThreadsTool(ctx('u1')), {
+      action: 'search',
+      scope: 'space',
+      limit: 3,
+    })) as { durchsucht: string };
     expect(listRecentThreads).toHaveBeenCalledWith('u1', {
       limit: 3,
       excludeThreadId: 't1',
       threadIds: ['th1', 'th2'],
     });
+    // Ein leerer Space ist keine leere Chat-Historie — das Ergebnis sagt es.
+    expect(out.durchsucht).toContain('nur die Chats dieses Space');
+  });
+
+  it('outside a Space the result says all chats were searched', async () => {
+    dbQuery.mockResolvedValue([]); // getCurrentSpaceId → no space
+    recallPastChats.mockResolvedValue([]);
+    const out = (await exec(makeSearchThreadsTool(ctx('u1')), {
+      action: 'search',
+      query: 'Hitzeschutz',
+      scope: 'space',
+      limit: 5,
+    })) as { durchsucht: string };
+    expect(out.durchsucht).toBe('alle eigenen Chats');
   });
 });

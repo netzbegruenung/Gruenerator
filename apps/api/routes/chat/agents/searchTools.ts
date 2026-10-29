@@ -498,6 +498,15 @@ export function createSearchTools(
     ? agentConfig.defaultFilter.content_type
     : undefined;
 
+  // Die Parlamentsdaten liegen auch als Sammlungen im Korpus (`bundestag-dip`,
+  // `abgeordnetenwatch`), haben aber eigene Werkzeuge mit Filtern und Fundstellen.
+  // Bis die Sammlungen aus dem Enum fallen, zieht die Beschreibung die Grenze —
+  // je Land mit den Werkzeugen, die dort montiert sind.
+  const parlamentGrenze =
+    options.userLocale === 'de-AT'
+      ? 'Gegenstände und Debatten des Nationalrats (dafür nationalrat)'
+      : 'Drucksachen, Plenarreden und Abstimmungsverhalten im Bundestag (dafür bundestag, bundestag_reden, abgeordnetenwatch)';
+
   const tools: ToolSet = {};
 
   tools.gruenerator_search = tool({
@@ -513,7 +522,7 @@ NUTZE WENN:
 
 Geht es um einen konkreten Landesverband, durchsuche dessen Sammlung UND die bundesweite Programmatik (\`deutschland\`).
 
-NICHT FÜR: Aktuelle Nachrichten, Personen-Infos, allgemeine Web-Suche`,
+NICHT FÜR: Aktuelle Nachrichten, Personen-Infos, allgemeine Web-Suche; ${parlamentGrenze}`,
     inputSchema: z.object({
       query: z.string().describe('Suchanfrage in deutscher Sprache'),
       collection: z
@@ -670,7 +679,7 @@ WÄHLE DIE STUFE NACH AUFWAND, NICHT NACH WORTLAUT:
 - gruendlich: DER NORMALFALL, lass tiefe einfach weg. 10 Quellen.
 - tiefenrecherche: 20 Quellen, die Top-Treffer werden im Volltext gelesen. Dauert 15–30 Sekunden. Nimm sie, wenn der Benutzer ausdrücklich gründlich recherchiert haben will ODER wenn die Frage sie sachlich braucht (viele Teilaspekte, strittige Faktenlage, eine gründliche Suche kam eben dünn zurück). Du hast dafür EINEN Aufruf pro Antwort, den der Benutzer nicht verlangt haben muss — gib ihn der Frage, die ihn am nötigsten hat, nicht der ersten.
 
-EINE SUCHE ZUR ZEIT: Starte eine Suche, lies das Ergebnis, und suche erst dann weiter, wenn wirklich etwas fehlt. Höchstens zwei Suchen gleichzeitig. War ein Ergebnis schwach, formuliere die Anfrage EINMAL anders (notfalls englisch) — schicke keine Varianten auf Vorrat los.
+NACHEINANDER SUCHEN: Starte eine Suche, lies das Ergebnis, und suche erst dann weiter, wenn wirklich etwas fehlt. Höchstens zwei Suchen gleichzeitig. War ein Ergebnis schwach, formuliere die Anfrage EINMAL anders (notfalls englisch) — schicke keine Varianten auf Vorrat los.
 
 SCOPE GEHÖRT IN DIE PARAMETER, NICHT IN DIE ANFRAGE: Nennt der Benutzer Seiten ("such auf zeit.de und orf.at"), setze seiten; nennt er einen Zeitraum ("seit Januar", "letzte Woche"), setze zeitraum. Schreibe beides NICHT in query — dort werden es bloß Suchwörter, und die Suchmaschine filtert nichts.
 
