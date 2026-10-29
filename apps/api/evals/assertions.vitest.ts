@@ -633,3 +633,77 @@ describe('narrationMatchesAction — behauptete oder angekündigte Aktion ohne E
     expect(names(rs)['narrationMatchesAction']).toBe(true);
   });
 });
+
+describe('keineErfundeneRef', () => {
+  type Call = ChatTrace['toolCalls'][number];
+  const liste = (sources: string): Call => ({
+    toolName: 'bundestag',
+    args: {},
+    ok: true,
+    result: { resultCount: 1, sources },
+  });
+  const lesen = (dokumente: string[]): Call => ({
+    toolName: 'parlament_lesen',
+    args: { quelle: 'bundestag', dokumente, frage: 'Was steht drin?' },
+    ok: true,
+    result: { resultCount: 1, sources: '' },
+  });
+  const check = (calls: Call[], prior?: Record<string, unknown>[]) =>
+    runAssertions(
+      trace({ toolCalls: calls }),
+      { keineErfundeneRef: true },
+      {
+        firstThreadId: null,
+        priorArtifactIds: [],
+        lastSharepicVariant: null,
+        priorSourceCount: 0,
+        ...(prior ? { priorToolResults: prior } : {}),
+      }
+    ).find((r) => r.name === 'keineErfundeneRef')!;
+
+  it('rot: selbstgebaute PlPr-Ref (der Vorfall vom 29.10.2026)', () => {
+    const r = check([liste('[1] Rede\nPlenarprotokoll 21/96'), lesen(['PlPr 21/96 S. 1-200'])]);
+    expect(r.pass).toBe(false);
+    expect(r.detail).toContain('PlPr 21/96 S. 1-200');
+  });
+
+  it('rot: Drucksachen-Ref, die in keiner Ausgabe stand', () => {
+    expect(check([liste('Ref: 21/1928'), lesen(['21/1929'])]).pass).toBe(false);
+  });
+
+  it('rot: 21/96 zählt nicht, wenn es nur als Protokollnummer vorkam', () => {
+    expect(check([liste('Plenarprotokoll 21/96'), lesen(['21/96'])]).pass).toBe(false);
+  });
+
+  it('rot: Ref aus einem Aufruf, der erst NACH dem Lesen kam', () => {
+    expect(check([lesen(['21/1928']), liste('Ref: 21/1928')]).pass).toBe(false);
+  });
+
+  it('grün: Ref aus der Ausgabe von bundestag', () => {
+    expect(check([liste('Titel\nRef: 21/1928\nVorgang'), lesen(['21/1928'])]).pass).toBe(true);
+  });
+
+  it('grün: „BT-Drs."-Präfix und Leerzeichen werden normalisiert', () => {
+    expect(check([liste('Ref: 21/1928'), lesen(['BT-Drs.  21/1928'])]).pass).toBe(true);
+  });
+
+  it('grün: PlPr-Ref aus dem Beratungsverlauf, auch mit Gedankenstrich', () => {
+    expect(
+      check([liste('• Beschluss: PlPr 21/80 S. 9553–9572'), lesen(['PlPr 21/80 S. 9553-9572'])])
+        .pass
+    ).toBe(true);
+  });
+
+  it('grün: Ref aus der Ausgabe eines früheren Turns', () => {
+    expect(check([lesen(['21/1928'])], [{ sources: 'Ref: 21/1928' }]).pass).toBe(true);
+  });
+
+  it('rot: ohne frühere Ausgabe fehlt die Ref im selben Thread', () => {
+    expect(check([lesen(['21/1928'])], []).pass).toBe(false);
+  });
+
+  it('grün: parlament_lesen wurde nicht aufgerufen', () => {
+    const r = check([liste('Ref: 21/1')]);
+    expect(r.pass).toBe(true);
+  });
+});

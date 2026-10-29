@@ -455,6 +455,9 @@ async function runTurn(
   }
   if (scenarioCtx.firstThreadId == null) scenarioCtx.firstThreadId = trace.threadId;
   scenarioCtx.priorSourceCount += trace.sources;
+  for (const call of trace.toolCalls) {
+    if (call.result) scenarioCtx.priorToolResults?.push(call.result);
+  }
 
   return {
     turnIndex: turnIdx,
@@ -508,6 +511,7 @@ async function runScenario(scenario: EvalScenario): Promise<CaseResult> {
     priorArtifactIds: [],
     lastSharepicVariant: null,
     priorSourceCount: 0,
+    priorToolResults: [],
   };
   const turns: TurnResult[] = [];
   const decisionTurns: DecisionMapTurn[] = [];
