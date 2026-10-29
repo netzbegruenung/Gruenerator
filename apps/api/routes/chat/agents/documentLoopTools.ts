@@ -26,7 +26,7 @@ import { resolveThreadArtifactId } from './threadArtifactTarget.js';
 import type { ChatGraphState } from '../../../agents/langgraph/ChatGraph/types.js';
 
 const NO_TARGET = 'In diesem Gespräch gibt es kein Dokument.';
-const READ_CAP = 20_000;
+export const READ_CAP = 20_000;
 
 interface DocumentToolCtx {
   state: ChatGraphState;
@@ -64,7 +64,14 @@ NUTZE vor edit_document_text, um die zu ersetzenden Stellen wörtlich zu kennen,
       }
       const text = await readDocumentMarkdown(id);
       if (!text.trim()) return { documentId: id, inhalt: '(Das Dokument ist leer.)' };
-      return { documentId: id, inhalt: text.slice(0, READ_CAP) };
+      if (text.length <= READ_CAP) return { documentId: id, inhalt: text };
+      // Gekürzt wird hier, nicht still: das Modell muss wissen, dass der Rest fehlt.
+      return {
+        documentId: id,
+        inhalt: text.slice(0, READ_CAP),
+        gekuerzt: { gesamtZeichen: text.length, gezeigtZeichen: READ_CAP },
+        hinweis: `Das Dokument hat ${text.length.toLocaleString('de-DE')} Zeichen, gezeigt sind die ersten ${READ_CAP.toLocaleString('de-DE')}.`,
+      };
     },
   });
 }

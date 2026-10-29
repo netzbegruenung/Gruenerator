@@ -90,10 +90,34 @@ import { lastUserText } from '../services/messageHelpers.js';
 import { buildPdfEditBrief, loadLastPdfSpec } from '../services/pdfEditContext.js';
 import { PROGRESS_MESSAGES, type SSEWriter } from '../services/sseHelpers.js';
 
+import { werkzeugFehler } from './toolFailure.js';
+
 import type { ChatGraphState, SearchResult } from '../../../agents/langgraph/ChatGraph/types.js';
 import type { Request } from 'express';
 
 const log = createLogger('DomainTools');
+
+/**
+ * Die Erzeugung lieferte nichts. Der Grund ist meist nicht bekannt (die
+ * Generatoren geben `null` zurück) — dann steht das da, statt einer erfundenen
+ * Ursache. Wichtig ist der nächste Schritt: ein Fehlschlag nach langer Wartezeit
+ * lädt zum Doppeltanlegen ein.
+ */
+function erstellungFehlgeschlagen(
+  was: string,
+  grund?: string | null
+): ReturnType<typeof werkzeugFehler> {
+  return werkzeugFehler({
+    art: 'nicht_verfuegbar',
+    ursache: `${was}-Erstellung fehlgeschlagen`,
+    befund: grund ?? 'Der Grund ist nicht bekannt',
+    // Retry nur bei unbekanntem Grund: ein bekannter Grund (z. B. Zeichenlimit) wird
+    // durch Wiederholen nicht besser, dort entscheidet die Person.
+    naechsterSchritt: grund
+      ? 'Gib der Person die genannte Wahl weiter; wiederhole den Aufruf nicht unverändert'
+      : 'Versuche es höchstens einmal erneut und lege nichts doppelt an; sag der Person offen, dass der erste Versuch scheiterte',
+  });
+}
 
 /**
  * `summarize`: map-reduce digest of the turn's attached documents (or, absent
@@ -764,12 +788,52 @@ NUTZE WENN nach dem Abstimmungsverhalten, den Nebentätigkeiten oder dem Mandat 
         ),
     }),
     execute: async ({ query, person, thema }) => {
-      const results = await retrieveAbgeordnetenwatch(query, state.userLocale, {
-        ...(person ? { person } : {}),
-        ...(thema ? { thema } : {}),
-      });
+      // Die Ablehnung für Österreich kam sonst als zitierbarer Treffer zurück
+      // (`retrieveAbgeordnetenwatch` für den Einzeldurchlauf) — hier ist sie ein Fehler.
+      if (!isIntentAllowedForLocale('abgeordnetenwatch', state.userLocale)) {
+        return {
+          resultCount: 0,
+          sources: '',
+          ...werkzeugFehler({
+            art: 'nicht_verfuegbar',
+            ursache: 'abgeordnetenwatch gibt es nur für Deutschland',
+            befund: intentDeclineNote('abgeordnetenwatch') ?? null,
+            naechsterSchritt: 'Nutze es nicht und sag, dass dazu hier keine Daten vorliegen',
+          }),
+        };
+      }
+      let results: Awaited<ReturnType<typeof retrieveAbgeordnetenwatch>>;
+      try {
+        results = await retrieveAbgeordnetenwatch(query, state.userLocale, {
+          ...(person ? { person } : {}),
+          ...(thema ? { thema } : {}),
+        });
+      } catch (error) {
+        log.warn(`[abgeordnetenwatch] Abruf fehlgeschlagen („${query}“): ${error}`);
+        return {
+          resultCount: 0,
+          sources: '',
+          ...werkzeugFehler({
+            art: 'anbieter_ausfall',
+            ursache: 'abgeordnetenwatch ist gerade nicht erreichbar',
+            befund: `Angefragt: „${query}“`,
+            naechsterSchritt:
+              'Das heißt nicht, dass es keine Daten gibt; versuche es höchstens einmal erneut',
+          }),
+        };
+      }
       if (results.length === 0) {
-        return { resultCount: 0, sources: '', error: 'Keine passenden Mandatsdaten gefunden.' };
+        return {
+          resultCount: 0,
+          sources: '',
+          ...werkzeugFehler({
+            art: 'nicht_gefunden',
+            ursache: 'Zu dieser Anfrage gibt es keine Mandatsdaten',
+            befund: `Gesucht: „${query}“ (kein Treffer unter den Abgeordneten und Themen)`,
+            naechsterSchritt:
+              'Prüfe die Schreibweise des Namens, versuche den Nachnamen allein oder ein Thema statt eines Namens',
+          }),
+        };
       }
       const sources = sourceRegistry.register(results);
       return { resultCount: results.length, sources: sources ?? '' };
@@ -818,11 +882,37 @@ NUTZE WENN nach Umfragewerten, der Sonntagsfrage oder der Zustimmung zu einem Th
         ),
     }),
     execute: async ({ topic, bundesland }) => {
-      const text = await lookupUmfragen(topic ?? '', bundesland, isAT ? 'de-AT' : 'de-DE').catch(
-        () => null
-      );
+      const filter = `${bundesland ? `Region „${bundesland}“` : isAT ? 'österreichweit' : 'bundesweit'}${topic ? `, Thema „${topic}“` : ''}`;
+      let text: string | null;
+      try {
+        text = await lookupUmfragen(topic ?? '', bundesland, isAT ? 'de-AT' : 'de-DE');
+      } catch (error) {
+        // Ausfall und „keine Daten" sind zwei Befunde: nur der erste lohnt einen Wiederholungsversuch.
+        log.warn(`[umfragen] Abruf fehlgeschlagen (${filter}): ${error}`);
+        return {
+          resultCount: 0,
+          sources: '',
+          ...werkzeugFehler({
+            art: 'anbieter_ausfall',
+            ursache: 'Der Umfragedienst ist gerade nicht erreichbar',
+            befund: `Angefragt: ${filter}`,
+            naechsterSchritt:
+              'Das heißt nicht, dass es keine Umfragen gibt; nenne keine Zahlen aus dem Gedächtnis und sag offen, dass der Abruf nicht lief',
+          }),
+        };
+      }
       if (!text) {
-        return { resultCount: 0, sources: '', error: 'Keine Umfragedaten verfügbar.' };
+        return {
+          resultCount: 0,
+          sources: '',
+          ...werkzeugFehler({
+            art: 'nicht_gefunden',
+            ursache: 'Der Umfragedienst hat dazu keine Werte geliefert',
+            befund: `Angefragt: ${filter}. Ein Ausfall des Anbieters lässt sich davon nicht sicher unterscheiden`,
+            naechsterSchritt:
+              'Versuche es ohne Thema oder ohne Region (reine Sonntagsfrage), sonst sag offen, dass keine Werte vorliegen',
+          }),
+        };
       }
       const sources = sourceRegistry.register([
         {
@@ -1006,12 +1096,11 @@ NUTZE NUR WENN der*die Nutzer*in ausdrücklich ein Sharepic/Spruchbild/Zitatbild
       });
       if (variants.length === 0) {
         // Error SSE already emitted inside runSharepicGeneration.
-        return {
-          error:
-            failure && failure !== 'unchanged'
-              ? `Sharepic-Erstellung fehlgeschlagen. ${DRAFT_LIMIT_TEXTS[failure]}`
-              : 'Sharepic-Erstellung fehlgeschlagen.',
-        };
+        // Den Grund nur durchreichen, wo der Aufrufer ihn kennt — keinen erfinden.
+        return erstellungFehlgeschlagen(
+          'Sharepic',
+          failure && failure !== 'unchanged' ? DRAFT_LIMIT_TEXTS[failure] : null
+        );
       }
       // Shared-ref merge → forceFinish trips and the router lifts the variants
       // for persistence (like generatedImage).
@@ -1148,7 +1237,7 @@ NUTZE WENN der*die Nutzer*in ${label === 'Präsentation' ? 'eine Präsentation/F
         ...(options?.abortSignal && { abandoned: options.abortSignal }),
       });
       if (!created) {
-        return { error: `${label}-Erstellung fehlgeschlagen.` };
+        return erstellungFehlgeschlagen(label);
       }
       // Live card (same event the single-pass handler emits). Shared-ref merge →
       // forceFinish trips and the router lifts it for message-level persistence.
@@ -1280,7 +1369,7 @@ WICHTIG — PRÜFEN STATT BEHAUPTEN: Das Tool öffnet das erzeugte PDF erneut un
         ...(options?.abortSignal && { abandoned: options.abortSignal }),
       });
       if (!result) {
-        return { error: 'PDF-Erstellung fehlgeschlagen.' };
+        return erstellungFehlgeschlagen('PDF');
       }
       // Live card (same event the single-pass handler emits). Shared-ref merge →
       // forceFinish trips and the router lifts it for message-level persistence.
@@ -1371,7 +1460,7 @@ NUTZE NUR WENN der*die Nutzer*in ausdrücklich ein Explainable (bzw. eine Erklä
         ...(options?.abortSignal && { abandoned: options.abortSignal }),
       });
       if (!outcome) {
-        return { error: 'Explainable-Erstellung fehlgeschlagen.' };
+        return erstellungFehlgeschlagen('Explainable');
       }
       if (!outcome.ok) {
         return {
@@ -1435,7 +1524,7 @@ NUTZE WENN der*die Nutzer*in ein Board/Kanban zum Thema möchte. ${briefInstruct
         ...(options?.abortSignal && { abandoned: options.abortSignal }),
       });
       if (!created) {
-        return { error: 'Board-Erstellung fehlgeschlagen.' };
+        return erstellungFehlgeschlagen('Board');
       }
       // Shared-ref merge → forceFinish trips and the router lifts boardId +
       // structure into the `done` event (boards have no mid-stream card SSE).

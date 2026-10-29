@@ -22,7 +22,12 @@
 import { applyContextCap } from '../../../../utils/contextCap.js';
 
 import { type PersistedStep } from './types.js';
-import { DEFAULT_MAX_RESULT_CHARS, resultForModel, stripInternalFields } from './wrapTools.js';
+import {
+  DEFAULT_MAX_RESULT_CHARS,
+  MAX_TOOL_RESULT_CHARS,
+  resultForModel,
+  stripInternalFields,
+} from './wrapTools.js';
 
 import type { ModelMessage } from 'ai';
 
@@ -107,8 +112,9 @@ function shortValue(result: Record<string, unknown>): string {
  * handed them over before the pause — not the cross-turn preview above, which
  * cut a 15-row notebook list to 500 of 4593 chars mid-turn.
  */
-function sameTurnValue(result: Record<string, unknown>): string {
-  const shaped = resultForModel(stripInternalFields(result), DEFAULT_MAX_RESULT_CHARS);
+function sameTurnValue(result: Record<string, unknown>, budget: number | null): string {
+  const maxChars = Math.min(budget ?? DEFAULT_MAX_RESULT_CHARS, MAX_TOOL_RESULT_CHARS);
+  const shaped = resultForModel(stripInternalFields(result), maxChars);
   let s: string;
   try {
     s = JSON.stringify(shaped);
@@ -131,11 +137,19 @@ function sameTurnValue(result: Record<string, unknown>): string {
 export function buildToolObservationReplay(
   steps: readonly PersistedStep[],
   currentCatalogNames: ReadonlySet<string>,
-  opts?: { maxSteps?: number; sameTurn?: boolean }
+  opts?: {
+    maxSteps?: number;
+    sameTurn?: boolean;
+    /** Das Budget je Werkzeug wie im Loop (`toolResultBudget`); nur für `sameTurn`. */
+    resultBudgetFor?: (toolName: string) => number | null;
+  }
 ): ModelMessage[] {
   const sameTurn = opts?.sameTurn === true;
   const maxSteps = sameTurn ? Infinity : (opts?.maxSteps ?? DEFAULT_MAX_STEPS);
-  const serialize = sameTurn ? sameTurnValue : shortValue;
+  const serialize = (s: PersistedStep): string =>
+    sameTurn
+      ? sameTurnValue(s.result, opts?.resultBudgetFor?.(s.toolName) ?? null)
+      : shortValue(s.result);
   const seen = new Set<string>();
   const valid = steps.filter((s) => {
     if (!currentCatalogNames.has(s.toolName)) return false; // validity gate
@@ -161,7 +175,7 @@ export function buildToolObservationReplay(
       type: 'tool-result' as const,
       toolCallId: s.toolCallId,
       toolName: s.toolName,
-      output: { type: 'text' as const, value: serialize(s.result) },
+      output: { type: 'text' as const, value: serialize(s) },
     })),
   };
   return [assistant, tool];
