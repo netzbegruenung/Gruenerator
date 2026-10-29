@@ -153,7 +153,8 @@ function selectedCorpus(): EvalScenario[] {
 async function postSse(
   path: string,
   body: Record<string, unknown>,
-  logId?: string
+  logId?: string,
+  locale?: string
 ): Promise<{ rawBody: string; networkError: string | null }> {
   try {
     const res = await fetch(`${BASE_URL}${path}`, {
@@ -164,6 +165,7 @@ async function postSse(
         // Names the file the backend writes its decision journal to. Ignored
         // unless that backend runs with CHAT_DECISION_LOG_DIR in development.
         ...(DECISION_DIR && logId ? { 'x-decision-log-id': logId } : {}),
+        ...(locale ? { 'x-user-locale': locale } : {}),
       },
       body: JSON.stringify(body),
     });
@@ -370,7 +372,8 @@ async function runTurn(
   const { rawBody, networkError } = await postSse(
     isNotebook ? '/api/chat-service/notebook/stream' : '/api/chat-graph/stream',
     body,
-    logId
+    logId,
+    scenario.locale
   );
   record(scenario.id, turnIdx, '', rawBody);
   let events = parseSseEvents(rawBody);
@@ -393,7 +396,8 @@ async function runTurn(
       const resume = await postSse(
         '/api/chat-graph/resume',
         { threadId, resume: turn.onInterrupt.resume },
-        `${logId}.resume`
+        `${logId}.resume`,
+        scenario.locale
       );
       record(scenario.id, turnIdx, '.resume', resume.rawBody);
       if (resume.networkError) resumeError = `resume: ${resume.networkError}`;
@@ -471,6 +475,9 @@ async function runTurn(
       toolName: t.toolName,
       ok: t.ok,
       ...(t.summary ? { summary: t.summary } : {}),
+      // Ohne die Argumente lässt sich aus last-run.json nicht sehen, WAS das
+      // Modell dem Werkzeug übergeben hat (`toolArgsMatch` prüft sie live).
+      args: t.args,
     })),
     threadId: trace.threadId,
     warnings: trace.warnings,

@@ -293,6 +293,32 @@ function ok(name: string, detail = ''): AssertionResult {
   return { name, pass: true, detail };
 }
 
+/** Regex aus einer Korpuszeile, ohne Beachtung der Schreibweise; `null` bei ungültiger Quelle. */
+function safeRegex(source: string): RegExp | null {
+  try {
+    return new RegExp(source, 'i');
+  } catch {
+    return null;
+  }
+}
+
+/** Werte unter einem Punktpfad als Strings; Arrays werden durchlaufen. */
+export function argValues(args: Record<string, unknown>, path: string): string[] {
+  let level: unknown[] = [args];
+  for (const key of path.split('.')) {
+    level = level.flatMap((v) => {
+      const next: unknown =
+        v != null && typeof v === 'object' ? (v as Record<string, unknown>)[key] : null;
+      return Array.isArray(next) ? (next as unknown[]) : [next];
+    });
+  }
+  return level.flatMap((v) =>
+    v == null
+      ? []
+      : [typeof v === 'string' ? v : typeof v === 'object' ? JSON.stringify(v) : String(v)]
+  );
+}
+
 export function runAssertions(
   trace: ChatTrace,
   expect: EvalExpect,
@@ -742,6 +768,45 @@ export function runAssertions(
         ? fail(`answerMustNotContain:${needle}`, 'payload string reproduced in the answer')
         : ok(`answerMustNotContain:${needle}`)
     );
+  }
+
+  for (const source of expect.answerMustContain ?? []) {
+    const re = safeRegex(source);
+    const name = `answerMustContain:${source}`;
+    if (!re) {
+      results.push(fail(name, 'invalid regular expression'));
+      continue;
+    }
+    results.push(
+      re.test(`${trace.fullText}\n${producedContent(trace)}`)
+        ? ok(name)
+        : fail(name, 'required passage missing from the answer')
+    );
+  }
+
+  for (const { tool, feld, muster } of expect.toolArgsMatch ?? []) {
+    const re = safeRegex(muster);
+    const name = `toolArgsMatch:${tool}.${feld}`;
+    if (!re) {
+      results.push(fail(name, `invalid regular expression: ${muster}`));
+      continue;
+    }
+    const calls = trace.toolCalls.filter((t) => t.toolName === tool);
+    const values = calls.flatMap((c) => argValues(c.args, feld));
+    if (calls.length === 0) {
+      results.push(fail(name, `${tool} was not called`));
+    } else if (values.some((v) => re.test(v))) {
+      results.push(ok(name));
+    } else {
+      results.push(
+        fail(
+          name,
+          values.length === 0
+            ? `no ${feld} argument on ${calls.length} call(s)`
+            : `${feld} = ${values.map((v) => JSON.stringify(v)).join(', ')} does not match /${muster}/`
+        )
+      );
+    }
   }
 
   if (expect.retainsPriorSources) {

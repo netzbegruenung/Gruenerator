@@ -251,6 +251,26 @@ export const evalExpectSchema = z
      */
     answerMustNotContain: z.array(z.string()).optional(),
     /**
+     * Regex-Quellen, die ALLE in der Antwort (Text und erzeugter Inhalt)
+     * treffen müssen, ohne Beachtung der Groß-/Kleinschreibung. Das
+     * Gegenstück zu `answerMustNotContain`: `topicsCovered` prüft Schlüsselwörter
+     * der Quelle, das hier einen Satzanfang, eine Ref oder eine Absage, die
+     * aus der Antwort nicht fehlen darf. Mehrere gültige Ausgänge gehören in
+     * EINE Quelle als Alternation (`noch nicht|21/\d+`).
+     */
+    answerMustContain: z.array(z.string()).optional(),
+    /**
+     * Mindestens ein Aufruf von `tool` trägt in `args[feld]` einen Treffer auf
+     * `muster` (Regex, ohne Beachtung der Groß-/Kleinschreibung). `feld` darf
+     * ein Punktpfad sein (`filter.urheber`); Arrays gelten als getroffen, wenn
+     * irgendein Element trifft; Werte werden als String verglichen. Für das,
+     * was der Werkzeugname nicht zeigt: ob das Modell den Redner, den
+     * Urheber oder die Locale wirklich übergeben hat.
+     */
+    toolArgsMatch: z
+      .array(z.object({ tool: z.string(), feld: z.string(), muster: z.string() }).strict())
+      .optional(),
+    /**
      * Turn 2+: sources retrieved in an earlier turn must still be usable. Fails
      * when the answer denies having sources while the thread has them.
      */
@@ -374,6 +394,12 @@ export const evalScenarioSchema = z
      *  `surface: 'notebook'`). Omit = kein Feld = Server-Default `chat`. */
     notebookAnswerMode: notebookAnswerModeSchema.optional(),
     turns: z.array(evalTurnSchema),
+    /**
+     * Land der Person, als Header `x-user-locale` gesendet. Der Dev-Bypass-Nutzer
+     * hat keine gespeicherte Locale, der Header entscheidet also
+     * (`extractLocaleFromRequest`, `streamContext.ts`). Omit = kein Header = de-DE.
+     */
+    locale: z.enum(['de-DE', 'de-AT']).optional(),
     /** Documented open bug: runs + reported separately, never fails the baseline. */
     knownFailure: z.boolean().optional(),
     /** Long/expensive scenario — skipped unless EVAL_SLOW=1. */
@@ -536,7 +562,7 @@ export interface TurnResult {
   latencyMs: number;
   intent: string | null;
   agentic: boolean;
-  toolCalls: { toolName: string; ok: boolean; summary?: string }[];
+  toolCalls: { toolName: string; ok: boolean; summary?: string; args?: Record<string, unknown> }[];
   threadId: string | null;
   warnings: string[];
   interrupts: TracedInterrupt[];
