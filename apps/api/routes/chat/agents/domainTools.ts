@@ -37,6 +37,7 @@ import { summarizeNode } from '../../../agents/langgraph/ChatGraph/nodes/summari
 import { CHAT_BUDGET } from '../../../services/bundestag/qa/budget.js';
 import { einheitLabel, formatCount } from '../../../services/bundestag/qa/count.js';
 import { bundestagDocTitle } from '../../../services/bundestag/qa/docTitle.js';
+import { type Fehlgrund } from '../../../services/bundestag/qa/fetchTexts.js';
 import { countBundestagDocs, readBundestagRefs } from '../../../services/bundestag/qa/index.js';
 import {
   detectFromWording,
@@ -412,7 +413,7 @@ export function makeBundestagRedenTool(ctx: {
 }): Tool {
   const { state, sourceRegistry } = ctx;
   return tool({
-    description: `Findet Reden im Bundestag zu einem Thema (Plenarprotokolle, semantische Suche): wer wann was gesagt hat, mit Redetext zum Zitieren. Filter: Redner*in, Fraktion, Wahlperiode, Zeitraum, Sortierung. Nur Deutschland.
+    description: `Findet Reden im Bundestag zu einem Thema (Plenarprotokolle, semantische Suche): wer wann was gesagt hat, mit vollem Redetext zum Zitieren, auch für „gib die Rede wörtlich wieder“. Filter: Redner*in, Fraktion, Wahlperiode, Zeitraum, Sortierung. Nur Deutschland.
 
 Nicht für Drucksachen, Gesetzentwürfe oder Beschlüsse, dafür bundestag. Nicht für den Inhalt von Drucksachen, dafür parlament_lesen. Nicht für Abstimmungsverhalten, dafür abgeordnetenwatch.`,
     inputSchema: z.object({
@@ -540,6 +541,39 @@ const NICHT_GELESEN_GRUND = {
   missing: 'kein Volltext verfügbar',
 } as const;
 
+const NICHT_GEFUNDEN_GRUND = 'bei DIP nicht gefunden';
+
+/**
+ * Was das Modell nach einem Fehlschlag anders machen soll, je Grund genau ein
+ * Satz. „kein Volltext" allein lässt es raten: am 29.10.2026 bildete es
+ * „PlPr 21/96 S. 1-200" selbst und schloss aus dem leeren Schnitt, der Text
+ * fehle — gefragt war der Wortlaut einer Rede, den `bundestag_reden` liefert.
+ */
+function lesenRatschlag(
+  documents: { points: unknown[]; skipped: string | null; fehlgrund: Fehlgrund | null }[],
+  nichtGefunden: boolean
+): string {
+  const leer = documents.filter((d) => d.points.length === 0);
+  const arten = new Set(leer.map((d) => d.fehlgrund?.art));
+  const saetze: string[] = [];
+  if (nichtGefunden || arten.has('seitenbereich')) {
+    saetze.push(
+      'Refs nie selbst bilden oder Seiten schätzen: nur aus einer Zeile „Ref: …“ von `bundestag` übernehmen. Für den Wortlaut einer einzelnen Rede `bundestag_reden` mit redner (und datumVon/datumBis) aufrufen, das liefert den vollen Redetext.'
+    );
+  }
+  if (arten.has('unveroeffentlicht')) {
+    saetze.push(
+      'Das der Person so sagen; einzelne Reden findet `bundestag_reden` unabhängig vom Protokoll-XML.'
+    );
+  }
+  if (leer.some((d) => d.skipped === 'missing' && !d.fehlgrund)) {
+    saetze.push(
+      'Bei einer frisch veröffentlichten Drucksache liegt der Text oft noch nicht vor (DIP ohne Text, PDF noch nicht abrufbar); das der Person so sagen, nicht raten.'
+    );
+  }
+  return saetze.length > 0 ? ` ${saetze.join(' ')}` : '';
+}
+
 /**
  * `parlament_lesen`: liest die Dokumente, die `bundestag` als Refs geliefert hat,
  * vollständig und je Dokument isoliert (`readBundestagRefs`, `CHAT_BUDGET`) und
@@ -555,7 +589,7 @@ export function makeParlamentLesenTool(ctx: {
   return tool({
     description: `Liest Bundestags-Dokumente vollständig und isoliert und liefert belegte Aussagen mit wörtlichem Zitat. Refs stammen aus \`bundestag\`. Bis zu 6 Dokumente je Aufruf. Für „fasse zusammen“ gilt auftrag 'zusammenfassung'. Nur Deutschland.
 
-Nicht für Abstimmungsverhalten, dafür abgeordnetenwatch. Nicht für Positionen der Grünen, dafür gruenerator_search mit collection 'bundestagsfraktion'.`,
+Refs nie selbst bilden oder Seiten schätzen: nur aus einer Zeile „Ref: …“ übernehmen. Nicht für den Wortlaut einer einzelnen Rede, dafür bundestag_reden (liefert den vollen Redetext). Nicht für Abstimmungsverhalten, dafür abgeordnetenwatch. Nicht für Positionen der Grünen, dafür gruenerator_search mit collection 'bundestagsfraktion'.`,
     inputSchema: z.object({
       quelle: z.enum(['bundestag']),
       dokumente: z
@@ -582,7 +616,7 @@ Nicht für Abstimmungsverhalten, dafür abgeordnetenwatch. Nicht für Positionen
       if (!isIntentAllowedForLocale('bundestag', state.userLocale)) {
         return { resultCount: 0, sources: '', error: intentDeclineNote('bundestag') ?? '' };
       }
-      const { documents, notes } = await readBundestagRefs({
+      const { documents, notes, nichtGefunden } = await readBundestagRefs({
         question: frage,
         refs: dokumente,
         auftrag,
@@ -600,12 +634,17 @@ Nicht für Abstimmungsverhalten, dafür abgeordnetenwatch. Nicht für Positionen
           ...(d.pdfUrl ? { url: d.pdfUrl } : {}),
           relevance: 1 - 0.02 * i,
         }));
-      const nichtGelesen = documents
-        .filter((d) => d.points.length === 0)
-        .map((d) => ({
-          ref: d.ref,
-          grund: d.skipped ? NICHT_GELESEN_GRUND[d.skipped] : 'keine belegte Aussage zur Frage',
-        }));
+      const nichtGelesen = [
+        ...nichtGefunden.map((ref) => ({ ref, grund: NICHT_GEFUNDEN_GRUND })),
+        ...documents
+          .filter((d) => d.points.length === 0)
+          .map((d) => ({
+            ref: d.ref,
+            grund:
+              d.fehlgrund?.text ??
+              (d.skipped ? NICHT_GELESEN_GRUND[d.skipped] : 'keine belegte Aussage zur Frage'),
+          })),
+      ];
       const fokusNotes = fokus
         ? documents
             .filter((d) => d.fokusGefunden === false)
@@ -623,11 +662,7 @@ Nicht für Abstimmungsverhalten, dafür abgeordnetenwatch. Nicht für Positionen
       const nichtsGelesen =
         results.length === 0 && nichtGelesen.length > 0
           ? {
-              error: `Nichts gelesen — ${nichtGelesen.map((n) => `${n.ref}: ${n.grund}`).join('; ')}.${
-                nichtGelesen.some((n) => n.grund === NICHT_GELESEN_GRUND.missing)
-                  ? ' Bei einer frisch veröffentlichten Drucksache liegt der Text oft noch nicht vor (DIP ohne Text, PDF noch nicht abrufbar); das der Person so sagen, nicht raten.'
-                  : ''
-              }`,
+              error: `Nichts gelesen — ${nichtGelesen.map((n) => `${n.ref}: ${n.grund}`).join('; ')}.${lesenRatschlag(documents, nichtGefunden.length > 0)}`,
             }
           : {};
       return {

@@ -238,7 +238,7 @@ describe('makeParlamentLesenTool', () => {
     });
 
   it('reicht Refs, Auftrag und CHAT_BUDGET an den Dienst und registriert die Treffer', async () => {
-    readBundestagRefs.mockResolvedValue({ documents: [doc], notes: [] });
+    readBundestagRefs.mockResolvedValue({ documents: [doc], notes: [], nichtGefunden: [] });
     const out = (await exec(make(), {
       quelle: 'bundestag',
       dokumente: ['21/1928'],
@@ -266,6 +266,7 @@ describe('makeParlamentLesenTool', () => {
         { ...doc, ref: '21/4', points: [], skipped: null },
       ],
       notes: ['Nicht gefunden bei DIP: 21/5.'],
+      nichtGefunden: ['21/5'],
     });
     const out = (await exec(make(), {
       quelle: 'bundestag',
@@ -279,6 +280,7 @@ describe('makeParlamentLesenTool', () => {
     expect(readBundestagRefs.mock.calls[0]![0]).toMatchObject({ auftrag: 'frage' });
     expect(out.resultCount).toBe(1);
     expect(out.nichtGelesen).toEqual([
+      { ref: '21/5', grund: 'bei DIP nicht gefunden' },
       { ref: '21/2', grund: 'kein Volltext verfügbar' },
       { ref: '21/3', grund: 'Lesebudget erschöpft' },
       { ref: '21/4', grund: 'keine belegte Aussage zur Frage' },
@@ -292,6 +294,7 @@ describe('makeParlamentLesenTool', () => {
     readBundestagRefs.mockResolvedValue({
       documents: [{ ...doc, ref: '21/8813', points: [], skipped: 'missing' }],
       notes: [],
+      nichtGefunden: [],
     });
     const out = (await exec(make(), {
       quelle: 'bundestag',
@@ -303,6 +306,53 @@ describe('makeParlamentLesenTool', () => {
     expect(out.error).toContain('21/8813: kein Volltext verfügbar');
     expect(out.error).toContain('noch nicht');
     expect(out.nichtGelesen).toHaveLength(1);
+  });
+
+  it('nennt bei leerem Debattenschnitt die echten Seiten und verweist für eine Rede auf bundestag_reden', async () => {
+    // Live 29.10.2026: „gib die Rede wörtlich wieder“ → selbst gebildete Ref
+    // „PlPr 21/96 S. 1-200“, Reden dort ab S. 11785; gemeldet wurde nur „kein Volltext“.
+    readBundestagRefs.mockResolvedValue({
+      documents: [
+        {
+          ...doc,
+          ref: 'PlPr 21/96 S. 1-200',
+          points: [],
+          skipped: 'missing',
+          fehlgrund: {
+            art: 'seitenbereich',
+            text: 'In Plenarprotokoll 21/96 beginnt keine Rede auf S. 1–200; die Reden beginnen dort auf S. 11785–12008',
+          },
+        },
+      ],
+      notes: [],
+      nichtGefunden: [],
+    });
+    const out = (await exec(make(), {
+      quelle: 'bundestag',
+      dokumente: ['PlPr 21/96 S. 1-200'],
+      frage: 'Gib die Rede von Katrin Uhlig wörtlich wieder.',
+    })) as { resultCount: number; error: string };
+    expect(out.resultCount).toBe(0);
+    expect(out.error).toContain('die Reden beginnen dort auf S. 11785–12008');
+    expect(out.error).toContain('bundestag_reden');
+    expect(out.error).not.toContain('kein Volltext');
+    expect(out.error).not.toContain('frisch veröffentlichten Drucksache');
+  });
+
+  it('meldet einen Fehler, wenn keine der Refs bei DIP existiert', async () => {
+    readBundestagRefs.mockResolvedValue({
+      documents: [],
+      notes: ['Nicht gefunden bei DIP: 21/99999.'],
+      nichtGefunden: ['21/99999'],
+    });
+    const out = (await exec(make(), {
+      quelle: 'bundestag',
+      dokumente: ['21/99999'],
+      frage: 'Was steht drin?',
+    })) as { resultCount: number; error: string };
+    expect(out.resultCount).toBe(0);
+    expect(out.error).toContain('21/99999: bei DIP nicht gefunden');
+    expect(out.error).toContain('Refs nie selbst bilden');
   });
 
   it('lehnt für de-AT ab, ohne den Dienst zu rufen', async () => {
@@ -557,6 +607,7 @@ describe('Karten-Daten (uiCard)', () => {
         },
       ],
       notes: [],
+      nichtGefunden: [],
     });
     const out = (await exec(
       makeParlamentLesenTool({
@@ -831,6 +882,7 @@ describe('parlament_lesen: fokus', () => {
     readBundestagRefs.mockResolvedValue({
       documents: [doc, { ...doc, ref: '21/2', fokusGefunden: false }],
       notes: [],
+      nichtGefunden: [],
     });
     const out = (await exec(make(), {
       quelle: 'bundestag',
@@ -849,6 +901,7 @@ describe('parlament_lesen: fokus', () => {
     readBundestagRefs.mockResolvedValue({
       documents: [{ ...doc, fokusGefunden: null }],
       notes: [],
+      nichtGefunden: [],
     });
     const out = (await exec(make(), {
       quelle: 'bundestag',

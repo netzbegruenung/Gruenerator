@@ -32,7 +32,16 @@ const FETCH_TIMEOUT_MS = 60_000;
 const DEBATE_REF_RE = /^PlPr (\d{1,2})\/(\d{1,4}) S\. (\d+)-(\d+)$/;
 
 export type TextSource = BundestagTextSource;
-export type FetchedDoc = BundestagCandidate & { text: string; textSource: TextSource };
+/** Warum ein Text fehlt, wenn es mehr zu sagen gibt als „kein Volltext"; nur bei `'missing'`. */
+export interface Fehlgrund {
+  art: 'seitenbereich' | 'unveroeffentlicht' | 'abruf';
+  text: string;
+}
+export type FetchedDoc = BundestagCandidate & {
+  text: string;
+  textSource: TextSource;
+  fehlgrund?: Fehlgrund;
+};
 
 /** Das Minimum, das wir vom Redis-Client brauchen; Tests reichen eine Map-Attrappe herein. */
 export interface TextCache {
@@ -181,7 +190,11 @@ async function fetchBytes(raw: string, signal: AbortSignal): Promise<Uint8Array>
  * Kind, danach eigene Absätze bis zum nächsten `p.redner`); die gehören nicht
  * zur Rede und werden übersprungen. `<kommentar>` fällt weg.
  */
-export function parseDebate(xml: string, anfangsseite: number, endseite: number): string {
+export function parseDebate(
+  xml: string,
+  anfangsseite: number,
+  endseite: number
+): { text: string; seiten: { von: number; bis: number } | null } {
   const $ = cheerio.load(xml, { xmlMode: true });
 
   const startPage = new Map<string, number>();
@@ -226,7 +239,12 @@ export function parseDebate(xml: string, anfangsseite: number, endseite: number)
     if (lines.length > 0) blocks.push(lines.join('\n\n'));
   });
 
-  return blocks.join('\n\n');
+  // Die Spanne aller Redeanfänge, damit ein leerer Schnitt sagen kann, wo die Reden liegen.
+  const pages = [...startPage.values()];
+  return {
+    text: blocks.join('\n\n'),
+    seiten: pages.length > 0 ? { von: Math.min(...pages), bis: Math.max(...pages) } : null,
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -242,6 +260,8 @@ export interface FetchTextsDeps {
 interface CachedText {
   text: string;
   textSource: TextSource;
+  /** Nur bei leerem Text; wird nie gecacht. */
+  fehlgrund?: Fehlgrund;
 }
 
 async function readCache(redis: TextCache | null, key: string): Promise<CachedText | null> {
@@ -312,21 +332,47 @@ async function fetchDebate(
   const cached = await readCache(redis, key);
   if (cached) return cached;
 
+  const label = `Plenarprotokoll ${candidate.dokumentnummer}`;
+  let bytes: Uint8Array;
   try {
-    const bytes = await fetchBytes(beratung.xmlUrl, signal);
-    const text = parseDebate(
-      new TextDecoder('utf-8').decode(bytes),
-      beratung.anfangsseite,
-      beratung.endseite
-    );
-    if (!text) return { text: '', textSource: 'missing' };
-    const value: CachedText = { text, textSource: 'protokoll' };
-    await writeCache(redis, key, value);
-    return value;
+    bytes = await fetchBytes(beratung.xmlUrl, signal);
   } catch (error: unknown) {
     log.warn(`Protokoll nicht lesbar (${beratung.xmlUrl}): ${String(error)}`);
-    return { text: '', textSource: 'missing' };
+    const notFound = error instanceof Error && error.message === 'HTTP 404';
+    return {
+      text: '',
+      textSource: 'missing',
+      fehlgrund: notFound
+        ? {
+            art: 'unveroeffentlicht',
+            text: `${label} ist beim Bundestag noch nicht als XML veröffentlicht`,
+          }
+        : { art: 'abruf', text: `${label} war nicht abrufbar (${String(error)})` },
+    };
   }
+  const { text, seiten } = parseDebate(
+    new TextDecoder('utf-8').decode(bytes),
+    beratung.anfangsseite,
+    beratung.endseite
+  );
+  if (!text) {
+    // Gemessen 29.10.2026: das Modell bildete „PlPr 21/96 S. 1-200" selbst, die
+    // Reden dort beginnen ab S. 11785 — der Schnitt war leer, gemeldet wurde
+    // „kein Volltext", und das Modell konnte daraus nichts lernen.
+    return {
+      text: '',
+      textSource: 'missing',
+      fehlgrund: {
+        art: 'seitenbereich',
+        text: seiten
+          ? `In ${label} beginnt keine Rede auf S. ${beratung.anfangsseite}–${beratung.endseite}; die Reden beginnen dort auf S. ${seiten.von}–${seiten.bis}`
+          : `${label} enthält keine Reden`,
+      },
+    };
+  }
+  const value: CachedText = { text, textSource: 'protokoll' };
+  await writeCache(redis, key, value);
+  return value;
 }
 
 /** Ergebnis in der Reihenfolge der Kandidaten; was nicht zu holen war, trägt `'missing'`. */
