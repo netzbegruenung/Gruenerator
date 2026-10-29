@@ -95,7 +95,7 @@ describe('wrapToolsForLoop', () => {
     );
 
     const out = (await run(tools, 'boom', {})) as { error: string };
-    expect(out.error).toBe('kaputt');
+    expect(out.error).toContain('kaputt');
     expect(events[1].data).toMatchObject({ ok: false });
     expect(ctx.guards.checkFailureCap('boom')).toBeNull(); // 1 failure, cap is 2
   });

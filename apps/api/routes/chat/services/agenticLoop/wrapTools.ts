@@ -20,6 +20,7 @@
  */
 import { recordDecision } from '../../../../utils/decisionJournal.js';
 import { createLogger } from '../../../../utils/logger.js';
+import { klassifiziereWurf } from '../../agents/toolFailure.js';
 
 import { LOOP_CLIENT_TOOLS } from './clientToolRegistry.js';
 import { truncateResultForModel, wasShortened } from './truncate.js';
@@ -410,7 +411,7 @@ function describeMcpContent(output: unknown): string {
 }
 
 class ToolTimeoutError extends Error {
-  constructor(ms: number) {
+  constructor(readonly ms: number) {
     super(`Zeitüberschreitung nach ${ms}ms`);
     this.name = 'ToolTimeoutError';
   }
@@ -708,8 +709,14 @@ export function wrapToolsForLoop(tools: ToolSet, ctx: WrapToolsContext): ToolSet
           );
         } catch (err) {
           const message = err instanceof Error ? err.message : String(err);
-          thrown = { error: message, timedOut: err instanceof ToolTimeoutError };
-          output = { error: message };
+          const timedOut = err instanceof ToolTimeoutError;
+          thrown = { error: message, timedOut };
+          // Das Modell bekommt Ursache, Befund und nächsten Schritt; der Hook
+          // (GlitchTip) behält die rohe Meldung.
+          output = klassifiziereWurf(message, {
+            timedOut,
+            timeoutMs: err instanceof ToolTimeoutError ? err.ms : null,
+          });
         } finally {
           ctx.toolActivity?.end();
         }
