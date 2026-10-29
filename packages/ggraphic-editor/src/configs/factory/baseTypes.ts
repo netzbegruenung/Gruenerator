@@ -6,6 +6,8 @@
  * These provide the foundation for the factory pattern.
  */
 
+import { type IconState } from '@ggraphic/core';
+
 import type { AssetInstance } from '../../utils/canvasAssets.js';
 import type { HostElementState } from '../../utils/canvasItem.js';
 import type { AdditionalText, LayoutResult } from '../types.js';
@@ -19,6 +21,8 @@ import type { ShapeInstance, ShapeType } from '@ggraphic/editor/utils/shapes';
 import type { TextAlign } from '@ggraphic/editor/utils/textAlign';
 import type { ElementPlacement, UserImageInstance } from '@ggraphic/editor/utils/userImageUtils';
 import type { StickerRef } from '@ggraphic/schema';
+
+export { type IconState } from '@ggraphic/core';
 
 // ============================================================================
 // SHARED STATE TYPES
@@ -47,26 +51,6 @@ export interface BaseCanvasState extends HostElementState {
   templateTextAligns?: Record<string, TextAlign>;
   imageAttribution?: StockImageAttribution | null;
   [key: string]: unknown;
-}
-
-export interface IconState {
-  x: number;
-  y: number;
-  scale: number;
-  rotation: number;
-  color?: string;
-  opacity?: number;
-  /**
-   * Katalog-ID des gezeigten Icons. Fehlt sie, IST der Schlüssel in
-   * `iconStates` die Katalog-ID — so liegen alle Dokumente von vor #3404 vor,
-   * und so legt die Seitenleiste das erste Exemplar bis heute ab. Erst eine
-   * Kopie braucht das Feld, weil sie eine frische Instanz-ID trägt. Aufgelöst
-   * wird immer über `catalogIconId` in `utils/iconInstances.ts`.
-   */
-  iconId?: string;
-  /** Mirrored about the centre (negative node scale); omit for upright. */
-  flipX?: boolean;
-  flipY?: boolean;
 }
 
 /** State for templates with image backgrounds */
