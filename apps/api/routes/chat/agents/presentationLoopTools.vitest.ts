@@ -5,6 +5,13 @@ import type { ChatGraphState } from '../../../agents/langgraph/ChatGraph/types.j
 const mocks = vi.hoisted(() => ({
   loadPresentationState: vi.fn<(...a: unknown[]) => unknown>(),
   planAndApplyPresentationEdit: vi.fn<(...a: unknown[]) => unknown>(),
+  canvasAccessible: vi.fn<(...a: unknown[]) => unknown>(),
+  loadCanvasAsContext: vi.fn<(...a: unknown[]) => unknown>(),
+}));
+
+vi.mock('../../../services/canvas/canvasContext.js', () => ({
+  canvasAccessible: (...a: unknown[]) => mocks.canvasAccessible(...a),
+  loadCanvasAsContext: (...a: unknown[]) => mocks.loadCanvasAsContext(...a),
 }));
 
 vi.mock('../../../services/presentations/PresentationGenerationService.js', () => ({
@@ -45,6 +52,14 @@ describe('read_presentation', () => {
     expect(out).toMatchObject({ presentationId: 'p1', slideCount: 2, inhalt: 'Folie 1: Start' });
   });
 
+  it('reads a canvas deck through the canvas reader', async () => {
+    mocks.loadPresentationState.mockResolvedValue(null);
+    mocks.loadCanvasAsContext.mockResolvedValue('# Deck\n\n## Folie 1\nA\n\n## Folie 2\nB');
+    const out = await run(makeReadPresentationTool({ state: stateWith(), threadId: 't1' }), {});
+    expect(out).toMatchObject({ presentationId: 'p1', slideCount: 2 });
+    expect(out.inhalt).toContain('## Folie 2');
+  });
+
   it('errors without a presentation in the thread', async () => {
     const state = stateWith('ja', { threadArtifacts: [] });
     const out = await run(makeReadPresentationTool({ state, threadId: 't1' }), {});
@@ -53,6 +68,16 @@ describe('read_presentation', () => {
 });
 
 describe('edit_presentation', () => {
+  it('says editing canvas decks in chat is not available yet', async () => {
+    mocks.canvasAccessible.mockResolvedValue(true);
+    const out = await run(edit(stateWith('Mach Folie 3 kürzer')), {
+      anweisung: 'Folie 3 kürzer',
+      confirm: false,
+    });
+    expect(out.error).toMatch(/Canvas-Präsentation.*noch nicht bearbeiten/);
+    expect(mocks.planAndApplyPresentationEdit).not.toHaveBeenCalled();
+  });
+
   it('reports an applied change', async () => {
     mocks.planAndApplyPresentationEdit.mockResolvedValue({
       status: 'applied',
