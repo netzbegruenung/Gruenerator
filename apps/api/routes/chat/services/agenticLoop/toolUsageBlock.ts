@@ -146,6 +146,7 @@ export function buildToolUsageBlock(
       '- Fehlt dir eine Angabe, sag das knapp und benenne, was fehlt — erfinde sie NICHT und schlage auch keine Recherche vor.',
       `- Du hast maximal ${maxSteps} Schritte.`,
       '- Belege Fakten mit [N]-Markern, die den nummerierten Quellen entsprechen.',
+      '- Ein [N] steht nur hinter einer Aussage, die Quelle N selbst trägt — verbinde nie Aussagen aus verschiedenen Quellen zu einem neuen Satz mit Beleg.',
       `- ${SOURCE_LINK_RULE}`,
       // Nichts wird nachgeschlagen, es zählt also ausschliesslich, wie ALTE
       // Quellen gelesen werden — der Turn mit dem grössten Risiko, einen
@@ -216,6 +217,7 @@ export function buildToolUsageBlock(
     ...(hasSearchTools
       ? [
           '- Belege Fakten mit [N]-Markern, die den nummerierten Quellen im Feld "sources" der Tool-Ergebnisse entsprechen.',
+          '- Ein [N] steht nur hinter einer Aussage, die Quelle N selbst trägt — verbinde nie Aussagen aus verschiedenen Quellen zu einem neuen Satz mit Beleg.',
           `- ${SOURCE_LINK_RULE}`,
         ]
       : []),
