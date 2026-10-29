@@ -671,7 +671,7 @@ describe('wrapToolsForLoop', () => {
       { query: 'Position Atomkraft' },
       'call_2'
     )) as { error?: string };
-    expect(out.error).toMatch(/Wechsle das THEMA/);
+    expect(out.error).toMatch(/Zu ähnlich zu einer bereits gelaufenen Suche/);
   });
   /**
    * A deferred search is postponed, not failed: no tool card, no persisted step,
