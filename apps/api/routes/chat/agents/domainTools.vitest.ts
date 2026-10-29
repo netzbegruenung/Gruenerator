@@ -40,15 +40,15 @@ vi.mock('../../../services/bundestag/reden.js', async (importOriginal) => ({
   ...(await importOriginal<Record<string, unknown>>()),
   searchBundestagReden: (s: unknown): Promise<unknown> => searchBundestagReden(s),
 }));
-const retrieveAbgeordnetenwatch = vi.fn<(q: string, l: unknown) => Promise<unknown>>();
+const retrieveAbgeordnetenwatch = vi.fn<(q: string, l: unknown, o?: unknown) => Promise<unknown>>();
 const retrieveBundestagFamily = vi.fn<(r: string, l: unknown) => Promise<unknown>>();
 vi.mock('../../../agents/langgraph/ChatGraph/nodes/searchNode.js', () => ({
   retrieveBundestagFamily: (r: string, l: unknown): Promise<unknown> =>
     retrieveBundestagFamily(r, l),
   retrieveBundestag: (q: string, l: unknown, f: unknown): Promise<unknown> =>
     retrieveBundestag(q, l, f),
-  retrieveAbgeordnetenwatch: (q: string, l: unknown): Promise<unknown> =>
-    retrieveAbgeordnetenwatch(q, l),
+  retrieveAbgeordnetenwatch: (q: string, l: unknown, o?: unknown): Promise<unknown> =>
+    retrieveAbgeordnetenwatch(q, l, o),
 }));
 vi.mock('../../../agents/langgraph/ChatGraph/nodes/summarizeNode.js', () => ({
   summarizeNode: (s: unknown): Promise<unknown> => summarizeNode(s),
@@ -1063,7 +1063,32 @@ describe('makeAbgeordnetenwatchTool', () => {
     expect(out.resultCount).toBe(1);
     expect(out.sources).toContain('[1]');
     expect(sourceRegistry.size).toBe(1);
-    expect(retrieveAbgeordnetenwatch).toHaveBeenCalledWith('Habeck', 'de-DE');
+    expect(retrieveAbgeordnetenwatch).toHaveBeenCalledWith('Habeck', 'de-DE', {});
+  });
+
+  it('reicht Person und Thema getrennt an den Dienst', async () => {
+    retrieveAbgeordnetenwatch.mockResolvedValue([
+      { source: 'abgeordnetenwatch', title: 'x', content: 'y' },
+    ]);
+    await exec(
+      makeAbgeordnetenwatchTool({
+        state: { ...baseState, intent: 'abgeordnetenwatch' } as ChatGraphState,
+        sourceRegistry: createSourceRegistry(),
+      }),
+      {
+        query: 'Katrin Uhlig Gebäudeenergiegesetz',
+        person: 'Katrin Uhlig',
+        thema: 'Gebäudeenergiegesetz',
+      }
+    );
+    expect(retrieveAbgeordnetenwatch).toHaveBeenCalledWith(
+      'Katrin Uhlig Gebäudeenergiegesetz',
+      'de-DE',
+      {
+        person: 'Katrin Uhlig',
+        thema: 'Gebäudeenergiegesetz',
+      }
+    );
   });
 
   it('returns an error result when there are no results', async () => {

@@ -769,11 +769,25 @@ export function makeAbgeordnetenwatchTool(ctx: {
   return tool({
     description: `Ruft Mandats- und Abstimmungsdaten von abgeordnetenwatch.de ab: Abstimmungsverhalten, Nebentätigkeiten und Mandate einzelner Abgeordneter.
 
-NUTZE WENN nach dem Abstimmungsverhalten, den Nebentätigkeiten oder dem Mandat einer*eines konkreten Abgeordneten gefragt wird. Übergib den Namen der Person (oder ein Thema). Nur für Deutschland verfügbar. Nicht für Drucksachen, dafür bundestag und parlament_lesen. Nicht für Reden, dafür bundestag_reden.`,
+NUTZE WENN nach dem Abstimmungsverhalten, den Nebentätigkeiten oder dem Mandat einer*eines konkreten Abgeordneten gefragt wird. Übergib Person und Thema getrennt (person, thema); als thema den amtlichen Namen des Gesetzes („Gebäudeenergiegesetz“, nicht „Heizungsgesetz“), denn gesucht wird im Titel der Abstimmung. Durchsucht werden alle Mandate der Person, auch frühere Wahlperioden. Nur für Deutschland verfügbar. Nicht für Drucksachen, dafür bundestag und parlament_lesen. Nicht für Reden, dafür bundestag_reden.`,
     inputSchema: z.object({
       query: z.string().min(1).describe('Name der*des Abgeordneten oder ein Thema'),
+      person: z
+        .string()
+        .min(2)
+        .max(100)
+        .optional()
+        .describe('Name der*des Abgeordneten, getrennt vom Thema, z. B. „Katrin Uhlig"'),
+      thema: z
+        .string()
+        .min(2)
+        .max(200)
+        .optional()
+        .describe(
+          'Amtlicher Titel der Abstimmung bzw. des Gesetzes, z. B. „Gebäudeenergiegesetz" (nicht „Heizungsgesetz")'
+        ),
     }),
-    execute: async ({ query }) => {
+    execute: async ({ query, person, thema }) => {
       // Die Ablehnung für Österreich kam sonst als zitierbarer Treffer zurück
       // (`retrieveAbgeordnetenwatch` für den Einzeldurchlauf) — hier ist sie ein Fehler.
       if (!isIntentAllowedForLocale('abgeordnetenwatch', state.userLocale)) {
@@ -790,7 +804,10 @@ NUTZE WENN nach dem Abstimmungsverhalten, den Nebentätigkeiten oder dem Mandat 
       }
       let results: Awaited<ReturnType<typeof retrieveAbgeordnetenwatch>>;
       try {
-        results = await retrieveAbgeordnetenwatch(query, state.userLocale);
+        results = await retrieveAbgeordnetenwatch(query, state.userLocale, {
+          ...(person ? { person } : {}),
+          ...(thema ? { thema } : {}),
+        });
       } catch (error) {
         log.warn(`[abgeordnetenwatch] Abruf fehlgeschlagen („${query}“): ${error}`);
         return {

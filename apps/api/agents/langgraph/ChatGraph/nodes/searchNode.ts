@@ -35,7 +35,10 @@ import { extractCompoundTopic } from '../../../../routes/chat/services/compoundT
 import { fairShare } from '../../../../routes/chat/services/messageHelpers.js';
 import { resolveReferentialQuery } from '../../../../routes/chat/services/referentialTopic.js';
 import { getEnrichedPoliticianService } from '../../../../services/abgeordnetenwatch/index.js';
-import { type AwEnrichedResult } from '../../../../services/abgeordnetenwatch/types.js';
+import {
+  type AwEnrichedResult,
+  type AwSearchOptions,
+} from '../../../../services/abgeordnetenwatch/types.js';
 import { getBundestagEnrichedService } from '../../../../services/bundestag/BundestagEnrichedService.js';
 import { CHAT_BUDGET } from '../../../../services/bundestag/qa/budget.js';
 import { bundestagDocTitle } from '../../../../services/bundestag/qa/docTitle.js';
@@ -650,7 +653,8 @@ export async function retrieveBundestagFamily(
 /** Schwester von `retrieveBundestag` — gleicher Schnitt, gleiche Begründung. */
 export async function retrieveAbgeordnetenwatch(
   query: string,
-  locale: string | null | undefined
+  locale: string | null | undefined,
+  opts: AwSearchOptions = {}
 ): Promise<SearchResult[]> {
   const startTime = Date.now();
   if (!isIntentAllowedForLocale('abgeordnetenwatch', locale)) {
@@ -663,7 +667,7 @@ export async function retrieveAbgeordnetenwatch(
       },
     ];
   }
-  const enriched = await getEnrichedPoliticianService().search(query);
+  const enriched = await getEnrichedPoliticianService().search(query, opts);
   const results = buildAbgeordnetenwatchResults(enriched);
   log.info(
     `[Search] Abgeordnetenwatch (${enriched.kind}): ${results.length} results in ${Date.now() - startTime}ms`
