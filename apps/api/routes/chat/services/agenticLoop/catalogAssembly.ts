@@ -58,6 +58,7 @@ import { createRecipeRegistry, type RecipeRegistry } from './recipeRegistry.js';
 import { looksLikeChitchatTurn } from './routing.js';
 import { type SourceRegistry } from './sourceRegistry.js';
 import { type ToolApprovalGate } from './toolApprovalGate.js';
+import { toolResultBudget } from './toolResultBudgets.js';
 import { createToolScope, type ToolScope } from './toolScope.js';
 import {
   NEAR_DUPLICATE_EXEMPT_TOOLS,
@@ -941,5 +942,6 @@ export function wrapAssembledTools(
           serverNameFor: (name: string) => ctx.toolLabels.get(name)?.serverName,
         }
       : {}),
+    resultBudgetFor: (name: string) => toolResultBudget(name, ctx.toolLabels),
   });
 }

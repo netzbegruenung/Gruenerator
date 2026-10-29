@@ -98,7 +98,7 @@ import { makeGroupsTool } from './groupTools.js';
 import { makeBildAnsehenTool } from './imageTools.js';
 import { makeLandtagTool, makeNationalratTool } from './landtagTool.js';
 import { makeMemoryTool } from './memoryTools.js';
-import { CRAWL_SNIPPET_CHARS, readNamedPages } from './namedPages.js';
+import { CRAWL_SNIPPET_CHARS, normalisiereUrl, readNamedPages } from './namedPages.js';
 import { makeNotebookSourcesTool } from './notebookSourceTools.js';
 import { makeNotebooksTool } from './notebookTools.js';
 import { makeReadPdfFormTool, makeFillPdfFormTool } from './pdfFormTools.js';
@@ -126,6 +126,7 @@ import {
 } from './tabelleAuswertenTool.js';
 import { makeRecipesTool } from './textFormTools.js';
 import { threadHasArtifact } from './threadArtifactTarget.js';
+import { werkzeugFehler } from './toolFailure.js';
 import { makeTranslateTool } from './translationTools.js';
 import { makeUserAgentsTool } from './userAgentTools.js';
 import { makeVertonenTool } from './voiceTools.js';
@@ -557,14 +558,24 @@ NUTZE WENN:
         urls: z.array(z.string()).min(1).max(3).describe('Vollständige URLs inkl. Protokoll'),
       }),
       execute: async ({ urls }) => {
-        const { validated, results } = await readNamedPages(urls);
+        const { validated, rejected, results } = await readNamedPages(urls);
+        const abgelehnt = rejected.map((r) => `${r.url} (${r.grund})`).join('; ');
         if (validated.length === 0) {
-          return { error: 'Keine gültige oder erlaubte URL. Prüfe die Adresse (inkl. https://).' };
+          return werkzeugFehler({
+            art: 'ungueltige_eingabe',
+            ursache: 'Keine gültige oder erlaubte URL',
+            befund: abgelehnt ? `Abgelehnt: ${abgelehnt}` : null,
+            naechsterSchritt: 'Prüfe die Adresse (inkl. https://)',
+          });
         }
         if (results.length === 0) {
-          return {
-            error: 'Konnte die Seite(n) nicht lesen (Timeout, Blockade oder kein Textinhalt).',
-          };
+          return werkzeugFehler({
+            art: 'nicht_verfuegbar',
+            ursache: 'Keine der Seiten ließ sich lesen (Timeout, Blockade oder kein Textinhalt)',
+            befund: `Versucht: ${validated.join(', ')}${abgelehnt ? `. Abgelehnt: ${abgelehnt}` : ''}`,
+            naechsterSchritt:
+              'Nenne der Person die Adresse, damit sie selbst nachsehen kann, oder suche die Inhalte per Websuche',
+          });
         }
         // A crawl is an explicit "read THIS page" — the user named it or the model
         // picked it out of search hits. Registering it at the ordinary snippet cap
@@ -572,7 +583,33 @@ NUTZE WENN:
         // hundred characters, so "fass diesen Artikel zusammen" was answered from
         // the headline.
         const sources = sourceRegistry.register(results, { snippetChars: CRAWL_SNIPPET_CHARS });
-        return { resultCount: results.length, sources };
+        // Teilerfolg nicht als vollständig ausgeben: welche Adressen fehlen und warum.
+        const gelesen = new Set(results.map((r) => normalisiereUrl(r.url ?? '')));
+        const nichtGelesen = validated.filter((u) => !gelesen.has(normalisiereUrl(u)));
+        if (nichtGelesen.length === 0 && rejected.length === 0) {
+          return { resultCount: results.length, sources };
+        }
+        const teilweise = werkzeugFehler({
+          art: 'teilweise',
+          ursache: `Nur ${results.length} von ${urls.length} Seiten gelesen`,
+          befund: [
+            nichtGelesen.length
+              ? `Nicht lesbar (Timeout, Blockade oder kein Text): ${nichtGelesen.join(', ')}`
+              : '',
+            abgelehnt ? `Abgelehnt: ${abgelehnt}` : '',
+          ]
+            .filter(Boolean)
+            .join('. '),
+          naechsterSchritt: 'Antworte nur aus den gelesenen Seiten und sag, welche fehlen',
+        });
+        // Kein `error`-Feld: das Lesen hat ja Inhalt geliefert, es zählt nicht als Fehlschlag.
+        return {
+          resultCount: results.length,
+          sources,
+          fehlerArt: teilweise.fehlerArt,
+          hinweis: teilweise.error,
+          naechsterSchritt: teilweise.naechsterSchritt,
+        };
       },
     });
   }
