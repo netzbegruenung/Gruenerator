@@ -29,6 +29,18 @@
       "types": "./src/richtext/presentationDoc.ts",
       "import": "./dist/richtext/presentationDoc.js",
       "default": "./dist/richtext/presentationDoc.js"
+    },
+    "./brand": {
+      "development": "./src/brand/grueneBrand.ts",
+      "types": "./src/brand/grueneBrand.ts",
+      "import": "./dist/brand/grueneBrand.js",
+      "default": "./dist/brand/grueneBrand.js"
+    },
+    "./slides": {
+      "development": "./src/slides/slideLayouts.ts",
+      "types": "./src/slides/slideLayouts.ts",
+      "import": "./dist/slides/slideLayouts.js",
+      "default": "./dist/slides/slideLayouts.js"
     }
   },
   "scripts": {
@@ -39,6 +51,7 @@
     "lint:fix": "eslint . --fix"
   },
   "dependencies": {
+    "@ggraphic/core": "workspace:*",
     "@ggraphic/schema": "workspace:*",
     "@gruenerator/core": "workspace:*",
     "@tiptap/core": "^3.32.0",
