@@ -49,8 +49,4 @@ export interface SidebarTab {
   ariaLabel: string;
 }
 
-export interface BackgroundColorOption {
-  id: string;
-  label: string;
-  color: string;
-}
+export { type BackgroundColorOption } from '@ggraphic/core';
