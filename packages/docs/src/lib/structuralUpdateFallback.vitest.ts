@@ -31,7 +31,10 @@ async function runUpdate(from: string, to: string) {
   await executor.finish();
 
   editor.prosemirrorView!.dispatch(_getApplySuggestionsTr(editor) as never);
-  return editor.blocksToMarkdownLossy(editor.document).trim();
+  return {
+    md: editor.blocksToMarkdownLossy(editor.document).trim(),
+    types: editor.document.map((b) => b.type),
+  };
 }
 
 const normalize = (md: string) => md.replace(/[\s|:*-]+/g, ' ').trim();
@@ -59,7 +62,34 @@ describe('withStructuralUpdateFallback', () => {
   ])(
     '%s',
     async (_name, from, to) => {
-      expect(normalize(await runUpdate(from, to))).toBe(normalize(to));
+      expect(normalize((await runUpdate(from, to)).md)).toBe(normalize(to));
+    },
+    20_000
+  );
+
+  // Models send a heading plus its paragraph as ONE update block despite the
+  // prompt; xl-ai parses only the first block of the string and drops the rest
+  // silently — a rewrite then left headings where the text used to be.
+  it.each([
+    ['a heading plus text', 'Hallo Welt', '## Titel\n\nNeuer Absatz', ['heading', 'paragraph']],
+    [
+      'text plus a second paragraph',
+      'Hallo Welt',
+      'Hallo schöne Welt\n\nZweiter Absatz',
+      ['paragraph', 'paragraph'],
+    ],
+    [
+      'three blocks into a table cell edit',
+      '| A |\n| - |\n| 1 |',
+      '| A |\n| - |\n| 2 |\n\nDanach\n\n- Punkt',
+      ['table', 'paragraph', 'bulletListItem'],
+    ],
+  ])(
+    'keeps every block of a multi-block update: %s',
+    async (_name, from, to, types) => {
+      const result = await runUpdate(from, to);
+      expect(result.types).toEqual(types);
+      expect(normalize(result.md)).toBe(normalize(to));
     },
     20_000
   );
@@ -130,6 +160,17 @@ describe('withStructuralUpdateFallback — streamed add', () => {
       'a table sent row by row',
       ['| A | B |', '| - | - |', '| 1 | 2 |', '| 3 | 4 |'],
       ['paragraph', 'table'],
+    ],
+    // One string holding several blocks: each must arrive, not only the first.
+    [
+      'a heading plus text in one string',
+      ['## Titel\n\nText darunter'],
+      ['paragraph', 'heading', 'paragraph'],
+    ],
+    [
+      'two paragraphs in one string',
+      ['Eins\n\nZwei', 'Drei'],
+      ['paragraph', 'paragraph', 'paragraph', 'paragraph'],
     ],
     [
       'a row-by-row table followed by text',
