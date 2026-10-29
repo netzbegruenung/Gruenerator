@@ -29,7 +29,8 @@ vi.mock('../../services/docs/snapshotRestore.js', async (importOriginal) => ({
   applyToLive,
 }));
 vi.mock('./documentAccess.js', () => ({ checkDocumentAccess, checkDocumentWriteAccess }));
-vi.mock('@gruenerator/hocuspocus', () => ({ blockNoteXmlToHtml: () => '' }));
+// Pass the XML through so a test can see what reaches the HTML renderer.
+vi.mock('@gruenerator/hocuspocus', () => ({ blockNoteXmlToHtml: (xml: string) => xml }));
 
 const { docSnapshotsContractRouter } = await import('./docSnapshotsContractRouter.js');
 
@@ -76,6 +77,14 @@ beforeEach(() => {
       inserted.push(params[2] as string);
       calls.push(`insert:${params[2] as string}`);
       return [{ version: 10 + inserted.length, created_at: new Date('2026-10-16T10:00:00Z') }];
+    }
+    if (sql.includes('SELECT snapshot_data, created_at FROM yjs_document_snapshots')) {
+      return [
+        {
+          snapshot_data: gzipSync(Buffer.from(docState('<img src=x onerror=alert(1)>'))),
+          created_at: new Date('2026-10-16T10:00:00Z'),
+        },
+      ];
     }
     if (sql.includes('SELECT snapshot_data FROM yjs_document_snapshots')) {
       return params[1] === 3 ? [{ snapshot_data: gzipSync(Buffer.from(VERSION_STATE)) }] : [];
@@ -235,5 +244,16 @@ describe('list', () => {
       ],
       next_cursor: '1',
     });
+  });
+});
+
+describe('getPreview', () => {
+  // Old tabs render this HTML with dangerouslySetInnerHTML; text typed as
+  // markup must arrive escaped (88e17067c3, fragmentToSafeXml).
+  it('escapes markup typed into the document', async () => {
+    const res = await handler('getPreview')({ req: req(), params: { id: 'doc-1', version: 3 } });
+    expect(res.status).toBe(200);
+    expect(res.body.html).not.toContain('<img');
+    expect(res.body.html).toContain('&lt;img');
   });
 });
