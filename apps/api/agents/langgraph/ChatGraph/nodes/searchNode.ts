@@ -595,11 +595,16 @@ export async function retrieveBundestag(
     }),
   ]);
   const legacy = enriched ? buildBundestagResults(enriched) : [];
+  // Ausfall = die Planstufe ist gescheitert und der Altpfad hat keinen echten
+  // Treffer. Nicht „beide null": die Anreicherung wirft bei einem DIP-Ausfall
+  // nie, ihr `safeList` liefert leere Listen, und `legacy` trägt dann nur den
+  // Platzhalter „Keine Daten gefunden" — das Modell hielt den Ausfall für leer.
+  const ausfall = !plan && (enriched ? buildBundestagResults(enriched, false).length : 0) === 0;
 
   let results: SearchResult[];
   let leerDurchFilter = false;
   if (!plan) {
-    results = legacy;
+    results = ausfall ? [] : legacy;
   } else if (plan.candidates.length === 0 && hasHardFilter(plan.filters)) {
     // Die alte Suche kennt keine Filter: als Rückfall höbe sie Zeitraum, Typ oder
     // Urheber wieder auf (live 29.10.2026: „letzte Woche" → 0 Kandidaten → Reden
@@ -628,7 +633,7 @@ export async function retrieveBundestag(
     totals: plan?.totals ?? null,
     ...describeCandidates(plan?.candidates ?? []),
     ...(plan ? { filters: plan.filters } : {}),
-    ...(!enriched && !plan ? { ausfall: true as const } : {}),
+    ...(ausfall ? { ausfall: true as const } : {}),
     ...(leerDurchFilter ? { leerDurchFilter: true as const } : {}),
   };
 }

@@ -126,6 +126,20 @@ describe('retrieveBundestag: Zusammenführung', () => {
     expect(ausfall).toBeUndefined();
   });
 
+  it('DIP fällt aus: die Anreicherung meldet leer statt zu werfen, trotzdem Ausfall', async () => {
+    // So sieht der echte Ausfall aus: `safeList` schluckt den Fehler und liefert
+    // leere Listen, nur die Planstufe wirft.
+    btSearch.mockResolvedValue({
+      kind: 'topic',
+      topic: { hits: [], speeches: [], documents: [], vorgaenge: [] },
+      notes: [],
+    });
+    plan.mockRejectedValue(new Error('DIP down'));
+    const r = await retrieveBundestag('x', 'de-DE');
+    expect(r.ausfall).toBe(true);
+    expect(r.results).toEqual([]);
+  });
+
   it('beide Stufen werfen: Ausfall, nicht leer', async () => {
     btSearch.mockRejectedValue(new Error('down'));
     plan.mockRejectedValue(new Error('down'));
