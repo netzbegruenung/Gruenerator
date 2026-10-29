@@ -12,7 +12,6 @@ import { useAuthStore } from '@/stores/authStore';
 import { axe, renderWithProviders } from '@/test-utils';
 
 const API = 'http://localhost/api/auth';
-const UUID = '11111111-2222-4333-8444-555555555555';
 
 const vorlage = (id: string): SharepicVorlage => ({
   id,
@@ -38,13 +37,9 @@ const vorlage = (id: string): SharepicVorlage => ({
 });
 
 const POPULAR: PopularVorlage[] = [
-  {
-    kind: 'user',
-    template: { id: UUID, title: 'Canva-Plakat', template_type: 'canva' },
-    likes_count: 4,
-  },
-  { kind: 'catalog', vorlage: vorlage('k1'), likes_count: 0 },
+  { kind: 'catalog', vorlage: vorlage('k1'), likes_count: 4 },
   { kind: 'catalog', vorlage: vorlage('k2'), likes_count: 0 },
+  { kind: 'catalog', vorlage: vorlage('k3'), likes_count: 0 },
 ];
 
 let requests: string[];
@@ -65,7 +60,7 @@ beforeEach(() => {
       const ids = new URL(request.url).searchParams.get('ids')!.split(',');
       return HttpResponse.json({
         success: true,
-        items: ids.map((id) => ({ id, likes_count: id === UUID ? 4 : 0 })),
+        items: ids.map((id) => ({ id, likes_count: id === 'k1' ? 4 : 0 })),
       });
     }),
     http.get(`${API}/templates/likes`, () => HttpResponse.json({ success: true, liked_ids: [] })),
@@ -96,11 +91,11 @@ afterEach(() => {
 });
 
 describe('PopularVorlagenRow', () => {
-  it('shows one mixed row, two cards on phones, with a link to all Vorlagen', async () => {
+  it('shows one row, two cards on phones, with a link to all Vorlagen', async () => {
     renderWithProviders(<PopularVorlagenRow />);
     const section = await screen.findByRole('region', { name: 'Beliebte Vorlagen' });
 
-    const cards = ['Canva-Plakat', 'Zitat k1', 'Zitat k2'].map((name) =>
+    const cards = ['Zitat k1', 'Zitat k2', 'Zitat k3'].map((name) =>
       within(section).getByRole('button', { name })
     );
     expect(cards[0]!.closest('.max-sm\\:hidden')).toBeNull();
@@ -115,7 +110,7 @@ describe('PopularVorlagenRow', () => {
 
   it('offers like and bookmark but no reactions', async () => {
     renderWithProviders(<PopularVorlagenRow />);
-    await screen.findByRole('button', { name: 'Canva-Plakat' });
+    await screen.findByRole('button', { name: 'Zitat k1' });
     expect(screen.getAllByRole('button', { name: 'Gefällt mir' }).length).toBeGreaterThan(0);
     expect(screen.getAllByRole('button', { name: 'Merken' }).length).toBeGreaterThan(0);
     expect(screen.queryByRole('button', { name: /Reaktion/ })).not.toBeInTheDocument();
@@ -123,27 +118,27 @@ describe('PopularVorlagenRow', () => {
 
   it('likes a Vorlage once, without flipping back', async () => {
     const { user } = renderWithProviders(<PopularVorlagenRow />);
-    await screen.findByRole('button', { name: 'Canva-Plakat' });
+    await screen.findByRole('button', { name: 'Zitat k1' });
     const [like] = screen.getAllByRole('button', { name: 'Gefällt mir' });
 
     await user.click(like!);
-    await waitFor(() => expect(requests).toContain(`like ${UUID}`));
-    expect(requests).not.toContain(`unlike ${UUID}`);
+    await waitFor(() => expect(requests).toContain(`like k1`));
+    expect(requests).not.toContain(`unlike k1`);
   });
 
   it('bookmarks a Vorlage', async () => {
     const { user } = renderWithProviders(<PopularVorlagenRow />);
-    await screen.findByRole('button', { name: 'Canva-Plakat' });
+    await screen.findByRole('button', { name: 'Zitat k1' });
     const [merken] = screen.getAllByRole('button', { name: 'Merken' });
 
     await user.click(merken!);
-    await waitFor(() => expect(requests).toContain(`favorite ${UUID}`));
-    expect(requests).not.toContain(`unfavorite ${UUID}`);
+    await waitFor(() => expect(requests).toContain(`favorite k1`));
+    expect(requests).not.toContain(`unfavorite k1`);
   });
 
   it('has no axe violations', async () => {
     const { container } = renderWithProviders(<PopularVorlagenRow />);
-    await screen.findByRole('button', { name: 'Canva-Plakat' });
+    await screen.findByRole('button', { name: 'Zitat k1' });
     expect(await axe(container)).toHaveNoViolations();
   });
 

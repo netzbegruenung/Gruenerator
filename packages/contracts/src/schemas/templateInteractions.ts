@@ -111,11 +111,12 @@ const engagementFields = {
   likes_count: z.number().int().nonnegative(),
 };
 
-/** `catalog`: Grünerator-Vorlage from the private catalogue; `user`: a gallery user template (Canva, Grünerator-Canvas, …). */
-export const popularVorlageSchema = z.discriminatedUnion('kind', [
-  z.object({ kind: z.literal('catalog'), vorlage: sharepicVorlageSchema, ...engagementFields }),
-  z.object({ kind: z.literal('user'), template: galleryTemplateSchema, ...engagementFields }),
-]);
+/** A Grünerator-Vorlage from the private catalogue; community and Canva templates live in the Marktplatz. */
+export const popularVorlageSchema = z.object({
+  kind: z.literal('catalog'),
+  vorlage: sharepicVorlageSchema,
+  ...engagementFields,
+});
 
 export const popularVorlagenResponseSchema = z.object({
   success: z.literal(true),
