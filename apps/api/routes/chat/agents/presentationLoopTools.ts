@@ -9,6 +9,7 @@ import { tool, type Tool } from 'ai';
 import { z } from 'zod';
 
 import { canvasAccessible, loadCanvasAsContext } from '../../../services/canvas/canvasContext.js';
+import { planAndApplyCanvasDeckEdit } from '../../../services/presentations/canvasDeckEdit.js';
 import {
   formatPresentationAsContext,
   loadPresentationState,
@@ -21,10 +22,6 @@ import { resolveThreadArtifactId } from './threadArtifactTarget.js';
 import type { ChatGraphState } from '../../../agents/langgraph/ChatGraph/types.js';
 
 const NO_TARGET = 'In diesem Gespräch gibt es keine Präsentation.';
-
-/** Bis das Bearbeiten im Chat auch Canvas-Präsentationen kann (Folge-PR). */
-export const CANVAS_EDIT_UNAVAILABLE =
-  'Diese Präsentation ist eine Canvas-Präsentation. Sie lässt sich im Chat noch nicht bearbeiten — bitte öffne sie im Editor (Studio) und ändere sie dort. Sag das der Person kurz und biete an, sie zu lesen oder eine neue Präsentation zu erstellen.';
 
 interface PresentationToolCtx {
   state: ChatGraphState;
@@ -96,7 +93,7 @@ NUTZE bei JEDER Änderung an einer vorhandenen Präsentation. "anweisung" ist de
       if (!id) return { error: NO_TARGET };
       const userId = ctx.state.agentConfig?.userId ?? null;
       if (!userId) return { error: 'Keine Sitzung — bitte neu anmelden.' };
-      if (await canvasAccessible(id, userId)) return { error: CANVAS_EDIT_UNAVAILABLE };
+      const isCanvas = await canvasAccessible(id, userId);
       if (confirm) {
         const refused = confirmGate({
           state: ctx.state,
@@ -107,12 +104,19 @@ NUTZE bei JEDER Änderung an einer vorhandenen Präsentation. "anweisung" ist de
         if (refused) return refused;
       }
 
-      const outcome = await planAndApplyPresentationEdit({
-        presentationId: id,
-        userId,
-        instruction: anweisung,
-        destructiveAllowed: confirm,
-      });
+      const outcome = isCanvas
+        ? await planAndApplyCanvasDeckEdit({
+            canvasId: id,
+            userId,
+            instruction: anweisung,
+            destructiveAllowed: confirm,
+          })
+        : await planAndApplyPresentationEdit({
+            presentationId: id,
+            userId,
+            instruction: anweisung,
+            destructiveAllowed: confirm,
+          });
       if (outcome.status === 'failed') return { error: outcome.message };
       if (outcome.status === 'needs_confirmation') {
         return confirmGate({

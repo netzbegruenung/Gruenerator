@@ -7,6 +7,7 @@ const mocks = vi.hoisted(() => ({
   planAndApplyPresentationEdit: vi.fn<(...a: unknown[]) => unknown>(),
   canvasAccessible: vi.fn<(...a: unknown[]) => unknown>(),
   loadCanvasAsContext: vi.fn<(...a: unknown[]) => unknown>(),
+  planAndApplyCanvasDeckEdit: vi.fn<(...a: unknown[]) => unknown>(),
 }));
 
 vi.mock('../../../services/canvas/canvasContext.js', () => ({
@@ -17,6 +18,9 @@ vi.mock('../../../services/canvas/canvasContext.js', () => ({
 vi.mock('../../../services/presentations/PresentationGenerationService.js', () => ({
   loadPresentationState: (...a: unknown[]) => mocks.loadPresentationState(...a),
   formatPresentationAsContext: () => 'Folie 1: Start',
+}));
+vi.mock('../../../services/presentations/canvasDeckEdit.js', () => ({
+  planAndApplyCanvasDeckEdit: (...a: unknown[]) => mocks.planAndApplyCanvasDeckEdit(...a),
 }));
 vi.mock('../services/presentationEditCore.js', () => ({
   planAndApplyPresentationEdit: (...a: unknown[]) => mocks.planAndApplyPresentationEdit(...a),
@@ -68,14 +72,41 @@ describe('read_presentation', () => {
 });
 
 describe('edit_presentation', () => {
-  it('says editing canvas decks in chat is not available yet', async () => {
+  it('edits a canvas deck through the canvas deck editor', async () => {
     mocks.canvasAccessible.mockResolvedValue(true);
+    mocks.planAndApplyCanvasDeckEdit.mockResolvedValue({
+      status: 'applied',
+      title: 'Klimaplan',
+      summary: 'Folie 3: set-text folie-spalte-1',
+      applied: 1,
+      skipped: [],
+    });
     const out = await run(edit(stateWith('Mach Folie 3 kürzer')), {
       anweisung: 'Folie 3 kürzer',
       confirm: false,
     });
-    expect(out.error).toMatch(/Canvas-Präsentation.*noch nicht bearbeiten/);
+    expect(out).toMatchObject({ ok: true, presentationId: 'p1', operationCount: 1 });
+    expect(mocks.planAndApplyCanvasDeckEdit).toHaveBeenCalledWith({
+      canvasId: 'p1',
+      userId: 'u1',
+      instruction: 'Folie 3 kürzer',
+      destructiveAllowed: false,
+    });
     expect(mocks.planAndApplyPresentationEdit).not.toHaveBeenCalled();
+  });
+
+  it('asks before a canvas deck loses slides', async () => {
+    mocks.canvasAccessible.mockResolvedValue(true);
+    mocks.planAndApplyCanvasDeckEdit.mockResolvedValue({
+      status: 'needs_confirmation',
+      title: 'Klimaplan',
+      summary: 'Folie 2 gelöscht',
+    });
+    const out = await run(edit(stateWith('Lösch Folie 2')), {
+      anweisung: 'Folie 2 löschen',
+      confirm: false,
+    });
+    expect(JSON.stringify(out)).toContain('Folien gelöscht');
   });
 
   it('reports an applied change', async () => {
