@@ -44,7 +44,7 @@ export function rememberAIReviewFork(documentId: string): void {
 }
 
 /** Whether the open fork is one an AI invocation opened. */
-export function isAIReviewFork(documentId: string): boolean {
+export function isOwnAIReviewFork(documentId: string): boolean {
   const editor = useEditorStore.getState().getEditor(documentId);
   const remembered = aiReviewForks.get(documentId);
   return Boolean(
@@ -163,7 +163,7 @@ export function rejectDocumentAI(documentId: string): boolean {
   const ext = getDocAIExtension(documentId);
   const editor = useEditorStore.getState().getEditor(documentId);
   if (!ext || !editor) return false;
-  if (!isAIReviewFork(documentId)) {
+  if (!isOwnAIReviewFork(documentId)) {
     aiReviewForks.delete(documentId);
     ext.rejectChanges();
     return true;

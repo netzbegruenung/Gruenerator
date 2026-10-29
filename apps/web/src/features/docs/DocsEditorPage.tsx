@@ -533,7 +533,9 @@ function EditorContent() {
   useVersionHistoryShortcut(
     activeSidebar !== null,
     activeSidebar ?? 'chat',
-    (open) => setActiveSidebar(open ? 'versions' : null),
+    // Opening the history forks the doc; during an AI review that fork is
+    // taken, and closing the history would discard the review.
+    (open) => setActiveSidebar(open && !hasPendingAIChanges ? 'versions' : null),
     (tab) => setActiveSidebar(tab)
   );
 
@@ -554,7 +556,7 @@ function EditorContent() {
       ...(!isGuest && commentCount > 0
         ? [{ id: 'comments', label: 'Kommentare', run: () => togglePanel('comments') }]
         : []),
-      ...(isGuest
+      ...(isGuest || hasPendingAIChanges
         ? []
         : [{ id: 'versions', label: 'Versionshistorie', run: () => togglePanel('versions') }]),
       ...(!isGuest && canEdit && !hasPendingAIChanges
@@ -831,7 +833,13 @@ function EditorContent() {
                           </button>
                         )}
                         <button
-                          className="flex items-center gap-2.5 w-full py-2 max-sm:min-h-11 px-3 text-[0.8125rem] text-foreground bg-transparent border-none rounded-lg cursor-pointer text-left transition-colors hover:bg-black/5 dark:hover:bg-white/10 [&_svg]:w-4 [&_svg]:h-4 [&_svg]:text-grey-500"
+                          className="flex items-center gap-2.5 w-full py-2 max-sm:min-h-11 px-3 text-[0.8125rem] text-foreground bg-transparent border-none rounded-lg cursor-pointer text-left transition-colors hover:bg-black/5 dark:hover:bg-white/10 disabled:opacity-50 disabled:cursor-not-allowed [&_svg]:w-4 [&_svg]:h-4 [&_svg]:text-grey-500"
+                          disabled={hasPendingAIChanges}
+                          title={
+                            hasPendingAIChanges
+                              ? 'Während einer KI-Überprüfung nicht verfügbar'
+                              : undefined
+                          }
                           onClick={() => {
                             setShowActionsMenu(false);
                             togglePanel('versions');
