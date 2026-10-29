@@ -35,7 +35,10 @@ import { extractCompoundTopic } from '../../../../routes/chat/services/compoundT
 import { fairShare } from '../../../../routes/chat/services/messageHelpers.js';
 import { resolveReferentialQuery } from '../../../../routes/chat/services/referentialTopic.js';
 import { getEnrichedPoliticianService } from '../../../../services/abgeordnetenwatch/index.js';
-import { type AwEnrichedResult } from '../../../../services/abgeordnetenwatch/types.js';
+import {
+  type AwEnrichedResult,
+  type AwSearchOptions,
+} from '../../../../services/abgeordnetenwatch/types.js';
 import { getBundestagEnrichedService } from '../../../../services/bundestag/BundestagEnrichedService.js';
 import { CHAT_BUDGET } from '../../../../services/bundestag/qa/budget.js';
 import { bundestagDocTitle } from '../../../../services/bundestag/qa/docTitle.js';
@@ -321,12 +324,29 @@ export function candidateToSearchResult(
   };
 }
 
+/**
+ * Der fertige Aufruf für den vollen Wortlaut einer Rede. Der Treffer trägt nur
+ * „Plenarprotokoll 21/96", keine Ref für `parlament_lesen`; ohne diese Zeile
+ * baute das Modell „PlPr 21/96 S. 1-200" selbst (live 29.10.2026). Felder, die
+ * fehlen, entfallen — ohne Datum auch ohne datumVon/datumBis.
+ */
+export function redenWortlautZeile(s: BtSpeech): string {
+  const q = (v: string): string => `"${v.replace(/"/g, '”')}"`;
+  const datum = s.date?.match(/^\d{4}-\d{2}-\d{2}/)?.[0];
+  const teile = [
+    `thema ${q((s.topTitle ?? s.speaker).slice(0, 300))}`,
+    `redner ${q(s.speaker)}`,
+    ...(datum ? [`datumVon ${q(datum)}`, `datumBis ${q(datum)}`] : []),
+  ];
+  return `Wortlaut: bundestag_reden mit ${teile.join(', ')}`;
+}
+
 function btSpeechResult(s: BtSpeech, title: string, relevance: number): SearchResult {
   const url = btpPdfUrl(s.protokollNummer, s.herausgeber);
   return {
     source: 'bundestag',
     title,
-    content: `${s.excerpt}${s.protokollNummer ? ` — Plenarprotokoll ${s.protokollNummer}` : ''}`,
+    content: `${s.excerpt}${s.protokollNummer ? ` — Plenarprotokoll ${s.protokollNummer}` : ''}\n${redenWortlautZeile(s)}`,
     url: url ?? dipSearchUrl(s.topTitle ?? s.speaker),
     relevance,
   };
@@ -501,6 +521,10 @@ export interface BundestagRetrieval {
   filters?: BundestagFilter;
   /** Beratungsverlauf je Vorgang als Zeilen, für die Karte im Chat. */
   verfahren?: { titel: string; zeilen: string[] }[];
+  /** Anreicherung UND Planstufe sind ausgefallen: das ist kein Nulltreffer. */
+  ausfall?: true;
+  /** Leer, weil die Filter nichts übrig ließen (kein Rückfall auf die filterlose Suche). */
+  leerDurchFilter?: true;
 }
 
 /** Die Listenzeilen, Karten-Metadaten und Verläufe einer Kandidatenliste. */
@@ -574,16 +598,23 @@ export async function retrieveBundestag(
     }),
   ]);
   const legacy = enriched ? buildBundestagResults(enriched) : [];
+  // Ausfall = die Planstufe ist gescheitert und der Altpfad hat keinen echten
+  // Treffer. Nicht „beide null": die Anreicherung wirft bei einem DIP-Ausfall
+  // nie, ihr `safeList` liefert leere Listen, und `legacy` trägt dann nur den
+  // Platzhalter „Keine Daten gefunden" — das Modell hielt den Ausfall für leer.
+  const ausfall = !plan && (enriched ? buildBundestagResults(enriched, false).length : 0) === 0;
 
   let results: SearchResult[];
+  let leerDurchFilter = false;
   if (!plan) {
-    results = legacy;
+    results = ausfall ? [] : legacy;
   } else if (plan.candidates.length === 0 && hasHardFilter(plan.filters)) {
     // Die alte Suche kennt keine Filter: als Rückfall höbe sie Zeitraum, Typ oder
     // Urheber wieder auf (live 29.10.2026: „letzte Woche" → 0 Kandidaten → Reden
     // vom 09.10. als Wochenarbeit). Dann lieber ehrlich leer.
     log.info('[Search] Bundestag-Planstufe ohne Kandidaten trotz Filter, kein Rückfall');
     results = [];
+    leerDurchFilter = true;
   } else if (plan.candidates.length === 0) {
     log.info('[Search] Bundestag-Planstufe ohne Kandidaten, alte Ergebnisse');
     results = legacy;
@@ -605,6 +636,8 @@ export async function retrieveBundestag(
     totals: plan?.totals ?? null,
     ...describeCandidates(plan?.candidates ?? []),
     ...(plan ? { filters: plan.filters } : {}),
+    ...(ausfall ? { ausfall: true as const } : {}),
+    ...(leerDurchFilter ? { leerDurchFilter: true as const } : {}),
   };
 }
 
@@ -650,7 +683,8 @@ export async function retrieveBundestagFamily(
 /** Schwester von `retrieveBundestag` — gleicher Schnitt, gleiche Begründung. */
 export async function retrieveAbgeordnetenwatch(
   query: string,
-  locale: string | null | undefined
+  locale: string | null | undefined,
+  opts: AwSearchOptions = {}
 ): Promise<SearchResult[]> {
   const startTime = Date.now();
   if (!isIntentAllowedForLocale('abgeordnetenwatch', locale)) {
@@ -663,7 +697,7 @@ export async function retrieveAbgeordnetenwatch(
       },
     ];
   }
-  const enriched = await getEnrichedPoliticianService().search(query);
+  const enriched = await getEnrichedPoliticianService().search(query, opts);
   const results = buildAbgeordnetenwatchResults(enriched);
   log.info(
     `[Search] Abgeordnetenwatch (${enriched.kind}): ${results.length} results in ${Date.now() - startTime}ms`

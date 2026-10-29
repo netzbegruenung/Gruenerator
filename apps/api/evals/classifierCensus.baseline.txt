@@ -1,4 +1,4 @@
-# Klassifikator-Zählung über 346 Turns aus apps/api/evals/corpus/
+# Klassifikator-Zählung über 358 Turns aus apps/api/evals/corpus/
 # Regenerieren mit CENSUS_UPDATE=1 — und den Diff lesen, bevor er committet wird.
 #
 # Der Korpus ist adversarial gebaut. Jede Quote hier ist eine Aussage über
@@ -14,15 +14,15 @@
 ## Dispositionen — was der Klassifikator entschieden hat
 disposition                       n   anteil  davon mit Modell
 anchor                            0    0.0 %     0
-artifact                         42   12.1 %     0
-gated                            15    4.3 %     0
-loop                            248   71.7 %     0
-prose                            41   11.8 %    14
+artifact                         42   11.7 %     0
+gated                            15    4.2 %     0
+loop                            259   72.3 %     0
+prose                            42   11.7 %    14
 (unbekannt)                       0    0.0 %     0
 
 ## Entscheidungspunkte — wie entschieden wurde (Zweighäufigkeit)
 (ohne Tier-Eintrag: 10 — Tier-1/2-Zweige journalisieren nicht)
-classifier.tier  (336)
+classifier.tier  (348)
     tier2_notebook_tool_ask       0
     tier2_thread_notebook_tool_ask    0
     tier2_notebook_turn_followup    0
@@ -42,9 +42,9 @@ classifier.tier  (336)
     tier3_heuristic              50
     tier3.4_chat_recall           1
     tier3.4_recurring_order       0
-    tier3.5_loop_demotion       230
+    tier3.5_loop_demotion       241
     tier3.8_generation_scope     14
-    residual                     13
+    residual                     14
     error_fallback                0
 
 ## Intents — feinste Körnung, in Enum-Reihenfolge
@@ -86,7 +86,7 @@ create_explainable                1  artifact
 create_recurring_task             0  retired
 chat_history                      1  gated
 mcp                               0  retired
-produktion                       37  prose
+produktion                       38  prose
 direct                            3  prose
 greeting                          1  prose
-agentic                         236  loop
+agentic                         247  loop

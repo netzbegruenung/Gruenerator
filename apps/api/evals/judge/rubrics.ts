@@ -17,6 +17,20 @@ export interface JudgePrompt {
 // at load time instead of loading fine and simply never being judged.
 export { type RubricName };
 
+const NOTE_INSTRUCTION = `Antworte AUSSCHLIESSLICH mit einem JSON-Objekt: {"note": 1|2|3|4|5, "reason": "<ein bis zwei Sätze Begründung>"}. Kein anderer Text.`;
+
+/**
+ * Die Ankerskala der Antwortnote. Feste Anker statt „gut/schlecht", damit zwei
+ * Läufe dieselbe Antwort gleich einstufen und eine Note etwas bedeutet.
+ */
+export const NOTE_ANKER = [
+  '5 = vollständig, belegt, präzise',
+  '4 = richtig und belegt, kleine Lücke',
+  '3 = richtig, aber lückenhaft oder vage',
+  '2 = teilweise falsch oder unbelegt',
+  '1 = falsch oder erfunden',
+] as const;
+
 const VERDICT_INSTRUCTION = `Antworte AUSSCHLIESSLICH mit einem JSON-Objekt: {"pass": true|false, "reason": "<ein Satz Begründung>"}. Kein anderer Text.`;
 
 /**
@@ -36,15 +50,31 @@ function block(tag: string, text: string): string {
 
 const MARKUP_NOTE = `Die spitzen Klammern sind Abschnittsmarkierungen dieser Prüfaufgabe und gehören NICHT zum bewerteten Text.`;
 
-function fmtCitations(citations: unknown[]): string {
-  return citations
+/**
+ * Die Belege für den Richter. Vorrang hat `evidence` — der Quellenblock, den das
+ * Modell wirklich gesehen hat. Die Zitate aus dem `done`-Event sind nur der
+ * Rückfall für Läufe ohne `evidence`: sie sind für die Anzeige auf 200 Zeichen
+ * gekappt, und gegen sie hält der Richter jede längere, richtig belegte Aussage
+ * für erfunden.
+ */
+function fmtEvidence(turn: TurnResult): string {
+  if (turn.evidence) return applyEvidenceCap(turn.evidence);
+  return turn.citations
     .map((c, i) => {
       const r = (c ?? {}) as Record<string, unknown>;
       const title = String(r.title ?? r.source ?? r.url ?? 'Quelle');
-      const excerpt = String(r.excerpt ?? r.snippet ?? r.content ?? r.text ?? '').slice(0, 600);
+      const excerpt = String(r.excerpt ?? r.snippet ?? r.content ?? r.text ?? '');
       return `[${i + 1}] ${title}\n${excerpt}`;
     })
     .join('\n\n');
+}
+
+/** Großzügig, damit der Richter nie weniger sieht als das Modell; ein Schnitt wird angesagt. */
+const EVIDENCE_MAX_CHARS = 60_000;
+function applyEvidenceCap(text: string): string {
+  return text.length <= EVIDENCE_MAX_CHARS
+    ? text
+    : `${text.slice(0, EVIDENCE_MAX_CHARS)}\n[… Belege nach ${EVIDENCE_MAX_CHARS} von ${text.length} Zeichen gekürzt]`;
 }
 
 function fmtToolCalls(turn: TurnResult): string {
@@ -64,7 +94,7 @@ export function buildRubricPrompt(
       if (turn.citations.length === 0) return null;
       return {
         system: `Du prüfst, ob eine Antwort durch ihre nummerierten Quellen gedeckt ist. Für jede Aussage mit einer [N]-Markierung: Stützt der Auszug von Quelle N die Aussage tatsächlich? Eine Antwort besteht (pass=true), wenn keine [N]-Markierung eine Aussage stützt, die die Quelle nicht hergibt. ${VERDICT_INSTRUCTION}`,
-        user: `${MARKUP_NOTE}\n\n${block('antwort', turn.fullText)}\n\n${block('quellen', fmtCitations(turn.citations))}`,
+        user: `${MARKUP_NOTE}\n\n${block('antwort', turn.fullText)}\n\n${block('quellen', fmtEvidence(turn))}`,
       };
     }
     /**
@@ -192,6 +222,28 @@ Begründe ein pass=false NIEMALS mit dem Auftrag. Zitiere in der Begründung die
         ].join('\n\n'),
       };
     }
+    case 'antwortqualitaet': {
+      const text = turn.fullText.trim() || (turn.generatedText ?? []).join('\n\n');
+      if (!text) return null;
+      return {
+        system: `Du bewertest die Qualität EINER Antwort auf die gestellte Frage mit einer Note von 1 bis 5. Maßstab sind die Frage, die Quellen (soweit vorhanden) und die bekannten Fakten (soweit vorhanden) — nicht dein eigenes Wissen und nicht der Stil.
+
+Die Anker:
+${NOTE_ANKER.map((a) => `- ${a}`).join('\n')}
+
+Gib die niedrigere Note, wenn du zwischen zwei Stufen schwankst und eine Aussage der Antwort nicht durch Quelle oder Fakten gedeckt ist. Eine ehrliche Absage ("dazu steht nichts im Material") bei fehlender Grundlage ist keine Lücke, sondern richtig. ${NOTE_INSTRUCTION}`,
+        user: [
+          MARKUP_NOTE,
+          block('frage', turn.prompt),
+          block('antwort', text),
+          ...(turn.citations.length > 0 ? [block('quellen', fmtEvidence(turn))] : []),
+          block('werkzeuge', fmtToolCalls(turn)),
+          ...(opts.facts && opts.facts.length > 0
+            ? [block('fakten', opts.facts.map((f) => `- ${f}`).join('\n'))]
+            : []),
+        ].join('\n\n'),
+      };
+    }
     default:
       return null;
   }
@@ -205,7 +257,12 @@ function autoRubrics(turn: TurnResult): RubricName[] {
     (turn.toolCalls.length === 0 && turn.fullText.length > 200) ||
     // Tools ran, none acted, text says something was done (15.09.2026 shape).
     (!actionEvent && claimsArtifactAction(turn.fullText));
-  return wantsAuto ? ['narration_consistency'] : [];
+  const rubrics: RubricName[] = wantsAuto ? ['narration_consistency'] : [];
+  // Jede Antwort bekommt eine Note; sie geht in die Ampel (≤ 3 → gelb).
+  if (turn.fullText.trim() || (turn.generatedText ?? []).length > 0) {
+    rubrics.push('antwortqualitaet');
+  }
+  return rubrics;
 }
 
 /**

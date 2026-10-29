@@ -151,6 +151,29 @@ export function containsPhrase(text: string, phrase: string): boolean {
   return normalizePhrase(text).includes(normalizePhrase(phrase));
 }
 
+/**
+ * Redetext je Treffer: das Budget verteilt sich auf die angefragten Reden. Eine
+ * einzelne Rede kommt so ganz an (bis 20.000 Zeichen), fünf Reden je 4.800.
+ * Bis 10/2026 galt pauschal 4.000 — auch dann, wenn nach genau einer Rede
+ * „wörtlich" gefragt war.
+ */
+const REDEN_TEXT_BUDGET = 24_000;
+const REDE_TEXT_MIN = 4_000;
+/** Längste Rede, die ganz ankommt; zugleich die Kappe, auf der die Wortlautsuche prüft. */
+export const REDE_TEXT_MAX = 20_000;
+
+export function redeTextCap(anzahl: number): number {
+  return Math.min(
+    REDE_TEXT_MAX,
+    Math.max(REDE_TEXT_MIN, Math.floor(REDEN_TEXT_BUDGET / Math.max(anzahl, 1)))
+  );
+}
+
+/** Kürzt einen schon bereinigten Redetext wie `cleanDipText` (mit „…" am Schnitt). */
+function kappeRede(s: BtSpeech, max: number): BtSpeech {
+  return s.excerpt.length > max ? { ...s, excerpt: `${s.excerpt.slice(0, max)}…` } : s;
+}
+
 /** Die Suchschnittstelle des MCP-Clients, die hier gebraucht wird (Tests reichen einen Stub). */
 export interface RedenClient {
   searchSpeechesFull: ReturnType<typeof getBundestagMCPClient>['searchSpeechesFull'];
@@ -173,10 +196,14 @@ export async function searchBundestagReden(
     ...(suche.datumBis ? { dateTo: suche.datumBis } : {}),
     limit: phrase ? WORTLAUT_CANDIDATES : limit,
     sort: SORT[suche.sortierung ?? 'relevanz'],
+    // Die Wortlautsuche prüft die Phrase im Text: auf einem gekappten Text fiele
+    // eine Fundstelle hinter der Kappe still durch.
+    maxChars: phrase ? REDE_TEXT_MAX : redeTextCap(limit),
   });
   if (!phrase) return { speeches: items, wpFallback };
   const hits = items.filter((s) => containsPhrase(s.excerpt, phrase)).slice(0, limit);
-  return { speeches: hits, wpFallback };
+  const cap = redeTextCap(hits.length);
+  return { speeches: hits.map((s) => kappeRede(s, cap)), wpFallback };
 }
 
 function deDate(iso: string): string {

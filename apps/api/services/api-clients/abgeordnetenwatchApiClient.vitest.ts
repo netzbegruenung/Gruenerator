@@ -155,6 +155,57 @@ describe('AbgeordnetenwatchApiClient — DTO trimming', () => {
   });
 });
 
+describe('AbgeordnetenwatchApiClient — Mandate über alle Wahlperioden', () => {
+  it('getMandates fragt mit current_on=all und liefert nur Mandate mit Periode', async () => {
+    // Live 29.10.2026, Katrin Uhlig: ohne current_on=all kam nur 68942 (2025–2029)
+    // zurück, die GEG-Stimme von 2023 hing am Mandat 53801 (2021–2025).
+    getMock.mockResolvedValueOnce(
+      envelope([
+        {
+          id: 68942,
+          type: 'mandate',
+          parliament_period: { id: 161, label: 'Bundestag 2025 - 2029' },
+        },
+        {
+          id: 65220,
+          type: 'candidacy',
+          parliament_period: { id: 160, label: 'Bundestag Wahl 2025' },
+        },
+        {
+          id: 53801,
+          type: 'mandate',
+          parliament_period: { id: 132, label: 'Bundestag 2021 - 2025' },
+        },
+      ])
+    );
+    const client = await AbgeordnetenwatchApiClient.create();
+    const mandates = await client.getMandates(175599);
+    expect(JSON.stringify(getMock.mock.calls[0])).toContain('current_on=all');
+    expect(mandates.map((m) => [m.mandateId, m.parliamentPeriodId])).toEqual([
+      [68942, 161],
+      [53801, 132],
+    ]);
+  });
+
+  it('searchPolls trägt die Wahlperiode der Abstimmung', async () => {
+    getMock.mockResolvedValueOnce(
+      envelope([
+        {
+          id: 5162,
+          label: 'Gebäudeenergiegesetz',
+          field_poll_date: '2023-09-08',
+          field_legislature: { id: 132, label: 'Bundestag 2021 - 2025' },
+        },
+      ])
+    );
+    const client = await AbgeordnetenwatchApiClient.create();
+    const polls = await client.searchPolls({ keyword: 'Gebäudeenergiegesetz' });
+    expect(polls[0]?.legislatureId).toBe(132);
+    // sort_by=id lässt /polls mit 500 scheitern (live 29.10.2026).
+    expect(JSON.stringify(getMock.mock.calls[0])).toContain('sort_by=field_poll_date');
+  });
+});
+
 describe('AbgeordnetenwatchApiClient — roll-call aggregation', () => {
   it('getPollTally aggregates votes into counts + per-fraction breakdown', async () => {
     const votes = [
