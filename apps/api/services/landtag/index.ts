@@ -21,7 +21,7 @@ import { LANDTAG_BACKENDS } from './backends.js';
 import { type LandtagFindResult } from './berlin/find.js';
 import { LANDTAGE, type LandtagMeta } from './registry.js';
 
-export { LANDTAGE, landtagMeta } from './registry.js';
+export { LANDTAGE, landtageFor, landtagMeta } from './registry.js';
 export type { LandtagFindResult } from './berlin/find.js';
 
 async function getRedis(): Promise<TextCache | null> {

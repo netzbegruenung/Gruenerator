@@ -138,6 +138,16 @@ export interface ToolMeta {
   summarize?: (args: unknown, result: unknown) => string | null;
 }
 
+/** Zeile unter `landtag` und `nationalrat`: gezeigte und gefundene Dokumente. */
+const summarizeParlamentListe: NonNullable<ToolMeta['summarize']> = (_args, result) => {
+  const n = getArray(getObject(result, 'uiCard'), 'dokumente')?.length ?? 0;
+  if (n === 0) return null;
+  const gesamt = getNumber(getObject(result, 'uiCard'), 'gesamt');
+  return gesamt != null && gesamt > n
+    ? `${n} von ${gesamt} Dokumenten`
+    : `${n} ${n === 1 ? 'Dokument' : 'Dokumente'}`;
+};
+
 const TOOL_METADATA: Record<string, ToolMeta> = {
   // --- Retrieval -----------------------------------------------------------
   search_sources: {
@@ -212,14 +222,15 @@ const TOOL_METADATA: Record<string, ToolMeta> = {
     iconKey: 'book',
     accent: 'retrieval',
     queryKeys: ['query'],
-    summarize: (_args, result) => {
-      const n = getArray(getObject(result, 'uiCard'), 'dokumente')?.length ?? 0;
-      if (n === 0) return null;
-      const gesamt = getNumber(getObject(result, 'uiCard'), 'gesamt');
-      return gesamt != null && gesamt > n
-        ? `${n} von ${gesamt} Dokumenten`
-        : `${n} ${n === 1 ? 'Dokument' : 'Dokumente'}`;
-    },
+    summarize: summarizeParlamentListe,
+  },
+  nationalrat: {
+    label: 'Nationalrat',
+    activeLabel: 'Durchsuche den Nationalrat',
+    iconKey: 'book',
+    accent: 'retrieval',
+    queryKeys: ['query'],
+    summarize: summarizeParlamentListe,
   },
   bundestag_reden: {
     label: 'Reden im Bundestag',

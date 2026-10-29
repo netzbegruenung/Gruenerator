@@ -14,6 +14,10 @@ import { findBerlin, type LandtagFindResult } from './berlin/find.js';
 import { getPardok } from './berlin/pardokLive.js';
 import { resolveBerlinRefs } from './berlin/refs.js';
 import { fetchBerlinTexts } from './berlin/text.js';
+import { getNationalratApi } from './nationalrat/filterApi.js';
+import { findNationalrat } from './nationalrat/find.js';
+import { resolveNationalratRefs } from './nationalrat/refs.js';
+import { fetchNationalratTexts } from './nationalrat/text.js';
 
 export interface LandtagBackend {
   find(args: { query: string; filters: LandtagFilter }): Promise<LandtagFindResult>;
@@ -30,5 +34,10 @@ export const LANDTAG_BACKENDS: Record<LandtagParlament, () => LandtagBackend> = 
     find: (args) => findBerlin(args, getPardok()),
     resolveRefs: (refs) => resolveBerlinRefs(refs, getPardok()),
     fetchTexts: fetchBerlinTexts,
+  }),
+  nationalrat: () => ({
+    find: (args) => findNationalrat(args, getNationalratApi()),
+    resolveRefs: (refs) => resolveNationalratRefs(refs, getNationalratApi()),
+    fetchTexts: (candidates, deps) => fetchNationalratTexts(candidates, deps, getNationalratApi()),
   }),
 };

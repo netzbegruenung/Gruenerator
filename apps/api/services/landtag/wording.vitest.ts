@@ -31,4 +31,17 @@ describe('detectLandtagFromWording', () => {
     });
     expect(detectLandtagFromWording('Anträge zur Verkehrswende')).toEqual({ typ: ['Antrag'] });
   });
+
+  it('erkennt die Klubs und Arten des Nationalrats', () => {
+    expect(
+      detectLandtagFromWording('Welche Anträge haben ÖVP und die NEOS zur Pflege eingebracht?')
+    ).toMatchObject({ fraktion: ['oevp', 'neos'], typ: ['Antrag'] });
+    expect(
+      detectLandtagFromWording('Regierungsvorlagen und Ausschussberichte zum Klima')
+    ).toMatchObject({
+      typ: ['Gesetzentwurf', 'Beschlussempfehlung'],
+    });
+    expect(detectLandtagFromWording('Was sagt die FPÖ dazu?').fraktion).toEqual(['fpoe']);
+    expect(detectLandtagFromWording('Was sagt die SPD dazu?').fraktion).not.toContain('spoe');
+  });
 });

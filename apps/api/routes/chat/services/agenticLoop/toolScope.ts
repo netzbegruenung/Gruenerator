@@ -212,10 +212,11 @@ export const DEFERRABLE_GROUPS = [
     id: 'parlament',
     loaderTool: 'parlament_werkzeuge_laden',
     tools: ['parlament_lesen', 'bundestag_reden', 'abgeordnetenwatch', 'umfragen', 'landtag'],
-    opensOn: ['bundestag', 'landtag'],
-    hint: /bundestag|drucksache|plenar|parlament|landtag|abgeordnet|ab(ge)?stimm|gestimmt|stimmverhalten|prognose|wahltrend|hochrechnung|nebent[aä]tig|nebenjob|nebeneink|mandat|umfrage|sonntagsfrage|nationalrat|(?<![\w/])BE\s?\d{1,2}\/\d{1,5}(?![\d/])|(?<![\d/])2[01]\/\d{1,5}(?![\d/])/i,
+    // `nationalrat` ist für Österreich, was `bundestag` für Deutschland ist: der immer sichtbare Einstieg.
+    opensOn: ['bundestag', 'landtag', 'nationalrat'],
+    hint: /bundestag|drucksache|plenar|parlament|landtag|abgeordnet|ab(ge)?stimm|gestimmt|stimmverhalten|prognose|wahltrend|hochrechnung|nebent[aä]tig|nebenjob|nebeneink|mandat|umfrage|sonntagsfrage|nationalrat|(?<![\w/])BE\s?\d{1,2}\/\d{1,5}(?![\d/])|(?<![\w/])NR\s?\d{1,2}\/[A-Z]{1,6}\d{1,5}(?![\d/])|(?<![\d/])2[01]\/\d{1,5}(?![\d/])/i,
     loaderDescription:
-      'Schaltet die Parlaments-Werkzeuge frei, soweit vorhanden: parlament_lesen (Drucksachen/Plenarprotokolle lesen), landtag (Berlin: Abgeordnetenhaus-Drucksachen suchen), bundestag_reden (Reden im Plenum), abgeordnetenwatch (Abstimmungen, Nebentätigkeiten, Mandate) und umfragen (Sonntagsfrage).\n\nNUTZE WENN Parlamentsdokumente gelesen, Reden gesucht, Abgeordnete nachgeschlagen oder Umfragen gebraucht werden. Die Liste liefert bundestag, immer bereit.',
+      'Schaltet die Parlaments-Werkzeuge frei, soweit vorhanden: parlament_lesen (Drucksachen/Plenarprotokolle lesen), landtag (Berlin: Abgeordnetenhaus-Drucksachen suchen), bundestag_reden (Reden im Plenum), abgeordnetenwatch (Abstimmungen, Nebentätigkeiten, Mandate) und umfragen (Sonntagsfrage).\n\nNUTZE WENN Parlamentsdokumente gelesen, Reden gesucht, Abgeordnete nachgeschlagen oder Umfragen gebraucht werden. Die Liste liefert bundestag (Österreich: nationalrat), immer bereit.',
     opened:
       'Die Parlaments-Werkzeuge (parlament_lesen, bundestag_reden, abgeordnetenwatch, umfragen) sind jetzt verfügbar. Rufe das passende auf.',
   },

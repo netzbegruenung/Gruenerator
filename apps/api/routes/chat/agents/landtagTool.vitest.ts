@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { createSourceRegistry } from '../services/agenticLoop/sourceRegistry.js';
 
-import { describeLandtagFilter, makeLandtagTool } from './landtagTool.js';
+import { describeLandtagFilter, makeLandtagTool, makeNationalratTool } from './landtagTool.js';
 
 import type { ChatGraphState } from '../../../agents/langgraph/ChatGraph/types.js';
 
@@ -129,6 +129,51 @@ describe('makeLandtagTool', () => {
     ausfall = true;
     const out = (await exec(make(), { parlament: 'berlin', query: 'x' })) as { error: string };
     expect(out.error).toMatch(/nicht erreichbar/);
+  });
+});
+
+describe('makeNationalratTool', () => {
+  beforeEach(() => {
+    findLandtag.mockReset();
+    ausfall = false;
+  });
+  const make = (locale: string, text = '') =>
+    makeNationalratTool({ state: state(locale, text), sourceRegistry: createSourceRegistry() });
+
+  it('sucht nur für Österreich, und immer im Nationalrat', async () => {
+    const de = (await exec(make('de-DE'), { query: 'Miete' })) as { error: string };
+    expect(de.error).toMatch(/nur für Österreich/);
+    expect(findLandtag).not.toHaveBeenCalled();
+
+    findLandtag.mockResolvedValue({
+      candidates: [
+        {
+          ...candidate,
+          ref: 'NR 28/A647',
+          dokumentnummer: '647/A(E)',
+          drucksachetyp: 'Selbständiger Entschließungsantrag',
+          urheber: ['GRÜNE'],
+          pdfUrl: 'https://www.parlament.gv.at/gegenstand/XXVIII/A/647',
+        },
+      ],
+      gesamt: 1,
+      notes: [],
+    });
+    const at = (await exec(make('de-AT', 'Anträge der Grünen zu Mieten'), { query: 'Miete' })) as {
+      sources: string;
+      quelle: string;
+      hinweis: string;
+      uiCard: { parlament: string };
+    };
+    expect(findLandtag).toHaveBeenCalledWith(
+      'nationalrat',
+      'Miete',
+      expect.objectContaining({ fraktion: ['gruene'], typ: ['Antrag'] })
+    );
+    expect(at.sources).toContain('647/A(E) · Selbständiger Entschließungsantrag');
+    expect(at.quelle).toMatch(/CC BY 4\.0/);
+    expect(at.hinweis).toContain("quelle 'nationalrat'");
+    expect(at.uiCard.parlament).toBe('Nationalrat');
   });
 });
 

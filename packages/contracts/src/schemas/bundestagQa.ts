@@ -52,7 +52,7 @@ export const bundestagRefSchema = z
   .regex(/^(\d{1,2}\/\d{1,6}|PlPr \d{1,2}\/\d{1,4} S\. \d+-\d+)$/);
 
 /** Woher der Text eines Dokuments stammt (`missing`: nirgends zu holen). */
-export const bundestagTextSourceSchema = z.enum(['dip', 'pdf', 'protokoll', 'missing']);
+export const bundestagTextSourceSchema = z.enum(['dip', 'pdf', 'protokoll', 'html', 'missing']);
 
 /** Warum ein Dokument nicht gelesen wurde. */
 export const bundestagReadSkippedSchema = z.enum(['budget', 'deadline', 'missing']);

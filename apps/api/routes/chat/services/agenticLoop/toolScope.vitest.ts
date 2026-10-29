@@ -245,6 +245,28 @@ describe('createToolScope — Parlaments-Gruppe', () => {
     }
   });
 
+  it('öffnet für Österreich den Leser, sobald nationalrat gelaufen ist oder ein NR-Ref dasteht', () => {
+    // Österreich montiert `nationalrat` (Einstieg) und `parlament_lesen`, aber weder `bundestag` noch `landtag`.
+    const at = ['nationalrat', 'gruenerator_search', 'web_search', 'parlament_lesen', 'umfragen'];
+    const atScope = (opts: { userText: string; priorToolNames?: string[] }) =>
+      createToolScope({ toolNames: at, enforce: true, ...opts });
+    const opens = (active: readonly string[] | undefined) =>
+      active === undefined || active.includes('parlament_lesen');
+    const zu = atScope({ userText: 'Schreib einen Instagram-Post zum Klimaschutz' }).activeTools();
+    expect(zu).toBeDefined();
+    expect(zu).toContain('nationalrat');
+    expect(zu).not.toContain('parlament_lesen');
+    expect(
+      opens(
+        atScope({
+          userText: 'Und was steht da drin?',
+          priorToolNames: ['nationalrat'],
+        }).activeTools()
+      )
+    ).toBe(true);
+    expect(opens(atScope({ userText: 'Fasse NR 28/I123 zusammen' }).activeTools())).toBe(true);
+  });
+
   it('erkennt Prognose, Wahltrend, Hochrechnung und Stimmverhalten am Hinweis', () => {
     for (const userText of [
       'Wie sieht die Prognose für die nächste Wahl aus?',

@@ -39,6 +39,7 @@ export const UI_TOOL_NAMES = z.enum([
   'parlament_lesen',
   'bundestag_reden',
   'landtag',
+  'nationalrat',
   'research',
   'gruenerator_examples_search',
   'gruenerator_pressemitteilung_examples',
@@ -1226,6 +1227,8 @@ export const TOOL_REGISTRY: Record<UiToolName, ToolRegistryEntry> = {
   parlament_lesen: entry('parlament_lesen', 'key-value', parseParlamentLesenCard),
   bundestag_reden: entry('bundestag_reden', 'key-value', parseBundestagRedenCard),
   landtag: entry('landtag', 'key-value', parseLandtagCard),
+  // Gleiche Kartenform: `nationalrat` und `landtag` teilen die Ausführung.
+  nationalrat: entry('nationalrat', 'key-value', parseLandtagCard),
   research: entry('research', 'markdown-report', (_a, r) => ({
     kind: 'markdown-report',
     ...parseResearchResult(r),

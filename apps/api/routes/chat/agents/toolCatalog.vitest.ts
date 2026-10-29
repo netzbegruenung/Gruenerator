@@ -221,10 +221,11 @@ describe('toolCatalog domain tool mounting', () => {
     expect(toolNames).toEqual(expect.arrayContaining(['bundestag', 'abgeordnetenwatch']));
   });
 
-  it('mounts parlament_lesen and bundestag_reden together with bundestag, and only for de-DE', () => {
+  it('mounts the German parliament tools only for de-DE, and the Nationalrat with parlament_lesen for de-AT', () => {
     expect(catalogFor('search').toolNames).toContain('parlament_lesen');
     expect(catalogFor('search').toolNames).toContain('bundestag_reden');
     expect(catalogFor('search').toolNames).toContain('landtag');
+    expect(catalogFor('search').toolNames).not.toContain('nationalrat');
     const sourceRegistry = createSourceRegistry();
     const state = {
       intent: 'search',
@@ -237,9 +238,11 @@ describe('toolCatalog domain tool mounting', () => {
       loop: { sse: { send: () => {} } as never, state },
     });
     expect(toolNames).not.toContain('bundestag');
-    expect(toolNames).not.toContain('parlament_lesen');
     expect(toolNames).not.toContain('bundestag_reden');
     expect(toolNames).not.toContain('landtag');
+    // Österreich liest den Nationalrat über denselben Leser.
+    expect(toolNames).toContain('nationalrat');
+    expect(toolNames).toContain('parlament_lesen');
   });
 
   // Mounted on every turn, `summarize` was the planner's pick for any ask about

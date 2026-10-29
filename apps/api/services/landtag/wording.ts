@@ -31,6 +31,16 @@ const TYP_VON_BUNDESTAG: Record<string, LandtagTyp> = {
 const SCHRIFTLICHE_ANFRAGE = /\bschriftliche[nrsm]?\s+anfrage[n]?\b/i;
 /** Der Bundestag-Erkenner kennt BSW nicht (dort nicht vertreten); Berlin meldet es als „nicht vertreten“. */
 const BSW = /\bBSW\b|\bBündnis\s+Sahra\s+Wagenknecht\b/;
+/** Die Klubs im Nationalrat; der Bundestag-Erkenner kennt nur die Grünen davon. */
+const KLUBS_AT: [RegExp, LandtagFraktion][] = [
+  [/(?<!\p{L})(?:ÖVP|OEVP|Volkspartei)(?!\p{L})/iu, 'oevp'],
+  [/(?<!\p{L})(?:SPÖ|SPOE)(?!\p{L})/iu, 'spoe'],
+  [/(?<!\p{L})(?:FPÖ|FPOE|Freiheitlichen?)(?!\p{L})/iu, 'fpoe'],
+  [/(?<!\p{L})NEOS(?!\p{L})/iu, 'neos'],
+];
+/** Österreichische Namen der Arten. */
+const REGIERUNGSVORLAGE = /\bregierungsvorlage[n]?\b/i;
+const AUSSCHUSSBERICHT = /\bausschussbericht(?:e|en)?\b/i;
 
 export function detectLandtagFromWording(question: string): LandtagFilter {
   const found: LandtagFilter = {};
@@ -40,6 +50,8 @@ export function detectLandtagFromWording(question: string): LandtagFilter {
     if (mapped) typ.add(mapped);
   }
   if (SCHRIFTLICHE_ANFRAGE.test(question)) typ.add('Anfrage');
+  if (REGIERUNGSVORLAGE.test(question)) typ.add('Gesetzentwurf');
+  if (AUSSCHUSSBERICHT.test(question)) typ.add('Beschlussempfehlung');
   if (typ.size > 0) found.typ = [...typ];
 
   const fraktion = new Set<LandtagFraktion>();
@@ -48,6 +60,7 @@ export function detectLandtagFromWording(question: string): LandtagFilter {
     if (mapped) fraktion.add(mapped);
   }
   if (BSW.test(question)) fraktion.add('bsw');
+  for (const [re, key] of KLUBS_AT) if (re.test(question)) fraktion.add(key);
   if (fraktion.size > 0) found.fraktion = [...fraktion];
 
   const zeitraum = detectZeitraum(question);

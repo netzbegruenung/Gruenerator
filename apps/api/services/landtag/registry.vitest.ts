@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { LANDTAGE, resolveFilters } from './registry.js';
+import { LANDTAGE, landtageFor, resolveFilters } from './registry.js';
 
 const be = LANDTAGE.berlin;
 
@@ -67,5 +67,36 @@ describe('Registry', () => {
       expect(meta.quellenangabe).toMatch(/^Quelle: /);
     }
     expect(be.quellenangabe).toBe('Quelle: Abgeordnetenhaus Berlin, PARDOK, DL-DE BY 2.0');
+  });
+});
+
+describe('resolveFilters (Nationalrat)', () => {
+  const nr = LANDTAGE.nationalrat;
+
+  it('bildet österreichische Klubs und Arten auf die Werte der Filter-API ab', () => {
+    const r = resolveFilters(nr, { typ: ['Beschlussempfehlung'], fraktion: ['gruene', 'neos'] });
+    expect(r.typen).toEqual(['AUB']);
+    expect(r.fraktionen).toEqual(['GRÜNE', 'NEOS']);
+    expect(r.empty).toBeNull();
+  });
+
+  it('begründet die fehlenden Anfragen mit der Lizenz statt mit „gibt es nicht"', () => {
+    const only = resolveFilters(nr, { typ: ['Anfrage'] });
+    expect(only.empty).toMatch(/CC-BY-Lizenz/);
+    const mixed = resolveFilters(nr, { typ: ['Anfrage', 'Antrag'] });
+    expect(mixed.empty).toBeNull();
+    expect(mixed.notes).toEqual([expect.stringMatching(/CC-BY-Lizenz/)]);
+  });
+
+  it('meldet deutsche Fraktionen als nicht vertreten', () => {
+    expect(resolveFilters(nr, { fraktion: ['cdu'] }).empty).toMatch(/CDU.*nicht vertreten/);
+  });
+});
+
+describe('landtageFor', () => {
+  it('trennt die Parlamente nach Locale', () => {
+    expect(landtageFor('de-AT').map((m) => m.id)).toEqual(['nationalrat']);
+    expect(landtageFor('de-DE').map((m) => m.id)).toEqual(['berlin']);
+    expect(landtageFor(null).map((m) => m.id)).toEqual(['berlin']);
   });
 });

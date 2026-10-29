@@ -898,6 +898,47 @@ describe('parlament_lesen: quelle Landtag', () => {
   });
 });
 
+describe('parlament_lesen: quelle Nationalrat', () => {
+  beforeEach(() => {
+    readLandtagRefs.mockReset();
+    readBundestagRefs.mockReset();
+  });
+  const make = (userLocale: string) =>
+    makeParlamentLesenTool({
+      state: { ...baseState, userLocale } as unknown as ChatGraphState,
+      sourceRegistry: createSourceRegistry(),
+    });
+
+  it('liest für Österreich den Nationalrat und kennt den Bundestag dort nicht', async () => {
+    readLandtagRefs.mockResolvedValue({ documents: [], notes: [] });
+    await exec(make('de-AT'), {
+      quelle: 'nationalrat',
+      dokumente: ['NR 28/I26'],
+      frage: 'Was regelt das?',
+    });
+    expect(readLandtagRefs).toHaveBeenCalledWith(
+      expect.objectContaining({ parlament: 'nationalrat', refs: ['NR 28/I26'] })
+    );
+    const bt = (await exec(make('de-AT'), {
+      quelle: 'bundestag',
+      dokumente: ['21/1928'],
+      frage: 'Was regelt das?',
+    })) as { error: string };
+    expect(bt.error).toMatch(/nicht zur Verfügung/);
+    expect(readBundestagRefs).not.toHaveBeenCalled();
+  });
+
+  it('lässt Deutschland den Nationalrat nicht lesen', async () => {
+    const out = (await exec(make('de-DE'), {
+      quelle: 'nationalrat',
+      dokumente: ['NR 28/I26'],
+      frage: 'Was regelt das?',
+    })) as { error: string };
+    expect(out.error).toMatch(/nicht zur Verfügung/);
+    expect(readLandtagRefs).not.toHaveBeenCalled();
+  });
+});
+
 describe('parlament_lesen: fokus', () => {
   beforeEach(() => readBundestagRefs.mockReset());
   const doc = {

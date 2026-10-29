@@ -22,7 +22,6 @@ import {
   bundestagModusSchema,
   type BundestagFilter,
   bundestagRefSchema,
-  landtagParlamentSchema,
   landtagRefSchema,
   type LandtagParlament,
 } from '@gruenerator/contracts';
@@ -57,7 +56,12 @@ import {
 } from '../../../services/bundestag/reden.js';
 import { relatedDocsPages, searchDocs } from '../../../services/docs/docsIndex.js';
 import { landtagDocTitle } from '../../../services/landtag/docTitle.js';
-import { LANDTAGE, parlamentOfRef, readLandtagRefs } from '../../../services/landtag/index.js';
+import {
+  LANDTAGE,
+  landtageFor,
+  parlamentOfRef,
+  readLandtagRefs,
+} from '../../../services/landtag/index.js';
 import { lookupUmfragen } from '../../../services/monitor/UmfragenService.js';
 import { DRAFT_LIMIT_TEXTS } from '../../../services/sharepicCreator/draftFailure.js';
 import { createLogger } from '../../../utils/logger.js';
@@ -128,6 +132,8 @@ NUTZE WENN der*die Nutzer*in um eine Zusammenfassung bittet ("fasse zusammen", "
 }
 
 /** „PlPr 21/80 S. 12" und Landtags-Refs („BE 19/3519") bleiben, „21/1928" wird „BT-Drs. 21/1928". */
+type ParlamentQuelle = 'bundestag' | LandtagParlament;
+
 function bundestagRefLabel(ref: string): string {
   return ref.startsWith('PlPr') || /^[A-Z]{2} /.test(ref) ? ref : `BT-Drs. ${ref}`;
 }
@@ -567,18 +573,28 @@ export function makeParlamentLesenTool(ctx: {
   sourceRegistry: SourceRegistry;
 }): Tool {
   const { state, sourceRegistry } = ctx;
+  // Je Locale nur die eigenen Parlamente: Österreich liest den Nationalrat, Deutschland Bundestag und Landtage.
+  const at = state.userLocale === 'de-AT';
+  const quellen = [
+    ...(at ? [] : (['bundestag'] as const)),
+    ...landtageFor(state.userLocale).map((m) => m.id),
+  ] as [ParlamentQuelle, ...ParlamentQuelle[]];
   return tool({
-    description: `Liest Parlamentsdokumente (Bundestag, Landesparlamente) vollständig und isoliert und liefert belegte Aussagen mit wörtlichem Zitat. quelle 'bundestag' mit Refs aus \`bundestag\`, quelle = Landesparlament (z. B. 'berlin') mit Refs aus \`landtag\` ("BE 19/3519", Schriftliche Anfrage "BE 19/S27288"; die Anfrage liegt samt Antwort vor). Bis zu 6 Dokumente je Aufruf. Für „fasse zusammen“ gilt auftrag 'zusammenfassung'. Nur Deutschland.
+    description: at
+      ? `Liest Dokumente des österreichischen Nationalrats vollständig und isoliert und liefert belegte Aussagen mit wörtlichem Zitat. quelle 'nationalrat' mit Refs aus \`nationalrat\` ("NR 28/I123" Regierungsvorlage oder Ausschussbericht, "NR 28/A1025" Antrag, "NR 28/NRSITZ43" Sitzungsprotokoll; bei einem Protokoll \`fokus\` auf Thema oder Redner*in setzen). Bis zu 6 Dokumente je Aufruf. Für „fasse zusammen“ gilt auftrag 'zusammenfassung'.`
+      : `Liest Parlamentsdokumente (Bundestag, Landesparlamente) vollständig und isoliert und liefert belegte Aussagen mit wörtlichem Zitat. quelle 'bundestag' mit Refs aus \`bundestag\`, quelle = Landesparlament (z. B. 'berlin') mit Refs aus \`landtag\` ("BE 19/3519", Schriftliche Anfrage "BE 19/S27288"; die Anfrage liegt samt Antwort vor). Bis zu 6 Dokumente je Aufruf. Für „fasse zusammen“ gilt auftrag 'zusammenfassung'. Nur Deutschland.
 
 Nicht für Abstimmungsverhalten, dafür abgeordnetenwatch. Nicht für Positionen der Grünen, dafür gruenerator_search mit collection 'bundestagsfraktion'.`,
     inputSchema: z.object({
-      quelle: z.union([z.literal('bundestag'), landtagParlamentSchema]),
+      quelle: z.enum(quellen),
       dokumente: z
         .array(z.union([bundestagRefSchema, landtagRefSchema]))
         .min(1)
         .max(6)
         .describe(
-          'Refs aus der Liste von `bundestag` bzw. `landtag` (Zeile „Ref: …“), alle aus der angegebenen quelle'
+          at
+            ? 'Refs aus der Liste von `nationalrat` (Zeile „Ref: …“)'
+            : 'Refs aus der Liste von `bundestag` bzw. `landtag` (Zeile „Ref: …“), alle aus der angegebenen quelle'
         ),
       frage: z
         .string()
@@ -596,8 +612,13 @@ Nicht für Abstimmungsverhalten, dafür abgeordnetenwatch. Nicht für Positionen
         ),
     }),
     execute: async ({ quelle, dokumente, frage, auftrag = 'frage', fokus }, options) => {
-      if (!isIntentAllowedForLocale('bundestag', state.userLocale)) {
-        return { resultCount: 0, sources: '', error: intentDeclineNote('bundestag') ?? '' };
+      // Das Schema kennt nur die Quellen der Locale; ein wiederholter Aufruf aus einem alten Thread nicht.
+      if (!quellen.includes(quelle)) {
+        return {
+          resultCount: 0,
+          sources: '',
+          error: `Die quelle '${quelle}' steht in dieser Region nicht zur Verfügung.`,
+        };
       }
       // Die Ref-Form gehört zur Quelle: ein Landtags-Ref beim Bundestag fände nichts und umgekehrt.
       const parlament: LandtagParlament | null = quelle === 'bundestag' ? null : quelle;
