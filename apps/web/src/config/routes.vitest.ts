@@ -37,8 +37,8 @@ const EXPECTED_PUBLIC_PATHS = [
   // Collaborative document (text, sheet, deck). The id is the credential, the
   // backend decides: /api/docs/resolve answers 404 for a private document and a
   // title-only stub for a login-gated one, on which the editor shows a login
-  // prompt; Hocuspocus admits guests only to share_mode='public'. Gating the
-  // route itself sent every visitor of a public link to /login.
+  // prompt; Hocuspocus admits guests only to is_public or share_mode='public'.
+  // Gating the route itself sent every visitor of a public link to /login.
   '/office/:id',
   // Legacy URL of the same page — links shared before the /office rename.
   '/docs/:id',
