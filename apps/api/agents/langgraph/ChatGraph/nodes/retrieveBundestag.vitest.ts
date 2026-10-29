@@ -120,8 +120,63 @@ describe('retrieveBundestag: Zusammenführung', () => {
       ...planWith([]),
       filters: { datumVon: '2026-10-22', datumBis: '2026-10-29' },
     });
-    const { results } = await retrieveBundestag('letzte Woche', 'de-DE');
+    const { results, leerDurchFilter, ausfall } = await retrieveBundestag('letzte Woche', 'de-DE');
     expect(results).toEqual([]);
+    expect(leerDurchFilter).toBe(true);
+    expect(ausfall).toBeUndefined();
+  });
+
+  it('beide Stufen werfen: Ausfall, nicht leer', async () => {
+    btSearch.mockRejectedValue(new Error('down'));
+    plan.mockRejectedValue(new Error('down'));
+    const r = await retrieveBundestag('x', 'de-DE');
+    expect(r.ausfall).toBe(true);
+    expect(r.results).toEqual([]);
+  });
+
+  it('Rede-Treffer der Person tragen den fertigen Aufruf für den Wortlaut', async () => {
+    btSearch.mockResolvedValue({
+      notes: [],
+      kind: 'person',
+      person: {
+        person: { name: 'Katrin Uhlig', fraktion: 'GRÜNE' },
+        aktivitaeten: [],
+        speeches: [
+          {
+            speaker: 'Katrin Uhlig',
+            party: 'GRÜNE',
+            date: '2026-09-24',
+            excerpt: 'Kurzer Auszug',
+            protokollNummer: '21/96',
+            wahlperiode: 21,
+            herausgeber: 'BT',
+            topTitle: 'Wärmeplanung',
+            score: 0.8,
+          },
+          {
+            speaker: 'Katrin Uhlig',
+            party: 'GRÜNE',
+            date: null,
+            excerpt: 'Ohne Datum',
+            protokollNummer: null,
+            wahlperiode: 21,
+            herausgeber: null,
+            topTitle: null,
+            score: 0.7,
+          },
+        ],
+      },
+    });
+    plan.mockResolvedValue(planWith([]));
+    const { results } = await retrieveBundestag('Katrin Uhlig', 'de-DE');
+    const reden = results.filter((r) => r.title.startsWith('Rede:'));
+    expect(reden[0].content).toContain(
+      'Wortlaut: bundestag_reden mit thema "Wärmeplanung", redner "Katrin Uhlig", datumVon "2026-09-24", datumBis "2026-09-24"'
+    );
+    expect(reden[1].content).toContain(
+      'Wortlaut: bundestag_reden mit thema "Katrin Uhlig", redner "Katrin Uhlig"'
+    );
+    expect(reden[1].content).not.toContain('datumVon');
   });
 
   it('Wurf der Planstufe: alte Ergebnisse', async () => {
