@@ -258,6 +258,15 @@ export const evalExpectSchema = z
     /** No scrape_url call errored (model-invented / dead URL). */
     noInventedUrls: z.boolean().optional(),
     /**
+     * Jede Ref, die `parlament_lesen` bekommt (`args.dokumente`), stand vorher in
+     * einer Werkzeugausgabe desselben Threads (frühere Turns eingeschlossen).
+     * Die Schwester von `noInventedUrls` für Bundestags-Refs: das Werkzeug
+     * verbietet selbst gebaute Refs („PlPr 21/96 S. 1-200", live 29.10.2026),
+     * und nur der Trace kann beweisen, dass sich das Modell daran hält.
+     * Ohne Aufruf von `parlament_lesen` besteht die Prüfung trivial.
+     */
+    keineErfundeneRef: z.boolean().optional(),
+    /**
      * Product question about the Grünerator itself: the answer must rest on the
      * product sources — a `product_knowledge` / `gruenerator_docs_search` call,
      * or at least one doku.gruenerator.eu link that exists in the docs index.
@@ -514,6 +523,10 @@ export interface ScenarioContext {
   lastSharepicVariant: Record<string, unknown> | null;
   /** Citations surfaced across all earlier turns (retainsPriorSources). */
   priorSourceCount: number;
+  /** Rohe Werkzeugergebnisse aller früheren Turns (keineErfundeneRef). Fehlt = keine. */
+  priorToolResults?: Record<string, unknown>[];
+  /** Nachrichten der Person bis einschließlich dieses Turns (keineErfundeneRef). Fehlt = keine. */
+  userPrompts?: string[];
 }
 
 /** One executed turn — enriched so the LLM judge can consume last-run.json. */

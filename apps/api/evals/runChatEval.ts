@@ -438,6 +438,8 @@ async function runTurn(
   // `expect` teils den falschen Zustand. Ein Turn, der das weiss, trägt seine
   // Wirkungs-Zusicherung für diesen Fall selbst mit.
   const effectiveExpect = LOOP_OFF && turn.expectWhenLoopOff ? turn.expectWhenLoopOff : turn.expect;
+  // Was die Person selbst nennt („was steht in 21/1928?"), ist keine erfundene Ref.
+  scenarioCtx.userPrompts?.push(turn.prompt);
   const assertions = runAssertions(trace, effectiveExpect, scenarioCtx);
 
   // Thread the context forward.
@@ -455,6 +457,9 @@ async function runTurn(
   }
   if (scenarioCtx.firstThreadId == null) scenarioCtx.firstThreadId = trace.threadId;
   scenarioCtx.priorSourceCount += trace.sources;
+  for (const call of trace.toolCalls) {
+    if (call.result) scenarioCtx.priorToolResults?.push(call.result);
+  }
 
   return {
     turnIndex: turnIdx,
@@ -508,6 +513,8 @@ async function runScenario(scenario: EvalScenario): Promise<CaseResult> {
     priorArtifactIds: [],
     lastSharepicVariant: null,
     priorSourceCount: 0,
+    priorToolResults: [],
+    userPrompts: [],
   };
   const turns: TurnResult[] = [];
   const decisionTurns: DecisionMapTurn[] = [];
