@@ -92,6 +92,7 @@ import { materialDominatesTurn, resolveLoopMode } from './loopMode.js';
 import { createAnswerEmitter } from './loopSse.js';
 import { buildToolObservationReplay, spliceToolReplay } from './mcpReplay.js';
 import { stripDuplicatedOpening } from './openingDedupe.js';
+import { buildUncoveredTermNote } from './questionTermCoverage.js';
 import { type RecipeRegistry } from './recipeRegistry.js';
 import { createRerankDegradedHook } from './rerankWarning.js';
 import { rewritesSuppliedText } from './routing.js';
@@ -848,8 +849,14 @@ export async function streamAgenticResponse(
       },
       // Unified mode only — read per step because `rezept_laden` fills the
       // registry mid-loop. Split mode's writer gets it via buildSynthSystem.
+      // Auch die Notiz „Gegenstand ohne Quelle" (#5141): im Split-Modus trägt
+      // sie buildSynthSystem, hier ist dieser Getter der einzige Kanal.
       getRecipeBlock: () =>
-        recipeRegistry.render() + offerNote(finalState, recipeRegistry.mentions),
+        recipeRegistry.render() +
+        offerNote(finalState, recipeRegistry.mentions) +
+        (sourceRegistry.size > 0
+          ? buildUncoveredTermNote(lastUserText, sourceRegistry.renderAll())
+          : ''),
       // Prepend the reconstructed tool-call/result history just before the
       // current user message so tool_call↔result pairs stay adjacent + valid.
       // The splice also bridges tool→user, which mistral-common rejects.
