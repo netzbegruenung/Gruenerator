@@ -53,6 +53,7 @@ describe('deckStil auf der Seite', () => {
       },
     ]);
     const page = readPages(doc)[0];
+    let live: Record<string, unknown> = {};
     const callbacks = createPageSyncedCallbacks(
       () => ({ onLine1Change: () => {} }),
       (partial) =>
@@ -70,11 +71,21 @@ describe('deckStil auf der Seite', () => {
             onCancel={() => {}}
             callbacks={callbacks}
             autoSave={false}
+            onLiveState={(liveState) => {
+              live = liveState as Record<string, unknown>;
+            }}
             pageBinding={{ pageYMap: page.yMap, isSynced: true }}
           />
         </AutoSaveStoreProvider>
       );
     });
+
+    // Der lebende Zustand der Fläche kennt den Schlüssel NICHT: die
+    // createInitialState der Vorlage liest nur ihre benannten Felder. Das ist
+    // der heutige Stand und schadet nicht, solange nichts den ganzen lebenden
+    // Zustand zurück ins Dokument schreibt (siehe Allowlist unten). Wer das
+    // ändert, muss deckStil mittragen, und dieser Test wird rot.
+    expect(live.deckStil).toBeUndefined();
 
     // Lokale Bearbeitung: der Host schreibt nur den geänderten Text.
     await act(async () => {
@@ -84,6 +95,11 @@ describe('deckStil auf der Seite', () => {
     await act(async () => {
       doc.transact(() => updatePageStateById(doc, PAGE_ID, { line2: 'Fremd' }), REMOTE_ORIGIN);
     });
+
+    expect(live.deckStil).toBeUndefined();
+    // Zurückgeschrieben wird nur eine Allowlist (useEmitHostStateChanges),
+    // und deckStil steht nicht darauf: das Dokument behält den Stil.
+    expect(pageElementStateKeys()).not.toContain('deckStil');
 
     const state = readPages(doc)[0]!.state;
     expect(state.line1).toBe('Neu');
