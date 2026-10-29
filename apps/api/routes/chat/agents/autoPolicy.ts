@@ -465,9 +465,10 @@ export function resolveAutoSelection(input: AutoSelectionInput): AutoSelection {
  * these into LanguageModel instances (it owns env + getModel).
  *
  * PLANNER: Gemma 4 31B auf MELIOUS (`:balanced`, ohne Denken), dieselben
- * Gewichte auf Cortecs dahinter, Gemma 4 auf GreenPT zuletzt (seit 21.10.2026,
- * #4785; vorher Mistral Small 4 auf Melious und Mistral Large — teuer für eine
- * Rolle, die nur Werkzeuge wählt). Der Planer ruft nur Werkzeuge
+ * Gewichte auf Cortecs dahinter, Mistral Small 4 bei Mistral zuletzt (seit
+ * 28.10.2026, #5113; vom 21.10. an Gemma 4 auf GreenPT, davor Mistral Small 4
+ * auf Melious und Mistral Large — teuer für eine Rolle, die nur Werkzeuge
+ * wählt). Der Planer ruft nur Werkzeuge
  * und formuliert Suchanfragen (der Synth schreibt die Prosa), er läuft in JEDEM
  * agentischen Zug.
  *
@@ -503,8 +504,9 @@ export function resolveAutoSelection(input: AutoSelectionInput): AutoSelection {
  *    Gateway-Ausfall trifft nur eine Stufe; ein Problem des Modells selbst
  *    trifft Melious und Cortecs gleich. Gemessen am 21.10.2026 (#4785): ein
  *    erzwungener Schritt, der dem Prompt widerspricht, hing auf beiden 3/3
- *    Mal über 50 s, GreenPT antwortete in 3–10 s. Gegen diese Klasse hilft
- *    die Kette nicht, nur der Zuschnitt (`forcedFirstStepTools`).
+ *    Mal über 50 s, GreenPTs Gemma (damals dritte Stufe) antwortete in
+ *    3–10 s. Gegen diese Klasse hilft erst die dritte Stufe (andere Familie)
+ *    oder der Zuschnitt (`forcedFirstStepTools`).
  *
  * `:balanced` trägt ~45k Tokens; was darüber liegt, schickt `meliousFetch` auf
  * `:speed` (siehe meliousThinkingFetch.ts). `:eco` wurde bewusst NICHT gewählt:
@@ -531,17 +533,25 @@ export const LOOP_PLANNER_HEALTHY_ALT = {
   contextWindow: GEMMA_31B_ON_CORTECS.contextWindow,
 };
 /**
- * Die letzte Stufe: Gemma 4 auf GreenPT, eine andere Größe und ein drittes
- * Gateway. Zwei Eigenheiten, beide am 21.10.2026 gemessen: GreenPTs Gemma
- * denkt immer (siehe `greenptThinkingFetch`), und es hält sich nicht an
- * `tool_choice: required` — mit neun Werkzeugen kam Prosa, mit einem ein
- * Aufruf eines nicht angebotenen Werkzeugs. Als letzte Stufe genügt das: ohne
- * Aufruf schreibt der Synth aus dem, was da ist.
+ * Die letzte Stufe: Mistral Small 4 direkt bei Mistral — eine andere
+ * Modellfamilie und ein drittes Gateway.
+ *
+ * Bis 28.10.2026 stand hier Gemma 4 auf GreenPT. GreenPT behandelt einen
+ * benannten und einen `required`-`tool_choice` nur als Bitte (#5113, direkt
+ * gemessen, je 3 Läufe): auf die passende Frage kam der Aufruf, auf „Hallo"
+ * Prosa, bei `required` sogar mit `finish_reason: tool_calls` ohne Aufruf.
+ * Live hiess das: eine @-Erwähnung lief nicht, sobald GreenPT den Zug übernahm.
+ *
+ * Mistral Small 4 in derselben Messung: auf die passende Frage 9/9 Aufrufe
+ * (~0,6 s). Erzwingen kann es einen Aufruf GEGEN den Prompt aber auch nicht —
+ * auf „Hallo" kam unter beiden Wahlen 9/9 Prosa bis `length` (~10 s). Das
+ * erzwingt nur Mistral Large 4 (18/18); bis 21.10.2026 stand Large hier und
+ * fiel aus Kostengründen weg (#4785).
  */
 export const LOOP_PLANNER_FALLBACK = {
-  provider: 'greenpt' as const,
-  model: 'gemma4',
-  /** `CTX_FULL` wie GEMMA_4_GREENPT in providers.ts — der importiert diese Datei. */
+  provider: 'mistral' as const,
+  model: 'mistral-small-latest',
+  /** `CTX_FULL` der Mistral-Lanes in providers.ts. */
   contextWindow: 262_144,
 };
 /** Die Ausweichkette in Reihenfolge — ein Zug versucht sie in dieser Folge. */
@@ -552,7 +562,7 @@ export const LOOP_PLANNER_CHAIN = [
 ] as const;
 /**
  * Nur, wenn KEIN Planer-Anbieter konfiguriert ist (CI, lokale Setups): der
- * Mistral-Getter wirft ohne Schlüssel nicht, die der drei Stufen schon. Ein
+ * Mistral-Getter wirft ohne Schlüssel nicht, die der Gemma-Stufen schon. Ein
  * werfender Getter tötete am 14.08.2026 jeden agentischen Zug, bevor er den
  * ersten Modellaufruf erreichte.
  */

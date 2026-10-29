@@ -18,7 +18,12 @@ import {
 } from '../../../services/ai/gemmaHosts.js';
 import { PANDA_LANE_MODEL, isExcludedTextModel } from '../../../services/ai/textModelPolicy.js';
 
-import { LOOP_SYNTH_FALLBACK, LOOP_SYNTH_PRIMARY, mayWriteAnswer } from './autoPolicy.js';
+import {
+  LOOP_PLANNER_CHAIN,
+  LOOP_SYNTH_FALLBACK,
+  LOOP_SYNTH_PRIMARY,
+  mayWriteAnswer,
+} from './autoPolicy.js';
 
 /**
  * Die Lanes, die eine Nutzer-Antwort schreiben dürfen.
@@ -55,10 +60,12 @@ describe('split-mode model policy (getLoopSynthModel / loopPlannerModelName)', (
     // gpt-oss — das Modell, das `AVOID_AS_SYNTH` ausschliesst und einen
     // erzwungenen Werkzeugaufruf mit Prosa beantwortet.
     // Werkzeugaufrufe beider Melious-Stufen wurden am 29.09.2026 live geprüft.
+    // Seit 28.10.2026 (#5113) ist die letzte Stufe Mistral Small 4 bei Mistral.
     const planner = loopPlannerModelName();
     expect([
       GEMMA_31B_ON_MELIOUS.model,
       'mistral-small-4-119b-instruct',
+      'mistral-small-latest',
       'mistral-large-4',
     ]).toContain(planner);
     // The invariant behind that list, spelled out so widening the constants
@@ -66,11 +73,13 @@ describe('split-mode model policy (getLoopSynthModel / loopPlannerModelName)', (
     expect(planner).not.toMatch(/qwen|glm|kimi|minimax|deepseek|think/i);
   });
 
-  it('the planner never runs Mistral Small on the vendor API', () => {
-    // Mistral Small is served via Melious — never `mistral-small-latest`, which
-    // would bill the Mistral API. The lane moved hosts (13.08. and 29.09.2026);
-    // the rule about the vendor API did not.
-    expect(loopPlannerModelName()).not.toBe('mistral-small-latest');
+  it('bills the Mistral API for the planner only on its last stage', () => {
+    // `mistral-small-latest` bills the Mistral API. Since 28.10.2026 (#5113) it
+    // is the last planner stage on purpose — GreenPT, its predecessor, ignored
+    // a forced tool_choice — and it must stay there: reached only after both
+    // Gemma gateways failed, never as a first choice.
+    const vendorSmall = LOOP_PLANNER_CHAIN.map((s) => s.model === 'mistral-small-latest');
+    expect(vendorSmall).toEqual([...vendorSmall.slice(0, -1).map(() => false), true]);
   });
 
   it('resolves to a usable model even when NO provider is configured', () => {

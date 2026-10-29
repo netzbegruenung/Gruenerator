@@ -8,16 +8,19 @@
  * sets `thumbnail_path`. Touches only the `thumbs/` directory + that JSONB; it
  * never rescrapes or rewrites originals.
  *
- * New uploads get this automatically (sharedMediaService.processMediaVariants);
+ * Videos without a poster get one (sharedMediaService.processVideoPoster):
+ * a frame as `poster.jpg`, its variants, BlurHash, size and duration.
+ *
+ * New uploads get this automatically (processMediaVariants / processVideoPoster);
  * this script warms the cache for media uploaded before the feature landed.
  *
  * Usage:
  *   npx tsx scripts/backfillMediaVariants.ts [options]
  *
  * Options:
- *   --dry-run        List how many images would be processed; generate nothing.
- *   --limit N        Max images to process (default: unlimited).
- *   --force          Reprocess even rows that already have a blurhash.
+ *   --dry-run        List how many items would be processed; generate nothing.
+ *   --limit N        Max items to process (default: unlimited).
+ *   --force          Reprocess even rows that already have a blurhash / poster.
  */
 
 import dotenv from 'dotenv';
@@ -35,6 +38,8 @@ interface CliArgs {
 
 interface ImageRow {
   share_token: string;
+  media_type: 'image' | 'video';
+  thumbnail_path: string | null;
   file_path: string | null;
   image_metadata: { blurhash?: string } | null;
 }
@@ -60,17 +65,20 @@ async function main(): Promise<void> {
   await service.ensureInitialized();
 
   const rows = await postgres.query<ImageRow>(
-    `SELECT share_token, file_path, image_metadata
+    `SELECT share_token, media_type, thumbnail_path, file_path, image_metadata
        FROM shared_media
-      WHERE media_type = 'image' AND file_path IS NOT NULL
+      WHERE media_type IN ('image', 'video') AND file_path IS NOT NULL
       ORDER BY created_at DESC`
   );
 
-  const pending = rows.filter((r) => args.force || !r.image_metadata?.blurhash);
+  const pending = rows.filter(
+    (r) =>
+      args.force || (r.media_type === 'video' ? !r.thumbnail_path : !r.image_metadata?.blurhash)
+  );
   const targets = args.limit > 0 ? pending.slice(0, args.limit) : pending;
 
   console.log(
-    `Images: ${rows.length} total, ${pending.length} missing variants` +
+    `Images and videos: ${rows.length} total, ${pending.length} missing variants` +
       `${args.limit > 0 ? `, processing ${targets.length} (--limit)` : ''}\n`
   );
 
@@ -83,7 +91,10 @@ async function main(): Promise<void> {
   let failed = 0;
   for (const row of targets) {
     try {
-      const ok = await service.regenerateMediaVariants(row.share_token, row.file_path!);
+      const ok =
+        row.media_type === 'video'
+          ? await service.regenerateVideoPoster(row.share_token, row.file_path!)
+          : await service.regenerateMediaVariants(row.share_token, row.file_path!);
       if (ok) {
         done++;
       } else {

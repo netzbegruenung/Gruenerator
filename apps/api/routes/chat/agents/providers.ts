@@ -841,7 +841,7 @@ function plannerStageUsable(stage: { provider: Provider; model: string }): boole
 }
 
 function loopPlannerChoice(): { provider: Provider; model: string; contextWindow: number } {
-  // Melious, Cortecs, GreenPT — see LOOP_PLANNER_PRIMARY in autoPolicy.ts for
+  // Melious, Cortecs, Mistral — see LOOP_PLANNER_PRIMARY in autoPolicy.ts for
   // why and for the measurements.
   const usable = LOOP_PLANNER_CHAIN.find(plannerStageUsable);
   if (usable) return usable;
