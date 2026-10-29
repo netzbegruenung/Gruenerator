@@ -135,6 +135,44 @@ function filterDate(iso: string): string {
   return y && m && d ? `${d}.${m}.${y}` : iso;
 }
 
+/** Fragt die Frage nach der Antwort der Bundesregierung (nicht nach den Fragen)? */
+const ANTWORT_FRAGE_RE = /antwort/i;
+const ANFRAGE_TYPEN = ['Kleine Anfrage', 'Große Anfrage'];
+
+type AntwortStand =
+  | { stand: 'vorhanden'; anfrage: string; antworten: string[] }
+  | { stand: 'ausstehend'; anfrage: string; typ: string; datum: string };
+
+/**
+ * Wie weit ist die Anfrage `ref`? Aus der Familie ihres Vorgangs: trägt sie eine
+ * Antwort-Drucksache, ist die Antwort da; sonst wartet die Anfrage noch (live
+ * 29.10.2026: 21/8725, Kleine Anfrage vom 20.10., „Der Aufruf … ist fehlgeschlagen"
+ * statt „liegt noch nicht vor"). `null`, wenn `ref` keine Anfrage ist oder die
+ * Familie sie nicht enthält — dann wird nichts behauptet.
+ */
+function antwortStandVon(
+  ref: string,
+  documents: { ref: string; drucksachetyp: string; datum: string }[] | undefined
+): AntwortStand | null {
+  const eigene = documents?.find((d) => d.ref === ref);
+  if (!eigene || !ANFRAGE_TYPEN.includes(eigene.drucksachetyp)) return null;
+  const antworten = (documents ?? [])
+    .filter((d) => d.drucksachetyp === 'Antwort')
+    .map((d) => d.ref);
+  return antworten.length > 0
+    ? { stand: 'vorhanden', anfrage: ref, antworten }
+    : { stand: 'ausstehend', anfrage: ref, typ: eigene.drucksachetyp, datum: eigene.datum };
+}
+
+/** Der Befund in Worten für die Person; die 14 Tage gelten für Kleine Anfragen (GO-BT Anlage 4). */
+function antwortAusstehendText(a: Extract<AntwortStand, { stand: 'ausstehend' }>): string {
+  const frist = a.typ === 'Kleine Anfrage' ? '; die Frist beträgt in der Regel 14 Tage' : '';
+  return `Die Antwort der Bundesregierung auf ${bundestagRefLabel(a.anfrage)} liegt noch nicht vor (${a.typ} vom ${filterDate(a.datum)}${frist}).`;
+}
+
+const ANTWORT_AUSSTEHEND_SCHRITT =
+  'Der Person sagen, dass die Antwort noch nicht vorliegt. Den Inhalt der Anfrage nicht als Antwort ausgeben und keine Antwort vermuten.';
+
 /**
  * Die angewandten Filter in Worten, eine Zeile je Filter, für die Karte im Chat.
  * Leere Listen und `undefined` fallen weg; `dokumentnummer` und `mitBeratung`
@@ -243,8 +281,8 @@ Nicht für Inhalte, dafür parlament_lesen. Nicht für Reden im Plenum, dafür b
         return {
           resultCount: 0,
           sources: '',
-          error:
-            'Die Dokumentfamilie gibt es nur für Drucksachen (z. B. 21/3546). Für ein Plenarprotokoll `parlament_lesen` mit dieser Ref nutzen.',
+          error: 'Die Dokumentfamilie gibt es nur für Drucksachen (z. B. 21/3546).',
+          naechsterSchritt: 'Für ein Plenarprotokoll `parlament_lesen` mit dieser Ref nutzen.',
         };
       }
       // Das Modell kürzt die Frage oft aufs Thema („Artenschutz") und verliert
@@ -288,12 +326,17 @@ Nicht für Inhalte, dafür parlament_lesen. Nicht für Reden im Plenum, dafür b
           return { resultCount: 0, sources: '', error: `Zu ${ref} wurde bei DIP nichts gefunden.` };
         }
         const sources = sourceRegistry.register(family.results, { snippetChars: 3000 });
+        const antwort = antwortStandVon(ref, family.documents);
+        const hinweise = [
+          ...family.notes,
+          ...(antwort?.stand === 'ausstehend' ? [antwortAusstehendText(antwort)] : []),
+        ];
         return {
           resultCount: family.results.length,
           sources: sources ?? '',
           hinweis: BUNDESTAG_HINWEIS,
           ...landtagNote(userText),
-          ...(family.notes.length > 0 ? { hinweise: family.notes } : {}),
+          ...(hinweise.length > 0 ? { hinweise } : {}),
           uiCard: {
             query: query ?? `Familie von ${bundestagRefLabel(ref)}`,
             ref: bundestagRefLabel(ref),
@@ -379,8 +422,9 @@ Nicht für Inhalte, dafür parlament_lesen. Nicht für Reden im Plenum, dafür b
         return {
           resultCount: 0,
           sources: '',
-          error:
-            'Die Bundestags-Suche (DIP) ist gerade nicht erreichbar — das ist kein „keine Treffer". Später erneut versuchen; für Reden `bundestag_reden` probieren.',
+          error: 'Die Bundestags-Suche (DIP) ist gerade nicht erreichbar.',
+          naechsterSchritt:
+            'Das ist kein „keine Treffer". Später erneut versuchen; für Reden `bundestag_reden` probieren.',
         };
       }
       if (leerDurchFilter) {
@@ -388,7 +432,9 @@ Nicht für Inhalte, dafür parlament_lesen. Nicht für Reden im Plenum, dafür b
         return {
           resultCount: 0,
           sources: '',
-          error: `Keine Treffer mit diesen Filtern: ${zeilen.join('; ') || 'siehe Aufruf'}. Einen Filter lockern (Zeitraum erweitern, Typ oder Urheber weglassen) und erneut suchen; ohne Treffer zählt das nicht als „es gibt nichts".`,
+          error: `Keine Treffer mit diesen Filtern: ${zeilen.join('; ') || 'siehe Aufruf'}.`,
+          naechsterSchritt:
+            'Einen Filter lockern (Zeitraum erweitern, Typ oder Urheber weglassen) und erneut suchen; ohne Treffer zählt das nicht als „es gibt nichts".',
         };
       }
       if (results.length === 0) {
@@ -605,7 +651,7 @@ function lesenRatschlag(
       'Bei einer frisch veröffentlichten Drucksache liegt der Text oft noch nicht vor (DIP ohne Text, PDF noch nicht abrufbar); das der Person so sagen, nicht raten.'
     );
   }
-  return saetze.length > 0 ? ` ${saetze.join(' ')}` : '';
+  return saetze.join(' ');
 }
 
 /**
@@ -650,15 +696,77 @@ Refs nie selbst bilden oder Seiten schätzen: nur aus einer Zeile „Ref: …“
       if (!isIntentAllowedForLocale('bundestag', state.userLocale)) {
         return { resultCount: 0, sources: '', error: intentDeclineNote('bundestag') ?? '' };
       }
-      const { documents, notes, nichtGefunden } = await readBundestagRefs({
+      // Gefragt ist die Antwort der Bundesregierung, gegeben ist die Ref der Anfrage:
+      // die Antwort ist eine eigene Drucksache, die Anfrage selbst beantwortet nichts.
+      // Liegt die Antwort vor, wird sie gelesen (statt der Anfrage); liegt sie noch
+      // nicht vor, ist das ein Befund und kein Fehlschlag.
+      const antworten = ANTWORT_FRAGE_RE.test(frage)
+        ? await Promise.all(
+            dokumente.slice(0, 2).map(async (ref): Promise<AntwortStand | null> => {
+              if (ref.startsWith('PlPr')) return null;
+              let family: Awaited<ReturnType<typeof retrieveBundestagFamily>> | null = null;
+              try {
+                family = await retrieveBundestagFamily(ref, state.userLocale);
+              } catch (err) {
+                log.warn(`[parlament_lesen] Familie von ${ref} nicht ladbar: ${String(err)}`);
+              }
+              return antwortStandVon(ref, family?.documents);
+            })
+          )
+        : [];
+      const ausstehend = antworten.flatMap((a) => (a?.stand === 'ausstehend' ? [a] : []));
+      const vorhanden = new Map(
+        antworten.flatMap((a) =>
+          a?.stand === 'vorhanden' ? [[a.anfrage, a.antworten] as const] : []
+        )
+      );
+      const zuLesen = [
+        ...new Set(
+          dokumente
+            .filter((ref) => !ausstehend.some((a) => a.anfrage === ref))
+            .flatMap((ref) => vorhanden.get(ref) ?? [ref])
+        ),
+      ].slice(0, CHAT_BUDGET.maxDocuments);
+      const antwortHinweise = [
+        ...ausstehend.map(antwortAusstehendText),
+        ...[...vorhanden].map(
+          ([anfrage, refs]) =>
+            `Die Antwort auf ${bundestagRefLabel(anfrage)} ist ${refs.map(bundestagRefLabel).join(', ')}; gelesen wurde sie statt der Anfrage.`
+        ),
+      ];
+      if (zuLesen.length === 0) {
+        return {
+          resultCount: 0,
+          sources: '',
+          nichtGelesen: ausstehend.map((a) => ({
+            ref: a.anfrage,
+            grund: antwortAusstehendText(a),
+          })),
+          hinweise: antwortHinweise,
+          naechsterSchritt: ANTWORT_AUSSTEHEND_SCHRITT,
+          uiCard: {
+            frage,
+            ...(fokus ? { fokus } : {}),
+            gelesen: [],
+            nichtGelesen: ausstehend.map((a) => ({
+              ref: bundestagRefLabel(a.anfrage),
+              titel: '',
+              grund: 'Antwort liegt noch nicht vor',
+            })),
+          },
+        };
+      }
+      const gelesen = await readBundestagRefs({
         question: frage,
-        refs: dokumente,
+        refs: zuLesen,
         auftrag,
         budget: CHAT_BUDGET,
         ...(fokus ? { fokus } : {}),
         // Der Loop schreibt den Aufruf nach seiner Frist ab; dieses Signal stoppt dann das Weiterlesen.
         ...(options?.abortSignal ? { abortSignal: options.abortSignal } : {}),
       });
+      const { documents, nichtGefunden } = gelesen;
+      const notes = [...gelesen.notes, ...antwortHinweise];
       const results: SearchResult[] = documents
         .filter((d) => d.points.length > 0)
         .map((d, i) => ({
@@ -672,6 +780,7 @@ Refs nie selbst bilden oder Seiten schätzen: nur aus einer Zeile „Ref: …“
         d.fehlgrund?.text ??
         (d.skipped ? NICHT_GELESEN_GRUND[d.skipped] : 'keine belegte Aussage zur Frage');
       const nichtGelesen = [
+        ...ausstehend.map((a) => ({ ref: a.anfrage, grund: antwortAusstehendText(a) })),
         ...nichtGefunden.map((ref) => ({ ref, grund: NICHT_GEFUNDEN_GRUND })),
         ...documents
           .filter((d) => d.points.length === 0)
@@ -694,14 +803,21 @@ Refs nie selbst bilden oder Seiten schätzen: nur aus einer Zeile „Ref: …“
       const nichtsGelesen =
         results.length === 0 && nichtGelesen.length > 0
           ? {
-              error: `Nichts gelesen — ${nichtGelesen.map((n) => `${n.ref}: ${n.grund}`).join('; ')}.${lesenRatschlag(documents, nichtGefunden.length > 0)}`,
+              error: `Nichts gelesen — ${nichtGelesen.map((n) => `${n.ref}: ${n.grund}`).join('; ')}.`,
             }
           : {};
+      const naechsterSchritt = [
+        ausstehend.length > 0 ? ANTWORT_AUSSTEHEND_SCHRITT : '',
+        nichtsGelesen.error ? lesenRatschlag(documents, nichtGefunden.length > 0) : '',
+      ]
+        .filter(Boolean)
+        .join(' ');
       return {
         resultCount: results.length,
         sources: sources ?? '',
         nichtGelesen,
         ...nichtsGelesen,
+        ...(naechsterSchritt ? { naechsterSchritt } : {}),
         ...(notes.length > 0 || fokusNotes.length > 0
           ? { hinweise: [...notes, ...fokusNotes] }
           : {}),
