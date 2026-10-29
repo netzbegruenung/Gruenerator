@@ -472,6 +472,12 @@ async function runTurn(
   for (const call of trace.toolCalls) {
     if (call.result) scenarioCtx.priorToolResults?.push(call.result);
   }
+  // Was das Modell als Belege sah: der `sources`-Block jedes Werkzeugergebnisses
+  // im Szenario bis hierher (frühere Turns zitiert der Turn weiter mit [N]).
+  const evidence = (scenarioCtx.priorToolResults ?? [])
+    .map((r) => (typeof r.sources === 'string' ? r.sources.trim() : ''))
+    .filter(Boolean)
+    .join('\n\n');
 
   return {
     turnIndex: turnIdx,
@@ -487,6 +493,7 @@ async function runTurn(
       // Modell dem Werkzeug übergeben hat (`toolArgsMatch` prüft sie live).
       args: t.args,
     })),
+    ...(evidence ? { evidence } : {}),
     threadId: trace.threadId,
     warnings: trace.warnings,
     interrupts: trace.interrupts,
