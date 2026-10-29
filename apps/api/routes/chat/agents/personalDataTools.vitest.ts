@@ -263,6 +263,30 @@ describe('find_content', () => {
 
 // --- documents ---------------------------------------------------------------
 describe('documents', () => {
+  // Fehleingabe-Matrix, documents: „nicht gefunden" nur, wo die Liste vollständig war.
+  it.each([
+    ['kurze Liste (vollständig)', 3, /gibt es unter deinen Dokumenten nicht/],
+    ['volles 200er-Fenster', 200, /nicht unter deinen neuesten 200.*ältere wurden nicht geprüft/],
+  ])('get mit unbekannter id, %s', async (_n, count, ursache) => {
+    listUserDocuments.mockResolvedValue(
+      Array.from({ length: count }, (_, i) => ({
+        id: `d${i}`,
+        title: `T${i}`,
+        document_subtype: 'docs',
+      }))
+    );
+    const out = (await exec(makeDocumentsTool(ctx('u1')), {
+      action: 'get',
+      id: 'unbekannt',
+      permission: 'viewer',
+      confirm: false,
+      limit: 15,
+    })) as { error?: string; fehlerArt?: string };
+    expect(out.fehlerArt).toBe('nicht_gefunden');
+    expect(out.error).toMatch(ursache);
+    expect(out.error).toMatch(/documents list.*find_content/);
+  });
+
   it('rename is refused without write access', async () => {
     listUserDocuments.mockResolvedValue([{ id: 'd1', title: 'Alt', document_subtype: 'docs' }]);
     hasWriteAccess.mockResolvedValue(false);
@@ -436,6 +460,23 @@ describe('boards_tasks', () => {
     expect(out.cards[0].title).toBe('Plakate');
     // resolved from state, never via a per-card getCardSnapshot reload:
     expect(resolveCardDisplay).toHaveBeenCalledTimes(2);
+  });
+
+  it('get_cards: cardCount ist die Gesamtzahl, nicht die gezeigten 50', async () => {
+    const rows = Array.from({ length: 120 }, (_, i) => ({
+      id: `r${i}`,
+      snap: { cardTitle: `K${i}`, statusLabel: 'Offen', dueDate: null, assigneeNames: [] },
+    }));
+    loadBoardState.mockResolvedValue({ ...board, rows });
+    const out = (await exec(makeBoardsTasksTool(ctx('u1')), {
+      action: 'get_cards',
+      boardId: 'b1',
+      limit: 15,
+    })) as { cardCount: number; shownCount: number; cards: unknown[]; hinweis?: string };
+    expect(out.cardCount).toBe(120);
+    expect(out.shownCount).toBe(50);
+    expect(out.cards).toHaveLength(50);
+    expect(out.hinweis).toMatch(/50 von 120/);
   });
 
   it('my_tasks keeps only cards with a due date or assignee', async () => {
