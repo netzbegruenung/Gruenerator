@@ -114,9 +114,14 @@ export function verletzungen(assertions: readonly AssertionResult[]): Verletzung
 }
 
 /** Ampel aus Verletzungen und optionaler Richternote (1–5). */
-export function ampelOf(viol: readonly Verletzung[], note: number | null): Ampel {
+export function ampelOf(
+  viol: readonly Verletzung[],
+  note: number | null,
+  richterBefunde: readonly string[] = []
+): Ampel {
   if (viol.some((v) => v.stufe === 'hart')) return 'rot';
-  if (viol.length > 0) return 'gelb';
+  // Eine durchgefallene Richter-Rubrik färbt gelb, nie rot (Richter allein macht nie rot).
+  if (viol.length > 0 || richterBefunde.length > 0) return 'gelb';
   if (note !== null && note <= NOTE_GELB_BIS) return 'gelb';
   return 'gruen';
 }
@@ -125,6 +130,8 @@ export interface FallBewertung {
   ampel: Ampel;
   verletzungen: Verletzung[];
   note: number | null;
+  /** Rubriken (außer der Note), die der Richter verneint hat. */
+  richterBefunde: string[];
 }
 
 /**
@@ -133,13 +140,19 @@ export interface FallBewertung {
  */
 export function bewerteFall(
   c: Pick<CaseResult, 'assertions' | 'error'>,
-  note: number | null = null
+  note: number | null = null,
+  richterBefunde: readonly string[] = []
 ): FallBewertung {
   const viol = verletzungen(c.assertions);
   if (c.error && !viol.some((v) => v.stufe === 'hart')) {
     viol.push({ name: 'streamCompleted', stufe: 'hart', detail: c.error });
   }
-  return { ampel: ampelOf(viol, note), verletzungen: viol, note };
+  return {
+    ampel: ampelOf(viol, note, richterBefunde),
+    verletzungen: viol,
+    note,
+    richterBefunde: [...richterBefunde],
+  };
 }
 
 export interface Zusammenfassung {
@@ -174,6 +187,7 @@ export function zusammenfassen(
     if (b.ampel !== 'gruen') {
       const punkte = b.verletzungen.map((v) => `${v.name} (${v.stufe})`);
       if (b.note !== null && b.note <= NOTE_GELB_BIS) punkte.push(`Note ${b.note}`);
+      for (const r of b.richterBefunde) punkte.push(`Richter: ${r}`);
       z.auffaellig.push({ id, ampel: b.ampel, punkte });
     }
   }

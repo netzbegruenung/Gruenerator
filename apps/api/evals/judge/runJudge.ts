@@ -24,14 +24,21 @@
  * event fired or zero tools ran but text was produced — those are exactly the
  * shapes the historical class-5/11 bugs took.
  */
-import { readFileSync, writeFileSync, existsSync } from 'node:fs';
+import { readFileSync, writeFileSync, existsSync, statSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { bewerteFall, zusammenfassen, zusammenfassungZeilen } from '../ampel.js';
 
 import { buildRubricPrompt, rubricsForTurn } from './rubrics.js';
-import { type JudgeVerdict, noteJeFall, parseNote } from './verdicts.js';
+import {
+  type JudgeVerdict,
+  noteJeFall,
+  parseNote,
+  richterBefundeJeFall,
+  runIdOfMtime,
+  type VerdictFile,
+} from './verdicts.js';
 
 import type { CaseResult } from '../types.js';
 
@@ -168,17 +175,23 @@ async function main(): Promise<void> {
     `\n${verdicts.length - failed.length - nulls.length}/${verdicts.length} passed · ${failed.length} failed · ${nulls.length} unavailable`
   );
 
+  // Mit der Kennung des Laufs, damit die Prüfseite fremde Urteile nicht übernimmt.
+  const file: VerdictFile = { runId: runIdOfMtime(statSync(RUN_FILE).mtime), verdicts };
   writeFileSync(
     join(dirname(RUN_FILE), 'judge-verdicts.json'),
-    `${JSON.stringify(verdicts, null, 2)}\n`
+    `${JSON.stringify(file, null, 2)}\n`
   );
 
   // Ampel nach dem Richterlauf neu berechnet: deterministische Prüfungen + Note.
   const noten = noteJeFall(verdicts);
+  const befunde = richterBefundeJeFall(verdicts);
   const z = zusammenfassen(
     results
       .filter((c) => !c.knownFailure)
-      .map((c) => ({ id: c.id, bewertung: bewerteFall(c, noten.get(c.id) ?? null) }))
+      .map((c) => ({
+        id: c.id,
+        bewertung: bewerteFall(c, noten.get(c.id) ?? null, befunde.get(c.id) ?? []),
+      }))
   );
   console.log('');
   for (const line of zusammenfassungZeilen(z)) console.log(line);

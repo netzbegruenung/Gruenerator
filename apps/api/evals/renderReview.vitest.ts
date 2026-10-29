@@ -1,7 +1,12 @@
 import { describe, expect, it } from 'vitest';
 
 import { type JudgeVerdict } from './judge/verdicts.js';
-import { buildReviewData, renderReviewHtml } from './renderReview.js';
+import {
+  buildReviewData,
+  RICHTER_ANDERER_LAUF,
+  renderReviewHtml,
+  richterFuerLauf,
+} from './renderReview.js';
 
 import type { CaseResult, TurnResult } from './types.js';
 
@@ -141,5 +146,43 @@ describe('renderReview', () => {
     const d = buildReviewData(FAELLE, [], 'r');
     expect(d.zusammenfassung.durchschnittsnote).toBeNull();
     expect(renderReviewHtml(d)).toContain('kein Richter gelaufen');
+  });
+
+  it('verneinte Richter-Rubrik färbt den Fall gelb, nicht rot', () => {
+    const d = buildReviewData(
+      [fall('g')],
+      [{ caseId: 'g', turnIndex: 0, rubric: 'groundedness', pass: false, reason: 'ungedeckt' }],
+      'r'
+    );
+    expect(d.faelle[0]!.ampel).toBe('gelb');
+    expect(d.zusammenfassung).toMatchObject({ gruen: 0, gelb: 1, rot: 0 });
+  });
+
+  it('übernimmt Richterurteile nur bei passender runId', () => {
+    const file = { runId: 'A', verdicts: VERDICTS };
+    expect(richterFuerLauf(file, 'A')).toEqual({ verdicts: VERDICTS, hinweis: null });
+    expect(richterFuerLauf(file, 'B')).toEqual({ verdicts: [], hinweis: RICHTER_ANDERER_LAUF });
+    // Alte Form (nacktes Array) hat keine runId und passt zu keinem Lauf.
+    expect(richterFuerLauf(VERDICTS, 'A').hinweis).toBe(RICHTER_ANDERER_LAUF);
+  });
+
+  it('zeigt den Hinweis sichtbar auf der Seite', () => {
+    const html = renderReviewHtml(buildReviewData(FAELLE, [], 'B', RICHTER_ANDERER_LAUF));
+    expect(html).toContain('Richter-Ergebnisse gehören zu einem anderen Lauf, nicht übernommen');
+  });
+
+  it('übernimmt angefragtes Modell und gemeldete Fallbacks, erfindet kein verwendetes', () => {
+    const t = turn({
+      requestedModelId: 'gemma-4',
+      fallbacks: [{ von: 'a', nach: 'b', grund: 'timeout' }],
+    });
+    const d = buildReviewData([fall('m', { turns: [t] })], [], 'r');
+    expect(d.faelle[0]!.modell).toEqual({
+      intent: 'agentic',
+      agentic: true,
+      angefragt: 'gemma-4',
+      fallbacks: [{ von: 'a', nach: 'b', grund: 'timeout' }],
+    });
+    expect(buildReviewData(FAELLE, [], 'r').faelle[0]!.modell.angefragt).toBeNull();
   });
 });

@@ -44,3 +44,39 @@ export function noteJeFall(verdicts: readonly JudgeVerdict[]): Map<string, numbe
   }
   return out;
 }
+
+/** Rubriken, die der Richter für einen Fall verneint hat (ohne die Note). */
+export function richterBefundeJeFall(verdicts: readonly JudgeVerdict[]): Map<string, string[]> {
+  const out = new Map<string, string[]>();
+  for (const v of verdicts) {
+    if (v.rubric === 'antwortqualitaet' || v.pass !== false) continue;
+    const list = out.get(v.caseId) ?? [];
+    if (!list.includes(v.rubric)) list.push(v.rubric);
+    out.set(v.caseId, list);
+  }
+  return out;
+}
+
+/** Inhalt von `judge-verdicts.json`: die Urteile samt Kennung des Laufs, auf den sie sich beziehen. */
+export interface VerdictFile {
+  runId: string;
+  verdicts: JudgeVerdict[];
+}
+
+/** Kennung eines Laufs: Änderungszeit von last-run.json (ISO 8601). */
+export function runIdOfMtime(mtime: Date): string {
+  return mtime.toISOString();
+}
+
+/**
+ * Liest `judge-verdicts.json` tolerant: die alte Form (nacktes Array, ohne
+ * runId) liefert `runId: null` und passt damit zu keinem Lauf.
+ */
+export function parseVerdictFile(raw: unknown): { runId: string | null; verdicts: JudgeVerdict[] } {
+  if (Array.isArray(raw)) return { runId: null, verdicts: raw as JudgeVerdict[] };
+  const o = (raw ?? {}) as Partial<VerdictFile>;
+  return {
+    runId: typeof o.runId === 'string' ? o.runId : null,
+    verdicts: Array.isArray(o.verdicts) ? o.verdicts : [],
+  };
+}

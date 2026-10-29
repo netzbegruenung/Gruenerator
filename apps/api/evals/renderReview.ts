@@ -25,7 +25,13 @@ import {
   type Zusammenfassung,
   zusammenfassen,
 } from './ampel.js';
-import { type JudgeVerdict, noteJeFall } from './judge/verdicts.js';
+import {
+  type JudgeVerdict,
+  noteJeFall,
+  parseVerdictFile,
+  richterBefundeJeFall,
+  runIdOfMtime,
+} from './judge/verdicts.js';
 
 import type { CaseResult } from './types.js';
 
@@ -51,13 +57,21 @@ export interface ReviewCase {
   /** Urteile der übrigen Rubriken — zeigen, färben die Ampel nicht. */
   richter: { rubric: string; turnIndex: number; pass: boolean | null; reason: string }[];
   latenzMs: number;
-  modell: { intent: string | null; agentic: boolean };
+  /** `angefragt` = was der Request verlangte (null = Auto); der Strom nennt das verwendete Modell nicht. */
+  modell: {
+    intent: string | null;
+    agentic: boolean;
+    angefragt: string | null;
+    fallbacks: { von: string; nach: string; grund: string }[];
+  };
 }
 
 export interface ReviewData {
   version: typeof REVIEW_DATA_VERSION;
   /** Zeitstempel des Laufs (Änderungszeit von last-run.json, ISO 8601). */
   runId: string;
+  /** Gesetzt, wenn Richter-Ergebnisse vorlagen, aber nicht zu diesem Lauf gehören. */
+  richterHinweis: string | null;
   zusammenfassung: Pick<
     Zusammenfassung,
     'gruen' | 'gelb' | 'rot' | 'durchschnittsnote' | 'benotet'
@@ -68,12 +82,14 @@ export interface ReviewData {
 export function buildReviewData(
   cases: readonly CaseResult[],
   verdicts: readonly JudgeVerdict[],
-  runId: string
+  runId: string,
+  richterHinweis: string | null = null
 ): ReviewData {
   const noten = noteJeFall(verdicts);
+  const befunde = richterBefundeJeFall(verdicts);
   const faelle: ReviewCase[] = cases.map((c) => {
     const note = noten.get(c.id) ?? null;
-    const b = bewerteFall(c, note);
+    const b = bewerteFall(c, note, befunde.get(c.id) ?? []);
     const mine = verdicts.filter((v) => v.caseId === c.id);
     const worst = mine.filter((v) => v.rubric === 'antwortqualitaet' && v.note === note).at(0);
     return {
@@ -93,7 +109,12 @@ export function buildReviewData(
         .filter((v) => v.rubric !== 'antwortqualitaet')
         .map((v) => ({ rubric: v.rubric, turnIndex: v.turnIndex, pass: v.pass, reason: v.reason })),
       latenzMs: c.latencyMs,
-      modell: { intent: c.intent, agentic: c.agentic },
+      modell: {
+        intent: c.intent,
+        agentic: c.agentic,
+        angefragt: c.turns?.find((t) => t.requestedModelId != null)?.requestedModelId ?? null,
+        fallbacks: (c.turns ?? []).flatMap((t) => t.fallbacks ?? []),
+      },
     };
   });
   const z = zusammenfassen(
@@ -101,12 +122,18 @@ export function buildReviewData(
       .filter((f) => !f.knownFailure)
       .map((f) => ({
         id: f.id,
-        bewertung: { ampel: f.ampel, verletzungen: f.verletzungen, note: f.note },
+        bewertung: {
+          ampel: f.ampel,
+          verletzungen: f.verletzungen,
+          note: f.note,
+          richterBefunde: f.richter.filter((r) => r.pass === false).map((r) => r.rubric),
+        },
       }))
   );
   return {
     version: REVIEW_DATA_VERSION,
     runId,
+    richterHinweis,
     zusammenfassung: {
       gruen: z.gruen,
       gelb: z.gelb,
@@ -201,11 +228,13 @@ body{font:15px/1.5 system-ui,sans-serif;margin:0 auto;max-width:60rem;padding:1r
 .dot{display:inline-block;width:.8em;height:.8em;border-radius:50%;margin-right:.4em}
 h2{font-size:1.1rem;margin:.2rem 0}.meta,.label{color:#555;margin:.2rem 0}.label{font-size:.8rem;text-transform:uppercase}
 pre{white-space:pre-wrap;overflow-wrap:anywhere;background:#f3f3f3;padding:.6rem;border-radius:6px;margin:.2rem 0 .8rem}
+p.warn{background:#fff3cd;border:1px solid #e0a800;padding:.5rem;border-radius:6px}
 li.hart{color:${FARBE.rot}}li.weich{color:#8a6500}
 </style></head><body>
 <h1>Eval-Prüfseite</h1>
 <section class="summary">
 <p>Lauf: ${esc(data.runId)}</p>
+${data.richterHinweis ? `<p class="warn">${esc(data.richterHinweis)}</p>` : ''}
 <p>🟢 ${esc(z.gruen)} · 🟡 ${esc(z.gelb)} · 🔴 ${esc(z.rot)} · ${
     z.durchschnittsnote === null
       ? 'Note: — (kein Richter gelaufen)'
@@ -221,6 +250,7 @@ ${
               [
                 ...f.verletzungen.map((v) => v.name),
                 ...(f.note !== null && f.note <= 3 ? [`Note ${f.note}`] : []),
+                ...f.richter.filter((r) => r.pass === false).map((r) => `Richter: ${r.rubric}`),
               ].join(', ')
             )}</li>`
         )
@@ -230,6 +260,20 @@ ${
 ${data.faelle.map(renderCase).join('\n')}
 </body></html>
 `;
+}
+
+export const RICHTER_ANDERER_LAUF =
+  'Richter-Ergebnisse gehören zu einem anderen Lauf, nicht übernommen';
+
+/** Richter-Urteile gelten nur für den Lauf, auf den sie sich beziehen. */
+export function richterFuerLauf(
+  raw: unknown,
+  runId: string
+): { verdicts: JudgeVerdict[]; hinweis: string | null } {
+  const file = parseVerdictFile(raw);
+  return file.runId === runId
+    ? { verdicts: file.verdicts, hinweis: null }
+    : { verdicts: [], hinweis: RICHTER_ANDERER_LAUF };
 }
 
 function main(): void {
@@ -242,10 +286,13 @@ function main(): void {
   const dir = dirname(runFile);
   const verdictFile = join(dir, 'judge-verdicts.json');
   const cases = JSON.parse(readFileSync(runFile, 'utf8')) as CaseResult[];
-  const verdicts = existsSync(verdictFile)
-    ? (JSON.parse(readFileSync(verdictFile, 'utf8')) as JudgeVerdict[])
-    : [];
-  const data = buildReviewData(cases, verdicts, statSync(runFile).mtime.toISOString());
+  const runId = runIdOfMtime(statSync(runFile).mtime);
+  let verdicts: JudgeVerdict[] = [];
+  let hinweis: string | null = null;
+  if (existsSync(verdictFile)) {
+    ({ verdicts, hinweis } = richterFuerLauf(JSON.parse(readFileSync(verdictFile, 'utf8')), runId));
+  }
+  const data = buildReviewData(cases, verdicts, runId, hinweis);
   writeFileSync(join(dir, 'review.html'), renderReviewHtml(data));
   writeFileSync(join(dir, 'review-data.json'), `${JSON.stringify(data, null, 2)}\n`);
   console.log(

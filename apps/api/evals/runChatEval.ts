@@ -500,6 +500,14 @@ async function runTurn(
     error: trace.error,
     assertions,
     passed: assertions.every((a) => a.pass),
+    requestedModelId: modelId ?? null,
+    fallbacks: events
+      .filter((e) => e.event === 'fallback')
+      .map((e) => ({
+        von: String((e.data.from as { name?: unknown } | undefined)?.name ?? ''),
+        nach: String((e.data.to as { name?: unknown } | undefined)?.name ?? ''),
+        grund: String(e.data.reason ?? ''),
+      })),
     ...(effectiveExpect.judge ? { judge: effectiveExpect.judge } : {}),
     ...(effectiveExpect.judgeFacts ? { judgeFacts: effectiveExpect.judgeFacts } : {}),
   };

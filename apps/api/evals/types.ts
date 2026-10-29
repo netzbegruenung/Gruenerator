@@ -588,6 +588,13 @@ export interface TurnResult {
   error: string | null;
   assertions: AssertionResult[];
   passed: boolean;
+  /**
+   * Das angefragte Modell (`modelId` im Request; null = Auto). Der SSE-Strom nennt
+   * das tatsächlich verwendete Modell NICHT — nur ein `fallback`-Event bei Ausweichen.
+   */
+  requestedModelId?: string | null;
+  /** Ausweichen, das der Strom gemeldet hat (`fallback`-Event). */
+  fallbacks?: { von: string; nach: string; grund: string }[];
   /** The judge checks + facts requested for this turn (copied from expect). */
   judge?: string[];
   judgeFacts?: string[];

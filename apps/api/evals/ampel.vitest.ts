@@ -78,6 +78,19 @@ describe('Ampel', () => {
     expect(ampelOf([], 1)).toBe('gelb');
   });
 
+  it('jede verneinte Richter-Rubrik macht gelb, nie rot', () => {
+    const ok = { assertions: [a('routing', true)], error: null };
+    for (const r of ['groundedness', 'unsourced_confidence', 'narration_consistency']) {
+      expect(bewerteFall(ok, 5, [r]).ampel).toBe('gelb');
+    }
+    // Eine harte Verletzung bleibt rot; der Richter ändert daran nichts.
+    expect(
+      bewerteFall({ assertions: [a('routing', false)], error: null }, 5, ['groundedness']).ampel
+    ).toBe('rot');
+    const z = zusammenfassen([{ id: 'x', bewertung: bewerteFall(ok, 5, ['groundedness']) }]);
+    expect(z.auffaellig[0]!.punkte).toEqual(['Richter: groundedness']);
+  });
+
   it('Stream-Fehler auf Fallebene ist hart, auch ohne Assertion', () => {
     const b = bewerteFall({ assertions: [], error: 'timeout' });
     expect(b.ampel).toBe('rot');
