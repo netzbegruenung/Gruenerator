@@ -206,6 +206,52 @@ describe('find_content', () => {
     expect(out.results[1]).toMatchObject({ id: 's1', kind: 'doc' });
   });
 
+  // #5140: zehn gleichnamige Kopien, im Text „24. Mai" — ohne Datum am Treffer
+  // nannte das Modell das Textdatum als Dokumentdatum.
+  it('search rows carry the date of the last change, not a date from the text', async () => {
+    searchOfficeContent.mockResolvedValue([
+      {
+        id: 'd1',
+        title: 'Lindenstraße',
+        document_subtype: 'docs',
+        updated_at: new Date('2026-10-29T12:00:00Z'),
+        content: 'Antrag vom 24. Mai 2024',
+      },
+      {
+        id: 'd2',
+        title: 'Lindenstraße',
+        document_subtype: 'docs',
+        updated_at: '2026-10-28T12:00:00Z',
+        content: 'Antrag vom 24. Mai 2024',
+      },
+      { id: 'd3', title: 'Ohne Datum', document_subtype: 'docs', updated_at: null, content: '' },
+    ]);
+    const out = (await exec(makeFindContentTool(ctx('u1')), {
+      action: 'search',
+      query: 'lindenstraße',
+      limit: 5,
+    })) as { results: Array<{ id?: string; geaendert?: string }> };
+    expect(out.results.map((r) => r.geaendert)).toEqual(['29.10.2026', '28.10.2026', undefined]);
+    expect(out.results[2]).not.toHaveProperty('geaendert');
+  });
+
+  it('recent rows carry the activity date', async () => {
+    aggregateRecentActivity.mockResolvedValue([
+      {
+        id: 'b1',
+        title: 'Board X',
+        href: '/boards/b1',
+        type: 'board',
+        content: null,
+        date: '2026-10-27T12:00:00Z',
+      },
+    ]);
+    const out = (await exec(makeFindContentTool(ctx('u1')), { action: 'recent', limit: 5 })) as {
+      results: Array<{ geaendert?: string }>;
+    };
+    expect(out.results[0].geaendert).toBe('27.10.2026');
+  });
+
   it('search also surfaces matching reels alongside office content', async () => {
     searchOfficeContent.mockResolvedValue([
       { id: 'd1', title: 'Klimaplan', document_subtype: 'docs', content: 'Auszug' },
@@ -283,6 +329,19 @@ describe('find_content', () => {
 // --- documents ---------------------------------------------------------------
 describe('documents', () => {
   // Fehleingabe-Matrix, documents: „nicht gefunden" nur, wo die Liste vollständig war.
+  it('list rows carry the date of the last change (#5140)', async () => {
+    listUserDocuments.mockResolvedValue([
+      { id: 'd1', title: 'Alt', document_subtype: 'docs', updated_at: '2026-10-29T12:00:00Z' },
+    ]);
+    const out = (await exec(makeDocumentsTool(ctx('u1')), {
+      action: 'list',
+      permission: 'viewer',
+      confirm: false,
+      limit: 15,
+    })) as { results: Array<{ geaendert?: string }> };
+    expect(out.results[0].geaendert).toBe('29.10.2026');
+  });
+
   it.each([
     ['kurze Liste (vollständig)', 3, /gibt es unter deinen Dokumenten nicht/],
     ['volles 200er-Fenster', 200, /nicht unter deinen neuesten 200.*ältere wurden nicht geprüft/],
@@ -496,6 +555,17 @@ describe('boards_tasks', () => {
     expect(out.shownCount).toBe(50);
     expect(out.cards).toHaveLength(50);
     expect(out.hinweis).toMatch(/50 von 120/);
+  });
+
+  it('list_boards rows carry the date of the last change (#5140)', async () => {
+    listUserBoards.mockResolvedValue([
+      { id: 'b1', title: 'Kampagne', content: null, updated_at: '2026-10-29T12:00:00Z' },
+    ]);
+    const out = (await exec(makeBoardsTasksTool(ctx('u1')), {
+      action: 'list_boards',
+      limit: 15,
+    })) as { results: Array<{ geaendert?: string }> };
+    expect(out.results[0].geaendert).toBe('29.10.2026');
   });
 
   it('my_tasks keeps only cards with a due date or assignee', async () => {
