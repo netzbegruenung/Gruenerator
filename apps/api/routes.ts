@@ -56,6 +56,7 @@ import { mountConnectionsContractRouter } from './routes/connections/connections
 import { mountContentContractRouter } from './routes/content/contentContractRouter.js';
 import { mountContentReportContractRouter } from './routes/contentReports/contentReportContractRouter.js';
 import { mountDocsContractRouter } from './routes/docs/docsContractRouter.js';
+import { mountDocSnapshotsContractRouter } from './routes/docs/docSnapshotsContractRouter.js';
 import { mountDocumentsContractRouter } from './routes/documents/documentsContractRouter.js';
 import { mountEmailContractRouter } from './routes/email/emailContractRouter.js';
 import {
@@ -982,6 +983,10 @@ export async function setupRoutes(app: Application): Promise<void> {
     requireAiConsent
   );
   mountDocsContractRouter(app);
+  // The version history used to live in docsRouter and inherited its limiter;
+  // the contract mount registers on `app`, so it gets the same limiter here.
+  app.use(/^\/api\/docs\/[^/]+\/snapshots(\/|$)/, authenticatedReadLimiter);
+  mountDocSnapshotsContractRouter(app);
   app.use('/api/docs', authenticatedReadLimiter, docsRouter);
 
   // Public board lookup (no auth). Registered first so requests terminate here

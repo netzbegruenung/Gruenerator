@@ -1,5 +1,5 @@
 diff --git a/dist/blocknote-xl-ai.js b/dist/blocknote-xl-ai.js
-index fc624a25cacc54d3742d0f23fdb2fae9b23375b9..519c4f76b4c40883667ef6b90c0116b73efffe64 100644
+index a754a4d..0ae26d9 100644
 --- a/dist/blocknote-xl-ai.js
 +++ b/dist/blocknote-xl-ai.js
 @@ -58,7 +58,7 @@ var Se = (e) => {

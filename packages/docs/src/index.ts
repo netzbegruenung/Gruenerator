@@ -32,7 +32,6 @@ export { ChatComposer } from './components/chat/ChatComposer';
 export { ShareModal } from './components/permissions/ShareModal';
 
 // Components — Version History
-export { VersionHistory } from './components/version/VersionHistory';
 
 // Components — Track Changes (Änderungsmodus)
 export { SuggestionsSidebar } from './components/suggestions/SuggestionsSidebar';

@@ -102,11 +102,10 @@ export function acceptDocumentAI(documentId: string): AcceptDocumentAIResult {
   ydoc?.on('update', onUpdate);
 
   // Note on undoability: the plugin's own UndoManager cannot capture the AI
-  // merge (ForkYDoc.merge() applies it while the carried-over manager is
-  // already destroyed; an earlier beforeTransaction/addTrackedOrigin hook here
-  // provably never worked). guardDocUndoAcrossAIFork owns this instead: a
-  // standalone capture manager on the original fragment records the merge and
-  // hands it to the rebuilt manager, so accept IS one undo step (#3261).
+  // merge (ForkYDoc.merge() applies it under the editor origin, which
+  // y-prosemirror does not track). guardDocUndoAcrossAIFork owns this instead:
+  // a standalone capture manager on the original fragment records the merge
+  // and hands it to the plugin manager, so accept IS one undo step (#3261).
   try {
     ext.acceptChanges();
   } finally {
