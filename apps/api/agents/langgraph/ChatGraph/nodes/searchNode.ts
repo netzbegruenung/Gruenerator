@@ -321,12 +321,29 @@ export function candidateToSearchResult(
   };
 }
 
+/**
+ * Der fertige Aufruf für den vollen Wortlaut einer Rede. Der Treffer trägt nur
+ * „Plenarprotokoll 21/96", keine Ref für `parlament_lesen`; ohne diese Zeile
+ * baute das Modell „PlPr 21/96 S. 1-200" selbst (live 29.10.2026). Felder, die
+ * fehlen, entfallen — ohne Datum auch ohne datumVon/datumBis.
+ */
+export function redenWortlautZeile(s: BtSpeech): string {
+  const q = (v: string): string => `"${v.replace(/"/g, '”')}"`;
+  const datum = s.date?.match(/^\d{4}-\d{2}-\d{2}/)?.[0];
+  const teile = [
+    `thema ${q((s.topTitle ?? s.speaker).slice(0, 300))}`,
+    `redner ${q(s.speaker)}`,
+    ...(datum ? [`datumVon ${q(datum)}`, `datumBis ${q(datum)}`] : []),
+  ];
+  return `Wortlaut: bundestag_reden mit ${teile.join(', ')}`;
+}
+
 function btSpeechResult(s: BtSpeech, title: string, relevance: number): SearchResult {
   const url = btpPdfUrl(s.protokollNummer, s.herausgeber);
   return {
     source: 'bundestag',
     title,
-    content: `${s.excerpt}${s.protokollNummer ? ` — Plenarprotokoll ${s.protokollNummer}` : ''}`,
+    content: `${s.excerpt}${s.protokollNummer ? ` — Plenarprotokoll ${s.protokollNummer}` : ''}\n${redenWortlautZeile(s)}`,
     url: url ?? dipSearchUrl(s.topTitle ?? s.speaker),
     relevance,
   };
@@ -501,6 +518,10 @@ export interface BundestagRetrieval {
   filters?: BundestagFilter;
   /** Beratungsverlauf je Vorgang als Zeilen, für die Karte im Chat. */
   verfahren?: { titel: string; zeilen: string[] }[];
+  /** Anreicherung UND Planstufe sind ausgefallen: das ist kein Nulltreffer. */
+  ausfall?: true;
+  /** Leer, weil die Filter nichts übrig ließen (kein Rückfall auf die filterlose Suche). */
+  leerDurchFilter?: true;
 }
 
 /** Die Listenzeilen, Karten-Metadaten und Verläufe einer Kandidatenliste. */
@@ -576,6 +597,7 @@ export async function retrieveBundestag(
   const legacy = enriched ? buildBundestagResults(enriched) : [];
 
   let results: SearchResult[];
+  let leerDurchFilter = false;
   if (!plan) {
     results = legacy;
   } else if (plan.candidates.length === 0 && hasHardFilter(plan.filters)) {
@@ -584,6 +606,7 @@ export async function retrieveBundestag(
     // vom 09.10. als Wochenarbeit). Dann lieber ehrlich leer.
     log.info('[Search] Bundestag-Planstufe ohne Kandidaten trotz Filter, kein Rückfall');
     results = [];
+    leerDurchFilter = true;
   } else if (plan.candidates.length === 0) {
     log.info('[Search] Bundestag-Planstufe ohne Kandidaten, alte Ergebnisse');
     results = legacy;
@@ -605,6 +628,8 @@ export async function retrieveBundestag(
     totals: plan?.totals ?? null,
     ...describeCandidates(plan?.candidates ?? []),
     ...(plan ? { filters: plan.filters } : {}),
+    ...(!enriched && !plan ? { ausfall: true as const } : {}),
+    ...(leerDurchFilter ? { leerDurchFilter: true as const } : {}),
   };
 }
 

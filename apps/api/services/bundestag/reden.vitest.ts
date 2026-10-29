@@ -3,6 +3,8 @@ import { describe, expect, it, vi } from 'vitest';
 import {
   describeRedenFilter,
   phraseKeywords,
+  REDE_TEXT_MAX,
+  redeTextCap,
   redeTitle,
   redeUrl,
   redenFilterFromWording,
@@ -125,6 +127,7 @@ describe('searchBundestagReden', () => {
       dateFrom: '2025-01-01',
       limit: 10,
       sort: 'newest',
+      maxChars: 4000,
     });
     expect(r.speeches).toHaveLength(1);
   });
@@ -173,5 +176,41 @@ describe('Ausgabe', () => {
     expect(
       describeRedenFilter({ redner: 'Katrin Uhlig', fraktion: 'Grüne', sortierung: 'neueste' })
     ).toEqual(['Redner*in: Katrin Uhlig', 'Fraktion: GRÜNE', 'Sortierung: neueste zuerst']);
+  });
+});
+
+describe('Redetext-Budget', () => {
+  it('gibt einer einzelnen Rede bis 20.000 Zeichen, mehreren je ihren Anteil, nie unter 4.000', () => {
+    expect(redeTextCap(1)).toBe(REDE_TEXT_MAX);
+    expect(redeTextCap(5)).toBe(4800);
+    expect(redeTextCap(10)).toBe(4000);
+  });
+
+  it('fragt den MCP mit der Kappe zur Trefferzahl', async () => {
+    const { client, searchSpeechesFull } = stub();
+    await searchBundestagReden({ thema: 'Wärme', limit: 1 }, client);
+    expect(searchSpeechesFull).toHaveBeenCalledWith(
+      expect.objectContaining({ maxChars: REDE_TEXT_MAX })
+    );
+  });
+
+  it('findet eine Phrase auch hinter Zeichen 4.000 und kappt erst danach', async () => {
+    // Bis 10/2026 prüfte die Wortlautsuche auf dem bei 4.000 gekappten Text:
+    // eine Fundstelle weiter hinten fiel still durch.
+    const lang = `${'Lorem ipsum dolor sit amet. '.repeat(200)}Hier fällt die Zeitenwende.`;
+    const searchSpeechesFull = vi.fn(async (_opts: Record<string, unknown>) => ({
+      items: [{ ...rede, excerpt: lang }],
+      wpFallback: false,
+    }));
+    const client = { searchSpeechesFull } as unknown as RedenClient;
+    const r = await searchBundestagReden(
+      { thema: 'Zeitenwende', wortlaut: true, limit: 5 },
+      client
+    );
+    expect(searchSpeechesFull).toHaveBeenCalledWith(
+      expect.objectContaining({ maxChars: REDE_TEXT_MAX })
+    );
+    expect(r.speeches).toHaveLength(1);
+    expect(r.speeches[0]!.excerpt).toContain('Zeitenwende');
   });
 });

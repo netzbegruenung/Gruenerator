@@ -48,6 +48,8 @@ import {
 } from '../../../services/bundestag/qa/planDetect.js';
 import {
   describeRedenFilter,
+  REDE_TEXT_MAX,
+  redeTextCap,
   redeTitle,
   redeUrl,
   redenFilterFromWording,
@@ -383,7 +385,27 @@ Nicht für Inhalte, dafür parlament_lesen. Nicht für Reden im Plenum, dafür b
         documents,
         filters: applied,
         verfahren,
+        ausfall,
+        leerDurchFilter,
       } = await retrieveBundestag(question, state.userLocale, filters);
+      // Ausfall und filterbedingt leer sind keine Nulltreffer: das Modell würde
+      // „gibt es nicht" melden, wo der Dienst fehlte oder ein Filter zu eng war.
+      if (ausfall) {
+        return {
+          resultCount: 0,
+          sources: '',
+          error:
+            'Die Bundestags-Suche (DIP) ist gerade nicht erreichbar — das ist kein „keine Treffer". Später erneut versuchen; für Reden `bundestag_reden` probieren.',
+        };
+      }
+      if (leerDurchFilter) {
+        const zeilen = describeBundestagFilter(applied ?? filters);
+        return {
+          resultCount: 0,
+          sources: '',
+          error: `Keine Treffer mit diesen Filtern: ${zeilen.join('; ') || 'siehe Aufruf'}. Einen Filter lockern (Zeitraum erweitern, Typ oder Urheber weglassen) und erneut suchen; ohne Treffer zählt das nicht als „es gibt nichts".`,
+        };
+      }
       if (results.length === 0) {
         return { resultCount: 0, sources: '', error: 'Keine passenden Bundestags-Daten gefunden.' };
       }
@@ -505,16 +527,28 @@ Nicht für Drucksachen, Gesetzentwürfe oder Beschlüsse, dafür bundestag. Nich
       }
       const results: SearchResult[] = speeches.map((s, i) => {
         const url = redeUrl(s);
+        // Gekappt wird am Client (`redeTextCap`), mit „…" am Schnitt; die
+        // Gesamtlänge kennt er nicht, also nur „gekürzt" — und wie es ganz geht.
+        const gekappt = s.excerpt.endsWith('…')
+          ? `\n[Redetext gekürzt: nur der Anfang steht hier, nicht als vollständige Rede ausgeben.${
+              speeches.length > 1
+                ? ` Ganz (bis ${REDE_TEXT_MAX} Zeichen): bundestag_reden mit limit 1, redner und Datum dieser Rede.`
+                : ''
+            }]`
+          : '';
         return {
           source: 'bundestag',
           title: redeTitle(s),
-          content: s.excerpt,
+          content: `${s.excerpt}${gekappt}`,
           ...(url ? { url } : {}),
           relevance: 1 - 0.02 * i,
         };
       });
-      // Der Redetext ist der Beleg; gekappt wird schon am Client (4000 Zeichen).
-      const sources = sourceRegistry.register(results, { snippetChars: 4000 });
+      // Der Redetext ist der Beleg; gekappt wird schon am Client (`redeTextCap`),
+      // die Registry darf ihn nicht ein zweites Mal kürzen.
+      const sources = sourceRegistry.register(results, {
+        snippetChars: redeTextCap(speeches.length) + 400,
+      });
       return {
         resultCount: results.length,
         sources: sources ?? '',

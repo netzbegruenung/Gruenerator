@@ -208,6 +208,17 @@ describe('makeBundestagRedenTool', () => {
     expect(out.error).toContain('nicht erreichbar');
   });
 
+  it('kennzeichnet einen gekappten Redetext, einen vollständigen nicht', async () => {
+    searchBundestagReden.mockResolvedValue({
+      speeches: [{ ...rede, excerpt: `${'a'.repeat(4000)}…` }, rede],
+      wpFallback: false,
+    });
+    const sourceRegistry = createSourceRegistry();
+    await exec(make({}, sourceRegistry), { thema: 'Wärmeplanung' });
+    const text = sourceRegistry.renderAll();
+    expect(text.match(/Redetext gekürzt/g)).toHaveLength(1);
+  });
+
   it('sperrt Österreich, ohne zu suchen', async () => {
     const out = (await exec(make({ userLocale: 'de-AT' }), { thema: 'x y' })) as {
       error?: string;
@@ -547,6 +558,40 @@ describe('makeBundestagTool', () => {
     )) as { resultCount?: number; sources?: string };
     expect(out.resultCount).toBe(1);
     expect(out.sources).toContain('Nur für Deutschland.');
+  });
+
+  it('Ausfall beider Stufen: Fehler mit Ursache, nicht „nichts gefunden"', async () => {
+    retrieveBundestag.mockResolvedValue({ results: [], totals: null, ausfall: true });
+    const out = (await exec(
+      makeBundestagTool({
+        state: { ...baseState, intent: 'bundestag' } as ChatGraphState,
+        sourceRegistry: createSourceRegistry(),
+      }),
+      { query: 'x' }
+    )) as { error?: string };
+    expect(out.error).toContain('nicht erreichbar');
+    expect(out.error).toContain('bundestag_reden');
+    expect(out.error).not.toContain('Keine passenden');
+  });
+
+  it('leer wegen Filtern: Meldung nennt die Filter und was sich lockern lässt', async () => {
+    retrieveBundestag.mockResolvedValue({
+      results: [],
+      totals: null,
+      leerDurchFilter: true,
+      filters: { datumVon: '2026-10-22', datumBis: '2026-10-29', drucksachetyp: ['Antrag'] },
+    });
+    const out = (await exec(
+      makeBundestagTool({
+        state: { ...baseState, intent: 'bundestag' } as ChatGraphState,
+        sourceRegistry: createSourceRegistry(),
+      }),
+      { query: 'x' }
+    )) as { error?: string };
+    expect(out.error).toContain('Keine Treffer mit diesen Filtern');
+    expect(out.error).toContain('Typ: Antrag');
+    expect(out.error).toContain('Zeitraum: 22.10.2026 bis 29.10.2026');
+    expect(out.error).toContain('lockern');
   });
 
   it('returns an error shape when the search comes back empty', async () => {
