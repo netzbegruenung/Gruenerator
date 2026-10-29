@@ -25,7 +25,6 @@ import { ARTIFACT_READ_CHARS } from '../../agents/personalDataTools.js';
 import { type ToolLabel } from './types.js';
 import { MAX_TOOL_RESULT_CHARS } from './wrapTools.js';
 
-
 /** Platz für das, was neben dem großen Feld im Ergebnis steht (IDs, Titel, Marker, Hinweise). */
 export const METADATA_SLACK = 2_000;
 
