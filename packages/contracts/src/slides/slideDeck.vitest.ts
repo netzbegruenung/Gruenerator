@@ -132,6 +132,17 @@ describe('slideDeckSpecSchema', () => {
     expect(empty.success).toBe(false);
   });
 
+  it('turns a literal \\n from a double-escaped model answer into a line break', () => {
+    const r = slideDeckSpecSchema.safeParse({
+      title: 'T',
+      slides: [{ layout: 'textfolie', slots: { headline: 'H', spalte1: '• Eins\\n• Zwei' } }],
+    });
+    expect(r.success && r.data.slides[0]!.slots).toEqual({
+      headline: 'H',
+      spalte1: '• Eins\n• Zwei',
+    });
+  });
+
   it('rejects unknown slots, a missing required slot and too many slides', () => {
     expect(
       slideDeckSpecSchema.safeParse({
