@@ -574,6 +574,14 @@ export interface TurnResult {
   intent: string | null;
   agentic: boolean;
   toolCalls: { toolName: string; ok: boolean; summary?: string; args?: Record<string, unknown> }[];
+  /**
+   * Der Quellenblock, den das Modell bis einschließlich dieses Turns gesehen hat
+   * (`sources` aller Werkzeugergebnisse des Szenarios, ungekürzt). Die Zitate im
+   * `done`-Event sind für die Anzeige auf 200 Zeichen gekappt; prüfte der Richter
+   * die Belegtreue dagegen, hielt er eine wörtlich und richtig wiedergegebene
+   * Rede für erfunden (Lauf 29.10.2026, Note 1).
+   */
+  evidence?: string;
   threadId: string | null;
   warnings: string[];
   interrupts: TracedInterrupt[];
