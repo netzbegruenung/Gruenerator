@@ -12,7 +12,10 @@
  *    Zeilen, 1,5 MB, 2,5 s), hält sie eine halbe Stunde und `find.ts` filtert
  *    lokal.
  *  - Die Detailseite eines Gegenstands gibt es mit `?json=true` als JSON; sie
- *    nennt die Dokumente (HTML und PDF) samt Links.
+ *    nennt die Dokumente (HTML und PDF) samt Links. Bei einer Sitzung steht dort
+ *    auch das vorläufige Protokoll (`stdocuments`), solange die Liste 211 noch
+ *    kein Gesamtprotokoll trägt — am 30.10.2026 bei 51 von 104 Sitzungen (Nr. 52
+ *    und alles ab Nr. 55).
  */
 import { createLogger } from '../../../utils/logger.js';
 import { fetchBytes } from '../../bundestag/qa/fetchTexts.js';
@@ -121,12 +124,15 @@ export class NationalratFilterApi implements NationalratApi {
 
   async dokumente(hisUrl: string, signal: AbortSignal): Promise<NrDocLink[]> {
     const bytes = await fetchBytes(`${PARLAMENT_BASE}${hisUrl}?json=true`, signal, PARLAMENT_HOST);
-    const body = JSON.parse(new TextDecoder().decode(bytes)) as {
-      content?: {
-        documents?: { title?: string; documents?: { link?: string; type?: string }[] }[];
-      };
-    };
-    const groups = Array.isArray(body.content?.documents) ? body.content.documents : [];
+    type Gruppe = { title?: string; documents?: { link?: string; type?: string }[] };
+    type Seite = { documents?: Gruppe[]; stdocuments?: Gruppe[] };
+    const body = JSON.parse(new TextDecoder().decode(bytes)) as { content?: Seite | Seite[] };
+    // Gegenstände liefern die Seite als Objekt, Sitzungen als Liste (Seite zuerst).
+    const seite = Array.isArray(body.content) ? body.content[0] : body.content;
+    // `stdocuments`: das (vorläufige) stenographische Protokoll einer Sitzung.
+    const groups = [seite?.documents, seite?.stdocuments].flatMap((g) =>
+      Array.isArray(g) ? g : []
+    );
     return groups.flatMap((g) =>
       (g.documents ?? []).flatMap((d) =>
         d.link ? [{ gruppe: g.title ?? '', link: d.link, type: d.type ?? '' }] : []

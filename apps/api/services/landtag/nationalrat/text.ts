@@ -28,7 +28,8 @@ const log = createLogger('NationalratText');
 /** So viele Dokumente einer Detailseite werden gelesen (Gesetzestext, Erläuterungen …). */
 const MAX_DOCS_PER_ITEM = 4;
 
-const cacheKey = (c: BundestagCandidate) => `lt:nr:text:v1:${c.dipId}`;
+// v2: vorher stand für jede Sitzung ohne Gesamtprotokoll ein gecachtes „fehlt“.
+const cacheKey = (c: BundestagCandidate) => `lt:nr:text:v2:${c.dipId}`;
 
 async function htmlText(link: string, signal: AbortSignal): Promise<string> {
   const html = new TextDecoder().decode(
@@ -78,11 +79,25 @@ async function protokollText(
   const gp = parseNationalratRef(c.ref)?.gp;
   if (gp == null) return { text: '', textSource: 'missing' };
   const row = (await api.protokolle(gpRoman(gp))).find((r) => r.uri === c.dipId);
-  const link = row ? protokollHtmlLink(row) : null;
-  // Vorläufige Protokolle haben noch kein Gesamtprotokoll.
-  if (!link) return { text: '', textSource: 'missing' };
-  const text = await htmlText(link, signal);
-  return text ? { text, textSource: 'html' } : { text: '', textSource: 'missing' };
+  if (!row) return { text: '', textSource: 'missing' };
+  const link = protokollHtmlLink(row);
+  if (link) {
+    const text = await htmlText(link, signal);
+    return text ? { text, textSource: 'html' } : { text: '', textSource: 'missing' };
+  }
+  // Das Gesamtprotokoll kommt erst Monate nach der Sitzung (am 30.10.2026 fehlte es ab
+  // der 55. Sitzung überall). Bis dahin trägt die Detailseite das Inhaltsverzeichnis des vorläufigen
+  // Protokolls: Tagesordnung und wer wann gesprochen hat, aber nicht den Redetext.
+  const verzeichnis = (await api.dokumente(c.dipId, signal)).find(
+    (l) => l.type === 'HTML' && l.gruppe.startsWith('Inhaltsverzeichnis')
+  );
+  const text = verzeichnis ? await htmlText(verzeichnis.link, signal) : '';
+  return text
+    ? {
+        text: `## Vorläufiges Protokoll (nur Inhaltsverzeichnis)\n\nDer Wortlaut der Reden liegt erst mit dem Gesamtprotokoll vor; dieses Verzeichnis nennt Tagesordnung und Redner*innen.\n\n${text}`,
+        textSource: 'html',
+      }
+    : { text: '', textSource: 'missing' };
 }
 
 async function fetchOne(
