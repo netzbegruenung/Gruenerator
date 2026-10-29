@@ -198,6 +198,31 @@ describe('GET /:shareToken/preview', () => {
     expect(res.headers.get('content-type')).toBe('video/mp4');
   });
 
+  it('serves a video tile from its poster frame, not the mp4', async () => {
+    getShareByToken.mockResolvedValue(
+      imageShare({
+        share_token: 'vid123',
+        media_type: 'video',
+        file_path: 'video',
+        mime_type: 'video/mp4',
+        thumbnail_path: 'vid123/poster.jpg',
+      })
+    );
+    const res = await get('/api/share/vid123/preview?w=200&fmt=webp');
+    expect(res.status).toBe(200);
+    expect(res.headers.get('content-type')).toBe('image/webp');
+    const meta = await sharp(Buffer.from(await res.arrayBuffer())).metadata();
+    expect([meta.width, meta.height]).toEqual([60, 40]);
+  });
+
+  it('streams a video that has no poster yet, width or not', async () => {
+    getShareByToken.mockResolvedValue(
+      imageShare({ media_type: 'video', file_path: 'video', mime_type: 'video/mp4' })
+    );
+    const res = await get('/api/share/abc123/preview?w=200&fmt=webp');
+    expect(res.headers.get('content-type')).toBe('video/mp4');
+  });
+
   describe('cache policy', () => {
     it('no longer promises immutable on a URL with no version in it', async () => {
       const res = await get('/api/share/abc123/preview?w=200&fmt=webp');
