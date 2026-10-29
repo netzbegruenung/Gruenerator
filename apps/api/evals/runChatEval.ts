@@ -438,6 +438,8 @@ async function runTurn(
   // `expect` teils den falschen Zustand. Ein Turn, der das weiss, trägt seine
   // Wirkungs-Zusicherung für diesen Fall selbst mit.
   const effectiveExpect = LOOP_OFF && turn.expectWhenLoopOff ? turn.expectWhenLoopOff : turn.expect;
+  // Was die Person selbst nennt („was steht in 21/1928?"), ist keine erfundene Ref.
+  scenarioCtx.userPrompts?.push(turn.prompt);
   const assertions = runAssertions(trace, effectiveExpect, scenarioCtx);
 
   // Thread the context forward.
@@ -512,6 +514,7 @@ async function runScenario(scenario: EvalScenario): Promise<CaseResult> {
     lastSharepicVariant: null,
     priorSourceCount: 0,
     priorToolResults: [],
+    userPrompts: [],
   };
   const turns: TurnResult[] = [];
   const decisionTurns: DecisionMapTurn[] = [];

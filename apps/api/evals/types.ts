@@ -525,6 +525,8 @@ export interface ScenarioContext {
   priorSourceCount: number;
   /** Rohe Werkzeugergebnisse aller früheren Turns (keineErfundeneRef). Fehlt = keine. */
   priorToolResults?: Record<string, unknown>[];
+  /** Nachrichten der Person bis einschließlich dieses Turns (keineErfundeneRef). Fehlt = keine. */
+  userPrompts?: string[];
 }
 
 /** One executed turn — enriched so the LLM judge can consume last-run.json. */

@@ -648,7 +648,7 @@ describe('keineErfundeneRef', () => {
     ok: true,
     result: { resultCount: 1, sources: '' },
   });
-  const check = (calls: Call[], prior?: Record<string, unknown>[]) =>
+  const check = (calls: Call[], prior?: Record<string, unknown>[], prompts?: string[]) =>
     runAssertions(
       trace({ toolCalls: calls }),
       { keineErfundeneRef: true },
@@ -658,8 +658,14 @@ describe('keineErfundeneRef', () => {
         lastSharepicVariant: null,
         priorSourceCount: 0,
         ...(prior ? { priorToolResults: prior } : {}),
+        ...(prompts ? { userPrompts: prompts } : {}),
       }
     ).find((r) => r.name === 'keineErfundeneRef')!;
+
+  it('grün: die Person nennt die Nummer selbst', () => {
+    expect(check([lesen(['21/1928'])], [], ['Was steht in 21/1928?']).pass).toBe(true);
+    expect(check([lesen(['21/1928'])], [], ['Was steht in 21/1929?']).pass).toBe(false);
+  });
 
   it('rot: selbstgebaute PlPr-Ref (der Vorfall vom 29.10.2026)', () => {
     const r = check([liste('[1] Rede\nPlenarprotokoll 21/96'), lesen(['PlPr 21/96 S. 1-200'])]);

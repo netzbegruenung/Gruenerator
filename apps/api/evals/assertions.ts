@@ -252,16 +252,21 @@ function normalizeRefText(text: string): string {
  * `PlPr`-Form. Eine Drucksachen-Ref zählt nicht, wenn sie nur als Teil einer
  * Protokollnummer („Plenarprotokoll 21/96") auftaucht.
  *
+ * Was die Person selbst geschrieben hat (`userPrompts`), zählt ebenfalls als
+ * Herkunft: „was steht in 21/1928?" darf `parlament_lesen` mit 21/1928 rufen.
+ *
  * Gelesen wird das ROHE Ergebnis aus dem SSE (`tool_step_result.result`): das
  * Kürzen für das Modell (`resultForModel`) passiert erst danach, im Trace fehlt
  * also nichts, was das Modell sah.
  */
 export function inventedParlamentRefs(
   trace: ChatTrace,
-  priorResults: Record<string, unknown>[] = []
+  priorResults: Record<string, unknown>[] = [],
+  userPrompts: string[] = []
 ): string[] {
   const invented: string[] = [];
-  const seen: string[] = priorResults.map((r) => JSON.stringify(r));
+  // Eine Nummer, die die Person selbst nennt, ist keine erfundene Ref.
+  const seen: string[] = [...userPrompts, ...priorResults.map((r) => JSON.stringify(r))];
   for (const call of trace.toolCalls) {
     if (call.toolName === 'parlament_lesen') {
       const refs = Array.isArray(call.args.dokumente) ? call.args.dokumente : [];
@@ -545,7 +550,7 @@ export function runAssertions(
 
   if (expect.keineErfundeneRef) {
     const calls = trace.toolCalls.filter((t) => t.toolName === 'parlament_lesen');
-    const invented = inventedParlamentRefs(trace, ctx?.priorToolResults);
+    const invented = inventedParlamentRefs(trace, ctx?.priorToolResults, ctx?.userPrompts);
     results.push(
       invented.length === 0
         ? ok('keineErfundeneRef', calls.length === 0 ? 'parlament_lesen nicht aufgerufen' : '')
