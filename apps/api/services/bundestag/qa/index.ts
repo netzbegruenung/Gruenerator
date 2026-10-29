@@ -17,7 +17,7 @@ import { DipClient } from '../dip/dipClient.js';
 import { composeAnswer } from './answer.js';
 import { ANSWER_MIN_TIMEOUT_MS, CHAT_BUDGET, ENDPOINT_BUDGET, type Budget } from './budget.js';
 import { countBundestag, type CountGroupBy, type CountResult } from './count.js';
-import { fetchTexts, resolveRefs, type TextCache } from './fetchTexts.js';
+import { fetchTexts, resolveRefs, type Fehlgrund, type TextCache } from './fetchTexts.js';
 import { findCandidates, type FindDip, type FindMcp, type FindResult } from './find.js';
 import { keywordsFromQuestion, planFilters } from './plan.js';
 import { readDocuments, type ReadResult } from './read.js';
@@ -27,6 +27,8 @@ export type ReadDocumentInfo = DocumentInfo &
   Pick<BundestagCandidate, 'dokumentnummer' | 'datum' | 'urheber' | 'pdfUrl'> & {
     /** Nur mit `fokus`: stand der Anker im Dokument? Sonst `null`. */
     fokusGefunden: boolean | null;
+    /** Genauer Grund, wenn der Text fehlt (Seitenbereich, unveröffentlicht, Abruf). */
+    fehlgrund: Fehlgrund | null;
   };
 
 /** Austauschbare Außenwelt; Produktion nimmt die Singletons. */
@@ -90,7 +92,7 @@ async function candidatesForRefs(
   refs: readonly string[],
   budget: Budget,
   dip: FindDip
-): Promise<{ candidates: BundestagCandidate[]; notes: string[] }> {
+): Promise<{ candidates: BundestagCandidate[]; notes: string[]; missing: string[] }> {
   const notes: string[] = [];
   const resolved = await resolveRefs(refs, dip);
   const known = new Set(resolved.map((c) => c.ref));
@@ -101,7 +103,7 @@ async function candidatesForRefs(
       `Nur die ersten ${budget.maxDocuments} von ${resolved.length} Dokumenten wurden gelesen.`
     );
   }
-  return { candidates: resolved.slice(0, budget.maxDocuments), notes };
+  return { candidates: resolved.slice(0, budget.maxDocuments), notes, missing };
 }
 
 export async function planBundestagQuestion({
@@ -241,11 +243,11 @@ export async function readBundestagRefs({
   /** Signal des Werkzeugaufrufs: nach dem Timeout im Loop beginnt kein weiteres Fenster. */
   abortSignal?: AbortSignal;
   deps?: QaDeps;
-}): Promise<{ documents: ReadDocumentInfo[]; notes: string[] }> {
+}): Promise<{ documents: ReadDocumentInfo[]; notes: string[]; nichtGefunden: string[] }> {
   const { dip, redis } = deps ?? (await defaultDeps());
   const deadline = AbortSignal.timeout(budget.deadlineMs);
   const signal = abortSignal ? AbortSignal.any([abortSignal, deadline]) : deadline;
-  const { candidates, notes } = await candidatesForRefs(refs, budget, dip);
+  const { candidates, notes, missing } = await candidatesForRefs(refs, budget, dip);
   const docs = await fetchTexts(candidates, { dip, redis, signal });
   const results = await readDocuments({
     question,
@@ -265,8 +267,10 @@ export async function readBundestagRefs({
       urheber: r.doc.urheber,
       pdfUrl: r.doc.pdfUrl,
       fokusGefunden: r.fokusFound ?? null,
+      fehlgrund: r.doc.fehlgrund ?? null,
     })),
     notes,
+    nichtGefunden: missing,
   };
 }
 
