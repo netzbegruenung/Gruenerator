@@ -78,6 +78,7 @@ import {
 } from '../services/pastChatRecallService.js';
 
 import { confirmGate } from './confirmGate.js';
+import { leeresErgebnis, werkzeugFehler } from './toolFailure.js';
 
 import type {
   ChatGraphState,
@@ -225,6 +226,9 @@ export function makeRow(
   };
 }
 
+/** So viele Dokumente der Person werden bei id-Aktionen durchsucht. */
+const OWNED_LOOKUP_WINDOW = 200;
+
 export const NO_SESSION = 'Keine Nutzer-Sitzung — diese Aktion braucht eine angemeldete Person.';
 
 export function requireUserId(state: ChatGraphState): string | null {
@@ -297,7 +301,25 @@ NUTZE WENN nach eigenen Inhalten gefragt wird ("zeig mir meine Dokumente", "find
           ...reelHits.map((r) => makeRow(r.title, r.url, 'Reel', r.snippet, `reel:${r.id}`)),
         ];
         groundRows(sourceRegistry, results);
-        return { resultCount: results.length, results };
+        // Ein echtes Leer sagt, wonach gesucht wurde; ein volles Limit, dass es mehr geben kann.
+        if (results.length === 0) {
+          return {
+            ...leeresErgebnis({
+              filter: `Suchbegriff „${q}“ in Dokumenten, Präsentationen, Tabellen und Reels (Notebooks sind ausgenommen)`,
+              hinweis: 'Versuche ein kürzeres oder anderes Stichwort',
+            }),
+            results,
+          };
+        }
+        return {
+          resultCount: results.length,
+          results,
+          ...(hits.length >= limit
+            ? {
+                hinweis: `Es gibt eventuell mehr als die ${hits.length} gezeigten Treffer; grenze mit einem genaueren Suchbegriff ein.`,
+              }
+            : {}),
+        };
       }
 
       const items = await aggregateRecentActivity(userId, limit);
@@ -449,15 +471,37 @@ NUTZE FÜR: eigene Dokumente auflisten (list), eines per id ansehen (get), umben
           makeRow(d.title, officeUrl(d.document_subtype, d.id), officeKindLabel(d.document_subtype))
         );
         groundRows(sourceRegistry, results);
-        return { resultCount: results.length, results };
+        // Eine volle Liste ist eine Auswahl der neuesten, keine Gesamtmenge.
+        return {
+          resultCount: results.length,
+          results,
+          ...(results.length >= limit
+            ? {
+                hinweis: `Die ${limit} zuletzt bearbeiteten Dokumente; es kann mehr geben (limit bis 30, oder find_content mit einem Suchbegriff).`,
+              }
+            : {}),
+        };
       }
 
       // The remaining actions all target one document — resolve within the caller's set.
-      const owned = await listUserDocuments(userId, 200);
+      const owned = await listUserDocuments(userId, OWNED_LOOKUP_WINDOW);
       const match = id ? owned.find((d) => d.id === id) : undefined;
+      // „Nicht gefunden" nur behaupten, wo die Liste vollständig war: bei einem
+      // vollen Fenster kann ein älteres Dokument existieren, das wir nie gesehen haben.
+      const nichtGefunden = () =>
+        werkzeugFehler({
+          art: 'nicht_gefunden',
+          ursache: id
+            ? owned.length >= OWNED_LOOKUP_WINDOW
+              ? `Das Dokument ist nicht unter deinen neuesten ${OWNED_LOOKUP_WINDOW} zu finden (ältere wurden nicht geprüft)`
+              : 'Das Dokument gibt es unter deinen Dokumenten nicht'
+            : 'Es wurde keine id übergeben',
+          naechsterSchritt:
+            'Nimm die id aus der Liste (documents list) oder aus find_content, sie steckt in der url',
+        });
 
       if (action === 'get') {
-        if (!match) return { error: 'Dokument nicht gefunden oder kein Zugriff.' };
+        if (!match) return nichtGefunden();
         const url = officeUrl(match.document_subtype, match.id);
         const kind = officeKindLabel(match.document_subtype);
         ground(sourceRegistry, [{ title: match.title, content: `${kind}: ${match.title}`, url }]);
@@ -479,7 +523,7 @@ NUTZE FÜR: eigene Dokumente auflisten (list), eines per id ansehen (get), umben
       }
 
       if (action === 'delete') {
-        if (!match) return { error: 'Dokument nicht gefunden oder kein Zugriff.' };
+        if (!match) return nichtGefunden();
         const stop = confirmGate({
           state,
           threadId,
@@ -515,7 +559,7 @@ NUTZE FÜR: eigene Dokumente auflisten (list), eines per id ansehen (get), umben
           : null;
       const forbiddenShare = refuseForbiddenAction(state, 'document');
       if (forbiddenShare) return forbiddenShare;
-      if (!shareTarget) return { error: 'Dokument nicht gefunden oder kein Zugriff.' };
+      if (!shareTarget) return nichtGefunden();
       if (!groupName?.trim()) return { error: 'share_to_group braucht groupName.' };
       if (!threadId) return { error: 'Teilen ist in diesem Kontext nicht möglich.' };
       // Only share into groups the caller is a MEMBER of (findGroups also returns
@@ -556,7 +600,7 @@ NUTZE FÜR: eigene Dokumente auflisten (list), eines per id ansehen (get), umben
 // ---------------------------------------------------------------------------
 
 /** Beyond this the excerpt is cut — one artifact must not eat the whole turn. */
-const ARTIFACT_READ_CHARS = 12_000;
+export const ARTIFACT_READ_CHARS = 12_000;
 
 const READ_KIND_NOUN: Record<ArtifactReadKind, string> = {
   doc: 'Dokument',
@@ -777,7 +821,18 @@ NUTZE FÜR: Boards auflisten (list_boards), Karten eines Boards lesen (get_cards
             url: `/boards/${board.id}`,
           }))
         );
-        return { board: { id: board.id, title: board.title }, cardCount: cards.length, cards };
+        // `cardCount` ist die GESAMTzahl; `collectCards` zeigt höchstens 50.
+        return {
+          board: { id: board.id, title: board.title },
+          cardCount: board.rows.length,
+          shownCount: cards.length,
+          cards,
+          ...(board.rows.length > cards.length
+            ? {
+                hinweis: `Nur die ersten ${cards.length} von ${board.rows.length} Karten gezeigt; die übrigen sind hier nicht ansprechbar.`,
+              }
+            : {}),
+        };
       }
 
       if (action === 'my_tasks') {

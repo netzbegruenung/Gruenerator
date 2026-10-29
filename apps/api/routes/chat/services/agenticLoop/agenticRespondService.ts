@@ -102,6 +102,7 @@ import { createToolActivity } from './toolActivity.js';
 import { createToolApprovalGate, type ToolApprovalGate } from './toolApprovalGate.js';
 import { loadAllowlist } from './toolApprovalRepo.js';
 import { createToolCostLedger } from './toolCostLedger.js';
+import { toolResultBudget } from './toolResultBudgets.js';
 import { type ToolScope } from './toolScope.js';
 import { buildToolUsageBlock } from './toolUsageBlock.js';
 import { logTurnSummary, type ForceScopeSummary } from './turnSummary.js';
@@ -520,7 +521,10 @@ export async function streamAgenticResponse(
       }
       toolReplayMessages = [
         ...toolReplayMessages,
-        ...buildToolObservationReplay(steps, new Set(Object.keys(wrapped)), { sameTurn: true }),
+        ...buildToolObservationReplay(steps, new Set(Object.keys(wrapped)), {
+          sameTurn: true,
+          resultBudgetFor: (name) => toolResultBudget(name, toolLabels),
+        }),
       ];
     }
 

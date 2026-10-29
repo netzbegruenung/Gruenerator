@@ -20,7 +20,8 @@ vi.mock('../../docs/documentAccess.js', () => ({
 }));
 vi.mock('../../docs/docProseReader.js', () => ({ loadDocumentProse: mocks.loadDocumentProse }));
 
-const { makeEditDocumentTextTool, makeReadDocumentTool } = await import('./documentLoopTools.js');
+const { READ_CAP, makeEditDocumentTextTool, makeReadDocumentTool } =
+  await import('./documentLoopTools.js');
 
 const stateWith = (lastUser: string, over: Record<string, unknown> = {}) =>
   ({
@@ -55,6 +56,17 @@ describe('read_document', () => {
     const out = await run(makeReadDocumentTool({ state, threadId: 't1' }), {});
     expect(out.documentId).toBe('d-old');
     expect(out.inhalt).toMatch(/Antrag/);
+    expect(out.gekuerzt).toBeUndefined();
+  });
+
+  it('says so when the document is longer than the read cap', async () => {
+    const text = `${'Der Verkehr wächst. '.repeat(2000)}`;
+    mocks.readDocumentMarkdown.mockResolvedValue(text);
+    const out = await run(makeReadDocumentTool({ state: stateWith('?'), threadId: 't1' }), {});
+    expect((out.inhalt as string).length).toBe(READ_CAP);
+    expect(out.gekuerzt).toEqual({ gesamtZeichen: text.length, gezeigtZeichen: READ_CAP });
+    expect(out.hinweis).toContain('40.000 Zeichen');
+    expect(out.hinweis).toContain('20.000');
   });
 });
 
