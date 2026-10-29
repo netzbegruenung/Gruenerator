@@ -9,7 +9,9 @@
  * Dokument von 20.000 Zeichen kam mit 760 beim Modell an, ohne Hinweis.
  *
  * Die Zahlen stehen hier nicht doppelt: jede eigene Kappe wird aus dem
- * Werkzeug IMPORTIERT. Budget = Kappe + `METADATA_SLACK` für ID, Titel, Marker.
+ * Werkzeug IMPORTIERT. Budget = Kappe x `ESCAPE_ALLOWANCE` + `METADATA_SLACK`:
+ * gemessen wird das SERIALISIERTE Ergebnis, und JSON-Text (Konnektoren) wächst
+ * beim Escapen von `"` und Umbrüchen (eingerückt 1,17x, einzeilig 1,25x).
  * Über `MAX_TOOL_RESULT_CHARS` geht keines (das erzwingt `wrapToolsForLoop`).
  *
  * Wer ein Werkzeug mit eigener Kappe über 6000 baut, trägt es hier ein —
@@ -20,12 +22,24 @@ import { READ_CAP } from '../../agents/documentLoopTools.js';
 import { MODEL_RESULT_MAX_CHARS } from '../../agents/managedMcpCatalog.js';
 import { ARTIFACT_READ_CHARS } from '../../agents/personalDataTools.js';
 
+import { type ToolLabel } from './types.js';
 import { MAX_TOOL_RESULT_CHARS } from './wrapTools.js';
 
-import type { ToolLabel } from './types.js';
 
 /** Platz für das, was neben dem großen Feld im Ergebnis steht (IDs, Titel, Marker, Hinweise). */
 export const METADATA_SLACK = 2_000;
+
+/**
+ * Aufschlag der Kappe fürs Escapen im serialisierten Ergebnis. Gemessen
+ * 29.10.2026 an 25.000 Zeichen JSON-Text: eingerückt 29.265 serialisiert (1,17x),
+ * einzeilig 1,25x. 1,2x trägt Prosa und eingerückten JSON-Text ganz; einzeiliger
+ * JSON-Text an der vollen Kappe stößt an die 30.000-Decke (zeigt dann ~96 %).
+ */
+export const ESCAPE_ALLOWANCE = 1.2;
+
+/** Das Budget für ein Werkzeug mit eigener Zeichenkappe. */
+export const budgetForCap = (cap: number): number =>
+  Math.min(Math.ceil(cap * ESCAPE_ALLOWANCE) + METADATA_SLACK, MAX_TOOL_RESULT_CHARS);
 
 /**
  * Lesewerkzeuge ohne Zeichenkappe: ihre Grenze liegt in Zeilen/Spalten
@@ -52,6 +66,9 @@ export const UNCAPPED_READ_TOOLS: readonly string[] = [
   'summarize',
   // Reel-Transkript (`media`, action=transcript): bis 150 Segmente, ~12k Zeichen.
   'media',
+  // Produktwissen: gemessen 29.10.2026 15.453 Zeichen (de-DE), 10.622 (de-AT); wächst mit
+  // Agents, Glossar und verbundenen MCP-Servern.
+  'product_knowledge',
 ];
 
 /** Konnektor-Ergebnisse: die Kappe des Katalogs, der sie liefert. */
@@ -71,9 +88,9 @@ export function toolResultBudget(
   labels: ReadonlyMap<string, ToolLabel>
 ): number | null {
   const origin = labels.get(toolName)?.origin;
-  if (origin) return clamp(CONNECTOR_CAPS[origin.kind] + METADATA_SLACK);
+  if (origin) return budgetForCap(CONNECTOR_CAPS[origin.kind]);
   const own = OWN_CAP_TOOLS[toolName];
-  if (own != null) return clamp(own + METADATA_SLACK);
+  if (own != null) return budgetForCap(own);
   if (UNCAPPED_READ_TOOLS.includes(toolName)) return clamp(UNCAPPED_READ_BUDGET);
   return null;
 }

@@ -176,4 +176,19 @@ describe('truncateResultForModel', () => {
       expect(out._gekuerzt.feld).toBe('results[1].text');
     });
   });
+
+  it('eine weit vorn liegende Absatzgrenze drückt ein Feld nicht unter den alten Boden', () => {
+    // Der Quellenblock frisst den Platz, die Schnitthöhe liegt am Boden (750).
+    // Der erste Absatz endet bei ~470 — über 0,6 x 750, aber unter dem Boden.
+    const first =
+      'Die Stadt plant neue Radwege entlang der großen Hauptstraßen im Zentrum. '.repeat(7);
+    const rest = 'weiter ohne Satzende und ohne Absatz aber mit vielen Wörtern '.repeat(60);
+    const sources = `[1] ${'Quelle '.repeat(1200)}`;
+    const out = truncateResultForModel({ sources, inhalt: `${first.trim()}\n\n${rest}` }, 6000) as {
+      inhalt: string;
+    };
+    expect(first.trim().length).toBeLessThan(750);
+    expect(first.trim().length).toBeGreaterThan(450);
+    expect(out.inhalt.replace('…[gekürzt]', '').length).toBeGreaterThanOrEqual(750);
+  });
 });

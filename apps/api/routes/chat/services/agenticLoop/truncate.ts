@@ -84,10 +84,11 @@ const SENTENCE_END = /[.!?…:](?=\s)/g;
  * Schneidet `text` auf höchstens `level` Zeichen, bevorzugt an einer
  * Absatzgrenze, dann an einem Satzende, dann an einer Zeile, zuletzt am Wort.
  */
-function cutText(text: string, level: number): string {
+function cutText(text: string, level: number, floor: number): string {
   if (text.length <= level) return text;
   const head = text.slice(0, level);
-  const min = Math.floor(level * BOUNDARY_MIN_SHARE);
+  // Eine Grenze weit vorn darf das Feld nicht unter den Boden drücken.
+  const min = Math.max(Math.floor(level * BOUNDARY_MIN_SHARE), floor);
 
   const para = head.lastIndexOf('\n\n');
   if (para >= min) return head.slice(0, para).trimEnd();
@@ -100,7 +101,7 @@ function cutText(text: string, level: number): string {
   if (line >= min) return head.slice(0, line).trimEnd();
 
   const space = head.search(/\s\S*$/);
-  if (space >= Math.floor(level * 0.8)) return head.slice(0, space).trimEnd();
+  if (space >= Math.max(Math.floor(level * 0.8), floor)) return head.slice(0, space).trimEnd();
   return head;
 }
 
@@ -114,20 +115,26 @@ function longestString(value: unknown): number {
 }
 
 /** Kappt jedes String-Blatt über `level` und sammelt, was dabei gekürzt wurde. */
-function shrink(value: unknown, level: number, path: string, notes: CutNote[]): unknown {
+function shrink(
+  value: unknown,
+  level: number,
+  floor: number,
+  path: string,
+  notes: CutNote[]
+): unknown {
   if (typeof value === 'string') {
     if (value.length <= level) return value;
-    const cut = cutText(value, level);
+    const cut = cutText(value, level, floor);
     notes.push({ feld: path, gesamtZeichen: value.length, gezeigtZeichen: cut.length });
     return cut + TRUNCATION_MARK;
   }
   if (Array.isArray(value)) {
-    return value.map((v, i) => shrink(v, level, `${path}[${i}]`, notes));
+    return value.map((v, i) => shrink(v, level, floor, `${path}[${i}]`, notes));
   }
   if (value && typeof value === 'object') {
     const out: Record<string, unknown> = {};
     for (const [k, v] of Object.entries(value)) {
-      out[k] = shrink(v, level, path ? `${path}.${k}` : k, notes);
+      out[k] = shrink(v, level, floor, path ? `${path}.${k}` : k, notes);
     }
     return out;
   }
@@ -185,7 +192,7 @@ function fitStrings(
 ): Fitted {
   const sizeAt = (level: number): Fitted => {
     const notes: CutNote[] = [];
-    const shrunk = shrink(value, level, '', notes);
+    const shrunk = shrink(value, level, floor, '', notes);
     // Der Marker steht im Ergebnis und zählt zum Platz.
     const size = safeStringify(attachMarker(shrunk, [...priorNotes, ...notes])).length;
     return { value: shrunk, notes, fits: size <= target };

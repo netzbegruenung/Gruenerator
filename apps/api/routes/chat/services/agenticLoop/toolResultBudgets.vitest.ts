@@ -7,7 +7,7 @@ import { describe, it, expect } from 'vitest';
 import { createToolLoopGuards } from './loopGuards.js';
 import {
   CONNECTOR_CAPS,
-  METADATA_SLACK,
+  budgetForCap,
   OWN_CAP_TOOLS,
   UNCAPPED_READ_BUDGET,
   UNCAPPED_READ_TOOLS,
@@ -115,6 +115,43 @@ describe('Werkzeuge mit eigener Kappe kommen ganz an', () => {
   });
 });
 
+describe('JSON-Text im Konnektor-Ergebnis', () => {
+  /** Eingerückter JSON-Text in voller Kappe — jedes `"` und jeder Umbruch wird beim Serialisieren länger. */
+  const jsonText = (n: number): string =>
+    JSON.stringify(
+      {
+        eintraege: Array.from({ length: Math.ceil(n / 60) }, (_, i) => ({
+          id: i,
+          titel: `Pressemitteilung ${i}`,
+          ort: 'Köln',
+        })),
+      },
+      null,
+      2
+    ).slice(0, n);
+
+  it.each(['mcp', 'managed'] as const)(
+    '%s: volle Kappe als JSON-Text kommt ganz an',
+    async (kind) => {
+      const name = kind === 'mcp' ? 'notion__search' : 'bahn__verbindung';
+      const content = jsonText(CONNECTOR_CAPS[kind]);
+      expect(content.length).toBe(CONNECTOR_CAPS[kind]);
+      // Der Wächterfall ist nur dann einer, wenn das Escapen wirklich Platz kostet.
+      expect(JSON.stringify({ content }).length).toBeGreaterThan(CONNECTOR_CAPS[kind] * 1.1);
+      const out = await through(name, { content });
+      expect(out.content).toBe(content);
+      expect(out._gekuerzt).toBeUndefined();
+      expect(JSON.stringify(out).length).toBeLessThanOrEqual(MAX_TOOL_RESULT_CHARS);
+    }
+  );
+
+  it('read_document mit Umbrüchen und Anführungszeichen in voller Kappe', async () => {
+    const inhalt = '„Zitat“ im "Text"\n\n'.repeat(2000).slice(0, OWN_CAP_TOOLS.read_document);
+    const out = await through('read_document', { documentId: 'd1', inhalt });
+    expect(out.inhalt).toBe(inhalt);
+  });
+});
+
 describe('Standard und Obergrenze', () => {
   it('unbekanntes Werkzeug: Standard 6000, gezielt gekürzt statt auf 750', async () => {
     expect(toolResultBudget('web_search', labels)).toBeNull();
@@ -142,7 +179,7 @@ describe('Standard und Obergrenze', () => {
     }
     expect(UNCAPPED_READ_BUDGET).toBeLessThanOrEqual(MAX_TOOL_RESULT_CHARS);
     expect(toolResultBudget('read_document', labels)).toBe(
-      (OWN_CAP_TOOLS.read_document as number) + METADATA_SLACK
+      budgetForCap(OWN_CAP_TOOLS.read_document as number)
     );
   });
 
@@ -162,12 +199,14 @@ describe('Wächter: jede Kappe über 6000 steht in der Tabelle oder begründet d
   const here = path.dirname(fileURLToPath(import.meta.url));
   const apiRoot = path.resolve(here, '../../../..');
   const agentsDir = path.join(apiRoot, 'routes/chat/agents');
+  const userMcpFile = path.join(apiRoot, 'services/mcp/UserMCPClient.ts');
   const files = [
     ...readdirSync(agentsDir)
       .filter((f) => f.endsWith('.ts') && !/\.(vitest|test|live\.vitest|manual-test)\.ts$/.test(f))
       .map((f) => path.join(agentsDir, f)),
-    path.join(apiRoot, 'services/mcp/UserMCPClient.ts'),
+    userMcpFile,
   ];
+  const rel = (file: string) => path.relative(apiRoot, file);
 
   /** Konstanten, die NICHT als Ganzes zum Modell gehen — mit Grund. */
   const NOT_A_RESULT_CAP: Readonly<Record<string, string>> = {
@@ -179,7 +218,19 @@ describe('Wächter: jede Kappe über 6000 steht in der Tabelle oder begründet d
     RAW_RESULT_MAX_CHARS: 'Rohpuffer vor dem Formen; geformt wird auf MODEL_RESULT_MAX_CHARS',
     MAX_IMAGE_CHARS: 'Bilddaten-URL im sharepic_check, kein Text fürs Modell',
   };
-  const tableSource = readFileSync(path.join(here, 'toolResultBudgets.ts'), 'utf8');
+
+  /**
+   * Die Kappen, die die Tabelle abbildet: Datei:Name → der Wert, den die
+   * Tabelle dafür führt. Verglichen wird der WERT gegen die Quelle, nicht ein
+   * Textvorkommen (ein gleichnamiger Import oder Kommentar deckte sonst mit).
+   */
+  const TABLE_VALUE: Readonly<Record<string, number>> = {
+    'routes/chat/agents/documentLoopTools.ts:READ_CAP': OWN_CAP_TOOLS.read_document as number,
+    'routes/chat/agents/personalDataTools.ts:ARTIFACT_READ_CHARS':
+      OWN_CAP_TOOLS.read_artifact as number,
+    'routes/chat/agents/managedMcpCatalog.ts:MODEL_RESULT_MAX_CHARS': CONNECTOR_CAPS.managed,
+    'services/mcp/UserMCPClient.ts:MAX_TOOL_RESULT_CHARS': CONNECTOR_CAPS.mcp,
+  };
 
   const found = files.flatMap((file) =>
     [
@@ -190,34 +241,35 @@ describe('Wächter: jede Kappe über 6000 steht in der Tabelle oder begründet d
       .map((m) => ({
         name: m[1] as string,
         value: Number((m[2] as string).replace(/_/g, '')),
-        file,
+        key: `${rel(file)}:${m[1]}`,
       }))
       .filter((c) => c.value > DEFAULT_MAX_RESULT_CHARS)
   );
 
   it('findet die bekannten Kappen (der Scan ist nicht leer gelaufen)', () => {
-    const names = found.map((c) => c.name);
-    for (const known of [
-      'READ_CAP',
-      'ARTIFACT_READ_CHARS',
-      'MODEL_RESULT_MAX_CHARS',
-      'MAX_TOOL_RESULT_CHARS',
-    ]) {
-      expect(names).toContain(known);
+    for (const key of Object.keys(TABLE_VALUE)) {
+      expect(found.map((c) => c.key)).toContain(key);
     }
   });
 
-  it('jede Kappe über 6000 ist in der Tabelle importiert oder als Nicht-Kappe begründet', () => {
-    const unaccounted = found
-      .filter(
-        (c) => !new RegExp(`\\b${c.name}\\b`).test(tableSource) && !(c.name in NOT_A_RESULT_CAP)
-      )
-      .map((c) => `${path.relative(apiRoot, c.file)}: ${c.name} = ${c.value}`);
-    expect(unaccounted).toEqual([]);
+  it('jede Kappe über 6000 steht mit demselben Wert in der Tabelle oder ist als Nicht-Kappe begründet', () => {
+    const wrong = found
+      .filter((c) => !(c.name in NOT_A_RESULT_CAP) && TABLE_VALUE[c.key] !== c.value)
+      .map((c) => `${c.key} = ${c.value} (Tabelle: ${TABLE_VALUE[c.key] ?? 'fehlt'})`);
+    expect(wrong).toEqual([]);
   });
 
   it('die Liste der Nicht-Kappen hat keine toten Einträge', () => {
     const names = new Set(found.map((c) => c.name));
     expect(Object.keys(NOT_A_RESULT_CAP).filter((n) => !names.has(n))).toEqual([]);
+  });
+
+  it('jedes Werkzeug der Tabelle wird im Katalog wirklich montiert (Umbenennen fiele sonst still auf 6000)', () => {
+    const catalog = readFileSync(path.join(agentsDir, 'toolCatalog.ts'), 'utf8');
+    const missing = [...Object.keys(OWN_CAP_TOOLS), ...UNCAPPED_READ_TOOLS].filter(
+      (name) =>
+        !new RegExp(`\\btools\\.${name}\\s*=|\\btools\\[['"]${name}['"]\\]\\s*=`).test(catalog)
+    );
+    expect(missing).toEqual([]);
   });
 });
