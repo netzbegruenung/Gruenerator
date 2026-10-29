@@ -1214,8 +1214,12 @@ const RESEARCH_NOUN_PATTERN = /\b(recherchiere|recherche|recherchier)\b/i;
 
 const QUESTION_WORD_PATTERN =
   /\b(was|wie|welche[rsnm]?|wo|wann|warum|gibt\s+es|haben\s+die|sagen\s+die)\b/i;
+// `grünen?`: „Was sagen die Grünen zu …" ist die häufigste Form der Frage, und
+// `grüne\b` traf sie nie — die Frage fiel auf `direct@0.5`, wurde ohne
+// Abrufzwang in den Loop geschoben und 3 von 3 Mal aus dem Modellwissen
+// beantwortet (#5136).
 const PARTY_TOPIC_PATTERN =
-  /\b(grüne|partei|programm|position|wahlprogramm|beschluss|antrag|grundsatzprogramm)\b/i;
+  /\b(grünen?|partei|programm|position|wahlprogramm|beschluss|antrag|grundsatzprogramm)\b/i;
 const CURRENT_EVENTS_PATTERN = /\b(aktuell|heute|gestern|news|nachricht|kürzlich)\b/i;
 const PERSON_QUERY_PATTERN = /\bwer (ist|war|sind)\b/i;
 

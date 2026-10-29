@@ -176,7 +176,10 @@ describe('Tier 3.5 — demoted band (agentic, LLM skipped)', () => {
       'Was ist die offizielle grüne Position zur Besiedlung des Mars?',
       true,
     ],
-    ['false premise', 'Warum haben die Grünen das Verbrenner-Aus ab 2035 abgelehnt?', false],
+    // `true` seit #5136: „Grünen" trifft jetzt die Parteipositions-Regel. Eine
+    // falsche Prämisse über eine Parteiposition ist genau der Fall, der erst
+    // nachsehen muss, um ehrlich „das stimmt so nicht" sagen zu können.
+    ['false premise', 'Warum haben die Grünen das Verbrenner-Aus ab 2035 abgelehnt?', true],
     ['wer-ist (0.78)', 'Wer ist eigentlich Ricarda Lang und was macht sie heute?', true],
     [
       'voting record → fuzzy abgeordnetenwatch',
@@ -595,9 +598,11 @@ describe('Tier 3.5 — die Geltungsfrage behält ihr Abruf-Verdikt', () => {
     expect(result.loopDemotedFromRetrieval).toBe(true);
   });
 
+  // Ohne Parteinamen: mit „die Grünen" greift seit #5136 die Parteipositions-
+  // Regel, und der Fall prüfte dann sie statt der Geltungsfrage.
   it('die Nachbarfrage nach dem Grund behält ihr offenes Gitter', async () => {
     const result = await classifierNode(
-      buildState({ userMessage: 'Warum haben die Grünen das Verbrenner-Aus ab 2035 abgelehnt?' })
+      buildState({ userMessage: 'Warum hat die EU das Verbrenner-Aus ab 2035 beschlossen?' })
     );
     expect(result.loopDemotedFromRetrieval).toBeFalsy();
   });
