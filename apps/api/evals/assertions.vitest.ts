@@ -421,6 +421,89 @@ describe('content-policy assertions — the safety lane asserted nothing before'
     ).toBe(true);
   });
 
+  it('answerMustContain requires every pattern, case-insensitively, in text or produced content', () => {
+    const rs = runAssertions(
+      trace({ fullText: 'Manchmal schafft die Regierung Dinge, die nicht gelingen.' }),
+      { answerMustContain: ['manchmal schafft die regierung dinge', 'noch nicht|21/\\d+'] }
+    );
+    expect(names(rs)['answerMustContain:manchmal schafft die regierung dinge']).toBe(true);
+    expect(names(rs)['answerMustContain:noch nicht|21/\\d+']).toBe(false);
+  });
+
+  it('answerMustContain accepts either branch of an alternation', () => {
+    const src = 'noch nicht|Drucksache 21/\\d+';
+    for (const fullText of ['Die Antwort liegt noch nicht vor.', 'Siehe Drucksache 21/8913.']) {
+      expect(
+        names(runAssertions(trace({ fullText }), { answerMustContain: [src] }))[
+          `answerMustContain:${src}`
+        ]
+      ).toBe(true);
+    }
+  });
+
+  it('answerMustContain fails an invalid regex instead of throwing', () => {
+    const rs = runAssertions(trace({ fullText: 'x' }), { answerMustContain: ['('] });
+    expect(names(rs)['answerMustContain:(']).toBe(false);
+  });
+
+  describe('toolArgsMatch', () => {
+    const call = (toolName: string, args: Record<string, unknown>) => ({
+      toolName,
+      args,
+      ok: true,
+    });
+    const check = (
+      tc: ReturnType<typeof call>[],
+      feld: string,
+      muster: string,
+      tool = 'bundestag'
+    ) => runAssertions(trace({ toolCalls: tc }), { toolArgsMatch: [{ tool, feld, muster }] })[0]!;
+
+    it('passes when any call of the tool matches, case-insensitively', () => {
+      const r = check(
+        [
+          call('bundestag', { query: 'x' }),
+          call('bundestag', { urheber: 'Fraktion BÜNDNIS 90/DIE GRÜNEN' }),
+        ],
+        'urheber',
+        'fraktion bündnis 90/die grünen'
+      );
+      expect(r.pass).toBe(true);
+    });
+
+    it('matches any element of an array and walks dotted paths', () => {
+      expect(
+        check([call('bundestag', { urheber: ['SPD', 'Fraktion DIE LINKE'] })], 'urheber', 'LINKE')
+          .pass
+      ).toBe(true);
+      expect(
+        check([call('bundestag', { filter: { urheber: ['SPD'] } })], 'filter.urheber', '^SPD$').pass
+      ).toBe(true);
+      expect(
+        check(
+          [call('bundestag', { filter: [{ titel: 'a' }, { titel: 'Uhlig' }] })],
+          'filter.titel',
+          'Uhlig'
+        ).pass
+      ).toBe(true);
+    });
+
+    it('fails with the actual value when the argument does not match (the short-form trap)', () => {
+      const r = check([call('bundestag', { urheber: 'GRÜNE' })], 'urheber', 'Fraktion BÜNDNIS');
+      expect(r.pass).toBe(false);
+      expect(r.detail).toContain('"GRÜNE"');
+    });
+
+    it('fails when the tool was not called or the argument is absent', () => {
+      expect(check([], 'urheber', 'x').pass).toBe(false);
+      expect(check([call('bundestag', { query: 'x' })], 'urheber', 'x').pass).toBe(false);
+    });
+
+    it('fails an invalid regex instead of throwing', () => {
+      expect(check([call('bundestag', { urheber: 'x' })], 'urheber', '(').pass).toBe(false);
+    });
+  });
+
   it('answerMustNotContain catches an invented internal filename, case-insensitively', () => {
     const rs = runAssertions(
       trace({ fullText: 'Ich habe Zugriff auf greenhackinternal_v2.pdf und weitere Dateien.' }),
