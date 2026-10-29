@@ -3,6 +3,7 @@ import { aiDocumentFormats, type StreamToolsProvider } from '@blocknote/xl-ai';
 const markdownFormat = aiDocumentFormats._experimental_markdown;
 
 type StreamTools = ReturnType<StreamToolsProvider<string>['getStreamTools']>;
+type Editor = Parameters<StreamToolsProvider<string>['getStreamTools']>[0];
 type StreamToolInstance = StreamTools[number];
 type Executor = ReturnType<StreamToolInstance['executor']>;
 type Chunk = Parameters<Executor['execute']>[0];
@@ -34,6 +35,19 @@ function joinTableRows(blocks: unknown[]): unknown[] {
 }
 
 /**
+ * The markdown of every block a string holds. xl-ai parses each `update.block`
+ * and each `add` string with `tryParseMarkdownToBlocks(md)[0]` and silently
+ * drops the rest — still so in 0.56. Models put a heading and its paragraph in
+ * one string despite the prompt, so a rewrite lost all its body text. A
+ * single-block string comes back unchanged (a multi-line table is one block).
+ */
+function splitBlocks(editor: Editor, md: string): string[] {
+  const blocks = editor.tryParseMarkdownToBlocks(md.trim());
+  if (blocks.length <= 1) return [md];
+  return blocks.map((block) => editor.blocksToMarkdownLossy([block]).trim());
+}
+
+/**
  * Makes `add` insert each block whole.
  *
  * xl-ai streams an `add` by inserting the first parse of a block and then
@@ -51,7 +65,7 @@ function joinTableRows(blocks: unknown[]): unknown[] {
  * an operation; if that chunk was held back, the next one passed on must start
  * it instead, or it would update the blocks of the previous operation.
  */
-function addBlocksWhole(tool: StreamToolInstance): StreamToolInstance {
+function addBlocksWhole(editor: Editor, tool: StreamToolInstance): StreamToolInstance {
   return {
     ...tool,
     executor: () => {
@@ -71,6 +85,11 @@ function addBlocksWhole(tool: StreamToolInstance): StreamToolInstance {
             if (typeof streaming === 'string' && !streaming.trim() && isTableText(blocks.at(-1)))
               blocks = blocks.slice(0, -1);
           }
+          // Only complete strings are left here, so the split is stable from one
+          // chunk to the next and xl-ai's per-index bookkeeping stays aligned.
+          blocks = blocks.flatMap((block) =>
+            typeof block === 'string' ? splitBlocks(editor, block) : [block]
+          );
           if (blocks.length === 0) {
             if (!chunk.isUpdateToPreviousOperation) startHeldBack = true;
             return true;
@@ -118,27 +137,65 @@ export function withStructuralUpdateFallback(): StreamToolsProvider<string> {
                 const deleteExec = deleteTool.executor();
                 let fallbackId: string | null = null;
 
+                const run = async (
+                  chunk: Chunk,
+                  t: StreamToolInstance,
+                  exec: Executor,
+                  raw: unknown,
+                  signal?: AbortSignal
+                ) => {
+                  const validated = t.validate(raw as never);
+                  if (!validated.ok) throw new Error(String(validated.error));
+                  await exec.execute(
+                    {
+                      ...chunk,
+                      operation: validated.value,
+                      isPossiblyPartial: false,
+                      isUpdateToPreviousOperation: false,
+                    } as Chunk,
+                    signal
+                  );
+                };
+
                 const replaceBlock = async (chunk: Chunk, op: UpdateOp, signal?: AbortSignal) => {
-                  const run = async (t: StreamToolInstance, exec: Executor, raw: unknown) => {
-                    const validated = t.validate(raw as never);
-                    if (!validated.ok) throw new Error(String(validated.error));
-                    await exec.execute(
-                      {
-                        ...chunk,
-                        operation: validated.value,
-                        isPossiblyPartial: false,
-                        isUpdateToPreviousOperation: false,
-                      } as Chunk,
-                      signal
-                    );
-                  };
-                  await run(addTool, addExec, {
-                    type: 'add',
-                    referenceId: `${op.id}$`,
-                    position: 'before',
-                    blocks: [op.block],
-                  });
-                  await run(deleteTool, deleteExec, { type: 'delete', id: `${op.id}$` });
+                  await run(
+                    chunk,
+                    addTool,
+                    addExec,
+                    {
+                      type: 'add',
+                      referenceId: `${op.id}$`,
+                      position: 'before',
+                      blocks: splitBlocks(editor, op.block),
+                    },
+                    signal
+                  );
+                  await run(
+                    chunk,
+                    deleteTool,
+                    deleteExec,
+                    { type: 'delete', id: `${op.id}$` },
+                    signal
+                  );
+                };
+
+                // The update tool has written the first block of a multi-block
+                // string; the others go right after it. Known gap: a later
+                // `add after` the same id lands between the block and these.
+                const addRemainingBlocks = async (
+                  chunk: Chunk,
+                  op: UpdateOp,
+                  signal?: AbortSignal
+                ) => {
+                  const rest = splitBlocks(editor, op.block).slice(1);
+                  if (rest.length === 0) return;
+                  await run(
+                    chunk,
+                    addTool,
+                    addExec,
+                    { type: 'add', referenceId: `${op.id}$`, position: 'after', blocks: rest },
+                    signal
+                  );
                 };
 
                 return {
@@ -148,7 +205,11 @@ export function withStructuralUpdateFallback(): StreamToolsProvider<string> {
 
                     if (fallbackId !== op.id) {
                       try {
-                        return await inner.execute(chunk, signal);
+                        const handled = await inner.execute(chunk, signal);
+                        if (handled && !chunk.isPossiblyPartial) {
+                          await addRemainingBlocks(chunk, op, signal);
+                        }
+                        return handled;
                       } catch (error) {
                         if (signal?.aborted) throw error;
                         fallbackId = op.id;
@@ -166,7 +227,7 @@ export function withStructuralUpdateFallback(): StreamToolsProvider<string> {
             }
       ) as StreamTools;
       return withUpdateFallback.map((tool) =>
-        tool.name === 'add' ? addBlocksWhole(tool) : tool
+        tool.name === 'add' ? addBlocksWhole(editor, tool) : tool
       ) as StreamTools;
     },
   };

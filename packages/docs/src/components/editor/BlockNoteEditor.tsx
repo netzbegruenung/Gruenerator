@@ -57,7 +57,7 @@ import { type UndoableEditor } from '../../hooks/useDocUndoState';
 import { SuggestChangesExtension } from '../../lib/suggestChangesExtension';
 import { withStructuralUpdateFallback } from '../../lib/structuralUpdateFallback';
 import { HoldTableFixesExtension } from '../../lib/holdTableFixes';
-import { isDocAIInvocationInFlight } from '../../lib/invokeDocumentAI';
+import { isDocAIInvocationInFlight, noteDocAIResponse } from '../../lib/invokeDocumentAI';
 import { YSyncBindingConsistencyExtension } from '../../lib/ySyncBindingConsistency';
 import { useSuggestionMode } from '../../hooks/useSuggestionMode';
 import './BlockNoteEditor.css';
@@ -227,7 +227,18 @@ const BlockNoteEditorInner = ({
           // Route through the DocsAdapter's fetch so the mobile DOM WebView reaches
           // the API via the native proxy (CORS/auth). On web this is platformFetch
           // — identical to the default — so web behavior is unchanged.
-          fetch: (input, init) => adapter.fetch(String(input), init),
+          // The outcome is noted for invokeDocumentAI, which cannot read it
+          // from xl-ai while the AI menu is closed.
+          fetch: async (input, init) => {
+            try {
+              const res = await adapter.fetch(String(input), init);
+              noteDocAIResponse(documentId, res.status);
+              return res;
+            } catch (err) {
+              noteDocAIResponse(documentId, 'network');
+              throw err;
+            }
+          },
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
         }) as any,
         // Markdown format avoids xl-ai's HTML rebase-tool throw on docs that
