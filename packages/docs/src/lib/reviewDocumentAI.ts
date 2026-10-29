@@ -44,7 +44,7 @@ export function rememberAIReviewFork(documentId: string): void {
 }
 
 /** Whether the open fork is one an AI invocation opened. */
-export function isAIReviewFork(documentId: string): boolean {
+export function isOwnAIReviewFork(documentId: string): boolean {
   const editor = useEditorStore.getState().getEditor(documentId);
   const remembered = aiReviewForks.get(documentId);
   return Boolean(
@@ -102,11 +102,10 @@ export function acceptDocumentAI(documentId: string): AcceptDocumentAIResult {
   ydoc?.on('update', onUpdate);
 
   // Note on undoability: the plugin's own UndoManager cannot capture the AI
-  // merge (ForkYDoc.merge() applies it while the carried-over manager is
-  // already destroyed; an earlier beforeTransaction/addTrackedOrigin hook here
-  // provably never worked). guardDocUndoAcrossAIFork owns this instead: a
-  // standalone capture manager on the original fragment records the merge and
-  // hands it to the rebuilt manager, so accept IS one undo step (#3261).
+  // merge (ForkYDoc.merge() applies it under the editor origin, which
+  // y-prosemirror does not track). guardDocUndoAcrossAIFork owns this instead:
+  // a standalone capture manager on the original fragment records the merge
+  // and hands it to the plugin manager, so accept IS one undo step (#3261).
   try {
     ext.acceptChanges();
   } finally {
@@ -164,7 +163,7 @@ export function rejectDocumentAI(documentId: string): boolean {
   const ext = getDocAIExtension(documentId);
   const editor = useEditorStore.getState().getEditor(documentId);
   if (!ext || !editor) return false;
-  if (!isAIReviewFork(documentId)) {
+  if (!isOwnAIReviewFork(documentId)) {
     aiReviewForks.delete(documentId);
     ext.rejectChanges();
     return true;

@@ -1,5 +1,10 @@
-import { getDocAIExtension, hasDocAISuggestions, isDocAIForked } from './aiExtension';
-import { isAIReviewFork, rejectDocumentAI, rememberAIReviewFork } from './reviewDocumentAI';
+import {
+  getDocAIExtension,
+  getDocForkStore,
+  hasDocAISuggestions,
+  isDocAIForked,
+} from './aiExtension';
+import { isOwnAIReviewFork, rejectDocumentAI, rememberAIReviewFork } from './reviewDocumentAI';
 import { isSuggestionModeEnabled } from './suggestionMode';
 import { useEditorStore } from '../stores/editorStore';
 
@@ -61,7 +66,7 @@ function settleOutcome(documentId: string): void {
   const hasSuggestions = hasDocAISuggestions(editor);
   // Only a review our invocation opened is ours to close; an empty run inside
   // someone else's fork (version preview) leaves that fork alone.
-  if (!hasSuggestions && isAIReviewFork(documentId)) rejectDocumentAI(documentId);
+  if (!hasSuggestions && isOwnAIReviewFork(documentId)) rejectDocumentAI(documentId);
   if (failure) {
     void import('sonner').then(({ toast }) => toast.error(failure));
   } else if (!hasSuggestions) {
@@ -115,8 +120,20 @@ export async function invokeDocumentAI(opts: {
   // review UX is the web DocAiReviewBar → accept/rejectDocumentAI.
   // `invokeAI` still applies the diff as ProseMirror suggestions regardless of
   // menu state — the suggestion plugin is independent of the menu.
+  // The raw fork state, not isDocAIForked: that one reads false while the
+  // version preview holds the fork, which would let this run claim (and later
+  // merge back) a fork that shows an old version.
+  const editor = useEditorStore.getState().getEditor(opts.documentId);
+  const forkedBefore = getDocForkStore(editor)?.state?.isForked ?? false;
+  // A fork that is not an AI review is the version preview. `fork()` would be a
+  // no-op, so the suggestions would land in the preview and vanish on close.
+  if (forkedBefore && !isDocAIForked(opts.documentId)) {
+    void import('sonner').then(({ toast }) =>
+      toast.error('Bitte zuerst die Versionshistorie schließen, dann erneut versuchen.')
+    );
+    return true;
+  }
   lastResponse.delete(opts.documentId);
-  const forkedBefore = isDocAIForked(opts.documentId);
   inFlight.add(opts.documentId);
   notifyInFlight();
   try {
