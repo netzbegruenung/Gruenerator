@@ -80,6 +80,8 @@ import { makeEditDocumentTextTool, makeReadDocumentTool } from './documentLoopTo
 import {
   makeAbgeordnetenwatchTool,
   makeBundestagTool,
+  makeParlamentLesenTool,
+  makeBundestagRedenTool,
   makeCreateBoardTool,
   makeCreateDocTool,
   makeCreateExplainableTool,
@@ -94,6 +96,7 @@ import { makeEditArtifactTool } from './editorTools.js';
 import { makeEditExplainableTool, makeReadExplainableTool } from './explainableLoopTools.js';
 import { makeGroupsTool } from './groupTools.js';
 import { makeBildAnsehenTool } from './imageTools.js';
+import { makeLandtagTool, makeNationalratTool } from './landtagTool.js';
 import { makeMemoryTool } from './memoryTools.js';
 import { CRAWL_SNIPPET_CHARS, readNamedPages } from './namedPages.js';
 import { makeNotebookSourcesTool } from './notebookSourceTools.js';
@@ -848,6 +851,17 @@ NICHT für eine Zusammenfassung des ganzen Dokuments — dafür gibt es \`summar
     // downgrade actually take effect on the loop path.
     if (isIntentAllowedForLocale('bundestag', state.userLocale)) {
       tools.bundestag = makeBundestagTool({ state, sourceRegistry });
+      // Zwilling von `bundestag` (liest dessen Refs): gleiche Sperre, fällt mit ihm weg.
+      tools.parlament_lesen = makeParlamentLesenTool({ state, sourceRegistry });
+      // Reden im Plenum (Bundestag-MCP): dieselbe Sperre, derselbe Agent-Schlüssel `bundestag`.
+      tools.bundestag_reden = makeBundestagRedenTool({ state, sourceRegistry });
+      // Die Landtage (Berlin; weitere je Registry-Eintrag): gleiche Sperre, gleicher Agent-Schlüssel `bundestag`.
+      tools.landtag = makeLandtagTool({ state, sourceRegistry });
+    } else if (state.userLocale === 'de-AT') {
+      // Österreich: der Nationalrat als Einstieg, gelesen über denselben `parlament_lesen`
+      // (dessen `quelle` kennt dann nur 'nationalrat').
+      tools.nationalrat = makeNationalratTool({ state, sourceRegistry });
+      tools.parlament_lesen = makeParlamentLesenTool({ state, sourceRegistry });
     }
     if (isIntentAllowedForLocale('abgeordnetenwatch', state.userLocale)) {
       tools.abgeordnetenwatch = makeAbgeordnetenwatchTool({ state, sourceRegistry });

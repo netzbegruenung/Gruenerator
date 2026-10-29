@@ -457,6 +457,7 @@ export * as grueneratorHomeIconGeometry from './components/icons/grueneratorHome
 export { chatSuggestions } from './lib/suggestions';
 export {
   agentsList,
+  listedAgentsList,
   getDefaultAgent,
   getPinnedAgents,
   resolveAgentMention,

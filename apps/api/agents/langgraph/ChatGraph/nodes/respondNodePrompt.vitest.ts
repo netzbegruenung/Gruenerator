@@ -775,4 +775,65 @@ describe('Blockliste — Auswahl und Reihenfolge', () => {
       )
     ).toContain('skill-fragment');
   });
+
+  // Mehrere Rezepte: die Methode (Bundestag-Recherche) steht NEBEN der Textsorte,
+  // im Einzelpfad im Prompt — im Loop trägt sie die Registry, nicht doppelt hier.
+  it('legt ein Methoden-Rezept neben die Textsorte, nur im Einzelpfad', async () => {
+    const state = makeState({
+      activeSkillMention: 'instagram',
+      methodSkillMentions: ['bundestagsrecherche'],
+      intent: 'bundestag',
+    } as never);
+    const single = await buildSystemMessage(state);
+    expect(single).toContain('## RECHERCHE-METHODE: Bundestag-Recherche');
+    expect(single).toContain('## AKTIVE PLATTFORM: Instagram');
+    expect(single).toContain('RECHERCHE, BELEGE und ZITIERWEISE');
+    expect(state.usedRecipes?.map((r) => r.mention)).toEqual(['bundestagsrecherche', 'instagram']);
+
+    const loop = await buildSystemMessage(
+      makeState({
+        activeSkillMention: 'instagram',
+        methodSkillMentions: ['bundestagsrecherche'],
+      } as never),
+      { loop: true }
+    );
+    expect(loop).not.toContain('RECHERCHE-METHODE');
+    expect(loop).toContain('## AKTIVE PLATTFORM: Instagram');
+  });
+
+  // Fiel der Turn ohne Schleife auf `web` zurück (loop_only_degraded), fehlen die
+  // Bundestag-Werkzeuge: die Methode bleibt draußen und gibt keine Form vor.
+  it('lässt die Bundestag-Methode im Einzelpfad weg, wenn der Intent auf web degradiert ist', async () => {
+    const state = makeState({
+      methodSkillMentions: ['bundestagsrecherche'],
+      intent: 'web',
+    } as never);
+    const single = await buildSystemMessage(state);
+    expect(single).not.toContain('RECHERCHE-METHODE');
+    expect(single).not.toContain('Ohne Textsorte bestimmt die Methode auch die Antwortform.');
+    expect(state.usedRecipes ?? []).toEqual([]);
+  });
+
+  // Ohne Textsorte gibt die Methode die Form vor — der Bundestag-Rezepttext
+  // trägt Formregeln (vollständige Antworten, Fundstellen zuerst), und die
+  // Standardregel „2–4 Absätze" brächte die zu kurzen Antworten zurück.
+  it('lässt ein Methoden-Rezept ohne Textsorte die Antwortform bestimmen', async () => {
+    const plain = await buildSystemMessage(makeState({}));
+    expect(plain).not.toContain('Form und Umfang gibt die oben aktive Textform vor');
+
+    const single = await buildSystemMessage(
+      makeState({ methodSkillMentions: ['bundestagsrecherche'], intent: 'bundestag' } as never)
+    );
+    expect(single).toContain('## RECHERCHE-METHODE: Bundestag-Recherche');
+    expect(single).toContain('Ohne Textsorte bestimmt die Methode auch die Antwortform.');
+    expect(single).toContain('Form und Umfang gibt die oben aktive Textform vor');
+
+    // Im Loop steht der Rumpf in der Registry — die Formatregel folgt trotzdem der Methode.
+    const loop = await buildSystemMessage(
+      makeState({ methodSkillMentions: ['bundestagsrecherche'] } as never),
+      { loop: true, retrievalExpected: true }
+    );
+    expect(loop).not.toContain('RECHERCHE-METHODE');
+    expect(loop).toContain('Form und Umfang gibt die oben aktive Textform vor');
+  });
 });

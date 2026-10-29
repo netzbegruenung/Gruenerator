@@ -8,6 +8,7 @@
  * alternatives break). Shaped after `product_knowledge`, the existing tool
  * that returns instruction text rather than citable sources.
  */
+import { skillRole } from '@gruenerator/shared/agents';
 import { tool, type Tool } from 'ai';
 import { z } from 'zod';
 
@@ -80,6 +81,7 @@ NICHT für Recherche, Rückfragen, Zusammenfassungen oder normalen Fließtext oh
         title: resolved.title,
         body: resolved.body,
         source: resolved.source,
+        rolle: skillRole(effective),
         ...(isMounted && { recommendedTools: recommendedToolsFor(effective, isMounted) }),
       });
 

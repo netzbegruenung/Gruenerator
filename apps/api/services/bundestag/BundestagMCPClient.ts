@@ -75,6 +75,8 @@ const CACHE_NS = 'bt:v2';
 export const CURRENT_WAHLPERIODE = 21;
 
 const SPEECH_EXCERPT_MAX = 600; // full speeches run 3–4k chars each
+/** `bundestag_reden` gibt dem Modell die Rede zum Zitieren — fast immer ganz. */
+const SPEECH_FULL_MAX = 4000;
 const ABSTRACT_MAX = 400;
 
 /**
@@ -177,7 +179,10 @@ function mapDrucksache(raw: z.infer<typeof rawDrucksacheSchema>): BtDrucksache |
   };
 }
 
-function mapSpeech(raw: z.infer<typeof rawSpeechSchema>): BtSpeech | null {
+function mapSpeech(
+  raw: z.infer<typeof rawSpeechSchema>,
+  maxChars: number = SPEECH_EXCERPT_MAX
+): BtSpeech | null {
   const text = raw.text?.trim();
   const speaker = raw.speaker?.trim();
   if (!text || !speaker) return null;
@@ -185,7 +190,7 @@ function mapSpeech(raw: z.infer<typeof rawSpeechSchema>): BtSpeech | null {
     speaker,
     party: raw.speakerParty ?? null,
     date: raw.datum ?? null,
-    excerpt: cleanDipText(text, SPEECH_EXCERPT_MAX),
+    excerpt: cleanDipText(text, maxChars),
     protokollNummer: raw.dokumentnummer ?? null,
     wahlperiode: pickLatestWahlperiode(raw.wahlperiode),
     herausgeber: raw.herausgeber ?? null,
@@ -533,11 +538,75 @@ class BundestagMCPClient {
             'bundestag_search_speeches',
             { query, speaker, speakerParty, wahlperiode: wp, limit, sort },
             rawSpeechSchema,
-            mapSpeech
+            (raw) => mapSpeech(raw)
           ),
         wahlperiode
       )
     );
+  }
+
+  /**
+   * Redensuche für `bundestag_reden`: voller Redetext (`fields: 'full'`, bei
+   * {@link SPEECH_FULL_MAX} gekappt) und Zeitraum. Wirft bei Ausfall. Mit Zeitraum gilt keine
+   * angenommene Wahlperiode — „2024" liegt in WP 20, und der Rückfall auf alle
+   * Perioden käme erst nach einem leeren ersten Lauf.
+   */
+  async searchSpeechesFull(opts: {
+    query: string;
+    speaker?: string;
+    speakerParty?: string;
+    wahlperiode?: number;
+    dateFrom?: string;
+    dateTo?: string;
+    limit?: number;
+    sort?: BtSort;
+    /** Harter Filter des MCP auf dem Redetext (nach der Suche); für die Wortlautsuche. */
+    requiredKeywords?: string[];
+  }): Promise<BtListResult<BtSpeech>> {
+    const {
+      query,
+      speaker,
+      speakerParty,
+      wahlperiode,
+      dateFrom,
+      dateTo,
+      limit = 5,
+      sort,
+      requiredKeywords,
+    } = opts;
+    const required = requiredKeywords?.length
+      ? `:req=${requiredKeywords.join('|').toLowerCase()}`
+      : '';
+    const key = `${CACHE_NS}:speechfull:${query.toLowerCase()}:${speaker?.toLowerCase() ?? ''}:${speakerParty ?? ''}:${wahlperiode ?? 'cur'}:${dateFrom ?? ''}:${dateTo ?? ''}:${limit}:${sort ?? 'rel'}${required}`;
+    const fetchAt = (wp: number | undefined) =>
+      this.fetchTrimmed(
+        'bundestag_search_speeches',
+        {
+          query,
+          speaker,
+          speakerParty,
+          wahlperiode: wp,
+          dateFrom,
+          dateTo,
+          limit,
+          sort,
+          ...(requiredKeywords?.length ? { requiredKeywords } : {}),
+          fields: 'full',
+        },
+        rawSpeechSchema,
+        (raw) => mapSpeech(raw, SPEECH_FULL_MAX)
+      );
+    // Anders als `safeList` wirft ein Ausfall hier: das Werkzeug soll „nicht
+    // erreichbar" sagen können statt „keine Reden gefunden".
+    const schema = btListResultSchema(btSpeechSchema);
+    const hit = await getCachedJson(key, schema).catch(() => null);
+    if (hit !== null) return hit;
+    const fresh =
+      dateFrom || dateTo
+        ? { items: await fetchAt(wahlperiode), wpFallback: false }
+        : await this.withWpFallback(fetchAt, wahlperiode);
+    await setCachedJson(key, fresh, CACHE_TTL_SECONDS).catch(() => undefined);
+    return fresh;
   }
 
   /**

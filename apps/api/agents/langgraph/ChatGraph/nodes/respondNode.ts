@@ -13,6 +13,10 @@ import { type ChatIntentId, isGroundableProse } from '@gruenerator/shared/chat-i
 import { roleAwareDefaultRecipeMention } from '../../../../routes/chat/agents/lvRecipePreference.js';
 import { isTabelleAuswertenMountable } from '../../../../routes/chat/agents/tabelleAuswertenTool.js';
 import {
+  methodPrecedenceNote,
+  renderMethodRecipeBlock,
+} from '../../../../routes/chat/services/agenticLoop/recipeRegistry.js';
+import {
   EDITOR_SURFACE_NOUNS,
   looksLikeChitchatTurn,
   resolveEditorSurfaceKind,
@@ -79,6 +83,9 @@ const log = createLogger('ChatGraph:Respond');
  * Attachment context limits.
  * These prevent large documents from consuming the entire token budget.
  */
+/** Methoden-Rezepte, die im Einzeldurchlauf nur bei diesem Intent in den Prompt gehören. */
+const METHOD_NEEDS_INTENT: Record<string, string> = { bundestagsrecherche: 'bundestag' };
+
 const ATTACHMENT_LIMITS = {
   /** Floor per document; the effective per-doc limit follows the total budget. */
   PER_DOCUMENT_CHARS: 25000,
@@ -2204,9 +2211,43 @@ async function buildPromptBlockContext(state: ChatGraphState, opts: SystemMessag
   // („## AKTIVE PLATTFORM: PM Hessen (Partei)"), auch wenn der Rumpf ein
   // angelernter Stil ist — der Stil ersetzt den Rezepttext, nicht das Rezept.
   // Nur die freie Mention ohne Systemrezept läuft unter ihrem eigenen Namen.
-  const skillFragment = resolved
+  const textFormFragment = resolved
     ? `\n\n## AKTIVE ${resolved.replacesSystem || resolved.source === 'system' ? 'PLATTFORM' : 'TEXTFORM'}: ${resolved.title}\n${resolved.body}${offerNote(state, [resolved.mention])}`
     : '';
+
+  // Methoden-Rezepte (`@bundestag` → Bundestag-Recherche, Rechtsstand) stehen
+  // NEBEN der Textsorte, nicht an ihrer Stelle — eigene Überschrift, eigene
+  // Vorrangregel. Aufgelöst wird auf beiden Pfaden (der Titel entscheidet unten
+  // über den Formatgeber), in den Prompt kommt der Rumpf nur im Einzelpfad: im
+  // Loop trägt ihn die Rezept-Registry (`catalogAssembly`), hier stünde er
+  // sonst doppelt.
+  // Die Bundestag-Methode beschreibt den Umgang mit `bundestag`/`parlament_lesen`.
+  // Läuft der Turn ohne Schleife, bleibt der Intent nur dann `bundestag`, wenn der
+  // Abruf wirklich Bundestagsquellen geliefert hat; fiel er auf `web` zurück
+  // (`loop_only_degraded`), stünde die Methode im Prompt, ohne dass ihre
+  // Werkzeuge existieren, und gäbe dort sogar die Antwortform vor.
+  const methodRunsHere = (mention: string): boolean =>
+    opts.loop === true || (METHOD_NEEDS_INTENT[mention] ?? state.intent) === state.intent;
+  const resolvedMethods = (
+    await Promise.all(
+      (state.methodSkillMentions ?? [])
+        .filter((mention) => mention !== resolved?.mention && methodRunsHere(mention))
+        .map((mention) =>
+          resolveRecipeBody({
+            mention,
+            recipeId: null,
+            userId: isNeutralTurn ? null : (agentConfig.userId ?? null),
+          })
+        )
+    )
+  ).filter((r): r is NonNullable<typeof r> => r !== null);
+  const methodRecipes = opts.loop ? [] : resolvedMethods;
+  const methodFragment = methodRecipes.length
+    ? `\n\n${methodRecipes.map((r) => renderMethodRecipeBlock(r.title, r.body)).join('\n\n')}`
+    : '';
+  const skillFragment = methodFragment
+    ? `${methodFragment}${textFormFragment}\n\n${methodPrecedenceNote(textFormFragment !== '')}`
+    : textFormFragment;
 
   // Dieselbe Vokabel wie die Werkzeug-Tür (`[recipeTools] [Rezept] gewählt=…
   // quelle=…`), damit im Log vergleichbar wird, welcher der beiden Wege ein
@@ -2217,7 +2258,14 @@ async function buildPromptBlockContext(state: ChatGraphState, opts: SystemMessag
   // Was das Modell wirklich vor sich hat — `quelle=fehlt`, wenn kein Rezepttext
   // gefunden wurde. Die Formatregel unten hängt daran, nicht an der blossen
   // Absicht.
-  const activeTextFormTitle = resolved ? resolved.title : null;
+  //
+  // Ohne Textsorte gibt ein Methoden-Rezept die Form vor: der Bundestag-
+  // Rezepttext trägt bewusst Formregeln (vollständige Antworten, alle
+  // einschlägigen Drucksachen, Fundstellen zuerst bei „wo/wann") — die
+  // Standardregel „2–4 Absätze" würde genau die zu kurzen Antworten
+  // zurückbringen, die das Rezept behebt. Mit Textsorte regelt die Methode nur
+  // Recherche, Belege und Lücken.
+  const activeTextFormTitle = resolved ? resolved.title : (resolvedMethods[0]?.title ?? null);
 
   if (effectiveSkillMention || effectiveRecipe.recipeId) {
     const quelle = resolved?.source ?? 'fehlt';
@@ -2235,15 +2283,17 @@ async function buildPromptBlockContext(state: ChatGraphState, opts: SystemMessag
   // gepinntes Rezept läuft unter seinem eigenen Namen, und die Abzeichenzeile
   // soll dasselbe nennen wie die Überschrift im Prompt (#2939). Der Prompttext
   // bleibt draußen — hier steht nur, WAS galt.
-  if (resolved) {
-    state.usedRecipes = [
-      {
-        mention: resolved.mention,
-        title: resolved.title,
-        source: resolved.source,
-        ...(resolved.id ? { id: resolved.id } : {}),
-      },
-    ];
+  const promptRecipes = [...methodRecipes, ...(resolved ? [resolved] : [])];
+  if (methodRecipes.length) {
+    log.info(`[Rezept] Methoden im Prompt: ${methodRecipes.map((r) => r.mention).join(',')}`);
+  }
+  if (promptRecipes.length > 0) {
+    state.usedRecipes = promptRecipes.map((r) => ({
+      mention: r.mention,
+      title: r.title,
+      source: r.source,
+      ...(r.id ? { id: r.id } : {}),
+    }));
   }
 
   const shared = {

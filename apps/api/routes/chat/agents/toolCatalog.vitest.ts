@@ -221,6 +221,30 @@ describe('toolCatalog domain tool mounting', () => {
     expect(toolNames).toEqual(expect.arrayContaining(['bundestag', 'abgeordnetenwatch']));
   });
 
+  it('mounts the German parliament tools only for de-DE, and the Nationalrat with parlament_lesen for de-AT', () => {
+    expect(catalogFor('search').toolNames).toContain('parlament_lesen');
+    expect(catalogFor('search').toolNames).toContain('bundestag_reden');
+    expect(catalogFor('search').toolNames).toContain('landtag');
+    expect(catalogFor('search').toolNames).not.toContain('nationalrat');
+    const sourceRegistry = createSourceRegistry();
+    const state = {
+      intent: 'search',
+      userLocale: 'de-AT',
+      enabledTools: {},
+    } as unknown as ChatGraphState;
+    const { toolNames } = buildChatToolCatalog({
+      agentConfig,
+      sourceRegistry,
+      loop: { sse: { send: () => {} } as never, state },
+    });
+    expect(toolNames).not.toContain('bundestag');
+    expect(toolNames).not.toContain('bundestag_reden');
+    expect(toolNames).not.toContain('landtag');
+    // Österreich liest den Nationalrat über denselben Leser.
+    expect(toolNames).toContain('nationalrat');
+    expect(toolNames).toContain('parlament_lesen');
+  });
+
   // Mounted on every turn, `summarize` was the planner's pick for any ask about
   // an attachment — live 29.09.2026 a spelling correction of a pasted
   // newsletter came back as its summary. Gated on state, not wording: the

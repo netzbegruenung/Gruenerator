@@ -310,6 +310,7 @@ export async function* streamWithReasoning(
       outputTokens: usage?.outputTokens ?? 0,
       durationMs: Date.now() - startedAt,
       ttftMs: firstTextAt === null ? null : firstTextAt - startedAt,
+      inputTokens: usage?.inputTokens ?? null,
     });
     if (usage) recordTokenUsage({ provider: bookedProvider, model: params.model, ...usage });
     if (impact) recordImpact({ provider: params.provider, model: params.model, ...impact });

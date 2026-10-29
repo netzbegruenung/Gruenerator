@@ -22,6 +22,8 @@ export const skillCategorySchema = z.enum([
   'sonstiges',
 ]);
 
+export const skillRoleSchema = z.enum(['textsorte', 'methode']);
+
 export const skillFrontmatterSchema = z.object({
   identifier: z.string().min(1),
   title: z.string().min(1),
@@ -55,6 +57,16 @@ export const skillFrontmatterSchema = z.object({
    * (Brandenburg, Saarland, Thüringen) und für alles außerhalb der Presse.
    */
   lvEbene: z.enum(['partei', 'fraktion']).optional(),
+  /**
+   * Was das Rezept im Turn regelt. `textsorte` (Vorgabe, wenn das Feld fehlt)
+   * gibt die FORM des Texts vor — Länge, Aufbau, Plattform — und ist darum
+   * exklusiv: zwei Formatgeber auf einem Text haben keinen Schlichter.
+   * `methode` regelt dagegen, WIE recherchiert, belegt und zitiert wird
+   * (Bundestag-Recherche, Rechtsstand), und stapelt sich neben einer Textsorte:
+   * „recherchiere im Bundestag und beantworte diese Bürgeranfrage" braucht
+   * beide. Ausgewertet von `skillRole` (shared) und der Rezept-Registry der API.
+   */
+  rolle: skillRoleSchema.optional(),
   /**
    * Die Instanzen, auf denen dieses Rezept ANGEBOTEN wird. Fehlt das Feld, gilt
    * es überall — der Normalfall, den kein Rezept deklarieren muss.
@@ -96,6 +108,7 @@ export const skillFrontmatterSchema = z.object({
 
 export type SkillFrontmatter = z.infer<typeof skillFrontmatterSchema>;
 export type SkillCategoryValue = z.infer<typeof skillCategorySchema>;
+export type SkillRole = z.infer<typeof skillRoleSchema>;
 
 /**
  * The party-internal prompt body of one skill, fetched by the Agentura recipe

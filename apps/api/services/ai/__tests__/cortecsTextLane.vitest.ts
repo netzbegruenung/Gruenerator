@@ -232,3 +232,109 @@ describe('cortecs text lane', () => {
     expect(lane.hedge?.provider).not.toBe(lane.provider);
   });
 });
+
+/**
+ * Kolibri-1 (Unteranbieter aki) denkt per Default und weist `json_object` ab —
+ * beides am 28.10.2026 gegen api.cortecs.ai gemessen: ohne `none` steht die
+ * Antwort in `reasoning_content` und `content` bleibt leer; mit
+ * `response_format: {type:'json_object'}` kommt HTTP 400 („Only json_schema,
+ * regex, grammar, choice are allowed"). Werkzeugaufrufe mit `tool_choice:
+ * 'required'` gehen mit `none` durch.
+ */
+describe('cortecs kolibri-1', () => {
+  it('pinnt reasoning_effort none', async () => {
+    const sent = await sentBody({ model: 'kolibri-1', messages: [], max_tokens: 20 });
+    expect((JSON.parse(String(sent)) as Record<string, unknown>).reasoning_effort).toBe('none');
+  });
+
+  it('nimmt json_object vom Draht, weil der Unteranbieter es mit 400 ablehnt', async () => {
+    const sent = await sentBody({
+      model: 'kolibri-1',
+      messages: [],
+      response_format: { type: 'json_object' },
+    });
+    expect(JSON.parse(String(sent))).not.toHaveProperty('response_format');
+  });
+
+  it('lässt json_object auf anderen Modellen stehen', async () => {
+    const sent = await sentBody({
+      model: 'gemma-4-31b-it',
+      messages: [],
+      response_format: { type: 'json_object' },
+    });
+    expect((JSON.parse(String(sent)) as Record<string, unknown>).response_format).toEqual({
+      type: 'json_object',
+    });
+  });
+
+  // tool_choice 'required' hält kolibri-1 nicht ein (28.10.2026: 3 von 6 Läufen
+  // Fliesstext statt Aufruf); json_schema traf 6 von 6.
+  it('macht aus dem erzwungenen Werkzeug ein json_schema', async () => {
+    const schema = { type: 'object', properties: { a: { type: 'string' } } };
+    const sent = await sentBody({
+      model: 'kolibri-1',
+      messages: [],
+      tools: [{ type: 'function', function: { name: 'melden', parameters: schema } }],
+      tool_choice: 'required',
+      response_format: { type: 'json_object' },
+    });
+    const parsed = JSON.parse(String(sent)) as Record<string, unknown>;
+    expect(parsed).not.toHaveProperty('tools');
+    expect(parsed.response_format).toEqual({
+      type: 'json_schema',
+      json_schema: { name: 'melden', schema },
+    });
+  });
+
+  // Die Antwortseite: nach der Souveränitätsprüfung wird das JSON zum Werkzeugaufruf.
+  it('legt die JSON-Antwort als Aufruf des erzwungenen Werkzeugs zurück', async () => {
+    const original = globalThis.fetch;
+    globalThis.fetch = (() =>
+      Promise.resolve(
+        new Response(
+          JSON.stringify({
+            model: 'kolibri-1',
+            choices: [
+              { message: { role: 'assistant', content: '{"a":"x"}' }, finish_reason: 'stop' },
+            ],
+          }),
+          {
+            status: 200,
+            headers: {
+              'content-type': 'application/json',
+              'x-cortecs-provider': 'aki',
+              'x-cortecs-model': 'kolibri-1',
+            },
+          }
+        )
+      )) as typeof fetch;
+    try {
+      const res = await cortecsFetchWithPolicy('https://example.invalid/chat/completions', {
+        method: 'POST',
+        body: JSON.stringify({
+          model: 'kolibri-1',
+          messages: [],
+          tools: [
+            { type: 'function', function: { name: 'melden', parameters: { type: 'object' } } },
+          ],
+          tool_choice: 'required',
+        }),
+      });
+      const json = (await res.json()) as {
+        choices: {
+          message: { content: unknown; tool_calls: { function: unknown }[] };
+          finish_reason: string;
+        }[];
+      };
+      expect(json.choices[0].message.content).toBeNull();
+      expect(json.choices[0].message.tool_calls[0].function).toEqual({
+        name: 'melden',
+        arguments: '{"a":"x"}',
+      });
+      expect(json.choices[0].finish_reason).toBe('tool_calls');
+      expect(res.headers.get('x-cortecs-provider')).toBe('aki');
+    } finally {
+      globalThis.fetch = original;
+    }
+  });
+});

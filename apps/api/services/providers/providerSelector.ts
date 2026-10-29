@@ -222,8 +222,15 @@ export function selectProviderAndModel({
     provider = TEXT_PROVIDER;
     model = options.model || TEXT_MODEL;
   }
-  // QA intermediate steps (planner, repair, tools) — fast model
-  else if (type === 'qa_tools' || type === 'qa_planner' || type === 'qa_repair') {
+  // QA intermediate steps (planner, repair, tools) — fast model; Bundestags-Fragen laufen auf demselben Modell
+  else if (
+    type === 'qa_tools' ||
+    type === 'qa_planner' ||
+    type === 'qa_repair' ||
+    type === 'bundestag_plan' ||
+    type === 'bundestag_read' ||
+    type === 'bundestag_answer'
+  ) {
     provider = TEXT_PROVIDER;
     model = options.model || TEXT_MODEL;
   }

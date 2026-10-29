@@ -294,3 +294,22 @@ export function buildToolPayloadNote(steps: PersistedStep[]): string {
     '([N], „[Quelle N]").'
   );
 }
+
+/**
+ * Kurze Notizen, die ein Werkzeug ausdrücklich an den SCHREIBER richtet
+ * (`fuerSchreiber` im Ergebnis) — etwa „dieses Werkzeug deckt nur den Bundestag
+ * ab". `hinweis` bleibt Planer-Anweisung und kommt hier nie an: der Schreiber
+ * des split-Modus sieht nur Quellen und diese Notizen, und eine Aussage zum
+ * Geltungsbereich, die nur im Ergebnis stand, verpuffte (Landtag-Frage, live
+ * 28.10.2026: Websuche-Treffer wurden als Landtag-Inhalt ausgegeben).
+ */
+export function buildWriterNotes(steps: PersistedStep[]): string {
+  const notes = new Set<string>();
+  for (const step of steps) {
+    if (step.serverName || step.ok === false) continue;
+    const note = step.result['fuerSchreiber'];
+    if (typeof note === 'string' && note.trim() !== '') notes.add(note.trim());
+  }
+  if (notes.size === 0) return '';
+  return `\n\nANWEISUNG DER WERKZEUGE AN DICH (verbindlich, vor allem anderen beachten):\n${[...notes].map((n) => `- ${n}`).join('\n')}`;
+}

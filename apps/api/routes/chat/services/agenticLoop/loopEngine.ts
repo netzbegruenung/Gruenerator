@@ -351,7 +351,8 @@ export function buildPrepareStep(
    * `extraSystem`: die Menge wächst mitten im Lauf, wenn das Modell einen Lader
    * ruft. Ein einmal eingefangenes Array wäre der Stand von Schritt 0.
    */
-  activeTools: () => readonly string[] | undefined = () => undefined,
+  activeTools: (steps?: ReadonlyArray<PreparedStepView>) => readonly string[] | undefined = () =>
+    undefined,
   /**
    * Welche Werkzeuge der ERZWUNGENE erste Schritt sieht (`forcedFirstStepTools`),
    * oder `null` für den vollen Umfang. Nur auf Schritt 0 gelesen, und nur
@@ -366,20 +367,41 @@ export function buildPrepareStep(
   // Eine Nudge pro Zug: scheitert auch der zweite Versuch, bleibt es dabei.
   let retryNudged = false;
   return ({ stepNumber, steps }) => {
-    const active = activeTools();
+    const active = activeTools(steps);
     // Auf JEDEM Zweig, nicht nur dem letzten: `toolChoice: 'none'` unterdrückt
     // den Aufruf, nicht die Definitionen — der Katalog wird auch auf dem
     // Schlussschritt mitgeschickt und bezahlt.
     const scope = active ? { activeTools: active } : {};
     /**
-     * Ein BENANNTES Werkzeug muss mitgehen, auch wenn der Umfang es
-     * zurückgestellt hat — sonst verlangt derselbe Schritt einen Aufruf und
-     * schickt die Definition dazu nicht mit. Die Absicherung sitzt hier und
-     * nicht nur bei `createToolScope`, weil jeder künftige Zwang durch diesen
-     * Trichter läuft: `forcedTool`, `firstToolName`, was danach kommt.
+     * Ein BENANNTER Schritt schickt NUR das benannte Werkzeug mit. Das deckt
+     * zweierlei: die Definition geht mit, auch wenn der Umfang sie
+     * zurückgestellt hat (sonst verlangt der Schritt einen Aufruf ohne
+     * Definition), und kein anderes Werkzeug steht daneben.
+     *
+     * Das Zweite ist der Stillstand vom 28.10.2026: `tool_choice` mit Namen über
+     * den vollen Katalog (25 Werkzeuge, ~44k Zeichen Schemata) liess Gemma 4 bei
+     * Cortecs 26 214 unsichtbare Tokens bis `finish_reason: length` erzeugen
+     * (60 s, kein Delta) und bei Melious nach ~30 s mit „malformed" scheitern —
+     * jedes Mal, sobald der Prompt das Modell zu einem anderen ersten Werkzeug
+     * zog (Bürger*innen-Mail: „Schritt 1: gruenerator_search"). GreenPT setzt
+     * den Namen gar nicht durch und rief `web_search`. Mit nur dem benannten
+     * Werkzeug antworteten alle drei in 2–5 s. Mehr als dieses eine kann der
+     * Schritt ohnehin nicht rufen; die anderen Definitionen sind nur Ablenkung.
+     * Die Absicherung sitzt hier, weil jeder Zwang durch diesen Trichter läuft:
+     * `forcedTool`, `firstToolName`, was danach kommt.
      */
-    const withTool = (name: string): typeof scope =>
-      active && !active.includes(name) ? { activeTools: [...active, name] } : scope;
+    const onlyTool = (name: string) => ({ activeTools: [name] as readonly string[] });
+    /**
+     * Der Systemprompt zieht das Modell sonst zu einem Werkzeug, das dieser
+     * Schritt nicht mehr führt: „Fragen nach Reden gehen immer an
+     * `bundestag_reden`, nicht an `bundestag`" bei erzwungenem `bundestag` —
+     * Stillstand vom 28.10.2026 („Wann hat Katrin Uhlig … gesprochen?"):
+     * Cortecs und Melious schwiegen je 15 s, GreenPT rief nichts. Gleiche Frage
+     * mit gestrichener Zeile oder mit diesem Hinweis: Aufruf nach 2–3 s. Der
+     * Hinweis steht am Ende, wo er die Zuordnung weiter oben überstimmt.
+     */
+    const namedStepNote = (name: string) =>
+      `\n\n## DIESER SCHRITT\nDein einziger Aufruf in diesem Schritt ist \`${name}\`. Andere Werkzeuge aus der Zuordnung oben gelten erst für die folgenden Schritte; sie stehen diesem Schritt nicht zur Wahl.`;
     if (stepNumber >= maxSteps - 1 || forceFinish()) {
       return {
         toolChoice: 'none' as const,
@@ -405,11 +427,12 @@ export function buildPrepareStep(
       const choice = firstToolName
         ? ({ type: 'tool' as const, toolName: firstToolName } as const)
         : ('required' as const);
+      const system = `${baseSystem}${extra}${firstToolName ? namedStepNote(firstToolName) : ''}`;
       return {
         toolChoice: choice,
-        ...(extra && { system: `${baseSystem}${extra}` }),
+        ...(system !== baseSystem && { system }),
         ...(firstToolName
-          ? withTool(firstToolName)
+          ? onlyTool(firstToolName)
           : firstStepTools
             ? { activeTools: firstStepTools }
             : scope),
@@ -422,8 +445,8 @@ export function buildPrepareStep(
       if (toolName)
         return {
           toolChoice: { type: 'tool' as const, toolName },
-          ...(extra && { system: `${baseSystem}${extra}` }),
-          ...withTool(toolName),
+          system: `${baseSystem}${extra}${namedStepNote(toolName)}`,
+          ...onlyTool(toolName),
         };
     }
     return extra ? { system: `${baseSystem}${extra}`, ...scope } : { ...scope };
@@ -593,7 +616,7 @@ export interface LoopEngineParams {
    * alle, also das Verhalten vor `toolScope.ts`. Getter: eine zurückgestellte
    * Gruppe kann sich mitten im Lauf öffnen.
    */
-  activeTools?: () => readonly string[] | undefined;
+  activeTools?: (steps?: ReadonlyArray<PreparedStepView>) => readonly string[] | undefined;
   /** Names the tool that first step must call, when an @-mention pinned one. */
   firstToolName?: string | null;
   /** Tool set the forced first step sees (`forcedFirstStepTools`); null = full scope. */
@@ -636,7 +659,7 @@ export interface LoopEngineParams {
    *  the generation fat tool (it treats the turn as pure research and stops), so
    *  this hook force-creates the artifact from the gathered sources when the
    *  planner didn't, before the synth announces it. */
-  afterGather?: () => Promise<void>;
+  afterGather?: () => Promise<boolean | void>;
   /**
    * Split mode only: output-integrity check on the ACCEPTED answer (after the
    * refusal/tool-plan verdicts). Returns a system suffix describing what to fix
@@ -716,8 +739,10 @@ export async function runAgenticLoop(
   }
   const outcome = await gather(p, deps);
   if (p.suspended?.()) throw new TurnSuspendedError();
-  if (p.afterGather) await p.afterGather();
-  return synthesize(p, deps, outcome);
+  // Hat die Zusicherung das benannte Werkzeug nachgeholt, hat der Schreiber
+  // Quellen — der Ausfallhinweis wäre dann gelogen.
+  const rescued = p.afterGather ? await p.afterGather() : false;
+  return synthesize(p, deps, rescued === true ? { failedBeforeAnyTool: false } : outcome);
 }
 
 /** Unified mode: one model holds the tools and streams the answer. */
@@ -809,7 +834,7 @@ async function streamWithTools(
  *  tool loop only advances as the stream is drained. */
 /** How the tool phase ended — `synthesize` reads it. */
 interface GatherOutcome {
-  /** The phase threw before the planner emitted a single tool call, on every
+  /** The phase threw before a single tool came back with a result, on every
    *  lane it tried. The writer then has nothing but the prompt — and without
    *  being told, it explains the missing results as a missing ability
    *  ("Da ich ein KI-Modell bin, kann ich keine Formulare bauen"). */
@@ -822,6 +847,13 @@ interface GatherAttempt {
   /** The planner emitted at least one tool call — it may have executed, so the
    *  attempt must not be repeated (a retry could create the same form twice). */
   sawToolCall: boolean;
+  /** A tool came back with a result. A CALL alone does not mean that: an
+   *  enforced `toolChoice` the response ignored throws AFTER its tool-call part
+   *  arrived (`ToolChoiceViolationError`, live 28.10.2026: GreenPT called
+   *  `web_search` under a pinned `bundestag`) — nothing ran, but `sawToolCall`
+   *  already said so, and the writer, missing the failure note, announced a
+   *  research plan with tool names and asked „Soll ich starten?". */
+  sawToolResult: boolean;
   /** Reasoning or narration already reached the client. A second lane would
    *  stream its own next to it, so the attempt is not repeated either. */
   sawOutput: boolean;
@@ -843,7 +875,10 @@ async function gather(p: LoopEngineParams, deps: LoopDeps): Promise<GatherOutcom
   for (const [i, model] of lanes.entries()) {
     const hasNext = i < lanes.length - 1;
     const attempt = await gatherOn(p, deps, model, i === 0, hasNext);
-    if (attempt.error == null || attempt.sawToolCall) return { failedBeforeAnyTool: false };
+    if (attempt.error == null) return { failedBeforeAnyTool: false };
+    // A call may have executed — no second lane — but only a result means the
+    // registry holds anything the writer can answer from.
+    if (attempt.sawToolCall) return { failedBeforeAnyTool: !attempt.sawToolResult };
     if (
       !hasNext ||
       attempt.sawOutput ||
@@ -887,6 +922,7 @@ async function gatherOn(
     ? createIdleDeadline(firstResponseMs, () => new ToolPhaseStallError(firstResponseMs))
     : null;
   let sawToolCall = false;
+  let sawToolResult = false;
   let sawOutput = false;
   try {
     const result: Drainable = deps.streamText({
@@ -942,6 +978,7 @@ async function gatherOn(
         }
         if (part.type === 'error') throw part.error;
         if (part.type === 'tool-call') sawToolCall = true;
+        if (part.type === 'tool-result') sawToolResult = true;
         if (part.type === 'tool-input-start' || part.type === 'tool-call') {
           chunker?.flush();
           p.onToolCallStart?.();
@@ -963,7 +1000,7 @@ async function gatherOn(
     } finally {
       chunker?.flush();
     }
-    return { error: null, sawToolCall, sawOutput };
+    return { error: null, sawToolCall, sawToolResult, sawOutput };
   } catch (err) {
     // Tools that already ran filled the registry before any error — degrade to
     // synthesis over whatever was collected rather than failing the whole turn.
@@ -985,7 +1022,7 @@ async function gatherOn(
       // zahlen will (siehe seinen Kopfkommentar).
       if (isPrimaryLane) p.onToolPhaseStall?.();
     }
-    return { error: err, sawToolCall, sawOutput };
+    return { error: err, sawToolCall, sawToolResult, sawOutput };
   } finally {
     idle.clear();
     firstResponse?.clear();

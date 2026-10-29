@@ -7,6 +7,7 @@ avatar: '⚖️'
 backgroundColor: '#316049'
 mention: 'rechtsstand'
 skillCategory: recherche
+rolle: methode
 instances: ['bgst', 'local']
 promptTemplate: 'Klär den Rechtsstand zu: '
 order: 25

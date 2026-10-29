@@ -138,6 +138,16 @@ export interface ToolMeta {
   summarize?: (args: unknown, result: unknown) => string | null;
 }
 
+/** Zeile unter `landtag` und `nationalrat`: gezeigte und gefundene Dokumente. */
+const summarizeParlamentListe: NonNullable<ToolMeta['summarize']> = (_args, result) => {
+  const n = getArray(getObject(result, 'uiCard'), 'dokumente')?.length ?? 0;
+  if (n === 0) return null;
+  const gesamt = getNumber(getObject(result, 'uiCard'), 'gesamt');
+  return gesamt != null && gesamt > n
+    ? `${n} von ${gesamt} Dokumenten`
+    : `${n} ${n === 1 ? 'Dokument' : 'Dokumente'}`;
+};
+
 const TOOL_METADATA: Record<string, ToolMeta> = {
   // --- Retrieval -----------------------------------------------------------
   search_sources: {
@@ -181,6 +191,58 @@ const TOOL_METADATA: Record<string, ToolMeta> = {
     activeLabel: 'Durchsuche den Bundestag',
     iconKey: 'book',
     accent: 'retrieval',
+    // Persistente Karte; die Kopfzeile nennt die Gesamtzahlen der Planstufe.
+    summarize: (_args, result) => {
+      const gesamt = getObject(getObject(result, 'uiCard'), 'gesamt');
+      const vorgaenge = getNumber(gesamt, 'vorgaenge');
+      const drucksachen = getNumber(gesamt, 'drucksachen');
+      if (vorgaenge != null && drucksachen != null) {
+        return `${vorgaenge} ${vorgaenge === 1 ? 'Vorgang' : 'Vorgänge'}, ${drucksachen} ${drucksachen === 1 ? 'Drucksache' : 'Drucksachen'}`;
+      }
+      return null;
+    },
+  },
+  parlament_lesen: {
+    label: 'Parlamentsdokumente lesen',
+    activeLabel: 'Liest Parlamentsdokumente …',
+    iconKey: 'book',
+    accent: 'retrieval',
+    queryKeys: ['frage'],
+    summarize: (_args, result) => {
+      const card = getObject(result, 'uiCard');
+      const gelesen = getArray(card, 'gelesen')?.length ?? 0;
+      const ungelesen = getArray(card, 'nichtGelesen')?.length ?? 0;
+      if (!card || gelesen + ungelesen === 0) return null;
+      return `${gelesen} von ${gelesen + ungelesen} gelesen`;
+    },
+  },
+  landtag: {
+    label: 'Landtag',
+    activeLabel: 'Durchsuche den Landtag',
+    iconKey: 'book',
+    accent: 'retrieval',
+    queryKeys: ['query'],
+    summarize: summarizeParlamentListe,
+  },
+  nationalrat: {
+    label: 'Nationalrat',
+    activeLabel: 'Durchsuche den Nationalrat',
+    iconKey: 'book',
+    accent: 'retrieval',
+    queryKeys: ['query'],
+    summarize: summarizeParlamentListe,
+  },
+  bundestag_reden: {
+    label: 'Reden im Bundestag',
+    activeLabel: 'Durchsuche Bundestagsreden',
+    iconKey: 'book',
+    accent: 'retrieval',
+    queryKeys: ['thema', 'redner'],
+    summarize: (_args, result) => {
+      const n = getArray(getObject(result, 'uiCard'), 'reden')?.length ?? 0;
+      if (n === 0) return null;
+      return `${n} ${n === 1 ? 'Rede' : 'Reden'}`;
+    },
   },
   research: {
     label: 'Deep Research',
@@ -199,6 +261,14 @@ const TOOL_METADATA: Record<string, ToolMeta> = {
     activeLabel: 'Erkunde die Website',
     iconKey: 'globe',
     accent: 'external',
+  },
+  // toolScope.ts: Lader der Parlamentsgruppe — nur Statuszeile, keine Karte.
+  parlament_werkzeuge_laden: {
+    label: 'Parlamentswerkzeuge',
+    activeLabel: 'Öffne die Parlamentswerkzeuge',
+    iconKey: 'book',
+    accent: 'retrieval',
+    summarize: () => 'Parlamentswerkzeuge freigeschaltet',
   },
   website_werkzeug_laden: {
     label: 'Website erkunden',

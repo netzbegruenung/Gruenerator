@@ -5,7 +5,13 @@
  * Uses the direct search functions from the chat agents module.
  */
 
-import { dipSearchUrl, btpProtokollPdfUrl as btpPdfUrl } from '@gruenerator/contracts';
+import {
+  bundestagVerlaufLines,
+  dipSearchUrl,
+  btpProtokollPdfUrl as btpPdfUrl,
+  type BundestagCandidate,
+  type BundestagFilter,
+} from '@gruenerator/contracts';
 import { isIntentAllowedForLocale, intentDeclineNote } from '@gruenerator/shared/chat-intents';
 
 import { NOTEBOOK_GATE } from '../../../../config/notebookCollectionMap.js';
@@ -31,6 +37,9 @@ import { resolveReferentialQuery } from '../../../../routes/chat/services/refere
 import { getEnrichedPoliticianService } from '../../../../services/abgeordnetenwatch/index.js';
 import { type AwEnrichedResult } from '../../../../services/abgeordnetenwatch/types.js';
 import { getBundestagEnrichedService } from '../../../../services/bundestag/BundestagEnrichedService.js';
+import { CHAT_BUDGET } from '../../../../services/bundestag/qa/budget.js';
+import { bundestagDocTitle } from '../../../../services/bundestag/qa/docTitle.js';
+import { bundestagFamily, planBundestagQuestion } from '../../../../services/bundestag/qa/index.js';
 import {
   type BtEnrichedResult,
   type BtDrucksache,
@@ -268,6 +277,50 @@ function btDrucksacheResult(d: BtDrucksache, relevance: number): SearchResult {
   };
 }
 
+/** Obergrenze des Abstracts in der Listenzeile; der Verlauf hat Vorrang vor ihm. */
+const ABSTRACT_MAX_CHARS = 600;
+
+/**
+ * Kandidat der Planstufe → Treffer. Nur Metadaten: der Volltext kommt erst über
+ * `parlament_lesen`, die `Ref:`-Zeile ist der Schlüssel dafür.
+ *
+ * `withVerlauf`: der Beratungsverlauf hängt am Vorgang, nicht am Dokument —
+ * nur der erste Treffer je Vorgang trägt ihn, sonst stünde er bei jedem
+ * Geschwister erneut im Kontext.
+ */
+export function candidateToSearchResult(
+  c: BundestagCandidate,
+  i: number,
+  withVerlauf = true
+): SearchResult {
+  const title = bundestagDocTitle(c);
+  const verlauf =
+    withVerlauf && c.verlauf
+      ? ['Beratungsverlauf des Vorgangs:', ...bundestagVerlaufLines(c.verlauf).map((l) => `• ${l}`)]
+      : [];
+  // Die Zeile kappt hinten (`snippetLine`). Wichtigstes zuerst: Titel, Ref (Schlüssel
+  // für `parlament_lesen`), Vorgang, Verlauf („wo beschlossen"); das Abstract ist
+  // Beiwerk, kommt zuletzt und ist selbst gedeckelt, damit es den Verlauf nicht verdrängt.
+  const content = [
+    c.titel,
+    `Ref: ${c.ref}`,
+    c.vorgangTitel,
+    ...verlauf,
+    c.abstract && c.abstract.length > ABSTRACT_MAX_CHARS
+      ? `${c.abstract.slice(0, ABSTRACT_MAX_CHARS)}…`
+      : c.abstract,
+  ]
+    .filter(Boolean)
+    .join('\n');
+  return {
+    source: 'bundestag',
+    title,
+    content,
+    ...(c.pdfUrl ? { url: c.pdfUrl } : {}),
+    relevance: 1 - 0.02 * i,
+  };
+}
+
 function btSpeechResult(s: BtSpeech, title: string, relevance: number): SearchResult {
   const url = btpPdfUrl(s.protokollNummer, s.herausgeber);
   return {
@@ -293,6 +346,18 @@ function btSpeechResult(s: BtSpeech, title: string, relevance: number): SearchRe
  * carry no parliamentary content, compete for the rerank input budget, and can
  * be cited as a source. There the caller wants substance or nothing.
  */
+/** Filter, die die alte (filterlose) Suche nicht einhalten kann. Die Wahlperiode zählt nicht: sie ist meist nur vorbelegt. */
+function hasHardFilter(f: BundestagFilter): boolean {
+  return Boolean(
+    f.datumVon ||
+    f.datumBis ||
+    f.drucksachetyp?.length ||
+    f.urheber?.length ||
+    f.beratungsstand?.length ||
+    f.deskriptor?.length
+  );
+}
+
 function buildBundestagResults(enriched: BtEnrichedResult, standalone = true): SearchResult[] {
   const results: SearchResult[] = [];
 
@@ -423,10 +488,50 @@ function buildBundestagResults(enriched: BtEnrichedResult, standalone = true): S
  * sie verlangt ein Recherche-VERB ohne eigenes Subjekt ("recherchier das mal"),
  * was ein Suchbegriff aus dem Werkzeug-Parameter per Konstruktion nicht ist.
  */
+/** Treffer plus die Gesamtzahlen der Planstufe (`null`, wenn sie nichts lieferte). */
+export interface BundestagRetrieval {
+  results: SearchResult[];
+  totals: { vorgaenge: number; drucksachen: number } | null;
+  /** Die Listenzeilen der Planstufe als Metadaten, für die Karte im Chat (nicht fürs Modell). */
+  documents?: Pick<
+    BundestagCandidate,
+    'ref' | 'drucksachetyp' | 'datum' | 'titel' | 'urheber' | 'pdfUrl'
+  >[];
+  /** Die Filter, die die Planstufe tatsächlich angewandt hat (Modell-Filter plus Erkanntes). */
+  filters?: BundestagFilter;
+  /** Beratungsverlauf je Vorgang als Zeilen, für die Karte im Chat. */
+  verfahren?: { titel: string; zeilen: string[] }[];
+}
+
+/** Die Listenzeilen, Karten-Metadaten und Verläufe einer Kandidatenliste. */
+function describeCandidates(
+  candidates: BundestagCandidate[]
+): Pick<BundestagRetrieval, 'documents' | 'verfahren'> {
+  const documents = candidates.map((c) => ({
+    ref: c.ref,
+    drucksachetyp: c.drucksachetyp,
+    datum: c.datum,
+    titel: c.titel,
+    urheber: c.urheber,
+    pdfUrl: c.pdfUrl,
+  }));
+  const verfahren = new Map<string, { titel: string; zeilen: string[] }>();
+  for (const c of candidates) {
+    if (!c.vorgangId || !c.verlauf || verfahren.has(c.vorgangId)) continue;
+    const zeilen = bundestagVerlaufLines(c.verlauf);
+    if (zeilen.length > 0) verfahren.set(c.vorgangId, { titel: c.vorgangTitel ?? c.titel, zeilen });
+  }
+  return {
+    ...(documents.length > 0 ? { documents } : {}),
+    ...(verfahren.size > 0 ? { verfahren: [...verfahren.values()] } : {}),
+  };
+}
+
 export async function retrieveBundestag(
   query: string,
-  locale: string | null | undefined
-): Promise<SearchResult[]> {
+  locale: string | null | undefined,
+  filters?: BundestagFilter
+): Promise<BundestagRetrieval> {
   const startTime = Date.now();
   // DE-only source: for AT users return a graceful decline instead of empty
   // data. Der Loop gattert schon an der Montage (`toolCatalog`), der
@@ -434,21 +539,112 @@ export async function retrieveBundestag(
   // und seit dem Fall der Einzeldurchlauf-Tür der einzige Punkt, den keine
   // Aufrufform umgeht.
   if (!isIntentAllowedForLocale('bundestag', locale)) {
-    return [
-      {
-        source: 'bundestag',
-        title: 'Nur für Deutschland verfügbar',
-        content: intentDeclineNote('bundestag') ?? '',
-        relevance: 1,
-      },
-    ];
+    return {
+      results: [
+        {
+          source: 'bundestag',
+          title: 'Nur für Deutschland verfügbar',
+          content: intentDeclineNote('bundestag') ?? '',
+          relevance: 1,
+        },
+      ],
+      totals: null,
+    };
   }
-  const enriched = await getBundestagEnrichedService().search(query);
-  const results = buildBundestagResults(enriched);
+  // Die Anreicherung liefert Person und Altpfad, die Planstufe die Liste mit
+  // Refs. Beide laufen nebeneinander; wirft die Planstufe, trägt der Altpfad.
+  const [enriched, plan] = await Promise.all([
+    getBundestagEnrichedService()
+      .search(query)
+      .catch((err: unknown) => {
+        log.warn(
+          `[Search] Bundestag-Anreicherung fehlgeschlagen, nur Planstufe: ${err instanceof Error ? err.message : String(err)}`
+        );
+        return null;
+      }),
+    planBundestagQuestion({
+      question: query,
+      ...(filters ? { filters } : {}),
+      budget: CHAT_BUDGET,
+    }).catch((err: unknown) => {
+      log.warn(
+        `[Search] Bundestag-Planstufe fehlgeschlagen, alte Ergebnisse: ${err instanceof Error ? err.message : String(err)}`
+      );
+      return null;
+    }),
+  ]);
+  const legacy = enriched ? buildBundestagResults(enriched) : [];
+
+  let results: SearchResult[];
+  if (!plan) {
+    results = legacy;
+  } else if (plan.candidates.length === 0 && hasHardFilter(plan.filters)) {
+    // Die alte Suche kennt keine Filter: als Rückfall höbe sie Zeitraum, Typ oder
+    // Urheber wieder auf (live 29.10.2026: „letzte Woche" → 0 Kandidaten → Reden
+    // vom 09.10. als Wochenarbeit). Dann lieber ehrlich leer.
+    log.info('[Search] Bundestag-Planstufe ohne Kandidaten trotz Filter, kein Rückfall');
+    results = [];
+  } else if (plan.candidates.length === 0) {
+    log.info('[Search] Bundestag-Planstufe ohne Kandidaten, alte Ergebnisse');
+    results = legacy;
+  } else {
+    const seenVorgang = new Set<string>();
+    results = plan.candidates.map((c, i) => {
+      const first = c.vorgangId != null && !seenVorgang.has(c.vorgangId);
+      if (c.vorgangId != null) seenVorgang.add(c.vorgangId);
+      return candidateToSearchResult(c, i, first || c.vorgangId == null);
+    });
+    // Personen: Reden und Aktivitäten bleiben, hinter der Liste.
+    if (enriched?.kind === 'person') results = [...results, ...legacy];
+  }
   log.info(
-    `[Search] Bundestag (${enriched.kind}): ${results.length} results in ${Date.now() - startTime}ms`
+    `[Search] Bundestag (${enriched?.kind ?? 'ohne Anreicherung'}): ${results.length} results in ${Date.now() - startTime}ms`
   );
-  return results;
+  return {
+    results,
+    totals: plan?.totals ?? null,
+    ...describeCandidates(plan?.candidates ?? []),
+    ...(plan ? { filters: plan.filters } : {}),
+  };
+}
+
+/**
+ * Die Familie einer Drucksache: alle Dokumente ihres Vorgangs samt
+ * Beratungsabschnitten und Beratungsverlauf (Werkzeug `bundestag` mit `ref`).
+ * Kein Modell, keine Anreicherung: die Nummer legt den Vorgang fest.
+ */
+export async function retrieveBundestagFamily(
+  ref: string,
+  locale: string | null | undefined
+): Promise<BundestagRetrieval & { notes: string[] }> {
+  if (!isIntentAllowedForLocale('bundestag', locale)) {
+    return {
+      results: [
+        {
+          source: 'bundestag',
+          title: 'Nur für Deutschland verfügbar',
+          content: intentDeclineNote('bundestag') ?? '',
+          relevance: 1,
+        },
+      ],
+      totals: null,
+      notes: [],
+    };
+  }
+  const found = await bundestagFamily(ref);
+  const seenVorgang = new Set<string>();
+  const results = found.candidates.map((c, i) => {
+    const first = c.vorgangId != null && !seenVorgang.has(c.vorgangId);
+    if (c.vorgangId != null) seenVorgang.add(c.vorgangId);
+    return candidateToSearchResult(c, i, first || c.vorgangId == null);
+  });
+  return {
+    results,
+    totals: found.totals,
+    ...describeCandidates(found.candidates),
+    filters: found.filters,
+    notes: found.notes,
+  };
 }
 
 /** Schwester von `retrieveBundestag` — gleicher Schnitt, gleiche Begründung. */

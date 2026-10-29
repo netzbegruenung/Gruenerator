@@ -113,6 +113,7 @@ import {
   setThreadNotebookSources,
   type ThreadToolHistory,
 } from './threadPersistenceService.js';
+import { partitionTurnRecipes } from './turnRecipes.js';
 
 import type {
   ChatGraphInput,
@@ -282,6 +283,7 @@ export async function buildStreamContext({
     roleName: rawRoleName,
     initialAssistantMessage: rawInitialAssistantMessage,
     activeSkillMention: rawActiveSkillMention,
+    ambientSkillMention: rawAmbientSkillMention,
     activeRecipeId: rawActiveRecipeId,
     enabledTools,
     modelId: requestedModelId,
@@ -314,6 +316,20 @@ export async function buildStreamContext({
   // truth; legacy per-request fields (older clients) merge in by union. Ids in
   // tokens are user-typed text — every consumer below keeps its access checks.
   const mentionTokenFields = deriveMentionTokenFields(clientMessages);
+  const turnRecipes = partitionTurnRecipes({
+    tokenSkillMentions: mentionTokenFields.skillMentions,
+    bodySkillMention: rawActiveSkillMention,
+    ambientSkillMention: rawAmbientSkillMention,
+  });
+  const activeSkillMentionForTurn = turnRecipes.textsorte;
+  if (turnRecipes.methods.length > 0 || turnRecipes.droppedTextsorten.length > 0) {
+    log.info(
+      `[Rezept] Wahl textsorte=${turnRecipes.textsorte ?? '-'} methoden=${turnRecipes.methods.join(',') || '-'}` +
+        (turnRecipes.droppedTextsorten.length
+          ? ` verdraengt=${turnRecipes.droppedTextsorten.join(',')}`
+          : '')
+    );
+  }
   const mergedNotebookIds = unionIds(rawNotebookIds, mentionTokenFields.notebookIds);
   const mergedBoardIds = unionIds(rawBoardIds, mentionTokenFields.boardIds);
   const mergedSheetIds = unionIds(rawSheetIds, mentionTokenFields.sheetIds);
@@ -1177,13 +1193,22 @@ export async function buildStreamContext({
     // the durable `skill:`-token names what THIS message ordered, the body
     // field is the store's ambient choice (and the only carrier old clients
     // have, so it stays honored).
-    activeSkillMention: mentionTokenFields.skillMention ?? rawActiveSkillMention ?? undefined,
+    //
+    // Aufgeteilt nach Rolle (`partitionTurnRecipes`): eine Textsorte belegt den
+    // exklusiven Platz, Methoden-Rezepte (Bundestag-Recherche, Rechtsstand)
+    // stapeln sich daneben.
+    activeSkillMention: activeSkillMentionForTurn ?? undefined,
+    methodSkillMentions: turnRecipes.methods,
     // Die Zeilen-id der gewählten Textform. Kein Token-Gegenstück: Mention-Tokens
     // nennen die Mention, die id kommt nur aus dem Body — und schlägt sie im
     // Nachschlag, weil eine Umbenennung die Zeile sonst still austauschte.
-    // Genau deshalb weicht sie einem Token: siehe `activeRecipeIdForTurn`.
+    // Genau deshalb weicht sie einem Textsorten-Token: siehe `activeRecipeIdForTurn`.
+    // Ein Methoden-Token lässt sie stehen — es wählt keine Form.
     activeRecipeId:
-      activeRecipeIdForTurn(mentionTokenFields.skillMention, rawActiveRecipeId) ?? undefined,
+      activeRecipeIdForTurn(
+        turnRecipes.textsorteFromToken ? turnRecipes.textsorte : null,
+        rawActiveRecipeId
+      ) ?? undefined,
     userInstructions,
     contextWindowTokens,
   });
@@ -1311,8 +1336,9 @@ export interface MentionTokenFields {
   boardIds: string[];
   sheetIds: string[];
   docMentionIds: string[];
-  /** Rezept/Textform aus einem `skill:`-Token — letzter gewinnt. */
-  skillMention: string | null;
+  /** Alle `skill:`-Token in Textreihenfolge — `partitionTurnRecipes` teilt sie
+   *  nach Rolle auf (Textsorte: letzter gewinnt; Methoden stapeln sich). */
+  skillMentions: string[];
   /** Sharepic-Vorlage aus einem `vorlage:`-Token — ein Sharepic, eine Vorlage: erster gewinnt. */
   sharepicVorlageId: string | null;
 }
@@ -1375,7 +1401,7 @@ function deriveMentionTokenFields(clientMessages: unknown): MentionTokenFields {
     boardIds: [],
     sheetIds: [],
     docMentionIds: [],
-    skillMention: null,
+    skillMentions: [],
     sharepicVorlageId: null,
   };
   for (const token of parseMentionTokens(lastUserTextFromClient(clientMessages))) {
@@ -1402,7 +1428,7 @@ function deriveMentionTokenFields(clientMessages: unknown): MentionTokenFields {
         // Deliberately not derived — the body agentId stays authoritative.
         break;
       case 'skill':
-        fields.skillMention = token.id;
+        fields.skillMentions.push(token.id);
         break;
       case 'vorlage':
         // Eine Vorlage zu wählen heißt, ein Sharepic zu bestellen — derselbe
