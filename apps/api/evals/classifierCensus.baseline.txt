@@ -42,7 +42,8 @@ classifier.tier  (372)
     tier3_heuristic              52
     tier3.4_chat_recall           1
     tier3.4_recurring_order       0
-    tier3.5_loop_demotion       258
+    tier3.4_own_notebook          4
+    tier3.5_loop_demotion       254
     tier3.8_generation_scope     16
     residual                     14
     error_fallback                0
@@ -51,7 +52,7 @@ classifier.tier  (372)
 research                          4  loop
 compare                           0  loop
 search                            0  loop
-web                              10  loop
+web                               8  loop
 scrape_url                        0  gated
 examples                          0  loop
 pressemitteilung_examples         0  retired
@@ -89,4 +90,4 @@ mcp                               0  retired
 produktion                       41  prose
 direct                            3  prose
 greeting                          1  prose
-agentic                         264  loop
+agentic                         266  loop

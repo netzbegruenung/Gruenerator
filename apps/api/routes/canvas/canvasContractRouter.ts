@@ -122,7 +122,7 @@ export const canvasContractRouter = s.router(canvasContract, {
         return {
           status: 400 as const,
           body: {
-            error: `Print-Formate brauchen eine freie Vorlage (freeform), nicht '${b.template_type}'`,
+            error: `Print-Formate brauchen eine leere Seite, nicht die Vorlage '${b.template_type}'`,
           },
         };
       }
