@@ -1,6 +1,6 @@
 ---
 laender: [de, at]
-sidebar_position: 7
+sidebar_position: 10
 title: 'Mai 2025: Komm ins Testlabor!'
 description: 'Das Testlabor öffnet: neue Funktionen ausprobieren, bevor sie für alle live gehen.'
 ---
