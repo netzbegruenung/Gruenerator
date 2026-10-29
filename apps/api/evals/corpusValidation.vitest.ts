@@ -39,6 +39,11 @@ describe('parseCorpusText', () => {
     expect(out[1].turns[0].prompt).toBe('Hallo');
   });
 
+  it('keeps the locale of a legacy line, so it is sent as x-user-locale', () => {
+    const line = JSON.stringify({ ...JSON.parse(VALID_LEGACY), locale: 'de-AT' });
+    expect(parseCorpusText(line, 'demo.jsonl')[0].locale).toBe('de-AT');
+  });
+
   it('ignores blank lines', () => {
     expect(parseCorpusText(`\n${VALID_SCENARIO}\n\n\n`, 'demo.jsonl')).toHaveLength(1);
   });
