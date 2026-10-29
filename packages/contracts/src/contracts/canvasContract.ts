@@ -23,6 +23,7 @@ import {
   canvasStateResponseSchema,
   canvasFromVariantBodySchema,
   canvasFromVariantResponseSchema,
+  generateCanvasDeckBodySchema,
   canvasVersionListResponseSchema,
   canvasVersionResponseSchema,
   createCanvasBodySchema,
@@ -75,6 +76,20 @@ export const canvasContract = c.router(
         500: canvasErrorResponseSchema,
       },
       summary: 'Mint a canvas from an unminted chat sharepic variant',
+    },
+
+    /** POST /api/canvas/generate-deck — AI presentation as a canvas deck. */
+    generateDeck: {
+      method: 'POST',
+      path: '/api/canvas/generate-deck',
+      body: generateCanvasDeckBodySchema,
+      responses: {
+        201: canvasDocumentSchema,
+        400: canvasErrorResponseSchema,
+        401: canvasErrorResponseSchema,
+        500: canvasErrorResponseSchema,
+      },
+      summary: 'Generate a presentation from a prompt as a canvas deck',
     },
 
     /** POST /api/canvas/ai-check — vision check of a page after an AI edit (fail-soft). */
