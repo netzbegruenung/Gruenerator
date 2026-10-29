@@ -359,7 +359,7 @@ NUTZE WENN nach früheren Gesprächen gefragt wird ("worüber haben wir letztens
 - Ohne query: listet die zuletzt aktiven Chats (für "worüber haben wir zuletzt gechattet").
 - scope="space": nur die Chats des aktuellen Space durchsuchen (Standard, wenn der Chat in einem Space liegt).
 - scope="all": alle eigenen Chats durchsuchen.
-- action="read": den vollständigen Verlauf EINES Threads lesen (threadId aus einem Suchergebnis).`,
+- action="read": den Verlauf EINES Threads lesen (threadId aus einem Suchergebnis) — seine Zusammenfassung oder die letzten 10 Nachrichten, höchstens 4.000 Zeichen.`,
     inputSchema: z.object({
       action: z.enum(['search', 'read']).default('search'),
       query: z
@@ -428,7 +428,16 @@ NUTZE WENN nach früheren Gesprächen gefragt wird ("worüber haben wir letztens
         )
       );
       groundRows(sourceRegistry, results);
-      return { resultCount: results.length, results };
+      // Der Standard `space` greift nur in einem Space; ohne Angabe hielte das
+      // Modell eine Space-Suche ohne Treffer für eine Suche über alle Chats.
+      return {
+        resultCount: results.length,
+        results,
+        durchsucht:
+          threadIds != null
+            ? 'nur die Chats dieses Space (scope="all" durchsucht alle eigenen Chats)'
+            : 'alle eigenen Chats',
+      };
     },
   });
 }
@@ -442,7 +451,7 @@ export function makeDocumentsTool(ctx: PersonalToolCtx): Tool {
   return tool({
     description: `Zugriff auf die EIGENEN Dokumente, Tabellen und Präsentationen (nicht Boards — dafür 'boards_tasks').
 
-NUTZE FÜR: eigene Dokumente auflisten (list), eines per id ansehen (get), umbenennen (rename), löschen (delete), mit einer Gruppe teilen (share_to_group). Umbenennen wirkt sofort; Löschen und Teilen werden der Person zur Bestätigung angezeigt. Um das GERADE ERSTELLTE Dokument zu teilen, share_to_group nur mit groupName aufrufen (id weglassen).`,
+NUTZE FÜR: eigene Dokumente auflisten (list), Titel, Art und Link eines Dokuments per id holen (get — den INHALT liest read_artifact), umbenennen (rename), löschen (delete), mit einer Gruppe teilen (share_to_group). Umbenennen wirkt sofort; Löschen und Teilen werden der Person zur Bestätigung angezeigt. Um das GERADE ERSTELLTE Dokument zu teilen, share_to_group nur mit groupName aufrufen (id weglassen).`,
     inputSchema: z.object({
       action: z.enum(['list', 'get', 'rename', 'delete', 'share_to_group']),
       id: z

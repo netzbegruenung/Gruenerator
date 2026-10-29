@@ -138,11 +138,11 @@ export function makeRecurringTasksTool(ctx: RecurringTaskToolCtx): Tool {
   const locale = state.userLocale === 'de-AT' ? 'de-AT' : 'de-DE';
 
   return tool({
-    description: `Zugriff auf die wiederkehrenden Aufgaben der Person (Agentura): ein Grünerator-Agent läuft von selbst in einem festen Takt — täglich, wöchentlich, monatlich — und liefert jedes Mal ein Ergebnis als Dokument, als neuen Chat oder als Benachrichtigung.
+    description: `Zugriff auf die wiederkehrenden Aufgaben der Person: ein Grünerator-Agent läuft von selbst in einem festen Takt — täglich, wöchentlich, monatlich — und liefert jedes Mal ein Ergebnis als Dokument, als neuen Chat oder als Benachrichtigung.
 
 NUTZE FÜR: bestehende Aufgaben auflisten (list), Details samt letzten Läufen ansehen (get mit taskId), eine neue Aufgabe einrichten — „erinnere mich jeden Montag um 9 an …", „schick mir täglich eine Übersicht zu …" (create mit title, instruction, recurrence; optional delivery, agentIdentifier, emailNotify, timezone), Titel/Anweisung/Takt/Zustellung ändern (update), pausieren (pause) und fortsetzen (resume), einmal sofort laufen lassen (run_now), löschen (delete mit confirm=true nach Zustimmung).
 
-NICHT für: Aufgaben oder Karten auf einem Kanban-Board (dafür 'boards_tasks'), einen Grünerator-Agent anlegen oder ändern (im Chat nicht möglich — auf die Agentura verweisen), einmalige Aufträge, die jetzt erledigt werden sollen (die führst du selbst aus).
+NICHT für: Aufgaben oder Karten auf einem Kanban-Board (dafür 'boards_tasks'), einen Grünerator-Agent anlegen oder ändern (im Chat nicht möglich — auf die Übersicht „Grüneratoren“ verweisen), einmalige Aufträge, die jetzt erledigt werden sollen (die führst du selbst aus).
 
 Für create formulierst du instruction als vollständige Arbeitsanweisung an den Agenten und wählst recurrence selbst: ohne genannte Uhrzeit 9:00; „wöchentlich" ohne Wochentag → byweekday weglassen. Eine Aufgabe wird über taskId (aus list, Feld ref) benannt. Das Einrichten wird der Person als Karte zur Bestätigung angezeigt — kündige nichts als eingerichtet an, was nur angefordert ist.`,
     inputSchema: z.object({
