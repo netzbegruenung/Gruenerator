@@ -2,8 +2,9 @@
  * The thin handlers for artifact-creating turns.
  *
  * The choreography lives in createTurn.ts and the per-kind data in
- * artifactKinds.ts; everything here only names them — except the two document
- * modes, whose fork is genuinely different (see generateAndCreateDocument).
+ * artifactKinds.ts; everything here only names them — except save_as_doc,
+ * which contributes a document to a turn it does not own
+ * (see contributeDocumentToOpenTurn).
  */
 
 import { createLogger } from '../../../../utils/logger.js';
@@ -16,11 +17,13 @@ import {
   SHEET_SPEC,
 } from '../artifactKinds.js';
 import { emitArtifactResult, runCreateTurn, type CreateTurnOpts } from '../createTurn.js';
-import { rememberArtifact } from '../createTurnHelpers.js';
 import { extractTextContent } from '../messageHelpers.js';
 import { resolveReferentialTopic } from '../referentialTopic.js';
 
-import type { ChatGraphState } from '../../../../agents/langgraph/ChatGraph/types.js';
+import type {
+  ChatGraphState,
+  CreatedDocument,
+} from '../../../../agents/langgraph/ChatGraph/types.js';
 import type { SSEWriter } from '../sseHelpers.js';
 import type { ModelMessage } from 'ai';
 
@@ -73,14 +76,9 @@ export async function handleExplainableCreation(
 }
 
 /**
- * Document creation, in two genuinely different modes.
- *
- * The default mode OWNS the turn and is an ordinary entry in the artifact
- * table. `skipTerminate` (save_as_doc) does NOT: it writes the card and text
- * into a stream its caller already opened and will close, so it deliberately
- * emits no `done`, persists no message and returns false on failure to let the
- * caller decide. Keeping the fork explicit at the top beats the previous
- * version, where `if (!skipTerminate)` was threaded through 167 lines.
+ * Document creation that OWNS the turn — an ordinary entry in the artifact
+ * table. save_as_doc does not own its turn; it uses
+ * `contributeDocumentToOpenTurn` below.
  */
 export async function generateAndCreateDocument(opts: {
   sse: SSEWriter;
@@ -92,45 +90,54 @@ export async function generateAndCreateDocument(opts: {
   subtypeOverride?: string | null;
   conversationContext?: string;
   intent: string;
-  skipTerminate?: boolean;
 }): Promise<boolean> {
-  const spec = makeDocumentSpec({
-    intent: opts.intent,
-    subtypeOverride: opts.subtypeOverride ?? null,
-    ...(opts.conversationContext != null && { conversationContext: opts.conversationContext }),
-  });
-  if (!opts.skipTerminate) return runCreateTurn(spec, opts);
-  return contributeDocumentToOpenTurn(spec, opts);
+  return runCreateTurn(makeDocumentSpec(documentSpecOpts(opts)), opts);
 }
 
 /**
  * save_as_doc: contribute a document to a turn somebody else owns.
  *
  * Emits the same text + card as the owning path so the chat looks identical,
- * remembers the artifact (this path never reaches persistAssistantResponse's
- * deriveToolContext, so without it the follow-up edit gate has no target), and
- * then stops — no `done`, no message, no `sse.end()`.
+ * then stops — no `done`, no message, no `sse.end()`. Returns the document
+ * (null on failure) so the owning turn persists it as its `createdDocument`:
+ * that metadata is what the card rehydrates from on reload, what
+ * `read_artifact` resolves "the document of this conversation" from, and what
+ * `deriveToolContext` turns into `last_tool_context` (#5134).
  */
-async function contributeDocumentToOpenTurn(
-  spec: ReturnType<typeof makeDocumentSpec>,
-  opts: CreateTurnOpts
-): Promise<boolean> {
-  const { sse, req, userId, userContent, actualThreadId } = opts;
+export async function contributeDocumentToOpenTurn(opts: {
+  sse: SSEWriter;
+  req: Express.Request;
+  userId: string;
+  userContent: string;
+  subtypeOverride?: string | null;
+  conversationContext?: string;
+  intent: string;
+}): Promise<CreatedDocument | null> {
+  const spec = makeDocumentSpec(documentSpecOpts(opts));
+  const { sse, req, userId, userContent } = opts;
   try {
     const doc = await spec.generate({ req, userId, userContent, ask: userContent }, () => {});
-    if (!doc) return false;
+    if (!doc) return null;
 
     emitArtifactResult(sse, spec, doc);
     log.info(`[ChatGraph] Document created (${spec.intent}): "${doc.title}" (${doc.documentId})`);
-
-    const contextKind =
-      typeof spec.contextKind === 'function' ? spec.contextKind(doc) : spec.contextKind;
-    await rememberArtifact(actualThreadId, contextKind, doc.documentId, doc.title);
-    return true;
+    return doc;
   } catch (err) {
     log.error(
       `[ChatGraph] Document creation failed (${spec.intent}): ${err instanceof Error ? err.message : String(err)}`
     );
-    return false;
+    return null;
   }
+}
+
+function documentSpecOpts(opts: {
+  intent: string;
+  subtypeOverride?: string | null;
+  conversationContext?: string;
+}): Parameters<typeof makeDocumentSpec>[0] {
+  return {
+    intent: opts.intent,
+    subtypeOverride: opts.subtypeOverride ?? null,
+    ...(opts.conversationContext != null && { conversationContext: opts.conversationContext }),
+  };
 }
