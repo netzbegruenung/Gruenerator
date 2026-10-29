@@ -437,6 +437,7 @@ export { loadPhosphorModule } from './lib/phosphorAgentIcon';
 export { chatSuggestions } from './lib/suggestions';
 export {
   agentsList,
+  listedAgentsList,
   getDefaultAgent,
   getPinnedAgents,
   resolveAgentMention,

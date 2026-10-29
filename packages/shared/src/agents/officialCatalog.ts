@@ -14,6 +14,7 @@
  *
  * Nur Entdeckung: `getSystemAgent` und `resolveSkillMention` bleiben ungefiltert.
  */
+import { isSkillAbsorbedByMention } from '../chat-intents/index.js';
 import { type InstanceId } from '../instances/index.js';
 
 import { isAdminVisibleAgent } from './agentVisibility.js';
@@ -75,6 +76,8 @@ export function selectOfficialCatalog<S extends Skill = Skill>(
     // Same switch as `agentsList` in @gruenerator/chat: a recipe whose owner is
     // out of the inventory (a disabled Landesverband) is not offered.
     if (owner?.hiddenFromInventory === true) return false;
+    // Über eine Werkzeug-Erwähnung erreichbar (`@bundestag`), nicht einzeln gelistet.
+    if (isSkillAbsorbedByMention(s.mention)) return false;
     if (owner && !isAgentVisibleForPlatform(owner, platform)) return false;
     return (
       matchesRecipeAudience(s.audience, locale) &&

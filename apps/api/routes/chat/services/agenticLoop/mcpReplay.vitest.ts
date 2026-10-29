@@ -121,6 +121,17 @@ describe('buildToolObservationReplay', () => {
     expect(out).toContain('Klimaschutz');
   });
 
+  it('never leaks the uiCard payload of the Bundestag cards into a replay', () => {
+    const step = internalStep({
+      toolName: 'bundestag',
+      result: { resultCount: 1, sources: 'Treffer', uiCard: { dokumente: [{ titel: 'GEHEIM' }] } },
+    });
+    const msgs = buildToolObservationReplay([step], catalog);
+    const out = (msgs[1].content as Array<{ output: { value: string } }>)[0].output.value;
+    expect(out).not.toContain('uiCard');
+    expect(out).not.toContain('GEHEIM');
+  });
+
   it('gives a knowledge result the same replay budget as a source block', () => {
     // `product_knowledge` registers no sources, so it fell into the 500-char
     // action preview: live on 03.08.2026 its replay was cut from 3.876 to 500

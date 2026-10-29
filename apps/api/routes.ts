@@ -46,6 +46,7 @@ import { mountBoardsContractRouter } from './routes/boards/boardsContractRouter.
 import { mountBoardSubscriptionsContractRouter } from './routes/boards/boardSubscriptionsContractRouter.js';
 import { mountPublicBoardsContractRouter } from './routes/boards/publicBoardsContractRouter.js';
 import browserAgentLlmRouter from './routes/browserAgent/llmProxyRouter.js';
+import { mountBundestagQaContractRouter } from './routes/bundestag/bundestagQaContractRouter.js';
 import { mountCanvasContractRouter } from './routes/canvas/canvasContractRouter.js';
 import { mountChatGraphContractRouter } from './routes/chat/chatGraphContractRouter.js';
 import { mountChatThreadSharingContractRouter } from './routes/chat/chatThreadSharingContractRouter.js';
@@ -929,6 +930,14 @@ export async function setupRoutes(app: Application): Promise<void> {
   // pro Handler — dieselbe Bauform wie die Admin-Router oben.
   app.use('/api/auth/admin/chunk-inspector', requireAuth);
   mountChunkInspectorContractRouter(app);
+  // Bundestag-Q&A: Anmeldung und KI-Einwilligung am Präfix, ein Tageslimit je
+  // Endpunkt (Antwort: Lesemodell; Plan: Planmodell und DIP-Fächer, eigenes,
+  // höheres Limit). Vor dem Router, denn Contract-Router erben keine später
+  // eingehängte Middleware.
+  app.use('/api/bundestag', requireAuth, requireAiConsent);
+  app.use('/api/bundestag/plan', rateLimitMiddleware('bundestag_plan', { autoIncrement: true }));
+  app.use('/api/bundestag/answer', rateLimitMiddleware('bundestag_qa', { autoIncrement: true }));
+  mountBundestagQaContractRouter(app);
   // Konnektor-Testseite: Google/Microsoft über Nango vor der Freigabe prüfen.
   // Gleiche Bauform: requireAuth am Präfix, requireInstanceAdmin pro Handler.
   app.use('/api/auth/admin/connector-test', requireAuth);

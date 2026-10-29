@@ -293,6 +293,41 @@ describe('assembleToolCatalog — Rezept-Werkzeug', () => {
     expect(assembled.recipeCatalog).toHaveLength(1);
   });
 
+  // Ein Methoden-Rezept (`@bundestag`) gibt keine Form vor — die Textsorte
+  // bleibt offen, und das Modell muss sie selbst laden können.
+  it('montiert rezept_laden weiter, wenn nur ein Methoden-Rezept aktiv ist', async () => {
+    const assembled = await assemble(
+      fakeState({ methodSkillMentions: ['bundestagsrecherche'] }),
+      withRecipes({
+        resolveRecipe: async ({ mention }) => ({
+          title: `Titel ${mention}`,
+          body: 'Methodenrumpf',
+          source: 'system',
+        }),
+      } as Partial<CatalogDeps>)
+    );
+    expect(assembled.tools.rezept_laden).toBeDefined();
+    expect(assembled.recipeRegistry.mentions).toEqual(['bundestagsrecherche']);
+    expect(assembled.recipeRegistry.render()).toContain(
+      '## RECHERCHE-METHODE: Titel bundestagsrecherche'
+    );
+  });
+
+  it('legt die Methode neben eine gewählte Textsorte, ohne rezept_laden zu öffnen', async () => {
+    const assembled = await assemble(
+      fakeState({ activeSkillMention: 'presse', methodSkillMentions: ['bundestagsrecherche'] }),
+      withRecipes({
+        resolveRecipe: async ({ mention }) => ({
+          title: `Titel ${mention}`,
+          body: 'Methodenrumpf',
+          source: 'system',
+        }),
+      } as Partial<CatalogDeps>)
+    );
+    expect(assembled.tools.rezept_laden).toBeUndefined();
+    expect(assembled.recipeRegistry.mentions).toEqual(['bundestagsrecherche']);
+  });
+
   it('montiert es NICHT, wenn der Katalog leer ist', async () => {
     const assembled = await assemble(fakeState(), deps({ buildRecipeCatalog: async () => [] }));
     expect(assembled.tools.rezept_laden).toBeUndefined();

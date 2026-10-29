@@ -91,6 +91,10 @@ export interface GuaranteeContext {
   sourceRegistry: SourceRegistry;
   sse: SSEWriter;
   recordStep: (step: PersistedStep) => void;
+  /** Der Katalog MIT Umschlag (Karten, Wächter, Schritt-Aufzeichnung). */
+  wrappedTools: ToolSet;
+  /** Welche Werkzeuge in diesem Turn schon gelaufen sind (Name je Schritt). */
+  calledToolNames: () => readonly string[];
   /** A forced generation is "a tool actually runs" too — the held-back opening
    *  streams before its card, same as a planner-issued call. */
   emitOpeningBeforeTool: () => void;
@@ -105,7 +109,7 @@ export interface GuaranteeContext {
  * Builds the `afterGather` hook loopEngine calls between the tool phase and the
  * answer.
  */
-export function createAfterGather(p: GuaranteeContext): () => Promise<void> {
+export function createAfterGather(p: GuaranteeContext): () => Promise<boolean> {
   // The compound turn's whole point is the artifact — but the split planner
   // unreliably calls the generation fat tool (it treats the turn as pure
   // research and stops). GUARANTEE it: after gather, if the planner produced
@@ -201,7 +205,36 @@ export function createAfterGather(p: GuaranteeContext): () => Promise<void> {
     p.recordStep({ toolCallId: stepId, toolName, args, result: resultRecord });
   };
 
-  const afterGather = async (): Promise<void> => {
+  // Pin-Zusicherung: eine @-Erwähnung hat `bundestag` benannt, der Planer hat es
+  // nicht gerufen. Live 28.10.2026 (r1, Katrin Uhlig/Wasserstoff): Melious stand
+  // 15 s still, GreenPT ignorierte den erzwungenen `tool_choice` — steps=0, und
+  // der Schreiber musste einen Ausfall melden, obwohl nichts mehr fehlte als ein
+  // Aufruf. `bundestag` nimmt die Frage selbst als Thema (leere Argumente),
+  // also läuft es hier ohne Planer. Liefert `true`, wenn es lief.
+  const forcePinnedBundestag = async (): Promise<boolean> => {
+    if (p.state.mentionPinnedTool !== 'bundestag') return false;
+    if (p.calledToolNames().length > 0) return false;
+    // Der UMSCHLAG, nicht der rohe Katalog: er sendet die Karte, trägt die
+    // Quellen ein und schreibt den Schritt — dieselben Spuren wie ein Planer-Aufruf.
+    const tool = p.wrappedTools.bundestag as
+      { execute?: (input: unknown, opts: { toolCallId: string }) => Promise<unknown> } | undefined;
+    if (!tool?.execute) return false;
+    p.onInfo('[Agentic] pinned bundestag not called — running it before synth');
+    p.emitOpeningBeforeTool();
+    try {
+      const result = await tool.execute({}, { toolCallId: 'forced-pinned-bundestag' });
+      const error = (result as { error?: unknown } | null)?.error;
+      return error == null;
+    } catch (err) {
+      p.onWarn(
+        `[Agentic] forced bundestag failed: ${err instanceof Error ? err.message : String(err)}`
+      );
+      return false;
+    }
+  };
+
+  const afterGather = async (): Promise<boolean> => {
+    const pinnedRan = await forcePinnedBundestag();
     // (a) Editor-surface edit guarantee: an edit_current_* turn MUST edit the
     //     open artefact. The split planner unreliably calls edit_document
     //     (observed live: steps=0 on most sheet/deck edits) — force it here,
@@ -252,6 +285,7 @@ export function createAfterGather(p: GuaranteeContext): () => Promise<void> {
 
     // (b) Compound generation guarantee (spawns a NEW artefact).
     await forceCompoundGeneration();
+    return pinnedRan;
   };
 
   return afterGather;

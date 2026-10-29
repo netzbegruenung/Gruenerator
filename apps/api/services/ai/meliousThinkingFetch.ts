@@ -1,3 +1,4 @@
+import { contentAsToolCall, forcedToolAsJsonSchema } from './forcedToolJsonSchema.js';
 import { captureMeliousImpact, meliousModelFromRequest } from './meliousImpact.js';
 
 /**
@@ -45,6 +46,15 @@ export function meliousWireModel(body: Record<string, unknown>): string | null {
 }
 
 /**
+ * Modelle, die bei Melious keine Werkzeugaufrufe können. `gemma-4-26b-a4b`
+ * (Scaleway/FR), gemessen 28.10.2026: `tool_choice: 'required'` → HTTP 503
+ * „The model returned an invalid tool call response", ein benanntes
+ * `tool_choice` → Fliesstext ohne Aufruf. `response_format: json_schema` mit
+ * demselben Schema liefert dagegen sauberes JSON. Umbau: `forcedToolJsonSchema.ts`.
+ */
+const NO_TOOL_CALL_MODELS: ReadonlySet<string> = new Set(['gemma-4-26b-a4b']);
+
+/**
  * Melious' `gemma-4-31b` thinks by DEFAULT — gemessen 23.09.2026 gegen
  * api.melious.ai, Zwei-Satz-Frage, `max_tokens` 400, Reasoning-Tokens / Zeit:
  *
@@ -66,12 +76,14 @@ export function meliousWireModel(body: Record<string, unknown>): string | null {
  */
 export const meliousFetch: typeof fetch = async (input, init) => {
   const logicalModel = meliousModelFromRequest(init?.body);
+  let forcedTool: string | null = null;
   if (init?.body && typeof init.body === 'string') {
     try {
       const parsed = JSON.parse(init.body) as Record<string, unknown>;
       if (parsed.model && parsed.messages) {
         if (parsed.reasoning_effort == null) parsed.reasoning_effort = 'none';
         parsed.model = meliousWireModel(parsed) ?? parsed.model;
+        forcedTool = forcedToolAsJsonSchema(parsed, NO_TOOL_CALL_MODELS);
         init = { ...init, body: JSON.stringify(parsed) };
       }
     } catch {
@@ -82,5 +94,7 @@ export const meliousFetch: typeof fetch = async (input, init) => {
   // nicht-gestreamt im Body, gestreamt im letzten Chunk (seit Oktober 2026; bis
   // dahin fragte die Werkzeugphase nicht-gestreamt und spielte die Antwort als
   // Strom vor, nur um gemessen zu werden).
-  return captureMeliousImpact(await fetch(input, init), logicalModel, init?.signal);
+  const response = captureMeliousImpact(await fetch(input, init), logicalModel, init?.signal);
+  if (forcedTool && response.ok) return contentAsToolCall(response, forcedTool);
+  return response;
 };

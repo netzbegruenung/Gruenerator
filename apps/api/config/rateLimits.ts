@@ -9,6 +9,8 @@
  * - pdf_export: PDF document export
  * - gruen_o_mat: Public Gruen-O-Mat chat (IP-based)
  * - browser_agent: `website_erkunden` runs (a real browser, ~1 min each)
+ * - bundestag_qa: `/api/bundestag/answer` (liest bis zu 12 Dokumente, viele Modellaufrufe)
+ * - bundestag_plan: `/api/bundestag/plan` (ein Modellaufruf plus bis zu ~40 DIP-Anfragen)
  *
  * User Tiers:
  * - anonymous: Unauthenticated users (session/IP-based)
@@ -45,6 +47,8 @@ export interface RateLimitConfig {
     pdf_export: ResourceConfig;
     gruen_o_mat: ResourceConfig;
     browser_agent: ResourceConfig;
+    bundestag_qa: ResourceConfig;
+    bundestag_plan: ResourceConfig;
   };
   anonymousIdentifierStrategy: ('sessionID' | 'ip')[];
   enableAnalytics: boolean;
@@ -99,6 +103,24 @@ const rateLimitConfig: RateLimitConfig = {
       anonymous: { limit: 0, window: 'hourly' },
       authenticated: { limit: 10, window: 'hourly' },
       premium: { limit: 10, window: 'hourly' },
+    },
+
+    // Bundestag-Q&A: eine Antwort liest bis zu 12 Drucksachen mit mehreren
+    // Modellaufrufen.
+    bundestag_qa: {
+      anonymous: { limit: 0, window: 'daily' },
+      authenticated: { limit: 30, window: 'daily' },
+      premium: { limit: 100, window: 'daily' },
+    },
+
+    // Der Plan liest kein Dokument, ruft aber das Planmodell und fächert über den
+    // gemeinsamen, getakteten DIP-Client auf (~20–40 Anfragen): ohne Grenze
+    // verstopft ein Skript die Warteschlange, hinter der der Chat wartet. Eigener
+    // Schlüssel statt `bundestag_qa`, damit Planen die Antworten nicht aufzehrt.
+    bundestag_plan: {
+      anonymous: { limit: 0, window: 'daily' },
+      authenticated: { limit: 120, window: 'daily' },
+      premium: { limit: 300, window: 'daily' },
     },
   },
 

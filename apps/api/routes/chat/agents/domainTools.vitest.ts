@@ -1,14 +1,17 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
+import { CHAT_BUDGET } from '../../../services/bundestag/qa/budget.js';
 import { createSourceRegistry } from '../services/agenticLoop/sourceRegistry.js';
 
 import {
   makeAbgeordnetenwatchTool,
+  makeBundestagRedenTool,
   makeBundestagTool,
   makeCreateBoardTool,
   makeCreateDocTool,
   makeCreateSharepicTool,
   makeImageTool,
+  makeParlamentLesenTool,
   makeSummaryTool,
 } from './domainTools.js';
 
@@ -19,10 +22,31 @@ const imageNode = vi.fn<(s: unknown) => Promise<unknown>>();
 // Die beiden Parlaments-Werkzeuge rufen den Kern, nicht den Knoten — deshalb
 // steht die Attrappe hier am Kern. Dass der Kern seinen Dienst wirklich
 // erreicht, prüft `domainToolsDelegation.vitest.ts` am ECHTEN Knoten.
-const retrieveBundestag = vi.fn<(q: string, l: unknown) => Promise<unknown>>();
+const retrieveBundestag = vi.fn<(q: string, l: unknown, f: unknown) => Promise<unknown>>();
+const readBundestagRefs = vi.fn<(o: unknown) => Promise<unknown>>();
+const countBundestagDocs = vi.fn<(o: unknown) => Promise<unknown>>();
+const readLandtagRefs = vi.fn<(o: unknown) => Promise<unknown>>();
+vi.mock('../../../services/landtag/index.js', async (importOriginal) => ({
+  ...(await importOriginal<Record<string, unknown>>()),
+  readLandtagRefs: (o: unknown): Promise<unknown> => readLandtagRefs(o),
+}));
+vi.mock('../../../services/bundestag/qa/index.js', () => ({
+  readBundestagRefs: (o: unknown): Promise<unknown> => readBundestagRefs(o),
+  countBundestagDocs: (o: unknown): Promise<unknown> => countBundestagDocs(o),
+}));
+// Nur die Suche ist Attrappe; Filter, Titel und URL laufen echt.
+const searchBundestagReden = vi.fn<(s: unknown) => Promise<unknown>>();
+vi.mock('../../../services/bundestag/reden.js', async (importOriginal) => ({
+  ...(await importOriginal<Record<string, unknown>>()),
+  searchBundestagReden: (s: unknown): Promise<unknown> => searchBundestagReden(s),
+}));
 const retrieveAbgeordnetenwatch = vi.fn<(q: string, l: unknown) => Promise<unknown>>();
+const retrieveBundestagFamily = vi.fn<(r: string, l: unknown) => Promise<unknown>>();
 vi.mock('../../../agents/langgraph/ChatGraph/nodes/searchNode.js', () => ({
-  retrieveBundestag: (q: string, l: unknown): Promise<unknown> => retrieveBundestag(q, l),
+  retrieveBundestagFamily: (r: string, l: unknown): Promise<unknown> =>
+    retrieveBundestagFamily(r, l),
+  retrieveBundestag: (q: string, l: unknown, f: unknown): Promise<unknown> =>
+    retrieveBundestag(q, l, f),
   retrieveAbgeordnetenwatch: (q: string, l: unknown): Promise<unknown> =>
     retrieveAbgeordnetenwatch(q, l),
 }));
@@ -103,19 +127,232 @@ describe('makeSummaryTool', () => {
   });
 });
 
+describe('makeBundestagRedenTool', () => {
+  // Block statt Ausdruck: ein von beforeEach zurückgegebener Wert gilt als
+  // Aufräum-Funktion, und Vitest riefe die Attrappe sonst nach dem Test auf.
+  beforeEach(() => {
+    searchBundestagReden.mockReset();
+  });
+
+  const rede = {
+    speaker: 'Katrin Uhlig',
+    party: 'GRÜNE',
+    date: '2025-05-23',
+    excerpt: 'Wärmeplanung ist Planungssicherheit. ENDE',
+    protokollNummer: '21/8',
+    wahlperiode: 21,
+    herausgeber: 'BT',
+    topTitle: null,
+    score: 0.75,
+  };
+  const make = (state: Partial<ChatGraphState> = {}, sourceRegistry = createSourceRegistry()) =>
+    makeBundestagRedenTool({
+      state: { ...baseState, ...state } as ChatGraphState,
+      sourceRegistry,
+    });
+
+  it('registriert je Rede eine Quelle mit Redetext und Protokoll-PDF, Karte nur in uiCard', async () => {
+    searchBundestagReden.mockResolvedValue({ speeches: [rede], wpFallback: false });
+    const sourceRegistry = createSourceRegistry();
+    const out = (await exec(
+      make(
+        { lastUserTextNoMentions: 'Wann hat Katrin Uhlig zuletzt über Wärmeplanung gesprochen?' },
+        sourceRegistry
+      ),
+      { thema: 'Wärmeplanung', redner: 'Katrin Uhlig' }
+    )) as { resultCount: number; sources: string; uiCard: Record<string, unknown> };
+    expect(searchBundestagReden).toHaveBeenCalledWith({
+      thema: 'Wärmeplanung',
+      redner: 'Katrin Uhlig',
+      sortierung: 'neueste',
+    });
+    expect(out.resultCount).toBe(1);
+    expect(out.sources).toContain('Rede Katrin Uhlig (GRÜNE) · Plenarprotokoll 21/8 · 23.05.2025');
+    expect(out.sources).toContain('ENDE');
+    expect(sourceRegistry.renderAll()).toContain('https://dserver.bundestag.de/btp/21/21008.pdf');
+    expect(out.uiCard).toEqual({
+      thema: 'Wärmeplanung',
+      filter: ['Redner*in: Katrin Uhlig', 'Sortierung: neueste zuerst'],
+      reden: [
+        {
+          redner: 'Katrin Uhlig',
+          partei: 'GRÜNE',
+          datum: '2025-05-23',
+          protokoll: '21/8',
+          top: null,
+          url: 'https://dserver.bundestag.de/btp/21/21008.pdf',
+        },
+      ],
+    });
+  });
+
+  it('gesetzte Argumente schlagen den Wortlaut', async () => {
+    searchBundestagReden.mockResolvedValue({ speeches: [], wpFallback: false });
+    const out = (await exec(make({ lastUserTextNoMentions: 'Was sagt die SPD seit 2025?' }), {
+      thema: 'Rente',
+      fraktion: 'Union',
+    })) as { error?: string };
+    expect(searchBundestagReden).toHaveBeenCalledWith({
+      thema: 'Rente',
+      datumVon: '2025-01-01',
+      fraktion: 'Union',
+    });
+    expect(out.error).toBe('Keine passenden Reden gefunden.');
+  });
+
+  it('meldet einen Ausfall als Ausfall', async () => {
+    searchBundestagReden.mockImplementation(async () => {
+      throw new Error('down');
+    });
+    const out = (await exec(make(), { thema: 'x y' })) as { error?: string };
+    expect(out.error).toContain('nicht erreichbar');
+  });
+
+  it('sperrt Österreich, ohne zu suchen', async () => {
+    const out = (await exec(make({ userLocale: 'de-AT' }), { thema: 'x y' })) as {
+      error?: string;
+    };
+    expect(out.error).toBeTruthy();
+    expect(searchBundestagReden).not.toHaveBeenCalled();
+  });
+});
+
+describe('makeParlamentLesenTool', () => {
+  beforeEach(() => readBundestagRefs.mockReset());
+
+  const doc = {
+    ref: '21/1928',
+    dokumentnummer: '21/1928',
+    drucksachetyp: 'Gesetzentwurf',
+    titel: 'T',
+    datum: '2025-10-01',
+    urheber: ['Bundesregierung'],
+    pdfUrl: 'https://dserver.bundestag.de/btd/21/019/2101928.pdf',
+    textSource: 'pdf',
+    relevant: true,
+    points: [{ aussage: 'Das Gesetz kommt.', zitat: 'Es tritt in Kraft.', method: 'exact' }],
+    droppedPoints: 0,
+    windowsRead: 1,
+    windowsTotal: 1,
+    skipped: null,
+  };
+  const make = (locale = 'de-DE') =>
+    makeParlamentLesenTool({
+      state: { ...baseState, userLocale: locale } as ChatGraphState,
+      sourceRegistry: createSourceRegistry(),
+    });
+
+  it('reicht Refs, Auftrag und CHAT_BUDGET an den Dienst und registriert die Treffer', async () => {
+    readBundestagRefs.mockResolvedValue({ documents: [doc], notes: [] });
+    const out = (await exec(make(), {
+      quelle: 'bundestag',
+      dokumente: ['21/1928'],
+      frage: 'Was regelt das Gesetz?',
+      auftrag: 'zusammenfassung',
+    })) as { resultCount: number; sources: string; nichtGelesen: unknown[] };
+    expect(readBundestagRefs).toHaveBeenCalledWith({
+      question: 'Was regelt das Gesetz?',
+      refs: ['21/1928'],
+      auftrag: 'zusammenfassung',
+      budget: CHAT_BUDGET,
+    });
+    expect(out.resultCount).toBe(1);
+    expect(out.nichtGelesen).toEqual([]);
+    expect(out.sources).toContain('BT-Drs. 21/1928 · Gesetzentwurf · 01.10.2025 · Bundesregierung');
+    expect(out.sources).toContain('• Das Gesetz kommt. — „Es tritt in Kraft.“');
+  });
+
+  it('listet übersprungene Dokumente mit Grund unter nichtGelesen', async () => {
+    readBundestagRefs.mockResolvedValue({
+      documents: [
+        doc,
+        { ...doc, ref: '21/2', points: [], skipped: 'missing' },
+        { ...doc, ref: '21/3', points: [], skipped: 'budget' },
+        { ...doc, ref: '21/4', points: [], skipped: null },
+      ],
+      notes: ['Nicht gefunden bei DIP: 21/5.'],
+    });
+    const out = (await exec(make(), {
+      quelle: 'bundestag',
+      dokumente: ['21/1928', '21/2', '21/3', '21/4'],
+      frage: 'Frage?',
+    })) as {
+      resultCount: number;
+      nichtGelesen: { ref: string; grund: string }[];
+      hinweise: string[];
+    };
+    expect(readBundestagRefs.mock.calls[0]![0]).toMatchObject({ auftrag: 'frage' });
+    expect(out.resultCount).toBe(1);
+    expect(out.nichtGelesen).toEqual([
+      { ref: '21/2', grund: 'kein Volltext verfügbar' },
+      { ref: '21/3', grund: 'Lesebudget erschöpft' },
+      { ref: '21/4', grund: 'keine belegte Aussage zur Frage' },
+    ]);
+    expect(out.hinweise).toEqual(['Nicht gefunden bei DIP: 21/5.']);
+  });
+
+  it('meldet einen Fehler mit Grund, wenn kein einziges Dokument gelesen wurde', async () => {
+    // Live 28.10.2026, Antwort 21/8813: die PDF lag noch nicht auf dem Server
+    // (404), das Ergebnis war ein nacktes „0 Ergebnisse" mit ok=true.
+    readBundestagRefs.mockResolvedValue({
+      documents: [{ ...doc, ref: '21/8813', points: [], skipped: 'missing' }],
+      notes: [],
+    });
+    const out = (await exec(make(), {
+      quelle: 'bundestag',
+      dokumente: ['21/8813'],
+      frage: 'Was hat die Bundesregierung geantwortet?',
+    })) as { resultCount: number; error: string; nichtGelesen: { ref: string }[] };
+    expect(out.resultCount).toBe(0);
+    expect(out.error).toContain('Nichts gelesen');
+    expect(out.error).toContain('21/8813: kein Volltext verfügbar');
+    expect(out.error).toContain('noch nicht');
+    expect(out.nichtGelesen).toHaveLength(1);
+  });
+
+  it('lehnt für de-AT ab, ohne den Dienst zu rufen', async () => {
+    const out = (await exec(make('de-AT'), {
+      quelle: 'bundestag',
+      dokumente: ['21/1'],
+      frage: 'Frage?',
+    })) as { resultCount: number; error: string };
+    expect(readBundestagRefs).not.toHaveBeenCalled();
+    expect(out.resultCount).toBe(0);
+    expect(out.error).toBeTruthy();
+  });
+
+  it('das Schema lehnt ungültige Refs, leere Listen und mehr als 6 Dokumente ab', () => {
+    const schema = (
+      make() as unknown as { inputSchema: { safeParse: (v: unknown) => { success: boolean } } }
+    ).inputSchema;
+    const ok = { quelle: 'bundestag', dokumente: ['21/1'], frage: 'Frage?' };
+    expect(schema.safeParse(ok).success).toBe(true);
+    expect(schema.safeParse({ ...ok, dokumente: ['kaputt'] }).success).toBe(false);
+    expect(schema.safeParse({ ...ok, dokumente: [] }).success).toBe(false);
+    expect(
+      schema.safeParse({ ...ok, dokumente: Array.from({ length: 7 }, (_, i) => `21/${i + 1}`) })
+        .success
+    ).toBe(false);
+    expect(schema.safeParse({ ...ok, quelle: 'bundesrat' }).success).toBe(false);
+  });
+});
+
 describe('makeBundestagTool', () => {
   beforeEach(() => retrieveBundestag.mockReset());
 
   it('registers results with a raised snippet cap and returns the lean sources shape', async () => {
     const longExcerpt = `Rede zur Klimapolitik. ${'x'.repeat(500)} ENDE`;
-    retrieveBundestag.mockResolvedValue([
-      {
-        source: 'bundestag',
-        url: 'https://dip.bundestag.de/x',
-        title: 'Drucksache 21/50 · Antrag',
-        content: longExcerpt,
-      },
-    ]);
+    retrieveBundestag.mockResolvedValue({
+      results: [
+        {
+          source: 'bundestag',
+          url: 'https://dip.bundestag.de/x',
+          title: 'Drucksache 21/50 · Antrag',
+          content: longExcerpt,
+        },
+      ],
+      totals: { vorgaenge: 4, drucksachen: 9 },
+    });
     const sourceRegistry = createSourceRegistry();
     const out = (await exec(
       makeBundestagTool({
@@ -123,8 +360,17 @@ describe('makeBundestagTool', () => {
         sourceRegistry,
       }),
       { query: 'Klima' }
-    )) as { resultCount?: number; sources?: string };
+    )) as {
+      resultCount?: number;
+      sources?: string;
+      gesamt?: unknown;
+      hinweis?: string;
+    };
     expect(out.resultCount).toBe(1);
+    expect(out.gesamt).toEqual({ vorgaenge: 4, drucksachen: 9 });
+    expect(out.hinweis).toBe(
+      "Die Liste enthält nur Metadaten. Für Inhalte `parlament_lesen` mit quelle 'bundestag' aufrufen: bei einer Themen- oder Listenfrage alle einschlägigen Refs (bis zu 6) in einem Aufruf, nicht nur das erste Dokument."
+    );
     // The 700-char registration cap keeps the full ~530-char excerpt intact
     // (the default 320 would cut it before "ENDE").
     expect(out.sources).toContain('ENDE');
@@ -132,18 +378,106 @@ describe('makeBundestagTool', () => {
     expect(sourceRegistry.renderAll()).toContain('ENDE');
     expect(sourceRegistry.size).toBe(1);
     // Der Kern bekommt die Anfrage des Modells und das Locale des Turns.
-    expect(retrieveBundestag).toHaveBeenCalledWith('Klima', 'de-DE');
+    expect(retrieveBundestag).toHaveBeenCalledWith('Klima', 'de-DE', {});
+  });
+
+  it('reicht die Filter des Modells an den Kern weiter, aber nicht die Anfrage selbst', async () => {
+    retrieveBundestag.mockResolvedValue({ results: [], totals: null });
+    await exec(
+      makeBundestagTool({
+        state: { ...baseState, intent: 'bundestag' } as ChatGraphState,
+        sourceRegistry: createSourceRegistry(),
+      }),
+      { query: 'Heizung', wahlperiode: [21], drucksachetyp: ['Antrag'], datumVon: '2025-01-01' }
+    );
+    expect(retrieveBundestag).toHaveBeenCalledWith('Heizung', 'de-DE', {
+      wahlperiode: [21],
+      drucksachetyp: ['Antrag'],
+      datumVon: '2025-01-01',
+    });
+  });
+
+  it('ergänzt Filter aus dem Wortlaut der Nachricht, wenn das Modell nur das Thema übergibt', async () => {
+    retrieveBundestag.mockResolvedValue({ results: [], totals: null });
+    await exec(
+      makeBundestagTool({
+        state: {
+          ...baseState,
+          intent: 'bundestag',
+          lastUserTextNoMentions: 'Welche Anträge der Grünen zum Artenschutz wurden abgelehnt?',
+        } as ChatGraphState,
+        sourceRegistry: createSourceRegistry(),
+      }),
+      { query: 'Artenschutz', drucksachetyp: ['Gesetzentwurf'] }
+    );
+    expect(retrieveBundestag).toHaveBeenCalledWith('Artenschutz', 'de-DE', {
+      drucksachetyp: ['Gesetzentwurf'],
+      urheber: ['Fraktion BÜNDNIS 90/DIE GRÜNEN'],
+      beratungsstand: ['Abgelehnt'],
+    });
+  });
+
+  it('nimmt einen Aufruf nur mit Filtern an und reicht die Frage als Thema weiter', async () => {
+    retrieveBundestag.mockResolvedValue({ results: [], totals: null });
+    const out = (await exec(
+      makeBundestagTool({
+        state: {
+          ...baseState,
+          intent: 'bundestag',
+          lastUserTextNoMentions: 'Was wurde zum Artenschutz beschlossen?',
+        } as ChatGraphState,
+        sourceRegistry: createSourceRegistry(),
+      }),
+      { deskriptor: ['Artenschutz'], beratungsstand: ['Angenommen'] }
+    )) as { error?: string };
+    expect(out.error).toBe('Keine passenden Bundestags-Daten gefunden.');
+    expect(retrieveBundestag).toHaveBeenCalledWith(
+      'Was wurde zum Artenschutz beschlossen?',
+      'de-DE',
+      expect.objectContaining({ deskriptor: ['Artenschutz'], beratungsstand: ['Angenommen'] })
+    );
+  });
+
+  it('nimmt einen Aufruf ganz ohne Argumente an, wenn die Nachricht das Thema trägt', async () => {
+    retrieveBundestag.mockResolvedValue({ results: [], totals: null });
+    await exec(
+      makeBundestagTool({
+        state: {
+          ...baseState,
+          intent: 'bundestag',
+          lastUserTextNoMentions: 'Welche Anträge zum Artenschutz gab es?',
+        } as ChatGraphState,
+        sourceRegistry: createSourceRegistry(),
+      }),
+      {}
+    );
+    expect(retrieveBundestag.mock.calls[0]![0]).toBe('Welche Anträge zum Artenschutz gab es?');
+  });
+
+  it('lehnt nur ab, wenn weder Suchbegriff noch Ref noch Filter noch Nachricht da sind', async () => {
+    const out = (await exec(
+      makeBundestagTool({
+        state: { ...baseState, intent: 'bundestag', lastUserTextNoMentions: '' } as ChatGraphState,
+        sourceRegistry: createSourceRegistry(),
+      }),
+      { deskriptor: [] }
+    )) as { error?: string };
+    expect(out.error).toMatch(/fehlt/);
+    expect(retrieveBundestag).not.toHaveBeenCalled();
   });
 
   it('registers the de-AT decline note as a citable source', async () => {
-    retrieveBundestag.mockResolvedValue([
-      {
-        source: 'bundestag',
-        url: '',
-        title: 'Nur für Deutschland verfügbar',
-        content: 'Nur für Deutschland.',
-      },
-    ]);
+    retrieveBundestag.mockResolvedValue({
+      results: [
+        {
+          source: 'bundestag',
+          url: '',
+          title: 'Nur für Deutschland verfügbar',
+          content: 'Nur für Deutschland.',
+        },
+      ],
+      totals: null,
+    });
     const out = (await exec(
       makeBundestagTool({
         state: { ...baseState, intent: 'bundestag' } as ChatGraphState,
@@ -156,7 +490,7 @@ describe('makeBundestagTool', () => {
   });
 
   it('returns an error shape when the search comes back empty', async () => {
-    retrieveBundestag.mockResolvedValue([]);
+    retrieveBundestag.mockResolvedValue({ results: [], totals: null });
     const out = (await exec(
       makeBundestagTool({
         state: { ...baseState, intent: 'bundestag' } as ChatGraphState,
@@ -166,6 +500,543 @@ describe('makeBundestagTool', () => {
     )) as { resultCount?: number; error?: string };
     expect(out.resultCount).toBe(0);
     expect(out.error).toBeTruthy();
+  });
+});
+
+describe('Karten-Daten (uiCard)', () => {
+  it('bundestag liefert Filter in Worten und die Dokumentliste', async () => {
+    retrieveBundestag.mockResolvedValue({
+      results: [{ source: 'bundestag', title: 'T', content: 'c' }],
+      totals: { vorgaenge: 62, drucksachen: 10 },
+      filters: { wahlperiode: [21], drucksachetyp: ['Antrag'], datumVon: '2025-01-01' },
+      documents: [
+        {
+          ref: '21/1928',
+          drucksachetyp: 'Antrag',
+          datum: '2025-10-01',
+          titel: 'Titel',
+          urheber: [],
+          pdfUrl: null,
+        },
+      ],
+    });
+    const out = (await exec(
+      makeBundestagTool({
+        state: { ...baseState, intent: 'bundestag' } as ChatGraphState,
+        sourceRegistry: createSourceRegistry(),
+      }),
+      { query: 'Heizung' }
+    )) as { uiCard: { filter: string[]; dokumente: { ref: string }[] } };
+    expect(out.uiCard.filter).toEqual([
+      'Wahlperiode: 21',
+      'Typ: Antrag',
+      'Zeitraum: ab 01.01.2025',
+    ]);
+    expect(out.uiCard.dokumente[0]?.ref).toBe('BT-Drs. 21/1928');
+  });
+
+  it('parlament_lesen liefert gelesen und nichtGelesen', async () => {
+    readBundestagRefs.mockResolvedValue({
+      documents: [
+        {
+          ref: '21/1928',
+          titel: 'T',
+          drucksachetyp: 'Antrag',
+          datum: '2025-10-01',
+          urheber: [],
+          dokumentnummer: '21/1928',
+          pdfUrl: null,
+          points: [{ aussage: 'a', zitat: 'z', method: 'exact' }],
+          skipped: null,
+        },
+        {
+          ref: '21/2',
+          titel: 'U',
+          drucksachetyp: 'Antrag',
+          datum: '2025-10-01',
+          urheber: [],
+          dokumentnummer: '21/2',
+          pdfUrl: null,
+          points: [],
+          skipped: 'missing',
+        },
+      ],
+      notes: [],
+    });
+    const out = (await exec(
+      makeParlamentLesenTool({
+        state: { ...baseState, userLocale: 'de-DE' } as ChatGraphState,
+        sourceRegistry: createSourceRegistry(),
+      }),
+      { quelle: 'bundestag', dokumente: ['21/1928', '21/2'], frage: 'Frage?' }
+    )) as { uiCard: { gelesen: { aussagen: number }[]; nichtGelesen: { grund: string }[] } };
+    expect(out.uiCard.gelesen[0]?.aussagen).toBe(1);
+    expect(out.uiCard.nichtGelesen[0]?.grund).toBe('kein Volltext verfügbar');
+  });
+});
+
+describe('bundestag: modus zaehlen, ref', () => {
+  const state = { ...baseState, intent: 'bundestag' } as ChatGraphState;
+  beforeEach(() => {
+    retrieveBundestag.mockReset();
+    retrieveBundestagFamily.mockReset();
+    countBundestagDocs.mockReset();
+  });
+  const schemaOf = (t: unknown) =>
+    (t as { inputSchema: { safeParse: (v: unknown) => { success: boolean } } }).inputSchema;
+
+  it('das Schema nimmt die neuen Felder an, die alten Aufrufe bleiben gültig', () => {
+    const schema = schemaOf(makeBundestagTool({ state, sourceRegistry: createSourceRegistry() }));
+    expect(schema.safeParse({ query: 'Klima' }).success).toBe(true);
+    expect(schema.safeParse({ query: 'x', modus: 'zaehlen', gruppieren: 'monat' }).success).toBe(
+      true
+    );
+    expect(schema.safeParse({ ref: '21/3546' }).success).toBe(true);
+    expect(schema.safeParse({ query: 'x', modus: 'summe' }).success).toBe(false);
+    expect(schema.safeParse({ query: 'x', gruppieren: 'land' }).success).toBe(false);
+  });
+
+  it('zaehlen: Filter aus Argumenten und Wortlaut, Zahlen als Quelle und Karte, keine Suche', async () => {
+    countBundestagDocs.mockResolvedValue({
+      einheit: 'Drucksachen',
+      gesamt: 40,
+      gruppen: [{ label: 'Fraktion der SPD', n: 10 }],
+      gruppiertNach: 'fraktion',
+      filters: { wahlperiode: [21], drucksachetyp: ['Kleine Anfrage'] },
+      notes: ['Hinweis A'],
+      aufrufe: 8,
+    });
+    const sourceRegistry = createSourceRegistry();
+    const out = (await exec(
+      makeBundestagTool({
+        state: {
+          ...state,
+          lastUserTextNoMentions: 'Wie viele Kleine Anfragen gab es je Fraktion?',
+        } as ChatGraphState,
+        sourceRegistry,
+      }),
+      { modus: 'zaehlen', gruppieren: 'fraktion', wahlperiode: [21] }
+    )) as Record<string, any>;
+    expect(retrieveBundestag).not.toHaveBeenCalled();
+    expect(countBundestagDocs).toHaveBeenCalledWith({
+      filters: { drucksachetyp: ['Kleine Anfrage'], wahlperiode: [21] },
+      gruppieren: 'fraktion',
+    });
+    expect(out['gesamt']).toBe(40);
+    expect(out['einheit']).toBe('Drucksachen');
+    expect(out['sources']).toContain('| Fraktion der SPD | 10 |');
+    expect(out['uiCard'].modus).toBe('zaehlen');
+    expect(out['uiCard'].zaehlung.gruppen).toEqual([{ label: 'Fraktion der SPD', n: 10 }]);
+  });
+
+  it('zaehlen: ein Titel, der ein Drucksachetyp ist, zählt als Typ; leere Listen überstimmen nichts', async () => {
+    countBundestagDocs.mockResolvedValue({
+      einheit: 'Drucksachen',
+      gesamt: 524,
+      gruppen: [],
+      gruppiertNach: 'monat',
+      filters: {},
+      notes: [],
+      aufrufe: 1,
+    });
+    await exec(
+      makeBundestagTool({
+        state: {
+          ...state,
+          lastUserTextNoMentions: 'Wie viele Kleine Anfragen hat die grüne Fraktion gestellt?',
+        } as ChatGraphState,
+        sourceRegistry: createSourceRegistry(),
+      }),
+      {
+        modus: 'zaehlen',
+        gruppieren: 'monat',
+        urheber: ['Fraktion BÜNDNIS 90/DIE GRÜNEN'],
+        deskriptor: [],
+        titel: 'Kleine Anfrage',
+      }
+    );
+    const filters = (
+      countBundestagDocs.mock.calls.at(-1)?.[0] as { filters: Record<string, unknown> }
+    ).filters;
+    expect(filters['titel']).toBeUndefined();
+    expect(filters['deskriptor']).toBeUndefined();
+    expect(filters['drucksachetyp']).toEqual(['Kleine Anfrage']);
+  });
+
+  it('Landtag-Frage: der Geltungsbereich geht als `fuerSchreiber` mit, nicht als Planer-`hinweis`', async () => {
+    countBundestagDocs.mockResolvedValue({
+      einheit: 'Drucksachen',
+      gesamt: 1,
+      filters: {},
+      notes: [],
+      aufrufe: 1,
+    });
+    const run = (text: string) =>
+      exec(
+        makeBundestagTool({
+          state: { ...state, lastUserTextNoMentions: text } as ChatGraphState,
+          sourceRegistry: createSourceRegistry(),
+        }),
+        { modus: 'zaehlen' }
+      ) as Promise<Record<string, unknown>>;
+    const landtag = await run('Was hat der Landtag in NRW zu Windkraft beschlossen?');
+    expect(landtag['fuerSchreiber']).toMatch(/nur den Bundestag/);
+    expect(String(landtag['hinweis'] ?? '')).not.toMatch(/Landesparlament/);
+    const bund = await run('Wie viele Anträge zu Windkraft gab es?');
+    expect(bund['fuerSchreiber']).toBeUndefined();
+  });
+
+  it('zaehlen meldet einen DIP-Ausfall als Fehler', async () => {
+    countBundestagDocs.mockRejectedValue(new Error('down'));
+    const out = (await exec(makeBundestagTool({ state, sourceRegistry: createSourceRegistry() }), {
+      modus: 'zaehlen',
+    })) as { error: string; resultCount: number };
+    expect(out.resultCount).toBe(0);
+    expect(out.error).toMatch(/nicht erreichbar/);
+  });
+
+  it('ref: Familie statt Suche, Wortlautfilter gelten nicht, Karte zeigt die Ref', async () => {
+    retrieveBundestagFamily.mockResolvedValue({
+      results: [
+        { source: 'bundestag', title: 'Drucksache 21/3546 · Kleine Anfrage', content: 'a' },
+        { source: 'bundestag', title: 'Drucksache 21/4000 · Antwort', content: 'b' },
+      ],
+      totals: { vorgaenge: 1, drucksachen: 2 },
+      documents: [
+        {
+          ref: '21/4000',
+          drucksachetyp: 'Antwort',
+          datum: '2026-01-01',
+          titel: 'T',
+          urheber: [],
+          pdfUrl: null,
+        },
+      ],
+      verfahren: [{ titel: 'V', zeilen: ['z'] }],
+      notes: [],
+    });
+    const out = (await exec(
+      makeBundestagTool({
+        state: {
+          ...state,
+          lastUserTextNoMentions: 'Gibt es eine Antwort der Grünen?',
+        } as ChatGraphState,
+        sourceRegistry: createSourceRegistry(),
+      }),
+      { ref: '21/3546' }
+    )) as Record<string, any>;
+    expect(retrieveBundestagFamily).toHaveBeenCalledWith('21/3546', 'de-DE');
+    expect(retrieveBundestag).not.toHaveBeenCalled();
+    expect(out['resultCount']).toBe(2);
+    expect(out['sources']).toContain('Antwort');
+    expect(out['uiCard'].ref).toBe('BT-Drs. 21/3546');
+    expect(out['uiCard'].dokumente[0].ref).toBe('BT-Drs. 21/4000');
+  });
+
+  it('Berliner Abgeordnetenhaus: der Hinweis schickt zu `landtag` statt „nicht durchsucht"', async () => {
+    retrieveBundestag.mockResolvedValue({
+      results: [{ source: 'bundestag', title: 'Drucksache 21/50', content: 'x' }],
+    });
+    const out = (await exec(
+      makeBundestagTool({
+        state: {
+          ...state,
+          lastUserTextNoMentions: 'Was hat das Abgeordnetenhaus Berlin zu Radwegen beschlossen?',
+        } as ChatGraphState,
+        sourceRegistry: createSourceRegistry(),
+      }),
+      { query: 'Radwege' }
+    )) as { hinweis: string; landtagHinweis?: string; fuerSchreiber?: string };
+    expect(out.landtagHinweis).toMatch(/`landtag` mit parlament 'berlin'/);
+    // Der Planer behält seinen Bundestag-Hinweis; der Schreiber bekommt kein „nicht durchsucht".
+    expect(out.hinweis).toBeTruthy();
+    expect(out.fuerSchreiber).toBeUndefined();
+  });
+
+  it('Landtag in der Frage: der Hinweis verlangt zuerst den Geltungsbereich, der Aufruf läuft weiter', async () => {
+    retrieveBundestag.mockResolvedValue({
+      results: [{ source: 'bundestag', title: 'Drucksache 21/50', content: 'x' }],
+    });
+    const out = (await exec(
+      makeBundestagTool({
+        state: {
+          ...state,
+          lastUserTextNoMentions: 'Was hat der Landtag NRW zu Windkraft beschlossen?',
+        } as ChatGraphState,
+        sourceRegistry: createSourceRegistry(),
+      }),
+      { query: 'Windkraft' }
+    )) as { hinweis: string; fuerSchreiber?: string; resultCount: number };
+    expect(retrieveBundestag).toHaveBeenCalled();
+    expect(out.resultCount).toBe(1);
+    expect(out.fuerSchreiber).toMatch(/nur den Bundestag/);
+    expect(out.fuerSchreiber).toMatch(/Landesparlament|Landtag/);
+    const ohne = (await exec(
+      makeBundestagTool({
+        state: { ...state, lastUserTextNoMentions: 'Windkraft im Bundestag' } as ChatGraphState,
+        sourceRegistry: createSourceRegistry(),
+      }),
+      { query: 'Windkraft' }
+    )) as { hinweis: string; fuerSchreiber?: string };
+    expect(ohne.fuerSchreiber).toBeUndefined();
+  });
+
+  it('ab dem 5. Aufruf im Zug fragt das Werkzeug DIP nicht mehr, ein neuer Zug zählt neu', async () => {
+    retrieveBundestag.mockResolvedValue({
+      results: [{ source: 'bundestag', title: 'Drucksache 21/50', content: 'x' }],
+    });
+    countBundestagDocs.mockResolvedValue({
+      einheit: 'Drucksachen',
+      gesamt: 1,
+      gruppen: null,
+      gruppiertNach: null,
+      filters: {},
+      notes: [],
+      aufrufe: 1,
+    });
+    const make = () => makeBundestagTool({ state, sourceRegistry: createSourceRegistry() });
+    const tool = make();
+    for (let i = 0; i < 4; i++) {
+      const ok = (await exec(tool, { query: `Klima ${i}` })) as { resultCount: number };
+      expect(ok.resultCount).toBe(1);
+    }
+    const capped = (await exec(tool, { modus: 'zaehlen', query: 'Klima' })) as {
+      resultCount: number;
+      sources: string;
+      hinweis: string;
+    };
+    expect(capped.resultCount).toBe(0);
+    expect(capped.sources).toBe('');
+    expect(capped.hinweis).toMatch(/4 Bundestag-Suchen/);
+    expect(retrieveBundestag).toHaveBeenCalledTimes(4);
+    expect(countBundestagDocs).not.toHaveBeenCalled();
+    const refCall = (await exec(tool, { ref: '21/3546' })) as { resultCount: number };
+    expect(refCall.resultCount).toBe(0);
+    expect(retrieveBundestagFamily).not.toHaveBeenCalled();
+    // Neuer Zug = neues Werkzeug = frischer Zähler.
+    const fresh = (await exec(make(), { query: 'Klima' })) as { resultCount: number };
+    expect(fresh.resultCount).toBe(1);
+  });
+
+  it('ohne query und ref sowie bei PlPr-Ref gibt es einen Fehler', async () => {
+    const tool = makeBundestagTool({ state, sourceRegistry: createSourceRegistry() });
+    expect(((await exec(tool, {})) as { error: string }).error).toMatch(/fehlt/);
+    const plpr = (await exec(tool, { ref: 'PlPr 21/80 S. 1-2' })) as { error: string };
+    expect(plpr.error).toMatch(/nur für Drucksachen/);
+    expect(retrieveBundestagFamily).not.toHaveBeenCalled();
+  });
+});
+
+describe('parlament_lesen: quelle Landtag', () => {
+  beforeEach(() => {
+    readLandtagRefs.mockReset();
+    readBundestagRefs.mockReset();
+  });
+  const make = () =>
+    makeParlamentLesenTool({
+      state: baseState,
+      sourceRegistry: createSourceRegistry(),
+    });
+  const doc = {
+    ref: 'BE 19/S27288',
+    dokumentnummer: '19/S27288',
+    drucksachetyp: 'Schriftliche Anfrage',
+    titel: 'DiVerso',
+    datum: '2026-10-12',
+    urheber: ['Freier-Winterwerb, Alexander (SPD)'],
+    pdfUrl: 'https://pardok.parlament-berlin.de/starweb/adis/citat/VT/19/SchrAnfr/S19-27288.pdf',
+    textSource: 'pdf',
+    relevant: true,
+    points: [{ aussage: 'Keine Zusage.', zitat: 'keine verlässlichen Aussagen', method: 'exact' }],
+    droppedPoints: 0,
+    windowsRead: 1,
+    windowsTotal: 1,
+    skipped: null,
+    fokusGefunden: null,
+  };
+
+  it('liest mit dem Landtags-Dienst, titelt mit Landtags-Nummer und nennt die Lizenz-Quelle', async () => {
+    readLandtagRefs.mockResolvedValue({ documents: [doc], notes: [] });
+    const out = (await exec(make(), {
+      quelle: 'berlin',
+      dokumente: ['BE 19/S27288'],
+      frage: 'Wird DiVerso weiterfinanziert?',
+    })) as {
+      sources: string;
+      quelle: string;
+      uiCard: { quelle: string; gelesen: { ref: string }[] };
+    };
+    expect(readBundestagRefs).not.toHaveBeenCalled();
+    expect(readLandtagRefs).toHaveBeenCalledWith({
+      parlament: 'berlin',
+      question: 'Wird DiVerso weiterfinanziert?',
+      refs: ['BE 19/S27288'],
+      auftrag: 'frage',
+      budget: CHAT_BUDGET,
+    });
+    expect(out.sources).toContain('BE Schriftliche Anfrage 19/27288 · 12.10.2026');
+    expect(out.quelle).toBe('Quelle: Abgeordnetenhaus Berlin, PARDOK, DL-DE BY 2.0');
+    expect(out.uiCard.quelle).toBe(out.quelle);
+    expect(out.uiCard.gelesen[0]!.ref).toBe('BE 19/S27288');
+  });
+
+  it('weist Refs ab, die nicht zur Quelle passen (in beide Richtungen)', async () => {
+    const a = (await exec(make(), {
+      quelle: 'berlin',
+      dokumente: ['21/1928'],
+      frage: 'Was regelt das?',
+    })) as { error: string };
+    expect(a.error).toMatch(/gehören nicht zur quelle 'berlin'.*"BE "/);
+    const b = (await exec(make(), {
+      quelle: 'bundestag',
+      dokumente: ['BE 19/3519'],
+      frage: 'Was regelt das?',
+    })) as { error: string };
+    expect(b.error).toMatch(/gehören nicht zur quelle 'bundestag'/);
+    expect(readLandtagRefs).not.toHaveBeenCalled();
+    expect(readBundestagRefs).not.toHaveBeenCalled();
+  });
+});
+
+describe('parlament_lesen: quelle Nationalrat', () => {
+  beforeEach(() => {
+    readLandtagRefs.mockReset();
+    readBundestagRefs.mockReset();
+  });
+  const make = (userLocale: string) =>
+    makeParlamentLesenTool({
+      state: { ...baseState, userLocale } as unknown as ChatGraphState,
+      sourceRegistry: createSourceRegistry(),
+    });
+
+  it('liest für Österreich den Nationalrat und kennt den Bundestag dort nicht', async () => {
+    readLandtagRefs.mockResolvedValue({ documents: [], notes: [] });
+    await exec(make('de-AT'), {
+      quelle: 'nationalrat',
+      dokumente: ['NR 28/I26'],
+      frage: 'Was regelt das?',
+    });
+    expect(readLandtagRefs).toHaveBeenCalledWith(
+      expect.objectContaining({ parlament: 'nationalrat', refs: ['NR 28/I26'] })
+    );
+    const bt = (await exec(make('de-AT'), {
+      quelle: 'bundestag',
+      dokumente: ['21/1928'],
+      frage: 'Was regelt das?',
+    })) as { error: string };
+    expect(bt.error).toMatch(/nicht zur Verfügung/);
+    expect(readBundestagRefs).not.toHaveBeenCalled();
+  });
+
+  it('lässt Deutschland den Nationalrat nicht lesen', async () => {
+    const out = (await exec(make('de-DE'), {
+      quelle: 'nationalrat',
+      dokumente: ['NR 28/I26'],
+      frage: 'Was regelt das?',
+    })) as { error: string };
+    expect(out.error).toMatch(/nicht zur Verfügung/);
+    expect(readLandtagRefs).not.toHaveBeenCalled();
+  });
+});
+
+describe('parlament_lesen: fokus', () => {
+  beforeEach(() => readBundestagRefs.mockReset());
+  const doc = {
+    ref: '21/1928',
+    dokumentnummer: '21/1928',
+    drucksachetyp: 'Gesetzentwurf',
+    titel: 'T',
+    datum: '2025-10-01',
+    urheber: [],
+    pdfUrl: null,
+    textSource: 'dip',
+    relevant: true,
+    points: [{ aussage: 'a', zitat: 'z z z z', method: 'exact' }],
+    droppedPoints: 0,
+    windowsRead: 1,
+    windowsTotal: 1,
+    skipped: null,
+    fokusGefunden: true,
+  };
+  const make = () =>
+    makeParlamentLesenTool({
+      state: { ...baseState, userLocale: 'de-DE' } as ChatGraphState,
+      sourceRegistry: createSourceRegistry(),
+    });
+
+  it('reicht den Fokus durch, zeigt ihn auf der Karte und meldet einen fehlenden Anker', async () => {
+    readBundestagRefs.mockResolvedValue({
+      documents: [doc, { ...doc, ref: '21/2', fokusGefunden: false }],
+      notes: [],
+    });
+    const out = (await exec(make(), {
+      quelle: 'bundestag',
+      dokumente: ['21/1928', '21/2'],
+      frage: 'Was regelt Artikel 3?',
+      fokus: 'Artikel 3',
+    })) as { hinweise: string[]; uiCard: { fokus: string } };
+    expect(readBundestagRefs.mock.calls[0]![0]).toMatchObject({ fokus: 'Artikel 3' });
+    expect(out.uiCard.fokus).toBe('Artikel 3');
+    expect(out.hinweise).toEqual([
+      expect.stringContaining('„Artikel 3“ wurde in BT-Drs. 21/2 nicht gefunden'),
+    ]);
+  });
+
+  it('ohne Fokus: kein fokus-Argument an den Dienst, kein Kartenfeld', async () => {
+    readBundestagRefs.mockResolvedValue({
+      documents: [{ ...doc, fokusGefunden: null }],
+      notes: [],
+    });
+    const out = (await exec(make(), {
+      quelle: 'bundestag',
+      dokumente: ['21/1928'],
+      frage: 'Frage?',
+    })) as { uiCard: Record<string, unknown>; hinweise?: unknown };
+    expect(readBundestagRefs.mock.calls[0]![0]).not.toHaveProperty('fokus');
+    expect(out.uiCard).not.toHaveProperty('fokus');
+    expect(out.hinweise).toBeUndefined();
+  });
+});
+
+describe('bundestag_reden: wortlaut', () => {
+  beforeEach(() => searchBundestagReden.mockReset());
+  const rede = {
+    speaker: 'A',
+    party: 'GRÜNE',
+    date: '2025-05-23',
+    excerpt: 'Zeitenwende!',
+    protokollNummer: '21/8',
+    wahlperiode: 21,
+    herausgeber: 'BT',
+    topTitle: null,
+    score: 1,
+  };
+  const make = () =>
+    makeBundestagRedenTool({ state: baseState, sourceRegistry: createSourceRegistry() });
+
+  it('reicht wortlaut durch, kennzeichnet Ergebnis und Karte', async () => {
+    searchBundestagReden.mockResolvedValue({ speeches: [rede], wpFallback: false });
+    const out = (await exec(make(), { thema: 'Zeitenwende', wortlaut: true })) as Record<
+      string,
+      any
+    >;
+    expect(searchBundestagReden).toHaveBeenCalledWith({ thema: 'Zeitenwende', wortlaut: true });
+    expect(out['wortlaut']).toMatch(/wörtlichen Formulierung/);
+    expect(out['uiCard'].wortlaut).toBe(true);
+  });
+
+  it('ohne wortlaut bleibt der Aufruf wie bisher', async () => {
+    searchBundestagReden.mockResolvedValue({ speeches: [rede], wpFallback: false });
+    const out = (await exec(make(), { thema: 'Zeitenwende' })) as Record<string, any>;
+    expect(searchBundestagReden).toHaveBeenCalledWith({ thema: 'Zeitenwende' });
+    expect(out['wortlaut']).toBeUndefined();
+    expect(out['uiCard']).not.toHaveProperty('wortlaut');
+  });
+
+  it('keine Phrase gefunden: der Fehler sagt, dass die Suche nicht erschöpfend ist', async () => {
+    searchBundestagReden.mockResolvedValue({ speeches: [], wpFallback: false });
+    const out = (await exec(make(), { thema: 'xyz abc', wortlaut: true })) as { error: string };
+    expect(out.error).toContain('nicht erschöpfend');
   });
 });
 

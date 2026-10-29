@@ -111,6 +111,7 @@ export function withUsageTracking(model: LanguageModel, provider: string): Langu
         model: wrapped.modelId,
         outputTokens: usage.outputTokens,
         durationMs: Date.now() - startedAt,
+        inputTokens: usage.inputTokens,
       });
       if (userId) {
         recordTokenUsage({ provider: upstream, model: wrapped.modelId, feature, userId, ...usage });
@@ -142,6 +143,7 @@ export function withUsageTracking(model: LanguageModel, provider: string): Langu
                 outputTokens: usage.outputTokens,
                 durationMs: Date.now() - startedAt,
                 ttftMs: firstTextAt === null ? null : firstTextAt - startedAt,
+                inputTokens: usage.inputTokens,
               });
               if (userId) {
                 recordTokenUsage({

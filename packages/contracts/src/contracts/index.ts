@@ -89,6 +89,7 @@ export { promptsContract } from './promptsContract.js';
 export { skillPromptContract } from './skillPromptContract.js';
 export { agentVisibilityContract } from './agentVisibilityContract.js';
 export { chunkInspectorContract } from './chunkInspectorContract.js';
+export { bundestagQaContract } from './bundestagQaContract.js';
 export { connectorTestContract } from './connectorTestContract.js';
 export { connectionsContract } from './connectionsContract.js';
 export { skillVisibilityContract } from './skillVisibilityContract.js';

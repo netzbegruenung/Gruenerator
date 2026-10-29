@@ -36,6 +36,10 @@ export const UI_TOOL_NAMES = z.enum([
   'search_user_content',
   'web_search',
   'bundestag',
+  'parlament_lesen',
+  'bundestag_reden',
+  'landtag',
+  'nationalrat',
   'research',
   'gruenerator_examples_search',
   'gruenerator_pressemitteilung_examples',
@@ -110,6 +114,8 @@ export const UI_TOOL_NAMES = z.enum([
   // renders from `custom.browserSession`; the card here is the plain fallback.
   'website_erkunden',
   'website_werkzeug_laden',
+  // Lader der Parlamentsgruppe (parlament_lesen, bundestag_reden, …).
+  'parlament_werkzeuge_laden',
 ]);
 export type UiToolName = z.infer<typeof UI_TOOL_NAMES>;
 
@@ -979,6 +985,213 @@ function parseCloudFilesVM(args: unknown, result: unknown): ToolResultVM {
   return parseGenericFallback(args, result);
 }
 
+const DIP_SEARCH_URL = 'https://dip.bundestag.de/suche?term=';
+
+function isoToDe(iso: string): string {
+  const [y, m, d] = iso.split('-');
+  return y && m && d ? `${d.slice(0, 2)}.${m}.${y}` : iso;
+}
+
+/** Link auf das PDF, sonst auf die DIP-Suche nach der Ref (die Zitatliste braucht eine URL). */
+function docHref(url: string | null, ref: string): string {
+  return url && /^https?:\/\//.test(url) ? url : `${DIP_SEARCH_URL}${encodeURIComponent(ref)}`;
+}
+
+function parseBundestagCard(args: unknown, result: unknown): ToolResultVM {
+  const card = getObject(result, 'uiCard');
+  if (!card) return { kind: 'citations', citations: parseSearchCitations(result) };
+
+  const entries: KeyValueEntry[] = [];
+  const query = getString(card, 'query') ?? getString(args, 'query');
+  const ref = getString(card, 'ref');
+  if (ref) entries.push({ label: 'Familie von', value: ref });
+  else if (query) entries.push({ label: 'Suche', value: query });
+  for (const line of getArray(card, 'filter') ?? []) {
+    if (typeof line !== 'string') continue;
+    const at = line.indexOf(': ');
+    entries.push(
+      at > 0
+        ? { label: line.slice(0, at), value: line.slice(at + 2) }
+        : { label: 'Filter', value: line }
+    );
+  }
+  // Zählmodus: Gesamtzahl und je Gruppe eine Zeile.
+  const zaehlung = getObject(card, 'zaehlung');
+  if (zaehlung) {
+    const einheit = getString(zaehlung, 'einheit') ?? 'Treffer';
+    entries.push({ label: 'Modus', value: 'Zählung' });
+    const gesamtZahl = getNumber(zaehlung, 'gesamt');
+    if (gesamtZahl != null) entries.push({ label: 'Gesamt', value: `${gesamtZahl} ${einheit}` });
+    for (const g of getArray(zaehlung, 'gruppen') ?? []) {
+      const label = getString(g, 'label');
+      const n = getNumber(g, 'n');
+      if (label && n != null) entries.push({ label, value: String(n) });
+    }
+    for (const h of getArray(zaehlung, 'hinweise') ?? []) {
+      if (typeof h === 'string') entries.push({ label: 'Hinweis', value: h });
+    }
+  }
+  const gesamt = getObject(card, 'gesamt');
+  const vorgaenge = getNumber(gesamt, 'vorgaenge');
+  const drucksachen = getNumber(gesamt, 'drucksachen');
+  if (vorgaenge != null && drucksachen != null) {
+    entries.push({
+      label: 'Gefunden',
+      value: `${vorgaenge} ${vorgaenge === 1 ? 'Vorgang' : 'Vorgänge'}, ${drucksachen} ${drucksachen === 1 ? 'Drucksache' : 'Drucksachen'}`,
+    });
+  }
+
+  // Beratungsverlauf je Vorgang: eine Zeile je Beschluss, der Vorgang davor.
+  for (const v of getArray(card, 'verfahren') ?? []) {
+    const titel = getString(v, 'titel');
+    if (titel) entries.push({ label: 'Verfahren', value: titel });
+    for (const zeile of getArray(v, 'zeilen') ?? []) {
+      if (typeof zeile === 'string') entries.push({ label: 'Verlauf', value: zeile });
+    }
+  }
+
+  const citations = (getArray(card, 'dokumente') ?? []).map((doc, i) => {
+    const ref = getString(doc, 'ref') ?? '';
+    const datum = getString(doc, 'datum');
+    const snippet = [ref, getString(doc, 'typ'), datum ? isoToDe(datum) : null]
+      .filter(Boolean)
+      .join(' · ');
+    return {
+      id: `bundestag-doc-${i}`,
+      href: docHref(getString(doc, 'url'), ref),
+      title: getString(doc, 'titel') || ref || 'Bundestagsdokument',
+      ...(snippet ? { snippet } : {}),
+      type: 'document' as const,
+    };
+  });
+  return { kind: 'key-value', entries, citations, markdown: null, imageUrl: null };
+}
+
+function parseParlamentLesenCard(args: unknown, result: unknown): ToolResultVM {
+  const card = getObject(result, 'uiCard');
+  if (!card) return { kind: 'citations', citations: parseSearchCitations(result) };
+
+  const entries: KeyValueEntry[] = [];
+  const frage = getString(card, 'frage') ?? getString(args, 'frage');
+  if (frage) entries.push({ label: 'Frage', value: frage });
+  const fokus = getString(card, 'fokus') ?? getString(args, 'fokus');
+  if (fokus) entries.push({ label: 'Fokus', value: fokus });
+  const quelle = getString(card, 'quelle');
+  if (quelle) entries.push({ label: 'Quelle', value: quelle.replace(/^Quelle:\s*/, '') });
+
+  const citations = (getArray(card, 'gelesen') ?? []).map((doc, i) => {
+    const ref = getString(doc, 'ref') ?? '';
+    const n = getNumber(doc, 'aussagen') ?? 0;
+    return {
+      id: `parlament-lesen-doc-${i}`,
+      href: docHref(getString(doc, 'url'), ref),
+      title: getString(doc, 'titel') || ref || 'Bundestagsdokument',
+      snippet: `${ref} · ${n} ${n === 1 ? 'belegte Aussage' : 'belegte Aussagen'}`,
+      type: 'document' as const,
+    };
+  });
+  for (const doc of getArray(card, 'nichtGelesen') ?? []) {
+    const ref = getString(doc, 'ref') ?? '';
+    const titel = getString(doc, 'titel');
+    const grund = getString(doc, 'grund');
+    entries.push({
+      label: 'Nicht gelesen',
+      value: [ref, titel, grund ? `(${grund})` : null].filter(Boolean).join(' · '),
+    });
+  }
+  return { kind: 'key-value', entries, citations, markdown: null, imageUrl: null };
+}
+
+/** Karte des Werkzeugs `landtag`: Parlament, Suche, Filter, Trefferzahl, Hinweise, Lizenz-Quelle und die Dokumentliste. */
+function parseLandtagCard(args: unknown, result: unknown): ToolResultVM {
+  const card = getObject(result, 'uiCard');
+  if (!card) return { kind: 'citations', citations: parseSearchCitations(result) };
+
+  const entries: KeyValueEntry[] = [];
+  const parlament = getString(card, 'parlament');
+  if (parlament) entries.push({ label: 'Parlament', value: parlament });
+  const query = getString(card, 'query') ?? getString(args, 'query');
+  if (query) entries.push({ label: 'Suche', value: query });
+  for (const line of getArray(card, 'filter') ?? []) {
+    if (typeof line !== 'string') continue;
+    const at = line.indexOf(': ');
+    entries.push(
+      at > 0
+        ? { label: line.slice(0, at), value: line.slice(at + 2) }
+        : { label: 'Filter', value: line }
+    );
+  }
+  const gesamt = getNumber(card, 'gesamt');
+  if (gesamt != null) {
+    entries.push({ label: 'Gefunden', value: `${gesamt} Treffer` });
+  }
+  for (const h of getArray(card, 'hinweise') ?? []) {
+    if (typeof h === 'string') entries.push({ label: 'Hinweis', value: h });
+  }
+  const quelle = getString(card, 'quelle');
+  if (quelle) entries.push({ label: 'Quelle', value: quelle.replace(/^Quelle:\s*/, '') });
+
+  const portal = getString(card, 'portal');
+  const citations = (getArray(card, 'dokumente') ?? []).map((doc, i) => {
+    const ref = getString(doc, 'ref') ?? '';
+    const datum = getString(doc, 'datum');
+    const snippet = [ref, getString(doc, 'typ'), datum ? isoToDe(datum) : null]
+      .filter(Boolean)
+      .join(' · ');
+    return {
+      id: `landtag-doc-${i}`,
+      href: getString(doc, 'url') ?? portal ?? '',
+      title: getString(doc, 'titel') || ref || 'Landtagsdokument',
+      ...(snippet ? { snippet } : {}),
+      type: 'document' as const,
+    };
+  });
+  return { kind: 'key-value', entries, citations, markdown: null, imageUrl: null };
+}
+
+function parseBundestagRedenCard(args: unknown, result: unknown): ToolResultVM {
+  const card = getObject(result, 'uiCard');
+  if (!card) return { kind: 'citations', citations: parseSearchCitations(result) };
+
+  const entries: KeyValueEntry[] = [];
+  const thema = getString(card, 'thema') ?? getString(args, 'thema');
+  if (thema) {
+    const wortlaut = card['wortlaut'] === true;
+    entries.push({ label: wortlaut ? 'Wortlaut' : 'Thema', value: thema });
+  }
+  for (const line of getArray(card, 'filter') ?? []) {
+    if (typeof line !== 'string') continue;
+    const at = line.indexOf(': ');
+    entries.push(
+      at > 0
+        ? { label: line.slice(0, at), value: line.slice(at + 2) }
+        : { label: 'Filter', value: line }
+    );
+  }
+
+  const citations = (getArray(card, 'reden') ?? []).map((rede, i) => {
+    const redner = getString(rede, 'redner') ?? 'Rede';
+    const partei = getString(rede, 'partei');
+    const protokoll = getString(rede, 'protokoll');
+    const datum = getString(rede, 'datum');
+    const snippet = [
+      protokoll ? `Plenarprotokoll ${protokoll}` : null,
+      datum ? isoToDe(datum) : null,
+      getString(rede, 'top'),
+    ]
+      .filter(Boolean)
+      .join(' · ');
+    return {
+      id: `bundestag-rede-${i}`,
+      href: docHref(getString(rede, 'url'), protokoll ?? redner),
+      title: partei ? `${redner} (${partei})` : redner,
+      ...(snippet ? { snippet } : {}),
+      type: 'document' as const,
+    };
+  });
+  return { kind: 'key-value', entries, citations, markdown: null, imageUrl: null };
+}
+
 function entry(name: UiToolName, kind: ToolViewKind, parse: ToolRegistryEntry['parse']) {
   return { meta: getToolMeta(name), kind, parse };
 }
@@ -1007,10 +1220,15 @@ export const TOOL_REGISTRY: Record<UiToolName, ToolRegistryEntry> = {
   // Loop turns persist the lean { resultCount, sources } (no results array →
   // empty citation list on expand, same as loop web_search); single-pass turns
   // persist { results } which parses into a clickable Drucksachen list.
-  bundestag: entry('bundestag', 'citations', (_a, r) => ({
-    kind: 'citations',
-    citations: parseSearchCitations(r),
-  })),
+  // Persistente Karte: Suche, Filter, Gesamtzahlen und die Dokumentliste aus
+  // `uiCard` (domainTools.ts). Alt-Ergebnisse ohne `uiCard` (Single-Pass,
+  // früher gespeicherte Threads) fallen auf die Zitatliste zurück.
+  bundestag: entry('bundestag', 'key-value', parseBundestagCard),
+  parlament_lesen: entry('parlament_lesen', 'key-value', parseParlamentLesenCard),
+  bundestag_reden: entry('bundestag_reden', 'key-value', parseBundestagRedenCard),
+  landtag: entry('landtag', 'key-value', parseLandtagCard),
+  // Gleiche Kartenform: `nationalrat` und `landtag` teilen die Ausführung.
+  nationalrat: entry('nationalrat', 'key-value', parseLandtagCard),
   research: entry('research', 'markdown-report', (_a, r) => ({
     kind: 'markdown-report',
     ...parseResearchResult(r),
@@ -1128,6 +1346,10 @@ export const TOOL_REGISTRY: Record<UiToolName, ToolRegistryEntry> = {
   website_werkzeug_laden: entry('website_werkzeug_laden', 'text-note', () => ({
     kind: 'text-note',
     text: 'Website-Werkzeug freigeschaltet',
+  })),
+  parlament_werkzeuge_laden: entry('parlament_werkzeuge_laden', 'text-note', () => ({
+    kind: 'text-note',
+    text: 'Parlamentswerkzeuge freigeschaltet',
   })),
 };
 
