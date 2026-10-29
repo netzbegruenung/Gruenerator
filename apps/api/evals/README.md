@@ -134,6 +134,14 @@ offen lassen. Und hinterher, bei jedem Ausreisser über ~5 Minuten, erst
 `pmset -g log | grep -E "Entering Sleep state|DarkWake|Wake from"` gegen die
 Log-Lücke halten, bevor daraus ein Befund wird.
 
+**Bundestag-Fälle (`corpus/bundestag.jsonl`, Ids `bt-…`):** `EVAL_FILTER=bt-`. Die
+Assertion `keineErfundeneRef` verlangt, dass jede Ref in `args.dokumente` eines
+`parlament_lesen`-Aufrufs vorher in einem Werkzeugergebnis desselben Threads
+stand (frühere Turns eingeschlossen, `ScenarioContext.priorToolResults`). Sie
+liest das ROHE `tool_step_result` aus dem SSE, nicht die fürs Modell gekürzte
+Fassung. Es gibt kein Feld für Werkzeug-ARGUMENTE (z. B. den Urheber-String);
+die Fälle prüfen dort nur den Weg.
+
 ## Env
 
 | var                             | default                 | purpose                                            |

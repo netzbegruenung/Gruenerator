@@ -236,6 +236,56 @@ function bareCitationNumbers(text: string, citeNums: Set<number>): number[] {
   return bare;
 }
 
+const PLPR_REF_RE = /^PlPr \d{1,2}\/\d{1,4} S\. \d+-\d+$/;
+
+function normalizeRefText(text: string): string {
+  return text
+    .replace(/[\u2010-\u2015\u2212]/g, '-')
+    .replace(/Plenarprotokoll\s+(\d+\/\d+),?\s*S\.?\s*/g, 'PlPr $1 S. ')
+    .replace(/\s+/g, ' ');
+}
+
+/**
+ * Refs, die `parlament_lesen` bekommen hat, ohne vorher in einer Werkzeugausgabe
+ * gestanden zu haben. Verglichen wird normalisiert: ohne „BT-Drs."-Präfix,
+ * Gedankenstriche als Bindestrich, „Plenarprotokoll 21/96, S. 1-2" als
+ * `PlPr`-Form. Eine Drucksachen-Ref zählt nicht, wenn sie nur als Teil einer
+ * Protokollnummer („Plenarprotokoll 21/96") auftaucht.
+ *
+ * Was die Person selbst geschrieben hat (`userPrompts`), zählt ebenfalls als
+ * Herkunft: „was steht in 21/1928?" darf `parlament_lesen` mit 21/1928 rufen.
+ *
+ * Gelesen wird das ROHE Ergebnis aus dem SSE (`tool_step_result.result`): das
+ * Kürzen für das Modell (`resultForModel`) passiert erst danach, im Trace fehlt
+ * also nichts, was das Modell sah.
+ */
+export function inventedParlamentRefs(
+  trace: ChatTrace,
+  priorResults: Record<string, unknown>[] = [],
+  userPrompts: string[] = []
+): string[] {
+  const invented: string[] = [];
+  // Eine Nummer, die die Person selbst nennt, ist keine erfundene Ref.
+  const seen: string[] = [...userPrompts, ...priorResults.map((r) => JSON.stringify(r))];
+  for (const call of trace.toolCalls) {
+    if (call.toolName === 'parlament_lesen') {
+      const refs = Array.isArray(call.args.dokumente) ? call.args.dokumente : [];
+      const hay = normalizeRefText(seen.join(' '));
+      const hayDrs = hay.replace(/(?:PlPr|Plenarprotokoll)\s+\d+\/\d+(?: S\. \d+-\d+)?/g, ' ');
+      for (const raw of refs) {
+        const ref = normalizeRefText(String(raw).replace(/^\s*BT-Drs\.?\s*/i, '')).trim();
+        const escaped = ref.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        const found = PLPR_REF_RE.test(ref)
+          ? new RegExp(`(?<![\\w/])${escaped}(?!\\d)`).test(hay)
+          : new RegExp(`(?<![\\d/])${escaped}(?![\\d/])`).test(hayDrs);
+        if (!found) invented.push(String(raw));
+      }
+    }
+    if (call.result) seen.push(JSON.stringify(call.result));
+  }
+  return invented;
+}
+
 function fail(name: string, detail: string): AssertionResult {
   return { name, pass: false, detail };
 }
@@ -495,6 +545,19 @@ export function runAssertions(
       badScrape.length === 0
         ? ok('noInventedUrls')
         : fail('noInventedUrls', `${badScrape.length} scrape_url call(s) failed (404/invented)`)
+    );
+  }
+
+  if (expect.keineErfundeneRef) {
+    const calls = trace.toolCalls.filter((t) => t.toolName === 'parlament_lesen');
+    const invented = inventedParlamentRefs(trace, ctx?.priorToolResults, ctx?.userPrompts);
+    results.push(
+      invented.length === 0
+        ? ok('keineErfundeneRef', calls.length === 0 ? 'parlament_lesen nicht aufgerufen' : '')
+        : fail(
+            'keineErfundeneRef',
+            `parlament_lesen mit Ref(s), die in keiner Werkzeugausgabe standen: ${invented.join(', ')}`
+          )
     );
   }
 
