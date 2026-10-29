@@ -281,7 +281,7 @@ describe('fetchTexts: Drucksachen', () => {
 
 describe('parseDebate', () => {
   it('schneidet nur Reden mit Startseite im Bereich, ohne Kommentare', () => {
-    const text = parseDebate(FIXTURE, 9509, 9510);
+    const { text } = parseDebate(FIXTURE, 9509, 9510);
     expect(text).toContain('### Jörn König (AfD)');
     expect(text).toContain('### Bettina Lugk (SPD)');
     expect(text).not.toContain('Schenderlein');
@@ -294,13 +294,17 @@ describe('parseDebate', () => {
   });
 
   it('nennt bei Regierungsmitgliedern die Rolle statt der Fraktion', () => {
-    expect(parseDebate(FIXTURE, 9508, 9508)).toContain(
+    expect(parseDebate(FIXTURE, 9508, 9508).text).toContain(
       '### Christiane Schenderlein (Staatsministerin beim Bundeskanzler)'
     );
   });
 
-  it('liefert leer, wenn keine Rede im Bereich liegt', () => {
-    expect(parseDebate(FIXTURE, 1, 2)).toBe('');
+  it('liefert leer plus die Spanne der Redeanfänge, wenn keine Rede im Bereich liegt', () => {
+    const { text, seiten } = parseDebate(FIXTURE, 1, 2);
+    expect(text).toBe('');
+    expect(seiten).not.toBeNull();
+    expect(seiten!.von).toBeLessThanOrEqual(9508);
+    expect(seiten!.bis).toBeGreaterThanOrEqual(9510);
   });
 });
 
@@ -334,6 +338,46 @@ describe('fetchTexts: Debatten', () => {
     expect([...redis.store.keys()]).toEqual([
       'bt:qa:debatte:v1:https://dserver.bundestag.de/btp/21/21080.xml:9509-9510',
     ]);
+  });
+
+  it('nennt bei leerem Schnitt den Seitenbereich, in dem die Reden liegen', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => new Response(FIXTURE))
+    );
+    const redis = redisMock();
+    const out = await fetchTexts(
+      [
+        {
+          ...debate,
+          ref: 'PlPr 21/80 S. 1-200',
+          beratung: { ...debate.beratung!, anfangsseite: 1, endseite: 200 },
+        },
+      ],
+      { dip: { list: vi.fn() }, redis, signal: new AbortController().signal }
+    );
+    expect(out[0].textSource).toBe('missing');
+    expect(out[0].fehlgrund?.art).toBe('seitenbereich');
+    expect(out[0].fehlgrund?.text).toMatch(
+      /keine Rede auf S\. 1–200; die Reden beginnen dort auf S\. \d+–\d+/
+    );
+    expect(redis.store.size).toBe(0);
+  });
+
+  it('meldet ein noch nicht veröffentlichtes Protokoll als solches', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => new Response('', { status: 404 }))
+    );
+    const out = await fetchTexts([debate], {
+      dip: { list: vi.fn() },
+      redis: redisMock(),
+      signal: new AbortController().signal,
+    });
+    expect(out[0].fehlgrund).toEqual({
+      art: 'unveroeffentlicht',
+      text: 'Plenarprotokoll 21/80 ist beim Bundestag noch nicht als XML veröffentlicht',
+    });
   });
 
   it('lehnt ein XML von fremdem Host ab', async () => {
