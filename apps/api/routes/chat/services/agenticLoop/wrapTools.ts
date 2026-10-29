@@ -20,7 +20,7 @@
  */
 import { recordDecision } from '../../../../utils/decisionJournal.js';
 import { createLogger } from '../../../../utils/logger.js';
-import { klassifiziereWurf } from '../../agents/toolFailure.js';
+import { beschreibeWurf, klassifiziereWurf } from '../../agents/toolFailure.js';
 
 import { LOOP_CLIENT_TOOLS } from './clientToolRegistry.js';
 import { truncateResultForModel, wasShortened } from './truncate.js';
@@ -453,7 +453,7 @@ function withTimeout<T>(promise: Promise<T>, ms: number, onTimeout?: () => void)
       },
       (e) => {
         clearTimeout(timer);
-        reject(e instanceof Error ? e : new Error(String(e)));
+        reject(e); // roh durchreichen: Status und `cause` sollen den Klassifizierer erreichen
       }
     );
   });
@@ -708,12 +708,12 @@ export function wrapToolsForLoop(tools: ToolSet, ctx: WrapToolsContext): ToolSet
             () => abandoned.abort(new DOMException('Tool call timed out', 'TimeoutError'))
           );
         } catch (err) {
-          const message = err instanceof Error ? err.message : String(err);
+          const message = beschreibeWurf(err);
           const timedOut = err instanceof ToolTimeoutError;
           thrown = { error: message, timedOut };
           // Das Modell bekommt Ursache, Befund und nächsten Schritt; der Hook
           // (GlitchTip) behält die rohe Meldung.
-          output = klassifiziereWurf(message, {
+          output = klassifiziereWurf(err, {
             timedOut,
             timeoutMs: err instanceof ToolTimeoutError ? err.ms : null,
           });

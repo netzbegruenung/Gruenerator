@@ -863,9 +863,9 @@ describe('toolCatalog scrape_url', () => {
     const out = (await execute(
       { urls: ['https://example.com/', 'https://kaputt.example/'] },
       { toolCallId: 'c1' }
-    )) as { hinweis?: string };
+    )) as { hinweis?: string; naechsterSchritt?: string };
     expect(out.hinweis).toMatch(/Nicht lesbar.*kaputt\.example/);
-    expect(out.hinweis).toMatch(/nur aus den gelesenen Seiten/);
+    expect(out.naechsterSchritt).toMatch(/nur aus den gelesenen Seiten/);
   });
 
   it('keine erlaubte URL ⇒ ungueltige_eingabe mit Ablehnungsgrund', async () => {
@@ -891,9 +891,11 @@ describe('toolCatalog scrape_url', () => {
     const out = (await execute({ urls: ['https://example.com/'] }, { toolCallId: 'c1' })) as {
       error?: string;
       fehlerArt?: string;
+      naechsterSchritt?: string;
     };
     expect(out.fehlerArt).toBe('nicht_verfuegbar');
-    expect(out.error).toMatch(/Versucht: https:\/\/example\.com\/.*Websuche/);
+    expect(out.error).toMatch(/Versucht: https:\/\/example\.com\//);
+    expect(out.naechsterSchritt).toMatch(/Websuche/);
   });
 });
 

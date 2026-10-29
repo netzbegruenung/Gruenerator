@@ -608,6 +608,7 @@ NUTZE WENN:
           sources,
           fehlerArt: teilweise.fehlerArt,
           hinweis: teilweise.error,
+          naechsterSchritt: teilweise.naechsterSchritt,
         };
       },
     });

@@ -100,6 +100,28 @@ describe('wrapToolsForLoop', () => {
     expect(ctx.guards.checkFailureCap('boom')).toBeNull(); // 1 failure, cap is 2
   });
 
+  it('Zeitüberschreitung: Karte zeigt nur Ursache+Befund, der nächste Schritt geht ans Modell', async () => {
+    const { ctx, events } = makeCtx({ perCallTimeoutMs: 20 });
+    const tools = wrapToolsForLoop(
+      { hang: { execute: () => new Promise(() => {}) } } as unknown as ToolSet,
+      ctx
+    );
+    const out = (await run(tools, 'hang', {})) as {
+      error: string;
+      fehlerArt: string;
+      naechsterSchritt: string;
+    };
+    expect(out.fehlerArt).toBe('zeitlimit');
+    expect(out.error).toMatch(/verworfen/);
+    expect(out.error).not.toMatch(/nachliefer|Versuch/);
+    expect(out.naechsterSchritt).toMatch(/einmaliger neuer Versuch/);
+    const card = events.find((e) => e.event === 'tool_step_result')?.data as {
+      summary?: string;
+    };
+    expect(card.summary).toBe(out.error);
+    expect(card.summary).not.toContain(out.naechsterSchritt);
+  });
+
   it('times out a hanging tool', async () => {
     const { ctx } = makeCtx({ perCallTimeoutMs: 20 });
     const tools = wrapToolsForLoop(

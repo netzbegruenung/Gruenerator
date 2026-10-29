@@ -29,6 +29,16 @@ function capMcpContent(content: string): string {
   return applyContextCap(content, MCP_CONTENT_CAP, 'agenticLoop:mcpContent');
 }
 
+/** Ursache + Befund (nicht weiter gekürzt als nötig) und der nächste Schritt getrennt davon. */
+const FAILURE_TEXT_CHARS = 600;
+function failureText(error: string | null, result: Record<string, unknown>): string {
+  const text = String(error).slice(0, FAILURE_TEXT_CHARS);
+  const schritt = result.naechsterSchritt;
+  return typeof schritt === 'string' && schritt.trim() !== ''
+    ? `${text} Nächster Schritt: ${schritt.trim().slice(0, FAILURE_TEXT_CHARS)}`
+    : text;
+}
+
 /**
  * Failures of the NATIVE tools — search, scrape, documents, boards, notebooks.
  *
@@ -64,7 +74,8 @@ export function buildToolFailureNote(steps: PersistedStep[]): string {
     .filter(({ view, i }) => !view.ok && !recovered(i));
   if (failed.length === 0) return '';
   const lines = failed.map(
-    ({ step, view }) => `- ${step.toolName}: FEHLGESCHLAGEN — ${String(view.error).slice(0, 200)}`
+    ({ step, view }) =>
+      `- ${step.toolName}: FEHLGESCHLAGEN — ${failureText(view.error, step.result)}`
   );
   return (
     `\n\nFEHLGESCHLAGENE WERKZEUGE IN DIESEM TURN:\n${lines.join('\n')}\n\n` +
@@ -121,7 +132,7 @@ export function buildMcpOutcomeNote(steps: PersistedStep[]): string {
   const anyEmptyOk = views.some((v) => v.view.ok && v.view.content.trim() === '');
   const lines = views.map(({ s, view }) => {
     if (!view.ok) {
-      return `- ${s.serverName} · ${s.toolName}: FEHLGESCHLAGEN — ${String(view.error).slice(0, 200)}`;
+      return `- ${s.serverName} · ${s.toolName}: FEHLGESCHLAGEN — ${failureText(view.error, s.result)}`;
     }
     return view.content.trim() === ''
       ? `- ${s.serverName} · ${s.toolName} → (Aufruf erfolgreich, Dienst lieferte KEINE Einträge zurück — leeres Ergebnis, KEIN Verbindungs-/Zugriffsproblem)`

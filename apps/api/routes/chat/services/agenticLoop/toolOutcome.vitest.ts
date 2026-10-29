@@ -139,6 +139,23 @@ describe('buildMcpOutcomeNote', () => {
  * complete. It had opened neither.
  */
 describe('buildToolFailureNote', () => {
+  it('kürzt Ursache+Befund erst bei 600 Zeichen und hängt den nächsten Schritt getrennt an', () => {
+    const lang = `${'U'.repeat(400)} Ende.`;
+    const note = buildToolFailureNote([
+      step({
+        toolName: 'scrape_url',
+        result: { error: lang, naechsterSchritt: 'Prüfe die Adresse.' },
+      }),
+    ]);
+    expect(note).toContain(lang);
+    expect(note).toContain('Nächster Schritt: Prüfe die Adresse.');
+    const lines = buildToolFailureNote([
+      step({ toolName: 'x', result: { error: 'A'.repeat(900) } }),
+    ]);
+    expect(lines).toContain('A'.repeat(600));
+    expect(lines).not.toContain('A'.repeat(601));
+  });
+
   it('drops a failure that a later call of the same tool made good (#4458)', () => {
     const note = buildToolFailureNote([
       step({

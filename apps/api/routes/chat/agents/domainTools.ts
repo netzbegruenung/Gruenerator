@@ -111,8 +111,11 @@ function erstellungFehlgeschlagen(
     art: 'nicht_verfuegbar',
     ursache: `${was}-Erstellung fehlgeschlagen`,
     befund: grund ?? 'Der Grund ist nicht bekannt',
-    naechsterSchritt:
-      'Versuche es höchstens einmal erneut und lege nichts doppelt an; sag der Person offen, dass der erste Versuch scheiterte',
+    // Retry nur bei unbekanntem Grund: ein bekannter Grund (z. B. Zeichenlimit) wird
+    // durch Wiederholen nicht besser, dort entscheidet die Person.
+    naechsterSchritt: grund
+      ? 'Gib der Person die genannte Wahl weiter; wiederhole den Aufruf nicht unverändert'
+      : 'Versuche es höchstens einmal erneut und lege nichts doppelt an; sag der Person offen, dass der erste Versuch scheiterte',
   });
 }
 

@@ -57,7 +57,13 @@ const {
   makeUmfragenTool,
 } = await import('./domainTools.js');
 
-type Out = { error?: string; fehlerArt?: FehlerArt; hinweis?: string; message?: string };
+type Out = {
+  error?: string;
+  fehlerArt?: FehlerArt;
+  naechsterSchritt?: string;
+  hinweis?: string;
+  message?: string;
+};
 
 function exec(tool: unknown, input: unknown): Promise<Out> {
   return (tool as { execute: (i: unknown, o: { toolCallId: string }) => Promise<Out> }).execute(
@@ -85,14 +91,19 @@ const state = (over: Record<string, unknown> = {}) =>
 const sse = { send: () => {} } as never;
 
 describe('werkzeugFehler / leeresErgebnis', () => {
-  it('setzt Ursache, Befund und nächsten Schritt in fester Reihenfolge zusammen', () => {
+  it('error = Ursache + Befund, der nächste Schritt steht getrennt', () => {
     const f = werkzeugFehler({
       art: 'nicht_gefunden',
       ursache: 'Weg',
       befund: 'Gesucht: X',
       naechsterSchritt: 'Prüfe X.',
     });
-    expect(f).toEqual({ error: 'Weg. Gesucht: X. Prüfe X.', fehlerArt: 'nicht_gefunden' });
+    // Der nächste Schritt gehört nicht in `error`: das zeigt die Karte der Person.
+    expect(f).toEqual({
+      error: 'Weg. Gesucht: X.',
+      fehlerArt: 'nicht_gefunden',
+      naechsterSchritt: 'Prüfe X.',
+    });
   });
 
   it('lässt fehlende Teile weg, nie ein leeres error', () => {
@@ -122,52 +133,186 @@ describe('werkzeugFehler / leeresErgebnis', () => {
 });
 
 describe('klassifiziereWurf (wrapTools)', () => {
-  const rows: Array<
-    [string, string, { timedOut?: boolean; timeoutMs?: number }, FehlerArt, RegExp]
-  > = [
+  type Row = [
+    string,
+    unknown,
+    { timedOut?: boolean; timeoutMs?: number },
+    FehlerArt,
+    RegExp,
+    RegExp | null,
+  ];
+  const rows: Row[] = [
     [
       'Zeitüberschreitung',
-      'Zeitüberschreitung nach 20000ms',
+      new Error('Zeitüberschreitung nach 20000ms'),
       { timedOut: true, timeoutMs: 20000 },
       'zeitlimit',
-      /läuft möglicherweise noch.*Nicht sofort mit denselben Argumenten/,
+      /Zeitüberschreitung nach 20 s.*verworfen/,
+      /einmaliger neuer Versuch.*nichts mehr an/,
     ],
     [
       'HTTP 401',
-      'Request failed with status code 401',
+      new Error('Request failed with status code 401'),
       {},
       'keine_berechtigung',
       /Zugriff.*abgelehnt/,
+      /Nicht erneut versuchen/,
     ],
-    ['HTTP 403', 'HTTP 403 Forbidden', {}, 'keine_berechtigung', /Zugriff.*abgelehnt/],
-    ['HTTP 404', 'Request failed with status code 404', {}, 'nicht_gefunden', /gibt es dort nicht/],
+    [
+      'HTTP 403',
+      new Error('HTTP 403 Forbidden'),
+      {},
+      'keine_berechtigung',
+      /Zugriff.*abgelehnt/,
+      /Nicht erneut versuchen/,
+    ],
+    [
+      'HTTP 404',
+      new Error('Request failed with status code 404'),
+      {},
+      'nicht_gefunden',
+      /gibt es dort nicht/,
+      /Prüfe die Angabe/,
+    ],
     [
       'HTTP 429',
-      'Request failed with status code 429',
+      new Error('Request failed with status code 429'),
       {},
       'anbieter_ausfall',
-      /Limit.*Später erneut/,
+      /Limit/,
+      /Später erneut/,
     ],
-    ['HTTP 500', 'Request failed with status code 500', {}, 'anbieter_ausfall', /nicht erreichbar/],
-    ['HTTP 503', 'upstream returned 503', {}, 'anbieter_ausfall', /nicht erreichbar/],
-    ['ECONNRESET', 'read ECONNRESET', {}, 'anbieter_ausfall', /nicht erreichbar/],
-    ['ETIMEDOUT', 'connect ETIMEDOUT 1.2.3.4:443', {}, 'anbieter_ausfall', /nicht erreichbar/],
-    ['fetch failed', 'fetch failed', {}, 'anbieter_ausfall', /nicht erreichbar/],
-    ['unbekannt', 'kaputt wie nie', {}, 'nicht_verfuegbar', /abgebrochen.*kaputt wie nie/],
+    [
+      'HTTP 500',
+      new Error('Request failed with status code 500'),
+      {},
+      'anbieter_ausfall',
+      /nicht erreichbar/,
+      /einziger neuer Versuch/,
+    ],
+    [
+      'HTTP 503 im Text',
+      new Error('upstream: HTTP 503'),
+      {},
+      'anbieter_ausfall',
+      /nicht erreichbar/,
+      /einziger neuer Versuch/,
+    ],
+    [
+      'status-Feld',
+      Object.assign(new Error('boom'), { status: 502 }),
+      {},
+      'anbieter_ausfall',
+      /nicht erreichbar/,
+      null,
+    ],
+    [
+      'response.status',
+      Object.assign(new Error('boom'), { response: { status: 404 } }),
+      {},
+      'nicht_gefunden',
+      /gibt es dort nicht/,
+      null,
+    ],
+    [
+      'Wurf ohne Error mit status',
+      { status: 429, body: 'slow down' },
+      {},
+      'anbieter_ausfall',
+      /Limit/,
+      null,
+    ],
+    [
+      'cause.code ECONNRESET',
+      Object.assign(new TypeError('fetch failed'), { cause: { code: 'ECONNRESET' } }),
+      {},
+      'anbieter_ausfall',
+      /nicht erreichbar/,
+      /einziger neuer Versuch/,
+    ],
+    [
+      'ETIMEDOUT im Text',
+      new Error('connect ETIMEDOUT 1.2.3.4:443'),
+      {},
+      'anbieter_ausfall',
+      /nicht erreichbar/,
+      null,
+    ],
+    ['fetch failed', new Error('fetch failed'), {}, 'anbieter_ausfall', /nicht erreichbar/, null],
+    [
+      'unbekannt',
+      new Error('kaputt wie nie'),
+      {},
+      'nicht_verfuegbar',
+      /abgebrochen.*kaputt wie nie/,
+      null,
+    ],
+    // Negativzeilen: nackte Zahlen sind kein Status.
+    [
+      'Pfad /items/404 + status 503',
+      new Error('GET /items/404 failed with status 503'),
+      {},
+      'anbieter_ausfall',
+      /nicht erreichbar/,
+      null,
+    ],
+    [
+      '"maximal 500 Zeichen"',
+      new Error('Der Text darf maximal 500 Zeichen haben'),
+      {},
+      'nicht_verfuegbar',
+      /abgebrochen.*500 Zeichen/,
+      null,
+    ],
+    [
+      'URL mit /429/',
+      new Error('Ungültige Quelle https://example.org/429/seite'),
+      {},
+      'nicht_verfuegbar',
+      /abgebrochen/,
+      null,
+    ],
+    [
+      '"network" als Wort',
+      new Error('Das Netzwerk-Notebook "network" ist leer'),
+      {},
+      'nicht_verfuegbar',
+      /abgebrochen/,
+      null,
+    ],
   ];
-  it.each(rows)('%s', (_name, raw, opts, art, ursache) => {
-    const f = klassifiziereWurf(raw, opts);
+  it.each(rows)('%s', (_name, err, opts, art, ursache, schritt) => {
+    const f = klassifiziereWurf(err, opts);
     expect(f.fehlerArt).toBe(art);
     expect(f.error).toMatch(ursache);
+    if (schritt) expect(f.naechsterSchritt).toMatch(schritt);
   });
 
-  it('behält die Originalmeldung als Befund (außer beim Timeout, das sie ersetzt)', () => {
-    expect(klassifiziereWurf('status code 404').error).toContain('status code 404');
-    expect(klassifiziereWurf('x', { timedOut: true }).error).toMatch(/Zeitüberschreitung/);
+  it('error enthält nie eine Anweisung ans Modell (Karte der Person)', () => {
+    for (const [, err, opts] of rows) {
+      const f = klassifiziereWurf(err, opts);
+      expect(f.error).not.toMatch(/Nicht erneut|erneut versuchen|Prüfe|nenne|sag /i);
+    }
+  });
+
+  it('Zeitüberschreitung verspricht nichts Nachgeliefertes', () => {
+    const f = klassifiziereWurf(new Error('x'), { timedOut: true, timeoutMs: 20000 });
+    expect(`${f.error} ${f.naechsterSchritt}`).not.toMatch(/nachliefer|noch weiter/);
+  });
+
+  it('behält die Originalmeldung als Befund', () => {
+    expect(klassifiziereWurf(new Error('status code 404')).error).toContain('status code 404');
+  });
+
+  it('Nicht-Error-Würfe werden nicht zu [object Object]', () => {
+    const f = klassifiziereWurf({ foo: 'bar' });
+    expect(f.error).toContain('{"foo":"bar"}');
+    expect(f.error).not.toContain('[object Object]');
+    expect(klassifiziereWurf('nur Text').error).toContain('nur Text');
   });
 
   it('leere Meldung ergibt trotzdem ein gefülltes error', () => {
-    expect(klassifiziereWurf('').error).not.toBe('');
+    expect(klassifiziereWurf(new Error('')).error).not.toBe('');
   });
 });
 
@@ -220,7 +365,7 @@ describe('gruenerator_search', () => {
     const out = await exec(tool(), input);
     expect(out.fehlerArt).toBe(art);
     expect(out.error).toMatch(ursache);
-    if (schritt) expect(out.error).toMatch(schritt);
+    if (schritt) expect(out.naechsterSchritt).toMatch(schritt);
   });
 
   it('echtes Leer bleibt ein Nicht-Fehler und nennt Sammlung', async () => {
@@ -255,7 +400,8 @@ describe('web_search', () => {
     });
     const out = await exec(tool(), { query: 'q', searchType: 'general', tiefe: 'standard' });
     expect(out.fehlerArt).toBe('anbieter_ausfall');
-    expect(out.error).toMatch(/Websuche fehlgeschlagen: 502.*höchstens einmal erneut/);
+    expect(out.error).toMatch(/Websuche fehlgeschlagen: 502/);
+    expect(out.naechsterSchritt).toMatch(/höchstens einmal erneut/);
   });
 
   it('Wurf ⇒ anbieter_ausfall mit Originalmeldung', async () => {
@@ -304,14 +450,16 @@ describe('umfragen', () => {
     lookupUmfragen.mockRejectedValue(new Error('politpro down'));
     const out = await exec(make(), { topic: '', bundesland: 'Bayern' });
     expect(out.fehlerArt).toBe('anbieter_ausfall');
-    expect(out.error).toMatch(/nicht erreichbar.*Region „Bayern“.*keine Zahlen aus dem Gedächtnis/);
+    expect(out.error).toMatch(/nicht erreichbar.*Region „Bayern“/);
+    expect(out.naechsterSchritt).toMatch(/keine Zahlen aus dem Gedächtnis/);
   });
 
   it('keine Daten (null) ⇒ nicht_gefunden mit Filter und Vorschlag', async () => {
     lookupUmfragen.mockResolvedValue(null);
     const out = await exec(make(), { topic: 'Klima', bundesland: 'Atlantis' });
     expect(out.fehlerArt).toBe('nicht_gefunden');
-    expect(out.error).toMatch(/keine Werte.*Atlantis.*Klima.*ohne Thema oder ohne Region/);
+    expect(out.error).toMatch(/keine Werte.*Atlantis.*Klima/);
+    expect(out.naechsterSchritt).toMatch(/ohne Thema oder ohne Region/);
   });
 });
 
@@ -343,7 +491,8 @@ describe('abgeordnetenwatch', () => {
     retrieveAbgeordnetenwatch.mockResolvedValue([]);
     const out = await exec(make('de-DE'), { query: 'Nobody' });
     expect(out.fehlerArt).toBe('nicht_gefunden');
-    expect(out.error).toMatch(/„Nobody“.*Schreibweise/);
+    expect(out.error).toMatch(/„Nobody“/);
+    expect(out.naechsterSchritt).toMatch(/Schreibweise/);
   });
 });
 
@@ -362,7 +511,7 @@ describe('Erstellen schlägt fehl', () => {
     const out = await exec(tool, { prompt: 'x' });
     expect(out.fehlerArt).toBe('nicht_verfuegbar');
     expect(out.error).toMatch(/Dokument-Erstellung fehlgeschlagen.*Grund ist nicht bekannt/);
-    expect(out.error).toMatch(nichtDoppelt);
+    expect(out.naechsterSchritt).toMatch(nichtDoppelt);
   });
 
   it('sharepic: bekannter Grund wird durchgereicht', async () => {
@@ -372,7 +521,9 @@ describe('Erstellen schlägt fehl', () => {
     expect(out.error).toMatch(/Sharepic-Erstellung fehlgeschlagen/);
     expect(out.error).toMatch(/Karussell/);
     expect(out.error).not.toMatch(/Grund ist nicht bekannt/);
-    expect(out.error).toMatch(nichtDoppelt);
+    // Bekannter Grund: kein Retry-Satz, die Person entscheidet.
+    expect(out.naechsterSchritt).not.toMatch(/erneut/);
+    expect(out.naechsterSchritt).toMatch(/Wahl/);
   });
 
   it('create_board: ohne Grund ⇒ Grund unbekannt', async () => {

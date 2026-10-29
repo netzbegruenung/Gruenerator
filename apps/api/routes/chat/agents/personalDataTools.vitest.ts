@@ -281,10 +281,10 @@ describe('documents', () => {
       permission: 'viewer',
       confirm: false,
       limit: 15,
-    })) as { error?: string; fehlerArt?: string };
+    })) as { error?: string; fehlerArt?: string; naechsterSchritt?: string };
     expect(out.fehlerArt).toBe('nicht_gefunden');
     expect(out.error).toMatch(ursache);
-    expect(out.error).toMatch(/documents list.*find_content/);
+    expect(out.naechsterSchritt).toMatch(/documents list.*find_content/);
   });
 
   it('rename is refused without write access', async () => {
