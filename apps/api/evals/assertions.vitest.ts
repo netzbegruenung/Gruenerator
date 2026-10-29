@@ -446,6 +446,26 @@ describe('content-policy assertions — the safety lane asserted nothing before'
     expect(names(rs)['answerMustContain:(']).toBe(false);
   });
 
+  describe('ersterAufruf', () => {
+    const tc = (...namen: string[]) => namen.map((toolName) => ({ toolName, args: {}, ok: true }));
+    const check = (calls: ReturnType<typeof tc>, erwartet: string[]) =>
+      runAssertions(trace({ toolCalls: calls }), { ersterAufruf: erwartet })[0]!;
+
+    it('passes when the first call is one of the expected tools', () => {
+      expect(check(tc('media', 'find_content'), ['find_content', 'media']).pass).toBe(true);
+    });
+
+    it('fails when the right tool only comes after a detour', () => {
+      const r = check(tc('web_search', 'gruenerator_search'), ['gruenerator_search']);
+      expect(r.pass).toBe(false);
+      expect(r.detail).toContain('first call web_search');
+    });
+
+    it('fails a turn without any tool call', () => {
+      expect(check(tc(), ['web_search']).detail).toContain('(none)');
+    });
+  });
+
   describe('toolArgsMatch', () => {
     const call = (toolName: string, args: Record<string, unknown>) => ({
       toolName,

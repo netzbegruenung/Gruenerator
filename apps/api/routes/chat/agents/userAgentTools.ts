@@ -433,7 +433,7 @@ export function makeUserAgentsTool(ctx: UserAgentToolCtx): Tool {
   const roles = state.userRoles ?? null;
 
   return tool({
-    description: `Zugriff auf die eigenen Grünerator-Agenten der Person (Agentura): selbst gebaute Assistenten mit eigener Rolle, eigenen Werkzeugen, Rezepten und Notebooks, die unter /agents/<identifier> im Chat laufen.
+    description: `Zugriff auf die eigenen Grünerator-Agenten der Person: selbst gebaute Assistenten mit eigener Rolle, eigenen Werkzeugen, Rezepten und Notebooks, die unter /agents/<identifier> im Chat laufen.
 
 NUTZE FÜR: die eigenen und die aus Projekten geteilten Grünerator-Agenten auflisten (list), Details eines Agenten ansehen — Rolle, Werkzeuge, Rezepte, Notebooks, Sichtbarkeit (get mit identifier), einen neuen Agenten anlegen — „bau mir einen Agenten, der …" (create mit brief; optional title, systemRole, enabledTools, skillMentions, defaultNotebookIds), einen eigenen Agenten ändern (update mit identifier und den neuen Feldern), einen eigenen Agenten kopieren — „mach mir eine Kopie von X" (duplicate mit identifier; optional title, danach mit update anpassen), mit einem Projekt teilen (share_to_group mit identifier und groupName), löschen (delete mit confirm=true nach Zustimmung).
 
@@ -625,7 +625,7 @@ Für create genügt brief: eine Beschreibung in ganzen Sätzen, was der Agent tu
       `Werkzeuge: ${toolLabels(toolKeys)}`,
       `Rezepte: ${listLabel(skillMentions)}`,
       `Notebooks: ${listLabel(notebookRows.map((n) => n.name))}`,
-      `Sichtbarkeit: ${SHARE_MODE_LABEL[shareMode] ?? shareMode}${sharing?.is_public ? ', in der Agentura gelistet' : ''}`,
+      `Sichtbarkeit: ${SHARE_MODE_LABEL[shareMode] ?? shareMode}${sharing?.is_public ? ', im Marktplatz gelistet' : ''}`,
     ];
     sourceRegistry.register([
       {
