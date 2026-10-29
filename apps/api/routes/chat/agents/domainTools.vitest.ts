@@ -961,7 +961,7 @@ describe('parlament_lesen: quelle Nationalrat', () => {
     });
 
   it('liest für Österreich den Nationalrat und kennt den Bundestag dort nicht', async () => {
-    readLandtagRefs.mockResolvedValue({ documents: [], notes: [] });
+    readLandtagRefs.mockResolvedValue({ documents: [], notes: [], nichtGefunden: [] });
     await exec(make('de-AT'), {
       quelle: 'nationalrat',
       dokumente: ['NR 28/I26'],
