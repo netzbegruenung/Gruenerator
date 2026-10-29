@@ -826,7 +826,7 @@ describe('toolCatalog scrape_url', () => {
     const out = (await execute({ urls: ['https://example.com/'] }, { toolCallId: 'c1' })) as {
       error?: string;
     };
-    expect(out.error).toMatch(/nicht lesen/);
+    expect(out.error).toMatch(/ließ sich lesen/);
   });
 });
 
