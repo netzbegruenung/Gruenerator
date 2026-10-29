@@ -66,6 +66,23 @@ describe('applySlideDeckOperations', () => {
     expect(textOf(pages[1]!, 'folie-spalte-1')).toBe('Weil es eilt.');
   });
 
+  it('writes a double-escaped \\n as a real line break', () => {
+    const result = applySlideDeckOperations(
+      deck(),
+      [
+        {
+          kind: 'edit-slide',
+          slide: 2,
+          operations: [
+            { kind: 'set-text', field: 'folie-spalte-1', label: 'Text', value: '• A\\n• B' },
+          ],
+        },
+      ],
+      ctx()
+    );
+    expect(textOf(result.pages[1]!, 'folie-spalte-1')).toBe('• A\n• B');
+  });
+
   it('refuses footer, unknown and empty texts but applies the rest', () => {
     const result = applySlideDeckOperations(
       deck(),

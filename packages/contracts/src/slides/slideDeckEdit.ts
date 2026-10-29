@@ -18,7 +18,13 @@ import { z } from 'zod';
 import { type BrandLocale } from '../brand/grueneBrand.js';
 import { stripInlineMarks } from '../text/inlineMarks.js';
 
-import { composeSlideDeck, MAX_SLIDES, slideSpecSchema, type SlideSpec } from './slideDeck.js';
+import {
+  composeSlideDeck,
+  MAX_SLIDES,
+  slideSpecSchema,
+  type SlideSpec,
+  unescapeLineBreaks,
+} from './slideDeck.js';
 import { slideLayoutConfigId } from './slideLayouts.js';
 
 /** Die Fußzeile setzt der Composer; das Modell schreibt sie nicht. */
@@ -92,7 +98,8 @@ function listOf<T>(state: Record<string, unknown>, key: string): T[] {
   return Array.isArray(value) ? (value as T[]) : [];
 }
 
-function setText(state: Record<string, unknown>, elementId: string, value: string): string | null {
+function setText(state: Record<string, unknown>, elementId: string, raw: string): string | null {
+  const value = unescapeLineBreaks(raw);
   if (FOOTER.has(elementId)) return `„${elementId}" ist die Fußzeile und wird automatisch gesetzt`;
   const texts = listOf<TextLike>(state, 'additionalTexts');
   const index = texts.findIndex((t) => t.id === elementId);
