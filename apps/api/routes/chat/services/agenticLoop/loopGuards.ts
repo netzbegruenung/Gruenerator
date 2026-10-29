@@ -236,6 +236,29 @@ function inputTokens(value: unknown, acc: Set<string> = new Set()): Set<string> 
   return acc;
 }
 
+/** What the near-duplicate check compares: the words of a string `query`, and
+ *  only against prior queries of the same SCOPE — every other input field
+ *  (collection, searchType, tiefe, zeitraum, seiten, person, thema …). The AI SDK
+ *  hands `execute` the PARSED input with schema defaults filled in, so counting
+ *  every string made each web_search carry `general`/`gruendlich` and each
+ *  gruenerator_search its collection as words: "Tempolimit Unfälle" →
+ *  "Tempolimit Klimawirkung" crossed the threshold on one shared word, and the
+ *  same question in a Landesverband and then in `deutschland` — what the tool
+ *  description asks for — was blocked. Numbers (`limit`) are an amount, not a
+ *  scope. Inputs without a string `query` compare all their words, as before. */
+function nearDuplicateBasis(input: unknown): { tokens: Set<string>; scope: string } {
+  if (input && typeof input === 'object' && !Array.isArray(input)) {
+    const { query, ...rest } = input as Record<string, unknown>;
+    if (typeof query === 'string') {
+      const scope = Object.fromEntries(
+        Object.entries(rest).filter(([, v]) => typeof v !== 'number')
+      );
+      return { tokens: inputTokens(query), scope: JSON.stringify(normalizeValue(scope)) };
+    }
+  }
+  return { tokens: inputTokens(input), scope: '' };
+}
+
 /** True when the smaller token set (≥2 tokens) is fully contained in the larger
  *  — a pure narrowing/widening of the same query ("Balkonkraftwerke 2024 Anzahl
  *  Deutschland" ⊂ "Anzahl Balkonkraftwerke Deutschland 2023 2024", or
@@ -275,8 +298,8 @@ export function createToolLoopGuards(options: ToolLoopGuardOptions = {}): ToolLo
   const seenKeys = new Set<string>();
   /** toolName → original (un-normalized) input descriptions, for error messages. */
   const priorInputs = new Map<string, string[]>();
-  /** toolName → token sets of prior queries, for near-duplicate detection. */
-  const priorTokens = new Map<string, Set<string>[]>();
+  /** toolName → prior queries (tokens + scope), for near-duplicate detection. */
+  const priorTokens = new Map<string, { tokens: Set<string>; scope: string }[]>();
   const callCounts = new Map<string, number>();
   const completedCounts = new Map<string, number>();
   let searchCalls = 0;
@@ -304,8 +327,9 @@ export function createToolLoopGuards(options: ToolLoopGuardOptions = {}): ToolLo
         );
       }
 
-      // Near-duplicate (turn scope): a re-phrasing that shares ≥ threshold tokens
-      // with a prior same-tool search. Catches "Atomkraft Position Grüne" vs
+      // Near-duplicate (turn scope): a re-phrasing that shares ≥ threshold query
+      // tokens with a prior same-tool search in the same scope (see
+      // `nearDuplicateBasis`). Catches "Atomkraft Position Grüne" vs
       // "Position Atomkraft" that the exact-key check above misses.
       //
       // SKIPPED for MCP connector tools (`skipNearDuplicate`): this Jaccard/subset
@@ -315,18 +339,21 @@ export function createToolLoopGuards(options: ToolLoopGuardOptions = {}): ToolLo
       // validation error (e.g. Sally "subject must be ≥3 chars" → retry with a
       // real subject) reads as "too similar" and gets wrongly blocked. Connectors
       // keep only the exact-normalized-duplicate guard above.
-      const tokens = inputTokens(input);
+      const basis = nearDuplicateBasis(input);
+      const { tokens } = basis;
       if (!skipNearDuplicate && nearDuplicateJaccard > 0 && tokens.size > 0) {
         const priorSets = priorTokens.get(toolName) ?? [];
         if (
           priorSets.some(
-            (p) => jaccard(tokens, p) >= nearDuplicateJaccard || isTokenSubset(tokens, p)
+            (p) =>
+              p.scope === basis.scope &&
+              (jaccard(tokens, p.tokens) >= nearDuplicateJaccard || isTokenSubset(tokens, p.tokens))
           )
         ) {
           const prior = priorInputs.get(toolName) ?? [];
           return reject(
             'near_duplicate',
-            `Zu ähnlich zu einer bereits gelaufenen Suche (${prior.join(' | ')}). Wechsle das THEMA oder antworte jetzt mit den vorhandenen Ergebnissen.`
+            `Zu ähnlich zu einer bereits gelaufenen Suche (${prior.join(' | ')}). Suche mit anderen Begriffen (notfalls englisch) oder antworte jetzt mit den vorhandenen Ergebnissen.`
           );
         }
       }
@@ -337,7 +364,7 @@ export function createToolLoopGuards(options: ToolLoopGuardOptions = {}): ToolLo
       prior.push(describeInput(input));
       priorInputs.set(toolName, prior);
       const sets = priorTokens.get(toolName) ?? [];
-      sets.push(tokens);
+      sets.push(basis);
       priorTokens.set(toolName, sets);
       return null;
     },
