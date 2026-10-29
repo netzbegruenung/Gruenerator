@@ -703,6 +703,9 @@ Refs nie selbst bilden oder Seiten schätzen: nur aus einer Zeile „Ref: …“
           ...(d.pdfUrl ? { url: d.pdfUrl } : {}),
           relevance: 1 - 0.02 * i,
         }));
+      const grundFor = (d: (typeof documents)[number]): string =>
+        d.fehlgrund?.text ??
+        (d.skipped ? NICHT_GELESEN_GRUND[d.skipped] : 'keine belegte Aussage zur Frage');
       const nichtGelesen = [
         ...nichtGefunden.map((ref) => ({
           ref,
@@ -710,12 +713,7 @@ Refs nie selbst bilden oder Seiten schätzen: nur aus einer Zeile „Ref: …“
         })),
         ...documents
           .filter((d) => d.points.length === 0)
-          .map((d) => ({
-            ref: d.ref,
-            grund:
-              d.fehlgrund?.text ??
-              (d.skipped ? NICHT_GELESEN_GRUND[d.skipped] : 'keine belegte Aussage zur Frage'),
-          })),
+          .map((d) => ({ ref: d.ref, grund: grundFor(d) })),
       ];
       const fokusNotes = fokus
         ? documents
@@ -762,10 +760,10 @@ Refs nie selbst bilden oder Seiten schätzen: nur aus einer Zeile „Ref: …“
             })),
           nichtGelesen: documents
             .filter((d) => d.points.length === 0)
-            .map((d, i) => ({
+            .map((d) => ({
               ref: bundestagRefLabel(d.ref),
               titel: d.titel,
-              grund: nichtGelesen[i]?.grund ?? '',
+              grund: grundFor(d),
             })),
         },
       };

@@ -291,6 +291,16 @@ describe('makeParlamentLesenTool', () => {
       { ref: '21/4', grund: 'keine belegte Aussage zur Frage' },
     ]);
     expect(out.hinweise).toEqual(['Nicht gefunden bei DIP: 21/5.']);
+    // Die Karte zählt nur gelesene Dokumente; die DIP-Fehlanzeigen davor dürfen die Gründe nicht verschieben.
+    expect(
+      (out as unknown as { uiCard: { nichtGelesen: { grund: string }[] } }).uiCard.nichtGelesen.map(
+        (n) => n.grund
+      )
+    ).toEqual([
+      'kein Volltext verfügbar',
+      'Lesebudget erschöpft',
+      'keine belegte Aussage zur Frage',
+    ]);
   });
 
   it('meldet einen Fehler mit Grund, wenn kein einziges Dokument gelesen wurde', async () => {
