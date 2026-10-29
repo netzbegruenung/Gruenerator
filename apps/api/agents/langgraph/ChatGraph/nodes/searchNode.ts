@@ -346,6 +346,18 @@ function btSpeechResult(s: BtSpeech, title: string, relevance: number): SearchRe
  * carry no parliamentary content, compete for the rerank input budget, and can
  * be cited as a source. There the caller wants substance or nothing.
  */
+/** Filter, die die alte (filterlose) Suche nicht einhalten kann. Die Wahlperiode zählt nicht: sie ist meist nur vorbelegt. */
+function hasHardFilter(f: BundestagFilter): boolean {
+  return Boolean(
+    f.datumVon ||
+    f.datumBis ||
+    f.drucksachetyp?.length ||
+    f.urheber?.length ||
+    f.beratungsstand?.length ||
+    f.deskriptor?.length
+  );
+}
+
 function buildBundestagResults(enriched: BtEnrichedResult, standalone = true): SearchResult[] {
   const results: SearchResult[] = [];
 
@@ -566,6 +578,12 @@ export async function retrieveBundestag(
   let results: SearchResult[];
   if (!plan) {
     results = legacy;
+  } else if (plan.candidates.length === 0 && hasHardFilter(plan.filters)) {
+    // Die alte Suche kennt keine Filter: als Rückfall höbe sie Zeitraum, Typ oder
+    // Urheber wieder auf (live 29.10.2026: „letzte Woche" → 0 Kandidaten → Reden
+    // vom 09.10. als Wochenarbeit). Dann lieber ehrlich leer.
+    log.info('[Search] Bundestag-Planstufe ohne Kandidaten trotz Filter, kein Rückfall');
+    results = [];
   } else if (plan.candidates.length === 0) {
     log.info('[Search] Bundestag-Planstufe ohne Kandidaten, alte Ergebnisse');
     results = legacy;
