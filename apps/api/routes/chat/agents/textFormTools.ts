@@ -180,7 +180,7 @@ function clampIconKey(raw: string | undefined): string | null {
  * „privat".
  */
 function visibilityLabel(form: TextForm): string {
-  if (form.isPublic) return 'öffentlich in Agentura';
+  if (form.isPublic) return 'öffentlich im Marktplatz';
   if (form.shareMode === 'groups') return 'mit Projekten geteilt';
   return 'privat';
 }
@@ -270,7 +270,7 @@ brief ist die Beschreibung der Person, was das Rezept tun soll — Textsorte, An
         .describe('Beispieltexte der Person, je Eintrag ein Text (create, add_examples)'),
       description: textFormDescriptionSchema
         .optional()
-        .describe('Kurzbeschreibung für die Agentura/mention-Auswahl (create, update)'),
+        .describe('Kurzbeschreibung für den Marktplatz und die @-Auswahl (create, update)'),
       iconKey: textFormIconKeySchema
         .optional()
         .describe(
@@ -520,7 +520,7 @@ brief ist die Beschreibung der Person, was das Rezept tun soll — Textsorte, An
       } catch (err) {
         const reason = err instanceof Error ? err.message : String(err);
         return {
-          error: `Der Entwurf für das Rezept ist fehlgeschlagen (${reason}). Es wurde nichts gespeichert — später erneut versuchen oder in der Agentura (${RECIPE_CREATOR_URL}) anlegen.`,
+          error: `Der Entwurf für das Rezept ist fehlgeschlagen (${reason}). Es wurde nichts gespeichert — später erneut versuchen oder unter ${RECIPE_CREATOR_URL} anlegen.`,
         };
       }
       if (!draft.styleBlock) {
@@ -600,7 +600,7 @@ brief ist die Beschreibung der Person, was das Rezept tun soll — Textsorte, An
       : `aus ${examples.length} Beispiel${examples.length === 1 ? '' : 'en'} angelernt`;
     const note =
       kind === 'custom'
-        ? `Textform „${form.title}" ${origin} — im Chat als @${form.mention} nutzbar, ändern in der Agentura (${recipeEditUrl(form.mention)}).`
+        ? `Textform „${form.title}" ${origin} — im Chat als @${form.mention} nutzbar, ändern unter ${recipeEditUrl(form.mention)}.`
         : `Eigener Stil für @${form.mention} ${origin} — er ersetzt ab jetzt die mitgelieferten Vorgaben dieses Rezepts. Ändern unter Grüneratoren (${RECIPES_SETTINGS_URL}).`;
     groundNote(sourceRegistry, 'Textform angelegt', note);
     return {

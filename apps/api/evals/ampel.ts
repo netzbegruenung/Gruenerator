@@ -40,6 +40,7 @@ export const PRUEFUNG_STUFE = {
   demoted: 'hart',
   tool: 'hart',
   toolAnyOf: 'hart',
+  ersterAufruf: 'hart',
   toolNameMatches: 'hart',
   noTool: 'hart',
   toolArgsMatch: 'hart',

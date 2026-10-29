@@ -399,7 +399,7 @@ describe('recipes: get', () => {
           recipe: Record<string, unknown>;
         }
       ).recipe
-    ).toMatchObject({ visibility: 'öffentlich in Agentura' });
+    ).toMatchObject({ visibility: 'öffentlich im Marktplatz' });
   });
 });
 
