@@ -238,11 +238,18 @@ type SlotsOf<L extends SlideTextLayoutId> = (typeof SLIDE_TEXT_SLOTS)[L]['slots'
 
 const visibleLength = (s: string) => stripInlineMarks(s).trim().length;
 
+/**
+ * Modelle escapen Zeilenumbrüche im Tool-JSON manchmal doppelt; ohne das stünde
+ * „• Eins\n• Zwei" wörtlich auf der Folie (Live-Test 30.10.2026).
+ */
+export const unescapeLineBreaks = (s: string): string => s.replace(/\\n/g, '\n');
+
 function slotsSchema(layout: SlideTextLayoutId) {
   const shape: Record<string, z.ZodType> = {};
   for (const [name, slot] of Object.entries(slideSlotsOf(layout))) {
     const text = z
       .string()
+      .transform(unescapeLineBreaks)
       .refine((s) => visibleLength(s) > 0, 'darf nicht leer sein')
       .refine((s) => visibleLength(s) <= slot.maxChars, `höchstens ${slot.maxChars} Zeichen`);
     shape[name] = slot.required ? text : text.optional();
