@@ -476,6 +476,16 @@ export function buildChatToolCatalog(params: {
       // leave the tool result here, travel to the client as their own event, and
       // reach the model only as a count (see searchImageHarvest).
       const bilder = takeSearchImages(result, loop);
+      // A note the tool put on its own result — web_search's discarded site
+      // scope — is about this very search. The lean shapes below dropped it, so
+      // on every search that found something the model still believed the
+      // scope had applied.
+      const hinweis =
+        result &&
+        typeof result === 'object' &&
+        typeof (result as { hinweis?: unknown }).hinweis === 'string'
+          ? { hinweis: (result as { hinweis: string }).hinweis }
+          : {};
       const raw =
         result &&
         typeof result === 'object' &&
@@ -487,7 +497,7 @@ export function buildChatToolCatalog(params: {
       // would hand the model the image URLs it must not have, so it gets the note
       // and nothing else.
       if (raw.length === 0) {
-        return bilder ? { resultCount: 0, sources: '', bilder } : result;
+        return bilder ? { resultCount: 0, sources: '', bilder, ...hinweis } : result;
       }
       // CRITICAL: executeDirectSearch/executeDirectWebSearch items carry their
       // text in `excerpt` (docs) / `snippet` (web) — NOT `content`. The source
@@ -525,12 +535,18 @@ export function buildChatToolCatalog(params: {
         // snippet does not grow by being allowed to.
         enriched.crawledCount > 0 ? { snippetChars: DEEP_CRAWL_TARGET_CHARS } : undefined
       );
-      if (!sources) return { resultCount: 0, sources: '', ...(bilder ? { bilder } : {}) };
+      if (!sources)
+        return { resultCount: 0, sources: '', ...(bilder ? { bilder } : {}), ...hinweis };
       // Lean model-facing shape: the numbered `sources` block is the grounding
       // (the raw content lives in the registry → done.citations). Dropping the
       // heavy `results[]` here keeps `sources` intact under result truncation
       // and halves the tokens the model pays per search.
-      return { resultCount: enriched.results.length, sources, ...(bilder ? { bilder } : {}) };
+      return {
+        resultCount: enriched.results.length,
+        sources,
+        ...(bilder ? { bilder } : {}),
+        ...hinweis,
+      };
     };
     tools[name] = { ...def, execute: decorated } as ToolSet[string];
   }
