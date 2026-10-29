@@ -1,6 +1,6 @@
 /**
  * ts-rest contract router for the Bundesgeschäftsstelle-instance admin
- * overview. Read-only except for the „Panda" unlock, `requireInstanceAdmin`-gated per-handler like
+ * overview. Read-only except for the „Panda" unlock and the admin grant, `requireInstanceAdmin`-gated per-handler like
  * skillVisibilityContractRouter/adminTemplates — `requireAuth` at the mount
  * prefix in routes.ts covers authentication only.
  */
@@ -56,6 +56,11 @@ function toUserSummary(row: ProfileRow): InstanceAdminUserSummary {
   };
 }
 
+/** `q` is matched literally — `%`/`_` typed by the admin are not wildcards. */
+function toLikePattern(q: string): string {
+  return `%${q.replace(/[\\%_]/g, (c) => `\\${c}`)}%`;
+}
+
 interface ProfileRolesRow {
   id: string;
   email: string | null;
@@ -71,11 +76,17 @@ export const instanceAdminOverviewContractRouter = s.router(instanceAdminOvervie
       const authedUser = getAuthedUser(args.req);
       if (!(await requireInstanceAdmin(authedUser.id, authedUser.email))) return FORBIDDEN;
 
+      const q = args.query.q;
       const postgres = getPostgresInstance();
       const rows = await postgres.query<ProfileRow>(
-        `SELECT ${PROFILE_COLUMNS}
-         FROM profiles ORDER BY created_at DESC NULLS LAST LIMIT $1`,
-        [USER_LIST_LIMIT]
+        q
+          ? `SELECT ${PROFILE_COLUMNS}
+             FROM profiles
+             WHERE email ILIKE $2 ESCAPE '\\' OR display_name ILIKE $2 ESCAPE '\\'
+             ORDER BY created_at DESC NULLS LAST LIMIT $1`
+          : `SELECT ${PROFILE_COLUMNS}
+             FROM profiles ORDER BY created_at DESC NULLS LAST LIMIT $1`,
+        q ? [USER_LIST_LIMIT, toLikePattern(q)] : [USER_LIST_LIMIT]
       );
 
       return {
@@ -123,6 +134,47 @@ export const instanceAdminOverviewContractRouter = s.router(instanceAdminOvervie
       return {
         status: 500 as const,
         body: { success: false, message: 'Fehler beim Speichern der Freischaltung.' },
+      };
+    }
+  },
+
+  setUserAdmin: async (args) => {
+    try {
+      const authedUser = getAuthedUser(args.req);
+      if (!(await requireInstanceAdmin(authedUser.id, authedUser.email))) return FORBIDDEN;
+
+      const { userId } = args.params;
+      const { isAdmin } = args.body;
+      // Locking oneself out would leave nobody able to undo it from the UI.
+      if (userId === authedUser.id && !isAdmin) {
+        return {
+          status: 409 as const,
+          body: { success: false, message: 'Die eigenen Admin-Rechte kannst du nicht entziehen.' },
+        };
+      }
+
+      const postgres = getPostgresInstance();
+      const rows = await postgres.query<ProfileRow>(
+        `UPDATE profiles SET is_admin = $1 WHERE id = $2::uuid RETURNING ${PROFILE_COLUMNS}`,
+        [isAdmin, userId]
+      );
+      const row = rows[0];
+      if (!row) {
+        return {
+          status: 404 as const,
+          body: { success: false, message: 'Nutzer:in nicht gefunden.' },
+        };
+      }
+
+      log.info(
+        `[instanceAdminOverviewContract.setUserAdmin] ${authedUser.id} set is_admin=${isAdmin} for ${userId}`
+      );
+      return { status: 200 as const, body: { success: true, data: toUserSummary(row) } };
+    } catch (error) {
+      log.error('[instanceAdminOverviewContract.setUserAdmin] Error:', error);
+      return {
+        status: 500 as const,
+        body: { success: false, message: 'Fehler beim Speichern der Admin-Rechte.' },
       };
     }
   },
