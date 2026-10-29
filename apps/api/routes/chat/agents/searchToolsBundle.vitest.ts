@@ -32,7 +32,7 @@ interface ToolResult {
   collection: string;
   resultsCount: number;
   results: Array<{ rank: number; source: string; url?: string; score?: number }>;
-  error?: boolean;
+  error?: string;
 }
 
 function hit(source: string, score: number, url?: string) {
@@ -155,7 +155,8 @@ describe('gruenerator_search — the Austrian bundle', () => {
 
     const result = await runSearch('de-AT', { query: 'Klimaziele', collection: 'oesterreich' });
 
-    expect(result.error).toBe(true);
+    // Das Modell sieht den Text des Mitglieds, kein nacktes `true`.
+    expect(result.error).toMatch(/kaputt/);
   });
 
   it('leaves an ordinary key as a single search', async () => {

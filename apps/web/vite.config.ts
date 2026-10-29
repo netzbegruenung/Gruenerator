@@ -7,6 +7,7 @@ import react, { reactCompilerPreset } from '@vitejs/plugin-react';
 import { defineConfig, type Plugin } from 'vite';
 
 import { vorlagenMockPlugin } from './devMocks/vorlagenMock';
+import { wissenMockPlugin } from './devMocks/wissenMock';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -110,6 +111,7 @@ export default defineConfig(({ command }) => ({
     ...(command === 'build' ? [babel({ presets: [reactCompilerPreset()] })] : []),
     tailwindcss(),
     ...(process.env.DEV_MOCK_VORLAGEN === 'true' ? [vorlagenMockPlugin()] : []),
+    ...(process.env.DEV_MOCK_WISSEN === 'true' ? [wissenMockPlugin()] : []),
   ],
   resolve: {
     alias: {
