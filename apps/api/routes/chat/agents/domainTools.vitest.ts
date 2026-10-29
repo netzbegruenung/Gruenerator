@@ -208,6 +208,17 @@ describe('makeBundestagRedenTool', () => {
     expect(out.error).toContain('nicht erreichbar');
   });
 
+  it('kennzeichnet einen gekappten Redetext, einen vollständigen nicht', async () => {
+    searchBundestagReden.mockResolvedValue({
+      speeches: [{ ...rede, excerpt: `${'a'.repeat(4000)}…` }, rede],
+      wpFallback: false,
+    });
+    const sourceRegistry = createSourceRegistry();
+    await exec(make({}, sourceRegistry), { thema: 'Wärmeplanung' });
+    const text = sourceRegistry.renderAll();
+    expect(text.match(/Redetext gekürzt/g)).toHaveLength(1);
+  });
+
   it('sperrt Österreich, ohne zu suchen', async () => {
     const out = (await exec(make({ userLocale: 'de-AT' }), { thema: 'x y' })) as {
       error?: string;
@@ -243,7 +254,7 @@ describe('makeParlamentLesenTool', () => {
     });
 
   it('reicht Refs, Auftrag und CHAT_BUDGET an den Dienst und registriert die Treffer', async () => {
-    readBundestagRefs.mockResolvedValue({ documents: [doc], notes: [] });
+    readBundestagRefs.mockResolvedValue({ documents: [doc], notes: [], nichtGefunden: [] });
     const out = (await exec(make(), {
       quelle: 'bundestag',
       dokumente: ['21/1928'],
@@ -271,6 +282,7 @@ describe('makeParlamentLesenTool', () => {
         { ...doc, ref: '21/4', points: [], skipped: null },
       ],
       notes: ['Nicht gefunden bei DIP: 21/5.'],
+      nichtGefunden: ['21/5'],
     });
     const out = (await exec(make(), {
       quelle: 'bundestag',
@@ -284,11 +296,22 @@ describe('makeParlamentLesenTool', () => {
     expect(readBundestagRefs.mock.calls[0]![0]).toMatchObject({ auftrag: 'frage' });
     expect(out.resultCount).toBe(1);
     expect(out.nichtGelesen).toEqual([
+      { ref: '21/5', grund: 'bei DIP nicht gefunden' },
       { ref: '21/2', grund: 'kein Volltext verfügbar' },
       { ref: '21/3', grund: 'Lesebudget erschöpft' },
       { ref: '21/4', grund: 'keine belegte Aussage zur Frage' },
     ]);
     expect(out.hinweise).toEqual(['Nicht gefunden bei DIP: 21/5.']);
+    // Die Karte zählt nur gelesene Dokumente; die DIP-Fehlanzeigen davor dürfen die Gründe nicht verschieben.
+    expect(
+      (out as unknown as { uiCard: { nichtGelesen: { grund: string }[] } }).uiCard.nichtGelesen.map(
+        (n) => n.grund
+      )
+    ).toEqual([
+      'kein Volltext verfügbar',
+      'Lesebudget erschöpft',
+      'keine belegte Aussage zur Frage',
+    ]);
   });
 
   it('meldet einen Fehler mit Grund, wenn kein einziges Dokument gelesen wurde', async () => {
@@ -297,17 +320,153 @@ describe('makeParlamentLesenTool', () => {
     readBundestagRefs.mockResolvedValue({
       documents: [{ ...doc, ref: '21/8813', points: [], skipped: 'missing' }],
       notes: [],
+      nichtGefunden: [],
     });
     const out = (await exec(make(), {
       quelle: 'bundestag',
       dokumente: ['21/8813'],
       frage: 'Was hat die Bundesregierung geantwortet?',
-    })) as { resultCount: number; error: string; nichtGelesen: { ref: string }[] };
+    })) as {
+      resultCount: number;
+      error: string;
+      naechsterSchritt: string;
+      nichtGelesen: { ref: string }[];
+    };
     expect(out.resultCount).toBe(0);
     expect(out.error).toContain('Nichts gelesen');
     expect(out.error).toContain('21/8813: kein Volltext verfügbar');
-    expect(out.error).toContain('noch nicht');
+    // Die Anweisung ans Modell steht nicht auf der Karte der Person.
+    expect(out.error).not.toContain('noch nicht');
+    expect(out.naechsterSchritt).toContain('noch nicht');
     expect(out.nichtGelesen).toHaveLength(1);
+  });
+
+  it('nennt bei leerem Debattenschnitt die echten Seiten und verweist für eine Rede auf bundestag_reden', async () => {
+    // Live 29.10.2026: „gib die Rede wörtlich wieder“ → selbst gebildete Ref
+    // „PlPr 21/96 S. 1-200“, Reden dort ab S. 11785; gemeldet wurde nur „kein Volltext“.
+    readBundestagRefs.mockResolvedValue({
+      documents: [
+        {
+          ...doc,
+          ref: 'PlPr 21/96 S. 1-200',
+          points: [],
+          skipped: 'missing',
+          fehlgrund: {
+            art: 'seitenbereich',
+            text: 'In Plenarprotokoll 21/96 beginnt keine Rede auf S. 1–200; die Reden beginnen dort auf S. 11785–12008',
+          },
+        },
+      ],
+      notes: [],
+      nichtGefunden: [],
+    });
+    const out = (await exec(make(), {
+      quelle: 'bundestag',
+      dokumente: ['PlPr 21/96 S. 1-200'],
+      frage: 'Gib die Rede von Katrin Uhlig wörtlich wieder.',
+    })) as { resultCount: number; error: string; naechsterSchritt: string };
+    expect(out.resultCount).toBe(0);
+    expect(out.error).toContain('die Reden beginnen dort auf S. 11785–12008');
+    expect(out.error).not.toContain('bundestag_reden');
+    expect(out.naechsterSchritt).toContain('bundestag_reden');
+    expect(out.error).not.toContain('kein Volltext');
+    expect(out.naechsterSchritt).not.toContain('frisch veröffentlichten Drucksache');
+  });
+
+  it('meldet einen Fehler, wenn keine der Refs bei DIP existiert', async () => {
+    readBundestagRefs.mockResolvedValue({
+      documents: [],
+      notes: ['Nicht gefunden bei DIP: 21/99999.'],
+      nichtGefunden: ['21/99999'],
+    });
+    const out = (await exec(make(), {
+      quelle: 'bundestag',
+      dokumente: ['21/99999'],
+      frage: 'Was steht drin?',
+    })) as { resultCount: number; error: string; naechsterSchritt: string };
+    expect(out.resultCount).toBe(0);
+    expect(out.error).toContain('21/99999: bei DIP nicht gefunden');
+    expect(out.error).not.toContain('Refs nie selbst bilden');
+    expect(out.naechsterSchritt).toContain('Refs nie selbst bilden');
+  });
+
+  describe('Antwort auf eine Anfrage', () => {
+    const familie = (documents: unknown[]) =>
+      retrieveBundestagFamily.mockResolvedValue({
+        results: [],
+        totals: null,
+        documents,
+        notes: [],
+      });
+    const anfrage = {
+      ref: '21/8725',
+      drucksachetyp: 'Kleine Anfrage',
+      datum: '2026-10-20',
+      titel: 'T',
+      urheber: [],
+      pdfUrl: null,
+    };
+
+    beforeEach(() => {
+      retrieveBundestagFamily.mockReset();
+    });
+
+    it('liegt noch keine Antwort vor, ist das ein Befund und kein Fehlschlag (live 29.10.2026)', async () => {
+      familie([anfrage]);
+      const out = (await exec(make(), {
+        quelle: 'bundestag',
+        dokumente: ['21/8725'],
+        frage: 'Was antwortet die Bundesregierung?',
+      })) as Record<string, any>;
+      expect(readBundestagRefs).not.toHaveBeenCalled();
+      expect(out['error']).toBeUndefined();
+      expect(out['resultCount']).toBe(0);
+      expect(out['nichtGelesen'][0].grund).toBe(
+        'Die Antwort der Bundesregierung auf BT-Drs. 21/8725 liegt noch nicht vor (Kleine Anfrage vom 20.10.2026; die Frist beträgt in der Regel 14 Tage).'
+      );
+      expect(out['hinweise']).toEqual([out['nichtGelesen'][0].grund]);
+      expect(out['naechsterSchritt']).toContain('nicht als Antwort ausgeben');
+    });
+
+    it('liegt die Antwort vor, wird sie statt der Anfrage gelesen', async () => {
+      familie([
+        anfrage,
+        { ...anfrage, ref: '21/8913', drucksachetyp: 'Antwort', datum: '2026-11-03' },
+      ]);
+      readBundestagRefs.mockResolvedValue({
+        documents: [{ ...doc, ref: '21/8913', drucksachetyp: 'Antwort' }],
+        notes: [],
+        nichtGefunden: [],
+      });
+      const out = (await exec(make(), {
+        quelle: 'bundestag',
+        dokumente: ['21/8725'],
+        frage: 'Was antwortet die Bundesregierung?',
+      })) as Record<string, any>;
+      expect(readBundestagRefs.mock.calls[0]![0]).toMatchObject({ refs: ['21/8913'] });
+      expect(out['resultCount']).toBe(1);
+      expect(out['hinweise'][0]).toContain('BT-Drs. 21/8913');
+      expect(out['naechsterSchritt']).toBeUndefined();
+    });
+
+    it('fragt die Familie nur, wenn nach einer Antwort gefragt wird', async () => {
+      readBundestagRefs.mockResolvedValue({ documents: [doc], notes: [], nichtGefunden: [] });
+      await exec(make(), { quelle: 'bundestag', dokumente: ['21/1928'], frage: 'Was regelt das?' });
+      expect(retrieveBundestagFamily).not.toHaveBeenCalled();
+    });
+
+    it('behauptet nichts, wenn die Ref keine Anfrage ist oder die Familie fehlt', async () => {
+      retrieveBundestagFamily.mockRejectedValue(new Error('down'));
+      readBundestagRefs.mockResolvedValue({ documents: [doc], notes: [], nichtGefunden: [] });
+      const out = (await exec(make(), {
+        quelle: 'bundestag',
+        dokumente: ['21/1928'],
+        frage: 'Wie lautet die Antwort?',
+      })) as Record<string, any>;
+      expect(readBundestagRefs.mock.calls[0]![0]).toMatchObject({ refs: ['21/1928'] });
+      expect(out['naechsterSchritt']).toBeUndefined();
+      expect(out['hinweise']).toBeUndefined();
+    });
   });
 
   it('lehnt für de-AT ab, ohne den Dienst zu rufen', async () => {
@@ -489,6 +648,42 @@ describe('makeBundestagTool', () => {
     expect(out.sources).toContain('Nur für Deutschland.');
   });
 
+  it('Ausfall beider Stufen: Fehler mit Ursache, nicht „nichts gefunden"', async () => {
+    retrieveBundestag.mockResolvedValue({ results: [], totals: null, ausfall: true });
+    const out = (await exec(
+      makeBundestagTool({
+        state: { ...baseState, intent: 'bundestag' } as ChatGraphState,
+        sourceRegistry: createSourceRegistry(),
+      }),
+      { query: 'x' }
+    )) as { error?: string; naechsterSchritt?: string };
+    expect(out.error).toContain('nicht erreichbar');
+    expect(out.error).not.toContain('bundestag_reden');
+    expect(out.naechsterSchritt).toContain('bundestag_reden');
+    expect(out.error).not.toContain('Keine passenden');
+  });
+
+  it('leer wegen Filtern: Meldung nennt die Filter und was sich lockern lässt', async () => {
+    retrieveBundestag.mockResolvedValue({
+      results: [],
+      totals: null,
+      leerDurchFilter: true,
+      filters: { datumVon: '2026-10-22', datumBis: '2026-10-29', drucksachetyp: ['Antrag'] },
+    });
+    const out = (await exec(
+      makeBundestagTool({
+        state: { ...baseState, intent: 'bundestag' } as ChatGraphState,
+        sourceRegistry: createSourceRegistry(),
+      }),
+      { query: 'x' }
+    )) as { error?: string; naechsterSchritt?: string };
+    expect(out.error).toContain('Keine Treffer mit diesen Filtern');
+    expect(out.error).toContain('Typ: Antrag');
+    expect(out.error).toContain('Zeitraum: 22.10.2026 bis 29.10.2026');
+    expect(out.error).not.toContain('lockern');
+    expect(out.naechsterSchritt).toContain('lockern');
+  });
+
   it('returns an error shape when the search comes back empty', async () => {
     retrieveBundestag.mockResolvedValue({ results: [], totals: null });
     const out = (await exec(
@@ -562,6 +757,7 @@ describe('Karten-Daten (uiCard)', () => {
         },
       ],
       notes: [],
+      nichtGefunden: [],
     });
     const out = (await exec(
       makeParlamentLesenTool({
@@ -753,6 +949,32 @@ describe('bundestag: modus zaehlen, ref', () => {
     expect(out.fuerSchreiber).toBeUndefined();
   });
 
+  it('ref einer Anfrage ohne Antwort-Drucksache: hinweise sagt „liegt noch nicht vor“', async () => {
+    retrieveBundestagFamily.mockResolvedValue({
+      results: [
+        { source: 'bundestag', title: 'Drucksache 21/8725 · Kleine Anfrage', content: 'a' },
+      ],
+      totals: { vorgaenge: 1, drucksachen: 1 },
+      documents: [
+        {
+          ref: '21/8725',
+          drucksachetyp: 'Kleine Anfrage',
+          datum: '2026-10-20',
+          titel: 'T',
+          urheber: [],
+          pdfUrl: null,
+        },
+      ],
+      notes: [],
+    });
+    const out = (await exec(makeBundestagTool({ state, sourceRegistry: createSourceRegistry() }), {
+      ref: '21/8725',
+    })) as Record<string, any>;
+    expect(out['hinweise']).toEqual([
+      'Die Antwort der Bundesregierung auf BT-Drs. 21/8725 liegt noch nicht vor (Kleine Anfrage vom 20.10.2026; die Frist beträgt in der Regel 14 Tage).',
+    ]);
+  });
+
   it('Landtag in der Frage: der Hinweis verlangt zuerst den Geltungsbereich, der Aufruf läuft weiter', async () => {
     retrieveBundestag.mockResolvedValue({
       results: [{ source: 'bundestag', title: 'Drucksache 21/50', content: 'x' }],
@@ -856,7 +1078,7 @@ describe('parlament_lesen: quelle Landtag', () => {
   };
 
   it('liest mit dem Landtags-Dienst, titelt mit Landtags-Nummer und nennt die Lizenz-Quelle', async () => {
-    readLandtagRefs.mockResolvedValue({ documents: [doc], notes: [] });
+    readLandtagRefs.mockResolvedValue({ documents: [doc], notes: [], nichtGefunden: [] });
     const out = (await exec(make(), {
       quelle: 'berlin',
       dokumente: ['BE 19/S27288'],
@@ -910,7 +1132,7 @@ describe('parlament_lesen: quelle Nationalrat', () => {
     });
 
   it('liest für Österreich den Nationalrat und kennt den Bundestag dort nicht', async () => {
-    readLandtagRefs.mockResolvedValue({ documents: [], notes: [] });
+    readLandtagRefs.mockResolvedValue({ documents: [], notes: [], nichtGefunden: [] });
     await exec(make('de-AT'), {
       quelle: 'nationalrat',
       dokumente: ['NR 28/I26'],
@@ -968,6 +1190,7 @@ describe('parlament_lesen: fokus', () => {
     readBundestagRefs.mockResolvedValue({
       documents: [doc, { ...doc, ref: '21/2', fokusGefunden: false }],
       notes: [],
+      nichtGefunden: [],
     });
     const out = (await exec(make(), {
       quelle: 'bundestag',
@@ -986,6 +1209,7 @@ describe('parlament_lesen: fokus', () => {
     readBundestagRefs.mockResolvedValue({
       documents: [{ ...doc, fokusGefunden: null }],
       notes: [],
+      nichtGefunden: [],
     });
     const out = (await exec(make(), {
       quelle: 'bundestag',

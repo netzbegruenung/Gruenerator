@@ -239,6 +239,15 @@ describe('Parlaments-Werkzeuge erreichen ihren Dienst', () => {
         fetchTimeMs: 1,
       },
     });
+    // Die Planstufe lief und fand nichts — ein echtes Leer. Wirft sie dagegen,
+    // ist es ein Ausfall (retrieveBundestag.vitest.ts).
+    planQuestion.mockResolvedValue({
+      filters: {},
+      keywords: [],
+      notes: [],
+      totals: { vorgaenge: 0, drucksachen: 0 },
+      candidates: [],
+    });
 
     const out = (await exec(
       makeBundestagTool({ state: stateWith(), sourceRegistry: createSourceRegistry() }),

@@ -63,7 +63,7 @@ export async function readLandtagRefs({
   fokus?: string | undefined;
   /** Signal des Werkzeugaufrufs: nach dem Timeout im Loop beginnt kein weiteres Fenster. */
   abortSignal?: AbortSignal;
-}): Promise<{ documents: ReadDocumentInfo[]; notes: string[] }> {
+}): Promise<{ documents: ReadDocumentInfo[]; notes: string[]; nichtGefunden: string[] }> {
   const meta = LANDTAGE[parlament];
   const backend = LANDTAG_BACKENDS[parlament]();
   const deadline = AbortSignal.timeout(budget.deadlineMs);
@@ -101,7 +101,9 @@ export async function readLandtagRefs({
       urheber: r.doc.urheber,
       pdfUrl: r.doc.pdfUrl,
       fokusGefunden: r.fokusFound ?? null,
+      fehlgrund: r.doc.fehlgrund ?? null,
     })),
     notes,
+    nichtGefunden: missing,
   };
 }
