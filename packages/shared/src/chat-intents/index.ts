@@ -585,7 +585,9 @@ export const CHAT_INTENTS: Record<ChatIntentId, ChatIntentDefinition> = {
   chat_history: {
     id: 'chat_history',
     category: 'retrieval',
-    loopTools: ['search_chat_history'],
+    // Das Backend-Werkzeug heisst `search_threads`; `search_chat_history`
+    // ist nur der Name der UI-Karte (`uiTool`, F1).
+    loopTools: ['search_threads'],
     audience: 'all',
     uiTool: 'search_chat_history',
     mention: {
