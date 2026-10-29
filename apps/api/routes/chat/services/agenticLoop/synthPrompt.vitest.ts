@@ -171,6 +171,25 @@ describe('buildSynthSystem — Quellenblock', () => {
     expect(prompt).not.toContain(NO_CAPABILITY_DENIAL_RULE);
   });
 
+  it('gibt eine Werkzeug-Notiz ohne Quellen weiter, statt „nichts recherchiert" zu sagen', () => {
+    const steps: PersistedStep[] = [
+      {
+        toolCallId: 'c1',
+        toolName: 'nationalrat',
+        args: { query: 'Klima', typ: ['Anfrage'] },
+        result: {
+          resultCount: 0,
+          sources: '',
+          fuerSchreiber: 'Anfragen sind von der Lizenz ausgenommen.',
+        },
+      },
+    ];
+    const prompt = buildSynthSystem('', ctx({ steps }));
+    expect(prompt).toContain('Anfragen sind von der Lizenz ausgenommen.');
+    expect(prompt).toContain('Du HAST in diesem Turn nachgesehen');
+    expect(prompt).not.toContain('hast du NICHTS recherchiert');
+  });
+
   it('unterscheidet mitgeführte von gar keinen Quellen', () => {
     const prompt = buildSynthSystem('[1] Antrag', ctx({ sourceRegistry: carriedRegistry() }));
     // Der Turn HAT Material — die „nichts recherchiert"-Zeile daneben war die

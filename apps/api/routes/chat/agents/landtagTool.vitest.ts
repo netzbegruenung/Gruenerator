@@ -108,20 +108,21 @@ describe('makeLandtagTool', () => {
     });
   });
 
-  it('gibt bei null Treffern den ersten Hinweis als Fehler zurück, ohne Karte', async () => {
+  it('reicht eine begründete Absage an den Schreiber statt als Fehler, ohne Karte', async () => {
     findLandtag.mockResolvedValue({
       candidates: [],
       gesamt: 0,
-      notes: [
+      notes: [],
+      ausgeschlossen:
         'Die genannten Fraktionen (BSW) sind im Abgeordnetenhaus von Berlin nicht vertreten.',
-      ],
     });
     const out = (await exec(make(), { parlament: 'berlin', fraktion: ['bsw'] })) as Record<
       string,
       unknown
     >;
     expect(out.resultCount).toBe(0);
-    expect(out.error).toMatch(/BSW/);
+    expect(out.fuerSchreiber).toMatch(/BSW/);
+    expect(out).not.toHaveProperty('error');
     expect(out).not.toHaveProperty('uiCard');
   });
 

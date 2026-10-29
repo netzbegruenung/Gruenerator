@@ -125,7 +125,7 @@ describe('findBerlin', () => {
     const { impl } = lister(() => []);
     const out = await findBerlin({ query: 'Verkehr', filters: { fraktion: ['bsw'] } }, impl);
     expect(impl.list).not.toHaveBeenCalled();
-    expect(out.notes[0]).toMatch(/BSW.*nicht vertreten/);
+    expect(out.ausgeschlossen).toMatch(/BSW.*nicht vertreten/);
   });
 
   it('meldet einen nicht unterstützten Filter und sucht ohne ihn', async () => {

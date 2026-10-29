@@ -36,6 +36,8 @@ export interface LandtagFindResult {
   /** Summe der Trefferzahlen aller Abfragen; kann Dokumente mehrerer Urheber doppelt zählen. */
   gesamt: number;
   notes: string[];
+  /** Gesetzt, wenn die Anfrage hier nichts finden KANN (Lizenz, Fraktion nicht vertreten): eine Antwort, kein Fehlschlag. */
+  ausgeschlossen?: string;
 }
 
 function baseParams(f: ResolvedLandtagFilter): PardokParams {
@@ -57,7 +59,7 @@ export async function findBerlin(
   const meta = LANDTAGE.berlin;
   const f = resolveFilters(meta, args.filters);
   const notes = [...f.notes];
-  if (f.empty) return { candidates: [], gesamt: 0, notes: [f.empty, ...notes] };
+  if (f.empty) return { candidates: [], gesamt: 0, notes, ausgeschlossen: f.empty };
 
   const keywords = keywordsFromQuestion(args.query);
   const titleTerms = f.titel ? [f.titel] : keywords.slice(0, MAX_TITLE_TERMS);

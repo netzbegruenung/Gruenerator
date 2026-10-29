@@ -156,7 +156,7 @@ describe('findNationalrat', () => {
     const api = fakeApi();
     const r = await findNationalrat({ query: 'Schule', filters: { typ: ['Anfrage'] } }, api);
     expect(r.candidates).toEqual([]);
-    expect(r.notes[0]).toMatch(/CC-BY-Lizenz/);
+    expect(r.ausgeschlossen).toMatch(/CC-BY-Lizenz/);
     expect(api.gegenstaende).not.toHaveBeenCalled();
   });
 });

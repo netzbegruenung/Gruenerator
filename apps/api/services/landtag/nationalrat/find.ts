@@ -52,7 +52,7 @@ export async function findNationalrat(
   const meta = LANDTAGE.nationalrat;
   const f = resolveFilters(meta, args.filters);
   const notes = [...f.notes];
-  if (f.empty) return { candidates: [], gesamt: 0, notes: [f.empty, ...notes] };
+  if (f.empty) return { candidates: [], gesamt: 0, notes, ausgeschlossen: f.empty };
 
   const terms = (f.titel ? [f.titel.toLowerCase()] : keywordsFromQuestion(args.query)).map(stem);
   const schlagwort = args.filters.schlagwort?.toLowerCase() ?? null;

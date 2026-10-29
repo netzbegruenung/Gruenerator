@@ -82,6 +82,17 @@ async function runParlamentSuche(
     };
   }
   const hinweise = [...found.notes];
+  if (found.ausgeschlossen) {
+    // Eine Grenze, kein Fehlschlag: als `error` sagte der Schreiber „Aufruf fehlgeschlagen",
+    // als `hinweis` erreichte ihn der Grund gar nicht (live 29.10.2026, Anfragen im Nationalrat).
+    return {
+      resultCount: 0,
+      sources: '',
+      fuerSchreiber: found.ausgeschlossen,
+      ...(hinweise.length > 0 ? { hinweise } : {}),
+      quelle: meta.quellenangabe,
+    };
+  }
   if (found.candidates.length === 0) {
     return {
       resultCount: 0,
