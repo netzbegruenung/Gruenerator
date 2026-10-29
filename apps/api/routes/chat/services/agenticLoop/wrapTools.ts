@@ -147,9 +147,12 @@ export const DEFAULT_MAX_RESULT_CHARS = 6000;
  * Harte Obergrenze für ein Werkzeugergebnis am Modell. Kein Budget — weder der
  * Tabelle in `toolResultBudgets.ts` noch `maxResultChars` — liegt darüber: ein
  * entgleistes Werkzeug (MCP-Server, der Megabytes liefert) wird hier gekürzt,
- * auch wenn es ein großes Budget hat. Entschieden 29.10.2026.
+ * auch wenn es ein großes Budget hat. Entschieden 29.10.2026 mit 30.000; auf
+ * 32.000 gehoben, weil einzeiliger JSON-Text eines Konnektors in voller Kappe
+ * (25.000) serialisiert ~31.200 Zeichen hat — die Decke soll nur ein entgleistes
+ * Werkzeug treffen, nie gewollten Inhalt.
  */
-export const MAX_TOOL_RESULT_CHARS = 30_000;
+export const MAX_TOOL_RESULT_CHARS = 32_000;
 
 export function resultForModel(output: unknown, maxChars: number): unknown {
   if (!output || typeof output !== 'object' || Array.isArray(output)) {

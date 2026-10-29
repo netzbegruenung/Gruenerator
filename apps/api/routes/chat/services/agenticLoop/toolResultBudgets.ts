@@ -31,8 +31,8 @@ export const METADATA_SLACK = 2_000;
 /**
  * Aufschlag der Kappe fürs Escapen im serialisierten Ergebnis. Gemessen
  * 29.10.2026 an 25.000 Zeichen JSON-Text: eingerückt 29.265 serialisiert (1,17x),
- * einzeilig 1,25x. 1,2x trägt Prosa und eingerückten JSON-Text ganz; einzeiliger
- * JSON-Text an der vollen Kappe stößt an die 30.000-Decke (zeigt dann ~96 %).
+ * einzeilig 1,25x. 1,2x plus `METADATA_SLACK` trägt beides ganz (25.000 einzeilig
+ * → 31.250 < 32.000); die Decke in `wrapTools.ts` liegt deshalb bei 32.000.
  */
 export const ESCAPE_ALLOWANCE = 1.2;
 

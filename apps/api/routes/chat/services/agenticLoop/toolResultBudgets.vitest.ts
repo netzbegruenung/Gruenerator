@@ -7,6 +7,7 @@ import { describe, it, expect } from 'vitest';
 import { createToolLoopGuards } from './loopGuards.js';
 import {
   CONNECTOR_CAPS,
+  ESCAPE_ALLOWANCE,
   budgetForCap,
   OWN_CAP_TOOLS,
   UNCAPPED_READ_BUDGET,
@@ -145,6 +146,28 @@ describe('JSON-Text im Konnektor-Ergebnis', () => {
     }
   );
 
+  it.each(['mcp', 'managed'] as const)(
+    '%s: volle Kappe als EINZEILIGER JSON-Text kommt ganz an',
+    async (kind) => {
+      const name = kind === 'mcp' ? 'notion__search' : 'bahn__verbindung';
+      const einzeilig = JSON.stringify({
+        eintraege: Array.from({ length: CONNECTOR_CAPS[kind] }, (_, i) => ({
+          id: i,
+          titel: `PM ${i}`,
+        })),
+      }).slice(0, CONNECTOR_CAPS[kind]);
+      expect(einzeilig.length).toBe(CONNECTOR_CAPS[kind]);
+      // Einzeilig escapt dichter als eingerückt (~1,25x) — mehr als der Aufschlag von 1,2x;
+      // an der alten 30.000-Decke kam der verwaltete Konnektor nur zu ~96 % an.
+      expect(JSON.stringify({ content: einzeilig }).length).toBeGreaterThan(
+        CONNECTOR_CAPS[kind] * ESCAPE_ALLOWANCE
+      );
+      const out = await through(name, { content: einzeilig });
+      expect(out.content).toBe(einzeilig);
+      expect(out._gekuerzt).toBeUndefined();
+    }
+  );
+
   it('read_document mit Umbrüchen und Anführungszeichen in voller Kappe', async () => {
     const inhalt = '„Zitat“ im "Text"\n\n'.repeat(2000).slice(0, OWN_CAP_TOOLS.read_document);
     const out = await through('read_document', { documentId: 'd1', inhalt });
@@ -183,7 +206,7 @@ describe('Standard und Obergrenze', () => {
     );
   });
 
-  it('ein entgleistes Werkzeug mit riesigem Budget wird auf 30.000 gekürzt', async () => {
+  it('ein entgleistes Werkzeug mit riesigem Budget wird an der Decke gekürzt', async () => {
     const out = (await through(
       'runaway',
       { inhalt: prose(200_000) },
