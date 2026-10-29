@@ -114,6 +114,16 @@ describe('retrieveBundestag: Zusammenführung', () => {
     expect(results[0].title).toBe('Drucksache 21/9 · Antrag');
   });
 
+  it('leer trotz Zeitraum-Filter: kein Rückfall auf die filterlose alte Suche', async () => {
+    btSearch.mockResolvedValue(DOKUMENT);
+    plan.mockResolvedValue({
+      ...planWith([]),
+      filters: { datumVon: '2026-10-22', datumBis: '2026-10-29' },
+    });
+    const { results } = await retrieveBundestag('letzte Woche', 'de-DE');
+    expect(results).toEqual([]);
+  });
+
   it('Wurf der Planstufe: alte Ergebnisse', async () => {
     btSearch.mockResolvedValue(DOKUMENT);
     plan.mockRejectedValue(new Error('boom'));
