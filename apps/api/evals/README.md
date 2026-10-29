@@ -175,6 +175,13 @@ Ausgangswert so einen Fehler verdeckt (Parteiposition ohne jedes Werkzeug beantw
 Erinnerung, in 3 von 3 ohne). Gelöscht wird per
 `DELETE /api/chat-service/threads?threadId=<id>`; die Ids findet die erste
 Nutzernachricht jedes Threads, die genau einem Korpus-Prompt entspricht.
+Seit #5138 sagt der Erinnerungsblock dem Modell, frühere Befunde neu zu prüfen —
+ob es sich daran hält, ist eine Modellfrage; das Aufräumen bleibt deshalb Pflicht.
+
+**Auch die Probe-Dokumente** („Werkzeugwahl-Probe …", die `wahl-eigen-dok-anlegen`
+in jedem Lauf neu anlegt) gehören zwischen zwei Läufen in den Papierkorb. Liegen
+mehrere Kopien im Konto, fragt das Modell in `wahl-eigen-dok-lesen` zu Recht
+zurück, welche gemeint ist, und der Fall endet als unerwartete Rückfrage.
 
 ## Env
 
