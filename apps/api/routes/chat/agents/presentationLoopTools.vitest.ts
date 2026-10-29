@@ -22,6 +22,14 @@ vi.mock('../../../services/presentations/PresentationGenerationService.js', () =
 vi.mock('../../../services/presentations/canvasDeckEdit.js', () => ({
   planAndApplyCanvasDeckEdit: (...a: unknown[]) => mocks.planAndApplyCanvasDeckEdit(...a),
 }));
+const confirm = vi.hoisted(() => ({
+  emitToolConfirmAction: vi.fn<(...a: unknown[]) => unknown>(),
+}));
+vi.mock('../services/confirmActionService.js', () => ({
+  emitToolConfirmAction: (...a: unknown[]) => confirm.emitToolConfirmAction(...a),
+  newActionId: () => 'act1',
+}));
+const sse = { send: vi.fn() };
 vi.mock('../services/presentationEditCore.js', () => ({
   planAndApplyPresentationEdit: (...a: unknown[]) => mocks.planAndApplyPresentationEdit(...a),
 }));
@@ -43,7 +51,8 @@ const run = (t: unknown, input: unknown) =>
     {}
   );
 
-const edit = (state: ChatGraphState) => makeEditPresentationTool({ state, threadId: 't1' });
+const edit = (state: ChatGraphState) =>
+  makeEditPresentationTool({ state, threadId: 't1', sse: sse as never });
 
 beforeEach(() => {
   Object.values(mocks).forEach((m) => m.mockReset());
@@ -52,21 +61,30 @@ beforeEach(() => {
 describe('read_presentation', () => {
   it('returns the slides as text', async () => {
     mocks.loadPresentationState.mockResolvedValue({ slides: [{}, {}] });
-    const out = await run(makeReadPresentationTool({ state: stateWith(), threadId: 't1' }), {});
+    const out = await run(
+      makeReadPresentationTool({ state: stateWith(), threadId: 't1', sse: sse as never }),
+      {}
+    );
     expect(out).toMatchObject({ presentationId: 'p1', slideCount: 2, inhalt: 'Folie 1: Start' });
   });
 
   it('reads a canvas deck through the canvas reader', async () => {
     mocks.loadPresentationState.mockResolvedValue(null);
     mocks.loadCanvasAsContext.mockResolvedValue('# Deck\n\n## Folie 1\nA\n\n## Folie 2\nB');
-    const out = await run(makeReadPresentationTool({ state: stateWith(), threadId: 't1' }), {});
+    const out = await run(
+      makeReadPresentationTool({ state: stateWith(), threadId: 't1', sse: sse as never }),
+      {}
+    );
     expect(out).toMatchObject({ presentationId: 'p1', slideCount: 2 });
     expect(out.inhalt).toContain('## Folie 2');
   });
 
   it('errors without a presentation in the thread', async () => {
     const state = stateWith('ja', { threadArtifacts: [] });
-    const out = await run(makeReadPresentationTool({ state, threadId: 't1' }), {});
+    const out = await run(
+      makeReadPresentationTool({ state, threadId: 't1', sse: sse as never }),
+      {}
+    );
     expect(out.error).toBeDefined();
   });
 });
@@ -95,18 +113,44 @@ describe('edit_presentation', () => {
     expect(mocks.planAndApplyPresentationEdit).not.toHaveBeenCalled();
   });
 
-  it('asks before a canvas deck loses slides', async () => {
+  it('shows a confirmation card when a canvas deck loses slides and writes nothing', async () => {
     mocks.canvasAccessible.mockResolvedValue(true);
+    const operations = [{ kind: 'remove-slide', slide: 2 }];
     mocks.planAndApplyCanvasDeckEdit.mockResolvedValue({
       status: 'needs_confirmation',
       title: 'Klimaplan',
       summary: 'Folie 2 gelöscht',
+      operations,
+      basePageIds: ['a', 'b'],
     });
     const out = await run(edit(stateWith('Lösch Folie 2')), {
       anweisung: 'Folie 2 löschen',
       confirm: false,
     });
-    expect(JSON.stringify(out)).toContain('Folien gelöscht');
+    expect(out).toMatchObject({ ok: true, needsConfirmation: true });
+    expect(JSON.stringify(out)).not.toContain('confirm=true');
+    expect(mocks.planAndApplyCanvasDeckEdit).toHaveBeenCalledWith(
+      expect.objectContaining({ destructiveAllowed: false })
+    );
+    expect(confirm.emitToolConfirmAction).toHaveBeenCalledTimes(1);
+    const [, pending, rows] = confirm.emitToolConfirmAction.mock.calls[0] as [
+      unknown,
+      Record<string, unknown>,
+      Array<{ key: string; value: string }>,
+    ];
+    expect(pending).toMatchObject({
+      type: 'apply_canvas_deck_edit',
+      userId: 'u1',
+      threadId: 't1',
+      payload: {
+        canvasId: 'p1',
+        title: 'Klimaplan',
+        summary: 'Folie 2 gelöscht',
+        operations,
+        basePageIds: ['a', 'b'],
+      },
+    });
+    expect(rows.map((r) => r.key)).toEqual(['Präsentation', 'Änderung']);
   });
 
   it('reports an applied change', async () => {

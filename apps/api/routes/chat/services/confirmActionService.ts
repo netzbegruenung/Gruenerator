@@ -140,6 +140,12 @@ export const CONFIRM_ACTION_CONFIG: Record<
     icon: 'share-2',
     confirmLabel: 'Teilen',
   },
+  apply_canvas_deck_edit: {
+    title: 'Folien löschen',
+    description: 'Die Änderung löscht Folien aus der Präsentation.',
+    icon: 'layout-grid',
+    confirmLabel: 'Änderung übernehmen',
+  },
 };
 
 /**

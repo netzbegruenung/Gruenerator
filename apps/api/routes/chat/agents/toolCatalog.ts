@@ -1055,7 +1055,7 @@ NUTZE WENN nach Funktionen, Begriffen, Fähigkeiten oder Anbindungen des Grüner
       !editorSurface &&
       state.editToolSurface !== 'presentation'
     ) {
-      const presentationCtx = { state, threadId: loop.threadId };
+      const presentationCtx = { state, threadId: loop.threadId, sse: loop.sse };
       if (state.enabledTools?.['read_presentation'] !== false) {
         tools.read_presentation = makeReadPresentationTool(presentationCtx);
       }

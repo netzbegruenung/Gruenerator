@@ -19,7 +19,12 @@ vi.mock('../canvas/canvasStateService.js', () => ({
   applyDeckChanges: (...a: unknown[]) => mocks.applyDeckChanges(...a),
 }));
 
-const { describeDeckForEditing, planAndApplyCanvasDeckEdit } = await import('./canvasDeckEdit.js');
+const {
+  describeDeckForEditing,
+  planAndApplyCanvasDeckEdit,
+  planCanvasDeckEdit,
+  applyPlannedCanvasDeckOperations,
+} = await import('./canvasDeckEdit.js');
 
 const pages = composeSlideDeck(
   {
@@ -107,6 +112,67 @@ describe('planAndApplyCanvasDeckEdit', () => {
     expect(await run()).toMatchObject({ status: 'failed' });
     modelAnswers([{ kind: 'edit-slide', slide: 1, operations: [{ kind: 'set-color-mode' }] }]);
     expect(await run()).toMatchObject({ status: 'failed' });
+    expect(mocks.applyDeckChanges).not.toHaveBeenCalled();
+  });
+});
+
+describe('planCanvasDeckEdit', () => {
+  it('plans a removal with the base page ids and writes nothing', async () => {
+    modelAnswers([{ kind: 'remove-slide', slide: 2 }]);
+    const plan = await planCanvasDeckEdit({ canvasId: 'c1', userId: 'u1', instruction: 'x' });
+    expect(plan).toMatchObject({
+      status: 'planned',
+      title: 'Klimaplan',
+      needsConfirmation: true,
+      basePageIds: pages.map((p) => p.id),
+      operations: [{ kind: 'remove-slide', slide: 2 }],
+    });
+    expect(mocks.applyDeckChanges).not.toHaveBeenCalled();
+  });
+
+  it('does not ask for a text-only change', async () => {
+    modelAnswers([
+      {
+        kind: 'edit-slide',
+        slide: 2,
+        operations: [{ kind: 'set-text', field: 'folie-headline', label: 'Titel', value: 'Darum' }],
+      },
+    ]);
+    const plan = await planCanvasDeckEdit({ canvasId: 'c1', userId: 'u1', instruction: 'x' });
+    expect(plan).toMatchObject({ status: 'planned', needsConfirmation: false });
+  });
+});
+
+describe('applyPlannedCanvasDeckOperations', () => {
+  const opts = () => ({
+    canvasId: 'c1',
+    userId: 'u1',
+    operations: [{ kind: 'remove-slide' as const, slide: 2 }],
+    basePageIds: pages.map((p) => p.id),
+  });
+
+  it('writes the stored operations when the page ids are unchanged', async () => {
+    const out = await applyPlannedCanvasDeckOperations(opts());
+    expect(out).toMatchObject({ status: 'applied', title: 'Klimaplan' });
+    const [, changes] = mocks.applyDeckChanges.mock.calls[0] as [
+      string,
+      { replacePages: unknown[] },
+    ];
+    expect(changes.replacePages).toHaveLength(1);
+  });
+
+  it('is stale and writes nothing when the page ids changed', async () => {
+    const out = await applyPlannedCanvasDeckOperations({
+      ...opts(),
+      basePageIds: [pages[1]!.id, pages[0]!.id],
+    });
+    expect(out).toMatchObject({ status: 'stale' });
+    expect(mocks.applyDeckChanges).not.toHaveBeenCalled();
+  });
+
+  it('fails without write access', async () => {
+    mocks.checkCanvasWriteAccess.mockResolvedValueOnce({ kind: 'forbidden' });
+    expect(await applyPlannedCanvasDeckOperations(opts())).toMatchObject({ status: 'failed' });
     expect(mocks.applyDeckChanges).not.toHaveBeenCalled();
   });
 });

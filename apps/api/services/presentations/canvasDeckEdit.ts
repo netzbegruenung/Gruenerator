@@ -12,6 +12,7 @@ import {
   applySlideDeckOperations,
   type DeckPage,
   MAX_SLIDES,
+  type SlideDeckOperation,
   SLIDE_FOOTER_ELEMENT_IDS,
   SLIDE_TEXT_LAYOUT_IDS,
   SLIDE_TEXT_SLOTS,
@@ -28,7 +29,28 @@ const log = createLogger('CanvasDeckEdit');
 
 export type CanvasDeckEditOutcome =
   | { status: 'applied'; title: string; summary: string; applied: number; skipped: string[] }
-  | { status: 'needs_confirmation'; title: string; summary: string }
+  | {
+      status: 'needs_confirmation';
+      title: string;
+      summary: string;
+      operations: SlideDeckOperation[];
+      basePageIds: string[];
+    }
+  | { status: 'failed'; message: string };
+
+export type CanvasDeckPlan =
+  | {
+      status: 'planned';
+      title: string;
+      summary: string;
+      operations: SlideDeckOperation[];
+      /** Seiten-Ids, auf deren Reihenfolge sich die Foliennummern der Operationen beziehen. */
+      basePageIds: string[];
+      needsConfirmation: boolean;
+      /** Nur für den direkten Schreibpfad (`planAndApplyCanvasDeckEdit`). */
+      result: ReturnType<typeof applySlideDeckOperations>;
+      seedPages: Awaited<ReturnType<typeof getCurrentDeckState>>['pages'];
+    }
   | { status: 'failed'; message: string };
 
 const FOOTER = new Set<string>(SLIDE_FOOTER_ELEMENT_IDS);
@@ -128,13 +150,21 @@ const OPERATIONS_TOOL_SCHEMA: Record<string, unknown> = {
   },
 };
 
-export async function planAndApplyCanvasDeckEdit(opts: {
+const localeOf = (pages: readonly DeckPage[]) =>
+  pages[0]?.configId === 'freeform-at' ? 'de-AT' : 'de-DE';
+
+const WRITE_FAILED =
+  'Die Änderung konnte nicht in die Präsentation geschrieben werden. Versuch es bitte gleich noch einmal.';
+
+/**
+ * Plant die Operationen und wendet sie nur als Trockenlauf an — es wird nichts
+ * geschrieben. `needsConfirmation`: die Änderung löscht Folien.
+ */
+export async function planCanvasDeckEdit(opts: {
   canvasId: string;
   userId: string;
   instruction: string;
-  /** false: Löschungen werden geplant, aber nicht geschrieben. */
-  destructiveAllowed: boolean;
-}): Promise<CanvasDeckEditOutcome> {
+}): Promise<CanvasDeckPlan> {
   const { canvasId, userId, instruction } = opts;
   const access = await checkCanvasWriteAccess(canvasId, userId);
   if (access.kind !== 'ok') {
@@ -159,7 +189,7 @@ export async function planAndApplyCanvasDeckEdit(opts: {
     };
   }
   const deckPages = pages as DeckPage[];
-  const locale = deckPages[0]!.configId === 'freeform-at' ? 'de-AT' : 'de-DE';
+  const locale = localeOf(deckPages);
 
   const planned = await aiObject({
     lane: 'editor_ops_presentation',
@@ -200,37 +230,128 @@ export async function planAndApplyCanvasDeckEdit(opts: {
     title,
     newPageId: () => crypto.randomUUID(),
   });
-  const summary = result.applied.join('; ');
   if (result.applied.length === 0) {
     return {
       status: 'failed',
       message: `An der Präsentation hat sich nichts geändert: ${result.refused.join(' ') || 'keine passende Folie.'}`,
     };
   }
-  if (!opts.destructiveAllowed && operations.some((op) => op.kind === 'remove-slide')) {
-    return { status: 'needs_confirmation', title, summary };
-  }
+  return {
+    status: 'planned',
+    title,
+    summary: result.applied.join('; '),
+    operations,
+    basePageIds: deckPages.map((p) => p.id),
+    needsConfirmation: operations.some((op) => op.kind === 'remove-slide'),
+    result,
+    seedPages: pages,
+  };
+}
 
+async function writeResult(
+  canvasId: string,
+  plan: Pick<Extract<CanvasDeckPlan, { status: 'planned' }>, 'result' | 'seedPages'>
+): Promise<boolean> {
+  const { result, seedPages } = plan;
   try {
     await applyDeckChanges(
       canvasId,
       result.structural
-        ? { seedPages: pages, replacePages: result.pages, newPages: result.pages }
-        : { seedPages: pages, pagePatches: result.pagePatches, newPages: result.pages }
+        ? { seedPages, replacePages: result.pages, newPages: result.pages }
+        : { seedPages, pagePatches: result.pagePatches, newPages: result.pages }
     );
+    return true;
   } catch (err) {
-    log.error(`writing ${operations.length} op(s) to ${canvasId} failed: ${err}`);
+    log.error(`writing to ${canvasId} failed: ${err}`);
+    return false;
+  }
+}
+
+/**
+ * Wendet bereits geplante (und bestätigte) Operationen auf den aktuellen Stand
+ * an und schreibt sie. Weicht die Seitenreihenfolge von `basePageIds` ab,
+ * würden die Foliennummern andere Folien treffen — dann `stale`.
+ */
+export async function applyPlannedCanvasDeckOperations(opts: {
+  canvasId: string;
+  userId: string;
+  operations: SlideDeckOperation[];
+  basePageIds: string[];
+}): Promise<
+  | { status: 'applied'; title: string; summary: string; skipped: string[] }
+  | { status: 'stale' | 'failed'; message: string }
+> {
+  const { canvasId, userId, operations, basePageIds } = opts;
+  const access = await checkCanvasWriteAccess(canvasId, userId);
+  if (access.kind !== 'ok') {
     return {
       status: 'failed',
-      message:
-        'Die Änderung konnte nicht in die Präsentation geschrieben werden. Versuch es bitte gleich noch einmal.',
+      message: 'Du hast keine Bearbeitungsrechte für diese Präsentation.',
     };
+  }
+  const found = await getCanvas(canvasId, userId);
+  if (found.kind !== 'ok') {
+    return {
+      status: 'failed',
+      message: 'Ich konnte die Präsentation nicht finden — vielleicht wurde sie gelöscht.',
+    };
+  }
+  const title = found.canvas.title;
+  const { pages } = await getCurrentDeckState(canvasId);
+  const deckPages = pages as DeckPage[];
+  const sameDeck =
+    deckPages.length === basePageIds.length && deckPages.every((p, i) => p.id === basePageIds[i]);
+  if (!sameDeck) {
+    return {
+      status: 'stale',
+      message:
+        'Die Präsentation wurde inzwischen geändert — bitte stoß die Änderung noch einmal an.',
+    };
+  }
+  const result = applySlideDeckOperations(deckPages, operations, {
+    locale: localeOf(deckPages),
+    date: new Date(),
+    title,
+    newPageId: () => crypto.randomUUID(),
+  });
+  if (result.applied.length === 0) {
+    return {
+      status: 'failed',
+      message: `An der Präsentation hat sich nichts geändert: ${result.refused.join(' ') || 'keine passende Folie.'}`,
+    };
+  }
+  if (!(await writeResult(canvasId, { result, seedPages: pages }))) {
+    return { status: 'failed', message: WRITE_FAILED };
+  }
+  return { status: 'applied', title, summary: result.applied.join('; '), skipped: result.refused };
+}
+
+export async function planAndApplyCanvasDeckEdit(opts: {
+  canvasId: string;
+  userId: string;
+  instruction: string;
+  /** false: Löschungen werden geplant, aber nicht geschrieben. */
+  destructiveAllowed: boolean;
+}): Promise<CanvasDeckEditOutcome> {
+  const plan = await planCanvasDeckEdit(opts);
+  if (plan.status === 'failed') return plan;
+  if (!opts.destructiveAllowed && plan.needsConfirmation) {
+    return {
+      status: 'needs_confirmation',
+      title: plan.title,
+      summary: plan.summary,
+      operations: plan.operations,
+      basePageIds: plan.basePageIds,
+    };
+  }
+  if (!(await writeResult(opts.canvasId, plan))) {
+    return { status: 'failed', message: WRITE_FAILED };
   }
   return {
     status: 'applied',
-    title,
-    summary,
-    applied: result.applied.length,
-    skipped: result.refused,
+    title: plan.title,
+    summary: plan.summary,
+    applied: plan.result.applied.length,
+    skipped: plan.result.refused,
   };
 }
