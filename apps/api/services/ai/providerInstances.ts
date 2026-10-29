@@ -84,10 +84,43 @@ export function getMistralProvider(): ReturnType<typeof createMistral> {
     mistralInstance = createMistral({
       baseURL: MISTRAL_API_URL,
       ...(env.MISTRAL_API_KEY && { apiKey: env.MISTRAL_API_KEY }),
+      fetch: mistralLowestReasoningFetch,
     });
   }
   return mistralInstance;
 }
+
+/**
+ * Modelle, deren niedrigste angenommene Denkstufe nicht `none` ist. Die Mistral-API
+ * lehnt `reasoning_effort: none` für Large 4 seit 29.10.2026 mit HTTP 400 ab
+ * („supported values: high, low, medium"). Weil Large 4 der Ausweich für zähe
+ * Gemma-Hosts und für Panda ist, scheiterte damit genau der Rückfall, der einen
+ * Ausfall abfangen sollte (live: Planer, Leser und Schreiber im selben Turn).
+ *
+ * Umgeschrieben wird auf dem Draht, weil das SDK (@ai-sdk/mistral 4.0.71) nur
+ * `none` und `high` kennt: eine Stufe `low` übersetzt es in `high`, und
+ * `providerOptions.mistral.reasoningEffort` lässt nur diese beiden Werte zu.
+ * `low` denkt gemessen ~60 Token (1,8 s), ohne Angabe ~160.
+ */
+const MISTRAL_LOWEST_REASONING: Readonly<Record<string, string>> = { 'mistral-large-4': 'low' };
+
+const mistralLowestReasoningFetch: typeof fetch = async (input, init) => {
+  if (typeof init?.body === 'string' && init.body.includes('"reasoning_effort":"none"')) {
+    try {
+      const body = JSON.parse(init.body) as { model?: unknown; reasoning_effort?: unknown };
+      const lowest = typeof body.model === 'string' ? MISTRAL_LOWEST_REASONING[body.model] : null;
+      if (lowest && body.reasoning_effort === 'none') {
+        return fetch(input, {
+          ...init,
+          body: JSON.stringify({ ...body, reasoning_effort: lowest }),
+        });
+      }
+    } catch {
+      // Kein JSON-Body: unverändert senden.
+    }
+  }
+  return fetch(input, init);
+};
 
 /**
  * Modelle, die ohne `reasoning_effort` von selbst denken. Mistral Large 4 tut
