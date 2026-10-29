@@ -450,6 +450,15 @@ export function formatPastChatsBlock(
     'beziehen ("In unserem Gespräch vom 12.03. hatten wir…"), aber nur wenn es zur',
     'aktuellen Anfrage passt. Erfinde keine Details, die über die Auszüge hinausgehen.',
     '',
+    // #5138: ohne diesen Absatz beantwortete das Modell Nachschlage-Fragen mit
+    // „Wie ich dir bereits heute mitgeteilt habe …" — ein alter Befund, als
+    // aktueller ausgegeben, und ohne einen einzigen Werkzeugaufruf.
+    'Was in einem früheren Gespräch NACHGESEHEN wurde — ob es ein Dokument, ein Notebook,',
+    'eine Drucksache oder eine Rede gibt, was darin steht, was eine Suche fand oder nicht',
+    'fand —, ist der Stand von damals. Fragt die aktuelle Anfrage danach, sieh mit dem',
+    'passenden Werkzeug erneut nach, statt den alten Befund zu wiederholen. Ohne Werkzeug',
+    'nenne den Befund nur mit dem Datum des Gesprächs.',
+    '',
   ];
 
   for (const r of results) {
