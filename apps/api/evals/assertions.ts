@@ -10,6 +10,7 @@ import { announcesPendingWork } from '../routes/chat/services/outputSanity.js';
 import { refusalLanguage } from '../routes/chat/services/refusalDetection.js';
 import { DOCS_PAGES } from '../services/docs/docsIndex.generated.js';
 
+import { LATENZ_HARTE_GRENZE_FAKTOR, stufeOf } from './ampel.js';
 import {
   type AssertionResult,
   type ChatTrace,
@@ -287,10 +288,10 @@ export function inventedParlamentRefs(
 }
 
 function fail(name: string, detail: string): AssertionResult {
-  return { name, pass: false, detail };
+  return { name, pass: false, detail, stufe: stufeOf(name) };
 }
 function ok(name: string, detail = ''): AssertionResult {
-  return { name, pass: true, detail };
+  return { name, pass: true, detail, stufe: stufeOf(name) };
 }
 
 /** Regex aus einer Korpuszeile, ohne Beachtung der Schreibweise; `null` bei ungültiger Quelle. */
@@ -784,6 +785,20 @@ export function runAssertions(
     );
   }
 
+  for (const source of expect.answerShouldContain ?? []) {
+    const re = safeRegex(source);
+    const name = `answerShouldContain:${source}`;
+    if (!re) {
+      results.push(fail(name, 'invalid regular expression'));
+      continue;
+    }
+    results.push(
+      re.test(`${trace.fullText}\n${producedContent(trace)}`)
+        ? ok(name)
+        : fail(name, 'expected passage missing from the answer')
+    );
+  }
+
   for (const { tool, feld, muster } of expect.toolArgsMatch ?? []) {
     const re = safeRegex(muster);
     const name = `toolArgsMatch:${tool}.${feld}`;
@@ -831,11 +846,15 @@ export function runAssertions(
   }
 
   if (expect.maxLatencyMs != null) {
-    results.push(
-      trace.latencyMs <= expect.maxLatencyMs
-        ? ok('latency', `${trace.latencyMs}ms`)
-        : fail('latency', `${trace.latencyMs}ms > ${expect.maxLatencyMs}ms`)
-    );
+    // Zweistufig: `maxLatencyMs` ist das Soll (gelb), die doppelte Zeit die harte Grenze (rot).
+    const hard = expect.maxLatencyMs * LATENZ_HARTE_GRENZE_FAKTOR;
+    if (trace.latencyMs > hard) {
+      results.push(fail('latencyHard', `${trace.latencyMs}ms > ${hard}ms (2× Soll)`));
+    } else if (trace.latencyMs > expect.maxLatencyMs) {
+      results.push(fail('latency', `${trace.latencyMs}ms > ${expect.maxLatencyMs}ms (Soll)`));
+    } else {
+      results.push(ok('latency', `${trace.latencyMs}ms`));
+    }
   }
 
   return results;

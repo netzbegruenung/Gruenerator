@@ -64,6 +64,13 @@ import { mkdirSync, readdirSync, readFileSync, writeFileSync, existsSync } from 
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import {
+  ampelMarke,
+  bewerteFall,
+  gilltAlsBestanden,
+  zusammenfassen,
+  zusammenfassungZeilen,
+} from './ampel.js';
 import { runAssertions } from './assertions.js';
 import { loadCorpus } from './corpus.js';
 import { mergeJournals, readDecisionJournal } from './decisionLog.js';
@@ -234,6 +241,7 @@ function failedResult(scenario: EvalScenario, error: string): CaseResult {
     error,
     assertions: [],
     passed: false,
+    ampel: 'rot',
     turns: [],
   };
 }
@@ -278,7 +286,7 @@ async function withMemories(
   const leftover = await clearRunMemories();
   if (leftover) {
     memoryDirty = `Eval-Konto nicht leer (${leftover})`;
-    return { ...result, passed: false, error: result.error ?? memoryDirty };
+    return { ...result, passed: false, ampel: 'rot', error: result.error ?? memoryDirty };
   }
   return result;
 }
@@ -543,6 +551,20 @@ async function runScenario(scenario: EvalScenario): Promise<CaseResult> {
 
   const first = turns[0];
   const allAssertions = turns.flatMap((t) => t.assertions);
+  // Ein Szenario, das vor seinem letzten Turn endet, hat nicht geantwortet — hart,
+  // sofern nicht schon ein Stream-Fehler (`streamCompleted`) es sagt.
+  if (turns.length < scenario.turns.length && !turns.some((t) => t.error)) {
+    allAssertions.push({
+      name: 'scenarioComplete',
+      pass: false,
+      detail: `${turns.length}/${scenario.turns.length} Turns gelaufen`,
+      stufe: 'hart',
+    });
+  }
+  const bewertung = bewerteFall({
+    assertions: allAssertions,
+    error: turns.find((t) => t.error)?.error ?? null,
+  });
   return {
     id: scenario.id,
     category: scenario.category,
@@ -553,7 +575,8 @@ async function runScenario(scenario: EvalScenario): Promise<CaseResult> {
     toolNames: turns.flatMap((t) => t.toolCalls.map((c) => c.toolName)),
     error: turns.find((t) => t.error)?.error ?? null,
     assertions: allAssertions,
-    passed: turns.length === scenario.turns.length && allAssertions.every((a) => a.pass),
+    passed: gilltAlsBestanden(bewertung.ampel),
+    ampel: bewertung.ampel,
     ...(scenario.knownFailure ? { knownFailure: true } : {}),
     turns,
   };
@@ -587,7 +610,7 @@ function loadBaseline(): Record<string, boolean> {
  *  in the sorted final report. */
 function printScenarioLine(r: CaseResult, baseline: Record<string, boolean>): void {
   const known = r.knownFailure === true;
-  const mark = r.passed ? '✅' : known ? '🟡' : '❌';
+  const mark = known && !r.passed ? '⚪' : ampelMarke(r.ampel ?? (r.passed ? 'gruen' : 'rot'));
   const was = baseline[r.id];
   const delta =
     known || was === undefined
@@ -602,7 +625,7 @@ function printScenarioLine(r: CaseResult, baseline: Record<string, boolean>): vo
   console.log(`${mark} ${r.id.padEnd(24)} ${meta}${delta}`);
   for (const t of r.turns) {
     for (const a of t.assertions.filter((x) => !x.pass)) {
-      console.log(`      · t${t.turnIndex} ${a.name}: ${a.detail}`);
+      console.log(`      · t${t.turnIndex} ${a.name} [${a.stufe ?? 'hart'}]: ${a.detail}`);
     }
     if (t.error) console.log(`      · t${t.turnIndex} stream: ${t.error}`);
   }
@@ -638,11 +661,11 @@ function report(results: CaseResult[]): void {
   }
 
   console.log(`\n─── Summary ───`);
-  console.log(`Scenarios:  ${passed}/${scored.length} passed (${pct(passed, scored.length)})`);
+  console.log(`Scenarios:  ${passed}/${scored.length} not red (${pct(passed, scored.length)})`);
   console.log(
     `Assertions: ${assertPass}/${allAssertions.length} passed (${pct(assertPass, allAssertions.length)})`
   );
-  if (knownFailing > 0) console.log(`Known open: ${knownFailing} still failing (🟡, not scored)`);
+  if (knownFailing > 0) console.log(`Known open: ${knownFailing} still failing (⚪, not scored)`);
   if (knownFixed.length > 0) {
     // `passed` is assertion-only — runScenario never waits for a judge verdict.
     // Saying "drop knownFailure" on a scenario whose actual claim is carried by
@@ -661,6 +684,8 @@ function report(results: CaseResult[]): void {
       );
     }
   }
+  const z = zusammenfassen(scored.map((r) => ({ id: r.id, bewertung: bewerteFall(r) })));
+  for (const line of zusammenfassungZeilen(z)) console.log(line);
   const latencies = results.map((r) => r.latencyMs).sort((a, b) => a - b);
   const p50 = latencies[Math.floor(latencies.length * 0.5)] ?? 0;
   const p95 = latencies[Math.floor(latencies.length * 0.95)] ?? 0;

@@ -28,7 +28,10 @@ import { readFileSync, writeFileSync, existsSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { buildRubricPrompt, rubricsForTurn, type RubricName } from './rubrics.js';
+import { bewerteFall, zusammenfassen, zusammenfassungZeilen } from '../ampel.js';
+
+import { buildRubricPrompt, rubricsForTurn } from './rubrics.js';
+import { type JudgeVerdict, noteJeFall, parseNote } from './verdicts.js';
 
 import type { CaseResult } from '../types.js';
 
@@ -39,14 +42,7 @@ const BASE_URL = (process.env.CORTECS_BASE_URL ?? 'https://api.cortecs.ai/v1').r
 const API_KEY = process.env.CORTECS_API_KEY ?? '';
 const BLOCKING = process.env.EVAL_JUDGE_BLOCKING === '1';
 
-export interface JudgeVerdict {
-  caseId: string;
-  turnIndex: number;
-  rubric: RubricName;
-  /** null = judge unavailable/malformed twice — reported, never failing. */
-  pass: boolean | null;
-  reason: string;
-}
+export { type JudgeVerdict };
 
 /** Tolerant JSON extraction — models may wrap the verdict in prose/fences. */
 export function parseVerdict(content: string): { pass: boolean; reason: string } | null {
@@ -65,10 +61,11 @@ export function parseVerdict(content: string): { pass: boolean; reason: string }
   return null;
 }
 
-async function callJudge(
+async function callJudge<T>(
   system: string,
-  user: string
-): Promise<{ pass: boolean; reason: string } | null> {
+  user: string,
+  parse: (content: string) => T | null
+): Promise<T | null> {
   for (let attempt = 0; attempt < 2; attempt++) {
     try {
       const res = await fetch(`${BASE_URL}/chat/completions`, {
@@ -96,7 +93,7 @@ async function callJudge(
       const json = (await res.json()) as {
         choices?: { message?: { content?: string } }[];
       };
-      const verdict = parseVerdict(json.choices?.[0]?.message?.content ?? '');
+      const verdict = parse(json.choices?.[0]?.message?.content ?? '');
       if (verdict) return verdict;
     } catch {
       // retry once, then give up (verdict null)
@@ -130,7 +127,19 @@ async function main(): Promise<void> {
           ...(firstTurn ? { firstTurn } : {}),
         });
         if (!prompt) continue;
-        const verdict = await callJudge(prompt.system, prompt.user);
+        if (rubric === 'antwortqualitaet') {
+          const scored = await callJudge(prompt.system, prompt.user, parseNote);
+          verdicts.push({
+            caseId: c.id,
+            turnIndex: turn.turnIndex,
+            rubric,
+            pass: scored ? scored.note >= 4 : null,
+            reason: scored?.reason ?? 'judge unavailable or malformed output (2 attempts)',
+            ...(scored ? { note: scored.note } : {}),
+          });
+          continue;
+        }
+        const verdict = await callJudge(prompt.system, prompt.user, parseVerdict);
         verdicts.push({
           caseId: c.id,
           turnIndex: turn.turnIndex,
@@ -142,14 +151,17 @@ async function main(): Promise<void> {
     }
   }
 
-  const failed = verdicts.filter((v) => v.pass === false);
+  // Die Note ist kein Bestanden/Durchgefallen: sie färbt die Ampel höchstens gelb
+  // und darf deshalb nie den Blocking-Modus auslösen.
+  const failed = verdicts.filter((v) => v.pass === false && v.rubric !== 'antwortqualitaet');
   const nulls = verdicts.filter((v) => v.pass === null);
 
   console.log(`\n═══ LLM judge — ${verdicts.length} checks (${MODEL}) ═══\n`);
   for (const v of verdicts) {
     const mark = v.pass === true ? '✅' : v.pass === false ? '❌' : '⚪';
+    const noteLabel = v.note !== undefined ? ` Note ${v.note}` : '';
     console.log(
-      `${mark} ${v.caseId} t${v.turnIndex} ${v.rubric}${v.pass !== true ? ` — ${v.reason}` : ''}`
+      `${mark} ${v.caseId} t${v.turnIndex} ${v.rubric}${noteLabel}${v.pass !== true ? ` — ${v.reason}` : ''}`
     );
   }
   console.log(
@@ -160,6 +172,16 @@ async function main(): Promise<void> {
     join(dirname(RUN_FILE), 'judge-verdicts.json'),
     `${JSON.stringify(verdicts, null, 2)}\n`
   );
+
+  // Ampel nach dem Richterlauf neu berechnet: deterministische Prüfungen + Note.
+  const noten = noteJeFall(verdicts);
+  const z = zusammenfassen(
+    results
+      .filter((c) => !c.knownFailure)
+      .map((c) => ({ id: c.id, bewertung: bewerteFall(c, noten.get(c.id) ?? null) }))
+  );
+  console.log('');
+  for (const line of zusammenfassungZeilen(z)) console.log(line);
 
   if (BLOCKING && failed.length > 0) process.exitCode = 1;
 }

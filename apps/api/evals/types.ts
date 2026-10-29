@@ -149,6 +149,9 @@ export const rubricNameSchema = z.enum([
   'instruction_hierarchy',
   'content_policy',
   'unsourced_confidence',
+  // Note 1–5 statt pass/fail (Ankerskala in judge/rubrics.ts); läuft auf jedem
+  // Turn mit Antwort und geht in die Ampel (≤ 3 → gelb, nie rot).
+  'antwortqualitaet',
 ]);
 export type RubricName = z.infer<typeof rubricNameSchema>;
 
@@ -259,6 +262,12 @@ export const evalExpectSchema = z
      * EINE Quelle als Alternation (`noch nicht|21/\d+`).
      */
     answerMustContain: z.array(z.string()).optional(),
+    /**
+     * Wie `answerMustContain` (Regex, ohne Beachtung der Schreibweise), aber
+     * WEICH: fehlt die Passage, wird der Fall gelb, nicht rot. Für Inhalt, den
+     * eine gute Antwort haben sollte, ohne dass sein Fehlen sie falsch macht.
+     */
+    answerShouldContain: z.array(z.string()).optional(),
     /**
      * Mindestens ein Aufruf von `tool` trägt in `args[feld]` einen Treffer auf
      * `muster` (Regex, ohne Beachtung der Groß-/Kleinschreibung). `feld` darf
@@ -537,6 +546,8 @@ export interface AssertionResult {
   name: string;
   pass: boolean;
   detail: string;
+  /** Hart/weich aus `PRUEFUNG_STUFE` (ampel.ts). Fehlt in Läufen vor der Ampel. */
+  stufe?: 'hart' | 'weich';
 }
 
 /** Cross-turn context the runner threads through a scenario for assertions. */
@@ -593,7 +604,10 @@ export interface CaseResult {
   toolNames: string[];
   error: string | null;
   assertions: AssertionResult[];
+  /** `true`, solange der Fall nicht rot ist (Baseline-Vergleich liest das Feld weiter). */
   passed: boolean;
+  /** Ampel nur aus den deterministischen Prüfungen; fehlt in Läufen vor der Ampel. */
+  ampel?: 'gruen' | 'gelb' | 'rot';
   knownFailure?: boolean;
   turns: TurnResult[];
 }
