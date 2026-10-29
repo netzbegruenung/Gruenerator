@@ -804,7 +804,7 @@ NUTZE WENN eine Frage sich auf eine angehängte Datei bezieht und die bereits ge
 
 Genau ein Modus je Aufruf.
 
-NICHT für eine Zusammenfassung des ganzen Dokuments — dafür gibt es \`summarize\`, das den vollständigen Text verarbeitet statt einzelner Passagen.`,
+NICHT für eine Zusammenfassung des ganzen Dokuments — dafür gibt es \`summarize\`, das den vollständigen Text verarbeitet statt einzelner Passagen. Für Anhänge aus FRÜHEREN Turns dieses Gesprächs, deren Auszug nicht reicht: \`expand_attachment\`.`,
         inputSchema: z.object({
           query: z.string().optional().describe('Präziser Suchbegriff für die Passagensuche'),
           dateiname: z
@@ -957,7 +957,7 @@ NICHT für eine Zusammenfassung des ganzen Dokuments — dafür gibt es \`summar
       tools.product_knowledge = tool({
         description: `Beantwortet Fragen über den Grünerator selbst: verfügbare Grüneratoren (Assistenten), Werkzeuge, eigene Begriffe (Modellstufen Klein/Mittel/Ultra/Panda, Explainable, Podcast, Öko-Modus, Marktplatz, Papierkorb, Konto, App …), MCP-Server/Anbindungen und durchsuchbare Wissenssammlungen.
 
-NUTZE WENN nach Funktionen, Begriffen, Fähigkeiten oder Anbindungen des Grünerators gefragt wird ("was kannst du", "was ist Panda", "welche MCP-Server kennst du", "wie erstelle ich ein Sharepic"). NICHT für politische Inhalte oder Recherche — und NICHT für die persönlichen Wolke-/Nextcloud-Verbindungen oder -Dateien der Person: welche Wolke-Links verbunden sind, beantwortet 'cloud_files' (list_connections).`,
+NUTZE WENN nach Funktionen, Begriffen, Fähigkeiten oder Anbindungen des Grünerators gefragt wird ("was kannst du", "was ist Panda", "welche MCP-Server kennst du"). Schritt-für-Schritt-Anleitungen zur Bedienung ("wie erstelle ich ein Sharepic", "wo finde ich …") liefert gruenerator_docs_search. NICHT für politische Inhalte oder Recherche — und NICHT für die persönlichen Wolke-/Nextcloud-Verbindungen oder -Dateien der Person: welche Wolke-Links verbunden sind, beantwortet 'cloud_files' (list_connections).`,
         inputSchema: z.object({
           topic: z
             .string()
