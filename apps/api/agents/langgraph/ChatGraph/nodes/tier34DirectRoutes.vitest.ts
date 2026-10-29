@@ -17,7 +17,11 @@
  */
 import { describe, expect, it } from 'vitest';
 
-import { CHAT_HISTORY_DIRECT, looksLikeRecurringOrder } from './classifierSignals.js';
+import {
+  CHAT_HISTORY_DIRECT,
+  looksLikeRecurringOrder,
+  ownContentFirstTool,
+} from './classifierSignals.js';
 
 describe('looksLikeRecurringOrder — beansprucht', () => {
   it.each([
@@ -134,5 +138,29 @@ describe('CHAT_HISTORY_DIRECT — die Präzisionshälfte', () => {
     'Mach da weiter',
   ])('beansprucht NICHT: %s', (text) => {
     expect(CHAT_HISTORY_DIRECT.test(text)).toBe(false);
+  });
+});
+
+describe('ownContentFirstTool — eigene Notebooks und Dokumente (#5135, #5137)', () => {
+  it.each([
+    ['Was steht in meinem Notebook zur Kommunalwahl?', 'notebooks'],
+    ['Was steht in meinem Notebook „Marskolonie 2099“?', 'notebooks'],
+    ['Durchsuche meine Notebooks nach dem Radentscheid', 'notebooks'],
+    ['Was steht in unserem geteilten Notebook zur Satzung?', 'notebooks'],
+    ['Fass mein Dokument „Lindenstraße“ zusammen', 'find_content'],
+    ['Fasse meine Präsentation zur Verkehrswende zusammen', 'find_content'],
+  ])('%s → %s', (text, tool) => {
+    expect(ownContentFirstTool(text)).toBe(tool);
+  });
+
+  it.each([
+    // Ohne Possessiv ist es ein System-Notebook bzw. ein Auftrag, kein eigener Inhalt.
+    'Was steht im Notebook der Grünen Hessen zur Bildung?',
+    'Erstelle ein Dokument zum Radweg',
+    'Was ist ein Notebook?',
+    // „mein" ohne Inhalts-Nomen.
+    'Was sagen die Grünen zu meinem Thema Mieten?',
+  ])('kein eigener Inhalt: %s', (text) => {
+    expect(ownContentFirstTool(text)).toBeNull();
   });
 });

@@ -134,3 +134,28 @@ describe('summary-Rückstufung — eingefügtes Material zählt', () => {
     expect(result.searchQuery ?? '').not.toMatch(/GRUENHACKED/);
   });
 });
+
+describe('summary-Rückstufung — eigene Inhalte werden geholt, nicht gegoogelt (#5135)', () => {
+  it.each([
+    [
+      'Fass mein Dokument „Werkzeugwahl-Probe Lindenstraße“ in zwei Sätzen zusammen.',
+      'find_content',
+    ],
+    ['Fasse meine Präsentation zur Verkehrswende zusammen', 'find_content'],
+    ['Fass mein Notebook zur Verkehrswende zusammen', 'notebooks'],
+  ])('%s → Loop mit %s angeheftet', async (text, tool) => {
+    const result = await classifierNode(buildState(text));
+
+    expect(result.intent).toBe('agentic');
+    expect(result.mentionPinnedTool).toBe(tool);
+  });
+
+  it('eine Zusammenfassung ohne eigenen Bezug bleibt bei der Websuche', async () => {
+    const result = await classifierNode(
+      buildState('Fass den aktuellen Stand der Debatte um das Klimageld zusammen')
+    );
+
+    expect(result.intent).toBe('web');
+    expect(result.mentionPinnedTool ?? null).toBeNull();
+  });
+});

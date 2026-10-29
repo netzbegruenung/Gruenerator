@@ -284,6 +284,28 @@ export const CHAT_HISTORY_KEYWORDS =
 export const CHAT_HISTORY_DIRECT =
   /(?<!\p{L})(letzte[sn]?\s+gespräch|vorher\s+besprochen|gestern\s+besprochen|damals\s+besprochen|erinnere?\s+dich|früheres?\s+chat|voriges?\s+gespräch|unser(?:e[nmrs]?)?\s+(?:chat|gespräch|unterhaltung)|was\s+haben\s+wir\s+(?:\p{L}+\s+){0,4}?(?:besprochen|geredet|gesprochen|erarbeitet|entschieden|festgehalten)|wo\s+wir\s+aufgehört|mein(?:e|en)?\s+(?:notiz|antrag)|meine\s+notizen)(?!\p{L})/iu;
 
+const OWN = String.raw`(?<!\p{L})(?:mein|meine[mnrs]?|unser|unsere[mnrs]?)\s+(?:\p{L}+\s+){0,2}?`;
+const OWN_NOTEBOOK = new RegExp(`${OWN}(?:notebooks?|notizb(?:ü|u|ue)ch\\p{L}*)(?!\\p{L})`, 'iu');
+const OWN_DOCUMENT = new RegExp(
+  `${OWN}(?:dokument(?:e|en)?|präsentation(?:en)?|tabellen?)(?!\\p{L})`,
+  'iu'
+);
+
+/**
+ * Welches Werkzeug den ersten Schritt machen muss, wenn ein Turn nach einem
+ * eigenen Notebook bzw. eigenen Dokument fragt — `null` ohne solchen Bezug.
+ *
+ * Nur mit Possessiv: „das Notebook der Grünen Hessen" ist ein System-Notebook,
+ * „ein Dokument" ist ein Auftrag. Die Wahl ist die Werkzeuggrenze aus den
+ * Beschreibungen: `find_content` erreicht Notebooks nicht, für sie gibt es
+ * `notebooks` (Werkzeugwahl-Eval, #5135/#5137).
+ */
+export function ownContentFirstTool(text: string): 'notebooks' | 'find_content' | null {
+  if (OWN_NOTEBOOK.test(text)) return 'notebooks';
+  if (OWN_DOCUMENT.test(text)) return 'find_content';
+  return null;
+}
+
 /**
  * A standing order: something that should happen again and again, not once.
  *
