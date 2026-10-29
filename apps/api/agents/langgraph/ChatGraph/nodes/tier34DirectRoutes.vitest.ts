@@ -20,6 +20,7 @@ import { describe, expect, it } from 'vitest';
 import {
   CHAT_HISTORY_DIRECT,
   looksLikeRecurringOrder,
+  asksOwnNotebookContents,
   ownContentFirstTool,
 } from './classifierSignals.js';
 
@@ -162,5 +163,29 @@ describe('ownContentFirstTool — eigene Notebooks und Dokumente (#5135, #5137)'
     'Was sagen die Grünen zu meinem Thema Mieten?',
   ])('kein eigener Inhalt: %s', (text) => {
     expect(ownContentFirstTool(text)).toBeNull();
+  });
+});
+
+describe('asksOwnNotebookContents — Pin nur bei einer Frage an den Inhalt (Review an #5142)', () => {
+  it.each([
+    'Was steht in meinem Notebook zur Kommunalwahl?',
+    'Was steht in unserem geteilten Notebook zur Satzung?',
+    'Durchsuche meine Notebooks nach dem Radentscheid',
+    'Welche Quellen gibt es in meinen Notebooks zum ÖPNV?',
+    'Fass zusammen, was laut meinem Notizbuch zur Kita gilt',
+  ])('Inhaltsfrage: %s', (text) => {
+    expect(asksOwnNotebookContents(text)).toBe(true);
+  });
+
+  it.each([
+    // „Notebook" ist auch der Laptop.
+    'Mein Notebook ist seit dem letzten Update sehr langsam, was kann ich tun?',
+    'Welche SSD steckt in meinem Notebook?',
+    'Wie installiere ich Firefox auf meinem Notebook?',
+    'Was kann ich tun, wenn in meinem Notebook der Lüfter laut ist?',
+    // Kein Possessiv: System-Notebook.
+    'Was steht im Notebook der Grünen Hessen zur Bildung?',
+  ])('kein Pin: %s', (text) => {
+    expect(asksOwnNotebookContents(text)).toBe(false);
   });
 });

@@ -114,6 +114,7 @@ import {
   looksLikeDocsHelpQuestion,
   looksLikeRecurringOrder,
   acceptsVorlagenOffer,
+  asksOwnNotebookContents,
   ownContentFirstTool,
 } from './classifierSignals.js';
 import { classifyDocsIntentTiebreak } from './docsIntentTiebreak.js';
@@ -2252,7 +2253,7 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
     // Notebook zur Kommunalwahl?" als `direct@0.5` ohne Zwang in den Loop, und
     // der Planer griff 3 von 3 Mal zuerst zu `find_content` — dem Werkzeug, das
     // Notebooks laut eigener Beschreibung nicht erreicht (#5137).
-    if (ownContentFirstTool(userContent) === 'notebooks') {
+    if (asksOwnNotebookContents(userContent)) {
       log.info('[Classifier] Own-notebook ask → loop with notebooks pinned (LLM skipped)');
       recordDecision('classifier.tier', 'tier3.4_own_notebook', {});
       return {

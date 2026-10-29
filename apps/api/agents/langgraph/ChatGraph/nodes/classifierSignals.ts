@@ -306,6 +306,26 @@ export function ownContentFirstTool(text: string): 'notebooks' | 'find_content' 
   return null;
 }
 
+const OWN_NOTEBOOK_CONTENTS = new RegExp(
+  `(?:(?<!\\p{L})(?:in|aus|laut)\\s+${OWN}|(?<!\\p{L})durchsuch\\p{L}*\\s+(?:\\p{L}+\\s+){0,3}?${OWN})(?:notebooks?|notizb(?:ü|u|ue)ch\\p{L}*)(?!\\p{L})`,
+  'iu'
+);
+// „Welche SSD steckt in meinem Notebook?" hat die Präposition und meint doch den Laptop.
+const LAPTOP_CONTEXT =
+  /(?<!\p{L})(?:laptop|akku|lüfter|ssd|festplatte|arbeitsspeicher|ram|prozessor|cpu|grafikkarte|bildschirm|display|tastatur|touchpad|ladekabel|netzteil|wlan|bluetooth|windows|macos|linux|treiber|bios|verbaut|install\p{L}*|bootet|hochfahren)(?!\p{L})/iu;
+
+/**
+ * Fragt der Turn nach dem INHALT eigener Notebooks („Was steht in meinem
+ * Notebook …", „Durchsuche meine Notebooks …")? Strenger als
+ * `ownContentFirstTool`, weil der Tier-3.4-Pin das Modell überspringt:
+ * „Notebook" ist im Deutschen auch der Laptop, und „Mein Notebook ist seit dem
+ * Update langsam" darf nicht im Werkzeug `notebooks` landen (Review an #5142).
+ * Der Zusammenfassen-Pfad braucht das nicht — dort macht das Verb die Lesart.
+ */
+export function asksOwnNotebookContents(text: string): boolean {
+  return OWN_NOTEBOOK_CONTENTS.test(text) && !LAPTOP_CONTEXT.test(text);
+}
+
 /**
  * A standing order: something that should happen again and again, not once.
  *
