@@ -18,10 +18,9 @@ const client = {
 vi.mock('../api-clients/abgeordnetenwatchApiClient.js', () => ({
   getAbgeordnetenwatchClient: vi.fn(async () => client),
 }));
+const detection = { extractNameFromQuery: vi.fn() };
 vi.mock('../bundestag/PersonDetectionService.js', () => ({
-  getPersonDetectionService: () => ({
-    extractNameFromQuery: vi.fn(() => 'Katrin Uhlig'),
-  }),
+  getPersonDetectionService: () => detection,
 }));
 vi.mock('../../utils/logger.js', () => ({
   createLogger: () => ({ info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() }),
@@ -50,6 +49,7 @@ const poll = (pollId: number, legislatureId: number) => ({
 
 beforeEach(() => {
   for (const fn of Object.values(client)) fn.mockReset();
+  detection.extractNameFromQuery.mockReturnValue('Katrin Uhlig');
   client.searchPoliticians.mockResolvedValue([
     { id: 175599, name: 'Katrin Uhlig', party: 'GRÜNE', url: '' },
   ]);
@@ -101,5 +101,33 @@ describe('Abstimmungen zu einem Thema über alle Mandate', () => {
     const r = await getEnrichedPoliticianService().search('Katrin Uhlig Heizungsgesetz');
     expect(r.notes.join(' ')).toMatch(/Bundestag 2025 - 2029, Bundestag 2021 - 2025/);
     expect(r.notes.join(' ')).toMatch(/amtlichen Namen/);
+  });
+});
+
+describe('Abstimmung zu einem Thema ohne Person', () => {
+  beforeEach(() => {
+    detection.extractNameFromQuery.mockReturnValue(null);
+    client.searchPolls.mockImplementation(async (o: { keyword?: string }) =>
+      o.keyword === 'Gebäudeenergiegesetz' ? [poll(5162, 132)] : []
+    );
+    client.getPollTally.mockResolvedValue({ pollId: 5162 });
+  });
+
+  it('sucht mit dem übergebenen Thema statt mit dem Wort aus der Anfrage', async () => {
+    const r = await getEnrichedPoliticianService().search(
+      'Wie wurde beim Heizungsgesetz abgestimmt?',
+      {
+        thema: 'Gebäudeenergiegesetz',
+      }
+    );
+    expect(r.kind).toBe('poll');
+    expect(client.searchPolls).toHaveBeenCalledWith({ keyword: 'Gebäudeenergiegesetz', limit: 8 });
+  });
+
+  it('sucht mit übergebenem Thema auch ohne Abstimmungswort in der Anfrage', async () => {
+    const r = await getEnrichedPoliticianService().search('Gebäudeenergiegesetz', {
+      thema: 'Gebäudeenergiegesetz',
+    });
+    expect(r.kind).toBe('poll');
   });
 });

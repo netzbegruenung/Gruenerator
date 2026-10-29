@@ -89,6 +89,7 @@ export class EnrichedPoliticianService {
     // Namen nur, wenn er allein oder in festen Satzmustern steht — „Katrin Uhlig
     // Gebäudeenergiegesetz" ergab den ganzen String als Namen und keinen Treffer.
     const extractedName = opts.person?.trim() || this.detection.extractNameFromQuery(query);
+    const thema = opts.thema?.trim() || null;
     const meta = () => ({
       query,
       extractedName: extractedName ?? null,
@@ -117,7 +118,7 @@ export class EnrichedPoliticianService {
         let sideJobs = [] as Awaited<ReturnType<typeof client.getSideJobs>>;
 
         if (mandate) {
-          const topic = opts.thema?.trim() || this.extractTopic(query, extractedName);
+          const topic = thema || this.extractTopic(query, extractedName);
           const [rv, sj, tv] = await Promise.all([
             client.getVotes({ mandateId: mandate.mandateId, limit: 15 }),
             client.getSideJobs(mandate.mandateId, 10),
@@ -158,8 +159,10 @@ export class EnrichedPoliticianService {
     }
 
     // ── Poll path ───────────────────────────────────────────────────────────
-    if (POLL_QUERY_RE.test(query)) {
-      const keyword = this.extractTopic(query, extractedName ?? undefined);
+    // Ein übergebenes Thema ist selbst die Frage nach einer Abstimmung und
+    // schlägt das Wort aus der Anfrage („Heizungsgesetz" findet keinen Titel).
+    if (thema || POLL_QUERY_RE.test(query)) {
+      const keyword = thema || this.extractTopic(query, extractedName ?? undefined);
       if (keyword) {
         const polls = await client.searchPolls({ keyword, limit: 8 });
         if (polls.length > 0) {
