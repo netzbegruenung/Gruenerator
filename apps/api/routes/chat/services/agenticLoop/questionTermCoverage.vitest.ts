@@ -24,6 +24,11 @@ describe('missingQuestionTerms', () => {
     // Flexion und Kompositum.
     ['Wie stehen die Grünen zur Wehrpflicht?', 'Die Wehrpflichtigen sollen …'],
     ['Was sagen die Grünen zum Klimageld?', 'Höhe des Klimageldes pro Kopf'],
+    // Kompositum sinngemäß: beide Teile stehen da (live 29.10.2026, Grundsatzprogramm).
+    [
+      'Was sagen die Grünen zur Vermögensteuer?',
+      'Das Aufkommen der Steuern aus großen Vermögen soll deutlich erhöht werden.',
+    ],
     // Umlaut transliteriert.
     ['Was sagen die Grünen zur Wärmeplanung?', 'Kommunale Waermeplanung bis 2028'],
   ])('gedeckt: %s', (question, sources) => {
@@ -58,8 +63,8 @@ describe('buildUncoveredTermNote', () => {
       MARS_SOURCES
     );
     expect(note).toContain('GEGENSTAND OHNE QUELLE: „Marskolonie“');
-    expect(note).toMatch(/im ERSTEN Satz/);
-    expect(note).toMatch(/keine Aussage über „Marskolonie“ einen Beleg \[N\]/);
+    expect(note).toMatch(/Belege eine Aussage über „Marskolonie“ nur mit einer Quelle/);
+    expect(note).toMatch(/keiner Partei eine Haltung dazu zu/);
   });
 
   it('ist leer, wenn alles gedeckt ist', () => {

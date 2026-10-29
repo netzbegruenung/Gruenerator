@@ -13,7 +13,8 @@
  * sieben Buchstaben direkt hinter einer Präposition, die den Gegenstand
  * einleitet („zur Marskolonie-Steuer", „über die Wärmeplanung"). Ein
  * allgemeines Wort wie „Unterschied" oder „Wahlprogramm" darf keine Absage
- * auslösen — die Notiz sagt dem Schreiber, er solle zuerst die Lücke nennen.
+ * auslösen. Die Notiz verbietet deshalb keine Antwort, nur den Beleg für den
+ * Gegenstand ohne eine Quelle, die ihn wörtlich oder sinngemäß nennt.
  */
 
 /** Wörter, die eine Frage rahmen, aber nicht ihr Gegenstand sind. */
@@ -88,12 +89,33 @@ function withinOneEdit(a: string, b: string): boolean {
   return edits + (a.length - i) + (b.length - j) <= 1;
 }
 
+/**
+ * Ein Kompositum, dessen beide Teile in den Quellen stehen, ist sinngemäß
+ * gedeckt: „Vermögensteuer" bei „Steuern aus großen Vermögen". Live am
+ * 29.10.2026 begann eine Antwort sonst mit „keine Informationen zum Begriff
+ * Vermögensteuer", obwohl das Grundsatzprogramm genau das forderte. Für
+ * „Marskolonie" fehlt „kolonie" — die Lücke bleibt.
+ */
+function partsCovered(term: string, text: string): boolean {
+  const MIN_PART = 4;
+  for (let i = MIN_PART; i <= term.length - MIN_PART; i++) {
+    const head = term.slice(0, i);
+    const tail = term.slice(i);
+    if (!text.includes(head)) continue;
+    if (text.includes(tail)) return true;
+    // Fugen-s: „vermoegens|teuer" → „vermoegen" + „steuer" prüft schon i-1; hier
+    // der Fall, dass das s am Kopf hängt.
+    if (head.endsWith('s') && tail.length >= MIN_PART && text.includes(`s${tail}`)) return true;
+  }
+  return false;
+}
+
 function isCovered(term: string, text: string, words: ReadonlySet<string>): boolean {
   // Flexion und Komposita: „Wehrpflicht" steckt in „Wehrpflichtigen", „Klimageld" in „Klimageldes".
   const stem = term.replace(/(?:en|es|er|e|n|s)$/u, '');
   if (text.includes(stem)) return true;
   for (const w of words) if (withinOneEdit(w, term)) return true;
-  return false;
+  return partsCovered(stem, text);
 }
 
 /**
@@ -120,5 +142,5 @@ export function buildUncoveredTermNote(question: string, sourcesText: string): s
   const missing = missingQuestionTerms(question, sourcesText);
   if (missing.length === 0) return '';
   const terms = missing.map((t) => `„${t}“`).join(', ');
-  return `\n\nGEGENSTAND OHNE QUELLE: ${terms} aus der Frage steht in keiner der Quellen — auch nicht in naher Schreibweise. Meinen die Quellen dasselbe unter anderem Namen, sag das ausdrücklich. Sonst sag im ERSTEN Satz, dass die Quellen dazu nichts enthalten, und hänge an keine Aussage über ${terms} einen Beleg [N]. Was die Quellen zu Nachbarthemen sagen, darf folgen, aber als das, was es ist: verknüpfe es nicht mit ${terms} und schreibe keiner Partei eine Haltung dazu zu.`;
+  return `\n\nGEGENSTAND OHNE QUELLE: ${terms} aus der Frage steht wörtlich in keiner der Quellen. Belege eine Aussage über ${terms} nur mit einer Quelle, die genau diesen Gegenstand nennt — wörtlich oder unmissverständlich mit anderen Worten. Nennt ihn keine Quelle, sag das, und verknüpfe Nachbarthemen der Quellen nicht mit ${terms}: schreibe keiner Partei eine Haltung dazu zu, die nicht dasteht.`;
 }
