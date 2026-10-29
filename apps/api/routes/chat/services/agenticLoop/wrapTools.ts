@@ -22,7 +22,7 @@ import { recordDecision } from '../../../../utils/decisionJournal.js';
 import { createLogger } from '../../../../utils/logger.js';
 
 import { LOOP_CLIENT_TOOLS } from './clientToolRegistry.js';
-import { truncateResultForModel } from './truncate.js';
+import { truncateResultForModel, wasShortened } from './truncate.js';
 import {
   readMcpResult,
   TURN_ABORTABLE_TOOLS,
@@ -143,6 +143,14 @@ const REFS_EXEMPT: ReadonlySet<string> = new Set(['sources', REFS_FIELD]);
 
 export const DEFAULT_MAX_RESULT_CHARS = 6000;
 
+/**
+ * Harte Obergrenze für ein Werkzeugergebnis am Modell. Kein Budget — weder der
+ * Tabelle in `toolResultBudgets.ts` noch `maxResultChars` — liegt darüber: ein
+ * entgleistes Werkzeug (MCP-Server, der Megabytes liefert) wird hier gekürzt,
+ * auch wenn es ein großes Budget hat. Entschieden 29.10.2026.
+ */
+export const MAX_TOOL_RESULT_CHARS = 30_000;
+
 export function resultForModel(output: unknown, maxChars: number): unknown {
   if (!output || typeof output !== 'object' || Array.isArray(output)) {
     return truncateResultForModel(output, maxChars);
@@ -150,7 +158,7 @@ export function resultForModel(output: unknown, maxChars: number): unknown {
   const { [REFS_FIELD]: refs, ...rows } = output as Record<string, unknown>;
   if (typeof refs !== 'string') return truncateResultForModel(output, maxChars);
   const lean = truncateResultForModel(rows, maxChars) as Record<string, unknown>;
-  if (lean._truncated !== true) return lean;
+  if (!wasShortened(lean)) return lean;
   const compact: Record<string, unknown> = { ...rows, [REFS_FIELD]: refs };
   for (const field of ROWS_REPEATED_BY_REFS) delete compact[field];
   return truncateResultForModel(compact, maxChars, REFS_EXEMPT);
@@ -268,6 +276,12 @@ export interface WrapToolsContext {
   takeNarration?: () => string | null;
   /** Safety-net cap on the serialized model-facing result. Default {@link DEFAULT_MAX_RESULT_CHARS}. */
   maxResultChars?: number;
+  /**
+   * Eigenes Budget je Werkzeug, für Werkzeuge, die ihr Material selbst
+   * begrenzen und deshalb ganz ankommen müssen. `null` ⇒ `maxResultChars`.
+   * Gedeckelt auf {@link MAX_TOOL_RESULT_CHARS}.
+   */
+  resultBudgetFor?: (toolName: string) => number | null;
   /** Optional. Nicht gesetzt ⇒ Verhalten unverändert (es wird nichts
    *  zusätzlich awaitet). */
   hooks?: ToolHooks;
@@ -447,7 +461,10 @@ type ExecuteFn = (
 ) => Promise<unknown>;
 
 export function wrapToolsForLoop(tools: ToolSet, ctx: WrapToolsContext): ToolSet {
-  const maxResultChars = ctx.maxResultChars ?? DEFAULT_MAX_RESULT_CHARS;
+  const maxResultChars = Math.min(
+    ctx.maxResultChars ?? DEFAULT_MAX_RESULT_CHARS,
+    MAX_TOOL_RESULT_CHARS
+  );
   const wrapped: ToolSet = {};
   // Mistral hands out 9-char tool-call ids and can repeat one within a turn.
   // The stepId keys the card, the persisted step and the replay pair; a repeat
@@ -756,7 +773,11 @@ export function wrapToolsForLoop(tools: ToolSet, ctx: WrapToolsContext): ToolSet
 
       // Model-facing payload only — the full result already went to the card /
       // persisted step above, and the hooks above have seen the internal fields.
-      return resultForModel(stripInternalFields(output), maxResultChars);
+      const budget = Math.min(
+        ctx.resultBudgetFor?.(toolName) ?? maxResultChars,
+        MAX_TOOL_RESULT_CHARS
+      );
+      return resultForModel(stripInternalFields(output), budget);
     };
 
     wrapped[toolName] = { ...toolDef, execute: wrappedExecute } as ToolSet[string];

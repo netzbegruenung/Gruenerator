@@ -26,7 +26,7 @@ import { resolveThreadArtifactId } from './threadArtifactTarget.js';
 import type { ChatGraphState } from '../../../agents/langgraph/ChatGraph/types.js';
 
 const NO_TARGET = 'In diesem Gespräch gibt es kein Dokument.';
-const READ_CAP = 20_000;
+export const READ_CAP = 20_000;
 
 interface DocumentToolCtx {
   state: ChatGraphState;

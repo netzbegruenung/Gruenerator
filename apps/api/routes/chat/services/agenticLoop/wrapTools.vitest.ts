@@ -389,8 +389,8 @@ describe('wrapToolsForLoop', () => {
       ctx
     );
 
-    const out = (await run(tools, 'fetch', {})) as { _truncated?: boolean };
-    expect(out._truncated).toBe(true);
+    const out = (await run(tools, 'fetch', {})) as { _gekuerzt?: { gesamtZeichen: number } };
+    expect(out._gekuerzt?.gesamtZeichen).toBe(50_000);
     // The persisted/recorded step keeps the full untruncated content.
     expect((steps[0].result as { content: string }).content.length).toBe(50_000);
   });

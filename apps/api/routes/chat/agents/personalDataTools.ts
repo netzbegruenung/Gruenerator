@@ -556,7 +556,7 @@ NUTZE FÜR: eigene Dokumente auflisten (list), eines per id ansehen (get), umben
 // ---------------------------------------------------------------------------
 
 /** Beyond this the excerpt is cut — one artifact must not eat the whole turn. */
-const ARTIFACT_READ_CHARS = 12_000;
+export const ARTIFACT_READ_CHARS = 12_000;
 
 const READ_KIND_NOUN: Record<ArtifactReadKind, string> = {
   doc: 'Dokument',
