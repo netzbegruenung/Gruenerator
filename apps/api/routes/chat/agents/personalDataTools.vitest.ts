@@ -95,7 +95,10 @@ vi.mock('../../../services/subtitler/reelSearch.js', () => ({
   getReelTranscript: (...a: unknown[]) => getReelTranscript(...a),
   reelUrl: (id: string) => `/studio/video?project=${id}`,
 }));
-vi.mock('../services/artifactReader.js', () => ({
+vi.mock('../services/artifactReader.js', async (importOriginal) => ({
+  // Die echte Zuordnung Untertyp → kind: genau sie prüfen die Trefferzeilen.
+  subtypeToReadKind: (await importOriginal<typeof import('../services/artifactReader.js')>())
+    .subtypeToReadKind,
   readArtifactContent: (...a: unknown[]) => readArtifactContent(...a),
 }));
 vi.mock('../services/pastChatRecallService.js', () => ({
@@ -199,7 +202,8 @@ describe('find_content', () => {
       limit: 5,
     })) as { results: Array<{ id?: string; kind?: string }> };
     expect(out.results[0]).toMatchObject({ id: 'p1', kind: 'presentation' });
-    expect(out.results[1]).toMatchObject({ id: 's1', kind: 'sheet' });
+    // „tabelle" ist ein Fließtext-Dokument, keine Tabelle: `loadSheetState` liest nur `sheets`.
+    expect(out.results[1]).toMatchObject({ id: 's1', kind: 'doc' });
   });
 
   it('search also surfaces matching reels alongside office content', async () => {

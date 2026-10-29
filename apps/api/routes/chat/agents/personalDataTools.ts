@@ -67,7 +67,11 @@ import {
 } from '../../docs/docsSearch.js';
 import { aggregateRecentActivity } from '../../workplace/recentActivityController.js';
 import { hasWriteAccess } from '../confirmController.js';
-import { readArtifactContent, type ArtifactReadKind } from '../services/artifactReader.js';
+import {
+  readArtifactContent,
+  subtypeToReadKind,
+  type ArtifactReadKind,
+} from '../services/artifactReader.js';
 import { emitToolConfirmAction, newActionId } from '../services/confirmActionService.js';
 import { extractTextContent } from '../services/messageHelpers.js';
 import {
@@ -232,15 +236,6 @@ export function makeRow(
   };
 }
 
-/** The `read_artifact` kind of an office row — the branches of `officeKindLabel`,
- *  as the enum value the reader takes. */
-function officeReadKind(subtype: string | null): ArtifactReadKind {
-  if (subtype === 'boards') return 'board';
-  if (subtype === 'presentations') return 'presentation';
-  if (subtype === 'sheets' || subtype === 'tabelle') return 'sheet';
-  return 'doc';
-}
-
 /** So viele Dokumente der Person werden bei id-Aktionen durchsucht. */
 const OWNED_LOOKUP_WINDOW = 200;
 
@@ -313,7 +308,7 @@ NUTZE WENN nach eigenen Inhalten gefragt wird ("zeig mir meine Dokumente", "find
               officeSnippet(h.document_subtype, h.content)
             ),
             id: h.id,
-            kind: officeReadKind(h.document_subtype),
+            kind: subtypeToReadKind(h.document_subtype),
           })),
           ...reelHits.map((r) => makeRow(r.title, r.url, 'Reel', r.snippet, `reel:${r.id}`)),
         ];
@@ -344,7 +339,7 @@ NUTZE WENN nach eigenen Inhalten gefragt wird ("zeig mir meine Dokumente", "find
         ...makeRow(it.title, it.href, it.documentType ?? it.type, it.content),
         // Bilder, Videos und Canvas haben keinen Text für read_artifact.
         ...(it.type === 'doc'
-          ? { id: it.id, kind: officeReadKind(it.documentType ?? null) }
+          ? { id: it.id, kind: subtypeToReadKind(it.documentType ?? null) }
           : it.type === 'board'
             ? { id: it.id, kind: 'board' as const }
             : {}),
@@ -497,7 +492,7 @@ NUTZE FÜR: eigene Dokumente auflisten (list), eines per id ansehen (get), umben
             officeKindLabel(d.document_subtype)
           ),
           id: d.id,
-          kind: officeReadKind(d.document_subtype),
+          kind: subtypeToReadKind(d.document_subtype),
         }));
         groundRows(sourceRegistry, results);
         // Eine volle Liste ist eine Auswahl der neuesten, keine Gesamtmenge.
@@ -540,7 +535,7 @@ NUTZE FÜR: eigene Dokumente auflisten (list), eines per id ansehen (get), umben
             url,
             type: kind,
             id: match.id,
-            kind: officeReadKind(match.document_subtype),
+            kind: subtypeToReadKind(match.document_subtype),
           },
           hinweis:
             'Das sind nur Titel, Art und Link. Den Inhalt liest read_artifact mit id und kind.',
