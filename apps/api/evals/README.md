@@ -158,6 +158,24 @@ liest das ROHE `tool_step_result` aus dem SSE, nicht die fürs Modell gekürzte
 Fassung. Es gibt kein Feld für Werkzeug-ARGUMENTE (z. B. den Urheber-String);
 die Fälle prüfen dort nur den Weg.
 
+**Werkzeugwahl und Fehlfragen (`corpus/werkzeugwahl.jsonl`, `corpus/fehlfragen.jsonl`):**
+`EVAL_FILTER=wahl-` bzw. `fehl-`. Die Werkzeugwahl prüft mit `ersterAufruf` den ERSTEN
+Aufruf eines Turns; `toolsMustInclude` wäre auch nach einem Umweg erfüllt. Die
+Fehlfragen haben eine falsche Prämisse (Dokument, Notebook, Drucksache … gibt es
+nicht) und sind rot, wenn die Antwort das nicht sagt. Die Werkzeugwahl schwankt —
+jede Aussage braucht mindestens drei Läufe.
+
+**Zwischen zwei Läufen die Eval-Threads in den Papierkorb legen.** Die proaktive
+Chat-Erinnerung (`recallStage.ts`) holt zu jedem neuen Thread die ähnlichsten
+alten Chats, und das Modell antwortet dann aus dem Vorlauf („wie wir heute
+bereits festgestellt haben …"), statt zu suchen (#5138). Abschalten lässt sie sich
+für den Lauf nicht: der Dev-Bypass-Nutzer ist eine Konstante ohne
+`memory_enabled`, die Profilzeile wirkt nicht. Am 29.10.2026 hat ein verschmutzter
+Ausgangswert so einen Fehler verdeckt (Parteiposition ohne jedes Werkzeug beantwortet: in 1 von 3 Läufen mit
+Erinnerung, in 3 von 3 ohne). Gelöscht wird per
+`DELETE /api/chat-service/threads?threadId=<id>`; die Ids findet die erste
+Nutzernachricht jedes Threads, die genau einem Korpus-Prompt entspricht.
+
 ## Env
 
 | var                             | default                 | purpose                                            |

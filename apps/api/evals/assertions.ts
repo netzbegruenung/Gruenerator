@@ -447,6 +447,18 @@ export function runAssertions(
     );
   }
 
+  if (expect.ersterAufruf) {
+    const erster = toolNames[0];
+    results.push(
+      erster != null && expect.ersterAufruf.includes(erster)
+        ? ok('ersterAufruf')
+        : fail(
+            'ersterAufruf',
+            `first call ${erster ?? '(none)'}; expected ${expect.ersterAufruf.join('|')}`
+          )
+    );
+  }
+
   if (expect.toolNameMatches != null) {
     const re = new RegExp(expect.toolNameMatches);
     results.push(
