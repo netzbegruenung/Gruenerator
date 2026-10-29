@@ -14,6 +14,7 @@ import { getPostgresInstance } from '../../database/services/PostgresService.js'
 import { getAppBundleUsage } from '../../services/appBundles/appBundleUsage.js';
 import { isPandaEntitled } from '../../services/user/pandaEntitlement.js';
 import { requireInstanceAdmin } from '../../utils/adminAuthz.js';
+import { refreshSessionUserSnapshot } from '../../utils/betterAuthSessionUser.js';
 import { logContractValidationError } from '../../utils/contractValidationLogger.js';
 import { getAuthedUser } from '../../utils/getAuthedUser.js';
 import { createLogger } from '../../utils/logger.js';
@@ -165,6 +166,10 @@ export const instanceAdminOverviewContractRouter = s.router(instanceAdminOvervie
           body: { success: false, message: 'Nutzer:in nicht gefunden.' },
         };
       }
+
+      // The web UI reads `is_admin` from the session; without this the frozen
+      // Redis snapshot keeps the old value until the person logs in again.
+      await refreshSessionUserSnapshot(userId);
 
       log.info(
         `[instanceAdminOverviewContract.setUserAdmin] ${authedUser.id} set is_admin=${isAdmin} for ${userId}`

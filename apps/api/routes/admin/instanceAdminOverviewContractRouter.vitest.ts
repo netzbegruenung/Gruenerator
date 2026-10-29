@@ -9,8 +9,10 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const requireInstanceAdmin = vi.fn();
 const query = vi.fn();
+const refreshSessionUserSnapshot = vi.fn();
 
 vi.mock('../../utils/adminAuthz.js', () => ({ requireInstanceAdmin }));
+vi.mock('../../utils/betterAuthSessionUser.js', () => ({ refreshSessionUserSnapshot }));
 vi.mock('../../database/services/PostgresService.js', () => ({
   getPostgresInstance: () => ({ query }),
 }));
@@ -38,6 +40,7 @@ async function loadRouter() {
 beforeEach(() => {
   requireInstanceAdmin.mockReset().mockResolvedValue(true);
   query.mockReset();
+  refreshSessionUserSnapshot.mockReset().mockResolvedValue(undefined);
 });
 
 describe('instanceAdminOverviewContract.setUserPanda', () => {
@@ -148,6 +151,8 @@ describe('instanceAdminOverviewContract.setUserAdmin', () => {
       USER_ID,
     ]);
     expect(res).toMatchObject({ status: 200, body: { data: { id: USER_ID, isAdmin: true } } });
+    // Sonst sieht die Person den Admin-Bereich erst nach dem nächsten Login.
+    expect(refreshSessionUserSnapshot).toHaveBeenCalledWith(USER_ID);
   });
 
   it('lässt niemanden die eigenen Rechte entziehen', async () => {
@@ -160,6 +165,7 @@ describe('instanceAdminOverviewContract.setUserAdmin', () => {
 
     expect(res.status).toBe(409);
     expect(query).not.toHaveBeenCalled();
+    expect(refreshSessionUserSnapshot).not.toHaveBeenCalled();
   });
 
   it('meldet 404 für eine unbekannte Person', async () => {
