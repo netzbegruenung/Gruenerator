@@ -160,7 +160,7 @@ function FeedWidget({ to, locale }: { to: string; locale: 'de' | 'at' }) {
   // zeigt /feed ihn gar nicht, also führt die Kachel dort keine LV-Schlagzeile.
   const { data } = useWhatHappened(locale, { days: 7 });
   const articles: WhatHappenedArticle[] =
-    locale === 'at' ? [] : (data?.days ?? []).flatMap((d) => d.articles).slice(0, 4);
+    locale === 'at' ? [] : (data?.days ?? []).flatMap((d) => d.articles ?? []).slice(0, 4);
   return (
     <Widget
       to={to}
@@ -242,7 +242,8 @@ function Sparkline({ values }: { values: number[] }) {
 
 function UmfragenWidget({ to, locale }: { to: string; locale: 'de' | 'at' }) {
   const { data } = usePolls(locale === 'at' ? 'oesterreich' : 'deutschland');
-  const g = grueneSnapshot(data);
+  // `average`/`polls` fehlen in einer leeren 200-Antwort (E2E-Fixtures, Teilausfall) — dann kein Widget-Inhalt.
+  const g = data?.average && data.polls ? grueneSnapshot(data) : null;
   const others = Object.entries(data?.average ?? {})
     .filter(([party]) => !isGruene(party))
     .sort((a, b) => b[1] - a[1])

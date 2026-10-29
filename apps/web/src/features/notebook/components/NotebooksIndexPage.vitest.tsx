@@ -1,5 +1,5 @@
 import { createApiClient, setGlobalApiClient } from '@gruenerator/shared/api';
-import { screen, within } from '@testing-library/react';
+import { screen, waitFor, within } from '@testing-library/react';
 import { http, HttpResponse } from 'msw';
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 
@@ -293,6 +293,30 @@ describe('NotebooksIndexFooter — live tool tiles', () => {
     renderWithProviders(<NotebooksIndexFooter />);
 
     expect(await screen.findByText('Grüne fordern Klimageld')).toBeInTheDocument();
+  });
+
+  it('survives shapeless 200 answers from every monitor endpoint (E2E fixtures)', async () => {
+    // The E2E fixtures answer unknown /api/ routes with `{ success, data: [], items: [] }`,
+    // so `average`, `polls`, `days`, `keywords` and `articles` are all missing.
+    const shapeless = { success: true, data: [], items: [] };
+    serveCollections([], shapeless, shapeless, [], shapeless);
+    let polled = false;
+    server.use(
+      http.get(MONITOR_POLLS, () => {
+        polled = true;
+        return HttpResponse.json(shapeless, { status: 200 });
+      })
+    );
+
+    renderWithProviders(<NotebooksIndexFooter />);
+
+    // The static text shows while loading too — wait until the answers were consumed.
+    await waitFor(() => expect(polled).toBe(true));
+    await new Promise((resolve) => setTimeout(resolve, 100));
+    expect(screen.getByText('Sonntagsfrage, Ländertrends und Meinungsbild.')).toBeInTheDocument();
+    expect(
+      screen.getByText('Meistdiskutierte Themen und X-Trends der letzten 24 Stunden.')
+    ).toBeInTheDocument();
   });
 
   it('falls back to the static descriptions when the snapshot carries no keywords', async () => {
