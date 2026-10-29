@@ -5,8 +5,6 @@ import { ySyncPluginKey } from 'y-prosemirror';
 import * as Y from 'yjs';
 import { afterEach, describe, expect, it } from 'vitest';
 
-import { YSyncBindingConsistencyExtension } from './ySyncBindingConsistency';
-
 const REMOTE_CLIENT = 424242;
 
 /** Awareness stand-in (see undoAcrossAIFork.vitest.ts) that can hold a remote peer. */
@@ -25,13 +23,12 @@ function fakeAwareness() {
   };
 }
 
-function createCollabEditor({ guarded }: { guarded: boolean }) {
+function createCollabEditor() {
   const doc = new Y.Doc();
   const fragment = doc.getXmlFragment('doc');
   const awareness = fakeAwareness();
   const editor = BlockNoteEditor.create(
     withCollaboration({
-      extensions: guarded ? [YSyncBindingConsistencyExtension] : [],
       collaboration: {
         fragment,
         user: { name: 'Test User', color: '#FF0000' },
@@ -79,25 +76,15 @@ afterEach(() => {
   ctx = undefined;
 });
 
-describe('remote cursors across the AI merge (no guard — documents the upstream bug)', () => {
-  // merge() swaps the yjs plugins back via replaceExtension; the new ySync view
-  // re-renders and dispatches `{ binding }` before BlockNote rebinds `type`/`doc`.
-  // The re-added cursor plugin resolves the collaborator's cursor in the fork
-  // doc against the original mapping (GlitchTip #659). If this test ever fails,
-  // upstream fixed it and the extension can go.
-  it.each([false, true])(
-    'merge({ keepChanges: %s }) throws while a collaborator has a cursor',
-    (keepChanges) => {
-      ctx = createCollabEditor({ guarded: false });
-      forkExt(ctx.editor).fork();
-      expect(() => forkExt(ctx!.editor).merge({ keepChanges })).toThrow(/nodeSize/);
-    }
-  );
-});
-
-describe('YSyncBindingConsistencyExtension', () => {
+// Up to 0.55, merge() dispatched the new ySync binding before rebinding the
+// plugin state's `type`/`doc`, and the cursor plugin then resolved a
+// collaborator's cursor against the wrong doc and threw out of merge() midway
+// (GlitchTip #659, TypeCellOS/BlockNote#3135). We patched the transaction with
+// YSyncBindingConsistencyExtension; 0.56 resets the plugin state itself
+// (#3090). These pin the fix so a regression fails here, not on accept/reject.
+describe('AI merge while a collaborator has a cursor', () => {
   it.each([false, true])('merge({ keepChanges: %s }) completes and re-syncs', (keepChanges) => {
-    ctx = createCollabEditor({ guarded: true });
+    ctx = createCollabEditor();
     const { editor, fragment } = ctx;
 
     forkExt(editor).fork();
@@ -121,7 +108,7 @@ describe('YSyncBindingConsistencyExtension', () => {
   });
 
   it('survives repeated fork/merge cycles', () => {
-    ctx = createCollabEditor({ guarded: true });
+    ctx = createCollabEditor();
     const { editor } = ctx;
     for (const keepChanges of [false, true, false]) {
       forkExt(editor).fork();

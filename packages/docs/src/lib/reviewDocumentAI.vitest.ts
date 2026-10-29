@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { BlockNoteEditor } from '@blocknote/core';
-import { ForkYDocExtension, withCollaboration } from '@blocknote/core/yjs';
+import { ForkYDocExtension, withCollaboration, YjsVersioningExtension } from '@blocknote/core/yjs';
 import { AIExtension } from '@blocknote/xl-ai';
 import { yUndoPluginKey } from 'y-prosemirror';
 import * as Y from 'yjs';
@@ -9,7 +9,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { getDocAIExtension } from './aiExtension';
 import { invokeDocumentAI, noteDocAIResponse } from './invokeDocumentAI';
 import { acceptDocumentAI, rejectDocumentAI, rememberAIReviewFork } from './reviewDocumentAI';
-import { guardDocUndoAcrossAIFork, type UndoGuardEditor } from './undoAcrossAIFork';
+import { guardDocUndoAcrossAIFork } from './undoAcrossAIFork';
+import { type UndoableEditor } from '../hooks/useDocUndoState';
 import { useEditorStore } from '../stores/editorStore';
 
 const toast = vi.hoisted(() => ({ error: vi.fn(), info: vi.fn() }));
@@ -31,7 +32,7 @@ function fakeAwareness() {
   };
 }
 
-function setup() {
+function setup({ versioning = false }: { versioning?: boolean } = {}) {
   const doc = new Y.Doc();
   const fragment = doc.getXmlFragment('doc');
   const collab = withCollaboration({
@@ -44,7 +45,22 @@ function setup() {
   });
   const editor = BlockNoteEditor.create({
     ...collab,
-    extensions: [...(collab.extensions ?? []), AIExtension()],
+    extensions: [
+      ...(collab.extensions ?? []),
+      AIExtension(),
+      ...(versioning
+        ? [
+            YjsVersioningExtension({
+              storage: {
+                list: async () => ({ versions: [] }),
+                getContent: async () => {
+                  throw new Error('not needed');
+                },
+              },
+            } as never),
+          ]
+        : []),
+    ],
   });
   editor.mount(document.createElement('div'));
   editor.replaceBlocks(editor.document, [
@@ -59,7 +75,7 @@ function setup() {
   };
   useEditorStore.getState().setEditor(DOC_ID, editor as never);
   useEditorStore.getState().setDocContext(DOC_ID, { ydoc: doc, provider: provider as never });
-  const unguard = guardDocUndoAcrossAIFork(editor as unknown as UndoGuardEditor, {
+  const unguard = guardDocUndoAcrossAIFork(editor as unknown as UndoableEditor, {
     isCollaborative: true,
     fragment,
   });
@@ -246,6 +262,27 @@ describe('invokeDocumentAI outcome', () => {
 
     expect(isForked(ctx.editor)).toBe(true);
     expect(toast.info).toHaveBeenCalledTimes(1);
+  });
+
+  // BlockNote 0.56's version preview holds the fork read-only. xl-ai's fork()
+  // would be a no-op and the suggestions would land in the preview.
+  it('does not run while the version history holds the fork', async () => {
+    ctx = setup({ versioning: true });
+    const versioning = ctx.editor.getExtension('versioning') as unknown as {
+      open: () => boolean;
+      close: () => void;
+    };
+    versioning.open();
+    const invoke = vi.fn();
+    getDocAIExtension(DOC_ID)!.invokeAI = invoke;
+
+    await invokeDocumentAI({ documentId: DOC_ID, userPrompt: 'x' });
+    await flushToasts();
+
+    expect(invoke).not.toHaveBeenCalled();
+    expect(toast.error).toHaveBeenCalledTimes(1);
+    expect(isForked(ctx.editor)).toBe(true);
+    versioning.close();
   });
 
   it('reports a failed follow-up request but keeps the earlier suggestions', async () => {
