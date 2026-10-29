@@ -4,6 +4,7 @@ import { type z } from 'zod';
 import { createSourceRegistry } from '../services/agenticLoop/sourceRegistry.js';
 
 import {
+  ARTIFACT_READ_CHARS,
   makeBoardsTasksTool,
   makeDocumentsTool,
   makeReadArtifactTool,
@@ -94,7 +95,10 @@ vi.mock('../../../services/subtitler/reelSearch.js', () => ({
   getReelTranscript: (...a: unknown[]) => getReelTranscript(...a),
   reelUrl: (id: string) => `/studio/video?project=${id}`,
 }));
-vi.mock('../services/artifactReader.js', () => ({
+vi.mock('../services/artifactReader.js', async (importOriginal) => ({
+  // Die echte Zuordnung Untertyp → kind: genau sie prüfen die Trefferzeilen.
+  subtypeToReadKind: (await importOriginal<typeof import('../services/artifactReader.js')>())
+    .subtypeToReadKind,
   readArtifactContent: (...a: unknown[]) => readArtifactContent(...a),
 }));
 vi.mock('../services/pastChatRecallService.js', () => ({
@@ -185,6 +189,21 @@ describe('find_content', () => {
     expect(searchOfficeContent).toHaveBeenCalledWith('u1', 'klima', { limit: 5 });
     expect(out.resultCount).toBe(1);
     expect(out.results[0]).toMatchObject({ title: 'Klimaplan', url: '/office/d1' });
+  });
+
+  it('search rows carry the id and the read_artifact kind, not only a label in the url', async () => {
+    searchOfficeContent.mockResolvedValue([
+      { id: 'p1', title: 'Wahlkampf-Folien', document_subtype: 'presentations', content: '' },
+      { id: 's1', title: 'Budget', document_subtype: 'tabelle', content: '' },
+    ]);
+    const out = (await exec(makeFindContentTool(ctx('u1')), {
+      action: 'search',
+      query: 'wahlkampf',
+      limit: 5,
+    })) as { results: Array<{ id?: string; kind?: string }> };
+    expect(out.results[0]).toMatchObject({ id: 'p1', kind: 'presentation' });
+    // „tabelle" ist ein Fließtext-Dokument, keine Tabelle: `loadSheetState` liest nur `sheets`.
+    expect(out.results[1]).toMatchObject({ id: 's1', kind: 'doc' });
   });
 
   it('search also surfaces matching reels alongside office content', async () => {
@@ -944,6 +963,38 @@ describe('read_artifact', () => {
     expect(out.content.length).toBeLessThan(20_000);
     expect(out.content).toContain('[gekürzt]');
   });
+
+  it('reads on from "weiter.ab" until the end of a long artifact', async () => {
+    const text = `${'a'.repeat(ARTIFACT_READ_CHARS)}${'b'.repeat(5_000)}`;
+    readArtifactContent.mockResolvedValue(text);
+    const first = (await exec(makeReadArtifactTool(ctx('u1')), { kind: 'doc', id: 'd1' })) as {
+      weiter?: { ab: number };
+      gesamtZeichen: number;
+    };
+    expect(first.weiter).toEqual({ ab: ARTIFACT_READ_CHARS });
+    expect(first.gesamtZeichen).toBe(text.length);
+
+    const second = (await exec(makeReadArtifactTool(ctx('u1')), {
+      kind: 'doc',
+      id: 'd1',
+      ab: first.weiter!.ab,
+    })) as { content: string; truncated: boolean; weiter?: unknown };
+    expect(second.content).toContain('b'.repeat(5_000));
+    expect(second.content).not.toContain('a');
+    expect(second.truncated).toBe(false);
+    expect(second.weiter).toBeUndefined();
+    readArtifactContent.mockReset();
+  });
+
+  it('says where the artifact ends when "ab" is past it', async () => {
+    readArtifactContent.mockResolvedValueOnce('kurz');
+    const out = (await exec(makeReadArtifactTool(ctx('u1')), {
+      kind: 'doc',
+      id: 'd1',
+      ab: 100,
+    })) as { error?: string };
+    expect(out.error).toContain('4 Zeichen');
+  });
 });
 
 // --- search_threads ----------------------------------------------------------
@@ -1000,11 +1051,29 @@ describe('search_threads', () => {
       ],
     });
     listRecentThreads.mockResolvedValue([]);
-    await exec(makeSearchThreadsTool(ctx('u1')), { action: 'search', scope: 'space', limit: 3 });
+    const out = (await exec(makeSearchThreadsTool(ctx('u1')), {
+      action: 'search',
+      scope: 'space',
+      limit: 3,
+    })) as { durchsucht: string };
     expect(listRecentThreads).toHaveBeenCalledWith('u1', {
       limit: 3,
       excludeThreadId: 't1',
       threadIds: ['th1', 'th2'],
     });
+    // Ein leerer Space ist keine leere Chat-Historie — das Ergebnis sagt es.
+    expect(out.durchsucht).toContain('nur die Chats dieses Space');
+  });
+
+  it('outside a Space the result says all chats were searched', async () => {
+    dbQuery.mockResolvedValue([]); // getCurrentSpaceId → no space
+    recallPastChats.mockResolvedValue([]);
+    const out = (await exec(makeSearchThreadsTool(ctx('u1')), {
+      action: 'search',
+      query: 'Hitzeschutz',
+      scope: 'space',
+      limit: 5,
+    })) as { durchsucht: string };
+    expect(out.durchsucht).toBe('alle eigenen Chats');
   });
 });

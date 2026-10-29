@@ -67,7 +67,11 @@ import {
 } from '../../docs/docsSearch.js';
 import { aggregateRecentActivity } from '../../workplace/recentActivityController.js';
 import { hasWriteAccess } from '../confirmController.js';
-import { readArtifactContent, type ArtifactReadKind } from '../services/artifactReader.js';
+import {
+  readArtifactContent,
+  subtypeToReadKind,
+  type ArtifactReadKind,
+} from '../services/artifactReader.js';
 import { emitToolConfirmAction, newActionId } from '../services/confirmActionService.js';
 import { extractTextContent } from '../services/messageHelpers.js';
 import {
@@ -207,6 +211,12 @@ export interface ResultRow {
   type?: string;
   /** Opaque handle for follow-up actions (e.g. media delete needs the share token). */
   ref?: string;
+  /** What `read_artifact` takes to open this row. Before these fields the id sat
+   *  only inside `url` (`/office/<id>`) and `type` was a German label the
+   *  reader's `kind` enum does not accept — the model had to cut a UUID out of
+   *  a path and translate „Präsentation" into `presentation`. */
+  id?: string;
+  kind?: ArtifactReadKind;
 }
 
 /** Build a row, omitting empty optionals (exactOptionalPropertyTypes: no `undefined`). */
@@ -290,14 +300,16 @@ NUTZE WENN nach eigenen Inhalten gefragt wird ("zeig mir meine Dokumente", "find
           searchReels(userId, q, Math.min(limit, 5)),
         ]);
         const results = [
-          ...hits.map((h) =>
-            makeRow(
+          ...hits.map((h) => ({
+            ...makeRow(
               h.title,
               officeUrl(h.document_subtype, h.id),
               officeKindLabel(h.document_subtype),
               officeSnippet(h.document_subtype, h.content)
-            )
-          ),
+            ),
+            id: h.id,
+            kind: subtypeToReadKind(h.document_subtype),
+          })),
           ...reelHits.map((r) => makeRow(r.title, r.url, 'Reel', r.snippet, `reel:${r.id}`)),
         ];
         groundRows(sourceRegistry, results);
@@ -323,9 +335,15 @@ NUTZE WENN nach eigenen Inhalten gefragt wird ("zeig mir meine Dokumente", "find
       }
 
       const items = await aggregateRecentActivity(userId, limit);
-      const results = items.map((it) =>
-        makeRow(it.title, it.href, it.documentType ?? it.type, it.content)
-      );
+      const results = items.map((it) => ({
+        ...makeRow(it.title, it.href, it.documentType ?? it.type, it.content),
+        // Bilder, Videos und Canvas haben keinen Text für read_artifact.
+        ...(it.type === 'doc'
+          ? { id: it.id, kind: subtypeToReadKind(it.documentType ?? null) }
+          : it.type === 'board'
+            ? { id: it.id, kind: 'board' as const }
+            : {}),
+      }));
       groundRows(sourceRegistry, results);
       return { resultCount: results.length, results };
     },
@@ -359,7 +377,7 @@ NUTZE WENN nach früheren Gesprächen gefragt wird ("worüber haben wir letztens
 - Ohne query: listet die zuletzt aktiven Chats (für "worüber haben wir zuletzt gechattet").
 - scope="space": nur die Chats des aktuellen Space durchsuchen (Standard, wenn der Chat in einem Space liegt).
 - scope="all": alle eigenen Chats durchsuchen.
-- action="read": den vollständigen Verlauf EINES Threads lesen (threadId aus einem Suchergebnis).`,
+- action="read": den Verlauf EINES Threads lesen (threadId aus einem Suchergebnis) — seine Zusammenfassung oder die letzten 10 Nachrichten, höchstens 4.000 Zeichen.`,
     inputSchema: z.object({
       action: z.enum(['search', 'read']).default('search'),
       query: z
@@ -428,7 +446,16 @@ NUTZE WENN nach früheren Gesprächen gefragt wird ("worüber haben wir letztens
         )
       );
       groundRows(sourceRegistry, results);
-      return { resultCount: results.length, results };
+      // Der Standard `space` greift nur in einem Space; ohne Angabe hielte das
+      // Modell eine Space-Suche ohne Treffer für eine Suche über alle Chats.
+      return {
+        resultCount: results.length,
+        results,
+        durchsucht:
+          threadIds != null
+            ? 'nur die Chats dieses Space (scope="all" durchsucht alle eigenen Chats)'
+            : 'alle eigenen Chats',
+      };
     },
   });
 }
@@ -442,7 +469,7 @@ export function makeDocumentsTool(ctx: PersonalToolCtx): Tool {
   return tool({
     description: `Zugriff auf die EIGENEN Dokumente, Tabellen und Präsentationen (nicht Boards — dafür 'boards_tasks').
 
-NUTZE FÜR: eigene Dokumente auflisten (list), eines per id ansehen (get), umbenennen (rename), löschen (delete), mit einer Gruppe teilen (share_to_group). Umbenennen wirkt sofort; Löschen und Teilen werden der Person zur Bestätigung angezeigt. Um das GERADE ERSTELLTE Dokument zu teilen, share_to_group nur mit groupName aufrufen (id weglassen).`,
+NUTZE FÜR: eigene Dokumente auflisten (list), Titel, Art und Link eines Dokuments per id holen (get — den INHALT liest read_artifact), umbenennen (rename), löschen (delete), mit einer Gruppe teilen (share_to_group). Umbenennen wirkt sofort; Löschen und Teilen werden der Person zur Bestätigung angezeigt. Um das GERADE ERSTELLTE Dokument zu teilen, share_to_group nur mit groupName aufrufen (id weglassen).`,
     inputSchema: z.object({
       action: z.enum(['list', 'get', 'rename', 'delete', 'share_to_group']),
       id: z
@@ -467,9 +494,15 @@ NUTZE FÜR: eigene Dokumente auflisten (list), eines per id ansehen (get), umben
 
       if (action === 'list') {
         const docs = await listUserDocuments(userId, limit);
-        const results = docs.map((d) =>
-          makeRow(d.title, officeUrl(d.document_subtype, d.id), officeKindLabel(d.document_subtype))
-        );
+        const results = docs.map((d) => ({
+          ...makeRow(
+            d.title,
+            officeUrl(d.document_subtype, d.id),
+            officeKindLabel(d.document_subtype)
+          ),
+          id: d.id,
+          kind: subtypeToReadKind(d.document_subtype),
+        }));
         groundRows(sourceRegistry, results);
         // Eine volle Liste ist eine Auswahl der neuesten, keine Gesamtmenge.
         return {
@@ -505,7 +538,17 @@ NUTZE FÜR: eigene Dokumente auflisten (list), eines per id ansehen (get), umben
         const url = officeUrl(match.document_subtype, match.id);
         const kind = officeKindLabel(match.document_subtype);
         ground(sourceRegistry, [{ title: match.title, content: `${kind}: ${match.title}`, url }]);
-        return { document: { title: match.title, url, type: kind } };
+        return {
+          document: {
+            title: match.title,
+            url,
+            type: kind,
+            id: match.id,
+            kind: subtypeToReadKind(match.document_subtype),
+          },
+          hinweis:
+            'Das sind nur Titel, Art und Link. Den Inhalt liest read_artifact mit id und kind.',
+        };
       }
 
       if (action === 'rename') {
@@ -658,7 +701,9 @@ export function makeReadArtifactTool(ctx: PersonalToolCtx): Tool {
 
 NUTZE FÜR: "was steht in der Präsentation?", "vergleiche das PDF mit den Folien", "prüfe, ob Folie 5 stimmt", "fasse mein Dokument zusammen". Ohne diesen Aufruf kennst du den Inhalt NICHT — rate ihn niemals.
 
-Die "id" bekommst du aus 'find_content' oder 'documents' (action="list"). Geht es um ein Artefakt AUS DIESEM GESPRÄCH, lass "id" weg und gib nur "kind" an.`,
+"id" und "kind" stehen in jedem Treffer von 'find_content' oder 'documents' (action="list") — übernimm beide. Geht es um ein Artefakt AUS DIESEM GESPRÄCH, lass "id" weg und gib nur "kind" an.
+
+Lange Inhalte kommen in Teilen zu ${ARTIFACT_READ_CHARS.toLocaleString('de-DE')} Zeichen. Steht im Ergebnis "weiter", rufe erneut mit "ab" auf, wenn du den Rest brauchst.`,
     inputSchema: z.object({
       kind: z
         .enum(['doc', 'board', 'sheet', 'presentation', 'pdf'])
@@ -669,8 +714,16 @@ Die "id" bekommst du aus 'find_content' oder 'documents' (action="list"). Geht e
         .describe(
           'ID aus einem vorherigen Suchtreffer. Weglassen für das Artefakt aus diesem Gespräch.'
         ),
+      ab: z
+        .number()
+        .int()
+        .min(0)
+        .optional()
+        .describe(
+          'Zeichenposition, ab der gelesen wird — der Wert aus "weiter.ab". Weglassen für den Anfang.'
+        ),
     }),
-    execute: async ({ kind, id }) => {
+    execute: async ({ kind, id, ab }) => {
       const userId = requireUserId(state);
       if (!userId) return { error: NO_SESSION };
       const noun = READ_KIND_NOUN[kind];
@@ -731,15 +784,27 @@ Die "id" bekommst du aus 'find_content' oder 'documents' (action="list"). Geht e
         };
       }
 
-      const excerpt =
-        content.length > ARTIFACT_READ_CHARS
-          ? `${content.slice(0, ARTIFACT_READ_CHARS)}\n…[gekürzt]`
-          : content;
-      const title = label ?? `${noun}-Inhalt`;
+      const start = ab ?? 0;
+      if (start >= content.length) {
+        return {
+          error: `ab=${start} liegt hinter dem Ende — ${noun} hat ${content.length} Zeichen.`,
+        };
+      }
+      const end = Math.min(start + ARTIFACT_READ_CHARS, content.length);
+      const weiter = end < content.length ? { ab: end } : null;
+      const excerpt = `${start > 0 ? '…\n' : ''}${content.slice(start, end)}${weiter ? '\n…[gekürzt]' : ''}`;
+      const title = `${label ?? `${noun}-Inhalt`}${start > 0 ? ` (ab Zeichen ${start})` : ''}`;
       // Grounding, not a note: this IS retrieved material, and in split mode the
       // writer sees nothing but the rendered sources.
       ground(sourceRegistry, [{ title, content: excerpt }]);
-      return { kind, title, content: excerpt, truncated: excerpt !== content };
+      return {
+        kind,
+        title,
+        content: excerpt,
+        truncated: weiter != null,
+        gesamtZeichen: content.length,
+        ...(weiter ? { weiter } : {}),
+      };
     },
   });
 }
@@ -801,9 +866,11 @@ NUTZE FÜR: Boards auflisten (list_boards), Karten eines Boards lesen (get_cards
 
       if (action === 'list_boards') {
         const boards = await listUserBoards(userId, args.limit);
-        const results = boards.map((b) =>
-          makeRow(b.title, `/boards/${b.id}`, 'Board', officeSnippet('boards', b.content))
-        );
+        const results = boards.map((b) => ({
+          ...makeRow(b.title, `/boards/${b.id}`, 'Board', officeSnippet('boards', b.content)),
+          id: b.id,
+          kind: 'board' as const,
+        }));
         groundRows(sourceRegistry, results);
         return { resultCount: results.length, results };
       }

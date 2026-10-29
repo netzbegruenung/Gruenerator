@@ -1138,7 +1138,7 @@ export function makeDocsSearchTool(ctx: { sourceRegistry: SourceRegistry }): Too
   return tool({
     description: `Durchsucht die offizielle Grünerator-Dokumentation (Anleitungen, Hilfeseiten, Funktionsbeschreibungen) und liefert Abschnitte mit direkt verlinkbaren Fundstellen.
 
-NUTZE WENN es um die BEDIENUNG des Grünerators geht: "wie erstelle ich ein Sharepic", "wie lege ich ein Notebook an", "wie binde ich die Grüne Wolke ein", "was ist die Agentura", "wo finde ich die Konnektoren".
+NUTZE WENN es um die BEDIENUNG des Grünerators geht: "wie erstelle ich ein Sharepic", "wie lege ich ein Notebook an", "wie binde ich die Grüne Wolke ein", "was ist der Marktplatz", "wo finde ich die Konnektoren".
 
 NICHT für politische Inhalte oder Parteiprogramme (nutze gruenerator_search), nicht für allgemeine Web-Recherche (nutze web_search), nicht für die eigenen Dokumente der Nutzer*innen.
 

@@ -129,6 +129,25 @@ describe('toolCatalog source harvesting (excerpt/snippet → content)', () => {
     expect(out.sources).toContain('Klimaneutralität'); // the excerpt actually reached the model
   });
 
+  it('keeps the tool’s own note (a discarded site scope) on a search with hits', async () => {
+    const hinweis =
+      'Die Seitenvorgabe zeit.de wurde nicht angewandt, weil die Person sie nicht genannt hat; die Suche lief über das ganze Web.';
+    webExec.mockResolvedValue({
+      query: 'Heizungsgesetz Kritik',
+      resultsCount: 1,
+      results: [{ rank: 1, title: 'Kritik', url: 'https://example.test/a', snippet: 'Text.' }],
+      hinweis,
+    });
+    const { tools } = buildChatToolCatalog({ agentConfig, sourceRegistry: createSourceRegistry() });
+    const out = (await execOf(tools.web_search)(
+      { query: 'Heizungsgesetz Kritik', seiten: ['zeit.de'] },
+      { toolCallId: 'c1' }
+    )) as { resultCount: number; hinweis?: string };
+
+    expect(out.resultCount).toBe(1);
+    expect(out.hinweis).toBe(hinweis);
+  });
+
   // The reader target comes from the hit's collection. Dropped here, a title
   // the model links as `[Titel](quelle:N)` had nothing in-app to open.
   it('keeps the collection a document hit came from, so its citation can open the reader', async () => {
