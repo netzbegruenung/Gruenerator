@@ -160,7 +160,7 @@ export default defineConfig(({ command }) => ({
       ),
       '@gruenerator/contracts/slides': path.resolve(
         __dirname,
-        '../../packages/contracts/src/slides/slideLayouts.ts'
+        '../../packages/contracts/src/slides/index.ts'
       ),
       '@gruenerator/contracts': path.resolve(__dirname, '../../packages/contracts/src'),
       // @gruenerator/core is imported transitively from the @gruenerator/shared
