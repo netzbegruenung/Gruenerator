@@ -36,6 +36,7 @@ import {
  * The one conscious exception is the „Panda" column: not a personal field but
  * the instance admin's unlock of the DeepSeek lane after training. It renders
  * only on the surface that passes `onPandaChange` (the instance Users tab).
+ * The same holds for the „Admin" column and `onAdminChange`.
  */
 export interface AdminUserRow {
   id: string;
@@ -60,6 +61,11 @@ interface AdminUserTableProps {
   onPandaChange?: (userId: string, enabled: boolean) => void;
   /** The row whose unlock is being saved — its switch is disabled meanwhile. */
   pandaPendingUserId?: string | null;
+  /** Shows the „Admin" column; omitted on every other admin surface. */
+  onAdminChange?: (user: AdminUserRow, isAdmin: boolean) => void;
+  adminPendingUserId?: string | null;
+  /** The signed-in admin — their own switch is locked so they can't lock themselves out. */
+  currentUserId?: string | null;
 }
 
 function formatDate(value: string | null): string {
@@ -78,9 +84,14 @@ export default function AdminUserTable({
   pageSize = 25,
   onPandaChange,
   pandaPendingUserId = null,
+  onAdminChange,
+  adminPendingUserId = null,
+  currentUserId = null,
 }: AdminUserTableProps) {
-  const [page, setPage] = useState(0);
+  const [requestedPage, setPage] = useState(0);
   const pageCount = Math.max(1, Math.ceil(users.length / pageSize));
+  // A narrower search can leave the old page past the end.
+  const page = Math.min(requestedPage, pageCount - 1);
   const pageUsers = useMemo(
     () => users.slice(page * pageSize, page * pageSize + pageSize),
     [users, page, pageSize]
@@ -144,8 +155,29 @@ export default function AdminUserTable({
             } satisfies ColumnDef<AdminUserRow>,
           ]
         : []),
+      ...(onAdminChange
+        ? [
+            {
+              id: 'admin',
+              header: 'Admin',
+              cell: ({ row }) => (
+                <Switch
+                  checked={row.original.isAdmin === true}
+                  disabled={
+                    adminPendingUserId === row.original.id ||
+                    (row.original.id === currentUserId && row.original.isAdmin === true)
+                  }
+                  onCheckedChange={(checked) => onAdminChange(row.original, checked)}
+                  aria-label={`Admin-Rechte für ${row.original.name} ${
+                    row.original.isAdmin ? 'entziehen' : 'vergeben'
+                  }`}
+                />
+              ),
+            } satisfies ColumnDef<AdminUserRow>,
+          ]
+        : []),
     ],
-    [onPandaChange, pandaPendingUserId]
+    [onPandaChange, pandaPendingUserId, onAdminChange, adminPendingUserId, currentUserId]
   );
 
   if (isLoading) {
@@ -205,7 +237,7 @@ export default function AdminUserTable({
             <PaginationItem>
               <PaginationLink
                 aria-label="Zur vorherigen Seite"
-                onClick={() => setPage((p) => Math.max(0, p - 1))}
+                onClick={() => setPage(Math.max(0, page - 1))}
                 disabled={page === 0}
               >
                 ‹
@@ -219,7 +251,7 @@ export default function AdminUserTable({
             <PaginationItem>
               <PaginationLink
                 aria-label="Zur nächsten Seite"
-                onClick={() => setPage((p) => Math.min(pageCount - 1, p + 1))}
+                onClick={() => setPage(Math.min(pageCount - 1, page + 1))}
                 disabled={page >= pageCount - 1}
               >
                 ›
