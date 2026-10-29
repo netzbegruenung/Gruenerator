@@ -45,6 +45,8 @@ import {
 } from '../../../services/bundestag/qa/planDetect.js';
 import {
   describeRedenFilter,
+  REDE_TEXT_MAX,
+  redeTextCap,
   redeTitle,
   redeUrl,
   redenFilterFromWording,
@@ -510,10 +512,14 @@ Nicht für Drucksachen, Gesetzentwürfe oder Beschlüsse, dafür bundestag. Nich
       }
       const results: SearchResult[] = speeches.map((s, i) => {
         const url = redeUrl(s);
-        // `cleanDipText` hängt „…" an, wenn es bei SPEECH_FULL_MAX kappt; die
-        // Gesamtlänge kennt der Client nicht, also nur „gekürzt".
+        // Gekappt wird am Client (`redeTextCap`), mit „…" am Schnitt; die
+        // Gesamtlänge kennt er nicht, also nur „gekürzt" — und wie es ganz geht.
         const gekappt = s.excerpt.endsWith('…')
-          ? '\n[Redetext gekürzt: nur der Anfang steht hier, nicht als vollständige Rede ausgeben.]'
+          ? `\n[Redetext gekürzt: nur der Anfang steht hier, nicht als vollständige Rede ausgeben.${
+              speeches.length > 1
+                ? ` Ganz (bis ${REDE_TEXT_MAX} Zeichen): bundestag_reden mit limit 1, redner und Datum dieser Rede.`
+                : ''
+            }]`
           : '';
         return {
           source: 'bundestag',
@@ -523,8 +529,11 @@ Nicht für Drucksachen, Gesetzentwürfe oder Beschlüsse, dafür bundestag. Nich
           relevance: 1 - 0.02 * i,
         };
       });
-      // Der Redetext ist der Beleg; gekappt wird schon am Client (4000 Zeichen).
-      const sources = sourceRegistry.register(results, { snippetChars: 4200 });
+      // Der Redetext ist der Beleg; gekappt wird schon am Client (`redeTextCap`),
+      // die Registry darf ihn nicht ein zweites Mal kürzen.
+      const sources = sourceRegistry.register(results, {
+        snippetChars: redeTextCap(speeches.length) + 400,
+      });
       return {
         resultCount: results.length,
         sources: sources ?? '',

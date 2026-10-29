@@ -75,7 +75,7 @@ const CACHE_NS = 'bt:v2';
 export const CURRENT_WAHLPERIODE = 21;
 
 const SPEECH_EXCERPT_MAX = 600; // full speeches run 3–4k chars each
-/** `bundestag_reden` gibt dem Modell die Rede zum Zitieren — fast immer ganz. */
+/** Voreinstellung für `searchSpeechesFull`; der Aufrufer setzt die Kappe meist selbst (`redeTextCap`). */
 const SPEECH_FULL_MAX = 4000;
 const ABSTRACT_MAX = 400;
 
@@ -562,6 +562,8 @@ class BundestagMCPClient {
     sort?: BtSort;
     /** Harter Filter des MCP auf dem Redetext (nach der Suche); für die Wortlautsuche. */
     requiredKeywords?: string[];
+    /** Kappe je Redetext; Voreinstellung {@link SPEECH_FULL_MAX}. */
+    maxChars?: number;
   }): Promise<BtListResult<BtSpeech>> {
     const {
       query,
@@ -573,11 +575,12 @@ class BundestagMCPClient {
       limit = 5,
       sort,
       requiredKeywords,
+      maxChars = SPEECH_FULL_MAX,
     } = opts;
     const required = requiredKeywords?.length
       ? `:req=${requiredKeywords.join('|').toLowerCase()}`
       : '';
-    const key = `${CACHE_NS}:speechfull:${query.toLowerCase()}:${speaker?.toLowerCase() ?? ''}:${speakerParty ?? ''}:${wahlperiode ?? 'cur'}:${dateFrom ?? ''}:${dateTo ?? ''}:${limit}:${sort ?? 'rel'}${required}`;
+    const key = `${CACHE_NS}:speechfull:${query.toLowerCase()}:${speaker?.toLowerCase() ?? ''}:${speakerParty ?? ''}:${wahlperiode ?? 'cur'}:${dateFrom ?? ''}:${dateTo ?? ''}:${limit}:${sort ?? 'rel'}:${maxChars}${required}`;
     const fetchAt = (wp: number | undefined) =>
       this.fetchTrimmed(
         'bundestag_search_speeches',
@@ -594,7 +597,7 @@ class BundestagMCPClient {
           fields: 'full',
         },
         rawSpeechSchema,
-        (raw) => mapSpeech(raw, SPEECH_FULL_MAX)
+        (raw) => mapSpeech(raw, maxChars)
       );
     // Anders als `safeList` wirft ein Ausfall hier: das Werkzeug soll „nicht
     // erreichbar" sagen können statt „keine Reden gefunden".
