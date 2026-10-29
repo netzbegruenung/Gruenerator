@@ -10,6 +10,7 @@ import { announcesPendingWork } from '../routes/chat/services/outputSanity.js';
 import { refusalLanguage } from '../routes/chat/services/refusalDetection.js';
 import { DOCS_PAGES } from '../services/docs/docsIndex.generated.js';
 
+import { LATENZ_HARTE_GRENZE_FAKTOR, stufeOf } from './ampel.js';
 import {
   type AssertionResult,
   type ChatTrace,
@@ -287,10 +288,36 @@ export function inventedParlamentRefs(
 }
 
 function fail(name: string, detail: string): AssertionResult {
-  return { name, pass: false, detail };
+  return { name, pass: false, detail, stufe: stufeOf(name) };
 }
 function ok(name: string, detail = ''): AssertionResult {
-  return { name, pass: true, detail };
+  return { name, pass: true, detail, stufe: stufeOf(name) };
+}
+
+/** Regex aus einer Korpuszeile, ohne Beachtung der Schreibweise; `null` bei ungültiger Quelle. */
+function safeRegex(source: string): RegExp | null {
+  try {
+    return new RegExp(source, 'i');
+  } catch {
+    return null;
+  }
+}
+
+/** Werte unter einem Punktpfad als Strings; Arrays werden durchlaufen. */
+export function argValues(args: Record<string, unknown>, path: string): string[] {
+  let level: unknown[] = [args];
+  for (const key of path.split('.')) {
+    level = level.flatMap((v) => {
+      const next: unknown =
+        v != null && typeof v === 'object' ? (v as Record<string, unknown>)[key] : null;
+      return Array.isArray(next) ? (next as unknown[]) : [next];
+    });
+  }
+  return level.flatMap((v) =>
+    v == null
+      ? []
+      : [typeof v === 'string' ? v : typeof v === 'object' ? JSON.stringify(v) : String(v)]
+  );
 }
 
 export function runAssertions(
@@ -744,6 +771,59 @@ export function runAssertions(
     );
   }
 
+  for (const source of expect.answerMustContain ?? []) {
+    const re = safeRegex(source);
+    const name = `answerMustContain:${source}`;
+    if (!re) {
+      results.push(fail(name, 'invalid regular expression'));
+      continue;
+    }
+    results.push(
+      re.test(`${trace.fullText}\n${producedContent(trace)}`)
+        ? ok(name)
+        : fail(name, 'required passage missing from the answer')
+    );
+  }
+
+  for (const source of expect.answerShouldContain ?? []) {
+    const re = safeRegex(source);
+    const name = `answerShouldContain:${source}`;
+    if (!re) {
+      results.push(fail(name, 'invalid regular expression'));
+      continue;
+    }
+    results.push(
+      re.test(`${trace.fullText}\n${producedContent(trace)}`)
+        ? ok(name)
+        : fail(name, 'expected passage missing from the answer')
+    );
+  }
+
+  for (const { tool, feld, muster } of expect.toolArgsMatch ?? []) {
+    const re = safeRegex(muster);
+    const name = `toolArgsMatch:${tool}.${feld}`;
+    if (!re) {
+      results.push(fail(name, `invalid regular expression: ${muster}`));
+      continue;
+    }
+    const calls = trace.toolCalls.filter((t) => t.toolName === tool);
+    const values = calls.flatMap((c) => argValues(c.args, feld));
+    if (calls.length === 0) {
+      results.push(fail(name, `${tool} was not called`));
+    } else if (values.some((v) => re.test(v))) {
+      results.push(ok(name));
+    } else {
+      results.push(
+        fail(
+          name,
+          values.length === 0
+            ? `no ${feld} argument on ${calls.length} call(s)`
+            : `${feld} = ${values.map((v) => JSON.stringify(v)).join(', ')} does not match /${muster}/`
+        )
+      );
+    }
+  }
+
   if (expect.retainsPriorSources) {
     // Either this turn surfaced sources itself, or an earlier turn did and the
     // answer must not deny having them.
@@ -766,11 +846,15 @@ export function runAssertions(
   }
 
   if (expect.maxLatencyMs != null) {
-    results.push(
-      trace.latencyMs <= expect.maxLatencyMs
-        ? ok('latency', `${trace.latencyMs}ms`)
-        : fail('latency', `${trace.latencyMs}ms > ${expect.maxLatencyMs}ms`)
-    );
+    // Zweistufig: `maxLatencyMs` ist das Soll (gelb), die doppelte Zeit die harte Grenze (rot).
+    const hard = expect.maxLatencyMs * LATENZ_HARTE_GRENZE_FAKTOR;
+    if (trace.latencyMs > hard) {
+      results.push(fail('latencyHard', `${trace.latencyMs}ms > ${hard}ms (2× Soll)`));
+    } else if (trace.latencyMs > expect.maxLatencyMs) {
+      results.push(fail('latency', `${trace.latencyMs}ms > ${expect.maxLatencyMs}ms (Soll)`));
+    } else {
+      results.push(ok('latency', `${trace.latencyMs}ms`));
+    }
   }
 
   return results;
