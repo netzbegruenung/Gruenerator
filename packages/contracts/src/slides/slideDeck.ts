@@ -298,7 +298,7 @@ export interface ComposedSlideDeck {
 }
 
 /** Ein Layout-Element samt seiner Id aus dem Zustand nehmen (Text, Form, Grafik …). */
-function removeElement(state: SlideLayoutState, id: string): void {
+export function removeElement(state: SlideLayoutState, id: string): void {
   state.additionalTexts = state.additionalTexts.filter((e) => e.id !== id);
   state.shapeInstances = state.shapeInstances.filter((e) => e.id !== id);
   state.assetInstances = state.assetInstances.filter((e) => e.id !== id);
