@@ -72,13 +72,10 @@ export const LV_NAMES: Record<string, string> = {
 };
 
 /**
- * Ausgeschriebener Name zu einem `landesverband`-Code der Scraper. Codes mit
- * `-F` stehen für die Landtagsfraktion (`BY-F`, `HE-F`, …, siehe
- * `landesverbaendeConfig.ts` der API); unbekannte Codes bleiben stehen.
+ * Bundesland zu einem `landesverband`-Code der Scraper. Die Landtagsfraktion
+ * (`BY-F`, `HE-F`, …, siehe `landesverbaendeConfig.ts` der API) zeigt dasselbe
+ * Bundesland wie der Landesverband; unbekannte Codes bleiben stehen.
  */
 export function lvName(code: string): string {
-  const fraktion = code.endsWith('-F');
-  const name = LV_NAMES[fraktion ? code.slice(0, -2) : code];
-  if (!name) return code;
-  return fraktion ? `Landtagsfraktion ${name}` : name;
+  return LV_NAMES[code.replace(/-F$/, '')] ?? code;
 }

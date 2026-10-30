@@ -84,10 +84,10 @@ describe('persistedMonitorQuery', () => {
 });
 
 describe('lvName', () => {
-  it('spells out Landesverband and Landtagsfraktion codes', () => {
+  it('shows only the Bundesland for Landesverband and Landtagsfraktion codes', () => {
     expect(lvName('SL')).toBe('Saarland');
-    expect(lvName('BY-F')).toBe('Landtagsfraktion Bayern');
-    expect(lvName('LSA-F')).toBe('Landtagsfraktion Sachsen-Anhalt');
+    expect(lvName('BY-F')).toBe('Bayern');
+    expect(lvName('LSA-F')).toBe('Sachsen-Anhalt');
     expect(lvName('XX')).toBe('XX');
   });
 });
