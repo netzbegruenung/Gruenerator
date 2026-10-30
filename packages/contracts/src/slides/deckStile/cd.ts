@@ -28,6 +28,8 @@ const HEAD = { y: 50, size: 96, width: 1680 } as const;
 
 function titelFolie(b: SlideBuilder, folie: FolieSpec) {
   slideKit.titel(b, false);
+  // Beamergröße (Entwurf A: 46 px); der Kit-Wert 38 ist auf dem Projektor zu klein.
+  textOf(b, 'folie-text').fontSize = 46;
   const s = folie.slots as { stoerer?: string };
   if (s.stoerer?.trim()) stoerer(b, s.stoerer.trim(), 1685, 800, STOERER_MAGENTA);
 }

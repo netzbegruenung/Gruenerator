@@ -264,6 +264,21 @@ describe('deck stile', () => {
   });
 });
 
+describe('deck stile titel subline', () => {
+  it('sets the titel subline at projector size in every style', () => {
+    for (const stil of STILE) {
+      for (const locale of LOCALES) {
+        const state = buildFolie(stil, fullFolie('titel'), ctx(locale));
+        const sub = state.additionalTexts.find((t) => t.id === 'folie-text')!;
+        expect(sub.fontSize, `${stil} ${locale}`).toBeGreaterThanOrEqual(40);
+        if (stil === 'cd') expect(sub.fontSize).toBe(46);
+        const box = deckStilBoxes(stil, 'titel')['folie-text']!;
+        expect(sub.y + box.maxHeight, `${stil} ${locale} above footer`).toBeLessThanOrEqual(1028);
+      }
+    }
+  });
+});
+
 describe('deck stile box limits', () => {
   it('pins every minScale below 0.6 to the known exceptions', () => {
     const allowed: Record<string, number> = {
