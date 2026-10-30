@@ -57,7 +57,7 @@ export interface FindDip {
 }
 
 export interface FindMcp {
-  semanticSearch(opts: {
+  semanticSearchOrThrow(opts: {
     query: string;
     wahlperiode?: number;
     limit?: number;
@@ -433,7 +433,7 @@ async function viaMcp(
 ): Promise<BundestagCandidate[]> {
   let items: BtSemanticHit[];
   try {
-    ({ items } = await mcp.semanticSearch({
+    ({ items } = await mcp.semanticSearchOrThrow({
       query: question,
       ...(wahlperiode != null ? { wahlperiode } : {}),
       limit: MCP_LIMIT,

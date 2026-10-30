@@ -63,7 +63,7 @@ async function getRedis(): Promise<TextCache | null> {
 async function defaultDeps(): Promise<QaDeps> {
   return {
     dip: getDip(),
-    mcp: getBundestagMCPClient() as unknown as FindMcp,
+    mcp: getBundestagMCPClient(),
     redis: await getRedis(),
   };
 }
