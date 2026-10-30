@@ -3,6 +3,7 @@
 import {
   AuiIf,
   ComposerPrimitive,
+  unstable_useComposerInputHistory,
   useAui,
   useAuiEvent,
   useVoiceControls,
@@ -814,9 +815,16 @@ export const GrueneratorComposer = memo(function GrueneratorComposer({
     [mention.mode, dismissPopover]
   );
 
+  const inputHistory = unstable_useComposerInputHistory();
+
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
       if (!mention.visible) {
+        // ArrowUp on an empty draft recalls earlier messages of this thread,
+        // like a shell. Only reached with our mention popover closed: the hook
+        // yields to assistant-ui's own trigger popover, but ours is a separate
+        // component it cannot see. A search field has no history to recall.
+        if (!onTextSubmit) inputHistory.onKeyDown(e);
         if (pillMentionsRef.current.length === 0) return;
         const state = composerRuntime.getState();
         // Enter on a pills-only draft: the primitive's Enter→submit path is
@@ -918,6 +926,7 @@ export const GrueneratorComposer = memo(function GrueneratorComposer({
       canQueue,
       sendWithPillMentions,
       removePillMention,
+      inputHistory,
     ]
   );
 
