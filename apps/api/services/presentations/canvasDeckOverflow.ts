@@ -7,9 +7,11 @@
 import { stripInlineMarks } from '@gruenerator/contracts';
 import { getBrandPack } from '@gruenerator/contracts/brand';
 import {
+  folienSlotsOf,
   slideSlotsOf,
   type MeasureText,
   type ComposedSlidePage,
+  type FolieSpec,
   type SlideDeckSpec,
 } from '@gruenerator/contracts/slides';
 
@@ -56,9 +58,25 @@ export async function prepareOverflowMeasuring(brand: Brand): Promise<boolean> {
   return ok;
 }
 
-function layoutOf(page: ComposedSlidePage, spec: SlideDeckSpec, index: number) {
+type OverflowSpec = { slides: ReadonlyArray<SlideDeckSpec['slides'][number] | FolieSpec> };
+type SlotLimit = { elementId: string; bottom: number };
+
+/** Unterkante für Textfelder der Folientypen: darunter beginnt die Fußzeile. */
+const FOLIE_TEXT_BOTTOM = 1010;
+
+function layoutOf(
+  page: ComposedSlidePage,
+  spec: OverflowSpec,
+  index: number
+): Record<string, SlotLimit> | null {
   const slide = spec.slides[index];
-  return slide ? slideSlotsOf(slide.layout) : null;
+  if (!slide) return null;
+  if ('layout' in slide) return slideSlotsOf(slide.layout);
+  const out: Record<string, SlotLimit> = {};
+  for (const [name, slot] of Object.entries(folienSlotsOf(slide.typ))) {
+    if (slot.kind === 'text') out[name] = { elementId: slot.elementId, bottom: FOLIE_TEXT_BOTTOM };
+  }
+  return out;
 }
 
 function bottomOf(
@@ -84,7 +102,7 @@ function bottomOf(
 /** Slots whose text runs past their limit. Needs `prepareOverflowMeasuring` first. */
 export function findSlotOverflows(
   pages: ComposedSlidePage[],
-  spec: SlideDeckSpec,
+  spec: OverflowSpec,
   brand: Brand
 ): SlotOverflow[] {
   const found: SlotOverflow[] = [];
@@ -112,7 +130,7 @@ export function findSlotOverflows(
  */
 export function shrinkOverflows(
   pages: ComposedSlidePage[],
-  spec: SlideDeckSpec,
+  spec: OverflowSpec,
   brand: Brand
 ): SlotOverflow[] {
   for (const o of findSlotOverflows(pages, spec, brand)) {

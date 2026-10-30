@@ -12,7 +12,7 @@ import {
   SLIDE_TEXT_LAYOUT_IDS,
   SLIDE_TEXT_SLOTS,
   slideSlotsOf,
-  composeSlideDeck,
+  composeLegacySlideDeck,
   slideDeckSpecSchema,
   type ComposedSlideDeck,
   type SlideDeckSpec,
@@ -154,7 +154,7 @@ export async function generateCanvasDeck(opts: {
       const spec = parsed.data as SlideDeckSpec;
       // The last attempt takes overflow as it is: shrinking below fixes it.
       if (measuring && attempt < attempts) {
-        const { pages } = composeSlideDeck(spec, { locale, date });
+        const { pages } = composeLegacySlideDeck(spec, { locale, date });
         const over = findSlotOverflows(pages, spec, locale);
         if (over.length > 0) {
           return {
@@ -179,7 +179,7 @@ export async function generateCanvasDeck(opts: {
   opts.onCommit?.();
 
   const spec = generated.data;
-  const deck: ComposedSlideDeck = composeSlideDeck(spec, { locale, date });
+  const deck: ComposedSlideDeck = composeLegacySlideDeck(spec, { locale, date });
   if (measuring) {
     const still = shrinkOverflows(deck.pages, spec, locale);
     if (still.length > 0) {

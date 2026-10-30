@@ -13,11 +13,11 @@ import {
   type DeckPage,
   MAX_SLIDES,
   type SlideDeckOperation,
+  FOLIEN_TYPEN,
+  FOLIEN_TYP_IDS,
+  folienSlotsOf,
   SLIDE_FOOTER_ELEMENT_IDS,
-  SLIDE_TEXT_LAYOUT_IDS,
-  SLIDE_TEXT_SLOTS,
   slideDeckOperationsSchema,
-  slideSlotsOf,
 } from '@gruenerator/contracts/slides';
 
 import { createLogger } from '../../utils/logger.js';
@@ -81,12 +81,16 @@ export function describeDeckForEditing(pages: readonly DeckPage[]): string {
     .join('\n\n');
 }
 
-function layoutCatalog(): string {
-  return SLIDE_TEXT_LAYOUT_IDS.map((id) => {
-    const slots = Object.entries(slideSlotsOf(id))
-      .map(([name, s]) => `${name}${s.required ? '' : '?'} (≤${s.maxChars})`)
+function typCatalog(): string {
+  return FOLIEN_TYP_IDS.map((id) => {
+    const slots = Object.entries(folienSlotsOf(id))
+      .map(([name, s]) =>
+        s.kind === 'list'
+          ? `${name}${s.required ? '' : '?'} (Liste, ${s.minItems}–${s.maxItems} Punkte je ≤${s.maxChars})`
+          : `${name}${s.required ? '' : '?'} (≤${s.maxChars})`
+      )
       .join(', ');
-    return `- "${id}" (${SLIDE_TEXT_SLOTS[id].label}): ${slots}`;
+    return `- "${id}" (${FOLIEN_TYPEN[id].label}): ${slots}`;
   }).join('\n');
 }
 
@@ -96,7 +100,7 @@ Operationen:
 - edit-slide {slide, operations, notes?}: Texte einer Folie ändern. operations sind
   {kind:"set-text", field:<Element-Id aus der Folienliste>, label:<kurze Beschreibung>, value:<neuer Text>} oder
   {kind:"remove-element", elementId:<Element-Id>}. notes ersetzt die Sprechernotizen.
-- add-slide {afterSlide (0 = ganz vorn), slide:{layout, slots, notes?}}: neue Folie im Layout.
+- add-slide {afterSlide (0 = ganz vorn), slide:{typ, slots, notes?}}: neue Folie des Typs; sie bekommt den Stil des Decks.
 - remove-slide {slide}: Folie löschen.
 - move-slide {slide, toPosition}.
 
@@ -108,8 +112,8 @@ Regeln:
 - Erfinde keine Zahlen, Namen oder Quellen. Deutsch mit Genderstern (*).
 - Höchstens ${MAX_SLIDES} Folien.
 
-Layouts für add-slide (Feld? = optional, ≤ Zeichenbudget):
-${layoutCatalog()}`;
+Folientypen für add-slide (Feld? = optional, ≤ Zeichenbudget; Listen als Array von Texten):
+${typCatalog()}`;
 
 const OPERATIONS_TOOL_SCHEMA: Record<string, unknown> = {
   type: 'object',
@@ -125,7 +129,7 @@ const OPERATIONS_TOOL_SCHEMA: Record<string, unknown> = {
         properties: {
           kind: { type: 'string', enum: ['edit-slide', 'add-slide', 'remove-slide', 'move-slide'] },
           slide: {
-            description: 'Foliennummer, oder bei add-slide das Folienobjekt {layout, slots, notes}',
+            description: 'Foliennummer, oder bei add-slide das Folienobjekt {typ, slots, notes}',
           },
           afterSlide: { type: 'integer' },
           toPosition: { type: 'integer' },

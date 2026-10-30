@@ -30,11 +30,11 @@ const pages = composeSlideDeck(
   {
     title: 'Klimaplan',
     slides: [
-      { layout: 'titel', slots: { headline: 'Klima' } },
-      { layout: 'textfolie', slots: { headline: 'Warum', spalte1: '• Weil es eilt' } },
+      { typ: 'titel', slots: { headline: 'Klima' } },
+      { typ: 'text', slots: { headline: 'Warum', text: '• Weil es eilt' } },
     ],
   },
-  { locale: 'de-AT', date: new Date('2026-10-29') }
+  { locale: 'de-AT', date: new Date('2026-10-29'), stil: 'cd' }
 ).pages;
 
 /** The model's answer runs through the real `validate` of the call. */
@@ -96,7 +96,7 @@ describe('planAndApplyCanvasDeckEdit', () => {
   it('replaces the page set after confirmation, new slides in the deck brand', async () => {
     modelAnswers([
       { kind: 'remove-slide', slide: 1 },
-      { kind: 'add-slide', afterSlide: 2, slide: { layout: 'danke', slots: {} } },
+      { kind: 'add-slide', afterSlide: 2, slide: { typ: 'danke', slots: {} } },
     ]);
     expect(await run(true)).toMatchObject({ status: 'applied', applied: 2 });
     const [, changes] = mocks.applyDeckChanges.mock.calls[0] as [
