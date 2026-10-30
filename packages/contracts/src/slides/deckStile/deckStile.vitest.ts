@@ -9,7 +9,6 @@ import {
   type FolieSpec,
   type FolienTypId,
 } from '../folienTypen.js';
-
 import { buildSlideLayout } from '../slideLayouts.js';
 
 import { buildFolie, DECK_STILE, deckStilBoxes, type DeckStilId } from './index.js';

@@ -1,5 +1,3 @@
-import { describe, expect, it } from 'vitest';
-
 import {
   buildFolie,
   DECK_STILE,
@@ -7,6 +5,7 @@ import {
   fitSlideTexts,
   type FolieSpec,
 } from '@gruenerator/contracts/slides';
+import { describe, expect, it } from 'vitest';
 
 import { prepareOverflowMeasuring, serverMeasureText } from './canvasDeckOverflow.js';
 
