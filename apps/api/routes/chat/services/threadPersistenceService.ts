@@ -197,6 +197,13 @@ export async function updatePendingAssistantText(messageId: string, text: string
  * is the start and this statement is the end. Done here, in SQL, so every
  * finalize path records it without each caller keeping a clock. Null metadata
  * stays null — an object would change what the reader takes the row for.
+ *
+ * A turn that paused (tool approval, `ask_human`, client tool) is finalized on
+ * the SAME row twice: once at the pause, once after the resume. The second
+ * `now() - created_at` would include however long the person took to answer —
+ * hours, up to the approval TTL. A wall time across a pause means nothing, so
+ * a row that already carries one loses it instead; the run-activity row then
+ * shows only the step count.
  */
 export async function finalizeAssistantMessage(
   messageId: string,
@@ -208,10 +215,12 @@ export async function finalizeAssistantMessage(
     `UPDATE chat_messages
      SET content = $2,
          tool_results = CASE
-           WHEN jsonb_typeof($3::jsonb) = 'object' THEN $3::jsonb || jsonb_build_object(
+           WHEN jsonb_typeof($3::jsonb) <> 'object' THEN $3::jsonb
+           WHEN jsonb_typeof(tool_results) = 'object' AND tool_results ? 'turnDurationMs'
+             THEN $3::jsonb - 'turnDurationMs'
+           ELSE $3::jsonb || jsonb_build_object(
              'turnDurationMs', ROUND(EXTRACT(EPOCH FROM (now() - created_at)) * 1000)::bigint
            )
-           ELSE $3::jsonb
          END,
          status = 'complete'
      WHERE id = $1
