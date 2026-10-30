@@ -126,6 +126,14 @@ export interface BtListResult<T> {
   wpFallback: boolean;
 }
 
+export interface SemanticSearchOpts {
+  query: string;
+  wahlperiode?: number;
+  limit?: number;
+  sort?: BtSort;
+  entityTypes?: readonly string[];
+}
+
 const btListResultSchema = <T extends z.ZodTypeAny>(item: T) =>
   z.object({ items: z.array(item), wpFallback: z.boolean() });
 
@@ -478,29 +486,48 @@ class BundestagMCPClient {
     produce: () => Promise<BtListResult<z.infer<S>>>
   ): Promise<BtListResult<z.infer<S>>> {
     try {
-      const hit = await getCachedJson(key, btListResultSchema(itemSchema));
-      if (hit !== null) return hit;
-      const fresh = await produce();
-      await setCachedJson(key, fresh, CACHE_TTL_SECONDS);
-      return fresh;
+      return await this.cachedList(key, itemSchema, produce);
     } catch (error) {
       log.warn(`${key} failed: ${toError(error).message}`);
       return { items: [], wpFallback: false };
     }
   }
 
-  /** Vector search over DIP metadata (Vorgänge, Drucksachen, …). */
-  async semanticSearch(opts: {
-    query: string;
-    wahlperiode?: number;
-    limit?: number;
-    sort?: BtSort;
-    entityTypes?: readonly string[];
-  }): Promise<BtListResult<BtSemanticHit>> {
+  /**
+   * Cache-aside that lets a failed producer THROW. A Redis hiccup is a cache
+   * miss, not an outage — otherwise it would read as "MCP nicht erreichbar".
+   */
+  private async cachedList<S extends z.ZodTypeAny>(
+    key: string,
+    itemSchema: S,
+    produce: () => Promise<BtListResult<z.infer<S>>>
+  ): Promise<BtListResult<z.infer<S>>> {
+    const hit = await getCachedJson(key, btListResultSchema(itemSchema)).catch(() => null);
+    if (hit !== null) return hit;
+    const fresh = await produce();
+    await setCachedJson(key, fresh, CACHE_TTL_SECONDS).catch(() => undefined);
+    return fresh;
+  }
+
+  /** Vector search over DIP metadata (Vorgänge, Drucksachen, …). Never throws. */
+  async semanticSearch(opts: SemanticSearchOpts): Promise<BtListResult<BtSemanticHit>> {
+    try {
+      return await this.semanticSearchOrThrow(opts);
+    } catch (error) {
+      log.warn(`semanticSearch failed: ${toError(error).message}`);
+      return { items: [], wpFallback: false };
+    }
+  }
+
+  /**
+   * Like `semanticSearch`, but an outage throws instead of looking like "no
+   * hits" — for callers that tell the user „nicht erreichbar" (Bundestag-Q&A).
+   */
+  async semanticSearchOrThrow(opts: SemanticSearchOpts): Promise<BtListResult<BtSemanticHit>> {
     const { query, wahlperiode, limit = 6, sort, entityTypes } = opts;
     const typeKey = entityTypes?.length ? entityTypes.join(',') : 'all';
     const key = `${CACHE_NS}:sem:${query.toLowerCase()}:${wahlperiode ?? 'cur'}:${limit}:${sort ?? 'rel'}:${typeKey}`;
-    return this.safeList(key, btSemanticHitSchema, () =>
+    return this.cachedList(key, btSemanticHitSchema, () =>
       this.withWpFallback(
         (wp) =>
           this.fetchTrimmed(

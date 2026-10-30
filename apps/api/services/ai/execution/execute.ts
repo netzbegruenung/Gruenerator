@@ -129,6 +129,16 @@ const CONFIG_HINT: Record<ProviderName, string> = {
   cortecs: 'CORTECS_API_KEY',
 };
 
+/** Frist dieses Versuchs und Abbruch des Aufrufers, was davon gesetzt ist. */
+function abortSignalFor(data: AIRequestData): AbortSignal | null {
+  const signals = [
+    ...(data.timeoutMs != null ? [AbortSignal.timeout(data.timeoutMs)] : []),
+    ...(data.signal ? [data.signal] : []),
+  ];
+  if (signals.length === 0) return null;
+  return signals.length === 1 ? signals[0] : AbortSignal.any(signals);
+}
+
 export async function execute(
   provider: ProviderName,
   requestId: string,
@@ -159,6 +169,7 @@ export async function execute(
   );
   const tools = buildAiSdkTools(toolsPayload);
   const toolChoice = tools ? resolveToolChoice(toolsPayload.tool_choice) : undefined;
+  const abortSignal = abortSignalFor(data);
 
   try {
     // Retrying is the SDK's job — 2 retries, i.e. 3 attempts, which is both the
@@ -189,8 +200,10 @@ export async function execute(
       // genau das kostete: lief die Kette weiter, blieb der aufgegebene Aufruf
       // offen und rechnete auf Kosten des Kontos zu Ende. Im Protokoll steht
       // das als `[greenpt …] Request failed after retries` MINUTEN nach der
-      // Antwort an den Client.
-      ...(data.timeoutMs != null && { abortSignal: AbortSignal.timeout(data.timeoutMs) }),
+      // Antwort an den Client. Dasselbe gilt für den Abbruch des Aufrufers
+      // (`AiCall.signal`): ohne ihn lief ein Fenster nach dessen Aufgabe zu Ende
+      // und wurde bezahlt (#5115).
+      ...(abortSignal && { abortSignal }),
       ...(tools != null && { tools }),
       ...(toolChoice != null && { toolChoice }),
     });

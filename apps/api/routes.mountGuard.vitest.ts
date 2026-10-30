@@ -259,6 +259,29 @@ describe('routes.ts mount order', () => {
   });
 
   /**
+   * Bundestag-Q&A: auth and consent sit on the prefix (every route calls a
+   * model), consent after auth in the same call, and each endpoint carries its
+   * own daily limit — `/plan` a separate, higher one so planning does not eat
+   * the answers. The router tests mock the service and cannot see any of this.
+   */
+  it('gates /api/bundestag with auth, consent and both limits before the mount', () => {
+    const mountCall = firstIndexOf('mountBundestagQaContractRouter(app)');
+    const gate = firstIndexOf("app.use('/api/bundestag', requireAuth, requireAiConsent)");
+    const limits = [
+      "app.use('/api/bundestag/plan', rateLimitMiddleware('bundestag_plan'",
+      "app.use('/api/bundestag/answer', rateLimitMiddleware('bundestag_qa'",
+    ].map((needle) => [needle, firstIndexOf(needle)] as const);
+
+    expect(mountCall).toBeGreaterThan(-1);
+    expect(gate, '/api/bundestag needs requireAuth then requireAiConsent').toBeGreaterThan(-1);
+    expect(gate).toBeLessThan(mountCall);
+    for (const [needle, index] of limits) {
+      expect(index, `${needle} not found`).toBeGreaterThan(-1);
+      expect(index, `${needle} must precede the mount`).toBeLessThan(mountCall);
+    }
+  });
+
+  /**
    * The inverse invariant. `/api/thumbs` must stay OPEN: a native `<Image>` and
    * a plain `<img>` cannot send an Authorization header, so the permission
    * travels in the URL as an HMAC minted by an endpoint that already checked

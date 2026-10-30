@@ -28,7 +28,7 @@ import {
   resetDipForTests,
 } from './index.js';
 
-const deps = { dip: { list: vi.fn() }, mcp: { semanticSearch: vi.fn() }, redis: null };
+const deps = { dip: { list: vi.fn() }, mcp: { semanticSearchOrThrow: vi.fn() }, redis: null };
 const cand = { ref: '21/9', drucksachetyp: 'Antrag', titel: 'T', datum: 'd' };
 
 beforeEach(() => {
