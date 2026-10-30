@@ -1,5 +1,6 @@
 import { EditorChatPanel } from '@gruenerator/chat';
 import {
+  CollabUnavailable,
   useCollaboration,
   useCollaborators,
   useDelayedConnectionStatus,
@@ -278,7 +279,8 @@ function EditorContent() {
   // Gate the editor mount until the initial Yjs sync completes (or times out).
   // Binding the y-prosemirror view to a not-yet-synced doc crashes with
   // "nodeSize undefined" when the first server state restructures the doc.
-  const editorReady = useSyncGate(provider, isSynced);
+  const syncGate = useSyncGate(provider, isSynced, ydoc, isLocalLoaded);
+  const editorReady = syncGate === 'ready';
 
   // Not embedded: the tour paints a full-viewport overlay with its own controls
   // over a WebView the user cannot navigate away from.
@@ -989,6 +991,8 @@ function EditorContent() {
               // The app's WebView grants no microphone, so getUserMedia fails there.
               showDictationButton={!hasNativeHost()}
             />
+          ) : syncGate === 'unavailable' ? (
+            <CollabUnavailable provider={provider} />
           ) : (
             <div className="flex items-center justify-center h-[200px] text-grey-500 text-sm">
               Verbinde mit Server...
