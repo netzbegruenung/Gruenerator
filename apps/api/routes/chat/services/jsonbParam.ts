@@ -22,6 +22,6 @@ export function toJsonbParam(value: object | undefined): string | null {
  * the identical payload and lose the turn (#5175). Lone surrogates need no
  * repair here — the driver already writes them as U+FFFD.
  */
-export function toTextParam<T extends string | null>(value: T): T {
-  return (value === null ? value : value.replaceAll('\u0000', '')) as T;
+export function toTextParam(value: string | null): string | null {
+  return value === null ? null : value.replaceAll('\u0000', '');
 }
