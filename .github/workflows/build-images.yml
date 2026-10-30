@@ -337,6 +337,23 @@ jobs:
             type=sha,prefix=
             type=raw,value=latest,enable={{is_default_branch}}
 
+      # Start the image once without services and fail on module-load errors.
+      # tsc compiles against sources, so a dist missing from the production
+      # stage only surfaces when Node resolves imports at startup — on
+      # 30.10.2026 hocuspocus crash-looped on @ggraphic/core and took prod down.
+      # The push below reuses this build from the builder cache.
+      - name: Build for boot smoke test
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: apps/api/Dockerfile
+          load: true
+          tags: smoke-api:ci
+          cache-from: type=registry,ref=${{ env.IMAGE_PREFIX }}-api:buildcache
+
+      - name: Boot smoke test
+        run: scripts/smoke-image-boot.sh smoke-api:ci
+
       - name: Build and push
         uses: docker/build-push-action@v7
         with:
@@ -389,6 +406,23 @@ jobs:
             type=ref,event=branch
             type=sha,prefix=
             type=raw,value=latest,enable={{is_default_branch}}
+
+      # Start the image once without services and fail on module-load errors.
+      # tsc compiles against sources, so a dist missing from the production
+      # stage only surfaces when Node resolves imports at startup — on
+      # 30.10.2026 hocuspocus crash-looped on @ggraphic/core and took prod down.
+      # The push below reuses this build from the builder cache.
+      - name: Build for boot smoke test
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: services/hocuspocus/Dockerfile
+          load: true
+          tags: smoke-hocuspocus:ci
+          cache-from: type=registry,ref=${{ env.IMAGE_PREFIX }}-hocuspocus:buildcache
+
+      - name: Boot smoke test
+        run: scripts/smoke-image-boot.sh smoke-hocuspocus:ci
 
       - name: Build and push
         uses: docker/build-push-action@v7
