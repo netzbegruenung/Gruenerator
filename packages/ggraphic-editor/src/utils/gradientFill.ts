@@ -8,18 +8,9 @@
  * (only the sharepic composer writes one) runs from the box centre to its corners.
  */
 
-export interface GradientStop {
-  /** 0..1 position along the gradient axis. */
-  offset: number;
-  color: string;
-}
+import { type GradientFill } from '@ggraphic/core';
 
-export interface GradientFill {
-  type: 'linear' | 'radial';
-  /** Angle in degrees; 0 = left→right, 90 = top→bottom. Unused by `radial`. */
-  angle: number;
-  stops: GradientStop[];
-}
+export { type GradientFill, type GradientStop } from '@ggraphic/core';
 
 export interface KonvaLinearGradientProps {
   fillLinearGradientStartPoint: { x: number; y: number };

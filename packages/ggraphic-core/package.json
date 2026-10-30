@@ -15,6 +15,9 @@
     "test": "vitest run",
     "typecheck": "tsc --noEmit"
   },
+  "dependencies": {
+    "@ggraphic/schema": "workspace:*"
+  },
   "devDependencies": {
     "typescript": "^6.0.3",
     "vitest": "^5.0.5"
