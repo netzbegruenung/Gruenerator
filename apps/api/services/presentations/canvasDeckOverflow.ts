@@ -18,6 +18,7 @@ import {
   deckFaces,
   faceRegistered,
   metricsReady,
+  textWidthSync,
 } from '../../routes/presentations/slideTextMetrics.js';
 import { createLogger } from '../../utils/logger.js';
 
@@ -155,13 +156,22 @@ export function serverMeasureText(brand: Brand): MeasureText | null {
   });
   if (probe === null || !faceRegistered(faces.heading) || !faceRegistered(faces.body)) return null;
   return (text, font, width) => {
-    const lines =
-      countLinesSync([{ text }], {
-        maxWidthPx: width,
-        fontPx: font.size,
-        faces,
-        face: faceFor(font.family),
-      }) ?? 1;
+    const opts = {
+      maxWidthPx: width,
+      fontPx: font.size,
+      faces,
+      face: faceFor(font.family),
+    };
+    // Ein Wort, das breiter ist als die Box, bricht Konva (wrap 'word') mitten im Wort um,
+    // die Zeilenzählung (Browser-Verhalten) zählt es als eine Zeile. Beides ist für eine
+    // Überschrift unbrauchbar: so eine Größe passt nicht, es wird weiter verkleinert und
+    // am Ende als Überlauf gemeldet.
+    for (const word of text.split(/\s+/)) {
+      if (word !== '' && (textWidthSync(word, opts) ?? 0) > width) {
+        return { height: Infinity };
+      }
+    }
+    const lines = countLinesSync([{ text }], opts) ?? 1;
     return { height: lines * font.size * font.lineHeight };
   };
 }

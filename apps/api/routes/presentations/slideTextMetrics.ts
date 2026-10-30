@@ -175,6 +175,14 @@ export function countLinesSync(runs: MeasureRun[], opts: WrapOpts): number | nul
   return cached ? wrapLineCount(cached, runs, opts) : null;
 }
 
+/**
+ * Width of one unbroken string in the face `opts` picks, or null while the
+ * measurer is unavailable. For callers that must know whether a word fits a line.
+ */
+export function textWidthSync(text: string, opts: WrapOpts): number | null {
+  return cached ? cached.measure(text, shorthand({ text }, opts)) : null;
+}
+
 function wrapLineCount(m: Measurer, runs: MeasureRun[], opts: WrapOpts): number {
   let lines = 1;
   let x = 0;

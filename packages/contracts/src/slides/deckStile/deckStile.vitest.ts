@@ -18,6 +18,11 @@ const DATE = new Date('2026-10-30T12:00:00Z');
 const LOCALES: BrandLocale[] = ['de-DE', 'de-AT'];
 const STILE: DeckStilId[] = DECK_STILE.map((s) => s.id);
 
+/** Die einzigen Überschriften-Boxen, die nicht 0,6 tragen (Messung mit Markenschrift, Aufgabe 4). */
+const HEADLINE_SCALE: Partial<Record<DeckStilId, Partial<Record<FolienTypId, number>>>> = {
+  cd: { titel: 0.5, danke: 0.5 },
+};
+
 /** Alle Slots eines Typs mit erkennbaren Texten füllen. */
 function fullFolie(typ: FolienTypId): FolieSpec {
   const slots: Record<string, string | string[]> = {};
@@ -177,7 +182,10 @@ describe('deck stile', () => {
           const box = boxes[t.id];
           expect(box, `${typ} ${t.id}`).toBeDefined();
           expect(box!.maxHeight).toBeGreaterThan(0);
-          if (t.id === 'folie-headline') expect(box!.minScale).toBeLessThanOrEqual(0.6);
+          if (t.id === 'folie-headline')
+            expect(box!.minScale, `${stil} ${typ} ${t.id}`).toBe(
+              HEADLINE_SCALE[stil]?.[typ] ?? 0.6
+            );
         }
         for (const box of Object.values(boxes)) expect(box.minScale).toBeLessThanOrEqual(1);
       }
@@ -242,5 +250,47 @@ describe('deck stile', () => {
     expect(grounds[0]).toBe(grounds[2]);
     expect(grounds[1]).toBe(grounds[3]);
     expect(grounds[0]).not.toBe(grounds[1]);
+  });
+});
+
+describe('deck stile box limits', () => {
+  it('pins every minScale below 0.6 to the known exceptions', () => {
+    const allowed: Record<string, number> = {
+      'cd titel folie-headline': 0.5,
+      'cd danke folie-headline': 0.5,
+      'ruhig zitat folie-zitat': 0.5,
+    };
+    for (const stil of STILE) {
+      for (const typ of FOLIEN_TYP_IDS) {
+        for (const [id, box] of Object.entries(deckStilBoxes(stil, typ))) {
+          const key = `${stil} ${typ} ${id}`;
+          if (id === 'folie-zahl') expect(box.minScale, key).toBe(0.5);
+          else if (id === 'folie-punkt-*') expect(box.minScale, key).toBeGreaterThanOrEqual(0.65);
+          else if (key in allowed) expect(box.minScale, key).toBe(allowed[key]);
+          else if (id === 'folie-headline' || id === 'folie-kernsatz' || id === 'folie-zitat')
+            expect(box.minScale, key).toBe(0.6);
+        }
+      }
+    }
+  });
+
+  it('keeps every list cell within the item pitch of its style', () => {
+    for (const stil of STILE) {
+      for (const typ of ['liste', 'kernsatz'] as const) {
+        const cell = deckStilBoxes(stil, typ)['folie-punkt-*']?.maxHeight;
+        expect(cell, `${stil} ${typ}`).toBeGreaterThan(0);
+        const state = buildFolie(stil, fullFolie(typ), ctx('de-DE'));
+        const items = state.additionalTexts.filter((t) => /^folie-punkt-\d+$/.test(t.id));
+        for (const it of items) {
+          const oneLine = it.fontSize * (it.lineHeight ?? 1.2);
+          // Nächster Punkt darunter in derselben Spalte: die Zelle darf ihn nicht erreichen,
+          // außer eine einzelne Zeile ist selbst schon höher als der Abstand (Kernsatz-Stichpunkte).
+          const below = items.filter((o) => o.x === it.x && o.y > it.y).map((o) => o.y - it.y);
+          const pitch = below.length ? Math.min(...below) : Infinity;
+          expect(cell!, `${stil} ${typ} ${it.id}`).toBeLessThanOrEqual(Math.max(pitch, oneLine));
+          expect(it.y + cell!, `${stil} ${typ} ${it.id} above footer`).toBeLessThanOrEqual(1028);
+        }
+      }
+    }
   });
 });

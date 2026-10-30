@@ -77,7 +77,7 @@ export const FOLIEN_TYPEN = {
     label: 'Titelfolie',
     use: 'Deckblatt: Schlagzeile plus kurzer Anlass',
     slots: {
-      headline: text(40, 'folie-headline', 'Schlagzeile', true),
+      headline: text(34, 'folie-headline', 'Schlagzeile', true),
       unterzeile: text(110, 'folie-text', 'Anlass, Ort, Datum oder ein Einstiegssatz'),
       stoerer: text(24, 'folie-stoerer-text', 'kurzer Störer, z. B. „Neu“'),
     },

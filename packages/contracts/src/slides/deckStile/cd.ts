@@ -125,7 +125,7 @@ export const CD_BOXES: Record<
   Record<string, { maxHeight: number; minScale: number }>
 > = {
   titel: {
-    'folie-headline': { maxHeight: 370, minScale: 0.45 },
+    'folie-headline': { maxHeight: 370, minScale: 0.5 },
     'folie-text': { maxHeight: 560, minScale: 0.8 },
   },
   liste: {
