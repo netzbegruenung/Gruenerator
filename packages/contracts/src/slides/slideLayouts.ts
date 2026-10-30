@@ -32,6 +32,8 @@ import {
   type BrandLocale,
 } from '../brand/grueneBrand.js';
 
+import { type DeckStilId } from './deckStile/index.js';
+
 export const SLIDE_LAYOUTS = [
   { id: 'titel', label: 'Titelfolie', theme: 'dunkel' },
   { id: 'titel-bild', label: 'Titelfolie mit Bild', theme: 'dunkel' },
@@ -83,6 +85,8 @@ export type SlideLayoutState = {
   layerOrder: string[];
   lockedLayerIds: string[];
   notes: string;
+  /** Id der Deck-Vorlage (Stil), die die Seite gebaut hat; fehlt bei Seiten ohne Vorlage. */
+  deckStil?: DeckStilId;
 };
 
 export interface SlideLayoutOptions {
@@ -226,7 +230,7 @@ interface TextOptions {
 }
 
 /** Die Seite, in die ein Layout seine Elemente legt; `layerOrder` von hinten nach vorn. */
-class SlideBuilder {
+export class SlideBuilder {
   readonly state: SlideLayoutState;
 
   constructor(
@@ -624,3 +628,22 @@ export function buildSlideLayout(id: SlideLayoutId, options: SlideLayoutOptions)
   footer(b, options);
   return b.state;
 }
+
+/**
+ * Die Bausteine der Layouts für die Deck-Stile (`deckStile/`): der `cd`-Stil
+ * baut auf den vorhandenen Folien auf, statt sie nachzubauen.
+ */
+export const slideKit = {
+  inkFor,
+  mark,
+  titel,
+  textfolie,
+  zitat,
+  danke,
+  M,
+  W,
+  H,
+  FOOTER,
+  STOERER,
+  STOERER_FILL,
+} as const;

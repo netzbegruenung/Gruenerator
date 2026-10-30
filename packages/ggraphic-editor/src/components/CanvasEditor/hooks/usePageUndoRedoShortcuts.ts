@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: MPL-2.0
-import { editorSkipsKey } from '@ggraphic/editor/utils/keyboardOwnership';
 import { useEffect } from 'react';
+
+import { type HistoryStamps, routeHistory } from '@ggraphic/editor/utils/historyStamp';
+import { editorSkipsKey } from '@ggraphic/editor/utils/keyboardOwnership';
 
 /**
  * Markiert ein Overlay über dem Editor (Präsentationsmodus): Tasten aus ihm
@@ -11,26 +13,23 @@ import { useEffect } from 'react';
 export const EDITOR_KEY_SHIELD_ATTRIBUTE = 'data-canvas-key-shield';
 
 interface UsePageUndoRedoShortcutsParams {
-  activePageCanUndo: boolean;
-  activePageCanRedo: boolean;
-  canUndoPageOp: boolean;
-  canRedoPageOp: boolean;
+  /** The active page's history stamps, read at key time; null without a mounted page. */
+  activePageStamps: () => HistoryStamps | null;
+  pageOpStamps: () => HistoryStamps;
   undoPageOp: () => void;
   redoPageOp: () => void;
 }
 
 /**
  * Page-level undo/redo via capture-phase keydown. Runs BEFORE the per-page
- * useCanvasUndoRedo handlers so that when the active page has no element-level
- * undo available, Ctrl/Cmd+Z is routed to the page-array UndoManager (which
- * restores deleted/duplicated/moved pages). If the active page DOES have
- * element undo, the per-page handler takes it.
+ * useCanvasUndoRedo handlers: when the newest step (Undo) or the oldest undone
+ * one (Redo) is a page op or a replaced deck, Ctrl/Cmd+Z goes to the
+ * page-array UndoManager and the page never hears the key. Otherwise the
+ * per-page handler takes it (`utils/historyStamp`).
  */
 export function usePageUndoRedoShortcuts({
-  activePageCanUndo,
-  activePageCanRedo,
-  canUndoPageOp,
-  canRedoPageOp,
+  activePageStamps,
+  pageOpStamps,
   undoPageOp,
   redoPageOp,
 }: UsePageUndoRedoShortcutsParams): void {
@@ -47,17 +46,14 @@ export function usePageUndoRedoShortcuts({
       const isRedo = k === 'y' || (k === 'z' && e.shiftKey);
       if (!isUndo && !isRedo) return;
 
-      if (isUndo && !activePageCanUndo && canUndoPageOp) {
-        e.preventDefault();
-        e.stopPropagation();
-        undoPageOp();
-      } else if (isRedo && !activePageCanRedo && canRedoPageOp) {
-        e.preventDefault();
-        e.stopPropagation();
-        redoPageOp();
-      }
+      if (routeHistory(isUndo ? 'undo' : 'redo', activePageStamps(), pageOpStamps()) !== 'pageOps')
+        return;
+      e.preventDefault();
+      e.stopPropagation();
+      if (isUndo) undoPageOp();
+      else redoPageOp();
     };
     window.addEventListener('keydown', handler, true);
     return () => window.removeEventListener('keydown', handler, true);
-  }, [activePageCanUndo, activePageCanRedo, canUndoPageOp, canRedoPageOp, undoPageOp, redoPageOp]);
+  }, [activePageStamps, pageOpStamps, undoPageOp, redoPageOp]);
 }

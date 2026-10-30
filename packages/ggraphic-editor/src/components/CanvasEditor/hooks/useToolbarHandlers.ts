@@ -1,13 +1,12 @@
 // SPDX-License-Identifier: MPL-2.0
 import { useMemo } from 'react';
 
-import type {
-  GenericCanvasRef,
-  ToolbarStateReport,
-} from '@ggraphic/editor/components/GenericCanvas';
+import { type SelectionGeometry } from '@ggraphic/editor/utils/canvasCommands';
+import { type HistoryStamps, routeHistory } from '@ggraphic/editor/utils/historyStamp';
+
+import type { GenericCanvasRef } from '@ggraphic/editor/components/GenericCanvas';
 import type { ShadowPatch } from '@ggraphic/editor/hooks/useFloatingModuleHandlers';
 import type { PageCommandId } from '@ggraphic/editor/utils/canvasCommandRegistry';
-import { type SelectionGeometry } from '@ggraphic/editor/utils/canvasCommands';
 import type { CropAspectId } from '@ggraphic/editor/utils/cropAspect';
 import type { GradientFill } from '@ggraphic/editor/utils/gradientFill';
 import type { TextAlign } from '@ggraphic/editor/utils/textAlign';
@@ -16,18 +15,16 @@ import type React from 'react';
 interface UseToolbarHandlersParams {
   canvasRefsRef: React.MutableRefObject<React.RefObject<GenericCanvasRef | null>[]>;
   currentPageIndex: number;
-  toolbarState: ToolbarStateReport | null;
-  canUndoPageOp: boolean;
-  canRedoPageOp: boolean;
+  pageOpStamps: () => HistoryStamps;
   undoPageOp: () => void;
   redoPageOp: () => void;
   discardReplaceDeck: () => void;
 }
 
 /**
- * Bundles the toolbar action handlers for the active page. Undo/Redo prefer the
- * per-page (element) history; when none is available they fall back to the
- * page-array history (restores deleted/duplicated/moved pages).
+ * Bundles the toolbar action handlers for the active page. Undo/Redo walk the
+ * active page's element history and the page-level history (page ops, a
+ * replaced deck) in the order the steps were taken (`utils/historyStamp`).
  *
  * The active page's handle is looked up inside each handler, at call time.
  * Reading `canvasRefsRef.current[currentPageIndex]` once while building the
@@ -40,32 +37,28 @@ interface UseToolbarHandlersParams {
 export function useToolbarHandlers({
   canvasRefsRef,
   currentPageIndex,
-  toolbarState,
-  canUndoPageOp,
-  canRedoPageOp,
+  pageOpStamps,
   undoPageOp,
   redoPageOp,
   discardReplaceDeck,
 }: UseToolbarHandlersParams) {
   return useMemo(() => {
     const page = () => canvasRefsRef.current[currentPageIndex]?.current ?? null;
+    const route = (kind: 'undo' | 'redo') =>
+      routeHistory(kind, page()?.historyStamps?.() ?? null, pageOpStamps());
     return {
       undo: () => {
-        if (toolbarState?.canUndo) {
-          page()?.undo?.();
-        } else if (canUndoPageOp) {
-          undoPageOp();
-        }
+        const target = route('undo');
+        if (target === 'page') page()?.undo?.();
+        else if (target === 'pageOps') undoPageOp();
       },
       // The spec path replaced the whole deck in one page-level step; Verwerfen
       // takes it back for good, so Redo cannot re-apply it.
       undoPages: discardReplaceDeck,
       redo: () => {
-        if (toolbarState?.canRedo) {
-          page()?.redo?.();
-        } else if (canRedoPageOp) {
-          redoPageOp();
-        }
+        const target = route('redo');
+        if (target === 'page') page()?.redo?.();
+        else if (target === 'pageOps') redoPageOp();
       },
       handleMoveLayer: (direction: 'up' | 'down') => page()?.handleMoveLayer?.(direction),
       handleDuplicate: () => page()?.handleDuplicate?.(),
@@ -99,15 +92,5 @@ export function useToolbarHandlers({
       handleTextAlignChange: (id: string, align: TextAlign) =>
         page()?.handleTextAlignChange?.(id, align),
     };
-  }, [
-    canvasRefsRef,
-    currentPageIndex,
-    toolbarState?.canUndo,
-    toolbarState?.canRedo,
-    canUndoPageOp,
-    canRedoPageOp,
-    undoPageOp,
-    redoPageOp,
-    discardReplaceDeck,
-  ]);
+  }, [canvasRefsRef, currentPageIndex, pageOpStamps, undoPageOp, redoPageOp, discardReplaceDeck]);
 }

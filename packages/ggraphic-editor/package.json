@@ -329,6 +329,7 @@
     "./utils/gradientHitArea": "./src/utils/gradientHitArea.ts",
     "./utils/groupSnap": "./src/utils/groupSnap.ts",
     "./utils/handDrawn": "./src/utils/handDrawn.ts",
+    "./utils/historyStamp": "./src/utils/historyStamp.ts",
     "./utils/hostStorageKeys": "./src/utils/hostStorageKeys.ts",
     "./utils/iconInstances": "./src/utils/iconInstances.ts",
     "./utils/illustrations/gophers": "./src/utils/illustrations/gophers.ts",

@@ -13,17 +13,21 @@ import {
   type DeckPage,
   MAX_SLIDES,
   type SlideDeckOperation,
+  FOLIEN_TYPEN,
+  FOLIEN_TYP_IDS,
+  folienSlotsOf,
+  readFolie,
+  slotElementIds,
   SLIDE_FOOTER_ELEMENT_IDS,
-  SLIDE_TEXT_LAYOUT_IDS,
-  SLIDE_TEXT_SLOTS,
   slideDeckOperationsSchema,
-  slideSlotsOf,
 } from '@gruenerator/contracts/slides';
 
 import { createLogger } from '../../utils/logger.js';
 import { aiObject } from '../ai/generate.js';
 import { checkCanvasWriteAccess, getCanvas } from '../canvas/canvasRepository.js';
 import { applyDeckChanges, getCurrentDeckState } from '../canvas/canvasStateService.js';
+
+import { prepareOverflowMeasuring, serverMeasureText } from './canvasDeckOverflow.js';
 
 const log = createLogger('CanvasDeckEdit');
 
@@ -65,9 +69,16 @@ export function describeDeckForEditing(pages: readonly DeckPage[]): string {
       const locked = new Set(
         Array.isArray(state['lockedLayerIds']) ? (state['lockedLayerIds'] as string[]) : []
       );
+      // Dekor je Punkt (Nummern, Marken …) ist kein Slot: das Modell bearbeitet den Punkt, nicht seine Zier.
+      const typ = readFolie(state)?.typ;
+      const slotIds = new Set<string>(
+        typ ? Object.values(folienSlotsOf(typ)).flatMap(slotElementIds) : []
+      );
+      if (typ === 'text') slotIds.add('folie-spalte-2');
+      const isDecoration = (id: string) => !!typ && id.startsWith('folie-') && !slotIds.has(id);
       const texts = (Array.isArray(state['additionalTexts']) ? state['additionalTexts'] : [])
         .filter((t): t is TextLike => typeof (t as TextLike)?.id === 'string')
-        .filter((t) => !FOOTER.has(t.id))
+        .filter((t) => !FOOTER.has(t.id) && !isDecoration(t.id))
         .map((t) => {
           const text = stripInlineMarks(String(t.text ?? '')).replace(/\n/g, ' / ');
           return `  - ${t.id}${locked.has(t.id) ? ' (gesperrt)' : ''}: „${text}"`;
@@ -81,12 +92,16 @@ export function describeDeckForEditing(pages: readonly DeckPage[]): string {
     .join('\n\n');
 }
 
-function layoutCatalog(): string {
-  return SLIDE_TEXT_LAYOUT_IDS.map((id) => {
-    const slots = Object.entries(slideSlotsOf(id))
-      .map(([name, s]) => `${name}${s.required ? '' : '?'} (≤${s.maxChars})`)
+function typCatalog(): string {
+  return FOLIEN_TYP_IDS.map((id) => {
+    const slots = Object.entries(folienSlotsOf(id))
+      .map(([name, s]) =>
+        s.kind === 'list'
+          ? `${name}${s.required ? '' : '?'} (Array von Texten, ${s.minItems}–${s.maxItems} Punkte je ≤${s.maxChars})`
+          : `${name}${s.required ? '' : '?'} (≤${s.maxChars})`
+      )
       .join(', ');
-    return `- "${id}" (${SLIDE_TEXT_SLOTS[id].label}): ${slots}`;
+    return `- "${id}" (${FOLIEN_TYPEN[id].label}): ${slots}`;
   }).join('\n');
 }
 
@@ -96,20 +111,22 @@ Operationen:
 - edit-slide {slide, operations, notes?}: Texte einer Folie ändern. operations sind
   {kind:"set-text", field:<Element-Id aus der Folienliste>, label:<kurze Beschreibung>, value:<neuer Text>} oder
   {kind:"remove-element", elementId:<Element-Id>}. notes ersetzt die Sprechernotizen.
-- add-slide {afterSlide (0 = ganz vorn), slide:{layout, slots, notes?}}: neue Folie im Layout.
+- add-slide {afterSlide (0 = ganz vorn), slide:{typ, slots, notes?}}: neue Folie des Typs; sie bekommt den Stil des Decks.
 - remove-slide {slide}: Folie löschen.
 - move-slide {slide, toPosition}.
 
 Regeln:
 - Foliennummern beziehen sich IMMER auf die Liste unten, auch wenn vorher eine Folie gelöscht oder eingefügt wird.
 - Nur vorhandene Element-Ids; die Fußzeile (Datum, Titel, Seitenzahl) setzt das System.
-- Halte die Länge des bisherigen Textes ein, wenn nicht ausdrücklich mehr gewünscht ist — die Textfelder sind fest. Stichpunkte beginnen mit "• " auf eigener Zeile.
+- Halte die Länge des bisherigen Textes ein, wenn nicht ausdrücklich mehr gewünscht ist — die Textfelder sind fest. Stichpunkte in Textspalten beginnen mit "• " auf eigener Zeile; die Einträge einer \`liste\` (add-slide) sind reine Texte ohne vorangestellte Aufzählungszeichen.
 - Farben, Lage, Größe und Bilder kannst du hier nicht ändern; lass sie weg.
 - Erfinde keine Zahlen, Namen oder Quellen. Deutsch mit Genderstern (*).
 - Höchstens ${MAX_SLIDES} Folien.
 
-Layouts für add-slide (Feld? = optional, ≤ Zeichenbudget):
-${layoutCatalog()}`;
+Folientypen für add-slide (Feld? = optional, ≤ Zeichenbudget; Listen als Array von Texten):
+${typCatalog()}
+
+Beispiel add-slide: {"kind": "add-slide", "afterSlide": 2, "slide": {"typ": "liste", "slots": {"headline": "Was wir fordern", "punkte": ["Busse im Zehn-Minuten-Takt", "Sichere Radwege an jeder Schule", "Ein Ticket für die ganze Region"]}}}`;
 
 const OPERATIONS_TOOL_SCHEMA: Record<string, unknown> = {
   type: 'object',
@@ -125,7 +142,7 @@ const OPERATIONS_TOOL_SCHEMA: Record<string, unknown> = {
         properties: {
           kind: { type: 'string', enum: ['edit-slide', 'add-slide', 'remove-slide', 'move-slide'] },
           slide: {
-            description: 'Foliennummer, oder bei add-slide das Folienobjekt {layout, slots, notes}',
+            description: 'Foliennummer, oder bei add-slide das Folienobjekt {typ, slots, notes}',
           },
           afterSlide: { type: 'integer' },
           toPosition: { type: 'integer' },
@@ -152,6 +169,11 @@ const OPERATIONS_TOOL_SCHEMA: Record<string, unknown> = {
 
 const localeOf = (pages: readonly DeckPage[]) =>
   pages[0]?.configId === 'freeform-at' ? 'de-AT' : 'de-DE';
+
+/** Der Messer für neue und bearbeitete Texte; null ohne Markenschrift. */
+async function measureFor(locale: 'de-DE' | 'de-AT') {
+  return (await prepareOverflowMeasuring(locale)) ? serverMeasureText(locale) : null;
+}
 
 const WRITE_FAILED =
   'Die Änderung konnte nicht in die Präsentation geschrieben werden. Versuch es bitte gleich noch einmal.';
@@ -229,6 +251,7 @@ export async function planCanvasDeckEdit(opts: {
     date: new Date(),
     title,
     newPageId: () => crypto.randomUUID(),
+    measure: await measureFor(locale),
   });
   if (result.applied.length === 0) {
     return {
@@ -313,6 +336,7 @@ export async function applyPlannedCanvasDeckOperations(opts: {
     date: new Date(),
     title,
     newPageId: () => crypto.randomUUID(),
+    measure: await measureFor(localeOf(deckPages)),
   });
   if (result.applied.length === 0) {
     return {

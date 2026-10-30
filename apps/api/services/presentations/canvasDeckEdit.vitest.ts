@@ -30,11 +30,11 @@ const pages = composeSlideDeck(
   {
     title: 'Klimaplan',
     slides: [
-      { layout: 'titel', slots: { headline: 'Klima' } },
-      { layout: 'textfolie', slots: { headline: 'Warum', spalte1: '• Weil es eilt' } },
+      { typ: 'titel', slots: { headline: 'Klima' } },
+      { typ: 'text', slots: { headline: 'Warum', text: '• Weil es eilt' } },
     ],
   },
-  { locale: 'de-AT', date: new Date('2026-10-29') }
+  { locale: 'de-AT', date: new Date('2026-10-29'), stil: 'cd' }
 ).pages;
 
 /** The model's answer runs through the real `validate` of the call. */
@@ -70,6 +70,26 @@ describe('planAndApplyCanvasDeckEdit', () => {
     expect(text).not.toContain('folie-seitenzahl');
   });
 
+  it('lists only slot elements, not the per-item style decorations', () => {
+    for (const stil of ['ruhig', 'band', 'kacheln', 'aussage'] as const) {
+      const styled = composeSlideDeck(
+        {
+          title: 'Klimaplan',
+          slides: [
+            {
+              typ: 'liste',
+              slots: { headline: 'Forderungen', punkte: ['Eins', 'Zwei', 'Drei'] },
+            },
+          ],
+        },
+        { locale: 'de-DE', date: new Date('2026-10-29'), stil }
+      ).pages;
+      const text = describeDeckForEditing(styled);
+      expect(text).toContain('folie-punkt-3');
+      expect(text).not.toMatch(/folie-(kachel|kachelnr|nummer|linie|marke|balken)-\d/);
+    }
+  });
+
   it('writes a text change as a page patch', async () => {
     modelAnswers([
       {
@@ -96,7 +116,7 @@ describe('planAndApplyCanvasDeckEdit', () => {
   it('replaces the page set after confirmation, new slides in the deck brand', async () => {
     modelAnswers([
       { kind: 'remove-slide', slide: 1 },
-      { kind: 'add-slide', afterSlide: 2, slide: { layout: 'danke', slots: {} } },
+      { kind: 'add-slide', afterSlide: 2, slide: { typ: 'danke', slots: {} } },
     ]);
     expect(await run(true)).toMatchObject({ status: 'applied', applied: 2 });
     const [, changes] = mocks.applyDeckChanges.mock.calls[0] as [
@@ -105,6 +125,27 @@ describe('planAndApplyCanvasDeckEdit', () => {
     ];
     expect(changes.replacePages).toHaveLength(2);
     expect(changes.replacePages[1]!.configId).toBe('freeform-at');
+  });
+
+  it('edit add-slide composes in the deck style', async () => {
+    const bandPages = composeSlideDeck(
+      { title: 'Klimaplan', slides: [{ typ: 'titel', slots: { headline: 'Klima' } }] },
+      { locale: 'de-DE', date: new Date('2026-10-29'), stil: 'band' }
+    ).pages;
+    mocks.getCurrentDeckState.mockResolvedValue({ pages: bandPages, source: 'yjs' });
+    modelAnswers([
+      {
+        kind: 'add-slide',
+        afterSlide: 1,
+        slide: { typ: 'liste', slots: { headline: 'Warum', punkte: ['Eins', 'Zwei', 'Drei'] } },
+      },
+    ]);
+    expect(await run()).toMatchObject({ status: 'applied' });
+    const [, changes] = mocks.applyDeckChanges.mock.calls[0] as [
+      string,
+      { replacePages: Array<{ state: { deckStil: string } }> },
+    ];
+    expect(changes.replacePages.map((p) => p.state.deckStil)).toEqual(['band', 'band']);
   });
 
   it('fails without write access or a plan', async () => {
@@ -140,6 +181,16 @@ describe('planCanvasDeckEdit', () => {
     ]);
     const plan = await planCanvasDeckEdit({ canvasId: 'c1', userId: 'u1', instruction: 'x' });
     expect(plan).toMatchObject({ status: 'planned', needsConfirmation: false });
+  });
+});
+
+describe('edit prompt', () => {
+  it('names the list slot `punkte` as an array and shows an add-slide example', async () => {
+    modelAnswers([{ kind: 'remove-slide', slide: 2 }]);
+    await planCanvasDeckEdit({ canvasId: 'c1', userId: 'u1', instruction: 'x' });
+    const { system } = mocks.aiObject.mock.calls[0]![0] as { system: string };
+    expect(system).toContain('punkte (Array von Texten, 3–6 Punkte je ≤70)');
+    expect(system).toContain('"punkte": ["');
   });
 });
 

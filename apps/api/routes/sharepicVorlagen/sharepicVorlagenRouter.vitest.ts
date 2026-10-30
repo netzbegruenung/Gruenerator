@@ -17,6 +17,7 @@ const m = vi.hoisted(() => ({
   getSharepicSeite: vi.fn(),
   sharepicSeiteThumbFile: vi.fn(),
   sharepicVorlageAssetFile: vi.fn(),
+  listFolienVorlagen: vi.fn((locale: string) => [{ id: `folien-${locale}` }]),
   listCanvasVorlagen: vi.fn((locale: string) => [{ id: `canvas-${locale}` }]),
   getCanvasVorlage: vi.fn(),
   canvasVorlageThumbFile: vi.fn(),
@@ -34,6 +35,7 @@ vi.mock('../../services/sharepicVorlagen/catalog.js', () => ({
   getSharepicSeite: m.getSharepicSeite,
   sharepicSeiteThumbFile: m.sharepicSeiteThumbFile,
   sharepicVorlageAssetFile: m.sharepicVorlageAssetFile,
+  listFolienVorlagen: m.listFolienVorlagen,
   listCanvasVorlagen: m.listCanvasVorlagen,
   getCanvasVorlage: m.getCanvasVorlage,
   canvasVorlageThumbFile: m.canvasVorlageThumbFile,
@@ -222,4 +224,11 @@ it('serves a Vorlage photo with its type, privately cached, and 404s an unknown 
   } finally {
     server.close();
   }
+});
+
+it('lists the Folien styles of the viewer country', async () => {
+  const res = await (
+    sharepicVorlagenContractRouter.folien as unknown as (args: unknown) => Promise<Result>
+  )({ req: { user: { id: 'viewer', locale: 'de-DE' }, headers: {} }, query: {} });
+  expect(res.body.vorlagen).toEqual([{ id: 'folien-de-DE' }]);
 });

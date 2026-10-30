@@ -64,6 +64,16 @@ export async function renderSlideLayoutThumbnail(
   widthPx: number,
   imageUrls: CanvasImageUrlService
 ): Promise<string | null> {
+  return renderSlideState(layoutState(id, locale), locale, widthPx, imageUrls);
+}
+
+/** Wie `renderSlideLayoutThumbnail`, für einen beliebigen fertigen Folienzustand. */
+export async function renderSlideState(
+  state: Record<string, unknown>,
+  locale: BrandLocale,
+  widthPx: number,
+  imageUrls: CanvasImageUrlService
+): Promise<string | null> {
   if (typeof document === 'undefined') return null;
   // Vor dem Mount: Konva misst Text beim ersten Zeichnen.
   await ensureFontsReady();
@@ -85,7 +95,7 @@ export async function renderSlideLayoutThumbnail(
       createElement(StandaloneCanvas, {
         configId: slideLayoutConfigId(locale),
         formatId: SLIDE_FORMAT_ID,
-        initialProps: layoutState(id, locale),
+        initialProps: state,
         preview: true,
         canvasRef: (ref: GenericCanvasRef | null) => {
           handle = ref;
