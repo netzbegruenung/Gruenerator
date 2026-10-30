@@ -90,6 +90,8 @@ beforeAll(() => {
 afterEach(() => {
   server.resetHandlers();
   marketplaceQueries = [];
+  // The widgets keep their last answer in localStorage; jsdom keeps it across tests.
+  localStorage.clear();
 });
 
 describe('NotebooksIndexFooter — „Gemerkt" and Landesverbände', () => {
