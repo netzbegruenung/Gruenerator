@@ -53,6 +53,10 @@ RUN pnpm exec tsc --project tsconfig.json
 WORKDIR /app/packages/ggraphic-schema
 RUN pnpm exec tsc --project tsconfig.build.json
 
+# Compile ggraphic-core (contracts' slide composer imports its element model at runtime)
+WORKDIR /app/packages/ggraphic-core
+RUN pnpm exec tsc --project tsconfig.build.json
+
 # Compile contracts (shared depends on it)
 WORKDIR /app/packages/contracts
 RUN pnpm exec tsc --project tsconfig.build.json
@@ -137,6 +141,7 @@ COPY --from=builder --chown=gruenerator:gruenerator /app/packages/shared/dist ./
 COPY --from=builder --chown=gruenerator:gruenerator /app/packages/query/dist ./packages/query/dist
 COPY --from=builder --chown=gruenerator:gruenerator /app/packages/core/dist ./packages/core/dist
 COPY --from=builder --chown=gruenerator:gruenerator /app/packages/ggraphic-schema/dist ./packages/ggraphic-schema/dist
+COPY --from=builder --chown=gruenerator:gruenerator /app/packages/ggraphic-core/dist ./packages/ggraphic-core/dist
 COPY --from=builder --chown=gruenerator:gruenerator /app/packages/contracts/dist ./packages/contracts/dist
 
 # Copy compiled server
