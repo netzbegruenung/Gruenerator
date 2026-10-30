@@ -125,23 +125,27 @@ export const CD_BOXES: Record<
   Record<string, { maxHeight: number; minScale: number }>
 > = {
   titel: {
-    'folie-headline': { maxHeight: 370, minScale: 0.6 },
+    'folie-headline': { maxHeight: 370, minScale: 0.45 },
     'folie-text': { maxHeight: 560, minScale: 0.8 },
   },
-  liste: { 'folie-headline': { maxHeight: 200, minScale: 0.6 } },
+  liste: {
+    'folie-punkt-*': { maxHeight: 100, minScale: 0.7 },
+    'folie-headline': { maxHeight: 200, minScale: 0.6 },
+  },
   text: {
     'folie-headline': { maxHeight: 200, minScale: 0.6 },
     'folie-spalte-1': { maxHeight: 700, minScale: 0.8 },
   },
   kernsatz: {
+    'folie-punkt-*': { maxHeight: 50, minScale: 0.7 },
     'folie-headline': { maxHeight: 70, minScale: 0.6 },
     'folie-kernsatz': { maxHeight: 520, minScale: 0.6 },
   },
   zahl: {
-    'folie-zahl': { maxHeight: 360, minScale: 0.6 },
+    'folie-zahl': { maxHeight: 360, minScale: 0.5 },
     'folie-zahl-text': { maxHeight: 290, minScale: 0.7 },
   },
   zitat: { 'folie-zitat': { maxHeight: 560, minScale: 0.6 } },
   // „Vielen Dank“ steht bei y 330 (DE) bzw. 365 (AT), die Zeile darunter bei 600.
-  danke: { 'folie-headline': { maxHeight: 235, minScale: 0.6 } },
+  danke: { 'folie-headline': { maxHeight: 235, minScale: 0.5 } },
 };

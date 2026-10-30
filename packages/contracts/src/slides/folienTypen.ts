@@ -131,7 +131,7 @@ export const FOLIEN_TYPEN = {
     use: 'Schlussfolie mit Dank und optional Kontaktdaten',
     slots: {
       headline: text(
-        30,
+        24,
         'folie-headline',
         'große Schlusszeile; fehlt sie, steht dort „Vielen Dank“',
         false,

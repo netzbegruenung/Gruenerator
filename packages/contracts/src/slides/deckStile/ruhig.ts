@@ -99,19 +99,23 @@ export const RUHIG_BOXES: Record<FolienTypId, Record<string, DeckStilBox>> = {
     'folie-headline': { maxHeight: 500, minScale: 0.6 },
     'folie-text': { maxHeight: 200, minScale: 0.8 },
   },
-  liste: { 'folie-headline': { maxHeight: 220, minScale: 0.6 } },
+  liste: {
+    'folie-punkt-*': { maxHeight: 100, minScale: 0.65 },
+    'folie-headline': { maxHeight: 220, minScale: 0.6 },
+  },
   text: {
     'folie-headline': { maxHeight: 220, minScale: 0.6 },
     'folie-spalte-1': { maxHeight: 640, minScale: 0.8 },
   },
   kernsatz: {
+    'folie-punkt-*': { maxHeight: 50, minScale: 0.7 },
     'folie-headline': { maxHeight: 80, minScale: 0.6 },
     'folie-kernsatz': { maxHeight: 620, minScale: 0.6 },
   },
   zahl: {
-    'folie-zahl': { maxHeight: 400, minScale: 0.6 },
+    'folie-zahl': { maxHeight: 400, minScale: 0.5 },
     'folie-zahl-text': { maxHeight: 250, minScale: 0.7 },
   },
-  zitat: { 'folie-zitat': { maxHeight: 480, minScale: 0.6 } },
+  zitat: { 'folie-zitat': { maxHeight: 480, minScale: 0.5 } },
   danke: { 'folie-headline': { maxHeight: 330, minScale: 0.6 } },
 };

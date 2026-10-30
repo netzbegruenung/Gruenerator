@@ -138,17 +138,21 @@ export const BAND_BOXES: Record<FolienTypId, Record<string, DeckStilBox>> = {
     'folie-headline': { maxHeight: 420, minScale: 0.6 },
     'folie-text': { maxHeight: 250, minScale: 0.8 },
   },
-  liste: { 'folie-headline': { maxHeight: 530, minScale: 0.6 } },
+  liste: {
+    'folie-punkt-*': { maxHeight: 110, minScale: 0.7 },
+    'folie-headline': { maxHeight: 530, minScale: 0.6 },
+  },
   text: {
     'folie-headline': { maxHeight: 750, minScale: 0.6 },
     'folie-spalte-1': { maxHeight: 780, minScale: 0.8 },
   },
   kernsatz: {
+    'folie-punkt-*': { maxHeight: 56, minScale: 0.7 },
     'folie-headline': { maxHeight: 500, minScale: 0.6 },
     'folie-kernsatz': { maxHeight: 560, minScale: 0.6 },
   },
   zahl: {
-    'folie-zahl': { maxHeight: 340, minScale: 0.6 },
+    'folie-zahl': { maxHeight: 340, minScale: 0.5 },
     'folie-zahl-text': { maxHeight: 560, minScale: 0.7 },
   },
   zitat: { 'folie-zitat': { maxHeight: 600, minScale: 0.6 } },

@@ -177,7 +177,7 @@ describe('deck stile', () => {
           const box = boxes[t.id];
           expect(box, `${typ} ${t.id}`).toBeDefined();
           expect(box!.maxHeight).toBeGreaterThan(0);
-          if (t.id === 'folie-headline') expect(box!.minScale).toBe(0.6);
+          if (t.id === 'folie-headline') expect(box!.minScale).toBeLessThanOrEqual(0.6);
         }
         for (const box of Object.values(boxes)) expect(box.minScale).toBeLessThanOrEqual(1);
       }

@@ -143,17 +143,21 @@ export const KACHELN_BOXES: Record<FolienTypId, Record<string, DeckStilBox>> = {
     'folie-headline': { maxHeight: 480, minScale: 0.6 },
     'folie-text': { maxHeight: 280, minScale: 0.8 },
   },
-  liste: { 'folie-headline': { maxHeight: 200, minScale: 0.6 } },
+  liste: {
+    'folie-punkt-*': { maxHeight: 120, minScale: 0.7 },
+    'folie-headline': { maxHeight: 200, minScale: 0.6 },
+  },
   text: {
     'folie-headline': { maxHeight: 180, minScale: 0.6 },
     'folie-spalte-1': { maxHeight: 560, minScale: 0.8 },
   },
   kernsatz: {
+    'folie-punkt-*': { maxHeight: 45, minScale: 0.7 },
     'folie-headline': { maxHeight: 80, minScale: 0.6 },
     'folie-kernsatz': { maxHeight: 480, minScale: 0.6 },
   },
   zahl: {
-    'folie-zahl': { maxHeight: 450, minScale: 0.6 },
+    'folie-zahl': { maxHeight: 450, minScale: 0.5 },
     'folie-zahl-text': { maxHeight: 520, minScale: 0.7 },
   },
   zitat: { 'folie-zitat': { maxHeight: 520, minScale: 0.6 } },

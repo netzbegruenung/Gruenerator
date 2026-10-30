@@ -107,17 +107,21 @@ export const AUSSAGE_BOXES: Record<FolienTypId, Record<string, DeckStilBox>> = {
     'folie-headline': { maxHeight: 470, minScale: 0.6 },
     'folie-text': { maxHeight: 130, minScale: 0.8 },
   },
-  liste: { 'folie-headline': { maxHeight: 330, minScale: 0.6 } },
+  liste: {
+    'folie-punkt-*': { maxHeight: 200, minScale: 0.7 },
+    'folie-headline': { maxHeight: 330, minScale: 0.6 },
+  },
   text: {
     'folie-headline': { maxHeight: 170, minScale: 0.6 },
     'folie-spalte-1': { maxHeight: 680, minScale: 0.8 },
   },
   kernsatz: {
+    'folie-punkt-*': { maxHeight: 140, minScale: 0.7 },
     'folie-headline': { maxHeight: 120, minScale: 0.6 },
     'folie-kernsatz': { maxHeight: 540, minScale: 0.6 },
   },
   zahl: {
-    'folie-zahl': { maxHeight: 400, minScale: 0.6 },
+    'folie-zahl': { maxHeight: 400, minScale: 0.5 },
     'folie-zahl-text': { maxHeight: 250, minScale: 0.7 },
   },
   zitat: { 'folie-zitat': { maxHeight: 580, minScale: 0.6 } },

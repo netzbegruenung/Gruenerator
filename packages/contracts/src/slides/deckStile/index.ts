@@ -51,7 +51,9 @@ export function buildFolie(stil: DeckStilId, folie: FolieSpec, ctx: DeckStilCtx)
 
 /**
  * Die Textboxen, in die Aufgabe 4 zu langen Text hineinschrumpft: Element-Id →
- * höchste Höhe in Folien-px und kleinster Maßstab (Überschriften 0,6).
+ * höchste Höhe in Folien-px und kleinster Maßstab (Überschriften 0,6; ein paar
+ * Ausnahmen stehen an den Boxen). Listen haben EINE Box unter `LIST_BOX_KEY`
+ * (`folie-punkt-*`): `maxHeight` ist die Zelle je Punkt, alle Punkte teilen einen Maßstab.
  */
 export function deckStilBoxes(stil: DeckStilId, typ: FolienTypId): Record<string, DeckStilBox> {
   switch (stil) {
