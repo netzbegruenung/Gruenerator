@@ -301,26 +301,49 @@ export async function writeCache(
   }
 }
 
-/** Alle Texte zu `ids`; blättert bis zum Ende oder bis alle da sind. */
-async function fetchDipTexts(
+/** Alle Dokumente zu `ids`; blättert bis zum Ende oder bis alle da sind. */
+async function listByIds<T extends { id: string }>(
+  endpoint: 'drucksache' | 'drucksache-text',
   ids: readonly string[],
   dip: DipLister
-): Promise<Map<string, DipDrucksacheText>> {
-  const found = new Map<string, DipDrucksacheText>();
+): Promise<Map<string, T>> {
+  const found = new Map<string, T>();
   if (ids.length === 0) return found;
 
   let cursor: string | null = null;
   for (;;) {
-    const page: Awaited<ReturnType<DipLister['list']>> = await dip.list<DipDrucksacheText>(
-      'drucksache-text',
-      { 'f.id': ids, ...(cursor ? { cursor } : {}) }
-    );
-    for (const doc of page.documents as DipDrucksacheText[]) found.set(doc.id, doc);
+    const page: Awaited<ReturnType<DipLister['list']>> = await dip.list<T>(endpoint, {
+      'f.id': ids,
+      ...(cursor ? { cursor } : {}),
+    });
+    for (const doc of page.documents as T[]) found.set(doc.id, doc);
     if (found.size >= ids.length || page.documents.length === 0) break;
     if (!page.cursor || page.cursor === cursor) break;
     cursor = page.cursor;
   }
   return found;
+}
+
+/**
+ * Kandidaten aus `/vorgangsposition` tragen kein `aktualisiert`. Ohne Stand
+ * wäre ihr Cache-Schlüssel konstant und eine korrigierte Drucksache bis zu
+ * `TEXT_CACHE_TTL_S` veraltet (#5115). Die Metadatenliste ist billig gegen den
+ * Volltext, den der Cache spart. Scheitert sie, bleibt es beim leeren Stand —
+ * so verhielt es sich vorher auch, und die Antwort soll daran nicht scheitern.
+ */
+async function resolveAktualisiert(
+  ids: readonly string[],
+  dip: DipLister
+): Promise<Map<string, string>> {
+  try {
+    const docs = await listByIds<DipDrucksache>('drucksache', ids, dip);
+    return new Map(
+      [...docs].flatMap(([id, d]) => (d.aktualisiert ? [[id, d.aktualisiert] as const] : []))
+    );
+  } catch (error: unknown) {
+    log.warn(`Stand der Drucksachen nicht ermittelt: ${String(error)}`);
+    return new Map();
+  }
 }
 
 async function pdfFallback(url: string | null, signal: AbortSignal): Promise<string> {
@@ -395,9 +418,18 @@ export async function fetchTexts(
   const { dip, redis, signal } = deps;
   // Schlüssel ist der Kandidat selbst: zwei Debatten desselben Protokolls teilen die dipId.
   const results = new Map<BundestagCandidate, CachedText>();
-  const cacheKey = (c: BundestagCandidate) => `bt:qa:text:v1:${c.dipId}:${c.aktualisiert ?? ''}`;
 
   const drucksachen = candidates.filter((c) => c.kind === 'drucksache');
+  // Ohne Cache braucht es keinen Stand für den Schlüssel.
+  const stand = redis
+    ? await resolveAktualisiert(
+        drucksachen.filter((c) => !c.aktualisiert).map((c) => c.dipId),
+        dip
+      )
+    : new Map<string, string>();
+  const aktualisiert = (c: BundestagCandidate) => c.aktualisiert ?? stand.get(c.dipId) ?? null;
+  const cacheKey = (c: BundestagCandidate) => `bt:qa:text:v1:${c.dipId}:${aktualisiert(c) ?? ''}`;
+
   const toLoad: BundestagCandidate[] = [];
   for (const c of drucksachen) {
     const hit = await readCache(redis, cacheKey(c));
@@ -405,7 +437,8 @@ export async function fetchTexts(
     else toLoad.push(c);
   }
 
-  const fromDip = await fetchDipTexts(
+  const fromDip = await listByIds<DipDrucksacheText>(
+    'drucksache-text',
     toLoad.map((c) => c.dipId),
     dip
   );
@@ -438,6 +471,7 @@ export async function fetchTexts(
 
   return candidates.map((c) => ({
     ...c,
+    aktualisiert: aktualisiert(c),
     ...(results.get(c) ?? { text: '', textSource: 'missing' as const }),
   }));
 }
