@@ -252,4 +252,19 @@ describe('composeSlideDeck in a style', () => {
   it('keeps every typ listed in FOLIEN_TYPEN recognisable', () => {
     expect(FOLIEN_TYP_IDS).toEqual(Object.keys(FOLIEN_TYPEN));
   });
+
+  describe('readFolie list items', () => {
+    it('skips list items that are empty after trimming', () => {
+      const state = {
+        additionalTexts: [
+          { id: 'folie-headline', text: 'Titel' },
+          { id: 'folie-punkt-1', text: '• Eins' },
+          { id: 'folie-punkt-2', text: '•  ' },
+          { id: 'folie-punkt-3', text: '  ' },
+          { id: 'folie-punkt-4', text: '• Vier' },
+        ],
+      };
+      expect(readFolie(state)).toMatchObject({ typ: 'liste', slots: { punkte: ['Eins', 'Vier'] } });
+    });
+  });
 });

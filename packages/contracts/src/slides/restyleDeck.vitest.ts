@@ -71,6 +71,21 @@ describe('restyleDeck', () => {
     });
   });
 
+  it('restyle keeps the locked ids of user elements', () => {
+    const pages = pagesOf('ruhig');
+    const text = pages[2]!;
+    text.state = {
+      ...text.state,
+      userImageInstances: [{ id: 'img-1', x: 10, y: 10 }],
+      layerOrder: [...(text.state['layerOrder'] as string[]), 'img-1'],
+      lockedLayerIds: [...((text.state['lockedLayerIds'] as string[]) ?? []), 'img-1'],
+    };
+
+    const out = restyleDeck(pages, 'band', ctx);
+
+    expect(out[2]!.state['lockedLayerIds']).toContain('img-1');
+  });
+
   it('restyle leaves an unrecognised page untouched', () => {
     const odd: DeckPage = {
       id: 'odd',

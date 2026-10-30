@@ -62,6 +62,16 @@ export function restyleDeck(pages: DeckPage[], stil: DeckStilId, ctx: RestyleCon
       }
     }
     next['layerOrder'] = layerOrder;
+
+    // Gesperrt bleibt gesperrt: die Sperren der übernommenen Elemente mitnehmen.
+    const kept = new Set(layerOrder);
+    const locked = Array.isArray(next['lockedLayerIds'])
+      ? (next['lockedLayerIds'] as string[])
+      : [];
+    const carried = (
+      Array.isArray(page.state['lockedLayerIds']) ? (page.state['lockedLayerIds'] as string[]) : []
+    ).filter((id) => !id.startsWith(FOLIE_PREFIX) && kept.has(id) && !locked.includes(id));
+    next['lockedLayerIds'] = [...locked, ...carried];
     return { ...page, state: next };
   });
 }

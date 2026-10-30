@@ -426,7 +426,8 @@ export function readFolie(state: Record<string, unknown>): FolieSpec | null {
       const items: string[] = [];
       for (let i = 1; i <= slot.maxItems; i++) {
         const value = texts.get(`${slot.elementIdPrefix}${i}`);
-        if (value !== undefined) items.push(value.replace(BULLET, '').trim());
+        const item = value?.replace(BULLET, '').trim();
+        if (item) items.push(item);
       }
       if (items.length > 0) slots[name] = items;
       continue;
