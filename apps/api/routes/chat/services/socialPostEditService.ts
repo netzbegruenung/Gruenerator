@@ -30,6 +30,7 @@ import { toUserFacingMessage } from '../../../utils/errors/index.js';
 import { createLogger } from '../../../utils/logger.js';
 
 import { finishEditTurn } from './editTurnCompletion.js';
+import { toJsonbParam } from './jsonbParam.js';
 import { looksLikeRefusal } from './refusalDetection.js';
 import { isSharepicVariantTool } from './sharepicToolCalls.js';
 import { parseSocialPostText } from './socialPostService.js';
@@ -145,7 +146,7 @@ async function updatePostOnMessage(
   if (changed) {
     await pg.query(`UPDATE chat_messages SET tool_results = $2 WHERE id = $1`, [
       messageId,
-      JSON.stringify(meta),
+      toJsonbParam(meta),
     ]);
   }
 }

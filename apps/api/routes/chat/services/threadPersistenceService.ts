@@ -13,6 +13,7 @@ import { getPostgresInstance } from '../../../database/services/PostgresService.
 import { type PersistedStep } from './agenticLoop/types.js';
 import { type ArtifactKindId } from './artifactKindRegistry.js';
 import { parseRecordedOffer } from './artifactOffer.js';
+import { toJsonbParam } from './jsonbParam.js';
 import { sharepicVariantCall } from './sharepicToolCalls.js';
 import { type ThreadCloudFiles, parseThreadCloudFiles } from './threadCloudFiles.js';
 import {
@@ -146,7 +147,7 @@ export async function createMessage(
     `INSERT INTO chat_messages (thread_id, role, content, tool_results, user_id)
      VALUES ($1, $2, $3, $4, $5)
      RETURNING id`,
-    [threadId, role, content, metadata ? JSON.stringify(metadata) : null, userId || null]
+    [threadId, role, content, toJsonbParam(metadata), userId || null]
   )) as { id: string }[];
   return result[0]!.id;
 }
@@ -225,7 +226,7 @@ export async function finalizeAssistantMessage(
          status = 'complete'
      WHERE id = $1
      RETURNING id`,
-    [messageId, content, metadata ? JSON.stringify(metadata) : null]
+    [messageId, content, toJsonbParam(metadata)]
   )) as unknown[];
   return result.length === 1;
 }

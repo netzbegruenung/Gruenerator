@@ -44,6 +44,7 @@ import { sharepicCapabilitiesView } from '../../canvas/services/buildCanvasSugge
 import { runCanvasEditDecision } from '../../canvas/services/runCanvasSuggest.js';
 
 import { finishEditTurn } from './editTurnCompletion.js';
+import { toJsonbParam } from './jsonbParam.js';
 import { isSharepicVariantTool, sharepicVariantCall } from './sharepicToolCalls.js';
 
 import type { SharepicVariant } from './sharepicVariantHelpers.js';
@@ -143,7 +144,7 @@ async function attachCanvasIdToMessage(
   if (changed) {
     await pg.query(`UPDATE chat_messages SET tool_results = $2 WHERE id = $1`, [
       messageId,
-      JSON.stringify(meta),
+      toJsonbParam(meta),
     ]);
   }
 }

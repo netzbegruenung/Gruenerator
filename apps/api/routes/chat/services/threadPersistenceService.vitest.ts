@@ -47,6 +47,12 @@ describe('createMessage', () => {
     expect(sql()).toContain('RETURNING id');
     expect(params()).toEqual(['thread-1', 'user', 'Hallo', null, 'user-1']);
   });
+
+  it('writes metadata with a lone surrogate as valid jsonb (#5017)', async () => {
+    queryMock.mockResolvedValueOnce([{ id: 'm' }]);
+    await createMessage('thread-1', 'assistant', 'x', { snippet: '🇩🇪'.slice(0, 3) });
+    expect(JSON.parse(params()?.[3] as string)).toEqual({ snippet: '🇩�' });
+  });
 });
 
 describe('createPendingAssistantMessage', () => {
@@ -128,6 +134,23 @@ describe('finalizeAssistantMessage', () => {
     queryMock.mockResolvedValueOnce([{ id: 'm' }]);
     await finalizeAssistantMessage('m', null, { generatedImage: true });
     expect(params()?.[1]).toBeNull();
+  });
+
+  // #5017: a snippet cut by UTF-16 index through 🇩🇪 leaves a lone surrogate;
+  // JSON.stringify emits it as `\ud83c`, and Postgres rejects the whole row with
+  // 22P02 — the answer was lost. `\u0000` is the other escape jsonb refuses (22P05).
+  it('writes tool output with a split surrogate pair or NUL as valid jsonb', async () => {
+    queryMock.mockResolvedValueOnce([{ id: 'm' }]);
+    const cut = '🇩🇪 Server in Deutschland'.slice(0, 1);
+    await finalizeAssistantMessage('m', 'final', {
+      searchResults: [{ snippet: `${cut} Frankfurt`, content: 'a\u0000b', title: '🇩🇪 ok' }],
+    });
+    const json = params()?.[2] as string;
+    expect(json).not.toMatch(/\\ud[89a-f][0-9a-f]{2}/i);
+    expect(json).not.toContain('\\u0000');
+    expect(JSON.parse(json)).toEqual({
+      searchResults: [{ snippet: '� Frankfurt', content: 'ab', title: '🇩🇪 ok' }],
+    });
   });
 });
 
