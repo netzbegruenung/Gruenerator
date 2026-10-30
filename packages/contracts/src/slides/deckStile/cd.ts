@@ -57,17 +57,41 @@ function zitatFolie(b: SlideBuilder, folie: FolieSpec, locale: BrandLocale) {
   b.text('folie-zitat-name', s.name ?? '', M, 930, 1400, 40, { type: 'subheader' });
 }
 
+/**
+ * Kernsatz auf dem Raster der Zitatfolie, aber mit der Anführung oben rechts:
+ * links oben stand sie über der Zeile darüber (die Web-Schrift setzt den Glyphen
+ * tiefer als die OTF, Live-Test 30.10.). Darunter bis zu drei Stichpunkte in
+ * Beamergröße, mit Luft über der Fußzeile.
+ */
+const KERNSATZ = {
+  headY: 120,
+  headWidth: 1360,
+  satzY: 310,
+  satzHeight: 470,
+  punkteY: 800,
+  punkteSize: 48,
+  punktePitch: 64,
+} as const;
+
 function kernsatzFolie(b: SlideBuilder, folie: FolieSpec, locale: BrandLocale) {
-  // Das Raster der Zitatfolie: Anführung, Zeile darüber, großer Satz.
   slideKit.zitat(b, false, locale);
+  const quote = textOf(b, 'folie-anfuehrung');
+  quote.fontSize = locale === 'de-AT' ? 440 : 600;
+  quote.width = quote.fontSize;
+  quote.x = W - M - quote.fontSize * 0.55;
+  quote.y = 20;
   renameElement(b, 'folie-intro', 'folie-headline');
+  const head = textOf(b, 'folie-headline');
+  head.y = KERNSATZ.headY;
+  head.width = KERNSATZ.headWidth;
   renameElement(b, 'folie-zitat', 'folie-kernsatz');
+  textOf(b, 'folie-kernsatz').y = KERNSATZ.satzY;
   renderList(b, listItems(folie, 'punkte'), {
     x: M,
-    y: 880,
+    y: KERNSATZ.punkteY,
     width: W - 2 * M,
-    size: 40,
-    pitch: 46,
+    size: KERNSATZ.punkteSize,
+    pitch: KERNSATZ.punktePitch,
   });
 }
 
@@ -137,9 +161,9 @@ export const CD_BOXES: Record<
     'folie-spalte-1': { maxHeight: 700, minScale: 0.8 },
   },
   kernsatz: {
-    'folie-punkt-*': { maxHeight: 50, minScale: 0.7 },
+    'folie-punkt-*': { maxHeight: 60, minScale: 0.7 },
     'folie-headline': { maxHeight: 70, minScale: 0.6 },
-    'folie-kernsatz': { maxHeight: 520, minScale: 0.6 },
+    'folie-kernsatz': { maxHeight: KERNSATZ.satzHeight, minScale: 0.6 },
   },
   zahl: {
     'folie-zahl': { maxHeight: 360, minScale: 0.5 },

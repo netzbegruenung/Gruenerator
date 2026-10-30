@@ -293,3 +293,61 @@ describe('deck stile box limits', () => {
     }
   });
 });
+
+/** Box eines Textelements: Breite × Zeilenhöhe (eine Zeile, `lineHeight` sonst 1,2). */
+const lineBox = (t: {
+  x: number;
+  y: number;
+  width?: number;
+  fontSize: number;
+  lineHeight?: number;
+}) => ({
+  x0: t.x,
+  x1: t.x + (t.width ?? 0),
+  y0: t.y,
+  y1: t.y + t.fontSize * (t.lineHeight ?? 1.2),
+});
+
+/**
+ * Wo die Tinte der Anführung liegt, großzügig: Die Lage des Glyphen hängt an
+ * den vertikalen Metriken der ausgelieferten Schrift (OTF und Web-Schrift
+ * verschieben die Grundlinie um rund 0,15 em). Gemessen an GrueneTypeNeue
+ * („”“ 1000 px: Tinte 0,05–0,47 em breit, je nach Datei −0,03 bis 0,41 em hoch).
+ */
+const quoteInk = (t: { x: number; y: number; fontSize: number }) => ({
+  x0: t.x,
+  x1: t.x + t.fontSize * 0.55,
+  y0: t.y - t.fontSize * 0.05,
+  y1: t.y + t.fontSize * 0.45,
+});
+
+const overlaps = (
+  a: { x0: number; x1: number; y0: number; y1: number },
+  b: { x0: number; x1: number; y0: number; y1: number }
+) => a.x0 < b.x1 && b.x0 < a.x1 && a.y0 < b.y1 && b.y0 < a.y1;
+
+describe('cd kernsatz', () => {
+  for (const locale of LOCALES) {
+    it(`keeps the headline and the Kernsatz clear of the quote ornament (${locale})`, () => {
+      const state = buildFolie('cd', fullFolie('kernsatz'), ctx(locale));
+      const byId = new Map(state.additionalTexts.map((t) => [t.id, t]));
+      const ink = quoteInk(byId.get('folie-anfuehrung')!);
+      expect(overlaps(lineBox(byId.get('folie-headline')!), ink), 'headline').toBe(false);
+      expect(overlaps(lineBox(byId.get('folie-kernsatz')!), ink), 'kernsatz').toBe(false);
+    });
+
+    it(`sets the Stichpunkte at projector size with room above the footer (${locale})`, () => {
+      const state = buildFolie('cd', fullFolie('kernsatz'), ctx(locale));
+      const cell = deckStilBoxes('cd', 'kernsatz')['folie-punkt-*']!.maxHeight;
+      const kernsatz = state.additionalTexts.find((t) => t.id === 'folie-kernsatz')!;
+      const kernsatzBox = deckStilBoxes('cd', 'kernsatz')['folie-kernsatz']!.maxHeight;
+      const items = state.additionalTexts.filter((t) => /^folie-punkt-\d+$/.test(t.id));
+      expect(items).toHaveLength(3);
+      for (const it of items) {
+        expect(it.fontSize, it.id).toBeGreaterThanOrEqual(48);
+        expect(it.y + cell, it.id).toBeLessThanOrEqual(1028 - 40);
+        expect(it.y, it.id).toBeGreaterThanOrEqual(kernsatz.y + kernsatzBox);
+      }
+    });
+  }
+});
