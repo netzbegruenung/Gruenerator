@@ -18,27 +18,19 @@ import {
 import { cn } from '@ggraphic/editor/utils/cn';
 import { type FolienVorlage } from '@gruenerator/contracts';
 import { readDeckStil, restyleDeck } from '@gruenerator/contracts/slides';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { v4 as uuid } from 'uuid';
 
 import { vorlageDeckOps } from '../collab/vorlageDeck';
 
 import { browserMeasureText } from './browserMeasureText';
 import { DECK_PREVIEW_TYPEN, useDeckStilThumbnail } from './deckStilThumbnails';
+import { useDeckCatalogue } from './useDeckCatalogue';
 
 import type { DeckPreviewTyp } from './renderDeckStilThumbnail';
 import type { BrandLocale } from '../brand/theme';
 import type { CanvasSpecEditBridge } from '@ggraphic/editor/CanvasEditorProvider';
 import type { HeterogeneousPage } from '@ggraphic/editor/configs/types';
-
-/** Der Stil des Grünen CD: gibt es immer, auch ohne Katalog des Hosts. */
-const OFFIZIELL: FolienVorlage = {
-  id: 'offiziell',
-  titel: 'Offiziell',
-  beschreibung: 'Das Corporate Design der Grünen.',
-  stil: 'cd',
-  locale: 'de-DE',
-};
 
 export interface DeckVorlagenPickerProps {
   /** Die Deck-Vorlagen des Hosts; null, wenn er keine kennt. */
@@ -79,7 +71,7 @@ function PreviewThumb({
 }
 
 /** Der Titel des Decks steht in der Fußzeile jeder Folie. */
-function deckTitleOf(pages: readonly HeterogeneousPage[]): string {
+export function deckTitleOf(pages: readonly HeterogeneousPage[]): string {
   for (const page of pages) {
     const texts = page.state.additionalTexts;
     if (!Array.isArray(texts)) continue;
@@ -91,26 +83,8 @@ function deckTitleOf(pages: readonly HeterogeneousPage[]): string {
 
 export function DeckVorlagenPicker({ load, pages, deck, locale }: DeckVorlagenPickerProps) {
   const announce = useAnnounce();
-  const [catalogue, setCatalogue] = useState<FolienVorlage[]>([OFFIZIELL]);
+  const catalogue = useDeckCatalogue(load);
   const [asking, setAsking] = useState<FolienVorlage | null>(null);
-
-  useEffect(() => {
-    if (!load) return;
-    let live = true;
-    load().then(
-      (vorlagen) => {
-        if (live && vorlagen.length > 0) {
-          setCatalogue(vorlagen.some((v) => v.stil === 'cd') ? vorlagen : [OFFIZIELL, ...vorlagen]);
-        }
-      },
-      (err: unknown) => {
-        console.warn('[DeckVorlagenPicker] loading the deck Vorlagen failed', err);
-      }
-    );
-    return () => {
-      live = false;
-    };
-  }, [load]);
 
   const active = readDeckStil(pages);
 

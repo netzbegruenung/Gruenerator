@@ -6,9 +6,10 @@
  * replaced or asked. A Vorlage's slides come as Seiten of their own and stay
  * together in their order; the ones most like the design come first.
  *
- * A slide deck shows the built-in slide layouts first (`slides/`), dark and
- * light, and adds them like Seiten: a click puts one after the open page, a
- * tile dragged onto a page after that page, an empty deck is filled instead.
+ * A slide deck shows the deck templates first: every Vorlage with each of its
+ * Folientypen as a slide of its own, the deck's current style first and open.
+ * They add like Seiten: a click puts one after the open page, a tile dragged
+ * onto a page after that page, an empty deck is filled instead.
  * The host's canvas Vorlagen of the format follow, if there are any.
  *
  * Every other format shows the Vorlagen of exactly its size, both from the
@@ -60,6 +61,13 @@ import {
   type SharepicSeiteTyp,
 } from '@gruenerator/contracts';
 import {
+  buildFolie,
+  DECK_STIL_IDS,
+  FOLIEN_TYP_IDS,
+  type DeckStilId,
+  type FolienTypId,
+} from '@gruenerator/contracts/slides';
+import {
   useEffect,
   useImperativeHandle,
   useState,
@@ -76,14 +84,10 @@ import {
   seiteDeckOps,
   vorlageDeckOps,
 } from '../../collab/vorlageDeck';
-import { DeckVorlagenPicker } from '../../slides/DeckVorlagenPicker';
-import { SlideLayoutPicker } from '../../slides/SlideLayoutPicker';
-import {
-  buildSlideLayout,
-  SLIDE_LAYOUTS,
-  slideLayoutConfigId,
-  type SlideLayoutId,
-} from '../../slides/slideLayouts';
+import { DECK_FOLIE_SAMPLES } from '../../slides/deckFolieSamples';
+import { DeckSlidePicker } from '../../slides/DeckSlidePicker';
+import { deckTitleOf, DeckVorlagenPicker } from '../../slides/DeckVorlagenPicker';
+import { slideLayoutConfigId } from '../../slides/slideLayouts';
 import { rankVorlagen } from '../../utils/vorlagenRelevance';
 
 import type { BrandLocale } from '../../brand/theme';
@@ -112,7 +116,7 @@ export interface VorlagenSectionProps {
   onShowPage?: (pageId: string) => void;
   /** False once the design holds as many pages as it may. */
   canAddPage: boolean;
-  /** The country whose slide layouts a deck gets. */
+  /** The country whose slides a deck gets. */
   layoutLocale: BrandLocale;
 }
 
@@ -235,13 +239,17 @@ function startDrag(e: DragEvent<HTMLElement>, id: string) {
   }
 }
 
-/** Drag payload of a slide layout tile, apart from the host's Vorlage ids. */
-const LAYOUT_DRAG_PREFIX = 'folienlayout:';
+/** Drag payload of a deck template slide, apart from the host's Vorlage ids. */
+const FOLIE_DRAG_PREFIX = 'folienvorlage:';
 
-const layoutFromDrag = (id: string): SlideLayoutId | null => {
-  if (!id.startsWith(LAYOUT_DRAG_PREFIX)) return null;
-  const layoutId = id.slice(LAYOUT_DRAG_PREFIX.length);
-  return SLIDE_LAYOUTS.find((l) => l.id === layoutId)?.id ?? null;
+const folieDragId = (stil: DeckStilId, typ: FolienTypId) => `${FOLIE_DRAG_PREFIX}${stil}:${typ}`;
+
+const folieFromDrag = (id: string): { stil: DeckStilId; typ: FolienTypId } | null => {
+  if (!id.startsWith(FOLIE_DRAG_PREFIX)) return null;
+  const [stil, typ] = id.slice(FOLIE_DRAG_PREFIX.length).split(':');
+  const knownStil = DECK_STIL_IDS.find((s) => s === stil);
+  const knownTyp = FOLIEN_TYP_IDS.find((t) => t === typ);
+  return knownStil && knownTyp ? { stil: knownStil, typ: knownTyp } : null;
 };
 
 const HINT = 'm-0 py-4 text-center text-[13px] text-[var(--editor-text-muted)]';
@@ -521,22 +529,28 @@ export function VorlagenSection({
     }
   };
 
-  const addLayout = (id: SlideLayoutId, afterPageId: string | null) => {
+  const addFolie = (stil: DeckStilId, folieTyp: FolienTypId, afterPageId: string | null) => {
     if (busyId !== null || full) return;
     setApplyError(null);
     try {
       const current = deck.getPages();
       const at = current.findIndex((p) => p.id === afterPageId);
       // Die Nummer, die die Folie im Deck bekommt.
-      const pageNumber = isDeckEmpty(current) ? 1 : (at === -1 ? current.length : at + 1) + 1;
-      const state = buildSlideLayout(id, { locale: layoutLocale, pageNumber, date: new Date() });
+      const index = isDeckEmpty(current) ? 0 : at === -1 ? current.length : at + 1;
+      const state = buildFolie(stil, DECK_FOLIE_SAMPLES[folieTyp], {
+        locale: layoutLocale,
+        date: new Date(),
+        pageNumber: index + 1,
+        title: deckTitleOf(current),
+        index,
+      }) as unknown as Record<string, unknown>;
       const page = { configId: slideLayoutConfigId(layoutLocale), state };
       const ops = seiteDeckOps(current, afterPageId, page, uuid);
       const [inserted] = deck.replaceDeck(ops);
       const shownId = inserted ?? ops.updates[0]?.pageId;
       if (shownId) onShowPage?.(shownId);
     } catch (err) {
-      console.warn('[VorlagenSection] adding the slide layout failed', err);
+      console.warn('[VorlagenSection] adding the template slide failed', err);
       setApplyError(ADD_ERROR);
     }
   };
@@ -552,9 +566,9 @@ export function VorlagenSection({
 
   useImperativeHandle(ref, () => ({
     drop: (id, pageId) => {
-      const layoutId = layoutFromDrag(id);
-      if (layoutId) {
-        addLayout(layoutId, pageId);
+      const folie = folieFromDrag(id);
+      if (folie) {
+        addFolie(folie.stil, folie.typ, pageId);
         return;
       }
       const vorlage = wholeCards.find((v) => v.id === id);
@@ -642,7 +656,7 @@ export function VorlagenSection({
       wholeList
     );
 
-  // Die Folienlayouts sind sofort da; die Vorlagen des Hosts folgen, wenn es welche gibt.
+  // Die Folien der Deck-Vorlagen sind sofort da; die Vorlagen des Hosts folgen, wenn es welche gibt.
   const slidesView = (
     <>
       <p className="m-0 text-[12px] text-[var(--editor-text-muted)]">
@@ -658,12 +672,13 @@ export function VorlagenSection({
         deck={deck}
         locale={layoutLocale}
       />
-      <SlideLayoutPicker
-        narrow
+      <DeckSlidePicker
+        load={service?.loadDeckVorlagen ?? null}
+        pages={pages}
         locale={layoutLocale}
         disabled={busyId !== null || full}
-        onSelect={(id) => addLayout(id, deck.getActivePageId())}
-        onDragStart={canDrag ? (e, id) => startDrag(e, `${LAYOUT_DRAG_PREFIX}${id}`) : null}
+        onSelect={(stil, typ) => addFolie(stil, typ, deck.getActivePageId())}
+        onDragStart={canDrag ? (e, stil, typ) => startDrag(e, folieDragId(stil, typ)) : null}
       />
       {wholeLoad.status === 'error' ? (
         <LoadError

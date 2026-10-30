@@ -1,6 +1,7 @@
 import { CanvasEditorProvider } from '@ggraphic/editor/CanvasEditorProvider';
 import { defaultCanvasEditorStore } from '@ggraphic/editor/stores/createCanvasEditorStore';
 import { VORLAGE_DRAG_TYPE } from '@ggraphic/editor/utils/mediaDrop';
+import { readFolie } from '@gruenerator/contracts/slides';
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { createRef } from 'react';
@@ -638,15 +639,13 @@ describe('VorlagenSection on a slide deck', () => {
   const opsOf = (deck: ReturnType<typeof setup>['deck']) =>
     (deck.replaceDeck.mock.calls[0] as unknown as [Ops])[0];
 
-  it('shows the slide layouts, dark and light, then the canvas Vorlagen of the format', async () => {
+  it('shows the deck template slides, then the canvas Vorlagen of the format', async () => {
     const { vorlagen, container } = setup(DECK, {
       formatId: 'slide-16-9',
       service: { listCanvas: vi.fn(async () => [...CANVAS_CATALOGUE, DECK_CANVAS]) },
     });
-    const dark = screen.getByRole('region', { name: 'Folienlayouts Dunkel' });
-    const light = screen.getByRole('region', { name: 'Folienlayouts Hell' });
-    expect(within(dark).getAllByRole('button')).toHaveLength(10);
-    expect(within(light).getAllByRole('button')).toHaveLength(6);
+    const slides = screen.getByRole('region', { name: 'Folien aus Vorlagen' });
+    expect(within(slides).getAllByRole('button')).toHaveLength(7);
     const more = await screen.findByRole('region', { name: 'Weitere Vorlagen' });
     expect(
       within(more)
@@ -658,7 +657,7 @@ describe('VorlagenSection on a slide deck', () => {
     expect(await axe(container)).toHaveNoViolations();
   });
 
-  it('offers „Vorlage für alle Folien" above the layouts, from the host loader', async () => {
+  it('offers „Vorlage für alle Folien" above the template slides, from the host loader', async () => {
     const loadDeckVorlagen = vi.fn(async () => [
       {
         id: 'cd',
@@ -679,24 +678,26 @@ describe('VorlagenSection on a slide deck', () => {
     const picker = await screen.findByRole('region', { name: 'Vorlage für alle Folien' });
     await waitFor(() => expect(within(picker).getAllByRole('button')).toHaveLength(2));
     expect(
-      picker.compareDocumentPosition(screen.getByRole('region', { name: 'Folienlayouts Dunkel' })) &
+      picker.compareDocumentPosition(screen.getByRole('region', { name: 'Folien aus Vorlagen' })) &
         Node.DOCUMENT_POSITION_FOLLOWING
     ).toBeTruthy();
   });
 
-  it('shows only the layouts when the host has no Vorlage of the format', async () => {
+  it('shows only the template slides when the host has no Vorlage of the format', async () => {
     const listCanvas = vi.fn(async () => CANVAS_CATALOGUE);
     setup(DECK, { formatId: 'slide-16-9', service: { listCanvas } });
     await waitFor(() => expect(listCanvas).toHaveBeenCalled());
-    expect(screen.getByRole('button', { name: 'Titelfolie, dunkel' })).toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: 'Titelfolie – Offiziell einfügen' })
+    ).toBeInTheDocument();
     expect(screen.queryByRole('region', { name: 'Weitere Vorlagen' })).toBeNull();
     expect(screen.queryByText(/noch keine Vorlagen/)).toBeNull();
   });
 
-  it('adds a layout after the open page, numbered for its place', async () => {
+  it('adds a template slide after the open page, numbered for its place', async () => {
     const { deck, onShowPage, user } = setup(DECK, { formatId: 'slide-16-9' });
     deck.replaceDeck.mockReturnValue(['neu']);
-    await user.click(screen.getByRole('button', { name: 'Zitat, hell' }));
+    await user.click(screen.getByRole('button', { name: 'Zitat – Offiziell einfügen' }));
     const ops = opsOf(deck);
     expect(ops.removes).toEqual([]);
     expect(ops.inserts).toHaveLength(1);
@@ -711,30 +712,30 @@ describe('VorlagenSection on a slide deck', () => {
       { id: 'p1', configId: 'freeform', state: { backgroundColor: '#005538', notes: 'Begrüßung' } },
     ];
     const { deck, user } = setup(blank, { formatId: 'slide-16-9' });
-    await user.click(screen.getByRole('button', { name: 'Titelfolie, dunkel' }));
+    await user.click(screen.getByRole('button', { name: 'Titelfolie – Offiziell einfügen' }));
     const ops = opsOf(deck);
     expect(ops.inserts).toEqual([]);
     expect(ops.updates[0]).toMatchObject({ pageId: 'p1', state: { notes: 'Begrüßung' } });
   });
 
-  it('builds the Austrian layouts for an AT deck', async () => {
+  it('builds the Austrian slides for an AT deck', async () => {
     const at = DECK.map((p) => ({ ...p, configId: 'freeform-at' as const }));
     const { deck, user } = setup(at, { formatId: 'slide-16-9', userLocale: 'de-AT' });
-    await user.click(screen.getByRole('button', { name: 'Textfolie, dunkel' }));
+    await user.click(screen.getByRole('button', { name: 'Text – Offiziell einfügen' }));
     expect(opsOf(deck).inserts[0]).toMatchObject({ afterPageId: 's1', configId: 'freeform-at' });
   });
 
-  it('adds a layout dragged onto a page after that page', () => {
+  it('adds a template slide dragged onto a page after that page', () => {
     const { deck, handle } = setup(DECK, { formatId: 'slide-16-9' });
-    const data = dragStart(screen.getByRole('button', { name: 'Diagramm, dunkel' }));
+    const data = dragStart(screen.getByRole('button', { name: 'Kernsatz – Offiziell einfügen' }));
     act(() => handle.current!.drop(data[VORLAGE_DRAG_TYPE]!, 's2'));
     expect(opsOf(deck).inserts[0]).toMatchObject({ afterPageId: 's2' });
   });
 
-  it('does not drag on touch layouts', () => {
+  it('does not drag on touch', () => {
     setViewport(true);
     setup(DECK, { formatId: 'slide-16-9' });
-    expect(screen.getByRole('button', { name: 'Diagramm, dunkel' })).toHaveAttribute(
+    expect(screen.getByRole('button', { name: 'Kernsatz – Offiziell einfügen' })).toHaveAttribute(
       'draggable',
       'false'
     );
@@ -743,9 +744,87 @@ describe('VorlagenSection on a slide deck', () => {
   it('adds nothing once the deck is full', async () => {
     const { deck, user } = setup(DECK, { formatId: 'slide-16-9', canAddPage: false });
     expect(screen.getByText(/Mehr Folien passen nicht/)).toBeInTheDocument();
-    const tile = screen.getByRole('button', { name: 'Titelfolie, dunkel' });
+    const tile = screen.getByRole('button', { name: 'Titelfolie – Offiziell einfügen' });
     expect(tile).toBeDisabled();
     await user.click(tile);
     expect(deck.replaceDeck).not.toHaveBeenCalled();
+  });
+
+  describe('template slides', () => {
+    const loadDeckVorlagen = vi.fn(async () => [
+      {
+        id: 'cd',
+        titel: 'Offiziell',
+        beschreibung: 'CD',
+        stil: 'cd' as const,
+        locale: 'de-DE' as const,
+      },
+      {
+        id: 'kacheln',
+        titel: 'Kacheln',
+        beschreibung: 'K',
+        stil: 'kacheln' as const,
+        locale: 'de-DE' as const,
+      },
+    ]);
+    const KACHELN_DECK = [
+      { ...slidePage('s1'), state: { ...slidePage('s1').state, deckStil: 'kacheln' } },
+    ];
+
+    it('lists all seven Folientypen in the current style, first and open', async () => {
+      setup(KACHELN_DECK, { formatId: 'slide-16-9', service: { loadDeckVorlagen } });
+      const groups = await waitFor(() => {
+        const found = document.querySelectorAll('details');
+        expect(found).toHaveLength(2);
+        return found;
+      });
+      expect(groups[0]!.querySelector('summary')).toHaveTextContent('Kacheln');
+      expect(within(groups[0] as HTMLElement).getAllByRole('button')).toHaveLength(7);
+      expect(groups[1]).not.toHaveAttribute('open');
+      expect(screen.getByRole('button', { name: 'Liste – Kacheln einfügen' })).toBeInTheDocument();
+    });
+
+    it('inserts a slide that carries the group style and is read as its Folientyp', async () => {
+      const { deck, user } = setup(KACHELN_DECK, {
+        formatId: 'slide-16-9',
+        service: { loadDeckVorlagen },
+      });
+      deck.replaceDeck.mockReturnValue(['neu']);
+      await user.click(await screen.findByRole('button', { name: 'Liste – Kacheln einfügen' }));
+      const state = opsOf(deck).inserts[0]!.state;
+      expect(state.deckStil).toBe('kacheln');
+      expect(readFolie(state)?.typ).toBe('liste');
+    });
+
+    it('disables the slides once the deck is full', async () => {
+      setup(DECK, { formatId: 'slide-16-9', canAddPage: false });
+      for (const b of within(
+        screen.getByRole('region', { name: 'Folien aus Vorlagen' })
+      ).getAllByRole('button')) {
+        expect(b).toBeDisabled();
+      }
+    });
+
+    it('shows only Offiziell when the loader fails', async () => {
+      const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+      const failing = vi.fn(async () => {
+        throw new Error('down');
+      });
+      setup(DECK, { formatId: 'slide-16-9', service: { loadDeckVorlagen: failing } });
+      await waitFor(() => expect(failing).toHaveBeenCalled());
+      await waitFor(() => expect(warn).toHaveBeenCalled());
+      expect(document.querySelectorAll('details')).toHaveLength(1);
+      expect(screen.getByText('Offiziell', { selector: 'summary' })).toBeInTheDocument();
+      warn.mockRestore();
+    });
+
+    it('has no axe findings with several groups', async () => {
+      const { container } = setup(KACHELN_DECK, {
+        formatId: 'slide-16-9',
+        service: { loadDeckVorlagen },
+      });
+      await waitFor(() => expect(document.querySelectorAll('details')).toHaveLength(2));
+      expect(await axe(container)).toHaveNoViolations();
+    });
   });
 });
