@@ -23,6 +23,7 @@
 import { readFile } from 'node:fs/promises';
 
 import { formatBoardAsContext, loadBoardState } from '../../../services/boards/BoardService.js';
+import { loadCanvasAsContext } from '../../../services/canvas/canvasContext.js';
 import { extractPdfText } from '../../../services/pdf/pdfText.js';
 import {
   formatPresentationAsContext,
@@ -44,7 +45,7 @@ const log = createLogger('ArtifactReader');
  * artifact and has its own reader (`getThreadRecallContext`) with its own
  * access rules.
  */
-export type ArtifactReadKind = 'doc' | 'board' | 'sheet' | 'presentation' | 'pdf';
+export type ArtifactReadKind = 'doc' | 'board' | 'sheet' | 'presentation' | 'pdf' | 'canvas';
 
 export const ARTIFACT_READ_KINDS: readonly ArtifactReadKind[] = [
   'doc',
@@ -52,6 +53,7 @@ export const ARTIFACT_READ_KINDS: readonly ArtifactReadKind[] = [
   'sheet',
   'presentation',
   'pdf',
+  'canvas',
 ];
 
 /** `collaborative_documents.document_subtype` → the kind to read it as. */
@@ -60,6 +62,7 @@ export function subtypeToReadKind(subtype: string | null): ArtifactReadKind {
   if (subtype === 'sheets') return 'sheet';
   if (subtype === 'presentations') return 'presentation';
   if (subtype === 'pdf') return 'pdf';
+  if (subtype === 'canvas') return 'canvas';
   return 'doc';
 }
 
@@ -114,7 +117,10 @@ export async function readArtifactContent(opts: {
   }
   if (kind === 'presentation') {
     const deck = await loadPresentationState(id, userId);
-    return deck ? formatPresentationAsContext(deck) : null;
+    if (deck) return formatPresentationAsContext(deck);
+    // A deck the chat made is a canvas; the thread still calls it a presentation.
+    return loadCanvasAsContext(id, userId);
   }
+  if (kind === 'canvas') return loadCanvasAsContext(id, userId);
   return loadDocumentProse(id, userId);
 }

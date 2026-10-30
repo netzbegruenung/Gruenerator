@@ -37,10 +37,10 @@
       "default": "./dist/brand/grueneBrand.js"
     },
     "./slides": {
-      "development": "./src/slides/slideLayouts.ts",
-      "types": "./src/slides/slideLayouts.ts",
-      "import": "./dist/slides/slideLayouts.js",
-      "default": "./dist/slides/slideLayouts.js"
+      "development": "./src/slides/index.ts",
+      "types": "./src/slides/index.ts",
+      "import": "./dist/slides/index.js",
+      "default": "./dist/slides/index.js"
     }
   },
   "scripts": {

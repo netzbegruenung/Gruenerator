@@ -8,6 +8,7 @@
 import { tool, type Tool } from 'ai';
 import { z } from 'zod';
 
+import { canvasAccessible, loadCanvasAsContext } from '../../../services/canvas/canvasContext.js';
 import {
   formatPresentationAsContext,
   loadPresentationState,
@@ -20,6 +21,10 @@ import { resolveThreadArtifactId } from './threadArtifactTarget.js';
 import type { ChatGraphState } from '../../../agents/langgraph/ChatGraph/types.js';
 
 const NO_TARGET = 'In diesem Gespräch gibt es keine Präsentation.';
+
+/** Bis das Bearbeiten im Chat auch Canvas-Präsentationen kann (Folge-PR). */
+export const CANVAS_EDIT_UNAVAILABLE =
+  'Diese Präsentation ist eine Canvas-Präsentation. Sie lässt sich im Chat noch nicht bearbeiten — bitte öffne sie im Editor (Studio) und ändere sie dort. Sag das der Person kurz und biete an, sie zu lesen oder eine neue Präsentation zu erstellen.';
 
 interface PresentationToolCtx {
   state: ChatGraphState;
@@ -42,6 +47,16 @@ NUTZE bei Fragen zur Präsentation ("was steht auf Folie 3", "wie viele Folien")
       if (!id) return { error: NO_TARGET };
       const userId = ctx.state.agentConfig?.userId ?? null;
       const loaded = userId ? await loadPresentationState(id, userId) : null;
+      if (!loaded && userId) {
+        const canvasText = await loadCanvasAsContext(id, userId);
+        if (canvasText) {
+          return {
+            presentationId: id,
+            slideCount: (canvasText.match(/^## (?:Folie|Seite) \d+/gm) ?? []).length,
+            inhalt: canvasText,
+          };
+        }
+      }
       if (!loaded) {
         return { error: 'Die Präsentation wurde nicht gefunden oder ist nicht zugänglich.' };
       }
@@ -81,6 +96,7 @@ NUTZE bei JEDER Änderung an einer vorhandenen Präsentation. "anweisung" ist de
       if (!id) return { error: NO_TARGET };
       const userId = ctx.state.agentConfig?.userId ?? null;
       if (!userId) return { error: 'Keine Sitzung — bitte neu anmelden.' };
+      if (await canvasAccessible(id, userId)) return { error: CANVAS_EDIT_UNAVAILABLE };
       if (confirm) {
         const refused = confirmGate({
           state: ctx.state,

@@ -34,7 +34,7 @@ async function isNonTextDocument(documentId: string): Promise<boolean> {
     'SELECT document_subtype FROM collaborative_documents WHERE id = $1 AND is_deleted = false',
     [documentId]
   )) as { document_subtype: string | null }[];
-  return ['presentations', 'sheets', 'boards'].includes(rows[0]?.document_subtype ?? '');
+  return ['presentations', 'canvas', 'sheets', 'boards'].includes(rows[0]?.document_subtype ?? '');
 }
 
 /**
