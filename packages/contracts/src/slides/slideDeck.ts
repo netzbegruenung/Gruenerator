@@ -141,19 +141,21 @@ export function readPageStil(state: Record<string, unknown>): DeckStilId | null 
 }
 
 /**
- * Der Stil eines Decks: der erste gültige `deckStil` einer Seite, sonst der
- * der Canvas-Metadaten, sonst `'cd'` (Seiten aus der Zeit vor den Stilen).
+ * Der Stil eines Decks: der häufigste gültige `deckStil` der Seiten (bei Gleichstand
+ * der früheste), sonst der der Canvas-Metadaten, sonst `'cd'` (Seiten aus der Zeit vor
+ * den Stilen). Eine einzelne Folie in einem anderen Stil kippt den Deck-Stil nicht.
  */
 export function readDeckStil(
   pages: ReadonlyArray<{ state: Record<string, unknown> }>,
   canvasMeta?: Record<string, unknown> | null
 ): DeckStilId {
-  const valid = (v: unknown): v is DeckStilId =>
-    typeof v === 'string' && (DECK_STIL_IDS as readonly string[]).includes(v);
+  const counts = new Map<DeckStilId, number>();
   for (const page of pages) {
-    const v = page.state['deckStil'];
-    if (valid(v)) return v;
+    const v = readPageStil(page.state);
+    if (v) counts.set(v, (counts.get(v) ?? 0) + 1);
   }
-  const v = canvasMeta?.['deckStil'];
-  return valid(v) ? v : 'cd';
+  let best: DeckStilId | null = null;
+  for (const [id, n] of counts) if (best === null || n > counts.get(best)!) best = id;
+  if (best) return best;
+  return (canvasMeta && readPageStil(canvasMeta)) ?? 'cd';
 }

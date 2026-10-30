@@ -100,6 +100,16 @@ describe('composeSlideDeck in a style', () => {
     expect(readDeckStil(states.map((state) => ({ state })))).toBe('cd');
   });
 
+  it('reads the most frequent deck style, ties to the earliest page', () => {
+    const of = (...stile: Array<string | null>) =>
+      readDeckStil(stile.map((s) => ({ state: s ? { deckStil: s } : {} })));
+    expect(of('band', 'cd', 'cd')).toBe('cd');
+    expect(of('cd', 'cd', 'band')).toBe('cd');
+    expect(of('band', 'cd')).toBe('band');
+    expect(of(null, 'kacheln', 'ruhig', 'ruhig')).toBe('ruhig');
+    expect(of(null, 'bogus')).toBe('cd');
+  });
+
   it('keeps every typ listed in FOLIEN_TYPEN recognisable', () => {
     expect(FOLIEN_TYP_IDS).toEqual(Object.keys(FOLIEN_TYPEN));
   });
