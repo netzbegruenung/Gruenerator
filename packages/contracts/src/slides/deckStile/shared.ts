@@ -11,7 +11,7 @@ import {
   type BrandLocale,
 } from '../../brand/grueneBrand.js';
 import { folienSlotsOf, type FolieSpec } from '../folienTypen.js';
-import { removeElement } from '../slideDeck.js';
+import { removeElement } from '../slideDeckBasics.js';
 import { slideKit, type SlideBuilder } from '../slideLayouts.js';
 
 import { type DeckStilId } from './index.js';

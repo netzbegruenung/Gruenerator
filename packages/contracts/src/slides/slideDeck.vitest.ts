@@ -5,7 +5,17 @@ import {
   SLIDE_TEXT_LAYOUT_IDS,
   SLIDE_TEXT_SLOTS,
   buildSlideLayout,
+  composeLegacySlideDeck,
   composeSlideDeck,
+  DECK_STILE,
+  FOLIEN_TYPEN,
+  FOLIEN_TYP_IDS,
+  folienSlotsOf,
+  readDeckStil,
+  readFolie,
+  type DeckSpec,
+  type FolieSpec,
+  type FolienTypId,
   slideDeckSpecSchema,
   type SlideDeckSpec,
   type SlideSpec,
@@ -49,14 +59,14 @@ describe('slide text slots', () => {
   }
 });
 
-describe('composeSlideDeck', () => {
+describe('composeLegacySlideDeck', () => {
   for (const locale of LOCALES) {
     it(`writes every slot into its element, numbers pages and sets the footer (${locale})`, () => {
       const spec: SlideDeckSpec = {
         title: 'Verkehrswende',
         slides: SLIDE_TEXT_LAYOUT_IDS.map(fullSlide),
       };
-      const deck = composeSlideDeck(spec, { locale, date: DATE });
+      const deck = composeLegacySlideDeck(spec, { locale, date: DATE });
       expect(deck.templateType).toBe(locale === 'de-AT' ? 'freeform-at' : 'freeform');
       expect(deck.pages).toHaveLength(spec.slides.length);
 
@@ -81,7 +91,7 @@ describe('composeSlideDeck', () => {
   }
 
   it('removes an omitted optional slot together with its layerOrder id', () => {
-    const deck = composeSlideDeck(
+    const deck = composeLegacySlideDeck(
       { title: 'X', slides: [{ layout: 'titel', slots: { headline: 'Hallo' } }] },
       { locale: 'de-DE', date: DATE }
     );
@@ -92,7 +102,7 @@ describe('composeSlideDeck', () => {
   });
 
   it('drops the Störer placeholder of the text slide', () => {
-    const deck = composeSlideDeck(
+    const deck = composeLegacySlideDeck(
       { title: 'X', slides: [{ layout: 'textfolie', slots: { headline: 'A', spalte1: 'B' } }] },
       { locale: 'de-AT', date: DATE }
     );
@@ -159,5 +169,87 @@ describe('slideDeckSpecSchema', () => {
         slides: Array.from({ length: 31 }, () => ok.slides[0]),
       }).success
     ).toBe(false);
+  });
+});
+
+function fullFolie(typ: FolienTypId): FolieSpec {
+  const slots: Record<string, string | string[]> = {};
+  for (const [name, slot] of Object.entries(folienSlotsOf(typ))) {
+    slots[name] =
+      slot.kind === 'text'
+        ? name === 'text' && typ === 'text'
+          ? 'Ein ==wichtiger== Absatz.'
+          : `T-${name}`
+        : Array.from({ length: slot.maxItems }, (_, i) => `P-${name}-${i + 1}`);
+  }
+  return { typ, slots, notes: `Notiz ${typ}` } as FolieSpec;
+}
+
+describe('composeSlideDeck in a style', () => {
+  for (const locale of LOCALES) {
+    for (const { id: stil } of DECK_STILE) {
+      it(`compose then readFolie returns the spec for every typ (${stil}, ${locale})`, () => {
+        const spec: DeckSpec = { title: 'Verkehrswende', slides: FOLIEN_TYP_IDS.map(fullFolie) };
+        const deck = composeSlideDeck(spec, { locale, date: DATE, stil });
+        expect(deck.templateType).toBe(locale === 'de-AT' ? 'freeform-at' : 'freeform');
+        expect(deck.overflow).toEqual([]);
+        deck.pages.forEach((page, i) => {
+          expect(page.state.deckStil).toBe(stil);
+          expect(readFolie(page.state as unknown as Record<string, unknown>)).toEqual(
+            spec.slides[i]
+          );
+        });
+        expect(
+          readDeckStil(
+            deck.pages.map((p) => ({ state: p.state as unknown as Record<string, unknown> }))
+          )
+        ).toBe(stil);
+      });
+    }
+  }
+
+  it('lists overflow with slide number and element id when a measure says nothing fits', () => {
+    const spec: DeckSpec = { title: 'X', slides: [fullFolie('zitat'), fullFolie('text')] };
+    const deck = composeSlideDeck(spec, {
+      locale: 'de-DE',
+      date: DATE,
+      stil: 'cd',
+      measure: () => ({ height: 100000 }),
+    });
+    expect(deck.overflow).toContain('1:folie-zitat');
+    expect(deck.overflow).toContain('2:folie-spalte-1');
+  });
+
+  it('reads a C/D-era textfolie page as typ text and its stil as cd', () => {
+    const old = composeLegacySlideDeck(
+      {
+        title: 'Alt',
+        slides: [
+          {
+            layout: 'textfolie',
+            slots: { headline: 'Warum', spalte1: 'Links', spalte2: 'Rechts' },
+          },
+          { layout: 'textfolie', slots: { headline: 'Nur', spalte1: 'Eine' } },
+          { layout: 'titel', slots: { headline: 'Hallo' } },
+          { layout: 'zitat', slots: { zitat: 'Satz' } },
+          { layout: 'danke', slots: {} },
+        ],
+      },
+      { locale: 'de-DE', date: DATE }
+    );
+    const states = old.pages.map((p) => p.state as unknown as Record<string, unknown>);
+    expect(readFolie(states[0]!)).toMatchObject({
+      typ: 'text',
+      slots: { headline: 'Warum', text: 'Links\nRechts' },
+    });
+    expect(readFolie(states[1]!)).toMatchObject({ typ: 'text', slots: { text: 'Eine' } });
+    expect(readFolie(states[2]!)?.typ).toBe('titel');
+    expect(readFolie(states[3]!)?.typ).toBe('zitat');
+    expect(readFolie(states[4]!)?.typ).toBe('danke');
+    expect(readDeckStil(states.map((state) => ({ state })))).toBe('cd');
+  });
+
+  it('keeps every typ listed in FOLIEN_TYPEN recognisable', () => {
+    expect(FOLIEN_TYP_IDS).toEqual(Object.keys(FOLIEN_TYPEN));
   });
 });

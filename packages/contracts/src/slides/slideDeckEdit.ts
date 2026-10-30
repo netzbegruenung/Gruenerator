@@ -18,13 +18,10 @@ import { z } from 'zod';
 import { type BrandLocale } from '../brand/grueneBrand.js';
 import { stripInlineMarks } from '../text/inlineMarks.js';
 
-import {
-  composeSlideDeck,
-  MAX_SLIDES,
-  slideSpecSchema,
-  type SlideSpec,
-  unescapeLineBreaks,
-} from './slideDeck.js';
+import { buildFolie, type DeckStilId } from './deckStile/index.js';
+import { type FolieSpec, folieSpecSchema } from './folienTypen.js';
+import { readDeckStil } from './slideDeck.js';
+import { MAX_SLIDES, unescapeLineBreaks } from './slideDeckBasics.js';
 import { slideLayoutConfigId } from './slideLayouts.js';
 
 /** Die Fußzeile setzt der Composer; das Modell schreibt sie nicht. */
@@ -46,7 +43,7 @@ export const slideDeckOperationSchema = z.discriminatedUnion('kind', [
     kind: z.literal('add-slide'),
     /** Einfügen hinter dieser Folie; 0 = ganz vorn. */
     afterSlide: z.number().int().min(0).max(MAX_SLIDES),
-    slide: slideSpecSchema,
+    slide: folieSpecSchema,
   }),
   z.object({ kind: z.literal('remove-slide'), slide: slideNumber }),
   z.object({ kind: z.literal('move-slide'), slide: slideNumber, toPosition: slideNumber }),
@@ -82,7 +79,7 @@ export interface SlideDeckEditResult {
 }
 
 type TextLike = { id: string; text: string };
-const ELEMENT_COLLECTIONS = [
+export const ELEMENT_COLLECTIONS = [
   'additionalTexts',
   'shapeInstances',
   'assetInstances',
@@ -129,13 +126,24 @@ function removeElement(state: Record<string, unknown>, elementId: string): strin
   return null;
 }
 
-function composeOne(spec: SlideSpec, ctx: SlideDeckEditContext): DeckPage {
-  const deck = composeSlideDeck({ title: ctx.title, slides: [spec] }, ctx);
-  const page = deck.pages[0]!;
+/** Eine neue Folie im Stil des Decks; die Seitenzahl setzt `renumber` danach. */
+function composeOne(
+  spec: FolieSpec,
+  stil: DeckStilId,
+  position: number,
+  ctx: SlideDeckEditContext
+): DeckPage {
+  const state = buildFolie(stil, spec, {
+    locale: ctx.locale,
+    date: ctx.date,
+    pageNumber: position + 1,
+    title: ctx.title,
+    index: position,
+  });
   return {
     id: ctx.newPageId(),
     configId: slideLayoutConfigId(ctx.locale),
-    state: page.state as unknown as Record<string, unknown>,
+    state: state as unknown as Record<string, unknown>,
   };
 }
 
@@ -189,9 +197,9 @@ export function applySlideDeckOperations(
         const found = id ? pages.findIndex((p) => p.id === id) : -1;
         if (found >= 0) at = found + 1;
       }
-      pages.splice(at, 0, composeOne(op.slide, ctx));
+      pages.splice(at, 0, composeOne(op.slide, readDeckStil(pages), at, ctx));
       structural = true;
-      applied.push(`Folie (${op.slide.layout}) eingefügt`);
+      applied.push(`Folie (${op.slide.typ}) eingefügt`);
       continue;
     }
 

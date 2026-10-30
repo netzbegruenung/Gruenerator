@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
+import { type DeckStilId } from './deckStile/index.js';
 import { composeSlideDeck } from './slideDeck.js';
 import {
   applySlideDeckOperations,
@@ -10,17 +11,17 @@ import {
 
 const DATE = new Date('2026-10-29T12:00:00Z');
 
-function deck(locale: 'de-DE' | 'de-AT' = 'de-DE'): DeckPage[] {
+function deck(locale: 'de-DE' | 'de-AT' = 'de-DE', stil: DeckStilId = 'cd'): DeckPage[] {
   const composed = composeSlideDeck(
     {
       title: 'Klimaplan',
       slides: [
-        { layout: 'titel', slots: { headline: 'Klima' } },
-        { layout: 'textfolie', slots: { headline: 'Warum', spalte1: 'Weil es eilt.' } },
-        { layout: 'danke', slots: {} },
+        { typ: 'titel', slots: { headline: 'Klima' } },
+        { typ: 'text', slots: { headline: 'Warum', text: 'Weil es eilt.' } },
+        { typ: 'danke', slots: {} },
       ],
     },
-    { locale, date: DATE }
+    { locale, date: DATE, stil }
   );
   return composed.pages.map((p) => ({
     ...p,
@@ -151,7 +152,7 @@ describe('applySlideDeckOperations', () => {
         {
           kind: 'add-slide',
           afterSlide: 1,
-          slide: { layout: 'zitat', slots: { zitat: 'Jetzt handeln.' } },
+          slide: { typ: 'zitat', slots: { zitat: 'Jetzt handeln.' } },
         },
       ],
       ctx('de-AT')
@@ -173,7 +174,7 @@ describe('applySlideDeckOperations', () => {
       pages,
       [
         { kind: 'remove-slide', slide: 2 },
-        { kind: 'add-slide', afterSlide: 2, slide: { layout: 'zitat', slots: { zitat: 'Neu.' } } },
+        { kind: 'add-slide', afterSlide: 2, slide: { typ: 'zitat', slots: { zitat: 'Neu.' } } },
       ],
       ctx()
     );
@@ -189,12 +190,22 @@ describe('applySlideDeckOperations', () => {
       pages,
       [
         { kind: 'remove-slide', slide: 1 },
-        { kind: 'add-slide', afterSlide: 1, slide: { layout: 'zitat', slots: { zitat: 'Neu.' } } },
+        { kind: 'add-slide', afterSlide: 1, slide: { typ: 'zitat', slots: { zitat: 'Neu.' } } },
       ],
       ctx()
     );
     expect(front.pages[0]!.id).toMatch(/^new-/);
     expect(front.pages).toHaveLength(3);
+  });
+
+  it('builds an added slide in the style of the deck', () => {
+    const result = applySlideDeckOperations(
+      deck('de-DE', 'band'),
+      [{ kind: 'add-slide', afterSlide: 1, slide: { typ: 'zitat', slots: { zitat: 'Jetzt.' } } }],
+      ctx()
+    );
+    expect(result.pages[1]!.state['deckStil']).toBe('band');
+    expect(result.pages[0]!.state['deckStil']).toBe('band');
   });
 
   it('moves a slide and keeps the last slide from being removed', () => {

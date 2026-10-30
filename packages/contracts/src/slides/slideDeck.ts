@@ -14,6 +14,15 @@ import { z } from 'zod';
 import { type BrandLocale } from '../brand/grueneBrand.js';
 import { stripInlineMarks } from '../text/inlineMarks.js';
 
+import { buildFolie, deckStilBoxes, type DeckStilId, DECK_STIL_IDS } from './deckStile/index.js';
+import { fitSlideTexts, type MeasureText } from './fitText.js';
+import { type DeckSpec, type FolieSpec, folienSlotsOf, type FolienTypId } from './folienTypen.js';
+import {
+  MAX_DECK_TITLE_CHARS,
+  MAX_SLIDES,
+  removeElement,
+  unescapeLineBreaks,
+} from './slideDeckBasics.js';
 import {
   buildSlideLayout,
   slideLayoutConfigId,
@@ -230,19 +239,9 @@ export const SLIDE_TEXT_LAYOUT_IDS = Object.keys(SLIDE_TEXT_SLOTS) as [
 
 export const slideTextLayoutIdSchema = z.enum(SLIDE_TEXT_LAYOUT_IDS);
 
-export const MAX_SLIDES = 30;
-/** Die Fußzeile fasst gut 50 Zeichen. */
-export const MAX_DECK_TITLE_CHARS = 50;
-
 type SlotsOf<L extends SlideTextLayoutId> = (typeof SLIDE_TEXT_SLOTS)[L]['slots'];
 
 const visibleLength = (s: string) => stripInlineMarks(s).trim().length;
-
-/**
- * Modelle escapen Zeilenumbrüche im Tool-JSON manchmal doppelt; ohne das stünde
- * „• Eins\n• Zwei" wörtlich auf der Folie (Live-Test 30.10.2026).
- */
-export const unescapeLineBreaks = (s: string): string => s.replace(/\\n/g, '\n');
 
 function slotsSchema(layout: SlideTextLayoutId) {
   const shape: Record<string, z.ZodType> = {};
@@ -297,21 +296,15 @@ export interface ComposedSlideDeck {
   pages: ComposedSlidePage[];
 }
 
-/** Ein Layout-Element samt seiner Id aus dem Zustand nehmen (Text, Form, Grafik …). */
-export function removeElement(state: SlideLayoutState, id: string): void {
-  state.additionalTexts = state.additionalTexts.filter((e) => e.id !== id);
-  state.shapeInstances = state.shapeInstances.filter((e) => e.id !== id);
-  state.assetInstances = state.assetInstances.filter((e) => e.id !== id);
-  state.layerOrder = state.layerOrder.filter((e) => e !== id);
-  state.lockedLayerIds = state.lockedLayerIds.filter((e) => e !== id);
-}
-
 /**
+ * Alter Composer über `SlideDeckSpec` (Layout-Slots). Bleibt, bis die
+ * Generierung auf `composeSlideDeck` umgestellt ist.
+ *
  * Baut die Seiten des Foliensatzes. Ein weggelassenes optionales Feld nimmt
  * sein Element samt `layerOrder`-Eintrag mit — nichts bleibt als Platzhalter
  * („Unterüberschrift") auf der Folie stehen.
  */
-export function composeSlideDeck(
+export function composeLegacySlideDeck(
   spec: SlideDeckSpec,
   options: { locale: BrandLocale; date: Date }
 ): ComposedSlideDeck {
@@ -341,4 +334,131 @@ export function composeSlideDeck(
     return { id: `seed-${index}`, configId: templateType, state };
   });
   return { templateType, pages };
+}
+
+// ============================================================================
+// FOLIENTYPEN IN EINEM STIL
+// ============================================================================
+
+export type ComposedDeck = ComposedSlideDeck & {
+  /** Boxen, in die der Text auch bei kleinster Schrift nicht passt: `"<Foliennummer>:<Element-Id>"`. */
+  overflow: string[];
+};
+
+/**
+ * Baut die Seiten aus Folientypen im gewählten Stil. Jede Seite trägt den Stil
+ * in `state.deckStil`. Mit `measure` wird zu langer Text in seine Box
+ * geschrumpft (`fitSlideTexts`); was dann noch nicht passt, steht in `overflow`.
+ */
+export function composeSlideDeck(
+  spec: DeckSpec,
+  options: { locale: BrandLocale; date: Date; stil: DeckStilId; measure?: MeasureText | null }
+): ComposedDeck {
+  const templateType = slideLayoutConfigId(options.locale);
+  const overflow: string[] = [];
+  const pages = spec.slides.map((folie, index): ComposedSlidePage => {
+    let state = buildFolie(options.stil, folie, {
+      locale: options.locale,
+      date: options.date,
+      pageNumber: index + 1,
+      title: spec.title,
+      index,
+    });
+    if (options.measure) {
+      const fitted = fitSlideTexts(state, deckStilBoxes(options.stil, folie.typ), options.measure);
+      state = fitted.state;
+      overflow.push(...fitted.overflow.map((id) => `${index + 1}:${id}`));
+    }
+    return { id: `seed-${index}`, configId: templateType, state };
+  });
+  return { templateType, pages, overflow };
+}
+
+// ============================================================================
+// ZURÜCKLESEN
+// ============================================================================
+
+type TextEl = { id: string; text?: unknown };
+
+function textsOf(state: Record<string, unknown>): Map<string, string> {
+  const raw = state['additionalTexts'];
+  const out = new Map<string, string>();
+  if (!Array.isArray(raw)) return out;
+  for (const t of raw as TextEl[]) {
+    if (typeof t?.id === 'string' && typeof t.text === 'string') out.set(t.id, t.text);
+  }
+  return out;
+}
+
+function hasAsset(state: Record<string, unknown>, id: string): boolean {
+  const raw = state['assetInstances'];
+  return Array.isArray(raw) && (raw as TextEl[]).some((a) => a?.id === id);
+}
+
+function typOf(state: Record<string, unknown>, texts: Map<string, string>): FolienTypId | null {
+  if (texts.has('folie-zahl')) return 'zahl';
+  if (texts.has('folie-kernsatz')) return 'kernsatz';
+  if (texts.has('folie-zitat')) return 'zitat';
+  if (texts.has('folie-punkt-1')) return 'liste';
+  if (texts.has('folie-spalte-1')) return 'text';
+  if (hasAsset(state, 'folie-logo')) return 'danke';
+  if (texts.has('folie-headline')) return 'titel';
+  return null;
+}
+
+const DANKE_DEFAULT = 'Vielen Dank';
+const BULLET = /^\s*[•·]\s*/;
+
+/**
+ * Liest eine Seite als Folie zurück: der Typ folgt den Element-Ids (in allen
+ * Stilen gleich), die Slots sind die aktuellen Texte samt Inline-Marken. Alte
+ * C/D-Seiten werden miterkannt (Textfolie → `text`, die zweite Spalte hängt
+ * mit Zeilenumbruch an). Null, wenn die Seite keinem Typ gleicht.
+ */
+export function readFolie(state: Record<string, unknown>): FolieSpec | null {
+  const texts = textsOf(state);
+  const typ = typOf(state, texts);
+  if (!typ) return null;
+
+  const slots: Record<string, string | string[]> = {};
+  for (const [name, slot] of Object.entries(folienSlotsOf(typ))) {
+    if (slot.kind === 'list') {
+      const items: string[] = [];
+      for (let i = 1; i <= slot.maxItems; i++) {
+        const value = texts.get(`${slot.elementIdPrefix}${i}`);
+        if (value !== undefined) items.push(value.replace(BULLET, '').trim());
+      }
+      if (items.length > 0) slots[name] = items;
+      continue;
+    }
+    let value = texts.get(slot.elementId)?.trim();
+    if (!value) continue;
+    if (typ === 'text' && name === 'text') {
+      const second = texts.get('folie-spalte-2')?.trim();
+      if (second) value = `${value}\n${second}`;
+    }
+    // Der Standardtext der Schlussfolie ist kein Inhalt.
+    if (typ === 'danke' && name === 'headline' && value === DANKE_DEFAULT) continue;
+    slots[name] = value;
+  }
+  const notes = typeof state['notes'] === 'string' ? state['notes'].trim() : '';
+  return { typ, slots, ...(notes ? { notes } : {}) } as FolieSpec;
+}
+
+/**
+ * Der Stil eines Decks: der erste gültige `deckStil` einer Seite, sonst der
+ * der Canvas-Metadaten, sonst `'cd'` (Seiten aus der Zeit vor den Stilen).
+ */
+export function readDeckStil(
+  pages: ReadonlyArray<{ state: Record<string, unknown> }>,
+  canvasMeta?: Record<string, unknown> | null
+): DeckStilId {
+  const valid = (v: unknown): v is DeckStilId =>
+    typeof v === 'string' && (DECK_STIL_IDS as readonly string[]).includes(v);
+  for (const page of pages) {
+    const v = page.state['deckStil'];
+    if (valid(v)) return v;
+  }
+  const v = canvasMeta?.['deckStil'];
+  return valid(v) ? v : 'cd';
 }

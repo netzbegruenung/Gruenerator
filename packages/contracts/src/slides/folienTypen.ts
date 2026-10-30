@@ -16,7 +16,7 @@ import { z } from 'zod';
 
 import { stripInlineMarks } from '../text/inlineMarks.js';
 
-import { MAX_DECK_TITLE_CHARS, MAX_SLIDES, unescapeLineBreaks } from './slideDeck.js';
+import { MAX_DECK_TITLE_CHARS, MAX_SLIDES, unescapeLineBreaks } from './slideDeckBasics.js';
 
 export interface FolienTextSlot {
   kind: 'text';

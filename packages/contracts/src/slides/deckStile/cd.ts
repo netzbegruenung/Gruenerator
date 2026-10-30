@@ -6,7 +6,7 @@
 
 import { type BrandLocale } from '../../brand/grueneBrand.js';
 import { type FolieSpec, type FolienTypId } from '../folienTypen.js';
-import { removeElement } from '../slideDeck.js';
+import { removeElement } from '../slideDeckBasics.js';
 import { slideKit, SlideBuilder, type SlideLayoutState } from '../slideLayouts.js';
 
 import {
