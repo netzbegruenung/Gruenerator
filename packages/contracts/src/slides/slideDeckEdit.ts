@@ -18,9 +18,10 @@ import { z } from 'zod';
 import { type BrandLocale } from '../brand/grueneBrand.js';
 import { stripInlineMarks } from '../text/inlineMarks.js';
 
-import { buildFolie, type DeckStilId } from './deckStile/index.js';
+import { buildFolie, deckStilBoxes, type DeckStilId } from './deckStile/index.js';
+import { fitSlideTexts, type MeasureText } from './fitText.js';
 import { type FolieSpec, folieSpecSchema } from './folienTypen.js';
-import { readDeckStil } from './slideDeck.js';
+import { readDeckStil, readFolie } from './slideDeck.js';
 import { MAX_SLIDES, unescapeLineBreaks } from './slideDeckBasics.js';
 import { slideLayoutConfigId } from './slideLayouts.js';
 
@@ -65,6 +66,8 @@ export interface SlideDeckEditContext {
   /** Titel in der Fußzeile neuer Folien. */
   title: string;
   newPageId: () => string;
+  /** Mit Messer werden neue und bearbeitete Texte in ihre Box eingepasst (`fitSlideTexts`). */
+  measure?: MeasureText | null;
 }
 
 export interface SlideDeckEditResult {
@@ -133,13 +136,16 @@ function composeOne(
   position: number,
   ctx: SlideDeckEditContext
 ): DeckPage {
-  const state = buildFolie(stil, spec, {
+  let state = buildFolie(stil, spec, {
     locale: ctx.locale,
     date: ctx.date,
     pageNumber: position + 1,
     title: ctx.title,
     index: position,
   });
+  if (ctx.measure) {
+    state = fitSlideTexts(state, deckStilBoxes(stil, spec.typ), ctx.measure).state;
+  }
   return {
     id: ctx.newPageId(),
     configId: slideLayoutConfigId(ctx.locale),
@@ -241,8 +247,20 @@ export function applySlideDeckOperations(
           `Folie ${op.slide}: ${inner.kind} ${inner.kind === 'set-text' ? inner.field : inner.elementId}`
         );
     }
+    if (ctx.measure && op.operations.some((o) => o.kind === 'set-text')) {
+      // Der neue Text soll in die Box des Stils passen; die Schrift schrumpft nur.
+      const typ = readFolie(state)?.typ;
+      if (typ) {
+        const fitted = fitSlideTexts(
+          state as unknown as Parameters<typeof fitSlideTexts>[0],
+          deckStilBoxes(readDeckStil(pages), typ),
+          ctx.measure
+        ).state;
+        pages[index]!.state = fitted as unknown as Record<string, unknown>;
+      }
+    }
     if (op.notes != null) {
-      state['notes'] = op.notes.trim();
+      pages[index]!.state['notes'] = op.notes.trim();
       applied.push(`Folie ${op.slide}: Notizen`);
     }
   }

@@ -25,6 +25,8 @@ import { aiObject } from '../ai/generate.js';
 import { checkCanvasWriteAccess, getCanvas } from '../canvas/canvasRepository.js';
 import { applyDeckChanges, getCurrentDeckState } from '../canvas/canvasStateService.js';
 
+import { prepareOverflowMeasuring, serverMeasureText } from './canvasDeckOverflow.js';
+
 const log = createLogger('CanvasDeckEdit');
 
 export type CanvasDeckEditOutcome =
@@ -107,7 +109,7 @@ Operationen:
 Regeln:
 - Foliennummern beziehen sich IMMER auf die Liste unten, auch wenn vorher eine Folie gelöscht oder eingefügt wird.
 - Nur vorhandene Element-Ids; die Fußzeile (Datum, Titel, Seitenzahl) setzt das System.
-- Halte die Länge des bisherigen Textes ein, wenn nicht ausdrücklich mehr gewünscht ist — die Textfelder sind fest. Stichpunkte beginnen mit "• " auf eigener Zeile.
+- Halte die Länge des bisherigen Textes ein, wenn nicht ausdrücklich mehr gewünscht ist — die Textfelder sind fest. Stichpunkte in Textspalten beginnen mit "• " auf eigener Zeile; die Einträge einer \`liste\` (add-slide) sind reine Texte ohne vorangestellte Aufzählungszeichen.
 - Farben, Lage, Größe und Bilder kannst du hier nicht ändern; lass sie weg.
 - Erfinde keine Zahlen, Namen oder Quellen. Deutsch mit Genderstern (*).
 - Höchstens ${MAX_SLIDES} Folien.
@@ -156,6 +158,11 @@ const OPERATIONS_TOOL_SCHEMA: Record<string, unknown> = {
 
 const localeOf = (pages: readonly DeckPage[]) =>
   pages[0]?.configId === 'freeform-at' ? 'de-AT' : 'de-DE';
+
+/** Der Messer für neue und bearbeitete Texte; null ohne Markenschrift. */
+async function measureFor(locale: 'de-DE' | 'de-AT') {
+  return (await prepareOverflowMeasuring(locale)) ? serverMeasureText(locale) : null;
+}
 
 const WRITE_FAILED =
   'Die Änderung konnte nicht in die Präsentation geschrieben werden. Versuch es bitte gleich noch einmal.';
@@ -233,6 +240,7 @@ export async function planCanvasDeckEdit(opts: {
     date: new Date(),
     title,
     newPageId: () => crypto.randomUUID(),
+    measure: await measureFor(locale),
   });
   if (result.applied.length === 0) {
     return {
@@ -317,6 +325,7 @@ export async function applyPlannedCanvasDeckOperations(opts: {
     date: new Date(),
     title,
     newPageId: () => crypto.randomUUID(),
+    measure: await measureFor(localeOf(deckPages)),
   });
   if (result.applied.length === 0) {
     return {

@@ -250,4 +250,46 @@ describe('applySlideDeckOperations', () => {
       ]).success
     ).toBe(true);
   });
+
+  it('fits added and edited slides with the measurer', () => {
+    // Höhe wächst mit der Schrift: je größer, desto eher zu hoch.
+    const measure = (_: string, font: { size: number }) => ({ height: font.size * 100 });
+    const size = (pages: DeckPage[], at: number, id: string) =>
+      (pages[at]!.state['additionalTexts'] as Array<{ id: string; fontSize: number }>).find(
+        (t) => t.id === id
+      )!.fontSize;
+    const plain = applySlideDeckOperations(
+      deck(),
+      [
+        {
+          kind: 'add-slide',
+          afterSlide: 1,
+          slide: { typ: 'text', slots: { headline: 'A', text: 'B' } },
+        },
+      ],
+      ctx()
+    );
+    const fitted = applySlideDeckOperations(
+      deck(),
+      [
+        {
+          kind: 'add-slide',
+          afterSlide: 1,
+          slide: { typ: 'text', slots: { headline: 'A', text: 'B' } },
+        },
+        {
+          kind: 'edit-slide',
+          slide: 2,
+          operations: [{ kind: 'set-text', field: 'folie-headline', label: 'T', value: 'Neu' }],
+        },
+      ],
+      { ...ctx(), measure }
+    );
+    expect(size(fitted.pages, 1, 'folie-headline')).toBeLessThan(
+      size(plain.pages, 1, 'folie-headline')
+    );
+    expect(size(fitted.pages, 2, 'folie-headline')).toBeLessThan(
+      size(plain.pages, 2, 'folie-headline')
+    );
+  });
 });

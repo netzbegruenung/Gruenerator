@@ -107,6 +107,27 @@ describe('planAndApplyCanvasDeckEdit', () => {
     expect(changes.replacePages[1]!.configId).toBe('freeform-at');
   });
 
+  it('edit add-slide composes in the deck style', async () => {
+    const bandPages = composeSlideDeck(
+      { title: 'Klimaplan', slides: [{ typ: 'titel', slots: { headline: 'Klima' } }] },
+      { locale: 'de-DE', date: new Date('2026-10-29'), stil: 'band' }
+    ).pages;
+    mocks.getCurrentDeckState.mockResolvedValue({ pages: bandPages, source: 'yjs' });
+    modelAnswers([
+      {
+        kind: 'add-slide',
+        afterSlide: 1,
+        slide: { typ: 'liste', slots: { headline: 'Warum', punkte: ['Eins', 'Zwei', 'Drei'] } },
+      },
+    ]);
+    expect(await run()).toMatchObject({ status: 'applied' });
+    const [, changes] = mocks.applyDeckChanges.mock.calls[0] as [
+      string,
+      { replacePages: Array<{ state: { deckStil: string } }> },
+    ];
+    expect(changes.replacePages.map((p) => p.state.deckStil)).toEqual(['band', 'band']);
+  });
+
   it('fails without write access or a plan', async () => {
     mocks.checkCanvasWriteAccess.mockResolvedValueOnce({ kind: 'forbidden' });
     expect(await run()).toMatchObject({ status: 'failed' });

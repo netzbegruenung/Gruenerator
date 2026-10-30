@@ -1,19 +1,11 @@
 /**
- * Overflow check for composed slide decks. A slot's character budget is a
- * guess about width; this measures the wrapped text in the layout's own font
- * (via the deck metrics) and compares its bottom edge with the slot's limit.
+ * Messer für den Folien-Überlauf: Ein Zeichenbudget ist eine Schätzung der
+ * Breite; `serverMeasureText` misst den umbrochenen Text in der Schrift des
+ * Elements, `fitSlideTexts` (Contracts) passt ihn damit in seine Box ein.
  */
 
-import { stripInlineMarks } from '@gruenerator/contracts';
 import { getBrandPack } from '@gruenerator/contracts/brand';
-import {
-  folienSlotsOf,
-  slideSlotsOf,
-  type MeasureText,
-  type ComposedSlidePage,
-  type FolieSpec,
-  type SlideDeckSpec,
-} from '@gruenerator/contracts/slides';
+import { type MeasureText } from '@gruenerator/contracts/slides';
 
 import {
   countLinesSync,
@@ -27,19 +19,6 @@ import { createLogger } from '../../utils/logger.js';
 const log = createLogger('canvasDeckOverflow');
 
 type Brand = 'de-DE' | 'de-AT';
-
-export interface SlotOverflow {
-  /** 1-based slide number. */
-  slide: number;
-  slot: string;
-  lines: number;
-  /** How far the text reaches below its limit, in slide px. */
-  excess: number;
-}
-
-/** Lowest allowed size factor when shrinking. */
-export const MIN_SHRINK = 0.7;
-const SHRINK_STEP = 0.9;
 
 let warned = false;
 
@@ -58,101 +37,8 @@ export async function prepareOverflowMeasuring(brand: Brand): Promise<boolean> {
   return ok;
 }
 
-type OverflowSpec = { slides: ReadonlyArray<SlideDeckSpec['slides'][number] | FolieSpec> };
-type SlotLimit = { elementId: string; bottom: number };
-
-/** Unterkante für Textfelder der Folientypen: darunter beginnt die Fußzeile. */
-const FOLIE_TEXT_BOTTOM = 1010;
-
-function layoutOf(
-  page: ComposedSlidePage,
-  spec: OverflowSpec,
-  index: number
-): Record<string, SlotLimit> | null {
-  const slide = spec.slides[index];
-  if (!slide) return null;
-  if ('layout' in slide) return slideSlotsOf(slide.layout);
-  const out: Record<string, SlotLimit> = {};
-  for (const [name, slot] of Object.entries(folienSlotsOf(slide.typ))) {
-    if (slot.kind === 'text') out[name] = { elementId: slot.elementId, bottom: FOLIE_TEXT_BOTTOM };
-  }
-  return out;
-}
-
-function bottomOf(
-  page: ComposedSlidePage,
-  elementId: string,
-  brand: Brand
-): { bottom: number; lines: number } | null {
-  const el = page.state.additionalTexts.find((t) => t.id === elementId);
-  if (!el) return null;
-  const faces = deckFaces(brand);
-  const heading = el.type === 'header' || el.type === 'subheader';
-  const size = el.fontSize;
-  const lines = countLinesSync([{ text: stripInlineMarks(el.text) }], {
-    maxWidthPx: el.width ?? 0,
-    fontPx: size,
-    faces,
-    face: heading ? faces.heading : faces.body,
-  });
-  if (lines === null) return null;
-  return { bottom: el.y + lines * size * (el.lineHeight ?? 1), lines };
-}
-
-/** Slots whose text runs past their limit. Needs `prepareOverflowMeasuring` first. */
-export function findSlotOverflows(
-  pages: ComposedSlidePage[],
-  spec: OverflowSpec,
-  brand: Brand
-): SlotOverflow[] {
-  const found: SlotOverflow[] = [];
-  pages.forEach((page, index) => {
-    const def = layoutOf(page, spec, index);
-    if (!def) return;
-    for (const [name, slot] of Object.entries(def)) {
-      const m = bottomOf(page, slot.elementId, brand);
-      if (m && m.bottom > slot.bottom) {
-        found.push({
-          slide: index + 1,
-          slot: name,
-          lines: m.lines,
-          excess: m.bottom - slot.bottom,
-        });
-      }
-    }
-  });
-  return found;
-}
-
 /**
- * Shrinks the font of each overflowing slot stepwise, never below
- * {@link MIN_SHRINK} of its original size. Returns what still overflows.
- */
-export function shrinkOverflows(
-  pages: ComposedSlidePage[],
-  spec: OverflowSpec,
-  brand: Brand
-): SlotOverflow[] {
-  for (const o of findSlotOverflows(pages, spec, brand)) {
-    const page = pages[o.slide - 1];
-    const def = page && layoutOf(page, spec, o.slide - 1);
-    const slot = def && Object.entries(def).find(([n]) => n === o.slot)?.[1];
-    const el = page?.state.additionalTexts.find((t) => t.id === slot?.elementId);
-    if (!page || !slot || !el) continue;
-    const original = el.fontSize;
-    let scale = 1;
-    while (scale > MIN_SHRINK) {
-      scale = Math.max(MIN_SHRINK, scale * SHRINK_STEP);
-      el.fontSize = Math.round(original * scale);
-      const m = bottomOf(page, slot.elementId, brand);
-      if (m && m.bottom <= slot.bottom) break;
-    }
-  }
-  return findSlotOverflows(pages, spec, brand);
-}
-
-/**
- * Der Messer für `fitSlideTexts`: dieselbe Zeilenzählung wie oben, Schrift
+ * Der Messer für `fitSlideTexts`: Zeilenzählung der Folien-Metriken, Schrift
  * nach Familie des Elements (Überschriftenschrift der Marke → Deck-Kopfschrift,
  * Betonungsschrift → Zitatschrift, sonst Fließschrift). Null, wenn Markenschrift
  * oder Canvas fehlen — dann gelten allein die Zeichenbudgets. Braucht

@@ -1,21 +1,22 @@
 /**
  * Presentations as canvas decks (`slide-16-9`), generated from a prompt.
  *
- * The model fills text slots of the CD layouts (`SLIDE_TEXT_SLOTS`); the
- * composer in `@gruenerator/contracts/slides` builds the pages, the server
- * measures the wrapped text and shrinks what still overflows, and the deck is
- * persisted as a seeded canvas. Used by chat, boards and the web AI button.
+ * The model picks a Folientyp per slide and fills its slots; the composer in
+ * `@gruenerator/contracts/slides` builds the pages in the chosen Vorlage
+ * (Stil), the server measures the wrapped text and shrinks what still
+ * overflows, and the deck is persisted as a seeded canvas. Used by chat,
+ * boards and the web AI button.
  */
 
 import {
+  composeSlideDeck,
+  deckSpecSchema,
+  FOLIEN_TYP_IDS,
+  FOLIEN_TYPEN,
+  folienSlotsOf,
   MAX_SLIDES,
-  SLIDE_TEXT_LAYOUT_IDS,
-  SLIDE_TEXT_SLOTS,
-  slideSlotsOf,
-  composeLegacySlideDeck,
-  slideDeckSpecSchema,
   type ComposedSlideDeck,
-  type SlideDeckSpec,
+  type DeckSpec,
 } from '@gruenerator/contracts/slides';
 
 import { createLogger } from '../../utils/logger.js';
@@ -23,12 +24,9 @@ import { aiObject } from '../ai/generate.js';
 import { createCanvas } from '../canvas/canvasRepository.js';
 import { seedCanvasPages } from '../canvas/canvasStateService.js';
 import { insertCanvasVersion } from '../canvas/canvasVersionRepository.js';
+import { defaultDeckStil, listFolienVorlagen } from '../sharepicVorlagen/catalog.js';
 
-import {
-  findSlotOverflows,
-  prepareOverflowMeasuring,
-  shrinkOverflows,
-} from './canvasDeckOverflow.js';
+import { prepareOverflowMeasuring, serverMeasureText } from './canvasDeckOverflow.js';
 
 const log = createLogger('canvasDeckGeneration');
 
@@ -41,17 +39,24 @@ export interface CreatedCanvasDeck {
   url: string;
 }
 
-function layoutCatalog(): string {
-  return SLIDE_TEXT_LAYOUT_IDS.map((id) => {
-    const def = SLIDE_TEXT_SLOTS[id];
-    const slots = Object.entries(slideSlotsOf(id))
-      .map(
-        ([name, slot]) =>
-          `    - ${name}${slot.required ? '' : ' (optional)'}: ${slot.hint}, höchstens ${slot.maxChars} Zeichen`
+function typCatalog(): string {
+  return FOLIEN_TYP_IDS.map((id) => {
+    const def = FOLIEN_TYPEN[id];
+    const slots = Object.entries(folienSlotsOf(id))
+      .map(([name, slot]) =>
+        slot.kind === 'list'
+          ? `    - ${name}${slot.required ? '' : ' (optional)'}: Liste mit ${slot.minItems} bis ${slot.maxItems} Einträgen, ${slot.hint}, je höchstens ${slot.maxChars} Zeichen`
+          : `    - ${name}${slot.required ? '' : ' (optional)'}: ${slot.hint}, höchstens ${slot.maxChars} Zeichen`
       )
       .join('\n');
     return `- "${id}" — ${def.label}: ${def.use}\n${slots}`;
   }).join('\n');
+}
+
+function vorlagenList(locale: DeckLocale): string {
+  return listFolienVorlagen(locale)
+    .map((v) => `${v.id} (${v.titel})`)
+    .join(', ');
 }
 
 const AT_BLOCK = `
@@ -59,16 +64,19 @@ const AT_BLOCK = `
 ÖSTERREICH: Die Präsentation ist für ein österreichisches Publikum. Schreibe österreichisches Deutsch (z. B. "Nationalrat", "Bundesland", "Gemeinde", "Landesregierung", "Jänner", "heuer"), nenne keine deutschen Institutionen (Bundestag, Bundesländer-Ministerien), wenn der Auftrag nichts anderes sagt.`;
 
 export function deckSystemPrompt(locale: DeckLocale): string {
-  return `Du bist ein Präsentations-Assistent für die Grünen. Erstelle einen Foliensatz im Corporate Design: du wählst je Folie ein Layout und füllst dessen Textfelder.
+  return `Du bist ein Präsentations-Assistent für die Grünen. Erstelle einen Foliensatz im Corporate Design: du wählst je Folie einen Typ und füllst dessen Felder. Wie die Folien aussehen, bestimmt die Vorlage, nicht du.
 
-Verfügbare Layouts und ihre Felder:
-${layoutCatalog()}
+Verfügbare Folientypen und ihre Felder:
+${typCatalog()}
 
 Regeln:
-- 5 bis 12 Folien (höchstens ${MAX_SLIDES}); die erste Folie ist eine Titelfolie ("titel" oder "titel-hell"), die letzte darf "danke" sein
-- Wähle ein Thema (dunkel oder hell) und bleibe dabei; wechsle nur für Zitatfolien
+- 5 bis 12 Folien (höchstens ${MAX_SLIDES}); die erste Folie ist eine "titel"-Folie, die letzte darf "danke" sein
+- Wähle je Folie den passenden Typ. Für drei bis sechs kurze Punkte nimm \`liste\`, nicht \`text\`.
+- \`zahl\` nur mit einer Zahl aus dem Material und ihrer Quelle. Ohne Quelle keine Zahl-Folie.
+- Hebe pro Headline, Kernsatz oder Zitat höchstens zwei Wörter mit \`==…==\` hervor.
+- \`vorlage\` nur setzen, wenn die Person eine Gestaltung nennt; erlaubte Ids: ${vorlagenList(locale)}.
 - Halte die Zeichenbudgets strikt ein — Text darüber läuft aus der Folie. Lieber kürzen als umbrechen
-- Stichpunkte statt Fließtext; in Spalten beginnt jeder Punkt mit "• " auf einer eigenen Zeile. Nutze **fett** sparsam
+- Einträge einer Liste sind reine Texte ohne vorangestellte Aufzählungszeichen
 - "notes" sind Sprechernotizen (ausführlicher, darf leer sein)
 - Schreibe jede Folie inhaltlich aus. NIEMALS Platzhalter wie "Kernpunkt 1" oder "hier Inhalt einfügen"; was der Auftrag nicht hergibt, lässt du weg
 - Erfinde keine Zahlen, Namen, Kontaktdaten oder Quellen. Ein optionales Feld ohne Inhalt lässt du weg
@@ -76,30 +84,40 @@ Regeln:
 - Schreibe auf Deutsch mit geschlechtergerechter Sprache (Genderstern *)${locale === 'de-AT' ? AT_BLOCK : ''}`;
 }
 
-/** Loose wire schema; `slideDeckSpecSchema` stays the strict gate. */
+/** Loose wire schema; `deckSpecSchema` stays the strict gate. */
 export function deckToolSchema(): Record<string, unknown> {
-  const slotNames = new Set<string>();
-  for (const id of SLIDE_TEXT_LAYOUT_IDS) {
-    for (const name of Object.keys(SLIDE_TEXT_SLOTS[id].slots)) slotNames.add(name);
+  const slotShapes = new Map<string, Record<string, unknown>>();
+  for (const id of FOLIEN_TYP_IDS) {
+    for (const [name, slot] of Object.entries(folienSlotsOf(id))) {
+      const shape =
+        slot.kind === 'list' ? { type: 'array', items: { type: 'string' } } : { type: 'string' };
+      const known = slotShapes.get(name);
+      // Dieselbe Bezeichnung mit anderer Art in zwei Typen: dann ohne Typangabe.
+      slotShapes.set(name, known && known['type'] !== shape.type ? {} : shape);
+    }
   }
   return {
     type: 'object',
     required: ['title', 'slides'],
     properties: {
       title: { type: 'string', description: 'Titel der Präsentation (höchstens 50 Zeichen)' },
+      vorlage: {
+        type: 'string',
+        description: 'Id der Vorlage, nur wenn die Person eine Gestaltung nennt',
+      },
       slides: {
         type: 'array',
         minItems: 1,
         maxItems: MAX_SLIDES,
         items: {
           type: 'object',
-          required: ['layout', 'slots'],
+          required: ['typ', 'slots'],
           properties: {
-            layout: { type: 'string', enum: [...SLIDE_TEXT_LAYOUT_IDS] },
+            typ: { type: 'string', enum: [...FOLIEN_TYP_IDS] },
             slots: {
               type: 'object',
-              description: 'Textfelder des Layouts, Namen laut Layoutliste',
-              properties: Object.fromEntries([...slotNames].map((n) => [n, { type: 'string' }])),
+              description: 'Felder des Folientyps, Namen laut Typliste',
+              properties: Object.fromEntries(slotShapes),
             },
             notes: { type: 'string', description: 'Sprechernotizen, darf leer sein' },
           },
@@ -125,6 +143,12 @@ function describeIssues(error: {
     .join('; ');
 }
 
+/** `vorlage` des Modells, wenn sie eine Katalog-Id des Landes ist, sonst der Standard des Landes. */
+function stilFor(vorlage: string | undefined, locale: DeckLocale) {
+  const named = vorlage ? listFolienVorlagen(locale).find((v) => v.id === vorlage) : undefined;
+  return named?.stil ?? defaultDeckStil(locale);
+}
+
 /**
  * Generates, composes, measures and persists a canvas deck. Returns null when
  * the model produced no usable structure after its repair attempts.
@@ -139,29 +163,33 @@ export async function generateCanvasDeck(opts: {
 }): Promise<CreatedCanvasDeck | null> {
   const { prompt, userId, locale } = opts;
   const date = new Date();
-  const measuring = await prepareOverflowMeasuring(locale);
+  const measure = (await prepareOverflowMeasuring(locale)) ? serverMeasureText(locale) : null;
+  const compose = (spec: DeckSpec) =>
+    composeSlideDeck(spec, { locale, date, stil: stilFor(spec.vorlage, locale), measure });
 
   const generated = await aiObject({
     lane: 'doc_generation',
     system: deckSystemPrompt(locale),
     prompt,
     toolName: 'create_presentation',
-    toolDescription: 'Erzeugt den Foliensatz aus Layouts und Textfeldern.',
+    toolDescription: 'Erzeugt den Foliensatz aus Folientypen und ihren Feldern.',
     schema: deckToolSchema(),
     validate: (input, attempt, attempts) => {
-      const parsed = slideDeckSpecSchema.safeParse(input);
+      const parsed = deckSpecSchema.safeParse(input);
       if (!parsed.success) return { ok: false as const, error: describeIssues(parsed.error) };
-      const spec = parsed.data as SlideDeckSpec;
-      // The last attempt takes overflow as it is: shrinking below fixes it.
-      if (measuring && attempt < attempts) {
-        const { pages } = composeLegacySlideDeck(spec, { locale, date });
-        const over = findSlotOverflows(pages, spec, locale);
-        if (over.length > 0) {
+      const spec = parsed.data as DeckSpec;
+      // The last attempt takes overflow as it is: the minimum size is the fallback.
+      if (measure && attempt < attempts) {
+        const { overflow } = compose(spec);
+        if (overflow.length > 0) {
           return {
             ok: false as const,
-            error: `Text läuft aus der Folie: ${over
+            error: `Text passt auch in kleinster Schrift nicht in die Folie: ${overflow
               .slice(0, 6)
-              .map((o) => `Folie ${o.slide}, Feld ${o.slot} (${o.lines} Zeilen, zu lang)`)
+              .map((o) => {
+                const [slide, id] = o.split(':');
+                return `Folie ${slide}, ${id}`;
+              })
               .join('; ')} — kürze diese Felder deutlich.`,
           };
         }
@@ -179,14 +207,9 @@ export async function generateCanvasDeck(opts: {
   opts.onCommit?.();
 
   const spec = generated.data;
-  const deck: ComposedSlideDeck = composeLegacySlideDeck(spec, { locale, date });
-  if (measuring) {
-    const still = shrinkOverflows(deck.pages, spec, locale);
-    if (still.length > 0) {
-      log.warn(
-        `Deck text still overflows at minimum size: ${still.map((o) => `${o.slide}/${o.slot}`).join(', ')}`
-      );
-    }
+  const deck = compose(spec);
+  if (deck.overflow.length > 0) {
+    log.warn(`Deck text still overflows at minimum size: ${deck.overflow.join(', ')}`);
   }
   return persistCanvasDeck(userId, spec.title, deck);
 }
