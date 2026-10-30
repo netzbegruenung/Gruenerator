@@ -42,6 +42,7 @@ import type {
   McpToolGrant,
   BrowserSessionMeta,
 } from '@gruenerator/contracts';
+import type { SlideDeckOperation } from '@gruenerator/contracts/slides';
 import type { RoleLandesverbandInput } from '@gruenerator/shared/agents';
 import type { ArtifactCreateKind } from '@gruenerator/shared/chat-intents';
 import type { ModelMessage } from 'ai';
@@ -1621,6 +1622,18 @@ export interface ShareTextFormPayload {
 }
 
 /**
+ * Bestätigte Folien-Löschung in einem Canvas-Foliensatz. `operations` sind die
+ * geplanten Operationen (Foliennummern gelten für die Reihenfolge `basePageIds`).
+ */
+export interface ApplyCanvasDeckEditPayload {
+  canvasId: string;
+  title: string;
+  summary: string;
+  operations: SlideDeckOperation[];
+  basePageIds: string[];
+}
+
+/**
  * Pending action stored in Redis while awaiting user confirmation.
  * Discriminated union ensures type-safe payload access per action type.
  */
@@ -1647,6 +1660,7 @@ export type PendingAction = {
   | { type: 'create_user_agent'; payload: CreateUserAgentPayload }
   | { type: 'share_user_agent'; payload: ShareUserAgentPayload }
   | { type: 'share_text_form'; payload: ShareTextFormPayload }
+  | { type: 'apply_canvas_deck_edit'; payload: ApplyCanvasDeckEditPayload }
 );
 
 /**

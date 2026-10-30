@@ -717,6 +717,7 @@ const READ_KIND_NOUN: Record<ArtifactReadKind, string> = {
   sheet: 'Tabelle',
   presentation: 'Präsentation',
   pdf: 'PDF',
+  canvas: 'Canvas',
 };
 
 /**

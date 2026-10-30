@@ -21,6 +21,7 @@ COPY packages/shared/package.json ./packages/shared/
 COPY packages/query/package.json ./packages/query/
 COPY packages/core/package.json ./packages/core/
 COPY packages/ggraphic-schema/package.json ./packages/ggraphic-schema/
+COPY packages/ggraphic-core/package.json ./packages/ggraphic-core/
 COPY packages/contracts/package.json ./packages/contracts/
 COPY services/hocuspocus/package.json ./services/hocuspocus/
 
@@ -40,6 +41,7 @@ COPY packages/shared ./packages/shared
 COPY packages/query ./packages/query
 COPY packages/core ./packages/core
 COPY packages/ggraphic-schema ./packages/ggraphic-schema
+COPY packages/ggraphic-core ./packages/ggraphic-core
 COPY packages/contracts ./packages/contracts
 COPY services/hocuspocus ./services/hocuspocus
 
@@ -105,6 +107,7 @@ COPY --from=builder --chown=gruenerator:gruenerator /app/packages/shared/package
 COPY --from=builder --chown=gruenerator:gruenerator /app/packages/query/package.json ./packages/query/
 COPY --from=builder --chown=gruenerator:gruenerator /app/packages/core/package.json ./packages/core/
 COPY --from=builder --chown=gruenerator:gruenerator /app/packages/ggraphic-schema/package.json ./packages/ggraphic-schema/
+COPY --from=builder --chown=gruenerator:gruenerator /app/packages/ggraphic-core/package.json ./packages/ggraphic-core/
 COPY --from=builder --chown=gruenerator:gruenerator /app/packages/contracts/package.json ./packages/contracts/
 COPY --from=builder --chown=gruenerator:gruenerator /app/services/hocuspocus/package.json ./services/hocuspocus/
 

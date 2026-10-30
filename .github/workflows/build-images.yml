@@ -201,6 +201,7 @@ jobs:
               - 'packages/shared/**'
               - 'packages/core/**'
               - 'packages/ggraphic-schema/**'
+              - 'packages/ggraphic-core/**'
               - 'packages/contracts/**'
               - 'packages/query/**'
               - *install
@@ -210,6 +211,7 @@ jobs:
               - 'packages/shared/**'
               - 'packages/core/**'
               - 'packages/ggraphic-schema/**'
+              - 'packages/ggraphic-core/**'
               - 'packages/contracts/**'
               - 'packages/query/**'
               - *install
@@ -221,6 +223,7 @@ jobs:
               - 'packages/shared/**'
               - 'packages/core/**'
               - 'packages/ggraphic-schema/**'
+              - 'packages/ggraphic-core/**'
               - 'packages/contracts/**'
               - 'packages/query/**'
               - 'packages/ui/**'
