@@ -836,6 +836,27 @@ export function runAssertions(
     }
   }
 
+  for (const { tool, feld, muster } of expect.toolArgsMustNotMatch ?? []) {
+    const re = safeRegex(muster);
+    const name = `toolArgsMustNotMatch:${tool}.${feld}`;
+    if (!re) {
+      results.push(fail(name, `invalid regular expression: ${muster}`));
+      continue;
+    }
+    const treffer = trace.toolCalls
+      .filter((t) => t.toolName === tool)
+      .flatMap((c) => argValues(c.args, feld))
+      .filter((v) => re.test(v));
+    results.push(
+      treffer.length === 0
+        ? ok(name)
+        : fail(
+            name,
+            `${feld} = ${treffer.map((v) => JSON.stringify(v)).join(', ')} matches /${muster}/`
+          )
+    );
+  }
+
   if (expect.retainsPriorSources) {
     // Either this turn surfaced sources itself, or an earlier turn did and the
     // answer must not deny having them.

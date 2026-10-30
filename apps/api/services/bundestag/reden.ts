@@ -152,6 +152,19 @@ export function containsPhrase(text: string, phrase: string): boolean {
 }
 
 /**
+ * Besteht die „Phrase" nur aus dem Namen der Person, die die Rede hielt? Dann ist
+ * keine Formulierung gesucht, sondern die Rede selbst: der eigene Name steht in
+ * keinem Redetext, die Wortlautsuche fände nie etwas. So am 30.10.2026 auf
+ * „ich will die rede wörtlich 1:1" (`thema` „Katrin Uhlig", `wortlaut: true`).
+ */
+export function phraseIstNurName(phrase: string, redner: string | undefined): boolean {
+  if (!redner) return false;
+  const namen = new Set(normalizePhrase(redner).split(' '));
+  const woerter = normalizePhrase(phrase).split(' ').filter(Boolean);
+  return woerter.length > 0 && woerter.every((w) => namen.has(w));
+}
+
+/**
  * Redetext je Treffer: das Budget verteilt sich auf die angefragten Reden. Eine
  * einzelne Rede kommt so ganz an (bis 20.000 Zeichen), fünf Reden je 4.800.
  * Bis 10/2026 galt pauschal 4.000 — auch dann, wenn nach genau einer Rede
