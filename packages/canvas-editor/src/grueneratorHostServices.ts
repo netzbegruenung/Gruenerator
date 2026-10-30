@@ -13,6 +13,7 @@ import type { BlockSlide, LiftedBlock } from '@ggraphic/editor/blocks/liftedBloc
 import type { CanvasPrintService } from '@ggraphic/editor/hostServices';
 import type {
   CanvasVorlage,
+  FolienVorlage,
   PrintSpec,
   PrintVorlage,
   SharepicBlock,
@@ -41,6 +42,8 @@ export interface CanvasVorlagenService {
   composeSeite: (seite: SharepicSeite, format: SharepicFormat) => Promise<VorlagePage[]>;
   /** Vorlagen saved as finished pages, for every format; the tab shows the document's. */
   listCanvas?: () => Promise<CanvasVorlage[]>;
+  /** The slide deck Vorlagen (Stile) of the viewer's country, for „Vorlage für alle Folien". */
+  loadDeckVorlagen?: () => Promise<FolienVorlage[]>;
   /** The print Vorlagen of the viewer's country; their specs compose through `print.composePrint`. */
   listPrint?: () => Promise<PrintVorlage[]>;
   /**

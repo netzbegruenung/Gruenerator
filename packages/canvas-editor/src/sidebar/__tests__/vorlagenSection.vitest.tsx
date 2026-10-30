@@ -15,6 +15,9 @@ import type { HeterogeneousPage } from '@ggraphic/editor/configs/types';
 import type { CanvasVorlage, PrintVorlage, SharepicSeite } from '@gruenerator/contracts';
 
 // Kein Offscreen-Konva in jsdom: die Folienvorschauen bleiben beim Skeleton.
+vi.mock('../../slides/renderDeckStilThumbnail', () => ({
+  renderDeckStilThumbnail: () => new Promise(() => {}),
+}));
 vi.mock('../../slides/renderSlideLayoutThumbnail', () => ({
   preloadSlideLayoutPhoto: () => Promise.resolve(),
   renderSlideLayoutThumbnail: () => new Promise(() => {}),
@@ -653,6 +656,32 @@ describe('VorlagenSection on a slide deck', () => {
     expect(screen.queryByText(/noch keine Vorlagen/)).toBeNull();
     expect(vorlagen.listSeiten).not.toHaveBeenCalled();
     expect(await axe(container)).toHaveNoViolations();
+  });
+
+  it('offers „Vorlage für alle Folien" above the layouts, from the host loader', async () => {
+    const loadDeckVorlagen = vi.fn(async () => [
+      {
+        id: 'cd',
+        titel: 'Offiziell',
+        beschreibung: 'CD',
+        stil: 'cd' as const,
+        locale: 'de-DE' as const,
+      },
+      {
+        id: 'band',
+        titel: 'Band',
+        beschreibung: 'Bänder',
+        stil: 'band' as const,
+        locale: 'de-DE' as const,
+      },
+    ]);
+    setup(DECK, { formatId: 'slide-16-9', service: { loadDeckVorlagen } });
+    const picker = await screen.findByRole('region', { name: 'Vorlage für alle Folien' });
+    await waitFor(() => expect(within(picker).getAllByRole('button')).toHaveLength(2));
+    expect(
+      picker.compareDocumentPosition(screen.getByRole('region', { name: 'Folienlayouts Dunkel' })) &
+        Node.DOCUMENT_POSITION_FOLLOWING
+    ).toBeTruthy();
   });
 
   it('shows only the layouts when the host has no Vorlage of the format', async () => {

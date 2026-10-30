@@ -30,6 +30,8 @@ import {
   type PrintCanvasFormat,
 } from '@ggraphic/editor/formats/index';
 import { useAnnounce } from '@ggraphic/editor/hooks/useAnnounce';
+import { useIsCanvasMobile } from '@ggraphic/editor/hooks/useIsCanvasMobile';
+import { GalleryTabs } from '@ggraphic/editor/sidebar/sections/StudioGallery';
 import { useCanvasStoreSelector } from '@ggraphic/editor/stores/CanvasStoreProvider';
 import {
   AlertDialog,
@@ -74,7 +76,7 @@ import {
   seiteDeckOps,
   vorlageDeckOps,
 } from '../../collab/vorlageDeck';
-import { useIsCanvasMobile } from '@ggraphic/editor/hooks/useIsCanvasMobile';
+import { DeckVorlagenPicker } from '../../slides/DeckVorlagenPicker';
 import { SlideLayoutPicker } from '../../slides/SlideLayoutPicker';
 import {
   buildSlideLayout,
@@ -83,8 +85,6 @@ import {
   type SlideLayoutId,
 } from '../../slides/slideLayouts';
 import { rankVorlagen } from '../../utils/vorlagenRelevance';
-
-import { GalleryTabs } from '@ggraphic/editor/sidebar/sections/StudioGallery';
 
 import type { BrandLocale } from '../../brand/theme';
 import type {
@@ -652,6 +652,12 @@ export function VorlagenSection({
             ? 'Ein Klick fügt die Folie hinter der aktuellen ein. Auf eine Seite gezogen, landet sie dahinter.'
             : 'Ein Klick fügt die Folie hinter der aktuellen ein.'}
       </p>
+      <DeckVorlagenPicker
+        load={service?.loadDeckVorlagen ?? null}
+        pages={pages}
+        deck={deck}
+        locale={layoutLocale}
+      />
       <SlideLayoutPicker
         narrow
         locale={layoutLocale}
