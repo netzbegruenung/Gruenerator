@@ -312,13 +312,58 @@ describe('NotebooksIndexFooter — live tool tiles', () => {
 
     renderWithProviders(<NotebooksIndexFooter />);
 
-    // The static text shows while loading too — wait until the answers were consumed.
+    // A skeleton holds the place while loading — wait until the answers were consumed.
     await waitFor(() => expect(polled).toBe(true));
     await new Promise((resolve) => setTimeout(resolve, 100));
     expect(screen.getByText('Sonntagsfrage, Ländertrends und Meinungsbild.')).toBeInTheDocument();
     expect(
       screen.getByText('Meistdiskutierte Themen und X-Trends der letzten 24 Stunden.')
     ).toBeInTheDocument();
+  });
+
+  it('holds the tile with a skeleton instead of the static text while loading', async () => {
+    serveCollections([]);
+    server.use(http.get(MONITOR_POLLS, () => new Promise<never>(() => {})));
+
+    renderWithProviders(<NotebooksIndexFooter />);
+
+    const tile = await screen.findByRole('link', { name: /Umfragen/ });
+    expect(tile).toHaveAttribute('aria-busy', 'true');
+    expect(tile.querySelector('[data-slot="skeleton"]')).not.toBeNull();
+    expect(screen.queryByText('Sonntagsfrage, Ländertrends und Meinungsbild.')).toBeNull();
+  });
+
+  it('renders the stored answer at once, before the server has answered', async () => {
+    serveCollections([]);
+    server.use(http.get(MONITOR_ENTITY, () => new Promise<never>(() => {})));
+    localStorage.setItem(
+      `gruenerator:monitor-cache:v1:${JSON.stringify(['monitor', 'entity', 'gruene', 'de'])}`,
+      JSON.stringify({
+        at: Date.now(),
+        data: {
+          entity: { id: 'gruene', label: 'Die Grünen' },
+          count: 1,
+          sources: ['taz'],
+          articles: [
+            {
+              url: 'https://example.org/b',
+              title: 'Gespeicherte Schlagzeile',
+              source: 'taz',
+              publishedAt: null,
+              excerpt: '',
+              locale: 'de',
+              topics: {},
+              primaryTopic: null,
+            },
+          ],
+        },
+      })
+    );
+
+    renderWithProviders(<NotebooksIndexFooter />);
+
+    expect(await screen.findByText('Gespeicherte Schlagzeile')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /Watcher/ })).toHaveAttribute('aria-busy', 'false');
   });
 
   it('falls back to the static descriptions when the snapshot carries no keywords', async () => {
