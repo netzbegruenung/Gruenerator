@@ -766,16 +766,22 @@ export const GrueneratorComposer = memo(function GrueneratorComposer({
     [dismissPopover]
   );
 
-  const draftText = useAuiState((s) => s.composer.text);
+  // Selects the token's id, not the draft: a selector returning the text would
+  // re-render this whole composer — the plus menu and every button — on every
+  // keystroke. The id is a primitive that only changes when a token appears.
+  const pendingVorlageId = useAuiState(
+    (s) => liftVorlageToken(s.composer.text)?.vorlage.id ?? null
+  );
   useEffect(() => {
-    const lifted = liftVorlageToken(draftText);
+    if (!pendingVorlageId) return;
+    const lifted = liftVorlageToken(composerRuntime.getState().text);
     if (!lifted) return;
     composerRuntime.setText(lifted.text);
     setPillMentions((prev) => [
       ...prev.filter((p) => p.type !== 'vorlagen'),
       vorlageToMentionable(lifted.vorlage),
     ]);
-  }, [draftText, composerRuntime]);
+  }, [pendingVorlageId, composerRuntime]);
 
   const handleChange = useCallback(
     (e: React.ChangeEvent<HTMLTextAreaElement>) => {
