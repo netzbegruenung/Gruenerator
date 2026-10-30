@@ -1,183 +1,142 @@
 /**
- * The wiring between the runtime and the vendored MessageQueue element.
+ * The queue list against the real assistant-ui runtime: the primitives it is
+ * built on read the composer scope, so a mocked hook would test nothing.
  *
- * The element is NOT mocked — it renders for real, so the German copy and the
- * a11y of the actual markup are covered here too. Only the two runtime hooks
- * are faked, which is the whole seam this file owns.
- *
- * What is pinned is what this file decides: the shape handed to the element
- * (label from the text parts, file names when a turn carries none, the running
- * turn read off the last user message) and that cancelling addresses the turn
- * by **id**. Removing one row shifts every later position, so an
- * index-addressed cancel would take out the wrong turn once the list is
- * touched. Upstream's own markup — numbering, the running row, the animation —
- * is upstream's business and is not asserted here.
+ * What is pinned is what this file decides: the label, the position in the
+ * button names, that "Als Nächstes senden" reorders without touching the
+ * running answer, and that it is missing on the row that already goes next.
  */
-import { render, screen } from '@testing-library/react';
+import {
+  AssistantRuntimeProvider,
+  useLocalRuntime,
+  type AssistantRuntime,
+  type ChatModelAdapter,
+} from '@assistant-ui/react';
+import { act, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { describe, expect, it } from 'vitest';
 
 import { axe } from '../../test-utils';
 
 import { ComposerQueueList } from './ComposerQueueList';
 
-type PartLike =
-  | { type: 'text'; text: string }
-  | { type: 'file'; filename?: string; data: string; mimeType: string };
-
-const h = vi.hoisted(() => {
-  const remove = vi.fn();
-  return {
-    state: {
-      queue: [] as { id: string; prompt: string; parts: PartLike[] }[],
-      messages: [] as { role: string; content: PartLike[] }[],
+/** An adapter whose turns do not finish until the test lets them. */
+function gatedAdapter() {
+  let open!: () => void;
+  const gate = new Promise<void>((resolve) => {
+    open = resolve;
+  });
+  let turn = 0;
+  const adapter: ChatModelAdapter = {
+    async *run() {
+      await gate;
+      turn += 1;
+      yield { content: [{ type: 'text', text: `Antwort ${turn}` }] };
     },
-    remove,
-    queueItem: vi.fn((_selector: { id: string }) => ({ remove })),
-    selectors: [] as ((s: unknown) => unknown)[],
   };
-});
-
-vi.mock('@assistant-ui/react', () => ({
-  useAuiState: (selector: (s: unknown) => unknown) => {
-    h.selectors.push(selector);
-    return selector({
-      composer: { queue: h.state.queue },
-      thread: { messages: h.state.messages },
-    });
-  },
-  useAui: () => ({ composer: { queueItem: h.queueItem } }),
-}));
-
-function queued(id: string, text: string) {
-  return { id, prompt: text, parts: [{ type: 'text' as const, text }] };
+  return { adapter, release: () => open() };
 }
 
-function renderQueue(
-  items: { id: string; prompt: string; parts: PartLike[] }[],
-  running = 'Die laufende Frage'
-) {
-  h.state.queue = items;
-  h.state.messages = [{ role: 'user', content: [{ type: 'text', text: running }] }];
-  return render(<ComposerQueueList />);
+function mount(adapter: ChatModelAdapter) {
+  const box: { current: AssistantRuntime | null } = { current: null };
+  function Harness() {
+    const runtime = useLocalRuntime(adapter, { unstable_enableMessageQueue: true });
+    box.current = runtime;
+    return (
+      <AssistantRuntimeProvider runtime={runtime}>
+        <ComposerQueueList />
+      </AssistantRuntimeProvider>
+    );
+  }
+  const view = render(<Harness />);
+  const runtime = box.current;
+  if (!runtime) throw new Error('runtime not mounted');
+  return { runtime, container: view.container };
 }
+
+async function send(runtime: AssistantRuntime, text: string) {
+  await act(async () => {
+    runtime.thread.composer.setText(text);
+    runtime.thread.composer.send();
+  });
+}
+
+/** Mount, start a run on "läuft", and queue `texts` behind it. */
+async function queueBehindRun(texts: string[]) {
+  const gated = gatedAdapter();
+  const mounted = mount(gated.adapter);
+  await send(mounted.runtime, 'läuft');
+  await waitFor(() => {
+    expect(mounted.runtime.thread.getState().isRunning).toBe(true);
+  });
+  for (const text of texts) await send(mounted.runtime, text);
+  return { ...mounted, release: gated.release };
+}
+
+const rowTexts = () => screen.getAllByRole('listitem').map((row) => row.textContent);
 
 describe('ComposerQueueList', () => {
-  beforeEach(() => {
-    h.state.queue = [];
-    h.state.messages = [];
-    h.remove.mockClear();
-    h.queueItem.mockClear();
-    h.selectors.length = 0;
-  });
-
   it('renders nothing while nothing is waiting', () => {
-    const { container } = renderQueue([]);
+    const { container } = mount(gatedAdapter().adapter);
     expect(container).toBeEmptyDOMElement();
   });
 
-  it('hands the waiting turns over in the order they will send', () => {
-    renderQueue([queued('a', 'Erste Frage'), queued('b', 'Zweite Frage')]);
+  it('lists the waiting turns in the order they will send, with a count', async () => {
+    await queueBehindRun(['Erste Frage', 'Zweite Frage']);
 
-    const rows = screen.getAllByRole('listitem');
-    expect(rows).toHaveLength(2);
-    expect(rows[0]).toHaveTextContent('Erste Frage');
-    expect(rows[1]).toHaveTextContent('Zweite Frage');
+    expect(rowTexts()[0]).toContain('Erste Frage');
+    expect(rowTexts()[1]).toContain('Zweite Frage');
+    expect(screen.getByText(/2 Nachrichten warten/)).toBeVisible();
   });
 
-  it('shows the turn the queue is waiting behind', () => {
-    renderQueue([queued('a', 'Erste')], 'Schreib mir einen Antrag');
+  it('offers "Als Nächstes senden" on every row but the one that already goes next', async () => {
+    await queueBehindRun(['Erste', 'Zweite', 'Dritte']);
 
-    expect(screen.getByText('Schreib mir einen Antrag')).toBeVisible();
-    expect(screen.getByText('läuft')).toBeVisible();
+    const [first, second, third] = screen.getAllByRole('listitem');
+    expect(within(first!).queryByRole('button', { name: /Als Nächstes senden/ })).toBeNull();
+    expect(within(second!).getByRole('button', { name: /Als Nächstes senden/ })).toBeVisible();
+    expect(within(third!).getByRole('button', { name: /Als Nächstes senden/ })).toBeVisible();
   });
 
-  it('reads the running turn off the LAST user message, not the first', () => {
-    h.state.queue = [queued('a', 'Erste')];
-    h.state.messages = [
-      { role: 'user', content: [{ type: 'text', text: 'Alte Frage' }] },
-      { role: 'assistant', content: [{ type: 'text', text: 'Alte Antwort' }] },
-      { role: 'user', content: [{ type: 'text', text: 'Neue Frage' }] },
-    ];
-    render(<ComposerQueueList />);
-
-    expect(screen.getByText('Neue Frage')).toBeVisible();
-    expect(screen.queryByText('Alte Frage')).not.toBeInTheDocument();
-  });
-
-  it('counts the waiting turns, singular and plural', () => {
-    const { unmount } = renderQueue([queued('a', 'Eine')]);
-    expect(screen.getByText('1 wartet')).toBeVisible();
-    expect(screen.getByText('sobald die Antwort fertig ist')).toBeVisible();
-    unmount();
-
-    renderQueue([queued('a', 'Eine'), queued('b', 'Zwei'), queued('c', 'Drei')]);
-    expect(screen.getByText('3 warten')).toBeVisible();
-  });
-
-  it('builds the label from the text parts, not the deprecated prompt field', () => {
-    renderQueue([{ id: 'a', prompt: 'ALT', parts: [{ type: 'text', text: 'NEU' }] }]);
-
-    expect(screen.getByText('NEU')).toBeVisible();
-    expect(screen.queryByText('ALT')).not.toBeInTheDocument();
-  });
-
-  it('falls back to the file names when a turn carries no text', () => {
-    renderQueue([
-      {
-        id: 'a',
-        prompt: '',
-        parts: [{ type: 'file', filename: 'antrag.pdf', data: 'x', mimeType: 'application/pdf' }],
-      },
-    ]);
-
-    expect(screen.getByRole('listitem')).toHaveTextContent('antrag.pdf');
-  });
-
-  it('cancels the clicked turn by id, so a shifting position cannot hit the wrong one', async () => {
+  it('moves the turn to the front without interrupting the running answer', async () => {
     const user = userEvent.setup();
-    renderQueue([queued('a', 'Erste'), queued('b', 'Zweite'), queued('c', 'Dritte')]);
+    const { runtime, release } = await queueBehindRun(['Erste', 'Zweite', 'Dritte']);
+
+    await user.click(screen.getByRole('button', { name: 'Als Nächstes senden: Nachricht 3' }));
+
+    expect(rowTexts()[0]).toContain('Dritte');
+    expect(runtime.thread.getState().isRunning).toBe(true);
+
+    await act(async () => {
+      release();
+    });
+    await waitFor(() => {
+      expect(runtime.thread.composer.getState().queue).toHaveLength(0);
+      expect(runtime.thread.getState().isRunning).toBe(false);
+    });
+    const users = runtime.thread
+      .getState()
+      .messages.filter((m) => m.role === 'user')
+      .map((m) => m.content.map((p) => (p.type === 'text' ? p.text : '')).join(''));
+    expect(users).toEqual(['läuft', 'Dritte', 'Erste', 'Zweite']);
+  });
+
+  it('removes the clicked turn, told apart by position when two say the same thing', async () => {
+    const user = userEvent.setup();
+    const { runtime } = await queueBehindRun(['Nochmal', 'Nochmal', 'Anders']);
+    const secondId = runtime.thread.composer.getState().queue[1]!.id;
 
     await user.click(
-      screen.getByRole('button', { name: 'Wartende Nachricht 2 entfernen: "Zweite"' })
+      screen.getByRole('button', { name: 'Wartende Nachricht 2 entfernen: „Nochmal“' })
     );
 
-    expect(h.queueItem).toHaveBeenCalledExactlyOnceWith({ id: 'b' });
-    expect(h.remove).toHaveBeenCalledOnce();
-  });
-
-  it('keeps the remove buttons distinct when two waiting turns say the same thing', async () => {
-    const user = userEvent.setup();
-    renderQueue([queued('a', 'Nochmal'), queued('b', 'Nochmal')]);
-
-    // Upstream names the button from the text alone, which collides here.
-    await user.click(
-      screen.getByRole('button', { name: 'Wartende Nachricht 2 entfernen: "Nochmal"' })
-    );
-
-    expect(h.queueItem).toHaveBeenCalledExactlyOnceWith({ id: 'b' });
-  });
-
-  it('selects only referentially stable slices, so a streamed token cannot re-render the list', () => {
-    // useAuiState compares with Object.is. A selector that builds an array or
-    // object returns a fresh reference every time it runs, which re-renders on
-    // every store update — while a turn is queued, that is every token of the
-    // answer it is waiting behind.
-    renderQueue([queued('a', 'Erste'), queued('b', 'Zweite')]);
-
-    const state = {
-      composer: { queue: h.state.queue },
-      thread: { messages: h.state.messages },
-    };
-
-    expect(h.selectors).not.toHaveLength(0);
-    for (const select of h.selectors) {
-      expect(Object.is(select(state), select(state))).toBe(true);
-    }
+    const ids = runtime.thread.composer.getState().queue.map((q) => q.id);
+    expect(ids).toHaveLength(2);
+    expect(ids).not.toContain(secondId);
   });
 
   it('has no accessibility violations', async () => {
-    const { container } = renderQueue([queued('a', 'Erste'), queued('b', 'Zweite')]);
+    const { container } = await queueBehindRun(['Erste', 'Zweite']);
     expect(await axe(container)).toHaveNoViolations();
   });
 });
