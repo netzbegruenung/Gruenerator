@@ -154,6 +154,14 @@ export default defineConfig(({ command }) => ({
         __dirname,
         '../../packages/contracts/src/richtext/presentationDoc.ts'
       ),
+      '@gruenerator/contracts/brand': path.resolve(
+        __dirname,
+        '../../packages/contracts/src/brand/grueneBrand.ts'
+      ),
+      '@gruenerator/contracts/slides': path.resolve(
+        __dirname,
+        '../../packages/contracts/src/slides/slideLayouts.ts'
+      ),
       '@gruenerator/contracts': path.resolve(__dirname, '../../packages/contracts/src'),
       // @gruenerator/core is imported transitively from the @gruenerator/shared
       // alias (shared/avatar + shared/models re-export from @gruenerator/core).
@@ -165,6 +173,9 @@ export default defineConfig(({ command }) => ({
       // `import` condition points at dist (built only for Node services).
       // Same cascade rule — alias it to src.
       '@ggraphic/schema': path.resolve(__dirname, '../../packages/ggraphic-schema/src'),
+      // Same for @ggraphic/core: its `import` condition points at dist, which
+      // only the Node images build (contracts imports it since the slide layouts).
+      '@ggraphic/core': path.resolve(__dirname, '../../packages/ggraphic-core/src'),
       // @gruenerator/query is imported transitively from the @gruenerator/shared
       // alias (shared/utils/textNormalization + shared/search/{filters,vector}
       // re-export from @gruenerator/query/*). Same cascade rule as core above —
