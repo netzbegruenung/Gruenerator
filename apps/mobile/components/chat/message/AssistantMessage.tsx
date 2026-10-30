@@ -116,12 +116,9 @@ export const AssistantMessage = memo(function AssistantMessage() {
   const toolStatus = selectSearchStatusLabel(statusParts);
   const reasoningText = selectReasoningText(statusParts);
   const statusSources = useMemo(() => selectSearchSources(statusParts), [statusParts]);
-  // The trace the turn keeps after the line is gone — same rule as web.
-  const turnDurationMs = metadata.turnDurationMs ?? null;
-  const runActivity = useMemo(
-    () => selectRunActivity(statusParts, turnDurationMs, isStreaming),
-    [statusParts, turnDurationMs, isStreaming]
-  );
+  // The trace the turn keeps after the line is gone — same rule as web. No
+  // useMemo: the React Compiler memoizes it and rejects a manual one here.
+  const runActivity = selectRunActivity(statusParts, metadata.turnDurationMs ?? null, isStreaming);
   const progress = metadata.progress;
   const generationFrame = generationFrameFor({
     isStreaming,
