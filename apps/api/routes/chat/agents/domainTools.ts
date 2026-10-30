@@ -54,6 +54,7 @@ import {
   redenFilterFromWording,
   redenFraktionSchema,
   redenSortierungSchema,
+  phraseIstNurName,
   searchBundestagReden,
   type RedenFilter,
 } from '../../../services/bundestag/reden.js';
@@ -555,13 +556,16 @@ Nicht für Drucksachen, Gesetzentwürfe oder Beschlüsse, dafür bundestag. Nich
         .boolean()
         .optional()
         .describe(
-          'true, wenn eine wörtliche Formulierung gesucht wird („wer hat ‚Zeitenwende‘ gesagt“, „ab wann sagt X ‚…‘“): `thema` ist dann die Phrase. Sonst weglassen.'
+          'true, wenn eine wörtliche Formulierung gesucht wird („wer hat ‚Zeitenwende‘ gesagt“, „ab wann sagt X ‚…‘“): `thema` ist dann die Phrase. Nicht für „gib die Rede wörtlich/vollständig wieder“: dafür weglassen und redner, datumVon/datumBis der Rede und limit 1 setzen. Sonst weglassen.'
         ),
     }),
-    execute: async ({ thema, limit, wortlaut, ...args }) => {
+    execute: async ({ thema, limit, wortlaut: wortlautArg, ...args }) => {
       if (!isIntentAllowedForLocale('bundestag', state.userLocale)) {
         return { resultCount: 0, sources: '', error: intentDeclineNote('bundestag') ?? '' };
       }
+      // „Die Rede wörtlich" ist keine Phrasensuche: mit dem Namen als Phrase
+      // fände die Wortlautsuche nie etwas, gemeint ist die Rede selbst.
+      const wortlaut = wortlautArg && !phraseIstNurName(thema, args.redner);
       // Wie bei `bundestag`: Zeitraum, Sortierung und (ohne Redner) Fraktion aus
       // dem Wortlaut gelten mit, gesetzte Argumente gehen vor.
       const userText =
@@ -589,6 +593,8 @@ Nicht für Drucksachen, Gesetzentwürfe oder Beschlüsse, dafür bundestag. Nich
           resultCount: 0,
           sources: '',
           error: 'Die Redensuche des Bundestags ist gerade nicht erreichbar.',
+          naechsterSchritt:
+            'Das ist kein „keine Reden". Das der Person so sagen und später erneut versuchen; den Redetext nicht anderswo zusammensuchen.',
         };
       }
       const { speeches, wpFallback } = ergebnis;
@@ -596,9 +602,17 @@ Nicht für Drucksachen, Gesetzentwürfe oder Beschlüsse, dafür bundestag. Nich
         return {
           resultCount: 0,
           sources: '',
-          error: wortlaut
-            ? `Keine Rede mit der wörtlichen Formulierung „${thema}“ unter den besten Treffern gefunden. Die Wortlautsuche prüft nur die inhaltlich nächsten Reden, sie ist nicht erschöpfend.`
-            : 'Keine passenden Reden gefunden.',
+          ...(wortlaut
+            ? {
+                error: `Keine Rede mit der wörtlichen Formulierung „${thema}“ unter den besten Treffern gefunden. Die Wortlautsuche prüft nur die inhaltlich nächsten Reden, sie ist nicht erschöpfend.`,
+                naechsterSchritt:
+                  'Ist der Wortlaut einer bestimmten Rede gemeint, nicht eine Phrase darin: bundestag_reden ohne wortlaut, mit redner, datumVon/datumBis dieser Rede und limit 1. Sonst der Person sagen, dass die Formulierung nicht gefunden wurde.',
+              }
+            : {
+                error: 'Keine passenden Reden gefunden.',
+                naechsterSchritt:
+                  'Einen Filter lockern (Zeitraum oder Wahlperiode weglassen, Name ohne Titel) und einmal erneut suchen; ohne Treffer zählt das nicht als „hat nie dazu gesprochen".',
+              }),
         };
       }
       const results: SearchResult[] = speeches.map((s, i) => {
