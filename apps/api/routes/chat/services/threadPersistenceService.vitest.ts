@@ -53,6 +53,12 @@ describe('createMessage', () => {
     await createMessage('thread-1', 'assistant', 'x', { snippet: '🇩🇪'.slice(0, 3) });
     expect(JSON.parse(params()?.[3] as string)).toEqual({ snippet: '🇩�' });
   });
+
+  it('drops NUL from content — a text column rejects it with 22021 (#5175)', async () => {
+    queryMock.mockResolvedValueOnce([{ id: 'm' }]);
+    await createMessage('thread-1', 'user', 'a\u0000b', undefined, 'user-1');
+    expect(params()?.[2]).toBe('ab');
+  });
 });
 
 describe('createPendingAssistantMessage', () => {
@@ -85,6 +91,11 @@ describe('updatePendingAssistantText', () => {
     expect(q).toContain('WHERE id = $1');
     expect(q).toContain("status = 'streaming'");
     expect(params()).toEqual(['msg-1', 'partial text']);
+  });
+
+  it('drops NUL from the partial text (#5175)', async () => {
+    await updatePendingAssistantText('msg-1', 'par\u0000tial');
+    expect(params()).toEqual(['msg-1', 'partial']);
   });
 });
 
@@ -120,6 +131,12 @@ describe('finalizeAssistantMessage', () => {
     expect(sql()).toContain(
       "WHEN jsonb_typeof(tool_results) = 'object' AND tool_results ? 'turnDurationMs' THEN $3::jsonb - 'turnDurationMs'"
     );
+  });
+
+  it('drops NUL from the final content (#5175)', async () => {
+    queryMock.mockResolvedValueOnce([{ id: 'msg-1' }]);
+    await finalizeAssistantMessage('msg-1', 'fi\u0000nal');
+    expect(params()?.[1]).toBe('final');
   });
 
   it('returns false when no row matched (row was deleted)', async () => {

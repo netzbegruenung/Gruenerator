@@ -15,3 +15,13 @@ export function toJsonbParam(value: object | undefined): string | null {
     typeof v === 'string' ? v.replace(LONE_SURROGATE, '\uFFFD').replaceAll('\u0000', '') : v
   );
 }
+
+/**
+ * The same repair for a text bind (`chat_messages.content`): Postgres rejects
+ * NUL in any text value with 22021, and `withMessageWriteRetry` would replay
+ * the identical payload and lose the turn (#5175). Lone surrogates need no
+ * repair here — the driver already writes them as U+FFFD.
+ */
+export function toTextParam<T extends string | null>(value: T): T {
+  return (value === null ? value : value.replaceAll('\u0000', '')) as T;
+}
