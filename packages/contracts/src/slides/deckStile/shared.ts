@@ -3,10 +3,18 @@
  * und das Befüllen der Slots nach Element-Id.
  */
 
-import { SHAREPIC_COLOR_HEX, type BrandLocale } from '../../brand/grueneBrand.js';
+import {
+  getBrandPack,
+  getBrandTheme,
+  HELLGRUEN_GLOW,
+  SHAREPIC_COLOR_HEX,
+  type BrandLocale,
+} from '../../brand/grueneBrand.js';
 import { folienSlotsOf, type FolieSpec } from '../folienTypen.js';
 import { removeElement } from '../slideDeck.js';
 import { slideKit, type SlideBuilder } from '../slideLayouts.js';
+
+import { type DeckStilId } from './index.js';
 
 export interface DeckStilCtx {
   locale: BrandLocale;
@@ -133,4 +141,114 @@ export function applySlots(b: SlideBuilder, folie: FolieSpec) {
     target.text = value.trim();
     if (b.ink.accent && !target.accent) target.accent = b.ink.accent;
   }
+}
+
+// ============================================================================
+// FARBEN, SCHRIFTGRÖSSEN UND KLEINTEILE DER VIER NEUEN STILE
+// ============================================================================
+
+export type Ink = ReturnType<typeof slideKit.inkFor>;
+
+/** Die Töne der Entwürfe (Tanne, Dunkeltanne, Lime, Grasgrün, Klee, Sand) je Land. */
+export interface Tones {
+  tanne: string;
+  dunkel: string;
+  /** Akzent auf dunklem Grund: DE Lime, AT Gelb. */
+  lime: string;
+  /** Flächen in Grasgrün: AT Hellgrün. */
+  gras: string;
+  /** Grasgrün als Schriftfarbe auf Dunkel: AT Gelb, weil Hellgrün dort nur etwa 2,5:1 hält. */
+  grasText: string;
+  /** Mittleres Grün für hervorgehobene Kacheln. */
+  klee: string;
+  /** Helle Fläche: DE Sand, AT Weiß. */
+  sand: string;
+}
+
+export function tonesOf(locale: BrandLocale): Tones {
+  const pack = getBrandPack(locale);
+  if (locale === 'de-AT') {
+    return {
+      tanne: pack.colors.primary,
+      // Das Brandpack kennt kein dunkleres Grün; die dunkelste Stufe der Hellgrün-Glut ist es.
+      dunkel: HELLGRUEN_GLOW[2],
+      lime: pack.colors.accent,
+      gras: pack.colors.secondary,
+      grasText: pack.colors.accent,
+      klee: HELLGRUEN_GLOW[0],
+      sand: pack.colors.surface,
+    };
+  }
+  return {
+    tanne: pack.colors.primary,
+    dunkel: SHAREPIC_COLOR_HEX.dunkeltanne,
+    lime: '#BEFF60',
+    gras: pack.colors.attention,
+    grasText: pack.colors.attention,
+    klee: pack.colors.accent,
+    sand: pack.colors.surface,
+  };
+}
+
+/** Schriftarten und Logo-Fassung nach `inkFor`, Grund und Akzent nach dem Entwurf. */
+export function stilInk(locale: BrandLocale, light: boolean, ground: string): Ink {
+  const base = slideKit.inkFor(locale, light ? 'hell' : 'dunkel');
+  const theme = getBrandTheme(locale);
+  return {
+    ...base,
+    ground,
+    accent: { fill: light ? theme.colors.accentOnLight : tonesOf(locale).lime },
+  };
+}
+
+/** Gotham Ultra läuft breiter als GrueneTypeNeue: große Überschriften sind in AT kleiner. */
+export function fs(locale: BrandLocale, size: number) {
+  return locale === 'de-AT' ? Math.round(size * 0.85) : size;
+}
+
+/** Eine Überschrift mit eigener Farbe und engem Zeilenabstand (die Entwürfe setzen .96–1). */
+export function head(
+  b: SlideBuilder,
+  id: string,
+  x: number,
+  y: number,
+  width: number,
+  size: number,
+  fill?: string,
+  value = ''
+) {
+  b.text(id, value, x, y, width, size, {
+    type: 'header',
+    family: b.ink.headline,
+    lineHeight: 1,
+    ...(fill ? { fill } : {}),
+  });
+}
+
+/** `#rrggbb` mit Deckkraft als `rgba(...)`, für Linien aus dem Textton. */
+export function rgba(hex: string, alpha: number) {
+  const n = parseInt(hex.slice(1), 16);
+  return `rgba(${(n >> 16) & 255},${(n >> 8) & 255},${n & 255},${alpha})`;
+}
+
+/** Der Störertext des Specs (titel, liste); leer, wenn keiner gegeben ist. */
+export function stoererOf(folie: FolieSpec): string {
+  const given: Record<string, string | string[] | undefined> = folie.slots;
+  const v = given['stoerer'];
+  return typeof v === 'string' ? v.trim() : '';
+}
+
+/** Das Logo der Schlussfolie wie im CD: DE Wortmarke 390 breit, AT Logo mit Claim 260 breit. */
+export function logoOben(b: SlideBuilder, locale: BrandLocale, x: number, assetId: string) {
+  if (locale === 'de-AT') b.asset('folie-logo', assetId, x + 130, 174, 260);
+  else b.asset('folie-logo', assetId, x + 195, 164, 390);
+}
+
+/** Slots füllen, Fußzeile, Stil-Kennung und Notizen: das Ende jedes Stil-Builders. */
+export function finishFolie(b: SlideBuilder, folie: FolieSpec, ctx: DeckStilCtx, stil: DeckStilId) {
+  applySlots(b, folie);
+  footer(b, ctx);
+  b.state.deckStil = stil;
+  b.state.notes = folie.notes?.trim() ?? '';
+  return b.state;
 }

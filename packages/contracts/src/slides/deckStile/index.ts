@@ -8,7 +8,11 @@
 import { type FolieSpec, type FolienTypId } from '../folienTypen.js';
 import { type SlideLayoutState } from '../slideLayouts.js';
 
+import { AUSSAGE_BOXES, buildAussage } from './aussage.js';
+import { BAND_BOXES, buildBand } from './band.js';
 import { buildCd, CD_BOXES } from './cd.js';
+import { buildKacheln, KACHELN_BOXES } from './kacheln.js';
+import { buildRuhig, RUHIG_BOXES } from './ruhig.js';
 import { type DeckStilCtx } from './shared.js';
 
 export { type DeckStilCtx } from './shared.js';
@@ -34,12 +38,14 @@ export function buildFolie(stil: DeckStilId, folie: FolieSpec, ctx: DeckStilCtx)
   switch (stil) {
     case 'cd':
       return buildCd(folie, ctx);
-    // 3b: ruhig, band, kacheln und aussage kommen mit der nächsten Lieferung.
     case 'ruhig':
+      return buildRuhig(folie, ctx);
     case 'band':
+      return buildBand(folie, ctx);
     case 'kacheln':
+      return buildKacheln(folie, ctx);
     case 'aussage':
-      throw new Error('stil not built yet');
+      return buildAussage(folie, ctx);
   }
 }
 
@@ -51,11 +57,13 @@ export function deckStilBoxes(stil: DeckStilId, typ: FolienTypId): Record<string
   switch (stil) {
     case 'cd':
       return CD_BOXES[typ];
-    // 3b
     case 'ruhig':
+      return RUHIG_BOXES[typ];
     case 'band':
+      return BAND_BOXES[typ];
     case 'kacheln':
+      return KACHELN_BOXES[typ];
     case 'aussage':
-      throw new Error('stil not built yet');
+      return AUSSAGE_BOXES[typ];
   }
 }

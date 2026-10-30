@@ -16,9 +16,7 @@ import { buildFolie, DECK_STILE, deckStilBoxes, type DeckStilId } from './index.
 
 const DATE = new Date('2026-10-30T12:00:00Z');
 const LOCALES: BrandLocale[] = ['de-DE', 'de-AT'];
-/** Die Stile, die gebaut sind; 3b hängt ruhig, band, kacheln und aussage an. */
-const BUILT_STILE: DeckStilId[] = ['cd'];
-const STILE = DECK_STILE.map((s) => s.id).filter((id) => BUILT_STILE.includes(id));
+const STILE: DeckStilId[] = DECK_STILE.map((s) => s.id);
 
 /** Alle Slots eines Typs mit erkennbaren Texten füllen. */
 function fullFolie(typ: FolienTypId): FolieSpec {
@@ -172,7 +170,24 @@ describe('deck stile', () => {
     });
   }
 
-  it.skipIf(!BUILT_STILE.includes('aussage'))('alternates ground by index in aussage', () => {
+  it('every stil lays out a liste with 6 punkte inside the page and above the footer', () => {
+    for (const stil of STILE) {
+      for (const locale of LOCALES) {
+        const state = buildFolie(stil, fullFolie('liste'), ctx(locale));
+        for (let i = 1; i <= 6; i++) {
+          const el = state.additionalTexts.find((t) => t.id === `folie-punkt-${i}`)!;
+          const name = `${stil} ${locale} punkt ${i}`;
+          expect(el, name).toBeDefined();
+          expect(el.x, name).toBeGreaterThanOrEqual(0);
+          expect(el.x + (el.width ?? 0), name).toBeLessThanOrEqual(1920);
+          // Eine Zeile samt Zeilenabstand muss über der Fußzeile (y 1028) enden.
+          expect(el.y + el.fontSize * 1.25, name).toBeLessThan(1028);
+        }
+      }
+    }
+  });
+
+  it('alternates ground by index in aussage', () => {
     const grounds = [0, 1, 2, 3].map(
       (index) => buildFolie('aussage', fullFolie('kernsatz'), ctx('de-DE', index)).backgroundColor
     );
