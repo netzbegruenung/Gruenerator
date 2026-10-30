@@ -78,6 +78,9 @@ const AMBIGUOUS_GRAPHIC_NOUN = /\b(grafik(en)?|kachel(n)?)\b/i;
 const GRAPHIC_KIND_DISAMBIGUATOR =
   /\b(diagramm\w*|chart|graph|torte|balken|kreis|kurve|statistik\w*|daten|zahlen|werte|male|mal\s|zeichne\w*|illustrier\w*|foto\w*|bild\w*|logo|karte|infografik\w*)\b/i;
 
+/** A deck order: there "Kacheln" names the deck template, not a graphic. */
+const DECK_NOUN = /(?<!\p{L})(?:pr[äa]sentation(?:en)?|folien(?:satz)?|slides?)(?!\p{L})/iu;
+
 /** Only a CREATION ask needs disambiguating; a question about graphics does not. */
 const GRAPHIC_CREATE_VERB =
   /\b(erstell|generier|mach|bau|entwirf|entwerf|brauch|erzeug|gestalte?|hätte?\s+gern|will|möchte)\w*/i;
@@ -92,6 +95,7 @@ export function isAmbiguousGraphicRequest(text: string): boolean {
   if (!AMBIGUOUS_GRAPHIC_NOUN.test(t)) return false;
   if (hasExplicitSharepicWord(t)) return false;
   if (GRAPHIC_KIND_DISAMBIGUATOR.test(t)) return false;
+  if (DECK_NOUN.test(t)) return false;
   if (!GRAPHIC_CREATE_VERB.test(t)) return false;
   return !negatedOrMeta(t, AMBIGUOUS_GRAPHIC_NOUN);
 }

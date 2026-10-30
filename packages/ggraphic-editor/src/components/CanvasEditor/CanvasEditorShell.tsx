@@ -27,26 +27,6 @@
  * - useToolbarHandlers     — bundled toolbar actions for the active page
  */
 
-import { useCanvasEditorServices } from '@ggraphic/editor/CanvasEditorProvider';
-import { useMessages } from '@ggraphic/editor/i18n/messages';
-import { pagePersistedStateKeys } from '@ggraphic/editor/collab/pageElementStateKeys';
-import { serializeDeck } from '@ggraphic/editor/collab/pagesDoc';
-import { createPageSyncedCallbacks } from '@ggraphic/editor/collab/wrapCallbacksWithPageSync';
-import { CanvasTextEditorProvider } from '@ggraphic/editor/components/CanvasTextOverlay';
-import {
-  DEFAULT_FORMAT_ID,
-  getCanvasFormatOrDefault,
-  isPrintFormat,
-  isSlideFormat,
-} from '@ggraphic/editor/formats/index';
-import {
-  usePageManager,
-  useMultiPageExport,
-  usePageThumbnails,
-  type InitialPageDef,
-} from '@ggraphic/editor/hooks/index';
-import { AnnouncerContext, useLiveAnnouncer } from '@ggraphic/editor/hooks/useAnnounce';
-import { useDeckAutoSave } from '@ggraphic/editor/hooks/useDeckAutoSave';
 import { browserFileDelivery } from '@ggraphic/editor/hostServices';
 import { UserUploadsProvider } from '@ggraphic/editor/sidebar/UserUploadsProvider';
 import { useCanvasStoreSelector } from '@ggraphic/editor/stores/CanvasStoreProvider';
@@ -66,17 +46,11 @@ import React, {
   Suspense,
   startTransition,
 } from 'react';
+import { useCanvasEditorServices } from '@ggraphic/editor/CanvasEditorProvider';
+import { pagePersistedStateKeys } from '@ggraphic/editor/collab/pageElementStateKeys';
+import { serializeDeck } from '@ggraphic/editor/collab/pagesDoc';
+import { createPageSyncedCallbacks } from '@ggraphic/editor/collab/wrapCallbacksWithPageSync';
 
-import { shareImageText } from '../../configs/shareSection.js';
-import { exportPptxDeck } from '@ggraphic/editor/export/pptx/exportPptxDeck';
-import {
-  exportPrintPdf,
-  lowResolutionWarnings,
-  PRINT_JPEG_QUALITY,
-  printPdfFilename,
-  type PrintExportPage,
-} from '../../export/printExport.js';
-import { exportSlidesPdf } from '@ggraphic/editor/export/slidesPdf';
 import { useIsCanvasMobile } from '@ggraphic/editor/hooks/useIsCanvasMobile';
 import { useZoomGestures } from '@ggraphic/editor/hooks/useZoomGestures';
 import { CanvasEditorLayout } from '@ggraphic/editor/layouts/index';
@@ -129,18 +103,45 @@ import { useWorkAreaDeselect } from '@ggraphic/editor/components/CanvasEditor/ho
 import { layersTab, withLayersTab } from '@ggraphic/editor/components/CanvasEditor/layersTab';
 import { getMobileSelectionArea } from '@ggraphic/editor/components/CanvasEditor/mobileSelectionArea';
 import { PageWrapper } from '@ggraphic/editor/components/CanvasEditor/PageWrapper';
+import { CanvasTextEditorProvider } from '@ggraphic/editor/components/CanvasTextOverlay';
+import { exportPptxDeck } from '@ggraphic/editor/export/pptx/exportPptxDeck';
+import { exportSlidesPdf } from '@ggraphic/editor/export/slidesPdf';
+import {
+  DEFAULT_FORMAT_ID,
+  getCanvasFormatOrDefault,
+  isPrintFormat,
+  isSlideFormat,
+} from '@ggraphic/editor/formats/index';
+import {
+  usePageManager,
+  useMultiPageExport,
+  usePageThumbnails,
+  type InitialPageDef,
+} from '@ggraphic/editor/hooks/index';
+import { AnnouncerContext, useLiveAnnouncer } from '@ggraphic/editor/hooks/useAnnounce';
+import { useDeckAutoSave } from '@ggraphic/editor/hooks/useDeckAutoSave';
+import { useMessages } from '@ggraphic/editor/i18n/messages';
 
-import type {
-  CanvasEditorProps,
-  PageWrapperProps,
-} from '@ggraphic/editor/components/CanvasEditor/types';
-import type { SidebarTabId } from '@ggraphic/editor/sidebar/types';
+import { shareImageText } from '../../configs/shareSection.js';
+import {
+  exportPrintPdf,
+  lowResolutionWarnings,
+  PRINT_JPEG_QUALITY,
+  printPdfFilename,
+  type PrintExportPage,
+} from '../../export/printExport.js';
+
 import type {
   AltTextPage,
   AltTextScope,
   CanvasSpecEditBridge,
 } from '@ggraphic/editor/CanvasEditorProvider';
+import type {
+  CanvasEditorProps,
+  PageWrapperProps,
+} from '@ggraphic/editor/components/CanvasEditor/types';
 import type { ToolbarStateReport } from '@ggraphic/editor/components/GenericCanvas';
+import type { SidebarTabId } from '@ggraphic/editor/sidebar/types';
 import type { ExportOptions } from '@ggraphic/editor/types/editorTypes';
 import type { LayerSelectionChange } from '@ggraphic/editor/utils/layerSelection';
 
@@ -236,6 +237,7 @@ function CanvasEditorInner({
     replaceDeck,
     canUndoPageOp,
     canRedoPageOp,
+    pageOpStamps,
     isPreview,
     schemaRefusal,
   } = usePageManager<string>({
@@ -474,13 +476,13 @@ function CanvasEditorInner({
   });
 
   // Page-level undo/redo via capture-phase keydown.
-  const activePageCanUndo = toolbarState?.canUndo ?? false;
-  const activePageCanRedo = toolbarState?.canRedo ?? false;
+  const activePageStamps = useCallback(
+    () => canvasRefsRef.current[currentPageIndex]?.current?.historyStamps?.() ?? null,
+    [canvasRefsRef, currentPageIndex]
+  );
   usePageUndoRedoShortcuts({
-    activePageCanUndo,
-    activePageCanRedo,
-    canUndoPageOp,
-    canRedoPageOp,
+    activePageStamps,
+    pageOpStamps,
     undoPageOp,
     redoPageOp,
   });
@@ -608,9 +610,7 @@ function CanvasEditorInner({
   const toolbarHandlers = useToolbarHandlers({
     canvasRefsRef,
     currentPageIndex,
-    toolbarState,
-    canUndoPageOp,
-    canRedoPageOp,
+    pageOpStamps,
     undoPageOp,
     redoPageOp,
     discardReplaceDeck,

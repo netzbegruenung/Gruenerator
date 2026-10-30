@@ -101,6 +101,16 @@ describe('isAmbiguousGraphicRequest', () => {
     expect(isAmbiguousGraphicRequest('Sie schrieb: „Erstell eine Grafik dazu"')).toBe(false);
   });
 
+  it('reads "Kacheln" in a deck order as the deck template', () => {
+    for (const t of [
+      'Erstelle eine Präsentation mit 4 Folien zum Klimaschutz, als Kacheln',
+      'Mach mir einen Foliensatz zur Verkehrswende in Kacheln',
+      'Erstelle Slides zum Radverkehr im Kachel-Stil',
+    ]) {
+      expect(isAmbiguousGraphicRequest(t), t).toBe(false);
+    }
+  });
+
   it('needs a creation ask, not a passing mention', () => {
     expect(isAmbiguousGraphicRequest('In der Grafik sieht man den Rückgang deutlich')).toBe(false);
   });

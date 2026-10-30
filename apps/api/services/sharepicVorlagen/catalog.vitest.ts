@@ -11,7 +11,9 @@ import {
   getSharepicBlock,
   getSharepicSeite,
   getSharepicVorlage,
+  defaultDeckStil,
   listCanvasVorlagen,
+  listFolienVorlagen,
   listPrintVorlagen,
   listSharepicBloecke,
   listSharepicSeiten,
@@ -23,6 +25,9 @@ import {
   sharepicVorlageAssetFile,
   sharepicVorlageThumbFile,
 } from './catalog.js';
+
+const logs = vi.hoisted(() => ({ error: vi.fn(), warn: vi.fn(), info: vi.fn(), debug: vi.fn() }));
+vi.mock('../../utils/logger.js', () => ({ createLogger: () => logs }));
 
 let root = '';
 vi.mock('../skills/internalPrompts.js', () => ({ internContentRoot: () => root }));
@@ -460,5 +465,61 @@ describe('Vorlage photos', () => {
     ]) {
       expect(sharepicVorlageAssetFile(name)).toBeNull();
     }
+  });
+});
+
+describe('Folien catalogue', () => {
+  const folie = (id: string, stil: string, standard?: boolean) => ({
+    id,
+    titel: `Folie ${id}`,
+    beschreibung: 'Kurz beschrieben.',
+    stil,
+    ...(standard ? { standard } : {}),
+  });
+
+  beforeEach(() => vi.clearAllMocks());
+
+  it('loads folien per locale', () => {
+    writeCatalog({
+      'folien/de.json': [
+        folie('de-folien-offiziell', 'cd', true),
+        folie('de-folien-ruhig', 'ruhig'),
+      ],
+      'folien/at.json': [folie('at-folien-band', 'band', true)],
+    });
+    expect(listFolienVorlagen('de-DE').map((f) => f.id)).toEqual([
+      'de-folien-offiziell',
+      'de-folien-ruhig',
+    ]);
+    expect(listFolienVorlagen('de-AT')).toMatchObject([{ id: 'at-folien-band', locale: 'de-AT' }]);
+    expect(defaultDeckStil('de-AT')).toBe('band');
+    expect(defaultDeckStil('de-DE')).toBe('cd');
+  });
+
+  it('skips an entry with an unknown stil and logs it', () => {
+    writeCatalog({
+      'folien/de.json': [folie('de-folien-ruhig', 'ruhig'), folie('de-folien-neu', 'gibtsnicht')],
+    });
+    expect(listFolienVorlagen('de-DE').map((f) => f.id)).toEqual(['de-folien-ruhig']);
+    expect(logs.error).toHaveBeenCalledWith(expect.stringContaining('folien/de.json[1] skipped'));
+  });
+
+  it('falls back to the built-in cd entry without a catalogue', () => {
+    writeCatalog({});
+    expect(listFolienVorlagen('de-DE')).toMatchObject([{ stil: 'cd', standard: true }]);
+    expect(listFolienVorlagen('de-AT')).toMatchObject([{ stil: 'cd', locale: 'de-AT' }]);
+    expect(defaultDeckStil('de-DE')).toBe('cd');
+  });
+
+  it('two standard entries: first wins, logged', () => {
+    writeCatalog({
+      'folien/de.json': [
+        folie('de-folien-ruhig', 'ruhig', true),
+        folie('de-folien-band', 'band', true),
+      ],
+    });
+    expect(defaultDeckStil('de-DE')).toBe('ruhig');
+    expect(listFolienVorlagen('de-DE').filter((f) => f.standard)).toHaveLength(1);
+    expect(logs.error).toHaveBeenCalledWith(expect.stringContaining('de-folien-band'));
   });
 });

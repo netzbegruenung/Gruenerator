@@ -18,13 +18,12 @@ import { z } from 'zod';
 import { type BrandLocale } from '../brand/grueneBrand.js';
 import { stripInlineMarks } from '../text/inlineMarks.js';
 
-import {
-  composeSlideDeck,
-  MAX_SLIDES,
-  slideSpecSchema,
-  type SlideSpec,
-  unescapeLineBreaks,
-} from './slideDeck.js';
+import { buildFolie, deckStilBoxes, type DeckStilId } from './deckStile/index.js';
+import { fitSlideTexts, type MeasureText } from './fitText.js';
+import { type FolieSpec, folieSpecSchema, folienSlotsOf } from './folienTypen.js';
+import { restylePage } from './restyleDeck.js';
+import { readDeckStil, readFolie, readPageStil } from './slideDeck.js';
+import { MAX_SLIDES, unescapeLineBreaks } from './slideDeckBasics.js';
 import { slideLayoutConfigId } from './slideLayouts.js';
 
 /** Die Fußzeile setzt der Composer; das Modell schreibt sie nicht. */
@@ -46,7 +45,7 @@ export const slideDeckOperationSchema = z.discriminatedUnion('kind', [
     kind: z.literal('add-slide'),
     /** Einfügen hinter dieser Folie; 0 = ganz vorn. */
     afterSlide: z.number().int().min(0).max(MAX_SLIDES),
-    slide: slideSpecSchema,
+    slide: folieSpecSchema,
   }),
   z.object({ kind: z.literal('remove-slide'), slide: slideNumber }),
   z.object({ kind: z.literal('move-slide'), slide: slideNumber, toPosition: slideNumber }),
@@ -68,6 +67,8 @@ export interface SlideDeckEditContext {
   /** Titel in der Fußzeile neuer Folien. */
   title: string;
   newPageId: () => string;
+  /** Mit Messer werden neue und bearbeitete Texte in ihre Box eingepasst (`fitSlideTexts`). */
+  measure?: MeasureText | null;
 }
 
 export interface SlideDeckEditResult {
@@ -82,7 +83,7 @@ export interface SlideDeckEditResult {
 }
 
 type TextLike = { id: string; text: string };
-const ELEMENT_COLLECTIONS = [
+export const ELEMENT_COLLECTIONS = [
   'additionalTexts',
   'shapeInstances',
   'assetInstances',
@@ -129,13 +130,71 @@ function removeElement(state: Record<string, unknown>, elementId: string): strin
   return null;
 }
 
-function composeOne(spec: SlideSpec, ctx: SlideDeckEditContext): DeckPage {
-  const deck = composeSlideDeck({ title: ctx.title, slides: [spec] }, ctx);
-  const page = deck.pages[0]!;
+const LIST_ITEM_ID = /^folie-punkt-(\d+)$/;
+
+/**
+ * Ein Listenpunkt einer gestylten Seite hängt an Dekor mit demselben Index
+ * (Kachel, Nummer, Marke, Balken, Linie): `remove-element` allein ließe es als
+ * leere Hülle stehen. Darum wird der Punkt in der Folie gestrichen und die
+ * Seite in ihrem Stil neu gebaut. `undefined` = kein solcher Fall, der
+ * gewöhnliche Weg gilt; `null` = erledigt; Text = abgelehnt.
+ */
+function removeListItem(
+  pages: DeckPage[],
+  index: number,
+  elementId: string,
+  ctx: SlideDeckEditContext
+): string | null | undefined {
+  const match = LIST_ITEM_ID.exec(elementId);
+  const page = pages[index]!;
+  const stil = readPageStil(page.state);
+  const folie = match && stil ? readFolie(page.state) : null;
+  if (!match || !stil || !folie) return undefined;
+  const entry = Object.entries(folienSlotsOf(folie.typ)).find(
+    ([, slot]) => slot.kind === 'list' && slot.elementIdPrefix === 'folie-punkt-'
+  );
+  if (!entry) return undefined;
+  const [name, slot] = entry;
+  const items = (folie.slots as Record<string, unknown>)[name];
+  const at = Number(match[1]) - 1;
+  if (!Array.isArray(items) || at < 0 || at >= items.length || slot.kind !== 'list') {
+    return undefined;
+  }
+  if (listOf<string>(page.state, 'lockedLayerIds').includes(elementId)) {
+    return `„${elementId}" ist gesperrt`;
+  }
+  if (items.length - 1 < slot.minItems) {
+    return `Eine Liste braucht mindestens ${slot.minItems} Punkte`;
+  }
+  const next = {
+    ...folie,
+    slots: { ...folie.slots, [name]: items.filter((_, i) => i !== at) },
+  } as FolieSpec;
+  pages[index] = restylePage(page, index, stil, next, ctx);
+  return null;
+}
+
+/** Eine neue Folie im Stil des Decks; die Seitenzahl setzt `renumber` danach. */
+function composeOne(
+  spec: FolieSpec,
+  stil: DeckStilId,
+  position: number,
+  ctx: SlideDeckEditContext
+): DeckPage {
+  let state = buildFolie(stil, spec, {
+    locale: ctx.locale,
+    date: ctx.date,
+    pageNumber: position + 1,
+    title: ctx.title,
+    index: position,
+  });
+  if (ctx.measure) {
+    state = fitSlideTexts(state, deckStilBoxes(stil, spec.typ), ctx.measure).state;
+  }
   return {
     id: ctx.newPageId(),
     configId: slideLayoutConfigId(ctx.locale),
-    state: page.state as unknown as Record<string, unknown>,
+    state: state as unknown as Record<string, unknown>,
   };
 }
 
@@ -189,9 +248,12 @@ export function applySlideDeckOperations(
         const found = id ? pages.findIndex((p) => p.id === id) : -1;
         if (found >= 0) at = found + 1;
       }
-      pages.splice(at, 0, composeOne(op.slide, ctx));
+      // Die neue Folie übernimmt den Stil der Seite, hinter die sie kommt.
+      const prev = pages[Math.max(at - 1, 0)];
+      const stil = (prev && readPageStil(prev.state)) ?? readDeckStil(pages);
+      pages.splice(at, 0, composeOne(op.slide, stil, at, ctx));
       structural = true;
-      applied.push(`Folie (${op.slide.layout}) eingefügt`);
+      applied.push(`Folie (${op.slide.typ}) eingefügt`);
       continue;
     }
 
@@ -221,20 +283,55 @@ export function applySlideDeckOperations(
       continue;
     }
 
-    const state = pages[index]!.state;
     for (const inner of op.operations) {
+      const state = pages[index]!.state;
       const reason =
         inner.kind === 'set-text'
           ? setText(state, inner.field, inner.value)
-          : removeElement(state, inner.elementId);
+          : (removeListItem(pages, index, inner.elementId, ctx) ??
+            removeElement(state, inner.elementId));
       if (reason) refused.push(`Folie ${op.slide}: ${reason}`);
       else
         applied.push(
           `Folie ${op.slide}: ${inner.kind} ${inner.kind === 'set-text' ? inner.field : inner.elementId}`
         );
     }
+    if (ctx.measure && op.operations.some((o) => o.kind === 'set-text')) {
+      // Der neue Text soll in die Box des Stils passen. Ausgang ist die Größe, die der Stil
+      // der BEARBEITETEN Seite selbst setzt, nicht die aktuelle: so schrumpft wiederholtes
+      // Bearbeiten nicht kumulativ, und ein kürzerer Text wächst zurück. Eine Seite ohne
+      // `deckStil` (Layout vor den Stilen) hat keine Stilgrößen: dort bleibt die aktuelle
+      // Größe der Ausgang, und gemeldet wird nur echter Überlauf.
+      const state = pages[index]!.state;
+      const folie = readFolie(state);
+      if (folie) {
+        const stil = readPageStil(state);
+        let base: Record<string, number> | null = null;
+        if (stil) {
+          base = {};
+          const unfitted = buildFolie(stil, folie, {
+            locale: ctx.locale,
+            date: ctx.date,
+            pageNumber: index + 1,
+            title: ctx.title,
+            index,
+          });
+          for (const t of unfitted.additionalTexts) base[t.id] = t.fontSize;
+        }
+        const fitted = fitSlideTexts(
+          state as unknown as Parameters<typeof fitSlideTexts>[0],
+          deckStilBoxes(stil ?? 'cd', folie.typ),
+          ctx.measure,
+          base
+        );
+        pages[index]!.state = fitted.state as unknown as Record<string, unknown>;
+        for (const id of fitted.overflow) {
+          refused.push(`Folie ${op.slide}: Text passt nicht in ${id}, bitte kürzen`);
+        }
+      }
+    }
     if (op.notes != null) {
-      state['notes'] = op.notes.trim();
+      pages[index]!.state['notes'] = op.notes.trim();
       applied.push(`Folie ${op.slide}: Notizen`);
     }
   }
