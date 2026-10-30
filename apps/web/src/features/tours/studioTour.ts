@@ -70,6 +70,7 @@ export function startStudioTour(fillExample: (text: string) => void): void {
       {
         element: SEL.tools,
         popover: {
+          // Video Editor fehlt bewusst: nur Instanz-Admins sehen ihn (adminOnlyTools.ts).
           title: 'Weitere Werkzeuge',
           description: `Hier liegen Reels (Untertitel für Clips) und Voice (Texte vertonen). Im Menü „Weitere Tools“ findest du Profilbild, Sticker & Hintergründe, Bild erweitern, Hintergrund entfernen und deine Mediathek. Darunter findest du deine zuletzt erstellten Sharepics, KI-Bilder und Reels.<br><br><a href="${getDocsUrl()}/docs/guides/einsteigerinnen/sharepics-ki-bilder-studio" target="_blank" rel="noopener noreferrer">Guide: Sharepics und KI-Bilder im Studio erstellen</a>`,
           side: 'top',
