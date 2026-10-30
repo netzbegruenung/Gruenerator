@@ -118,9 +118,7 @@ const NotebookCard = memo(({ notebook }: { notebook: NotebookConfigEntry }) => {
             open();
           }}
           {...lvCardImage(lvCover)}
-          // Rosa-dunkle Tönung nur hier (nicht im Marktplatz): Foto in Graustufen, multipliziert mit der Kartenfläche,
-          // der Titel bleibt unberührt.
-          className="aspect-square bg-[#D9608F]! dark:bg-[#7A2A48]! [&_img]:grayscale [&_img]:mix-blend-multiply"
+          className="aspect-square"
         />
         {/* The star's own grey sits unreadable on a photo; an unstarred one is hover-revealed, so its pill is too. */}
         <div

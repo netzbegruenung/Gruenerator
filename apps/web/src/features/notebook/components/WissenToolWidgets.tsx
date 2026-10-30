@@ -1,10 +1,10 @@
 import { type WhatHappenedArticle, type MonitorArticle } from '@gruenerator/contracts';
-import { cn } from '@gruenerator/ui';
+import { Skeleton, cn } from '@gruenerator/ui';
 import { ArrowRight, BarChart3, Eye, Flame, Rss, type LucideIcon } from 'lucide-react';
 import { memo, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 
-import { LV_NAMES } from '../../monitor/bundeslaender';
+import { lvName } from '../../monitor/bundeslaender';
 import {
   useEntityResults,
   useMonitorSnapshot,
@@ -18,8 +18,11 @@ import { WISSEN_TILE } from './wissenTilePalette';
 
 // Tool-Widgets der /wissen-Seite: dieselbe Kachelfläche, Schriftgrößen (14/16/17
 // Titel, 12/13/14 Text) und derselbe Innenabstand (p-4) wie die Notebook-Kacheln,
-// nur mit Live-Inhalt statt einer Textzeile. Fehlt die Datenlage (lädt, leer,
-// Fehler), zeigt das Widget die statische Beschreibung der Kachel.
+// nur mit Live-Inhalt statt einer Textzeile. Kopf (Icon, Titel, Pfeil) steht
+// sofort; solange noch keine Antwort da ist, hält ein Skeleton in der Form des
+// späteren Inhalts dessen Platz, damit die Kachel nicht springt. Ist die
+// Anfrage ohne Daten fertig (leer, Fehler), zeigt das Widget die statische
+// Beschreibung der Kachel.
 
 // Neutrale Fläche in Hell und Dunkel; Farbe tragen nur Icon und Link (WISSEN_TILE.icon).
 const TILE =
@@ -32,6 +35,36 @@ const TRACK = 'bg-grey-200 dark:bg-white/[0.08]';
 const BAR = 'bg-grey-500 dark:bg-grey-300';
 
 const TEXT_SM = 'text-[12px] leading-snug sm:text-[13px] lg:text-[14px]';
+const TEXT_META = 'text-[12px] leading-snug';
+const SKELETON = 'bg-grey-200 dark:bg-white/[0.08]';
+
+/**
+ * Eine Skeleton-Zeile in der Höhe einer Textzeile: die Höhe kommt aus der
+ * Schriftgröße der übergebenen Klasse (`leading-snug` = 1.375em), stimmt also
+ * bei 12, 13 und 14 px.
+ */
+function SkeletonLine({ text, width }: { text: string; width: string }) {
+  return (
+    <span className={cn('block h-[1.375em] py-[0.2em]', text)}>
+      <Skeleton className={cn('h-full rounded', SKELETON, width)} />
+    </span>
+  );
+}
+
+/** Platzhalter für vier Artikelzeilen (Feed, Watcher): Titel über zwei Zeilen, darunter die Meta-Zeile. */
+function ArticleSkeleton() {
+  return (
+    <ul className="m-0 flex list-none flex-col gap-3 p-0">
+      {['w-11/12', 'w-4/5', 'w-full', 'w-3/4'].map((w) => (
+        <li key={w}>
+          <SkeletonLine text={TEXT_SM} width="w-full" />
+          <SkeletonLine text={TEXT_SM} width={w} />
+          <SkeletonLine text={TEXT_META} width="w-1/3" />
+        </li>
+      ))}
+    </ul>
+  );
+}
 
 /** „vor 2 Std." / „gestern" — leer, wenn das Datum fehlt oder nicht lesbar ist. */
 function ago(iso: string | null): string {
@@ -50,12 +83,15 @@ interface WidgetProps {
   to: string;
   Icon: LucideIcon;
   title: string;
-  /** Statische Beschreibung — Rückfall, solange es keine Live-Daten gibt. */
+  /** Statische Beschreibung — Rückfall, wenn die Anfrage ohne Daten fertig ist. */
   fallback: string;
+  /** Noch keine Antwort (auch keine gespeicherte): zeigt `skeleton`. */
+  loading: boolean;
+  skeleton: ReactNode;
   children: ReactNode | null;
 }
 
-function Widget({ to, Icon, title, fallback, children }: WidgetProps) {
+function Widget({ to, Icon, title, fallback, loading, skeleton, children }: WidgetProps) {
   return (
     <Link
       to={to}
@@ -63,6 +99,7 @@ function Widget({ to, Icon, title, fallback, children }: WidgetProps) {
         'group flex h-full min-w-0 flex-col gap-3 rounded-2xl p-4 text-left no-underline transition-shadow duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-600',
         TILE
       )}
+      aria-busy={loading && !children}
     >
       <span className="mb-2 flex items-center gap-2">
         <Icon aria-hidden className={cn('size-6 shrink-0', WISSEN_TILE.icon)} />
@@ -82,7 +119,14 @@ function Widget({ to, Icon, title, fallback, children }: WidgetProps) {
           )}
         />
       </span>
-      {children ?? <p className={cn('m-0', TEXT_SM, MUTED)}>{fallback}</p>}
+      {children ??
+        (loading ? (
+          <span aria-hidden className="flex flex-col gap-3">
+            {skeleton}
+          </span>
+        ) : (
+          <p className={cn('m-0', TEXT_SM, MUTED)}>{fallback}</p>
+        ))}
     </Link>
   );
 }
@@ -110,7 +154,7 @@ function ArticleLine({ title, meta }: { title: string; meta: string }) {
 }
 
 function ThemenWidget({ to, locale }: { to: string; locale: 'de' | 'at' }) {
-  const { data } = useMonitorSnapshot(locale);
+  const { data, isPending } = useMonitorSnapshot(locale);
   const keywords = data?.keywords ?? [];
   const top = keywords.slice(0, 4);
   const max = top[0]?.count || 1;
@@ -121,6 +165,23 @@ function ThemenWidget({ to, locale }: { to: string; locale: 'de' | 'at' }) {
       Icon={Flame}
       title="Themen & Trends"
       fallback="Meistdiskutierte Themen und X-Trends der letzten 24 Stunden."
+      loading={isPending}
+      skeleton={
+        <>
+          <ul className="m-0 flex list-none flex-col gap-2 p-0">
+            {['w-1/2', 'w-2/5', 'w-3/5', 'w-1/3'].map((w) => (
+              <li key={w} className="flex flex-col gap-1">
+                <SkeletonLine text={TEXT_SM} width={w} />
+                <Skeleton className={cn('h-1.5 w-full rounded-full', SKELETON)} />
+              </li>
+            ))}
+          </ul>
+          <span className="flex gap-1.5">
+            <Skeleton className={cn('h-[22px] w-20 rounded-full', SKELETON)} />
+            <Skeleton className={cn('h-[22px] w-16 rounded-full', SKELETON)} />
+          </span>
+        </>
+      }
     >
       {top.length > 0 ? (
         <>
@@ -158,7 +219,7 @@ function ThemenWidget({ to, locale }: { to: string; locale: 'de' | 'at' }) {
 function FeedWidget({ to, locale }: { to: string; locale: 'de' | 'at' }) {
   // Gleicher Query-Key wie /feed. Der Strom ist rein deutsch — unter `at`
   // zeigt /feed ihn gar nicht, also führt die Kachel dort keine LV-Schlagzeile.
-  const { data } = useWhatHappened(locale, { days: 7 });
+  const { data, isPending } = useWhatHappened(locale, { days: 7 });
   const articles: WhatHappenedArticle[] =
     locale === 'at' ? [] : (data?.days ?? []).flatMap((d) => d.articles ?? []).slice(0, 4);
   return (
@@ -167,6 +228,8 @@ function FeedWidget({ to, locale }: { to: string; locale: 'de' | 'at' }) {
       Icon={Rss}
       title="Feed"
       fallback="Bluesky und neue Beiträge der Landesverbände."
+      loading={isPending && locale !== 'at'}
+      skeleton={<ArticleSkeleton />}
     >
       {articles.length > 0 ? (
         <>
@@ -177,7 +240,7 @@ function FeedWidget({ to, locale }: { to: string; locale: 'de' | 'at' }) {
                 title={a.title}
                 meta={[
                   ago(a.publishedAt ?? a.indexedAt),
-                  a.landesverband ? (LV_NAMES[a.landesverband] ?? a.landesverband) : '',
+                  a.landesverband ? lvName(a.landesverband) : '',
                 ]
                   .filter(Boolean)
                   .join(' · ')}
@@ -192,10 +255,17 @@ function FeedWidget({ to, locale }: { to: string; locale: 'de' | 'at' }) {
 
 function WatcherWidget({ to, locale }: { to: string; locale: 'de' | 'at' }) {
   // Gleicher Query-Key wie /watcher.
-  const { data } = useEntityResults(locale === 'at' ? 'gruene-at' : 'gruene', locale);
+  const { data, isPending } = useEntityResults(locale === 'at' ? 'gruene-at' : 'gruene', locale);
   const articles: MonitorArticle[] = (data?.articles ?? []).slice(0, 4);
   return (
-    <Widget to={to} Icon={Eye} title="Watcher" fallback="Berichterstattung über die Grünen.">
+    <Widget
+      to={to}
+      Icon={Eye}
+      title="Watcher"
+      fallback="Berichterstattung über die Grünen."
+      loading={isPending}
+      skeleton={<ArticleSkeleton />}
+    >
       {articles.length > 0 ? (
         <>
           <ul className="m-0 flex list-none flex-col gap-3 p-0">
@@ -241,7 +311,7 @@ function Sparkline({ values }: { values: number[] }) {
 }
 
 function UmfragenWidget({ to, locale }: { to: string; locale: 'de' | 'at' }) {
-  const { data } = usePolls(locale === 'at' ? 'oesterreich' : 'deutschland');
+  const { data, isPending } = usePolls(locale === 'at' ? 'oesterreich' : 'deutschland');
   // `average`/`polls` fehlen in einer leeren 200-Antwort (E2E-Fixtures, Teilausfall) — dann kein Widget-Inhalt.
   const g = data?.average && data.polls ? grueneSnapshot(data) : null;
   const others = Object.entries(data?.average ?? {})
@@ -255,6 +325,28 @@ function UmfragenWidget({ to, locale }: { to: string; locale: 'de' | 'at' }) {
       Icon={BarChart3}
       title="Umfragen"
       fallback="Sonntagsfrage, Ländertrends und Meinungsbild."
+      loading={isPending}
+      skeleton={
+        <>
+          <span className="flex flex-col gap-1">
+            <Skeleton className={cn('h-6 w-20 rounded lg:h-7', SKELETON)} />
+            <SkeletonLine text={TEXT_SM} width="w-2/5" />
+          </span>
+          <Skeleton className={cn('h-10 w-full rounded', SKELETON)} />
+          <span className="flex flex-col gap-1">
+            {['w-1/4', 'w-1/3', 'w-1/5'].map((w) => (
+              <span key={w} className="flex justify-between gap-2">
+                <span className="flex-1">
+                  <SkeletonLine text={TEXT_SM} width={w} />
+                </span>
+                <span className="w-10 shrink-0">
+                  <SkeletonLine text={TEXT_SM} width="w-full" />
+                </span>
+              </span>
+            ))}
+          </span>
+        </>
+      }
     >
       {g && g.value != null ? (
         <>
