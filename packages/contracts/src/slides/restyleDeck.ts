@@ -9,6 +9,7 @@ import { type BrandLocale } from '../brand/grueneBrand.js';
 
 import { buildFolie, deckStilBoxes, type DeckStilId } from './deckStile/index.js';
 import { fitSlideTexts, type MeasureText } from './fitText.js';
+import { type FolieSpec } from './folienTypen.js';
 import { readFolie } from './slideDeck.js';
 import { type DeckPage, ELEMENT_COLLECTIONS } from './slideDeckEdit.js';
 
@@ -35,8 +36,19 @@ function userItems(state: Record<string, unknown>, key: string): Item[] {
 export function restyleDeck(pages: DeckPage[], stil: DeckStilId, ctx: RestyleContext): DeckPage[] {
   return pages.map((page, index) => {
     const folie = readFolie(page.state);
-    if (!folie) return page;
+    return folie ? restylePage(page, index, stil, folie, ctx) : page;
+  });
+}
 
+/** Eine Seite aus einer (gelesenen, ggf. geänderten) Folie im Stil neu bauen; Nutzer-Elemente, Sperren, Datum und Notizen bleiben. */
+export function restylePage(
+  page: DeckPage,
+  index: number,
+  stil: DeckStilId,
+  folie: FolieSpec,
+  ctx: RestyleContext
+): DeckPage {
+  {
     let next: Record<string, unknown> = buildFolie(stil, folie, {
       locale: ctx.locale,
       date: ctx.date,
@@ -83,5 +95,5 @@ export function restyleDeck(pages: DeckPage[], stil: DeckStilId, ctx: RestyleCon
     ).filter((id) => !id.startsWith(FOLIE_PREFIX) && kept.has(id) && !locked.includes(id));
     next['lockedLayerIds'] = [...locked, ...carried];
     return { ...page, state: next };
-  });
+  }
 }

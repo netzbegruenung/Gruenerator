@@ -16,6 +16,8 @@ import {
   FOLIEN_TYPEN,
   FOLIEN_TYP_IDS,
   folienSlotsOf,
+  readFolie,
+  slotElementIds,
   SLIDE_FOOTER_ELEMENT_IDS,
   slideDeckOperationsSchema,
 } from '@gruenerator/contracts/slides';
@@ -67,9 +69,16 @@ export function describeDeckForEditing(pages: readonly DeckPage[]): string {
       const locked = new Set(
         Array.isArray(state['lockedLayerIds']) ? (state['lockedLayerIds'] as string[]) : []
       );
+      // Dekor je Punkt (Nummern, Marken …) ist kein Slot: das Modell bearbeitet den Punkt, nicht seine Zier.
+      const typ = readFolie(state)?.typ;
+      const slotIds = new Set<string>(
+        typ ? Object.values(folienSlotsOf(typ)).flatMap(slotElementIds) : []
+      );
+      if (typ === 'text') slotIds.add('folie-spalte-2');
+      const isDecoration = (id: string) => !!typ && id.startsWith('folie-') && !slotIds.has(id);
       const texts = (Array.isArray(state['additionalTexts']) ? state['additionalTexts'] : [])
         .filter((t): t is TextLike => typeof (t as TextLike)?.id === 'string')
-        .filter((t) => !FOOTER.has(t.id))
+        .filter((t) => !FOOTER.has(t.id) && !isDecoration(t.id))
         .map((t) => {
           const text = stripInlineMarks(String(t.text ?? '')).replace(/\n/g, ' / ');
           return `  - ${t.id}${locked.has(t.id) ? ' (gesperrt)' : ''}: „${text}"`;

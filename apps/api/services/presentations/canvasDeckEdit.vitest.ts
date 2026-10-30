@@ -70,6 +70,26 @@ describe('planAndApplyCanvasDeckEdit', () => {
     expect(text).not.toContain('folie-seitenzahl');
   });
 
+  it('lists only slot elements, not the per-item style decorations', () => {
+    for (const stil of ['ruhig', 'band', 'kacheln', 'aussage'] as const) {
+      const styled = composeSlideDeck(
+        {
+          title: 'Klimaplan',
+          slides: [
+            {
+              typ: 'liste',
+              slots: { headline: 'Forderungen', punkte: ['Eins', 'Zwei', 'Drei'] },
+            },
+          ],
+        },
+        { locale: 'de-DE', date: new Date('2026-10-29'), stil }
+      ).pages;
+      const text = describeDeckForEditing(styled);
+      expect(text).toContain('folie-punkt-3');
+      expect(text).not.toMatch(/folie-(kachel|kachelnr|nummer|linie|marke|balken)-\d/);
+    }
+  });
+
   it('writes a text change as a page patch', async () => {
     modelAnswers([
       {

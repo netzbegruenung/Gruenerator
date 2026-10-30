@@ -20,7 +20,8 @@ import { stripInlineMarks } from '../text/inlineMarks.js';
 
 import { buildFolie, deckStilBoxes, type DeckStilId } from './deckStile/index.js';
 import { fitSlideTexts, type MeasureText } from './fitText.js';
-import { type FolieSpec, folieSpecSchema } from './folienTypen.js';
+import { type FolieSpec, folieSpecSchema, folienSlotsOf } from './folienTypen.js';
+import { restylePage } from './restyleDeck.js';
 import { readDeckStil, readFolie, readPageStil } from './slideDeck.js';
 import { MAX_SLIDES, unescapeLineBreaks } from './slideDeckBasics.js';
 import { slideLayoutConfigId } from './slideLayouts.js';
@@ -126,6 +127,50 @@ function removeElement(state: Record<string, unknown>, elementId: string): strin
   }
   if (!found) return `kein Element „${elementId}" auf dieser Folie`;
   state['layerOrder'] = listOf<string>(state, 'layerOrder').filter((id) => id !== elementId);
+  return null;
+}
+
+const LIST_ITEM_ID = /^folie-punkt-(\d+)$/;
+
+/**
+ * Ein Listenpunkt einer gestylten Seite hängt an Dekor mit demselben Index
+ * (Kachel, Nummer, Marke, Balken, Linie): `remove-element` allein ließe es als
+ * leere Hülle stehen. Darum wird der Punkt in der Folie gestrichen und die
+ * Seite in ihrem Stil neu gebaut. `undefined` = kein solcher Fall, der
+ * gewöhnliche Weg gilt; `null` = erledigt; Text = abgelehnt.
+ */
+function removeListItem(
+  pages: DeckPage[],
+  index: number,
+  elementId: string,
+  ctx: SlideDeckEditContext
+): string | null | undefined {
+  const match = LIST_ITEM_ID.exec(elementId);
+  const page = pages[index]!;
+  const stil = readPageStil(page.state);
+  const folie = match && stil ? readFolie(page.state) : null;
+  if (!match || !stil || !folie) return undefined;
+  const entry = Object.entries(folienSlotsOf(folie.typ)).find(
+    ([, slot]) => slot.kind === 'list' && slot.elementIdPrefix === 'folie-punkt-'
+  );
+  if (!entry) return undefined;
+  const [name, slot] = entry;
+  const items = (folie.slots as Record<string, unknown>)[name];
+  const at = Number(match[1]) - 1;
+  if (!Array.isArray(items) || at < 0 || at >= items.length || slot.kind !== 'list') {
+    return undefined;
+  }
+  if (listOf<string>(page.state, 'lockedLayerIds').includes(elementId)) {
+    return `„${elementId}" ist gesperrt`;
+  }
+  if (items.length - 1 < slot.minItems) {
+    return `Eine Liste braucht mindestens ${slot.minItems} Punkte`;
+  }
+  const next = {
+    ...folie,
+    slots: { ...folie.slots, [name]: items.filter((_, i) => i !== at) },
+  } as FolieSpec;
+  pages[index] = restylePage(page, index, stil, next, ctx);
   return null;
 }
 
@@ -238,12 +283,13 @@ export function applySlideDeckOperations(
       continue;
     }
 
-    const state = pages[index]!.state;
     for (const inner of op.operations) {
+      const state = pages[index]!.state;
       const reason =
         inner.kind === 'set-text'
           ? setText(state, inner.field, inner.value)
-          : removeElement(state, inner.elementId);
+          : (removeListItem(pages, index, inner.elementId, ctx) ??
+            removeElement(state, inner.elementId));
       if (reason) refused.push(`Folie ${op.slide}: ${reason}`);
       else
         applied.push(
@@ -256,6 +302,7 @@ export function applySlideDeckOperations(
       // Bearbeiten nicht kumulativ, und ein kürzerer Text wächst zurück. Eine Seite ohne
       // `deckStil` (Layout vor den Stilen) hat keine Stilgrößen: dort bleibt die aktuelle
       // Größe der Ausgang, und gemeldet wird nur echter Überlauf.
+      const state = pages[index]!.state;
       const folie = readFolie(state);
       if (folie) {
         const stil = readPageStil(state);

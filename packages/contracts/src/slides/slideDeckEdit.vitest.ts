@@ -396,4 +396,110 @@ describe('applySlideDeckOperations', () => {
       expect(edit(deck(), 'Kurz').refused).toEqual([]);
     });
   });
+
+  describe('removing a list item', () => {
+    const listDeck = (stil: DeckStilId, n = 3): DeckPage[] =>
+      composeSlideDeck(
+        {
+          title: 'Klimaplan',
+          slides: [
+            {
+              typ: 'liste',
+              slots: {
+                headline: 'Forderungen',
+                punkte: ['Eins', 'Zwei', 'Drei', 'Vier', 'Fünf', 'Sechs'].slice(0, n),
+              },
+            },
+          ],
+        },
+        { locale: 'de-DE', date: DATE, stil }
+      ).pages.map((p) => ({ ...p, state: p.state as unknown as Record<string, unknown> }));
+
+    const item = (page: DeckPage, n: number) =>
+      textOf(page, `folie-punkt-${n}`)?.replace(/^• /, '');
+
+    const removeItem = (pages: DeckPage[], n: number) =>
+      applySlideDeckOperations(
+        pages,
+        [
+          {
+            kind: 'edit-slide',
+            slide: 1,
+            operations: [{ kind: 'remove-element', elementId: `folie-punkt-${n}` }],
+          },
+        ],
+        ctx()
+      );
+
+    const allIds = (page: DeckPage): string[] =>
+      ['additionalTexts', 'shapeInstances', 'layerOrder'].flatMap((key) => {
+        const v = page.state[key];
+        return Array.isArray(v)
+          ? (v as Array<{ id?: string } | string>).map((e) => (typeof e === 'string' ? e : e.id!))
+          : [];
+      });
+
+    it.each(['ruhig', 'band', 'kacheln', 'aussage'] as const)(
+      'drops the decorations of the item with it in style %s',
+      (stil) => {
+        const result = removeItem(listDeck(stil, 4), 2);
+        expect(result.refused).toEqual([]);
+        const page = result.pages[0]!;
+        expect(allIds(page).filter((id) => /-4$/.test(id))).toEqual([]);
+        expect(item(page, 1)).toBe('Eins');
+        expect(item(page, 2)).toBe('Drei');
+        expect(item(page, 3)).toBe('Vier');
+        expect(item(page, 4)).toBeUndefined();
+        expect(texts(page).filter((t) => t.id.startsWith('folie-punkt-'))).toHaveLength(3);
+        expect(page.state['deckStil']).toBe(stil);
+        if (stil === 'band') {
+          expect(textOf(page, 'folie-nummer-1')).toBe('1');
+          expect(textOf(page, 'folie-nummer-2')).toBe('2');
+        }
+        if (stil === 'kacheln') {
+          expect(textOf(page, 'folie-kachelnr-1')).toBe('01');
+          expect(textOf(page, 'folie-kachelnr-2')).toBe('02');
+        }
+      }
+    );
+
+    it('keeps the cd style working', () => {
+      const result = removeItem(listDeck('cd', 4), 2);
+      expect(result.refused).toEqual([]);
+      const page = result.pages[0]!;
+      expect(item(page, 2)).toBe('Drei');
+      expect(item(page, 3)).toBe('Vier');
+      expect(item(page, 4)).toBeUndefined();
+    });
+
+    it('keeps user elements, notes and the footer date when rebuilding', () => {
+      const pages = listDeck('kacheln', 4);
+      pages[0]!.state['notes'] = 'Merke';
+      pages[0]!.state['additionalTexts'] = [
+        ...(pages[0]!.state['additionalTexts'] as Text[]),
+        { id: 'user-1', text: 'Mein Text' },
+      ];
+      const result = removeItem(pages, 1);
+      const page = result.pages[0]!;
+      expect(textOf(page, 'user-1')).toBe('Mein Text');
+      expect(page.state['notes']).toBe('Merke');
+      expect(page.id).toBe(pages[0]!.id);
+    });
+
+    it('refuses to go below the minimum of the list', () => {
+      const result = removeItem(listDeck('kacheln', 3), 2);
+      expect(result.refused).toEqual(['Folie 1: Eine Liste braucht mindestens 3 Punkte']);
+      expect(result.applied).toEqual([]);
+      expect(textOf(result.pages[0]!, 'folie-punkt-3')).toBe('Drei');
+    });
+
+    it('leaves pages without a style to the plain removal', () => {
+      const pages = listDeck('kacheln', 4);
+      delete pages[0]!.state['deckStil'];
+      const result = removeItem(pages, 2);
+      expect(result.refused).toEqual([]);
+      expect(item(result.pages[0]!, 2)).toBeUndefined();
+      expect(item(result.pages[0]!, 3)).toBe('Drei');
+    });
+  });
 });
