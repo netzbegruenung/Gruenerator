@@ -31,7 +31,6 @@ import { DipClient } from '../dip/dipClient.js';
 
 import { ENDPOINT_BUDGET } from './budget.js';
 import { fetchTexts, resolveRefs, type FetchedDoc, type TextCache } from './fetchTexts.js';
-import { type FindMcp } from './find.js';
 import { keywordsFromQuestion } from './plan.js';
 import { readDocuments, type ReadResult } from './read.js';
 
@@ -268,7 +267,7 @@ async function makeDeps(): Promise<QaDeps> {
   } catch (e) {
     console.warn(`Redis nicht erreichbar, ohne Cache: ${String(e)}`);
   }
-  return { dip, mcp: getBundestagMCPClient() as unknown as FindMcp, redis };
+  return { dip, mcp: getBundestagMCPClient(), redis };
 }
 
 // ── Vorprüfung ───────────────────────────────────────────────────────────────

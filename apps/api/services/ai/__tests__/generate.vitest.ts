@@ -316,6 +316,31 @@ describe('the wall clock', () => {
   });
 });
 
+describe('caller abort', () => {
+  it('hands the signal to the provider and stops the chain once it fires', async () => {
+    const controller = new AbortController();
+    executeProvider.mockImplementation(async () => {
+      controller.abort();
+      throw new Error('This operation was aborted');
+    });
+
+    const res = await aiObject({
+      lane: 'qa_draft',
+      prompt: 'x',
+      signal: controller.signal,
+      schema: { type: 'object' },
+      toolName: 't',
+      toolDescription: 'd',
+      validate: (i: unknown) => ({ ok: true as const, value: i }),
+    });
+
+    expect(res.ok).toBe(false);
+    // Kein Ausweichanbieter, kein Reparaturversuch.
+    expect(executeProvider).toHaveBeenCalledTimes(1);
+    expect(callAt(0).data.signal).toBe(controller.signal);
+  });
+});
+
 /**
  * The family that cannot be routed: a `type` with no row in `AI_LANES` whose
  * provider and model were chosen by the caller against measurements in

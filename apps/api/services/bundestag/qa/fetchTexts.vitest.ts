@@ -167,6 +167,41 @@ describe('fetchTexts: Drucksachen', () => {
     expect(out[0].text).toBe('aus Cache');
   });
 
+  it('holt den Stand für Kandidaten ohne aktualisiert, damit der Schlüssel mit ihm wandert', async () => {
+    const redis = redisMock({
+      // Alter, standloser Eintrag: darf eine korrigierte Drucksache nicht mehr bedienen.
+      'bt:qa:text:v1:7:': JSON.stringify({ text: 'veraltet', textSource: 'dip' }),
+    });
+    const dip = { list: vi.fn() };
+    dip.list.mockImplementation(async (endpoint: string) =>
+      endpoint === 'drucksache'
+        ? { numFound: 1, cursor: null, documents: [{ id: '7', aktualisiert: '2026-10-29' }] }
+        : page(['7'], null, 'korrigiert')
+    );
+    const out = await fetchTexts([cand({ dipId: '7', aktualisiert: null })], {
+      dip,
+      redis,
+      signal: new AbortController().signal,
+    });
+    expect(dip.list.mock.calls[0]).toEqual(['drucksache', { 'f.id': ['7'] }]);
+    expect(out[0]).toMatchObject({ text: 'korrigiert 7', aktualisiert: '2026-10-29' });
+    expect(redis.store.has('bt:qa:text:v1:7:2026-10-29')).toBe(true);
+  });
+
+  it('liest weiter, wenn der Stand nicht zu ermitteln ist', async () => {
+    const dip = { list: vi.fn() };
+    dip.list.mockImplementation(async (endpoint: string) => {
+      if (endpoint === 'drucksache') throw new Error('DIP 503');
+      return page(['7'], null);
+    });
+    const out = await fetchTexts([cand({ dipId: '7', aktualisiert: null })], {
+      dip,
+      redis: redisMock(),
+      signal: new AbortController().signal,
+    });
+    expect(out[0]).toMatchObject({ text: 'Volltext 7', textSource: 'dip' });
+  });
+
   it('ruft DIP gar nicht, wenn alles im Cache liegt', async () => {
     const redis = redisMock({
       'bt:qa:text:v1:1:2026-01-02': JSON.stringify({ text: 'x', textSource: 'dip' }),

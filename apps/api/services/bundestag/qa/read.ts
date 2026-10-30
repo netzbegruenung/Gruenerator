@@ -282,6 +282,8 @@ export async function readDocuments({
             temperature: 0,
             maxOutputTokens: 1500,
             timeoutMs: remaining,
+            // Bricht die Schleife ab (Zeitlimit von `parlament_lesen`), endet auch das laufende Fenster.
+            ...(signal ? { signal } : {}),
             // Ein zweiter Versuch würde die Deadline überschreiten; ein Fenster, dessen JSON einmal scheitert, entfällt.
             attempts: 1,
             system: readSystem(auftrag, lensFokus, herkunft),

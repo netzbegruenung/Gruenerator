@@ -20,7 +20,7 @@ function makeDip(handler: (endpoint: string, params: Record<string, unknown>) =>
   };
 }
 
-const mcpNone = { semanticSearch: vi.fn(async () => ({ items: [] })) };
+const mcpNone = { semanticSearchOrThrow: vi.fn(async () => ({ items: [] })) };
 
 const vorgang = { id: '335070', titel: 'Heizungsgesetz', initiative: ['Fraktion der SPD'] };
 const positions = [
@@ -312,7 +312,7 @@ describe('findCandidates', () => {
 
   it('nutzt MCP erst unter 3 Kandidaten', async () => {
     const mcp = {
-      semanticSearch: vi.fn(async () => ({
+      semanticSearchOrThrow: vi.fn(async () => ({
         items: [
           {
             dokumentnummer: '21/9',
@@ -341,7 +341,7 @@ describe('findCandidates', () => {
       dip: enough,
       mcp,
     });
-    expect(mcp.semanticSearch).not.toHaveBeenCalled();
+    expect(mcp.semanticSearchOrThrow).not.toHaveBeenCalled();
 
     const few = makeDip((_e, p) =>
       'f.dokumentnummer' in p ? [{ id: '9', dokumentnummer: '21/9' }] : []
@@ -354,13 +354,13 @@ describe('findCandidates', () => {
       dip: few,
       mcp,
     });
-    expect(mcp.semanticSearch).toHaveBeenCalledTimes(1);
+    expect(mcp.semanticSearchOrThrow).toHaveBeenCalledTimes(1);
     expect(r.candidates.map((c) => c.ref)).toEqual(['21/9']);
     expect(r.notes.length).toBe(1);
   });
 
   it('ruft MCP schon bei genau 2 Kandidaten', async () => {
-    const mcp = { semanticSearch: vi.fn(async () => ({ items: [] })) };
+    const mcp = { semanticSearchOrThrow: vi.fn(async () => ({ items: [] })) };
     const dip = makeDip(() => [
       { id: '1', dokumentnummer: '21/1' },
       { id: '2', dokumentnummer: '21/2' },
@@ -373,7 +373,7 @@ describe('findCandidates', () => {
       dip,
       mcp,
     });
-    expect(mcp.semanticSearch).toHaveBeenCalledTimes(1);
+    expect(mcp.semanticSearchOrThrow).toHaveBeenCalledTimes(1);
   });
 
   it('unterscheidet MCP-Ausfall von DIP-Fehler im Rückfall', async () => {
@@ -398,7 +398,7 @@ describe('findCandidates', () => {
       assumedWahlperiode: false,
       budget,
       dip,
-      mcp: { semanticSearch: vi.fn(async () => ({ items: [hit] })) },
+      mcp: { semanticSearchOrThrow: vi.fn(async () => ({ items: [hit] })) },
     });
     expect(r1.notes[0]).toMatch(/DIP/);
     const r2 = await findCandidates({
@@ -408,7 +408,7 @@ describe('findCandidates', () => {
       budget,
       dip: makeDip(() => []),
       mcp: {
-        semanticSearch: vi.fn(async () => {
+        semanticSearchOrThrow: vi.fn(async () => {
           throw new Error('mcp down');
         }),
       },

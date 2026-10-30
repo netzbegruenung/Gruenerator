@@ -82,6 +82,12 @@ export interface AiCall {
    */
   timeoutMs?: number;
   /**
+   * The caller gave up. Aborts the provider request in flight and stops the
+   * chain and any repair attempt — without it, a call the caller no longer
+   * waits for runs to its own deadline and is billed (#5115).
+   */
+  signal?: AbortSignal;
+  /**
    * Provider and model the CALLER chose, instead of the routing table.
    *
    * The lane registry answers "who writes this kind of text". A large family of
@@ -230,6 +236,7 @@ function toEnvelope(
     messages: call.messages ?? [{ role: 'user' as const, content: call.prompt ?? '' }],
     options,
     ...(timeoutMs != null && { timeoutMs }),
+    ...(call.signal != null && { signal: call.signal }),
     ...(call.platforms != null && { metadata: { platforms: [...call.platforms] } }),
   };
 }
@@ -339,6 +346,11 @@ async function runChain(
   let lastError: Error | undefined;
 
   for (const [index, provider] of chain.entries()) {
+    // Abgebrochen heisst: niemand wartet mehr — kein Ausweichanbieter.
+    if (call.signal?.aborted) {
+      lastError = new Error(`aborted by caller after ${index} provider(s)`);
+      break;
+    }
     const remaining = deadline - Date.now();
     // Einen Aufruf noch aufzumachen, dessen Frist schon abgelaufen ist, kostet
     // Tokens und kann nichts mehr liefern. Keine stille Kürzung: wer nicht mehr
@@ -565,6 +577,7 @@ export async function aiObject<T>(call: AiObjectCall<T>): Promise<StructuredResu
   let truncatedFallback: T | null = null;
 
   for (let attempt = 1; attempt <= attempts; attempt++) {
+    if (call.signal?.aborted) break;
     const isRepair = attempt > 1 && lastError !== '';
     const messages: AIRequestData['messages'] = isRepair
       ? [
