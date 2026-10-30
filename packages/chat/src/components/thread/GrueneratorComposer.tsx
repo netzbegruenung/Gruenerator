@@ -15,7 +15,15 @@ import { useMobileKeyboardOffset } from '@gruenerator/shared/hooks';
 import { mcpBrandColor } from '@gruenerator/shared/utils';
 import { cn, useIsMobile, useMeasuredCornerReservation } from '@gruenerator/ui';
 import { ArrowUp, Mic, Plug, Search, Square, X } from 'lucide-react';
-import { memo, useEffect, useRef, useState, useCallback, type ClipboardEvent } from 'react';
+import {
+  memo,
+  startTransition,
+  useEffect,
+  useRef,
+  useState,
+  useCallback,
+  type ClipboardEvent,
+} from 'react';
 import { RiVoiceAiFill } from 'react-icons/ri';
 
 import { useMentionablesQuery } from '../../hooks/useMentionablesQuery';
@@ -940,8 +948,14 @@ export const GrueneratorComposer = memo(function GrueneratorComposer({
     uploadRef.current?.click();
   }, []);
 
+  // A transition, so the plus menu closes in the click's frame and the picker
+  // renders after it. Synchronously, both landed in one task — menu teardown,
+  // a composer re-render and the panel's positioning, each forcing layout —
+  // and the click took ~33 ms in the production build (a dropped frame).
   const handlePlusMenuOpenFileBrowser = useCallback(() => {
-    setMention((prev) => ({ ...prev, mode: 'datei', visible: true, mentionStart: -1 }));
+    startTransition(() => {
+      setMention((prev) => ({ ...prev, mode: 'datei', visible: true, mentionStart: -1 }));
+    });
   }, []);
 
   const handleApplyPreset = useCallback(
