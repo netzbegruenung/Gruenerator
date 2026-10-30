@@ -28,7 +28,10 @@ jobs:
           - name: prod
             url: ${{ vars.MONITOR_API_URL || 'https://gruenerator.eu' }}
           - name: beta
-            url: ${{ vars.MONITOR_BETA_API_URL }}
+            # Without a default the beta leg never ran: the variable was never
+            # set, every step was skipped silently, and beta had no snapshot
+            # (Themen & Trends) and no Watcher articles.
+            url: ${{ vars.MONITOR_BETA_API_URL || 'https://beta.gruenerator.eu' }}
     # Per target, so prod and beta never queue behind each other.
     concurrency:
       group: monitor-refresh-${{ matrix.target.name }}

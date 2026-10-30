@@ -15,7 +15,7 @@ import { Inbox } from 'lucide-react';
 import { useSearchParams } from 'react-router-dom';
 
 import useUserDefaults from '../../../hooks/useUserDefaults';
-import { LV_NAMES } from '../bundeslaender';
+import { lvName } from '../bundeslaender';
 import { useWhatHappened } from '../hooks/useMonitor';
 
 import type { MonitorLocale } from '../hooks/useMonitor';
@@ -101,7 +101,7 @@ export function WhatHappenedView({ locale }: WhatHappenedViewProps) {
                   <SelectItem value={ALL}>Alle Landesverbände</SelectItem>
                   {(data?.landesverbaende ?? []).map((lv) => (
                     <SelectItem key={lv} value={lv}>
-                      {LV_NAMES[lv] ?? lv}
+                      {lvName(lv)}
                     </SelectItem>
                   ))}
                 </SelectContent>

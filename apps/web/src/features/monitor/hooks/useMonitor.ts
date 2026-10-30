@@ -1,4 +1,8 @@
 import {
+  entityResultsResponseSchema,
+  monitorSnapshotSchema,
+  pollDataSchema,
+  whatHappenedResponseSchema,
   type EntityResult,
   type EuGreenProfileData,
   type EuGreensData,
@@ -23,6 +27,8 @@ import {
 } from '@gruenerator/contracts';
 import { getContractsClient } from '@gruenerator/shared/api';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+
+import { persistedMonitorQuery } from './persistedMonitorQuery';
 
 import type { TopicCategory } from '../topicConfig';
 
@@ -53,13 +59,16 @@ function monitorError(res: { status: number }, message: string): Error {
  */
 export function useMonitorSnapshot(locale?: MonitorLocale) {
   return useQuery({
-    queryKey: ['monitor', 'latest', locale],
-    queryFn: async (): Promise<MonitorSnapshot | null> => {
-      const res = await getContractsClient().monitor.latest({ query: localeQuery(locale) });
-      if (res.status === 200) return res.body;
-      if (res.status === 404) return null;
-      throw monitorError(res, 'Monitor-Daten konnten nicht geladen werden.');
-    },
+    ...persistedMonitorQuery(
+      ['monitor', 'latest', locale],
+      monitorSnapshotSchema,
+      async (): Promise<MonitorSnapshot | null> => {
+        const res = await getContractsClient().monitor.latest({ query: localeQuery(locale) });
+        if (res.status === 200) return res.body;
+        if (res.status === 404) return null;
+        throw monitorError(res, 'Monitor-Daten konnten nicht geladen werden.');
+      }
+    ),
     refetchInterval: 5 * 60 * 1000,
     staleTime: 2 * 60 * 1000,
     gcTime: 30 * 60 * 1000,
@@ -114,12 +123,15 @@ export function useKeywordArticles(locale?: MonitorLocale) {
 
 export function usePolls(parliament = 'deutschland') {
   return useQuery({
-    queryKey: ['monitor', 'polls', parliament],
-    queryFn: async (): Promise<PollData> => {
-      const res = await getContractsClient().monitor.polls({ query: { parliament } });
-      if (res.status === 200) return res.body;
-      throw monitorError(res, 'Umfragedaten konnten nicht geladen werden.');
-    },
+    ...persistedMonitorQuery(
+      ['monitor', 'polls', parliament],
+      pollDataSchema,
+      async (): Promise<PollData> => {
+        const res = await getContractsClient().monitor.polls({ query: { parliament } });
+        if (res.status === 200) return res.body;
+        throw monitorError(res, 'Umfragedaten konnten nicht geladen werden.');
+      }
+    ),
     staleTime: 30 * 60 * 1000,
     gcTime: 60 * 60 * 1000,
   });
@@ -222,16 +234,19 @@ export function usePollParliaments() {
 
 export function useEntityResults(entityId: string | null, locale?: MonitorLocale) {
   return useQuery({
-    queryKey: ['monitor', 'entity', entityId, locale],
-    queryFn: async (): Promise<EntityResult> => {
-      if (!entityId) throw new Error('Keine Entität ausgewählt.');
-      const res = await getContractsClient().monitor.entityResults({
-        params: { id: entityId },
-        query: localeQuery(locale),
-      });
-      if (res.status === 200) return res.body;
-      throw monitorError(res, 'Entitäts-Ergebnisse konnten nicht geladen werden.');
-    },
+    ...persistedMonitorQuery(
+      ['monitor', 'entity', entityId, locale],
+      entityResultsResponseSchema,
+      async (): Promise<EntityResult> => {
+        if (!entityId) throw new Error('Keine Entität ausgewählt.');
+        const res = await getContractsClient().monitor.entityResults({
+          params: { id: entityId },
+          query: localeQuery(locale),
+        });
+        if (res.status === 200) return res.body;
+        throw monitorError(res, 'Entitäts-Ergebnisse konnten nicht geladen werden.');
+      }
+    ),
     enabled: !!entityId,
     staleTime: 5 * 60 * 1000,
     gcTime: 30 * 60 * 1000,
@@ -242,15 +257,23 @@ export function useWhatHappened(
   locale?: MonitorLocale,
   opts: Omit<WhatHappenedQuery, 'locale'> = {}
 ) {
+  const queryKey = ['monitor', 'what-happened', locale, opts];
+  const fetcher = async (): Promise<WhatHappenedResult> => {
+    const res = await getContractsClient().monitor.whatHappened({
+      query: { ...opts, ...localeQuery(locale) },
+    });
+    if (res.status === 200) return res.body;
+    throw monitorError(res, 'Neue Inhalte konnten nicht geladen werden.');
+  };
+  // Gespeichert wird nur die Abfrage des Widgets: sieben Tage, kein Filter
+  // (dieselbe wie /feed ohne Filter). Jeder andere Zeitraum und jede
+  // Filterkombination von /feed bekäme sonst einen eigenen Eintrag.
+  const persist =
+    (opts.days ?? 7) === 7 && !opts.sourceGroup && !opts.landesverband && !opts.eventType;
   return useQuery({
-    queryKey: ['monitor', 'what-happened', locale, opts],
-    queryFn: async (): Promise<WhatHappenedResult> => {
-      const res = await getContractsClient().monitor.whatHappened({
-        query: { ...opts, ...localeQuery(locale) },
-      });
-      if (res.status === 200) return res.body;
-      throw monitorError(res, 'Neue Inhalte konnten nicht geladen werden.');
-    },
+    ...(persist
+      ? persistedMonitorQuery(queryKey, whatHappenedResponseSchema, fetcher)
+      : { queryKey, queryFn: fetcher }),
     staleTime: 5 * 60 * 1000,
     gcTime: 30 * 60 * 1000,
   });
