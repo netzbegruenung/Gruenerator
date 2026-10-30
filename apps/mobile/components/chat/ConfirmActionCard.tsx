@@ -34,6 +34,7 @@ const ICON_MAP: Record<ConfirmActionData['type'], IoniconsIconName> = {
   create_user_agent: 'sparkles-outline',
   share_user_agent: 'share-social-outline',
   share_text_form: 'share-social-outline',
+  apply_canvas_deck_edit: 'easel-outline',
 };
 
 const GROUP_ACTION_TYPES: ReadonlySet<ConfirmActionData['type']> = new Set([
