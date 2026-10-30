@@ -233,3 +233,11 @@ describe('list slots in prompt and tool schema', () => {
     expect(slots.properties.punkt).toBeUndefined();
   });
 });
+
+describe('slide count', () => {
+  it('counts a requested number of slides including title and thank-you slide', () => {
+    expect(deckSystemPrompt('de-DE')).toContain(
+      'Nennt die Person eine Folienzahl, ist das die Gesamtzahl — Titel- und Danke-Folie zählen mit'
+    );
+  });
+});

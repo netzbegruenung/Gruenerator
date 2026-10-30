@@ -70,7 +70,8 @@ Verfügbare Folientypen und ihre Felder:
 ${typCatalog()}
 
 Regeln:
-- 5 bis 12 Folien (höchstens ${MAX_SLIDES}); die erste Folie ist eine "titel"-Folie, die letzte darf "danke" sein
+- Ohne genannte Zahl 5 bis 12 Folien (höchstens ${MAX_SLIDES}); die erste Folie ist eine "titel"-Folie, die letzte darf "danke" sein
+- Nennt die Person eine Folienzahl, ist das die Gesamtzahl — Titel- und Danke-Folie zählen mit. "4 Folien" heißt genau vier Folien insgesamt, keine fünfte als Danke-Folie
 - Wähle je Folie den passenden Typ. Für drei bis sechs kurze Punkte nimm \`liste\`, nicht \`text\`.
 - \`zahl\` nur mit einer Zahl aus dem Material und ihrer Quelle. Ohne Quelle keine Zahl-Folie.
 - Hebe pro Headline, Kernsatz oder Zitat höchstens zwei Wörter mit \`==…==\` hervor.
