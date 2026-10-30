@@ -132,6 +132,26 @@ export async function ensureDocChatThread(
 }
 
 /**
+ * Serialise metadata for a `tool_results` (jsonb) bind. Tool output reaches
+ * this row after many UTF-16 cuts (`slice`/`substring` on snippets, excerpts,
+ * scraped pages); one cut through an emoji leaves a lone surrogate, which
+ * `JSON.stringify` writes as `\udXXX` and Postgres rejects with 22P02 — the
+ * whole turn was lost (#5017). `\u0000` is the other escape jsonb refuses
+ * (22P05). Repaired here, at the one door, instead of at every cut: lone
+ * surrogates become U+FFFD, NUL is dropped.
+ */
+const LONE_SURROGATE = /[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/g;
+
+function toJsonbParam(metadata: Record<string, unknown> | undefined): string | null {
+  if (!metadata) return null;
+  return JSON.stringify(metadata, (_key, value: unknown) =>
+    typeof value === 'string'
+      ? value.replace(LONE_SURROGATE, '\uFFFD').replaceAll('\u0000', '')
+      : value
+  );
+}
+
+/**
  * Save a message to the thread.
  */
 export async function createMessage(
@@ -146,7 +166,7 @@ export async function createMessage(
     `INSERT INTO chat_messages (thread_id, role, content, tool_results, user_id)
      VALUES ($1, $2, $3, $4, $5)
      RETURNING id`,
-    [threadId, role, content, metadata ? JSON.stringify(metadata) : null, userId || null]
+    [threadId, role, content, toJsonbParam(metadata), userId || null]
   )) as { id: string }[];
   return result[0]!.id;
 }
@@ -225,7 +245,7 @@ export async function finalizeAssistantMessage(
          status = 'complete'
      WHERE id = $1
      RETURNING id`,
-    [messageId, content, metadata ? JSON.stringify(metadata) : null]
+    [messageId, content, toJsonbParam(metadata)]
   )) as unknown[];
   return result.length === 1;
 }
