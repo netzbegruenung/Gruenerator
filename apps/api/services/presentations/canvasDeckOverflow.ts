@@ -5,8 +5,10 @@
  */
 
 import { stripInlineMarks } from '@gruenerator/contracts';
+import { getBrandPack } from '@gruenerator/contracts/brand';
 import {
   slideSlotsOf,
+  type MeasureText,
   type ComposedSlidePage,
   type SlideDeckSpec,
 } from '@gruenerator/contracts/slides';
@@ -128,4 +130,38 @@ export function shrinkOverflows(
     }
   }
   return findSlotOverflows(pages, spec, brand);
+}
+
+/**
+ * Der Messer für `fitSlideTexts`: dieselbe Zeilenzählung wie oben, Schrift
+ * nach Familie des Elements (Überschriftenschrift der Marke → Deck-Kopfschrift,
+ * Betonungsschrift → Zitatschrift, sonst Fließschrift). Null, wenn Markenschrift
+ * oder Canvas fehlen — dann gelten allein die Zeichenbudgets. Braucht
+ * `prepareOverflowMeasuring` vorher.
+ */
+export function serverMeasureText(brand: Brand): MeasureText | null {
+  const faces = deckFaces(brand);
+  const fonts = getBrandPack(brand).fonts;
+  const faceFor = (family: string) => {
+    if (family === fonts.headline || family === fonts.quoteShort) return faces.heading;
+    if (family === fonts.quoteEmphasis && faces.quote) return faces.quote;
+    return faces.body;
+  };
+  const probe = countLinesSync([{ text: 'x' }], {
+    maxWidthPx: 100,
+    fontPx: 20,
+    faces,
+    face: faces.body,
+  });
+  if (probe === null || !faceRegistered(faces.heading) || !faceRegistered(faces.body)) return null;
+  return (text, font, width) => {
+    const lines =
+      countLinesSync([{ text }], {
+        maxWidthPx: width,
+        fontPx: font.size,
+        faces,
+        face: faceFor(font.family),
+      }) ?? 1;
+    return { height: lines * font.size * font.lineHeight };
+  };
 }
