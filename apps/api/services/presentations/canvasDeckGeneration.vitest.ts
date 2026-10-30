@@ -59,12 +59,14 @@ function modelAnswers(...specs: unknown[]) {
   });
 }
 
-const stilOf = () =>
-  (
-    mocks.createCanvas.mock.calls[0]![1].initial_state.pages as Array<{
-      state: { deckStil: string };
-    }>
-  ).map((p) => p.state.deckStil);
+type Created = {
+  format: string;
+  template_type: string;
+  page_count: number;
+  initial_state: { pages: Array<{ id: string; state: { deckStil: string } }> };
+};
+const created = (): Created => mocks.createCanvas.mock.calls[0]![1] as Created;
+const stilOf = () => created().initial_state.pages.map((p) => p.state.deckStil);
 
 beforeEach(() => {
   Object.values(mocks).forEach((m) => m.mockReset());
@@ -75,26 +77,22 @@ describe('generateCanvasDeck', () => {
   it('persists a slide-16-9 canvas with one page per slide and returns its URL', async () => {
     modelAnswers(okSpec);
 
-    const created = await generateCanvasDeck({ prompt: 'Radwege', userId: 'u1', locale: 'de-AT' });
+    const result = await generateCanvasDeck({ prompt: 'Radwege', userId: 'u1', locale: 'de-AT' });
 
-    expect(created).toEqual({
+    expect(result).toEqual({
       documentId: 'canvas-1',
       title: 'Radwege',
       subtype: 'canvas',
       url: '/studio/canvas/canvas-1',
     });
-    const input = mocks.createCanvas.mock.calls[0]![1];
+    const input = created();
     expect(mocks.createCanvas.mock.calls[0]![0]).toBe('u1');
     expect(input).toMatchObject({
       format: 'slide-16-9',
       template_type: 'freeform-at',
       page_count: 3,
     });
-    expect(input.initial_state.pages.map((p: { id: string }) => p.id)).toEqual([
-      'seed-0',
-      'seed-1',
-      'seed-2',
-    ]);
+    expect(input.initial_state.pages.map((p) => p.id)).toEqual(['seed-0', 'seed-1', 'seed-2']);
     expect(mocks.seedCanvasPages).toHaveBeenCalledWith(
       'canvas-1',
       'freeform-at',

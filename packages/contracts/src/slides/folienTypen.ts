@@ -7,9 +7,6 @@
  * - Textslot: `elementId` ist die Id des Textelements.
  * - Listenslot (`punkte`): `elementIdPrefix` + laufende Nummer ab 1
  *   (`folie-punkt-1` … `folie-punkt-<maxItems>`). `slotElementIds` löst auf.
- *
- * Alte Layout-Spec (`SLIDE_TEXT_SLOTS` in slideDeck.ts) bleibt bis zur
- * Umstellung der Konsumenten daneben bestehen.
  */
 
 import { z } from 'zod';
