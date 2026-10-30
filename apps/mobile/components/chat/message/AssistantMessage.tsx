@@ -5,6 +5,7 @@ import {
   getUserAgentMentionables,
   getDefaultAgent,
   selectReasoningText,
+  selectRunActivity,
   selectSearchSources,
   selectSearchStatusLabel,
   selectStepAfterText,
@@ -50,6 +51,7 @@ import { MessageDaySeparator } from './MessageDaySeparator';
 import { MessageErrorBanner } from './MessageErrorBanner';
 import { messageLayout } from './messageLayout';
 import { HiddenReasoningPart } from './ReasoningBlock';
+import { RunActivitySummary } from './RunActivitySummary';
 import { AssistantToolCallPartWithNarration } from './ToolCallPart';
 import { ToolGroupScope } from './toolGroupContext';
 import { VorlagenSuggestionsSection } from './VorlagenSuggestionsSection';
@@ -114,6 +116,12 @@ export const AssistantMessage = memo(function AssistantMessage() {
   const toolStatus = selectSearchStatusLabel(statusParts);
   const reasoningText = selectReasoningText(statusParts);
   const statusSources = useMemo(() => selectSearchSources(statusParts), [statusParts]);
+  // The trace the turn keeps after the line is gone — same rule as web.
+  const turnDurationMs = metadata.turnDurationMs ?? null;
+  const runActivity = useMemo(
+    () => selectRunActivity(statusParts, turnDurationMs, isStreaming),
+    [statusParts, turnDurationMs, isStreaming]
+  );
   const progress = metadata.progress;
   const generationFrame = generationFrameFor({
     isStreaming,
@@ -189,6 +197,7 @@ export const AssistantMessage = memo(function AssistantMessage() {
             reasoningText={reasoningText}
             sources={statusSources}
           />
+          {runActivity && <RunActivitySummary view={runActivity} theme={theme} />}
           {/* Deep-Research-Fortschritt: web zeigt ihn im ArtifactPanel, die App
             hat keins. Nur solange der Turn läuft — danach trägt die
             Bericht-Karte das Ergebnis. */}

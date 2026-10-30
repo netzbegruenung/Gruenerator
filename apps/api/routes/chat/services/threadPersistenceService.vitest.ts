@@ -91,11 +91,21 @@ describe('finalizeAssistantMessage', () => {
     const q = sql();
     expect(q).toContain('UPDATE chat_messages');
     expect(q).toContain('content = $2');
-    expect(q).toContain('tool_results = $3');
+    expect(q).toContain('tool_results = CASE');
     expect(q).toContain("status = 'complete'");
     expect(q).toContain('WHERE id = $1');
     expect(q).toContain('RETURNING id');
     expect(params()).toEqual(['msg-1', 'final', JSON.stringify({ intent: 'direct' })]);
+  });
+
+  it('stamps the turn duration from created_at into object metadata only', async () => {
+    queryMock.mockResolvedValueOnce([{ id: 'msg-1' }]);
+    await finalizeAssistantMessage('msg-1', 'final', { intent: 'direct' });
+    const q = sql();
+    expect(q).toContain(
+      "WHEN jsonb_typeof($3::jsonb) = 'object' THEN $3::jsonb || jsonb_build_object( 'turnDurationMs', ROUND(EXTRACT(EPOCH FROM (now() - created_at)) * 1000)::bigint )"
+    );
+    expect(q).toContain('ELSE $3::jsonb END');
   });
 
   it('returns false when no row matched (row was deleted)', async () => {

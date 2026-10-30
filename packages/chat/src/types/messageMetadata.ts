@@ -98,6 +98,9 @@ export type ChatMessageMetadata = {
   /** Turn was interrupted mid-stream (row still status='streaming' on reload);
    *  the partial text renders normally plus a subtle marker. */
   interrupted?: boolean;
+  /** Wall time of the turn in ms — live from the stream, after a reload from the
+   *  finalized row. Drives `selectRunActivity`; absent on older turns. */
+  turnDurationMs?: number;
   /**
    * Das Notebook hat zur Frage wenig Passendes gefunden (`evidence_weak`).
    * Trägt den SERVER-Text, keinen booleschen Schalter: der Satz lebt in

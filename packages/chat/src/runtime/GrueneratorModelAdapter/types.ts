@@ -55,6 +55,8 @@ export type GrueneratorMessageMetadata = {
   /** Notebook found little relevant to answer with (`evidence_weak`); rendered
    *  as a quiet note under the answer instead of a toast (AssistantMessage.tsx). */
   evidenceWeak?: string;
+  /** Wall time of the turn in ms, measured from the first byte to `done`. */
+  turnDurationMs?: number;
   /** Notebook answers only: the mode the answer ran in (`answer_mode` event). */
   answerMode?: NotebookResolvedAnswerMode;
   answerModeReason?: NotebookAnswerModeReason;

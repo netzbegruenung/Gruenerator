@@ -191,6 +191,12 @@ export async function updatePendingAssistantText(messageId: string, text: string
  * content + tool_results metadata and flip status to 'complete'. Returns false
  * when no row matched (e.g. a regenerate from another tab deleted the row) —
  * the caller then skips a re-insert and only warns.
+ *
+ * Also stamps `turnDurationMs` into the metadata: the placeholder was written
+ * when the turn started (`createPendingAssistantMessage`), so its `created_at`
+ * is the start and this statement is the end. Done here, in SQL, so every
+ * finalize path records it without each caller keeping a clock. Null metadata
+ * stays null — an object would change what the reader takes the row for.
  */
 export async function finalizeAssistantMessage(
   messageId: string,
@@ -200,7 +206,14 @@ export async function finalizeAssistantMessage(
   const postgres = getPostgresInstance();
   const result = (await postgres.query(
     `UPDATE chat_messages
-     SET content = $2, tool_results = $3, status = 'complete'
+     SET content = $2,
+         tool_results = CASE
+           WHEN jsonb_typeof($3::jsonb) = 'object' THEN $3::jsonb || jsonb_build_object(
+             'turnDurationMs', ROUND(EXTRACT(EPOCH FROM (now() - created_at)) * 1000)::bigint
+           )
+           ELSE $3::jsonb
+         END,
+         status = 'complete'
      WHERE id = $1
      RETURNING id`,
     [messageId, content, metadata ? JSON.stringify(metadata) : null]

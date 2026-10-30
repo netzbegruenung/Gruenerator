@@ -102,6 +102,8 @@ export interface LoadedMessage {
     /** The turn is still running server-side and can be re-attached
      *  (`resumableStream.splitLiveTurn`). Comes with `interrupted` for old clients. */
     live?: boolean;
+    /** Wall time of the turn, stamped by `finalizeAssistantMessage`. */
+    turnDurationMs?: number;
     /** Rezept-Attribution des Turns (siehe `StreamMetadata.recipesUsed`). */
     recipesUsed?: { mention: string; title: string; source?: 'system' | 'user' }[];
     /** Freigabe-Karten für geänderte Konnektor-Werkzeuge (`resolved` nach der Antwort). */
@@ -265,6 +267,7 @@ export const PASSTHROUGH_METADATA_FIELDS = [
   'agentId',
   'roleName',
   'interrupted',
+  'turnDurationMs',
 ] as const;
 
 /**
