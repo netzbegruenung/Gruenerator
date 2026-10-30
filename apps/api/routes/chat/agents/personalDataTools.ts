@@ -264,6 +264,37 @@ export function requireUserId(state: ChatGraphState): string | null {
 // find_content — cross-domain read over the user's own stuff
 // ---------------------------------------------------------------------------
 
+/**
+ * Ids from OTHER conversations offered in this loop, none chosen yet — shared
+ * by `find_content` and `read_artifact`, both built on the loop's one ctx.
+ * Telling the model "lies keins auf Verdacht" was not enough: it read the first
+ * candidate 4 of 5 times live, and `find_content` action="recent" hands out the
+ * same foreign ids `read_artifact` withholds — the route #5134 took. The choice
+ * comes back only through `ask_human`, whose answer resumes as a fresh loop
+ * with a fresh ctx (clarificationResume), so a read of one of these ids in THIS
+ * loop is by construction a guess. Search hits are not added: there the person
+ * named the term.
+ */
+const unchosenForeignByLoop = new WeakMap<PersonalToolCtx, Set<string>>();
+
+function unchosenForeignOf(ctx: PersonalToolCtx): Set<string> {
+  let ids = unchosenForeignByLoop.get(ctx);
+  if (!ids) {
+    ids = new Set();
+    unchosenForeignByLoop.set(ctx, ids);
+  }
+  return ids;
+}
+
+/** Refs of the artifacts this conversation has produced, this turn included. */
+function threadArtifactRefs(state: ChatGraphState): Set<string> {
+  return new Set(
+    [...artifactsFromTurn(state), ...(state.threadArtifacts ?? [])].flatMap((a) =>
+      a.ref ? [a.ref] : []
+    )
+  );
+}
+
 /** The kind `read_artifact` reads a recent-activity item as — null for images,
  *  videos and canvases, which carry no text to read back. */
 function readKindOfRecent(it: RecentActivityItem): ArtifactReadKind | null {
@@ -361,9 +392,12 @@ DATUM: "geaendert" ist das Datum der letzten Änderung. Tragen mehrere Treffer d
       }
 
       const items = await aggregateRecentActivity(userId, limit);
+      const ownRefs = threadArtifactRefs(state);
+      const unchosenForeign = unchosenForeignOf(ctx);
       const results = items.map((it) => {
         // Bilder, Videos und Canvas haben keinen Text für read_artifact.
         const kind = readKindOfRecent(it);
+        if (kind && !ownRefs.has(it.id)) unchosenForeign.add(it.id);
         return {
           ...makeRow(it.title, it.href, it.documentType ?? it.type, it.content),
           ...changedAt(it.date),
@@ -728,13 +762,7 @@ const READ_KIND_FOR_ARTIFACT: Record<ThreadToolContext['kind'], ArtifactReadKind
  */
 export function makeReadArtifactTool(ctx: PersonalToolCtx): Tool {
   const { state, sourceRegistry } = ctx;
-  // Candidates from OTHER conversations offered in this loop, none chosen yet.
-  // Telling the model "lies keins auf Verdacht" was not enough — it read the
-  // first one 4 of 5 times live. The choice comes back only through
-  // `ask_human`, and its answer resumes as a fresh loop with a fresh tool
-  // instance (clarificationResume), so within THIS instance a read of one of
-  // these ids is by construction a guess.
-  const unchosenForeign = new Set<string>();
+  const unchosenForeign = unchosenForeignOf(ctx);
   return tool({
     description: `Öffnet ein eigenes Artefakt und liest seinen INHALT — Folientexte, Tabellenzellen, Dokumenttext, Board-Karten oder den Text eines erzeugten PDFs.
 

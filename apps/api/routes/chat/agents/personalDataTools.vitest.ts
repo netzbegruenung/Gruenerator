@@ -1044,6 +1044,29 @@ describe('read_artifact', () => {
     expect(chosen.content).toContain('Zweiter Absatz');
   });
 
+  it('refuses a foreign id taken from find_content action="recent" — the #5134 route', async () => {
+    aggregateRecentActivity.mockResolvedValueOnce([
+      { id: 'd9', title: 'Trinkbrunnen', type: 'doc', documentType: 'antrag', date: '2' },
+      { id: 'own-1', title: 'Unser Antrag', type: 'doc', documentType: 'antrag', date: '1' },
+    ]);
+    // One ctx per loop: find_content and read_artifact are built on the same one.
+    const c = artifactState('u1', [{ kind: 'doc', ref: 'own-1', label: 'Unser Antrag' }]);
+    await exec(makeFindContentTool(c), { action: 'recent', limit: 5 });
+
+    const guess = (await exec(makeReadArtifactTool(c), { kind: 'doc', id: 'd9' })) as {
+      error?: string;
+    };
+    expect(guess.error).toContain('ask_human');
+    expect(readArtifactContent).not.toHaveBeenCalled();
+
+    // This conversation's own artifact stays readable by id.
+    readArtifactContent.mockResolvedValueOnce('Eigener Text');
+    const own = (await exec(makeReadArtifactTool(c), { kind: 'doc', id: 'own-1' })) as {
+      content?: string;
+    };
+    expect(own.content).toContain('Eigener Text');
+  });
+
   it('reports an unreadable artifact as an error rather than empty content', async () => {
     readArtifactContent.mockResolvedValueOnce(null);
     const out = (await exec(makeReadArtifactTool(ctx('u1')), {
