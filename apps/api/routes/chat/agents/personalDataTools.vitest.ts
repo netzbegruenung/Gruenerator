@@ -976,13 +976,95 @@ describe('read_artifact', () => {
     expect(readArtifactContent).not.toHaveBeenCalled();
   });
 
-  it('says so when the conversation has no artifact of that kind', async () => {
+  it('says so when neither the conversation nor recent activity has that kind', async () => {
+    aggregateRecentActivity.mockResolvedValueOnce([
+      { id: 'b1', title: 'Board', type: 'board', date: '2026-10-29' },
+    ]);
     const c = artifactState('u1', [{ kind: 'sheet', ref: 'sheet-1', label: 'Budget' }]);
     const out = (await exec(makeReadArtifactTool(c), { kind: 'presentation' })) as {
       error?: string;
     };
     expect(out.error).toContain('Präsentation');
     expect(readArtifactContent).not.toHaveBeenCalled();
+  });
+
+  /**
+   * #5134: the old answer here was "suche es mit find_content". The model took
+   * action="recent", read the newest similar title — a document from another
+   * thread — and answered about it with full confidence. The newest one is not
+   * the meant one: the tool hands back candidates and the choice to the person.
+   */
+  it('offers recent artifacts of that kind as candidates instead of a search hint', async () => {
+    aggregateRecentActivity.mockResolvedValueOnce([
+      { id: 'd3', title: 'Trinkbrunnen (3)', type: 'doc', documentType: 'antrag', date: '3' },
+      { id: 'img', title: 'Bild', type: 'image', date: '2' },
+      { id: 'p1', title: 'Folien', type: 'doc', documentType: 'presentations', date: '2' },
+      { id: 'd2', title: 'Trinkbrunnen (2)', type: 'doc', documentType: 'blank', date: '1' },
+      { id: 'd1', title: 'Trinkbrunnen (1)', type: 'doc', documentType: 'antrag', date: '1' },
+      { id: 'd0', title: 'Radweg', type: 'doc', documentType: 'antrag', date: '0' },
+      { id: 'dx', title: 'Zu alt', type: 'doc', documentType: 'antrag', date: '0' },
+    ]);
+
+    const out = (await exec(makeReadArtifactTool(ctx('u1')), { kind: 'doc' })) as {
+      needsChoice?: boolean;
+      note?: string;
+      candidates?: Array<{ id: string; title: string }>;
+      error?: string;
+    };
+
+    expect(out.error).toBeUndefined();
+    expect(out.needsChoice).toBe(true);
+    // Only documents, newest first, at most four — ask_human takes four options.
+    expect(out.candidates?.map((x) => x.id)).toEqual(['d3', 'd2', 'd1', 'd0']);
+    expect(out.note).toMatch(/ANDEREN Gesprächen/);
+    expect(out.note).toContain('ask_human');
+    expect(out.note).not.toContain('find_content');
+    expect(readArtifactContent).not.toHaveBeenCalled();
+  });
+
+  it('refuses to read an offered candidate before the person has chosen', async () => {
+    aggregateRecentActivity.mockResolvedValueOnce([
+      { id: 'd2', title: 'Trinkbrunnen (2)', type: 'doc', documentType: 'antrag', date: '2' },
+      { id: 'd1', title: 'Trinkbrunnen (1)', type: 'doc', documentType: 'antrag', date: '1' },
+    ]);
+    const readTool = makeReadArtifactTool(ctx('u1'));
+    await exec(readTool, { kind: 'doc' });
+
+    const guess = (await exec(readTool, { kind: 'doc', id: 'd2' })) as { error?: string };
+
+    expect(guess.error).toContain('ask_human');
+    expect(readArtifactContent).not.toHaveBeenCalled();
+
+    // The answer resumes as a fresh loop with a fresh tool instance — the
+    // chosen id is read there.
+    readArtifactContent.mockResolvedValueOnce('Zweiter Absatz');
+    const chosen = (await exec(makeReadArtifactTool(ctx('u1')), { kind: 'doc', id: 'd2' })) as {
+      content?: string;
+    };
+    expect(chosen.content).toContain('Zweiter Absatz');
+  });
+
+  it('refuses a foreign id taken from find_content action="recent" — the #5134 route', async () => {
+    aggregateRecentActivity.mockResolvedValueOnce([
+      { id: 'd9', title: 'Trinkbrunnen', type: 'doc', documentType: 'antrag', date: '2' },
+      { id: 'own-1', title: 'Unser Antrag', type: 'doc', documentType: 'antrag', date: '1' },
+    ]);
+    // One ctx per loop: find_content and read_artifact are built on the same one.
+    const c = artifactState('u1', [{ kind: 'doc', ref: 'own-1', label: 'Unser Antrag' }]);
+    await exec(makeFindContentTool(c), { action: 'recent', limit: 5 });
+
+    const guess = (await exec(makeReadArtifactTool(c), { kind: 'doc', id: 'd9' })) as {
+      error?: string;
+    };
+    expect(guess.error).toContain('ask_human');
+    expect(readArtifactContent).not.toHaveBeenCalled();
+
+    // This conversation's own artifact stays readable by id.
+    readArtifactContent.mockResolvedValueOnce('Eigener Text');
+    const own = (await exec(makeReadArtifactTool(c), { kind: 'doc', id: 'own-1' })) as {
+      content?: string;
+    };
+    expect(own.content).toContain('Eigener Text');
   });
 
   it('reports an unreadable artifact as an error rather than empty content', async () => {

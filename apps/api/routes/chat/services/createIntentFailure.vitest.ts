@@ -85,6 +85,7 @@ const {
   handlePdfCreation,
   handleBoardCreation,
   generateAndCreateDocument,
+  contributeDocumentToOpenTurn,
 } = await import('./intentExecutionService.js');
 
 interface RecordedEvent {
@@ -228,19 +229,19 @@ describe.each(cases)('$name owns the turn when generation fails', ({ intent, run
 });
 
 describe('save_as_doc keeps its deliberate fall-through', () => {
-  it('returns false without owning the stream when skipTerminate is set', async () => {
+  it('returns null without owning the stream when the contribution fails', async () => {
     const { sse, events } = makeSse();
 
     // save_as_doc shares the turn with its caller — it must NOT terminate.
     await expect(
-      generateAndCreateDocument({
-        ...baseOpts,
+      contributeDocumentToOpenTurn({
         sse,
+        req: baseOpts.req,
+        userId: baseOpts.userId,
         userContent: 'Dokument',
         intent: 'save_as_doc',
-        skipTerminate: true,
       })
-    ).resolves.toBe(false);
+    ).resolves.toBeNull();
 
     expect(countOf(events, 'response_start')).toBe(0);
     expect(countOf(events, 'done')).toBe(0);

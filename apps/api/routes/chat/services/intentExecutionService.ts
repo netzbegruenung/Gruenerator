@@ -26,6 +26,7 @@ export {
 } from './artifactGeneration.js';
 
 export {
+  contributeDocumentToOpenTurn,
   generateAndCreateDocument,
   handleBoardCreation,
   handleExplainableCreation,

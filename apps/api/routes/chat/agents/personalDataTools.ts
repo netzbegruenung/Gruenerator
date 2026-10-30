@@ -66,7 +66,10 @@ import {
   officeUrl,
   searchOfficeContent,
 } from '../../docs/docsSearch.js';
-import { aggregateRecentActivity } from '../../workplace/recentActivityController.js';
+import {
+  aggregateRecentActivity,
+  type RecentActivityItem,
+} from '../../workplace/recentActivityController.js';
 import { hasWriteAccess } from '../confirmController.js';
 import {
   readArtifactContent,
@@ -262,6 +265,45 @@ export function requireUserId(state: ChatGraphState): string | null {
 // ---------------------------------------------------------------------------
 
 /**
+ * Ids from OTHER conversations offered in this loop, none chosen yet — shared
+ * by `find_content` and `read_artifact`, both built on the loop's one ctx.
+ * Telling the model "lies keins auf Verdacht" was not enough: it read the first
+ * candidate 4 of 5 times live, and `find_content` action="recent" hands out the
+ * same foreign ids `read_artifact` withholds — the route #5134 took. The choice
+ * comes back only through `ask_human`, whose answer resumes as a fresh loop
+ * with a fresh ctx (clarificationResume), so a read of one of these ids in THIS
+ * loop is by construction a guess. Search hits are not added: there the person
+ * named the term.
+ */
+const unchosenForeignByLoop = new WeakMap<PersonalToolCtx, Set<string>>();
+
+function unchosenForeignOf(ctx: PersonalToolCtx): Set<string> {
+  let ids = unchosenForeignByLoop.get(ctx);
+  if (!ids) {
+    ids = new Set();
+    unchosenForeignByLoop.set(ctx, ids);
+  }
+  return ids;
+}
+
+/** Refs of the artifacts this conversation has produced, this turn included. */
+function threadArtifactRefs(state: ChatGraphState): Set<string> {
+  return new Set(
+    [...artifactsFromTurn(state), ...(state.threadArtifacts ?? [])].flatMap((a) =>
+      a.ref ? [a.ref] : []
+    )
+  );
+}
+
+/** The kind `read_artifact` reads a recent-activity item as — null for images,
+ *  videos and canvases, which carry no text to read back. */
+function readKindOfRecent(it: RecentActivityItem): ArtifactReadKind | null {
+  if (it.type === 'doc') return subtypeToReadKind(it.documentType ?? null);
+  if (it.type === 'board') return 'board';
+  return null;
+}
+
+/**
  * Notebooks are deliberately NOT part of this tool, and the description says so
  * out loud. Both paths below are Postgres-backed: `searchOfficeContent` reads
  * `collaborative_documents` (office subtypes only) and `aggregateRecentActivity`
@@ -350,16 +392,18 @@ DATUM: "geaendert" ist das Datum der letzten Änderung. Tragen mehrere Treffer d
       }
 
       const items = await aggregateRecentActivity(userId, limit);
-      const results = items.map((it) => ({
-        ...makeRow(it.title, it.href, it.documentType ?? it.type, it.content),
-        ...changedAt(it.date),
+      const ownRefs = threadArtifactRefs(state);
+      const unchosenForeign = unchosenForeignOf(ctx);
+      const results = items.map((it) => {
         // Bilder, Videos und Canvas haben keinen Text für read_artifact.
-        ...(it.type === 'doc'
-          ? { id: it.id, kind: subtypeToReadKind(it.documentType ?? null) }
-          : it.type === 'board'
-            ? { id: it.id, kind: 'board' as const }
-            : {}),
-      }));
+        const kind = readKindOfRecent(it);
+        if (kind && !ownRefs.has(it.id)) unchosenForeign.add(it.id);
+        return {
+          ...makeRow(it.title, it.href, it.documentType ?? it.type, it.content),
+          ...changedAt(it.date),
+          ...(kind && { id: it.id, kind }),
+        };
+      });
       groundRows(sourceRegistry, results);
       return { resultCount: results.length, results };
     },
@@ -662,6 +706,11 @@ NUTZE FÜR: eigene Dokumente auflisten (list), Titel, Art und Link eines Dokumen
 /** Beyond this the excerpt is cut — one artifact must not eat the whole turn. */
 export const ARTIFACT_READ_CHARS = 12_000;
 
+/** How far back `read_artifact` looks for candidates when the conversation has
+ *  none of the asked kind, and how many it offers — `ask_human` takes four. */
+const RECENT_LOOKBACK = 30;
+const MAX_FOREIGN_CANDIDATES = 4;
+
 const READ_KIND_NOUN: Record<ArtifactReadKind, string> = {
   doc: 'Dokument',
   board: 'Board',
@@ -713,6 +762,7 @@ const READ_KIND_FOR_ARTIFACT: Record<ThreadToolContext['kind'], ArtifactReadKind
  */
 export function makeReadArtifactTool(ctx: PersonalToolCtx): Tool {
   const { state, sourceRegistry } = ctx;
+  const unchosenForeign = unchosenForeignOf(ctx);
   return tool({
     description: `Öffnet ein eigenes Artefakt und liest seinen INHALT — Folientexte, Tabellenzellen, Dokumenttext, Board-Karten oder den Text eines erzeugten PDFs.
 
@@ -756,8 +806,24 @@ Lange Inhalte kommen in Teilen zu ${ARTIFACT_READ_CHARS.toLocaleString('de-DE')}
         );
         const unique = [...new Map(candidates.map((a) => [a.ref!, a])).values()];
         if (unique.length === 0) {
+          // Not "go search": the old answer sent the model to find_content, it
+          // took action="recent" and read the newest similar title — a document
+          // from another thread, answered about with full confidence (#5134).
+          // The newest one is not the meant one, so the choice goes back to the
+          // person, with the candidates the tool can see.
+          const recent = (await aggregateRecentActivity(userId, RECENT_LOOKBACK))
+            .filter((it) => readKindOfRecent(it) === kind)
+            .slice(0, MAX_FOREIGN_CANDIDATES);
+          if (recent.length === 0) {
+            return {
+              error: `In diesem Gespräch gibt es kein Artefakt der Art „${noun}", und unter den zuletzt bearbeiteten Inhalten der Person auch nicht. Frage nach, welches ${noun} gemeint ist, oder suche mit 'find_content' (action="search") nach einem Begriff, den die Person genannt hat.`,
+            };
+          }
+          for (const it of recent) unchosenForeign.add(it.id);
           return {
-            error: `In diesem Gespräch gibt es kein Artefakt der Art „${noun}". Suche es mit 'find_content', oder nenne eine id.`,
+            needsChoice: true,
+            note: `In diesem Gespräch gibt es kein Artefakt der Art „${noun}". Die Kandidaten unten sind die zuletzt bearbeiteten der Person aus ANDEREN Gesprächen — welches sie meint, weißt du nicht. Lies keins auf Verdacht: frage mit 'ask_human' nach (die Titel als Optionen; ohne 'ask_human' in deiner Antwort) und rufe danach mit der id auf.`,
+            candidates: recent.map((it) => ({ id: it.id, title: it.title, zuletzt: it.date })),
           };
         }
         if (unique.length > 1) {
@@ -770,6 +836,10 @@ Lange Inhalte kommen in Teilen zu ${ARTIFACT_READ_CHARS.toLocaleString('de-DE')}
         }
         targetId = unique[0]!.ref!;
         label = unique[0]!.label ?? null;
+      } else if (unchosenForeign.has(targetId)) {
+        return {
+          error: `Die Person hat noch nicht gesagt, welches ${noun} sie meint — dieses ist nur einer der Kandidaten aus anderen Gesprächen. Frage zuerst mit 'ask_human' nach (ohne 'ask_human' in deiner Antwort) und lies erst dann.`,
+        };
       }
 
       let content: string | null;
