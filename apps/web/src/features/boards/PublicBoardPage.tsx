@@ -1,4 +1,4 @@
-import { getAuthErrorMessage } from '@gruenerator/collab';
+import { CollabUnavailable, getAuthErrorMessage, useSyncGate } from '@gruenerator/collab';
 import { DocsProvider } from '@gruenerator/docs';
 import { useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
@@ -29,9 +29,13 @@ function PublicBoardContent() {
     ydoc,
     provider,
     isSynced,
+    isLocalLoaded,
     authError,
     isReadOnly: isReadOnlyConnection,
   } = useBoardCollaboration(id || '');
+  // useBoardState shows nothing before a server sync, cached copy or not.
+  const syncGate = useSyncGate(provider, isSynced, ydoc, isLocalLoaded);
+  const offline = syncGate !== 'waiting' && !isSynced;
 
   if (isLoading) {
     return (
@@ -122,7 +126,9 @@ function PublicBoardContent() {
           )}
         </div>
       </div>
-      {isWhiteboard ? (
+      {offline ? (
+        <CollabUnavailable provider={provider} />
+      ) : isWhiteboard ? (
         <WhiteboardUnavailable ydoc={ydoc} isSynced={isSynced} title={board.title} />
       ) : (
         <BoardReadOnlyContext.Provider value={isReadOnly}>

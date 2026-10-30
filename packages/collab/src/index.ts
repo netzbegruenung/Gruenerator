@@ -4,11 +4,12 @@ export {
   type UseCollaborationOptions,
 } from './hooks/useCollaboration';
 export { useCollaborators } from './hooks/useCollaborators';
-export { useSyncGate } from './hooks/useSyncGate';
+export { useSyncGate, type SyncGate } from './hooks/useSyncGate';
 export { useDelayedConnectionStatus } from './hooks/useDelayedConnectionStatus';
 export { useAwarenessState } from './hooks/useAwarenessState';
 export { PresenceAvatars } from './components/PresenceAvatars';
 export { TypingIndicator } from './components/TypingIndicator';
+export { CollabUnavailable } from './components/CollabUnavailable';
 export { generateUserColor } from './utils';
 export { removeDocCache, clearAllDocCaches } from './lib/cacheRegistry';
 export { getAuthErrorMessage } from './lib/authErrors';
