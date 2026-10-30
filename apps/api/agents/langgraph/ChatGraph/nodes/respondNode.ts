@@ -2091,23 +2091,28 @@ async function buildPromptBlockContext(state: ChatGraphState, opts: SystemMessag
   // path, detailed block only on product meta questions ("was kannst du",
   // "welche MCP-Server kennst du"). Both single-pass paths that CHITCHAT_RE
   // keeps out of the loop and loop turns (which inherit systemMessage) get it.
-  // Excluded from the customSystemPrompt branch below — that prompt replaces
-  // the ENTIRE persona, and forcing the Grünerator identity into it would
-  // override user-defined neutral/off-brand personas.
+  //
+  // Im Rollen-Chat (`customSystemPrompt`) fehlt nur die IDENTITÄT: die Rolle
+  // ersetzt die Persona bewusst, „Du bist Teil des Grünerator" würde
+  // nutzerdefinierte neutrale Rollen überschreiben. Die Produkt-FAKTEN
+  // (Wissensblock, Begriffe, Seitenkarte) bekommt er auf Produktfragen
+  // trotzdem — sonst beantwortet er „Wie erstelle ich ein Sharepic?" aus dem
+  // Vorwissen des Modells (#5016). Im Loop trägt er `product_knowledge` ohnehin.
+  //
+  // Dieselbe Textfassung wie `toolCatalog`/`catalogAssembly`: mit einer
+  // @-Erwähnung in der Nachricht dürfen die beiden Tore nicht auseinanderlaufen.
   const isNeutralTurn = intent === 'summary';
-  const userQuestion = lastUserText(state);
+  const userQuestion = state.lastUserTextNoMentions ?? lastUserText(state);
   const productIdentity = isNeutralTurn ? '' : buildCompactProductIdentity(state.userLocale);
-  // Der Block macht I/O (versteckte Agenten, verbundene MCP-Server) — im
-  // Rollen-Chat wird er nie gerendert, also dort gar nicht erst gebaut.
   let productKnowledge = '';
-  if (!state.customSystemPrompt && !isNeutralTurn && isProductMetaQuestion(userQuestion)) {
+  if (!isNeutralTurn && isProductMetaQuestion(userQuestion)) {
     productKnowledge = await buildProductKnowledgeBlock({
       locale: state.userLocale,
       userId: state.agentConfig?.userId ?? null,
       question: userQuestion,
     });
     log.debug('[Respond] product-knowledge block attached');
-  } else if (!state.customSystemPrompt && !isNeutralTurn && userQuestion.length <= 400) {
+  } else if (!isNeutralTurn && userQuestion.length <= 400) {
     // Only the terms this message names — „Was ist Panda?" must not be
     // answered from priors (Panda Security, live 27.10.2026). Short turns
     // only: in pasted material a term is content, not a question.
@@ -2115,11 +2120,13 @@ async function buildPromptBlockContext(state: ChatGraphState, opts: SystemMessag
   }
 
   // Documentation page map: every doc page with URL + lead paragraph (~2.5k
-  // tokens for the whole corpus). Attached on operating questions so the model
-  // can name AND link the right page even on turns that never reach the agentic
-  // loop — CHITCHAT_RE pins "hilfe"/"was kannst du" to the single-pass path,
-  // where `gruenerator_docs_search` does not exist. Complementary to that tool,
-  // not redundant: the map lists the pages, the tool retrieves section text.
+  // tokens for the whole corpus). Attached on operating questions ("wie
+  // erstelle ich ein Sharepic?") so the model can name AND link the right page
+  // even on turns that never reach the agentic loop, where
+  // `gruenerator_docs_search` does not exist. Bare "hilfe"/"was kannst du" do
+  // NOT get the map — they get the knowledge block above, which points to the
+  // docs. Complementary to the tool, not redundant: the map lists the pages,
+  // the tool retrieves section text.
   //
   // Hängt am gepinnten WERKZEUG statt am Intent `hilfe`. Der Intent deckte zwei
   // verschiedene Fälle in einer Bedingung ab, und nur einer davon brauchte ihn:
@@ -2439,8 +2446,8 @@ const PROMPT_BLOCKS = [
   { id: 'locale-context', branches: BOTH, render: (ctx) => ctx.localeContext },
   { id: 'platform-context', branches: BOTH, render: (ctx) => ctx.platformContext },
   { id: 'product-identity', branches: DEFAULT_ONLY, render: (ctx) => ctx.productIdentity },
-  { id: 'product-knowledge', branches: DEFAULT_ONLY, render: (ctx) => ctx.productKnowledge },
-  { id: 'docs-page-map', branches: DEFAULT_ONLY, render: (ctx) => ctx.docsPageMap },
+  { id: 'product-knowledge', branches: BOTH, render: (ctx) => ctx.productKnowledge },
+  { id: 'docs-page-map', branches: BOTH, render: (ctx) => ctx.docsPageMap },
   { id: 'user-instructions', branches: BOTH, render: (ctx) => ctx.userInstructionsFormatted },
   { id: 'intent-guidance', branches: DEFAULT_ONLY, render: (ctx) => ctx.intentGuidance },
   { id: 'memory-context', branches: BOTH, render: (ctx) => ctx.memoryContextFormatted },
