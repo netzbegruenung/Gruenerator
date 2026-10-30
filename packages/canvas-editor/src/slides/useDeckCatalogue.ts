@@ -3,19 +3,29 @@
  * immer dabei. Fehlt der Lader oder scheitert er, bleibt „Offiziell".
  */
 import { type FolienVorlage } from '@gruenerator/contracts';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 
-/** Der Stil des Grünen CD: gibt es immer, auch ohne Katalog des Hosts. */
-export const OFFIZIELL: FolienVorlage = {
-  id: 'offiziell',
+import type { BrandLocale } from '../brand/theme';
+
+/**
+ * Der Stil des Grünen CD: gibt es immer, auch ohne Katalog des Hosts. Die Id folgt der
+ * eingebauten Rückfall-Vorlage des Servers (`sharepicVorlagen/catalog.ts`), damit beide
+ * Seiten dieselbe Vorlage meinen.
+ */
+export const offiziellFor = (locale: BrandLocale): FolienVorlage => ({
+  id: locale === 'de-AT' ? 'at-folien-offiziell' : 'de-folien-offiziell',
   titel: 'Offiziell',
-  beschreibung: 'Das Corporate Design der Grünen.',
+  beschreibung: 'Corporate Design der Grünen',
   stil: 'cd',
-  locale: 'de-DE',
-};
+  locale,
+});
 
-export function useDeckCatalogue(load: (() => Promise<FolienVorlage[]>) | null): FolienVorlage[] {
-  const [catalogue, setCatalogue] = useState<FolienVorlage[]>([OFFIZIELL]);
+export function useDeckCatalogue(
+  load: (() => Promise<FolienVorlage[]>) | null,
+  locale: BrandLocale
+): FolienVorlage[] {
+  const [loaded, setLoaded] = useState<FolienVorlage[] | null>(null);
+  const catalogue = useMemo(() => loaded ?? [offiziellFor(locale)], [loaded, locale]);
 
   useEffect(() => {
     if (!load) return;
@@ -23,7 +33,9 @@ export function useDeckCatalogue(load: (() => Promise<FolienVorlage[]>) | null):
     load().then(
       (vorlagen) => {
         if (live && vorlagen.length > 0) {
-          setCatalogue(vorlagen.some((v) => v.stil === 'cd') ? vorlagen : [OFFIZIELL, ...vorlagen]);
+          setLoaded(
+            vorlagen.some((v) => v.stil === 'cd') ? vorlagen : [offiziellFor(locale), ...vorlagen]
+          );
         }
       },
       (err: unknown) => {
@@ -33,7 +45,7 @@ export function useDeckCatalogue(load: (() => Promise<FolienVorlage[]>) | null):
     return () => {
       live = false;
     };
-  }, [load]);
+  }, [load, locale]);
 
   return catalogue;
 }

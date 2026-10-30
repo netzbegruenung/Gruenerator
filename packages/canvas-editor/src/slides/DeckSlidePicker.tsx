@@ -125,7 +125,7 @@ export function DeckSlidePicker({
   onSelect,
   onDragStart,
 }: DeckSlidePickerProps) {
-  const catalogue = useDeckCatalogue(load);
+  const catalogue = useDeckCatalogue(load, locale);
   const active = readDeckStil(pages);
   const first = catalogue.find((v) => v.stil === active);
   const ordered = first ? [first, ...catalogue.filter((v) => v !== first)] : catalogue;

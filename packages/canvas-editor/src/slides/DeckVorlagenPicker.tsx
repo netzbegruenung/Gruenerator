@@ -83,7 +83,7 @@ export function deckTitleOf(pages: readonly HeterogeneousPage[]): string {
 
 export function DeckVorlagenPicker({ load, pages, deck, locale }: DeckVorlagenPickerProps) {
   const announce = useAnnounce();
-  const catalogue = useDeckCatalogue(load);
+  const catalogue = useDeckCatalogue(load, locale);
   const [asking, setAsking] = useState<FolienVorlage | null>(null);
 
   const active = readDeckStil(pages);
