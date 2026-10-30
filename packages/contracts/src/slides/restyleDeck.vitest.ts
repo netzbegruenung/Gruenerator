@@ -96,3 +96,17 @@ describe('restyleDeck', () => {
     expect(out).toBe(odd);
   });
 });
+
+describe('restyleDeck footer date', () => {
+  it('keeps the date the deck already shows instead of resetting it to today', () => {
+    const pages = pagesOf('ruhig');
+    for (const p of pages) {
+      const el = texts(p).find((t) => t.id === 'folie-datum');
+      if (el) el.text = 'Montag, 1. Januar 2024';
+    }
+    const out = restyleDeck(pages, 'band', { ...ctx, date: new Date('2030-05-05T12:00:00Z') });
+    const dated = out.map((p) => texts(p).find((t) => t.id === 'folie-datum')).filter(Boolean);
+    expect(dated.length).toBeGreaterThan(0);
+    expect(dated.every((t) => t!.text === 'Montag, 1. Januar 2024')).toBe(true);
+  });
+});

@@ -23,6 +23,7 @@ import { v4 as uuid } from 'uuid';
 
 import { vorlageDeckOps } from '../collab/vorlageDeck';
 
+import { browserMeasureText } from './browserMeasureText';
 import { DECK_PREVIEW_TYPEN, useDeckStilThumbnail } from './deckStilThumbnails';
 
 import type { DeckPreviewTyp } from './renderDeckStilThumbnail';
@@ -113,15 +114,16 @@ export function DeckVorlagenPicker({ load, pages, deck, locale }: DeckVorlagenPi
 
   const active = readDeckStil(pages);
 
-  const confirm = () => {
+  const confirm = async () => {
     const pick = asking;
     setAsking(null);
     if (!pick) return;
+    const measure = await browserMeasureText();
     const current = deck.getPages();
     const next = restyleDeck(
       current.map(({ id, configId, state }) => ({ id, configId, state })),
       pick.stil,
-      { locale, date: new Date(), title: deckTitleOf(current) }
+      { locale, date: new Date(), title: deckTitleOf(current), measure }
     );
     deck.replaceDeck(vorlageDeckOps(current, next, uuid));
     announce(`Alle Folien in „${pick.titel}“ neu gesetzt.`);
@@ -167,7 +169,7 @@ export function DeckVorlagenPicker({ load, pages, deck, locale }: DeckVorlagenPi
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Abbrechen</AlertDialogCancel>
-            <AlertDialogAction onClick={confirm}>Neu setzen</AlertDialogAction>
+            <AlertDialogAction onClick={() => void confirm()}>Neu setzen</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

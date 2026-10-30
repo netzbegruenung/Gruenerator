@@ -63,6 +63,16 @@ export function restyleDeck(pages: DeckPage[], stil: DeckStilId, ctx: RestyleCon
     }
     next['layerOrder'] = layerOrder;
 
+    // Das Datum der Fußzeile bleibt, wie es im Deck steht.
+    const oldDate = (
+      page.state['additionalTexts'] as { id?: unknown; text?: unknown }[] | undefined
+    )?.find((t) => t?.id === 'folie-datum')?.text;
+    if (typeof oldDate === 'string' && Array.isArray(next['additionalTexts'])) {
+      next['additionalTexts'] = (next['additionalTexts'] as { id?: unknown }[]).map((t) =>
+        t.id === 'folie-datum' ? { ...t, text: oldDate } : t
+      );
+    }
+
     // Gesperrt bleibt gesperrt: die Sperren der übernommenen Elemente mitnehmen.
     const kept = new Set(layerOrder);
     const locked = Array.isArray(next['lockedLayerIds'])

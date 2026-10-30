@@ -108,7 +108,7 @@ describe('DeckVorlagenPicker', () => {
     expect(deck.replaceDeck).not.toHaveBeenCalled();
     await user.click(within(dialog).getByRole('button', { name: 'Neu setzen' }));
 
-    expect(deck.replaceDeck).toHaveBeenCalledTimes(1);
+    await waitFor(() => expect(deck.replaceDeck).toHaveBeenCalledTimes(1));
     const after = pagesNow();
     expect(after.map((p) => p.id)).toEqual(['p1', 'p2']);
     expect(readDeckStil(after)).toBe('ruhig');
@@ -159,5 +159,16 @@ describe('DeckVorlagenPicker', () => {
     setup(null, 'cd');
     const section = screen.getByRole('region', { name: 'Vorlage für alle Folien' });
     expect(within(section).getAllByRole('button')).toHaveLength(1);
+  });
+});
+
+describe('DeckVorlagenPicker measure', () => {
+  it('passes a measurer to restyleDeck so texts fit their boxes', async () => {
+    const spy = vi.spyOn(await import('@gruenerator/contracts/slides'), 'restyleDeck');
+    const { user } = setup(async () => CATALOGUE, 'band');
+    await user.click(await screen.findByRole('button', { name: /Ruhig/ }));
+    await user.click(await screen.findByRole('button', { name: 'Neu setzen' }));
+    await waitFor(() => expect(spy).toHaveBeenCalled());
+    expect(typeof spy.mock.calls[0]![2].measure).toBe('function');
   });
 });
