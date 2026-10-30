@@ -97,6 +97,9 @@ export interface AIRequestData {
    * weiter und wurde zu Ende bezahlt.
    */
   timeoutMs?: number | undefined;
+  /** Abbruch durch den Aufrufer (`AiCall.signal`); `execute.ts` verbindet ihn
+   *  mit der Frist zu einem `abortSignal`. */
+  signal?: AbortSignal | undefined;
   [key: string]: unknown;
 }
 
