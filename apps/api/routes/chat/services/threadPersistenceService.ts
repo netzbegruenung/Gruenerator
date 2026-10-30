@@ -13,7 +13,7 @@ import { getPostgresInstance } from '../../../database/services/PostgresService.
 import { type PersistedStep } from './agenticLoop/types.js';
 import { type ArtifactKindId } from './artifactKindRegistry.js';
 import { parseRecordedOffer } from './artifactOffer.js';
-import { toJsonbParam } from './jsonbParam.js';
+import { toJsonbParam, toTextParam } from './jsonbParam.js';
 import { sharepicVariantCall } from './sharepicToolCalls.js';
 import { type ThreadCloudFiles, parseThreadCloudFiles } from './threadCloudFiles.js';
 import {
@@ -147,7 +147,7 @@ export async function createMessage(
     `INSERT INTO chat_messages (thread_id, role, content, tool_results, user_id)
      VALUES ($1, $2, $3, $4, $5)
      RETURNING id`,
-    [threadId, role, content, toJsonbParam(metadata), userId || null]
+    [threadId, role, toTextParam(content), toJsonbParam(metadata), userId || null]
   )) as { id: string }[];
   return result[0]!.id;
 }
@@ -183,7 +183,7 @@ export async function updatePendingAssistantText(messageId: string, text: string
   const postgres = getPostgresInstance();
   await postgres.query(
     `UPDATE chat_messages SET content = $2 WHERE id = $1 AND status = 'streaming'`,
-    [messageId, text]
+    [messageId, toTextParam(text)]
   );
 }
 
@@ -226,7 +226,7 @@ export async function finalizeAssistantMessage(
          status = 'complete'
      WHERE id = $1
      RETURNING id`,
-    [messageId, content, toJsonbParam(metadata)]
+    [messageId, toTextParam(content), toJsonbParam(metadata)]
   )) as unknown[];
   return result.length === 1;
 }
