@@ -4,7 +4,7 @@ import { ArrowRight, BarChart3, Eye, Flame, Rss, type LucideIcon } from 'lucide-
 import { memo, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 
-import { LV_NAMES } from '../../monitor/bundeslaender';
+import { lvName } from '../../monitor/bundeslaender';
 import {
   useEntityResults,
   useMonitorSnapshot,
@@ -177,7 +177,7 @@ function FeedWidget({ to, locale }: { to: string; locale: 'de' | 'at' }) {
                 title={a.title}
                 meta={[
                   ago(a.publishedAt ?? a.indexedAt),
-                  a.landesverband ? (LV_NAMES[a.landesverband] ?? a.landesverband) : '',
+                  a.landesverband ? lvName(a.landesverband) : '',
                 ]
                   .filter(Boolean)
                   .join(' · ')}

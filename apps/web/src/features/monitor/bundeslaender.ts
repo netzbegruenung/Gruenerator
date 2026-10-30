@@ -70,3 +70,15 @@ export const LV_NAMES: Record<string, string> = {
   ...Object.fromEntries(BUNDESLAENDER.map((b) => [b.short, b.name])),
   LSA: 'Sachsen-Anhalt',
 };
+
+/**
+ * Ausgeschriebener Name zu einem `landesverband`-Code der Scraper. Codes mit
+ * `-F` stehen für die Landtagsfraktion (`BY-F`, `HE-F`, …, siehe
+ * `landesverbaendeConfig.ts` der API); unbekannte Codes bleiben stehen.
+ */
+export function lvName(code: string): string {
+  const fraktion = code.endsWith('-F');
+  const name = LV_NAMES[fraktion ? code.slice(0, -2) : code];
+  if (!name) return code;
+  return fraktion ? `Landtagsfraktion ${name}` : name;
+}
