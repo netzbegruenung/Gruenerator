@@ -265,13 +265,15 @@ export function useWhatHappened(
     if (res.status === 200) return res.body;
     throw monitorError(res, 'Neue Inhalte konnten nicht geladen werden.');
   };
-  // Gespeichert wird nur der ungefilterte Strom (Widget und /feed ohne Filter);
-  // jede Filterkombination von /feed bekäme sonst einen eigenen Eintrag.
-  const filtered = Boolean(opts.sourceGroup || opts.landesverband || opts.eventType);
+  // Gespeichert wird nur die Abfrage des Widgets: sieben Tage, kein Filter
+  // (dieselbe wie /feed ohne Filter). Jeder andere Zeitraum und jede
+  // Filterkombination von /feed bekäme sonst einen eigenen Eintrag.
+  const persist =
+    (opts.days ?? 7) === 7 && !opts.sourceGroup && !opts.landesverband && !opts.eventType;
   return useQuery({
-    ...(filtered
-      ? { queryKey, queryFn: fetcher }
-      : persistedMonitorQuery(queryKey, whatHappenedResponseSchema, fetcher)),
+    ...(persist
+      ? persistedMonitorQuery(queryKey, whatHappenedResponseSchema, fetcher)
+      : { queryKey, queryFn: fetcher }),
     staleTime: 5 * 60 * 1000,
     gcTime: 30 * 60 * 1000,
   });
