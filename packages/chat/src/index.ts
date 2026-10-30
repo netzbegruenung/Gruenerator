@@ -531,6 +531,7 @@ export {
   selectStepAfterText,
   type StatusPartLike,
 } from './lib/toolStatusLine';
+export { selectRunActivity, type RunActivityView } from './lib/runActivityView';
 
 // Tool-result parsing & metadata (platform-agnostic; kept in sync with index.native.ts)
 export {

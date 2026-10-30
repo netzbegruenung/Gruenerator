@@ -343,6 +343,7 @@ export {
   selectStepAfterText,
   type StatusPartLike,
 } from './lib/toolStatusLine';
+export { selectRunActivity, type RunActivityView } from './lib/runActivityView';
 
 // URL Utilities
 export { domainHue, domainInitial, extractDomain, getHostname } from './lib/urlUtils';
