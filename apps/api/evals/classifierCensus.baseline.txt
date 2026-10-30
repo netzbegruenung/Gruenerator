@@ -1,4 +1,4 @@
-# Klassifikator-Zählung über 383 Turns aus apps/api/evals/corpus/
+# Klassifikator-Zählung über 394 Turns aus apps/api/evals/corpus/
 # Regenerieren mit CENSUS_UPDATE=1 — und den Diff lesen, bevor er committet wird.
 #
 # Der Korpus ist adversarial gebaut. Jede Quote hier ist eine Aussage über
@@ -14,15 +14,15 @@
 ## Dispositionen — was der Klassifikator entschieden hat
 disposition                       n   anteil  davon mit Modell
 anchor                            0    0.0 %     0
-artifact                         42   11.0 %     0
-gated                            18    4.7 %     0
-loop                            278   72.6 %     0
-prose                            45   11.7 %    16
+artifact                         42   10.7 %     0
+gated                            18    4.6 %     0
+loop                            289   73.4 %     0
+prose                            45   11.4 %    16
 (unbekannt)                       0    0.0 %     0
 
 ## Entscheidungspunkte — wie entschieden wurde (Zweighäufigkeit)
 (ohne Tier-Eintrag: 11 — Tier-1/2-Zweige journalisieren nicht)
-classifier.tier  (372)
+classifier.tier  (383)
     tier2_notebook_tool_ask       0
     tier2_thread_notebook_tool_ask    0
     tier2_notebook_turn_followup    0
@@ -43,7 +43,7 @@ classifier.tier  (372)
     tier3.4_chat_recall           1
     tier3.4_recurring_order       0
     tier3.4_own_notebook          4
-    tier3.5_loop_demotion       254
+    tier3.5_loop_demotion       265
     tier3.8_generation_scope     16
     residual                     14
     error_fallback                0
@@ -90,4 +90,4 @@ mcp                               0  retired
 produktion                       41  prose
 direct                            3  prose
 greeting                          1  prose
-agentic                         266  loop
+agentic                         277  loop
