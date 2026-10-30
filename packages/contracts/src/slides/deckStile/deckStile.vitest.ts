@@ -201,23 +201,21 @@ describe('deck stile', () => {
     }
   });
 
-  it('sets band-resident highlights readable on the band', () => {
+  it('sets every band highlight readable on the ground it sits on', () => {
     for (const locale of LOCALES) {
-      const band = getBrandPack(locale).colors.primary;
-      const cases: [FolienTypId, string][] = [
-        ['liste', 'folie-headline'],
-        ['text', 'folie-headline'],
-        ['zahl', 'folie-zahl'],
-        ['zitat', 'folie-intro'],
-        ['kernsatz', 'folie-headline'],
-      ];
-      for (const [typ, id] of cases) {
+      const pack = getBrandPack(locale);
+      for (const typ of FOLIEN_TYP_IDS) {
         const state = buildFolie('band', fullFolie(typ), ctx(locale));
-        const el = state.additionalTexts.find((t) => t.id === id)!;
-        expect(
-          contrastRatio(el.accent!.fill!, band),
-          `${locale} ${typ} ${id}`
-        ).toBeGreaterThanOrEqual(3);
+        for (const el of state.additionalTexts) {
+          // Der Störer-Text liegt auf seinem Kreis, nicht auf Band oder Sand (eigener Test).
+          if (!el.accent?.fill || el.id === 'folie-stoerer-text') continue;
+          // Das Band ist 640 breit; was links davon beginnt, steht auf Tanne, der Rest auf Sand.
+          const ground = el.x < 640 ? pack.colors.primary : pack.colors.surface;
+          expect(
+            contrastRatio(el.accent.fill, ground),
+            `${locale} ${typ} ${el.id}`
+          ).toBeGreaterThanOrEqual(3);
+        }
       }
     }
   });

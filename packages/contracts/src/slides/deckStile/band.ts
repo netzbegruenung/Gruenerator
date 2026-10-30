@@ -31,14 +31,16 @@ import { type DeckStilBox } from './index.js';
 const BAND = 640;
 const RX = 740;
 const WHITE = '#FFFFFF';
-/** Texte, die auf dem Tannenband stehen. */
-const BAND_RESIDENT = [
-  'folie-headline',
-  'folie-zahl',
-  'folie-quelle',
-  'folie-intro',
-  'folie-kontakt',
-];
+/** Texte, die je Folientyp auf dem Tannenband stehen; alles andere liegt auf Sand. */
+const BAND_RESIDENT: Record<FolienTypId, string[]> = {
+  titel: [],
+  liste: ['folie-headline'],
+  text: ['folie-headline'],
+  kernsatz: ['folie-headline'],
+  zahl: ['folie-zahl', 'folie-quelle'],
+  zitat: ['folie-intro'],
+  danke: ['folie-kontakt'],
+};
 
 export function buildBand(folie: FolieSpec, ctx: DeckStilCtx): SlideLayoutState {
   const t = tonesOf(ctx.locale);
@@ -96,6 +98,7 @@ export function buildBand(folie: FolieSpec, ctx: DeckStilCtx): SlideLayoutState 
       // Entwurf: Zahl 250 bei (90, 360) und weiße Erklärung bei (116, 700) im Band, der große Satz rechts.
       // Unsere Slots: `quelle` ist die kurze Zeile und steht deshalb im Band an der Stelle der Erklärung,
       // `zahl-text` ist der Satz und steht rechts in der Größe des Entwurfs.
+      // 520 statt Entwurfsbreite: das Band ist 640 breit, links und rechts bleibt Rand.
       head(b, 'folie-zahl', 90, 360, 520, size(250), t.lime);
       b.text('folie-quelle', '', 116, 700, 440, 40, { fill: WHITE });
       head(b, 'folie-zahl-text', RX, 300, 1060, size(120));
@@ -120,7 +123,7 @@ export function buildBand(folie: FolieSpec, ctx: DeckStilCtx): SlideLayoutState 
   const state = finishFolie(b, folie, ctx, 'band');
   // Das Datum steht im Band und wird dort weiß.
   // Im Band hebt `==…==` hell hervor: Klee auf Tanne hielte 1,8:1, in AT wäre der Akzent der Grund selbst.
-  for (const id of BAND_RESIDENT) {
+  for (const id of BAND_RESIDENT[folie.typ]) {
     const el = b.state.additionalTexts.find((x) => x.id === id);
     if (el) el.accent = { fill: t.lime };
   }
