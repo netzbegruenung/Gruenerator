@@ -132,6 +132,14 @@ export function readFolie(state: Record<string, unknown>): FolieSpec | null {
   return { typ, slots, ...(notes ? { notes } : {}) } as FolieSpec;
 }
 
+/** Der gültige `deckStil` einer einzelnen Seite, sonst `null` (Seite aus der Zeit vor den Stilen). */
+export function readPageStil(state: Record<string, unknown>): DeckStilId | null {
+  const v = state['deckStil'];
+  return typeof v === 'string' && (DECK_STIL_IDS as readonly string[]).includes(v)
+    ? (v as DeckStilId)
+    : null;
+}
+
 /**
  * Der Stil eines Decks: der erste gültige `deckStil` einer Seite, sonst der
  * der Canvas-Metadaten, sonst `'cd'` (Seiten aus der Zeit vor den Stilen).

@@ -328,6 +328,68 @@ describe('applySlideDeckOperations', () => {
       expect(size(edit(twice.pages, 'Kurz').pages)).toBe(base);
     });
 
+    const sizes = (page: DeckPage) =>
+      Object.fromEntries(
+        (page.state['additionalTexts'] as Array<{ id: string; fontSize: number }>).map((t) => [
+          t.id,
+          t.fontSize,
+        ])
+      );
+    const fits = (text: string, font: { size: number }) => ({ height: font.size });
+
+    it('keeps the sizes of an old page without deckStil', () => {
+      const old = deck();
+      for (const page of old) delete page.state['deckStil'];
+      const texts2 = old[1]!.state['additionalTexts'] as Array<{ id: string; fontSize: number }>;
+      for (const t of texts2) {
+        if (t.id === 'folie-headline') t.fontSize = 128;
+        if (t.id === 'folie-spalte-1' || t.id === 'folie-spalte-2') t.fontSize = 36;
+      }
+      const before = sizes(old[1]!);
+      const result = applySlideDeckOperations(
+        old,
+        [
+          {
+            kind: 'edit-slide',
+            slide: 2,
+            operations: [{ kind: 'set-text', field: 'folie-spalte-1', label: 'T', value: 'Kurz' }],
+          },
+        ],
+        { ...ctx(), measure: fits }
+      );
+      const after = sizes(result.pages[1]!);
+      expect(after['folie-headline']).toBe(128);
+      expect(after['folie-spalte-1']).toBe(36);
+      expect(after).toEqual(before);
+    });
+
+    it('fits an edited page with its own style, not the one of the first page', () => {
+      const mixed = [...deck('de-DE', 'band').slice(0, 1), ...deck('de-DE', 'cd').slice(1)];
+      const cdBase = sizes(deck('de-DE', 'cd')[1]!)['folie-headline'];
+      const result = applySlideDeckOperations(
+        mixed,
+        [
+          {
+            kind: 'edit-slide',
+            slide: 2,
+            operations: [{ kind: 'set-text', field: 'folie-headline', label: 'T', value: 'Kurz' }],
+          },
+        ],
+        { ...ctx(), measure: fits }
+      );
+      expect(sizes(result.pages[1]!)['folie-headline']).toBe(cdBase);
+    });
+
+    it('builds an added slide in the style of the page it follows', () => {
+      const mixed = [...deck('de-DE', 'band').slice(0, 1), ...deck('de-DE', 'cd').slice(1)];
+      const result = applySlideDeckOperations(
+        mixed,
+        [{ kind: 'add-slide', afterSlide: 2, slide: { typ: 'zitat', slots: { zitat: 'Jetzt.' } } }],
+        ctx()
+      );
+      expect(result.pages[2]!.state['deckStil']).toBe('cd');
+    });
+
     it('reports a text that still does not fit as a refusal', () => {
       const result = edit(deck(), LONG);
       expect(result.refused).toContain('Folie 2: Text passt nicht in folie-headline, bitte kürzen');

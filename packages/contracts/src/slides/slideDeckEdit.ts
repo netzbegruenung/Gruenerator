@@ -21,7 +21,7 @@ import { stripInlineMarks } from '../text/inlineMarks.js';
 import { buildFolie, deckStilBoxes, type DeckStilId } from './deckStile/index.js';
 import { fitSlideTexts, type MeasureText } from './fitText.js';
 import { type FolieSpec, folieSpecSchema } from './folienTypen.js';
-import { readDeckStil, readFolie } from './slideDeck.js';
+import { readDeckStil, readFolie, readPageStil } from './slideDeck.js';
 import { MAX_SLIDES, unescapeLineBreaks } from './slideDeckBasics.js';
 import { slideLayoutConfigId } from './slideLayouts.js';
 
@@ -203,7 +203,10 @@ export function applySlideDeckOperations(
         const found = id ? pages.findIndex((p) => p.id === id) : -1;
         if (found >= 0) at = found + 1;
       }
-      pages.splice(at, 0, composeOne(op.slide, readDeckStil(pages), at, ctx));
+      // Die neue Folie übernimmt den Stil der Seite, hinter die sie kommt.
+      const prev = pages[Math.max(at - 1, 0)];
+      const stil = (prev && readPageStil(prev.state)) ?? readDeckStil(pages);
+      pages.splice(at, 0, composeOne(op.slide, stil, at, ctx));
       structural = true;
       applied.push(`Folie (${op.slide.typ}) eingefügt`);
       continue;
@@ -248,24 +251,29 @@ export function applySlideDeckOperations(
         );
     }
     if (ctx.measure && op.operations.some((o) => o.kind === 'set-text')) {
-      // Der neue Text soll in die Box des Stils passen. Ausgang ist die Größe, die der
-      // Stil selbst setzt, nicht die aktuelle: so schrumpft wiederholtes Bearbeiten nicht
-      // kumulativ, und ein kürzerer Text wächst zurück.
+      // Der neue Text soll in die Box des Stils passen. Ausgang ist die Größe, die der Stil
+      // der BEARBEITETEN Seite selbst setzt, nicht die aktuelle: so schrumpft wiederholtes
+      // Bearbeiten nicht kumulativ, und ein kürzerer Text wächst zurück. Eine Seite ohne
+      // `deckStil` (Layout vor den Stilen) hat keine Stilgrößen: dort bleibt die aktuelle
+      // Größe der Ausgang, und gemeldet wird nur echter Überlauf.
       const folie = readFolie(state);
       if (folie) {
-        const stil = readDeckStil(pages);
-        const base: Record<string, number> = {};
-        const unfitted = buildFolie(stil, folie, {
-          locale: ctx.locale,
-          date: ctx.date,
-          pageNumber: index + 1,
-          title: ctx.title,
-          index,
-        });
-        for (const t of unfitted.additionalTexts) base[t.id] = t.fontSize;
+        const stil = readPageStil(state);
+        let base: Record<string, number> | null = null;
+        if (stil) {
+          base = {};
+          const unfitted = buildFolie(stil, folie, {
+            locale: ctx.locale,
+            date: ctx.date,
+            pageNumber: index + 1,
+            title: ctx.title,
+            index,
+          });
+          for (const t of unfitted.additionalTexts) base[t.id] = t.fontSize;
+        }
         const fitted = fitSlideTexts(
           state as unknown as Parameters<typeof fitSlideTexts>[0],
-          deckStilBoxes(stil, folie.typ),
+          deckStilBoxes(stil ?? 'cd', folie.typ),
           ctx.measure,
           base
         );
