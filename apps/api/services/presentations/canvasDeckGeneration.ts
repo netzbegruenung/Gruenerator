@@ -45,7 +45,7 @@ function typCatalog(): string {
     const slots = Object.entries(folienSlotsOf(id))
       .map(([name, slot]) =>
         slot.kind === 'list'
-          ? `    - ${name}${slot.required ? '' : ' (optional)'}: Liste mit ${slot.minItems} bis ${slot.maxItems} Einträgen, ${slot.hint}, je höchstens ${slot.maxChars} Zeichen`
+          ? `    - ${name}${slot.required ? '' : ' (optional)'}: Array von Texten mit ${slot.minItems} bis ${slot.maxItems} Einträgen, ${slot.hint}, je höchstens ${slot.maxChars} Zeichen`
           : `    - ${name}${slot.required ? '' : ' (optional)'}: ${slot.hint}, höchstens ${slot.maxChars} Zeichen`
       )
       .join('\n');
@@ -76,7 +76,7 @@ Regeln:
 - Hebe pro Headline, Kernsatz oder Zitat höchstens zwei Wörter mit \`==…==\` hervor.
 - \`vorlage\` nur setzen, wenn die Person eine Gestaltung nennt; erlaubte Ids: ${vorlagenList(locale)}.
 - Halte die Zeichenbudgets strikt ein — Text darüber läuft aus der Folie. Lieber kürzen als umbrechen
-- Einträge einer Liste sind reine Texte ohne vorangestellte Aufzählungszeichen
+- Einträge einer Liste sind reine Texte ohne vorangestellte Aufzählungszeichen. Das Listenfeld heißt \`punkte\` (Mehrzahl) und ist ein Array, z. B. {"typ": "liste", "slots": {"headline": "Was wir fordern", "punkte": ["Busse im Zehn-Minuten-Takt", "Sichere Radwege an jeder Schule", "Ein Ticket für die ganze Region"]}}
 - "notes" sind Sprechernotizen (ausführlicher, darf leer sein)
 - Schreibe jede Folie inhaltlich aus. NIEMALS Platzhalter wie "Kernpunkt 1" oder "hier Inhalt einfügen"; was der Auftrag nicht hergibt, lässt du weg
 - Erfinde keine Zahlen, Namen, Kontaktdaten oder Quellen. Ein optionales Feld ohne Inhalt lässt du weg
@@ -89,8 +89,14 @@ export function deckToolSchema(): Record<string, unknown> {
   const slotShapes = new Map<string, Record<string, unknown>>();
   for (const id of FOLIEN_TYP_IDS) {
     for (const [name, slot] of Object.entries(folienSlotsOf(id))) {
-      const shape =
-        slot.kind === 'list' ? { type: 'array', items: { type: 'string' } } : { type: 'string' };
+      const shape: Record<string, unknown> =
+        slot.kind === 'list'
+          ? {
+              type: 'array',
+              items: { type: 'string' },
+              description: `Array von Texten, ein Eintrag je Punkt (Feldname "${name}")`,
+            }
+          : { type: 'string' };
       const known = slotShapes.get(name);
       // Dieselbe Bezeichnung mit anderer Art in zwei Typen: dann ohne Typangabe.
       slotShapes.set(name, known && known['type'] !== shape.type ? {} : shape);
@@ -118,6 +124,7 @@ export function deckToolSchema(): Record<string, unknown> {
               type: 'object',
               description: 'Felder des Folientyps, Namen laut Typliste',
               properties: Object.fromEntries(slotShapes),
+              additionalProperties: false,
             },
             notes: { type: 'string', description: 'Sprechernotizen, darf leer sein' },
           },
@@ -127,18 +134,56 @@ export function deckToolSchema(): Record<string, unknown> {
   };
 }
 
-function describeIssues(error: {
-  issues: Array<{ path: PropertyKey[]; message: string }>;
-}): string {
+/**
+ * Modelle erfinden für die Liste gern die Einzahl `punkt` (Live-Test 30.10.).
+ * Gemeint ist eindeutig `punkte`; die Einzahl wird umbenannt, bevor das
+ * strikte Schema sie als unbekanntes Feld ablehnt.
+ */
+const SLOT_ALIASES: Readonly<Record<string, string>> = { punkt: 'punkte' };
+
+function withSlotAliases(input: unknown): unknown {
+  if (!input || typeof input !== 'object' || !Array.isArray((input as { slides?: unknown }).slides))
+    return input;
+  const deck = input as { slides: unknown[] };
+  const slides = deck.slides.map((slide) => {
+    const slots = (slide as { slots?: unknown } | null)?.slots;
+    if (!slots || typeof slots !== 'object') return slide;
+    const renamed: Record<string, unknown> = { ...(slots as Record<string, unknown>) };
+    for (const [alias, name] of Object.entries(SLOT_ALIASES)) {
+      if (!(alias in renamed) || name in renamed) continue;
+      const value = renamed[alias];
+      delete renamed[alias];
+      renamed[name] = typeof value === 'string' ? [value] : value;
+    }
+    return { ...(slide as object), slots: renamed };
+  });
+  return { ...deck, slides };
+}
+
+function describeIssues(
+  error: {
+    issues: Array<{ path: PropertyKey[]; message: string; code?: string; keys?: string[] }>;
+  },
+  input: unknown
+): string {
+  const typOf = (index: number): unknown =>
+    (input as { slides?: Array<{ typ?: unknown } | null> } | null)?.slides?.[index]?.typ;
   return error.issues
     .slice(0, 8)
     .map((i) => {
       const [first, second, third] = i.path;
-      const where =
-        first === 'slides' && typeof second === 'number'
-          ? `Folie ${second + 1}${third === 'slots' ? `, Feld ${String(i.path[3] ?? '')}` : ''}`
-          : i.path.join('.');
-      return `${where}: ${i.message}`;
+      if (first !== 'slides' || typeof second !== 'number')
+        return `${i.path.join('.')}: ${i.message}`;
+      const folie = `Folie ${second + 1}`;
+      if (third !== 'slots') return `${folie}: ${i.message}`;
+      if (i.code === 'unrecognized_keys' && i.keys) {
+        const typ = typOf(second);
+        const allowed = (FOLIEN_TYP_IDS as readonly unknown[]).includes(typ)
+          ? `; erlaubt: ${Object.keys(folienSlotsOf(typ as (typeof FOLIEN_TYP_IDS)[number])).join(', ')}`
+          : '';
+        return `${folie}, Feld ${i.keys.join(', ')}: unbekanntes Feld${allowed}`;
+      }
+      return `${folie}, Feld ${String(i.path[3] ?? '')}: ${i.message}`;
     })
     .join('; ');
 }
@@ -174,9 +219,11 @@ export async function generateCanvasDeck(opts: {
     toolName: 'create_presentation',
     toolDescription: 'Erzeugt den Foliensatz aus Folientypen und ihren Feldern.',
     schema: deckToolSchema(),
-    validate: (input, attempt, attempts) => {
+    validate: (raw, attempt, attempts) => {
+      const input = withSlotAliases(raw);
       const parsed = deckSpecSchema.safeParse(input);
-      if (!parsed.success) return { ok: false as const, error: describeIssues(parsed.error) };
+      if (!parsed.success)
+        return { ok: false as const, error: describeIssues(parsed.error, input) };
       const spec = parsed.data as DeckSpec;
       // The last attempt takes overflow as it is: the minimum size is the fallback.
       if (measure && attempt < attempts) {

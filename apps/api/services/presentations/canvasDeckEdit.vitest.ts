@@ -164,6 +164,16 @@ describe('planCanvasDeckEdit', () => {
   });
 });
 
+describe('edit prompt', () => {
+  it('names the list slot `punkte` as an array and shows an add-slide example', async () => {
+    modelAnswers([{ kind: 'remove-slide', slide: 2 }]);
+    await planCanvasDeckEdit({ canvasId: 'c1', userId: 'u1', instruction: 'x' });
+    const { system } = mocks.aiObject.mock.calls[0]![0] as { system: string };
+    expect(system).toContain('punkte (Array von Texten, 3–6 Punkte je ≤70)');
+    expect(system).toContain('"punkte": ["');
+  });
+});
+
 describe('applyPlannedCanvasDeckOperations', () => {
   const opts = () => ({
     canvasId: 'c1',

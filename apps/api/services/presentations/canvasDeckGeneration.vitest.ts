@@ -34,7 +34,8 @@ vi.mock('./canvasDeckOverflow.js', () => ({
   serverMeasureText: () => (text: string) => ({ height: text.includes('ÜBERLANG') ? Infinity : 1 }),
 }));
 
-const { generateCanvasDeck, deckSystemPrompt } = await import('./canvasDeckGeneration.js');
+const { generateCanvasDeck, deckSystemPrompt, deckToolSchema } =
+  await import('./canvasDeckGeneration.js');
 
 type Validate = (input: unknown, attempt: number, attempts: number) => unknown;
 
@@ -139,6 +140,35 @@ describe('generateCanvasDeck', () => {
     expect(error).toMatch(/Folie 1, Feld headline/);
   });
 
+  it('reads the invented singular `punkt` as the list slot `punkte`', async () => {
+    modelAnswers({
+      title: 'Radwege',
+      slides: [
+        { typ: 'titel', slots: { headline: 'Rad' } },
+        { typ: 'liste', slots: { headline: 'Lage', punkt: ['Eins', 'Zwei', 'Drei'] } },
+      ],
+    });
+    const result = await generateCanvasDeck({ prompt: 'x', userId: 'u1', locale: 'de-DE' });
+    expect(result).not.toBeNull();
+    expect(created().page_count).toBe(2);
+  });
+
+  it('names an unknown slot and the allowed ones in the rejection', async () => {
+    let error = '';
+    mocks.aiObject.mockImplementation(async (call: { validate: Validate }) => {
+      const bad = call.validate(
+        { title: 'T', slides: [{ typ: 'liste', slots: { headline: 'H', stichpunkte: ['a'] } }] },
+        1,
+        2
+      ) as { ok: boolean; error: string };
+      error = bad.error;
+      return { ok: false, error: 'x' };
+    });
+    await generateCanvasDeck({ prompt: 'x', userId: 'u1', locale: 'de-DE' });
+    expect(error).toContain('Folie 1, Feld stichpunkte');
+    expect(error).toContain('erlaubt: headline, punkte, stoerer');
+  });
+
   it('rejects a deck whose fitted headlines still overflow and retries once', async () => {
     const overflowing = {
       title: 'Lang',
@@ -179,5 +209,27 @@ describe('deckSystemPrompt', () => {
     const at = deckSystemPrompt('de-AT');
     expect(at).toContain('ÖSTERREICH');
     expect(at).toContain('at-band (Band AT)');
+  });
+});
+
+describe('list slots in prompt and tool schema', () => {
+  it('shows `punkte` as an array of strings with an example', () => {
+    const de = deckSystemPrompt('de-DE');
+    expect(de).toContain('punkte: Array von Texten');
+    expect(de).toContain('{"typ": "liste", "slots": {"headline": ');
+    expect(de).toContain('"punkte": ["');
+  });
+
+  it('describes `punkte` in the tool schema and allows no other slot names', () => {
+    const slides = (deckToolSchema().properties as Record<string, Record<string, unknown>>)
+      .slides as { items: { properties: { slots: Record<string, unknown> } } };
+    const slots = slides.items.properties.slots as {
+      additionalProperties: boolean;
+      properties: Record<string, { type: string; items?: unknown; description?: string }>;
+    };
+    expect(slots.additionalProperties).toBe(false);
+    expect(slots.properties.punkte).toMatchObject({ type: 'array', items: { type: 'string' } });
+    expect(slots.properties.punkte!.description).toMatch(/Array von Texten/);
+    expect(slots.properties.punkt).toBeUndefined();
   });
 });

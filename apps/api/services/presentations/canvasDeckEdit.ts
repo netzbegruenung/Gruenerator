@@ -88,7 +88,7 @@ function typCatalog(): string {
     const slots = Object.entries(folienSlotsOf(id))
       .map(([name, s]) =>
         s.kind === 'list'
-          ? `${name}${s.required ? '' : '?'} (Liste, ${s.minItems}–${s.maxItems} Punkte je ≤${s.maxChars})`
+          ? `${name}${s.required ? '' : '?'} (Array von Texten, ${s.minItems}–${s.maxItems} Punkte je ≤${s.maxChars})`
           : `${name}${s.required ? '' : '?'} (≤${s.maxChars})`
       )
       .join(', ');
@@ -115,7 +115,9 @@ Regeln:
 - Höchstens ${MAX_SLIDES} Folien.
 
 Folientypen für add-slide (Feld? = optional, ≤ Zeichenbudget; Listen als Array von Texten):
-${typCatalog()}`;
+${typCatalog()}
+
+Beispiel add-slide: {"kind": "add-slide", "afterSlide": 2, "slide": {"typ": "liste", "slots": {"headline": "Was wir fordern", "punkte": ["Busse im Zehn-Minuten-Takt", "Sichere Radwege an jeder Schule", "Ein Ticket für die ganze Region"]}}}`;
 
 const OPERATIONS_TOOL_SCHEMA: Record<string, unknown> = {
   type: 'object',
