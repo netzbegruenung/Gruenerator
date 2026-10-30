@@ -1,10 +1,11 @@
 import { type InstanceAdminAppBundle, type InstanceAdminUserSummary } from '@gruenerator/contracts';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import {
   fetchInstanceAdminAppBundles,
   fetchInstanceAdminUsers,
   fetchInstanceAdminRoles,
+  setInstanceAdminUserAdmin,
   setInstanceAdminUserPanda,
 } from '../../../hooks/useInstanceAdminOverviewTyped';
 
@@ -21,11 +22,12 @@ export interface InstanceAdminUserRole {
 // react-query-Cache, ein neuer Name wäre ein zweiter Eintrag statt einer
 // Umbenennung. Der Pfad, den sie holen, heißt aus demselben Grund weiter
 // `/api/auth/admin/bgst/*`.
-export function useInstanceAdminUsers(enabled = true) {
+export function useInstanceAdminUsers(q = '', enabled = true) {
   return useQuery<InstanceAdminUser[]>({
-    queryKey: ['bgst-admin-users'],
-    queryFn: fetchInstanceAdminUsers,
+    queryKey: ['bgst-admin-users', q],
+    queryFn: () => fetchInstanceAdminUsers(q),
     staleTime: 30_000,
+    placeholderData: keepPreviousData,
     enabled,
   });
 }
@@ -36,6 +38,18 @@ export function useSetUserPanda() {
   return useMutation({
     mutationFn: ({ userId, enabled }: { userId: string; enabled: boolean }) =>
       setInstanceAdminUserPanda(userId, enabled),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['bgst-admin-users'] });
+    },
+  });
+}
+
+/** Grant or revoke instance-admin rights for one account. */
+export function useSetUserAdmin() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ userId, isAdmin }: { userId: string; isAdmin: boolean }) =>
+      setInstanceAdminUserAdmin(userId, isAdmin),
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: ['bgst-admin-users'] });
     },

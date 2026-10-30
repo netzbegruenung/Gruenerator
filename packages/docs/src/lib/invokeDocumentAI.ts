@@ -1,4 +1,10 @@
-import { getDocAIExtension } from './aiExtension';
+import {
+  getDocAIExtension,
+  getDocForkStore,
+  hasDocAISuggestions,
+  isDocAIForked,
+} from './aiExtension';
+import { isOwnAIReviewFork, rejectDocumentAI, rememberAIReviewFork } from './reviewDocumentAI';
 import { isSuggestionModeEnabled } from './suggestionMode';
 import { useEditorStore } from '../stores/editorStore';
 
@@ -25,6 +31,49 @@ export function subscribeDocAIInFlight(cb: () => void): () => void {
   return () => {
     inFlightListeners.delete(cb);
   };
+}
+
+// Outcome of the latest /api/docs/ai request per document. xl-ai keeps the
+// request result to itself: with the AI menu closed (chat-triggered edits),
+// `setAIResponseStatus` returns early, so not even its error state is set and
+// `invokeAI` resolves the same way for a 500 as for a success. The transport's
+// fetch reports here instead (BlockNoteEditor.tsx).
+type DocAIResponse = number | 'network';
+const lastResponse = new Map<string, DocAIResponse>();
+
+/** Called by the AI transport for every /api/docs/ai response (or network failure). */
+export function noteDocAIResponse(documentId: string, response: DocAIResponse): void {
+  lastResponse.set(documentId, response);
+}
+
+function failureMessage(response: DocAIResponse | undefined): string | null {
+  if (response === undefined || (typeof response === 'number' && response < 400)) return null;
+  if (response === 401 || response === 403)
+    return 'Keine Berechtigung für die KI-Bearbeitung dieses Dokuments.';
+  if (response === 429) return 'Zu viele KI-Anfragen. Bitte kurz warten und erneut versuchen.';
+  return 'Die KI-Bearbeitung ist fehlgeschlagen. Bitte erneut versuchen.';
+}
+
+/**
+ * After the stream: an empty review would show accept/reject over nothing (and
+ * accepting it used to raise a false sync alarm), so it is closed. The person
+ * learns why — the chat has already announced the edit by then.
+ */
+function settleOutcome(documentId: string): void {
+  const editor = useEditorStore.getState().getEditor(documentId);
+  if (!editor) return;
+  const failure = failureMessage(lastResponse.get(documentId));
+  const hasSuggestions = hasDocAISuggestions(editor);
+  // Only a review our invocation opened is ours to close; an empty run inside
+  // someone else's fork (version preview) leaves that fork alone.
+  if (!hasSuggestions && isOwnAIReviewFork(documentId)) rejectDocumentAI(documentId);
+  if (failure) {
+    void import('sonner').then(({ toast }) => toast.error(failure));
+  } else if (!hasSuggestions) {
+    void import('sonner').then(({ toast }) =>
+      toast.info('Die KI hat keine Änderung am Dokument vorgeschlagen.')
+    );
+  }
 }
 
 /**
@@ -71,6 +120,20 @@ export async function invokeDocumentAI(opts: {
   // review UX is the web DocAiReviewBar → accept/rejectDocumentAI.
   // `invokeAI` still applies the diff as ProseMirror suggestions regardless of
   // menu state — the suggestion plugin is independent of the menu.
+  // The raw fork state, not isDocAIForked: that one reads false while the
+  // version preview holds the fork, which would let this run claim (and later
+  // merge back) a fork that shows an old version.
+  const editor = useEditorStore.getState().getEditor(opts.documentId);
+  const forkedBefore = getDocForkStore(editor)?.state?.isForked ?? false;
+  // A fork that is not an AI review is the version preview. `fork()` would be a
+  // no-op, so the suggestions would land in the preview and vanish on close.
+  if (forkedBefore && !isDocAIForked(opts.documentId)) {
+    void import('sonner').then(({ toast }) =>
+      toast.error('Bitte zuerst die Versionshistorie schließen, dann erneut versuchen.')
+    );
+    return true;
+  }
+  lastResponse.delete(opts.documentId);
   inFlight.add(opts.documentId);
   notifyInFlight();
   try {
@@ -84,8 +147,11 @@ export async function invokeDocumentAI(opts: {
         : {}),
     });
   } finally {
+    // invokeAI opens the fork; if it was not open before, it is this review's.
+    if (!forkedBefore) rememberAIReviewFork(opts.documentId);
     inFlight.delete(opts.documentId);
     notifyInFlight();
   }
+  settleOutcome(opts.documentId);
   return true;
 }

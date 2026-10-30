@@ -68,6 +68,7 @@ const fakeApi = (): NationalratApi & { gegenstaende: ReturnType<typeof vi.fn> } 
   gegenstaende: vi.fn(async () => ROWS),
   protokolle: vi.fn(async () => PROTOKOLLE),
   dokumente: vi.fn(async () => []),
+  reden: vi.fn(async () => []),
 });
 
 describe('Gesetzgebungsperiode', () => {

@@ -30,6 +30,7 @@ function fakeState(overrides: Record<string, unknown> = {}): ChatGraphState {
     intent: 'agentic',
     userLocale: 'de-DE',
     mcpServerScope: null,
+    messages: [],
     ...overrides,
   } as unknown as ChatGraphState;
 }
@@ -102,6 +103,30 @@ describe('buildSynthSystem — Schreiber-Notizen der Werkzeuge', () => {
 });
 
 describe('buildSynthSystem — Quellenblock', () => {
+  // #5141: „Marskolonie" stand in keiner Quelle, die Antwort band trotzdem
+  // eine Mars-Aussage an das Regierungsprogramm.
+  it('meldet den Gegenstand der Frage, den keine Quelle kennt', () => {
+    const state = fakeState({
+      messages: [{ role: 'user', content: 'Was sagen die Grünen zur Marskolonie-Steuer?' }],
+    });
+    const prompt = buildSynthSystem(
+      '[1] Regierungsprogramm — Milliardärssteuer und Vermögenssteuer',
+      ctx({ state })
+    );
+    expect(prompt).toContain('GEGENSTAND OHNE QUELLE: „Marskolonie“');
+    expect(prompt).toContain(
+      'Ein Marker [N] steht nur hinter einer Aussage, die Quelle N SELBST trägt'
+    );
+  });
+
+  it('ohne Lücke keine Notiz', () => {
+    const state = fakeState({
+      messages: [{ role: 'user', content: 'Was sagen die Grünen zur Vermögensteuer?' }],
+    });
+    const prompt = buildSynthSystem('[1] Regierungsprogramm — Vermögenssteuer', ctx({ state }));
+    expect(prompt).not.toContain('GEGENSTAND OHNE QUELLE');
+  });
+
   it('hängt Liste und Zitiergebot an, wenn Quellen da sind', () => {
     const prompt = buildSynthSystem('[1] Antrag — https://example.org/a', ctx());
     expect(prompt).toContain('GESAMMELTE QUELLEN (nummeriert):');

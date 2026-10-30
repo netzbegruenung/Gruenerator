@@ -170,6 +170,10 @@ export const evalExpectSchema = z
     toolsMustInclude: z.array(z.string()).optional(),
     /** Each inner group: at least one of these tools must have been called. */
     toolsAnyOf: z.array(z.array(z.string())).optional(),
+    /** Der ERSTE Werkzeugaufruf des Turns ist einer dieser Namen. Misst die
+     *  Werkzeugwahl selbst: `toolsMustInclude` ist auch dann erfüllt, wenn das
+     *  richtige Werkzeug erst nach einem Fehlgriff kommt. */
+    ersterAufruf: z.array(z.string()).min(1).optional(),
     /** At least one called tool's name matches this regex (source string). Use
      *  for MCP, whose tool names are namespaced `m<serverKey>__<tool>` and thus
      *  not known ahead of time — e.g. `"^m[0-9a-f]+__"` = "an MCP tool ran". */
@@ -535,6 +539,8 @@ export const evalCaseSchema = z
     /** Siehe evalScenarioSchema.systemMcpLane. Als einziges Lane-Flag auch auf
      *  der Altform, weil die vier system-mcp-Szenarien dort liegen. */
     systemMcpLane: z.boolean().optional(),
+    /** Siehe evalScenarioSchema.locale — die `locale-at`-Fälle liegen in der Altform. */
+    locale: z.enum(['de-DE', 'de-AT']).optional(),
   })
   .strict();
 export type EvalCase = z.infer<typeof evalCaseSchema>;

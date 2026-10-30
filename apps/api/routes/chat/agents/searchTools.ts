@@ -520,9 +520,9 @@ NUTZE WENN:
 - Inhalte eines bestimmten Landesverbands gebraucht werden (eigene Sammlung je LV)
 - Es um Kommunalpolitik geht — Gemeinderat, Stadtrat, Kreistag, kommunaler Haushalt, Gemeindeordnung: dafür ist \`kommunalwiki\` die einschlägige Sammlung
 
-Geht es um einen konkreten Landesverband, durchsuche dessen Sammlung UND die bundesweite Programmatik (\`deutschland\`).
+Geht es um einen konkreten Landesverband, durchsuche dessen Sammlung UND die bundesweite Programmatik (\`deutschland\`) — erst danach, wenn beide nichts haben, web_search.
 
-NICHT FÜR: Aktuelle Nachrichten, Personen-Infos, allgemeine Web-Suche; ${parlamentGrenze}`,
+NICHT FÜR: Aktuelle Nachrichten, Personen-Infos, allgemeine Web-Suche (dafür web_search); ${parlamentGrenze}`,
     inputSchema: z.object({
       query: z.string().describe('Suchanfrage in deutscher Sprache'),
       collection: z
@@ -612,7 +612,7 @@ NUTZE WENN:
 - Vorlagen für Instagram oder Facebook benötigt
 - Inspiration für grüne Social-Media-Kommunikation
 
-NICHT FÜR: Allgemeine Informationssuche, Fakten, Nachrichten`,
+NICHT FÜR: Allgemeine Informationssuche, Fakten, Nachrichten; Pressemitteilungen (nutze gruenerator_pressemitteilung_examples)`,
     inputSchema: z.object({
       query: z.string().describe('Thema oder Stichwort'),
       platform: z.enum(['instagram', 'facebook']).optional().describe('Plattform filtern'),

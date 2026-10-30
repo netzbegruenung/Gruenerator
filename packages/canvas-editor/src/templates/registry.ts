@@ -346,7 +346,7 @@ export const BUILTIN_TEMPLATES = [
         ...bgImageProps(s),
       }) satisfies CanvasInitialPropsMap['freeform'],
     info: {
-      label: 'Freies Design',
+      label: 'Leere Seite',
       description: 'Leere Leinwand zum freien Gestalten',
       previewImage: '/imagine/previews/freeform-preview.webp',
       category: 'sharepic',
@@ -475,8 +475,8 @@ export const BUILTIN_TEMPLATES = [
       } satisfies CanvasInitialPropsMap['freeform-at'];
     },
     info: {
-      label: 'Freies Design',
-      description: 'Leere Leinwand mit österreichischem CI',
+      label: 'Leere Seite',
+      description: 'Leere Seite mit österreichischem CI',
       previewImage: '/imagine/previews/freeform-preview.webp',
       category: 'sharepic',
       audience: 'de-AT',

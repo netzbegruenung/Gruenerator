@@ -20,9 +20,11 @@ import {
 import { SOURCE_LINK_RULE } from '../../../../agents/langgraph/ChatGraph/nodes/sourceLinkRule.js';
 import { TABELLE_AUSWERTEN_TOOL } from '../../agents/tabelleAuswertenTool.js';
 import { offerNote } from '../artifactOffer.js';
+import { lastUserText } from '../messageHelpers.js';
 import { withInstructionHierarchy } from '../untrustedContent.js';
 
 import { ARTIFACT_TOOL_NAMES, buildArtifactNotes } from './artifactNotes.js';
+import { buildUncoveredTermNote } from './questionTermCoverage.js';
 import { RECENCY_RULE } from './recencyRule.js';
 import { type RecipeRegistry } from './recipeRegistry.js';
 import { type SourceRegistry } from './sourceRegistry.js';
@@ -144,7 +146,7 @@ export interface SynthPromptContext {
 export function buildSynthSystem(sources: string, ctx: SynthPromptContext): string {
   const cite =
     sources.trim().length > 0
-      ? `\n\nGESAMMELTE QUELLEN (nummeriert):\n${sources}\n\nBeantworte die Frage auf Basis dieser Quellen. ZITIER-REGELN: Belege Fakten mit Markern in ECKIGEN KLAMMERN — z.B. [3] oder [3, 7]. Schreibe die Quellennummer NIEMALS als blanke Zahl ohne Klammern (sonst ist sie von normalen Zahlen im Text nicht zu unterscheiden). Nutze AUSSCHLIESSLICH die Nummern aus der Liste oben; erfinde keine Nummern. Deckt keine Quelle die Frage, sag es ehrlich. ${SOURCE_LINK_RULE}
+      ? `\n\nGESAMMELTE QUELLEN (nummeriert):\n${sources}\n\nBeantworte die Frage auf Basis dieser Quellen. ZITIER-REGELN: Belege Fakten mit Markern in ECKIGEN KLAMMERN — z.B. [3] oder [3, 7]. Schreibe die Quellennummer NIEMALS als blanke Zahl ohne Klammern (sonst ist sie von normalen Zahlen im Text nicht zu unterscheiden). Nutze AUSSCHLIESSLICH die Nummern aus der Liste oben; erfinde keine Nummern. Ein Marker [N] steht nur hinter einer Aussage, die Quelle N SELBST trägt — verbinde nie Aussagen aus verschiedenen Quellen zu einem neuen Satz mit Beleg. Deckt keine Quelle die Frage, sag es ehrlich. ${SOURCE_LINK_RULE}
 
 ANTWORTE KONKRET: Steht die Antwort in einer Quelle, dann NENNE SIE im Klartext — den Namen, die Zahl, das Datum. Verweise nicht auf die Quelle, statt zu antworten ("laut [1] gibt es dazu Informationen" ist keine Antwort).
 
@@ -152,6 +154,9 @@ ${RECENCY_RULE}
 
 Die Suche für diesen Turn ist bereits GELAUFEN — ihre Treffer stehen oben. Deshalb: empfiehl NIEMALS eine Websuche, eine "kurze Recherche" oder das Nachschlagen auf einer offiziellen Seite. Behaupte aber ebenso NIEMALS, du könntest nicht suchen, hättest keinen Internetzugriff oder könntest "nur auf die bereitgestellten Ergebnisse zugreifen" — das ist falsch: gesucht wird jedes Mal neu, wenn es gebraucht wird, und in diesem Turn ist es geschehen. Reichen die Quellen wirklich nicht, benenne knapp die konkrete LÜCKE ("zum Stand nach September 2025 steht hier nichts") — ohne Suchempfehlung und ohne Aussage über deine Fähigkeiten.`
       : '';
+  // Der Gegenstand der Frage steht in keiner Quelle (#5141) — sonst bindet der
+  // Schreiber ein Nachbarthema der Quellen mit Beleg an ihn.
+  const uncoveredTerm = buildUncoveredTermNote(lastUserText(ctx.state.messages) ?? '', sources);
   // Real per-turn MCP outcomes (success/error) so the tool-less synth can
   // report them truthfully instead of guessing — MCP tools don't register
   // sources, so this is the ONLY channel the synth has for connector results.
@@ -277,6 +282,6 @@ Die Suche für diesen Turn ist bereits GELAUFEN — ihre Treffer stehen oben. De
   // prepareStep — mirroring how `carriedNote` is injected for unified
   // BECAUSE split gets it here.
   return withInstructionHierarchy(
-    `${ctx.systemMessage}${ctx.mcpNote}${cite}${artifacts}${mcpOutcome}${toolPayload}${writerNotes}${toolFailures}${toolEmpties}${capabilityNote}${phantomNote}${openingNote}${honestyNote}${tabularNote}${ctx.recipeRegistry.render()}${offerNote(ctx.state, ctx.recipeRegistry.mentions)}\n\nAntworte auf Deutsch (Du-Form, Genderstern).`
+    `${ctx.systemMessage}${ctx.mcpNote}${cite}${uncoveredTerm}${artifacts}${mcpOutcome}${toolPayload}${writerNotes}${toolFailures}${toolEmpties}${capabilityNote}${phantomNote}${openingNote}${honestyNote}${tabularNote}${ctx.recipeRegistry.render()}${offerNote(ctx.state, ctx.recipeRegistry.mentions)}\n\nAntworte auf Deutsch (Du-Form, Genderstern).`
   );
 }

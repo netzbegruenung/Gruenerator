@@ -58,6 +58,7 @@ import { STUDIO_ASSET_SHARE_DELETE_MESSAGE } from '../../../services/studioAsset
 import { getSubtitlerProjectService } from '../../../services/subtitler/ProjectService.js';
 import { getReelTranscript, reelUrl, searchReels } from '../../../services/subtitler/reelSearch.js';
 import { toUserFacingMessage } from '../../../utils/errors/index.js';
+import { formatShortGermanDate } from '../../../utils/stringUtils.js';
 import {
   listUserDocuments,
   officeKindLabel,
@@ -220,6 +221,17 @@ export interface ResultRow {
    *  a path and translate „Präsentation" into `presentation`. */
   id?: string;
   kind?: ArtifactReadKind;
+  /** Letzte Änderung als TT.MM.JJJJ. Ohne das Feld nahm das Modell bei
+   *  gleichnamigen Dokumenten ein Datum aus dem TEXT („24. Mai") für das Datum
+   *  des Dokuments (#5140). */
+  geaendert?: string;
+}
+
+/** `{ geaendert }` für eine Zeile, leer ohne gültiges Datum. */
+export function changedAt(value: Date | string | null): { geaendert?: string } {
+  if (value == null) return {};
+  const date = formatShortGermanDate(value);
+  return date === 'unbekannt' ? {} : { geaendert: date };
 }
 
 /** Build a row, omitting empty optionals (exactOptionalPropertyTypes: no `undefined`). */
@@ -279,7 +291,9 @@ export function makeFindContentTool(ctx: PersonalToolCtx): Tool {
   return tool({
     description: `Durchsucht die EIGENEN Inhalte der angemeldeten Person (Dokumente, Boards, Tabellen, Präsentationen sowie Reels/untertitelte Videos) oder listet die zuletzt bearbeiteten. Reels werden dabei auch nach ihrem gesprochenen Untertitel-Inhalt durchsucht.
 
-NUTZE WENN nach eigenen Inhalten gefragt wird ("zeig mir meine Dokumente", "finde mein Klima-Board", "woran habe ich zuletzt gearbeitet"). Für Detailfragen zu EINEM Board/Dokument nutze 'documents' oder 'boards_tasks'. Für das VOLLE Transkript eines Reels (z. B. um eine Caption zu schreiben) nutze 'media' mit action="transcript". NOTEBOOKS erreicht dieses Werkzeug NICHT — zum Auflisten, Ansehen und inhaltlichen Befragen eines Notebooks nutze 'notebooks'.`,
+NUTZE WENN nach eigenen Inhalten gefragt wird ("zeig mir meine Dokumente", "finde mein Klima-Board", "woran habe ich zuletzt gearbeitet"). Den INHALT eines Treffers liest 'read_artifact' (id und kind stehen im Treffer); für Detailfragen zu EINEM Board/Dokument nutze 'documents' oder 'boards_tasks'. Frühere CHATS durchsucht 'search_threads', nicht dieses Werkzeug. Für das VOLLE Transkript eines Reels (z. B. um eine Caption zu schreiben) nutze 'media' mit action="transcript". NOTEBOOKS erreicht dieses Werkzeug NICHT — zum Auflisten, Ansehen und inhaltlichen Befragen eines Notebooks nutze 'notebooks'.
+
+DATUM: "geaendert" ist das Datum der letzten Änderung. Tragen mehrere Treffer denselben Titel, unterscheide sie daran — ein Datum im Textauszug ist Inhalt, nicht das Datum des Dokuments.`,
     // Eine Suche ohne Begriff scheitert hier am Schema statt in `execute`: nur
     // dort entsteht eine Karte, und die zeigte der Person einen Fehlschlag, den
     // das Modell im nächsten Schritt selbst korrigierte (#3932, „und zu Solar?").
@@ -320,6 +334,7 @@ NUTZE WENN nach eigenen Inhalten gefragt wird ("zeig mir meine Dokumente", "find
             ),
             id: h.id,
             kind: subtypeToReadKind(h.document_subtype),
+            ...changedAt(h.updated_at),
           })),
           ...reelHits.map((r) => makeRow(r.title, r.url, 'Reel', r.snippet, `reel:${r.id}`)),
         ];
@@ -351,6 +366,7 @@ NUTZE WENN nach eigenen Inhalten gefragt wird ("zeig mir meine Dokumente", "find
         const kind = readKindOfRecent(it);
         return {
           ...makeRow(it.title, it.href, it.documentType ?? it.type, it.content),
+          ...changedAt(it.date),
           ...(kind && { id: it.id, kind }),
         };
       });
@@ -512,6 +528,7 @@ NUTZE FÜR: eigene Dokumente auflisten (list), Titel, Art und Link eines Dokumen
           ),
           id: d.id,
           kind: subtypeToReadKind(d.document_subtype),
+          ...changedAt(d.updated_at),
         }));
         groundRows(sourceRegistry, results);
         // Eine volle Liste ist eine Auswahl der neuesten, keine Gesamtmenge.
@@ -912,6 +929,7 @@ NUTZE FÜR: Boards auflisten (list_boards), Karten eines Boards lesen (get_cards
           ...makeRow(b.title, `/boards/${b.id}`, 'Board', officeSnippet('boards', b.content)),
           id: b.id,
           kind: 'board' as const,
+          ...changedAt(b.updated_at),
         }));
         groundRows(sourceRegistry, results);
         return { resultCount: results.length, results };
@@ -1071,7 +1089,9 @@ NUTZE FÜR:
 - das volle Transkript eines Reels holen (transcript mit ref="reel:<id>") — nötig, bevor du eine Caption, einen Social-Post oder eine Zusammenfassung zum Video schreibst
 - löschen (delete mit ref aus der Liste + confirm=true nach Zustimmung)
 
-TYPISCHER ABLAUF für "such das Reel zu Thema X und schreib eine Caption": erst search, dann transcript für den besten Treffer, dann die Caption aus dem Transkript formulieren.`,
+TYPISCHER ABLAUF für "such das Reel zu Thema X und schreib eine Caption": erst search, dann transcript für den besten Treffer, dann die Caption aus dem Transkript formulieren.
+
+Über ALLE eigenen Inhalte hinweg (Dokumente, Tabellen, Präsentationen und Reels zusammen) sucht 'find_content'.`,
     inputSchema: z.object({
       action: z.enum(['list', 'search', 'transcript', 'delete']),
       type: z.enum(['all', 'reel', 'sharepic', 'ki']).default('all'),

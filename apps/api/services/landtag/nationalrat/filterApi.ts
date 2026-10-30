@@ -12,7 +12,11 @@
  *    Zeilen, 1,5 MB, 2,5 s), hält sie eine halbe Stunde und `find.ts` filtert
  *    lokal.
  *  - Die Detailseite eines Gegenstands gibt es mit `?json=true` als JSON; sie
- *    nennt die Dokumente (HTML und PDF) samt Links.
+ *    nennt die Dokumente (HTML und PDF) samt Links. Bei einer Sitzung steht dort
+ *    auch das vorläufige Protokoll (`stdocuments`), solange die Liste 211 noch
+ *    kein Gesamtprotokoll trägt — am 30.10.2026 bei 51 von 104 Sitzungen (Nr. 52
+ *    und alles ab Nr. 55) —, und je Rede eine eigene HTML-Datei mit dem
+ *    vollen, noch nicht autorisierten Wortlaut (`stages[].reden`).
  */
 import { createLogger } from '../../../utils/logger.js';
 import { fetchBytes } from '../../bundestag/qa/fetchTexts.js';
@@ -44,6 +48,13 @@ export interface NrDocLink {
   type: string;
 }
 
+/** Eine Wortmeldung einer Sitzung: eigene HTML-Datei mit dem Wortlaut der Rede. */
+export interface NrRede {
+  /** „12:24:50 - Michael Fürtbauer (FPÖ) - TOP 2 …“ */
+  titel: string;
+  link: string;
+}
+
 export interface NationalratApi {
   /** Gegenstände der lesbaren Arten einer Gesetzgebungsperiode („XXVIII"). */
   gegenstaende(gp: string): Promise<NrRow[]>;
@@ -51,7 +62,16 @@ export interface NationalratApi {
   protokolle(gp: string): Promise<NrRow[]>;
   /** Dokumentlinks der Detailseite (`/gegenstand/XXVIII/I/123`). */
   dokumente(hisUrl: string, signal: AbortSignal): Promise<NrDocLink[]>;
+  /** Die Reden einer Sitzung (`/gegenstand/XXVIII/NRSITZ/103`) in der Reihenfolge der Tagesordnung. */
+  reden(hisUrl: string, signal: AbortSignal): Promise<NrRede[]>;
 }
+
+type Gruppe = { title?: string; documents?: { link?: string; type?: string }[] };
+type Seite = {
+  documents?: Gruppe[];
+  stdocuments?: Gruppe[];
+  stages?: { reden?: { data?: { rows?: unknown[][] } } }[];
+};
 
 /** Positionale Zeilen → Objekte; die Spalte `Art` kommt in 211 doppelt vor, die erste gewinnt. */
 export function rowsOf(body: { header?: { label: string }[]; rows?: unknown[][] }): NrRow[] {
@@ -119,14 +139,35 @@ export class NationalratFilterApi implements NationalratApi {
     );
   }
 
-  async dokumente(hisUrl: string, signal: AbortSignal): Promise<NrDocLink[]> {
+  async #seite(hisUrl: string, signal: AbortSignal): Promise<Seite | undefined> {
     const bytes = await fetchBytes(`${PARLAMENT_BASE}${hisUrl}?json=true`, signal, PARLAMENT_HOST);
-    const body = JSON.parse(new TextDecoder().decode(bytes)) as {
-      content?: {
-        documents?: { title?: string; documents?: { link?: string; type?: string }[] }[];
-      };
-    };
-    const groups = Array.isArray(body.content?.documents) ? body.content.documents : [];
+    const body = JSON.parse(new TextDecoder().decode(bytes)) as { content?: Seite | Seite[] };
+    // Gegenstände liefern die Seite als Objekt, Sitzungen als Liste (Seite zuerst).
+    return Array.isArray(body.content) ? body.content[0] : body.content;
+  }
+
+  async reden(hisUrl: string, signal: AbortSignal): Promise<NrRede[]> {
+    const seite = await this.#seite(hisUrl, signal);
+    // Je Tagesordnungspunkt eine Tabelle „Wortmeldungen in der Debatte“; Spalte 3 verlinkt
+    // die Rede samt Sprungmarke (`…/A_-_10_43_57_01034679.html#16`).
+    const rows = (seite?.stages ?? []).flatMap((s) => s.reden?.data?.rows ?? []);
+    const seen = new Set<string>();
+    return rows.flatMap((r) =>
+      (Array.isArray(r[2]) ? (r[2] as { url?: string; title?: string }[]) : []).flatMap((d) => {
+        const link = d.url?.split('#')[0];
+        if (!link || seen.has(link)) return [];
+        seen.add(link);
+        return [{ titel: d.title ?? '', link }];
+      })
+    );
+  }
+
+  async dokumente(hisUrl: string, signal: AbortSignal): Promise<NrDocLink[]> {
+    const seite = await this.#seite(hisUrl, signal);
+    // `stdocuments`: das (vorläufige) stenographische Protokoll einer Sitzung.
+    const groups = [seite?.documents, seite?.stdocuments].flatMap((g) =>
+      Array.isArray(g) ? g : []
+    );
     return groups.flatMap((g) =>
       (g.documents ?? []).flatMap((d) =>
         d.link ? [{ gruppe: g.title ?? '', link: d.link, type: d.type ?? '' }] : []
