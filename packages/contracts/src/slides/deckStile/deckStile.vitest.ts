@@ -30,6 +30,20 @@ function fullFolie(typ: FolienTypId): FolieSpec {
   return { typ, slots } as FolieSpec;
 }
 
+/** WCAG-Kontrast zweier `#rrggbb`-Farben. */
+function contrastRatio(a: string, b: string) {
+  const lum = (hex: string) => {
+    const n = parseInt(hex.slice(1), 16);
+    const [r, g, bl] = [(n >> 16) & 255, (n >> 8) & 255, n & 255].map((c) => {
+      const v = c / 255;
+      return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4;
+    });
+    return 0.2126 * r! + 0.7152 * g! + 0.0722 * bl!;
+  };
+  const [hi, lo] = [lum(a), lum(b)].sort((x, y) => y - x);
+  return (hi! + 0.05) / (lo! + 0.05);
+}
+
 const ctx = (locale: BrandLocale, index = 0) => ({
   locale,
   date: DATE,
@@ -182,6 +196,42 @@ describe('deck stile', () => {
           expect(el.x + (el.width ?? 0), name).toBeLessThanOrEqual(1920);
           // Eine Zeile samt Zeilenabstand muss über der Fußzeile (y 1028) enden.
           expect(el.y + el.fontSize * 1.25, name).toBeLessThan(1028);
+        }
+      }
+    }
+  });
+
+  it('sets band-resident highlights readable on the band', () => {
+    for (const locale of LOCALES) {
+      const band = getBrandPack(locale).colors.primary;
+      const cases: [FolienTypId, string][] = [
+        ['liste', 'folie-headline'],
+        ['text', 'folie-headline'],
+        ['zahl', 'folie-zahl'],
+        ['zitat', 'folie-intro'],
+        ['kernsatz', 'folie-headline'],
+      ];
+      for (const [typ, id] of cases) {
+        const state = buildFolie('band', fullFolie(typ), ctx(locale));
+        const el = state.additionalTexts.find((t) => t.id === id)!;
+        expect(
+          contrastRatio(el.accent!.fill!, band),
+          `${locale} ${typ} ${id}`
+        ).toBeGreaterThanOrEqual(3);
+      }
+    }
+  });
+
+  it('keeps the Störer text readable on its fill in every stil', () => {
+    for (const stil of STILE) {
+      for (const locale of LOCALES) {
+        for (const index of [0, 1]) {
+          const state = buildFolie(stil, fullFolie('titel'), ctx(locale, index));
+          const fill = state.shapeInstances.find((s) => s.id === 'folie-stoerer')!.fill;
+          const text = state.additionalTexts.find((t) => t.id === 'folie-stoerer-text')!.fill;
+          expect(contrastRatio(fill, text), `${stil} ${locale} ${index}`).toBeGreaterThanOrEqual(
+            4.5
+          );
         }
       }
     }

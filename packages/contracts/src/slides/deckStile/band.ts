@@ -31,6 +31,14 @@ import { type DeckStilBox } from './index.js';
 const BAND = 640;
 const RX = 740;
 const WHITE = '#FFFFFF';
+/** Texte, die auf dem Tannenband stehen. */
+const BAND_RESIDENT = [
+  'folie-headline',
+  'folie-zahl',
+  'folie-quelle',
+  'folie-intro',
+  'folie-kontakt',
+];
 
 export function buildBand(folie: FolieSpec, ctx: DeckStilCtx): SlideLayoutState {
   const t = tonesOf(ctx.locale);
@@ -39,7 +47,8 @@ export function buildBand(folie: FolieSpec, ctx: DeckStilCtx): SlideLayoutState 
   const störer = stoererOf(folie);
   b.shape('folie-band', 'rect', BAND / 2, 540, BAND, 1080, t.tanne);
   b.lock('folie-band');
-  const kopfImBand = (id: string) => head(b, id, 90, 110, 460, size(110), WHITE);
+  // Entwurf: Thema im Band bei (110, 180), 120 px, 440 breit.
+  const kopfImBand = (id: string) => head(b, id, 110, 180, 440, size(120), WHITE);
   switch (folie.typ) {
     case 'titel':
       head(b, 'folie-headline', RX, 300, 1080, size(200));
@@ -68,7 +77,7 @@ export function buildBand(folie: FolieSpec, ctx: DeckStilCtx): SlideLayoutState 
       b.text('folie-spalte-1', '', RX, 150, 1070, 44, { lineHeight: 1.4 });
       break;
     case 'kernsatz':
-      b.text('folie-headline', '', 90, 110, 460, 56, {
+      b.text('folie-headline', '', 110, 110, 440, 56, {
         type: 'header',
         family: b.ink.headline,
         fill: t.lime,
@@ -84,13 +93,16 @@ export function buildBand(folie: FolieSpec, ctx: DeckStilCtx): SlideLayoutState 
       });
       break;
     case 'zahl':
-      head(b, 'folie-zahl', 90, 300, 520, size(200), t.lime);
-      b.text('folie-quelle', '', 90, 880, 460, 26, { fill: WHITE });
-      head(b, 'folie-zahl-text', RX, 300, 1060, size(100));
+      // Entwurf: Zahl 250 bei (90, 360) und weiße Erklärung bei (116, 700) im Band, der große Satz rechts.
+      // Unsere Slots: `quelle` ist die kurze Zeile und steht deshalb im Band an der Stelle der Erklärung,
+      // `zahl-text` ist der Satz und steht rechts in der Größe des Entwurfs.
+      head(b, 'folie-zahl', 90, 360, 520, size(250), t.lime);
+      b.text('folie-quelle', '', 116, 700, 440, 40, { fill: WHITE });
+      head(b, 'folie-zahl-text', RX, 300, 1060, size(120));
       break;
     case 'zitat':
-      b.text('folie-intro', '', 90, 110, 460, 44, { type: 'subheader', fill: t.lime });
-      head(b, 'folie-zitat', RX, 200, 1060, size(100));
+      b.text('folie-intro', '', 110, 110, 440, 34, { type: 'subheader', fill: t.lime });
+      head(b, 'folie-zitat', RX, 300, 1060, size(120));
       b.text('folie-zitat-name', '', RX + 6, 930, 1060, 40, {
         fill: b.ink.accent?.fill ?? t.tanne,
       });
@@ -102,11 +114,16 @@ export function buildBand(folie: FolieSpec, ctx: DeckStilCtx): SlideLayoutState 
         type: 'subheader',
         family: b.ink.headline,
       });
-      b.text('folie-kontakt', '', 90, 480, 460, 28, { fill: WHITE, lineHeight: 1.3 });
+      b.text('folie-kontakt', '', 110, 480, 440, 28, { fill: WHITE, lineHeight: 1.3 });
       break;
   }
   const state = finishFolie(b, folie, ctx, 'band');
   // Das Datum steht im Band und wird dort weiß.
+  // Im Band hebt `==…==` hell hervor: Klee auf Tanne hielte 1,8:1, in AT wäre der Akzent der Grund selbst.
+  for (const id of BAND_RESIDENT) {
+    const el = b.state.additionalTexts.find((x) => x.id === id);
+    if (el) el.accent = { fill: t.lime };
+  }
   const datum = textOf(b, 'folie-datum');
   datum.fill = WHITE;
   datum.width = 500;
@@ -118,9 +135,9 @@ export const BAND_BOXES: Record<FolienTypId, Record<string, DeckStilBox>> = {
     'folie-headline': { maxHeight: 420, minScale: 0.6 },
     'folie-text': { maxHeight: 250, minScale: 0.8 },
   },
-  liste: { 'folie-headline': { maxHeight: 580, minScale: 0.6 } },
+  liste: { 'folie-headline': { maxHeight: 530, minScale: 0.6 } },
   text: {
-    'folie-headline': { maxHeight: 800, minScale: 0.6 },
+    'folie-headline': { maxHeight: 750, minScale: 0.6 },
     'folie-spalte-1': { maxHeight: 780, minScale: 0.8 },
   },
   kernsatz: {
@@ -128,9 +145,9 @@ export const BAND_BOXES: Record<FolienTypId, Record<string, DeckStilBox>> = {
     'folie-kernsatz': { maxHeight: 560, minScale: 0.6 },
   },
   zahl: {
-    'folie-zahl': { maxHeight: 400, minScale: 0.6 },
+    'folie-zahl': { maxHeight: 340, minScale: 0.6 },
     'folie-zahl-text': { maxHeight: 560, minScale: 0.7 },
   },
-  zitat: { 'folie-zitat': { maxHeight: 700, minScale: 0.6 } },
+  zitat: { 'folie-zitat': { maxHeight: 600, minScale: 0.6 } },
   danke: { 'folie-headline': { maxHeight: 400, minScale: 0.6 } },
 };

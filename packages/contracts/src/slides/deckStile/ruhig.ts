@@ -76,8 +76,9 @@ export function buildRuhig(folie: FolieSpec, ctx: DeckStilCtx): SlideLayoutState
       break;
     case 'zitat':
       b.text('folie-intro', '', X + 6, 110, 1500, 50, { type: 'subheader', fill: t.lime });
-      head(b, 'folie-zitat', X, 200, 1700, size(130));
-      b.text('folie-zitat-name', '', X + 6, 830, 1500, 44, { fill: t.lime });
+      // Entwurf: Zitat 170 bei (110, 260), 1500 breit, Quelle bei y 760.
+      head(b, 'folie-zitat', X, 260, 1500, size(170));
+      b.text('folie-zitat-name', '', X + 6, 760, 1500, 44, { fill: t.lime });
       break;
     case 'danke':
       logoOben(b, ctx.locale, X, b.ink.logoAssetId);
@@ -111,6 +112,6 @@ export const RUHIG_BOXES: Record<FolienTypId, Record<string, DeckStilBox>> = {
     'folie-zahl': { maxHeight: 400, minScale: 0.6 },
     'folie-zahl-text': { maxHeight: 250, minScale: 0.7 },
   },
-  zitat: { 'folie-zitat': { maxHeight: 600, minScale: 0.6 } },
+  zitat: { 'folie-zitat': { maxHeight: 480, minScale: 0.6 } },
   danke: { 'folie-headline': { maxHeight: 330, minScale: 0.6 } },
 };

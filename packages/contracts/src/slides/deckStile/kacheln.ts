@@ -51,10 +51,10 @@ export function buildKacheln(folie: FolieSpec, ctx: DeckStilCtx): SlideLayoutSta
       const n = items.length;
       const cols = n === 4 ? 2 : 3;
       const tw = (AREA_W - (cols - 1) * GAP) / cols;
-      const th = 290;
+      const th = 300;
       items.forEach((_, i) => {
         const x = X + (i % cols) * (tw + GAP);
-        const y = 320 + Math.floor(i / cols) * (th + GAP);
+        const y = 300 + Math.floor(i / cols) * (th + GAP);
         const big = n > 1 && (i === 0 || i === n - 1);
         b.shape(
           `folie-kachel-${i + 1}`,
@@ -69,9 +69,9 @@ export function buildKacheln(folie: FolieSpec, ctx: DeckStilCtx): SlideLayoutSta
           `folie-kachelnr-${i + 1}`,
           String(i + 1).padStart(2, '0'),
           x + 40,
-          y + 25,
+          y + 40,
           200,
-          size(80),
+          size(96),
           {
             type: 'header',
             family: b.ink.headline,
@@ -82,8 +82,9 @@ export function buildKacheln(folie: FolieSpec, ctx: DeckStilCtx): SlideLayoutSta
       });
       items.forEach((item, i) => {
         const x = X + (i % cols) * (tw + GAP);
-        const y = 320 + Math.floor(i / cols) * (th + GAP);
-        b.text(`folie-punkt-${i + 1}`, item, x + 40, y + 115, tw - 80, 36, { lineHeight: 1.25 });
+        const y = 300 + Math.floor(i / cols) * (th + GAP);
+        // Entwurf setzt den Text unten in die Kachel; hier fest bei +150, damit zwei Zeilen à 44 px passen.
+        b.text(`folie-punkt-${i + 1}`, item, x + 40, y + 150, tw - 80, 44, { lineHeight: 1.25 });
       });
       if (störer) stoerer(b, störer, 1700, 155, STOERER_MAGENTA);
       break;
@@ -113,8 +114,8 @@ export function buildKacheln(folie: FolieSpec, ctx: DeckStilCtx): SlideLayoutSta
       break;
     }
     case 'zahl':
-      head(b, 'folie-zahl', X, 200, 1000, size(420), t.grasText);
-      b.text('folie-zahl-text', '', 1120, 300, 690, 52, { lineHeight: 1.2 });
+      head(b, 'folie-zahl', X, 200, 1000, size(520), t.grasText);
+      b.text('folie-zahl-text', '', 1120, 330, 690, 56, { lineHeight: 1.2 });
       b.text('folie-quelle', '', X + 6, 900, 1500, 30);
       break;
     case 'zitat':
@@ -152,7 +153,7 @@ export const KACHELN_BOXES: Record<FolienTypId, Record<string, DeckStilBox>> = {
     'folie-kernsatz': { maxHeight: 480, minScale: 0.6 },
   },
   zahl: {
-    'folie-zahl': { maxHeight: 400, minScale: 0.6 },
+    'folie-zahl': { maxHeight: 450, minScale: 0.6 },
     'folie-zahl-text': { maxHeight: 520, minScale: 0.7 },
   },
   zitat: { 'folie-zitat': { maxHeight: 520, minScale: 0.6 } },

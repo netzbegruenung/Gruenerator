@@ -53,13 +53,13 @@ export function buildAussage(folie: FolieSpec, ctx: DeckStilCtx): SlideLayoutSta
     case 'titel':
       head(b, 'folie-headline', X, 380, 1700, size(240));
       b.text('folie-text', '', X + 6, 860, 1500, 44, { fill: akzent });
-      if (störer) stoerer(b, störer, 1620, 260, t.gras);
+      if (störer) stoerer(b, störer, 1595, 305, t.gras);
       break;
     case 'liste': {
       head(b, 'folie-headline', X, 110, 1300, size(110));
       const items = listItems(folie, 'punkte');
       reihe(items, 470, 44, items.length === 4 ? 2 : 3, 300);
-      if (störer) stoerer(b, störer, 1660, 250, t.gras);
+      if (störer) stoerer(b, störer, 1595, 305, t.gras);
       break;
     }
     case 'text':
@@ -68,10 +68,10 @@ export function buildAussage(folie: FolieSpec, ctx: DeckStilCtx): SlideLayoutSta
       break;
     case 'kernsatz':
       head(b, 'folie-headline', X, 110, 1700, size(72), akzent);
-      head(b, 'folie-kernsatz', X, 250, 1700, size(140));
+      head(b, 'folie-kernsatz', X, 250, 1700, size(150));
       {
         const items = listItems(folie, 'punkte');
-        reihe(items, 830, 40, Math.max(items.length, 1), 0);
+        reihe(items, 830, 44, Math.max(items.length, 1), 0);
       }
       break;
     case 'zahl':
@@ -81,8 +81,8 @@ export function buildAussage(folie: FolieSpec, ctx: DeckStilCtx): SlideLayoutSta
       break;
     case 'zitat':
       b.text('folie-intro', '', X + 6, 110, 1500, 50, { type: 'subheader', fill: akzent });
-      head(b, 'folie-zitat', X, 200, 1700, size(120));
-      b.text('folie-zitat-name', '', X + 6, 840, 1500, 44, { fill: akzent });
+      head(b, 'folie-zitat', X, 220, 1600, size(150));
+      b.text('folie-zitat-name', '', X + 6, 820, 1500, 44, { fill: akzent });
       break;
     case 'danke':
       logoOben(b, ctx.locale, X, b.ink.logoAssetId);
@@ -96,8 +96,9 @@ export function buildAussage(folie: FolieSpec, ctx: DeckStilCtx): SlideLayoutSta
       break;
   }
   const state = finishFolie(b, folie, ctx, 'aussage');
-  // Grasgrün trägt weiße Schrift schlecht: der Störer-Text ist hier dunkel (Entwurf).
-  if (störer) textOf(b, 'folie-stoerer-text').fill = t.dunkel;
+  // Grasgrün trägt weiße Schrift schlecht. DE: Dunkeltanne wie im Entwurf (auf #00CC4F gut über 4,5:1).
+  // AT: Dunkelgrün hielte auf Hellgrün #56AF31 nur etwa 2,5:1, Schwarz aus dem Brandpack hält über 8:1.
+  if (störer) textOf(b, 'folie-stoerer-text').fill = ctx.locale === 'de-AT' ? '#000000' : t.dunkel;
   return state;
 }
 
@@ -119,6 +120,6 @@ export const AUSSAGE_BOXES: Record<FolienTypId, Record<string, DeckStilBox>> = {
     'folie-zahl': { maxHeight: 400, minScale: 0.6 },
     'folie-zahl-text': { maxHeight: 250, minScale: 0.7 },
   },
-  zitat: { 'folie-zitat': { maxHeight: 600, minScale: 0.6 } },
+  zitat: { 'folie-zitat': { maxHeight: 580, minScale: 0.6 } },
   danke: { 'folie-headline': { maxHeight: 330, minScale: 0.6 } },
 };
