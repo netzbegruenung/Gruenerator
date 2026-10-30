@@ -155,6 +155,8 @@ export interface UsePageManagerReturn<TId extends string = TemplateId> {
   replaceDeck: YjsPagesApi['replaceDeck'] | null;
   canUndoPageOp: boolean;
   canRedoPageOp: boolean;
+  /** Stamps of the page ops Undo/Redo would reach, see `YjsPagesApi['pageOpStamps']`. */
+  pageOpStamps: YjsPagesApi['pageOpStamps'];
   /** Pages come from the initial state or the unsynced cache: show them, edit nothing. */
   isPreview: boolean;
   /**
@@ -182,6 +184,8 @@ export function nextPageIdAfterRemoval(
   const fallbackIndex = Math.min(Math.max(removedIndex, 0), survivors.length - 1);
   return survivors[fallbackIndex].id;
 }
+
+const noPageOpStamps: YjsPagesApi['pageOpStamps'] = () => ({ undo: null, redo: null });
 
 export function usePageManager<TId extends string = TemplateId>({
   initialConfigId,
@@ -498,6 +502,7 @@ export function usePageManager<TId extends string = TemplateId>({
   const replaceDeck = yjsPages?.replaceDeck ?? null;
   const canUndoPageOp = yjsPages?.canUndoPageOp ?? false;
   const canRedoPageOp = yjsPages?.canRedoPageOp ?? false;
+  const pageOpStamps = yjsPages?.pageOpStamps ?? noPageOpStamps;
 
   return {
     pages,
@@ -524,6 +529,7 @@ export function usePageManager<TId extends string = TemplateId>({
     replaceDeck,
     canUndoPageOp,
     canRedoPageOp,
+    pageOpStamps,
     isPreview,
     schemaRefusal,
   };

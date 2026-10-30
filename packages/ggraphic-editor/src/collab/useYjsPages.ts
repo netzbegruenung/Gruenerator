@@ -32,6 +32,7 @@ import {
   type ReplaceDeckOps,
 } from '@ggraphic/editor/collab/pagesDoc';
 import { YDOC_KEYS } from '@ggraphic/editor/collab/ydocKeys';
+import { type HistoryStamps, nextHistoryStamp } from '@ggraphic/editor/utils/historyStamp';
 
 import { useCanvasEditorServices } from '../CanvasEditorProvider.js';
 
@@ -51,6 +52,29 @@ const SETUP_ORIGIN = Symbol('canvas-editor-pages-setup');
 // but unlike STATE_ORIGIN not skipped by the mounted canvases.
 const RESTORE_ORIGIN = Symbol('canvas-editor-pages-restore');
 const DECK_STATES = 'deckStates';
+/** When the step was first taken; Undo and Redo carry it across (`utils/historyStamp`). */
+const STEP_STAMP = 'stepStamp';
+
+type StackEvent = { stackItem: { meta: Map<unknown, unknown> }; type: 'undo' | 'redo' };
+
+/** A new stack item gets a stamp; one Undo or Redo creates keeps the original's (see onPopped). */
+function stampStackItem(event: StackEvent): void {
+  if (!event.stackItem.meta.has(STEP_STAMP))
+    event.stackItem.meta.set(STEP_STAMP, nextHistoryStamp());
+}
+
+/** Undo/Redo pushed the item's mirror onto the other stack before popping it. */
+function carryStepStamp(manager: Y.UndoManager, event: StackEvent): void {
+  const stamp = event.stackItem.meta.get(STEP_STAMP);
+  if (typeof stamp !== 'number') return;
+  const mirror = event.type === 'undo' ? manager.redoStack : manager.undoStack;
+  mirror[mirror.length - 1]?.meta.set(STEP_STAMP, stamp);
+}
+
+const stackStamp = (stack: readonly { meta: Map<unknown, unknown> }[]): number | null => {
+  const stamp = stack[stack.length - 1]?.meta.get(STEP_STAMP);
+  return typeof stamp === 'number' ? stamp : null;
+};
 
 /**
  * What a mounted canvas writes back for a page state it receives: its
@@ -183,6 +207,8 @@ export interface YjsPagesApi {
   discardReplaceDeck: () => void;
   canUndoPageOp: boolean;
   canRedoPageOp: boolean;
+  /** Stamps of the page ops Undo/Redo would reach, read at call time. */
+  pageOpStamps: () => HistoryStamps;
   /**
    * Set when this build must not write the doc: it carries a newer document
    * version (or a malformed stamp). Every mutator above is then a no-op and
@@ -194,6 +220,7 @@ export interface YjsPagesApi {
 const noChrome: CanvasCarouselService['refreshChrome'] = () => {};
 
 const noop = () => {};
+const noStamps = (): HistoryStamps => ({ undo: null, redo: null });
 
 /** The API of a doc this build must not write: its pages, and nothing that changes them. */
 function refusedApi(pages: PageView[], schemaRefusal: DocumentRefusal): YjsPagesApi {
@@ -215,6 +242,7 @@ function refusedApi(pages: PageView[], schemaRefusal: DocumentRefusal): YjsPages
     discardReplaceDeck: noop,
     canUndoPageOp: false,
     canRedoPageOp: false,
+    pageOpStamps: noStamps,
     schemaRefusal,
   };
 }
@@ -320,8 +348,11 @@ export function useYjsPages(
     });
     undoManagerRef.current = undoManager;
     const onUndoChange = () => setHistoryVersion((v) => v + 1);
-    const onPopped = (event: Parameters<typeof restoreDeckStates>[2]) =>
+    const onPopped = (event: Parameters<typeof restoreDeckStates>[2]) => {
+      carryStepStamp(undoManager, event);
       restoreDeckStates(ydoc, undoManager, event);
+    };
+    undoManager.on('stack-item-added', stampStackItem);
     undoManager.on('stack-item-added', onUndoChange);
     undoManager.on('stack-item-popped', onPopped);
     undoManager.on('stack-item-popped', onUndoChange);
@@ -332,6 +363,7 @@ export function useYjsPages(
       disposed = true;
       meta.unobserve(onMeta);
       pagesMap.unobserveDeep(onChange);
+      undoManager.off('stack-item-added', stampStackItem);
       undoManager.off('stack-item-added', onUndoChange);
       undoManager.off('stack-item-popped', onPopped);
       undoManager.off('stack-item-popped', onUndoChange);
@@ -496,6 +528,12 @@ export function useYjsPages(
       discardReplaceDeck,
       canUndoPageOp: (undoManager?.undoStack.length ?? 0) > 0,
       canRedoPageOp: (undoManager?.redoStack.length ?? 0) > 0,
+      pageOpStamps: () => {
+        const manager = undoManagerRef.current;
+        return manager
+          ? { undo: stackStamp(manager.undoStack), redo: stackStamp(manager.redoStack) }
+          : noStamps();
+      },
       schemaRefusal: null,
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps -- version/historyVersion invalidate the derived view
