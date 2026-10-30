@@ -10,3 +10,4 @@ export {
   type BrandPack,
   type BrandSwatch,
 } from './brand/brandPack.js';
+export * from './model/index.js';

@@ -1,9 +1,11 @@
 // SPDX-License-Identifier: MPL-2.0
+import { type ShapeInstance, type ShapeType } from '@ggraphic/core';
+
 import { messages } from '@ggraphic/editor/i18n/messages';
 
 import { defaultMarkerFill } from './markerColors.js';
 
-import type { GradientFill } from '@ggraphic/editor/utils/gradientFill';
+export { type ShapeBlendMode, type ShapeInstance, type ShapeType } from '@ggraphic/core';
 
 /**
  * Shapes rendered as strokes (Konva Line/Arrow) with no fill area — a gradient
@@ -17,81 +19,6 @@ export const STROKE_ONLY_SHAPES: ReadonlySet<string> = new Set([
   'line-double',
   'line-arrow',
 ]);
-
-export type ShapeType =
-  | 'rect'
-  | 'circle'
-  | 'triangle'
-  | 'star'
-  | 'arrow'
-  | 'heart'
-  | 'cloud'
-  | 'hexagon'
-  | 'pentagon'
-  | 'diamond'
-  | 'ellipse'
-  | 'rounded-rect'
-  | 'ring'
-  | 'chevron'
-  | 'double-arrow'
-  | 'wavy'
-  | 'speech-round'
-  | 'speech-rect'
-  | 'sparkle'
-  | 'checkmark'
-  | 'blob'
-  | 'leaf'
-  | 'line'
-  | 'line-thick'
-  | 'line-dashed'
-  | 'line-dotted'
-  | 'line-double'
-  | 'line-arrow'
-  | 'speech-cloud'
-  | 'speech-pointed'
-  | 'cloud-fluffy'
-  | 'cloud-puff'
-  | 'cloud-thin'
-  | 'heart-broken'
-  | 'heart-double'
-  | 'heart-arrow'
-  | 'drop'
-  | 'drop-pin'
-  | 'drop-tear'
-  | 'drop-flame'
-  | 'banner-ribbon'
-  | 'banner-flag'
-  | 'banner-tag'
-  | 'banner-scroll'
-  | 'gear'
-  | 'gear-12'
-  | 'gear-6'
-  | 'gear-fine'
-  | 'asterisk'
-  | 'star-burst'
-  | 'flower'
-  | 'flower-8'
-  | 'blob-2'
-  | 'tree'
-  | 'mountain'
-  | 'sun'
-  | 'plus'
-  | 'minus'
-  | 'x-mark'
-  | 'arrow-curved'
-  | 'hand-kreis'
-  | 'hand-unterstrich'
-  | 'hand-pfeil'
-  | 'hand-ausruf'
-  | 'hand-marker'
-  | 'hand-marker-box'
-  | 'hand-winken'
-  | 'hand-pfeil-schlaufe'
-  | 'hand-pfeil-welle'
-  | 'hand-pfeil-bogen'
-  | 'hand-pfeil-haken'
-  | 'hand-pfeil-herz'
-  | 'hand-pfeil-spirale';
 
 /**
  * Display category for the Formen palette. Each shape belongs to exactly one
@@ -796,38 +723,6 @@ export function assertNever(x: never): never {
   throw new Error(`Unexpected value: ${JSON.stringify(x)}`);
 }
 
-export interface ShapeInstance {
-  id: string;
-  type: ShapeType;
-  x: number;
-  y: number;
-  width: number;
-  height: number;
-  fill: string;
-  rotation: number;
-  scaleX: number;
-  scaleY: number;
-  opacity: number;
-  cornerRadius?: number;
-  /** Canvas px a composer card grew with its text (cardFollowsText); not a hand resize. */
-  textGrowth?: number;
-  strokeWidth?: number;
-  dash?: number[];
-  /** Drop shadow (Konva shadow* props); omit for no shadow. */
-  shadowColor?: string;
-  shadowBlur?: number;
-  shadowOffsetX?: number;
-  shadowOffsetY?: number;
-  shadowOpacity?: number;
-  /** Linear gradient fill; when set, overrides `fill`. */
-  fillGradient?: GradientFill | null;
-  /** Blends the fill into what lies beneath (Konva `globalCompositeOperation`); omit for normal. */
-  blendMode?: ShapeBlendMode;
-  /** Mirrored about the centre (negative node scale); omit for upright. */
-  flipX?: boolean;
-  flipY?: boolean;
-}
-
 /**
  * The composer's background planes (gradient, colour panel beside a photo
  * strip, contrast scrim, AT strip tint): ordinary shapes, the ids only name
@@ -867,9 +762,6 @@ export function photoStripBeside(
 export function isComposerPlane(id: string): boolean {
   return COMPOSER_PLANE_IDS.includes(id) || id === 'sc-kopfband' || id.endsWith('-flaeche');
 }
-
-/** `color`: hue and saturation of the fill, brightness of what lies beneath — a duotone. */
-export type ShapeBlendMode = 'color';
 
 /** Eucalyptus (--secondary-600), used as the default neutral color for line variants. */
 export const EUCALYPTUS = '#5F8575';
