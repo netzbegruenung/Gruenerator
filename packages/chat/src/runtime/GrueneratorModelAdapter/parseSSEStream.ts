@@ -169,6 +169,17 @@ async function* parseStream(
 ): AsyncGenerator<ChatModelRunResult, void> {
   const reader = response.body?.getReader();
   const effectsFrom = carryOver?.effectsFrom ?? 0;
+  // Turn wall time for the run-activity row. A replay (effectsFrom > 0) arrives
+  // in one burst, so its clock would read "1 Sek." for a three-minute turn —
+  // it keeps no live duration; the reload carries the persisted one. A resume
+  // after a pause (approval / ask_human / client tool) measures nothing either:
+  // the turn spans the pause, and the server drops its stamp for the same reason.
+  const measuresTurn =
+    effectsFrom === 0 &&
+    (carryOver?.knownToolCallIds?.size ?? 0) === 0 &&
+    (carryOver?.toolCalls?.length ?? 0) === 0;
+  const streamStartedAt = Date.now();
+  let turnDurationMs: number | null = null;
   let eventIndex = -1;
   const muted = (): boolean => eventIndex < effectsFrom;
   const toastError = (...a: Parameters<typeof notifyError>): void => {
@@ -429,6 +440,7 @@ async function* parseStream(
     if (receivedReelProcessing) custom.reelProcessing = receivedReelProcessing;
     if (receivedReelPicker) custom.reelPicker = receivedReelPicker;
     if (evidenceWeakAccum) custom.evidenceWeak = evidenceWeakAccum;
+    if (turnDurationMs != null) custom.turnDurationMs = turnDurationMs;
     if (receivedAnswerMode) {
       custom.answerMode = receivedAnswerMode;
       if (receivedAnswerModeReason) custom.answerModeReason = receivedAnswerModeReason;
@@ -1421,6 +1433,7 @@ async function* parseStream(
             if (img) receivedImage = img;
             if (metadata) receivedMetadata = metadata;
             if (interrupted && !clientToolPending) interruptPending = true;
+            if (measuresTurn) turnDurationMs = Date.now() - streamStartedAt;
             transitionStep('complete');
             currentProgress = { stage: 'complete', message: '' };
             break;

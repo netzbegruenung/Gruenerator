@@ -252,6 +252,7 @@ router.get('/', async (req, res) => {
             computeData?: Record<string, unknown>;
             browserSession?: Record<string, unknown>;
             agentId?: string;
+            turnDurationMs?: number;
             answerMode?: NotebookResolvedAnswerMode;
             answerModeReason?: NotebookAnswerModeReason;
             sourceTier?: NotebookSourceTier;
@@ -307,6 +308,8 @@ router.get('/', async (req, res) => {
               ? { browserSession: meta.browserSession as Record<string, unknown> }
               : {}),
             ...(typeof meta.agentId === 'string' && { agentId: meta.agentId }),
+            // Stamped by finalizeAssistantMessage — the run-activity row's time.
+            ...(typeof meta.turnDurationMs === 'number' && { turnDurationMs: meta.turnDurationMs }),
             // Notebook-Seite: in welchem Antwortmodus die Antwort lief — trägt
             // den Modus-Chip über den Reload.
             ...(answerMode.success && { answerMode: answerMode.data }),
