@@ -248,15 +248,31 @@ export function applySlideDeckOperations(
         );
     }
     if (ctx.measure && op.operations.some((o) => o.kind === 'set-text')) {
-      // Der neue Text soll in die Box des Stils passen; die Schrift schrumpft nur.
-      const typ = readFolie(state)?.typ;
-      if (typ) {
+      // Der neue Text soll in die Box des Stils passen. Ausgang ist die Größe, die der
+      // Stil selbst setzt, nicht die aktuelle: so schrumpft wiederholtes Bearbeiten nicht
+      // kumulativ, und ein kürzerer Text wächst zurück.
+      const folie = readFolie(state);
+      if (folie) {
+        const stil = readDeckStil(pages);
+        const base: Record<string, number> = {};
+        const unfitted = buildFolie(stil, folie, {
+          locale: ctx.locale,
+          date: ctx.date,
+          pageNumber: index + 1,
+          title: ctx.title,
+          index,
+        });
+        for (const t of unfitted.additionalTexts) base[t.id] = t.fontSize;
         const fitted = fitSlideTexts(
           state as unknown as Parameters<typeof fitSlideTexts>[0],
-          deckStilBoxes(readDeckStil(pages), typ),
-          ctx.measure
-        ).state;
-        pages[index]!.state = fitted as unknown as Record<string, unknown>;
+          deckStilBoxes(stil, folie.typ),
+          ctx.measure,
+          base
+        );
+        pages[index]!.state = fitted.state as unknown as Record<string, unknown>;
+        for (const id of fitted.overflow) {
+          refused.push(`Folie ${op.slide}: Text passt nicht in ${id}, bitte kürzen`);
+        }
       }
     }
     if (op.notes != null) {

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { type DeckStilId } from './deckStile/index.js';
+import { deckStilBoxes, type DeckStilId } from './deckStile/index.js';
 import { composeSlideDeck } from './slideDeck.js';
 import {
   applySlideDeckOperations,
@@ -291,5 +291,47 @@ describe('applySlideDeckOperations', () => {
     expect(size(fitted.pages, 2, 'folie-headline')).toBeLessThan(
       size(plain.pages, 2, 'folie-headline')
     );
+  });
+
+  describe('fitting edited text', () => {
+    // Langer Text passt nie, kurzer immer.
+    const measure = (text: string, font: { size: number }) => ({
+      height: text.length > 20 ? 1e6 : font.size,
+    });
+    const LONG = 'Ein sehr langer Satz, der in keine Box mehr passt.';
+    const edit = (pages: DeckPage[], value: string) =>
+      applySlideDeckOperations(
+        pages,
+        [
+          {
+            kind: 'edit-slide',
+            slide: 2,
+            operations: [{ kind: 'set-text', field: 'folie-headline', label: 'T', value }],
+          },
+        ],
+        { ...ctx(), measure }
+      );
+    const size = (pages: DeckPage[]) =>
+      (pages[1]!.state['additionalTexts'] as Array<{ id: string; fontSize: number }>).find(
+        (t) => t.id === 'folie-headline'
+      )!.fontSize;
+
+    it('does not shrink cumulatively and grows back with a short text', () => {
+      const start = deck();
+      const base = size(start);
+      const { minScale } = deckStilBoxes('cd', 'text')['folie-headline']!;
+      const once = edit(start, LONG);
+      const twice = edit(once.pages, LONG + ' Noch mehr.');
+      expect(size(once.pages)).toBe(Math.round(base * minScale));
+      expect(size(twice.pages)).toBeGreaterThanOrEqual(Math.round(base * minScale));
+      expect(size(twice.pages)).toBe(size(once.pages));
+      expect(size(edit(twice.pages, 'Kurz').pages)).toBe(base);
+    });
+
+    it('reports a text that still does not fit as a refusal', () => {
+      const result = edit(deck(), LONG);
+      expect(result.refused).toContain('Folie 2: Text passt nicht in folie-headline, bitte kürzen');
+      expect(edit(deck(), 'Kurz').refused).toEqual([]);
+    });
   });
 });

@@ -57,8 +57,13 @@ function scalesFor(minScale: number): number[] {
 }
 
 /** Ein gemeinsamer Maßstab für alle Elemente; liefert die Ids, die auch am Ende noch zu hoch sind. */
-function fitGroup(els: TextEl[], box: FitBox, measure: MeasureText): string[] {
-  const original = els.map((e) => e.fontSize);
+function fitGroup(
+  els: TextEl[],
+  box: FitBox,
+  measure: MeasureText,
+  base: Record<string, number> | null
+): string[] {
+  const original = els.map((e) => base?.[e.id] ?? e.fontSize);
   let over: string[] = [];
   for (const scale of scalesFor(box.minScale)) {
     over = [];
@@ -74,7 +79,13 @@ function fitGroup(els: TextEl[], box: FitBox, measure: MeasureText): string[] {
 export function fitSlideTexts(
   state: SlideLayoutState,
   boxes: Record<string, FitBox>,
-  measure: MeasureText
+  measure: MeasureText,
+  /**
+   * Ausgangsgröße je Element-Id (die des Stils). Ohne sie gilt die aktuelle Größe als
+   * Ausgang; mit ihr schrumpft wiederholtes Bearbeiten nicht kumulativ, und ein
+   * kürzerer Text wächst auf die Ausgangsgröße zurück.
+   */
+  baseSizes: Record<string, number> | null = null
 ): { state: SlideLayoutState; overflow: string[] } {
   const next = structuredClone(state);
   const overflow: string[] = [];
@@ -84,7 +95,7 @@ export function fitSlideTexts(
         ? next.additionalTexts.filter((t) => LIST_ID.test(t.id))
         : next.additionalTexts.filter((t) => t.id === key);
     if (els.length === 0) continue;
-    overflow.push(...fitGroup(els, box, measure));
+    overflow.push(...fitGroup(els, box, measure, baseSizes));
   }
   return { state: next, overflow };
 }
