@@ -21,30 +21,6 @@ export interface DeckStilCtx {
 
 const { W, M, FOOTER, STOERER } = slideKit;
 
-/**
- * `**Wort**` wird zu `==Wort==`: der Editor zeichnet nur Letzteres in der
- * Akzentfarbe des Grunds (`accent` am Text). Linearer Scan ohne Regex — der
- * Text stammt aus Modellausgaben. Ein Marker öffnet nur vor einem
- * Nicht-Leerzeichen und schließt nur hinter einem; Ungepaartes bleibt literal.
- */
-export function emphasis(text: string): string {
-  const parts = text.split('**');
-  if (parts.length < 3) return text;
-  let out = parts[0]!;
-  for (let i = 1; i < parts.length; i += 2) {
-    const inner = parts[i]!;
-    const after = parts[i + 1];
-    if (after === undefined) {
-      out += `**${inner}`;
-    } else if (inner.trim() !== '' && inner === inner.trim()) {
-      out += `==${inner}==${after}`;
-    } else {
-      out += `**${inner}**${after}`;
-    }
-  }
-  return out;
-}
-
 export function footer(b: SlideBuilder, ctx: DeckStilCtx) {
   const date = new Intl.DateTimeFormat(ctx.locale, {
     weekday: 'long',
@@ -59,18 +35,34 @@ export function footer(b: SlideBuilder, ctx: DeckStilCtx) {
   });
 }
 
-/** Der Störer: ein Kreis mit kurzem Text; der Text trägt die Slot-Id `folie-stoerer`. */
+/**
+ * Der Störer wie im CD-Layout: `folie-stoerer` ist der Kreis, `folie-stoerer-text`
+ * der Text (Slot-Id). Ohne Text entfallen beide.
+ */
 export function stoerer(b: SlideBuilder, text: string, cx: number, cy: number, fill: string) {
+  const value = text.trim();
+  if (value === '') {
+    removeElement(b.state, 'folie-stoerer');
+    removeElement(b.state, 'folie-stoerer-text');
+    return;
+  }
   const d = STOERER.diameter;
-  b.shape('folie-stoerer-kreis', 'circle', cx, cy, d, d, fill);
-  const size = 40;
-  const lines = Math.min(3, Math.max(1, Math.ceil(text.length / 9)));
-  b.text('folie-stoerer', text, cx - d * 0.4, cy - (lines * size) / 2, d * 0.8, size, {
-    family: b.ink.headline,
-    fill: SHAREPIC_COLOR_HEX.weiss,
-    align: 'center',
-    lineHeight: 1,
-  });
+  b.shape('folie-stoerer', 'circle', cx, cy, d, d, fill);
+  const lines = Math.min(3, Math.max(1, Math.ceil(value.length / 9)));
+  b.text(
+    'folie-stoerer-text',
+    value,
+    cx - d * 0.43,
+    cy - (lines * STOERER.size) / 2,
+    d * 0.86,
+    STOERER.size,
+    {
+      family: b.ink.headline,
+      fill: SHAREPIC_COLOR_HEX.weiss,
+      align: 'center',
+      lineHeight: 1,
+    }
+  );
 }
 
 /** Magenta, in `aussage` Grasgrün: der Aufrufer nennt die Farbe. */
@@ -123,7 +115,7 @@ export function listItems(folie: FolieSpec, name: string): string[] {
 }
 
 /**
- * Schreibt die Textslots in ihre Elemente (`**Wort**` → Akzent) und nimmt
+ * Schreibt die Textslots in ihre Elemente (`==Wort==` → Akzent) und nimmt
  * Elemente nicht gegebener Slots mit samt `layerOrder`-Eintrag heraus.
  * Listen bauen die Stile selbst (`renderList`).
  */
@@ -133,12 +125,12 @@ export function applySlots(b: SlideBuilder, folie: FolieSpec) {
     if (slot.kind !== 'text') continue;
     const value = given[name];
     if (typeof value !== 'string' || value.trim() === '') {
-      removeElement(b.state, slot.elementId);
+      if (!slot.keepDefault) removeElement(b.state, slot.elementId);
       continue;
     }
     const target = b.state.additionalTexts.find((t) => t.id === slot.elementId);
     if (!target) continue;
-    target.text = emphasis(value.trim());
+    target.text = value.trim();
     if (b.ink.accent && !target.accent) target.accent = b.ink.accent;
   }
 }

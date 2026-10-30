@@ -24,6 +24,8 @@ export interface FolienTextSlot {
   required: boolean;
   elementId: string;
   hint: string;
+  /** Leer bleibt das Element mit seinem Standardtext stehen, statt zu entfallen. */
+  keepDefault?: boolean;
 }
 
 export interface FolienListSlot {
@@ -44,8 +46,16 @@ const text = (
   maxChars: number,
   elementId: string,
   hint: string,
-  required = false
-): FolienTextSlot => ({ kind: 'text', maxChars, required, elementId, hint });
+  required = false,
+  keepDefault = false
+): FolienTextSlot => ({
+  kind: 'text',
+  maxChars,
+  required,
+  elementId,
+  hint,
+  ...(keepDefault ? { keepDefault } : {}),
+});
 
 const list = (
   maxChars: number,
@@ -69,7 +79,7 @@ export const FOLIEN_TYPEN = {
     slots: {
       headline: text(40, 'folie-headline', 'Schlagzeile', true),
       unterzeile: text(110, 'folie-text', 'Anlass, Ort, Datum oder ein Einstiegssatz'),
-      stoerer: text(24, 'folie-stoerer', 'kurzer Störer, z. B. „Neu“'),
+      stoerer: text(24, 'folie-stoerer-text', 'kurzer Störer, z. B. „Neu“'),
     },
   },
   liste: {
@@ -78,7 +88,7 @@ export const FOLIEN_TYPEN = {
     slots: {
       headline: text(50, 'folie-headline', 'Überschrift der Folie', true),
       punkte: list(70, 3, 6, 'drei bis sechs Punkte, je eine Zeile'),
-      stoerer: text(24, 'folie-stoerer', 'kurzer Störer'),
+      stoerer: text(24, 'folie-stoerer-text', 'kurzer Störer'),
     },
   },
   text: {
@@ -120,7 +130,13 @@ export const FOLIEN_TYPEN = {
     label: 'Vielen Dank',
     use: 'Schlussfolie mit Dank und optional Kontaktdaten',
     slots: {
-      headline: text(30, 'folie-headline', 'Schlusssatz unter „Vielen Dank“'),
+      headline: text(
+        30,
+        'folie-headline',
+        'große Schlusszeile; fehlt sie, steht dort „Vielen Dank“',
+        false,
+        true
+      ),
       kontakt: text(
         200,
         'folie-kontakt',

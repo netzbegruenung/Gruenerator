@@ -10,6 +10,8 @@ import {
   type FolienTypId,
 } from '../folienTypen.js';
 
+import { buildSlideLayout } from '../slideLayouts.js';
+
 import { buildFolie, DECK_STILE, deckStilBoxes, type DeckStilId } from './index.js';
 
 const DATE = new Date('2026-10-30T12:00:00Z');
@@ -112,15 +114,42 @@ describe('deck stile', () => {
     });
 
     for (const locale of LOCALES) {
-      it(`marks **words** with the accent fill (${stil} / ${locale})`, () => {
+      it(`marks ==words== with the accent fill and leaves **bold** alone (${stil} / ${locale})`, () => {
         const state = buildFolie(
           stil,
-          { typ: 'text', slots: { headline: 'H', text: 'Das ist **wichtig** hier' } },
+          { typ: 'text', slots: { headline: 'H', text: 'Das ist ==wichtig== und **fett** hier' } },
           ctx(locale)
         );
         const el = state.additionalTexts.find((t) => t.id === 'folie-spalte-1')!;
-        expect(el.text).toBe('Das ist ==wichtig== hier');
+        expect(el.text).toBe('Das ist ==wichtig== und **fett** hier');
         expect(el.accent?.fill).toBeTruthy();
+      });
+
+      it(`builds the Störer as circle folie-stoerer plus text folie-stoerer-text (${stil} / ${locale})`, () => {
+        const ref = buildSlideLayout('textfolie', { locale, pageNumber: 1, date: DATE });
+        expect(ref.shapeInstances.find((s) => s.id === 'folie-stoerer')?.type).toBe('circle');
+        expect(ref.additionalTexts.some((t) => t.id === 'folie-stoerer-text')).toBe(true);
+        for (const typ of ['titel', 'liste'] as const) {
+          const withIt = buildFolie(stil, fullFolie(typ), ctx(locale));
+          expect(withIt.shapeInstances.find((s) => s.id === 'folie-stoerer')?.type).toBe('circle');
+          expect(withIt.additionalTexts.find((t) => t.id === 'folie-stoerer-text')?.text).toBe(
+            'T-stoerer'
+          );
+          const slots = { ...fullFolie(typ).slots } as Record<string, unknown>;
+          delete slots['stoerer'];
+          const without = buildFolie(stil, { typ, slots } as FolieSpec, ctx(locale));
+          for (const id of ['folie-stoerer', 'folie-stoerer-text']) {
+            expect(without.layerOrder).not.toContain(id);
+            expect(JSON.stringify(without)).not.toContain(`"${id}"`);
+          }
+        }
+      });
+
+      it(`keeps "Vielen Dank" in folie-headline when danke has no headline (${stil} / ${locale})`, () => {
+        const state = buildFolie(stil, { typ: 'danke', slots: {} }, ctx(locale));
+        const byId = new Map(state.additionalTexts.map((t) => [t.id, t.text]));
+        expect(byId.get('folie-headline')).toBe('Vielen Dank');
+        expect(byId.get('folie-text')).toBe('für eure Aufmerksamkeit!');
       });
     }
 

@@ -82,10 +82,8 @@ function zahlFolie(b: SlideBuilder) {
 }
 
 function dankeFolie(b: SlideBuilder, locale: BrandLocale) {
+  // „Vielen Dank“ (`folie-headline`) und die Zeile darunter (`folie-text`) bleiben wie im CD.
   slideKit.danke(b, locale);
-  // „Vielen Dank“ bleibt stehen; der Schlusssatz ist der Slot `folie-headline`.
-  renameElement(b, 'folie-headline', 'folie-dank');
-  renameElement(b, 'folie-text', 'folie-headline');
 }
 
 export function buildCd(folie: FolieSpec, ctx: DeckStilCtx): SlideLayoutState {
@@ -144,5 +142,6 @@ export const CD_BOXES: Record<
     'folie-zahl-text': { maxHeight: 290, minScale: 0.7 },
   },
   zitat: { 'folie-zitat': { maxHeight: 560, minScale: 0.6 } },
-  danke: { 'folie-headline': { maxHeight: 380, minScale: 0.6 } },
+  // „Vielen Dank“ steht bei y 330 (DE) bzw. 365 (AT), die Zeile darunter bei 600.
+  danke: { 'folie-headline': { maxHeight: 235, minScale: 0.6 } },
 };
