@@ -17,6 +17,7 @@ import {
   getSharepicSeite,
   getSharepicVorlage,
   listCanvasVorlagen,
+  listFolienVorlagen,
   listPrintVorlagen,
   listSharepicBloecke,
   listSharepicSeiten,
@@ -51,6 +52,11 @@ export const sharepicVorlagenContractRouter = s.router(sharepicVorlagenContract,
     getAuthedUser(req);
     const locale = await resolveVorlagenLocale(req, query.land);
     return { status: 200 as const, body: { seiten: listSharepicSeiten(locale) } };
+  },
+  folien: async ({ req, query }) => {
+    getAuthedUser(req);
+    const locale = await resolveVorlagenLocale(req, query.land);
+    return { status: 200 as const, body: { vorlagen: listFolienVorlagen(locale) } };
   },
   canvas: async ({ req, query }) => {
     getAuthedUser(req);

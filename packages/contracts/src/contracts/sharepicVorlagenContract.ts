@@ -11,6 +11,7 @@ import { z } from 'zod';
 
 import {
   canvasVorlagenListResponseSchema,
+  folienVorlagenListResponseSchema,
   printVorlagenListResponseSchema,
   sharepicBloeckeListResponseSchema,
   sharepicSeitenListResponseSchema,
@@ -46,6 +47,17 @@ export const sharepicVorlagenContract = c.router(
         401: sharepicVorlagenErrorSchema,
       },
       summary: "Single slides to add to a carousel, in the viewer's country like `list`",
+    },
+    // Before `get` as well, for the same reason.
+    folien: {
+      method: 'GET',
+      path: '/api/sharepic-vorlagen/folien',
+      query: vorlagenLandQuerySchema,
+      responses: {
+        200: folienVorlagenListResponseSchema,
+        401: sharepicVorlagenErrorSchema,
+      },
+      summary: "Slide deck styles for chat presentations, in the viewer's country like `list`",
     },
     // Before `get` as well, for the same reason.
     canvas: {
