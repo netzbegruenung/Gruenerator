@@ -13,6 +13,7 @@ import { getPostgresInstance } from '../../../database/services/PostgresService.
 import { type PersistedStep } from './agenticLoop/types.js';
 import { type ArtifactKindId } from './artifactKindRegistry.js';
 import { parseRecordedOffer } from './artifactOffer.js';
+import { toJsonbParam } from './jsonbParam.js';
 import { sharepicVariantCall } from './sharepicToolCalls.js';
 import { type ThreadCloudFiles, parseThreadCloudFiles } from './threadCloudFiles.js';
 import {
@@ -129,26 +130,6 @@ export async function ensureDocChatThread(
     )
   )) as { id: string }[];
   return result[0];
-}
-
-/**
- * Serialise metadata for a `tool_results` (jsonb) bind. Tool output reaches
- * this row after many UTF-16 cuts (`slice`/`substring` on snippets, excerpts,
- * scraped pages); one cut through an emoji leaves a lone surrogate, which
- * `JSON.stringify` writes as `\udXXX` and Postgres rejects with 22P02 — the
- * whole turn was lost (#5017). `\u0000` is the other escape jsonb refuses
- * (22P05). Repaired here, at the one door, instead of at every cut: lone
- * surrogates become U+FFFD, NUL is dropped.
- */
-const LONE_SURROGATE = /[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/g;
-
-function toJsonbParam(metadata: Record<string, unknown> | undefined): string | null {
-  if (!metadata) return null;
-  return JSON.stringify(metadata, (_key, value: unknown) =>
-    typeof value === 'string'
-      ? value.replace(LONE_SURROGATE, '\uFFFD').replaceAll('\u0000', '')
-      : value
-  );
 }
 
 /**
