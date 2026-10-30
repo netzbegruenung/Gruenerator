@@ -32,9 +32,23 @@ function titelFolie(b: SlideBuilder, folie: FolieSpec) {
   if (s.stoerer?.trim()) stoerer(b, s.stoerer.trim(), 1685, 800, STOERER_MAGENTA);
 }
 
+/**
+ * Punkte in Beamergröße (Entwurf A: 58 px). Bis fünf Punkte stehen 140 auseinander,
+ * sechs rücken zusammen, damit der letzte samt Zelle über der Fußzeile endet.
+ */
+const LISTE = { y: 280, size: 58, pitch: 140, cell: 120, bottom: 1028 } as const;
+
 function listeFolie(b: SlideBuilder, folie: FolieSpec) {
   b.headline('folie-headline', '', M, HEAD.y, 1400, HEAD.size);
-  renderList(b, listItems(folie, 'punkte'), { x: M, y: 280, width: 1400, size: 48, pitch: 118 });
+  const items = listItems(folie, 'punkte');
+  const room = Math.floor((LISTE.bottom - LISTE.y - LISTE.cell) / Math.max(1, items.length - 1));
+  renderList(b, items, {
+    x: M,
+    y: LISTE.y,
+    width: 1400,
+    size: LISTE.size,
+    pitch: Math.min(LISTE.pitch, room),
+  });
   const s = folie.slots as { stoerer?: string };
   if (s.stoerer?.trim()) stoerer(b, s.stoerer.trim(), 1685, 230, STOERER_MAGENTA);
 }
@@ -48,7 +62,9 @@ function textFolie(b: SlideBuilder) {
   const head = textOf(b, 'folie-headline');
   head.fontSize = HEAD.size;
   head.width = HEAD.width;
-  textOf(b, 'folie-spalte-1').width = 1100;
+  const body = textOf(b, 'folie-spalte-1');
+  body.width = 1400;
+  body.fontSize = 52;
 }
 
 function zitatFolie(b: SlideBuilder, folie: FolieSpec, locale: BrandLocale) {
@@ -153,12 +169,12 @@ export const CD_BOXES: Record<
     'folie-text': { maxHeight: 560, minScale: 0.8 },
   },
   liste: {
-    'folie-punkt-*': { maxHeight: 100, minScale: 0.7 },
+    'folie-punkt-*': { maxHeight: LISTE.cell, minScale: 0.7 },
     'folie-headline': { maxHeight: 200, minScale: 0.6 },
   },
   text: {
     'folie-headline': { maxHeight: 200, minScale: 0.6 },
-    'folie-spalte-1': { maxHeight: 700, minScale: 0.8 },
+    'folie-spalte-1': { maxHeight: 680, minScale: 0.8 },
   },
   kernsatz: {
     'folie-punkt-*': { maxHeight: 60, minScale: 0.7 },

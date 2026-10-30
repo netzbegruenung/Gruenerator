@@ -76,7 +76,7 @@ export function buildBand(folie: FolieSpec, ctx: DeckStilCtx): SlideLayoutState 
     }
     case 'text':
       kopfImBand('folie-headline');
-      b.text('folie-spalte-1', '', RX, 150, 1070, 44, { lineHeight: 1.4 });
+      b.text('folie-spalte-1', '', RX, 150, 1070, 50, { lineHeight: 1.4 });
       break;
     case 'kernsatz':
       b.text('folie-headline', '', 110, 110, 440, 56, {
@@ -90,8 +90,8 @@ export function buildBand(folie: FolieSpec, ctx: DeckStilCtx): SlideLayoutState 
         x: RX + 6,
         y: 800,
         width: 1070,
-        size: 38,
-        pitch: 56,
+        size: 44,
+        pitch: 62,
       });
       break;
     case 'zahl':
@@ -147,7 +147,7 @@ export const BAND_BOXES: Record<FolienTypId, Record<string, DeckStilBox>> = {
     'folie-spalte-1': { maxHeight: 780, minScale: 0.8 },
   },
   kernsatz: {
-    'folie-punkt-*': { maxHeight: 56, minScale: 0.7 },
+    'folie-punkt-*': { maxHeight: 55, minScale: 0.7 },
     'folie-headline': { maxHeight: 500, minScale: 0.6 },
     'folie-kernsatz': { maxHeight: 560, minScale: 0.6 },
   },

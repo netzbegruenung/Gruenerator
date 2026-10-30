@@ -64,7 +64,7 @@ export function buildAussage(folie: FolieSpec, ctx: DeckStilCtx): SlideLayoutSta
     }
     case 'text':
       head(b, 'folie-headline', X, 110, 1700, size(80), akzent);
-      b.text('folie-spalte-1', '', X, 300, 1500, 50, { lineHeight: 1.35 });
+      b.text('folie-spalte-1', '', X, 300, 1500, 54, { lineHeight: 1.35 });
       break;
     case 'kernsatz':
       head(b, 'folie-headline', X, 110, 1700, size(72), akzent);

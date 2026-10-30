@@ -351,3 +351,53 @@ describe('cd kernsatz', () => {
     });
   }
 });
+
+describe('projector sizes', () => {
+  const punkte = (state: ReturnType<typeof buildFolie>) =>
+    state.additionalTexts.filter((t) => /^folie-punkt-\d+$/.test(t.id));
+
+  for (const locale of LOCALES) {
+    it(`sets cd list items near the draft (58 px) and spreads a short list (${locale})`, () => {
+      const four: FolieSpec = {
+        typ: 'liste',
+        slots: { headline: 'H', punkte: ['Eins', 'Zwei', 'Drei', 'Vier'] },
+      };
+      const short = punkte(buildFolie('cd', four, ctx(locale)));
+      for (const it of short) expect(it.fontSize, it.id).toBeGreaterThanOrEqual(58);
+      expect(short[1]!.y - short[0]!.y).toBeGreaterThanOrEqual(140);
+      const full = punkte(buildFolie('cd', fullFolie('liste'), ctx(locale)));
+      expect(full[1]!.y - full[0]!.y).toBeGreaterThanOrEqual(120);
+    });
+  }
+
+  it('sets the text slide body at 48 px or more, its box above the footer', () => {
+    for (const stil of STILE) {
+      for (const locale of LOCALES) {
+        const state = buildFolie(stil, fullFolie('text'), ctx(locale));
+        const body = state.additionalTexts.find((t) => t.id === 'folie-spalte-1')!;
+        const box = deckStilBoxes(stil, 'text')['folie-spalte-1']!;
+        expect(body.fontSize, `${stil} ${locale}`).toBeGreaterThanOrEqual(48);
+        expect(body.y + box.maxHeight, `${stil} ${locale}`).toBeLessThanOrEqual(1028);
+      }
+    }
+  });
+
+  it('sets kernsatz Stichpunkte at 44 px or more in every stil', () => {
+    for (const stil of STILE) {
+      for (const it of punkte(buildFolie(stil, fullFolie('kernsatz'), ctx('de-DE')))) {
+        expect(it.fontSize, `${stil} ${it.id}`).toBeGreaterThanOrEqual(44);
+      }
+    }
+  });
+
+  it('keeps a kacheln kernsatz tile text inside its tile', () => {
+    const state = buildFolie('kacheln', fullFolie('kernsatz'), ctx('de-DE'));
+    const cell = deckStilBoxes('kacheln', 'kernsatz')['folie-punkt-*']!.maxHeight;
+    for (const it of punkte(state)) {
+      const n = it.id.split('-').pop();
+      const tile = state.shapeInstances.find((s) => s.id === `folie-kachel-${n}`)!;
+      expect(it.y, it.id).toBeGreaterThanOrEqual(tile.y - tile.height / 2);
+      expect(it.y + cell, it.id).toBeLessThanOrEqual(tile.y + tile.height / 2);
+    }
+  });
+});

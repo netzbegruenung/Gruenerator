@@ -92,7 +92,7 @@ export function buildKacheln(folie: FolieSpec, ctx: DeckStilCtx): SlideLayoutSta
     case 'text':
       head(b, 'folie-headline', X, 100, 1700, size(110));
       flaeche('folie-kachel-text', 300, 630);
-      b.text('folie-spalte-1', '', X + 40, 340, AREA_W - 80, 44, { lineHeight: 1.4 });
+      b.text('folie-spalte-1', '', X + 40, 340, AREA_W - 80, 50, { lineHeight: 1.4 });
       break;
     case 'kernsatz': {
       b.text('folie-headline', '', X + 6, 100, 1700, 60, {
@@ -109,7 +109,8 @@ export function buildKacheln(folie: FolieSpec, ctx: DeckStilCtx): SlideLayoutSta
       items.forEach((item, i) => {
         const x = X + i * (tw + GAP);
         b.shape(`folie-kachel-${i + 1}`, 'rect', x + tw / 2, 865, tw, 150, t.tanne);
-        b.text(`folie-punkt-${i + 1}`, item, x + 30, 895, tw - 60, 32, { lineHeight: 1.25 });
+        // Kacheltext wie im Entwurf C (44 px); zwei Zeilen passen in die 150 hohe Kachel.
+        b.text(`folie-punkt-${i + 1}`, item, x + 30, 805, tw - 60, 44, { lineHeight: 1.25 });
       });
       break;
     }
@@ -152,7 +153,7 @@ export const KACHELN_BOXES: Record<FolienTypId, Record<string, DeckStilBox>> = {
     'folie-spalte-1': { maxHeight: 560, minScale: 0.8 },
   },
   kernsatz: {
-    'folie-punkt-*': { maxHeight: 45, minScale: 0.7 },
+    'folie-punkt-*': { maxHeight: 110, minScale: 0.7 },
     'folie-headline': { maxHeight: 80, minScale: 0.6 },
     'folie-kernsatz': { maxHeight: 480, minScale: 0.6 },
   },

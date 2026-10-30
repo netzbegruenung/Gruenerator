@@ -51,7 +51,7 @@ export function buildRuhig(folie: FolieSpec, ctx: DeckStilCtx): SlideLayoutState
     }
     case 'text':
       head(b, 'folie-headline', X, 110, 1700, size(130));
-      b.text('folie-spalte-1', '', X, 340, 1300, 46, { lineHeight: 1.4 });
+      b.text('folie-spalte-1', '', X, 340, 1500, 54, { lineHeight: 1.4 });
       break;
     case 'kernsatz':
       b.text('folie-headline', '', X + 6, 110, 1700, 52, {
@@ -63,10 +63,10 @@ export function buildRuhig(folie: FolieSpec, ctx: DeckStilCtx): SlideLayoutState
       head(b, 'folie-kernsatz', X, 200, 1700, size(140));
       renderList(b, listItems(folie, 'punkte'), {
         x: X + 6,
-        y: 840,
+        y: 830,
         width: 1700,
-        size: 40,
-        pitch: 56,
+        size: 46,
+        pitch: 60,
       });
       break;
     case 'zahl':
@@ -108,7 +108,7 @@ export const RUHIG_BOXES: Record<FolienTypId, Record<string, DeckStilBox>> = {
     'folie-spalte-1': { maxHeight: 640, minScale: 0.8 },
   },
   kernsatz: {
-    'folie-punkt-*': { maxHeight: 50, minScale: 0.7 },
+    'folie-punkt-*': { maxHeight: 58, minScale: 0.7 },
     'folie-headline': { maxHeight: 80, minScale: 0.6 },
     'folie-kernsatz': { maxHeight: 620, minScale: 0.6 },
   },
