@@ -539,6 +539,8 @@ export const evalCaseSchema = z
     /** Siehe evalScenarioSchema.systemMcpLane. Als einziges Lane-Flag auch auf
      *  der Altform, weil die vier system-mcp-Szenarien dort liegen. */
     systemMcpLane: z.boolean().optional(),
+    /** Siehe evalScenarioSchema.locale — die `locale-at`-Fälle liegen in der Altform. */
+    locale: z.enum(['de-DE', 'de-AT']).optional(),
   })
   .strict();
 export type EvalCase = z.infer<typeof evalCaseSchema>;
