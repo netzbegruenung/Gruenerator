@@ -167,6 +167,36 @@ describe('applySlideDeckOperations', () => {
     expect(result.pages.map((p) => textOf(p, 'folie-seitenzahl'))).toEqual(['1', '2', '3', '4']);
   });
 
+  it('puts a slide added after an already removed slide where that slide was', () => {
+    const pages = deck();
+    const replaced = applySlideDeckOperations(
+      pages,
+      [
+        { kind: 'remove-slide', slide: 2 },
+        { kind: 'add-slide', afterSlide: 2, slide: { layout: 'zitat', slots: { zitat: 'Neu.' } } },
+      ],
+      ctx()
+    );
+    expect(replaced.refused).toEqual([]);
+    expect(replaced.pages.map((p) => p.id)).toEqual([
+      pages[0]!.id,
+      replaced.pages[1]!.id,
+      pages[2]!.id,
+    ]);
+    expect(textOf(replaced.pages[1]!, 'folie-zitat')).toBe('Neu.');
+
+    const front = applySlideDeckOperations(
+      pages,
+      [
+        { kind: 'remove-slide', slide: 1 },
+        { kind: 'add-slide', afterSlide: 1, slide: { layout: 'zitat', slots: { zitat: 'Neu.' } } },
+      ],
+      ctx()
+    );
+    expect(front.pages[0]!.id).toMatch(/^new-/);
+    expect(front.pages).toHaveLength(3);
+  });
+
   it('moves a slide and keeps the last slide from being removed', () => {
     const pages = deck();
     const moved = applySlideDeckOperations(

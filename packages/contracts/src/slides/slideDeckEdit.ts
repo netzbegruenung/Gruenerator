@@ -181,7 +181,14 @@ export function applySlideDeckOperations(
         refused.push(`add-slide: höchstens ${MAX_SLIDES} Folien`);
         continue;
       }
-      const at = anchor ? pages.findIndex((p) => p.id === anchor) + 1 : 0;
+      // Der Anker kann in diesem Stapel schon gelöscht sein: dann hinter den
+      // nächsten noch vorhandenen Vorgänger (Originalreihenfolge), sonst nach vorn.
+      let at = 0;
+      for (let n = op.afterSlide; n >= 1 && at === 0; n--) {
+        const id = idAt(n);
+        const found = id ? pages.findIndex((p) => p.id === id) : -1;
+        if (found >= 0) at = found + 1;
+      }
       pages.splice(at, 0, composeOne(op.slide, ctx));
       structural = true;
       applied.push(`Folie (${op.slide.layout}) eingefügt`);
