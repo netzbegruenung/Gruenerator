@@ -167,6 +167,18 @@ describe('deck stile', () => {
         expect(byId.get('folie-headline')).toBe('Vielen Dank');
         expect(byId.get('folie-text')).toBe('für eure Aufmerksamkeit!');
       });
+
+      it(`drops the default subline when danke has its own headline (${stil} / ${locale})`, () => {
+        const state = buildFolie(
+          stil,
+          { typ: 'danke', slots: { headline: 'Gemeinsam voran!' } },
+          ctx(locale)
+        );
+        const byId = new Map(state.additionalTexts.map((t) => [t.id, t.text]));
+        expect(byId.get('folie-headline')).toBe('Gemeinsam voran!');
+        expect(byId.has('folie-text')).toBe(false);
+        expect(state.layerOrder).not.toContain('folie-text');
+      });
     }
 
     it(`deckStilBoxes returns a box for every headline element of ${stil}`, () => {

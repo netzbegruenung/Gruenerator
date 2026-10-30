@@ -141,6 +141,9 @@ export function applySlots(b: SlideBuilder, folie: FolieSpec) {
     target.text = value.trim();
     if (b.ink.accent && !target.accent) target.accent = b.ink.accent;
   }
+  // Eine eigene Schlusszeile ersetzt „Vielen Dank“; „für eure Aufmerksamkeit!“ dahinter wäre Unsinn.
+  const headline = folie.typ === 'danke' ? (folie.slots as { headline?: string }).headline : null;
+  if (headline?.trim() && headline.trim() !== 'Vielen Dank') removeElement(b.state, 'folie-text');
 }
 
 // ============================================================================
