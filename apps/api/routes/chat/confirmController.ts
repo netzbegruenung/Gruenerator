@@ -436,6 +436,25 @@ export async function executeAction(
       };
     }
 
+    case 'apply_canvas_deck_edit': {
+      const { applyPlannedCanvasDeckOperations } =
+        await import('../../services/presentations/canvasDeckEdit.js');
+      const { canvasId, operations, basePageIds } = action.payload;
+      // Gleicher Weg wie der direkte Schreibpfad: Schreibrecht, Seiten-Ids gegen
+      // den Stand zur Planung (sonst träfen die Foliennummern andere Folien).
+      const outcome = await applyPlannedCanvasDeckOperations({
+        canvasId,
+        userId: action.userId,
+        operations,
+        basePageIds,
+      });
+      if (outcome.status !== 'applied') throw new ConfirmActionRefusal(outcome.message);
+      return {
+        message: `Die Präsentation **„${outcome.title}"** wurde geändert (${outcome.summary}).`,
+        url: `/studio/canvas/${canvasId}`,
+      };
+    }
+
     default: {
       const _exhaustive: never = action;
       throw new Error(`Unknown action type: ${(action as PendingAction).type}`);

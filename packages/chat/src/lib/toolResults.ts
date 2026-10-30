@@ -605,7 +605,7 @@ const TOOL_METADATA: Record<string, ToolMeta> = {
     accent: 'create',
   },
   edit_presentation: {
-    label: 'Präsentation geändert',
+    label: 'Präsentation bearbeiten',
     activeLabel: 'Ändere Präsentation',
     iconKey: 'file',
     accent: 'create',

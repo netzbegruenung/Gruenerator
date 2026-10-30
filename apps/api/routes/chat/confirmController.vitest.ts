@@ -13,6 +13,9 @@ vi.mock('../../database/services/PostgresService.js', () => ({ getPostgresInstan
 const docContent = vi.hoisted(() => ({ replaceDocumentHtml: vi.fn() }));
 vi.mock('../../services/docs/docContentService.js', () => docContent);
 
+const deckEdit = vi.hoisted(() => ({ applyPlannedCanvasDeckOperations: vi.fn() }));
+vi.mock('../../services/presentations/canvasDeckEdit.js', () => deckEdit);
+
 const { executeAction } = await import('./confirmController.js');
 
 const action: PendingAction = {
@@ -93,5 +96,62 @@ describe('modify_doc', () => {
       userId: 'u1',
     });
     expect(result.url).toBe('/document/p1');
+  });
+});
+
+describe('apply_canvas_deck_edit', () => {
+  const deckAction: PendingAction = {
+    actionId: 'a3',
+    threadId: 't1',
+    userId: 'u1',
+    title: 'Folien löschen',
+    preview: '',
+    createdAt: 0,
+    type: 'apply_canvas_deck_edit',
+    payload: {
+      canvasId: 'c1',
+      title: 'Klimaplan',
+      summary: 'Folie 2 gelöscht',
+      operations: [{ kind: 'remove-slide', slide: 2 }],
+      basePageIds: ['p1', 'p2'],
+    },
+  };
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('applies the stored operations for the confirming user and links the canvas', async () => {
+    deckEdit.applyPlannedCanvasDeckOperations.mockResolvedValue({
+      status: 'applied',
+      title: 'Klimaplan',
+      summary: 'Folie 2 gelöscht',
+      skipped: [],
+    });
+    const result = await executeAction(deckAction);
+    expect(deckEdit.applyPlannedCanvasDeckOperations).toHaveBeenCalledWith({
+      canvasId: 'c1',
+      userId: 'u1',
+      operations: [{ kind: 'remove-slide', slide: 2 }],
+      basePageIds: ['p1', 'p2'],
+    });
+    expect(result.url).toBe('/studio/canvas/c1');
+  });
+
+  it('passes the curated refusal when the deck changed meanwhile', async () => {
+    deckEdit.applyPlannedCanvasDeckOperations.mockResolvedValue({
+      status: 'stale',
+      message:
+        'Die Präsentation wurde inzwischen geändert — bitte stoß die Änderung noch einmal an.',
+    });
+    await expect(executeAction(deckAction)).rejects.toThrow('inzwischen geändert');
+  });
+
+  it('refuses without write access', async () => {
+    deckEdit.applyPlannedCanvasDeckOperations.mockResolvedValue({
+      status: 'failed',
+      message: 'Du hast keine Bearbeitungsrechte für diese Präsentation.',
+    });
+    await expect(executeAction(deckAction)).rejects.toThrow('keine Bearbeitungsrechte');
   });
 });

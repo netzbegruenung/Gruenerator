@@ -3,32 +3,33 @@
  * `edit_presentation`. Before these, a deck made in the chat could not be
  * changed from the chat at all (#4456) — the model offered edits and then
  * described slides it never touched. Edits land on the live deck
- * (presentationEditCore); slide deletions go through confirmGate.
+ * (presentationEditCore); slide deletions go through confirmGate for Reveal
+ * decks and through the confirmation card (`apply_canvas_deck_edit`) for canvas decks.
  */
 import { tool, type Tool } from 'ai';
 import { z } from 'zod';
 
 import { canvasAccessible, loadCanvasAsContext } from '../../../services/canvas/canvasContext.js';
+import { planAndApplyCanvasDeckEdit } from '../../../services/presentations/canvasDeckEdit.js';
 import {
   formatPresentationAsContext,
   loadPresentationState,
 } from '../../../services/presentations/PresentationGenerationService.js';
+import { emitToolConfirmAction, newActionId } from '../services/confirmActionService.js';
 import { planAndApplyPresentationEdit } from '../services/presentationEditCore.js';
 
 import { confirmedArgs, confirmGate, recordArtifactEdit } from './confirmGate.js';
 import { resolveThreadArtifactId } from './threadArtifactTarget.js';
 
-import type { ChatGraphState } from '../../../agents/langgraph/ChatGraph/types.js';
+import type { ChatGraphState, PendingAction } from '../../../agents/langgraph/ChatGraph/types.js';
+import type { SSEWriter } from '../services/sseHelpers.js';
 
 const NO_TARGET = 'In diesem Gespräch gibt es keine Präsentation.';
-
-/** Bis das Bearbeiten im Chat auch Canvas-Präsentationen kann (Folge-PR). */
-export const CANVAS_EDIT_UNAVAILABLE =
-  'Diese Präsentation ist eine Canvas-Präsentation. Sie lässt sich im Chat noch nicht bearbeiten — bitte öffne sie im Editor (Studio) und ändere sie dort. Sag das der Person kurz und biete an, sie zu lesen oder eine neue Präsentation zu erstellen.';
 
 interface PresentationToolCtx {
   state: ChatGraphState;
   threadId: string;
+  sse: SSEWriter;
 }
 
 const presentationIdField = z
@@ -73,7 +74,7 @@ export function makeEditPresentationTool(ctx: PresentationToolCtx): Tool {
   return tool({
     description: `Ändert eine Präsentation dieses Gesprächs: Folien hinzufügen, umschreiben, kürzen, verschieben, löschen, Layout und Design.
 
-NUTZE bei JEDER Änderung an einer vorhandenen Präsentation. "anweisung" ist der Wortlaut der Person, mit konkreten Inhalten und Foliennummern. Löscht die Änderung Folien, fragt das Werkzeug zurück — dann die Person fragen und erst nach ihrer Zustimmung mit confirm=true erneut aufrufen. NICHT für eine neue Präsentation.`,
+NUTZE bei JEDER Änderung an einer vorhandenen Präsentation. "anweisung" ist der Wortlaut der Person, mit konkreten Inhalten und Foliennummern. Löscht die Änderung Folien einer Canvas-Präsentation, zeigt das Werkzeug der Person selbst eine Bestätigungskarte — dann NICHT im Text nachfragen und nicht erneut aufrufen, die Person entscheidet auf der Karte. Bei älteren Präsentationen fragt das Werkzeug zurück — dann die Person fragen und erst nach ihrer Zustimmung mit confirm=true erneut aufrufen (confirm gilt nur dort). NICHT für eine neue Präsentation.`,
     inputSchema: z.object({
       anweisung: z
         .string()
@@ -96,7 +97,7 @@ NUTZE bei JEDER Änderung an einer vorhandenen Präsentation. "anweisung" ist de
       if (!id) return { error: NO_TARGET };
       const userId = ctx.state.agentConfig?.userId ?? null;
       if (!userId) return { error: 'Keine Sitzung — bitte neu anmelden.' };
-      if (await canvasAccessible(id, userId)) return { error: CANVAS_EDIT_UNAVAILABLE };
+      const isCanvas = await canvasAccessible(id, userId);
       if (confirm) {
         const refused = confirmGate({
           state: ctx.state,
@@ -107,13 +108,50 @@ NUTZE bei JEDER Änderung an einer vorhandenen Präsentation. "anweisung" ist de
         if (refused) return refused;
       }
 
-      const outcome = await planAndApplyPresentationEdit({
-        presentationId: id,
-        userId,
-        instruction: anweisung,
-        destructiveAllowed: confirm,
-      });
+      const canvasOutcome = isCanvas
+        ? await planAndApplyCanvasDeckEdit({
+            canvasId: id,
+            userId,
+            instruction: anweisung,
+            destructiveAllowed: confirm,
+          })
+        : null;
+      const outcome =
+        canvasOutcome ??
+        (await planAndApplyPresentationEdit({
+          presentationId: id,
+          userId,
+          instruction: anweisung,
+          destructiveAllowed: confirm,
+        }));
       if (outcome.status === 'failed') return { error: outcome.message };
+      if (canvasOutcome?.status === 'needs_confirmation') {
+        const pending: PendingAction = {
+          actionId: newActionId(),
+          threadId: ctx.threadId,
+          userId,
+          title: 'Folien löschen',
+          preview: `„${canvasOutcome.title}": ${canvasOutcome.summary}`,
+          createdAt: Date.now(),
+          type: 'apply_canvas_deck_edit',
+          payload: {
+            canvasId: id,
+            title: canvasOutcome.title,
+            summary: canvasOutcome.summary,
+            operations: canvasOutcome.operations,
+            basePageIds: canvasOutcome.basePageIds,
+          },
+        };
+        await emitToolConfirmAction(ctx.sse, pending, [
+          { key: 'Präsentation', value: canvasOutcome.title },
+          { key: 'Änderung', value: canvasOutcome.summary },
+        ]);
+        return {
+          ok: true,
+          needsConfirmation: true,
+          note: 'Eine Bestätigungskarte zum Löschen der Folien wurde angezeigt; die Person entscheidet dort. Noch nichts geändert.',
+        };
+      }
       if (outcome.status === 'needs_confirmation') {
         return confirmGate({
           state: ctx.state,

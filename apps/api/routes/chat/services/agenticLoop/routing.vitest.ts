@@ -936,6 +936,25 @@ describe('compoundGenerationKind', () => {
     ).toBe('presentation');
   });
 
+  // Live-Test 30.10.2026: „Mach Folie 2 kürzer" bearbeitete das Deck und baute
+  // danach über die Verbund-Garantie ein zweites.
+  it('reads a numbered slide as an edit of the existing deck, not a new one', () => {
+    for (const ask of [
+      'Mach Folie 2 kürzer',
+      'Mach die 3. Folie knackiger',
+      'mach die letzte Folie freundlicher',
+      'Mach aus Folie 3 zwei Folien',
+    ]) {
+      expect(compoundGenerationKind('produktion', ask), ask).toBe(null);
+    }
+    expect(
+      compoundGenerationKind('produktion', 'Erstelle eine Präsentation, Folie 1 nur mit dem Titel')
+    ).toBe('presentation');
+    expect(compoundGenerationKind('produktion', 'Mach 4 Folien zum Radverkehr')).toBe(
+      'presentation'
+    );
+  });
+
   // 06.10.2026: eine recherchierte Infografik ist ein Sharepic, kein Diagramm-Fence.
   it('recovers a sharepic for an infographic after research', () => {
     expect(
