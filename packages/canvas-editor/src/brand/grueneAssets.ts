@@ -109,6 +109,8 @@ export const GRUENE_DECORATION_ASSETS: UniversalAsset[] = [
     category: 'decoration',
     tags: ['logo', 'grüne jugend', 'gruene jugend', 'gj', 'jugend', 'marke', farbe],
     audience: 'de-DE',
+    // Light green reads on a dark tile only, like white.
+    ...(farbe === 'hellgruen' && { darkPreview: true }),
   })),
 ];
 
