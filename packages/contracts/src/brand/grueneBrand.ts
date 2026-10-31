@@ -750,6 +750,11 @@ export const GJ_AT: GruenePack = {
     headlineCase: 'versal',
     stoererShape: 'ellipse',
     cardStyle: 'brutal',
+    // No line boxes in AT (`zeilenboxen` off); the accent line stands on a yellow label.
+    lineBoxes: {
+      first: { fill: GJAT_GELB, ink: GJAT_WALDGRUEN },
+      rest: { fill: GJAT_GELB, ink: GJAT_WALDGRUEN },
+    },
     layout: {
       centredMargin: null,
       centreShortBlocks: false,

@@ -87,11 +87,19 @@ export function slideInk({
   // scrim. A brand without the box has none (see `foldMarkers`). Themes
   // bring their own box.
   const themedMarker = def?.marker[side] ?? null;
+  // A brand with its own bars (GJ): never a bar in the ground's own colour.
+  const ownBox = brand.lineBoxes
+    ? surface !== 'foto' && SHAREPIC_COLOR_HEX[surface] === brand.lineBoxes.rest.fill
+      ? brand.lineBoxes.first
+      : brand.lineBoxes.rest
+    : null;
   const marker: TextMarker | null = brand.features.markerBox
     ? {
         fill:
-          themedMarker?.fill ?? (surface === 'creme' ? MARKER_MINT : onLight ? LIME : '#FFFFFF'),
-        color: themedMarker?.ink ?? SHAREPIC_COLOR_HEX.dunkeltanne,
+          themedMarker?.fill ??
+          ownBox?.fill ??
+          (surface === 'creme' ? MARKER_MINT : onLight ? LIME : '#FFFFFF'),
+        color: themedMarker?.ink ?? ownBox?.ink ?? SHAREPIC_COLOR_HEX.dunkeltanne,
         // Tighter than the editor's default: the space beside a mid-line box
         // must stay visible, as on the posts.
         padX: MARKER_PAD_X,
@@ -100,10 +108,11 @@ export function slideInk({
   // A DE headline's accent line (`akzent`): dark text on a box. Lime glows on
   // dark ground; on mint it washes out — grass green there; on grass green
   // itself a white box. A theme sets its marker box.
-  const accentLineBox = def?.marker[side] ?? {
-    fill: onGrass ? '#FFFFFF' : onLight ? SHAREPIC_COLOR_HEX.grasgruen : LIME,
-    ink: SHAREPIC_COLOR_HEX.dunkeltanne,
-  };
+  const accentLineBox = def?.marker[side] ??
+    ownBox ?? {
+      fill: onGrass ? '#FFFFFF' : onLight ? SHAREPIC_COLOR_HEX.grasgruen : LIME,
+      ink: SHAREPIC_COLOR_HEX.dunkeltanne,
+    };
   // A topic icon in a circle, unless the theme recolours it.
   const badgeColors = def?.badge?.[side] ?? { ...onGround(brand.badge, { onLight, onGrass }) };
   const cardAccentFill = def?.cardAccent ?? brand.cardAccent;

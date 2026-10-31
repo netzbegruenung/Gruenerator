@@ -69,6 +69,23 @@ describe('GRÜNE JUGEND Deutschland', () => {
     expect(boxes.every((b) => b.cornerRadius === 0 && b.textColor === '#000000')).toBe(true);
   });
 
+  it('sets the accent line on white on light green, and on light green elsewhere', () => {
+    const boxOf = (color: SharepicColor) => {
+      const out = composeSharepic(
+        gj('de-DE', [
+          {
+            ...colourSlide(color),
+            items: [{ type: 'headline', lines: ['Schluss mit', 'Praktika!'], akzent: 1 }],
+          },
+        ]),
+        { photoSrc }
+      );
+      return out.slides[0]!.additionalTexts.find((t) => t.marker)?.marker?.fill ?? null;
+    };
+    expect(boxOf('limette')).toBe('#FFFFFF');
+    expect(boxOf('lavendel')).toBe('#C7FF7A');
+  });
+
   it('draws its Störer as a burst', () => {
     const out = composeSharepic(
       gj('de-DE', [colourSlide('apricot', { stoerer: { text: '!!!' } })]),
