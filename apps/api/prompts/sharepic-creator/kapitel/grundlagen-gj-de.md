@@ -18,6 +18,7 @@ Das Sharepic ist von der GRÜNEN JUGEND, der Jugendorganisation – nicht von de
   - Foto + Headline auf Zeilenbalken unten links (`zeilenboxen`).
   - Zitat auf Foto: `zitat` mit `name` und `funktion` „Sprecherin der GRÜNEN JUGEND“.
   - Erklär-Karussell: Hook auf einer Primärfarbe, dann 2–4 Slides auf `weiss` mit `absatz` (eine `++…++`-Stelle) oder `liste`, Schluss mit `aufruf` (`kernsatz`) auf der Primärfarbe.
+  - Erklär-Karussell mit Balken: Cover auf `apricot` mit `zeilenboxen` (Dachzeile + Headline), Textseiten auf `weiss` mit je einem `absatz` – gleich lang halten, dann stehen sie gleich groß –, Schluss wieder in Balken auf `apricot` oder als Foto mit `"toenung": "apricot"` (das Foto wird eingefärbt), weißer Headline und Störer.
   - Gedenken: `schwarz`, Headline weiß, `absatz`, Schluss auf `weiss` mit Kernsatz.
   - Einladung: `lavendel`, Headline + kurzer `text`, darunter Wann und Wo als `iconliste` mit den Icons `kalender` und `ort`.
   - Termine: `wiese`, Dachzeile (Region) + Headline, `termine` – jedes Datum steht auf einem Kalenderblatt. `datum` als „22. Aug.“ oder „8.–9. Aug.“ schreiben (Tag, Leerzeichen, Monat).

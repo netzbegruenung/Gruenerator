@@ -67,6 +67,14 @@ export const BLUME = { size: 760, onLight: 0.12, onGrass: 0.1, onDark: 0.08 } as
 export const ETIKETT = { fontSize: 34, padX: 26, padY: 16, edge: 4, shadow: 9, top: 70 } as const;
 /** Height the date label takes above the text block, with its gap. */
 export const ETIKETT_ROOM = 110;
+/**
+ * GJ AT's speaker beside a speech bubble: share of the width, height per width
+ * (a portrait cut-out), highest top as a share of the height, and where the
+ * text column ends.
+ */
+export const BLASE_PERSON = { width: 0.56, aspect: 1.5, top: 0.3, column: 0.68 } as const;
+/** GJ body text in boxes and the icon rows under it, at scale 1. */
+export const GJ_BODY = 46;
 /** GJ DE's handwritten tape label: its type size. */
 export const HAND_TAPE = { fontSize: 44 } as const;
 /** GJ AT's hairlines (Db-_V4HCvrJ): stroke, distance from the left edge, gap to the text. */

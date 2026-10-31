@@ -99,7 +99,8 @@ export const sharepicSpecSchema = sharepicSpecShapeSchema.superRefine((spec, ctx
   spec.slides.forEach((slide, s) => {
     const at = (...path: (string | number)[]) => ['slides', s, ...path];
     const bg = slide.background;
-    const color = bg.kind === 'farbe' ? bg.color : bg.kind === 'foto' ? null : bg.panelColor;
+    const color =
+      bg.kind === 'farbe' ? bg.color : bg.kind === 'foto' ? (bg.toenung ?? null) : bg.panelColor;
     if (color && !allowed.includes(color)) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,

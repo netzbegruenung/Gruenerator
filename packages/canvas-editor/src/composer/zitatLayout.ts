@@ -184,7 +184,7 @@ function zitatCard(ctx: SlideCtx, item: ZitatItem, id: string, pass: BuildPass):
 }
 
 /** Speech bubble: share of the column, padding, corner, tail size (GJ AT, DXthhyhjE5p/01). */
-const BLASE = { width: 0.8, pad: 34, corner: 30, tail: 70 } as const;
+const BLASE = { width: 0.9, pad: 34, corner: 30, tail: 70 } as const;
 
 /**
  * GJ AT: the quote in capitals in a light-green speech bubble, its tail

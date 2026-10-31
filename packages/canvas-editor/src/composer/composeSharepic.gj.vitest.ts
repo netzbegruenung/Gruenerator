@@ -302,6 +302,48 @@ describe('GRÜNE JUGEND Deutschland handwriting', () => {
   });
 });
 
+describe('GRÜNE JUGEND photo washes and speakers', () => {
+  it('washes a full photo in one brand colour', () => {
+    const slide = composeSharepic(
+      gj('de-DE', [
+        {
+          background: { kind: 'foto', filename: 'x.jpg', textSeite: 'unten', toenung: 'apricot' },
+          position: 'unten',
+          align: 'links',
+          items: [{ type: 'headline', lines: ['Bus und Bahn'] }],
+          logo: false,
+        },
+      ]),
+      { photoSrc }
+    ).slides[0]!;
+    expect(slide.shapeInstances.find((s) => s.id === 'sc-toenung')).toMatchObject({
+      fill: '#FF8568',
+      blendMode: 'color',
+    });
+  });
+
+  it('stands the speaker bottom right beside the speech bubble, uncropped', () => {
+    const slide = composeSharepic(
+      gj('de-AT', [
+        {
+          ...colourSlide('waldgruen'),
+          items: [
+            { type: 'zitat', text: 'Öffis müssen leistbar bleiben.', name: 'A B' },
+            { type: 'bild', quelle: 'x.jpg', ausschnitt: 'freigestellt', filter: 'original' },
+          ],
+        },
+      ]),
+      { photoSrc }
+    ).slides[0]!;
+    const person = slide.userImageInstances[0]!;
+    expect(person.x).toBeGreaterThan(400);
+    expect(person.y + person.height).toBe(1350);
+    expect(person.height / person.width).toBeCloseTo(1.5, 1);
+    const bubble = slide.shapeInstances.find((s) => s.id.endsWith('-blase'))!;
+    expect(bubble.x + bubble.width / 2).toBeLessThan(1080 * 0.7);
+  });
+});
+
 describe('GRÜNE JUGEND Deutschland dates', () => {
   it('sets each date on a calendar tile, day above month', () => {
     const slide = composeSharepic(

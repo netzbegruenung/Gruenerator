@@ -6,7 +6,7 @@ import { emojiAssetId } from '../brand/grueneAssetCatalog';
 
 import { type IconlisteItem, type ListeItem, type Placed } from './composeTypes';
 import { SHAREPIC_ICON_IDS } from './sharepicIcons';
-import { CARD_MARKER, GAP } from './sharepicLayoutConstants';
+import { CARD_MARKER, GAP, GJ_BODY } from './sharepicLayoutConstants';
 import { type BuildPass, type SlideCtx } from './slideContext';
 
 export function layoutListe(ctx: SlideCtx, item: ListeItem, id: string, pass: BuildPass): Placed[] {
@@ -220,10 +220,9 @@ export function layoutIconliste(
   const placed: Placed[] = [];
   // A topic icon in a circle before each point.
   const texts = item.zeilen.map((z) => z.text);
-  const wantedSize = Math.min(
-    Math.round((texts.length <= 3 ? 54 : 46) * Math.min(scale, 1.3)),
-    paraCap
-  );
+  // GJ sets its rows at the size of the boxed text above them.
+  const base = ctx.brand.lineBoxes ? GJ_BODY : texts.length <= 3 ? 54 : 46;
+  const wantedSize = Math.min(Math.round(base * Math.min(scale, 1.3)), paraCap);
   const badgeAt = (s: number) => Math.round(s * 1.4);
   const indentAt = (s: number) => badgeAt(s) + Math.round(s * 0.5);
   const size = largestSizeWordsFit(texts, wantedSize, column.width, indentAt(wantedSize), (w, s) =>

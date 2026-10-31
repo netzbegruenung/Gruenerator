@@ -86,6 +86,7 @@ import {
 import {
   ABSATZ_KLEIN,
   ARROW,
+  BLASE_PERSON,
   BLUME,
   BOX_INK,
   CARD_ITEMS,
@@ -94,6 +95,7 @@ import {
   HAND_TAPE,
   FOOTER,
   GAP,
+  GJ_BODY,
   HEADLINE_COVER_MAX,
   HEADLINE_GROSS,
   HEADLINE_MAX,
@@ -423,6 +425,18 @@ function composeSlide(
     const tint = rect('sc-tint', 0, top, canvas.width, bottom - top, theme.colors.primary);
     addShape({ ...tint, blendMode: 'color' });
   }
+  // A full photo washed in one brand colour: a duotone under the text.
+  if (bg.kind === 'foto' && bg.toenung) {
+    const wash = rect(
+      'sc-toenung',
+      0,
+      0,
+      canvas.width,
+      canvas.height,
+      SHAREPIC_COLOR_HEX[bg.toenung]
+    );
+    addShape({ ...wash, blendMode: 'color' });
+  }
 
   const {
     onLight,
@@ -675,6 +689,23 @@ function composeSlide(
           // and a photo with its own background its top as well.
           if (bg.kind === 'farbe')
             fadeIntoGround({ canvas, rect, addShape }, person, bg.color, !bild.freisteller);
+          break;
+        }
+        if (brand.quoteStyle === 'blase' && quoteSlide) {
+          // GJ AT: the speaker stands bottom right, uncropped, the bubble
+          // beside them pointing down at them (DXthhyhjE5p/01).
+          const width = Math.round(canvas.width * BLASE_PERSON.width);
+          const height = Math.min(
+            Math.round(width * BLASE_PERSON.aspect),
+            Math.round(canvas.height * (1 - BLASE_PERSON.top))
+          );
+          photo(
+            canvas.width - width + Math.round(width * 0.08),
+            canvas.height - height,
+            width,
+            height
+          );
+          column = { ...column, width: Math.round(canvas.width * BLASE_PERSON.column) - column.x };
           break;
         }
         // The person stands on the bottom edge; the footer lies over them.
@@ -1074,7 +1105,10 @@ function composeSlide(
         }
         case 'text': {
           if (boxed) {
-            const size = 42;
+            // GJ: the boxed text grows with the slide like the rows under it.
+            const size = brand.lineBoxes
+              ? Math.min(Math.round(GJ_BODY * Math.min(scale, 1.3)), paraCap)
+              : 42;
             const lines = wrapBoxed(item.text, size, theme.fonts.body, 'normal');
             placed.push(
               boxLines(
