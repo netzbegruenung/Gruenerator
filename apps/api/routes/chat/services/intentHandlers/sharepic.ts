@@ -8,6 +8,7 @@ import { isDeepStrictEqual } from 'node:util';
 
 import { parseSharepicChatProps, type SharepicVorlage } from '@gruenerator/contracts';
 
+import { requestedBrand } from '../../../../services/sharepicCreator/brandWords.js';
 import { DraftFailedError } from '../../../../services/sharepicCreator/draftAgent.js';
 import { draftFailedText } from '../../../../services/sharepicCreator/draftFailure.js';
 import { namedSharepicForm, wantsOneSlide } from '../../../../services/sharepicCreator/forms.js';
@@ -219,11 +220,14 @@ export async function runSharepicGeneration(opts: {
       // Form and slide count come from the person's words, never the planner's rewrite.
       const ownWords = refinement?.instruction ?? opts.request ?? messageText;
       const form = namedSharepicForm(ownWords);
+      // „Eine andere Variante“ keeps the design of the draft it replaces.
+      const brand = avoid ? (avoid.brand ?? null) : requestedBrand(ownWords);
       variant = await createCreatorSharepic({
         brief,
         background,
         avoid,
         locale,
+        brand,
         userId: state.agentConfig?.userId ?? null,
         form,
         // "Eine andere Variante" of a carousel may stay one.

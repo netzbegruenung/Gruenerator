@@ -1909,5 +1909,589 @@
         }
       ]
     }
+  },
+  {
+    "id": "gj-de-statement",
+    "land": "de-DE",
+    "brand": "gruene-jugend",
+    "anlass": "thema",
+    "vorbild": "@gruene_jugend, Große Headline auf Hellgrün, darunter ein Satz, schwarzer Zackenstern als Störer, Logo der GRÜNEN JUGEND unten links. (Vorbild Dap3RgnDDrV/01, DaCuXFRDInU/01)",
+    "spec": {
+      "slides": [
+        {
+          "background": {
+            "kind": "farbe",
+            "color": "limette"
+          },
+          "position": "oben",
+          "align": "links",
+          "items": [
+            {
+              "type": "headline",
+              "lines": ["Schluss mit", "unbezahlten", "Praktika!"]
+            },
+            {
+              "type": "text",
+              "text": "Wer arbeitet, muss davon leben können – auch mit 19."
+            }
+          ],
+          "stoerer": {
+            "text": "!!!"
+          },
+          "logo": true
+        }
+      ]
+    }
+  },
+  {
+    "id": "gj-de-foto-balken",
+    "land": "de-DE",
+    "brand": "gruene-jugend",
+    "anlass": "aufruf",
+    "vorbild": "@gruene_jugend, Foto über die ganze Fläche, die Headline auf weißen und hellgrünen Zeilenbalken unten links. (Vorbild DeRPDATDJg3/01, DeL7NtBEWo_/01)",
+    "spec": {
+      "slides": [
+        {
+          "background": {
+            "kind": "foto",
+            "filename": "<foto>",
+            "textSeite": "unten"
+          },
+          "position": "unten",
+          "align": "links",
+          "zeilenboxen": true,
+          "items": [
+            {
+              "type": "headline",
+              "lines": ["Wir gehen", "auf die Straße", "für Klimageld!"]
+            }
+          ],
+          "logo": false
+        }
+      ]
+    }
+  },
+  {
+    "id": "gj-de-zitat",
+    "land": "de-DE",
+    "brand": "gruene-jugend",
+    "anlass": "zitat",
+    "vorbild": "@gruene_jugend, Foto, darüber das Zitat mit großem Anführungszeichen, Name und Funktion darunter. (Vorbild DZ7gXbxDAm4/01)",
+    "spec": {
+      "slides": [
+        {
+          "background": {
+            "kind": "foto",
+            "filename": "<foto>",
+            "textSeite": "unten"
+          },
+          "position": "unten",
+          "align": "links",
+          "items": [
+            {
+              "type": "zitat",
+              "text": "Die Rente ist kein Konflikt zwischen Jung und Alt. Sie ist eine Frage der Verteilung.",
+              "name": "Vorname Nachname",
+              "funktion": "Sprecherin der GRÜNEN JUGEND"
+            }
+          ],
+          "logo": false
+        }
+      ]
+    }
+  },
+  {
+    "id": "gj-de-termine",
+    "land": "de-DE",
+    "brand": "gruene-jugend",
+    "anlass": "veranstaltung",
+    "vorbild": "@gruene_jugend, Headline und bis zu sechs Termine mit Datum und Ort auf Hellgrün. (Vorbild DZ0Ou7KjLyZ/02)",
+    "spec": {
+      "slides": [
+        {
+          "background": {
+            "kind": "farbe",
+            "color": "limette"
+          },
+          "position": "oben",
+          "align": "links",
+          "items": [
+            {
+              "type": "headline",
+              "lines": ["Termine &", "Aktionen"]
+            },
+            {
+              "type": "termine",
+              "eintraege": [
+                {
+                  "datum": "08.11.",
+                  "titel": "Plakatstart überall",
+                  "ort": "Leipzig"
+                },
+                {
+                  "datum": "15.11.",
+                  "titel": "Konzert gegen Rechts",
+                  "ort": "Schwerin"
+                },
+                {
+                  "datum": "22.11.",
+                  "titel": "Haustürwahlkampf",
+                  "ort": "Magdeburg"
+                },
+                {
+                  "datum": "29.11.",
+                  "titel": "Landesmitgliederversammlung",
+                  "ort": "Halle"
+                }
+              ]
+            }
+          ],
+          "logo": true
+        }
+      ]
+    }
+  },
+  {
+    "id": "gj-de-aufruf",
+    "land": "de-DE",
+    "brand": "gruene-jugend",
+    "anlass": "veranstaltung",
+    "vorbild": "@gruene_jugend, Lavendel, große Einladung, Datumskreis und Ort, Logo unten links. (Vorbild DbVz_btDJDb/01, DcwQV5yDCWI/01)",
+    "spec": {
+      "slides": [
+        {
+          "background": {
+            "kind": "farbe",
+            "color": "lavendel"
+          },
+          "position": "oben",
+          "align": "links",
+          "items": [
+            {
+              "type": "dachzeile",
+              "text": "Neu hier? Komm vorbei!"
+            },
+            {
+              "type": "headline",
+              "lines": ["Kreistreffen", "der GRÜNEN", "JUGEND"]
+            }
+          ],
+          "datum": {
+            "weekday": "Donnerstag",
+            "date": "13.11.",
+            "time": "18 Uhr"
+          },
+          "ort": {
+            "lines": ["Jugendzentrum Nord", "Raum 2"]
+          },
+          "logo": true
+        }
+      ]
+    }
+  },
+  {
+    "id": "gj-de-erklaer-karussell",
+    "land": "de-DE",
+    "brand": "gruene-jugend",
+    "anlass": "karussell-erklaerung",
+    "vorbild": "@gruene_jugend, Vier Slides: Hook auf Apricot, Erklärung auf Weiß mit markierten Kernwörtern, Liste, Schluss mit Kernsatz. (Vorbild DeBeQmOjJMJ, Dap3RgnDDrV)",
+    "spec": {
+      "slides": [
+        {
+          "background": {
+            "kind": "farbe",
+            "color": "apricot"
+          },
+          "position": "oben",
+          "align": "links",
+          "items": [
+            {
+              "type": "headline",
+              "lines": ["Warum das", "Freibad", "politisch ist"]
+            }
+          ],
+          "stoerer": {
+            "text": "!!!"
+          },
+          "weiter": "Lies weiter",
+          "logo": true
+        },
+        {
+          "background": {
+            "kind": "farbe",
+            "color": "weiss"
+          },
+          "position": "mitte",
+          "align": "links",
+          "items": [
+            {
+              "type": "absatz",
+              "text": "Jeden Sommer schließen Bäder, weil Kommunen ++das Geld fehlt++. Für viele Familien ist das Freibad der einzige Urlaub."
+            }
+          ],
+          "logo": true
+        },
+        {
+          "background": {
+            "kind": "farbe",
+            "color": "weiss"
+          },
+          "position": "mitte",
+          "align": "links",
+          "items": [
+            {
+              "type": "headline",
+              "lines": ["Was es braucht"]
+            },
+            {
+              "type": "liste",
+              "items": [
+                "Eintritt unter 3 € für alle unter 27",
+                "Geld vom Bund für Sanierungen",
+                "Mehr Schwimmkurse an Schulen"
+              ]
+            }
+          ],
+          "logo": true
+        },
+        {
+          "background": {
+            "kind": "farbe",
+            "color": "apricot"
+          },
+          "position": "mitte",
+          "align": "links",
+          "items": [
+            {
+              "type": "aufruf",
+              "stil": "kernsatz",
+              "text": "Abkühlung darf keine Frage des Geldbeutels sein."
+            }
+          ],
+          "logo": true
+        }
+      ]
+    }
+  },
+  {
+    "id": "gj-de-ernst-karussell",
+    "land": "de-DE",
+    "brand": "gruene-jugend",
+    "anlass": "karussell-geschichte",
+    "vorbild": "@gruene_jugend, Drei Slides in Schwarz und Weiß ohne Grün, für Gedenken und ernste Themen; Schluss mit Kernsatz und Logo. (Vorbild DbFqUILjMfU, Dc5e31rDGbu)",
+    "spec": {
+      "slides": [
+        {
+          "background": {
+            "kind": "farbe",
+            "color": "schwarz"
+          },
+          "position": "oben",
+          "align": "links",
+          "items": [
+            {
+              "type": "dachzeile",
+              "text": "Heute vor zehn Jahren"
+            },
+            {
+              "type": "headline",
+              "lines": ["Wir vergessen", "nicht."]
+            }
+          ],
+          "weiter": "Weiter",
+          "logo": true
+        },
+        {
+          "background": {
+            "kind": "farbe",
+            "color": "schwarz"
+          },
+          "position": "mitte",
+          "align": "links",
+          "items": [
+            {
+              "type": "absatz",
+              "text": "Neun Menschen wurden aus rassistischen Motiven ermordet. Ihre Namen gehören in unsere Erinnerung – nicht der Name des Täters."
+            }
+          ],
+          "logo": true
+        },
+        {
+          "background": {
+            "kind": "farbe",
+            "color": "weiss"
+          },
+          "position": "mitte",
+          "align": "links",
+          "items": [
+            {
+              "type": "aufruf",
+              "stil": "kernsatz",
+              "text": "Erinnern heißt Verantwortung übernehmen."
+            }
+          ],
+          "logo": true
+        }
+      ]
+    }
+  },
+  {
+    "id": "gj-at-vorstellung",
+    "land": "de-AT",
+    "brand": "gruene-jugend",
+    "anlass": "vorstellung",
+    "vorbild": "@gruenejugend.at, Rolle klein, Vorname groß, Merkmale rund um das Foto – auf Maigrün. (Vorbild DUEH5FuDGzd/01)",
+    "spec": {
+      "slides": [
+        {
+          "background": {
+            "kind": "foto",
+            "filename": "<foto>",
+            "textSeite": "oben"
+          },
+          "position": "oben",
+          "align": "links",
+          "items": [
+            {
+              "type": "steckbrief",
+              "gruss": "Hallo, ich bin",
+              "name": "Julia",
+              "merkmale": [
+                "22 Jahre alt",
+                "Gärtnert gern",
+                "Lesemaus",
+                "Studiert Architektur",
+                "Tanzt viel"
+              ]
+            }
+          ],
+          "logo": false
+        }
+      ]
+    }
+  },
+  {
+    "id": "gj-at-event",
+    "land": "de-AT",
+    "brand": "gruene-jugend",
+    "anlass": "veranstaltung",
+    "vorbild": "@gruenejugend.at, Zwei Slides: Waldgrün mit Versal-Headline, Datum und Ort; dann das Programm auf einer weißen Karte mit schwarzem Rand und hartem Schatten. (Vorbild DehRgj4jAe9/01, DSj1z5jjK0F/01)",
+    "spec": {
+      "slides": [
+        {
+          "background": {
+            "kind": "farbe",
+            "color": "waldgruen"
+          },
+          "position": "oben",
+          "align": "links",
+          "items": [
+            {
+              "type": "dachzeile",
+              "text": "Seminarwochenende · Linz"
+            },
+            {
+              "type": "headline",
+              "lines": ["Herbst-", "Seminar"]
+            },
+            {
+              "type": "text",
+              "text": "Vier Tage Politik, Theorie und Praxis. Komplett kostenlos."
+            }
+          ],
+          "datum": {
+            "date": "23.–26.10."
+          },
+          "ort": {
+            "lines": ["Jugendgästehaus Linz"]
+          },
+          "logo": false
+        },
+        {
+          "background": {
+            "kind": "farbe",
+            "color": "waldgruen"
+          },
+          "position": "mitte",
+          "align": "links",
+          "items": [
+            {
+              "type": "headline",
+              "lines": ["Programm"]
+            },
+            {
+              "type": "liste",
+              "items": ["Campaigning-Workshop", "Theorie & KI", "Feminismus heute", "Theaterabend"]
+            }
+          ],
+          "logo": false
+        }
+      ]
+    }
+  },
+  {
+    "id": "gj-at-termine",
+    "land": "de-AT",
+    "brand": "gruene-jugend",
+    "anlass": "veranstaltung",
+    "vorbild": "@gruenejugend.at, Großer Monat auf Creme, darunter die Termine mit Datum und Ort. (Vorbild DZN0HkECuX-/02)",
+    "spec": {
+      "slides": [
+        {
+          "background": {
+            "kind": "farbe",
+            "color": "creme"
+          },
+          "position": "oben",
+          "align": "links",
+          "items": [
+            {
+              "type": "headline",
+              "lines": ["Juni"]
+            },
+            {
+              "type": "termine",
+              "eintraege": [
+                {
+                  "datum": "07.06.",
+                  "titel": "Pride Graz",
+                  "ort": "Graz"
+                },
+                {
+                  "datum": "14.06.",
+                  "titel": "Regenbogenparade",
+                  "ort": "Wien"
+                },
+                {
+                  "datum": "21.06.",
+                  "titel": "Linz Pride",
+                  "ort": "Linz"
+                }
+              ]
+            }
+          ],
+          "stoerer": {
+            "text": "Komm mit!"
+          },
+          "logo": false
+        }
+      ]
+    }
+  },
+  {
+    "id": "gj-at-erklaer-karussell",
+    "land": "de-AT",
+    "brand": "gruene-jugend",
+    "anlass": "karussell-erklaerung",
+    "vorbild": "@gruenejugend.at, Drei Slides auf Waldgrün und Violett: These in Versalien, Erklärung mit gelben Wörtern, Schluss als Aufruf. (Vorbild Db-_V4HCvrJ, DXybBB4DJgm)",
+    "spec": {
+      "slides": [
+        {
+          "background": {
+            "kind": "farbe",
+            "color": "waldgruen"
+          },
+          "position": "oben",
+          "align": "links",
+          "items": [
+            {
+              "type": "headline",
+              "lines": ["Wohnen ist", "ein Grund-", "recht"]
+            }
+          ],
+          "weiter": "Warum?",
+          "logo": false
+        },
+        {
+          "background": {
+            "kind": "farbe",
+            "color": "veilchen"
+          },
+          "position": "mitte",
+          "align": "links",
+          "items": [
+            {
+              "type": "absatz",
+              "text": "Junge Menschen zahlen heuer im Schnitt ==die Hälfte== ihres Einkommens für die Miete."
+            }
+          ],
+          "logo": false
+        },
+        {
+          "background": {
+            "kind": "farbe",
+            "color": "waldgruen"
+          },
+          "position": "mitte",
+          "align": "links",
+          "items": [
+            {
+              "type": "aufruf",
+              "stil": "ausruf",
+              "text": "Mietpreisdeckel jetzt!"
+            }
+          ],
+          "logo": false
+        }
+      ]
+    }
+  },
+  {
+    "id": "gj-at-foto-serie",
+    "land": "de-AT",
+    "brand": "gruene-jugend",
+    "anlass": "karussell-geschichte",
+    "vorbild": "@gruenejugend.at, Drei Fotos, ein Satz läuft über alle Slides, jeweils unten auf dem Foto. (Vorbild DdTseAMjCXB, DY-E5WQDPpB)",
+    "spec": {
+      "slides": [
+        {
+          "background": {
+            "kind": "foto",
+            "filename": "<foto>",
+            "textSeite": "unten"
+          },
+          "position": "unten",
+          "align": "links",
+          "items": [
+            {
+              "type": "headline",
+              "lines": ["Wir waren", "tausende …"]
+            }
+          ],
+          "logo": false
+        },
+        {
+          "background": {
+            "kind": "foto",
+            "filename": "<foto>",
+            "textSeite": "unten"
+          },
+          "position": "unten",
+          "align": "links",
+          "items": [
+            {
+              "type": "absatz",
+              "text": "… und wir waren laut für ein Klimaschutzgesetz, das den Namen verdient …"
+            }
+          ],
+          "logo": false
+        },
+        {
+          "background": {
+            "kind": "farbe",
+            "color": "maigruen"
+          },
+          "position": "mitte",
+          "align": "links",
+          "items": [
+            {
+              "type": "headline",
+              "lines": ["… und wir", "kommen", "wieder!"]
+            }
+          ],
+          "logo": false
+        }
+      ]
+    }
   }
 ]

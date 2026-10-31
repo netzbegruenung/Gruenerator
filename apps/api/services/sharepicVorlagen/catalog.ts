@@ -52,6 +52,9 @@ import {
   type SharepicSeiteRolle,
   type SharepicSeiteTyp,
   type SharepicSlide,
+  brandIdFor,
+  SHAREPIC_BRAND_IDS,
+  type SharepicBrandId,
   type SharepicCreatorLocale,
   type SharepicPhotoAttribution,
   type SharepicVorlage,
@@ -65,6 +68,17 @@ import { internContentRoot } from '../skills/internalPrompts.js';
 const log = createLogger('sharepicVorlagen');
 
 const FILES: Record<SharepicCreatorLocale, string> = { 'de-DE': 'de.json', 'de-AT': 'at.json' };
+/**
+ * The sharepic Vorlagen per design. Each one carries its brand in the spec, so
+ * a GJ Vorlage opens in the GJ design wherever it is picked; Seiten, Blöcke,
+ * Folien and Print stay the party's.
+ */
+const VORLAGE_FILES: Record<SharepicBrandId, string> = {
+  'gruene-de': FILES['de-DE'],
+  'gruene-at': FILES['de-AT'],
+  'gj-de': 'gj-de.json',
+  'gj-at': 'gj-at.json',
+};
 
 const dir = (): string => path.join(internContentRoot(), 'sharepic-vorlagen');
 
@@ -112,7 +126,7 @@ function dirSignature(folder: string): string[] {
 function contentSignature(): string {
   return [
     dir(),
-    ...Object.values(FILES).map((name) => statKey(path.join(dir(), name))),
+    ...Object.values(VORLAGE_FILES).map((name) => statKey(path.join(dir(), name))),
     ...Object.values(FILES).map((name) => statKey(path.join(dir(), 'seiten', name))),
     ...Object.values(FILES).map((name) => statKey(path.join(dir(), 'canvas', name))),
     ...Object.values(FILES).map((name) => statKey(path.join(dir(), 'print', name))),
@@ -178,17 +192,19 @@ function readArray(file: string, what: string): unknown[] {
   return raw;
 }
 
-function loadCountry(locale: SharepicCreatorLocale): SharepicVorlage[] {
-  const file = path.join(dir(), FILES[locale]);
+function loadDesign(design: SharepicBrandId): SharepicVorlage[] {
+  const file = path.join(dir(), VORLAGE_FILES[design]);
+  const locale: SharepicCreatorLocale =
+    design === 'gruene-at' || design === 'gj-at' ? 'de-AT' : 'de-DE';
   return readArray(file, 'Vorlagen').flatMap((item, i) => {
     const parsed = sharepicVorlageFileEntrySchema.safeParse(item);
     if (!parsed.success) {
       log.error(`${file}[${i}] skipped: ${parsed.error.issues[0]?.message ?? 'invalid'}`);
       return [];
     }
-    if (parsed.data.spec.locale !== locale) {
+    if (brandIdFor(parsed.data.spec.locale, parsed.data.spec.brand) !== design) {
       log.error(
-        `${file}[${i}] skipped: spec.locale ${parsed.data.spec.locale} in the ${locale} file`
+        `${file}[${i}] skipped: spec ${brandIdFor(parsed.data.spec.locale, parsed.data.spec.brand)} in the ${design} file`
       );
       return [];
     }
@@ -290,8 +306,12 @@ function rolleOf(n: number, count: number): SharepicSeiteRolle {
   return n === count ? 'schluss' : 'inhalt';
 }
 
-/** Each slide of a Vorlage as a Seite in the Vorlage's format; `weiter` only fits a carousel. */
+/**
+ * Each slide of a Vorlage as a Seite in the Vorlage's format; `weiter` only fits a carousel.
+ * Seiten are the party's pages: a GJ Vorlage gives none.
+ */
 function seitenFromVorlage(vorlage: SharepicVorlage): { seite: SharepicSeite; thumb: string }[] {
+  if (vorlage.spec.brand && vorlage.spec.brand !== 'gruene') return [];
   const { slides } = vorlage.spec;
   return slides.flatMap(({ weiter: _weiter, ...slide }, i) => {
     const n = i + 1;
@@ -448,7 +468,7 @@ function all(): Catalog {
   if (!cache) {
     checkedAt = now;
     cacheSignature = contentSignature();
-    const vorlagen = uniqueIds([...loadCountry('de-DE'), ...loadCountry('de-AT')], 'Vorlage');
+    const vorlagen = uniqueIds(SHAREPIC_BRAND_IDS.flatMap(loadDesign), 'Vorlage');
     const curated = uniqueIds([...loadSeiten('de-DE'), ...loadSeiten('de-AT')], 'Seite');
     cache = {
       vorlagen,
