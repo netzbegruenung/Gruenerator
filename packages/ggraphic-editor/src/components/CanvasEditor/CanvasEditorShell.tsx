@@ -27,14 +27,6 @@
  * - useToolbarHandlers     — bundled toolbar actions for the active page
  */
 
-import { browserFileDelivery } from '@ggraphic/editor/hostServices';
-import { UserUploadsProvider } from '@ggraphic/editor/sidebar/UserUploadsProvider';
-import { useCanvasStoreSelector } from '@ggraphic/editor/stores/CanvasStoreProvider';
-import { AutoSaveStoreProvider } from '@ggraphic/editor/stores/useAutoSaveStore';
-import { Skeleton } from '@ggraphic/editor/ui/skeleton';
-import { cn } from '@ggraphic/editor/utils/cn';
-import { ensureFontsReady } from '@ggraphic/editor/utils/ensureFontsReady';
-import { sameLayerEntries } from '@ggraphic/editor/utils/layerLabels';
 import Konva from 'konva';
 import React, {
   useCallback,
@@ -46,13 +38,12 @@ import React, {
   Suspense,
   startTransition,
 } from 'react';
+
+import { DocumentBrandContext } from '@ggraphic/editor/brand/documentBrand';
 import { useCanvasEditorServices } from '@ggraphic/editor/CanvasEditorProvider';
 import { pagePersistedStateKeys } from '@ggraphic/editor/collab/pageElementStateKeys';
 import { serializeDeck } from '@ggraphic/editor/collab/pagesDoc';
 import { createPageSyncedCallbacks } from '@ggraphic/editor/collab/wrapCallbacksWithPageSync';
-
-import { useIsCanvasMobile } from '@ggraphic/editor/hooks/useIsCanvasMobile';
-import { useZoomGestures } from '@ggraphic/editor/hooks/useZoomGestures';
 import { CanvasEditorLayout } from '@ggraphic/editor/layouts/index';
 import { SidebarPanel } from '@ggraphic/editor/sidebar/SidebarPanel';
 import { SidebarTabBar } from '@ggraphic/editor/sidebar/SidebarTabBar';
@@ -120,7 +111,17 @@ import {
 } from '@ggraphic/editor/hooks/index';
 import { AnnouncerContext, useLiveAnnouncer } from '@ggraphic/editor/hooks/useAnnounce';
 import { useDeckAutoSave } from '@ggraphic/editor/hooks/useDeckAutoSave';
+import { useIsCanvasMobile } from '@ggraphic/editor/hooks/useIsCanvasMobile';
+import { useZoomGestures } from '@ggraphic/editor/hooks/useZoomGestures';
+import { browserFileDelivery } from '@ggraphic/editor/hostServices';
 import { useMessages } from '@ggraphic/editor/i18n/messages';
+import { UserUploadsProvider } from '@ggraphic/editor/sidebar/UserUploadsProvider';
+import { useCanvasStoreSelector } from '@ggraphic/editor/stores/CanvasStoreProvider';
+import { AutoSaveStoreProvider } from '@ggraphic/editor/stores/useAutoSaveStore';
+import { Skeleton } from '@ggraphic/editor/ui/skeleton';
+import { cn } from '@ggraphic/editor/utils/cn';
+import { ensureFontsReady } from '@ggraphic/editor/utils/ensureFontsReady';
+import { sameLayerEntries } from '@ggraphic/editor/utils/layerLabels';
 
 import { shareImageText } from '../../configs/shareSection.js';
 import {
@@ -1206,7 +1207,7 @@ function CanvasEditorInner({
       ...shareProps,
       ...(specEdit && { specEdit }),
       background: source.config.background?.(source.state, source.actions) ?? null,
-      chartColors: source.config.chartColors,
+      chartColors: source.config.brand?.chart,
     });
 
     return (
@@ -1594,7 +1595,7 @@ function CanvasEditorInner({
     </div>
   );
 
-  return (
+  const shell = (
     <AnnouncerContext.Provider value={announcer}>
       <CanvasAnnouncer message={liveMessage} />
       <ShellProvider
@@ -1773,6 +1774,15 @@ function CanvasEditorInner({
         </UserUploadsProvider>
       </ShellProvider>
     </AnnouncerContext.Provider>
+  );
+
+  // Die Marke des geöffneten Dokuments: Panels, die Vorgaben anbieten (Farben,
+  // Kontur- und Schattenfarben, Texte), lesen sie von hier, nicht aus der
+  // Registry — deren erste Marke gilt für jeden Editor des Wirts.
+  return (
+    <DocumentBrandContext.Provider value={activeConfig?.brand ?? null}>
+      {shell}
+    </DocumentBrandContext.Provider>
   );
 }
 

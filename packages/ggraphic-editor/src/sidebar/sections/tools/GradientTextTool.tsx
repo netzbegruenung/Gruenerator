@@ -1,18 +1,19 @@
 // SPDX-License-Identifier: MPL-2.0
-import { CustomColorSwatch } from '@ggraphic/editor/components/CustomColorSwatch';
-import { headlineFontStack } from '@ggraphic/editor/brand/brandRegistry';
-import { useMessages } from '@ggraphic/editor/i18n/messages';
-import { brandColors } from '@ggraphic/editor/utils/colorOptions';
+import { type BrandPack } from '@ggraphic/core';
 import { useCallback, useState } from 'react';
 import { PiTextT } from 'react-icons/pi';
 
-import { MOBILE_INPUT_TEXT } from '@ggraphic/editor/sidebar/sidebarStyles';
-
+import { headlineFontStack } from '@ggraphic/editor/brand/brandRegistry';
+import { useDocumentBrand } from '@ggraphic/editor/brand/documentBrand';
+import { CustomColorSwatch } from '@ggraphic/editor/components/CustomColorSwatch';
+import { useMessages } from '@ggraphic/editor/i18n/messages';
 import {
   ToolPanel,
   type ToolPanelSuccess,
 } from '@ggraphic/editor/sidebar/sections/tools/ToolPanel';
 import { useToolImagePlacement } from '@ggraphic/editor/sidebar/sections/tools/useToolImagePlacement';
+import { MOBILE_INPUT_TEXT } from '@ggraphic/editor/sidebar/sidebarStyles';
+import { brandColors } from '@ggraphic/editor/utils/colorOptions';
 
 export interface GradientTextToolProps {
   onJumpToUploads?: () => void;
@@ -23,8 +24,9 @@ export interface GradientTextToolProps {
 const RENDER_FONT_PX = 240;
 const RENDER_PADDING = 24;
 
-/** The brand's nth colour, read when the tool opens. */
-const paletteColor = (index: number) => () => brandColors()[index]?.value ?? '#000000';
+/** The document brand's nth colour, read when the tool opens. */
+const paletteColor = (brand: BrandPack, index: number) => () =>
+  brandColors(brand)[index]?.value ?? '#000000';
 
 function ColorRow({
   label,
@@ -37,11 +39,12 @@ function ColorRow({
   onSelect: (color: string) => void;
   disabled: boolean;
 }) {
+  const brand = useDocumentBrand();
   return (
     <div className="flex flex-col gap-1.5">
       <span className="text-xs text-foreground-muted">{label}</span>
       <div className="flex flex-wrap items-center gap-1.5">
-        {brandColors().map((c) => (
+        {brandColors(brand).map((c) => (
           <button
             key={c.id}
             type="button"
@@ -58,7 +61,7 @@ function ColorRow({
         ))}
         <CustomColorSwatch
           value={selected}
-          presets={brandColors().map((c) => c.value)}
+          presets={brandColors(brand).map((c) => c.value)}
           onPick={onSelect}
           className="size-6"
           disabled={disabled}
@@ -72,13 +75,14 @@ async function renderGradientTextPng(
   text: string,
   color1: string,
   color2: string,
-  angle: number
+  angle: number,
+  fontStack: string
 ): Promise<Blob | null> {
   const canvas = document.createElement('canvas');
   const ctx = canvas.getContext('2d');
   if (!ctx) return null;
 
-  const font = `700 ${RENDER_FONT_PX}px ${headlineFontStack()}`;
+  const font = `700 ${RENDER_FONT_PX}px ${fontStack}`;
   // Best-effort: make sure the brand font is ready before measuring/drawing.
   try {
     await document.fonts.load(font, text);
@@ -115,11 +119,12 @@ async function renderGradientTextPng(
 
 export function GradientTextTool({ onJumpToUploads, onPlaceImageUrl }: GradientTextToolProps) {
   const t = useMessages();
+  const brand = useDocumentBrand();
   const { finish, isUploading } = useToolImagePlacement({ onPlaceImageUrl, onJumpToUploads });
 
   const [value, setValue] = useState('');
-  const [color1, setColor1] = useState(paletteColor(0));
-  const [color2, setColor2] = useState(paletteColor(1));
+  const [color1, setColor1] = useState(paletteColor(brand, 0));
+  const [color2, setColor2] = useState(paletteColor(brand, 1));
   const [angle, setAngle] = useState(90);
   const [isBusy, setIsBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -134,7 +139,13 @@ export function GradientTextTool({ onJumpToUploads, onPlaceImageUrl }: GradientT
     setIsBusy(true);
 
     try {
-      const blob = await renderGradientTextPng(trimmed, color1, color2, angle);
+      const blob = await renderGradientTextPng(
+        trimmed,
+        color1,
+        color2,
+        angle,
+        headlineFontStack(brand)
+      );
       if (!blob) throw new Error(t.sidebar.tools.pngFailed);
 
       const file = new File([blob], `verlaufstext_${Date.now()}.png`, { type: 'image/png' });
@@ -146,7 +157,7 @@ export function GradientTextTool({ onJumpToUploads, onPlaceImageUrl }: GradientT
     } finally {
       setIsBusy(false);
     }
-  }, [t, trimmed, color1, color2, angle, finish]);
+  }, [t, trimmed, color1, color2, angle, finish, brand]);
 
   const disabled = isBusy || isUploading;
   const previewText = trimmed || 'Verlaufstext';
@@ -171,7 +182,7 @@ export function GradientTextTool({ onJumpToUploads, onPlaceImageUrl }: GradientT
             <span
               className="text-3xl font-bold leading-tight text-center break-words"
               style={{
-                fontFamily: headlineFontStack(),
+                fontFamily: headlineFontStack(brand),
                 backgroundImage: `linear-gradient(${angle}deg, ${color1}, ${color2})`,
                 WebkitBackgroundClip: 'text',
                 backgroundClip: 'text',

@@ -329,8 +329,8 @@ export const GRUENE_AT: GruenePack = {
     { id: 'hellgruen', label: 'Hellgrün', color: '#56af31', ink: '#ffffff', glow: HELLGRUEN_GLOW },
   ],
   defaultBackground: '#257639',
-  // Palette, text colours and markers are not in use yet: the editor takes its
-  // defaults from the first registered pack, GRUENE_DE, in both countries.
+  // Palette, text colours and markers are what an Austrian document offers and
+  // starts new elements with (`FullCanvasConfig.brand` of the `*-at` templates).
   palette: [
     { id: 'dunkelgruen', label: 'Dunkelgrün', color: AT_DUNKELGRUEN },
     { id: 'hellgruen', label: 'Hellgrün', color: '#56af31' },
