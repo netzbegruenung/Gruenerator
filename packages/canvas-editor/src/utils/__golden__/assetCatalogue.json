@@ -261,7 +261,8 @@
     "marke",
     "hellgruen"
    ],
-   "audience": "de-DE"
+   "audience": "de-DE",
+   "darkPreview": true
   },
   {
    "id": "gj-logo-weiss",
