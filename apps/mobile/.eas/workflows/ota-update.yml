@@ -1,8 +1,11 @@
 name: ota-update
 
 # Publishes a JS-only update to our own xprem server (ota.moritz-waechter.de),
-# not to EAS Update. Manual only:
-#   eas workflow:run .eas/workflows/ota-update.yml
+# not to EAS Update. Manual only, from apps/mobile:
+#   eas workflow:run .eas/workflows/ota-update.yml --ref master \
+#     -F channel=preview -F message="…"
+# --ref runs the pushed commit from GitHub instead of uploading the local tree
+# (~220 MB of monorepo), so what ships is exactly master, not a working copy.
 # Native changes (plugins, permissions, new native modules, SDK bumps) need a
 # store build via release.yml instead — an update cannot carry them.
 # Publish from master only, and only after the backend deploy it relies on.
