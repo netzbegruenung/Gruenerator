@@ -437,7 +437,8 @@ overrides:
   serialize-javascript: '>=7.1.2'
   webpack-dev-server: '>=5.2.5'
   launch-editor: '>=2.14.2'
-  follow-redirects: '>=1.16.1'
+  follow-redirects: '>=1.16.2'
+  node-forge: '>=1.4.2 <2'
   '@tootallnate/once': '>=2.0.0'
   loader-utils: ^2.0.4
   dompurify: '>=3.4.16'
@@ -475,7 +476,7 @@ overrides:
   '@typescript-eslint/eslint-plugin>ts-api-utils': ^2.5.0
   '@typescript-eslint/type-utils>ts-api-utils': ^2.5.0
   '@typescript-eslint/utils>ts-api-utils': ^2.5.0
-  joi@>=17.0.0 <18.0.0: '>=17.13.8 <18.0.0'
+  joi@>=17.0.0 <18.0.0: '>=17.13.9 <18.0.0'
   joi@>=18.0.0: '>=18.2.9 <19'
   http-proxy-middleware: ^2.0.10
   '@istanbuljs/load-nyc-config>js-yaml': ^4.3.2
