@@ -7,6 +7,7 @@
 import { isDeepStrictEqual } from 'node:util';
 
 import { parseSharepicChatProps, type SharepicVorlage } from '@gruenerator/contracts';
+import { grueneJugendRoleLocale } from '@gruenerator/shared/roles';
 
 import { requestedBrand } from '../../../../services/sharepicCreator/brandWords.js';
 import { DraftFailedError } from '../../../../services/sharepicCreator/draftAgent.js';
@@ -220,8 +221,12 @@ export async function runSharepicGeneration(opts: {
       // Form and slide count come from the person's words, never the planner's rewrite.
       const ownWords = refinement?.instruction ?? opts.request ?? messageText;
       const form = namedSharepicForm(ownWords);
-      // „Eine andere Variante“ keeps the design of the draft it replaces.
-      const brand = avoid ? (avoid.brand ?? null) : requestedBrand(ownWords);
+      // „Eine andere Variante“ keeps the design of the draft it replaces; an
+      // active Grüne Jugend role drafts in the GJ design unless named otherwise.
+      const brand = avoid
+        ? (avoid.brand ?? null)
+        : (requestedBrand(ownWords) ??
+          (grueneJugendRoleLocale(state.activeRole) ? 'gruene-jugend' : null));
       variant = await createCreatorSharepic({
         brief,
         background,

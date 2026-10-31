@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import {
   AT_ROLLEN,
   DE_ROLLEN,
+  grueneJugendRoleLocale,
   ROLE_BAUSTEIN_KEYS,
   ROLE_SHORT_LABELS,
   roleShortLabel,
@@ -49,5 +50,18 @@ describe('roleShortLabel', () => {
   it('streift bei frei eingetippten Rollen nur das „Mitarbeiter*in" ab', () => {
     expect(roleShortLabel('land', 'Mitarbeiter*in Klimabeirat')).toBe('Klimabeirat');
     expect(roleShortLabel('land', 'Schatzmeister*in')).toBe('Schatzmeister*in');
+  });
+});
+
+describe('grueneJugendRoleLocale', () => {
+  it('names the country of a Grüne Jugend role and nothing else', () => {
+    expect(grueneJugendRoleLocale({ ebene: 'kreisverband', rolle: 'GRÜNE JUGEND vor Ort' })).toBe(
+      'de-DE'
+    );
+    expect(
+      grueneJugendRoleLocale({ ebene: 'land', rolle: 'Landesorganisation Grüne Jugend' })
+    ).toBe('de-AT');
+    expect(grueneJugendRoleLocale({ ebene: 'ortsverband', rolle: 'Ratsmitglied' })).toBeNull();
+    expect(grueneJugendRoleLocale(null)).toBeNull();
   });
 });
