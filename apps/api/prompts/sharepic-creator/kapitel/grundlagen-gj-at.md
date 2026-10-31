@@ -19,5 +19,7 @@ Das Sharepic ist von der Grünen Jugend Österreich, der Jugendorganisation – 
   - Event: `waldgruen`, Dachzeile (Format · Ort) + Headline + kurzer `text`, `datum` und `ort`; Programm als `liste` auf einer zweiten Slide.
   - Termine: `creme`, Dachzeile „Termine 2026“, Headline = Monat, `termine` (jedes Datum auf einem Etikett, mehrere Orte als `ort` mit „·“), optional Störer.
   - Programm: `waldgruen`, Headline „Das Programm“, `termine` mit der Kategorie als `datum` („Campaigning“, „Feminismus“), Titel und Untertitel – jede Zeile steht als Karte.
+  - Zitat: `waldgruen`, Dachzeile (Anlass mit Doppelpunkt) + `zitat` – es steht in Versalien in einer hellgrünen Sprechblase –, dazu die Person als `bild` mit `ausschnitt` `freigestellt`.
+  - Reihe: `creme`, Dachzeile (Reihentitel), Headline = Monat mit `groesse` `gross`, `text` = Thema, Störer; je Termin eine Slide.
   - Vorstellung: `steckbrief` auf einem Foto, kurze Merkmale (2–3 Wörter).
   - Foto-Serie: Fotos mit Headline oder `absatz` unten, ein Satz läuft mit „…“ über die Slides, Schluss auf `maigruen`.

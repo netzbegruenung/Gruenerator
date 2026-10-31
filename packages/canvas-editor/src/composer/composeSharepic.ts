@@ -809,7 +809,7 @@ function composeSlide(
     items.some((i) => i.type === 'zitat') &&
     items.every((i) => i.type === 'zitat' || i.type === 'dachzeile') &&
     // A card quote that runs long is a text page, set at body size.
-    (brand.quoteStyle === 'poster' ||
+    (brand.quoteStyle !== 'card' ||
       !items.some((i) => i.type === 'zitat' && stripMarks(i.text).length > QUOTE_LONG));
   const quoteSize = (base: number, scale: number, cap: number) =>
     quoteAlone

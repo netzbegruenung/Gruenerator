@@ -101,9 +101,11 @@ export interface ComposerBrand {
    * photo its text stands at the bottom, and a long quote stays the hero.
    * `'card'`: the quote-mark asset over the quote in the body face, name and
    * role below; alignment and photo side follow the spec, and a long quote
-   * alone becomes a text page at body size.
+   * alone becomes a text page at body size. `'blase'`: the quote in capitals
+   * in a speech bubble in the brand's second colour, the name under it; the
+   * bubble leaves the right side to a cut-out person.
    */
-  quoteStyle: 'poster' | 'card';
+  quoteStyle: 'poster' | 'card' | 'blase';
   /** How headlines and the line above them are cased. `'versal'` sets them in capitals. */
   headlineCase: 'satz' | 'versal';
   /** The outline of the Störer: a circle, a jagged burst, or a wide ellipse. */

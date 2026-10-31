@@ -737,7 +737,8 @@ export const GJ_AT: GruenePack = {
     ghostNumeral: { fill: { light: GJAT_MAIGRUEN, dark: GJAT_MAIGRUEN }, opacity: 0.45 },
     countdownInk: { light: GJAT_CREME, dark: GJAT_WALDGRUEN },
     handMarks: { white: GJAT_GELB, green: GJAT_WALDGRUEN },
-    quoteStyle: 'poster',
+    // The quote in a light-green speech bubble (DXthhyhjE5p/01).
+    quoteStyle: 'blase',
     // No logo file yet (`logoPlacement: 'none'`); the entry only fills the shape.
     logo: {
       asset: {

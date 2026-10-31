@@ -288,6 +288,23 @@ describe('GRÜNE JUGEND Deutschland dates', () => {
   });
 });
 
+describe('Grüne Jugend Österreich quotes', () => {
+  it('sets a quote in capitals in a light-green speech bubble', () => {
+    const slide = composeSharepic(
+      gj('de-AT', [
+        {
+          ...colourSlide('waldgruen'),
+          items: [{ type: 'zitat', text: 'Gekürzt wird bei jenen.', name: 'A B' }],
+        },
+      ]),
+      { photoSrc }
+    ).slides[0]!;
+    expect(slide.shapeInstances.find((s) => s.id.endsWith('-blase'))?.fill).toBe('#92CE26');
+    expect(slide.shapeInstances.some((s) => s.id.endsWith('-blase-spitze'))).toBe(true);
+    expect(slide.additionalTexts.some((t) => t.text === 'GEKÜRZT WIRD BEI JENEN.')).toBe(true);
+  });
+});
+
 describe.each([
   ['de-DE', 'gj-de'],
   ['de-AT', 'gj-at'],
