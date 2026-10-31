@@ -8,7 +8,7 @@
  *   sharepic-vorlagen/thumbs/seiten/<id>.<format>.webp
  *                                          a single Seite (`seiten/{de,at}.json`), once per format
  *   sharepic-vorlagen/thumbs/bloecke/<id>.webp
- *                                          a block (`bloecke/{de,at}.json`) alone, cut to its bounds
+ *                                          a block (`bloecke/{de,at,gj-de,gj-at}.json`) alone, cut to its bounds
  *
  * `sharepic-vorlagen/vorschau-fotos.json` (optional) maps a Vorlage id to
  * { "<stock filename in its spec>": "<photo path under sharepic-vorlagen/>" }:
@@ -65,18 +65,25 @@ interface BlockEntry {
   id: string;
   items: unknown[];
   color: string;
+  zeilenboxen?: boolean;
 }
-const bloecke = Object.entries(SEITEN_FILES)
-  .flatMap(([file, locale]) => {
-    const source = path.join(dir, 'bloecke', file);
-    return existsSync(source)
-      ? (JSON.parse(readFileSync(source, 'utf8')) as BlockEntry[]).map((block) => ({
-          ...block,
-          locale,
-        }))
-      : [];
-  })
-  .filter((b) => only.size === 0 || only.has(b.id));
+/** The block files per design: the party's per country, then the Grüne Jugend's. */
+const BLOCK_FILES = [
+  ['de.json', 'de-DE', null],
+  ['at.json', 'de-AT', null],
+  ['gj-de.json', 'de-DE', 'gruene-jugend'],
+  ['gj-at.json', 'de-AT', 'gruene-jugend'],
+] as const;
+const bloecke = BLOCK_FILES.flatMap(([file, locale, brand]) => {
+  const source = path.join(dir, 'bloecke', file);
+  return existsSync(source)
+    ? (JSON.parse(readFileSync(source, 'utf8')) as BlockEntry[]).map((block) => ({
+        ...block,
+        locale,
+        brand,
+      }))
+    : [];
+}).filter((b) => only.size === 0 || only.has(b.id));
 const vorschauFile = path.join(dir, 'vorschau-fotos.json');
 const vorschau: Record<string, Record<string, string>> = existsSync(vorschauFile)
   ? (JSON.parse(readFileSync(vorschauFile, 'utf8')) as Record<string, Record<string, string>>)
@@ -160,14 +167,17 @@ for (const seite of seiten) {
 }
 // A block alone on its ground, as the editor drops it: the preview is the block, not a slide.
 for (const block of bloecke) {
+  // Mirrors `sharepicBlockSpec` (the contracts package needs a build to load here).
   const spec = {
     locale: block.locale,
+    ...(block.brand ? { brand: block.brand } : {}),
     slides: [
       {
         background: { kind: 'farbe', color: block.color },
         position: 'mitte',
         align: 'links',
         items: block.items,
+        ...(block.zeilenboxen ? { zeilenboxen: true } : {}),
         logo: false,
       },
     ],

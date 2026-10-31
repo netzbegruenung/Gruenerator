@@ -98,7 +98,7 @@ export function WebCanvasEditorProvider({
               loadDeckVorlagen: () => queryClient.fetchQuery(folienVorlagenQuery()),
               listPrint: () => queryClient.fetchQuery(printVorlagenQuery()),
               openPrintAsNew: (vorlage) => void openPrintVorlage(vorlage),
-              listBloecke: () => queryClient.fetchQuery(sharepicBloeckeQuery()),
+              listBloecke: (brand) => queryClient.fetchQuery(sharepicBloeckeQuery(brand)),
               composeBlock,
             },
           }

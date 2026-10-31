@@ -9,6 +9,7 @@
  */
 import { layoutRichTextBlock } from '@ggraphic/schema';
 
+import { calculatePillBadgeDimensions } from '@ggraphic/editor/utils/pillBadgeUtils';
 import { runMeasurer } from '@ggraphic/editor/utils/textUtils';
 
 import type { IconState } from '../configs/factory/baseTypes.js';
@@ -92,10 +93,25 @@ export function boundsOf(block: Omit<LiftedBlock, 'bounds'>): LiftedBlock['bound
       const r = (ICON_SIZE * i.scale) / 2;
       return { x0: i.x - r, y0: i.y - r, x1: i.x + r, y1: i.y + r };
     }),
-    // Emoji and badges sit inside the card or beside a text; their point is enough.
-    ...[...block.assetInstances, ...block.pillBadgeInstances, ...block.circleBadgeInstances].map(
-      (a) => ({ x0: a.x, y0: a.y, x1: a.x, y1: a.y })
-    ),
+    // A pill can be the whole block (lines in boxes): its box, from its top-left corner.
+    ...block.pillBadgeInstances.map((p) => {
+      const { width, height } = calculatePillBadgeDimensions(
+        p.text,
+        p.fontSize,
+        p.fontFamily,
+        p.fontStyle,
+        p.paddingX,
+        p.paddingY
+      );
+      return { x0: p.x, y0: p.y, x1: p.x + width * p.scale, y1: p.y + height * p.scale };
+    }),
+    // Emoji and round badges sit inside the card or beside a text; their point is enough.
+    ...[...block.assetInstances, ...block.circleBadgeInstances].map((a) => ({
+      x0: a.x,
+      y0: a.y,
+      x1: a.x,
+      y1: a.y,
+    })),
   ];
   if (!boxes.length) return { x: 0, y: 0, width: 0, height: 0 };
   const x0 = Math.min(...boxes.map((b) => b.x0));

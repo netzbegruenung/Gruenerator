@@ -1,12 +1,16 @@
 import { boundsOf, type BlockSlide, type LiftedBlock } from '@ggraphic/editor/blocks/liftedBlock';
 import {
+  brandIdFor,
   sharepicColorsFor,
   themaOfColor,
+  type SharepicBrand,
+  type SharepicBrandId,
   type SharepicColor,
   type SharepicCreatorLocale,
 } from '@gruenerator/contracts';
 
 import { colorOf } from './carouselChrome';
+import { SHAREPIC_COLOR_HEX } from './chromeParts';
 
 import type { IconState } from '@ggraphic/editor/configs/factory/baseTypes';
 
@@ -60,9 +64,11 @@ export function liftBlock(slide: BlockSlide, items: readonly number[], token: st
 }
 
 /** The country's dark ground: text on a photo is set light, as the composer does there. */
-const PHOTO_GROUND: Record<SharepicCreatorLocale, SharepicColor> = {
-  'de-DE': 'tanne',
-  'de-AT': 'dunkelgruen',
+const PHOTO_GROUND: Record<SharepicBrandId, SharepicColor> = {
+  'gruene-de': 'tanne',
+  'gruene-at': 'dunkelgruen',
+  'gj-de': 'schwarz',
+  'gj-at': 'waldgruen',
 };
 
 /**
@@ -74,9 +80,21 @@ const PHOTO_GROUND: Record<SharepicCreatorLocale, SharepicColor> = {
 export function blockGround(
   locale: SharepicCreatorLocale,
   page: { backgroundMode?: unknown; backgroundColor?: unknown },
-  fallback: SharepicColor
+  fallback: SharepicColor,
+  brand: SharepicBrand = 'gruene'
 ): SharepicColor {
-  if (page.backgroundMode === 'image') return PHOTO_GROUND[locale];
-  const color = colorOf(page.backgroundColor);
-  return color && sharepicColorsFor(locale, themaOfColor(color)).includes(color) ? color : fallback;
+  if (page.backgroundMode === 'image') return PHOTO_GROUND[brandIdFor(locale, brand)];
+  const hex = page.backgroundColor;
+  // A GJ colour may share its hex with a party one: look in the design's own palette first.
+  const own =
+    typeof hex === 'string'
+      ? sharepicColorsFor(locale, null, brand).find(
+          (c) => SHAREPIC_COLOR_HEX[c].toLowerCase() === hex.toLowerCase()
+        )
+      : undefined;
+  if (own) return own;
+  const color = colorOf(hex);
+  return color && sharepicColorsFor(locale, themaOfColor(color), brand).includes(color)
+    ? color
+    : fallback;
 }

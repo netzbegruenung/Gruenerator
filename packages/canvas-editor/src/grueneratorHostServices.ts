@@ -54,7 +54,7 @@ export interface CanvasVorlagenService {
    */
   openPrintAsNew?: (vorlage: PrintVorlage) => void;
   /** The host's blocks for the viewer, for the Elemente panel. */
-  listBloecke?: () => Promise<SharepicBlock[]>;
+  listBloecke?: (brand: SharepicBrand) => Promise<SharepicBlock[]>;
   /** Composes a block on `color` in `format` (needs the browser: fonts); the slide holds it alone. */
   composeBlock?: (
     block: SharepicBlock,
@@ -75,7 +75,8 @@ export interface CanvasBlockService {
   ground: (
     locale: SharepicCreatorLocale,
     page: { backgroundMode?: unknown; backgroundColor?: unknown },
-    fallback: SharepicColor
+    fallback: SharepicColor,
+    brand?: SharepicBrand
   ) => SharepicColor;
   /** The elements of `items` cut loose from the composed slide, ids made unique by `token`. */
   lift: (slide: BlockSlide, items: readonly number[], token: string) => LiftedBlock;

@@ -71,7 +71,7 @@ export const sharepicVorlagenContractRouter = s.router(sharepicVorlagenContract,
   bloecke: async ({ req, query }) => {
     getAuthedUser(req);
     const locale = await resolveVorlagenLocale(req, query.land);
-    return { status: 200 as const, body: { bloecke: listSharepicBloecke(locale) } };
+    return { status: 200 as const, body: { bloecke: listSharepicBloecke(locale, query.brand) } };
   },
   get: async ({ req, params }) => {
     getAuthedUser(req);

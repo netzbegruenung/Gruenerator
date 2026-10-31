@@ -53,13 +53,13 @@ export const sharepicSeitenQuery = (brand: SharepicBrand) =>
     },
   });
 
-/** The Grünerator-Blöcke of the viewer's country, for the editor's Elemente panel. */
-export const sharepicBloeckeQuery = () =>
+/** The Grünerator-Blöcke of the viewer's country in one design, for the editor's Elemente panel. */
+export const sharepicBloeckeQuery = (brand: SharepicBrand) =>
   queryOptions({
-    queryKey: ['sharepic-bloecke'],
+    queryKey: ['sharepic-bloecke', brand],
     staleTime: 10 * 60_000,
     queryFn: async (): Promise<SharepicBlock[]> => {
-      const res = await getContractsClient().sharepicVorlagen.bloecke({ query: {} });
+      const res = await getContractsClient().sharepicVorlagen.bloecke({ query: { brand } });
       if (res.status !== 200) {
         throw new ApiError(res.status, `Blöcke konnten nicht geladen werden (HTTP ${res.status}).`);
       }
