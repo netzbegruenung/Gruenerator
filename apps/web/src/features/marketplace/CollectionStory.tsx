@@ -1,10 +1,10 @@
-import {
-  sharepicVorlageThumbPath,
-  type MarketplaceItem,
-  type SharepicThema,
-} from '@gruenerator/contracts';
+import { sharepicVorlageThumbPath, type MarketplaceItem } from '@gruenerator/contracts';
 import { getFriend, getRobotAvatarPath } from '@gruenerator/shared/avatar';
-import { isSampleItem, type ResolvedStoryBlock } from '@gruenerator/shared/marketplace';
+import {
+  isSampleItem,
+  storyShowsVorlage,
+  type ResolvedStoryBlock,
+} from '@gruenerator/shared/marketplace';
 import { cn } from '@gruenerator/ui';
 import { type JSX, type ReactNode } from 'react';
 import { PiBookmarkSimple, PiBookmarkSimpleFill } from 'react-icons/pi';
@@ -169,12 +169,19 @@ function Gallery({ items, actions, onSelect }: { items: readonly MarketplaceItem
 }
 
 /**
- * The themed Grünerator-Vorlagen of the viewer's country, each opening its
- * preview on /vorlagen. Nothing while the catalogue loads or has none.
+ * The Grünerator-Vorlagen of the viewer's country the block names (a theme, a
+ * design), each opening its preview on /vorlagen. Nothing while the catalogue
+ * loads or has none.
  */
-function VorlagenGallery({ thema, heading }: { thema: SharepicThema; heading: ReactNode }) {
+function VorlagenGallery({
+  block,
+  heading,
+}: {
+  block: Extract<ResolvedStoryBlock, { type: 'vorlagen' }>;
+  heading: ReactNode;
+}) {
   const { data } = useSharepicVorlagen();
-  const vorlagen = (data ?? []).filter((v) => v.spec.thema === thema);
+  const vorlagen = (data ?? []).filter((v) => storyShowsVorlage(block, v.spec));
   if (vorlagen.length === 0) return null;
   return (
     <div className="flex min-w-0 flex-col gap-4">
@@ -325,7 +332,7 @@ function Block({ block, ...props }: { block: ResolvedStoryBlock } & ItemProps): 
       {block.heading}
     </h2>
   );
-  if (block.type === 'vorlagen') return <VorlagenGallery thema={block.thema} heading={heading} />;
+  if (block.type === 'vorlagen') return <VorlagenGallery block={block} heading={heading} />;
   if (block.type === 'friends') return <Friends ids={block.ids} heading={heading} />;
   return block.display === 'rows' ? (
     <div className={cn(COLUMN, 'flex flex-col gap-4')}>

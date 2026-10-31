@@ -1,4 +1,9 @@
-import { type MarketplaceItem, type SharepicThema } from '@gruenerator/contracts';
+import {
+  type MarketplaceItem,
+  type SharepicBrand,
+  type SharepicSpec,
+  type SharepicThema,
+} from '@gruenerator/contracts';
 
 import { type MarketplaceTarget } from './cache.js';
 
@@ -33,11 +38,12 @@ export type CollectionStoryBlock = {
   /** One entry with a short exchange that shows what it does; the answer stays under 200 characters. */
   | { type: 'example'; item: MarketplaceTarget; prompt: string; answer: string }
   /**
-   * The Grünerator-Vorlagen of one theme from the private catalogue
-   * (`/api/sharepic-vorlagen`), in the viewer's country. The page asks the
-   * catalogue itself: the Vorlagen are party content and never in this repo.
+   * The Grünerator-Vorlagen of one theme or one design (`brand`, none is the
+   * party's) from the private catalogue (`/api/sharepic-vorlagen`), in the
+   * viewer's country. The page asks the catalogue itself: the Vorlagen are
+   * party content and never in this repo.
    */
-  | { type: 'vorlagen'; thema: SharepicThema; heading?: string }
+  | { type: 'vorlagen'; thema?: SharepicThema; brand?: SharepicBrand; heading?: string }
   /** Grünerator-Friends (robot ids) to pick as profile picture; they open the Friends settings. */
   | { type: 'friends'; ids: readonly number[]; heading?: string }
 );
@@ -102,4 +108,15 @@ export function resolveStory(
     }
   }
   return { blocks, rest: items.filter((i) => !shown.has(keyOf(i))) };
+}
+
+/** Whether a `vorlagen` block shows a Vorlage: its theme if it names one, and always its design. */
+export function storyShowsVorlage(
+  block: Extract<CollectionStoryBlock, { type: 'vorlagen' }>,
+  spec: Pick<SharepicSpec, 'thema' | 'brand'>
+): boolean {
+  return (
+    (block.thema === undefined || spec.thema === block.thema) &&
+    (spec.brand ?? 'gruene') === (block.brand ?? 'gruene')
+  );
 }

@@ -260,6 +260,8 @@ export const marketplaceCollectionIdSchema = z.enum([
   'gleichstellung',
   'queer',
   'europa',
+  'gruene-jugend',
+  'gruene-jugend-oesterreich',
 ]);
 export type MarketplaceCollectionId = z.infer<typeof marketplaceCollectionIdSchema>;
 
