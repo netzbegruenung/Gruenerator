@@ -19,6 +19,7 @@ export interface DocAIExtension {
   }) => Promise<void>;
   acceptChanges: () => void;
   rejectChanges: () => void;
+  closeAIMenu: () => void;
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -46,19 +47,58 @@ export type DocForkStore = {
   subscribe?: (listener: () => void) => () => void;
 };
 
-/** The fork store of a mounted editor, or null (non-collaborative surfaces). */
-export function getDocForkStore(editor: unknown): DocForkStore | null {
+type DocForkExtension = {
+  store?: DocForkStore;
+  merge?: (o: { keepChanges: boolean }) => void;
+};
+
+function getDocForkExtension(editor: unknown): DocForkExtension | null {
   if (!editor) return null;
   const fork = (editor as EditorWithExtensions).getExtension?.(ForkYDocExtension) as
-    { store?: DocForkStore } | undefined;
-  return fork?.store ?? null;
+    DocForkExtension | undefined;
+  return fork ?? null;
+}
+
+/** The fork store of a mounted editor, or null (non-collaborative surfaces). */
+export function getDocForkStore(editor: unknown): DocForkStore | null {
+  return getDocForkExtension(editor)?.store ?? null;
+}
+
+/** End the fork. `keepChanges` writes whatever the fork holds onto the live doc. */
+export function mergeDocFork(editor: unknown, keepChanges: boolean): void {
+  getDocForkExtension(editor)?.merge?.({ keepChanges });
+}
+
+/**
+ * BlockNote's version history forks the doc too: it shows a stored version
+ * read-only in the fork and throws the fork away on close. That fork is not an
+ * AI review — offering "Übernehmen" on it would merge a version preview into
+ * the live document. `open()` forks and then switches the store to `versions`
+ * in the same synchronous call, so reading both stores never sees half of it.
+ */
+export type DocVersioningStore = {
+  state?: { mode?: string };
+  subscribe?: (listener: () => void) => () => void;
+};
+
+export function getDocVersioningStore(editor: unknown): DocVersioningStore | null {
+  if (!editor) return null;
+  const versioning = (editor as EditorWithExtensions).getExtension?.('versioning') as
+    { store?: DocVersioningStore } | undefined;
+  return versioning?.store ?? null;
+}
+
+/** Forked for an AI review, as opposed to a version preview. */
+export function isAIReviewFork(editor: unknown): boolean {
+  if (!(getDocForkStore(editor)?.state?.isForked ?? false)) return false;
+  return getDocVersioningStore(editor)?.state?.mode !== 'versions';
 }
 
 /** Whether AI suggestions are pending review (forked) for a document. */
 export function isDocAIForked(documentId: string): boolean {
   const editor = useEditorStore.getState().getEditor(documentId);
   if (!editor) return false;
-  return getDocForkStore(editor)?.state?.isForked ?? false;
+  return isAIReviewFork(editor);
 }
 
 /**
@@ -77,4 +117,24 @@ export function getDocAIMenuStore(editor: unknown): DocAIMenuStore | null {
   const ext = (editor as EditorWithExtensions).getExtension?.(AIExtension) as
     { store?: DocAIMenuStore } | undefined;
   return ext?.store ?? null;
+}
+
+/** The suggestion marks xl-ai writes (prosemirror-suggest-changes). */
+const SUGGESTION_MARKS = new Set(['insertion', 'deletion', 'modification']);
+
+type MarkedNode = { marks: readonly { type: { name: string } }[] };
+type SuggestionDoc = { descendants: (f: (node: MarkedNode) => boolean | void) => void };
+
+/**
+ * Whether the editor holds any AI suggestion. With track changes locked out
+ * during AI review (see invokeDocumentAI), every suggestion mark is the AI's.
+ */
+export function hasDocAISuggestions(editor: { prosemirrorState: { doc: SuggestionDoc } }): boolean {
+  let found = false;
+  editor.prosemirrorState.doc.descendants((node) => {
+    if (found) return false;
+    if (node.marks.some((m) => SUGGESTION_MARKS.has(m.type.name))) found = true;
+    return !found;
+  });
+  return found;
 }

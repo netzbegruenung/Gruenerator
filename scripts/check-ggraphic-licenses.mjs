@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
  * Licence gate for the packages that will be published as @ggraphic/* under
- * MPL-2.0 (packages/ggraphic-schema, -core, -editor). Walks the production
+ * MPL-2.0 (packages/ggraphic-schema, -core, -editor, -collab). Walks the production
  * dependency tree (dependencies, peerDependencies, optionalDependencies — not
  * devDependencies) from the installed node_modules and fails when any package
  * declares a licence outside ALLOWED, or none. @iconify-json/* sets must also
@@ -26,9 +26,17 @@ export const ALLOWED = new Set([
   'MPL-2.0',
   'CC0-1.0',
   'OFL-1.1',
+  'Zlib',
 ]);
 
-export const ROOT_PACKAGES = ['ggraphic-schema', 'ggraphic-core', 'ggraphic-editor'];
+export const ROOT_PACKAGES = ['ggraphic-schema', 'ggraphic-core', 'ggraphic-editor', 'ggraphic-collab'];
+
+// Packages whose manifest declares no licence although they ship one. Keyed by exact
+// version, so a bump falls back to the manifest and needs a fresh look.
+const VERIFIED_LICENSES = new Map([
+  // LICENSE.md is the MIT text; package.json and the registry carry no `license`.
+  ['react-kawaii@1.6.0', 'MIT'],
+]);
 
 /** True when an SPDX expression is composed only of allowed ids. OR needs one side, AND both. */
 export function expressionAllowed(expression) {
@@ -113,7 +121,7 @@ export function checkLicenses(rootDirs) {
     const label = trail.join(' > ');
     const isRoot = trail.length === 1;
     if (!isRoot) {
-      const license = declaredLicense(pkg);
+      const license = declaredLicense(pkg) ?? VERIFIED_LICENSES.get(id) ?? null;
       if (!license) problems.push({ path: label, message: `${id}: no license field` });
       else if (!expressionAllowed(license))
         problems.push({ path: label, message: `${id}: license "${license}" is not allowed` });

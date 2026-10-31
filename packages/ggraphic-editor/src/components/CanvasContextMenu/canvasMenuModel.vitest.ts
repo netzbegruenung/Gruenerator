@@ -179,12 +179,12 @@ describe('buildCanvasMenu', () => {
     expect(first('frame')).toBe('Bild einsetzen');
   });
 
-  it('bietet „Text bearbeiten“ an, wo die Auswahl es erlaubt — auch beim Balken, nicht beim festen Text', () => {
+  it('bietet „Text bearbeiten“ an, wo die Auswahl es erlaubt — auch beim Badge, nicht beim festen Text', () => {
     const has = (module: CanvasMenuSnapshot['module'], canEditText: boolean) =>
       labels(
         buildCanvasMenu(snapshot({ module, caps: { ...CAPS, canEditText } }), ENV).entries
       ).includes('Text bearbeiten');
-    expect(has({ type: 'balken', data: { id: 'b', opacity: 1 } }, true)).toBe(true);
+    expect(has({ type: 'pill-badge', data: { id: 'b', opacity: 1 } }, true)).toBe(true);
     expect(has({ type: 'text', data: { id: 'claim' } }, false)).toBe(false);
   });
 

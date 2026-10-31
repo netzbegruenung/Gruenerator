@@ -18,7 +18,7 @@ import {
   effectiveDpi,
   pdfPageGeometry,
   planTiles,
-} from './printPdf';
+} from '@ggraphic/editor/export/printPdf';
 
 const BUSINESS_CARD = { width: 85, height: 55 };
 

@@ -2,7 +2,9 @@ import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 
-import { DownloadSection } from '../DownloadSection';
+import { CanvasEditorProvider } from '@ggraphic/editor/CanvasEditorProvider';
+import { grueneratorCarousel } from '../../../composer/sharepicServices';
+import { DownloadSection } from '@ggraphic/editor/components/TopBar/DownloadSection';
 
 describe('DownloadSection slide decks', () => {
   it('defaults to PowerPoint, shows its progress and the font hint', async () => {
@@ -15,11 +17,13 @@ describe('DownloadSection slide decks', () => {
       });
     });
     render(
-      <DownloadSection
-        onDownload={onDownload}
-        pageCount={3}
-        slideDeck={{ onDownloadPdf: vi.fn(), onDownloadPptx, locale: 'de-DE' }}
-      />
+      <CanvasEditorProvider services={{ carousel: grueneratorCarousel }}>
+        <DownloadSection
+          onDownload={onDownload}
+          pageCount={3}
+          slideDeck={{ onDownloadPdf: vi.fn(), onDownloadPptx, locale: 'de-DE' }}
+        />
+      </CanvasEditorProvider>
     );
     expect(screen.getByText(/PowerPoint \(\.pptx\)/)).toBeTruthy();
     expect(screen.getByText(/GrueneType Neue und PT Sans/)).toBeTruthy();
@@ -33,11 +37,13 @@ describe('DownloadSection slide decks', () => {
 
   it('names the Austrian fonts for an AT deck', () => {
     render(
-      <DownloadSection
-        onDownload={vi.fn()}
-        pageCount={1}
-        slideDeck={{ onDownloadPdf: vi.fn(), onDownloadPptx: vi.fn(), locale: 'de-AT' }}
-      />
+      <CanvasEditorProvider services={{ carousel: grueneratorCarousel }}>
+        <DownloadSection
+          onDownload={vi.fn()}
+          pageCount={1}
+          slideDeck={{ onDownloadPdf: vi.fn(), onDownloadPptx: vi.fn(), locale: 'de-AT' }}
+        />
+      </CanvasEditorProvider>
     );
     expect(screen.getByText(/Gotham Narrow Book, Bold und Ultra/)).toBeTruthy();
     expect(screen.queryByText(/GrueneType/)).toBeNull();

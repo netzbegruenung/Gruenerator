@@ -24,6 +24,11 @@ const collab = vi.hoisted(() => ({
   listeners: new Set<() => void>(),
 }));
 
+/** What `readInitialDocument` reports for the canvas's initial_state. */
+const initialRead = vi.hoisted(() => ({
+  refusal: null as null | { status: 'newer' | 'invalid' },
+}));
+
 function setSynced(isSynced: boolean) {
   collab.state = { ...collab.state, isSynced, isConnected: isSynced };
   collab.listeners.forEach((listener) => listener());
@@ -33,8 +38,8 @@ vi.mock('@gruenerator/canvas-editor', () => ({
   commitOpenTextEdit: () => {},
   getCanvasFormatOrDefault: (id: string) => ({ id }),
   isSlideFormat: (format: { id: string }) => format.id === 'slide-16-9',
-  parseInitialPages: () => undefined,
   preloadCanvasTemplate: () => Promise.resolve(),
+  readInitialDocument: () => ({ pages: null, refusal: initialRead.refusal }),
   MasterCanvasEditor: (props: {
     chromeCenter?: React.ReactNode;
     collaborative?: { previewBeforeSync?: boolean };
@@ -120,6 +125,7 @@ beforeEach(() => {
   handleUnauthorized.mockResolvedValue('logout');
   collab.state.provider.connect.mockClear();
   collab.editorProps = [];
+  initialRead.refusal = null;
 });
 
 afterEach(() => {
@@ -149,6 +155,15 @@ describe('CollabCanvasStudioPage', () => {
     act(() => setSynced(true));
     expect(screen.getByTestId('search').textContent).toBe('?embedded=1');
     expect(lastPreviewFlag()).toBe(false);
+  });
+
+  it('opens no editor for a canvas saved by a newer version, and says so', async () => {
+    initialRead.refusal = { status: 'newer' };
+    renderPage('/studio/canvas/c1');
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Dieses Design wurde mit einer neueren Version gespeichert und kann hier nicht bearbeitet werden. Aktualisiere die App oder lade die Seite neu.'
+    );
+    expect(collab.editorProps).toEqual([]);
   });
 
   it('does not preview a canvas opened without the flag', async () => {

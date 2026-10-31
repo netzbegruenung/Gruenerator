@@ -41,7 +41,7 @@ describe('slide layouts in the page picker', () => {
     expect(screen.getByRole('button', { name: 'Titelfolie, dunkel' })).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Vielen Dank, dunkel' })).toBeTruthy();
     // Die leere Seite und das Duplizieren bleiben.
-    expect(screen.getByRole('button', { name: /Freies Design/ })).toBeTruthy();
+    expect(screen.getByRole('button', { name: /Leere Seite/ })).toBeTruthy();
     expect(screen.getByRole('button', { name: /Aktuelle Seite duplizieren/ })).toBeTruthy();
   });
 

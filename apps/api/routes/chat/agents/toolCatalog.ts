@@ -80,6 +80,8 @@ import { makeEditDocumentTextTool, makeReadDocumentTool } from './documentLoopTo
 import {
   makeAbgeordnetenwatchTool,
   makeBundestagTool,
+  makeParlamentLesenTool,
+  makeBundestagRedenTool,
   makeCreateBoardTool,
   makeCreateDocTool,
   makeCreateExplainableTool,
@@ -94,8 +96,9 @@ import { makeEditArtifactTool } from './editorTools.js';
 import { makeEditExplainableTool, makeReadExplainableTool } from './explainableLoopTools.js';
 import { makeGroupsTool } from './groupTools.js';
 import { makeBildAnsehenTool } from './imageTools.js';
+import { makeLandtagTool, makeNationalratTool } from './landtagTool.js';
 import { makeMemoryTool } from './memoryTools.js';
-import { CRAWL_SNIPPET_CHARS, readNamedPages } from './namedPages.js';
+import { CRAWL_SNIPPET_CHARS, normalisiereUrl, readNamedPages } from './namedPages.js';
 import { makeNotebookSourcesTool } from './notebookSourceTools.js';
 import { makeNotebooksTool } from './notebookTools.js';
 import { makeReadPdfFormTool, makeFillPdfFormTool } from './pdfFormTools.js';
@@ -123,6 +126,7 @@ import {
 } from './tabelleAuswertenTool.js';
 import { makeRecipesTool } from './textFormTools.js';
 import { threadHasArtifact } from './threadArtifactTarget.js';
+import { werkzeugFehler } from './toolFailure.js';
 import { makeTranslateTool } from './translationTools.js';
 import { makeUserAgentsTool } from './userAgentTools.js';
 import { makeVertonenTool } from './voiceTools.js';
@@ -472,6 +476,16 @@ export function buildChatToolCatalog(params: {
       // leave the tool result here, travel to the client as their own event, and
       // reach the model only as a count (see searchImageHarvest).
       const bilder = takeSearchImages(result, loop);
+      // A note the tool put on its own result — web_search's discarded site
+      // scope — is about this very search. The lean shapes below dropped it, so
+      // on every search that found something the model still believed the
+      // scope had applied.
+      const hinweis =
+        result &&
+        typeof result === 'object' &&
+        typeof (result as { hinweis?: unknown }).hinweis === 'string'
+          ? { hinweis: (result as { hinweis: string }).hinweis }
+          : {};
       const raw =
         result &&
         typeof result === 'object' &&
@@ -483,7 +497,7 @@ export function buildChatToolCatalog(params: {
       // would hand the model the image URLs it must not have, so it gets the note
       // and nothing else.
       if (raw.length === 0) {
-        return bilder ? { resultCount: 0, sources: '', bilder } : result;
+        return bilder ? { resultCount: 0, sources: '', bilder, ...hinweis } : result;
       }
       // CRITICAL: executeDirectSearch/executeDirectWebSearch items carry their
       // text in `excerpt` (docs) / `snippet` (web) — NOT `content`. The source
@@ -521,12 +535,18 @@ export function buildChatToolCatalog(params: {
         // snippet does not grow by being allowed to.
         enriched.crawledCount > 0 ? { snippetChars: DEEP_CRAWL_TARGET_CHARS } : undefined
       );
-      if (!sources) return { resultCount: 0, sources: '', ...(bilder ? { bilder } : {}) };
+      if (!sources)
+        return { resultCount: 0, sources: '', ...(bilder ? { bilder } : {}), ...hinweis };
       // Lean model-facing shape: the numbered `sources` block is the grounding
       // (the raw content lives in the registry → done.citations). Dropping the
       // heavy `results[]` here keeps `sources` intact under result truncation
       // and halves the tokens the model pays per search.
-      return { resultCount: enriched.results.length, sources, ...(bilder ? { bilder } : {}) };
+      return {
+        resultCount: enriched.results.length,
+        sources,
+        ...(bilder ? { bilder } : {}),
+        ...hinweis,
+      };
     };
     tools[name] = { ...def, execute: decorated } as ToolSet[string];
   }
@@ -554,14 +574,24 @@ NUTZE WENN:
         urls: z.array(z.string()).min(1).max(3).describe('Vollständige URLs inkl. Protokoll'),
       }),
       execute: async ({ urls }) => {
-        const { validated, results } = await readNamedPages(urls);
+        const { validated, rejected, results } = await readNamedPages(urls);
+        const abgelehnt = rejected.map((r) => `${r.url} (${r.grund})`).join('; ');
         if (validated.length === 0) {
-          return { error: 'Keine gültige oder erlaubte URL. Prüfe die Adresse (inkl. https://).' };
+          return werkzeugFehler({
+            art: 'ungueltige_eingabe',
+            ursache: 'Keine gültige oder erlaubte URL',
+            befund: abgelehnt ? `Abgelehnt: ${abgelehnt}` : null,
+            naechsterSchritt: 'Prüfe die Adresse (inkl. https://)',
+          });
         }
         if (results.length === 0) {
-          return {
-            error: 'Konnte die Seite(n) nicht lesen (Timeout, Blockade oder kein Textinhalt).',
-          };
+          return werkzeugFehler({
+            art: 'nicht_verfuegbar',
+            ursache: 'Keine der Seiten ließ sich lesen (Timeout, Blockade oder kein Textinhalt)',
+            befund: `Versucht: ${validated.join(', ')}${abgelehnt ? `. Abgelehnt: ${abgelehnt}` : ''}`,
+            naechsterSchritt:
+              'Nenne der Person die Adresse, damit sie selbst nachsehen kann, oder suche die Inhalte per Websuche',
+          });
         }
         // A crawl is an explicit "read THIS page" — the user named it or the model
         // picked it out of search hits. Registering it at the ordinary snippet cap
@@ -569,7 +599,33 @@ NUTZE WENN:
         // hundred characters, so "fass diesen Artikel zusammen" was answered from
         // the headline.
         const sources = sourceRegistry.register(results, { snippetChars: CRAWL_SNIPPET_CHARS });
-        return { resultCount: results.length, sources };
+        // Teilerfolg nicht als vollständig ausgeben: welche Adressen fehlen und warum.
+        const gelesen = new Set(results.map((r) => normalisiereUrl(r.url ?? '')));
+        const nichtGelesen = validated.filter((u) => !gelesen.has(normalisiereUrl(u)));
+        if (nichtGelesen.length === 0 && rejected.length === 0) {
+          return { resultCount: results.length, sources };
+        }
+        const teilweise = werkzeugFehler({
+          art: 'teilweise',
+          ursache: `Nur ${results.length} von ${urls.length} Seiten gelesen`,
+          befund: [
+            nichtGelesen.length
+              ? `Nicht lesbar (Timeout, Blockade oder kein Text): ${nichtGelesen.join(', ')}`
+              : '',
+            abgelehnt ? `Abgelehnt: ${abgelehnt}` : '',
+          ]
+            .filter(Boolean)
+            .join('. '),
+          naechsterSchritt: 'Antworte nur aus den gelesenen Seiten und sag, welche fehlen',
+        });
+        // Kein `error`-Feld: das Lesen hat ja Inhalt geliefert, es zählt nicht als Fehlschlag.
+        return {
+          resultCount: results.length,
+          sources,
+          fehlerArt: teilweise.fehlerArt,
+          hinweis: teilweise.error,
+          naechsterSchritt: teilweise.naechsterSchritt,
+        };
       },
     });
   }
@@ -748,7 +804,7 @@ NUTZE WENN eine Frage sich auf eine angehängte Datei bezieht und die bereits ge
 
 Genau ein Modus je Aufruf.
 
-NICHT für eine Zusammenfassung des ganzen Dokuments — dafür gibt es \`summarize\`, das den vollständigen Text verarbeitet statt einzelner Passagen.`,
+NICHT für eine Zusammenfassung des ganzen Dokuments — dafür gibt es \`summarize\`, das den vollständigen Text verarbeitet statt einzelner Passagen. Für Anhänge aus FRÜHEREN Turns dieses Gesprächs, deren Auszug nicht reicht: \`expand_attachment\`.`,
         inputSchema: z.object({
           query: z.string().optional().describe('Präziser Suchbegriff für die Passagensuche'),
           dateiname: z
@@ -848,6 +904,17 @@ NICHT für eine Zusammenfassung des ganzen Dokuments — dafür gibt es \`summar
     // downgrade actually take effect on the loop path.
     if (isIntentAllowedForLocale('bundestag', state.userLocale)) {
       tools.bundestag = makeBundestagTool({ state, sourceRegistry });
+      // Zwilling von `bundestag` (liest dessen Refs): gleiche Sperre, fällt mit ihm weg.
+      tools.parlament_lesen = makeParlamentLesenTool({ state, sourceRegistry });
+      // Reden im Plenum (Bundestag-MCP): dieselbe Sperre, derselbe Agent-Schlüssel `bundestag`.
+      tools.bundestag_reden = makeBundestagRedenTool({ state, sourceRegistry });
+      // Die Landtage (Berlin; weitere je Registry-Eintrag): gleiche Sperre, gleicher Agent-Schlüssel `bundestag`.
+      tools.landtag = makeLandtagTool({ state, sourceRegistry });
+    } else if (state.userLocale === 'de-AT') {
+      // Österreich: der Nationalrat als Einstieg, gelesen über denselben `parlament_lesen`
+      // (dessen `quelle` kennt dann nur 'nationalrat').
+      tools.nationalrat = makeNationalratTool({ state, sourceRegistry });
+      tools.parlament_lesen = makeParlamentLesenTool({ state, sourceRegistry });
     }
     if (isIntentAllowedForLocale('abgeordnetenwatch', state.userLocale)) {
       tools.abgeordnetenwatch = makeAbgeordnetenwatchTool({ state, sourceRegistry });
@@ -890,7 +957,7 @@ NICHT für eine Zusammenfassung des ganzen Dokuments — dafür gibt es \`summar
       tools.product_knowledge = tool({
         description: `Beantwortet Fragen über den Grünerator selbst: verfügbare Grüneratoren (Assistenten), Werkzeuge, eigene Begriffe (Modellstufen Klein/Mittel/Ultra/Panda, Explainable, Podcast, Öko-Modus, Marktplatz, Papierkorb, Konto, App …), MCP-Server/Anbindungen und durchsuchbare Wissenssammlungen.
 
-NUTZE WENN nach Funktionen, Begriffen, Fähigkeiten oder Anbindungen des Grünerators gefragt wird ("was kannst du", "was ist Panda", "welche MCP-Server kennst du", "wie erstelle ich ein Sharepic"). NICHT für politische Inhalte oder Recherche — und NICHT für die persönlichen Wolke-/Nextcloud-Verbindungen oder -Dateien der Person: welche Wolke-Links verbunden sind, beantwortet 'cloud_files' (list_connections).`,
+NUTZE WENN nach Funktionen, Begriffen, Fähigkeiten oder Anbindungen des Grünerators gefragt wird ("was kannst du", "was ist Panda", "welche MCP-Server kennst du"). Schritt-für-Schritt-Anleitungen zur Bedienung ("wie erstelle ich ein Sharepic", "wo finde ich …") liefert gruenerator_docs_search. NICHT für politische Inhalte oder Recherche — und NICHT für die persönlichen Wolke-/Nextcloud-Verbindungen oder -Dateien der Person: welche Wolke-Links verbunden sind, beantwortet 'cloud_files' (list_connections).`,
         inputSchema: z.object({
           topic: z
             .string()
@@ -988,7 +1055,7 @@ NUTZE WENN nach Funktionen, Begriffen, Fähigkeiten oder Anbindungen des Grüner
       !editorSurface &&
       state.editToolSurface !== 'presentation'
     ) {
-      const presentationCtx = { state, threadId: loop.threadId };
+      const presentationCtx = { state, threadId: loop.threadId, sse: loop.sse };
       if (state.enabledTools?.['read_presentation'] !== false) {
         tools.read_presentation = makeReadPresentationTool(presentationCtx);
       }

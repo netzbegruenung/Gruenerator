@@ -4,6 +4,7 @@ import { type z } from 'zod';
 import { createSourceRegistry } from '../services/agenticLoop/sourceRegistry.js';
 
 import {
+  ARTIFACT_READ_CHARS,
   makeBoardsTasksTool,
   makeDocumentsTool,
   makeReadArtifactTool,
@@ -94,7 +95,10 @@ vi.mock('../../../services/subtitler/reelSearch.js', () => ({
   getReelTranscript: (...a: unknown[]) => getReelTranscript(...a),
   reelUrl: (id: string) => `/studio/video?project=${id}`,
 }));
-vi.mock('../services/artifactReader.js', () => ({
+vi.mock('../services/artifactReader.js', async (importOriginal) => ({
+  // Die echte Zuordnung Untertyp → kind: genau sie prüfen die Trefferzeilen.
+  subtypeToReadKind: (await importOriginal<typeof import('../services/artifactReader.js')>())
+    .subtypeToReadKind,
   readArtifactContent: (...a: unknown[]) => readArtifactContent(...a),
 }));
 vi.mock('../services/pastChatRecallService.js', () => ({
@@ -187,6 +191,67 @@ describe('find_content', () => {
     expect(out.results[0]).toMatchObject({ title: 'Klimaplan', url: '/office/d1' });
   });
 
+  it('search rows carry the id and the read_artifact kind, not only a label in the url', async () => {
+    searchOfficeContent.mockResolvedValue([
+      { id: 'p1', title: 'Wahlkampf-Folien', document_subtype: 'presentations', content: '' },
+      { id: 's1', title: 'Budget', document_subtype: 'tabelle', content: '' },
+    ]);
+    const out = (await exec(makeFindContentTool(ctx('u1')), {
+      action: 'search',
+      query: 'wahlkampf',
+      limit: 5,
+    })) as { results: Array<{ id?: string; kind?: string }> };
+    expect(out.results[0]).toMatchObject({ id: 'p1', kind: 'presentation' });
+    // „tabelle" ist ein Fließtext-Dokument, keine Tabelle: `loadSheetState` liest nur `sheets`.
+    expect(out.results[1]).toMatchObject({ id: 's1', kind: 'doc' });
+  });
+
+  // #5140: zehn gleichnamige Kopien, im Text „24. Mai" — ohne Datum am Treffer
+  // nannte das Modell das Textdatum als Dokumentdatum.
+  it('search rows carry the date of the last change, not a date from the text', async () => {
+    searchOfficeContent.mockResolvedValue([
+      {
+        id: 'd1',
+        title: 'Lindenstraße',
+        document_subtype: 'docs',
+        updated_at: new Date('2026-10-29T12:00:00Z'),
+        content: 'Antrag vom 24. Mai 2024',
+      },
+      {
+        id: 'd2',
+        title: 'Lindenstraße',
+        document_subtype: 'docs',
+        updated_at: '2026-10-28T12:00:00Z',
+        content: 'Antrag vom 24. Mai 2024',
+      },
+      { id: 'd3', title: 'Ohne Datum', document_subtype: 'docs', updated_at: null, content: '' },
+    ]);
+    const out = (await exec(makeFindContentTool(ctx('u1')), {
+      action: 'search',
+      query: 'lindenstraße',
+      limit: 5,
+    })) as { results: Array<{ id?: string; geaendert?: string }> };
+    expect(out.results.map((r) => r.geaendert)).toEqual(['29.10.2026', '28.10.2026', undefined]);
+    expect(out.results[2]).not.toHaveProperty('geaendert');
+  });
+
+  it('recent rows carry the activity date', async () => {
+    aggregateRecentActivity.mockResolvedValue([
+      {
+        id: 'b1',
+        title: 'Board X',
+        href: '/boards/b1',
+        type: 'board',
+        content: null,
+        date: '2026-10-27T12:00:00Z',
+      },
+    ]);
+    const out = (await exec(makeFindContentTool(ctx('u1')), { action: 'recent', limit: 5 })) as {
+      results: Array<{ geaendert?: string }>;
+    };
+    expect(out.results[0].geaendert).toBe('27.10.2026');
+  });
+
   it('search also surfaces matching reels alongside office content', async () => {
     searchOfficeContent.mockResolvedValue([
       { id: 'd1', title: 'Klimaplan', document_subtype: 'docs', content: 'Auszug' },
@@ -263,6 +328,43 @@ describe('find_content', () => {
 
 // --- documents ---------------------------------------------------------------
 describe('documents', () => {
+  // Fehleingabe-Matrix, documents: „nicht gefunden" nur, wo die Liste vollständig war.
+  it('list rows carry the date of the last change (#5140)', async () => {
+    listUserDocuments.mockResolvedValue([
+      { id: 'd1', title: 'Alt', document_subtype: 'docs', updated_at: '2026-10-29T12:00:00Z' },
+    ]);
+    const out = (await exec(makeDocumentsTool(ctx('u1')), {
+      action: 'list',
+      permission: 'viewer',
+      confirm: false,
+      limit: 15,
+    })) as { results: Array<{ geaendert?: string }> };
+    expect(out.results[0].geaendert).toBe('29.10.2026');
+  });
+
+  it.each([
+    ['kurze Liste (vollständig)', 3, /gibt es unter deinen Dokumenten nicht/],
+    ['volles 200er-Fenster', 200, /nicht unter deinen neuesten 200.*ältere wurden nicht geprüft/],
+  ])('get mit unbekannter id, %s', async (_n, count, ursache) => {
+    listUserDocuments.mockResolvedValue(
+      Array.from({ length: count }, (_, i) => ({
+        id: `d${i}`,
+        title: `T${i}`,
+        document_subtype: 'docs',
+      }))
+    );
+    const out = (await exec(makeDocumentsTool(ctx('u1')), {
+      action: 'get',
+      id: 'unbekannt',
+      permission: 'viewer',
+      confirm: false,
+      limit: 15,
+    })) as { error?: string; fehlerArt?: string; naechsterSchritt?: string };
+    expect(out.fehlerArt).toBe('nicht_gefunden');
+    expect(out.error).toMatch(ursache);
+    expect(out.naechsterSchritt).toMatch(/documents list.*find_content/);
+  });
+
   it('rename is refused without write access', async () => {
     listUserDocuments.mockResolvedValue([{ id: 'd1', title: 'Alt', document_subtype: 'docs' }]);
     hasWriteAccess.mockResolvedValue(false);
@@ -436,6 +538,34 @@ describe('boards_tasks', () => {
     expect(out.cards[0].title).toBe('Plakate');
     // resolved from state, never via a per-card getCardSnapshot reload:
     expect(resolveCardDisplay).toHaveBeenCalledTimes(2);
+  });
+
+  it('get_cards: cardCount ist die Gesamtzahl, nicht die gezeigten 50', async () => {
+    const rows = Array.from({ length: 120 }, (_, i) => ({
+      id: `r${i}`,
+      snap: { cardTitle: `K${i}`, statusLabel: 'Offen', dueDate: null, assigneeNames: [] },
+    }));
+    loadBoardState.mockResolvedValue({ ...board, rows });
+    const out = (await exec(makeBoardsTasksTool(ctx('u1')), {
+      action: 'get_cards',
+      boardId: 'b1',
+      limit: 15,
+    })) as { cardCount: number; shownCount: number; cards: unknown[]; hinweis?: string };
+    expect(out.cardCount).toBe(120);
+    expect(out.shownCount).toBe(50);
+    expect(out.cards).toHaveLength(50);
+    expect(out.hinweis).toMatch(/50 von 120/);
+  });
+
+  it('list_boards rows carry the date of the last change (#5140)', async () => {
+    listUserBoards.mockResolvedValue([
+      { id: 'b1', title: 'Kampagne', content: null, updated_at: '2026-10-29T12:00:00Z' },
+    ]);
+    const out = (await exec(makeBoardsTasksTool(ctx('u1')), {
+      action: 'list_boards',
+      limit: 15,
+    })) as { results: Array<{ geaendert?: string }> };
+    expect(out.results[0].geaendert).toBe('29.10.2026');
   });
 
   it('my_tasks keeps only cards with a due date or assignee', async () => {
@@ -846,13 +976,95 @@ describe('read_artifact', () => {
     expect(readArtifactContent).not.toHaveBeenCalled();
   });
 
-  it('says so when the conversation has no artifact of that kind', async () => {
+  it('says so when neither the conversation nor recent activity has that kind', async () => {
+    aggregateRecentActivity.mockResolvedValueOnce([
+      { id: 'b1', title: 'Board', type: 'board', date: '2026-10-29' },
+    ]);
     const c = artifactState('u1', [{ kind: 'sheet', ref: 'sheet-1', label: 'Budget' }]);
     const out = (await exec(makeReadArtifactTool(c), { kind: 'presentation' })) as {
       error?: string;
     };
     expect(out.error).toContain('Präsentation');
     expect(readArtifactContent).not.toHaveBeenCalled();
+  });
+
+  /**
+   * #5134: the old answer here was "suche es mit find_content". The model took
+   * action="recent", read the newest similar title — a document from another
+   * thread — and answered about it with full confidence. The newest one is not
+   * the meant one: the tool hands back candidates and the choice to the person.
+   */
+  it('offers recent artifacts of that kind as candidates instead of a search hint', async () => {
+    aggregateRecentActivity.mockResolvedValueOnce([
+      { id: 'd3', title: 'Trinkbrunnen (3)', type: 'doc', documentType: 'antrag', date: '3' },
+      { id: 'img', title: 'Bild', type: 'image', date: '2' },
+      { id: 'p1', title: 'Folien', type: 'doc', documentType: 'presentations', date: '2' },
+      { id: 'd2', title: 'Trinkbrunnen (2)', type: 'doc', documentType: 'blank', date: '1' },
+      { id: 'd1', title: 'Trinkbrunnen (1)', type: 'doc', documentType: 'antrag', date: '1' },
+      { id: 'd0', title: 'Radweg', type: 'doc', documentType: 'antrag', date: '0' },
+      { id: 'dx', title: 'Zu alt', type: 'doc', documentType: 'antrag', date: '0' },
+    ]);
+
+    const out = (await exec(makeReadArtifactTool(ctx('u1')), { kind: 'doc' })) as {
+      needsChoice?: boolean;
+      note?: string;
+      candidates?: Array<{ id: string; title: string }>;
+      error?: string;
+    };
+
+    expect(out.error).toBeUndefined();
+    expect(out.needsChoice).toBe(true);
+    // Only documents, newest first, at most four — ask_human takes four options.
+    expect(out.candidates?.map((x) => x.id)).toEqual(['d3', 'd2', 'd1', 'd0']);
+    expect(out.note).toMatch(/ANDEREN Gesprächen/);
+    expect(out.note).toContain('ask_human');
+    expect(out.note).not.toContain('find_content');
+    expect(readArtifactContent).not.toHaveBeenCalled();
+  });
+
+  it('refuses to read an offered candidate before the person has chosen', async () => {
+    aggregateRecentActivity.mockResolvedValueOnce([
+      { id: 'd2', title: 'Trinkbrunnen (2)', type: 'doc', documentType: 'antrag', date: '2' },
+      { id: 'd1', title: 'Trinkbrunnen (1)', type: 'doc', documentType: 'antrag', date: '1' },
+    ]);
+    const readTool = makeReadArtifactTool(ctx('u1'));
+    await exec(readTool, { kind: 'doc' });
+
+    const guess = (await exec(readTool, { kind: 'doc', id: 'd2' })) as { error?: string };
+
+    expect(guess.error).toContain('ask_human');
+    expect(readArtifactContent).not.toHaveBeenCalled();
+
+    // The answer resumes as a fresh loop with a fresh tool instance — the
+    // chosen id is read there.
+    readArtifactContent.mockResolvedValueOnce('Zweiter Absatz');
+    const chosen = (await exec(makeReadArtifactTool(ctx('u1')), { kind: 'doc', id: 'd2' })) as {
+      content?: string;
+    };
+    expect(chosen.content).toContain('Zweiter Absatz');
+  });
+
+  it('refuses a foreign id taken from find_content action="recent" — the #5134 route', async () => {
+    aggregateRecentActivity.mockResolvedValueOnce([
+      { id: 'd9', title: 'Trinkbrunnen', type: 'doc', documentType: 'antrag', date: '2' },
+      { id: 'own-1', title: 'Unser Antrag', type: 'doc', documentType: 'antrag', date: '1' },
+    ]);
+    // One ctx per loop: find_content and read_artifact are built on the same one.
+    const c = artifactState('u1', [{ kind: 'doc', ref: 'own-1', label: 'Unser Antrag' }]);
+    await exec(makeFindContentTool(c), { action: 'recent', limit: 5 });
+
+    const guess = (await exec(makeReadArtifactTool(c), { kind: 'doc', id: 'd9' })) as {
+      error?: string;
+    };
+    expect(guess.error).toContain('ask_human');
+    expect(readArtifactContent).not.toHaveBeenCalled();
+
+    // This conversation's own artifact stays readable by id.
+    readArtifactContent.mockResolvedValueOnce('Eigener Text');
+    const own = (await exec(makeReadArtifactTool(c), { kind: 'doc', id: 'own-1' })) as {
+      content?: string;
+    };
+    expect(own.content).toContain('Eigener Text');
   });
 
   it('reports an unreadable artifact as an error rather than empty content', async () => {
@@ -902,6 +1114,38 @@ describe('read_artifact', () => {
     expect(out.truncated).toBe(true);
     expect(out.content.length).toBeLessThan(20_000);
     expect(out.content).toContain('[gekürzt]');
+  });
+
+  it('reads on from "weiter.ab" until the end of a long artifact', async () => {
+    const text = `${'a'.repeat(ARTIFACT_READ_CHARS)}${'b'.repeat(5_000)}`;
+    readArtifactContent.mockResolvedValue(text);
+    const first = (await exec(makeReadArtifactTool(ctx('u1')), { kind: 'doc', id: 'd1' })) as {
+      weiter?: { ab: number };
+      gesamtZeichen: number;
+    };
+    expect(first.weiter).toEqual({ ab: ARTIFACT_READ_CHARS });
+    expect(first.gesamtZeichen).toBe(text.length);
+
+    const second = (await exec(makeReadArtifactTool(ctx('u1')), {
+      kind: 'doc',
+      id: 'd1',
+      ab: first.weiter!.ab,
+    })) as { content: string; truncated: boolean; weiter?: unknown };
+    expect(second.content).toContain('b'.repeat(5_000));
+    expect(second.content).not.toContain('a');
+    expect(second.truncated).toBe(false);
+    expect(second.weiter).toBeUndefined();
+    readArtifactContent.mockReset();
+  });
+
+  it('says where the artifact ends when "ab" is past it', async () => {
+    readArtifactContent.mockResolvedValueOnce('kurz');
+    const out = (await exec(makeReadArtifactTool(ctx('u1')), {
+      kind: 'doc',
+      id: 'd1',
+      ab: 100,
+    })) as { error?: string };
+    expect(out.error).toContain('4 Zeichen');
   });
 });
 
@@ -959,11 +1203,29 @@ describe('search_threads', () => {
       ],
     });
     listRecentThreads.mockResolvedValue([]);
-    await exec(makeSearchThreadsTool(ctx('u1')), { action: 'search', scope: 'space', limit: 3 });
+    const out = (await exec(makeSearchThreadsTool(ctx('u1')), {
+      action: 'search',
+      scope: 'space',
+      limit: 3,
+    })) as { durchsucht: string };
     expect(listRecentThreads).toHaveBeenCalledWith('u1', {
       limit: 3,
       excludeThreadId: 't1',
       threadIds: ['th1', 'th2'],
     });
+    // Ein leerer Space ist keine leere Chat-Historie — das Ergebnis sagt es.
+    expect(out.durchsucht).toContain('nur die Chats dieses Space');
+  });
+
+  it('outside a Space the result says all chats were searched', async () => {
+    dbQuery.mockResolvedValue([]); // getCurrentSpaceId → no space
+    recallPastChats.mockResolvedValue([]);
+    const out = (await exec(makeSearchThreadsTool(ctx('u1')), {
+      action: 'search',
+      query: 'Hitzeschutz',
+      scope: 'space',
+      limit: 5,
+    })) as { durchsucht: string };
+    expect(out.durchsucht).toBe('alle eigenen Chats');
   });
 });

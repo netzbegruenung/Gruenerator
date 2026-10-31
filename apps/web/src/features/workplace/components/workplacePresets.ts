@@ -1,4 +1,4 @@
-import { agentsList, type AgentListItem, type ComposerPreset } from '@gruenerator/chat';
+import { listedAgentsList, type AgentListItem, type ComposerPreset } from '@gruenerator/chat';
 import { isLandesverbandIdentifier } from '@gruenerator/shared/agents';
 
 const EXAMPLE_PROMPTS: Record<string, string> = {
@@ -43,7 +43,7 @@ function buildPresetText(agent: AgentListItem): string {
  * `key` ist die Mention, nicht der Identifier: sechs Rezepte teilen sich
  * `gruenerator-oeffentlichkeitsarbeit`, als React-key wäre er nicht eindeutig.
  */
-export const WORKPLACE_PRESETS: ComposerPreset[] = agentsList
+export const WORKPLACE_PRESETS: ComposerPreset[] = listedAgentsList
   .filter((agent) => !isLandesverbandIdentifier(agent.identifier))
   .map((agent) => ({
     key: agent.mention,

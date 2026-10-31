@@ -10,7 +10,7 @@
  *   GET /:shareToken/thumbnail  — thumbnail file
  *   GET /:shareToken/original   — original image (owner only)
  *   GET /:shareToken/stream     — video playback (byte ranges)
- *   GET /:shareToken/preview    — image variants (?w=&fmt=); video for old clients
+ *   GET /:shareToken/preview    — image or video-poster variants (?w=&fmt=); video without w
  *   GET /:shareToken/download   — transfer (public, password) or image/video (auth)
  *
  * New consumers should use the signed `/api/thumbs/media/...` URLs the list
@@ -561,11 +561,6 @@ router.get('/:shareToken/preview', async (req: Request<ShareTokenParams>, res: R
     if (!resolved) return;
     const { share, mediaPath, fileSize, moderator } = resolved;
 
-    if (share.media_type === 'video' || share.media_type === 'audio') {
-      streamMedia(req, res, mediaPath, fileSize, streamContentType(share));
-      return;
-    }
-
     const version = versionFromShareRow(share);
     const rawWidth = parseInt(req.query.w as string, 10);
     const fmt = req.query.fmt === 'avif' ? 'avif' : 'webp';
@@ -579,6 +574,19 @@ router.get('/:shareToken/preview', async (req: Request<ShareTokenParams>, res: R
           )
         : null;
 
+    // A width asks for a tile. For a video that is its poster frame
+    // (sharedMediaService.processVideoPoster), served like an image; a video
+    // without one yet, and any request without a width, still gets the stream.
+    const posterPath =
+      share.media_type === 'video' && width
+        ? (await getSharedMediaService()).getThumbnailFilePath(share.thumbnail_path)
+        : null;
+    if ((share.media_type === 'video' && !posterPath) || share.media_type === 'audio') {
+      streamMedia(req, res, mediaPath, fileSize, streamContentType(share));
+      return;
+    }
+    const sourcePath = posterPath ?? mediaPath;
+
     const etag = `"${version}-w${width ?? 'orig'}-${width ? fmt : 'src'}"`;
     res.setHeader('Cache-Control', moderator ? MODERATION_CACHE_CONTROL : PREVIEW_CACHE_CONTROL);
     res.setHeader('ETag', etag);
@@ -590,11 +598,11 @@ router.get('/:shareToken/preview', async (req: Request<ShareTokenParams>, res: R
     const variant = await getThumbnailVariant(
       { kind: 'media', id: share.share_token, v: version, width, fmt },
       {
-        sourcePath: mediaPath,
-        contentType: share.mime_type || 'image/png',
+        sourcePath,
+        contentType: posterPath ? 'image/jpeg' : share.mime_type || 'image/png',
         pregenerated: {
-          dir: path.join(path.dirname(mediaPath), 'thumbs'),
-          base: path.basename(mediaPath, path.extname(mediaPath)),
+          dir: path.join(path.dirname(sourcePath), 'thumbs'),
+          base: path.basename(sourcePath, path.extname(sourcePath)),
         },
       }
     );

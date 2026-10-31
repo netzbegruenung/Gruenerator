@@ -7,7 +7,7 @@ import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest
 import { composeSharepic } from '../composer/composeSharepic';
 import { MORE_SPECS, SPECS } from '../composer/sharepicSpecFixtures';
 
-import { StandaloneCanvas } from './StandaloneCanvas';
+import { StandaloneCanvas } from '@ggraphic/editor/components/StandaloneCanvas';
 
 import type { CanvasConfigId } from '../templates/registry';
 

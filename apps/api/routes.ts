@@ -46,6 +46,7 @@ import { mountBoardsContractRouter } from './routes/boards/boardsContractRouter.
 import { mountBoardSubscriptionsContractRouter } from './routes/boards/boardSubscriptionsContractRouter.js';
 import { mountPublicBoardsContractRouter } from './routes/boards/publicBoardsContractRouter.js';
 import browserAgentLlmRouter from './routes/browserAgent/llmProxyRouter.js';
+import { mountBundestagQaContractRouter } from './routes/bundestag/bundestagQaContractRouter.js';
 import { mountCanvasContractRouter } from './routes/canvas/canvasContractRouter.js';
 import { mountChatGraphContractRouter } from './routes/chat/chatGraphContractRouter.js';
 import { mountChatThreadSharingContractRouter } from './routes/chat/chatThreadSharingContractRouter.js';
@@ -55,6 +56,7 @@ import { mountConnectionsContractRouter } from './routes/connections/connections
 import { mountContentContractRouter } from './routes/content/contentContractRouter.js';
 import { mountContentReportContractRouter } from './routes/contentReports/contentReportContractRouter.js';
 import { mountDocsContractRouter } from './routes/docs/docsContractRouter.js';
+import { mountDocSnapshotsContractRouter } from './routes/docs/docSnapshotsContractRouter.js';
 import { mountDocumentsContractRouter } from './routes/documents/documentsContractRouter.js';
 import { mountEmailContractRouter } from './routes/email/emailContractRouter.js';
 import {
@@ -356,7 +358,6 @@ export async function setupRoutes(app: Application): Promise<void> {
     await import('./routes/sharepicCreator/sharepicCreatorContractRouter.js');
   const { mountSharepicVorlagenRouter } =
     await import('./routes/sharepicVorlagen/sharepicVorlagenRouter.js');
-  const { default: unsplashRouter } = await import('./routes/unsplash/unsplashRoutes.js');
   const { default: docsRouter } = await import('./routes/docs/index.js');
 
   const { default: publicDocRouter } = await import('./routes/docs/publicDocController.js');
@@ -930,6 +931,14 @@ export async function setupRoutes(app: Application): Promise<void> {
   // pro Handler — dieselbe Bauform wie die Admin-Router oben.
   app.use('/api/auth/admin/chunk-inspector', requireAuth);
   mountChunkInspectorContractRouter(app);
+  // Bundestag-Q&A: Anmeldung und KI-Einwilligung am Präfix, ein Tageslimit je
+  // Endpunkt (Antwort: Lesemodell; Plan: Planmodell und DIP-Fächer, eigenes,
+  // höheres Limit). Vor dem Router, denn Contract-Router erben keine später
+  // eingehängte Middleware.
+  app.use('/api/bundestag', requireAuth, requireAiConsent);
+  app.use('/api/bundestag/plan', rateLimitMiddleware('bundestag_plan', { autoIncrement: true }));
+  app.use('/api/bundestag/answer', rateLimitMiddleware('bundestag_qa', { autoIncrement: true }));
+  mountBundestagQaContractRouter(app);
   // Konnektor-Testseite: Google/Microsoft über Nango vor der Freigabe prüfen.
   // Gleiche Bauform: requireAuth am Präfix, requireInstanceAdmin pro Handler.
   app.use('/api/auth/admin/connector-test', requireAuth);
@@ -974,6 +983,10 @@ export async function setupRoutes(app: Application): Promise<void> {
     requireAiConsent
   );
   mountDocsContractRouter(app);
+  // The version history used to live in docsRouter and inherited its limiter;
+  // the contract mount registers on `app`, so it gets the same limiter here.
+  app.use(/^\/api\/docs\/[^/]+\/snapshots(\/|$)/, authenticatedReadLimiter);
+  mountDocSnapshotsContractRouter(app);
   app.use('/api/docs', authenticatedReadLimiter, docsRouter);
 
   // Public board lookup (no auth). Registered first so requests terminate here
@@ -1059,7 +1072,6 @@ export async function setupRoutes(app: Application): Promise<void> {
   app.use('/api/image-picker', imagePickerRoute);
   app.use('/api/unsplash', requireAuth, publicReadLimiter);
   mountUnsplashContractRouter(app);
-  app.use('/api/unsplash', unsplashRouter);
   // Serves a web-search image hit through us so the reader's browser never
   // contacts the source host. requireAuth on the prefix even though every handle
   // is HMAC-signed: the signature says "we returned this URL", not "this caller

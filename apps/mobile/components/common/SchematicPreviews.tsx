@@ -187,8 +187,8 @@ export function SlidesPreviewBody({ content, style }: PreviewProps & { content?:
 }
 
 const styles = StyleSheet.create({
+  // Sized by the caller alone; see `paper` in DocPreview for why not `flex: 1`.
   plate: {
-    flex: 1,
     padding: spacing.small,
     overflow: 'hidden',
   },

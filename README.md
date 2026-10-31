@@ -208,48 +208,54 @@ Professional subtitle generation for videos:
 
 ## Monorepo Structure
 
-This is a **pnpm + Turborepo** monorepo: 6 apps, 16 packages, and 4 services.
+This is a **pnpm + Turborepo** monorepo: 7 apps, 20 packages, and 5 services.
 
 ### Apps
 
-| Workspace          | Description                          |
-| ------------------ | ------------------------------------ |
-| `apps/web`         | React 19 + Vite frontend             |
-| `apps/api`         | Express 5 backend + ChatGraph agents |
-| `apps/mobile`      | Expo / React Native mobile app       |
-| `apps/desktop`     | Tauri 2 desktop wrapper              |
-| `apps/gruen-o-mat` | Political compass tool               |
-| `apps/wordpress`   | WordPress plugin for candidate sites |
+| Workspace            | Description                               |
+| -------------------- | ----------------------------------------- |
+| `apps/web`           | React 19 + Vite frontend                  |
+| `apps/api`           | Express 5 backend + ChatGraph agents      |
+| `apps/mobile`        | Expo / React Native mobile app            |
+| `apps/desktop`       | Tauri 2 desktop wrapper                   |
+| `apps/gruen-o-mat`   | Political compass tool                    |
+| `apps/wordpress`     | WordPress plugin for candidate sites      |
+| `apps/ggraphic-demo` | Neutral host page for the ggraphic editor |
 
 ### Packages
 
-| Workspace                | Description                                              |
-| ------------------------ | -------------------------------------------------------- |
-| `packages/chat`          | Shared chat UI, runtime adapters, composer configs       |
-| `packages/shared`        | Shared stores, hooks, API clients, components            |
-| `packages/contracts`     | ts-rest API contracts + Zod schemas (typed API boundary) |
-| `packages/canvas-editor` | Config-driven react-konva image/canvas editor            |
-| `packages/docs`          | Collaborative rich-text document editor (Tiptap)         |
-| `packages/sheets`        | Spreadsheet editor (Univer) with AI operations           |
-| `packages/presentations` | Presentation editor with party branding                  |
-| `packages/collab`        | Shared Yjs collaboration components and hooks            |
-| `packages/sites`         | Embedded candidate site builder                          |
-| `packages/sites-design`  | Site builder design tokens + presentational components   |
-| `packages/wolke`         | Grüne Wolke (Nextcloud) integration                      |
-| `packages/voice`         | Voice input/synthesis utilities                          |
-| `packages/query`         | Shared search/retrieval logic (text + vector)            |
-| `packages/core`          | AI model catalog and shared core primitives              |
-| `packages/ui`            | Shared UI component library                              |
-| `packages/eslint-config` | Shared ESLint flat config                                |
+| Workspace                  | Description                                                    |
+| -------------------------- | -------------------------------------------------------------- |
+| `packages/chat`            | Shared chat UI, runtime adapters, composer configs             |
+| `packages/shared`          | Shared stores, hooks, API clients, components                  |
+| `packages/contracts`       | ts-rest API contracts + Zod schemas (typed API boundary)       |
+| `packages/canvas-editor`   | Config-driven react-konva image/canvas editor                  |
+| `packages/docs`            | Collaborative rich-text document editor (Tiptap)               |
+| `packages/sheets`          | Spreadsheet editor (Univer) with AI operations                 |
+| `packages/presentations`   | Presentation editor with party branding                        |
+| `packages/collab`          | Shared Yjs collaboration components and hooks                  |
+| `packages/sites`           | Embedded candidate site builder                                |
+| `packages/sites-design`    | Site builder design tokens + presentational components         |
+| `packages/wolke`           | Grüne Wolke (Nextcloud) integration                            |
+| `packages/voice`           | Voice input/synthesis utilities                                |
+| `packages/query`           | Shared search/retrieval logic (text + vector)                  |
+| `packages/core`            | AI model catalog and shared core primitives                    |
+| `packages/ui`              | Shared UI component library                                    |
+| `packages/eslint-config`   | Shared ESLint flat config                                      |
+| `packages/ggraphic-core`   | ggraphic: brand-neutral editor core (MPL-2.0)                  |
+| `packages/ggraphic-editor` | ggraphic: brand-neutral react-konva canvas editor (MPL-2.0)    |
+| `packages/ggraphic-schema` | ggraphic: design document format and rich-text model (MPL-2.0) |
+| `packages/ggraphic-collab` | ggraphic: Yjs/Hocuspocus collaboration session (MPL-2.0)       |
 
 ### Services
 
-| Workspace             | Description                                             |
-| --------------------- | ------------------------------------------------------- |
-| `services/hocuspocus` | Real-time collaboration server (Yjs)                    |
-| `services/nlp`        | Python NLP enrichment for notebook content              |
-| `services/nango`      | Self-hosted OAuth broker for third-party connectors     |
-| `services/ota`        | Self-hosted OTA update server for `apps/mobile` (xprem) |
+| Workspace                | Description                                                    |
+| ------------------------ | -------------------------------------------------------------- |
+| `services/hocuspocus`    | Real-time collaboration server (Yjs)                           |
+| `services/nlp`           | Python NLP enrichment for notebook content                     |
+| `services/nango`         | Self-hosted OAuth broker for third-party connectors            |
+| `services/ota`           | Self-hosted OTA update server for `apps/mobile` (xprem)        |
+| `services/browser-agent` | Headless Chromium backend for the chat tool „Website erkunden“ |
 
 User documentation lives in `documentation/` (Docusaurus, deployed to [doku.gruenerator.eu](https://doku.gruenerator.eu/)).
 

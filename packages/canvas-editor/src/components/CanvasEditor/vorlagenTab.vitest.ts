@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import { formatHasVorlagen, withVorlagenTab } from './vorlagenTab';
 
-import type { SidebarTab, SidebarTabId } from '../../sidebar/types';
+import type { SidebarTab, SidebarTabId } from '@ggraphic/editor/sidebar/types';
 
 const tab = (id: SidebarTabId): SidebarTab => ({ id, icon: () => null, label: id, ariaLabel: id });
 

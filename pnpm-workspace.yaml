@@ -235,7 +235,7 @@ allowBuilds:
 # `y-indexeddb@9.0.12` chains `.then()` onto its `_db` open promise twice
 # without a catch: in the constructor (the initial load) and in `destroy()`.
 # When the open fails, both derived promises reject unhandled even though the
-# caller catches `_db` itself (packages/collab useCollaboration does). Chrome
+# caller catches `_db` itself (packages/ggraphic-collab useCollaboration does). Chrome
 # Android rejects the open with "AbortError: The connection was closed" when
 # the page is torn down mid-open, which Sentry reported as an unhandled
 # rejection (GlitchTip #682). Neither promise is reachable from outside, so no
@@ -245,7 +245,7 @@ allowBuilds:
 # and vitest resolve the ESM entry, the CJS `dist/` is unused. 9.0.12 is the
 # latest release. Guarded by packages/collab/src/hooks/idbOpenFailure.vitest.ts.
 #
-# `@blocknote/xl-ai@0.55.0` declares the `id` of its AI suggestion marks
+# `@blocknote/xl-ai@0.56.0` (since 0.55.0) declares the `id` of its AI suggestion marks
 # (`insertion`/`deletion`/`modification`) as `{ default: null, validate:
 # "number" }`, while its agent creates the preview marks without an id
 # (`pmSchema.mark("insertion", {})`, src/prosemirror/agent.ts). prosemirror-model
@@ -275,7 +275,7 @@ allowBuilds:
 # the repo has had no commit since 2025-06-02 (ts-rest#797, #866).
 patchedDependencies:
   '@better-auth/oauth-provider@1.7.7': patches/@better-auth__oauth-provider@1.7.7.patch
-  '@blocknote/xl-ai@0.55.0': patches/@blocknote__xl-ai@0.55.0.patch
+  '@blocknote/xl-ai@0.56.0': patches/@blocknote__xl-ai@0.56.0.patch
   '@ts-rest/core@3.52.1': patches/@ts-rest__core@3.52.1.patch
   expo@58.0.19: patches/expo@58.0.19.patch
   mdast-util-gfm-autolink-literal@2.0.1: patches/mdast-util-gfm-autolink-literal@2.0.1.patch
@@ -396,7 +396,8 @@ overrides:
   serialize-javascript: '>=7.1.2'
   webpack-dev-server: '>=5.2.5'
   launch-editor: '>=2.14.2'
-  follow-redirects: '>=1.16.1'
+  follow-redirects: '>=1.16.2'
+  node-forge: '>=1.4.2 <2'
   '@tootallnate/once': '>=2.0.0'
   loader-utils: ^2.0.4
   dompurify: '>=3.4.16'
@@ -434,7 +435,7 @@ overrides:
   '@typescript-eslint/eslint-plugin>ts-api-utils': ^2.5.0
   '@typescript-eslint/type-utils>ts-api-utils': ^2.5.0
   '@typescript-eslint/utils>ts-api-utils': ^2.5.0
-  joi@>=17.0.0 <18.0.0: '>=17.13.8 <18.0.0'
+  joi@>=17.0.0 <18.0.0: '>=17.13.9 <18.0.0'
   joi@>=18.0.0: '>=18.2.9 <19'
   http-proxy-middleware: ^2.0.10
   '@istanbuljs/load-nyc-config>js-yaml': ^4.3.2
@@ -459,12 +460,12 @@ overrides:
   prosemirror-view: ^1.42.6
   prosemirror-model: ^1.25.12
   prosemirror-transform: ^1.12.2
-  '@blocknote/core': ^0.55.0
-  '@blocknote/react': ^0.55.0
-  '@blocknote/shadcn': ^0.55.0
-  '@blocknote/xl-ai': ^0.55.0
-  '@blocknote/xl-docx-exporter': ^0.55.0
-  '@blocknote/xl-odt-exporter': ^0.55.0
+  '@blocknote/core': ^0.56.0
+  '@blocknote/react': ^0.56.0
+  '@blocknote/shadcn': ^0.56.0
+  '@blocknote/xl-ai': ^0.56.0
+  '@blocknote/xl-docx-exporter': ^0.56.0
+  '@blocknote/xl-odt-exporter': ^0.56.0
   '@assistant-ui/core': ^0.3.31
   '@assistant-ui/store': ^0.3.22
   '@assistant-ui/react': ^0.15.31

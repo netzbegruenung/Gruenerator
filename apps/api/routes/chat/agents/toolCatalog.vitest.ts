@@ -129,6 +129,25 @@ describe('toolCatalog source harvesting (excerpt/snippet → content)', () => {
     expect(out.sources).toContain('Klimaneutralität'); // the excerpt actually reached the model
   });
 
+  it('keeps the tool’s own note (a discarded site scope) on a search with hits', async () => {
+    const hinweis =
+      'Die Seitenvorgabe zeit.de wurde nicht angewandt, weil die Person sie nicht genannt hat; die Suche lief über das ganze Web.';
+    webExec.mockResolvedValue({
+      query: 'Heizungsgesetz Kritik',
+      resultsCount: 1,
+      results: [{ rank: 1, title: 'Kritik', url: 'https://example.test/a', snippet: 'Text.' }],
+      hinweis,
+    });
+    const { tools } = buildChatToolCatalog({ agentConfig, sourceRegistry: createSourceRegistry() });
+    const out = (await execOf(tools.web_search)(
+      { query: 'Heizungsgesetz Kritik', seiten: ['zeit.de'] },
+      { toolCallId: 'c1' }
+    )) as { resultCount: number; hinweis?: string };
+
+    expect(out.resultCount).toBe(1);
+    expect(out.hinweis).toBe(hinweis);
+  });
+
   // The reader target comes from the hit's collection. Dropped here, a title
   // the model links as `[Titel](quelle:N)` had nothing in-app to open.
   it('keeps the collection a document hit came from, so its citation can open the reader', async () => {
@@ -219,6 +238,30 @@ describe('toolCatalog domain tool mounting', () => {
     // `search`; the loop must still expose those tools so the model can pick.
     const { toolNames } = catalogFor('search');
     expect(toolNames).toEqual(expect.arrayContaining(['bundestag', 'abgeordnetenwatch']));
+  });
+
+  it('mounts the German parliament tools only for de-DE, and the Nationalrat with parlament_lesen for de-AT', () => {
+    expect(catalogFor('search').toolNames).toContain('parlament_lesen');
+    expect(catalogFor('search').toolNames).toContain('bundestag_reden');
+    expect(catalogFor('search').toolNames).toContain('landtag');
+    expect(catalogFor('search').toolNames).not.toContain('nationalrat');
+    const sourceRegistry = createSourceRegistry();
+    const state = {
+      intent: 'search',
+      userLocale: 'de-AT',
+      enabledTools: {},
+    } as unknown as ChatGraphState;
+    const { toolNames } = buildChatToolCatalog({
+      agentConfig,
+      sourceRegistry,
+      loop: { sse: { send: () => {} } as never, state },
+    });
+    expect(toolNames).not.toContain('bundestag');
+    expect(toolNames).not.toContain('bundestag_reden');
+    expect(toolNames).not.toContain('landtag');
+    // Österreich liest den Nationalrat über denselben Leser.
+    expect(toolNames).toContain('nationalrat');
+    expect(toolNames).toContain('parlament_lesen');
   });
 
   // Mounted on every turn, `summarize` was the planner's pick for any ask about
@@ -802,7 +845,76 @@ describe('toolCatalog scrape_url', () => {
     const out = (await execute({ urls: ['https://example.com/'] }, { toolCallId: 'c1' })) as {
       error?: string;
     };
-    expect(out.error).toMatch(/nicht lesen/);
+    expect(out.error).toMatch(/ließ sich lesen/);
+  });
+
+  // Fehleingabe-Matrix, scrape_url: Teilerfolg und Ablehnungen sind kenntlich.
+  it('abgelehnte Adresse neben einer gelesenen ⇒ Teilerfolg mit Grund, kein error', async () => {
+    validateUrlForFetch.mockImplementation(async (u: string) =>
+      u.includes('intern')
+        ? { isValid: false, error: 'Host is blocked' }
+        : { isValid: true, url: new URL(u) }
+    );
+    crawlAndDistill.mockResolvedValue([
+      { url: 'https://example.com/', crawled: true, content: 'Hallo Welt Inhalt' },
+    ]);
+    const { execute } = scrapeTool();
+    const out = (await execute(
+      { urls: ['https://example.com/', 'http://intern.local/'] },
+      { toolCallId: 'c1' }
+    )) as { error?: string; fehlerArt?: string; hinweis?: string; resultCount?: number };
+    expect(out.error).toBeUndefined();
+    expect(out.resultCount).toBe(1);
+    expect(out.fehlerArt).toBe('teilweise');
+    expect(out.hinweis).toMatch(/Nur 1 von 2 Seiten gelesen.*intern\.local.*Host is blocked/);
+  });
+
+  it('gültige, aber nicht lesbare Adresse neben einer gelesenen ⇒ nennt die fehlende', async () => {
+    validateUrlForFetch.mockImplementation(async (u: string) => ({
+      isValid: true,
+      url: new URL(u),
+    }));
+    crawlAndDistill.mockResolvedValue([
+      { url: 'https://example.com/', crawled: true, content: 'Hallo Welt Inhalt' },
+      { url: 'https://kaputt.example/', crawled: false, crawlError: 'timeout' },
+    ]);
+    const { execute } = scrapeTool();
+    const out = (await execute(
+      { urls: ['https://example.com/', 'https://kaputt.example/'] },
+      { toolCallId: 'c1' }
+    )) as { hinweis?: string; naechsterSchritt?: string };
+    expect(out.hinweis).toMatch(/Nicht lesbar.*kaputt\.example/);
+    expect(out.naechsterSchritt).toMatch(/nur aus den gelesenen Seiten/);
+  });
+
+  it('keine erlaubte URL ⇒ ungueltige_eingabe mit Ablehnungsgrund', async () => {
+    validateUrlForFetch.mockResolvedValue({ isValid: false, error: 'Host is blocked' });
+    const { execute } = scrapeTool();
+    const out = (await execute({ urls: ['http://169.254.169.254/'] }, { toolCallId: 'c1' })) as {
+      error?: string;
+      fehlerArt?: string;
+    };
+    expect(out.fehlerArt).toBe('ungueltige_eingabe');
+    expect(out.error).toMatch(/Abgelehnt: http:\/\/169\.254\.169\.254\/ \(Host is blocked\)/);
+  });
+
+  it('nichts lesbar ⇒ nicht_verfuegbar, nennt die versuchten Adressen und einen Ausweg', async () => {
+    validateUrlForFetch.mockImplementation(async (u: string) => ({
+      isValid: true,
+      url: new URL(u),
+    }));
+    crawlAndDistill.mockResolvedValue([
+      { url: 'https://example.com/', crawled: false, crawlError: 'timeout' },
+    ]);
+    const { execute } = scrapeTool();
+    const out = (await execute({ urls: ['https://example.com/'] }, { toolCallId: 'c1' })) as {
+      error?: string;
+      fehlerArt?: string;
+      naechsterSchritt?: string;
+    };
+    expect(out.fehlerArt).toBe('nicht_verfuegbar');
+    expect(out.error).toMatch(/Versucht: https:\/\/example\.com\//);
+    expect(out.naechsterSchritt).toMatch(/Websuche/);
   });
 });
 

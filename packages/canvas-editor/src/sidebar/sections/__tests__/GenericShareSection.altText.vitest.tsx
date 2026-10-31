@@ -10,7 +10,7 @@ import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { axe } from '../../../test-utils';
-import { GenericShareSection } from '../GenericShareSection';
+import { GenericShareSection } from '@ggraphic/editor/sidebar/sections/GenericShareSection';
 
 // The host's file delivery says the page can use the Web Share API.
 const services: CanvasEditorServices = {

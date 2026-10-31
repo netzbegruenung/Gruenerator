@@ -402,9 +402,10 @@ export function forcedFirstStepTools(input: {
   // „Such in meinen Dokumenten nach …" feuert `research_order` und braucht
   // `documents`/`find_content`/… — dasselbe Signal, das in `createToolScope` die
   // Gruppe offen hält, damit der scharfe Umfang und diese Menge sich nie widersprechen.
-  const ownContent = DEFERRABLE_GROUPS.filter((g) => g.hint.test(input.userText)).flatMap(
-    (g) => g.tools
-  );
+  // Gruppen mit `opensOn` (Parlament) tragen Folgewerkzeuge eines Einstiegs und gehören nicht hierher.
+  const ownContent = DEFERRABLE_GROUPS.filter(
+    (g) => !('opensOn' in g) && g.hint.test(input.userText)
+  ).flatMap((g) => g.tools);
   let candidates: readonly string[];
   switch (input.reason) {
     case 'pinned':

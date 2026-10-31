@@ -68,3 +68,37 @@ describe('AdminUserTable — Panda-Spalte', () => {
     ).toBe(true);
   });
 });
+
+describe('AdminUserTable — Admin-Spalte', () => {
+  const rows: AdminUserRow[] = [
+    { id: 'me', name: 'Ich', email: 'ich@example.org', joinedAt: null, isAdmin: true },
+    { id: 'u1', name: 'Alex', email: 'alex@bundestag.de', joinedAt: null, isAdmin: false },
+  ];
+
+  it('fehlt auf Oberflächen ohne Handler', () => {
+    render(<AdminUserTable users={rows} isLoading={false} />);
+    expect(screen.queryByRole('columnheader', { name: 'Admin' })).toBeNull();
+  });
+
+  it('vergibt Rechte und sperrt den eigenen Schalter', async () => {
+    const onAdminChange = vi.fn();
+    const { container } = render(
+      <AdminUserTable
+        users={rows}
+        isLoading={false}
+        onAdminChange={onAdminChange}
+        currentUserId="me"
+      />
+    );
+
+    fireEvent.click(screen.getByRole('switch', { name: 'Admin-Rechte für Alex vergeben' }));
+    expect(onAdminChange).toHaveBeenCalledWith(rows[1], true);
+
+    expect(
+      (screen.getByRole('switch', { name: 'Admin-Rechte für Ich entziehen' }) as HTMLButtonElement)
+        .disabled
+    ).toBe(true);
+
+    expect(await axe(container)).toHaveNoViolations();
+  });
+});

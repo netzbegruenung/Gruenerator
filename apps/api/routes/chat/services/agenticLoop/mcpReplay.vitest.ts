@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 
 import { buildToolObservationReplay, spliceToolReplay } from './mcpReplay.js';
+import { toolResultBudget } from './toolResultBudgets.js';
 import { DEFAULT_MAX_RESULT_CHARS, resultForModel } from './wrapTools.js';
 
 import type { PersistedStep } from './types.js';
@@ -121,6 +122,17 @@ describe('buildToolObservationReplay', () => {
     expect(out).toContain('Klimaschutz');
   });
 
+  it('never leaks the uiCard payload of the Bundestag cards into a replay', () => {
+    const step = internalStep({
+      toolName: 'bundestag',
+      result: { resultCount: 1, sources: 'Treffer', uiCard: { dokumente: [{ titel: 'GEHEIM' }] } },
+    });
+    const msgs = buildToolObservationReplay([step], catalog);
+    const out = (msgs[1].content as Array<{ output: { value: string } }>)[0].output.value;
+    expect(out).not.toContain('uiCard');
+    expect(out).not.toContain('GEHEIM');
+  });
+
   it('gives a knowledge result the same replay budget as a source block', () => {
     // `product_knowledge` registers no sources, so it fell into the 500-char
     // action preview: live on 03.08.2026 its replay was cut from 3.876 to 500
@@ -196,6 +208,22 @@ describe('buildToolObservationReplay', () => {
       const huge = mcpStep({ result: { content: 'x'.repeat(DEFAULT_MAX_RESULT_CHARS * 2) } });
       const [value] = valueOf(buildToolObservationReplay([huge], catalog, { sameTurn: true }));
       expect(JSON.parse(value!)).toEqual(resultForModel(huge.result, DEFAULT_MAX_RESULT_CHARS));
+    });
+
+    it('gives a tool with its own budget the same room after the pause (read_document, 20k)', () => {
+      const inhalt = 'Absatz zur Wärmewende in der Kommune.\n\n'.repeat(600).slice(0, 20_000);
+      const doc = internalStep({
+        toolName: 'read_document',
+        result: { documentId: 'd1', inhalt },
+      });
+      const names = new Set(['read_document']);
+      const [value] = valueOf(
+        buildToolObservationReplay([doc], names, {
+          sameTurn: true,
+          resultBudgetFor: (name) => toolResultBudget(name, new Map()),
+        })
+      );
+      expect((JSON.parse(value!) as { inhalt: string }).inhalt).toBe(inhalt);
     });
   });
 });

@@ -32,14 +32,14 @@ import {
 } from '../utils/sliderLayout';
 
 import { chatTab, createCommonSectionEntries, toolsTab, uploadsTab } from './commonSections';
-import { createBaseActions } from './factory/actionFactories';
-import { makeSectionDefiner } from './factory/defineSection';
-import { fromLayout } from './factory/layoutAccessors';
-import { injectFeatureProps } from './featureInjector';
-import { createShareSection } from './shareSection';
+import { createBaseActions } from './factory/baseActions';
+import { makeSectionDefiner } from '@ggraphic/editor/configs/factory/defineSection';
+import { fromLayout } from '@ggraphic/editor/configs/factory/layoutAccessors';
+import { injectFeatureProps } from '@ggraphic/editor/configs/featureInjector';
+import { createShareSection } from '@ggraphic/editor/configs/shareSection';
 
 import type { SharepicAiCapabilities } from './aiCapabilities';
-import type { BackgroundColorOption, StockImageAttribution } from '../sidebar/types';
+import type { BackgroundColorOption, StockImageAttribution } from '@ggraphic/editor/sidebar/types';
 import type { SliderColorScheme, SliderStyle } from '../utils/sliderLayout';
 import type { BaseCanvasState, IconState } from '@ggraphic/editor/configs/factory/baseTypes';
 import type {
@@ -51,7 +51,7 @@ import type {
   ImageElementConfig,
   AdditionalText,
 } from '@ggraphic/editor/configs/types';
-import type { BalkenInstance, BalkenMode } from '@ggraphic/editor/utils/balkenUtils';
+import type { BalkenInstance, BalkenMode } from '../utils/balkenUtils';
 import type { AssetInstance } from '@ggraphic/editor/utils/canvasAssets';
 import type { CircleBadgeInstance } from '@ggraphic/editor/utils/circleBadgeUtils';
 import type { FrameClipType, FrameInstance } from '@ggraphic/editor/utils/frameUtils';

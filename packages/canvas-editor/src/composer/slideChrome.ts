@@ -20,7 +20,7 @@ import {
   STOERER_MIN_READABLE,
   STOERER_RADII,
   wrapWords,
-} from './textFit';
+} from '@ggraphic/editor/composer/textFit';
 
 type SlideInk = ReturnType<typeof slideInk>;
 

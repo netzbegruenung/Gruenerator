@@ -22,18 +22,21 @@ export type {
   ColorTwoTextOptions,
 } from './createColorTwoTextCanvas';
 
-export { createBaseActions } from './actionFactories';
+export { createBaseActions } from './baseActions';
 
 export { wrapWithAi } from './wrapWithAi';
 export { createAiCapabilities } from './createAiCapabilities';
 export type { AiTextField, CreateAiCapabilitiesOptions } from './createAiCapabilities';
 
-export { fromLayout } from './layoutAccessors';
-export { createPrimaryText, createSecondaryText } from './createTextElement';
-export { makeSectionDefiner } from './defineSection';
+export { fromLayout } from '@ggraphic/editor/configs/factory/layoutAccessors';
+export {
+  createPrimaryText,
+  createSecondaryText,
+} from '@ggraphic/editor/configs/factory/createTextElement';
+export { makeSectionDefiner } from '@ggraphic/editor/configs/factory/defineSection';
 export {
   carryInstanceState,
-  CARRIED_INSTANCE_KEYS,
+  carriedInstanceKeys,
 } from '@ggraphic/editor/configs/factory/carryInstanceState';
 export type { CarriedInstanceState } from '@ggraphic/editor/configs/factory/carryInstanceState';
 

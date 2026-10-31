@@ -18,14 +18,14 @@ import { PiFrameCornersFill, PiSquaresFourFill, PiTextAa } from 'react-icons/pi'
 
 import { AssetsSection, CombinedTextSection, FrameSettingsSection } from '../../sidebar/sections';
 import { chatTab, createCommonSectionEntries, toolsTab, uploadsTab } from '../commonSections';
-import { injectFeatureProps } from '../featureInjector';
-import { getPlaceholder } from '../placeholders';
-import { createShareSection } from '../shareSection';
+import { injectFeatureProps } from '@ggraphic/editor/configs/featureInjector';
+import { getPlaceholder } from '@ggraphic/editor/configs/placeholders';
+import { createShareSection } from '@ggraphic/editor/configs/shareSection';
 
-import { createBaseActions } from './actionFactories';
-import { makeSectionDefiner } from './defineSection';
+import { createBaseActions } from './baseActions';
+import { makeSectionDefiner } from '@ggraphic/editor/configs/factory/defineSection';
 
-import type { BackgroundColorOption } from '../../sidebar/types';
+import type { BackgroundColorOption } from '@ggraphic/editor/sidebar/types';
 import type { StockImageAttribution } from '@ggraphic/editor/common/imageSourceTypes';
 import type {
   CanvasFeatures,
@@ -38,7 +38,7 @@ import type {
   CanvasElementConfig,
   AdditionalText,
 } from '@ggraphic/editor/configs/types';
-import type { BalkenInstance, BalkenMode } from '@ggraphic/editor/utils/balkenUtils';
+import type { BalkenInstance, BalkenMode } from '../../utils/balkenUtils';
 import type { AssetInstance } from '@ggraphic/editor/utils/canvasAssets';
 import type { ChartInstance } from '@ggraphic/editor/utils/chartUtils';
 import type { CircleBadgeInstance } from '@ggraphic/editor/utils/circleBadgeUtils';

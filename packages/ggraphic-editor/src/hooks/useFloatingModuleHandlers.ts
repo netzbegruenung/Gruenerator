@@ -3,10 +3,12 @@ import { useCallback } from 'react';
 
 import { withTemplateTextAlign, type TextAlign } from '@ggraphic/editor/utils/textAlign';
 
-import type { OptionalCanvasActions } from './useCanvasElementHandlers';
-import type { FloatingModuleState } from './useFloatingModuleState';
-import type { BaseCanvasState } from '../configs/factory/baseTypes';
-import type { FullCanvasConfig } from '../configs/types';
+import { hostElementKind, updateHostInstance } from '../utils/elementKinds.js';
+
+import type { OptionalCanvasActions } from './useCanvasElementHandlers.js';
+import type { FloatingModuleState } from './useFloatingModuleState.js';
+import type { BaseCanvasState } from '../configs/factory/baseTypes.js';
+import type { FullCanvasConfig } from '../configs/types.js';
 import type { GradientFill } from '@ggraphic/editor/utils/gradientFill';
 
 /** Partial shadow patch shared by shape/text/user-image update actions. */
@@ -188,10 +190,6 @@ export function useFloatingModuleHandlers<
             debouncedSaveToHistory(next);
           }
         }
-      } else if (type === 'balken') {
-        if (actions.updateBalken) {
-          actions.updateBalken(id, { opacity });
-        }
       } else if (type === 'user-image') {
         if (actions.updateUserImage) {
           actions.updateUserImage(id, { opacity });
@@ -202,6 +200,10 @@ export function useFloatingModuleHandlers<
         actions.updateCircleBadge?.(id, { opacity });
       } else if (type === 'chart') {
         actions.updateChart?.(id, { opacity });
+      } else {
+        // A host kind's module is named after it; its opacity goes through its update action.
+        const host = hostElementKind(type);
+        if (host) updateHostInstance(actions, host, id, { opacity });
       }
     },
     [actions, config.elements, state, setState, debouncedSaveToHistory]

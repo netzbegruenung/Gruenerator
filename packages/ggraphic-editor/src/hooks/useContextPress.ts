@@ -5,7 +5,7 @@ import { useCanvasStore } from '@ggraphic/editor/stores/CanvasStoreProvider';
 import { isMacPlatform } from '@ggraphic/editor/utils/canvasCommandRegistry';
 import { contextPressSelection, itemsUnderPointer } from '@ggraphic/editor/utils/deepSelect';
 
-import type { CanvasStageRef } from '../primitives/CanvasStage';
+import type { CanvasStageRef } from '../primitives/CanvasStage.js';
 
 /**
  * Was ein Rechtsklick (auf dem Mac auch ⌃-Klick) auswählt, bevor das

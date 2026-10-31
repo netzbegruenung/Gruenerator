@@ -10,7 +10,7 @@ import { Mark } from '@tiptap/core';
 
 import { colorAttribute } from '@ggraphic/editor/components/markColor';
 
-import { markerInkOn } from '../utils/markerColors';
+import { markerInkOn } from '../utils/markerColors.js';
 
 declare module '@tiptap/core' {
   interface Commands<ReturnType> {

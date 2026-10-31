@@ -30,6 +30,22 @@ Every bug we found by hand is now a permanent, automated check.
    `CHAT_COMPACTION_TOKEN_THRESHOLD=3000 CHAT_COMPACTION_TAIL_TOKENS=1000 CHAT_COMPACTION_COOLDOWN_MS=0`
    (dev-only overrides, ignored in production).
 
+## Ampel, Note und Prüfseite
+
+Jeder Fall bekommt eine Ampel: 🔴 rot nur aus einer HARTEN deterministischen
+Prüfung, 🟡 gelb aus einer weichen oder Richternote ≤ 3, sonst 🟢 grün. Hart oder
+weich steht an einer Stelle: `PRUEFUNG_STUFE` in `ampel.ts` (der Wächtertest in
+`ampel.vitest.ts` verlangt jede erzeugte Prüfungsart darin). `maxLatencyMs` ist
+das Soll (gelb), die doppelte Zeit die harte Grenze (rot). Die Richterrubrik
+`antwortqualitaet` vergibt 1–5 und läuft auf jedem Turn mit Antwort; der
+schlechteste Turn bestimmt die Note des Falls. Der Richter allein macht nie rot.
+
+```bash
+pnpm --filter @gruenerator/api eval:chat     # schreibt evals/last-run.json
+pnpm --filter @gruenerator/api eval:judge    # optional: judge-verdicts.json, Ampel mit Note
+pnpm --filter @gruenerator/api eval:review   # evals/review.html + evals/review-data.json
+```
+
 ## Run
 
 ```bash
@@ -133,6 +149,39 @@ Also vor dem Lauf `caffeinate -dimsu pnpm eval:chat` (macOS) oder den Deckel
 offen lassen. Und hinterher, bei jedem Ausreisser über ~5 Minuten, erst
 `pmset -g log | grep -E "Entering Sleep state|DarkWake|Wake from"` gegen die
 Log-Lücke halten, bevor daraus ein Befund wird.
+
+**Bundestag-Fälle (`corpus/bundestag.jsonl`, Ids `bt-…`):** `EVAL_FILTER=bt-`. Die
+Assertion `keineErfundeneRef` verlangt, dass jede Ref in `args.dokumente` eines
+`parlament_lesen`-Aufrufs vorher in einem Werkzeugergebnis desselben Threads
+stand (frühere Turns eingeschlossen, `ScenarioContext.priorToolResults`). Sie
+liest das ROHE `tool_step_result` aus dem SSE, nicht die fürs Modell gekürzte
+Fassung. Es gibt kein Feld für Werkzeug-ARGUMENTE (z. B. den Urheber-String);
+die Fälle prüfen dort nur den Weg.
+
+**Werkzeugwahl und Fehlfragen (`corpus/werkzeugwahl.jsonl`, `corpus/fehlfragen.jsonl`):**
+`EVAL_FILTER=wahl-` bzw. `fehl-`. Die Werkzeugwahl prüft mit `ersterAufruf` den ERSTEN
+Aufruf eines Turns; `toolsMustInclude` wäre auch nach einem Umweg erfüllt. Die
+Fehlfragen haben eine falsche Prämisse (Dokument, Notebook, Drucksache … gibt es
+nicht) und sind rot, wenn die Antwort das nicht sagt. Die Werkzeugwahl schwankt —
+jede Aussage braucht mindestens drei Läufe.
+
+**Zwischen zwei Läufen die Eval-Threads in den Papierkorb legen.** Die proaktive
+Chat-Erinnerung (`recallStage.ts`) holt zu jedem neuen Thread die ähnlichsten
+alten Chats, und das Modell antwortet dann aus dem Vorlauf („wie wir heute
+bereits festgestellt haben …"), statt zu suchen (#5138). Abschalten lässt sie sich
+für den Lauf nicht: der Dev-Bypass-Nutzer ist eine Konstante ohne
+`memory_enabled`, die Profilzeile wirkt nicht. Am 29.10.2026 hat ein verschmutzter
+Ausgangswert so einen Fehler verdeckt (Parteiposition ohne jedes Werkzeug beantwortet: in 1 von 3 Läufen mit
+Erinnerung, in 3 von 3 ohne). Gelöscht wird per
+`DELETE /api/chat-service/threads?threadId=<id>`; die Ids findet die erste
+Nutzernachricht jedes Threads, die genau einem Korpus-Prompt entspricht.
+Seit #5138 sagt der Erinnerungsblock dem Modell, frühere Befunde neu zu prüfen —
+ob es sich daran hält, ist eine Modellfrage; das Aufräumen bleibt deshalb Pflicht.
+
+**Auch die Probe-Dokumente** („Werkzeugwahl-Probe …", die `wahl-eigen-dok-anlegen`
+in jedem Lauf neu anlegt) gehören zwischen zwei Läufen in den Papierkorb. Liegen
+mehrere Kopien im Konto, fragt das Modell in `wahl-eigen-dok-lesen` zu Recht
+zurück, welche gemeint ist, und der Fall endet als unerwartete Rückfrage.
 
 ## Env
 

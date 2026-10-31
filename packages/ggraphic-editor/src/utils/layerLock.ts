@@ -7,9 +7,9 @@
  * lässt sich das Element weiter.
  */
 
-import { BACKGROUND_IMAGE_NODE_ID } from './printImageInfo';
+import { BACKGROUND_IMAGE_NODE_ID } from './printImageInfo.js';
 
-import type { CanvasItem } from './canvasItem';
+import type { CanvasItem } from './canvasItem.js';
 
 export type LockState = 'all' | 'some' | 'none';
 

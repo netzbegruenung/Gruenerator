@@ -5,7 +5,7 @@ import { AT_EMPHASIS_STYLE } from './chromeParts';
 import { type AufrufItem, type Placed } from './composeTypes';
 import { GAP } from './sharepicLayoutConstants';
 import { type BuildPass, type SlideCtx } from './slideContext';
-import { largestSizeWordsFit } from './textFit';
+import { largestSizeWordsFit } from '@ggraphic/editor/composer/textFit';
 
 export function layoutAufruf(
   ctx: SlideCtx,

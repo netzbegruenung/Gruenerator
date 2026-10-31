@@ -1,12 +1,19 @@
 // SPDX-License-Identifier: MPL-2.0
+import { type DocumentRefusal } from '@ggraphic/schema';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { v4 as uuid } from 'uuid';
 import * as Y from 'yjs';
 
 import {
+  migrateYDocument,
+  readYDocRefusal,
+  stampYDocument,
+} from '@ggraphic/editor/collab/documentVersion';
+import {
   appendPage,
   duplicatePageById,
   foldLegacyFormStateIntoFirstPage,
+  getMetaMap,
   getPagesMap,
   insertPageAt,
   migrateLegacyDoc,
@@ -25,10 +32,11 @@ import {
   type ReplaceDeckOps,
 } from '@ggraphic/editor/collab/pagesDoc';
 import { YDOC_KEYS } from '@ggraphic/editor/collab/ydocKeys';
+import { type HistoryStamps, nextHistoryStamp } from '@ggraphic/editor/utils/historyStamp';
 
-import { useCanvasEditorServices } from '../CanvasEditorProvider';
+import { useCanvasEditorServices } from '../CanvasEditorProvider.js';
 
-import type { CanvasCarouselService } from '../hostServices';
+import type { CanvasCarouselService } from '../hostServices.js';
 
 // Structural page ops (add/remove/duplicate/move/convert) — tracked by the
 // page UndoManager.
@@ -44,6 +52,29 @@ const SETUP_ORIGIN = Symbol('canvas-editor-pages-setup');
 // but unlike STATE_ORIGIN not skipped by the mounted canvases.
 const RESTORE_ORIGIN = Symbol('canvas-editor-pages-restore');
 const DECK_STATES = 'deckStates';
+/** When the step was first taken; Undo and Redo carry it across (`utils/historyStamp`). */
+const STEP_STAMP = 'stepStamp';
+
+type StackEvent = { stackItem: { meta: Map<unknown, unknown> }; type: 'undo' | 'redo' };
+
+/** A new stack item gets a stamp; one Undo or Redo creates keeps the original's (see onPopped). */
+function stampStackItem(event: StackEvent): void {
+  if (!event.stackItem.meta.has(STEP_STAMP))
+    event.stackItem.meta.set(STEP_STAMP, nextHistoryStamp());
+}
+
+/** Undo/Redo pushed the item's mirror onto the other stack before popping it. */
+function carryStepStamp(manager: Y.UndoManager, event: StackEvent): void {
+  const stamp = event.stackItem.meta.get(STEP_STAMP);
+  if (typeof stamp !== 'number') return;
+  const mirror = event.type === 'undo' ? manager.redoStack : manager.undoStack;
+  mirror[mirror.length - 1]?.meta.set(STEP_STAMP, stamp);
+}
+
+const stackStamp = (stack: readonly { meta: Map<unknown, unknown> }[]): number | null => {
+  const stamp = stack[stack.length - 1]?.meta.get(STEP_STAMP);
+  return typeof stamp === 'number' ? stamp : null;
+};
 
 /**
  * What a mounted canvas writes back for a page state it receives: its
@@ -176,9 +207,45 @@ export interface YjsPagesApi {
   discardReplaceDeck: () => void;
   canUndoPageOp: boolean;
   canRedoPageOp: boolean;
+  /** Stamps of the page ops Undo/Redo would reach, read at call time. */
+  pageOpStamps: () => HistoryStamps;
+  /**
+   * Set when this build must not write the doc: it carries a newer document
+   * version (or a malformed stamp). Every mutator above is then a no-op and
+   * nothing is seeded or lifted; show `pages` read-only.
+   */
+  schemaRefusal: DocumentRefusal | null;
 }
 
 const noChrome: CanvasCarouselService['refreshChrome'] = () => {};
+
+const noop = () => {};
+const noStamps = (): HistoryStamps => ({ undo: null, redo: null });
+
+/** The API of a doc this build must not write: its pages, and nothing that changes them. */
+function refusedApi(pages: PageView[], schemaRefusal: DocumentRefusal): YjsPagesApi {
+  return {
+    pages,
+    // Seeded as far as the page manager is concerned: it must not seed over it.
+    isSeeded: true,
+    seedIfEmpty: noop,
+    addPage: noop,
+    insertPage: noop,
+    duplicatePage: () => null,
+    removePage: noop,
+    movePage: noop,
+    updatePageState: noop,
+    setPageConfig: noop,
+    replaceDeck: () => [],
+    undoPageOp: noop,
+    redoPageOp: noop,
+    discardReplaceDeck: noop,
+    canUndoPageOp: false,
+    canRedoPageOp: false,
+    pageOpStamps: noStamps,
+    schemaRefusal,
+  };
+}
 
 const shallowEqualState = (a: Record<string, unknown>, b: Record<string, unknown>): boolean => {
   const keysA = Object.keys(a);
@@ -205,6 +272,10 @@ export function useYjsPages(
   // Y.Doc mid-session (reconnect), and skipping migration on the replacement
   // doc would let the default seed shadow a legacy deck.
   const migratedDocsRef = useRef(new WeakSet<Y.Doc>());
+  // A lift that failed (a step broke the page set): the doc stays unwritten.
+  const [failedLift, setFailedLift] = useState<{ doc: Y.Doc; refusal: DocumentRefusal } | null>(
+    null
+  );
   const undoManagerRef = useRef<Y.UndoManager | null>(null);
   // Identity cache: untouched pages keep their PageView (and state object)
   // identity across version bumps, so memo'd PageWrappers don't re-render
@@ -216,14 +287,48 @@ export function useYjsPages(
   useEffect(() => {
     if (!ydoc || !isSynced) return undefined;
     const pagesMap = getPagesMap(ydoc);
+    const meta = getMetaMap(ydoc);
+
+    // Brings the doc to this build's document version, or leaves it alone
+    // when it is newer. Re-run when a version stamp changes remotely: a
+    // stamp raced down by an older client is lifted again (the steps are
+    // idempotent), a newer one turns this client read-only. Neither loops —
+    // this client writes only while the stored version is below its own.
+    // The trigger is the stamp, not the data: old-shape data written under
+    // a current stamp (an old bundle, a peer before it saw the newer stamp)
+    // is never lifted here — see "Old writers" in DOCUMENT_VERSIONING.md.
+    let disposed = false;
+    const settleVersion = () => {
+      if (disposed || readYDocRefusal(ydoc)) return;
+      const outcome = ydoc.transact(() => migrateYDocument(ydoc), SETUP_ORIGIN);
+      if (outcome.status === 'invalid' || outcome.status === 'newer') {
+        console.error('[useYjsPages] document version not lifted:', outcome);
+        setFailedLift({ doc: ydoc, refusal: outcome });
+      }
+    };
 
     if (!migratedDocsRef.current.has(ydoc)) {
       migratedDocsRef.current.add(ydoc);
-      ydoc.transact(() => {
-        migrateLegacyDoc(ydoc);
-        foldLegacyFormStateIntoFirstPage(ydoc);
-      }, SETUP_ORIGIN);
+      // A newer doc is not touched at all, not even by the legacy lift.
+      if (!readYDocRefusal(ydoc)) {
+        ydoc.transact(() => {
+          migrateLegacyDoc(ydoc);
+          foldLegacyFormStateIntoFirstPage(ydoc);
+        }, SETUP_ORIGIN);
+        settleVersion();
+      }
     }
+
+    const isVersionKey = (key: string) =>
+      key === YDOC_KEYS.schemaVersion || key.startsWith(YDOC_KEYS.kindVersionPrefix);
+    const onMeta = (event: Y.YMapEvent<unknown>) => {
+      if (event.transaction.origin === SETUP_ORIGIN) return;
+      if (![...event.keysChanged].some(isVersionKey)) return;
+      // Re-render to pick up a refusal; lift outside the remote transaction.
+      setVersion((v) => v + 1);
+      queueMicrotask(settleVersion);
+    };
+    meta.observe(onMeta);
 
     // Re-derive on every change — local AND remote. The writer hooks below
     // mutate the Y.Doc only; they don't keep a separate React mirror, so
@@ -243,8 +348,11 @@ export function useYjsPages(
     });
     undoManagerRef.current = undoManager;
     const onUndoChange = () => setHistoryVersion((v) => v + 1);
-    const onPopped = (event: Parameters<typeof restoreDeckStates>[2]) =>
+    const onPopped = (event: Parameters<typeof restoreDeckStates>[2]) => {
+      carryStepStamp(undoManager, event);
       restoreDeckStates(ydoc, undoManager, event);
+    };
+    undoManager.on('stack-item-added', stampStackItem);
     undoManager.on('stack-item-added', onUndoChange);
     undoManager.on('stack-item-popped', onPopped);
     undoManager.on('stack-item-popped', onUndoChange);
@@ -252,7 +360,10 @@ export function useYjsPages(
 
     setVersion((v) => v + 1);
     return () => {
+      disposed = true;
+      meta.unobserve(onMeta);
       pagesMap.unobserveDeep(onChange);
+      undoManager.off('stack-item-added', stampStackItem);
       undoManager.off('stack-item-added', onUndoChange);
       undoManager.off('stack-item-popped', onPopped);
       undoManager.off('stack-item-popped', onUndoChange);
@@ -264,6 +375,12 @@ export function useYjsPages(
 
   return useMemo<YjsPagesApi | null>(() => {
     if (!ydoc || !isSynced) return null;
+
+    // A pure read, so the first synced render already refuses — before any
+    // effect could seed or write.
+    const schemaRefusal =
+      readYDocRefusal(ydoc) ?? (failedLift?.doc === ydoc ? failedLift.refusal : null);
+    if (schemaRefusal) return refusedApi(readPages(ydoc), schemaRefusal);
 
     const fresh = readPages(ydoc);
     const prev = viewsRef.current;
@@ -295,7 +412,10 @@ export function useYjsPages(
         );
         // Fold NOW, in the same transaction — deferring to a later open
         // would overwrite page edits made in between (see pagesDoc).
-        if (seeded) foldLegacyFormStateIntoFirstPage(ydoc);
+        if (seeded) {
+          foldLegacyFormStateIntoFirstPage(ydoc);
+          stampYDocument(ydoc);
+        }
       }, SETUP_ORIGIN);
     };
 
@@ -408,7 +528,14 @@ export function useYjsPages(
       discardReplaceDeck,
       canUndoPageOp: (undoManager?.undoStack.length ?? 0) > 0,
       canRedoPageOp: (undoManager?.redoStack.length ?? 0) > 0,
+      pageOpStamps: () => {
+        const manager = undoManagerRef.current;
+        return manager
+          ? { undo: stackStamp(manager.undoStack), redo: stackStamp(manager.redoStack) }
+          : noStamps();
+      },
+      schemaRefusal: null,
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps -- version/historyVersion invalidate the derived view
-  }, [ydoc, isSynced, version, historyVersion, normalizeEcho, refreshChrome]);
+  }, [ydoc, isSynced, version, historyVersion, normalizeEcho, refreshChrome, failedLift]);
 }

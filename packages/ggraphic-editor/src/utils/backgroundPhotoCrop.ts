@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MPL-2.0
-import { BACKGROUND_IMAGE_NODE_ID } from './printImageInfo';
+import { BACKGROUND_IMAGE_NODE_ID } from './printImageInfo.js';
 
 export interface ImageElementInteraction {
   draggable: boolean;

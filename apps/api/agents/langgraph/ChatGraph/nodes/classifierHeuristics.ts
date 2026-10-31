@@ -78,6 +78,9 @@ const AMBIGUOUS_GRAPHIC_NOUN = /\b(grafik(en)?|kachel(n)?)\b/i;
 const GRAPHIC_KIND_DISAMBIGUATOR =
   /\b(diagramm\w*|chart|graph|torte|balken|kreis|kurve|statistik\w*|daten|zahlen|werte|male|mal\s|zeichne\w*|illustrier\w*|foto\w*|bild\w*|logo|karte|infografik\w*)\b/i;
 
+/** A deck order: there "Kacheln" names the deck template, not a graphic. */
+const DECK_NOUN = /(?<!\p{L})(?:pr[äa]sentation(?:en)?|folien(?:satz)?|slides?)(?!\p{L})/iu;
+
 /** Only a CREATION ask needs disambiguating; a question about graphics does not. */
 const GRAPHIC_CREATE_VERB =
   /\b(erstell|generier|mach|bau|entwirf|entwerf|brauch|erzeug|gestalte?|hätte?\s+gern|will|möchte)\w*/i;
@@ -92,6 +95,7 @@ export function isAmbiguousGraphicRequest(text: string): boolean {
   if (!AMBIGUOUS_GRAPHIC_NOUN.test(t)) return false;
   if (hasExplicitSharepicWord(t)) return false;
   if (GRAPHIC_KIND_DISAMBIGUATOR.test(t)) return false;
+  if (DECK_NOUN.test(t)) return false;
   if (!GRAPHIC_CREATE_VERB.test(t)) return false;
   return !negatedOrMeta(t, AMBIGUOUS_GRAPHIC_NOUN);
 }
@@ -1216,6 +1220,13 @@ const QUESTION_WORD_PATTERN =
   /\b(was|wie|welche[rsnm]?|wo|wann|warum|gibt\s+es|haben\s+die|sagen\s+die)\b/i;
 const PARTY_TOPIC_PATTERN =
   /\b(grüne|partei|programm|position|wahlprogramm|beschluss|antrag|grundsatzprogramm)\b/i;
+// „Was sagen die Grünen zu …" ist die häufigste Form der Frage, und `grüne\b`
+// traf sie nie — sie fiel auf `direct@0.5`, lief ohne Abrufzwang in den Loop
+// und wurde 3 von 3 Mal aus dem Modellwissen beantwortet (#5136). Die Partei
+// erkennt man am Originaltext, nicht an `m.lower`: „die grünen Blätter" ist das
+// Adjektiv. Daher großes G, oder klein nur vor einer Präposition/am Satzende.
+const GREENS_PARTY_NAME =
+  /(?<!\p{L})Grünen(?!\p{L})|(?<!\p{L})(?:die|der|den)\s+grünen(?=\s+(?:zu[mr]?|in|im|bei|über|für|gegen|eigentlich|denn|dazu|davon|darüber)(?!\p{L})|\s*[?.!,;:]|\s*$)/u;
 const CURRENT_EVENTS_PATTERN = /\b(aktuell|heute|gestern|news|nachricht|kürzlich)\b/i;
 const PERSON_QUERY_PATTERN = /\bwer (ist|war|sind)\b/i;
 
@@ -1609,7 +1620,9 @@ const HEURISTIC_RULES: ReadonlyArray<ClassifierRule<HeuristicResult>> = [
     id: 'search.party_position',
     longPaste: 'allow',
     guard: 'none',
-    match: (m) => QUESTION_WORD_PATTERN.test(m.lower) && PARTY_TOPIC_PATTERN.test(m.lower),
+    match: (m) =>
+      QUESTION_WORD_PATTERN.test(m.lower) &&
+      (PARTY_TOPIC_PATTERN.test(m.lower) || GREENS_PARTY_NAME.test(m.raw)),
     result: (m) => ({
       intent: 'search',
       searchQuery: m.raw,

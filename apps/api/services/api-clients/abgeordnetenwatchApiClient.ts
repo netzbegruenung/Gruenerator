@@ -187,23 +187,36 @@ export class AbgeordnetenwatchApiClient {
     );
   }
 
-  /** Newest mandate for a politician — the join key for votes and side-jobs. */
-  async getCurrentMandate(politicianId: number): Promise<AwMandate | null> {
-    return this.cached(`aw:mandate:${politicianId}`, awMandateSchema.nullable(), async () => {
+  /**
+   * Alle Mandate einer Person, neuestes zuerst — der Schlüssel zu Abstimmungen
+   * und Nebentätigkeiten je Wahlperiode. Ohne `current_on=all` liefert die API
+   * nur das laufende Mandat: Katrin Uhligs GEG-Stimme von 2023 (Mandat
+   * 2021–2025) war so unerreichbar, die Antwort lautete „keine Informationen"
+   * (live 29.10.2026).
+   */
+  async getMandates(politicianId: number): Promise<AwMandate[]> {
+    return this.cached(`aw:mandates:v2:${politicianId}`, z.array(awMandateSchema), async () => {
       const { items } = await this.fetchList(
         'candidacies-mandates',
-        { politician: politicianId, sort_by: 'id', sort_direction: 'desc', range_end: 5 },
+        {
+          politician: politicianId,
+          current_on: 'all',
+          sort_by: 'id',
+          sort_direction: 'desc',
+          range_end: 20,
+        },
         rawMandateSchema
       );
-      const mandate = items.find((m) => m.type === 'mandate') ?? items[0];
-      if (!mandate) return null;
-      return {
-        mandateId: mandate.id,
-        politicianId,
-        politicianName: mandate.politician?.label ?? '',
-        parliamentPeriod: mandate.parliament_period?.label ?? '',
-        fraction: mandate.fraction_membership?.[0]?.fraction?.label ?? null,
-      };
+      return items
+        .filter((m) => m.type === 'mandate')
+        .map((m) => ({
+          mandateId: m.id,
+          politicianId,
+          politicianName: m.politician?.label ?? '',
+          parliamentPeriod: m.parliament_period?.label ?? '',
+          parliamentPeriodId: m.parliament_period?.id ?? null,
+          fraction: m.fraction_membership?.[0]?.fraction?.label ?? null,
+        }));
     });
   }
 
@@ -262,13 +275,16 @@ export class AbgeordnetenwatchApiClient {
     const { keyword, topicId, limit = 8 } = opts;
     if (!keyword && !topicId) return [];
     const params: Record<string, string | number> = {
-      sort_by: 'id',
+      // `sort_by=id` beantwortet die API auf /polls mit HTTP 500, bei JEDEM
+      // Suchbegriff (gemessen 29.10.2026, auch „Bundeswehr"); nach Datum geht,
+      // und die neueste Abstimmung zuerst ist ohnehin die richtige Reihenfolge.
+      sort_by: 'field_poll_date',
       sort_direction: 'desc',
       range_end: limit,
     };
     if (keyword) params['label[cn]'] = keyword.trim();
     if (topicId) params.field_topics = topicId;
-    const key = `aw:polls:${keyword?.toLowerCase() ?? ''}:${topicId ?? ''}:${limit}`;
+    const key = `aw:polls:v2:${keyword?.toLowerCase() ?? ''}:${topicId ?? ''}:${limit}`;
     return this.cached(key, z.array(awPollSummarySchema), async () => {
       const { items } = await this.fetchList('polls', params, rawPollSchema);
       return items.map((p) => ({
@@ -278,6 +294,7 @@ export class AbgeordnetenwatchApiClient {
         accepted: p.field_accepted ?? null,
         topics: (p.field_topics ?? []).map((t) => t.label ?? '').filter(Boolean),
         intro: p.field_intro ? stripHtml(p.field_intro) : null,
+        legislatureId: p.field_legislature?.id ?? null,
         url: p.abgeordnetenwatch_url ?? '',
       }));
     });

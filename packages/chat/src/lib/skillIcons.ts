@@ -1,5 +1,6 @@
 import {
   PiAnchor,
+  PiBank,
   PiBooks,
   PiBuildings,
   PiChatCircle,
@@ -27,6 +28,7 @@ import type { SkillIcon } from '@gruenerator/shared/agents';
 
 export const SKILL_ICONS: Record<string, SkillIcon> = {
   PiAnchor,
+  PiBank,
   PiBooks,
   PiBuildings,
   PiChatCircle,

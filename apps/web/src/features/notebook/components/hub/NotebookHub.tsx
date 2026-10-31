@@ -336,6 +336,7 @@ export function NotebookHub({ slugOrId, isNew }: { slugOrId: string; isNew: bool
             autoSync={collection.auto_sync}
             isOwner={isOwner}
             onPreview={openPreview}
+            onReindex={reindexDocs}
           />
         ) : tab === 'docs' ? (
           <DocsPanel

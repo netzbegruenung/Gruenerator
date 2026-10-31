@@ -292,6 +292,12 @@ export const chatStreamBodySchema = z.object({
   // appends its `skillSystemPrompt` to the agent's systemRole for this turn,
   // so platform-specific spec only loads when the relevant skill is active.
   activeSkillMention: z.string().nullish(),
+  // Die im Composer gewählte Textform (Chip), wenn die Nachricht ZUSÄTZLICH
+  // eine Rezept-Erwähnung trägt — `activeSkillMention` nennt dann die getippte.
+  // Additiv (10/2026): erst damit sieht der Server beide Wahlen und kann ein
+  // Methoden-Rezept (Bundestag-Recherche, Rechtsstand) neben die Textsorte
+  // legen. Zwei Textsorten bleiben exklusiv, die getippte gewinnt wie bisher.
+  ambientSkillMention: z.string().nullish(),
   // Row id of the active user recipe ("angelernte Textform"). Wins over
   // activeSkillMention when both are set — old clients only ever send the
   // mention, so they keep working unchanged.

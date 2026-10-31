@@ -125,6 +125,15 @@ export interface IntentMention {
    * nicht eine andere Textsorte.
    */
   activatesSkill?: string;
+  /**
+   * Das Rezept aus `activatesSkill` wird nur über diese Erwähnung erreicht und
+   * steht nirgends allein in Auswahl und Katalog (@-Menü, Rezeptbibliothek,
+   * Marktplatz). Der Token des Rezepts löst weiter auf (F0: alte Threads,
+   * ausgelieferte Binaries). Ohne dieses Feld bleibt das Rezept gelistet —
+   * `@pressemitteilungen` setzt es bewusst nicht, `/presse` ist ein eigener,
+   * im Composer gewählter Einstieg.
+   */
+  hidesSkillListing?: true;
 }
 
 interface IntentBase {
@@ -460,10 +469,15 @@ export const CHAT_INTENTS: Record<ChatIntentId, ChatIntentDefinition> = {
     mention: {
       slug: 'bundestag',
       title: 'Bundestag',
-      description: 'Drucksachen, Reden & Gesetzgebung aus dem Bundestag',
+      description: 'Drucksachen, Beschlüsse und Debatten finden und belegt auswerten',
       avatar: '🏛️',
       backgroundColor: '#4B5563',
       pinsTool: 'bundestag',
+      // Das Rezept `bundestagsrecherche` (Agent gruenerator-bundestag) hängt an
+      // dieser Erwähnung; sein eigener Token löst weiter auf, steht aber nicht
+      // mehr einzeln im Menü.
+      activatesSkill: 'bundestagsrecherche',
+      hidesSkillListing: true,
     },
   },
   // ── Retired: moved to the managed-connector path ─────────────────────────
@@ -571,7 +585,9 @@ export const CHAT_INTENTS: Record<ChatIntentId, ChatIntentDefinition> = {
   chat_history: {
     id: 'chat_history',
     category: 'retrieval',
-    loopTools: ['search_chat_history'],
+    // Das Backend-Werkzeug heisst `search_threads`; `search_chat_history`
+    // ist nur der Name der UI-Karte (`uiTool`, F1).
+    loopTools: ['search_threads'],
     audience: 'all',
     uiTool: 'search_chat_history',
     mention: {
@@ -894,6 +910,21 @@ const PINNED_TOOL_BY_MENTION: ReadonlyMap<string, string> = new Map(
 export function skillForMention(forcedTool: string): string | null {
   return SKILL_BY_MENTION.get(forcedTool) ?? null;
 }
+
+/**
+ * Wird dieses Rezept (`mention`-Schlüssel) nur über eine Werkzeug-Erwähnung
+ * angeboten? Dann gehört es nicht zusätzlich in Auswahllisten und Kataloge.
+ * Reine Entdeckung — Auflösung des Tokens bleibt ungefiltert.
+ */
+export function isSkillAbsorbedByMention(skillMention: string): boolean {
+  return ABSORBED_SKILLS.has(skillMention);
+}
+
+const ABSORBED_SKILLS: ReadonlySet<string> = new Set(
+  allIntentMentions().flatMap(({ mention }) =>
+    mention.activatesSkill && mention.hidesSkillListing === true ? [mention.activatesSkill] : []
+  )
+);
 
 const SKILL_BY_MENTION: ReadonlyMap<string, string> = new Map(
   allIntentMentions().flatMap(({ intent, mention }) =>

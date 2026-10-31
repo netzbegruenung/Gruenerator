@@ -4,7 +4,7 @@ import { useEffect, useRef } from 'react';
 import { useAnnouncer } from '@ggraphic/editor/hooks/useAnnounce';
 import { messages } from '@ggraphic/editor/i18n/messages';
 
-import type { CanvasEditorStoreApi } from '../stores/createCanvasEditorStore';
+import type { CanvasEditorStoreApi } from '../stores/createCanvasEditorStore.js';
 
 /** So lange ruht die Auswahl, bevor sie angesagt wird: Pfeiltasten in der Ebenen-Liste ziehen vorbei. */
 export const SELECTION_ANNOUNCE_DELAY_MS = 400;
@@ -20,11 +20,16 @@ export function selectionMessage(
   return label ? messages().announce.selected(label) : null;
 }
 
-/** In der Ebenen-Liste liest der Screenreader die fokussierte Option ohnehin vor. */
+/**
+ * In der Ebenen-Liste liest der Screenreader die fokussierte Option ohnehin vor.
+ * Die Liste wird über denselben Katalogtext gefunden, den sie als aria-label
+ * trägt (`sidebar.layers.title`) — eine andere Sprache bricht das nicht.
+ */
 function focusInLayerList(): boolean {
   const active = document.activeElement;
+  const label = messages().sidebar.layers.title.replace(/["\\]/g, '\\$&');
   return (
-    active instanceof Element && active.closest('[role=listbox][aria-label="Ebenen"]') !== null
+    active instanceof Element && active.closest(`[role=listbox][aria-label="${label}"]`) !== null
   );
 }
 

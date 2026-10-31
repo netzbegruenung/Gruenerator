@@ -50,6 +50,7 @@ import {
   insertCanvasVersion,
   listCanvasVersions,
 } from '../../services/canvas/canvasVersionRepository.js';
+import { extractLocaleFromRequest } from '../../services/localization/index.js';
 import { logContractValidationError } from '../../utils/contractValidationLogger.js';
 import { getAuthedUser } from '../../utils/getAuthedUser.js';
 import { createLogger } from '../../utils/logger.js';
@@ -122,7 +123,7 @@ export const canvasContractRouter = s.router(canvasContract, {
         return {
           status: 400 as const,
           body: {
-            error: `Print-Formate brauchen eine freie Vorlage (freeform), nicht '${b.template_type}'`,
+            error: `Print-Formate brauchen eine leere Seite, nicht die Vorlage '${b.template_type}'`,
           },
         };
       }
@@ -210,6 +211,37 @@ export const canvasContractRouter = s.router(canvasContract, {
       return {
         status: 500 as const,
         body: { error: 'Failed to mint canvas from variant', details: err.message },
+      };
+    }
+  },
+
+  generateDeck: async (args) => {
+    try {
+      const user = getAuthedUser(args.req);
+      const { generateCanvasDeck } =
+        await import('../../services/presentations/canvasDeckGeneration.js');
+      // Profile first; with an empty profile only an AT header picks the Austrian CD.
+      const locale =
+        (user.locale ?? extractLocaleFromRequest(args.req)) === 'de-AT' ? 'de-AT' : 'de-DE';
+      const created = await generateCanvasDeck({
+        prompt: args.body.prompt,
+        userId: user.id,
+        locale,
+      });
+      if (!created) {
+        return { status: 500 as const, body: { error: 'Failed to generate presentation' } };
+      }
+      const found = await getCanvas(created.documentId, user.id);
+      if (found.kind !== 'ok') {
+        return { status: 500 as const, body: { error: 'Failed to load the generated canvas' } };
+      }
+      return { status: 201 as const, body: found.canvas };
+    } catch (error) {
+      const err = error as Error;
+      log.error('[canvas.generateDeck] Error:', err);
+      return {
+        status: 500 as const,
+        body: { error: 'Failed to generate presentation', details: err.message },
       };
     }
   },

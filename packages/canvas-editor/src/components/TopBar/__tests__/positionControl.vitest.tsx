@@ -3,7 +3,7 @@ import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 
 import { axe } from '../../../test-utils';
-import { FloatingPositionControl } from '../modules/FloatingPositionControl';
+import { FloatingPositionControl } from '@ggraphic/editor/components/TopBar/modules/FloatingPositionControl';
 
 import type { SelectionGeometry } from '@ggraphic/editor/utils/canvasCommands';
 

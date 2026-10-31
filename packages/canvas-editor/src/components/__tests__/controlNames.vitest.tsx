@@ -3,21 +3,21 @@ import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { toolsTab, uploadsTab } from '../../configs/commonSections';
-import { SidebarSlider } from '../../sidebar/components/SidebarSlider';
+import { SidebarSlider } from '@ggraphic/editor/sidebar/components/SidebarSlider';
 import { BalkenSettingsSection } from '../../sidebar/sections/BalkenSettingsSection';
-import { SidebarPanel } from '../../sidebar/SidebarPanel';
-import { SidebarTabBar } from '../../sidebar/SidebarTabBar';
+import { SidebarPanel } from '@ggraphic/editor/sidebar/SidebarPanel';
+import { SidebarTabBar } from '@ggraphic/editor/sidebar/SidebarTabBar';
 import { axe } from '../../test-utils';
 import { COLOR_SCHEMES } from '../../utils/dreizeilenLayout';
-import { CanvasMetaBar } from '../CanvasMetaBar';
-import { PageToolbar } from '../PageToolbar';
-import { FloatingColorPicker } from '../TopBar/modules/FloatingColorPicker';
-import { FloatingFontSizeControl } from '../TopBar/modules/FloatingFontSizeControl';
-import { FloatingOpacityControl } from '../TopBar/modules/FloatingOpacityControl';
-import { FloatingShadowControl } from '../TopBar/modules/FloatingShadowControl';
+import { CanvasMetaBar } from '@ggraphic/editor/components/CanvasMetaBar';
+import { PageToolbar } from '@ggraphic/editor/components/PageToolbar';
+import { FloatingColorPicker } from '@ggraphic/editor/components/TopBar/modules/FloatingColorPicker';
+import { FloatingFontSizeControl } from '@ggraphic/editor/components/TopBar/modules/FloatingFontSizeControl';
+import { FloatingOpacityControl } from '@ggraphic/editor/components/TopBar/modules/FloatingOpacityControl';
+import { FloatingShadowControl } from '@ggraphic/editor/components/TopBar/modules/FloatingShadowControl';
 
-import type { SidebarTab } from '../../sidebar/types';
-import type { BalkenInstance } from '@ggraphic/editor/utils/balkenUtils';
+import type { SidebarTab } from '@ggraphic/editor/sidebar/types';
+import type { BalkenInstance } from '../../utils/balkenUtils';
 
 beforeEach(() => {
   // Desktop layout.

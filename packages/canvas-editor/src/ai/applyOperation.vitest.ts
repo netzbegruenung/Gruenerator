@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { applyOperation } from './applyOperation';
+import { applyOperation } from '@ggraphic/editor/ai/applyOperation';
 
 import type { TemplateAiCapabilities } from '@ggraphic/editor/ai/types';
 

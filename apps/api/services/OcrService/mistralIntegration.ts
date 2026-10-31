@@ -175,7 +175,9 @@ export async function extractTextWithMistralOCR(
   } catch (error) {
     const errorMessage = (error as Error).message;
     console.error('[OcrService] Mistral OCR failed:', errorMessage);
-    throw new Error(`Mistral OCR extraction failed: ${errorMessage}`);
+    // `cause` trägt den HTTP-Status — daran erkennt der Ingest-Worker einen
+    // Ausfall, den er später wiederholt (`ingestRetry.ts`).
+    throw new Error(`Mistral OCR extraction failed: ${errorMessage}`, { cause: error });
   }
 }
 
@@ -259,7 +261,9 @@ export async function extractBase64WithMistralOCR(
     const errorMessage = (error as Error).message;
     const safeFilename = sanitizeFilename(filename, 'unknown');
     console.error('[OcrService] Mistral OCR base64 failed for %s: %s', safeFilename, errorMessage);
-    throw new Error(`Mistral OCR extraction failed: ${errorMessage}`);
+    // `cause` trägt den HTTP-Status — daran erkennt der Ingest-Worker einen
+    // Ausfall, den er später wiederholt (`ingestRetry.ts`).
+    throw new Error(`Mistral OCR extraction failed: ${errorMessage}`, { cause: error });
   }
 }
 

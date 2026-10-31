@@ -5,7 +5,7 @@
  * below `configs/types.ts` and `CanvasEditorProvider.tsx`, which both
  * re-export them, so neither has to import the other.
  */
-import type { ReplaceDeckOps } from './collab/pagesDoc';
+import type { ReplaceDeckOps } from './collab/pagesDoc.js';
 
 /**
  * A page in a heterogeneous multi-page document. `TConfigId` is the host's

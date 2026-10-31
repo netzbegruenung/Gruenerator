@@ -2,7 +2,7 @@
 /**
  * Canvas Clipboard - Singleton for copy/paste operations
  *
- * Manages a session-level clipboard for canvas elements (shapes, balkens, icons, etc.)
+ * Manages a session-level clipboard for canvas elements (shapes, icons, host kinds, etc.)
  * Enables copy (Ctrl+C) and paste (Ctrl+V) functionality across canvas instances.
  *
  * Die Typtabelle steht nicht hier, sondern in `duplicateElement.ts`: Kopieren,
@@ -15,7 +15,7 @@ import {
   type DuplicableDataMap,
   type DuplicableEntry,
   type DuplicableType,
-} from './duplicateElement';
+} from './duplicateElement.js';
 
 export type ClipboardItemType = DuplicableType;
 export type ClipboardDataMap = DuplicableDataMap;

@@ -91,6 +91,7 @@ describe('media', () => {
       ok: true,
       sourcePath: '/uploads/shared-media/tok/thumbnail.jpg',
       contentType: 'image/jpeg',
+      pregenerated: { dir: '/uploads/shared-media/tok/thumbs', base: 'thumbnail' },
     });
   });
 

@@ -246,6 +246,7 @@ const ConnectorTestPage = lazy(() => import('../features/admin/ConnectorTestPage
 // const PlaygroundPage = lazy(() => import('../features/playground/PlaygroundPage'));
 const IconAnimationTestPage = lazy(() => import('../features/playground/IconAnimationTestPage'));
 const KugelVoiceTestPage = lazy(() => import('../features/playground/KugelVoiceTestPage'));
+const BundestagQaPage = lazy(() => import('../features/bundestag/BundestagQaPage'));
 // Auth-Komponenten importieren (only components still used after Authentic integration)
 const LoginPage = lazy(() => import('../features/auth/pages/LoginPage'));
 const OAuthConsentPage = lazy(() => import('../features/auth/pages/OAuthConsentPage'));
@@ -593,6 +594,7 @@ const standardRoutes: RouteConfig[] = [
   // { path: '/playground', component: PlaygroundPage },
   { path: '/icon-test', component: IconAnimationTestPage, channel: 'internal' },
   { path: '/kugel-test', component: KugelVoiceTestPage, channel: 'internal' },
+  { path: '/labor/bundestag', component: BundestagQaPage, channel: 'internal' },
   { path: '/voice-agent-test', component: VoiceAgentTestPage, channel: 'internal' },
   {
     path: '/voice-agent-test/mobil',
@@ -948,12 +950,13 @@ const standardRoutes: RouteConfig[] = [
   // Combined office overview still lives in the workplace "Arbeiten" tab; each
   // type also has a dedicated, type-scoped landing page below. The editors stay.
   { path: '/office', component: OfficeSuiteLandingPage, layoutMode: 'sidebarOnly' },
-  // Dispatches to the BlockNote or Univer editor by document_subtype.
-  { path: '/office/:id', component: CollabDocRoute, layoutMode: 'immersive' },
+  // Dispatches to the BlockNote or Univer editor by document_subtype. Public so
+  // a shared link reaches guests: the backend and the editors gate access.
+  { path: '/office/:id', component: CollabDocRoute, layoutMode: 'immersive', public: true },
   // Former type-scoped overviews now redirect to the unified /office hub. Static
   // paths precede their `:id` siblings so the redirect wins over the editor route.
   { path: '/docs', component: OfficeSuiteRedirect },
-  { path: '/docs/:id', component: DocumentToOfficeRedirect },
+  { path: '/docs/:id', component: DocumentToOfficeRedirect, public: true },
   { path: '/sheets', component: OfficeSuiteRedirect },
   { path: '/presentations', component: OfficeSuiteRedirect },
   { path: '/boards', component: OfficeSuiteRedirect },

@@ -25,6 +25,11 @@ import {
 } from '../../../../database/services/QdrantService/index.js';
 import { scrollDocuments } from '../../../../database/services/QdrantService/operations/batchOperations.js';
 import { createLogger } from '../../../../utils/logger.js';
+import {
+  DipClient,
+  type DipDrucksacheText,
+  type DipPlenarprotokollText,
+} from '../../../bundestag/dip/dipClient.js';
 import { mistralEmbeddingService } from '../../../mistral/index.js';
 import { BaseScraper } from '../../base/BaseScraper.js';
 
@@ -35,7 +40,6 @@ import {
   protokollParentId,
   type DipParent,
 } from './builders.js';
-import { DipClient, type DipDrucksacheText, type DipPlenarprotokollText } from './dipClient.js';
 import { parseDrucksache } from './drucksacheParser.js';
 import { parseSpeeches } from './protokollParser.js';
 import { DIP_COLLECTION, writeParent } from './store.js';

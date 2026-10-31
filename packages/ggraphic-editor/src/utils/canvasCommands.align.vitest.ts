@@ -1,11 +1,13 @@
 // SPDX-License-Identifier: MPL-2.0
 import Konva from 'konva';
-import { describe, expect, it, vi } from 'vitest';
+import { beforeAll, describe, expect, it, vi } from 'vitest';
 
 import { createCanvasEditorStore } from '@ggraphic/editor/stores/createCanvasEditorStore';
 import { createCanvasCommands } from '@ggraphic/editor/utils/canvasCommands';
 import { CANVAS_ITEM_ID_ATTR, CANVAS_ITEM_NAME } from '@ggraphic/editor/utils/deepSelect';
 import { axisAlignedBounds, readNodeFrame } from '@ggraphic/editor/utils/orientation';
+
+import { registerStampKind } from '../testing/stampKind.js';
 
 import type { BaseCanvasState } from '@ggraphic/editor/configs/factory/baseTypes';
 import type { LayoutResult } from '@ggraphic/editor/configs/types';
@@ -16,6 +18,9 @@ import type { LayoutResult } from '@ggraphic/editor/configs/types';
  */
 
 type State = Record<string, unknown>;
+
+// A host kind placed by an offset instead of x/y (`testing/stampKind.ts`).
+beforeAll(registerStampKind);
 
 function page(state: State, opts: { readOnly?: boolean } = {}) {
   let current = state;
@@ -35,7 +40,7 @@ function page(state: State, opts: { readOnly?: boolean } = {}) {
     updateShape: vi.fn(patchList('shapeInstances')),
     updateChart: vi.fn(patchList('chartInstances')),
     updateAdditionalText: vi.fn(patchList('additionalTexts')),
-    updateBalken: vi.fn(patchList('balkenInstances')),
+    updateStamp: vi.fn(patchList('stampInstances')),
   };
   const runHistoryBatch = vi.fn((fn: () => void) => {
     history.push(current);
@@ -158,16 +163,16 @@ describe('align', () => {
     expect(p.actions.updateChart).toHaveBeenCalledWith('b', { x: 100, y: 100 });
   });
 
-  it('verschiebt einen Balken über seinen Offset', () => {
+  it('verschiebt eine Host-Art über ihren Offset', () => {
     const p = page({
-      balkenInstances: [{ id: 'k', offset: { x: 0, y: 0 } }],
+      stampInstances: [{ id: 'k', offset: { x: 0, y: 0 } }],
       chartInstances: [{ id: 'c', x: 0, y: 0 }],
     });
     p.add('k', topLeft(200, 100, 50, 50));
     p.add('c', topLeft(0, 0, 50, 50));
     p.select(['k', 'c']);
     p.commands.run('alignTop', null);
-    expect(p.item('balkenInstances', 'k')).toMatchObject({ offset: { x: 0, y: -100 } });
+    expect(p.item('stampInstances', 'k')).toMatchObject({ offset: { x: 0, y: -100 } });
   });
 
   it('tut im Lesemodus nichts und bietet nichts an', () => {

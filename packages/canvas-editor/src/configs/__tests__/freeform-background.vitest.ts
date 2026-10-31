@@ -3,7 +3,7 @@ import { createShape, type ShapeInstance } from '@ggraphic/editor/utils/shapes';
 import { SHAREPIC_LOCALE_COLORS } from '@gruenerator/contracts';
 import { beforeAll, describe, expect, it } from 'vitest';
 
-import { applyOperation, type CanvasAiActionsBase } from '../../ai/applyOperation';
+import { applyOperation, type CanvasAiActionsBase } from '@ggraphic/editor/ai/applyOperation';
 import { getBrandTheme } from '../../brand/theme';
 import { SHAREPIC_COLOR_HEX } from '../../composer/composeSharepic';
 

@@ -5,8 +5,14 @@
  * knows none of them by name.
  */
 
+import { type AssetInstance } from '@ggraphic/core';
+
+import type { CanvasAiNamedOption } from '@ggraphic/editor/ai/types';
+import type { ElementPanelHost } from '@ggraphic/editor/sidebar/sections/assets/elementPanelHost';
 import type { KawaiiDef, SvgDef } from '@ggraphic/editor/utils/illustrations/types';
 import type { StickerRef } from '@ggraphic/schema';
+
+export { ASSET_TARGET_SIZE, type AssetInstance } from '@ggraphic/core';
 
 export type AssetAudience = 'de-DE' | 'de-AT' | 'all';
 
@@ -20,33 +26,6 @@ export interface UniversalAsset {
   audience: AssetAudience;
   /** Light artwork that needs a dark tile in the catalogue to stay visible. */
   darkPreview?: boolean;
-}
-
-/**
- * Assets werden auf eine einheitliche Kantenlaenge normalisiert: `AssetPrimitive`
- * rechnet die natuerliche Bildgroesse so um, dass die LAENGERE Seite bei
- * `scale: 1` genau so viele Pixel misst. Wer aus einer Vorlagen-Grafik mit
- * fester Breite/Hoehe eine Instanz macht, rechnet gegen dieselbe Zahl zurueck —
- * darum steht sie hier und nicht im Primitiv.
- */
-export const ASSET_TARGET_SIZE = 150;
-
-/**
- * Runtime instance of an asset placed on the canvas
- * Follows the same pattern as ShapeInstance and IllustrationInstance
- */
-export interface AssetInstance {
-  id: string;
-  assetId: string; // Reference to UniversalAsset.id, or `asset:<uuid>` for a shop sticker
-  /** Own image of a shop sticker: a share path the host's `isInstanceSrc` accepts. */
-  src?: string;
-  x: number;
-  y: number;
-  scale: number;
-  rotation: number;
-  opacity: number;
-  flipX?: boolean;
-  flipY?: boolean;
 }
 
 /**
@@ -125,7 +104,44 @@ export interface CanvasAssetCatalog {
   emojiSrc?: (code: string) => string;
   /** The illustration catalogues; without them the editor offers none. */
   illustrations?: IllustrationSources;
+  /**
+   * What the Elemente panel lists as graphics, logos, marks, stickers and
+   * emoji, by `category`. Without it, every entry of `assets` is offered;
+   * a host that keeps template variants in `assets` lists only the rest here.
+   */
+  offered?: readonly UniversalAsset[];
+  /** Where the panels' image tiles load from; without it the URLs are used as they are. */
+  imageUrls?: AssetImageUrls;
+  /** German name of a bundled stock photo's `category`, or null; makes "Mobilität" find the group. */
+  stockCategoryName?: (category: string) => string | null;
+  /** The host's own tiles, categories and wording in the Elemente panel. */
+  elementPanel?: ElementPanelHost;
 }
+
+/** The image URLs the Elemente panel and the image pickers build tiles from. */
+export interface AssetImageUrls {
+  /** Card-sized copy of a stored image. */
+  thumbnail: (src: string, width: 200 | 400 | 800) => string;
+  /** Working-size copy of a stored or bundled photo. */
+  preview: (src: string, width: number) => string;
+  /** Where a library item with only a share token is fetched from; null when the host has no such URL. */
+  shareDownload: (shareToken: string) => string | null;
+  /** The URL a bundled stock photo is placed from. */
+  stockPhoto: (filename: string) => string;
+  /** Whether a URL is one `stockPhoto` could have produced (persisted tiles are checked against it). */
+  isStockPhoto: (url: string) => boolean;
+}
+
+export const plainAssetImageUrls: AssetImageUrls = {
+  thumbnail: (src) => src,
+  preview: (src) => src,
+  shareDownload: () => null,
+  stockPhoto: (filename) => encodeURIComponent(filename),
+  isStockPhoto: () => false,
+};
+
+/** The id of a Studio sticker of the viewer's gallery as an asset instance names it (`asset:<id>`). */
+export const studioStickerId = (assetId: string): string => `asset:${assetId}`;
 
 /** The illustration sets a host offers, loaded on the first lookup. */
 export interface IllustrationSources {
@@ -134,6 +150,15 @@ export interface IllustrationSources {
   loadSvg: () => Promise<SvgDef[]>;
   /** Where the SVG files and their `thumbs/` PNGs live, before `<source>/<filename>`. */
   basePath: string;
+  /**
+   * The few ids the AI planner may reference with `add-illustration`: the full
+   * catalogue is far too large for a prompt. Every id must resolve in the sets.
+   */
+  aiPicks?: readonly CanvasAiNamedOption[];
+  /** The curated few the panel shows before the full sets have loaded, after the Kawaii set. */
+  featured?: readonly SvgDef[];
+  /** Colour the Kawaii characters are drawn in on their tiles. */
+  kawaiiColor?: string;
 }
 
 /**
@@ -144,9 +169,20 @@ export interface IllustrationSources {
  */
 let registered: CanvasAssetCatalog = { assets: [], isInstanceSrc: () => false };
 
+const catalogListeners = new Set<() => void>();
+
 /** The host's catalogue, installed once at startup; replaces the one before. */
 export function registerAssetCatalog(catalog: CanvasAssetCatalog): void {
   registered = catalog;
+  catalogListeners.forEach((listener) => listener());
+}
+
+/** Calls `listener` after every `registerAssetCatalog`; returns the unsubscribe. */
+export function onAssetCatalogChange(listener: () => void): () => void {
+  catalogListeners.add(listener);
+  return () => {
+    catalogListeners.delete(listener);
+  };
 }
 
 /** The catalogue lookups answer from (`utils/illustrations/registry`). */

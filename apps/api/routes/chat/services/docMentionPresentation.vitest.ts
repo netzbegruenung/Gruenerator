@@ -15,6 +15,9 @@ const deck = vi.hoisted(() => ({
 }));
 vi.mock('../../../services/presentations/PresentationGenerationService.js', () => deck);
 
+const canvas = vi.hoisted(() => ({ loadCanvasAsContext: vi.fn() }));
+vi.mock('../../../services/canvas/canvasContext.js', () => canvas);
+
 const docs = vi.hoisted(() => ({ getDocumentHtml: vi.fn() }));
 vi.mock('../../../services/docs/docContentService.js', () => docs);
 
@@ -56,6 +59,21 @@ describe('@doc mention of a presentation', () => {
     const context = await enrichWith(['p1']);
 
     expect(deck.loadPresentationState).toHaveBeenCalledWith('p1', 'u1');
+    expect(docs.getDocumentHtml).not.toHaveBeenCalled();
+    expect(context).toContain('### Radwege');
+    expect(context).toContain('Sichere Kreuzungen');
+  });
+
+  it('reads a canvas deck through the canvas reader', async () => {
+    pg.query.mockResolvedValue([
+      { id: 'c1', title: 'Radwege', content: null, document_subtype: 'canvas' },
+    ]);
+    canvas.loadCanvasAsContext.mockResolvedValue('# Radwege\n\n## Folie 1\nSichere Kreuzungen');
+
+    const context = await enrichWith(['c1']);
+
+    expect(canvas.loadCanvasAsContext).toHaveBeenCalledWith('c1', 'u1');
+    expect(deck.loadPresentationState).not.toHaveBeenCalled();
     expect(docs.getDocumentHtml).not.toHaveBeenCalled();
     expect(context).toContain('### Radwege');
     expect(context).toContain('Sichere Kreuzungen');

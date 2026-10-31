@@ -1,14 +1,13 @@
+import { usePageUndoRedoShortcuts } from '@ggraphic/editor/components/CanvasEditor/hooks/usePageUndoRedoShortcuts';
 import { useCanvasKeyboardHandlers } from '@ggraphic/editor/hooks/useCanvasKeyboardHandlers';
 import { useCanvasUndoRedo } from '@ggraphic/editor/hooks/useCanvasUndoRedo';
+import { SidebarSlider } from '@ggraphic/editor/sidebar/components/SidebarSlider';
 import { CanvasStoreProvider, useCanvasStore } from '@ggraphic/editor/stores/CanvasStoreProvider';
 import { createCanvasEditorStore } from '@ggraphic/editor/stores/createCanvasEditorStore';
 import { KEEP_EDITING_ATTR } from '@ggraphic/editor/utils/keyboardOwnership';
 import { fireEvent, render, renderHook, screen } from '@testing-library/react';
 import { act, useState } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-
-import { usePageUndoRedoShortcuts } from '../../components/CanvasEditor/hooks/usePageUndoRedoShortcuts';
-import { SidebarSlider } from '../../sidebar/components/SidebarSlider';
 
 import type { BaseCanvasState } from '@ggraphic/editor/configs/factory/baseTypes';
 import type { CanvasEditorStoreApi } from '@ggraphic/editor/stores/createCanvasEditorStore';
@@ -111,10 +110,8 @@ describe('Formatleiste des offenen Texteditors', () => {
     const undoPageOp = vi.fn();
     renderHook(() =>
       usePageUndoRedoShortcuts({
-        activePageCanUndo: false,
-        activePageCanRedo: false,
-        canUndoPageOp: true,
-        canRedoPageOp: true,
+        activePageStamps: () => null,
+        pageOpStamps: () => ({ undo: 1, redo: 1 }),
         undoPageOp,
         redoPageOp: vi.fn(),
       })

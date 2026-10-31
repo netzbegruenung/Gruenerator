@@ -39,6 +39,14 @@
  *    `max_tokens: 8` liefert 2 Tokens in 300 ms — das sind 6,7 tok/s und misst
  *    die Anlaufzeit, nicht den Durchsatz. Unter MIN_OUTPUT_TOKENS wird eine
  *    Probe nur für die Statistik gezählt, nie beurteilt.
+ * 4. **Lange Prompts sind auch keine.** Die Rate teilt durch die Wandzeit, und
+ *    die enthält das Prefill. Am 28.10.2026 kam ein Bundestag-Lesefenster mit
+ *    ~60k Prompt-Tokens auf 5,9 statt ~31 tok/s — das Modell war gesund, nur
+ *    der Prompt lang — und `modelSiblings` leitete fünf Minuten lang JEDE
+ *    Gemma-Lane um, den Chat eingeschlossen. Ab LONG_PROMPT_TOKENS wird eine
+ *    Probe deshalb nur gezählt. Die Dekodier-Rate ohne Zeit bis zum ersten
+ *    Token wäre die genauere Messung, aber der Nicht-Stream-Pfad kennt diese
+ *    Zeit nicht, und zwei Einheiten in einer Basislinie wären schlimmer.
  *
  * Zustand liegt im Speicher, pro Worker (WORKER_COUNT steht auf 2) — dieselbe
  * bewusste Wahl wie bei den Breakern in `services/search/`.
@@ -51,6 +59,18 @@ const log = createLogger('modelHealth');
 
 /** Ab wann eine Probe überhaupt etwas über den Durchsatz aussagt. */
 const MIN_OUTPUT_TOKENS = 16;
+
+/** Ab dieser Prompt-Länge misst die Wandzeit vor allem das Prefill (Punkt 4 oben). */
+const LONG_PROMPT_TOKENS = 30_000;
+
+/**
+ * Dasselbe unterhalb der Schwelle: ein Prompt mit dem 50-Fachen der Ausgabe
+ * misst ebenfalls vor allem das Prefill. Gemessen 28.10.2026: Bundestag-
+ * Lesefenster lagen bei 99–283×, Chat-Antworten meist bei 10–50×; ein
+ * 28k-Fenster mit 282 Ausgabe-Tokens fiel unter Last auf 9 tok/s und schaltete
+ * die Gemma-Lanes um.
+ */
+const PREFILL_DOMINATED_RATIO = 50;
 
 /** Wie weit unter die Basislinie eine Probe fallen muss, um als zäh zu gelten. */
 const SLOW_FACTOR = 3;
@@ -71,6 +91,8 @@ export interface ModelSampleInput {
   durationMs: number;
   /** Nur beim Streamen bekannt; wird gesammelt, aber nicht beurteilt. */
   ttftMs?: number | null;
+  /** Prompt-Tokens, soweit bekannt — lange Prompts werden nicht beurteilt. */
+  inputTokens?: number | null;
 }
 
 interface Entry {
@@ -169,6 +191,12 @@ export function recordModelSample(sample: ModelSampleInput): void {
   if (sample.ttftMs != null && sample.ttftMs >= 0) push(entry.ttfts, sample.ttftMs);
 
   if (sample.durationMs <= 0 || sample.outputTokens < MIN_OUTPUT_TOKENS) return;
+  if (sample.inputTokens != null && sample.inputTokens >= LONG_PROMPT_TOKENS) return;
+  if (
+    sample.inputTokens != null &&
+    sample.inputTokens > sample.outputTokens * PREFILL_DOMINATED_RATIO
+  )
+    return;
 
   const rate = sample.outputTokens / (sample.durationMs / 1000);
   if (!Number.isFinite(rate) || rate <= 0) return;

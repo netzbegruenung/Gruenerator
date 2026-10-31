@@ -58,6 +58,28 @@ beforeEach(() => {
 });
 
 describe('Claim-Auswahl', () => {
+  it('lässt eine Zeile nach einem Anbieter-Ausfall bis retry_after liegen', async () => {
+    queueContains();
+    await drainIngestQueue();
+
+    const [sql] = claimCalls()[0];
+    expect(sql).toContain(
+      "COALESCE((metadata->>'retry_after')::timestamptz, '-infinity') <= NOW()"
+    );
+    expect(sql).toMatch(
+      /RETURNING id, user_id, COALESCE\(\(metadata->>'ingest_retries'\)::int, 0\)/
+    );
+  });
+
+  it('reicht den Wiederholungszähler an die Verarbeitung weiter', async () => {
+    queueContains({ id: 'doc-1', user_id: 'u-1', ingest_retries: 2 } as never);
+    await drainIngestQueue();
+
+    expect(processUploadedDocument).toHaveBeenCalledWith({}, {}, 'doc-1', 'u-1', {
+      ingestRetries: 2,
+    });
+  });
+
   it('nimmt frische Uploads und verwaiste processing-Zeilen im selben Zugriff', async () => {
     queueContains();
     await drainIngestQueue();

@@ -101,9 +101,9 @@ export interface ArtifactKind {
    */
   createPattern: RegExp | null;
   /**
-   * An extra condition the text must ALSO satisfy. Only `sheet` has one: a
-   * request that dictates the columns inline wants a table in the answer, not a
-   * spreadsheet.
+   * An extra condition the text must ALSO satisfy. `sheet`: a request that
+   * dictates the columns inline wants a table in the answer, not a spreadsheet.
+   * `presentation`: a numbered slide ("Folie 2") points at an existing deck.
    *
    * Spelled out as `null` on the other five rather than omitted: an optional
    * property disappears from the entry's literal type under `as const`, so
@@ -113,6 +113,15 @@ export interface ArtifactKind {
   /** Product name in prose ("Präsentation"), for tool descriptions and notes. */
   label: string;
 }
+
+/**
+ * Ein Verweis auf eine bestimmte Folie meint ein vorhandenes Deck: „Mach Folie 2
+ * kürzer" bearbeitete es und baute über die Verbund-Garantie ein zweites
+ * (Live-Test 30.10.2026). Bestellt bleibt, was die Präsentation selbst nennt.
+ */
+const SLIDE_REFERENCE_RE =
+  /\bfolien?\s+(?:nr\.?\s*)?\d|\b\d+\.\s*folie|\b(?:erste|zweite|dritte|vierte|fünfte|vorletzte|letzte)[nrs]?\s+folie/i;
+const DECK_ORDER_PATTERN = creationOrderPattern('pr[äa]sentation|presentation|slides?|foliensatz');
 
 export const ARTIFACT_KINDS = [
   {
@@ -133,7 +142,7 @@ export const ARTIFACT_KINDS = [
     forbiddableFamily: 'presentation',
     createPattern: creationOrderPattern('pr[äa]sentation|presentation|folien?|slides?'),
     label: 'Präsentation',
-    extraGuard: null,
+    extraGuard: (text: string) => !SLIDE_REFERENCE_RE.test(text) || DECK_ORDER_PATTERN.test(text),
   },
   {
     id: 'sheet',

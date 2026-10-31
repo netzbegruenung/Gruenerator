@@ -41,6 +41,7 @@ const ICON_MAP: Record<ConfirmActionType, typeof FileText> = {
   create_user_agent: Bot,
   share_user_agent: Share2,
   share_text_form: Share2,
+  apply_canvas_deck_edit: LayoutGrid,
 };
 
 const GROUP_ACTION_TYPES: ReadonlySet<ConfirmActionType> = new Set([

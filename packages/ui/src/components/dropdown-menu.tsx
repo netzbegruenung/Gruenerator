@@ -182,8 +182,43 @@ function DropdownMenuShortcut({ className, ...props }: React.ComponentProps<'spa
   );
 }
 
-function DropdownMenuSub({ ...props }: React.ComponentProps<typeof DropdownMenuPrimitive.Sub>) {
-  return <DropdownMenuPrimitive.Sub data-slot="dropdown-menu-sub" {...props} />;
+/**
+ * Radix closes a submenu from `pointerout` when the pointer moves to a
+ * sibling item. React treats that as a continuous event and renders it
+ * synchronously inside the handler, so unmounting a long submenu blocks the
+ * frame (14–22 ms measured in the plus menu, one dropped frame per switch).
+ * Closing therefore runs as a transition: React unmounts in interruptible
+ * slices. Opening stays synchronous, so keyboard focus can move into the
+ * content right away. A caller that controls `open` keeps full control.
+ */
+function DropdownMenuSub({
+  open: openProp,
+  defaultOpen = false,
+  onOpenChange,
+  ...props
+}: React.ComponentProps<typeof DropdownMenuPrimitive.Sub>) {
+  const [uncontrolledOpen, setUncontrolledOpen] = React.useState(defaultOpen);
+  const isControlled = openProp !== undefined;
+
+  const handleOpenChange = React.useCallback(
+    (next: boolean) => {
+      if (!isControlled) {
+        if (next) setUncontrolledOpen(true);
+        else React.startTransition(() => setUncontrolledOpen(false));
+      }
+      onOpenChange?.(next);
+    },
+    [isControlled, onOpenChange]
+  );
+
+  return (
+    <DropdownMenuPrimitive.Sub
+      data-slot="dropdown-menu-sub"
+      open={isControlled ? openProp : uncontrolledOpen}
+      onOpenChange={handleOpenChange}
+      {...props}
+    />
+  );
 }
 
 function DropdownMenuSubTrigger({

@@ -15,7 +15,7 @@ export const COLLECTION_STYLES: Record<string, { color: string; bg: string; labe
   bundestag: {
     color: 'var(--color-collection-bundestag)',
     bg: 'var(--color-collection-bundestag-bg)',
-    label: 'Bundestag Wrapped',
+    label: 'Bundestag',
   },
   'gruene-de': {
     color: 'var(--color-collection-gruene-de)',

@@ -1,5 +1,6 @@
 import { EditorChatPanel } from '@gruenerator/chat';
 import {
+  CollabUnavailable,
   useCollaboration,
   useCollaborators,
   useDelayedConnectionStatus,
@@ -166,7 +167,8 @@ function PresentationsEditorContent() {
     guestName: guestIdentity?.guestName,
   });
   const collaborators = useCollaborators(provider);
-  const editorReady = useSyncGate(provider, isSynced);
+  const syncGate = useSyncGate(provider, isSynced, ydoc, isLocalLoaded);
+  const editorReady = syncGate === 'ready';
   const connectionStatus = useDelayedConnectionStatus(isConnected, isLocalLoaded);
 
   // Not embedded: the tour paints a full-viewport overlay with its own controls
@@ -433,6 +435,8 @@ function PresentationsEditorContent() {
               shortcutsDisabled={presenting || showShareModal}
               userLocale={userLocale}
             />
+          ) : syncGate === 'unavailable' ? (
+            <CollabUnavailable provider={provider} />
           ) : (
             <div className="flex-1 flex items-center justify-center text-sm text-grey-500">
               Präsentation wird geladen…

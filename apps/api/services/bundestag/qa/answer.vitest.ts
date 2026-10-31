@@ -1,0 +1,166 @@
+import { describe, expect, it, vi } from 'vitest';
+
+const aiText = vi.hoisted(() => vi.fn());
+vi.mock('../../ai/generate.js', () => ({ aiText }));
+
+import { ANSWER_SYSTEM, composeAnswer, numberPoints, stripInvalidCitations } from './answer.js';
+import { type ReadResult } from './read.js';
+
+function result(ref: string, n: number, extra: Partial<ReadResult> = {}): ReadResult {
+  return {
+    doc: {
+      ref,
+      dipId: ref,
+      kind: 'drucksache',
+      dokumentnummer: ref,
+      drucksachetyp: 'Antrag',
+      titel: `Titel ${ref}`,
+      datum: '2025-01-01',
+      urheber: ['Fraktion der SPD'],
+      pdfUrl: null,
+      vorgangId: null,
+      vorgangTitel: null,
+      abstract: null,
+      aktualisiert: null,
+      beratung: null,
+      text: 'x',
+      textSource: 'dip',
+    } as unknown as ReadResult['doc'],
+    relevant: n > 0,
+    points: Array.from({ length: n }, (_, i) => ({
+      aussage: `A${ref}-${i}`,
+      zitat: `Z${ref}-${i}`,
+      method: 'exact' as const,
+    })),
+    droppedPoints: 0,
+    windowsRead: 1,
+    windowsTotal: 1,
+    skipped: null,
+    charsRead: 0,
+    usage: null,
+    ...extra,
+  };
+}
+
+describe('numberPoints', () => {
+  it('nummeriert global in Dokumentreihenfolge', () => {
+    const { citations } = numberPoints([result('21/1', 2), result('21/2', 1)]);
+    expect(citations.map((c) => [c.n, c.ref])).toEqual([
+      [1, '21/1'],
+      [2, '21/1'],
+      [3, '21/2'],
+    ]);
+  });
+
+  it('behält alles bis 40 Punkte, auch mehr als 4 je Dokument', () => {
+    const out = numberPoints([result('21/1', 9), result('21/2', 9), result('21/3', 9)]);
+    expect(out.citations).toHaveLength(27);
+    expect(out.capped).toBe(0);
+  });
+
+  it('kappt über 40 auf 4 je Dokument in Reihenfolge, hart bei 40', () => {
+    const out = numberPoints(Array.from({ length: 14 }, (_, i) => result(`21/${i + 1}`, 5)));
+    expect(out.citations).toHaveLength(40);
+    expect(out.citations.filter((c) => c.ref === '21/1')).toHaveLength(4);
+    expect(out.citations.at(-1)?.ref).toBe('21/10');
+    expect(out.capped).toBe(30);
+  });
+});
+
+describe('stripInvalidCitations', () => {
+  it('entfernt Nummern außerhalb 1..n und zählt sie', () => {
+    expect(stripInvalidCitations('Ja [1] und [7] sowie [0].', 3)).toEqual({
+      text: 'Ja [1] und sowie.',
+      invalid: 2,
+    });
+  });
+  it('behandelt Listen und Bereiche', () => {
+    const r = stripInvalidCitations('A [1, 9] B [2-4] C [8-9]', 3);
+    expect(r.text).toBe('A [1] B [2, 3] C');
+    expect(r.invalid).toBe(1 + 1 + 2);
+  });
+});
+
+describe('composeAnswer', () => {
+  it('fragt das Modell mit nummerierten Punkten und säubert die Antwort', async () => {
+    aiText.mockResolvedValueOnce('Antwort [1] und [5].');
+    const out = await composeAnswer({
+      question: 'Frage?',
+      filters: {},
+      results: [result('21/1', 1), result('21/2', 0, { skipped: 'budget' })],
+    });
+    expect(out.answer).toBe('Antwort [1] und.');
+    expect(out.invalidCitations).toBe(1);
+    const call = aiText.mock.calls[0]![0];
+    expect(call.lane).toBe('bundestag_answer');
+    expect(call.temperature).toBe(0.2);
+    expect(call.maxOutputTokens).toBe(2000);
+    expect(call.prompt).toContain(
+      '[1] 21/1 · Antrag · 2025-01-01 · Fraktion der SPD: A21/1-0 — „Z21/1-0“'
+    );
+    expect(call.prompt).toContain('21/2');
+    expect(call.prompt).toContain('Lesebudget');
+  });
+
+  it('gibt die Trefferliste als eigenen Metadatenblock mit, auch für Dokumente ohne Punkte', async () => {
+    aiText.mockResolvedValueOnce('Ok [1].');
+    await composeAnswer({
+      question: 'Frage?',
+      filters: {},
+      results: [result('21/1', 1), result('21/2', 0)],
+    });
+    const prompt = aiText.mock.calls.at(-1)![0].prompt as string;
+    expect(prompt).toContain('Trefferliste (nur Metadaten, keine Inhalte):');
+    const liste = prompt.split('Trefferliste (nur Metadaten, keine Inhalte):')[1];
+    expect(liste).toContain('21/1 · Antrag · 2025-01-01 · Fraktion der SPD · Titel 21/1');
+    expect(liste).toContain('21/2 · Antrag · 2025-01-01 · Fraktion der SPD · Titel 21/2');
+  });
+
+  it('nennt teilweise gelesene Dokumente in der Lückenliste', async () => {
+    aiText.mockResolvedValueOnce('Ok [1].');
+    await composeAnswer({
+      question: 'Frage?',
+      filters: {},
+      results: [result('21/1', 1, { windowsRead: 1, windowsTotal: 3 })],
+    });
+    expect(aiText.mock.calls.at(-1)![0].prompt).toContain('nur teilweise gelesen');
+  });
+
+  it('ruft das Modell bei null Punkten nicht auf', async () => {
+    aiText.mockClear();
+    const out = await composeAnswer({
+      question: 'Frage?',
+      filters: { wahlperiode: [21], datumVon: '2025-01-01' },
+      results: [result('21/1', 0)],
+    });
+    expect(aiText).not.toHaveBeenCalled();
+    expect(out.citations).toEqual([]);
+    expect(out.answer).toContain('Wahlperiode 21');
+    expect(out.answer).toContain('21/1');
+  });
+});
+
+describe('ANSWER_SYSTEM', () => {
+  it('verlangt Vollständigkeit und bei Listenfragen jedes Dokument mit Kopfdaten', () => {
+    expect(ANSWER_SYSTEM).toContain('vollständig sein, nicht kurz');
+    expect(ANSWER_SYSTEM).toContain('JEDES einschlägige Dokument');
+    expect(ANSWER_SYSTEM).toContain('Nummer, Typ, Datum und Urheber');
+    expect(ANSWER_SYSTEM).not.toContain('knapp');
+  });
+
+  it('urteilt nach Thema statt Wortlaut und führt Listenfragen über die Trefferliste', () => {
+    expect(ANSWER_SYSTEM).toContain('nach dem Thema, nicht nach dem exakten Wortlaut');
+    expect(ANSWER_SYSTEM).toContain('Schreibe nie „nichts gefunden“');
+    expect(ANSWER_SYSTEM).toContain('Trefferliste (nur Metadaten, keine Inhalte)');
+    expect(ANSWER_SYSTEM).toContain('(Drucksache 21/1234)');
+  });
+
+  it('behält Beleg-, Vorwissen- und Lückenregeln bei höchstens 10 Regelzeilen', () => {
+    expect(ANSWER_SYSTEM).toContain('[n]');
+    expect(ANSWER_SYSTEM).toContain('kein Vorwissen');
+    expect(ANSWER_SYSTEM).toContain('Lücken');
+    expect(ANSWER_SYSTEM.split('\n').filter((l) => l.startsWith('- ')).length).toBeLessThanOrEqual(
+      10
+    );
+  });
+});

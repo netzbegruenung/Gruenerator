@@ -7,34 +7,14 @@
  * for labels like "Wusstest du?" in slider templates.
  */
 
+import { type PillBadgeFontStyle, type PillBadgeInstance } from '@ggraphic/core';
+
 import { activeBrand } from '@ggraphic/editor/brand/brandRegistry';
 import { messages } from '@ggraphic/editor/i18n/messages';
 
-import { measureTextWidthWithFont } from './textUtils';
+import { measureTextWidthWithFont } from './textUtils.js';
 
-// ============================================================================
-// TYPE DEFINITIONS
-// ============================================================================
-
-export type PillBadgeFontStyle = 'normal' | 'italic' | 'bold' | 'bold italic';
-
-export interface PillBadgeInstance {
-  id: string;
-  text: string;
-  x: number;
-  y: number;
-  backgroundColor: string;
-  textColor: string;
-  fontSize: number;
-  fontFamily: string;
-  fontStyle: PillBadgeFontStyle;
-  rotation: number;
-  scale: number;
-  opacity: number;
-  paddingX: number;
-  paddingY: number;
-  cornerRadius: number;
-}
+export { type PillBadgeFontStyle, type PillBadgeInstance } from '@ggraphic/core';
 
 export interface PillBadgePreset {
   text: string;

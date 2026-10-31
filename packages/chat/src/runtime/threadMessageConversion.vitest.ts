@@ -73,6 +73,7 @@ const PASSTHROUGH_SAMPLES: Record<(typeof PASSTHROUGH_METADATA_FIELDS)[number], 
   agentId: 'gruenerator-pressemitteilung',
   roleName: 'Sprecher:in',
   interrupted: true,
+  turnDurationMs: 100_000,
 };
 
 describe('convertToThreadMessageLike — reload reconstruction', () => {

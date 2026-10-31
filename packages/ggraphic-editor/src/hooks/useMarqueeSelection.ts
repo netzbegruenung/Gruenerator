@@ -9,7 +9,7 @@ import {
   syncOutlines,
 } from '@ggraphic/editor/utils/multiSelect';
 
-import type { CanvasStageRef } from '../primitives/CanvasStage';
+import type { CanvasStageRef } from '../primitives/CanvasStage.js';
 import type Konva from 'konva';
 
 const MARQUEE_FILL = 'rgba(0, 161, 255, 0.08)';

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { photoCreditLine, withPhotoCredit } from './photoCredit.js';
+import { photoCreditLine, withPhotoCredit } from '@ggraphic/editor/utils/photoCredit';
 
 const jane = {
   photographer: 'Jane Doe',
