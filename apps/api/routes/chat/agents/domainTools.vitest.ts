@@ -201,9 +201,7 @@ describe('makeBundestagRedenTool', () => {
   });
 
   it('meldet einen Ausfall als Ausfall', async () => {
-    searchBundestagReden.mockImplementation(async () => {
-      throw new Error('down');
-    });
+    searchBundestagReden.mockRejectedValue(new Error('down'));
     const out = (await exec(make(), { thema: 'x y' })) as { error?: string };
     expect(out.error).toContain('nicht erreichbar');
   });
@@ -1223,7 +1221,10 @@ describe('parlament_lesen: fokus', () => {
 });
 
 describe('bundestag_reden: wortlaut', () => {
-  beforeEach(() => searchBundestagReden.mockReset());
+  // Block statt Ausdruck, siehe makeBundestagRedenTool oben.
+  beforeEach(() => {
+    searchBundestagReden.mockReset();
+  });
   const rede = {
     speaker: 'A',
     party: 'GRÜNE',
@@ -1261,6 +1262,48 @@ describe('bundestag_reden: wortlaut', () => {
     searchBundestagReden.mockResolvedValue({ speeches: [], wpFallback: false });
     const out = (await exec(make(), { thema: 'xyz abc', wortlaut: true })) as { error: string };
     expect(out.error).toContain('nicht erschöpfend');
+  });
+
+  // Vorfall 30.10.2026: „ich will die rede wörtlich 1:1" → wortlaut: true mit
+  // thema „Katrin Uhlig". Der eigene Name steht in keinem Redetext, also 0 Treffer.
+  it('der Name der Rednerin als Phrase schaltet die Wortlautsuche ab', async () => {
+    searchBundestagReden.mockResolvedValue({ speeches: [rede], wpFallback: false });
+    const out = (await exec(make(), {
+      thema: 'Katrin Uhlig',
+      redner: 'Katrin Uhlig',
+      wortlaut: true,
+    })) as Record<string, any>;
+    expect(searchBundestagReden.mock.calls[0]![0]).not.toHaveProperty('wortlaut');
+    expect(out['wortlaut']).toBeUndefined();
+    expect(out['uiCard']).not.toHaveProperty('wortlaut');
+  });
+
+  it('keine Phrase gefunden: der nächste Schritt führt zum Wortlaut einer bestimmten Rede', async () => {
+    searchBundestagReden.mockResolvedValue({ speeches: [], wpFallback: false });
+    const out = (await exec(make(), { thema: 'Energiewende ausbremsen', wortlaut: true })) as {
+      error: string;
+      naechsterSchritt: string;
+    };
+    expect(out.naechsterSchritt).toMatch(/ohne wortlaut/);
+    expect(out.naechsterSchritt).toMatch(/limit 1/);
+  });
+
+  it('keine Reden: Grund und nächster Schritt statt nacktem Fehler', async () => {
+    searchBundestagReden.mockResolvedValue({ speeches: [], wpFallback: false });
+    const out = (await exec(make(), { thema: 'Wärmeplanung', redner: 'A' })) as {
+      naechsterSchritt: string;
+    };
+    expect(out.naechsterSchritt).toMatch(/Filter/);
+  });
+
+  it('Ausfall der Redensuche ist kein „keine Reden"', async () => {
+    searchBundestagReden.mockImplementation(async () => {
+      throw new Error('down');
+    });
+    const out = (await exec(make(), { thema: 'Wärmeplanung' })) as {
+      naechsterSchritt: string;
+    };
+    expect(out.naechsterSchritt).toMatch(/kein „keine/);
   });
 });
 

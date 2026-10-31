@@ -655,8 +655,6 @@ describe('Blockliste — Auswahl und Reihenfolge', () => {
       'system-role',
       'degradation-notes',
       'product-identity',
-      'product-knowledge',
-      'docs-page-map',
       'intent-guidance',
       'pipeline-source-text',
       'answer-rules',
@@ -714,8 +712,6 @@ describe('Blockliste — Auswahl und Reihenfolge', () => {
       'system-role',
       'degradation-notes',
       'product-identity',
-      'product-knowledge',
-      'docs-page-map',
       'intent-guidance',
       'pipeline-source-text',
       'answer-rules',
@@ -723,6 +719,9 @@ describe('Blockliste — Auswahl und Reihenfolge', () => {
     ]) {
       expect(ids, id).not.toContain(id);
     }
+    // Produktfakten ja, Identität nein (#5016).
+    expect(ids).toContain('product-knowledge');
+    expect(ids).toContain('docs-page-map');
   });
 
   // Ein Übertragungs-Turn hat genau ein Original — die übrigen Material-Blöcke

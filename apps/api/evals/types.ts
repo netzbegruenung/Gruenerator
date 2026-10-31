@@ -284,6 +284,15 @@ export const evalExpectSchema = z
       .array(z.object({ tool: z.string(), feld: z.string(), muster: z.string() }).strict())
       .optional(),
     /**
+     * Gegenstück zu `toolArgsMatch`: KEIN Aufruf von `tool` trägt in `args[feld]`
+     * einen Treffer auf `muster` (gleiche Regeln). Ohne Aufruf bestanden — ob das
+     * Werkzeug laufen musste, prüft `toolsMustInclude`. Für das falsch gesetzte
+     * Argument, etwa `wortlaut: true`, wenn die ganze Rede gemeint war.
+     */
+    toolArgsMustNotMatch: z
+      .array(z.object({ tool: z.string(), feld: z.string(), muster: z.string() }).strict())
+      .optional(),
+    /**
      * Turn 2+: sources retrieved in an earlier turn must still be usable. Fails
      * when the answer denies having sources while the thread has them.
      */
