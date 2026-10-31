@@ -1,6 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { _resetModelHealthForTests, modelHealthSnapshot } from '../ai/modelHealth.js';
+import {
+  _resetModelHealthForTests,
+  isModelSlow,
+  modelHealthSnapshot,
+  primeBaseline,
+} from '../ai/modelHealth.js';
 
 import { withUsageTracking } from './usageModelMiddleware.js';
 
@@ -116,5 +121,40 @@ describe('withUsageTracking', () => {
     expect(recordTokenUsage).toHaveBeenCalledWith(
       expect.objectContaining({ inputTokens: 11635, outputTokens: 5, cachedInputTokens: 11520 })
     );
+  });
+
+  it('reicht die Prompt-Länge an die Zäh-Erkennung weiter', async () => {
+    // Basislinie so hoch, dass jede Probe zäh wäre — beurteilt wird nur, was
+    // nicht als langer Prompt ankommt.
+    primeBaseline('cortecs', 'fake-model', 1e9);
+    const slowModel = (inputTokens: number): LanguageModel =>
+      ({
+        specificationVersion: 'v4',
+        provider: 'fake',
+        modelId: 'fake-model',
+        doGenerate: async () => {
+          await new Promise((resolve) => setTimeout(resolve, 5));
+          return {
+            content: [{ type: 'text', text: 'ok' }],
+            usage: { inputTokens, outputTokens: 200 },
+            finishReason: 'stop',
+            warnings: [],
+          };
+        },
+      }) as unknown as LanguageModel;
+    const call = (inputTokens: number) =>
+      (
+        withUsageTracking(slowModel(inputTokens), 'cortecs') as unknown as {
+          doGenerate: () => Promise<unknown>;
+        }
+      ).doGenerate();
+
+    await call(60_000);
+    await call(60_000);
+    expect(isModelSlow('cortecs', 'fake-model')).toBe(false);
+
+    await call(2_000);
+    await call(2_000);
+    expect(isModelSlow('cortecs', 'fake-model')).toBe(true);
   });
 });

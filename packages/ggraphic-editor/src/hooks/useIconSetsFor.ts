@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react';
 
 import { iconSetsLoaded, loadIconSetsFor } from '@ggraphic/editor/utils/canvasIcons';
 
-import { selectedCatalogIconIds, type IconIdCarrier } from '../utils/iconInstances';
+import { selectedCatalogIconIds, type IconIdCarrier } from '../utils/iconInstances.js';
 
 /**
  * Loads the icon sets a page's icons come from and re-renders once they are

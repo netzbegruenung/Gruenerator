@@ -128,6 +128,18 @@ const PROBES = [
   ['a', 'brand asset id', `export const s = 'gruene-de-logo';`],
   ['a', 'suffixed wordmark identifier', `export const DE_WORDMARKS = [];`],
   ['a', 'suffixed Balken identifier', `export type BalkenGroupProps = {};`],
+  ['a', 'Balken state key', `export const k = (s) => s.balkenInstances;`, 'Balken element kind'],
+  [
+    'a',
+    'Balken instance type',
+    `import type { BalkenInstance } from './balkenUtils.js';`,
+    'Balken element kind',
+  ],
+  ['a', 'Balken action', `export const f = (a) => a.updateBalken?.('x', {});`, 'Balken element kind'],
+  ['a', 'injected Balken prop', `export const p = { onAddBalken: null };`, 'Balken element kind'],
+  ['a', 'Balken kind tag', `export const t = { kind: 'balken', mode: 'single' };`, 'Balken element kind'],
+  ['a', 'Balken kind check', `export const b = (i) => i.type === 'balken';`, 'Balken element kind'],
+  ['a', 'Balken kind case', `switch (k) { case 'balken': break; }`, 'Balken element kind'],
   ['a', 'logo variant identifier', `export const logoAtWhite = 1;`],
   ['b', 'CD colour in CSS', { files: [css('a { color: #005538; }')] }],
   ['b', 'CD colour with alpha', `export const c = '#005538CC';`],
@@ -286,10 +298,16 @@ const PROBES = [
     { files: [text('NOTICE', `${PROVENANCE_NOTICE}Thanks to the Gruenerator team.\n`)] },
   ],
   ['f', 'missing SPDX header', { files: [text('src/probe.ts', 'export const s = 1;\n')] }],
+  [
+    'g',
+    'production import of a test fixture',
+    `import { V2_CORE_STEP } from '@ggraphic/schema/document/__fixtures__/v2Fixture';`,
+  ],
 ];
 
-// + the clean package, the ambiguous word and the empty file list below
-export const PROBE_COUNT = PROBES.length + 3;
+// + the clean package, the ambiguous word, the bar chart, the test fixture import
+// and the empty file list below
+export const PROBE_COUNT = PROBES.length + 5;
 
 export function runSelfTest() {
   const problems = [];
@@ -317,6 +335,27 @@ export function runSelfTest() {
   const ambiguous = checkFiles(pkg({ files: [source(`export const s = 'Tanne';`)] }));
   if (ambiguous.failures.length > 0 || ambiguous.warnings.length === 0) {
     problems.push('probe "ambiguous word" must warn without failing');
+  }
+  // German for a bar chart, not the Grünerator's kind: warns, never fails.
+  const chart = checkFiles(
+    pkg({ files: [source(`export const g = { group: 'balken', tags: ['balken'] };`)] })
+  );
+  if (chart.failures.length > 0 || chart.warnings.length === 0) {
+    problems.push('probe "bar chart group" must warn without failing');
+  }
+  // A test may import a fixture.
+  const fixtureInTest = checkFiles(
+    pkg({
+      files: [
+        text(
+          'src/probe.vitest.ts',
+          `${SPDX}import { V2_CORE_STEP } from './__fixtures__/v2Fixture.js';\n`
+        ),
+      ],
+    })
+  );
+  if (fixtureInTest.failures.length > 0) {
+    problems.push('probe "fixture import in a test" must pass');
   }
   if (!checkFiles([]).failures.some((f) => f.message.includes('no files'))) {
     problems.push('probe "empty file list" must fail — a moved package would pass silently');

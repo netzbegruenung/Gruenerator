@@ -6,10 +6,10 @@ import { at, deCarousel, options } from '../../composer/sharepicSpecFixtures';
 
 import {
   buildPptxModel,
-  PPTX_MAPPED_PAGE_KEYS,
+  pptxMappedPageKeys,
   PPTX_UNMAPPED_PAGE_KEYS,
   type PptxPageState,
-} from './buildPptxModel';
+} from '@ggraphic/editor/export/pptx/buildPptxModel';
 
 import type {
   PptxChartItem,
@@ -18,7 +18,7 @@ import type {
   PptxRasterRequest,
   PptxShapeItem,
   PptxTextItem,
-} from './types';
+} from '@ggraphic/editor/export/pptx/types';
 import type { AdditionalText } from '@ggraphic/editor/configs/types';
 import type { ChartInstance } from '@ggraphic/editor/utils/chartUtils';
 import type { ShapeInstance } from '@ggraphic/editor/utils/shapes';
@@ -258,8 +258,9 @@ describe('buildPptxModel — fixtures', () => {
   });
 
   it('lists every key of the freeform state as mapped or deliberately unmapped', () => {
+    // The Balken's list is mapped through its registration (`brand/balkenKind.ts`).
     const known = new Set<string>([
-      ...PPTX_MAPPED_PAGE_KEYS,
+      ...pptxMappedPageKeys(),
       ...Object.keys(PPTX_UNMAPPED_PAGE_KEYS),
     ]);
     expect(Object.keys(everyKind).filter((key) => !known.has(key))).toEqual([]);

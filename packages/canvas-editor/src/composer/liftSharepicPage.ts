@@ -20,7 +20,7 @@ import {
   sharepicSlideSchema,
 } from '@gruenerator/contracts';
 
-import { withCardResizedFor } from './cardFollowsText';
+import { withCardResizedFor } from '@ggraphic/editor/composer/cardFollowsText';
 import { type ComposedSlide } from './composeSharepic';
 import { invertLiftedText, slideProvenance, type SharepicProvenance } from './sharepicProvenance';
 

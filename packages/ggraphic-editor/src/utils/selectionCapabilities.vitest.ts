@@ -1,6 +1,10 @@
 // SPDX-License-Identifier: MPL-2.0
-import { describe, expect, it } from 'vitest';
+import { beforeAll, describe, expect, it } from 'vitest';
 
+import {
+  registerElementKind,
+  type ElementKindRegistration,
+} from '@ggraphic/editor/utils/elementKinds';
 import { selectionCapabilities } from '@ggraphic/editor/utils/selectionCapabilities';
 
 import type { CanvasItem } from '@ggraphic/editor/utils/canvasLayerManager';
@@ -10,10 +14,21 @@ const renderList = [
   { id: 'claim', type: 'element', data: { id: 'claim', type: 'text' } },
   { id: 't-1', type: 'additional-text', data: { id: 't-1', text: 'Hallo' } },
   { id: 'u-1', type: 'user-image', data: { id: 'u-1' } },
-  { id: 'b-1', type: 'balken', data: { id: 'b-1', texts: ['Klima'] } },
+  { id: 's-1', type: 'stamp', data: { id: 's-1', label: 'Klima' } },
   { id: 'c-1', type: 'circle-badge', data: { id: 'c-1', textLines: [] } },
   { id: 'p-1', type: 'pill-badge', data: { id: 'p-1', text: 'Neu' } },
 ] as unknown as CanvasItem[];
+
+// A host kind whose text opens in its own editor; the core declares none.
+beforeAll(() =>
+  registerElementKind({
+    kind: 'stamp',
+    stateKey: 'stampInstances',
+    actions: { update: 'updateStamp', remove: 'removeStamp' },
+    name: () => 'Stempel',
+    editableText: true,
+  } as unknown as ElementKindRegistration<never>)
+);
 
 const canEditText = (ids: string[], readOnly = false) =>
   selectionCapabilities({
@@ -31,11 +46,11 @@ describe('canEditText', () => {
     expect(canEditText(['headline'])).toBe(true);
   });
 
-  it('gilt für Balken, Störer und Badge — ihre Zeilen öffnen über `textEditorOpeners`', () => {
-    expect(canEditText(['b-1'])).toBe(true);
+  it('gilt für Host-Arten mit `editableText`, Störer und Badge — ihre Zeilen öffnen über `textEditorOpeners`', () => {
+    expect(canEditText(['s-1'])).toBe(true);
     expect(canEditText(['c-1'])).toBe(true);
     expect(canEditText(['p-1'])).toBe(true);
-    expect(canEditText(['b-1'], true)).toBe(false);
+    expect(canEditText(['s-1'], true)).toBe(false);
   });
 
   it('gilt nicht für feste Vorlagen-Texte, Bilder, Mehrfachauswahl und den Lesemodus', () => {

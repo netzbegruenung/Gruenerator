@@ -36,6 +36,7 @@
     "check:internal": "node scripts/check-internal-content.mjs",
     "check:ggraphic-licenses": "node scripts/check-ggraphic-licenses.mjs --self-test && node scripts/check-ggraphic-licenses.mjs",
     "check:ggraphic": "node scripts/check-ggraphic-core-boundary.mjs --self-test && node scripts/check-ggraphic-core-boundary.mjs",
+    "check:ggraphic-esm": "node scripts/check-ggraphic-esm-specifiers.mjs --self-test && node scripts/check-ggraphic-esm-specifiers.mjs",
     "ggraphic:export-dryrun": "node scripts/ggraphic-export-dryrun.mjs",
     "test:scripts": "vitest run --root scripts --config vitest.config.mjs",
     "check:overlays": "node scripts/check-overlay-layers.mjs",

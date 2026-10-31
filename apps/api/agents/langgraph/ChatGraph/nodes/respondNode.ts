@@ -13,6 +13,10 @@ import { type ChatIntentId, isGroundableProse } from '@gruenerator/shared/chat-i
 import { roleAwareDefaultRecipeMention } from '../../../../routes/chat/agents/lvRecipePreference.js';
 import { isTabelleAuswertenMountable } from '../../../../routes/chat/agents/tabelleAuswertenTool.js';
 import {
+  methodPrecedenceNote,
+  renderMethodRecipeBlock,
+} from '../../../../routes/chat/services/agenticLoop/recipeRegistry.js';
+import {
   EDITOR_SURFACE_NOUNS,
   looksLikeChitchatTurn,
   resolveEditorSurfaceKind,
@@ -79,6 +83,9 @@ const log = createLogger('ChatGraph:Respond');
  * Attachment context limits.
  * These prevent large documents from consuming the entire token budget.
  */
+/** Methoden-Rezepte, die im Einzeldurchlauf nur bei diesem Intent in den Prompt gehören. */
+const METHOD_NEEDS_INTENT: Record<string, string> = { bundestagsrecherche: 'bundestag' };
+
 const ATTACHMENT_LIMITS = {
   /** Floor per document; the effective per-doc limit follows the total budget. */
   PER_DOCUMENT_CHARS: 25000,
@@ -2084,23 +2091,28 @@ async function buildPromptBlockContext(state: ChatGraphState, opts: SystemMessag
   // path, detailed block only on product meta questions ("was kannst du",
   // "welche MCP-Server kennst du"). Both single-pass paths that CHITCHAT_RE
   // keeps out of the loop and loop turns (which inherit systemMessage) get it.
-  // Excluded from the customSystemPrompt branch below — that prompt replaces
-  // the ENTIRE persona, and forcing the Grünerator identity into it would
-  // override user-defined neutral/off-brand personas.
+  //
+  // Im Rollen-Chat (`customSystemPrompt`) fehlt nur die IDENTITÄT: die Rolle
+  // ersetzt die Persona bewusst, „Du bist Teil des Grünerator" würde
+  // nutzerdefinierte neutrale Rollen überschreiben. Die Produkt-FAKTEN
+  // (Wissensblock, Begriffe, Seitenkarte) bekommt er auf Produktfragen
+  // trotzdem — sonst beantwortet er „Wie erstelle ich ein Sharepic?" aus dem
+  // Vorwissen des Modells (#5016). Im Loop trägt er `product_knowledge` ohnehin.
+  //
+  // Dieselbe Textfassung wie `toolCatalog`/`catalogAssembly`: mit einer
+  // @-Erwähnung in der Nachricht dürfen die beiden Tore nicht auseinanderlaufen.
   const isNeutralTurn = intent === 'summary';
-  const userQuestion = lastUserText(state);
+  const userQuestion = state.lastUserTextNoMentions ?? lastUserText(state);
   const productIdentity = isNeutralTurn ? '' : buildCompactProductIdentity(state.userLocale);
-  // Der Block macht I/O (versteckte Agenten, verbundene MCP-Server) — im
-  // Rollen-Chat wird er nie gerendert, also dort gar nicht erst gebaut.
   let productKnowledge = '';
-  if (!state.customSystemPrompt && !isNeutralTurn && isProductMetaQuestion(userQuestion)) {
+  if (!isNeutralTurn && isProductMetaQuestion(userQuestion)) {
     productKnowledge = await buildProductKnowledgeBlock({
       locale: state.userLocale,
       userId: state.agentConfig?.userId ?? null,
       question: userQuestion,
     });
     log.debug('[Respond] product-knowledge block attached');
-  } else if (!state.customSystemPrompt && !isNeutralTurn && userQuestion.length <= 400) {
+  } else if (!isNeutralTurn && userQuestion.length <= 400) {
     // Only the terms this message names — „Was ist Panda?" must not be
     // answered from priors (Panda Security, live 27.10.2026). Short turns
     // only: in pasted material a term is content, not a question.
@@ -2108,11 +2120,13 @@ async function buildPromptBlockContext(state: ChatGraphState, opts: SystemMessag
   }
 
   // Documentation page map: every doc page with URL + lead paragraph (~2.5k
-  // tokens for the whole corpus). Attached on operating questions so the model
-  // can name AND link the right page even on turns that never reach the agentic
-  // loop — CHITCHAT_RE pins "hilfe"/"was kannst du" to the single-pass path,
-  // where `gruenerator_docs_search` does not exist. Complementary to that tool,
-  // not redundant: the map lists the pages, the tool retrieves section text.
+  // tokens for the whole corpus). Attached on operating questions ("wie
+  // erstelle ich ein Sharepic?") so the model can name AND link the right page
+  // even on turns that never reach the agentic loop, where
+  // `gruenerator_docs_search` does not exist. Bare "hilfe"/"was kannst du" do
+  // NOT get the map — they get the knowledge block above, which points to the
+  // docs. Complementary to the tool, not redundant: the map lists the pages,
+  // the tool retrieves section text.
   //
   // Hängt am gepinnten WERKZEUG statt am Intent `hilfe`. Der Intent deckte zwei
   // verschiedene Fälle in einer Bedingung ab, und nur einer davon brauchte ihn:
@@ -2204,9 +2218,43 @@ async function buildPromptBlockContext(state: ChatGraphState, opts: SystemMessag
   // („## AKTIVE PLATTFORM: PM Hessen (Partei)"), auch wenn der Rumpf ein
   // angelernter Stil ist — der Stil ersetzt den Rezepttext, nicht das Rezept.
   // Nur die freie Mention ohne Systemrezept läuft unter ihrem eigenen Namen.
-  const skillFragment = resolved
+  const textFormFragment = resolved
     ? `\n\n## AKTIVE ${resolved.replacesSystem || resolved.source === 'system' ? 'PLATTFORM' : 'TEXTFORM'}: ${resolved.title}\n${resolved.body}${offerNote(state, [resolved.mention])}`
     : '';
+
+  // Methoden-Rezepte (`@bundestag` → Bundestag-Recherche, Rechtsstand) stehen
+  // NEBEN der Textsorte, nicht an ihrer Stelle — eigene Überschrift, eigene
+  // Vorrangregel. Aufgelöst wird auf beiden Pfaden (der Titel entscheidet unten
+  // über den Formatgeber), in den Prompt kommt der Rumpf nur im Einzelpfad: im
+  // Loop trägt ihn die Rezept-Registry (`catalogAssembly`), hier stünde er
+  // sonst doppelt.
+  // Die Bundestag-Methode beschreibt den Umgang mit `bundestag`/`parlament_lesen`.
+  // Läuft der Turn ohne Schleife, bleibt der Intent nur dann `bundestag`, wenn der
+  // Abruf wirklich Bundestagsquellen geliefert hat; fiel er auf `web` zurück
+  // (`loop_only_degraded`), stünde die Methode im Prompt, ohne dass ihre
+  // Werkzeuge existieren, und gäbe dort sogar die Antwortform vor.
+  const methodRunsHere = (mention: string): boolean =>
+    opts.loop === true || (METHOD_NEEDS_INTENT[mention] ?? state.intent) === state.intent;
+  const resolvedMethods = (
+    await Promise.all(
+      (state.methodSkillMentions ?? [])
+        .filter((mention) => mention !== resolved?.mention && methodRunsHere(mention))
+        .map((mention) =>
+          resolveRecipeBody({
+            mention,
+            recipeId: null,
+            userId: isNeutralTurn ? null : (agentConfig.userId ?? null),
+          })
+        )
+    )
+  ).filter((r): r is NonNullable<typeof r> => r !== null);
+  const methodRecipes = opts.loop ? [] : resolvedMethods;
+  const methodFragment = methodRecipes.length
+    ? `\n\n${methodRecipes.map((r) => renderMethodRecipeBlock(r.title, r.body)).join('\n\n')}`
+    : '';
+  const skillFragment = methodFragment
+    ? `${methodFragment}${textFormFragment}\n\n${methodPrecedenceNote(textFormFragment !== '')}`
+    : textFormFragment;
 
   // Dieselbe Vokabel wie die Werkzeug-Tür (`[recipeTools] [Rezept] gewählt=…
   // quelle=…`), damit im Log vergleichbar wird, welcher der beiden Wege ein
@@ -2217,7 +2265,14 @@ async function buildPromptBlockContext(state: ChatGraphState, opts: SystemMessag
   // Was das Modell wirklich vor sich hat — `quelle=fehlt`, wenn kein Rezepttext
   // gefunden wurde. Die Formatregel unten hängt daran, nicht an der blossen
   // Absicht.
-  const activeTextFormTitle = resolved ? resolved.title : null;
+  //
+  // Ohne Textsorte gibt ein Methoden-Rezept die Form vor: der Bundestag-
+  // Rezepttext trägt bewusst Formregeln (vollständige Antworten, alle
+  // einschlägigen Drucksachen, Fundstellen zuerst bei „wo/wann") — die
+  // Standardregel „2–4 Absätze" würde genau die zu kurzen Antworten
+  // zurückbringen, die das Rezept behebt. Mit Textsorte regelt die Methode nur
+  // Recherche, Belege und Lücken.
+  const activeTextFormTitle = resolved ? resolved.title : (resolvedMethods[0]?.title ?? null);
 
   if (effectiveSkillMention || effectiveRecipe.recipeId) {
     const quelle = resolved?.source ?? 'fehlt';
@@ -2235,15 +2290,17 @@ async function buildPromptBlockContext(state: ChatGraphState, opts: SystemMessag
   // gepinntes Rezept läuft unter seinem eigenen Namen, und die Abzeichenzeile
   // soll dasselbe nennen wie die Überschrift im Prompt (#2939). Der Prompttext
   // bleibt draußen — hier steht nur, WAS galt.
-  if (resolved) {
-    state.usedRecipes = [
-      {
-        mention: resolved.mention,
-        title: resolved.title,
-        source: resolved.source,
-        ...(resolved.id ? { id: resolved.id } : {}),
-      },
-    ];
+  const promptRecipes = [...methodRecipes, ...(resolved ? [resolved] : [])];
+  if (methodRecipes.length) {
+    log.info(`[Rezept] Methoden im Prompt: ${methodRecipes.map((r) => r.mention).join(',')}`);
+  }
+  if (promptRecipes.length > 0) {
+    state.usedRecipes = promptRecipes.map((r) => ({
+      mention: r.mention,
+      title: r.title,
+      source: r.source,
+      ...(r.id ? { id: r.id } : {}),
+    }));
   }
 
   const shared = {
@@ -2389,8 +2446,8 @@ const PROMPT_BLOCKS = [
   { id: 'locale-context', branches: BOTH, render: (ctx) => ctx.localeContext },
   { id: 'platform-context', branches: BOTH, render: (ctx) => ctx.platformContext },
   { id: 'product-identity', branches: DEFAULT_ONLY, render: (ctx) => ctx.productIdentity },
-  { id: 'product-knowledge', branches: DEFAULT_ONLY, render: (ctx) => ctx.productKnowledge },
-  { id: 'docs-page-map', branches: DEFAULT_ONLY, render: (ctx) => ctx.docsPageMap },
+  { id: 'product-knowledge', branches: BOTH, render: (ctx) => ctx.productKnowledge },
+  { id: 'docs-page-map', branches: BOTH, render: (ctx) => ctx.docsPageMap },
   { id: 'user-instructions', branches: BOTH, render: (ctx) => ctx.userInstructionsFormatted },
   { id: 'intent-guidance', branches: DEFAULT_ONLY, render: (ctx) => ctx.intentGuidance },
   { id: 'memory-context', branches: BOTH, render: (ctx) => ctx.memoryContextFormatted },

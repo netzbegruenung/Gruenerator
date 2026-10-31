@@ -7,7 +7,7 @@ import { type IconlisteItem, type ListeItem, type Placed } from './composeTypes'
 import { SHAREPIC_ICON_IDS } from './sharepicIcons';
 import { CARD_MARKER, GAP } from './sharepicLayoutConstants';
 import { type BuildPass, type SlideCtx } from './slideContext';
-import { largestSizeWordsFit } from './textFit';
+import { largestSizeWordsFit } from '@ggraphic/editor/composer/textFit';
 
 export function layoutListe(ctx: SlideCtx, item: ListeItem, id: string, pass: BuildPass): Placed[] {
   const {

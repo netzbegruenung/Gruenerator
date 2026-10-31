@@ -38,6 +38,7 @@ interface WolkePanelProps {
   autoSync: boolean;
   isOwner: boolean;
   onPreview: (doc: NotebookDocumentRecord) => void;
+  onReindex: (ids: string[]) => Promise<void>;
 }
 
 function linkProblem(value: string): string | null {
@@ -70,6 +71,7 @@ export function WolkePanel({
   autoSync,
   isOwner,
   onPreview,
+  onReindex,
 }: WolkePanelProps) {
   const queryClient = useQueryClient();
   const confirm = useConfirm();
@@ -412,6 +414,15 @@ export function WolkePanel({
                             <span className="text-xs text-grey-500 @min-[760px]:hidden">
                               {formatRelativeTime(doc.created_at)} · {SOURCE_STATUS_LABELS[status]}
                             </span>
+                            {status === 'failed' && doc.reindexable ? (
+                              <button
+                                type="button"
+                                onClick={() => void onReindex([doc.id])}
+                                className="w-fit text-left text-xs text-secondary-700 hover:underline dark:text-secondary-300"
+                              >
+                                Neu indexieren
+                              </button>
+                            ) : null}
                           </span>
                           <span className="hidden text-grey-500 @min-[760px]:block">
                             {formatRelativeTime(doc.created_at)}

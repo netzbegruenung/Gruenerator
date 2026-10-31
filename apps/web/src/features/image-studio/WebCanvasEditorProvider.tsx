@@ -8,6 +8,7 @@ import { useAuthStore } from '../../stores/authStore';
 import { usePrintVorlage } from '../vorlagen/hooks/usePrintVorlage';
 import {
   canvasVorlagenQuery,
+  folienVorlagenQuery,
   printVorlagenQuery,
   sharepicBloeckeQuery,
   sharepicSeitenQuery,
@@ -93,6 +94,7 @@ export function WebCanvasEditorProvider({
               listSeiten: () => queryClient.fetchQuery(sharepicSeitenQuery()),
               composeSeite,
               listCanvas: () => queryClient.fetchQuery(canvasVorlagenQuery()),
+              loadDeckVorlagen: () => queryClient.fetchQuery(folienVorlagenQuery()),
               listPrint: () => queryClient.fetchQuery(printVorlagenQuery()),
               openPrintAsNew: (vorlage) => void openPrintVorlage(vorlage),
               listBloecke: () => queryClient.fetchQuery(sharepicBloeckeQuery()),

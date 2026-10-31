@@ -159,6 +159,8 @@ export async function updateDocumentMetadata(
     if (updates.markdownContent !== undefined)
       updateData.markdown_content = updates.markdownContent;
     if (updates.pageCount !== undefined) updateData.page_count = updates.pageCount;
+    if (updates.processingAttempts !== undefined)
+      updateData.processing_attempts = updates.processingAttempts;
 
     // EINE Anweisung für Spalten und Metadaten. Metadaten werden in der
     // Datenbank zusammengeführt, nicht lesen-ändern-schreiben: ein langer

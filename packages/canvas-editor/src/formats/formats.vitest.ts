@@ -1,5 +1,5 @@
 import {
-  CANVAS_FORMAT_GROUP_ORDER,
+  canvasFormatGroupOrder,
   CANVAS_FORMATS,
   getCanvasFormat,
   getCanvasFormatOrDefault,
@@ -92,7 +92,7 @@ describe('Format-Ids', () => {
   });
 
   it('Print steht nicht in den Studio-Gruppen', () => {
-    expect(CANVAS_FORMAT_GROUP_ORDER).toEqual([
+    expect(canvasFormatGroupOrder()).toEqual([
       'sharepic',
       'sharepic-tall',
       'profilbild',

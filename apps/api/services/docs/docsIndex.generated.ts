@@ -413,6 +413,24 @@ export const DOCS_PAGES: readonly DocPage[] = [
     "lead": "normalerweise stelle ich dir ein neues Feature vor. Heute sind es gleich vier – und alle auf einmal."
   },
   {
+    "url": "/docs/sonstiges/archiv/newsletter/2026-08-sommer-update",
+    "title": "August 2026: Das große Sommer-Update",
+    "category": "Archiv",
+    "lead": "vielleicht liest du diese Mail gerade am Strand, auf dem Sofa oder beim Wandern. Denn: Es ist Sommerpause! Wo nicht Wahlkampf ist, wird es etwas ruhiger, die Mails nehmen ab, die Abwesenheitsnotizen…"
+  },
+  {
+    "url": "/docs/sonstiges/archiv/newsletter/2026-09-herbst-update",
+    "title": "September 2026: Das Herbst-Update",
+    "category": "Archiv",
+    "lead": "Jacob Coxon hat Anfang September seinen Job bei Anthropic gekündigt. Führende KI-Unternehmen würden trotz möglicher existenzieller Gefahren immer leistungsfähigere Systeme entwickeln und damit mit un…"
+  },
+  {
+    "url": "/docs/sonstiges/archiv/newsletter/2026-10-neue-sharepics",
+    "title": "Oktober 2026: Neue Sharepics & Europa ist zurück",
+    "category": "Archiv",
+    "lead": "unser Newsletter beginnt heute in einem gehobenen Restaurant in San Francisco. Am Tisch sitzen Führungskräfte des KI-Unternehmens Anthropic und religiöse Gelehrte. Doch statt über Gott diskutieren si…"
+  },
+  {
     "url": "/docs/sonstiges/archiv/signal-nachrichten/2026-05-erstelle-dein-notebook",
     "title": "Mai 2026: Das Notebook-Update",
     "category": "Archiv",
@@ -777,7 +795,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Wir messen, statt nur zu behaupten",
     "anchor": "#wir-messen-statt-nur-zu-behaupten",
     "category": "Basics",
-    "text": "Wo Anbieter die Umweltwirkung einer Anfrage direkt zurückmelden, übernehmen wir diese Werte. Das gilt für GreenPT und teilweise für Melious: GreenPT liefert Energieverbrauch und CO₂-Emissionen zu jeder Antwort, Melious nur zu nicht gestreamten Anfragen. Für gestreamte Chat-Antworten über Melious schätzen wir den Verbrauch mit einem Faktor, den wir aus Melious’ eigenen Messwerten abgeleitet haben. Für Anfragen ohne solche Messwerte schätzen wir den Verbrauch anhand der tatsächlich erzeugten und eingelesenen Tokens. Die verwendeten Faktoren beruhen auf eigenen Messreihen vergleichbarer KI-Systeme. Standort, Rechenzentrum und technische Auslastung können wir dabei nicht immer vollständig sehen. Deshalb behandeln wir Schätzungen als Schätzungen und zeigen Unsicherheit nicht als Scheingenauigkeit. Unsere Hauptzahl orientiert sich am Strommix am Ort des Rechenzentrums. Zusätzlich berücksichtigen wir, wenn ein Anbieter nachweislich erneuerbaren Strom beschafft. Beides ist relevant: Ein Ökostromvertrag unterstützt den Ausbau erneuerbarer Energien, der lokale Strommix beschreibt jedoch die physische Versorgung zum Zeitpunkt der Anfrage."
+    "text": "Wo Anbieter die Umweltwirkung einer Anfrage direkt zurückmelden, übernehmen wir diese Werte. Das gilt für GreenPT und Melious: Beide liefern Energieverbrauch und CO₂-Emissionen zu jeder Antwort, Melious seit Oktober 2026 auch zu gestreamten Chat-Antworten. Meldet Melious für einen Aufruf keinen Wert, schätzen wir den Verbrauch mit einem Faktor, den wir aus Melious’ eigenen Messwerten abgeleitet haben. Für Anfragen ohne solche Messwerte schätzen wir den Verbrauch anhand der tatsächlich erzeugten und eingelesenen Tokens. Die verwendeten Faktoren beruhen auf eigenen Messreihen vergleichbarer KI-Systeme. Standort, Rechenzentrum und technische Auslastung können wir dabei nicht immer vollständig sehen. Deshalb behandeln wir Schätzungen als Schätzungen und zeigen Unsicherheit nicht als Scheingenauigkeit. Unsere Hauptzahl orientiert sich am Strommix am Ort des Rechenzentrums. Zusätzlich berücksichtigen wir, wenn ein Anbieter nachweislich erneuerbaren Strom beschafft. Beides ist relevant: Ein Ökostromvertrag unterstützt den Ausbau erneuerbarer Energien, der lokale Strommix beschreibt jedoch die physische Versorgung zum Zeitpunkt der Anfrage."
   },
   {
     "url": "/docs/basics/nachhaltigkeit",
@@ -1393,7 +1411,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Rezepte auswählen",
     "anchor": "#rezepte-auswählen",
     "category": "Chat",
-    "text": "Rezepte sind spezialisierte Schreib-Modi, die auf bestimmte Textarten optimiert sind — sie kennen den richtigen Ton, die Struktur und die Längenvorgaben der jeweiligen Plattform. So wählst du ein Rezept: Tippe @ im Eingabefeld und wähle aus der Liste — Rezepte stehen dort ganz oben, oder öffne das „+\"-Menü im Eingabefeld — dort findest du auch die Rezept-Bibliothek mit allen Rezepten @presse Pressemitteilung @instagram Instagram @facebook Facebook @twitter Twitter / X @linkedin LinkedIn @reel Reel / TikTok @aktion Aktionsideen @wahlpruefstein Wahlprüfsteine @buergermail Bürgerinnen-Mail @antrag Antrag für Stadt- oder Gemeinderat @presse-berlin-fraktion PM Berlin (Fraktion) @presse-berlin-partei PM Berlin (Partei) @insta-berlin Insta Berlin @presse-mv-fraktion PM MV (Fraktion) @presse-mv-partei PM MV (Partei) @insta-mv Insta MV @presse-thueringen PM Thüringen @insta-thueringen Insta Thüringen @presse-brandenburg PM Brandenburg @insta-brandenburg Insta Brandenburg @presse-bayern-fraktion PM Bayern (Fraktion) @presse-bayern-partei PM Bayern (Partei) @presse-hessen-fraktion PM Hessen (Fraktion) @presse-hessen-partei PM Hessen (Partei) @presse-at Aussendung (AT) @presse-saarland PM"
+    "text": "Rezepte sind spezialisierte Schreib-Modi, die auf bestimmte Textarten optimiert sind — sie kennen den richtigen Ton, die Struktur und die Längenvorgaben der jeweiligen Plattform. So wählst du ein Rezept: Tippe @ im Eingabefeld und wähle aus der Liste — Rezepte stehen dort ganz oben, oder öffne das „+\"-Menü im Eingabefeld — dort findest du auch die Rezept-Bibliothek mit allen Rezepten @presse Pressemitteilung @instagram Instagram @facebook Facebook @twitter Twitter / X @linkedin LinkedIn @reel Reel / TikTok @aktion Aktionsideen @wahlpruefstein Wahlprüfsteine @buergermail Bürgerinnen-Mail @antrag Antrag für Stadt- oder Gemeinderat @bundestagsrecherche Bundestag-Recherche @presse-berlin-fraktion PM Berlin (Fraktion) @presse-berlin-partei PM Berlin (Partei) @insta-berlin Insta Berlin @presse-mv-fraktion PM MV (Fraktion) @presse-mv-partei PM MV (Partei) @insta-mv Insta MV @presse-thueringen PM Thüringen @insta-thueringen Insta Thüringen @presse-brandenburg PM Brandenburg @insta-brandenburg Insta Brandenburg @presse-bayern-fraktion PM Bayern (Fraktion) @presse-bayern-partei PM Bayern (Partei) @presse-hessen-fraktion PM Hessen (Fraktion) @presse-hessen-partei PM Hessen (Partei)"
   },
   {
     "url": "/docs/chat/ki-chat",
@@ -1401,7 +1419,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Rezepte auswählen",
     "anchor": "#rezepte-auswählen",
     "category": "Chat",
-    "text": "Saarland @presse-sachsen-anhalt-fraktion PM Sachsen-Anhalt (Fraktion) @presse-sachsen-anhalt-partei PM Sachsen-Anhalt (Partei) @insta-saarland Insta Saarland @insta-bayern Insta Bayern @insta-hessen Insta Hessen @insta-sachsen-anhalt Insta Sachsen-Anhalt @insta-at Insta Österreich @buerger-at Bürgerinnen-Mail Österreich @buerger-bayern Bürgerinnen-Mail Bayern @buerger-berlin Bürgerinnen-Mail Berlin @buerger-brandenburg Bürgerinnen-Mail Brandenburg @buerger-hamburg Bürgerinnen-Mail Hamburg @buerger-hessen Bürgerinnen-Mail Hessen @buerger-mv Bürgerinnen-Mail Mecklenburg-Vorpommern @buerger-saarland Bürgerinnen-Mail Saarland @buerger-sachsen-anhalt Bürgerinnen-Mail Sachsen-Anhalt @buerger-schleswig-holstein Bürgerinnen-Mail Schleswig-Holstein @buerger-thueringen Bürgerinnen-Mail Thüringen @beschluss-bayern Beschlussantrag Bayern @beschluss-berlin Beschlussantrag Berlin @beschluss-brandenburg Beschlussantrag Brandenburg @beschluss-hessen Beschlussantrag Hessen @beschluss-mv Beschlussantrag Mecklenburg-Vorpommern @beschluss-saarland Beschlussantrag Saarland @beschluss-sachsen-anhalt Beschlussantrag Sachsen-Anhalt @beschluss-thueringen Beschlussantrag Thüringen @wahlprogramm-bayern"
+    "text": "@presse-at Aussendung (AT) @presse-saarland PM Saarland @presse-sachsen-anhalt-fraktion PM Sachsen-Anhalt (Fraktion) @presse-sachsen-anhalt-partei PM Sachsen-Anhalt (Partei) @insta-saarland Insta Saarland @insta-bayern Insta Bayern @insta-hessen Insta Hessen @insta-sachsen-anhalt Insta Sachsen-Anhalt @insta-at Insta Österreich @buerger-at Bürgerinnen-Mail Österreich @buerger-bayern Bürgerinnen-Mail Bayern @buerger-berlin Bürgerinnen-Mail Berlin @buerger-brandenburg Bürgerinnen-Mail Brandenburg @buerger-hamburg Bürgerinnen-Mail Hamburg @buerger-hessen Bürgerinnen-Mail Hessen @buerger-mv Bürgerinnen-Mail Mecklenburg-Vorpommern @buerger-saarland Bürgerinnen-Mail Saarland @buerger-sachsen-anhalt Bürgerinnen-Mail Sachsen-Anhalt @buerger-schleswig-holstein Bürgerinnen-Mail Schleswig-Holstein @buerger-thueringen Bürgerinnen-Mail Thüringen @beschluss-bayern Beschlussantrag Bayern @beschluss-berlin Beschlussantrag Berlin @beschluss-brandenburg Beschlussantrag Brandenburg @beschluss-hessen Beschlussantrag Hessen @beschluss-mv Beschlussantrag Mecklenburg-Vorpommern @beschluss-saarland Beschlussantrag Saarland @beschluss-sachsen-anhalt Beschlussantrag Sachsen-Anhalt @beschluss-thueringen"
   },
   {
     "url": "/docs/chat/ki-chat",
@@ -1409,7 +1427,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Rezepte auswählen",
     "anchor": "#rezepte-auswählen",
     "category": "Chat",
-    "text": "Wahlprogramm Bayern @wahlprogramm-berlin Wahlprogramm Berlin @wahlprogramm-brandenburg Wahlprogramm Brandenburg @wahlprogramm-sachsen-anhalt Wahlprogramm Sachsen-Anhalt @wahlprogramm-thueringen Wahlprogramm Thüringen @reisekosten-nrw Reisekosten NRW (Beta) @reisekosten-nrw-vorbereiten Reise vorbereiten NRW (Beta) Neben den mitgelieferten Rezepten oben zeigt die @-Liste auch deine eigenen Rezepte, mit deinen Projekten geteilte und öffentliche Rezepte anderer aus dem Marktplatz. Sie stehen in eigenen Abschnitten: „aus deinen Gruppen\" und „von anderen\" (in der App: „Rezepte aus deinen Gruppen\", „Rezepte von anderen\"). Auf der Detailseite eines Rezepts aus dem Marktplatz öffnet Im Chat verwenden den Chat direkt mit diesem Rezept aktiviert. Du kannst ein Rezept mit Quellen und Werkzeugen kombinieren. Zum Beispiel: @presse @grundsatz Klimaschutz in Kommunen schreibt eine Pressemitteilung auf Basis des Grundsatzprogramms."
+    "text": "Beschlussantrag Thüringen @wahlprogramm-bayern Wahlprogramm Bayern @wahlprogramm-berlin Wahlprogramm Berlin @wahlprogramm-brandenburg Wahlprogramm Brandenburg @wahlprogramm-sachsen-anhalt Wahlprogramm Sachsen-Anhalt @wahlprogramm-thueringen Wahlprogramm Thüringen @reisekosten-nrw Reisekosten NRW (Beta) @reisekosten-nrw-vorbereiten Reise vorbereiten NRW (Beta) Neben den mitgelieferten Rezepten oben zeigt die @-Liste auch deine eigenen Rezepte, mit deinen Projekten geteilte und öffentliche Rezepte anderer aus dem Marktplatz. Sie stehen in eigenen Abschnitten: „aus deinen Gruppen\" und „von anderen\" (in der App: „Rezepte aus deinen Gruppen\", „Rezepte von anderen\"). Auf der Detailseite eines Rezepts aus dem Marktplatz öffnet Im Chat verwenden den Chat direkt mit diesem Rezept aktiviert. Du kannst ein Rezept mit Quellen und Werkzeugen kombinieren. Zum Beispiel: @presse @grundsatz Klimaschutz in Kommunen schreibt eine Pressemitteilung auf Basis des Grundsatzprogramms."
   },
   {
     "url": "/docs/chat/ki-chat",
@@ -4354,6 +4372,142 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "anchor": "#zwei-neue-dokumente-tabellen--präsentationen",
     "category": "Archiv",
     "text": "Die Grünerator Docs haben zwei neue Geschwister bekommen: Tabellen und Präsentationen. Beide funktionieren wie die bekannten Dokumente – kollaborativ, in Echtzeit, mit einer KI-Seitenleiste direkt im Editor. Du legst sie als neues Dokument an oder erstellst sie direkt aus dem Chat. Tabellen funktionieren wie Google Sheets oder Excel, nur grün und auf europäischen Servern. Die KI-Seitenleiste hilft dir beim Bauen: Du sagst, was du brauchst – „füge eine Spalte mit dem Datum hinzu\", „fasse die Zahlen zusammen\" – die KI plant die Änderung, und du bestätigst sie mit einem Klick. Zeilen einfügen, Zellen verbinden, Diagramme direkt in der Tabelle und bestehende .xlsx- oder .csv-Dateien importieren: alles dabei. Und weil der Chat nun auch echt rechnen kann, wertet er dir ganze Tabellen aus – lade eine Datei hoch und frag drauflos. Präsentationen sind Foliendecks, die ihr gemeinsam bearbeitet. Bitte die KI im Chat um eine Präsentation zu einem Thema, verfeinere sie im Editor und führe sie im Präsentationsmodus direkt vor. Wer die Folien woanders braucht: Es gibt einen PowerPoint-Export (PPTX), der sich sauber in PowerPoint oder Keynote öffnen lässt."
+  },
+  {
+    "url": "/docs/sonstiges/archiv/newsletter/2026-08-sommer-update",
+    "pageTitle": "August 2026: Das große Sommer-Update",
+    "heading": "August 2026: Das große Sommer-Update",
+    "anchor": "",
+    "category": "Archiv",
+    "text": "Newsletter August 2026 --- Hallo \\ , vielleicht liest du diese Mail gerade am Strand, auf dem Sofa oder beim Wandern. Denn: Es ist Sommerpause! Wo nicht Wahlkampf ist, wird es etwas ruhiger, die Mails nehmen ab, die Abwesenheitsnotizen zu. Gleichzeitig bleibt manchmal etwas Zeit, sich mit den grundlegenderen Dingen zu beschäftigen. Denn dieser Sommer war zu heiß. Waldbrände, Niedrigwasser und Rekordhitze zeigen: Die Klimakrise ist in Deutschland angekommen. Und: KI kann die Klimakrise weiter verschlimmern. Zeit für KI, die die Welt nicht noch weiter anheizt. Zeit für den neuen Grünerator."
+  },
+  {
+    "url": "/docs/sonstiges/archiv/newsletter/2026-08-sommer-update",
+    "pageTitle": "August 2026: Das große Sommer-Update",
+    "heading": "In eigener Sache",
+    "anchor": "#in-eigener-sache",
+    "category": "Archiv",
+    "text": "Der Grünerator ist ein privates, ehrenamtliches Projekt von mir als Mitglied von BÜNDNIS 90/DIE GRÜNEN. Er ist kein Angebot der Partei und nicht Teil der grünen Basisdienste in Deutschland. Finanziell unterstützt wird er von Die Grünen – Die Grüne Alternative in Österreich sowie von einzelnen Landesverbänden und Gliederungen in Deutschland. Für Betrieb, Entwicklung und Datenschutz bin in Deutschland ausschließlich ich verantwortlich. Die Anbindung über den Partei-Login dient allein der Anmeldung und bestätigt eure Identität. Euer Passwort wird dabei zu keinem Zeitpunkt an den Grünerator übergeben, und der Grünerator hat keinen Zugriff auf andere grüne Dienste oder eure Postfächer. Vom gemeldeten Vorfall sind ausschließlich Inhalte betroffen, die im Grünerator selbst hochgeladen wurden. Ich versuche, an einer offenen Fehlerkultur festzuhalten und hoffe, dass die transparente Kommunikation das Vertrauen in den Grünerator eher stärkt als schwächt. Die Aufarbeitung des Vorfalls liegt bei mir. Bei Rückfragen wendet euch deshalb bitte direkt an mich. --- Bei Fragen oder Problemen wende dich gerne jederzeit an den Support."
+  },
+  {
+    "url": "/docs/sonstiges/archiv/newsletter/2026-08-sommer-update",
+    "pageTitle": "August 2026: Das große Sommer-Update",
+    "heading": "In eigener Sache",
+    "anchor": "#in-eigener-sache",
+    "category": "Archiv",
+    "text": "Du kannst diesen Newsletter gerne weiterleiten, etwa in deinem Orts- oder Kreisverband. Interessierte können sich jederzeit unter fax.gruenerator.de anmelden. Viel Spaß beim Grünerieren! Moritz"
+  },
+  {
+    "url": "/docs/sonstiges/archiv/newsletter/2026-08-sommer-update",
+    "pageTitle": "August 2026: Das große Sommer-Update",
+    "heading": "Neuer Chat",
+    "anchor": "#neuer-chat",
+    "category": "Archiv",
+    "text": "Der Chat wurde komplett neu gecodet und geht deutlich besser auf dich ein. Er versteht komplexere Zusammenhänge, führt selbstständig verschiedene Aktionen nacheinander aus und fühlt sich eher wie die kommerziellen Chat-Modelle an. Er wählt automatisch das beste KI-Modell, um möglichst wenig CO₂ zu verbrauchen und gleichzeitig die besten Ergebnisse zu erzielen. Der Grünerator-Chat kann nun außerdem Code ausführen, etwa, um in CSV-Dateien zu arbeiten oder Rechenoperationen durchzuführen. Auf Nachfrage kann er deinen Content in Präsentationen, Tabellen, barrierefreie PDFs, Boards, bearbeitbare Dokumente oder Sharepics umwandeln."
+  },
+  {
+    "url": "/docs/sonstiges/archiv/newsletter/2026-08-sommer-update",
+    "pageTitle": "August 2026: Das große Sommer-Update",
+    "heading": "Neues Design, neue Struktur, neues Office",
+    "anchor": "#neues-design-neue-struktur-neues-office",
+    "category": "Archiv",
+    "text": "Der Grünerator hat sich zum Sommer rausgeputzt und sieht insgesamt moderner aus. Die Oberfläche wurde aufgeräumt und in zwei Bereiche aufgeteilt: Chat und Arbeiten. Viele Details wurden überarbeitet und etwa barrierefreier gestaltet. Im neuen Bereich Arbeiten findet ihr eine Reihe neuer Tools, unter anderem das neue Grünerator Office. Im neuen Office könnt ihr kooperativ mit der KI oder mit anderen Grünen Mitgliedern arbeiten und die Inhalte im passenden Design exportieren."
+  },
+  {
+    "url": "/docs/sonstiges/archiv/newsletter/2026-08-sommer-update",
+    "pageTitle": "August 2026: Das große Sommer-Update",
+    "heading": "Studio: Grünes Canva & editierbare KI-Bilder",
+    "anchor": "#studio-grünes-canva--editierbare-ki-bilder",
+    "category": "Archiv",
+    "text": "Reels, Grafiken und KI-Bilder haben eine neue Heimat im Studio. KI-Bilder kannst du nun editieren, nachdem sie erstellt wurden, um sie zu optimieren. Du kannst dir außerdem eine Reihe von Sharepics erstellen lassen und sie in einer Canva-artigen Oberfläche bearbeiten – auch auf dem Smartphone. Lass dir Sharepics vom Chat erstellen und bearbeite sie im Studio zu Ende. So können selbst Menschen ohne Grafik-Erfahrung sich eine einfache Social-Media-Präsenz aufbauen."
+  },
+  {
+    "url": "/docs/sonstiges/archiv/newsletter/2026-08-sommer-update",
+    "pageTitle": "August 2026: Das große Sommer-Update",
+    "heading": "Und sonst so?",
+    "anchor": "#und-sonst-so",
+    "category": "Archiv",
+    "text": "Die Dokumentation wurde größtenteils neu geschrieben. Bugs oder Verbesserungsvorschläge können direkt mit einem Feedback-Button unten rechts gemeldet werden (nur Desktop). Die Einstellungen wurden optimiert. Du kannst nun den Grünerator an deinen Social-Media- oder Pressetexten anlernen und daraus Rezepte erstellen, die der Grünerator bei Bedarf anwendet, um in deinem Stil zu schreiben. Dort findest du auch deine neuen Friends (früher Avatare), eine Klimaübersicht und viele weitere neue Personalisierungsmöglichkeiten. Konnektoren: Verbinde externe Tools wie Tally, Brevo oder Sally (und bald auch Microsoft & Co)."
+  },
+  {
+    "url": "/docs/sonstiges/archiv/newsletter/2026-09-herbst-update",
+    "pageTitle": "September 2026: Das Herbst-Update",
+    "heading": "September 2026: Das Herbst-Update",
+    "anchor": "",
+    "category": "Archiv",
+    "text": "Newsletter September 2026 --- Hallo \\ , Jacob Coxon hat Anfang September seinen Job bei Anthropic gekündigt. Führende KI-Unternehmen würden trotz möglicher existenzieller Gefahren immer leistungsfähigere Systeme entwickeln und damit mit unseren Leben spielen. Für besondere Aufmerksamkeit sorgte anschließend eine Einschätzung seines Anthropic-Kollegen Evan Hubinger. Der KI-Sicherheitsforscher hält es persönlich für wahrscheinlicher als zehn Prozent, dass künstliche Intelligenz noch innerhalb des kommenden Jahrzehnts zum Aussterben der Menschheit führen könnte. Ich würde sagen: abwarten. Die öffentliche Debatte über KI wird von Männern geprägt, die gern im Mittelpunkt stehen. Eine essayistische, aber passende Einordnung gibt es in der SZ (Paywall): „Es könnte auch sein, dass der TSV 1860 München im Jahr 2036 in der Champions League spielt.\" Und damit viel Spaß beim Lesen des neuesten Newsletters."
+  },
+  {
+    "url": "/docs/sonstiges/archiv/newsletter/2026-09-herbst-update",
+    "pageTitle": "September 2026: Das Herbst-Update",
+    "heading": "Apps für Android und iOS",
+    "anchor": "#apps-für-android-und-ios",
+    "category": "Archiv",
+    "text": "Über ein Jahr lang habe ich daran gearbeitet, nun sind sie endlich da: die Grünerator-Apps! Eines meiner Highlights ist der mobil optimierte Untertitler für Reels. Die Apps sind noch fehleranfällig und befinden sich mindestens bis Ende des Jahres in der Testphase. Apple-Nutzer*innen benötigen für die Installation außerdem die App TestFlight. Ich finde ja, die Apps sehen umwerfend gut aus. Aber ich bin da auch ein wenig befangen. Was meinst du? Ich freue mich über dein Feedback – insbesondere über kritisches. Zu den Apps"
+  },
+  {
+    "url": "/docs/sonstiges/archiv/newsletter/2026-09-herbst-update",
+    "pageTitle": "September 2026: Das Herbst-Update",
+    "heading": "Guides, Fehlerbehebungen und mehr",
+    "anchor": "#guides-fehlerbehebungen-und-mehr",
+    "category": "Archiv",
+    "text": "In der Dokumentation findest du eine Reihe von Guides für Einsteiger*innen. Wie schreibe ich einen Antrag oder einen Social-Media-Text? Wie erstelle ich Untertitel für ein Reel? Sieh dir die neuen Guides an. Ein großes Sorry gilt den Nutzer*innen in Österreich. Beim letzten Update wurden aufgrund einer fehlerhaften Browser-Erkennung alle Logins zum Login der deutschen Grünen weitergeleitet. Das Problem wurde behoben. Fehler beim Editieren von Dokumenten mit KI wurden behoben. Aktuell verschwindet allerdings manchmal das Bestätigungsfenster nicht. Ich habe den Fehler weitergegeben; er sollte zeitnah behoben werden. Inhalte werden nicht mehr direkt gelöscht, sondern in den Papierkorb verschoben. Fehler bei Sharepics wurden behoben und die mobile Oberfläche optimiert. Mitarbeitende deutscher Landesverbände, die ein Notebook erworben haben, können den Grünerator nun datenbasiert personalisieren. Und vieles, vieles mehr."
+  },
+  {
+    "url": "/docs/sonstiges/archiv/newsletter/2026-09-herbst-update",
+    "pageTitle": "September 2026: Das Herbst-Update",
+    "heading": "Magic Search in Notebooks und im Chat",
+    "anchor": "#magic-search-in-notebooks-und-im-chat",
+    "category": "Archiv",
+    "text": "Die neue Magic Search in den Notebooks zeigt beim Tippen nun automatisch die besten Textquellen an. Beim Klick auf ein Dokument werden die relevanten Textstellen markiert. Tippst du eine Frage ein, erkennt Magic Search diese. Durch Drücken der Eingabetaste gelangst du in einen neuen Chat-Tab, in dem sich der bekannte Notebook-Chat öffnet. Insbesondere für Mitarbeitende in Bundes- und Landesgeschäftsstellen sowie in Abgeordnetenbüros ist das eine echte Verbesserung. Notebooks sind zudem besser an den Chat angebunden. Fragst du den Grünerator im Chat etwa: „Suche im Notebook Berlin nach den neuesten Pressemitteilungen\", findet er diese und kann dir zum Beispiel eine Zusammenfassung schreiben."
+  },
+  {
+    "url": "/docs/sonstiges/archiv/newsletter/2026-09-herbst-update",
+    "pageTitle": "September 2026: Das Herbst-Update",
+    "heading": "Sprechen und Übersetzen",
+    "anchor": "#sprechen-und-übersetzen",
+    "category": "Archiv",
+    "text": "Deutschland und Österreich werden vielfältiger. Um mehr Menschen zu erreichen, kann es sinnvoll sein, Teile einer Website oder von Kurzwahlprogrammen in andere Sprachen zu übersetzen. Daher hat der Grünerator nun DeepL integriert. Um peinliche Fehler zu vermeiden, kennzeichne mit KI übersetzte Texte transparent oder lass sie von Muttersprachler*innen Korrektur lesen. Außerdem kannst du ab sofort Texte mit KI vertonen lassen. Dafür verwendet der Grünerator die Technologie des deutschen Start-ups KugelAudio. Ob Mailboxansagen oder Audiofassungen von Kurzwahlprogrammen: Der Grünerator übernimmt das für dich. Die KI ersetzt keine professionellen Sprecher*innen. Beide Tools sollen nur dort zum Einsatz kommen, wo der Einsatz von Profis nicht möglich ist. Du findest sie im Workplace, wenn du auf den grauen Kasten „Weitere\" klickst."
+  },
+  {
+    "url": "/docs/sonstiges/archiv/newsletter/2026-09-herbst-update",
+    "pageTitle": "September 2026: Das Herbst-Update",
+    "heading": "Und das Klima?",
+    "anchor": "#und-das-klima",
+    "category": "Archiv",
+    "text": "Du hast dir vermutlich auch schon Gedanken darüber gemacht: Darf ich als Grüne*r KI verwenden? Für den Grünerator habe ich das geprüft und kann Entwarnung geben. Durch einen intelligenten Algorithmus, die Auswahl kleinerer und besser geeigneter KI-Modelle sowie die Nutzung von EU-Anbietern konnte ich den CO₂-Ausstoß gegenüber anderen KI-Tools reduzieren. Aber wie viel verbraucht der Grünerator so ungefähr? Ich könnte es dir verraten, aber am besten schaust du selbst auf der neuen Transparenzseite nach. Die Daten sind bisher eher grob; das ressourcenaufwendige Training der Modelle ist darin nicht berücksichtigt. --- Bei Fragen oder Problemen kannst du dich jederzeit an den Support wenden. Du kannst diesen Newsletter gerne weiterleiten, etwa in deinem Orts- oder Kreisverband. Interessierte können sich jederzeit unter fax.gruenerator.de anmelden. Viel Spaß beim Grünerieren! Moritz"
+  },
+  {
+    "url": "/docs/sonstiges/archiv/newsletter/2026-10-neue-sharepics",
+    "pageTitle": "Oktober 2026: Neue Sharepics & Europa ist zurück",
+    "heading": "Oktober 2026: Neue Sharepics & Europa ist zurück",
+    "anchor": "",
+    "category": "Archiv",
+    "text": "Newsletter Oktober 2026 --- Hallo \\ , unser Newsletter beginnt heute in einem gehobenen Restaurant in San Francisco. Am Tisch sitzen Führungskräfte des KI-Unternehmens Anthropic und religiöse Gelehrte. Doch statt über Gott diskutieren sie über Claude. Könnte die KI ein eigenes Bewusstsein besitzen? Vielleicht sogar Gefühle empfinden? Wie die New York Times berichtet, lädt Anthropic seit Monaten Religionswissenschaftler*innen, Philosoph*innen und Kirchenvertreter*innen zu vertraulichen Gesprächen ein. Das Ziel: Claude soll nicht nur Regeln befolgen, sondern eine Art moralischen Charakter entwickeln. Anthropic-Mitgründer Christopher Olah hält es sogar für möglich, dass KI-Systeme eines Tages selbst moralischen Schutz verdienen könnten. Die Gespräche führten ihn in den Vatikan, wo Papst Leo XIV. eine deutlich andere Position vertritt: Nicht die möglichen Rechte von Maschinen, sondern der Schutz der Menschen müsse im Mittelpunkt stehen. Müssen wir künftig nicht nur Menschen vor KI schützen, sondern KI vor Menschen?"
+  },
+  {
+    "url": "/docs/sonstiges/archiv/newsletter/2026-10-neue-sharepics",
+    "pageTitle": "Oktober 2026: Neue Sharepics & Europa ist zurück",
+    "heading": "Grüne Profilbilder & Marktplatz",
+    "anchor": "#grüne-profilbilder--marktplatz",
+    "category": "Archiv",
+    "text": "Lust auf ein neues Profilbild? Mit dem neuen Profilbild-Grünerator kannst du dir Profilbilder mit Grünen Hintergründen in wenigen Sekunden zusammenklicken. Nach dem Upload des Bildes stellt dich der Grünerator automatisch frei und du kannst dir einen schönen Hintergrund auswählen oder Sticker hinzufügen. Auf dem neuen Marktplatz kannst du Hintergründe und Sticker mit anderen teilen. Und noch mehr: Teile Canva-Vorlagen, Grüneratoren und mehr mit der Grünerator-Community. Ganz viel großartiger Content liegt bei Grünen Basis-Mitgliedern wie dir und wartet nur darauf, geteilt zu werden. Im Marktplatz findest du beispielsweise einen verbesserten Agent, der Texte in Leichte Sprache übersetzt. Für mehr Barrierefreiheit im Netz."
+  },
+  {
+    "url": "/docs/sonstiges/archiv/newsletter/2026-10-neue-sharepics",
+    "pageTitle": "Oktober 2026: Neue Sharepics & Europa ist zurück",
+    "heading": "Neue, echt gute Sharepics",
+    "anchor": "#neue-echt-gute-sharepics",
+    "category": "Archiv",
+    "text": "Ich war in den letzten Monaten nie so richtig zufrieden mit den KI-Sharepics. Doch nach viel Tüfteln gibt es nun den Durchbruch. Die neuen Sharepics sehen viel besser aus, der Editor läuft flüssiger, und das neue vorlagen- und blockbasierte Design lässt dich in Minuten Weltklasse-Sharepics erstellen. Mit und ohne KI! Zudem kann der Grünerator eine zusammenhängende Story über mehrere Sharepics hinweg erzählen. Du kannst zum Beispiel deine Pressemitteilung in den Grünerator eingeben und mit „Erstelle einen Sharepic-Slider auf Basis dieser PM\" in eine mehrteilige Sharepic-Serie umwandeln. Sei im Prompt nicht zu spezifisch, die Sharepics sind eher allgemein gehalten. Diesen Sharepic-Slider kannst du anschließend direkt im Studio verarbeiten. Anders als bei ChatGPT ist jedes Element modular und kann von dir angepasst werden. Und dazu gibt es noch so, so viele neue Features im Sharepic-Studio. Probier es unbedingt aus! Zum Studio"
+  },
+  {
+    "url": "/docs/sonstiges/archiv/newsletter/2026-10-neue-sharepics",
+    "pageTitle": "Oktober 2026: Neue Sharepics & Europa ist zurück",
+    "heading": "Zum Schluss: Europa ist zurück!",
+    "anchor": "#zum-schluss-europa-ist-zurück",
+    "category": "Archiv",
+    "text": "Mistral hat mit Mistral Large 4 „Le Chonk\" ihr neues Sprachmodell vorgestellt, das (wohl) auf Augenhöhe mit den chinesischen KI-Modellen sein soll. Zudem wurde in Freiburg in Deutschland ein neues Bildmodell von der KI-Schmiede Black Forest Labs entwickelt. Dadurch gibt es beim Editieren von Bildern nun einen neuen „Expert-Mode\", mit dem du einzelne Modifikationen präzise vornehmen kannst. Europa und Grünerator, das passt einfach. --- Bei Fragen oder Problemen kannst du dich jederzeit an den Support wenden. Drücke dazu einfach auf den Feedback-Button direkt in der Anwendung. Du kannst diesen Newsletter gerne weiterleiten, etwa in deinem Orts- oder Kreisverband. Interessierte können sich jederzeit unter fax.gruenerator.de anmelden. Viel Spaß beim Grünerieren! Moritz"
   },
   {
     "url": "/docs/sonstiges/archiv/signal-nachrichten/2026-05-erstelle-dein-notebook",

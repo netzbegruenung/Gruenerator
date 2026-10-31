@@ -62,6 +62,8 @@
 
 import { createLogger } from '../../utils/logger.js';
 
+import { contentAsToolCall, forcedToolAsJsonSchema } from './forcedToolJsonSchema.js';
+
 const log = createLogger('cortecsRequestPolicy');
 
 /**
@@ -95,7 +97,26 @@ const log = createLogger('cortecsRequestPolicy');
  * (services/ai/openAiReasoningStream.ts), weil nur der die `reasoning_content`-
  * Deltas auch lesen kann.
  */
-const REASONING_OFF_MODELS: ReadonlySet<string> = new Set(['gemma-4-26b-a4b-it']);
+const REASONING_OFF_MODELS: ReadonlySet<string> = new Set(['gemma-4-26b-a4b-it', 'kolibri-1']);
+
+/**
+ * Cortecs-Modelle, deren Unteranbieter `response_format: {type:'json_object'}`
+ * mit HTTP 400 ablehnt. `kolibri-1` (aki), gemessen 28.10.2026: „Only
+ * json_schema, regex, grammar, choice are allowed". Ohne das Feld geht ein
+ * erzwungener Werkzeugaufruf durch; mit ihm scheitert JEDER `aiObject`-Aufruf
+ * mit `json: true` und läuft still die Ausweichkette hinunter. `kolibri-1`
+ * steht aus demselben Grund oben: ohne `none` landet die Antwort in
+ * `reasoning_content` und `content` bleibt leer.
+ */
+const JSON_OBJECT_REJECTED_MODELS: ReadonlySet<string> = new Set(['kolibri-1']);
+
+/**
+ * Cortecs-Modelle, die `tool_choice: 'required'` nicht einhalten. `kolibri-1`,
+ * gemessen 28.10.2026 (mit `reasoning_effort: 'none'`): 3 von 6 Läufen
+ * Fliesstext statt Aufruf; `response_format: json_schema` traf 6 von 6.
+ * Umbau: `forcedToolJsonSchema.ts`.
+ */
+const FORCED_TOOL_AS_JSON_SCHEMA_MODELS: ReadonlySet<string> = new Set(['kolibri-1']);
 
 /**
  * Die Unterauftragnehmer, die Zero Data Retention führen UND in der EU/im EWR
@@ -197,6 +218,7 @@ function readHeader(headers: unknown, name: string): string | null {
 export const cortecsFetchWithPolicy: typeof fetch = async (input, init) => {
   let request = init;
   let requestedModel: string | null = null;
+  let forcedTool: string | null = null;
   if (init?.body && typeof init.body === 'string') {
     try {
       const parsed = JSON.parse(init.body) as Record<string, unknown>;
@@ -210,6 +232,14 @@ export const cortecsFetchWithPolicy: typeof fetch = async (input, init) => {
         if (isChat && REASONING_OFF_MODELS.has(parsed.model)) {
           parsed.reasoning_effort = 'none';
         }
+        if (
+          isChat &&
+          JSON_OBJECT_REJECTED_MODELS.has(parsed.model) &&
+          (parsed.response_format as { type?: unknown } | undefined)?.type === 'json_object'
+        ) {
+          delete parsed.response_format;
+        }
+        if (isChat) forcedTool = forcedToolAsJsonSchema(parsed, FORCED_TOOL_AS_JSON_SCHEMA_MODELS);
         // Die dokumentierte Weisung nach DPA 2.11. `eu_native` und
         // `allow_zero_data_retention` sind Cortecs' eigene Filter, die
         // Positivliste ist die engere Aussage darüber.
@@ -225,6 +255,7 @@ export const cortecsFetchWithPolicy: typeof fetch = async (input, init) => {
 
   const response = await fetch(input, request);
   assertSovereignUpstream(response, requestedModel);
+  if (forcedTool && response.ok) return contentAsToolCall(response, forcedTool);
   return response;
 };
 

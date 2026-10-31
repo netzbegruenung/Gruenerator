@@ -49,6 +49,8 @@ export interface LoadedMessage {
     roleName?: string;
     /** Row was still status='streaming' after request end — interrupted turn. */
     interrupted?: boolean;
+    /** Wall time of the turn, stamped by `finalizeAssistantMessage`. */
+    turnDurationMs?: number;
     /** The turn is still running server-side and can be re-attached
      *  (`resumableStream.splitLiveTurn`). Comes with `interrupted` for old clients. */
     live?: boolean;
@@ -259,6 +261,7 @@ export function convertToThreadMessageLike(messages: LoadedMessage[]): Converted
       // next thread switch, silently and only on mobile.
       if (m.metadata?.searchImages) custom.searchImages = m.metadata.searchImages;
       if (m.metadata?.generatedImage) custom.generatedImage = m.metadata.generatedImage;
+      if (m.metadata?.turnDurationMs) custom.turnDurationMs = m.metadata.turnDurationMs;
       Object.assign(custom, buildToolDerivedCustom(m.metadata?.toolCalls));
       if (m.metadata?.intent || m.metadata?.traceId)
         custom.streamMetadata = {

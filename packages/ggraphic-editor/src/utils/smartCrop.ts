@@ -10,12 +10,12 @@ import {
   type UserImageInstance,
 } from '@ggraphic/editor/utils/userImageUtils';
 
-import { backgroundCropConfig, userImageOf, type CropUpdate } from './cropTarget';
-import { BACKGROUND_IMAGE_NODE_ID } from './printImageInfo';
-import { coverFitSlot, resolveValue } from './resolveElementValue';
-import { templatePositionUpdates } from './templateRotation';
+import { backgroundCropConfig, userImageOf, type CropUpdate } from './cropTarget.js';
+import { BACKGROUND_IMAGE_NODE_ID } from './printImageInfo.js';
+import { coverFitSlot, resolveValue } from './resolveElementValue.js';
+import { templatePositionUpdates } from './templateRotation.js';
 
-import type { CanvasElementConfig, LayoutResult } from '../configs/types';
+import type { CanvasElementConfig, LayoutResult } from '../configs/types.js';
 import type Konva from 'konva';
 
 /** Ein Ausschnitt der Größe `view` (Foto-px) um die Mitte von `region`, im Foto gehalten. */

@@ -31,6 +31,8 @@ import {
   creationFeedWhere,
 } from './sharedMediaFilters.js';
 import { deriveContentOrigin } from './sharedMediaOrigin.js';
+import { ffmpeg } from './subtitler/ffmpegWrapper.js';
+import { probeVideoMetadata } from './subtitler/videoMetadata.js';
 import { type TrashCursor, trashKeysetWhere, trashOrderBy } from './trash/trashCursor.js';
 
 import type {
@@ -236,6 +238,31 @@ async function generateMediaVariants(
   return { thumbnailPath, blurhash, width: srcWidth, height: srcHeight, variants: generated };
 }
 
+/**
+ * One frame of an uploaded video as `<shareDir>/poster.jpg`, fitted into
+ * 1080px. Grid tiles show it (via the same variants as an image) instead of
+ * opening the video file just to paint its first frame.
+ */
+async function extractVideoPoster(
+  shareToken: string,
+  videoPath: string,
+  durationSeconds: number
+): Promise<string> {
+  const posterPath = path.join(getSafeShareDir(shareToken), 'poster.jpg');
+  // A second in skips the black lead-in many recordings start with.
+  const at = Math.min(1, durationSeconds / 2);
+  await new Promise<void>((resolve, reject) => {
+    ffmpeg(videoPath)
+      .inputOptions(['-ss', at.toFixed(2)])
+      .videoFilters('scale=1080:1080:force_original_aspect_ratio=decrease')
+      .outputOptions(['-frames:v', '1', '-q:v', '3', '-y'])
+      .on('end', () => resolve())
+      .on('error', reject)
+      .save(posterPath);
+  });
+  return posterPath;
+}
+
 class SharedMediaService {
   private postgres: PostgresService | null = null;
   private initPromise: Promise<void> | null = null;
@@ -300,6 +327,58 @@ class SharedMediaService {
     } catch (err) {
       console.error(`[SharedMediaService] Variant generation failed for ${shareToken}:`, err);
     }
+  }
+
+  /**
+   * Background worker for an uploaded video: duration, size, a poster frame and
+   * its responsive variants + BlurHash. `thumbnail_path` points at the poster,
+   * which is what `/preview?w=` serves for a video. Fire-and-forget like
+   * {@link processMediaVariants}; until it finishes, tiles fall back to the
+   * video itself. Never throws.
+   */
+  private async processVideoPoster(shareToken: string, videoPath: string): Promise<void> {
+    try {
+      const meta = await probeVideoMetadata(videoPath);
+      // VideoMetadata types `duration` loosely; probeVideoMetadata always yields a number.
+      const duration = Number(meta.duration) || 0;
+      const posterPath = await extractVideoPoster(shareToken, videoPath, duration);
+      const result = await generateMediaVariants(shareToken, posterPath);
+      await this.ensureInitialized();
+      await this.postgres!.query(
+        `UPDATE shared_media
+           SET thumbnail_path = $2,
+               duration = COALESCE(duration, $3),
+               image_metadata = COALESCE(image_metadata, '{}'::jsonb) || $4::jsonb
+         WHERE share_token = $1`,
+        [
+          shareToken,
+          `${shareToken}/poster.jpg`,
+          duration || null,
+          JSON.stringify({
+            blurhash: result.blurhash,
+            // The video's size, not the poster's: placement sizes the clip.
+            width: meta.width,
+            height: meta.height,
+            variants: result.variants,
+          }),
+        ]
+      );
+    } catch (err) {
+      console.error(`[SharedMediaService] Video poster failed for ${shareToken}:`, err);
+    }
+  }
+
+  /** Backfill entry point for videos uploaded before posters existed; see {@link regenerateMediaVariants}. */
+  async regenerateVideoPoster(shareToken: string, relativeFilePath: string): Promise<boolean> {
+    const sourcePath = this.getMediaFilePath(relativeFilePath);
+    if (!sourcePath) return false;
+    try {
+      await fs.access(sourcePath);
+    } catch {
+      return false;
+    }
+    await this.processVideoPoster(shareToken, sourcePath);
+    return true;
   }
 
   /**
@@ -1438,7 +1517,7 @@ class SharedMediaService {
         title || originalFilename || 'Uploaded media',
         relativeFilePath,
         `media.${extension}`,
-        null, // thumbnail_path filled by processMediaVariants
+        null, // thumbnail_path filled by processMediaVariants / processVideoPoster
         fileBuffer.length,
         mimeType,
         isLibraryItem,
@@ -1451,6 +1530,8 @@ class SharedMediaService {
 
       if (isImage) {
         void this.processMediaVariants(shareToken, targetPath);
+      } else {
+        void this.processVideoPoster(shareToken, targetPath);
       }
 
       console.log(`[SharedMediaService] Uploaded media ${shareToken} for user ${userId}`);

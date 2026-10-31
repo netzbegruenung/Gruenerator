@@ -129,3 +129,169 @@ describe('meliousFetch — Flavor auf dem Draht', () => {
     );
   });
 });
+
+/**
+ * Melious `gemma-4-26b-a4b` (Scaleway/FR) kann keine Werkzeugaufrufe —
+ * gemessen 28.10.2026: `tool_choice: 'required'` → HTTP 503 „invalid tool call
+ * response", ein benanntes `tool_choice` → Fliesstext ohne Aufruf. Strukturierte
+ * Ausgabe über `response_format: json_schema` liefert es dagegen sauber.
+ */
+describe('meliousFetch — gemma-4-26b-a4b ohne Werkzeugaufrufe', () => {
+  let originalFetch: typeof fetch;
+
+  beforeEach(() => {
+    originalFetch = globalThis.fetch;
+    globalThis.fetch = vi.fn(async () => new Response('{}', { status: 200 })) as typeof fetch;
+  });
+
+  afterEach(() => {
+    globalThis.fetch = originalFetch;
+  });
+
+  const schema = { type: 'object', properties: { a: { type: 'string' } }, required: ['a'] };
+  const forced = (model: string, extra: Record<string, unknown> = {}) =>
+    JSON.stringify({
+      model,
+      messages: [{ role: 'user', content: 'x' }],
+      tools: [{ type: 'function', function: { name: 'melden', parameters: schema } }],
+      tool_choice: 'required',
+      response_format: { type: 'json_object' },
+      ...extra,
+    });
+
+  it('macht aus dem erzwungenen Werkzeug ein json_schema', async () => {
+    const body = await sentBody(forced('gemma-4-26b-a4b'));
+    expect(body).not.toHaveProperty('tools');
+    expect(body).not.toHaveProperty('tool_choice');
+    expect(body.response_format).toEqual({
+      type: 'json_schema',
+      json_schema: { name: 'melden', schema },
+    });
+    expect(body.reasoning_effort).toBe('none');
+  });
+
+  it('fasst andere Modelle nicht an', async () => {
+    const body = await sentBody(forced('gemma-4-31b:balanced'));
+    expect(body.tool_choice).toBe('required');
+    expect(body.response_format).toEqual({ type: 'json_object' });
+  });
+
+  it('fasst einen Zug mit mehreren Werkzeugen nicht an', async () => {
+    const two = JSON.parse(forced('gemma-4-26b-a4b')) as { tools: unknown[] };
+    two.tools.push({ type: 'function', function: { name: 'b', parameters: schema } });
+    const body = await sentBody(JSON.stringify(two));
+    expect(body.tool_choice).toBe('required');
+  });
+
+  // Die >40k-Umleitung gilt nur den FI-Flavors von gemma-4-31b.
+  it('wird auch bei grossem Prompt nicht auf :speed umgeschrieben', () => {
+    expect(
+      meliousWireModel({
+        model: 'gemma-4-26b-a4b',
+        messages: [{ role: 'user', content: 'x'.repeat(500_000) }],
+      })
+    ).toBeNull();
+  });
+});
+
+describe('meliousFetch — gemma-4-26b-a4b Antwort als Werkzeugaufruf', () => {
+  let originalFetch: typeof fetch;
+
+  afterEach(() => {
+    globalThis.fetch = originalFetch;
+  });
+
+  it('legt den JSON-Text als Aufruf des erzwungenen Werkzeugs zurück', async () => {
+    originalFetch = globalThis.fetch;
+    globalThis.fetch = vi.fn(
+      async () =>
+        new Response(
+          JSON.stringify({
+            model: 'gemma-4-26b-a4b',
+            choices: [
+              { message: { role: 'assistant', content: '{"a":"x"}' }, finish_reason: 'stop' },
+            ],
+          }),
+          { status: 200, headers: { 'content-type': 'application/json' } }
+        )
+    ) as typeof fetch;
+    const res = await meliousFetch('https://api.melious.ai/v1/chat/completions', {
+      method: 'POST',
+      body: JSON.stringify({
+        model: 'gemma-4-26b-a4b',
+        messages: [{ role: 'user', content: 'x' }],
+        tools: [{ type: 'function', function: { name: 'melden', parameters: { type: 'object' } } }],
+        tool_choice: 'required',
+      }),
+    });
+    const json = (await res.json()) as {
+      choices: {
+        message: { content: unknown; tool_calls: { function: unknown }[] };
+        finish_reason: string;
+      }[];
+    };
+    expect(json.choices[0].message.content).toBeNull();
+    expect(json.choices[0].message.tool_calls[0].function).toEqual({
+      name: 'melden',
+      arguments: '{"a":"x"}',
+    });
+    expect(json.choices[0].finish_reason).toBe('tool_calls');
+  });
+});
+
+describe('meliousFetch — gemma-4-26b-a4b: was der Umbau NICHT anfasst', () => {
+  let originalFetch: typeof fetch;
+
+  beforeEach(() => {
+    originalFetch = globalThis.fetch;
+    globalThis.fetch = vi.fn(
+      async () =>
+        new Response(
+          JSON.stringify({
+            model: 'gemma-4-26b-a4b',
+            choices: [{ message: { role: 'assistant', content: 'x' }, finish_reason: 'stop' }],
+          }),
+          { status: 200, headers: { 'content-type': 'application/json' } }
+        )
+    ) as typeof fetch;
+  });
+
+  afterEach(() => {
+    globalThis.fetch = originalFetch;
+  });
+
+  const tool = { type: 'function', function: { name: 'melden', parameters: { type: 'object' } } };
+
+  // Die Werkzeugphase des Loops streamt; der Umbau auf json_schema greift nur nicht gestreamt.
+  it('lässt einen gestreamten erzwungenen Zug unberührt', async () => {
+    const res = await meliousFetch('https://api.melious.ai/v1/chat/completions', {
+      method: 'POST',
+      body: JSON.stringify({
+        model: 'gemma-4-26b-a4b',
+        messages: [{ role: 'user', content: 'x' }],
+        tools: [tool],
+        tool_choice: 'required',
+        stream: true,
+      }),
+    });
+    const [, init] = (globalThis.fetch as ReturnType<typeof vi.fn>).mock.calls[0];
+    const sent = JSON.parse((init as RequestInit).body as string) as Record<string, unknown>;
+    expect(sent.tool_choice).toBe('required');
+    expect(sent).not.toHaveProperty('response_format');
+    expect(sent.stream).toBe(true);
+    expect(res.ok).toBe(true);
+  });
+
+  it("lässt tool_choice 'auto' unberührt", async () => {
+    const body = await sentBody(
+      JSON.stringify({
+        model: 'gemma-4-26b-a4b',
+        messages: [{ role: 'user', content: 'x' }],
+        tools: [tool],
+        tool_choice: 'auto',
+      })
+    );
+    expect(body.tool_choice).toBe('auto');
+    expect(body).not.toHaveProperty('response_format');
+  });
+});

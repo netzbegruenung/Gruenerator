@@ -37,6 +37,9 @@ const PRODUCT_META_PATTERNS: RegExp[] = [
   /\bwas (kann|bietet|ist) (der |dieser )?gr[üu]nerator\b/i,
   /\bwie funktioniert (der |dieser )?gr[üu]nerator\b/i,
   /\bhilfe (zum|beim|mit dem) gr[üu]nerator\b/i,
+  // The whole message, nothing else: "Hilfe!" / "Wer bist du?" ask about the
+  // product; "Hilfe bei meiner Rede" and "wer bist du eigentlich, Olaf?" do not.
+  /^\s*(hilfe|wer bist du)\s*[?!.]*\s*$/i,
   /\bwelche (funktionen|features|tools|werkzeuge|f[äa]higkeiten|m[öo]glichkeiten|gr[üu]neratoren|agent(en|innen|\*innen)?|mcp[- ]?server)\b/i,
   /\bwie (erstelle|mache|nutze|verwende) (ich|man) (ein|eine|einen|die|das|den)?\s*(sharepic|reel|untertitel|board|tabelle|pr[äa]sentation|notebook|dokument|newsletter|ki-bild)/i,
 ];
@@ -93,9 +96,9 @@ const STATIC_TOOL_LINES = [
   '- Notebooks & Recherche: eigene Wissenssammlungen plus grüne Inhaltsdatenbank — im Chat lassen sich Notebooks inhaltlich befragen, anlegen, aus einem Wolke-Ordner befüllen, mit Dokumenten ergänzen, in der Sichtbarkeit ändern und mit einem Projekt teilen',
   '- Notebook-Quellen: im Chat lassen sich die Quellen eines Notebooks auflisten (sortiert und gefiltert), gliedern, seiten- oder abschnittsweise lesen und nach Stellen durchsuchen — Belege mit Seite und Fundstelle',
   '- Grüne Wolke: eigene Nextcloud-Freigaben verbinden — Dateien lassen sich im Chat durchsuchen und lesen',
-  '- Agentura: spezialisierte Grüneratoren nutzen und eigene Grünerator-Agenten bauen — im Chat lassen sich die eigenen und die aus Projekten geteilten Agenten auflisten, ansehen, aus einer Beschreibung neu anlegen (die Rolle wird entworfen und als Karte bestätigt), ändern, mit einem Projekt teilen und löschen; die System-Grüneratoren selbst sind nicht änderbar',
+  '- Agents: spezialisierte Grüneratoren nutzen (eigene, geteilte und hinzugefügte unter „Grüneratoren“, weitere im Marktplatz) und eigene Agents bauen — im Chat lassen sich die eigenen und die aus Projekten geteilten Agents auflisten, ansehen, aus einer Beschreibung neu anlegen (die Rolle wird entworfen und als Karte bestätigt), ändern, mit einem Projekt teilen und löschen; die System-Grüneratoren selbst sind nicht änderbar',
   '- Rezepte & Textformen (Texte anlernen): Rezepte sind Schreibvorgaben je Textsorte und Plattform, eigene Textformen ein aus Beispieltexten angelernter Stil — im Chat lassen sich alle Rezepte und eigenen Textformen auflisten, eine eigene Textform ansehen, aus Beispielen aus der Nachricht oder einem Anhang anlernen (auch als eigener Stil für ein mitgeliefertes Rezept), um Beispiele ergänzen und löschen; angewendet wird ein Rezept beim Schreiben über @mention oder von selbst',
-  '- Wiederkehrende Aufgaben (Agentura): ein Grünerator-Agent läuft von selbst täglich, wöchentlich oder monatlich und liefert das Ergebnis als Dokument, Chat oder Benachrichtigung — im Chat lassen sie sich einrichten (mit Bestätigung), auflisten, ändern, pausieren, sofort ausführen und löschen',
+  '- Wiederkehrende Aufgaben: ein Agent läuft von selbst täglich, wöchentlich oder monatlich und liefert das Ergebnis als Dokument, Chat oder Benachrichtigung — im Chat lassen sie sich einrichten (mit Bestätigung), auflisten, ändern, pausieren, sofort ausführen und löschen',
   '- Projekte (Gruppen/Spaces): gemeinsame Arbeitsbereiche im Team — im Chat lassen sich Projekte auflisten, ansehen, ihre geteilten Inhalte durchsehen, anlegen, per Einladungslink beitreten, in Name und Beschreibung ändern und öffentlich listen; Mitglieder verwalten geht nur auf der Projektseite',
   '- Scanner, Transkription, Zeichenzähler: Dokumente digitalisieren, Audio verschriftlichen, Textlängen prüfen',
   '- Übersetzer: Texte und Dokumente (DOCX, PPTX, PDF …) mit DeepL übersetzen, mit dem gepflegten Grünen-Glossar — im Chat übersetzt das Werkzeug text_uebersetzen Texte direkt',
@@ -199,7 +202,7 @@ export async function buildProductKnowledgeBlock(opts: {
 
 ## GRÜNERATOR-WISSEN (Funktionen des Produkts)
 
-### Grüneratoren (spezialisierte Assistenten, Agentura)
+### Grüneratoren (spezialisierte Assistenten)
 ${formatAgentLines(locale, hiddenAgentIdentifiers)}
 
 ### Werkzeuge
@@ -217,7 +220,7 @@ ${formatManagedConnectorLines(locale)}${mcpSection}
 ### Dokumentation gezielt durchsuchen
 Die Anleitungen von doku.gruenerator.eu lassen sich direkt im Chat durchsuchen — zwei Wege:
 - **@doku tippen** (auch @hilfe oder @anleitung): erzwingt die Doku-Suche für diese Nachricht.
-- **Ausdrücklich danach fragen**, und zwar so, dass sowohl die Doku als auch die gemeinte Funktion vorkommen — "Was steht in der Anleitung zu Sharepics?", "Gibt es eine Schritt-für-Schritt-Anleitung für Notebooks?". Ebenso greift eine Wie-Frage zu einer Grünerator-Funktion: "Wie erstelle ich ein Sharepic?", "Wo finde ich die Agentura?". Nennt eine Frage nur die Doku, ohne die Funktion zu benennen, wird nicht zwingend nachgeschlagen — dann hilft @doku.
+- **Ausdrücklich danach fragen**, und zwar so, dass sowohl die Doku als auch die gemeinte Funktion vorkommen — "Was steht in der Anleitung zu Sharepics?", "Gibt es eine Schritt-für-Schritt-Anleitung für Notebooks?". Ebenso greift eine Wie-Frage zu einer Grünerator-Funktion: "Wie erstelle ich ein Sharepic?", "Wo finde ich den Marktplatz?". Nennt eine Frage nur die Doku, ohne die Funktion zu benennen, wird nicht zwingend nachgeschlagen — dann hilft @doku.
 
 Die Doku deckt nicht jede Funktion ab und ist an manchen Stellen unvollständig oder älter als das Produkt. Findest du dort nichts Passendes, sag das offen, statt eine Anleitung zu erfinden, und verweise auf die Support-Seite gruenerator.eu/support.
 

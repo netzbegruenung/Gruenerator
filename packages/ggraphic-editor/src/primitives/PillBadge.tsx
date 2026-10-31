@@ -25,10 +25,10 @@ import { ELEMENT_TRANSFORMER, normalizeRotation } from '@ggraphic/editor/utils/o
 import { boxFrame, createBoxFrame, snapByBounds } from '@ggraphic/editor/utils/snapping';
 import { stageCssScale } from '@ggraphic/editor/utils/stageCssScale';
 
-import { calculatePillBadgeDimensions } from '../utils/pillBadgeUtils';
-import { useTextEditorOpener } from '../utils/textEditorOpeners';
+import { calculatePillBadgeDimensions } from '../utils/pillBadgeUtils.js';
+import { useTextEditorOpener } from '../utils/textEditorOpeners.js';
 
-import type { PillBadgeFontStyle } from '../utils/pillBadgeUtils';
+import type { PillBadgeFontStyle } from '../utils/pillBadgeUtils.js';
 import type { SnapTarget, SnapLine } from '@ggraphic/editor/utils/snapping';
 import type Konva from 'konva';
 

@@ -8,13 +8,13 @@
  * editor bundle.
  */
 
-import { GOPHERS } from './gophers';
-import { HUMAAANS } from './humaaans';
-import { ILLLUSTRATIONS } from './illlustrations';
-import { KAWAII_ILLUSTRATIONS } from './kawaii';
-import { OPENDOODLES } from './opendoodles';
-import { OPENPEEPS } from './openpeeps';
-import { TRANSHUMANS } from './transhumans';
+import { GOPHERS } from '@ggraphic/editor/utils/illustrations/gophers';
+import { HUMAAANS } from '@ggraphic/editor/utils/illustrations/humaaans';
+import { ILLLUSTRATIONS } from '@ggraphic/editor/utils/illustrations/illlustrations';
+import { KAWAII_ILLUSTRATIONS } from '@ggraphic/editor/utils/illustrations/kawaii';
+import { OPENDOODLES } from '@ggraphic/editor/utils/illustrations/opendoodles';
+import { OPENPEEPS } from '@ggraphic/editor/utils/illustrations/openpeeps';
+import { TRANSHUMANS } from '@ggraphic/editor/utils/illustrations/transhumans';
 import { UNDRAW_ALL } from './undrawAll';
 
 import type { IllustrationDef, SvgDef } from '@ggraphic/editor/utils/illustrations/types';

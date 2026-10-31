@@ -3,6 +3,7 @@
 import {
   AuiIf,
   ComposerPrimitive,
+  unstable_useComposerInputHistory,
   useAui,
   useAuiEvent,
   useVoiceControls,
@@ -14,7 +15,15 @@ import { useMobileKeyboardOffset } from '@gruenerator/shared/hooks';
 import { mcpBrandColor } from '@gruenerator/shared/utils';
 import { cn, useIsMobile, useMeasuredCornerReservation } from '@gruenerator/ui';
 import { ArrowUp, Mic, Plug, Search, Square, X } from 'lucide-react';
-import { memo, useEffect, useRef, useState, useCallback, type ClipboardEvent } from 'react';
+import {
+  memo,
+  startTransition,
+  useEffect,
+  useRef,
+  useState,
+  useCallback,
+  type ClipboardEvent,
+} from 'react';
 import { RiVoiceAiFill } from 'react-icons/ri';
 
 import { useMentionablesQuery } from '../../hooks/useMentionablesQuery';
@@ -766,16 +775,22 @@ export const GrueneratorComposer = memo(function GrueneratorComposer({
     [dismissPopover]
   );
 
-  const draftText = useAuiState((s) => s.composer.text);
+  // Selects the token's id, not the draft: a selector returning the text would
+  // re-render this whole composer — the plus menu and every button — on every
+  // keystroke. The id is a primitive that only changes when a token appears.
+  const pendingVorlageId = useAuiState(
+    (s) => liftVorlageToken(s.composer.text)?.vorlage.id ?? null
+  );
   useEffect(() => {
-    const lifted = liftVorlageToken(draftText);
+    if (!pendingVorlageId) return;
+    const lifted = liftVorlageToken(composerRuntime.getState().text);
     if (!lifted) return;
     composerRuntime.setText(lifted.text);
     setPillMentions((prev) => [
       ...prev.filter((p) => p.type !== 'vorlagen'),
       vorlageToMentionable(lifted.vorlage),
     ]);
-  }, [draftText, composerRuntime]);
+  }, [pendingVorlageId, composerRuntime]);
 
   const handleChange = useCallback(
     (e: React.ChangeEvent<HTMLTextAreaElement>) => {
@@ -814,9 +829,16 @@ export const GrueneratorComposer = memo(function GrueneratorComposer({
     [mention.mode, dismissPopover]
   );
 
+  const inputHistory = unstable_useComposerInputHistory();
+
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
       if (!mention.visible) {
+        // ArrowUp on an empty draft recalls earlier messages of this thread,
+        // like a shell. Only reached with our mention popover closed: the hook
+        // yields to assistant-ui's own trigger popover, but ours is a separate
+        // component it cannot see. A search field has no history to recall.
+        if (!onTextSubmit) inputHistory.onKeyDown(e);
         if (pillMentionsRef.current.length === 0) return;
         const state = composerRuntime.getState();
         // Enter on a pills-only draft: the primitive's Enter→submit path is
@@ -918,6 +940,7 @@ export const GrueneratorComposer = memo(function GrueneratorComposer({
       canQueue,
       sendWithPillMentions,
       removePillMention,
+      inputHistory,
     ]
   );
 
@@ -925,8 +948,14 @@ export const GrueneratorComposer = memo(function GrueneratorComposer({
     uploadRef.current?.click();
   }, []);
 
+  // A transition, so the plus menu closes in the click's frame and the picker
+  // renders after it. Synchronously, both landed in one task — menu teardown,
+  // a composer re-render and the panel's positioning, each forcing layout —
+  // and the click took ~33 ms in the production build (a dropped frame).
   const handlePlusMenuOpenFileBrowser = useCallback(() => {
-    setMention((prev) => ({ ...prev, mode: 'datei', visible: true, mentionStart: -1 }));
+    startTransition(() => {
+      setMention((prev) => ({ ...prev, mode: 'datei', visible: true, mentionStart: -1 }));
+    });
   }, []);
 
   const handleApplyPreset = useCallback(

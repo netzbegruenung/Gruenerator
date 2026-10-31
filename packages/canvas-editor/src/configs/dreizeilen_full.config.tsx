@@ -23,14 +23,14 @@ import { HiCog } from 'react-icons/hi';
 import { PiFrameCornersFill, PiSquaresFourFill, PiTextAa } from 'react-icons/pi';
 
 import { buildAssetCapability } from '../ai/assetCapability';
-import { describeCanvasElements } from '../ai/describeCanvasElements';
-import { buildIllustrationCapability } from '../ai/illustrationCapability';
+import { describeCanvasElements } from '@ggraphic/editor/ai/describeCanvasElements';
+import { buildIllustrationCapability } from '@ggraphic/editor/ai/illustrationCapability';
 import { CANVAS_RECOMMENDED_ASSETS, SYSTEM_ASSETS } from '../brand/grueneAssets';
 import { dreizeilenShareMetadata } from '../brand/grueneShareMetadata';
 import { AssetsSection } from '../sidebar';
 import { BalkenSettingsSection } from '../sidebar/sections/BalkenSettingsSection';
-import { CombinedTextSection } from '../sidebar/sections/CombinedTextSection';
-import { FrameSettingsSection } from '../sidebar/sections/FrameSettingsSection';
+import { CombinedTextSection } from '@ggraphic/editor/sidebar/sections/CombinedTextSection';
+import { FrameSettingsSection } from '@ggraphic/editor/sidebar/sections/FrameSettingsSection';
 import { balkenExtent, fitBalkenAfterTextEdit, fitBalkenToCanvas } from '../utils/balkenBounds';
 import {
   calculateDreizeilenLayout,
@@ -50,14 +50,14 @@ import {
   createIllustrationActions,
   createPillBadgeActions,
   createCircleBadgeActions,
-  createBalkenActions,
   createFrameActions,
   createUserImageActions,
-} from './factory/actionFactories';
-import { makeSectionDefiner } from './factory/defineSection';
-import { injectFeatureProps } from './featureInjector';
-import { PLACEHOLDER_TEXT } from './placeholders';
-import { createShareSection } from './shareSection';
+} from '@ggraphic/editor/configs/factory/actionFactories';
+import { createBalkenActions } from './factory/balkenActions';
+import { makeSectionDefiner } from '@ggraphic/editor/configs/factory/defineSection';
+import { injectFeatureProps } from '@ggraphic/editor/configs/featureInjector';
+import { PLACEHOLDER_TEXT } from '@ggraphic/editor/configs/placeholders';
+import { createShareSection } from '@ggraphic/editor/configs/shareSection';
 
 import type { SharepicAiCapabilities } from './aiCapabilities';
 import type { DreizeilenFullState, DreizeilenFullActions } from './dreizeilen.types';
@@ -67,7 +67,7 @@ import type {
   LayoutResult as GenericLayoutResult,
   AdditionalText,
 } from '@ggraphic/editor/configs/types';
-import type { BalkenInstance } from '@ggraphic/editor/utils/balkenUtils';
+import type { BalkenInstance } from '../utils/balkenUtils';
 import type { AssetInstance } from '@ggraphic/editor/utils/canvasAssets';
 import type { ChartInstance } from '@ggraphic/editor/utils/chartUtils';
 import type { CircleBadgeInstance } from '@ggraphic/editor/utils/circleBadgeUtils';

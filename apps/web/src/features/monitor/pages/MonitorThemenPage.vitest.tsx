@@ -10,7 +10,7 @@ import { MonitorFeedContent } from './MonitorFeedPage';
 import { MonitorThemenContent } from './MonitorThemenPage';
 
 const MONITOR_LATEST = 'http://localhost/api/monitor/latest';
-const BSKY_FEED = 'https://public.api.bsky.app/xrpc/app.bsky.feed.getAuthorFeed';
+const BSKY_FEED = 'http://localhost/api/monitor/bluesky';
 const WHAT_HAPPENED = 'http://localhost/api/monitor/what-happened';
 
 const snapshot = {
@@ -36,26 +36,19 @@ const snapshot = {
 function serveMonitor() {
   server.use(
     http.get(MONITOR_LATEST, () => HttpResponse.json(snapshot)),
-    // Cross-origin XHR: jsdom enforces CORS on the response, so the mock carries
-    // the wildcard header the real API sends.
     http.get(BSKY_FEED, () =>
-      HttpResponse.json(
+      HttpResponse.json([
         {
-          feed: [
-            {
-              post: {
-                uri: 'at://did:plc:x/app.bsky.feed.post/abc',
-                author: { handle: 'gruene-bundestag.de', displayName: 'Grüne Bundestag' },
-                record: {
-                  text: 'Heute im Plenum: Wärmewende',
-                  createdAt: '2026-08-26T09:00:00.000Z',
-                },
-              },
-            },
-          ],
+          uri: 'at://did:plc:x/app.bsky.feed.post/abc',
+          url: 'https://bsky.app/profile/gruene-bundestag.de/post/abc',
+          text: 'Heute im Plenum: Wärmewende',
+          createdAt: '2026-08-26T09:00:00.000Z',
+          authorName: 'Grüne Bundestag',
+          authorHandle: 'gruene-bundestag.de',
+          avatarUrl: null,
+          repostedBy: null,
         },
-        { headers: { 'access-control-allow-origin': '*' } }
-      )
+      ])
     ),
     http.get(WHAT_HAPPENED, () =>
       HttpResponse.json({

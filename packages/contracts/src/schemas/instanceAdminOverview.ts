@@ -26,9 +26,19 @@ export const instanceAdminSetPandaBodySchema = z.object({
   enabled: z.boolean(),
 });
 
-export const instanceAdminSetPandaResponseSchema = z.object({
+export const instanceAdminUserResponseSchema = z.object({
   success: z.boolean(),
   data: instanceAdminUserSummarySchema,
+});
+
+/** Grant or revoke instance-admin rights (`profiles.is_admin`) for one account. */
+export const instanceAdminSetAdminBodySchema = z.object({
+  isAdmin: z.boolean(),
+});
+
+/** Optional free-text filter over email and display name (substring, case-insensitive). */
+export const instanceAdminUsersQuerySchema = z.object({
+  q: z.string().trim().max(200).optional(),
 });
 
 export const instanceAdminUsersResponseSchema = z.object({

@@ -1,6 +1,6 @@
 /**
  * ts-rest contract for the Bundesgeschäftsstelle-instance admin overview.
- * Read-only except for the „Panda" unlock, `is_admin`-gated (requireInstanceAdmin, enforced per-handler
+ * Read-only except for the „Panda" unlock and the admin grant, `is_admin`-gated (requireInstanceAdmin, enforced per-handler
  * like adminVorlagenContract/skillVisibilityContract). Rezepte-Sichtbarkeit
  * is intentionally NOT duplicated here — the existing skillVisibilityContract
  * already runs on this deployment; the BGST admin UI just links to it.
@@ -10,8 +10,10 @@ import { z } from 'zod';
 
 import {
   instanceAdminAppBundlesResponseSchema,
+  instanceAdminSetAdminBodySchema,
   instanceAdminSetPandaBodySchema,
-  instanceAdminSetPandaResponseSchema,
+  instanceAdminUserResponseSchema,
+  instanceAdminUsersQuerySchema,
   instanceAdminUsersResponseSchema,
   instanceAdminRolesResponseSchema,
   instanceAdminOverviewErrorResponseSchema,
@@ -23,11 +25,12 @@ export const instanceAdminOverviewContract = c.router(
   {
     /**
      * GET /api/auth/admin/bgst/users
-     * Minimal user list for this deployment (admin).
+     * Minimal user list for this deployment (admin), optionally filtered by `q`.
      */
     listUsers: {
       method: 'GET',
       path: '/api/auth/admin/bgst/users',
+      query: instanceAdminUsersQuerySchema,
       responses: {
         200: instanceAdminUsersResponseSchema,
         401: instanceAdminOverviewErrorResponseSchema,
@@ -47,13 +50,33 @@ export const instanceAdminOverviewContract = c.router(
       pathParams: z.object({ userId: z.string().guid() }),
       body: instanceAdminSetPandaBodySchema,
       responses: {
-        200: instanceAdminSetPandaResponseSchema,
+        200: instanceAdminUserResponseSchema,
         401: instanceAdminOverviewErrorResponseSchema,
         403: instanceAdminOverviewErrorResponseSchema,
         404: instanceAdminOverviewErrorResponseSchema,
         500: instanceAdminOverviewErrorResponseSchema,
       },
       summary: 'Unlock or lock the Panda model lane for one account (admin)',
+    },
+
+    /**
+     * PATCH /api/auth/admin/bgst/users/:userId/admin
+     * Grant or revoke instance-admin rights. Revoking one's own is refused (409).
+     */
+    setUserAdmin: {
+      method: 'PATCH',
+      path: '/api/auth/admin/bgst/users/:userId/admin',
+      pathParams: z.object({ userId: z.string().guid() }),
+      body: instanceAdminSetAdminBodySchema,
+      responses: {
+        200: instanceAdminUserResponseSchema,
+        401: instanceAdminOverviewErrorResponseSchema,
+        403: instanceAdminOverviewErrorResponseSchema,
+        404: instanceAdminOverviewErrorResponseSchema,
+        409: instanceAdminOverviewErrorResponseSchema,
+        500: instanceAdminOverviewErrorResponseSchema,
+      },
+      summary: 'Grant or revoke instance-admin rights for one account (admin)',
     },
 
     /**

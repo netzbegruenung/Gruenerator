@@ -24,6 +24,8 @@ export interface BrandPack {
   markers: { swatches: BrandSwatch[]; ink: string };
   /** Chart series, strongest first, one colour per part of a pie. */
   chart: readonly string[];
+  /** Colours offered for an image's tint and for shadow and outline effects, in picker order. */
+  effects: BrandEffects;
   fonts: BrandFonts;
   /** Font files the host loads before rendering; empty = the host provides the families. */
   fontFaces: BrandFontFace[];
@@ -49,6 +51,12 @@ export interface BrandColors {
   textOnLight: string;
   /** Light neutral ground behind a design that brings no background of its own. */
   surface: string;
+}
+
+export interface BrandEffects {
+  tints: readonly string[];
+  shadows: readonly string[];
+  outlines: readonly string[];
 }
 
 export interface BrandSwatch {

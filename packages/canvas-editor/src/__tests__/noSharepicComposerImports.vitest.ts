@@ -27,7 +27,6 @@ const ALLOWED: readonly string[] = [
   // utils/vorlagenRelevance.ts and configs/freeform_at_full.config.tsx belong to
   // that move too, but import other composer modules (chromeParts, sharepicThemes).
   'configs/freeform_full.config.tsx',
-  'slides/slideLayouts.ts',
 ];
 
 const SRC = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');

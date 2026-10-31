@@ -1,0 +1,186 @@
+// SPDX-License-Identifier: MPL-2.0
+import { useCanvasEditorServices } from '@ggraphic/editor/CanvasEditorProvider';
+import {
+  useNoStudioAssets,
+  type CanvasStudioAssetItem,
+  type CanvasStudioAssetKind,
+  type CanvasStudioAssetScope,
+} from '@ggraphic/editor/hostServices';
+import { useMessages } from '@ggraphic/editor/i18n/messages';
+import { plainAssetImageUrls, registeredAssetCatalog } from '@ggraphic/editor/utils/canvasAssets';
+import { cn } from '@ggraphic/editor/utils/cn';
+import { useEffect, useMemo, useRef, type ButtonHTMLAttributes } from 'react';
+
+/** The lists every gallery picker offers, in tab order. */
+export function useGalleryScopes(): readonly GalleryTab<CanvasStudioAssetScope>[] {
+  const t = useMessages();
+  return useMemo(
+    () => [
+      { id: 'shop', label: t.sidebar.studio.scope.shop },
+      { id: 'mine', label: t.sidebar.studio.scope.mine },
+      { id: 'saved', label: t.sidebar.studio.scope.saved },
+    ],
+    [t]
+  );
+}
+
+/** The API caps the search text at 80 characters. */
+const MAX_QUERY = 80;
+
+const HINT = 'm-0 py-4 text-center text-[13px] text-[var(--editor-text-muted)]';
+
+const SECONDARY_BUTTON =
+  'h-9 px-3.5 rounded-lg border-none cursor-pointer bg-[var(--editor-tile)] text-[13px] font-semibold text-[var(--editor-text)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--editor-accent)] disabled:opacity-60 disabled:cursor-not-allowed';
+
+export interface GalleryTab<T extends string> {
+  id: T;
+  label: string;
+}
+
+/**
+ * Chip row that switches between a card's lists (Grüne, Entdecken, Meine, Gemerkt).
+ * Toggle buttons rather than tabs: the list below is no tabpanel and arrow keys add nothing.
+ */
+export function GalleryTabs<T extends string>({
+  label,
+  tabs,
+  value,
+  onChange,
+}: {
+  label: string;
+  tabs: readonly GalleryTab<T>[];
+  value: T;
+  onChange: (id: T) => void;
+}) {
+  return (
+    <div role="group" aria-label={label} className="flex flex-wrap gap-1.5">
+      {tabs.map((tab) => {
+        const isActive = tab.id === value;
+        return (
+          <button
+            key={tab.id}
+            type="button"
+            aria-pressed={isActive}
+            onClick={() => onChange(tab.id)}
+            className={cn(
+              'h-8 px-3 rounded-2xl border-none cursor-pointer text-[13px] whitespace-nowrap transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--editor-accent)]',
+              isActive
+                ? 'bg-[var(--editor-active-bg)] text-[var(--editor-active-fg)] font-bold'
+                : 'bg-[var(--editor-tile)] text-[var(--editor-text-secondary)] font-semibold'
+            )}
+          >
+            {tab.label}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+/** One gallery list (Entdecken, Meine or Gemerkt) of stickers or backgrounds as tiles. */
+export function StudioGalleryGrid({
+  kind,
+  scope,
+  query = '',
+  pendingId = null,
+  selectedSrc = null,
+  refreshToken = 0,
+  onPick,
+  dragProps,
+}: {
+  kind: CanvasStudioAssetKind;
+  scope: CanvasStudioAssetScope;
+  query?: string;
+  /** The item whose pick is still loading; its tile shows as busy. */
+  pendingId?: string | null;
+  /** The src in use, marked pressed; null when the tiles only add. */
+  selectedSrc?: string | null;
+  /** Bumping it refetches the list (the query cache would otherwise keep it for minutes). */
+  refreshToken?: number;
+  onPick: (item: CanvasStudioAssetItem) => void;
+  /** Lets a tile be dragged onto a page; unset leaves the tiles click-only. */
+  dragProps?: (
+    item: CanvasStudioAssetItem
+  ) => Pick<ButtonHTMLAttributes<HTMLButtonElement>, 'draggable' | 'onDragStart' | 'onDragEnd'>;
+}) {
+  const t = useMessages();
+  const q = query.trim().slice(0, MAX_QUERY);
+  // Host hook, fixed for the lifetime of the editor (see hostServices.ts).
+  const { useStudioAssets = useNoStudioAssets } = useCanvasEditorServices();
+  const { items, isLoading, isError, hasNextPage, isFetchingNextPage, fetchNextPage, refetch } =
+    useStudioAssets({ kind, scope, q, sort: 'new' });
+  const noun = t.sidebar.studio.plural[kind];
+  const urls = registeredAssetCatalog().imageUrls ?? plainAssetImageUrls;
+
+  const seenToken = useRef(refreshToken);
+  useEffect(() => {
+    if (seenToken.current === refreshToken) return;
+    seenToken.current = refreshToken;
+    void refetch();
+  }, [refreshToken, refetch]);
+
+  if (isLoading) return <p className={HINT}>{t.sidebar.studio.loading}</p>;
+  if (isError && items.length === 0)
+    return (
+      <div role="alert" className="flex flex-col items-center gap-2 py-2">
+        <p className={HINT}>{t.sidebar.studio.loadFailed(noun)}</p>
+        <button type="button" className={SECONDARY_BUTTON} onClick={() => void refetch()}>
+          {t.ui.retry}
+        </button>
+      </div>
+    );
+  if (items.length === 0)
+    return (
+      <p className={HINT}>
+        {q ? t.sidebar.studio.noMatch(noun, q) : t.sidebar.studio.empty(noun, scope)}
+      </p>
+    );
+
+  return (
+    <div className="flex flex-col gap-2.5 w-full">
+      <div className={cn('grid gap-2 w-full', kind === 'sticker' ? 'grid-cols-3' : 'grid-cols-2')}>
+        {items.map((item) => (
+          <button
+            key={item.id}
+            type="button"
+            title={item.title}
+            aria-label={t.sidebar.studio.itemLabel(item.title, kind === 'sticker')}
+            aria-busy={pendingId === item.id}
+            {...(selectedSrc === null ? {} : { 'aria-pressed': selectedSrc === item.src })}
+            onClick={() => onPick(item)}
+            {...dragProps?.(item)}
+            className={cn(
+              'relative flex items-center justify-center overflow-hidden rounded-lg border-none cursor-pointer bg-[var(--editor-tile)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--editor-accent)]',
+              dragProps && 'active:cursor-grabbing',
+              kind === 'sticker' ? 'aspect-square p-2' : 'aspect-[4/3] p-0',
+              selectedSrc === item.src &&
+                'shadow-[0_0_0_2px_var(--editor-surface),0_0_0_4px_var(--editor-accent)]'
+            )}
+          >
+            <img
+              src={item.thumbUrl ?? urls.thumbnail(item.src, 200)}
+              alt=""
+              loading="lazy"
+              className={kind === 'sticker' ? 'size-full object-contain' : 'size-full object-cover'}
+            />
+            {pendingId === item.id && (
+              <span className="absolute inset-0 flex items-center justify-center bg-black/30">
+                <span className="size-5 rounded-full border-2 border-white border-t-transparent animate-spin" />
+              </span>
+            )}
+          </button>
+        ))}
+      </div>
+      {hasNextPage ? (
+        <button
+          type="button"
+          className={cn(SECONDARY_BUTTON, 'self-center')}
+          disabled={isFetchingNextPage}
+          onClick={() => void fetchNextPage()}
+        >
+          {isFetchingNextPage ? t.sidebar.studio.loading : t.sidebar.studio.loadMore}
+        </button>
+      ) : null}
+    </div>
+  );
+}

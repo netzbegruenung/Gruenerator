@@ -194,5 +194,7 @@ export function subtypeToKind(subtype: string | null | undefined): DocKind {
 export function subtypeToArtifactKind(subtype: string | null | undefined): ArtifactKind {
   if (subtype === 'pdf') return 'pdf';
   if (subtype === 'explainable') return 'explainable';
+  // A canvas in a chat card is the deck the chat made (`slide-16-9`).
+  if (subtype === 'canvas') return 'pres';
   return subtypeToKind(subtype);
 }

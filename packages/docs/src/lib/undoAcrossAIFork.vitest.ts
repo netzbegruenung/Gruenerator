@@ -6,7 +6,7 @@ import * as Y from 'yjs';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { getDocUndoFlags, type UndoableEditor } from '../hooks/useDocUndoState';
-import { guardDocUndoAcrossAIFork, type UndoGuardEditor } from './undoAcrossAIFork';
+import { guardDocUndoAcrossAIFork } from './undoAcrossAIFork';
 
 /**
  * Minimal awareness stand-in for a headless test editor. YCursorExtension and
@@ -72,72 +72,15 @@ afterEach(() => {
   ctx = undefined;
 });
 
-describe('undo across the AI fork/merge cycle (no guard — documents the upstream bug)', () => {
-  // BlockNote's ForkYDoc fork()/merge() swap the yjs plugins via
-  // replaceExtension. ProseMirror carries the yUndo plugin STATE over (same
-  // plugin key), so the same UndoManager survives — but it destroys the plugin
-  // VIEWS, and y-prosemirror's undo-plugin view destroy() calls
-  // undoManager.destroy(), unhooking it from the doc's afterTransaction.
-  // If this test ever fails, upstream fixed it and the guard can go.
-  it('the surviving UndoManager is destroyed by the fork and captures nothing after merge', () => {
-    ctx = createCollabEditor();
-    const { editor } = ctx;
-    setText(editor, 'Original');
-
-    const before = getUndoManager(editor);
-    // A live yjs UndoManager tracks itself (constructor); destroy() removes it.
-    expect(before.trackedOrigins.has(before)).toBe(true);
-    expect(before.undoStack.length).toBeGreaterThan(0);
-
-    forkExt(editor).fork();
-    setText(editor, 'KI-Vorschlag');
-    forkExt(editor).merge({ keepChanges: true });
-
-    const after = getUndoManager(editor);
-    expect(after).toBe(before); // state carried over — same instance
-    expect(after.trackedOrigins.has(after)).toBe(false); // …but destroyed
-
-    const stackLenAfterMerge = after.undoStack.length;
-    setText(editor, 'Nachher');
-    // The destroyed manager no longer captures local edits.
-    expect(after.undoStack.length).toBe(stackLenAfterMerge);
-  });
-
-  it('undo during AI review mutates the hidden original doc', () => {
-    ctx = createCollabEditor();
-    const { editor, fragment } = ctx;
-    setText(editor, 'Original');
-
-    forkExt(editor).fork();
-    const originalJson = fragment.toJSON();
-    editor.undo();
-    // The stale pre-fork stack applies to the original fragment — invisible to
-    // the local user (the editor shows the fork) but synced to collaborators.
-    expect(fragment.toJSON()).not.toBe(originalJson);
-    forkExt(editor).merge({ keepChanges: false });
-  });
-
-  it('the toolbar flags stay enabled over the dead stack during review', () => {
-    ctx = createCollabEditor();
-    const { editor } = ctx;
-    setText(editor, 'Original');
-    forkExt(editor).fork();
-    expect(getDocUndoFlags(editor as unknown as UndoableEditor).canUndo).toBe(true);
-    forkExt(editor).merge({ keepChanges: false });
-  });
-});
-
-describe('guardDocUndoAcrossAIFork', () => {
-  function guarded() {
-    ctx = createCollabEditor();
-    const stop = guardDocUndoAcrossAIFork(ctx.editor as unknown as UndoGuardEditor, {
-      isCollaborative: true,
-    });
-    return { ...ctx, stop };
-  }
-
+describe('undo across the AI fork/merge cycle (BlockNote itself, no guard)', () => {
+  // Up to 0.55, fork()/merge() carried the yUndo plugin state over while
+  // destroying its views, which killed the UndoManager; guardDocUndoAcrossAIFork
+  // rebuilt it. 0.56 resets the plugin state itself (`resetPluginStateFor`) and
+  // carries both stacks. These pin that behaviour so an upgrade that regresses
+  // it fails here instead of silently killing undo after the first AI edit.
   it('post-merge edits are undoable again after accept', () => {
-    const { editor } = guarded();
+    ctx = createCollabEditor();
+    const { editor } = ctx;
     setText(editor, 'Original');
 
     forkExt(editor).fork();
@@ -145,7 +88,8 @@ describe('guardDocUndoAcrossAIFork', () => {
     forkExt(editor).merge({ keepChanges: true });
 
     const um = getUndoManager(editor);
-    expect(um.trackedOrigins.has(um)).toBe(true); // live again
+    // A live yjs UndoManager tracks itself (constructor); destroy() removes it.
+    expect(um.trackedOrigins.has(um)).toBe(true);
 
     setText(editor, 'Nachher');
     expect(getDocUndoFlags(editor as unknown as UndoableEditor).canUndo).toBe(true);
@@ -154,7 +98,8 @@ describe('guardDocUndoAcrossAIFork', () => {
   });
 
   it('post-merge edits are undoable again after reject', () => {
-    const { editor } = guarded();
+    ctx = createCollabEditor();
+    const { editor } = ctx;
     setText(editor, 'Original');
 
     forkExt(editor).fork();
@@ -168,7 +113,8 @@ describe('guardDocUndoAcrossAIFork', () => {
   });
 
   it('pre-fork undo history survives the cycle', () => {
-    const { editor } = guarded();
+    ctx = createCollabEditor();
+    const { editor } = ctx;
     setText(editor, 'Eins');
     getUndoManager(editor).stopCapturing();
     setText(editor, 'Zwei');
@@ -181,7 +127,8 @@ describe('guardDocUndoAcrossAIFork', () => {
   });
 
   it('pre-fork redo history survives the cycle', () => {
-    const { editor } = guarded();
+    ctx = createCollabEditor();
+    const { editor } = ctx;
     setText(editor, 'Eins');
     getUndoManager(editor).stopCapturing();
     setText(editor, 'Zwei');
@@ -197,7 +144,8 @@ describe('guardDocUndoAcrossAIFork', () => {
   });
 
   it('during review, undo is unavailable and leaves the hidden original doc alone', () => {
-    const { editor, fragment } = guarded();
+    ctx = createCollabEditor();
+    const { editor, fragment } = ctx;
     setText(editor, 'Original');
 
     forkExt(editor).fork();
@@ -215,7 +163,8 @@ describe('guardDocUndoAcrossAIFork', () => {
   });
 
   it('two consecutive AI cycles keep undo alive', () => {
-    const { editor } = guarded();
+    ctx = createCollabEditor();
+    const { editor } = ctx;
     setText(editor, 'Original');
 
     forkExt(editor).fork();
@@ -231,10 +180,28 @@ describe('guardDocUndoAcrossAIFork', () => {
     expect(getText(editor)).toBe('KI 2');
   });
 
-  describe('AI merge as an undo step (#3261, fragment passed)', () => {
+  // Canary: if this ever fails, upstream records the merge itself and the
+  // guard below would double-capture it — remove the guard then.
+  it('an accepted AI merge is not an undo step on its own (#3261)', () => {
+    ctx = createCollabEditor();
+    const { editor } = ctx;
+    setText(editor, 'Original');
+    getUndoManager(editor).stopCapturing();
+    const stackLenBefore = getUndoManager(editor).undoStack.length;
+
+    forkExt(editor).fork();
+    setText(editor, 'KI-Vorschlag');
+    forkExt(editor).merge({ keepChanges: true });
+
+    expect(getUndoManager(editor).undoStack.length).toBe(stackLenBefore);
+  });
+});
+
+describe('guardDocUndoAcrossAIFork', () => {
+  describe('AI merge as an undo step (#3261)', () => {
     function guardedWithFragment() {
       ctx = createCollabEditor();
-      const stop = guardDocUndoAcrossAIFork(ctx.editor as unknown as UndoGuardEditor, {
+      const stop = guardDocUndoAcrossAIFork(ctx.editor as unknown as UndoableEditor, {
         isCollaborative: true,
         fragment: ctx.fragment,
       });
@@ -318,8 +285,9 @@ describe('guardDocUndoAcrossAIFork', () => {
   it('is a silent no-op without collaboration', () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
     const editor = BlockNoteEditor.create();
-    const stop = guardDocUndoAcrossAIFork(editor as unknown as UndoGuardEditor, {
+    const stop = guardDocUndoAcrossAIFork(editor as unknown as UndoableEditor, {
       isCollaborative: false,
+      fragment: new Y.Doc().getXmlFragment('doc'),
     });
     expect(warn).not.toHaveBeenCalled();
     stop();
@@ -333,8 +301,8 @@ describe('guardDocUndoAcrossAIFork', () => {
         undo: () => {},
         redo: () => {},
         getExtension: () => undefined,
-      } as unknown as UndoGuardEditor,
-      { isCollaborative: true }
+      } as unknown as UndoableEditor,
+      { isCollaborative: true, fragment: new Y.Doc().getXmlFragment('doc') }
     );
     expect(warn).toHaveBeenCalledOnce();
     expect(warn.mock.calls[0]?.[0]).toContain('AI undo guard inactive');

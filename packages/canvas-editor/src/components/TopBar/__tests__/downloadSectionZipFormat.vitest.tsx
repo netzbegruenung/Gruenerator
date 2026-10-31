@@ -2,7 +2,7 @@ import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeAll, describe, expect, it, vi } from 'vitest';
 
-import { DownloadSection } from '../DownloadSection';
+import { DownloadSection } from '@ggraphic/editor/components/TopBar/DownloadSection';
 
 // Radix Select asks for pointer capture and scrolls the active item into view;
 // jsdom has neither.

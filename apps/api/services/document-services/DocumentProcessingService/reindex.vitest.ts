@@ -3,7 +3,11 @@
  * ein zweiter Klick nichts doppelt einreiht. Die Identität der Quelle (ID,
  * Tags, Notebook-Mitgliedschaft) bleibt — geprüft an `processUploadedDocument`.
  */
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import fs from 'fs';
+import os from 'os';
+import path from 'path';
+
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 import type { ReindexDeps } from './reindex.js';
 import type { ReindexRow } from './reindexOrigin.js';
@@ -32,10 +36,10 @@ vi.mock('./chunkingPipeline.js', () => ({
 vi.mock('../../../middleware/requireAiConsent.js', () => ({ hasAiConsent: async () => true }));
 vi.mock('./documentIngestWorker.js', () => ({ kickIngestWorker: vi.fn() }));
 
-const { reindexDocument, reindexNotebookSources, REINDEX_UNAVAILABLE_MESSAGE } =
-  await import('./reindex.js');
+const { reindexDocument, REINDEX_UNAVAILABLE_MESSAGE } = await import('./reindex.js');
 const { reindexOrigin, isReindexable } = await import('./reindexOrigin.js');
 const { processUploadedDocument } = await import('./fileProcessing.js');
+const { INGEST_RETRY_DELAYS_MS } = await import('./ingestRetry.js');
 
 const OWNER = 'owner-1';
 const EDITOR = 'editor-2';
@@ -52,11 +56,6 @@ const row = (over: Partial<ReindexRow> = {}): ReindexRow => ({
 });
 
 const WOLKE = row({ wolke_share_link_id: 'share-1', wolke_file_path: '/public.php/webdav/a.pdf' });
-const WOLKE_2 = row({
-  id: 'doc-2',
-  wolke_share_link_id: 'share-1',
-  wolke_file_path: '/public.php/webdav/b.pdf',
-});
 const UPLOAD = row({ id: 'doc-3' });
 
 const access = (a: Partial<NotebookAccess>): NotebookAccess => ({
@@ -76,7 +75,10 @@ function fakeDeps(rows: ReindexRow[], over: Partial<ReindexDeps> = {}) {
       query: vi.fn(async (sql: string, params: unknown[]) => {
         if (sql.includes('UPDATE documents')) {
           const r = table.get(params[0] as string);
-          if (r && !['uploaded', 'processing'].includes(r.status ?? '')) {
+          const waiting =
+            r?.status === 'uploaded' &&
+            (r.metadata as { retry_after?: unknown } | undefined)?.retry_after != null;
+          if (r && (waiting || !['uploaded', 'processing'].includes(r.status ?? ''))) {
             r.status = 'uploaded';
             updates.push(r.id);
           }
@@ -88,7 +90,6 @@ function fakeDeps(rows: ReindexRow[], over: Partial<ReindexDeps> = {}) {
     },
     access: vi.fn(async () => access({ canEdit: true })),
     isInNotebook: vi.fn(async () => true),
-    collectionDocumentIds: vi.fn(async () => rows.map((r) => r.id)),
     hasAiConsent: vi.fn(async () => true),
     kick: vi.fn(),
     ...over,
@@ -179,51 +180,31 @@ describe('reindexDocument — welche Quelle ein Original hat', () => {
     expect(isReindexable(UPLOAD)).toBe(false);
   });
 
+  it('holt eine Quelle aus der Wartezeit nach einem Anbieter-Ausfall sofort heraus', async () => {
+    const waiting = {
+      ...WOLKE,
+      status: 'uploaded',
+      metadata: { retry_after: '2099-01-01T00:00:00.000Z', ingest_retries: 3 },
+    };
+    const { deps, updates } = fakeDeps([waiting]);
+    expect((await reindexDocument('doc-1', OWNER, {}, deps)).status).toBe('queued');
+    expect(updates).toEqual(['doc-1']);
+    expect(deps.kick).toHaveBeenCalledTimes(1);
+    const sql = (deps.db.query as ReturnType<typeof vi.fn>).mock.calls
+      .map((c) => c[0] as string)
+      .find((q) => q.includes('UPDATE documents'));
+    expect(sql).toContain("'retry_after', NULL");
+    expect(sql).toContain("status = 'uploaded' AND metadata->>'retry_after' IS NOT NULL");
+    // Der Vorzustand eines laufenden Neu-Indexierens geht dabei nicht verloren.
+    expect(sql).toContain("THEN COALESCE((metadata->>'reindex_prev_searchable')::boolean, false)");
+  });
+
   it('ein zweiter Klick reiht nicht doppelt ein', async () => {
     const { deps, updates } = fakeDeps([WOLKE]);
     await reindexDocument('doc-1', OWNER, {}, deps);
     const again = await reindexDocument('doc-1', OWNER, {}, deps);
     expect(again.status).toBe('queued');
     expect(updates).toEqual(['doc-1']);
-  });
-});
-
-describe('reindexNotebookSources', () => {
-  it('reiht nur erreichbare Quellen ein und zählt den Rest', async () => {
-    const { deps, updates } = fakeDeps([WOLKE, WOLKE_2, UPLOAD]);
-    const result = await reindexNotebookSources('nb-1', EDITOR, deps);
-    expect(result).toEqual({
-      status: 'ok',
-      queued: ['doc-1', 'doc-2'],
-      unavailable: 1,
-      consentMissing: 0,
-    });
-    expect(updates).toEqual(['doc-1', 'doc-2']);
-  });
-
-  it('verweigert ohne Schreibrecht', async () => {
-    const { deps, updates } = fakeDeps([WOLKE], {
-      access: vi.fn(async () => access({ canEdit: false })),
-    });
-    expect(await reindexNotebookSources('nb-1', EDITOR, deps)).toEqual({ status: 'forbidden' });
-    expect(updates).toEqual([]);
-  });
-
-  it('ist beim Wiederholen idempotent', async () => {
-    const { deps, updates } = fakeDeps([WOLKE, WOLKE_2]);
-    await reindexNotebookSources('nb-1', OWNER, deps);
-    const again = await reindexNotebookSources('nb-1', OWNER, deps);
-    expect(again).toMatchObject({ queued: ['doc-1', 'doc-2'] });
-    expect(updates).toEqual(['doc-1', 'doc-2']);
-  });
-
-  it('überspringt Quellen, deren Eigentümer*in nicht eingewilligt hat', async () => {
-    const other = { ...WOLKE_2, id: 'doc-4', user_id: 'other' };
-    const { deps } = fakeDeps([WOLKE, other], {
-      hasAiConsent: vi.fn(async (id: string) => id !== 'other'),
-    });
-    const result = await reindexNotebookSources('nb-1', OWNER, deps);
-    expect(result).toMatchObject({ queued: ['doc-1'], consentMissing: 1 });
   });
 });
 
@@ -434,6 +415,147 @@ describe('processUploadedDocument — neu indexieren', () => {
       'doc-1',
       OWNER,
       expect.objectContaining({ status: 'failed' })
+    );
+  });
+});
+
+describe('gescheiterter Upload — das Original bleibt, „Neu indexieren" geht', () => {
+  let dir: string;
+  let filePath: string;
+  beforeEach(() => {
+    dir = fs.mkdtempSync(path.join(os.tmpdir(), 'reindex-upload-'));
+    filePath = path.join(dir, 'antrag.pdf');
+    fs.writeFileSync(filePath, '%PDF');
+    extractDocumentFromFile.mockReset().mockRejectedValue(new Error('OCR 503'));
+  });
+  afterEach(() => fs.rmSync(dir, { recursive: true, force: true }));
+
+  const failedUpload = () =>
+    row({ id: 'doc-5', status: 'failed', vector_count: 0, metadata: { filePath } });
+
+  it('behält die Datei, wenn die Verarbeitung scheitert', async () => {
+    const updateDocumentMetadata = vi.fn(async () => undefined);
+    await expect(
+      processUploadedDocument(
+        {
+          updateDocumentMetadata,
+          getDocumentById: vi.fn(async () => ({
+            id: 'doc-5',
+            title: 'Antrag',
+            filename: 'antrag.pdf',
+            metadata: { filePath, mimetype: 'application/pdf', reindex_origin: 'upload' },
+          })),
+        } as never,
+        { storeDocumentVectors: vi.fn(), deleteDocumentVectors: vi.fn() } as never,
+        'doc-5',
+        OWNER
+      )
+    ).rejects.toThrow('OCR 503');
+
+    expect(fs.existsSync(filePath)).toBe(true);
+    expect(updateDocumentMetadata).toHaveBeenLastCalledWith(
+      'doc-5',
+      OWNER,
+      expect.objectContaining({
+        status: 'failed',
+        // Die Markierungen eines Neu-Indexierens gehen auch beim Upload weg.
+        additionalMetadata: expect.objectContaining({
+          processing_error: 'OCR 503',
+          reindex_origin: undefined,
+          queued_at: undefined,
+        }),
+      })
+    );
+  });
+
+  it('gilt als neu indexierbar, solange die Datei da ist', () => {
+    expect(reindexOrigin(failedUpload())).toEqual({ kind: 'upload' });
+    expect(isReindexable(failedUpload())).toBe(true);
+    // Die Notebook-Liste liest metadata als JSON-Text.
+    expect(isReindexable({ ...failedUpload(), metadata: JSON.stringify({ filePath }) })).toBe(true);
+    fs.rmSync(filePath);
+    expect(reindexOrigin(failedUpload())).toBeNull();
+  });
+
+  it('prüft bei einer fertigen Quelle das Dateisystem gar nicht erst', () => {
+    // Die Datei liegt noch — trotzdem nein: fertig heißt, sie ist gelöscht,
+    // und die Notebook-Liste soll pro fertiger Zeile keinen fs-Aufruf zahlen.
+    expect(isReindexable({ ...failedUpload(), status: 'completed' })).toBe(false);
+  });
+
+  it('reiht ihn wieder ein', async () => {
+    const { deps, updates } = fakeDeps([failedUpload()]);
+    expect(await reindexDocument('doc-5', OWNER, {}, deps)).toEqual({
+      status: 'queued',
+      message: 'Wird neu indexiert.',
+    });
+    expect(updates).toEqual(['doc-5']);
+    expect(deps.kick).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('vorübergehender Fehler — der Worker versucht es von selbst wieder', () => {
+  let dir: string;
+  let filePath: string;
+  const updateDocumentMetadata = vi.fn(async () => undefined);
+  beforeEach(() => {
+    dir = fs.mkdtempSync(path.join(os.tmpdir(), 'ingest-retry-'));
+    filePath = path.join(dir, 'antrag.pdf');
+    fs.writeFileSync(filePath, '%PDF');
+    updateDocumentMetadata.mockClear();
+    extractDocumentFromFile
+      .mockReset()
+      .mockRejectedValue(Object.assign(new Error('Service unavailable'), { statusCode: 503 }));
+  });
+  afterEach(() => fs.rmSync(dir, { recursive: true, force: true }));
+
+  const runWith = (ingestRetries: number) =>
+    processUploadedDocument(
+      {
+        updateDocumentMetadata,
+        getDocumentById: vi.fn(async () => ({
+          id: 'doc-6',
+          title: 'Antrag',
+          filename: 'antrag.pdf',
+          metadata: { filePath, mimetype: 'application/pdf', ingest_retries: ingestRetries },
+        })),
+      } as never,
+      { storeDocumentVectors: vi.fn(), deleteDocumentVectors: vi.fn() } as never,
+      'doc-6',
+      OWNER,
+      { ingestRetries }
+    );
+
+  it('reiht das Dokument mit Wartezeit wieder ein, statt es aufzugeben', async () => {
+    const before = Date.now();
+    await expect(runWith(1)).rejects.toThrow('Service unavailable');
+
+    const last = updateDocumentMetadata.mock.calls.at(-1) as unknown as [
+      string,
+      string,
+      { status: string; processingAttempts: number; additionalMetadata: Record<string, unknown> },
+    ];
+    expect(last[2].status).toBe('uploaded');
+    // Die Wiederholung ist gewollt — sie zählt nicht gegen den Absturzschutz.
+    expect(last[2].processingAttempts).toBe(0);
+    expect(last[2].additionalMetadata.ingest_retries).toBe(2);
+    const retryAt = Date.parse(last[2].additionalMetadata.retry_after as string);
+    expect(retryAt).toBeGreaterThanOrEqual(before + INGEST_RETRY_DELAYS_MS[1]!);
+    expect(fs.existsSync(filePath)).toBe(true);
+  });
+
+  it('gibt auf, wenn keine Wiederholung mehr zusteht — und räumt die Zähler ab', async () => {
+    await expect(runWith(INGEST_RETRY_DELAYS_MS.length)).rejects.toThrow('Service unavailable');
+    expect(updateDocumentMetadata).toHaveBeenLastCalledWith(
+      'doc-6',
+      OWNER,
+      expect.objectContaining({
+        status: 'failed',
+        additionalMetadata: expect.objectContaining({
+          retry_after: undefined,
+          ingest_retries: undefined,
+        }),
+      })
     );
   });
 });

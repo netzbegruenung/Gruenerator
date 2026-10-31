@@ -9,6 +9,7 @@ import { agentsList, getDefaultAgent } from '../../lib/agents';
 import { resolveCitations } from '../../lib/citationUtils';
 import { SOURCE_TIER_LABEL } from '../../lib/notebookSourceTier';
 import { phosphorAgentIcon } from '../../lib/phosphorAgentIcon';
+import { selectRunActivity } from '../../lib/runActivityView';
 import {
   selectReasoningText,
   selectSearchSources,
@@ -31,6 +32,7 @@ import { MemoryIndicator } from '../message-parts/MemoryIndicator';
 import { MessageActions } from '../message-parts/MessageActions';
 import { MessageErrorBanner } from '../message-parts/MessageErrorBanner';
 import { MessageDaySeparator } from '../message-parts/MessageTimestamp';
+import { RunActivitySummary } from '../message-parts/RunActivitySummary';
 import { SearchImagesSection } from '../message-parts/SearchImagesSection';
 import { SearchResultsSection, type AdditionalSource } from '../message-parts/SearchResultsSection';
 import { SharepicVariantStack } from '../message-parts/SharepicVariantStack';
@@ -160,6 +162,12 @@ export const AssistantMessage = memo(function AssistantMessage() {
   const toolStatus = selectSearchStatusLabel(statusParts);
   const reasoningText = selectReasoningText(statusParts);
   const statusSources = useMemo(() => selectSearchSources(statusParts), [statusParts]);
+  // The trace the turn keeps after the line is gone — only for turns that worked.
+  const turnDurationMs = custom?.turnDurationMs ?? null;
+  const runActivity = useMemo(
+    () => selectRunActivity(statusParts, turnDurationMs, isStreaming),
+    [statusParts, turnDurationMs, isStreaming]
+  );
 
   const citations = useMemo(
     () => resolveCitations(custom as Record<string, unknown> | undefined),
@@ -305,6 +313,7 @@ export const AssistantMessage = memo(function AssistantMessage() {
             reasoningText={reasoningText}
             sources={statusSources}
           />
+          {runActivity && <RunActivitySummary view={runActivity} />}
 
           {custom?.socialPostData && (
             <SocialPostCard

@@ -154,6 +154,13 @@ interface DeferrableGroup {
   readonly loaderTool: string;
   readonly tools: readonly string[];
   readonly hint: RegExp;
+  /**
+   * Werkzeuge AUSSERHALB der Gruppe, die sie öffnen: ein Pin darauf (@-Erwähnung),
+   * ein Aufruf in diesem Turn oder in einem früheren Turn des Threads. Für Gruppen,
+   * die Folgewerkzeuge eines immer sichtbaren Einstiegs tragen (`bundestag` →
+   * `parlament_lesen`): sie werden erst gebraucht, wenn der Einstieg gelaufen ist.
+   */
+  readonly opensOn?: readonly string[];
   readonly loaderDescription: string;
   /** Was der Lader zurückgibt, wenn er die Gruppe geöffnet hat. */
   readonly opened: string;
@@ -192,9 +199,35 @@ export const DEFERRABLE_GROUPS = [
     opened:
       'website_erkunden ist jetzt verfügbar. Rufe es im nächsten Schritt mit url und auftrag auf.',
   },
+  {
+    // Parlamentsdaten: `bundestag` (Liste, Zählung) bleibt als Einstieg immer
+    // sichtbar, seine Leser und die Reden stehen erst, wenn der Turn davon
+    // handelt. Ein weiteres Parlament (Landtag) ist EIN Name in `tools` und
+    // einer in `opensOn`. `abgeordnetenwatch` gehört dazu, obwohl es ein
+    // eigener Einstieg ist (Abstimmungen, Nebentätigkeiten, auch Landtagsabgeordnete):
+    // seine Fragen tragen fast immer eines der Wörter im `hint`, und ein
+    // Fehlschluss kostet nur den Lader-Schritt. `umfragen` (Sonntagsfrage, auch
+    // Österreich) fährt mit: gleiche Art Frage, und es gilt auch dort, wo die
+    // Bundestagswerkzeuge fehlen.
+    id: 'parlament',
+    loaderTool: 'parlament_werkzeuge_laden',
+    tools: ['parlament_lesen', 'bundestag_reden', 'abgeordnetenwatch', 'umfragen', 'landtag'],
+    // `nationalrat` ist für Österreich, was `bundestag` für Deutschland ist: der immer sichtbare Einstieg.
+    opensOn: ['bundestag', 'landtag', 'nationalrat'],
+    hint: /bundestag|drucksache|plenar|parlament|landtag|abgeordnet|ab(ge)?stimm|gestimmt|stimmverhalten|prognose|wahltrend|hochrechnung|nebent[aä]tig|nebenjob|nebeneink|mandat|umfrage|sonntagsfrage|nationalrat|(?<![\w/])BE\s?\d{1,2}\/\d{1,5}(?![\d/])|(?<![\w/])NR\s?\d{1,2}\/[A-Z]{1,6}\d{1,5}(?![\d/])|(?<![\d/])2[01]\/\d{1,5}(?![\d/])/i,
+    loaderDescription:
+      'Schaltet die Parlaments-Werkzeuge frei, soweit vorhanden: parlament_lesen (Drucksachen/Plenarprotokolle lesen), landtag (Berlin: Abgeordnetenhaus-Drucksachen suchen), bundestag_reden (Reden im Plenum), abgeordnetenwatch (Abstimmungen, Nebentätigkeiten, Mandate) und umfragen (Sonntagsfrage).\n\nNUTZE WENN Parlamentsdokumente gelesen, Reden gesucht, Abgeordnete nachgeschlagen oder Umfragen gebraucht werden. Die Liste liefert bundestag (Österreich: nationalrat), immer bereit.',
+    opened:
+      'Die Parlaments-Werkzeuge (parlament_lesen, bundestag_reden, abgeordnetenwatch, umfragen) sind jetzt verfügbar. Rufe das passende auf.',
+  },
 ] as const satisfies readonly DeferrableGroup[];
 
 export type DeferrableGroupId = (typeof DEFERRABLE_GROUPS)[number]['id'];
+
+/** Der Ausschnitt eines abgeschlossenen Schritts, den der Umfang liest. */
+export interface ToolScopeStep {
+  content: ReadonlyArray<{ type: string; toolName?: string }>;
+}
 
 export interface ToolScope {
   /**
@@ -202,7 +235,7 @@ export interface ToolScope {
    * zurückgestellt ist oder der Umfang nur beobachtet. `undefined` heisst "kein
    * Eingriff": genau dann verhält sich der Turn wie vor dieser Datei.
    */
-  activeTools(): readonly string[] | undefined;
+  activeTools(steps?: ReadonlyArray<ToolScopeStep>): readonly string[] | undefined;
   /** Die Lader-Werkzeuge der noch geschlossenen Gruppen, fertig zum Montieren. */
   loaderTools(): ToolSet;
   /** Was das Tor zu Beginn des Turns zurückgestellt hat (bzw. hätte). */
@@ -247,22 +280,35 @@ export function createToolScope(params: {
 
   // Nur Gruppen, die diesen Turn überhaupt etwas zurückhalten könnten.
   const closed = new Map<string, DeferrableGroup>();
-  for (const group of DEFERRABLE_GROUPS) {
+  for (const group of DEFERRABLE_GROUPS as readonly DeferrableGroup[]) {
     // `tools` ist ein Literal-Tupel, die Namen kommen als beliebige Strings aus
     // dem Zustand — die Verbreiterung ist die Grenze, nicht ein Typloch.
     const groupTools = group.tools as readonly string[];
     const present = groupTools.filter((t) => mounted.has(t));
     if (present.length === 0) continue;
     if (group.hint.test(text)) continue;
-    if (pinned && groupTools.includes(pinned)) continue;
-    if (groupTools.some((t) => prior.has(t))) continue;
+    const opening = [...groupTools, ...(group.opensOn ?? [])];
+    if (pinned && opening.includes(pinned)) continue;
+    if (opening.some((t) => prior.has(t))) continue;
     closed.set(group.id, { ...group, tools: present });
   }
   // Der Anfangsstand, für `misses`: ein Lader öffnet `closed` mitten im Lauf.
   const initiallyClosed = [...closed.values()];
 
   return {
-    activeTools() {
+    activeTools(steps) {
+      // Ein Einstieg ist in diesem Turn gelaufen: seine Folgewerkzeuge öffnen.
+      const called = new Set<string>();
+      for (const step of steps ?? []) {
+        for (const part of step.content) {
+          if (part.type === 'tool-result' && part.toolName) called.add(part.toolName);
+        }
+      }
+      if (called.size > 0) {
+        for (const group of [...closed.values()]) {
+          if (group.opensOn?.some((t) => called.has(t))) closed.delete(group.id);
+        }
+      }
       if (!params.enforce || closed.size === 0) return undefined;
       const hidden = new Set<string>();
       for (const group of closed.values()) for (const t of group.tools) hidden.add(t);

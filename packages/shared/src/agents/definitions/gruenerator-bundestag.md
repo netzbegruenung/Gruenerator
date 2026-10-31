@@ -37,6 +37,7 @@ audience: de-DE
 locale: de-DE
 author: Grünerator
 autoRoutingHint: precise
+defaultRecipeMention: bundestagsrecherche
 enabledTools:
   - bundestag
   - web

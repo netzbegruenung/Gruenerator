@@ -8,8 +8,8 @@
  * - Precomputed edge arrays to reduce allocations
  */
 
-import { activeAxisLock } from './axisLock';
-import { measureExtent, type Box, type NodeFrame } from './orientation';
+import { activeAxisLock } from './axisLock.js';
+import { measureExtent, type Box, type NodeFrame } from './orientation.js';
 
 export const SNAP_THRESHOLD = 20; // pixels - ~2% of 1000px canvas
 

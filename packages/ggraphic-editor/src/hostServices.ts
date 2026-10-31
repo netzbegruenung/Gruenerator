@@ -24,7 +24,7 @@ import { type Doc } from 'yjs';
 
 import { messages } from '@ggraphic/editor/i18n/messages';
 
-import type { AdditionalText } from './configs/types';
+import type { AdditionalText } from './configs/types.js';
 import type { StockImage, UnsplashSearchResult } from '@ggraphic/schema';
 
 // ── Media library ───────────────────────────────────────────────────────────
@@ -57,10 +57,13 @@ export interface CanvasMediaLibraryState {
   loadMore: () => Promise<void>;
 }
 
-export interface CanvasMediaUploadResult {
-  id: string;
-  shareToken: string;
-}
+/**
+ * Ein Upload-Ergebnis trägt immer einen Link: entweder ein `shareToken` (Hosts mit Freigabe-Link)
+ * oder eine direkte Bild-`url`, die zur Platzierungsquelle (`mediaUrl`) wird.
+ */
+export type CanvasMediaUploadResult =
+  | { id: string; shareToken: string; url?: string }
+  | { id: string; url: string; shareToken?: string };
 
 export interface CanvasMediaUploadState {
   upload: (
@@ -196,6 +199,8 @@ export interface CanvasFileDeliveryService {
   ) => void;
   /** Leads the name of every exported file (`<prefix>-<type>-…`); default `ggraphic`. */
   filenamePrefix?: string;
+  /** Title of the native share sheet for an exported image; default `ggraphic`. */
+  shareTitle?: string;
 }
 
 function clickAnchor(href: string, filename: string): void {
@@ -368,6 +373,18 @@ export interface CanvasImpressumService {
  */
 export interface CanvasPrintService {
   impressum: CanvasImpressumService;
+  /** Shown in the download view next to the print PDF; omitted, there is no notice. */
+  untestedNotice?: string;
+}
+
+/**
+ * Lets surfaces that hide the host's floating feedback launcher (the mobile
+ * editor) offer „Feedback geben" in their own menu.
+ */
+export interface CanvasFeedbackService {
+  /** True while a feedback form is registered; read on every render. */
+  canRequest: () => boolean;
+  request: () => void;
 }
 
 // ── Carousel chrome (page number, swipe arrow) ──────────────────────────────
@@ -382,4 +399,9 @@ export interface CanvasPrintService {
 export interface CanvasCarouselService {
   /** Rewrites the chrome of the pages document; called inside the page op's transaction. */
   refreshChrome: (doc: Doc) => void;
+  /**
+   * The note under the PowerPoint download, per deck locale (which house
+   * fonts the deck carries). Without it the download view shows no note.
+   */
+  pptxFontHint?: Readonly<Record<'de-DE' | 'de-AT', string>>;
 }

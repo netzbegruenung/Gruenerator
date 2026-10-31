@@ -10,7 +10,7 @@
 import { activeBrand } from '@ggraphic/editor/brand/brandRegistry';
 import { messages } from '@ggraphic/editor/i18n/messages';
 
-import type { CircleBadgeInstance, CircleBadgeTextLine } from '../primitives/CircleBadge';
+import type { CircleBadgeInstance, CircleBadgeTextLine } from '../primitives/CircleBadge.js';
 
 export type { CircleBadgeInstance, CircleBadgeTextLine };
 

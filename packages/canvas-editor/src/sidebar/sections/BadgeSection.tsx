@@ -1,3 +1,5 @@
+import { useMessages } from '@ggraphic/editor/i18n/messages';
+
 import {
   PillBadgePreviewIcon,
   StorerPreviewIcon,
@@ -5,7 +7,7 @@ import {
   TripleBalkenPreviewIcon,
 } from './BadgePreviewIcons';
 
-import type { BalkenMode } from '@ggraphic/editor/primitives/index';
+import type { BalkenMode } from '../../utils/balkenUtils';
 
 export interface BadgeSectionProps {
   onAddPillBadge?: (preset?: string) => void;
@@ -14,6 +16,7 @@ export interface BadgeSectionProps {
 }
 
 export function BadgeSection({ onAddPillBadge, onAddCircleBadge, onAddBalken }: BadgeSectionProps) {
+  const t = useMessages();
   return (
     <div className="flex flex-col gap-md max-canvas-mobile:!p-0 max-canvas-mobile:!m-0">
       <div className="grid grid-cols-2 gap-[8px]">
@@ -22,7 +25,7 @@ export function BadgeSection({ onAddPillBadge, onAddCircleBadge, onAddBalken }: 
             type="button"
             className="flex flex-col items-center gap-[6px] px-[6px] pt-[10px] pb-[8px] border border-transparent rounded-lg bg-transparent cursor-pointer transition-[border-color,background-color] duration-150 text-[11px] text-foreground hover:border-primary-400 hover:bg-hover-alt"
             onClick={() => onAddPillBadge()}
-            title="Pill-Badge hinzufügen"
+            title={t.sidebar.badges.addPill}
           >
             <div className="flex items-center justify-center min-h-[36px]">
               <PillBadgePreviewIcon size={48} />
@@ -35,12 +38,12 @@ export function BadgeSection({ onAddPillBadge, onAddCircleBadge, onAddBalken }: 
             type="button"
             className="flex flex-col items-center gap-[6px] px-[6px] pt-[10px] pb-[8px] border border-transparent rounded-lg bg-transparent cursor-pointer transition-[border-color,background-color] duration-150 text-[11px] text-foreground hover:border-primary-400 hover:bg-hover-alt"
             onClick={() => onAddCircleBadge()}
-            title="Störer hinzufügen"
+            title={t.sidebar.badges.addCircle}
           >
             <div className="flex items-center justify-center min-h-[36px]">
               <StorerPreviewIcon size={48} />
             </div>
-            <span>Störer</span>
+            <span>{t.sidebar.badges.circle}</span>
           </button>
         )}
         {onAddBalken && (
@@ -49,23 +52,23 @@ export function BadgeSection({ onAddPillBadge, onAddCircleBadge, onAddBalken }: 
               type="button"
               className="flex flex-col items-center gap-[6px] px-[6px] pt-[10px] pb-[8px] border border-transparent rounded-lg bg-transparent cursor-pointer transition-[border-color,background-color] duration-150 text-[11px] text-foreground hover:border-primary-400 hover:bg-hover-alt"
               onClick={() => onAddBalken('single')}
-              title="Einzelnen Balken hinzufügen"
+              title={t.sidebar.badges.addBar}
             >
               <div className="flex items-center justify-center min-h-[36px]">
                 <SingleBalkenPreviewIcon size={48} />
               </div>
-              <span>1 Balken</span>
+              <span>{t.sidebar.badges.oneBar}</span>
             </button>
             <button
               type="button"
               className="flex flex-col items-center gap-[6px] px-[6px] pt-[10px] pb-[8px] border border-transparent rounded-lg bg-transparent cursor-pointer transition-[border-color,background-color] duration-150 text-[11px] text-foreground hover:border-primary-400 hover:bg-hover-alt"
               onClick={() => onAddBalken('triple')}
-              title="Dreifach-Balken hinzufügen"
+              title={t.sidebar.badges.addTripleBar}
             >
               <div className="flex items-center justify-center min-h-[36px]">
                 <TripleBalkenPreviewIcon size={48} />
               </div>
-              <span>3 Balken</span>
+              <span>{t.sidebar.badges.threeBars}</span>
             </button>
           </>
         )}

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MPL-2.0
-import { cn } from '../utils/cn';
+import { cn } from '../utils/cn.js';
 
 function Skeleton({ className, ...props }: React.ComponentProps<'div'>) {
   return (

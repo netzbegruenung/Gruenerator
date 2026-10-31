@@ -7,12 +7,15 @@
  * DOM-frei, damit die Vorschau hier und der Server-Renderer an derselben
  * Stelle umbrechen. Hier bleibt nur, was ein Canvas braucht: die Messung.
  */
+import { type TextAccent } from '@ggraphic/core';
 import { layoutRichTextBlock, wrapLines, type MeasureRun, type RunStyle } from '@ggraphic/schema';
 
 import { registeredBrands } from '@ggraphic/editor/brand/brandRegistry';
 import { notifyFontLoaded } from '@ggraphic/editor/hooks/useFontGeneration';
 
-import { primaryFontFamily } from './fontMarkSupport';
+import { primaryFontFamily } from './fontMarkSupport.js';
+
+export { type TextAccent, type TextMarker } from '@ggraphic/core';
 
 // The bundler replaces `process.env.NODE_ENV`; outside one, `process` may not exist.
 declare const process: { env: Record<string, string | undefined> };
@@ -132,34 +135,6 @@ export function fontStyleForRun(
 ): 'normal' | 'bold' | 'italic' | 'bold italic' {
   if (style.italic || baseStyle.includes('italic')) return 'italic';
   return style.bold || baseStyle.includes('bold') ? 'bold' : 'normal';
-}
-
-/**
- * Wie ein `==Akzent==`-Lauf aussieht. Die Marke entscheidet das, nicht der
- * Text: AT setzt das Wort gelb in Vollkorn kursiv, DE nur in einer
- * anderen Farbe. Ohne `accent` am Text bleibt ein Akzentlauf unauffällig.
- */
-export interface TextAccent {
-  fill: string;
-  fontFamily?: string;
-  fontStyle?: 'normal' | 'bold' | 'italic' | 'bold italic';
-}
-
-/**
- * Wie ein `++Marker++`-Lauf aussieht: ein Kasten hinter dem Lauf, je
- * Zeilenstück einer, mit dunkler Schrift darin. Nur DE setzt ihn (die
- * Textmarker-Box der Posts); ohne `marker` am Text bleibt ein Markerlauf
- * unauffällig. Abstände in Vielfachen der Schriftgröße.
- */
-export interface TextMarker {
-  /** Farbe des Kastens. */
-  fill: string;
-  /** Schriftfarbe im Kasten — der Kasten steht oft auf dunklem Grund. */
-  color: string;
-  /** Innenabstand links/rechts; Vorgabe 0.18. */
-  padX?: number;
-  /** Innenabstand oben/unten; Vorgabe 0.04. */
-  padY?: number;
 }
 
 /**

@@ -27,6 +27,7 @@ import { searchThreadRecall } from '../../../services/chat/threadRecallEmbedding
 import { rerankPipeline } from '../../../services/search/rerankPipeline.js';
 import { type ReelHit, searchReels } from '../../../services/subtitler/reelSearch.js';
 import { createLogger } from '../../../utils/logger.js';
+import { formatShortGermanDate } from '../../../utils/stringUtils.js';
 import { toIsoOrNull, toIsoString } from '../../../utils/toIsoString.js';
 import {
   officeKindLabel,
@@ -450,11 +451,20 @@ export function formatPastChatsBlock(
     'beziehen ("In unserem Gespräch vom 12.03. hatten wir…"), aber nur wenn es zur',
     'aktuellen Anfrage passt. Erfinde keine Details, die über die Auszüge hinausgehen.',
     '',
+    // #5138: ohne diesen Absatz beantwortete das Modell Nachschlage-Fragen mit
+    // „Wie ich dir bereits heute mitgeteilt habe …" — ein alter Befund, als
+    // aktueller ausgegeben, und ohne einen einzigen Werkzeugaufruf.
+    'Was in einem früheren Gespräch NACHGESEHEN wurde — ob es ein Dokument, ein Notebook,',
+    'eine Drucksache oder eine Rede gibt, was darin steht, was eine Suche fand oder nicht',
+    'fand —, ist der Stand von damals. Fragt die aktuelle Anfrage danach, sieh mit dem',
+    'passenden Werkzeug erneut nach, statt den alten Befund zu wiederholen. Ohne Werkzeug',
+    'nenne den Befund nur mit dem Datum des Gesprächs.',
+    '',
   ];
 
   for (const r of results) {
     const title = r.threadTitle?.trim() || 'Unbenannter Chat';
-    const date = formatGermanDate(r.threadUpdatedAt);
+    const date = formatShortGermanDate(r.threadUpdatedAt);
     lines.push(`### „${title}" (Gespräch vom ${date})`);
     lines.push(`[${r.messageRole}] ${r.snippet}`);
     lines.push('');
@@ -486,7 +496,7 @@ export function formatOfficeDocsBlock(docs: OfficeDocHit[]): string {
   ];
   for (const d of docs) {
     const title = d.title?.trim() || 'Unbenanntes Dokument';
-    const meta = d.updatedAt ? `${d.kind}, ${formatGermanDate(d.updatedAt)}` : d.kind;
+    const meta = d.updatedAt ? `${d.kind}, ${formatShortGermanDate(d.updatedAt)}` : d.kind;
     lines.push(`- „${title}" (${meta})`);
   }
   return lines.join('\n').trimEnd();
@@ -512,21 +522,13 @@ export function formatReelsBlock(reels: ReelHit[]): string {
   ];
   for (const r of reels) {
     const meta = r.lastEditedAt
-      ? `Reel, zuletzt bearbeitet ${formatGermanDate(r.lastEditedAt)}`
+      ? `Reel, zuletzt bearbeitet ${formatShortGermanDate(r.lastEditedAt)}`
       : 'Reel';
     lines.push(`### „${r.title}" (${meta})`);
     lines.push(r.snippet || '(keine Untertitel vorhanden)');
     lines.push('');
   }
   return lines.join('\n').trimEnd();
-}
-
-function formatGermanDate(iso: string): string {
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return 'unbekannt';
-  const dd = String(d.getDate()).padStart(2, '0');
-  const mm = String(d.getMonth() + 1).padStart(2, '0');
-  return `${dd}.${mm}.${d.getFullYear()}`;
 }
 
 /**

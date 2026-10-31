@@ -1,12 +1,13 @@
 // SPDX-License-Identifier: MPL-2.0
-import { canMoveLayer, type CanvasItem } from './canvasLayerManager';
-import { findDuplicableEntry, type TemplateEntryLookup } from './duplicateElement';
-import { isLockable, lockedIdsOf, lockStateOf, type LockState } from './layerLock';
-import { findElementRemover } from './removeElement';
+import { canMoveLayer, type CanvasItem } from './canvasLayerManager.js';
+import { hostElementKind } from './elementKinds.js';
+import { findDuplicableEntry, type TemplateEntryLookup } from './duplicateElement.js';
+import { isLockable, lockedIdsOf, lockStateOf, type LockState } from './layerLock.js';
+import { findElementRemover } from './removeElement.js';
 
-import type { OrientationDoor } from './orientElement';
-import type { BaseCanvasState } from '../configs/factory/baseTypes';
-import type { OptionalCanvasActions } from '../hooks/useCanvasElementHandlers';
+import type { OrientationDoor } from './orientElement.js';
+import type { BaseCanvasState } from '../configs/factory/baseTypes.js';
+import type { OptionalCanvasActions } from '../hooks/useCanvasElementHandlers.js';
 
 /**
  * Was mit der Auswahl geht — eine Frage für Kontextleiste, Pille und Menü,
@@ -36,7 +37,7 @@ export interface SelectionCapabilities {
   canAlign: boolean;
   /** Mindestens drei Elemente lassen sich verschieben. */
   canDistribute: boolean;
-  /** Ein einzelner Text, Balken, Störer oder Badge, der sich auf der Fläche bearbeiten lässt („Text bearbeiten“, F2). */
+  /** Ein einzelner Text, Störer, Badge oder Host-Text, der sich auf der Fläche bearbeiten lässt („Text bearbeiten“, F2). */
   canEditText: boolean;
 }
 
@@ -85,12 +86,13 @@ export function selectionCapabilities({
 }
 
 /**
- * Eigene Texte, Balken, Störer und Badges immer, Vorlagen-Texte nur mit
+ * Eigene Texte, Störer, Badges und Host-Arten mit `editableText` immer, Vorlagen-Texte nur mit
  * `editable` — wie `CanvasText` es annimmt.
  */
 function isEditableText(renderList: readonly CanvasItem[], id: string): boolean {
   const item = renderList.find((i) => i.id === id);
-  if (item?.type === 'additional-text' || item?.type === 'balken') return true;
+  if (item?.type === 'additional-text') return true;
+  if (item && hostElementKind(item.type)?.editableText) return true;
   if (item?.type === 'circle-badge' || item?.type === 'pill-badge') return true;
   return item?.type === 'element' && item.data.type === 'text' && item.data.editable === true;
 }

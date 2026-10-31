@@ -3,7 +3,7 @@ import { useAnnounce } from '@ggraphic/editor/hooks/useAnnounce';
 import { useMemo } from 'react';
 
 import { filterAssetOptionsForLocale } from '../../ai/assetCapability';
-import { SIDEBAR_HINT } from '../sidebarStyles';
+import { SIDEBAR_HINT } from '@ggraphic/editor/sidebar/sidebarStyles';
 
 import type {
   CanvasAiEditBridge,

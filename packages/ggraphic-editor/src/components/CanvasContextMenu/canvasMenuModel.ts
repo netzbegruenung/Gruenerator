@@ -15,9 +15,9 @@ import {
   type CanvasCommandId,
 } from '@ggraphic/editor/utils/canvasCommandRegistry';
 
-import type { BackgroundControls } from '../../configs/types';
-import type { FloatingModuleState } from '../../hooks/useFloatingModuleState';
-import type { SelectionCapabilities } from '../../utils/selectionCapabilities';
+import type { BackgroundControls } from '../../configs/types.js';
+import type { FloatingModuleState } from '../../hooks/useFloatingModuleState.js';
+import type { SelectionCapabilities } from '../../utils/selectionCapabilities.js';
 
 /** Was eine Seite beim Öffnen des Menüs über sich sagt — gelesen, nicht aus einem Render. */
 export interface CanvasMenuSnapshot {

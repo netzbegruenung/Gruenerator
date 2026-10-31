@@ -4,7 +4,7 @@ import * as Y from 'yjs';
 
 import { YDOC_KEYS } from '@ggraphic/editor/collab/ydocKeys';
 
-import { PAGES_STATE_ORIGIN } from './useYjsPages';
+import { PAGES_STATE_ORIGIN } from './useYjsPages.js';
 
 /**
  * Push external changes of a page's `state` Y.Map into the mounted canvas.

@@ -28,6 +28,7 @@
 import { createLogger } from '../../utils/logger.js';
 
 import { GEMMA_31B_ON_CORTECS, GEMMA_31B_ON_MELIOUS } from './gemmaHosts.js';
+import { GENERIC_FALLBACK } from './lanes.js';
 import { isModelSlow } from './modelHealth.js';
 import { getDefaultModel, isProviderConfigured } from './providers.js';
 import { PANDA_LANE_MODEL } from './textModelPolicy.js';
@@ -103,13 +104,13 @@ const MODEL_SIBLINGS: Readonly<Record<string, ModelTarget>> = {
   // Primär auf einen 404 aus.
 };
 
-/** Dieselbe Reihenfolge wie `GENERIC_FALLBACK` in lanes.ts.
+/** `GENERIC_FALLBACK` aus lanes.ts — dieselbe Kette, nicht eine Abschrift davon.
  *  `litellm` stand hier bis zum 29.08.2026 an erster Stelle — und weil dieser
  *  Zweig `getDefaultModel(candidate)` nimmt, war das Ausweichziel eines zäh
  *  vermerkten Modells `verdigado-pro`, also gpt-oss. Genau der Weg, den das
  *  Veto weiter unten schon einmal zuschütten musste. Siehe
  *  ./litellmRetired.ts. */
-const FALLBACK_CHAIN: readonly ProviderName[] = ['cortecs', 'melious', 'mistral'];
+const FALLBACK_CHAIN: readonly ProviderName[] = GENERIC_FALLBACK;
 
 function usable(target: ModelTarget): boolean {
   return isProviderConfigured(target.provider) && !isModelSlow(target.provider, target.model);

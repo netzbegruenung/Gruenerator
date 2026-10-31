@@ -26,7 +26,7 @@ import {
   type ImageTwoTextActions,
   type ImageTwoTextState,
 } from './factory';
-import { getPlaceholder } from './placeholders';
+import { getPlaceholder } from '@ggraphic/editor/configs/placeholders';
 
 import type {
   FullCanvasConfig,

@@ -7,9 +7,9 @@ import { useAnnounce } from '@ggraphic/editor/hooks/useAnnounce';
 import { messages } from '@ggraphic/editor/i18n/messages';
 import { editorSkipsKey } from '@ggraphic/editor/utils/keyboardOwnership';
 
-import { useCanvasStore } from '../stores/CanvasStoreProvider';
+import { useCanvasStore } from '../stores/CanvasStoreProvider.js';
 
-import type { CanvasEditorStoreState } from '../stores/createCanvasEditorStore';
+import type { CanvasEditorStoreState } from '../stores/createCanvasEditorStore.js';
 
 interface UseCanvasUndoRedoReturn<
   TComponentState extends Record<string, unknown> = Record<string, unknown>,
@@ -24,6 +24,8 @@ interface UseCanvasUndoRedoReturn<
   saveNow: (componentState?: TComponentState) => void;
   /** Commits a pending immediate save now, as its own entry. */
   commitPendingSave: () => void;
+  /** Writes pending (immediate and debounced) saves, as Undo does before it steps back. */
+  flushPendingSaves: () => void;
 }
 
 // Stable selectors defined outside component
@@ -121,6 +123,11 @@ export function useCanvasUndoRedo<
     }
     return undefined;
   }, []);
+
+  const flushPendingSaves = useCallback(() => {
+    flushImmediateSave();
+    flushDebouncedSave();
+  }, [flushDebouncedSave, flushImmediateSave]);
 
   // Stable undo function - flushes pending debounce so the in-flight
   // edit becomes its own history entry before we step backwards
@@ -253,5 +260,6 @@ export function useCanvasUndoRedo<
     debouncedSaveToHistory,
     saveNow,
     commitPendingSave,
+    flushPendingSaves,
   };
 }

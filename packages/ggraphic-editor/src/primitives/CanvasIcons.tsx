@@ -7,7 +7,7 @@ import useImage from 'use-image';
 
 import { generateIconDataUrl } from '@ggraphic/editor/utils/canvasIcons';
 
-import { CanvasImage } from './CanvasImage';
+import { CanvasImage } from './CanvasImage.js';
 
 interface IconPosition {
   x: number;

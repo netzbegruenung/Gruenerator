@@ -2,16 +2,16 @@
 import React, { useState, useEffect, useRef, useCallback, memo } from 'react';
 import { Image, Group, Rect, Transformer } from 'react-konva';
 
-import { LOCKED_TRANSFORMER, useIsItemLocked } from '../components/canvasItemLock';
-import { useGeometryReporter, type GeometryReporter } from '../hooks/useGeometryReporter';
-import { useSnapScheduler } from '../hooks/useSnapScheduler';
-import { generateIconDataUrl } from '../utils/canvasIcons';
-import { ICON_TARGET_SIZE, MOTIF_BASE_SIZE } from '../utils/motifSizes';
-import { isGroupDrag } from '../utils/multiSelect';
-import { ELEMENT_TRANSFORMER, signedScale } from '../utils/orientation';
-import { boxFrame, createBoxFrame, frameBounds, snapByBounds } from '../utils/snapping';
+import { LOCKED_TRANSFORMER, useIsItemLocked } from '../components/canvasItemLock.js';
+import { useGeometryReporter, type GeometryReporter } from '../hooks/useGeometryReporter.js';
+import { useSnapScheduler } from '../hooks/useSnapScheduler.js';
+import { generateIconDataUrl } from '../utils/canvasIcons.js';
+import { ICON_TARGET_SIZE, MOTIF_BASE_SIZE } from '../utils/motifSizes.js';
+import { isGroupDrag } from '../utils/multiSelect.js';
+import { ELEMENT_TRANSFORMER, signedScale } from '../utils/orientation.js';
+import { boxFrame, createBoxFrame, frameBounds, snapByBounds } from '../utils/snapping.js';
 
-import type { SnapLine, SnapTarget } from '../utils/snapping';
+import type { SnapLine, SnapTarget } from '../utils/snapping.js';
 import type Konva from 'konva';
 
 // Rahmen für Snap und Geometrie-Meldung, pro Aufruf neu beschrieben (synchron, ohne Allokation).

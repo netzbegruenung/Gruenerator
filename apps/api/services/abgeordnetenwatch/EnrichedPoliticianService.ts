@@ -15,7 +15,13 @@ import { createLogger } from '../../utils/logger.js';
 import { getAbgeordnetenwatchClient } from '../api-clients/abgeordnetenwatchApiClient.js';
 import { getPersonDetectionService } from '../bundestag/PersonDetectionService.js';
 
-import { type AwEnrichedResult, type AwVote } from './types.js';
+import {
+  type AwEnrichedResult,
+  type AwMandate,
+  type AwPollSummary,
+  type AwSearchOptions,
+  type AwVote,
+} from './types.js';
 
 const log = createLogger('abgeordnetenwatch-service');
 
@@ -76,10 +82,14 @@ const TOPIC_STOPWORDS = new Set([
 export class EnrichedPoliticianService {
   private detection = getPersonDetectionService();
 
-  async search(query: string): Promise<AwEnrichedResult> {
+  async search(query: string, opts: AwSearchOptions = {}): Promise<AwEnrichedResult> {
     const startTime = Date.now();
     const notes: string[] = [];
-    const extractedName = this.detection.extractNameFromQuery(query);
+    // Vom Modell getrennt übergeben schlägt erkannt: die Erkennung findet einen
+    // Namen nur, wenn er allein oder in festen Satzmustern steht — „Katrin Uhlig
+    // Gebäudeenergiegesetz" ergab den ganzen String als Namen und keinen Treffer.
+    const extractedName = opts.person?.trim() || this.detection.extractNameFromQuery(query);
+    const thema = opts.thema?.trim() || null;
     const meta = () => ({
       query,
       extractedName: extractedName ?? null,
@@ -101,21 +111,33 @@ export class EnrichedPoliticianService {
       const candidates = await client.searchPoliticians(extractedName, 5);
       const politician = candidates[0];
       if (politician) {
-        const mandate = await client.getCurrentMandate(politician.id);
+        const mandates = await client.getMandates(politician.id);
+        const mandate = mandates[0] ?? null;
         let recentVotes: AwVote[] = [];
         let topicVotes: AwVote[] = [];
         let sideJobs = [] as Awaited<ReturnType<typeof client.getSideJobs>>;
 
         if (mandate) {
-          const topic = this.extractTopic(query, extractedName);
+          const topic = thema || this.extractTopic(query, extractedName);
           const [rv, sj, tv] = await Promise.all([
             client.getVotes({ mandateId: mandate.mandateId, limit: 15 }),
             client.getSideJobs(mandate.mandateId, 10),
-            topic ? this.fetchTopicVotes(client, mandate.mandateId, topic) : Promise.resolve([]),
+            topic ? this.fetchTopicVotes(client, mandates, topic) : Promise.resolve([]),
           ]);
           recentVotes = rv;
           sideJobs = sj;
           topicVotes = tv;
+          if (topic && topicVotes.length === 0) {
+            // Das Modell soll sehen, WO gesucht wurde, statt „keine Informationen" zu melden.
+            notes.push(
+              `Keine namentliche Abstimmung zu „${topic}" mit einer Stimme von ${politician.name} gefunden. Durchsucht: ${mandates
+                .map((m) => m.parliamentPeriod)
+                .filter(Boolean)
+                .join(
+                  ', '
+                )}. Gesucht wird im Titel der Abstimmung, der den amtlichen Namen trägt (z. B. „Gebäudeenergiegesetz", nicht „Heizungsgesetz").`
+            );
+          }
         } else {
           notes.push(
             `Kein aktuelles Mandat für ${politician.name} gefunden — evtl. nicht (mehr) im Parlament.`
@@ -137,8 +159,10 @@ export class EnrichedPoliticianService {
     }
 
     // ── Poll path ───────────────────────────────────────────────────────────
-    if (POLL_QUERY_RE.test(query)) {
-      const keyword = this.extractTopic(query, extractedName ?? undefined);
+    // Ein übergebenes Thema ist selbst die Frage nach einer Abstimmung und
+    // schlägt das Wort aus der Anfrage („Heizungsgesetz" findet keinen Titel).
+    if (thema || POLL_QUERY_RE.test(query)) {
+      const keyword = thema || this.extractTopic(query, extractedName ?? undefined);
       if (keyword) {
         const polls = await client.searchPolls({ keyword, limit: 8 });
         if (polls.length > 0) {
@@ -172,18 +196,45 @@ export class EnrichedPoliticianService {
     return words.slice(0, 4).join(' ');
   }
 
-  /** Exact votes on the top polls matching a topic keyword (≤3 polls). */
+  /**
+   * Die Stimme der Person in den bis zu drei passenden Abstimmungen, über ALLE
+   * ihre Mandate: jede Abstimmung gehört zu einer Wahlperiode
+   * (`legislatureId`), dort fragt genau das Mandat dieser Periode — ein Abruf
+   * je Abstimmung. Eine Abstimmung aus einer Periode ohne Mandat entfällt.
+   */
   private async fetchTopicVotes(
     client: Awaited<ReturnType<typeof getAbgeordnetenwatchClient>>,
-    mandateId: number,
+    mandates: AwMandate[],
     topic: string
   ): Promise<AwVote[]> {
-    const polls = await client.searchPolls({ keyword: topic, limit: 3 });
-    if (polls.length === 0) return [];
+    const polls = await this.searchPollsForTopic(client, topic);
     const perPoll = await Promise.all(
-      polls.map((p) => client.getVotes({ mandateId, pollId: p.pollId, limit: 1 }))
+      polls.map((p) => {
+        const mandate = mandates.find((m) => m.parliamentPeriodId === p.legislatureId);
+        return mandate
+          ? client.getVotes({ mandateId: mandate.mandateId, pollId: p.pollId, limit: 1 })
+          : Promise.resolve([]);
+      })
     );
     return perPoll.flat();
+  }
+
+  /**
+   * Die API sucht im Titel als Teilzeichenkette: „gebäudeenergiegesetz
+   * abstimmung" trifft nichts, „gebäudeenergiegesetz" schon. Erst der ganze
+   * Begriff, dann die längeren Einzelwörter, längstes zuerst.
+   */
+  private async searchPollsForTopic(
+    client: Awaited<ReturnType<typeof getAbgeordnetenwatchClient>>,
+    topic: string
+  ): Promise<AwPollSummary[]> {
+    const words = topic.split(/\s+/).filter((w) => w.length >= 6);
+    const tries = [topic, ...words.sort((a, b) => b.length - a.length)];
+    for (const keyword of [...new Set(tries)]) {
+      const polls = await client.searchPolls({ keyword, limit: 3 });
+      if (polls.length > 0) return polls;
+    }
+    return [];
   }
 }
 

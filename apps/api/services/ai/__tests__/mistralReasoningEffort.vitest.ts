@@ -84,14 +84,28 @@ describe('reasoning_effort for Mistral chat models', () => {
   });
 
   // Large 4 denkt ohne `reasoning_effort` von selbst (live 14.10.2026, #4553):
-  // „nicht gefragt" muss deshalb als `none` auf den Draht.
-  it('sends none for mistral-large-4 when the caller did not ask for it', async () => {
+  // „nicht gefragt" muss auf den Draht — als `low`, weil die Mistral-API `none`
+  // für Large 4 seit 29.10.2026 mit HTTP 400 ablehnt (high/low/medium erlaubt).
+  it('sends low for mistral-large-4 when the caller did not ask for it', async () => {
     const { getMistralChatModel } = await loadProviders();
     const requests = captureRequests();
 
     await generateText({ model: getMistralChatModel('mistral-large-4'), prompt: 'hi' });
 
-    expect(requests[0]?.body.reasoning_effort).toBe('none');
+    expect(requests[0]?.body.reasoning_effort).toBe('low');
+  });
+
+  it('turns an explicit none into low for mistral-large-4', async () => {
+    const { getMistralChatModel } = await loadProviders();
+    const requests = captureRequests();
+
+    await generateText({
+      model: getMistralChatModel('mistral-large-4'),
+      prompt: 'hi',
+      reasoning: 'none',
+    });
+
+    expect(requests[0]?.body.reasoning_effort).toBe('low');
   });
 
   it('stays off for models that do not think by default', async () => {

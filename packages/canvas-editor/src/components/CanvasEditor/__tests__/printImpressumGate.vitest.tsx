@@ -10,12 +10,12 @@ import { type ReactNode } from 'react';
 import { describe, expect, it, vi } from 'vitest';
 
 import { grueneratorPrint } from '../../../composer/printService';
-import { DownloadSection } from '../../TopBar/DownloadSection';
+import { DownloadSection } from '@ggraphic/editor/components/TopBar/DownloadSection';
 import {
   usePrintImpressumGate,
   type ObservedPages,
   type ObservedPageState,
-} from '../hooks/usePrintImpressumGate';
+} from '@ggraphic/editor/components/CanvasEditor/hooks/usePrintImpressumGate';
 
 const printFormat = (id: string): PrintCanvasFormat => {
   const f = getCanvasFormat(id);

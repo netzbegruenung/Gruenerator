@@ -55,7 +55,7 @@ interface BuiltinTemplateDefinition<TId extends string = string> extends Templat
    * The state keys `ControllableCanvasWrapper` declares an `on<Key>Change`
    * callback for. Template text fields and the background image live here;
    * the remaining persisted keys are minted per page
-   * (PAGE_PERSISTED_STATE_KEYS). CanvasEditor also mints a page-state writer
+   * (pagePersistedStateKeys()). CanvasEditor also mints a page-state writer
    * for each of a page's OWN type, so a page of another template in the deck
    * keeps its text edits.
    */
@@ -346,7 +346,7 @@ export const BUILTIN_TEMPLATES = [
         ...bgImageProps(s),
       }) satisfies CanvasInitialPropsMap['freeform'],
     info: {
-      label: 'Freies Design',
+      label: 'Leere Seite',
       description: 'Leere Leinwand zum freien Gestalten',
       previewImage: '/imagine/previews/freeform-preview.webp',
       category: 'sharepic',
@@ -475,8 +475,8 @@ export const BUILTIN_TEMPLATES = [
       } satisfies CanvasInitialPropsMap['freeform-at'];
     },
     info: {
-      label: 'Freies Design',
-      description: 'Leere Leinwand mit österreichischem CI',
+      label: 'Leere Seite',
+      description: 'Leere Seite mit österreichischem CI',
       previewImage: '/imagine/previews/freeform-preview.webp',
       category: 'sharepic',
       audience: 'de-AT',

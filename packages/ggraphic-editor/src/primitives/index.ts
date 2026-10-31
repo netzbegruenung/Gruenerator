@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MPL-2.0
-export { CanvasStage } from './CanvasStage';
-export type { CanvasStageProps, CanvasStageRef } from './CanvasStage';
+export { CanvasStage } from './CanvasStage.js';
+export type { CanvasStageProps, CanvasStageRef } from './CanvasStage.js';
 
 export { CanvasBackground } from '@ggraphic/editor/primitives/CanvasBackground';
 export type {
@@ -9,8 +9,8 @@ export type {
   GradientStop,
 } from '@ggraphic/editor/primitives/CanvasBackground';
 
-export { CanvasText } from './CanvasText';
-export type { CanvasTextProps } from './CanvasText';
+export { CanvasText } from './CanvasText.js';
+export type { CanvasTextProps } from './CanvasText.js';
 
 export { SnapGuidelines } from '@ggraphic/editor/primitives/SnapGuidelines';
 export type { SnapGuidelinesProps } from '@ggraphic/editor/primitives/SnapGuidelines';
@@ -20,12 +20,10 @@ export type { CanvasImageProps } from '@ggraphic/editor/primitives/CanvasImage';
 
 export { CanvasIcons } from '@ggraphic/editor/primitives/CanvasIcons';
 
-export type { BalkenMode, BalkenInstance } from '@ggraphic/editor/utils/balkenUtils';
-
 export { ShapePrimitive } from '@ggraphic/editor/primitives/ShapePrimitive';
 
-export { IllustrationPrimitive } from './IllustrationPrimitive';
-export type { IllustrationPrimitiveProps } from './IllustrationPrimitive';
+export { IllustrationPrimitive } from './IllustrationPrimitive.js';
+export type { IllustrationPrimitiveProps } from './IllustrationPrimitive.js';
 
 export { CircleBadge } from '@ggraphic/editor/primitives/CircleBadge';
 export type {

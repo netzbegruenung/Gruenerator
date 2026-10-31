@@ -1,8 +1,8 @@
 import { render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { PageToolbar } from '../../components/PageToolbar';
-import { UploadsSection } from '../sections/UploadsSection';
+import { PageToolbar } from '@ggraphic/editor/components/PageToolbar';
+import { UploadsSection } from '@ggraphic/editor/sidebar/sections/UploadsSection';
 
 vi.mock('@ggraphic/editor/sidebar/UserUploadsProvider', () => ({
   useUserUploads: () => ({

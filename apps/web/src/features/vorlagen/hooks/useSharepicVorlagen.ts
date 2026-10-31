@@ -1,5 +1,6 @@
 import {
   type CanvasVorlage,
+  type FolienVorlage,
   type PrintVorlage,
   type SharepicCreatorLocale,
   type SharepicBlock,
@@ -89,6 +90,25 @@ export const printVorlagenQuery = (land: SharepicCreatorLocale | null = null) =>
     staleTime: 10 * 60_000,
     queryFn: async (): Promise<PrintVorlage[]> => {
       const res = await getContractsClient().sharepicVorlagen.print({
+        query: land ? { land } : {},
+      });
+      if (res.status !== 200) {
+        throw new ApiError(
+          res.status,
+          `Vorlagen konnten nicht geladen werden (HTTP ${res.status}).`
+        );
+      }
+      return res.body.vorlagen;
+    },
+  });
+
+/** The slide deck styles of the viewer's country, for the editor's „Vorlage für alle Folien". */
+export const folienVorlagenQuery = (land: SharepicCreatorLocale | null = null) =>
+  queryOptions({
+    queryKey: ['folien-vorlagen', land],
+    staleTime: 10 * 60_000,
+    queryFn: async (): Promise<FolienVorlage[]> => {
+      const res = await getContractsClient().sharepicVorlagen.folien({
         query: land ? { land } : {},
       });
       if (res.status !== 200) {

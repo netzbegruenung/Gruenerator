@@ -3,7 +3,7 @@ import { cva, type VariantProps } from 'class-variance-authority';
 import { Slot } from 'radix-ui';
 import * as React from 'react';
 
-import { cn } from '../utils/cn';
+import { cn } from '../utils/cn.js';
 
 const sizeConfig = {
   sm: { circle: 'size-12', icon: 'text-lg', label: 'text-xs max-w-20' },

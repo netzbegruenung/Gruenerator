@@ -31,7 +31,12 @@ function secondsSince(time: number | null): number | null {
  *
  * Only a `reload` counts: duplicating a tab or restoring a session copies
  * sessionStorage too, and a tab Chrome discarded to save memory reloads with
- * `document.wasDiscarded`. Only the top-level document takes part: the chat's
+ * `document.wasDiscarded`. That filter holds only where `wasDiscarded` exists
+ * (Chromium): Firefox restores every tab, after a browser restart as well as
+ * after an unload or a tab crash, by reloading its history entry
+ * (`SessionStoreUtils::InitializeRestore` → `ReloadCurrentEntry`), so there a
+ * restored session is indistinguishable from a kill. Such reports are kept,
+ * but only as warnings tagged `restores: indistinguishable`. Only the top-level document takes part: the chat's
  * artifact panel embeds the app in a same-origin iframe, which shares this
  * sessionStorage and would overwrite or remove the page's marker.
  *
@@ -54,9 +59,14 @@ export function reportKilledTab(): void {
     ) {
       const marker = readMarker(previous);
       const background = marker.hiddenAt !== null;
+      const restoresDistinguishable = 'wasDiscarded' in document;
       Sentry.captureMessage('Tab ended without unloading (renderer killed?)', {
-        level: background ? 'warning' : 'error',
-        tags: { kind: 'tab-killed', state: background ? 'background' : 'foreground' },
+        level: background || !restoresDistinguishable ? 'warning' : 'error',
+        tags: {
+          kind: 'tab-killed',
+          state: background ? 'background' : 'foreground',
+          restores: restoresDistinguishable ? 'distinguishable' : 'indistinguishable',
+        },
         extra: {
           aliveForSeconds: secondsSince(marker.startedAt),
           hiddenForSeconds: secondsSince(marker.hiddenAt),

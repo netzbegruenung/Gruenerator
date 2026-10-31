@@ -1,75 +1,98 @@
 'use client';
 
-import { useAui, useAuiState } from '@assistant-ui/react';
+import {
+  ComposerPrimitive,
+  QueueItemPrimitive,
+  useAuiState,
+  type QueueItemState,
+} from '@assistant-ui/react';
+import { ArrowUpIcon, XIcon } from 'lucide-react';
 
-import { MessageQueue, type QueuedMessage } from '../assistant-ui/elements/message-queue';
+import { cn } from '../../lib/utils';
+import { field, ghostButton } from '../assistant-ui/elements/surfaces';
 
 interface ComposerQueueListProps {
   className?: string;
 }
 
 /**
- * Feeds the vendored MessageQueue element from the runtime. Everything visual
- * lives in that element; this file is only the wiring, so a re-sync of the
- * element never has to reason about the queue runtime.
+ * Turns typed while an answer is still streaming, built on assistant-ui's
+ * runtime primitives (`ComposerPrimitive.Queue` + `QueueItemPrimitive.*`), the
+ * runtime mode of upstream's MessageQueue element.
  *
- * `ComposerPrimitive.Queue` is deliberately not used. Its render prop hands
- * over one item at a time without its position, and the element numbers the
- * rows — an array is what it wants.
+ * "Als Nächstes senden" is `QueueItemPrimitive.Steer`. On our `LocalRuntime` it
+ * moves the turn to the front of the queue and does NOT interrupt the running
+ * answer: the local runtime builds its queue without a `cancel` driver, and
+ * only that driver lets a steer abort the run. An interrupting variant cannot
+ * be built from outside either — a queue item exposes only its `parts`, so
+ * removing and re-appending it would drop attachments and `runConfig`.
+ *
+ * The first row hides the button: it already goes next.
  */
 export function ComposerQueueList({ className }: ComposerQueueListProps) {
-  const composer = useAui().composer;
+  const count = useAuiState((s) => s.composer.queue.length);
 
-  // Selected raw, mapped below. `useAuiState` compares with Object.is, so a
-  // selector that builds an array re-renders on EVERY store update — which
-  // while a turn is queued means every streamed token.
-  const queue = useAuiState((s) => s.composer.queue);
-
-  // `prompt` is deprecated upstream (removal after 2026-11-05); the text parts
-  // are the durable shape. A turn carrying only files has no text of its own,
-  // so it falls back to the file names rather than a blank row.
-  const queued = queue.map((item): QueuedMessage => {
-    const text = item.parts
-      .map((part) => (part.type === 'text' ? part.text : ''))
-      .join('')
-      .trim();
-
-    return {
-      id: item.id,
-      text:
-        text ||
-        item.parts
-          .map((part) => (part.type === 'file' ? (part.filename ?? '') : ''))
-          .filter(Boolean)
-          .join(', '),
-    };
-  });
-
-  // The turn the queue is waiting behind. There is no runtime field for it, so
-  // it comes off the last user message. The selector returns a string, which
-  // does not change while the answer streams — so this costs no re-render per
-  // chunk despite reading the message list.
-  const running = useAuiState((s) => {
-    for (let i = s.thread.messages.length - 1; i >= 0; i--) {
-      const message = s.thread.messages[i];
-      if (message?.role !== 'user') continue;
-      return message.content
-        .map((part) => (part.type === 'text' ? part.text : ''))
-        .join('')
-        .trim();
-    }
-    return '';
-  });
-
-  if (queued.length === 0) return null;
+  if (count === 0) return null;
 
   return (
-    <MessageQueue
-      running={running}
-      queued={queued}
-      onCancel={(id) => composer.queueItem({ id }).remove()}
-      // Upstream sizes the element for its demo; here it spans the composer.
-      className={`max-w-none ${className ?? ''}`}
-    />
+    <div data-slot="message-queue" className={cn('flex min-w-0 flex-col gap-1', className)}>
+      <span className="text-foreground-muted px-1 text-xs">
+        {count === 1 ? '1 Nachricht wartet' : `${count} Nachrichten warten`} – sie werden gesendet,
+        sobald die Antwort fertig ist
+      </span>
+      <ul className="flex flex-col gap-1">
+        <ComposerPrimitive.Queue>
+          {({ queueItem }) => <QueueRow item={queueItem} />}
+        </ComposerPrimitive.Queue>
+      </ul>
+    </div>
   );
+}
+
+function QueueRow({ item }: { item: QueueItemState }) {
+  // The render prop hands over no position. A number is Object.is-stable, so
+  // this does not re-render the row on every streamed token.
+  const position = useAuiState((s) => s.composer.queue.findIndex((q) => q.id === item.id)) + 1;
+  const label = labelOf(item);
+
+  return (
+    <li className={cn(field, 'flex min-w-0 items-center gap-1 rounded-xl py-1 pr-1 pl-3')}>
+      <QueueItemPrimitive.Text className="text-foreground/80 min-w-0 flex-1 truncate text-[13.5px]">
+        {label}
+      </QueueItemPrimitive.Text>
+      {position > 1 && (
+        <QueueItemPrimitive.Steer
+          aria-label={`Als Nächstes senden: Nachricht ${position}`}
+          className={cn(ghostButton, 'h-7 shrink-0 gap-1 px-2 text-xs')}
+        >
+          <ArrowUpIcon className="size-3.5" />
+          Als Nächstes senden
+        </QueueItemPrimitive.Steer>
+      )}
+      {/* The position keeps the names apart when the same turn waits twice. */}
+      <QueueItemPrimitive.Remove
+        aria-label={`Wartende Nachricht ${position} entfernen: „${label}“`}
+        className={cn(ghostButton, 'size-7 shrink-0')}
+      >
+        <XIcon className="size-3.5" />
+      </QueueItemPrimitive.Remove>
+    </li>
+  );
+}
+
+/**
+ * The text parts, or the file names for a turn that carries only files —
+ * otherwise that row would be blank. `prompt` is deprecated upstream (removal
+ * after 2026-11-05), so the parts are the durable source.
+ */
+function labelOf(item: QueueItemState): string {
+  const text = item.parts
+    .map((part) => (part.type === 'text' ? part.text : ''))
+    .join('')
+    .trim();
+  if (text) return text;
+  return item.parts
+    .map((part) => (part.type === 'file' ? (part.filename ?? '') : ''))
+    .filter(Boolean)
+    .join(', ');
 }

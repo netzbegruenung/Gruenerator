@@ -80,7 +80,17 @@ async function resolveMedia(shareToken: string): Promise<ResolvedThumbnail> {
   if (share.media_type === 'video') {
     const posterPath = service.getThumbnailFilePath(share.thumbnail_path ?? null);
     if (!posterPath) return { ok: false, reason: 'not_found' };
-    return { ok: true, sourcePath: posterPath, contentType: 'image/jpeg' };
+    return {
+      ok: true,
+      sourcePath: posterPath,
+      contentType: 'image/jpeg',
+      // Uploaded videos have their poster's variants pre-generated
+      // (sharedMediaService.processVideoPoster); reel shares render on demand.
+      pregenerated: {
+        dir: path.join(path.dirname(posterPath), 'thumbs'),
+        base: path.basename(posterPath, path.extname(posterPath)),
+      },
+    };
   }
 
   // Generated speech has no picture at all; keep sharp away from the mp3.

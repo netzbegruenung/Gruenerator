@@ -89,7 +89,6 @@ describe('readElementDrag', () => {
     { kind: 'illustration', id: 'illustration-1' },
     { kind: 'chart', chartType: 'bar' },
     { kind: 'frame', clipType: 'circle' },
-    { kind: 'balken', mode: 'triple' },
     { kind: 'block', blockId: 'de-block-liste' },
   ];
 

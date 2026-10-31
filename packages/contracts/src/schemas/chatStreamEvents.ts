@@ -365,6 +365,8 @@ export const confirmActionTypeSchema = z.enum([
   'share_user_agent',
   // Karte des `recipes`-Werkzeugs (09/2026), additiv.
   'share_text_form',
+  // Karte des `edit_presentation`-Werkzeugs bei Folien-Löschung (10/2026), additiv.
+  'apply_canvas_deck_edit',
 ]);
 export type ConfirmActionType = z.infer<typeof confirmActionTypeSchema>;
 

@@ -5,7 +5,7 @@
  * verschieben jedes Element um den zurückgegebenen Versatz.
  */
 
-import type { Box } from './orientation';
+import type { Box } from './orientation.js';
 
 export type AlignDirection = 'left' | 'center-h' | 'right' | 'top' | 'center-v' | 'bottom';
 

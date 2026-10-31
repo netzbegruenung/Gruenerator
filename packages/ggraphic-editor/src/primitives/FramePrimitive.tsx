@@ -8,7 +8,7 @@ import { coverPhotoRect } from '@ggraphic/editor/utils/coverFit';
 import { ELEMENT_TRANSFORMER, normalizeRotation } from '@ggraphic/editor/utils/orientation';
 import { assertNever } from '@ggraphic/editor/utils/shapes';
 
-import { frameBox } from '../utils/renderedBoxes';
+import { frameBox } from '../utils/renderedBoxes.js';
 
 import type { FrameClipType, FrameInstance } from '@ggraphic/editor/utils/frameUtils';
 import type Konva from 'konva';

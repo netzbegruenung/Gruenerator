@@ -4,9 +4,9 @@ import { type BrandTheme } from '../brand/theme';
 
 import { AT_EMPHASIS_STYLE, type MeasureText } from './chromeParts';
 import { type HeadlineItem } from './composeTypes';
-import { stripMarks } from './marks';
+import { stripMarks } from '@ggraphic/editor/composer/marks';
 import { COVER_SHARE, HEADLINE_FILL } from './sharepicLayoutConstants';
-import { largestSizeWordsFit } from './textFit';
+import { largestSizeWordsFit } from '@ggraphic/editor/composer/textFit';
 
 /** Headline size: fills its column, shrinks only when the block would not fit. */
 export function headlineFit({

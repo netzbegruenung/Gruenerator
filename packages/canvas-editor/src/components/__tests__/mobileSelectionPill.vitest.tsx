@@ -6,7 +6,7 @@ import {
   MobileSelectionPill,
   type MobileSelectionPillProps,
   placePill,
-} from '../MobileSelectionPill';
+} from '@ggraphic/editor/components/MobileSelectionPill';
 
 /**
  * Die Pille steht über dem ausgewählten Objekt (darunter, wenn oben kein

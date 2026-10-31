@@ -28,9 +28,11 @@ const SEARCH_PROGRESS_TOOLS: ReadonlySet<string> = new Set([
   'gruenerator_search',
   'gruenerator_docs_search',
   'search_sources',
-  'bundestag',
-  // Same shape and role as `bundestag` — {resultCount, sources}, hits re-surface
-  // in the message's Quellen-Liste — so they belong in the line, not in a card.
+  // `bundestag` / `parlament_lesen` / `bundestag_reden` are deliberately NOT
+  // here: their card shows what was searched, found and read (query, filters,
+  // documents, speeches) — the user cannot see that anywhere else.
+  // `abgeordnetenwatch`: {resultCount, sources}, hits re-surface in the
+  // message's Quellen-Liste — so it belongs in the line, not in a card.
   'abgeordnetenwatch',
   // Attachment readers: the turn's own documents. A card per slice would narrate
   // the plumbing of a document the user attached themselves.
@@ -43,6 +45,8 @@ const SEARCH_PROGRESS_TOOLS: ReadonlySet<string> = new Set([
   'meine_inhalte_laden',
   // Same for the website group's loader.
   'website_werkzeug_laden',
+  // … and the parliament group's.
+  'parlament_werkzeuge_laden',
 ]);
 
 /** Whether this tool reports through the status line instead of a card. */

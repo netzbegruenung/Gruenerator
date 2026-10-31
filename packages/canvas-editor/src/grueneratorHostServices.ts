@@ -13,6 +13,7 @@ import type { BlockSlide, LiftedBlock } from '@ggraphic/editor/blocks/liftedBloc
 import type { CanvasPrintService } from '@ggraphic/editor/hostServices';
 import type {
   CanvasVorlage,
+  FolienVorlage,
   PrintSpec,
   PrintVorlage,
   SharepicBlock,
@@ -41,6 +42,8 @@ export interface CanvasVorlagenService {
   composeSeite: (seite: SharepicSeite, format: SharepicFormat) => Promise<VorlagePage[]>;
   /** Vorlagen saved as finished pages, for every format; the tab shows the document's. */
   listCanvas?: () => Promise<CanvasVorlage[]>;
+  /** The slide deck Vorlagen (Stile) of the viewer's country, for „Vorlage für alle Folien". */
+  loadDeckVorlagen?: () => Promise<FolienVorlage[]>;
   /** The print Vorlagen of the viewer's country; their specs compose through `print.composePrint`. */
   listPrint?: () => Promise<PrintVorlage[]>;
   /**
@@ -76,16 +79,6 @@ export interface CanvasBlockService {
   lift: (slide: BlockSlide, items: readonly number[], token: string) => LiftedBlock;
 }
 
-/**
- * Lets surfaces that hide the host's floating feedback launcher (the mobile
- * editor) offer „Feedback geben" in their own menu.
- */
-export interface CanvasFeedbackService {
-  /** True while a feedback form is registered; read on every render. */
-  canRequest: () => boolean;
-  request: () => void;
-}
-
 declare module '@ggraphic/editor/CanvasEditorProvider' {
   interface CanvasEditorHostServices {
     /** The host's Vorlagen for the „Vorlagen" tab; when omitted, the tab is hidden. */
@@ -97,12 +90,6 @@ declare module '@ggraphic/editor/CanvasEditorProvider' {
      * and `vorlagen.composeBlock`.
      */
     blocks?: CanvasBlockService;
-
-    /**
-     * Where the host's feedback form opens from. When omitted, or while
-     * `canRequest()` is false, the share menu offers no „Feedback" entry.
-     */
-    feedback?: CanvasFeedbackService;
   }
 }
 

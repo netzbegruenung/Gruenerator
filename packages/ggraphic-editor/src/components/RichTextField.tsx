@@ -45,8 +45,8 @@ import { Accent } from '@ggraphic/editor/components/accentMark';
 import { messages } from '@ggraphic/editor/i18n/messages';
 import { keepsEditing } from '@ggraphic/editor/utils/keyboardOwnership';
 
-import { Marker } from './markerMark';
-import { formatToolbarOf, TextFormatControls, type OfferedMarks } from './TextFormatControls';
+import { Marker } from './markerMark.js';
+import { formatToolbarOf, TextFormatControls, type OfferedMarks } from './TextFormatControls.js';
 
 export interface RichTextFieldProps {
   /** Markdown-lite, wie es im Zustand steht. */

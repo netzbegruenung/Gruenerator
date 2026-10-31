@@ -3,11 +3,11 @@ export { useElementSnapping } from '@ggraphic/editor/hooks/useElementSnapping';
 export type { UseElementSnappingResult } from '@ggraphic/editor/hooks/useElementSnapping';
 export { useCanvasUndoRedo } from '@ggraphic/editor/hooks/useCanvasUndoRedo';
 
-export { useCanvasInteractions } from './useCanvasInteractions';
+export { useCanvasInteractions } from './useCanvasInteractions.js';
 export type {
   UseCanvasInteractionsOptions,
   UseCanvasInteractionsResult,
-} from './useCanvasInteractions';
+} from './useCanvasInteractions.js';
 
 export { useCanvasStoreReset } from '@ggraphic/editor/hooks/useCanvasStoreReset';
 
@@ -17,23 +17,26 @@ export type { UseCanvasHistorySetupResult } from '@ggraphic/editor/hooks/useCanv
 export { useImageCoverFit } from '@ggraphic/editor/hooks/useImageCoverFit';
 export type { CoverFitDimensions } from '@ggraphic/editor/hooks/useImageCoverFit';
 
-export { useFloatingModuleState } from './useFloatingModuleState';
-export type { FloatingModuleState, UseFloatingModuleStateOptions } from './useFloatingModuleState';
+export { useFloatingModuleState } from './useFloatingModuleState.js';
+export type {
+  FloatingModuleState,
+  UseFloatingModuleStateOptions,
+} from './useFloatingModuleState.js';
 
-export { useFloatingModuleHandlers } from './useFloatingModuleHandlers';
+export { useFloatingModuleHandlers } from './useFloatingModuleHandlers.js';
 export type {
   UseFloatingModuleHandlersOptions,
   UseFloatingModuleHandlersResult,
-} from './useFloatingModuleHandlers';
+} from './useFloatingModuleHandlers.js';
 
-export { useCanvasElementHandlers } from './useCanvasElementHandlers';
+export { useCanvasElementHandlers } from './useCanvasElementHandlers.js';
 export type {
   UseCanvasElementHandlersOptions,
   UseCanvasElementHandlersResult,
-} from './useCanvasElementHandlers';
+} from './useCanvasElementHandlers.js';
 
-export { useCanvasKeyboardHandlers } from './useCanvasKeyboardHandlers';
-export type { UseCanvasKeyboardHandlersOptions } from './useCanvasKeyboardHandlers';
+export { useCanvasKeyboardHandlers } from './useCanvasKeyboardHandlers.js';
+export type { UseCanvasKeyboardHandlersOptions } from './useCanvasKeyboardHandlers.js';
 
 export { useFontGeneration } from '@ggraphic/editor/hooks/useFontGeneration';
 export { useFontLoader } from '@ggraphic/editor/hooks/useFontLoader';
@@ -44,17 +47,21 @@ export type {
 
 export { usePaginatedIcons } from '@ggraphic/editor/hooks/usePaginatedIcons';
 
-export { useMultiPageExport } from './useMultiPageExport';
+export { useMultiPageExport } from './useMultiPageExport.js';
 export type {
   UseMultiPageExportProps,
   UseMultiPageExportReturn,
   ExportProgress,
-} from './useMultiPageExport';
+} from './useMultiPageExport.js';
 
-export { usePageManager, parseInitialPages } from './usePageManager';
-export { useDeckAutoSave, SHARE_ORIGINAL_IMAGE_SRC } from './useDeckAutoSave';
-export type { InitialPageDef, UsePageManagerOptions, UsePageManagerReturn } from './usePageManager';
+export { usePageManager, parseInitialPages, readInitialDocument } from './usePageManager.js';
+export { useDeckAutoSave, SHARE_ORIGINAL_IMAGE_SRC } from './useDeckAutoSave.js';
+export type {
+  InitialPageDef,
+  UsePageManagerOptions,
+  UsePageManagerReturn,
+} from './usePageManager.js';
 
-export { usePageThumbnails } from './usePageThumbnails';
+export { usePageThumbnails } from './usePageThumbnails.js';
 
 export { useMobileSheet } from '@ggraphic/editor/hooks/useMobileSheet';

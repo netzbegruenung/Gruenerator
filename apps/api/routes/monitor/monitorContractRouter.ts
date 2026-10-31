@@ -12,6 +12,7 @@
 import { monitorContract, type PollData } from '@gruenerator/contracts';
 import { createExpressEndpoints, initServer } from '@ts-rest/express';
 
+import { getBlueskyFeed } from '../../services/monitor/BlueskyFeedService.js';
 import {
   getWhatHappened,
   upsertSyncEvents,
@@ -244,6 +245,17 @@ export const monitorContractRouter = s.router(monitorContract, {
     } catch (error) {
       log.error(`GET /what-happened failed: ${toError(error).message}`);
       return { status: 500 as const, body: { error: 'Failed to fetch sync articles' } };
+    }
+  },
+
+  bluesky: async ({ query, res }) => {
+    try {
+      const posts = await getBlueskyFeed(query.locale ?? 'de');
+      cache(res, 'private, max-age=300');
+      return { status: 200 as const, body: posts };
+    } catch (error) {
+      log.error(`GET /bluesky failed: ${toError(error).message}`);
+      return { status: 502 as const, body: { error: 'Bluesky-Beiträge nicht erreichbar' } };
     }
   },
 

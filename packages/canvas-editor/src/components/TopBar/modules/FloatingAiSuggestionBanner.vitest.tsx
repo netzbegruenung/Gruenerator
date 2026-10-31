@@ -7,7 +7,7 @@ import { fireEvent, render, screen } from '@testing-library/react';
 import { useEffect } from 'react';
 import { describe, expect, it, vi } from 'vitest';
 
-import { FloatingAiSuggestionBanner } from './FloatingAiSuggestionBanner';
+import { FloatingAiSuggestionBanner } from '@ggraphic/editor/components/TopBar/modules/FloatingAiSuggestionBanner';
 
 import type { PendingAiSuggestion } from '@ggraphic/editor/stores/createCanvasEditorStore';
 

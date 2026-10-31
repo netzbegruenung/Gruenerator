@@ -100,6 +100,7 @@ import {
 import { TOOL_TIMEOUT_OVERRIDES_MS, type PersistedStep } from './types.js';
 import { createSourceRegistry } from './sourceRegistry.js';
 import { createToolLoopGuards } from './loopGuards.js';
+import { CHAT_BUDGET } from '../../../../services/bundestag/qa/budget.js';
 import { createToolScope } from './toolScope.js';
 
 import type { ChatGraphState } from '../../../../agents/langgraph/ChatGraph/types.js';
@@ -830,6 +831,10 @@ describe('wrapAssembledTools — Zeitgrenze der Erstellungs-Werkzeuge', () => {
     }
   });
 
+  it('gibt parlament_lesen mehr Zeit als das Lesebudget des Chats', () => {
+    expect(TOOL_TIMEOUT_OVERRIDES_MS['parlament_lesen']).toBeGreaterThan(CHAT_BUDGET.deadlineMs);
+  });
+
   it('hält die Grenzen als Aussage über die Erstellungs-Werkzeuge zusammen', () => {
     for (const name of [
       'create_pdf',
@@ -839,6 +844,9 @@ describe('wrapAssembledTools — Zeitgrenze der Erstellungs-Werkzeuge', () => {
       'create_board',
       'sharepic',
       'generate_image',
+      'bundestag',
+      'parlament_lesen',
+      'bundestag_reden',
     ]) {
       expect(TOOL_TIMEOUT_OVERRIDES_MS[name], `${name} ohne eigene Grenze`).toBeGreaterThan(20_000);
     }
