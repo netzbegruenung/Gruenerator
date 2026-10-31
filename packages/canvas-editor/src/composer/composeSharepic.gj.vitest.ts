@@ -262,6 +262,44 @@ describe('GRÜNE JUGEND Deutschland on colour and photo', () => {
   });
 });
 
+describe('GRÜNE JUGEND Deutschland handwriting', () => {
+  const dach = (color: SharepicColor) =>
+    composeSharepic(
+      gj('de-DE', [
+        {
+          ...colourSlide(color),
+          items: [
+            { type: 'dachzeile', text: 'Neu hier?' },
+            { type: 'headline', lines: ['Komm vorbei'] },
+          ],
+        },
+      ]),
+      { photoSrc }
+    ).slides[0]!;
+
+  it('writes the line above the headline by hand on a tilted tape', () => {
+    const slide = dach('lavendel');
+    const line = slide.additionalTexts.find((t) => t.text === 'Neu hier?')!;
+    expect(line).toMatchObject({ fontFamily: 'KaushanScript', rotation: -4 });
+    const tape = slide.shapeInstances.find((s) => s.id.endsWith('-tape'))!;
+    expect(tape).toMatchObject({ fill: '#C7FF7A', rotation: -4 });
+  });
+
+  it('turns the tape white on light green', () => {
+    expect(dach('limette').shapeInstances.find((s) => s.id.endsWith('-tape'))?.fill).toBe(
+      '#FFFFFF'
+    );
+  });
+
+  it('keeps the plain line on black', () => {
+    const slide = dach('schwarz');
+    expect(slide.shapeInstances.some((s) => s.id.endsWith('-tape'))).toBe(false);
+    expect(slide.additionalTexts.find((t) => t.text === 'Neu hier?')?.fontFamily).not.toBe(
+      'KaushanScript'
+    );
+  });
+});
+
 describe('GRÜNE JUGEND Deutschland dates', () => {
   it('sets each date on a calendar tile, day above month', () => {
     const slide = composeSharepic(

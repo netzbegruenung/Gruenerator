@@ -67,6 +67,8 @@ export const BLUME = { size: 760, onLight: 0.12, onGrass: 0.1, onDark: 0.08 } as
 export const ETIKETT = { fontSize: 34, padX: 26, padY: 16, edge: 4, shadow: 9, top: 70 } as const;
 /** Height the date label takes above the text block, with its gap. */
 export const ETIKETT_ROOM = 110;
+/** GJ DE's handwritten tape label: its type size. */
+export const HAND_TAPE = { fontSize: 44 } as const;
 /** GJ AT's hairlines (Db-_V4HCvrJ): stroke, distance from the left edge, gap to the text. */
 export const RASTER = { width: 3, left: 34, gap: 34 } as const;
 /** `absatz.klein`: the body size of the candidates' long text slides at 1080 px. */

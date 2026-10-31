@@ -614,6 +614,16 @@ export const GJ_DE: GruenePack = {
     stoererShape: 'burst',
     cardStyle: 'plain',
     // CD S. 19/20: the first line on white, the rest on light green.
+    // The line above the headline handwritten on a light-green tape, white on
+    // light green (DZ0Ou7KjLyZ/02 „Mecklenburg Vorpommern“).
+    dachzeileHand: {
+      family: 'KaushanScript',
+      rotation: -4,
+      tape: {
+        light: { fill: GJ_HELLGRUEN, ink: GJ_SCHWARZ },
+        dark: { fill: GJ_HELLGRUEN, ink: GJ_SCHWARZ },
+      },
+    },
     // Quotes on a full photo in light green, bold (Dem9hTrxHEG/01).
     quoteOnPhoto: GJ_HELLGRUEN,
     lineBoxes: {

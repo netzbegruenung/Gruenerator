@@ -91,6 +91,7 @@ import {
   CARD_ITEMS,
   DATE_CIRCLE,
   ETIKETT_ROOM,
+  HAND_TAPE,
   FOOTER,
   GAP,
   HEADLINE_COVER_MAX,
@@ -718,6 +719,53 @@ function composeSlide(
    * DE story slides: every line in its own box — white, or grass green for
    * the line that matters. Pills, so a box follows its text when edited.
    */
+  /** GJ DE: a line handwritten on a tilted tape label (DZ0Ou7KjLyZ/02). */
+  const handTape = (
+    id: string,
+    value: string,
+    hand: NonNullable<typeof brand.dachzeileHand>
+  ): Placed => {
+    const size = HAND_TAPE.fontSize;
+    const padX = Math.round(size * 0.45);
+    const padY = Math.round(size * 0.18);
+    const width = Math.min(
+      headColumn.width,
+      measure(value, size, hand.family, 'normal') + 2 * padX
+    );
+    const height = Math.round(size * 1.25) + 2 * padY;
+    const turn = (hand.rotation * Math.PI) / 180;
+    const [cos, sin] = [Math.cos(turn), Math.sin(turn)];
+    // Turned about its top-left corner, an ascending label reaches this far above it.
+    const rise = Math.max(0, -width * sin);
+    const tape = onGround(hand.tape, { onLight, onGrass });
+    // Never the ground's own colour: on light green the tape turns white.
+    const fill =
+      tape.fill.toUpperCase() === out.backgroundColor.toUpperCase() ? '#FFFFFF' : tape.fill;
+    return {
+      height: rise + height * cos,
+      after: Math.round(size * 0.4),
+      place: (y) => {
+        const x = headColumn.x;
+        const top = y + rise;
+        const label = rect(`${id}-tape`, 0, 0, width, height, fill);
+        Object.assign(label, {
+          x: x + (width / 2) * cos - (height / 2) * sin,
+          y: top + (width / 2) * sin + (height / 2) * cos,
+          rotation: hand.rotation,
+        });
+        addShape(label);
+        text(id, value, top + padX * sin + padY * cos, size, hand.family, {
+          x: x + padX * cos - padY * sin,
+          width: width - 2 * padX + 4,
+          align: 'left',
+          rotation: hand.rotation,
+          fill: tape.ink,
+          shadowOpacity: 0,
+          lineHeight: 1.25,
+        });
+      },
+    };
+  };
   const boxLines = (
     id: string,
     lines: { text: string; betont: boolean }[],
@@ -888,6 +936,12 @@ function composeSlide(
       const id = `sc-${index}-${item.type}`;
       switch (item.type) {
         case 'dachzeile': {
+          // Handwritten only on the light colours: a photo keeps the headline
+          // face, and black (remembrance) stays plain.
+          if (brand.dachzeileHand && bg.kind === 'farbe' && onLight) {
+            placed.push(handTape(id, item.text, brand.dachzeileHand));
+            break;
+          }
           // Scales with the headline (≈ 0.4 on the photo posts, in the
           // headline face; smaller and in bold body text on a colour).
           const onPhoto = surface === 'foto';

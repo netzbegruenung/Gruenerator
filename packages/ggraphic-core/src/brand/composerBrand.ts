@@ -122,6 +122,16 @@ export interface ComposerBrand {
     /** Every line's box on a plain colour ground, when it differs from a photo's. */
     onColour?: { fill: string; ink: string };
   };
+  /**
+   * The line above a headline in a brush face on a tilted tape label (GJ DE,
+   * DZ0Ou7KjLyZ/02): its family, its turn in degrees, the tape per ground.
+   * Only on a light plain colour; a photo and a dark ground keep the plain line.
+   */
+  dachzeileHand?: {
+    family: string;
+    rotation: number;
+    tape: ByGround<{ fill: string; ink: string }>;
+  };
   /** A quote's ink on a full photo when it is not white (GJ DE: light green, bold). */
   quoteOnPhoto?: string;
   /** A paragraph's ink on a dark ground when it is not the ground's ink (GJ AT: light green). */

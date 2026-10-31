@@ -106,6 +106,17 @@
     font-display: swap;
 }
 
+/* GRÜNE JUGEND Deutschland: Kaushan Script (SIL OFL, Pablo Impallari / Igino
+   Marini) als freier Ersatz für die Pinselschrift der Posts – Dachzeilen und
+   Etiketten. Lateinisches Subset von Google Fonts. */
+@font-face {
+    font-family: 'KaushanScript';
+    src: url('../../fonts/KaushanScript-Regular.woff2') format('woff2');
+    font-weight: normal;
+    font-style: normal;
+    font-display: swap;
+}
+
 /* Österreich (de-AT) — Vollkorn */
 @font-face {
     font-family: 'Vollkorn';

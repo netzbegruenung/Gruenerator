@@ -31,4 +31,5 @@ export const GRUENE_PPTX_FONTS: Record<string, PptxFontMapper> = {
     italic,
   }),
   'Unbounded-Black': pptxFamily('Unbounded Black'),
+  KaushanScript: pptxFamily('Kaushan Script'),
 };
