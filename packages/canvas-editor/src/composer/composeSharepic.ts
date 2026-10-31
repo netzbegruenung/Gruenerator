@@ -13,6 +13,14 @@
  * Pure: no React, no Konva. Text is measured through the injected `measure`.
  */
 import { onGround } from '@ggraphic/editor/brand/composerBrand';
+import { foldMarkers, stripMarks } from '@ggraphic/editor/composer/marks';
+import { steckbriefPerson } from '@ggraphic/editor/composer/steckbriefLayout';
+import {
+  balancedWrap,
+  largestSizeWordsFit,
+  STOERER_RADII,
+  wrapWords,
+} from '@ggraphic/editor/composer/textFit';
 import {
   DEFAULT_FORMAT_ID,
   getCanvasFormatOrDefault,
@@ -24,6 +32,9 @@ import { createShape, type ShapeInstance } from '@ggraphic/editor/utils/shapes';
 import { type TextAccent } from '@ggraphic/editor/utils/textUtils';
 import {
   accentLines,
+  brandIdFor,
+  brandOfId,
+  type SharepicBrandId,
   type SharepicColor,
   type SharepicCreatorLocale,
   type SharepicItem,
@@ -63,7 +74,6 @@ import { layoutInfografik } from './infografikLayout';
 import { layoutBingo, layoutSchlagzeile, layoutTermine } from './kartenLayout';
 import { layoutRechnung, layoutZahl } from './kennzahlLayout';
 import { layoutIconliste, layoutListe } from './listeLayout';
-import { foldMarkers, stripMarks } from '@ggraphic/editor/composer/marks';
 import {
   GRADIENTS,
   SCRIM_DARK,
@@ -75,7 +85,6 @@ import {
 import {
   ABSATZ_KLEIN,
   ARROW,
-  AT_CENTRED_MARGIN,
   BLUME,
   BOX_INK,
   CARD_ITEMS,
@@ -100,13 +109,6 @@ import { drawSlideChrome } from './slideChrome';
 import { type BuildPass, type SlideCtx } from './slideContext';
 import { slideInk } from './slideInk';
 import { fadeIntoGround, steckbriefAround } from './steckbriefCompose';
-import { steckbriefPerson } from '@ggraphic/editor/composer/steckbriefLayout';
-import {
-  balancedWrap,
-  largestSizeWordsFit,
-  STOERER_RADII,
-  wrapWords,
-} from '@ggraphic/editor/composer/textFit';
 import { layoutFaktencheck, layoutVergleich } from './vergleichLayout';
 import { layoutFrage, layoutZitat } from './zitatLayout';
 
@@ -124,7 +126,19 @@ export {
 } from '@ggraphic/editor/composer/textFit';
 
 /** A photo tinted green, as the posts set people: DE in Klee, AT in its light green. */
-const BILD_TINT: Record<SharepicCreatorLocale, string> = { 'de-DE': '#008939', 'de-AT': '#56AF31' };
+const BILD_TINT: Record<SharepicBrandId, string> = {
+  'gruene-de': '#008939',
+  'gruene-at': '#56AF31',
+  'gj-de': '#33C270',
+  'gj-at': '#92CE26',
+};
+/** The editor page each design opens in. */
+const TEMPLATE_TYPE = {
+  'gruene-de': 'freeform',
+  'gruene-at': 'freeform-at',
+  'gj-de': 'freeform-gj',
+  'gj-at': 'freeform-gj-at',
+} as const satisfies Record<SharepicBrandId, ComposedSharepic['templateType']>;
 /** Air between the text group and a photo in the slide. */
 const BILD_CLEARANCE = 50;
 const BILD_KARTE = { inset: 40, share: 0.4, pad: 16 } as const;
@@ -142,6 +156,7 @@ export function composeSharepic(spec: SharepicSpec, options: ComposeOptions): Co
   const numerals = spec.slides.map((slide) =>
     slide.nummer ? { stil: slide.nummer, k: ++counted } : null
   );
+  const brandId = brandIdFor(spec.locale, spec.brand);
   const slides = spec.slides.map((slide, index) =>
     composeSlide(
       slide,
@@ -153,11 +168,12 @@ export function composeSharepic(spec: SharepicSpec, options: ComposeOptions): Co
       count > 1 && spec.seitenzahl ? { index, count, style: spec.seitenzahl } : null,
       numerals[index] ?? null,
       count > 1 && index === count - 1,
-      spec.thema ?? null
+      spec.thema ?? null,
+      brandId
     )
   );
   return {
-    templateType: spec.locale === 'de-AT' ? 'freeform-at' : 'freeform',
+    templateType: TEMPLATE_TYPE[brandId],
     format,
     slides,
     ...(options.provenance
@@ -180,12 +196,12 @@ function composeSlide(
   numeral: { stil: SharepicNummer; k: number } | null,
   /** Last slide of a carousel: the AI label in its long form. */
   closing: boolean,
-  thema: SharepicThema | null
+  thema: SharepicThema | null,
+  brandId: SharepicBrandId
 ): ComposedSlide {
   const measure = sentinelBlind(options.measure ?? defaultMeasure);
-  const theme = getBrandTheme(locale);
-  const brand = getBrandPack(locale).composer;
-  const isAt = locale === 'de-AT';
+  const theme = getBrandTheme(locale, brandOfId(brandId));
+  const brand = getBrandPack(locale, brandOfId(brandId)).composer;
   // A brand without the marker box highlights with its accent only, so a
   // `++` that reaches its slide is set as `==`.
   const spec = brand.features.markerBox
@@ -349,7 +365,7 @@ function composeSlide(
     // stays free text even on a boxed slide, so it needs the scrim.
     const side = posterPhotoQuote ? 'unten' : bg.textSeite;
     const vertical = side === 'unten' || side === 'oben';
-    scrimDark = SCRIM_DARK[locale];
+    scrimDark = SCRIM_DARK[brandId];
     scrimLevel = SCRIM_TEXT_ALPHA[options.photoTone?.(bg.filename, side) ?? 'mittel'];
     // Real stops follow in `setScrim`, once the geometry is known.
     scrim = rect('sc-scrim', 0, 0, canvas.width, canvas.height, 'transparent');
@@ -379,7 +395,7 @@ function composeSlide(
   // photo carries the text and stays as shot.
   // A themed slide keeps its photo's colours: a green Pride flag says nothing.
   if (
-    isAt &&
+    brand.layout.tintPhotoStrip &&
     !sharepicTheme(thema)?.keepsPhotoColours &&
     (bg.kind === 'foto-oben' || bg.kind === 'foto-unten')
   ) {
@@ -408,10 +424,9 @@ function composeSlide(
     topGround,
   } = slideInk({
     locale,
-    isAt,
     theme,
     brand,
-    brandId: getBrandPack(locale).id,
+    brandId,
     surface,
     darkText,
     kopfband,
@@ -457,9 +472,10 @@ function composeSlide(
   // The headline keeps the full column; AT argument slides set centred
   // paragraphs narrower (~100 px side margins on the posts).
   const headColumn = column;
-  if (isAt && column.align === 'center' && surface !== 'foto') {
-    const width = canvas.width - 2 * AT_CENTRED_MARGIN;
-    column = { ...column, x: AT_CENTRED_MARGIN, width };
+  const centredMargin = brand.layout.centredMargin;
+  if (centredMargin !== null && column.align === 'center' && surface !== 'foto') {
+    const width = canvas.width - 2 * centredMargin;
+    column = { ...column, x: centredMargin, width };
   }
   const xAlign = column.align;
 
@@ -467,14 +483,16 @@ function composeSlide(
   // quote (2 of 42 posts carry it, both so); DE never on a full-bleed photo. Enforced here — the
   // model sets `logo: true` far more often than the posts do.
   // The key sentence closes over the logo, as the posts end.
+  const placement = brand.layout.logoPlacement;
   const showLogo =
+    placement !== 'none' &&
     (spec.logo || aufruf?.stil === 'kernsatz') &&
-    (isAt ? !swipeOn && bg.kind === 'farbe' && !quoteSlide : bg.kind !== 'foto');
+    (placement === 'closing' ? !swipeOn && bg.kind === 'farbe' && !quoteSlide : bg.kind !== 'foto');
   const logo = brand.logo;
   /** DE always and AT next to a date circle set the logo bottom-left, at the margin. */
-  const logoLeft = showLogo && (!isAt || !!spec.datum);
+  const logoLeft = showLogo && (placement === 'left' || !!spec.datum);
   const logoCentred = showLogo && !logoLeft;
-  const arrow = ARROW[locale];
+  const arrow = ARROW[brandId];
   const arrowLeft = canvas.width - arrow.right - arrow.size * arrow.glyph;
   /** Where place and source start: right of a bottom-left logo. */
   const footX = logoLeft ? MARGIN + logo.size + 24 : MARGIN;
@@ -582,7 +600,7 @@ function composeSlide(
         opacity: 1,
         fit: 'cover',
         ...(bild.ausschnitt === 'kreis' && { mask: 'kreis' as const }),
-        ...(bild.filter === 'gruen' && { tint: BILD_TINT[locale], tintStrength: 1 }),
+        ...(bild.filter === 'gruen' && { tint: BILD_TINT[brandId], tintStrength: 1 }),
         ...(bild.filter === 'grau' && { grayscale: true }),
       });
       out.layerOrder.push(id);
@@ -727,7 +745,7 @@ function composeSlide(
   const headFamily = theme.fonts.headline;
   const { growCover, headlineSizer } = headlineFit({
     measure,
-    isAt,
+    emphasis: brand.accent.emphasis,
     theme,
     columnWidth: headColumn.width,
     canvasHeight: canvas.height,
@@ -777,8 +795,8 @@ function composeSlide(
     theme,
     brand,
     headFamily,
-    isAt,
     locale,
+    brandId,
     thema,
     canvas,
     options,
@@ -900,7 +918,7 @@ function composeSlide(
                 n +
                 Math.max(
                   1,
-                  accent && isAt
+                  accent && brand.accent.emphasis
                     ? wrapWords(stripMarks(l), col.width, (t) =>
                         measure(
                           t,
@@ -926,7 +944,7 @@ function composeSlide(
                 // An accent line is one accent already; a word accent inside it
                 // would vanish (DE: lime on lime) — keep the plain words.
                 const plain = stripMarks(value);
-                if (segment.accent && isAt) {
+                if (segment.accent && brand.accent.emphasis) {
                   text(segId, plain, cursor, Math.round(size * 0.95), theme.fonts.quoteEmphasis, {
                     ...at,
                     fontStyle: AT_EMPHASIS_STYLE,
@@ -1044,7 +1062,7 @@ function composeSlide(
             : Math.min(Math.round(paraBase * scale), paraCap);
           const lineHeight = brand.lineHeight.absatz;
           const stressed = item.betont
-            ? isAt
+            ? brand.accent.emphasis
               ? {
                   family: theme.fonts.quoteEmphasis,
                   fontStyle: AT_EMPHASIS_STYLE,
@@ -1197,7 +1215,7 @@ function composeSlide(
       ? areaTop + MARGIN + 2 * STOERER_RADII.at(-1)! - 30 + GAP
       : 0;
   const top = Math.max(
-    (areaTop === 0 ? TOP_PAD[locale] : areaTop + MARGIN) +
+    (areaTop === 0 ? TOP_PAD[brandId] : areaTop + MARGIN) +
       (spec.stoerer && position === 'oben' ? 40 : 0),
     stoererCorner
   );
@@ -1243,7 +1261,7 @@ function composeSlide(
     bg.kind === 'farbe' &&
     position !== 'unten' &&
     !headlineAlone &&
-    (isAt || total < (bottom - top) * 0.5);
+    (brand.layout.centreShortBlocks || total < (bottom - top) * 0.5);
   let y =
     position === 'oben' && !centred
       ? top
@@ -1271,7 +1289,7 @@ function composeSlide(
     });
     out.layerOrder.push('sc-nummer');
   }
-  if (spec.blume && !isAt && bg.kind === 'farbe') {
+  if (spec.blume && brand.layout.sunflower && bg.kind === 'farbe') {
     // A large sunflower in the ground's tone, cut by the bottom-right corner
     // (Dd_BXcKiDy2/03, Ddouf0QiL1w/02); drawn before the text, which sits on it.
     out.assetInstances.push({

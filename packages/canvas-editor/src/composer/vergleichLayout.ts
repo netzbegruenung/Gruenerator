@@ -1,3 +1,4 @@
+import { largestSizeWordsFit } from '@ggraphic/editor/composer/textFit';
 import { createShape } from '@ggraphic/editor/utils/shapes';
 
 import { LIME, SHAREPIC_COLOR_HEX } from './chromeParts';
@@ -5,7 +6,6 @@ import { type FaktencheckItem, type Placed, type VergleichItem } from './compose
 import { VERGLEICH_MARKER_IDS } from './sharepicIcons';
 import { GAP, MARKER_PAD_X, TOP_PAD } from './sharepicLayoutConstants';
 import { type BuildPass, type SlideCtx } from './slideContext';
-import { largestSizeWordsFit } from '@ggraphic/editor/composer/textFit';
 
 /** `vergleich` with `stil: "spalten"`, measured on Ddouf0QiL1w/01 at 1080 px. */
 const VERGLEICH_SPALTEN = {
@@ -26,7 +26,7 @@ function vergleichSpalten(ctx: SlideCtx, id: string, item: VergleichItem): void 
   const {
     measure,
     theme,
-    locale,
+    brandId,
     canvas,
     headFamily,
     logoAt,
@@ -41,7 +41,7 @@ function vergleichSpalten(ctx: SlideCtx, id: string, item: VergleichItem): void 
   const inner = half - 2 * pad;
   // The titles keep clear of the VS on the seam.
   const titleInner = inner - VERGLEICH_SPALTEN.vs * 0.3;
-  const top = TOP_PAD[locale] - 50;
+  const top = TOP_PAD[brandId] - 50;
   const cols = [
     { key: 'links' as const, side: item.links, x: 0, fill: SHAREPIC_COLOR_HEX.mint },
     { key: 'rechts' as const, side: item.rechts, x: half, fill: SHAREPIC_COLOR_HEX.grasgruen },

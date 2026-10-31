@@ -104,6 +104,43 @@ export interface ComposerBrand {
    * alone becomes a text page at body size.
    */
   quoteStyle: 'poster' | 'card';
+  /** How headlines and the line above them are cased. `'versal'` sets them in capitals. */
+  headlineCase: 'satz' | 'versal';
+  /** The outline of the Störer: a circle, a jagged burst, or a wide ellipse. */
+  stoererShape: 'circle' | 'burst' | 'ellipse';
+  /** White cards plain, or `'brutal'`: a black edge and a hard offset shadow. */
+  cardStyle: 'plain' | 'brutal';
+  /**
+   * The line boxes of a `zeilenboxen` slide: the first line's box and every
+   * later one's, with their ink. Absent: the marker swatches as before.
+   */
+  lineBoxes?: { first: { fill: string; ink: string }; rest: { fill: string; ink: string } };
+  /** Where layouts differ between brands beyond colour and type. */
+  layout: {
+    /** Centred paragraphs on a colour keep this side margin in px; null keeps the column. */
+    centredMargin: number | null;
+    /** A text block shorter than half its area still centres vertically. */
+    centreShortBlocks: boolean;
+    /** A list stands on a white card on every ground, or only on light ground. */
+    listCard: 'always' | 'light';
+    /** A photo strip beside a colour panel is tinted in the brand's primary. */
+    tintPhotoStrip: boolean;
+    /**
+     * The footer logo: bottom-left (never on a full-bleed photo), only on the
+     * closing slide's plain colour, or not at all.
+     */
+    logoPlacement: 'left' | 'closing' | 'none';
+    /** The "swipe on" arrow: the brand's brush-stroke asset, or the drawn arrow. */
+    swipeArrow: 'brush' | 'drawn';
+    /** The date circle in the brand's attention colour, or chosen by the ground's ink. */
+    datumCircle: 'attention' | 'ink';
+    /** A comparison's other side: a solid pale panel, or a veil over the ground. */
+    contrastPanel: 'solid' | 'veil';
+    /** The brand may set its sunflower. */
+    sunflower: boolean;
+    /** A question's speaker prefix in the brand accent, or in the brand's own green. */
+    frageAccent: 'accent' | 'green';
+  };
 }
 
 /**

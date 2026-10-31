@@ -4,6 +4,31 @@ export const sharepicCreatorLocaleSchema = z.enum(['de-DE', 'de-AT']);
 export type SharepicCreatorLocale = z.infer<typeof sharepicCreatorLocaleSchema>;
 
 /**
+ * Whose corporate design a sharepic wears. The country stays `locale`; the
+ * brand picks the organisation within it. Absent on a spec: `gruene`.
+ */
+export const sharepicBrandSchema = z.enum(['gruene', 'gruene-jugend']);
+export type SharepicBrand = z.infer<typeof sharepicBrandSchema>;
+
+/** One design per brand and country — the key of every per-design table. */
+export const SHAREPIC_BRAND_IDS = ['gruene-de', 'gruene-at', 'gj-de', 'gj-at'] as const;
+export type SharepicBrandId = (typeof SHAREPIC_BRAND_IDS)[number];
+
+/** The only translation from (country, brand) to a design. */
+export function brandIdFor(
+  locale: SharepicCreatorLocale | string | null | undefined,
+  brand?: SharepicBrand | null
+): SharepicBrandId {
+  const at = locale === 'de-AT';
+  if (brand === 'gruene-jugend') return at ? 'gj-at' : 'gj-de';
+  return at ? 'gruene-at' : 'gruene-de';
+}
+
+/** The brand a design id stands for. */
+export const brandOfId = (id: SharepicBrandId): SharepicBrand =>
+  id === 'gj-de' || id === 'gj-at' ? 'gruene-jugend' : 'gruene';
+
+/**
  * Brand colours by name. The palette follows what the parties actually post
  * (analysis of the 20 newest Instagram posts each, 10/2026), not the older
  * template set: DE posts use Dunkeltanne, Grasgrün, Mint and Hellgrau — Klee and Sand
@@ -28,6 +53,17 @@ export const sharepicColorSchema = z.enum([
   'pride',
   'europablau',
   'himmelblau',
+  // GRÜNE JUGEND Deutschland (CD März 2024, S. 11).
+  'limette',
+  'apricot',
+  'lavendel',
+  'pink',
+  'schwarz',
+  // Grüne Jugend Österreich (gemessen an @gruenejugend.at, 10/2026).
+  'waldgruen',
+  'maigruen',
+  'gelb',
+  'veilchen',
 ]);
 export type SharepicColor = z.infer<typeof sharepicColorSchema>;
 
@@ -56,14 +92,23 @@ export const SHAREPIC_LOCALE_COLORS: Record<SharepicCreatorLocale, readonly Shar
   'de-AT': ['dunkelgruen', 'hellgruen', 'weiss'],
 };
 
-/** The grounds a spec may use: its locale's CD, plus its theme's own. */
+/** The plain CD palette per design; the Grünen rows are `SHAREPIC_LOCALE_COLORS`. */
+export const SHAREPIC_BRAND_COLORS: Record<SharepicBrandId, readonly SharepicColor[]> = {
+  'gruene-de': SHAREPIC_LOCALE_COLORS['de-DE'],
+  'gruene-at': SHAREPIC_LOCALE_COLORS['de-AT'],
+  // Primaries first: the model opens with the first one when nothing else fits.
+  'gj-de': ['limette', 'apricot', 'lavendel', 'pink', 'weiss', 'schwarz'],
+  'gj-at': ['waldgruen', 'maigruen', 'creme', 'gelb', 'veilchen'],
+};
+
+/** The grounds a spec may use: its design's CD, plus its theme's own. */
 export function sharepicColorsFor(
   locale: SharepicCreatorLocale,
-  thema?: SharepicThema | null
+  thema?: SharepicThema | null,
+  brand?: SharepicBrand | null
 ): readonly SharepicColor[] {
-  return thema
-    ? [...SHAREPIC_LOCALE_COLORS[locale], ...SHAREPIC_THEMA_COLORS[thema]]
-    : SHAREPIC_LOCALE_COLORS[locale];
+  const own = SHAREPIC_BRAND_COLORS[brandIdFor(locale, brand)];
+  return thema ? [...own, ...SHAREPIC_THEMA_COLORS[thema]] : own;
 }
 
 /** The grounds an infographic stands on: its illustrations are painted for a light one. */

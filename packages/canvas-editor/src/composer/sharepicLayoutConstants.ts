@@ -2,7 +2,7 @@ import { type TextMarker } from '@ggraphic/editor/utils/textUtils';
 
 import { SHAREPIC_COLOR_HEX } from './chromeParts';
 
-import type { SharepicCreatorLocale, SharepicItem } from '@gruenerator/contracts';
+import type { SharepicBrandId, SharepicItem } from '@gruenerator/contracts';
 
 /** 6.5 % of the width — the margin the posts use. */
 export const MARGIN = 70;
@@ -77,9 +77,15 @@ export const ARROW_ICON = 'tabler:arrow-narrow-right';
  * The drawn arrow is narrower than its box (DE ≈ 0.64, AT ≈ 0.8).
  */
 export const ARROW = {
-  'de-DE': { size: 42, right: 22, bottom: 22, glyph: 0.64 },
-  'de-AT': { size: 350, right: 40, bottom: 60, glyph: 0.8 },
-} as const;
+  'gruene-de': { size: 42, right: 22, bottom: 22, glyph: 0.64 },
+  'gruene-at': { size: 350, right: 40, bottom: 60, glyph: 0.8 },
+  // GJ: the drawn arrow, a little larger and further in (DY1k7UhDK1S/02).
+  'gj-de': { size: 56, right: 40, bottom: 40, glyph: 0.64 },
+  'gj-at': { size: 56, right: 40, bottom: 40, glyph: 0.64 },
+} as const satisfies Record<
+  SharepicBrandId,
+  { size: number; right: number; bottom: number; glyph: number }
+>;
 /** Headline: widest line at this share of its column, up to `HEADLINE_MAX` px. */
 export const HEADLINE_FILL = 0.95;
 export const HEADLINE_MAX = 230;
@@ -106,7 +112,12 @@ export const QUOTE_ALONE_MAX = 120;
 /** Paragraphs stay at most this share of the headline size. */
 export const HEADLINE_RATIO = 1.8;
 /** Top padding of a block that starts at the canvas top, measured on the posts. */
-export const TOP_PAD: Record<SharepicCreatorLocale, number> = { 'de-DE': 110, 'de-AT': 120 };
+export const TOP_PAD: Record<SharepicBrandId, number> = {
+  'gruene-de': 110,
+  'gruene-at': 120,
+  'gj-de': 100,
+  'gj-at': 100,
+};
 /** AT centred text: ~100 px side margins on the argument slides. */
 export const AT_CENTRED_MARGIN = 100;
 /** Date circle on a colour or photo slide: free in the bottom-right corner. */

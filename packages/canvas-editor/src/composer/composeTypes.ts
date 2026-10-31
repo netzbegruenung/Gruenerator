@@ -60,7 +60,7 @@ export type ComposedSlide = {
 };
 
 export interface ComposedSharepic {
-  templateType: 'freeform' | 'freeform-at';
+  templateType: 'freeform' | 'freeform-at' | 'freeform-gj' | 'freeform-gj-at';
   /** The canvas format the slides are laid out on. */
   format: SharepicFormat;
   /** One page per slide, in order. */

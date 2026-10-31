@@ -1,11 +1,11 @@
 import { onGround } from '@ggraphic/editor/brand/composerBrand';
+import { largestSizeWordsFit } from '@ggraphic/editor/composer/textFit';
 import { createPillBadgeInstance } from '@ggraphic/editor/utils/pillBadgeUtils';
 
 import { AT_EMPHASIS_STYLE } from './chromeParts';
 import { type AufrufItem, type Placed } from './composeTypes';
 import { GAP } from './sharepicLayoutConstants';
 import { type BuildPass, type SlideCtx } from './slideContext';
-import { largestSizeWordsFit } from '@ggraphic/editor/composer/textFit';
 
 export function layoutAufruf(
   ctx: SlideCtx,
@@ -18,7 +18,6 @@ export function layoutAufruf(
     theme,
     brand,
     headFamily,
-    isAt,
     out,
     column,
     xAlign,
@@ -101,7 +100,7 @@ export function layoutAufruf(
     });
   } else if (item.hinweis) {
     // AT has no pills: the hint is a line, on a petition in the yellow serif.
-    const petitionAt = isAt && item.stil === 'petition';
+    const petitionAt = !brand.features.hinweisPill && item.stil === 'petition';
     const small = Math.round(size * (petitionAt ? 0.55 : 0.4));
     const hint = item.hinweis;
     placed.push({

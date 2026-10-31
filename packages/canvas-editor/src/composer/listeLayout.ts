@@ -1,3 +1,4 @@
+import { largestSizeWordsFit } from '@ggraphic/editor/composer/textFit';
 import { ASSET_TARGET_SIZE } from '@ggraphic/editor/utils/canvasAssets';
 import { createShape } from '@ggraphic/editor/utils/shapes';
 
@@ -7,7 +8,6 @@ import { type IconlisteItem, type ListeItem, type Placed } from './composeTypes'
 import { SHAREPIC_ICON_IDS } from './sharepicIcons';
 import { CARD_MARKER, GAP } from './sharepicLayoutConstants';
 import { type BuildPass, type SlideCtx } from './slideContext';
-import { largestSizeWordsFit } from '@ggraphic/editor/composer/textFit';
 
 export function layoutListe(ctx: SlideCtx, item: ListeItem, id: string, pass: BuildPass): Placed[] {
   const {
@@ -15,7 +15,6 @@ export function layoutListe(ctx: SlideCtx, item: ListeItem, id: string, pass: Bu
     theme,
     brand,
     headFamily,
-    isAt,
     out,
     column,
     darkText,
@@ -33,7 +32,7 @@ export function layoutListe(ctx: SlideCtx, item: ListeItem, id: string, pass: Bu
   if (item.stil && item.stil !== 'punkte') {
     // A marker column (numeral, arrow or tick in the accent) beside the points.
     const wanted = Math.round((item.items.length <= 3 ? 54 : 46) * Math.min(scale, 1.3));
-    const onCard = !isAt || onLight;
+    const onCard = brand.layout.listCard === 'always' || onLight;
     const pad = onCard ? 46 : 0;
     const inner = column.width - 2 * pad;
     // `kasten`: no marker column; the key figure opens the point in a box.
@@ -135,7 +134,7 @@ export function layoutListe(ctx: SlideCtx, item: ListeItem, id: string, pass: Bu
             accent: rowAccent,
             ...(onCard ? { shadowOpacity: 0 } : {}),
             // On the white card the box is grass green (Dd6hROjIMQC).
-            ...(onCard && !isAt ? { marker: CARD_MARKER } : {}),
+            ...(onCard && brand.layout.listCard === 'always' ? { marker: CARD_MARKER } : {}),
           });
           rowTop += rows[k]! + rowGap;
         });
@@ -145,7 +144,7 @@ export function layoutListe(ctx: SlideCtx, item: ListeItem, id: string, pass: Bu
   }
   // Few points carry a demands slide on their own — they grow with it.
   const wantedSize = Math.round((item.items.length <= 3 ? 54 : 46) * Math.min(scale, 1.3));
-  const isPlain = isAt && !onLight;
+  const isPlain = brand.layout.listCard === 'light' && !onLight;
   const pad = 46;
   const listWidth = isPlain ? column.width : column.width - 2 * pad;
   const size = largestSizeWordsFit(

@@ -1,3 +1,13 @@
+import {
+  placeArrow,
+  shapePoint,
+  steckbriefSlots,
+  outlineSpan,
+  steckbriefOutline,
+  type Box,
+  type PlacedArrow,
+} from '@ggraphic/editor/composer/steckbriefLayout';
+import { balancedWrap } from '@ggraphic/editor/composer/textFit';
 import { ASSET_TARGET_SIZE } from '@ggraphic/editor/utils/canvasAssets';
 import { createShape } from '@ggraphic/editor/utils/shapes';
 import {
@@ -11,16 +21,6 @@ import { type BildItem, type SteckbriefItem } from './composeTypes';
 import { GRADIENTS, SCRIM_ANGLE, SCRIM_EASE } from './sharepicGround';
 import { KI_LABEL, MARGIN, STECKBRIEF } from './sharepicLayoutConstants';
 import { type SlideCtx } from './slideContext';
-import {
-  placeArrow,
-  shapePoint,
-  steckbriefSlots,
-  outlineSpan,
-  steckbriefOutline,
-  type Box,
-  type PlacedArrow,
-} from '@ggraphic/editor/composer/steckbriefLayout';
-import { balancedWrap } from '@ggraphic/editor/composer/textFit';
 
 /** What a steckbrief reads from its slide besides `SlideCtx`; all final before `place`. */
 export interface SteckbriefScene {
@@ -110,19 +110,8 @@ export function steckbriefAround(
   id: string,
   item: SteckbriefItem
 ): void {
-  const {
-    measure,
-    brand,
-    headFamily,
-    isAt,
-    canvas,
-    out,
-    onLight,
-    textColor,
-    addShape,
-    text,
-    fitLine,
-  } = ctx;
+  const { measure, brand, headFamily, canvas, out, onLight, textColor, addShape, text, fitLine } =
+    ctx;
   const { person, bg, bild, surface, swipeOn, kiText, kiTop, kiHeight } = around;
   if (!person) return;
   const W = canvas.width;
@@ -137,7 +126,7 @@ export function steckbriefAround(
   // The AI label owns the bottom-left corner, the sunflower the bottom-right.
   const floor = {
     links: kiText ? kiTop - 24 : H - MARGIN,
-    rechts: H - (isAt ? MARGIN : STECKBRIEF.blume + 50),
+    rechts: H - (brand.layout.sunflower ? STECKBRIEF.blume + 50 : MARGIN),
   };
 
   // Greeting: small over the name, right-aligned beside the face, the waving hand right of the name.
@@ -280,7 +269,7 @@ export function steckbriefAround(
       measure(kiText, KI_LABEL.fontSize, KI_LABEL.fontFamily, 'bold') + 2 * KI_LABEL.paddingX;
     corners.push({ x: KI_LABEL.margin, y: kiTop, width: kiWidth, height: kiHeight });
   }
-  const blume = !isAt && !swipeOn;
+  const blume = brand.layout.sunflower && !swipeOn;
   if (blume) {
     corners.push({
       x: W - MARGIN - STECKBRIEF.blume + 20,

@@ -1,12 +1,12 @@
+import { stripMarks } from '@ggraphic/editor/composer/marks';
+import { largestSizeWordsFit } from '@ggraphic/editor/composer/textFit';
 import { createShape } from '@ggraphic/editor/utils/shapes';
 import { type TextAccent } from '@ggraphic/editor/utils/textUtils';
 
 import { SHAREPIC_COLOR_HEX } from './chromeParts';
 import { type FrageItem, type Placed, type ZitatItem } from './composeTypes';
-import { stripMarks } from '@ggraphic/editor/composer/marks';
 import { GAP, KLEE, QUOTE_LINE_HEIGHT } from './sharepicLayoutConstants';
 import { type BuildPass, type SlideCtx } from './slideContext';
-import { largestSizeWordsFit } from '@ggraphic/editor/composer/textFit';
 
 /** A quote; the other side's (`seite: "gegner"`) on the muted "theirs" panel. */
 export function layoutZitat(ctx: SlideCtx, item: ZitatItem, id: string, pass: BuildPass): Placed[] {
@@ -178,16 +178,17 @@ function zitatCard(ctx: SlideCtx, item: ZitatItem, id: string, pass: BuildPass):
 }
 
 export function layoutFrage(ctx: SlideCtx, item: FrageItem, id: string, pass: BuildPass): Placed[] {
-  const { measure, theme, isAt, column, darkInk, accent, paraBase, text, lineCount } = ctx;
+  const { measure, theme, brand, column, darkInk, accent, paraBase, text, lineCount } = ctx;
   const { scale, paraCap } = pass;
   const placed: Placed[] = [];
   // The interview question: bold, clearly smaller than the answer
   // paragraph under it; the medium's prefix in its own colour (DE Klee
   // on light ground, grass green on dark; AT the yellow accent).
   const value = item.von ? `==${item.von}:== ${item.text}` : item.text;
-  const prefixAccent: TextAccent = isAt
-    ? accent
-    : { fill: darkInk ? KLEE : SHAREPIC_COLOR_HEX.grasgruen };
+  const prefixAccent: TextAccent =
+    brand.layout.frageAccent === 'accent'
+      ? accent
+      : { fill: darkInk ? KLEE : SHAREPIC_COLOR_HEX.grasgruen };
   const size = largestSizeWordsFit(
     [value],
     Math.min(Math.round(paraBase * 0.75 * Math.min(scale, 1.4)), paraCap),

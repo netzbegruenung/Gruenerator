@@ -318,6 +318,15 @@ export const SHAREPIC_COLOR_LABELS: Record<SharepicColor, string> = {
   pride: 'Pride-Verlauf',
   europablau: 'Europablau',
   himmelblau: 'Himmelblau',
+  limette: 'Hellgrün',
+  apricot: 'Apricot',
+  lavendel: 'Lavendel',
+  pink: 'Pink',
+  schwarz: 'Schwarz',
+  waldgruen: 'Waldgrün',
+  maigruen: 'Maigrün',
+  gelb: 'Gelb',
+  veilchen: 'Violett',
 };
 
 /** Items whose words only the request gives: a draft may not reword them. */

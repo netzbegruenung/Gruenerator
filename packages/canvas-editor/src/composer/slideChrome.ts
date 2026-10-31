@@ -1,4 +1,12 @@
 import { type ComposerBrand, onGround } from '@ggraphic/editor/brand/composerBrand';
+import {
+  fitStoererText,
+  STOERER_LINE_STEP,
+  STOERER_MAX_SIZE_SHARE,
+  STOERER_MIN_READABLE,
+  STOERER_RADII,
+  wrapWords,
+} from '@ggraphic/editor/composer/textFit';
 import { ASSET_TARGET_SIZE } from '@ggraphic/editor/utils/canvasAssets';
 import { createCircleBadgeInstance } from '@ggraphic/editor/utils/circleBadgeUtils';
 import { createShape } from '@ggraphic/editor/utils/shapes';
@@ -13,14 +21,6 @@ import { type ARROW, ARROW_ICON, FOOTER, KI_LABEL, MARGIN } from './sharepicLayo
 import { sharepicTheme } from './sharepicThemes';
 import { type SlideCtx } from './slideContext';
 import { type slideInk } from './slideInk';
-import {
-  fitStoererText,
-  STOERER_LINE_STEP,
-  STOERER_MAX_SIZE_SHARE,
-  STOERER_MIN_READABLE,
-  STOERER_RADII,
-  wrapWords,
-} from '@ggraphic/editor/composer/textFit';
 
 type SlideInk = ReturnType<typeof slideInk>;
 
@@ -69,7 +69,7 @@ export function drawSlideChrome(ctx: SlideCtx, inputs: ChromeInputs): void {
   const {
     measure,
     theme,
-    isAt,
+    brand,
     canvas,
     out,
     darkText,
@@ -195,7 +195,7 @@ export function drawSlideChrome(ctx: SlideCtx, inputs: ChromeInputs): void {
     const themed = themeDef?.badge?.[onLight ? 'light' : 'dark'] ?? null;
     const circleColors = themed
       ? { background: themed.fill, text: themed.ink }
-      : isAt
+      : brand.layout.datumCircle === 'attention'
         ? { background: theme.colors.stoerer, text: VERANSTALTUNG_CONFIG.circle.textColor }
         : darkInk
           ? { background: COLORS.TANNE, text: '#ffffff' }
@@ -308,7 +308,7 @@ export function drawSlideChrome(ctx: SlideCtx, inputs: ChromeInputs): void {
     const { size, right, bottom, glyph } = arrow;
     const x = canvas.width - right - (size * glyph) / 2;
     const y = canvas.height - bottom - size * 0.08;
-    if (isAt) {
+    if (brand.layout.swipeArrow === 'brush') {
       out.assetInstances.push({
         id: 'sc-pfeil',
         assetId: footerOnLight ? BRUSH_ARROW.onLight : BRUSH_ARROW.onDark,
