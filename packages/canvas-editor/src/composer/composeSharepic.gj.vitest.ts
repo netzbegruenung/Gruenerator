@@ -146,8 +146,101 @@ describe('Grüne Jugend Österreich', () => {
       ]),
       { photoSrc }
     );
-    const badges = out.slides[0]!.circleBadgeInstances;
-    expect(badges.find((c) => c.id === 'sc-stoerer')?.outline).toBe('ellipse');
+    const slide = out.slides[0]!;
+    expect(slide.circleBadgeInstances.find((c) => c.id === 'sc-stoerer')?.outline).toBe('ellipse');
+    // The date is a label on a black edge, top right, not a circle.
+    expect(slide.circleBadgeInstances.some((c) => c.id === 'sc-datum')).toBe(false);
+    const label = slide.shapeInstances.find((s) => s.id === 'sc-datum')!;
+    expect(label.fill).toBe('#FCD800');
+    expect(label.y).toBeLessThan(300);
+    expect(slide.shapeInstances.find((s) => s.id === 'sc-datum-rand')?.shadowOpacity).toBe(1);
+  });
+
+  it('sets the place on a light-green footer band', () => {
+    const out = composeSharepic(
+      gj('de-AT', [colourSlide('waldgruen', { ort: { lines: ['Linz'] } })]),
+      { photoSrc }
+    );
+    const slide = out.slides[0]!;
+    expect(slide.shapeInstances.find((s) => s.id === 'sc-ort-band')?.fill).toBe('#92CE26');
+    expect(slide.additionalTexts.find((t) => t.id === 'sc-ort')?.text).toBe('LINZ');
+  });
+
+  it('frames a dark slide in hairlines and sets its paragraph light green', () => {
+    const out = composeSharepic(
+      gj('de-AT', [
+        {
+          ...colourSlide('waldgruen'),
+          items: [
+            { type: 'headline', lines: ['Why?!'] },
+            { type: 'absatz', text: 'Die Welt ist geprägt von Krisen.' },
+          ],
+        },
+      ]),
+      { photoSrc }
+    );
+    const slide = out.slides[0]!;
+    expect(slide.shapeInstances.filter((s) => s.id.startsWith('sc-raster-'))).toHaveLength(3);
+    expect(slide.additionalTexts.find((t) => t.text.startsWith('Die Welt'))?.fill).toBe('#92CE26');
+  });
+
+  it('sets no hairlines on a light ground', () => {
+    const out = composeSharepic(gj('de-AT', [colourSlide('creme')]), { photoSrc });
+    expect(out.slides[0]!.shapeInstances.some((s) => s.id.startsWith('sc-raster-'))).toBe(false);
+  });
+
+  it('sets each date on a label, and on a card on a dark ground', () => {
+    const termine = (color: SharepicColor) =>
+      composeSharepic(
+        gj('de-AT', [
+          {
+            ...colourSlide(color),
+            items: [
+              { type: 'headline', lines: ['Juni'] },
+              {
+                type: 'termine',
+                eintraege: [
+                  { datum: '13. Juni', titel: 'Wien' },
+                  { datum: '20. Juni', titel: 'Linz', ort: 'Graz' },
+                ],
+              },
+            ],
+          },
+        ]),
+        { photoSrc }
+      ).slides[0]!;
+    const light = termine('creme');
+    expect(light.shapeInstances.filter((s) => /-chip$/.test(s.id))).toHaveLength(2);
+    expect(light.shapeInstances.some((s) => /-card$/.test(s.id))).toBe(false);
+    expect(light.additionalTexts.find((t) => t.id.endsWith('-0-datum'))?.text).toBe('13. JUNI');
+    const dark = termine('waldgruen');
+    expect(dark.shapeInstances.filter((s) => /-card-rand$/.test(s.id))).toHaveLength(2);
+  });
+});
+
+describe('GRÜNE JUGEND Deutschland dates', () => {
+  it('sets each date on a calendar tile, day above month', () => {
+    const slide = composeSharepic(
+      gj('de-DE', [
+        {
+          ...colourSlide('wiese'),
+          items: [
+            { type: 'headline', lines: ['Termine'] },
+            {
+              type: 'termine',
+              eintraege: [
+                { datum: '8.–9. Aug.', titel: 'Plakatstart' },
+                { datum: '22. Aug.', titel: 'Konzert', ort: 'Schwerin' },
+              ],
+            },
+          ],
+        },
+      ]),
+      { photoSrc }
+    ).slides[0]!;
+    expect(slide.shapeInstances.filter((s) => /-kachel$/.test(s.id))).toHaveLength(2);
+    expect(slide.additionalTexts.find((t) => t.id.endsWith('-0-datum'))?.text).toBe('8.–9.');
+    expect(slide.additionalTexts.find((t) => t.id.endsWith('-0-monat'))?.text).toBe('Aug.');
   });
 });
 

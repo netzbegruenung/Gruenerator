@@ -319,6 +319,7 @@ export const SHAREPIC_COLOR_LABELS: Record<SharepicColor, string> = {
   europablau: 'Europablau',
   himmelblau: 'Himmelblau',
   limette: 'Hellgrün',
+  wiese: 'Grün',
   apricot: 'Apricot',
   lavendel: 'Lavendel',
   pink: 'Pink',

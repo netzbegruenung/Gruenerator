@@ -59,6 +59,8 @@ export const sharepicColorSchema = z.enum([
   'lavendel',
   'pink',
   'schwarz',
+  // GJ DE's darker green (CD „Dunkelgrün“ #33C270): dates, a calendar's ground.
+  'wiese',
   // Grüne Jugend Österreich (gemessen an @gruenejugend.at, 10/2026).
   'waldgruen',
   'maigruen',
@@ -97,7 +99,7 @@ export const SHAREPIC_BRAND_COLORS: Record<SharepicBrandId, readonly SharepicCol
   'gruene-de': SHAREPIC_LOCALE_COLORS['de-DE'],
   'gruene-at': SHAREPIC_LOCALE_COLORS['de-AT'],
   // Primaries first: the model opens with the first one when nothing else fits.
-  'gj-de': ['limette', 'apricot', 'lavendel', 'pink', 'weiss', 'schwarz'],
+  'gj-de': ['limette', 'apricot', 'lavendel', 'pink', 'wiese', 'weiss', 'schwarz'],
   'gj-at': ['waldgruen', 'maigruen', 'creme', 'gelb', 'veilchen'],
 };
 

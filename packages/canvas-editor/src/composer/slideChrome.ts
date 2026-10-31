@@ -17,7 +17,15 @@ import { VERANSTALTUNG_CONFIG } from '../utils/veranstaltungLayout';
 
 import { BRUSH_ARROW, pageDots, SHAREPIC_COLOR_HEX } from './chromeParts';
 import { placeHandMarks } from './handMarks';
-import { type ARROW, ARROW_ICON, FOOTER, KI_LABEL, MARGIN } from './sharepicLayoutConstants';
+import { brutalLabel } from './kartenLayout';
+import {
+  type ARROW,
+  ARROW_ICON,
+  ETIKETT,
+  FOOTER,
+  KI_LABEL,
+  MARGIN,
+} from './sharepicLayoutConstants';
 import { sharepicTheme } from './sharepicThemes';
 import { type SlideCtx } from './slideContext';
 import { type slideInk } from './slideInk';
@@ -189,6 +197,43 @@ export function drawSlideChrome(ctx: SlideCtx, inputs: ChromeInputs): void {
     out.layerOrder.push('sc-stoerer');
   }
 
+  const etikett = brand.layout.datumCircle === 'etikett';
+  if (spec.datum && etikett) {
+    // GJ AT: the date as a yellow label on a black edge with a hard shadow,
+    // top right (DehRgj4jAe9/01 „23.–26. OKTOBER“).
+    const { weekday, date, time } = spec.datum;
+    const value = [weekday, date, time]
+      .filter((part) => part !== undefined)
+      .join(' · ')
+      .toLocaleUpperCase('de-DE');
+    const colors = onGround(brand.stoerer.colors, { onLight, onGrass });
+    const width =
+      measure(value, ETIKETT.fontSize, theme.fonts.headline, 'normal') + 2 * ETIKETT.padX;
+    const height = ETIKETT.fontSize + 2 * ETIKETT.padY;
+    brutalLabel(ctx, 'sc-datum', {
+      x: canvas.width - MARGIN - width,
+      y: ETIKETT.top,
+      width,
+      height,
+      fill: colors.fill,
+    });
+    out.additionalTexts.push({
+      id: 'sc-datum-text',
+      text: value,
+      type: 'header',
+      x: canvas.width - MARGIN - width,
+      y: ETIKETT.top + ETIKETT.padY,
+      width,
+      fontSize: ETIKETT.fontSize,
+      fontFamily: theme.fonts.headline,
+      fontStyle: 'normal',
+      fill: colors.ink,
+      align: 'center',
+      lineHeight: 1,
+    });
+    out.layerOrder.push('sc-datum-text');
+  }
+
   if (spec.datum && circle) {
     // DE: Tanne on light and grass-green ground, grass green on dark ground
     // and photos — never a third colour. AT keeps its magenta. A theme with
@@ -244,7 +289,37 @@ export function drawSlideChrome(ctx: SlideCtx, inputs: ChromeInputs): void {
     out.layerOrder.push('sc-datum');
   }
 
-  if (spec.ort && !ortInColumn) {
+  if (spec.ort && !ortInColumn && etikett) {
+    // GJ AT: the place on a light-green footer band across the slide, in
+    // capitals (DehRgj4jAe9/01 „LINZ · JUGENDGÄSTEHAUS“).
+    const size = 30;
+    const lines = spec.ort.lines.map((l) => l.toLocaleUpperCase('de-DE'));
+    const height = lines.length * size * 1.2 + 2 * 26;
+    const bottom = ortBottom + 14;
+    const band = createShape(
+      'rect',
+      canvas.width / 2,
+      bottom - height / 2,
+      brand.absatzOnDark ?? theme.colors.secondary,
+      brand.absatzOnDark ?? theme.colors.secondary
+    );
+    Object.assign(band, { id: 'sc-ort-band', width: canvas.width, height });
+    addShape(band);
+    out.additionalTexts.push({
+      id: 'sc-ort',
+      text: lines.join('\n'),
+      type: 'body',
+      x: MARGIN,
+      y: bottom - height + 26,
+      width: canvas.width - 2 * MARGIN,
+      fontSize: size,
+      fontFamily: theme.fonts.headline,
+      fontStyle: 'normal',
+      fill: brand.darkText,
+      lineHeight: 1.2,
+    });
+    out.layerOrder.push('sc-ort');
+  } else if (spec.ort && !ortInColumn) {
     const size = 38;
     const height = spec.ort.lines.length * size * 1.25;
     // Beside a free date circle the place reads with it: right-aligned to the

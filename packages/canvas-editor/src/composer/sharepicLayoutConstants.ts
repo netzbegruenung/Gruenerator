@@ -63,6 +63,12 @@ export const STECKBRIEF = {
 } as const;
 /** `blume`: the faded sunflower's size and strength per ground. */
 export const BLUME = { size: 760, onLight: 0.12, onGrass: 0.1, onDark: 0.08 } as const;
+/** GJ AT's date label in the top corner (DehRgj4jAe9/01): its type, padding, edge and shadow. */
+export const ETIKETT = { fontSize: 34, padX: 26, padY: 16, edge: 4, shadow: 9, top: 70 } as const;
+/** Height the date label takes above the text block, with its gap. */
+export const ETIKETT_ROOM = 110;
+/** GJ AT's hairlines (Db-_V4HCvrJ): stroke, distance from the left edge, gap to the text. */
+export const RASTER = { width: 3, left: 34, gap: 34 } as const;
 /** `absatz.klein`: the body size of the candidates' long text slides at 1080 px. */
 export const ABSATZ_KLEIN = 36;
 /** A DE quote this long is a text page (DdEhd82js3K/02), not a hero: body size, small mark. */

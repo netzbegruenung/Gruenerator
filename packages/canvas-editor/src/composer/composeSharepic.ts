@@ -27,6 +27,7 @@ import {
   type CanvasFormat,
 } from '@ggraphic/editor/formats/index';
 import { ASSET_TARGET_SIZE } from '@ggraphic/editor/utils/canvasAssets';
+import { contrastRatio, luminance } from '@ggraphic/editor/utils/colorLuminance';
 import { createPillBadgeInstance } from '@ggraphic/editor/utils/pillBadgeUtils';
 import { createShape, type ShapeInstance } from '@ggraphic/editor/utils/shapes';
 import { type TextAccent } from '@ggraphic/editor/utils/textUtils';
@@ -89,6 +90,7 @@ import {
   BOX_INK,
   CARD_ITEMS,
   DATE_CIRCLE,
+  ETIKETT_ROOM,
   FOOTER,
   GAP,
   HEADLINE_COVER_MAX,
@@ -98,6 +100,7 @@ import {
   HEADLINE_WITH_CARD,
   KI_LABEL,
   MARGIN,
+  RASTER,
   QUOTE_ALONE_MAX,
   QUOTE_LONG,
   STECKBRIEF,
@@ -470,13 +473,17 @@ function composeSlide(
   // group ends above it and the place sits beside it. Under a photo strip the
   // panel is too short for that: the column runs beside the circle instead
   // and the place stacks bottom-left.
-  const circle = spec.datum
-    ? {
-        x: canvas.width - DATE_CIRCLE.right - DATE_CIRCLE.radius,
-        y: canvas.height - DATE_CIRCLE.bottom - DATE_CIRCLE.radius,
-        radius: DATE_CIRCLE.radius,
-      }
-    : null;
+  // GJ AT sets the date as a label in the top corner and the place on a
+  // footer band (DehRgj4jAe9/01): no circle to keep free.
+  const etikett = !!spec.datum && brand.layout.datumCircle === 'etikett';
+  const circle =
+    spec.datum && !etikett
+      ? {
+          x: canvas.width - DATE_CIRCLE.right - DATE_CIRCLE.radius,
+          y: canvas.height - DATE_CIRCLE.bottom - DATE_CIRCLE.radius,
+          radius: DATE_CIRCLE.radius,
+        }
+      : null;
   const columnBesideCircle = !!circle && bg.kind === 'foto-oben';
   if (circle && columnBesideCircle) {
     column = { ...column, width: circle.x - circle.radius - GAP - column.x };
@@ -1096,6 +1103,11 @@ function composeSlide(
             stressed?.family ??
             (brand.headlineFace.absatz ? theme.fonts.headline : theme.fonts.body);
           const fontStyle = stressed?.fontStyle ?? 'normal';
+          // GJ AT: light green on its dark grounds, where it reads at 4.5:1.
+          const ownInk =
+            !stressed && brand.absatzOnDark && bg.kind === 'farbe' && !onLight
+              ? readsOn(brand.absatzOnDark, out.backgroundColor)
+              : null;
           const size = largestSizeWordsFit([item.text], wantedSize, column.width, 0, (w, s) =>
             measure(w, s, family, 'bold')
           );
@@ -1108,6 +1120,7 @@ function composeSlide(
                 fontStyle,
                 lineHeight,
                 ...(stressed ? { fill: stressed.fill } : {}),
+                ...(ownInk ? { fill: ownInk } : {}),
               }),
           });
           break;
@@ -1238,7 +1251,8 @@ function composeSlide(
       : 0;
   const top = Math.max(
     (areaTop === 0 ? TOP_PAD[brandId] : areaTop + MARGIN) +
-      (spec.stoerer && position === 'oben' ? 40 : 0),
+      (spec.stoerer && position === 'oben' ? 40 : 0) +
+      (etikett ? ETIKETT_ROOM : 0),
     stoererCorner
   );
   const bottom = areaBottom - MARGIN;
@@ -1325,9 +1339,27 @@ function composeSlide(
     });
     out.layerOrder.push('sc-blume');
   }
+  const edges: number[] = [];
   for (const item of placed) {
     item.place(y);
     y += item.height + item.after;
+    edges.push(y - item.after);
+  }
+  if (brand.layout.raster && bg.kind === 'farbe' && !onLight) {
+    // Hairlines in the light green frame a plain dark slide (Db-_V4HCvrJ):
+    // one down the left margin, one above the block, one under its first
+    // part when more follows. Drawn first, under the text.
+    const ink = brand.absatzOnDark ?? textColor;
+    const w = RASTER.width;
+    const lines = [
+      rect('sc-raster-links', RASTER.left, 0, w, canvas.height, ink),
+      rect('sc-raster-oben', 0, blockTop - RASTER.gap, canvas.width, w, ink),
+      ...(placed.length > 1
+        ? [rect('sc-raster-kopf', 0, edges[0]! + RASTER.gap / 2, canvas.width, w, ink)]
+        : []),
+    ];
+    out.shapeInstances.unshift(...lines);
+    out.layerOrder.unshift(...lines.map((l) => l.id));
   }
   if (kopfband) {
     // The band runs from the top to just above the first card.
@@ -1394,6 +1426,13 @@ function composeSlide(
   });
   if (brand.cardStyle === 'brutal') brutalCards(out);
   return out;
+}
+
+/** `ink` when it reads at 4.5:1 on `ground`, else null. */
+function readsOn(ink: string, ground: string): string | null {
+  const a = luminance(ink);
+  const b = luminance(ground);
+  return a !== null && b !== null && contrastRatio(a, b) >= 4.5 ? ink : null;
 }
 
 /** GJ AT's cards: square, on a black edge with a hard offset shadow (DehRgj4jAe9). */

@@ -335,6 +335,8 @@ export const GRUENE_DE: GruenePack = {
       contrastPanel: 'solid',
       sunflower: true,
       frageAccent: 'green',
+      termine: 'spalte',
+      raster: false,
     },
   },
 };
@@ -480,6 +482,8 @@ export const GRUENE_AT: GruenePack = {
       contrastPanel: 'veil',
       sunflower: false,
       frageAccent: 'accent',
+      termine: 'spalte',
+      raster: false,
     },
   },
 };
@@ -511,6 +515,7 @@ export const GJ_DE: GruenePack = {
     { id: 'lavendel', label: 'Lavendel', color: GJ_LAVENDEL, ink: GJ_SCHWARZ },
     { id: 'pink', label: 'Pink', color: GJ_PINK, ink: GJ_SCHWARZ },
     { id: 'apricot', label: 'Apricot', color: GJ_APRICOT, ink: GJ_SCHWARZ },
+    { id: 'wiese', label: 'Grün', color: GJ_DUNKELGRUEN, ink: GJ_SCHWARZ },
   ],
   defaultBackground: GJ_HELLGRUEN,
   palette: [
@@ -624,6 +629,8 @@ export const GJ_DE: GruenePack = {
       contrastPanel: 'solid',
       sunflower: false,
       frageAccent: 'accent',
+      termine: 'kachel',
+      raster: false,
     },
   },
 };
@@ -747,6 +754,8 @@ export const GJ_AT: GruenePack = {
       },
       size: { radius: 120, fontSize: 30 },
     },
+    // Paragraphs on the dark grounds in light green (Db-_V4HCvrJ/01).
+    absatzOnDark: GJAT_MAIGRUEN,
     headlineCase: 'versal',
     stoererShape: 'ellipse',
     cardStyle: 'brutal',
@@ -762,10 +771,12 @@ export const GJ_AT: GruenePack = {
       tintPhotoStrip: false,
       logoPlacement: 'none',
       swipeArrow: 'drawn',
-      datumCircle: 'stoerer',
+      datumCircle: 'etikett',
       contrastPanel: 'solid',
       sunflower: false,
       frageAccent: 'accent',
+      termine: 'etikett',
+      raster: true,
     },
   },
 };
@@ -866,6 +877,7 @@ export const SHAREPIC_COLOR_HEX: Record<SharepicColor, string> = {
   lavendel: GJ_LAVENDEL,
   pink: GJ_PINK,
   schwarz: GJ_SCHWARZ,
+  wiese: GJ_DUNKELGRUEN,
   waldgruen: GJAT_WALDGRUEN,
   maigruen: GJAT_MAIGRUEN,
   gelb: GJAT_GELB,

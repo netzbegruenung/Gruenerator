@@ -115,6 +115,8 @@ export interface ComposerBrand {
    * later one's, with their ink. Absent: the marker swatches as before.
    */
   lineBoxes?: { first: { fill: string; ink: string }; rest: { fill: string; ink: string } };
+  /** A paragraph's ink on a dark ground when it is not the ground's ink (GJ AT: light green). */
+  absatzOnDark?: string;
   /** Where layouts differ between brands beyond colour and type. */
   layout: {
     /** Centred paragraphs on a colour keep this side margin in px; null keeps the column. */
@@ -134,9 +136,17 @@ export interface ComposerBrand {
     swipeArrow: 'brush' | 'drawn';
     /**
      * The date circle: the brand's attention colour, chosen by the ground's ink,
-     * or in the Störer's colours on that ground.
+     * or in the Störer's colours on that ground; `'etikett'` sets the date as a
+     * label with a black edge and hard shadow in the top corner instead.
      */
-    datumCircle: 'attention' | 'ink' | 'stoerer';
+    datumCircle: 'attention' | 'ink' | 'stoerer' | 'etikett';
+    /**
+     * How `termine` set a date: a column in the accent, a label with a black
+     * edge (rows on a dark ground stand on cards), or a wall-calendar tile.
+     */
+    termine: 'spalte' | 'etikett' | 'kachel';
+    /** Hairlines frame a plain dark slide: one down the left, one above and one under the headline. */
+    raster: boolean;
     /** A comparison's other side: a solid pale panel, or a veil over the ground. */
     contrastPanel: 'solid' | 'veil';
     /** The brand may set its sunflower. */
