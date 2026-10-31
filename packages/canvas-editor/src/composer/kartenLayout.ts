@@ -9,7 +9,7 @@ import {
 import { GAP } from './sharepicLayoutConstants';
 import { sharepicTheme } from './sharepicThemes';
 import { type BuildPass, type SlideCtx } from './slideContext';
-import { largestSizeWordsFit } from './textFit';
+import { largestSizeWordsFit } from '@ggraphic/editor/composer/textFit';
 
 /** WCAG relative luminance of `#rrggbb`. */
 function luminance(hex: string): number {

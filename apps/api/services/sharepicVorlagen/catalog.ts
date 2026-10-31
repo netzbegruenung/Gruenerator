@@ -37,12 +37,14 @@ import {
   sharepicBlockFileEntrySchema,
   sharepicBlockSpec,
   sharepicFormatSchema,
+  folienVorlageFileEntrySchema,
   sharepicSeiteFileEntrySchema,
   sharepicSpecSchema,
   sharepicVorlageFileEntrySchema,
   sharepicVorlageIdSchema,
   slidePhotoFilename,
   type CanvasVorlage,
+  type FolienVorlage,
   type PrintVorlage,
   type SharepicBlock,
   type SharepicFormat,
@@ -76,6 +78,7 @@ interface Catalog {
   canvas: CanvasVorlage[];
   print: PrintVorlage[];
   bloecke: SharepicBlock[];
+  folien: FolienVorlage[];
 }
 
 let cache: Catalog | null = null;
@@ -114,6 +117,7 @@ function contentSignature(): string {
     ...Object.values(FILES).map((name) => statKey(path.join(dir(), 'canvas', name))),
     ...Object.values(FILES).map((name) => statKey(path.join(dir(), 'print', name))),
     ...Object.values(FILES).map((name) => statKey(path.join(dir(), 'bloecke', name))),
+    ...Object.values(FILES).map((name) => statKey(path.join(dir(), 'folien', name))),
     ...dirSignature(path.join(dir(), 'thumbs')),
     ...dirSignature(path.join(dir(), 'thumbs', 'seiten')),
     ...dirSignature(path.join(dir(), 'thumbs', 'canvas')),
@@ -200,6 +204,36 @@ function loadCountry(locale: SharepicCreatorLocale): SharepicVorlage[] {
         ),
       },
     ];
+  });
+}
+
+/** Ohne Katalog (oder ohne gültigen Eintrag) bleibt der Chat beim Grünen CD. */
+const builtInFolie = (locale: SharepicCreatorLocale): FolienVorlage => ({
+  id: locale === 'de-AT' ? 'at-folien-offiziell' : 'de-folien-offiziell',
+  titel: 'Offiziell',
+  beschreibung: 'Corporate Design der Grünen',
+  stil: 'cd',
+  standard: true,
+  locale,
+});
+
+function loadFolien(locale: SharepicCreatorLocale): FolienVorlage[] {
+  const file = path.join(dir(), 'folien', FILES[locale]);
+  const entries = readArray(file, 'Folien').flatMap((item, i) => {
+    const parsed = folienVorlageFileEntrySchema.safeParse(item);
+    if (!parsed.success) {
+      log.error(`${file}[${i}] skipped: ${parsed.error.issues[0]?.message ?? 'invalid'}`);
+      return [];
+    }
+    return [{ ...parsed.data, locale }];
+  });
+  if (entries.length === 0) return [builtInFolie(locale)];
+  const first = entries.find((e) => e.standard);
+  return entries.map((e) => {
+    if (!e.standard || e === first) return e;
+    log.error(`${file}: "${e.id}" is a second standard entry, "${first?.id}" wins`);
+    const { standard: _standard, ...rest } = e;
+    return rest;
   });
 }
 
@@ -422,6 +456,7 @@ function all(): Catalog {
       canvas: uniqueIds([...loadCanvas('de-DE'), ...loadCanvas('de-AT')], 'canvas Vorlage'),
       print: uniqueIds([...loadPrint('de-DE'), ...loadPrint('de-AT')], 'print Vorlage'),
       bloecke: uniqueIds([...loadBloecke('de-DE'), ...loadBloecke('de-AT')], 'Block'),
+      folien: uniqueIds([...loadFolien('de-DE'), ...loadFolien('de-AT')], 'Folien-Vorlage'),
     };
     log.info(
       `Loaded ${cache.vorlagen.length} sharepic Vorlage(n), ${cache.seiten.length} Seite(n), ${cache.canvas.length} canvas and ${cache.print.length} print Vorlage(n), ${cache.bloecke.length} Block/Blöcke from ${dir()}`
@@ -438,6 +473,16 @@ export function listSharepicVorlagen(locale: SharepicCreatorLocale | null): Shar
 
 export function getSharepicVorlage(id: string): SharepicVorlage | null {
   return all().vorlagen.find((v) => v.id === id) ?? null;
+}
+
+/** The country's slide deck styles; always at least the built-in `cd` entry. */
+export function listFolienVorlagen(locale: SharepicCreatorLocale): FolienVorlage[] {
+  return all().folien.filter((f) => f.locale === locale);
+}
+
+/** The style a new presentation gets without a choice: the `standard` entry, else `cd`. */
+export function defaultDeckStil(locale: SharepicCreatorLocale): FolienVorlage['stil'] {
+  return listFolienVorlagen(locale).find((f) => f.standard)?.stil ?? 'cd';
 }
 
 /** The country's Seiten, or both countries' when `locale` is null. */

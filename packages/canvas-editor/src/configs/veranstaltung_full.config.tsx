@@ -11,7 +11,7 @@ import { PiFrameCornersFill, PiSquaresFourFill, PiTextAa } from 'react-icons/pi'
 
 import { CANVAS_RECOMMENDED_ASSETS } from '../brand/grueneAssets';
 import { AssetsSection, FrameSettingsSection } from '../sidebar/sections';
-import { CombinedTextSection } from '../sidebar/sections/CombinedTextSection';
+import { CombinedTextSection } from '@ggraphic/editor/sidebar/sections/CombinedTextSection';
 import { VERANSTALTUNG_CONFIG, calculateVeranstaltungLayout } from '../utils/veranstaltungLayout';
 
 import { chatTab, createCommonSectionEntries, toolsTab, uploadsTab } from './commonSections';
@@ -22,15 +22,15 @@ import {
   createShapeActions,
   createIllustrationActions,
   createPillBadgeActions,
-  createBalkenActions,
   createCircleBadgeActions,
   createFrameActions,
   createUserImageActions,
-} from './factory/actionFactories';
-import { makeSectionDefiner } from './factory/defineSection';
-import { injectFeatureProps } from './featureInjector';
-import { PLACEHOLDER_TEXT } from './placeholders';
-import { createShareSection } from './shareSection';
+} from '@ggraphic/editor/configs/factory/actionFactories';
+import { createBalkenActions } from './factory/balkenActions';
+import { makeSectionDefiner } from '@ggraphic/editor/configs/factory/defineSection';
+import { injectFeatureProps } from '@ggraphic/editor/configs/featureInjector';
+import { PLACEHOLDER_TEXT } from '@ggraphic/editor/configs/placeholders';
+import { createShareSection } from '@ggraphic/editor/configs/shareSection';
 
 import type { SharepicAiCapabilities } from './aiCapabilities';
 import type { StockImageAttribution } from '@ggraphic/editor/common/imageSourceTypes';
@@ -40,7 +40,7 @@ import type {
   AdditionalText,
 } from '@ggraphic/editor/configs/types';
 import type { CircleBadgeInstance, CircleBadgeTextLine } from '@ggraphic/editor/primitives/index';
-import type { BalkenInstance, BalkenMode } from '@ggraphic/editor/utils/balkenUtils';
+import type { BalkenInstance, BalkenMode } from '../utils/balkenUtils';
 import type { ChartInstance } from '@ggraphic/editor/utils/chartUtils';
 import type { FrameClipType, FrameInstance } from '@ggraphic/editor/utils/frameUtils';
 import type { IllustrationInstance } from '@ggraphic/editor/utils/illustrations/types';

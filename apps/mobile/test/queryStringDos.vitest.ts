@@ -5,13 +5,13 @@ import { describe, expect, it } from 'vitest';
 // expo-router parses the query of every incoming deep link
 // (getStateFromPath -> parseQueryParams). Up to SDK 57 that went through
 // query-string@7 and decode-uri-component@0.2.2, which decodes malformed
-// percent-encoded input superlinearly (GHSA-vcc3-ghjq-m6fr): seconds on the JS
+// percent-encoded input superlinearly (GHSA-vcc3-ghjq-m6fr, GHSA-qr28-fpjm-wq7f): seconds on the JS
 // thread for a 1.8 KB query, triggered by any link handed to a user. We carried
 // a pnpm patch for it. From expo-router 58.0.14 on, parseQueryParams uses
 // `new URL(...).searchParams` and query-string is gone from the tree, so the
 // patch was dropped.
 //
-// This test runs the real installed parseQueryParams with the old payload, so a
+// This test runs the real installed parseQueryParams with the old payloads, so a
 // router version that goes back to a superlinear decoder fails here. It runs on
 // Node's URL; the app runs Expo's URL polyfill on Hermes, which this does not
 // cover.
@@ -31,6 +31,26 @@ describe('deep-link query parsing', () => {
 
   it('decodes malformed percent-encoding in linear time', () => {
     const hostile = `/chat?q=${'%A0'.repeat(600)}`;
+
+    const started = performance.now();
+    parseQueryParams(hostile, { name: 'chat' });
+    const elapsed = performance.now() - started;
+
+    expect(elapsed).toBeLessThan(500);
+  });
+
+  // GHSA-qr28-fpjm-wq7f: one full-string replace per distinct percent-encoded
+  // run made K distinct runs cost O(K·L). Payload shape from the advisory.
+  it('decodes many distinct percent-encoded runs in linear time', () => {
+    let hostile = '/chat?q=';
+    for (let i = 0; i < 16_000; i++) {
+      const high = Math.floor(i / 256)
+        .toString(16)
+        .padStart(2, '0');
+      const low = (i % 256).toString(16).padStart(2, '0');
+      hostile += `%${high}%${low}x`;
+    }
+    hostile += '%zz';
 
     const started = performance.now();
     parseQueryParams(hostile, { name: 'chat' });

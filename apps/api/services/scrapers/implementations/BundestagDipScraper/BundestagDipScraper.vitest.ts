@@ -27,7 +27,7 @@ vi.mock('./store.js', () => ({
   DIP_COLLECTION: 'bundestag_dip_documents',
   writeParent: (client: unknown, parent: DipParent) => writeParent(client, parent),
 }));
-vi.mock('./dipClient.js', () => ({
+vi.mock('../../../bundestag/dip/dipClient.js', () => ({
   DipClient: class {
     forEachPage = forEachPage;
   },

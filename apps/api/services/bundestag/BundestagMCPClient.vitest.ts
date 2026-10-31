@@ -285,6 +285,14 @@ describe('BundestagMCPClient — error degradation', () => {
     expect(setCachedJson).not.toHaveBeenCalled(); // a 10min-TTL cache poisoning would hide recovery
   });
 
+  it('semanticSearchOrThrow surfaces an outage instead of an empty list', async () => {
+    fetchMock.mockRejectedValue(new Error('ECONNREFUSED'));
+
+    const client = new BundestagMCPClient('https://bundestag-mcp.test');
+    await expect(client.semanticSearchOrThrow({ query: 'x' })).rejects.toThrow('ECONNREFUSED');
+    expect(setCachedJson).not.toHaveBeenCalled();
+  });
+
   it('caches genuine no-result responses', async () => {
     fetchMock.mockResolvedValue(mcpResponse({ success: true, results: [] }));
 

@@ -1306,6 +1306,7 @@ export const SYSTEM_AGENT_DEFINITIONS = [
     autoRoutingHint: 'precise',
     iconKey: 'bank',
     audience: 'de-DE',
+    defaultRecipeMention: 'bundestagsrecherche',
     systemRole: '',
   },
 ] as const satisfies readonly Agent[];

@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: MPL-2.0
-import type { CanvasStageRef } from '../primitives/CanvasStage';
+
+import type { CanvasStageRef } from '../primitives/CanvasStage.js';
 import type { HostCanvasAiCapabilities } from '@ggraphic/editor/ai/types';
 import type { StockImageAttribution } from '@ggraphic/editor/common/imageSourceTypes';
 import type { BackgroundType, TextFieldConfig } from '@ggraphic/editor/configs/unifiedTabs';
@@ -14,8 +15,8 @@ import type {
   SidebarTabId,
   SidebarTab,
 } from '@ggraphic/editor/sidebar/tabTypes';
-import type { GradientFill } from '@ggraphic/editor/utils/gradientFill';
-import type { TextAccent, TextMarker } from '@ggraphic/editor/utils/textUtils';
+
+export { type AdditionalText } from '@ggraphic/core';
 
 // ============================================================================
 // ELEMENT CONFIGURATION TYPES
@@ -50,43 +51,6 @@ export interface BaseElementConfig<TState = Record<string, unknown>> {
   visible?: VisibilityFunction<TState>;
   /** Z-index order (lower = behind) */
   order?: number;
-}
-
-/** Dynamic additional text element */
-export interface AdditionalText {
-  id: string;
-  text: string;
-  type: 'header' | 'subheader' | 'body';
-  x: number;
-  y: number;
-  width: number;
-  fontSize: number;
-  fontFamily: string;
-  fontStyle?: 'normal' | 'italic' | 'bold' | 'bold italic';
-  fill: string;
-  rotation?: number;
-  scale?: number;
-  opacity?: number;
-  /** Outline color; omit for no outline. */
-  stroke?: string;
-  /** Outline width in px (only applied when `stroke` is set). */
-  strokeWidth?: number;
-  /** Drop shadow (Konva shadow* props); omit for no shadow. */
-  shadowColor?: string;
-  shadowBlur?: number;
-  shadowOffsetX?: number;
-  shadowOffsetY?: number;
-  shadowOpacity?: number;
-  /** Linear gradient fill; when set, overrides `fill`. */
-  fillGradient?: GradientFill | null;
-  /** Horizontal alignment inside `width`; omit for left. */
-  align?: 'left' | 'center' | 'right';
-  /** Line height as a factor of `fontSize`; omit for the default 1.2. */
-  lineHeight?: number;
-  /** How `==accent==` runs look; omit and they render like the rest. */
-  accent?: TextAccent | null;
-  /** How `++marker++` runs look (a box behind the run); omit and they render like the rest. */
-  marker?: TextMarker | null;
 }
 
 /** Text element configuration */

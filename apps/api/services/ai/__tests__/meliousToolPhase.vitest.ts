@@ -12,34 +12,59 @@ vi.mock('../../../utils/usageContext.js', () => ({
 
 const { meliousFetch } = await import('../meliousThinkingFetch.js');
 
-/** What Melious sends for a NON-streamed completion (measured 29.09.2026). */
-const completion = {
-  id: 'abc',
-  object: 'chat.completion',
-  created: 1,
-  model: 'gemma-4-31b',
-  choices: [
-    {
-      index: 0,
-      finish_reason: 'tool_calls',
-      message: {
-        role: 'assistant',
-        content: null,
-        tool_calls: [
-          {
-            id: 'call_1',
-            type: 'function',
-            function: { name: 'notebook_search', arguments: '{"query":"Bahn"}' },
-          },
-        ],
+/**
+ * What Melious streams for the tool phase (shape measured 2026-10-28: tool call
+ * as deltas, `environment_impact` in the final chunk next to `usage`).
+ */
+const frames = [
+  {
+    id: 'abc',
+    object: 'chat.completion.chunk',
+    created: 1,
+    model: 'gemma-4-31b',
+    choices: [
+      {
+        index: 0,
+        delta: {
+          role: 'assistant',
+          tool_calls: [
+            {
+              index: 0,
+              id: 'call_1',
+              type: 'function',
+              function: { name: 'notebook_search', arguments: '{"query":"Bahn"}' },
+            },
+          ],
+        },
+        finish_reason: null,
       },
+    ],
+  },
+  {
+    id: 'abc',
+    object: 'chat.completion.chunk',
+    created: 1,
+    model: 'gemma-4-31b',
+    choices: [{ index: 0, delta: {}, finish_reason: 'tool_calls' }],
+  },
+  {
+    id: 'abc',
+    object: 'chat.completion.chunk',
+    created: 1,
+    model: 'gemma-4-31b',
+    choices: [],
+    usage: { prompt_tokens: 120, completion_tokens: 12, total_tokens: 132 },
+    environment_impact: {
+      energy_kwh: 0.00001,
+      carbon_g_co2: 0.002,
+      provider_id: 'infercom',
+      location: 'DE',
     },
-  ],
-  usage: { prompt_tokens: 120, completion_tokens: 12, total_tokens: 132 },
-  environment_impact: { energy_kwh: 0.00001, carbon_g_co2: 0.002, provider_id: 'melious' },
-};
+  },
+];
+const sse = frames.map((f) => `data: ${JSON.stringify(f)}\n\n`).join('') + 'data: [DONE]\n\n';
 
-describe('meliousFetch — tool phase is measured', () => {
+describe('meliousFetch — tool phase streams and is measured', () => {
   let originalFetch: typeof fetch;
   let sent: Record<string, unknown>;
 
@@ -48,9 +73,7 @@ describe('meliousFetch — tool phase is measured', () => {
     originalFetch = globalThis.fetch;
     globalThis.fetch = vi.fn(async (_url, init) => {
       sent = JSON.parse((init as RequestInit).body as string) as Record<string, unknown>;
-      return new Response(JSON.stringify(completion), {
-        headers: { 'content-type': 'application/json' },
-      });
+      return new Response(sse, { headers: { 'content-type': 'text/event-stream' } });
     }) as typeof fetch;
   });
 
@@ -63,7 +86,10 @@ describe('meliousFetch — tool phase is measured', () => {
       'gemma-4-31b:balanced'
     );
 
-  it('asks non-streaming, hands the SDK a working stream, and records the impact', async () => {
+  it('keeps the tool phase streaming and records the impact from the final chunk', async () => {
+    // Bis 28.10.2026 fragte diese Phase nicht-gestreamt und spielte die Antwort
+    // dem SDK vor (`replayAsStream`), weil Melious' Streams keine Messung
+    // trugen. Heute tun sie es, also streamt der Planer wieder Token für Token.
     const run = streamText({
       model: model(),
       prompt: 'Was sagt das Wahlprogramm zur Bahn?',
@@ -75,8 +101,7 @@ describe('meliousFetch — tool phase is measured', () => {
       usage: await run.usage,
     };
 
-    expect(sent.stream).toBe(false);
-    expect(sent.stream_options).toBeUndefined();
+    expect(sent.stream).toBe(true);
     expect(result.finish).toBe('tool-calls');
     expect(result.calls.map((c) => [c.toolName, c.input])).toEqual([
       ['notebook_search', { query: 'Bahn' }],

@@ -20,7 +20,7 @@ function harness(
   ask: string,
   toolName = 'edit_document',
   sources = ''
-): { run: () => Promise<void>; execute: ReturnType<typeof vi.fn> } {
+): { run: () => Promise<boolean>; execute: ReturnType<typeof vi.fn> } {
   const execute = vi.fn().mockResolvedValue({ ok: true, operationCount: 1 });
   const ctx: GuaranteeContext = {
     state: {
@@ -36,6 +36,8 @@ function harness(
     } as unknown as GuaranteeContext['sourceRegistry'],
     sse: { send: vi.fn() } as unknown as GuaranteeContext['sse'],
     recordStep: vi.fn(),
+    wrappedTools: { [toolName]: { execute } } as unknown as ToolSet,
+    calledToolNames: () => [],
     emitOpeningBeforeTool: vi.fn(),
     answerText: () => '',
     onInfo: vi.fn(),
@@ -237,5 +239,41 @@ describe('Erzeugungs-Zusicherung — nur für Bestelltes', () => {
     const { run, execute } = sharepicTurn(undefined);
     await run();
     expect(execute).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('Pin-Zusicherung — ein benanntes bundestag läuft, auch wenn der Planer es übergeht', () => {
+  const ask = 'Wann hat Katrin Uhlig im Bundestag über Wasserstoff gesprochen?';
+
+  it('ruft bundestag ohne Argumente und meldet den Erfolg', async () => {
+    // Live 28.10.2026 (r1): beide Planer-Lanes versagten, steps=0.
+    const { run, execute } = harness(
+      { mentionPinnedTool: 'bundestag', editToolSurface: null },
+      ask,
+      'bundestag'
+    );
+    execute.mockResolvedValue({ resultCount: 6 });
+    expect(await run()).toBe(true);
+    expect(execute).toHaveBeenCalledTimes(1);
+    expect(execute.mock.calls[0][0]).toEqual({});
+  });
+
+  it('meldet false, wenn der nachgeholte Aufruf selbst scheitert', async () => {
+    const { run, execute } = harness(
+      { mentionPinnedTool: 'bundestag', editToolSurface: null },
+      ask,
+      'bundestag'
+    );
+    execute.mockResolvedValue({
+      resultCount: 0,
+      error: 'Keine passenden Bundestags-Daten gefunden.',
+    });
+    expect(await run()).toBe(false);
+  });
+
+  it('rührt sich nicht ohne Pin', async () => {
+    const { run, execute } = harness({ editToolSurface: null }, ask, 'bundestag');
+    expect(await run()).toBe(false);
+    expect(execute).not.toHaveBeenCalled();
   });
 });

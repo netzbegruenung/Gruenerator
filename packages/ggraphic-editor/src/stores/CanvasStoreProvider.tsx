@@ -17,9 +17,9 @@ import { createContext, useContext, useRef } from 'react';
 import { useStore } from 'zustand';
 import { useShallow } from 'zustand/shallow';
 
-import { createCanvasEditorStore, defaultCanvasEditorStore } from './createCanvasEditorStore';
+import { createCanvasEditorStore, defaultCanvasEditorStore } from './createCanvasEditorStore.js';
 
-import type { CanvasEditorStoreApi, CanvasEditorStoreState } from './createCanvasEditorStore';
+import type { CanvasEditorStoreApi, CanvasEditorStoreState } from './createCanvasEditorStore.js';
 import type { ReactNode } from 'react';
 
 // =============================================================================

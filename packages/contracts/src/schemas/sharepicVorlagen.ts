@@ -8,6 +8,8 @@
  */
 import { z } from 'zod';
 
+import { DECK_STIL_IDS } from '../slides/deckStile/index.js';
+
 import {
   printFormatIdSchema,
   printLocaleSchema,
@@ -375,3 +377,27 @@ export const sharepicVorlagenSuggestionsSchema = z.object({
   beitrag: z.string().max(3000).optional(),
 });
 export type SharepicVorlagenSuggestions = z.infer<typeof sharepicVorlagenSuggestionsSchema>;
+
+/**
+ * Folien-Vorlagen: ein Deck-Stil mit Namen für die Chat-Präsentation. Files:
+ * `sharepic-vorlagen/folien/{de,at}.json`. Der Stil kommt aus der Registry
+ * (`DECK_STILE`), nicht aus einer zweiten Liste.
+ */
+export const folienVorlageFileEntrySchema = z.object({
+  id: sharepicVorlageIdSchema,
+  titel: z.string().min(1).max(80),
+  beschreibung: z.string().min(1).max(200),
+  stil: z.enum(DECK_STIL_IDS),
+  /** Der Stil, den eine neue Präsentation ohne Wahl bekommt; höchstens einer je Land. */
+  standard: z.boolean().optional(),
+});
+export type FolienVorlageFileEntry = z.infer<typeof folienVorlageFileEntrySchema>;
+
+export const folienVorlageSchema = folienVorlageFileEntrySchema.extend({
+  locale: sharepicCreatorLocaleSchema,
+});
+export type FolienVorlage = z.infer<typeof folienVorlageSchema>;
+
+export const folienVorlagenListResponseSchema = z.object({
+  vorlagen: z.array(folienVorlageSchema),
+});

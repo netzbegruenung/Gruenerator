@@ -6,7 +6,8 @@
   "sideEffects": [
     "**/*.css",
     "./src/index.ts",
-    "./src/templates/registry.ts"
+    "./src/templates/registry.ts",
+    "./src/components/CanvasEditor/grueneratorEditorShell.tsx"
   ],
   "main": "./src/index.ts",
   "types": "./src/index.ts",
@@ -74,9 +75,9 @@
       "types": "./src/utils/profilbildStickerInstances.ts"
     },
     "./skeleton": {
-      "import": "./src/components/CanvasEditorSkeleton.tsx",
-      "require": "./src/components/CanvasEditorSkeleton.tsx",
-      "types": "./src/components/CanvasEditorSkeleton.tsx"
+      "import": "./src/skeleton.ts",
+      "require": "./src/skeleton.ts",
+      "types": "./src/skeleton.ts"
     },
     "./config-loader": {
       "import": "./src/templates/builtinConfigLoader.ts",

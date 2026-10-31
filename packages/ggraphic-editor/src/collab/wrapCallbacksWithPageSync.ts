@@ -19,7 +19,7 @@
  * CanvasEditorRouter.createCallbacks); anything else passes through untouched.
  *
  * `alsoPersistKeys` covers the other half of a page: the free-element
- * collections (PAGE_ELEMENT_STATE_KEYS). No host declares a callback for
+ * collections (pageElementStateKeys()). No host declares a callback for
  * those — the config's own actions mutate them through `setState` — so the
  * wrapper mints the missing `on<Key>Change` itself, writing page state only.
  * That is what `useEmitHostStateChanges` calls from the mounted page. Without

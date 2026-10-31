@@ -3,10 +3,10 @@ import { type TextAccent } from '@ggraphic/editor/utils/textUtils';
 
 import { SHAREPIC_COLOR_HEX } from './chromeParts';
 import { type FrageItem, type Placed, type ZitatItem } from './composeTypes';
-import { stripMarks } from './marks';
+import { stripMarks } from '@ggraphic/editor/composer/marks';
 import { GAP, KLEE, QUOTE_LINE_HEIGHT } from './sharepicLayoutConstants';
 import { type BuildPass, type SlideCtx } from './slideContext';
-import { largestSizeWordsFit } from './textFit';
+import { largestSizeWordsFit } from '@ggraphic/editor/composer/textFit';
 
 /** A quote; the other side's (`seite: "gegner"`) on the muted "theirs" panel. */
 export function layoutZitat(ctx: SlideCtx, item: ZitatItem, id: string, pass: BuildPass): Placed[] {

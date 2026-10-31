@@ -13,7 +13,7 @@ import { act, render, screen } from '@testing-library/react';
 import { useEffect } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { CanvasAnnouncer } from '../../components/CanvasAnnouncer';
+import { CanvasAnnouncer } from '@ggraphic/editor/components/CanvasAnnouncer';
 import { axe } from '../../test-utils';
 
 import type { CanvasEditorStoreApi } from '@ggraphic/editor/stores/createCanvasEditorStore';

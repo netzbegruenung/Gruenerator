@@ -15,11 +15,11 @@ export {
   useAutoSaveStore,
   useAutoSaveStoreApi,
   useAutoSaveStoreShallow,
-} from './AutoSaveStoreProvider';
+} from './AutoSaveStoreProvider.js';
 export type {
   AutoSaveStore,
   AutoSaveStoreApi,
   AutoSaveState,
   AutoSaveActions,
   AutoSaveStatus,
-} from './createAutoSaveStore';
+} from './createAutoSaveStore.js';

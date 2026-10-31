@@ -8,6 +8,7 @@ import {
   type Skill,
   type SkillIcon,
 } from '@gruenerator/shared/agents';
+import { isSkillAbsorbedByMention } from '@gruenerator/shared/chat-intents';
 
 import { getHiddenAgentIdentifiers } from './hiddenAgentsState';
 import { getMentionInstance } from './instanceState';
@@ -33,6 +34,15 @@ export const agentsList: ResolvedSkill[] = SKILLS.filter(
   ...skill,
   icon: resolveSkillIcon(skill.iconKey),
 }));
+
+/**
+ * `agentsList` ohne Rezepte, die eine Werkzeug-Erwähnung bereits anbietet
+ * (`@bundestag` → `bundestagsrecherche`). Für Listen und Auswahl; Auflösung
+ * (`resolveMentionable`, Detailseiten) bleibt auf `agentsList`.
+ */
+export const listedAgentsList: ResolvedSkill[] = agentsList.filter(
+  (skill) => !isSkillAbsorbedByMention(skill.mention)
+);
 
 export function getDefaultAgent(): string {
   return DEFAULT_SYSTEM_AGENT_ID;

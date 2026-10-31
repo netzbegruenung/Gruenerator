@@ -68,6 +68,7 @@ const MAX_PER_TICK = 25;
 interface ClaimedDocument {
   id: string;
   user_id: string;
+  ingest_retries: number;
 }
 
 /**
@@ -138,13 +139,16 @@ async function claimNextDocument(): Promise<ClaimedDocument | null> {
                  )
                )
            AND COALESCE(processing_attempts, 0) < $2
+           -- Nach einem Anbieter-Ausfall wartet die Zeile bis retry_after
+           -- (ingestRetry.ts).
+           AND COALESCE((metadata->>'retry_after')::timestamptz, '-infinity') <= NOW()
          -- Ein neu indexiertes Dokument stellt sich hinten an (queued_at),
          -- statt mit seinem alten created_at frische Uploads zu überholen.
          ORDER BY COALESCE((metadata->>'queued_at')::timestamptz, created_at)
            FOR UPDATE SKIP LOCKED
          LIMIT 1
       )
-      RETURNING id, user_id`,
+      RETURNING id, user_id, COALESCE((metadata->>'ingest_retries')::int, 0) AS ingest_retries`,
     [String(STALE_PROCESSING_MS), MAX_ATTEMPTS]
   )) as ClaimedDocument[];
 
@@ -175,7 +179,9 @@ export async function drainIngestQueue(): Promise<number> {
 
       processed++;
       try {
-        await processUploadedDocument(pgDocService, qdrantDocService, claimed.id, claimed.user_id);
+        await processUploadedDocument(pgDocService, qdrantDocService, claimed.id, claimed.user_id, {
+          ingestRetries: claimed.ingest_retries,
+        });
       } catch (err) {
         // processUploadedDocument already writes status='failed' plus the
         // reason; reporting keeps the failure visible in Sentry as well.

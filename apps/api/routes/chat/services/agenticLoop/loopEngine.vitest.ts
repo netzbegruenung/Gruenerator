@@ -57,9 +57,37 @@ describe('buildPrepareStep — forceFirstToolCall', () => {
     );
     expect(prep({ stepNumber: 0 })).toEqual({
       toolChoice: { type: 'tool', toolName: 'bundestag' },
+      system: expect.stringContaining('DIESER SCHRITT'),
+      activeTools: ['bundestag'],
     });
     // Danach entscheidet wieder der Planer.
     expect(prep({ stepNumber: 1 })).toEqual({});
+  });
+
+  // Stillstand vom 28.10.2026: der Prompt sagt „Fragen nach Reden gehen immer an
+  // `bundestag_reden`, nicht an `bundestag`", der Schritt erzwingt `bundestag` —
+  // Cortecs/Melious schwiegen 15 s. Der Hinweis steht NACH dem Prompt.
+  it('hängt an einen benannten Schritt den Hinweis, dass nur dieses Werkzeug zur Wahl steht', () => {
+    const prep = buildPrepareStep(
+      'sys',
+      'suffix',
+      5,
+      never,
+      true,
+      () => 'web_search',
+      undefined,
+      'bundestag'
+    );
+    const first = prep({ stepNumber: 0 }).system ?? '';
+    expect(first.startsWith('sys')).toBe(true);
+    expect(first).toContain('Aufruf in diesem Schritt ist `bundestag`');
+    expect(first).toContain('stehen diesem Schritt nicht zur Wahl');
+    expect(prep({ stepNumber: 1 }).system).toContain('Aufruf in diesem Schritt ist `web_search`');
+  });
+
+  it('ohne Namen (required) bleibt der Systemprompt unberührt', () => {
+    const prep = buildPrepareStep('sys', 'suffix', 5, never, true);
+    expect(prep({ stepNumber: 0 }).system).toBeUndefined();
   });
 
   it('ohne den Zwang wirkt der Name gar nicht — der Bann vetot zuerst', () => {
@@ -112,7 +140,11 @@ describe('buildPrepareStep — forceFirstToolCall', () => {
   });
 
   it('ein benanntes Werkzeug schlägt die Menge des ersten Schritts', () => {
-    const named = { toolChoice: { type: 'tool', toolName: 'bundestag' } };
+    const named = {
+      toolChoice: { type: 'tool', toolName: 'bundestag' },
+      system: expect.stringContaining('DIESER SCHRITT'),
+      activeTools: ['bundestag'],
+    };
     const bare = buildPrepareStep(
       'sys',
       'suffix',
@@ -138,7 +170,7 @@ describe('buildPrepareStep — forceFirstToolCall', () => {
       () => ['a'],
       ['web_search']
     );
-    expect(scoped({ stepNumber: 0 })).toEqual({ ...named, activeTools: ['a', 'bundestag'] });
+    expect(scoped({ stepNumber: 0 })).toEqual(named);
   });
 
   it('die Menge des ersten Schritts wird ohne Zwang nie gelesen', () => {
@@ -202,15 +234,17 @@ describe('buildPrepareStep — welche Werkzeuge mitgehen', () => {
       'bundestag',
       scope
     );
-    // Beide benannten Werkzeuge hängen sich an den Umfang an — siehe
-    // "ein benanntes Werkzeug geht immer mit".
+    // Ein benannter Schritt schickt nur sein Werkzeug — siehe
+    // "ein benanntes Werkzeug geht allein".
     expect(prep({ stepNumber: 0 })).toEqual({
       toolChoice: { type: 'tool', toolName: 'bundestag' },
-      activeTools: ['gruenerator_search', 'meine_inhalte_laden', 'bundestag'],
+      system: expect.stringContaining('DIESER SCHRITT'),
+      activeTools: ['bundestag'],
     });
     expect(prep({ stepNumber: 1 })).toEqual({
       toolChoice: { type: 'tool', toolName: 'web_search' },
-      activeTools: ['gruenerator_search', 'meine_inhalte_laden', 'web_search'],
+      system: expect.stringContaining('DIESER SCHRITT'),
+      activeTools: ['web_search'],
     });
   });
 
@@ -237,14 +271,15 @@ describe('buildPrepareStep — welche Werkzeuge mitgehen', () => {
   });
 });
 
-describe('buildPrepareStep — ein benanntes Werkzeug geht immer mit', () => {
+describe('buildPrepareStep — ein benanntes Werkzeug geht allein', () => {
   const never = () => false;
   // Der Umfang zeigt `documents` nicht. Wird es trotzdem benannt, muss die
   // Definition mit — sonst verlangt derselbe Schritt einen Aufruf und liefert
-  // das Werkzeug nicht mit.
+  // das Werkzeug nicht mit. Und NUR sie: ein Name über dem vollen Katalog liess
+  // Gemma 4 bei Cortecs und Melious bis zum Abbruch stumm generieren (28.10.2026).
   const eng = () => ['gruenerator_search', 'meine_inhalte_laden'];
 
-  it('hängt das erwähnte Werkzeug an den Umfang an', () => {
+  it('schickt nur das erwähnte Werkzeug, auch wenn der Umfang es zurückstellt', () => {
     const prep = buildPrepareStep(
       'sys',
       'suffix',
@@ -258,11 +293,12 @@ describe('buildPrepareStep — ein benanntes Werkzeug geht immer mit', () => {
     );
     expect(prep({ stepNumber: 0 })).toEqual({
       toolChoice: { type: 'tool', toolName: 'documents' },
-      activeTools: ['gruenerator_search', 'meine_inhalte_laden', 'documents'],
+      system: expect.stringContaining('DIESER SCHRITT'),
+      activeTools: ['documents'],
     });
   });
 
-  it('hängt das erzwungene Ausweich-Werkzeug an den Umfang an', () => {
+  it('schickt nur das erzwungene Ausweich-Werkzeug', () => {
     const prep = buildPrepareStep(
       'sys',
       'suffix',
@@ -276,11 +312,12 @@ describe('buildPrepareStep — ein benanntes Werkzeug geht immer mit', () => {
     );
     expect(prep({ stepNumber: 1 })).toEqual({
       toolChoice: { type: 'tool', toolName: 'documents' },
-      activeTools: ['gruenerator_search', 'meine_inhalte_laden', 'documents'],
+      system: expect.stringContaining('DIESER SCHRITT'),
+      activeTools: ['documents'],
     });
   });
 
-  it('dupliziert nicht, wenn das Werkzeug ohnehin mitgeht', () => {
+  it('schneidet den Umfang weg, auch wenn das Werkzeug ohnehin mitgeht', () => {
     const prep = buildPrepareStep(
       'sys',
       'suffix',
@@ -294,7 +331,8 @@ describe('buildPrepareStep — ein benanntes Werkzeug geht immer mit', () => {
     );
     expect(prep({ stepNumber: 1 })).toEqual({
       toolChoice: { type: 'tool', toolName: 'gruenerator_search' },
-      activeTools: ['gruenerator_search', 'meine_inhalte_laden'],
+      system: expect.stringContaining('DIESER SCHRITT'),
+      activeTools: ['gruenerator_search'],
     });
   });
 });
@@ -308,6 +346,8 @@ describe('buildPrepareStep — forced fallback tool', () => {
     const prep = buildPrepareStep('sys', 'suffix', 5, never, false, () => 'web_search');
     expect(prep({ stepNumber: 1 })).toEqual({
       toolChoice: { type: 'tool', toolName: 'web_search' },
+      system: expect.stringContaining('DIESER SCHRITT'),
+      activeTools: ['web_search'],
     });
   });
 
@@ -328,6 +368,8 @@ describe('buildPrepareStep — forced fallback tool', () => {
     forced = 'web_search';
     expect(prep({ stepNumber: 2 })).toEqual({
       toolChoice: { type: 'tool', toolName: 'web_search' },
+      system: expect.stringContaining('DIESER SCHRITT'),
+      activeTools: ['web_search'],
     });
   });
 
@@ -675,9 +717,23 @@ describe('runAgenticLoop — split (planner/executor)', () => {
       expect(synthSystems[0]).toContain('Behaupte NICHT, du hättest keinen Zugriff');
     });
 
+    it('drops the failure note when afterGather rescued the pinned tool', async () => {
+      const { deps, synthSystems } = recordingDeps(() => [{ type: 'error', error: rejected() }]);
+      await runAgenticLoop(
+        baseParams({
+          mode: 'split',
+          plannerFallbackModels: [fallbackModel],
+          afterGather: async () => true,
+        }),
+        deps
+      );
+      expect(synthSystems[0]).not.toContain('technisch gescheitert');
+    });
+
     it('never repeats a phase that already emitted a tool call', async () => {
       const { deps, calls, synthSystems } = recordingDeps(() => [
         { type: 'tool-call' },
+        { type: 'tool-result', toolName: 'web_search', output: { results: [] } },
         { type: 'error', error: rejected() },
       ]);
       await runAgenticLoop(
@@ -686,6 +742,27 @@ describe('runAgenticLoop — split (planner/executor)', () => {
       );
       expect(calls).toEqual(['planner']);
       expect(synthSystems[0]).not.toContain('technisch gescheitert');
+    });
+
+    // Live 28.10.2026: GreenPT ignored the pinned `bundestag` and called
+    // `web_search`; the SDK threw ToolChoiceViolationError after the tool-call
+    // part. Nothing ran — but the writer, never told, wrote a research plan with
+    // tool names and asked „Soll ich diese Recherche jetzt starten?".
+    it('tells the writer the phase failed when a call came back without a result', async () => {
+      const { deps, calls, synthSystems } = recordingDeps(() => [
+        { type: 'tool-call', toolName: 'web_search' },
+        {
+          type: 'error',
+          error: new Error("did not contain a call to the required tool 'bundestag'"),
+        },
+      ]);
+      await runAgenticLoop(
+        baseParams({ mode: 'split', plannerFallbackModels: [fallbackModel] }),
+        deps
+      );
+      // Still no second lane: the call may have executed.
+      expect(calls).toEqual(['planner']);
+      expect(synthSystems[0]).toContain('technisch gescheitert');
     });
 
     it('reads the status behind an exhausted SDK retry (503 → RetryError)', async () => {

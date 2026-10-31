@@ -6,10 +6,10 @@ import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 
-import { AutoSaveIndicator } from '../components/TopBar/AutoSaveIndicator';
+import { AutoSaveIndicator } from '@ggraphic/editor/components/TopBar/AutoSaveIndicator';
 import { axe } from '../test-utils';
 
-import { Lightbox } from './Lightbox';
+import { Lightbox } from '@ggraphic/editor/common/Lightbox';
 
 const mockState = vi.hoisted(() => ({ status: null as string | null }));
 vi.mock('@ggraphic/editor/stores/useAutoSaveStore', () => ({

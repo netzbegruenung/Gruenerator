@@ -21,6 +21,7 @@ const loadBoardState = vi.fn();
 const loadSheetState = vi.fn();
 const loadPresentationState = vi.fn();
 const loadDocumentProse = vi.fn();
+const loadCanvasAsContext = vi.fn();
 const extractPdfText = vi.fn();
 
 vi.mock('../../../services/boards/BoardService.js', () => ({
@@ -35,10 +36,11 @@ vi.mock('../../../services/presentations/PresentationGenerationService.js', () =
   loadPresentationState,
   formatPresentationAsContext: (p: { title: string }) => `DECK ${p.title}`,
 }));
+vi.mock('../../../services/canvas/canvasContext.js', () => ({ loadCanvasAsContext }));
 vi.mock('../../docs/docProseReader.js', () => ({ loadDocumentProse }));
 vi.mock('../../../services/pdf/pdfText.js', () => ({ extractPdfText }));
 
-const { readArtifactContent } = await import('./artifactReader.js');
+const { readArtifactContent, subtypeToReadKind } = await import('./artifactReader.js');
 
 const USER = 'e27c1530-da34-4bd6-b0ac-adc17298d9f7';
 const PDF_NAME = '3f1c9d20-4b7e-4a11-9c8d-5e2a7b6f0d43.pdf';
@@ -66,6 +68,23 @@ describe('readArtifactContent', () => {
       readArtifactContent({ id: 'deck-1', kind: 'presentation', userId: USER })
     ).resolves.toBe('DECK Klimaziel 2040');
     expect(loadPresentationState).toHaveBeenCalledWith('deck-1', USER);
+  });
+
+  it('maps the canvas subtype to its own read kind and reads it through the canvas reader', async () => {
+    expect(subtypeToReadKind('canvas')).toBe('canvas');
+    loadCanvasAsContext.mockResolvedValueOnce('# Deck\n\n## Folie 1\nHallo');
+    await expect(readArtifactContent({ id: 'c1', kind: 'canvas', userId: USER })).resolves.toBe(
+      '# Deck\n\n## Folie 1\nHallo'
+    );
+    expect(loadCanvasAsContext).toHaveBeenCalledWith('c1', USER);
+  });
+
+  it('falls back to the canvas reader when the thread calls a canvas deck a presentation', async () => {
+    loadPresentationState.mockResolvedValueOnce(null);
+    loadCanvasAsContext.mockResolvedValueOnce('## Folie 1\nHallo');
+    await expect(
+      readArtifactContent({ id: 'c1', kind: 'presentation', userId: USER })
+    ).resolves.toBe('## Folie 1\nHallo');
   });
 
   it('reads a sheet, a board and a document through theirs', async () => {
@@ -111,6 +130,7 @@ describe('readArtifactContent', () => {
     // Every loader answers "not yours" with null; a tool that threw here would
     // abort a turn the model can still finish honestly.
     loadPresentationState.mockResolvedValueOnce(null);
+    loadCanvasAsContext.mockResolvedValueOnce(null);
     await expect(
       readArtifactContent({ id: 'fremd', kind: 'presentation', userId: USER })
     ).resolves.toBeNull();

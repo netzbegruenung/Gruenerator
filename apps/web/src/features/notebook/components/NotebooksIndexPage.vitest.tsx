@@ -1,5 +1,5 @@
 import { createApiClient, setGlobalApiClient } from '@gruenerator/shared/api';
-import { screen, within } from '@testing-library/react';
+import { screen, waitFor, within } from '@testing-library/react';
 import { http, HttpResponse } from 'msw';
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 
@@ -16,6 +16,7 @@ const LIKES_ENDPOINT = 'http://localhost/api/auth/notebook-collections/likes';
 const MONITOR_LATEST = 'http://localhost/api/monitor/latest';
 const MONITOR_POLLS = 'http://localhost/api/monitor/polls';
 const MONITOR_FEED = 'http://localhost/api/monitor/what-happened';
+const MONITOR_ENTITY = 'http://localhost/api/monitor/entities/:id';
 
 vi.mock('@gruenerator/chat', async (importOriginal) => ({
   ...(await importOriginal<Record<string, unknown>>()),
@@ -61,7 +62,8 @@ function serveCollections(
   // static descriptions instead of failing the unhandled-request guard.
   monitor: Record<string, unknown> = { topics: [] },
   feed: Record<string, unknown> = EMPTY_FEED,
-  shared: ReturnType<typeof publicCollection>[] = []
+  shared: ReturnType<typeof publicCollection>[] = [],
+  entity: Record<string, unknown> | null = null
 ) {
   server.use(
     http.get(MARKETPLACE_ENDPOINT, ({ request }) => {
@@ -74,7 +76,10 @@ function serveCollections(
     http.get(LIKES_ENDPOINT, () => HttpResponse.json({ success: true, liked_ids: [] })),
     http.get(MONITOR_LATEST, () => HttpResponse.json(monitor, { status: 200 })),
     http.get(MONITOR_POLLS, () => HttpResponse.json({ average: {} }, { status: 200 })),
-    http.get(MONITOR_FEED, () => HttpResponse.json(feed, { status: 200 }))
+    http.get(MONITOR_FEED, () => HttpResponse.json(feed, { status: 200 })),
+    http.get(MONITOR_ENTITY, () =>
+      entity ? HttpResponse.json(entity, { status: 200 }) : new HttpResponse(null, { status: 404 })
+    )
   );
 }
 
@@ -85,6 +90,8 @@ beforeAll(() => {
 afterEach(() => {
   server.resetHandlers();
   marketplaceQueries = [];
+  // The widgets keep their last answer in localStorage; jsdom keeps it across tests.
+  localStorage.clear();
 });
 
 describe('NotebooksIndexFooter — „Gemerkt" and Landesverbände', () => {
@@ -161,7 +168,6 @@ describe('NotebooksIndexFooter — „Parlamente"', () => {
       'Bundestagsfraktion',
       'Bundestag: Reden & Drucksachen',
       'Bundesrat: Drucksachen',
-      'Abgeordnetenwatch',
       'Landtag NRW',
       'Abgeordnetenhaus Berlin',
       'Bayerischer Landtag',
@@ -194,15 +200,14 @@ describe('NotebooksIndexFooter — „Mit dir geteilt"', () => {
     serveCollections([], undefined, undefined, [sharedCollection()]);
 
     const { user } = renderWithProviders(<NotebooksIndexFooter />);
-    expect(await screen.findByText('1 geteiltes Notebook')).toBeInTheDocument();
-    await user.click(screen.getByRole('button', { name: /Mit dir geteilt/ }));
+    await user.click(await screen.findByRole('button', { name: /Meine Notebooks/ }));
 
     const section = screen
-      .getByRole('heading', { level: 2, name: 'Mit dir geteilt' })
+      .getByRole('heading', { level: 2, name: 'Meine Notebooks' })
       .closest('section');
     expect(section).not.toBeNull();
     expect(within(section!).getByText('Haushalt 2027')).toBeInTheDocument();
-    expect(within(section!).getByText('via KV Nord')).toBeInTheDocument();
+    expect(within(section!).getByText('Geteilt via KV Nord')).toBeInTheDocument();
   });
 
   it('hides the tile when nothing is shared with the user', async () => {
@@ -211,12 +216,12 @@ describe('NotebooksIndexFooter — „Mit dir geteilt"', () => {
     renderWithProviders(<NotebooksIndexFooter />);
 
     expect(await screen.findByText('Neues erstellen')).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: /Mit dir geteilt/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Meine Notebooks/ })).not.toBeInTheDocument();
   });
 });
 
 describe('NotebooksIndexFooter — live tool tiles', () => {
-  it('replaces the Themen & Trends and Feed descriptions with live data', async () => {
+  it('shows live content in the Themen & Trends and Feed widgets', async () => {
     serveCollections(
       [],
       {
@@ -251,7 +256,10 @@ describe('NotebooksIndexFooter — live tool tiles', () => {
 
     renderWithProviders(<NotebooksIndexFooter />);
 
-    expect(await screen.findByText('Kohleausstieg · Klimageld · Wärmepumpe')).toBeInTheDocument();
+    // Top keyword as the headline, the next ones below it, plus the X trend.
+    expect(await screen.findByText('Kohleausstieg')).toBeInTheDocument();
+    expect(screen.getByText('Klimageld')).toBeInTheDocument();
+    expect(screen.getByText('#Klimageld')).toBeInTheDocument();
     expect(
       await screen.findByText('Landesparteitag beschliesst Wohnraumprogramm')
     ).toBeInTheDocument();
@@ -264,6 +272,98 @@ describe('NotebooksIndexFooter — live tool tiles', () => {
       'href',
       expect.stringContaining('/feed')
     );
+  });
+
+  it('shows the latest articles on the Watcher widget', async () => {
+    serveCollections([], undefined, undefined, [], {
+      count: 14,
+      sources: ['taz', 'Spiegel', 'FAZ'],
+      articles: [
+        {
+          url: 'https://example.org/a',
+          title: 'Grüne fordern Klimageld',
+          source: 'taz',
+          publishedAt: null,
+          excerpt: '',
+          locale: 'de',
+          topics: {},
+          primaryTopic: null,
+        },
+      ],
+    });
+
+    renderWithProviders(<NotebooksIndexFooter />);
+
+    expect(await screen.findByText('Grüne fordern Klimageld')).toBeInTheDocument();
+  });
+
+  it('survives shapeless 200 answers from every monitor endpoint (E2E fixtures)', async () => {
+    // The E2E fixtures answer unknown /api/ routes with `{ success, data: [], items: [] }`,
+    // so `average`, `polls`, `days`, `keywords` and `articles` are all missing.
+    const shapeless = { success: true, data: [], items: [] };
+    serveCollections([], shapeless, shapeless, [], shapeless);
+    let polled = false;
+    server.use(
+      http.get(MONITOR_POLLS, () => {
+        polled = true;
+        return HttpResponse.json(shapeless, { status: 200 });
+      })
+    );
+
+    renderWithProviders(<NotebooksIndexFooter />);
+
+    // A skeleton holds the place while loading — wait until the answers were consumed.
+    await waitFor(() => expect(polled).toBe(true));
+    await new Promise((resolve) => setTimeout(resolve, 100));
+    expect(screen.getByText('Sonntagsfrage, Ländertrends und Meinungsbild.')).toBeInTheDocument();
+    expect(
+      screen.getByText('Meistdiskutierte Themen und X-Trends der letzten 24 Stunden.')
+    ).toBeInTheDocument();
+  });
+
+  it('holds the tile with a skeleton instead of the static text while loading', async () => {
+    serveCollections([]);
+    server.use(http.get(MONITOR_POLLS, () => new Promise<never>(() => {})));
+
+    renderWithProviders(<NotebooksIndexFooter />);
+
+    const tile = await screen.findByRole('link', { name: /Umfragen/ });
+    expect(tile).toHaveAttribute('aria-busy', 'true');
+    expect(tile.querySelector('[data-slot="skeleton"]')).not.toBeNull();
+    expect(screen.queryByText('Sonntagsfrage, Ländertrends und Meinungsbild.')).toBeNull();
+  });
+
+  it('renders the stored answer at once, before the server has answered', async () => {
+    serveCollections([]);
+    server.use(http.get(MONITOR_ENTITY, () => new Promise<never>(() => {})));
+    localStorage.setItem(
+      `gruenerator:monitor-cache:v1:${JSON.stringify(['monitor', 'entity', 'gruene', 'de'])}`,
+      JSON.stringify({
+        at: Date.now(),
+        data: {
+          entity: { id: 'gruene', label: 'Die Grünen' },
+          count: 1,
+          sources: ['taz'],
+          articles: [
+            {
+              url: 'https://example.org/b',
+              title: 'Gespeicherte Schlagzeile',
+              source: 'taz',
+              publishedAt: null,
+              excerpt: '',
+              locale: 'de',
+              topics: {},
+              primaryTopic: null,
+            },
+          ],
+        },
+      })
+    );
+
+    renderWithProviders(<NotebooksIndexFooter />);
+
+    expect(await screen.findByText('Gespeicherte Schlagzeile')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /Watcher/ })).toHaveAttribute('aria-busy', 'false');
   });
 
   it('falls back to the static descriptions when the snapshot carries no keywords', async () => {

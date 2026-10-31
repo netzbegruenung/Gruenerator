@@ -13,7 +13,7 @@
 const getCacheSize = async (): Promise<{ cacheSize?: number; cacheName?: string }> => ({});
 const isServiceWorkerActive = async (): Promise<boolean> => false;
 
-import { getCacheStats } from './svgCache';
+import { getCacheStats } from './svgCache.js';
 
 // =============================================================================
 // METRICS STATE

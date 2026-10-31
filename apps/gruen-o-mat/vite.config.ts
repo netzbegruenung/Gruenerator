@@ -37,6 +37,9 @@ export default defineConfig(({ command }) => ({
       // `import` condition points at dist (built only for Node services).
       // Same cascade rule — alias it to src.
       '@ggraphic/schema': path.resolve(__dirname, '../../packages/ggraphic-schema/src'),
+      // contracts' slide composer imports @ggraphic/core; same dist-only `import`
+      // condition, same cascade rule.
+      '@ggraphic/core': path.resolve(__dirname, '../../packages/ggraphic-core/src'),
     },
   },
   build: {

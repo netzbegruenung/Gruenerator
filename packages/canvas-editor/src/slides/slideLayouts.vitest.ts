@@ -11,8 +11,8 @@ import { describe, expect, it } from 'vitest';
 
 import { createFreeformAtFullConfig } from '../configs/freeform_at_full.config';
 import { createFreeformFullConfig, type FreeformState } from '../configs/freeform_full.config';
-import { buildPptxModel } from '../export/pptx/buildPptxModel';
-import { writePptx, type WritePptxDeps } from '../export/pptx/writePptx';
+import { buildPptxModel } from '@ggraphic/editor/export/pptx/buildPptxModel';
+import { writePptx, type WritePptxDeps } from '@ggraphic/editor/export/pptx/writePptx';
 
 import {
   buildSlideLayout,

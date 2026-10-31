@@ -257,6 +257,14 @@ export const TOOL_TIMEOUT_OVERRIDES_MS: Record<string, number> = {
   // FLUX bei BFL: live 11.10.2026 37 s für ein Bild — nach 20 s abgeschrieben,
   // malte es unsichtbar zu Ende. Einmal pro Zug (`generate_image` idempotent).
   generate_image: 90_000,
+  // Bundestag: `parlament_lesen` hat sein eigenes Budget (CHAT_BUDGET.deadlineMs =
+  // 70 s: Fenster à ~60k Token plus PDF-Rückfall); die 20 s schrieben jeden Lauf
+  // mit mehreren unbekannten Drucksachen ab, während er im Hintergrund weiterzahlte.
+  // `bundestag` plant (ein Modellaufruf), prüft Deskriptoren und fragt DIP über
+  // einen einzigen, getakteten Client — unter Last mehr als 20 s.
+  parlament_lesen: 80_000,
+  bundestag: 40_000,
+  bundestag_reden: 40_000,
 };
 
 /**
@@ -321,4 +329,15 @@ export const NEAR_DUPLICATE_EXEMPT_TOOLS: ReadonlySet<string> = new Set([
   // Ein korrigierter Wiederholungsauftrag ähnelt dem gescheiterten naturgemäss;
   // die Wiederholungen begrenzt MAX_FAILED_RUNS im Werkzeug selbst.
   'tabelle_auswerten',
+  // Strukturierte Filter: eine Verfeinerung („Wasserstoff" + Typ Antrag) enthält
+  // alle Wörter der ersten Suche und galt als Duplikat — live fünfmal blockiert,
+  // der Turn endete ohne Lesen. Das Rezept verlangt genau dieses Eingrenzen.
+  'bundestag',
+  // Ein zweiter Lese-Aufruf mit weiteren Refs teilt Quelle und Frage mit dem ersten.
+  'parlament_lesen',
+  // Gleiches Thema, anderer Redner oder Zeitraum: die Verfeinerung teilt die Wörter.
+  'bundestag_reden',
+  // Wie `bundestag`: die Verfeinerung (Fraktion, Art, Zeitraum) teilt die Wörter der ersten Suche.
+  'landtag',
+  'nationalrat',
 ]);

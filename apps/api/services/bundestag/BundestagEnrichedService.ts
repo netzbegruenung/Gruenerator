@@ -30,10 +30,10 @@ import type {
 } from './types.js';
 
 // Explicit reference: "Drucksache 21/123", "BT-Drs. 20/1234", "Drs 21/50".
-const EXPLICIT_DRS_RE = /\b(?:drucksache|bt-?drs\.?|drs\.?)\s*(\d{1,2})\s*\/\s*(\d{1,6})\b/i;
+export const EXPLICIT_DRS_RE = /\b(?:drucksache|bt-?drs\.?|drs\.?)\s*(\d{1,2})\s*\/\s*(\d{1,6})\b/i;
 // Bare "21/123" only when the numerator is a plausible recent Wahlperiode —
 // keeps dates ("31/12") and fractions ("3/4") from triggering the document path.
-const BARE_DRS_RE = /\b(1[6-9]|2[0-1])\/(\d{1,5})\b/;
+export const BARE_DRS_RE = /\b(1[6-9]|2[0-1])\/(\d{1,5})\b/;
 
 // Queries that ask for spoken words get more speech results.
 const SPEECH_QUERY_RE = /\brede|redet|debatt|plenar|gesagt|gesprochen|geäußert|wortlaut/i;

@@ -17,11 +17,16 @@
  */
 
 import { env } from '../../config/env.js';
-import { recordTokenUsage } from '../usage/UsageTrackingService.js';
+import { recordImpact, recordTokenUsage } from '../usage/UsageTrackingService.js';
 
 import { cortecsBaseUrl } from './cortecsEndpoint.js';
-import { assertSovereignUpstream, SOVEREIGN_ZDR_PROVIDERS } from './cortecsRequestPolicy.js';
+import {
+  assertSovereignUpstream,
+  resolveCortecsUpstream,
+  SOVEREIGN_ZDR_PROVIDERS,
+} from './cortecsRequestPolicy.js';
 import { createGemmaChannelFilter } from './gemmaChannelFilter.js';
+import { parseMeliousImpact } from './meliousImpact.js';
 import { meliousWireModel } from './meliousThinkingFetch.js';
 import { recordModelSample } from './modelHealth.js';
 import { MELIOUS_BASE_URL } from './providerInstances.js';
@@ -152,8 +157,13 @@ function resolveConfig(provider: string, effort?: ThinkingEffort): ReasoningStre
       // `cortecsFetchWithPolicy`. Ohne sie wäre ausgerechnet der Denk-Pfad der
       // eine, auf dem die ZDR-/EU-Weisung stillschweigend fehlt — und weil der
       // Filter fail-open ist, würde das von aussen wie ein wirksamer aussehen.
+      //
+      // `include_usage` gemessen 28.10.2026 auf beiden Upstreams (infercom und
+      // gepinntem berget): HTTP 200, Usage-Block im letzten Chunk. Ohne ihn
+      // verbuchte dieser Pfad für Cortecs keinen Token (#5108).
       bodyExtras: {
         chat_template_kwargs: { enable_thinking: true },
+        stream_options: { include_usage: true },
         eu_native: true,
         allow_zero_data_retention: true,
         allowed_providers: SOVEREIGN_ZDR_PROVIDERS,
@@ -229,12 +239,23 @@ export async function* streamWithReasoning(
   if (params.provider === 'cortecs') {
     assertSovereignUpstream(response, typeof body.model === 'string' ? body.model : null);
   }
+  // Gebucht wird der Upstream, nicht der Router — wie `effectiveProvider` in
+  // usageModelMiddleware.ts: energyFootprint.ts schlüsselt PUE und Netzfaktor
+  // nach `infercom`/`berget`, eine `cortecs`-Zeile bekäme keine CO₂-Zahl.
+  const bookedProvider =
+    params.provider === 'cortecs'
+      ? (resolveCortecsUpstream(response.headers) ?? params.provider)
+      : params.provider;
 
   const reader = response.body.getReader();
   const decoder = new TextDecoder();
   let buffer = '';
   let firstTextAt: number | null = null;
   let usage: StreamUsage | null = null;
+  // Melious' eigene Messung steht im letzten Chunk (gemessen 28.10.2026, auch
+  // ohne `include_usage`). `recordImpact` bucht sie als gemessen; der
+  // Koeffizient in energyFootprint.ts greift dann nur noch für den Rest.
+  let impact: ReturnType<typeof parseMeliousImpact> = null;
   // Mit `enable_thinking` trennt der Host das Denken selbst; der Filter fängt
   // einen Upstream ohne Parser ab (Cortecs wechselt zwischen zweien).
   const channels = createGemmaChannelFilter();
@@ -262,6 +283,7 @@ export async function* streamWithReasoning(
         }
 
         usage = extractUsage(parsed) ?? usage;
+        if (params.provider === 'melious') impact = parseMeliousImpact(parsed) ?? impact;
         const delta = extractDelta(parsed);
         if (delta.reasoning) yield { type: 'reasoning', delta: delta.reasoning };
         const text = delta.text ? channels.push(delta.text) : '';
@@ -279,20 +301,19 @@ export async function* streamWithReasoning(
     // vorbei — ohne das hier wäre ausgerechnet die Lane mit der längsten
     // sichtbaren Wartezeit die einzige unbeobachtete.
     //
-    // NUR Zeit bis zum ersten Antworttext, kein Durchsatz: der Strom trägt
-    // keine Token-Zahlen. Aus Zeichen zu schätzen hiesse, für dasselbe Modell
-    // zwei Einheiten in dieselbe Basislinie zu mischen. Vollständig zu schliessen
-    // wäre es mit `stream_options: { include_usage: true }` — je Upstream zu
-    // prüfen, weil ein unbekanntes Feld dort auch ein 400 sein kann.
+    // Durchsatz nur, wenn der Usage-Chunk kam (`include_usage`, beide Hosts
+    // seit 28.10.2026). Aus Zeichen zu schätzen hiesse, für dasselbe Modell
+    // zwei Einheiten in dieselbe Basislinie zu mischen.
     recordModelSample({
       provider: params.provider,
       model: params.model,
       outputTokens: usage?.outputTokens ?? 0,
       durationMs: Date.now() - startedAt,
       ttftMs: firstTextAt === null ? null : firstTextAt - startedAt,
+      inputTokens: usage?.inputTokens ?? null,
     });
-    // Nur, wer `include_usage` sendet, bekommt hier Zahlen (heute Melious).
-    if (usage) recordTokenUsage({ provider: params.provider, model: params.model, ...usage });
+    if (usage) recordTokenUsage({ provider: bookedProvider, model: params.model, ...usage });
+    if (impact) recordImpact({ provider: params.provider, model: params.model, ...impact });
   }
 }
 

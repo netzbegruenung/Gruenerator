@@ -11,7 +11,7 @@ import { getBrandPack } from '../../brand/theme';
 import { chartSettingsSectionEntry } from '../../configs/commonSections';
 import { createFreeformAtFullConfig } from '../../configs/freeform_at_full.config';
 import { createFreeformFullConfig, type FreeformState } from '../../configs/freeform_full.config';
-import { ChartSettingsSection } from '../sections/ChartSettingsSection';
+import { ChartSettingsSection } from '@ggraphic/editor/sidebar/sections/ChartSettingsSection';
 
 const format = getCanvasFormatOrDefault(null);
 const CHART_PALETTES = {

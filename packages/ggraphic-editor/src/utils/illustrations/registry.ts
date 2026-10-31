@@ -11,7 +11,7 @@
 
 import { activeBrand } from '@ggraphic/editor/brand/brandRegistry';
 
-import { registeredAssetCatalog } from '../canvasAssets';
+import { registeredAssetCatalog } from '../canvasAssets.js';
 
 import type {
   KawaiiDef,

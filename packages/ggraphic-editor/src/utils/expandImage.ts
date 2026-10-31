@@ -3,10 +3,10 @@
 
 import { BACKGROUND_STRAIGHTEN_KEY, backgroundStraighten } from '@ggraphic/editor/utils/straighten';
 
-import { cropTargetOf, type CropUpdate } from './cropTarget';
-import { resolveValue } from './resolveElementValue';
+import { cropTargetOf, type CropUpdate } from './cropTarget.js';
+import { resolveValue } from './resolveElementValue.js';
 
-import type { CanvasElementConfig, LayoutResult } from '../configs/types';
+import type { CanvasElementConfig, LayoutResult } from '../configs/types.js';
 
 /** Die Bildquelle des Elements; `null`, wenn es fehlt oder kein Foto zeigt. */
 export function cropImageSrc(

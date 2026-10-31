@@ -6,10 +6,12 @@
  * These provide the foundation for the factory pattern.
  */
 
-import type { AssetInstance } from '../../utils/canvasAssets';
-import type { AdditionalText, LayoutResult } from '../types';
+import { type IconState } from '@ggraphic/core';
+
+import type { AssetInstance } from '../../utils/canvasAssets.js';
+import type { HostElementState } from '../../utils/canvasItem.js';
+import type { AdditionalText, LayoutResult } from '../types.js';
 import type { StockImageAttribution } from '@ggraphic/editor/common/imageSourceTypes';
-import type { BalkenInstance, BalkenMode } from '@ggraphic/editor/utils/balkenUtils';
 import type { ChartInstance, ChartType } from '@ggraphic/editor/utils/chartTypes';
 import type { CircleBadgeInstance } from '@ggraphic/editor/utils/circleBadgeUtils';
 import type { FrameClipType, FrameInstance } from '@ggraphic/editor/utils/frameUtils';
@@ -20,12 +22,14 @@ import type { TextAlign } from '@ggraphic/editor/utils/textAlign';
 import type { ElementPlacement, UserImageInstance } from '@ggraphic/editor/utils/userImageUtils';
 import type { StickerRef } from '@ggraphic/schema';
 
+export { type IconState } from '@ggraphic/core';
+
 // ============================================================================
 // SHARED STATE TYPES
 // ============================================================================
 
-/** Base state shared by ALL canvas templates */
-export interface BaseCanvasState {
+/** Base state shared by ALL canvas templates, with the host kinds' lists (`HostElementKinds`). */
+export interface BaseCanvasState extends HostElementState {
   isDesktop: boolean;
   assetInstances: AssetInstance[];
   selectedIcons: string[];
@@ -35,7 +39,6 @@ export interface BaseCanvasState {
   additionalTexts: AdditionalText[];
   pillBadgeInstances: PillBadgeInstance[];
   circleBadgeInstances: CircleBadgeInstance[];
-  balkenInstances: BalkenInstance[];
   frameInstances: FrameInstance[];
   userImageInstances: UserImageInstance[];
   chartInstances: ChartInstance[];
@@ -48,26 +51,6 @@ export interface BaseCanvasState {
   templateTextAligns?: Record<string, TextAlign>;
   imageAttribution?: StockImageAttribution | null;
   [key: string]: unknown;
-}
-
-export interface IconState {
-  x: number;
-  y: number;
-  scale: number;
-  rotation: number;
-  color?: string;
-  opacity?: number;
-  /**
-   * Katalog-ID des gezeigten Icons. Fehlt sie, IST der Schlüssel in
-   * `iconStates` die Katalog-ID — so liegen alle Dokumente von vor #3404 vor,
-   * und so legt die Seitenleiste das erste Exemplar bis heute ab. Erst eine
-   * Kopie braucht das Feld, weil sie eine frische Instanz-ID trägt. Aufgelöst
-   * wird immer über `catalogIconId` in `utils/iconInstances.ts`.
-   */
-  iconId?: string;
-  /** Mirrored about the centre (negative node scale); omit for upright. */
-  flipX?: boolean;
-  flipY?: boolean;
 }
 
 /** State for templates with image backgrounds */
@@ -143,12 +126,6 @@ export interface BaseCanvasActions {
   updateCircleBadge: (id: string, partial: Partial<CircleBadgeInstance>) => void;
   removeCircleBadge: (id: string) => void;
 
-  // Balken management
-  addBalken: (mode: BalkenMode, options?: ElementPlacement) => void;
-  updateBalken: (id: string, partial: Partial<BalkenInstance>) => void;
-  setBalkenText: (id: string, index: number, text: string) => void;
-  removeBalken: (id: string) => void;
-
   // Frame management
   addFrame: (clipType: FrameClipType, options?: ElementPlacement) => void;
   updateFrame: (id: string, partial: Partial<FrameInstance>) => void;
@@ -195,7 +172,6 @@ export interface CanvasFeatures {
   icons?: boolean;
   shapes?: boolean;
   illustrations?: boolean;
-  balken?: boolean;
   pillBadge?: boolean;
   circleBadge?: boolean;
   frames?: boolean;

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MPL-2.0
-import type { CanvasElementConfig, FullCanvasConfig } from '../configs/types';
+import type { CanvasElementConfig, FullCanvasConfig } from '../configs/types.js';
 
 /**
  * Every family the template actually paints. Derived from the elements rather

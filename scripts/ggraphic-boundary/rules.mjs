@@ -38,6 +38,13 @@ const IDENTITY = [
     /\b(?:GrueneType|Gotham|BalkenGroup|DE_WORDMARK|dreizeilen|toggle-sunflower)\w*|\blogo(?:De|At)(?:White|Weiss|Black|Schwarz|Dark|Light)?\b/,
     'Grünerator brand identifier',
   ],
+  // The Balken are a Grünerator element kind, registered by the host
+  // (`registerElementKind`). Only the identifiers: the plain word is also
+  // German for a bar chart (`ChartGroup` 'balken', emoji and shape tags).
+  [
+    /\bbalken(?:Instances|Utils|Offset|WidthScale|Opacity|Scale|Rotation|FitPending)\b|\bBalken(?:Instance|Mode|Actions|Preview|Kind)\b|(?:[aA]dd|[uU]pdate|[rR]emove|[dD]uplicate|[sS]elected|handle)Balken|\bsetBalkenText\b|\b(?:kind|type|t)\s*(?:[!=]==?|:)\s*['"`]balken['"`]|\bcase\s+['"`]balken['"`]/,
+    'Balken element kind',
+  ],
 ];
 // Any quoted or url() path that climbs with ../ — imports, CSS, new URL(), references.
 const PATH_REFERENCE = /(?:['"`]|url\(\s*)(\.\.\/[^'"`\s)$]*)/g;
@@ -123,6 +130,12 @@ const HOST_PATH = [
 const SOURCE_EXT = /\.(?:tsx?|jsx?|mjs|cjs|css)$/i;
 const SPDX = /SPDX-License-Identifier: MPL-2\.0/;
 
+// (g) Test fixtures (`__fixtures__/`, e.g. the test-only v2 document
+// migration) stay in tests: production source must not import them. Tests and
+// the fixtures themselves may.
+const FIXTURE_REFERENCE = /['"`][^'"`\n]*\/__fixtures__\//;
+const TEST_OR_FIXTURE = /\.vitest\.tsx?$|\.test\.tsx?$|\/__fixtures__\//;
+
 // Warnings: words and colours that are brand in Grünerator but also generic.
 const AMBIGUOUS = [
   /Sonnenblume|sunflower|Tanne|Klee|Grashalm|Dunkeltanne|grasgruen|Störer|stoerer|balken/i,
@@ -169,7 +182,6 @@ function locate(text, pattern) {
 export const PROVENANCE_NOTICE =
   'Originally developed as part of netzbegruenung/Gruenerator (AGPL-3.0);\n' +
   'relicensed by the copyright holder under MPL-2.0.\n';
-const PACKAGE_NOTICE = /^packages\/ggraphic-[^/]+\/NOTICE$/;
 
 function checkText(path, bytes, packageDir, fail, warn) {
   const utf8 = bytes.toString('utf8').normalize('NFC');
@@ -191,7 +203,7 @@ function checkText(path, bytes, packageDir, fail, warn) {
     }
   };
 
-  const isProvenance = PACKAGE_NOTICE.test(path) && utf8 === PROVENANCE_NOTICE;
+  const isProvenance = path === `${packageDir}/NOTICE` && utf8 === PROVENANCE_NOTICE;
   if (!isProvenance)
     for (const [pattern, label] of IDENTITY) scan('a', label, [pattern], (w) => `${label} (${w})`);
   scan('b', 'colour', CD_COLOUR, (w) => `corporate-design colour (${w})`);
@@ -214,6 +226,10 @@ function checkText(path, bytes, packageDir, fail, warn) {
         report('a', `escape:${reference}`, `path out of the package: "${reference}"`);
       }
     }
+  }
+  if (SOURCE_EXT.test(path) && !TEST_OR_FIXTURE.test(path)) {
+    const where = locate(utf8, FIXTURE_REFERENCE);
+    if (where) fail('g', path, `production code imports a test fixture (${where})`);
   }
   if (SOURCE_EXT.test(path) && !SPDX.test(utf8.split('\n').slice(0, 5).join('\n'))) {
     fail('f', path, 'missing "SPDX-License-Identifier: MPL-2.0" in the first 5 lines');

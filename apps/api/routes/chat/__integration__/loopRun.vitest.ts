@@ -307,11 +307,11 @@ describe('loop decision maps', () => {
       }
     }
 
-    if (scenario.systemIncludes) {
+    for (const needle of [scenario.systemIncludes ?? []].flat()) {
       expect(
         loopScript.calls[0]?.system ?? '',
-        `${scenario.id}: der Systemtext des ersten Planer-Schritts sollte "${scenario.systemIncludes}" enthalten`
-      ).toContain(scenario.systemIncludes);
+        `${scenario.id}: der Systemtext des ersten Planer-Schritts sollte "${needle}" enthalten`
+      ).toContain(needle);
     }
 
     if (scenario.synthSystemIncludes) {

@@ -35,8 +35,8 @@ export interface MediaPreviewProps extends SharedMediaUrlOptions {
 }
 
 /**
- * One media item, whatever its type: the responsive image, a video (a muted
- * first frame in tiles, with controls in the detail view) or an audio
+ * One media item, whatever its type: the responsive image, a video (its poster in
+ * tiles, else a muted first frame; with controls in the detail view) or an audio
  * placeholder/player. Fills its parent; the parent sets the box.
  */
 export function MediaPreview({
@@ -61,14 +61,26 @@ export function MediaPreview({
       />
     ) : (
       <span className="relative block size-full">
-        <video
-          src={mediaStreamUrl(item, urlOptions)}
-          muted
-          playsInline
-          preload="metadata"
-          aria-hidden
-          className={media}
-        />
+        {item.thumbnailUrl ? (
+          // The poster frame, as image variants; no request touches the video.
+          <MediaThumb
+            item={item}
+            alt={mediaLabel(item)}
+            priority={priority}
+            sizes={sizes}
+            className={media}
+            {...urlOptions}
+          />
+        ) : (
+          <video
+            src={mediaStreamUrl(item, urlOptions)}
+            muted
+            playsInline
+            preload="metadata"
+            aria-hidden
+            className={media}
+          />
+        )}
         <span
           aria-hidden
           className="absolute inset-0 m-auto flex size-10 items-center justify-center rounded-full bg-[#0f1210]/60 text-white backdrop-blur-sm"

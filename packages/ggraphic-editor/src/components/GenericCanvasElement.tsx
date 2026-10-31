@@ -32,24 +32,24 @@ import { backgroundStraighten } from '@ggraphic/editor/utils/straighten';
 import { surfaceGlow } from '@ggraphic/editor/utils/surfaceGlow';
 import { templateTextAlignOf } from '@ggraphic/editor/utils/textAlign';
 
-import { useCanvasEditorServices } from '../CanvasEditorProvider';
-import { plainImageUrls } from '../hostServices';
-import { CanvasText, CanvasImage, CanvasBackground } from '../primitives';
-import { canCropBackgroundPhoto, imageElementInteraction } from '../utils/backgroundPhotoCrop';
-import { canvasImageSourceUrl } from '../utils/canvasImageSource';
-import { imageRenderInputsAreEqual } from '../utils/imageElementComparison';
-import { BACKGROUND_IMAGE_NODE_ID } from '../utils/printImageInfo';
+import { useCanvasEditorServices } from '../CanvasEditorProvider.js';
+import { plainImageUrls } from '../hostServices.js';
+import { CanvasText, CanvasImage, CanvasBackground } from '../primitives/index.js';
+import { canCropBackgroundPhoto, imageElementInteraction } from '../utils/backgroundPhotoCrop.js';
+import { canvasImageSourceUrl } from '../utils/canvasImageSource.js';
+import { imageRenderInputsAreEqual } from '../utils/imageElementComparison.js';
+import { BACKGROUND_IMAGE_NODE_ID } from '../utils/printImageInfo.js';
 import {
   coverFitSlot,
   resolveColor,
   resolveImageElementBox,
   resolveValue,
-} from '../utils/resolveElementValue';
+} from '../utils/resolveElementValue.js';
 
 // Die Aufloesung von x/y/width/height/opacity steht seit #3403 ausserhalb:
 // `templateElementToEntry` braucht dieselbe Rechnung, und zwei Fassungen
 // derselben Arithmetik driften auseinander.
-import { isTemplateElementRotatable, templateRotationOf } from '../utils/templateRotation';
+import { isTemplateElementRotatable, templateRotationOf } from '../utils/templateRotation.js';
 
 import type {
   CanvasElementConfig,
@@ -61,7 +61,7 @@ import type {
   BackgroundElementConfig,
   LayoutResult,
   PositionValue,
-} from '../configs/types';
+} from '../configs/types.js';
 import type { SnapTarget, SnapLine } from '@ggraphic/editor/utils/snapping';
 
 // The bundler replaces `process.env.NODE_ENV`; outside one, `process` may not exist.

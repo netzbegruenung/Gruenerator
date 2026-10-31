@@ -15,8 +15,8 @@
  *
  *   trivial   greenpt/mistral-small-3.2-24b  Hintergrund, kein Zeitbudget
  *   standard  greenpt/mistral-small-3.2-24b  heisser Pfad, 900–2500 ms Sperren
- *   heavy     cortecs/gemma-4-31b-it         Qualitätslatte, lange Prosa
- *   pruefung  cortecs/gemma-4-31b-it         prüft, was ein Modell schrieb
+ *   heavy     melious/gemma-4-31b:balanced   Qualitätslatte, lange Prosa (bis 28.10.2026 cortecs)
+ *   pruefung  melious/gemma-4-31b:balanced   prüft, was ein Modell schrieb (bis 28.10.2026 cortecs)
  *   compute   mistral-medium-2604 → Paris    einzige Stufe, wo ein Fehler eine
  *                                            falsche ZAHL ist
  *
@@ -407,7 +407,13 @@ export const INTERMEDIATE_LANES = {
     // 17 Rechenfälle, Small 4 nur 94,1 %. Auf dieser Stufe ist ein Fehler eine
     // FALSCHE ZAHL beim Nutzer — die Kette folgt deshalb der Trefferquote und
     // nicht dem Energiewert.
-    fallback: [{ provider: GEMMA_PRIMARY.provider, model: GEMMA_PRIMARY.model }, MELIOUS_GEMMA_4],
+    // Beide Gemma-Hosts aus gemmaHosts.ts: bis zum 28.10.2026 stand der zweite
+    // als `MELIOUS_GEMMA_4` fest hier, und mit Melious als Primär wäre die Kette
+    // zweimal derselbe Vertragspartner gewesen.
+    fallback: [
+      { provider: GEMMA_PRIMARY.provider, model: GEMMA_PRIMARY.model },
+      { provider: GEMMA_HEDGE.provider, model: GEMMA_HEDGE.model },
+    ],
   },
 
   /**

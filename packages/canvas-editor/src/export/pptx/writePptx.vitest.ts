@@ -1,9 +1,13 @@
 import { strFromU8, unzipSync } from 'fflate';
 import { describe, expect, it, vi } from 'vitest';
 
-import { writePptx, type WritePptxDeps } from './writePptx';
+import { writePptx, type WritePptxDeps } from '@ggraphic/editor/export/pptx/writePptx';
 
-import type { PptxDeckModel, PptxRasterRequest, PptxTextItem } from './types';
+import type {
+  PptxDeckModel,
+  PptxRasterRequest,
+  PptxTextItem,
+} from '@ggraphic/editor/export/pptx/types';
 
 /** 1 × 1 px, transparent. */
 const PNG =

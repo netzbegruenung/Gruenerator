@@ -3,6 +3,7 @@ import { createContext, useContext } from 'react';
 
 import type {
   CanvasCarouselService,
+  CanvasFeedbackService,
   CanvasFileDeliveryService,
   CanvasImageShareService,
   CanvasImageUrlService,
@@ -10,7 +11,7 @@ import type {
   CanvasPrintService,
   UseCanvasStudioAssets,
   UseCanvasUnsplashSearch,
-} from './hostServices';
+} from './hostServices.js';
 import type {
   ApplyResult,
   HostCanvasAiOperation,
@@ -85,6 +86,21 @@ export interface CanvasEditorServices extends CanvasEditorHostServices {
     page?: number,
     perPage?: number
   ) => Promise<{ results: StockImage[]; total: number; total_pages: number }>;
+
+  /**
+   * The `utm_source` of links to Unsplash (API Terms: name the app). Defaults
+   * to `ggraphic`.
+   */
+  unsplashUtmSource?: string;
+
+  /**
+   * Who shares the hourly Unsplash quota, as the subject of the limit notice
+   * (e.g. „Product X“). Defaults to a generic „Der Editor“.
+   */
+  unsplashQuotaOwner?: string;
+
+  /** What the QR tool's preview encodes until a link is typed. Defaults to `https://example.org`. */
+  qrPreviewUrl?: string;
 
   /** Track Unsplash download (API compliance) */
   trackUnsplashDownload?: (image: StockImage) => Promise<void>;
@@ -163,8 +179,8 @@ export interface CanvasEditorServices extends CanvasEditorHostServices {
   assetBaseUrl?: string;
 
   /**
-   * Brand locale of the signed-in user. Locale-scoped assets (AT vs DE logos,
-   * Balken) are filtered by this; defaults to 'de-DE' when omitted.
+   * Brand locale of the signed-in user. Locale-scoped assets (AT vs DE logos)
+   * and host tiles are filtered by this; defaults to 'de-DE' when omitted.
    */
   userLocale?: 'de-DE' | 'de-AT';
 
@@ -208,6 +224,12 @@ export interface CanvasEditorServices extends CanvasEditorHostServices {
    * omitted, no format carries an impressum; the PDF export still works.
    */
   print?: CanvasPrintService;
+
+  /**
+   * Where the host's feedback form opens from. When omitted, or while
+   * `canRequest()` is false, the share menu offers no „Feedback" entry.
+   */
+  feedback?: CanvasFeedbackService;
 
   /**
    * Keeps the carousel chrome true after page ops (`CanvasCarouselService`).

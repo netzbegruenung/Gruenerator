@@ -8,6 +8,7 @@ import {
   allIntentMentions,
   ARTIFACT_CREATE_TOKENS,
   forcedToolFor,
+  isSkillAbsorbedByMention,
 } from '@gruenerator/shared/chat-intents';
 import {
   PiFlask,
@@ -281,6 +282,7 @@ export function setMentionLandesverbaende(lvIds: readonly string[] | null): void
 export function getAgentMentionables(): Mentionable[] {
   return agentMentionables.filter(
     (m) =>
+      !isSkillAbsorbedByMention(m.mention) &&
       (m.audience === undefined || m.audience === 'all' || m.audience === mentionLocale) &&
       isAdminVisibleSkill(m.mention, hiddenSkillMentions) &&
       isSkillOfferedIn(m, getMentionInstance()) &&

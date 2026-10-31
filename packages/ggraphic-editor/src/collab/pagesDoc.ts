@@ -19,7 +19,7 @@
 import { v4 as uuid } from 'uuid';
 import * as Y from 'yjs';
 
-import { YDOC_KEYS } from './ydocKeys';
+import { YDOC_KEYS } from './ydocKeys.js';
 
 export interface PageDef {
   id: string;

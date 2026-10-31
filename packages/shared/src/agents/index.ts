@@ -10,6 +10,7 @@ export type {
   LvEbene,
   Skill,
   SkillCategory,
+  SkillRole,
   SkillIcon,
   ToolRestrictions,
 } from './types.js';
@@ -43,6 +44,8 @@ export {
   canonicalSkillMention,
   hasSystemRecipe,
   lvEbeneForSkillMention,
+  skillRole,
+  isMethodSkill,
 } from './skills/index.js';
 
 export {

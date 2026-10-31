@@ -6,7 +6,7 @@
  * bei den Auswahl-Aktionen, die auch ein Klick auf die Fläche benutzt.
  */
 
-import type { CanvasEditorStoreApi } from '../stores/createCanvasEditorStore';
+import type { CanvasEditorStoreApi } from '../stores/createCanvasEditorStore.js';
 
 export type LayerSelectionChange =
   /** Nur dieses Element (Pfeiltaste, Klick). */

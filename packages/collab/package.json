@@ -17,6 +17,7 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@ggraphic/collab": "workspace:*",
     "@hocuspocus/provider": "^4.7.1",
     "y-indexeddb": "^9.0.12",
     "yjs": "^13.6.33"

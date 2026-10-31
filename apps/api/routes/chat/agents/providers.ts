@@ -715,6 +715,16 @@ function instantiateModel(provider: string, modelId: string): LanguageModel {
         getCortecsProvider().chat(retireLiteLLM('regolo', modelId).model ?? '')
       );
     case 'melious': {
+      // Seit Melious der Gemma-Primär ist (28.10.2026), spiegelt das den
+      // Cortecs-Zweig unten: Gemma bleibt Gemma, nur beim anderen Host.
+      const wantsGemma = !modelId || modelId === GEMMA_4_MELIOUS.model;
+      if (!env.MELIOUS_API_KEY && wantsGemma && env.CORTECS_API_KEY) {
+        log.warn(
+          `MELIOUS_API_KEY not set — answering on Cortecs Gemma 4 instead (requested "${modelId}")`
+        );
+        lastFallbackProvider = 'cortecs';
+        return withGemmaChannelFilter(getCortecsProvider().chat(GEMMA_4_31B_CORTECS.model));
+      }
       if (!env.MELIOUS_API_KEY) {
         log.warn(
           `MELIOUS_API_KEY not set — answering on Mistral instead of Melious (requested "${modelId}")`
@@ -831,7 +841,7 @@ function plannerStageUsable(stage: { provider: Provider; model: string }): boole
 }
 
 function loopPlannerChoice(): { provider: Provider; model: string; contextWindow: number } {
-  // Melious, Cortecs, GreenPT — see LOOP_PLANNER_PRIMARY in autoPolicy.ts for
+  // Melious, Cortecs, Mistral — see LOOP_PLANNER_PRIMARY in autoPolicy.ts for
   // why and for the measurements.
   const usable = LOOP_PLANNER_CHAIN.find(plannerStageUsable);
   if (usable) return usable;

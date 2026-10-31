@@ -64,3 +64,18 @@ export const AT_BUNDESLAENDER: Array<{ id: string; name: string; display?: strin
 
 export const bundeslandById = (id: string): Bundesland | undefined =>
   BUNDESLAENDER.find((b) => b.id === id);
+
+/** Scraper LV codes are mostly Bundesland shorts; LSA is the odd one out. */
+export const LV_NAMES: Record<string, string> = {
+  ...Object.fromEntries(BUNDESLAENDER.map((b) => [b.short, b.name])),
+  LSA: 'Sachsen-Anhalt',
+};
+
+/**
+ * Bundesland zu einem `landesverband`-Code der Scraper. Die Landtagsfraktion
+ * (`BY-F`, `HE-F`, …, siehe `landesverbaendeConfig.ts` der API) zeigt dasselbe
+ * Bundesland wie der Landesverband; unbekannte Codes bleiben stehen.
+ */
+export function lvName(code: string): string {
+  return LV_NAMES[code.replace(/-F$/, '')] ?? code;
+}

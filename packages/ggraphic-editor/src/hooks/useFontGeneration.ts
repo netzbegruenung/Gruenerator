@@ -16,7 +16,7 @@
  * kann den Umbruch verschieben.
  *
  * Der Wert muss in die Messung HINEINGEREICHT werden (`runMeasurer(…, gen)`,
- * `calculateBalkenLayouts(…, gen)`), nicht bloß in der Deps-Liste eines
+ * die Layouts der Host-Arten ebenso), nicht bloß in der Deps-Liste eines
  * `useMemo` stehen: der React-Compiler (dom-Testlane und `vite build`) leitet
  * den Cache-Schlüssel aus dem ab, was der Körper liest, und streicht eine
  * Abhängigkeit, die nur in der Liste steht — auch `void gen` im Körper fällt

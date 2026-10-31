@@ -1,9 +1,9 @@
 import { render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { TextField } from '../components/TextFieldPrimitives';
-import { ElementsPanel } from '../sections/assets/ElementsPanel';
-import { UploadsSection } from '../sections/UploadsSection';
+import { TextField } from '@ggraphic/editor/sidebar/components/TextFieldPrimitives';
+import { ElementsPanel } from '@ggraphic/editor/sidebar/sections/assets/ElementsPanel';
+import { UploadsSection } from '@ggraphic/editor/sidebar/sections/UploadsSection';
 
 // No host services: the galleries fall back to an empty list (hostServices.ts).
 vi.mock('@iconify/react', () => ({

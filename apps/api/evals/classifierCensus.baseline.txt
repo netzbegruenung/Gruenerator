@@ -1,4 +1,4 @@
-# Klassifikator-Zählung über 346 Turns aus apps/api/evals/corpus/
+# Klassifikator-Zählung über 394 Turns aus apps/api/evals/corpus/
 # Regenerieren mit CENSUS_UPDATE=1 — und den Diff lesen, bevor er committet wird.
 #
 # Der Korpus ist adversarial gebaut. Jede Quote hier ist eine Aussage über
@@ -14,15 +14,15 @@
 ## Dispositionen — was der Klassifikator entschieden hat
 disposition                       n   anteil  davon mit Modell
 anchor                            0    0.0 %     0
-artifact                         42   12.1 %     0
-gated                            15    4.3 %     0
-loop                            248   71.7 %     0
-prose                            41   11.8 %    14
+artifact                         42   10.7 %     0
+gated                            18    4.6 %     0
+loop                            289   73.4 %     0
+prose                            45   11.4 %    16
 (unbekannt)                       0    0.0 %     0
 
 ## Entscheidungspunkte — wie entschieden wurde (Zweighäufigkeit)
-(ohne Tier-Eintrag: 10 — Tier-1/2-Zweige journalisieren nicht)
-classifier.tier  (336)
+(ohne Tier-Eintrag: 11 — Tier-1/2-Zweige journalisieren nicht)
+classifier.tier  (383)
     tier2_notebook_tool_ask       0
     tier2_thread_notebook_tool_ask    0
     tier2_notebook_turn_followup    0
@@ -36,15 +36,16 @@ classifier.tier  (336)
     tier2_agentura_create         0
     tier2.7_mcp_followup          0
     tier2.7_sharepic_followup     8
-    tier2.9_docs_help             8
+    tier2.9_docs_help            11
     tier2.95_ambiguous_graphic    3
     tier3_short_message           3
-    tier3_heuristic              50
+    tier3_heuristic              52
     tier3.4_chat_recall           1
     tier3.4_recurring_order       0
-    tier3.5_loop_demotion       230
-    tier3.8_generation_scope     14
-    residual                     13
+    tier3.4_own_notebook          4
+    tier3.5_loop_demotion       265
+    tier3.8_generation_scope     16
+    residual                     14
     error_fallback                0
 
 ## Intents — feinste Körnung, in Enum-Reihenfolge
@@ -61,7 +62,7 @@ bahn                              0  retired
 reise                             0  retired
 hotel                             0  retired
 umfragen                          0  retired
-hilfe                             8  gated
+hilfe                            11  gated
 wetter                            0  retired
 news                              0  retired
 image                             2  artifact
@@ -86,7 +87,7 @@ create_explainable                1  artifact
 create_recurring_task             0  retired
 chat_history                      1  gated
 mcp                               0  retired
-produktion                       37  prose
+produktion                       41  prose
 direct                            3  prose
 greeting                          1  prose
-agentic                         236  loop
+agentic                         277  loop

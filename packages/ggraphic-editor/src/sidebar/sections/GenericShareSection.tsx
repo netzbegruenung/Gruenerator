@@ -1,0 +1,564 @@
+// SPDX-License-Identifier: MPL-2.0
+import { useCanvasEditorServices } from '@ggraphic/editor/CanvasEditorProvider';
+import { browserFileDelivery } from '@ggraphic/editor/hostServices';
+import { useMessages } from '@ggraphic/editor/i18n/messages';
+import { useAutoSaveStore, useAutoSaveStoreApi } from '@ggraphic/editor/stores/useAutoSaveStore';
+import { Skeleton } from '@ggraphic/editor/ui/skeleton';
+import { downloadErrorMessage } from '@ggraphic/editor/utils/downloadError';
+import { useCallback, useState, useMemo, useRef, useEffect, type CSSProperties } from 'react';
+import { createPortal } from 'react-dom';
+import { FaDownload, FaImages, FaSave, FaCheck, FaFileArchive, FaFileImage } from 'react-icons/fa';
+import { IoCheckmarkOutline, IoShareOutline } from 'react-icons/io5';
+
+import { DownloadNotice } from '@ggraphic/editor/components/DownloadNotice';
+import {
+  AltTextField,
+  useCaptionAltText,
+  useShareAltText,
+  withAltText,
+} from '@ggraphic/editor/sidebar/components/AltTextField';
+import { SubsectionTabBar } from '../SubsectionTabBar.js';
+
+export interface GenericShareSectionProps {
+  exportedImage: string | null;
+  shareToken: string | null;
+  onCaptureCanvas: () => void;
+  /** Returns the current page as a PNG data URL (or null if not ready); native share awaits it. */
+  captureCanvasImage?: (() => Promise<string | null>) | null;
+  onDownload: () => void | Promise<void>;
+  onNavigateToGallery: () => void;
+  canvasText: string;
+  /** Der Text der Leinwand allein (ohne Bildnachweis) — Grundlage des Alt-Text-Vorschlags. */
+  imageText?: string;
+  canvasType: string;
+  pageCount?: number;
+  onDownloadAllZip?: () => Promise<void>;
+  onShareAllPages?: () => Promise<void>;
+  isMultiExporting?: boolean;
+  exportProgress?: { current: number; total: number };
+  exportError?: string | null;
+  exportNotice?: string | null;
+  /** Opens the host's template flow. Without it the "Vorlage" tab is hidden. */
+  onSaveAsTemplate?: () => void;
+}
+
+const iconBtn =
+  'size-10 rounded-xl border-none bg-editor-tile cursor-pointer flex items-center justify-center text-foreground text-lg transition-[background-color,color,transform] duration-200 hover:bg-editor-active-bg hover:text-editor-active-fg active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed';
+
+const primaryBtn =
+  'w-full py-2.5 px-4 rounded-lg border-none bg-primary-600 text-white font-medium text-sm cursor-pointer flex items-center justify-center gap-2 transition-[background-color,transform] duration-200 hover:bg-primary-700 active:scale-[0.98] disabled:opacity-40 disabled:cursor-not-allowed';
+
+const secondaryBtn =
+  'w-full py-2 px-4 rounded-lg border border-editor-border bg-transparent text-foreground font-medium text-sm cursor-pointer flex items-center justify-center gap-2 transition-[background-color,border-color] duration-200 hover:bg-editor-surface-hover';
+
+const dropdownMenu =
+  'bg-background-pure border border-editor-border rounded-xl shadow-lg p-1 min-w-[200px]';
+
+const dropdownOption =
+  'w-full py-2 px-3 rounded-lg border-none bg-transparent text-foreground text-sm cursor-pointer flex items-center gap-2 transition-[background-color] duration-150 hover:bg-editor-surface-hover disabled:opacity-40 disabled:cursor-not-allowed';
+
+function usePortalDropdown() {
+  const [open, setOpen] = useState(false);
+  const [style, setStyle] = useState<CSSProperties>({});
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+
+    const position = () => {
+      if (!triggerRef.current || !menuRef.current) return;
+      const rect = triggerRef.current.getBoundingClientRect();
+      const menuRect = menuRef.current.getBoundingClientRect();
+      const spaceAbove = rect.top;
+      const spaceBelow = window.innerHeight - rect.bottom;
+      const openAbove = spaceBelow < menuRect.height + 8 && spaceAbove > spaceBelow;
+
+      setStyle({
+        position: 'fixed',
+        left: `${Math.max(8, Math.min(rect.left + rect.width / 2 - menuRect.width / 2, window.innerWidth - menuRect.width - 8))}px`,
+        ...(openAbove
+          ? { bottom: `${window.innerHeight - rect.top + 6}px`, top: 'auto' }
+          : { top: `${rect.bottom + 6}px`, bottom: 'auto' }),
+        zIndex: 10000,
+        opacity: 1,
+      });
+    };
+
+    const handleClickOutside = (e: MouseEvent) => {
+      if (
+        triggerRef.current &&
+        !triggerRef.current.contains(e.target as Node) &&
+        menuRef.current &&
+        !menuRef.current.contains(e.target as Node)
+      ) {
+        setOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    const frame = requestAnimationFrame(position);
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      cancelAnimationFrame(frame);
+    };
+  }, [open]);
+
+  return { open, setOpen, style, triggerRef, menuRef };
+}
+
+function DownloadShareSubsection({
+  exportedImage,
+  shareToken,
+  onCaptureCanvas,
+  captureCanvasImage,
+  onDownload,
+  onNavigateToGallery,
+  canvasText,
+  imageText = '',
+  pageCount = 1,
+  onDownloadAllZip,
+  onShareAllPages,
+  isMultiExporting = false,
+  exportProgress,
+  exportError,
+  exportNotice,
+}: Omit<GenericShareSectionProps, 'canvasType'>) {
+  const t = useMessages();
+  const [altText, setAltText] = useShareAltText(imageText);
+  const captionAltText = useCaptionAltText(altText);
+  const [downloadState, setDownloadState] = useState<'idle' | 'capturing' | 'success'>('idle');
+  const [downloadError, setDownloadError] = useState<string | null>(null);
+  const [isSharing, setIsSharing] = useState(false);
+  const [shareSuccess, setShareSuccess] = useState(false);
+
+  const dlDropdown = usePortalDropdown();
+  const shareDropdown = usePortalDropdown();
+
+  const autoSaveStoreApi = useAutoSaveStoreApi();
+  const autoSaveStatus = useAutoSaveStore((s) => s.autoSaveStatus);
+  const { fileDelivery = browserFileDelivery, imageShares } = useCanvasEditorServices();
+  const shareRoute = fileDelivery.pickShareRoute();
+  const isMultiPage = pageCount > 1 && onDownloadAllZip;
+
+  const publishDraftIfNeeded = useCallback(async () => {
+    const token = shareToken || autoSaveStoreApi.getState().autoSavedShareToken;
+    if (token && imageShares) {
+      try {
+        await imageShares.publishShare(token);
+      } catch (err) {
+        console.warn('[DownloadShareSubsection] Failed to publish draft:', err);
+      }
+    }
+  }, [shareToken, autoSaveStoreApi, imageShares]);
+
+  // Remembers the last export attempt so a failed export can be retried
+  const lastExportOpRef = useRef<(() => Promise<void> | void) | null>(null);
+
+  const handleSingleDownload = async () => {
+    dlDropdown.setOpen(false);
+    lastExportOpRef.current = handleSingleDownload;
+    setDownloadError(null);
+    setDownloadState('capturing');
+    try {
+      onCaptureCanvas();
+      await new Promise((resolve) => setTimeout(resolve, 150));
+      await onDownload();
+      void publishDraftIfNeeded();
+      setDownloadState('success');
+      setTimeout(() => setDownloadState('idle'), 1500);
+    } catch (error) {
+      console.error('[DownloadShareSubsection] Download failed:', error);
+      setDownloadState('idle');
+      setDownloadError(downloadErrorMessage(error));
+    }
+  };
+
+  const handleDownloadAllZip = async () => {
+    dlDropdown.setOpen(false);
+    lastExportOpRef.current = handleDownloadAllZip;
+    if (onDownloadAllZip) {
+      await onDownloadAllZip();
+    }
+  };
+
+  const handleDownloadClick = async () => {
+    if (isMultiPage) {
+      dlDropdown.setOpen((prev) => !prev);
+    } else {
+      await handleSingleDownload();
+    }
+  };
+
+  const handleNativeShare = useCallback(async () => {
+    shareDropdown.setOpen(false);
+    const imageToShare = exportedImage || (await captureCanvasImage?.()) || null;
+    if (!imageToShare) return;
+
+    setIsSharing(true);
+    const fileName = `${fileDelivery.filenamePrefix ?? 'ggraphic'}.png`;
+    const title = fileDelivery.shareTitle ?? 'ggraphic';
+    try {
+      if (shareRoute === 'native-host') {
+        fileDelivery.shareDataUrlViaNativeHost(imageToShare, fileName, {
+          title,
+          text: withAltText(canvasText, captionAltText),
+        });
+      } else {
+        const blob = await (await fetch(imageToShare)).blob();
+        const file = new File([blob], fileName, { type: 'image/png' });
+
+        if (navigator.canShare?.({ files: [file] })) {
+          await navigator.share({
+            files: [file],
+            text: withAltText(canvasText, captionAltText),
+            title,
+          });
+        } else {
+          await navigator.share({
+            text: withAltText(canvasText, captionAltText),
+            title,
+          });
+        }
+      }
+      void publishDraftIfNeeded();
+      setShareSuccess(true);
+      setTimeout(() => setShareSuccess(false), 2000);
+    } catch (err) {
+      if ((err as Error).name !== 'AbortError') {
+        console.error('Share failed:', err);
+      }
+    } finally {
+      setIsSharing(false);
+    }
+  }, [
+    exportedImage,
+    canvasText,
+    captionAltText,
+    captureCanvasImage,
+    shareDropdown,
+    publishDraftIfNeeded,
+    shareRoute,
+    fileDelivery,
+  ]);
+
+  const handleShareAllPages = useCallback(async () => {
+    shareDropdown.setOpen(false);
+    if (!onShareAllPages) return;
+    setIsSharing(true);
+    try {
+      await onShareAllPages();
+      setShareSuccess(true);
+      setTimeout(() => setShareSuccess(false), 2000);
+    } catch (err) {
+      if ((err as Error).name !== 'AbortError') {
+        console.error('Share all pages failed:', err);
+      }
+    } finally {
+      setIsSharing(false);
+    }
+  }, [onShareAllPages, shareDropdown]);
+
+  const handleShareClick = useCallback(async () => {
+    if (isMultiPage && onShareAllPages) {
+      shareDropdown.setOpen((prev) => !prev);
+    } else {
+      await handleNativeShare();
+    }
+  }, [isMultiPage, onShareAllPages, shareDropdown, handleNativeShare]);
+
+  return (
+    <div className="flex flex-col gap-3">
+      <h3 className="text-sm font-semibold text-foreground m-0">{t.shell.downloadAndShare}</h3>
+
+      <div className="flex items-center gap-2">
+        <div className="relative">
+          <button
+            ref={dlDropdown.triggerRef}
+            className={iconBtn}
+            onClick={handleDownloadClick}
+            disabled={downloadState !== 'idle' && !isMultiPage}
+            title={t.shell.download}
+            aria-label={t.shell.downloadImage}
+            aria-haspopup={isMultiPage ? 'menu' : undefined}
+            aria-expanded={isMultiPage ? dlDropdown.open : undefined}
+            type="button"
+          >
+            {downloadState === 'capturing' ? (
+              <Skeleton className="size-4 rounded-full" />
+            ) : downloadState === 'success' ? (
+              <FaCheck />
+            ) : (
+              <FaDownload />
+            )}
+          </button>
+
+          {dlDropdown.open &&
+            isMultiPage &&
+            createPortal(
+              <div
+                ref={dlDropdown.menuRef}
+                className={dropdownMenu}
+                style={dlDropdown.style}
+                role="menu"
+              >
+                <button
+                  className={dropdownOption}
+                  onClick={handleSingleDownload}
+                  role="menuitem"
+                  type="button"
+                >
+                  <FaFileImage />
+                  <span>{t.shell.thisPagePng}</span>
+                </button>
+                <button
+                  className={dropdownOption}
+                  onClick={handleDownloadAllZip}
+                  disabled={isMultiExporting}
+                  role="menuitem"
+                  type="button"
+                >
+                  {isMultiExporting ? (
+                    <>
+                      <Skeleton className="size-4 rounded-full" />
+                      <span>{t.shell.exporting}</span>
+                    </>
+                  ) : (
+                    <>
+                      <FaFileArchive />
+                      <span>{t.shell.allPagesZip(pageCount)}</span>
+                    </>
+                  )}
+                </button>
+              </div>,
+              document.body
+            )}
+        </div>
+
+        {shareRoute !== null && (
+          <div className="relative">
+            <button
+              ref={shareDropdown.triggerRef}
+              className={iconBtn}
+              onClick={handleShareClick}
+              disabled={isSharing}
+              title={t.shell.share}
+              aria-label={t.shell.shareImage}
+              aria-haspopup={isMultiPage && onShareAllPages ? 'menu' : undefined}
+              aria-expanded={isMultiPage && onShareAllPages ? shareDropdown.open : undefined}
+              type="button"
+            >
+              {isSharing ? (
+                <Skeleton className="size-4 rounded-full" />
+              ) : shareSuccess ? (
+                <FaCheck />
+              ) : (
+                <IoShareOutline />
+              )}
+            </button>
+
+            {shareDropdown.open &&
+              isMultiPage &&
+              onShareAllPages &&
+              createPortal(
+                <div
+                  ref={shareDropdown.menuRef}
+                  className={dropdownMenu}
+                  style={shareDropdown.style}
+                  role="menu"
+                >
+                  <button
+                    className={dropdownOption}
+                    onClick={handleNativeShare}
+                    role="menuitem"
+                    type="button"
+                  >
+                    <IoShareOutline />
+                    <span>{t.shell.shareThisPage}</span>
+                  </button>
+                  <button
+                    className={dropdownOption}
+                    onClick={handleShareAllPages}
+                    disabled={isSharing}
+                    role="menuitem"
+                    type="button"
+                  >
+                    <FaImages />
+                    <span>{t.shell.shareAllPages}</span>
+                  </button>
+                </div>,
+                document.body
+              )}
+          </div>
+        )}
+      </div>
+
+      <AltTextField value={altText} onChange={setAltText} />
+
+      {isMultiExporting && exportProgress && exportProgress.total > 0 && (
+        <div className="relative w-full h-6 bg-editor-tile rounded-full overflow-hidden">
+          <div
+            className="absolute inset-y-0 left-0 bg-primary-600 rounded-full transition-[width] duration-300"
+            style={{ width: `${(exportProgress.current / exportProgress.total) * 100}%` }}
+          />
+          <span className="absolute inset-0 flex items-center justify-center text-xs font-medium text-foreground">
+            {t.shell.pagesProgress(exportProgress.current, exportProgress.total)}
+          </span>
+        </div>
+      )}
+
+      {downloadError && <DownloadNotice>{downloadError}</DownloadNotice>}
+
+      {exportNotice && <DownloadNotice tone="info">{exportNotice}</DownloadNotice>}
+
+      {exportError && !isMultiExporting && (
+        <DownloadNotice>
+          <span>{exportError}</span>
+          {lastExportOpRef.current && (
+            <button
+              className="bg-transparent border-none p-0 cursor-pointer text-sm font-medium text-primary-600 hover:underline"
+              onClick={() => void lastExportOpRef.current?.()}
+              type="button"
+            >
+              {t.shell.retry}
+            </button>
+          )}
+        </DownloadNotice>
+      )}
+
+      {downloadState === 'success' && autoSaveStatus === 'saving' && (
+        <div className="flex items-center gap-2 text-sm text-foreground-muted">
+          <Skeleton className="size-3 rounded-full" />
+          <span>{t.shell.syncing}</span>
+        </div>
+      )}
+
+      {downloadState === 'success' && autoSaveStatus === 'saved' && shareToken && (
+        <>
+          <div className="flex items-center gap-2 text-sm text-primary-600">
+            <IoCheckmarkOutline />
+            <span>{t.shell.savedToGallery}</span>
+          </div>
+          <button className={secondaryBtn} onClick={onNavigateToGallery} type="button">
+            <FaImages />
+            {t.shell.toGallery}
+          </button>
+        </>
+      )}
+
+      {autoSaveStatus === 'error' && (
+        <div className="flex items-center gap-2 text-sm text-red-600">
+          <span>{t.shell.saveError}</span>
+          <button
+            className="bg-transparent border-none p-0 cursor-pointer text-sm font-medium text-primary-600 hover:underline"
+            onClick={() => autoSaveStoreApi.getState().retryAutoSave?.()}
+            type="button"
+          >
+            {t.shell.retry}
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/**
+ * The template flow itself belongs to the host — it knows the document
+ * identity (canvas id) a template is snapshotted from, which this package
+ * deliberately does not. Rendered only when the host supplies the callback.
+ */
+function TemplateSubsection({ onSaveAsTemplate }: { onSaveAsTemplate: () => void }) {
+  const t = useMessages();
+  return (
+    <div className="flex flex-col gap-3">
+      <h3 className="text-sm font-semibold text-foreground m-0">{t.shell.template}</h3>
+
+      <p className="m-0 text-xs text-foreground-muted">{t.shell.templateHint}</p>
+
+      <button className={primaryBtn} onClick={onSaveAsTemplate} type="button">
+        <FaSave /> {t.shell.saveAsTemplate}
+      </button>
+    </div>
+  );
+}
+
+export function GenericShareSection({
+  exportedImage,
+  shareToken,
+  onCaptureCanvas,
+  captureCanvasImage,
+  onDownload,
+  onNavigateToGallery,
+  canvasText,
+  imageText,
+  pageCount,
+  onDownloadAllZip,
+  onShareAllPages,
+  isMultiExporting,
+  exportProgress,
+  exportError,
+  exportNotice,
+  onSaveAsTemplate,
+}: GenericShareSectionProps) {
+  const t = useMessages();
+  const subsections = useMemo(
+    () => [
+      {
+        id: 'download',
+        icon: FaDownload,
+        label: t.shell.downloadTab,
+        content: (
+          <DownloadShareSubsection
+            exportedImage={exportedImage}
+            shareToken={shareToken}
+            onCaptureCanvas={onCaptureCanvas}
+            captureCanvasImage={captureCanvasImage}
+            onDownload={onDownload}
+            onNavigateToGallery={onNavigateToGallery}
+            canvasText={canvasText}
+            imageText={imageText}
+            pageCount={pageCount}
+            onDownloadAllZip={onDownloadAllZip}
+            onShareAllPages={onShareAllPages}
+            isMultiExporting={isMultiExporting}
+            exportProgress={exportProgress}
+            exportError={exportError}
+            exportNotice={exportNotice}
+          />
+        ),
+      },
+      ...(onSaveAsTemplate
+        ? [
+            {
+              id: 'template',
+              icon: FaSave,
+              label: t.shell.template,
+              content: <TemplateSubsection onSaveAsTemplate={onSaveAsTemplate} />,
+            },
+          ]
+        : []),
+    ],
+    [
+      exportedImage,
+      shareToken,
+      onCaptureCanvas,
+      captureCanvasImage,
+      onDownload,
+      onNavigateToGallery,
+      canvasText,
+      imageText,
+      pageCount,
+      onDownloadAllZip,
+      onShareAllPages,
+      isMultiExporting,
+      exportProgress,
+      exportError,
+      exportNotice,
+      onSaveAsTemplate,
+      t,
+    ]
+  );
+
+  return <SubsectionTabBar subsections={subsections} defaultSubsection="download" />;
+}

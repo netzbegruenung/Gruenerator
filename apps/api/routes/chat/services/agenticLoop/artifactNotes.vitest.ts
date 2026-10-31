@@ -138,6 +138,21 @@ describe('buildArtifactNotes', () => {
     expect(notes).toContain('Geprüft wurde die neue Fassung NICHT');
   });
 
+  it('nennt ein Canvas-Deck eine Präsentation', () => {
+    const { notes } = buildArtifactNotes(
+      makeState({
+        createdDocument: {
+          documentId: 'c1',
+          title: 'Radwege',
+          subtype: 'canvas',
+          url: '/studio/canvas/c1',
+        },
+      }),
+      { artifactToolMounted: true }
+    );
+    expect(notes).toContain('eine Präsentation ("Radwege")');
+  });
+
   it('bestätigt eine ausgeführte Tabellen-Änderung und verbietet die Absage (Live-Test 11.10.2026)', () => {
     const { notes } = buildArtifactNotes(
       makeState({

@@ -13,6 +13,7 @@
  * (locally or remotely) never silently retargets the selection.
  */
 
+import { migrateDocument, type DocumentRefusal } from '@ggraphic/schema';
 import { useState, useCallback, useMemo, useRef, useEffect } from 'react';
 import { v4 as uuid } from 'uuid';
 import * as Y from 'yjs';
@@ -22,11 +23,11 @@ import { extractInheritablePageState } from '@ggraphic/editor/configs/pageInheri
 import { messages } from '@ggraphic/editor/i18n/messages';
 import { getTemplate, type TemplateId } from '@ggraphic/editor/templates/registry';
 
-import { HOST_EMITTED_STATE_KEYS } from '../collab/pageElementStateKeys';
-import { useYjsPages, type NormalizeEcho, type YjsPagesApi } from '../collab/useYjsPages';
-import { loadCanvasConfig } from '../configs/configLoader';
+import { hostEmittedStateKeys } from '../collab/pageElementStateKeys.js';
+import { useYjsPages, type NormalizeEcho, type YjsPagesApi } from '../collab/useYjsPages.js';
+import { loadCanvasConfig } from '../configs/configLoader.js';
 
-import type { HeterogeneousPage, FullCanvasConfig } from '../configs/types';
+import type { HeterogeneousPage, FullCanvasConfig } from '../configs/types.js';
 
 /** Pre-populated page definition for initializing multi-page with content */
 export interface InitialPageDef<TId extends string = TemplateId> {
@@ -63,6 +64,24 @@ export function parseInitialPages(raw: unknown): InitialPageDef[] | undefined {
     });
   }
   return pages.length > 0 ? pages : undefined;
+}
+
+/**
+ * A stored initial document (a host's saved canvas state: `{ pages, … }`,
+ * optionally versioned) read through `migrateDocument` into seed pages. A
+ * document from a newer build, or a malformed envelope, comes back as a
+ * refusal and no pages: the host opens it read-only, and nothing is seeded
+ * from it.
+ */
+export function readInitialDocument(raw: unknown): {
+  pages: InitialPageDef[] | null;
+  refusal: DocumentRefusal | null;
+} {
+  const result = migrateDocument(raw);
+  if (result.status === 'newer' || result.status === 'invalid') {
+    return { pages: null, refusal: result };
+  }
+  return { pages: parseInitialPages(result.document.pages) ?? null, refusal: null };
 }
 
 export interface UsePageManagerOptions<TId extends string = TemplateId> {
@@ -136,8 +155,15 @@ export interface UsePageManagerReturn<TId extends string = TemplateId> {
   replaceDeck: YjsPagesApi['replaceDeck'] | null;
   canUndoPageOp: boolean;
   canRedoPageOp: boolean;
+  /** Stamps of the page ops Undo/Redo would reach, see `YjsPagesApi['pageOpStamps']`. */
+  pageOpStamps: YjsPagesApi['pageOpStamps'];
   /** Pages come from the initial state or the unsynced cache: show them, edit nothing. */
   isPreview: boolean;
+  /**
+   * The doc carries a newer document version (or a malformed stamp): it is
+   * shown as a preview and this build writes nothing to it.
+   */
+  schemaRefusal: DocumentRefusal | null;
 }
 
 /**
@@ -158,6 +184,8 @@ export function nextPageIdAfterRemoval(
   const fallbackIndex = Math.min(Math.max(removedIndex, 0), survivors.length - 1);
   return survivors[fallbackIndex].id;
 }
+
+const noPageOpStamps: YjsPagesApi['pageOpStamps'] = () => ({ undo: null, redo: null });
 
 export function usePageManager<TId extends string = TemplateId>({
   initialConfigId,
@@ -194,14 +222,16 @@ export function usePageManager<TId extends string = TemplateId>({
     if (!config) return null;
     const rebuilt = config.createInitialState(state) as Record<string, unknown>;
     return Object.fromEntries(
-      HOST_EMITTED_STATE_KEYS.filter((key) => Object.hasOwn(rebuilt, key)).map((key) => [
-        key,
-        rebuilt[key],
-      ])
+      hostEmittedStateKeys()
+        .filter((key) => Object.hasOwn(rebuilt, key))
+        .map((key) => [key, rebuilt[key]])
     );
   }, []);
 
-  const yjsPages = useYjsPages(ydoc, isSynced, normalizeEcho);
+  const docPagesApi = useYjsPages(ydoc, isSynced, normalizeEcho);
+  // A doc this build must not write is previewed like the unsynced cache.
+  const schemaRefusal = docPagesApi?.schemaRefusal ?? null;
+  const yjsPages = schemaRefusal ? null : docPagesApi;
 
   // seedIfEmpty early-returns once pages exist (or the doc carries the
   // server-seed watermark), so re-runs from changing initialProps identity
@@ -224,12 +254,13 @@ export function usePageManager<TId extends string = TemplateId>({
   // that here so memo'd PageWrappers only re-render for pages that changed.
   const pageCacheRef = useRef(new Map<string, { view: unknown; page: HeterogeneousPage<TId> }>());
   const prevPagesRef = useRef<HeterogeneousPage<TId>[]>([]);
-  const cachedViews = useMemo(
-    () => (!yjsPages && collaborative?.isLocalLoaded ? readPages(ydoc) : []),
-    [yjsPages, collaborative?.isLocalLoaded, ydoc]
-  );
+  const cachedViews = useMemo(() => {
+    if (schemaRefusal && docPagesApi) return docPagesApi.pages;
+    return !yjsPages && collaborative?.isLocalLoaded ? readPages(ydoc) : [];
+  }, [yjsPages, docPagesApi, schemaRefusal, collaborative?.isLocalLoaded, ydoc]);
   const isPreview =
-    !yjsPages && (collaborative?.previewBeforeSync === true || cachedViews.length > 0);
+    !yjsPages &&
+    (collaborative?.previewBeforeSync === true || cachedViews.length > 0 || schemaRefusal !== null);
   const previewPages = useMemo((): HeterogeneousPage<TId>[] => {
     if (!isPreview) return [];
     if (cachedViews.length > 0) {
@@ -443,10 +474,12 @@ export function usePageManager<TId extends string = TemplateId>({
 
   const getPageYMap = useCallback(
     (index: number): Y.Map<unknown> | null => {
+      // A refused doc's pages are never bound: a mounted binding would write their config.
+      if (schemaRefusal) return null;
       const view = yjsPages ? yjsPages.pages[index] : cachedViews[index];
       return view ? view.yMap : null;
     },
-    [yjsPages, cachedViews]
+    [yjsPages, cachedViews, schemaRefusal]
   );
 
   const currentPage = useMemo(() => pages[currentPageIndex], [pages, currentPageIndex]);
@@ -469,6 +502,7 @@ export function usePageManager<TId extends string = TemplateId>({
   const replaceDeck = yjsPages?.replaceDeck ?? null;
   const canUndoPageOp = yjsPages?.canUndoPageOp ?? false;
   const canRedoPageOp = yjsPages?.canRedoPageOp ?? false;
+  const pageOpStamps = yjsPages?.pageOpStamps ?? noPageOpStamps;
 
   return {
     pages,
@@ -495,6 +529,8 @@ export function usePageManager<TId extends string = TemplateId>({
     replaceDeck,
     canUndoPageOp,
     canRedoPageOp,
+    pageOpStamps,
     isPreview,
+    schemaRefusal,
   };
 }

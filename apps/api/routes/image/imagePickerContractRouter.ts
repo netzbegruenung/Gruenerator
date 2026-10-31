@@ -24,10 +24,10 @@ import { createExpressEndpoints, initServer } from '@ts-rest/express';
 
 import ImageSelectionService from '../../services/image/ImageSelectionService.js';
 import { enhanceWithAttribution } from '../../services/image/index.js';
+import { getUnsplashService } from '../../services/unsplash/UnsplashApiService.js';
 import { logContractValidationError } from '../../utils/contractValidationLogger.js';
 import { toUserFacingMessage } from '../../utils/errors/index.js';
 import { createLogger } from '../../utils/logger.js';
-import { safeFetch } from '../../utils/validation/urlSecurity.js';
 
 import type { Application } from 'express';
 
@@ -267,7 +267,9 @@ export const imagePickerContractRouter = s.router(imagePickerContract, {
 
       if (downloadLocation) {
         try {
-          await safeFetch(downloadLocation, {}, { allowedHosts: ['api.unsplash.com'] });
+          // Unsplash only counts a download sent with our Client-ID; the service
+          // adds it and refuses any URL but Unsplash's own download endpoint.
+          await getUnsplashService().trackDownload(downloadLocation);
           log.debug(`[imagePickerContract] Download tracked for ${filename}`);
         } catch (error) {
           log.warn(`[imagePickerContract] Failed to track download for ${filename}:`, error);

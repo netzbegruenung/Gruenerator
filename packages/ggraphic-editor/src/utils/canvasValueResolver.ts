@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MPL-2.0
-import type { LayoutResult } from '../configs/types';
+import type { LayoutResult } from '../configs/types.js';
 
 /**
  * Resolves a value that can be either static or a function

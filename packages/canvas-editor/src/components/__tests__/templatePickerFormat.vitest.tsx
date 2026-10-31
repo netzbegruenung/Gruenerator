@@ -32,13 +32,13 @@ describe('template picker by document format', () => {
     ['replace', 'print-a3-hoch'],
   ] as const)('offers only the free page (%s, %s)', (mode, formatId) => {
     picker(mode, formatId);
-    expect(screen.getByRole('button', { name: /Freies Design/ })).toBeTruthy();
+    expect(screen.getByRole('button', { name: /Leere Seite/ })).toBeTruthy();
     expect(screen.queryByRole('button', { name: /3 Zeilen|Zitat|Info|Event/ })).toBeNull();
   });
 
   it('offers the free page on a print format, never an empty list', () => {
     picker('add', 'print-visitenkarte-hoch');
-    expect(screen.getByRole('button', { name: /Freies Design/ })).toBeTruthy();
+    expect(screen.getByRole('button', { name: /Leere Seite/ })).toBeTruthy();
     expect(screen.queryByText(/keine weiteren Vorlagen/)).toBeNull();
   });
 

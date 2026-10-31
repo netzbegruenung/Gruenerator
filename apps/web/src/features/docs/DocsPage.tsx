@@ -519,8 +519,8 @@ export function DocumentsContent({
 
   // Composer → AI-generate the detected kind. Docs/boards have dedicated
   // one-shot generators (useGenerateDocument / boards.generate); sheets and
-  // presentations use the direct /api/{sheets,presentations}/generate endpoints
-  // (Y.Doc seeded server-side, so the editor opens fully populated).
+  // sheets use /api/sheets/generate (Y.Doc seeded server-side), presentations
+  // /api/canvas/generate-deck (a seeded canvas deck).
   const handleComposerCreate = useCallback(
     async (kind: DocKind, prompt: string) => {
       const description = prompt.trim();
@@ -549,10 +549,13 @@ export function DocumentsContent({
             throw new ApiError(res.status, `Sheet generation failed (${res.status})`);
           void navigate(`/office/${res.body.id}`);
         } else {
-          const res = await getContractsClient().presentations.generate({ body: { description } });
+          // Canvas deck (CD layouts), not a reveal deck: opens in the studio.
+          const res = await getContractsClient().canvas.generateDeck({
+            body: { prompt: description },
+          });
           if (res.status !== 201)
             throw new ApiError(res.status, `Presentation generation failed (${res.status})`);
-          void navigate(`/office/${res.body.id}`);
+          void navigate(`/studio/canvas/${res.body.id}`);
         }
       } catch (err) {
         console.error('Composer create failed:', err);

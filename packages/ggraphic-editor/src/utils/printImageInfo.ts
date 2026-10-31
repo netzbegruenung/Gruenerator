@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MPL-2.0
-import { type PrintImageInfo } from '../primitives/CanvasStage';
+import { type PrintImageInfo } from '../primitives/CanvasStage.js';
 
 import type Konva from 'konva';
 

@@ -10,6 +10,7 @@ import { announcesPendingWork } from '../routes/chat/services/outputSanity.js';
 import { refusalLanguage } from '../routes/chat/services/refusalDetection.js';
 import { DOCS_PAGES } from '../services/docs/docsIndex.generated.js';
 
+import { LATENZ_HARTE_GRENZE_FAKTOR, stufeOf } from './ampel.js';
 import {
   type AssertionResult,
   type ChatTrace,
@@ -236,11 +237,87 @@ function bareCitationNumbers(text: string, citeNums: Set<number>): number[] {
   return bare;
 }
 
+const PLPR_REF_RE = /^PlPr \d{1,2}\/\d{1,4} S\. \d+-\d+$/;
+
+function normalizeRefText(text: string): string {
+  return text
+    .replace(/[\u2010-\u2015\u2212]/g, '-')
+    .replace(/Plenarprotokoll\s+(\d+\/\d+),?\s*S\.?\s*/g, 'PlPr $1 S. ')
+    .replace(/\s+/g, ' ');
+}
+
+/**
+ * Refs, die `parlament_lesen` bekommen hat, ohne vorher in einer Werkzeugausgabe
+ * gestanden zu haben. Verglichen wird normalisiert: ohne „BT-Drs."-Präfix,
+ * Gedankenstriche als Bindestrich, „Plenarprotokoll 21/96, S. 1-2" als
+ * `PlPr`-Form. Eine Drucksachen-Ref zählt nicht, wenn sie nur als Teil einer
+ * Protokollnummer („Plenarprotokoll 21/96") auftaucht.
+ *
+ * Was die Person selbst geschrieben hat (`userPrompts`), zählt ebenfalls als
+ * Herkunft: „was steht in 21/1928?" darf `parlament_lesen` mit 21/1928 rufen.
+ *
+ * Gelesen wird das ROHE Ergebnis aus dem SSE (`tool_step_result.result`): das
+ * Kürzen für das Modell (`resultForModel`) passiert erst danach, im Trace fehlt
+ * also nichts, was das Modell sah.
+ */
+export function inventedParlamentRefs(
+  trace: ChatTrace,
+  priorResults: Record<string, unknown>[] = [],
+  userPrompts: string[] = []
+): string[] {
+  const invented: string[] = [];
+  // Eine Nummer, die die Person selbst nennt, ist keine erfundene Ref.
+  const seen: string[] = [...userPrompts, ...priorResults.map((r) => JSON.stringify(r))];
+  for (const call of trace.toolCalls) {
+    if (call.toolName === 'parlament_lesen') {
+      const refs = Array.isArray(call.args.dokumente) ? call.args.dokumente : [];
+      const hay = normalizeRefText(seen.join(' '));
+      const hayDrs = hay.replace(/(?:PlPr|Plenarprotokoll)\s+\d+\/\d+(?: S\. \d+-\d+)?/g, ' ');
+      for (const raw of refs) {
+        const ref = normalizeRefText(String(raw).replace(/^\s*BT-Drs\.?\s*/i, '')).trim();
+        const escaped = ref.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        const found = PLPR_REF_RE.test(ref)
+          ? new RegExp(`(?<![\\w/])${escaped}(?!\\d)`).test(hay)
+          : new RegExp(`(?<![\\d/])${escaped}(?![\\d/])`).test(hayDrs);
+        if (!found) invented.push(String(raw));
+      }
+    }
+    if (call.result) seen.push(JSON.stringify(call.result));
+  }
+  return invented;
+}
+
 function fail(name: string, detail: string): AssertionResult {
-  return { name, pass: false, detail };
+  return { name, pass: false, detail, stufe: stufeOf(name) };
 }
 function ok(name: string, detail = ''): AssertionResult {
-  return { name, pass: true, detail };
+  return { name, pass: true, detail, stufe: stufeOf(name) };
+}
+
+/** Regex aus einer Korpuszeile, ohne Beachtung der Schreibweise; `null` bei ungültiger Quelle. */
+function safeRegex(source: string): RegExp | null {
+  try {
+    return new RegExp(source, 'i');
+  } catch {
+    return null;
+  }
+}
+
+/** Werte unter einem Punktpfad als Strings; Arrays werden durchlaufen. */
+export function argValues(args: Record<string, unknown>, path: string): string[] {
+  let level: unknown[] = [args];
+  for (const key of path.split('.')) {
+    level = level.flatMap((v) => {
+      const next: unknown =
+        v != null && typeof v === 'object' ? (v as Record<string, unknown>)[key] : null;
+      return Array.isArray(next) ? (next as unknown[]) : [next];
+    });
+  }
+  return level.flatMap((v) =>
+    v == null
+      ? []
+      : [typeof v === 'string' ? v : typeof v === 'object' ? JSON.stringify(v) : String(v)]
+  );
 }
 
 export function runAssertions(
@@ -370,6 +447,18 @@ export function runAssertions(
     );
   }
 
+  if (expect.ersterAufruf) {
+    const erster = toolNames[0];
+    results.push(
+      erster != null && expect.ersterAufruf.includes(erster)
+        ? ok('ersterAufruf')
+        : fail(
+            'ersterAufruf',
+            `first call ${erster ?? '(none)'}; expected ${expect.ersterAufruf.join('|')}`
+          )
+    );
+  }
+
   if (expect.toolNameMatches != null) {
     const re = new RegExp(expect.toolNameMatches);
     results.push(
@@ -495,6 +584,19 @@ export function runAssertions(
       badScrape.length === 0
         ? ok('noInventedUrls')
         : fail('noInventedUrls', `${badScrape.length} scrape_url call(s) failed (404/invented)`)
+    );
+  }
+
+  if (expect.keineErfundeneRef) {
+    const calls = trace.toolCalls.filter((t) => t.toolName === 'parlament_lesen');
+    const invented = inventedParlamentRefs(trace, ctx?.priorToolResults, ctx?.userPrompts);
+    results.push(
+      invented.length === 0
+        ? ok('keineErfundeneRef', calls.length === 0 ? 'parlament_lesen nicht aufgerufen' : '')
+        : fail(
+            'keineErfundeneRef',
+            `parlament_lesen mit Ref(s), die in keiner Werkzeugausgabe standen: ${invented.join(', ')}`
+          )
     );
   }
 
@@ -681,6 +783,80 @@ export function runAssertions(
     );
   }
 
+  for (const source of expect.answerMustContain ?? []) {
+    const re = safeRegex(source);
+    const name = `answerMustContain:${source}`;
+    if (!re) {
+      results.push(fail(name, 'invalid regular expression'));
+      continue;
+    }
+    results.push(
+      re.test(`${trace.fullText}\n${producedContent(trace)}`)
+        ? ok(name)
+        : fail(name, 'required passage missing from the answer')
+    );
+  }
+
+  for (const source of expect.answerShouldContain ?? []) {
+    const re = safeRegex(source);
+    const name = `answerShouldContain:${source}`;
+    if (!re) {
+      results.push(fail(name, 'invalid regular expression'));
+      continue;
+    }
+    results.push(
+      re.test(`${trace.fullText}\n${producedContent(trace)}`)
+        ? ok(name)
+        : fail(name, 'expected passage missing from the answer')
+    );
+  }
+
+  for (const { tool, feld, muster } of expect.toolArgsMatch ?? []) {
+    const re = safeRegex(muster);
+    const name = `toolArgsMatch:${tool}.${feld}`;
+    if (!re) {
+      results.push(fail(name, `invalid regular expression: ${muster}`));
+      continue;
+    }
+    const calls = trace.toolCalls.filter((t) => t.toolName === tool);
+    const values = calls.flatMap((c) => argValues(c.args, feld));
+    if (calls.length === 0) {
+      results.push(fail(name, `${tool} was not called`));
+    } else if (values.some((v) => re.test(v))) {
+      results.push(ok(name));
+    } else {
+      results.push(
+        fail(
+          name,
+          values.length === 0
+            ? `no ${feld} argument on ${calls.length} call(s)`
+            : `${feld} = ${values.map((v) => JSON.stringify(v)).join(', ')} does not match /${muster}/`
+        )
+      );
+    }
+  }
+
+  for (const { tool, feld, muster } of expect.toolArgsMustNotMatch ?? []) {
+    const re = safeRegex(muster);
+    const name = `toolArgsMustNotMatch:${tool}.${feld}`;
+    if (!re) {
+      results.push(fail(name, `invalid regular expression: ${muster}`));
+      continue;
+    }
+    const treffer = trace.toolCalls
+      .filter((t) => t.toolName === tool)
+      .flatMap((c) => argValues(c.args, feld))
+      .filter((v) => re.test(v));
+    results.push(
+      treffer.length === 0
+        ? ok(name)
+        : fail(
+            name,
+            `${feld} = ${treffer.map((v) => JSON.stringify(v)).join(', ')} matches /${muster}/`
+          )
+    );
+  }
+
   if (expect.retainsPriorSources) {
     // Either this turn surfaced sources itself, or an earlier turn did and the
     // answer must not deny having them.
@@ -703,11 +879,15 @@ export function runAssertions(
   }
 
   if (expect.maxLatencyMs != null) {
-    results.push(
-      trace.latencyMs <= expect.maxLatencyMs
-        ? ok('latency', `${trace.latencyMs}ms`)
-        : fail('latency', `${trace.latencyMs}ms > ${expect.maxLatencyMs}ms`)
-    );
+    // Zweistufig: `maxLatencyMs` ist das Soll (gelb), die doppelte Zeit die harte Grenze (rot).
+    const hard = expect.maxLatencyMs * LATENZ_HARTE_GRENZE_FAKTOR;
+    if (trace.latencyMs > hard) {
+      results.push(fail('latencyHard', `${trace.latencyMs}ms > ${hard}ms (2× Soll)`));
+    } else if (trace.latencyMs > expect.maxLatencyMs) {
+      results.push(fail('latency', `${trace.latencyMs}ms > ${expect.maxLatencyMs}ms (Soll)`));
+    } else {
+      results.push(ok('latency', `${trace.latencyMs}ms`));
+    }
   }
 
   return results;

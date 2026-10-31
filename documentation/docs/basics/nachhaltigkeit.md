@@ -23,7 +23,7 @@ Für KI-Anfragen arbeiten wir mit europäischen Anbietern. Sie verarbeiten die j
 
 ## Wir messen, statt nur zu behaupten
 
-Wo Anbieter die Umweltwirkung einer Anfrage direkt zurückmelden, übernehmen wir diese Werte. Das gilt für GreenPT und teilweise für Melious: GreenPT liefert Energieverbrauch und CO₂-Emissionen zu jeder Antwort, Melious nur zu nicht gestreamten Anfragen. Für gestreamte Chat-Antworten über Melious schätzen wir den Verbrauch mit einem Faktor, den wir aus Melious’ eigenen Messwerten abgeleitet haben.
+Wo Anbieter die Umweltwirkung einer Anfrage direkt zurückmelden, übernehmen wir diese Werte. Das gilt für GreenPT und Melious: Beide liefern Energieverbrauch und CO₂-Emissionen zu jeder Antwort, Melious seit Oktober 2026 auch zu gestreamten Chat-Antworten. Meldet Melious für einen Aufruf keinen Wert, schätzen wir den Verbrauch mit einem Faktor, den wir aus Melious’ eigenen Messwerten abgeleitet haben.
 
 Für Anfragen ohne solche Messwerte schätzen wir den Verbrauch anhand der tatsächlich erzeugten und eingelesenen Tokens. Die verwendeten Faktoren beruhen auf eigenen Messreihen vergleichbarer KI-Systeme. Standort, Rechenzentrum und technische Auslastung können wir dabei nicht immer vollständig sehen. Deshalb behandeln wir Schätzungen als Schätzungen und zeigen Unsicherheit nicht als Scheingenauigkeit.
 

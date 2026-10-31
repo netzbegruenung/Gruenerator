@@ -150,14 +150,16 @@ export function fakeLoopStreamText(options: {
   tools?: ToolSet;
   prepareStep?: (arg: {
     stepNumber: number;
-  }) => { toolChoice?: unknown; activeTools?: readonly string[] } | undefined;
+  }) => { toolChoice?: unknown; activeTools?: readonly string[]; system?: string } | undefined;
 }): { stream: AsyncIterable<ScriptedPart> } {
   const callIndex = loopScript.calls.length;
   const tools = options.tools ?? {};
   const firstStep = options.prepareStep?.({ stepNumber: 0 });
   loopScript.calls.push({
     modelId: modelIdOf(options.model),
-    system: options.system ?? '',
+    // Was der erste Schritt WIRKLICH sieht: `prepareStep` legt die Rezept-
+    // Registry (Methoden, `rezept_laden`, Agent-Default) auf den Basistext.
+    system: firstStep?.system ?? options.system ?? '',
     toolNames: Object.keys(tools),
     toolChoice: firstStep?.toolChoice ?? null,
     firstStepActiveTools: firstStep?.activeTools ?? null,

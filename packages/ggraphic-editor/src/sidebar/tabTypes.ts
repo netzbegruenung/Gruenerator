@@ -11,7 +11,7 @@ import type { IconType } from 'react-icons';
  *
  * Legacy tabs (template-specific, being migrated):
  * - 'assets': Elements section (→ 'elements')
- * - 'position': Dreizeilen-specific balken controls
+ * - 'position': template-specific position controls
  * - 'fontsize': Deprecated - merged into 'text'
  */
 export type CoreSidebarTabId =
@@ -49,8 +49,4 @@ export interface SidebarTab {
   ariaLabel: string;
 }
 
-export interface BackgroundColorOption {
-  id: string;
-  label: string;
-  color: string;
-}
+export { type BackgroundColorOption } from '@ggraphic/core';

@@ -75,6 +75,8 @@ const CACHE_NS = 'bt:v2';
 export const CURRENT_WAHLPERIODE = 21;
 
 const SPEECH_EXCERPT_MAX = 600; // full speeches run 3–4k chars each
+/** Voreinstellung für `searchSpeechesFull`; der Aufrufer setzt die Kappe meist selbst (`redeTextCap`). */
+const SPEECH_FULL_MAX = 4000;
 const ABSTRACT_MAX = 400;
 
 /**
@@ -122,6 +124,14 @@ export const SUBSTANTIVE_ENTITY_TYPES = [
 export interface BtListResult<T> {
   items: T[];
   wpFallback: boolean;
+}
+
+export interface SemanticSearchOpts {
+  query: string;
+  wahlperiode?: number;
+  limit?: number;
+  sort?: BtSort;
+  entityTypes?: readonly string[];
 }
 
 const btListResultSchema = <T extends z.ZodTypeAny>(item: T) =>
@@ -177,7 +187,10 @@ function mapDrucksache(raw: z.infer<typeof rawDrucksacheSchema>): BtDrucksache |
   };
 }
 
-function mapSpeech(raw: z.infer<typeof rawSpeechSchema>): BtSpeech | null {
+function mapSpeech(
+  raw: z.infer<typeof rawSpeechSchema>,
+  maxChars: number = SPEECH_EXCERPT_MAX
+): BtSpeech | null {
   const text = raw.text?.trim();
   const speaker = raw.speaker?.trim();
   if (!text || !speaker) return null;
@@ -185,7 +198,7 @@ function mapSpeech(raw: z.infer<typeof rawSpeechSchema>): BtSpeech | null {
     speaker,
     party: raw.speakerParty ?? null,
     date: raw.datum ?? null,
-    excerpt: cleanDipText(text, SPEECH_EXCERPT_MAX),
+    excerpt: cleanDipText(text, maxChars),
     protokollNummer: raw.dokumentnummer ?? null,
     wahlperiode: pickLatestWahlperiode(raw.wahlperiode),
     herausgeber: raw.herausgeber ?? null,
@@ -473,29 +486,48 @@ class BundestagMCPClient {
     produce: () => Promise<BtListResult<z.infer<S>>>
   ): Promise<BtListResult<z.infer<S>>> {
     try {
-      const hit = await getCachedJson(key, btListResultSchema(itemSchema));
-      if (hit !== null) return hit;
-      const fresh = await produce();
-      await setCachedJson(key, fresh, CACHE_TTL_SECONDS);
-      return fresh;
+      return await this.cachedList(key, itemSchema, produce);
     } catch (error) {
       log.warn(`${key} failed: ${toError(error).message}`);
       return { items: [], wpFallback: false };
     }
   }
 
-  /** Vector search over DIP metadata (Vorgänge, Drucksachen, …). */
-  async semanticSearch(opts: {
-    query: string;
-    wahlperiode?: number;
-    limit?: number;
-    sort?: BtSort;
-    entityTypes?: readonly string[];
-  }): Promise<BtListResult<BtSemanticHit>> {
+  /**
+   * Cache-aside that lets a failed producer THROW. A Redis hiccup is a cache
+   * miss, not an outage — otherwise it would read as "MCP nicht erreichbar".
+   */
+  private async cachedList<S extends z.ZodTypeAny>(
+    key: string,
+    itemSchema: S,
+    produce: () => Promise<BtListResult<z.infer<S>>>
+  ): Promise<BtListResult<z.infer<S>>> {
+    const hit = await getCachedJson(key, btListResultSchema(itemSchema)).catch(() => null);
+    if (hit !== null) return hit;
+    const fresh = await produce();
+    await setCachedJson(key, fresh, CACHE_TTL_SECONDS).catch(() => undefined);
+    return fresh;
+  }
+
+  /** Vector search over DIP metadata (Vorgänge, Drucksachen, …). Never throws. */
+  async semanticSearch(opts: SemanticSearchOpts): Promise<BtListResult<BtSemanticHit>> {
+    try {
+      return await this.semanticSearchOrThrow(opts);
+    } catch (error) {
+      log.warn(`semanticSearch failed: ${toError(error).message}`);
+      return { items: [], wpFallback: false };
+    }
+  }
+
+  /**
+   * Like `semanticSearch`, but an outage throws instead of looking like "no
+   * hits" — for callers that tell the user „nicht erreichbar" (Bundestag-Q&A).
+   */
+  async semanticSearchOrThrow(opts: SemanticSearchOpts): Promise<BtListResult<BtSemanticHit>> {
     const { query, wahlperiode, limit = 6, sort, entityTypes } = opts;
     const typeKey = entityTypes?.length ? entityTypes.join(',') : 'all';
     const key = `${CACHE_NS}:sem:${query.toLowerCase()}:${wahlperiode ?? 'cur'}:${limit}:${sort ?? 'rel'}:${typeKey}`;
-    return this.safeList(key, btSemanticHitSchema, () =>
+    return this.cachedList(key, btSemanticHitSchema, () =>
       this.withWpFallback(
         (wp) =>
           this.fetchTrimmed(
@@ -533,11 +565,78 @@ class BundestagMCPClient {
             'bundestag_search_speeches',
             { query, speaker, speakerParty, wahlperiode: wp, limit, sort },
             rawSpeechSchema,
-            mapSpeech
+            (raw) => mapSpeech(raw)
           ),
         wahlperiode
       )
     );
+  }
+
+  /**
+   * Redensuche für `bundestag_reden`: voller Redetext (`fields: 'full'`, bei
+   * {@link SPEECH_FULL_MAX} gekappt) und Zeitraum. Wirft bei Ausfall. Mit Zeitraum gilt keine
+   * angenommene Wahlperiode — „2024" liegt in WP 20, und der Rückfall auf alle
+   * Perioden käme erst nach einem leeren ersten Lauf.
+   */
+  async searchSpeechesFull(opts: {
+    query: string;
+    speaker?: string;
+    speakerParty?: string;
+    wahlperiode?: number;
+    dateFrom?: string;
+    dateTo?: string;
+    limit?: number;
+    sort?: BtSort;
+    /** Harter Filter des MCP auf dem Redetext (nach der Suche); für die Wortlautsuche. */
+    requiredKeywords?: string[];
+    /** Kappe je Redetext; Voreinstellung {@link SPEECH_FULL_MAX}. */
+    maxChars?: number;
+  }): Promise<BtListResult<BtSpeech>> {
+    const {
+      query,
+      speaker,
+      speakerParty,
+      wahlperiode,
+      dateFrom,
+      dateTo,
+      limit = 5,
+      sort,
+      requiredKeywords,
+      maxChars = SPEECH_FULL_MAX,
+    } = opts;
+    const required = requiredKeywords?.length
+      ? `:req=${requiredKeywords.join('|').toLowerCase()}`
+      : '';
+    const key = `${CACHE_NS}:speechfull:${query.toLowerCase()}:${speaker?.toLowerCase() ?? ''}:${speakerParty ?? ''}:${wahlperiode ?? 'cur'}:${dateFrom ?? ''}:${dateTo ?? ''}:${limit}:${sort ?? 'rel'}:${maxChars}${required}`;
+    const fetchAt = (wp: number | undefined) =>
+      this.fetchTrimmed(
+        'bundestag_search_speeches',
+        {
+          query,
+          speaker,
+          speakerParty,
+          wahlperiode: wp,
+          dateFrom,
+          dateTo,
+          limit,
+          sort,
+          ...(requiredKeywords?.length ? { requiredKeywords } : {}),
+          fields: 'full',
+        },
+        rawSpeechSchema,
+        (raw) => mapSpeech(raw, maxChars)
+      );
+    // Anders als `safeList` wirft ein Ausfall hier: das Werkzeug soll „nicht
+    // erreichbar" sagen können statt „keine Reden gefunden".
+    const schema = btListResultSchema(btSpeechSchema);
+    const hit = await getCachedJson(key, schema).catch(() => null);
+    if (hit !== null) return hit;
+    const fresh =
+      dateFrom || dateTo
+        ? { items: await fetchAt(wahlperiode), wpFallback: false }
+        : await this.withWpFallback(fetchAt, wahlperiode);
+    await setCachedJson(key, fresh, CACHE_TTL_SECONDS).catch(() => undefined);
+    return fresh;
   }
 
   /**
