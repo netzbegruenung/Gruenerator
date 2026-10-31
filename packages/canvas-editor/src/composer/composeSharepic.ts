@@ -88,6 +88,7 @@ import {
   ARROW,
   BLASE_PERSON,
   BLUME,
+  BOXED_HEAD,
   BOX_INK,
   CARD_ITEMS,
   DATE_CIRCLE,
@@ -849,6 +850,20 @@ function composeSlide(
     };
   };
   // The posts run a box line up to ~90 % of the width, balanced.
+  /**
+   * GJ: a boxed headline as large as its widest line lets it, like the
+   * covers (Dap3RgnDDrV/01); it grows and shrinks with the fit loop.
+   */
+  const boxedHeadSize = (lines: readonly string[], scale: number) => {
+    const probe = 100;
+    const widest = Math.max(
+      ...lines.map((l) => measure(stripMarks(l), probe, headFamily, 'normal'))
+    );
+    // A box adds its padding (0.25 of the size) on either side.
+    const fits = Math.floor((column.width * probe) / (widest + 0.5 * probe));
+    // Full width at scale 1 and up; only a block too tall for the slide shrinks it.
+    return Math.max(48, Math.round(Math.min(fits, BOXED_HEAD) * Math.min(1, scale)));
+  };
   const wrapBoxed = (value: string, size: number, family: string, fontStyle: 'normal' | 'bold') =>
     balancedWrap(stripMarks(value), column.width * 0.92 - size * 0.5, (l) =>
       measure(l, size, family, fontStyle)
@@ -1009,7 +1024,7 @@ function composeSlide(
                   text: stripMarks(l),
                   betont: accentLines(item.akzent).includes(i),
                 })),
-                76,
+                brand.lineBoxes ? boxedHeadSize(item.lines, scale) : 76,
                 brand.lineBoxes ? headFamily : theme.fonts.body,
                 brand.lineBoxes ? 'normal' : 'bold'
               )

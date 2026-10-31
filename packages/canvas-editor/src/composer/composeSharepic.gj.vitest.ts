@@ -241,6 +241,13 @@ describe('GRÜNE JUGEND Deutschland on colour and photo', () => {
     );
   });
 
+  it('sets a boxed cover headline as large as its widest line lets it', () => {
+    const boxes = boxed('apricot');
+    const right = Math.max(...boxes.map((b) => b.x + (b.width ?? 0)));
+    expect(boxes[0]!.fontSize).toBeGreaterThan(100);
+    expect(right).toBeLessThanOrEqual(1080 - 70 + 1);
+  });
+
   it('keeps white and light-green boxes on black', () => {
     const boxes = boxed('schwarz');
     expect(boxes[0]!.backgroundColor).toBe('#FFFFFF');

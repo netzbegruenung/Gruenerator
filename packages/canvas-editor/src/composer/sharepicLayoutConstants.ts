@@ -73,6 +73,8 @@ export const ETIKETT_ROOM = 110;
  * text column ends.
  */
 export const BLASE_PERSON = { width: 0.56, aspect: 1.5, top: 0.3, column: 0.68 } as const;
+/** GJ boxed headline: the largest size; the widest line usually sets it lower. */
+export const BOXED_HEAD = 150;
 /** GJ body text in boxes and the icon rows under it, at scale 1. */
 export const GJ_BODY = 46;
 /** GJ DE's handwritten tape label: its type size. */
