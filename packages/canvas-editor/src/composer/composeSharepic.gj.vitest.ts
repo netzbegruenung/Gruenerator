@@ -172,8 +172,8 @@ describe('Grüne Jugend Österreich', () => {
         {
           ...colourSlide('waldgruen'),
           items: [
-            { type: 'headline', lines: ['Why?!'] },
-            { type: 'absatz', text: 'Die Welt ist geprägt von Krisen.' },
+            { type: 'headline', lines: ['Wer zahlt?'] },
+            { type: 'absatz', text: 'Die Teuerung trifft nicht alle gleich.' },
           ],
         },
       ]),
@@ -181,7 +181,9 @@ describe('Grüne Jugend Österreich', () => {
     );
     const slide = out.slides[0]!;
     expect(slide.shapeInstances.filter((s) => s.id.startsWith('sc-raster-'))).toHaveLength(3);
-    expect(slide.additionalTexts.find((t) => t.text.startsWith('Die Welt'))?.fill).toBe('#92CE26');
+    expect(slide.additionalTexts.find((t) => t.text.startsWith('Die Teuerung'))?.fill).toBe(
+      '#92CE26'
+    );
   });
 
   it('sets no hairlines on a light ground', () => {
@@ -225,7 +227,7 @@ describe('GRÜNE JUGEND Deutschland on colour and photo', () => {
         {
           ...colourSlide(color),
           zeilenboxen: true,
-          items: [{ type: 'headline', lines: ['Keine Ein-', 'heit'] }],
+          items: [{ type: 'headline', lines: ['Mobilität', 'für alle'] }],
         },
       ]),
       { photoSrc }
@@ -332,14 +334,16 @@ describe('Grüne Jugend Österreich quotes', () => {
       gj('de-AT', [
         {
           ...colourSlide('waldgruen'),
-          items: [{ type: 'zitat', text: 'Gekürzt wird bei jenen.', name: 'A B' }],
+          items: [{ type: 'zitat', text: 'Öffis müssen leistbar bleiben.', name: 'A B' }],
         },
       ]),
       { photoSrc }
     ).slides[0]!;
     expect(slide.shapeInstances.find((s) => s.id.endsWith('-blase'))?.fill).toBe('#92CE26');
     expect(slide.shapeInstances.some((s) => s.id.endsWith('-blase-spitze'))).toBe(true);
-    expect(slide.additionalTexts.some((t) => t.text === 'GEKÜRZT WIRD BEI JENEN.')).toBe(true);
+    expect(slide.additionalTexts.some((t) => t.text === 'ÖFFIS MÜSSEN LEISTBAR BLEIBEN.')).toBe(
+      true
+    );
   });
 });
 

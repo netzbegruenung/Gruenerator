@@ -200,7 +200,7 @@ export function drawSlideChrome(ctx: SlideCtx, inputs: ChromeInputs): void {
   const etikett = brand.layout.datumCircle === 'etikett';
   if (spec.datum && etikett) {
     // GJ AT: the date as a yellow label on a black edge with a hard shadow,
-    // top right (DehRgj4jAe9/01 „23.–26. OKTOBER“).
+    // top right (DehRgj4jAe9/01).
     const { weekday, date, time } = spec.datum;
     const value = [weekday, date, time]
       .filter((part) => part !== undefined)
@@ -291,7 +291,7 @@ export function drawSlideChrome(ctx: SlideCtx, inputs: ChromeInputs): void {
 
   if (spec.ort && !ortInColumn && etikett) {
     // GJ AT: the place on a light-green footer band across the slide, in
-    // capitals (DehRgj4jAe9/01 „LINZ · JUGENDGÄSTEHAUS“).
+    // capitals (DehRgj4jAe9/01).
     const size = 30;
     const lines = spec.ort.lines.map((l) => l.toLocaleUpperCase('de-DE'));
     const height = lines.length * size * 1.2 + 2 * 26;

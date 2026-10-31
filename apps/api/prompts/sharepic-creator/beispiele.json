@@ -2024,24 +2024,24 @@
               "type": "termine",
               "eintraege": [
                 {
-                  "datum": "08.11.",
-                  "titel": "Plakatstart überall",
-                  "ort": "Leipzig"
+                  "datum": "04.10.",
+                  "titel": "Kleidertausch",
+                  "ort": "Jugendzentrum"
                 },
                 {
-                  "datum": "15.11.",
-                  "titel": "Konzert gegen Rechts",
-                  "ort": "Schwerin"
+                  "datum": "11.10.",
+                  "titel": "Workshop Social Media",
+                  "ort": "online"
                 },
                 {
-                  "datum": "22.11.",
-                  "titel": "Haustürwahlkampf",
-                  "ort": "Magdeburg"
+                  "datum": "18.10.",
+                  "titel": "Radtour für bessere Radwege",
+                  "ort": "Treffpunkt Rathaus"
                 },
                 {
-                  "datum": "29.11.",
-                  "titel": "Landesmitgliederversammlung",
-                  "ort": "Halle"
+                  "datum": "25.10.",
+                  "titel": "Mitgliederversammlung",
+                  "ort": "Bürgerhaus"
                 }
               ]
             }
@@ -2191,11 +2191,11 @@
           "items": [
             {
               "type": "dachzeile",
-              "text": "Heute vor zehn Jahren"
+              "text": "Zum Gedenktag"
             },
             {
               "type": "headline",
-              "lines": ["Wir vergessen", "nicht."]
+              "lines": ["Wir", "erinnern", "uns."]
             }
           ],
           "weiter": "Weiter",
@@ -2211,7 +2211,7 @@
           "items": [
             {
               "type": "absatz",
-              "text": "Neun Menschen wurden aus rassistischen Motiven ermordet. Ihre Namen gehören in unsere Erinnerung – nicht der Name des Täters."
+              "text": "Rassistische Gewalt hat Namen und Gesichter. Wir erzählen von den Menschen, die sie getroffen hat – nicht von denen, die sie verübt haben."
             }
           ],
           "logo": true
@@ -2227,7 +2227,7 @@
             {
               "type": "aufruf",
               "stil": "kernsatz",
-              "text": "Erinnern heißt Verantwortung übernehmen."
+              "text": "Gedenken heißt, heute hinzuschauen."
             }
           ],
           "logo": true
@@ -2255,13 +2255,13 @@
             {
               "type": "steckbrief",
               "gruss": "Hallo, ich bin",
-              "name": "Julia",
+              "name": "Lena",
               "merkmale": [
-                "22 Jahre alt",
-                "Gärtnert gern",
-                "Lesemaus",
-                "Studiert Architektur",
-                "Tanzt viel"
+                "21 Jahre alt",
+                "Kocht für alle",
+                "Bergfex",
+                "Studiert Pflege",
+                "Spielt Bass"
               ]
             }
           ],
@@ -2288,22 +2288,22 @@
           "items": [
             {
               "type": "dachzeile",
-              "text": "Seminarwochenende · Linz"
+              "text": "Sommercamp · Kärnten"
             },
             {
               "type": "headline",
-              "lines": ["Herbst-", "Seminar"]
+              "lines": ["Sommer-", "Camp"]
             },
             {
               "type": "text",
-              "text": "Vier Tage Politik, Theorie und Praxis. Komplett kostenlos."
+              "text": "Fünf Tage Zelten, Baden und Politik. Komplett kostenlos."
             }
           ],
           "datum": {
-            "date": "23.–26.10."
+            "date": "10.–14.7."
           },
           "ort": {
-            "lines": ["Jugendgästehaus Linz"]
+            "lines": ["Zeltplatz am See"]
           },
           "logo": false
         },
@@ -2321,7 +2321,7 @@
             },
             {
               "type": "liste",
-              "items": ["Campaigning-Workshop", "Theorie & KI", "Feminismus heute", "Theaterabend"]
+              "items": ["Klima-Workshop", "Rhetorik-Training", "Lagerfeuer-Talk", "Badetag"]
             }
           ],
           "logo": false
@@ -2347,31 +2347,31 @@
           "items": [
             {
               "type": "headline",
-              "lines": ["Juni"]
+              "lines": ["Juli"]
             },
             {
               "type": "termine",
               "eintraege": [
                 {
-                  "datum": "07.06.",
-                  "titel": "Pride Graz",
-                  "ort": "Graz"
+                  "datum": "05.07.",
+                  "titel": "Badesee-Aktion",
+                  "ort": "Neusiedl"
                 },
                 {
-                  "datum": "14.06.",
-                  "titel": "Regenbogenparade",
+                  "datum": "12.07.",
+                  "titel": "Radtour für Öffis",
+                  "ort": "Salzburg"
+                },
+                {
+                  "datum": "26.07.",
+                  "titel": "Sommerfest",
                   "ort": "Wien"
-                },
-                {
-                  "datum": "21.06.",
-                  "titel": "Linz Pride",
-                  "ort": "Linz"
                 }
               ]
             }
           ],
           "stoerer": {
-            "text": "Komm mit!"
+            "text": "Sei dabei!"
           },
           "logo": false
         }
@@ -2547,7 +2547,7 @@
           "items": [
             {
               "type": "headline",
-              "lines": ["Niemals", "ohne Dich."]
+              "lines": ["Bis bald –", "und danke!"]
             }
           ],
           "logo": true
