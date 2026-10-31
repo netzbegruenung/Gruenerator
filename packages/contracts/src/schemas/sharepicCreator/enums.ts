@@ -185,6 +185,9 @@ export const sharepicIconSchema = z.enum([
   'temperatur',
   'pflanze',
   'flasche',
+  // An invitation's when and where (GJ DE, DbVz_btDJDb/01).
+  'kalender',
+  'ort',
 ]);
 export type SharepicIcon = z.infer<typeof sharepicIconSchema>;
 

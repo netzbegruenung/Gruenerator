@@ -737,10 +737,15 @@ function composeSlide(
           const lineId = `${id}-${k}`;
           const width = measure(line.text, size, family, fontStyle) + 2 * padX;
           // GJ: the first line on white, the rest on light green, square bars (CD 2024 S. 19).
+          // On a plain colour GJ DE turns them black with white type (Dap3RgnDDrV/01).
           const own = brand.lineBoxes
-            ? k === 0 && !line.betont
-              ? brand.lineBoxes.first
-              : brand.lineBoxes.rest
+            ? bg.kind === 'farbe' &&
+              brand.lineBoxes.onColour &&
+              brand.lineBoxes.onColour.fill !== out.backgroundColor
+              ? brand.lineBoxes.onColour
+              : k === 0 && !line.betont
+                ? brand.lineBoxes.first
+                : brand.lineBoxes.rest
             : null;
           out.pillBadgeInstances.push(
             createPillBadgeInstance('slider', {

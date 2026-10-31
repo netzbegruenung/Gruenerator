@@ -218,6 +218,50 @@ describe('Grüne Jugend Österreich', () => {
   });
 });
 
+describe('GRÜNE JUGEND Deutschland on colour and photo', () => {
+  const boxed = (color: SharepicColor) =>
+    composeSharepic(
+      gj('de-DE', [
+        {
+          ...colourSlide(color),
+          zeilenboxen: true,
+          items: [{ type: 'headline', lines: ['Keine Ein-', 'heit'] }],
+        },
+      ]),
+      { photoSrc }
+    ).slides[0]!.pillBadgeInstances;
+
+  it('sets line boxes black with white type on a plain colour', () => {
+    const boxes = boxed('apricot');
+    expect(boxes.length).toBeGreaterThanOrEqual(2);
+    expect(boxes.every((b) => b.backgroundColor === '#000000' && b.textColor === '#FFFFFF')).toBe(
+      true
+    );
+  });
+
+  it('keeps white and light-green boxes on black', () => {
+    const boxes = boxed('schwarz');
+    expect(boxes[0]!.backgroundColor).toBe('#FFFFFF');
+    expect(boxes.slice(1).every((b) => b.backgroundColor === '#C7FF7A')).toBe(true);
+  });
+
+  it('sets a quote on a full photo in light green and bold', () => {
+    const quote = composeSharepic(
+      gj('de-DE', [
+        {
+          background: { kind: 'foto', filename: 'x.jpg', textSeite: 'unten' },
+          position: 'unten',
+          align: 'links',
+          items: [{ type: 'zitat', text: 'Die Rente ist eine Frage der Verteilung.', name: 'A B' }],
+          logo: false,
+        },
+      ]),
+      { photoSrc }
+    ).slides[0]!.additionalTexts.find((t) => t.text.startsWith('Die Rente'))!;
+    expect(quote).toMatchObject({ fill: '#C7FF7A', fontStyle: 'bold' });
+  });
+});
+
 describe('GRÜNE JUGEND Deutschland dates', () => {
   it('sets each date on a calendar tile, day above month', () => {
     const slide = composeSharepic(

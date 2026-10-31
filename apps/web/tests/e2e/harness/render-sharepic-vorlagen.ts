@@ -105,6 +105,19 @@ mkdirSync(path.join(dir, 'thumbs', 'bloecke'), { recursive: true });
 const browser = await chromium.launch();
 const page = await browser.newPage();
 await page.goto(`${base}/tests/e2e/harness/sharepic-render.html`);
+// The harness registers no asset catalogue (its CI baselines stay as they
+// are); without it every logo, sticker and emoji would render blank here.
+const catalogue = path.resolve(
+  import.meta.dirname,
+  '../../../../../packages/canvas-editor/src/brand/grueneAssetCatalog.ts'
+);
+await page.evaluate(async (file) => {
+  const m = (await import(/* @vite-ignore */ `/@fs${file}`)) as {
+    registerAssetCatalog: (c: unknown) => void;
+    GRUENE_ASSET_CATALOG: unknown;
+  };
+  m.registerAssetCatalog(m.GRUENE_ASSET_CATALOG);
+}, catalogue);
 await page.waitForFunction(() => window.__sharepicHarness != null);
 const webp = (src: string, width: number) =>
   page.evaluate(([s, w]) => window.__sharepicHarness!.toWebp(s, w), [src, width] as const);

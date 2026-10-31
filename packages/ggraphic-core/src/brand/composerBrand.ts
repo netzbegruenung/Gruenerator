@@ -114,7 +114,14 @@ export interface ComposerBrand {
    * The line boxes of a `zeilenboxen` slide: the first line's box and every
    * later one's, with their ink. Absent: the marker swatches as before.
    */
-  lineBoxes?: { first: { fill: string; ink: string }; rest: { fill: string; ink: string } };
+  lineBoxes?: {
+    first: { fill: string; ink: string };
+    rest: { fill: string; ink: string };
+    /** Every line's box on a plain colour ground, when it differs from a photo's. */
+    onColour?: { fill: string; ink: string };
+  };
+  /** A quote's ink on a full photo when it is not white (GJ DE: light green, bold). */
+  quoteOnPhoto?: string;
   /** A paragraph's ink on a dark ground when it is not the ground's ink (GJ AT: light green). */
   absatzOnDark?: string;
   /** Where layouts differ between brands beyond colour and type. */

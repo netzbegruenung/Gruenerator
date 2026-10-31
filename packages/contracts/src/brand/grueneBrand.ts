@@ -614,9 +614,12 @@ export const GJ_DE: GruenePack = {
     stoererShape: 'burst',
     cardStyle: 'plain',
     // CD S. 19/20: the first line on white, the rest on light green.
+    // Quotes on a full photo in light green, bold (Dem9hTrxHEG/01).
+    quoteOnPhoto: GJ_HELLGRUEN,
     lineBoxes: {
       first: { fill: '#FFFFFF', ink: GJ_SCHWARZ },
       rest: { fill: GJ_HELLGRUEN, ink: GJ_SCHWARZ },
+      onColour: { fill: GJ_SCHWARZ, ink: '#FFFFFF' },
     },
     layout: {
       centredMargin: null,

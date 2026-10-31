@@ -133,9 +133,13 @@ function zitatCard(ctx: SlideCtx, item: ZitatItem, id: string, pass: BuildPass):
     (w, s) => measure(w, s, theme.fonts.body, 'bold')
   );
   const mark = quoteAlone ? 140 : 90;
+  // GJ DE sets a quote on a full photo in light green and bold (Dem9hTrxHEG/01).
+  const onPhoto = ctx.out.backgroundMode === 'image' ? (ctx.brand.quoteOnPhoto ?? null) : null;
   // Counted as the renderer sets it: `**bold**` runs are wider than plain text.
   const quoteHeight =
-    lineCount(item.text, column.width, size, theme.fonts.body, 'normal') * size * QUOTE_LINE_HEIGHT;
+    lineCount(item.text, column.width, size, theme.fonts.body, onPhoto ? 'bold' : 'normal') *
+    size *
+    QUOTE_LINE_HEIGHT;
   // The posts leave about three quarters of a line before the name.
   const signatureGap = Math.round(size * 0.75);
   const nameSize = 38;
@@ -161,6 +165,7 @@ function zitatCard(ctx: SlideCtx, item: ZitatItem, id: string, pass: BuildPass):
       out.layerOrder.push(markId);
       text(id, item.text, y + mark + 10, size, theme.fonts.body, {
         lineHeight: QUOTE_LINE_HEIGHT,
+        ...(onPhoto && { fill: onPhoto, fontStyle: 'bold' as const }),
       });
       text(
         `${id}-name`,

@@ -260,7 +260,7 @@ const KACHEL_RINGE = 4;
  */
 function termineKachel(ctx: SlideCtx, item: TermineItem, id: string, pass: BuildPass): Placed[] {
   const { measure, theme, headFamily, column, text, lineCount, addShape, brand } = ctx;
-  const tile = Math.round(Math.min(150, 118 * Math.min(pass.scale, 1.3)));
+  const tile = Math.round(Math.min(170, 136 * Math.min(pass.scale, 1.3)));
   const titleSize = Math.round(tile * 0.3);
   const ortSize = Math.round(tile * 0.26);
   const textX = column.x + tile + Math.round(tile * 0.28);
