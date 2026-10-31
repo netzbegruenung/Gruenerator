@@ -174,6 +174,7 @@ export function drawSlideChrome(ctx: SlideCtx, inputs: ChromeInputs): void {
         ...centreAt(radius),
         radius,
         rotation: stoerer.rotation,
+        ...(ctx.brand.stoererShape !== 'circle' && { outline: ctx.brand.stoererShape }),
         backgroundColor: colors.fill,
         textColor: colors.ink,
         textLines: lines.map((value, i) => ({
@@ -195,11 +196,15 @@ export function drawSlideChrome(ctx: SlideCtx, inputs: ChromeInputs): void {
     const themed = themeDef?.badge?.[onLight ? 'light' : 'dark'] ?? null;
     const circleColors = themed
       ? { background: themed.fill, text: themed.ink }
-      : brand.layout.datumCircle === 'attention'
-        ? { background: theme.colors.stoerer, text: VERANSTALTUNG_CONFIG.circle.textColor }
-        : darkInk
-          ? { background: COLORS.TANNE, text: '#ffffff' }
-          : { background: SHAREPIC_COLOR_HEX.grasgruen, text: COLORS.TANNE };
+      : brand.layout.datumCircle === 'stoerer'
+        ? (({ fill, ink }) => ({ background: fill, text: ink }))(
+            onGround(brand.stoerer.colors, { onLight, onGrass })
+          )
+        : brand.layout.datumCircle === 'attention'
+          ? { background: theme.colors.stoerer, text: VERANSTALTUNG_CONFIG.circle.textColor }
+          : darkInk
+            ? { background: COLORS.TANNE, text: '#ffffff' }
+            : { background: SHAREPIC_COLOR_HEX.grasgruen, text: COLORS.TANNE };
     const c = VERANSTALTUNG_CONFIG.circle;
     const t = VERANSTALTUNG_CONFIG.circleText;
     // The template's type is set for its radius; a smaller circle scales it.

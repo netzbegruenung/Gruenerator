@@ -139,6 +139,14 @@ export const CANVAS_TEMPLATE_FIELDS = {
     fields: ['label', 'headline', 'subtext'],
     label: 'Slider',
   },
+  'freeform-gj': {
+    fields: [],
+    label: 'Freeform',
+  },
+  'freeform-gj-at': {
+    fields: [],
+    label: 'Freeform',
+  },
   // `Record<CanvasTemplateType, …>` (NOT Partial) ties these keys to the
   // canonical enum: adding a mintable type without adding it to
   // CANVAS_TEMPLATE_TYPES — or vice versa — is a compile error. This keeps

@@ -232,6 +232,54 @@
    "audience": "de-AT"
   },
   {
+   "id": "gj-logo-schwarz",
+   "src": "/gj-logo-schwarz.svg",
+   "label": "GRÜNE JUGEND (schwarz)",
+   "category": "decoration",
+   "tags": [
+    "logo",
+    "grüne jugend",
+    "gruene jugend",
+    "gj",
+    "jugend",
+    "marke",
+    "schwarz"
+   ],
+   "audience": "de-DE"
+  },
+  {
+   "id": "gj-logo-hellgruen",
+   "src": "/gj-logo-hellgruen.svg",
+   "label": "GRÜNE JUGEND (hellgrün)",
+   "category": "decoration",
+   "tags": [
+    "logo",
+    "grüne jugend",
+    "gruene jugend",
+    "gj",
+    "jugend",
+    "marke",
+    "hellgruen"
+   ],
+   "audience": "de-DE"
+  },
+  {
+   "id": "gj-logo-weiss",
+   "src": "/gj-logo-weiss.svg",
+   "label": "GRÜNE JUGEND (weiß)",
+   "category": "decoration",
+   "tags": [
+    "logo",
+    "grüne jugend",
+    "gruene jugend",
+    "gj",
+    "jugend",
+    "marke",
+    "weiss"
+   ],
+   "audience": "de-DE"
+  },
+  {
    "id": "quote-mark",
    "src": "/quote.svg",
    "label": "Anführungszeichen",
@@ -342,7 +390,10 @@
   "sunflower-weiss",
   "sunflower-schwarz",
   "gruene-at-logo-weiss",
-  "gruene-at-logo-gruen"
+  "gruene-at-logo-gruen",
+  "gj-logo-schwarz",
+  "gj-logo-hellgruen",
+  "gj-logo-weiss"
  ],
  "CANVAS_RECOMMENDED_ASSETS": {
   "zitat": [

@@ -11,7 +11,12 @@ interface SourcePage {
   state: Record<string, unknown>;
 }
 
-const CREATOR_CONFIGS: readonly string[] = ['freeform', 'freeform-at'];
+const CREATOR_CONFIGS: readonly string[] = [
+  'freeform',
+  'freeform-at',
+  'freeform-gj',
+  'freeform-gj-at',
+];
 
 /** Tolerant: anything that is not a valid v1 source on a freeform page reads as null. */
 export function readSharepicSource(page: SourcePage): SharepicSource | null {

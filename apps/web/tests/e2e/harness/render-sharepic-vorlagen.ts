@@ -46,7 +46,7 @@ interface SeiteEntry {
 const decode = (dataUrl: string): Buffer => Buffer.from(dataUrl.split(',')[1]!, 'base64');
 
 const only = new Set(process.argv.slice(2));
-const entries = ['de.json', 'at.json']
+const entries = ['de.json', 'at.json', 'gj-de.json', 'gj-at.json']
   .flatMap((file) => JSON.parse(readFileSync(path.join(dir, file), 'utf8')) as Entry[])
   .filter((e) => only.size === 0 || only.has(e.id));
 const SEITEN_FILES = { 'de.json': 'de-DE', 'at.json': 'de-AT' } as const;

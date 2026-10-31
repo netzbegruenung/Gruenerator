@@ -26,6 +26,8 @@ const BUILTIN_IDS = [
   'info-at',
   'freeform-at',
   'slider-at',
+  'freeform-gj',
+  'freeform-gj-at',
 ] as const;
 
 const captured: { props: Record<string, unknown> | null } = { props: null };
@@ -38,7 +40,9 @@ vi.mock('../components/CanvasEditor', () => ({
 }));
 
 import { ControllableCanvasWrapper } from '../CanvasEditorRouter';
+
 import { StandaloneCanvas } from '@ggraphic/editor/components/StandaloneCanvas';
+
 import { HOST_CALLBACK_KEYS } from '../hostCallbackKeys';
 import {
   TEMPLATE_REGISTRY,

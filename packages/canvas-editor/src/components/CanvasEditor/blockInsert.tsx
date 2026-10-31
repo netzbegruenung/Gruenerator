@@ -30,6 +30,9 @@ const BLOCK_LOCALE: Record<string, SharepicCreatorLocale> = {
   freeform: 'de-DE',
   'freeform-at': 'de-AT',
 };
+// The Grünerator-Blöcke are composed in the party's design; the GRÜNE JUGEND
+// pages (`freeform-gj`, `freeform-gj-at`) get none rather than blocks in the
+// wrong brand.
 
 export const blockLocaleOf = (configId: string | undefined): SharepicCreatorLocale | null =>
   (configId && BLOCK_LOCALE[configId]) || null;

@@ -132,8 +132,11 @@ export interface ComposerBrand {
     logoPlacement: 'left' | 'closing' | 'none';
     /** The "swipe on" arrow: the brand's brush-stroke asset, or the drawn arrow. */
     swipeArrow: 'brush' | 'drawn';
-    /** The date circle in the brand's attention colour, or chosen by the ground's ink. */
-    datumCircle: 'attention' | 'ink';
+    /**
+     * The date circle: the brand's attention colour, chosen by the ground's ink,
+     * or in the Störer's colours on that ground.
+     */
+    datumCircle: 'attention' | 'ink' | 'stoerer';
     /** A comparison's other side: a solid pale panel, or a veil over the ground. */
     contrastPanel: 'solid' | 'veil';
     /** The brand may set its sunflower. */

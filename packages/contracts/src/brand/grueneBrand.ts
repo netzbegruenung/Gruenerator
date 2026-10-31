@@ -620,7 +620,7 @@ export const GJ_DE: GruenePack = {
       tintPhotoStrip: false,
       logoPlacement: 'left',
       swipeArrow: 'drawn',
-      datumCircle: 'ink',
+      datumCircle: 'stoerer',
       contrastPanel: 'solid',
       sunflower: false,
       frageAccent: 'accent',
@@ -692,12 +692,14 @@ export const GJ_AT: GruenePack = {
   quoteMark: { src: GRUENE_SYSTEM_ASSETS.quoteWhite.src },
   composer: {
     lineHeight: { headline: 1.02, absatz: 1.3, aufruf: 1 },
+    // The wide capitals face runs ~40 % wider than Gotham: smaller caps keep
+    // a trait word whole (Unbounded, measured on the steckbrief render).
     fontSize: {
       weiter: 28,
       absatz: 44,
-      steckbriefGruss: 40,
-      steckbriefName: 150,
-      steckbriefTrait: 44,
+      steckbriefGruss: 30,
+      steckbriefName: 120,
+      steckbriefTrait: 32,
     },
     absatzGap: 0.7,
     // The capitals face also sets dates and infographic titles (DehRgj4jAe9).
@@ -755,7 +757,7 @@ export const GJ_AT: GruenePack = {
       tintPhotoStrip: false,
       logoPlacement: 'none',
       swipeArrow: 'drawn',
-      datumCircle: 'attention',
+      datumCircle: 'stoerer',
       contrastPanel: 'solid',
       sunflower: false,
       frageAccent: 'accent',

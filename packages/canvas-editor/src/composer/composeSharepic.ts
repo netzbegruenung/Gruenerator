@@ -147,6 +147,20 @@ const BILD_KREIS = 0.5;
 /** A cut-out person rises from the bottom edge to here. */
 const BILD_FREI_TOP = 0.4;
 
+/** A brand that sets headlines in capitals: headline, the line above it and a closing call. */
+function inCapitals(slide: SharepicSlide): SharepicSlide {
+  return {
+    ...slide,
+    items: slide.items.map((item) =>
+      item.type === 'headline'
+        ? { ...item, lines: item.lines.map((line) => line.toLocaleUpperCase('de-DE')) }
+        : item.type === 'dachzeile' || item.type === 'aufruf'
+          ? { ...item, text: item.text.toLocaleUpperCase('de-DE') }
+          : item
+    ),
+  };
+}
+
 export function composeSharepic(spec: SharepicSpec, options: ComposeOptions): ComposedSharepic {
   const count = spec.slides.length;
   const format = spec.format ?? DEFAULT_FORMAT_ID;
@@ -204,9 +218,10 @@ function composeSlide(
   const brand = getBrandPack(locale, brandOfId(brandId)).composer;
   // A brand without the marker box highlights with its accent only, so a
   // `++` that reaches its slide is set as `==`.
-  const spec = brand.features.markerBox
+  const marked = brand.features.markerBox
     ? encodeHandMarks(slide)
     : foldMarkers(encodeHandMarks(slide));
+  const spec = brand.headlineCase === 'versal' ? inCapitals(marked) : marked;
   const bg = spec.background;
   const bild =
     bg.kind === 'farbe' ? (spec.items.find((i): i is BildItem => i.type === 'bild') ?? null) : null;
@@ -714,6 +729,12 @@ function composeSlide(
         lines.forEach((line, k) => {
           const lineId = `${id}-${k}`;
           const width = measure(line.text, size, family, fontStyle) + 2 * padX;
+          // GJ: the first line on white, the rest on light green, square bars (CD 2024 S. 19).
+          const own = brand.lineBoxes
+            ? k === 0 && !line.betont
+              ? brand.lineBoxes.first
+              : brand.lineBoxes.rest
+            : null;
           out.pillBadgeInstances.push(
             createPillBadgeInstance('slider', {
               id: lineId,
@@ -723,11 +744,12 @@ function composeSlide(
               fontSize: size,
               fontFamily: family,
               fontStyle,
-              backgroundColor: line.betont ? SHAREPIC_COLOR_HEX.grasgruen : '#FFFFFF',
-              textColor: BOX_INK,
+              backgroundColor:
+                own?.fill ?? (line.betont ? SHAREPIC_COLOR_HEX.grasgruen : '#FFFFFF'),
+              textColor: own?.ink ?? BOX_INK,
               paddingX: padX,
               paddingY: padY,
-              cornerRadius: Math.round(size * 0.2),
+              cornerRadius: own ? 0 : Math.round(size * 0.2),
             })
           );
           out.layerOrder.push(lineId);
@@ -891,8 +913,8 @@ function composeSlide(
                   betont: accentLines(item.akzent).includes(i),
                 })),
                 76,
-                theme.fonts.body,
-                'bold'
+                brand.lineBoxes ? headFamily : theme.fonts.body,
+                brand.lineBoxes ? 'normal' : 'bold'
               )
             );
             break;
@@ -1370,5 +1392,34 @@ function composeSlide(
     kiTop,
     kiHeight,
   });
+  if (brand.cardStyle === 'brutal') brutalCards(out);
   return out;
+}
+
+/** GJ AT's cards: square, on a black edge with a hard offset shadow (DehRgj4jAe9). */
+const BRUTAL = { edge: 5, shadow: 12 } as const;
+
+function brutalCards(out: ComposedSlide): void {
+  const cards = out.shapeInstances.filter(
+    (shape) =>
+      (shape.id.endsWith('-card') || shape.id.endsWith('-karte')) && shape.fill === '#FFFFFF'
+  );
+  for (const card of cards) {
+    card.cornerRadius = 0;
+    const edge: ShapeInstance = {
+      ...card,
+      id: `${card.id}-rand`,
+      fill: '#000000',
+      width: card.width + 2 * BRUTAL.edge,
+      height: card.height + 2 * BRUTAL.edge,
+      shadowColor: '#000000',
+      shadowBlur: 0,
+      shadowOffsetX: BRUTAL.shadow,
+      shadowOffsetY: BRUTAL.shadow,
+      shadowOpacity: 1,
+    };
+    out.shapeInstances.splice(out.shapeInstances.indexOf(card), 0, edge);
+    const at = out.layerOrder.indexOf(card.id);
+    out.layerOrder.splice(at < 0 ? out.layerOrder.length : at, 0, edge.id);
+  }
 }

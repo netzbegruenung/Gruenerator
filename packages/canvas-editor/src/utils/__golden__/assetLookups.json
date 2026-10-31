@@ -177,6 +177,63 @@
    }
   ],
   [
+   "gj-logo-schwarz",
+   {
+    "id": "gj-logo-schwarz",
+    "src": "/gj-logo-schwarz.svg",
+    "label": "GRÜNE JUGEND (schwarz)",
+    "category": "decoration",
+    "tags": [
+     "logo",
+     "grüne jugend",
+     "gruene jugend",
+     "gj",
+     "jugend",
+     "marke",
+     "schwarz"
+    ],
+    "audience": "de-DE"
+   }
+  ],
+  [
+   "gj-logo-hellgruen",
+   {
+    "id": "gj-logo-hellgruen",
+    "src": "/gj-logo-hellgruen.svg",
+    "label": "GRÜNE JUGEND (hellgrün)",
+    "category": "decoration",
+    "tags": [
+     "logo",
+     "grüne jugend",
+     "gruene jugend",
+     "gj",
+     "jugend",
+     "marke",
+     "hellgruen"
+    ],
+    "audience": "de-DE"
+   }
+  ],
+  [
+   "gj-logo-weiss",
+   {
+    "id": "gj-logo-weiss",
+    "src": "/gj-logo-weiss.svg",
+    "label": "GRÜNE JUGEND (weiß)",
+    "category": "decoration",
+    "tags": [
+     "logo",
+     "grüne jugend",
+     "gruene jugend",
+     "gj",
+     "jugend",
+     "marke",
+     "weiss"
+    ],
+    "audience": "de-DE"
+   }
+  ],
+  [
    "quote-mark",
    {
     "id": "quote-mark",
@@ -1252,6 +1309,18 @@
    "gruene-at-logo-gruen"
   ],
   [
+   "/gj-logo-schwarz.svg",
+   "gj-logo-schwarz"
+  ],
+  [
+   "/gj-logo-hellgruen.svg",
+   "gj-logo-hellgruen"
+  ],
+  [
+   "/gj-logo-weiss.svg",
+   "gj-logo-weiss"
+  ],
+  [
    "/quote.svg",
    "quote-mark"
   ],
@@ -1669,6 +1738,60 @@
    "gruene-at-logo-gruen",
    "https://evil.example/x.png",
    "/gruene-at-logo-gruen.png",
+   false
+  ],
+  [
+   "gj-logo-schwarz",
+   null,
+   "/gj-logo-schwarz.svg",
+   false
+  ],
+  [
+   "gj-logo-schwarz",
+   "/api/share/0123456789abcdef0123456789abcdef/download",
+   "/api/share/0123456789abcdef0123456789abcdef/download",
+   true
+  ],
+  [
+   "gj-logo-schwarz",
+   "https://evil.example/x.png",
+   "/gj-logo-schwarz.svg",
+   false
+  ],
+  [
+   "gj-logo-hellgruen",
+   null,
+   "/gj-logo-hellgruen.svg",
+   false
+  ],
+  [
+   "gj-logo-hellgruen",
+   "/api/share/0123456789abcdef0123456789abcdef/download",
+   "/api/share/0123456789abcdef0123456789abcdef/download",
+   true
+  ],
+  [
+   "gj-logo-hellgruen",
+   "https://evil.example/x.png",
+   "/gj-logo-hellgruen.svg",
+   false
+  ],
+  [
+   "gj-logo-weiss",
+   null,
+   "/gj-logo-weiss.svg",
+   false
+  ],
+  [
+   "gj-logo-weiss",
+   "/api/share/0123456789abcdef0123456789abcdef/download",
+   "/api/share/0123456789abcdef0123456789abcdef/download",
+   true
+  ],
+  [
+   "gj-logo-weiss",
+   "https://evil.example/x.png",
+   "/gj-logo-weiss.svg",
    false
   ],
   [
@@ -3128,6 +3251,78 @@
    "https://evil.example/x.png",
    {
     "assetId": "gruene-at-logo-gruen",
+    "src": null
+   }
+  ],
+  [
+   "gj-logo-schwarz",
+   "/gj-logo-schwarz.png",
+   {
+    "assetId": "gj-logo-schwarz",
+    "src": null
+   }
+  ],
+  [
+   "gj-logo-schwarz",
+   "/api/share/0123456789abcdef0123456789abcdef/download",
+   {
+    "assetId": "gj-logo-schwarz",
+    "src": "/api/share/0123456789abcdef0123456789abcdef/download"
+   }
+  ],
+  [
+   "gj-logo-schwarz",
+   "https://evil.example/x.png",
+   {
+    "assetId": "gj-logo-schwarz",
+    "src": null
+   }
+  ],
+  [
+   "gj-logo-hellgruen",
+   "/gj-logo-hellgruen.png",
+   {
+    "assetId": "gj-logo-hellgruen",
+    "src": null
+   }
+  ],
+  [
+   "gj-logo-hellgruen",
+   "/api/share/0123456789abcdef0123456789abcdef/download",
+   {
+    "assetId": "gj-logo-hellgruen",
+    "src": "/api/share/0123456789abcdef0123456789abcdef/download"
+   }
+  ],
+  [
+   "gj-logo-hellgruen",
+   "https://evil.example/x.png",
+   {
+    "assetId": "gj-logo-hellgruen",
+    "src": null
+   }
+  ],
+  [
+   "gj-logo-weiss",
+   "/gj-logo-weiss.png",
+   {
+    "assetId": "gj-logo-weiss",
+    "src": null
+   }
+  ],
+  [
+   "gj-logo-weiss",
+   "/api/share/0123456789abcdef0123456789abcdef/download",
+   {
+    "assetId": "gj-logo-weiss",
+    "src": "/api/share/0123456789abcdef0123456789abcdef/download"
+   }
+  ],
+  [
+   "gj-logo-weiss",
+   "https://evil.example/x.png",
+   {
+    "assetId": "gj-logo-weiss",
     "src": null
    }
   ],

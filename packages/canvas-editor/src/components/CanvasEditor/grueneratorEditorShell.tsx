@@ -32,7 +32,9 @@ import type { HeterogeneousPage } from '@ggraphic/editor/configs/types';
 
 /** A deck's brand follows its first page: the slide layouts and fonts of that country. */
 const deckLocaleOf = (pages: readonly HeterogeneousPage[]): 'de-DE' | 'de-AT' =>
-  pages[0]?.configId === 'freeform-at' ? 'de-AT' : 'de-DE';
+  pages[0]?.configId === 'freeform-at' || pages[0]?.configId === 'freeform-gj-at'
+    ? 'de-AT'
+    : 'de-DE';
 
 const isSliderDeck = (pages: readonly HeterogeneousPage[]) =>
   pages[0]?.configId === 'slider' || pages[0]?.configId === 'slider-at';
