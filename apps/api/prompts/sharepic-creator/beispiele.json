@@ -2493,5 +2493,66 @@
         }
       ]
     }
+  },
+  {
+    "id": "gj-de-danke-karussell",
+    "land": "de-DE",
+    "brand": "gruene-jugend",
+    "anlass": "karussell-geschichte",
+    "vorbild": "@gruene_jugend, Drei Slides: Fotos mit weißen und hellgrünen Zeilenbalken, Schluss auf Hellgrün mit Logo. (Vorbild DeRPDATDJg3, DeL7NtBEWo_)",
+    "spec": {
+      "slides": [
+        {
+          "background": {
+            "kind": "foto",
+            "filename": "<foto>",
+            "textSeite": "unten"
+          },
+          "position": "unten",
+          "align": "links",
+          "zeilenboxen": true,
+          "items": [
+            {
+              "type": "headline",
+              "lines": ["Wir sagen:", "Danke, Vorname!"]
+            }
+          ],
+          "weiter": "Swipe",
+          "logo": false
+        },
+        {
+          "background": {
+            "kind": "foto",
+            "filename": "<foto>",
+            "textSeite": "unten"
+          },
+          "position": "unten",
+          "align": "links",
+          "zeilenboxen": true,
+          "items": [
+            {
+              "type": "absatz",
+              "text": "Für zwei Jahre Arbeit im Bundesvorstand, auf jeder Demo und in jeder Nachtschicht."
+            }
+          ],
+          "logo": false
+        },
+        {
+          "background": {
+            "kind": "farbe",
+            "color": "limette"
+          },
+          "position": "mitte",
+          "align": "links",
+          "items": [
+            {
+              "type": "headline",
+              "lines": ["Niemals", "ohne Dich."]
+            }
+          ],
+          "logo": true
+        }
+      ]
+    }
   }
 ]
