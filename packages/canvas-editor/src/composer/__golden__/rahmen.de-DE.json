@@ -17,6 +17,12 @@
      "width": 940,
      "fontSize": 86,
      "fontFamily": "PT Sans",
+     "bind": {
+      "fontFamily": {
+       "ref": "font.body",
+       "value": "PT Sans"
+      }
+     },
      "fontStyle": "normal",
      "fill": "#FFFFFF",
      "align": "left",
@@ -39,6 +45,12 @@
      "width": 518,
      "fontSize": 30,
      "fontFamily": "PT Sans",
+     "bind": {
+      "fontFamily": {
+       "ref": "font.body",
+       "value": "PT Sans"
+      }
+     },
      "fontStyle": "bold",
      "fill": "#FFFFFF",
      "align": "right",
@@ -158,6 +170,12 @@
      "width": 940,
      "fontSize": 86,
      "fontFamily": "PT Sans",
+     "bind": {
+      "fontFamily": {
+       "ref": "font.body",
+       "value": "PT Sans"
+      }
+     },
      "fontStyle": "normal",
      "fill": "#FFFFFF",
      "align": "left",
@@ -284,6 +302,12 @@
      "width": 940,
      "fontSize": 86,
      "fontFamily": "PT Sans",
+     "bind": {
+      "fontFamily": {
+       "ref": "font.body",
+       "value": "PT Sans"
+      }
+     },
      "fontStyle": "normal",
      "fill": "#FFFFFF",
      "align": "left",

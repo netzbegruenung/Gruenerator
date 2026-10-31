@@ -1,3 +1,13 @@
+import {
+  placeArrow,
+  shapePoint,
+  steckbriefSlots,
+  outlineSpan,
+  steckbriefOutline,
+  type Box,
+  type PlacedArrow,
+} from '@ggraphic/editor/composer/steckbriefLayout';
+import { balancedWrap } from '@ggraphic/editor/composer/textFit';
 import { ASSET_TARGET_SIZE } from '@ggraphic/editor/utils/canvasAssets';
 import { createShape } from '@ggraphic/editor/utils/shapes';
 import {
@@ -11,16 +21,6 @@ import { type BildItem, type SteckbriefItem } from './composeTypes';
 import { GRADIENTS, SCRIM_ANGLE, SCRIM_EASE } from './sharepicGround';
 import { KI_LABEL, MARGIN, STECKBRIEF } from './sharepicLayoutConstants';
 import { type SlideCtx } from './slideContext';
-import {
-  placeArrow,
-  shapePoint,
-  steckbriefSlots,
-  outlineSpan,
-  steckbriefOutline,
-  type Box,
-  type PlacedArrow,
-} from '@ggraphic/editor/composer/steckbriefLayout';
-import { balancedWrap } from '@ggraphic/editor/composer/textFit';
 
 /** What a steckbrief reads from its slide besides `SlideCtx`; all final before `place`. */
 export interface SteckbriefScene {
@@ -313,7 +313,7 @@ export function steckbriefAround(
       ? { shadowColor: '#000000', shadowBlur: 12, shadowOffsetY: 2, shadowOpacity: 0.45 }
       : {};
   labels.forEach((label, k) => {
-    text(`${id}-${k}`, label.lines.join('\n'), label.y, size, family, {
+    text(`${id}-${k}`, label.lines.join('\n'), label.y, size, 'headline', {
       type: 'header',
       x: label.x,
       width: colWidth,
@@ -334,7 +334,7 @@ export function steckbriefAround(
     });
   });
 
-  text(`${id}-gruss`, item.gruss, greetTop, grussSize, family, {
+  text(`${id}-gruss`, item.gruss, greetTop, grussSize, 'headline', {
     type: 'header',
     x: right - nameWidth - hand,
     width: nameWidth + hand,
@@ -344,7 +344,7 @@ export function steckbriefAround(
     marker: null,
     ...overPhoto,
   });
-  text(`${id}-name`, item.name, nameTop, nameSize, family, {
+  text(`${id}-name`, item.name, nameTop, nameSize, 'headline', {
     type: 'header',
     x: right - hand - 10 - nameWidth,
     width: nameWidth,

@@ -17,6 +17,12 @@
      "width": 940,
      "fontSize": 255,
      "fontFamily": "GothamNarrow-Ultra",
+     "bind": {
+      "fontFamily": {
+       "ref": "font.headline",
+       "value": "GothamNarrow-Ultra"
+      }
+     },
      "fontStyle": "normal",
      "fill": "#FFFFFF",
      "align": "left",
@@ -97,6 +103,12 @@
      "width": 940,
      "fontSize": 38,
      "fontFamily": "GothamNarrow-Book",
+     "bind": {
+      "fontFamily": {
+       "ref": "font.body",
+       "value": "GothamNarrow-Book"
+      }
+     },
      "fontStyle": "bold",
      "fill": "#257639",
      "align": "left",
@@ -116,6 +128,12 @@
      "width": 940,
      "fontSize": 126,
      "fontFamily": "GothamNarrow-Ultra",
+     "bind": {
+      "fontFamily": {
+       "ref": "font.headline",
+       "value": "GothamNarrow-Ultra"
+      }
+     },
      "fontStyle": "normal",
      "fill": "#257639",
      "align": "left",
@@ -135,6 +153,12 @@
      "width": 76,
      "fontSize": 34,
      "fontFamily": "GothamNarrow-Book",
+     "bind": {
+      "fontFamily": {
+       "ref": "font.body",
+       "value": "GothamNarrow-Book"
+      }
+     },
      "fontStyle": "bold",
      "fill": "#257639",
      "align": "right",
@@ -212,6 +236,12 @@
      "width": 940,
      "fontSize": 230,
      "fontFamily": "GothamNarrow-Ultra",
+     "bind": {
+      "fontFamily": {
+       "ref": "font.headline",
+       "value": "GothamNarrow-Ultra"
+      }
+     },
      "fontStyle": "normal",
      "fill": "#257639",
      "align": "left",
@@ -231,6 +261,12 @@
      "width": 940,
      "fontSize": 126,
      "fontFamily": "GothamNarrow-Ultra",
+     "bind": {
+      "fontFamily": {
+       "ref": "font.headline",
+       "value": "GothamNarrow-Ultra"
+      }
+     },
      "fontStyle": "normal",
      "fill": "#257639",
      "align": "left",
@@ -312,6 +348,12 @@
      "width": 940,
      "fontSize": 230,
      "fontFamily": "GothamNarrow-Ultra",
+     "bind": {
+      "fontFamily": {
+       "ref": "font.headline",
+       "value": "GothamNarrow-Ultra"
+      }
+     },
      "fontStyle": "normal",
      "fill": "#257639",
      "align": "left",
@@ -331,6 +373,12 @@
      "width": 940,
      "fontSize": 126,
      "fontFamily": "GothamNarrow-Ultra",
+     "bind": {
+      "fontFamily": {
+       "ref": "font.headline",
+       "value": "GothamNarrow-Ultra"
+      }
+     },
      "fontStyle": "normal",
      "fill": "#257639",
      "align": "left",
@@ -412,6 +460,12 @@
      "width": 940,
      "fontSize": 230,
      "fontFamily": "GothamNarrow-Ultra",
+     "bind": {
+      "fontFamily": {
+       "ref": "font.headline",
+       "value": "GothamNarrow-Ultra"
+      }
+     },
      "fontStyle": "normal",
      "fill": "#257639",
      "align": "left",
@@ -431,6 +485,12 @@
      "width": 940,
      "fontSize": 126,
      "fontFamily": "GothamNarrow-Ultra",
+     "bind": {
+      "fontFamily": {
+       "ref": "font.headline",
+       "value": "GothamNarrow-Ultra"
+      }
+     },
      "fontStyle": "normal",
      "fill": "#257639",
      "align": "left",
@@ -512,6 +572,12 @@
      "width": 940,
      "fontSize": 374,
      "fontFamily": "GothamNarrow-Ultra",
+     "bind": {
+      "fontFamily": {
+       "ref": "font.headline",
+       "value": "GothamNarrow-Ultra"
+      }
+     },
      "fontStyle": "normal",
      "fill": "#FCEC00",
      "align": "left",
@@ -531,6 +597,12 @@
      "width": 940,
      "fontSize": 104,
      "fontFamily": "GothamNarrow-Ultra",
+     "bind": {
+      "fontFamily": {
+       "ref": "font.headline",
+       "value": "GothamNarrow-Ultra"
+      }
+     },
      "fontStyle": "normal",
      "fill": "#FFFFFF",
      "align": "left",
@@ -550,6 +622,12 @@
      "width": 940,
      "fontSize": 42,
      "fontFamily": "GothamNarrow-Book",
+     "bind": {
+      "fontFamily": {
+       "ref": "font.body",
+       "value": "GothamNarrow-Book"
+      }
+     },
      "fontStyle": "bold",
      "fill": "#FFFFFF",
      "align": "left",

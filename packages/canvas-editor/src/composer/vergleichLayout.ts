@@ -1,11 +1,12 @@
+import { largestSizeWordsFit } from '@ggraphic/editor/composer/textFit';
 import { createShape } from '@ggraphic/editor/utils/shapes';
 
 import { LIME, SHAREPIC_COLOR_HEX } from './chromeParts';
 import { type FaktencheckItem, type Placed, type VergleichItem } from './composeTypes';
+import { brandFont } from './fontRole';
 import { VERGLEICH_MARKER_IDS } from './sharepicIcons';
 import { GAP, MARKER_PAD_X, TOP_PAD } from './sharepicLayoutConstants';
 import { type BuildPass, type SlideCtx } from './slideContext';
-import { largestSizeWordsFit } from '@ggraphic/editor/composer/textFit';
 
 /** `vergleich` with `stil: "spalten"`, measured on Ddouf0QiL1w/01 at 1080 px. */
 const VERGLEICH_SPALTEN = {
@@ -79,7 +80,7 @@ function vergleichSpalten(ctx: SlideCtx, id: string, item: VergleichItem): void 
   cols.forEach((col, i) => {
     const colId = `${id}-${col.key}`;
     const theirs = i === 0;
-    text(`${colId}-titel`, col.side.titel, top, titleSize, headFamily, {
+    text(`${colId}-titel`, col.side.titel, top, titleSize, 'headline', {
       x: col.x + pad + (theirs ? 0 : inner - titleInner),
       width: titleInner,
       align: 'center',
@@ -112,7 +113,7 @@ function vergleichSpalten(ctx: SlideCtx, id: string, item: VergleichItem): void 
             ? SHAREPIC_COLOR_HEX.grasgruen
             : SHAREPIC_COLOR_HEX.dunkeltanne
       );
-      text(pointId, value, rowTop, pointSize, theme.fonts.body, {
+      text(pointId, value, rowTop, pointSize, 'body', {
         x: col.x + pad + indent,
         width: inner - indent,
         align: 'left',
@@ -129,7 +130,7 @@ function vergleichSpalten(ctx: SlideCtx, id: string, item: VergleichItem): void 
   });
   // VS across the seam at title height: white, outlined in grass green.
   const vs = VERGLEICH_SPALTEN.vs;
-  text(`${id}-vs`, 'VS', top + titleHeight / 2 - vs * 0.55, vs, headFamily, {
+  text(`${id}-vs`, 'VS', top + titleHeight / 2 - vs * 0.55, vs, 'headline', {
     x: half - vs,
     width: 2 * vs,
     align: 'center',
@@ -261,7 +262,7 @@ export function layoutVergleich(
           y: y + pad,
           width: inner,
           fontSize: titleSize,
-          fontFamily: headFamily,
+          ...brandFont(theme.fonts, 'headline'),
           fontStyle: 'normal',
           lineHeight: titleLeading,
           align: 'center',
@@ -288,7 +289,7 @@ export function layoutVergleich(
             y: rowTop,
             width: inner - indent,
             fontSize: pointSize,
-            fontFamily: theme.fonts.body,
+            ...brandFont(theme.fonts, 'body'),
             fontStyle: 'normal',
             lineHeight: 1.25,
           });
@@ -381,7 +382,7 @@ export function layoutFaktencheck(
           fill: style.ink,
           opacity: style.inkOpacity,
           accent: style.accent,
-          fontFamily: theme.fonts.body,
+          ...brandFont(theme.fonts, 'body'),
         };
         out.additionalTexts.push({
           ...inCard,
