@@ -1,4 +1,5 @@
 import {
+  type MarketplaceCollectionId,
   type MarketplaceItem,
   type SharepicBrand,
   type SharepicSpec,
@@ -46,11 +47,19 @@ export type CollectionStoryBlock = {
   | { type: 'vorlagen'; thema?: SharepicThema; brand?: SharepicBrand; heading?: string }
   /** Grünerator-Friends (robot ids) to pick as profile picture; they open the Friends settings. */
   | { type: 'friends'; ids: readonly number[]; heading?: string }
+  /**
+   * The Profilbild stickers and backgrounds only this collection offers
+   * (`kollektion` in the catalogues); each opens the Profilbild with it.
+   */
+  | { type: 'profilbild'; kollektion: MarketplaceCollectionId; heading?: string }
 );
 
 /** A block as the page draws it: entries resolved to what this viewer may see. */
 export type ResolvedStoryBlock =
-  | Extract<CollectionStoryBlock, { type: 'text' | 'claim' | 'quote' | 'vorlagen' | 'friends' }>
+  | Extract<
+      CollectionStoryBlock,
+      { type: 'text' | 'claim' | 'quote' | 'vorlagen' | 'friends' | 'profilbild' }
+    >
   | {
       type: 'items';
       display: 'rows' | 'gallery';

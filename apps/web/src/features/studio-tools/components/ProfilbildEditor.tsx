@@ -20,6 +20,7 @@ import {
   type FreeBackground,
   type PersonPlacement,
   type PresetDesign,
+  type ProfilbildCatalogPick,
   type ProfilbildSticker,
   type SavedProfilbild,
   type SavedProfilbildSticker,
@@ -175,6 +176,8 @@ export interface ProfilbildEditorProps {
   reopen?: ProfilbildReopen | null;
   /** A gallery item handed over by deep link, applied once the photo is in. */
   galleryAsset?: GalleryAsset | null;
+  /** A catalogue sticker or background handed over by a collection's link, applied the same way. */
+  catalogPick?: ProfilbildCatalogPick | null;
   onEditInCanvas: (handoff: ProfilbildCanvasHandoff) => Promise<void>;
   onReset: () => void;
 }
@@ -187,6 +190,7 @@ export function ProfilbildEditor({
   emptyStage,
   reopen = null,
   galleryAsset = null,
+  catalogPick = null,
   onEditInCanvas,
   onReset,
 }: ProfilbildEditorProps) {
@@ -227,6 +231,7 @@ export function ProfilbildEditor({
   const igFeedRef = useRef<HTMLCanvasElement>(null);
   const isAustria = useAuthStore((s) => s.locale === 'de-AT');
   const galleryAssetRef = useRef(galleryAsset);
+  const catalogPickRef = useRef(catalogPick);
   const [uploadingBackground, setUploadingBackground] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
   const uploadBackgroundAsset = useBackgroundAssetUpload();
@@ -689,6 +694,21 @@ export function ProfilbildEditor({
     if (!asset || !cutout || !restored) return;
     galleryAssetRef.current = null;
     void (asset.kind === 'sticker' ? addGallerySticker(asset) : pickGalleryBackground(asset));
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- applied once; the handlers only read state setters
+  }, [cutout, restored]);
+
+  // A collection's link lands the same way, with a catalogue sticker or background.
+  useEffect(() => {
+    const pick = catalogPickRef.current;
+    if (!pick || !cutout || !restored) return;
+    catalogPickRef.current = null;
+    if (pick.kind === 'sticker') {
+      const sticker = stickerById(pick.id);
+      if (sticker) void addSticker(sticker);
+    } else {
+      const design = presetsRef.current.find((d) => d.id === pick.id);
+      if (design) void selectPreset(design);
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps -- applied once; the handlers only read state setters
   }, [cutout, restored]);
 

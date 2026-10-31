@@ -29,7 +29,10 @@ export const GRUENE_JUGEND_COLLECTION = {
   fill: [],
   show: 14,
   min: 0,
-  story: [{ type: 'vorlagen', brand: 'gruene-jugend', heading: 'Vorlagen für eure Ortsgruppe' }],
+  story: [
+    { type: 'vorlagen', brand: 'gruene-jugend', heading: 'Vorlagen für eure Ortsgruppe' },
+    { type: 'profilbild', kollektion: 'gruene-jugend', heading: 'Fürs Profilbild' },
+  ],
 } as const satisfies MarketplaceCollection;
 
 export const GRUENE_JUGEND_AT_COLLECTION = {
@@ -45,5 +48,8 @@ export const GRUENE_JUGEND_AT_COLLECTION = {
   fill: [],
   show: 14,
   min: 0,
-  story: [{ type: 'vorlagen', brand: 'gruene-jugend', heading: 'Vorlagen für eure Gruppe' }],
+  story: [
+    { type: 'vorlagen', brand: 'gruene-jugend', heading: 'Vorlagen für eure Gruppe' },
+    { type: 'profilbild', kollektion: 'gruene-jugend-oesterreich', heading: 'Fürs Profilbild' },
+  ],
 } as const satisfies MarketplaceCollection;

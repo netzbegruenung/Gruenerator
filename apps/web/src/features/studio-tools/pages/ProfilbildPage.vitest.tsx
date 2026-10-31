@@ -1109,6 +1109,28 @@ describe('ProfilbildPage', () => {
       expect(screen.queryByText(/Lade zuerst ein Foto hoch/)).toBeNull();
     });
 
+    it('places a collection sticker from its link once the photo is in', async () => {
+      mockRemove.mockResolvedValue({
+        file: new File([], 'x'),
+        objectUrl: 'blob:x',
+        base64: CUTOUT,
+      });
+      renderPage(null, '?sticker=gj-zackenstern');
+      expect(
+        screen.getByText(
+          'Lade zuerst ein Foto hoch – dann setzen wir „Zackenstern „Ich bin dabei!““ ein.'
+        )
+      ).toBeTruthy();
+      fireEvent.click(screen.getByText('upload'));
+      await stickersOnStage(1);
+    });
+
+    it('ignores a catalogue link with an unknown id', async () => {
+      renderPage(null, '?hintergrund=gibt-es-nicht');
+      expect(await screen.findByText('upload')).toBeTruthy();
+      expect(screen.queryByText(/Lade zuerst ein Foto hoch/)).toBeNull();
+    });
+
     it('ignores a deep link whose src is not a share path', async () => {
       renderPage(null, `?asset=${GALLERY_ID}&kind=sticker&src=https://evil.example/x.png`);
       expect(await screen.findByText('upload')).toBeTruthy();
