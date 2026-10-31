@@ -37,6 +37,9 @@ const PRODUCT_META_PATTERNS: RegExp[] = [
   /\bwas (kann|bietet|ist) (der |dieser )?gr[üu]nerator\b/i,
   /\bwie funktioniert (der |dieser )?gr[üu]nerator\b/i,
   /\bhilfe (zum|beim|mit dem) gr[üu]nerator\b/i,
+  // The whole message, nothing else: "Hilfe!" / "Wer bist du?" ask about the
+  // product; "Hilfe bei meiner Rede" and "wer bist du eigentlich, Olaf?" do not.
+  /^\s*(hilfe|wer bist du)\s*[?!.]*\s*$/i,
   /\bwelche (funktionen|features|tools|werkzeuge|f[äa]higkeiten|m[öo]glichkeiten|gr[üu]neratoren|agent(en|innen|\*innen)?|mcp[- ]?server)\b/i,
   /\bwie (erstelle|mache|nutze|verwende) (ich|man) (ein|eine|einen|die|das|den)?\s*(sharepic|reel|untertitel|board|tabelle|pr[äa]sentation|notebook|dokument|newsletter|ki-bild)/i,
 ];
