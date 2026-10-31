@@ -44,6 +44,7 @@ export const PRUEFUNG_STUFE = {
   toolNameMatches: 'hart',
   noTool: 'hart',
   toolArgsMatch: 'hart',
+  toolArgsMustNotMatch: 'hart',
   minToolCalls: 'hart',
   maxToolCalls: 'weich',
   // Erlaubte und verbotene Wirkungen

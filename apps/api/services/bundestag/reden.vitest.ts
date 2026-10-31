@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 
 import {
   describeRedenFilter,
+  phraseIstNurName,
   phraseKeywords,
   REDE_TEXT_MAX,
   redeTextCap,
@@ -48,6 +49,20 @@ describe('phraseKeywords', () => {
   it('zerlegt eine Phrase in Wörter ab drei Zeichen, klein und ohne Anführungszeichen', () => {
     expect(phraseKeywords('„mit Leben füllt“')).toEqual(['mit', 'leben', 'füllt']);
     expect(phraseKeywords('im')).toEqual(['im']);
+  });
+});
+
+describe('phraseIstNurName', () => {
+  it('erkennt eine „Phrase“, die nur aus dem Namen der Rednerin besteht', () => {
+    expect(phraseIstNurName('Katrin Uhlig', 'Katrin Uhlig')).toBe(true);
+    expect(phraseIstNurName('„uhlig“', 'Katrin Uhlig')).toBe(true);
+    expect(phraseIstNurName('Katrin Uhlig', 'Dr. Katrin Uhlig')).toBe(true);
+  });
+
+  it('lässt echte Phrasen und Aufrufe ohne Redner*in in Ruhe', () => {
+    expect(phraseIstNurName('Zeitenwende', 'Olaf Scholz')).toBe(false);
+    expect(phraseIstNurName('Uhlig hat recht', 'Katrin Uhlig')).toBe(false);
+    expect(phraseIstNurName('Katrin Uhlig', undefined)).toBe(false);
   });
 });
 
