@@ -54,6 +54,7 @@ import {
   type SharepicSlide,
   brandIdFor,
   SHAREPIC_BRAND_IDS,
+  type SharepicBrand,
   type SharepicBrandId,
   type SharepicCreatorLocale,
   type SharepicPhotoAttribution,
@@ -307,12 +308,10 @@ function rolleOf(n: number, count: number): SharepicSeiteRolle {
 }
 
 /**
- * Each slide of a Vorlage as a Seite in the Vorlage's format; `weiter` only fits a carousel.
- * Seiten are the party's pages: a GJ Vorlage gives none.
+ * Each slide of a Vorlage as a Seite in the Vorlage's format and design; `weiter` only fits a carousel.
  */
 function seitenFromVorlage(vorlage: SharepicVorlage): { seite: SharepicSeite; thumb: string }[] {
-  if (vorlage.spec.brand && vorlage.spec.brand !== 'gruene') return [];
-  const { slides } = vorlage.spec;
+  const { slides, brand } = vorlage.spec;
   return slides.flatMap(({ weiter: _weiter, ...slide }, i) => {
     const n = i + 1;
     const id = `${vorlage.id}-s${n}`;
@@ -321,7 +320,12 @@ function seitenFromVorlage(vorlage: SharepicVorlage): { seite: SharepicSeite; th
       return [];
     }
     const { thema } = vorlage.spec;
-    const asSpec = sharepicSpecSchema.safeParse({ locale: vorlage.locale, thema, slides: [slide] });
+    const asSpec = sharepicSpecSchema.safeParse({
+      locale: vorlage.locale,
+      brand,
+      thema,
+      slides: [slide],
+    });
     if (!asSpec.success) {
       const issue = asSpec.error.issues[0];
       log.error(
@@ -342,6 +346,7 @@ function seitenFromVorlage(vorlage: SharepicVorlage): { seite: SharepicSeite; th
           slide,
           ...(thema ? { thema } : {}),
           quelle: { vorlage: vorlage.id, seite: n },
+          ...(brand && brand !== 'gruene' ? { brand } : {}),
           locale: vorlage.locale,
           attribution: vorlage.attributions[i] ?? null,
           thumbVersion: thumbVersionOf([thumb]),
@@ -505,10 +510,18 @@ export function defaultDeckStil(locale: SharepicCreatorLocale): FolienVorlage['s
   return listFolienVorlagen(locale).find((f) => f.standard)?.stil ?? 'cd';
 }
 
-/** The country's Seiten, or both countries' when `locale` is null. */
-export function listSharepicSeiten(locale: SharepicCreatorLocale | null): SharepicSeite[] {
+/**
+ * The country's Seiten, or both countries' when `locale` is null; in one
+ * design when `brand` is given, else in every design.
+ */
+export function listSharepicSeiten(
+  locale: SharepicCreatorLocale | null,
+  brand: SharepicBrand | null = null
+): SharepicSeite[] {
   const { seiten } = all();
-  return locale ? seiten.filter((s) => s.locale === locale) : seiten;
+  return seiten.filter(
+    (s) => (!locale || s.locale === locale) && (!brand || (s.brand ?? 'gruene') === brand)
+  );
 }
 
 export function getSharepicSeite(id: string): SharepicSeite | null {

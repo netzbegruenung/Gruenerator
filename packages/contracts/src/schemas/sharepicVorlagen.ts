@@ -17,6 +17,7 @@ import {
   type PrintSpec,
 } from './printCreator.js';
 import {
+  sharepicBrandSchema,
   sharepicColorSchema,
   sharepicCreatorLocaleSchema,
   sharepicFormatSchema,
@@ -100,6 +101,8 @@ export const sharepicSeiteFileEntrySchema = z.object({
   thema: sharepicThemaSchema.optional(),
   /** The Vorlage slide this one was taken from — for upkeep only. */
   quelle: z.object({ vorlage: sharepicVorlageIdSchema, seite: z.number().int().min(1) }).optional(),
+  /** The design it is composed in; none is the party's. A GJ Seite comes from a GJ Vorlage. */
+  brand: sharepicBrandSchema.optional(),
 });
 export type SharepicSeiteFileEntry = z.infer<typeof sharepicSeiteFileEntrySchema>;
 
@@ -330,6 +333,11 @@ export const sharepicSeiteThumbPath = (
  */
 export const vorlagenLandQuerySchema = z.object({
   land: sharepicCreatorLocaleSchema.optional(),
+});
+
+/** Seiten come in one design at a time; without `brand` the party's, as before GJ Seiten existed. */
+export const sharepicSeitenQuerySchema = vorlagenLandQuerySchema.extend({
+  brand: sharepicBrandSchema.default('gruene'),
 });
 
 export const sharepicVorlagenListResponseSchema = z.object({

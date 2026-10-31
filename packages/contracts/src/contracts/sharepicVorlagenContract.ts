@@ -14,6 +14,7 @@ import {
   folienVorlagenListResponseSchema,
   printVorlagenListResponseSchema,
   sharepicBloeckeListResponseSchema,
+  sharepicSeitenQuerySchema,
   sharepicSeitenListResponseSchema,
   sharepicVorlageIdSchema,
   sharepicVorlageSchema,
@@ -41,12 +42,13 @@ export const sharepicVorlagenContract = c.router(
     seiten: {
       method: 'GET',
       path: '/api/sharepic-vorlagen/seiten',
-      query: vorlagenLandQuerySchema,
+      query: sharepicSeitenQuerySchema,
       responses: {
         200: sharepicSeitenListResponseSchema,
         401: sharepicVorlagenErrorSchema,
       },
-      summary: "Single slides to add to a carousel, in the viewer's country like `list`",
+      summary:
+        "Single slides to add to a carousel, in the viewer's country like `list` and in one design (`brand`, default the party's)",
     },
     // Before `get` as well, for the same reason.
     folien: {

@@ -229,6 +229,19 @@ describe('sharepic Seiten catalogue', () => {
     expect(listSharepicVorlagen(null)).toHaveLength(2);
   });
 
+  it('gives a GJ Vorlage GJ Seiten, listed only when asked for that design', () => {
+    const gj = entry('gj-de-statement', 'de-DE', 'wiese');
+    writeCatalog({
+      'de.json': [entry('de-rad', 'de-DE', 'tanne')],
+      'gj-de.json': [{ ...gj, spec: { ...gj.spec, brand: 'gruene-jugend' } }],
+    });
+
+    expect(listSharepicSeiten('de-DE', 'gruene').map((s) => s.id)).toEqual(['de-rad-s1']);
+    const seiten = listSharepicSeiten('de-DE', 'gruene-jugend');
+    expect(seiten.map((s) => [s.id, s.brand])).toEqual([['gj-de-statement-s1', 'gruene-jugend']]);
+    expect(listSharepicSeiten('de-AT', 'gruene-jugend')).toEqual([]);
+  });
+
   it('leaves out a Vorlage slide a curated Seite was taken from', () => {
     writeCatalog({
       'de.json': [entry('de-rad', 'de-DE', 'tanne')],

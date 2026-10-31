@@ -17,6 +17,7 @@ import type {
   PrintSpec,
   PrintVorlage,
   SharepicBlock,
+  SharepicBrand,
   SharepicColor,
   SharepicCreatorLocale,
   SharepicFormat,
@@ -38,7 +39,8 @@ export interface VorlagePage {
  * fonts, photo tones) and keeps its spec on it, so the chat can go on editing it.
  */
 export interface CanvasVorlagenService {
-  listSeiten: () => Promise<SharepicSeite[]>;
+  /** The Seiten in one design; the tab asks for the one the sharepic is in. */
+  listSeiten: (brand: SharepicBrand) => Promise<SharepicSeite[]>;
   composeSeite: (seite: SharepicSeite, format: SharepicFormat) => Promise<VorlagePage[]>;
   /** Vorlagen saved as finished pages, for every format; the tab shows the document's. */
   listCanvas?: () => Promise<CanvasVorlage[]>;

@@ -49,6 +49,7 @@ const composeSeite = (seite: SharepicSeite, format: SharepicFormat) =>
   composeSpec(
     {
       locale: seite.locale,
+      ...(seite.brand ? { brand: seite.brand } : {}),
       format,
       ...(seite.thema ? { thema: seite.thema } : {}),
       slides: [seite.slide],
@@ -91,7 +92,7 @@ export function WebCanvasEditorProvider({
       ...(allowVorlagen
         ? {
             vorlagen: {
-              listSeiten: () => queryClient.fetchQuery(sharepicSeitenQuery()),
+              listSeiten: (brand) => queryClient.fetchQuery(sharepicSeitenQuery(brand)),
               composeSeite,
               listCanvas: () => queryClient.fetchQuery(canvasVorlagenQuery()),
               loadDeckVorlagen: () => queryClient.fetchQuery(folienVorlagenQuery()),

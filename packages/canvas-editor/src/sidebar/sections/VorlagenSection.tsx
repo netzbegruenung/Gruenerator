@@ -56,6 +56,7 @@ import {
   sharepicSeiteThumbPath,
   type CanvasVorlage,
   type PrintVorlage,
+  type SharepicBrand,
   type SharepicFormat,
   type SharepicSeite,
   type SharepicSeiteTyp,
@@ -118,6 +119,8 @@ export interface VorlagenSectionProps {
   canAddPage: boolean;
   /** The country whose slides a deck gets. */
   layoutLocale: BrandLocale;
+  /** The design whose Seiten a sharepic gets: a GJ sharepic only GJ ones. */
+  brand?: SharepicBrand;
 }
 
 /** A Vorlage tile, print or canvas: the whole Vorlage, or one page of a print Vorlage. */
@@ -380,6 +383,7 @@ export function VorlagenSection({
   onShowPage,
   canAddPage,
   layoutLocale,
+  brand = 'gruene',
 }: VorlagenSectionProps) {
   const { vorlagen: service, print: printService } = useCanvasEditorServices();
   const canDrag = !useIsCanvasMobile();
@@ -413,7 +417,7 @@ export function VorlagenSection({
   useEffect(() => {
     if (!listSeiten || !seitenFormat) return;
     let live = true;
-    listSeiten().then(
+    listSeiten(brand).then(
       (seiten) => {
         if (live) {
           setSeitenLoad({
@@ -430,7 +434,7 @@ export function VorlagenSection({
     return () => {
       live = false;
     };
-  }, [listSeiten, seitenFormat, seitenAttempt, atOpen]);
+  }, [listSeiten, brand, seitenFormat, seitenAttempt, atOpen]);
 
   // Sharepic formats are built from Seiten; every other format gets its whole Vorlagen.
   useEffect(() => {
