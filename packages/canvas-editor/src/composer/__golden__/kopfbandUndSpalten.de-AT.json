@@ -17,6 +17,12 @@
      "width": 940,
      "fontSize": 94,
      "fontFamily": "GothamNarrow-Ultra",
+     "bind": {
+      "fontFamily": {
+       "ref": "font.headline",
+       "value": "GothamNarrow-Ultra"
+      }
+     },
      "fontStyle": "normal",
      "fill": "#257639",
      "align": "left",
@@ -36,6 +42,12 @@
      "width": 848,
      "fontSize": 70,
      "fontFamily": "GothamNarrow-Book",
+     "bind": {
+      "fontFamily": {
+       "ref": "font.body",
+       "value": "GothamNarrow-Book"
+      }
+     },
      "fontStyle": "normal",
      "fill": "#257639",
      "align": "left",
@@ -56,6 +68,12 @@
      "width": 848,
      "fontSize": 70,
      "fontFamily": "GothamNarrow-Book",
+     "bind": {
+      "fontFamily": {
+       "ref": "font.body",
+       "value": "GothamNarrow-Book"
+      }
+     },
      "fontStyle": "normal",
      "fill": "#257639",
      "align": "left",
@@ -161,6 +179,12 @@
      "width": 386,
      "fontSize": 55,
      "fontFamily": "GothamNarrow-Ultra",
+     "bind": {
+      "fontFamily": {
+       "ref": "font.headline",
+       "value": "GothamNarrow-Ultra"
+      }
+     },
      "fontStyle": "normal",
      "lineHeight": 1.05,
      "align": "center"
@@ -181,6 +205,12 @@
      "width": 325,
      "fontSize": 41,
      "fontFamily": "GothamNarrow-Book",
+     "bind": {
+      "fontFamily": {
+       "ref": "font.body",
+       "value": "GothamNarrow-Book"
+      }
+     },
      "fontStyle": "normal",
      "lineHeight": 1.25
     },
@@ -200,6 +230,12 @@
      "width": 325,
      "fontSize": 41,
      "fontFamily": "GothamNarrow-Book",
+     "bind": {
+      "fontFamily": {
+       "ref": "font.body",
+       "value": "GothamNarrow-Book"
+      }
+     },
      "fontStyle": "normal",
      "lineHeight": 1.25
     },
@@ -219,6 +255,12 @@
      "width": 386,
      "fontSize": 55,
      "fontFamily": "GothamNarrow-Ultra",
+     "bind": {
+      "fontFamily": {
+       "ref": "font.headline",
+       "value": "GothamNarrow-Ultra"
+      }
+     },
      "fontStyle": "normal",
      "lineHeight": 1.05,
      "align": "center"
@@ -239,6 +281,12 @@
      "width": 325,
      "fontSize": 41,
      "fontFamily": "GothamNarrow-Book",
+     "bind": {
+      "fontFamily": {
+       "ref": "font.body",
+       "value": "GothamNarrow-Book"
+      }
+     },
      "fontStyle": "normal",
      "lineHeight": 1.25
     },
@@ -258,6 +306,12 @@
      "width": 325,
      "fontSize": 41,
      "fontFamily": "GothamNarrow-Book",
+     "bind": {
+      "fontFamily": {
+       "ref": "font.body",
+       "value": "GothamNarrow-Book"
+      }
+     },
      "fontStyle": "normal",
      "lineHeight": 1.25
     },

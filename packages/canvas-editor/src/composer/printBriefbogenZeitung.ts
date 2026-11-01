@@ -15,6 +15,7 @@ import { type PrintSpec } from '@gruenerator/contracts';
 
 import { DE_WORDMARK, SHAREPIC_COLOR_HEX } from './chromeParts';
 import { type ComposedSlide } from './composeSharepic';
+import { brandFont } from './fontRole';
 import {
   ART,
   BODY_LEADING,
@@ -55,7 +56,7 @@ function zeile(
     text,
     type: 'body',
     fontSize: size,
-    fontFamily: f.theme.fonts.body,
+    ...brandFont(f.theme.fonts, 'body'),
     fontStyle: bold ? 'bold' : 'normal',
     fill,
     lineHeight: BODY_LEADING,
@@ -160,7 +161,7 @@ export function gemeindezeitung(f: Frame, spec: ZeitungSpec, src: PhotoSrc): Com
           text: s.titel,
           type: 'header' as const,
           fontSize: size,
-          fontFamily: f.theme.fonts.headline,
+          ...brandFont(f.theme.fonts, 'headline'),
           fontStyle: 'normal' as const,
           fill: gelb,
           lineHeight: HEAD_LEADING['de-AT'],
@@ -231,7 +232,7 @@ export function gemeindezeitung(f: Frame, spec: ZeitungSpec, src: PhotoSrc): Com
             text: a.headline,
             type: 'header' as const,
             fontSize: size,
-            fontFamily: f.theme.fonts.headline,
+            ...brandFont(f.theme.fonts, 'headline'),
             fontStyle: 'normal' as const,
             fill: accentOnLight,
             lineHeight: HEAD_LEADING['de-AT'],
@@ -314,7 +315,7 @@ export function gemeindezeitung(f: Frame, spec: ZeitungSpec, src: PhotoSrc): Com
         text: 'Kontakt',
         type: 'header',
         fontSize: f.pt(24),
-        fontFamily: f.theme.fonts.headline,
+        ...brandFont(f.theme.fonts, 'headline'),
         fontStyle: 'normal',
         fill: WHITE,
         lineHeight: HEAD_LEADING['de-AT'],

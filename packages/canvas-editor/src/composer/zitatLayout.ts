@@ -1,12 +1,12 @@
+import { stripMarks } from '@ggraphic/editor/composer/marks';
+import { largestSizeWordsFit } from '@ggraphic/editor/composer/textFit';
 import { createShape } from '@ggraphic/editor/utils/shapes';
 import { type TextAccent } from '@ggraphic/editor/utils/textUtils';
 
 import { SHAREPIC_COLOR_HEX } from './chromeParts';
 import { type FrageItem, type Placed, type ZitatItem } from './composeTypes';
-import { stripMarks } from '@ggraphic/editor/composer/marks';
 import { GAP, KLEE, QUOTE_LINE_HEIGHT } from './sharepicLayoutConstants';
 import { type BuildPass, type SlideCtx } from './slideContext';
-import { largestSizeWordsFit } from '@ggraphic/editor/composer/textFit';
 
 /** A quote; the other side's (`seite: "gegner"`) on the muted "theirs" panel. */
 export function layoutZitat(ctx: SlideCtx, item: ZitatItem, id: string, pass: BuildPass): Placed[] {
@@ -104,22 +104,17 @@ function zitatCard(ctx: SlideCtx, item: ZitatItem, id: string, pass: BuildPass):
       height: markHeight + 28 + quoteHeight + 30 + nameSize * 1.2,
       after: GAP,
       place: (y) => {
-        text(`${id}-mark`, '”', y - Math.round(markSize * 0.12), markSize, family, {
+        text(`${id}-mark`, '”', y - Math.round(markSize * 0.12), markSize, 'headline', {
           fill: 'transparent',
           stroke: '#FFFFFF',
           strokeWidth: 3,
           lineHeight: 1,
           shadowOpacity: 0,
         });
-        text(id, item.text, y + markHeight + 28, size, family, { lineHeight });
-        text(
-          `${id}-name`,
-          item.name,
-          y + markHeight + 28 + quoteHeight + 30,
-          nameSize,
-          theme.fonts.body,
-          { lineHeight: 1.2 }
-        );
+        text(id, item.text, y + markHeight + 28, size, 'headline', { lineHeight });
+        text(`${id}-name`, item.name, y + markHeight + 28 + quoteHeight + 30, nameSize, 'body', {
+          lineHeight: 1.2,
+        });
       },
     });
     return placed;
@@ -159,7 +154,7 @@ function zitatCard(ctx: SlideCtx, item: ZitatItem, id: string, pass: BuildPass):
         opacity: 1,
       });
       out.layerOrder.push(markId);
-      text(id, item.text, y + mark + 10, size, theme.fonts.body, {
+      text(id, item.text, y + mark + 10, size, 'body', {
         lineHeight: QUOTE_LINE_HEIGHT,
       });
       text(
@@ -167,7 +162,7 @@ function zitatCard(ctx: SlideCtx, item: ZitatItem, id: string, pass: BuildPass):
         signatureText,
         y + mark + 10 + quoteHeight + signatureGap,
         nameSize,
-        theme.fonts.body,
+        'body',
         {
           lineHeight: 1.25,
         }
@@ -200,7 +195,7 @@ export function layoutFrage(ctx: SlideCtx, item: FrageItem, id: string, pass: Bu
     height: lines * size * 1.25,
     after: Math.round(size * 0.5),
     place: (y) =>
-      text(id, value, y, size, theme.fonts.body, {
+      text(id, value, y, size, 'body', {
         fontStyle: 'bold',
         lineHeight: 1.25,
         accent: prefixAccent,
