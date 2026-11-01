@@ -15,6 +15,10 @@ import {
   COMPOSER_PLANE_IDS,
   liftBlock,
 } from '@gruenerator/canvas-editor/composer';
+import {
+  GRUENE_BRAND_PACKS,
+  registerBrandPacks,
+} from '@gruenerator/canvas-editor/grueneBrandPacks';
 import { sharepicSpecSchema } from '@gruenerator/contracts';
 
 import {
@@ -32,6 +36,10 @@ import './sharepicHarness';
 import '../../../src/assets/styles/common/typography.css';
 
 installHarnessBrandFonts();
+// As the app does at startup (src/index.tsx): the packs carry the defaults,
+// bold families and font cuts the renders read. Without them the harness
+// drew what no user sees (a faked bold of GothamNarrow-Book, for one).
+registerBrandPacks(GRUENE_BRAND_PACKS);
 
 // Vite serves the API's stock photos by their file URLs — a path under /api
 // would hit the dev proxy instead.
