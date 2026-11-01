@@ -27,12 +27,11 @@ import { findDeclaration, objectEntries, parse, unwrap, walk } from './lib/ast.m
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = path.resolve(HERE, '../..'); // documentation/scripts → repo root
 // The editor is the installed @ggraphic/editor package (#5212), which ships
-// compiled JS: read its dist files, resolved from the package that depends on it.
-const requireFromCanvasEditor = createRequire(
-  path.join(REPO_ROOT, 'packages/canvas-editor/package.json')
-);
+// compiled JS: read its dist files. Resolved from this package, which declares
+// it, because the docs CI installs only `@gruenerator/documentation...`.
+const requireFromDocs = createRequire(path.join(REPO_ROOT, 'documentation/package.json'));
 const editorFile = (subpath) =>
-  path.relative(REPO_ROOT, requireFromCanvasEditor.resolve(`@ggraphic/editor/${subpath}`));
+  path.relative(REPO_ROOT, requireFromDocs.resolve(`@ggraphic/editor/${subpath}`));
 const OUT_FILE = path.join(REPO_ROOT, 'documentation/src/generated/ui-labels.json');
 
 // group → source file (relative to repo root). The group namespaces ids so the
