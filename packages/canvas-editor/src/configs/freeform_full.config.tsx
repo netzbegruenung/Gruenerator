@@ -30,7 +30,6 @@ import {
   type ShapeInstance,
 } from '@ggraphic/editor/elements';
 import { type CanvasFormat } from '@ggraphic/editor/host';
-import { withCardFollowingText } from '@ggraphic/editor/internal/composer/cardFollowsText';
 import { FrameSettingsSection, CombinedTextSection } from '@ggraphic/editor/sidebar';
 import { insertScaleFor, isSlideFormat } from '@ggraphic/editor/templates';
 import { CANVAS_COLORS } from '@gruenerator/contracts';
@@ -38,6 +37,7 @@ import { PiFrameCornersFill, PiSquaresFourFill, PiTextAa } from 'react-icons/pi'
 
 import { buildAssetCapability } from '../ai/assetCapability';
 import { CANVAS_RECOMMENDED_ASSETS } from '../brand/grueneAssets';
+import { withCardFollowingText } from '../composer/cardFollowsText';
 import { SHAREPIC_COLOR_HEX } from '../composer/composeSharepic';
 import { type LiftedBlock } from '../composer/liftBlock';
 import { AssetsSection } from '../sidebar';

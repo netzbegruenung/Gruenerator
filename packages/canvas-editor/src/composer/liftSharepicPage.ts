@@ -10,7 +10,6 @@
  * so nothing beyond the stored source is needed, and the lift measures no text.
  */
 import { BACKGROUND_STRAIGHTEN_KEY, backgroundStraighten } from '@ggraphic/editor/elements';
-import { withCardResizedFor } from '@ggraphic/editor/internal/composer/cardFollowsText';
 import { DEFAULT_FORMAT_ID } from '@ggraphic/editor/templates';
 import {
   type SharepicBaseline,
@@ -21,6 +20,7 @@ import {
   sharepicSlideSchema,
 } from '@gruenerator/contracts';
 
+import { withCardResizedFor } from './cardFollowsText';
 import { type ComposedSlide } from './composeSharepic';
 import { invertLiftedText, slideProvenance, type SharepicProvenance } from './sharepicProvenance';
 
