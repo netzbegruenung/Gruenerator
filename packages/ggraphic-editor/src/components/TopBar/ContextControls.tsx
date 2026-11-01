@@ -1,10 +1,14 @@
 // SPDX-License-Identifier: MPL-2.0
+import { type FontRole } from '@ggraphic/core';
 import React, { useState } from 'react';
 import { PiCopy, PiLockSimple, PiLockSimpleOpen, PiTrash } from 'react-icons/pi';
 
 import { useDocumentBrand } from '@ggraphic/editor/brand/documentBrand';
 import { useCanvasEditorServices } from '@ggraphic/editor/CanvasEditorProvider';
-import { useCanvasTextFormatting } from '@ggraphic/editor/components/CanvasTextOverlay';
+import {
+  useCanvasTextFormatting,
+  useIsCanvasTextEditing,
+} from '@ggraphic/editor/components/CanvasTextOverlay';
 import { CropModeControls } from '@ggraphic/editor/components/TopBar/CropModeControls';
 import {
   BackgroundImagePicker,
@@ -14,6 +18,7 @@ import {
   SetAsBackgroundButton,
 } from '@ggraphic/editor/components/TopBar/modules/FloatingBackgroundControls';
 import { FloatingColorPicker } from '@ggraphic/editor/components/TopBar/modules/FloatingColorPicker';
+import { FloatingFontRoleControl } from '@ggraphic/editor/components/TopBar/modules/FloatingFontRoleControl';
 import { FloatingFontSizeControl } from '@ggraphic/editor/components/TopBar/modules/FloatingFontSizeControl';
 import { FloatingGradientControl } from '@ggraphic/editor/components/TopBar/modules/FloatingGradientControl';
 import { FloatingLayerControls } from '@ggraphic/editor/components/TopBar/modules/FloatingLayerControls';
@@ -22,6 +27,7 @@ import {
   FloatingPositionControl,
   type PositionCommandId,
 } from '@ggraphic/editor/components/TopBar/modules/FloatingPositionControl';
+import { FloatingTextAlignControl } from '@ggraphic/editor/components/TopBar/modules/FloatingTextAlignControl';
 import { type BackgroundControls } from '@ggraphic/editor/configs/types';
 import { type ShadowPatch } from '@ggraphic/editor/hooks/useFloatingModuleHandlers';
 import { type FloatingModuleState } from '@ggraphic/editor/hooks/useFloatingModuleState';
@@ -39,14 +45,14 @@ import { focusPage, isKeyboardModality } from '@ggraphic/editor/utils/editorFocu
 import { type GradientFill } from '@ggraphic/editor/utils/gradientFill';
 import { type LockState } from '@ggraphic/editor/utils/layerLock';
 import { STROKE_ONLY_SHAPES } from '@ggraphic/editor/utils/shapes';
-import { useUnsplashHome } from '@ggraphic/editor/utils/unsplashLinks';
 import { type TextAlign } from '@ggraphic/editor/utils/textAlign';
+import { useUnsplashHome } from '@ggraphic/editor/utils/unsplashLinks';
+
+import { fontMarkSupport } from '../../utils/fontMarkSupport.js';
+import { WholeTextFormatControls } from '../WholeTextFormatControls.js';
 
 import { FloatingOutlineControl } from './modules/FloatingOutlineControl.js';
-
 import { FloatingShadowControl } from './modules/FloatingShadowControl.js';
-
-import { FloatingTextAlignControl } from '@ggraphic/editor/components/TopBar/modules/FloatingTextAlignControl';
 
 export interface ContextControlsProps {
   selectedElement: string | null;
@@ -77,6 +83,8 @@ export interface ContextControlsProps {
     handleColorSelect: (color: string) => void;
     handleOpacityChange: (id: string, opacity: number, type: string) => void;
     handleFontSizeChange: (id: string, size: number) => void;
+    /** Die Schrift eines freien Textes als Rolle der Marke (Überschrift, Text, Akzent …). */
+    handleFontRoleChange?: (id: string, role: FontRole) => void;
     /** Ausrichten und Position laufen über die Befehls-Türen der Seite. */
     runCommand?: (id: PositionCommandId) => void;
     getGeometry?: () => SelectionGeometry | null;
@@ -97,6 +105,11 @@ export interface ContextControlsProps {
     handleGradientSelect?: (gradient: GradientFill | null) => void;
     /** Ausrichtung des Textes in seiner Box — freie und Vorlagen-Texte. */
     handleTextAlignChange?: (id: string, align: TextAlign) => void;
+    /**
+     * Schreibt den ausgezeichneten Text eines nur ausgewählten Textes (Fett, Akzent, Liste … für
+     * den ganzen Text), als ein Schritt. Ohne sie zeigt die Leiste diese Knöpfe nicht.
+     */
+    handleTextFormatChange?: (id: string, text: string) => void;
     handleToggleLock?: () => void;
     /** Opens the image-adjust (t.topBar.edit) panel for the selected image. */
     onEditImage?: () => void;
@@ -176,6 +189,9 @@ export function ContextControls({
   // Fett/Kursiv/… nur, solange wirklich getippt wird: die Knöpfe bedienen die
   // Auswahl IM Text, und ohne offenen Editor gibt es keine.
   const formatting = useCanvasTextFormatting();
+  // Solange irgendein Text bearbeitet wird, gehören die Knöpfe dem Editor — auch in dem
+  // Augenblick, in dem er noch nachlädt und `formatting` noch leer ist.
+  const editingText = useIsCanvasTextEditing();
   // Ohne Dienst des Hosts oder ohne Uploads (das Ergebnis wird hochgeladen) kein „Erweitern".
   const uploads = useOptionalUserUploads();
   const canExpand = !!useCanvasEditorServices().expandImage && !!uploads;
@@ -394,6 +410,20 @@ export function ContextControls({
     );
   }
 
+  if (isText && activeFloatingModule?.data.isInstanceText && handlers.handleFontRoleChange) {
+    const { handleFontRoleChange } = handlers;
+    groups.push(
+      <FloatingFontRoleControl
+        key="fontrole"
+        text={{
+          fontFamily: activeFloatingModule.data.fontFamily ?? '',
+          bind: activeFloatingModule.data.bind,
+        }}
+        onChange={(role) => handleFontRoleChange(activeFloatingModule.data.id, role)}
+      />
+    );
+  }
+
   if (isText && activeFloatingModule) {
     groups.push(
       <FloatingFontSizeControl
@@ -416,6 +446,25 @@ export function ContextControls({
         key="format"
         editor={formatting.editor}
         marks={formatting.marks}
+        variant="contextBar"
+      />
+    );
+  } else if (
+    isText &&
+    activeFloatingModule?.data.isInstanceText &&
+    !editingText &&
+    typeof activeFloatingModule?.data.text === 'string' &&
+    handlers.handleTextFormatChange
+  ) {
+    // Ein Klick genügt: ohne Sitzung dieselben Knöpfe für den ganzen Text.
+    const { id, text, fontFamily, hasAccent, hasMarker } = activeFloatingModule.data;
+    const { handleTextFormatChange } = handlers;
+    groups.push(
+      <WholeTextFormatControls
+        key="format"
+        text={text}
+        marks={{ ...fontMarkSupport(fontFamily ?? ''), accent: !!hasAccent, marker: !!hasMarker }}
+        onChange={(next) => handleTextFormatChange(id, next)}
         variant="contextBar"
       />
     );
