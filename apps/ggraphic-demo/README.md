@@ -6,7 +6,7 @@ Eine neutrale Seite, die den Editor so einbindet, wie es ein fremder Host täte,
 
 **Das Ausstiegskriterium von Phase 1** lautet: diese Seite rendert eine Vorlage mit `brand-default`, ohne dass ein Grünerator-Paket in ihrem Importgraphen steht. Seit der vierten Umzugsrunde ist das erreicht: der Bericht unten zählt 0 Module aus `@gruenerator/*`.
 
-Die App liegt bewusst nicht unter `packages/ggraphic-*`, weil `scripts/check-ggraphic-core-boundary.mjs` den Import von `@gruenerator/*` dort zu Recht ablehnt.
+Der Editor selbst (`@ggraphic/*`) kommt seit #5212 als Paket aus dem ggraphic-Repo, nicht mehr aus diesem Repo.
 
 ## Befehle
 

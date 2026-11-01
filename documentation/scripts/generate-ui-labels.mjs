@@ -16,6 +16,7 @@
  *   node scripts/generate-ui-labels.mjs --check    # fail if committed JSON is stale
  */
 import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
+import { createRequire } from 'node:module';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -25,6 +26,13 @@ import { findDeclaration, objectEntries, parse, unwrap, walk } from './lib/ast.m
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = path.resolve(HERE, '../..'); // documentation/scripts → repo root
+// The editor is the installed @ggraphic/editor package (#5212), which ships
+// compiled JS: read its dist files, resolved from the package that depends on it.
+const requireFromCanvasEditor = createRequire(
+  path.join(REPO_ROOT, 'packages/canvas-editor/package.json')
+);
+const editorFile = (subpath) =>
+  path.relative(REPO_ROOT, requireFromCanvasEditor.resolve(`@ggraphic/editor/${subpath}`));
 const OUT_FILE = path.join(REPO_ROOT, 'documentation/src/generated/ui-labels.json');
 
 // group → source file (relative to repo root). The group namespaces ids so the
@@ -108,14 +116,14 @@ function generate() {
   // Command ids are object keys rather than `id` properties. Keep the docs
   // tied to the same registry as keyboard shortcuts and the context menu.
   const commands = findDeclaration(
-    parse('packages/ggraphic-editor/src/utils/canvasCommandRegistry.ts'),
+    parse(editorFile('utils/canvasCommandRegistry')),
     'CANVAS_COMMANDS'
   );
   if (!commands || !ts.isObjectLiteralExpression(commands)) {
     throw new Error('Cannot read CANVAS_COMMANDS for UI labels');
   }
   // The labels live in the German message catalogue, keyed by the same ids.
-  const catalogue = findDeclaration(parse('packages/ggraphic-editor/src/i18n/de.ts'), 'de');
+  const catalogue = findDeclaration(parse(editorFile('i18n/de')), 'de');
   const labels =
     catalogue && ts.isObjectLiteralExpression(catalogue)
       ? objectProp(catalogue, 'commands')
@@ -138,11 +146,19 @@ function generate() {
   // button fails here instead of leaving a label for nothing. The icon is not
   // checked: it is the editor's choice and changes with it.
   const downloads = [];
-  walk(parse('packages/ggraphic-editor/src/components/TopBar/ShareDropdown.tsx'), (node) => {
-    if (!ts.isJsxSelfClosingElement(node) || node.tagName.getText() !== 'IconButton') return;
-    const attrs = node.attributes.properties.filter(ts.isJsxAttribute);
-    const label = attrs.find((attr) => attr.name.getText() === 'label')?.initializer;
-    if (label && ts.isJsxExpression(label) && label.expression?.getText() === 't.shell.downloadTab')
+  // The dist is compiled JSX: `_jsx(IconButton, { label: t.shell.downloadTab, … })`.
+  walk(parse(editorFile('components/TopBar/ShareDropdown')), (node) => {
+    if (!ts.isCallExpression(node) || node.arguments[0]?.getText() !== 'IconButton') return;
+    const props = node.arguments[1];
+    if (!props || !ts.isObjectLiteralExpression(props)) return;
+    const label = props.properties.find(
+      (prop) => ts.isPropertyAssignment(prop) && prop.name.getText() === 'label'
+    );
+    if (
+      label &&
+      ts.isPropertyAssignment(label) &&
+      label.initializer.getText() === 't.shell.downloadTab'
+    )
       downloads.push(label);
   });
   if (downloads.length !== 1) {

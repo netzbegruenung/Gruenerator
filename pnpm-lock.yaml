@@ -594,6 +594,9 @@ importers:
       '@anthropic-ai/sdk':
         specifier: ^0.131.0
         version: 0.131.0(zod@4.6.7)
+      '@ggraphic/editor':
+        specifier: file:/private/tmp/claude-501/-Users-moritzwachter-Gruenerator/da731fd8-502b-4302-92eb-615cc667aaa2/scratchpad/gg-tarballs/ggraphic-editor-0.0.0.tgz
+        version: file:../../../private/tmp/claude-501/-Users-moritzwachter-Gruenerator/da731fd8-502b-4302-92eb-615cc667aaa2/scratchpad/gg-tarballs/ggraphic-editor-0.0.0.tgz(@floating-ui/dom@1.8.0)(@tiptap/pm@3.32.0)(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(konva@10.9.0)(react-dom@19.3.0(react@19.3.0))(react-is@19.2.8)(react-konva@19.3.2(@types/react@19.3.0)(konva@10.9.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(react@19.3.0)(redux@5.0.1)(use-sync-external-store@1.7.0(react@19.3.0))(y-protocols@1.0.7(yjs@13.6.33))
       '@gruenerator/eslint-config':
         specifier: workspace:*
         version: link:../../packages/eslint-config
@@ -1307,6 +1310,9 @@ importers:
       '@babel/core':
         specifier: 7.29.7
         version: 7.29.7(supports-color@10.2.2)
+      '@ggraphic/editor':
+        specifier: file:/private/tmp/claude-501/-Users-moritzwachter-Gruenerator/da731fd8-502b-4302-92eb-615cc667aaa2/scratchpad/gg-tarballs/ggraphic-editor-0.0.0.tgz
+        version: file:../../../private/tmp/claude-501/-Users-moritzwachter-Gruenerator/da731fd8-502b-4302-92eb-615cc667aaa2/scratchpad/gg-tarballs/ggraphic-editor-0.0.0.tgz(@floating-ui/dom@1.8.0)(@tiptap/pm@3.32.0)(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(konva@10.9.0)(react-dom@19.3.0(react@19.3.0))(react-is@19.2.8)(react-konva@19.3.2(@types/react@19.3.0)(konva@10.9.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(react@19.3.0)(redux@5.0.1)(use-sync-external-store@1.6.0(react@19.3.0))(y-protocols@1.0.7(yjs@13.6.33))
       '@gruenerator/eslint-config':
         specifier: workspace:*
         version: link:../../packages/eslint-config

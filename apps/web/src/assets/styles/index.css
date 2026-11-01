@@ -112,7 +112,7 @@
 @source "../../../../../packages/wolke/src/**/*.{js,ts,jsx,tsx}";
 @source "../../../../../packages/collab/src/**/*.{js,ts,jsx,tsx}";
 @source "../../../../../packages/canvas-editor/src/**/*.{js,ts,jsx,tsx}";
-@source "../../../../../packages/ggraphic-editor/src/**/*.{js,ts,jsx,tsx}";
+@source "../../../../../node_modules/@ggraphic/editor/dist/**/*.js";
 @source "../../../../../packages/sites/src/**/*.{js,ts,jsx,tsx}";
 @source "../../../../../packages/sites-design/src/**/*.{js,ts,jsx,tsx}";
 @source "../../../../../packages/shared/src/media-library/ui/**/*.{js,ts,jsx,tsx}";
@@ -302,7 +302,7 @@
   --color-editor-secondary-fg: var(--editor-secondary-fg);
   --color-editor-danger-fg: var(--editor-danger-fg);
   --color-editor-danger-bg: var(--editor-danger-bg);
-  --color-editor-tanne-preview: var(--editor-tanne-preview);
+  --color-editor-primary-preview: var(--editor-primary-preview);
   --color-editor-control-border: var(--editor-control-border);
   --color-editor-control-bg: var(--editor-control-bg);
   --color-editor-control-bg-hover: var(--editor-control-bg-hover);

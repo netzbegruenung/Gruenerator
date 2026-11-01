@@ -2,17 +2,11 @@
 
 Config-getriebener react-konva-Editor (Sharepics, Slider, Decks). Jede Instanz hat ihre eigenen Zustand-Stores über `CanvasStoreProvider`. Eingebunden wird er von `apps/web` (Image Studio, `/studio/canvas/:id`, `/mobile-editor`). Die native App lädt genau diese Web-Seiten in einer WebView und spricht mit dem Editor über keine eigene Brücke.
 
-## Editor-Kern eingefroren: neue Funktionen nur in ggraphic
+## Editor-Kern kommt aus ggraphic
 
-**Seit dem 01.11.2026 ist `packages/ggraphic-editor` eingefroren.** Neue Editor-Funktionen kommen nur noch in `Movm/ggraphic` (`packages/editor`). Hier gibt es bis zum Umstieg nur Fehlerbehebungen. Der Umstieg auf `@ggraphic/editor` und das Löschen dieser Kopie stehen in #5212.
+Seit #5212 liegt der Editor-Kern nicht mehr in diesem Repo. `@ggraphic/schema`, `@ggraphic/core`, `@ggraphic/editor` und `@ggraphic/collab` sind Pakete aus `Movm/ggraphic` und liefern nur `dist` (JS, d.ts, CSS). Neue Editor-Funktionen und Bedienänderungen (Leisten, Pille, Menüs, Bereiche) werden als PR in ggraphic gebaut; Grünerator-eigenes Verhalten gehört hinter eine Host-Naht in diesem Paket.
 
-**Warum:** Der Plan sah vor, dass ggraphic nach dem Import die einzige Quelle wird und der Grünerator seine Kopie im selben Zug löscht. Passiert ist das nicht. Stattdessen haben sich beide Kopien seit dem Import am 28.10.2026 getrennt weiterentwickelt: 98 Commits in ggraphic, 34 hier, 136 Dateien auf beiden Seiten. Die Schrift-Rollen sind dabei zweimal entstanden (#5203 hier, #64 in ggraphic).
-
-**Was das heißt:**
-- Eine Bedienänderung am Editor (Leisten, Pille, Menüs, Bereiche) wird als PR in ggraphic gebaut.
-- Ein Fehler, der beide Kopien betrifft, wird hier behoben und in ggraphic nachgezogen.
-- Grünerator-eigenes Verhalten gehört ohnehin nicht in den Kern, sondern hinter eine Host-Naht in `packages/canvas-editor`. Daran ändert das Einfrieren nichts.
-- Ausnahmen: #5208 und #5209 waren fertig, bevor eingefroren wurde. Sie bleiben hier und werden zusätzlich nach ggraphic portiert. #5211 legt Moritz selbst fest.
+Quelltext-Wächter, die Editor-Dateien lesen, gehen über `src/__tests__/editorDist.ts` an das installierte Paket (`node_modules/@ggraphic/editor/dist`). Tailwind liest die Klassen aus demselben `dist` (`@source` in `tailwind-input.css` und `apps/web/src/assets/styles/index.css`).
 
 ## Design: „Canva-Layout in Grünerator-Grün"
 

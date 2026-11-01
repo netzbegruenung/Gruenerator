@@ -23,7 +23,7 @@
 
 /* Scan canvas-editor source for Tailwind class usage */
 @source "../**/*.{ts,tsx}";
-@source "../../../ggraphic-editor/src/**/*.{ts,tsx}";
+@source "../../../../node_modules/@ggraphic/editor/dist/**/*.js";
 
 /* Trefferfläche auf die 44px aus WCAG 2.2 „Target Size" bringen, ohne die
    Optik anzufassen — ein unsichtbares Pseudo-Element deckt die fehlenden
@@ -158,7 +158,7 @@
   --color-editor-secondary-fg: var(--editor-secondary-fg);
   --color-editor-danger-fg: var(--editor-danger-fg);
   --color-editor-danger-bg: var(--editor-danger-bg);
-  --color-editor-tanne-preview: var(--editor-tanne-preview);
+  --color-editor-primary-preview: var(--editor-primary-preview);
   --color-editor-control-border: var(--editor-control-border);
   --color-editor-control-bg: var(--editor-control-bg);
   --color-editor-control-bg-hover: var(--editor-control-bg-hover);

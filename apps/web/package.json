@@ -86,6 +86,7 @@
   "devDependencies": {
     "@axe-core/playwright": "^4.14.0",
     "@babel/core": "7.29.7",
+    "@ggraphic/editor": "0.1.0-alpha.0",
     "@gruenerator/eslint-config": "workspace:*",
     "@playwright/test": "^1.64.1",
     "@rolldown/plugin-babel": "^0.2.4",

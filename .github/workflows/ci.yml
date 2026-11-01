@@ -286,20 +286,6 @@ jobs:
       - name: No internal content exposed
         run: node scripts/check-internal-content.mjs
 
-      # packages/ggraphic-* is the brand-neutral core that will leave this repo
-      # as open source. The denylist lives here because it names the party.
-      - name: ggraphic core stays brand-neutral
-        run: |
-          node scripts/check-ggraphic-core-boundary.mjs --self-test
-          node scripts/check-ggraphic-core-boundary.mjs
-
-      # The @ggraphic/* dist is plain tsc output loaded by Node without a
-      # bundler: a relative import without .js breaks only outside the repo.
-      - name: ggraphic relative imports carry .js
-        run: |
-          node scripts/check-ggraphic-esm-specifiers.mjs --self-test
-          node scripts/check-ggraphic-esm-specifiers.mjs
-
       # Decision-point ids in DECISION_POINTS (apps/api/utils/decisionJournal.ts)
       # land in committed decision-map snapshots, which makes them F1 —
       # internally frozen (see CLAUDE.md). Catch drift before tsc even runs:
@@ -382,14 +368,6 @@ jobs:
       # jsdom-Suiten an einem fehlenden assistant-cloud-Export).
       - name: node_modules deckt sich mit dem Lockfile
         run: node scripts/check-installed-lockfile-drift.mjs
-
-      # The @ggraphic/* packages are published under MPL-2.0: every production
-      # dependency (incl. peers) and every @iconify-json set must carry an
-      # allowed licence. Reads the installed tree, hence this job.
-      - name: ggraphic dependency licences
-        run: |
-          node scripts/check-ggraphic-licenses.mjs --self-test
-          node scripts/check-ggraphic-licenses.mjs
 
       - name: TypeScript type check
         run: pnpm typecheck
