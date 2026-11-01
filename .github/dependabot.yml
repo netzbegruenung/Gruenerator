@@ -116,6 +116,15 @@ updates:
           - '@wordpress/*'
           - 'sass'
           - 'sass-loader'
+      # @ggraphic/* (schema, core, collab, editor, ...) come from npm and are
+      # versioned together, so they move in ONE PR — a partial bump desyncs the
+      # document schema between editor and collab. Pins are EXACT (no caret);
+      # Dependabot keeps an exact pin exact. Listed before minor-patch because
+      # the first matching group wins. Cadence: Dependabot has no per-group
+      # schedule, so this group follows the weekly schedule of this entry.
+      ggraphic:
+        patterns:
+          - '@ggraphic/*'
       minor-patch:
         update-types:
           - 'minor'
