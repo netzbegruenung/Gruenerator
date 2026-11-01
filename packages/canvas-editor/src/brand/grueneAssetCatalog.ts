@@ -25,11 +25,11 @@ import {
   type SharepicEmoji,
 } from '@gruenerator/contracts';
 
-import { GRUENE_AI_ILLUSTRATIONS } from './grueneAiIllustrations';
 import { UNDRAW_FEATURED } from '../utils/illustrations/undraw';
 
-import { GRUENE_ELEMENT_PANEL } from './grueneElementPanel';
+import { GRUENE_AI_ILLUSTRATIONS } from './grueneAiIllustrations';
 import { ALL_ASSETS, TEMPLATE_ASSETS } from './grueneAssets';
+import { GRUENE_ELEMENT_PANEL } from './grueneElementPanel';
 
 export { registerAssetCatalog } from '@ggraphic/editor/utils/canvasAssets';
 
@@ -110,8 +110,18 @@ export const STICKER_ASSETS: UniversalAsset[] = SYSTEM_STICKERS.map((s) => ({
   audience: s.audience,
 }));
 
+/**
+ * Sticker einer Kollektion (`kollektion`, etwa die der Grünen Jugend) gibt es
+ * nur über deren Marktplatz-Seite. Aufgelöst werden sie trotzdem — ein
+ * gespeicherter Canvas nennt sie per id und src (F0) —, angeboten nicht.
+ */
+const COLLECTION_STICKER_IDS: ReadonlySet<string> = new Set(
+  SYSTEM_STICKERS.filter((s) => 'kollektion' in s).map((s) => s.id)
+);
+const OFFERED_STICKER_ASSETS = STICKER_ASSETS.filter((a) => !COLLECTION_STICKER_IDS.has(a.id));
+
 export function stickerAssetsForLocale(locale: AssetAudience): UniversalAsset[] {
-  return STICKER_ASSETS.filter((a) => assetMatchesLocale(a, locale));
+  return OFFERED_STICKER_ASSETS.filter((a) => assetMatchesLocale(a, locale));
 }
 
 /**
@@ -166,7 +176,7 @@ const STOCK_PHOTO_PATH = '/api/image-picker/stock-image/';
 export const GRUENE_ASSET_CATALOG: CanvasAssetCatalog = {
   assets: [...ALL_ASSETS, ...TEMPLATE_ASSETS, ...EMOJI_ASSETS, ...STICKER_ASSETS],
   // The template variants resolve but are not offered in the picker.
-  offered: [...ALL_ASSETS, ...EMOJI_ASSETS, ...STICKER_ASSETS],
+  offered: [...ALL_ASSETS, ...EMOJI_ASSETS, ...OFFERED_STICKER_ASSETS],
   isInstanceSrc: isShareSrc,
   emojiSrc: emojiCodeSrc,
   illustrations: GRUENE_ILLUSTRATIONS,
