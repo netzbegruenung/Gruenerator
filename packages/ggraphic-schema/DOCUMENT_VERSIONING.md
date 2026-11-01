@@ -65,7 +65,8 @@ and stay as they are.
 
 - `schemaVersion` (integer ≥ 1) carries the **core** format version.
   `CANVAS_DOCUMENT_VERSION` in `@ggraphic/schema` is the version this build
-  writes.
+  writes; `CANVAS_DOCUMENT_READ_VERSION` is the highest it opens (see
+  "Reader first").
 - `kindVersions` (stateKey → integer ≥ 1) carries the version of each **host
   kind's** list. Host kinds evolve with the host, not with the core; sharing
   one counter would let a host's v2 collide with the core's v2.
@@ -104,6 +105,30 @@ default registry (`documentMigrations`) ships with **no** steps, so
 - Host kinds register before the first load (`registerElementKind` at start
   up, before the first render). A load before that treats the kind's list as
   opaque: it is neither lifted nor refused.
+
+### Reader first (Grünerator copy, #5212)
+
+Deliberate exception to the freeze of the Grünerator's `ggraphic-*` copies.
+Upstream ggraphic is at core version 3; its steps 1→2 and 2→3 are identity
+steps (additive: pages pass through untouched). This copy reads up to 3 but
+keeps **writing 1**:
+
+- `CANVAS_DOCUMENT_READ_VERSION = 3` is the ceiling (`registry.readCoreVersion`);
+  `newerVersion` refuses only above it, so v4+ is still a refusal (read-only).
+  `CANVAS_DOCUMENT_VERSION` / `registry.coreVersion` stays 1 and is what
+  `stampDocument`, `stampYDocument` and seeding write. No identity steps are
+  registered here: they would make a loaded v1 document `migrated` to 3 and
+  every save would then write 3.
+- A v2/v3 document loads as `current` (the same object, pages untouched) and
+  is editable. Stamps are never lowered on load (`migrateYDocument` only
+  raises; `withVersions` keeps the higher core version); a deck draft rewritten
+  from the live pages is stamped 1, which is harmless because v2/v3 data is
+  additive and a v3 reader treats 1→3 as identity.
+- Why writing stays 1: builds already deployed (desktop, cached bundles, open
+  tabs) refuse anything above 1 and would lock out documents we save.
+- Lifted at the switch to the external ggraphic core: write the upstream
+  version, drop `CANVAS_DOCUMENT_READ_VERSION` (or set it equal), and register
+  the upstream steps.
 
 ### (c) `migrateDocument(raw)` on every load, stamp on write
 
