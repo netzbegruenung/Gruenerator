@@ -110,6 +110,19 @@ describe('vorlagenForTurn', () => {
     ).toBeNull();
   });
 
+  it('zeigt mit aktiver GJ-Rolle die Vorlagen der Grünen Jugend, sonst die der Partei', () => {
+    vorlagenForTurn(
+      state({
+        activeRole: { ebene: 'gruene-jugend', rolle: 'Bundesverband GRÜNE JUGEND' },
+        lastUserTextNoMentions: 'passende Vorlagen?',
+      })
+    );
+    expect(catalog.list).toHaveBeenLastCalledWith('de-DE', 'gruene-jugend');
+
+    vorlagenForTurn(state({ lastUserTextNoMentions: 'passende Vorlagen?' }));
+    expect(catalog.list).toHaveBeenLastCalledWith('de-DE', 'gruene');
+  });
+
   it('montiert nicht bei leerem Länderkatalog', () => {
     catalog.list.mockReturnValue([]);
     expect(vorlagenForTurn(state({ lastUserTextNoMentions: 'passende Vorlagen?' }))).toBeNull();

@@ -45,6 +45,8 @@ export const SHAREPIC_ICON_IDS: Record<SharepicIcon, string> = {
   temperatur: 'tabler:temperature',
   pflanze: 'tabler:plant-2',
   flasche: 'tabler:bottle',
+  kalender: 'tabler:calendar',
+  ort: 'tabler:map-pin',
 };
 
 /**

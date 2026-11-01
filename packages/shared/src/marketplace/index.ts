@@ -66,6 +66,7 @@ export {
 } from './viewModel.js';
 export {
   resolveStory,
+  storyShowsVorlage,
   type CollectionStoryBlock,
   type ResolvedStoryBlock,
 } from './collectionStory.js';

@@ -17,6 +17,7 @@ import {
   type PrintSpec,
 } from './printCreator.js';
 import {
+  sharepicBrandSchema,
   sharepicColorSchema,
   sharepicCreatorLocaleSchema,
   sharepicFormatSchema,
@@ -100,6 +101,8 @@ export const sharepicSeiteFileEntrySchema = z.object({
   thema: sharepicThemaSchema.optional(),
   /** The Vorlage slide this one was taken from — for upkeep only. */
   quelle: z.object({ vorlage: sharepicVorlageIdSchema, seite: z.number().int().min(1) }).optional(),
+  /** The design it is composed in; none is the party's. A GJ Seite comes from a GJ Vorlage. */
+  brand: sharepicBrandSchema.optional(),
 });
 export type SharepicSeiteFileEntry = z.infer<typeof sharepicSeiteFileEntrySchema>;
 
@@ -115,13 +118,14 @@ export type SharepicSeite = z.infer<typeof sharepicSeiteSchema>;
 /**
  * Grünerator-Blöcke: one or two slide items (a list on its card, a quote, a
  * Terminliste …) the editor composes and drops onto the current page as
- * separate elements. Files: `sharepic-vorlagen/bloecke/{de,at}.json`,
- * previews `thumbs/bloecke/<id>.webp` (the block alone, cut to its bounds).
+ * separate elements. Files: `sharepic-vorlagen/bloecke/{de,at}.json` for the
+ * party, `bloecke/gj-{de,at}.json` for the Grüne Jugend; previews
+ * `thumbs/bloecke/<id>.webp` (the block alone, cut to its bounds).
  */
 export const sharepicBlockGruppeSchema = z.enum(['kopf', 'listen', 'text', 'zahlen', 'meldungen']);
 export type SharepicBlockGruppe = z.infer<typeof sharepicBlockGruppeSchema>;
 
-/** One entry as the private file holds it. Its locale is the file's country. */
+/** One entry as the private file holds it. Its locale and design are the file's. */
 export const sharepicBlockFileEntrySchema = z.object({
   id: sharepicVorlageIdSchema,
   titel: z.string().min(1).max(80),
@@ -131,11 +135,15 @@ export const sharepicBlockFileEntrySchema = z.object({
   items: z.array(sharepicItemSchema).min(1).max(2),
   /** The ground the preview was composed on; the editor composes on the page's own. */
   color: sharepicColorSchema,
+  /** Lines in boxes (GJ DE), which a slide otherwise switches on for all its items. */
+  zeilenboxen: z.boolean().optional(),
 });
 export type SharepicBlockFileEntry = z.infer<typeof sharepicBlockFileEntrySchema>;
 
 export const sharepicBlockSchema = sharepicBlockFileEntrySchema.extend({
   locale: sharepicCreatorLocaleSchema,
+  /** The design it is composed in; none is the party's. */
+  brand: sharepicBrandSchema.optional(),
   /** Content hash of the preview; clients pass it on to `sharepicBlockThumbPath`. */
   thumbVersion: z.string().optional(),
 });
@@ -151,17 +159,19 @@ export const sharepicBlockThumbPath = (id: string, version?: string): string =>
 
 /**
  * The one-slide spec a block is composed (and checked) as: its items alone on
- * a colour ground. A themed ground brings its thema, so a block set on a lila
- * page takes the page's ink.
+ * a colour ground, in its design. A themed ground brings its thema, so a block
+ * set on a lila page takes the page's ink.
  */
 export const sharepicBlockSpec = (
   locale: z.infer<typeof sharepicCreatorLocaleSchema>,
-  block: Pick<SharepicBlockFileEntry, 'items' | 'color'>,
+  block: Pick<SharepicBlockFileEntry, 'items' | 'color' | 'zeilenboxen'> &
+    Partial<Pick<SharepicBlock, 'brand'>>,
   format?: SharepicFormat
 ) => {
   const thema = themaOfColor(block.color);
   return {
     locale,
+    ...(block.brand && block.brand !== 'gruene' ? { brand: block.brand } : {}),
     ...(format ? { format } : {}),
     ...(thema ? { thema } : {}),
     slides: [
@@ -170,6 +180,7 @@ export const sharepicBlockSpec = (
         position: 'mitte' as const,
         align: 'links' as const,
         items: block.items,
+        ...(block.zeilenboxen ? { zeilenboxen: true } : {}),
         logo: false,
       },
     ],
@@ -330,6 +341,14 @@ export const sharepicSeiteThumbPath = (
  */
 export const vorlagenLandQuerySchema = z.object({
   land: sharepicCreatorLocaleSchema.optional(),
+});
+
+/**
+ * Seiten and Blöcke come in one design at a time; without `brand` the party's,
+ * as before GJ ones existed, so shipped clients get what they always got.
+ */
+export const vorlagenDesignQuerySchema = vorlagenLandQuerySchema.extend({
+  brand: sharepicBrandSchema.default('gruene'),
 });
 
 export const sharepicVorlagenListResponseSchema = z.object({

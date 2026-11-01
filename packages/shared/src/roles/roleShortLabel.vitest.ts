@@ -3,6 +3,9 @@ import { describe, expect, it } from 'vitest';
 import {
   AT_ROLLEN,
   DE_ROLLEN,
+  grueneJugendRoleLocale,
+  needsBundesland,
+  needsLocalName,
   ROLE_BAUSTEIN_KEYS,
   ROLE_SHORT_LABELS,
   roleShortLabel,
@@ -49,5 +52,34 @@ describe('roleShortLabel', () => {
   it('streift bei frei eingetippten Rollen nur das „Mitarbeiter*in" ab', () => {
     expect(roleShortLabel('land', 'Mitarbeiter*in Klimabeirat')).toBe('Klimabeirat');
     expect(roleShortLabel('land', 'Schatzmeister*in')).toBe('Schatzmeister*in');
+  });
+});
+
+describe('grueneJugendRoleLocale', () => {
+  it('names the country of a Grüne Jugend role and nothing else', () => {
+    expect(grueneJugendRoleLocale({ ebene: 'gruene-jugend', rolle: 'GRÜNE JUGEND vor Ort' })).toBe(
+      'de-DE'
+    );
+    expect(
+      grueneJugendRoleLocale({ ebene: 'gruene-jugend', rolle: 'Landesorganisation Grüne Jugend' })
+    ).toBe('de-AT');
+    expect(grueneJugendRoleLocale({ ebene: 'ortsverband', rolle: 'Ratsmitglied' })).toBeNull();
+    expect(grueneJugendRoleLocale(null)).toBeNull();
+  });
+});
+
+describe('needsBundesland / needsLocalName', () => {
+  it('lets the Grüne Jugend role decide what it needs', () => {
+    expect(needsBundesland('gruene-jugend', 'Bundesverband GRÜNE JUGEND')).toBe(false);
+    expect(needsBundesland('gruene-jugend', 'Landesverband GRÜNE JUGEND')).toBe(true);
+    expect(needsLocalName('gruene-jugend', 'Landesverband GRÜNE JUGEND')).toBe(false);
+    expect(needsLocalName('gruene-jugend', 'Grüne Jugend vor Ort')).toBe(true);
+    expect(needsBundesland('gruene-jugend', null)).toBe(false);
+  });
+
+  it('keeps the party levels deciding by level', () => {
+    expect(needsBundesland('land', null)).toBe(true);
+    expect(needsLocalName('kreisverband', 'Ratsmitglied')).toBe(true);
+    expect(needsBundesland('bund', 'Mitarbeiter*in MdB-Büro')).toBe(false);
   });
 });

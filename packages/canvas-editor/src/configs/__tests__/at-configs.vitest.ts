@@ -339,3 +339,25 @@ describe('Österreich (de-AT) canvas configs', () => {
     expect(breite).toBeLessThanOrEqual(O.maxWidth);
   });
 });
+
+describe('Grüne Jugend (DE / AT) canvas configs', () => {
+  beforeAll(async () => {
+    await loadCanvasConfig('freeform-gj');
+  }, 120_000);
+
+  it.each([
+    ['freeform-gj', 'de-DE'],
+    ['freeform-gj-at', 'de-AT'],
+  ] as const)('%s seeds the brand primary as its ground', async (id, locale) => {
+    const config = await loadCanvasConfig(id);
+    expect(config.id).toBe(id);
+    const state = config.createInitialState({}) as { backgroundColor: string };
+    expect(state.backgroundColor).toBe(getBrandTheme(locale, 'gruene-jugend').colors.primary);
+  });
+
+  it('offers only the blank page of its own country, next to the party one', () => {
+    expect(getTemplatesForLocale('de-DE').map((t) => t.id)).toContain('freeform-gj');
+    expect(getTemplatesForLocale('de-AT').map((t) => t.id)).toContain('freeform-gj-at');
+    expect(getTemplatesForLocale('de-DE').map((t) => t.id)).not.toContain('freeform-gj-at');
+  });
+});

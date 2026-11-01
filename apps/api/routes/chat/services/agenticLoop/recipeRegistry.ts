@@ -103,6 +103,17 @@ const PRECEDENCE_NOTE =
  * (vollständige Antworten, Fundstellen zuerst bei „wo/wann"), und
  * `buildSystemMessage` führt sie dann als Formatgeber.
  */
+/**
+ * Im Loop entsteht der Systemprompt, BEVOR das Modell ein Rezept lädt — Regel 2
+ * der ANTWORT-REGELN ist dort deshalb die Standardregel („2-4 Absätze … Hebe
+ * Namen, Jahreszahlen und Kennzahlen mit **Fettung** hervor"), nicht die der
+ * Textsorte (`buildAnswerFormatRule`, Zweig `textform:`). Gemessen 01.11.2026:
+ * Instagram-Posts kamen mit `**14 Uhr**` zurück, das Instagram als Sternchen
+ * anzeigt. Dieser Satz stellt die Regel nach, sobald eine Textsorte geladen ist.
+ */
+export const TEXT_FORM_REPLACES_FORMAT_RULE =
+  'Regel 2 der ANTWORT-REGELN gilt für diese Antwort nicht: Form und Umfang gibt die Textsorte vor — keine Fettung, keine Aufzählung und keine Überschrift, die sie nicht selbst vorsieht.';
+
 export const METHOD_PRECEDENCE_NOTE =
   'Die Recherche-Methode bestimmt RECHERCHE, BELEGE und ZITIERWEISE. ' +
   'Die Textsorte (AKTIVE PLATTFORM) bestimmt die FORM (Länge, Aufbau, Plattformkonventionen). ' +
@@ -190,7 +201,8 @@ export function createRecipeRegistry(
         methods.length > 0
           ? methodPrecedenceNote(forms.length > 0 || textFormElsewhere)
           : PRECEDENCE_NOTE;
-      return `\n\n${[...methods, ...forms].join('\n\n')}\n\n${note}`;
+      const formRule = forms.length > 0 ? `\n\n${TEXT_FORM_REPLACES_FORMAT_RULE}` : '';
+      return `\n\n${[...methods, ...forms].join('\n\n')}\n\n${note}${formRule}`;
     },
   };
 }

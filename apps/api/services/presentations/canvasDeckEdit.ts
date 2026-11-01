@@ -168,7 +168,9 @@ const OPERATIONS_TOOL_SCHEMA: Record<string, unknown> = {
 };
 
 const localeOf = (pages: readonly DeckPage[]) =>
-  pages[0]?.configId === 'freeform-at' ? 'de-AT' : 'de-DE';
+  pages[0]?.configId === 'freeform-at' || pages[0]?.configId === 'freeform-gj-at'
+    ? 'de-AT'
+    : 'de-DE';
 
 /** Der Messer für neue und bearbeitete Texte; null ohne Markenschrift. */
 async function measureFor(locale: 'de-DE' | 'de-AT') {

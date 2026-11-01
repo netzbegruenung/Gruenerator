@@ -633,6 +633,22 @@
       "audience": "de-DE"
     },
     {
+      "command": "@gj-insta",
+      "title": "Insta GRÜNE JUGEND",
+      "description": "Instagram-Post im Stil der GRÜNEN JUGEND",
+      "avatar": "✊",
+      "category": "social",
+      "audience": "de-DE"
+    },
+    {
+      "command": "@gj-insta-at",
+      "title": "Insta Grüne Jugend",
+      "description": "Instagram-Post im Stil der Grünen Jugend Österreich",
+      "avatar": "🍃",
+      "category": "social",
+      "audience": "de-AT"
+    },
+    {
       "command": "@beschluss-bayern",
       "title": "Beschlussantrag Bayern",
       "description": "Beschlussanträge in der Beschlusssprache der Grünen Bayern, im Anschluss an die bestehende Beschlusslage",

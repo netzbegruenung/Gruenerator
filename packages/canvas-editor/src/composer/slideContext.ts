@@ -4,7 +4,11 @@ import { type AdditionalText } from '@ggraphic/editor/configs/types';
 import { type CanvasFormat } from '@ggraphic/editor/formats/index';
 import { type ShapeInstance } from '@ggraphic/editor/utils/shapes';
 import { type TextAccent } from '@ggraphic/editor/utils/textUtils';
-import { type SharepicCreatorLocale, type SharepicThema } from '@gruenerator/contracts';
+import {
+  type SharepicBrandId,
+  type SharepicCreatorLocale,
+  type SharepicThema,
+} from '@gruenerator/contracts';
 
 import { type BrandTheme } from '../brand/theme';
 
@@ -24,8 +28,9 @@ export interface SlideCtx {
   /** The brand's composer values; read these instead of branching on `isAt`. */
   brand: ComposerBrand;
   headFamily: string;
-  isAt: boolean;
   locale: SharepicCreatorLocale;
+  /** The design (brand × country); per-design tables are keyed by it. */
+  brandId: SharepicBrandId;
   /** The spec's theme (Pride, Frauen), null on a plain slide. */
   thema: SharepicThema | null;
   canvas: CanvasFormat;

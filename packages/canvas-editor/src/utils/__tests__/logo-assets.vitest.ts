@@ -24,6 +24,9 @@ describe('Logos im Elemente-Katalog', () => {
       'sunflower-green',
       'sunflower-weiss',
       'sunflower-schwarz',
+      'gj-logo-schwarz',
+      'gj-logo-hellgruen',
+      'gj-logo-weiss',
     ]);
   });
 
@@ -39,6 +42,8 @@ describe('Logos im Elemente-Katalog', () => {
       'gruene-de-logo-weiss',
       'sunflower-weiss',
       'gruene-at-logo-weiss',
+      'gj-logo-hellgruen',
+      'gj-logo-weiss',
     ]);
   });
 

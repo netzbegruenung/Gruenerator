@@ -16,6 +16,10 @@ import {
 import { type MarketplaceTarget } from './cache.js';
 import { EUROPA_COLLECTION } from './collections/europa.js';
 import { GLEICHSTELLUNG_COLLECTION } from './collections/gleichstellung.js';
+import {
+  GRUENE_JUGEND_AT_COLLECTION,
+  GRUENE_JUGEND_COLLECTION,
+} from './collections/grueneJugend.js';
 import { QUEER_COLLECTION } from './collections/queer.js';
 import { type CollectionStoryBlock } from './collectionStory.js';
 import { type MarketplaceFilters } from './filters.js';
@@ -244,6 +248,8 @@ export const MARKETPLACE_COLLECTIONS = [
   GLEICHSTELLUNG_COLLECTION,
   QUEER_COLLECTION,
   EUROPA_COLLECTION,
+  GRUENE_JUGEND_COLLECTION,
+  GRUENE_JUGEND_AT_COLLECTION,
 ] as const satisfies readonly MarketplaceCollection[];
 
 export function collectionsFor(locale: string | null): readonly MarketplaceCollection[] {

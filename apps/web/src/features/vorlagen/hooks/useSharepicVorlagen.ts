@@ -4,6 +4,7 @@ import {
   type PrintVorlage,
   type SharepicCreatorLocale,
   type SharepicBlock,
+  type SharepicBrand,
   type SharepicSeite,
   type SharepicVorlage,
 } from '@gruenerator/contracts';
@@ -38,13 +39,13 @@ export function useSharepicVorlagen(land: SharepicCreatorLocale | null = null) {
   return useQuery(sharepicVorlagenQuery(land));
 }
 
-/** The single Seiten of the viewer's country, for the editor's „Vorlagen" tab. */
-export const sharepicSeitenQuery = () =>
+/** The single Seiten of the viewer's country in one design, for the editor's „Vorlagen" tab. */
+export const sharepicSeitenQuery = (brand: SharepicBrand) =>
   queryOptions({
-    queryKey: ['sharepic-seiten'],
+    queryKey: ['sharepic-seiten', brand],
     staleTime: 10 * 60_000,
     queryFn: async (): Promise<SharepicSeite[]> => {
-      const res = await getContractsClient().sharepicVorlagen.seiten({ query: {} });
+      const res = await getContractsClient().sharepicVorlagen.seiten({ query: { brand } });
       if (res.status !== 200) {
         throw new ApiError(res.status, `Seiten konnten nicht geladen werden (HTTP ${res.status}).`);
       }
@@ -52,13 +53,13 @@ export const sharepicSeitenQuery = () =>
     },
   });
 
-/** The Grünerator-Blöcke of the viewer's country, for the editor's Elemente panel. */
-export const sharepicBloeckeQuery = () =>
+/** The Grünerator-Blöcke of the viewer's country in one design, for the editor's Elemente panel. */
+export const sharepicBloeckeQuery = (brand: SharepicBrand) =>
   queryOptions({
-    queryKey: ['sharepic-bloecke'],
+    queryKey: ['sharepic-bloecke', brand],
     staleTime: 10 * 60_000,
     queryFn: async (): Promise<SharepicBlock[]> => {
-      const res = await getContractsClient().sharepicVorlagen.bloecke({ query: {} });
+      const res = await getContractsClient().sharepicVorlagen.bloecke({ query: { brand } });
       if (res.status !== 200) {
         throw new ApiError(res.status, `Blöcke konnten nicht geladen werden (HTTP ${res.status}).`);
       }

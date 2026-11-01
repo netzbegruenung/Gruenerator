@@ -14,6 +14,7 @@ import {
   folienVorlagenListResponseSchema,
   printVorlagenListResponseSchema,
   sharepicBloeckeListResponseSchema,
+  vorlagenDesignQuerySchema,
   sharepicSeitenListResponseSchema,
   sharepicVorlageIdSchema,
   sharepicVorlageSchema,
@@ -41,12 +42,13 @@ export const sharepicVorlagenContract = c.router(
     seiten: {
       method: 'GET',
       path: '/api/sharepic-vorlagen/seiten',
-      query: vorlagenLandQuerySchema,
+      query: vorlagenDesignQuerySchema,
       responses: {
         200: sharepicSeitenListResponseSchema,
         401: sharepicVorlagenErrorSchema,
       },
-      summary: "Single slides to add to a carousel, in the viewer's country like `list`",
+      summary:
+        "Single slides to add to a carousel, in the viewer's country like `list` and in one design (`brand`, default the party's)",
     },
     // Before `get` as well, for the same reason.
     folien: {
@@ -86,13 +88,13 @@ export const sharepicVorlagenContract = c.router(
     bloecke: {
       method: 'GET',
       path: '/api/sharepic-vorlagen/bloecke',
-      query: vorlagenLandQuerySchema,
+      query: vorlagenDesignQuerySchema,
       responses: {
         200: sharepicBloeckeListResponseSchema,
         401: sharepicVorlagenErrorSchema,
       },
       summary:
-        "Building blocks (a list on its card, a quote …) the editor drops onto a page, in the viewer's country like `list`",
+        "Building blocks (a list on its card, a quote …) the editor drops onto a page, in the viewer's country like `list` and in one design (`brand`, default the party's)",
     },
     get: {
       method: 'GET',

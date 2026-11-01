@@ -93,6 +93,14 @@ const LIGHT: readonly SharepicColor[] = [
   'weiss',
   'flieder',
   'himmelblau',
+  // GJ: the primaries carry black (white stays under 3:1 on them).
+  'limette',
+  'wiese',
+  'apricot',
+  'lavendel',
+  'pink',
+  'maigruen',
+  'gelb',
 ];
 
 /**

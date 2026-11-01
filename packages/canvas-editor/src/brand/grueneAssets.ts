@@ -101,6 +101,17 @@ export const GRUENE_DECORATION_ASSETS: UniversalAsset[] = [
     tags: ['logo', 'grüne', 'gruene', 'österreich', 'at', 'grün', 'gruen', 'marke'],
     audience: 'de-AT',
   },
+  // GRÜNE JUGEND Deutschland: the word mark in the CD's three colours (2024, S. 6).
+  ...(['schwarz', 'hellgruen', 'weiss'] as const).map((farbe): UniversalAsset => ({
+    id: `gj-logo-${farbe}`,
+    src: GRUENE_SYSTEM_ASSETS.logoGj[farbe].src,
+    label: GRUENE_SYSTEM_ASSETS.logoGj[farbe].label,
+    category: 'decoration',
+    tags: ['logo', 'grüne jugend', 'gruene jugend', 'gj', 'jugend', 'marke', farbe],
+    audience: 'de-DE',
+    // Light green reads on a dark tile only, like white.
+    ...(farbe === 'hellgruen' && { darkPreview: true }),
+  })),
 ];
 
 /** Marks after the neutral ones in the picker. */

@@ -19,7 +19,12 @@
 
 import { type BackgroundColorOption, type BrandPack, type ComposerBrand } from '@ggraphic/core';
 
-import { type SharepicColor } from '../schemas/sharepicCreator.js';
+import {
+  brandIdFor,
+  type SharepicBrand,
+  type SharepicBrandId,
+  type SharepicColor,
+} from '../schemas/sharepicCreator.js';
 
 export const GRUENE_SYSTEM_ASSETS = {
   sunflower: {
@@ -93,6 +98,13 @@ export const GRUENE_SYSTEM_ASSETS = {
       label: 'Pinselpfeil (Grün)',
     },
   },
+  // GRÜNE JUGEND Deutschland: die Wortmarke (13° steigend, 790 × 386) in den
+  // drei Farben des CD 2024 (S. 6): schwarz, hellgrün, weiß.
+  logoGj: {
+    schwarz: { src: '/gj-logo-schwarz.svg', label: 'GRÜNE JUGEND (schwarz)' },
+    hellgruen: { src: '/gj-logo-hellgruen.svg', label: 'GRÜNE JUGEND (hellgrün)' },
+    weiss: { src: '/gj-logo-weiss.svg', label: 'GRÜNE JUGEND (weiß)' },
+  },
   backgrounds: {
     info: {
       tanne: '/Info_bg_tanne.png',
@@ -163,7 +175,7 @@ export type GruenePack = BrandPack & {
 };
 
 /** The Grünerator's packs; per-brand data elsewhere (themes) is keyed by them. */
-export type GrueneBrandId = 'gruene-de' | 'gruene-at';
+export type GrueneBrandId = SharepicBrandId;
 
 // DE composer inks. Literal on purpose: the composer's SHAREPIC_COLOR_HEX,
 // KLEE and LIME import this module, so importing them back would be a cycle.
@@ -309,6 +321,24 @@ export const GRUENE_DE: GruenePack = {
       },
       size: 'fit',
     },
+    headlineCase: 'satz',
+    stoererShape: 'circle',
+    cardStyle: 'plain',
+    layout: {
+      centredMargin: null,
+      centreShortBlocks: false,
+      listCard: 'always',
+      tintPhotoStrip: false,
+      // Never on a full-bleed photo.
+      logoPlacement: 'left',
+      swipeArrow: 'drawn',
+      datumCircle: 'ink',
+      contrastPanel: 'solid',
+      sunflower: true,
+      frageAccent: 'green',
+      termine: 'spalte',
+      raster: false,
+    },
   },
 };
 
@@ -438,6 +468,333 @@ export const GRUENE_AT: GruenePack = {
       },
       size: { radius: 125, fontSize: 38 },
     },
+    headlineCase: 'satz',
+    stoererShape: 'circle',
+    cardStyle: 'plain',
+    layout: {
+      // ~100 px side margins on the argument slides.
+      centredMargin: 100,
+      centreShortBlocks: true,
+      listCard: 'light',
+      // The posts set a photo strip in green monochrome.
+      tintPhotoStrip: true,
+      // Only on the last slide, on a plain colour, never on a quote (2 of 42 posts).
+      logoPlacement: 'closing',
+      swipeArrow: 'brush',
+      datumCircle: 'attention',
+      contrastPanel: 'veil',
+      sunflower: false,
+      frageAccent: 'accent',
+      termine: 'spalte',
+      raster: false,
+    },
+  },
+};
+
+// GRÜNE JUGEND Deutschland, CD März 2024 (TAU), S. 11. The primaries carry
+// white at 2.2–2.8:1 only, so text on them is black (as in the CD, S. 13/27).
+const GJ_HELLGRUEN = '#C7FF7A';
+const GJ_LAVENDEL = '#9F88FF';
+const GJ_PINK = '#F28ADE';
+const GJ_APRICOT = '#FF8568';
+const GJ_DUNKELGRUEN = '#33C270';
+const GJ_SCHWARZ = '#000000';
+
+export const GJ_DE: GruenePack = {
+  id: 'gj-de',
+  name: 'GRÜNE JUGEND',
+  colors: {
+    primary: GJ_HELLGRUEN,
+    secondary: GJ_LAVENDEL,
+    accent: GJ_HELLGRUEN,
+    accentOnLight: GJ_SCHWARZ,
+    attention: GJ_SCHWARZ,
+    textOnDark: '#ffffff',
+    textOnLight: GJ_SCHWARZ,
+    surface: '#FFFFFF',
+  },
+  backgrounds: [
+    { id: 'limette', label: 'Hellgrün', color: GJ_HELLGRUEN, ink: GJ_SCHWARZ },
+    { id: 'lavendel', label: 'Lavendel', color: GJ_LAVENDEL, ink: GJ_SCHWARZ },
+    { id: 'pink', label: 'Pink', color: GJ_PINK, ink: GJ_SCHWARZ },
+    { id: 'apricot', label: 'Apricot', color: GJ_APRICOT, ink: GJ_SCHWARZ },
+    { id: 'wiese', label: 'Grün', color: GJ_DUNKELGRUEN, ink: GJ_SCHWARZ },
+  ],
+  defaultBackground: GJ_HELLGRUEN,
+  palette: [
+    { id: 'limette', label: 'Hellgrün', color: GJ_HELLGRUEN },
+    { id: 'lavendel', label: 'Lavendel', color: GJ_LAVENDEL },
+    { id: 'pink', label: 'Pink', color: GJ_PINK },
+    { id: 'apricot', label: 'Apricot', color: GJ_APRICOT },
+    { id: 'dunkelgruen', label: 'Dunkelgrün', color: GJ_DUNKELGRUEN },
+    { id: 'white', label: 'Weiß', color: '#FFFFFF' },
+    { id: 'black', label: 'Schwarz', color: GJ_SCHWARZ },
+  ],
+  textPalette: [
+    { id: 'black', label: 'Schwarz', color: GJ_SCHWARZ },
+    { id: 'white', label: 'Weiß', color: '#FFFFFF' },
+    { id: 'limette', label: 'Hellgrün', color: GJ_HELLGRUEN },
+  ],
+  // The highlight bars (CD S. 19–21): white or light green, black text.
+  markers: {
+    swatches: [
+      { id: 'limette', label: 'Hellgrün', color: GJ_HELLGRUEN },
+      { id: 'white', label: 'Weiß', color: '#FFFFFF' },
+    ],
+    ink: GJ_SCHWARZ,
+  },
+  chart: [GJ_SCHWARZ, GJ_LAVENDEL, GJ_APRICOT, GJ_PINK, GJ_DUNKELGRUEN],
+  effects: GRUENE_EFFECTS,
+  fonts: {
+    headline: 'WixMadeforDisplay-ExtraBold',
+    body: 'WixMadeforText',
+    quoteShort: 'WixMadeforDisplay-ExtraBold',
+    quoteEmphasis: 'WixMadeforDisplay-ExtraBold',
+    boldFamilies: { WixMadeforText: 'WixMadeforText-Bold' },
+  },
+  fontFaces: [],
+  lineHeightFactor: 1.15,
+  logo: null,
+  quoteMark: { src: GRUENE_SYSTEM_ASSETS.quoteWhite.src },
+  composer: {
+    lineHeight: { headline: 1.12, absatz: 1.35, aufruf: 1.08 },
+    fontSize: {
+      weiter: 30,
+      absatz: 44,
+      steckbriefGruss: 52,
+      steckbriefName: 170,
+      steckbriefTrait: 60,
+    },
+    absatzGap: 0.6,
+    headlineFace: { absatz: false, infografikTitel: false, datum: false },
+    features: {
+      markerBox: true,
+      zeilenboxen: true,
+      kopfband: false,
+      widowGuard: true,
+      vergleichSpalten: true,
+      hinweisPill: true,
+    },
+    darkText: GJ_SCHWARZ,
+    // The posts highlight with bars (`++`); a `==` run stays black on the
+    // primaries and turns light green on black and photos.
+    accent: { fill: { light: GJ_SCHWARZ, dark: GJ_HELLGRUEN }, emphasis: false },
+    badge: {
+      light: { fill: GJ_SCHWARZ, ink: GJ_HELLGRUEN },
+      dark: { fill: GJ_HELLGRUEN, ink: GJ_SCHWARZ },
+    },
+    button: {
+      light: { fill: GJ_SCHWARZ, ink: '#FFFFFF' },
+      dark: { fill: GJ_HELLGRUEN, ink: GJ_SCHWARZ },
+    },
+    cardAccent: GJ_SCHWARZ,
+    ghostNumeral: { fill: { light: '#FFFFFF', dark: GJ_HELLGRUEN }, opacity: 0.35 },
+    countdownInk: { light: '#FFFFFF', dark: GJ_SCHWARZ },
+    handMarks: { white: '#FFFFFF', green: GJ_SCHWARZ },
+    quoteStyle: 'card',
+    // The word mark (790 × 386) on the text slides (CD S. 27, DbFqUILjMfU):
+    // black on light ground, light green on black. The posts set it bottom-right
+    // or bottom-left; left keeps it clear of the swipe arrow.
+    logo: {
+      asset: {
+        light: { assetId: 'gj-logo-schwarz', opacity: 1 },
+        dark: { assetId: 'gj-logo-hellgruen', opacity: 1 },
+      },
+      size: 220,
+      height: (220 * 386) / 790,
+      bottom: 64,
+    },
+    // The black burst with white text (DY1k7UhDK1S/04, Dba6T9SjPRb/04).
+    stoerer: {
+      rotation: -8,
+      colors: {
+        light: { fill: GJ_SCHWARZ, ink: '#FFFFFF' },
+        dark: { fill: GJ_HELLGRUEN, ink: GJ_SCHWARZ },
+      },
+      size: { radius: 125, fontSize: 36 },
+    },
+    headlineCase: 'satz',
+    stoererShape: 'burst',
+    cardStyle: 'plain',
+    // CD S. 19/20: the first line on white, the rest on light green.
+    // The line above the headline handwritten on a light-green tape, white on
+    // light green (DZ0Ou7KjLyZ/02).
+    dachzeileHand: {
+      family: 'KaushanScript',
+      rotation: -4,
+      tape: {
+        light: { fill: GJ_HELLGRUEN, ink: GJ_SCHWARZ },
+        dark: { fill: GJ_HELLGRUEN, ink: GJ_SCHWARZ },
+      },
+    },
+    // Quotes on a full photo in light green, bold (Dem9hTrxHEG/01).
+    quoteOnPhoto: GJ_HELLGRUEN,
+    lineBoxes: {
+      first: { fill: '#FFFFFF', ink: GJ_SCHWARZ },
+      rest: { fill: GJ_HELLGRUEN, ink: GJ_SCHWARZ },
+      onColour: { fill: GJ_SCHWARZ, ink: '#FFFFFF' },
+    },
+    layout: {
+      centredMargin: null,
+      centreShortBlocks: false,
+      listCard: 'always',
+      tintPhotoStrip: false,
+      logoPlacement: 'left',
+      swipeArrow: 'drawn',
+      datumCircle: 'stoerer',
+      contrastPanel: 'solid',
+      sunflower: false,
+      frageAccent: 'accent',
+      termine: 'kachel',
+      raster: false,
+    },
+  },
+};
+
+// Grüne Jugend Österreich: no CD exists. Colours measured on @gruenejugend.at
+// (10/2026, design/styleguide-gj-at-2026.json). Its wide capitals face is
+// unknown; Unbounded Black (SIL OFL) stands in until the federation names it.
+const GJAT_WALDGRUEN = '#005424';
+const GJAT_MAIGRUEN = '#92CE26';
+const GJAT_CREME = '#F2F0E0';
+const GJAT_GELB = '#FCD800';
+const GJAT_VEILCHEN = '#5C448C';
+
+export const GJ_AT: GruenePack = {
+  id: 'gj-at',
+  name: 'Grüne Jugend Österreich',
+  colors: {
+    primary: GJAT_WALDGRUEN,
+    secondary: GJAT_MAIGRUEN,
+    accent: GJAT_GELB,
+    accentOnLight: GJAT_WALDGRUEN,
+    attention: GJAT_GELB,
+    textOnDark: GJAT_CREME,
+    textOnLight: GJAT_WALDGRUEN,
+    surface: GJAT_CREME,
+  },
+  backgrounds: [
+    { id: 'waldgruen', label: 'Waldgrün', color: GJAT_WALDGRUEN, ink: GJAT_CREME },
+    { id: 'maigruen', label: 'Maigrün', color: GJAT_MAIGRUEN, ink: GJAT_WALDGRUEN },
+    { id: 'creme', label: 'Creme', color: GJAT_CREME, ink: GJAT_WALDGRUEN },
+  ],
+  defaultBackground: GJAT_WALDGRUEN,
+  palette: [
+    { id: 'waldgruen', label: 'Waldgrün', color: GJAT_WALDGRUEN },
+    { id: 'maigruen', label: 'Maigrün', color: GJAT_MAIGRUEN },
+    { id: 'creme', label: 'Creme', color: GJAT_CREME },
+    { id: 'gelb', label: 'Gelb', color: GJAT_GELB },
+    { id: 'veilchen', label: 'Violett', color: GJAT_VEILCHEN },
+    { id: 'black', label: 'Schwarz', color: '#000000' },
+  ],
+  textPalette: [
+    { id: 'waldgruen', label: 'Waldgrün', color: GJAT_WALDGRUEN },
+    { id: 'creme', label: 'Creme', color: GJAT_CREME },
+    { id: 'maigruen', label: 'Maigrün', color: GJAT_MAIGRUEN },
+    { id: 'black', label: 'Schwarz', color: '#000000' },
+  ],
+  markers: {
+    swatches: [
+      { id: 'gelb', label: 'Gelb', color: GJAT_GELB },
+      { id: 'maigruen', label: 'Maigrün', color: GJAT_MAIGRUEN },
+    ],
+    ink: GJAT_WALDGRUEN,
+  },
+  chart: [GJAT_WALDGRUEN, GJAT_MAIGRUEN, GJAT_GELB, GJAT_VEILCHEN, '#9C94D6'],
+  effects: GRUENE_EFFECTS,
+  fonts: {
+    headline: 'Unbounded-Black',
+    body: 'WixMadeforText',
+    quoteShort: 'Unbounded-Black',
+    quoteEmphasis: 'Unbounded-Black',
+    boldFamilies: { WixMadeforText: 'WixMadeforText-Bold' },
+  },
+  fontFaces: [],
+  lineHeightFactor: 1,
+  logo: null,
+  quoteMark: { src: GRUENE_SYSTEM_ASSETS.quoteWhite.src },
+  composer: {
+    lineHeight: { headline: 1.02, absatz: 1.3, aufruf: 1 },
+    // The wide capitals face runs ~40 % wider than Gotham: smaller caps keep
+    // a trait word whole (Unbounded, measured on the steckbrief render).
+    fontSize: {
+      weiter: 28,
+      absatz: 44,
+      steckbriefGruss: 30,
+      steckbriefName: 120,
+      steckbriefTrait: 32,
+    },
+    absatzGap: 0.7,
+    // The capitals face also sets dates and infographic titles (DehRgj4jAe9).
+    headlineFace: { absatz: false, infografikTitel: true, datum: true },
+    features: {
+      markerBox: false,
+      zeilenboxen: false,
+      kopfband: false,
+      widowGuard: true,
+      vergleichSpalten: false,
+      hinweisPill: true,
+    },
+    darkText: GJAT_WALDGRUEN,
+    // Yellow words on the dark grounds (DXybBB4DJgm/02), forest green on light.
+    accent: { fill: { light: GJAT_WALDGRUEN, dark: GJAT_GELB }, emphasis: false },
+    badge: {
+      light: { fill: GJAT_WALDGRUEN, ink: GJAT_MAIGRUEN },
+      dark: { fill: GJAT_GELB, ink: GJAT_WALDGRUEN },
+    },
+    button: {
+      light: { fill: GJAT_WALDGRUEN, ink: GJAT_CREME },
+      dark: { fill: GJAT_GELB, ink: GJAT_WALDGRUEN },
+    },
+    cardAccent: GJAT_WALDGRUEN,
+    ghostNumeral: { fill: { light: GJAT_MAIGRUEN, dark: GJAT_MAIGRUEN }, opacity: 0.45 },
+    countdownInk: { light: GJAT_CREME, dark: GJAT_WALDGRUEN },
+    handMarks: { white: GJAT_GELB, green: GJAT_WALDGRUEN },
+    // The quote in a light-green speech bubble (DXthhyhjE5p/01).
+    quoteStyle: 'blase',
+    // No logo file yet (`logoPlacement: 'none'`); the entry only fills the shape.
+    logo: {
+      asset: {
+        light: { assetId: 'gj-logo-schwarz', opacity: 1 },
+        dark: { assetId: 'gj-logo-weiss', opacity: 1 },
+      },
+      size: 220,
+      height: (220 * 386) / 790,
+      bottom: 64,
+    },
+    // The tilted yellow ellipse ("BOCK AUF FEMINISMUS?", DX6h17ujNpA/01).
+    stoerer: {
+      rotation: -10,
+      colors: {
+        light: { fill: GJAT_GELB, ink: GJAT_WALDGRUEN },
+        dark: { fill: GJAT_GELB, ink: GJAT_WALDGRUEN },
+      },
+      size: { radius: 120, fontSize: 30 },
+    },
+    // Paragraphs on the dark grounds in light green (Db-_V4HCvrJ/01).
+    absatzOnDark: GJAT_MAIGRUEN,
+    headlineCase: 'versal',
+    stoererShape: 'ellipse',
+    cardStyle: 'brutal',
+    // No line boxes in AT (`zeilenboxen` off); the accent line stands on a yellow label.
+    lineBoxes: {
+      first: { fill: GJAT_GELB, ink: GJAT_WALDGRUEN },
+      rest: { fill: GJAT_GELB, ink: GJAT_WALDGRUEN },
+    },
+    layout: {
+      centredMargin: null,
+      centreShortBlocks: false,
+      listCard: 'always',
+      tintPhotoStrip: false,
+      logoPlacement: 'none',
+      swipeArrow: 'drawn',
+      datumCircle: 'etikett',
+      contrastPanel: 'solid',
+      sunflower: false,
+      frageAccent: 'accent',
+      termine: 'etikett',
+      raster: true,
+    },
   },
 };
 
@@ -475,17 +832,38 @@ export const BRAND_THEMES: Record<BrandLocale, BrandTheme> = {
   'de-AT': themeOf('de-AT', GRUENE_AT),
 };
 
-/** Resolve a brand pack, falling back to de-DE for unknown/undefined locales. */
-export function getBrandPack(locale?: BrandLocale | string | null): GruenePack {
-  return locale === 'de-AT' ? GRUENE_AT : GRUENE_DE;
+/** Every pack by its design id. */
+export const BRAND_PACKS: Record<GrueneBrandId, GruenePack> = {
+  'gruene-de': GRUENE_DE,
+  'gruene-at': GRUENE_AT,
+  'gj-de': GJ_DE,
+  'gj-at': GJ_AT,
+};
+
+const BRAND_THEMES_BY_ID: Record<GrueneBrandId, BrandTheme> = {
+  'gruene-de': BRAND_THEMES['de-DE'],
+  'gruene-at': BRAND_THEMES['de-AT'],
+  'gj-de': themeOf('de-DE', GJ_DE),
+  'gj-at': themeOf('de-AT', GJ_AT),
+};
+
+/**
+ * Resolve a brand pack, falling back to de-DE for unknown/undefined locales.
+ * The brand picks the organisation within the country; absent: the party.
+ */
+export function getBrandPack(
+  locale?: BrandLocale | string | null,
+  brand?: SharepicBrand | null
+): GruenePack {
+  return BRAND_PACKS[brandIdFor(locale, brand)];
 }
 
 /** Resolve a brand theme, falling back to de-DE for unknown/undefined locales. */
-export function getBrandTheme(locale?: BrandLocale | string | null): BrandTheme {
-  if (locale && locale in BRAND_THEMES) {
-    return BRAND_THEMES[locale as BrandLocale];
-  }
-  return BRAND_THEMES['de-DE'];
+export function getBrandTheme(
+  locale?: BrandLocale | string | null,
+  brand?: SharepicBrand | null
+): BrandTheme {
+  return BRAND_THEMES_BY_ID[brandIdFor(locale, brand)];
 }
 
 export const SHAREPIC_COLOR_HEX: Record<SharepicColor, string> = {
@@ -511,4 +889,14 @@ export const SHAREPIC_COLOR_HEX: Record<SharepicColor, string> = {
   // a pale sky that carries it as ink.
   europablau: '#003399',
   himmelblau: '#DCE6F7',
+  limette: GJ_HELLGRUEN,
+  apricot: GJ_APRICOT,
+  lavendel: GJ_LAVENDEL,
+  pink: GJ_PINK,
+  schwarz: GJ_SCHWARZ,
+  wiese: GJ_DUNKELGRUEN,
+  waldgruen: GJAT_WALDGRUEN,
+  maigruen: GJAT_MAIGRUEN,
+  gelb: GJAT_GELB,
+  veilchen: GJAT_VEILCHEN,
 };
