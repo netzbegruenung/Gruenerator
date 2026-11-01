@@ -1,6 +1,10 @@
-import { type MarketplaceItem, type SharepicThema } from '@gruenerator/contracts';
+import { type MarketplaceItem } from '@gruenerator/contracts';
 import { getFriend, getRobotAvatarUrl } from '@gruenerator/shared/avatar';
-import { isSampleItem, type ResolvedStoryBlock } from '@gruenerator/shared/marketplace';
+import {
+  isSampleItem,
+  type ResolvedStoryBlock,
+  storyShowsVorlage,
+} from '@gruenerator/shared/marketplace';
 import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
 import { type ReactNode } from 'react';
@@ -184,18 +188,18 @@ function Gallery({
  * preview on the Vorlagen screen. Nothing while the catalogue loads or has none.
  */
 function VorlagenGallery({
-  thema,
+  block,
   heading,
   token,
 }: {
-  thema: SharepicThema;
+  block: Extract<ResolvedStoryBlock, { type: 'vorlagen' }>;
   heading: ReactNode;
   token: string | null;
 }) {
   const theme = useTheme();
   const router = useRouter();
   const { data } = useSharepicVorlagen();
-  const vorlagen = (data ?? []).filter((v) => v.spec.thema === thema);
+  const vorlagen = (data ?? []).filter((v) => storyShowsVorlage(block, v.spec));
   if (vorlagen.length === 0) return null;
   return (
     <View style={styles.block}>
@@ -348,8 +352,11 @@ function Block({ block, ...props }: { block: ResolvedStoryBlock } & ItemProps) {
     </Text>
   ) : null;
   if (block.type === 'vorlagen')
-    return <VorlagenGallery thema={block.thema} heading={heading} token={props.token} />;
+    return <VorlagenGallery block={block} heading={heading} token={props.token} />;
   if (block.type === 'friends') return <Friends ids={block.ids} heading={heading} />;
+  // Die Profilbild-Stücke einer Kollektion öffnet bisher nur der Web-Editor
+  // (`?sticker=`/`?hintergrund=`); die App zeigt den Abschnitt noch nicht.
+  if (block.type === 'profilbild') return null;
   return (
     <View style={styles.block}>
       {heading}
