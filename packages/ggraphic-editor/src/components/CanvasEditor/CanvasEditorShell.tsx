@@ -46,16 +46,6 @@ import { serializeDeck } from '@ggraphic/editor/collab/pagesDoc';
 import { createPageSyncedCallbacks } from '@ggraphic/editor/collab/wrapCallbacksWithPageSync';
 import { CanvasAnnouncer } from '@ggraphic/editor/components/CanvasAnnouncer';
 import { CanvasContextMenu } from '@ggraphic/editor/components/CanvasContextMenu/CanvasContextMenu';
-import { MobileSelectionPill } from '@ggraphic/editor/components/MobileSelectionPill';
-import { PageThumbnailStrip, type PagePickerSlot } from '../PageThumbnailStrip.js';
-import { SlideNotesPanel } from '@ggraphic/editor/components/SlideNotesPanel';
-import { AddPageButton } from '../AddPageButton.js';
-import { Toolbar } from '../Toolbar.js';
-import { ContextToolbar } from '@ggraphic/editor/components/TopBar/ContextToolbar';
-import { MobileSelectionBar } from '@ggraphic/editor/components/TopBar/MobileSelectionBar';
-import { MobileSelectionControls } from '@ggraphic/editor/components/TopBar/MobileSelectionControls';
-import { FloatingAiSuggestionBanner } from '@ggraphic/editor/components/TopBar/modules/FloatingAiSuggestionBanner';
-import { MultiSelectionToolbar } from '@ggraphic/editor/components/TopBar/MultiSelectionToolbar';
 
 import { autoSwitchTab } from '@ggraphic/editor/components/CanvasEditor/autoSwitchTab';
 import {
@@ -87,6 +77,13 @@ import {
 } from '@ggraphic/editor/components/CanvasEditorSkeleton';
 import { CanvasMetaBar, CanvasZoomIndicator } from '@ggraphic/editor/components/CanvasMetaBar';
 import { CanvasTextEditorProvider } from '@ggraphic/editor/components/CanvasTextOverlay';
+import { MobileSelectionPill } from '@ggraphic/editor/components/MobileSelectionPill';
+import { SlideNotesPanel } from '@ggraphic/editor/components/SlideNotesPanel';
+import { ContextToolbar } from '@ggraphic/editor/components/TopBar/ContextToolbar';
+import { MobileSelectionBar } from '@ggraphic/editor/components/TopBar/MobileSelectionBar';
+import { MobileSelectionControls } from '@ggraphic/editor/components/TopBar/MobileSelectionControls';
+import { FloatingAiSuggestionBanner } from '@ggraphic/editor/components/TopBar/modules/FloatingAiSuggestionBanner';
+import { MultiSelectionToolbar } from '@ggraphic/editor/components/TopBar/MultiSelectionToolbar';
 import { exportPptxDeck } from '@ggraphic/editor/export/pptx/exportPptxDeck';
 import { exportSlidesPdf } from '@ggraphic/editor/export/slidesPdf';
 import {
@@ -131,6 +128,9 @@ import {
   printPdfFilename,
   type PrintExportPage,
 } from '../../export/printExport.js';
+import { AddPageButton } from '../AddPageButton.js';
+import { PageThumbnailStrip, type PagePickerSlot } from '../PageThumbnailStrip.js';
+import { Toolbar } from '../Toolbar.js';
 
 import type {
   AltTextPage,
@@ -635,20 +635,19 @@ function CanvasEditorInner({
       if (deck.some((_, i) => !refs[i]?.current)) {
         throw new Error('Nicht alle Folien konnten exportiert werden');
       }
-      // Das Dokument ist eine Marke: die der offenen Seite, wie in `DocumentBrandContext`.
-      const openConfigId = pages[currentPageIndex]?.configId;
-      const brand = openConfigId ? loadedConfigs.get(openConfigId)?.brand : null;
+      // One brand per deck: its pages share a country.
+      const brand = deck[0] ? loadedConfigs.get(deck[0].configId)?.brand : undefined;
       return exportPptxDeck({
         pages: deck.map((page) => page.state),
+        ...(brand ? { brand } : {}),
         format: getCanvasFormatOrDefault(formatId),
         rasterizeElement: async (slideIndex, elementId) =>
           (await refs[slideIndex]?.current?.rasterizeElement(elementId)) ?? null,
         ...(documentTitle ? { title: documentTitle } : {}),
         ...(onProgress ? { onProgress } : {}),
-        ...(brand ? { brand } : {}),
       });
     },
-    [pagesDoc, canvasRefsRef, formatId, documentTitle, pages, currentPageIndex, loadedConfigs]
+    [pagesDoc, canvasRefsRef, formatId, documentTitle, loadedConfigs]
   );
   useImperativeHandle(
     exportApiRef,

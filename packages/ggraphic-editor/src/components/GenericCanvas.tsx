@@ -1157,41 +1157,45 @@ function GenericCanvasWithRef<
 
   return (
     <PendingImagesContext.Provider value={pendingImages}>
-      <CanvasStage
-        ref={stageRef}
-        width={stageWidth}
-        height={stageHeight}
-        logicalWidth={referenceWidth}
-        logicalHeight={referenceHeight}
-        responsive
-        maxContainerWidth={maxWidth}
-        onStageClick={handleStageClick}
-        listening={interactive}
-        ariaLabel={stageLabel}
-        className={`${config.id}-stage`}
-        overlay={interactive ? <CropGhostOverlay getStage={getStage} /> : null}
-      >
-        <CanvasRenderLayer
-          sortedRenderList={sortedRenderList}
-          canRotateSelection={canRotateSelection}
-          config={config}
-          state={state}
-          layout={layout}
-          handlers={elementHandlers}
-          getSnapTargets={getSnapTargets}
-          registerGeometry={updateElementPosition}
-          handleSnapChange={handleSnapChange}
-          setSnapLines={setSnapLines}
-          stageWidth={config.canvas.width}
-          stageHeight={config.canvas.height}
-          isFontAvailable={isFontAvailable}
-          remoteSelections={remoteSelections}
-        />
+      {/* The stage draws what has no colour of its own (text markers, the
+          backdrop) in the page's brand. */}
+      <DocumentBrandContext.Provider value={config.brand ?? null}>
+        <CanvasStage
+          ref={stageRef}
+          width={stageWidth}
+          height={stageHeight}
+          logicalWidth={referenceWidth}
+          logicalHeight={referenceHeight}
+          responsive
+          maxContainerWidth={maxWidth}
+          onStageClick={handleStageClick}
+          listening={interactive}
+          ariaLabel={stageLabel}
+          className={`${config.id}-stage`}
+          overlay={interactive ? <CropGhostOverlay getStage={getStage} /> : null}
+        >
+          <CanvasRenderLayer
+            sortedRenderList={sortedRenderList}
+            canRotateSelection={canRotateSelection}
+            config={config}
+            state={state}
+            layout={layout}
+            handlers={elementHandlers}
+            getSnapTargets={getSnapTargets}
+            registerGeometry={updateElementPosition}
+            handleSnapChange={handleSnapChange}
+            setSnapLines={setSnapLines}
+            stageWidth={config.canvas.width}
+            stageHeight={config.canvas.height}
+            isFontAvailable={isFontAvailable}
+            remoteSelections={remoteSelections}
+          />
 
-        <PrintGuides format={format} />
+          <PrintGuides format={format} />
 
-        <SnapGuidelines />
-      </CanvasStage>
+          <SnapGuidelines />
+        </CanvasStage>
+      </DocumentBrandContext.Provider>
 
       {/* Renderless bridge: owns all selectedElement-derived computation.
           Re-renders only this component (returns null) on selection change,

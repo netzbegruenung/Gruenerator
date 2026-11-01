@@ -1,10 +1,3 @@
-import { loadAllIcons } from '@ggraphic/editor/utils/canvasIcons';
-import { getAllIllustrations } from '@ggraphic/editor/utils/illustrations/registry';
-import { beforeAll, describe, expect, it } from 'vitest';
-
-import { EMOJI_ASSETS, stickerAssetsForLocale } from '../../../brand/grueneAssetCatalog';
-import { ALL_ASSETS } from '../../../brand/grueneAssets';
-
 import { searchElements } from '@ggraphic/editor/sidebar/sections/assets/elementSearch';
 import {
   assetItem,
@@ -12,10 +5,17 @@ import {
   FRAME_ITEMS,
   iconItem,
   illustrationItem,
-  SHAPE_ITEMS,
+  shapeItems,
   type CategoryId,
 } from '@ggraphic/editor/sidebar/sections/assets/useElementCatalog';
 import { stockPhotoItem } from '@ggraphic/editor/sidebar/sections/assets/useStockPhotos';
+import { loadAllIcons } from '@ggraphic/editor/utils/canvasIcons';
+import { getAllIllustrations } from '@ggraphic/editor/utils/illustrations/registry';
+import { beforeAll, describe, expect, it } from 'vitest';
+
+import { EMOJI_ASSETS, stickerAssetsForLocale } from '../../../brand/grueneAssetCatalog';
+import { ALL_ASSETS } from '../../../brand/grueneAssets';
+import { GRUENE_DE } from '../../../brand/theme';
 
 import type { ElementItem } from '@ggraphic/editor/sidebar/sections/assets/elementTypes';
 
@@ -29,7 +29,7 @@ beforeAll(async () => {
   catalog = [
     cat('marke', ALL_ASSETS.filter((a) => a.audience !== 'de-AT').map(assetItem)),
     cat('sticker', stickerAssetsForLocale('de-DE').map(assetItem)),
-    cat('formen', SHAPE_ITEMS),
+    cat('formen', shapeItems(GRUENE_DE)),
     cat('diagramme', CHART_ITEMS),
     cat('rahmen', FRAME_ITEMS),
     cat('illustrationen', illustrations.map(illustrationItem)),

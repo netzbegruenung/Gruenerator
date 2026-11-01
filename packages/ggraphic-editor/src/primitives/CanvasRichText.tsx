@@ -159,8 +159,7 @@ export function CanvasRichText({
       ),
     [lines, lineWidths, align, padding, innerBoxWidth]
   );
-  // Ohne Markerstil der Vorlage bekommt ein `++`-Lauf den Standardkasten — den
-  // der Marke des Dokuments, wie die Farbe in der Werkzeugleiste.
+  // Ohne Markerstil der Vorlage bekommt ein `++`-Lauf den Standardkasten des Dokuments.
   const brand = useDocumentBrand();
   const marker = templateMarker ?? defaultTextMarker(brand);
   const boxes = useMemo(
@@ -172,7 +171,7 @@ export function CanvasRichText({
         originX,
         brand,
       }),
-    [marker, brand, lines, measure, fontSize, lineHeightPx, padding, originX]
+    [marker, lines, measure, fontSize, lineHeightPx, padding, originX, brand]
   );
 
   useEffect(() => {

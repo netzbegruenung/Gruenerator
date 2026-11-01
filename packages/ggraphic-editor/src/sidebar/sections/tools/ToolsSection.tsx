@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: MPL-2.0
+import { type BrandPack } from '@ggraphic/core';
 import { Suspense, useEffect, useId, useState } from 'react';
 import { HiSparkles } from 'react-icons/hi';
 import {
@@ -100,9 +101,11 @@ interface ToolCard {
   available: boolean;
 }
 
-// By id, so it stays on the active brand: the ids below belong to one pack and a
-// document brand without them would leave the tile's gradient stops empty.
-const brandColor = (id: string) => brandColors().find((c) => c.id === id)?.value;
+// A pack's colour by id; a pack without that id gives its colour at `fallback`.
+const brandColor = (brand: BrandPack, id: string, fallback: number) => {
+  const palette = brandColors(brand);
+  return (palette.find((c) => c.id === id) ?? palette[fallback])?.value;
+};
 
 // The letters carry the gradient themselves, so the tile shows what the tool makes.
 function GradientTextIcon({ size = 24, className }: { size?: number; className?: string }) {
@@ -112,8 +115,8 @@ function GradientTextIcon({ size = 24, className }: { size?: number; className?:
     <svg width={size} height={size} viewBox="0 0 24 24" className={className} aria-hidden="true">
       <defs>
         <linearGradient id={gradientId} x1="0" y1="0" x2="1" y2="0">
-          <stop offset="0" stopColor={brandColor('grashalm')} />
-          <stop offset="1" stopColor={brandColor('himmel')} />
+          <stop offset="0" stopColor={brandColor(brand, 'grashalm', 1)} />
+          <stop offset="1" stopColor={brandColor(brand, 'himmel', 2)} />
         </linearGradient>
       </defs>
       <text

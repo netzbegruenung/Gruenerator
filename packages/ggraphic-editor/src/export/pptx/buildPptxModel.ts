@@ -10,7 +10,8 @@
  * Ids in `layerOrder`, dann der Rest in der Standardreihenfolge der Arten.
  */
 
-import { activeBrand } from '@ggraphic/editor/brand/brandRegistry';
+import { type BrandPack } from '@ggraphic/core';
+
 import { carryInstanceState } from '@ggraphic/editor/configs/factory/carryInstanceState';
 import { ASSET_TARGET_SIZE } from '@ggraphic/editor/utils/canvasAssets';
 import {
@@ -44,7 +45,6 @@ import type {
   PptxShapeKind,
   PptxSlideModel,
 } from './types.js';
-import type { BrandPack } from '@ggraphic/core';
 import type { AdditionalText } from '@ggraphic/editor/configs/types';
 import type { CanvasFormat } from '@ggraphic/editor/formats/index';
 import type { CircleBadgeInstance } from '@ggraphic/editor/utils/circleBadgeUtils';
@@ -57,10 +57,7 @@ export type PptxPageState = Readonly<Record<string, unknown>>;
 export interface BuildPptxModelOptions {
   /** Textbreite für die Höhe der Textboxen; ohne: Schätzung. */
   measure?: PptxMeasureText;
-  /**
-   * Das Markenpaket des Dokuments, dessen Textmarker ein Text ohne eigenen
-   * Markerstil bekommt — wie auf der Leinwand. Ohne: das aktive.
-   */
+  /** Das Paket des Dokuments, für Textmarker ohne Stil der Vorlage; ohne: das aktive. */
   brand?: BrandPack;
 }
 
@@ -260,7 +257,7 @@ function mapShape(shape: ShapeInstance): PptxItem {
   };
 }
 
-function mapText(text: AdditionalText, measure: PptxMeasureText, brand: BrandPack): PptxItem {
+function mapText(text: AdditionalText, measure: PptxMeasureText, brand?: BrandPack): PptxItem {
   const scale = text.scale || 1;
   const lineHeight = text.lineHeight ?? 1.2;
   const paragraphs = textParagraphs(text, brand);
@@ -577,7 +574,7 @@ function buildSlide(
   state: PptxPageState,
   format: CanvasFormat,
   measure: PptxMeasureText,
-  brand: BrandPack
+  brand?: BrandPack
 ): PptxSlideModel {
   const page: PptxBox = { x: 0, y: 0, width: format.width, height: format.height };
   const carried = carryInstanceState(state as Record<string, unknown>);
@@ -696,9 +693,8 @@ export function buildPptxModel(
   options: BuildPptxModelOptions = {}
 ): PptxDeckModel {
   const measure = options.measure ?? estimateMeasure;
-  const brand = options.brand ?? activeBrand();
   return {
     page: { width: format.width, height: format.height },
-    slides: pages.map((state) => buildSlide(state, format, measure, brand)),
+    slides: pages.map((state) => buildSlide(state, format, measure, options.brand)),
   };
 }

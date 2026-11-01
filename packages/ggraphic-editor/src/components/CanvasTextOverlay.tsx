@@ -455,8 +455,6 @@ export function CanvasTextEditorProvider({ children }: { children: ReactNode }) 
 }
 
 function TextEditorRoot({ children }: { children: ReactNode }) {
-  // Der Kasten eines Textes ohne Markerstil: der der Marke des Dokuments, wie
-  // ihn die Leinwand zeichnet und die Werkzeugleiste zeigt.
   const brand = useDocumentBrand();
   const [session, setSession] = useState<TextEditSession | null>(null);
   const [editor, setEditor] = useState<Editor | null>(null);

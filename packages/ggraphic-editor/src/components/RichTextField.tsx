@@ -98,6 +98,7 @@ const BASE_EXTENSIONS = [
  * immer im Schema; angeboten wird er nur, wo der Text einen Akzentstil trägt.
  */
 const ALWAYS_MARK_EXTENSIONS = [Underline, Accent];
+// Der Marker steht ebenso immer im Schema; er kommt mit dem Paket des Dokuments dazu.
 
 /**
  * Fett und Kursiv müssen IM SCHEMA stehen, auch wo die Schrift sie nicht
@@ -157,10 +158,8 @@ export function RichTextField({
   callbacks.current = { onChange, onBlur, onEscape, onSubmit };
   // `handleKeyDown` steht in der Konfiguration, bevor es den Editor gibt.
   const editorRef = useRef<Editor | null>(null);
-
-  // Die Schrift im Kasten einer frei gewählten Farbe kommt von der Marke des
-  // Dokuments, wie auf der Leinwand.
   const brand = useDocumentBrand();
+
   const editor = useEditor({
     extensions: [
       ...BASE_EXTENSIONS,
