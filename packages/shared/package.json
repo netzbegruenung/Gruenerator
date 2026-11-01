@@ -349,7 +349,7 @@
     "@gruenerator/ui": "workspace:*",
     "@tanstack/react-query": "^5.104.5",
     "@types/react": "19.3.0",
-    "chokidar": "^5.0.0",
+    "chokidar": "^6.0.0",
     "cross-env": "^10.1.0",
     "eslint": "^9.39.5",
     "gray-matter": "^4.0.3",
