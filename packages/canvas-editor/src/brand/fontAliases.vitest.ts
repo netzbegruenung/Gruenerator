@@ -19,7 +19,7 @@ describe("ggraphic's font aliases against the Grünerator packs", () => {
 
   it('leaves every family the packs declare alone', () => {
     for (const pack of GRUENE_BRAND_PACKS) {
-      const { boldFamilies, ...roles } = pack.fonts;
+      const { boldFamilies, cuts: _cuts, ...roles } = pack.fonts;
       const families = [
         ...Object.values(roles),
         ...Object.keys(boldFamilies ?? {}),
