@@ -1,43 +1,60 @@
 // SPDX-License-Identifier: MPL-2.0
-import { useMessages } from '@ggraphic/editor/i18n/messages';
 import { Slider } from 'radix-ui';
 import React from 'react';
-import { PiDrop } from 'react-icons/pi';
+import { PiCheckerboard } from 'react-icons/pi';
+
+import { useMessages } from '@ggraphic/editor/i18n/messages';
+import { Popover, PopoverContent, PopoverTrigger } from '@ggraphic/editor/ui/popover';
 
 interface FloatingOpacityControlProps {
   opacity: number;
   onOpacityChange: (opacity: number) => void;
 }
 
+const TRIGGER_BTN =
+  'inline-flex items-center justify-center size-8 max-canvas-mobile:size-11 shrink-0 rounded-md border-none bg-transparent cursor-pointer text-[var(--editor-text)] transition-colors duration-150 hover:bg-[var(--editor-surface-hover)] hover:text-[var(--editor-active-fg)] data-[state=open]:bg-[var(--editor-active-bg)] data-[state=open]:text-[var(--editor-active-fg)]';
+
+/**
+ * Deckkraft — wie bei Canva ein Knopf, der Regler liegt im Popover. Offen in
+ * der Leiste war er ihr breitestes Stück.
+ */
 export function FloatingOpacityControl({ opacity, onOpacityChange }: FloatingOpacityControlProps) {
   const t = useMessages();
-  const handleValueChange = (values: number[]) => {
-    onOpacityChange(values[0]);
-  };
+  const label = t.sidebar.imageAdjust.opacity;
+  const percent = `${Math.round(opacity * 100)} %`;
 
   return (
-    <div className="flex items-center gap-2 h-full shrink-0 text-[var(--editor-text)] px-1">
-      <PiDrop size={15} aria-hidden="true" className="text-[var(--editor-text-muted)]" />
-      <Slider.Root
-        className="relative flex items-center select-none touch-none w-20 h-5 max-canvas-mobile:h-11 max-canvas-mobile:w-16"
-        value={[opacity]}
-        onValueChange={handleValueChange}
-        min={0}
-        max={1}
-        step={0.01}
-      >
-        <Slider.Track className="relative grow rounded-full h-1 bg-[var(--editor-border-soft)]">
-          <Slider.Range className="absolute rounded-full h-full bg-[var(--editor-accent)]" />
-        </Slider.Track>
-        <Slider.Thumb
-          className="block size-3.5 max-canvas-mobile:size-5 bg-white rounded-full border-2 border-[var(--editor-accent)] shadow-[0_1px_3px_rgba(0,0,0,0.2)] cursor-grab focus:outline-none focus:shadow-[0_0_0_3px_rgba(82,144,122,0.35)]"
-          aria-label={t.sidebar.imageAdjust.opacity}
-          aria-valuetext={`${Math.round(opacity * 100)} %`}
-        />
-      </Slider.Root>
-      <span className="text-[11px] font-medium w-[30px] text-right tabular-nums text-[var(--editor-text-muted)]">
-        {Math.round(opacity * 100)}%
-      </span>
-    </div>
+    <Popover>
+      <PopoverTrigger asChild>
+        <button className={TRIGGER_BTN} title={label} aria-label={label} type="button">
+          <PiCheckerboard size={18} aria-hidden="true" />
+        </button>
+      </PopoverTrigger>
+      <PopoverContent className="z-[10001] w-64 flex flex-col gap-2 p-3" align="center">
+        <span className="text-xs font-medium text-[var(--editor-text)]">{label}</span>
+        <div className="flex items-center gap-3">
+          <Slider.Root
+            className="relative flex grow items-center select-none touch-none h-5 max-canvas-mobile:h-11"
+            value={[opacity]}
+            onValueChange={(values) => onOpacityChange(values[0])}
+            min={0}
+            max={1}
+            step={0.01}
+          >
+            <Slider.Track className="relative grow rounded-full h-1 bg-[var(--editor-border-soft)]">
+              <Slider.Range className="absolute rounded-full h-full bg-[var(--editor-accent)]" />
+            </Slider.Track>
+            <Slider.Thumb
+              className="block size-3.5 max-canvas-mobile:size-5 bg-white rounded-full border-2 border-[var(--editor-accent)] shadow-[0_1px_3px_rgba(0,0,0,0.2)] cursor-grab focus:outline-none focus:shadow-[0_0_0_3px_rgba(82,144,122,0.35)]"
+              aria-label={label}
+              aria-valuetext={percent}
+            />
+          </Slider.Root>
+          <span className="text-[12px] font-medium w-10 text-right tabular-nums text-[var(--editor-text-muted)]">
+            {percent}
+          </span>
+        </div>
+      </PopoverContent>
+    </Popover>
   );
 }

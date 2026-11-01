@@ -46,7 +46,6 @@ import { serializeDeck } from '@ggraphic/editor/collab/pagesDoc';
 import { createPageSyncedCallbacks } from '@ggraphic/editor/collab/wrapCallbacksWithPageSync';
 import { CanvasAnnouncer } from '@ggraphic/editor/components/CanvasAnnouncer';
 import { CanvasContextMenu } from '@ggraphic/editor/components/CanvasContextMenu/CanvasContextMenu';
-
 import { autoSwitchTab } from '@ggraphic/editor/components/CanvasEditor/autoSwitchTab';
 import {
   registeredEditorShell,
@@ -77,8 +76,9 @@ import {
 } from '@ggraphic/editor/components/CanvasEditorSkeleton';
 import { CanvasMetaBar, CanvasZoomIndicator } from '@ggraphic/editor/components/CanvasMetaBar';
 import { CanvasTextEditorProvider } from '@ggraphic/editor/components/CanvasTextOverlay';
-import { MobileSelectionPill } from '@ggraphic/editor/components/MobileSelectionPill';
+import { SelectionPill } from '@ggraphic/editor/components/SelectionPill';
 import { SlideNotesPanel } from '@ggraphic/editor/components/SlideNotesPanel';
+import { hasObjectActions } from '@ggraphic/editor/components/TopBar/ContextControls';
 import { ContextToolbar } from '@ggraphic/editor/components/TopBar/ContextToolbar';
 import { MobileSelectionBar } from '@ggraphic/editor/components/TopBar/MobileSelectionBar';
 import { MobileSelectionControls } from '@ggraphic/editor/components/TopBar/MobileSelectionControls';
@@ -105,6 +105,8 @@ import { useZoomGestures } from '@ggraphic/editor/hooks/useZoomGestures';
 import { browserFileDelivery } from '@ggraphic/editor/hostServices';
 import { useMessages } from '@ggraphic/editor/i18n/messages';
 import { CanvasEditorLayout } from '@ggraphic/editor/layouts/index';
+import { hasEffects } from '@ggraphic/editor/sidebar/sections/effects/effectsFor';
+import { EffectsSection } from '@ggraphic/editor/sidebar/sections/EffectsSection';
 import { LayersSection } from '@ggraphic/editor/sidebar/sections/LayersSection';
 import { SidebarPanel } from '@ggraphic/editor/sidebar/SidebarPanel';
 import { SidebarTabBar } from '@ggraphic/editor/sidebar/SidebarTabBar';
@@ -741,7 +743,7 @@ function CanvasEditorInner({
   const requestBackgroundPicker = useCallback(() => setBackgroundPickerRequest((n) => n + 1), []);
   const openImageAdjust = useCallback(() => setActiveTab('image-adjust'), []);
   const pageIds = useMemo(() => pages.map((page) => page.id), [pages]);
-  const contextMenuRef = useCanvasContextMenu({
+  const { menuRef: contextMenuRef, openAtAnchor: openContextMenuAt } = useCanvasContextMenu({
     containerRef: pagesContainerRef,
     canvasRefsRef,
     pageDomRefsRef,
@@ -756,7 +758,7 @@ function CanvasEditorInner({
     requestBackgroundPicker,
   });
 
-  // Mobile selection pill: reads the active page's selection geometry.
+  // Selection pill: reads the active page's selection geometry.
   const getSelectionBox = useCallback(
     () => canvasRefsRef.current[currentPageIndex]?.current?.getSelectionBox?.() ?? null,
     [canvasRefsRef, currentPageIndex]
@@ -1043,6 +1045,13 @@ function CanvasEditorInner({
     });
   }, [activeSelectedElement, activeConfig, setActiveTab, isMobileWeb]);
 
+  // „Effekte“ gilt der Auswahl: hat die neue keine (oder ist keine mehr da),
+  // schließt der Bereich, statt nur zu sagen, dass es nichts gibt.
+  const selectionHasEffects = hasEffects(toolbarState?.activeFloatingModule ?? null);
+  useEffect(() => {
+    if (!selectionHasEffects) setActiveTab((current) => (current === 'effects' ? null : current));
+  }, [selectionHasEffects]);
+
   const isPanelOpen = activeTab !== null;
   const isMobileSheetOpen = isMobileWeb && isPanelOpen;
   const activeEditorTab = editorTabs.find((def) => def.tab.id === activeTab) ?? null;
@@ -1050,7 +1059,9 @@ function CanvasEditorInner({
     ? activeEditorTab.tab.label
     : activeTab === 'layers'
       ? layersTab.label
-      : (activeTab && activeConfig?.tabs.find((tab) => tab.id === activeTab)?.label) || 'Auswahl';
+      : activeTab === 'effects'
+        ? t.sidebar.effects.title
+        : (activeTab && activeConfig?.tabs.find((tab) => tab.id === activeTab)?.label) || 'Auswahl';
   useMobileSheetFit({
     enabled: isMobileSheetOpen,
     zoom,
@@ -1171,6 +1182,16 @@ function CanvasEditorInner({
   // Render the active section based on configuration
   const renderActiveSection = useCallback(() => {
     if (!activeTab) return null;
+    if (activeTab === 'effects') {
+      return (
+        <EffectsSection
+          module={toolbarState?.activeFloatingModule ?? null}
+          onGradientChange={toolbarHandlers.handleGradientSelect}
+          onOutlineChange={toolbarHandlers.handleOutlineChange}
+          onShadowChange={toolbarHandlers.handleShadowChange}
+        />
+      );
+    }
     if (activeTab === 'layers') {
       return (
         <LayersSection
@@ -1232,6 +1253,10 @@ function CanvasEditorInner({
     canAddMore,
     toolbarState?.layers,
     toolbarState?.selectedLayerIds,
+    toolbarState?.activeFloatingModule,
+    toolbarHandlers.handleGradientSelect,
+    toolbarHandlers.handleOutlineChange,
+    toolbarHandlers.handleShadowChange,
     handleLayerSelect,
     handleLayerActivate,
     layersFocusRequested,
@@ -1413,6 +1438,7 @@ function CanvasEditorInner({
         handlers: {
           ...toolbarHandlers,
           onEditImage: () => setActiveTab('image-adjust'),
+          onOpenEffects: () => setActiveTab('effects'),
         },
         background: backgroundControls,
         // Boundary: page actions arrive as Record<string, unknown>.
@@ -1436,29 +1462,16 @@ function CanvasEditorInner({
       onUndoPages={toolbarHandlers.undoPages}
     />
   ) : contextControlsProps && hasContextControls ? (
-    <ContextToolbar
-      {...contextControlsProps}
-      canDelete={toolbarState?.canDelete ?? false}
-      onDeleteElement={toolbarHandlers.handleDeleteElement}
-    />
+    <ContextToolbar {...contextControlsProps} />
   ) : toolbarState && toolbarState.selectionCount > 1 ? (
     // Not part of `hasContextControls`: mobile would show its selection bar.
     <MultiSelectionToolbar
       count={toolbarState.selectionCount}
-      canCopy={toolbarState.canCopy}
-      canDelete={toolbarState.canDelete}
-      lockState={toolbarState.lockState}
-      canLock={toolbarState.canLock}
       canAlign={toolbarState.canAlign}
       canDistribute={toolbarState.canDistribute}
       onCommand={toolbarHandlers.runCommand}
       canFlip={toolbarState.canFlip}
       onFlip={toolbarHandlers.handleFlip}
-      onCopy={toolbarHandlers.handleCopy}
-      onDuplicate={toolbarHandlers.handleDuplicate}
-      onToggleLock={toolbarHandlers.handleToggleLock}
-      onDelete={toolbarHandlers.handleDeleteElement}
-      onDeselect={handleDeselectAll}
     />
   ) : null;
   const mobileSelectionElement =
@@ -1482,13 +1495,26 @@ function CanvasEditorInner({
   // A multi-selection has no selection bar on phones; the pill is its only
   // door to the selection's commands.
   const isMultiSelection = (toolbarState?.selectionCount ?? 0) > 1;
+  // Desktop: what acts on the selection as a whole (lock, duplicate, delete,
+  // the context menu) sits on the object; the bar above only shapes it. The
+  // background plane and photo are not objects — they keep their bar.
+  const showDesktopPill =
+    !isMobileWeb &&
+    !isPreview &&
+    !readOnly &&
+    !hasPendingSuggestion &&
+    (isMultiSelection ||
+      (!!toolbarState?.selectedElement &&
+        hasObjectActions(toolbarState.activeFloatingModule ?? null)));
   // Im Zuschneide-Modus gelten nur Abbrechen und Fertig; die Pille würde das Restbild verdecken.
   const selectionPill =
     toolbarState &&
     !toolbarState.isCropping &&
     ((showMobileSelection && toolbarState.selectedElement) ||
-      (isMultiSelection && isMobileWeb && !isPanelOpen)) ? (
-      <MobileSelectionPill
+      (isMultiSelection && isMobileWeb && !isPanelOpen) ||
+      showDesktopPill) ? (
+      <SelectionPill
+        variant={isMobileWeb ? 'touch' : 'pointer'}
         measureKey={isMultiSelection ? toolbarState : toolbarState.activeFloatingModule}
         zoom={zoom}
         getBox={getSelectionBox}
@@ -1497,10 +1523,17 @@ function CanvasEditorInner({
         canDelete={toolbarState.canDelete ?? false}
         onDuplicate={toolbarHandlers.handleDuplicate}
         onDelete={toolbarHandlers.handleDeleteElement}
-        onMore={isMultiSelection ? undefined : openSelectionArea}
+        onMore={!isMobileWeb ? openContextMenuAt : isMultiSelection ? undefined : openSelectionArea}
         isLocked={toolbarState.lockState === 'all'}
-        onUnlock={toolbarHandlers.handleToggleLock}
-        onFlip={isMultiSelection && toolbarState.canFlip ? toolbarHandlers.handleFlip : undefined}
+        onToggleLock={
+          isMobileWeb || toolbarState.canLock ? toolbarHandlers.handleToggleLock : undefined
+        }
+        onFlip={
+          isMultiSelection && isMobileWeb && toolbarState.canFlip
+            ? toolbarHandlers.handleFlip
+            : undefined
+        }
+        isMulti={isMultiSelection}
       />
     ) : null;
 
