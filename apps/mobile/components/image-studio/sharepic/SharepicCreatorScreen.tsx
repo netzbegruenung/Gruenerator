@@ -266,7 +266,7 @@ export function SharepicCreatorScreen({ initialMessage }: { initialMessage?: str
                     theme={theme}
                   />
                 </View>
-              ) : null
+              ) : undefined
             }
           />
         </View>

@@ -1,7 +1,7 @@
 import { ThreadPrimitive, AuiIf } from '@assistant-ui/react-native';
 import { useAuth } from '@gruenerator/shared/hooks';
 import { memo, type ReactNode, useMemo, useRef } from 'react';
-import { View, Text, type TextInput, StyleSheet } from 'react-native';
+import { View, Text, type TextInput, StyleSheet, type TextInputInstance } from 'react-native';
 import {
   KeyboardAvoidingView,
   useReanimatedKeyboardAnimation,
@@ -186,7 +186,7 @@ export const AssistantThread = memo(function AssistantThread({
 }: Props) {
   const resolvedTheme = useTheme();
   const theme: Theme = themeProp ?? resolvedTheme;
-  const composerInputRef = useRef<TextInput>(null);
+  const composerInputRef = useRef<TextInputInstance>(null);
   const composerPadding = useComposerDockPadding();
 
   // The list and the composer under it sit in the same reading column, so a

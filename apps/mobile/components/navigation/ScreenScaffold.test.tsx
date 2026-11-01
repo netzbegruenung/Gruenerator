@@ -14,8 +14,8 @@ jest.mock('./SidebarMenuButton', () => ({ SidebarMenuButton: () => null }));
 jest.mock('expo-linear-gradient', () => ({ LinearGradient: () => null }));
 
 describe('ScreenScaffold', () => {
-  it('shows the profile menu when headerRight is omitted', () => {
-    render(
+  it('shows the profile menu when headerRight is omitted', async () => {
+    await render(
       <ScreenScaffold title="T">
         <View />
       </ScreenScaffold>
@@ -23,8 +23,8 @@ describe('ScreenScaffold', () => {
     expect(screen.getByTestId('profile-menu')).toBeTruthy();
   });
 
-  it('shows nothing when headerRight is null', () => {
-    render(
+  it('shows nothing when headerRight is null', async () => {
+    await render(
       <ScreenScaffold title="T" headerRight={null}>
         <View />
       </ScreenScaffold>

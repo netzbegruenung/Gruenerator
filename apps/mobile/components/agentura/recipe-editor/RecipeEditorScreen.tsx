@@ -18,7 +18,7 @@ import {
   type RecipeFormState,
 } from '@gruenerator/shared/grueneratoren';
 import { slugifyName } from '@gruenerator/shared/utils';
-import { router, Stack, useLocalSearchParams, useNavigation } from 'expo-router';
+import { router, Stack, useLocalSearchParams, usePreventRemove } from 'expo-router';
 import { type ReactNode, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
@@ -202,7 +202,6 @@ function EditorForm({
 }) {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
-  const navigation = useNavigation();
   const { lvIds } = useUserLandesverbaende();
   const saveMut = useSaveRecipe();
   const deleteMut = useDeleteRecipe();
@@ -261,36 +260,41 @@ function EditorForm({
     !saveMut.isPending &&
     !deleteMut.isPending;
 
-  // Ungespeicherte Änderungen: vor dem Verlassen nachfragen.
-  useEffect(() => {
-    return navigation.addListener('beforeRemove', (e) => {
-      if (leavingRef.current || !useRecipeEditorStore.getState().dirty) return;
-      e.preventDefault();
-      Alert.alert(
-        'Ungespeicherte Änderungen',
-        'Dein Entwurf bleibt auf diesem Gerät, bis du ihn speicherst oder verwirfst.',
-        [
-          { text: 'Weiter bearbeiten', style: 'cancel' },
-          {
-            text: 'Entwurf behalten',
-            onPress: () => {
-              leavingRef.current = true;
-              navigation.dispatch(e.data.action);
-            },
+  // Ungespeicherte Änderungen: vor dem Verlassen nachfragen. Wer schon geht
+  // (gespeichert, gelöscht, verworfen), wird nur durchgelassen.
+  const dirty = useRecipeEditorStore((s) => s.dirty);
+  // A kept draft stays dirty, so leaving with it lifts the block explicitly.
+  const [keepingDraft, setKeepingDraft] = useState(false);
+  usePreventRemove(dirty && !keepingDraft, ({ repeat }) => {
+    if (leavingRef.current) {
+      repeat();
+      return;
+    }
+    Alert.alert(
+      'Ungespeicherte Änderungen',
+      'Dein Entwurf bleibt auf diesem Gerät, bis du ihn speicherst oder verwirfst.',
+      [
+        { text: 'Weiter bearbeiten', style: 'cancel' },
+        {
+          text: 'Entwurf behalten',
+          onPress: () => {
+            leavingRef.current = true;
+            setKeepingDraft(true);
+            repeat();
           },
-          {
-            text: 'Verwerfen',
-            style: 'destructive',
-            onPress: () => {
-              leavingRef.current = true;
-              clear();
-              navigation.dispatch(e.data.action);
-            },
+        },
+        {
+          text: 'Verwerfen',
+          style: 'destructive',
+          onPress: () => {
+            leavingRef.current = true;
+            clear();
+            repeat();
           },
-        ]
-      );
-    });
-  }, [navigation, clear]);
+        },
+      ]
+    );
+  });
 
   const handleSave = async () => {
     if (!canSave) return;

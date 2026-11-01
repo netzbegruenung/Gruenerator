@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
-import { WebView, type WebViewMessageEvent } from 'react-native-webview';
+import { type WebViewMessageEvent } from 'react-native-webview';
 
 import {
   handleRenderHostMessage,
@@ -13,6 +13,7 @@ import { WEB_ORIGIN } from '../../services/webOrigin';
 import { mintWebViewHandoff } from '../../services/webview/handoff';
 import { decideNavigation } from '../../services/webview/navigationPolicy';
 import { createRestartBudget } from '../../services/webview/restartBudget';
+import { WebView } from '../common/WebView';
 
 const RENDER_PATH = '/mobile-render';
 
