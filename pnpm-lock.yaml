@@ -163,6 +163,9 @@ settings:
   excludeLinksFromLockfile: false
 
 overrides:
+  '@ggraphic/editor': file:/private/tmp/claude-501/-Users-moritzwachter-Gruenerator/c4078d46-2066-4996-bb09-3a0af401c159/scratchpad/d2e/tgz121/ggraphic-editor-0.1.0-alpha.1.tgz
+  '@ggraphic/core': file:/private/tmp/claude-501/-Users-moritzwachter-Gruenerator/c4078d46-2066-4996-bb09-3a0af401c159/scratchpad/d2e/tgz121/ggraphic-core-0.1.0-alpha.1.tgz
+  '@ggraphic/schema': file:/private/tmp/claude-501/-Users-moritzwachter-Gruenerator/c4078d46-2066-4996-bb09-3a0af401c159/scratchpad/d2e/tgz121/ggraphic-schema-0.1.0-alpha.0.tgz
   adm-zip: '>=0.6.1'
   '@expo/dom-webview': ~58.0.2
   '@types/react': 19.3.0
@@ -591,8 +594,8 @@ importers:
         specifier: ^0.131.0
         version: 0.131.0(zod@4.6.7)
       '@ggraphic/editor':
-        specifier: 0.1.0-alpha.0
-        version: 0.1.0-alpha.0(@floating-ui/dom@1.8.0)(@tiptap/pm@3.32.0)(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(konva@10.9.0)(react-dom@19.3.0(react@19.3.0))(react-is@19.2.8)(react-konva@19.3.2(@types/react@19.3.0)(konva@10.9.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(react@19.3.0)(redux@5.0.1)(use-sync-external-store@1.7.0(react@19.3.0))(y-protocols@1.0.7(yjs@13.6.33))
+        specifier: file:/private/tmp/claude-501/-Users-moritzwachter-Gruenerator/c4078d46-2066-4996-bb09-3a0af401c159/scratchpad/d2e/tgz121/ggraphic-editor-0.1.0-alpha.1.tgz
+        version: file:../../../private/tmp/claude-501/-Users-moritzwachter-Gruenerator/c4078d46-2066-4996-bb09-3a0af401c159/scratchpad/d2e/tgz121/ggraphic-editor-0.1.0-alpha.1.tgz(@floating-ui/dom@1.8.0)(@tiptap/pm@3.32.0)(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(konva@10.9.0)(react-dom@19.3.0(react@19.3.0))(react-is@19.2.8)(react-konva@19.3.2(@types/react@19.3.0)(konva@10.9.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(react@19.3.0)(redux@5.0.1)(use-sync-external-store@1.7.0(react@19.3.0))(y-protocols@1.0.7(yjs@13.6.33))
       '@gruenerator/eslint-config':
         specifier: workspace:*
         version: link:../../packages/eslint-config
@@ -682,11 +685,11 @@ importers:
   apps/ggraphic-demo:
     dependencies:
       '@ggraphic/core':
-        specifier: 0.1.0-alpha.0
-        version: 0.1.0-alpha.0
+        specifier: file:/private/tmp/claude-501/-Users-moritzwachter-Gruenerator/c4078d46-2066-4996-bb09-3a0af401c159/scratchpad/d2e/tgz121/ggraphic-core-0.1.0-alpha.1.tgz
+        version: file:../../../private/tmp/claude-501/-Users-moritzwachter-Gruenerator/c4078d46-2066-4996-bb09-3a0af401c159/scratchpad/d2e/tgz121/ggraphic-core-0.1.0-alpha.1.tgz
       '@ggraphic/editor':
-        specifier: 0.1.0-alpha.0
-        version: 0.1.0-alpha.0(@floating-ui/dom@1.8.0)(@tiptap/pm@3.32.0)(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(konva@10.9.0)(react-dom@19.3.0(react@19.3.0))(react-is@19.2.8)(react-konva@19.3.2(@types/react@19.3.0)(konva@10.9.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(react@19.3.0)(redux@5.0.1)(use-sync-external-store@1.7.0(react@19.3.0))(y-protocols@1.0.7(yjs@13.6.33))
+        specifier: file:/private/tmp/claude-501/-Users-moritzwachter-Gruenerator/c4078d46-2066-4996-bb09-3a0af401c159/scratchpad/d2e/tgz121/ggraphic-editor-0.1.0-alpha.1.tgz
+        version: file:../../../private/tmp/claude-501/-Users-moritzwachter-Gruenerator/c4078d46-2066-4996-bb09-3a0af401c159/scratchpad/d2e/tgz121/ggraphic-editor-0.1.0-alpha.1.tgz(@floating-ui/dom@1.8.0)(@tiptap/pm@3.32.0)(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(konva@10.9.0)(react-dom@19.3.0(react@19.3.0))(react-is@19.2.8)(react-konva@19.3.2(@types/react@19.3.0)(konva@10.9.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(react@19.3.0)(redux@5.0.1)(use-sync-external-store@1.7.0(react@19.3.0))(y-protocols@1.0.7(yjs@13.6.33))
       '@tanstack/react-query':
         specifier: ^5.104.3
         version: 5.104.5(@types/react@19.3.0)(react@19.3.0)
@@ -1307,8 +1310,8 @@ importers:
         specifier: 7.29.7
         version: 7.29.7(supports-color@10.2.2)
       '@ggraphic/editor':
-        specifier: 0.1.0-alpha.0
-        version: 0.1.0-alpha.0(@floating-ui/dom@1.8.0)(@tiptap/pm@3.32.0)(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(konva@10.9.0)(react-dom@19.3.0(react@19.3.0))(react-is@19.2.8)(react-konva@19.3.2(@types/react@19.3.0)(konva@10.9.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(react@19.3.0)(redux@5.0.1)(use-sync-external-store@1.6.0(react@19.3.0))(y-protocols@1.0.7(yjs@13.6.33))
+        specifier: file:/private/tmp/claude-501/-Users-moritzwachter-Gruenerator/c4078d46-2066-4996-bb09-3a0af401c159/scratchpad/d2e/tgz121/ggraphic-editor-0.1.0-alpha.1.tgz
+        version: file:../../../private/tmp/claude-501/-Users-moritzwachter-Gruenerator/c4078d46-2066-4996-bb09-3a0af401c159/scratchpad/d2e/tgz121/ggraphic-editor-0.1.0-alpha.1.tgz(@floating-ui/dom@1.8.0)(@tiptap/pm@3.32.0)(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(konva@10.9.0)(react-dom@19.3.0(react@19.3.0))(react-is@19.2.8)(react-konva@19.3.2(@types/react@19.3.0)(konva@10.9.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(react@19.3.0)(redux@5.0.1)(use-sync-external-store@1.6.0(react@19.3.0))(y-protocols@1.0.7(yjs@13.6.33))
       '@gruenerator/eslint-config':
         specifier: workspace:*
         version: link:../../packages/eslint-config
@@ -1501,8 +1504,8 @@ importers:
         specifier: ^3.10.2
         version: 3.10.2(@swc/core@1.16.2(@swc/helpers@0.5.23))(@swc/html@1.16.2)(clean-css@5.3.3)(cssnano@6.1.2(postcss@8.5.30))(csso@5.0.5)(esbuild@0.28.2)(html-minifier-terser@7.2.0)(lightningcss@1.33.0)(postcss@8.5.30)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(sharp@0.35.5(@types/node@26.6.5))(supports-color@10.2.2)(svgo@3.3.5)(webpack-cli@5.1.4)
       '@ggraphic/editor':
-        specifier: 0.1.0-alpha.0
-        version: 0.1.0-alpha.0(@floating-ui/dom@1.8.0)(@tiptap/pm@3.32.0)(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(konva@10.9.0)(react-dom@19.3.0(react@19.3.0))(react-is@19.2.8)(react-konva@19.3.2(@types/react@19.3.0)(konva@10.9.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(react@19.3.0)(redux@5.0.1)(use-sync-external-store@1.7.0(react@19.3.0))(y-protocols@1.0.7(yjs@13.6.33))
+        specifier: file:/private/tmp/claude-501/-Users-moritzwachter-Gruenerator/c4078d46-2066-4996-bb09-3a0af401c159/scratchpad/d2e/tgz121/ggraphic-editor-0.1.0-alpha.1.tgz
+        version: file:../../../private/tmp/claude-501/-Users-moritzwachter-Gruenerator/c4078d46-2066-4996-bb09-3a0af401c159/scratchpad/d2e/tgz121/ggraphic-editor-0.1.0-alpha.1.tgz(@floating-ui/dom@1.8.0)(@tiptap/pm@3.32.0)(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(konva@10.9.0)(react-dom@19.3.0(react@19.3.0))(react-is@19.2.8)(react-konva@19.3.2(@types/react@19.3.0)(konva@10.9.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(react@19.3.0)(redux@5.0.1)(use-sync-external-store@1.7.0(react@19.3.0))(y-protocols@1.0.7(yjs@13.6.33))
       typescript:
         specifier: ^6.0.3
         version: 6.0.3
@@ -1510,14 +1513,14 @@ importers:
   packages/canvas-editor:
     dependencies:
       '@ggraphic/core':
-        specifier: 0.1.0-alpha.0
-        version: 0.1.0-alpha.0
+        specifier: file:/private/tmp/claude-501/-Users-moritzwachter-Gruenerator/c4078d46-2066-4996-bb09-3a0af401c159/scratchpad/d2e/tgz121/ggraphic-core-0.1.0-alpha.1.tgz
+        version: file:../../../private/tmp/claude-501/-Users-moritzwachter-Gruenerator/c4078d46-2066-4996-bb09-3a0af401c159/scratchpad/d2e/tgz121/ggraphic-core-0.1.0-alpha.1.tgz
       '@ggraphic/editor':
-        specifier: 0.1.0-alpha.0
-        version: 0.1.0-alpha.0(@floating-ui/dom@1.8.0)(@tiptap/pm@3.32.0)(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(konva@10.9.0)(react-dom@19.3.0(react@19.3.0))(react-is@19.2.8)(react-konva@19.3.2(@types/react@19.3.0)(konva@10.9.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(react@19.3.0)(redux@5.0.1)(use-sync-external-store@1.6.0(react@19.3.0))(y-protocols@1.0.7(yjs@13.6.33))
+        specifier: file:/private/tmp/claude-501/-Users-moritzwachter-Gruenerator/c4078d46-2066-4996-bb09-3a0af401c159/scratchpad/d2e/tgz121/ggraphic-editor-0.1.0-alpha.1.tgz
+        version: file:../../../private/tmp/claude-501/-Users-moritzwachter-Gruenerator/c4078d46-2066-4996-bb09-3a0af401c159/scratchpad/d2e/tgz121/ggraphic-editor-0.1.0-alpha.1.tgz(@floating-ui/dom@1.8.0)(@tiptap/pm@3.32.0)(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(konva@10.9.0)(react-dom@19.3.0(react@19.3.0))(react-is@19.2.8)(react-konva@19.3.2(@types/react@19.3.0)(konva@10.9.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(react@19.3.0)(redux@5.0.1)(use-sync-external-store@1.6.0(react@19.3.0))(y-protocols@1.0.7(yjs@13.6.33))
       '@ggraphic/schema':
-        specifier: 0.1.0-alpha.0
-        version: 0.1.0-alpha.0
+        specifier: file:/private/tmp/claude-501/-Users-moritzwachter-Gruenerator/c4078d46-2066-4996-bb09-3a0af401c159/scratchpad/d2e/tgz121/ggraphic-schema-0.1.0-alpha.0.tgz
+        version: file:../../../private/tmp/claude-501/-Users-moritzwachter-Gruenerator/c4078d46-2066-4996-bb09-3a0af401c159/scratchpad/d2e/tgz121/ggraphic-schema-0.1.0-alpha.0.tgz
       '@gruenerator/contracts':
         specifier: workspace:*
         version: link:../contracts
@@ -1879,11 +1882,11 @@ importers:
   packages/contracts:
     dependencies:
       '@ggraphic/core':
-        specifier: 0.1.0-alpha.0
-        version: 0.1.0-alpha.0
+        specifier: file:/private/tmp/claude-501/-Users-moritzwachter-Gruenerator/c4078d46-2066-4996-bb09-3a0af401c159/scratchpad/d2e/tgz121/ggraphic-core-0.1.0-alpha.1.tgz
+        version: file:../../../private/tmp/claude-501/-Users-moritzwachter-Gruenerator/c4078d46-2066-4996-bb09-3a0af401c159/scratchpad/d2e/tgz121/ggraphic-core-0.1.0-alpha.1.tgz
       '@ggraphic/schema':
-        specifier: 0.1.0-alpha.0
-        version: 0.1.0-alpha.0
+        specifier: file:/private/tmp/claude-501/-Users-moritzwachter-Gruenerator/c4078d46-2066-4996-bb09-3a0af401c159/scratchpad/d2e/tgz121/ggraphic-schema-0.1.0-alpha.0.tgz
+        version: file:../../../private/tmp/claude-501/-Users-moritzwachter-Gruenerator/c4078d46-2066-4996-bb09-3a0af401c159/scratchpad/d2e/tgz121/ggraphic-schema-0.1.0-alpha.0.tgz
       '@gruenerator/core':
         specifier: workspace:*
         version: link:../core
@@ -5721,19 +5724,22 @@ packages:
     peerDependencies:
       react: ^19.0.0
 
-  '@ggraphic/core@0.1.0-alpha.0':
-    resolution: {integrity: sha512-J/rkx0G/mZmi0MhvDKYM6mG/ohJcOtiWRcWFfM911udC2hWx6l48LTj2AOng/fVHUvsbafNOb9zmXsuRAT432Q==}
+  '@ggraphic/core@file:../../../private/tmp/claude-501/-Users-moritzwachter-Gruenerator/c4078d46-2066-4996-bb09-3a0af401c159/scratchpad/d2e/tgz121/ggraphic-core-0.1.0-alpha.1.tgz':
+    resolution: {integrity: sha512-Hvqf//MCRZF/2emO+P+aDBsZxW+ca4SEW/K9IwopnKbocvF1u2HEWhUvQlql1+kCkN5hBDSivdiWmSzf4uYUcw==, tarball: file:../../../private/tmp/claude-501/-Users-moritzwachter-Gruenerator/c4078d46-2066-4996-bb09-3a0af401c159/scratchpad/d2e/tgz121/ggraphic-core-0.1.0-alpha.1.tgz}
+    version: 0.1.0-alpha.1
 
-  '@ggraphic/editor@0.1.0-alpha.0':
-    resolution: {integrity: sha512-sIXwVeptQJC+xiPYJfiPosgldmykEUpgXCHx5hmbMBDUrF56+69B2tzvIijw1EpU1gV7ah8eST9iGVg8k7guOg==}
+  '@ggraphic/editor@file:../../../private/tmp/claude-501/-Users-moritzwachter-Gruenerator/c4078d46-2066-4996-bb09-3a0af401c159/scratchpad/d2e/tgz121/ggraphic-editor-0.1.0-alpha.1.tgz':
+    resolution: {integrity: sha512-Y5YDN5PBc53j5eRAYVk7h1aZb9L5EyY3Mc0mu1Op4uZTvg+v35VB4RnqRfRa22L6UDfSHmgvTmM/BmEMdIsfTA==, tarball: file:../../../private/tmp/claude-501/-Users-moritzwachter-Gruenerator/c4078d46-2066-4996-bb09-3a0af401c159/scratchpad/d2e/tgz121/ggraphic-editor-0.1.0-alpha.1.tgz}
+    version: 0.1.0-alpha.1
     peerDependencies:
       konva: ^10.9.0
       react: ^19.0.0
       react-dom: ^19.0.0
       react-konva: ^19.3.2
 
-  '@ggraphic/schema@0.1.0-alpha.0':
-    resolution: {integrity: sha512-d8A1WS42xUn1pkbfXcco0b+bTioYAlApIUh+n6KoulLbYwfNvHzPO2TXlaZvxgzO2y7siWLyrANoKW36FlXcAA==}
+  '@ggraphic/schema@file:../../../private/tmp/claude-501/-Users-moritzwachter-Gruenerator/c4078d46-2066-4996-bb09-3a0af401c159/scratchpad/d2e/tgz121/ggraphic-schema-0.1.0-alpha.0.tgz':
+    resolution: {integrity: sha512-d8A1WS42xUn1pkbfXcco0b+bTioYAlApIUh+n6KoulLbYwfNvHzPO2TXlaZvxgzO2y7siWLyrANoKW36FlXcAA==, tarball: file:../../../private/tmp/claude-501/-Users-moritzwachter-Gruenerator/c4078d46-2066-4996-bb09-3a0af401c159/scratchpad/d2e/tgz121/ggraphic-schema-0.1.0-alpha.0.tgz}
+    version: 0.1.0-alpha.0
 
   '@grpc/grpc-js@1.14.5':
     resolution: {integrity: sha512-7VZM+SVdEcUUqSQeNI3zM8Qs/BhQKZndPo2h5VkYkAM8Iz0wJIa8mKV5ekQGqG8UUsnkQ0NMxIxwkIHYvj0qOw==}
@@ -27524,12 +27530,12 @@ snapshots:
     transitivePeerDependencies:
       - y-protocols
 
-  '@ggraphic/core@0.1.0-alpha.0': {}
+  '@ggraphic/core@file:../../../private/tmp/claude-501/-Users-moritzwachter-Gruenerator/c4078d46-2066-4996-bb09-3a0af401c159/scratchpad/d2e/tgz121/ggraphic-core-0.1.0-alpha.1.tgz': {}
 
-  '@ggraphic/editor@0.1.0-alpha.0(@floating-ui/dom@1.8.0)(@tiptap/pm@3.32.0)(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(konva@10.9.0)(react-dom@19.3.0(react@19.3.0))(react-is@19.2.8)(react-konva@19.3.2(@types/react@19.3.0)(konva@10.9.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(react@19.3.0)(redux@5.0.1)(use-sync-external-store@1.6.0(react@19.3.0))(y-protocols@1.0.7(yjs@13.6.33))':
+  '@ggraphic/editor@file:../../../private/tmp/claude-501/-Users-moritzwachter-Gruenerator/c4078d46-2066-4996-bb09-3a0af401c159/scratchpad/d2e/tgz121/ggraphic-editor-0.1.0-alpha.1.tgz(@floating-ui/dom@1.8.0)(@tiptap/pm@3.32.0)(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(konva@10.9.0)(react-dom@19.3.0(react@19.3.0))(react-is@19.2.8)(react-konva@19.3.2(@types/react@19.3.0)(konva@10.9.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(react@19.3.0)(redux@5.0.1)(use-sync-external-store@1.6.0(react@19.3.0))(y-protocols@1.0.7(yjs@13.6.33))':
     dependencies:
-      '@ggraphic/core': 0.1.0-alpha.0
-      '@ggraphic/schema': 0.1.0-alpha.0
+      '@ggraphic/core': file:../../../private/tmp/claude-501/-Users-moritzwachter-Gruenerator/c4078d46-2066-4996-bb09-3a0af401c159/scratchpad/d2e/tgz121/ggraphic-core-0.1.0-alpha.1.tgz
+      '@ggraphic/schema': file:../../../private/tmp/claude-501/-Users-moritzwachter-Gruenerator/c4078d46-2066-4996-bb09-3a0af401c159/scratchpad/d2e/tgz121/ggraphic-schema-0.1.0-alpha.0.tgz
       '@hocuspocus/provider': 4.7.1(y-protocols@1.0.7(yjs@13.6.33))(yjs@13.6.33)
       '@iconify-json/bi': 1.2.7
       '@iconify-json/flowbite': 1.2.7
@@ -27584,10 +27590,10 @@ snapshots:
       - use-sync-external-store
       - y-protocols
 
-  '@ggraphic/editor@0.1.0-alpha.0(@floating-ui/dom@1.8.0)(@tiptap/pm@3.32.0)(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(konva@10.9.0)(react-dom@19.3.0(react@19.3.0))(react-is@19.2.8)(react-konva@19.3.2(@types/react@19.3.0)(konva@10.9.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(react@19.3.0)(redux@5.0.1)(use-sync-external-store@1.7.0(react@19.3.0))(y-protocols@1.0.7(yjs@13.6.33))':
+  '@ggraphic/editor@file:../../../private/tmp/claude-501/-Users-moritzwachter-Gruenerator/c4078d46-2066-4996-bb09-3a0af401c159/scratchpad/d2e/tgz121/ggraphic-editor-0.1.0-alpha.1.tgz(@floating-ui/dom@1.8.0)(@tiptap/pm@3.32.0)(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(konva@10.9.0)(react-dom@19.3.0(react@19.3.0))(react-is@19.2.8)(react-konva@19.3.2(@types/react@19.3.0)(konva@10.9.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(react@19.3.0)(redux@5.0.1)(use-sync-external-store@1.7.0(react@19.3.0))(y-protocols@1.0.7(yjs@13.6.33))':
     dependencies:
-      '@ggraphic/core': 0.1.0-alpha.0
-      '@ggraphic/schema': 0.1.0-alpha.0
+      '@ggraphic/core': file:../../../private/tmp/claude-501/-Users-moritzwachter-Gruenerator/c4078d46-2066-4996-bb09-3a0af401c159/scratchpad/d2e/tgz121/ggraphic-core-0.1.0-alpha.1.tgz
+      '@ggraphic/schema': file:../../../private/tmp/claude-501/-Users-moritzwachter-Gruenerator/c4078d46-2066-4996-bb09-3a0af401c159/scratchpad/d2e/tgz121/ggraphic-schema-0.1.0-alpha.0.tgz
       '@hocuspocus/provider': 4.7.1(y-protocols@1.0.7(yjs@13.6.33))(yjs@13.6.33)
       '@iconify-json/bi': 1.2.7
       '@iconify-json/flowbite': 1.2.7
@@ -27642,7 +27648,7 @@ snapshots:
       - use-sync-external-store
       - y-protocols
 
-  '@ggraphic/schema@0.1.0-alpha.0':
+  '@ggraphic/schema@file:../../../private/tmp/claude-501/-Users-moritzwachter-Gruenerator/c4078d46-2066-4996-bb09-3a0af401c159/scratchpad/d2e/tgz121/ggraphic-schema-0.1.0-alpha.0.tgz':
     dependencies:
       '@xmldom/xmldom': 0.9.12
       zod: 4.6.7
