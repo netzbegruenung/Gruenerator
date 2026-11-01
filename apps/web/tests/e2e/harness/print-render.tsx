@@ -9,6 +9,7 @@
  */
 import { getCanvasFormat, isPrintFormat, printGeometry } from '@gruenerator/canvas-editor';
 import { composePrint, ensureFontsReady } from '@gruenerator/canvas-editor/composer';
+import { registerGrueneFormats } from '@gruenerator/canvas-editor/grueneFormats';
 import { printSpecSchema } from '@gruenerator/contracts';
 
 import { renderSharepicToImage } from '../../../src/features/image-studio/renderSharepicToImage';
@@ -18,6 +19,8 @@ import { installHarnessBrandFonts } from './brandFonts';
 import './printHarness';
 
 installHarnessBrandFonts();
+// The print formats are the Grünerator's, not the editor's built-ins (ggraphic #114).
+registerGrueneFormats();
 
 async function cropToTrim(dataUrl: string, formatId: string, width: number): Promise<string> {
   const format = getCanvasFormat(formatId);

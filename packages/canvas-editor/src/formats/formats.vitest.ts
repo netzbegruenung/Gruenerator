@@ -1,6 +1,6 @@
 import {
   canvasFormatGroupOrder,
-  CANVAS_FORMATS,
+  canvasFormats,
   getCanvasFormat,
   getCanvasFormatOrDefault,
   isPrintFormat,
@@ -22,13 +22,15 @@ const print = (id: string): PrintCanvasFormat => {
 
 describe('Format-Ids', () => {
   it('match the contract list the Vorlagen catalogue validates against', () => {
-    expect(CANVAS_FORMATS.map((f) => f.id).sort()).toEqual(
-      [...canvasFormatIdSchema.options].sort()
-    );
+    expect(
+      canvasFormats()
+        .map((f) => f.id)
+        .sort()
+    ).toEqual([...canvasFormatIdSchema.options].sort());
   });
 
   it('give a print product as many pages as printSeitenOf (the Vorlagen previews)', () => {
-    for (const f of CANVAS_FORMATS.filter(isPrintFormat)) {
+    for (const f of canvasFormats().filter(isPrintFormat)) {
       const varianten = Object.values(PRINT_VARIANTEN).filter((v) =>
         (v.formats as readonly string[]).includes(f.id)
       );
@@ -38,11 +40,12 @@ describe('Format-Ids', () => {
 
   // F0: die Ids stehen in gespeicherten Leinwänden. Umbenennen gibt es nicht.
   it('bleiben unverändert', () => {
-    expect(CANVAS_FORMATS.map((f) => [f.id, f.category])).toEqual([
+    expect(canvasFormats().map((f) => [f.id, f.category])).toEqual([
+      // The editor's built-ins first, then ours (`registerGrueneFormats`).
       ['post-portrait', 'digital'],
-      ['post-portrait-tall', 'digital'],
       ['profile-square', 'digital'],
       ['slide-16-9', 'digital'],
+      ['post-portrait-tall', 'digital'],
       ['print-visitenkarte-quer', 'print'],
       ['print-visitenkarte-hoch', 'print'],
       ['print-a3-hoch', 'print'],
@@ -61,21 +64,21 @@ describe('Format-Ids', () => {
   });
 
   it('digitale Formate tragen kein Druckprofil', () => {
-    for (const f of CANVAS_FORMATS.filter((f) => f.category === 'digital')) {
+    for (const f of canvasFormats().filter((f) => f.category === 'digital')) {
       expect(f.print, f.id).toBeNull();
     }
-    for (const f of CANVAS_FORMATS.filter((f) => f.category === 'digital' && !isSlideFormat(f))) {
+    for (const f of canvasFormats().filter((f) => f.category === 'digital' && !isSlideFormat(f))) {
       expect(f.exportable).toEqual(['png', 'jpeg']);
       expect(f.defaultExport).toBe('png');
     }
   });
 
-  it('Folienformat: 16:9, Gruppe Präsentation, PPTX als Standard', () => {
+  it('Folienformat: 16:9, Gruppe slides, PPTX als Standard', () => {
     const f = getCanvasFormat('slide-16-9');
     expect(f).toMatchObject({
       label: 'Präsentation',
       description: '1920 × 1080 · 16:9 · Folien',
-      group: 'praesentation',
+      group: 'slides',
       category: 'digital',
       width: 1920,
       height: 1080,
@@ -88,16 +91,16 @@ describe('Format-Ids', () => {
   });
 
   it('isSlideFormat trifft nur das Folienformat', () => {
-    expect(CANVAS_FORMATS.filter(isSlideFormat).map((f) => f.id)).toEqual(['slide-16-9']);
+    expect(
+      canvasFormats()
+        .filter(isSlideFormat)
+        .map((f) => f.id)
+    ).toEqual(['slide-16-9']);
   });
 
   it('Print steht nicht in den Studio-Gruppen', () => {
-    expect(canvasFormatGroupOrder()).toEqual([
-      'sharepic',
-      'sharepic-tall',
-      'profilbild',
-      'praesentation',
-    ]);
+    // The editor's built-in groups (ggraphic #114), then ours (`registerGrueneFormats`).
+    expect(canvasFormatGroupOrder()).toEqual(['post', 'square', 'slides', 'sharepic-tall']);
   });
 });
 
@@ -112,11 +115,11 @@ describe('Druckformate', () => {
     ['print-a1-quer', { w: 841, h: 594 }, 10, 1, 2000, 1417, 150],
     ['print-grossflaeche', { w: 594, h: 420 }, 10, 1, 2000, 1420, 150],
     ['print-citylight', { w: 237, h: 350 }, 8, 1, 1365, 2000, 150],
-    ['print-flyer-dinlang', { w: 297, h: 210 }, 4, 2, 2000, 1426, 300, 'erste-seite'],
-    ['print-a6-hoch', { w: 105, h: 148 }, 3, 2, 1442, 2000, 300, 'letzte-seite'],
-    ['print-a6-quer', { w: 148, h: 105 }, 3, 2, 2000, 1442, 300, 'letzte-seite'],
+    ['print-flyer-dinlang', { w: 297, h: 210 }, 4, 2, 2000, 1426, 300, 'first-page'],
+    ['print-a6-hoch', { w: 105, h: 148 }, 3, 2, 1442, 2000, 300, 'last-page'],
+    ['print-a6-quer', { w: 148, h: 105 }, 3, 2, 2000, 1442, 300, 'last-page'],
     ['print-briefbogen-a4', { w: 210, h: 297 }, 5, 2, 1426, 2000, 300, null],
-    ['print-zeitung-a4', { w: 210, h: 297 }, 5, 4, 1426, 2000, 300, 'letzte-seite'],
+    ['print-zeitung-a4', { w: 210, h: 297 }, 5, 4, 1426, 2000, 300, 'last-page'],
   ] as const)('%s', (id, trimMm, safeMm, seiten, width, height, exportDpi = 300, impressum?) => {
     const f = print(id);
     expect(f.print).toEqual({
@@ -125,7 +128,7 @@ describe('Druckformate', () => {
       safeMm,
       exportDpi,
       pageCount: seiten,
-      impressum: impressum === undefined ? (seiten === 1 ? 'jede-seite' : null) : impressum,
+      imprint: impressum === undefined ? (seiten === 1 ? 'every-page' : null) : impressum,
     });
     expect([f.width, f.height]).toEqual([width, height]);
     expect(f.dpi).toBe(exportDpi);
