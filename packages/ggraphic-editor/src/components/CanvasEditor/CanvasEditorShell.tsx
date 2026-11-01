@@ -44,31 +44,8 @@ import { useCanvasEditorServices } from '@ggraphic/editor/CanvasEditorProvider';
 import { pagePersistedStateKeys } from '@ggraphic/editor/collab/pageElementStateKeys';
 import { serializeDeck } from '@ggraphic/editor/collab/pagesDoc';
 import { createPageSyncedCallbacks } from '@ggraphic/editor/collab/wrapCallbacksWithPageSync';
-import { CanvasEditorLayout } from '@ggraphic/editor/layouts/index';
-import { SidebarPanel } from '@ggraphic/editor/sidebar/SidebarPanel';
-import { SidebarTabBar } from '@ggraphic/editor/sidebar/SidebarTabBar';
-import { LayersSection } from '@ggraphic/editor/sidebar/sections/LayersSection';
-import { collectAltTextPages as collectCapturedAltTextPages } from '@ggraphic/editor/utils/collectAltTextPages';
-import { photoCreditLine } from '@ggraphic/editor/utils/photoCredit';
-import { pagePhotoCredits } from '@ggraphic/editor/utils/photoCredits';
-import { scrollBehavior } from '@ggraphic/editor/utils/scrollBehavior';
 import { CanvasAnnouncer } from '@ggraphic/editor/components/CanvasAnnouncer';
 import { CanvasContextMenu } from '@ggraphic/editor/components/CanvasContextMenu/CanvasContextMenu';
-import {
-  CanvasPageSkeleton,
-  CanvasTabRailSkeleton,
-} from '@ggraphic/editor/components/CanvasEditorSkeleton';
-import { CanvasMetaBar, CanvasZoomIndicator } from '@ggraphic/editor/components/CanvasMetaBar';
-import { MobileSelectionPill } from '@ggraphic/editor/components/MobileSelectionPill';
-import { PageThumbnailStrip, type PagePickerSlot } from '../PageThumbnailStrip.js';
-import { SlideNotesPanel } from '@ggraphic/editor/components/SlideNotesPanel';
-import { AddPageButton } from '../AddPageButton.js';
-import { Toolbar } from '../Toolbar.js';
-import { ContextToolbar } from '@ggraphic/editor/components/TopBar/ContextToolbar';
-import { MobileSelectionBar } from '@ggraphic/editor/components/TopBar/MobileSelectionBar';
-import { MobileSelectionControls } from '@ggraphic/editor/components/TopBar/MobileSelectionControls';
-import { FloatingAiSuggestionBanner } from '@ggraphic/editor/components/TopBar/modules/FloatingAiSuggestionBanner';
-import { MultiSelectionToolbar } from '@ggraphic/editor/components/TopBar/MultiSelectionToolbar';
 
 import { autoSwitchTab } from '@ggraphic/editor/components/CanvasEditor/autoSwitchTab';
 import {
@@ -94,7 +71,19 @@ import { useWorkAreaDeselect } from '@ggraphic/editor/components/CanvasEditor/ho
 import { layersTab, withLayersTab } from '@ggraphic/editor/components/CanvasEditor/layersTab';
 import { getMobileSelectionArea } from '@ggraphic/editor/components/CanvasEditor/mobileSelectionArea';
 import { PageWrapper } from '@ggraphic/editor/components/CanvasEditor/PageWrapper';
+import {
+  CanvasPageSkeleton,
+  CanvasTabRailSkeleton,
+} from '@ggraphic/editor/components/CanvasEditorSkeleton';
+import { CanvasMetaBar, CanvasZoomIndicator } from '@ggraphic/editor/components/CanvasMetaBar';
 import { CanvasTextEditorProvider } from '@ggraphic/editor/components/CanvasTextOverlay';
+import { MobileSelectionPill } from '@ggraphic/editor/components/MobileSelectionPill';
+import { SlideNotesPanel } from '@ggraphic/editor/components/SlideNotesPanel';
+import { ContextToolbar } from '@ggraphic/editor/components/TopBar/ContextToolbar';
+import { MobileSelectionBar } from '@ggraphic/editor/components/TopBar/MobileSelectionBar';
+import { MobileSelectionControls } from '@ggraphic/editor/components/TopBar/MobileSelectionControls';
+import { FloatingAiSuggestionBanner } from '@ggraphic/editor/components/TopBar/modules/FloatingAiSuggestionBanner';
+import { MultiSelectionToolbar } from '@ggraphic/editor/components/TopBar/MultiSelectionToolbar';
 import { exportPptxDeck } from '@ggraphic/editor/export/pptx/exportPptxDeck';
 import { exportSlidesPdf } from '@ggraphic/editor/export/slidesPdf';
 import {
@@ -115,13 +104,21 @@ import { useIsCanvasMobile } from '@ggraphic/editor/hooks/useIsCanvasMobile';
 import { useZoomGestures } from '@ggraphic/editor/hooks/useZoomGestures';
 import { browserFileDelivery } from '@ggraphic/editor/hostServices';
 import { useMessages } from '@ggraphic/editor/i18n/messages';
+import { CanvasEditorLayout } from '@ggraphic/editor/layouts/index';
+import { LayersSection } from '@ggraphic/editor/sidebar/sections/LayersSection';
+import { SidebarPanel } from '@ggraphic/editor/sidebar/SidebarPanel';
+import { SidebarTabBar } from '@ggraphic/editor/sidebar/SidebarTabBar';
 import { UserUploadsProvider } from '@ggraphic/editor/sidebar/UserUploadsProvider';
 import { useCanvasStoreSelector } from '@ggraphic/editor/stores/CanvasStoreProvider';
 import { AutoSaveStoreProvider } from '@ggraphic/editor/stores/useAutoSaveStore';
 import { Skeleton } from '@ggraphic/editor/ui/skeleton';
 import { cn } from '@ggraphic/editor/utils/cn';
+import { collectAltTextPages as collectCapturedAltTextPages } from '@ggraphic/editor/utils/collectAltTextPages';
 import { ensureFontsReady } from '@ggraphic/editor/utils/ensureFontsReady';
 import { sameLayerEntries } from '@ggraphic/editor/utils/layerLabels';
+import { photoCreditLine } from '@ggraphic/editor/utils/photoCredit';
+import { pagePhotoCredits } from '@ggraphic/editor/utils/photoCredits';
+import { scrollBehavior } from '@ggraphic/editor/utils/scrollBehavior';
 
 import { shareImageText } from '../../configs/shareSection.js';
 import {
@@ -131,6 +128,9 @@ import {
   printPdfFilename,
   type PrintExportPage,
 } from '../../export/printExport.js';
+import { AddPageButton } from '../AddPageButton.js';
+import { PageThumbnailStrip, type PagePickerSlot } from '../PageThumbnailStrip.js';
+import { Toolbar } from '../Toolbar.js';
 
 import type {
   AltTextPage,
@@ -635,8 +635,11 @@ function CanvasEditorInner({
       if (deck.some((_, i) => !refs[i]?.current)) {
         throw new Error('Nicht alle Folien konnten exportiert werden');
       }
+      // One brand per deck: its pages share a country.
+      const brand = deck[0] ? loadedConfigs.get(deck[0].configId)?.brand : undefined;
       return exportPptxDeck({
         pages: deck.map((page) => page.state),
+        ...(brand ? { brand } : {}),
         format: getCanvasFormatOrDefault(formatId),
         rasterizeElement: async (slideIndex, elementId) =>
           (await refs[slideIndex]?.current?.rasterizeElement(elementId)) ?? null,
@@ -644,7 +647,7 @@ function CanvasEditorInner({
         ...(onProgress ? { onProgress } : {}),
       });
     },
-    [pagesDoc, canvasRefsRef, formatId, documentTitle]
+    [pagesDoc, canvasRefsRef, formatId, documentTitle, loadedConfigs]
   );
   useImperativeHandle(
     exportApiRef,

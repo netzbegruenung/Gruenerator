@@ -1,13 +1,14 @@
 /**
  * What #5201 left on the first registered pack and an Austrian canvas showed
  * in German colours: the shape tiles (#5199), the chart tiles, swatch names
- * and the text marker. Each case renders or calls with the AT pack and checks
+ * and the text marker, on the canvas and in the PPTX export. Each case renders or calls with the AT pack and checks
  * that no German value comes out. The tests register `[GRUENE_DE, GRUENE_AT]`
  * like apps/web, so `activeBrand()` is the German pack throughout.
  */
 import { registerBrandPacks } from '@ggraphic/editor/brand/brandRegistry';
 import { DocumentBrandContext } from '@ggraphic/editor/brand/documentBrand';
 import { Marker } from '@ggraphic/editor/components/markerMark';
+import { textParagraphs } from '@ggraphic/editor/export/pptx/textModel';
 import { shapeItems } from '@ggraphic/editor/sidebar/sections/assets/useElementCatalog';
 import { ChartTypePreview } from '@ggraphic/editor/sidebar/sections/DiagrammeSection';
 import {
@@ -119,5 +120,12 @@ describe('text markers ink and box in the document brand', () => {
     });
     expect(editor.getHTML()).toContain(`--mark-ink: ${GRUENE_AT.markers.ink}`);
     editor.destroy();
+  });
+
+  it('the PPTX export boxes and inks a marker in the pack', () => {
+    const text = { id: 't', text: '++Hallo++', fill: '#FFFFFF' } as never;
+    const [run] = textParagraphs(text, GRUENE_AT)[0]?.runs ?? [];
+    expect(run?.highlight).toBe(GRUENE_AT.markers.swatches[0]?.color);
+    expect(run?.color).toBe(GRUENE_AT.markers.ink);
   });
 });
