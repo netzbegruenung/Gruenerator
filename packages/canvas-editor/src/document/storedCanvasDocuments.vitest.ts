@@ -103,6 +103,20 @@ describe('stored Grünerator canvas documents', () => {
     read.pages!.forEach((page, i) => expect(page.state).toBe(raw.pages[i]!.state));
   });
 
+  it.each([2, 3])('opens a stored version %i document editable and unchanged', (version) => {
+    const raw = { ...(JSON.parse(CORPUS[0]![1]) as { pages: unknown[] }), schemaVersion: version };
+    const result = migrateDocument(raw);
+    expect(result.status).toBe('current');
+    const read = readInitialDocument(raw);
+    expect(read.refusal).toBeNull();
+    expect(read.pages).toHaveLength(raw.pages.length);
+  });
+
+  it('still refuses a stored version 4 document', () => {
+    const raw = { ...JSON.parse(CORPUS[0]![1]), schemaVersion: 4 };
+    expect(readInitialDocument(raw).refusal).toMatchObject({ status: 'newer', version: 4 });
+  });
+
   it('refuses a document whose Balken are newer than this build', () => {
     const raw = { ...JSON.parse(CORPUS[0]![1]), kindVersions: { balkenInstances: 2 } };
     expect(readInitialDocument(raw).refusal).toMatchObject({

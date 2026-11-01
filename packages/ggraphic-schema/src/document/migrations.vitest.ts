@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 
 import { STAMP_STATE_KEY, STAMP_V2_STEP, V2_CORE_STEP } from './__fixtures__/v2Fixture.js';
 import {
+  CANVAS_DOCUMENT_READ_VERSION,
   CANVAS_DOCUMENT_VERSION,
   canvasDocumentSchema,
   createMigrationRegistry,
@@ -179,15 +180,48 @@ describe('the test-only v1 → v2 chain', () => {
   });
 });
 
+describe('reading ahead of writing (reader first)', () => {
+  it('reads up to version 3 but writes version 1', () => {
+    expect(CANVAS_DOCUMENT_READ_VERSION).toBe(3);
+    expect(documentMigrations.readCoreVersion).toBe(3);
+    expect(documentMigrations.coreVersion).toBe(1);
+    expect(stampDocument({ pages: [] }).schemaVersion).toBe(1);
+  });
+
+  it.each([2, 3])('a version %i document loads as current, untouched', (schemaVersion) => {
+    const raw = { ...v1(), schemaVersion };
+    const result = migrateDocument(raw);
+    expect(result.status).toBe('current');
+    if (result.status === 'current') expect(result.document).toBe(raw);
+  });
+
+  it('refuses version 4', () => {
+    expect(migrateDocument({ ...v1(), schemaVersion: 4 })).toMatchObject({
+      status: 'newer',
+      scope: null,
+      version: 4,
+      known: 3,
+    });
+  });
+
+  it('does not stamp a version 3 document down when a kind is lifted', () => {
+    const registry = createMigrationRegistry([], { readCoreVersion: 3 });
+    registry.registerStateKey('k', [{ from: 1, migrate: (v) => v }]);
+    const result = migrateDocument({ ...v1(), schemaVersion: 3 }, registry);
+    expect(result.status).toBe('migrated');
+    if (result.status === 'migrated') expect(result.document.schemaVersion).toBe(3);
+  });
+});
+
 describe('a document from a newer version', () => {
   it('is refused, untouched, for the core', () => {
-    const raw = { ...v1(), schemaVersion: 2 };
+    const raw = { ...v1(), schemaVersion: 4 };
     const result = migrateDocument(raw);
     expect(result).toEqual({
       status: 'newer',
       scope: null,
-      version: 2,
-      known: 1,
+      version: 4,
+      known: 3,
       document: raw,
     });
   });
@@ -204,9 +238,11 @@ describe('a document from a newer version', () => {
     expect(migrateDocument(raw).status).toBe('current');
   });
 
-  it('is refused for v2 by a v1 build after a v2 build wrote it', () => {
+  it('is refused for a kind at v2 by a build that knows it at v1, after a v2 build wrote it', () => {
     const lifted = migrateDocument(v1(), v2Registry());
     if (lifted.status !== 'migrated') throw new Error(lifted.status);
-    expect(migrateDocument(lifted.document).status).toBe('newer');
+    const older = createMigrationRegistry([]);
+    older.registerStateKey(STAMP_STATE_KEY, []);
+    expect(migrateDocument(lifted.document, older).status).toBe('newer');
   });
 });
