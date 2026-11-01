@@ -180,24 +180,49 @@ export function namedSharepicForm(text: string): SharepicFormId | null {
 export const ALTERNATIVES_NEED_MATERIAL =
   'Nenne als alternativen nur Formen, für die der Auftrag den Stoff hat: zitat und interview nur mit einer genannten Person, diagramm und rechnung nur mit Zahlen, termine nur mit Daten, vorstellung nur mit dem Namen der Person.';
 
+const twoNumbers = (brief: string) => new Set(brief.match(NUMBER) ?? []).size >= 2;
+
 /**
- * Whether the brief carries what validation demands of the form's block. An
- * alternative without it is offered as a chip and then fails on every
- * attempt (live 01.11.2026: „Als Diagramm" and „Als Zitat" on Artenschutz).
+ * What validation demands of a form's block from the brief, and how the person
+ * is asked for it (live 01.11.2026: „Als Diagramm" and „Als Zitat" on
+ * Artenschutz, no numbers, no person, failed on every attempt). `exact`: the
+ * test is the one validation applies (numbers, dates), so a named form is
+ * asked for before any model call. A speaker is only guessed — „Lena Grün:
+ * Busse statt Stau" names one `namesSpeaker` misses — so a named quote is
+ * still tried, and the guess only keeps it from being offered.
  */
+const MATERIAL: Partial<
+  Record<SharepicFormId, { has: (brief: string) => boolean; ask: string; exact: boolean }>
+> = {
+  diagramm: { has: twoNumbers, ask: 'mindestens zwei Zahlen, am besten mit Quelle', exact: true },
+  rechnung: { has: twoNumbers, ask: 'die Zahlen, aus denen sich die Rechnung ergibt', exact: true },
+  termine: {
+    has: (brief) => calendarDays(brief).size >= 2,
+    ask: 'mindestens zwei Termine mit Datum',
+    exact: true,
+  },
+  zitat: { has: namesSpeaker, ask: 'den Wortlaut und die Person, die ihn sagt', exact: false },
+  interview: {
+    has: namesSpeaker,
+    ask: 'die Person, die interviewt wird, und ihre Antworten',
+    exact: false,
+  },
+};
+
+/** Whether the brief carries what the form's block needs; an alternative without it is not offered. */
 export function formHasMaterial(form: SharepicFormId, brief: string): boolean {
-  switch (form) {
-    case 'diagramm':
-    case 'rechnung':
-      return new Set(brief.match(NUMBER) ?? []).size >= 2;
-    case 'zitat':
-    case 'interview':
-      return namesSpeaker(brief);
-    case 'termine':
-      return calendarDays(brief).size >= 2;
-    default:
-      return true;
-  }
+  return MATERIAL[form]?.has(brief) ?? true;
+}
+
+/** What a named form surely still needs from the person, or null when the brief has it. */
+export function missingMaterial(form: SharepicFormId, brief: string): string | null {
+  const need = MATERIAL[form];
+  return need?.exact && !need.has(brief) ? need.ask : null;
+}
+
+/** What the form needs from the brief, for the text after a failed draft. */
+export function materialAsk(form: SharepicFormId): string | null {
+  return MATERIAL[form]?.ask ?? null;
 }
 
 /** The blocks that carry a Faktenbild's number on the scene (Kapitel faktenbild). */

@@ -1,7 +1,13 @@
 import { SHAREPIC_FORMS, type SharepicSpec } from '@gruenerator/contracts';
 import { describe, expect, it } from 'vitest';
 
-import { formHasMaterial, formMismatch, namedSharepicForm, wantsOneSlide } from './forms.js';
+import {
+  formHasMaterial,
+  formMismatch,
+  missingMaterial,
+  namedSharepicForm,
+  wantsOneSlide,
+} from './forms.js';
 
 describe('SHAREPIC_FORMS stichworte', () => {
   // The hints the Vorlagen gallery shows must be words the matcher really takes.
@@ -169,6 +175,17 @@ describe('formHasMaterial', () => {
     for (const form of ['einzelbild', 'karussell', 'zahl', 'faktenbild', 'vergleich'] as const) {
       expect(formHasMaterial(form, ARTENSCHUTZ)).toBe(true);
     }
+  });
+
+  it('names what a named form still needs', () => {
+    expect(missingMaterial('diagramm', ARTENSCHUTZ)).toBe(
+      'mindestens zwei Zahlen, am besten mit Quelle'
+    );
+    expect(missingMaterial('termine', ARTENSCHUTZ)).toBe('mindestens zwei Termine mit Datum');
+    // A speaker is only guessed: a named quote is still tried.
+    expect(missingMaterial('zitat', ARTENSCHUTZ)).toBeNull();
+    expect(missingMaterial('einzelbild', ARTENSCHUTZ)).toBeNull();
+    expect(missingMaterial('diagramm', 'Solar 2020: 12 %, 2025: 31 %')).toBeNull();
   });
 
   it('keeps them once the brief brings the material', () => {

@@ -57,6 +57,8 @@ import {
   formCatalog,
   formHasMaterial,
   formMismatch,
+  materialAsk,
+  missingMaterial,
 } from './forms.js';
 import { hasOwnPhoto, OWN_PHOTO_RULE, ownPhotoGuard, photoRequestTexts } from './ownPhoto.js';
 import {
@@ -148,6 +150,17 @@ export async function draftSharepic(
    */
   brand: SharepicBrand | null = null
 ): Promise<SharepicDraftResponse> {
+  // The brief as validation reads it: a revision's draft counts as given.
+  const given = current ? `${prompt}\n${JSON.stringify(current)}` : prompt;
+  // A named form whose material is missing would fail every attempt: ask for it instead.
+  const ask = named ? missingMaterial(named, given) : null;
+  if (named && ask) {
+    throw new DraftFailedError(`${named}: Material fehlt (${ask})`, {
+      kind: 'material',
+      form: named,
+      ask,
+    });
+  }
   const fixed = current?.locale ?? null;
   const design = current ? (current.brand ?? null) : brand;
   const single = oneSlide && !current;
@@ -183,11 +196,9 @@ export async function draftSharepic(
   const picked = named ?? needs.data.form;
   const chosen =
     single && (picked === 'karussell' || picked === 'interview') ? 'einzelbild' : picked;
-  // A chip whose form the brief cannot fill would only fail on every attempt;
-  // the brief as validation reads it.
+  // A chip whose form the brief cannot fill would only fail on every attempt.
   const alternativen = [...new Set(needs.data.alternativen)].filter(
-    (f) =>
-      f !== chosen && formHasMaterial(f, current ? `${prompt}\n${JSON.stringify(current)}` : prompt)
+    (f) => f !== chosen && formHasMaterial(f, given)
   );
   // A revision keeps its form unless the request names one.
   const form = current ? named : chosen;
@@ -288,7 +299,7 @@ export async function draftSharepic(
       const checked = validateDraft(
         taken.input,
         locale,
-        current ? `${prompt}\n${JSON.stringify(current)}` : prompt,
+        given,
         [...ownPhotos.map((p) => p.id), ...keptUploads],
         taken.scene ? [SCENE_PENDING, ...keptScenes] : keptScenes,
         order,
@@ -305,7 +316,10 @@ export async function draftSharepic(
         carouselToo && formMismatch('karussell', checked.value, taken.scene !== null);
       const mismatch = notSingle || formWrong || carouselWrong;
       if (mismatch) {
-        failure = { kind: 'form', form: notSingle || formWrong ? form! : 'karussell' };
+        const failed = notSingle || formWrong ? form! : 'karussell';
+        // Named only when the brief lacks it: a quote can fail with its speaker given.
+        const ask = formHasMaterial(failed, given) ? null : materialAsk(failed);
+        failure = { kind: 'form', form: failed, ...(ask && { ask }) };
         return { ok: false, error: `Der Auftrag ist ein Sharepic der Form ${mismatch}` };
       }
       // A new carousel holds one look; the last attempt passes rather than fail the draft.
