@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: MPL-2.0
+import { type FontRole } from '@ggraphic/core';
 import React, { useState } from 'react';
 import { PiCopy, PiLockSimple, PiLockSimpleOpen, PiTrash } from 'react-icons/pi';
 
@@ -14,6 +15,7 @@ import {
   SetAsBackgroundButton,
 } from '@ggraphic/editor/components/TopBar/modules/FloatingBackgroundControls';
 import { FloatingColorPicker } from '@ggraphic/editor/components/TopBar/modules/FloatingColorPicker';
+import { FloatingFontRoleControl } from '@ggraphic/editor/components/TopBar/modules/FloatingFontRoleControl';
 import { FloatingFontSizeControl } from '@ggraphic/editor/components/TopBar/modules/FloatingFontSizeControl';
 import { FloatingGradientControl } from '@ggraphic/editor/components/TopBar/modules/FloatingGradientControl';
 import { FloatingLayerControls } from '@ggraphic/editor/components/TopBar/modules/FloatingLayerControls';
@@ -22,6 +24,7 @@ import {
   FloatingPositionControl,
   type PositionCommandId,
 } from '@ggraphic/editor/components/TopBar/modules/FloatingPositionControl';
+import { FloatingTextAlignControl } from '@ggraphic/editor/components/TopBar/modules/FloatingTextAlignControl';
 import { type BackgroundControls } from '@ggraphic/editor/configs/types';
 import { type ShadowPatch } from '@ggraphic/editor/hooks/useFloatingModuleHandlers';
 import { type FloatingModuleState } from '@ggraphic/editor/hooks/useFloatingModuleState';
@@ -39,14 +42,11 @@ import { focusPage, isKeyboardModality } from '@ggraphic/editor/utils/editorFocu
 import { type GradientFill } from '@ggraphic/editor/utils/gradientFill';
 import { type LockState } from '@ggraphic/editor/utils/layerLock';
 import { STROKE_ONLY_SHAPES } from '@ggraphic/editor/utils/shapes';
-import { useUnsplashHome } from '@ggraphic/editor/utils/unsplashLinks';
 import { type TextAlign } from '@ggraphic/editor/utils/textAlign';
+import { useUnsplashHome } from '@ggraphic/editor/utils/unsplashLinks';
 
 import { FloatingOutlineControl } from './modules/FloatingOutlineControl.js';
-
 import { FloatingShadowControl } from './modules/FloatingShadowControl.js';
-
-import { FloatingTextAlignControl } from '@ggraphic/editor/components/TopBar/modules/FloatingTextAlignControl';
 
 export interface ContextControlsProps {
   selectedElement: string | null;
@@ -77,6 +77,8 @@ export interface ContextControlsProps {
     handleColorSelect: (color: string) => void;
     handleOpacityChange: (id: string, opacity: number, type: string) => void;
     handleFontSizeChange: (id: string, size: number) => void;
+    /** Die Schrift eines freien Textes als Rolle der Marke (Überschrift, Text, Akzent …). */
+    handleFontRoleChange?: (id: string, role: FontRole) => void;
     /** Ausrichten und Position laufen über die Befehls-Türen der Seite. */
     runCommand?: (id: PositionCommandId) => void;
     getGeometry?: () => SelectionGeometry | null;
@@ -390,6 +392,20 @@ export function ContextControls({
           onRemoveUserImage(imageId);
           onDeselect?.();
         }}
+      />
+    );
+  }
+
+  if (isText && activeFloatingModule?.data.isInstanceText && handlers.handleFontRoleChange) {
+    const { handleFontRoleChange } = handlers;
+    groups.push(
+      <FloatingFontRoleControl
+        key="fontrole"
+        text={{
+          fontFamily: activeFloatingModule.data.fontFamily ?? '',
+          bind: activeFloatingModule.data.bind,
+        }}
+        onChange={(role) => handleFontRoleChange(activeFloatingModule.data.id, role)}
       />
     );
   }

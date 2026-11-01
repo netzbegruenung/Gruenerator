@@ -845,6 +845,7 @@ exports[`floatingModuleFor per kind > additional-text 1`] = `
 {
   "data": {
     "align": "center",
+    "bind": undefined,
     "fill": "#ffffff",
     "fillGradient": {
       "angle": 90,
@@ -856,6 +857,7 @@ exports[`floatingModuleFor per kind > additional-text 1`] = `
       ],
       "type": "linear",
     },
+    "fontFamily": undefined,
     "fontSize": 40,
     "id": "text-1",
     "isInstanceText": true,

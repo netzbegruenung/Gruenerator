@@ -95,6 +95,7 @@
     "./components/TopBar/modules/FloatingAiSuggestionBanner": "./src/components/TopBar/modules/FloatingAiSuggestionBanner.tsx",
     "./components/TopBar/modules/FloatingBackgroundControls": "./src/components/TopBar/modules/FloatingBackgroundControls.tsx",
     "./components/TopBar/modules/FloatingColorPicker": "./src/components/TopBar/modules/FloatingColorPicker.tsx",
+    "./components/TopBar/modules/FloatingFontRoleControl": "./src/components/TopBar/modules/FloatingFontRoleControl.tsx",
     "./components/TopBar/modules/FloatingFontSizeControl": "./src/components/TopBar/modules/FloatingFontSizeControl.tsx",
     "./components/TopBar/modules/FloatingGradientControl": "./src/components/TopBar/modules/FloatingGradientControl.tsx",
     "./components/TopBar/modules/FloatingHistoryControls": "./src/components/TopBar/modules/FloatingHistoryControls.tsx",

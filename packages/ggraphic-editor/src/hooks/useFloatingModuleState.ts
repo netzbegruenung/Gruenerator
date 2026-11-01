@@ -15,6 +15,7 @@ import {
 
 import type { FullCanvasConfig, LayoutResult } from '../configs/types.js';
 import type { HostElementKindName } from '../utils/canvasItem.js';
+import type { ElementBind } from '@ggraphic/core';
 import type { StockImageAttribution } from '@ggraphic/editor/common/imageSourceTypes';
 import type { GradientFill } from '@ggraphic/editor/utils/gradientFill';
 
@@ -60,6 +61,9 @@ export interface FloatingModuleState {
     fillGradient?: GradientFill | null;
     /** Ausrichtung des Textes in seiner Box (beide Textarten). */
     align?: TextAlign;
+    /** Schrift und Bindung eines freien Textes, für die Schriftrolle (`FloatingFontRoleControl`). */
+    fontFamily?: string;
+    bind?: ElementBind;
     /**
      * True only for instance-backed text (additionalTexts), which stores effect
      * fields directly. Config-declared template texts route through state keys
@@ -142,7 +146,11 @@ function floatingModuleEqual(
     a.data.shadowOpacity === b.data.shadowOpacity &&
     a.data.blur === b.data.blur &&
     a.data.fillGradient === b.data.fillGradient &&
-    a.data.align === b.data.align
+    a.data.align === b.data.align &&
+    // The font role picker reads both: a role change must reach it without a new selection.
+    a.data.fontFamily === b.data.fontFamily &&
+    a.data.bind?.fontFamily?.ref === b.data.bind?.fontFamily?.ref &&
+    a.data.bind?.fontFamily?.value === b.data.bind?.fontFamily?.value
   );
 }
 
@@ -183,6 +191,8 @@ const KIND_MODULES: KindModules = {
       shadowOpacity: t.shadowOpacity,
       fillGradient: t.fillGradient,
       align: t.align ?? 'left',
+      fontFamily: t.fontFamily,
+      bind: t.bind,
     },
   }),
   illustration: ({ id, data }) => ({ type: 'illustration', data: { ...data, id } }),

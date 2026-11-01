@@ -87,6 +87,16 @@ function requestFace(fontSize: number, fontFamily: string, style: string, text: 
 }
 
 /**
+ * Asks the browser to load a family's face now, before anything draws with it: what a person
+ * picks from a list (the font role picker) would otherwise show in the fallback font until a
+ * first measurement happens to ask. A family is asked for once per style; a repaint follows
+ * when the face arrives (`useFontGeneration`).
+ */
+export function requestFontFace(fontFamily: string, fontStyle: string = 'normal'): void {
+  requestFace(16, fontFamily, fontStyle, 'Aa');
+}
+
+/**
  * Measure actual text width using Canvas 2D context
  * Uses browser's font rendering engine for accurate measurements
  *
