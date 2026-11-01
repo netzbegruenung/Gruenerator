@@ -17,6 +17,12 @@
      "width": 940,
      "fontSize": 104,
      "fontFamily": "GrueneTypeNeue",
+     "bind": {
+      "fontFamily": {
+       "ref": "font.headline",
+       "value": "GrueneTypeNeue"
+      }
+     },
      "fontStyle": "normal",
      "fill": "#00261A",
      "align": "center",
@@ -61,7 +67,13 @@
      "opacity": 1,
      "paddingX": 36,
      "paddingY": 18,
-     "cornerRadius": 60
+     "cornerRadius": 60,
+     "bind": {
+      "fontFamily": {
+       "ref": "font.headline",
+       "value": "GrueneTypeNeue"
+      }
+     }
     },
     {
      "id": "sc-1-button",
@@ -78,7 +90,13 @@
      "opacity": 1,
      "paddingX": 36,
      "paddingY": 18,
-     "cornerRadius": 60
+     "cornerRadius": 60,
+     "bind": {
+      "fontFamily": {
+       "ref": "font.headline",
+       "value": "GrueneTypeNeue"
+      }
+     }
     }
    ],
    "circleBadgeInstances": [],
@@ -138,6 +156,12 @@
      "width": 940,
      "fontSize": 104,
      "fontFamily": "GrueneTypeNeue",
+     "bind": {
+      "fontFamily": {
+       "ref": "font.headline",
+       "value": "GrueneTypeNeue"
+      }
+     },
      "fontStyle": "normal",
      "fill": "#00261A",
      "align": "center",
@@ -182,7 +206,13 @@
      "opacity": 1,
      "paddingX": 36,
      "paddingY": 18,
-     "cornerRadius": 60
+     "cornerRadius": 60,
+     "bind": {
+      "fontFamily": {
+       "ref": "font.headline",
+       "value": "GrueneTypeNeue"
+      }
+     }
     },
     {
      "id": "sc-1-button",
@@ -199,7 +229,13 @@
      "opacity": 1,
      "paddingX": 36,
      "paddingY": 18,
-     "cornerRadius": 60
+     "cornerRadius": 60,
+     "bind": {
+      "fontFamily": {
+       "ref": "font.headline",
+       "value": "GrueneTypeNeue"
+      }
+     }
     }
    ],
    "circleBadgeInstances": [],
@@ -259,6 +295,12 @@
      "width": 940,
      "fontSize": 104,
      "fontFamily": "GrueneTypeNeue",
+     "bind": {
+      "fontFamily": {
+       "ref": "font.headline",
+       "value": "GrueneTypeNeue"
+      }
+     },
      "fontStyle": "normal",
      "fill": "#FFFFFF",
      "align": "center",
@@ -303,7 +345,13 @@
      "opacity": 1,
      "paddingX": 36,
      "paddingY": 18,
-     "cornerRadius": 60
+     "cornerRadius": 60,
+     "bind": {
+      "fontFamily": {
+       "ref": "font.headline",
+       "value": "GrueneTypeNeue"
+      }
+     }
     },
     {
      "id": "sc-1-button",
@@ -320,7 +368,13 @@
      "opacity": 1,
      "paddingX": 36,
      "paddingY": 18,
-     "cornerRadius": 60
+     "cornerRadius": 60,
+     "bind": {
+      "fontFamily": {
+       "ref": "font.headline",
+       "value": "GrueneTypeNeue"
+      }
+     }
     }
    ],
    "circleBadgeInstances": [],

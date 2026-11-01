@@ -1,3 +1,4 @@
+import { largestSizeWordsFit } from '@ggraphic/editor/composer/textFit';
 import { createShape } from '@ggraphic/editor/utils/shapes';
 
 import {
@@ -9,7 +10,6 @@ import {
 import { GAP } from './sharepicLayoutConstants';
 import { sharepicTheme } from './sharepicThemes';
 import { type BuildPass, type SlideCtx } from './slideContext';
-import { largestSizeWordsFit } from '@ggraphic/editor/composer/textFit';
 
 /** WCAG relative luminance of `#rrggbb`. */
 function luminance(hex: string): number {
@@ -86,7 +86,7 @@ export function layoutTermine(
         }
         const rowTop = top + padY;
         const inkOverride = rowInk ? { fill: rowInk, shadowOpacity: 0 } : {};
-        text(`${rowId}-datum`, e.datum, rowTop, dateSize, family, {
+        text(`${rowId}-datum`, e.datum, rowTop, dateSize, 'headline', {
           x: column.x + padX,
           width: dateWidth,
           align: 'left',
@@ -95,21 +95,14 @@ export function layoutTermine(
           type: 'header',
           ...inkOverride,
         });
-        text(
-          `${rowId}-titel`,
-          e.titel,
-          rowTop + (dateSize - titleSize) * 0.4,
-          titleSize,
-          theme.fonts.body,
-          {
-            x: column.x + padX + dateWidth,
-            width: restWidth,
-            align: 'left',
-            fontStyle: 'bold',
-            lineHeight: 1.15,
-            ...inkOverride,
-          }
-        );
+        text(`${rowId}-titel`, e.titel, rowTop + (dateSize - titleSize) * 0.4, titleSize, 'body', {
+          x: column.x + padX + dateWidth,
+          width: restWidth,
+          align: 'left',
+          fontStyle: 'bold',
+          lineHeight: 1.15,
+          ...inkOverride,
+        });
         if (e.ort) {
           const t =
             lineCount(e.titel, restWidth, titleSize, theme.fonts.body, 'bold') * titleSize * 1.15;
@@ -118,7 +111,7 @@ export function layoutTermine(
             e.ort,
             rowTop + (dateSize - titleSize) * 0.4 + t + Math.round(ortSize * 0.2),
             ortSize,
-            theme.fonts.body,
+            'body',
             {
               x: column.x + padX + dateWidth,
               width: restWidth,
@@ -193,7 +186,7 @@ export function layoutSchlagzeile(
       };
       const meta = item.datum ? `${item.medium} · ${item.datum}` : item.medium;
       const metaAt = turn(left + pad, top + pad);
-      text(`${id}-medium`, meta, metaAt.y, metaSize, theme.fonts.body, {
+      text(`${id}-medium`, meta, metaAt.y, metaSize, 'body', {
         x: metaAt.x,
         width: inner,
         align: 'left',
@@ -205,7 +198,7 @@ export function layoutSchlagzeile(
         shadowOpacity: 0,
       });
       const titleAt = turn(left + pad, top + pad + metaSize * 1.3 + 14);
-      text(`${id}-titel`, item.titel, titleAt.y, titleSize, theme.fonts.body, {
+      text(`${id}-titel`, item.titel, titleAt.y, titleSize, 'body', {
         x: titleAt.x,
         width: inner,
         align: 'left',
@@ -264,22 +257,15 @@ export function layoutBingo(ctx: SlideCtx, item: BingoItem, id: string): Placed[
         addShape(box);
         const size = sizes[k]!;
         const lines = lineCount(feld, inner, size, theme.fonts.body, 'bold');
-        text(
-          `${id}-${k}`,
-          feld,
-          cy + cellH / 2 - (lines * size * 1.15) / 2,
-          size,
-          theme.fonts.body,
-          {
-            x: cx + cellPad,
-            width: inner,
-            align: 'center',
-            fontStyle: 'bold',
-            fill: cellInk,
-            lineHeight: 1.15,
-            shadowOpacity: 0,
-          }
-        );
+        text(`${id}-${k}`, feld, cy + cellH / 2 - (lines * size * 1.15) / 2, size, 'body', {
+          x: cx + cellPad,
+          width: inner,
+          align: 'center',
+          fontStyle: 'bold',
+          fill: cellInk,
+          lineHeight: 1.15,
+          shadowOpacity: 0,
+        });
       });
     },
   });

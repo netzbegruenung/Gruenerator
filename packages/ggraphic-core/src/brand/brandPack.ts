@@ -80,8 +80,23 @@ export interface BrandFonts {
   quoteShort: string;
   /** Emphasised words and long quotes. */
   quoteEmphasis: string;
+  /** Handwritten notes and arrows; absent = the brand sets none. */
+  handwriting?: string;
   /** Families whose bold cut is declared as a family of its own, regular → bold. */
   boldFamilies?: Readonly<Record<string, string>>;
+}
+
+/** The jobs a brand font does. A text remembers its role, not just the family it got. */
+export type FontRole = 'headline' | 'body' | 'quoteShort' | 'quoteEmphasis' | 'handwriting';
+
+/** The roles every brand sets; `handwriting` is the one a pack may leave out. */
+export type RequiredFontRole = Exclude<FontRole, 'handwriting'>;
+
+/** The family `fonts` sets for `role`; null when the brand sets none (only `handwriting` can be absent). */
+export function resolveFontRole(fonts: BrandFonts, role: RequiredFontRole): string;
+export function resolveFontRole(fonts: BrandFonts, role: FontRole): string | null;
+export function resolveFontRole(fonts: BrandFonts, role: FontRole): string | null {
+  return fonts[role] ?? null;
 }
 
 export interface BrandFontFace {
