@@ -20,7 +20,6 @@
     "./ai/types": "./src/ai/types.ts",
     "./blocks/liftedBlock": "./src/blocks/liftedBlock.ts",
     "./brand/brandRegistry": "./src/brand/brandRegistry.ts",
-    "./brand/composerBrand": "./src/brand/composerBrand.ts",
     "./brand/documentBrand": "./src/brand/documentBrand.ts",
     "./CanvasEditorProvider": "./src/CanvasEditorProvider.tsx",
     "./collab/documentVersion": "./src/collab/documentVersion.ts",

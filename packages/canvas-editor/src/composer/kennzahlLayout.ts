@@ -1,5 +1,5 @@
-import { onGround } from '@ggraphic/editor/brand/composerBrand';
 import { createShape } from '@ggraphic/editor/utils/shapes';
+import { onGround } from '@gruenerator/contracts/brand';
 
 import { type Placed, type RechnungItem, type ZahlItem } from './composeTypes';
 import { evenStops } from './sharepicGround';

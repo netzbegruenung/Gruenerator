@@ -1,5 +1,4 @@
 import { type RequiredFontRole } from '@ggraphic/core';
-import { type ComposerBrand } from '@ggraphic/editor/brand/composerBrand';
 import { type AdditionalText } from '@ggraphic/editor/configs/types';
 import { type CanvasFormat } from '@ggraphic/editor/formats/index';
 import { type ShapeInstance } from '@ggraphic/editor/utils/shapes';
@@ -9,6 +8,7 @@ import {
   type SharepicCreatorLocale,
   type SharepicThema,
 } from '@gruenerator/contracts';
+import { type ComposerBrand } from '@gruenerator/contracts/brand';
 
 import { type BrandTheme } from '../brand/theme';
 

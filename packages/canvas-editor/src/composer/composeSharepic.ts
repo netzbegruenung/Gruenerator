@@ -13,7 +13,6 @@
  * Pure: no React, no Konva. Text is measured through the injected `measure`.
  */
 import { type RequiredFontRole, resolveFontRole } from '@ggraphic/core';
-import { onGround } from '@ggraphic/editor/brand/composerBrand';
 import { foldMarkers, stripMarks } from '@ggraphic/editor/composer/marks';
 import { steckbriefPerson } from '@ggraphic/editor/composer/steckbriefLayout';
 import {
@@ -48,6 +47,7 @@ import {
   type SharepicTextSide,
   type SharepicThema,
 } from '@gruenerator/contracts';
+import { onGround } from '@gruenerator/contracts/brand';
 
 import { getBrandPack, getBrandTheme } from '../brand/theme';
 import { VERANSTALTUNG_CONFIG } from '../utils/veranstaltungLayout';

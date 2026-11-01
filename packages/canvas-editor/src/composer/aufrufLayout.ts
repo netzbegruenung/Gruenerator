@@ -1,6 +1,6 @@
-import { onGround } from '@ggraphic/editor/brand/composerBrand';
 import { largestSizeWordsFit } from '@ggraphic/editor/composer/textFit';
 import { createPillBadgeInstance } from '@ggraphic/editor/utils/pillBadgeUtils';
+import { onGround } from '@gruenerator/contracts/brand';
 
 import { AT_EMPHASIS_STYLE } from './chromeParts';
 import { type AufrufItem, type Placed } from './composeTypes';

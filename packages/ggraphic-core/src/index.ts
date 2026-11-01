@@ -21,5 +21,4 @@ export {
   fontRoleOptions,
   type FontRoleOption,
 } from './brand/fontRoles.js';
-export { type ByGround, type ComposerBrand } from './brand/composerBrand.js';
 export * from './model/index.js';
