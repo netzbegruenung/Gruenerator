@@ -1,6 +1,7 @@
 import { getCanvasFormat, type CanvasFormat } from '@ggraphic/editor/formats/index';
 import { describe, expect, it } from 'vitest';
 
+import { GRUENE_AT } from '../../brand/theme';
 import { composeSharepic } from '../../composer/composeSharepic';
 import { at, deCarousel, options } from '../../composer/sharepicSpecFixtures';
 
@@ -408,6 +409,21 @@ describe('buildPptxModel — text', () => {
     // Ohne Markerstil der Vorlage: der Standardkasten Limette.
     const fallback = textItem(text({ text: '++b++' })).paragraphs[0]!.runs;
     expect(fallback[0]).toMatchObject({ highlight: '#BEFF60', color: '#00261A' });
+  });
+
+  it('gives a ++marker++ run the default box and ink of the document brand', () => {
+    // An Austrian deck exports with its own brand: the page was drawn with it.
+    const pages: PptxPageState[] = [
+      { additionalTexts: [text({ text: '++b++ ++{#FFFFFF}c++', id: 'at' })] },
+    ];
+    const [item] = buildPptxModel(pages, SLIDE, { measure, brand: GRUENE_AT }).slides[0]!
+      .items as PptxTextItem[];
+    const [plain, , own] = item!.paragraphs[0]!.runs;
+    expect(plain).toMatchObject({
+      highlight: GRUENE_AT.markers.swatches[0]!.color,
+      color: GRUENE_AT.markers.ink,
+    });
+    expect(own).toMatchObject({ highlight: '#FFFFFF', color: GRUENE_AT.markers.ink });
   });
 
   it('maps bullet and numbered lists per paragraph', () => {

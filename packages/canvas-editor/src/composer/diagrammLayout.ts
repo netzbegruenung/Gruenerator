@@ -5,6 +5,7 @@ import { type SharepicChartKind } from '@gruenerator/contracts';
 import { getBrandPack } from '../brand/theme';
 
 import { type DiagrammItem, type Placed } from './composeTypes';
+import { brandFont } from './fontRole';
 import { GAP } from './sharepicLayoutConstants';
 import { sharepicTheme } from './sharepicThemes';
 import { type BuildPass, type SlideCtx } from './slideContext';
@@ -104,7 +105,7 @@ export function layoutDiagramm(
           y: y + pad,
           width: inner,
           fontSize: titleSize,
-          fontFamily: theme.fonts.body,
+          ...brandFont(theme.fonts, 'body'),
           fontStyle: 'bold',
           fill: darkText,
           lineHeight: 1.2,

@@ -47,7 +47,7 @@ export function layoutZahl(ctx: SlideCtx, item: ZahlItem, id: string, pass: Buil
         const cx = xAlign === 'center' ? column.x + column.width / 2 : column.x + d / 2;
         const disc = createShape('circle', cx, y + d / 2, accentInk, accentInk);
         addShape(Object.assign(disc, { id: `${id}-disc`, width: d, height: d }));
-        text(`${id}-wert`, item.wert, y + d / 2 - inner * 0.52, inner, family, {
+        text(`${id}-wert`, item.wert, y + d / 2 - inner * 0.52, inner, 'headline', {
           x: cx - d / 2,
           width: d,
           align: 'center',
@@ -57,7 +57,7 @@ export function layoutZahl(ctx: SlideCtx, item: ZahlItem, id: string, pass: Buil
           shadowOpacity: 0,
         });
         if (item.label) {
-          text(`${id}-label`, item.label, y + d + Math.round(ls * 0.6), ls, theme.fonts.body, {
+          text(`${id}-label`, item.label, y + d + Math.round(ls * 0.6), ls, 'body', {
             fontStyle: 'bold',
             lineHeight: 1.2,
           });
@@ -79,7 +79,7 @@ export function layoutZahl(ctx: SlideCtx, item: ZahlItem, id: string, pass: Buil
     height: size * 0.92 + (lh ? Math.round(ls * 0.5) + lh : 0),
     after: GAP,
     place: (y) => {
-      text(`${id}-wert`, item.wert, y - size * 0.06, size, family, {
+      text(`${id}-wert`, item.wert, y - size * 0.06, size, 'headline', {
         fill: accentInk,
         lineHeight: 1,
         type: 'header',
@@ -95,17 +95,10 @@ export function layoutZahl(ctx: SlideCtx, item: ZahlItem, id: string, pass: Buil
           : {}),
       });
       if (item.label) {
-        text(
-          `${id}-label`,
-          item.label,
-          y + size * 0.92 + Math.round(ls * 0.5),
-          ls,
-          theme.fonts.body,
-          {
-            fontStyle: 'bold',
-            lineHeight: 1.2,
-          }
-        );
+        text(`${id}-label`, item.label, y + size * 0.92 + Math.round(ls * 0.5), ls, 'body', {
+          fontStyle: 'bold',
+          lineHeight: 1.2,
+        });
       }
     },
   });
@@ -171,7 +164,7 @@ export function layoutRechnung(
         ink: string
       ) => {
         if (op) {
-          text(`${id}-${k}-op`, op, top, sz, family, {
+          text(`${id}-${k}-op`, op, top, sz, 'headline', {
             x: column.x,
             width: opWidth,
             align: 'left',
@@ -180,7 +173,7 @@ export function layoutRechnung(
             type: 'header',
           });
         }
-        text(`${id}-${k}-wert`, wert, top, sz, family, {
+        text(`${id}-${k}-wert`, wert, top, sz, 'headline', {
           x: column.x + opWidth,
           width: wertWidth,
           align: 'left',
@@ -194,7 +187,7 @@ export function layoutRechnung(
             label,
             top + Math.max(0, (sz - labelSize) * 0.55),
             labelSize,
-            theme.fonts.body,
+            'body',
             {
               x: column.x + opWidth + wertWidth,
               width: labelWidth,

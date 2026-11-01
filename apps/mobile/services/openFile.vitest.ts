@@ -18,6 +18,16 @@ const getContentUriAsync = vi.hoisted(() =>
 
 vi.mock('expo-intent-launcher', () => ({ startActivityAsync }));
 vi.mock('expo-file-system/legacy', () => ({ getContentUriAsync }));
+const canPreview = vi.hoisted(() => vi.fn(async () => true));
+const preview = vi.hoisted(() => vi.fn(async () => undefined));
+vi.mock('expo-file-system', () => ({
+  File: Object.assign(
+    vi.fn(function (this: { uri: string }, uri: string) {
+      this.uri = uri;
+    }),
+    { canPreview, preview }
+  ),
+}));
 vi.mock('./share', () => ({ shareFile: vi.fn(async () => undefined) }));
 
 const PDF_URI = 'file:///cache/abc.pdf';
@@ -60,12 +70,24 @@ describe('openFile auf Android', () => {
 });
 
 describe('openFile auf iOS', () => {
-  it('teilt mit UTI — iOS kennt kein „Öffnen mit", das Blatt ist der Weg zum Betrachter', async () => {
+  beforeEach(() => {
     Platform.OS = 'ios';
+  });
+
+  it('zeigt die Datei in Quick Look, nicht im Teilen-Blatt', async () => {
+    await openFile(PDF_URI, PDF);
+
+    expect(preview).toHaveBeenCalledWith({ uri: PDF_URI }, { title: 'Antrag' });
+    expect(startActivityAsync).not.toHaveBeenCalled();
+    expect(shareFile).not.toHaveBeenCalled();
+  });
+
+  it('teilt mit UTI, wenn Quick Look den Typ nicht zeigen kann', async () => {
+    canPreview.mockResolvedValueOnce(false);
 
     await openFile(PDF_URI, PDF);
 
-    expect(startActivityAsync).not.toHaveBeenCalled();
+    expect(preview).not.toHaveBeenCalled();
     expect(shareFile).toHaveBeenCalledWith(PDF_URI, {
       mimeType: 'application/pdf',
       dialogTitle: 'Antrag',

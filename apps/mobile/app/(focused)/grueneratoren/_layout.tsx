@@ -1,5 +1,5 @@
 import { Ionicons } from '@react-native-vector-icons/ionicons';
-import { router, Stack } from 'expo-router';
+import { type NativeStackOptionsArgs, router, Stack } from 'expo-router';
 import { Pressable } from 'react-native';
 
 import { useTheme } from '../../../hooks/useTheme';
@@ -19,7 +19,11 @@ export default function GrueneratorenLayout() {
   const theme = useTheme();
   return (
     <Stack
-      screenOptions={({ navigation, route }) => ({
+      // expo-router 58 types the navigator's `navigation` as `any` here.
+      screenOptions={({
+        navigation,
+        route,
+      }: NativeStackOptionsArgs<Record<string, object | undefined>>) => ({
         headerShown: true,
         headerStyle: { backgroundColor: theme.background },
         headerTintColor: theme.text,

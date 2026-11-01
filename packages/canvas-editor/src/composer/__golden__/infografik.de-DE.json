@@ -17,6 +17,12 @@
      "width": 454,
      "fontSize": 53,
      "fontFamily": "PT Sans",
+     "bind": {
+      "fontFamily": {
+       "ref": "font.body",
+       "value": "PT Sans"
+      }
+     },
      "fontStyle": "bold",
      "fill": "#00261A",
      "align": "center",
@@ -39,6 +45,12 @@
      "width": 195,
      "fontSize": 35,
      "fontFamily": "PT Sans",
+     "bind": {
+      "fontFamily": {
+       "ref": "font.body",
+       "value": "PT Sans"
+      }
+     },
      "fontStyle": "normal",
      "fill": "#00261A",
      "align": "center",
@@ -61,6 +73,12 @@
      "width": 454,
      "fontSize": 53,
      "fontFamily": "PT Sans",
+     "bind": {
+      "fontFamily": {
+       "ref": "font.body",
+       "value": "PT Sans"
+      }
+     },
      "fontStyle": "bold",
      "fill": "#00261A",
      "align": "center",
@@ -256,6 +274,12 @@
      "width": 534,
      "fontSize": 48,
      "fontFamily": "PT Sans",
+     "bind": {
+      "fontFamily": {
+       "ref": "font.body",
+       "value": "PT Sans"
+      }
+     },
      "fontStyle": "bold",
      "fill": "#00261A",
      "align": "left",
@@ -278,6 +302,12 @@
      "width": 189,
      "fontSize": 34,
      "fontFamily": "PT Sans",
+     "bind": {
+      "fontFamily": {
+       "ref": "font.body",
+       "value": "PT Sans"
+      }
+     },
      "fontStyle": "normal",
      "fill": "#00261A",
      "align": "left",
@@ -300,6 +330,12 @@
      "width": 534,
      "fontSize": 48,
      "fontFamily": "PT Sans",
+     "bind": {
+      "fontFamily": {
+       "ref": "font.body",
+       "value": "PT Sans"
+      }
+     },
      "fontStyle": "bold",
      "fill": "#00261A",
      "align": "left",
@@ -322,6 +358,12 @@
      "width": 72,
      "fontSize": 40,
      "fontFamily": "PT Sans",
+     "bind": {
+      "fontFamily": {
+       "ref": "font.body",
+       "value": "PT Sans"
+      }
+     },
      "fontStyle": "bold",
      "fill": "#FFFFFF",
      "align": "center",
@@ -344,6 +386,12 @@
      "width": 72,
      "fontSize": 40,
      "fontFamily": "PT Sans",
+     "bind": {
+      "fontFamily": {
+       "ref": "font.body",
+       "value": "PT Sans"
+      }
+     },
      "fontStyle": "bold",
      "fill": "#FFFFFF",
      "align": "center",
@@ -583,6 +631,12 @@
      "width": 940,
      "fontSize": 188,
      "fontFamily": "PT Sans",
+     "bind": {
+      "fontFamily": {
+       "ref": "font.body",
+       "value": "PT Sans"
+      }
+     },
      "fontStyle": "bold",
      "fill": "#00261A",
      "align": "center",
@@ -605,6 +659,12 @@
      "width": 198,
      "fontSize": 56,
      "fontFamily": "PT Sans",
+     "bind": {
+      "fontFamily": {
+       "ref": "font.body",
+       "value": "PT Sans"
+      }
+     },
      "fontStyle": "normal",
      "fill": "#00261A",
      "align": "center",
@@ -774,6 +834,12 @@
      "width": 940,
      "fontSize": 112,
      "fontFamily": "PT Sans",
+     "bind": {
+      "fontFamily": {
+       "ref": "font.body",
+       "value": "PT Sans"
+      }
+     },
      "fontStyle": "bold",
      "fill": "#00261A",
      "align": "center",
@@ -796,6 +862,12 @@
      "width": 222,
      "fontSize": 40,
      "fontFamily": "PT Sans",
+     "bind": {
+      "fontFamily": {
+       "ref": "font.body",
+       "value": "PT Sans"
+      }
+     },
      "fontStyle": "normal",
      "fill": "#00261A",
      "align": "center",
@@ -818,6 +890,12 @@
      "width": 940,
      "fontSize": 112,
      "fontFamily": "PT Sans",
+     "bind": {
+      "fontFamily": {
+       "ref": "font.body",
+       "value": "PT Sans"
+      }
+     },
      "fontStyle": "bold",
      "fill": "#00261A",
      "align": "center",
@@ -1194,6 +1272,12 @@
      "width": 305.3486742963367,
      "fontSize": 96,
      "fontFamily": "PT Sans",
+     "bind": {
+      "fontFamily": {
+       "ref": "font.body",
+       "value": "PT Sans"
+      }
+     },
      "fontStyle": "bold",
      "fill": "#00261A",
      "align": "center",
@@ -1216,6 +1300,12 @@
      "width": 222,
      "fontSize": 40,
      "fontFamily": "PT Sans",
+     "bind": {
+      "fontFamily": {
+       "ref": "font.body",
+       "value": "PT Sans"
+      }
+     },
      "fontStyle": "normal",
      "fill": "#00261A",
      "align": "center",
@@ -1238,6 +1328,12 @@
      "width": 538.6513257036634,
      "fontSize": 96,
      "fontFamily": "PT Sans",
+     "bind": {
+      "fontFamily": {
+       "ref": "font.body",
+       "value": "PT Sans"
+      }
+     },
      "fontStyle": "bold",
      "fill": "#00261A",
      "align": "center",

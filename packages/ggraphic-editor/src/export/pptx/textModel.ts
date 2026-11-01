@@ -28,7 +28,8 @@ function markColor(node: RichNode, type: 'accent' | 'marker'): string | null {
 /**
  * Ein Lauf, wie `CanvasRichText` ihn zeichnet: eine eigene Passagenfarbe färbt
  * nur, die Akzentschrift der Vorlage gilt für Akzentläufe ohne eigene Farbe;
- * im Markerkasten steht die Schrift, die zum Kasten passt.
+ * im Markerkasten steht die Schrift, die zum Kasten passt — Kasten und Schrift
+ * der Marke des Dokuments, wenn die Vorlage keinen Markerstil hat.
  */
 function toRun(
   node: RichNode,

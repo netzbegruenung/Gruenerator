@@ -23,47 +23,51 @@ beforeEach(() => {
 });
 
 describe('NotebookAnswerModeSheet', () => {
-  it('lists the three modes, auto as the recommended one', () => {
-    render(<NotebookAnswerModeSheet visible onClose={() => {}} theme={lightTheme} />);
+  it('lists the three modes, auto as the recommended one', async () => {
+    await render(<NotebookAnswerModeSheet visible onClose={() => {}} theme={lightTheme} />);
     expect(screen.getByText('Magic Search')).toBeTruthy();
     expect(screen.getByText('Chat')).toBeTruthy();
     expect(screen.getByText('Präzision')).toBeTruthy();
     expect(screen.getByText('Empfohlen')).toBeTruthy();
   });
 
-  it('stores the picked mode and closes', () => {
+  it('stores the picked mode and closes', async () => {
     const onClose = jest.fn();
-    render(<NotebookAnswerModeSheet visible onClose={onClose} theme={lightTheme} />);
+    await render(<NotebookAnswerModeSheet visible onClose={onClose} theme={lightTheme} />);
 
-    fireEvent.press(screen.getByText('Präzision'));
+    await fireEvent.press(screen.getByText('Präzision'));
 
     expect(usePreferencesStore.getState().notebookAnswerMode).toBe('praezision');
     expect(onClose).toHaveBeenCalledTimes(1);
   });
 
-  it('offers Manuell only on a start page', () => {
-    const { rerender } = render(
+  it('offers Manuell only on a start page', async () => {
+    const { rerender } = await render(
       <NotebookAnswerModeSheet visible onClose={() => {}} theme={lightTheme} />
     );
     expect(screen.queryByText('Manuell')).toBeNull();
 
-    rerender(<NotebookAnswerModeSheet visible onClose={() => {}} theme={lightTheme} withManual />);
-    fireEvent.press(screen.getByText('Manuell'));
+    await rerender(
+      <NotebookAnswerModeSheet visible onClose={() => {}} theme={lightTheme} withManual />
+    );
+    await fireEvent.press(screen.getByText('Manuell'));
 
     expect(usePreferencesStore.getState().notebookAnswerMode).toBe('manuell');
   });
 });
 
 describe('useAnswerModeAccessory', () => {
-  it('labels the chip with the short label, like web', () => {
-    const { result } = renderHook(() => useAnswerModeAccessory(() => {}));
+  it('labels the chip with the short label, like web', async () => {
+    const { result } = await renderHook(() => useAnswerModeAccessory(() => {}));
     expect(result.current.label).toBe('Magic');
   });
 
-  it('shows the default inside a conversation when Manuell is stored', () => {
+  it('shows the default inside a conversation when Manuell is stored', async () => {
     usePreferencesStore.setState({ notebookAnswerMode: 'manuell' });
-    const inThread = renderHook(() => useAnswerModeAccessory(() => {}));
-    const startPage = renderHook(() => useAnswerModeAccessory(() => {}, { withManual: true }));
+    const inThread = await renderHook(() => useAnswerModeAccessory(() => {}));
+    const startPage = await renderHook(() =>
+      useAnswerModeAccessory(() => {}, { withManual: true })
+    );
 
     expect(inThread.result.current.label).toBe('Magic');
     expect(startPage.result.current.label).toBe('Manuell');

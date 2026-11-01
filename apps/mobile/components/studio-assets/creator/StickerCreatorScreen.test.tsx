@@ -100,11 +100,11 @@ const isEnabled = (name: string) =>
 
 /** Upload mode up to the save form, with the title the file name suggested. */
 async function designUpload(returnTo: 'profilbild' | null = null) {
-  render(<StickerCreatorScreen locale="de-DE" returnTo={returnTo} />);
-  fireEvent.press(button('Bild hochladen'));
-  fireEvent.press(button('Bild wählen'));
+  await render(<StickerCreatorScreen locale="de-DE" returnTo={returnTo} />);
+  await fireEvent.press(button('Bild hochladen'));
+  await fireEvent.press(button('Bild wählen'));
   await waitFor(() => isEnabled('Weiter'));
-  fireEvent.press(button('Weiter'));
+  await fireEvent.press(button('Weiter'));
   expect(screen.getByDisplayValue('Herz')).toBeTruthy();
 }
 
@@ -122,7 +122,7 @@ afterEach(() => {
 describe('StickerCreatorScreen', () => {
   it('saves an uploaded sticker privately with its source', async () => {
     await designUpload();
-    await act(async () => fireEvent.press(button('Sticker speichern')));
+    await act(async () => await fireEvent.press(button('Sticker speichern')));
 
     expect(mockWrite).toHaveBeenCalledWith(expect.anything(), 'herz.png');
     expect(mockUpload).toHaveBeenCalledWith('file:///cache/sticker.png', 'herz.png');
@@ -137,7 +137,7 @@ describe('StickerCreatorScreen', () => {
       rightsConfirmed: false,
     });
     expect(await screen.findByText('Fertig!')).toBeTruthy();
-    fireEvent.press(button('Im Profilbild verwenden'));
+    await fireEvent.press(button('Im Profilbild verwenden'));
     expect(router.push).toHaveBeenCalledWith({
       pathname: '/(focused)/profilbild',
       params: profilbildAssetParams(item),
@@ -146,7 +146,7 @@ describe('StickerCreatorScreen', () => {
 
   it('hands the sticker straight back to the Profilbild', async () => {
     await designUpload('profilbild');
-    await act(async () => fireEvent.press(button('Sticker speichern')));
+    await act(async () => await fireEvent.press(button('Sticker speichern')));
 
     expect(router.dismissTo).toHaveBeenCalledWith({
       pathname: '/(focused)/profilbild',
@@ -158,19 +158,23 @@ describe('StickerCreatorScreen', () => {
   it('asks for the rights before a public save', async () => {
     await designUpload();
     expect(screen.queryByText('Dein Name wird dabei angezeigt.')).toBeNull();
-    fireEvent(screen.getByLabelText('Unter „Entdecken“ öffentlich teilen'), 'valueChange', true);
+    await fireEvent(
+      screen.getByLabelText('Unter „Entdecken“ öffentlich teilen'),
+      'valueChange',
+      true
+    );
     expect(screen.getByText('Dein Name wird dabei angezeigt.')).toBeTruthy();
     isDisabled('Sticker speichern');
 
-    fireEvent(screen.getByRole('radio', { name: 'Alle' }), 'press');
-    fireEvent(
+    await fireEvent(screen.getByRole('radio', { name: 'Alle' }), 'press');
+    await fireEvent(
       screen.getByLabelText(
         'Ich habe die Rechte an diesem Bild und es darf öffentlich geteilt werden.'
       ),
       'valueChange',
       true
     );
-    await act(async () => fireEvent.press(button('Sticker speichern')));
+    await act(async () => await fireEvent.press(button('Sticker speichern')));
     expect(mockCreate).toHaveBeenCalledWith(
       expect.objectContaining({ visibility: 'public', audience: 'all', rightsConfirmed: true })
     );
@@ -179,7 +183,7 @@ describe('StickerCreatorScreen', () => {
   it('keeps the form when the upload fails', async () => {
     mockUpload.mockRejectedValue(new Error('offline'));
     await designUpload();
-    await act(async () => fireEvent.press(button('Sticker speichern')));
+    await act(async () => await fireEvent.press(button('Sticker speichern')));
 
     expect(
       screen.getByText('Das Hochladen hat nicht geklappt. Bitte versuche es erneut.')
@@ -191,10 +195,10 @@ describe('StickerCreatorScreen', () => {
   it('retries a failed save with the file it already uploaded', async () => {
     mockCreate.mockRejectedValueOnce(new Error('Speichern fehlgeschlagen.'));
     await designUpload();
-    await act(async () => fireEvent.press(button('Sticker speichern')));
+    await act(async () => await fireEvent.press(button('Sticker speichern')));
     expect(screen.getByText('Speichern fehlgeschlagen.')).toBeTruthy();
 
-    await act(async () => fireEvent.press(button('Sticker speichern')));
+    await act(async () => await fireEvent.press(button('Sticker speichern')));
     expect(mockUpload).toHaveBeenCalledTimes(1);
     expect(mockCreate).toHaveBeenCalledTimes(2);
     expect(mockCreate).toHaveBeenLastCalledWith(
@@ -206,14 +210,14 @@ describe('StickerCreatorScreen', () => {
   it('locks the sharing switches while saving', async () => {
     mockUpload.mockReturnValue(new Promise(() => {}));
     await designUpload();
-    await act(async () => fireEvent.press(button('Sticker speichern')));
+    await act(async () => await fireEvent.press(button('Sticker speichern')));
     expect(screen.getByLabelText('Unter „Entdecken“ öffentlich teilen').props.disabled).toBe(true);
   });
 
   it('asks for text instead of spinning on an empty badge', async () => {
-    render(<StickerCreatorScreen locale="de-AT" returnTo={null} />);
-    fireEvent.press(button('Text-Badge'));
-    fireEvent.changeText(screen.getByLabelText('Text'), '  ');
+    await render(<StickerCreatorScreen locale="de-AT" returnTo={null} />);
+    await fireEvent.press(button('Text-Badge'));
+    await fireEvent.changeText(screen.getByLabelText('Text'), '  ');
     expect(screen.getByText('Schreib einen Text, dann erscheint hier dein Badge.')).toBeTruthy();
   });
 
@@ -222,8 +226,8 @@ describe('StickerCreatorScreen', () => {
     mockRenderBadge.mockImplementation(() => {
       throw new Error('no font');
     });
-    render(<StickerCreatorScreen locale="de-DE" returnTo={null} />);
-    fireEvent.press(button('Text-Badge'));
+    await render(<StickerCreatorScreen locale="de-DE" returnTo={null} />);
+    await fireEvent.press(button('Text-Badge'));
     expect(await screen.findByText('Der Badge konnte nicht erstellt werden.')).toBeTruthy();
     isDisabled('Weiter');
   });

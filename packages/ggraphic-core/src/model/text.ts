@@ -2,6 +2,7 @@
 /**
  * Text auf der Seite: der freie Text (`additionalTexts`) und wie seine Läufe aussehen.
  */
+import { type ElementBind } from './bind.js';
 import { type GradientFill } from './fill.js';
 
 /** Ausrichtung eines Textes in seiner Box; ohne Angabe links. */
@@ -47,6 +48,8 @@ export interface AdditionalText {
   width: number;
   fontSize: number;
   fontFamily: string;
+  /** Die Marken-Rolle, aus der `fontFamily` stammt; fehlt bei Texten, die jemand frei gesetzt hat. */
+  bind?: ElementBind;
   fontStyle?: 'normal' | 'italic' | 'bold' | 'bold italic';
   fill: string;
   rotation?: number;

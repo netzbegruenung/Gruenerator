@@ -75,39 +75,39 @@ beforeEach(() => {
 });
 
 describe('SharepicVariantCard', () => {
-  it('shows no buttons under the picture any more', () => {
+  it('shows no buttons under the picture any more', async () => {
     preview('ready');
-    render(<SharepicVariantCard data={data()} theme={lightTheme} />);
+    await render(<SharepicVariantCard data={data()} theme={lightTheme} />);
     expect(screen.queryByText('Teilen')).toBeNull();
     expect(screen.queryByText('Im Studio öffnen')).toBeNull();
   });
 
-  it('opens the actions as a sheet on a long press, with a haptic', () => {
+  it('opens the actions as a sheet on a long press, with a haptic', async () => {
     preview('ready');
-    render(<SharepicVariantCard data={data()} theme={lightTheme} />);
-    fireEvent(sharepic(), 'longPress');
+    await render(<SharepicVariantCard data={data()} theme={lightTheme} />);
+    await fireEvent(sharepic(), 'longPress');
 
     expect(Haptics.impactAsync).toHaveBeenCalledTimes(1);
-    fireEvent.press(screen.getByText('Teilen'));
+    await fireEvent.press(screen.getByText('Teilen'));
     expect(shareBase64Image).toHaveBeenCalledWith(IMAGE, 'Sharepic teilen');
   });
 
   it('saves from the sheet', async () => {
     preview('ready');
-    render(<SharepicVariantCard data={data()} theme={lightTheme} />);
-    fireEvent(sharepic(), 'longPress');
-    fireEvent.press(screen.getByText('In Galerie speichern'));
+    await render(<SharepicVariantCard data={data()} theme={lightTheme} />);
+    await fireEvent(sharepic(), 'longPress');
+    await fireEvent.press(screen.getByText('In Galerie speichern'));
     await settle();
     expect(saveImageToGallery).toHaveBeenCalledWith(IMAGE);
   });
 
   it('opens the picture full screen on a tap, with the same actions in its toolbar', async () => {
     preview('ready');
-    render(<SharepicVariantCard data={data()} theme={lightTheme} />);
-    fireEvent.press(sharepic());
+    await render(<SharepicVariantCard data={data()} theme={lightTheme} />);
+    await fireEvent.press(sharepic());
 
     expect(screen.getByLabelText('Vollbildansicht schließen')).toBeTruthy();
-    fireEvent.press(screen.getByText('Im Studio bearbeiten'));
+    await fireEvent.press(screen.getByText('Im Studio bearbeiten'));
     await settle();
     expect(router.push).toHaveBeenCalledWith({
       pathname: '/(fullscreen)/web-viewer',
@@ -117,25 +117,25 @@ describe('SharepicVariantCard', () => {
 
   it('goes straight to the studio on a tap when there is no picture', async () => {
     preview('unavailable');
-    render(<SharepicVariantCard data={data()} theme={lightTheme} />);
-    fireEvent.press(sharepic());
+    await render(<SharepicVariantCard data={data()} theme={lightTheme} />);
+    await fireEvent.press(sharepic());
     await settle();
     expect(router.push).toHaveBeenCalledTimes(1);
   });
 
   it('still opens the studio on a tap while a sharepic with a canvas is redrawn', async () => {
     preview('rendering');
-    render(<SharepicVariantCard data={data('canvas-1')} theme={lightTheme} />);
-    fireEvent.press(sharepic());
+    await render(<SharepicVariantCard data={data('canvas-1')} theme={lightTheme} />);
+    await fireEvent.press(sharepic());
     await settle();
     expect(router.push).toHaveBeenCalledTimes(1);
   });
 
-  it('does nothing while a new sharepic is first drawn', () => {
+  it('does nothing while a new sharepic is first drawn', async () => {
     preview('rendering');
-    render(<SharepicVariantCard data={data(null)} theme={lightTheme} />);
-    fireEvent.press(sharepic());
-    fireEvent(sharepic(), 'longPress');
+    await render(<SharepicVariantCard data={data(null)} theme={lightTheme} />);
+    await fireEvent.press(sharepic());
+    await fireEvent(sharepic(), 'longPress');
 
     expect(router.push).not.toHaveBeenCalled();
     expect(Haptics.impactAsync).not.toHaveBeenCalled();
@@ -144,14 +144,14 @@ describe('SharepicVariantCard', () => {
 
   it('offers the actions to screen readers, which cannot rely on a long press', async () => {
     preview('ready');
-    render(<SharepicVariantCard data={data()} theme={lightTheme} />);
+    await render(<SharepicVariantCard data={data()} theme={lightTheme} />);
     expect(sharepic().props.accessibilityActions).toEqual([
       { name: 'share', label: 'Teilen' },
       { name: 'save', label: 'In Galerie speichern' },
       { name: 'open-studio', label: 'Im Studio bearbeiten' },
     ]);
 
-    fireEvent(sharepic(), 'accessibilityAction', { nativeEvent: { actionName: 'save' } });
+    await fireEvent(sharepic(), 'accessibilityAction', { nativeEvent: { actionName: 'save' } });
     await settle();
     expect(saveImageToGallery).toHaveBeenCalledWith(IMAGE);
   });

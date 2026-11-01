@@ -29,11 +29,11 @@ jest.mock('@gruenerator/chat', () => ({
   ],
 }));
 
-const renderCard = (
+const renderCard = async (
   respondToApproval: jest.Mock = jest.fn(),
   approval: { id: string; approved?: boolean; optionId?: string } = { id: 'call-1' }
 ) => {
-  render(
+  await render(
     <ToolApprovalCard
       toolName="mcp__drive__share_file"
       args={{ path: '/Plan.pdf' }}
@@ -48,8 +48,8 @@ const renderCard = (
 };
 
 describe('ToolApprovalCard', () => {
-  it('shows the service warning, all decisions, and expandable arguments', () => {
-    renderCard();
+  it('shows the service warning, all decisions, and expandable arguments', async () => {
+    await renderCard();
 
     expect(screen.getByText('Datei teilen ausführen?')).toBeTruthy();
     expect(screen.getByText(/Google Drive ist ein verbundener Dienst/)).toBeTruthy();
@@ -57,7 +57,7 @@ describe('ToolApprovalCard', () => {
     expect(screen.getByText('Immer erlauben')).toBeTruthy();
     expect(screen.getByText('Ablehnen')).toBeTruthy();
 
-    fireEvent.press(screen.getByLabelText('Übergabewerte anzeigen'));
+    await fireEvent.press(screen.getByLabelText('Übergabewerte anzeigen'));
     expect(screen.getByText(/Plan\.pdf/)).toBeTruthy();
   });
 
@@ -66,25 +66,25 @@ describe('ToolApprovalCard', () => {
     { label: 'Immer erlauben', approved: true, optionId: 'allow-always' },
   ] as const)(
     'submits $label through the assistant-ui approval callback',
-    ({ label, approved, optionId }) => {
-      const respond = renderCard();
+    async ({ label, approved, optionId }) => {
+      const respond = await renderCard();
 
-      fireEvent.press(screen.getByText(label));
+      await fireEvent.press(screen.getByText(label));
 
       expect(respond).toHaveBeenCalledWith({ approved, optionId });
     }
   );
 
-  it('asks for an optional reason before rejecting and passes it on', () => {
-    const respond = renderCard();
+  it('asks for an optional reason before rejecting and passes it on', async () => {
+    const respond = await renderCard();
 
-    fireEvent.press(screen.getByText('Ablehnen'));
+    await fireEvent.press(screen.getByText('Ablehnen'));
     expect(respond).not.toHaveBeenCalled();
-    fireEvent.changeText(
+    await fireEvent.changeText(
       screen.getByLabelText('Begründung für die Ablehnung'),
       '  Lieber nur einen Entwurf  '
     );
-    fireEvent.press(screen.getByLabelText('Ablehnen'));
+    await fireEvent.press(screen.getByLabelText('Ablehnen'));
 
     expect(respond).toHaveBeenCalledWith({
       approved: false,
@@ -93,17 +93,17 @@ describe('ToolApprovalCard', () => {
     });
   });
 
-  it('rejects without a reason when the field stays empty', () => {
-    const respond = renderCard();
+  it('rejects without a reason when the field stays empty', async () => {
+    const respond = await renderCard();
 
-    fireEvent.press(screen.getByText('Ablehnen'));
-    fireEvent.press(screen.getByLabelText('Ablehnen'));
+    await fireEvent.press(screen.getByText('Ablehnen'));
+    await fireEvent.press(screen.getByLabelText('Ablehnen'));
 
     expect(respond).toHaveBeenCalledWith({ approved: false, optionId: 'reject-once' });
   });
 
-  it('renders a terminal badge instead of controls after a decision', () => {
-    renderCard(jest.fn(), { id: 'call-1', approved: true, optionId: 'allow-always' });
+  it('renders a terminal badge instead of controls after a decision', async () => {
+    await renderCard(jest.fn(), { id: 'call-1', approved: true, optionId: 'allow-always' });
 
     expect(screen.getByText('Immer erlaubt')).toBeTruthy();
     expect(screen.queryByText('Einmal erlauben')).toBeNull();

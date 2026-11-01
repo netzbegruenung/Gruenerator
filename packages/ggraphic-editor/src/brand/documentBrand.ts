@@ -1,9 +1,12 @@
 // SPDX-License-Identifier: MPL-2.0
 /**
  * The brand of the document that is open, for the panels that offer defaults
- * (swatches, effect presets, text tiles). The shell provides the active page's
- * `FullCanvasConfig.brand`; where nothing is provided, or the page names no
- * pack, a panel falls back to the active brand (`activeBrand()`).
+ * (swatches, effect presets, text tiles) and for the canvas that draws one (the
+ * marker of a text without a marker style). The shell provides the active
+ * page's `FullCanvasConfig.brand`, and `GenericCanvas` provides its own page's
+ * to its tree, so an embedded or offscreen canvas has it too; where nothing is
+ * provided, or the page names no pack, a reader falls back to the active brand
+ * (`activeBrand()`).
  *
  * Code without React context takes the brand as a parameter instead: the
  * action factories get it from the config.
