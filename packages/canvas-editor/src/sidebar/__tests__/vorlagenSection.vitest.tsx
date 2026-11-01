@@ -594,7 +594,7 @@ describe('VorlagenSection on a print design', () => {
     expect(defaultCanvasEditorStore.getState().pendingAiSuggestion).toEqual({
       title: 'Typo-Plakat A3',
       undo: 'pages',
-      source: 'vorlage',
+      source: 'template',
     });
   });
 
