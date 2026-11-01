@@ -1,7 +1,13 @@
 import { SHAREPIC_FORMS, type SharepicSpec } from '@gruenerator/contracts';
 import { describe, expect, it } from 'vitest';
 
-import { formMismatch, namedSharepicForm, wantsOneSlide } from './forms.js';
+import {
+  formHasMaterial,
+  formMismatch,
+  missingMaterial,
+  namedSharepicForm,
+  wantsOneSlide,
+} from './forms.js';
 
 describe('SHAREPIC_FORMS stichworte', () => {
   // The hints the Vorlagen gallery shows must be words the matcher really takes.
@@ -125,5 +131,68 @@ describe('formMismatch', () => {
     expect(formMismatch('vorstellung', { locale: 'de-DE', slides: [headline] }, false)).toContain(
       '"type":"steckbrief"'
     );
+  });
+
+  // Live 01.11.2026: „Andere Variante als Faktenbild" kam als Szene mit einer
+  // Headline ohne jede Zahl zurück.
+  it('wants a number on a Faktenbild scene', () => {
+    const spec = (s: ReturnType<typeof slide>) => ({ locale: 'de-DE' as const, slides: [s] });
+    expect(formMismatch('faktenbild', spec(headline), false)).toContain('"kind":"szene"');
+    expect(formMismatch('faktenbild', spec(headline), true)).toContain('gehört die Zahl');
+    expect(
+      formMismatch(
+        'faktenbild',
+        spec(slide([{ type: 'headline', lines: ['38 % weniger', 'Insekten'] }])),
+        true
+      )
+    ).toBeNull();
+    expect(
+      formMismatch(
+        'faktenbild',
+        spec(
+          slide([
+            { type: 'headline', lines: ['Busse statt Stau'] },
+            { type: 'diagramm', art: 'balken', werte: [] } as never,
+          ])
+        ),
+        true
+      )
+    ).toBeNull();
+  });
+});
+
+describe('formHasMaterial', () => {
+  const ARTENSCHUTZ = 'Zeit für mehr Artenschutz jetzt! Wir müssen unsere Biodiversität retten.';
+
+  it('drops forms whose block the brief cannot fill', () => {
+    expect(formHasMaterial('diagramm', ARTENSCHUTZ)).toBe(false);
+    expect(formHasMaterial('rechnung', ARTENSCHUTZ)).toBe(false);
+    expect(formHasMaterial('zitat', ARTENSCHUTZ)).toBe(false);
+    expect(formHasMaterial('termine', ARTENSCHUTZ)).toBe(false);
+  });
+
+  it('keeps forms that work without numbers, people or dates', () => {
+    for (const form of ['einzelbild', 'karussell', 'zahl', 'faktenbild', 'vergleich'] as const) {
+      expect(formHasMaterial(form, ARTENSCHUTZ)).toBe(true);
+    }
+  });
+
+  it('names what a named form still needs', () => {
+    expect(missingMaterial('diagramm', ARTENSCHUTZ)).toBe(
+      'mindestens zwei Zahlen, am besten mit Quelle'
+    );
+    expect(missingMaterial('termine', ARTENSCHUTZ)).toBe('mindestens zwei Termine mit Datum');
+    // A speaker is only guessed: a named quote is still tried.
+    expect(missingMaterial('zitat', ARTENSCHUTZ)).toBeNull();
+    expect(missingMaterial('einzelbild', ARTENSCHUTZ)).toBeNull();
+    expect(missingMaterial('diagramm', 'Solar 2020: 12 %, 2025: 31 %')).toBeNull();
+  });
+
+  it('keeps them once the brief brings the material', () => {
+    expect(formHasMaterial('diagramm', 'Solar 2020: 12 %, 2025: 31 %')).toBe(true);
+    expect(formHasMaterial('zitat', 'Zitat von Lena Grün: „Busse statt Stau für alle“')).toBe(true);
+    expect(
+      formHasMaterial('termine', 'Aktionstage am 12.05. in Kiel und am 19.05. in Lübeck')
+    ).toBe(true);
   });
 });

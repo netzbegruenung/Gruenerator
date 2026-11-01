@@ -45,7 +45,9 @@ export type DraftFailure =
   /** Every provider of the chain failed. */
   | { kind: 'provider' }
   /** The request's form could not be built from it. */
-  | { kind: 'form'; form: SharepicFormId };
+  | { kind: 'form'; form: SharepicFormId; ask?: string }
+  /** The named form needs material the request does not bring; `ask` names it. */
+  | { kind: 'material'; form: SharepicFormId; ask: string };
 
 export class DraftFailedError extends Error {
   /** The content limit the last attempt broke, when it was one the person can be told. */
@@ -74,7 +76,11 @@ function failureText(failure: DraftFailure): string | null {
     case 'provider':
       return `Der KI-Dienst war gerade nicht erreichbar. ${TRY_AGAIN}`;
     case 'form':
-      return `Als ${sharepicFormLabel(failure.form)} ließ sich der Auftrag nicht umsetzen. Wähl eine andere Form oder ergänze, was dafür fehlt.`;
+      return failure.ask
+        ? `Als ${sharepicFormLabel(failure.form)} ließ sich der Auftrag nicht umsetzen – dafür brauche ich ${failure.ask}. Schreib mir das dazu, oder wähl eine andere Form.`
+        : `Als ${sharepicFormLabel(failure.form)} ließ sich der Auftrag nicht umsetzen. Wähl eine andere Form oder ergänze, was dafür fehlt.`;
+    case 'material':
+      return `Für die Form „${sharepicFormLabel(failure.form)}“ brauche ich ${failure.ask}. Schreib mir das dazu, oder wähl eine andere Form.`;
     case 'content':
       return null;
   }

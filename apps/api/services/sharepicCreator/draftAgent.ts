@@ -50,7 +50,16 @@ import {
   specSchemaGjDe,
 } from './draftSchemas.js';
 import { fromZod, validateDraft } from './draftValidation.js';
-import { alsoCarousel, FORM_RECIPES, formCatalog, formMismatch } from './forms.js';
+import {
+  ALTERNATIVES_NEED_MATERIAL,
+  alsoCarousel,
+  FORM_RECIPES,
+  formCatalog,
+  formHasMaterial,
+  formMismatch,
+  materialAsk,
+  missingMaterial,
+} from './forms.js';
 import { hasOwnPhoto, OWN_PHOTO_RULE, ownPhotoGuard, photoRequestTexts } from './ownPhoto.js';
 import {
   paletteHint,
@@ -141,6 +150,17 @@ export async function draftSharepic(
    */
   brand: SharepicBrand | null = null
 ): Promise<SharepicDraftResponse> {
+  // The brief as validation reads it: a revision's draft counts as given.
+  const given = current ? `${prompt}\n${JSON.stringify(current)}` : prompt;
+  // A named form whose material is missing would fail every attempt: ask for it instead.
+  const ask = named ? missingMaterial(named, given) : null;
+  if (named && ask) {
+    throw new DraftFailedError(`${named}: Material fehlt (${ask})`, {
+      kind: 'material',
+      form: named,
+      ask,
+    });
+  }
   const fixed = current?.locale ?? null;
   const design = current ? (current.brand ?? null) : brand;
   const single = oneSlide && !current;
@@ -159,7 +179,7 @@ export async function draftSharepic(
     lane: 'sharepic_creator',
     pinned: PINNED,
     system: systemPrompt(fixed ?? defaultLocale, design),
-    prompt: `${task}${ownPhotos.length ? `\n\n${ownPhotosText(ownPhotos)}` : ''}\n\n${countryHint}\n\n## Formen\n${formCatalog()}\n\n${named ? `Die Form steht fest: \`${named}\`. Nenne als alternativen zwei andere, die auch passen würden.` : `Wähle die Form, die den Inhalt am besten trägt, und zwei andere als alternativen.${single ? ' Der Auftrag will ein einzelnes Bild: wähle eine Form mit genau einer Slide, kein Karussell und kein Interview.' : ''}`}\n\nBevor du baust: Welche Form, für welches Land, welche Beispiele und Kapitel brauchst du, und wonach soll gesucht werden?`,
+    prompt: `${task}${ownPhotos.length ? `\n\n${ownPhotosText(ownPhotos)}` : ''}\n\n${countryHint}\n\n## Formen\n${formCatalog()}\n\n${named ? `Die Form steht fest: \`${named}\`. Nenne als alternativen zwei andere, die auch passen würden.` : `Wähle die Form, die den Inhalt am besten trägt, und zwei andere als alternativen.${single ? ' Der Auftrag will ein einzelnes Bild: wähle eine Form mit genau einer Slide, kein Karussell und kein Interview.' : ''}`} ${ALTERNATIVES_NEED_MATERIAL}\n\nBevor du baust: Welche Form, für welches Land, welche Beispiele und Kapitel brauchst du, und wonach soll gesucht werden?`,
     toolName: 'bedarf_melden',
     toolDescription:
       'Melde Form, Alternativen, Land, passende Beispiele, Kapitel und die Suchbegriffe für ein Foto.',
@@ -176,7 +196,10 @@ export async function draftSharepic(
   const picked = named ?? needs.data.form;
   const chosen =
     single && (picked === 'karussell' || picked === 'interview') ? 'einzelbild' : picked;
-  const alternativen = [...new Set(needs.data.alternativen)].filter((f) => f !== chosen);
+  // A chip whose form the brief cannot fill would only fail on every attempt.
+  const alternativen = [...new Set(needs.data.alternativen)].filter(
+    (f) => f !== chosen && formHasMaterial(f, given)
+  );
   // A revision keeps its form unless the request names one.
   const form = current ? named : chosen;
   const recipe = form ? FORM_RECIPES[form] : null;
@@ -276,7 +299,7 @@ export async function draftSharepic(
       const checked = validateDraft(
         taken.input,
         locale,
-        current ? `${prompt}\n${JSON.stringify(current)}` : prompt,
+        given,
         [...ownPhotos.map((p) => p.id), ...keptUploads],
         taken.scene ? [SCENE_PENDING, ...keptScenes] : keptScenes,
         order,
@@ -293,7 +316,10 @@ export async function draftSharepic(
         carouselToo && formMismatch('karussell', checked.value, taken.scene !== null);
       const mismatch = notSingle || formWrong || carouselWrong;
       if (mismatch) {
-        failure = { kind: 'form', form: notSingle || formWrong ? form! : 'karussell' };
+        const failed = notSingle || formWrong ? form! : 'karussell';
+        // Named only when the brief lacks it: a quote can fail with its speaker given.
+        const ask = formHasMaterial(failed, given) ? null : materialAsk(failed);
+        failure = { kind: 'form', form: failed, ...(ask && { ask }) };
         return { ok: false, error: `Der Auftrag ist ein Sharepic der Form ${mismatch}` };
       }
       // A new carousel holds one look; the last attempt passes rather than fail the draft.
