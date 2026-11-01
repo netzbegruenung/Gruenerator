@@ -106,9 +106,9 @@ default registry (`documentMigrations`) ships with **no** steps, so
   up, before the first render). A load before that treats the kind's list as
   opaque: it is neither lifted nor refused.
 
-### Reader first (Grünerator copy, #5212)
+### Reader first (host copy, #5212)
 
-Deliberate exception to the freeze of the Grünerator's `ggraphic-*` copies.
+Deliberate exception to the freeze of the host's `ggraphic-*` copies.
 Upstream ggraphic is at core version 3; its steps 1→2 and 2→3 are identity
 steps (additive: pages pass through untouched). This copy reads up to 3 but
 keeps **writing 1**:

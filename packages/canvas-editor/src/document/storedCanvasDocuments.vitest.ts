@@ -104,7 +104,7 @@ describe('stored Grünerator canvas documents', () => {
   });
 
   it.each([2, 3])('opens a stored version %i document editable and unchanged', (version) => {
-    const raw = { ...JSON.parse(CORPUS[0]![1]), schemaVersion: version };
+    const raw = { ...(JSON.parse(CORPUS[0]![1]) as { pages: unknown[] }), schemaVersion: version };
     const result = migrateDocument(raw);
     expect(result.status).toBe('current');
     const read = readInitialDocument(raw);
