@@ -72,7 +72,7 @@
     "./components/kindRenderers": "./src/components/kindRenderers.tsx",
     "./components/markColor": "./src/components/markColor.ts",
     "./components/markerMark": "./src/components/markerMark.ts",
-    "./components/MobileSelectionPill": "./src/components/MobileSelectionPill.tsx",
+    "./components/SelectionPill": "./src/components/SelectionPill.tsx",
     "./components/MultiSelectionTransformer": "./src/components/MultiSelectionTransformer.tsx",
     "./components/PageThumbnailStrip": "./src/components/PageThumbnailStrip.tsx",
     "./components/PageToolbar": "./src/components/PageToolbar.tsx",

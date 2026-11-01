@@ -1,14 +1,14 @@
+import { ContextControls } from '@ggraphic/editor/components/TopBar/ContextControls';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 
-import { ContextControls } from '@ggraphic/editor/components/TopBar/ContextControls';
-
 import type { FloatingModuleState } from '@ggraphic/editor/hooks/useFloatingModuleState';
 
 /**
- * Löschen und Sperren in der Desktop-Leiste. Ein Element zu löschen ging am
- * Desktop nur mit Entf; der Mülleimer daneben löschte die ganze Seite.
+ * Sperren in den Auswahl-Steuerungen (mobil im Auswahl-Block des Sheets). Am
+ * Desktop sperrt die Pille am Objekt, Löschen steht ebenfalls dort
+ * (`selectionPill.vitest.tsx`).
  */
 
 const HANDLERS = {
@@ -33,45 +33,12 @@ function renderBar(overrides: Partial<React.ComponentProps<typeof ContextControl
       canMoveUp={false}
       canMoveDown={false}
       canDuplicate
-      canDelete
       canLock
-      onDeleteElement={() => {}}
       handlers={HANDLERS}
       {...overrides}
     />
   );
 }
-
-const deleteButton = () => screen.getByRole('button', { name: /^Löschen/ });
-
-describe('Löschen-Knopf', () => {
-  it('löscht das Element und nennt das Kürzel', async () => {
-    const onDeleteElement = vi.fn();
-    renderBar({ onDeleteElement });
-    expect(deleteButton()).toHaveAccessibleName(/^Löschen \((Entf|⌫)\)$/);
-    await userEvent.click(deleteButton());
-    expect(onDeleteElement).toHaveBeenCalledTimes(1);
-  });
-
-  it('bleibt bei einem Vorlagen-Element sichtbar, aber aus', () => {
-    renderBar({ canDelete: false });
-    expect(deleteButton()).toBeDisabled();
-    expect(deleteButton()).toHaveAttribute(
-      'title',
-      'Dieses Element gehört zur Vorlage und lässt sich nicht löschen'
-    );
-  });
-
-  it('sagt bei einem gesperrten Element, warum es nicht geht', () => {
-    renderBar({ canDelete: false, lockState: 'all' });
-    expect(deleteButton()).toHaveAttribute('title', 'Gesperrt — zum Löschen erst entsperren');
-  });
-
-  it('fehlt, wo die Leiste ihn nicht mitbekommt (mobil liegt Löschen in der Pille)', () => {
-    renderBar({ onDeleteElement: undefined });
-    expect(screen.queryByRole('button', { name: /^Löschen/ })).toBeNull();
-  });
-});
 
 describe('Sperren-Knopf', () => {
   it('schaltet die Sperre und zeigt, ob sie gilt', async () => {

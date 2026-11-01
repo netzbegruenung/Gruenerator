@@ -1,28 +1,9 @@
 // SPDX-License-Identifier: MPL-2.0
+import React, { useState } from 'react';
+import { PiCopy, PiLockSimple, PiLockSimpleOpen } from 'react-icons/pi';
+
 import { useCanvasEditorServices } from '@ggraphic/editor/CanvasEditorProvider';
 import { useCanvasTextFormatting } from '@ggraphic/editor/components/CanvasTextOverlay';
-import { type BackgroundControls } from '@ggraphic/editor/configs/types';
-import { type ShadowPatch } from '@ggraphic/editor/hooks/useFloatingModuleHandlers';
-import { type FloatingModuleState } from '@ggraphic/editor/hooks/useFloatingModuleState';
-import { useMessages } from '@ggraphic/editor/i18n/messages';
-import { useOptionalUserUploads } from '@ggraphic/editor/sidebar/UserUploadsProvider';
-import {
-  formatShortcut,
-  isMacPlatform,
-  shortcutOf,
-} from '@ggraphic/editor/utils/canvasCommandRegistry';
-import { type SelectionGeometry } from '@ggraphic/editor/utils/canvasCommands';
-import { brandColors, fontColors } from '@ggraphic/editor/utils/colorOptions';
-import { type CropAspectId } from '@ggraphic/editor/utils/cropAspect';
-import { focusPage, isKeyboardModality } from '@ggraphic/editor/utils/editorFocus';
-import { type GradientFill } from '@ggraphic/editor/utils/gradientFill';
-import { type LockState } from '@ggraphic/editor/utils/layerLock';
-import { STROKE_ONLY_SHAPES } from '@ggraphic/editor/utils/shapes';
-import { useUnsplashHome } from '@ggraphic/editor/utils/unsplashLinks';
-import { type TextAlign } from '@ggraphic/editor/utils/textAlign';
-import React, { useState } from 'react';
-import { PiCopy, PiLockSimple, PiLockSimpleOpen, PiTrash } from 'react-icons/pi';
-
 import { CropModeControls } from '@ggraphic/editor/components/TopBar/CropModeControls';
 import {
   BackgroundImagePicker,
@@ -36,12 +17,29 @@ import { FloatingFontSizeControl } from '@ggraphic/editor/components/TopBar/modu
 import { FloatingGradientControl } from '@ggraphic/editor/components/TopBar/modules/FloatingGradientControl';
 import { FloatingLayerControls } from '@ggraphic/editor/components/TopBar/modules/FloatingLayerControls';
 import { FloatingOpacityControl } from '@ggraphic/editor/components/TopBar/modules/FloatingOpacityControl';
-import { FloatingOutlineControl } from './modules/FloatingOutlineControl.js';
 import {
   FloatingPositionControl,
   type PositionCommandId,
 } from '@ggraphic/editor/components/TopBar/modules/FloatingPositionControl';
+import { type BackgroundControls } from '@ggraphic/editor/configs/types';
+import { type ShadowPatch } from '@ggraphic/editor/hooks/useFloatingModuleHandlers';
+import { type FloatingModuleState } from '@ggraphic/editor/hooks/useFloatingModuleState';
+import { useMessages } from '@ggraphic/editor/i18n/messages';
+import { useOptionalUserUploads } from '@ggraphic/editor/sidebar/UserUploadsProvider';
+import { type SelectionGeometry } from '@ggraphic/editor/utils/canvasCommands';
+import { brandColors, fontColors } from '@ggraphic/editor/utils/colorOptions';
+import { type CropAspectId } from '@ggraphic/editor/utils/cropAspect';
+import { focusPage, isKeyboardModality } from '@ggraphic/editor/utils/editorFocus';
+import { type GradientFill } from '@ggraphic/editor/utils/gradientFill';
+import { type LockState } from '@ggraphic/editor/utils/layerLock';
+import { STROKE_ONLY_SHAPES } from '@ggraphic/editor/utils/shapes';
+import { useUnsplashHome } from '@ggraphic/editor/utils/unsplashLinks';
+import { type TextAlign } from '@ggraphic/editor/utils/textAlign';
+
+import { FloatingOutlineControl } from './modules/FloatingOutlineControl.js';
+
 import { FloatingShadowControl } from './modules/FloatingShadowControl.js';
+
 import { FloatingTextAlignControl } from '@ggraphic/editor/components/TopBar/modules/FloatingTextAlignControl';
 
 export interface ContextControlsProps {
@@ -101,18 +99,23 @@ export interface ContextControlsProps {
   background?: BackgroundControls | null;
   /** Removes one own image by id — not "the selection", which can change meanwhile. */
   onRemoveUserImage?: (id: string) => void;
-  /** Löscht die Auswahl — nur die Desktop-Leiste gibt es mit; mobil liegt Löschen in der Pille. */
-  onDeleteElement?: () => void;
-  /** Vorlagen-Elemente und gesperrte lassen sich nicht löschen. */
-  canDelete?: boolean;
   /** Mobil, im „Auswahl“-Block des Sheets: die Seite löschen. */
   onDeletePage?: () => void;
   /** Clears the element selection. Escape does the same, but is invisible. */
   onDeselect?: () => void;
-  /** Mobil: Duplizieren, Löschen und Abwählen liegen in Pille und ✓, nicht hier. */
+  /** Duplizieren, Sperren und Abwählen liegen in der Pille (`SelectionPill`), nicht hier. */
   hideObjectActions?: boolean;
   /** Anordnung der Zuschneide-Leiste; mobil mit eigener Begradigen-Zeile und festen Ausgängen. */
   cropLayout?: 'inline' | 'mobile';
+}
+
+/**
+ * Ist die Auswahl ein Objekt auf der Seite? Fläche und Hintergrundfoto sind es
+ * nicht: kein Duplizieren, keine Ebene, keine Pille.
+ */
+export function hasObjectActions(module: FloatingModuleState | null): boolean {
+  if (module?.type === 'background') return false;
+  return !(module?.type === 'image' && !!module.data.isPhoto);
 }
 
 /** Läuft ein Zuschneide-Modus, zeigt die Leiste nur ihn (`CropModeControls`). */
@@ -125,9 +128,6 @@ export function showsCropModeBar({
 
 const ICON_BTN =
   'inline-flex items-center justify-center size-8 max-canvas-mobile:size-11 shrink-0 rounded-md border-none bg-transparent cursor-pointer text-[var(--editor-text)] transition-colors duration-150 hover:bg-[var(--editor-surface-hover)] hover:text-[var(--editor-active-fg)] disabled:opacity-30 disabled:cursor-not-allowed';
-
-const DANGER_BTN =
-  'inline-flex items-center justify-center size-8 max-canvas-mobile:size-11 shrink-0 rounded-md border-none bg-transparent cursor-pointer text-[var(--editor-text)] transition-colors duration-150 hover:bg-[var(--editor-danger-bg)] hover:text-[var(--editor-danger-fg)] disabled:opacity-30 disabled:cursor-not-allowed';
 
 const CROP_BTN =
   'inline-flex items-center gap-1.5 h-8 max-canvas-mobile:h-11 shrink-0 rounded-md border-none bg-transparent px-2 cursor-pointer text-[13px] font-medium text-[var(--editor-text)] transition-colors duration-150 hover:bg-[var(--editor-surface-hover)] hover:text-[var(--editor-active-fg)] aria-pressed:bg-[var(--editor-active-bg)] aria-pressed:text-[var(--editor-active-fg)]';
@@ -158,8 +158,6 @@ export function ContextControls({
   handlers,
   background,
   onRemoveUserImage,
-  onDeleteElement,
-  canDelete = false,
   onDeletePage,
   onDeselect,
   hideObjectActions = false,
@@ -229,7 +227,7 @@ export function ContextControls({
   // The background is not an object on the page: no opacity, layer order or copy.
   // Frame elements expose no formatting controls (matches prior Toolbar behavior).
   const showOpacity = activeFloatingModule && activeFloatingModule.type !== 'frame' && !isPlane;
-  const showObjectActions = !isPlane && !isPhoto;
+  const showObjectActions = hasObjectActions(activeFloatingModule);
   const isText = activeFloatingModule?.type === 'text';
   const isLocked = lockState === 'all';
 
@@ -618,25 +616,6 @@ export function ContextControls({
         type="button"
       >
         {isLocked ? <PiLockSimple size={18} /> : <PiLockSimpleOpen size={18} />}
-      </button>
-    );
-  }
-
-  if (selectedElement && showObjectActions && !hideObjectActions && onDeleteElement) {
-    const label = t.topBar.deleteWithShortcut(
-      formatShortcut(shortcutOf('delete')!, isMacPlatform())
-    );
-    groups.push(
-      <button
-        key="delete-element"
-        className={DANGER_BTN}
-        onClick={onDeleteElement}
-        disabled={!canDelete}
-        title={canDelete ? label : isLocked ? t.topBar.lockedNoDelete : t.topBar.templateNoDelete}
-        aria-label={label}
-        type="button"
-      >
-        <PiTrash size={18} />
       </button>
     );
   }

@@ -1,16 +1,18 @@
 // SPDX-License-Identifier: MPL-2.0
-import { useCanvasStoreSelector } from '@ggraphic/editor/stores/CanvasStoreProvider';
 import React from 'react';
 
 import {
   ContextControls,
   type ContextControlsProps,
 } from '@ggraphic/editor/components/TopBar/ContextControls';
+import { useCanvasStoreSelector } from '@ggraphic/editor/stores/CanvasStoreProvider';
 
 /**
  * ContextToolbar — desktop floating formatting card, centered over the canvas
  * work area. Wraps the shared ContextControls in the Canva-style surface card.
  * Hidden while an AI suggestion is pending (the menu bar shows the banner then).
+ * It only shapes the selection: what acts on the object as a whole sits in the
+ * pill on the object (`SelectionPill`).
  */
 export function ContextToolbar(props: ContextControlsProps) {
   const hasPendingAiSuggestion = useCanvasStoreSelector((s) => s.pendingAiSuggestion !== null);
@@ -18,7 +20,7 @@ export function ContextToolbar(props: ContextControlsProps) {
 
   return (
     <ContextCard>
-      <ContextControls {...props} />
+      <ContextControls {...props} hideObjectActions />
     </ContextCard>
   );
 }

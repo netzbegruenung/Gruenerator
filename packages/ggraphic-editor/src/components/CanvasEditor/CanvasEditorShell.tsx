@@ -27,14 +27,6 @@
  * - useToolbarHandlers     — bundled toolbar actions for the active page
  */
 
-import { browserFileDelivery } from '@ggraphic/editor/hostServices';
-import { UserUploadsProvider } from '@ggraphic/editor/sidebar/UserUploadsProvider';
-import { useCanvasStoreSelector } from '@ggraphic/editor/stores/CanvasStoreProvider';
-import { AutoSaveStoreProvider } from '@ggraphic/editor/stores/useAutoSaveStore';
-import { Skeleton } from '@ggraphic/editor/ui/skeleton';
-import { cn } from '@ggraphic/editor/utils/cn';
-import { ensureFontsReady } from '@ggraphic/editor/utils/ensureFontsReady';
-import { sameLayerEntries } from '@ggraphic/editor/utils/layerLabels';
 import Konva from 'konva';
 import React, {
   useCallback,
@@ -46,13 +38,11 @@ import React, {
   Suspense,
   startTransition,
 } from 'react';
+
 import { useCanvasEditorServices } from '@ggraphic/editor/CanvasEditorProvider';
 import { pagePersistedStateKeys } from '@ggraphic/editor/collab/pageElementStateKeys';
 import { serializeDeck } from '@ggraphic/editor/collab/pagesDoc';
 import { createPageSyncedCallbacks } from '@ggraphic/editor/collab/wrapCallbacksWithPageSync';
-
-import { useIsCanvasMobile } from '@ggraphic/editor/hooks/useIsCanvasMobile';
-import { useZoomGestures } from '@ggraphic/editor/hooks/useZoomGestures';
 import { CanvasEditorLayout } from '@ggraphic/editor/layouts/index';
 import { SidebarPanel } from '@ggraphic/editor/sidebar/SidebarPanel';
 import { SidebarTabBar } from '@ggraphic/editor/sidebar/SidebarTabBar';
@@ -68,11 +58,12 @@ import {
   CanvasTabRailSkeleton,
 } from '@ggraphic/editor/components/CanvasEditorSkeleton';
 import { CanvasMetaBar, CanvasZoomIndicator } from '@ggraphic/editor/components/CanvasMetaBar';
-import { MobileSelectionPill } from '@ggraphic/editor/components/MobileSelectionPill';
+import { SelectionPill } from '@ggraphic/editor/components/SelectionPill';
 import { PageThumbnailStrip, type PagePickerSlot } from '../PageThumbnailStrip.js';
 import { SlideNotesPanel } from '@ggraphic/editor/components/SlideNotesPanel';
 import { AddPageButton } from '../AddPageButton.js';
 import { Toolbar } from '../Toolbar.js';
+import { hasObjectActions } from '@ggraphic/editor/components/TopBar/ContextControls';
 import { ContextToolbar } from '@ggraphic/editor/components/TopBar/ContextToolbar';
 import { MobileSelectionBar } from '@ggraphic/editor/components/TopBar/MobileSelectionBar';
 import { MobileSelectionControls } from '@ggraphic/editor/components/TopBar/MobileSelectionControls';
@@ -120,7 +111,17 @@ import {
 } from '@ggraphic/editor/hooks/index';
 import { AnnouncerContext, useLiveAnnouncer } from '@ggraphic/editor/hooks/useAnnounce';
 import { useDeckAutoSave } from '@ggraphic/editor/hooks/useDeckAutoSave';
+import { useIsCanvasMobile } from '@ggraphic/editor/hooks/useIsCanvasMobile';
+import { useZoomGestures } from '@ggraphic/editor/hooks/useZoomGestures';
+import { browserFileDelivery } from '@ggraphic/editor/hostServices';
 import { useMessages } from '@ggraphic/editor/i18n/messages';
+import { UserUploadsProvider } from '@ggraphic/editor/sidebar/UserUploadsProvider';
+import { useCanvasStoreSelector } from '@ggraphic/editor/stores/CanvasStoreProvider';
+import { AutoSaveStoreProvider } from '@ggraphic/editor/stores/useAutoSaveStore';
+import { Skeleton } from '@ggraphic/editor/ui/skeleton';
+import { cn } from '@ggraphic/editor/utils/cn';
+import { ensureFontsReady } from '@ggraphic/editor/utils/ensureFontsReady';
+import { sameLayerEntries } from '@ggraphic/editor/utils/layerLabels';
 
 import { shareImageText } from '../../configs/shareSection.js';
 import {
@@ -737,7 +738,7 @@ function CanvasEditorInner({
   const requestBackgroundPicker = useCallback(() => setBackgroundPickerRequest((n) => n + 1), []);
   const openImageAdjust = useCallback(() => setActiveTab('image-adjust'), []);
   const pageIds = useMemo(() => pages.map((page) => page.id), [pages]);
-  const contextMenuRef = useCanvasContextMenu({
+  const { menuRef: contextMenuRef, openAtAnchor: openContextMenuAt } = useCanvasContextMenu({
     containerRef: pagesContainerRef,
     canvasRefsRef,
     pageDomRefsRef,
@@ -752,7 +753,7 @@ function CanvasEditorInner({
     requestBackgroundPicker,
   });
 
-  // Mobile selection pill: reads the active page's selection geometry.
+  // Selection pill: reads the active page's selection geometry.
   const getSelectionBox = useCallback(
     () => canvasRefsRef.current[currentPageIndex]?.current?.getSelectionBox?.() ?? null,
     [canvasRefsRef, currentPageIndex]
@@ -1432,29 +1433,16 @@ function CanvasEditorInner({
       onUndoPages={toolbarHandlers.undoPages}
     />
   ) : contextControlsProps && hasContextControls ? (
-    <ContextToolbar
-      {...contextControlsProps}
-      canDelete={toolbarState?.canDelete ?? false}
-      onDeleteElement={toolbarHandlers.handleDeleteElement}
-    />
+    <ContextToolbar {...contextControlsProps} />
   ) : toolbarState && toolbarState.selectionCount > 1 ? (
     // Not part of `hasContextControls`: mobile would show its selection bar.
     <MultiSelectionToolbar
       count={toolbarState.selectionCount}
-      canCopy={toolbarState.canCopy}
-      canDelete={toolbarState.canDelete}
-      lockState={toolbarState.lockState}
-      canLock={toolbarState.canLock}
       canAlign={toolbarState.canAlign}
       canDistribute={toolbarState.canDistribute}
       onCommand={toolbarHandlers.runCommand}
       canFlip={toolbarState.canFlip}
       onFlip={toolbarHandlers.handleFlip}
-      onCopy={toolbarHandlers.handleCopy}
-      onDuplicate={toolbarHandlers.handleDuplicate}
-      onToggleLock={toolbarHandlers.handleToggleLock}
-      onDelete={toolbarHandlers.handleDeleteElement}
-      onDeselect={handleDeselectAll}
     />
   ) : null;
   const mobileSelectionElement =
@@ -1478,13 +1466,26 @@ function CanvasEditorInner({
   // A multi-selection has no selection bar on phones; the pill is its only
   // door to the selection's commands.
   const isMultiSelection = (toolbarState?.selectionCount ?? 0) > 1;
+  // Desktop: what acts on the selection as a whole (lock, duplicate, delete,
+  // the context menu) sits on the object; the bar above only shapes it. The
+  // background plane and photo are not objects — they keep their bar.
+  const showDesktopPill =
+    !isMobileWeb &&
+    !isPreview &&
+    !readOnly &&
+    !hasPendingSuggestion &&
+    (isMultiSelection ||
+      (!!toolbarState?.selectedElement &&
+        hasObjectActions(toolbarState.activeFloatingModule ?? null)));
   // Im Zuschneide-Modus gelten nur Abbrechen und Fertig; die Pille würde das Restbild verdecken.
   const selectionPill =
     toolbarState &&
     !toolbarState.isCropping &&
     ((showMobileSelection && toolbarState.selectedElement) ||
-      (isMultiSelection && isMobileWeb && !isPanelOpen)) ? (
-      <MobileSelectionPill
+      (isMultiSelection && isMobileWeb && !isPanelOpen) ||
+      showDesktopPill) ? (
+      <SelectionPill
+        variant={isMobileWeb ? 'touch' : 'pointer'}
         measureKey={isMultiSelection ? toolbarState : toolbarState.activeFloatingModule}
         zoom={zoom}
         getBox={getSelectionBox}
@@ -1493,10 +1494,17 @@ function CanvasEditorInner({
         canDelete={toolbarState.canDelete ?? false}
         onDuplicate={toolbarHandlers.handleDuplicate}
         onDelete={toolbarHandlers.handleDeleteElement}
-        onMore={isMultiSelection ? undefined : openSelectionArea}
+        onMore={!isMobileWeb ? openContextMenuAt : isMultiSelection ? undefined : openSelectionArea}
         isLocked={toolbarState.lockState === 'all'}
-        onUnlock={toolbarHandlers.handleToggleLock}
-        onFlip={isMultiSelection && toolbarState.canFlip ? toolbarHandlers.handleFlip : undefined}
+        onToggleLock={
+          isMobileWeb || toolbarState.canLock ? toolbarHandlers.handleToggleLock : undefined
+        }
+        onFlip={
+          isMultiSelection && isMobileWeb && toolbarState.canFlip
+            ? toolbarHandlers.handleFlip
+            : undefined
+        }
+        isMulti={isMultiSelection}
       />
     ) : null;
 

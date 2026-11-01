@@ -1,27 +1,18 @@
+import { MultiSelectionToolbar } from '@ggraphic/editor/components/TopBar/MultiSelectionToolbar';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 
 import { axe } from '../../../test-utils';
-import { MultiSelectionToolbar } from '@ggraphic/editor/components/TopBar/MultiSelectionToolbar';
 
 function renderBar(overrides: Partial<React.ComponentProps<typeof MultiSelectionToolbar>> = {}) {
   const props = {
     count: 3,
-    canCopy: true,
-    canDelete: true,
-    lockState: 'none' as const,
-    canLock: true,
     canAlign: true,
     canDistribute: false,
     onCommand: vi.fn(),
     canFlip: true,
     onFlip: vi.fn(),
-    onCopy: vi.fn(),
-    onDuplicate: vi.fn(),
-    onToggleLock: vi.fn(),
-    onDelete: vi.fn(),
-    onDeselect: vi.fn(),
     ...overrides,
   };
   return { ...render(<MultiSelectionToolbar {...props} />), props };
@@ -40,32 +31,22 @@ describe('Leiste der Mehrfachauswahl', () => {
     expect(stops[0]).toHaveFocus();
   });
 
-  it('nennt die Zahl und bietet, was für alle gleich geht', async () => {
-    const { props } = renderBar();
+  it('nennt die Zahl, spiegelt und richtet aus', async () => {
+    const onFlip = vi.fn();
+    renderBar({ onFlip });
     expect(screen.getByRole('toolbar', { name: '3 Elemente' })).toBeInTheDocument();
-    await userEvent.click(screen.getByRole('button', { name: /^Kopieren/ }));
-    await userEvent.click(screen.getByRole('button', { name: /^Duplizieren/ }));
-    await userEvent.click(screen.getByRole('button', { name: 'Sperren' }));
-    await userEvent.click(screen.getByRole('button', { name: /^Löschen/ }));
-    await userEvent.click(screen.getByRole('button', { name: 'Auswahl aufheben (Esc)' }));
-    expect(props.onCopy).toHaveBeenCalledTimes(1);
-    expect(props.onDuplicate).toHaveBeenCalledTimes(1);
-    expect(props.onToggleLock).toHaveBeenCalledTimes(1);
-    expect(props.onDelete).toHaveBeenCalledTimes(1);
-    expect(props.onDeselect).toHaveBeenCalledTimes(1);
+    await userEvent.click(screen.getByRole('button', { name: /^Horizontal spiegeln/ }));
+    await userEvent.click(screen.getByRole('button', { name: /^Vertikal spiegeln/ }));
+    expect(onFlip.mock.calls).toEqual([['x'], ['y']]);
+    expect(screen.getByRole('button', { name: 'Position' })).toBeInTheDocument();
   });
 
-  it('zeigt eine ganz gesperrte Auswahl als gedrückten Entsperren-Knopf', () => {
-    renderBar({ lockState: 'all' });
-    expect(screen.getByRole('button', { name: 'Entsperren' })).toHaveAttribute(
-      'aria-pressed',
-      'true'
-    );
-  });
-
-  it('lässt Löschen aus, wenn nichts davon löschbar ist', () => {
-    renderBar({ canDelete: false });
-    expect(screen.getByRole('button', { name: /^Löschen/ })).toBeDisabled();
+  // Kopieren, Duplizieren, Sperren und Löschen stehen in der Pille über der Auswahl.
+  it('trägt keine Objekt-Aktionen', () => {
+    renderBar();
+    for (const name of [/^Kopieren/, /^Duplizieren/, /perren$/, /^Löschen/, /^Auswahl aufheben/]) {
+      expect(screen.queryByRole('button', { name })).toBeNull();
+    }
   });
 
   it('hat keine axe-Verstöße', async () => {
