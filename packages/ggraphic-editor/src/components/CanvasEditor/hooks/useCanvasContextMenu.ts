@@ -25,7 +25,7 @@ interface UseCanvasContextMenuParams {
   pageIds: readonly string[];
   currentPageIndex: number;
   canAddPage: boolean;
-  /** Mobil, in der Vorschau und bei offenem KI-Vorschlag: kein Menü. */
+  /** Rechtsklick und Menütaste: nicht mobil, nicht in der Vorschau, nicht bei offenem KI-Vorschlag. */
   enabled: boolean;
   duplicatePage: (id: string) => void;
   removePage: (id: string) => void;
@@ -134,7 +134,10 @@ export function useCanvasContextMenu({
     if (at) open(currentPageIndex, at, at);
   }, [canvasRefsRef, pageDomRefsRef, currentPageIndex, open]);
 
-  /** „…“ in der Pille: das Menü der Auswahl unter dem Knopf, ohne „Hier einfügen“. */
+  /**
+   * „…“ in der Pille: das Menü der Auswahl unter dem Knopf, ohne „Hier einfügen“ —
+   * mobil als Sheet (`CanvasActionSheet`), das den Punkt nicht braucht.
+   */
   const openAtAnchor = useCallback(
     (anchor: HTMLElement) => {
       const r = anchor.getBoundingClientRect();

@@ -88,7 +88,7 @@ describe('Klick auf den Hintergrund', () => {
     await click(plane(stage));
 
     expect(await screen.findByLabelText('Farbpalette öffnen')).toBeInTheDocument();
-    expect(screen.getByLabelText('Hintergrundbild: Bild')).toBeInTheDocument();
+    expect(screen.getByLabelText('Bild (Hintergrundbild)')).toBeInTheDocument();
     expect(screen.queryByTitle('Ebene nach oben')).toBeNull();
     expect(screen.queryByLabelText('Duplizieren (Strg+D)')).toBeNull();
   });

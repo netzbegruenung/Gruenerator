@@ -1,7 +1,9 @@
 // SPDX-License-Identifier: MPL-2.0
-import { useMessages } from '@ggraphic/editor/i18n/messages';
 import React from 'react';
 import { FaPlus, FaMinus } from 'react-icons/fa';
+
+import { TileCaption, useBarTiles } from '@ggraphic/editor/components/TopBar/barTiles';
+import { useMessages } from '@ggraphic/editor/i18n/messages';
 
 const fontBtn =
   'touch-target size-7 rounded-md border-none bg-transparent cursor-pointer flex items-center justify-center text-[var(--editor-text-secondary)] transition-colors duration-150 hover:enabled:bg-[var(--editor-surface-hover)] hover:enabled:text-[var(--editor-active-fg)] disabled:opacity-30 disabled:cursor-not-allowed';
@@ -16,6 +18,7 @@ export function FloatingFontSizeControl({
   onFontSizeChange,
 }: FloatingFontSizeControlProps) {
   const t = useMessages();
+  const tiles = useBarTiles();
   const handleIncrease = (e: React.MouseEvent) => {
     e.stopPropagation();
     onFontSizeChange(fontSize + 2);
@@ -26,7 +29,7 @@ export function FloatingFontSizeControl({
     onFontSizeChange(Math.max(2, fontSize - 2));
   };
 
-  return (
+  const stepper = (
     <div className="flex items-center h-[34px] shrink-0 rounded-lg border border-[var(--editor-border-strong)] px-0.5">
       <button
         className={fontBtn}
@@ -49,6 +52,13 @@ export function FloatingFontSizeControl({
       >
         <FaPlus size={10} />
       </button>
+    </div>
+  );
+  if (!tiles) return stepper;
+  return (
+    <div className="flex flex-col items-center gap-1 shrink-0">
+      {stepper}
+      <TileCaption decorative>{t.topBar.tiles.fontSize}</TileCaption>
     </div>
   );
 }

@@ -1,9 +1,8 @@
+import { MobileSelectionBar } from '@ggraphic/editor/components/TopBar/MobileSelectionBar';
 import { CanvasStoreProvider } from '@ggraphic/editor/stores/CanvasStoreProvider';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-
-import { MobileSelectionBar } from '@ggraphic/editor/components/TopBar/MobileSelectionBar';
 
 /**
  * Mobil öffnet eine Auswahl kein Sheet mehr: die untere Leiste trägt die
@@ -42,7 +41,7 @@ describe('MobileSelectionBar', () => {
   it('trägt die Formatierung, aber keine Objekt-Aktionen', () => {
     renderBar();
     expect(screen.getByRole('toolbar', { name: 'Auswahl bearbeiten' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Farbpalette öffnen' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Farbe' })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Duplizieren (Strg+D)' })).toBeNull();
     expect(screen.queryByTitle('Seite löschen')).toBeNull();
     expect(screen.queryByRole('button', { name: 'Auswahl aufheben (Esc)' })).toBeNull();

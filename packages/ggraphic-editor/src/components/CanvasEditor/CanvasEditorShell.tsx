@@ -44,17 +44,8 @@ import { pagePersistedStateKeys } from '@ggraphic/editor/collab/pageElementState
 import { serializeDeck } from '@ggraphic/editor/collab/pagesDoc';
 import { createPageSyncedCallbacks } from '@ggraphic/editor/collab/wrapCallbacksWithPageSync';
 import { CanvasAnnouncer } from '@ggraphic/editor/components/CanvasAnnouncer';
+import { CanvasActionSheet } from '@ggraphic/editor/components/CanvasContextMenu/CanvasActionSheet';
 import { CanvasContextMenu } from '@ggraphic/editor/components/CanvasContextMenu/CanvasContextMenu';
-import { CanvasMetaBar, CanvasZoomIndicator } from '@ggraphic/editor/components/CanvasMetaBar';
-import { SelectionPill } from '@ggraphic/editor/components/SelectionPill';
-import { PageThumbnailStrip, type PagePickerSlot } from '../PageThumbnailStrip.js';
-import { SlideNotesPanel } from '@ggraphic/editor/components/SlideNotesPanel';
-import { AddPageButton } from '../AddPageButton.js';
-import { Toolbar } from '../Toolbar.js';
-import { hasObjectActions } from '@ggraphic/editor/components/TopBar/ContextControls';
-import { ContextToolbar } from '@ggraphic/editor/components/TopBar/ContextToolbar';
-import { MobileSelectionBar } from '@ggraphic/editor/components/TopBar/MobileSelectionBar';
-import { MobileSelectionControls } from '@ggraphic/editor/components/TopBar/MobileSelectionControls';
 import { FloatingAiSuggestionBanner } from '@ggraphic/editor/components/TopBar/modules/FloatingAiSuggestionBanner';
 import { MultiSelectionToolbar } from '@ggraphic/editor/components/TopBar/MultiSelectionToolbar';
 
@@ -86,7 +77,14 @@ import {
   CanvasPageSkeleton,
   CanvasTabRailSkeleton,
 } from '@ggraphic/editor/components/CanvasEditorSkeleton';
+import { CanvasMetaBar, CanvasZoomIndicator } from '@ggraphic/editor/components/CanvasMetaBar';
 import { CanvasTextEditorProvider } from '@ggraphic/editor/components/CanvasTextOverlay';
+import { SelectionPill } from '@ggraphic/editor/components/SelectionPill';
+import { SlideNotesPanel } from '@ggraphic/editor/components/SlideNotesPanel';
+import { hasObjectActions } from '@ggraphic/editor/components/TopBar/ContextControls';
+import { ContextToolbar } from '@ggraphic/editor/components/TopBar/ContextToolbar';
+import { MobileSelectionBar } from '@ggraphic/editor/components/TopBar/MobileSelectionBar';
+import { MobileSelectionControls } from '@ggraphic/editor/components/TopBar/MobileSelectionControls';
 import { exportPptxDeck } from '@ggraphic/editor/export/pptx/exportPptxDeck';
 import { exportSlidesPdf } from '@ggraphic/editor/export/slidesPdf';
 import {
@@ -108,8 +106,8 @@ import { useZoomGestures } from '@ggraphic/editor/hooks/useZoomGestures';
 import { browserFileDelivery } from '@ggraphic/editor/hostServices';
 import { useMessages } from '@ggraphic/editor/i18n/messages';
 import { CanvasEditorLayout } from '@ggraphic/editor/layouts/index';
-import { EffectsSection } from '@ggraphic/editor/sidebar/sections/EffectsSection';
 import { hasEffects } from '@ggraphic/editor/sidebar/sections/effects/effectsFor';
+import { EffectsSection } from '@ggraphic/editor/sidebar/sections/EffectsSection';
 import { LayersSection } from '@ggraphic/editor/sidebar/sections/LayersSection';
 import { SidebarPanel } from '@ggraphic/editor/sidebar/SidebarPanel';
 import { SidebarTabBar } from '@ggraphic/editor/sidebar/SidebarTabBar';
@@ -133,6 +131,9 @@ import {
   printPdfFilename,
   type PrintExportPage,
 } from '../../export/printExport.js';
+import { AddPageButton } from '../AddPageButton.js';
+import { PageThumbnailStrip, type PagePickerSlot } from '../PageThumbnailStrip.js';
+import { Toolbar } from '../Toolbar.js';
 
 import type {
   AltTextPage,
@@ -1489,8 +1490,8 @@ function CanvasEditorInner({
   ) : (
     areaTabBar
   );
-  // A multi-selection has no selection bar on phones; the pill is its only
-  // door to the selection's commands.
+  // A multi-selection has no selection bar on phones; the pill and its
+  // action sheet are its only door to the selection's commands.
   const isMultiSelection = (toolbarState?.selectionCount ?? 0) > 1;
   // Desktop: what acts on the selection as a whole (lock, duplicate, delete,
   // the context menu) sits on the object; the bar above only shapes it. The
@@ -1520,7 +1521,7 @@ function CanvasEditorInner({
         canDelete={toolbarState.canDelete ?? false}
         onDuplicate={toolbarHandlers.handleDuplicate}
         onDelete={toolbarHandlers.handleDeleteElement}
-        onMore={!isMobileWeb ? openContextMenuAt : isMultiSelection ? undefined : openSelectionArea}
+        onMore={openContextMenuAt}
         isLocked={toolbarState.lockState === 'all'}
         onToggleLock={
           isMobileWeb || toolbarState.canLock ? toolbarHandlers.handleToggleLock : undefined
@@ -1800,9 +1801,13 @@ function CanvasEditorInner({
               </div>
             </CanvasEditorLayout>
             {selectionPill}
-            {!isMobileWeb && !isPreview && !readOnly && (
-              <CanvasContextMenu handleRef={contextMenuRef} closeKey={zoom} />
-            )}
+            {!isPreview &&
+              !readOnly &&
+              (isMobileWeb ? (
+                <CanvasActionSheet handleRef={contextMenuRef} />
+              ) : (
+                <CanvasContextMenu handleRef={contextMenuRef} closeKey={zoom} />
+              ))}
           </CanvasTextEditorProvider>
         </UserUploadsProvider>
       </ShellProvider>

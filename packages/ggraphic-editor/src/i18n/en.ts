@@ -65,6 +65,7 @@ export const en: Messages = {
     background: 'Background',
     backgroundImage: 'Background image …',
     layer: 'Layer',
+    back: 'Back',
   },
 
   announce: {
@@ -775,6 +776,7 @@ export const en: Messages = {
     outlineWidth: 'Outline width',
     position: 'Position',
     effects: 'Effects',
+    tiles: { color: 'Color', fontSize: 'Size', textAlign: 'Align', remove: 'Remove' },
     shadow: 'Shadow',
     strength: 'Strength',
     shape: 'Shape',

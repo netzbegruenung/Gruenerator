@@ -71,6 +71,7 @@ export const de = {
     background: 'Hintergrund',
     backgroundImage: 'Hintergrundbild …',
     layer: 'Ebene',
+    back: 'Zurück',
   },
 
   announce: {
@@ -787,6 +788,7 @@ export const de = {
     outlineWidth: 'Konturstärke',
     position: 'Position',
     effects: 'Effekte',
+    tiles: { color: 'Farbe', fontSize: 'Größe', textAlign: 'Ausrichtung', remove: 'Entfernen' },
     shadow: 'Schatten',
     strength: 'Stärke',
     shape: 'Form',

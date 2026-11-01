@@ -1,9 +1,8 @@
+import { ContextControls } from '@ggraphic/editor/components/TopBar/ContextControls';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import React from 'react';
 import { describe, expect, it, vi } from 'vitest';
-
-import { ContextControls } from '@ggraphic/editor/components/TopBar/ContextControls';
 
 import type { BackgroundControls } from '@ggraphic/editor/configs/types';
 import type { FloatingModuleState } from '@ggraphic/editor/hooks/useFloatingModuleState';
@@ -84,7 +83,7 @@ describe('Farbfläche ausgewählt', () => {
   it('zeigt Farbe und Bild, aber weder Deckkraft noch Ebenen noch Duplizieren', () => {
     renderBar(PLANE, controls());
     expect(screen.getByLabelText('Farbpalette öffnen')).toBeInTheDocument();
-    expect(screen.getByLabelText('Hintergrundbild: Bild')).toBeInTheDocument();
+    expect(screen.getByLabelText('Bild (Hintergrundbild)')).toBeInTheDocument();
     expect(screen.queryByTitle('Ebene nach oben')).toBeNull();
     expect(screen.queryByLabelText('Duplizieren (Strg+D)')).toBeNull();
     expect(screen.queryByRole('slider')).toBeNull();
@@ -138,7 +137,7 @@ describe('Foto ausgewählt', () => {
 
   it('zeigt Ersetzen, Farbe, Zoom, Ausschnitt und Entfernen, aber keine Ebenen', () => {
     renderBar(PHOTO, photo());
-    expect(screen.getByLabelText('Hintergrundbild: Ersetzen')).toBeInTheDocument();
+    expect(screen.getByLabelText('Ersetzen (Hintergrundbild)')).toBeInTheDocument();
     expect(screen.getByLabelText('Farbpalette öffnen')).toBeInTheDocument();
     expect(screen.getByLabelText('Bild zoomen')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Ausschnitt anpassen' })).toHaveTextContent(
