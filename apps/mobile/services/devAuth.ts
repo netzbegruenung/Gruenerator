@@ -88,6 +88,7 @@ export const DEV_BYPASS_USER: User = {
  * requests. Production rejects the header anyway.
  */
 export function devBypassHeaders(): Record<string, string> {
-  const token = process.env.EXPO_PUBLIC_DEV_AUTH_BYPASS_TOKEN;
+  const raw: unknown = process.env.EXPO_PUBLIC_DEV_AUTH_BYPASS_TOKEN;
+  const token = typeof raw === 'string' ? raw : '';
   return DEV_AUTH_BYPASS && token ? { 'x-dev-auth-bypass': token } : {};
 }
