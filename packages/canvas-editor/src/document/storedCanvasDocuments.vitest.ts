@@ -1,6 +1,7 @@
 /**
  * The Grünerator's stored canvas documents carry no version: they are
- * version 1 and must load unchanged, byte for byte. The corpus is every
+ * version 1. They migrate to the package's current version (3) by one change,
+ * the `schemaVersion` stamp, and a second pass leaves them alone. The corpus is every
  * composer golden, shaped the way the API stores a canvas
  * (`canvasStateService.getCanvasSnapshotState`: page 1's state flat beside
  * `pages`), plus a page with every element kind, the Balken included.
@@ -9,7 +10,12 @@ import { readdirSync, readFileSync } from 'node:fs';
 
 import { readInitialDocument } from '@ggraphic/editor/hooks/usePageManager';
 import { registerElementKind } from '@ggraphic/editor/utils/elementKinds';
-import { documentMigrations, migrateDocument, verifyMigrationRegistry } from '@ggraphic/schema';
+import {
+  CANVAS_DOCUMENT_VERSION,
+  documentMigrations,
+  migrateDocument,
+  verifyMigrationRegistry,
+} from '@ggraphic/schema';
 import { beforeAll, describe, expect, it } from 'vitest';
 
 import { BALKEN_KIND } from '../brand/balkenKind';
@@ -86,27 +92,43 @@ describe('stored Grünerator canvas documents', () => {
     expect(verifyMigrationRegistry(documentMigrations, samples)).toEqual([]);
   });
 
-  it.each(CORPUS)('%s loads as version 1, unchanged', (_name, stored) => {
-    const raw: unknown = JSON.parse(stored);
-    const result = migrateDocument(raw);
-    expect(result.status).toBe('current');
-    if (result.status !== 'current') return;
-    expect(result.document).toBe(raw);
-    expect(JSON.stringify(result.document)).toBe(stored);
+  it('is at version 3', () => {
+    expect(CANVAS_DOCUMENT_VERSION).toBe(3);
   });
 
-  it.each(CORPUS)('%s seeds its pages untouched', (_name, stored) => {
+  it.each(CORPUS)('%s loads as migrated, only the version stamp added', (_name, stored) => {
+    const raw = JSON.parse(stored) as Record<string, unknown>;
+    const result = migrateDocument(raw);
+    expect(result.status).toBe('migrated');
+    if (result.status !== 'migrated') return;
+    expect(result.document).toEqual({ ...raw, schemaVersion: CANVAS_DOCUMENT_VERSION });
+    expect(JSON.parse(stored)).toEqual(raw);
+  });
+
+  it.each(CORPUS)('%s is idempotent on a second pass', (_name, stored) => {
+    const first = migrateDocument(JSON.parse(stored));
+    if (first.status !== 'migrated') throw new Error('expected a migration');
+    const second = migrateDocument(first.document);
+    expect(second.status).toBe('current');
+    if (second.status !== 'current') return;
+    expect(second.document).toEqual(first.document);
+  });
+
+  it.each(CORPUS)('%s seeds its pages unchanged', (_name, stored) => {
     const raw = JSON.parse(stored) as { pages: { state: unknown }[] };
     const read = readInitialDocument(raw);
     expect(read.refusal).toBeNull();
     expect(read.pages).toHaveLength(raw.pages.length);
-    read.pages!.forEach((page, i) => expect(page.state).toBe(raw.pages[i]!.state));
+    read.pages!.forEach((page, i) => expect(page.state).toEqual(raw.pages[i]!.state));
   });
 
-  it.each([2, 3])('opens a stored version %i document editable and unchanged', (version) => {
+  it.each([
+    [2, 'migrated'],
+    [3, 'current'],
+  ] as const)('opens a stored version %i document editable (%s)', (version, status) => {
     const raw = { ...(JSON.parse(CORPUS[0]![1]) as { pages: unknown[] }), schemaVersion: version };
     const result = migrateDocument(raw);
-    expect(result.status).toBe('current');
+    expect(result.status).toBe(status);
     const read = readInitialDocument(raw);
     expect(read.refusal).toBeNull();
     expect(read.pages).toHaveLength(raw.pages.length);

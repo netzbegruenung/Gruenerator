@@ -1,4 +1,0 @@
-/* SPDX-License-Identifier: MPL-2.0 */
-/* Entry for standalone hosts: neutral token defaults, then the editor rules. */
-@import './tokens.css';
-@import './editor.css';

@@ -31,8 +31,10 @@ export function createBaseActions<TState extends BaseCanvasState>(
       canvasWidth,
       canvasHeight,
       fontColor,
-      brand,
-      insertScale
+      // No chart palette: the document brand (last argument) supplies it.
+      undefined,
+      insertScale,
+      brand
     ),
     ...createBalkenActions(
       getState,

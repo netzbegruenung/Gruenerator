@@ -29,6 +29,12 @@ export default defineConfig({
           // `assetCatalog.vitest.ts` setzt ihn nach seinem Probe-Katalog sofort
           // zurück.
           isolate: false,
+          // With isolate:false the host's own modules are re-evaluated per file
+          // while externalized packages stay cached in the shared fork, so a
+          // registry in @ggraphic/* (templates, element kinds) kept the first
+          // file's definitions and refused the next file's ("Template … is
+          // already registered"). Inlined, the packages reset with the host.
+          server: { deps: { inline: [/@ggraphic\//] } },
           maxWorkers: 1,
           setupFiles: ['./vitest.setup.assets.ts'],
           // Getrennte Gruppen, weil die Lanes verschiedene `maxWorkers`
@@ -54,7 +60,7 @@ export default defineConfig({
         },
         test: {
           name: 'dom',
-          server: { deps: { inline: ['@tanstack/react-query'] } },
+          server: { deps: { inline: ['@tanstack/react-query', /@ggraphic\//] } },
           include: ['**/*.vitest.tsx'],
           environment: 'jsdom',
           setupFiles: ['./vitest.setup.assets.ts', './vitest.setup.kinds.ts', './vitest.setup.ts'],

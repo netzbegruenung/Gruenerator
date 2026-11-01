@@ -1,7 +1,7 @@
 /**
  * Server-side format registry.
  *
- * The full format registry lives in `packages/ggraphic-editor/src/formats/index.ts`
+ * The full format registry lives in `@ggraphic/editor/formats` (ggraphic repo, `packages/editor/src/formats/index.ts`)
  * and drives the frontend UI. This file mirrors the server-known format ids — no
  * react-konva, no react. Keep in sync when the registry is changed.
  */
@@ -54,7 +54,7 @@ const print = (
 });
 
 /**
- * Format-id → server-known dimensions. Matches packages/ggraphic-editor/src/formats/index.ts.
+ * Format-id → server-known dimensions. Matches `@ggraphic/editor/formats`.
  */
 export const SERVER_FORMATS: Readonly<Record<string, CanvasFormatLite>> = {
   'post-portrait': digital('post-portrait', 1080, 1350),

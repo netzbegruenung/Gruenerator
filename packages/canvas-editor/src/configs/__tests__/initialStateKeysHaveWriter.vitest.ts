@@ -32,6 +32,20 @@ const NOT_PERSISTED: Record<string, string> = {
   imageSrc: 'seed alias of currentImageSrc',
 };
 
+/**
+ * Page keys ggraphic's own shell carries (the brand bindings and the template
+ * origin and element groups): the host templates' createInitialState never
+ * reads them, the page state does. Verify with a reload test in the app
+ * before dropping an entry (stage 3 of the ggraphic switch).
+ */
+const SHELL_OWNED: Record<string, string> = {
+  bind: 'brand bindings',
+  brandScheme: 'brand bindings',
+  brandStamp: 'brand bindings',
+  templateRef: 'template origin',
+  groups: 'element groups',
+};
+
 const configs = new Map<CanvasConfigType, Awaited<ReturnType<typeof loadCanvasConfig>>>();
 
 beforeAll(async () => {
@@ -79,7 +93,7 @@ describe('every key createInitialState reads back has a writer', () => {
 
   it('persists no key that no template reads back', () => {
     const unread = pagePersistedStateKeys().filter(
-      (key) => !TEMPLATES.some((type) => keysReadBy(type).has(key))
+      (key) => !TEMPLATES.some((type) => keysReadBy(type).has(key)) && !(key in SHELL_OWNED)
     );
     expect(unread).toEqual([]);
   });

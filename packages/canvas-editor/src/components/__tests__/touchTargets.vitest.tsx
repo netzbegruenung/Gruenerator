@@ -2,12 +2,16 @@ import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 
 import { AutoSaveIndicator } from '@ggraphic/editor/components/TopBar/AutoSaveIndicator';
+import { ContextControls } from '@ggraphic/editor/components/TopBar/ContextControls';
 import { FloatingColorPicker } from '@ggraphic/editor/components/TopBar/modules/FloatingColorPicker';
 import { FloatingFontSizeControl } from '@ggraphic/editor/components/TopBar/modules/FloatingFontSizeControl';
 import { FloatingHistoryControls } from '@ggraphic/editor/components/TopBar/modules/FloatingHistoryControls';
 import { FloatingLayerControls } from '@ggraphic/editor/components/TopBar/modules/FloatingLayerControls';
 import { SidebarHint } from '@ggraphic/editor/sidebar/components/SidebarHint';
 import { FontSizeStepper } from '@ggraphic/editor/sidebar/components/TextFieldPrimitives';
+import { CombinedTextSection } from '@ggraphic/editor/sidebar/sections/CombinedTextSection';
+import { SidebarPanel } from '@ggraphic/editor/sidebar/SidebarPanel';
+import { SubsectionTabBar } from '@ggraphic/editor/sidebar/SubsectionTabBar';
 import {
   AutoSaveStoreProvider,
   useAutoSaveStoreApi,
@@ -17,10 +21,7 @@ import { useLayoutEffect } from 'react';
 import { PiTextAa } from 'react-icons/pi';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { CombinedTextSection } from '@ggraphic/editor/sidebar/sections/CombinedTextSection';
-import { SidebarPanel } from '@ggraphic/editor/sidebar/SidebarPanel';
-import { SubsectionTabBar } from '@ggraphic/editor/sidebar/SubsectionTabBar';
-import { ContextControls } from '@ggraphic/editor/components/TopBar/ContextControls';
+import { editorDist } from '../../__tests__/editorDist';
 
 import type { FloatingModuleState } from '@ggraphic/editor/hooks/useFloatingModuleState';
 
@@ -167,17 +168,12 @@ describe('44pt-Ziele', () => {
   // (fit + zoom shrink it to ~145×18 on a phone); it counter-scales back to
   // its 44 px height. CanvasEditor is too heavy to render here.
   it('Seite hinzufügen unter der Fläche', () => {
-    // the shell lives in the core package
-    const source = readFileSync(
-      path.resolve(
-        import.meta.dirname,
-        '../../../../ggraphic-editor/src/components/CanvasEditor/CanvasEditorShell.tsx'
-      ),
-      'utf8'
-    );
-    const wrapper = /<div className="([^"]*canvas-mobile:hidden[^"]*)">\s*<AddPageButton/.exec(
-      source
-    );
+    // the shell lives in the installed @ggraphic/editor (compiled JS)
+    const source = readFileSync(editorDist('components/CanvasEditor/CanvasEditorShell.js'), 'utf8');
+    const wrapper =
+      /_jsx\("div", \{ className: "([^"]*canvas-mobile:hidden[^"]*)", children: _jsx\(AddPageButton/.exec(
+        source
+      );
     expect(wrapper?.[1]).toContain('max-canvas-mobile:[scale:calc(1/var(--canvas-total-scale,1))]');
     expect(wrapper?.[1]).toContain('max-canvas-mobile:origin-top');
   });
@@ -223,15 +219,15 @@ describe('44pt-Ziele', () => {
     'sidebar/sections/tools/BlobCreatorTool.tsx',
     'components/TopBar/CropModeControls.tsx',
   ])('Range-Regler %s ist auf dem Handy 44 px hoch', (file) => {
-    // the file may already live in the core package after a move
-    const source = readFileSync(
-      [
-        path.resolve(import.meta.dirname, '../..', file),
-        path.resolve(import.meta.dirname, '../../../../ggraphic-editor/src', file),
-      ].find(existsSync) ?? file,
-      'utf8'
-    );
-    const ranges = [...source.matchAll(/type="range"[\s\S]*?className="([^"]*)"/g)];
+    // the file may live in this package or in the installed @ggraphic/editor (compiled JS)
+    const hostFile = path.resolve(import.meta.dirname, '../..', file);
+    const source = existsSync(hostFile)
+      ? readFileSync(hostFile, 'utf8')
+      : readFileSync(editorDist(file.replace(/\.tsx$/, '.js')), 'utf8');
+    const ranges = [
+      ...source.matchAll(/type="range"[\s\S]*?className="([^"]*)"/g),
+      ...source.matchAll(/type: "range"[\s\S]*?className: "([^"]*)"/g),
+    ];
     expect(ranges.length).toBeGreaterThan(0);
     for (const [, cls] of ranges) expect(cls).toContain('max-canvas-mobile:h-11');
   });

@@ -257,6 +257,8 @@ export const GRUENE_DE: GruenePack = {
     body: 'PT Sans',
     quoteShort: 'GrueneTypeNeue',
     quoteEmphasis: 'GrueneTypeNeue',
+    // The cuts the host really loads (same as the former in-tree table).
+    cuts: { 'PT Sans': { bold: true, italic: true } },
   },
   fontFaces: [],
   lineHeightFactor: 1.2,
@@ -400,6 +402,8 @@ export const GRUENE_AT: GruenePack = {
     quoteEmphasis: 'Vollkorn',
     // Gotham Book has no bold cut of its own; Bold is declared as a family.
     boldFamilies: { 'GothamNarrow-Book': 'GothamNarrow-Bold' },
+    // Vollkorn: real bold and real bold italic, no plain italic cut.
+    cuts: { Vollkorn: { bold: true, boldItalic: true } },
   },
   fontFaces: [],
   lineHeightFactor: 0.9,

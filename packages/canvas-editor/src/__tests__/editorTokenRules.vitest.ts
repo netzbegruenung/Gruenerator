@@ -4,6 +4,8 @@ import { fileURLToPath } from 'node:url';
 
 import { describe, it, expect } from 'vitest';
 
+import { EDITOR_DIST } from './editorDist';
+
 /**
  * Die Editor-Oberfläche färbt sich nur über `--editor-*`-Token (siehe
  * packages/canvas-editor/CLAUDE.md). `dark:` schaltet in den beiden Builds
@@ -14,17 +16,18 @@ import { describe, it, expect } from 'vitest';
 const HIER = path.dirname(fileURLToPath(import.meta.url));
 const SRC = path.resolve(HIER, '..');
 const REPO = path.resolve(SRC, '../../..');
-// Editor code that moved to @ggraphic/editor follows the same token rules.
-const CORE_SRC = path.join(REPO, 'packages/ggraphic-editor/src');
+// The installed @ggraphic/editor (compiled JS) follows the same token rules.
+const CORE_SRC = EDITOR_DIST;
 
 // `dark:` gefolgt von einem Nicht-Leerzeichen: ein Parameter `dark: string` ist keine Klasse.
 const DARK_UTILITY = /(^|[\s'"`])(?:[\w-]+:)*!?dark:\S/;
 
-function quelldateien(dir: string): string[] {
+function quelldateien(dir: string, endung = /\.tsx?$/): string[] {
   return readdirSync(dir, { withFileTypes: true }).flatMap((eintrag) => {
     const voll = path.join(dir, eintrag.name);
-    if (eintrag.isDirectory()) return eintrag.name === '__tests__' ? [] : quelldateien(voll);
-    return /\.tsx?$/.test(eintrag.name) && !/\.vitest\.tsx?$/.test(eintrag.name) ? [voll] : [];
+    if (eintrag.isDirectory())
+      return eintrag.name === '__tests__' ? [] : quelldateien(voll, endung);
+    return endung.test(eintrag.name) && !/\.(vitest\.tsx?|d\.ts)$/.test(eintrag.name) ? [voll] : [];
   });
 }
 
@@ -55,7 +58,7 @@ describe('Editor-Token-Regeln', () => {
   });
 
   it('keine dark:-Utilities in src/', () => {
-    const dateien = [...quelldateien(SRC), ...quelldateien(CORE_SRC)];
+    const dateien = [...quelldateien(SRC), ...quelldateien(CORE_SRC, /\.js$/)];
     expect(dateien.length).toBeGreaterThan(100);
     expect(dateien.some((datei) => datei.startsWith(CORE_SRC))).toBe(true);
     const treffer = dateien.flatMap((datei) =>

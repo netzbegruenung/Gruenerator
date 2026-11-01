@@ -224,28 +224,24 @@ This is a **pnpm + Turborepo** monorepo: 7 apps, 20 packages, and 5 services.
 
 ### Packages
 
-| Workspace                  | Description                                                    |
-| -------------------------- | -------------------------------------------------------------- |
-| `packages/chat`            | Shared chat UI, runtime adapters, composer configs             |
-| `packages/shared`          | Shared stores, hooks, API clients, components                  |
-| `packages/contracts`       | ts-rest API contracts + Zod schemas (typed API boundary)       |
-| `packages/canvas-editor`   | Config-driven react-konva image/canvas editor                  |
-| `packages/docs`            | Collaborative rich-text document editor (Tiptap)               |
-| `packages/sheets`          | Spreadsheet editor (Univer) with AI operations                 |
-| `packages/presentations`   | Presentation editor with party branding                        |
-| `packages/collab`          | Shared Yjs collaboration components and hooks                  |
-| `packages/sites`           | Embedded candidate site builder                                |
-| `packages/sites-design`    | Site builder design tokens + presentational components         |
-| `packages/wolke`           | Grüne Wolke (Nextcloud) integration                            |
-| `packages/voice`           | Voice input/synthesis utilities                                |
-| `packages/query`           | Shared search/retrieval logic (text + vector)                  |
-| `packages/core`            | AI model catalog and shared core primitives                    |
-| `packages/ui`              | Shared UI component library                                    |
-| `packages/eslint-config`   | Shared ESLint flat config                                      |
-| `packages/ggraphic-core`   | ggraphic: brand-neutral editor core (MPL-2.0)                  |
-| `packages/ggraphic-editor` | ggraphic: brand-neutral react-konva canvas editor (MPL-2.0)    |
-| `packages/ggraphic-schema` | ggraphic: design document format and rich-text model (MPL-2.0) |
-| `packages/ggraphic-collab` | ggraphic: Yjs/Hocuspocus collaboration session (MPL-2.0)       |
+| Workspace                | Description                                              |
+| ------------------------ | -------------------------------------------------------- |
+| `packages/chat`          | Shared chat UI, runtime adapters, composer configs       |
+| `packages/shared`        | Shared stores, hooks, API clients, components            |
+| `packages/contracts`     | ts-rest API contracts + Zod schemas (typed API boundary) |
+| `packages/canvas-editor` | Config-driven react-konva image/canvas editor            |
+| `packages/docs`          | Collaborative rich-text document editor (Tiptap)         |
+| `packages/sheets`        | Spreadsheet editor (Univer) with AI operations           |
+| `packages/presentations` | Presentation editor with party branding                  |
+| `packages/collab`        | Shared Yjs collaboration components and hooks            |
+| `packages/sites`         | Embedded candidate site builder                          |
+| `packages/sites-design`  | Site builder design tokens + presentational components   |
+| `packages/wolke`         | Grüne Wolke (Nextcloud) integration                      |
+| `packages/voice`         | Voice input/synthesis utilities                          |
+| `packages/query`         | Shared search/retrieval logic (text + vector)            |
+| `packages/core`          | AI model catalog and shared core primitives              |
+| `packages/ui`            | Shared UI component library                              |
+| `packages/eslint-config` | Shared ESLint flat config                                |
 
 ### Services
 

@@ -12,6 +12,8 @@
  */
 
 import { carryInstanceState } from '@ggraphic/editor/configs/factory/carryInstanceState';
+import { makeSectionDefiner } from '@ggraphic/editor/configs/factory/defineSection';
+import { injectFeatureProps } from '@ggraphic/editor/configs/featureInjector';
 import { INITIAL_SCALE } from '@ggraphic/editor/types/editorTypes';
 import { CANVAS_COLORS, DEFAULT_CANVAS_SIZE } from '@gruenerator/contracts';
 import { PiSquaresFourFill } from 'react-icons/pi';
@@ -20,11 +22,8 @@ import { AssetsSection } from '../sidebar/sections';
 
 import { chatTab, createCommonSectionEntries, toolsTab, uploadsTab } from './commonSections';
 import { createBaseActions } from './factory/baseActions';
-import { makeSectionDefiner } from '@ggraphic/editor/configs/factory/defineSection';
-import { injectFeatureProps } from '@ggraphic/editor/configs/featureInjector';
 
 import type { SharepicAiCapabilities } from './aiCapabilities';
-import type { BackgroundColorOption } from '@ggraphic/editor/sidebar/types';
 import type { BaseCanvasState } from '@ggraphic/editor/configs/factory/baseTypes';
 import type {
   BackgroundElementConfig,
@@ -32,6 +31,7 @@ import type {
   ImageElementConfig,
   LayoutResult,
 } from '@ggraphic/editor/configs/types';
+import type { BackgroundColorOption } from '@ggraphic/editor/sidebar/types';
 import type { CanvasAiSnapshot } from '@gruenerator/contracts';
 
 // ============================================================================

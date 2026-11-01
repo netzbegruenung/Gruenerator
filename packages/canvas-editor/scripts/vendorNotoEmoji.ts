@@ -4,8 +4,11 @@
  * - Artwork: Noto Emoji `2D/svg` (Apache-2.0) and the waved region flags
  *   (`third_party/region-flags/waved-svg`, public domain) at a pinned commit,
  *   optimised with svgo into apps/web/public/emoji/emoji_u<code>.svg.
- * - Names and search tags: emojibase-data (MIT), German locale, written to
- *   packages/ggraphic-editor/src/utils/emoji/emojiCatalog.json.
+ * - Names and search tags: emojibase-data (MIT), German locale. The catalogue
+ *   JSON belongs to @ggraphic/editor (utils/emoji/emojiCatalog.json), no longer
+ *   to this repo (#5212): it is written to EMOJI_CATALOG_OUT (default: the OS
+ *   temp dir) so it can be upstreamed to the ggraphic repo. Only the artwork
+ *   in apps/web/public/emoji is host-owned.
  *
  * Only emoji with a German name AND Noto artwork are written. Skin tones are
  * kept per emoji only when all five uniform tones exist; mixed-tone pairs are
@@ -24,7 +27,9 @@ const EMOJIBASE_VERSION = '17.0.0';
 const SVGO_VERSION = '3.3.5';
 
 const OUT_DIR = path.resolve('apps/web/public/emoji');
-const CATALOG_FILE = path.resolve('packages/ggraphic-editor/src/utils/emoji/emojiCatalog.json');
+const CATALOG_FILE = path.resolve(
+  process.env.EMOJI_CATALOG_OUT ?? path.join(os.tmpdir(), 'emojiCatalog.json')
+);
 
 interface EmojibaseSkin {
   hexcode: string;

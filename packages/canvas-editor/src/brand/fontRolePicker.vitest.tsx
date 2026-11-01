@@ -25,20 +25,17 @@ const roles = () =>
 
 describe('font roles of the Grünerator brands', () => {
   it('offers headline and body on the German brand', () => {
-    expect(fontRoleOptions(GRUENE_DE.fonts).map((o) => o.role)).toEqual(['headline', 'body']);
+    expect(fontRoleOptions(GRUENE_DE).map((o) => o.role)).toEqual(['headline', 'body']);
   });
 
   it('offers a third, accent role on the Austrian brand', () => {
-    expect(fontRoleOptions(GRUENE_AT.fonts).map((o) => o.role)).toEqual([
-      'headline',
-      'body',
-      'quoteEmphasis',
-    ]);
+    expect(fontRoleOptions(GRUENE_AT).map((o) => o.role)).toEqual(['headline', 'body', 'serif']);
   });
 
-  it('offers no handwriting while no pack sets it', () => {
-    expect(GRUENE_DE.fonts.handwriting).toBeUndefined();
-    expect(GRUENE_AT.fonts.handwriting).toBeUndefined();
+  it('offers no handwriting: ggraphic has no such role', () => {
+    for (const pack of [GRUENE_DE, GRUENE_AT]) {
+      expect(fontRoleOptions(pack).map((o) => o.role)).not.toContain('handwriting');
+    }
   });
 
   it('reads the Austrian brand of the document while the active brand is German', () => {
@@ -48,7 +45,7 @@ describe('font roles of the Grünerator brands', () => {
         <FloatingFontRoleControl text={{ fontFamily: 'Vollkorn' }} onChange={() => {}} />
       </DocumentBrandContext.Provider>
     );
-    expect(roles()).toEqual(['headline', 'body', 'quoteEmphasis']);
+    expect(roles()).toEqual(['headline', 'body', 'serif']);
   });
 
   it('shows two roles on a German document', () => {

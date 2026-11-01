@@ -384,6 +384,8 @@
          "fontSize": 60,
          "fontFamily": "GothamNarrow-Ultra",
          "fontStyle": "normal",
+         "letterSpacing": 0,
+         "textDecoration": "",
          "fill": "#FFFFFF",
          "fillPriority": "color",
          "rotation": 2,

@@ -169,13 +169,6 @@ export default defineConfig(({ command }) => ({
       //   "Rolldown failed to resolve import '@gruenerator/core/models'
       //    from packages/shared/src/models/index.ts".
       '@gruenerator/core': path.resolve(__dirname, '../../packages/core/src'),
-      // contracts re-exports its text model from @ggraphic/schema, whose
-      // `import` condition points at dist (built only for Node services).
-      // Same cascade rule — alias it to src.
-      '@ggraphic/schema': path.resolve(__dirname, '../../packages/ggraphic-schema/src'),
-      // Same for @ggraphic/core: its `import` condition points at dist, which
-      // only the Node images build (contracts imports it since the slide layouts).
-      '@ggraphic/core': path.resolve(__dirname, '../../packages/ggraphic-core/src'),
       // @gruenerator/query is imported transitively from the @gruenerator/shared
       // alias (shared/utils/textNormalization + shared/search/{filters,vector}
       // re-export from @gruenerator/query/*). Same cascade rule as core above —

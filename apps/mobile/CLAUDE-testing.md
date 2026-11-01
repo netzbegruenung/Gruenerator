@@ -58,11 +58,14 @@ Configs: [jest.config.js](jest.config.js), [babel.config.js](babel.config.js),
 
 Four things that will cost you an afternoon if you change them without reading:
 
-1. **Do not set `transformIgnorePatterns`.** jest-expo's preset already ships a
-   correct one that allowlists every `expo-*` / `react-native-*` package *and*
-   excludes `react-native-reanimated/plugin` and `@react-native/babel-preset`,
-   which must not be transformed. Overriding it silently drops those exclusions
-   and dies on the first `expo-modules-core` import.
+1. **Never hand-roll `transformIgnorePatterns`.** jest-expo's preset already
+   ships a correct one that allowlists every `expo-*` / `react-native-*` package
+   *and* excludes `react-native-reanimated/plugin` and
+   `@react-native/babel-preset`, which must not be transformed. Overriding it
+   silently drops those exclusions and dies on the first `expo-modules-core`
+   import. `jest.config.js` therefore derives it from the preset and only adds
+   names to its allowlist (today `@ggraphic/`, an ESM-only package from npm).
+   Another ESM-only package goes in the same place.
 
 2. **`moduleNameMapper` pins react to `apps/mobile/node_modules`.** Three React
    copies exist on disk under `node-linker=hoisted` — the root one, the

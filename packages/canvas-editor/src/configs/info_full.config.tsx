@@ -21,8 +21,8 @@ import {
   type ColorTwoTextState,
 } from './factory';
 
-import type { BackgroundColorOption } from '@ggraphic/editor/sidebar/types';
 import type { ImageElementConfig, LayoutResult } from '@ggraphic/editor/configs/types';
+import type { BackgroundColorOption } from '@ggraphic/editor/sidebar/types';
 
 const BACKGROUND_COLORS: BackgroundColorOption[] = [
   { id: 'tanne', label: 'Tanne', color: '#005538' },

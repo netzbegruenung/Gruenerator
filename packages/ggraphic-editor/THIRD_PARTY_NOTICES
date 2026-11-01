@@ -1,7 +1,0 @@
-This package bundles no third-party components.
-
-Its npm dependencies keep their own licenses. The icon data comes at runtime from the
-@iconify-json sets: Tabler, Flowbite, Heroicons, Iconoir and Bootstrap Icons (MIT),
-Lucide (ISC) and Remix Icon (Apache-2.0). @iconify-json/ri is pinned to exactly 1.2.10
-(Remix Icon 4.8.0): from Remix Icon 4.9.0 on, a license of its own applies that forbids
-competing icon libraries.

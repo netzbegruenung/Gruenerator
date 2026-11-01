@@ -1,4 +1,3 @@
-import { type RequiredFontRole, resolveFontRole } from '@ggraphic/core';
 import { largestSizeWordsFit } from '@ggraphic/editor/composer/textFit';
 import { ASSET_TARGET_SIZE } from '@ggraphic/editor/utils/canvasAssets';
 import { createShape } from '@ggraphic/editor/utils/shapes';
@@ -6,6 +5,7 @@ import { createShape } from '@ggraphic/editor/utils/shapes';
 import { emojiAssetId } from '../brand/grueneAssetCatalog';
 
 import { type IconlisteItem, type ListeItem, type Placed } from './composeTypes';
+import { type RequiredFontRole, resolveFontRole } from './fontRole';
 import { brandFont } from './fontRole';
 import { SHAREPIC_ICON_IDS } from './sharepicIcons';
 import { CARD_MARKER, GAP, GJ_BODY } from './sharepicLayoutConstants';

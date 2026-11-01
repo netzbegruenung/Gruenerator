@@ -52,8 +52,8 @@
     "lint:fix": "eslint . --fix"
   },
   "dependencies": {
-    "@ggraphic/core": "workspace:*",
-    "@ggraphic/schema": "workspace:*",
+    "@ggraphic/core": "0.1.0-alpha.0",
+    "@ggraphic/schema": "0.1.0-alpha.0",
     "@gruenerator/core": "workspace:*",
     "@tiptap/core": "^3.32.0",
     "@tiptap/extension-bold": "^3.32.0",

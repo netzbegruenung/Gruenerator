@@ -115,7 +115,7 @@ describe('Farbfläche ausgewählt', () => {
     renderBar(PLANE, background);
     await openPalette();
     await userEvent.click(screen.getByTitle('Sand'));
-    expect(background.onColorChange).toHaveBeenCalledWith('#F5F1E9');
+    expect(background.onColorChange).toHaveBeenCalledWith('#F5F1E9', undefined);
   });
 
   it('holt ein ausgeblendetes Foto zurück (freeform)', async () => {
@@ -183,7 +183,7 @@ describe('Foto ausgewählt', () => {
     await openPalette();
     await userEvent.click(screen.getByTitle('Tanne'));
     expect(background.onImageChange).toHaveBeenCalledWith(null, undefined, null);
-    expect(background.onColorChange).toHaveBeenCalledWith('#005538');
+    expect(background.onColorChange).toHaveBeenCalledWith('#005538', undefined);
     expect(onDeselect).toHaveBeenCalledOnce();
   });
 
@@ -193,7 +193,7 @@ describe('Foto ausgewählt', () => {
     await openPalette();
     await userEvent.click(screen.getByTitle('Tanne'));
     expect(background.onImageChange).not.toHaveBeenCalled();
-    expect(background.onColorChange).toHaveBeenCalledWith('#005538');
+    expect(background.onColorChange).toHaveBeenCalledWith('#005538', undefined);
   });
 });
 

@@ -34,6 +34,13 @@ minimumReleaseAgeExclude:
   # the voice-agent test page needs it. Published 2026-10-20 17:23 UTC.
   # Inert from 2026-10-23 17:23 UTC, remove then.
   - '@mistralai/mistralai@3.1.0'
+  # Our own editor packages (#5212), released from Movm/ggraphic by trusted
+  # publishing (release run 41325210184). Published 2026-11-01 16:15-16:16 UTC.
+  # Inert from 2026-11-04 16:17 UTC, remove then.
+  - '@ggraphic/schema@0.1.0-alpha.0'
+  - '@ggraphic/core@0.1.0-alpha.0'
+  - '@ggraphic/collab@0.1.0-alpha.0'
+  - '@ggraphic/editor@0.1.0-alpha.0'
 # No exemption by semver: the hijacked releases this gate exists for (chalk/debug,
 # Shai-Hulud) shipped as patch bumps. An urgent fix gets an exact-version entry
 # in a `minimumReleaseAgeExclude:` list here (`name@x.y.z`, with why, publish date
@@ -235,7 +242,7 @@ allowBuilds:
 # `y-indexeddb@9.0.12` chains `.then()` onto its `_db` open promise twice
 # without a catch: in the constructor (the initial load) and in `destroy()`.
 # When the open fails, both derived promises reject unhandled even though the
-# caller catches `_db` itself (packages/ggraphic-collab useCollaboration does). Chrome
+# caller catches `_db` itself (@ggraphic/collab useCollaboration does). Chrome
 # Android rejects the open with "AbortError: The connection was closed" when
 # the page is torn down mid-open, which Sentry reported as an unhandled
 # rejection (GlitchTip #682). Neither promise is reachable from outside, so no
