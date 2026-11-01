@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: MPL-2.0
 import { useState, useMemo, useCallback, useEffect } from 'react';
 
-import { type IconDef } from '../utils/canvasIcons';
+import { type IconDef } from '../utils/canvasIcons.js';
 
-import { useDebounce } from './useDebounce';
-import { useAllIconsCatalog } from './useIconCatalog';
-import { useIconSearch } from './useIconSearch';
+import { useDebounce } from './useDebounce.js';
+import { useAllIconsCatalog } from './useIconCatalog.js';
+import { useIconSearch } from './useIconSearch.js';
 
 const PAGE_SIZE = 32;
 const SEARCH_DEBOUNCE_MS = 300;

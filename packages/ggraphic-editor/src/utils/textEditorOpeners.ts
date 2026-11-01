@@ -2,16 +2,16 @@
 /**
  * Wie „Text bearbeiten“ (F2, Enter in der Ebenen-Liste, Kontextmenü) den
  * Editor eines Elements öffnet, das auf Doppelklick an einem inneren Knoten
- * hört — Balken- und Kreis-Zeilen, die Pille. Das Element meldet hier je Seite
+ * hört — Zeilen einer Host-Art, die Kreis-Zeilen, die Pille. Das Element meldet hier je Seite
  * (Store) und Id seinen Öffner; `editText` ruft ihn direkt, ohne einen
  * nachgestellten Konva-Doppelklick auf einen Knoten, der dafür gar nicht hört.
  */
 
 import { useEffect, useRef } from 'react';
 
-import { useCanvasStore } from '../stores/CanvasStoreProvider';
+import { useCanvasStore } from '../stores/CanvasStoreProvider.js';
 
-import type { CanvasEditorStoreApi } from '../stores/createCanvasEditorStore';
+import type { CanvasEditorStoreApi } from '../stores/createCanvasEditorStore.js';
 
 const openers = new WeakMap<CanvasEditorStoreApi, Map<string, () => void>>();
 

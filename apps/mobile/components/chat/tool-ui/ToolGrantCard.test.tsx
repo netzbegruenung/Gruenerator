@@ -39,8 +39,8 @@ describe('ToolGrantCard (native)', () => {
     mockAnswerToolGrant.mockReset().mockResolvedValue({ status: 'resolved', scope: 'session' });
   });
 
-  it('shows the server, the tools and the three scopes', () => {
-    render(<ToolGrantCard grant={grant} theme={lightTheme} />);
+  it('shows the server, the tools and the three scopes', async () => {
+    await render(<ToolGrantCard grant={grant} theme={lightTheme} />);
     expect(screen.getByText('Demo bietet neue Werkzeuge an')).toBeTruthy();
     expect(screen.getByText('themes-get_theme')).toBeTruthy();
     for (const label of ['Ablehnen', 'Nur dieses Gespräch', 'Immer']) {
@@ -49,8 +49,8 @@ describe('ToolGrantCard (native)', () => {
   });
 
   it('answers "only this conversation" and collapses to the badge', async () => {
-    render(<ToolGrantCard grant={grant} theme={lightTheme} />);
-    fireEvent.press(screen.getByLabelText('Nur dieses Gespräch'));
+    await render(<ToolGrantCard grant={grant} theme={lightTheme} />);
+    await fireEvent.press(screen.getByLabelText('Nur dieses Gespräch'));
 
     expect(mockAnswerToolGrant).toHaveBeenCalledWith(grant, 't1', 'session');
     await waitFor(() => expect(screen.getByText('Für dieses Gespräch freigegeben')).toBeTruthy());
@@ -58,15 +58,15 @@ describe('ToolGrantCard (native)', () => {
 
   it('keeps the buttons and shows the error when the answer fails', async () => {
     mockAnswerToolGrant.mockResolvedValue({ status: 'error', message: 'Kaputt' });
-    render(<ToolGrantCard grant={grant} theme={lightTheme} />);
-    fireEvent.press(screen.getByLabelText('Immer'));
+    await render(<ToolGrantCard grant={grant} theme={lightTheme} />);
+    await fireEvent.press(screen.getByLabelText('Immer'));
 
     await waitFor(() => expect(screen.getByText('Kaputt')).toBeTruthy());
     expect(screen.getByLabelText('Immer')).toBeTruthy();
   });
 
-  it('renders an answered card as a badge after reload', () => {
-    render(<ToolGrantCard grant={{ ...grant, resolved: 'denied' }} theme={lightTheme} />);
+  it('renders an answered card as a badge after reload', async () => {
+    await render(<ToolGrantCard grant={{ ...grant, resolved: 'denied' }} theme={lightTheme} />);
     expect(screen.getByText('Abgeschaltet')).toBeTruthy();
   });
 });

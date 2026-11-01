@@ -17,6 +17,12 @@
      "width": 940,
      "fontSize": 223,
      "fontFamily": "GothamNarrow-Ultra",
+     "bind": {
+      "fontFamily": {
+       "ref": "font.headline",
+       "value": "GothamNarrow-Ultra"
+      }
+     },
      "fontStyle": "normal",
      "fill": "#FFFFFF",
      "align": "left",
@@ -41,6 +47,12 @@
      "width": 940,
      "fontSize": 212,
      "fontFamily": "Vollkorn",
+     "bind": {
+      "fontFamily": {
+       "ref": "font.quoteEmphasis",
+       "value": "Vollkorn"
+      }
+     },
      "fontStyle": "bold italic",
      "fill": "#FCEC00",
      "align": "left",
@@ -65,6 +77,12 @@
      "width": 940,
      "fontSize": 42,
      "fontFamily": "GothamNarrow-Book",
+     "bind": {
+      "fontFamily": {
+       "ref": "font.body",
+       "value": "GothamNarrow-Book"
+      }
+     },
      "fontStyle": "normal",
      "fill": "#FFFFFF",
      "align": "left",
@@ -111,7 +129,13 @@
      "opacity": 1,
      "paddingX": 36,
      "paddingY": 18,
-     "cornerRadius": 60
+     "cornerRadius": 60,
+     "bind": {
+      "fontFamily": {
+       "ref": "font.headline",
+       "value": "GothamNarrow-Ultra"
+      }
+     }
     }
    ],
    "circleBadgeInstances": [

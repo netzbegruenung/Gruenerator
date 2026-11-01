@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 
 import {
   toolMentionables,
+  getAgentMentionables,
   resolveMentionable,
   visibleToolMentionables,
   visibleNotebookMentionables,
@@ -228,6 +229,13 @@ describe('toolMentionables derived from the intent registry', () => {
     expect(pm?.identifier).toBe('pressemitteilung_examples');
     expect(resolveMentionable('pressemitteilungen')?.identifier).toBe('pressemitteilung_examples');
     expect(resolveMentionable('pm')?.identifier).toBe('pressemitteilung_examples');
+  });
+
+  // Ein Eintrag im Menü: `@bundestag` lädt das Rezept mit, der Rezept-Token
+  // `@bundestagsrecherche` bleibt auflösbar (F0), wird aber nicht mehr angeboten.
+  it('bietet bundestagsrecherche nicht einzeln an, löst den Token aber weiter auf', () => {
+    expect(getAgentMentionables().map((m) => m.mention)).not.toContain('bundestagsrecherche');
+    expect(resolveMentionable('bundestagsrecherche')?.identifier).toBe('gruenerator-bundestag');
   });
 
   // Die Gegenprobe: die fünf verwalteten Connectoren sind ohne Werkzeug-Pin

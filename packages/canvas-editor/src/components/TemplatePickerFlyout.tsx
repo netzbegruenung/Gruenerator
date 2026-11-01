@@ -6,7 +6,7 @@ import { getCanvasFormatOrDefault, isSlideFormat } from '@ggraphic/editor/format
 import { cn } from '@ggraphic/editor/utils/cn';
 import React, { useCallback, useState, useRef, useEffect, memo } from 'react';
 import { createPortal } from 'react-dom';
-import { HiOutlineDuplicate, HiX, HiPlus, HiTemplate, HiBookOpen, HiStop } from 'react-icons/hi';
+import { HiOutlineDuplicate, HiX, HiTemplate, HiBookOpen, HiStop } from 'react-icons/hi';
 
 import { type BrandLocale } from '../brand/theme';
 import { SlideLayoutPicker } from '../slides/SlideLayoutPicker';
@@ -123,8 +123,13 @@ export function TemplatePickerFlyout({
   // New pages are freeform only: the retired template types stay editable on
   // the pages that already use them, but are no longer offered. Layouts come
   // from the Grünerator-Vorlagen and the Sharepic-Creator instead.
+  // A GRÜNE-JUGEND page offers its own blank page instead of the party's.
+  const blankIds: readonly string[] =
+    currentTemplateId === 'freeform-gj' || currentTemplateId === 'freeform-gj-at'
+      ? [currentTemplateId]
+      : ['freeform', 'freeform-at'];
   const allTemplates = getTemplatesForLocale(locale).filter(
-    (t) => (t.id === 'freeform' || t.id === 'freeform-at') && templateFitsFormat(t.id, formatId)
+    (t) => blankIds.includes(t.id) && templateFitsFormat(t.id, formatId)
   );
   const templates = templateFilter
     ? allTemplates.filter((t) => t.category === templateFilter)
@@ -337,66 +342,6 @@ export function TemplatePickerFlyout({
       )}
     </div>,
     document.body
-  );
-}
-
-interface AddPageButtonProps {
-  onSelectTemplate: (configId: CanvasConfigId) => void;
-  onDuplicateCurrent: () => void;
-  currentTemplateId?: CanvasConfigId;
-  disabled?: boolean;
-  onAddSliderVariant?: (variant: 'cover' | 'content' | 'last') => void;
-  templateFilter?: TemplateCategory;
-  formatId?: string;
-  /** Flache Bauform für die untere Leiste; sonst der breite Knopf unter der Fläche. */
-  compact?: boolean;
-  onAddSlideLayout?: (layoutId: SlideLayoutId) => void;
-}
-
-export function AddPageButton({
-  onSelectTemplate,
-  onDuplicateCurrent,
-  currentTemplateId,
-  disabled = false,
-  onAddSliderVariant,
-  templateFilter,
-  formatId,
-  compact = false,
-  onAddSlideLayout,
-}: AddPageButtonProps) {
-  const [isOpen, setIsOpen] = useState(false);
-  const buttonRef = useRef<HTMLButtonElement>(null);
-
-  return (
-    <>
-      <button
-        ref={buttonRef}
-        className={cn(
-          'rounded-[10px] border border-[var(--editor-border-strong)] bg-[var(--editor-surface)] text-[var(--editor-text)] font-semibold cursor-pointer flex items-center justify-center gap-2 transition-[background-color,border-color] duration-200 hover:bg-[var(--editor-surface-hover)] hover:border-[var(--editor-accent)] active:scale-[0.99] disabled:opacity-40 disabled:cursor-not-allowed',
-          compact ? 'h-8 px-3 text-xs' : 'w-full h-11 text-sm'
-        )}
-        onClick={() => setIsOpen(!isOpen)}
-        disabled={disabled}
-        type="button"
-        title="Neue Seite hinzufügen"
-      >
-        <HiPlus />
-        <span>Seite hinzufügen</span>
-      </button>
-
-      <TemplatePickerFlyout
-        isOpen={isOpen}
-        anchorRef={buttonRef}
-        onSelectTemplate={onSelectTemplate}
-        onDuplicateCurrent={onDuplicateCurrent}
-        onClose={() => setIsOpen(false)}
-        currentTemplateId={currentTemplateId}
-        onAddSliderVariant={onAddSliderVariant}
-        templateFilter={templateFilter}
-        formatId={formatId}
-        onAddSlideLayout={onAddSlideLayout}
-      />
-    </>
   );
 }
 

@@ -16,6 +16,6 @@ export async function exportDocumentText(
   const ext = format === 'markdown' ? 'md' : 'txt';
   const safeTitle = (title || 'Dokument').replace(/[^a-zA-Z0-9äöüÄÖÜß _-]/g, '_');
   const file = new File(Paths.cache, `${safeTitle}.${ext}`);
-  file.write(content);
+  file.writeSync(content);
   await Sharing.shareAsync(file.uri, { mimeType: 'text/plain' });
 }

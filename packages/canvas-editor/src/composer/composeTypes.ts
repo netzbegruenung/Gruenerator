@@ -7,9 +7,9 @@ import {
 
 import type { MeasureText } from './chromeParts';
 import type { SharepicProvenance } from './sharepicProvenance';
-import type { IconState } from '../configs/factory/baseTypes';
-import type { AdditionalText } from '../configs/types';
-import type { AssetInstance } from '../utils/canvasAssets';
+import type { IconState } from '@ggraphic/editor/configs/factory/baseTypes';
+import type { AdditionalText } from '@ggraphic/editor/configs/types';
+import type { AssetInstance } from '@ggraphic/editor/utils/canvasAssets';
 import type { ChartInstance } from '@ggraphic/editor/utils/chartUtils';
 import type { CircleBadgeInstance } from '@ggraphic/editor/utils/circleBadgeUtils';
 import type { PillBadgeInstance } from '@ggraphic/editor/utils/pillBadgeUtils';
@@ -60,7 +60,7 @@ export type ComposedSlide = {
 };
 
 export interface ComposedSharepic {
-  templateType: 'freeform' | 'freeform-at';
+  templateType: 'freeform' | 'freeform-at' | 'freeform-gj' | 'freeform-gj-at';
   /** The canvas format the slides are laid out on. */
   format: SharepicFormat;
   /** One page per slide, in order. */

@@ -21,6 +21,13 @@ export const YDOC_KEYS = {
   legacyMigrated: 'legacyMigrated',
   /** Set in `meta` after root formState was folded into the single page. */
   formStateFolded: 'formStateFolded',
+  /**
+   * Core document format version in `meta` (`@ggraphic/schema`
+   * `CANVAS_DOCUMENT_VERSION`); absent = 1. Only ever raised.
+   */
+  schemaVersion: 'schemaVersion',
+  /** Prefix of a host kind's version in `meta`: `kindVersion:<stateKey>`; absent = 1. */
+  kindVersionPrefix: 'kindVersion:',
 
   /**
    * Top-level Y.Map<clientID, counter> each deck replacement bumps under its

@@ -11,7 +11,7 @@ import { PiSparkle } from 'react-icons/pi';
 
 import { useHiddenSkillMentions } from '../../hooks/useMentionablesQuery';
 import { useUserLandesverbaende } from '../../hooks/useUserLandesverbaende';
-import { agentsList, SKILL_CATEGORY_LABELS, type SkillCategory } from '../../lib/agents';
+import { listedAgentsList, SKILL_CATEGORY_LABELS, type SkillCategory } from '../../lib/agents';
 import {
   agentToMentionable,
   getCustomAgentMentionables,
@@ -41,7 +41,7 @@ export function SkillLibraryModal({ open, onClose, onSelect }: SkillLibraryModal
   // `lvIds` `null` und der Filter lässt alles durch.
   const allSkills = useMemo(
     () =>
-      agentsList
+      listedAgentsList
         .map(agentToMentionable)
         .filter(
           (s) =>

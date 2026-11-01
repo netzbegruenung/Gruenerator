@@ -1,11 +1,10 @@
+import { useCanvasEditorServices } from '@ggraphic/editor/CanvasEditorProvider';
 import { ICON_CATALOG_QUERY_KEY } from '@ggraphic/editor/hooks/useIconCatalog';
 import { DEFAULT_ICON_SET, loadIconSetCatalog } from '@ggraphic/editor/utils/canvasIcons';
 import { QueryClientContext } from '@tanstack/react-query';
 import { useContext, useEffect } from 'react';
 
-import { useCanvasEditorServices } from '../../CanvasEditorProvider';
-
-import { whenIdle } from './whenIdle';
+import { whenIdle } from '@ggraphic/editor/sidebar/sections/whenIdle';
 
 import { AssetsSection, ToolsSection } from './index';
 
@@ -23,7 +22,7 @@ export function usePreloadElements(enabled: boolean) {
     if (!enabled) return;
     const warm = () => {
       void AssetsSection.preload().catch(() => {});
-      const chunk = import('./assets');
+      const chunk = import('@ggraphic/editor/sidebar/sections/assets/index');
       if (!client) return;
       void client.prefetchQuery({
         queryKey: [...ICON_CATALOG_QUERY_KEY, DEFAULT_ICON_SET],

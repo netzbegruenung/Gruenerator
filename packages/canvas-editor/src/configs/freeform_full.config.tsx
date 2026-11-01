@@ -8,7 +8,16 @@
  * balkens, badges, frames — all features the config system offers.
  */
 
+import { describeCanvasElements } from '@ggraphic/editor/ai/describeCanvasElements';
+import { buildIllustrationCapability } from '@ggraphic/editor/ai/illustrationCapability';
+import { withCardFollowingText } from '@ggraphic/editor/composer/cardFollowsText';
+import { carryInstanceState } from '@ggraphic/editor/configs/factory/carryInstanceState';
+import { makeSectionDefiner } from '@ggraphic/editor/configs/factory/defineSection';
+import { injectFeatureProps } from '@ggraphic/editor/configs/featureInjector';
+import { createShareSection } from '@ggraphic/editor/configs/shareSection';
 import { insertScaleFor, isSlideFormat, type CanvasFormat } from '@ggraphic/editor/formats/index';
+import { CombinedTextSection } from '@ggraphic/editor/sidebar/sections/CombinedTextSection';
+import { FrameSettingsSection } from '@ggraphic/editor/sidebar/sections/FrameSettingsSection';
 import { zoomBackground } from '@ggraphic/editor/utils/coverFit';
 import { COMPOSER_PLANE_IDS, photoStripBeside } from '@ggraphic/editor/utils/shapes';
 import { straightenResetFor } from '@ggraphic/editor/utils/straighten';
@@ -16,32 +25,28 @@ import { CANVAS_COLORS } from '@gruenerator/contracts';
 import { PiFrameCornersFill, PiSquaresFourFill, PiTextAa } from 'react-icons/pi';
 
 import { buildAssetCapability } from '../ai/assetCapability';
-import { describeCanvasElements } from '../ai/describeCanvasElements';
-import { buildIllustrationCapability } from '../ai/illustrationCapability';
 import { CANVAS_RECOMMENDED_ASSETS } from '../brand/grueneAssets';
-import { withCardFollowingText } from '../composer/cardFollowsText';
 import { SHAREPIC_COLOR_HEX } from '../composer/composeSharepic';
 import { type LiftedBlock } from '../composer/liftBlock';
 import { AssetsSection } from '../sidebar';
-import { CombinedTextSection } from '../sidebar/sections/CombinedTextSection';
-import { FrameSettingsSection } from '../sidebar/sections/FrameSettingsSection';
 
 import { chatTab, createCommonSectionEntries, toolsTab, uploadsTab } from './commonSections';
-import { createBaseActions } from './factory/actionFactories';
-import { carryInstanceState } from './factory/carryInstanceState';
-import { makeSectionDefiner } from './factory/defineSection';
-import { injectFeatureProps } from './featureInjector';
-import { createShareSection } from './shareSection';
+import { createBaseActions } from './factory/baseActions';
 
 import type { SharepicAiCapabilities } from './aiCapabilities';
+import type { BrandPack } from '@ggraphic/core';
+import type { StockImageAttribution } from '@ggraphic/editor/common/imageSourceTypes';
 import type {
   BaseCanvasState,
   ImageBackgroundState,
   ColorBackgroundState,
-} from './factory/baseTypes';
-import type { FullCanvasConfig, LayoutResult, AdditionalText } from './types';
-import type { BackgroundColorOption } from '../sidebar/types';
-import type { StockImageAttribution } from '@ggraphic/editor/common/imageSourceTypes';
+} from '@ggraphic/editor/configs/factory/baseTypes';
+import type {
+  FullCanvasConfig,
+  LayoutResult,
+  AdditionalText,
+} from '@ggraphic/editor/configs/types';
+import type { BackgroundColorOption } from '@ggraphic/editor/sidebar/types';
 import type { ShapeInstance } from '@ggraphic/editor/utils/shapes';
 import type { CanvasAiSnapshot } from '@gruenerator/contracts';
 
@@ -241,16 +246,16 @@ export const createFreeformFullConfig = (
   {
     /** Colour of newly added text; white suits the default Tanne sheet. */
     fontColor = '#FFFFFF',
-    /** Series colours of a new chart; absent = the active brand's, read when a chart is made. */
-    chartColors,
-  }: { fontColor?: string; chartColors?: readonly string[] } = {}
+    /** The page's brand: fonts, colours and chart series of new elements; absent = the active brand's. */
+    brand,
+  }: { fontColor?: string; brand?: BrandPack } = {}
 ): FullCanvasConfig<FreeformState, FreeformActions> =>
   withFreeformAi(
     createFreeformAiCapabilities(format.width, format.height),
     format.width,
     format.height,
     fontColor,
-    chartColors,
+    brand,
     isSlideFormat(format) ? SLIDE_MAX_PAGES : SHEET_MAX_PAGES,
     insertScaleFor(format)
   );
@@ -260,13 +265,13 @@ const withFreeformAi = (
   width: number,
   height: number,
   fontColor: string,
-  chartColors: readonly string[] | undefined,
+  brand: BrandPack | undefined,
   maxPages: number,
   insertScale: number
 ): FullCanvasConfig<FreeformState, FreeformActions> => ({
   id: 'freeform',
 
-  ...(chartColors ? { chartColors } : {}),
+  ...(brand ? { brand } : {}),
 
   canvas: { width, height },
 
@@ -462,7 +467,7 @@ const withFreeformAi = (
       width,
       height,
       fontColor,
-      chartColors,
+      brand,
       insertScale
     );
 

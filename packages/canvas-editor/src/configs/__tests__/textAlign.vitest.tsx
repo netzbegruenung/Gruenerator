@@ -5,18 +5,17 @@
  * bliebe zentriert. Ein Undo nimmt die Wahl zurück, der Wiederaufbau über
  * `createInitialState` behält sie.
  */
+import { GenericCanvas, type GenericCanvasRef } from '@ggraphic/editor/components/GenericCanvas';
+import { loadCanvasConfig } from '@ggraphic/editor/configs/configLoader';
+import { carryInstanceState } from '@ggraphic/editor/configs/factory/carryInstanceState';
+import { floatingModuleFor } from '@ggraphic/editor/hooks/useFloatingModuleState';
 import { AutoSaveStoreProvider } from '@ggraphic/editor/stores/AutoSaveStoreProvider';
 import { act, cleanup, render } from '@testing-library/react';
 import Konva from 'konva';
 import { createRef } from 'react';
 import { afterEach, beforeAll, describe, expect, it } from 'vitest';
 
-import { GenericCanvas, type GenericCanvasRef } from '../../components/GenericCanvas';
-import { floatingModuleFor } from '../../hooks/useFloatingModuleState';
-import { loadCanvasConfig } from '../configLoader';
-import { carryInstanceState } from '../factory/carryInstanceState';
-
-import type { AdditionalText } from '../types';
+import type { AdditionalText } from '@ggraphic/editor/configs/types';
 
 Object.defineProperty(document, 'fonts', {
   configurable: true,

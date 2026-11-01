@@ -7,7 +7,7 @@ import userEvent from '@testing-library/user-event';
 import { PiImage, PiTextAa } from 'react-icons/pi';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { SubsectionTabBar } from '../../sidebar/SubsectionTabBar';
+import { SubsectionTabBar } from '@ggraphic/editor/sidebar/SubsectionTabBar';
 import { axe } from '../../test-utils';
 
 function Bar() {

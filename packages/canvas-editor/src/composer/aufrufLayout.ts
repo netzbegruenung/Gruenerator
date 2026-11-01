@@ -1,11 +1,12 @@
 import { onGround } from '@ggraphic/editor/brand/composerBrand';
+import { largestSizeWordsFit } from '@ggraphic/editor/composer/textFit';
 import { createPillBadgeInstance } from '@ggraphic/editor/utils/pillBadgeUtils';
 
 import { AT_EMPHASIS_STYLE } from './chromeParts';
 import { type AufrufItem, type Placed } from './composeTypes';
+import { brandFont } from './fontRole';
 import { GAP } from './sharepicLayoutConstants';
 import { type BuildPass, type SlideCtx } from './slideContext';
-import { largestSizeWordsFit } from './textFit';
 
 export function layoutAufruf(
   ctx: SlideCtx,
@@ -18,7 +19,6 @@ export function layoutAufruf(
     theme,
     brand,
     headFamily,
-    isAt,
     out,
     column,
     xAlign,
@@ -47,7 +47,7 @@ export function layoutAufruf(
       height: bang * 0.82,
       after: Math.round(size * 0.2),
       place: (y) =>
-        text(`${id}-ausruf`, '!', y - bang * 0.12, bang, family, {
+        text(`${id}-ausruf`, '!', y - bang * 0.12, bang, 'headline', {
           fill: accentInk,
           lineHeight: 1,
           type: 'header',
@@ -61,7 +61,7 @@ export function layoutAufruf(
       height: lineCount(adressat, column.width, small, theme.fonts.body, 'bold') * small * 1.15,
       after: Math.round(size * 0.18),
       place: (y) =>
-        text(`${id}-adressat`, adressat, y, small, theme.fonts.body, {
+        text(`${id}-adressat`, adressat, y, small, 'body', {
           fontStyle: 'bold',
           lineHeight: 1.15,
         }),
@@ -70,7 +70,7 @@ export function layoutAufruf(
   placed.push({
     height: lines * size * lineHeight,
     after: Math.round(size * 0.4),
-    place: (y) => text(id, item.text, y, size, family, { lineHeight, type: 'header' }),
+    place: (y) => text(id, item.text, y, size, 'headline', { lineHeight, type: 'header' }),
   });
   if (item.hinweis && item.stil === 'petition' && brand.features.hinweisPill) {
     // The hint as a pill under the call — where to sign.
@@ -81,7 +81,7 @@ export function layoutAufruf(
       id: `${id}-hinweis`,
       text: hint,
       fontSize: pillSize,
-      fontFamily: theme.fonts.headline,
+      ...brandFont(theme.fonts, 'headline'),
       backgroundColor: colors.fill,
       textColor: colors.ink,
       paddingX: 36,
@@ -101,7 +101,7 @@ export function layoutAufruf(
     });
   } else if (item.hinweis) {
     // AT has no pills: the hint is a line, on a petition in the yellow serif.
-    const petitionAt = isAt && item.stil === 'petition';
+    const petitionAt = !brand.features.hinweisPill && item.stil === 'petition';
     const small = Math.round(size * (petitionAt ? 0.55 : 0.4));
     const hint = item.hinweis;
     placed.push({
@@ -109,12 +109,12 @@ export function layoutAufruf(
       after: GAP,
       place: (y) =>
         petitionAt
-          ? text(`${id}-hinweis`, hint, y, small, theme.fonts.quoteEmphasis, {
+          ? text(`${id}-hinweis`, hint, y, small, 'quoteEmphasis', {
               fontStyle: AT_EMPHASIS_STYLE,
               fill: accentInk,
               lineHeight: 1.2,
             })
-          : text(`${id}-hinweis`, hint, y, small, theme.fonts.body, {
+          : text(`${id}-hinweis`, hint, y, small, 'body', {
               fontStyle: 'bold',
               lineHeight: 1.2,
             }),

@@ -58,6 +58,7 @@ import { createRecipeRegistry, type RecipeRegistry } from './recipeRegistry.js';
 import { looksLikeChitchatTurn } from './routing.js';
 import { type SourceRegistry } from './sourceRegistry.js';
 import { type ToolApprovalGate } from './toolApprovalGate.js';
+import { toolResultBudget } from './toolResultBudgets.js';
 import { createToolScope, type ToolScope } from './toolScope.js';
 import {
   NEAR_DUPLICATE_EXEMPT_TOOLS,
@@ -223,7 +224,13 @@ export async function assembleToolCatalog(
   // ihren Landesverbands-Ausschnitt zuzuschneiden, und muss die Registry daher
   // schon beim Bauen des Katalogs kennen. Der Zugriff selbst passiert erst zur
   // Aufrufzeit — bis dahin ist die Registry gefüllt.
-  const recipeRegistry = createRecipeRegistry();
+  // Eine gewählte Textsorte steht im Systemprompt, nicht in der Registry — die
+  // Vorrangnotiz einer Methode muss trotzdem wissen, dass die Form vergeben ist.
+  const recipeRegistry = createRecipeRegistry(
+    undefined,
+    undefined,
+    !!(state.activeSkillMention || state.activeRecipeId)
+  );
 
   const { tools } = deps.buildChatToolCatalog({
     agentConfig,
@@ -323,6 +330,31 @@ export async function assembleToolCatalog(
         log.warn(`[Rezept] Agent-Default nicht verfügbar: ${ownedDefault}`);
       }
     }
+  }
+
+  // Methoden-Rezepte des Turns (`@bundestag` → Bundestag-Recherche, oder
+  // ausdrücklich gewählt): vorab in die Registry, als `methode`. Sie belegen den
+  // Textsorten-Platz nicht — `rezept_laden` unten bleibt deshalb montiert, und
+  // eine gewählte Textsorte steht weiter im Systemprompt (`buildSystemMessage`).
+  // Der Single-Pass-Pfad lädt dieselbe Liste im Prompt; hier nicht doppelt,
+  // weil der Loop-Prompt mit `loop: true` gebaut wird und die Methoden dort
+  // auslässt.
+  for (const mention of state.methodSkillMentions ?? []) {
+    const resolved = await deps.resolveRecipe({ mention, userId: userId ?? null });
+    if (!resolved) {
+      log.warn(`[Rezept] Methode nicht verfügbar: ${mention}`);
+      continue;
+    }
+    const outcome = recipeRegistry.register({
+      mention,
+      title: resolved.title,
+      body: resolved.body,
+      source: resolved.source,
+      recommendedTools: recommendedToolsFor(mention, isMounted),
+      preloaded: true,
+      rolle: 'methode',
+    });
+    log.info(`[Rezept] Methode vorab geladen=${mention} (${outcome})`);
   }
 
   // Self-loading recipes. Mounted async like the MCP catalogs (the user's
@@ -910,5 +942,6 @@ export function wrapAssembledTools(
           serverNameFor: (name: string) => ctx.toolLabels.get(name)?.serverName,
         }
       : {}),
+    resultBudgetFor: (name: string) => toolResultBudget(name, ctx.toolLabels),
   });
 }

@@ -7,25 +7,31 @@
  * stored in canvases and templates.
  */
 import {
-  isShareSrc,
-  SHAREPIC_EMOJI,
-  sharepicEmojiCode,
-  SYSTEM_STICKERS,
-  type SharepicEmoji,
-} from '@gruenerator/contracts';
-
-import {
   assetMatchesLocale,
   type AssetAudience,
   type CanvasAssetCatalog,
   emojiCodeAssetId,
   type IllustrationSources,
   type UniversalAsset,
-} from '../utils/canvasAssets';
+} from '@ggraphic/editor/utils/canvasAssets';
+import {
+  isShareSrc,
+  SHAREPIC_EMOJI,
+  sharepicEmojiCode,
+  shareCanvasPreviewUrl,
+  shareThumbnailPreviewUrl,
+  STOCK_CATEGORY_LABELS,
+  SYSTEM_STICKERS,
+  type SharepicEmoji,
+} from '@gruenerator/contracts';
 
+import { UNDRAW_FEATURED } from '../utils/illustrations/undraw';
+
+import { GRUENE_AI_ILLUSTRATIONS } from './grueneAiIllustrations';
 import { ALL_ASSETS, TEMPLATE_ASSETS } from './grueneAssets';
+import { GRUENE_ELEMENT_PANEL } from './grueneElementPanel';
 
-export { registerAssetCatalog } from '../utils/canvasAssets';
+export { registerAssetCatalog } from '@ggraphic/editor/utils/canvasAssets';
 
 const EMOJI_NAMES: Record<SharepicEmoji, [label: string, ...tags: string[]]> = {
   '🗳️': ['Wahlurne', 'wahl', 'wählen', 'stimme'],
@@ -104,8 +110,18 @@ export const STICKER_ASSETS: UniversalAsset[] = SYSTEM_STICKERS.map((s) => ({
   audience: s.audience,
 }));
 
+/**
+ * Sticker einer Kollektion (`kollektion`, etwa die der Grünen Jugend) gibt es
+ * nur über deren Marktplatz-Seite. Aufgelöst werden sie trotzdem — ein
+ * gespeicherter Canvas nennt sie per id und src (F0) —, angeboten nicht.
+ */
+const COLLECTION_STICKER_IDS: ReadonlySet<string> = new Set(
+  SYSTEM_STICKERS.filter((s) => 'kollektion' in s).map((s) => s.id)
+);
+const OFFERED_STICKER_ASSETS = STICKER_ASSETS.filter((a) => !COLLECTION_STICKER_IDS.has(a.id));
+
 export function stickerAssetsForLocale(locale: AssetAudience): UniversalAsset[] {
-  return STICKER_ASSETS.filter((a) => assetMatchesLocale(a, locale));
+  return OFFERED_STICKER_ASSETS.filter((a) => assetMatchesLocale(a, locale));
 }
 
 /**
@@ -120,24 +136,58 @@ export function stickerAssetsForLocale(locale: AssetAudience): UniversalAsset[] 
  */
 const GRUENE_ILLUSTRATIONS: IllustrationSources = {
   basePath: '/illustrations',
-  loadKawaii: () => import('../utils/illustrations/kawaii').then((m) => m.KAWAII_ILLUSTRATIONS),
+  aiPicks: GRUENE_AI_ILLUSTRATIONS,
+  featured: UNDRAW_FEATURED,
+  // The Kawaii characters keep the brand tanne.
+  kawaiiColor: '#005437',
+  loadKawaii: () =>
+    import('@ggraphic/editor/utils/illustrations/kawaii').then((m) => m.KAWAII_ILLUSTRATIONS),
   loadSvg: async () =>
     (
       await Promise.all([
-        import('../utils/illustrations/opendoodles').then((m) => m.OPENDOODLES),
-        import('../utils/illustrations/illlustrations').then((m) => m.ILLLUSTRATIONS),
-        import('../utils/illustrations/gophers').then((m) => m.GOPHERS),
-        import('../utils/illustrations/transhumans').then((m) => m.TRANSHUMANS),
-        import('../utils/illustrations/humaaans').then((m) => m.HUMAAANS),
-        import('../utils/illustrations/openpeeps').then((m) => m.OPENPEEPS),
+        import('@ggraphic/editor/utils/illustrations/opendoodles').then((m) => m.OPENDOODLES),
+        import('@ggraphic/editor/utils/illustrations/illlustrations').then((m) => m.ILLLUSTRATIONS),
+        import('@ggraphic/editor/utils/illustrations/gophers').then((m) => m.GOPHERS),
+        import('@ggraphic/editor/utils/illustrations/transhumans').then((m) => m.TRANSHUMANS),
+        import('@ggraphic/editor/utils/illustrations/humaaans').then((m) => m.HUMAAANS),
+        import('@ggraphic/editor/utils/illustrations/openpeeps').then((m) => m.OPENPEEPS),
         import('../utils/illustrations/undrawAll').then((m) => m.UNDRAW_ALL),
       ])
     ).flat(),
 };
 
+/**
+ * German names for the bundled stock photos' `category`, so "Mobilität" finds
+ * the whole group. Single words only: a word list per category made every
+ * photo in it match "Wind" or "Fahrrad"; the search's own German→English
+ * dictionary reaches the English tags and alt text of the right photos instead.
+ */
+const STOCK_CATEGORY_NAMES: Record<string, string> = {
+  agriculture: 'Landwirtschaft',
+  economy: 'Wirtschaft',
+  health: 'Gesundheit',
+  housing: 'Wohnen',
+  media: 'Medien',
+  urban: 'Stadt',
+};
+
+const STOCK_PHOTO_PATH = '/api/image-picker/stock-image/';
+
 export const GRUENE_ASSET_CATALOG: CanvasAssetCatalog = {
   assets: [...ALL_ASSETS, ...TEMPLATE_ASSETS, ...EMOJI_ASSETS, ...STICKER_ASSETS],
+  // The template variants resolve but are not offered in the picker.
+  offered: [...ALL_ASSETS, ...EMOJI_ASSETS, ...OFFERED_STICKER_ASSETS],
   isInstanceSrc: isShareSrc,
   emojiSrc: emojiCodeSrc,
   illustrations: GRUENE_ILLUSTRATIONS,
+  imageUrls: {
+    thumbnail: shareThumbnailPreviewUrl,
+    preview: (src, width) => shareCanvasPreviewUrl(src, width) ?? src,
+    shareDownload: (shareToken) => `/api/share/${shareToken}/download`,
+    stockPhoto: (filename) => `${STOCK_PHOTO_PATH}${encodeURIComponent(filename)}`,
+    isStockPhoto: (url) => url.startsWith(STOCK_PHOTO_PATH),
+  },
+  stockCategoryName: (category) =>
+    STOCK_CATEGORY_LABELS[category] ?? STOCK_CATEGORY_NAMES[category] ?? null,
+  elementPanel: GRUENE_ELEMENT_PANEL,
 };

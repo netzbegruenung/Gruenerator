@@ -1,7 +1,7 @@
+import { loadCanvasConfig } from '@ggraphic/editor/configs/configLoader';
 import { describe, it, expect, beforeAll } from 'vitest';
 
 import { INFO_CONFIG } from '../../utils/infoLayout';
-import { loadCanvasConfig } from '../configLoader';
 
 /**
  * Die Auto-Fit-Schleife der Info-Vorlage verkleinert den Text, bis er über der

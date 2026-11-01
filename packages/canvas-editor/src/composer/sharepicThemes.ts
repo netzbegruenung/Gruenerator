@@ -77,6 +77,9 @@ export const SHAREPIC_THEMES = {
     accent: {
       'gruene-de': { light: null, dark: THEMA_INK.flaggenGelb, grass: null },
       'gruene-at': { light: null, dark: null },
+      // GJ: the primaries are light and carry black; the brand keeps it there.
+      'gj-de': { light: null, dark: THEMA_INK.flaggenGelb },
+      'gj-at': { light: null, dark: null },
     },
     marker: {
       light: { fill: THEMA_INK.flaggenGelb, ink: THEMA_INK.violettDunkel },
@@ -110,6 +113,8 @@ export const SHAREPIC_THEMES = {
     accent: {
       'gruene-de': { light: lila, dark: flieder },
       'gruene-at': { light: lila, dark: null },
+      'gj-de': { light: null, dark: flieder },
+      'gj-at': { light: null, dark: null },
     },
     marker: {
       light: { fill: lila, ink: '#FFFFFF' },
@@ -131,6 +136,8 @@ export const SHAREPIC_THEMES = {
     accent: {
       'gruene-de': { light: blau, dark: gelb },
       'gruene-at': { light: blau, dark: null },
+      'gj-de': { light: null, dark: gelb },
+      'gj-at': { light: null, dark: null },
     },
     marker: {
       light: { fill: blau, ink: '#FFFFFF' },

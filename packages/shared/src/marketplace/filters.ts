@@ -64,11 +64,11 @@ function parseItemParam(raw: string | null): MarketplaceTarget | null {
 
 /** Web's `URLSearchParams` or expo-router's `useLocalSearchParams()`. */
 export type MarketplaceParamSource =
-  URLSearchParams | Readonly<Record<string, string | readonly string[]>>;
+  URLSearchParams | Readonly<Record<string, string | readonly string[] | undefined>>;
 
 function readParam(source: MarketplaceParamSource, key: string): string | null {
   if (source instanceof URLSearchParams) return source.get(key);
-  const raw: string | readonly string[] | null = key in source ? source[key] : null;
+  const raw = key in source ? source[key] : null;
   if (typeof raw === 'string') return raw;
   return raw?.[0] ?? null;
 }

@@ -44,6 +44,7 @@ import {
   type Skill,
 } from '@gruenerator/shared/agents';
 import { type InstanceId } from '@gruenerator/shared/instances';
+import { grueneJugendRoleLocale } from '@gruenerator/shared/roles';
 
 import { CURRENT_INSTANCE } from '../../../config/instance.js';
 
@@ -91,6 +92,13 @@ export function preferredLvRecipeMention(params: {
   if (!mention) return null;
   const family = LV_FAMILY_BY_GENERIC_MENTION[mention.toLowerCase()];
   if (!family) return null;
+
+  // Eine aktive Rolle in der Grünen Jugend schreibt Instagram im Stil ihres
+  // Verbands — außer auf einem LV-Agenten, der die Wahl an sich bindet.
+  const gjLocale = grueneJugendRoleLocale(activeRole);
+  if (gjLocale && family.category === 'social' && !landesverbandOfAgent(agentIdentifier ?? '')) {
+    return gjLocale === 'de-AT' ? 'gj-insta-at' : 'gj-insta';
+  }
 
   // Ein LV-Agent bindet die Wahl an seinen Landesverband — auch dann, wenn
   // der keine Variante dieser Familie führt (SH, Sachsen): sonst bekäme eine

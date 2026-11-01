@@ -33,6 +33,7 @@ vi.mock('../../../tools/index.js', () => ({
 }));
 
 const { execute } = await import('../execute.js');
+const { default: ToolHandler } = await import('../../../tools/index.js');
 
 const PROVIDERS = ['mistral', 'litellm', 'melious', 'greenpt'] as const;
 
@@ -71,6 +72,47 @@ describe('response_format: json_object', () => {
   it('ignores a format it does not know', async () => {
     await execute('mistral', 'req', request({ response_format: { type: 'text' } }) as never);
     expect(wrapLanguageModel).not.toHaveBeenCalled();
+  });
+
+  // Mistral and Melious reject `json_object` next to any tool_choice but
+  // `auto` (#5112): "`json_object` response type with tools is only compatible
+  // with `tool_choice: auto`". A forced tool call is already structured, so the
+  // forced choice wins and JSON mode is dropped — on every hop of the chain.
+  // `none` is not forced and stays with JSON mode: Mistral accepts that pair
+  // (probed 28.10.2026, only `any`/named returned error 3051).
+  for (const [toolChoice, sdkChoice] of [
+    ['required', 'required'],
+    [
+      { type: 'tool', name: 'plan' },
+      { type: 'tool', toolName: 'plan' },
+    ],
+  ] as const) {
+    it(`drops JSON mode under a forced tool_choice ${JSON.stringify(toolChoice)}`, async () => {
+      vi.mocked(ToolHandler.prepareToolsPayload).mockReturnValueOnce({
+        tools: [{ name: 'plan', description: 'x', input_schema: { type: 'object' } }],
+        tool_choice: toolChoice,
+      } as never);
+
+      await execute(
+        'mistral',
+        'req',
+        request({ response_format: { type: 'json_object' } }) as never
+      );
+
+      expect(wrapLanguageModel).not.toHaveBeenCalled();
+      expect(generateText).toHaveBeenCalledWith(expect.objectContaining({ toolChoice: sdkChoice }));
+    });
+  }
+
+  it('keeps JSON mode next to tools the model may skip (tool_choice auto)', async () => {
+    vi.mocked(ToolHandler.prepareToolsPayload).mockReturnValueOnce({
+      tools: [{ name: 'plan', description: 'x', input_schema: { type: 'object' } }],
+      tool_choice: 'auto',
+    } as never);
+
+    await execute('mistral', 'req', request({ response_format: { type: 'json_object' } }) as never);
+
+    expect(wrapLanguageModel).toHaveBeenCalled();
   });
 
   it('wraps the usage-tracked model rather than the other way round', async () => {

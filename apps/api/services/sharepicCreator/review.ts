@@ -57,6 +57,7 @@ Ist alles gut: ok = true, issues und patch leer. Sonst issues = höchstens 3 kur
 - {"op":"use_color","color":…} – das Foto passt nicht erkennbar zum Thema (Motiv und Auftrag haben nichts miteinander zu tun): stattdessen Markenfarbe – im Zweifel lieber Farbe als ein beliebiges Foto
 Eigene Fotos (filename "upload:N") hat die Person selbst mitgebracht, Fotos einer Vorlage ("vorlage:…") gehören zu ihr: nie durch eine Farbe ersetzen (kein use_color) – auch dann nicht, wenn das Motiv nicht zum Thema passt.
 Diese Elemente SIND Corporate Design und kein Fehler: der Datumskreis (Deutschland Tanne oder grasgrün, Österreich magenta), der Störer-Kreis (Deutschland grasgrün mit dunkler Schrift, auf grasgrüner Fläche Tanne; Österreich magenta), der Lime-Marker hinter einer Headline-Zeile und lime Einzelwörter (Deutschland), weiße und grüne Zeilenboxen (Deutschland), gelbe kursive Wörter oder Zeilen (Österreich), der Farbverlauf über dem Foto, die Farbfläche, die ins Foto ausblendet, das einfarbig grün eingefärbte Foto über oder unter der Farbfläche (Österreich), der Weiter-Pfeil unten rechts (in einem Karussell, darf auch fehlen) mit einem kurzen Teaser daneben, die Seitenzahl oben („2/5“ oder eine Punktreihe), die kleine Quellenzeile, das dunkle Schild „KI-Generiert …“ unten links auf jeder Slide (Pflichtkennzeichnung, nie entfernen oder bemängeln).
+Im Design der GRÜNEN JUGEND (Deutschland) ebenso: schwarze Schrift auf Hellgrün, Lavendel, Pink und Apricot, weiße und hellgrüne Zeilenbalken ohne Abstand und ohne Rundung (die erste Zeile weiß), der schwarze Zackenstern als Störer, die schräge Wortmarke „GRÜNE JUGEND“ unten links. Grüne Jugend Österreich: Headlines in Versalien, Waldgrün mit cremefarbener Schrift, gelbe Wörter, die gelbe gedrehte Ellipse als Störer, weiße Karten mit schwarzem Rand und hartem Schatten, kein Logo.
 In Karussells sind Slides ohne Headline gewollt: Geschichte, Kontext und Kritik stehen dort als Absätze (absatz), oft in Zeilenboxen. Mach daraus keine Headline – kürze höchstens den Text.
 Eine Headline mit "groesse":"gross" ist auf Wunsch der Person größer gesetzt: nicht als zu groß bemängeln; ein set_headline darauf behält die Größe.
 Ein Zitat (zitat) bleibt ein Zitat mit seinem Namen: mach es nie zur Headline und lass es nie weg.
@@ -347,13 +348,13 @@ export async function reviewSharepic(
     })
     .join('\n\n');
   // The draft already took the closest colour; a patch back to "sand" only retried.
-  const palette = paletteSubstitutions(prompt, spec.locale);
+  const palette = paletteSubstitutions(prompt, spec.locale, spec.brand);
   const colourHint = palette.length ? `\n\n${paletteHint(palette)}` : '';
   try {
     const result = await aiObject<SharepicReviewResponse>({
       lane: 'sharepic_creator_review',
       pinned: PINNED,
-      system: `${REVIEW_SYSTEM}\n\n${basicsText(spec.locale)}`,
+      system: `${REVIEW_SYSTEM}\n\n${basicsText(spec.locale, spec.brand)}`,
       messages: [
         {
           role: 'user',
@@ -377,7 +378,7 @@ export async function reviewSharepic(
       schema: REVIEW_SCHEMA,
       validate: (input, attempt, attempts) => {
         const checked = validateReview(
-          withPaletteColors(input, spec.locale),
+          withPaletteColors(input, spec.locale, spec.brand),
           spec.slides.map((slide) => slide.items.length),
           spec.slides
         );

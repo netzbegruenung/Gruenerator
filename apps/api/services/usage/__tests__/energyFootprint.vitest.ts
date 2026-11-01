@@ -577,12 +577,14 @@ describe('pueFor', () => {
  * Der Test hängt deshalb an INTERMEDIATE_LANES statt an einer Liste von IDs —
  * wer die Lane auf einen neuen Modellnamen umhängt, kommt hier vorbei.
  */
-describe('die Modell-IDs, die die Cortecs-Stufen wirklich senden', () => {
+describe('die Modell-IDs, die die Gemma-Stufen wirklich senden', () => {
+  // Beide Gemma-Hosts: seit 28.10.2026 sitzt der Primär auf Melious, und ein
+  // Filter nur auf Cortecs fände keine Stufe mehr — der Wächter prüfte nichts.
   const cortecsLanes = Object.entries(INTERMEDIATE_LANES).filter(
-    ([, cfg]) => cfg.provider === 'cortecs'
+    ([, cfg]) => cfg.provider === 'cortecs' || cfg.provider === 'melious'
   );
 
-  it('deckt jede Cortecs-Stufe ab, statt sie als unbeziffert durchzureichen', () => {
+  it('deckt jede Gemma-Stufe ab, statt sie als unbeziffert durchzureichen', () => {
     expect(cortecsLanes.length).toBeGreaterThan(0);
     for (const [id, cfg] of cortecsLanes) {
       expect(hasEnergyCoefficients(cfg.model), `Stufe ${id} (${cfg.model})`).toBe(true);

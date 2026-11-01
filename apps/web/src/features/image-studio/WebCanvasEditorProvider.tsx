@@ -1,5 +1,6 @@
 import { CanvasEditorProvider } from '@gruenerator/canvas-editor';
 import { sharepicBlockSpec } from '@gruenerator/contracts';
+import { canRequestFeedback, requestFeedback } from '@gruenerator/ui';
 import { useQueryClient } from '@tanstack/react-query';
 import { useId, useMemo, type ReactNode } from 'react';
 
@@ -7,6 +8,7 @@ import { useAuthStore } from '../../stores/authStore';
 import { usePrintVorlage } from '../vorlagen/hooks/usePrintVorlage';
 import {
   canvasVorlagenQuery,
+  folienVorlagenQuery,
   printVorlagenQuery,
   sharepicBloeckeQuery,
   sharepicSeitenQuery,
@@ -47,6 +49,7 @@ const composeSeite = (seite: SharepicSeite, format: SharepicFormat) =>
   composeSpec(
     {
       locale: seite.locale,
+      ...(seite.brand ? { brand: seite.brand } : {}),
       format,
       ...(seite.thema ? { thema: seite.thema } : {}),
       slides: [seite.slide],
@@ -89,16 +92,18 @@ export function WebCanvasEditorProvider({
       ...(allowVorlagen
         ? {
             vorlagen: {
-              listSeiten: () => queryClient.fetchQuery(sharepicSeitenQuery()),
+              listSeiten: (brand) => queryClient.fetchQuery(sharepicSeitenQuery(brand)),
               composeSeite,
               listCanvas: () => queryClient.fetchQuery(canvasVorlagenQuery()),
+              loadDeckVorlagen: () => queryClient.fetchQuery(folienVorlagenQuery()),
               listPrint: () => queryClient.fetchQuery(printVorlagenQuery()),
               openPrintAsNew: (vorlage) => void openPrintVorlage(vorlage),
-              listBloecke: () => queryClient.fetchQuery(sharepicBloeckeQuery()),
+              listBloecke: (brand) => queryClient.fetchQuery(sharepicBloeckeQuery(brand)),
               composeBlock,
             },
           }
         : {}),
+      feedback: { canRequest: canRequestFeedback, request: requestFeedback },
       userLocale: isAustrianUser ? 'de-AT' : 'de-DE',
     };
   }, [isAustrianUser, allowStickerCreator, allowVorlagen, queryClient, openPrintVorlage]);

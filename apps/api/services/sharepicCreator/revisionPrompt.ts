@@ -7,8 +7,9 @@ import {
 import { itemText } from './slideTexts.js';
 
 /** The model sees the draft without the country — that is decided, not designed. */
-export function withoutLocale(spec: SharepicSpec): Omit<SharepicSpec, 'locale'> {
-  const { locale: _locale, ...rest } = spec;
+/** The draft as the model sees it: country and brand are fixed and put back afterwards. */
+export function withoutLocale(spec: SharepicSpec): Omit<SharepicSpec, 'locale' | 'brand'> {
+  const { locale: _locale, brand: _brand, ...rest } = spec;
   return rest;
 }
 

@@ -77,6 +77,8 @@ import {
 } from 'react';
 import { createPortal, flushSync } from 'react-dom';
 
+import { useDocumentBrand } from '@ggraphic/editor/brand/documentBrand';
+import { messages } from '@ggraphic/editor/i18n/messages';
 import {
   captureFocusOrigin,
   returnFocus,
@@ -85,17 +87,17 @@ import {
 import { normalizeRotation } from '@ggraphic/editor/utils/orientation';
 import { stageCssScale } from '@ggraphic/editor/utils/stageCssScale';
 
-import { fontMarkSupport } from '../utils/fontMarkSupport';
-import { defaultTextMarker } from '../utils/markerColors';
+import { fontMarkSupport } from '../utils/fontMarkSupport.js';
+import { defaultTextMarker } from '../utils/markerColors.js';
 import {
   fontStyleForRun,
   measureTextWidthWithFont,
   type TextAccent,
   type TextMarker,
-} from '../utils/textUtils';
+} from '../utils/textUtils.js';
 
-import type { RichTextField } from './RichTextField';
-import type { OfferedMarks, TextFormatControls } from './TextFormatControls';
+import type { RichTextField } from './RichTextField.js';
+import type { OfferedMarks, TextFormatControls } from './TextFormatControls.js';
 import type { Editor } from '@tiptap/react';
 import type Konva from 'konva';
 
@@ -180,7 +182,10 @@ let richTextLoading: Promise<RichTextModules> | null = null;
  * danach, liegt sein Fokus außerhalb der Geste, und iOS zeigt keine Tastatur.
  */
 export function preloadRichText(): Promise<RichTextModules> {
-  richTextLoading ??= Promise.all([import('./RichTextField'), import('./TextFormatControls')]).then(
+  richTextLoading ??= Promise.all([
+    import('./RichTextField.js'),
+    import('./TextFormatControls.js'),
+  ]).then(
     ([field, controls]) =>
       (richTextModules = {
         RichTextField: field.RichTextField,
@@ -224,8 +229,6 @@ function useRichTextModules(needed: boolean, onFailed: () => void): RichTextModu
   return richTextModules;
 }
 
-const LOAD_FAILED_NOTICE =
-  'Der Texteditor konnte nicht geladen werden. Bitte prüfe deine Verbindung und versuche es erneut.';
 const NOTICE_MS = 6000;
 
 /**
@@ -452,6 +455,7 @@ export function CanvasTextEditorProvider({ children }: { children: ReactNode }) 
 }
 
 function TextEditorRoot({ children }: { children: ReactNode }) {
+  const brand = useDocumentBrand();
   const [session, setSession] = useState<TextEditSession | null>(null);
   const [editor, setEditor] = useState<Editor | null>(null);
   const [draft, setDraft] = useState('');
@@ -598,8 +602,8 @@ function TextEditorRoot({ children }: { children: ReactNode }) {
           // Wert aber unverändert durch.
           ...({
             '--canvas-rte-list-indent': `${listIndent}px`,
-            '--canvas-rte-marker-fill': (session.marker ?? defaultTextMarker()).fill,
-            '--canvas-rte-marker-color': (session.marker ?? defaultTextMarker()).color,
+            '--canvas-rte-marker-fill': (session.marker ?? defaultTextMarker(brand)).fill,
+            '--canvas-rte-marker-color': (session.marker ?? defaultTextMarker(brand)).color,
             ...(session.accent && {
               '--canvas-rte-accent-color': session.accent.fill,
               '--canvas-rte-accent-font': session.accent.fontFamily ?? session.fontFamily,
@@ -668,7 +672,7 @@ function TextEditorRoot({ children }: { children: ReactNode }) {
             role="alert"
             className="fixed bottom-4 left-1/2 z-[10000] max-w-[min(420px,calc(100vw-32px))] -translate-x-1/2 rounded-md bg-[var(--editor-surface)] px-4 py-3 text-sm text-[var(--editor-text)] shadow-lg"
           >
-            {LOAD_FAILED_NOTICE}
+            {messages().errors.textEditorLoad}
           </div>,
           document.body
         )}

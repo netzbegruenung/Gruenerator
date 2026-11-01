@@ -63,6 +63,26 @@ describe('toCreatorVariant', () => {
     expect(v.canvasType).toBe('freeform-at');
   });
 
+  it('drafts in the GRÜNE JUGEND design when the request names it', async () => {
+    draftSharepic.mockResolvedValue({
+      spec: { ...SPEC_DE, brand: 'gruene-jugend' },
+      chapters: [],
+      attributions: [null],
+    });
+    const v = await createCreatorSharepic({
+      brand: 'gruene-jugend',
+      brief: 'Mieten',
+      background: null,
+      avoid: null,
+      locale: 'de-DE',
+      userId: null,
+      form: null,
+      oneSlide: false,
+    });
+    expect(draftSharepic.mock.calls.at(-1)?.at(-1)).toBe('gruene-jugend');
+    expect(v.canvasType).toBe('freeform-gj');
+  });
+
   it('gives a carousel one page per slide', () => {
     const v = toCreatorVariant(
       { spec: SPEC_CAROUSEL, chapters: [], attributions: [null, null, null] },
@@ -132,6 +152,7 @@ describe('createCreatorSharepic / reviseCreatorSharepic', () => {
   it('drafts fresh in the requested locale', async () => {
     draftSharepic.mockResolvedValue({ spec: SPEC_AT, chapters: [], attributions: [null] });
     const v = await createCreatorSharepic({
+      brand: null,
       brief: 'Öffis',
       background: null,
       avoid: null,
@@ -151,7 +172,8 @@ describe('createCreatorSharepic / reviseCreatorSharepic', () => {
       'Öffis',
       null,
       null,
-      false
+      false,
+      null
     );
     expect(v.canvasType).toBe('freeform-at');
   });
@@ -165,6 +187,7 @@ describe('createCreatorSharepic / reviseCreatorSharepic', () => {
       alternativen: ['karussell', 'infografik'],
     });
     const v = await createCreatorSharepic({
+      brand: null,
       brief: 'Öffis',
       background: null,
       avoid: null,
@@ -207,6 +230,7 @@ describe('createCreatorSharepic with a Vorlage', () => {
   it("fills the Vorlage's spec in its form instead of drafting freely", async () => {
     draftSharepic.mockResolvedValue({ spec: SPEC_CAROUSEL, chapters: [], attributions: [] });
     await createCreatorSharepic({
+      brand: null,
       brief: 'Busse auf dem Land',
       background: null,
       avoid: SPEC_DE,
@@ -232,6 +256,7 @@ describe('createCreatorSharepic with a Vorlage', () => {
   const fill = async (vorlage: SharepicSpec, drafted: SharepicSpec) => {
     draftSharepic.mockResolvedValue({ spec: drafted, chapters: [], attributions: [] });
     const v = await createCreatorSharepic({
+      brand: null,
       brief: 'Gedenken',
       background: null,
       avoid: null,

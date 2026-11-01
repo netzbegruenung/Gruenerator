@@ -1,18 +1,4 @@
 import { type ComposerBrand, onGround } from '@ggraphic/editor/brand/composerBrand';
-import { createCircleBadgeInstance } from '@ggraphic/editor/utils/circleBadgeUtils';
-import { createShape } from '@ggraphic/editor/utils/shapes';
-import { type SharepicSeitenzahl, type SharepicSlide } from '@gruenerator/contracts';
-
-import { ASSET_TARGET_SIZE } from '../utils/canvasAssets';
-import { COLORS } from '../utils/dreizeilenLayout';
-import { VERANSTALTUNG_CONFIG } from '../utils/veranstaltungLayout';
-
-import { BRUSH_ARROW, pageDots, SHAREPIC_COLOR_HEX } from './chromeParts';
-import { placeHandMarks } from './handMarks';
-import { type ARROW, ARROW_ICON, FOOTER, KI_LABEL, MARGIN } from './sharepicLayoutConstants';
-import { sharepicTheme } from './sharepicThemes';
-import { type SlideCtx } from './slideContext';
-import { type slideInk } from './slideInk';
 import {
   fitStoererText,
   STOERER_LINE_STEP,
@@ -20,7 +6,30 @@ import {
   STOERER_MIN_READABLE,
   STOERER_RADII,
   wrapWords,
-} from './textFit';
+} from '@ggraphic/editor/composer/textFit';
+import { ASSET_TARGET_SIZE } from '@ggraphic/editor/utils/canvasAssets';
+import { createCircleBadgeInstance } from '@ggraphic/editor/utils/circleBadgeUtils';
+import { createShape } from '@ggraphic/editor/utils/shapes';
+import { type SharepicSeitenzahl, type SharepicSlide } from '@gruenerator/contracts';
+
+import { COLORS } from '../utils/dreizeilenLayout';
+import { VERANSTALTUNG_CONFIG } from '../utils/veranstaltungLayout';
+
+import { BRUSH_ARROW, pageDots, SHAREPIC_COLOR_HEX } from './chromeParts';
+import { brandFont } from './fontRole';
+import { placeHandMarks } from './handMarks';
+import { brutalLabel } from './kartenLayout';
+import {
+  type ARROW,
+  ARROW_ICON,
+  ETIKETT,
+  FOOTER,
+  KI_LABEL,
+  MARGIN,
+} from './sharepicLayoutConstants';
+import { sharepicTheme } from './sharepicThemes';
+import { type SlideCtx } from './slideContext';
+import { type slideInk } from './slideInk';
 
 type SlideInk = ReturnType<typeof slideInk>;
 
@@ -69,7 +78,7 @@ export function drawSlideChrome(ctx: SlideCtx, inputs: ChromeInputs): void {
   const {
     measure,
     theme,
-    isAt,
+    brand,
     canvas,
     out,
     darkText,
@@ -174,6 +183,7 @@ export function drawSlideChrome(ctx: SlideCtx, inputs: ChromeInputs): void {
         ...centreAt(radius),
         radius,
         rotation: stoerer.rotation,
+        ...(ctx.brand.stoererShape !== 'circle' && { outline: ctx.brand.stoererShape }),
         backgroundColor: colors.fill,
         textColor: colors.ink,
         textLines: lines.map((value, i) => ({
@@ -188,6 +198,43 @@ export function drawSlideChrome(ctx: SlideCtx, inputs: ChromeInputs): void {
     out.layerOrder.push('sc-stoerer');
   }
 
+  const etikett = brand.layout.datumCircle === 'etikett';
+  if (spec.datum && etikett) {
+    // GJ AT: the date as a yellow label on a black edge with a hard shadow,
+    // top right (DehRgj4jAe9/01).
+    const { weekday, date, time } = spec.datum;
+    const value = [weekday, date, time]
+      .filter((part) => part !== undefined)
+      .join(' · ')
+      .toLocaleUpperCase('de-DE');
+    const colors = onGround(brand.stoerer.colors, { onLight, onGrass });
+    const width =
+      measure(value, ETIKETT.fontSize, theme.fonts.headline, 'normal') + 2 * ETIKETT.padX;
+    const height = ETIKETT.fontSize + 2 * ETIKETT.padY;
+    brutalLabel(ctx, 'sc-datum', {
+      x: canvas.width - MARGIN - width,
+      y: ETIKETT.top,
+      width,
+      height,
+      fill: colors.fill,
+    });
+    out.additionalTexts.push({
+      id: 'sc-datum-text',
+      text: value,
+      type: 'header',
+      x: canvas.width - MARGIN - width,
+      y: ETIKETT.top + ETIKETT.padY,
+      width,
+      fontSize: ETIKETT.fontSize,
+      fontFamily: theme.fonts.headline,
+      fontStyle: 'normal',
+      fill: colors.ink,
+      align: 'center',
+      lineHeight: 1,
+    });
+    out.layerOrder.push('sc-datum-text');
+  }
+
   if (spec.datum && circle) {
     // DE: Tanne on light and grass-green ground, grass green on dark ground
     // and photos — never a third colour. AT keeps its magenta. A theme with
@@ -195,11 +242,15 @@ export function drawSlideChrome(ctx: SlideCtx, inputs: ChromeInputs): void {
     const themed = themeDef?.badge?.[onLight ? 'light' : 'dark'] ?? null;
     const circleColors = themed
       ? { background: themed.fill, text: themed.ink }
-      : isAt
-        ? { background: theme.colors.stoerer, text: VERANSTALTUNG_CONFIG.circle.textColor }
-        : darkInk
-          ? { background: COLORS.TANNE, text: '#ffffff' }
-          : { background: SHAREPIC_COLOR_HEX.grasgruen, text: COLORS.TANNE };
+      : brand.layout.datumCircle === 'stoerer'
+        ? (({ fill, ink }) => ({ background: fill, text: ink }))(
+            onGround(brand.stoerer.colors, { onLight, onGrass })
+          )
+        : brand.layout.datumCircle === 'attention'
+          ? { background: theme.colors.stoerer, text: VERANSTALTUNG_CONFIG.circle.textColor }
+          : darkInk
+            ? { background: COLORS.TANNE, text: '#ffffff' }
+            : { background: SHAREPIC_COLOR_HEX.grasgruen, text: COLORS.TANNE };
     const c = VERANSTALTUNG_CONFIG.circle;
     const t = VERANSTALTUNG_CONFIG.circleText;
     // The template's type is set for its radius; a smaller circle scales it.
@@ -239,7 +290,37 @@ export function drawSlideChrome(ctx: SlideCtx, inputs: ChromeInputs): void {
     out.layerOrder.push('sc-datum');
   }
 
-  if (spec.ort && !ortInColumn) {
+  if (spec.ort && !ortInColumn && etikett) {
+    // GJ AT: the place on a light-green footer band across the slide, in
+    // capitals (DehRgj4jAe9/01).
+    const size = 30;
+    const lines = spec.ort.lines.map((l) => l.toLocaleUpperCase('de-DE'));
+    const height = lines.length * size * 1.2 + 2 * 26;
+    const bottom = ortBottom + 14;
+    const band = createShape(
+      'rect',
+      canvas.width / 2,
+      bottom - height / 2,
+      brand.absatzOnDark ?? theme.colors.secondary,
+      brand.absatzOnDark ?? theme.colors.secondary
+    );
+    Object.assign(band, { id: 'sc-ort-band', width: canvas.width, height });
+    addShape(band);
+    out.additionalTexts.push({
+      id: 'sc-ort',
+      text: lines.join('\n'),
+      type: 'body',
+      x: MARGIN,
+      y: bottom - height + 26,
+      width: canvas.width - 2 * MARGIN,
+      fontSize: size,
+      fontFamily: theme.fonts.headline,
+      fontStyle: 'normal',
+      fill: brand.darkText,
+      lineHeight: 1.2,
+    });
+    out.layerOrder.push('sc-ort');
+  } else if (spec.ort && !ortInColumn) {
     const size = 38;
     const height = spec.ort.lines.length * size * 1.25;
     // Beside a free date circle the place reads with it: right-aligned to the
@@ -254,7 +335,7 @@ export function drawSlideChrome(ctx: SlideCtx, inputs: ChromeInputs): void {
       y: beside ? circle.y - height / 2 : ortBottom - height,
       width: right - footX,
       fontSize: size,
-      fontFamily: theme.fonts.body,
+      ...brandFont(theme.fonts, 'body'),
       fontStyle: 'normal',
       fill: textColor,
       lineHeight: 1.25,
@@ -308,7 +389,7 @@ export function drawSlideChrome(ctx: SlideCtx, inputs: ChromeInputs): void {
     const { size, right, bottom, glyph } = arrow;
     const x = canvas.width - right - (size * glyph) / 2;
     const y = canvas.height - bottom - size * 0.08;
-    if (isAt) {
+    if (brand.layout.swipeArrow === 'brush') {
       out.assetInstances.push({
         id: 'sc-pfeil',
         assetId: footerOnLight ? BRUSH_ARROW.onLight : BRUSH_ARROW.onDark,
@@ -341,7 +422,7 @@ export function drawSlideChrome(ctx: SlideCtx, inputs: ChromeInputs): void {
         y: y - weiterSize * 0.6 - (weiterLines.length - 1) * weiterSize * 1.2,
         width: weiterWidth + 8,
         fontSize: weiterSize,
-        fontFamily: theme.fonts.body,
+        ...brandFont(theme.fonts, 'body'),
         fontStyle: 'bold',
         fill: footerDarkInk ? darkText : '#FFFFFF',
         align: 'right',
@@ -369,7 +450,7 @@ export function drawSlideChrome(ctx: SlideCtx, inputs: ChromeInputs): void {
         y,
         width,
         fontSize: size,
-        fontFamily: theme.fonts.body,
+        ...brandFont(theme.fonts, 'body'),
         fontStyle: 'bold',
         fill: ink,
         opacity: 0.85,
@@ -393,7 +474,7 @@ export function drawSlideChrome(ctx: SlideCtx, inputs: ChromeInputs): void {
       y: quelleY,
       width: quelleWidth,
       fontSize: size,
-      fontFamily: theme.fonts.body,
+      ...brandFont(theme.fonts, 'body'),
       fontStyle: 'normal',
       fill: textColor,
       opacity: 0.8,

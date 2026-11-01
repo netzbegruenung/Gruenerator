@@ -9,7 +9,7 @@ import { describe, expect, it, vi } from 'vitest';
 
 import { createFreeformFullConfig, type FreeformState } from '../configs/freeform_full.config';
 
-import { applyOperation, type RotateElement } from './applyOperation';
+import { applyOperation, type RotateElement } from '@ggraphic/editor/ai/applyOperation';
 
 const SEED = {
   backgroundMode: 'color',

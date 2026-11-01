@@ -17,6 +17,12 @@
      "width": 880,
      "fontSize": 220,
      "fontFamily": "GothamNarrow-Ultra",
+     "bind": {
+      "fontFamily": {
+       "ref": "font.headline",
+       "value": "GothamNarrow-Ultra"
+      }
+     },
      "fontStyle": "normal",
      "fill": "transparent",
      "align": "center",
@@ -39,6 +45,12 @@
      "width": 880,
      "fontSize": 96,
      "fontFamily": "GothamNarrow-Ultra",
+     "bind": {
+      "fontFamily": {
+       "ref": "font.headline",
+       "value": "GothamNarrow-Ultra"
+      }
+     },
      "fontStyle": "normal",
      "fill": "#FFFFFF",
      "align": "center",
@@ -58,6 +70,12 @@
      "width": 880,
      "fontSize": 30,
      "fontFamily": "GothamNarrow-Book",
+     "bind": {
+      "fontFamily": {
+       "ref": "font.body",
+       "value": "GothamNarrow-Book"
+      }
+     },
      "fontStyle": "normal",
      "fill": "#FFFFFF",
      "align": "center",
@@ -140,6 +158,12 @@
      "width": 940,
      "fontSize": 220,
      "fontFamily": "GothamNarrow-Ultra",
+     "bind": {
+      "fontFamily": {
+       "ref": "font.headline",
+       "value": "GothamNarrow-Ultra"
+      }
+     },
      "fontStyle": "normal",
      "fill": "transparent",
      "align": "center",
@@ -166,6 +190,12 @@
      "width": 940,
      "fontSize": 90,
      "fontFamily": "GothamNarrow-Ultra",
+     "bind": {
+      "fontFamily": {
+       "ref": "font.headline",
+       "value": "GothamNarrow-Ultra"
+      }
+     },
      "fontStyle": "normal",
      "fill": "#FFFFFF",
      "align": "center",
@@ -190,6 +220,12 @@
      "width": 940,
      "fontSize": 30,
      "fontFamily": "GothamNarrow-Book",
+     "bind": {
+      "fontFamily": {
+       "ref": "font.body",
+       "value": "GothamNarrow-Book"
+      }
+     },
      "fontStyle": "normal",
      "fill": "#FFFFFF",
      "align": "center",
@@ -338,6 +374,12 @@
      "width": 940,
      "fontSize": 179,
      "fontFamily": "GothamNarrow-Ultra",
+     "bind": {
+      "fontFamily": {
+       "ref": "font.headline",
+       "value": "GothamNarrow-Ultra"
+      }
+     },
      "fontStyle": "normal",
      "fill": "#257639",
      "align": "left",

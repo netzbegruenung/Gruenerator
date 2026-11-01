@@ -16,10 +16,10 @@ import { render, screen, act } from '@testing-library/react';
 import { useEffect } from 'react';
 import { beforeAll, describe, expect, it, vi } from 'vitest';
 
-import { ContextControls } from '../ContextControls';
+import { ContextControls } from '@ggraphic/editor/components/TopBar/ContextControls';
 
-import type { FloatingModuleState } from '../../../hooks/useFloatingModuleState';
 import type { TextEditSession } from '@ggraphic/editor/components/CanvasTextOverlay';
+import type { FloatingModuleState } from '@ggraphic/editor/hooks/useFloatingModuleState';
 
 const PT_SANS = 'PT Sans, Arial, sans-serif';
 const GRUENE_TYPE = 'GrueneTypeNeue, Arial, sans-serif';

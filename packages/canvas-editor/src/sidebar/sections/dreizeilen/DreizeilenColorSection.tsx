@@ -1,7 +1,8 @@
+import { useMessages } from '@ggraphic/editor/i18n/messages';
 import { cn } from '@ggraphic/editor/utils/cn';
 import { FaCheck } from 'react-icons/fa';
 
-import { SidebarHint } from '../../components/SidebarHint';
+import { SidebarHint } from '@ggraphic/editor/sidebar/components/SidebarHint';
 import {
   CARD_CHECK,
   CARD_GRID,
@@ -9,7 +10,7 @@ import {
   SELECTABLE_CARD_ACTIVE,
   SELECTABLE_CARD_WITH_LABEL,
   SIDEBAR_SECTION,
-} from '../../sidebarStyles';
+} from '@ggraphic/editor/sidebar/sidebarStyles';
 
 import type { ColorScheme } from '../../../utils/dreizeilenLayout';
 
@@ -24,6 +25,7 @@ export function DreizeilenColorSection({
   activeSchemeId,
   onSchemeChange,
 }: DreizeilenColorSectionProps) {
+  const t = useMessages();
   return (
     <div className={cn(SIDEBAR_SECTION, 'w-full')}>
       <div className={CARD_GRID}>
@@ -60,11 +62,7 @@ export function DreizeilenColorSection({
           );
         })}
       </div>
-      <SidebarHint>
-        Wähle ein Farbschema, das die Lesbarkeit deiner Balken optimiert. Die Vorschau zeigt dir,
-        wie die drei Balken eingefärbt werden. Achte auf guten Kontrast zwischen Balkenfarbe und
-        Text.
-      </SidebarHint>
+      <SidebarHint>{t.sidebar.bars.colorHint}</SidebarHint>
     </div>
   );
 }

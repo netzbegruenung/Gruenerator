@@ -7,7 +7,7 @@ import {
 } from '@ggraphic/editor/utils/coverFit';
 import { panOfStraightPhoto } from '@ggraphic/editor/utils/straighten';
 
-import { type UserImageInstance } from './userImageUtils';
+import { type UserImageInstance } from './userImageUtils.js';
 
 /** Commit a local crop window without moving or resampling the underlying photo. */
 export function userImageCropUpdate(

@@ -1,15 +1,16 @@
 import { getCanvasFormat, type CanvasFormat } from '@ggraphic/editor/formats/index';
 import { describe, expect, it } from 'vitest';
 
+import { GRUENE_AT } from '../../brand/theme';
 import { composeSharepic } from '../../composer/composeSharepic';
 import { at, deCarousel, options } from '../../composer/sharepicSpecFixtures';
 
 import {
   buildPptxModel,
-  PPTX_MAPPED_PAGE_KEYS,
+  pptxMappedPageKeys,
   PPTX_UNMAPPED_PAGE_KEYS,
   type PptxPageState,
-} from './buildPptxModel';
+} from '@ggraphic/editor/export/pptx/buildPptxModel';
 
 import type {
   PptxChartItem,
@@ -18,8 +19,8 @@ import type {
   PptxRasterRequest,
   PptxShapeItem,
   PptxTextItem,
-} from './types';
-import type { AdditionalText } from '../../configs/types';
+} from '@ggraphic/editor/export/pptx/types';
+import type { AdditionalText } from '@ggraphic/editor/configs/types';
 import type { ChartInstance } from '@ggraphic/editor/utils/chartUtils';
 import type { ShapeInstance } from '@ggraphic/editor/utils/shapes';
 import type { UserImageInstance } from '@ggraphic/editor/utils/userImageUtils';
@@ -258,8 +259,9 @@ describe('buildPptxModel — fixtures', () => {
   });
 
   it('lists every key of the freeform state as mapped or deliberately unmapped', () => {
+    // The Balken's list is mapped through its registration (`brand/balkenKind.ts`).
     const known = new Set<string>([
-      ...PPTX_MAPPED_PAGE_KEYS,
+      ...pptxMappedPageKeys(),
       ...Object.keys(PPTX_UNMAPPED_PAGE_KEYS),
     ]);
     expect(Object.keys(everyKind).filter((key) => !known.has(key))).toEqual([]);
@@ -407,6 +409,21 @@ describe('buildPptxModel — text', () => {
     // Ohne Markerstil der Vorlage: der Standardkasten Limette.
     const fallback = textItem(text({ text: '++b++' })).paragraphs[0]!.runs;
     expect(fallback[0]).toMatchObject({ highlight: '#BEFF60', color: '#00261A' });
+  });
+
+  it('gives a ++marker++ run the default box and ink of the document brand', () => {
+    // An Austrian deck exports with its own brand: the page was drawn with it.
+    const pages: PptxPageState[] = [
+      { additionalTexts: [text({ text: '++b++ ++{#FFFFFF}c++', id: 'at' })] },
+    ];
+    const [item] = buildPptxModel(pages, SLIDE, { measure, brand: GRUENE_AT }).slides[0]!
+      .items as PptxTextItem[];
+    const [plain, , own] = item!.paragraphs[0]!.runs;
+    expect(plain).toMatchObject({
+      highlight: GRUENE_AT.markers.swatches[0]!.color,
+      color: GRUENE_AT.markers.ink,
+    });
+    expect(own).toMatchObject({ highlight: '#FFFFFF', color: GRUENE_AT.markers.ink });
   });
 
   it('maps bullet and numbered lists per paragraph', () => {

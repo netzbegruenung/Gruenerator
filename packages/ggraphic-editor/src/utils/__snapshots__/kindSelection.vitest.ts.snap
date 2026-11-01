@@ -1,0 +1,1067 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`duplicateElementInState per kind > additional-text 1`] = `
+{
+  "changed": {
+    "additionalTexts": [
+      {
+        "align": "center",
+        "fill": "#ffffff",
+        "fillGradient": {
+          "angle": 90,
+          "stops": [
+            {
+              "color": "#fff",
+              "offset": 0,
+            },
+          ],
+          "type": "linear",
+        },
+        "fontSize": 40,
+        "id": "text-1",
+        "opacity": 0.9,
+        "rotation": 12,
+        "shadowBlur": 3,
+        "shadowColor": "#111111",
+        "shadowOffsetX": 1,
+        "shadowOffsetY": 2,
+        "shadowOpacity": 0.5,
+        "stroke": "#000000",
+        "strokeWidth": 2,
+        "text": "Klimaschutz",
+        "width": 300,
+        "x": 10,
+        "y": 20,
+      },
+      {
+        "align": "center",
+        "fill": "#ffffff",
+        "fillGradient": {
+          "angle": 90,
+          "stops": [
+            {
+              "color": "#fff",
+              "offset": 0,
+            },
+          ],
+          "type": "linear",
+        },
+        "fontSize": 40,
+        "id": "additional-text-1700000000000-4fzzzxjyl",
+        "opacity": 0.9,
+        "rotation": 12,
+        "shadowBlur": 3,
+        "shadowColor": "#111111",
+        "shadowOffsetX": 1,
+        "shadowOffsetY": 2,
+        "shadowOpacity": 0.5,
+        "stroke": "#000000",
+        "strokeWidth": 2,
+        "text": "Klimaschutz",
+        "width": 300,
+        "x": 30,
+        "y": 40,
+      },
+    ],
+  },
+  "layerOrder": [
+    "tabler-sun",
+    "shape-1",
+    "frame-1",
+    "text-1",
+    "additional-text-1700000000000-4fzzzxjyl",
+    "ill-1",
+    "asset-1",
+    "circle-1",
+    "pill-1",
+    "img-1",
+    "chart-1",
+  ],
+  "newId": "additional-text-1700000000000-4fzzzxjyl",
+}
+`;
+
+exports[`duplicateElementInState per kind > asset 1`] = `
+{
+  "changed": {
+    "assetInstances": [
+      {
+        "assetId": "sunflower",
+        "id": "asset-1",
+        "opacity": 0.7,
+        "rotation": 0,
+        "scale": 1,
+        "x": 10,
+        "y": 20,
+      },
+      {
+        "assetId": "sunflower",
+        "id": "asset-1700000000000-4fzzzxjyl",
+        "opacity": 0.7,
+        "rotation": 0,
+        "scale": 1,
+        "x": 30,
+        "y": 40,
+      },
+    ],
+  },
+  "layerOrder": [
+    "tabler-sun",
+    "shape-1",
+    "frame-1",
+    "text-1",
+    "ill-1",
+    "asset-1",
+    "asset-1700000000000-4fzzzxjyl",
+    "circle-1",
+    "pill-1",
+    "img-1",
+    "chart-1",
+  ],
+  "newId": "asset-1700000000000-4fzzzxjyl",
+}
+`;
+
+exports[`duplicateElementInState per kind > chart 1`] = `
+{
+  "changed": {
+    "chartInstances": [
+      {
+        "chartType": "bar",
+        "colors": [
+          "#1D3557",
+        ],
+        "data": [
+          {
+            "name": "a",
+            "value": 1,
+          },
+        ],
+        "height": 300,
+        "id": "chart-1",
+        "opacity": 0.5,
+        "rotation": 0,
+        "scale": 1,
+        "title": "Zahlen",
+        "width": 400,
+        "x": 10,
+        "y": 20,
+      },
+      {
+        "chartType": "bar",
+        "colors": [
+          "#1D3557",
+        ],
+        "data": [
+          {
+            "name": "a",
+            "value": 1,
+          },
+        ],
+        "height": 300,
+        "id": "chart-1700000000000-4fzzzxjyl",
+        "opacity": 0.5,
+        "rotation": 0,
+        "scale": 1,
+        "title": "Zahlen",
+        "width": 400,
+        "x": 30,
+        "y": 40,
+      },
+    ],
+  },
+  "layerOrder": [
+    "tabler-sun",
+    "shape-1",
+    "frame-1",
+    "text-1",
+    "ill-1",
+    "asset-1",
+    "circle-1",
+    "pill-1",
+    "img-1",
+    "chart-1",
+    "chart-1700000000000-4fzzzxjyl",
+  ],
+  "newId": "chart-1700000000000-4fzzzxjyl",
+}
+`;
+
+exports[`duplicateElementInState per kind > circle-badge 1`] = `
+{
+  "changed": {
+    "circleBadgeInstances": [
+      {
+        "backgroundColor": "#e6007e",
+        "id": "circle-1",
+        "radius": 50,
+        "rotation": 0,
+        "scale": 1,
+        "textLines": [
+          {
+            "text": "Neu",
+          },
+        ],
+        "x": 10,
+        "y": 20,
+      },
+      {
+        "backgroundColor": "#e6007e",
+        "id": "circle-badge-1700000000000-4fzzzxjyl",
+        "radius": 50,
+        "rotation": 0,
+        "scale": 1,
+        "textLines": [
+          {
+            "text": "Neu",
+          },
+        ],
+        "x": 30,
+        "y": 40,
+      },
+    ],
+  },
+  "layerOrder": [
+    "tabler-sun",
+    "shape-1",
+    "frame-1",
+    "text-1",
+    "ill-1",
+    "asset-1",
+    "circle-1",
+    "circle-badge-1700000000000-4fzzzxjyl",
+    "pill-1",
+    "img-1",
+    "chart-1",
+  ],
+  "newId": "circle-badge-1700000000000-4fzzzxjyl",
+}
+`;
+
+exports[`duplicateElementInState per kind > frame 1`] = `
+{
+  "changed": {
+    "frameInstances": [
+      {
+        "clipType": "circle",
+        "height": 100,
+        "id": "frame-1",
+        "imageSrc": "blob:abc",
+        "rotation": 0,
+        "scaleX": 1,
+        "scaleY": 1,
+        "width": 200,
+        "x": 10,
+        "y": 20,
+      },
+      {
+        "clipType": "circle",
+        "height": 100,
+        "id": "frame-1700000000000-4fzzzxjyl",
+        "imageSrc": "blob:abc",
+        "rotation": 0,
+        "scaleX": 1,
+        "scaleY": 1,
+        "width": 200,
+        "x": 30,
+        "y": 40,
+      },
+    ],
+  },
+  "layerOrder": [
+    "tabler-sun",
+    "shape-1",
+    "frame-1",
+    "frame-1700000000000-4fzzzxjyl",
+    "text-1",
+    "ill-1",
+    "asset-1",
+    "circle-1",
+    "pill-1",
+    "img-1",
+    "chart-1",
+  ],
+  "newId": "frame-1700000000000-4fzzzxjyl",
+}
+`;
+
+exports[`duplicateElementInState per kind > icon 1`] = `
+{
+  "changed": {
+    "iconStates": {
+      "icon-1700000000000-4fzzzxjyl": {
+        "color": "#ff0000",
+        "flipY": true,
+        "iconId": "tabler-sun",
+        "rotation": 15,
+        "scale": 2,
+        "x": 30,
+        "y": 40,
+      },
+      "tabler-sun": {
+        "color": "#ff0000",
+        "flipY": true,
+        "rotation": 15,
+        "scale": 2,
+        "x": 10,
+        "y": 20,
+      },
+    },
+    "selectedIcons": [
+      "tabler-sun",
+      "icon-1700000000000-4fzzzxjyl",
+    ],
+  },
+  "layerOrder": [
+    "tabler-sun",
+    "icon-1700000000000-4fzzzxjyl",
+    "shape-1",
+    "frame-1",
+    "text-1",
+    "ill-1",
+    "asset-1",
+    "circle-1",
+    "pill-1",
+    "img-1",
+    "chart-1",
+  ],
+  "newId": "icon-1700000000000-4fzzzxjyl",
+}
+`;
+
+exports[`duplicateElementInState per kind > illustration 1`] = `
+{
+  "changed": {
+    "illustrationInstances": [
+      {
+        "flipX": true,
+        "id": "ill-1",
+        "illustrationId": "undraw-x",
+        "rotation": 5,
+        "scale": 1,
+        "x": 10,
+        "y": 20,
+      },
+      {
+        "flipX": true,
+        "id": "illustration-1700000000000-4fzzzxjyl",
+        "illustrationId": "undraw-x",
+        "rotation": 5,
+        "scale": 1,
+        "x": 30,
+        "y": 40,
+      },
+    ],
+  },
+  "layerOrder": [
+    "tabler-sun",
+    "shape-1",
+    "frame-1",
+    "text-1",
+    "ill-1",
+    "illustration-1700000000000-4fzzzxjyl",
+    "asset-1",
+    "circle-1",
+    "pill-1",
+    "img-1",
+    "chart-1",
+  ],
+  "newId": "illustration-1700000000000-4fzzzxjyl",
+}
+`;
+
+exports[`duplicateElementInState per kind > pill-badge 1`] = `
+{
+  "changed": {
+    "pillBadgeInstances": [
+      {
+        "backgroundColor": "#ffee00",
+        "fontSize": 20,
+        "id": "pill-1",
+        "opacity": 0.6,
+        "rotation": 2,
+        "scale": 1,
+        "text": "Jetzt",
+        "x": 10,
+        "y": 20,
+      },
+      {
+        "backgroundColor": "#ffee00",
+        "fontSize": 20,
+        "id": "pill-badge-1700000000000-4fzzzxjyl",
+        "opacity": 0.6,
+        "rotation": 2,
+        "scale": 1,
+        "text": "Jetzt",
+        "x": 30,
+        "y": 40,
+      },
+    ],
+  },
+  "layerOrder": [
+    "tabler-sun",
+    "shape-1",
+    "frame-1",
+    "text-1",
+    "ill-1",
+    "asset-1",
+    "circle-1",
+    "pill-1",
+    "pill-badge-1700000000000-4fzzzxjyl",
+    "img-1",
+    "chart-1",
+  ],
+  "newId": "pill-badge-1700000000000-4fzzzxjyl",
+}
+`;
+
+exports[`duplicateElementInState per kind > shape 1`] = `
+{
+  "changed": {
+    "shapeInstances": [
+      {
+        "dash": [
+          4,
+          4,
+        ],
+        "fill": "#1D3557",
+        "flipX": true,
+        "height": 50,
+        "id": "shape-1",
+        "opacity": 0.8,
+        "rotation": 30,
+        "scaleX": 1,
+        "scaleY": 1,
+        "type": "rect",
+        "width": 100,
+        "x": 10,
+        "y": 20,
+      },
+      {
+        "dash": [
+          4,
+          4,
+        ],
+        "fill": "#1D3557",
+        "flipX": true,
+        "height": 50,
+        "id": "shape-1700000000000-4fzzzxjyl",
+        "opacity": 0.8,
+        "rotation": 30,
+        "scaleX": 1,
+        "scaleY": 1,
+        "type": "rect",
+        "width": 100,
+        "x": 30,
+        "y": 40,
+      },
+    ],
+  },
+  "layerOrder": [
+    "tabler-sun",
+    "shape-1",
+    "shape-1700000000000-4fzzzxjyl",
+    "frame-1",
+    "text-1",
+    "ill-1",
+    "asset-1",
+    "circle-1",
+    "pill-1",
+    "img-1",
+    "chart-1",
+  ],
+  "newId": "shape-1700000000000-4fzzzxjyl",
+}
+`;
+
+exports[`duplicateElementInState per kind > user-image 1`] = `
+{
+  "changed": {
+    "userImageInstances": [
+      {
+        "fileName": "foto.jpg",
+        "height": 200,
+        "id": "img-1",
+        "rotation": 0,
+        "scale": 1,
+        "src": "blob:def",
+        "width": 300,
+        "x": 10,
+        "y": 20,
+      },
+      {
+        "fileName": "foto.jpg",
+        "height": 200,
+        "id": "user-image-1700000000000-4fzzzxjyl",
+        "rotation": 0,
+        "scale": 1,
+        "src": "blob:def",
+        "width": 300,
+        "x": 30,
+        "y": 40,
+      },
+    ],
+  },
+  "layerOrder": [
+    "tabler-sun",
+    "shape-1",
+    "frame-1",
+    "text-1",
+    "ill-1",
+    "asset-1",
+    "circle-1",
+    "pill-1",
+    "img-1",
+    "user-image-1700000000000-4fzzzxjyl",
+    "chart-1",
+  ],
+  "newId": "user-image-1700000000000-4fzzzxjyl",
+}
+`;
+
+exports[`findOrientationDoor per kind > additional-text text-1 1`] = `
+{
+  "calls": {
+    "updateAdditionalText": [
+      [
+        "text-1",
+        {
+          "flipX": true,
+          "rotation": 90,
+          "x": 100,
+          "y": 200,
+        },
+      ],
+    ],
+  },
+  "headlinePosition": undefined,
+  "info": {
+    "canFlip": false,
+    "flipX": false,
+    "flipY": false,
+    "kind": "text",
+    "rotation": 12,
+  },
+  "logoOffset": undefined,
+  "templateRotations": undefined,
+}
+`;
+
+exports[`findOrientationDoor per kind > asset asset-1 1`] = `
+{
+  "calls": {
+    "updateAsset": [
+      [
+        "asset-1",
+        {
+          "flipX": true,
+          "rotation": 90,
+          "x": 100,
+          "y": 200,
+        },
+      ],
+    ],
+  },
+  "headlinePosition": undefined,
+  "info": {
+    "canFlip": true,
+    "flipX": false,
+    "flipY": false,
+    "kind": "asset",
+    "rotation": 0,
+  },
+  "logoOffset": undefined,
+  "templateRotations": undefined,
+}
+`;
+
+exports[`findOrientationDoor per kind > chart chart-1 1`] = `
+{
+  "calls": {
+    "updateChart": [
+      [
+        "chart-1",
+        {
+          "flipX": true,
+          "rotation": 90,
+          "x": 100,
+          "y": 200,
+        },
+      ],
+    ],
+  },
+  "headlinePosition": undefined,
+  "info": {
+    "canFlip": false,
+    "flipX": false,
+    "flipY": false,
+    "kind": "chart",
+    "rotation": 0,
+  },
+  "logoOffset": undefined,
+  "templateRotations": undefined,
+}
+`;
+
+exports[`findOrientationDoor per kind > circle-badge circle-1 1`] = `
+{
+  "calls": {
+    "updateCircleBadge": [
+      [
+        "circle-1",
+        {
+          "flipX": true,
+          "rotation": 90,
+          "x": 100,
+          "y": 200,
+        },
+      ],
+    ],
+  },
+  "headlinePosition": undefined,
+  "info": {
+    "canFlip": false,
+    "flipX": false,
+    "flipY": false,
+    "kind": "circle-badge",
+    "rotation": 0,
+  },
+  "logoOffset": undefined,
+  "templateRotations": undefined,
+}
+`;
+
+exports[`findOrientationDoor per kind > frame frame-1 1`] = `
+{
+  "calls": {
+    "updateFrame": [
+      [
+        "frame-1",
+        {
+          "flipX": true,
+          "rotation": 90,
+          "x": 100,
+          "y": 200,
+        },
+      ],
+    ],
+  },
+  "headlinePosition": undefined,
+  "info": {
+    "canFlip": false,
+    "flipX": false,
+    "flipY": false,
+    "kind": "frame",
+    "rotation": 0,
+  },
+  "logoOffset": undefined,
+  "templateRotations": undefined,
+}
+`;
+
+exports[`findOrientationDoor per kind > icon tabler-sun 1`] = `
+{
+  "calls": {
+    "updateIcon": [
+      [
+        "tabler-sun",
+        {
+          "flipX": true,
+          "rotation": 90,
+          "x": 100,
+          "y": 200,
+        },
+      ],
+    ],
+  },
+  "headlinePosition": undefined,
+  "info": {
+    "canFlip": true,
+    "flipX": false,
+    "flipY": true,
+    "kind": "icon",
+    "rotation": 15,
+  },
+  "logoOffset": undefined,
+  "templateRotations": undefined,
+}
+`;
+
+exports[`findOrientationDoor per kind > illustration ill-1 1`] = `
+{
+  "calls": {
+    "updateIllustration": [
+      [
+        "ill-1",
+        {
+          "flipX": true,
+          "rotation": 90,
+          "x": 100,
+          "y": 200,
+        },
+      ],
+    ],
+  },
+  "headlinePosition": undefined,
+  "info": {
+    "canFlip": true,
+    "flipX": true,
+    "flipY": false,
+    "kind": "illustration",
+    "rotation": 5,
+  },
+  "logoOffset": undefined,
+  "templateRotations": undefined,
+}
+`;
+
+exports[`findOrientationDoor per kind > pill-badge pill-1 1`] = `
+{
+  "calls": {
+    "updatePillBadge": [
+      [
+        "pill-1",
+        {
+          "flipX": true,
+          "rotation": 90,
+          "x": 100,
+          "y": 200,
+        },
+      ],
+    ],
+  },
+  "headlinePosition": undefined,
+  "info": {
+    "canFlip": false,
+    "flipX": false,
+    "flipY": false,
+    "kind": "pill-badge",
+    "rotation": 2,
+  },
+  "logoOffset": undefined,
+  "templateRotations": undefined,
+}
+`;
+
+exports[`findOrientationDoor per kind > shape shape-1 1`] = `
+{
+  "calls": {
+    "updateShape": [
+      [
+        "shape-1",
+        {
+          "flipX": true,
+          "rotation": 90,
+          "x": 100,
+          "y": 200,
+        },
+      ],
+    ],
+  },
+  "headlinePosition": undefined,
+  "info": {
+    "canFlip": true,
+    "flipX": true,
+    "flipY": false,
+    "kind": "shape",
+    "rotation": 30,
+  },
+  "logoOffset": undefined,
+  "templateRotations": undefined,
+}
+`;
+
+exports[`findOrientationDoor per kind > template headline 1`] = `
+{
+  "calls": {},
+  "headlinePosition": {
+    "x": 100,
+    "y": 200,
+  },
+  "info": {
+    "canFlip": false,
+    "flipX": false,
+    "flipY": false,
+    "kind": "template-text",
+    "rotation": 0,
+  },
+  "logoOffset": undefined,
+  "templateRotations": {
+    "headline": 90,
+  },
+}
+`;
+
+exports[`findOrientationDoor per kind > template logo 1`] = `
+{
+  "calls": {},
+  "headlinePosition": undefined,
+  "info": {
+    "canFlip": false,
+    "flipX": false,
+    "flipY": false,
+    "kind": "template-image",
+    "rotation": 0,
+  },
+  "logoOffset": {
+    "x": 90,
+    "y": 190,
+  },
+  "templateRotations": {
+    "logo": 90,
+  },
+}
+`;
+
+exports[`findOrientationDoor per kind > user-image img-1 1`] = `
+{
+  "calls": {
+    "updateUserImage": [
+      [
+        "img-1",
+        {
+          "flipX": true,
+          "rotation": 90,
+          "x": 100,
+          "y": 200,
+        },
+      ],
+    ],
+  },
+  "headlinePosition": undefined,
+  "info": {
+    "canFlip": true,
+    "flipX": false,
+    "flipY": false,
+    "kind": "user-image",
+    "rotation": 0,
+  },
+  "logoOffset": undefined,
+  "templateRotations": undefined,
+}
+`;
+
+exports[`floatingModuleFor per kind > additional-text 1`] = `
+{
+  "data": {
+    "align": "center",
+    "bind": undefined,
+    "fill": "#ffffff",
+    "fillGradient": {
+      "angle": 90,
+      "stops": [
+        {
+          "color": "#fff",
+          "offset": 0,
+        },
+      ],
+      "type": "linear",
+    },
+    "fontFamily": undefined,
+    "fontSize": 40,
+    "hasAccent": false,
+    "hasMarker": false,
+    "id": "text-1",
+    "isInstanceText": true,
+    "opacity": 0.9,
+    "shadowBlur": 3,
+    "shadowColor": "#111111",
+    "shadowOffsetX": 1,
+    "shadowOffsetY": 2,
+    "shadowOpacity": 0.5,
+    "stroke": "#000000",
+    "strokeWidth": 2,
+    "text": "Klimaschutz",
+  },
+  "type": "text",
+}
+`;
+
+exports[`floatingModuleFor per kind > asset 1`] = `
+{
+  "data": {
+    "assetId": "sunflower",
+    "id": "asset-1",
+    "opacity": 0.7,
+    "rotation": 0,
+    "scale": 1,
+    "x": 10,
+    "y": 20,
+  },
+  "type": "asset",
+}
+`;
+
+exports[`floatingModuleFor per kind > chart 1`] = `
+{
+  "data": {
+    "id": "chart-1",
+    "opacity": 0.5,
+  },
+  "type": "chart",
+}
+`;
+
+exports[`floatingModuleFor per kind > circle-badge 1`] = `
+{
+  "data": {
+    "fill": "#e6007e",
+    "id": "circle-1",
+    "opacity": 1,
+  },
+  "type": "circle-badge",
+}
+`;
+
+exports[`floatingModuleFor per kind > config element background-image 1`] = `
+{
+  "data": {
+    "canCrop": true,
+    "fill": undefined,
+    "id": "background-image",
+    "isPhoto": true,
+    "opacity": 0.75,
+  },
+  "type": "image",
+}
+`;
+
+exports[`floatingModuleFor per kind > config element bg 1`] = `
+{
+  "data": {
+    "fill": "#abcdef",
+    "id": "bg",
+    "opacity": 1,
+  },
+  "type": "background",
+}
+`;
+
+exports[`floatingModuleFor per kind > config element headline 1`] = `
+{
+  "data": {
+    "align": "left",
+    "fill": "#123456",
+    "fontSize": 60,
+    "id": "headline",
+    "opacity": 1,
+  },
+  "type": "text",
+}
+`;
+
+exports[`floatingModuleFor per kind > config element logo 1`] = `
+{
+  "data": {
+    "canCrop": false,
+    "fill": undefined,
+    "id": "logo",
+    "isPhoto": false,
+    "opacity": 1,
+  },
+  "type": "image",
+}
+`;
+
+exports[`floatingModuleFor per kind > config element plane 1`] = `null`;
+
+exports[`floatingModuleFor per kind > frame 1`] = `
+{
+  "data": {
+    "clipType": "circle",
+    "height": 100,
+    "id": "frame-1",
+    "imageSrc": "blob:abc",
+    "rotation": 0,
+    "scaleX": 1,
+    "scaleY": 1,
+    "width": 200,
+    "x": 10,
+    "y": 20,
+  },
+  "type": "frame",
+}
+`;
+
+exports[`floatingModuleFor per kind > icon 1`] = `
+{
+  "data": {
+    "color": "#ff0000",
+    "flipY": true,
+    "id": "tabler-sun",
+    "rotation": 15,
+    "scale": 2,
+    "x": 10,
+    "y": 20,
+  },
+  "type": "icon",
+}
+`;
+
+exports[`floatingModuleFor per kind > illustration 1`] = `
+{
+  "data": {
+    "flipX": true,
+    "id": "ill-1",
+    "illustrationId": "undraw-x",
+    "rotation": 5,
+    "scale": 1,
+    "x": 10,
+    "y": 20,
+  },
+  "type": "illustration",
+}
+`;
+
+exports[`floatingModuleFor per kind > pill-badge 1`] = `
+{
+  "data": {
+    "fill": "#ffee00",
+    "id": "pill-1",
+    "opacity": 0.6,
+  },
+  "type": "pill-badge",
+}
+`;
+
+exports[`floatingModuleFor per kind > shape 1`] = `
+{
+  "data": {
+    "dash": [
+      4,
+      4,
+    ],
+    "fill": "#1D3557",
+    "flipX": true,
+    "height": 50,
+    "id": "shape-1",
+    "opacity": 0.8,
+    "rotation": 30,
+    "scaleX": 1,
+    "scaleY": 1,
+    "type": "rect",
+    "width": 100,
+    "x": 10,
+    "y": 20,
+  },
+  "type": "shape",
+}
+`;
+
+exports[`floatingModuleFor per kind > user-image 1`] = `
+{
+  "data": {
+    "fileName": "foto.jpg",
+    "height": 200,
+    "id": "img-1",
+    "opacity": 1,
+    "rotation": 0,
+    "scale": 1,
+    "src": "blob:def",
+    "width": 300,
+    "x": 10,
+    "y": 20,
+  },
+  "type": "user-image",
+}
+`;

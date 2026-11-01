@@ -11,7 +11,8 @@ vi.mock('./components/CanvasEditor', () => ({
 }));
 
 import { ControllableCanvasWrapper } from './CanvasEditorRouter';
-import { loadCanvasConfig } from './configs/configLoader';
+
+import { loadCanvasConfig } from '@ggraphic/editor/configs/configLoader';
 
 const renderWith = (type: 'freeform' | 'freeform-at', formatId: string) =>
   render(

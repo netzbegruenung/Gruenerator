@@ -35,12 +35,8 @@ vi.mock('../createTurn.js', () => ({
   emitArtifactResult: (...a: unknown[]) => emitArtifactResult(...a),
 }));
 
-const rememberArtifact = vi.fn(async (..._a: unknown[]) => {});
-vi.mock('../createTurnHelpers.js', () => ({
-  rememberArtifact: (...a: unknown[]) => rememberArtifact(...a),
-}));
-
 const {
+  contributeDocumentToOpenTurn,
   generateAndCreateDocument,
   handleBoardCreation,
   handlePdfCreation,
@@ -59,7 +55,6 @@ const baseOpts = {
 beforeEach(() => {
   runCreateTurn.mockClear();
   emitArtifactResult.mockClear();
-  rememberArtifact.mockClear();
   generateDoc.mockReset();
   makeDocumentSpec.mockClear();
 });
@@ -108,8 +103,8 @@ describe('artifact turn dispatch', () => {
   });
 });
 
-describe('generateAndCreateDocument — the two modes', () => {
-  it('owns the turn by default', async () => {
+describe('document creation — owning vs. contributing', () => {
+  it('generateAndCreateDocument owns the turn', async () => {
     const handled = await generateAndCreateDocument({ ...baseOpts, intent: 'create_doc' } as never);
 
     expect(handled).toBe(true);
@@ -119,36 +114,32 @@ describe('generateAndCreateDocument — the two modes', () => {
 
   /**
    * save_as_doc writes into a stream its caller already opened and will close:
-   * card and text, then stop. No `done`, no persisted message — and the
-   * artifact is remembered by hand, because this path never reaches
-   * persistAssistantResponse's deriveToolContext.
+   * card and text, then stop. No `done`, no persisted message — the document
+   * goes back to the caller, whose persisted turn must carry it (#5134).
    */
-  it('contributes to an open turn under skipTerminate, without running the turn', async () => {
-    generateDoc.mockResolvedValue({ documentId: 'd1', title: 'Notiz' });
+  it('contributes to an open turn and hands the document back', async () => {
+    const doc = { documentId: 'd1', title: 'Notiz', subtype: 'blank', url: '/d/d1' };
+    generateDoc.mockResolvedValue(doc);
 
-    const handled = await generateAndCreateDocument({
+    const created = await contributeDocumentToOpenTurn({
       ...baseOpts,
       intent: 'save_as_doc',
-      skipTerminate: true,
-      actualThreadId: 't1',
     } as never);
 
-    expect(handled).toBe(true);
+    expect(created).toBe(doc);
     expect(runCreateTurn).not.toHaveBeenCalled();
     expect(emitArtifactResult).toHaveBeenCalledTimes(1);
-    expect(rememberArtifact).toHaveBeenCalledWith('t1', 'document', 'd1', 'Notiz');
   });
 
-  it('returns false instead of owning the failure when the contribution fails', async () => {
+  it('returns null instead of owning the failure when the contribution fails', async () => {
     generateDoc.mockRejectedValue(new Error('kaputt'));
 
-    const handled = await generateAndCreateDocument({
+    const created = await contributeDocumentToOpenTurn({
       ...baseOpts,
       intent: 'save_as_doc',
-      skipTerminate: true,
     } as never);
 
-    expect(handled).toBe(false);
+    expect(created).toBeNull();
     expect(emitArtifactResult).not.toHaveBeenCalled();
   });
 });

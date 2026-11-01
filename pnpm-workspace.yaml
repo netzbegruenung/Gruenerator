@@ -155,34 +155,6 @@ allowBuilds:
   # without it the iOS/Android native build has no libs to link.
   '@shopify/react-native-skia': true
 
-# The two dependencies we ship with a local fix. `decode-uri-component@0.2.2`
-# (GHSA-vcc3-ghjq-m6fr) decodes malformed percent-encoded input superlinearly:
-# on the installed copy, `'%A0'.repeat(400)` (a 1.2 KB query value) takes 2.6 s
-# and `.repeat(600)` 6.8 s, on the JS thread, and it keeps growing. It is
-# reachable from untrusted input — expo-router's getStateFromPath() runs
-# queryString.parse() over the query of every incoming deep link — so any link
-# handed to a user freezes the mobile app. Guarded by
-# apps/mobile/test/queryStringDos.vitest.ts.
-#
-# Neither of the two obvious fixes works, both checked:
-#   * Bumping expo-router: every line still declares `query-string: ^7.1.3`,
-#     including 57.0.21 (latest), 58.0.3 (next) and the 58 canary.
-#   * Overriding decode-uri-component to the patched >=0.5.0: 0.4.0 and up are
-#     ESM-only, and query-string@7.1.3 is CommonJS. Verified against a real
-#     install — `queryString.parse()` dies with "decodeComponent is not a
-#     function". check-override-ranges.mjs would NOT have caught this: it only
-#     flags overrides BELOW a declared range, and `^0.2.2` -> 0.5.0 points up.
-#
-# So the patch ports upstream 0.5.0's linear scanner into the 0.2.2 CommonJS
-# file and leaves the rest byte-identical. Over 50 000 random percent-encoded
-# strings the patched output equals upstream 0.5.0 exactly; it equals 0.2.2
-# except on malformed input, where 0.2.2 fabricates characters (upstream fixed
-# that in the same rewrite). 360 KB of hostile input now decodes in 20 ms.
-#
-# Drop the patch — and the ignore below — as soon as expo-router moves off
-# query-string@7. pnpm fails the install when the patch no longer applies, so a
-# version bump underneath cannot pass silently.
-#
 # `mdast-util-gfm-autolink-literal@2.0.1` builds its email autolink pattern with
 # `new RegExp()` at transform time, and that pattern opens with the lookbehind
 # `(?<=^|\s|\p{P}|\p{S})`. WebKit without lookbehind support (Safari below
@@ -238,7 +210,7 @@ allowBuilds:
 # React key needs; a re-parse then updates the tree in place. 7.0.2 is the
 # latest release. Guarded by apps/mobile/test/markdownStableKeys.vitest.ts.
 #
-# `expo@57.0.26`: a DOM component (`'use dom'`, our KaTeX MathViewDOM) emits
+# `expo@58.0.19`: a DOM component (`'use dom'`, our KaTeX MathViewDOM) emits
 # its props to the webview in a mount effect, and again on every render
 # because the props object is rebuilt each time. The page is not loaded at
 # mount, and the wrapper sends the props again on `DOM_READY`, so that emit
@@ -247,10 +219,14 @@ allowBuilds:
 # on the main thread. Opening a 200-message thread in the iOS simulator spent
 # 72-125 ms of JS in it while the UI thread mounted the rows. The patch skips
 # the emit on mount and whenever the serialized props are unchanged. Still
-# unfixed upstream in 57.0.27. Guarded by apps/mobile/test/domPropsEmit.test.tsx.
+# unfixed upstream in 58.0.19. Guarded by apps/mobile/test/domPropsEmit.test.tsx.
+# Since SDK 58 the `exports` map sends `expo/dom` to `build/`; `src/` is only
+# read under Expo's internal `expo-source` condition, which neither Metro nor
+# jest sets. The patch therefore changes both files — patching `src/` alone
+# applied cleanly and did nothing.
 # Lockfile: `expo` depends on packages that peer-depend on `expo`, a peer
 # cycle. pnpm writes the ~140 peer suffixes that close it as a bare
-# `(expo@57.0.26)`, without the patch hash, by design; the importer and the
+# `(expo@58.0.19)`, without the patch hash, by design; the importer and the
 # `expo` snapshot carry the hash. pnpm <= 12.8 read that as stale
 # (ERR_PNPM_INCONSISTENT_PATCH_HASH, pnpm/pnpm#16418, fixed in 12.9). Do not
 # add the hash to these suffixes by hand: the next re-resolution strips it
@@ -259,7 +235,7 @@ allowBuilds:
 # `y-indexeddb@9.0.12` chains `.then()` onto its `_db` open promise twice
 # without a catch: in the constructor (the initial load) and in `destroy()`.
 # When the open fails, both derived promises reject unhandled even though the
-# caller catches `_db` itself (packages/collab useCollaboration does). Chrome
+# caller catches `_db` itself (packages/ggraphic-collab useCollaboration does). Chrome
 # Android rejects the open with "AbortError: The connection was closed" when
 # the page is torn down mid-open, which Sentry reported as an unhandled
 # rejection (GlitchTip #682). Neither promise is reachable from outside, so no
@@ -269,7 +245,7 @@ allowBuilds:
 # and vitest resolve the ESM entry, the CJS `dist/` is unused. 9.0.12 is the
 # latest release. Guarded by packages/collab/src/hooks/idbOpenFailure.vitest.ts.
 #
-# `@blocknote/xl-ai@0.55.0` declares the `id` of its AI suggestion marks
+# `@blocknote/xl-ai@0.56.0` (since 0.55.0) declares the `id` of its AI suggestion marks
 # (`insertion`/`deletion`/`modification`) as `{ default: null, validate:
 # "number" }`, while its agent creates the preview marks without an id
 # (`pmSchema.mark("insertion", {})`, src/prosemirror/agent.ts). prosemirror-model
@@ -299,10 +275,9 @@ allowBuilds:
 # the repo has had no commit since 2025-06-02 (ts-rest#797, #866).
 patchedDependencies:
   '@better-auth/oauth-provider@1.7.7': patches/@better-auth__oauth-provider@1.7.7.patch
-  '@blocknote/xl-ai@0.55.0': patches/@blocknote__xl-ai@0.55.0.patch
+  '@blocknote/xl-ai@0.56.0': patches/@blocknote__xl-ai@0.56.0.patch
   '@ts-rest/core@3.52.1': patches/@ts-rest__core@3.52.1.patch
-  decode-uri-component@0.2.2: patches/decode-uri-component@0.2.2.patch
-  expo@57.0.26: patches/expo@57.0.26.patch
+  expo@58.0.19: patches/expo@58.0.19.patch
   mdast-util-gfm-autolink-literal@2.0.1: patches/mdast-util-gfm-autolink-literal@2.0.1.patch
   react-native-markdown-display@7.0.2: patches/react-native-markdown-display@7.0.2.patch
   y-indexeddb@9.0.12: patches/y-indexeddb@9.0.12.patch
@@ -321,9 +296,6 @@ auditConfig:
     - GHSA-7pqw-9j4j-h8q3
     - GHSA-jmr9-qjv8-65gv
     - GHSA-528h-pc64-c93x
-    # decode-uri-component DoS — fixed by patchedDependencies above, but
-    # pnpm audit matches the advisory by version, not by file content.
-    - GHSA-vcc3-ghjq-m6fr
     # node-forge <=1.4.0 PKCS#1 v1.5 signature verification (no patched
     # release). Only reached via apps/mobile build tooling: @expo/cli and
     # expo-updates/cli → @expo/code-signing-certificates; no runtime build/
@@ -392,7 +364,7 @@ auditConfig:
 # and scripts/check-override-ranges.mjs read this block.
 overrides:
   adm-zip: '>=0.6.1'
-  '@expo/dom-webview': ~56.0.5
+  '@expo/dom-webview': ~58.0.2
   '@types/react': 19.3.0
   '@types/react-dom': ^19.3.0
   '@hocuspocus/provider': ^4.7.0
@@ -424,7 +396,8 @@ overrides:
   serialize-javascript: '>=7.1.2'
   webpack-dev-server: '>=5.2.5'
   launch-editor: '>=2.14.2'
-  follow-redirects: '>=1.16.1'
+  follow-redirects: '>=1.16.2'
+  node-forge: '>=1.4.2 <2'
   '@tootallnate/once': '>=2.0.0'
   loader-utils: ^2.0.4
   dompurify: '>=3.4.16'
@@ -462,7 +435,7 @@ overrides:
   '@typescript-eslint/eslint-plugin>ts-api-utils': ^2.5.0
   '@typescript-eslint/type-utils>ts-api-utils': ^2.5.0
   '@typescript-eslint/utils>ts-api-utils': ^2.5.0
-  joi@>=17.0.0 <18.0.0: '>=17.13.8 <18.0.0'
+  joi@>=17.0.0 <18.0.0: '>=17.13.9 <18.0.0'
   joi@>=18.0.0: '>=18.2.9 <19'
   http-proxy-middleware: ^2.0.10
   '@istanbuljs/load-nyc-config>js-yaml': ^4.3.2
@@ -487,12 +460,12 @@ overrides:
   prosemirror-view: ^1.42.6
   prosemirror-model: ^1.25.12
   prosemirror-transform: ^1.12.2
-  '@blocknote/core': ^0.55.0
-  '@blocknote/react': ^0.55.0
-  '@blocknote/shadcn': ^0.55.0
-  '@blocknote/xl-ai': ^0.55.0
-  '@blocknote/xl-docx-exporter': ^0.55.0
-  '@blocknote/xl-odt-exporter': ^0.55.0
+  '@blocknote/core': ^0.56.0
+  '@blocknote/react': ^0.56.0
+  '@blocknote/shadcn': ^0.56.0
+  '@blocknote/xl-ai': ^0.56.0
+  '@blocknote/xl-docx-exporter': ^0.56.0
+  '@blocknote/xl-odt-exporter': ^0.56.0
   '@assistant-ui/core': ^0.3.31
   '@assistant-ui/store': ^0.3.22
   '@assistant-ui/react': ^0.15.31
@@ -520,4 +493,3 @@ overrides:
   '@tiptap/react': ^3.31.4
   '@tiptap/static-renderer': ^3.31.4
   '@babel/core': 7.29.7
-  '@react-native/community-cli-plugin>@react-native/metro-config': 0.84.1

@@ -48,3 +48,11 @@ export interface AwEnrichedResult {
     fetchTimeMs: number;
   };
 }
+
+/** Was das Werkzeug getrennt übergibt; leer = aus der Anfrage erkennen. */
+export interface AwSearchOptions {
+  /** Name der*des Abgeordneten. */
+  person?: string | null;
+  /** Amtlicher Titel der Abstimmung bzw. des Gesetzes, z. B. „Gebäudeenergiegesetz". */
+  thema?: string | null;
+}

@@ -39,7 +39,13 @@
      "opacity": 1,
      "paddingX": 19,
      "paddingY": 6,
-     "cornerRadius": 15
+     "cornerRadius": 15,
+     "bind": {
+      "fontFamily": {
+       "ref": "font.body",
+       "value": "PT Sans"
+      }
+     }
     },
     {
      "id": "sc-0-headline-1",
@@ -56,7 +62,13 @@
      "opacity": 1,
      "paddingX": 19,
      "paddingY": 6,
-     "cornerRadius": 15
+     "cornerRadius": 15,
+     "bind": {
+      "fontFamily": {
+       "ref": "font.body",
+       "value": "PT Sans"
+      }
+     }
     },
     {
      "id": "sc-1-absatz-0",
@@ -73,7 +85,13 @@
      "opacity": 1,
      "paddingX": 13,
      "paddingY": 4,
-     "cornerRadius": 11
+     "cornerRadius": 11,
+     "bind": {
+      "fontFamily": {
+       "ref": "font.body",
+       "value": "PT Sans"
+      }
+     }
     },
     {
      "id": "sc-1-absatz-1",
@@ -90,7 +108,13 @@
      "opacity": 1,
      "paddingX": 13,
      "paddingY": 4,
-     "cornerRadius": 11
+     "cornerRadius": 11,
+     "bind": {
+      "fontFamily": {
+       "ref": "font.body",
+       "value": "PT Sans"
+      }
+     }
     },
     {
      "id": "sc-2-text-0",
@@ -107,7 +131,13 @@
      "opacity": 1,
      "paddingX": 11,
      "paddingY": 3,
-     "cornerRadius": 8
+     "cornerRadius": 8,
+     "bind": {
+      "fontFamily": {
+       "ref": "font.body",
+       "value": "PT Sans"
+      }
+     }
     }
    ],
    "circleBadgeInstances": [],

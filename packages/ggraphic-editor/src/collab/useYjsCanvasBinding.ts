@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: MPL-2.0
 import { useEffect } from 'react';
 
-import { useCanvasStore } from '../stores/CanvasStoreProvider';
+import { useCanvasStore } from '../stores/CanvasStoreProvider.js';
 
-import { bindCanvasStoreToYMap, seedCanvasStoreFromYMap } from './yjsBinding';
+import { bindCanvasStoreToYMap, seedCanvasStoreFromYMap } from './yjsBinding.js';
 
 import type * as Y from 'yjs';
 

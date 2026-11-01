@@ -9,7 +9,7 @@
 import { useCallback, useRef, useEffect, type MutableRefObject } from 'react';
 import { flushSync } from 'react-dom';
 
-import { useCanvasUndoRedo } from './useCanvasUndoRedo';
+import { useCanvasUndoRedo } from './useCanvasUndoRedo.js';
 
 export interface UseCanvasHistorySetupResult<T extends Record<string, unknown>> {
   saveToHistory: (state?: T) => void;
@@ -20,6 +20,8 @@ export interface UseCanvasHistorySetupResult<T extends Record<string, unknown>> 
   runHistoryBatch: (fn: () => void) => void;
   /** Saves the current state now, so the history ends exactly here (outside a batch). */
   checkpoint: () => void;
+  /** Writes pending saves, so the history's newest entry is the newest edit. */
+  flushPendingSaves: () => void;
   undo: () => void;
   redo: () => void;
   canUndo: boolean;
@@ -57,6 +59,7 @@ export function useCanvasHistorySetup<T extends Record<string, unknown>>(
     debouncedSaveToHistory: saveDebounced,
     saveNow,
     commitPendingSave,
+    flushPendingSaves,
     undo,
     redo,
     canUndo,
@@ -146,6 +149,7 @@ export function useCanvasHistorySetup<T extends Record<string, unknown>>(
     collectStateRef,
     runHistoryBatch,
     checkpoint,
+    flushPendingSaves,
     undo,
     redo,
     canUndo,

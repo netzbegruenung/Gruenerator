@@ -7,7 +7,7 @@ import {
   loadAllIcons,
   DEFAULT_ICON_SET,
   type IconDef,
-} from '../utils/canvasIcons';
+} from '../utils/canvasIcons.js';
 
 export const ICON_CATALOG_QUERY_KEY = ['canvas', 'icons', 'catalog'] as const;
 

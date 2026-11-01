@@ -87,6 +87,7 @@ export const rawPollSchema = z.object({
   field_accepted: z.boolean().nullish(),
   field_topics: z.array(z.object({ label: z.string().optional() })).nullish(),
   field_intro: z.string().nullish(),
+  field_legislature: rawLabelRef,
   abgeordnetenwatch_url: z.string().optional(),
 });
 
@@ -104,6 +105,8 @@ export const awMandateSchema = z.object({
   politicianId: z.number(),
   politicianName: z.string(),
   parliamentPeriod: z.string(),
+  /** Id der Wahlperiode (`parliament_period.id`) — der Schlüssel zu `AwPollSummary.legislatureId`. */
+  parliamentPeriodId: z.number().nullable(),
   fraction: z.string().nullable(),
 });
 export type AwMandate = z.infer<typeof awMandateSchema>;
@@ -135,6 +138,8 @@ export const awPollSummarySchema = z.object({
   accepted: z.boolean().nullable(),
   topics: z.array(z.string()),
   intro: z.string().nullable(),
+  /** Wahlperiode der Abstimmung (`field_legislature.id`); welches Mandat dort abgestimmt hat. */
+  legislatureId: z.number().nullable(),
   url: z.string(),
 });
 export type AwPollSummary = z.infer<typeof awPollSummarySchema>;

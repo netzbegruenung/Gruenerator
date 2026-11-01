@@ -7,6 +7,7 @@ import react, { reactCompilerPreset } from '@vitejs/plugin-react';
 import { defineConfig, type Plugin } from 'vite';
 
 import { vorlagenMockPlugin } from './devMocks/vorlagenMock';
+import { wissenMockPlugin } from './devMocks/wissenMock';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -110,6 +111,7 @@ export default defineConfig(({ command }) => ({
     ...(command === 'build' ? [babel({ presets: [reactCompilerPreset()] })] : []),
     tailwindcss(),
     ...(process.env.DEV_MOCK_VORLAGEN === 'true' ? [vorlagenMockPlugin()] : []),
+    ...(process.env.DEV_MOCK_WISSEN === 'true' ? [wissenMockPlugin()] : []),
   ],
   resolve: {
     alias: {
@@ -152,6 +154,14 @@ export default defineConfig(({ command }) => ({
         __dirname,
         '../../packages/contracts/src/richtext/presentationDoc.ts'
       ),
+      '@gruenerator/contracts/brand': path.resolve(
+        __dirname,
+        '../../packages/contracts/src/brand/grueneBrand.ts'
+      ),
+      '@gruenerator/contracts/slides': path.resolve(
+        __dirname,
+        '../../packages/contracts/src/slides/index.ts'
+      ),
       '@gruenerator/contracts': path.resolve(__dirname, '../../packages/contracts/src'),
       // @gruenerator/core is imported transitively from the @gruenerator/shared
       // alias (shared/avatar + shared/models re-export from @gruenerator/core).
@@ -163,6 +173,9 @@ export default defineConfig(({ command }) => ({
       // `import` condition points at dist (built only for Node services).
       // Same cascade rule — alias it to src.
       '@ggraphic/schema': path.resolve(__dirname, '../../packages/ggraphic-schema/src'),
+      // Same for @ggraphic/core: its `import` condition points at dist, which
+      // only the Node images build (contracts imports it since the slide layouts).
+      '@ggraphic/core': path.resolve(__dirname, '../../packages/ggraphic-core/src'),
       // @gruenerator/query is imported transitively from the @gruenerator/shared
       // alias (shared/utils/textNormalization + shared/search/{filters,vector}
       // re-export from @gruenerator/query/*). Same cascade rule as core above —

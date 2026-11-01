@@ -17,8 +17,8 @@ import {
   type EbeneConfig,
   AT_ROLLEN,
   DE_ROLLEN,
-  NEEDS_BUNDESLAND,
-  NEEDS_LOCAL_NAME,
+  needsBundesland,
+  needsLocalName,
   needsAbgeordneteName,
 } from './rolesConfig.js';
 import { type UserRole } from './types.js';
@@ -65,9 +65,9 @@ export function isCustomRolleOffered(instanceId: InstanceId): boolean {
  * genau einer möglichen Antwort, und der Assistent lässt die Person drei Knöpfe
  * drücken, um das Einzige zu bestätigen, was er anbietet.
  *
- * **Drei Ausschlüsse, und jeder verhindert eine erfundene Rolle.** Eine Ebene, die
- * ein Bundesland (`NEEDS_BUNDESLAND`) oder einen Gliederungsnamen
- * (`NEEDS_LOCAL_NAME`) verlangt, und eine Rolle, die nach einem*r Abgeordneten
+ * **Drei Ausschlüsse, und jeder verhindert eine erfundene Rolle.** Eine Rolle, die
+ * ein Bundesland (`needsBundesland`) oder einen Gliederungsnamen
+ * (`needsLocalName`) verlangt, und eine Rolle, die nach einem*r Abgeordneten
  * fragt (`needsAbgeordneteName`), sind aus der Konfiguration nicht beantwortbar —
  * dort bleibt der Assistent zuständig. Dazu die Registry-Prüfung: `offeredRoles`
  * trägt aus gutem Grund nackte Strings (die Instanz-Registry darf `rolesConfig`
@@ -99,7 +99,7 @@ export function roleAssignedByPolicy(
   const rolle = policy.rollen[0];
   if (!ebene || !rolle) return null;
 
-  if (NEEDS_BUNDESLAND.has(ebene) || NEEDS_LOCAL_NAME.has(ebene)) return null;
+  if (needsBundesland(ebene, rolle) || needsLocalName(ebene, rolle)) return null;
   if (needsAbgeordneteName(rolle)) return null;
 
   const registry = locale === 'de-AT' ? AT_ROLLEN : DE_ROLLEN;

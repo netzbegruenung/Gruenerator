@@ -25,6 +25,7 @@ import {
   resolveToolChoice,
 } from './adapterUtils.js';
 
+import type { SdkToolChoice } from './adapterUtils.js';
 import type { ProviderName } from '../providers.js';
 import type { AIRequestData, AIRequestOptions, AiResult } from '../types.js';
 import type { LanguageModel } from 'ai';
@@ -93,12 +94,26 @@ function samplingFor(data: AIRequestData, options: AIRequestOptions): Sampling {
  * Wrapped OUTSIDE `getModel` on purpose: `getModel` already wraps for usage
  * accounting, and wrapping the other way round would put this between the
  * accountant and the model.
+ *
+ * A FORCED tool call (`'required'` or a named tool) wins over JSON mode: it is
+ * already structured, and Mistral and Melious reject the pair outright —
+ * "`json_object` response type with tools is only compatible with
+ * `tool_choice: auto`" — so `aiObject` with `json: true` failed on every hop of
+ * the chain (#5112). `auto` keeps both, the model may still answer in prose.
  */
-function modelFor(provider: ProviderName, model: string, options: AIRequestOptions): LanguageModel {
+function modelFor(
+  provider: ProviderName,
+  model: string,
+  options: AIRequestOptions,
+  toolChoice: SdkToolChoice | undefined
+): LanguageModel {
   const base = getModel(provider, model);
+  const forcedTool = toolChoice === 'required' || typeof toolChoice === 'object';
   // `LanguageModel` also admits a bare gateway id string, which cannot be
   // wrapped. `getModel` never returns one — same narrowing as `withUsageTracking`.
-  if (options.response_format?.type !== 'json_object' || typeof base === 'string') return base;
+  if (options.response_format?.type !== 'json_object' || forcedTool || typeof base === 'string') {
+    return base;
+  }
   return wrapLanguageModel({
     model: base,
     middleware: defaultSettingsMiddleware({ settings: { responseFormat: { type: 'json' } } }),
@@ -113,6 +128,16 @@ const CONFIG_HINT: Record<ProviderName, string> = {
   greenpt: 'GREENPT_API_KEY',
   cortecs: 'CORTECS_API_KEY',
 };
+
+/** Frist dieses Versuchs und Abbruch des Aufrufers, was davon gesetzt ist. */
+function abortSignalFor(data: AIRequestData): AbortSignal | null {
+  const signals = [
+    ...(data.timeoutMs != null ? [AbortSignal.timeout(data.timeoutMs)] : []),
+    ...(data.signal ? [data.signal] : []),
+  ];
+  if (signals.length === 0) return null;
+  return signals.length === 1 ? signals[0] : AbortSignal.any(signals);
+}
 
 export async function execute(
   provider: ProviderName,
@@ -144,6 +169,7 @@ export async function execute(
   );
   const tools = buildAiSdkTools(toolsPayload);
   const toolChoice = tools ? resolveToolChoice(toolsPayload.tool_choice) : undefined;
+  const abortSignal = abortSignalFor(data);
 
   try {
     // Retrying is the SDK's job — 2 retries, i.e. 3 attempts, which is both the
@@ -152,7 +178,7 @@ export async function execute(
     // against the error message, so a provider that reworded its errors silently
     // stopped being retried. The SDK reads the structured `APICallError`.
     const result = await deps.generateText({
-      model: modelFor(provider, model, options),
+      model: modelFor(provider, model, options, toolChoice),
       ...(system != null && { system }),
       messages: modelMessages,
       temperature: sampling.temperature,
@@ -174,8 +200,10 @@ export async function execute(
       // genau das kostete: lief die Kette weiter, blieb der aufgegebene Aufruf
       // offen und rechnete auf Kosten des Kontos zu Ende. Im Protokoll steht
       // das als `[greenpt …] Request failed after retries` MINUTEN nach der
-      // Antwort an den Client.
-      ...(data.timeoutMs != null && { abortSignal: AbortSignal.timeout(data.timeoutMs) }),
+      // Antwort an den Client. Dasselbe gilt für den Abbruch des Aufrufers
+      // (`AiCall.signal`): ohne ihn lief ein Fenster nach dessen Aufgabe zu Ende
+      // und wurde bezahlt (#5115).
+      ...(abortSignal && { abortSignal }),
       ...(tools != null && { tools }),
       ...(toolChoice != null && { toolChoice }),
     });

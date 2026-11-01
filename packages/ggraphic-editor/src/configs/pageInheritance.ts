@@ -5,10 +5,15 @@
  * shares the same contract.
  */
 
-import { COMPOSER_PLANE_IDS, type ShapeInstance } from '../utils/shapes';
+import { COMPOSER_PLANE_IDS, type ShapeInstance } from '../utils/shapes.js';
 
 /** Templates that draw the composer's background planes as free shapes. */
-const PLANE_TEMPLATES: readonly string[] = ['freeform', 'freeform-at'];
+const PLANE_TEMPLATES: readonly string[] = [
+  'freeform',
+  'freeform-at',
+  'freeform-gj',
+  'freeform-gj-at',
+];
 
 /** Value-carrying keys copied verbatim when present on the source page. */
 const INHERITABLE_KEYS = [

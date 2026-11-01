@@ -5,8 +5,8 @@ import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { axe } from '../../test-utils';
-import { ElementsPanel } from '../sections/assets/ElementsPanel';
-import { useRecentElements } from '../sections/assets/useRecentElements';
+import { ElementsPanel } from '@ggraphic/editor/sidebar/sections/assets/ElementsPanel';
+import { useRecentElements } from '@ggraphic/editor/sidebar/sections/assets/useRecentElements';
 
 // jsdom has no IntersectionObserver; the grid only needs it to load the next page.
 vi.stubGlobal(

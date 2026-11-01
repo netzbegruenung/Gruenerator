@@ -5,6 +5,7 @@ import { handMarkProblems } from '../sharepicHandMarks.js';
 
 import {
   SHAREPIC_INFOGRAFIK_COLORS,
+  sharepicBrandSchema,
   sharepicColorsFor,
   sharepicCreatorLocaleSchema,
   sharepicFormatSchema,
@@ -66,6 +67,8 @@ function rechnungProblem({
  */
 export const sharepicSpecShapeSchema = z.object({
   locale: sharepicCreatorLocaleSchema,
+  /** Whose design within the country (GRÜNE JUGEND); absent: the party's. */
+  brand: sharepicBrandSchema.optional(),
   format: sharepicFormatSchema.optional(),
   /** Carousel only: page numbers the composer counts itself. */
   seitenzahl: sharepicSeitenzahlSchema.optional(),
@@ -77,7 +80,7 @@ export const sharepicSpecShapeSchema = z.object({
 });
 
 export const sharepicSpecSchema = sharepicSpecShapeSchema.superRefine((spec, ctx) => {
-  const allowed = sharepicColorsFor(spec.locale, spec.thema);
+  const allowed = sharepicColorsFor(spec.locale, spec.thema, spec.brand);
   const last = spec.slides.length - 1;
   if (spec.seitenzahl && last === 0) {
     ctx.addIssue({
@@ -96,7 +99,8 @@ export const sharepicSpecSchema = sharepicSpecShapeSchema.superRefine((spec, ctx
   spec.slides.forEach((slide, s) => {
     const at = (...path: (string | number)[]) => ['slides', s, ...path];
     const bg = slide.background;
-    const color = bg.kind === 'farbe' ? bg.color : bg.kind === 'foto' ? null : bg.panelColor;
+    const color =
+      bg.kind === 'farbe' ? bg.color : bg.kind === 'foto' ? (bg.toenung ?? null) : bg.panelColor;
     if (color && !allowed.includes(color)) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
@@ -143,6 +147,14 @@ export const sharepicSpecSchema = sharepicSpecShapeSchema.superRefine((spec, ctx
           message: 'blume gibt es nur im deutschen Corporate Design.',
         });
       }
+    }
+    if (slide.blume && spec.brand === 'gruene-jugend') {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: at('blume'),
+        message:
+          'blume ist das Zeichen der Partei – im Design der GRÜNEN JUGEND gibt es sie nicht.',
+      });
     }
     if (
       slide.items.some((i) => i.type === 'liste' && i.stil === 'kasten') &&

@@ -159,10 +159,23 @@ describe('carouselLookProblems', () => {
     expect(carouselLookProblems(deck([farbe('mint'), farbe('grasgruen')]))).toBeNull();
   });
 
+  it('lets a GRÜNE JUGEND carousel alternate two colours, not three', () => {
+    const gj = (colors: string[]) =>
+      ({ ...deck(colors.map(farbe)), brand: 'gruene-jugend' }) as SharepicSpec;
+    expect(carouselLookProblems(gj(['apricot', 'weiss', 'weiss', 'apricot']))).toBeNull();
+    expect(carouselLookProblems(gj(['apricot', 'weiss', 'pink', 'apricot']))).not.toBeNull();
+  });
+
   // The model copies the examples: one that breaks the rule teaches the zig-zag.
   // beispiele.json is untyped JSON: the cast is the boundary.
   const carousels = loadExamples()
-    .map((e) => [e.id, { ...e.spec, locale: e.land } as SharepicSpec] as const)
+    .map(
+      (e) =>
+        [
+          e.id,
+          { ...e.spec, locale: e.land, ...(e.brand && { brand: e.brand }) } as SharepicSpec,
+        ] as const
+    )
     .filter(([, spec]) => spec.slides.length >= 3);
   it.each(carousels)('example %s holds one look', (_id, spec) => {
     expect(carouselLookProblems(spec)).toBeNull();

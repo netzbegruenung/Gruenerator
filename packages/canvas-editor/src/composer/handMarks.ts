@@ -19,7 +19,7 @@ import {
 import { SHAREPIC_HAND_MARKS, type SharepicSlide } from '@gruenerator/contracts';
 
 import type { MeasureText } from './chromeParts';
-import type { AdditionalText } from '../configs/types';
+import type { AdditionalText } from '@ggraphic/editor/configs/types';
 
 const SENTINEL: Record<HandMarkKind, [string, string]> = {
   kreis: ['\u2061', '\u2062'],

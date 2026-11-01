@@ -2,6 +2,7 @@ import {
   isSharepicSceneRef,
   isSharepicUploadId,
   isSharepicVorlageRef,
+  type SharepicBrand,
   type SharepicCreatorLocale,
   type SharepicItem,
   type SharepicSlide,
@@ -208,11 +209,18 @@ export function validateDraft(
    * conversation material that `given` also carries. A date named here
    * belongs on the sharepic.
    */
-  order: string = given
+  order: string = given,
+  /** Stock photos beyond our catalogue: found live this turn, or kept from the current draft. */
+  livePhotos: readonly string[] = [],
+  /** The design the draft wears; the model never writes it. */
+  brand: SharepicBrand | null = null
 ): StructuredValidation<SharepicSpec> {
+  // Country and brand are decided outside the model; whatever it wrote there goes.
+  const { brand: _written, ...fields } = tightenAccentMarksDeep(input) as Record<string, unknown>;
   const base = fromZod(sharepicSpecSchema, {
-    ...(tightenAccentMarksDeep(input) as object),
+    ...fields,
     locale,
+    ...(brand && brand !== 'gruene' ? { brand } : {}),
   });
   if (!base.ok) return base;
   const errors: string[] = [];
@@ -291,7 +299,7 @@ export function validateDraft(
         ? uploadIds.includes(filename)
         : isSharepicSceneRef(filename) || isSharepicVorlageRef(filename)
           ? sceneRefs.includes(filename)
-          : hasStockPhoto(filename);
+          : hasStockPhoto(filename) || livePhotos.includes(filename);
     if (slide.background.kind !== 'farbe') {
       const { filename } = slide.background;
       if (!photoKnown(filename)) {

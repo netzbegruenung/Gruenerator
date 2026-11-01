@@ -5,7 +5,15 @@
 
 import { formatTime } from '@gruenerator/shared/subtitle-editor';
 import { useRef, useEffect, useCallback } from 'react';
-import { View, Text, TextInput, StyleSheet, Pressable, useColorScheme } from 'react-native';
+import {
+  View,
+  Text,
+  TextInput,
+  StyleSheet,
+  Pressable,
+  useColorScheme,
+  type TextInputInstance,
+} from 'react-native';
 
 import {
   colors,
@@ -40,7 +48,7 @@ export function SubtitleSegmentItem({
 }: SubtitleSegmentItemProps) {
   const colorScheme = useColorScheme();
   const theme = colorScheme === 'dark' ? darkTheme : lightTheme;
-  const inputRef = useRef<TextInput>(null);
+  const inputRef = useRef<TextInputInstance>(null);
 
   useEffect(() => {
     if (isEditing && inputRef.current) {

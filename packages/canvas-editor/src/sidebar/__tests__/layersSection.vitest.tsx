@@ -3,10 +3,13 @@
  * und die Tastatur der Seite (Entf) läuft weiter, während ein Eintrag den
  * Fokus hat (Regel R1).
  */
+import { useCanvasKeyboardHandlers } from '@ggraphic/editor/hooks/useCanvasKeyboardHandlers';
 import {
   createCanvasEditorStore,
   type CanvasEditorStoreApi,
 } from '@ggraphic/editor/stores/createCanvasEditorStore';
+import { createCanvasCommands } from '@ggraphic/editor/utils/canvasCommands';
+import { pageLayerLabels } from '@ggraphic/editor/utils/layerLabels';
 import { applyLayerSelection } from '@ggraphic/editor/utils/layerSelection';
 import { act, fireEvent, render, screen } from '@testing-library/react';
 import { useMemo, useRef, useState } from 'react';
@@ -14,15 +17,12 @@ import { describe, expect, it, vi } from 'vitest';
 import { useStore } from 'zustand';
 import { useShallow } from 'zustand/react/shallow';
 
-import { useCanvasKeyboardHandlers } from '../../hooks/useCanvasKeyboardHandlers';
 import { axe } from '../../test-utils';
-import { createCanvasCommands } from '../../utils/canvasCommands';
-import { pageLayerLabels } from '../../utils/layerLabels';
-import { LayersSection } from '../sections/LayersSection';
+import { LayersSection } from '@ggraphic/editor/sidebar/sections/LayersSection';
 
-import type { BaseCanvasState } from '../../configs/factory/baseTypes';
-import type { LayoutResult } from '../../configs/types';
-import type { CanvasItem } from '../../utils/canvasLayerManager';
+import type { BaseCanvasState } from '@ggraphic/editor/configs/factory/baseTypes';
+import type { LayoutResult } from '@ggraphic/editor/configs/types';
+import type { CanvasItem } from '@ggraphic/editor/utils/canvasLayerManager';
 import type { ShapeInstance } from '@ggraphic/editor/utils/shapes';
 
 const shape = (id: string, type: ShapeInstance['type']) =>

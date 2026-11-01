@@ -343,6 +343,7 @@ export {
   selectStepAfterText,
   type StatusPartLike,
 } from './lib/toolStatusLine';
+export { selectRunActivity, type RunActivityView } from './lib/runActivityView';
 
 // URL Utilities
 export { domainHue, domainInitial, extractDomain, getHostname } from './lib/urlUtils';
@@ -457,6 +458,7 @@ export * as grueneratorHomeIconGeometry from './components/icons/grueneratorHome
 export { chatSuggestions } from './lib/suggestions';
 export {
   agentsList,
+  listedAgentsList,
   getDefaultAgent,
   getPinnedAgents,
   resolveAgentMention,

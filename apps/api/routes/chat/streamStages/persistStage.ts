@@ -1,7 +1,8 @@
 /**
  * Stage 4: persist the turn, emit the approvals it needs, close the stream.
  *
- * The persist write is kicked off before the confirm/save-as-doc steps but
+ * A save_as_doc document is generated first (it belongs to the persisted
+ * turn); the persist write is then kicked off before the confirm step but
  * awaited only after `done` — the client already has the full response, so a
  * slow Postgres write must not delay it. `persistAssistantResponse` catches
  * its own errors; the outcome decides which warning (if any) still reaches the
@@ -11,7 +12,7 @@
 import { createLogger } from '../../../utils/logger.js';
 import { emitConfirmAction } from '../services/confirmActionService.js';
 import { buildCreateTurnContext } from '../services/createTurn.js';
-import { generateAndCreateDocument } from '../services/intentExecutionService.js';
+import { contributeDocumentToOpenTurn } from '../services/intentExecutionService.js';
 import { extractTextContent } from '../services/messageHelpers.js';
 import { persistAssistantResponse } from '../services/postResponseService.js';
 import { sendChatWarning, type SSEWriter } from '../services/sseHelpers.js';
@@ -95,6 +96,38 @@ export async function runPersistStage({
   // Stop the placeholder writer BEFORE persist: its final throttle write
   // must not race the finalize UPDATE (both write the same row).
   await cleanupPending(false);
+  // === Stage 4a: save_as_doc ===
+  // Runs BEFORE the persist kickoff: the document belongs to this turn's
+  // message. Persisting first left the turn without `createdDocument`, so the
+  // card vanished on reload and `read_artifact` on the next turn found no
+  // document in the thread — the model then read a different one (#5134).
+  let turnDocument = createdDocument;
+  if (classifiedState.intent === 'save_as_doc' && fullText) {
+    const lastUserText = lastUserMessage ? extractTextContent(lastUserMessage.content) : '';
+    // Same transcript builder the other create turns use, so "speicher das
+    // als Dokument" and "mach ein PDF draus" see the same thread. It used to
+    // be a hand-rolled `slice(-4)` here and nothing at all there. The answer
+    // being saved is generated in THIS turn and is not in `validMessages`
+    // yet, so it is appended.
+    const conversationContext = [
+      buildCreateTurnContext(validMessages),
+      `assistant: ${fullText.slice(0, 3000)}`,
+    ]
+      .filter((part) => part.trim())
+      .join('\n');
+
+    turnDocument =
+      (await contributeDocumentToOpenTurn({
+        sse,
+        req,
+        userId,
+        userContent: lastUserText,
+        subtypeOverride: classifiedState.documentSubtype,
+        conversationContext,
+        intent: 'save_as_doc',
+      })) ?? createdDocument;
+  }
+
   // Kicked off here but awaited only after sse.end(): the client already
   // has the full response, so a slow Postgres write must not delay the
   // done event. persistAssistantResponse catches its own errors.
@@ -106,7 +139,7 @@ export async function runPersistStage({
     classifiedState,
     generatedImage,
     sharepicVariants,
-    createdDocument,
+    createdDocument: turnDocument,
     isNewThread,
     lastUserMessage: lastUserMessage as ModelMessage,
     processedMeta,
@@ -130,35 +163,6 @@ export async function runPersistStage({
       classifiedState,
       ...(rawDocMentionIds != null && { rawDocMentionIds }),
       ...(rawBoardIds != null && { rawBoardIds }),
-    });
-  }
-
-  // === Stage 4c: Handle save_as_doc ===
-  if (classifiedState.intent === 'save_as_doc' && fullText) {
-    const lastUserText = lastUserMessage ? extractTextContent(lastUserMessage.content) : '';
-    // Same transcript builder the other create turns use, so "speicher das
-    // als Dokument" and "mach ein PDF draus" see the same thread. It used to
-    // be a hand-rolled `slice(-4)` here and nothing at all there. The answer
-    // being saved is generated in THIS turn and is not in `validMessages`
-    // yet, so it is appended.
-    const conversationContext = [
-      buildCreateTurnContext(validMessages),
-      `assistant: ${fullText.slice(0, 3000)}`,
-    ]
-      .filter((part) => part.trim())
-      .join('\n');
-
-    await generateAndCreateDocument({
-      sse,
-      classifiedState,
-      req,
-      ...(actualThreadId != null && { actualThreadId }),
-      userId,
-      userContent: lastUserText,
-      subtypeOverride: classifiedState.documentSubtype,
-      conversationContext,
-      intent: 'save_as_doc',
-      skipTerminate: true,
     });
   }
 

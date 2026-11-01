@@ -9,7 +9,7 @@ import { stripLeadingBullets } from '@ggraphic/schema';
 import { accentLines, type SharepicItem, type SharepicSlide } from '@gruenerator/contracts';
 
 import { type ComposedSlide } from './composeTypes';
-import { stripMarks } from './marks';
+import { stripMarks } from '@ggraphic/editor/composer/marks';
 
 export type SharepicProvenanceLift =
   | 'verbatim'

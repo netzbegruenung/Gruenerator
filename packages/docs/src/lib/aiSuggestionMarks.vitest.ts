@@ -4,7 +4,7 @@ import { AIExtension } from '@blocknote/xl-ai';
 import { afterEach, describe, expect, it } from 'vitest';
 
 /**
- * Guards patches/@blocknote__xl-ai@0.55.0.patch (GlitchTip #702/#703).
+ * Guards patches/@blocknote__xl-ai@0.56.0.patch (GlitchTip #702/#703).
  *
  * xl-ai's agent marks its preview with `pmSchema.mark('insertion', {})`, so the
  * mark carries the default `id: null`. When the user types inside that preview,

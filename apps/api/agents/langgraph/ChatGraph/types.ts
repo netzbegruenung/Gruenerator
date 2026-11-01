@@ -42,6 +42,7 @@ import type {
   McpToolGrant,
   BrowserSessionMeta,
 } from '@gruenerator/contracts';
+import type { SlideDeckOperation } from '@gruenerator/contracts/slides';
 import type { RoleLandesverbandInput } from '@gruenerator/shared/agents';
 import type { ArtifactCreateKind } from '@gruenerator/shared/chat-intents';
 import type { ModelMessage } from 'ai';
@@ -647,6 +648,8 @@ export interface ChatGraphInput {
   /** Die im Turn aktive Rolle (aufgelöste `roleRef`) — Quelle des LV-Rezept-Vorzugs. */
   activeRole?: RoleLandesverbandInput | null | undefined;
   activeSkillMention?: string | undefined;
+  /** Gewählte Methoden-Rezepte (`skillRole === 'methode'`). Siehe `ChatGraphState.methodSkillMentions`. */
+  methodSkillMentions?: string[] | undefined;
   /** Zeilen-id der gewählten Textform. Schlägt die Mention beim Nachschlag. */
   activeRecipeId?: string | undefined;
   userInstructions?: string | undefined;
@@ -960,6 +963,15 @@ export interface ChatGraphState {
   // Mention key of the active skill (e.g. 'instagram'). When set, respondNode
   // appends the skill's `skillSystemPrompt` as an additive section.
   activeSkillMention: string | null;
+
+  // Methoden-Rezepte des Turns (Bundestag-Recherche, Rechtsstand): sie regeln
+  // Recherche, Belege und Zitierweise und belegen NICHT den exklusiven
+  // Textsorten-Platz `activeSkillMention` — eine Bürgeranfrage mit
+  // Bundestag-Recherche braucht beide. Gesetzt aus der Wahl der Person
+  // (`skill:`-Token/Composer, streamContext) und aus `activatesSkill` einer
+  // Erwähnung wie `@bundestag` (forcedIntentStage). Geladen im Single-Pass von
+  // `buildSystemMessage`, im Loop über die Rezept-Registry (`catalogAssembly`).
+  methodSkillMentions?: string[];
 
   // Zeilen-id der gewählten angelernten Textform. Sie ist der stabile
   // Schlüssel: eine Umbenennung der Mention tauscht das Rezept damit nicht
@@ -1610,6 +1622,18 @@ export interface ShareTextFormPayload {
 }
 
 /**
+ * Bestätigte Folien-Löschung in einem Canvas-Foliensatz. `operations` sind die
+ * geplanten Operationen (Foliennummern gelten für die Reihenfolge `basePageIds`).
+ */
+export interface ApplyCanvasDeckEditPayload {
+  canvasId: string;
+  title: string;
+  summary: string;
+  operations: SlideDeckOperation[];
+  basePageIds: string[];
+}
+
+/**
  * Pending action stored in Redis while awaiting user confirmation.
  * Discriminated union ensures type-safe payload access per action type.
  */
@@ -1636,6 +1660,7 @@ export type PendingAction = {
   | { type: 'create_user_agent'; payload: CreateUserAgentPayload }
   | { type: 'share_user_agent'; payload: ShareUserAgentPayload }
   | { type: 'share_text_form'; payload: ShareTextFormPayload }
+  | { type: 'apply_canvas_deck_edit'; payload: ApplyCanvasDeckEditPayload }
 );
 
 /**

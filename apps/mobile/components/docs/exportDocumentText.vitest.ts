@@ -10,7 +10,7 @@ vi.mock('expo-file-system', () => ({
     constructor(dir: string, name: string) {
       this.uri = `${dir}/${name}`;
     }
-    write(content: string) {
+    writeSync(content: string) {
       written.push({ path: this.uri, content });
     }
   },

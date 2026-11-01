@@ -7,9 +7,12 @@
  * any off-palette value the model still writes, and reported to the person.
  */
 import {
+  brandIdFor,
   isSharepicUploadId,
+  SHAREPIC_BRAND_COLORS,
   SHAREPIC_COLOR_LABELS,
-  SHAREPIC_LOCALE_COLORS,
+  type SharepicBrand,
+  type SharepicBrandId,
   type SharepicColor,
   type SharepicCreatorLocale,
   type SharepicSpec,
@@ -18,30 +21,109 @@ import {
 interface Nearest {
   /** Matched against the request, case-insensitively. */
   word: string;
-  'de-DE': SharepicColor;
-  'de-AT': SharepicColor;
+  'de-DE'?: SharepicColor;
+  'de-AT'?: SharepicColor;
+  /** GRÜNE JUGEND: its own palette (limette, apricot, lavendel, pink, weiss, schwarz). */
+  'gj-de': SharepicColor;
+  /** Grüne Jugend Österreich (waldgruen, maigruen, creme, gelb, veilchen). */
+  'gj-at': SharepicColor;
 }
+
+/** The column of `NEAREST` a design reads. */
+const COLUMN: Record<SharepicBrandId, 'de-DE' | 'de-AT' | 'gj-de' | 'gj-at'> = {
+  'gruene-de': 'de-DE',
+  'gruene-at': 'de-AT',
+  'gj-de': 'gj-de',
+  'gj-at': 'gj-at',
+};
 
 // Light neutrals go to the light grounds (CD: hellgrau/mint in DE, weiss in AT),
 // dark ones to the darkest green; the other country's palette names to their
 // counterpart. Compounds first: "dunkelgrau" is no light grey.
+// The GJ columns map every word onto the youth palettes; the GJ-only words
+// (orange, rosa, lila …) have no party column and leave the party drafts alone.
 const NEAREST: readonly Nearest[] = [
-  { word: 'dunkelgrau', 'de-DE': 'dunkeltanne', 'de-AT': 'dunkelgruen' },
-  { word: 'mintgr(?:ü|ue)n', 'de-DE': 'mint', 'de-AT': 'hellgruen' },
-  { word: 'dunkeltanne', 'de-DE': 'dunkeltanne', 'de-AT': 'dunkelgruen' },
-  { word: 'grasgr(?:ü|ue)n', 'de-DE': 'grasgruen', 'de-AT': 'hellgruen' },
-  { word: 'hellgrau', 'de-DE': 'hellgrau', 'de-AT': 'weiss' },
-  { word: 'dunkelgr(?:ü|ue)n', 'de-DE': 'tanne', 'de-AT': 'dunkelgruen' },
-  { word: 'hellgr(?:ü|ue)n', 'de-DE': 'mint', 'de-AT': 'hellgruen' },
-  { word: 'sand', 'de-DE': 'creme', 'de-AT': 'weiss' },
-  { word: 'beige', 'de-DE': 'creme', 'de-AT': 'weiss' },
-  { word: 'cr(?:e|è)me', 'de-DE': 'creme', 'de-AT': 'weiss' },
-  { word: 'elfenbein', 'de-DE': 'creme', 'de-AT': 'weiss' },
-  { word: 'grau', 'de-DE': 'hellgrau', 'de-AT': 'weiss' },
-  { word: 'klee', 'de-DE': 'grasgruen', 'de-AT': 'hellgruen' },
-  { word: 'schwarz', 'de-DE': 'dunkeltanne', 'de-AT': 'dunkelgruen' },
-  { word: 'tanne', 'de-DE': 'tanne', 'de-AT': 'dunkelgruen' },
-  { word: 'mint', 'de-DE': 'mint', 'de-AT': 'hellgruen' },
+  {
+    word: 'dunkelgrau',
+    'de-DE': 'dunkeltanne',
+    'de-AT': 'dunkelgruen',
+    'gj-de': 'schwarz',
+    'gj-at': 'waldgruen',
+  },
+  {
+    word: 'mintgr(?:ü|ue)n',
+    'de-DE': 'mint',
+    'de-AT': 'hellgruen',
+    'gj-de': 'limette',
+    'gj-at': 'maigruen',
+  },
+  {
+    word: 'dunkeltanne',
+    'de-DE': 'dunkeltanne',
+    'de-AT': 'dunkelgruen',
+    'gj-de': 'schwarz',
+    'gj-at': 'waldgruen',
+  },
+  {
+    word: 'grasgr(?:ü|ue)n',
+    'de-DE': 'grasgruen',
+    'de-AT': 'hellgruen',
+    'gj-de': 'limette',
+    'gj-at': 'maigruen',
+  },
+  { word: 'hellgrau', 'de-DE': 'hellgrau', 'de-AT': 'weiss', 'gj-de': 'weiss', 'gj-at': 'creme' },
+  {
+    word: 'dunkelgr(?:ü|ue)n',
+    'de-DE': 'tanne',
+    'de-AT': 'dunkelgruen',
+    'gj-de': 'limette',
+    'gj-at': 'waldgruen',
+  },
+  {
+    word: 'hellgr(?:ü|ue)n',
+    'de-DE': 'mint',
+    'de-AT': 'hellgruen',
+    'gj-de': 'limette',
+    'gj-at': 'maigruen',
+  },
+  { word: 'sand', 'de-DE': 'creme', 'de-AT': 'weiss', 'gj-de': 'weiss', 'gj-at': 'creme' },
+  { word: 'beige', 'de-DE': 'creme', 'de-AT': 'weiss', 'gj-de': 'weiss', 'gj-at': 'creme' },
+  { word: 'cr(?:e|è)me', 'de-DE': 'creme', 'de-AT': 'weiss', 'gj-de': 'weiss', 'gj-at': 'creme' },
+  { word: 'elfenbein', 'de-DE': 'creme', 'de-AT': 'weiss', 'gj-de': 'weiss', 'gj-at': 'creme' },
+  { word: 'grau', 'de-DE': 'hellgrau', 'de-AT': 'weiss', 'gj-de': 'weiss', 'gj-at': 'creme' },
+  {
+    word: 'klee',
+    'de-DE': 'grasgruen',
+    'de-AT': 'hellgruen',
+    'gj-de': 'limette',
+    'gj-at': 'maigruen',
+  },
+  {
+    word: 'schwarz',
+    'de-DE': 'dunkeltanne',
+    'de-AT': 'dunkelgruen',
+    'gj-de': 'schwarz',
+    'gj-at': 'waldgruen',
+  },
+  {
+    word: 'tanne',
+    'de-DE': 'tanne',
+    'de-AT': 'dunkelgruen',
+    'gj-de': 'schwarz',
+    'gj-at': 'waldgruen',
+  },
+  { word: 'mint', 'de-DE': 'mint', 'de-AT': 'hellgruen', 'gj-de': 'limette', 'gj-at': 'maigruen' },
+  { word: 'gr(?:ü|ue)n', 'gj-de': 'limette', 'gj-at': 'waldgruen' },
+  { word: 'orange', 'gj-de': 'apricot', 'gj-at': 'gelb' },
+  { word: 'lachs', 'gj-de': 'apricot', 'gj-at': 'gelb' },
+  { word: 'koralle', 'gj-de': 'apricot', 'gj-at': 'gelb' },
+  { word: 'rosa', 'gj-de': 'pink', 'gj-at': 'veilchen' },
+  { word: 'magenta', 'gj-de': 'pink', 'gj-at': 'veilchen' },
+  { word: 'lila', 'gj-de': 'lavendel', 'gj-at': 'veilchen' },
+  { word: 'violett', 'gj-de': 'lavendel', 'gj-at': 'veilchen' },
+  { word: 'flieder', 'gj-de': 'lavendel', 'gj-at': 'veilchen' },
+  { word: 'gelb', 'gj-de': 'limette', 'gj-at': 'gelb' },
+  { word: 'wei(?:ß|ss)', 'gj-de': 'weiss', 'gj-at': 'creme' },
 ];
 
 /** Shade words that keep a colour's family: "sandbeige", "zartmint". */
@@ -91,9 +173,11 @@ function nearestOf(core: string): Nearest | null {
 
 export function paletteSubstitutions(
   order: string,
-  locale: SharepicCreatorLocale
+  locale: SharepicCreatorLocale,
+  brand: SharepicBrand | null = null
 ): PaletteSubstitution[] {
-  const allowed = SHAREPIC_LOCALE_COLORS[locale];
+  const id = brandIdFor(locale, brand);
+  const allowed = SHAREPIC_BRAND_COLORS[id];
   const words = NEAREST.map((e) => e.word).join('|');
   const re = new RegExp(`(?<!\\p{L})(${PREFIX}(?:${words}))${SUFFIX}(?!\\p{L})`, 'giu');
   const found = new Map<string, PaletteSubstitution>();
@@ -102,10 +186,10 @@ export function paletteSubstitutions(
     for (const match of sentence.matchAll(re)) {
       const core = match[1]!;
       if (allowed.includes(plain(core) as SharepicColor)) continue;
-      const entry = nearestOf(core);
-      if (!entry) continue;
+      const color = nearestOf(core)?.[COLUMN[id]];
+      if (!color) continue;
       const asked = core.charAt(0).toUpperCase() + core.slice(1).toLowerCase();
-      found.set(plain(core), { asked, color: entry[locale] });
+      found.set(plain(core), { asked, color });
     }
   }
   return [...found.values()];
@@ -148,13 +232,17 @@ const COLOR_KEYS = new Set(['color', 'panelColor', 'kopfband']);
  * nearest palette colour, so the enum check never sends the model round again
  * for a colour that does not exist. Unknown names stay for the validator.
  */
-export function withPaletteColors(input: unknown, locale: SharepicCreatorLocale): unknown {
-  const allowed = SHAREPIC_LOCALE_COLORS[locale];
+export function withPaletteColors(
+  input: unknown,
+  locale: SharepicCreatorLocale,
+  brand: SharepicBrand | null = null
+): unknown {
+  const id = brandIdFor(locale, brand);
+  const allowed = SHAREPIC_BRAND_COLORS[id];
   const nearest = (value: string): string => {
     const key = plain(value.trim());
     if (allowed.includes(key as SharepicColor)) return key;
-    const entry = nearestOf(key);
-    return entry ? entry[locale] : value;
+    return nearestOf(key)?.[COLUMN[id]] ?? value;
   };
   const walk = (node: unknown): unknown => {
     if (Array.isArray(node)) return node.map(walk);

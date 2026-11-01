@@ -11,7 +11,7 @@ import type { IconType } from 'react-icons';
  *
  * Legacy tabs (template-specific, being migrated):
  * - 'assets': Elements section (→ 'elements')
- * - 'position': Dreizeilen-specific balken controls
+ * - 'position': template-specific position controls
  * - 'fontsize': Deprecated - merged into 'text'
  */
 export type CoreSidebarTabId =
@@ -26,6 +26,8 @@ export type CoreSidebarTabId =
   | 'vorlagen'
   // Editor-level: every element of the active page (components/CanvasEditor/layersTab.ts)
   | 'layers'
+  // Editor-level, opened from the context bar's "Effekte" (sidebar/sections/EffectsSection.tsx)
+  | 'effects'
   // Legacy/template-specific tab IDs (for backwards compatibility)
   | 'fontsize'
   | 'assets'
@@ -49,8 +51,4 @@ export interface SidebarTab {
   ariaLabel: string;
 }
 
-export interface BackgroundColorOption {
-  id: string;
-  label: string;
-  color: string;
-}
+export { type BackgroundColorOption } from '@ggraphic/core';

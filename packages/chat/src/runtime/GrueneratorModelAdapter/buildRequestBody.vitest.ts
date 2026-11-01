@@ -158,6 +158,26 @@ describe('buildRequestBody — activeRecipeId', () => {
     expect(body.activeSkillMention).toBe('presse');
     expect(body.activeRecipeId).toBeUndefined();
   });
+
+  it('carries the composer chip alongside a typed mention, so the server sees both picks', () => {
+    const body = build({
+      effectiveMode: 'chat',
+      activeSkillMention: 'buerger-berlin',
+      typedSkillMention: 'rechtsstand',
+    });
+    expect(body.activeSkillMention).toBe('rechtsstand');
+    expect(body.ambientSkillMention).toBe('buerger-berlin');
+  });
+
+  it('sends no ambient mention without a typed one, or when both are the same', () => {
+    expect(
+      build({ effectiveMode: 'chat', activeSkillMention: 'presse' }).ambientSkillMention
+    ).toBeUndefined();
+    expect(
+      build({ effectiveMode: 'chat', activeSkillMention: 'presse', typedSkillMention: 'presse' })
+        .ambientSkillMention
+    ).toBeUndefined();
+  });
 });
 
 describe('buildRequestBody — notebook answer mode', () => {

@@ -16,7 +16,7 @@ import {
   type FreeformState,
 } from './freeform_full.config';
 
-import type { FullCanvasConfig } from './types';
+import type { FullCanvasConfig } from '@ggraphic/editor/configs/types';
 
 /** The square sheet a sticker is drawn on; the export trims it to the motif. */
 export const STICKER_FORMAT_ID = 'profile-square';

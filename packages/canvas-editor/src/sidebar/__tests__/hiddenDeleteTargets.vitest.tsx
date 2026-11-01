@@ -1,10 +1,10 @@
 import { render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { PageToolbar } from '../../components/PageToolbar';
-import { UploadsSection } from '../sections/UploadsSection';
+import { PageToolbar } from '@ggraphic/editor/components/PageToolbar';
+import { UploadsSection } from '@ggraphic/editor/sidebar/sections/UploadsSection';
 
-vi.mock('../UserUploadsProvider', () => ({
+vi.mock('@ggraphic/editor/sidebar/UserUploadsProvider', () => ({
   useUserUploads: () => ({
     items: [{ id: 'm1', title: 'Foto', thumbnailUrl: '/t.jpg', originalFilename: 'foto.jpg' }],
     isLoading: false,

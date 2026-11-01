@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { toolErrorMessage, toolOutcome } from './toolResults';
+import { toolErrorMessage, toolOutcome, toolResultSummary } from './toolResults';
 
 /**
  * A failed tool call used to be indistinguishable from a successful one: the
@@ -44,5 +44,25 @@ describe('toolErrorMessage', () => {
     expect(toolErrorMessage({ ok: false })).toBeNull();
     expect(toolErrorMessage(null)).toBeNull();
     expect(toolErrorMessage({ error: 42 })).toBeNull();
+  });
+});
+
+/**
+ * Die API trennt `error` (Ursache + Befund, für die Person) von
+ * `naechsterSchritt` (Anweisung ans Modell). Die Karte zeigt nur `error`.
+ */
+describe('toolResultSummary mit naechsterSchritt', () => {
+  it('zeigt Ursache+Befund, nie den Anweisungssatz', () => {
+    const line = toolResultSummary(
+      'scrape_url',
+      {},
+      {
+        error: 'Keine der Seiten ließ sich lesen. Versucht: https://a.de.',
+        fehlerArt: 'nicht_verfuegbar',
+        naechsterSchritt: 'Versuche es höchstens einmal erneut und lege nichts doppelt an.',
+      }
+    );
+    expect(line).toBe('Keine der Seiten ließ sich lesen. Versucht: https://a.de.');
+    expect(line).not.toMatch(/höchstens einmal|doppelt/);
   });
 });

@@ -255,6 +255,88 @@ describe('createToolLoopGuards — near-duplicate (Jaccard)', () => {
   });
 });
 
+// Die Eingaben sehen aus, wie das AI SDK sie an `execute` gibt: geparst, mit
+// eingesetzten Schema-Defaults. Vorher zählten `general`/`gruendlich` und die
+// Sammlung als Suchwörter, und jedes dieser Paare galt als Duplikat.
+describe('createToolLoopGuards — near-duplicate compares the query within its scope', () => {
+  const web = (query: string, extra: Record<string, unknown> = {}) => ({
+    query,
+    searchType: 'general',
+    tiefe: 'gruendlich',
+    ...extra,
+  });
+
+  it('two web searches sharing one word are different searches', () => {
+    const guards = createToolLoopGuards();
+    expect(guards.checkDuplicate('web_search', web('Tempolimit Unfälle'))).toBeNull();
+    expect(guards.checkDuplicate('web_search', web('Tempolimit Klimawirkung'))).toBeNull();
+  });
+
+  it('a party comparison runs one web search per party', () => {
+    const guards = createToolLoopGuards();
+    expect(guards.checkDuplicate('web_search', web('Mietpreisbremse SPD Position'))).toBeNull();
+    expect(guards.checkDuplicate('web_search', web('Mietpreisbremse CDU Position'))).toBeNull();
+  });
+
+  it('the same web query on other sites is a different search', () => {
+    const guards = createToolLoopGuards();
+    expect(
+      guards.checkDuplicate('web_search', web('Heizungsgesetz Kritik', { seiten: ['zeit.de'] }))
+    ).toBeNull();
+    expect(
+      guards.checkDuplicate('web_search', web('Heizungsgesetz Kritik', { seiten: ['spiegel.de'] }))
+    ).toBeNull();
+  });
+
+  it('the same corpus query in the Landesverband and then in deutschland runs twice', () => {
+    const guards = createToolLoopGuards();
+    const search = (collection: string) =>
+      guards.checkDuplicate('gruenerator_search', {
+        query: 'Vermögensteuer Position Grüne',
+        collection,
+        limit: 5,
+      });
+    expect(search('hessen')).toBeNull();
+    expect(search('deutschland')).toBeNull();
+  });
+
+  it('a re-phrasing in the same scope is still blocked', () => {
+    const guards = createToolLoopGuards();
+    expect(guards.checkDuplicate('web_search', web('Atomkraft Position Grüne'))).toBeNull();
+    expect(guards.checkDuplicate('web_search', web('Position Atomkraft'))?.guard).toBe(
+      'near_duplicate'
+    );
+  });
+
+  it('a higher limit is not a new scope', () => {
+    const guards = createToolLoopGuards();
+    const search = (query: string, limit: number) =>
+      guards.checkDuplicate('gruenerator_search', { query, collection: 'deutschland', limit });
+    expect(search('Vermögensteuer Grüne Abschaffung', 5)).toBeNull();
+    expect(search('Vermögensteuer Grüne', 10)?.guard).toBe('near_duplicate');
+  });
+
+  it('the same person with another topic is a different abgeordnetenwatch lookup', () => {
+    const guards = createToolLoopGuards();
+    const lookup = (thema: string) =>
+      guards.checkDuplicate('abgeordnetenwatch', {
+        query: 'Katrin Uhlig',
+        person: 'Katrin Uhlig',
+        thema,
+      });
+    expect(lookup('Gebäudeenergiegesetz')).toBeNull();
+    expect(lookup('Wärmeplanungsgesetz')).toBeNull();
+  });
+
+  it('inputs without a query still compare all their words', () => {
+    const guards = createToolLoopGuards();
+    expect(guards.checkDuplicate('umfragen', { topic: 'Klimaschutz Bayern Umfrage' })).toBeNull();
+    expect(guards.checkDuplicate('umfragen', { topic: 'Klimaschutz Bayern' })?.guard).toBe(
+      'near_duplicate'
+    );
+  });
+});
+
 describe('createToolLoopGuards — budget rework (multi-topic)', () => {
   const SEARCH = new Set(['gruenerator_search', 'web_search']);
 

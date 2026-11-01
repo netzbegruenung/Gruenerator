@@ -4,11 +4,7 @@ import { HELLGRUEN_GLOW } from '../brand/theme';
 
 import { type PhotoTone } from './composeTypes';
 
-import type {
-  SharepicColor,
-  SharepicCreatorLocale,
-  SharepicTextSide,
-} from '@gruenerator/contracts';
+import type { SharepicBrandId, SharepicColor, SharepicTextSide } from '@gruenerator/contracts';
 
 /**
  * AT's dark greens get a gradient; the rest stays flat. DE colours are all
@@ -48,10 +44,12 @@ export const SCRIM_MAX = 0.55;
 const SCRIM_MIN_DEPTH = 0.42;
 /** …and fades over this share beyond the dense band. */
 const SCRIM_FADE = 0.15;
-/** DE: a very dark Tanne (#06251A); AT stays neutral-dark. */
-export const SCRIM_DARK: Record<SharepicCreatorLocale, string> = {
-  'de-DE': '6,37,26',
-  'de-AT': '3,14,8',
+/** DE: a very dark Tanne (#06251A); AT stays neutral-dark; GJ DE black, GJ AT its forest green. */
+export const SCRIM_DARK: Record<SharepicBrandId, string> = {
+  'gruene-de': '6,37,26',
+  'gruene-at': '3,14,8',
+  'gj-de': '0,0,0',
+  'gj-at': '0,30,13',
 };
 /** Dense scrim reaches this far past the text before it fades. */
 export const SCRIM_GUTTER = 48;

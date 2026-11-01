@@ -7,6 +7,12 @@
  * `CanvasEditorServices`, because the defaults are read in commands, factories
  * and offscreen roots that have no React context. Without a host the editor
  * renders `brandDefault`.
+ *
+ * The first pack is only the fallback. A document of another pack names it on
+ * its config (`FullCanvasConfig.brand`); the action factories take it as a
+ * parameter and the editor's panels read it with `useDocumentBrand`
+ * (`brand/documentBrand.ts`). The order of this list never changes with the
+ * document that is open: other editors in the same host read it too.
  */
 import { brandDefault, type BrandPack } from '@ggraphic/core';
 
@@ -23,4 +29,9 @@ export function activeBrand(): BrandPack {
 
 export function registeredBrands(): readonly BrandPack[] {
   return registered;
+}
+
+/** A brand's headline family as a CSS stack, for canvas and SVG text a tool draws itself. */
+export function headlineFontStack(brand: BrandPack = activeBrand()): string {
+  return `"${brand.fonts.headline}", sans-serif`;
 }

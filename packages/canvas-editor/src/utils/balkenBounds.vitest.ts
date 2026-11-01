@@ -3,7 +3,7 @@
  * canvas width made Konva wrap the rest onto a second line that the fixed bar
  * height hid: the persisted text was whole, the canvas showed half of it.
  */
-import { type BalkenInstance } from '@ggraphic/editor/utils/balkenUtils';
+import { type BalkenInstance } from './balkenUtils';
 import { measureTextWidthWithFont } from '@ggraphic/editor/utils/textUtils';
 import { describe, expect, it } from 'vitest';
 

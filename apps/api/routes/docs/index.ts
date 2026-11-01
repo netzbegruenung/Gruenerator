@@ -6,7 +6,6 @@ import exportController from './exportController.js';
 import exportToDocsController from './exportToDocsController.js';
 import importController from './importController.js';
 import permissionsController from './permissionsController.js';
-import snapshotController from './snapshotController.js';
 
 const router = Router();
 
@@ -21,7 +20,6 @@ router.use('/', permissionsController);
 router.use('/', exportController);
 router.use('/', exportToDocsController);
 router.use('/', importController);
-router.use('/', snapshotController);
 router.use('/', aiController);
 router.use('/', documentController);
 

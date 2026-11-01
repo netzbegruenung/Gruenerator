@@ -1,8 +1,8 @@
+import { loadCanvasConfig } from '@ggraphic/editor/configs/configLoader';
 import { cleanup, render, waitFor } from '@testing-library/react';
 import Konva from 'konva';
 import { afterEach, beforeAll, describe, expect, it } from 'vitest';
 
-import { loadCanvasConfig } from '../configs/configLoader';
 import { ConfigCanvas, StandaloneCanvas, type AnyCanvasConfig } from '../index';
 
 /**

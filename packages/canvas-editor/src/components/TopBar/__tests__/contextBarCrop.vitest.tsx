@@ -1,18 +1,18 @@
+import { CanvasEditorProvider } from '@ggraphic/editor/CanvasEditorProvider';
 import { fireEvent, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { useState } from 'react';
 import { describe, expect, it, vi } from 'vitest';
 
-import { CanvasEditorProvider } from '../../../CanvasEditorProvider';
 import { axe } from '../../../test-utils';
 
 const uploads = vi.hoisted(() => ({ available: true }));
-vi.mock('../../../sidebar/UserUploadsProvider', () => ({
+vi.mock('@ggraphic/editor/sidebar/UserUploadsProvider', () => ({
   useOptionalUserUploads: () => (uploads.available ? { upload: async () => null } : null),
 }));
-import { ContextControls } from '../ContextControls';
-import { CropModeControls } from '../CropModeControls';
-import { MobileSelectionBar } from '../MobileSelectionBar';
+import { ContextControls } from '@ggraphic/editor/components/TopBar/ContextControls';
+import { CropModeControls } from '@ggraphic/editor/components/TopBar/CropModeControls';
+import { MobileSelectionBar } from '@ggraphic/editor/components/TopBar/MobileSelectionBar';
 
 function setup(cropping = false, locked = false) {
   const crop = vi.fn();

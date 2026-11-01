@@ -12,7 +12,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { CanvasEditor } from '../index';
 
 // Der Upload-Provider zieht react-query mit einer zweiten React-Kopie herein.
-vi.mock('../../../sidebar/UserUploadsProvider', () => ({
+vi.mock('@ggraphic/editor/sidebar/UserUploadsProvider', () => ({
   // ToolbarStateBridge liest die Uploads optional (Erweitern).
   useOptionalUserUploads: () => null,
   UserUploadsProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,
@@ -88,7 +88,7 @@ describe('Klick auf den Hintergrund', () => {
     await click(plane(stage));
 
     expect(await screen.findByLabelText('Farbpalette öffnen')).toBeInTheDocument();
-    expect(screen.getByLabelText('Hintergrundbild: Bild')).toBeInTheDocument();
+    expect(screen.getByLabelText('Bild (Hintergrundbild)')).toBeInTheDocument();
     expect(screen.queryByTitle('Ebene nach oben')).toBeNull();
     expect(screen.queryByLabelText('Duplizieren (Strg+D)')).toBeNull();
   });

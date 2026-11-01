@@ -19,10 +19,15 @@ describe('isSearchProgressTool', () => {
       'gruenerator_search',
       'gruenerator_docs_search',
       'search_sources',
-      'bundestag',
     ]) {
       expect(isSearchProgressTool(name)).toBe(true);
     }
+  });
+
+  it('gives bundestag and parlament_lesen a card of their own', () => {
+    expect(isSearchProgressTool('bundestag')).toBe(false);
+    expect(isSearchProgressTool('parlament_lesen')).toBe(false);
+    expect(isSearchProgressTool('bundestag_reden')).toBe(false);
   });
 
   it('keeps the tools whose card IS the result', () => {
@@ -102,9 +107,14 @@ describe('selectSearchStatusLabel', () => {
     expect(
       selectSearchStatusLabel([
         { ...running, result: { results: [] } },
-        { ...running, toolCallId: 't2', toolName: 'bundestag', args: { query: 'Heizung' } },
+        {
+          ...running,
+          toolCallId: 't2',
+          toolName: 'gruenerator_search',
+          args: { query: 'Heizung' },
+        },
       ])
-    ).toBe('Bundestag (DIP) „Heizung“');
+    ).toBe(searchStatusLabel('gruenerator_search', 'Heizung'));
   });
 
   it('ignores tools that keep their own card', () => {

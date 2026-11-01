@@ -98,6 +98,16 @@ export const canvasFromVariantBodySchema = z.object({
 
 export type CanvasFromVariantBody = z.infer<typeof canvasFromVariantBodySchema>;
 
+/**
+ * POST /api/canvas/generate-deck — a presentation from a prompt, as a canvas
+ * deck (`slide-16-9`, CD layouts). The "KI-Präsentation" button of the docs page.
+ */
+export const generateCanvasDeckBodySchema = z.object({
+  prompt: z.string().trim().min(3).max(20_000),
+});
+
+export type GenerateCanvasDeckBody = z.infer<typeof generateCanvasDeckBodySchema>;
+
 export const canvasFromVariantResponseSchema = z.object({
   canvasId: z.string(),
 });

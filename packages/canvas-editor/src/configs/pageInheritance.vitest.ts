@@ -1,10 +1,9 @@
+import { loadCanvasConfig } from '@ggraphic/editor/configs/configLoader';
 import { extractInheritablePageState } from '@ggraphic/editor/configs/pageInheritance';
 import { type SharepicSlide } from '@gruenerator/contracts';
 import { beforeAll, describe, it, expect } from 'vitest';
 
 import { composeSharepic } from '../composer/composeSharepic';
-
-import { loadCanvasConfig } from './configLoader';
 
 import type { ShapeInstance } from '@ggraphic/editor/utils/shapes';
 

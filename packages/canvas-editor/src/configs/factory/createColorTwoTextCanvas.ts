@@ -10,6 +10,11 @@
  * Used by: Zitat Pure, Info
  */
 
+import { carryInstanceState } from '@ggraphic/editor/configs/factory/carryInstanceState';
+import { makeSectionDefiner } from '@ggraphic/editor/configs/factory/defineSection';
+import { injectFeatureProps } from '@ggraphic/editor/configs/featureInjector';
+import { getPlaceholder } from '@ggraphic/editor/configs/placeholders';
+import { createShareSection } from '@ggraphic/editor/configs/shareSection';
 import { contrastRatio, luminance } from '@ggraphic/editor/utils/colorLuminance';
 import { zoomBackground } from '@ggraphic/editor/utils/coverFit';
 import { straightenResetFor } from '@ggraphic/editor/utils/straighten';
@@ -17,20 +22,25 @@ import { PiFrameCornersFill, PiSquaresFourFill, PiTextAa } from 'react-icons/pi'
 
 import { AssetsSection, CombinedTextSection, FrameSettingsSection } from '../../sidebar/sections';
 import { chatTab, createCommonSectionEntries, toolsTab, uploadsTab } from '../commonSections';
-import { injectFeatureProps } from '../featureInjector';
-import { getPlaceholder } from '../placeholders';
-import { createShareSection } from '../shareSection';
 
-import { createBaseActions } from './actionFactories';
-import { carryInstanceState } from './carryInstanceState';
-import { makeSectionDefiner } from './defineSection';
+import { createBaseActions } from './baseActions';
 
-import type { CanvasFeatures, CanvasDimensions, IconState } from './baseTypes';
-import type { BackgroundColorOption } from '../../sidebar/types';
-import type { AssetInstance } from '../../utils/canvasAssets';
-import type { FullCanvasConfig, LayoutResult, CanvasElementConfig, AdditionalText } from '../types';
+import type { BalkenInstance, BalkenMode } from '../../utils/balkenUtils';
+import type { BrandPack } from '@ggraphic/core';
 import type { StockImageAttribution } from '@ggraphic/editor/common/imageSourceTypes';
-import type { BalkenInstance, BalkenMode } from '@ggraphic/editor/utils/balkenUtils';
+import type {
+  CanvasFeatures,
+  CanvasDimensions,
+  IconState,
+} from '@ggraphic/editor/configs/factory/baseTypes';
+import type {
+  FullCanvasConfig,
+  LayoutResult,
+  CanvasElementConfig,
+  AdditionalText,
+} from '@ggraphic/editor/configs/types';
+import type { BackgroundColorOption } from '@ggraphic/editor/sidebar/types';
+import type { AssetInstance } from '@ggraphic/editor/utils/canvasAssets';
 import type { ChartInstance } from '@ggraphic/editor/utils/chartUtils';
 import type { CircleBadgeInstance } from '@ggraphic/editor/utils/circleBadgeUtils';
 import type { FrameClipType, FrameInstance } from '@ggraphic/editor/utils/frameUtils';
@@ -218,6 +228,13 @@ export interface ColorTwoTextOptions<
    * card renders and remote-sync re-seeds lose them.
    */
   passthroughStateKeys?: string[];
+
+  /**
+   * Optional: the brand pack of the page (`FullCanvasConfig.brand`). Text,
+   * badges, frames, shapes and charts the user adds start in its fonts and
+   * colours; absent, in the active brand's.
+   */
+  brand?: BrandPack;
 }
 
 // ============================================================================
@@ -264,6 +281,7 @@ export function createColorTwoTextCanvas<
     maxPages = 10,
     getCanvasText,
     passthroughStateKeys = [],
+    brand,
   } = options;
 
   // A palette colour has its font colour; a freely picked one gets whichever of
@@ -356,6 +374,7 @@ export function createColorTwoTextCanvas<
     id,
     canvas,
     features,
+    ...(brand ? { brand } : {}),
 
     multiPage: {
       enabled: true,
@@ -544,7 +563,8 @@ export function createColorTwoTextCanvas<
         debouncedSaveToHistory,
         canvas.width,
         canvas.height,
-        getFontColor()
+        getFontColor(),
+        brand
       );
 
       // Callback keys for external sync

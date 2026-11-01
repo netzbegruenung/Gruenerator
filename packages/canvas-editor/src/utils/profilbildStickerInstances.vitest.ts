@@ -1,6 +1,6 @@
+import { ASSET_TARGET_SIZE } from '@ggraphic/editor/utils/canvasAssets';
 import { describe, expect, it } from 'vitest';
 
-import { ASSET_TARGET_SIZE } from './canvasAssets';
 import { profilbildStickersToAssetInstances } from './profilbildStickerInstances';
 
 const SHARE = '/api/share/0123456789abcdef0123456789abcdef/download';

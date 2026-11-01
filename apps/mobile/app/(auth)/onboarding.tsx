@@ -1,7 +1,14 @@
 import { useAuthStore } from '@gruenerator/shared/stores';
 import { router } from 'expo-router';
 import { type ComponentType, useRef, useState } from 'react';
-import { View, Text, Pressable, StyleSheet, Dimensions, useColorScheme } from 'react-native';
+import {
+  View,
+  Text,
+  Pressable,
+  StyleSheet,
+  useColorScheme,
+  useWindowDimensions,
+} from 'react-native';
 import PagerView, {
   type PagerViewOnPageScrollEvent,
   type PagerViewOnPageSelectedEvent,
@@ -73,8 +80,6 @@ const SLIDES: Slide[] = [
 /** The carousel's pages: the five above, plus the closing "Bereit?". */
 const PAGE_COUNT = SLIDES.length + 1;
 
-const SCREEN_WIDTH = Dimensions.get('window').width;
-
 /** How long the opening screen takes to hand over to the carousel. */
 const HANDOFF_MS = 520;
 
@@ -105,6 +110,8 @@ export default function OnboardingScreen() {
   // ignore the padding a SafeAreaView adds, and "Überspringen" would end up
   // under the status bar. Each layer takes the insets itself.
   const insets = useSafeAreaInsets();
+  // Read per render: an iPad window can be resized while the screen is up.
+  const { width } = useWindowDimensions();
 
   const [started, setStarted] = useState(false);
   const pagerRef = useRef<PagerView>(null);
@@ -121,11 +128,11 @@ export default function OnboardingScreen() {
 
   const introStyle = useAnimatedStyle(() => ({
     opacity: 1 - handoff.value,
-    transform: [{ translateX: -handoff.value * SCREEN_WIDTH * 0.28 }],
+    transform: [{ translateX: -handoff.value * width * 0.28 }],
   }));
   const tourStyle = useAnimatedStyle(() => ({
     opacity: handoff.value,
-    transform: [{ translateX: (1 - handoff.value) * SCREEN_WIDTH * 0.32 }],
+    transform: [{ translateX: (1 - handoff.value) * width * 0.32 }],
   }));
 
   const begin = () => {

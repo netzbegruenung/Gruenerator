@@ -12,9 +12,9 @@ import { createContext, useContext, useRef } from 'react';
 import { useStore } from 'zustand';
 import { useShallow } from 'zustand/shallow';
 
-import { createAutoSaveStore, defaultAutoSaveStore } from './createAutoSaveStore';
+import { createAutoSaveStore, defaultAutoSaveStore } from './createAutoSaveStore.js';
 
-import type { AutoSaveStore, AutoSaveStoreApi } from './createAutoSaveStore';
+import type { AutoSaveStore, AutoSaveStoreApi } from './createAutoSaveStore.js';
 import type { ReactNode } from 'react';
 
 const AutoSaveStoreContext = createContext<AutoSaveStoreApi | null>(null);

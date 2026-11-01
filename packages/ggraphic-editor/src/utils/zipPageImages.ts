@@ -2,6 +2,8 @@
 import { parseDataUrl } from '@ggraphic/schema';
 import { zipSync } from 'fflate';
 
+import { messages } from '@ggraphic/editor/i18n/messages';
+
 const EXTENSION_BY_TYPE: Record<string, string> = {
   'image/png': 'png',
   'image/jpeg': 'jpg',
@@ -21,7 +23,7 @@ export function zipPageImages(dataUrls: string[]): Blob {
   dataUrls.forEach((dataUrl, i) => {
     const parsed = parseDataUrl(dataUrl);
     const extension = parsed ? EXTENSION_BY_TYPE[parsed.mediaType] : undefined;
-    if (!parsed || !extension) throw new Error(`Seite ${i + 1} konnte nicht exportiert werden`);
+    if (!parsed || !extension) throw new Error(messages().errors.pageExport(i + 1));
     files[`seite-${i + 1}.${extension}`] = Uint8Array.from(atob(parsed.base64), (c) =>
       c.charCodeAt(0)
     );

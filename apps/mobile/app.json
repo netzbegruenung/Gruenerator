@@ -2,7 +2,7 @@
   "expo": {
     "name": "Grünerator",
     "slug": "gruenerator",
-    "version": "1.6.2",
+    "version": "1.7.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
@@ -69,13 +69,7 @@
           "savePhotosPermission": "Erlaube Grünerator, Reels in deiner Galerie zu speichern"
         }
       ],
-      [
-        "expo-video",
-        {
-          "supportsBackgroundPlayback": false,
-          "supportsPictureInPicture": false
-        }
-      ],
+      "expo-video",
       [
         "expo-font",
         {

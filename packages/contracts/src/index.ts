@@ -63,6 +63,7 @@ export {
   letterheadsContract,
   notebookSharingContract,
   docsContract,
+  docSnapshotsContract,
   documentsContract,
   subtitlerContract,
   voiceContract,
@@ -98,6 +99,7 @@ export {
   skillPromptContract,
   agentVisibilityContract,
   chunkInspectorContract,
+  bundestagQaContract,
   connectorTestContract,
   connectionsContract,
   skillVisibilityContract,
@@ -143,6 +145,8 @@ export * from './schemas/searchGraph.js';
 export * from './schemas/chatStreamEvents.js';
 export * from './schemas/chatVisualBlocks.js';
 export * from './schemas/chunkInspector.js';
+export * from './schemas/bundestagQa.js';
+export * from './schemas/landtagQa.js';
 export * from './schemas/connectorTest.js';
 export * from './schemas/connections.js';
 export * from './schemas/jobErrors.js';
@@ -177,6 +181,7 @@ export * from './schemas/userWebsite.js';
 export * from './schemas/letterhead.js';
 export * from './schemas/notebookSharing.js';
 export * from './schemas/docs.js';
+export * from './schemas/docSnapshots.js';
 export * from './schemas/documents.js';
 export * from './schemas/subtitler.js';
 export * from './schemas/voice.js';

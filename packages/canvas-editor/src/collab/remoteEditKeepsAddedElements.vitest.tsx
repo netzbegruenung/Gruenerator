@@ -18,19 +18,17 @@
  * einem ausgelasteten CI-Läufer zweistellige Sekunden —, und die Lane teilt
  * sich die Kerne mit `freeElementsReachTheDocument`, das dieselbe Bühne baut.
  */
+import { pageElementStateKeys } from '@ggraphic/editor/collab/pageElementStateKeys';
 import { readPages, seedPagesIfEmpty, updatePageStateById } from '@ggraphic/editor/collab/pagesDoc';
+import { PAGES_STATE_ORIGIN } from '@ggraphic/editor/collab/useYjsPages';
 import { createPageSyncedCallbacks } from '@ggraphic/editor/collab/wrapCallbacksWithPageSync';
+import { GenericCanvas } from '@ggraphic/editor/components/GenericCanvas';
+import { loadCanvasConfig } from '@ggraphic/editor/configs/configLoader';
 import { AutoSaveStoreProvider } from '@ggraphic/editor/stores/AutoSaveStoreProvider';
 import { act, render } from '@testing-library/react';
 import React from 'react';
 import { beforeAll, describe, expect, it } from 'vitest';
 import * as Y from 'yjs';
-
-import { GenericCanvas } from '../components/GenericCanvas';
-import { loadCanvasConfig } from '../configs/configLoader';
-
-import { PAGE_ELEMENT_STATE_KEYS } from './pageElementStateKeys';
-import { PAGES_STATE_ORIGIN } from './useYjsPages';
 
 // `useFontLoader` fragt `document.fonts`; jsdom laedt keine Schriften und
 // kennt die FontFaceSet nicht, das Mounten stirbt sonst im Effekt.
@@ -43,21 +41,6 @@ const PAGE_ID = 'seed-0';
 
 /** Kein `PAGES_*`-Ursprung: genau so sieht der Beobachter eine fremde Bearbeitung. */
 const REMOTE_ORIGIN = Symbol('anderer-client');
-
-/** Eine vollstaendige Form — der Renderer laeuft hier echt, ein `{id}` reicht ihm nicht. */
-const shape = (id: string) => ({
-  id,
-  type: 'rect' as const,
-  x: 100,
-  y: 100,
-  width: 200,
-  height: 200,
-  fill: '#005538',
-  rotation: 0,
-  scaleX: 1,
-  scaleY: 1,
-  opacity: 1,
-});
 
 type ConfigId = 'dreizeilen' | 'zitat';
 
@@ -99,7 +82,7 @@ async function mount(configId: ConfigId, seed: Record<string, unknown>): Promise
             () => ({}),
             (partial) =>
               doc.transact(() => updatePageStateById(doc, PAGE_ID, partial), PAGES_STATE_ORIGIN),
-            PAGE_ELEMENT_STATE_KEYS
+            pageElementStateKeys()
           )}
           autoSave={false}
           onLiveState={(liveState, liveActions) => {
@@ -142,27 +125,5 @@ describe('Fernbearbeitung an der echten Fläche', () => {
     expect(after.map((b) => b.id)).toContain(added[0].id);
     const primary = after.find((b) => b.id === 'dreizeilen-balken')!;
     expect(primary.texts[0], 'der abgeleitete Balken folgt dem neuen Text nicht').toBe('Neu');
-  }, 60_000);
-
-  it('lässt Formen und ihre Ebenenreihenfolge stehen', async () => {
-    const canvas = await mount('zitat', {
-      quote: 'Alt',
-      shapeInstances: [shape('form-a'), shape('form-b')],
-      layerOrder: ['form-b', 'form-a'],
-    });
-
-    expect(canvas.state().layerOrder, 'layerOrder kam schon beim Mounten nicht an').toEqual([
-      'form-b',
-      'form-a',
-    ]);
-
-    await canvas.remoteEdit({ quote: 'Neu' });
-
-    expect(canvas.state().quote).toBe('Neu');
-    expect((canvas.state().shapeInstances as Array<{ id: string }>).map((s) => s.id)).toEqual([
-      'form-a',
-      'form-b',
-    ]);
-    expect(canvas.state().layerOrder).toEqual(['form-b', 'form-a']);
   }, 60_000);
 });

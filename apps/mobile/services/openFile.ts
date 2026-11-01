@@ -12,12 +12,13 @@
  * Native's `IntentModule` builds the `ACTION_VIEW` intent without any flags, so
  * the target app resolves the URI and is then denied by the FileProvider.
  *
- * iOS has no "open with". The activity sheet IS the system's viewing path there
- * (its preview opens Quick Look, and "In Dateien sichern" / Bücher take it from
- * there), so on iOS this stays the share sheet — with the file's UTI, without
+ * iOS has no "open with"; its viewer is Quick Look, which `File.preview()`
+ * presents in the app (its own share button covers sending and saving). A type
+ * Quick Look cannot show goes to the share sheet — with the file's UTI, without
  * which iOS cannot route the document to an app that handles it.
  */
 
+import { File } from 'expo-file-system';
 import { getContentUriAsync } from 'expo-file-system/legacy';
 import * as IntentLauncher from 'expo-intent-launcher';
 import { Platform } from 'react-native';
@@ -65,6 +66,16 @@ export async function openFile(fileUri: string, options: OpenFileOptions): Promi
       // `ActivityNotFoundException` (no viewer installed) arrives here like any
       // other failure — the module rejects on every `Throwable`.
       console.warn('[openFile] no viewer for', options.mimeType, error);
+    }
+  } else if (Platform.OS === 'ios') {
+    try {
+      const file = new File(fileUri);
+      if (await File.canPreview(file)) {
+        await File.preview(file, { title: options.dialogTitle });
+        return;
+      }
+    } catch (error) {
+      console.warn('[openFile] Quick Look failed for', options.mimeType, error);
     }
   }
 

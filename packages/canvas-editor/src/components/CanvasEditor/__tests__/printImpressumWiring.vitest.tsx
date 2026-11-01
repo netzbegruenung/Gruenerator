@@ -4,16 +4,20 @@
  * placeholder line — given the host's print service, which apps/web always
  * passes. A slide deck names the fonts of the country of its first page.
  */
+import {
+  CanvasEditorProvider,
+  type CanvasEditorServices,
+} from '@ggraphic/editor/CanvasEditorProvider';
 import { act, render, screen } from '@testing-library/react';
 import Konva from 'konva';
 import React from 'react';
 import { describe, expect, it, vi } from 'vitest';
 
-import { CanvasEditorProvider, type CanvasEditorServices } from '../../../CanvasEditorProvider';
 import { grueneratorPrint } from '../../../composer/printService';
+import { grueneratorCarousel } from '../../../composer/sharepicServices';
 import { CanvasEditor } from '../index';
 
-vi.mock('../../../sidebar/UserUploadsProvider', () => ({
+vi.mock('@ggraphic/editor/sidebar/UserUploadsProvider', () => ({
   useOptionalUserUploads: () => null,
   UserUploadsProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,
   useUserUploads: () => ({ uploads: [], refresh: () => {} }),
@@ -102,7 +106,10 @@ describe('CanvasEditor: print impressum wiring', () => {
   });
 
   it('names the Austrian fonts for a deck whose first page is Austrian', async () => {
-    await openDownload({}, { configId: 'freeform-at', formatId: 'slide-16-9', initialProps: {} });
+    await openDownload(
+      { carousel: grueneratorCarousel },
+      { configId: 'freeform-at', formatId: 'slide-16-9', initialProps: {} }
+    );
     expect(await screen.findByText(/Gotham Narrow/)).toBeInTheDocument();
   });
 });

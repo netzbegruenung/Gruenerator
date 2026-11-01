@@ -11,13 +11,13 @@
 
 import { useCallback, useEffect, useMemo } from 'react';
 
-import { isGroupDrag } from '../utils/multiSelect';
-import { boxFrame, createBoxFrame, frameBounds, snapByBounds } from '../utils/snapping';
+import { isGroupDrag } from '../utils/multiSelect.js';
+import { boxFrame, createBoxFrame, frameBounds, snapByBounds } from '../utils/snapping.js';
 
-import { useGeometryReporter, type GeometryReporter } from './useGeometryReporter';
-import { useSnapScheduler } from './useSnapScheduler';
+import { useGeometryReporter, type GeometryReporter } from './useGeometryReporter.js';
+import { useSnapScheduler } from './useSnapScheduler.js';
 
-import type { BoxPivot, SnapLine, SnapTarget } from '../utils/snapping';
+import type { BoxPivot, SnapLine, SnapTarget } from '../utils/snapping.js';
 import type Konva from 'konva';
 
 export interface BoxSnapOptions {

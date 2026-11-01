@@ -4,9 +4,9 @@
  */
 import { ApiError, getContractsClient } from '@gruenerator/shared/api';
 
-export async function fetchInstanceAdminUsers() {
+export async function fetchInstanceAdminUsers(q: string) {
   const client = getContractsClient();
-  const result = await client.instanceAdminOverview.listUsers();
+  const result = await client.instanceAdminOverview.listUsers({ query: q ? { q } : {} });
   if (result.status !== 200) {
     throw new ApiError(result.status, `Failed to fetch BGST users (HTTP ${result.status})`);
   }
@@ -30,6 +30,18 @@ export async function setInstanceAdminUserPanda(userId: string, enabled: boolean
   });
   if (result.status !== 200) {
     throw new ApiError(result.status, `Failed to set Panda unlock (HTTP ${result.status})`);
+  }
+  return result.body.data;
+}
+
+export async function setInstanceAdminUserAdmin(userId: string, isAdmin: boolean) {
+  const client = getContractsClient();
+  const result = await client.instanceAdminOverview.setUserAdmin({
+    params: { userId },
+    body: { isAdmin },
+  });
+  if (result.status !== 200) {
+    throw new ApiError(result.status, `Failed to set admin rights (HTTP ${result.status})`);
   }
   return result.body.data;
 }
