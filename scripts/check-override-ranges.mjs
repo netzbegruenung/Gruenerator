@@ -105,13 +105,6 @@ const DELIBERATE = {
     'Haengt an der Expo-SDK-Version, wird nur mit `npx expo install` bewegt (CLAUDE-expo.md).',
   'http-proxy-middleware':
     'Security-Pin auf der 2er-Linie; nur webpack-dev-server 6 (dev-only) fordert 4.',
-  // TEMPORAER (#5212): bis 0.1.0-alpha.0 auf npm liegt, zeigen die vier
-  // Overrides auf gepackte Tarballs (Version 0.0.0). Mit den Overrides fallen
-  // auch diese vier Eintraege weg.
-  '@ggraphic/schema': 'Tarball-Pin bis zum npm-Publish (#5212).',
-  '@ggraphic/core': 'Tarball-Pin bis zum npm-Publish (#5212).',
-  '@ggraphic/collab': 'Tarball-Pin bis zum npm-Publish (#5212).',
-  '@ggraphic/editor': 'Tarball-Pin bis zum npm-Publish (#5212).',
 };
 
 // Overrides kennen Selektor-Formen, die kein reiner Paketname sind:

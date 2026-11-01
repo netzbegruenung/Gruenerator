@@ -34,6 +34,13 @@ minimumReleaseAgeExclude:
   # the voice-agent test page needs it. Published 2026-10-20 17:23 UTC.
   # Inert from 2026-10-23 17:23 UTC, remove then.
   - '@mistralai/mistralai@3.1.0'
+  # Our own editor packages (#5212), released from Movm/ggraphic by trusted
+  # publishing (release run 41325210184). Published 2026-11-01 16:15-16:16 UTC.
+  # Inert from 2026-11-04 16:17 UTC, remove then.
+  - '@ggraphic/schema@0.1.0-alpha.0'
+  - '@ggraphic/core@0.1.0-alpha.0'
+  - '@ggraphic/collab@0.1.0-alpha.0'
+  - '@ggraphic/editor@0.1.0-alpha.0'
 # No exemption by semver: the hijacked releases this gate exists for (chalk/debug,
 # Shai-Hulud) shipped as patch bumps. An urgent fix gets an exact-version entry
 # in a `minimumReleaseAgeExclude:` list here (`name@x.y.z`, with why, publish date
@@ -362,13 +369,7 @@ auditConfig:
 
 # Moved here from package.json's `pnpm.overrides`. scripts/sync-pnpm-overrides.mjs
 # and scripts/check-override-ranges.mjs read this block.
-# TEMPORARY (#5212): the four '@ggraphic/*' entries below pin packed tarballs until
-# 0.1.0-alpha.0 is on npm. Swap = delete those four lines, then pnpm install.
 overrides:
-  '@ggraphic/schema': file:/private/tmp/claude-501/-Users-moritzwachter-Gruenerator/da731fd8-502b-4302-92eb-615cc667aaa2/scratchpad/gg-tarballs/ggraphic-schema-0.0.0.tgz
-  '@ggraphic/core': file:/private/tmp/claude-501/-Users-moritzwachter-Gruenerator/da731fd8-502b-4302-92eb-615cc667aaa2/scratchpad/gg-tarballs/ggraphic-core-0.0.0.tgz
-  '@ggraphic/collab': file:/private/tmp/claude-501/-Users-moritzwachter-Gruenerator/da731fd8-502b-4302-92eb-615cc667aaa2/scratchpad/gg-tarballs/ggraphic-collab-0.0.0.tgz
-  '@ggraphic/editor': file:/private/tmp/claude-501/-Users-moritzwachter-Gruenerator/da731fd8-502b-4302-92eb-615cc667aaa2/scratchpad/gg-tarballs/ggraphic-editor-0.0.0.tgz
   adm-zip: '>=0.6.1'
   '@expo/dom-webview': ~58.0.2
   '@types/react': 19.3.0
