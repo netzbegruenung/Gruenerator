@@ -103,6 +103,18 @@ describe('Aktions-Sheet', () => {
     expect(run).toHaveBeenCalledWith('bringToFront');
   });
 
+  it('stellt die Zwischenablage oben als Kacheln und Löschen zuletzt, für sich', () => {
+    openSheet({ ...CAPS, canDelete: true });
+    const [quick, list] = within(screen.getByRole('dialog')).getAllByRole('list');
+    const names = (l: HTMLElement) =>
+      within(l)
+        .getAllByRole('button')
+        .map((b) => b.textContent);
+    expect(names(quick!)).toEqual(['Kopieren', 'Ausschneiden', 'Einfügen', 'Duplizieren']);
+    expect(names(list!).at(-1)).toBe('Löschen');
+    expect(names(list!)).not.toContain('Kopieren');
+  });
+
   it('trägt bei mehreren Elementen deren Anzahl im Kopf', () => {
     openSheet({ ...CAPS, count: 3, canDistribute: true }, ['a', 'b', 'c']);
     expect(screen.getByRole('dialog', { name: '3 Elemente' })).toBeInTheDocument();

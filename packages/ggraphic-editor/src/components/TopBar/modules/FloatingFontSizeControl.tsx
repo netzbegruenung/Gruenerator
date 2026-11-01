@@ -56,7 +56,7 @@ export function FloatingFontSizeControl({
   );
   if (!tiles) return stepper;
   return (
-    <div className="flex flex-col items-center gap-1 shrink-0">
+    <div className="flex flex-col items-center justify-end gap-1 h-14 pb-2 shrink-0">
       {stepper}
       <TileCaption decorative>{t.topBar.tiles.fontSize}</TileCaption>
     </div>

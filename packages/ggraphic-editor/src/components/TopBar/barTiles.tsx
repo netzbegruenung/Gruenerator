@@ -21,9 +21,9 @@ export function useBarTiles(): boolean {
   return useContext(BarTilesContext);
 }
 
-/** Eine Kachel: Icon oben, Wort darunter, 56 px hoch in der 64-px-Leiste. */
+/** Eine Kachel: Icon oben, Wort darunter, 56 px hoch; die Wörter stehen unten auf einer Linie. */
 export const TILE =
-  'inline-flex flex-col items-center justify-center gap-1 min-w-14 h-14 px-1.5 shrink-0 rounded-lg border-none bg-transparent cursor-pointer whitespace-nowrap text-[11px] font-medium leading-none text-[var(--editor-text)] transition-colors duration-150 hover:bg-[var(--editor-surface-hover)] data-[state=open]:bg-[var(--editor-active-bg)] data-[state=open]:text-[var(--editor-active-fg)] aria-pressed:bg-[var(--editor-active-bg)] aria-pressed:text-[var(--editor-active-fg)] disabled:opacity-30 disabled:cursor-not-allowed';
+  'inline-flex flex-col items-center justify-end gap-1 min-w-14 h-14 px-1.5 pb-2 shrink-0 rounded-lg border-none bg-transparent cursor-pointer whitespace-nowrap text-[11px] font-medium leading-none text-[var(--editor-text)] transition-colors duration-150 hover:bg-[var(--editor-surface-hover)] data-[state=open]:bg-[var(--editor-active-bg)] data-[state=open]:text-[var(--editor-active-fg)] aria-pressed:bg-[var(--editor-active-bg)] aria-pressed:text-[var(--editor-active-fg)] disabled:opacity-30 disabled:cursor-not-allowed';
 
 /**
  * Das Wort unter der Kachel, nur im Kachel-Modus. `decorative`, wo das Wort
