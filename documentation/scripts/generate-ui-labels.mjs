@@ -134,19 +134,13 @@ function generate() {
   out['canvas.share'] = { title: shareTitle };
   // The Download button of the share popover reads its label from the catalogue too.
   // The text comes from there, but the button must still exist: find it by its
-  // icon and check that it is labelled with that catalogue key, so removing or
-  // relabelling the button fails here instead of leaving a label for nothing.
+  // label, which must be that catalogue key, so removing or relabelling the
+  // button fails here instead of leaving a label for nothing. The icon is not
+  // checked: it is the editor's choice and changes with it.
   const downloads = [];
   walk(parse('packages/ggraphic-editor/src/components/TopBar/ShareDropdown.tsx'), (node) => {
     if (!ts.isJsxSelfClosingElement(node) || node.tagName.getText() !== 'IconButton') return;
     const attrs = node.attributes.properties.filter(ts.isJsxAttribute);
-    const icon = attrs.find((attr) => attr.name.getText() === 'icon')?.initializer;
-    if (!icon || !ts.isJsxExpression(icon) || !icon.expression) return;
-    if (
-      !ts.isJsxSelfClosingElement(icon.expression) ||
-      icon.expression.tagName.getText() !== 'FaDownload'
-    )
-      return;
     const label = attrs.find((attr) => attr.name.getText() === 'label')?.initializer;
     if (label && ts.isJsxExpression(label) && label.expression?.getText() === 't.shell.downloadTab')
       downloads.push(label);
