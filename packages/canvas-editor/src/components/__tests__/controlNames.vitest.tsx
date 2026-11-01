@@ -1,23 +1,23 @@
-import { render, screen } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
-
-import { toolsTab, uploadsTab } from '../../configs/commonSections';
-import { SidebarSlider } from '@ggraphic/editor/sidebar/components/SidebarSlider';
-import { BalkenSettingsSection } from '../../sidebar/sections/BalkenSettingsSection';
-import { SidebarPanel } from '@ggraphic/editor/sidebar/SidebarPanel';
-import { SidebarTabBar } from '@ggraphic/editor/sidebar/SidebarTabBar';
-import { axe } from '../../test-utils';
-import { COLOR_SCHEMES } from '../../utils/dreizeilenLayout';
 import { CanvasMetaBar } from '@ggraphic/editor/components/CanvasMetaBar';
 import { PageToolbar } from '@ggraphic/editor/components/PageToolbar';
 import { FloatingColorPicker } from '@ggraphic/editor/components/TopBar/modules/FloatingColorPicker';
 import { FloatingFontSizeControl } from '@ggraphic/editor/components/TopBar/modules/FloatingFontSizeControl';
 import { FloatingOpacityControl } from '@ggraphic/editor/components/TopBar/modules/FloatingOpacityControl';
 import { FloatingShadowControl } from '@ggraphic/editor/components/TopBar/modules/FloatingShadowControl';
+import { SidebarSlider } from '@ggraphic/editor/sidebar/components/SidebarSlider';
+import { SidebarPanel } from '@ggraphic/editor/sidebar/SidebarPanel';
+import { SidebarTabBar } from '@ggraphic/editor/sidebar/SidebarTabBar';
+import { render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import type { SidebarTab } from '@ggraphic/editor/sidebar/types';
+import { toolsTab, uploadsTab } from '../../configs/commonSections';
+import { BalkenSettingsSection } from '../../sidebar/sections/BalkenSettingsSection';
+import { axe } from '../../test-utils';
+import { COLOR_SCHEMES } from '../../utils/dreizeilenLayout';
+
 import type { BalkenInstance } from '../../utils/balkenUtils';
+import type { SidebarTab } from '@ggraphic/editor/sidebar/types';
 
 beforeEach(() => {
   // Desktop layout.
@@ -75,6 +75,7 @@ describe('sliders', () => {
 
   it('FloatingOpacityControl is "Deckkraft" with a percent value text', async () => {
     const { container } = render(<FloatingOpacityControl opacity={1} onOpacityChange={() => {}} />);
+    await userEvent.click(screen.getByRole('button', { name: 'Deckkraft' }));
     expect(screen.getByRole('slider', { name: 'Deckkraft' })).toHaveAttribute(
       'aria-valuetext',
       '100 %'
