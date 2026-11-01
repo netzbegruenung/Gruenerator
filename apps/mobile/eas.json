@@ -39,7 +39,8 @@
         "RELEASE_CHANNEL": "production"
       },
       "android": {
-        "buildType": "app-bundle"
+        "buildType": "app-bundle",
+        "resourceClass": "large"
       }
     }
   },
