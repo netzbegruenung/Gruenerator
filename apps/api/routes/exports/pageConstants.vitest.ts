@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest';
 
-import { CANVAS_FORMATS } from '@ggraphic/editor/templates';
+import { registerCanvasFormatGroups, registerCanvasFormats } from '@ggraphic/editor/host';
+import {
+  LEGACY_CANVAS_FORMAT_GROUPS,
+  LEGACY_CANVAS_FORMATS,
+} from '@ggraphic/editor/internal/formats/legacyCatalog';
+import { canvasFormats } from '@ggraphic/editor/templates';
 
 import { crossesFormatCategory, formatCategory, SERVER_FORMATS } from './pageConstants.js';
 
@@ -15,9 +20,12 @@ describe('SERVER_FORMATS', () => {
   });
 
   it('mirrors the canvas-editor format registry', () => {
+    // What registerGrueneFormats adds to the editor's built-ins.
+    registerCanvasFormatGroups(LEGACY_CANVAS_FORMAT_GROUPS);
+    registerCanvasFormats(LEGACY_CANVAS_FORMATS);
     expect(SERVER_FORMATS).toEqual(
       Object.fromEntries(
-        CANVAS_FORMATS.map(({ id, category, width, height, dpi, print }) => [
+        canvasFormats().map(({ id, category, width, height, dpi, print }) => [
           id,
           { id, category, width, height, dpi, print },
         ])

@@ -1,5 +1,5 @@
 import { loadCanvasConfig } from '@ggraphic/editor/config';
-import { CANVAS_FORMATS, DEFAULT_FORMAT_ID } from '@ggraphic/editor/templates';
+import { canvasFormats, DEFAULT_FORMAT_ID } from '@ggraphic/editor/templates';
 import { describe, it, expect, beforeAll } from 'vitest';
 
 import { TEMPLATE_REGISTRY, templateFitsFormat } from '../../utils/templateRegistry';
@@ -16,12 +16,13 @@ describe('Freeform im Leinwandformat', () => {
 
   it('kennt 4:5 als Standard, 3:4 und das Profilbild-Quadrat', () => {
     expect(DEFAULT_FORMAT_ID).toBe('post-portrait');
-    const digital = CANVAS_FORMATS.filter((f) => f.category === 'digital');
+    const digital = canvasFormats().filter((f) => f.category === 'digital');
     expect(digital.map((f) => [f.id, f.width, f.height])).toEqual([
       ['post-portrait', 1080, 1350],
-      ['post-portrait-tall', 1080, 1440],
       ['profile-square', 1080, 1080],
       ['slide-16-9', 1920, 1080],
+      // Ours, registered after the editor's built-ins (registerGrueneFormats).
+      ['post-portrait-tall', 1080, 1440],
     ]);
   });
 
@@ -65,7 +66,7 @@ describe('Freeform im Leinwandformat', () => {
       expect(!!TEMPLATE_REGISTRY[id].followsFormat).toBe(follows);
       // Passen heißt: das Blatt hat das Seitenverhältnis des Formats. Sonst
       // skaliert die Bühne je Achse und streckt die Seite (#4087).
-      for (const format of CANVAS_FORMATS) {
+      for (const format of canvasFormats()) {
         const sheet = (await loadCanvasConfig(id, format.id)).canvas;
         const sameAspect = sheet.width * format.height === sheet.height * format.width;
         // Auf ein Druckformat passt nur die leere Freeform-Seite.
