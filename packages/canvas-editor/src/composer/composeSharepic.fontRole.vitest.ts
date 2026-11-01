@@ -9,7 +9,10 @@ import { composeSharepic } from './composeSharepic';
 import { expectBrandFontsBound } from './fontRoleCheck';
 import { measure, MORE_SPECS, SPECS } from './sharepicSpecFixtures';
 
-const FIXTURES: Record<string, SharepicSpec> = { ...SPECS, ...MORE_SPECS };
+// The check reads the Grünen's faces per locale; a GRÜNE JUGEND fixture wears its own.
+const FIXTURES: Record<string, SharepicSpec> = Object.fromEntries(
+  Object.entries({ ...SPECS, ...MORE_SPECS }).filter(([, spec]) => spec.brand !== 'gruene-jugend')
+);
 // The AI label is set in a fixed PT Sans on both brands: no role, by design.
 const BY_HAND = ['sc-ki-label'];
 

@@ -616,6 +616,102 @@ export const steckbriefAt: SharepicSpec = {
   slides: [steckbriefFrei('dunkelgruen')],
 };
 
+/** Visual lane: Grüne Jugend DE and AT, with a Störer on a colour and on a photo. */
+export const gjDe: SharepicSpec = {
+  locale: 'de-DE',
+  brand: 'gruene-jugend',
+  slides: [
+    {
+      background: { kind: 'farbe', color: 'limette' },
+      position: 'oben',
+      align: 'links',
+      items: [
+        { type: 'headline', lines: ['Schluss mit', 'Praktika!'] },
+        { type: 'text', text: 'Fair bezahlt, von Anfang an.' },
+      ],
+      stoerer: { text: 'Neu dabei!' },
+      logo: true,
+    },
+    {
+      background: { kind: 'foto', filename: 'wind.jpg', textSeite: 'unten' },
+      position: 'unten',
+      align: 'links',
+      items: [{ type: 'headline', lines: ['Mach mit', 'bei uns!'], akzent: 1 }],
+      stoerer: { text: 'Jetzt!' },
+      logo: true,
+    },
+  ],
+};
+export const gjAt: SharepicSpec = {
+  locale: 'de-AT',
+  brand: 'gruene-jugend',
+  slides: [
+    {
+      background: { kind: 'farbe', color: 'waldgruen' },
+      position: 'oben',
+      align: 'links',
+      items: [
+        { type: 'headline', lines: ['Schluss mit', 'Praktika!'] },
+        { type: 'text', text: 'Fair bezahlt, von Anfang an.' },
+      ],
+      stoerer: { text: 'Neu dabei!' },
+      logo: true,
+    },
+    {
+      background: { kind: 'foto', filename: 'wind.jpg', textSeite: 'unten' },
+      position: 'unten',
+      align: 'links',
+      items: [{ type: 'headline', lines: ['Mach mit', 'bei uns!'], akzent: 1 }],
+      stoerer: { text: 'Jetzt!' },
+      logo: true,
+    },
+  ],
+};
+
+/** Visual lane: AT with ++marker++ text as a tall story page and as a carousel. */
+export const atStory: SharepicSpec = {
+  locale: 'de-AT',
+  format: 'post-portrait-tall',
+  slides: [
+    farbe('dunkelgruen', [
+      { type: 'headline', lines: ['Mehr ++Grün++', 'für alle'], akzent: 1 },
+      { type: 'absatz', text: 'Wir bauen ++Wohnungen für alle++ und lassen niemanden zurück.' },
+    ]),
+  ],
+};
+export const atSlide: SharepicSpec = {
+  locale: 'de-AT',
+  seitenzahl: 'bruch',
+  slides: [
+    farbe('dunkelgruen', [
+      { type: 'headline', lines: ['Drei Gründe', 'für ++Öffis++'], akzent: 1 },
+    ]),
+    farbe('dunkelgruen', [
+      {
+        type: 'zitat',
+        text: 'Wir bauen ++Wohnungen für alle++ und lassen niemanden zurück.',
+        name: 'A B',
+      },
+    ]),
+    farbe('weiss', [
+      { type: 'absatz', text: 'Ganz ++klar++: leistbar, nah und ++klimafreundlich++.' },
+    ]),
+  ],
+};
+
+/** Visual lane: a single word as long as the headline allows forces the fit. */
+const langesWort = (locale: 'de-DE' | 'de-AT'): SharepicSpec => ({
+  locale,
+  slides: [
+    farbe(locale === 'de-AT' ? 'dunkelgruen' : 'tanne', [
+      { type: 'headline', lines: ['Rindfleischetikettierung'] },
+      { type: 'absatz', text: 'Donaudampfschifffahrtsgesellschaftskapitänsmützen für alle.' },
+    ]),
+  ],
+});
+export const langesWortDe = langesWort('de-DE');
+export const langesWortAt = langesWort('de-AT');
+
 /** Beyond the provenance specs: one per feature of the other composer tests. */
 export const MORE_SPECS = {
   foto,
@@ -640,4 +736,10 @@ export const MORE_SPECS = {
   steckbrief,
   steckbriefFoto,
   steckbriefAt,
+  gjDe,
+  gjAt,
+  atStory,
+  atSlide,
+  langesWortDe,
+  langesWortAt,
 };
