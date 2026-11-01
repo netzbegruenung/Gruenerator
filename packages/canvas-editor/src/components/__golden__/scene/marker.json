@@ -113,6 +113,7 @@
            "fontSize": 83,
            "fontFamily": "PT Sans",
            "fontStyle": "normal",
+           "letterSpacing": 0,
            "textDecoration": "",
            "fill": "#FFFFFF",
            "fillAfterStrokeEnabled": false,
@@ -131,6 +132,7 @@
            "fontSize": 83,
            "fontFamily": "PT Sans",
            "fontStyle": "normal",
+           "letterSpacing": 0,
            "textDecoration": "",
            "fill": "#00261A",
            "lineJoin": "round",
@@ -148,6 +150,7 @@
            "fontSize": 83,
            "fontFamily": "PT Sans",
            "fontStyle": "normal",
+           "letterSpacing": 0,
            "textDecoration": "",
            "fill": "#00261A",
            "lineJoin": "round",
@@ -165,6 +168,7 @@
            "fontSize": 83,
            "fontFamily": "PT Sans",
            "fontStyle": "normal",
+           "letterSpacing": 0,
            "textDecoration": "",
            "fill": "#FFFFFF",
            "fillAfterStrokeEnabled": false,
@@ -183,6 +187,7 @@
            "fontSize": 83,
            "fontFamily": "PT Sans",
            "fontStyle": "normal",
+           "letterSpacing": 0,
            "textDecoration": "",
            "fill": "#FFFFFF",
            "fillAfterStrokeEnabled": false,
@@ -234,6 +239,7 @@
            "fontSize": 38,
            "fontFamily": "PT Sans",
            "fontStyle": "bold",
+           "letterSpacing": 0,
            "textDecoration": "",
            "fill": "#FFFFFF",
            "fillAfterStrokeEnabled": false,
@@ -293,32 +299,66 @@
       },
       "children": [
        {
-        "className": "Text",
+        "className": "Group",
         "attrs": {
          "id": "sc-ki-label",
-         "text": "KI-Generiert",
          "x": 27,
          "y": 1303,
          "width": 166,
-         "fontSize": 27,
-         "fontFamily": "PT Sans",
-         "fontStyle": "bold",
-         "fill": "#FFFFFF",
-         "fillPriority": "color",
+         "height": 54,
          "rotation": 0,
-         "scaleX": 1,
-         "scaleY": 1,
          "opacity": 0.85,
-         "fillAfterStrokeEnabled": false,
-         "lineJoin": "round",
-         "align": "left",
-         "verticalAlign": "top",
-         "lineHeight": 1,
-         "wrap": "word",
-         "padding": 0,
          "draggable": true,
          "visible": true
-        }
+        },
+        "children": [
+         {
+          "className": "Rect",
+          "attrs": {
+           "width": 166,
+           "height": 54,
+           "fill": "transparent"
+          }
+         },
+         {
+          "className": "Text",
+          "attrs": {
+           "text": "KI-Gene-",
+           "x": 0,
+           "y": 0,
+           "fontSize": 27,
+           "fontFamily": "PT Sans",
+           "fontStyle": "bold",
+           "letterSpacing": 0,
+           "textDecoration": "",
+           "fill": "#FFFFFF",
+           "fillAfterStrokeEnabled": false,
+           "lineJoin": "round",
+           "lineHeight": 1,
+           "wrap": "none",
+           "listening": false
+          }
+         },
+         {
+          "className": "Text",
+          "attrs": {
+           "text": "riert",
+           "x": 0,
+           "y": 27,
+           "fontSize": 27,
+           "fontFamily": "PT Sans",
+           "fontStyle": "bold",
+           "letterSpacing": 0,
+           "textDecoration": "",
+           "fill": "#FFFFFF",
+           "fillAfterStrokeEnabled": false,
+           "lineJoin": "round",
+           "lineHeight": 1,
+           "wrap": "none",
+           "listening": false
+          }
+         }
+        ]
        }
       ]
      },
@@ -820,6 +860,7 @@
            "fontSize": 78,
            "fontFamily": "PT Sans",
            "fontStyle": "normal",
+           "letterSpacing": 0,
            "textDecoration": "",
            "fill": "#FFFFFF",
            "fillAfterStrokeEnabled": false,
@@ -843,6 +884,7 @@
            "fontSize": 78,
            "fontFamily": "PT Sans",
            "fontStyle": "normal",
+           "letterSpacing": 0,
            "textDecoration": "",
            "fill": "#00261A",
            "lineJoin": "round",
@@ -860,6 +902,7 @@
            "fontSize": 78,
            "fontFamily": "PT Sans",
            "fontStyle": "normal",
+           "letterSpacing": 0,
            "textDecoration": "",
            "fill": "#00261A",
            "lineJoin": "round",
@@ -877,6 +920,7 @@
            "fontSize": 78,
            "fontFamily": "PT Sans",
            "fontStyle": "normal",
+           "letterSpacing": 0,
            "textDecoration": "",
            "fill": "#FFFFFF",
            "fillAfterStrokeEnabled": false,
@@ -900,6 +944,7 @@
            "fontSize": 78,
            "fontFamily": "PT Sans",
            "fontStyle": "normal",
+           "letterSpacing": 0,
            "textDecoration": "",
            "fill": "#FFFFFF",
            "fillAfterStrokeEnabled": false,
@@ -956,6 +1001,7 @@
            "fontSize": 38,
            "fontFamily": "PT Sans",
            "fontStyle": "bold",
+           "letterSpacing": 0,
            "textDecoration": "",
            "fill": "#FFFFFF",
            "fillAfterStrokeEnabled": false,
@@ -1020,32 +1066,66 @@
       },
       "children": [
        {
-        "className": "Text",
+        "className": "Group",
         "attrs": {
          "id": "sc-ki-label",
-         "text": "KI-Generiert",
          "x": 27,
          "y": 1303,
          "width": 166,
-         "fontSize": 27,
-         "fontFamily": "PT Sans",
-         "fontStyle": "bold",
-         "fill": "#FFFFFF",
-         "fillPriority": "color",
+         "height": 54,
          "rotation": 0,
-         "scaleX": 1,
-         "scaleY": 1,
          "opacity": 0.85,
-         "fillAfterStrokeEnabled": false,
-         "lineJoin": "round",
-         "align": "left",
-         "verticalAlign": "top",
-         "lineHeight": 1,
-         "wrap": "word",
-         "padding": 0,
          "draggable": true,
          "visible": true
-        }
+        },
+        "children": [
+         {
+          "className": "Rect",
+          "attrs": {
+           "width": 166,
+           "height": 54,
+           "fill": "transparent"
+          }
+         },
+         {
+          "className": "Text",
+          "attrs": {
+           "text": "KI-Gene-",
+           "x": 0,
+           "y": 0,
+           "fontSize": 27,
+           "fontFamily": "PT Sans",
+           "fontStyle": "bold",
+           "letterSpacing": 0,
+           "textDecoration": "",
+           "fill": "#FFFFFF",
+           "fillAfterStrokeEnabled": false,
+           "lineJoin": "round",
+           "lineHeight": 1,
+           "wrap": "none",
+           "listening": false
+          }
+         },
+         {
+          "className": "Text",
+          "attrs": {
+           "text": "riert",
+           "x": 0,
+           "y": 27,
+           "fontSize": 27,
+           "fontFamily": "PT Sans",
+           "fontStyle": "bold",
+           "letterSpacing": 0,
+           "textDecoration": "",
+           "fill": "#FFFFFF",
+           "fillAfterStrokeEnabled": false,
+           "lineJoin": "round",
+           "lineHeight": 1,
+           "wrap": "none",
+           "listening": false
+          }
+         }
+        ]
        }
       ]
      },
@@ -1487,6 +1567,7 @@
            "fontSize": 179,
            "fontFamily": "GrueneTypeNeue",
            "fontStyle": "normal",
+           "letterSpacing": 0,
            "textDecoration": "",
            "fill": "#00261A",
            "fillAfterStrokeEnabled": false,
@@ -1499,12 +1580,13 @@
          {
           "className": "Text",
           "attrs": {
-           "text": "vernichte",
+           "text": "vernich-",
            "x": 0,
            "y": 171.84,
            "fontSize": 179,
            "fontFamily": "GrueneTypeNeue",
            "fontStyle": "normal",
+           "letterSpacing": 0,
            "textDecoration": "",
            "fill": "#00261A",
            "fillAfterStrokeEnabled": false,
@@ -1517,12 +1599,13 @@
          {
           "className": "Text",
           "attrs": {
-           "text": "n",
+           "text": "ten",
            "x": 0,
            "y": 343.68,
            "fontSize": 179,
            "fontFamily": "GrueneTypeNeue",
            "fontStyle": "normal",
+           "letterSpacing": 0,
            "textDecoration": "",
            "fill": "#00261A",
            "fillAfterStrokeEnabled": false,
@@ -1541,6 +1624,7 @@
            "fontSize": 179,
            "fontFamily": "GrueneTypeNeue",
            "fontStyle": "normal",
+           "letterSpacing": 0,
            "textDecoration": "",
            "fill": "#00261A",
            "lineJoin": "round",
@@ -1558,6 +1642,7 @@
            "fontSize": 179,
            "fontFamily": "GrueneTypeNeue",
            "fontStyle": "normal",
+           "letterSpacing": 0,
            "textDecoration": "",
            "fill": "#00261A",
            "fillAfterStrokeEnabled": false,
@@ -1619,6 +1704,8 @@
          "fontSize": 27,
          "fontFamily": "PT Sans",
          "fontStyle": "bold",
+         "letterSpacing": 0,
+         "textDecoration": "",
          "fill": "#FFFFFF",
          "fillPriority": "color",
          "rotation": 0,

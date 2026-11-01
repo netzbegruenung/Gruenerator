@@ -94,32 +94,66 @@
       },
       "children": [
        {
-        "className": "Text",
+        "className": "Group",
         "attrs": {
          "id": "sc-0-headline-0",
-         "text": "Rindfleischetikettierung",
          "x": 70,
          "y": 603.81,
          "width": 940,
-         "fontSize": 74,
-         "fontFamily": "GothamNarrow-Ultra",
-         "fontStyle": "normal",
-         "fill": "#FFFFFF",
-         "fillPriority": "color",
+         "height": 140.6,
          "rotation": 0,
-         "scaleX": 1,
-         "scaleY": 1,
          "opacity": 1,
-         "fillAfterStrokeEnabled": false,
-         "lineJoin": "round",
-         "align": "left",
-         "verticalAlign": "top",
-         "lineHeight": 0.95,
-         "wrap": "word",
-         "padding": 0,
          "draggable": true,
          "visible": true
-        }
+        },
+        "children": [
+         {
+          "className": "Rect",
+          "attrs": {
+           "width": 940,
+           "height": 140.6,
+           "fill": "transparent"
+          }
+         },
+         {
+          "className": "Text",
+          "attrs": {
+           "text": "Rindfleischetikettie-",
+           "x": 0,
+           "y": 0,
+           "fontSize": 74,
+           "fontFamily": "GothamNarrow-Ultra",
+           "fontStyle": "normal",
+           "letterSpacing": 0,
+           "textDecoration": "",
+           "fill": "#FFFFFF",
+           "fillAfterStrokeEnabled": false,
+           "lineJoin": "round",
+           "lineHeight": 0.95,
+           "wrap": "none",
+           "listening": false
+          }
+         },
+         {
+          "className": "Text",
+          "attrs": {
+           "text": "rung",
+           "x": 0,
+           "y": 70.3,
+           "fontSize": 74,
+           "fontFamily": "GothamNarrow-Ultra",
+           "fontStyle": "normal",
+           "letterSpacing": 0,
+           "textDecoration": "",
+           "fill": "#FFFFFF",
+           "fillAfterStrokeEnabled": false,
+           "lineJoin": "round",
+           "lineHeight": 0.95,
+           "wrap": "none",
+           "listening": false
+          }
+         }
+        ]
        }
       ]
      },
@@ -131,32 +165,66 @@
       },
       "children": [
        {
-        "className": "Text",
+        "className": "Group",
         "attrs": {
          "id": "sc-1-absatz",
-         "text": "Donaudampfschifffahrtsgesellschaftskapitänsmützen für alle.",
          "x": 70,
          "y": 700.1099999999999,
          "width": 940,
-         "fontSize": 38,
-         "fontFamily": "GothamNarrow-Ultra",
-         "fontStyle": "normal",
-         "fill": "#FFFFFF",
-         "fillPriority": "color",
+         "height": 82.08000000000001,
          "rotation": 0,
-         "scaleX": 1,
-         "scaleY": 1,
          "opacity": 1,
-         "fillAfterStrokeEnabled": false,
-         "lineJoin": "round",
-         "align": "left",
-         "verticalAlign": "top",
-         "lineHeight": 1.08,
-         "wrap": "word",
-         "padding": 0,
          "draggable": true,
          "visible": true
-        }
+        },
+        "children": [
+         {
+          "className": "Rect",
+          "attrs": {
+           "width": 940,
+           "height": 82.08000000000001,
+           "fill": "transparent"
+          }
+         },
+         {
+          "className": "Text",
+          "attrs": {
+           "text": "Donaudampfschifffahrtsgesellschaftskapitäns-",
+           "x": 0,
+           "y": 0,
+           "fontSize": 38,
+           "fontFamily": "GothamNarrow-Ultra",
+           "fontStyle": "normal",
+           "letterSpacing": 0,
+           "textDecoration": "",
+           "fill": "#FFFFFF",
+           "fillAfterStrokeEnabled": false,
+           "lineJoin": "round",
+           "lineHeight": 1.08,
+           "wrap": "none",
+           "listening": false
+          }
+         },
+         {
+          "className": "Text",
+          "attrs": {
+           "text": "mützen für alle.",
+           "x": 0,
+           "y": 41.040000000000006,
+           "fontSize": 38,
+           "fontFamily": "GothamNarrow-Ultra",
+           "fontStyle": "normal",
+           "letterSpacing": 0,
+           "textDecoration": "",
+           "fill": "#FFFFFF",
+           "fillAfterStrokeEnabled": false,
+           "lineJoin": "round",
+           "lineHeight": 1.08,
+           "wrap": "none",
+           "listening": false
+          }
+         }
+        ]
        }
       ]
      },
@@ -198,32 +266,66 @@
       },
       "children": [
        {
-        "className": "Text",
+        "className": "Group",
         "attrs": {
          "id": "sc-ki-label",
-         "text": "KI-Generiert",
          "x": 27,
          "y": 1303,
          "width": 166,
-         "fontSize": 27,
-         "fontFamily": "PT Sans",
-         "fontStyle": "bold",
-         "fill": "#FFFFFF",
-         "fillPriority": "color",
+         "height": 54,
          "rotation": 0,
-         "scaleX": 1,
-         "scaleY": 1,
          "opacity": 0.85,
-         "fillAfterStrokeEnabled": false,
-         "lineJoin": "round",
-         "align": "left",
-         "verticalAlign": "top",
-         "lineHeight": 1,
-         "wrap": "word",
-         "padding": 0,
          "draggable": true,
          "visible": true
-        }
+        },
+        "children": [
+         {
+          "className": "Rect",
+          "attrs": {
+           "width": 166,
+           "height": 54,
+           "fill": "transparent"
+          }
+         },
+         {
+          "className": "Text",
+          "attrs": {
+           "text": "KI-Gene-",
+           "x": 0,
+           "y": 0,
+           "fontSize": 27,
+           "fontFamily": "PT Sans",
+           "fontStyle": "bold",
+           "letterSpacing": 0,
+           "textDecoration": "",
+           "fill": "#FFFFFF",
+           "fillAfterStrokeEnabled": false,
+           "lineJoin": "round",
+           "lineHeight": 1,
+           "wrap": "none",
+           "listening": false
+          }
+         },
+         {
+          "className": "Text",
+          "attrs": {
+           "text": "riert",
+           "x": 0,
+           "y": 27,
+           "fontSize": 27,
+           "fontFamily": "PT Sans",
+           "fontStyle": "bold",
+           "letterSpacing": 0,
+           "textDecoration": "",
+           "fill": "#FFFFFF",
+           "fillAfterStrokeEnabled": false,
+           "lineJoin": "round",
+           "lineHeight": 1,
+           "wrap": "none",
+           "listening": false
+          }
+         }
+        ]
        }
       ]
      },
