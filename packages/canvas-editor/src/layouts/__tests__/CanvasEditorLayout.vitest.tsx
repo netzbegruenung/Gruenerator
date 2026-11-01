@@ -19,8 +19,9 @@ describe('CanvasEditorLayout bottom bar', () => {
       </CanvasEditorLayout>
     );
     const bar = container.querySelector('.canvas-editor-layout__bottom-bar');
+    // Positioned inside the editor's root since ggraphic alpha.2 (#105): no host inset any more.
     expect(bar?.className).toContain(
-      'left-[calc(var(--canvas-host-inset-left,0px)_+_var(--image-studio-tab-bar-width)_+_var(--canvas-panel-width,0px))]'
+      'left-[calc(var(--image-studio-tab-bar-width)_+_var(--canvas-panel-width,0px))]'
     );
     expect(bar?.className).toContain('transition-[left]');
   });

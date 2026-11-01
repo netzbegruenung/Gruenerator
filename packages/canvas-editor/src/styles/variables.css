@@ -9,6 +9,9 @@
 :root {
     --editor-ease-out: cubic-bezier(0.23, 1, 0.32, 1);
     --editor-ease-drawer: cubic-bezier(0.32, 0.72, 0, 1);
+    /* Height of the editor's root, against which ggraphic positions its chrome
+       (sidebar, panel, bottom bar) since alpha.2. The editor's default. */
+    --editor-height: 100dvh;
     /* Primary Color System (Phtalo Green) */
     --primary-50: #F0F8F4;
     --primary-100: #D8F0E6;
