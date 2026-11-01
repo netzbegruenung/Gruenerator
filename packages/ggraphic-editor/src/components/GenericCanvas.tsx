@@ -348,6 +348,8 @@ export interface GenericCanvasRef {
   handleOpacityChange?: (id: string, opacity: number, type: string) => void;
   handleFontSizeChange?: (id: string, size: number) => void;
   handleFontRoleChange?: (id: string, role: FontRole) => void;
+  /** Schreibt den ausgezeichneten Text eines nur ausgewählten Textes (Format-Knöpfe für den ganzen Text). */
+  handleTextFormatChange?: (id: string, text: string) => void;
   handleShadowChange?: (id: string, patch: ShadowPatch, type: string) => void;
   handleOutlineChange?: (id: string, patch: { stroke?: string; strokeWidth?: number }) => void;
   handleBlurChange?: (id: string, blur: number) => void;
@@ -1125,6 +1127,7 @@ function GenericCanvasWithRef<
       handleOpacityChange: (id, op, type) => bridgeRef.current?.handleOpacityChange(id, op, type),
       handleFontSizeChange: elementHandlers.handleFontSizeChange,
       handleFontRoleChange: elementHandlers.handleFontRoleChange,
+      handleTextFormatChange: elementHandlers.handleTextFormatChange,
       handleShadowChange: (id, patch, type) =>
         bridgeRef.current?.handleShadowChange(id, patch, type),
       handleOutlineChange: (id, patch) => bridgeRef.current?.handleOutlineChange(id, patch),
@@ -1145,6 +1148,7 @@ function GenericCanvasWithRef<
       flushPendingSaves,
       elementHandlers.handleFontSizeChange,
       elementHandlers.handleFontRoleChange,
+      elementHandlers.handleTextFormatChange,
       setSelectedElement,
       beginMarquee,
       pendingImages,

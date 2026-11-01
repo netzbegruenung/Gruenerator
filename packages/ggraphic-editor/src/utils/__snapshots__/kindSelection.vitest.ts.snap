@@ -859,6 +859,8 @@ exports[`floatingModuleFor per kind > additional-text 1`] = `
     },
     "fontFamily": undefined,
     "fontSize": 40,
+    "hasAccent": false,
+    "hasMarker": false,
     "id": "text-1",
     "isInstanceText": true,
     "opacity": 0.9,
@@ -869,6 +871,7 @@ exports[`floatingModuleFor per kind > additional-text 1`] = `
     "shadowOpacity": 0.5,
     "stroke": "#000000",
     "strokeWidth": 2,
+    "text": "Klimaschutz",
   },
   "type": "text",
 }

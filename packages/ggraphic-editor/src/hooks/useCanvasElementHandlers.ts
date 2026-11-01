@@ -146,6 +146,11 @@ export interface UseCanvasElementHandlersResult {
   handleFontSizeChange: (id: string, size: number) => void;
   /** Sets a free text to a role of the page's brand fonts; a text that is not one is left alone. */
   handleFontRoleChange: (id: string, role: FontRole) => void;
+  /**
+   * Writes the formatted text of a free text that is selected and not edited (the format buttons
+   * act on the whole text), through the host's `updateAdditionalText`.
+   */
+  handleTextFormatChange: (id: string, text: string) => void;
   handleElementPositionChange: (id: string, x: number, y: number, w: number, h: number) => void;
   handleImageDragEnd: (id: string, x: number, y: number) => void;
   handleImageTransformEnd: (
@@ -276,6 +281,15 @@ export function useCanvasElementHandlers<
       }
     },
     [config.elements, setState, callbacks, debouncedSaveToHistory, state]
+  );
+
+  const handleTextFormatChange = useCallback(
+    (id: string, text: string) => {
+      if (!getStateArray<{ id: string }>(state, 'additionalTexts').some((t) => t.id === id)) return;
+      // Like a typed edit: the host refits the text and re-hugs its plates, and records the step.
+      actions.updateAdditionalText?.(id, { text });
+    },
+    [state, actions]
   );
 
   const handleFontSizeChange = useCallback(
@@ -627,6 +641,7 @@ export function useCanvasElementHandlers<
       handleTextChange,
       handleFontSizeChange,
       handleFontRoleChange,
+      handleTextFormatChange,
       handleElementPositionChange,
       handleImageDragEnd,
       handleImageTransformEnd,
@@ -661,6 +676,7 @@ export function useCanvasElementHandlers<
       handleTextChange,
       handleFontSizeChange,
       handleFontRoleChange,
+      handleTextFormatChange,
       handleElementPositionChange,
       handleImageDragEnd,
       handleImageTransformEnd,

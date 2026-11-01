@@ -74,6 +74,8 @@ export function useToolbarHandlers({
       handleFontSizeChange: (id: string, size: number) => page()?.handleFontSizeChange?.(id, size),
       handleFontRoleChange: (id: string, role: FontRole) =>
         page()?.handleFontRoleChange?.(id, role),
+      handleTextFormatChange: (id: string, text: string) =>
+        page()?.handleTextFormatChange?.(id, text),
       runCommand: (id: PageCommandId) => page()?.runCommand?.(id, null),
       getGeometry: (): SelectionGeometry | null => page()?.getGeometry?.() ?? null,
       handlePositionChange: (patch: { x?: number; y?: number }) => page()?.setPosition?.(patch),

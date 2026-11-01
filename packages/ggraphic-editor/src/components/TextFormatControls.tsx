@@ -1,38 +1,28 @@
 // SPDX-License-Identifier: MPL-2.0
 /**
- * TextFormatControls — Fett, Kursiv, Unterstrichen, Akzent, Textmarker, Aufzählung, Nummerierung.
+ * TextFormatControls — die Knöpfe für Fett, Kursiv, Unterstrichen, Akzent,
+ * Textmarker und Listen, solange ein Text im Editor bearbeitet wird: sie
+ * bedienen den tiptap-Editor der Sitzung. Aussehen und Knöpfe stehen in
+ * `TextFormatButtons`; ein nur ausgewählter Text hat denselben Satz Knöpfe
+ * für seinen ganzen Text (`WholeTextFormatControls`).
  *
  * EINE Definition, zwei Wirte: die schwebende Karte über dem Text (dort, wo es
  * keine Kopfleiste gibt — `StandaloneCanvas`) und die Kontextleiste der
  * Kopfleiste, wo die Knöpfe neben Farbe, Schriftgröße und Ausrichtung stehen.
- * `variant` wählt nur das Aussehen; welche Knöpfe erscheinen und was sie tun,
- * steht genau einmal hier.
  */
-import { type BrandPack } from '@ggraphic/core';
 import { useEditorState, type Editor } from '@tiptap/react';
-import clsx from 'clsx';
+import { useEffect, useMemo, useRef, type FocusEvent } from 'react';
+
+import { keepsEditing } from '@ggraphic/editor/utils/keyboardOwnership';
+
 import {
-  useEffect,
-  useRef,
-  useState,
-  type CSSProperties,
-  type MouseEvent as ReactMouseEvent,
-  type ReactNode,
-} from 'react';
-import { createPortal } from 'react-dom';
-import { FiBold, FiItalic, FiList, FiUnderline } from 'react-icons/fi';
-import { MdBorderColor, MdFormatListNumbered, MdHighlight } from 'react-icons/md';
+  TextFormatButtons,
+  type OfferedMarks,
+  type TextFormatCommands,
+  type TextFormatVariant,
+} from './TextFormatButtons.js';
 
-import { useDocumentBrand } from '@ggraphic/editor/brand/documentBrand';
-import { useRovingToolbar } from '@ggraphic/editor/hooks/useRovingToolbar';
-import { useMessages } from '@ggraphic/editor/i18n/messages';
-import { KEEP_EDITING_ATTR, keepsEditing } from '@ggraphic/editor/utils/keyboardOwnership';
-
-import { brandColors, type ColorOption } from '../utils/colorOptions.js';
-import { type FontMarkSupport } from '../utils/fontMarkSupport.js';
-import { defaultTextMarker, markerSwatches } from '../utils/markerColors.js';
-
-import { CustomColorSwatch } from './CustomColorSwatch.js';
+export type { OfferedMarks, TextFormatVariant } from './TextFormatButtons.js';
 
 /**
  * Die Leiste, die gerade diesen Editor bedient — die schwebende Karte oder die
@@ -42,21 +32,6 @@ import { CustomColorSwatch } from './CustomColorSwatch.js';
 const toolbarsByEditor = new WeakMap<Editor, HTMLElement>();
 export const formatToolbarOf = (editor: Editor): HTMLElement | null =>
   toolbarsByEditor.get(editor) ?? null;
-
-export type TextFormatVariant = 'floating' | 'contextBar';
-
-/**
- * Was das bearbeitete Feld anbietet: die Schnitte der Schrift und, ob die
- * Vorlage einen eigenen Akzent- bzw. Markerstil hat. Akzent und Textmarker
- * gibt es immer (in jeder Farbe); der Stil der Vorlage ist dann die
- * „Vorlagenfarbe" im Farbwähler.
- */
-export interface OfferedMarks extends FontMarkSupport {
-  /** Der Text hat einen Akzentstil (`TextAccent`). */
-  accent?: boolean;
-  /** Der Text hat einen Markerstil (`TextMarker`). */
-  marker?: boolean;
-}
 
 export interface TextFormatControlsProps {
   editor: Editor;
@@ -69,51 +44,6 @@ export interface TextFormatControlsProps {
   variant?: TextFormatVariant;
 }
 
-// Die Kontextleiste übernimmt die Maße ihrer Nachbarn (`ICON_BTN` in
-// ContextControls), damit die Gruppe nicht aus der Reihe fällt.
-const BUTTON_CLASS: Record<TextFormatVariant, string> = {
-  floating:
-    'flex h-7 w-7 cursor-pointer items-center justify-center rounded-sm border-none bg-transparent text-[var(--editor-text-secondary)] transition-colors hover:bg-[var(--editor-surface-hover)] hover:text-[var(--editor-text)] [&_svg]:h-4 [&_svg]:w-4',
-  contextBar:
-    'inline-flex size-8 shrink-0 cursor-pointer items-center justify-center rounded-md border-none bg-transparent text-[var(--editor-text)] transition-colors duration-150 hover:bg-[var(--editor-surface-hover)] hover:text-[var(--editor-active-fg)] [&_svg]:h-4 [&_svg]:w-4',
-};
-
-const GROUP_CLASS: Record<TextFormatVariant, string> = {
-  floating: 'flex items-center gap-0.5 px-1 py-0.5',
-  contextBar: 'flex items-center gap-0.5',
-};
-
-interface ToolbarButtonProps {
-  onClick: () => void;
-  isActive: boolean;
-  label: string;
-  variant: TextFormatVariant;
-  children: ReactNode;
-}
-
-function ToolbarButton({ onClick, isActive, label, variant, children }: ToolbarButtonProps) {
-  return (
-    <button
-      type="button"
-      // preventDefault hält Auswahl und Fokus im Editor, während man klickt —
-      // sonst schlösse ein Blur den Editor, bevor der Klick ankommt. In der
-      // Kopfleiste wiegt das schwerer als in der schwebenden Karte: sie liegt
-      // weit vom Text entfernt, der Weg dorthin führt über die Leinwand.
-      onMouseDown={(e) => e.preventDefault()}
-      onClick={onClick}
-      aria-label={label}
-      aria-pressed={isActive}
-      title={label}
-      className={clsx(
-        BUTTON_CLASS[variant],
-        isActive && 'bg-[var(--editor-active-bg)] text-[var(--editor-active-fg)]'
-      )}
-    >
-      {children}
-    </button>
-  );
-}
-
 export function TextFormatControls({
   editor,
   marks,
@@ -121,9 +51,6 @@ export function TextFormatControls({
 }: TextFormatControlsProps) {
   // Der Wirt muss nichts von tiptap wissen: die Knöpfe hören selbst auf den
   // Editor. Deshalb reist kein Zustand je Tastendruck durch den Baum nach oben.
-  const roving = useRovingToolbar<HTMLDivElement>();
-  const m = useMessages().textFormat;
-  const brand = useDocumentBrand();
   const state = useEditorState({
     editor,
     selector: ({ editor: e }) => ({
@@ -139,7 +66,7 @@ export function TextFormatControls({
     }),
   });
 
-  const { ref: toolbarRef } = roving;
+  const toolbarRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     const toolbar = toolbarRef.current;
     if (!toolbar) return;
@@ -147,278 +74,39 @@ export function TextFormatControls({
     return () => {
       if (toolbarsByEditor.get(editor) === toolbar) toolbarsByEditor.delete(editor);
     };
-  }, [editor, toolbarRef]);
+  }, [editor]);
 
-  return (
-    // Die ganze Leiste hält den Editor offen: wandert der Fokus per Tab hierher,
-    // ist das kein Verlassen des Textes.
-    <div
-      {...roving}
-      {...{ [KEEP_EDITING_ATTR]: '' }}
-      role="toolbar"
-      aria-label={m.toolbar}
-      className={GROUP_CLASS[variant]}
-    >
-      {marks.bold && (
-        <ToolbarButton
-          onClick={() => editor.chain().focus().toggleBold().run()}
-          isActive={state.bold}
-          label={m.bold}
-          variant={variant}
-        >
-          <FiBold />
-        </ToolbarButton>
-      )}
-      {marks.italic && (
-        <ToolbarButton
-          onClick={() => editor.chain().focus().toggleItalic().run()}
-          isActive={state.italic}
-          label={m.italic}
-          variant={variant}
-        >
-          <FiItalic />
-        </ToolbarButton>
-      )}
-      <ToolbarButton
-        onClick={() => editor.chain().focus().toggleUnderline().run()}
-        isActive={state.underline}
-        label={m.underline}
-        variant={variant}
-      >
-        <FiUnderline />
-      </ToolbarButton>
-      <MarkColorButton
-        label={m.accent}
-        icon={<MdHighlight />}
-        variant={variant}
-        isActive={state.accent}
-        color={state.accentColor}
-        presets={brandColors(brand)}
-        hasTemplate={!!marks.accent}
-        onPick={(color) => editor.chain().focus().setAccent(color).run()}
-        onPreview={(color) => editor.chain().setAccent(color).run()}
-        onRemove={() => editor.chain().focus().unsetAccent().run()}
-        editor={editor}
-      />
-      <MarkColorButton
-        label={m.marker}
-        icon={<MdBorderColor />}
-        variant={variant}
-        isActive={state.marker}
-        color={state.markerColor ?? (marks.marker ? null : defaultTextMarker(brand).fill)}
-        presets={markerColorPresets(brand)}
-        hasTemplate={!!marks.marker}
-        onPick={(color) => editor.chain().focus().setMarker(color).run()}
-        onPreview={(color) => editor.chain().setMarker(color).run()}
-        onRemove={() => editor.chain().focus().unsetMarker().run()}
-        editor={editor}
-      />
-      <ToolbarButton
-        onClick={() => editor.chain().focus().toggleBulletList().run()}
-        isActive={state.bulletList}
-        label={m.bulletList}
-        variant={variant}
-      >
-        <FiList />
-      </ToolbarButton>
-      <ToolbarButton
-        onClick={() => editor.chain().focus().toggleOrderedList().run()}
-        isActive={state.orderedList}
-        label={m.orderedList}
-        variant={variant}
-      >
-        <MdFormatListNumbered />
-      </ToolbarButton>
-    </div>
+  const commands = useMemo<TextFormatCommands>(
+    () => ({
+      toggleBold: () => editor.chain().focus().toggleBold().run(),
+      toggleItalic: () => editor.chain().focus().toggleItalic().run(),
+      toggleUnderline: () => editor.chain().focus().toggleUnderline().run(),
+      setAccent: (color) => editor.chain().focus().setAccent(color).run(),
+      previewAccent: (color) => editor.chain().setAccent(color).run(),
+      removeAccent: () => editor.chain().focus().unsetAccent().run(),
+      setMarker: (color) => editor.chain().focus().setMarker(color).run(),
+      previewMarker: (color) => editor.chain().setMarker(color).run(),
+      removeMarker: () => editor.chain().focus().unsetMarker().run(),
+      toggleBulletList: () => editor.chain().focus().toggleBulletList().run(),
+      toggleOrderedList: () => editor.chain().focus().toggleOrderedList().run(),
+    }),
+    [editor]
   );
-}
 
-type ColorPreset = ColorOption;
-
-/** The marker boxes first, then the brand colours that are not among them. */
-const markerColorPresets = (pack: BrandPack): ColorPreset[] => {
-  const markers = markerSwatches(pack);
-  return [
-    ...markers,
-    ...brandColors(pack).filter((color) => !markers.some((m) => m.value === color.value)),
-  ];
-};
-
-const POPOVER_WIDTH = 184;
-/** Wie bei den Knöpfen der Leiste: Auswahl und Fokus bleiben im Editor. */
-const keepSelection = (e: ReactMouseEvent<HTMLButtonElement>) => e.preventDefault();
-/** Höhe des Popovers mit allen Zeilen, gerundet nach oben — für die Wahl oben/unten. */
-const POPOVER_MAX_HEIGHT = 200;
-
-const SWATCH_CLASS =
-  'size-6 shrink-0 cursor-pointer rounded-full border border-[var(--editor-border-strong)] p-0 transition-transform duration-150 hover:scale-110';
-const MENU_ITEM_CLASS =
-  'w-full cursor-pointer rounded-sm border-none bg-transparent px-2 py-1 text-left text-xs text-[var(--editor-text)] hover:bg-[var(--editor-surface-hover)]';
-
-interface MarkColorButtonProps {
-  label: string;
-  icon: ReactNode;
-  variant: TextFormatVariant;
-  isActive: boolean;
-  /** Die eigene Farbe der Auswahl; `null` = Farbe der Vorlage bzw. keine. */
-  color: string | null;
-  presets: ColorPreset[];
-  /** Die Vorlage hat einen eigenen Stil: „Vorlagenfarbe" anbieten. */
-  hasTemplate: boolean;
-  onPick: (color: string | null) => void;
-  /** Live-Vorschau aus dem Farbfeld, ohne den Fokus zurückzuholen. */
-  onPreview: (color: string) => void;
-  onRemove: () => void;
-  editor: Editor;
-}
-
-/**
- * Akzent bzw. Textmarker als Knopf mit Farbwähler: Voreinstellungen, eine
- * freie Farbe über das native Farbfeld, die Farbe der Vorlage und Entfernen.
- */
-function MarkColorButton({
-  label,
-  icon,
-  variant,
-  isActive,
-  color,
-  presets,
-  hasTemplate,
-  onPick,
-  onPreview,
-  onRemove,
-  editor,
-}: MarkColorButtonProps) {
-  const m = useMessages();
-  // Fest positioniert und in den Body portiert: die Kontextleiste scrollt
-  // waagerecht (`overflow-x-auto`) und schnitte ein Popover in ihr ab.
-  const [position, setPosition] = useState<CSSProperties | null>(null);
-  const open = position !== null;
-  const rootRef = useRef<HTMLDivElement>(null);
-  const popoverRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (!open) return;
-    const onPointerDown = (event: MouseEvent) => {
-      const target = event.target as Node;
-      if (!rootRef.current?.contains(target) && !popoverRef.current?.contains(target)) {
-        setPosition(null);
-      }
-    };
-    document.addEventListener('mousedown', onPointerDown);
-    return () => document.removeEventListener('mousedown', onPointerDown);
-  }, [open]);
-
-  const toggle = () => {
-    if (open || !rootRef.current) {
-      setPosition(null);
-      return;
-    }
-    const rect = rootRef.current.getBoundingClientRect();
-    const left = Math.max(8, Math.min(rect.left, window.innerWidth - POPOVER_WIDTH - 8));
-    // Unten am Bildschirm (die mobile Auswahl-Leiste) öffnet er nach oben.
-    setPosition(
-      rect.bottom + POPOVER_MAX_HEIGHT > window.innerHeight
-        ? { left, bottom: window.innerHeight - rect.top + 4 }
-        : { left, top: rect.bottom + 4 }
-    );
-  };
-
-  const pick = (next: string | null) => {
-    onPick(next);
-    setPosition(null);
+  // Zurück in den Text — oder, wer woanders hinklickt, beendet ihn.
+  const leaveColorField = (e: FocusEvent<HTMLInputElement>) => {
+    if (keepsEditing(e.relatedTarget) || editor.view.dom.contains(e.relatedTarget as Node)) return;
+    editor.chain().focus().blur().run();
   };
 
   return (
-    <div ref={rootRef} className="relative">
-      <ToolbarButton onClick={toggle} isActive={isActive} label={label} variant={variant}>
-        <span className="flex flex-col items-center">
-          {icon}
-          <span
-            className="mt-px h-[3px] w-3.5 rounded-[1px]"
-            style={{ backgroundColor: color ?? 'currentColor' }}
-          />
-        </span>
-      </ToolbarButton>
-      {position &&
-        createPortal(
-          <div
-            ref={popoverRef}
-            {...{ [KEEP_EDITING_ATTR]: '' }}
-            role="dialog"
-            aria-label={m.textFormat.colorOf(label)}
-            style={{ ...position, width: POPOVER_WIDTH }}
-            className="fixed z-[10001] flex flex-col gap-2 rounded-md border border-[var(--editor-border)] bg-[var(--editor-surface)] p-2 shadow-lg"
-          >
-            <div className="grid grid-cols-6 gap-1.5">
-              {presets.map((preset) => (
-                <button
-                  key={preset.id}
-                  type="button"
-                  onMouseDown={keepSelection}
-                  title={preset.name}
-                  aria-label={preset.name}
-                  aria-pressed={isActive && color === preset.value}
-                  className={clsx(
-                    SWATCH_CLASS,
-                    isActive &&
-                      color === preset.value &&
-                      'outline-2 outline-offset-1 outline-[var(--editor-active-fg)]'
-                  )}
-                  style={{ backgroundColor: preset.value }}
-                  onClick={() => pick(preset.value)}
-                />
-              ))}
-            </div>
-            <div className="flex items-center gap-2 text-xs text-[var(--editor-text)]">
-              <CustomColorSwatch
-                value={color}
-                presets={presets.map((preset) => preset.value)}
-                onPick={pick}
-                onPreview={onPreview}
-                className="size-6"
-                inputProps={{
-                  [KEEP_EDITING_ATTR]: '',
-                  // Zurück in den Text — oder, wer woanders hinklickt, beendet ihn.
-                  onBlur: (e) => {
-                    if (
-                      keepsEditing(e.relatedTarget) ||
-                      editor.view.dom.contains(e.relatedTarget as Node)
-                    ) {
-                      return;
-                    }
-                    editor.chain().focus().blur().run();
-                  },
-                }}
-              />
-              <span aria-hidden="true">{m.common.ownColor}</span>
-            </div>
-            {hasTemplate && (
-              <button
-                type="button"
-                onMouseDown={keepSelection}
-                className={MENU_ITEM_CLASS}
-                onClick={() => pick(null)}
-              >
-                {m.textFormat.templateColor}
-              </button>
-            )}
-            {isActive && (
-              <button
-                type="button"
-                onMouseDown={keepSelection}
-                className={MENU_ITEM_CLASS}
-                onClick={() => {
-                  onRemove();
-                  setPosition(null);
-                }}
-              >
-                {m.textFormat.remove(label)}
-              </button>
-            )}
-          </div>,
-          document.body
-        )}
-    </div>
+    <TextFormatButtons
+      state={state}
+      commands={commands}
+      marks={marks}
+      variant={variant}
+      toolbarRef={toolbarRef}
+      onColorFieldBlur={leaveColorField}
+    />
   );
 }

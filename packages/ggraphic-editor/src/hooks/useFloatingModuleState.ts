@@ -65,6 +65,14 @@ export interface FloatingModuleState {
     fontFamily?: string;
     bind?: ElementBind;
     /**
+     * Der gespeicherte Text eines freien Textes: die Format-Knöpfe eines Textes, der ausgewählt
+     * und nicht im Editor ist, lesen und schreiben ihn als Ganzes.
+     */
+    text?: string;
+    /** Die Vorlage des Textes hat einen Akzent- bzw. Markerstil (die „Vorlagenfarbe“ der Knöpfe). */
+    hasAccent?: boolean;
+    hasMarker?: boolean;
+    /**
      * True only for instance-backed text (additionalTexts), which stores effect
      * fields directly. Config-declared template texts route through state keys
      * and don't support outline/shadow/gradient, so their controls are hidden.
@@ -150,7 +158,11 @@ function floatingModuleEqual(
     // The font role picker reads both: a role change must reach it without a new selection.
     a.data.fontFamily === b.data.fontFamily &&
     a.data.bind?.fontFamily?.ref === b.data.bind?.fontFamily?.ref &&
-    a.data.bind?.fontFamily?.value === b.data.bind?.fontFamily?.value
+    a.data.bind?.fontFamily?.value === b.data.bind?.fontFamily?.value &&
+    // The format buttons read the text whole: a change must reach them without a new selection.
+    a.data.text === b.data.text &&
+    a.data.hasAccent === b.data.hasAccent &&
+    a.data.hasMarker === b.data.hasMarker
   );
 }
 
@@ -193,6 +205,9 @@ const KIND_MODULES: KindModules = {
       align: t.align ?? 'left',
       fontFamily: t.fontFamily,
       bind: t.bind,
+      text: t.text,
+      hasAccent: !!t.accent,
+      hasMarker: !!t.marker,
     },
   }),
   illustration: ({ id, data }) => ({ type: 'illustration', data: { ...data, id } }),
