@@ -15,6 +15,7 @@ import { farbe, options } from './sharepicSpecFixtures';
 
 import type { AdditionalText } from '@ggraphic/editor/configs/types';
 import type { ShapeInstance } from '@ggraphic/editor/utils/shapes';
+import type * as TextUtils from '@ggraphic/editor/utils/textUtils';
 
 const spec: SharepicSpec = {
   locale: 'de-DE',
@@ -36,7 +37,7 @@ const width = (fontSize: number, fontFamily: string) => (text: string) =>
 async function creatorList() {
   vi.resetModules();
   vi.doMock('@ggraphic/editor/utils/textUtils', async (importOriginal) => ({
-    ...(await importOriginal<typeof import('@ggraphic/editor/utils/textUtils')>()),
+    ...(await importOriginal<typeof TextUtils>()),
     runMeasurer: width,
   }));
   const { createFreeformFullConfig } = await import('../configs/freeform_full.config');
