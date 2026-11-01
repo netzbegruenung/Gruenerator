@@ -1,6 +1,5 @@
+import { useRouter } from 'expo-router';
 import { useEffect } from 'react';
-
-import { goHome } from '../utils/navigation';
 
 /**
  * A link to a path the app has no screen for — an old deep link, a web path
@@ -9,10 +8,16 @@ import { goHome } from '../utils/navigation';
  *
  * An effect, not a `<Redirect>`: that replaces, and on top of a running app it
  * would leave a second home on the root stack (see `goHome`).
+ *
+ * The hook-bound router, not the imported `router`: since expo-router 58 the
+ * imported one is bound by a layout effect that can run after this screen's
+ * effect on a cold link, and then throws "unavailable before the first render".
+ * `dismissTo` is the same call `goHome` makes.
  */
 export default function NotFoundScreen() {
+  const router = useRouter();
   useEffect(() => {
-    goHome();
-  }, []);
+    router.dismissTo('/start');
+  }, [router]);
   return null;
 }
