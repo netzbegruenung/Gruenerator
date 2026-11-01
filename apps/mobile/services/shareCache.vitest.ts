@@ -42,7 +42,7 @@ vi.mock('expo-file-system', () => {
     }
   }
   class File extends Entry {
-    write() {
+    writeSync() {
       fs.entries.set(this.uri, 'file');
       fs.written.push(this.uri);
     }

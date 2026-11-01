@@ -9,6 +9,7 @@ import {
   StyleSheet,
   useColorScheme,
   useWindowDimensions,
+  type ViewInstance,
 } from 'react-native';
 
 import { useUnreadCount } from '../../hooks/useNotifications';
@@ -44,7 +45,7 @@ export function ProfileMenu() {
   const { count: unreadCount } = useUnreadCount();
   const openSettings = useSettingsSheetStore((s) => s.open);
 
-  const triggerRef = useRef<View>(null);
+  const triggerRef = useRef<ViewInstance>(null);
   const [open, setOpen] = useState(false);
   const [anchor, setAnchor] = useState<Anchor>({ top: 0, right: 0 });
 

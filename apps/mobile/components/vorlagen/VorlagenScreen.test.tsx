@@ -4,7 +4,6 @@
 import { beforeEach, describe, expect, it, jest } from '@jest/globals';
 import { type MarketplaceItemOf, type SharepicVorlage } from '@gruenerator/contracts';
 import { act, fireEvent, render, screen } from '@testing-library/react-native';
-import { Image } from 'expo-image';
 import { router, useFocusEffect } from 'expo-router';
 import { type EffectCallback, type ReactElement, type ReactNode, useEffect } from 'react';
 
@@ -17,6 +16,7 @@ import { usePreferencesStore } from '../../stores/preferencesStore';
 
 import { type VorlagenHeaderActionsProps } from './VorlagenHeaderActions';
 import { VorlagenScreen } from './VorlagenScreen';
+import { hostsOfType, imageSources } from '../../test/hostElements';
 
 // The preferences store only reads defaults from the chat package; loading it for
 // real pulls in the ESM-only assistant-stream.
@@ -65,7 +65,7 @@ const mockSaved = useMarketplaceKind as unknown as jest.MockedFunction<
 >;
 const mockGetToken = secureStorage.getToken as jest.MockedFunction<typeof secureStorage.getToken>;
 const api = vorlagen as unknown as {
-  [K in keyof typeof vorlagen]: jest.MockedFunction<(...args: never[]) => Promise<unknown>>;
+  [K in keyof typeof vorlagen]: jest.MockedFunction<(...args: unknown[]) => Promise<unknown>>;
 };
 
 // Only the fields the UI reads; the spec's element tree is irrelevant here.
@@ -138,14 +138,15 @@ function setup({
 }
 
 async function renderScreen() {
-  const view = render(<VorlagenScreen />);
+  const view = await render(<VorlagenScreen />);
   await act(async () => {});
   return view;
 }
 
 /** The header lives in the native stack; its element comes from the screen options. */
 function header(): VorlagenHeaderActionsProps {
-  const node = screen.UNSAFE_getByType('Stack.Screen' as never);
+  const node = hostsOfType('Stack.Screen')[0];
+  if (!node) throw new Error('no Stack.Screen');
   const options = node.props.options as {
     headerRight: () => ReactElement<VorlagenHeaderActionsProps>;
   };
@@ -162,9 +163,7 @@ function option(name: string) {
 }
 
 function imageUris() {
-  return screen
-    .UNSAFE_queryAllByType(Image)
-    .map((node) => (node.props.source as { uri: string }).uri);
+  return imageSources().map((source) => source.uri ?? '');
 }
 
 // The screen reads its likes and bookmarks on focus; mounted means focused here.
@@ -199,7 +198,7 @@ describe('VorlagenScreen', () => {
       expect.objectContaining({ kind: 'template', scope: 'saved', enabled: false })
     );
 
-    fireEvent.press(screen.getByRole('button', { name: 'Öffentliche Vorlagen' }));
+    await fireEvent.press(screen.getByRole('button', { name: 'Öffentliche Vorlagen' }));
     expect(router.push).toHaveBeenCalledWith({
       pathname: '/(focused)/marktplatz',
       params: { art: 'vorlagen' },
@@ -213,14 +212,14 @@ describe('VorlagenScreen', () => {
     expect(screen.getAllByRole('button', { name: 'Gefällt mir' })).toHaveLength(1);
     expect(screen.queryByText(/Reaktion/)).toBeNull();
 
-    fireEvent.press(screen.getByRole('button', { name: 'Merken' }));
+    await fireEvent.press(screen.getByRole('button', { name: 'Merken' }));
     await act(async () => {});
     expect(api.setTemplateBookmark).toHaveBeenCalledWith('klima-karussell', true);
     expect(screen.getByRole('button', { name: 'Merken' }).props.accessibilityState).toEqual(
       expect.objectContaining({ selected: true })
     );
 
-    fireEvent.press(screen.getByRole('button', { name: 'Gefällt mir' }));
+    await fireEvent.press(screen.getByRole('button', { name: 'Gefällt mir' }));
     await act(async () => {});
     expect(api.setTemplateLike).toHaveBeenCalledWith('klima-karussell', true);
   });
@@ -230,7 +229,7 @@ describe('VorlagenScreen', () => {
     await renderScreen();
     expect(header().filterLabel).toBeNull();
 
-    act(() => header().onOpenFilter());
+    await act(() => header().onOpenFilter());
     expect(option('Alle Vorlagen').props.accessibilityState).toEqual(
       expect.objectContaining({ selected: true })
     );
@@ -242,8 +241,8 @@ describe('VorlagenScreen', () => {
     setup();
     await renderScreen();
 
-    act(() => header().onOpenFilter());
-    fireEvent.press(option('Meine Vorlagen'));
+    await act(() => header().onOpenFilter());
+    await fireEvent.press(option('Meine Vorlagen'));
     await act(async () => {});
 
     expect(screen.getByRole('button', { name: 'Mein Canva-Plakat' })).toBeTruthy();
@@ -257,7 +256,7 @@ describe('VorlagenScreen', () => {
     setup({ bookmarked: ['g1'] });
     await renderScreen();
 
-    act(() => header().onToggleBookmarked());
+    await act(() => header().onToggleBookmarked());
     await act(async () => {});
     expect(mockSaved).toHaveBeenLastCalledWith(
       expect.objectContaining({ kind: 'template', scope: 'saved', enabled: true })
@@ -265,7 +264,7 @@ describe('VorlagenScreen', () => {
     expect(screen.queryByRole('button', { name: /Klimaschutz/ })).toBeNull();
     expect(screen.getByRole('button', { name: 'Plakat Klima' })).toBeTruthy();
 
-    fireEvent.press(screen.getByRole('button', { name: 'Merken' }));
+    await fireEvent.press(screen.getByRole('button', { name: 'Merken' }));
     await act(async () => {});
     expect(api.setTemplateBookmark).toHaveBeenCalledWith('g1', false);
     expect(screen.getByText('Noch keine gemerkten Vorlagen')).toBeTruthy();
@@ -292,14 +291,14 @@ describe('VorlagenScreen', () => {
     setup();
     await renderScreen();
 
-    fireEvent.press(
+    await fireEvent.press(
       screen.getByRole('button', { name: 'Klimaschutz in drei Schritten, 3 Seiten' })
     );
     expect(screen.getByText(karussell.beschreibung)).toBeTruthy();
     expect(imageUris().filter((u) => u.endsWith('/thumb?seite=3'))).toHaveLength(1);
     expect(screen.getByText('So erstellst du das im Chat')).toBeTruthy();
 
-    fireEvent.press(
+    await fireEvent.press(
       screen.getByRole('button', {
         name: 'Im Chat erstellen: Mach ein Karussell zu Radwegen in Köln',
       })
@@ -318,13 +317,15 @@ describe('VorlagenScreen', () => {
     setup();
     await renderScreen();
 
-    fireEvent.press(
+    await fireEvent.press(
       screen.getByRole('button', { name: 'Klimaschutz in drei Schritten, 3 Seiten' })
     );
-    fireEvent.press(screen.getByRole('link', { name: 'Foto von Anna Foto auf Unsplash öffnen' }));
+    await fireEvent.press(
+      screen.getByRole('link', { name: 'Foto von Anna Foto auf Unsplash öffnen' })
+    );
     expect(openUrl).toHaveBeenCalledWith('https://unsplash.com/photos/a');
 
-    fireEvent.press(screen.getByRole('button', { name: 'Kopie bearbeiten' }));
+    await fireEvent.press(screen.getByRole('button', { name: 'Kopie bearbeiten' }));
     expect(router.push).toHaveBeenCalledWith({
       pathname: '/(fullscreen)/web-viewer',
       params: { path: '/studio/vorlage/klima-karussell', title: karussell.titel },

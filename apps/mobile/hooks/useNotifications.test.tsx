@@ -47,8 +47,8 @@ describe('useUnreadCount', () => {
 
   it('shares one request between all mounted headers', async () => {
     mockFocused.mockReturnValue(true);
-    const a = renderHook(() => useUnreadCount(), { wrapper });
-    const b = renderHook(() => useUnreadCount(), { wrapper });
+    const a = await renderHook(() => useUnreadCount(), { wrapper });
+    const b = await renderHook(() => useUnreadCount(), { wrapper });
 
     await waitFor(() => expect(a.result.current.count).toBe(7));
     expect(b.result.current.count).toBe(7);
@@ -58,8 +58,8 @@ describe('useUnreadCount', () => {
   it('polls only from the focused screen', async () => {
     jest.useFakeTimers();
     mockFocused.mockReturnValue(false);
-    renderHook(() => useUnreadCount(), { wrapper });
-    renderHook(() => useUnreadCount(), { wrapper });
+    await renderHook(() => useUnreadCount(), { wrapper });
+    await renderHook(() => useUnreadCount(), { wrapper });
     await act(async () => {
       await jest.advanceTimersByTimeAsync(0);
     });
@@ -73,7 +73,7 @@ describe('useUnreadCount', () => {
     // The count is stale by now, so the focused screen's mount refreshes it —
     // and from then on it, alone, keeps polling.
     mockFocused.mockReturnValue(true);
-    renderHook(() => useUnreadCount(), { wrapper });
+    await renderHook(() => useUnreadCount(), { wrapper });
     await act(async () => {
       await jest.advanceTimersByTimeAsync(0);
     });

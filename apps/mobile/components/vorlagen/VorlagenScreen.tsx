@@ -362,7 +362,7 @@ export function VorlagenScreen() {
         contentContainerStyle={styles.list}
         columnWrapperStyle={numColumns > 1 ? styles.row : undefined}
         ListHeaderComponent={
-          isMeine ? null : (
+          isMeine ? undefined : (
             <Pressable
               onPress={() => router.push(marketplaceRoute({ tab: 'vorlagen' }))}
               style={({ pressed }) => [
