@@ -18,7 +18,7 @@ export type RotaterPreference = 'above' | 'below';
 
 /**
  * Unter dem Element (Canva-Muster): darüber stehen am Desktop die schwebende
- * Leiste und am Touch-Gerät die `MobileSelectionPill`.
+ * Leiste und am Touch-Gerät die `SelectionPill`.
  */
 const ROTATER_PREFERENCE: RotaterPreference = 'below';
 
@@ -314,7 +314,7 @@ export const ELEMENT_TRANSFORMER = {
 
 /**
  * Die sichtbaren Drehgriffe auf der Bühne, in Bühnen-px samt Treffer-Rand —
- * die `MobileSelectionPill` rechnet sie zur Auswahl und liegt so nie darüber.
+ * die `SelectionPill` rechnet sie zur Auswahl und liegt so nie darüber.
  */
 export function rotaterRects(stage: Konva.Stage): Box[] {
   const rects: Box[] = [];

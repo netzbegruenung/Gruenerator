@@ -1,4 +1,6 @@
 // SPDX-License-Identifier: MPL-2.0
+import { useCallback, useEffect, useRef } from 'react';
+
 import {
   buildCanvasMenu,
   type CanvasMenuSnapshot,
@@ -9,7 +11,6 @@ import {
   isPageCommand,
   type CanvasCommandId,
 } from '@ggraphic/editor/utils/canvasCommandRegistry';
-import { useCallback, useEffect, useRef } from 'react';
 
 import type { CanvasContextMenuHandle } from '../../CanvasContextMenu/CanvasContextMenu.js';
 import type { GenericCanvasRef } from '@ggraphic/editor/components/GenericCanvas';
@@ -133,6 +134,15 @@ export function useCanvasContextMenu({
     if (at) open(currentPageIndex, at, at);
   }, [canvasRefsRef, pageDomRefsRef, currentPageIndex, open]);
 
+  /** „…“ in der Pille: das Menü der Auswahl unter dem Knopf, ohne „Hier einfügen“. */
+  const openAtAnchor = useCallback(
+    (anchor: HTMLElement) => {
+      const r = anchor.getBoundingClientRect();
+      open(currentPageIndex, null, { clientX: r.left, clientY: r.bottom + 4 });
+    },
+    [currentPageIndex, open]
+  );
+
   // Native, on the document: a handler on the container div would make it an
   // interactive element for jsx-a11y, and a portal island's events must not
   // arrive anyway.
@@ -179,5 +189,5 @@ export function useCanvasContextMenu({
     };
   }, [enabled, containerRef, currentPageIndex, open, openFromKeyboard]);
 
-  return menuRef;
+  return { menuRef, openAtAnchor };
 }

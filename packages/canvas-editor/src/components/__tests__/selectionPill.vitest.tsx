@@ -1,16 +1,16 @@
+import {
+  SelectionPill,
+  type SelectionPillProps,
+  placePill,
+} from '@ggraphic/editor/components/SelectionPill';
 import { act, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 
-import {
-  MobileSelectionPill,
-  type MobileSelectionPillProps,
-  placePill,
-} from '@ggraphic/editor/components/MobileSelectionPill';
-
 /**
  * Die Pille steht über dem ausgewählten Objekt (darunter, wenn oben kein
- * Platz ist), verschwindet beim Ziehen und trägt Duplizieren/Löschen/Mehr.
+ * Platz ist), verschwindet beim Ziehen und trägt Duplizieren/Löschen/Mehr;
+ * am Desktop (`pointer`) dazu Sperren.
  */
 
 // Seitenfläche 390 × 600: darunter beginnt die Auswahl-Leiste (390 × 844, iPhone 13).
@@ -22,9 +22,9 @@ async function flushFrames() {
   });
 }
 
-function setup(overrides: Partial<MobileSelectionPillProps> = {}) {
+function setup(overrides: Partial<SelectionPillProps> = {}) {
   let manipulate: (active: boolean) => void = () => {};
-  const props: MobileSelectionPillProps = {
+  const props: SelectionPillProps = {
     measureKey: 'a',
     zoom: 1,
     getBox: () => ({ left: 100, top: 300, width: 80, height: 60, visible: VISIBLE, rotaters: [] }),
@@ -39,11 +39,11 @@ function setup(overrides: Partial<MobileSelectionPillProps> = {}) {
     onMore: vi.fn(),
     ...overrides,
   };
-  render(<MobileSelectionPill {...props} />);
+  render(<SelectionPill {...props} />);
   return { props, manipulate: (active: boolean) => act(() => manipulate(active)) };
 }
 
-describe('MobileSelectionPill', () => {
+describe('SelectionPill (touch)', () => {
   it('steht über der Auswahl und ruft ihre Aktionen', async () => {
     const { props } = setup();
     await flushFrames();
@@ -94,6 +94,61 @@ describe('MobileSelectionPill', () => {
     setup({ canDelete: false });
     await flushFrames();
     expect(screen.getByRole('button', { name: 'Löschen' })).toBeDisabled();
+  });
+});
+
+describe('SelectionPill (pointer)', () => {
+  const pointer = (overrides: Partial<SelectionPillProps> = {}) =>
+    setup({ variant: 'pointer', onToggleLock: vi.fn(), ...overrides });
+
+  it('sperrt, dupliziert, löscht und öffnet das Menü am Knopf', async () => {
+    const { props } = pointer();
+    await flushFrames();
+    const lock = screen.getByRole('button', { name: 'Sperren' });
+    expect(lock).toHaveAttribute('aria-pressed', 'false');
+    await userEvent.click(lock);
+    await userEvent.click(screen.getByRole('button', { name: 'Duplizieren' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Löschen' }));
+    const more = screen.getByRole('button', { name: 'Mehr Optionen' });
+    await userEvent.click(more);
+    expect(props.onToggleLock).toHaveBeenCalledOnce();
+    expect(props.onDuplicate).toHaveBeenCalledOnce();
+    expect(props.onDelete).toHaveBeenCalledOnce();
+    expect(props.onMore).toHaveBeenCalledWith(more);
+  });
+
+  it('nennt das Kürzel und, wenn Löschen nicht geht, den Grund', async () => {
+    pointer();
+    await flushFrames();
+    expect(screen.getByRole('button', { name: 'Löschen' }).title).toMatch(/^Löschen \((Entf|⌫)\)$/);
+  });
+
+  it.each([
+    [{ isLocked: true }, 'Gesperrt — zum Löschen erst entsperren'],
+    [{ isMulti: true }, 'Nichts davon lässt sich löschen'],
+    [{}, 'Dieses Element gehört zur Vorlage und lässt sich nicht löschen'],
+  ])('gesperrtes Löschen %o erklärt sich', async (state, title) => {
+    pointer({ canDelete: false, ...state });
+    await flushFrames();
+    const remove = screen.getByRole('button', { name: 'Löschen' });
+    expect(remove).toBeDisabled();
+    expect(remove).toHaveAttribute('title', title);
+  });
+
+  it('gesperrt: Entsperren gedrückt, Löschen bleibt sichtbar', async () => {
+    pointer({ isLocked: true, canDelete: false });
+    await flushFrames();
+    expect(screen.getByRole('button', { name: 'Entsperren' })).toHaveAttribute(
+      'aria-pressed',
+      'true'
+    );
+    expect(screen.getByRole('button', { name: 'Löschen' })).toBeDisabled();
+  });
+
+  it('ohne Sperr-Fähigkeit kein Sperren-Knopf', async () => {
+    pointer({ onToggleLock: undefined });
+    await flushFrames();
+    expect(screen.queryByRole('button', { name: /perren$/ })).toBeNull();
   });
 });
 
@@ -150,5 +205,28 @@ describe('placePill: am sichtbaren Teil der Seitenfläche', () => {
   it('bleibt seitlich in der sichtbaren Fläche', () => {
     expect(placePill({ ...box(300, 60), left: 360 }, 120).left).toBe(390 - 120 - 8);
     expect(placePill({ ...box(300, 60), left: -100 }, 120).left).toBe(8);
+  });
+});
+
+describe('placePill: pointer', () => {
+  // Desktop: ohne beschneidenden Vorfahren reicht die Fläche bis an den Fensterrand.
+  const DESK = { left: 0, top: 0, right: 1200, bottom: 800 };
+  const box = (top: number) => ({
+    left: 400,
+    top,
+    width: 200,
+    height: 100,
+    visible: DESK,
+    rotaters: [] as { left: number; top: number; right: number; bottom: number }[],
+  });
+
+  it('über der Auswahl, kleiner als am Handy', () => {
+    expect(placePill(box(400), 140, 'pointer', 113).top).toBe(400 - 12 - 36);
+  });
+
+  // Live gesehen: ein Text oben auf der Seite, die Pille lag auf der Kontextleiste.
+  it('rutscht nicht auf die Kontextleiste, sondern unter das Objekt', () => {
+    // Darüber wäre 135 - 48 = 87; die Leiste endet bei 113, plus 8 Luft.
+    expect(placePill(box(135), 140, 'pointer', 113).top).toBe(135 + 100 + 12);
   });
 });

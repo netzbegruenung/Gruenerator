@@ -1,6 +1,12 @@
 // SPDX-License-Identifier: MPL-2.0
+import React from 'react';
+import { PiFlipHorizontal, PiFlipVertical } from 'react-icons/pi';
+
+import {
+  FloatingPositionControl,
+  type PositionCommandId,
+} from '@ggraphic/editor/components/TopBar/modules/FloatingPositionControl';
 import { useRovingToolbar } from '@ggraphic/editor/hooks/useRovingToolbar';
-import { useMessages } from '@ggraphic/editor/i18n/messages';
 import {
   CANVAS_COMMANDS,
   ariaShortcut,
@@ -9,49 +15,22 @@ import {
   shortcutOf,
   type CanvasCommandId,
 } from '@ggraphic/editor/utils/canvasCommandRegistry';
-import { type LockState } from '@ggraphic/editor/utils/layerLock';
-import React from 'react';
-import {
-  PiCopy,
-  PiCopySimple,
-  PiFlipHorizontal,
-  PiFlipVertical,
-  PiLockSimple,
-  PiLockSimpleOpen,
-  PiTrash,
-} from 'react-icons/pi';
 
 import { ContextCard } from './ContextToolbar.js';
-import {
-  FloatingPositionControl,
-  type PositionCommandId,
-} from '@ggraphic/editor/components/TopBar/modules/FloatingPositionControl';
 
 export interface MultiSelectionToolbarProps {
   count: number;
-  canCopy: boolean;
-  canDelete: boolean;
-  lockState: LockState;
-  canLock: boolean;
   /** Mindestens ein Element lässt sich verschieben; gesperrte bleiben beim Ausrichten stehen. */
   canAlign: boolean;
   canDistribute: boolean;
   /** Jedes Element lässt sich drehen; die Auswahl spiegelt an ihrer Mitte. */
   canFlip: boolean;
   onFlip: (axis: 'x' | 'y') => void;
-  onCopy: () => void;
-  onDuplicate: () => void;
-  onToggleLock: () => void;
-  onDelete: () => void;
-  onDeselect: () => void;
   onCommand: (id: PositionCommandId) => void;
 }
 
 const ICON_BTN =
   'inline-flex items-center justify-center size-8 shrink-0 rounded-md border-none bg-transparent cursor-pointer text-[var(--editor-text)] transition-colors duration-150 hover:bg-[var(--editor-surface-hover)] hover:text-[var(--editor-active-fg)] disabled:opacity-30 disabled:cursor-not-allowed aria-pressed:bg-[var(--editor-active-bg)] aria-pressed:text-[var(--editor-active-fg)]';
-
-const DANGER_BTN =
-  'inline-flex items-center justify-center size-8 shrink-0 rounded-md border-none bg-transparent cursor-pointer text-[var(--editor-text)] transition-colors duration-150 hover:bg-[var(--editor-danger-bg)] hover:text-[var(--editor-danger-fg)] disabled:opacity-30 disabled:cursor-not-allowed';
 
 const SEP = 'w-px h-[22px] bg-[var(--editor-border-soft)] mx-1 shrink-0';
 
@@ -68,31 +47,19 @@ function ariaOf(id: 'flipHorizontal' | 'flipVertical'): string {
 }
 
 /**
- * Die Desktop-Leiste einer Mehrfachauswahl. Bisher gab es dafür gar keine:
- * `selectedElement` ist dann null, und alles außer Entf war unerreichbar.
- * Formatieren gibt es hier nicht — jede Elementart deutet Farbe und Größe
- * anders —, nur was für alle gleich geht.
+ * Die Desktop-Leiste einer Mehrfachauswahl. Formatieren gibt es hier nicht —
+ * jede Elementart deutet Farbe und Größe anders —, nur Spiegeln und Position.
+ * Kopieren, Duplizieren, Sperren und Löschen stehen wie bei einem einzelnen
+ * Element in der Pille über der Auswahl (`SelectionPill`).
  */
 export function MultiSelectionToolbar({
   count,
-  canCopy,
-  canDelete,
-  lockState,
-  canLock,
   canAlign,
   canDistribute,
   canFlip,
   onFlip,
-  onCopy,
-  onDuplicate,
-  onToggleLock,
-  onDelete,
-  onDeselect,
   onCommand,
 }: MultiSelectionToolbarProps) {
-  const t = useMessages();
-  const locked = lockState === 'all';
-  const lockLabel = locked ? 'Entsperren' : 'Sperren';
   const roving = useRovingToolbar<HTMLDivElement>();
   return (
     <ContextCard>
@@ -105,27 +72,7 @@ export function MultiSelectionToolbar({
         <span className="px-2 text-[13px] font-medium text-[var(--editor-text-secondary)] whitespace-nowrap">
           {count} Elemente
         </span>
-        <div className={SEP} />
-        <button
-          type="button"
-          className={ICON_BTN}
-          onClick={onCopy}
-          disabled={!canCopy}
-          title={withShortcut('copy')}
-          aria-label={withShortcut('copy')}
-        >
-          <PiCopySimple size={18} />
-        </button>
-        <button
-          type="button"
-          className={ICON_BTN}
-          onClick={onDuplicate}
-          disabled={!canCopy}
-          title={withShortcut('duplicate')}
-          aria-label={withShortcut('duplicate')}
-        >
-          <PiCopy size={18} />
-        </button>
+        {(canFlip || canAlign) && <div className={SEP} />}
         {canFlip && (
           <>
             <button
@@ -153,51 +100,6 @@ export function MultiSelectionToolbar({
         {canAlign && (
           <FloatingPositionControl canDistribute={canDistribute} onCommand={onCommand} />
         )}
-        {canLock && (
-          <button
-            type="button"
-            className={ICON_BTN}
-            onClick={onToggleLock}
-            aria-pressed={locked}
-            title={lockLabel}
-            aria-label={lockLabel}
-          >
-            {locked ? <PiLockSimple size={18} /> : <PiLockSimpleOpen size={18} />}
-          </button>
-        )}
-        <button
-          type="button"
-          className={DANGER_BTN}
-          onClick={onDelete}
-          disabled={!canDelete}
-          title={canDelete ? withShortcut('delete') : t.topBar.nothingDeletable}
-          aria-label={withShortcut('delete')}
-        >
-          <PiTrash size={18} />
-        </button>
-        <div className={SEP} />
-        <button
-          type="button"
-          className={ICON_BTN}
-          onClick={onDeselect}
-          title={t.topBar.clearSelection}
-          aria-label={t.topBar.clearSelection}
-        >
-          <svg
-            width="18"
-            height="18"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            aria-hidden="true"
-          >
-            <path d="M18 6 6 18" />
-            <path d="m6 6 12 12" />
-          </svg>
-        </button>
       </div>
     </ContextCard>
   );

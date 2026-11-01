@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MPL-2.0
 import { type FontRole } from '@ggraphic/core';
 import React, { useState } from 'react';
-import { PiCopy, PiLockSimple, PiLockSimpleOpen, PiTrash } from 'react-icons/pi';
+import { PiCopy, PiLockSimple, PiLockSimpleOpen } from 'react-icons/pi';
 
 import { useDocumentBrand } from '@ggraphic/editor/brand/documentBrand';
 import { useCanvasEditorServices } from '@ggraphic/editor/CanvasEditorProvider';
@@ -20,8 +20,6 @@ import {
 import { FloatingColorPicker } from '@ggraphic/editor/components/TopBar/modules/FloatingColorPicker';
 import { FloatingFontRoleControl } from '@ggraphic/editor/components/TopBar/modules/FloatingFontRoleControl';
 import { FloatingFontSizeControl } from '@ggraphic/editor/components/TopBar/modules/FloatingFontSizeControl';
-import { FloatingGradientControl } from '@ggraphic/editor/components/TopBar/modules/FloatingGradientControl';
-import { FloatingLayerControls } from '@ggraphic/editor/components/TopBar/modules/FloatingLayerControls';
 import { FloatingOpacityControl } from '@ggraphic/editor/components/TopBar/modules/FloatingOpacityControl';
 import {
   FloatingPositionControl,
@@ -29,30 +27,20 @@ import {
 } from '@ggraphic/editor/components/TopBar/modules/FloatingPositionControl';
 import { FloatingTextAlignControl } from '@ggraphic/editor/components/TopBar/modules/FloatingTextAlignControl';
 import { type BackgroundControls } from '@ggraphic/editor/configs/types';
-import { type ShadowPatch } from '@ggraphic/editor/hooks/useFloatingModuleHandlers';
 import { type FloatingModuleState } from '@ggraphic/editor/hooks/useFloatingModuleState';
 import { useMessages } from '@ggraphic/editor/i18n/messages';
+import { hasEffects } from '@ggraphic/editor/sidebar/sections/effects/effectsFor';
 import { useOptionalUserUploads } from '@ggraphic/editor/sidebar/UserUploadsProvider';
-import {
-  formatShortcut,
-  isMacPlatform,
-  shortcutOf,
-} from '@ggraphic/editor/utils/canvasCommandRegistry';
 import { type SelectionGeometry } from '@ggraphic/editor/utils/canvasCommands';
 import { brandColors, fontColors } from '@ggraphic/editor/utils/colorOptions';
 import { type CropAspectId } from '@ggraphic/editor/utils/cropAspect';
 import { focusPage, isKeyboardModality } from '@ggraphic/editor/utils/editorFocus';
-import { type GradientFill } from '@ggraphic/editor/utils/gradientFill';
 import { type LockState } from '@ggraphic/editor/utils/layerLock';
-import { STROKE_ONLY_SHAPES } from '@ggraphic/editor/utils/shapes';
 import { type TextAlign } from '@ggraphic/editor/utils/textAlign';
 import { useUnsplashHome } from '@ggraphic/editor/utils/unsplashLinks';
 
 import { fontMarkSupport } from '../../utils/fontMarkSupport.js';
 import { WholeTextFormatControls } from '../WholeTextFormatControls.js';
-
-import { FloatingOutlineControl } from './modules/FloatingOutlineControl.js';
-import { FloatingShadowControl } from './modules/FloatingShadowControl.js';
 
 export interface ContextControlsProps {
   selectedElement: string | null;
@@ -90,8 +78,6 @@ export interface ContextControlsProps {
     getGeometry?: () => SelectionGeometry | null;
     handlePositionChange?: (patch: { x?: number; y?: number }) => void;
     handleSizeChange?: (patch: { width?: number; height?: number }) => void;
-    handleShadowChange?: (id: string, patch: ShadowPatch, type: string) => void;
-    handleOutlineChange?: (id: string, patch: { stroke?: string; strokeWidth?: number }) => void;
     handleBlurChange?: (id: string, blur: number) => void;
     /** Ausschnitt mode for a framed photo: the photo moves inside its frame. */
     handleCropImage?: () => void;
@@ -102,7 +88,6 @@ export interface ContextControlsProps {
     handleCropRotation?: (deg: number) => void;
     handleSmartCrop?: () => void;
     handleExpandImage?: () => void;
-    handleGradientSelect?: (gradient: GradientFill | null) => void;
     /** Ausrichtung des Textes in seiner Box — freie und Vorlagen-Texte. */
     handleTextAlignChange?: (id: string, align: TextAlign) => void;
     /**
@@ -113,23 +98,30 @@ export interface ContextControlsProps {
     handleToggleLock?: () => void;
     /** Opens the image-adjust (t.topBar.edit) panel for the selected image. */
     onEditImage?: () => void;
+    /** Opens the „Effekte“ area: gradient, outline and shadow of the selection. */
+    onOpenEffects?: () => void;
   };
   /** The page's background controls (colour plane and photo), if the template has them. */
   background?: BackgroundControls | null;
   /** Removes one own image by id — not "the selection", which can change meanwhile. */
   onRemoveUserImage?: (id: string) => void;
-  /** Löscht die Auswahl — nur die Desktop-Leiste gibt es mit; mobil liegt Löschen in der Pille. */
-  onDeleteElement?: () => void;
-  /** Vorlagen-Elemente und gesperrte lassen sich nicht löschen. */
-  canDelete?: boolean;
   /** Mobil, im „Auswahl“-Block des Sheets: die Seite löschen. */
   onDeletePage?: () => void;
   /** Clears the element selection. Escape does the same, but is invisible. */
   onDeselect?: () => void;
-  /** Mobil: Duplizieren, Löschen und Abwählen liegen in Pille und ✓, nicht hier. */
+  /** Duplizieren, Sperren und Abwählen liegen in der Pille (`SelectionPill`), nicht hier. */
   hideObjectActions?: boolean;
   /** Anordnung der Zuschneide-Leiste; mobil mit eigener Begradigen-Zeile und festen Ausgängen. */
   cropLayout?: 'inline' | 'mobile';
+}
+
+/**
+ * Ist die Auswahl ein Objekt auf der Seite? Fläche und Hintergrundfoto sind es
+ * nicht: kein Duplizieren, keine Ebene, keine Pille.
+ */
+export function hasObjectActions(module: FloatingModuleState | null): boolean {
+  if (module?.type === 'background') return false;
+  return !(module?.type === 'image' && !!module.data.isPhoto);
 }
 
 /** Läuft ein Zuschneide-Modus, zeigt die Leiste nur ihn (`CropModeControls`). */
@@ -143,11 +135,11 @@ export function showsCropModeBar({
 const ICON_BTN =
   'inline-flex items-center justify-center size-8 max-canvas-mobile:size-11 shrink-0 rounded-md border-none bg-transparent cursor-pointer text-[var(--editor-text)] transition-colors duration-150 hover:bg-[var(--editor-surface-hover)] hover:text-[var(--editor-active-fg)] disabled:opacity-30 disabled:cursor-not-allowed';
 
-const DANGER_BTN =
-  'inline-flex items-center justify-center size-8 max-canvas-mobile:size-11 shrink-0 rounded-md border-none bg-transparent cursor-pointer text-[var(--editor-text)] transition-colors duration-150 hover:bg-[var(--editor-danger-bg)] hover:text-[var(--editor-danger-fg)] disabled:opacity-30 disabled:cursor-not-allowed';
-
 const CROP_BTN =
   'inline-flex items-center gap-1.5 h-8 max-canvas-mobile:h-11 shrink-0 rounded-md border-none bg-transparent px-2 cursor-pointer text-[13px] font-medium text-[var(--editor-text)] transition-colors duration-150 hover:bg-[var(--editor-surface-hover)] hover:text-[var(--editor-active-fg)] aria-pressed:bg-[var(--editor-active-bg)] aria-pressed:text-[var(--editor-active-fg)]';
+
+const TEXT_BTN =
+  'inline-flex items-center h-8 max-canvas-mobile:h-11 shrink-0 rounded-md border-none bg-transparent px-2 cursor-pointer whitespace-nowrap text-[13px] font-medium text-[var(--editor-text)] transition-colors duration-150 hover:bg-[var(--editor-surface-hover)] hover:text-[var(--editor-active-fg)]';
 
 const SEP = 'w-px h-[22px] bg-[var(--editor-border-soft)] mx-1 shrink-0';
 
@@ -175,8 +167,6 @@ export function ContextControls({
   handlers,
   background,
   onRemoveUserImage,
-  onDeleteElement,
-  canDelete = false,
   onDeletePage,
   onDeselect,
   hideObjectActions = false,
@@ -250,7 +240,7 @@ export function ContextControls({
   // The background is not an object on the page: no opacity, layer order or copy.
   // Frame elements expose no formatting controls (matches prior Toolbar behavior).
   const showOpacity = activeFloatingModule && activeFloatingModule.type !== 'frame' && !isPlane;
-  const showObjectActions = !isPlane && !isPhoto;
+  const showObjectActions = hasObjectActions(activeFloatingModule);
   const isText = activeFloatingModule?.type === 'text';
   const isLocked = lockState === 'all';
 
@@ -482,56 +472,6 @@ export function ContextControls({
   }
 
   const type = activeFloatingModule?.type;
-  // Only instance-backed text (additionalTexts) stores effect fields; config
-  // template texts route through state keys and don't support these controls.
-  const isEffectText = type === 'text' && !!activeFloatingModule?.data.isInstanceText;
-  // Stroke-only shapes (lines/arrows) render no fill area, so a gradient fill
-  // would be a dead control on them.
-  const isFillableShape =
-    type === 'shape' && !STROKE_ONLY_SHAPES.has(String(activeFloatingModule?.data.type));
-
-  if ((isFillableShape || isEffectText) && activeFloatingModule && handlers.handleGradientSelect) {
-    groups.push(
-      <FloatingGradientControl
-        key="gradient"
-        currentColor={activeFloatingModule.data.fill ?? '#000000'}
-        gradient={activeFloatingModule.data.fillGradient ?? null}
-        onChange={(gradient) => handlers.handleGradientSelect!(gradient)}
-      />
-    );
-  }
-
-  if (isEffectText && activeFloatingModule && handlers.handleOutlineChange) {
-    groups.push(
-      <FloatingOutlineControl
-        key="outline"
-        stroke={activeFloatingModule.data.stroke}
-        strokeWidth={activeFloatingModule.data.strokeWidth}
-        onChange={(patch) => handlers.handleOutlineChange!(activeFloatingModule.data.id, patch)}
-      />
-    );
-  }
-
-  // Images edit their shadow inside the t.topBar.edit panel, not the context bar.
-  if ((type === 'shape' || isEffectText) && activeFloatingModule && handlers.handleShadowChange) {
-    groups.push(
-      <FloatingShadowControl
-        key="shadow"
-        shadowColor={activeFloatingModule.data.shadowColor}
-        shadowBlur={activeFloatingModule.data.shadowBlur}
-        shadowOffsetX={activeFloatingModule.data.shadowOffsetX}
-        shadowOffsetY={activeFloatingModule.data.shadowOffsetY}
-        shadowOpacity={activeFloatingModule.data.shadowOpacity}
-        onChange={(patch) =>
-          handlers.handleShadowChange!(
-            activeFloatingModule.data.id,
-            patch,
-            activeFloatingModule.type
-          )
-        }
-      />
-    );
-  }
 
   if (type === 'user-image' && handlers.onEditImage) {
     groups.push(<EditImageButton key="edit-image" onClick={handlers.onEditImage} />);
@@ -595,20 +535,6 @@ export function ContextControls({
     );
   }
 
-  if (selectedElement && showObjectActions && canAlign && handlers.runCommand) {
-    groups.push(
-      <FloatingPositionControl
-        // Neu je Element: offene Felder zeigen nie die Lage des vorigen.
-        key={`position-${selectedElement}`}
-        canDistribute={false}
-        onCommand={handlers.runCommand}
-        getGeometry={handlers.getGeometry ?? (() => null)}
-        onPositionChange={handlers.handlePositionChange}
-        onSizeChange={handlers.handleSizeChange}
-      />
-    );
-  }
-
   if (showOpacity && activeFloatingModule) {
     groups.push(
       <FloatingOpacityControl
@@ -621,19 +547,43 @@ export function ContextControls({
     );
   }
 
+  // Die Text-Knöpfe stehen rechts beieinander, wie bei Canva — zwischen
+  // Icons verstreut wirkte die Leiste unruhig. „Effekte“ öffnet den Bereich
+  // mit Verlauf, Kontur und Schatten; „Position“ trägt Ausrichten, Lage und
+  // Ebene. Gesperrt bleibt dort nur die Ebene: umschichten geht weiter.
+  const textActions: React.ReactNode[] = [];
+  if (handlers.onOpenEffects && hasEffects(activeFloatingModule)) {
+    textActions.push(
+      <button key="effects" type="button" className={TEXT_BTN} onClick={handlers.onOpenEffects}>
+        {t.topBar.effects}
+      </button>
+    );
+  }
   if (selectedElement && showObjectActions) {
-    groups.push(
-      <FloatingLayerControls
-        key="layer"
-        onMoveUp={() => handlers.handleMoveLayer('up')}
-        onMoveDown={() => handlers.handleMoveLayer('down')}
-        canMoveUp={canMoveUp}
-        canMoveDown={canMoveDown}
+    const runCommand = canAlign ? handlers.runCommand : undefined;
+    textActions.push(
+      <FloatingPositionControl
+        // Neu je Element: offene Felder zeigen nie die Lage des vorigen.
+        key={`position-${selectedElement}`}
+        canAlign={!!runCommand}
+        canDistribute={false}
+        onCommand={runCommand ?? (() => {})}
+        getGeometry={handlers.getGeometry ?? (() => null)}
+        onPositionChange={handlers.handlePositionChange}
+        onSizeChange={handlers.handleSizeChange}
+        layer={{ canMoveUp, canMoveDown, onMove: handlers.handleMoveLayer }}
       />
     );
   }
+  if (textActions.length) {
+    groups.push(
+      <div key="text-actions" className="flex items-center gap-0.5">
+        {textActions}
+      </div>
+    );
+  }
 
-  // Direkt bei den Ebenen-Knöpfen: beides betrifft das Element als Ganzes,
+  // Direkt nach „Position“: beides betrifft das Element als Ganzes,
   // nicht sein Aussehen. Der Knopf bleibt bei Vorlagen-Elementen und Icons
   // sichtbar, aber deaktiviert — verschwände er, wäre unklar, ob die Aktion
   // fehlt oder nur hier nicht geht.
@@ -672,25 +622,6 @@ export function ContextControls({
         type="button"
       >
         {isLocked ? <PiLockSimple size={18} /> : <PiLockSimpleOpen size={18} />}
-      </button>
-    );
-  }
-
-  if (selectedElement && showObjectActions && !hideObjectActions && onDeleteElement) {
-    const label = t.topBar.deleteWithShortcut(
-      formatShortcut(shortcutOf('delete')!, isMacPlatform())
-    );
-    groups.push(
-      <button
-        key="delete-element"
-        className={DANGER_BTN}
-        onClick={onDeleteElement}
-        disabled={!canDelete}
-        title={canDelete ? label : isLocked ? t.topBar.lockedNoDelete : t.topBar.templateNoDelete}
-        aria-label={label}
-        type="button"
-      >
-        <PiTrash size={18} />
       </button>
     );
   }

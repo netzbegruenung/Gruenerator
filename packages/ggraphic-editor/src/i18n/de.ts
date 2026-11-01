@@ -402,6 +402,9 @@ export const de = {
       uploadingN: (n: number) => `Lädt ${n} Bilder hoch…`,
       loadingN: (n: number) => `Lädt ${n}…`,
     },
+    effects: {
+      title: 'Effekte',
+    },
     layers: {
       title: 'Ebenen',
       tabAriaLabel: 'Ebenen: alle Elemente der Seite',
@@ -738,9 +741,6 @@ export const de = {
     undoWin: 'Rückgängig (Strg+Z)',
     redoMac: 'Wiederholen (⌘⇧Z)',
     redoWin: 'Wiederholen (Strg+Y)',
-    editShadow: 'Schatten bearbeiten',
-    editOutline: 'Textkontur bearbeiten',
-    editGradient: 'Farbverlauf bearbeiten',
     background: {
       uploadFailed: 'Bild konnte nicht hochgeladen werden. Bitte versuche es erneut.',
       imageLoadError: 'Fehler beim Laden des Bildes',
@@ -795,6 +795,7 @@ export const de = {
     outline: 'Kontur',
     outlineWidth: 'Konturstärke',
     position: 'Position',
+    effects: 'Effekte',
     shadow: 'Schatten',
     strength: 'Stärke',
     shape: 'Form',

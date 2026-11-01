@@ -1,7 +1,4 @@
 // SPDX-License-Identifier: MPL-2.0
-import { useMessages } from '@ggraphic/editor/i18n/messages';
-import { Popover, PopoverContent, PopoverTrigger } from '@ggraphic/editor/ui/popover';
-import { CANVAS_COMMANDS } from '@ggraphic/editor/utils/canvasCommandRegistry';
 import React, { useId, useState } from 'react';
 import {
   PiAlignBottom,
@@ -10,10 +7,14 @@ import {
   PiAlignLeft,
   PiAlignRight,
   PiAlignTop,
-  PiArrowsOutCardinal,
   PiColumns,
   PiRows,
 } from 'react-icons/pi';
+
+import { FloatingLayerControls } from '@ggraphic/editor/components/TopBar/modules/FloatingLayerControls';
+import { useMessages } from '@ggraphic/editor/i18n/messages';
+import { Popover, PopoverContent, PopoverTrigger } from '@ggraphic/editor/ui/popover';
+import { CANVAS_COMMANDS } from '@ggraphic/editor/utils/canvasCommandRegistry';
 
 import type { SelectionGeometry } from '@ggraphic/editor/utils/canvasCommands';
 import type { IconType } from 'react-icons';
@@ -43,6 +44,11 @@ const DISTRIBUTE: readonly { id: PositionCommandId; icon: IconType }[] = [
 ];
 
 interface FloatingPositionControlProps {
+  /**
+   * Lässt sich die Auswahl verschieben (`selectionCapabilities`)? Ohne das
+   * bleiben nur die Ebenen — ein gesperrtes Element wechselt sie weiter.
+   */
+  canAlign?: boolean;
   /** Mindestens drei bewegliche Elemente — nur in der Mehrfachauswahl gefragt. */
   canDistribute: boolean;
   onCommand: (id: PositionCommandId) => void;
@@ -53,10 +59,16 @@ interface FloatingPositionControlProps {
   getGeometry?: () => SelectionGeometry | null;
   onPositionChange?: (patch: { x?: number; y?: number }) => void;
   onSizeChange?: (patch: { width?: number; height?: number }) => void;
+  /** Einzelauswahl: Ebene nach oben/unten, wie bei Canva unter „Position“. */
+  layer?: {
+    canMoveUp: boolean;
+    canMoveDown: boolean;
+    onMove: (direction: 'up' | 'down') => void;
+  };
 }
 
 const TRIGGER_BTN =
-  'inline-flex items-center justify-center size-8 max-canvas-mobile:size-11 shrink-0 rounded-md border-none bg-transparent cursor-pointer text-[var(--editor-text)] transition-colors duration-150 hover:bg-[var(--editor-surface-hover)] hover:text-[var(--editor-active-fg)]';
+  'inline-flex items-center h-8 max-canvas-mobile:h-11 shrink-0 rounded-md border-none bg-transparent px-2 cursor-pointer whitespace-nowrap text-[13px] font-medium text-[var(--editor-text)] transition-colors duration-150 hover:bg-[var(--editor-surface-hover)] hover:text-[var(--editor-active-fg)] data-[state=open]:bg-[var(--editor-active-bg)] data-[state=open]:text-[var(--editor-active-fg)]';
 
 const GRID_BTN =
   'inline-flex items-center gap-1.5 h-8 max-canvas-mobile:h-11 rounded-md border-none bg-transparent px-2 cursor-pointer whitespace-nowrap text-[12px] text-[var(--editor-text)] transition-colors duration-150 hover:bg-[var(--editor-surface-hover)] hover:text-[var(--editor-active-fg)] disabled:opacity-30 disabled:cursor-not-allowed';
@@ -105,13 +117,18 @@ function NumberField({
   );
 }
 
-/** „Position“: Ausrichten, Verteilen und — einzeln — X, Y, B, H in logischen px. */
+/**
+ * „Position“: Ausrichten, Verteilen und — einzeln — X, Y, B, H in logischen px
+ * sowie die Ebene. Ein Text-Knopf wie bei Canva: ein Icon sagte hier zu wenig.
+ */
 export function FloatingPositionControl({
+  canAlign = true,
   canDistribute,
   onCommand,
   getGeometry,
   onPositionChange,
   onSizeChange,
+  layer,
 }: FloatingPositionControlProps) {
   const t = useMessages();
   const [geometry, setGeometry] = useState<SelectionGeometry | null>(null);
@@ -143,13 +160,8 @@ export function FloatingPositionControl({
   return (
     <Popover onOpenChange={(open) => open && read()}>
       <PopoverTrigger asChild>
-        <button
-          className={TRIGGER_BTN}
-          title={t.topBar.position}
-          aria-label={t.topBar.position}
-          type="button"
-        >
-          <PiArrowsOutCardinal size={18} aria-hidden="true" />
+        <button className={TRIGGER_BTN} type="button">
+          {t.topBar.position}
         </button>
       </PopoverTrigger>
       <PopoverContent
@@ -160,13 +172,13 @@ export function FloatingPositionControl({
         <span id={titleId} className="text-xs font-medium text-[var(--editor-text)]">
           {t.topBar.position}
         </span>
-        <div className="grid grid-cols-3 gap-0.5">{ALIGN.map((a) => button(a))}</div>
-        {multi && (
+        {canAlign && <div className="grid grid-cols-3 gap-0.5">{ALIGN.map((a) => button(a))}</div>}
+        {canAlign && multi && (
           <div className="grid grid-cols-2 gap-0.5">
             {DISTRIBUTE.map((d) => button(d, !canDistribute))}
           </div>
         )}
-        {geometry && (
+        {canAlign && geometry && (
           <div className="grid grid-cols-2 gap-2">
             <NumberField
               label="X"
@@ -203,6 +215,19 @@ export function FloatingPositionControl({
                 onSizeChange?.({ height });
                 reread();
               }}
+            />
+          </div>
+        )}
+        {layer && (
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-xs text-[var(--editor-text-secondary)]">
+              {t.sidebar.layers.title}
+            </span>
+            <FloatingLayerControls
+              canMoveUp={layer.canMoveUp}
+              canMoveDown={layer.canMoveDown}
+              onMoveUp={() => layer.onMove('up')}
+              onMoveDown={() => layer.onMove('down')}
             />
           </div>
         )}
