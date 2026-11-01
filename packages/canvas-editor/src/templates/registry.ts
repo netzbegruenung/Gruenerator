@@ -22,12 +22,12 @@
 
 import {
   defineTemplate,
+  getCanvasFormatOrDefault,
   registerTemplates,
   type TemplateDefinition,
   type TemplateId,
   type TemplatePickerInfo as CoreTemplatePickerInfo,
 } from '@ggraphic/editor/host';
-import { getCanvasFormatOrDefault } from '@ggraphic/editor/templates';
 
 import type { BrandLocale } from '../brand/theme';
 import type { AnyCanvasConfig } from '@ggraphic/editor/config';

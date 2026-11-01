@@ -5729,7 +5729,7 @@ packages:
     version: 0.1.0-alpha.1
 
   '@ggraphic/editor@file:../../../private/tmp/claude-501/-Users-moritzwachter-Gruenerator/c4078d46-2066-4996-bb09-3a0af401c159/scratchpad/d2e/tgz121/ggraphic-editor-0.1.0-alpha.1.tgz':
-    resolution: {integrity: sha512-Y5YDN5PBc53j5eRAYVk7h1aZb9L5EyY3Mc0mu1Op4uZTvg+v35VB4RnqRfRa22L6UDfSHmgvTmM/BmEMdIsfTA==, tarball: file:../../../private/tmp/claude-501/-Users-moritzwachter-Gruenerator/c4078d46-2066-4996-bb09-3a0af401c159/scratchpad/d2e/tgz121/ggraphic-editor-0.1.0-alpha.1.tgz}
+    resolution: {integrity: sha512-Vi8/xOkZ9n3Ujg/eXJ2cp6lYn8rp06sV6TGNKaA91n76DfyL1A1+eJx2S2EkXdOje0jxGjUmGaUCY5tWHjSLBA==, tarball: file:../../../private/tmp/claude-501/-Users-moritzwachter-Gruenerator/c4078d46-2066-4996-bb09-3a0af401c159/scratchpad/d2e/tgz121/ggraphic-editor-0.1.0-alpha.1.tgz}
     version: 0.1.0-alpha.1
     peerDependencies:
       konva: ^10.9.0
