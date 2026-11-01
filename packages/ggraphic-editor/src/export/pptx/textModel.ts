@@ -1,11 +1,10 @@
 // SPDX-License-Identifier: MPL-2.0
+import { type BrandPack } from '@ggraphic/core';
 import { markdownLiteToRichText, type CanvasRichTextDoc } from '@ggraphic/schema';
 
-import { activeBrand } from '@ggraphic/editor/brand/brandRegistry';
 import { defaultTextMarker, markerInkOn } from '@ggraphic/editor/utils/markerColors';
 
 import type { PptxBullet, PptxParagraph, PptxTextRun } from './types.js';
-import type { BrandPack } from '@ggraphic/core';
 import type { AdditionalText } from '@ggraphic/editor/configs/types';
 
 type RichNode = NonNullable<CanvasRichTextDoc['content']>[number];
@@ -37,7 +36,7 @@ function toRun(
   text: AdditionalText,
   baseBold: boolean,
   baseItalic: boolean,
-  brand: BrandPack
+  brand?: BrandPack
 ) {
   const has = (type: string) => !!node.marks?.some((mark) => mark.type === type);
   const accentColor = has('accent') ? markColor(node, 'accent') : null;
@@ -73,7 +72,7 @@ function paragraphOf(
   text: AdditionalText,
   baseBold: boolean,
   baseItalic: boolean,
-  brand: BrandPack
+  brand?: BrandPack
 ): PptxParagraph {
   const runs: PptxTextRun[] = [];
   for (const child of node?.content ?? []) {
@@ -95,11 +94,11 @@ function emptyRun(text: AdditionalText): PptxTextRun {
   };
 }
 
-/** Markdown-lite des Textfelds → Absätze mit Läufen und Aufzählung. */
-export function textParagraphs(
-  text: AdditionalText,
-  brand: BrandPack = activeBrand()
-): PptxParagraph[] {
+/**
+ * Markdown-lite des Textfelds → Absätze mit Läufen und Aufzählung. `brand`:
+ * das Paket des Dokuments, für Marker ohne Stil der Vorlage; Vorgabe: das aktive.
+ */
+export function textParagraphs(text: AdditionalText, brand?: BrandPack): PptxParagraph[] {
   const style = text.fontStyle ?? 'normal';
   const baseBold = style.includes('bold');
   const baseItalic = style.includes('italic');

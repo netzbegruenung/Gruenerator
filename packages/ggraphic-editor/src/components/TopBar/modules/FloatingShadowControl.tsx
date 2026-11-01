@@ -83,7 +83,8 @@ export function FloatingShadowControl({
   shadowOpacity,
   onChange,
 }: FloatingShadowControlProps) {
-  const { shadows } = useDocumentBrand().effects;
+  const brand = useDocumentBrand();
+  const { shadows } = brand.effects;
   const t = useMessages();
   const enabled = !!shadowColor;
 
@@ -143,8 +144,8 @@ export function FloatingShadowControl({
                     outlineOffset: '2px',
                   }}
                   onClick={() => onChange({ shadowColor: c })}
-                  title={colorName(c)}
-                  aria-label={colorName(c)}
+                  title={colorName(c, brand)}
+                  aria-label={colorName(c, brand)}
                   aria-pressed={shadowColor === c}
                   type="button"
                 />

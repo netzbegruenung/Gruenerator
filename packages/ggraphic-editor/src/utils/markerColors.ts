@@ -38,10 +38,7 @@ export function defaultTextMarker(brand: BrandPack = activeBrand()): TextMarker 
   return marker;
 }
 
-/**
- * Die lesbarere der beiden Schriftfarben auf einem frei gewählten Kasten: die
- * dunkle Schrift des Markenpakets (Vorgabe: des aktiven) oder Weiß.
- */
+/** Die lesbarere der beiden Schriftfarben auf einem frei gewählten Kasten. */
 export function markerInkOn(fill: string, brand: BrandPack = activeBrand()): string {
   const inkDark = brand.markers.ink;
   const ground = luminance(fill);

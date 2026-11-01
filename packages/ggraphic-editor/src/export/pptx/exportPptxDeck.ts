@@ -5,12 +5,13 @@
  * gehen an das Stage der jeweiligen Seite, Bilder werden als PNG/JPEG geladen.
  */
 
+import { type BrandPack } from '@ggraphic/core';
+
 import { buildPptxModel, type PptxPageState } from '@ggraphic/editor/export/pptx/buildPptxModel';
 import { measureTextWidthWithFont } from '@ggraphic/editor/utils/textUtils';
 
 import { writePptx, type PptxLoadedImage, type PptxRasterImage } from './writePptx.js';
 
-import type { BrandPack } from '@ggraphic/core';
 import type { PptxRasterRequest } from '@ggraphic/editor/export/pptx/types';
 import type { CanvasFormat } from '@ggraphic/editor/formats/index';
 
@@ -79,7 +80,7 @@ export interface ExportPptxDeckOptions {
   rasterizeElement: (slideIndex: number, elementId: string) => Promise<PptxRasterImage | null>;
   title?: string;
   onProgress?: (done: number, total: number) => void;
-  /** The brand of the document, for the marker a text without a marker style gets. */
+  /** Das Paket des Dokuments (`FullCanvasConfig.brand`); ohne: das aktive. */
   brand?: BrandPack;
 }
 
