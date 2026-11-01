@@ -6,7 +6,11 @@ import { useState } from 'react';
 import { describe, expect, it, vi } from 'vitest';
 
 import { composePrintImpressum, PRINT_IMPRESSUM_ID } from '../../../composer/composePrint';
-import { impressumLine, type ImpressumLocale } from '../../../composer/printImpressum';
+import {
+  fromImprintParts,
+  impressumLine,
+  type ImpressumLocale,
+} from '../../../composer/printImpressum';
 import { grueneratorPrint } from '../../../composer/printService';
 
 /** Stands in for the editor: the gate text lives in "canvas state" and the form writes to it. */
@@ -37,7 +41,7 @@ function Harness({
                 ready: true,
                 locale,
                 text,
-                onSubmit: (parts) => setText(impressumLine(locale, parts)),
+                onSubmit: (parts) => setText(impressumLine(locale, fromImprintParts(parts))),
               }
             : null,
         }}

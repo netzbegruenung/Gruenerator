@@ -217,7 +217,7 @@ describe('usePrintImpressumGate: where the format wants the line', () => {
       { wrapper }
     );
     expect(result.current?.text).toBeNull();
-    result.current?.onSubmit({ name: 'Erika Muster', anschrift: 'Hauptstr. 1, 10115 Berlin' });
+    result.current?.onSubmit({ name: 'Erika Muster', address: 'Hauptstr. 1, 10115 Berlin' });
     expect(add).toHaveBeenCalledTimes(1);
     expect(first).not.toHaveBeenCalled();
   });
