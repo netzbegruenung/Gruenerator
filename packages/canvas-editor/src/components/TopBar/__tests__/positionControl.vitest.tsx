@@ -1,9 +1,9 @@
+import { FloatingPositionControl } from '@ggraphic/editor/components/TopBar/modules/FloatingPositionControl';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 
 import { axe } from '../../../test-utils';
-import { FloatingPositionControl } from '@ggraphic/editor/components/TopBar/modules/FloatingPositionControl';
 
 import type { SelectionGeometry } from '@ggraphic/editor/utils/canvasCommands';
 
@@ -97,8 +97,36 @@ describe('Positionsfeld', () => {
     expect(screen.getByRole('button', { name: 'Horizontal verteilen' })).toBeDisabled();
   });
 
+  it('schichtet die Ebene um', async () => {
+    const onMove = vi.fn();
+    renderControl({
+      getGeometry: () => GEOMETRY,
+      layer: { canMoveUp: true, canMoveDown: false, onMove },
+    });
+    await open();
+    await userEvent.click(screen.getByRole('button', { name: 'Ebene nach oben' }));
+    expect(onMove).toHaveBeenCalledWith('up');
+    expect(screen.getByRole('button', { name: 'Ebene nach unten' })).toBeDisabled();
+  });
+
+  // Gesperrt: nicht verschieben, aber umschichten.
+  it('zeigt ohne canAlign nur die Ebene', async () => {
+    renderControl({
+      canAlign: false,
+      getGeometry: () => GEOMETRY,
+      layer: { canMoveUp: true, canMoveDown: true, onMove: vi.fn() },
+    });
+    await open();
+    expect(screen.queryByRole('button', { name: 'Links' })).toBeNull();
+    expect(screen.queryByRole('textbox', { name: 'X' })).toBeNull();
+    expect(screen.getByRole('button', { name: 'Ebene nach oben' })).toBeEnabled();
+  });
+
   it('hat keine axe-Verstöße', async () => {
-    const { baseElement } = renderControl({ getGeometry: () => GEOMETRY });
+    const { baseElement } = renderControl({
+      getGeometry: () => GEOMETRY,
+      layer: { canMoveUp: true, canMoveDown: true, onMove: vi.fn() },
+    });
     await open();
     expect(await axe(baseElement)).toHaveNoViolations();
   });

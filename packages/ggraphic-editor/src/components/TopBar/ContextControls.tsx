@@ -15,12 +15,12 @@ import {
 import { FloatingColorPicker } from '@ggraphic/editor/components/TopBar/modules/FloatingColorPicker';
 import { FloatingFontSizeControl } from '@ggraphic/editor/components/TopBar/modules/FloatingFontSizeControl';
 import { FloatingGradientControl } from '@ggraphic/editor/components/TopBar/modules/FloatingGradientControl';
-import { FloatingLayerControls } from '@ggraphic/editor/components/TopBar/modules/FloatingLayerControls';
 import { FloatingOpacityControl } from '@ggraphic/editor/components/TopBar/modules/FloatingOpacityControl';
 import {
   FloatingPositionControl,
   type PositionCommandId,
 } from '@ggraphic/editor/components/TopBar/modules/FloatingPositionControl';
+import { FloatingTextAlignControl } from '@ggraphic/editor/components/TopBar/modules/FloatingTextAlignControl';
 import { type BackgroundControls } from '@ggraphic/editor/configs/types';
 import { type ShadowPatch } from '@ggraphic/editor/hooks/useFloatingModuleHandlers';
 import { type FloatingModuleState } from '@ggraphic/editor/hooks/useFloatingModuleState';
@@ -33,14 +33,11 @@ import { focusPage, isKeyboardModality } from '@ggraphic/editor/utils/editorFocu
 import { type GradientFill } from '@ggraphic/editor/utils/gradientFill';
 import { type LockState } from '@ggraphic/editor/utils/layerLock';
 import { STROKE_ONLY_SHAPES } from '@ggraphic/editor/utils/shapes';
-import { useUnsplashHome } from '@ggraphic/editor/utils/unsplashLinks';
 import { type TextAlign } from '@ggraphic/editor/utils/textAlign';
+import { useUnsplashHome } from '@ggraphic/editor/utils/unsplashLinks';
 
 import { FloatingOutlineControl } from './modules/FloatingOutlineControl.js';
-
 import { FloatingShadowControl } from './modules/FloatingShadowControl.js';
-
-import { FloatingTextAlignControl } from '@ggraphic/editor/components/TopBar/modules/FloatingTextAlignControl';
 
 export interface ContextControlsProps {
   selectedElement: string | null;
@@ -539,20 +536,6 @@ export function ContextControls({
     );
   }
 
-  if (selectedElement && showObjectActions && canAlign && handlers.runCommand) {
-    groups.push(
-      <FloatingPositionControl
-        // Neu je Element: offene Felder zeigen nie die Lage des vorigen.
-        key={`position-${selectedElement}`}
-        canDistribute={false}
-        onCommand={handlers.runCommand}
-        getGeometry={handlers.getGeometry ?? (() => null)}
-        onPositionChange={handlers.handlePositionChange}
-        onSizeChange={handlers.handleSizeChange}
-      />
-    );
-  }
-
   if (showOpacity && activeFloatingModule) {
     groups.push(
       <FloatingOpacityControl
@@ -565,19 +548,26 @@ export function ContextControls({
     );
   }
 
+  // Ausrichten, Lage und Ebene unter einem Knopf, wie bei Canva. Gesperrt
+  // bleibt nur die Ebene: verschieben geht dann nicht, umschichten schon.
   if (selectedElement && showObjectActions) {
+    const runCommand = canAlign ? handlers.runCommand : undefined;
     groups.push(
-      <FloatingLayerControls
-        key="layer"
-        onMoveUp={() => handlers.handleMoveLayer('up')}
-        onMoveDown={() => handlers.handleMoveLayer('down')}
-        canMoveUp={canMoveUp}
-        canMoveDown={canMoveDown}
+      <FloatingPositionControl
+        // Neu je Element: offene Felder zeigen nie die Lage des vorigen.
+        key={`position-${selectedElement}`}
+        canAlign={!!runCommand}
+        canDistribute={false}
+        onCommand={runCommand ?? (() => {})}
+        getGeometry={handlers.getGeometry ?? (() => null)}
+        onPositionChange={handlers.handlePositionChange}
+        onSizeChange={handlers.handleSizeChange}
+        layer={{ canMoveUp, canMoveDown, onMove: handlers.handleMoveLayer }}
       />
     );
   }
 
-  // Direkt bei den Ebenen-Knöpfen: beides betrifft das Element als Ganzes,
+  // Direkt nach „Position“: beides betrifft das Element als Ganzes,
   // nicht sein Aussehen. Der Knopf bleibt bei Vorlagen-Elementen und Icons
   // sichtbar, aber deaktiviert — verschwände er, wäre unklar, ob die Aktion
   // fehlt oder nur hier nicht geht.
