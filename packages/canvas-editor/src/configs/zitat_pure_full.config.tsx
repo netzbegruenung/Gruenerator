@@ -7,7 +7,6 @@
 
 import { SYSTEM_ASSETS } from '../brand/grueneAssets';
 import { zitatShareMetadata } from '../brand/grueneShareMetadata';
-import { getBrandPack } from '../brand/theme';
 import { ZITAT_PURE_CONFIG, calculateZitatPureLayout } from '../utils/zitatPureLayout';
 
 import {
@@ -164,8 +163,6 @@ const baseZitatPureConfig = {
     secondaryField: { key: 'name', label: 'Name' },
     backgroundColors: BACKGROUND_COLORS,
     defaultBackgroundColor: ZITAT_PURE_CONFIG.background.color,
-    // New elements start in the German brand pack, not whichever pack is active.
-    brand: getBrandPack('de-DE'),
     textColorMap: FONT_COLORS,
     calculateLayout,
     passthroughStateKeys: [

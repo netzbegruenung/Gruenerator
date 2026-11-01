@@ -18,7 +18,6 @@ import { INITIAL_SCALE } from '@ggraphic/editor/types/editorTypes';
 import { CANVAS_COLORS, DEFAULT_CANVAS_SIZE } from '@gruenerator/contracts';
 import { PiSquaresFourFill } from 'react-icons/pi';
 
-import { getBrandPack } from '../brand/theme';
 import { AssetsSection } from '../sidebar/sections';
 
 import { chatTab, createCommonSectionEntries, toolsTab, uploadsTab } from './commonSections';
@@ -198,8 +197,6 @@ const section = makeSectionDefiner<ProfilbildFullState, ProfilbildFullActions>()
 
 export const profilbildFullConfig: FullCanvasConfig<ProfilbildFullState, ProfilbildFullActions> = {
   id: 'profilbild',
-  // New elements start in the German brand pack, not whichever pack is active.
-  brand: getBrandPack('de-DE'),
 
   canvas: { width: CANVAS_SIZE, height: CANVAS_SIZE },
 

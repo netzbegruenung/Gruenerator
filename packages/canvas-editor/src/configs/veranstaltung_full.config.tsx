@@ -26,7 +26,6 @@ import { straightenResetFor } from '@ggraphic/editor/utils/straighten';
 import { PiFrameCornersFill, PiSquaresFourFill, PiTextAa } from 'react-icons/pi';
 
 import { CANVAS_RECOMMENDED_ASSETS } from '../brand/grueneAssets';
-import { getBrandPack } from '../brand/theme';
 import { AssetsSection, FrameSettingsSection } from '../sidebar/sections';
 import { VERANSTALTUNG_CONFIG, calculateVeranstaltungLayout } from '../utils/veranstaltungLayout';
 
@@ -374,8 +373,6 @@ export const veranstaltungFullConfig: FullCanvasConfig<
   VeranstaltungFullActions
 > = {
   id: 'veranstaltung',
-  // New elements start in the German brand pack, not whichever pack is active.
-  brand: getBrandPack('de-DE'),
 
   canvas: {
     width: VERANSTALTUNG_CONFIG.canvas.width,

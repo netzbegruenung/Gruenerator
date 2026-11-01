@@ -44,7 +44,6 @@ import { PiFrameCornersFill, PiSquaresFourFill, PiTextAa } from 'react-icons/pi'
 import { buildAssetCapability } from '../ai/assetCapability';
 import { CANVAS_RECOMMENDED_ASSETS, SYSTEM_ASSETS } from '../brand/grueneAssets';
 import { dreizeilenShareMetadata } from '../brand/grueneShareMetadata';
-import { getBrandPack } from '../brand/theme';
 import { AssetsSection } from '../sidebar';
 import { BalkenSettingsSection } from '../sidebar/sections/BalkenSettingsSection';
 import { balkenExtent, fitBalkenAfterTextEdit, fitBalkenToCanvas } from '../utils/balkenBounds';
@@ -376,8 +375,6 @@ const section = makeSectionDefiner<DreizeilenFullState, DreizeilenFullActions>()
 
 export const dreizeilenFullConfig: FullCanvasConfig<DreizeilenFullState, DreizeilenFullActions> = {
   id: 'dreizeilen',
-  // New elements start in the German brand pack, not whichever pack is active.
-  brand: getBrandPack('de-DE'),
   shareMetadata: dreizeilenShareMetadata,
 
   canvas: {
