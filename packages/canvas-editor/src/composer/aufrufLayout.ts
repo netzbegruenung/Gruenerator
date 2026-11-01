@@ -19,7 +19,6 @@ export function layoutAufruf(
     theme,
     brand,
     headFamily,
-    isAt,
     out,
     column,
     xAlign,
@@ -102,7 +101,7 @@ export function layoutAufruf(
     });
   } else if (item.hinweis) {
     // AT has no pills: the hint is a line, on a petition in the yellow serif.
-    const petitionAt = isAt && item.stil === 'petition';
+    const petitionAt = !brand.features.hinweisPill && item.stil === 'petition';
     const small = Math.round(size * (petitionAt ? 0.55 : 0.4));
     const hint = item.hinweis;
     placed.push({

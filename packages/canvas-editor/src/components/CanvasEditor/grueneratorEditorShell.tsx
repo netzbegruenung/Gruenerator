@@ -29,17 +29,31 @@ import { formatHasVorlagen, vorlagenTab, vorlagenTabIndex } from './vorlagenTab'
 
 import type { CanvasConfigId } from '../../templates/registry';
 import type { HeterogeneousPage } from '@ggraphic/editor/configs/types';
+import type { SharepicBrand } from '@gruenerator/contracts';
 
 /** A deck's brand follows its first page: the slide layouts and fonts of that country. */
 const deckLocaleOf = (pages: readonly HeterogeneousPage[]): 'de-DE' | 'de-AT' =>
-  pages[0]?.configId === 'freeform-at' ? 'de-AT' : 'de-DE';
+  pages[0]?.configId === 'freeform-at' || pages[0]?.configId === 'freeform-gj-at'
+    ? 'de-AT'
+    : 'de-DE';
 
 const isSliderDeck = (pages: readonly HeterogeneousPage[]) =>
   pages[0]?.configId === 'slider' || pages[0]?.configId === 'slider-at';
 
+const deckBrandOf = (pages: readonly HeterogeneousPage[]): SharepicBrand =>
+  pages[0]?.configId === 'freeform-gj' || pages[0]?.configId === 'freeform-gj-at'
+    ? 'gruene-jugend'
+    : 'gruene';
+
 function GrueneratorVorlagenSection(props: EditorTabSectionProps) {
-  // A deck takes the slide layouts of its first page's country.
-  return <VorlagenSection {...props} layoutLocale={deckLocaleOf(props.pages)} />;
+  // A deck takes the slide layouts of its first page's country, a sharepic the Seiten of its design.
+  return (
+    <VorlagenSection
+      {...props}
+      layoutLocale={deckLocaleOf(props.pages)}
+      brand={deckBrandOf(props.pages)}
+    />
+  );
 }
 
 function GrueneratorEditorProvider({

@@ -9,7 +9,12 @@ interface DeckPage {
   state: Record<string, unknown>;
 }
 
-const BLANK_CONFIGS: readonly string[] = ['freeform', 'freeform-at'];
+const BLANK_CONFIGS: readonly string[] = [
+  'freeform',
+  'freeform-at',
+  'freeform-gj',
+  'freeform-gj-at',
+];
 
 /** These only describe elements; they hold none themselves. */
 const DESCRIBING_KEYS: readonly string[] = [

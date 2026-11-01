@@ -12,14 +12,14 @@ import { UserImagePrimitive } from '@ggraphic/editor/primitives/UserImagePrimiti
 import { useIsElementSelected } from '@ggraphic/editor/stores/CanvasStoreProvider';
 import { getIconMapSync } from '@ggraphic/editor/utils/canvasIcons';
 
-import { CanvasText } from '../primitives/index.js';
 import { AssetPrimitive } from '../primitives/AssetPrimitive.js';
 import { IllustrationPrimitive } from '../primitives/IllustrationPrimitive.js';
+import { CanvasText } from '../primitives/index.js';
 import { resolveIconDef } from '../utils/iconInstances.js';
 
 import type { OptionalCanvasActions } from '../hooks/useCanvasElementHandlers.js';
-import type { CanvasItem } from '../utils/canvasLayerManager.js';
 import type { HostElementKindName } from '../utils/canvasItem.js';
+import type { CanvasItem } from '../utils/canvasLayerManager.js';
 import type { CropAspectId } from '@ggraphic/editor/utils/cropAspect';
 import type { FrameInstance } from '@ggraphic/editor/utils/frameUtils';
 import type { ShapeInstance } from '@ggraphic/editor/utils/shapes';
@@ -422,6 +422,7 @@ export const KIND_RENDERERS: KindRenderers = {
         scale={badge.scale}
         opacity={badge.opacity ?? 1}
         textLines={badge.textLines}
+        outline={badge.outline}
         onSelect={() => handlers.handleCircleBadgeSelect(badge.id)}
         onDragEnd={(x, y) => handlers.handleCircleBadgeDragEnd(badge.id, x, y)}
         onTransformEnd={(x, y, s, r) =>

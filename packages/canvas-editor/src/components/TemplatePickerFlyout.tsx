@@ -123,8 +123,13 @@ export function TemplatePickerFlyout({
   // New pages are freeform only: the retired template types stay editable on
   // the pages that already use them, but are no longer offered. Layouts come
   // from the Grünerator-Vorlagen and the Sharepic-Creator instead.
+  // A GRÜNE-JUGEND page offers its own blank page instead of the party's.
+  const blankIds: readonly string[] =
+    currentTemplateId === 'freeform-gj' || currentTemplateId === 'freeform-gj-at'
+      ? [currentTemplateId]
+      : ['freeform', 'freeform-at'];
   const allTemplates = getTemplatesForLocale(locale).filter(
-    (t) => (t.id === 'freeform' || t.id === 'freeform-at') && templateFitsFormat(t.id, formatId)
+    (t) => blankIds.includes(t.id) && templateFitsFormat(t.id, formatId)
   );
   const templates = templateFilter
     ? allTemplates.filter((t) => t.category === templateFilter)

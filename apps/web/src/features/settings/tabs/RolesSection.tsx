@@ -15,8 +15,9 @@ import {
   AT_ROLLEN,
   DE_BUNDESLAENDER,
   AT_BUNDESLAENDER,
-  NEEDS_BUNDESLAND,
-  NEEDS_LOCAL_NAME,
+  needsBundesland,
+  needsLocalName,
+  ROLLE_FIRST_EBENEN,
   LOCAL_NAME_LABELS,
   LOCAL_NAME_PLACEHOLDERS,
   needsAbgeordneteName,
@@ -242,6 +243,7 @@ export default function RolesSection() {
   const [wizCustomRolle, setWizCustomRolle] = useState('');
   const [wizAbgeordnete, setWizAbgeordnete] = useState('');
   const [wizInstructions, setWizInstructions] = useState('');
+  const rolleFirst = wizEbene !== null && ROLLE_FIRST_EBENEN.has(wizEbene);
 
   const wizardRollen = useMemo(
     () => (wizEbene ? offeredRollen(wizEbene, rollenMap[wizEbene] ?? [], CURRENT_INSTANCE) : []),
@@ -323,7 +325,7 @@ export default function RolesSection() {
       setWizEbene(presetEbene);
       setWizBundesland(null);
       setWizRolle(suggestDefault ? instanceDefaultRole.rolle : null);
-      setWizardStep(NEEDS_BUNDESLAND.has(presetEbene) ? 'bundesland' : 'rolle');
+      setWizardStep(needsBundesland(presetEbene, null) ? 'bundesland' : 'rolle');
     } else {
       setWizardStep('ebene');
       setWizEbene(null);
@@ -343,7 +345,7 @@ export default function RolesSection() {
     setWizRolle(null);
     setWizCustomRolle('');
     setWizAbgeordnete('');
-    if (NEEDS_BUNDESLAND.has(ebene)) {
+    if (needsBundesland(ebene, null)) {
       setWizardStep('bundesland');
     } else {
       setWizardStep('rolle');
@@ -353,32 +355,49 @@ export default function RolesSection() {
   const handleWizBundesland = useCallback(
     (bundesland: string) => {
       setWizBundesland(bundesland);
-      if (wizEbene && NEEDS_LOCAL_NAME.has(wizEbene)) {
+      if (wizEbene && needsLocalName(wizEbene, wizRolle)) {
         setWizardStep('gliederung');
       } else {
-        setWizardStep('rolle');
+        setWizardStep(rolleFirst ? 'instructions' : 'rolle');
       }
     },
-    [wizEbene]
+    [wizEbene, wizRolle, rolleFirst]
   );
 
   const handleWizGliederungSubmit = useCallback(() => {
-    if (wizGliederung.trim()) setWizardStep('rolle');
-  }, [wizGliederung]);
+    if (wizGliederung.trim()) setWizardStep(rolleFirst ? 'instructions' : 'rolle');
+  }, [wizGliederung, rolleFirst]);
+
+  // Wo die Rolle zuerst kommt (Grüne Jugend), fragt erst sie nach dem Ort.
+  const handleWizRolleNext = useCallback(() => {
+    const askBundesland = rolleFirst && wizEbene !== null && needsBundesland(wizEbene, wizRolle);
+    setWizardStep(askBundesland ? 'bundesland' : 'instructions');
+  }, [rolleFirst, wizEbene, wizRolle]);
 
   // Der Schritt hinter „Zurück", oder null, wenn es keinen gibt — dann bleibt
   // der Knopf weg, statt auf einen übersprungenen Ebene-Schritt zu zeigen.
   const wizardBackStep = useMemo((): WizardStep | null => {
+    const ebeneBack = ebeneStepOffered ? 'ebene' : null;
+    if (rolleFirst && wizEbene) {
+      if (wizardStep === 'instructions') {
+        if (needsLocalName(wizEbene, wizRolle)) return 'gliederung';
+        return needsBundesland(wizEbene, wizRolle) ? 'bundesland' : 'rolle';
+      }
+      if (wizardStep === 'gliederung') return 'bundesland';
+      if (wizardStep === 'bundesland') return 'rolle';
+      if (wizardStep === 'rolle') return ebeneBack;
+      return null;
+    }
     if (wizardStep === 'instructions') return 'rolle';
     if (wizardStep === 'rolle') {
-      if (wizEbene && NEEDS_LOCAL_NAME.has(wizEbene)) return 'gliederung';
-      if (wizEbene && NEEDS_BUNDESLAND.has(wizEbene)) return 'bundesland';
-      return ebeneStepOffered ? 'ebene' : null;
+      if (wizEbene && needsLocalName(wizEbene, null)) return 'gliederung';
+      if (wizEbene && needsBundesland(wizEbene, null)) return 'bundesland';
+      return ebeneBack;
     }
     if (wizardStep === 'gliederung') return 'bundesland';
-    if (wizardStep === 'bundesland') return ebeneStepOffered ? 'ebene' : null;
+    if (wizardStep === 'bundesland') return ebeneBack;
     return null;
-  }, [wizardStep, wizEbene, ebeneStepOffered]);
+  }, [wizardStep, wizEbene, wizRolle, rolleFirst, ebeneStepOffered]);
 
   const handleWizStepBack = useCallback(() => {
     if (wizardBackStep) setWizardStep(wizardBackStep);
@@ -451,8 +470,12 @@ export default function RolesSection() {
       ebene: wizEbene,
       rolle,
     };
-    if (wizBundesland) newRole.bundesland = wizBundesland;
-    if (wizGliederung.trim()) newRole.gliederung = wizGliederung.trim();
+    // Nur was die Rolle braucht: wer in der Grünen Jugend nach „vor Ort“ zurück
+    // zum Bundesverband wechselt, trägt sonst Bundesland und Ortsgruppe mit.
+    if (wizBundesland && needsBundesland(wizEbene, rolle)) newRole.bundesland = wizBundesland;
+    if (wizGliederung.trim() && needsLocalName(wizEbene, rolle)) {
+      newRole.gliederung = wizGliederung.trim();
+    }
     if (wizAbgeordnete.trim()) newRole.abgeordnete = wizAbgeordnete.trim();
     if (wizInstructions.trim()) newRole.instructions = wizInstructions.trim();
 
@@ -784,7 +807,7 @@ export default function RolesSection() {
               </div>
             )}
 
-            {canAddRole && <Button onClick={() => setWizardStep('instructions')}>Weiter</Button>}
+            {canAddRole && <Button onClick={handleWizRolleNext}>Weiter</Button>}
           </>
         ) : wizardStep === 'instructions' ? (
           <>

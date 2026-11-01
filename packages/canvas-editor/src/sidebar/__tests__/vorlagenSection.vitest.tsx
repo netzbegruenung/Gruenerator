@@ -136,6 +136,7 @@ function setup(
     userLocale = 'de-DE',
     canAddPage = true,
     withPrint = true,
+    brand,
   }: {
     service?: Partial<CanvasVorlagenService>;
     formatId?: string;
@@ -143,6 +144,7 @@ function setup(
     canAddPage?: boolean;
     /** The host's print service (impressum, print composer); the web host always has it. */
     withPrint?: boolean;
+    brand?: 'gruene' | 'gruene-jugend';
   } = {}
 ) {
   const vorlagen: CanvasVorlagenService = {
@@ -172,6 +174,7 @@ function setup(
         onShowPage={onShowPage}
         canAddPage={canAddPage}
         layoutLocale={userLocale}
+        {...(brand ? { brand } : {})}
       />
     </CanvasEditorProvider>
   );
@@ -349,6 +352,18 @@ describe('VorlagenSection on a sharepic', () => {
     await user.click(await screen.findByRole('button', { name: 'Erneut versuchen' }));
     expect(await seitenTile('Zwei Absätze')).toBeInTheDocument();
     expect(listSeiten).toHaveBeenCalledTimes(2);
+  });
+
+  it('asks for the Seiten of the design the sharepic is in', async () => {
+    const { vorlagen } = setup(EMPTY, { brand: 'gruene-jugend' });
+    expect(await seitenTile('Zwei Absätze')).toBeInTheDocument();
+    expect(vorlagen.listSeiten).toHaveBeenCalledWith('gruene-jugend');
+  });
+
+  it('asks for the party Seiten without a design', async () => {
+    const { vorlagen } = setup(EMPTY);
+    expect(await seitenTile('Zwei Absätze')).toBeInTheDocument();
+    expect(vorlagen.listSeiten).toHaveBeenCalledWith('gruene');
   });
 
   it('says when a format has no Seiten yet', async () => {

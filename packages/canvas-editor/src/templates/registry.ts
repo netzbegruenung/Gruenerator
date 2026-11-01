@@ -134,6 +134,17 @@ export interface CanvasInitialPropsMap {
     backgroundColor?: string;
     currentImageSrc: string;
   } & BackgroundImageProps;
+  // Grüne Jugend (DE / AT) — same shape as `freeform-at`: the config's brand default applies
+  'freeform-gj': {
+    backgroundMode: string;
+    backgroundColor?: string;
+    currentImageSrc: string;
+  } & BackgroundImageProps;
+  'freeform-gj-at': {
+    backgroundMode: string;
+    backgroundColor?: string;
+    currentImageSrc: string;
+  } & BackgroundImageProps;
 }
 
 interface VeranstaltungInitialProps extends BackgroundImageProps {
@@ -477,6 +488,56 @@ export const BUILTIN_TEMPLATES = [
     info: {
       label: 'Leere Seite',
       description: 'Leere Seite mit österreichischem CI',
+      previewImage: '/imagine/previews/freeform-preview.webp',
+      category: 'sharepic',
+      audience: 'de-AT',
+      followsFormat: true,
+    },
+  }),
+  defineBuiltin({
+    id: 'freeform-gj',
+    load: async (formatId): Promise<AnyCanvasConfig> =>
+      (await import('../configs/freeform_gj_full.config')).createFreeformGjFullConfig(
+        getCanvasFormatOrDefault(formatId)
+      ),
+    hostCallbackKeys: ['backgroundMode', 'backgroundColor', ...BG_IMAGE_KEYS],
+    seedProps: (s, imageSrc) => {
+      const backgroundColor = str(s.backgroundColor);
+      return {
+        backgroundMode: str(s.backgroundMode) || 'color',
+        ...(backgroundColor ? { backgroundColor } : {}),
+        currentImageSrc: bgSrc(s, imageSrc),
+        ...bgImageProps(s),
+      } satisfies CanvasInitialPropsMap['freeform-gj'];
+    },
+    info: {
+      label: 'Leere Seite',
+      description: 'Leere Seite im Auftritt der GRÜNEN JUGEND',
+      previewImage: '/imagine/previews/freeform-preview.webp',
+      category: 'sharepic',
+      audience: 'de-DE',
+      followsFormat: true,
+    },
+  }),
+  defineBuiltin({
+    id: 'freeform-gj-at',
+    load: async (formatId): Promise<AnyCanvasConfig> =>
+      (await import('../configs/freeform_gj_at_full.config')).createFreeformGjAtFullConfig(
+        getCanvasFormatOrDefault(formatId)
+      ),
+    hostCallbackKeys: ['backgroundMode', 'backgroundColor', ...BG_IMAGE_KEYS],
+    seedProps: (s, imageSrc) => {
+      const backgroundColor = str(s.backgroundColor);
+      return {
+        backgroundMode: str(s.backgroundMode) || 'color',
+        ...(backgroundColor ? { backgroundColor } : {}),
+        currentImageSrc: bgSrc(s, imageSrc),
+        ...bgImageProps(s),
+      } satisfies CanvasInitialPropsMap['freeform-gj-at'];
+    },
+    info: {
+      label: 'Leere Seite',
+      description: 'Leere Seite im Auftritt der Grünen Jugend Österreich',
       previewImage: '/imagine/previews/freeform-preview.webp',
       category: 'sharepic',
       audience: 'de-AT',

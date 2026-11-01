@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-import { sharepicCreatorLocaleSchema } from './enums.js';
+import { sharepicBrandSchema, sharepicCreatorLocaleSchema } from './enums.js';
 import { sharepicFormSchema } from './forms.js';
 import { sharepicPatchOpSchema } from './patch.js';
 import { sharepicOwnPhotoSchema } from './photos.js';
@@ -21,6 +21,8 @@ export type SharepicDraftFocus = z.infer<typeof sharepicDraftFocusSchema>;
 export const sharepicDraftBodySchema = z.object({
   prompt: z.string().trim().min(3).max(SHAREPIC_PROMPT_MAX),
   locale: sharepicCreatorLocaleSchema.optional(),
+  /** Whose design a first draft wears; absent: named in the prompt, else the party's. */
+  brand: sharepicBrandSchema.optional(),
   /** The draft to change; `prompt` is then the change request. */
   current: sharepicSpecSchema.optional(),
   /** The user's own photos (already analysed) — the only `upload:N` ids a draft may use. */

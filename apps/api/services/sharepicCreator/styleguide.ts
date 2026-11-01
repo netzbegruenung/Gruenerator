@@ -11,7 +11,13 @@ import { readFileSync } from 'node:fs';
 import path, { dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { SHAREPIC_LIMITS, type SharepicCreatorLocale } from '@gruenerator/contracts';
+import {
+  brandIdFor,
+  SHAREPIC_LIMITS,
+  type SharepicBrand,
+  type SharepicBrandId,
+  type SharepicCreatorLocale,
+} from '@gruenerator/contracts';
 import { z } from 'zod';
 
 import { createLogger } from '../../utils/logger.js';
@@ -76,20 +82,39 @@ export function chapterText(chapter: StyleguideChapter): string {
   return read(`kapitel/${chapter}.md`);
 }
 
-/** The locale's basics are always in — every draft needs colours and fonts. */
-export function basicsText(locale: SharepicCreatorLocale): string {
-  return read(locale === 'de-AT' ? 'kapitel/grundlagen-at.md' : 'kapitel/grundlagen-de.md');
+/** Each design's basics chapter: colours, type, logo and layout rules. */
+const BASICS: Record<SharepicBrandId, string> = {
+  'gruene-de': 'kapitel/grundlagen-de.md',
+  'gruene-at': 'kapitel/grundlagen-at.md',
+  'gj-de': 'kapitel/grundlagen-gj-de.md',
+  'gj-at': 'kapitel/grundlagen-gj-at.md',
+};
+
+/** Who speaks on the sharepic, for the system prompt. */
+const SENDER: Record<SharepicBrandId, string> = {
+  'gruene-de': 'Bündnis 90/Die Grünen',
+  'gruene-at': 'Die Grünen in Österreich',
+  'gj-de': 'die GRÜNE JUGEND (Jugendorganisation von Bündnis 90/Die Grünen)',
+  'gj-at': 'die Grüne Jugend Österreich',
+};
+
+/** The design's basics are always in — every draft needs colours and fonts. */
+export function basicsText(
+  locale: SharepicCreatorLocale,
+  brand: SharepicBrand | null = null
+): string {
+  return read(BASICS[brandIdFor(locale, brand)]);
 }
 
-export function systemPrompt(locale: SharepicCreatorLocale): string {
+export function systemPrompt(
+  locale: SharepicCreatorLocale,
+  brand: SharepicBrand | null = null
+): string {
   const catalog = Object.entries(STYLEGUIDE_CHAPTERS)
     .map(([id, summary]) => `- \`${id}\` — ${summary}`)
     .join('\n');
   return read('system.md')
-    .replace(
-      '{{partyName}}',
-      locale === 'de-AT' ? 'Die Grünen in Österreich' : 'Bündnis 90/Die Grünen'
-    )
+    .replace('{{partyName}}', SENDER[brandIdFor(locale, brand)])
     .replace('{{chapterCatalog}}', catalog)
     .replace('{{localeHint}}', locale === 'de-AT' ? ', österreichisches Deutsch' : '')
     .replace('{{headlineLine}}', String(SHAREPIC_LIMITS.headlineLine))
@@ -118,6 +143,8 @@ export const exampleOccasionSchema = z.enum(EXAMPLE_OCCASIONS);
 interface Example {
   id: string;
   land: SharepicCreatorLocale;
+  /** The design the example shows; absent: the party's. */
+  brand?: SharepicBrand;
   anlass: ExampleOccasion;
   vorbild: string;
   spec: Record<string, unknown>;
@@ -133,9 +160,16 @@ export function loadExamples(): Example[] {
 /**
  * Worked examples rebuilt from the party's own posts — orientation, not
  * templates. Same country first; the other country's only when there is none.
+ * A brand sees only its own examples: a party layout would teach the youth
+ * design the wrong look, and the other way round.
  */
-export function examplesText(locale: SharepicCreatorLocale, occasions: ExampleOccasion[]): string {
-  const all = loadExamples();
+export function examplesText(
+  locale: SharepicCreatorLocale,
+  occasions: ExampleOccasion[],
+  brand: SharepicBrand | null = null
+): string {
+  const own = brand ?? 'gruene';
+  const all = loadExamples().filter((e) => (e.brand ?? 'gruene') === own);
   const picked = occasions.flatMap((occasion) => {
     const own = all.filter((e) => e.anlass === occasion && e.land === locale);
     return own.length ? own : all.filter((e) => e.anlass === occasion).slice(0, 1);

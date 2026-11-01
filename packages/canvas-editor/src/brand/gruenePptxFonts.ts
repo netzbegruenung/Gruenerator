@@ -19,4 +19,17 @@ export const GRUENE_PPTX_FONTS: Record<string, PptxFontMapper> = {
     bold
       ? { fontFace: 'Vollkorn Black', bold: false, italic: true }
       : { fontFace: 'Vollkorn', bold: true, italic: true },
+  // GRÜNE JUGEND (SIL OFL). Familiennamen nach der Google-Fonts-Benennung
+  // statischer Schnitte, nicht aus den Dateien ausgelesen: Display ExtraBold
+  // und Unbounded Black sind je eine eigene Familie, Wix Madefor Text eine
+  // Familie mit Regular und Bold.
+  'WixMadeforDisplay-ExtraBold': pptxFamily('Wix Madefor Display ExtraBold'),
+  WixMadeforText: pptxFamily('Wix Madefor Text'),
+  'WixMadeforText-Bold': (_bold, italic) => ({
+    fontFace: 'Wix Madefor Text',
+    bold: true,
+    italic,
+  }),
+  'Unbounded-Black': pptxFamily('Unbounded Black'),
+  KaushanScript: pptxFamily('Kaushan Script'),
 };

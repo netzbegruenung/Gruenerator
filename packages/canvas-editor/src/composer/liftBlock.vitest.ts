@@ -29,6 +29,22 @@ const slideOf = (locale: 'de-DE' | 'de-AT', items: SharepicSlide['items']) =>
 const allIds = (block: ReturnType<typeof liftBlock>) => blockElementIds(block);
 
 describe('liftBlock', () => {
+  it('measures lines in boxes, so a block of only boxes has a width', () => {
+    const spec = sharepicBlockSpec('de-DE', {
+      brand: 'gruene-jugend',
+      color: 'apricot',
+      zeilenboxen: true,
+      items: [{ type: 'headline', lines: ['Bus für alle', 'auf dem Land!'] }],
+    });
+    const slide = composeSharepic(sharepicSpecSchema.parse(spec), {
+      ...options,
+      kiLabel: false,
+    }).slides[0]!;
+    const block = liftBlock(slide, [0], 'b1');
+    expect(block.pillBadgeInstances.length).toBeGreaterThan(0);
+    expect(block.bounds.width).toBeGreaterThan(200);
+  });
+
   const listSlide = slideOf('de-DE', [
     { type: 'headline', lines: ['Unsere Forderungen'] },
     { type: 'liste', stil: 'pfeile', items: ['Mehr Busse am Abend', 'Radwege ausbauen'] },

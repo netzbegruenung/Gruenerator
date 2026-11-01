@@ -6,8 +6,8 @@
  * Vorlagen saved as editor pages, for every format, are `canvas/{de,at}.json`
  * with `thumbs/canvas/<id>.webp`; the print Vorlagen `print/{de,at}.json` with
  * `thumbs/print/<id>.webp` (and `<id>-2.webp` for a card's back). The blocks
- * the editor drops onto a page are `bloecke/{de,at}.json` with
- * `thumbs/bloecke/<id>.webp`.
+ * the editor drops onto a page are `bloecke/{de,at}.json` (the Grüne Jugend's
+ * `bloecke/gj-{de,at}.json`) with `thumbs/bloecke/<id>.webp`.
  *
  * The editor offers only single Seiten: every Vorlage slide is one too
  * (`<vorlage>-s<n>`, previewed by the Vorlage's slide thumbnail), unless a
@@ -52,6 +52,11 @@ import {
   type SharepicSeiteRolle,
   type SharepicSeiteTyp,
   type SharepicSlide,
+  brandIdFor,
+  brandOfId,
+  SHAREPIC_BRAND_IDS,
+  type SharepicBrand,
+  type SharepicBrandId,
   type SharepicCreatorLocale,
   type SharepicPhotoAttribution,
   type SharepicVorlage,
@@ -65,6 +70,20 @@ import { internContentRoot } from '../skills/internalPrompts.js';
 const log = createLogger('sharepicVorlagen');
 
 const FILES: Record<SharepicCreatorLocale, string> = { 'de-DE': 'de.json', 'de-AT': 'at.json' };
+/**
+ * The sharepic Vorlagen per design. Each one carries its brand in the spec, so
+ * a GJ Vorlage opens in the GJ design wherever it is picked; Seiten, Blöcke,
+ * Folien and Print stay the party's.
+ */
+const VORLAGE_FILES: Record<SharepicBrandId, string> = {
+  'gruene-de': FILES['de-DE'],
+  'gruene-at': FILES['de-AT'],
+  'gj-de': 'gj-de.json',
+  'gj-at': 'gj-at.json',
+};
+
+/** The blocks per design, beside the Vorlagen: `bloecke/<file>`. */
+const BLOCK_FILES: Record<SharepicBrandId, string> = VORLAGE_FILES;
 
 const dir = (): string => path.join(internContentRoot(), 'sharepic-vorlagen');
 
@@ -112,11 +131,11 @@ function dirSignature(folder: string): string[] {
 function contentSignature(): string {
   return [
     dir(),
-    ...Object.values(FILES).map((name) => statKey(path.join(dir(), name))),
+    ...Object.values(VORLAGE_FILES).map((name) => statKey(path.join(dir(), name))),
     ...Object.values(FILES).map((name) => statKey(path.join(dir(), 'seiten', name))),
     ...Object.values(FILES).map((name) => statKey(path.join(dir(), 'canvas', name))),
     ...Object.values(FILES).map((name) => statKey(path.join(dir(), 'print', name))),
-    ...Object.values(FILES).map((name) => statKey(path.join(dir(), 'bloecke', name))),
+    ...Object.values(BLOCK_FILES).map((name) => statKey(path.join(dir(), 'bloecke', name))),
     ...Object.values(FILES).map((name) => statKey(path.join(dir(), 'folien', name))),
     ...dirSignature(path.join(dir(), 'thumbs')),
     ...dirSignature(path.join(dir(), 'thumbs', 'seiten')),
@@ -178,17 +197,19 @@ function readArray(file: string, what: string): unknown[] {
   return raw;
 }
 
-function loadCountry(locale: SharepicCreatorLocale): SharepicVorlage[] {
-  const file = path.join(dir(), FILES[locale]);
+function loadDesign(design: SharepicBrandId): SharepicVorlage[] {
+  const file = path.join(dir(), VORLAGE_FILES[design]);
+  const locale: SharepicCreatorLocale =
+    design === 'gruene-at' || design === 'gj-at' ? 'de-AT' : 'de-DE';
   return readArray(file, 'Vorlagen').flatMap((item, i) => {
     const parsed = sharepicVorlageFileEntrySchema.safeParse(item);
     if (!parsed.success) {
       log.error(`${file}[${i}] skipped: ${parsed.error.issues[0]?.message ?? 'invalid'}`);
       return [];
     }
-    if (parsed.data.spec.locale !== locale) {
+    if (brandIdFor(parsed.data.spec.locale, parsed.data.spec.brand) !== design) {
       log.error(
-        `${file}[${i}] skipped: spec.locale ${parsed.data.spec.locale} in the ${locale} file`
+        `${file}[${i}] skipped: spec ${brandIdFor(parsed.data.spec.locale, parsed.data.spec.brand)} in the ${design} file`
       );
       return [];
     }
@@ -290,9 +311,11 @@ function rolleOf(n: number, count: number): SharepicSeiteRolle {
   return n === count ? 'schluss' : 'inhalt';
 }
 
-/** Each slide of a Vorlage as a Seite in the Vorlage's format; `weiter` only fits a carousel. */
+/**
+ * Each slide of a Vorlage as a Seite in the Vorlage's format and design; `weiter` only fits a carousel.
+ */
 function seitenFromVorlage(vorlage: SharepicVorlage): { seite: SharepicSeite; thumb: string }[] {
-  const { slides } = vorlage.spec;
+  const { slides, brand } = vorlage.spec;
   return slides.flatMap(({ weiter: _weiter, ...slide }, i) => {
     const n = i + 1;
     const id = `${vorlage.id}-s${n}`;
@@ -301,7 +324,12 @@ function seitenFromVorlage(vorlage: SharepicVorlage): { seite: SharepicSeite; th
       return [];
     }
     const { thema } = vorlage.spec;
-    const asSpec = sharepicSpecSchema.safeParse({ locale: vorlage.locale, thema, slides: [slide] });
+    const asSpec = sharepicSpecSchema.safeParse({
+      locale: vorlage.locale,
+      brand,
+      thema,
+      slides: [slide],
+    });
     if (!asSpec.success) {
       const issue = asSpec.error.issues[0];
       log.error(
@@ -322,6 +350,7 @@ function seitenFromVorlage(vorlage: SharepicVorlage): { seite: SharepicSeite; th
           slide,
           ...(thema ? { thema } : {}),
           quelle: { vorlage: vorlage.id, seite: n },
+          ...(brand && brand !== 'gruene' ? { brand } : {}),
           locale: vorlage.locale,
           attribution: vorlage.attributions[i] ?? null,
           thumbVersion: thumbVersionOf([thumb]),
@@ -403,13 +432,16 @@ function loadPrint(locale: SharepicCreatorLocale): PrintVorlage[] {
 
 const blockThumbFile = (id: string): string => path.join(dir(), 'thumbs', 'bloecke', `${id}.webp`);
 
-function loadBloecke(locale: SharepicCreatorLocale): SharepicBlock[] {
-  const file = path.join(dir(), 'bloecke', FILES[locale]);
+function loadBloecke(design: SharepicBrandId): SharepicBlock[] {
+  const file = path.join(dir(), 'bloecke', BLOCK_FILES[design]);
+  const locale: SharepicCreatorLocale =
+    design === 'gruene-at' || design === 'gj-at' ? 'de-AT' : 'de-DE';
+  const brand = brandOfId(design);
   return readArray(file, 'Blöcke').flatMap((item, i) => {
     const parsed = sharepicBlockFileEntrySchema.safeParse(item);
-    // The items must also hold as a slide of the file's country (colours, markers, limits).
+    // The items must also hold as a slide of the file's country and design (colours, markers, limits).
     const asSpec = parsed.success
-      ? sharepicSpecSchema.safeParse(sharepicBlockSpec(locale, parsed.data))
+      ? sharepicSpecSchema.safeParse(sharepicBlockSpec(locale, { ...parsed.data, brand }))
       : null;
     const issue = !parsed.success ? parsed.error.issues[0] : asSpec?.error?.issues[0];
     if (!parsed.success || !asSpec?.success) {
@@ -420,6 +452,7 @@ function loadBloecke(locale: SharepicCreatorLocale): SharepicBlock[] {
       {
         ...parsed.data,
         locale,
+        ...(brand !== 'gruene' ? { brand } : {}),
         thumbVersion: thumbVersionOf([blockThumbFile(parsed.data.id)]),
       },
     ];
@@ -448,14 +481,14 @@ function all(): Catalog {
   if (!cache) {
     checkedAt = now;
     cacheSignature = contentSignature();
-    const vorlagen = uniqueIds([...loadCountry('de-DE'), ...loadCountry('de-AT')], 'Vorlage');
+    const vorlagen = uniqueIds(SHAREPIC_BRAND_IDS.flatMap(loadDesign), 'Vorlage');
     const curated = uniqueIds([...loadSeiten('de-DE'), ...loadSeiten('de-AT')], 'Seite');
     cache = {
       vorlagen,
       ...seitenWithVorlagen(curated, vorlagen),
       canvas: uniqueIds([...loadCanvas('de-DE'), ...loadCanvas('de-AT')], 'canvas Vorlage'),
       print: uniqueIds([...loadPrint('de-DE'), ...loadPrint('de-AT')], 'print Vorlage'),
-      bloecke: uniqueIds([...loadBloecke('de-DE'), ...loadBloecke('de-AT')], 'Block'),
+      bloecke: uniqueIds(SHAREPIC_BRAND_IDS.flatMap(loadBloecke), 'Block'),
       folien: uniqueIds([...loadFolien('de-DE'), ...loadFolien('de-AT')], 'Folien-Vorlage'),
     };
     log.info(
@@ -465,10 +498,19 @@ function all(): Catalog {
   return cache;
 }
 
-/** The country's Vorlagen, or both countries' when `locale` is null. */
-export function listSharepicVorlagen(locale: SharepicCreatorLocale | null): SharepicVorlage[] {
+/**
+ * The country's Vorlagen, or both countries' when `locale` is null; in one
+ * design when `brand` is given, else in every design.
+ */
+export function listSharepicVorlagen(
+  locale: SharepicCreatorLocale | null,
+  brand: SharepicBrand | null = null
+): SharepicVorlage[] {
   const { vorlagen } = all();
-  return locale ? vorlagen.filter((v) => v.locale === locale) : vorlagen;
+  if (!locale && !brand) return vorlagen;
+  return vorlagen.filter(
+    (v) => (!locale || v.locale === locale) && (!brand || (v.spec.brand ?? 'gruene') === brand)
+  );
 }
 
 export function getSharepicVorlage(id: string): SharepicVorlage | null {
@@ -485,10 +527,18 @@ export function defaultDeckStil(locale: SharepicCreatorLocale): FolienVorlage['s
   return listFolienVorlagen(locale).find((f) => f.standard)?.stil ?? 'cd';
 }
 
-/** The country's Seiten, or both countries' when `locale` is null. */
-export function listSharepicSeiten(locale: SharepicCreatorLocale | null): SharepicSeite[] {
+/**
+ * The country's Seiten, or both countries' when `locale` is null; in one
+ * design when `brand` is given, else in every design.
+ */
+export function listSharepicSeiten(
+  locale: SharepicCreatorLocale | null,
+  brand: SharepicBrand | null = null
+): SharepicSeite[] {
   const { seiten } = all();
-  return locale ? seiten.filter((s) => s.locale === locale) : seiten;
+  return seiten.filter(
+    (s) => (!locale || s.locale === locale) && (!brand || (s.brand ?? 'gruene') === brand)
+  );
 }
 
 export function getSharepicSeite(id: string): SharepicSeite | null {
@@ -555,10 +605,18 @@ export function printVorlageThumbFile(id: string, seite = 1): string | null {
   return printThumbFile(id, seite);
 }
 
-/** The country's blocks, or both countries' when `locale` is null. */
-export function listSharepicBloecke(locale: SharepicCreatorLocale | null): SharepicBlock[] {
+/**
+ * The country's blocks, or both countries' when `locale` is null; in one
+ * design when `brand` is given, else in every design.
+ */
+export function listSharepicBloecke(
+  locale: SharepicCreatorLocale | null,
+  brand: SharepicBrand | null = null
+): SharepicBlock[] {
   const { bloecke } = all();
-  return locale ? bloecke.filter((b) => b.locale === locale) : bloecke;
+  return bloecke.filter(
+    (b) => (!locale || b.locale === locale) && (!brand || (b.brand ?? 'gruene') === brand)
+  );
 }
 
 export function getSharepicBlock(id: string): SharepicBlock | null {

@@ -17,8 +17,10 @@ import {
   isSharepicSceneRef,
   isSharepicUploadId,
   isSharepicVorlageRef,
-  SHAREPIC_LOCALE_COLORS,
+  brandIdFor,
+  SHAREPIC_BRAND_COLORS,
   slidePhotoFilename,
+  type SharepicBrand,
   type SharepicCreatorLocale,
   type SharepicDraftFocus,
   type SharepicDraftResponse,
@@ -45,6 +47,7 @@ import {
   NEEDS_SCHEMA,
   SPEC_SCHEMA,
   SPEC_SCHEMA_DE,
+  specSchemaGjDe,
 } from './draftSchemas.js';
 import { fromZod, validateDraft } from './draftValidation.js';
 import { alsoCarousel, FORM_RECIPES, formCatalog, formMismatch } from './forms.js';
@@ -131,9 +134,15 @@ export async function draftSharepic(
   /** The planner's brief, when it spells out a change `order` only confirms ("ja, mach das"). */
   brief: string | null = null,
   /** The request asks for a single image: a first draft gets exactly one slide. */
-  oneSlide = false
+  oneSlide = false,
+  /**
+   * Whose design a first draft wears (the chat's „GJ-Design“, a GJ Vorlage);
+   * null: the party's. A revision keeps the draft's own.
+   */
+  brand: SharepicBrand | null = null
 ): Promise<SharepicDraftResponse> {
   const fixed = current?.locale ?? null;
+  const design = current ? (current.brand ?? null) : brand;
   const single = oneSlide && !current;
   const countryHint = fixed
     ? `Land: ${fixed} (steht fest).`
@@ -149,7 +158,7 @@ export async function draftSharepic(
   const needs = await aiObject<Needs>({
     lane: 'sharepic_creator',
     pinned: PINNED,
-    system: systemPrompt(fixed ?? defaultLocale),
+    system: systemPrompt(fixed ?? defaultLocale, design),
     prompt: `${task}${ownPhotos.length ? `\n\n${ownPhotosText(ownPhotos)}` : ''}\n\n${countryHint}\n\n## Formen\n${formCatalog()}\n\n${named ? `Die Form steht fest: \`${named}\`. Nenne als alternativen zwei andere, die auch passen würden.` : `Wähle die Form, die den Inhalt am besten trägt, und zwei andere als alternativen.${single ? ' Der Auftrag will ein einzelnes Bild: wähle eine Form mit genau einer Slide, kein Karussell und kein Interview.' : ''}`}\n\nBevor du baust: Welche Form, für welches Land, welche Beispiele und Kapitel brauchst du, und wonach soll gesucht werden?`,
     toolName: 'bedarf_melden',
     toolDescription:
@@ -179,10 +188,14 @@ export async function draftSharepic(
   const photos = await findStockPhotos(needs.data.fotos_suchen);
 
   const context = [
-    basicsText(locale),
+    basicsText(locale, design),
     ownPhotos.length ? ownPhotosText(ownPhotos) : '',
     ...chapters.map(chapterText),
-    examplesText(locale, [...new Set([...(recipe?.anlass ?? []), ...wanted.anlass])].slice(0, 3)),
+    examplesText(
+      locale,
+      [...new Set([...(recipe?.anlass ?? []), ...wanted.anlass])].slice(0, 3),
+      design
+    ),
     needs.data.fotos_suchen.length
       ? photos.length
         ? `## Gefundene Fotos (filename: Motiv)\n${describePhotos(photos)}`
@@ -223,7 +236,7 @@ export async function draftSharepic(
   const checkForm = form === 'faktenbild' && !painters.scene ? null : form;
   // "Karussell mit Bingo": both hold — three slides and the bingo.
   const carouselToo = !current && alsoCarousel(order, form);
-  const palette = paletteSubstitutions(order, locale);
+  const palette = paletteSubstitutions(order, locale, design);
   const colourHint = palette.length ? `\n\n${paletteHint(palette)}` : '';
   // What the guard lets change: the request and its brief, never the conversation material.
   const asked = brief ? `${order}\n${brief}` : order;
@@ -245,14 +258,19 @@ export async function draftSharepic(
   }> = {
     lane: 'sharepic_creator',
     pinned: PINNED,
-    system: `${systemPrompt(locale)}\n\n${context.join('\n\n')}`,
+    system: `${systemPrompt(locale, design)}\n\n${context.join('\n\n')}`,
     prompt: `${task}${colourHint}\n\n${form ? `Form: ${sharepicFormLabel(form)}${carouselToo ? ' im Karussell (2–8 Slides)' : ''} – ${FORM_RECIPES[form].wann}.\n\n` : ''}${build}`,
     toolName: 'entwurf_abgeben',
     toolDescription: 'Gib den fertigen Sharepic-Entwurf ab.',
-    schema: locale === 'de-DE' ? SPEC_SCHEMA_DE : SPEC_SCHEMA,
+    schema:
+      locale !== 'de-DE'
+        ? SPEC_SCHEMA
+        : design === 'gruene-jugend'
+          ? specSchemaGjDe()
+          : SPEC_SCHEMA_DE,
     validate: (input, attempt, attempts) => {
       if (!lacksStructure(input)) failure = { kind: 'content' };
-      const taken = takeScene(withPaletteColors(input, locale));
+      const taken = takeScene(withPaletteColors(input, locale, design));
       if (!taken.ok) return taken;
       // Contact data already on the draft counts as given.
       const checked = validateDraft(
@@ -262,7 +280,8 @@ export async function draftSharepic(
         [...ownPhotos.map((p) => p.id), ...keptUploads],
         taken.scene ? [SCENE_PENDING, ...keptScenes] : keptScenes,
         order,
-        livePhotos
+        livePhotos,
+        design
       );
       if (!checked.ok) return checked;
       const notSingle =
@@ -344,7 +363,10 @@ export async function draftSharepic(
                 ...slide,
                 // The block sat beside the scene; on a plain colour it belongs in the middle.
                 position: 'mitte',
-                background: { kind: 'farbe', color: SHAREPIC_LOCALE_COLORS[spec.locale][0]! },
+                background: {
+                  kind: 'farbe',
+                  color: SHAREPIC_BRAND_COLORS[brandIdFor(spec.locale, spec.brand)][0]!,
+                },
               }
       ),
     };

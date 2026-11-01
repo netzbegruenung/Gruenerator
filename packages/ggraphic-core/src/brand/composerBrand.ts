@@ -101,9 +101,78 @@ export interface ComposerBrand {
    * photo its text stands at the bottom, and a long quote stays the hero.
    * `'card'`: the quote-mark asset over the quote in the body face, name and
    * role below; alignment and photo side follow the spec, and a long quote
-   * alone becomes a text page at body size.
+   * alone becomes a text page at body size. `'blase'`: the quote in capitals
+   * in a speech bubble in the brand's second colour, the name under it; the
+   * bubble leaves the right side to a cut-out person.
    */
-  quoteStyle: 'poster' | 'card';
+  quoteStyle: 'poster' | 'card' | 'blase';
+  /** How headlines and the line above them are cased. `'versal'` sets them in capitals. */
+  headlineCase: 'satz' | 'versal';
+  /** The outline of the Störer: a circle, a jagged burst, or a wide ellipse. */
+  stoererShape: 'circle' | 'burst' | 'ellipse';
+  /** White cards plain, or `'brutal'`: a black edge and a hard offset shadow. */
+  cardStyle: 'plain' | 'brutal';
+  /**
+   * The line boxes of a `zeilenboxen` slide: the first line's box and every
+   * later one's, with their ink. Absent: the marker swatches as before.
+   */
+  lineBoxes?: {
+    first: { fill: string; ink: string };
+    rest: { fill: string; ink: string };
+    /** Every line's box on a plain colour ground, when it differs from a photo's. */
+    onColour?: { fill: string; ink: string };
+  };
+  /**
+   * The line above a headline in a brush face on a tilted tape label (GJ DE,
+   * DZ0Ou7KjLyZ/02): its family, its turn in degrees, the tape per ground.
+   * Only on a light plain colour; a photo and a dark ground keep the plain line.
+   */
+  dachzeileHand?: {
+    family: string;
+    rotation: number;
+    tape: ByGround<{ fill: string; ink: string }>;
+  };
+  /** A quote's ink on a full photo when it is not white (GJ DE: light green, bold). */
+  quoteOnPhoto?: string;
+  /** A paragraph's ink on a dark ground when it is not the ground's ink (GJ AT: light green). */
+  absatzOnDark?: string;
+  /** Where layouts differ between brands beyond colour and type. */
+  layout: {
+    /** Centred paragraphs on a colour keep this side margin in px; null keeps the column. */
+    centredMargin: number | null;
+    /** A text block shorter than half its area still centres vertically. */
+    centreShortBlocks: boolean;
+    /** A list stands on a white card on every ground, or only on light ground. */
+    listCard: 'always' | 'light';
+    /** A photo strip beside a colour panel is tinted in the brand's primary. */
+    tintPhotoStrip: boolean;
+    /**
+     * The footer logo: bottom-left (never on a full-bleed photo), only on the
+     * closing slide's plain colour, or not at all.
+     */
+    logoPlacement: 'left' | 'closing' | 'none';
+    /** The "swipe on" arrow: the brand's brush-stroke asset, or the drawn arrow. */
+    swipeArrow: 'brush' | 'drawn';
+    /**
+     * The date circle: the brand's attention colour, chosen by the ground's ink,
+     * or in the Störer's colours on that ground; `'etikett'` sets the date as a
+     * label with a black edge and hard shadow in the top corner instead.
+     */
+    datumCircle: 'attention' | 'ink' | 'stoerer' | 'etikett';
+    /**
+     * How `termine` set a date: a column in the accent, a label with a black
+     * edge (rows on a dark ground stand on cards), or a wall-calendar tile.
+     */
+    termine: 'spalte' | 'etikett' | 'kachel';
+    /** Hairlines frame a plain dark slide: one down the left, one above and one under the headline. */
+    raster: boolean;
+    /** A comparison's other side: a solid pale panel, or a veil over the ground. */
+    contrastPanel: 'solid' | 'veil';
+    /** The brand may set its sunflower. */
+    sunflower: boolean;
+    /** A question's speaker prefix in the brand accent, or in the brand's own green. */
+    frageAccent: 'accent' | 'green';
+  };
 }
 
 /**

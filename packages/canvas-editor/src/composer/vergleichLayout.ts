@@ -27,7 +27,7 @@ function vergleichSpalten(ctx: SlideCtx, id: string, item: VergleichItem): void 
   const {
     measure,
     theme,
-    locale,
+    brandId,
     canvas,
     headFamily,
     logoAt,
@@ -42,7 +42,7 @@ function vergleichSpalten(ctx: SlideCtx, id: string, item: VergleichItem): void 
   const inner = half - 2 * pad;
   // The titles keep clear of the VS on the seam.
   const titleInner = inner - VERGLEICH_SPALTEN.vs * 0.3;
-  const top = TOP_PAD[locale] - 50;
+  const top = TOP_PAD[brandId] - 50;
   const cols = [
     { key: 'links' as const, side: item.links, x: 0, fill: SHAREPIC_COLOR_HEX.mint },
     { key: 'rechts' as const, side: item.rechts, x: half, fill: SHAREPIC_COLOR_HEX.grasgruen },

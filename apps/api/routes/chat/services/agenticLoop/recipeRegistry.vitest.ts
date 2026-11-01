@@ -7,6 +7,7 @@ import {
   MAX_RECIPES_PER_TURN,
   METHOD_ONLY_PRECEDENCE_NOTE,
   METHOD_PRECEDENCE_NOTE,
+  TEXT_FORM_REPLACES_FORMAT_RULE,
 } from './recipeRegistry.js';
 
 const recipe = (mention: string, body = 'Schreibe kurz.') => ({
@@ -90,6 +91,18 @@ describe('createRecipeRegistry', () => {
     expect(out).toContain('## AKTIVE PLATTFORM: Titel buerger-berlin');
     expect(out.indexOf('RECHERCHE-METHODE')).toBeLessThan(out.indexOf('AKTIVE PLATTFORM'));
     expect(out).toContain(METHOD_PRECEDENCE_NOTE);
+  });
+
+  // Im Loop steht Regel 2 schon im Systemprompt, bevor ein Rezept geladen ist —
+  // mit „**Fettung**". Eine geladene Textsorte muss sie ausdrücklich ablösen.
+  it('replaces the generic format rule once a text form is loaded, not for a method alone', () => {
+    const form = createRecipeRegistry();
+    form.register(recipe('instagram'));
+    expect(form.render()).toContain(TEXT_FORM_REPLACES_FORMAT_RULE);
+
+    const method = createRecipeRegistry();
+    method.register({ ...recipe('bundestagsrecherche'), rolle: 'methode' });
+    expect(method.render()).not.toContain(TEXT_FORM_REPLACES_FORMAT_RULE);
   });
 
   it('lets the method own the form when no text form is loaded anywhere', () => {

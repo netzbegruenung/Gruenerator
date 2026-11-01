@@ -1,23 +1,24 @@
+import { stripMarks } from '@ggraphic/editor/composer/marks';
+import { largestSizeWordsFit } from '@ggraphic/editor/composer/textFit';
 import { accentLines, type SharepicItem } from '@gruenerator/contracts';
 
 import { type BrandTheme } from '../brand/theme';
 
 import { AT_EMPHASIS_STYLE, type MeasureText } from './chromeParts';
 import { type HeadlineItem } from './composeTypes';
-import { stripMarks } from '@ggraphic/editor/composer/marks';
 import { COVER_SHARE, HEADLINE_FILL } from './sharepicLayoutConstants';
-import { largestSizeWordsFit } from '@ggraphic/editor/composer/textFit';
 
 /** Headline size: fills its column, shrinks only when the block would not fit. */
 export function headlineFit({
   measure,
-  isAt,
+  emphasis,
   theme,
   columnWidth,
   canvasHeight,
 }: {
   measure: MeasureText;
-  isAt: boolean;
+  /** Accent runs set in the quote-emphasis face (`ComposerBrand.accent.emphasis`). */
+  emphasis: boolean;
   theme: BrandTheme;
   /** The headline's column width, frozen before the body column narrows. */
   columnWidth: number;
@@ -26,7 +27,7 @@ export function headlineFit({
   const headFamily = theme.fonts.headline;
   /** Width of a headline line at 100 px; AT accent lines in Vollkorn Black Italic at 0.95. */
   const lineWidth100 = (line: string, accented: boolean) =>
-    isAt && accented
+    emphasis && accented
       ? measure(stripMarks(line), 95, theme.fonts.quoteEmphasis, AT_EMPHASIS_STYLE)
       : measure(stripMarks(line), 100, headFamily, 'normal');
   const coverSize = (h: HeadlineItem, cap: number) => {
@@ -93,7 +94,7 @@ export function headlineFit({
       .reduce(
         (w, part) =>
           w +
-          (isAt && part.startsWith('==')
+          (emphasis && part.startsWith('==')
             ? measure(stripMarks(part), size, theme.fonts.quoteEmphasis, AT_EMPHASIS_STYLE)
             : measure(stripMarks(part), size, headFamily, weight)),
         0
@@ -111,7 +112,7 @@ export function headlineFit({
     boxed: boolean;
   }) => {
     const headLineWidth = (line: string, i: number, size: number) =>
-      isAt && headAccented.includes(i)
+      emphasis && headAccented.includes(i)
         ? measure(stripMarks(line), size * 0.95, theme.fonts.quoteEmphasis, AT_EMPHASIS_STYLE)
         : headRunWidth(line, size, 'normal');
     return (headScale: number): number | null => {
@@ -125,7 +126,7 @@ export function headlineFit({
         0,
         // A word of a multi-word accent carries only half the marks.
         (w, size) =>
-          isAt && w.includes('==')
+          emphasis && w.includes('==')
             ? measure(
                 stripMarks(w.replace(/==/g, '')),
                 size,

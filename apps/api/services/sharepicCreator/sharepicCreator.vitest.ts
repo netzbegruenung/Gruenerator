@@ -86,7 +86,13 @@ describe('styleguide', () => {
       expect(files).toContain(chapter);
       expect(chapterText(chapter as keyof typeof STYLEGUIDE_CHAPTERS).length).toBeGreaterThan(50);
     }
-    const known = [...Object.keys(STYLEGUIDE_CHAPTERS), 'grundlagen-de', 'grundlagen-at'];
+    const known = [
+      ...Object.keys(STYLEGUIDE_CHAPTERS),
+      'grundlagen-de',
+      'grundlagen-at',
+      'grundlagen-gj-de',
+      'grundlagen-gj-at',
+    ];
     expect(files.filter((f) => !known.includes(f))).toEqual([]);
   });
 
@@ -116,7 +122,11 @@ describe('styleguide', () => {
     const photo = searchStockPhotos('nature')[0].filename;
     for (const example of loadExamples()) {
       const spec = JSON.parse(JSON.stringify(example.spec).replaceAll('<foto>', photo)) as object;
-      const parsed = sharepicSpecSchema.safeParse({ ...spec, locale: example.land });
+      const parsed = sharepicSpecSchema.safeParse({
+        ...spec,
+        locale: example.land,
+        ...(example.brand && { brand: example.brand }),
+      });
       expect(parsed.success, `${example.id}: ${parsed.success ? '' : parsed.error.message}`).toBe(
         true
       );

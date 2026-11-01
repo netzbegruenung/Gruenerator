@@ -176,7 +176,11 @@ export const canvasContractRouter = s.router(canvasContract, {
       // only the editable templates have a descriptor to seed template defaults
       // from; freeform pages arrive composed. Reject the rest here rather than
       // minting a defaults-less canvas.
-      const freeform = canvasType === 'freeform' || canvasType === 'freeform-at';
+      const freeform =
+        canvasType === 'freeform' ||
+        canvasType === 'freeform-at' ||
+        canvasType === 'freeform-gj' ||
+        canvasType === 'freeform-gj-at';
       const composedPages = Array.isArray(initialProps.pages) && initialProps.pages.length > 0;
       if (freeform ? !composedPages : !getSharepicTemplateDescriptor(canvasType)) {
         return {

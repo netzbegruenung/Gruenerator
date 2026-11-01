@@ -22,6 +22,7 @@ export const DE_EBENEN: EbeneConfig[] = [
   { id: 'land', label: 'Land', icon: '🏠' },
   { id: 'kreisverband', label: 'Kreisverband', icon: '📍' },
   { id: 'ortsverband', label: 'Ortsverband', icon: '🏘️' },
+  { id: 'gruene-jugend', label: 'GRÜNE JUGEND', icon: '🌻' },
 ];
 
 export const AT_EBENEN: EbeneConfig[] = [
@@ -30,6 +31,7 @@ export const AT_EBENEN: EbeneConfig[] = [
   { id: 'land', label: 'Land', icon: '🏠' },
   { id: 'bezirk', label: 'Bezirk', icon: '📍' },
   { id: 'gemeinde', label: 'Gemeinde', icon: '🏘️' },
+  { id: 'gruene-jugend', label: 'Grüne Jugend', icon: '🌻' },
 ];
 
 export const DE_ROLLEN: Record<string, string[]> = {
@@ -56,6 +58,11 @@ export const DE_ROLLEN: Record<string, string[]> = {
     'Ratsmitglied',
     'Presse & Social-Media',
   ],
+  'gruene-jugend': [
+    'Bundesverband GRÜNE JUGEND',
+    'Landesverband GRÜNE JUGEND',
+    'GRÜNE JUGEND vor Ort',
+  ],
 };
 
 export const AT_ROLLEN: Record<string, string[]> = {
@@ -72,6 +79,11 @@ export const AT_ROLLEN: Record<string, string[]> = {
   ],
   bezirk: ['Mitarbeiter*in Bezirksorganisation', 'Bezirksrät*in', 'Presse & Social-Media'],
   gemeinde: ['Mitarbeiter*in Gemeindegruppe', 'Gemeinderät*in', 'Presse & Social-Media'],
+  'gruene-jugend': [
+    'Bundesorganisation Grüne Jugend',
+    'Landesorganisation Grüne Jugend',
+    'Grüne Jugend vor Ort',
+  ],
 };
 
 /** Alle sechzehn, in der Reihenfolge, in der der Assistent sie anbietet. */
@@ -134,11 +146,40 @@ export const NEEDS_BUNDESLAND = new Set([
 ]);
 export const NEEDS_LOCAL_NAME = new Set(['kreisverband', 'ortsverband', 'bezirk', 'gemeinde']);
 
+/**
+ * Ebenen, auf denen erst die Rolle feststeht und danach der Ort: in der Grünen
+ * Jugend entscheidet die Rolle, ob es ein Bundesland (Landesverband) oder dazu
+ * noch eine Ortsgruppe (vor Ort) braucht — der Bundesverband braucht keins.
+ */
+export const ROLLE_FIRST_EBENEN = new Set(['gruene-jugend']);
+
+const ROLLE_NEEDS: Record<string, { bundesland: boolean; localName: boolean }> = {
+  'Landesverband GRÜNE JUGEND': { bundesland: true, localName: false },
+  'GRÜNE JUGEND vor Ort': { bundesland: true, localName: true },
+  'Landesorganisation Grüne Jugend': { bundesland: true, localName: false },
+  'Grüne Jugend vor Ort': { bundesland: true, localName: true },
+};
+
+/** Ob eine Rolle ein Bundesland braucht — auf ihrer Ebene oder, wo die Rolle zuerst kommt, durch sie. */
+export function needsBundesland(ebene: string, rolle: string | null): boolean {
+  if (ROLLE_FIRST_EBENEN.has(ebene))
+    return rolle !== null && ROLLE_NEEDS[rolle]?.bundesland === true;
+  return NEEDS_BUNDESLAND.has(ebene);
+}
+
+/** Ob eine Rolle den Namen ihrer Gliederung braucht. */
+export function needsLocalName(ebene: string, rolle: string | null): boolean {
+  if (ROLLE_FIRST_EBENEN.has(ebene))
+    return rolle !== null && ROLLE_NEEDS[rolle]?.localName === true;
+  return NEEDS_LOCAL_NAME.has(ebene);
+}
+
 export const LOCAL_NAME_LABELS: Record<string, string> = {
   kreisverband: 'Name des Kreisverbands',
   ortsverband: 'Name des Ortsverbands',
   bezirk: 'Name des Bezirks',
   gemeinde: 'Name der Gemeinde',
+  'gruene-jugend': 'Name der Ortsgruppe',
 };
 
 export const LOCAL_NAME_PLACEHOLDERS: Record<string, string> = {
@@ -146,6 +187,7 @@ export const LOCAL_NAME_PLACEHOLDERS: Record<string, string> = {
   ortsverband: 'z.B. OV Ehrenfeld',
   bezirk: 'z.B. Innsbruck-Land',
   gemeinde: 'z.B. Innsbruck',
+  'gruene-jugend': 'z.B. Ortsgruppe Nord',
 };
 
 /**
@@ -187,6 +229,12 @@ export const ROLE_BAUSTEIN_KEYS = [
   'at-bezirksraetin',
   'at-gemeindegruppe',
   'at-gemeinderaetin',
+  'gj-bundesverband',
+  'gj-landesverband',
+  'gj-vor-ort',
+  'at-gj-bundesorganisation',
+  'at-gj-landesorganisation',
+  'at-gj-vor-ort',
 ] as const;
 
 export type RoleBausteinKey = (typeof ROLE_BAUSTEIN_KEYS)[number];
@@ -221,6 +269,12 @@ const BAUSTEIN_BY_ROLLE: Record<string, RoleBausteinKey> = {
   'Bezirksrät*in': 'at-bezirksraetin',
   'Mitarbeiter*in Gemeindegruppe': 'at-gemeindegruppe',
   'Gemeinderät*in': 'at-gemeinderaetin',
+  'Bundesverband GRÜNE JUGEND': 'gj-bundesverband',
+  'Landesverband GRÜNE JUGEND': 'gj-landesverband',
+  'GRÜNE JUGEND vor Ort': 'gj-vor-ort',
+  'Bundesorganisation Grüne Jugend': 'at-gj-bundesorganisation',
+  'Landesorganisation Grüne Jugend': 'at-gj-landesorganisation',
+  'Grüne Jugend vor Ort': 'at-gj-vor-ort',
 };
 
 /**
@@ -239,6 +293,19 @@ const BAUSTEIN_BY_EBENE_ROLLE: Record<string, RoleBausteinKey> = {
  */
 export function roleBausteinKey(ebene: string, rolle: string): RoleBausteinKey | null {
   return BAUSTEIN_BY_EBENE_ROLLE[`${ebene}:${rolle}`] ?? BAUSTEIN_BY_ROLLE[rolle] ?? null;
+}
+
+/**
+ * Das Land einer Rolle in der Grünen Jugend, oder `null` für jede andere Rolle.
+ * Eine aktive GJ-Rolle schreibt Instagram im GJ-Stil und entwirft Sharepics im
+ * GJ-Design.
+ */
+export function grueneJugendRoleLocale(
+  role: { ebene?: string | undefined; rolle?: string | undefined } | null | undefined
+): 'de-DE' | 'de-AT' | null {
+  const key = role?.rolle ? roleBausteinKey(role.ebene ?? '', role.rolle) : null;
+  if (key?.startsWith('at-gj-')) return 'de-AT';
+  return key?.startsWith('gj-') ? 'de-DE' : null;
 }
 
 export function needsAbgeordneteName(rolle: string): boolean {
@@ -291,6 +358,12 @@ export const ROLE_SHORT_LABELS: Record<RoleBausteinKey, string> = {
   'at-bezirksraetin': 'BR',
   'at-gemeindegruppe': 'GG',
   'at-gemeinderaetin': 'GR',
+  'gj-bundesverband': 'GJ Bund',
+  'gj-landesverband': 'GJ Land',
+  'gj-vor-ort': 'GJ vor Ort',
+  'at-gj-bundesorganisation': 'GJÖ Bund',
+  'at-gj-landesorganisation': 'GJÖ Land',
+  'at-gj-vor-ort': 'GJÖ vor Ort',
 };
 
 /**

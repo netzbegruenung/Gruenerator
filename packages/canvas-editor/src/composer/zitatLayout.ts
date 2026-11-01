@@ -82,6 +82,7 @@ function zitatCard(ctx: SlideCtx, item: ZitatItem, id: string, pass: BuildPass):
   } = ctx;
   const { scale } = pass;
   const placed: Placed[] = [];
+  if (brand.quoteStyle === 'blase') return zitatBlase(ctx, item, id, pass);
   if (brand.quoteStyle === 'poster') {
     // Poster quote (AT, Gewessler posts): white poster sans, centred, a thin
     // outlined quote mark above, the name alone below — small, plain white.
@@ -128,9 +129,13 @@ function zitatCard(ctx: SlideCtx, item: ZitatItem, id: string, pass: BuildPass):
     (w, s) => measure(w, s, theme.fonts.body, 'bold')
   );
   const mark = quoteAlone ? 140 : 90;
+  // GJ DE sets a quote on a full photo in light green and bold (Dem9hTrxHEG/01).
+  const onPhoto = ctx.out.backgroundMode === 'image' ? (ctx.brand.quoteOnPhoto ?? null) : null;
   // Counted as the renderer sets it: `**bold**` runs are wider than plain text.
   const quoteHeight =
-    lineCount(item.text, column.width, size, theme.fonts.body, 'normal') * size * QUOTE_LINE_HEIGHT;
+    lineCount(item.text, column.width, size, theme.fonts.body, onPhoto ? 'bold' : 'normal') *
+    size *
+    QUOTE_LINE_HEIGHT;
   // The posts leave about three quarters of a line before the name.
   const signatureGap = Math.round(size * 0.75);
   const nameSize = 38;
@@ -156,6 +161,7 @@ function zitatCard(ctx: SlideCtx, item: ZitatItem, id: string, pass: BuildPass):
       out.layerOrder.push(markId);
       text(id, item.text, y + mark + 10, size, 'body', {
         lineHeight: QUOTE_LINE_HEIGHT,
+        ...(onPhoto && { fill: onPhoto, fontStyle: 'bold' as const }),
       });
       text(
         `${id}-name`,
@@ -172,17 +178,97 @@ function zitatCard(ctx: SlideCtx, item: ZitatItem, id: string, pass: BuildPass):
   return placed;
 }
 
+/** Speech bubble: share of the column, padding, corner, tail size (GJ AT, DXthhyhjE5p/01). */
+const BLASE = { width: 0.9, pad: 34, corner: 30, tail: 70 } as const;
+
+/**
+ * GJ AT: the quote in capitals in a light-green speech bubble, its tail
+ * pointing down right to where a cut-out person stands; the name under it.
+ */
+function zitatBlase(ctx: SlideCtx, item: ZitatItem, id: string, pass: BuildPass): Placed[] {
+  const { measure, theme, headFamily, brand, column, quoteSize, text, lineCount, addShape } = ctx;
+  const value = item.text.toLocaleUpperCase('de-DE');
+  const width = Math.round(column.width * BLASE.width);
+  const inner = width - 2 * BLASE.pad;
+  const size = largestSizeWordsFit(
+    [stripMarks(value)],
+    quoteSize(52, pass.scale, 72),
+    inner,
+    0,
+    (w, s) => measure(w, s, headFamily, 'normal')
+  );
+  const lineHeight = 1.12;
+  const quoteHeight = lineCount(value, inner, size, headFamily, 'normal') * size * lineHeight;
+  const height = quoteHeight + 2 * BLASE.pad;
+  const nameSize = 30;
+  const credit = item.funktion ? `**${item.name}**\n${item.funktion}` : `**${item.name}**`;
+  const creditHeight =
+    lineCount(credit, width, nameSize, theme.fonts.body, 'normal') * nameSize * 1.25;
+  const fill = brand.absatzOnDark ?? theme.colors.secondary;
+  return [
+    {
+      height: height + BLASE.tail + creditHeight,
+      after: GAP,
+      place: (y) => {
+        const bubble = createShape(
+          'rounded-rect',
+          column.x + width / 2,
+          y + height / 2,
+          fill,
+          fill
+        );
+        Object.assign(bubble, {
+          id: `${id}-blase`,
+          width,
+          height,
+          cornerRadius: BLASE.corner,
+        });
+        addShape(bubble);
+        const tail = createShape(
+          'triangle',
+          column.x + width - BLASE.tail * 1.4,
+          y + height + BLASE.tail * 0.3,
+          fill,
+          fill
+        );
+        Object.assign(tail, {
+          id: `${id}-blase-spitze`,
+          width: BLASE.tail,
+          height: BLASE.tail,
+          rotation: 160,
+        });
+        addShape(tail);
+        text(id, value, y + BLASE.pad, size, 'headline', {
+          x: column.x + BLASE.pad,
+          width: inner,
+          align: 'left',
+          lineHeight,
+          fill: brand.darkText,
+          shadowOpacity: 0,
+        });
+        text(`${id}-name`, credit, y + height + BLASE.tail, nameSize, 'body', {
+          x: column.x,
+          width,
+          align: 'left',
+          lineHeight: 1.25,
+        });
+      },
+    },
+  ];
+}
+
 export function layoutFrage(ctx: SlideCtx, item: FrageItem, id: string, pass: BuildPass): Placed[] {
-  const { measure, theme, isAt, column, darkInk, accent, paraBase, text, lineCount } = ctx;
+  const { measure, theme, brand, column, darkInk, accent, paraBase, text, lineCount } = ctx;
   const { scale, paraCap } = pass;
   const placed: Placed[] = [];
   // The interview question: bold, clearly smaller than the answer
   // paragraph under it; the medium's prefix in its own colour (DE Klee
   // on light ground, grass green on dark; AT the yellow accent).
   const value = item.von ? `==${item.von}:== ${item.text}` : item.text;
-  const prefixAccent: TextAccent = isAt
-    ? accent
-    : { fill: darkInk ? KLEE : SHAREPIC_COLOR_HEX.grasgruen };
+  const prefixAccent: TextAccent =
+    brand.layout.frageAccent === 'accent'
+      ? accent
+      : { fill: darkInk ? KLEE : SHAREPIC_COLOR_HEX.grasgruen };
   const size = largestSizeWordsFit(
     [value],
     Math.min(Math.round(paraBase * 0.75 * Math.min(scale, 1.4)), paraCap),

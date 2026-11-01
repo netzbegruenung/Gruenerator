@@ -1,7 +1,7 @@
 import { loadCanvasConfig } from '@ggraphic/editor/configs/configLoader';
 import { beforeAll, describe, expect, it } from 'vitest';
 
-import { GRUENE_AT, GRUENE_DE } from '../../brand/theme';
+import { getBrandPack, GRUENE_AT, GRUENE_DE } from '../../brand/theme';
 import { getAllTemplates } from '../../utils/templateRegistry';
 
 import type { AnyCanvasConfig } from '@ggraphic/editor/configs/types';
@@ -53,7 +53,7 @@ function drive(config: AnyCanvasConfig) {
 
 /** Every Austrian template: a new `*-at` sujet is covered the moment it is registered. */
 const AT_IDS = getAllTemplates()
-  .filter((template) => template.audience === 'de-AT')
+  .filter((template) => template.audience === 'de-AT' && template.id !== 'freeform-gj-at')
   .map((template) => template.id);
 
 describe.each([
@@ -141,6 +141,16 @@ describe.each(AT_IDS)('%s', (id) => {
     const [header, body] = state().additionalTexts.slice(-2);
     expect(header.fontFamily).toBe('GothamNarrow-Ultra, Arial, sans-serif');
     expect(body.fontFamily).toBe('GothamNarrow-Book, Arial, sans-serif');
+  });
+});
+
+describe('the Grüne Jugend templates', () => {
+  it.each([
+    ['freeform-gj', 'de-DE'],
+    ['freeform-gj-at', 'de-AT'],
+  ] as const)('%s carries the GJ pack of its country', async (id, locale) => {
+    const config = await loadCanvasConfig(id);
+    expect(config.brand).toBe(getBrandPack(locale, 'gruene-jugend'));
   });
 });
 

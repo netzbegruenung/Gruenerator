@@ -6,6 +6,7 @@
 import { sharepicCreatorContract, type UserProfile } from '@gruenerator/contracts';
 import { createExpressEndpoints, initServer } from '@ts-rest/express';
 
+import { requestedBrand } from '../../services/sharepicCreator/brandWords.js';
 import { createCutOutPainter } from '../../services/sharepicCreator/cutOut.js';
 import { DraftFailedError, draftSharepic } from '../../services/sharepicCreator/draftAgent.js';
 import { draftFailedBody } from '../../services/sharepicCreator/draftFailure.js';
@@ -28,6 +29,8 @@ export const sharepicCreatorContractRouter = s.router(sharepicCreatorContract, {
   draft: async ({ req, body }) => {
     const user: UserProfile = getAuthedUser(req);
     const locale = body.locale ?? (user.locale === 'de-AT' ? 'de-AT' : 'de-DE');
+    // A revision keeps its draft's design; a first draft takes the picked or named one.
+    const brand = body.current ? null : (body.brand ?? requestedBrand(body.prompt));
     try {
       return {
         status: 200 as const,
@@ -44,7 +47,10 @@ export const sharepicCreatorContractRouter = s.router(sharepicCreatorContract, {
           // A change request may mention a form without asking for it ("das Zitat kürzer").
           body.form ?? (body.current ? null : namedSharepicForm(body.prompt)),
           body.prompt,
-          body.focus ?? null
+          body.focus ?? null,
+          null,
+          false,
+          brand
         ),
       };
     } catch (err) {
