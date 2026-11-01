@@ -7,8 +7,8 @@
  * The theme's grounds live in the contracts (`SHAREPIC_THEMA_COLORS`), their
  * hex values in `SHAREPIC_COLOR_HEX`, gradients in `sharepicGround.ts`.
  */
-import { type ByGround } from '@ggraphic/editor/brand/composerBrand';
 import { type SharepicColor, type SharepicThema } from '@gruenerator/contracts';
+import { type ByGround } from '@gruenerator/contracts/brand';
 
 import { type GrueneBrandId } from '../brand/theme';
 
