@@ -12,7 +12,7 @@
 # nicht von Playwright ab, es spricht Chromium direkt per CDP an; Playwright
 # dient hier nur als Installer für Chromium samt System-Bibliotheken.
 
-FROM python:3.13-slim
+FROM python:3.15-slim
 
 WORKDIR /app
 
