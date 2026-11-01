@@ -8,6 +8,7 @@
  * `variant` wählt nur das Aussehen; welche Knöpfe erscheinen und was sie tun,
  * steht genau einmal hier.
  */
+import { type BrandPack } from '@ggraphic/core';
 import { useEditorState, type Editor } from '@tiptap/react';
 import clsx from 'clsx';
 import {
@@ -22,6 +23,7 @@ import { createPortal } from 'react-dom';
 import { FiBold, FiItalic, FiList, FiUnderline } from 'react-icons/fi';
 import { MdBorderColor, MdFormatListNumbered, MdHighlight } from 'react-icons/md';
 
+import { useDocumentBrand } from '@ggraphic/editor/brand/documentBrand';
 import { useRovingToolbar } from '@ggraphic/editor/hooks/useRovingToolbar';
 import { useMessages } from '@ggraphic/editor/i18n/messages';
 import { KEEP_EDITING_ATTR, keepsEditing } from '@ggraphic/editor/utils/keyboardOwnership';
@@ -121,6 +123,7 @@ export function TextFormatControls({
   // Editor. Deshalb reist kein Zustand je Tastendruck durch den Baum nach oben.
   const roving = useRovingToolbar<HTMLDivElement>();
   const m = useMessages().textFormat;
+  const brand = useDocumentBrand();
   const state = useEditorState({
     editor,
     selector: ({ editor: e }) => ({
@@ -190,7 +193,7 @@ export function TextFormatControls({
         variant={variant}
         isActive={state.accent}
         color={state.accentColor}
-        presets={brandColors()}
+        presets={brandColors(brand)}
         hasTemplate={!!marks.accent}
         onPick={(color) => editor.chain().focus().setAccent(color).run()}
         onPreview={(color) => editor.chain().setAccent(color).run()}
@@ -202,8 +205,8 @@ export function TextFormatControls({
         icon={<MdBorderColor />}
         variant={variant}
         isActive={state.marker}
-        color={state.markerColor ?? (marks.marker ? null : defaultTextMarker().fill)}
-        presets={markerColorPresets()}
+        color={state.markerColor ?? (marks.marker ? null : defaultTextMarker(brand).fill)}
+        presets={markerColorPresets(brand)}
         hasTemplate={!!marks.marker}
         onPick={(color) => editor.chain().focus().setMarker(color).run()}
         onPreview={(color) => editor.chain().setMarker(color).run()}
@@ -233,11 +236,11 @@ export function TextFormatControls({
 type ColorPreset = ColorOption;
 
 /** The marker boxes first, then the brand colours that are not among them. */
-const markerColorPresets = (): ColorPreset[] => {
-  const markers = markerSwatches();
+const markerColorPresets = (pack: BrandPack): ColorPreset[] => {
+  const markers = markerSwatches(pack);
   return [
     ...markers,
-    ...brandColors().filter((brand) => !markers.some((m) => m.value === brand.value)),
+    ...brandColors(pack).filter((color) => !markers.some((m) => m.value === color.value)),
   ];
 };
 

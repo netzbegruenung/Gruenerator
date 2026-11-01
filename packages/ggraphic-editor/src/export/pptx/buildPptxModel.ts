@@ -10,9 +10,9 @@
  * Ids in `layerOrder`, dann der Rest in der Standardreihenfolge der Arten.
  */
 
+import { activeBrand } from '@ggraphic/editor/brand/brandRegistry';
 import { carryInstanceState } from '@ggraphic/editor/configs/factory/carryInstanceState';
 import { ASSET_TARGET_SIZE } from '@ggraphic/editor/utils/canvasAssets';
-import { fromHostKinds, hostElementKinds, kindList } from '@ggraphic/editor/utils/elementKinds';
 import {
   chartInk,
   chartLegendPosition,
@@ -21,6 +21,7 @@ import {
   type ChartInstance,
   type ChartType,
 } from '@ggraphic/editor/utils/chartUtils';
+import { fromHostKinds, hostElementKinds, kindList } from '@ggraphic/editor/utils/elementKinds';
 import { ICON_TARGET_SIZE, ILLUSTRATION_TARGET_SIZE } from '@ggraphic/editor/utils/motifSizes';
 import { photoStripBeside, type ShapeInstance } from '@ggraphic/editor/utils/shapes';
 import { backgroundStraighten } from '@ggraphic/editor/utils/straighten';
@@ -43,6 +44,7 @@ import type {
   PptxShapeKind,
   PptxSlideModel,
 } from './types.js';
+import type { BrandPack } from '@ggraphic/core';
 import type { AdditionalText } from '@ggraphic/editor/configs/types';
 import type { CanvasFormat } from '@ggraphic/editor/formats/index';
 import type { CircleBadgeInstance } from '@ggraphic/editor/utils/circleBadgeUtils';
@@ -55,6 +57,11 @@ export type PptxPageState = Readonly<Record<string, unknown>>;
 export interface BuildPptxModelOptions {
   /** Textbreite für die Höhe der Textboxen; ohne: Schätzung. */
   measure?: PptxMeasureText;
+  /**
+   * Das Markenpaket des Dokuments, dessen Textmarker ein Text ohne eigenen
+   * Markerstil bekommt — wie auf der Leinwand. Ohne: das aktive.
+   */
+  brand?: BrandPack;
 }
 
 /** Schlüssel, die `buildPptxModel` liest. */
@@ -253,10 +260,10 @@ function mapShape(shape: ShapeInstance): PptxItem {
   };
 }
 
-function mapText(text: AdditionalText, measure: PptxMeasureText): PptxItem {
+function mapText(text: AdditionalText, measure: PptxMeasureText, brand: BrandPack): PptxItem {
   const scale = text.scale || 1;
   const lineHeight = text.lineHeight ?? 1.2;
-  const paragraphs = textParagraphs(text);
+  const paragraphs = textParagraphs(text, brand);
   const style = text.fontStyle ?? 'normal';
   const lines = wrappedLineCount(
     paragraphs,
@@ -569,7 +576,8 @@ function mapBackgroundPhoto(state: PptxPageState, page: PptxBox): PptxItem | nul
 function buildSlide(
   state: PptxPageState,
   format: CanvasFormat,
-  measure: PptxMeasureText
+  measure: PptxMeasureText,
+  brand: BrandPack
 ): PptxSlideModel {
   const page: PptxBox = { x: 0, y: 0, width: format.width, height: format.height };
   const carried = carryInstanceState(state as Record<string, unknown>);
@@ -607,7 +615,7 @@ function buildSlide(
       )
     );
   }
-  for (const text of carried.additionalTexts) add(text.id, () => mapText(text, measure));
+  for (const text of carried.additionalTexts) add(text.id, () => mapText(text, measure, brand));
   for (const illustration of carried.illustrationInstances) {
     add(illustration.id, () =>
       raster(
@@ -688,8 +696,9 @@ export function buildPptxModel(
   options: BuildPptxModelOptions = {}
 ): PptxDeckModel {
   const measure = options.measure ?? estimateMeasure;
+  const brand = options.brand ?? activeBrand();
   return {
     page: { width: format.width, height: format.height },
-    slides: pages.map((state) => buildSlide(state, format, measure)),
+    slides: pages.map((state) => buildSlide(state, format, measure, brand)),
   };
 }

@@ -1,9 +1,4 @@
 // SPDX-License-Identifier: MPL-2.0
-import { useCanvasEditorServices } from '@ggraphic/editor/CanvasEditorProvider';
-import { headlineFontStack } from '@ggraphic/editor/brand/brandRegistry';
-import { useMessages } from '@ggraphic/editor/i18n/messages';
-import { cn } from '@ggraphic/editor/utils/cn';
-import { brandColors } from '@ggraphic/editor/utils/colorOptions';
 import { Suspense, useEffect, useId, useState } from 'react';
 import { HiSparkles } from 'react-icons/hi';
 import {
@@ -15,11 +10,16 @@ import {
 } from 'react-icons/hi2';
 import { PiArrowLeft, PiCaretRightBold, PiDropSimpleFill, PiPath } from 'react-icons/pi';
 
+import { headlineFontStack } from '@ggraphic/editor/brand/brandRegistry';
+import { useDocumentBrand } from '@ggraphic/editor/brand/documentBrand';
+import { useCanvasEditorServices } from '@ggraphic/editor/CanvasEditorProvider';
 import { useIsCanvasMobile } from '@ggraphic/editor/hooks/useIsCanvasMobile';
+import { useMessages } from '@ggraphic/editor/i18n/messages';
 import { lazyWithPreload } from '@ggraphic/editor/sidebar/sections/lazyWithPreload';
-import { whenIdle } from '@ggraphic/editor/sidebar/sections/whenIdle';
-
 import { ToolTile, type ToolTileId } from '@ggraphic/editor/sidebar/sections/tools/ToolTiles';
+import { whenIdle } from '@ggraphic/editor/sidebar/sections/whenIdle';
+import { cn } from '@ggraphic/editor/utils/cn';
+import { brandColors } from '@ggraphic/editor/utils/colorOptions';
 
 import type { AltTextPagesSource } from '@ggraphic/editor/sidebar/sections/tools/AltTextTool';
 import type { UserImagePlacement } from '@ggraphic/editor/utils/userImageUtils';
@@ -100,11 +100,14 @@ interface ToolCard {
   available: boolean;
 }
 
+// By id, so it stays on the active brand: the ids below belong to one pack and a
+// document brand without them would leave the tile's gradient stops empty.
 const brandColor = (id: string) => brandColors().find((c) => c.id === id)?.value;
 
 // The letters carry the gradient themselves, so the tile shows what the tool makes.
 function GradientTextIcon({ size = 24, className }: { size?: number; className?: string }) {
   const gradientId = useId();
+  const brand = useDocumentBrand();
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" className={className} aria-hidden="true">
       <defs>
@@ -119,7 +122,7 @@ function GradientTextIcon({ size = 24, className }: { size?: number; className?:
         textAnchor="middle"
         fontSize="17"
         fontWeight="900"
-        fontFamily={headlineFontStack()}
+        fontFamily={headlineFontStack(brand)}
         fill={`url(#${gradientId})`}
       >
         Aa

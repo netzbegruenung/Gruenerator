@@ -9,6 +9,8 @@
  * through the render layer and action factories).
  */
 
+import { type BrandPack } from '@ggraphic/core';
+
 import { activeBrand } from '@ggraphic/editor/brand/brandRegistry';
 
 import { registeredAssetCatalog } from '../canvasAssets.js';
@@ -72,7 +74,9 @@ export function getIllustrationThumbPath(illustration: SvgDef, baseUrl = ''): st
 export async function createIllustration(
   illustrationId: string,
   canvasWidth: number,
-  canvasHeight: number
+  canvasHeight: number,
+  /** The pack a new illustration takes its colour from; the active brand by default. */
+  brand: BrandPack = activeBrand()
 ): Promise<IllustrationInstance> {
   const kawaiiIllustrations = await loadKawaiiIllustrations();
   const kawaiiDef = kawaiiIllustrations.find((k) => k.id === illustrationId);
@@ -86,7 +90,7 @@ export async function createIllustration(
       y: canvasHeight / 2 - 50,
       scale: 1,
       rotation: 0,
-      color: activeBrand().colors.secondary,
+      color: brand.colors.secondary,
       opacity: 1,
       mood: 'happy',
     };
@@ -106,7 +110,7 @@ export async function createIllustration(
       scale: 1.0,
       rotation: 0,
       opacity: 1,
-      color: activeBrand().colors.primary,
+      color: brand.colors.primary,
     };
   }
 
