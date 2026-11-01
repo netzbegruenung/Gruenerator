@@ -363,6 +363,12 @@ auditConfig:
 # Moved here from package.json's `pnpm.overrides`. scripts/sync-pnpm-overrides.mjs
 # and scripts/check-override-ranges.mjs read this block.
 overrides:
+  # TEMPORARY (#5212): ggraphic is consumed from packed tarballs until
+  # 0.1.0-alpha.0 is on npm. Swap = delete these four lines, then pnpm install.
+  '@ggraphic/schema': file:/private/tmp/claude-501/-Users-moritzwachter-Gruenerator/da731fd8-502b-4302-92eb-615cc667aaa2/scratchpad/gg-tarballs/ggraphic-schema-0.0.0.tgz
+  '@ggraphic/core': file:/private/tmp/claude-501/-Users-moritzwachter-Gruenerator/da731fd8-502b-4302-92eb-615cc667aaa2/scratchpad/gg-tarballs/ggraphic-core-0.0.0.tgz
+  '@ggraphic/collab': file:/private/tmp/claude-501/-Users-moritzwachter-Gruenerator/da731fd8-502b-4302-92eb-615cc667aaa2/scratchpad/gg-tarballs/ggraphic-collab-0.0.0.tgz
+  '@ggraphic/editor': file:/private/tmp/claude-501/-Users-moritzwachter-Gruenerator/da731fd8-502b-4302-92eb-615cc667aaa2/scratchpad/gg-tarballs/ggraphic-editor-0.0.0.tgz
   adm-zip: '>=0.6.1'
   '@expo/dom-webview': ~58.0.2
   '@types/react': 19.3.0
