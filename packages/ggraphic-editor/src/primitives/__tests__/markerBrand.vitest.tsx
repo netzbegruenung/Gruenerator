@@ -26,11 +26,11 @@ const OTHER_BRAND: BrandPack = {
       { id: 'gelb', label: 'Gelb', color: '#FFE600' },
       { id: 'white', label: 'Weiß', color: '#FFFFFF' },
     ],
-    ink: '#0B6620',
+    ink: '#1A3D5C',
   },
 };
 const OTHER_BOX = '#FFE600';
-const OTHER_INK = '#0B6620';
+const OTHER_INK = '#1A3D5C';
 const DEFAULT_BOX = brandDefault.markers.swatches[0]!.color;
 const DEFAULT_INK = brandDefault.markers.ink;
 
