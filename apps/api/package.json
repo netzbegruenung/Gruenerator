@@ -99,7 +99,7 @@
     "@langfuse/otel": "^5.13.0",
     "@langfuse/tracing": "^5.13.0",
     "@langfuse/vercel-ai-sdk": "^5.13.0",
-    "@mistralai/mistralai": "^2.7.0",
+    "@mistralai/mistralai": "^3.4.0",
     "@modelcontextprotocol/sdk": "^1.32.2",
     "@nangohq/node": "^0.71.13",
     "@napi-rs/canvas": "^1.0.13",
