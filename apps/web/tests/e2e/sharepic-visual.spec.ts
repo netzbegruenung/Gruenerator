@@ -43,7 +43,7 @@ test.describe('sharepic composer, visual', () => {
         await page.locator('#slide').evaluate((img: HTMLImageElement) => img.decode());
         await expect(page.locator('#slide'), `${name} slide ${i + 1}`).toHaveScreenshot(
           `${name}-${i + 1}.png`,
-          { maxDiffPixelRatio: 0.01 }
+          { maxDiffPixelRatio: 0.001 }
         );
       }
       await openHarness(page);
