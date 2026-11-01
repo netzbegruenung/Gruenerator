@@ -1,12 +1,3 @@
-import {
-  placeArrow,
-  shapePoint,
-  steckbriefSlots,
-  outlineSpan,
-  steckbriefOutline,
-  type Box,
-  type PlacedArrow,
-} from '@ggraphic/editor/composer/steckbriefLayout';
 import { balancedWrap } from '@ggraphic/editor/composer/textFit';
 import { ASSET_TARGET_SIZE } from '@ggraphic/editor/utils/canvasAssets';
 import { createShape } from '@ggraphic/editor/utils/shapes';
@@ -21,6 +12,15 @@ import { type BildItem, type SteckbriefItem } from './composeTypes';
 import { GRADIENTS, SCRIM_ANGLE, SCRIM_EASE } from './sharepicGround';
 import { KI_LABEL, MARGIN, STECKBRIEF } from './sharepicLayoutConstants';
 import { type SlideCtx } from './slideContext';
+import {
+  placeArrow,
+  shapePoint,
+  steckbriefSlots,
+  outlineSpan,
+  steckbriefOutline,
+  type Box,
+  type PlacedArrow,
+} from './steckbriefLayout';
 
 /** What a steckbrief reads from its slide besides `SlideCtx`; all final before `place`. */
 export interface SteckbriefScene {
