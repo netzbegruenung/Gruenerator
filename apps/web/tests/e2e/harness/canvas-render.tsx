@@ -12,12 +12,21 @@ import { canvasVorlageFileEntrySchema } from '@gruenerator/contracts';
 import { renderSharepicToImage } from '../../../src/features/image-studio/renderSharepicToImage';
 import '../../../src/assets/styles/common/typography.css';
 
+import {
+  GRUENE_BRAND_PACKS,
+  registerBrandPacks,
+} from '@gruenerator/canvas-editor/grueneBrandPacks';
+
 import { installHarnessBrandFonts } from './brandFonts';
 import './canvasHarness';
 
 import type { CanvasConfigId } from '@gruenerator/canvas-editor';
 
 installHarnessBrandFonts();
+// As the app does at startup (src/index.tsx): the packs carry the defaults,
+// bold families and font cuts the renders read. Without them the harness
+// drew what no user sees (a faked bold of GothamNarrow-Book, for one).
+registerBrandPacks(GRUENE_BRAND_PACKS);
 
 async function toWebp(dataUrl: string, width: number): Promise<string> {
   const img = new Image();
