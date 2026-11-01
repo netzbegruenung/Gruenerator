@@ -239,6 +239,18 @@ allowBuilds:
 # add the hash to these suffixes by hand: the next re-resolution strips it
 # again and every lockfile diff grows by 139 lines (#4552).
 #
+# `@expo/config-plugins@58.0.10` turns the app name into the iOS project and
+# target name. SDK 58 changed the rule to transliterate (NFKD + slugify):
+# "Grünerator" became "Grunerator". EAS signs before prebuild and computes the
+# name with its own bundled config-plugins: 55.0.7 in every eas-cli up to
+# 27.2.0, which still drops the "ü" and says "Grnerator". The 1.7.0 build
+# assigned the provisioning profile to a target that did not exist and died
+# in "Configure Xcode project" (build ffcbeaf5, 01.11.2026). The patch restores
+# the pre-58 rule, so prebuild names the target "Grnerator" like every build up
+# to 1.6.2. Drop it once eas-cli bundles config-plugins >= 58 (check with
+# `npm view eas-cli dependencies.@expo/config-plugins`). Guarded by
+# apps/mobile/test/iosTargetName.vitest.ts.
+#
 # `y-indexeddb@9.0.12` chains `.then()` onto its `_db` open promise twice
 # without a catch: in the constructor (the initial load) and in `destroy()`.
 # When the open fails, both derived promises reject unhandled even though the
@@ -283,6 +295,7 @@ allowBuilds:
 patchedDependencies:
   '@better-auth/oauth-provider@1.7.7': patches/@better-auth__oauth-provider@1.7.7.patch
   '@blocknote/xl-ai@0.56.0': patches/@blocknote__xl-ai@0.56.0.patch
+  '@expo/config-plugins@58.0.10': patches/@expo__config-plugins@58.0.10.patch
   '@ts-rest/core@3.52.1': patches/@ts-rest__core@3.52.1.patch
   expo@58.0.19: patches/expo@58.0.19.patch
   mdast-util-gfm-autolink-literal@2.0.1: patches/mdast-util-gfm-autolink-literal@2.0.1.patch
