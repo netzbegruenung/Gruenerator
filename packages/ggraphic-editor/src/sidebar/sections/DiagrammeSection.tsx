@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MPL-2.0
+import { useDocumentBrand } from '@ggraphic/editor/brand/documentBrand';
 import {
-  chartColors,
   CHART_GROUP_LABELS,
   CHART_GROUP_ORDER,
   CHART_TYPE_DEFS,
@@ -14,17 +14,16 @@ export interface DiagrammeSectionProps {
   onAddChart: (chartType: ChartType) => void;
 }
 
-// Read at render time, not module init: the chart series live in another chunk and
-// indexing it here risks the documented prod chunk-order crash (see FormenSection).
-const c = (index: number) => chartColors()[index];
+/** The nth colour of the document brand's chart series. */
+type SeriesColor = (index: number) => string | undefined;
 
 /**
  * Static mini-chart glyphs (literal brand colors, no live Recharts) — one per
  * ChartType, exhaustively keyed so adding a type without a preview is a
  * compile error.
  */
-const CHART_PREVIEWS: { readonly [K in ChartType]: () => ReactNode } = {
-  bar: () => (
+const CHART_PREVIEWS: { readonly [K in ChartType]: (c: SeriesColor) => ReactNode } = {
+  bar: (c) => (
     <>
       <rect x="8" y="20" width="9" height="22" rx="1.5" fill={c(0)} />
       <rect x="21" y="10" width="9" height="32" rx="1.5" fill={c(1)} />
@@ -32,7 +31,7 @@ const CHART_PREVIEWS: { readonly [K in ChartType]: () => ReactNode } = {
       <rect x="47" y="16" width="9" height="26" rx="1.5" fill={c(0)} />
     </>
   ),
-  'bar-horizontal': () => (
+  'bar-horizontal': (c) => (
     <>
       <rect x="8" y="8" width="40" height="7" rx="1.5" fill={c(0)} />
       <rect x="8" y="18" width="48" height="7" rx="1.5" fill={c(1)} />
@@ -40,7 +39,7 @@ const CHART_PREVIEWS: { readonly [K in ChartType]: () => ReactNode } = {
       <rect x="8" y="38" width="34" height="7" rx="1.5" fill={c(0)} />
     </>
   ),
-  line: () => (
+  line: (c) => (
     <>
       <polyline
         points="8,38 22,26 36,30 56,10"
@@ -60,7 +59,7 @@ const CHART_PREVIEWS: { readonly [K in ChartType]: () => ReactNode } = {
       ))}
     </>
   ),
-  area: () => (
+  area: (c) => (
     <>
       <path d="M8 38 L22 26 L36 30 L56 10 L56 44 L8 44 Z" fill={c(0)} fillOpacity="0.3" />
       <polyline
@@ -73,14 +72,14 @@ const CHART_PREVIEWS: { readonly [K in ChartType]: () => ReactNode } = {
       />
     </>
   ),
-  pie: () => (
+  pie: (c) => (
     <>
       <circle cx="32" cy="24" r="18" fill={c(0)} />
       <path d="M32 24 L32 6 A18 18 0 0 1 47.6 33 Z" fill={c(1)} />
       <path d="M32 24 L47.6 33 A18 18 0 0 1 25.8 40.9 Z" fill={c(2)} />
     </>
   ),
-  donut: () => (
+  donut: (c) => (
     <g transform="rotate(-90 32 24)">
       <circle cx="32" cy="24" r="14" fill="none" stroke={c(0)} strokeWidth="8" />
       <circle
@@ -107,9 +106,10 @@ const CHART_PREVIEWS: { readonly [K in ChartType]: () => ReactNode } = {
 };
 
 export function ChartTypePreview({ type, size = 48 }: { type: ChartType; size?: number }) {
+  const { chart } = useDocumentBrand();
   return (
     <svg width={size} height={size * 0.75} viewBox="0 0 64 48" fill="none" aria-hidden>
-      {CHART_PREVIEWS[type]()}
+      {CHART_PREVIEWS[type]((index) => chart[index])}
     </svg>
   );
 }

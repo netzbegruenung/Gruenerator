@@ -9,7 +9,9 @@ import type { ProfilbildAssetSrc } from '@gruenerator/shared/profilbild';
 type ProfilbildImages = Record<ProfilbildAssetSrc, SkImage>;
 
 async function loadAsset(id: number): Promise<SkImage> {
-  const data = await Skia.Data.fromURI(Image.resolveAssetSource(id).uri);
+  const asset = Image.resolveAssetSource(id);
+  if (!asset) throw new Error('Profilbild-Asset ist nicht gebündelt.');
+  const data = await Skia.Data.fromURI(asset.uri);
   const image = Skia.Image.MakeImageFromEncoded(data);
   if (!image) throw new Error('Profilbild-Asset konnte nicht dekodiert werden.');
   return image;

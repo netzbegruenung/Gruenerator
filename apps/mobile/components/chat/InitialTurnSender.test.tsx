@@ -15,9 +15,9 @@ jest.mock('../../stores/pendingAttachmentStore', () => ({
 
 describe('InitialTurnSender', () => {
   it('sends the opening message once, even when re-rendered with a new one', async () => {
-    const view = render(<InitialTurnSender message="Erste" />);
+    const view = await render(<InitialTurnSender message="Erste" />);
     await waitFor(() => expect(mockComposer.send).toHaveBeenCalledTimes(1));
-    view.rerender(<InitialTurnSender message="Zweite" />);
+    await view.rerender(<InitialTurnSender message="Zweite" />);
     await new Promise((r) => setTimeout(r, 0));
     expect(mockComposer.send).toHaveBeenCalledTimes(1);
     expect(mockComposer.setText).toHaveBeenCalledWith('Erste');

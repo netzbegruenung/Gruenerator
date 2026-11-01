@@ -125,7 +125,7 @@ export function ContentDisplay({ componentName, onNewGeneration }: ContentDispla
       }
 
       const file = new File(Paths.cache, filename);
-      file.write(new Uint8Array(await response.arrayBuffer()));
+      file.writeSync(new Uint8Array(await response.arrayBuffer()));
 
       await Sharing.shareAsync(file.uri, {
         mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',

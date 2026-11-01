@@ -314,7 +314,7 @@ function RootLevel({
     <FlatList
       data={[]}
       keyboardShouldPersistTaps="handled"
-      renderItem={null}
+      renderItem={() => null}
       ListHeaderComponent={
         <>
           <Pressable

@@ -16,6 +16,7 @@ import { COLORS } from '../utils/dreizeilenLayout';
 import { VERANSTALTUNG_CONFIG } from '../utils/veranstaltungLayout';
 
 import { BRUSH_ARROW, pageDots, SHAREPIC_COLOR_HEX } from './chromeParts';
+import { brandFont } from './fontRole';
 import { placeHandMarks } from './handMarks';
 import { type ARROW, ARROW_ICON, FOOTER, KI_LABEL, MARGIN } from './sharepicLayoutConstants';
 import { sharepicTheme } from './sharepicThemes';
@@ -259,7 +260,7 @@ export function drawSlideChrome(ctx: SlideCtx, inputs: ChromeInputs): void {
       y: beside ? circle.y - height / 2 : ortBottom - height,
       width: right - footX,
       fontSize: size,
-      fontFamily: theme.fonts.body,
+      ...brandFont(theme.fonts, 'body'),
       fontStyle: 'normal',
       fill: textColor,
       lineHeight: 1.25,
@@ -346,7 +347,7 @@ export function drawSlideChrome(ctx: SlideCtx, inputs: ChromeInputs): void {
         y: y - weiterSize * 0.6 - (weiterLines.length - 1) * weiterSize * 1.2,
         width: weiterWidth + 8,
         fontSize: weiterSize,
-        fontFamily: theme.fonts.body,
+        ...brandFont(theme.fonts, 'body'),
         fontStyle: 'bold',
         fill: footerDarkInk ? darkText : '#FFFFFF',
         align: 'right',
@@ -374,7 +375,7 @@ export function drawSlideChrome(ctx: SlideCtx, inputs: ChromeInputs): void {
         y,
         width,
         fontSize: size,
-        fontFamily: theme.fonts.body,
+        ...brandFont(theme.fonts, 'body'),
         fontStyle: 'bold',
         fill: ink,
         opacity: 0.85,
@@ -398,7 +399,7 @@ export function drawSlideChrome(ctx: SlideCtx, inputs: ChromeInputs): void {
       y: quelleY,
       width: quelleWidth,
       fontSize: size,
-      fontFamily: theme.fonts.body,
+      ...brandFont(theme.fonts, 'body'),
       fontStyle: 'normal',
       fill: textColor,
       opacity: 0.8,

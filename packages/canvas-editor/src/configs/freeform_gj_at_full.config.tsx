@@ -39,7 +39,7 @@ export const createFreeformGjAtFullConfig = (
   format: CanvasFormat
 ): FullCanvasConfig<FreeformState, FreeformActions> => {
   const base = createFreeformFullConfig(format, {
-    chartColors: getBrandPack('de-AT', 'gruene-jugend').chart,
+    brand: getBrandPack('de-AT', 'gruene-jugend'),
   });
   return {
     ...base,

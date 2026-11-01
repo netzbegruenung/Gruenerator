@@ -29,7 +29,7 @@ beforeEach(() => {
 });
 
 describe('ResearchLogCard', () => {
-  it('shows plan progress and steps of a running log', () => {
+  it('shows plan progress and steps of a running log', async () => {
     mockActive = log({
       plan: [
         { id: 'p1', label: 'Quellen sammeln', status: 'done' },
@@ -37,30 +37,30 @@ describe('ResearchLogCard', () => {
       ],
       steps: [{ id: 's1', label: 'Websuche „Klimageld"', status: 'running' }],
     });
-    render(<ResearchLogCard theme={lightTheme} />);
+    await render(<ResearchLogCard theme={lightTheme} />);
 
     expect(screen.getByText('Plan (1/2)')).toBeTruthy();
     expect(screen.getByText('Bericht schreiben')).toBeTruthy();
     expect(screen.getByLabelText('Websuche „Klimageld" — läuft')).toBeTruthy();
   });
 
-  it('says the agent is planning before the first update', () => {
+  it('says the agent is planning before the first update', async () => {
     mockActive = log({});
-    render(<ResearchLogCard theme={lightTheme} />);
+    await render(<ResearchLogCard theme={lightTheme} />);
     expect(screen.getByText('Der Agent plant die Recherche…')).toBeTruthy();
   });
 
   it.each(['done', 'failed'] as const)(
     'renders nothing for a %s log from an earlier turn',
-    (status) => {
+    async (status) => {
       mockActive = log({ status, plan: [{ id: 'p1', label: 'Quellen sammeln', status: 'done' }] });
-      render(<ResearchLogCard theme={lightTheme} />);
+      await render(<ResearchLogCard theme={lightTheme} />);
       expect(screen.queryByTestId('research-log-card')).toBeNull();
     }
   );
 
-  it('renders nothing without a research log', () => {
-    render(<ResearchLogCard theme={lightTheme} />);
+  it('renders nothing without a research log', async () => {
+    await render(<ResearchLogCard theme={lightTheme} />);
     expect(screen.queryByTestId('research-log-card')).toBeNull();
   });
 });

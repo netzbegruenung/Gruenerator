@@ -106,7 +106,7 @@ export async function exportDocument(
   const safeTitle = title.replace(/[^a-zA-Z0-9äöüÄÖÜß _-]/g, '_') || 'Dokument';
   const ext = FILE_EXTENSIONS[format];
   const file = new File(Paths.cache, `${safeTitle}.${ext}`);
-  file.write(bytes);
+  file.writeSync(bytes);
 
   await Sharing.shareAsync(file.uri, { mimeType: MIME_TYPES[format] });
 }

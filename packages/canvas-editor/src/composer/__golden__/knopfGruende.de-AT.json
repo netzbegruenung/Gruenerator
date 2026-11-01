@@ -17,6 +17,12 @@
      "width": 880,
      "fontSize": 104,
      "fontFamily": "GothamNarrow-Ultra",
+     "bind": {
+      "fontFamily": {
+       "ref": "font.headline",
+       "value": "GothamNarrow-Ultra"
+      }
+     },
      "fontStyle": "normal",
      "fill": "#257639",
      "align": "center",
@@ -36,6 +42,12 @@
      "width": 880,
      "fontSize": 57,
      "fontFamily": "Vollkorn",
+     "bind": {
+      "fontFamily": {
+       "ref": "font.quoteEmphasis",
+       "value": "Vollkorn"
+      }
+     },
      "fontStyle": "bold italic",
      "fill": "#257639",
      "align": "center",
@@ -77,7 +89,13 @@
      "opacity": 1,
      "paddingX": 36,
      "paddingY": 18,
-     "cornerRadius": 60
+     "cornerRadius": 60,
+     "bind": {
+      "fontFamily": {
+       "ref": "font.headline",
+       "value": "GothamNarrow-Ultra"
+      }
+     }
     }
    ],
    "circleBadgeInstances": [],
@@ -136,6 +154,12 @@
      "width": 880,
      "fontSize": 104,
      "fontFamily": "GothamNarrow-Ultra",
+     "bind": {
+      "fontFamily": {
+       "ref": "font.headline",
+       "value": "GothamNarrow-Ultra"
+      }
+     },
      "fontStyle": "normal",
      "fill": "#FFFFFF",
      "align": "center",
@@ -155,6 +179,12 @@
      "width": 880,
      "fontSize": 57,
      "fontFamily": "Vollkorn",
+     "bind": {
+      "fontFamily": {
+       "ref": "font.quoteEmphasis",
+       "value": "Vollkorn"
+      }
+     },
      "fontStyle": "bold italic",
      "fill": "#FCEC00",
      "align": "center",
@@ -196,7 +226,13 @@
      "opacity": 1,
      "paddingX": 36,
      "paddingY": 18,
-     "cornerRadius": 60
+     "cornerRadius": 60,
+     "bind": {
+      "fontFamily": {
+       "ref": "font.headline",
+       "value": "GothamNarrow-Ultra"
+      }
+     }
     }
    ],
    "circleBadgeInstances": [],
@@ -255,6 +291,12 @@
      "width": 880,
      "fontSize": 104,
      "fontFamily": "GothamNarrow-Ultra",
+     "bind": {
+      "fontFamily": {
+       "ref": "font.headline",
+       "value": "GothamNarrow-Ultra"
+      }
+     },
      "fontStyle": "normal",
      "fill": "#FFFFFF",
      "align": "center",
@@ -274,6 +316,12 @@
      "width": 880,
      "fontSize": 57,
      "fontFamily": "Vollkorn",
+     "bind": {
+      "fontFamily": {
+       "ref": "font.quoteEmphasis",
+       "value": "Vollkorn"
+      }
+     },
      "fontStyle": "bold italic",
      "fill": "#FCEC00",
      "align": "center",
@@ -315,7 +363,13 @@
      "opacity": 1,
      "paddingX": 36,
      "paddingY": 18,
-     "cornerRadius": 60
+     "cornerRadius": 60,
+     "bind": {
+      "fontFamily": {
+       "ref": "font.headline",
+       "value": "GothamNarrow-Ultra"
+      }
+     }
     }
    ],
    "circleBadgeInstances": [],
