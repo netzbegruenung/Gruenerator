@@ -2,6 +2,18 @@
 
 Config-getriebener react-konva-Editor (Sharepics, Slider, Decks). Jede Instanz hat ihre eigenen Zustand-Stores über `CanvasStoreProvider`. Eingebunden wird er von `apps/web` (Image Studio, `/studio/canvas/:id`, `/mobile-editor`). Die native App lädt genau diese Web-Seiten in einer WebView und spricht mit dem Editor über keine eigene Brücke.
 
+## Editor-Kern eingefroren: neue Funktionen nur in ggraphic
+
+**Seit dem 01.11.2026 ist `packages/ggraphic-editor` eingefroren.** Neue Editor-Funktionen kommen nur noch in `Movm/ggraphic` (`packages/editor`). Hier gibt es bis zum Umstieg nur Fehlerbehebungen. Der Umstieg auf `@ggraphic/editor` und das Löschen dieser Kopie stehen in #5212.
+
+**Warum:** Der Plan sah vor, dass ggraphic nach dem Import die einzige Quelle wird und der Grünerator seine Kopie im selben Zug löscht. Passiert ist das nicht. Stattdessen haben sich beide Kopien seit dem Import am 28.10.2026 getrennt weiterentwickelt: 98 Commits in ggraphic, 34 hier, 136 Dateien auf beiden Seiten. Die Schrift-Rollen sind dabei zweimal entstanden (#5203 hier, #64 in ggraphic).
+
+**Was das heißt:**
+- Eine Bedienänderung am Editor (Leisten, Pille, Menüs, Bereiche) wird als PR in ggraphic gebaut.
+- Ein Fehler, der beide Kopien betrifft, wird hier behoben und in ggraphic nachgezogen.
+- Grünerator-eigenes Verhalten gehört ohnehin nicht in den Kern, sondern hinter eine Host-Naht in `packages/canvas-editor`. Daran ändert das Einfrieren nichts.
+- Ausnahmen: #5208 und #5209 waren fertig, bevor eingefroren wurde. Sie bleiben hier und werden zusätzlich nach ggraphic portiert. #5211 legt Moritz selbst fest.
+
 ## Design: „Canva-Layout in Grünerator-Grün"
 
 Die Editor-Oberfläche färbt sich **ausschließlich über die `--editor-*`-Token** (`--editor-bg`, `--editor-surface`, `--editor-tile`, `--editor-text-secondary`, `--editor-active-bg` …). In Tailwind heißen sie `bg-[var(--editor-tile)]` oder, über das `@theme`-Mapping, `bg-editor-tile`.
