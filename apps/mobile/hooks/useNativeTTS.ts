@@ -217,7 +217,12 @@ export function useNativeTTS() {
       await setAudioModeAsync(READ_ALOUD_MODE).catch((error: unknown) =>
         console.warn('[useNativeTTS] background audio mode refused', error)
       );
-      if (controller.signal.aborted) return;
+      // Stopped or unmounted while the mode switched: the cleanup saw no playing
+      // player and left the session alone, so hand it back here.
+      if (controller.signal.aborted) {
+        void setAudioModeAsync(DEFAULT_MODE);
+        return;
+      }
       player.replace({ uri: wavFile.uri });
       player.setActiveForLockScreen(true, {
         title: sentences[0]?.slice(0, 80),
