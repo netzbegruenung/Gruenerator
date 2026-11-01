@@ -55,15 +55,31 @@ describe('a doc of today’s version', () => {
   });
 });
 
+describe('a doc of version 2 or 3 (read ahead of writing)', () => {
+  it.each([2, 3])('opens a version %i doc editable and keeps its stamp', (version) => {
+    const ydoc = v1Doc();
+    getMetaMap(ydoc).set(YDOC_KEYS.schemaVersion, version);
+    const { result } = open(ydoc);
+    expect(result.current.isPreview).toBe(false);
+    expect(result.current.schemaRefusal).toBeNull();
+    expect(result.current.replaceDeck).not.toBeNull();
+    act(() => {
+      result.current.updatePageState(result.current.pages[0]!.id, { headline: 'Zwei' });
+    });
+    expect(result.current.pages[0]!.state.headline).toBe('Zwei');
+    expect(getMetaMap(ydoc).get(YDOC_KEYS.schemaVersion)).toBe(version);
+  });
+});
+
 describe('a doc from a newer version', () => {
   it('shows its pages read-only and writes nothing', () => {
     const ydoc = v1Doc();
-    getMetaMap(ydoc).set(YDOC_KEYS.schemaVersion, 2);
+    getMetaMap(ydoc).set(YDOC_KEYS.schemaVersion, 4);
     const updates = recordUpdates(ydoc);
     const { result } = open(ydoc);
 
     expect(result.current.isPreview).toBe(true);
-    expect(result.current.schemaRefusal).toMatchObject({ status: 'newer', version: 2, known: 1 });
+    expect(result.current.schemaRefusal).toMatchObject({ status: 'newer', version: 4, known: 3 });
     expect(result.current.pages.map((p) => p.state.headline)).toEqual(['Eins']);
     expect(result.current.replaceDeck).toBeNull();
 
@@ -76,7 +92,7 @@ describe('a doc from a newer version', () => {
 
   it('is not seeded when empty', () => {
     const ydoc = new Y.Doc();
-    getMetaMap(ydoc).set(YDOC_KEYS.schemaVersion, 2);
+    getMetaMap(ydoc).set(YDOC_KEYS.schemaVersion, 4);
     const updates = recordUpdates(ydoc);
     open(ydoc);
     expect(ydoc.getMap(YDOC_KEYS.pagesById).size).toBe(0);
@@ -88,11 +104,11 @@ describe('a doc from a newer version', () => {
     const { result } = open(ydoc);
     expect(result.current.isPreview).toBe(false);
     await act(async () => {
-      getMetaMap(ydoc).set(YDOC_KEYS.schemaVersion, 3);
+      getMetaMap(ydoc).set(YDOC_KEYS.schemaVersion, 4);
       await Promise.resolve();
     });
     expect(result.current.isPreview).toBe(true);
-    expect(result.current.schemaRefusal).toMatchObject({ status: 'newer', version: 3 });
+    expect(result.current.schemaRefusal).toMatchObject({ status: 'newer', version: 4 });
   });
 });
 
@@ -108,6 +124,15 @@ describe('readInitialDocument', () => {
 
   it('reads a document without pages as no pages', () => {
     expect(readInitialDocument({ headline: 'flat' })).toEqual({ pages: null, refusal: null });
+  });
+
+  it.each([2, 3])('reads a version %i document into seed pages', (schemaVersion) => {
+    const read = readInitialDocument({
+      schemaVersion,
+      pages: [{ id: 'p1', configId: 'freeform', state: { headline: 'Eins' } }],
+    });
+    expect(read.refusal).toBeNull();
+    expect(read.pages).toHaveLength(1);
   });
 
   it('refuses a newer document', () => {

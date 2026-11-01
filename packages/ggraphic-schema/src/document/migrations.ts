@@ -9,8 +9,18 @@
  */
 import { z } from 'zod';
 
-/** The core format version this build reads and writes. */
+/** The core format version this build writes. */
 export const CANVAS_DOCUMENT_VERSION = 1;
+
+/**
+ * The highest core format version this build opens (editable). Versions 2 and
+ * 3 are identity steps upstream (additive, pages pass through untouched), so
+ * reading them needs no migration — only the ceiling. It sits above
+ * `CANVAS_DOCUMENT_VERSION` on purpose: older builds in the field refuse
+ * anything above 1, so this build keeps writing 1 until the switch.
+ * See `DOCUMENT_VERSIONING.md`, "Reader first".
+ */
+export const CANVAS_DOCUMENT_READ_VERSION = 3;
 
 const versionSchema = z.number().int().min(1);
 
@@ -72,8 +82,10 @@ export function mapPages(
 }
 
 export interface MigrationRegistry {
-  /** The core version this registry lifts documents to. */
+  /** The core version this registry lifts documents to, and stamps on write. */
   readonly coreVersion: number;
+  /** The highest core version it opens; at least `coreVersion`. */
+  readonly readCoreVersion: number;
   /** The version of a registered host key, `null` for a key nobody registered. */
   kindVersion(stateKey: string): number | null;
   /** The registered host keys with their versions. */
@@ -96,11 +108,15 @@ function assertContiguous(steps: readonly { from: number }[], what: string): voi
   });
 }
 
-export function createMigrationRegistry(core: readonly CoreMigration[]): MigrationRegistry {
+export function createMigrationRegistry(
+  core: readonly CoreMigration[],
+  options: { readCoreVersion?: number } = {}
+): MigrationRegistry {
   assertContiguous(core, 'core migrations');
   const hostSteps = new Map<string, readonly StateKeyMigration[]>();
   return {
     coreVersion: core.length + 1,
+    readCoreVersion: Math.max(core.length + 1, options.readCoreVersion ?? 0),
     kindVersion: (stateKey) => {
       const steps = hostSteps.get(stateKey);
       return steps ? steps.length + 1 : null;
@@ -123,7 +139,9 @@ export function createMigrationRegistry(core: readonly CoreMigration[]): Migrati
 const CORE_MIGRATIONS: readonly CoreMigration[] = [];
 
 /** The registry every load uses unless a caller passes its own. */
-export const documentMigrations: MigrationRegistry = createMigrationRegistry(CORE_MIGRATIONS);
+export const documentMigrations: MigrationRegistry = createMigrationRegistry(CORE_MIGRATIONS, {
+  readCoreVersion: CANVAS_DOCUMENT_READ_VERSION,
+});
 
 /** A host kind's steps for its state key (`registerElementKind` forwards them). */
 export function registerStateKeyMigrations(
@@ -171,12 +189,12 @@ export function newerVersion(
   stored: DocumentVersions,
   registry: MigrationRegistry = documentMigrations
 ): Extract<MigrateResult, { status: 'newer' }> | null {
-  if (stored.schemaVersion > registry.coreVersion) {
+  if (stored.schemaVersion > registry.readCoreVersion) {
     return {
       status: 'newer',
       scope: null,
       version: stored.schemaVersion,
-      known: registry.coreVersion,
+      known: registry.readCoreVersion,
       document: null,
     };
   }
@@ -218,8 +236,10 @@ function withVersions(
   to: DocumentVersions
 ): CanvasDocument {
   const out: CanvasDocument = { ...doc };
-  if (to.schemaVersion !== from.schemaVersion || doc.schemaVersion !== undefined) {
-    out.schemaVersion = to.schemaVersion;
+  // Never lower a stamp: a version-3 document read by a build that writes 1 keeps its 3.
+  const core = Math.max(from.schemaVersion, to.schemaVersion);
+  if (core !== from.schemaVersion || doc.schemaVersion !== undefined) {
+    out.schemaVersion = core;
   }
   const kinds = { ...doc.kindVersions };
   for (const [key, version] of Object.entries(to.kindVersions)) {
