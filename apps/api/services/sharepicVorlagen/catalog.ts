@@ -498,10 +498,19 @@ function all(): Catalog {
   return cache;
 }
 
-/** The country's Vorlagen, or both countries' when `locale` is null. */
-export function listSharepicVorlagen(locale: SharepicCreatorLocale | null): SharepicVorlage[] {
+/**
+ * The country's Vorlagen, or both countries' when `locale` is null; in one
+ * design when `brand` is given, else in every design.
+ */
+export function listSharepicVorlagen(
+  locale: SharepicCreatorLocale | null,
+  brand: SharepicBrand | null = null
+): SharepicVorlage[] {
   const { vorlagen } = all();
-  return locale ? vorlagen.filter((v) => v.locale === locale) : vorlagen;
+  if (!locale && !brand) return vorlagen;
+  return vorlagen.filter(
+    (v) => (!locale || v.locale === locale) && (!brand || (v.spec.brand ?? 'gruene') === brand)
+  );
 }
 
 export function getSharepicVorlage(id: string): SharepicVorlage | null {

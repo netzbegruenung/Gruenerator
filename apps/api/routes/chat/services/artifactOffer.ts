@@ -78,7 +78,7 @@ const OFFER_EXAMPLE: Readonly<Record<ArtifactKindId, string>> = {
  * prüft `offerToRecord`, ob das Modell sie wirklich gestellt hat.
  */
 export function offerNote(
-  state: Pick<ChatGraphState, 'userLocale' | 'vorlagenShown' | 'enabledTools'>,
+  state: Pick<ChatGraphState, 'userLocale' | 'activeRole' | 'vorlagenShown' | 'enabledTools'>,
   recipeMentions: readonly string[]
 ): string {
   const vorlagen = vorlagenOfferNote(state, recipeMentions);
