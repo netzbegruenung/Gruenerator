@@ -209,8 +209,8 @@ describe('placePill: am sichtbaren Teil der Seitenfläche', () => {
 });
 
 describe('placePill: pointer', () => {
-  // Desktop: oben über der Fläche schwebt die Kontextleiste (56 px Band).
-  const DESK = { left: 0, top: 100, right: 1200, bottom: 800 };
+  // Desktop: ohne beschneidenden Vorfahren reicht die Fläche bis an den Fensterrand.
+  const DESK = { left: 0, top: 0, right: 1200, bottom: 800 };
   const box = (top: number) => ({
     left: 400,
     top,
@@ -221,11 +221,12 @@ describe('placePill: pointer', () => {
   });
 
   it('über der Auswahl, kleiner als am Handy', () => {
-    expect(placePill(box(400), 140, 'pointer').top).toBe(400 - 12 - 36);
+    expect(placePill(box(400), 140, 'pointer', 113).top).toBe(400 - 12 - 36);
   });
 
-  it('rutscht nicht unter die Kontextleiste, sondern unter das Objekt', () => {
-    // Darüber wäre 180 - 48 = 132, das Band reicht bis 100 + 56 + 8 = 164.
-    expect(placePill(box(180), 140, 'pointer').top).toBe(180 + 100 + 12);
+  // Live gesehen: ein Text oben auf der Seite, die Pille lag auf der Kontextleiste.
+  it('rutscht nicht auf die Kontextleiste, sondern unter das Objekt', () => {
+    // Darüber wäre 135 - 48 = 87; die Leiste endet bei 113, plus 8 Luft.
+    expect(placePill(box(135), 140, 'pointer', 113).top).toBe(135 + 100 + 12);
   });
 });

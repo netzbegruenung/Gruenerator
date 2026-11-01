@@ -36,8 +36,8 @@ const GEOMETRY: Record<SelectionPillVariant, { height: number; minTop: (top: num
   {
     // Kopfzeile (52 px) plus Luft — darüber rutscht die Pille unter das Objekt.
     touch: { height: 44, minTop: (top) => Math.max(64, top + EDGE) },
-    // Das Band der Kontextleiste (`h-14` im Layout) liegt über der Fläche.
-    pointer: { height: 36, minTop: (top) => top + 56 + EDGE },
+    // Die Kontextleiste darüber misst die Pille selbst (`reservedTop`).
+    pointer: { height: 36, minTop: (top) => top + EDGE },
   };
 
 const BTN: Record<SelectionPillVariant, string> = {
@@ -46,6 +46,14 @@ const BTN: Record<SelectionPillVariant, string> = {
   pointer:
     'inline-flex items-center justify-center size-8 shrink-0 rounded-full border-none bg-transparent cursor-pointer text-[var(--editor-text)] transition-colors duration-150 hover:enabled:bg-[var(--editor-surface-hover)] hover:enabled:text-[var(--editor-active-fg)] disabled:opacity-30 disabled:cursor-not-allowed aria-pressed:bg-[var(--editor-active-bg)] aria-pressed:text-[var(--editor-active-fg)]',
 };
+
+/** Die schwebende Kontextleiste (`CanvasEditorLayout`); die Pille bleibt darunter. */
+const CONTEXT_BAR_SELECTOR = '[data-canvas-context-bar]';
+
+/** Unterkante der Kontextleiste in Fenster-px, 0 ohne Leiste. */
+function contextBarBottom(): number {
+  return document.querySelector(CONTEXT_BAR_SELECTOR)?.getBoundingClientRect().bottom ?? 0;
+}
 
 const DANGER_BTN =
   'hover:enabled:bg-[var(--editor-danger-bg)] hover:enabled:text-[var(--editor-danger-fg)]';
@@ -89,11 +97,13 @@ export interface SelectionPillProps {
 export function placePill(
   box: SelectionBox,
   pillWidth: number,
-  variant: SelectionPillVariant = 'touch'
+  variant: SelectionPillVariant = 'touch',
+  /** Unterkante dessen, was oben über der Fläche schwebt (Desktop: die Kontextleiste). */
+  reservedTop = 0
 ): { top: number; left: number } {
   const { visible } = box;
   const { height, minTop: minTopFor } = GEOMETRY[variant];
-  const minTop = minTopFor(visible.top);
+  const minTop = Math.max(minTopFor(visible.top), reservedTop + EDGE);
   const maxTop = visible.bottom - EDGE - height;
   const centered = box.left + box.width / 2 - pillWidth / 2;
   const left = Math.max(visible.left + EDGE, Math.min(centered, visible.right - pillWidth - EDGE));
@@ -137,6 +147,7 @@ export function SelectionPill({
 }: SelectionPillProps) {
   const t = useMessages();
   const [box, setBox] = useState<SelectionBox | null>(null);
+  const [reservedTop, setReservedTop] = useState(0);
   const [manipulating, setManipulating] = useState(false);
   const [pillWidth, setPillWidth] = useState(0);
   const { ref: pillRef, onKeyDown, onFocus } = useRovingToolbar<HTMLDivElement>();
@@ -144,10 +155,14 @@ export function SelectionPill({
 
   useLayoutEffect(() => {
     if (manipulating) return undefined;
-    let frame = requestAnimationFrame(() => setBox(getBox()));
+    const measure = () => {
+      setBox(getBox());
+      setReservedTop(variant === 'pointer' ? contextBarBottom() : 0);
+    };
+    let frame = requestAnimationFrame(measure);
     const remeasure = () => {
       cancelAnimationFrame(frame);
-      frame = requestAnimationFrame(() => setBox(getBox()));
+      frame = requestAnimationFrame(measure);
     };
     window.addEventListener('resize', remeasure);
     window.addEventListener('scroll', remeasure, true);
@@ -160,7 +175,7 @@ export function SelectionPill({
       window.removeEventListener('scroll', remeasure, true);
       window.removeEventListener('transitionend', remeasure, true);
     };
-  }, [getBox, measureKey, zoom, manipulating]);
+  }, [getBox, measureKey, zoom, manipulating, variant]);
 
   useEffect(() => subscribeManipulation(setManipulating), [subscribeManipulation]);
 
@@ -170,8 +185,8 @@ export function SelectionPill({
 
   if (manipulating || isEditingText || !box) return null;
 
-  const { top, left } = placePill(box, pillWidth, variant);
   const pointer = variant === 'pointer';
+  const { top, left } = placePill(box, pillWidth, variant, reservedTop);
   const btn = BTN[variant];
   const iconSize = pointer ? 18 : 20;
   const lockLabel = isLocked ? 'Entsperren' : 'Sperren';
