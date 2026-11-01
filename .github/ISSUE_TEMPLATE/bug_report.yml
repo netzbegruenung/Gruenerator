@@ -1,0 +1,57 @@
+name: Bug report
+description: Something in the Grünerator does not work as it should.
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: Please write in English. Quotes of German UI text, logs or content stay in the original.
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: What you did, what you expected, and what happened instead.
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: How to reproduce
+      description: Steps from a URL. Do not paste personal data, passwords or other people's content.
+    validations:
+      required: true
+  - type: dropdown
+    id: area
+    attributes:
+      label: Where
+      multiple: true
+      options:
+        - Web app
+        - Mobile app (iOS/Android)
+        - Desktop app
+        - Chat / agents
+        - Notebooks / search
+        - Sharepics / canvas editor
+        - Docs / boards / sheets
+        - MCP server
+        - API / backend
+        - Not sure
+    validations:
+      required: true
+  - type: dropdown
+    id: locale
+    attributes:
+      label: Audience
+      options:
+        - Germany (de-DE)
+        - Austria (de-AT)
+        - Both / not relevant
+  - type: input
+    id: environment
+    attributes:
+      label: Environment
+      description: Browser and OS, or app version and device.
+  - type: textarea
+    id: logs
+    attributes:
+      label: Error messages, logs or screenshots
+      render: text

@@ -1,0 +1,26 @@
+name: Feature request
+description: Propose a new feature or an improvement.
+labels: [enhancement]
+body:
+  - type: markdown
+    attributes:
+      value: Please write in English.
+  - type: textarea
+    id: problem
+    attributes:
+      label: Use case
+      description: Who needs this, and what do they want to get done?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposal
+  - type: dropdown
+    id: locale
+    attributes:
+      label: Audience
+      options:
+        - Germany (de-DE)
+        - Austria (de-AT)
+        - Both
