@@ -15,34 +15,38 @@ const props = {
 };
 
 describe('MarketCard', () => {
-  it('offers no toggle for own items', () => {
-    render(<MarketCard {...props} onPress={jest.fn()} added={null} onToggleAdded={jest.fn()} />);
+  it('offers no toggle for own items', async () => {
+    await render(
+      <MarketCard {...props} onPress={jest.fn()} added={null} onToggleAdded={jest.fn()} />
+    );
     expect(screen.queryByLabelText(/meinen Grüneratoren/)).toBeNull();
   });
 
-  it('adds without opening the card', () => {
+  it('adds without opening the card', async () => {
     const onPress = jest.fn();
     const onToggleAdded = jest.fn();
-    render(<MarketCard {...props} onPress={onPress} added={false} onToggleAdded={onToggleAdded} />);
+    await render(
+      <MarketCard {...props} onPress={onPress} added={false} onToggleAdded={onToggleAdded} />
+    );
 
-    fireEvent.press(screen.getByLabelText('Pressemitteilung zu meinen Grüneratoren'));
+    await fireEvent.press(screen.getByLabelText('Pressemitteilung zu meinen Grüneratoren'));
     expect(onToggleAdded).toHaveBeenCalledTimes(1);
     expect(onPress).not.toHaveBeenCalled();
   });
 
-  it('names the removal once the item is added', () => {
-    render(<MarketCard {...props} onPress={jest.fn()} added onToggleAdded={jest.fn()} />);
+  it('names the removal once the item is added', async () => {
+    await render(<MarketCard {...props} onPress={jest.fn()} added onToggleAdded={jest.fn()} />);
     const toggle = screen.getByLabelText('Pressemitteilung aus meinen Grüneratoren entfernen');
     expect(toggle.props.accessibilityState).toEqual({ selected: true });
   });
 
-  it('opens the actions on a long press and through the VoiceOver action', () => {
+  it('opens the actions on a long press and through the VoiceOver action', async () => {
     const onLongPress = jest.fn();
-    render(<MarketCard {...props} onPress={jest.fn()} onLongPress={onLongPress} />);
+    await render(<MarketCard {...props} onPress={jest.fn()} onLongPress={onLongPress} />);
     const card = screen.getByLabelText('Pressemitteilung');
 
-    fireEvent(card, 'longPress');
-    fireEvent(card, 'accessibilityAction', { nativeEvent: { actionName: 'longpress' } });
+    await fireEvent(card, 'longPress');
+    await fireEvent(card, 'accessibilityAction', { nativeEvent: { actionName: 'longpress' } });
     expect(onLongPress).toHaveBeenCalledTimes(2);
   });
 });

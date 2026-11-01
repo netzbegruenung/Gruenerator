@@ -99,7 +99,7 @@ afterEach(() => {
 
 describe('ProfilbildScreen before a photo', () => {
   it('opens the editor straight away with the upload zone and the toolbar', async () => {
-    render(<ProfilbildScreen isAustria={false} shareToken={null} galleryAsset={null} />);
+    await render(<ProfilbildScreen isAustria={false} shareToken={null} galleryAsset={null} />);
     await act(async () => {});
     expect(screen.getByText('Kein Foto ausgewählt')).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Foto aufnehmen' })).toBeTruthy();
@@ -113,17 +113,17 @@ describe('ProfilbildScreen before a photo', () => {
   });
 
   it('opens the background picker in its sheet and closes it again', async () => {
-    render(<ProfilbildScreen isAustria={false} shareToken={null} galleryAsset={null} />);
+    await render(<ProfilbildScreen isAustria={false} shareToken={null} galleryAsset={null} />);
     await act(async () => {});
-    fireEvent.press(screen.getByRole('button', { name: 'Hintergrund' }));
+    await fireEvent.press(screen.getByRole('button', { name: 'Hintergrund' }));
     expect(screen.getByRole('radio', { name: 'Farben' })).toBeTruthy();
-    fireEvent.press(screen.getByRole('button', { name: 'Fertig' }));
+    await fireEvent.press(screen.getByRole('button', { name: 'Fertig' }));
     expect(screen.queryByRole('radio', { name: 'Farben' })).toBeNull();
   });
 
   it('shows the editor skeleton while a saved Profilbild loads', async () => {
     mockReopen.mockReturnValue(new Promise(() => {}));
-    render(<ProfilbildScreen isAustria={false} shareToken="abc" galleryAsset={null} />);
+    await render(<ProfilbildScreen isAustria={false} shareToken="abc" galleryAsset={null} />);
     await act(async () => {});
     expect(screen.getByLabelText('Profilbild wird geladen')).toBeTruthy();
     expect(screen.queryByText('Kein Foto ausgewählt')).toBeNull();
@@ -132,9 +132,9 @@ describe('ProfilbildScreen before a photo', () => {
   it('starts a fresh save session for a picked photo', async () => {
     const ref = { uri: 'file:///portrait.jpg', width: 800, height: 1000 };
     mockPick.mockResolvedValue(ref as never);
-    render(<ProfilbildScreen isAustria={false} shareToken={null} galleryAsset={null} />);
+    await render(<ProfilbildScreen isAustria={false} shareToken={null} galleryAsset={null} />);
     await act(async () => {});
-    await act(async () => fireEvent.press(screen.getByText('Alle Fotos ›')));
+    await act(async () => await fireEvent.press(screen.getByText('Alle Fotos ›')));
     expect(mockBegin).toHaveBeenCalledWith(null);
     expect(mockStart).toHaveBeenCalledWith(ref);
   });

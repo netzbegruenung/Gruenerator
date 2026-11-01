@@ -1,6 +1,7 @@
 import { Stack, useLocalSearchParams } from 'expo-router';
 import { useColorScheme } from 'react-native';
 
+import { NotebookIdContext } from '../../../components/notebook/NotebookIdContext';
 import { lightTheme, darkTheme } from '../../../theme';
 
 /**
@@ -16,7 +17,8 @@ import { lightTheme, darkTheme } from '../../../theme';
  * Agentura in beneath the notebook.
  *
  * The page the anchor creates on a push gets no params of its own — not even
- * the `[id]` of its own path — so it is handed the id here.
+ * the `[id]` of its own path — so it is handed the id through
+ * `NotebookIdContext`.
  */
 export const unstable_settings = { anchor: 'index' };
 
@@ -26,16 +28,18 @@ export default function NotebookLayout() {
   const theme = colorScheme === 'dark' ? darkTheme : lightTheme;
 
   return (
-    <Stack
-      screenOptions={{
-        headerShown: false,
-        animation: 'slide_from_right',
-        gestureEnabled: true,
-        gestureDirection: 'horizontal',
-        contentStyle: { backgroundColor: theme.background },
-      }}
-    >
-      <Stack.Screen name="index" initialParams={{ id }} />
-    </Stack>
+    <NotebookIdContext value={id}>
+      <Stack
+        screenOptions={{
+          headerShown: false,
+          animation: 'slide_from_right',
+          gestureEnabled: true,
+          gestureDirection: 'horizontal',
+          contentStyle: { backgroundColor: theme.background },
+        }}
+      >
+        <Stack.Screen name="index" />
+      </Stack>
+    </NotebookIdContext>
   );
 }
