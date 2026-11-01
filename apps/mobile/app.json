@@ -69,13 +69,7 @@
           "savePhotosPermission": "Erlaube Grünerator, Reels in deiner Galerie zu speichern"
         }
       ],
-      [
-        "expo-video",
-        {
-          "supportsBackgroundPlayback": false,
-          "supportsPictureInPicture": false
-        }
-      ],
+      "expo-video",
       [
         "expo-font",
         {
