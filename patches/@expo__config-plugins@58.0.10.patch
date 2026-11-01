@@ -1,0 +1,21 @@
+diff --git a/build/ios/utils/Xcodeproj.js b/build/ios/utils/Xcodeproj.js
+index 0d83ba043c919ba57cf5c20f3913a55426337fed..2bdda95040f1a9cf13f65b17a988c83720dd5e22 100644
+--- a/build/ios/utils/Xcodeproj.js
++++ b/build/ios/utils/Xcodeproj.js
+@@ -203,10 +203,12 @@ const NEITHER_LETTER_NOR_NUMBER = /[^\p{L}\p{N}]+/gu;
+ const COMBINING_MARKS = /\p{M}+/gu;
+ const NOT_ASCII_ALPHANUMERIC = /[\W_]+/g;
+ function sanitizedName(name) {
+-    // NFKD before slugify, or letters are lost: 'Ċ' decomposes to 'C' + a combining mark
+-    // that the next line drops, while slugify deletes it outright.
+-    const lettersAndNumbers = name.replace(NEITHER_LETTER_NOR_NUMBER, '').normalize('NFKD').replace(COMBINING_MARKS, '');
+-    return toAsciiIdentifier((0, _slugify().default)(lettersAndNumbers)) || toAsciiIdentifier((0, _slugify().default)(name)) || 'app';
++    // Gruenerator patch: the pre-58 rule, so prebuild names the Xcode target
++    // 'Grnerator' as eas-cli (config-plugins 55) still expects when it signs.
++    return sanitizedNameForProjects(name) || sanitizedNameForProjects((0, _slugify().default)(name)) || 'app';
++}
++function sanitizedNameForProjects(name) {
++    return name.replace(/[\W_]+/g, '').normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+ }
+ function toAsciiIdentifier(name) {
+     return name.replace(NOT_ASCII_ALPHANUMERIC, '');
