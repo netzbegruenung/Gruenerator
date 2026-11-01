@@ -30,14 +30,14 @@
   "dependencies": {
     "@assistant-ui/react-markdown": "^0.14.24",
     "@base-ui/react": "^1.9.0",
-    "ai": "^7.0.152",
+    "ai": "^7.0.157",
     "blurhash": "^2.0.5",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "cmdk": "^1.1.1",
     "date-fns": "^4.4.0",
-    "lucide-react": "^1.61.0",
-    "motion": "^14.6.0",
+    "lucide-react": "^1.64.0",
+    "motion": "^14.7.1",
     "nanoid": "^6.0.2",
     "next-themes": "^0.4.6",
     "radix-ui": "^1.8.1",
@@ -52,7 +52,7 @@
     "zod": "^4.6.6"
   },
   "devDependencies": {
-    "@rolldown/plugin-babel": "^0.2.4",
+    "@rolldown/plugin-babel": "^0.3.0",
     "@types/react": "19.3.0",
     "@types/react-dom": "^19.3.0",
     "eslint": "^9.39.5",
