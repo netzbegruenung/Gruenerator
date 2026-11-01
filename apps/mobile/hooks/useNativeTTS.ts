@@ -1,5 +1,5 @@
 import { stripForSpeech, useChatConfigStore } from '@gruenerator/chat';
-import { createAudioPlayer, type AudioPlayer } from 'expo-audio';
+import { createAudioPlayer, setAudioModeAsync, type AudioPlayer } from 'expo-audio';
 import { File, Paths } from 'expo-file-system';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
@@ -120,6 +120,27 @@ async function fetchSentenceChunks(
   return chunks;
 }
 
+// Reading aloud keeps going on the lock screen and pauses other apps' audio, like
+// a podcast. Only for as long as it reads: the rest of the app, the voice call's
+// ready tone included, keeps expo-audio's defaults. `playsInSilentMode` must be
+// sent: a partial mode resets it to false, and iOS rejects background playback
+// without it ("Impossible audio mode").
+const READ_ALOUD_MODE = {
+  playsInSilentMode: true,
+  shouldPlayInBackground: true,
+  interruptionMode: 'doNotMix',
+} as const;
+const DEFAULT_MODE = {
+  playsInSilentMode: true,
+  shouldPlayInBackground: false,
+  interruptionMode: 'mixWithOthers',
+} as const;
+
+function endReadAloud(player: AudioPlayer | null): void {
+  player?.clearLockScreenControls();
+  void setAudioModeAsync(DEFAULT_MODE);
+}
+
 export function useNativeTTS() {
   const [state, setState] = useState<TTSState>('idle');
   const abortRef = useRef<AbortController | null>(null);
@@ -130,6 +151,8 @@ export function useNativeTTS() {
     () => () => {
       // Aborting makes an in-flight `play` return before it creates a player.
       abortRef.current?.abort();
+      // Rows unmount while scrolling; only the one reading hands the session back.
+      if (playerRef.current?.playing) endReadAloud(playerRef.current);
       playerRef.current?.release();
       playerRef.current = null;
     },
@@ -180,9 +203,32 @@ export function useNativeTTS() {
       const wavFile = new File(Paths.cache, 'tts-playback.wav');
       wavFile.writeSync(wavBytes);
 
-      if (!playerRef.current) playerRef.current = createAudioPlayer(null);
-      playerRef.current.replace({ uri: wavFile.uri });
-      playerRef.current.play();
+      if (!playerRef.current) {
+        const player = createAudioPlayer(null);
+        player.addListener('playbackStatusUpdate', (status) => {
+          if (!status.didJustFinish) return;
+          endReadAloud(player);
+          setState('idle');
+        });
+        playerRef.current = player;
+      }
+      const player = playerRef.current;
+      // Without the mode it still reads, just not past the lock screen.
+      await setAudioModeAsync(READ_ALOUD_MODE).catch((error: unknown) =>
+        console.warn('[useNativeTTS] background audio mode refused', error)
+      );
+      // Stopped or unmounted while the mode switched: the cleanup saw no playing
+      // player and left the session alone, so hand it back here.
+      if (controller.signal.aborted) {
+        void setAudioModeAsync(DEFAULT_MODE);
+        return;
+      }
+      player.replace({ uri: wavFile.uri });
+      player.setActiveForLockScreen(true, {
+        title: sentences[0]?.slice(0, 80),
+        artist: 'Grünerator',
+      });
+      player.play();
       setState('playing');
     },
     [state, fetchFn, apiBaseUrl]
@@ -192,6 +238,7 @@ export function useNativeTTS() {
     abortRef.current?.abort();
     abortRef.current = null;
     playerRef.current?.pause();
+    endReadAloud(playerRef.current);
     setState('idle');
   }, []);
 
