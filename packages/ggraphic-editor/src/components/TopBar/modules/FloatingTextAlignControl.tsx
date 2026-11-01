@@ -1,7 +1,9 @@
 // SPDX-License-Identifier: MPL-2.0
+import { PiTextAlignCenter, PiTextAlignLeft, PiTextAlignRight } from 'react-icons/pi';
+
+import { TILE, TileCaption, useBarTiles } from '@ggraphic/editor/components/TopBar/barTiles';
 import { useMessages } from '@ggraphic/editor/i18n/messages';
 import { TEXT_ALIGNS, type TextAlign } from '@ggraphic/editor/utils/textAlign';
-import { PiTextAlignCenter, PiTextAlignLeft, PiTextAlignRight } from 'react-icons/pi';
 
 import type { IconType } from 'react-icons';
 
@@ -27,18 +29,22 @@ interface FloatingTextAlignControlProps {
 export function FloatingTextAlignControl({ align, onAlignChange }: FloatingTextAlignControlProps) {
   const next = TEXT_ALIGNS[(TEXT_ALIGNS.indexOf(align) + 1) % TEXT_ALIGNS.length]!;
   const t = useMessages();
+  const tiles = useBarTiles();
   const label = t.topBar.textAlign[align];
   const Icon = ICONS[align];
+  // Als Kachel steht „Ausrichtung“ darunter; der Name beginnt mit dem Wort.
+  const name = tiles ? `${t.topBar.tiles.textAlign}: ${label}` : t.topBar.textAlignLabel(label);
 
   return (
     <button
       type="button"
-      className={ICON_BTN}
+      className={tiles ? TILE : ICON_BTN}
       onClick={() => onAlignChange(next)}
-      title={t.topBar.textAlignLabel(label)}
-      aria-label={t.topBar.textAlignLabel(label)}
+      title={name}
+      aria-label={name}
     >
-      <Icon size={18} />
+      <Icon size={18} aria-hidden />
+      <TileCaption>{t.topBar.tiles.textAlign}</TileCaption>
     </button>
   );
 }

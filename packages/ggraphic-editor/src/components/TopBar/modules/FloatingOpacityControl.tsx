@@ -3,6 +3,7 @@ import { Slider } from 'radix-ui';
 import React from 'react';
 import { PiCheckerboard } from 'react-icons/pi';
 
+import { TILE, TileCaption, useBarTiles } from '@ggraphic/editor/components/TopBar/barTiles';
 import { useMessages } from '@ggraphic/editor/i18n/messages';
 import { Popover, PopoverContent, PopoverTrigger } from '@ggraphic/editor/ui/popover';
 
@@ -20,14 +21,21 @@ const TRIGGER_BTN =
  */
 export function FloatingOpacityControl({ opacity, onOpacityChange }: FloatingOpacityControlProps) {
   const t = useMessages();
+  const tiles = useBarTiles();
   const label = t.sidebar.imageAdjust.opacity;
   const percent = `${Math.round(opacity * 100)} %`;
 
   return (
     <Popover>
       <PopoverTrigger asChild>
-        <button className={TRIGGER_BTN} title={label} aria-label={label} type="button">
+        <button
+          className={tiles ? TILE : TRIGGER_BTN}
+          title={label}
+          aria-label={label}
+          type="button"
+        >
           <PiCheckerboard size={18} aria-hidden="true" />
+          <TileCaption>{label}</TileCaption>
         </button>
       </PopoverTrigger>
       <PopoverContent className="z-[10001] w-64 flex flex-col gap-2 p-3" align="center">

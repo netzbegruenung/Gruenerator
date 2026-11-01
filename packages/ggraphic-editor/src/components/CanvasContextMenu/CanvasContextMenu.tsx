@@ -20,7 +20,7 @@ export interface CanvasContextMenuHandle {
 }
 
 /** Befehle, die selbst den Fokus nehmen (Text-Editor, Bildauswahl): erst nach dem Schließen. */
-const AFTER_CLOSE: ReadonlySet<CanvasCommandId> = new Set(['editText', 'replaceBackground']);
+export const AFTER_CLOSE: ReadonlySet<CanvasCommandId> = new Set(['editText', 'replaceBackground']);
 
 const CONTENT =
   'z-[10001] min-w-[14rem] max-h-(--radix-context-menu-content-available-height) overflow-y-auto rounded-lg border border-[var(--editor-border)] bg-[var(--editor-surface)] p-1 text-[var(--editor-text)] shadow-[0_8px_24px_rgba(0,0,0,0.16)]';

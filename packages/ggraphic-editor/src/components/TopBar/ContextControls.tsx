@@ -1,7 +1,13 @@
 // SPDX-License-Identifier: MPL-2.0
-import { type FontRole } from '@ggraphic/core';
+import { fontRoleOptions, type FontRole } from '@ggraphic/core';
 import React, { useState } from 'react';
-import { PiCopy, PiLockSimple, PiLockSimpleOpen } from 'react-icons/pi';
+import {
+  PiArrowsOutCardinal,
+  PiCopy,
+  PiLockSimple,
+  PiLockSimpleOpen,
+  PiSparkle,
+} from 'react-icons/pi';
 
 import { useDocumentBrand } from '@ggraphic/editor/brand/documentBrand';
 import { useCanvasEditorServices } from '@ggraphic/editor/CanvasEditorProvider';
@@ -9,6 +15,7 @@ import {
   useCanvasTextFormatting,
   useIsCanvasTextEditing,
 } from '@ggraphic/editor/components/CanvasTextOverlay';
+import { TILE, TileGroup, useBarTiles } from '@ggraphic/editor/components/TopBar/barTiles';
 import { CropModeControls } from '@ggraphic/editor/components/TopBar/CropModeControls';
 import {
   BackgroundImagePicker,
@@ -138,6 +145,9 @@ const ICON_BTN =
 const CROP_BTN =
   'inline-flex items-center gap-1.5 h-8 max-canvas-mobile:h-11 shrink-0 rounded-md border-none bg-transparent px-2 cursor-pointer text-[13px] font-medium text-[var(--editor-text)] transition-colors duration-150 hover:bg-[var(--editor-surface-hover)] hover:text-[var(--editor-active-fg)] aria-pressed:bg-[var(--editor-active-bg)] aria-pressed:text-[var(--editor-active-fg)]';
 
+const EDIT_BTN =
+  'inline-flex items-center gap-1.5 h-8 max-canvas-mobile:h-11 shrink-0 rounded-md border-none bg-transparent px-2 cursor-pointer text-[13px] font-medium text-[var(--editor-text)] transition-colors duration-150 hover:bg-[var(--editor-surface-hover)] hover:text-[var(--editor-active-fg)]';
+
 const TEXT_BTN =
   'inline-flex items-center h-8 max-canvas-mobile:h-11 shrink-0 rounded-md border-none bg-transparent px-2 cursor-pointer whitespace-nowrap text-[13px] font-medium text-[var(--editor-text)] transition-colors duration-150 hover:bg-[var(--editor-surface-hover)] hover:text-[var(--editor-active-fg)]';
 
@@ -173,6 +183,7 @@ export function ContextControls({
   cropLayout = 'inline',
 }: ContextControlsProps) {
   const t = useMessages();
+  const tiles = useBarTiles();
   const brand = useDocumentBrand();
   const unsplashHome = useUnsplashHome();
   const [isColorPickerExpanded, setIsColorPickerExpanded] = useState(false);
@@ -333,7 +344,7 @@ export function ContextControls({
         <button
           key="crop"
           type="button"
-          className={CROP_BTN}
+          className={tiles ? TILE : CROP_BTN}
           onClick={(e) => {
             handleCropImage();
             // Wie beim Zuschneiden eigener Bilder: per Tastatur gehören die Pfeile danach der Seite.
@@ -400,17 +411,25 @@ export function ContextControls({
     );
   }
 
-  if (isText && activeFloatingModule?.data.isInstanceText && handlers.handleFontRoleChange) {
+  // Ohne zweite Schrift gibt es nichts zu wählen; die Gruppe fehlt dann ganz,
+  // sonst stünde in der Kachel-Leiste ein Wort ohne Liste.
+  if (
+    isText &&
+    activeFloatingModule?.data.isInstanceText &&
+    handlers.handleFontRoleChange &&
+    fontRoleOptions(brand.fonts).length >= 2
+  ) {
     const { handleFontRoleChange } = handlers;
     groups.push(
-      <FloatingFontRoleControl
-        key="fontrole"
-        text={{
-          fontFamily: activeFloatingModule.data.fontFamily ?? '',
-          bind: activeFloatingModule.data.bind,
-        }}
-        onChange={(role) => handleFontRoleChange(activeFloatingModule.data.id, role)}
-      />
+      <TileGroup key="fontrole" caption={t.topBar.tiles.fontRole}>
+        <FloatingFontRoleControl
+          text={{
+            fontFamily: activeFloatingModule.data.fontFamily ?? '',
+            bind: activeFloatingModule.data.bind,
+          }}
+          onChange={(role) => handleFontRoleChange(activeFloatingModule.data.id, role)}
+        />
+      </TileGroup>
     );
   }
 
@@ -432,12 +451,13 @@ export function ContextControls({
   // auseinanderlaufen.
   if (isText && formatting && formatting.editingId === activeFloatingModule?.data.id) {
     groups.push(
-      <formatting.TextFormatControls
-        key="format"
-        editor={formatting.editor}
-        marks={formatting.marks}
-        variant="contextBar"
-      />
+      <TileGroup key="format" caption={t.topBar.tiles.textFormat}>
+        <formatting.TextFormatControls
+          editor={formatting.editor}
+          marks={formatting.marks}
+          variant="contextBar"
+        />
+      </TileGroup>
     );
   } else if (
     isText &&
@@ -450,13 +470,14 @@ export function ContextControls({
     const { id, text, fontFamily, hasAccent, hasMarker } = activeFloatingModule.data;
     const { handleTextFormatChange } = handlers;
     groups.push(
-      <WholeTextFormatControls
-        key="format"
-        text={text}
-        marks={{ ...fontMarkSupport(fontFamily ?? ''), accent: !!hasAccent, marker: !!hasMarker }}
-        onChange={(next) => handleTextFormatChange(id, next)}
-        variant="contextBar"
-      />
+      <TileGroup key="format" caption={t.topBar.tiles.textFormat}>
+        <WholeTextFormatControls
+          text={text}
+          marks={{ ...fontMarkSupport(fontFamily ?? ''), accent: !!hasAccent, marker: !!hasMarker }}
+          onChange={(next) => handleTextFormatChange(id, next)}
+          variant="contextBar"
+        />
+      </TileGroup>
     );
   }
 
@@ -482,7 +503,7 @@ export function ContextControls({
       <button
         key="crop-image"
         disabled={isLocked}
-        className={CROP_BTN}
+        className={tiles ? TILE : CROP_BTN}
         onClick={(e) => {
           handlers.handleCropImage!();
           // Per Tastatur begonnen: der Fokus geht auf die Seite, damit die
@@ -554,7 +575,13 @@ export function ContextControls({
   const textActions: React.ReactNode[] = [];
   if (handlers.onOpenEffects && hasEffects(activeFloatingModule)) {
     textActions.push(
-      <button key="effects" type="button" className={TEXT_BTN} onClick={handlers.onOpenEffects}>
+      <button
+        key="effects"
+        type="button"
+        className={tiles ? TILE : TEXT_BTN}
+        onClick={handlers.onOpenEffects}
+      >
+        {tiles && <PiSparkle size={18} aria-hidden />}
         {t.topBar.effects}
       </button>
     );
@@ -691,7 +718,7 @@ export function ContextControls({
     <>
       {groups.map((group, i) => (
         <React.Fragment key={i}>
-          {i > 0 && <div className={SEP} />}
+          {i > 0 && !tiles && <div className={SEP} />}
           {group}
         </React.Fragment>
       ))}
@@ -702,9 +729,10 @@ export function ContextControls({
 /** Opens the t.topBar.edit panel: filters, presets, flip — for a free image or the background photo. */
 function EditImageButton({ onClick }: { onClick: () => void }) {
   const t = useMessages();
+  const tiles = useBarTiles();
   return (
     <button
-      className="inline-flex items-center gap-1.5 h-8 max-canvas-mobile:h-11 shrink-0 rounded-md border-none bg-transparent px-2 cursor-pointer text-[13px] font-medium text-[var(--editor-text)] transition-colors duration-150 hover:bg-[var(--editor-surface-hover)] hover:text-[var(--editor-active-fg)]"
+      className={tiles ? TILE : EDIT_BTN}
       onClick={onClick}
       title={t.topBar.adjustImage}
       type="button"
@@ -718,6 +746,7 @@ function EditImageButton({ onClick }: { onClick: () => void }) {
         strokeWidth="2"
         strokeLinecap="round"
         strokeLinejoin="round"
+        aria-hidden="true"
       >
         <circle cx="12" cy="12" r="3" />
         <path d="M12 3v2M12 19v2M3 12h2M19 12h2M5.6 5.6l1.4 1.4M17 17l1.4 1.4M18.4 5.6L17 7M7 17l-1.4 1.4" />

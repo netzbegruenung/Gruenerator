@@ -45,6 +45,7 @@ import { pagePersistedStateKeys } from '@ggraphic/editor/collab/pageElementState
 import { serializeDeck } from '@ggraphic/editor/collab/pagesDoc';
 import { createPageSyncedCallbacks } from '@ggraphic/editor/collab/wrapCallbacksWithPageSync';
 import { CanvasAnnouncer } from '@ggraphic/editor/components/CanvasAnnouncer';
+import { CanvasActionSheet } from '@ggraphic/editor/components/CanvasContextMenu/CanvasActionSheet';
 import { CanvasContextMenu } from '@ggraphic/editor/components/CanvasContextMenu/CanvasContextMenu';
 import { autoSwitchTab } from '@ggraphic/editor/components/CanvasEditor/autoSwitchTab';
 import {
@@ -1492,8 +1493,8 @@ function CanvasEditorInner({
   ) : (
     areaTabBar
   );
-  // A multi-selection has no selection bar on phones; the pill is its only
-  // door to the selection's commands.
+  // A multi-selection has no selection bar on phones; the pill and its
+  // action sheet are its only door to the selection's commands.
   const isMultiSelection = (toolbarState?.selectionCount ?? 0) > 1;
   // Desktop: what acts on the selection as a whole (lock, duplicate, delete,
   // the context menu) sits on the object; the bar above only shapes it. The
@@ -1523,7 +1524,7 @@ function CanvasEditorInner({
         canDelete={toolbarState.canDelete ?? false}
         onDuplicate={toolbarHandlers.handleDuplicate}
         onDelete={toolbarHandlers.handleDeleteElement}
-        onMore={!isMobileWeb ? openContextMenuAt : isMultiSelection ? undefined : openSelectionArea}
+        onMore={openContextMenuAt}
         isLocked={toolbarState.lockState === 'all'}
         onToggleLock={
           isMobileWeb || toolbarState.canLock ? toolbarHandlers.handleToggleLock : undefined
@@ -1803,9 +1804,13 @@ function CanvasEditorInner({
               </div>
             </CanvasEditorLayout>
             {selectionPill}
-            {!isMobileWeb && !isPreview && !readOnly && (
-              <CanvasContextMenu handleRef={contextMenuRef} closeKey={zoom} />
-            )}
+            {!isPreview &&
+              !readOnly &&
+              (isMobileWeb ? (
+                <CanvasActionSheet handleRef={contextMenuRef} />
+              ) : (
+                <CanvasContextMenu handleRef={contextMenuRef} closeKey={zoom} />
+              ))}
           </CanvasTextEditorProvider>
         </UserUploadsProvider>
       </ShellProvider>

@@ -2,6 +2,7 @@
 import React from 'react';
 import { PiCheckBold, PiSlidersHorizontal } from 'react-icons/pi';
 
+import { BarTilesProvider } from '@ggraphic/editor/components/TopBar/barTiles';
 import {
   ContextControls,
   showsCropModeBar,
@@ -26,7 +27,8 @@ interface MobileSelectionBarProps extends ContextControlsProps {
  * MobileSelectionBar — mobil die untere Leiste, solange etwas ausgewählt ist
  * und kein Sheet offen ist. Sie steht im Slot der Bereichs-Leiste (gleiche
  * Höhe, `order-2`), die Fläche behält also ihre Größe. Formatierung liegt hier,
- * Duplizieren und Löschen in der Pille am Objekt (`SelectionPill`).
+ * Duplizieren, Löschen und das Menü „…“ in der Pille am Objekt (`SelectionPill`).
+ * Die Werkzeuge stehen als beschriftete Kacheln (`barTiles`).
  */
 export function MobileSelectionBar({ onOpenArea, onDone, ...controls }: MobileSelectionBarProps) {
   const t = useMessages();
@@ -58,7 +60,11 @@ export function MobileSelectionBar({ onOpenArea, onDone, ...controls }: MobileSe
             HIDDEN_SCROLLBAR
           )}
         >
-          {!hasPendingAiSuggestion && <ContextControls {...controls} hideObjectActions />}
+          {!hasPendingAiSuggestion && (
+            <BarTilesProvider>
+              <ContextControls {...controls} hideObjectActions />
+            </BarTilesProvider>
+          )}
         </div>
       )}
       {onOpenArea && !cropping && (
