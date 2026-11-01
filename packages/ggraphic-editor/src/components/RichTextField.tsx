@@ -41,6 +41,7 @@ import { Placeholder, UndoRedo } from '@tiptap/extensions';
 import { EditorContent, useEditor, type Editor } from '@tiptap/react';
 import { useEffect, useRef, type CSSProperties } from 'react';
 
+import { useDocumentBrand } from '@ggraphic/editor/brand/documentBrand';
 import { Accent } from '@ggraphic/editor/components/accentMark';
 import { messages } from '@ggraphic/editor/i18n/messages';
 import { keepsEditing } from '@ggraphic/editor/utils/keyboardOwnership';
@@ -96,7 +97,8 @@ const BASE_EXTENSIONS = [
  * Schriftschnitt und ist deshalb auf jedem Feld aktiv. Der Akzent steht
  * immer im Schema; angeboten wird er nur, wo der Text einen Akzentstil trägt.
  */
-const ALWAYS_MARK_EXTENSIONS = [Underline, Accent, Marker];
+const ALWAYS_MARK_EXTENSIONS = [Underline, Accent];
+// Der Marker steht ebenso immer im Schema; er kommt mit dem Paket des Dokuments dazu.
 
 /**
  * Fett und Kursiv müssen IM SCHEMA stehen, auch wo die Schrift sie nicht
@@ -156,11 +158,13 @@ export function RichTextField({
   callbacks.current = { onChange, onBlur, onEscape, onSubmit };
   // `handleKeyDown` steht in der Konfiguration, bevor es den Editor gibt.
   const editorRef = useRef<Editor | null>(null);
+  const brand = useDocumentBrand();
 
   const editor = useEditor({
     extensions: [
       ...BASE_EXTENSIONS,
       ...ALWAYS_MARK_EXTENSIONS,
+      Marker.configure({ brand }),
       markExtension(Bold, marks.bold),
       markExtension(Italic, marks.italic),
       Placeholder.configure({ placeholder: placeholder ?? '' }),

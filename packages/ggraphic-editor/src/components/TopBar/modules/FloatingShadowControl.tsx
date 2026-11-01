@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: MPL-2.0
-import { activeBrand } from '@ggraphic/editor/brand/brandRegistry';
-import { CustomColorSwatch } from '@ggraphic/editor/components/CustomColorSwatch';
-import { useMessages } from '@ggraphic/editor/i18n/messages';
-import { Popover, PopoverContent, PopoverTrigger } from '@ggraphic/editor/ui/popover';
 import { Slider } from 'radix-ui';
 import React, { useId } from 'react';
 import { PiDropHalfBottom } from 'react-icons/pi';
 
+import { useDocumentBrand } from '@ggraphic/editor/brand/documentBrand';
+import { CustomColorSwatch } from '@ggraphic/editor/components/CustomColorSwatch';
+import { useMessages } from '@ggraphic/editor/i18n/messages';
+import { Popover, PopoverContent, PopoverTrigger } from '@ggraphic/editor/ui/popover';
 import { colorName } from '@ggraphic/editor/utils/colorNames';
 
 import type { ShadowPatch } from '@ggraphic/editor/hooks/useFloatingModuleHandlers';
@@ -83,7 +83,8 @@ export function FloatingShadowControl({
   shadowOpacity,
   onChange,
 }: FloatingShadowControlProps) {
-  const { shadows } = activeBrand().effects;
+  const brand = useDocumentBrand();
+  const { shadows } = brand.effects;
   const t = useMessages();
   const enabled = !!shadowColor;
 
@@ -143,8 +144,8 @@ export function FloatingShadowControl({
                     outlineOffset: '2px',
                   }}
                   onClick={() => onChange({ shadowColor: c })}
-                  title={colorName(c)}
-                  aria-label={colorName(c)}
+                  title={colorName(c, brand)}
+                  aria-label={colorName(c, brand)}
                   aria-pressed={shadowColor === c}
                   type="button"
                 />

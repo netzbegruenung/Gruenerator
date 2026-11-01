@@ -10,6 +10,7 @@ import {
   Pressable,
   RefreshControl,
   TextInput,
+  type ScrollViewInstance,
 } from 'react-native';
 
 import { SkeletonBar, SkeletonGroup, SkeletonRows } from '../../../../components/common';
@@ -53,7 +54,7 @@ export default function ProjektDetailScreen() {
   const [view, setView] = useState<ViewMode>('feed');
   const [query, setQuery] = useState('');
   const [commentsFor, setCommentsFor] = useState<GroupFeedItem | null>(null);
-  const scrollRef = useRef<ScrollView>(null);
+  const scrollRef = useRef<ScrollViewInstance>(null);
   // Karte und Liste melden ihre Lage getrennt (die Karte zuerst); gescrollt wird einmal, wenn beide da sind.
   const focus = useRef<{ listY: number | null; cardY: number | null; done: boolean }>({
     listY: null,

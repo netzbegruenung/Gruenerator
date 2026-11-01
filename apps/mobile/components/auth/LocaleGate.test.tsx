@@ -32,45 +32,45 @@ beforeEach(() => {
 });
 
 describe('LocaleGate (mobile)', () => {
-  it('bleibt weg, wenn das Profil ein Land trägt', () => {
+  it('bleibt weg, wenn das Profil ein Land trägt', async () => {
     mockStore({ ai_consent_at: CONSENTED, locale: 'de-AT' });
-    render(<LocaleGate />);
+    await render(<LocaleGate />);
     expect(screen.queryByText(TITLE)).toBeNull();
   });
 
-  it('bleibt weg, solange niemand angemeldet ist', () => {
+  it('bleibt weg, solange niemand angemeldet ist', async () => {
     mockStore(null);
-    render(<LocaleGate />);
+    await render(<LocaleGate />);
     expect(screen.queryByText(TITLE)).toBeNull();
   });
 
-  it('lässt der Einwilligung den Vortritt', () => {
+  it('lässt der Einwilligung den Vortritt', async () => {
     mockStore({ ai_consent_at: null, locale: null });
-    render(<LocaleGate />);
+    await render(<LocaleGate />);
     expect(screen.queryByText(TITLE)).toBeNull();
   });
 
-  it('fragt, wenn das Land fehlt, und unterstellt keins', () => {
+  it('fragt, wenn das Land fehlt, und unterstellt keins', async () => {
     mockStore({ ai_consent_at: CONSENTED, locale: null });
-    render(<LocaleGate />);
+    await render(<LocaleGate />);
     expect(screen.getByText(TITLE)).toBeTruthy();
     expect(updateLocale).not.toHaveBeenCalled();
   });
 
   it('speichert die Wahl', async () => {
     mockStore({ ai_consent_at: CONSENTED, locale: null });
-    render(<LocaleGate />);
+    await render(<LocaleGate />);
 
-    fireEvent.press(screen.getByText('Österreich'));
+    await fireEvent.press(screen.getByText('Österreich'));
     await waitFor(() => expect(updateLocale).toHaveBeenCalledWith('de-AT'));
   });
 
   it('meldet einen Fehler beim Speichern', async () => {
     updateLocale.mockRejectedValueOnce(new Error('offline'));
     mockStore({ ai_consent_at: CONSENTED, locale: null });
-    render(<LocaleGate />);
+    await render(<LocaleGate />);
 
-    fireEvent.press(screen.getByText('Deutschland'));
+    await fireEvent.press(screen.getByText('Deutschland'));
     expect(await screen.findByText('Das Land konnte nicht gespeichert werden.')).toBeTruthy();
   });
 });

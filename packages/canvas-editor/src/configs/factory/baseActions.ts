@@ -6,6 +6,7 @@ import { createElementActions } from '@ggraphic/editor/configs/factory/actionFac
 
 import { createBalkenActions } from './balkenActions';
 
+import type { BrandPack } from '@ggraphic/core';
 import type { BaseCanvasState } from '@ggraphic/editor/configs/factory/baseTypes';
 
 export function createBaseActions<TState extends BaseCanvasState>(
@@ -16,7 +17,8 @@ export function createBaseActions<TState extends BaseCanvasState>(
   canvasWidth: number,
   canvasHeight: number,
   fontColor?: string,
-  chartColors?: readonly string[],
+  /** The document's pack (`FullCanvasConfig.brand`); absent: the active brand. */
+  brand?: BrandPack,
   /** Startgröße neuer Elemente (`insertScaleFor`); 1 = Sharepic-Werte. */
   insertScale = 1
 ) {
@@ -29,7 +31,7 @@ export function createBaseActions<TState extends BaseCanvasState>(
       canvasWidth,
       canvasHeight,
       fontColor,
-      chartColors,
+      brand,
       insertScale
     ),
     ...createBalkenActions(

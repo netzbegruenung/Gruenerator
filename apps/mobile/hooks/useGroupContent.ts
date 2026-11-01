@@ -9,10 +9,10 @@ import {
 import { getNotebookDefinition } from '@gruenerator/shared/notebooks';
 import { useQuery } from '@tanstack/react-query';
 import { File, Paths } from 'expo-file-system';
-import * as Sharing from 'expo-sharing';
 import { useEffect, useState } from 'react';
 
 import { resolveChatUrl } from '../services/chatApiUrl';
+import { openFile } from '../services/openFile';
 import { secureStorage } from '../services/storage';
 
 import type { useRouter } from 'expo-router';
@@ -49,8 +49,8 @@ export function groupPostFileUrl(groupId: string, postId: string, fileId: string
   return resolveChatUrl(groupPostFilePath(groupId, postId, fileId));
 }
 
-/** Datei eines Beitrags laden und an den System-Teilen-Dialog geben (Öffnen, Sichern, Senden). */
-export async function shareGroupPostFile(
+/** Datei eines Beitrags laden und zum Ansehen öffnen (iOS: Quick Look, Android: Betrachter-App). */
+export async function openGroupPostFile(
   groupId: string,
   postId: string,
   file: GroupPostFile
@@ -63,7 +63,7 @@ export async function shareGroupPostFile(
     target,
     { headers: { Authorization: `Bearer ${token}` }, idempotent: true }
   );
-  await Sharing.shareAsync(downloaded.uri, { mimeType: file.mimeType, dialogTitle: file.name });
+  await openFile(downloaded.uri, { mimeType: file.mimeType, dialogTitle: file.name });
 }
 
 type Router = ReturnType<typeof useRouter>;

@@ -38,6 +38,8 @@ export function ProfilbildToolbar({
           <Pressable
             key={tool.id}
             accessibilityRole="button"
+            // Named explicitly: otherwise the icon's glyph text joins the name.
+            accessibilityLabel={tool.label}
             accessibilityState={{ disabled: off, expanded: on }}
             disabled={off}
             onPress={() => onOpen(tool.id)}

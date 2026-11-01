@@ -73,7 +73,7 @@ beforeEach(() => {
 describe('useSharepicCreator', () => {
   it('drafts, lets the review patch it and shows the patched render', async () => {
     review.mockResolvedValue({ status: 200, body: { ok: false, issues: ['eng'], patch } });
-    const { result } = renderHook(() => useSharepicCreator());
+    const { result } = await renderHook(() => useSharepicCreator());
 
     await act(() => result.current.send('  Ein Sharepic zu Radwegen  '));
 
@@ -115,7 +115,7 @@ describe('useSharepicCreator', () => {
       photoUrl: 'https://unsplash.com/photos/x',
     };
     review.mockResolvedValue({ status: 200, body: { ok: true, issues: [], patch: [] } });
-    const { result } = renderHook(() => useSharepicCreator());
+    const { result } = await renderHook(() => useSharepicCreator());
     await act(() => result.current.send('Ein Sharepic zu Radwegen'));
     draft.mockResolvedValue({
       status: 200,
@@ -135,7 +135,7 @@ describe('useSharepicCreator', () => {
 
   it('takes a failed design switch back and says so', async () => {
     review.mockResolvedValue({ status: 200, body: { ok: true, issues: [], patch: [] } });
-    const { result } = renderHook(() => useSharepicCreator());
+    const { result } = await renderHook(() => useSharepicCreator());
     await act(() => result.current.send('Ein Sharepic zu Radwegen'));
     await act(() => result.current.tweak('farbe', 'mint'));
     render.mockRejectedValueOnce(new Error('timeout'));
@@ -157,7 +157,7 @@ describe('useSharepicCreator', () => {
 
   it('skips the review when the page could not build a sheet', async () => {
     render.mockImplementation((input) => turn(input, { sheet: null }));
-    const { result } = renderHook(() => useSharepicCreator());
+    const { result } = await renderHook(() => useSharepicCreator());
 
     await act(() => result.current.send('Ein Sharepic zu Radwegen'));
 
@@ -167,7 +167,7 @@ describe('useSharepicCreator', () => {
 
   it('renders a design choice without the model, and revises the tweaked spec', async () => {
     review.mockResolvedValue({ status: 200, body: { ok: true, issues: [], patch: [] } });
-    const { result } = renderHook(() => useSharepicCreator());
+    const { result } = await renderHook(() => useSharepicCreator());
     await act(() => result.current.send('Ein Sharepic zu Radwegen'));
     draft.mockClear();
     review.mockClear();
@@ -203,7 +203,7 @@ describe('useSharepicCreator', () => {
 
   it('asks for an update when the deployed page predates the creator', async () => {
     render.mockRejectedValue(new CreatorUnsupportedError());
-    const { result } = renderHook(() => useSharepicCreator());
+    const { result } = await renderHook(() => useSharepicCreator());
 
     await act(() => result.current.send('Ein Sharepic zu Radwegen'));
 
@@ -216,7 +216,7 @@ describe('useSharepicCreator', () => {
   });
 
   it('refuses an over-long request without calling the server', async () => {
-    const { result } = renderHook(() => useSharepicCreator());
+    const { result } = await renderHook(() => useSharepicCreator());
 
     await act(() => result.current.send('x'.repeat(20_001)));
 
@@ -228,7 +228,7 @@ describe('useSharepicCreator', () => {
   describe('review outcomes', () => {
     it('renders once when the review has nothing to fix', async () => {
       review.mockResolvedValue({ status: 200, body: { ok: true, issues: [], patch: [] } });
-      const { result } = renderHook(() => useSharepicCreator());
+      const { result } = await renderHook(() => useSharepicCreator());
 
       await act(() => result.current.send('Ein Sharepic zu Radwegen'));
 
@@ -243,7 +243,7 @@ describe('useSharepicCreator', () => {
       render.mockImplementation((input) =>
         turn(input, { base: draftSpec, images: ['data:image/png;base64,SAME'] })
       );
-      const { result } = renderHook(() => useSharepicCreator());
+      const { result } = await renderHook(() => useSharepicCreator());
 
       await act(() => result.current.send('Ein Sharepic zu Radwegen'));
 
@@ -256,7 +256,7 @@ describe('useSharepicCreator', () => {
       review.mockResolvedValue({ status: 200, body: { ok: false, issues: ['eng'], patch } });
       let n = 0;
       render.mockImplementation((input) => turn(input, { base: specWith(`v${n++}`) }));
-      const { result } = renderHook(() => useSharepicCreator());
+      const { result } = await renderHook(() => useSharepicCreator());
 
       await act(() => result.current.send('Ein Sharepic zu Radwegen'));
 
@@ -267,7 +267,7 @@ describe('useSharepicCreator', () => {
 
     it('treats a failed review call as approval', async () => {
       review.mockRejectedValue(new Error('offline'));
-      const { result } = renderHook(() => useSharepicCreator());
+      const { result } = await renderHook(() => useSharepicCreator());
 
       await act(() => result.current.send('Ein Sharepic zu Radwegen'));
 
@@ -280,7 +280,7 @@ describe('useSharepicCreator', () => {
       render.mockImplementation((input) =>
         input.patch ? Promise.reject(new Error('timeout')) : turn(input)
       );
-      const { result } = renderHook(() => useSharepicCreator());
+      const { result } = await renderHook(() => useSharepicCreator());
 
       await act(() => result.current.send('Ein Sharepic zu Radwegen'));
 

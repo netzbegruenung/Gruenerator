@@ -61,7 +61,7 @@ const recipe = {
   liked: false,
   saved: false,
   isOwn: false,
-  reportKind: 'text_form',
+  reportKind: 'user_text_form',
   createdAt: null,
   recipe: { mention: 'presse', rowId: 'r1', skillCategory: null, system: false },
 } as unknown as MarketplaceItemOf<'recipe'>;
@@ -92,10 +92,10 @@ function setup(comments: EntityComment[]) {
 }
 
 async function sendReport() {
-  fireEvent.press(screen.getByRole('radio', { name: 'Sonstiges' }));
+  await fireEvent.press(screen.getByRole('radio', { name: 'Sonstiges' }));
   await act(async () => {
     // The form's own „Melden" comes last, after the item's.
-    fireEvent.press(screen.getAllByRole('button', { name: 'Melden' }).at(-1)!);
+    await fireEvent.press(screen.getAllByRole('button', { name: 'Melden' }).at(-1)!);
   });
 }
 
@@ -114,8 +114,10 @@ const target = { kind: 'recipe', ref: 'r1' } as const;
 describe('MarketplaceDiscussion', () => {
   it('likes, shares and reports the item', async () => {
     setup([]);
-    const share = jest.spyOn(Share, 'share').mockResolvedValue({ action: 'sharedAction' });
-    render(
+    const share = jest
+      .spyOn(Share, 'share')
+      .mockResolvedValue({ action: 'sharedAction', activityType: undefined });
+    await render(
       <MarketplaceDiscussion
         target={target}
         item={recipe}
@@ -124,17 +126,21 @@ describe('MarketplaceDiscussion', () => {
       />
     );
 
-    fireEvent.press(screen.getByText('Gefällt mir (2)'));
+    await fireEvent.press(screen.getByText('Gefällt mir (2)'));
     expect(mockLike).toHaveBeenCalledWith(recipe, expect.anything());
 
-    fireEvent.press(screen.getByText('Teilen'));
+    await fireEvent.press(screen.getByText('Teilen'));
     expect(share).toHaveBeenCalledWith(
       expect.objectContaining({ url: 'https://gruenerator.eu/marktplatz?item=recipe%3Ar1' })
     );
 
-    fireEvent.press(screen.getByText('Melden'));
+    await fireEvent.press(screen.getByText('Melden'));
     await sendReport();
-    expect(mockSubmit).toHaveBeenCalledWith({ kind: 'text_form', targetId: 'r1' }, 'other', '');
+    expect(mockSubmit).toHaveBeenCalledWith(
+      { kind: 'user_text_form', targetId: 'r1' },
+      'other',
+      ''
+    );
     expect(screen.getByText('Noch keine Kommentare. Schreib den ersten.')).toBeTruthy();
   });
 
@@ -143,33 +149,35 @@ describe('MarketplaceDiscussion', () => {
       comment({}),
       comment({ id: 'c2', parentId: 'c1', userId: 'me', authorName: 'Ich', body: 'Danke' }),
     ]);
-    render(<MarketplaceDiscussion target={target} item={recipe} canModerate={false} />);
+    await render(<MarketplaceDiscussion target={target} item={recipe} canModerate={false} />);
 
     // A reply to a reply still hangs on the thread's first comment.
-    fireEvent.press(screen.getByRole('button', { name: 'Ich antworten' }));
-    fireEvent.changeText(screen.getByLabelText('Ich antworten …'), 'Gern');
+    await fireEvent.press(screen.getByRole('button', { name: 'Ich antworten' }));
+    await fireEvent.changeText(screen.getByLabelText('Ich antworten …'), 'Gern');
     await act(async () => {
-      fireEvent.press(screen.getAllByRole('button', { name: 'Senden' })[0]!);
+      await fireEvent.press(screen.getAllByRole('button', { name: 'Senden' })[0]!);
     });
     expect(mockAdd).toHaveBeenCalledWith({ body: 'Gern', parentId: 'c1' });
   });
 
   it('reports someone else’s comment as an entity_comment, not one’s own', async () => {
     setup([comment({}), comment({ id: 'c2', userId: 'me', authorName: 'Ich' })]);
-    render(<MarketplaceDiscussion target={target} item={null} canModerate={false} />);
+    await render(<MarketplaceDiscussion target={target} item={null} canModerate={false} />);
 
     // No item: neither like nor item report.
     expect(screen.queryByText('Gefällt mir (2)')).toBeNull();
 
-    fireEvent.press(screen.getByRole('button', { name: 'Optionen für den Kommentar von Ich' }));
+    await fireEvent.press(
+      screen.getByRole('button', { name: 'Optionen für den Kommentar von Ich' })
+    );
     expect(screen.queryByText('Melden')).toBeNull();
     expect(screen.getByText('Kommentar löschen')).toBeTruthy();
 
-    fireEvent.press(
+    await fireEvent.press(
       screen.getByRole('button', { name: 'Optionen für den Kommentar von Kim Grün' })
     );
-    fireEvent.press(screen.getByText('Melden'));
-    act(() => {
+    await fireEvent.press(screen.getByText('Melden'));
+    await act(() => {
       jest.runOnlyPendingTimers();
     });
     await sendReport();
@@ -180,9 +188,9 @@ describe('MarketplaceDiscussion', () => {
     );
   });
 
-  it('offers no report inside a sheet', () => {
+  it('offers no report inside a sheet', async () => {
     setup([comment({})]);
-    render(
+    await render(
       <MarketplaceDiscussion
         target={target}
         item={recipe}
@@ -191,7 +199,7 @@ describe('MarketplaceDiscussion', () => {
       />
     );
     expect(screen.queryByText('Melden')).toBeNull();
-    fireEvent.press(
+    await fireEvent.press(
       screen.getByRole('button', { name: 'Optionen für den Kommentar von Kim Grün' })
     );
     expect(screen.queryByText('Melden')).toBeNull();

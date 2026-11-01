@@ -1,3 +1,4 @@
+import { type RequiredFontRole, resolveFontRole } from '@ggraphic/core';
 import { largestSizeWordsFit } from '@ggraphic/editor/composer/textFit';
 import { ASSET_TARGET_SIZE } from '@ggraphic/editor/utils/canvasAssets';
 import { createShape } from '@ggraphic/editor/utils/shapes';
@@ -5,6 +6,7 @@ import { createShape } from '@ggraphic/editor/utils/shapes';
 import { emojiAssetId } from '../brand/grueneAssetCatalog';
 
 import { type IconlisteItem, type ListeItem, type Placed } from './composeTypes';
+import { brandFont } from './fontRole';
 import { SHAREPIC_ICON_IDS } from './sharepicIcons';
 import { CARD_MARKER, GAP, GJ_BODY } from './sharepicLayoutConstants';
 import { type BuildPass, type SlideCtx } from './slideContext';
@@ -50,7 +52,8 @@ export function layoutListe(ctx: SlideCtx, item: ListeItem, id: string, pass: Bu
             : '✓'
     );
     const markerSize = Math.round(wanted * (item.stil === 'ziffern' ? 1.5 : 1.1));
-    const markerFamily = item.stil === 'ziffern' ? headFamily : theme.fonts.body;
+    const markerRole: RequiredFontRole = item.stil === 'ziffern' ? 'headline' : 'body';
+    const markerFamily = resolveFontRole(theme.fonts, markerRole);
     const markerWidth = kasten
       ? 0
       : zeichen
@@ -116,7 +119,7 @@ export function layoutListe(ctx: SlideCtx, item: ListeItem, id: string, pass: Bu
             });
             out.layerOrder.push(emojiId);
           } else if (!kasten && !zeichen)
-            text(`${rowId}-marker`, markers[k]!, rowTop - lift, markerSize, markerFamily, {
+            text(`${rowId}-marker`, markers[k]!, rowTop - lift, markerSize, markerRole, {
               x: column.x + pad,
               width: markerWidth,
               fontStyle: 'bold',
@@ -125,7 +128,7 @@ export function layoutListe(ctx: SlideCtx, item: ListeItem, id: string, pass: Bu
               lineHeight: 1,
               ...(item.stil === 'ziffern' ? { type: 'header' as const } : {}),
             });
-          text(rowId, point, rowTop + textOffset, size, theme.fonts.body, {
+          text(rowId, point, rowTop + textOffset, size, 'body', {
             x: column.x + pad + markerWidth,
             width: textWidth,
             fill: ink,
@@ -162,8 +165,7 @@ export function layoutListe(ctx: SlideCtx, item: ListeItem, id: string, pass: Bu
     placed.push({
       height: lines * size * 1.3,
       after: GAP,
-      place: (y) =>
-        text(id, plainList, y, size, theme.fonts.body, { lineHeight: 1.3, align: 'left' }),
+      place: (y) => text(id, plainList, y, size, 'body', { lineHeight: 1.3, align: 'left' }),
     });
     return placed;
   }
@@ -197,7 +199,7 @@ export function layoutListe(ctx: SlideCtx, item: ListeItem, id: string, pass: Bu
         y: y + pad,
         width: inner,
         fontSize: size,
-        fontFamily: theme.fonts.body,
+        ...brandFont(theme.fonts, 'body'),
         fontStyle: 'normal',
         fill: darkText,
         lineHeight: 1.3,
@@ -260,7 +262,7 @@ export function layoutIconliste(
           badge * 0.6,
           badgeColors.ink
         );
-        text(rowId, zeile.text, rowTop + textOffset, size, theme.fonts.body, {
+        text(rowId, zeile.text, rowTop + textOffset, size, 'body', {
           x: column.x + indent,
           width: textWidth,
           align: 'left',

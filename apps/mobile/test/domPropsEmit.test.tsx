@@ -45,27 +45,27 @@ describe('expo DOM component props emit', () => {
     mockOnMessage = null;
   });
 
-  it('does not send props on mount', () => {
-    render(mathView('E = mc^2'));
+  it('does not send props on mount', async () => {
+    await render(mathView('E = mc^2'));
     expect(propsMessages()).toHaveLength(0);
   });
 
-  it('does not resend unchanged props on a re-render', () => {
-    const view = render(mathView('E = mc^2'));
-    view.rerender(mathView('E = mc^2'));
+  it('does not resend unchanged props on a re-render', async () => {
+    const view = await render(mathView('E = mc^2'));
+    await view.rerender(mathView('E = mc^2'));
     expect(propsMessages()).toHaveLength(0);
   });
 
-  it('sends changed props', () => {
-    const view = render(mathView('E = mc^2'));
-    view.rerender(mathView('a^2 + b^2'));
+  it('sends changed props', async () => {
+    const view = await render(mathView('E = mc^2'));
+    await view.rerender(mathView('a^2 + b^2'));
     expect(propsMessages()).toHaveLength(1);
     expect(propsMessages()[0]).toContain('a^2 + b^2');
   });
 
-  it('sends the current props once the page is ready', () => {
-    render(mathView('E = mc^2'));
-    act(() =>
+  it('sends the current props once the page is ready', async () => {
+    await render(mathView('E = mc^2'));
+    await act(() =>
       mockOnMessage?.({
         nativeEvent: { data: JSON.stringify({ type: '$$dom_ready', data: null }) },
       })

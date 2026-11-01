@@ -5,9 +5,11 @@
  * gehen an das Stage der jeweiligen Seite, Bilder werden als PNG/JPEG geladen.
  */
 
-import { measureTextWidthWithFont } from '@ggraphic/editor/utils/textUtils';
+import { type BrandPack } from '@ggraphic/core';
 
 import { buildPptxModel, type PptxPageState } from '@ggraphic/editor/export/pptx/buildPptxModel';
+import { measureTextWidthWithFont } from '@ggraphic/editor/utils/textUtils';
+
 import { writePptx, type PptxLoadedImage, type PptxRasterImage } from './writePptx.js';
 
 import type { PptxRasterRequest } from '@ggraphic/editor/export/pptx/types';
@@ -78,6 +80,8 @@ export interface ExportPptxDeckOptions {
   rasterizeElement: (slideIndex: number, elementId: string) => Promise<PptxRasterImage | null>;
   title?: string;
   onProgress?: (done: number, total: number) => void;
+  /** Das Paket des Dokuments (`FullCanvasConfig.brand`); ohne: das aktive. */
+  brand?: BrandPack;
 }
 
 export async function exportPptxDeck({
@@ -86,8 +90,12 @@ export async function exportPptxDeck({
   rasterizeElement,
   title,
   onProgress,
+  brand,
 }: ExportPptxDeckOptions): Promise<Blob> {
-  const model = buildPptxModel(pages, format, { measure: measureTextWidthWithFont });
+  const model = buildPptxModel(pages, format, {
+    measure: measureTextWidthWithFont,
+    ...(brand ? { brand } : {}),
+  });
   const { blob } = await writePptx(model, {
     rasterize: (request: PptxRasterRequest, slideIndex: number) =>
       rasterizeElement(slideIndex, request.elementId),

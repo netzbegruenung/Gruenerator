@@ -10,20 +10,21 @@
  */
 
 import { carryInstanceState } from '@ggraphic/editor/configs/factory/carryInstanceState';
+import { makeSectionDefiner } from '@ggraphic/editor/configs/factory/defineSection';
+import { injectFeatureProps } from '@ggraphic/editor/configs/featureInjector';
+import { getPlaceholder } from '@ggraphic/editor/configs/placeholders';
+import { createShareSection } from '@ggraphic/editor/configs/shareSection';
 import { zoomBackground } from '@ggraphic/editor/utils/coverFit';
 import { straightenResetFor } from '@ggraphic/editor/utils/straighten';
 import { PiFrameCornersFill, PiSquaresFourFill, PiTextAa } from 'react-icons/pi';
 
 import { AssetsSection, CombinedTextSection, FrameSettingsSection } from '../../sidebar/sections';
 import { chatTab, createCommonSectionEntries, toolsTab, uploadsTab } from '../commonSections';
-import { injectFeatureProps } from '@ggraphic/editor/configs/featureInjector';
-import { getPlaceholder } from '@ggraphic/editor/configs/placeholders';
-import { createShareSection } from '@ggraphic/editor/configs/shareSection';
 
 import { createBaseActions } from './baseActions';
-import { makeSectionDefiner } from '@ggraphic/editor/configs/factory/defineSection';
 
-import type { BackgroundColorOption } from '@ggraphic/editor/sidebar/types';
+import type { BalkenInstance, BalkenMode } from '../../utils/balkenUtils';
+import type { BrandPack } from '@ggraphic/core';
 import type { StockImageAttribution } from '@ggraphic/editor/common/imageSourceTypes';
 import type {
   CanvasFeatures,
@@ -36,7 +37,7 @@ import type {
   CanvasElementConfig,
   AdditionalText,
 } from '@ggraphic/editor/configs/types';
-import type { BalkenInstance, BalkenMode } from '../../utils/balkenUtils';
+import type { BackgroundColorOption } from '@ggraphic/editor/sidebar/types';
 import type { AssetInstance } from '@ggraphic/editor/utils/canvasAssets';
 import type { ChartInstance } from '@ggraphic/editor/utils/chartUtils';
 import type { CircleBadgeInstance } from '@ggraphic/editor/utils/circleBadgeUtils';
@@ -247,6 +248,13 @@ export interface ImageTwoTextOptions<
    * Mirrors the same option on createColorTwoTextCanvas.
    */
   passthroughStateKeys?: string[];
+
+  /**
+   * Optional: the brand pack of the page (`FullCanvasConfig.brand`). Text,
+   * badges, frames, shapes and charts the user adds start in its fonts and
+   * colours; absent, in the active brand's.
+   */
+  brand?: BrandPack;
 }
 
 // ============================================================================
@@ -294,6 +302,7 @@ export function createImageTwoTextCanvas<
     backgroundColors,
     defaultBackgroundColor,
     passthroughStateKeys = [],
+    brand,
   } = options;
 
   const hasColorPlane = !!backgroundColors?.length;
@@ -387,6 +396,7 @@ export function createImageTwoTextCanvas<
     id,
     canvas,
     features,
+    ...(brand ? { brand } : {}),
 
     multiPage: {
       enabled: true,
@@ -566,7 +576,8 @@ export function createImageTwoTextCanvas<
         canvas.height,
         // Diese Vorlagen setzen ihren Text durchweg weiß über den Bildverlauf —
         // hinzugefügter Text und Icons folgen derselben Vorgabe.
-        '#FFFFFF'
+        '#FFFFFF',
+        brand
       );
 
       // Callback keys for external sync

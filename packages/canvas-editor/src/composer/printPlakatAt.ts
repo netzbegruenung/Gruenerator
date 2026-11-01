@@ -12,6 +12,7 @@ import { type TextAccent } from '@ggraphic/editor/utils/textUtils';
 
 import { AT_EMPHASIS_STYLE } from './chromeParts';
 import { type ComposedSlide } from './composeSharepic';
+import { brandFont } from './fontRole';
 import {
   ART,
   fitStack,
@@ -58,7 +59,7 @@ function aussage(
         text: withAccent(slots.headline, slots.akzent),
         type: 'header',
         fontSize: size,
-        fontFamily: fonts.headline,
+        ...brandFont(fonts, 'headline'),
         fontStyle: 'normal',
         fill: WHITE,
         lineHeight: HEAD_LEADING['de-AT'],
@@ -75,7 +76,7 @@ function aussage(
         text: slots.subline,
         type: 'subheader',
         fontSize: 0.36 * size,
-        fontFamily: fonts.body,
+        ...brandFont(fonts, 'body'),
         fontStyle: 'normal',
         fill: WHITE,
         lineHeight: 1.3,

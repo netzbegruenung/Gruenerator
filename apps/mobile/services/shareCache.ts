@@ -32,6 +32,6 @@ export function writeShareFile(bytes: Uint8Array, fileName: string): File {
   const dir = new Directory(root, `${now}-${shareCount}`);
   dir.create({ intermediates: true });
   const file = new File(dir, safeCacheFilename(fileName));
-  file.write(bytes);
+  file.writeSync(bytes);
   return file;
 }

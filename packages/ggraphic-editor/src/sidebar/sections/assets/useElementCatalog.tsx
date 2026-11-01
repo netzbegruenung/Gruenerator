@@ -1,8 +1,18 @@
 // SPDX-License-Identifier: MPL-2.0
+import { type BrandPack } from '@ggraphic/core';
+import { useQuery } from '@tanstack/react-query';
+import { useMemo, useState, type ReactNode } from 'react';
+import { PiImageFill } from 'react-icons/pi';
+
+import { useDocumentBrand } from '@ggraphic/editor/brand/documentBrand';
 import { useCanvasEditorServices } from '@ggraphic/editor/CanvasEditorProvider';
 import { useAllIconsCatalog, useIconCatalog } from '@ggraphic/editor/hooks/useIconCatalog';
 import { useNoStudioAssets } from '@ggraphic/editor/hostServices';
 import { useMessages } from '@ggraphic/editor/i18n/messages';
+import {
+  ALL_PALETTE_SHAPES,
+  getShapeVariant,
+} from '@ggraphic/editor/sidebar/sections/FormenSection';
 import {
   assetMatchesLocale,
   hasDarkPreview,
@@ -17,27 +27,20 @@ import {
   FRAME_PRESETS,
   getFramePreset,
 } from '@ggraphic/editor/utils/frameUtils';
+import { KAWAII_ILLUSTRATIONS } from '@ggraphic/editor/utils/illustrations/kawaii';
 import { getAllIllustrations } from '@ggraphic/editor/utils/illustrations/registry';
 import { getShapeDef } from '@ggraphic/editor/utils/shapes';
-import { useQuery } from '@tanstack/react-query';
-import { useMemo, useState, type ReactNode } from 'react';
-import { PiImageFill } from 'react-icons/pi';
 
 import { useEmojiCatalog } from '../../../hooks/useEmojiCatalog.js';
 import { withTone } from '../../../utils/emoji/emojiCatalog.js';
-import { KAWAII_ILLUSTRATIONS } from '@ggraphic/editor/utils/illustrations/kawaii';
-import {
-  ALL_PALETTE_SHAPES,
-  getShapeVariant,
-} from '@ggraphic/editor/sidebar/sections/FormenSection';
 
 import { ElementThumb } from './ElementThumb.js';
 import { useStockPhotos } from './useStockPhotos.js';
 
-import type { ElementBlocks } from './elementPanelHost.js';
 import type { ExtendedAssetsSectionProps } from './AssetsSection.js';
-import type { AssetView } from '@ggraphic/editor/sidebar/sections/assets/constants';
+import type { ElementBlocks } from './elementPanelHost.js';
 import type { ElementAction, ElementItem } from './elementTypes.js';
+import type { AssetView } from '@ggraphic/editor/sidebar/sections/assets/constants';
 import type { IconDef } from '@ggraphic/editor/utils/canvasIcons';
 import type { IllustrationDef } from '@ggraphic/editor/utils/illustrations/types';
 
@@ -68,18 +71,31 @@ export function assetItem(asset: UniversalAsset): ElementItem {
   };
 }
 
-export const SHAPE_ITEMS: ElementItem[] = ALL_PALETTE_SHAPES.map((shape) => {
-  const def = getShapeDef(shape.id);
-  return {
-    key: `shape:${shape.id}`,
-    get label() {
-      return def.name;
-    },
-    keywords: def.tags,
-    action: { kind: 'shape', shapeType: shape.id, color: getShapeVariant(shape.id).color },
-    thumb: { t: 'shape', shapeType: shape.id },
-  };
-});
+/** The shape tiles in a pack's colours, built once per pack. */
+const shapeItemsByPack = new Map<string, ElementItem[]>();
+export function shapeItems(brand: BrandPack): ElementItem[] {
+  let items = shapeItemsByPack.get(brand.id);
+  if (!items) {
+    items = ALL_PALETTE_SHAPES.map((shape) => {
+      const def = getShapeDef(shape.id);
+      return {
+        key: `shape:${shape.id}`,
+        get label() {
+          return def.name;
+        },
+        keywords: def.tags,
+        action: {
+          kind: 'shape',
+          shapeType: shape.id,
+          color: getShapeVariant(shape.id, brand).color,
+        },
+        thumb: { t: 'shape', shapeType: shape.id },
+      };
+    });
+    shapeItemsByPack.set(brand.id, items);
+  }
+  return items;
+}
 
 export const CHART_ITEMS: ElementItem[] = CHART_TYPE_DEFS.map((def) => ({
   key: `chart:${def.id}`,
@@ -242,6 +258,7 @@ export function useElementCatalog(
   emojiTone = 0
 ): CatalogCategory[] {
   const t = useMessages();
+  const shapes = shapeItems(useDocumentBrand());
   const { userLocale = 'de-DE', fetchStockImages } = useCanvasEditorServices();
   const panelHost = registeredAssetCatalog().elementPanel;
   const locale: AssetAudience = userLocale;
@@ -381,8 +398,8 @@ export function useElementCatalog(
       push({
         id: 'formen',
         label: t.sidebar.elements.categories.shapes,
-        count: SHAPE_ITEMS.length,
-        items: SHAPE_ITEMS,
+        count: shapes.length,
+        items: shapes,
         isLoading: false,
         searchable: true,
       });
@@ -445,6 +462,7 @@ export function useElementCatalog(
     photos.isLoading,
     props.onSetBackgroundImage,
     props.onAddShape,
+    shapes,
     props.onAddChart,
     props.onAddFrame,
     hasIllustrations,

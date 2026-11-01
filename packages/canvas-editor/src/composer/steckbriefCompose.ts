@@ -302,7 +302,7 @@ export function steckbriefAround(
       ? { shadowColor: '#000000', shadowBlur: 12, shadowOffsetY: 2, shadowOpacity: 0.45 }
       : {};
   labels.forEach((label, k) => {
-    text(`${id}-${k}`, label.lines.join('\n'), label.y, size, family, {
+    text(`${id}-${k}`, label.lines.join('\n'), label.y, size, 'headline', {
       type: 'header',
       x: label.x,
       width: colWidth,
@@ -323,7 +323,7 @@ export function steckbriefAround(
     });
   });
 
-  text(`${id}-gruss`, item.gruss, greetTop, grussSize, family, {
+  text(`${id}-gruss`, item.gruss, greetTop, grussSize, 'headline', {
     type: 'header',
     x: right - nameWidth - hand,
     width: nameWidth + hand,
@@ -333,7 +333,7 @@ export function steckbriefAround(
     marker: null,
     ...overPhoto,
   });
-  text(`${id}-name`, item.name, nameTop, nameSize, family, {
+  text(`${id}-name`, item.name, nameTop, nameSize, 'headline', {
     type: 'header',
     x: right - hand - 10 - nameWidth,
     width: nameWidth,

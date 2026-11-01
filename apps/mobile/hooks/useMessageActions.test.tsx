@@ -12,11 +12,11 @@ jest.mock('expo-router', () => ({ useRouter: () => ({ push: mockPush }) }));
 jest.mock('expo-sharing', () => ({ shareAsync: jest.fn(async () => undefined) }));
 jest.mock('expo-file-system', () => ({
   Paths: { cache: 'cache' },
-  File: jest.fn().mockImplementation(() => ({ uri: 'file:///cache/a.docx', write: jest.fn() })),
+  File: jest.fn().mockImplementation(() => ({ uri: 'file:///cache/a.docx', writeSync: jest.fn() })),
 }));
 jest.mock('../services/storage', () => ({ secureStorage: { getToken: jest.fn() } }));
 
-type AnyMock = jest.Mock<(...args: never[]) => Promise<unknown>>;
+type AnyMock = jest.Mock<(...args: unknown[]) => Promise<unknown>>;
 const getToken = secureStorage.getToken as unknown as AnyMock;
 const message = { role: 'assistant', text: 'Hallo', metadata: {} };
 const ok = (body: unknown) =>
@@ -43,7 +43,7 @@ describe('useMessageActions', () => {
   it('shares the docx and clears the flag on success', async () => {
     getToken.mockResolvedValue('t');
     (global.fetch as unknown as AnyMock).mockResolvedValue(ok(null));
-    const { result } = renderHook(() => useMessageActions(message));
+    const { result } = await renderHook(() => useMessageActions(message));
     await act(() => result.current.exportDocx());
     expect(Sharing.shareAsync).toHaveBeenCalledWith('file:///cache/a.docx', expect.anything());
     expect(result.current.exporting).toBeNull();
@@ -52,7 +52,7 @@ describe('useMessageActions', () => {
 
   it('clears the flag without a request when there is no token', async () => {
     getToken.mockResolvedValue(null);
-    const { result } = renderHook(() => useMessageActions(message));
+    const { result } = await renderHook(() => useMessageActions(message));
     await act(() => result.current.exportDocx());
     expect(global.fetch).not.toHaveBeenCalled();
     expect(result.current.exporting).toBeNull();
@@ -62,7 +62,7 @@ describe('useMessageActions', () => {
   it('alerts and clears the flag on an HTTP error', async () => {
     getToken.mockResolvedValue('t');
     (global.fetch as unknown as AnyMock).mockResolvedValue({ ...ok(null), ok: false, status: 400 });
-    const { result } = renderHook(() => useMessageActions(message));
+    const { result } = await renderHook(() => useMessageActions(message));
     await act(() => result.current.exportDocx());
     expect(Alert.alert).toHaveBeenCalledTimes(1);
     expect(result.current.exporting).toBeNull();
@@ -72,7 +72,7 @@ describe('useMessageActions', () => {
     getToken.mockImplementation(() => {
       throw new Error('keychain');
     });
-    const { result } = renderHook(() => useMessageActions(message));
+    const { result } = await renderHook(() => useMessageActions(message));
     await act(() => result.current.exportDocx());
     expect(Alert.alert).toHaveBeenCalledTimes(1);
     expect(result.current.exporting).toBeNull();
@@ -81,7 +81,7 @@ describe('useMessageActions', () => {
   it('opens the created document', async () => {
     getToken.mockResolvedValue('t');
     (global.fetch as unknown as AnyMock).mockResolvedValue(ok({ documentId: 'd1' }));
-    const { result } = renderHook(() => useMessageActions(message));
+    const { result } = await renderHook(() => useMessageActions(message));
     await act(() => result.current.openInDocs());
     expect(mockPush).toHaveBeenCalledWith({
       pathname: '/(fullscreen)/doc-editor',
@@ -93,7 +93,7 @@ describe('useMessageActions', () => {
   it('stays silent and clears the flag when creating the document fails', async () => {
     getToken.mockResolvedValue('t');
     (global.fetch as unknown as AnyMock).mockResolvedValue({ ...ok(null), ok: false, status: 500 });
-    const { result } = renderHook(() => useMessageActions(message));
+    const { result } = await renderHook(() => useMessageActions(message));
     await act(() => result.current.openInDocs());
     expect(mockPush).not.toHaveBeenCalled();
     expect(Alert.alert).not.toHaveBeenCalled();
