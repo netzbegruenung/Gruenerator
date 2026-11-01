@@ -16,10 +16,12 @@ import React, {
   useCallback,
   useMemo,
   memo,
+  useContext,
   useImperativeHandle,
   useLayoutEffect,
 } from 'react';
 
+import { DocumentBrandContext } from '@ggraphic/editor/brand/documentBrand';
 import { useEmitHostStateChanges } from '@ggraphic/editor/collab/useEmitHostStateChanges';
 import { useYjsCanvasBinding } from '@ggraphic/editor/collab/useYjsCanvasBinding';
 import { stateKeyOfCallback } from '@ggraphic/editor/collab/wrapCallbacksWithPageSync';
@@ -1240,16 +1242,24 @@ function GenericCanvasWithProvider<
   TState extends Record<string, unknown> & Partial<BaseCanvasState>,
   TActions extends OptionalCanvasActions,
 >(props: GenericCanvasProps<TState, TActions> & { forwardedRef?: React.Ref<GenericCanvasRef> }) {
+  // The page draws its defaults (the marker of a text without a marker style)
+  // in the brand of ITS document, wherever it is mounted: in the editor shell,
+  // embedded, or in an offscreen root for a preview or an export, where no
+  // shell provides one. A config that names none leaves the context as it is.
+  const outerBrand = useContext(DocumentBrandContext);
+  const brand = props.config.brand ?? outerBrand;
   return (
-    <CanvasStoreProvider initialFormatId={props.formatId}>
-      {props.pageBinding ? (
-        <CanvasYjsBindingMount
-          pageYMap={props.pageBinding.pageYMap}
-          isSynced={props.pageBinding.isSynced}
-        />
-      ) : null}
-      <MemoizedGenericCanvas {...props} />
-    </CanvasStoreProvider>
+    <DocumentBrandContext.Provider value={brand}>
+      <CanvasStoreProvider initialFormatId={props.formatId}>
+        {props.pageBinding ? (
+          <CanvasYjsBindingMount
+            pageYMap={props.pageBinding.pageYMap}
+            isSynced={props.pageBinding.isSynced}
+          />
+        ) : null}
+        <MemoizedGenericCanvas {...props} />
+      </CanvasStoreProvider>
+    </DocumentBrandContext.Provider>
   );
 }
 

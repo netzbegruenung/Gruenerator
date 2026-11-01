@@ -1,8 +1,10 @@
 // SPDX-License-Identifier: MPL-2.0
-import { activeBrand } from '@ggraphic/editor/brand/brandRegistry';
+import { useDocumentBrand } from '@ggraphic/editor/brand/documentBrand';
 import { CustomColorSwatch } from '@ggraphic/editor/components/CustomColorSwatch';
 import { useMessages } from '@ggraphic/editor/i18n/messages';
+import { SidebarSlider } from '@ggraphic/editor/sidebar/components/SidebarSlider';
 import { Switch } from '@ggraphic/editor/ui/switch';
+import { colorName } from '@ggraphic/editor/utils/colorNames';
 import { defaultTint, EMPTY_ADJUSTMENTS, IMAGE_PRESETS } from '@ggraphic/editor/utils/imageFilters';
 import {
   CROP_PRESETS,
@@ -11,9 +13,6 @@ import {
   type ImageAdjustments,
   type UserImageInstance,
 } from '@ggraphic/editor/utils/userImageUtils';
-
-import { colorName } from '@ggraphic/editor/utils/colorNames';
-import { SidebarSlider } from '@ggraphic/editor/sidebar/components/SidebarSlider';
 
 function naturalSize(src: string): Promise<{ width: number; height: number }> {
   return new Promise((resolve, reject) => {
@@ -42,7 +41,7 @@ export function ImageAdjustSection({
   onUpdateImage,
   backgroundPhoto = null,
 }: ImageAdjustSectionProps) {
-  const { tints, shadows } = activeBrand().effects;
+  const { tints, shadows } = useDocumentBrand().effects;
   const t = useMessages();
   const img = selectedImage;
   const adj: ImageAdjustments | null = img ?? backgroundPhoto?.adjustments ?? null;

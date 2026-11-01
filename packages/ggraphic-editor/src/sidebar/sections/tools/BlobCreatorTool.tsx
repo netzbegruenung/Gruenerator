@@ -1,16 +1,18 @@
 // SPDX-License-Identifier: MPL-2.0
-import { CustomColorSwatch } from '@ggraphic/editor/components/CustomColorSwatch';
-import { useMessages } from '@ggraphic/editor/i18n/messages';
-import { brandColors } from '@ggraphic/editor/utils/colorOptions';
+import { type BrandPack } from '@ggraphic/core';
 import { useCallback, useMemo, useRef, useState } from 'react';
 import { PiShuffle, PiDropSimpleFill } from 'react-icons/pi';
 import { Layer, Line, Stage } from 'react-konva';
 
+import { useDocumentBrand } from '@ggraphic/editor/brand/documentBrand';
+import { CustomColorSwatch } from '@ggraphic/editor/components/CustomColorSwatch';
+import { useMessages } from '@ggraphic/editor/i18n/messages';
 import {
   ToolPanel,
   type ToolPanelSuccess,
 } from '@ggraphic/editor/sidebar/sections/tools/ToolPanel';
 import { useToolImagePlacement } from '@ggraphic/editor/sidebar/sections/tools/useToolImagePlacement';
+import { brandColors } from '@ggraphic/editor/utils/colorOptions';
 
 import type Konva from 'konva';
 
@@ -26,8 +28,9 @@ const EXPORT_PIXEL_RATIO = 4; // 220 * 4 = 880px PNG
 const MAX_POINTS = 12;
 const TENSION = 0.6;
 
-/** The brand's fourth colour, read when the tool opens. */
-const defaultColor = () => brandColors()[3]?.value ?? brandColors()[0]?.value ?? '#000000';
+/** The document brand's fourth colour, read when the tool opens. */
+const defaultColor = (brand: BrandPack) => () =>
+  brandColors(brand)[3]?.value ?? brandColors(brand)[0]?.value ?? '#000000';
 
 function randomSeed(): number[] {
   return Array.from({ length: MAX_POINTS }, () => Math.random());
@@ -58,11 +61,12 @@ function ColorRow({
   onSelect: (color: string) => void;
   disabled: boolean;
 }) {
+  const brand = useDocumentBrand();
   return (
     <div className="flex flex-col gap-1.5">
       <span className="text-xs text-foreground-muted">Farbe</span>
       <div className="flex flex-wrap items-center gap-1.5">
-        {brandColors().map((c) => (
+        {brandColors(brand).map((c) => (
           <button
             key={c.id}
             type="button"
@@ -79,7 +83,7 @@ function ColorRow({
         ))}
         <CustomColorSwatch
           value={selected}
-          presets={brandColors().map((c) => c.value)}
+          presets={brandColors(brand).map((c) => c.value)}
           onPick={onSelect}
           className="size-6"
           disabled={disabled}
@@ -125,13 +129,14 @@ function LabeledRange({
 
 export function BlobCreatorTool({ onJumpToUploads, onPlaceImageUrl }: BlobCreatorToolProps) {
   const t = useMessages();
+  const brand = useDocumentBrand();
   const { finish, isUploading } = useToolImagePlacement({ onPlaceImageUrl, onJumpToUploads });
   const stageRef = useRef<Konva.Stage>(null);
 
   const [seed, setSeed] = useState<number[]>(randomSeed);
   const [numPoints, setNumPoints] = useState(7);
   const [irregularity, setIrregularity] = useState(0.35);
-  const [color, setColor] = useState(defaultColor);
+  const [color, setColor] = useState(defaultColor(brand));
   const [isBusy, setIsBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<ToolPanelSuccess | null>(null);
