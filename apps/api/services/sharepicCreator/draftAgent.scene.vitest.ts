@@ -579,6 +579,19 @@ describe('draftSharepic — form', () => {
     expect(draft.alternativen).toEqual(['karussell', 'einzelbild']);
   });
 
+  // Live 01.11.2026: „Als Diagramm" und „Als Zitat" unter einem Artenschutz-Sharepic
+  // ohne Zahlen und ohne Person — beide Chips scheiterten an jedem Versuch.
+  it('offers no alternative the brief cannot fill', async () => {
+    answersAfter(
+      { ...needs, form: 'einzelbild', alternativen: ['diagramm', 'zitat', 'vergleich'] },
+      { slides: [slide({ kind: 'farbe', color: 'tanne' })] }
+    );
+
+    const draft = await draftSharepic('Mehr Artenschutz jetzt', 'de-DE', null, [], {});
+
+    expect(draft.alternativen).toEqual(['vergleich']);
+  });
+
   it('lets a named form win over the creator choice', async () => {
     const errors = answersAfter(
       { ...needs, form: 'einzelbild', alternativen: [] },

@@ -10,6 +10,7 @@ import {
   type SharepicSpec,
 } from '@gruenerator/contracts';
 
+import { calendarDays, namesSpeaker, NUMBER } from './briefFacts.js';
 import { CAROUSEL_MIN_SLIDES, carouselSlideCount } from './draftFailure.js';
 import { type ExampleOccasion, type StyleguideChapter } from './styleguide.js';
 
@@ -173,6 +174,30 @@ export function namedSharepicForm(text: string): SharepicFormId | null {
     }
   }
   return null;
+}
+
+/** What the alternatives may be: only forms whose material the brief brings. */
+export const ALTERNATIVES_NEED_MATERIAL =
+  'Nenne als alternativen nur Formen, für die der Auftrag den Stoff hat: zitat und interview nur mit einer genannten Person, diagramm und rechnung nur mit Zahlen, termine nur mit Daten, vorstellung nur mit dem Namen der Person.';
+
+/**
+ * Whether the brief carries what validation demands of the form's block. An
+ * alternative without it is offered as a chip and then fails on every
+ * attempt (live 01.11.2026: „Als Diagramm" and „Als Zitat" on Artenschutz).
+ */
+export function formHasMaterial(form: SharepicFormId, brief: string): boolean {
+  switch (form) {
+    case 'diagramm':
+    case 'rechnung':
+      return new Set(brief.match(NUMBER) ?? []).size >= 2;
+    case 'zitat':
+    case 'interview':
+      return namesSpeaker(brief);
+    case 'termine':
+      return calendarDays(brief).size >= 2;
+    default:
+      return true;
+  }
 }
 
 /** The blocks that carry a Faktenbild's number on the scene (Kapitel faktenbild). */

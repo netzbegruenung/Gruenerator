@@ -1,7 +1,7 @@
 import { SHAREPIC_FORMS, type SharepicSpec } from '@gruenerator/contracts';
 import { describe, expect, it } from 'vitest';
 
-import { formMismatch, namedSharepicForm, wantsOneSlide } from './forms.js';
+import { formHasMaterial, formMismatch, namedSharepicForm, wantsOneSlide } from './forms.js';
 
 describe('SHAREPIC_FORMS stichworte', () => {
   // The hints the Vorlagen gallery shows must be words the matcher really takes.
@@ -152,5 +152,30 @@ describe('formMismatch', () => {
         true
       )
     ).toBeNull();
+  });
+});
+
+describe('formHasMaterial', () => {
+  const ARTENSCHUTZ = 'Zeit für mehr Artenschutz jetzt! Wir müssen unsere Biodiversität retten.';
+
+  it('drops forms whose block the brief cannot fill', () => {
+    expect(formHasMaterial('diagramm', ARTENSCHUTZ)).toBe(false);
+    expect(formHasMaterial('rechnung', ARTENSCHUTZ)).toBe(false);
+    expect(formHasMaterial('zitat', ARTENSCHUTZ)).toBe(false);
+    expect(formHasMaterial('termine', ARTENSCHUTZ)).toBe(false);
+  });
+
+  it('keeps forms that work without numbers, people or dates', () => {
+    for (const form of ['einzelbild', 'karussell', 'zahl', 'faktenbild', 'vergleich'] as const) {
+      expect(formHasMaterial(form, ARTENSCHUTZ)).toBe(true);
+    }
+  });
+
+  it('keeps them once the brief brings the material', () => {
+    expect(formHasMaterial('diagramm', 'Solar 2020: 12 %, 2025: 31 %')).toBe(true);
+    expect(formHasMaterial('zitat', 'Zitat von Lena Grün: „Busse statt Stau für alle“')).toBe(true);
+    expect(
+      formHasMaterial('termine', 'Aktionstage am 12.05. in Kiel und am 19.05. in Lübeck')
+    ).toBe(true);
   });
 });
