@@ -9,8 +9,8 @@ const OPTIONS: SegmentedOption[] = [
   { value: 'unten', label: 'Text unten', short: 'Unten', disabled: true },
 ];
 
-function renderControl(value: string | null, onChange = jest.fn()) {
-  render(
+async function renderControl(value: string | null, onChange = jest.fn()) {
+  await render(
     <SegmentedControl
       options={OPTIONS}
       value={value}
@@ -22,8 +22,8 @@ function renderControl(value: string | null, onChange = jest.fn()) {
 }
 
 describe('SegmentedControl', () => {
-  it('shows the short labels and announces the long ones', () => {
-    renderControl('oben');
+  it('shows the short labels and announces the long ones', async () => {
+    await renderControl('oben');
     expect(screen.getByText('Oben')).toBeTruthy();
     expect(screen.getByText('Mitte')).toBeTruthy();
     expect(screen.getByRole('radio', { name: 'Text in der Mitte' })).toBeTruthy();
@@ -32,28 +32,28 @@ describe('SegmentedControl', () => {
     expect(screen.getByLabelText('Position').props.accessibilityRole).toBe('radiogroup');
   });
 
-  it('marks exactly the selected segment as checked', () => {
-    renderControl('mitte');
+  it('marks exactly the selected segment as checked', async () => {
+    await renderControl('mitte');
     expect(screen.getByRole('radio', { name: 'Text in der Mitte' })).toBeChecked();
     expect(screen.getByRole('radio', { name: 'Text oben' })).not.toBeChecked();
   });
 
-  it('selects nothing for a null value', () => {
-    renderControl(null);
+  it('selects nothing for a null value', async () => {
+    await renderControl(null);
     for (const radio of screen.getAllByRole('radio')) expect(radio).not.toBeChecked();
   });
 
-  it('reports the tapped value', () => {
-    const onChange = renderControl('oben');
-    fireEvent.press(screen.getByText('Mitte'));
+  it('reports the tapped value', async () => {
+    const onChange = await renderControl('oben');
+    await fireEvent.press(screen.getByText('Mitte'));
     expect(onChange).toHaveBeenCalledWith('mitte');
   });
 
-  it('does not press a disabled option', () => {
-    const onChange = renderControl('oben');
+  it('does not press a disabled option', async () => {
+    const onChange = await renderControl('oben');
     const disabled = screen.getByRole('radio', { name: 'Text unten' });
     expect(disabled).toBeDisabled();
-    fireEvent.press(disabled);
+    await fireEvent.press(disabled);
     expect(onChange).not.toHaveBeenCalled();
   });
 });

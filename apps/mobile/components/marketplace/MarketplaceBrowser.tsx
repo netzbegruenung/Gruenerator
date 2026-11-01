@@ -426,7 +426,7 @@ export function MarketplaceBrowser({
           ListFooterComponent={
             !multi && paged.isFetchingNextPage ? (
               <ActivityIndicator color={theme.textGreen} style={styles.footer} />
-            ) : null
+            ) : undefined
           }
           onEndReached={() => {
             if (!multi && paged.hasNextPage && !paged.isFetchingNextPage)

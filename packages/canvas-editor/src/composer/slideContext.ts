@@ -1,3 +1,4 @@
+import { type RequiredFontRole } from '@ggraphic/core';
 import { type ComposerBrand } from '@ggraphic/editor/brand/composerBrand';
 import { type AdditionalText } from '@ggraphic/editor/configs/types';
 import { type CanvasFormat } from '@ggraphic/editor/formats/index';
@@ -66,7 +67,7 @@ export interface SlideCtx {
     value: string,
     y: number,
     fontSize: number,
-    fontFamily: string,
+    role: RequiredFontRole,
     extra?: Partial<AdditionalText>
   ) => void;
   lineCount: (

@@ -7,7 +7,7 @@
  * for labels like "Wusstest du?" in slider templates.
  */
 
-import { type PillBadgeFontStyle, type PillBadgeInstance } from '@ggraphic/core';
+import { type BrandPack, type PillBadgeFontStyle, type PillBadgeInstance } from '@ggraphic/core';
 
 import { activeBrand } from '@ggraphic/editor/brand/brandRegistry';
 import { messages } from '@ggraphic/editor/i18n/messages';
@@ -34,9 +34,8 @@ export interface PillBadgePreset {
 // PRESETS
 // ============================================================================
 
-/** The presets in the active brand's colours and headline font. */
-function pillBadgePresets(): Record<string, PillBadgePreset> {
-  const { colors, fonts } = activeBrand();
+/** The presets in a brand's colours and headline font. */
+function pillBadgePresets({ colors, fonts }: BrandPack): Record<string, PillBadgePreset> {
   return {
     slider: {
       text: messages().defaults.pillBadgeText,
@@ -103,12 +102,14 @@ export function calculatePillBadgeDimensions(
  *
  * @param presetId - The preset to use (e.g., 'slider', 'slider-inverted')
  * @param overrides - Optional overrides for specific properties
+ * @param brand - The pack the preset takes its colours and font from; the active brand by default
  */
 export function createPillBadgeInstance(
   presetId: string = 'slider',
-  overrides: Partial<PillBadgeInstance> = {}
+  overrides: Partial<PillBadgeInstance> = {},
+  brand: BrandPack = activeBrand()
 ): PillBadgeInstance {
-  const presets = pillBadgePresets();
+  const presets = pillBadgePresets(brand);
   const preset = presets[presetId] ?? presets.slider;
 
   return {

@@ -1,9 +1,11 @@
 // SPDX-License-Identifier: MPL-2.0
+import React from 'react';
+
+import { useDocumentBrand } from '@ggraphic/editor/brand/documentBrand';
 import { CustomColorSwatch } from '@ggraphic/editor/components/CustomColorSwatch';
 import { useMessages } from '@ggraphic/editor/i18n/messages';
 import { cn } from '@ggraphic/editor/utils/cn';
 import { brandColors, type ColorOption } from '@ggraphic/editor/utils/colorOptions';
-import React from 'react';
 
 interface FloatingColorPickerProps {
   currentColor: string;
@@ -35,7 +37,8 @@ export function FloatingColorPicker({
   allowCustom = true,
 }: FloatingColorPickerProps) {
   const t = useMessages();
-  const colorOptions = colors ?? brandColors();
+  const brand = useDocumentBrand();
+  const colorOptions = colors ?? brandColors(brand);
   const [internalExpanded, setInternalExpanded] = React.useState(false);
   const isExpanded = externalExpanded !== undefined ? externalExpanded : internalExpanded;
   const setIsExpanded = onExpandChange || setInternalExpanded;

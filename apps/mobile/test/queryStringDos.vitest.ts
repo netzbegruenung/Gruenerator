@@ -2,44 +2,47 @@ import { createRequire } from 'node:module';
 
 import { describe, expect, it } from 'vitest';
 
-// expo-router parses the query of every incoming deep link with query-string
-// (getStateFromPath -> parseQueryParams -> queryString.parse), and query-string
-// hands each key and value to decode-uri-component. That module's 0.2.2 release
-// decodes malformed percent-encoded input superlinearly (GHSA-vcc3-ghjq-m6fr,
-// GHSA-qr28-fpjm-wq7f): unpatched, the payloads below take seconds and slightly
-// longer ones take minutes, on the JS thread, triggered by any link handed to a
-// user.
+// expo-router parses the query of every incoming deep link
+// (getStateFromPath -> parseQueryParams). Up to SDK 57 that went through
+// query-string@7 and decode-uri-component@0.2.2, which decodes malformed
+// percent-encoded input superlinearly (GHSA-vcc3-ghjq-m6fr, GHSA-qr28-fpjm-wq7f): seconds on the JS
+// thread for a 1.8 KB query, triggered by any link handed to a user. We carried
+// a pnpm patch for it. From expo-router 58.0.14 on, parseQueryParams uses
+// `new URL(...).searchParams` and query-string is gone from the tree, so the
+// patch was dropped.
 //
-// 0.2.2 is the only version query-string@7 accepts and the patched line (>=0.5.1)
-// is ESM-only, so the fix is a pnpm patch (patches/decode-uri-component@0.2.2.patch).
-// This test runs the real installed copy, resolved exactly the way expo-router
-// resolves it, and fails both ways the fix can break: a dropped patch makes it
-// time out, and an ESM decode-uri-component makes queryString.parse throw
-// "decodeComponent is not a function".
+// This test runs the real installed parseQueryParams with the old payloads, so a
+// router version that goes back to a superlinear decoder fails here. It runs on
+// Node's URL; the app runs Expo's URL polyfill on Hermes, which this does not
+// cover.
 const requireHere = createRequire(import.meta.url);
 const requireFromRouter = createRequire(requireHere.resolve('expo-router/package.json'));
-const queryString = requireFromRouter('query-string') as {
-  parse: (input: string) => Record<string, unknown>;
+const { parseQueryParams } = requireFromRouter('./build/fork/getStateFromPath-forks.js') as {
+  parseQueryParams: (
+    path: string,
+    route: { name: string; params?: Record<string, unknown> }
+  ) => Record<string, unknown> | undefined;
 };
 
 describe('deep-link query parsing', () => {
+  it('no longer pulls in query-string', () => {
+    expect(() => requireFromRouter.resolve('query-string')).toThrow();
+  });
+
   it('decodes malformed percent-encoding in linear time', () => {
-    const hostile = `q=${'%A0'.repeat(600)}`;
+    const hostile = `/chat?q=${'%A0'.repeat(600)}`;
 
     const started = performance.now();
-    queryString.parse(hostile);
+    parseQueryParams(hostile, { name: 'chat' });
     const elapsed = performance.now() - started;
 
-    // Patched: well under a millisecond. Unpatched: seconds for this length.
     expect(elapsed).toBeLessThan(500);
   });
 
-  // GHSA-qr28-fpjm-wq7f: after the decode() rewrite above, the fallback still ran
-  // one full-string `replace(new RegExp(run, 'g'))` per distinct percent-encoded
-  // run, so K distinct runs cost O(K·L). Payload shape from the advisory; at
-  // 16 000 runs (~112 KB) the replace loop takes ~5 s, the single pass ~20 ms.
+  // GHSA-qr28-fpjm-wq7f: one full-string replace per distinct percent-encoded
+  // run made K distinct runs cost O(K·L). Payload shape from the advisory.
   it('decodes many distinct percent-encoded runs in linear time', () => {
-    let hostile = 'q=';
+    let hostile = '/chat?q=';
     for (let i = 0; i < 16_000; i++) {
       const high = Math.floor(i / 256)
         .toString(16)
@@ -50,25 +53,19 @@ describe('deep-link query parsing', () => {
     hostile += '%zz';
 
     const started = performance.now();
-    queryString.parse(hostile);
+    parseQueryParams(hostile, { name: 'chat' });
     const elapsed = performance.now() - started;
 
     expect(elapsed).toBeLessThan(500);
   });
 
-  it('decodes each run once, never the decoded output again', () => {
-    expect(queryString.parse('a=%25C2%zz&b=%41%FE%FF&c=%25%41%zz')).toEqual({
-      a: '%C2%zz',
-      b: 'A��',
-      c: '%A%zz',
-    });
-  });
-
   it('decodes well-formed queries unchanged', () => {
-    expect(queryString.parse('name=st%C3%A5le&note=a+b&sign=a%2Bb')).toEqual({
-      name: 'ståle',
-      note: 'a b',
-      sign: 'a+b',
-    });
+    expect(parseQueryParams('/chat?name=st%C3%A5le&note=a+b&sign=a%2Bb', { name: 'chat' })).toEqual(
+      {
+        name: 'ståle',
+        note: 'a b',
+        sign: 'a+b',
+      }
+    );
   });
 });

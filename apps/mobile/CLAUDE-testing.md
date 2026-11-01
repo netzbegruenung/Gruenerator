@@ -71,10 +71,14 @@ Four things that will cost you an afternoon if you change them without reading:
    error: `renderHook` returns an undefined `result.current`. Same dedupe
    [metro.config.js](metro.config.js) applies to the real bundle.
 
-3. **`@testing-library/react-native` stays on v13.** v14 moved to the standalone
-   `test-renderer` package and returns an empty object from `renderHook` under
-   the RN environment. v13 uses `react-test-renderer`, which jest-expo already
-   ships pinned to exactly the React version RN's bundled renderer requires.
+3. **`@testing-library/react-native` v14: `render`, `renderHook`, `fireEvent`,
+   `act`, `rerender` and `unmount` are async** (expo-router's `renderRouter`
+   with them). v14 moved to the standalone `test-renderer` package, which
+   jest-expo 58 ships instead of `react-test-renderer`. Every call must be
+   awaited: an un-awaited `renderHook(...)` is a Promise, so `.result` is
+   `undefined` — that is the "`renderHook` returns an empty object" symptom
+   that kept us on v13 under SDK 57. The legacy `UNSAFE_*` queries are removed.
+   Upstream guide: `node_modules/@testing-library/react-native/docs/guides/migration-v14.md`.
 
 4. **Import `jest` — do not use the global.** `@types/jest` declares
    `namespace jest` plus `describe`/`it`/`expect`, but no `jest` *value*, so the

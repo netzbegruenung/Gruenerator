@@ -12,6 +12,7 @@ export {
   type PillBadgeFontStyle,
   type PillBadgeInstance,
 } from './badges.js';
+export { type ElementBind, type FontFamilyBinding } from './bind.js';
 export {
   type ChartDataPoint,
   type ChartInstance,

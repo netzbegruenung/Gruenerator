@@ -1,17 +1,18 @@
 // SPDX-License-Identifier: MPL-2.0
-import { activeBrand } from '@ggraphic/editor/brand/brandRegistry';
-import { CustomColorSwatch } from '@ggraphic/editor/components/CustomColorSwatch';
-import { useMessages } from '@ggraphic/editor/i18n/messages';
-import { cn } from '@ggraphic/editor/utils/cn';
 import { FaTrash, FaCopy } from 'react-icons/fa';
 
-import { SidebarSlider } from '../components/SidebarSlider.js';
+import { useDocumentBrand } from '@ggraphic/editor/brand/documentBrand';
+import { CustomColorSwatch } from '@ggraphic/editor/components/CustomColorSwatch';
+import { useMessages } from '@ggraphic/editor/i18n/messages';
 import {
   ACTION_BTN,
   ACTION_BTN_DANGER,
   SECTION_HEADER,
   SECTION_TITLE,
 } from '@ggraphic/editor/sidebar/sidebarStyles';
+import { cn } from '@ggraphic/editor/utils/cn';
+
+import { SidebarSlider } from '../components/SidebarSlider.js';
 
 import type {
   IllustrationInstance,
@@ -42,6 +43,7 @@ export function IllustrationSettings({
   onDuplicateIllustration,
 }: IllustrationSettingsProps) {
   const t = useMessages();
+  const brand = useDocumentBrand();
   const isKawaiiSelected = selectedIllustration.source === 'kawaii';
   const kawaiiInstance = isKawaiiSelected ? (selectedIllustration as KawaiiInstance) : null;
 
@@ -101,7 +103,7 @@ export function IllustrationSettings({
             {t.sidebar.chart.color}
           </span>
           <div className="flex gap-[var(--spacing-small)] flex-wrap">
-            {activeBrand().palette.map((color) => (
+            {brand.palette.map((color) => (
               <button
                 key={color.id}
                 className={cn(
@@ -118,7 +120,7 @@ export function IllustrationSettings({
             ))}
             <CustomColorSwatch
               value={selectedIllustration.color}
-              presets={activeBrand().palette.map((color) => color.color)}
+              presets={brand.palette.map((color) => color.color)}
               onPick={(color) => onUpdateIllustration(selectedIllustration.id, { color })}
               className="size-7"
               outlineOffset={3}

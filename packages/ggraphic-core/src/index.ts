@@ -10,6 +10,9 @@ export {
   type BrandImage,
   type BrandPack,
   type BrandSwatch,
+  type FontRole,
+  type RequiredFontRole,
+  resolveFontRole,
 } from './brand/brandPack.js';
 export { type ByGround, type ComposerBrand } from './brand/composerBrand.js';
 export * from './model/index.js';

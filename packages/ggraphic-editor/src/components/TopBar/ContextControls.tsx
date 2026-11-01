@@ -1,6 +1,27 @@
 // SPDX-License-Identifier: MPL-2.0
+import React, { useState } from 'react';
+import { PiCopy, PiLockSimple, PiLockSimpleOpen, PiTrash } from 'react-icons/pi';
+
+import { useDocumentBrand } from '@ggraphic/editor/brand/documentBrand';
 import { useCanvasEditorServices } from '@ggraphic/editor/CanvasEditorProvider';
 import { useCanvasTextFormatting } from '@ggraphic/editor/components/CanvasTextOverlay';
+import { CropModeControls } from '@ggraphic/editor/components/TopBar/CropModeControls';
+import {
+  BackgroundImagePicker,
+  BackgroundRemoveImageButton,
+  BackgroundRestoreImageButton,
+  BackgroundZoomControl,
+  SetAsBackgroundButton,
+} from '@ggraphic/editor/components/TopBar/modules/FloatingBackgroundControls';
+import { FloatingColorPicker } from '@ggraphic/editor/components/TopBar/modules/FloatingColorPicker';
+import { FloatingFontSizeControl } from '@ggraphic/editor/components/TopBar/modules/FloatingFontSizeControl';
+import { FloatingGradientControl } from '@ggraphic/editor/components/TopBar/modules/FloatingGradientControl';
+import { FloatingLayerControls } from '@ggraphic/editor/components/TopBar/modules/FloatingLayerControls';
+import { FloatingOpacityControl } from '@ggraphic/editor/components/TopBar/modules/FloatingOpacityControl';
+import {
+  FloatingPositionControl,
+  type PositionCommandId,
+} from '@ggraphic/editor/components/TopBar/modules/FloatingPositionControl';
 import { type BackgroundControls } from '@ggraphic/editor/configs/types';
 import { type ShadowPatch } from '@ggraphic/editor/hooks/useFloatingModuleHandlers';
 import { type FloatingModuleState } from '@ggraphic/editor/hooks/useFloatingModuleState';
@@ -20,28 +41,11 @@ import { type LockState } from '@ggraphic/editor/utils/layerLock';
 import { STROKE_ONLY_SHAPES } from '@ggraphic/editor/utils/shapes';
 import { useUnsplashHome } from '@ggraphic/editor/utils/unsplashLinks';
 import { type TextAlign } from '@ggraphic/editor/utils/textAlign';
-import React, { useState } from 'react';
-import { PiCopy, PiLockSimple, PiLockSimpleOpen, PiTrash } from 'react-icons/pi';
 
-import { CropModeControls } from '@ggraphic/editor/components/TopBar/CropModeControls';
-import {
-  BackgroundImagePicker,
-  BackgroundRemoveImageButton,
-  BackgroundRestoreImageButton,
-  BackgroundZoomControl,
-  SetAsBackgroundButton,
-} from '@ggraphic/editor/components/TopBar/modules/FloatingBackgroundControls';
-import { FloatingColorPicker } from '@ggraphic/editor/components/TopBar/modules/FloatingColorPicker';
-import { FloatingFontSizeControl } from '@ggraphic/editor/components/TopBar/modules/FloatingFontSizeControl';
-import { FloatingGradientControl } from '@ggraphic/editor/components/TopBar/modules/FloatingGradientControl';
-import { FloatingLayerControls } from '@ggraphic/editor/components/TopBar/modules/FloatingLayerControls';
-import { FloatingOpacityControl } from '@ggraphic/editor/components/TopBar/modules/FloatingOpacityControl';
 import { FloatingOutlineControl } from './modules/FloatingOutlineControl.js';
-import {
-  FloatingPositionControl,
-  type PositionCommandId,
-} from '@ggraphic/editor/components/TopBar/modules/FloatingPositionControl';
+
 import { FloatingShadowControl } from './modules/FloatingShadowControl.js';
+
 import { FloatingTextAlignControl } from '@ggraphic/editor/components/TopBar/modules/FloatingTextAlignControl';
 
 export interface ContextControlsProps {
@@ -166,6 +170,7 @@ export function ContextControls({
   cropLayout = 'inline',
 }: ContextControlsProps) {
   const t = useMessages();
+  const brand = useDocumentBrand();
   const unsplashHome = useUnsplashHome();
   const [isColorPickerExpanded, setIsColorPickerExpanded] = useState(false);
   // Fett/Kursiv/… nur, solange wirklich getippt wird: die Knöpfe bedienen die
@@ -247,7 +252,7 @@ export function ContextControls({
         isExpanded={isColorPickerExpanded}
         onExpandChange={setIsColorPickerExpanded}
         variant={colorConfig.variant}
-        {...(isText ? { colors: fontColors() } : {})}
+        {...(isText ? { colors: fontColors(brand) } : {})}
       />
     );
   }
@@ -259,7 +264,7 @@ export function ContextControls({
     const known = new Set(own.map((c) => c.value.toLowerCase()));
     const palette = paletteOnly
       ? own
-      : [...own, ...brandColors().filter((c) => !known.has(c.value.toLowerCase()))];
+      : [...own, ...brandColors(brand).filter((c) => !known.has(c.value.toLowerCase()))];
     const pickColor =
       isPhoto && !colorReplacesImage && onImageChange
         ? (color: string) => {

@@ -26,6 +26,7 @@ import {
 
 import { LIME, SHAREPIC_COLOR_HEX } from './chromeParts';
 import { type ComposedSlide } from './composeSharepic';
+import { brandFont } from './fontRole';
 import {
   BODY_LEADING,
   blockHeight,
@@ -73,7 +74,7 @@ function absender(f: Frame, web: string, share: number, width: number): Block {
       text: web,
       type: 'subheader',
       fontSize: one > width ? (base * width) / one : base,
-      fontFamily: family,
+      ...brandFont(f.theme.fonts, 'headline'),
       fontStyle: 'normal',
       fill: WHITE,
       lineHeight: 1,
@@ -89,7 +90,7 @@ const headline = (f: Frame, id: string, text: string, size: number, before: numb
     text,
     type: 'header',
     fontSize: size,
-    fontFamily: f.theme.fonts.headline,
+    ...brandFont(f.theme.fonts, 'headline'),
     fontStyle: 'normal',
     fill: WHITE,
     lineHeight: HEAD_LEADING['de-DE'],
@@ -111,7 +112,7 @@ const zeile = (
     text,
     type: 'subheader',
     fontSize: size,
-    fontFamily: f.theme.fonts.headline,
+    ...brandFont(f.theme.fonts, 'headline'),
     fontStyle: 'normal',
     fill,
     lineHeight: HEAD_LEADING['de-DE'],
@@ -132,7 +133,7 @@ const fliess = (
     text,
     type: 'body',
     fontSize: size,
-    fontFamily: f.theme.fonts.body,
+    ...brandFont(f.theme.fonts, 'body'),
     fontStyle: bold ? 'bold' : 'normal',
     fill: WHITE,
     lineHeight: BODY_LEADING,

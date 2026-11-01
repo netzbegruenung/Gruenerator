@@ -1,7 +1,7 @@
 import { NOTEBOOK_REGISTRY } from '@gruenerator/shared/notebooks';
 import { Ionicons } from '@react-native-vector-icons/ionicons';
 import { useLocalSearchParams } from 'expo-router';
-import { useState } from 'react';
+import { use, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, View, useColorScheme } from 'react-native';
 import { useSharedValue, withTiming } from 'react-native-reanimated';
 
@@ -9,6 +9,7 @@ import { NotebookGradientBackground } from '../../../components/common/NotebookG
 import { ScreenScaffold } from '../../../components/navigation/ScreenScaffold';
 import { GlassTopTabs } from '../../../components/navigation/WorkplaceTopTabs';
 import { AllNotebooksSearchSheet } from '../../../components/notebook/AllNotebooksSearchSheet';
+import { NotebookIdContext } from '../../../components/notebook/NotebookIdContext';
 import { NotebookOverview } from '../../../components/notebook/NotebookOverview';
 import { NotebookResearchPanel } from '../../../components/notebook/NotebookResearchPanel';
 import { notebookKindOf } from '../../../config/notebooksConfig';
@@ -29,7 +30,9 @@ type NotebookTab = (typeof NOTEBOOK_TABS)[number]['id'];
  * magenta: the same scaffold and pill on top, the same docked composer.
  */
 export default function NotebookDetailScreen() {
-  const { id: notebookId, title } = useLocalSearchParams<{ id: string; title?: string }>();
+  const { id, title } = useLocalSearchParams<{ id?: string; title?: string }>();
+  const layoutId = use(NotebookIdContext);
+  const notebookId = id ?? layoutId ?? '';
   const colorScheme = useColorScheme();
   const theme = colorScheme === 'dark' ? darkTheme : lightTheme;
 
