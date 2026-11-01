@@ -14,7 +14,6 @@ import {
 } from '@ggraphic/editor/components/TopBar/modules/FloatingBackgroundControls';
 import { FloatingColorPicker } from '@ggraphic/editor/components/TopBar/modules/FloatingColorPicker';
 import { FloatingFontSizeControl } from '@ggraphic/editor/components/TopBar/modules/FloatingFontSizeControl';
-import { FloatingGradientControl } from '@ggraphic/editor/components/TopBar/modules/FloatingGradientControl';
 import { FloatingOpacityControl } from '@ggraphic/editor/components/TopBar/modules/FloatingOpacityControl';
 import {
   FloatingPositionControl,
@@ -22,22 +21,17 @@ import {
 } from '@ggraphic/editor/components/TopBar/modules/FloatingPositionControl';
 import { FloatingTextAlignControl } from '@ggraphic/editor/components/TopBar/modules/FloatingTextAlignControl';
 import { type BackgroundControls } from '@ggraphic/editor/configs/types';
-import { type ShadowPatch } from '@ggraphic/editor/hooks/useFloatingModuleHandlers';
 import { type FloatingModuleState } from '@ggraphic/editor/hooks/useFloatingModuleState';
 import { useMessages } from '@ggraphic/editor/i18n/messages';
+import { hasEffects } from '@ggraphic/editor/sidebar/sections/effects/effectsFor';
 import { useOptionalUserUploads } from '@ggraphic/editor/sidebar/UserUploadsProvider';
 import { type SelectionGeometry } from '@ggraphic/editor/utils/canvasCommands';
 import { brandColors, fontColors } from '@ggraphic/editor/utils/colorOptions';
 import { type CropAspectId } from '@ggraphic/editor/utils/cropAspect';
 import { focusPage, isKeyboardModality } from '@ggraphic/editor/utils/editorFocus';
-import { type GradientFill } from '@ggraphic/editor/utils/gradientFill';
 import { type LockState } from '@ggraphic/editor/utils/layerLock';
-import { STROKE_ONLY_SHAPES } from '@ggraphic/editor/utils/shapes';
 import { type TextAlign } from '@ggraphic/editor/utils/textAlign';
 import { useUnsplashHome } from '@ggraphic/editor/utils/unsplashLinks';
-
-import { FloatingOutlineControl } from './modules/FloatingOutlineControl.js';
-import { FloatingShadowControl } from './modules/FloatingShadowControl.js';
 
 export interface ContextControlsProps {
   selectedElement: string | null;
@@ -73,8 +67,6 @@ export interface ContextControlsProps {
     getGeometry?: () => SelectionGeometry | null;
     handlePositionChange?: (patch: { x?: number; y?: number }) => void;
     handleSizeChange?: (patch: { width?: number; height?: number }) => void;
-    handleShadowChange?: (id: string, patch: ShadowPatch, type: string) => void;
-    handleOutlineChange?: (id: string, patch: { stroke?: string; strokeWidth?: number }) => void;
     handleBlurChange?: (id: string, blur: number) => void;
     /** Ausschnitt mode for a framed photo: the photo moves inside its frame. */
     handleCropImage?: () => void;
@@ -85,12 +77,13 @@ export interface ContextControlsProps {
     handleCropRotation?: (deg: number) => void;
     handleSmartCrop?: () => void;
     handleExpandImage?: () => void;
-    handleGradientSelect?: (gradient: GradientFill | null) => void;
     /** Ausrichtung des Textes in seiner Box — freie und Vorlagen-Texte. */
     handleTextAlignChange?: (id: string, align: TextAlign) => void;
     handleToggleLock?: () => void;
     /** Opens the image-adjust (t.topBar.edit) panel for the selected image. */
     onEditImage?: () => void;
+    /** Opens the „Effekte“ area: gradient, outline and shadow of the selection. */
+    onOpenEffects?: () => void;
   };
   /** The page's background controls (colour plane and photo), if the template has them. */
   background?: BackgroundControls | null;
@@ -128,6 +121,9 @@ const ICON_BTN =
 
 const CROP_BTN =
   'inline-flex items-center gap-1.5 h-8 max-canvas-mobile:h-11 shrink-0 rounded-md border-none bg-transparent px-2 cursor-pointer text-[13px] font-medium text-[var(--editor-text)] transition-colors duration-150 hover:bg-[var(--editor-surface-hover)] hover:text-[var(--editor-active-fg)] aria-pressed:bg-[var(--editor-active-bg)] aria-pressed:text-[var(--editor-active-fg)]';
+
+const TEXT_BTN =
+  'inline-flex items-center h-8 max-canvas-mobile:h-11 shrink-0 rounded-md border-none bg-transparent px-2 cursor-pointer whitespace-nowrap text-[13px] font-medium text-[var(--editor-text)] transition-colors duration-150 hover:bg-[var(--editor-surface-hover)] hover:text-[var(--editor-active-fg)]';
 
 const SEP = 'w-px h-[22px] bg-[var(--editor-border-soft)] mx-1 shrink-0';
 
@@ -423,54 +419,14 @@ export function ContextControls({
   }
 
   const type = activeFloatingModule?.type;
-  // Only instance-backed text (additionalTexts) stores effect fields; config
-  // template texts route through state keys and don't support these controls.
-  const isEffectText = type === 'text' && !!activeFloatingModule?.data.isInstanceText;
-  // Stroke-only shapes (lines/arrows) render no fill area, so a gradient fill
-  // would be a dead control on them.
-  const isFillableShape =
-    type === 'shape' && !STROKE_ONLY_SHAPES.has(String(activeFloatingModule?.data.type));
 
-  if ((isFillableShape || isEffectText) && activeFloatingModule && handlers.handleGradientSelect) {
+  // Verlauf, Kontur und Schatten liegen im Bereich „Effekte“, wie bei Canva —
+  // als drei Popover nebeneinander waren sie drei kaum unterscheidbare Icons.
+  if (handlers.onOpenEffects && hasEffects(activeFloatingModule)) {
     groups.push(
-      <FloatingGradientControl
-        key="gradient"
-        currentColor={activeFloatingModule.data.fill ?? '#000000'}
-        gradient={activeFloatingModule.data.fillGradient ?? null}
-        onChange={(gradient) => handlers.handleGradientSelect!(gradient)}
-      />
-    );
-  }
-
-  if (isEffectText && activeFloatingModule && handlers.handleOutlineChange) {
-    groups.push(
-      <FloatingOutlineControl
-        key="outline"
-        stroke={activeFloatingModule.data.stroke}
-        strokeWidth={activeFloatingModule.data.strokeWidth}
-        onChange={(patch) => handlers.handleOutlineChange!(activeFloatingModule.data.id, patch)}
-      />
-    );
-  }
-
-  // Images edit their shadow inside the t.topBar.edit panel, not the context bar.
-  if ((type === 'shape' || isEffectText) && activeFloatingModule && handlers.handleShadowChange) {
-    groups.push(
-      <FloatingShadowControl
-        key="shadow"
-        shadowColor={activeFloatingModule.data.shadowColor}
-        shadowBlur={activeFloatingModule.data.shadowBlur}
-        shadowOffsetX={activeFloatingModule.data.shadowOffsetX}
-        shadowOffsetY={activeFloatingModule.data.shadowOffsetY}
-        shadowOpacity={activeFloatingModule.data.shadowOpacity}
-        onChange={(patch) =>
-          handlers.handleShadowChange!(
-            activeFloatingModule.data.id,
-            patch,
-            activeFloatingModule.type
-          )
-        }
-      />
+      <button key="effects" type="button" className={TEXT_BTN} onClick={handlers.onOpenEffects}>
+        {t.topBar.effects}
+      </button>
     );
   }
 

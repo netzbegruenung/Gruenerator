@@ -393,6 +393,10 @@ export const en: Messages = {
       uploadingN: (n: number) => `Uploading ${n} images…`,
       loadingN: (n: number) => `Loading ${n}…`,
     },
+    effects: {
+      title: 'Effects',
+      empty: 'This selection has no effects.',
+    },
     layers: {
       title: 'Layers',
       tabAriaLabel: 'Layers: all elements on the page',
@@ -726,9 +730,6 @@ export const en: Messages = {
     undoWin: 'Undo (Ctrl+Z)',
     redoMac: 'Redo (⌘⇧Z)',
     redoWin: 'Redo (Ctrl+Y)',
-    editShadow: 'Edit shadow',
-    editOutline: 'Edit text outline',
-    editGradient: 'Edit gradient',
     background: {
       uploadFailed: 'The image could not be uploaded. Please try again.',
       imageLoadError: 'Could not load the image',
@@ -774,6 +775,7 @@ export const en: Messages = {
     outline: 'Outline',
     outlineWidth: 'Outline width',
     position: 'Position',
+    effects: 'Effects',
     shadow: 'Shadow',
     strength: 'Strength',
     shape: 'Shape',

@@ -4,6 +4,7 @@ import React from 'react';
 import {
   ContextControls,
   type ContextControlsProps,
+  hasObjectActions,
 } from '@ggraphic/editor/components/TopBar/ContextControls';
 import { useCanvasStoreSelector } from '@ggraphic/editor/stores/CanvasStoreProvider';
 
@@ -11,7 +12,7 @@ import { useCanvasStoreSelector } from '@ggraphic/editor/stores/CanvasStoreProvi
  * ContextToolbar — desktop floating formatting card, centered over the canvas
  * work area. Wraps the shared ContextControls in the Canva-style surface card.
  * Hidden while an AI suggestion is pending (the menu bar shows the banner then).
- * It only shapes the selection: what acts on the object as a whole sits in the
+ * It only shapes the selection: what acts on an object as a whole sits in the
  * pill on the object (`SelectionPill`).
  */
 export function ContextToolbar(props: ContextControlsProps) {
@@ -20,7 +21,11 @@ export function ContextToolbar(props: ContextControlsProps) {
 
   return (
     <ContextCard>
-      <ContextControls {...props} hideObjectActions />
+      {/* Fläche und Foto haben keine Pille: dort bleibt „Auswahl aufheben“ hier. */}
+      <ContextControls
+        {...props}
+        hideObjectActions={hasObjectActions(props.activeFloatingModule)}
+      />
     </ContextCard>
   );
 }

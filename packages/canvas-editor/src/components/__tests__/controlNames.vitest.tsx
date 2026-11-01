@@ -3,8 +3,8 @@ import { PageToolbar } from '@ggraphic/editor/components/PageToolbar';
 import { FloatingColorPicker } from '@ggraphic/editor/components/TopBar/modules/FloatingColorPicker';
 import { FloatingFontSizeControl } from '@ggraphic/editor/components/TopBar/modules/FloatingFontSizeControl';
 import { FloatingOpacityControl } from '@ggraphic/editor/components/TopBar/modules/FloatingOpacityControl';
-import { FloatingShadowControl } from '@ggraphic/editor/components/TopBar/modules/FloatingShadowControl';
 import { SidebarSlider } from '@ggraphic/editor/sidebar/components/SidebarSlider';
+import { ShadowSettings } from '@ggraphic/editor/sidebar/sections/effects/ShadowSettings';
 import { SidebarPanel } from '@ggraphic/editor/sidebar/SidebarPanel';
 import { SidebarTabBar } from '@ggraphic/editor/sidebar/SidebarTabBar';
 import { render, screen } from '@testing-library/react';
@@ -141,10 +141,8 @@ describe('colour swatches', () => {
 
   it('shadow popover falls back to "Farbe #RRGGBB" for non-brand colours', async () => {
     const { baseElement } = render(
-      <FloatingShadowControl shadowColor="#316049" shadowBlur={4} onChange={() => {}} />
+      <ShadowSettings shadowColor="#316049" shadowBlur={4} onChange={() => {}} />
     );
-    await userEvent.click(screen.getByRole('button', { name: 'Schatten bearbeiten' }));
-    // enabled only when a blur/offset is set; activate if needed
     const swatch = await screen.findByRole('button', { name: 'Farbe #316049', pressed: true });
     expect(swatch).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Schwarz', pressed: false })).toBeInTheDocument();

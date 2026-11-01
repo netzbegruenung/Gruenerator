@@ -26,6 +26,8 @@ export type CoreSidebarTabId =
   | 'vorlagen'
   // Editor-level: every element of the active page (components/CanvasEditor/layersTab.ts)
   | 'layers'
+  // Editor-level, opened from the context bar's "Effekte" (sidebar/sections/EffectsSection.tsx)
+  | 'effects'
   // Legacy/template-specific tab IDs (for backwards compatibility)
   | 'fontsize'
   | 'assets'
