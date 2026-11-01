@@ -7,13 +7,13 @@
 
 [![Node.js](https://img.shields.io/badge/Node.js-22+-339933?style=flat-square&logo=node.js&logoColor=white)](https://nodejs.org/)
 [![React](https://img.shields.io/badge/React-19-61DAFB?style=flat-square&logo=react&logoColor=black)](https://react.dev/)
-[![Expo](https://img.shields.io/badge/Expo-57-000020?style=flat-square&logo=expo&logoColor=white)](https://expo.dev/)
+[![Expo](https://img.shields.io/badge/Expo-58-000020?style=flat-square&logo=expo&logoColor=white)](https://expo.dev/)
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-15+-336791?style=flat-square&logo=postgresql&logoColor=white)](https://www.postgresql.org/)
 [![Mistral AI](https://img.shields.io/badge/Mistral-AI-FF7000?style=flat-square&logo=mistral&logoColor=white)](https://mistral.ai/)
-[![License](https://img.shields.io/badge/license-Proprietary-blue?style=flat-square)](LICENSE.md)
+[![License](https://img.shields.io/badge/license-AGPL--3.0-blue?style=flat-square)](LICENSE)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen?style=flat-square)](.github/CONTRIBUTING.md)
 
-[Live Demo](https://gruenerator.de) · [Documentation](https://doku.gruenerator.eu/) · [Report Bug](https://github.com/netzbegruenung/Gruenerator/issues) · [Request Feature](https://github.com/netzbegruenung/Gruenerator/issues)
+[Live Demo](https://gruenerator.eu) · [Documentation](https://doku.gruenerator.eu/) · [Report Bug](https://github.com/netzbegruenung/Gruenerator/issues) · [Request Feature](https://github.com/netzbegruenung/Gruenerator/issues)
 
 </div>
 
@@ -77,7 +77,7 @@ Grünerator is built on **100% European infrastructure** with a commitment to di
 <p>
   <img src="https://img.shields.io/badge/React-19-61DAFB?style=for-the-badge&logo=react&logoColor=black" alt="React"/>
   <img src="https://img.shields.io/badge/Vite-8-646CFF?style=for-the-badge&logo=vite&logoColor=white" alt="Vite"/>
-  <img src="https://img.shields.io/badge/Expo-57-000020?style=for-the-badge&logo=expo&logoColor=white" alt="Expo"/>
+  <img src="https://img.shields.io/badge/Expo-58-000020?style=for-the-badge&logo=expo&logoColor=white" alt="Expo"/>
   <img src="https://img.shields.io/badge/Tauri-2-FFC131?style=for-the-badge&logo=tauri&logoColor=black" alt="Tauri"/>
   <img src="https://img.shields.io/badge/Node.js-22+-339933?style=for-the-badge&logo=node.js&logoColor=white" alt="Node.js"/>
   <img src="https://img.shields.io/badge/Express-5-000000?style=for-the-badge&logo=express&logoColor=white" alt="Express"/>
@@ -261,7 +261,7 @@ User documentation lives in `documentation/` (Docusaurus, deployed to [doku.grue
 
 ### Prerequisites
 
-- **pnpm** >= 10
+- **pnpm** 12 (the version in `packageManager`, via `corepack enable`)
 - **Node.js** >= 22.x
 - **PostgreSQL** >= 15
 - **Redis** >= 7
@@ -296,11 +296,7 @@ User documentation lives in `documentation/` (Docusaurus, deployed to [doku.grue
 
 4. **Initialize database**
 
-   ```bash
-   psql -d gruenerator -f apps/api/database/postgres/schema.sql
-   ```
-
-   Migrations in `apps/api/database/postgres/migrations/` run automatically on backend startup.
+   Create an empty database owned by the app role. On first start the backend loads `apps/api/database/postgres/schema.sql` into it and then runs the migrations in `apps/api/database/postgres/migrations/`; later starts only run new migrations.
 
 5. **Start development servers**
 
@@ -391,13 +387,13 @@ A native mobile app is available via Expo (`apps/mobile`). The web app can also 
 
 **Android (Chrome)**
 
-1. Open https://gruenerator.de
+1. Open https://gruenerator.eu
 2. Tap menu (...)
 3. Select "Add to Home Screen"
 
 **iOS (Safari)**
 
-1. Open https://gruenerator.de
+1. Open https://gruenerator.eu
 2. Tap Share button
 3. Select "Add to Home Screen"
 
@@ -478,7 +474,7 @@ Write everything that lands on GitHub in **English** — commit messages, branch
 
 ## License
 
-**All Rights Reserved** — See [LICENSE.md](LICENSE.md) for details.
+The Grünerator is licensed under the [GNU Affero General Public License v3.0](LICENSE). Contributors additionally allow the maintainer to publish their contributions under other open-source licences, as described in the [contributing guidelines](.github/CONTRIBUTING.md#lizenz-deines-beitrags); parts of the editor are published that way as [ggraphic](https://www.npmjs.com/package/@ggraphic/editor) (MPL-2.0).
 
 ---
 
