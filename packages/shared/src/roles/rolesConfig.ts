@@ -22,6 +22,7 @@ export const DE_EBENEN: EbeneConfig[] = [
   { id: 'land', label: 'Land', icon: '🏠' },
   { id: 'kreisverband', label: 'Kreisverband', icon: '📍' },
   { id: 'ortsverband', label: 'Ortsverband', icon: '🏘️' },
+  { id: 'gruene-jugend', label: 'GRÜNE JUGEND', icon: '🌻' },
 ];
 
 export const AT_EBENEN: EbeneConfig[] = [
@@ -30,6 +31,7 @@ export const AT_EBENEN: EbeneConfig[] = [
   { id: 'land', label: 'Land', icon: '🏠' },
   { id: 'bezirk', label: 'Bezirk', icon: '📍' },
   { id: 'gemeinde', label: 'Gemeinde', icon: '🏘️' },
+  { id: 'gruene-jugend', label: 'Grüne Jugend', icon: '🌻' },
 ];
 
 export const DE_ROLLEN: Record<string, string[]> = {
@@ -38,26 +40,27 @@ export const DE_ROLLEN: Record<string, string[]> = {
     'Mitarbeiter*in Bundesgeschäftsstelle',
     'Mitarbeiter*in Bundestagsfraktion',
     'Mitarbeiter*in MdB-Büro',
-    'Bundesverband GRÜNE JUGEND',
   ],
   land: [
     'Mitarbeiter*in Landesgeschäftsstelle',
     'Mitarbeiter*in Landtagsfraktion',
     'Mitarbeiter*in MdL-Büro',
-    'Landesverband GRÜNE JUGEND',
   ],
   kreisverband: [
     'Mitarbeiter*in Kreisverband',
     'Mitarbeiter*in Kreistagsfraktion',
     'Ratsmitglied',
     'Presse & Social-Media',
-    'GRÜNE JUGEND vor Ort',
   ],
   ortsverband: [
     'Mitarbeiter*in Ortsverband',
     'Mitarbeiter*in Ratsfraktion',
     'Ratsmitglied',
     'Presse & Social-Media',
+  ],
+  'gruene-jugend': [
+    'Bundesverband GRÜNE JUGEND',
+    'Landesverband GRÜNE JUGEND',
     'GRÜNE JUGEND vor Ort',
   ],
 };
@@ -68,24 +71,17 @@ export const AT_ROLLEN: Record<string, string[]> = {
     'Mitarbeiter*in Bundespartei',
     'Mitarbeiter*in Grüner Klub (Nationalrat)',
     'Mitarbeiter*in NR-Abgeordnetenbüro',
-    'Bundesorganisation Grüne Jugend',
   ],
   land: [
     'Mitarbeiter*in Landesorganisation',
     'Mitarbeiter*in Landtagsklub',
     'Mitarbeiter*in LT-Abgeordnetenbüro',
+  ],
+  bezirk: ['Mitarbeiter*in Bezirksorganisation', 'Bezirksrät*in', 'Presse & Social-Media'],
+  gemeinde: ['Mitarbeiter*in Gemeindegruppe', 'Gemeinderät*in', 'Presse & Social-Media'],
+  'gruene-jugend': [
+    'Bundesorganisation Grüne Jugend',
     'Landesorganisation Grüne Jugend',
-  ],
-  bezirk: [
-    'Mitarbeiter*in Bezirksorganisation',
-    'Bezirksrät*in',
-    'Presse & Social-Media',
-    'Grüne Jugend vor Ort',
-  ],
-  gemeinde: [
-    'Mitarbeiter*in Gemeindegruppe',
-    'Gemeinderät*in',
-    'Presse & Social-Media',
     'Grüne Jugend vor Ort',
   ],
 };
@@ -150,11 +146,40 @@ export const NEEDS_BUNDESLAND = new Set([
 ]);
 export const NEEDS_LOCAL_NAME = new Set(['kreisverband', 'ortsverband', 'bezirk', 'gemeinde']);
 
+/**
+ * Ebenen, auf denen erst die Rolle feststeht und danach der Ort: in der Grünen
+ * Jugend entscheidet die Rolle, ob es ein Bundesland (Landesverband) oder dazu
+ * noch eine Ortsgruppe (vor Ort) braucht — der Bundesverband braucht keins.
+ */
+export const ROLLE_FIRST_EBENEN = new Set(['gruene-jugend']);
+
+const ROLLE_NEEDS: Record<string, { bundesland: boolean; localName: boolean }> = {
+  'Landesverband GRÜNE JUGEND': { bundesland: true, localName: false },
+  'GRÜNE JUGEND vor Ort': { bundesland: true, localName: true },
+  'Landesorganisation Grüne Jugend': { bundesland: true, localName: false },
+  'Grüne Jugend vor Ort': { bundesland: true, localName: true },
+};
+
+/** Ob eine Rolle ein Bundesland braucht — auf ihrer Ebene oder, wo die Rolle zuerst kommt, durch sie. */
+export function needsBundesland(ebene: string, rolle: string | null): boolean {
+  if (ROLLE_FIRST_EBENEN.has(ebene))
+    return rolle !== null && ROLLE_NEEDS[rolle]?.bundesland === true;
+  return NEEDS_BUNDESLAND.has(ebene);
+}
+
+/** Ob eine Rolle den Namen ihrer Gliederung braucht. */
+export function needsLocalName(ebene: string, rolle: string | null): boolean {
+  if (ROLLE_FIRST_EBENEN.has(ebene))
+    return rolle !== null && ROLLE_NEEDS[rolle]?.localName === true;
+  return NEEDS_LOCAL_NAME.has(ebene);
+}
+
 export const LOCAL_NAME_LABELS: Record<string, string> = {
   kreisverband: 'Name des Kreisverbands',
   ortsverband: 'Name des Ortsverbands',
   bezirk: 'Name des Bezirks',
   gemeinde: 'Name der Gemeinde',
+  'gruene-jugend': 'Name der Ortsgruppe',
 };
 
 export const LOCAL_NAME_PLACEHOLDERS: Record<string, string> = {
@@ -162,6 +187,7 @@ export const LOCAL_NAME_PLACEHOLDERS: Record<string, string> = {
   ortsverband: 'z.B. OV Ehrenfeld',
   bezirk: 'z.B. Innsbruck-Land',
   gemeinde: 'z.B. Innsbruck',
+  'gruene-jugend': 'z.B. Ortsgruppe Nord',
 };
 
 /**

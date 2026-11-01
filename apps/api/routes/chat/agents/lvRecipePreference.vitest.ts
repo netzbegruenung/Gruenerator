@@ -56,21 +56,21 @@ describe('preferredLvRecipeMention — Rollen-Pfad (generischer Agent)', () => {
     expect(
       preferredLvRecipeMention({
         mention: 'instagram',
-        activeRole: { ebene: 'ortsverband', rolle: 'GRÜNE JUGEND vor Ort', bundesland: 'Bayern' },
+        activeRole: { ebene: 'gruene-jugend', rolle: 'GRÜNE JUGEND vor Ort', bundesland: 'Bayern' },
         userLocale: 'de-DE',
       })
     ).toBe('gj-insta');
     expect(
       preferredLvRecipeMention({
         mention: 'instagram',
-        activeRole: { ebene: 'bund', rolle: 'Bundesorganisation Grüne Jugend' },
+        activeRole: { ebene: 'gruene-jugend', rolle: 'Bundesorganisation Grüne Jugend' },
         userLocale: 'de-AT',
       })
     ).toBe('gj-insta-at');
     expect(
       preferredLvRecipeMention({
         mention: 'presse',
-        activeRole: { ebene: 'bund', rolle: 'Bundesverband GRÜNE JUGEND' },
+        activeRole: { ebene: 'gruene-jugend', rolle: 'Bundesverband GRÜNE JUGEND' },
         userLocale: 'de-DE',
       })
     ).toBeNull();
