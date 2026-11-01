@@ -5,6 +5,7 @@
  * Uses createImageTwoTextCanvas factory + Phase A/B helpers.
  */
 
+import { getBrandPack } from '../brand/theme';
 import { SIMPLE_CONFIG, calculateSimpleLayout } from '../utils/simpleLayout';
 
 import { DEFAULT_PHOTO_BACKGROUND_DE, PHOTO_BACKGROUND_COLORS_DE } from './backgroundPalettes';
@@ -96,6 +97,8 @@ const baseSimpleConfig = createImageTwoTextCanvas({
   features: { icons: true, shapes: true, illustrations: true },
   backgroundColors: PHOTO_BACKGROUND_COLORS_DE,
   defaultBackgroundColor: DEFAULT_PHOTO_BACKGROUND_DE,
+  // New elements start in the German brand pack, not whichever pack is active.
+  brand: getBrandPack('de-DE'),
   gradientOpacity: 0.3,
   getCanvasText: (state) => {
     const headline = state.headline || '';

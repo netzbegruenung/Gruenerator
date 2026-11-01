@@ -8,6 +8,7 @@
 import { wrapTextAccurate } from '@ggraphic/editor/utils/textUtils';
 
 import { infoShareMetadata } from '../brand/grueneShareMetadata';
+import { getBrandPack } from '../brand/theme';
 import { INFO_CONFIG } from '../utils/infoLayout';
 
 import {
@@ -21,8 +22,8 @@ import {
   type ColorTwoTextState,
 } from './factory';
 
-import type { BackgroundColorOption } from '@ggraphic/editor/sidebar/types';
 import type { ImageElementConfig, LayoutResult } from '@ggraphic/editor/configs/types';
+import type { BackgroundColorOption } from '@ggraphic/editor/sidebar/types';
 
 const BACKGROUND_COLORS: BackgroundColorOption[] = [
   { id: 'tanne', label: 'Tanne', color: '#005538' },
@@ -211,6 +212,8 @@ const baseInfoConfig = {
     secondaryField: { key: 'body', label: 'Text' },
     backgroundColors: BACKGROUND_COLORS,
     defaultBackgroundColor: '#005538',
+    // New elements start in the German brand pack, not whichever pack is active.
+    brand: getBrandPack('de-DE'),
     textColorMap: TEXT_COLORS,
     calculateLayout,
     passthroughStateKeys: [

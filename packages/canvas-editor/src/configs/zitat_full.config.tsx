@@ -6,6 +6,7 @@
  */
 
 import { zitatShareMetadata } from '../brand/grueneShareMetadata';
+import { getBrandPack } from '../brand/theme';
 import { ZITAT_CONFIG, calculateZitatLayout } from '../utils/zitatLayout';
 
 import { DEFAULT_PHOTO_BACKGROUND_DE, PHOTO_BACKGROUND_COLORS_DE } from './backgroundPalettes';
@@ -108,6 +109,8 @@ const baseZitatConfig = {
     features: { icons: true, shapes: true, illustrations: true },
     backgroundColors: PHOTO_BACKGROUND_COLORS_DE,
     defaultBackgroundColor: DEFAULT_PHOTO_BACKGROUND_DE,
+    // New elements start in the German brand pack, not whichever pack is active.
+    brand: getBrandPack('de-DE'),
     gradientOpacity: ZITAT_CONFIG.gradient.bottomOpacity,
     getCanvasText: (state) => {
       const quote = state.quote || '';

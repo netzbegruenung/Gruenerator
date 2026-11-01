@@ -10,6 +10,8 @@
 import { getCanvasFormatOrDefault } from '@ggraphic/editor/formats/index';
 import { CANVAS_COLORS } from '@gruenerator/contracts';
 
+import { getBrandPack } from '../brand/theme';
+
 import {
   createFreeformFullConfig,
   type FreeformActions,
@@ -29,6 +31,8 @@ const base = createFreeformFullConfig(getCanvasFormatOrDefault(STICKER_FORMAT_ID
 export const stickerFullConfig: FullCanvasConfig<FreeformState, FreeformActions> = {
   ...base,
   id: 'sticker',
+  // New elements start in the German brand pack, not whichever pack is active.
+  brand: getBrandPack('de-DE'),
   // One sheet: a sticker is a single graphic.
   multiPage: { ...base.multiPage, enabled: true, maxPages: 1 },
   tabs: base.tabs.filter((tab) => tab.id !== 'chat'),

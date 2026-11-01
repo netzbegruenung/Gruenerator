@@ -7,6 +7,7 @@
 
 import { SYSTEM_ASSETS } from '../brand/grueneAssets';
 import { zitatShareMetadata } from '../brand/grueneShareMetadata';
+import { getBrandPack } from '../brand/theme';
 import { ZITAT_PURE_CONFIG, calculateZitatPureLayout } from '../utils/zitatPureLayout';
 
 import {
@@ -20,8 +21,8 @@ import {
   type ColorTwoTextState,
 } from './factory';
 
-import type { BackgroundColorOption } from '@ggraphic/editor/sidebar/types';
 import type { ImageElementConfig, LayoutResult } from '@ggraphic/editor/configs/types';
+import type { BackgroundColorOption } from '@ggraphic/editor/sidebar/types';
 
 const BACKGROUND_COLORS: BackgroundColorOption[] = [
   { id: 'green', label: 'Grün', color: '#6CCD87' },
@@ -163,6 +164,8 @@ const baseZitatPureConfig = {
     secondaryField: { key: 'name', label: 'Name' },
     backgroundColors: BACKGROUND_COLORS,
     defaultBackgroundColor: ZITAT_PURE_CONFIG.background.color,
+    // New elements start in the German brand pack, not whichever pack is active.
+    brand: getBrandPack('de-DE'),
     textColorMap: FONT_COLORS,
     calculateLayout,
     passthroughStateKeys: [

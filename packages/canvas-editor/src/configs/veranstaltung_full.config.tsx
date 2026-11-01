@@ -3,18 +3,6 @@
  * Event sharepic with photo, green section, and date circle
  */
 
-import { carryInstanceState } from '@ggraphic/editor/configs/factory/carryInstanceState';
-import { type AssetInstance } from '@ggraphic/editor/utils/canvasAssets';
-import { zoomBackground } from '@ggraphic/editor/utils/coverFit';
-import { straightenResetFor } from '@ggraphic/editor/utils/straighten';
-import { PiFrameCornersFill, PiSquaresFourFill, PiTextAa } from 'react-icons/pi';
-
-import { CANVAS_RECOMMENDED_ASSETS } from '../brand/grueneAssets';
-import { AssetsSection, FrameSettingsSection } from '../sidebar/sections';
-import { CombinedTextSection } from '@ggraphic/editor/sidebar/sections/CombinedTextSection';
-import { VERANSTALTUNG_CONFIG, calculateVeranstaltungLayout } from '../utils/veranstaltungLayout';
-
-import { chatTab, createCommonSectionEntries, toolsTab, uploadsTab } from './commonSections';
 import {
   createAssetActions,
   createIconActions,
@@ -26,13 +14,27 @@ import {
   createFrameActions,
   createUserImageActions,
 } from '@ggraphic/editor/configs/factory/actionFactories';
-import { createBalkenActions } from './factory/balkenActions';
+import { carryInstanceState } from '@ggraphic/editor/configs/factory/carryInstanceState';
 import { makeSectionDefiner } from '@ggraphic/editor/configs/factory/defineSection';
 import { injectFeatureProps } from '@ggraphic/editor/configs/featureInjector';
 import { PLACEHOLDER_TEXT } from '@ggraphic/editor/configs/placeholders';
 import { createShareSection } from '@ggraphic/editor/configs/shareSection';
+import { CombinedTextSection } from '@ggraphic/editor/sidebar/sections/CombinedTextSection';
+import { type AssetInstance } from '@ggraphic/editor/utils/canvasAssets';
+import { zoomBackground } from '@ggraphic/editor/utils/coverFit';
+import { straightenResetFor } from '@ggraphic/editor/utils/straighten';
+import { PiFrameCornersFill, PiSquaresFourFill, PiTextAa } from 'react-icons/pi';
+
+import { CANVAS_RECOMMENDED_ASSETS } from '../brand/grueneAssets';
+import { getBrandPack } from '../brand/theme';
+import { AssetsSection, FrameSettingsSection } from '../sidebar/sections';
+import { VERANSTALTUNG_CONFIG, calculateVeranstaltungLayout } from '../utils/veranstaltungLayout';
+
+import { chatTab, createCommonSectionEntries, toolsTab, uploadsTab } from './commonSections';
+import { createBalkenActions } from './factory/balkenActions';
 
 import type { SharepicAiCapabilities } from './aiCapabilities';
+import type { BalkenInstance, BalkenMode } from '../utils/balkenUtils';
 import type { StockImageAttribution } from '@ggraphic/editor/common/imageSourceTypes';
 import type {
   FullCanvasConfig,
@@ -40,7 +42,6 @@ import type {
   AdditionalText,
 } from '@ggraphic/editor/configs/types';
 import type { CircleBadgeInstance, CircleBadgeTextLine } from '@ggraphic/editor/primitives/index';
-import type { BalkenInstance, BalkenMode } from '../utils/balkenUtils';
 import type { ChartInstance } from '@ggraphic/editor/utils/chartUtils';
 import type { FrameClipType, FrameInstance } from '@ggraphic/editor/utils/frameUtils';
 import type { IllustrationInstance } from '@ggraphic/editor/utils/illustrations/types';
@@ -373,6 +374,8 @@ export const veranstaltungFullConfig: FullCanvasConfig<
   VeranstaltungFullActions
 > = {
   id: 'veranstaltung',
+  // New elements start in the German brand pack, not whichever pack is active.
+  brand: getBrandPack('de-DE'),
 
   canvas: {
     width: VERANSTALTUNG_CONFIG.canvas.width,
