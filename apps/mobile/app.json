@@ -103,7 +103,6 @@
             "usePrecompiledModules": true
           },
           "android": {
-            "compileSdkVersion": 36,
             "targetSdkVersion": 36,
             "usePrecompiledHeaders": true,
             "enableMinifyInReleaseBuilds": true,
