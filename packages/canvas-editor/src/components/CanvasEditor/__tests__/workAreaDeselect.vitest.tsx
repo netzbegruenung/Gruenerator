@@ -1,8 +1,7 @@
+import { useWorkAreaDeselect } from '@ggraphic/editor/internal/components/CanvasEditor/hooks/useWorkAreaDeselect';
 import { fireEvent, render } from '@testing-library/react';
 import React from 'react';
 import { describe, expect, it, vi } from 'vitest';
-
-import { useWorkAreaDeselect } from '@ggraphic/editor/components/CanvasEditor/hooks/useWorkAreaDeselect';
 
 function Harness({
   onDeselect,

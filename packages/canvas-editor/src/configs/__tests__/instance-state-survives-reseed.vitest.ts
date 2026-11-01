@@ -1,5 +1,4 @@
-import { loadCanvasConfig } from '@ggraphic/editor/configs/configLoader';
-import { carriedInstanceKeys } from '@ggraphic/editor/configs/factory/carryInstanceState';
+import { loadCanvasConfig, carriedInstanceKeys } from '@ggraphic/editor/config';
 import { beforeAll, describe, expect, it } from 'vitest';
 
 /**

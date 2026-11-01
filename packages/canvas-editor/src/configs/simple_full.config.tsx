@@ -18,7 +18,7 @@ import {
   type ImageTwoTextState,
 } from './factory';
 
-import type { LayoutResult } from '@ggraphic/editor/configs/types';
+import type { LayoutResult } from '@ggraphic/editor/config';
 
 type SimpleState = ImageTwoTextState<'headline' | 'subtext'>;
 

@@ -75,7 +75,7 @@ describe('WebCanvasEditorProvider', () => {
       shareTitle: 'Grünerator Share',
     });
     expect(seen?.imageShares?.publishShare).toBe(shareApi.publishShare);
-    expect(seen?.useStudioAssets).toBe(useStudioAssets);
+    expect(seen?.useAssetLibrary).toBe(useStudioAssets);
     expect(seen?.useUnsplashSearch).toBe(useUnsplashSearch);
     expect(seen?.print).toBe(grueneratorPrint);
     expect(seen?.blocks).toBe(grueneratorBlocks);

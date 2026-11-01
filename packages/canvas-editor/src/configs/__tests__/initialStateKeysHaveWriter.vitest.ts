@@ -1,5 +1,5 @@
-import { pagePersistedStateKeys } from '@ggraphic/editor/collab/pageElementStateKeys';
-import { loadCanvasConfig } from '@ggraphic/editor/configs/configLoader';
+import { loadCanvasConfig } from '@ggraphic/editor/config';
+import { pagePersistedStateKeys } from '@ggraphic/editor/internal/collab/pageElementStateKeys';
 import { beforeAll, describe, expect, it } from 'vitest';
 
 import { HOST_CALLBACK_KEYS } from '../../hostCallbackKeys';

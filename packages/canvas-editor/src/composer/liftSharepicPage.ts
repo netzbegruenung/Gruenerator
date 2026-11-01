@@ -9,9 +9,9 @@
  * Pure. The provenance is rebuilt from the baseline (ids, kinds and texts),
  * so nothing beyond the stored source is needed, and the lift measures no text.
  */
-import { withCardResizedFor } from '@ggraphic/editor/composer/cardFollowsText';
-import { DEFAULT_FORMAT_ID } from '@ggraphic/editor/formats/index';
-import { BACKGROUND_STRAIGHTEN_KEY, backgroundStraighten } from '@ggraphic/editor/utils/straighten';
+import { BACKGROUND_STRAIGHTEN_KEY, backgroundStraighten } from '@ggraphic/editor/elements';
+import { withCardResizedFor } from '@ggraphic/editor/internal/composer/cardFollowsText';
+import { DEFAULT_FORMAT_ID } from '@ggraphic/editor/templates';
 import {
   type SharepicBaseline,
   type SharepicFingerprint,
@@ -24,7 +24,7 @@ import {
 import { type ComposedSlide } from './composeSharepic';
 import { invertLiftedText, slideProvenance, type SharepicProvenance } from './sharepicProvenance';
 
-import type { AdditionalText } from '@ggraphic/editor/configs/types';
+import type { AdditionalText } from '@ggraphic/editor/config';
 
 type ElementKind = SharepicFingerprint['kind'];
 type FingerprintProp = Exclude<keyof SharepicFingerprint, 'kind'>;

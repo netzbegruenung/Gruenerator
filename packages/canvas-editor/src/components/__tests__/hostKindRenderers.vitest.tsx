@@ -1,13 +1,10 @@
-import {
-  registerKindRenderers,
-  renderKindItem,
-  type RenderCtx,
-} from '@ggraphic/editor/components/kindRenderers';
+import { renderKindItem } from '@ggraphic/editor/internal/components/kindRenderers';
+import { registerKindRenderers, type RenderCtx } from '@ggraphic/editor/kinds';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { GRUENE_KIND_RENDERERS } from '../../brand/grueneKinds';
 
-import type { KindItem } from '@ggraphic/editor/utils/elementKinds';
+import type { KindItem } from '@ggraphic/editor/internal/utils/elementKinds';
 
 const balken: KindItem = {
   id: 'balken-1',

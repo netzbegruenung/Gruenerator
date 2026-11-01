@@ -1,5 +1,5 @@
-import { loadCanvasConfig } from '@ggraphic/editor/configs/configLoader';
-import { CANVAS_FORMATS, DEFAULT_FORMAT_ID } from '@ggraphic/editor/formats/index';
+import { loadCanvasConfig } from '@ggraphic/editor/config';
+import { CANVAS_FORMATS, DEFAULT_FORMAT_ID } from '@ggraphic/editor/templates';
 import { describe, it, expect, beforeAll } from 'vitest';
 
 import { TEMPLATE_REGISTRY, templateFitsFormat } from '../../utils/templateRegistry';

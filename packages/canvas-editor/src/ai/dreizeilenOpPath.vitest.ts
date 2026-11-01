@@ -3,14 +3,13 @@
  * the bar group under its live id, and size and position ops have to land —
  * live every one of them came back "Element lässt sich hier nicht verändern".
  */
+import { applyOperation } from '@ggraphic/editor/ai';
 import { type CanvasAiOperation } from '@gruenerator/contracts';
 import { describe, expect, it } from 'vitest';
 
 import { type DreizeilenFullState } from '../configs/dreizeilen.types';
 import { dreizeilenFullConfig } from '../configs/dreizeilen_full.config';
 import { balkenExtent } from '../utils/balkenBounds';
-
-import { applyOperation } from '@ggraphic/editor/ai/applyOperation';
 
 function dreizeilen(lines = { line1: 'Mehr Radwege', line2: 'für alle', line3: 'jetzt' }) {
   let state = dreizeilenFullConfig.createInitialState({

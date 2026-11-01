@@ -4,9 +4,9 @@
  * Bühne während der Bearbeitung — das Seitenpanel öffnet sich, der Browser
  * zoomt —, muss das Feld mitwandern (WCAG 1.4.4 / 1.4.10).
  */
-import { CanvasStage, type CanvasStageRef } from '@ggraphic/editor/primitives/CanvasStage';
-import { CircleBadge } from '@ggraphic/editor/primitives/CircleBadge';
-import { PillBadge } from '@ggraphic/editor/primitives/PillBadge';
+import { CanvasStage, type CanvasStageRef } from '@ggraphic/editor/internal/primitives/CanvasStage';
+import { CircleBadge } from '@ggraphic/editor/internal/primitives/CircleBadge';
+import { PillBadge } from '@ggraphic/editor/internal/primitives/PillBadge';
 import { act, cleanup, render } from '@testing-library/react';
 import { createRef, type ReactElement } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';

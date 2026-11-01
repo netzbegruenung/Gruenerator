@@ -1,9 +1,9 @@
-import { useCanvasEditorServices } from '@ggraphic/editor/CanvasEditorProvider';
 import {
+  useCanvasEditorServices,
   BlockInsertContext,
   type BlockInsertApi as CoreBlockInsertApi,
   type BlockTarget,
-} from '@ggraphic/editor/components/CanvasEditor/blockInsertContext';
+} from '@ggraphic/editor/host';
 import {
   sharepicFormatSchema,
   type SharepicBlock,
@@ -12,7 +12,7 @@ import {
 } from '@gruenerator/contracts';
 import { useCallback, useContext, useEffect, useMemo, useState } from 'react';
 
-import type { EditorShellProviderProps } from '@ggraphic/editor/components/CanvasEditor/editorShell';
+import type { EditorShellProviderProps } from '@ggraphic/editor/shell';
 
 export type { BlockTarget };
 
@@ -124,7 +124,7 @@ export function BlockInsertProvider({
     () =>
       enabled
         ? {
-            bloecke: (all ?? []).filter((b) => fits(b, design)),
+            blocks: (all ?? []).filter((b) => fits(b, design)),
             isLoading,
             insert,
           }

@@ -1,13 +1,13 @@
 import { createHash } from 'node:crypto';
 
-import { registerAssetCatalog } from '@ggraphic/editor/utils/canvasAssets';
+import { type SvgDef } from '@ggraphic/editor/elements';
+import { registerAssetCatalog } from '@ggraphic/editor/host';
 import {
   findIllustrationById,
   getAllIllustrations,
   getIllustrationPath,
   getIllustrationThumbPath,
-  type SvgDef,
-} from '@ggraphic/editor/utils/illustrations/registry';
+} from '@ggraphic/editor/internal/utils/illustrations/registry';
 import { describe, expect, it } from 'vitest';
 
 import { GRUENE_ASSET_CATALOG } from '../../brand/grueneAssetCatalog';

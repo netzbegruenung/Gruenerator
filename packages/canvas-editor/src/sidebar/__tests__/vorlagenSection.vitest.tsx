@@ -1,6 +1,6 @@
-import { CanvasEditorProvider } from '@ggraphic/editor/CanvasEditorProvider';
-import { defaultCanvasEditorStore } from '@ggraphic/editor/stores/createCanvasEditorStore';
-import { VORLAGE_DRAG_TYPE } from '@ggraphic/editor/utils/mediaDrop';
+import { defaultCanvasEditorStore } from '@ggraphic/editor/internal/stores/createCanvasEditorStore';
+import { TEMPLATE_DRAG_TYPE as VORLAGE_DRAG_TYPE } from '@ggraphic/editor/internal/utils/mediaDrop';
+import { CanvasEditorProvider } from '@ggraphic/editor/shell';
 import { readFolie } from '@gruenerator/contracts/slides';
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
@@ -12,7 +12,7 @@ import { axe } from '../../test-utils';
 import { VorlagenSection, type VorlagenSectionHandle } from '../sections/VorlagenSection';
 
 import type { CanvasVorlagenService } from '../../grueneratorHostServices';
-import type { HeterogeneousPage } from '@ggraphic/editor/configs/types';
+import type { HeterogeneousPage } from '@ggraphic/editor/config';
 import type { CanvasVorlage, PrintVorlage, SharepicSeite } from '@gruenerator/contracts';
 
 // Kein Offscreen-Konva in jsdom: die Folienvorschauen bleiben beim Skeleton.

@@ -1,12 +1,21 @@
+import { type CanvasEditorServices } from '@ggraphic/editor/host';
+import { useTrackUnsplashDownload } from '@ggraphic/editor/internal/hooks/useTrackUnsplashDownload';
+import { ElementsPanel } from '@ggraphic/editor/internal/sidebar/sections/assets/ElementsPanel';
+import { ElementTile } from '@ggraphic/editor/internal/sidebar/sections/assets/ElementTile';
+import { dragDataFor } from '@ggraphic/editor/internal/sidebar/sections/assets/elementTypes';
+import { StickerCatalog } from '@ggraphic/editor/internal/sidebar/sections/assets/StickerCatalog';
 import {
-  CanvasEditorProvider,
-  type CanvasEditorServices,
-} from '@ggraphic/editor/CanvasEditorProvider';
+  RECENT_ELEMENTS_LIMIT,
+  sanitizeRecentItems,
+  useRecentElements,
+} from '@ggraphic/editor/internal/sidebar/sections/assets/useRecentElements';
+import { stockPhotoItem } from '@ggraphic/editor/internal/sidebar/sections/assets/useStockPhotos';
 import {
   ELEMENT_DRAG_TYPE,
   MEDIA_DRAG_TYPE,
   markDropPlaced,
-} from '@ggraphic/editor/utils/mediaDrop';
+} from '@ggraphic/editor/internal/utils/mediaDrop';
+import { CanvasEditorProvider } from '@ggraphic/editor/shell';
 import { UnsplashLimitError, useUnsplashSearch } from '@gruenerator/shared/image-studio';
 import {
   fireEvent,
@@ -20,21 +29,10 @@ import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { BlockInsertContext, type BlockInsertApi } from '../../components/CanvasEditor/blockInsert';
-import { useTrackUnsplashDownload } from '@ggraphic/editor/hooks/useTrackUnsplashDownload';
 import { axe } from '../../test-utils';
-import { ElementsPanel } from '@ggraphic/editor/sidebar/sections/assets/ElementsPanel';
-import { ElementTile } from '@ggraphic/editor/sidebar/sections/assets/ElementTile';
-import { dragDataFor } from '@ggraphic/editor/sidebar/sections/assets/elementTypes';
-import { StickerCatalog } from '@ggraphic/editor/sidebar/sections/assets/StickerCatalog';
-import {
-  RECENT_ELEMENTS_LIMIT,
-  sanitizeRecentItems,
-  useRecentElements,
-} from '@ggraphic/editor/sidebar/sections/assets/useRecentElements';
-import { stockPhotoItem } from '@ggraphic/editor/sidebar/sections/assets/useStockPhotos';
 
-import type { ElementItem } from '@ggraphic/editor/sidebar/sections/assets/elementTypes';
-import type { CanvasStudioAssetsFilter } from '@ggraphic/editor/hostServices';
+import type { CanvasAssetLibraryFilter as CanvasStudioAssetsFilter } from '@ggraphic/editor/internal/hostServices';
+import type { ElementItem } from '@ggraphic/editor/sidebar';
 import type { SharepicBlock, StudioAssetItem } from '@gruenerator/contracts';
 import type { ReactElement, ReactNode } from 'react';
 
@@ -48,7 +46,7 @@ const gallery = vi.hoisted(() => ({
 // is a fake: the real hook needs react-query, which this lane loads with a
 // second React copy. The Unsplash one is the real @gruenerator/shared hook.
 const hostHooks: CanvasEditorServices = {
-  useStudioAssets: (filter) => {
+  useAssetLibrary: (filter) => {
     gallery.filters.push(filter);
     return {
       items: gallery.items[`${filter.kind}:${filter.scope}`] ?? [],
@@ -623,7 +621,7 @@ describe('ElementsPanel — Blöcke', () => {
 
   function renderWithBlocks(insert = vi.fn(async () => true)) {
     const api: BlockInsertApi = {
-      bloecke: [
+      blocks: [
         block('de-block-pfeile', 'Liste mit Pfeilen', 'listen', ['Aufzählung']),
         block('de-block-zitat', 'Zitat', 'text', ['Statement']),
         block('de-block-kopf', 'Kopf mit Dachzeile', 'kopf', ['Überschrift']),

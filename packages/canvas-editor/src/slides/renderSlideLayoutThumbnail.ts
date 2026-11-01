@@ -4,8 +4,8 @@
  * Umbrüche und Grafiken wie auf der Seite. Gleiches Muster wie
  * `renderSharepicToImage` in apps/web.
  */
-import { CanvasEditorProvider } from '@ggraphic/editor/CanvasEditorProvider';
-import { ensureFontsReady } from '@ggraphic/editor/utils/ensureFontsReady';
+import { CanvasEditorProvider } from '@ggraphic/editor/shell';
+import { ensureFontsReady } from '@ggraphic/editor/text';
 import { createElement } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 
@@ -17,8 +17,8 @@ import {
 } from './slideLayouts';
 
 import type { BrandLocale } from '../brand/theme';
-import type { GenericCanvasRef } from '@ggraphic/editor/components/GenericCanvas';
-import type { CanvasImageUrlService } from '@ggraphic/editor/hostServices';
+import type { GenericCanvasRef } from '@ggraphic/editor/canvas';
+import type { CanvasImageUrlService } from '@ggraphic/editor/services';
 
 const SLIDE_FORMAT_ID = 'slide-16-9';
 const SLIDE_WIDTH = 1920;
@@ -77,7 +77,7 @@ export async function renderSlideState(
   if (typeof document === 'undefined') return null;
   // Vor dem Mount: Konva misst Text beim ersten Zeichnen.
   await ensureFontsReady();
-  const { StandaloneCanvas } = await import('@ggraphic/editor/components/StandaloneCanvas');
+  const { StandaloneCanvas } = await import('@ggraphic/editor/canvas');
 
   const container = document.createElement('div');
   container.setAttribute('aria-hidden', 'true');

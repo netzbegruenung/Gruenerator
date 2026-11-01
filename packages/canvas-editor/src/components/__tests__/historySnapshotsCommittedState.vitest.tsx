@@ -4,18 +4,18 @@
  * misses the change they just made; the entry must come from the committed
  * state instead, so one undo lands exactly on the state before the action.
  */
-import { GenericCanvas, type GenericCanvasRef } from '@ggraphic/editor/components/GenericCanvas';
-import { loadCanvasConfig } from '@ggraphic/editor/configs/configLoader';
-import { AutoSaveStoreProvider } from '@ggraphic/editor/stores/AutoSaveStoreProvider';
+import { GenericCanvas, type GenericCanvasRef } from '@ggraphic/editor/canvas';
+import { loadCanvasConfig } from '@ggraphic/editor/config';
+import { AutoSaveStoreProvider } from '@ggraphic/editor/store';
 import { act, render } from '@testing-library/react';
 import { createRef } from 'react';
 import { describe, expect, it, vi } from 'vitest';
 
-import type * as StoreModule from '@ggraphic/editor/stores/createCanvasEditorStore';
-import type { CanvasEditorStoreApi } from '@ggraphic/editor/stores/createCanvasEditorStore';
+import type * as StoreModule from '@ggraphic/editor/internal/stores/createCanvasEditorStore';
+import type { CanvasEditorStoreApi } from '@ggraphic/editor/internal/stores/createCanvasEditorStore';
 
 const stores = vi.hoisted(() => [] as unknown[]);
-vi.mock('@ggraphic/editor/stores/createCanvasEditorStore', async (importOriginal) => {
+vi.mock('@ggraphic/editor/internal/stores/createCanvasEditorStore', async (importOriginal) => {
   const original = await importOriginal<typeof StoreModule>();
   return {
     ...original,

@@ -1,5 +1,5 @@
-import { CanvasEditorProvider } from '@ggraphic/editor/CanvasEditorProvider';
-import { useMultiPageExport } from '@ggraphic/editor/hooks/useMultiPageExport';
+import { useMultiPageExport } from '@ggraphic/editor/internal/hooks/useMultiPageExport';
+import { CanvasEditorProvider } from '@ggraphic/editor/shell';
 import { NativeDownloadTooLargeError } from '@gruenerator/shared';
 import { act, renderHook, waitFor } from '@testing-library/react';
 import { unzipSync } from 'fflate';

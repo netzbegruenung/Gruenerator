@@ -1,5 +1,5 @@
-import { CanvasActionSheet } from '@ggraphic/editor/components/CanvasContextMenu/CanvasActionSheet';
-import { buildCanvasMenu } from '@ggraphic/editor/components/CanvasContextMenu/canvasMenuModel';
+import { CanvasActionSheet } from '@ggraphic/editor/internal/components/CanvasContextMenu/CanvasActionSheet';
+import { buildCanvasMenu } from '@ggraphic/editor/internal/components/CanvasContextMenu/canvasMenuModel';
 import { act, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { createRef } from 'react';
@@ -7,8 +7,8 @@ import { describe, expect, it, vi } from 'vitest';
 
 import { axe } from '../../test-utils';
 
-import type { CanvasContextMenuHandle } from '@ggraphic/editor/components/CanvasContextMenu/CanvasContextMenu';
-import type { SelectionCapabilities } from '@ggraphic/editor/utils/selectionCapabilities';
+import type { CanvasContextMenuHandle } from '@ggraphic/editor/internal/components/CanvasContextMenu/CanvasContextMenu';
+import type { SelectionCapabilities } from '@ggraphic/editor/internal/utils/selectionCapabilities';
 
 /**
  * „…“ in der Pille öffnet mobil ein Sheet mit demselben Menü wie der

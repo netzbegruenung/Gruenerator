@@ -1,8 +1,7 @@
+import { exportSlidesPdf } from '@ggraphic/editor/export';
 import { createCanvas } from '@napi-rs/canvas';
 import { PDFDocument } from 'pdf-lib';
 import { describe, expect, it } from 'vitest';
-
-import { exportSlidesPdf } from '@ggraphic/editor/export/slidesPdf';
 
 function pngDataUrl(width = 16, height = 9): string {
   const canvas = createCanvas(width, height);

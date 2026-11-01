@@ -3,7 +3,7 @@
  * Stelle, wie Text, Pille und Kreis-Badge: `rotate(…)` um die linke obere Ecke
  * des Eingabefelds, die auf dem gedrehten Textknoten liegt.
  */
-import { CanvasStage, type CanvasStageRef } from '@ggraphic/editor/primitives/CanvasStage';
+import { CanvasStage, type CanvasStageRef } from '@ggraphic/editor/internal/primitives/CanvasStage';
 import { act, cleanup, render } from '@testing-library/react';
 import { createRef } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';

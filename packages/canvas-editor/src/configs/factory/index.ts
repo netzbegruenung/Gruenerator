@@ -28,17 +28,11 @@ export { wrapWithAi } from './wrapWithAi';
 export { createAiCapabilities } from './createAiCapabilities';
 export type { AiTextField, CreateAiCapabilitiesOptions } from './createAiCapabilities';
 
-export { fromLayout } from '@ggraphic/editor/configs/factory/layoutAccessors';
-export {
-  createPrimaryText,
-  createSecondaryText,
-} from '@ggraphic/editor/configs/factory/createTextElement';
-export { makeSectionDefiner } from '@ggraphic/editor/configs/factory/defineSection';
-export {
-  carryInstanceState,
-  carriedInstanceKeys,
-} from '@ggraphic/editor/configs/factory/carryInstanceState';
-export type { CarriedInstanceState } from '@ggraphic/editor/configs/factory/carryInstanceState';
+export { fromLayout } from '@ggraphic/editor/config';
+export { createPrimaryText, createSecondaryText } from '@ggraphic/editor/config';
+export { makeSectionDefiner } from '@ggraphic/editor/config';
+export { carryInstanceState, carriedInstanceKeys } from '@ggraphic/editor/config';
+export type { CarriedInstanceState } from '@ggraphic/editor/config';
 
 export type {
   BaseCanvasState,
@@ -46,4 +40,4 @@ export type {
   IconState,
   CanvasFeatures,
   CanvasDimensions,
-} from '@ggraphic/editor/configs/factory/baseTypes';
+} from '@ggraphic/editor/config';

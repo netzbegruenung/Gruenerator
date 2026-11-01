@@ -1,7 +1,6 @@
 // @vitest-environment jsdom
+import { scrollBehavior } from '@ggraphic/editor/internal/utils/scrollBehavior';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-
-import { scrollBehavior } from '@ggraphic/editor/utils/scrollBehavior';
 
 function mockMedia(reduce: boolean) {
   vi.stubGlobal(

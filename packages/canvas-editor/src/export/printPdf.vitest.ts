@@ -1,3 +1,11 @@
+import {
+  PT_PER_MM,
+  buildPrintPdf,
+  cropMarkLines,
+  effectiveDpi,
+  pdfPageGeometry,
+  planTiles,
+} from '@ggraphic/editor/internal/export/printPdf';
 import { createCanvas } from '@napi-rs/canvas';
 import {
   PDFArray,
@@ -10,15 +18,6 @@ import {
   decodePDFRawStream,
 } from 'pdf-lib';
 import { describe, expect, it } from 'vitest';
-
-import {
-  PT_PER_MM,
-  buildPrintPdf,
-  cropMarkLines,
-  effectiveDpi,
-  pdfPageGeometry,
-  planTiles,
-} from '@ggraphic/editor/export/printPdf';
 
 const BUSINESS_CARD = { width: 85, height: 55 };
 

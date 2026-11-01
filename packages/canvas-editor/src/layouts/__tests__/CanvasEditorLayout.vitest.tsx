@@ -2,10 +2,9 @@
  * Die untere Leiste („+ Seite hinzufügen", Zoom) lag bei offenem Panel über
  * dessen unterem Rand und damit über dem Chat-Composer (#4274).
  */
+import { CanvasEditorLayout } from '@ggraphic/editor/shell';
 import { render } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
-
-import { CanvasEditorLayout } from '@ggraphic/editor/layouts/CanvasEditorLayout';
 
 describe('CanvasEditorLayout bottom bar', () => {
   it('rückt um die Breite des offenen Panels ein', () => {

@@ -1,8 +1,7 @@
+import { lazyWithPreload } from '@ggraphic/editor/internal/sidebar/sections/lazyWithPreload';
 import { render, screen } from '@testing-library/react';
 import { Suspense } from 'react';
 import { describe, expect, it, vi } from 'vitest';
-
-import { lazyWithPreload } from '@ggraphic/editor/sidebar/sections/lazyWithPreload';
 
 const Hello = ({ name }: { name: string }) => <p>Hallo {name}</p>;
 

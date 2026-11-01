@@ -1,13 +1,13 @@
+import {
+  SidebarPanel,
+  SidebarTabBar,
+  SubsectionTabBar,
+  type SidebarTab,
+} from '@ggraphic/editor/sidebar';
 import { act, fireEvent, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { PiImage, PiTextAa } from 'react-icons/pi';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-
-import { SidebarPanel } from '@ggraphic/editor/sidebar/SidebarPanel';
-import { SidebarTabBar } from '@ggraphic/editor/sidebar/SidebarTabBar';
-import { SubsectionTabBar } from '@ggraphic/editor/sidebar/SubsectionTabBar';
-
-import type { SidebarTab } from '@ggraphic/editor/sidebar/types';
 
 /**
  * Mobile Leiste und Sheet: eine feste Leiste, ein Sheet-Muster, Filter-Chips

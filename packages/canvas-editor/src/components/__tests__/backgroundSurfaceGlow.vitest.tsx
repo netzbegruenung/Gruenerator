@@ -1,6 +1,6 @@
-import { GenericCanvasElement } from '@ggraphic/editor/components/GenericCanvasElement';
-import { CanvasStage, type CanvasStageRef } from '@ggraphic/editor/primitives/CanvasStage';
-import { CanvasStoreProvider } from '@ggraphic/editor/stores/CanvasStoreProvider';
+import { GenericCanvasElement } from '@ggraphic/editor/internal/components/GenericCanvasElement';
+import { CanvasStage, type CanvasStageRef } from '@ggraphic/editor/internal/primitives/CanvasStage';
+import { CanvasStoreProvider } from '@ggraphic/editor/store';
 import { render } from '@testing-library/react';
 import Konva from 'konva';
 import { createRef } from 'react';
@@ -8,7 +8,7 @@ import { describe, expect, it } from 'vitest';
 
 import { HELLGRUEN_GLOW } from '../../brand/theme';
 
-import type { BackgroundElementConfig } from '@ggraphic/editor/configs/types';
+import type { BackgroundElementConfig } from '@ggraphic/editor/config';
 
 const noop = () => {};
 

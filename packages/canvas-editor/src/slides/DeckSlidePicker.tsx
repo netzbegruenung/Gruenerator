@@ -4,7 +4,7 @@
  * des Decks steht zuerst und offen, die übrigen sind eingeklappt. Ein Klick
  * fügt die Folie ein, auf eine Seite gezogen landet sie dahinter.
  */
-import { cn } from '@ggraphic/editor/utils/cn';
+import { cn } from '@ggraphic/editor/internal/utils/cn';
 import { type FolienVorlage } from '@gruenerator/contracts';
 import {
   FOLIEN_TYP_IDS,
@@ -19,7 +19,7 @@ import { useDeckStilThumbnail } from './deckStilThumbnails';
 import { useDeckCatalogue } from './useDeckCatalogue';
 
 import type { BrandLocale } from '../brand/theme';
-import type { HeterogeneousPage } from '@ggraphic/editor/configs/types';
+import type { HeterogeneousPage } from '@ggraphic/editor/config';
 
 export interface DeckSlidePickerProps {
   /** Die Deck-Vorlagen des Hosts; null, wenn er keine kennt. */

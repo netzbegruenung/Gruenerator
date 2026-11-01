@@ -1,12 +1,12 @@
-import { ELEMENT_DRAG_TYPE, readElementDrag } from '@ggraphic/editor/utils/mediaDrop';
+import { ElementsPanel } from '@ggraphic/editor/internal/sidebar/sections/assets/ElementsPanel';
+import { useRecentElements } from '@ggraphic/editor/internal/sidebar/sections/assets/useRecentElements';
+import { ELEMENT_DRAG_TYPE, readElementDrag } from '@ggraphic/editor/internal/utils/mediaDrop';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { fireEvent, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { axe } from '../../test-utils';
-import { ElementsPanel } from '@ggraphic/editor/sidebar/sections/assets/ElementsPanel';
-import { useRecentElements } from '@ggraphic/editor/sidebar/sections/assets/useRecentElements';
 
 // jsdom has no IntersectionObserver; the grid only needs it to load the next page.
 vi.stubGlobal(

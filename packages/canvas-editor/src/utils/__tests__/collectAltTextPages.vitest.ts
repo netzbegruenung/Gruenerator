@@ -1,6 +1,5 @@
+import { collectAltTextPages } from '@ggraphic/editor/internal/utils/collectAltTextPages';
 import { describe, expect, it } from 'vitest';
-
-import { collectAltTextPages } from '@ggraphic/editor/utils/collectAltTextPages';
 
 describe('collectAltTextPages', () => {
   it('checks later pages and reports every missing or failed capture', async () => {

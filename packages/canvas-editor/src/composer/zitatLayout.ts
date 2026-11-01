@@ -1,7 +1,5 @@
-import { stripMarks } from '@ggraphic/editor/composer/marks';
-import { largestSizeWordsFit } from '@ggraphic/editor/composer/textFit';
-import { createShape } from '@ggraphic/editor/utils/shapes';
-import { type TextAccent } from '@ggraphic/editor/utils/textUtils';
+import { createShape } from '@ggraphic/editor/elements';
+import { stripMarks, largestSizeWordsFit, type TextAccent } from '@ggraphic/editor/text';
 
 import { SHAREPIC_COLOR_HEX } from './chromeParts';
 import { type FrageItem, type Placed, type ZitatItem } from './composeTypes';

@@ -3,17 +3,17 @@
  * same Noto set and Iconify sets, the same German-aware ranking.
  */
 export { EMOJI_ASSETS } from '../brand/grueneAssetCatalog';
-export { type UniversalAsset } from '@ggraphic/editor/utils/canvasAssets';
+export { type UniversalAsset } from '@ggraphic/editor/host';
 export {
   DEFAULT_ICON_SET,
   generateIconDataUrl,
   loadAllIcons,
   loadIconSetCatalog,
   type IconDef,
-} from '@ggraphic/editor/utils/canvasIcons';
+} from '@ggraphic/editor/elements';
 export {
   loadEmojiCatalog,
   type EmojiCatalogEntry,
   type EmojiCatalogGroup,
-} from '@ggraphic/editor/utils/emoji/emojiCatalog';
-export { rankByQuery } from '@ggraphic/editor/utils/filterUtils';
+} from '@ggraphic/editor/elements';
+export { rankByQuery } from '@ggraphic/editor/internal/utils/filterUtils';

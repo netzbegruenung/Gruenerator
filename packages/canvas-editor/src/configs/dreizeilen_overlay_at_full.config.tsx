@@ -12,7 +12,14 @@
  * setters below.
  */
 
-import { getPlaceholder } from '@ggraphic/editor/configs/placeholders';
+import {
+  getPlaceholder,
+  type FullCanvasConfig,
+  type ImageElementConfig,
+  type LayoutResult,
+  type RectElementConfig,
+  type TextElementConfig,
+} from '@ggraphic/editor/config';
 
 import { getBrandPack, getBrandTheme } from '../brand/theme';
 import { OVERLAY_AT_CONFIG, calculateOverlayAtLayout } from '../utils/overlayAtLayout';
@@ -28,14 +35,6 @@ import {
   type ImageTwoTextActions,
   type ImageTwoTextState,
 } from './factory';
-
-import type {
-  FullCanvasConfig,
-  ImageElementConfig,
-  LayoutResult,
-  RectElementConfig,
-  TextElementConfig,
-} from '@ggraphic/editor/configs/types';
 
 const AT = getBrandTheme('de-AT');
 const O = OVERLAY_AT_CONFIG;

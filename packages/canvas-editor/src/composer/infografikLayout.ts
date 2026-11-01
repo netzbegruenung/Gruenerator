@@ -1,5 +1,5 @@
-import { balancedWrap, largestSizeWordsFit } from '@ggraphic/editor/composer/textFit';
-import { createShape } from '@ggraphic/editor/utils/shapes';
+import { createShape } from '@ggraphic/editor/elements';
+import { balancedWrap, largestSizeWordsFit } from '@ggraphic/editor/text';
 
 import { type InfografikItem, type Placed } from './composeTypes';
 import { type RequiredFontRole, resolveFontRole } from './fontRole';

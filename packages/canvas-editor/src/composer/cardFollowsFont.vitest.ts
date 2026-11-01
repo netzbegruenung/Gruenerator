@@ -3,7 +3,7 @@
  * the whole change (not only `text`) to `withCardFollowingText`, so a family that wraps the same
  * words in more lines grows the card behind them.
  */
-import { getCanvasFormatOrDefault } from '@ggraphic/editor/formats/index';
+import { getCanvasFormatOrDefault } from '@ggraphic/editor/templates';
 import { layoutRichTextBlock } from '@ggraphic/schema';
 import { type SharepicSpec } from '@gruenerator/contracts';
 import { afterEach, describe, expect, it, vi } from 'vitest';
@@ -13,9 +13,9 @@ import { type FreeformState } from '../configs/freeform_full.config';
 import { composeSharepic } from './composeSharepic';
 import { farbe, options } from './sharepicSpecFixtures';
 
-import type { AdditionalText } from '@ggraphic/editor/configs/types';
-import type { ShapeInstance } from '@ggraphic/editor/utils/shapes';
-import type * as TextUtils from '@ggraphic/editor/utils/textUtils';
+import type { AdditionalText } from '@ggraphic/editor/config';
+import type { ShapeInstance } from '@ggraphic/editor/elements';
+import type * as TextUtils from '@ggraphic/editor/internal/utils/textUtils';
 
 const spec: SharepicSpec = {
   locale: 'de-DE',
@@ -36,7 +36,7 @@ const width = (fontSize: number, fontFamily: string) => (text: string) =>
  */
 async function creatorList() {
   vi.resetModules();
-  vi.doMock('@ggraphic/editor/utils/textUtils', async (importOriginal) => ({
+  vi.doMock('@ggraphic/editor/internal/utils/textUtils', async (importOriginal) => ({
     ...(await importOriginal<typeof TextUtils>()),
     runMeasurer: width,
   }));

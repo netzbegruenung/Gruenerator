@@ -1,23 +1,23 @@
-import { isWidgetOwnedKey } from '@ggraphic/editor/utils/keyboardOwnership';
+import { PageWrapper } from '@ggraphic/editor/internal/components/CanvasEditor/PageWrapper';
+import { isWidgetOwnedKey } from '@ggraphic/editor/internal/utils/keyboardOwnership';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import React from 'react';
 import { describe, expect, it, vi } from 'vitest';
 
 import { axe } from '../../../test-utils';
-import { PageWrapper } from '@ggraphic/editor/components/CanvasEditor/PageWrapper';
 
-vi.mock('@ggraphic/editor/components/GenericCanvas', () => ({
+vi.mock('@ggraphic/editor/internal/components/GenericCanvas', () => ({
   GenericCanvas: () => (
     <div role="img" aria-label="Seite 2: Text: Klimaschutz">
       <canvas />
     </div>
   ),
 }));
-vi.mock('@ggraphic/editor/components/PageToolbar', () => ({
+vi.mock('@ggraphic/editor/internal/components/PageToolbar', () => ({
   PageToolbar: () => <button type="button">Seite duplizieren</button>,
 }));
-vi.mock('@ggraphic/editor/components/ZoomableViewport', () => ({
+vi.mock('@ggraphic/editor/internal/components/ZoomableViewport', () => ({
   ZoomableViewport: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
 }));
 

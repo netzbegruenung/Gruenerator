@@ -1,10 +1,10 @@
+import { resolveAssetInstanceSrc } from '@ggraphic/editor/elements';
+import { getAssetById } from '@ggraphic/editor/host';
 import {
   createStickerInstance,
-  getAssetById,
   getAssetBySrc,
   isStickerLikeInstance,
-  resolveAssetInstanceSrc,
-} from '@ggraphic/editor/utils/canvasAssets';
+} from '@ggraphic/editor/internal/utils/canvasAssets';
 import { SYSTEM_STICKERS } from '@gruenerator/shared/stickers';
 import { describe, expect, it } from 'vitest';
 

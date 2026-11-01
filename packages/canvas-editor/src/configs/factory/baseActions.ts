@@ -2,12 +2,11 @@
  * The Grünerator's action set: the core's element actions plus Balken.
  */
 
-import { createElementActions } from '@ggraphic/editor/configs/factory/actionFactories';
+import { createElementActions, type BaseCanvasState } from '@ggraphic/editor/config';
 
 import { createBalkenActions } from './balkenActions';
 
 import type { BrandPack } from '@ggraphic/core';
-import type { BaseCanvasState } from '@ggraphic/editor/configs/factory/baseTypes';
 
 export function createBaseActions<TState extends BaseCanvasState>(
   getState: () => TState,

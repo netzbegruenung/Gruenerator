@@ -41,7 +41,7 @@ vi.mock('../components/CanvasEditor', () => ({
 
 import { ControllableCanvasWrapper } from '../CanvasEditorRouter';
 
-import { StandaloneCanvas } from '@ggraphic/editor/components/StandaloneCanvas';
+import { StandaloneCanvas } from '@ggraphic/editor/canvas';
 
 import { HOST_CALLBACK_KEYS } from '../hostCallbackKeys';
 import {

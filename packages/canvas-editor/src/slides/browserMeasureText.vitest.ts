@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 
-vi.mock('@ggraphic/editor/utils/textUtils', () => ({
+vi.mock('@ggraphic/editor/internal/utils/textUtils', () => ({
   measureTextWidthWithFont: (text: string, size: number) => text.length * size * 0.5,
   wrapTextAccurate: (text: string, width: number, size: number) => {
     const lines: string[] = [];

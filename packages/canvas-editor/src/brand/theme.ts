@@ -30,4 +30,4 @@ export {
 } from '@gruenerator/contracts/brand';
 
 /** Read from the registered packs, which apps/web installs from these two. */
-export { surfaceGlow } from '@ggraphic/editor/utils/surfaceGlow';
+export { surfaceGlow } from '@ggraphic/editor/brand';

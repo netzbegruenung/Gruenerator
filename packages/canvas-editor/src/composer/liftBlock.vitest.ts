@@ -1,4 +1,4 @@
-import { getCanvasFormatOrDefault } from '@ggraphic/editor/formats/index';
+import { getCanvasFormatOrDefault } from '@ggraphic/editor/templates';
 import { sharepicBlockSpec, sharepicSpecSchema } from '@gruenerator/contracts';
 import { describe, expect, it, vi } from 'vitest';
 
@@ -16,8 +16,8 @@ import {
 } from './liftBlock';
 import { farbe, options } from './sharepicSpecFixtures';
 
-import type { AdditionalText } from '@ggraphic/editor/configs/types';
-import type { ShapeInstance } from '@ggraphic/editor/utils/shapes';
+import type { AdditionalText } from '@ggraphic/editor/config';
+import type { ShapeInstance } from '@ggraphic/editor/elements';
 import type { SharepicSlide } from '@gruenerator/contracts';
 
 const slideOf = (locale: 'de-DE' | 'de-AT', items: SharepicSlide['items']) =>

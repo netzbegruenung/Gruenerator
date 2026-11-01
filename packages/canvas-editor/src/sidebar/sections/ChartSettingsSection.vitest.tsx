@@ -1,12 +1,11 @@
-import { createChartInstance, type ChartInstance } from '@ggraphic/editor/utils/chartUtils';
+import { createChartInstance, type ChartInstance } from '@ggraphic/editor/elements';
+import { ChartSettingsSection } from '@ggraphic/editor/sidebar';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { useState } from 'react';
 import { describe, expect, it } from 'vitest';
 
 import { axe } from '../../test-utils';
-
-import { ChartSettingsSection } from '@ggraphic/editor/sidebar/sections/ChartSettingsSection';
 
 function Harness({ initial }: { initial: ChartInstance }) {
   const [chart, setChart] = useState(initial);

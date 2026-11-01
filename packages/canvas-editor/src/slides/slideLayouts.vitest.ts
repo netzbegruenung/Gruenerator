@@ -3,16 +3,17 @@
  * und im PPTX bleibt jeder Text, jede Form, jedes Diagramm und jedes Foto
  * nativ — gerastert werden nur Grafiken (Sonnenblume, Logo).
  */
-import { getCanvasFormat } from '@ggraphic/editor/formats/index';
-import { getAssetById } from '@ggraphic/editor/utils/canvasAssets';
+import { writePptx } from '@ggraphic/editor/export';
+import { getAssetById } from '@ggraphic/editor/host';
+import { buildPptxModel } from '@ggraphic/editor/internal/export/pptx/buildPptxModel';
+import { type WritePptxDeps } from '@ggraphic/editor/internal/export/pptx/writePptx';
+import { getCanvasFormat } from '@ggraphic/editor/templates';
 import { createCanvas } from '@napi-rs/canvas';
 import { strFromU8, unzipSync } from 'fflate';
 import { describe, expect, it } from 'vitest';
 
 import { createFreeformAtFullConfig } from '../configs/freeform_at_full.config';
 import { createFreeformFullConfig, type FreeformState } from '../configs/freeform_full.config';
-import { buildPptxModel } from '@ggraphic/editor/export/pptx/buildPptxModel';
-import { writePptx, type WritePptxDeps } from '@ggraphic/editor/export/pptx/writePptx';
 
 import {
   buildSlideLayout,

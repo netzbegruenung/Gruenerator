@@ -1,7 +1,7 @@
-import { registerAssetCatalog } from '@ggraphic/editor/utils/canvasAssets';
-import { findIllustrationById } from '@ggraphic/editor/utils/illustrations/registry';
-import { clearCache, getSVG } from '@ggraphic/editor/utils/illustrations/svgCache';
-import { type SvgDef } from '@ggraphic/editor/utils/illustrations/types';
+import { type SvgDef } from '@ggraphic/editor/elements';
+import { registerAssetCatalog } from '@ggraphic/editor/host';
+import { findIllustrationById } from '@ggraphic/editor/internal/utils/illustrations/registry';
+import { clearCache, getSVG } from '@ggraphic/editor/internal/utils/illustrations/svgCache';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { GRUENE_ASSET_CATALOG } from './grueneAssetCatalog';

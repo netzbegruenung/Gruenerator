@@ -5,13 +5,11 @@
  * page as its own elements. Runs on the real freeform page and the real
  * composer; the host's `composeBlock` is the composition apps/web runs.
  */
-import {
-  CanvasEditorProvider,
-  type CanvasEditorServices,
-} from '@ggraphic/editor/CanvasEditorProvider';
-import { GenericCanvas, type GenericCanvasRef } from '@ggraphic/editor/components/GenericCanvas';
-import { loadCanvasConfig } from '@ggraphic/editor/configs/configLoader';
-import { AutoSaveStoreProvider } from '@ggraphic/editor/stores/AutoSaveStoreProvider';
+import { GenericCanvas, type GenericCanvasRef } from '@ggraphic/editor/canvas';
+import { loadCanvasConfig, type AdditionalText } from '@ggraphic/editor/config';
+import { type CanvasEditorServices } from '@ggraphic/editor/host';
+import { CanvasEditorProvider } from '@ggraphic/editor/shell';
+import { AutoSaveStoreProvider } from '@ggraphic/editor/store';
 import { sharepicBlockSpec, type SharepicBlock } from '@gruenerator/contracts';
 import { act, cleanup, render } from '@testing-library/react';
 import Konva from 'konva';
@@ -21,8 +19,6 @@ import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest
 import { composeSharepic, SHAREPIC_COLOR_HEX } from '../../../composer/composeSharepic';
 import { grueneratorBlocks } from '../../../composer/sharepicServices';
 import { BlockInsertProvider, useBlockInsert, type BlockInsertApi } from '../blockInsert';
-
-import type { AdditionalText } from '@ggraphic/editor/configs/types';
 
 const BLOCK: SharepicBlock = {
   id: 'de-block-liste',
@@ -145,7 +141,7 @@ async function setup(page: Record<string, unknown> = {}, configId = 'freeform') 
       </CanvasEditorProvider>
     );
   });
-  for (let i = 0; i < 50 && !(api as BlockInsertApi | null)?.bloecke.length; i++) {
+  for (let i = 0; i < 50 && !(api as BlockInsertApi | null)?.blocks.length; i++) {
     await act(async () => {
       await new Promise((r) => setTimeout(r, 10));
     });
@@ -180,7 +176,7 @@ function blockOn(state: Record<string, unknown>) {
 describe('block insert into a page', () => {
   it('offers the blocks of the page’s country', async () => {
     const { api } = await setup();
-    expect(api()?.bloecke.map((b) => b.id)).toEqual(['de-block-liste']);
+    expect(api()?.blocks.map((b) => b.id)).toEqual(['de-block-liste']);
   });
 
   it('composes on the page’s brand ground and adds the block centred', async () => {
@@ -238,7 +234,7 @@ describe('block insert into a page', () => {
 
   it('offers a GJ page only the GJ blocks of its country, asked for by design', async () => {
     const { api } = await setup({}, 'freeform-gj');
-    expect(api()?.bloecke.map((b) => b.id)).toEqual(['gj-de-block-liste']);
+    expect(api()?.blocks.map((b) => b.id)).toEqual(['gj-de-block-liste']);
     expect(HOST.vorlagen!.listBloecke).toHaveBeenCalledWith('gruene-jugend');
   });
 

@@ -2,7 +2,7 @@
  * Die Vorschau-Warteschlange: eine Offscreen-Bühne zur Zeit, gleiche Anfragen
  * teilen sich einen Lauf, Ergebnisse bleiben für die Sitzung, Fehlschläge nicht.
  */
-import { plainImageUrls, type CanvasImageUrlService } from '@ggraphic/editor/hostServices';
+import { plainImageUrls, type CanvasImageUrlService } from '@ggraphic/editor/services';
 import { describe, expect, it } from 'vitest';
 
 import {

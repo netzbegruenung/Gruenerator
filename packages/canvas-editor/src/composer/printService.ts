@@ -18,7 +18,7 @@ import {
 import type { CanvasPrintService } from '../grueneratorHostServices';
 
 export const grueneratorPrint: CanvasPrintService = {
-  impressum: {
+  imprint: {
     elementId: PRINT_IMPRESSUM_ID,
     localeOf: impressumLocaleOf,
     line: impressumLine,

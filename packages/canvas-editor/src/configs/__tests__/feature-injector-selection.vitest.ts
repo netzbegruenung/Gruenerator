@@ -1,6 +1,5 @@
+import { injectFeatureProps } from '@ggraphic/editor/config';
 import { describe, it, expect } from 'vitest';
-
-import { injectFeatureProps } from '@ggraphic/editor/configs/featureInjector';
 
 const noop = () => {};
 const state = {

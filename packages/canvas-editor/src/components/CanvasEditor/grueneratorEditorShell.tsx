@@ -10,7 +10,7 @@ import {
   type EditorPagePickerProps,
   type EditorShellProviderProps,
   type EditorTabSectionProps,
-} from '@ggraphic/editor/components/CanvasEditor/editorShell';
+} from '@ggraphic/editor/shell';
 import { useCallback } from 'react';
 
 import { HOST_CALLBACK_KEYS } from '../../hostCallbackKeys';
@@ -28,7 +28,7 @@ import { BlockInsertProvider } from './blockInsert';
 import { formatHasVorlagen, vorlagenTab, vorlagenTabIndex } from './vorlagenTab';
 
 import type { CanvasConfigId } from '../../templates/registry';
-import type { HeterogeneousPage } from '@ggraphic/editor/configs/types';
+import type { HeterogeneousPage } from '@ggraphic/editor/config';
 import type { SharepicBrand } from '@gruenerator/contracts';
 
 /** A deck's brand follows its first page: the slide layouts and fonts of that country. */

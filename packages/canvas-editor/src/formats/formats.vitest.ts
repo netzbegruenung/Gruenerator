@@ -10,7 +10,7 @@ import {
   printGeometry,
   UnsupportedCanvasFormatError,
   type PrintCanvasFormat,
-} from '@ggraphic/editor/formats/index';
+} from '@ggraphic/editor/templates';
 import { canvasFormatIdSchema, PRINT_VARIANTEN, printSeitenOf } from '@gruenerator/contracts';
 import { describe, expect, it } from 'vitest';
 
@@ -32,7 +32,7 @@ describe('Format-Ids', () => {
       const varianten = Object.values(PRINT_VARIANTEN).filter((v) =>
         (v.formats as readonly string[]).includes(f.id)
       );
-      for (const v of varianten) expect(printSeitenOf(v), f.id).toBe(f.print.seiten);
+      for (const v of varianten) expect(printSeitenOf(v), f.id).toBe(f.print.pageCount);
     }
   });
 
@@ -124,7 +124,7 @@ describe('Druckformate', () => {
       bleedMm: 3,
       safeMm,
       exportDpi,
-      seiten,
+      pageCount: seiten,
       impressum: impressum === undefined ? (seiten === 1 ? 'jede-seite' : null) : impressum,
     });
     expect([f.width, f.height]).toEqual([width, height]);

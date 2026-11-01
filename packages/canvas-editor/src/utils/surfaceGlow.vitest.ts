@@ -1,6 +1,6 @@
 import { brandDefault } from '@ggraphic/core';
-import { registerBrandPacks } from '@ggraphic/editor/brand/brandRegistry';
-import { surfaceGlow } from '@ggraphic/editor/utils/surfaceGlow';
+import { surfaceGlow } from '@ggraphic/editor/brand';
+import { registerBrandPacks } from '@ggraphic/editor/host';
 import { afterEach, describe, expect, it } from 'vitest';
 
 import { GRUENE_BRAND_PACKS } from '../brand/grueneBrandPacks';

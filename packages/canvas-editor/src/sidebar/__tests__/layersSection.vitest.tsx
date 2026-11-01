@@ -3,14 +3,15 @@
  * und die Tastatur der Seite (Entf) läuft weiter, während ein Eintrag den
  * Fokus hat (Regel R1).
  */
-import { useCanvasKeyboardHandlers } from '@ggraphic/editor/hooks/useCanvasKeyboardHandlers';
+import { useCanvasKeyboardHandlers } from '@ggraphic/editor/internal/hooks/useCanvasKeyboardHandlers';
+import { LayersSection } from '@ggraphic/editor/internal/sidebar/sections/LayersSection';
 import {
   createCanvasEditorStore,
   type CanvasEditorStoreApi,
-} from '@ggraphic/editor/stores/createCanvasEditorStore';
-import { createCanvasCommands } from '@ggraphic/editor/utils/canvasCommands';
-import { pageLayerLabels } from '@ggraphic/editor/utils/layerLabels';
-import { applyLayerSelection } from '@ggraphic/editor/utils/layerSelection';
+} from '@ggraphic/editor/internal/stores/createCanvasEditorStore';
+import { createCanvasCommands } from '@ggraphic/editor/internal/utils/canvasCommands';
+import { pageLayerLabels } from '@ggraphic/editor/internal/utils/layerLabels';
+import { applyLayerSelection } from '@ggraphic/editor/internal/utils/layerSelection';
 import { act, fireEvent, render, screen } from '@testing-library/react';
 import { useMemo, useRef, useState } from 'react';
 import { describe, expect, it, vi } from 'vitest';
@@ -18,12 +19,10 @@ import { useStore } from 'zustand';
 import { useShallow } from 'zustand/react/shallow';
 
 import { axe } from '../../test-utils';
-import { LayersSection } from '@ggraphic/editor/sidebar/sections/LayersSection';
 
-import type { BaseCanvasState } from '@ggraphic/editor/configs/factory/baseTypes';
-import type { LayoutResult } from '@ggraphic/editor/configs/types';
-import type { CanvasItem } from '@ggraphic/editor/utils/canvasLayerManager';
-import type { ShapeInstance } from '@ggraphic/editor/utils/shapes';
+import type { BaseCanvasState, LayoutResult } from '@ggraphic/editor/config';
+import type { ShapeInstance } from '@ggraphic/editor/elements';
+import type { CanvasItem } from '@ggraphic/editor/internal/utils/canvasLayerManager';
 
 const shape = (id: string, type: ShapeInstance['type']) =>
   ({ id, type, x: 0, y: 0 }) as ShapeInstance;

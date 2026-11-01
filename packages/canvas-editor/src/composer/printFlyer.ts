@@ -6,7 +6,7 @@
  *
  * Panel photos are cover-fitted user images, so each stays replaceable.
  */
-import { type TextAccent } from '@ggraphic/editor/utils/textUtils';
+import { type TextAccent } from '@ggraphic/editor/text';
 import { type PrintSpec } from '@gruenerator/contracts';
 
 import { AT_EMPHASIS_STYLE, LIME, SHAREPIC_COLOR_HEX } from './chromeParts';

@@ -4,19 +4,15 @@
  * registered (`./grueneratorEditorShell`, imported for its side effect).
  */
 
-import { CanvasEditorShell } from '@ggraphic/editor/components/CanvasEditor/CanvasEditorShell';
+import { CanvasEditorShell, type CanvasEditorProps } from '@ggraphic/editor/shell';
 import './grueneratorEditorShell';
 
 import type { CanvasConfigId } from '../../templates/registry';
-import type { CanvasEditorProps } from '@ggraphic/editor/components/CanvasEditor/types';
 
 export function CanvasEditor(props: CanvasEditorProps<CanvasConfigId>) {
   return <CanvasEditorShell {...props} />;
 }
 
-export type {
-  CanvasEditorProps,
-  PageWrapperProps,
-} from '@ggraphic/editor/components/CanvasEditor/types';
+export type { CanvasEditorProps, PageWrapperProps } from '@ggraphic/editor/shell';
 
 export default CanvasEditor;

@@ -1,21 +1,22 @@
-import { describe, expect, it, vi } from 'vitest';
-
 import {
   createAssetActions,
   createChartActions,
   createFrameActions,
   createShapeActions,
-} from '@ggraphic/editor/configs/factory/actionFactories';
+} from '@ggraphic/editor/config';
+import { describe, expect, it, vi } from 'vitest';
 
 import { balkenExtent } from '../../utils/balkenBounds';
 
 import { createBalkenActions } from './balkenActions';
 
 import type { BalkenInstance } from '../../utils/balkenUtils';
-import type { AssetInstance } from '@ggraphic/editor/utils/canvasAssets';
-import type { ChartInstance } from '@ggraphic/editor/utils/chartUtils';
-import type { FrameInstance } from '@ggraphic/editor/utils/frameUtils';
-import type { ShapeInstance } from '@ggraphic/editor/utils/shapes';
+import type {
+  AssetInstance,
+  ChartInstance,
+  FrameInstance,
+  ShapeInstance,
+} from '@ggraphic/editor/elements';
 
 /**
  * An Elemente tile dropped on the page lands centred on the drop point; a click

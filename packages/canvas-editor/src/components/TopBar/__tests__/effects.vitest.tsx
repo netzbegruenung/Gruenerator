@@ -1,12 +1,12 @@
-import { ContextControls } from '@ggraphic/editor/components/TopBar/ContextControls';
-import { EffectsSection } from '@ggraphic/editor/sidebar/sections/EffectsSection';
+import { ContextControls } from '@ggraphic/editor/internal/components/TopBar/ContextControls';
+import { EffectsSection } from '@ggraphic/editor/internal/sidebar/sections/EffectsSection';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 
 import { axe } from '../../../test-utils';
 
-import type { FloatingModuleState } from '@ggraphic/editor/hooks/useFloatingModuleState';
+import type { FloatingModuleState } from '@ggraphic/editor/internal/hooks/useFloatingModuleState';
 
 /**
  * „Effekte“: ein Text-Knopf in der Leiste öffnet den Bereich mit Verlauf,

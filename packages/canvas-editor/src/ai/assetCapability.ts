@@ -9,15 +9,11 @@
  * priority — they're listed first so the AI prefers brand-appropriate
  * assets for the active template.
  */
-import {
-  assetMatchesLocale,
-  getAssetById,
-  type AssetAudience,
-} from '@ggraphic/editor/utils/canvasAssets';
+import { assetMatchesLocale, getAssetById, type AssetAudience } from '@ggraphic/editor/host';
 
 import { ALL_ASSETS, CANVAS_RECOMMENDED_ASSETS } from '../brand/grueneAssets';
 
-import type { CanvasAiNamedOption } from '@ggraphic/editor/ai/types';
+import type { CanvasAiNamedOption } from '@ggraphic/editor/ai';
 
 export function buildAssetCapability(canvasType: string): CanvasAiNamedOption[] {
   const recommendedIds = CANVAS_RECOMMENDED_ASSETS[canvasType] ?? [];

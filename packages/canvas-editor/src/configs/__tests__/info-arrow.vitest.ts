@@ -1,7 +1,5 @@
-import { loadCanvasConfig } from '@ggraphic/editor/configs/configLoader';
+import { loadCanvasConfig, type ImageElementConfig } from '@ggraphic/editor/config';
 import { describe, it, expect, beforeAll } from 'vitest';
-
-import type { ImageElementConfig } from '@ggraphic/editor/configs/types';
 
 /**
  * Der Pfeil der Info-Vorlage folgt ueber `fromLayout` der Hoehe der

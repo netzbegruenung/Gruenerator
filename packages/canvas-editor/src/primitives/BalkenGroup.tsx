@@ -5,20 +5,24 @@
  * Uses the same layout calculations as calculateDreizeilenLayout.
  */
 
-import { LOCKED_TRANSFORMER, useIsItemLocked } from '@ggraphic/editor/components/canvasItemLock';
-import { useFontGeneration } from '@ggraphic/editor/hooks/useFontGeneration';
-import { useSnapScheduler } from '@ggraphic/editor/hooks/useSnapScheduler';
+import { useFontGeneration } from '@ggraphic/editor/internal/hooks/useFontGeneration';
+import { boxFrame, createBoxFrame } from '@ggraphic/editor/internal/utils/snapping';
+import { stageCssScale } from '@ggraphic/editor/internal/utils/stageCssScale';
 import {
+  LOCKED_TRANSFORMER,
+  useIsItemLocked,
+  useSnapScheduler,
+  followStage,
+  isGroupDrag,
+  ELEMENT_TRANSFORMER,
+  normalizeRotation,
+  snapByBounds,
+  useTextEditorOpener,
   captureFocusOrigin,
   returnFocus,
   type FocusOrigin,
-} from '@ggraphic/editor/utils/editorFocus';
-import { followStage } from '@ggraphic/editor/utils/followStage';
-import { isGroupDrag } from '@ggraphic/editor/utils/multiSelect';
-import { ELEMENT_TRANSFORMER, normalizeRotation } from '@ggraphic/editor/utils/orientation';
-import { boxFrame, createBoxFrame, snapByBounds } from '@ggraphic/editor/utils/snapping';
-import { stageCssScale } from '@ggraphic/editor/utils/stageCssScale';
-import { useTextEditorOpener } from '@ggraphic/editor/utils/textEditorOpeners';
+  type SnapTarget,
+} from '@ggraphic/editor/kinds';
 import { useRef, useCallback, useMemo, useEffect, useState, memo } from 'react';
 import { Group, Line, Text, Rect, Transformer } from 'react-konva';
 
@@ -31,7 +35,6 @@ import {
 } from '../utils/dreizeilenLayout';
 
 import type { BalkenInstance, BalkenMode } from '../utils/balkenUtils';
-import type { SnapTarget } from '@ggraphic/editor/utils/snapping';
 import type Konva from 'konva';
 
 // Rahmen für Snap und Geometrie-Meldung, pro Aufruf neu beschrieben (synchron, ohne Allokation).

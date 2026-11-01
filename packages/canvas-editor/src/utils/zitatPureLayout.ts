@@ -3,7 +3,7 @@
  * Values originally taken from the retired server-side Zitat-Pure renderer, so
  * canvases match the sharepics it produced
  */
-import { wrapText } from '@ggraphic/editor/utils/textUtils';
+import { wrapText } from '@ggraphic/editor/text';
 
 import { SYSTEM_ASSETS } from '../brand/grueneAssets';
 

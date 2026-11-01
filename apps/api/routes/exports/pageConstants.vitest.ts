@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { CANVAS_FORMATS } from '@ggraphic/editor/formats/index';
+import { CANVAS_FORMATS } from '@ggraphic/editor/templates';
 
 import { crossesFormatCategory, formatCategory, SERVER_FORMATS } from './pageConstants.js';
 

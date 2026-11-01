@@ -1,7 +1,6 @@
+import { ImageAdjustSection } from '@ggraphic/editor/sidebar';
 import { fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
-
-import { ImageAdjustSection } from '@ggraphic/editor/sidebar/sections/ImageAdjustSection';
 
 describe('ImageAdjustSection on the background photo', () => {
   it('offers the look and the flip, not crop or shadow', () => {

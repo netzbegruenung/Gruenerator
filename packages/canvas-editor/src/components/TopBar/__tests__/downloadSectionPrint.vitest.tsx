@@ -1,11 +1,11 @@
-import { CanvasEditorProvider } from '@ggraphic/editor/CanvasEditorProvider';
+import { DownloadSection } from '@ggraphic/editor/internal/components/TopBar/DownloadSection';
+import { CanvasEditorProvider } from '@ggraphic/editor/shell';
 import { PRINT_UNGETESTET_HINWEIS } from '@gruenerator/contracts';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 
 import { grueneratorPrint } from '../../../composer/printService';
-import { DownloadSection } from '@ggraphic/editor/components/TopBar/DownloadSection';
 
 describe('DownloadSection print export', () => {
   it('defaults to the PDF and downloads it instead of the raster export', async () => {

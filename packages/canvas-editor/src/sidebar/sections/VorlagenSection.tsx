@@ -23,17 +23,8 @@
  * Vorlage there; on content it asks first — open the Vorlage as a new design,
  * or replace with it (one undo step, offered back through the top bar banner).
  */
-import { useCanvasEditorServices } from '@ggraphic/editor/CanvasEditorProvider';
-import {
-  getCanvasFormat,
-  isPrintFormat,
-  isSlideFormat,
-  type PrintCanvasFormat,
-} from '@ggraphic/editor/formats/index';
-import { useAnnounce } from '@ggraphic/editor/hooks/useAnnounce';
-import { useIsCanvasMobile } from '@ggraphic/editor/hooks/useIsCanvasMobile';
-import { GalleryTabs } from '@ggraphic/editor/sidebar/sections/StudioGallery';
-import { useCanvasStoreSelector } from '@ggraphic/editor/stores/CanvasStoreProvider';
+import { useCanvasEditorServices } from '@ggraphic/editor/host';
+import { GalleryTabs } from '@ggraphic/editor/internal/sidebar/sections/StudioGallery';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -43,12 +34,20 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-} from '@ggraphic/editor/ui/alert-dialog';
-import { Button } from '@ggraphic/editor/ui/button';
-import { Skeleton } from '@ggraphic/editor/ui/skeleton';
-import { cn } from '@ggraphic/editor/utils/cn';
-import { ensureFontsReady } from '@ggraphic/editor/utils/ensureFontsReady';
-import { VORLAGE_DRAG_TYPE } from '@ggraphic/editor/utils/mediaDrop';
+} from '@ggraphic/editor/internal/ui/alert-dialog';
+import { Button } from '@ggraphic/editor/internal/ui/button';
+import { Skeleton } from '@ggraphic/editor/internal/ui/skeleton';
+import { cn } from '@ggraphic/editor/internal/utils/cn';
+import { TEMPLATE_DRAG_TYPE as VORLAGE_DRAG_TYPE } from '@ggraphic/editor/internal/utils/mediaDrop';
+import { useIsCanvasMobile, useAnnounce, type CanvasSpecEditBridge } from '@ggraphic/editor/shell';
+import { useCanvasStoreSelector } from '@ggraphic/editor/store';
+import {
+  getCanvasFormat,
+  isPrintFormat,
+  isSlideFormat,
+  type PrintCanvasFormat,
+} from '@ggraphic/editor/templates';
+import { ensureFontsReady } from '@ggraphic/editor/text';
 import {
   canvasVorlageThumbPath,
   printVorlageThumbPath,
@@ -97,8 +96,7 @@ import type {
   CanvasVorlagenService,
   VorlagePage,
 } from '../../grueneratorHostServices';
-import type { CanvasSpecEditBridge } from '@ggraphic/editor/CanvasEditorProvider';
-import type { HeterogeneousPage } from '@ggraphic/editor/configs/types';
+import type { HeterogeneousPage } from '@ggraphic/editor/config';
 
 /** Lets the editor hand a tile dropped on a page to the tab. */
 export interface VorlagenSectionHandle {
@@ -146,7 +144,7 @@ function printCards(
   composePrint: CanvasPrintService['composePrint'],
   openPrintAsNew: CanvasVorlagenService['openPrintAsNew']
 ): VorlageCard[] {
-  const of = format.print.seiten;
+  const of = format.print.pageCount;
   // Composing measures text in the brand fonts, like the gallery's „Verwenden".
   const compose = async () => {
     await ensureFontsReady();
@@ -412,7 +410,7 @@ export function VorlagenSection({
   const listPrint = service?.listPrint;
   const openPrintAsNew = service?.openPrintAsNew;
   const composePrint = printService?.composePrint;
-  const impressum = printService?.impressum;
+  const impressum = printService?.imprint;
 
   useEffect(() => {
     if (!listSeiten || !seitenFormat) return;
@@ -500,7 +498,7 @@ export function VorlagenSection({
         if (shownId) onShowPage?.(shownId);
       }
       if (replacing) {
-        setPending({ title: vorlage.titel, undo: 'pages', source: 'vorlage' });
+        setPending({ title: vorlage.titel, undo: 'pages', source: 'template' });
         announce(`Vorlage angewendet: ${vorlage.titel}. Behalten oder verwerfen.`);
       }
     } catch (err) {

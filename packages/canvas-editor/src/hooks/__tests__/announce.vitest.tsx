@@ -1,22 +1,19 @@
-import {
-  AnnouncerContext,
-  useAnnounce,
-  useLiveAnnouncer,
-} from '@ggraphic/editor/hooks/useAnnounce';
+import { CanvasAnnouncer } from '@ggraphic/editor/internal/components/CanvasAnnouncer';
+import { AnnouncerContext, useLiveAnnouncer } from '@ggraphic/editor/internal/hooks/useAnnounce';
 import {
   SELECTION_ANNOUNCE_DELAY_MS,
   selectionMessage,
   useSelectionAnnouncement,
-} from '@ggraphic/editor/hooks/useSelectionAnnouncement';
-import { CanvasStoreProvider, useCanvasStore } from '@ggraphic/editor/stores/CanvasStoreProvider';
+} from '@ggraphic/editor/internal/hooks/useSelectionAnnouncement';
+import { useAnnounce } from '@ggraphic/editor/shell';
+import { CanvasStoreProvider, useCanvasStore } from '@ggraphic/editor/store';
 import { act, render, screen } from '@testing-library/react';
 import { useEffect } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { CanvasAnnouncer } from '@ggraphic/editor/components/CanvasAnnouncer';
 import { axe } from '../../test-utils';
 
-import type { CanvasEditorStoreApi } from '@ggraphic/editor/stores/createCanvasEditorStore';
+import type { CanvasEditorStoreApi } from '@ggraphic/editor/internal/stores/createCanvasEditorStore';
 
 let announceFn: (text: string) => void = () => {};
 let storeRef: CanvasEditorStoreApi;
@@ -188,7 +185,7 @@ describe('Auswahl-Ansage', () => {
 describe('Rückgängig und Wiederherstellen', () => {
   it('sagen an, was sie getan haben — und schweigen ohne Schritt', async () => {
     const { renderHook } = await import('@testing-library/react');
-    const { useCanvasUndoRedo } = await import('@ggraphic/editor/hooks/useCanvasUndoRedo');
+    const { useCanvasUndoRedo } = await import('@ggraphic/editor/internal/hooks/useCanvasUndoRedo');
     const announce = vi.fn();
     const wrapper = ({ children }: { children: React.ReactNode }) => (
       <AnnouncerContext.Provider value={{ announce, lastAnnouncedAt: { current: 0 } }}>

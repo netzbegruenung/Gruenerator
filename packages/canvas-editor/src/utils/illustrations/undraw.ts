@@ -4,7 +4,7 @@
  * with German names and tags
  */
 
-import type { SvgDef } from '@ggraphic/editor/utils/illustrations/types';
+import type { SvgDef } from '@ggraphic/editor/elements';
 
 // unDraw is the Grünerator's own set: it makes 'undraw' a valid `SvgSource`.
 declare module '@ggraphic/core' {

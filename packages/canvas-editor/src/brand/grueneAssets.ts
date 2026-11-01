@@ -11,7 +11,7 @@ import {
   getAssetById,
   type AssetAudience,
   type UniversalAsset,
-} from '@ggraphic/editor/utils/canvasAssets';
+} from '@ggraphic/editor/host';
 import { GRUENE_SYSTEM_ASSETS } from '@gruenerator/contracts/brand';
 
 export { GRUENE_SYSTEM_ASSETS };

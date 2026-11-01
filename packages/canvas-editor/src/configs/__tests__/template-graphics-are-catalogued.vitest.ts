@@ -1,5 +1,5 @@
-import { loadCanvasConfig } from '@ggraphic/editor/configs/configLoader';
-import { getAssetBySrc } from '@ggraphic/editor/utils/canvasAssets';
+import { loadCanvasConfig } from '@ggraphic/editor/config';
+import { getAssetBySrc } from '@ggraphic/editor/internal/utils/canvasAssets';
 import { beforeAll, describe, expect, it } from 'vitest';
 
 /**

@@ -1,18 +1,17 @@
-import { CanvasEditorProvider } from '@ggraphic/editor/CanvasEditorProvider';
-import { plainImageUrls, type CanvasImageUrlService } from '@ggraphic/editor/hostServices';
-import { MEDIA_DRAG_TYPE } from '@ggraphic/editor/utils/mediaDrop';
+import { UploadsSection } from '@ggraphic/editor/internal/sidebar/sections/UploadsSection';
+import { MEDIA_DRAG_TYPE } from '@ggraphic/editor/internal/utils/mediaDrop';
+import { plainImageUrls, type CanvasImageUrlService } from '@ggraphic/editor/services';
+import { CanvasEditorProvider } from '@ggraphic/editor/shell';
 import { fireEvent, render, screen } from '@testing-library/react';
 import React from 'react';
 import { describe, expect, it, vi } from 'vitest';
-
-import { UploadsSection } from '@ggraphic/editor/sidebar/sections/UploadsSection';
 
 /**
  * Eine Upload-Kachel lässt sich auf eine Seite ziehen (PageWrapper nimmt sie
  * an). Mitgegeben wird die dauerhafte URL, nie eine blob:-Vorschau.
  */
 
-vi.mock('@ggraphic/editor/sidebar/UserUploadsProvider', () => ({
+vi.mock('@ggraphic/editor/internal/sidebar/UserUploadsProvider', () => ({
   useUserUploads: () => ({
     items: [
       {

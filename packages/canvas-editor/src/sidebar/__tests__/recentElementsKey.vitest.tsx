@@ -1,9 +1,8 @@
-import { registerHostStorageKeys } from '@ggraphic/editor/utils/hostStorageKeys';
+import { registerHostStorageKeys } from '@ggraphic/editor/host';
+import { useRecentElements } from '@ggraphic/editor/internal/sidebar/sections/assets/useRecentElements';
 import { beforeEach, describe, expect, it } from 'vitest';
 
-import { useRecentElements } from '@ggraphic/editor/sidebar/sections/assets/useRecentElements';
-
-import type { ElementItem } from '@ggraphic/editor/sidebar/sections/assets/elementTypes';
+import type { ElementItem } from '@ggraphic/editor/sidebar';
 
 const ITEM = {
   key: 'shape:rect',

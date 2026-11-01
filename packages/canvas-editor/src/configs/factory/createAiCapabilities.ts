@@ -1,12 +1,13 @@
-import { buildAssetCapability } from '../../ai/assetCapability';
-import { buildIllustrationCapability } from '@ggraphic/editor/ai/illustrationCapability';
+import {
+  buildIllustrationCapability,
+  type CanvasAiActionsBase,
+  type HostCanvasAiCapabilities,
+  type HostCanvasAiOperation,
+  type HostCanvasAiSnapshot,
+} from '@ggraphic/editor/ai';
 
-import type { CanvasAiActionsBase } from '@ggraphic/editor/ai/applyOperation';
-import type {
-  HostCanvasAiCapabilities,
-  HostCanvasAiOperation,
-  HostCanvasAiSnapshot,
-} from '@ggraphic/editor/ai/types';
+import { buildAssetCapability } from '../../ai/assetCapability';
+
 import type { CanvasConfigId } from '../../templates/registry';
 
 const BASE_OPERATIONS: readonly HostCanvasAiOperation['kind'][] = [

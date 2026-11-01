@@ -1,9 +1,8 @@
+import { getMobileSelectionArea } from '@ggraphic/editor/internal/components/CanvasEditor/mobileSelectionArea';
 import { describe, expect, it } from 'vitest';
 
-import { getMobileSelectionArea } from '@ggraphic/editor/components/CanvasEditor/mobileSelectionArea';
-
-import type { SidebarTabId } from '@ggraphic/editor/sidebar/types';
-import type { FloatingModuleState } from '@ggraphic/editor/hooks/useFloatingModuleState';
+import type { FloatingModuleState } from '@ggraphic/editor/internal/hooks/useFloatingModuleState';
+import type { SidebarTabId } from '@ggraphic/editor/sidebar';
 
 const UNIFIED: SidebarTabId[] = ['text', 'elements', 'tools', 'uploads', 'chat'];
 const LEGACY: SidebarTabId[] = ['text', 'assets', 'tools', 'uploads', 'chat'];

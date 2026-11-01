@@ -1,8 +1,8 @@
 import { readdirSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 
-import { chartSeriesOutlines } from '@ggraphic/editor/utils/chartUtils';
-import { type GradientFill } from '@ggraphic/editor/utils/gradientFill';
+import { type GradientFill } from '@ggraphic/editor/elements';
+import { chartSeriesOutlines } from '@ggraphic/editor/internal/utils/chartUtils';
 import { layoutRichTextBlock } from '@ggraphic/schema';
 import {
   sharepicSpecSchema,

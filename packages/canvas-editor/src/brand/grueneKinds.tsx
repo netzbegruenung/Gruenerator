@@ -7,13 +7,12 @@
 import {
   createSelectableWrapper,
   type HostKindRenderers,
-} from '@ggraphic/editor/components/kindRenderers';
+  type SnapLine,
+} from '@ggraphic/editor/kinds';
 
 import { BalkenGroup } from '../primitives/BalkenGroup';
 
-import type { SnapLine } from '@ggraphic/editor/utils/snapping';
-
-export { registerKindRenderers } from '@ggraphic/editor/components/kindRenderers';
+export { registerKindRenderers } from '@ggraphic/editor/kinds';
 
 const SelectableBalkenGroup = createSelectableWrapper(BalkenGroup);
 

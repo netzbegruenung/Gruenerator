@@ -1,4 +1,4 @@
-import { boundsOf, type BlockSlide, type LiftedBlock } from '@ggraphic/editor/blocks/liftedBlock';
+import { boundsOf, type BlockSlide, type LiftedBlock } from '@ggraphic/editor/elements';
 import {
   brandIdFor,
   sharepicColorsFor,
@@ -12,7 +12,7 @@ import {
 import { colorOf } from './carouselChrome';
 import { SHAREPIC_COLOR_HEX } from './chromeParts';
 
-import type { IconState } from '@ggraphic/editor/configs/factory/baseTypes';
+import type { IconState } from '@ggraphic/editor/config';
 
 // The block mechanics live in the editor core; re-exported for the composer's public API.
 export {
@@ -21,7 +21,7 @@ export {
   placeBlock,
   translateBlock,
   type LiftedBlock,
-} from '@ggraphic/editor/blocks/liftedBlock';
+} from '@ggraphic/editor/elements';
 
 /**
  * The elements the composer made for `items` of a composed slide (ids

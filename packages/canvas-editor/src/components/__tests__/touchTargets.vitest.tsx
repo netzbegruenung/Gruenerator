@@ -1,21 +1,20 @@
 import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 
-import { AutoSaveIndicator } from '@ggraphic/editor/components/TopBar/AutoSaveIndicator';
-import { ContextControls } from '@ggraphic/editor/components/TopBar/ContextControls';
-import { FloatingColorPicker } from '@ggraphic/editor/components/TopBar/modules/FloatingColorPicker';
-import { FloatingFontSizeControl } from '@ggraphic/editor/components/TopBar/modules/FloatingFontSizeControl';
-import { FloatingHistoryControls } from '@ggraphic/editor/components/TopBar/modules/FloatingHistoryControls';
-import { FloatingLayerControls } from '@ggraphic/editor/components/TopBar/modules/FloatingLayerControls';
-import { SidebarHint } from '@ggraphic/editor/sidebar/components/SidebarHint';
-import { FontSizeStepper } from '@ggraphic/editor/sidebar/components/TextFieldPrimitives';
-import { CombinedTextSection } from '@ggraphic/editor/sidebar/sections/CombinedTextSection';
-import { SidebarPanel } from '@ggraphic/editor/sidebar/SidebarPanel';
-import { SubsectionTabBar } from '@ggraphic/editor/sidebar/SubsectionTabBar';
+import { AutoSaveIndicator } from '@ggraphic/editor/internal/components/TopBar/AutoSaveIndicator';
+import { ContextControls } from '@ggraphic/editor/internal/components/TopBar/ContextControls';
+import { FloatingColorPicker } from '@ggraphic/editor/internal/components/TopBar/modules/FloatingColorPicker';
+import { FloatingFontSizeControl } from '@ggraphic/editor/internal/components/TopBar/modules/FloatingFontSizeControl';
+import { FloatingHistoryControls } from '@ggraphic/editor/internal/components/TopBar/modules/FloatingHistoryControls';
+import { FloatingLayerControls } from '@ggraphic/editor/internal/components/TopBar/modules/FloatingLayerControls';
+import { FontSizeStepper } from '@ggraphic/editor/internal/sidebar/components/TextFieldPrimitives';
 import {
-  AutoSaveStoreProvider,
-  useAutoSaveStoreApi,
-} from '@ggraphic/editor/stores/useAutoSaveStore';
+  SidebarHint,
+  CombinedTextSection,
+  SidebarPanel,
+  SubsectionTabBar,
+} from '@ggraphic/editor/sidebar';
+import { AutoSaveStoreProvider, useAutoSaveStoreApi } from '@ggraphic/editor/store';
 import { render, screen } from '@testing-library/react';
 import { useLayoutEffect } from 'react';
 import { PiTextAa } from 'react-icons/pi';
@@ -23,7 +22,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { editorDist } from '../../__tests__/editorDist';
 
-import type { FloatingModuleState } from '@ggraphic/editor/hooks/useFloatingModuleState';
+import type { FloatingModuleState } from '@ggraphic/editor/internal/hooks/useFloatingModuleState';
 
 function setMobileViewport() {
   window.matchMedia = vi.fn().mockImplementation((query: string) => ({

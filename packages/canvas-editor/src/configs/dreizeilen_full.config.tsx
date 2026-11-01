@@ -5,8 +5,7 @@
  * Migrated from monolithic 1,107-line DreizeilenCanvas component.
  */
 
-import { describeCanvasElements } from '@ggraphic/editor/ai/describeCanvasElements';
-import { buildIllustrationCapability } from '@ggraphic/editor/ai/illustrationCapability';
+import { describeCanvasElements, buildIllustrationCapability } from '@ggraphic/editor/ai';
 import {
   createAssetActions,
   createIconActions,
@@ -17,21 +16,32 @@ import {
   createCircleBadgeActions,
   createFrameActions,
   createUserImageActions,
-} from '@ggraphic/editor/configs/factory/actionFactories';
-import {
   carryBackgroundAdjustments,
   carryBackgroundRotation,
   carryTemplateRotations,
   carryTemplateTextAligns,
-} from '@ggraphic/editor/configs/factory/carryInstanceState';
-import { makeSectionDefiner } from '@ggraphic/editor/configs/factory/defineSection';
-import { injectFeatureProps } from '@ggraphic/editor/configs/featureInjector';
-import { PLACEHOLDER_TEXT } from '@ggraphic/editor/configs/placeholders';
-import { createShareSection } from '@ggraphic/editor/configs/shareSection';
-import { CombinedTextSection } from '@ggraphic/editor/sidebar/sections/CombinedTextSection';
-import { FrameSettingsSection } from '@ggraphic/editor/sidebar/sections/FrameSettingsSection';
-import { zoomBackground } from '@ggraphic/editor/utils/coverFit';
-import { straightenResetFor } from '@ggraphic/editor/utils/straighten';
+  makeSectionDefiner,
+  injectFeatureProps,
+  PLACEHOLDER_TEXT,
+  createShareSection,
+  type FullCanvasConfig,
+  type LayoutResult as GenericLayoutResult,
+  type AdditionalText,
+} from '@ggraphic/editor/config';
+import {
+  zoomBackground,
+  straightenResetFor,
+  type StockImageAttribution,
+  type AssetInstance,
+  type ChartInstance,
+  type CircleBadgeInstance,
+  type FrameInstance,
+  type IllustrationInstance,
+  type PillBadgeInstance,
+  type ShapeInstance,
+  type UserImageInstance,
+} from '@ggraphic/editor/elements';
+import { CombinedTextSection, FrameSettingsSection } from '@ggraphic/editor/sidebar';
 import {
   buildSharepicSnapshot,
   getSharepicTemplateDescriptor,
@@ -62,20 +72,6 @@ import { createBalkenActions } from './factory/balkenActions';
 import type { SharepicAiCapabilities } from './aiCapabilities';
 import type { DreizeilenFullState, DreizeilenFullActions } from './dreizeilen.types';
 import type { BalkenInstance } from '../utils/balkenUtils';
-import type { StockImageAttribution } from '@ggraphic/editor/common/imageSourceTypes';
-import type {
-  FullCanvasConfig,
-  LayoutResult as GenericLayoutResult,
-  AdditionalText,
-} from '@ggraphic/editor/configs/types';
-import type { AssetInstance } from '@ggraphic/editor/utils/canvasAssets';
-import type { ChartInstance } from '@ggraphic/editor/utils/chartUtils';
-import type { CircleBadgeInstance } from '@ggraphic/editor/utils/circleBadgeUtils';
-import type { FrameInstance } from '@ggraphic/editor/utils/frameUtils';
-import type { IllustrationInstance } from '@ggraphic/editor/utils/illustrations/types';
-import type { PillBadgeInstance } from '@ggraphic/editor/utils/pillBadgeUtils';
-import type { ShapeInstance } from '@ggraphic/editor/utils/shapes';
-import type { UserImageInstance } from '@ggraphic/editor/utils/userImageUtils';
 
 // ============================================================================
 // CONSTANTS

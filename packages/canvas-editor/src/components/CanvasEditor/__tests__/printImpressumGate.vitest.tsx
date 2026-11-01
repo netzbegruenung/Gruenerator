@@ -1,21 +1,17 @@
-import { CanvasEditorProvider } from '@ggraphic/editor/CanvasEditorProvider';
 import {
-  getCanvasFormat,
-  isPrintFormat,
-  type PrintCanvasFormat,
-} from '@ggraphic/editor/formats/index';
+  usePrintImpressumGate,
+  type ObservedPages,
+  type ObservedPageState,
+} from '@ggraphic/editor/internal/components/CanvasEditor/hooks/usePrintImpressumGate';
+import { DownloadSection } from '@ggraphic/editor/internal/components/TopBar/DownloadSection';
+import { CanvasEditorProvider } from '@ggraphic/editor/shell';
+import { getCanvasFormat, isPrintFormat, type PrintCanvasFormat } from '@ggraphic/editor/templates';
 import { render, renderHook, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { type ReactNode } from 'react';
 import { describe, expect, it, vi } from 'vitest';
 
 import { grueneratorPrint } from '../../../composer/printService';
-import { DownloadSection } from '@ggraphic/editor/components/TopBar/DownloadSection';
-import {
-  usePrintImpressumGate,
-  type ObservedPages,
-  type ObservedPageState,
-} from '@ggraphic/editor/components/CanvasEditor/hooks/usePrintImpressumGate';
 
 const printFormat = (id: string): PrintCanvasFormat => {
   const f = getCanvasFormat(id);

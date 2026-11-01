@@ -1,7 +1,7 @@
-import { type AdditionalText } from '@ggraphic/editor/configs/types';
-import { type CanvasFormat } from '@ggraphic/editor/formats/index';
-import { type ShapeInstance } from '@ggraphic/editor/utils/shapes';
-import { type TextAccent } from '@ggraphic/editor/utils/textUtils';
+import { type AdditionalText } from '@ggraphic/editor/config';
+import { type ShapeInstance } from '@ggraphic/editor/elements';
+import { type CanvasFormat } from '@ggraphic/editor/host';
+import { type TextAccent } from '@ggraphic/editor/text';
 import {
   type SharepicBrandId,
   type SharepicCreatorLocale,

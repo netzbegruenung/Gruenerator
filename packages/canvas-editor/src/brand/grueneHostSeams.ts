@@ -1,8 +1,11 @@
-import { registerPptxFonts } from '@ggraphic/editor/export/pptx/pptxFonts';
-import { registerHostMessages } from '@ggraphic/editor/i18n/messages';
-import { registerMeasuredCornerReservation } from '@ggraphic/editor/utils/cornerReservation';
-import { registerToast, type EditorToast } from '@ggraphic/editor/utils/editorToast';
-import { registerElementKind } from '@ggraphic/editor/utils/elementKinds';
+import {
+  registerPptxFonts,
+  registerHostMessages,
+  registerMeasuredCornerReservation,
+  registerElementKind,
+  registerToast,
+  type EditorToast,
+} from '@ggraphic/editor/host';
 import { toast, useMeasuredCornerReservation } from '@gruenerator/ui';
 
 import { BALKEN_KIND, BALKEN_MESSAGES } from './balkenKind';
