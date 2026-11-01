@@ -1,8 +1,11 @@
 // SPDX-License-Identifier: MPL-2.0
-import { defaultTextMarker, markerInkOn } from '@ggraphic/editor/utils/markerColors';
 import { markdownLiteToRichText, type CanvasRichTextDoc } from '@ggraphic/schema';
 
+import { activeBrand } from '@ggraphic/editor/brand/brandRegistry';
+import { defaultTextMarker, markerInkOn } from '@ggraphic/editor/utils/markerColors';
+
 import type { PptxBullet, PptxParagraph, PptxTextRun } from './types.js';
+import type { BrandPack } from '@ggraphic/core';
 import type { AdditionalText } from '@ggraphic/editor/configs/types';
 
 type RichNode = NonNullable<CanvasRichTextDoc['content']>[number];
@@ -26,9 +29,16 @@ function markColor(node: RichNode, type: 'accent' | 'marker'): string | null {
 /**
  * Ein Lauf, wie `CanvasRichText` ihn zeichnet: eine eigene Passagenfarbe färbt
  * nur, die Akzentschrift der Vorlage gilt für Akzentläufe ohne eigene Farbe;
- * im Markerkasten steht die Schrift, die zum Kasten passt.
+ * im Markerkasten steht die Schrift, die zum Kasten passt — Kasten und Schrift
+ * der Marke des Dokuments, wenn die Vorlage keinen Markerstil hat.
  */
-function toRun(node: RichNode, text: AdditionalText, baseBold: boolean, baseItalic: boolean) {
+function toRun(
+  node: RichNode,
+  text: AdditionalText,
+  baseBold: boolean,
+  baseItalic: boolean,
+  brand: BrandPack
+) {
   const has = (type: string) => !!node.marks?.some((mark) => mark.type === type);
   const accentColor = has('accent') ? markColor(node, 'accent') : null;
   const asAccent = has('accent') && !!text.accent && !accentColor;
@@ -39,10 +49,10 @@ function toRun(node: RichNode, text: AdditionalText, baseBold: boolean, baseItal
   let color = accentColor ?? (asAccent ? text.accent!.fill : text.fill);
   let highlight: string | null = null;
   if (has('marker')) {
-    const marker = text.marker ?? defaultTextMarker();
+    const marker = text.marker ?? defaultTextMarker(brand);
     const markerColor = markColor(node, 'marker');
     highlight = markerColor ?? marker.fill;
-    color = accentColor ?? (markerColor ? markerInkOn(markerColor) : marker.color);
+    color = accentColor ?? (markerColor ? markerInkOn(markerColor, brand) : marker.color);
   }
 
   const run: PptxTextRun = {
@@ -62,11 +72,12 @@ function paragraphOf(
   bullet: PptxBullet | null,
   text: AdditionalText,
   baseBold: boolean,
-  baseItalic: boolean
+  baseItalic: boolean,
+  brand: BrandPack
 ): PptxParagraph {
   const runs: PptxTextRun[] = [];
   for (const child of node?.content ?? []) {
-    if (child.type === 'text') runs.push(toRun(child, text, baseBold, baseItalic));
+    if (child.type === 'text') runs.push(toRun(child, text, baseBold, baseItalic, brand));
     else if (child.type === 'hardBreak') runs.push({ ...emptyRun(text), text: '\n' });
   }
   return { runs, bullet };
@@ -85,7 +96,10 @@ function emptyRun(text: AdditionalText): PptxTextRun {
 }
 
 /** Markdown-lite des Textfelds → Absätze mit Läufen und Aufzählung. */
-export function textParagraphs(text: AdditionalText): PptxParagraph[] {
+export function textParagraphs(
+  text: AdditionalText,
+  brand: BrandPack = activeBrand()
+): PptxParagraph[] {
   const style = text.fontStyle ?? 'normal';
   const baseBold = style.includes('bold');
   const baseItalic = style.includes('italic');
@@ -97,11 +111,13 @@ export function textParagraphs(text: AdditionalText): PptxParagraph[] {
       const bullet: PptxBullet =
         block.type === 'orderedList' ? { type: 'number', startAt: start } : { type: 'bullet' };
       for (const item of block.content ?? []) {
-        paragraphs.push(paragraphOf(item.content?.[0] ?? null, bullet, text, baseBold, baseItalic));
+        paragraphs.push(
+          paragraphOf(item.content?.[0] ?? null, bullet, text, baseBold, baseItalic, brand)
+        );
       }
       continue;
     }
-    paragraphs.push(paragraphOf(block, null, text, baseBold, baseItalic));
+    paragraphs.push(paragraphOf(block, null, text, baseBold, baseItalic, brand));
   }
   return paragraphs;
 }

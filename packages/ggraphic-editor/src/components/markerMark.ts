@@ -8,9 +8,12 @@
  */
 import { Mark } from '@tiptap/core';
 
+import { activeBrand } from '@ggraphic/editor/brand/brandRegistry';
 import { colorAttribute } from '@ggraphic/editor/components/markColor';
 
 import { markerInkOn } from '../utils/markerColors.js';
+
+import type { BrandPack } from '@ggraphic/core';
 
 declare module '@tiptap/core' {
   interface Commands<ReturnType> {
@@ -23,11 +26,26 @@ declare module '@tiptap/core' {
   }
 }
 
-export const Marker = Mark.create({
+export interface MarkerOptions {
+  /**
+   * Das Markenpaket des Dokuments: seine dunkle Schrift bekommt ein frei
+   * gewählter Kasten, wie auf der Leinwand. `null` = das aktive Paket.
+   */
+  brand: BrandPack | null;
+}
+
+export const Marker = Mark.create<MarkerOptions>({
   name: 'marker',
-  addAttributes: () => ({
-    color: colorAttribute('--mark-fill', (color) => `--mark-ink:${markerInkOn(color)}`),
-  }),
+  addOptions: () => ({ brand: null }),
+  addAttributes() {
+    const { brand } = this.options;
+    return {
+      color: colorAttribute(
+        '--mark-fill',
+        (color) => `--mark-ink:${markerInkOn(color, brand ?? activeBrand())}`
+      ),
+    };
+  },
   parseHTML: () => [{ tag: 'mark[data-marker]' }],
   renderHTML: ({ HTMLAttributes }) => ['mark', { 'data-marker': '', ...HTMLAttributes }, 0],
   addCommands() {

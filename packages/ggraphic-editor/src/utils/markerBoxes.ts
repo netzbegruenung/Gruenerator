@@ -11,9 +11,12 @@
  * knapp ins Leerzeichen: sonst stößt er an das Nachbarwort, dessen kursive
  * Glyphen ohnehin schon hineinlehnen.
  */
+import { activeBrand } from '@ggraphic/editor/brand/brandRegistry';
+
 import { markerInkOn } from './markerColors.js';
 
 import type { TextMarker } from './textUtils.js';
+import type { BrandPack } from '@ggraphic/core';
 import type { MeasureRun, RichLayoutedLine } from '@ggraphic/schema';
 
 export interface MarkerBox {
@@ -36,6 +39,8 @@ export interface MarkerBoxOptions {
   top: number;
   /** Linke Kante jeder Zeile (Rand, Ausrichtungsversatz) — ohne Einzug. */
   originX: number[];
+  /** Das Markenpaket, dessen dunkle Schrift ein frei gewählter Kasten bekommt; Vorgabe: das aktive. */
+  brand?: BrandPack;
 }
 
 const DEFAULT_PAD_X = 0.18;
@@ -49,7 +54,7 @@ export function markerBoxes(
   lines: RichLayoutedLine[],
   measure: MeasureRun,
   marker: TextMarker,
-  { fontSize, lineHeightPx, top, originX }: MarkerBoxOptions
+  { fontSize, lineHeightPx, top, originX, brand = activeBrand() }: MarkerBoxOptions
 ): MarkerBox[] {
   const padX = (marker.padX ?? DEFAULT_PAD_X) * fontSize;
   const padY = (marker.padY ?? DEFAULT_PAD_Y) * fontSize;
@@ -76,7 +81,7 @@ export function markerBoxes(
         width: end - start + padLeft + padRight,
         height,
         fill: color ?? marker.fill,
-        ink: color ? markerInkOn(color) : marker.color,
+        ink: color ? markerInkOn(color, brand) : marker.color,
       });
       start = null;
     };
