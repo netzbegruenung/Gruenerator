@@ -30,6 +30,9 @@ export interface CanvasMenuSnapshot {
   background: BackgroundControls | null;
 }
 
+/** Fester Schlüssel eines Untermenüs — für Icons, unabhängig von der Sprache. */
+export type CanvasSubmenuKey = 'layer' | 'orient' | 'align';
+
 export type CanvasMenuKind = 'element' | 'multi' | 'background' | 'page';
 
 export interface CanvasMenuEnv {
@@ -55,7 +58,7 @@ export type CanvasMenuEntry =
       destructive: boolean;
     }
   | { kind: 'check'; id: CanvasCommandId; label: string; checked: boolean }
-  | { kind: 'sub'; label: string; entries: CanvasMenuEntry[] }
+  | { kind: 'sub'; key: CanvasSubmenuKey; label: string; entries: CanvasMenuEntry[] }
   | { kind: 'label'; label: string }
   | { kind: 'separator' };
 
@@ -115,11 +118,13 @@ export function buildCanvasMenu(snapshot: CanvasMenuSnapshot, env: CanvasMenuEnv
       ? [
           {
             kind: 'sub',
+            key: 'align',
             label: messages().contextMenu.align,
             entries: [
               item('alignLeft'),
               item('alignCenterH'),
               item('alignRight'),
+              separator,
               item('alignTop'),
               item('alignMiddle'),
               item('alignBottom'),
@@ -146,7 +151,7 @@ export function buildCanvasMenu(snapshot: CanvasMenuSnapshot, env: CanvasMenuEnv
       ...(caps.rotation !== 0 ? [item('resetRotation')] : []),
     ];
     return entries.length
-      ? [{ kind: 'sub', label: messages().contextMenu.rotateAndFlip, entries }]
+      ? [{ kind: 'sub', key: 'orient', label: messages().contextMenu.rotateAndFlip, entries }]
       : [];
   };
   const page = (): CanvasMenuEntry[] => [
@@ -232,6 +237,7 @@ export function buildCanvasMenu(snapshot: CanvasMenuSnapshot, env: CanvasMenuEnv
       separator,
       {
         kind: 'sub',
+        key: 'layer',
         label: messages().contextMenu.layer,
         entries: [
           item('bringToFront', { disabled: !caps.canBringForward }),
@@ -250,7 +256,7 @@ export function buildCanvasMenu(snapshot: CanvasMenuSnapshot, env: CanvasMenuEnv
 }
 
 /** Keine Trennlinie am Rand und keine zwei hintereinander. */
-function compact(entries: CanvasMenuEntry[]): CanvasMenuEntry[] {
+export function compact(entries: CanvasMenuEntry[]): CanvasMenuEntry[] {
   const out: CanvasMenuEntry[] = [];
   const last = () => out[out.length - 1];
   for (const entry of entries) {

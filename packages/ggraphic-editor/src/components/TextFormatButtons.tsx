@@ -108,12 +108,13 @@ export interface TextFormatButtonsProps {
 }
 
 // Die Kontextleiste übernimmt die Maße ihrer Nachbarn (`ICON_BTN` in
-// ContextControls), damit die Gruppe nicht aus der Reihe fällt.
+// ContextControls), damit die Gruppe nicht aus der Reihe fällt. Am Handy
+// greifen die Knöpfe über `touch-target` auf 44 px, ohne die Reihe zu dehnen.
 const BUTTON_CLASS: Record<TextFormatVariant, string> = {
   floating:
     'flex h-7 w-7 cursor-pointer items-center justify-center rounded-sm border-none bg-transparent text-[var(--editor-text-secondary)] transition-colors hover:bg-[var(--editor-surface-hover)] hover:text-[var(--editor-text)] [&_svg]:h-4 [&_svg]:w-4',
   contextBar:
-    'inline-flex size-8 shrink-0 cursor-pointer items-center justify-center rounded-md border-none bg-transparent text-[var(--editor-text)] transition-colors duration-150 hover:bg-[var(--editor-surface-hover)] hover:text-[var(--editor-active-fg)] [&_svg]:h-4 [&_svg]:w-4',
+    'touch-target inline-flex size-8 shrink-0 cursor-pointer items-center justify-center rounded-md border-none bg-transparent text-[var(--editor-text)] transition-colors duration-150 hover:bg-[var(--editor-surface-hover)] hover:text-[var(--editor-active-fg)] [&_svg]:h-4 [&_svg]:w-4',
 };
 
 const GROUP_CLASS: Record<TextFormatVariant, string> = {

@@ -69,7 +69,7 @@ export interface SelectionPillProps {
   canDelete: boolean;
   onDuplicate: () => void;
   onDelete: () => void;
-  /** Touch: öffnet den Bereich der Auswahl. Pointer: das Kontextmenü, am Knopf verankert. */
+  /** Das Kontextmenü der Auswahl: am Desktop am Knopf verankert, mobil als Sheet. */
   onMore?: (anchor: HTMLElement) => void;
   isLocked?: boolean;
   /**
@@ -287,7 +287,7 @@ export function SelectionPill({
           type="button"
           className={btn}
           onClick={(e) => onMore(e.currentTarget)}
-          aria-haspopup={pointer ? 'menu' : undefined}
+          aria-haspopup={pointer ? 'menu' : 'dialog'}
           title={pointer ? 'Mehr Optionen' : undefined}
           aria-label="Mehr Optionen"
         >

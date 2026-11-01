@@ -3,6 +3,7 @@ import { currentFontRole, fontRoleOptions, type ElementBind, type FontRole } fro
 import React from 'react';
 
 import { useDocumentBrand } from '@ggraphic/editor/brand/documentBrand';
+import { useBarTiles } from '@ggraphic/editor/components/TopBar/barTiles';
 import { useMessages } from '@ggraphic/editor/i18n/messages';
 import { primaryFontFamily } from '@ggraphic/editor/utils/fontMarkSupport';
 import { requestFontFace } from '@ggraphic/editor/utils/textUtils';
@@ -25,6 +26,9 @@ interface FloatingFontRoleControlProps {
  */
 export function FloatingFontRoleControl({ text, onChange }: FloatingFontRoleControlProps) {
   const t = useMessages();
+  // Als Kachel volle 44 px zum Tippen; das Wort darunter liegt im leeren
+  // unteren Rand der Liste und lässt Taps durch (`TileCaption`).
+  const tiles = useBarTiles();
   const brand = useDocumentBrand();
   const options = fontRoleOptions(brand.fonts);
   if (options.length < 2) return null;
@@ -45,7 +49,7 @@ export function FloatingFontRoleControl({ text, onChange }: FloatingFontRoleCont
         onChange(picked.role);
       }}
       style={{ fontFamily: stackOf(family) }}
-      className="h-8 max-canvas-mobile:h-11 max-w-36 shrink-0 rounded-md border-none bg-transparent px-1 cursor-pointer text-[13px] font-medium text-[var(--editor-text)] hover:bg-[var(--editor-surface-hover)]"
+      className={`${tiles ? 'h-11 -mb-3' : 'h-8 max-canvas-mobile:h-11'} max-w-36 shrink-0 rounded-md border-none bg-transparent px-1 cursor-pointer text-[13px] font-medium text-[var(--editor-text)] hover:bg-[var(--editor-surface-hover)]`}
     >
       {role === null && (
         <option value={CUSTOM} disabled>

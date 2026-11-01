@@ -7,10 +7,12 @@ import {
   PiAlignLeft,
   PiAlignRight,
   PiAlignTop,
+  PiArrowsOutCardinal,
   PiColumns,
   PiRows,
 } from 'react-icons/pi';
 
+import { TILE, useBarTiles } from '@ggraphic/editor/components/TopBar/barTiles';
 import { FloatingLayerControls } from '@ggraphic/editor/components/TopBar/modules/FloatingLayerControls';
 import { useMessages } from '@ggraphic/editor/i18n/messages';
 import { Popover, PopoverContent, PopoverTrigger } from '@ggraphic/editor/ui/popover';
@@ -131,6 +133,7 @@ export function FloatingPositionControl({
   layer,
 }: FloatingPositionControlProps) {
   const t = useMessages();
+  const tiles = useBarTiles();
   const [geometry, setGeometry] = useState<SelectionGeometry | null>(null);
   const read = () => setGeometry(getGeometry?.() ?? null);
   // Die Seite zeichnet die Änderung erst im nächsten Bild; danach neu lesen.
@@ -160,7 +163,8 @@ export function FloatingPositionControl({
   return (
     <Popover onOpenChange={(open) => open && read()}>
       <PopoverTrigger asChild>
-        <button className={TRIGGER_BTN} type="button">
+        <button className={tiles ? TILE : TRIGGER_BTN} type="button">
+          {tiles && <PiArrowsOutCardinal size={18} aria-hidden />}
           {t.topBar.position}
         </button>
       </PopoverTrigger>
