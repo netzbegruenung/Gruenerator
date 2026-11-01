@@ -1,16 +1,5 @@
 // SPDX-License-Identifier: MPL-2.0
-import { cn } from '@ggraphic/editor/utils/cn';
-import { brandColors } from '@ggraphic/editor/utils/colorOptions';
-import { handDrawnPath, type HandShapeType } from '@ggraphic/editor/utils/handDrawn';
-import { defaultMarkerFill } from '@ggraphic/editor/utils/markerColors';
-import {
-  CATEGORY_LABELS,
-  CATEGORY_ORDER,
-  EUCALYPTUS,
-  getShapeDef,
-  type ShapeCategory,
-  type ShapeType,
-} from '@ggraphic/editor/utils/shapes';
+import { type BrandPack } from '@ggraphic/core';
 import { useMemo } from 'react';
 import {
   PiStarFill,
@@ -48,6 +37,20 @@ import {
   PiMountainsFill,
   PiSunFill,
 } from 'react-icons/pi';
+
+import { useDocumentBrand } from '@ggraphic/editor/brand/documentBrand';
+import { cn } from '@ggraphic/editor/utils/cn';
+import { brandColors } from '@ggraphic/editor/utils/colorOptions';
+import { handDrawnPath, type HandShapeType } from '@ggraphic/editor/utils/handDrawn';
+import { defaultMarkerFill } from '@ggraphic/editor/utils/markerColors';
+import {
+  CATEGORY_LABELS,
+  CATEGORY_ORDER,
+  EUCALYPTUS,
+  getShapeDef,
+  type ShapeCategory,
+  type ShapeType,
+} from '@ggraphic/editor/utils/shapes';
 
 import { CARD_GRID, CARD_PREVIEW, SELECTABLE_CARD, SIDEBAR_SECTION } from '../sidebarStyles.js';
 
@@ -639,7 +642,6 @@ export interface ShapeVariant {
   darkPreviewClass: string;
 }
 
-const SHAPE_VARIANT_COLOR_IDS = ['tanne', 'klee', 'grashalm', 'himmel', 'hellgruen'];
 const DARK_PREVIEW_OVERRIDES: Partial<Record<string, string>> = {
   tanne: '!text-editor-tanne-preview',
 };
@@ -650,27 +652,33 @@ const MARKER_SHAPES: ReadonlySet<ShapeType> = new Set(['hand-marker', 'hand-mark
  * Brand color variants cycled across shape tiles (Canva-style); clicking inserts the
  * shown color. Keyed by the shape's global palette index so the same shape shows the
  * same color in the strip, the drill-down groups, and search results.
- * A brand that names none of these colours cycles its first five. Lazy for the
- * same chunk-init reason as getShapesByCategory below, and because the host
- * registers its brand at startup.
+ * The cycle is the pack's `shapeCycle`, otherwise its first five palette colours.
+ * Built per pack on first use: lazy for the same chunk-init reason as
+ * getShapesByCategory below, and because the host registers its packs at startup.
  */
-let shapeVariantByType: Map<ShapeType, ShapeVariant> | null = null;
-export function getShapeVariant(type: ShapeType): ShapeVariant {
-  if (!shapeVariantByType) {
-    const palette = brandColors();
-    const named = SHAPE_VARIANT_COLOR_IDS.flatMap((id) => palette.filter((c) => c.id === id));
+const shapeVariantsByPack = new Map<string, Map<ShapeType, ShapeVariant>>();
+function shapeVariants(brand: BrandPack): Map<ShapeType, ShapeVariant> {
+  let byType = shapeVariantsByPack.get(brand.id);
+  if (!byType) {
+    const palette = brandColors(brand);
+    const named = (brand.shapeCycle ?? []).flatMap((id) => palette.filter((c) => c.id === id));
     const variants = (named.length > 0 ? named : palette.slice(0, 5)).map((c) => ({
       color: c.value,
       darkPreviewClass: DARK_PREVIEW_OVERRIDES[c.id] ?? '',
     }));
-    shapeVariantByType = new Map(
+    byType = new Map(
       ALL_PALETTE_SHAPES.map((shape, index) => [shape.id, variants[index % variants.length]])
     );
+    shapeVariantsByPack.set(brand.id, byType);
   }
-  if (MARKER_SHAPES.has(type)) return { color: defaultMarkerFill(), darkPreviewClass: '' };
+  return byType;
+}
+
+export function getShapeVariant(type: ShapeType, brand: BrandPack): ShapeVariant {
+  if (MARKER_SHAPES.has(type)) return { color: defaultMarkerFill(brand), darkPreviewClass: '' };
   return (
-    shapeVariantByType.get(type) ?? {
-      color: brandColors()[0]?.value ?? EUCALYPTUS,
+    shapeVariants(brand).get(type) ?? {
+      color: brandColors(brand)[0]?.value ?? EUCALYPTUS,
       darkPreviewClass: '',
     }
   );
@@ -712,6 +720,7 @@ export function FormenSection({
   searchQuery = '',
 }: FormenSectionProps) {
   const q = searchQuery.trim().toLowerCase();
+  const brand = useDocumentBrand();
 
   // Collapsed (mobile) view: flat first-N grid, no subheaders.
   const collapsedShapes = useMemo(() => {
@@ -732,7 +741,7 @@ export function FormenSection({
   }, [q]);
 
   const renderShapeButton = (shape: ShapeDefinition) => {
-    const variant = getShapeVariant(shape.id);
+    const variant = getShapeVariant(shape.id, brand);
     return (
       <button
         key={shape.id}

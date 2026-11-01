@@ -39,6 +39,7 @@ import React, {
   startTransition,
 } from 'react';
 
+import { DocumentBrandContext } from '@ggraphic/editor/brand/documentBrand';
 import { useCanvasEditorServices } from '@ggraphic/editor/CanvasEditorProvider';
 import { pagePersistedStateKeys } from '@ggraphic/editor/collab/pageElementStateKeys';
 import { serializeDeck } from '@ggraphic/editor/collab/pagesDoc';
@@ -46,9 +47,6 @@ import { createPageSyncedCallbacks } from '@ggraphic/editor/collab/wrapCallbacks
 import { CanvasAnnouncer } from '@ggraphic/editor/components/CanvasAnnouncer';
 import { CanvasActionSheet } from '@ggraphic/editor/components/CanvasContextMenu/CanvasActionSheet';
 import { CanvasContextMenu } from '@ggraphic/editor/components/CanvasContextMenu/CanvasContextMenu';
-import { FloatingAiSuggestionBanner } from '@ggraphic/editor/components/TopBar/modules/FloatingAiSuggestionBanner';
-import { MultiSelectionToolbar } from '@ggraphic/editor/components/TopBar/MultiSelectionToolbar';
-
 import { autoSwitchTab } from '@ggraphic/editor/components/CanvasEditor/autoSwitchTab';
 import {
   registeredEditorShell,
@@ -85,6 +83,8 @@ import { hasObjectActions } from '@ggraphic/editor/components/TopBar/ContextCont
 import { ContextToolbar } from '@ggraphic/editor/components/TopBar/ContextToolbar';
 import { MobileSelectionBar } from '@ggraphic/editor/components/TopBar/MobileSelectionBar';
 import { MobileSelectionControls } from '@ggraphic/editor/components/TopBar/MobileSelectionControls';
+import { FloatingAiSuggestionBanner } from '@ggraphic/editor/components/TopBar/modules/FloatingAiSuggestionBanner';
+import { MultiSelectionToolbar } from '@ggraphic/editor/components/TopBar/MultiSelectionToolbar';
 import { exportPptxDeck } from '@ggraphic/editor/export/pptx/exportPptxDeck';
 import { exportSlidesPdf } from '@ggraphic/editor/export/slidesPdf';
 import {
@@ -638,8 +638,11 @@ function CanvasEditorInner({
       if (deck.some((_, i) => !refs[i]?.current)) {
         throw new Error('Nicht alle Folien konnten exportiert werden');
       }
+      // One brand per deck: its pages share a country.
+      const brand = deck[0] ? loadedConfigs.get(deck[0].configId)?.brand : undefined;
       return exportPptxDeck({
         pages: deck.map((page) => page.state),
+        ...(brand ? { brand } : {}),
         format: getCanvasFormatOrDefault(formatId),
         rasterizeElement: async (slideIndex, elementId) =>
           (await refs[slideIndex]?.current?.rasterizeElement(elementId)) ?? null,
@@ -647,7 +650,7 @@ function CanvasEditorInner({
         ...(onProgress ? { onProgress } : {}),
       });
     },
-    [pagesDoc, canvasRefsRef, formatId, documentTitle]
+    [pagesDoc, canvasRefsRef, formatId, documentTitle, loadedConfigs]
   );
   useImperativeHandle(
     exportApiRef,
@@ -1229,7 +1232,7 @@ function CanvasEditorInner({
       ...shareProps,
       ...(specEdit && { specEdit }),
       background: source.config.background?.(source.state, source.actions) ?? null,
-      chartColors: source.config.chartColors,
+      chartColors: source.config.brand?.chart,
     });
 
     return (
@@ -1629,7 +1632,7 @@ function CanvasEditorInner({
     </div>
   );
 
-  return (
+  const shell = (
     <AnnouncerContext.Provider value={announcer}>
       <CanvasAnnouncer message={liveMessage} />
       <ShellProvider
@@ -1812,6 +1815,15 @@ function CanvasEditorInner({
         </UserUploadsProvider>
       </ShellProvider>
     </AnnouncerContext.Provider>
+  );
+
+  // Die Marke des geöffneten Dokuments: Panels, die Vorgaben anbieten (Farben,
+  // Kontur- und Schattenfarben, Texte), lesen sie von hier, nicht aus der
+  // Registry — deren erste Marke gilt für jeden Editor des Wirts.
+  return (
+    <DocumentBrandContext.Provider value={activeConfig?.brand ?? null}>
+      {shell}
+    </DocumentBrandContext.Provider>
   );
 }
 

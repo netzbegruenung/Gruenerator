@@ -1,5 +1,10 @@
 // SPDX-License-Identifier: MPL-2.0
-import { type FrameCategory, type FrameClipType, type FrameInstance } from '@ggraphic/core';
+import {
+  type BrandPack,
+  type FrameCategory,
+  type FrameClipType,
+  type FrameInstance,
+} from '@ggraphic/core';
 import {
   PiCircleFill,
   PiCircleDashedBold,
@@ -299,7 +304,13 @@ const DEFAULT_FRAME_DIMENSIONS: Partial<Record<FrameClipType, { width: number; h
 
 let instanceCounter = 0;
 
-export function createFrameInstance(clipType: FrameClipType, x: number, y: number): FrameInstance {
+/** A new frame; its border takes the colour of `brand`, the active brand by default. */
+export function createFrameInstance(
+  clipType: FrameClipType,
+  x: number,
+  y: number,
+  brand: BrandPack = activeBrand()
+): FrameInstance {
   instanceCounter += 1;
   const dims = DEFAULT_FRAME_DIMENSIONS[clipType] ?? {
     width: DEFAULT_FRAME_SIZE,
@@ -320,7 +331,7 @@ export function createFrameInstance(clipType: FrameClipType, x: number, y: numbe
     imageOffsetX: 0,
     imageOffsetY: 0,
     imageScale: 1,
-    borderColor: activeBrand().colors.primary,
+    borderColor: brand.colors.primary,
     borderWidth: 3,
     cornerRadius: clipType === 'rounded-rect' ? 24 : 0,
   };

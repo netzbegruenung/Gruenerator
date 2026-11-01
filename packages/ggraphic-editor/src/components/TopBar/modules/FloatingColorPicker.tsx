@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MPL-2.0
 import React from 'react';
 
+import { useDocumentBrand } from '@ggraphic/editor/brand/documentBrand';
 import { CustomColorSwatch } from '@ggraphic/editor/components/CustomColorSwatch';
 import { TILE, useBarTiles } from '@ggraphic/editor/components/TopBar/barTiles';
 import { useMessages } from '@ggraphic/editor/i18n/messages';
@@ -38,7 +39,8 @@ export function FloatingColorPicker({
 }: FloatingColorPickerProps) {
   const t = useMessages();
   const tiles = useBarTiles();
-  const colorOptions = colors ?? brandColors();
+  const brand = useDocumentBrand();
+  const colorOptions = colors ?? brandColors(brand);
   const [internalExpanded, setInternalExpanded] = React.useState(false);
   const isExpanded = externalExpanded !== undefined ? externalExpanded : internalExpanded;
   const setIsExpanded = onExpandChange || setInternalExpanded;

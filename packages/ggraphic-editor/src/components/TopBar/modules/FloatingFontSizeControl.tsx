@@ -2,7 +2,7 @@
 import React from 'react';
 import { FaPlus, FaMinus } from 'react-icons/fa';
 
-import { TileCaption, useBarTiles } from '@ggraphic/editor/components/TopBar/barTiles';
+import { TileGroup } from '@ggraphic/editor/components/TopBar/barTiles';
 import { useMessages } from '@ggraphic/editor/i18n/messages';
 
 const fontBtn =
@@ -18,7 +18,6 @@ export function FloatingFontSizeControl({
   onFontSizeChange,
 }: FloatingFontSizeControlProps) {
   const t = useMessages();
-  const tiles = useBarTiles();
   const handleIncrease = (e: React.MouseEvent) => {
     e.stopPropagation();
     onFontSizeChange(fontSize + 2);
@@ -29,36 +28,31 @@ export function FloatingFontSizeControl({
     onFontSizeChange(Math.max(2, fontSize - 2));
   };
 
-  const stepper = (
-    <div className="flex items-center h-[34px] shrink-0 rounded-lg border border-[var(--editor-border-strong)] px-0.5">
-      <button
-        className={fontBtn}
-        onClick={handleDecrease}
-        title={t.topBar.fontSmaller}
-        aria-label={t.topBar.fontSmaller}
-        type="button"
-      >
-        <FaMinus size={10} />
-      </button>
-      <span className="text-[13px] font-semibold text-[var(--editor-text)] min-w-8 text-center tabular-nums">
-        {Math.round(fontSize)}
-      </span>
-      <button
-        className={fontBtn}
-        onClick={handleIncrease}
-        title={t.topBar.fontLarger}
-        aria-label={t.topBar.fontLarger}
-        type="button"
-      >
-        <FaPlus size={10} />
-      </button>
-    </div>
-  );
-  if (!tiles) return stepper;
   return (
-    <div className="flex flex-col items-center justify-end gap-1 h-14 pb-2 shrink-0">
-      {stepper}
-      <TileCaption decorative>{t.topBar.tiles.fontSize}</TileCaption>
-    </div>
+    <TileGroup caption={t.topBar.tiles.fontSize}>
+      <div className="flex items-center h-[34px] shrink-0 rounded-lg border border-[var(--editor-border-strong)] px-0.5">
+        <button
+          className={fontBtn}
+          onClick={handleDecrease}
+          title={t.topBar.fontSmaller}
+          aria-label={t.topBar.fontSmaller}
+          type="button"
+        >
+          <FaMinus size={10} />
+        </button>
+        <span className="text-[13px] font-semibold text-[var(--editor-text)] min-w-8 text-center tabular-nums">
+          {Math.round(fontSize)}
+        </span>
+        <button
+          className={fontBtn}
+          onClick={handleIncrease}
+          title={t.topBar.fontLarger}
+          aria-label={t.topBar.fontLarger}
+          type="button"
+        >
+          <FaPlus size={10} />
+        </button>
+      </div>
+    </TileGroup>
   );
 }

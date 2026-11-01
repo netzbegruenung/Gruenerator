@@ -2,6 +2,7 @@
 import { Slider } from 'radix-ui';
 import React from 'react';
 
+import { useDocumentBrand } from '@ggraphic/editor/brand/documentBrand';
 import { CustomColorSwatch } from '@ggraphic/editor/components/CustomColorSwatch';
 import { useMessages } from '@ggraphic/editor/i18n/messages';
 import { EffectCard } from '@ggraphic/editor/sidebar/sections/effects/EffectCard';
@@ -21,9 +22,10 @@ function StopSwatches({
   selected: string;
   onSelect: (color: string) => void;
 }) {
+  const brand = useDocumentBrand();
   return (
     <div className="flex flex-wrap items-center gap-1.5">
-      {brandColors().map((c) => (
+      {brandColors(brand).map((c) => (
         <button
           key={c.id}
           className="size-6 rounded-full border border-black/10 hover:scale-110 transition-transform"
@@ -41,7 +43,7 @@ function StopSwatches({
       ))}
       <CustomColorSwatch
         value={selected}
-        presets={brandColors().map((c) => c.value)}
+        presets={brandColors(brand).map((c) => c.value)}
         onPick={onSelect}
         className="size-5"
         outlineOffset={1}

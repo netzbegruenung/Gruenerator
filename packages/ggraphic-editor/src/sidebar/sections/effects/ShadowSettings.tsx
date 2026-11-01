@@ -2,7 +2,7 @@
 import { Slider } from 'radix-ui';
 import React from 'react';
 
-import { activeBrand } from '@ggraphic/editor/brand/brandRegistry';
+import { useDocumentBrand } from '@ggraphic/editor/brand/documentBrand';
 import { CustomColorSwatch } from '@ggraphic/editor/components/CustomColorSwatch';
 import { useMessages } from '@ggraphic/editor/i18n/messages';
 import { EffectCard } from '@ggraphic/editor/sidebar/sections/effects/EffectCard';
@@ -80,7 +80,8 @@ export function ShadowSettings({
   shadowOpacity,
   onChange,
 }: ShadowSettingsProps) {
-  const { shadows } = activeBrand().effects;
+  const brand = useDocumentBrand();
+  const { shadows } = brand.effects;
   const t = useMessages();
   const enabled = !!shadowColor;
 
@@ -105,8 +106,8 @@ export function ShadowSettings({
               outlineOffset: '2px',
             }}
             onClick={() => onChange({ shadowColor: c })}
-            title={colorName(c)}
-            aria-label={colorName(c)}
+            title={colorName(c, brand)}
+            aria-label={colorName(c, brand)}
             aria-pressed={shadowColor === c}
             type="button"
           />

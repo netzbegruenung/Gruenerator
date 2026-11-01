@@ -57,6 +57,34 @@ describe('Kacheln der mobilen Auswahl-Leiste', () => {
     expect(await axe(container)).toHaveNoViolations();
   });
 
+  it('beschriftet Schrift und Formatknöpfe nach einem Klick, ohne Wort ohne Liste', () => {
+    render(
+      <BarTilesProvider>
+        <ContextControls
+          selectedElement="t1"
+          activeFloatingModule={{
+            type: 'text',
+            data: { ...freeText.data, text: 'Hallo', fontFamily: 'Arial' },
+          }}
+          canMoveUp={false}
+          canMoveDown={false}
+          canDuplicate
+          hideObjectActions
+          handlers={{
+            ...HANDLERS,
+            handleFontRoleChange: () => {},
+            handleTextFormatChange: () => {},
+          }}
+        />
+      </BarTilesProvider>
+    );
+    expect(screen.getByText('Format')).toHaveAttribute('aria-hidden', 'true');
+    // „Schrift“ steht genau dann, wenn die Marke etwas zur Wahl hat.
+    expect(screen.queryAllByText('Schrift')).toHaveLength(
+      screen.queryAllByRole('combobox', { name: /Schrift/ }).length
+    );
+  });
+
   it('kommt ohne Trennstriche aus — die Wörter trennen schon', () => {
     const tiles = renderControls({ tiles: true }).container.innerHTML;
     const bar = renderControls({ tiles: false }).container.innerHTML;

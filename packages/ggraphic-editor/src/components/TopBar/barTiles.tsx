@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: MPL-2.0
 import React, { createContext, useContext } from 'react';
 
+import { cn } from '@ggraphic/editor/utils/cn';
+
 /**
  * Kacheln statt Knöpfe: mobil steht unter jedem Werkzeug der Auswahl-Leiste
  * sein Name, wie in der Bereichs-Leiste und bei Canva — eine Reihe nackter
@@ -26,6 +28,21 @@ export const TILE =
   'inline-flex flex-col items-center justify-end gap-1 min-w-14 h-14 px-1.5 pb-2 shrink-0 rounded-lg border-none bg-transparent cursor-pointer whitespace-nowrap text-[11px] font-medium leading-none text-[var(--editor-text)] transition-colors duration-150 hover:bg-[var(--editor-surface-hover)] data-[state=open]:bg-[var(--editor-active-bg)] data-[state=open]:text-[var(--editor-active-fg)] aria-pressed:bg-[var(--editor-active-bg)] aria-pressed:text-[var(--editor-active-fg)] disabled:opacity-30 disabled:cursor-not-allowed';
 
 /**
+ * Eine Gruppe mit eigenen Bedienelementen (Stepper, Auswahlliste, Formatknöpfe)
+ * und einem Wort darunter, auf derselben Linie wie die Wörter der Kacheln. Das
+ * Wort ist nur Beschriftung: die Elemente darin tragen ihre eigenen Namen.
+ */
+export function TileGroup({ caption, children }: { caption: string; children: React.ReactNode }) {
+  if (!useBarTiles()) return <>{children}</>;
+  return (
+    <div className="flex flex-col items-center justify-end gap-1 h-14 pb-2 shrink-0">
+      {children}
+      <TileCaption decorative>{caption}</TileCaption>
+    </div>
+  );
+}
+
+/**
  * Das Wort unter der Kachel, nur im Kachel-Modus. `decorative`, wo das Wort
  * eine Gruppe beschriftet, deren Knöpfe eigene Namen tragen (Schriftgröße).
  */
@@ -39,7 +56,11 @@ export function TileCaption({
   if (!useBarTiles()) return null;
   return (
     <span
-      className="text-[11px] font-medium leading-none text-[var(--editor-text-secondary)]"
+      className={cn(
+        'text-[11px] font-medium leading-none text-[var(--editor-text-secondary)]',
+        // Beschriftet nur: Taps gehen an das Element darunter, nicht ins Leere.
+        decorative && 'pointer-events-none'
+      )}
       aria-hidden={decorative || undefined}
     >
       {children}
