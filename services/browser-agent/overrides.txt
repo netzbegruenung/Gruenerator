@@ -4,6 +4,6 @@
 # Drop a line once browser-use ships a fixed pin itself
 # (upstream: browser-use/browser-use#5524, #5862, #6186, #6196).
 pillow>=13.0.0
-pypdf>=6.21.2
+pypdf>=6.21.4
 anyio>=4.14.2
 mcp>=2.2.0

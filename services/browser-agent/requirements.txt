@@ -245,7 +245,7 @@ pyotp==2.9.0
     # via browser-use
 pyparsing==3.3.3
     # via httplib2
-pypdf==6.21.3
+pypdf==6.21.4
     # via
     #   --override overrides.txt
     #   browser-use
@@ -305,7 +305,7 @@ starlette==1.10.0
     #   fastapi
     #   mcp
     #   sse-starlette
-tenacity==9.2.1
+tenacity==9.1.4
     # via google-genai
 truststore==0.10.5
     # via
