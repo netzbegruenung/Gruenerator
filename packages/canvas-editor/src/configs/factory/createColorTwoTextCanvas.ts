@@ -10,6 +10,7 @@
  * Used by: Zitat Pure, Info
  */
 
+import { type BrandPack, contrastRatio, parseColor } from '@ggraphic/core';
 import {
   carryInstanceState,
   makeSectionDefiner,
@@ -40,7 +41,6 @@ import {
   type ElementPlacement,
   type UserImageInstance,
 } from '@ggraphic/editor/elements';
-import { contrastRatio, luminance } from '@ggraphic/editor/internal/utils/colorLuminance';
 import { PiFrameCornersFill, PiSquaresFourFill, PiTextAa } from 'react-icons/pi';
 
 import { AssetsSection, CombinedTextSection, FrameSettingsSection } from '../../sidebar/sections';
@@ -49,7 +49,6 @@ import { chatTab, createCommonSectionEntries, toolsTab, uploadsTab } from '../co
 import { createBaseActions } from './baseActions';
 
 import type { BalkenInstance, BalkenMode } from '../../utils/balkenUtils';
-import type { BrandPack } from '@ggraphic/core';
 import type { BackgroundColorOption } from '@ggraphic/editor/internal/sidebar/types';
 import type { StickerRef } from '@gruenerator/contracts';
 
@@ -292,12 +291,12 @@ export function createColorTwoTextCanvas<
   const fontColorOn = (background: string): string => {
     const mapped = textColorMap[background];
     if (mapped) return mapped;
-    const bg = luminance(background);
     const candidates = [...new Set([...Object.values(textColorMap), '#FFFFFF'])];
-    if (bg === null) return candidates[0]!;
-    return candidates.reduce((best, c) =>
-      contrastRatio(bg, luminance(c) ?? 1) > contrastRatio(bg, luminance(best) ?? 1) ? c : best
-    );
+    if (!parseColor(background)) return candidates[0]!;
+    // An unreadable candidate counts as white, as before.
+    const contrastOn = (c: string) =>
+      contrastRatio(background, c) ?? contrastRatio(background, '#FFFFFF') ?? 1;
+    return candidates.reduce((best, c) => (contrastOn(c) > contrastOn(best) ? c : best));
   };
 
   // The background stack, bottom to top: the solid colour plane, the optional
