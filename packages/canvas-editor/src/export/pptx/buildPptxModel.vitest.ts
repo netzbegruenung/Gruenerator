@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 
 import { GRUENE_AT } from '../../brand/theme';
 import { composeSharepic } from '../../composer/composeSharepic';
-import { at, deCarousel, options } from '../../composer/sharepicSpecFixtures';
+import { at, atSlide, deCarousel, options } from '../../composer/sharepicSpecFixtures';
 
 import {
   buildPptxModel,
@@ -249,6 +249,30 @@ describe('buildPptxModel — fixtures', () => {
       // Foto- und Farbfolie genügen fürs Snapshot; der Rest ist dieselbe Abbildung.
       expect({ ...model, slides: model.slides.slice(0, 2) }).toMatchSnapshot(spec.locale);
     }
+  });
+
+  it('names Vollkorn for the Austrian quote and ++marker++ text, and not for the German one', () => {
+    const fontFaces = (spec: typeof at) => {
+      const composed = composeSharepic(spec, options);
+      const model = buildPptxModel(composed.slides, getCanvasFormat(composed.format)!, { measure });
+      return model.slides.flatMap((slide) =>
+        slide.items.flatMap((item) =>
+          item.kind === 'text'
+            ? item.paragraphs.flatMap((p) =>
+                p.runs.map((r) => ({ text: r.text, face: r.fontFace }))
+              )
+            : []
+        )
+      );
+    };
+    // A quote slide and a slide with marked words: each has a Vollkorn run.
+    for (const spec of [at, atSlide]) {
+      expect(fontFaces(spec).filter((r) => r.face === 'Vollkorn').length).toBeGreaterThan(0);
+    }
+    expect(fontFaces(atSlide).some((r) => r.face === 'Vollkorn' && /Wohnungen/.test(r.text))).toBe(
+      true
+    );
+    expect(fontFaces(deCarousel).some((r) => r.face === 'Vollkorn')).toBe(false);
   });
 
   it('maps a 16:9 slide with every element kind', () => {
