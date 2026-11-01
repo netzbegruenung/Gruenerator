@@ -175,6 +175,9 @@ export function namedSharepicForm(text: string): SharepicFormId | null {
   return null;
 }
 
+/** The blocks that carry a Faktenbild's number on the scene (Kapitel faktenbild). */
+const FAKTEN_BLOCKS = ['diagramm', 'iconliste', 'vergleich', 'zahl'];
+
 /** Why a draft is not the form it was meant to be, or null when it is. */
 export function formMismatch(
   form: SharepicFormId,
@@ -232,9 +235,14 @@ export function formMismatch(
         ? null
         : `${label}: setz Mythos und Fakt als {"type":"faktencheck","paare":[…]}.`;
     case 'faktenbild':
-      return hasScene
+      if (!hasScene) {
+        return `${label}: eine Slide (Einzelbild: die Slide, Karussell: das Cover) bekommt background {"kind":"szene","motiv","textSeite"} – motiv auf Englisch, nur die Szene zum Thema, kein Text und keine Zahlen.`;
+      }
+      // The number makes it a Faktenbild: a number block, or one number large in the headline.
+      return FAKTEN_BLOCKS.some(has) ||
+        items.some((item) => item.type === 'headline' && item.lines.some((l) => /\d/.test(l)))
         ? null
-        : `${label}: eine Slide (Einzelbild: die Slide, Karussell: das Cover) bekommt background {"kind":"szene","motiv","textSeite"} – motiv auf Englisch, nur die Szene zum Thema, kein Text und keine Zahlen.`;
+        : `${label}: auf die Szene gehört die Zahl – groß in der Headline oder als {"type":"diagramm"}, {"type":"iconliste"} oder {"type":"vergleich"} (Kapitel faktenbild).`;
     case 'veranstaltung':
       return spec.slides.some((slide) => slide.datum)
         ? null

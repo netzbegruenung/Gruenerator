@@ -126,4 +126,31 @@ describe('formMismatch', () => {
       '"type":"steckbrief"'
     );
   });
+
+  // Live 01.11.2026: „Andere Variante als Faktenbild" kam als Szene mit einer
+  // Headline ohne jede Zahl zurück.
+  it('wants a number on a Faktenbild scene', () => {
+    const spec = (s: ReturnType<typeof slide>) => ({ locale: 'de-DE' as const, slides: [s] });
+    expect(formMismatch('faktenbild', spec(headline), false)).toContain('"kind":"szene"');
+    expect(formMismatch('faktenbild', spec(headline), true)).toContain('gehört die Zahl');
+    expect(
+      formMismatch(
+        'faktenbild',
+        spec(slide([{ type: 'headline', lines: ['38 % weniger', 'Insekten'] }])),
+        true
+      )
+    ).toBeNull();
+    expect(
+      formMismatch(
+        'faktenbild',
+        spec(
+          slide([
+            { type: 'headline', lines: ['Busse statt Stau'] },
+            { type: 'diagramm', art: 'balken', werte: [] } as never,
+          ])
+        ),
+        true
+      )
+    ).toBeNull();
+  });
 });

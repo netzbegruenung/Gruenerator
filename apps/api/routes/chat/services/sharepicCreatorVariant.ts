@@ -68,7 +68,7 @@ export function buildCreatorPrompt(args: {
   avoid: SharepicSpec | null;
 }): string {
   const avoid = args.avoid
-    ? `\n\nEin früherer Entwurf war so aufgebaut: ${layoutOf(args.avoid)}. Gestalte diesmal deutlich anders (anderer Hintergrund, anderer Aufbau).`
+    ? `\n\nEin früherer Entwurf war so aufgebaut: ${layoutOf(args.avoid)}. Gestalte diesmal deutlich anders (anderer Hintergrund, anderer Aufbau) – das Design bleibt, mit seinen Markenzeichen aus den Grundlagen.`
     : '';
   const head = `${args.brief.trim()}${avoid}`;
   if (!args.background) return head.slice(0, SHAREPIC_PROMPT_MAX);
