@@ -11,7 +11,7 @@ anyio==4.15.1
     #   httpx
     #   starlette
     #   watchfiles
-blis==1.3.3
+blis==1.3.4
     # via thinc
 catalogue==2.0.10
     # via
@@ -31,7 +31,7 @@ click==8.5.0
     #   uvicorn
 cloudpathlib==0.26.0
     # via weasel
-confection==1.3.3
+confection==1.3.4
     # via
     #   spacy
     #   thinc
@@ -70,7 +70,7 @@ markupsafe==3.0.4
     # via jinja2
 mdurl==0.1.2
     # via markdown-it-py
-murmurhash==1.0.15
+murmurhash==1.0.16
     # via
     #   preshed
     #   spacy
@@ -92,11 +92,11 @@ packaging==26.3
     #   weasel
 pluggy==1.7.0
     # via pytest
-preshed==3.0.13
+preshed==3.0.15
     # via
     #   spacy
     #   thinc
-pydantic==2.14.1
+pydantic==2.14.2
     # via
     #   gruenerator-nlp (pyproject.toml)
     #   fastapi
@@ -109,7 +109,7 @@ pygments==2.21.0
     # via
     #   pytest
     #   rich
-pytest==9.1.1
+pytest==9.2.0
     # via gruenerator-nlp (pyproject.toml)
 python-dotenv==1.2.4
     # via uvicorn
@@ -127,20 +127,20 @@ shellingham==1.5.4
     # via typer
 smart-open==8.0.4
     # via weasel
-spacy==3.8.16
+spacy==3.8.18
     # via gruenerator-nlp (pyproject.toml)
 spacy-legacy==3.0.12
     # via spacy
 spacy-loggers==1.0.5
     # via spacy
-srsly==2.5.4
+srsly==2.5.5
     # via
     #   spacy
     #   thinc
     #   weasel
 starlette==1.10.0
     # via fastapi
-thinc==8.3.13
+thinc==8.3.14
     # via spacy
 tqdm==4.70.1
     # via spacy
@@ -173,7 +173,7 @@ wasabi==1.1.3
     #   weasel
 watchfiles==1.3.0
     # via uvicorn
-weasel==1.0.0
+weasel==1.0.1
     # via spacy
 websockets==17.3
     # via uvicorn
