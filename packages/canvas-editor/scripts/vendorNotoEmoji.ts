@@ -5,7 +5,7 @@
  *   (`third_party/region-flags/waved-svg`, public domain) at a pinned commit,
  *   optimised with svgo into apps/web/public/emoji/emoji_u<code>.svg.
  * - Names and search tags: emojibase-data (MIT), German locale, written to
- *   src/utils/emoji/emojiCatalog.json.
+ *   packages/ggraphic-editor/src/utils/emoji/emojiCatalog.json.
  *
  * Only emoji with a German name AND Noto artwork are written. Skin tones are
  * kept per emoji only when all five uniform tones exist; mixed-tone pairs are
@@ -24,7 +24,7 @@ const EMOJIBASE_VERSION = '17.0.0';
 const SVGO_VERSION = '3.3.5';
 
 const OUT_DIR = path.resolve('apps/web/public/emoji');
-const CATALOG_FILE = path.resolve('packages/canvas-editor/src/utils/emoji/emojiCatalog.json');
+const CATALOG_FILE = path.resolve('packages/ggraphic-editor/src/utils/emoji/emojiCatalog.json');
 
 interface EmojibaseSkin {
   hexcode: string;

@@ -658,6 +658,26 @@ describe('heuristicClassify', () => {
     expect(result.confidence).toBeGreaterThanOrEqual(0.8);
   });
 
+  // #5136: `grüne\b` traf „Grünen" nie — die häufigste Form der Frage blieb `direct`.
+  it.each(['Was sagen die Grünen zur Vermögensteuer?', 'Wie stehen die Grünen zur Wehrpflicht?'])(
+    'detects a party-position question on the inflected party name: %s',
+    (text) => {
+      expect(heuristicClassify(text).intent).toBe('search');
+    }
+  );
+
+  it('detects the lowercased party name before a preposition', () => {
+    expect(heuristicClassify('was sagen die grünen zur vermögensteuer?').intent).toBe('search');
+  });
+
+  // Review an #5142: `grünen?` auf `m.lower` traf auch das Adjektiv.
+  it.each([
+    'Welche Pflege brauchen die grünen Blätter meiner Zimmerpflanze im Winter?',
+    'Wo stelle ich die grünen Tonnen am besten auf?',
+  ])('does not read the adjective „grünen" as the party: %s', (text) => {
+    expect(heuristicClassify(text).reasoning).not.toBe('Question about party positions detected');
+  });
+
   it('detects current events queries', () => {
     // "aktuell" is the exact lemma form; "Aktuelle" would fuzzy-match at lower confidence
     const result = heuristicClassify('Was ist aktuell in der Energiepolitik?');

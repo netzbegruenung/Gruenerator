@@ -583,8 +583,8 @@ export function buildAuthenticatedMcpServer(opts: McpServerBuildOptions): McpSer
 
     registerAiTool(server, 'documents', makeDocumentsTool(ctx), {
       description: contentWrite
-        ? `Zugriff auf die EIGENEN Dokumente, Tabellen und Präsentationen (nicht Boards — dafür 'boards_tasks'): auflisten (list), ansehen (get), umbenennen (rename), löschen (delete), mit einer Gruppe teilen (share_to_group). delete und share_to_group verlangen das zweistufige confirm-Protokoll; die id stammt aus list.`
-        : `Die EIGENEN Dokumente, Tabellen und Präsentationen auflisten (list) oder eines per id ansehen (get).`,
+        ? `Zugriff auf die EIGENEN Dokumente, Tabellen und Präsentationen (nicht Boards — dafür 'boards_tasks'): auflisten (list), Titel, Art und Link per id holen (get), umbenennen (rename), löschen (delete), mit einer Gruppe teilen (share_to_group). delete und share_to_group verlangen das zweistufige confirm-Protokoll; die id stammt aus list.`
+        : `Die EIGENEN Dokumente, Tabellen und Präsentationen auflisten (list) oder Titel, Art und Link eines Dokuments per id holen (get).`,
       actions: contentWrite
         ? ['list', 'get', 'rename', 'delete', 'share_to_group']
         : ['list', 'get'],

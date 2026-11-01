@@ -19,7 +19,7 @@ import {
   zoomStraightPhoto,
 } from '@ggraphic/editor/utils/straighten';
 
-import type { UserImageInstance } from './userImageUtils';
+import type { UserImageInstance } from './userImageUtils.js';
 
 /** Ein Tastendruck im Zuschneide-Modus: Pfeile verschieben (Umschalt = 10 px), +/- zoomen. */
 export type CropKey = { pan: { dx: number; dy: number } } | { zoom: number };

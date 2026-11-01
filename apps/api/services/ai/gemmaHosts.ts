@@ -20,7 +20,34 @@
  * am 21.08.2026 beim Umzug einer Lane auf GreenPT. Deshalb ist der
  * Wechselpunkt ein Paar und kein Provider-String.
  *
- * ── Warum Cortecs seit dem 25.08.2026 der Primär ist ──
+ * ── Warum Melious seit dem 28.10.2026 der Primär ist ──
+ *
+ * Produktentscheidung, und die Messung des Tages steht ihr nicht im Weg:
+ *
+ *   - Melious MELDET Energie und CO₂ je Anfrage (`environment_impact`), seit
+ *     Oktober 2026 auch im letzten Chunk eines Streams, samt dem Upstream, der
+ *     tatsächlich gerechnet hat (`provider_id`, `location`). Cortecs nennt nur
+ *     den Upstream; die Energie schätzen wir dort aus einem Koeffizienten.
+ *   - Melious ist ein deutscher Anbieter.
+ *   - `:balanced` geht teils an Melious' eigenen Knoten (FI, gemessen 23.09.
+ *     und 07.10.2026), teils an infercom/DE.
+ *
+ * Gemessen am 28.10.2026, kurzer Prompt, je drei Läufe nacheinander:
+ *
+ *                          Upstream        gesamt
+ *   melious :balanced      infercom/DE     4,3 / 2,2 / 1,5 s
+ *   cortecs                infercom        4,9 / 2,8 / 1,3 s
+ *
+ * Gleicher Listenpreis (0,20 / 0,35 € je Mio. Tokens), Prompt-Caching bei
+ * keinem der beiden (3,4k Tokens zweimal: `cached_tokens: 0` bzw. kein Feld).
+ *
+ * Was der Wechsel verschiebt: das Guthaben-Risiko. Melious' Guthaben war am
+ * 27.10.2026 leer („Insufficient credits"); jetzt hängen alle Gemma-Lanes
+ * zuerst daran. Aufgefangen wird es von der Ausweichkette (Cortecs), getragen
+ * werden muss es von Auto-Top-up im Melious-Konto. Melious meldet ausserdem
+ * `x-ratelimit-limit: 240` — das Fenster ist ungeprüft.
+ *
+ * ── Warum Cortecs vom 25.08. bis 28.10.2026 der Primär war ──
  *
  * Gemessen am 21.08.2026, gestreamt,
  * verschränkt, mit Aufwärmlauf, je fünf ruhige und vier gleichzeitige Läufe:
@@ -119,12 +146,12 @@
  *
  * ── PREIS, bewusst angenommen ──
  *
- * Cortecs ist VORAUSBEZAHLT. Ein leeres Guthaben antwortet mit HTTP 401 wie
- * ein fehlender Schlüssel. Das trifft jetzt den PRIMÄR und nicht mehr nur den
- * Ausweich, also alle Gemma-Lanes auf einmal. Aufgefangen wird es zweifach:
- * `instantiateModel` prüft `CORTECS_API_KEY` und weicht auf Melious aus, und
- * die Ausweichkette hat Melious als Ziel. Der eigentliche Schalter dagegen ist
- * Auto-Top-up im Cortecs-Konto, nicht Code.
+ * Beide Hosts sind VORAUSBEZAHLT. Cortecs antwortet auf ein leeres Guthaben
+ * mit HTTP 401 wie auf einen fehlenden Schlüssel, Melious mit „Insufficient
+ * credits". Seit dem 28.10.2026 trifft das Melious-Guthaben den PRIMÄR, also
+ * alle Gemma-Lanes auf einmal; die Ausweichkette (`GENERIC_FALLBACK` in
+ * lanes.ts, abgeleitet aus dieser Datei) hat Cortecs als Ziel. Der eigentliche
+ * Schalter ist Auto-Top-up in beiden Konten, nicht Code.
  *
  * F0/F1 (CLAUDE.md): die Modell-IDs sind Anbieter-Kennungen und Registry-IDs.
  * Sie werden hier benannt, nicht umbenannt.
@@ -180,8 +207,10 @@ export interface GemmaHost {
  *  riss unter paralleler Last schon bei 26k die 60 s. Cortecs beantwortete
  *  dieselben Prompts in 3–6 s (infercom) bzw. 6–11 s (berget), 120k in 15 s.
  *  Bei kurzen Prompts ist Melious dagegen schneller: ~95 tok/s gegen ~40 tok/s
- *  bei 0–15k Kontext, gleiche Messung. Das ist der Grund, warum Melious der
- *  Ausweich bleibt und nicht der Primär wird.
+ *  bei 0–15k Kontext, gleiche Messung. Das war bis zum 28.10.2026 der Grund,
+ *  warum Melious der Ausweich blieb; die Nachmessung vom 21.10.2026 (bei
+ *  GEMMA_31B_ON_CORTECS) brachte 123k über `:balanced` in 27–43 s an infercom,
+ *  also unter der 60-s-Kante. Wer lange Prompts reissen sieht, misst hier nach.
  *
  *  `:speed` vermittelte in allen Läufen an infercom/DE (131.072) — welcher
  *  Upstream antwortet, sagt Melious aber nicht zu. Am 07.10.2026 ging `:speed`
@@ -340,5 +369,5 @@ export const GEMMA_31B_ON_CORTECS: GemmaHost = {
  *      welchen? Die drei Hosts benutzen drei verschiedene.
  *   4. `modelSiblings.ts` und die Lane-Konfigurationen ziehen von selbst mit.
  */
-export const GEMMA_31B_PRIMARY: GemmaHost = GEMMA_31B_ON_CORTECS;
-export const GEMMA_31B_ALTERNATE: GemmaHost = GEMMA_31B_ON_MELIOUS;
+export const GEMMA_31B_PRIMARY: GemmaHost = GEMMA_31B_ON_MELIOUS;
+export const GEMMA_31B_ALTERNATE: GemmaHost = GEMMA_31B_ON_CORTECS;

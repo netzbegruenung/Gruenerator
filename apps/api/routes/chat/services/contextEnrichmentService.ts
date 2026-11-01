@@ -9,6 +9,7 @@
 import { lastUserText } from '../../../agents/langgraph/ChatGraph/nodes/classifierHeuristics.js';
 import { truncateDocument } from '../../../agents/langgraph/ChatGraph/nodes/respondNode.js';
 import { getPostgresInstance } from '../../../database/services/PostgresService.js';
+import { loadCanvasAsContext } from '../../../services/canvas/canvasContext.js';
 import {
   formatPresentationAsContext,
   loadPresentationState,
@@ -231,6 +232,15 @@ export async function enrichContext(opts: {
                 const truncated = truncateDocument(slidesText, perDocBudget, mentionQuery);
                 log.info(
                   `[ChatGraph] Presentation context loaded: "${d.title}" (${slidesText.length} → ${truncated.length} chars)`
+                );
+                return `### ${d.title}\n\n${truncated}`;
+              }
+              if (d.document_subtype === 'canvas') {
+                const canvasText = ((await loadCanvasAsContext(d.id, userId)) ?? '').trim();
+                if (!canvasText) return null;
+                const truncated = truncateDocument(canvasText, perDocBudget, mentionQuery);
+                log.info(
+                  `[ChatGraph] Canvas context loaded: "${d.title}" (${canvasText.length} → ${truncated.length} chars)`
                 );
                 return `### ${d.title}\n\n${truncated}`;
               }

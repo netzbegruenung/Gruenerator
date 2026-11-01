@@ -19,7 +19,6 @@ import type {
 /** The inks a slide's text, accents, badges and footer take on its surface. */
 export function slideInk({
   locale,
-  isAt,
   theme,
   brand,
   brandId,
@@ -31,7 +30,6 @@ export function slideInk({
   thema,
 }: {
   locale: SharepicCreatorLocale;
-  isAt: boolean;
   theme: BrandTheme;
   brand: ComposerBrand;
   /** Which of a theme's per-brand accents applies. */
@@ -89,11 +87,19 @@ export function slideInk({
   // scrim. A brand without the box has none (see `foldMarkers`). Themes
   // bring their own box.
   const themedMarker = def?.marker[side] ?? null;
+  // A brand with its own bars (GJ): never a bar in the ground's own colour.
+  const ownBox = brand.lineBoxes
+    ? surface !== 'foto' && SHAREPIC_COLOR_HEX[surface] === brand.lineBoxes.rest.fill
+      ? brand.lineBoxes.first
+      : brand.lineBoxes.rest
+    : null;
   const marker: TextMarker | null = brand.features.markerBox
     ? {
         fill:
-          themedMarker?.fill ?? (surface === 'creme' ? MARKER_MINT : onLight ? LIME : '#FFFFFF'),
-        color: themedMarker?.ink ?? SHAREPIC_COLOR_HEX.dunkeltanne,
+          themedMarker?.fill ??
+          ownBox?.fill ??
+          (surface === 'creme' ? MARKER_MINT : onLight ? LIME : '#FFFFFF'),
+        color: themedMarker?.ink ?? ownBox?.ink ?? SHAREPIC_COLOR_HEX.dunkeltanne,
         // Tighter than the editor's default: the space beside a mid-line box
         // must stay visible, as on the posts.
         padX: MARKER_PAD_X,
@@ -102,10 +108,11 @@ export function slideInk({
   // A DE headline's accent line (`akzent`): dark text on a box. Lime glows on
   // dark ground; on mint it washes out — grass green there; on grass green
   // itself a white box. A theme sets its marker box.
-  const accentLineBox = def?.marker[side] ?? {
-    fill: onGrass ? '#FFFFFF' : onLight ? SHAREPIC_COLOR_HEX.grasgruen : LIME,
-    ink: SHAREPIC_COLOR_HEX.dunkeltanne,
-  };
+  const accentLineBox = def?.marker[side] ??
+    ownBox ?? {
+      fill: onGrass ? '#FFFFFF' : onLight ? SHAREPIC_COLOR_HEX.grasgruen : LIME,
+      ink: SHAREPIC_COLOR_HEX.dunkeltanne,
+    };
   // A topic icon in a circle, unless the theme recolours it.
   const badgeColors = def?.badge?.[side] ?? { ...onGround(brand.badge, { onLight, onGrass }) };
   const cardAccentFill = def?.cardAccent ?? brand.cardAccent;
@@ -116,35 +123,36 @@ export function slideInk({
    * The two sides of a contrast, as the posts set them: theirs (a comparison's
    * left, a fact check's claim) muted with ✗, ours on the accent with ✓.
    */
+  const veil = brand.layout.contrastPanel === 'veil';
   const contrastPanel = (side: 'theirs' | 'ours') => {
-    const muted = isAt && !onLight ? '#FFFFFF' : darkText;
+    const muted = veil && !onLight ? '#FFFFFF' : darkText;
     return side === 'theirs'
       ? {
           // DE: a pale panel that stays visible on pale ground; AT: a veil.
-          fill: isAt
+          fill: veil
             ? muted
             : surface === 'hellgrau' || surface === 'weiss' || surface === 'creme'
               ? SHAREPIC_COLOR_HEX.mint
               : SHAREPIC_COLOR_HEX.hellgrau,
-          fillOpacity: isAt ? (onLight ? 0.08 : 0.15) : 1,
+          fillOpacity: veil ? (onLight ? 0.08 : 0.15) : 1,
           ink: muted,
           inkOpacity: 0.7,
-          accent: isAt ? accent : { fill: KLEE },
+          accent: veil ? accent : { fill: KLEE },
           marker: VERGLEICH_MARKER_IDS.links,
         }
       : {
-          fill: isAt
+          fill: veil
             ? theme.colors.accent
             : onGrass
               ? SHAREPIC_COLOR_HEX.tanne
               : SHAREPIC_COLOR_HEX.grasgruen,
           fillOpacity: 1,
-          ink: !isAt && onGrass ? '#FFFFFF' : darkText,
+          ink: !veil && onGrass ? '#FFFFFF' : darkText,
           inkOpacity: 1,
           // White on grasgruen is 2.2:1. Tanne in bold italic stays legible as
           // large text (4.1:1) and stands apart from the dunkeltanne body,
           // even from a fact set bold.
-          accent: isAt
+          accent: veil
             ? { ...accent, fill: theme.colors.primary }
             : onGrass
               ? { fill: LIME }

@@ -51,7 +51,7 @@
     },
     "bundestag": {
       "title": "Bundestag",
-      "description": "Drucksachen, Reden & Gesetzgebung aus dem Bundestag",
+      "description": "Drucksachen, Beschlüsse und Debatten finden und belegt auswerten",
       "mention": "@bundestag",
       "audience": "de-DE"
     },
@@ -353,6 +353,14 @@
       "category": "dokumente"
     },
     {
+      "command": "@bundestagsrecherche",
+      "title": "Bundestag-Recherche",
+      "description": "Drucksachen und Debatten finden, lesen und belegt auswerten",
+      "avatar": "🏛️",
+      "category": "recherche",
+      "audience": "de-DE"
+    },
+    {
       "command": "@presse-berlin-fraktion",
       "title": "PM Berlin (Fraktion)",
       "description": "Pressemitteilung der Grünen Fraktion Berlin — Abgeordnetenhaus, Ausschüsse, Senatskritik",
@@ -623,6 +631,22 @@
       "avatar": "✉️",
       "category": "dokumente",
       "audience": "de-DE"
+    },
+    {
+      "command": "@gj-insta",
+      "title": "Insta GRÜNE JUGEND",
+      "description": "Instagram-Post im Stil der GRÜNEN JUGEND",
+      "avatar": "✊",
+      "category": "social",
+      "audience": "de-DE"
+    },
+    {
+      "command": "@gj-insta-at",
+      "title": "Insta Grüne Jugend",
+      "description": "Instagram-Post im Stil der Grünen Jugend Österreich",
+      "avatar": "🍃",
+      "category": "social",
+      "audience": "de-AT"
     },
     {
       "command": "@beschluss-bayern",

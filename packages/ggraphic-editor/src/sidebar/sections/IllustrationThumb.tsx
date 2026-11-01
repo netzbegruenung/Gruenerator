@@ -1,0 +1,37 @@
+// SPDX-License-Identifier: MPL-2.0
+import { useCanvasEditorServices } from '@ggraphic/editor/CanvasEditorProvider';
+import {
+  getIllustrationPath,
+  getIllustrationThumbPath,
+} from '@ggraphic/editor/utils/illustrations/registry';
+
+import type { SvgDef } from '@ggraphic/editor/utils/illustrations/types';
+
+/** Illustration thumbnail that falls back to the full SVG when no pre-rendered thumb exists. */
+export function IllustrationThumb({
+  def,
+  alt,
+  className,
+}: {
+  def: SvgDef;
+  alt?: string;
+  className?: string;
+}) {
+  const { assetBaseUrl = '' } = useCanvasEditorServices();
+  return (
+    // eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions -- onError ist ein technischer Ladefehler-Fallback, keine Bedienung
+    <img
+      src={getIllustrationThumbPath(def, assetBaseUrl)}
+      alt={alt ?? def.name}
+      className={className}
+      loading="lazy"
+      onError={(e) => {
+        const img = e.currentTarget;
+        if (!img.dataset.fallback) {
+          img.dataset.fallback = '1';
+          img.src = getIllustrationPath(def, assetBaseUrl);
+        }
+      }}
+    />
+  );
+}

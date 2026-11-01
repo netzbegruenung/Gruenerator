@@ -11,7 +11,7 @@
 import { ILLUSTRATION_TARGET_SIZE } from '@ggraphic/editor/utils/motifSizes';
 import { PATH_OFFSETS, PATH_VIEWBOX } from '@ggraphic/editor/utils/shapeTransform';
 
-import type { UserImageInstance } from './userImageUtils';
+import type { UserImageInstance } from './userImageUtils.js';
 import type { RenderedBox } from '@ggraphic/editor/hooks/useBoxSnap';
 import type { ChartInstance } from '@ggraphic/editor/utils/chartTypes';
 import type { FrameInstance } from '@ggraphic/editor/utils/frameUtils';

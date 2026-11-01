@@ -77,7 +77,7 @@ export function getTemplatesForLocale(locale: BrandLocale): TemplateInfo[] {
 export function templateFitsFormat(configId: CanvasConfigId, formatId?: string): boolean {
   // Resolve first: legacy rows carry removed format ids that render 4:5.
   const format = getCanvasFormatOrDefault(formatId);
-  // On print only the blank freeform page fits: its sheet is built from the format.
+  // On print only the party's blank freeform page fits (the GJ pages are not print): its sheet is built from the format.
   if (format.category === 'print') return configId === 'freeform' || configId === 'freeform-at';
   const resolved = format.id;
   const pinned = pinnedFormatId(configId);

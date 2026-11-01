@@ -4,7 +4,8 @@
  * once in 6 — right after the cover, or for the last one or two slides after
  * a photo story — and never comes back. A fixed colour never hands the closing
  * slides to another colour. Gemma drafted surfaces in a zig-zag (tanne → mint → tanne
- * → grasgrün) and dropped a photo on single slides in the middle.
+ * → grasgrün) and dropped a photo on single slides in the middle. The GRÜNE
+ * JUGEND carousels alternate two colours instead (gj social-korpus 10/2026).
  */
 import { type SharepicSlide, type SharepicSpec } from '@gruenerator/contracts';
 
@@ -37,7 +38,14 @@ export function carouselLookProblems(spec: SharepicSpec): string | null {
   const parts = runs(slides);
   const sequence = slides.map((s) => SURFACE_NAME[surface(s)] ?? surface(s)).join(' → ');
   const change = parts[1]?.start;
-  if (parts.length > 2) {
+  // The youth organisations alternate a primary with white (GJ DE) or with a
+  // second colour (GJ AT erklär slides) across a carousel; two colours hold.
+  const twoColours =
+    spec.brand === 'gruene-jugend' &&
+    new Set(parts.map((p) => p.surface).filter((s) => s !== 'foto')).size <= 2;
+  if (twoColours) {
+    // No rule on where the surfaces change.
+  } else if (parts.length > 2) {
     problems.push(
       `Die Flächen springen (${sequence}). Erlaubt ist höchstens EIN Wechsel und nie zurück: alle Slides auf derselben Farbe, oder eine Fotostrecke, nach der Forderung und Schluss gemeinsam auf eine Farbe wechseln.`
     );

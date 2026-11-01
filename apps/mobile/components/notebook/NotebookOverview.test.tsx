@@ -16,9 +16,9 @@ jest.mock('../../hooks/notebook/useNotebookOverview', () => ({ useNotebookOvervi
 jest.mock('../common/Skeleton', () => ({ SkeletonBar: () => null, SkeletonGroup: () => null }));
 // Both have their own data sources; only whether they are mounted matters here.
 jest.mock('./NotebookAgentsSection', () => ({ NotebookAgentsSection: () => null }));
-const mockLastAdded = jest.fn((_props: { collectionIds: string[] }) => null);
+const mockLastAdded = jest.fn((_props: { collectionIds: string[]; theme: unknown }) => null);
 jest.mock('./LastAddedSection', () => ({
-  LastAddedSection: (props: { collectionIds: string[] }) => mockLastAdded(props),
+  LastAddedSection: (props: { collectionIds: string[]; theme: unknown }) => mockLastAdded(props),
 }));
 
 const mockOverview = useNotebookOverview as unknown as jest.Mock<(id: string | null) => unknown>;
@@ -92,9 +92,11 @@ beforeEach(() => {
 });
 
 describe('NotebookOverview', () => {
-  it('shows web’s sections for a single-collection notebook', () => {
+  it('shows web’s sections for a single-collection notebook', async () => {
     mockOverview.mockReturnValue(loaded(overview()));
-    render(<NotebookOverview notebookId="hamburg-notebook" kind="system" theme={lightTheme} />);
+    await render(
+      <NotebookOverview notebookId="hamburg-notebook" kind="system" theme={lightTheme} />
+    );
 
     expect(mockOverview).toHaveBeenCalledWith('hamburg-system');
     for (const title of [
@@ -113,16 +115,18 @@ describe('NotebookOverview', () => {
     expect(mockLastAdded).not.toHaveBeenCalled();
   });
 
-  it('a topic sets exactly that theme filter and opens the notebook chat', () => {
+  it('a topic sets exactly that theme filter and opens the notebook chat', async () => {
     mockOverview.mockReturnValue(loaded(overview()));
     useNotebookFilterStore.setState({
       notebookId: 'hamburg-notebook',
       keywordFilters: { content_type: ['presse'], themes: ['bildung'] },
       collectionIds: null,
     });
-    render(<NotebookOverview notebookId="hamburg-notebook" kind="system" theme={lightTheme} />);
+    await render(
+      <NotebookOverview notebookId="hamburg-notebook" kind="system" theme={lightTheme} />
+    );
 
-    fireEvent.press(
+    await fireEvent.press(
       screen.getByLabelText(
         'Sicherheit: 8 %, im Aufwind, Durchschnitt aller Landesverbände 7 %. Im Chat nach diesem Thema filtern'
       )
@@ -138,27 +142,33 @@ describe('NotebookOverview', () => {
     });
   });
 
-  it('says so when the notebook has no documents', () => {
+  it('says so when the notebook has no documents', async () => {
     mockOverview.mockReturnValue(
       loaded(overview({ totals: { ...overview().totals, documents: 0 } }))
     );
-    render(<NotebookOverview notebookId="hamburg-notebook" kind="system" theme={lightTheme} />);
+    await render(
+      <NotebookOverview notebookId="hamburg-notebook" kind="system" theme={lightTheme} />
+    );
 
     expect(screen.getByText('Für dieses Notebook liegen noch keine Dokumente vor.')).toBeTruthy();
     expect(screen.queryByText('Themenprofil')).toBeNull();
   });
 
-  it('offers a retry when the overview fails', () => {
+  it('offers a retry when the overview fails', async () => {
     const refetch = jest.fn();
     mockOverview.mockReturnValue({ data: undefined, isPending: false, isError: true, refetch });
-    render(<NotebookOverview notebookId="hamburg-notebook" kind="system" theme={lightTheme} />);
+    await render(
+      <NotebookOverview notebookId="hamburg-notebook" kind="system" theme={lightTheme} />
+    );
 
-    fireEvent.press(screen.getByText('Erneut versuchen'));
+    await fireEvent.press(screen.getByText('Erneut versuchen'));
     expect(refetch).toHaveBeenCalledTimes(1);
   });
 
-  it('keeps the recent documents for a multi-collection notebook, which has no overview', () => {
-    render(<NotebookOverview notebookId="gruenerator-notebook" kind="system" theme={lightTheme} />);
+  it('keeps the recent documents for a multi-collection notebook, which has no overview', async () => {
+    await render(
+      <NotebookOverview notebookId="gruenerator-notebook" kind="system" theme={lightTheme} />
+    );
 
     expect(mockOverview).not.toHaveBeenCalled();
     expect(mockLastAdded).toHaveBeenCalledWith({

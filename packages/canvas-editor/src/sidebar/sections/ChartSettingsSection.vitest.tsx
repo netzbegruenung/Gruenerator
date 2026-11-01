@@ -6,7 +6,7 @@ import { describe, expect, it } from 'vitest';
 
 import { axe } from '../../test-utils';
 
-import { ChartSettingsSection } from './ChartSettingsSection';
+import { ChartSettingsSection } from '@ggraphic/editor/sidebar/sections/ChartSettingsSection';
 
 function Harness({ initial }: { initial: ChartInstance }) {
   const [chart, setChart] = useState(initial);

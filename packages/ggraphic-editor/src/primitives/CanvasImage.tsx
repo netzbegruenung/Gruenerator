@@ -57,11 +57,11 @@ import {
   cropGhostAttrs,
   cropGhostSource,
   placeCropGhost,
-} from '../utils/cropGhost';
-import { getActiveImageFilters, imageFilterAttrs } from '../utils/imageFilters';
-import { backgroundKeyCrop, cropKeyOf, type CropKey } from '../utils/keyboardCrop';
+} from '../utils/cropGhost.js';
+import { getActiveImageFilters, imageFilterAttrs } from '../utils/imageFilters.js';
+import { backgroundKeyCrop, cropKeyOf, type CropKey } from '../utils/keyboardCrop.js';
 
-import type { ImageAdjustments } from '../utils/userImageUtils';
+import type { ImageAdjustments } from '../utils/userImageUtils.js';
 import type { TransformConfig, TransformAnchor } from '@ggraphic/editor/types/editorTypes';
 import type { SnapTarget, SnapLine } from '@ggraphic/editor/utils/snapping';
 

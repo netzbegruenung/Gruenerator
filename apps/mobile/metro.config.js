@@ -119,12 +119,12 @@ config.resolver.resolveRequest = (context, moduleName, platform) => {
   }
 
   // Dedupe @sentry/core inside the Sentry SDK to the copy @sentry/react-native
-  // itself uses. The SDK family pins one exact core version (10.37.0 for RN
-  // 7.11), but web/api hoist a newer @sentry/core to the root, so the hoisted
-  // linker nests a private 10.37.0 copy under each of the seven Sentry packages
-  // — and Metro bundled all seven: ~5.8 MB of identical code, a quarter of the
-  // bundle, measured with Expo Atlas. Only requests from Sentry packages are
-  // redirected; they are the ones bound to that pinned version.
+  // itself uses. The SDK family pins one exact core version (10.75.2 for RN
+  // 8.28), but web/api hoist a newer @sentry/core to the root, so the hoisted
+  // linker nests a private copy under each of the seven bundled Sentry
+  // packages — and Metro bundled all seven: ~5.8 MB of identical code, a
+  // quarter of the bundle, measured with Expo Atlas. Only requests from Sentry
+  // packages are redirected; they are the ones bound to that pinned version.
   if (
     (moduleName === '@sentry/core' || moduleName.startsWith('@sentry/core/')) &&
     /[/\\]node_modules[/\\]@sentry(-internal)?[/\\]/.test(context.originModulePath)

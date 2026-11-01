@@ -3,10 +3,9 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import type { ChatGraphState } from '../types.js';
 
 /**
- * Der Rollen-Chat rendert den Produktwissen-Block nie (die Persona ersetzt die
- * ganze Grünerator-Identität). Gebaut wurde er trotzdem — samt DB-Abfragen für
- * versteckte Agenten und verbundene MCP-Server. Der Test hängt am Aufruf, nicht
- * am Prompt: der Prompt war schon vorher richtig.
+ * Der Rollen-Chat ersetzt die Grünerator-IDENTITÄT, nicht das Produktwissen:
+ * auf eine Produktfrage bekommt er die Fakten, aber nie die Identitätszeile —
+ * sonst überschriebe sie nutzerdefinierte neutrale Rollen (#5016).
  */
 
 const buildProductKnowledgeBlock = vi.fn(async () => '\n\n## PRODUKTWISSEN\n');
@@ -51,12 +50,37 @@ describe('Produktwissen-Block im Rollen-Chat', () => {
     expect(prompt).toContain('## PRODUKTWISSEN');
   });
 
-  it('baut ihn im Rollen-Chat gar nicht erst', async () => {
+  it('trägt ihn auch in den Rollen-Chat, ohne die Grünerator-Identität', async () => {
     const prompt = await buildSystemMessage(
       state({ customSystemPrompt: 'Du bist ein*e Übersetzer*in.' })
     );
 
+    expect(buildProductKnowledgeBlock).toHaveBeenCalledTimes(1);
+    expect(prompt).toContain('## PRODUKTWISSEN');
+    expect(prompt).not.toContain('Du bist Teil des Grünerator');
+  });
+
+  it('baut ihn im Rollen-Chat nicht ohne Produktfrage', async () => {
+    await buildSystemMessage(
+      state({
+        customSystemPrompt: 'Du bist ein*e Übersetzer*in.',
+        messages: [{ role: 'user', content: 'Übersetze: Guten Morgen' }],
+      } as never)
+    );
+
     expect(buildProductKnowledgeBlock).not.toHaveBeenCalled();
-    expect(prompt).not.toContain('## PRODUKTWISSEN');
+  });
+
+  it('prüft die Frage ohne @-Erwähnungen, wie der Werkzeugkatalog', async () => {
+    await buildSystemMessage(
+      state({
+        messages: [{ role: 'user', content: '@Pressesprecherin Was kannst du?' }],
+        lastUserTextNoMentions: 'Was kannst du?',
+      } as never)
+    );
+
+    expect(buildProductKnowledgeBlock).toHaveBeenCalledWith(
+      expect.objectContaining({ question: 'Was kannst du?' })
+    );
   });
 });

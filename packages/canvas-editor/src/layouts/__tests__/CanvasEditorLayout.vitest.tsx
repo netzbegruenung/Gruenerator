@@ -5,7 +5,7 @@
 import { render } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 
-import { CanvasEditorLayout } from '../CanvasEditorLayout';
+import { CanvasEditorLayout } from '@ggraphic/editor/layouts/CanvasEditorLayout';
 
 describe('CanvasEditorLayout bottom bar', () => {
   it('rückt um die Breite des offenen Panels ein', () => {

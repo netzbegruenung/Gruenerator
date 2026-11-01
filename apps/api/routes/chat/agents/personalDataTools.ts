@@ -58,6 +58,7 @@ import { STUDIO_ASSET_SHARE_DELETE_MESSAGE } from '../../../services/studioAsset
 import { getSubtitlerProjectService } from '../../../services/subtitler/ProjectService.js';
 import { getReelTranscript, reelUrl, searchReels } from '../../../services/subtitler/reelSearch.js';
 import { toUserFacingMessage } from '../../../utils/errors/index.js';
+import { formatShortGermanDate } from '../../../utils/stringUtils.js';
 import {
   listUserDocuments,
   officeKindLabel,
@@ -65,9 +66,16 @@ import {
   officeUrl,
   searchOfficeContent,
 } from '../../docs/docsSearch.js';
-import { aggregateRecentActivity } from '../../workplace/recentActivityController.js';
+import {
+  aggregateRecentActivity,
+  type RecentActivityItem,
+} from '../../workplace/recentActivityController.js';
 import { hasWriteAccess } from '../confirmController.js';
-import { readArtifactContent, type ArtifactReadKind } from '../services/artifactReader.js';
+import {
+  readArtifactContent,
+  subtypeToReadKind,
+  type ArtifactReadKind,
+} from '../services/artifactReader.js';
 import { emitToolConfirmAction, newActionId } from '../services/confirmActionService.js';
 import { extractTextContent } from '../services/messageHelpers.js';
 import {
@@ -78,6 +86,7 @@ import {
 } from '../services/pastChatRecallService.js';
 
 import { confirmGate } from './confirmGate.js';
+import { leeresErgebnis, werkzeugFehler } from './toolFailure.js';
 
 import type {
   ChatGraphState,
@@ -206,6 +215,23 @@ export interface ResultRow {
   type?: string;
   /** Opaque handle for follow-up actions (e.g. media delete needs the share token). */
   ref?: string;
+  /** What `read_artifact` takes to open this row. Before these fields the id sat
+   *  only inside `url` (`/office/<id>`) and `type` was a German label the
+   *  reader's `kind` enum does not accept — the model had to cut a UUID out of
+   *  a path and translate „Präsentation" into `presentation`. */
+  id?: string;
+  kind?: ArtifactReadKind;
+  /** Letzte Änderung als TT.MM.JJJJ. Ohne das Feld nahm das Modell bei
+   *  gleichnamigen Dokumenten ein Datum aus dem TEXT („24. Mai") für das Datum
+   *  des Dokuments (#5140). */
+  geaendert?: string;
+}
+
+/** `{ geaendert }` für eine Zeile, leer ohne gültiges Datum. */
+export function changedAt(value: Date | string | null): { geaendert?: string } {
+  if (value == null) return {};
+  const date = formatShortGermanDate(value);
+  return date === 'unbekannt' ? {} : { geaendert: date };
 }
 
 /** Build a row, omitting empty optionals (exactOptionalPropertyTypes: no `undefined`). */
@@ -225,6 +251,9 @@ export function makeRow(
   };
 }
 
+/** So viele Dokumente der Person werden bei id-Aktionen durchsucht. */
+const OWNED_LOOKUP_WINDOW = 200;
+
 export const NO_SESSION = 'Keine Nutzer-Sitzung — diese Aktion braucht eine angemeldete Person.';
 
 export function requireUserId(state: ChatGraphState): string | null {
@@ -234,6 +263,45 @@ export function requireUserId(state: ChatGraphState): string | null {
 // ---------------------------------------------------------------------------
 // find_content — cross-domain read over the user's own stuff
 // ---------------------------------------------------------------------------
+
+/**
+ * Ids from OTHER conversations offered in this loop, none chosen yet — shared
+ * by `find_content` and `read_artifact`, both built on the loop's one ctx.
+ * Telling the model "lies keins auf Verdacht" was not enough: it read the first
+ * candidate 4 of 5 times live, and `find_content` action="recent" hands out the
+ * same foreign ids `read_artifact` withholds — the route #5134 took. The choice
+ * comes back only through `ask_human`, whose answer resumes as a fresh loop
+ * with a fresh ctx (clarificationResume), so a read of one of these ids in THIS
+ * loop is by construction a guess. Search hits are not added: there the person
+ * named the term.
+ */
+const unchosenForeignByLoop = new WeakMap<PersonalToolCtx, Set<string>>();
+
+function unchosenForeignOf(ctx: PersonalToolCtx): Set<string> {
+  let ids = unchosenForeignByLoop.get(ctx);
+  if (!ids) {
+    ids = new Set();
+    unchosenForeignByLoop.set(ctx, ids);
+  }
+  return ids;
+}
+
+/** Refs of the artifacts this conversation has produced, this turn included. */
+function threadArtifactRefs(state: ChatGraphState): Set<string> {
+  return new Set(
+    [...artifactsFromTurn(state), ...(state.threadArtifacts ?? [])].flatMap((a) =>
+      a.ref ? [a.ref] : []
+    )
+  );
+}
+
+/** The kind `read_artifact` reads a recent-activity item as — null for images,
+ *  videos and canvases, which carry no text to read back. */
+function readKindOfRecent(it: RecentActivityItem): ArtifactReadKind | null {
+  if (it.type === 'doc') return subtypeToReadKind(it.documentType ?? null);
+  if (it.type === 'board') return 'board';
+  return null;
+}
 
 /**
  * Notebooks are deliberately NOT part of this tool, and the description says so
@@ -254,7 +322,9 @@ export function makeFindContentTool(ctx: PersonalToolCtx): Tool {
   return tool({
     description: `Durchsucht die EIGENEN Inhalte der angemeldeten Person (Dokumente, Boards, Tabellen, Präsentationen sowie Reels/untertitelte Videos) oder listet die zuletzt bearbeiteten. Reels werden dabei auch nach ihrem gesprochenen Untertitel-Inhalt durchsucht.
 
-NUTZE WENN nach eigenen Inhalten gefragt wird ("zeig mir meine Dokumente", "finde mein Klima-Board", "woran habe ich zuletzt gearbeitet"). Für Detailfragen zu EINEM Board/Dokument nutze 'documents' oder 'boards_tasks'. Für das VOLLE Transkript eines Reels (z. B. um eine Caption zu schreiben) nutze 'media' mit action="transcript". NOTEBOOKS erreicht dieses Werkzeug NICHT — zum Auflisten, Ansehen und inhaltlichen Befragen eines Notebooks nutze 'notebooks'.`,
+NUTZE WENN nach eigenen Inhalten gefragt wird ("zeig mir meine Dokumente", "finde mein Klima-Board", "woran habe ich zuletzt gearbeitet"). Den INHALT eines Treffers liest 'read_artifact' (id und kind stehen im Treffer); für Detailfragen zu EINEM Board/Dokument nutze 'documents' oder 'boards_tasks'. Frühere CHATS durchsucht 'search_threads', nicht dieses Werkzeug. Für das VOLLE Transkript eines Reels (z. B. um eine Caption zu schreiben) nutze 'media' mit action="transcript". NOTEBOOKS erreicht dieses Werkzeug NICHT — zum Auflisten, Ansehen und inhaltlichen Befragen eines Notebooks nutze 'notebooks'.
+
+DATUM: "geaendert" ist das Datum der letzten Änderung. Tragen mehrere Treffer denselben Titel, unterscheide sie daran — ein Datum im Textauszug ist Inhalt, nicht das Datum des Dokuments.`,
     // Eine Suche ohne Begriff scheitert hier am Schema statt in `execute`: nur
     // dort entsteht eine Karte, und die zeigte der Person einen Fehlschlag, den
     // das Modell im nächsten Schritt selbst korrigierte (#3932, „und zu Solar?").
@@ -286,24 +356,54 @@ NUTZE WENN nach eigenen Inhalten gefragt wird ("zeig mir meine Dokumente", "find
           searchReels(userId, q, Math.min(limit, 5)),
         ]);
         const results = [
-          ...hits.map((h) =>
-            makeRow(
+          ...hits.map((h) => ({
+            ...makeRow(
               h.title,
               officeUrl(h.document_subtype, h.id),
               officeKindLabel(h.document_subtype),
               officeSnippet(h.document_subtype, h.content)
-            )
-          ),
+            ),
+            id: h.id,
+            kind: subtypeToReadKind(h.document_subtype),
+            ...changedAt(h.updated_at),
+          })),
           ...reelHits.map((r) => makeRow(r.title, r.url, 'Reel', r.snippet, `reel:${r.id}`)),
         ];
         groundRows(sourceRegistry, results);
-        return { resultCount: results.length, results };
+        // Ein echtes Leer sagt, wonach gesucht wurde; ein volles Limit, dass es mehr geben kann.
+        if (results.length === 0) {
+          return {
+            ...leeresErgebnis({
+              filter: `Suchbegriff „${q}“ in Dokumenten, Präsentationen, Tabellen und Reels (Notebooks sind ausgenommen)`,
+              hinweis: 'Versuche ein kürzeres oder anderes Stichwort',
+            }),
+            results,
+          };
+        }
+        return {
+          resultCount: results.length,
+          results,
+          ...(hits.length >= limit
+            ? {
+                hinweis: `Es gibt eventuell mehr als die ${hits.length} gezeigten Treffer; grenze mit einem genaueren Suchbegriff ein.`,
+              }
+            : {}),
+        };
       }
 
       const items = await aggregateRecentActivity(userId, limit);
-      const results = items.map((it) =>
-        makeRow(it.title, it.href, it.documentType ?? it.type, it.content)
-      );
+      const ownRefs = threadArtifactRefs(state);
+      const unchosenForeign = unchosenForeignOf(ctx);
+      const results = items.map((it) => {
+        // Bilder, Videos und Canvas haben keinen Text für read_artifact.
+        const kind = readKindOfRecent(it);
+        if (kind && !ownRefs.has(it.id)) unchosenForeign.add(it.id);
+        return {
+          ...makeRow(it.title, it.href, it.documentType ?? it.type, it.content),
+          ...changedAt(it.date),
+          ...(kind && { id: it.id, kind }),
+        };
+      });
       groundRows(sourceRegistry, results);
       return { resultCount: results.length, results };
     },
@@ -337,7 +437,7 @@ NUTZE WENN nach früheren Gesprächen gefragt wird ("worüber haben wir letztens
 - Ohne query: listet die zuletzt aktiven Chats (für "worüber haben wir zuletzt gechattet").
 - scope="space": nur die Chats des aktuellen Space durchsuchen (Standard, wenn der Chat in einem Space liegt).
 - scope="all": alle eigenen Chats durchsuchen.
-- action="read": den vollständigen Verlauf EINES Threads lesen (threadId aus einem Suchergebnis).`,
+- action="read": den Verlauf EINES Threads lesen (threadId aus einem Suchergebnis) — seine Zusammenfassung oder die letzten 10 Nachrichten, höchstens 4.000 Zeichen.`,
     inputSchema: z.object({
       action: z.enum(['search', 'read']).default('search'),
       query: z
@@ -406,7 +506,16 @@ NUTZE WENN nach früheren Gesprächen gefragt wird ("worüber haben wir letztens
         )
       );
       groundRows(sourceRegistry, results);
-      return { resultCount: results.length, results };
+      // Der Standard `space` greift nur in einem Space; ohne Angabe hielte das
+      // Modell eine Space-Suche ohne Treffer für eine Suche über alle Chats.
+      return {
+        resultCount: results.length,
+        results,
+        durchsucht:
+          threadIds != null
+            ? 'nur die Chats dieses Space (scope="all" durchsucht alle eigenen Chats)'
+            : 'alle eigenen Chats',
+      };
     },
   });
 }
@@ -420,7 +529,7 @@ export function makeDocumentsTool(ctx: PersonalToolCtx): Tool {
   return tool({
     description: `Zugriff auf die EIGENEN Dokumente, Tabellen und Präsentationen (nicht Boards — dafür 'boards_tasks').
 
-NUTZE FÜR: eigene Dokumente auflisten (list), eines per id ansehen (get), umbenennen (rename), löschen (delete), mit einer Gruppe teilen (share_to_group). Umbenennen wirkt sofort; Löschen und Teilen werden der Person zur Bestätigung angezeigt. Um das GERADE ERSTELLTE Dokument zu teilen, share_to_group nur mit groupName aufrufen (id weglassen).`,
+NUTZE FÜR: eigene Dokumente auflisten (list), Titel, Art und Link eines Dokuments per id holen (get — den INHALT liest read_artifact), umbenennen (rename), löschen (delete), mit einer Gruppe teilen (share_to_group). Umbenennen wirkt sofort; Löschen und Teilen werden der Person zur Bestätigung angezeigt. Um das GERADE ERSTELLTE Dokument zu teilen, share_to_group nur mit groupName aufrufen (id weglassen).`,
     inputSchema: z.object({
       action: z.enum(['list', 'get', 'rename', 'delete', 'share_to_group']),
       id: z
@@ -445,23 +554,62 @@ NUTZE FÜR: eigene Dokumente auflisten (list), eines per id ansehen (get), umben
 
       if (action === 'list') {
         const docs = await listUserDocuments(userId, limit);
-        const results = docs.map((d) =>
-          makeRow(d.title, officeUrl(d.document_subtype, d.id), officeKindLabel(d.document_subtype))
-        );
+        const results = docs.map((d) => ({
+          ...makeRow(
+            d.title,
+            officeUrl(d.document_subtype, d.id),
+            officeKindLabel(d.document_subtype)
+          ),
+          id: d.id,
+          kind: subtypeToReadKind(d.document_subtype),
+          ...changedAt(d.updated_at),
+        }));
         groundRows(sourceRegistry, results);
-        return { resultCount: results.length, results };
+        // Eine volle Liste ist eine Auswahl der neuesten, keine Gesamtmenge.
+        return {
+          resultCount: results.length,
+          results,
+          ...(results.length >= limit
+            ? {
+                hinweis: `Die ${limit} zuletzt bearbeiteten Dokumente; es kann mehr geben (limit bis 30, oder find_content mit einem Suchbegriff).`,
+              }
+            : {}),
+        };
       }
 
       // The remaining actions all target one document — resolve within the caller's set.
-      const owned = await listUserDocuments(userId, 200);
+      const owned = await listUserDocuments(userId, OWNED_LOOKUP_WINDOW);
       const match = id ? owned.find((d) => d.id === id) : undefined;
+      // „Nicht gefunden" nur behaupten, wo die Liste vollständig war: bei einem
+      // vollen Fenster kann ein älteres Dokument existieren, das wir nie gesehen haben.
+      const nichtGefunden = () =>
+        werkzeugFehler({
+          art: 'nicht_gefunden',
+          ursache: id
+            ? owned.length >= OWNED_LOOKUP_WINDOW
+              ? `Das Dokument ist nicht unter deinen neuesten ${OWNED_LOOKUP_WINDOW} zu finden (ältere wurden nicht geprüft)`
+              : 'Das Dokument gibt es unter deinen Dokumenten nicht'
+            : 'Es wurde keine id übergeben',
+          naechsterSchritt:
+            'Nimm die id aus der Liste (documents list) oder aus find_content, sie steckt in der url',
+        });
 
       if (action === 'get') {
-        if (!match) return { error: 'Dokument nicht gefunden oder kein Zugriff.' };
+        if (!match) return nichtGefunden();
         const url = officeUrl(match.document_subtype, match.id);
         const kind = officeKindLabel(match.document_subtype);
         ground(sourceRegistry, [{ title: match.title, content: `${kind}: ${match.title}`, url }]);
-        return { document: { title: match.title, url, type: kind } };
+        return {
+          document: {
+            title: match.title,
+            url,
+            type: kind,
+            id: match.id,
+            kind: subtypeToReadKind(match.document_subtype),
+          },
+          hinweis:
+            'Das sind nur Titel, Art und Link. Den Inhalt liest read_artifact mit id und kind.',
+        };
       }
 
       if (action === 'rename') {
@@ -479,7 +627,7 @@ NUTZE FÜR: eigene Dokumente auflisten (list), eines per id ansehen (get), umben
       }
 
       if (action === 'delete') {
-        if (!match) return { error: 'Dokument nicht gefunden oder kein Zugriff.' };
+        if (!match) return nichtGefunden();
         const stop = confirmGate({
           state,
           threadId,
@@ -515,7 +663,7 @@ NUTZE FÜR: eigene Dokumente auflisten (list), eines per id ansehen (get), umben
           : null;
       const forbiddenShare = refuseForbiddenAction(state, 'document');
       if (forbiddenShare) return forbiddenShare;
-      if (!shareTarget) return { error: 'Dokument nicht gefunden oder kein Zugriff.' };
+      if (!shareTarget) return nichtGefunden();
       if (!groupName?.trim()) return { error: 'share_to_group braucht groupName.' };
       if (!threadId) return { error: 'Teilen ist in diesem Kontext nicht möglich.' };
       // Only share into groups the caller is a MEMBER of (findGroups also returns
@@ -556,7 +704,12 @@ NUTZE FÜR: eigene Dokumente auflisten (list), eines per id ansehen (get), umben
 // ---------------------------------------------------------------------------
 
 /** Beyond this the excerpt is cut — one artifact must not eat the whole turn. */
-const ARTIFACT_READ_CHARS = 12_000;
+export const ARTIFACT_READ_CHARS = 12_000;
+
+/** How far back `read_artifact` looks for candidates when the conversation has
+ *  none of the asked kind, and how many it offers — `ask_human` takes four. */
+const RECENT_LOOKBACK = 30;
+const MAX_FOREIGN_CANDIDATES = 4;
 
 const READ_KIND_NOUN: Record<ArtifactReadKind, string> = {
   doc: 'Dokument',
@@ -564,6 +717,7 @@ const READ_KIND_NOUN: Record<ArtifactReadKind, string> = {
   sheet: 'Tabelle',
   presentation: 'Präsentation',
   pdf: 'PDF',
+  canvas: 'Canvas',
 };
 
 /**
@@ -609,12 +763,15 @@ const READ_KIND_FOR_ARTIFACT: Record<ThreadToolContext['kind'], ArtifactReadKind
  */
 export function makeReadArtifactTool(ctx: PersonalToolCtx): Tool {
   const { state, sourceRegistry } = ctx;
+  const unchosenForeign = unchosenForeignOf(ctx);
   return tool({
     description: `Öffnet ein eigenes Artefakt und liest seinen INHALT — Folientexte, Tabellenzellen, Dokumenttext, Board-Karten oder den Text eines erzeugten PDFs.
 
 NUTZE FÜR: "was steht in der Präsentation?", "vergleiche das PDF mit den Folien", "prüfe, ob Folie 5 stimmt", "fasse mein Dokument zusammen". Ohne diesen Aufruf kennst du den Inhalt NICHT — rate ihn niemals.
 
-Die "id" bekommst du aus 'find_content' oder 'documents' (action="list"). Geht es um ein Artefakt AUS DIESEM GESPRÄCH, lass "id" weg und gib nur "kind" an.`,
+"id" und "kind" stehen in jedem Treffer von 'find_content' oder 'documents' (action="list") — übernimm beide. Geht es um ein Artefakt AUS DIESEM GESPRÄCH, lass "id" weg und gib nur "kind" an.
+
+Lange Inhalte kommen in Teilen zu ${ARTIFACT_READ_CHARS.toLocaleString('de-DE')} Zeichen. Steht im Ergebnis "weiter", rufe erneut mit "ab" auf, wenn du den Rest brauchst.`,
     inputSchema: z.object({
       kind: z
         .enum(['doc', 'board', 'sheet', 'presentation', 'pdf'])
@@ -625,8 +782,16 @@ Die "id" bekommst du aus 'find_content' oder 'documents' (action="list"). Geht e
         .describe(
           'ID aus einem vorherigen Suchtreffer. Weglassen für das Artefakt aus diesem Gespräch.'
         ),
+      ab: z
+        .number()
+        .int()
+        .min(0)
+        .optional()
+        .describe(
+          'Zeichenposition, ab der gelesen wird — der Wert aus "weiter.ab". Weglassen für den Anfang.'
+        ),
     }),
-    execute: async ({ kind, id }) => {
+    execute: async ({ kind, id, ab }) => {
       const userId = requireUserId(state);
       if (!userId) return { error: NO_SESSION };
       const noun = READ_KIND_NOUN[kind];
@@ -642,8 +807,24 @@ Die "id" bekommst du aus 'find_content' oder 'documents' (action="list"). Geht e
         );
         const unique = [...new Map(candidates.map((a) => [a.ref!, a])).values()];
         if (unique.length === 0) {
+          // Not "go search": the old answer sent the model to find_content, it
+          // took action="recent" and read the newest similar title — a document
+          // from another thread, answered about with full confidence (#5134).
+          // The newest one is not the meant one, so the choice goes back to the
+          // person, with the candidates the tool can see.
+          const recent = (await aggregateRecentActivity(userId, RECENT_LOOKBACK))
+            .filter((it) => readKindOfRecent(it) === kind)
+            .slice(0, MAX_FOREIGN_CANDIDATES);
+          if (recent.length === 0) {
+            return {
+              error: `In diesem Gespräch gibt es kein Artefakt der Art „${noun}", und unter den zuletzt bearbeiteten Inhalten der Person auch nicht. Frage nach, welches ${noun} gemeint ist, oder suche mit 'find_content' (action="search") nach einem Begriff, den die Person genannt hat.`,
+            };
+          }
+          for (const it of recent) unchosenForeign.add(it.id);
           return {
-            error: `In diesem Gespräch gibt es kein Artefakt der Art „${noun}". Suche es mit 'find_content', oder nenne eine id.`,
+            needsChoice: true,
+            note: `In diesem Gespräch gibt es kein Artefakt der Art „${noun}". Die Kandidaten unten sind die zuletzt bearbeiteten der Person aus ANDEREN Gesprächen — welches sie meint, weißt du nicht. Lies keins auf Verdacht: frage mit 'ask_human' nach (die Titel als Optionen; ohne 'ask_human' in deiner Antwort) und rufe danach mit der id auf.`,
+            candidates: recent.map((it) => ({ id: it.id, title: it.title, zuletzt: it.date })),
           };
         }
         if (unique.length > 1) {
@@ -656,6 +837,10 @@ Die "id" bekommst du aus 'find_content' oder 'documents' (action="list"). Geht e
         }
         targetId = unique[0]!.ref!;
         label = unique[0]!.label ?? null;
+      } else if (unchosenForeign.has(targetId)) {
+        return {
+          error: `Die Person hat noch nicht gesagt, welches ${noun} sie meint — dieses ist nur einer der Kandidaten aus anderen Gesprächen. Frage zuerst mit 'ask_human' nach (ohne 'ask_human' in deiner Antwort) und lies erst dann.`,
+        };
       }
 
       let content: string | null;
@@ -687,15 +872,27 @@ Die "id" bekommst du aus 'find_content' oder 'documents' (action="list"). Geht e
         };
       }
 
-      const excerpt =
-        content.length > ARTIFACT_READ_CHARS
-          ? `${content.slice(0, ARTIFACT_READ_CHARS)}\n…[gekürzt]`
-          : content;
-      const title = label ?? `${noun}-Inhalt`;
+      const start = ab ?? 0;
+      if (start >= content.length) {
+        return {
+          error: `ab=${start} liegt hinter dem Ende — ${noun} hat ${content.length} Zeichen.`,
+        };
+      }
+      const end = Math.min(start + ARTIFACT_READ_CHARS, content.length);
+      const weiter = end < content.length ? { ab: end } : null;
+      const excerpt = `${start > 0 ? '…\n' : ''}${content.slice(start, end)}${weiter ? '\n…[gekürzt]' : ''}`;
+      const title = `${label ?? `${noun}-Inhalt`}${start > 0 ? ` (ab Zeichen ${start})` : ''}`;
       // Grounding, not a note: this IS retrieved material, and in split mode the
       // writer sees nothing but the rendered sources.
       ground(sourceRegistry, [{ title, content: excerpt }]);
-      return { kind, title, content: excerpt, truncated: excerpt !== content };
+      return {
+        kind,
+        title,
+        content: excerpt,
+        truncated: weiter != null,
+        gesamtZeichen: content.length,
+        ...(weiter ? { weiter } : {}),
+      };
     },
   });
 }
@@ -757,9 +954,12 @@ NUTZE FÜR: Boards auflisten (list_boards), Karten eines Boards lesen (get_cards
 
       if (action === 'list_boards') {
         const boards = await listUserBoards(userId, args.limit);
-        const results = boards.map((b) =>
-          makeRow(b.title, `/boards/${b.id}`, 'Board', officeSnippet('boards', b.content))
-        );
+        const results = boards.map((b) => ({
+          ...makeRow(b.title, `/boards/${b.id}`, 'Board', officeSnippet('boards', b.content)),
+          id: b.id,
+          kind: 'board' as const,
+          ...changedAt(b.updated_at),
+        }));
         groundRows(sourceRegistry, results);
         return { resultCount: results.length, results };
       }
@@ -777,7 +977,18 @@ NUTZE FÜR: Boards auflisten (list_boards), Karten eines Boards lesen (get_cards
             url: `/boards/${board.id}`,
           }))
         );
-        return { board: { id: board.id, title: board.title }, cardCount: cards.length, cards };
+        // `cardCount` ist die GESAMTzahl; `collectCards` zeigt höchstens 50.
+        return {
+          board: { id: board.id, title: board.title },
+          cardCount: board.rows.length,
+          shownCount: cards.length,
+          cards,
+          ...(board.rows.length > cards.length
+            ? {
+                hinweis: `Nur die ersten ${cards.length} von ${board.rows.length} Karten gezeigt; die übrigen sind hier nicht ansprechbar.`,
+              }
+            : {}),
+        };
       }
 
       if (action === 'my_tasks') {
@@ -907,7 +1118,9 @@ NUTZE FÜR:
 - das volle Transkript eines Reels holen (transcript mit ref="reel:<id>") — nötig, bevor du eine Caption, einen Social-Post oder eine Zusammenfassung zum Video schreibst
 - löschen (delete mit ref aus der Liste + confirm=true nach Zustimmung)
 
-TYPISCHER ABLAUF für "such das Reel zu Thema X und schreib eine Caption": erst search, dann transcript für den besten Treffer, dann die Caption aus dem Transkript formulieren.`,
+TYPISCHER ABLAUF für "such das Reel zu Thema X und schreib eine Caption": erst search, dann transcript für den besten Treffer, dann die Caption aus dem Transkript formulieren.
+
+Über ALLE eigenen Inhalte hinweg (Dokumente, Tabellen, Präsentationen und Reels zusammen) sucht 'find_content'.`,
     inputSchema: z.object({
       action: z.enum(['list', 'search', 'transcript', 'delete']),
       type: z.enum(['all', 'reel', 'sharepic', 'ki']).default('all'),

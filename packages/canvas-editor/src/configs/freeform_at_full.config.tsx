@@ -3,7 +3,8 @@
  *
  * Thin wrapper over the DE freeform config: same free-design behaviour, but
  * seeded with the Austrian CI — dunkelgrüner Default-Hintergrund, Gotham-Font,
- * AT-Farbpalette im Hintergrund-Picker und in neuen Diagrammen.
+ * AT-Farbpalette im Hintergrund-Picker und im AT-Markenpaket für alles, was neu
+ * hinzukommt (Schriften, Farben, Diagrammreihen).
  */
 
 import { getBrandPack, getBrandTheme } from '../brand/theme';
@@ -15,7 +16,7 @@ import {
   type FreeformActions,
 } from './freeform_full.config';
 
-import type { FullCanvasConfig } from './types';
+import type { FullCanvasConfig } from '@ggraphic/editor/configs/types';
 import type { CanvasFormat } from '@ggraphic/editor/formats/index';
 
 const AT = getBrandTheme('de-AT');
@@ -38,7 +39,7 @@ const AT_BACKGROUND_COLORS = [
 export const createFreeformAtFullConfig = (
   format: CanvasFormat
 ): FullCanvasConfig<FreeformState, FreeformActions> => {
-  const base = createFreeformFullConfig(format, { chartColors: getBrandPack('de-AT').chart });
+  const base = createFreeformFullConfig(format, { brand: getBrandPack('de-AT') });
   return {
     ...base,
     id: 'freeform-at',

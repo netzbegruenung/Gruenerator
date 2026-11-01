@@ -6,7 +6,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 import { AiProviderError } from '../../providers/providerErrors.js';
-import { GEMMA_31B_PRIMARY } from '../gemmaHosts.js';
+import { GEMMA_31B_ALTERNATE, GEMMA_31B_PRIMARY } from '../gemmaHosts.js';
 
 const executeProvider = vi.fn();
 
@@ -108,10 +108,10 @@ describe('aiText', () => {
     await expect(aiText({ lane: 'antrag', prompt: 'x' })).resolves.toBe('Vom Fallback');
     // `antrag` writes a finished text, so Gemma 4 is primary — auf welchem
     // Host, entscheidet services/ai/gemmaHosts.ts; die generische Kette
-    // (cortecs → melious → mistral) führt danach mit dem übrig gebliebenen
-    // zweiten Gemma-Host.
+    // (Primär → zweiter Gemma-Host → mistral) führt danach mit dem übrig
+    // gebliebenen zweiten Gemma-Host.
     expect(callAt(0).provider).toBe(GEMMA_31B_PRIMARY.provider);
-    expect(callAt(1).provider).toBe('melious');
+    expect(callAt(1).provider).toBe(GEMMA_31B_ALTERNATE.provider);
   });
 
   it('lets each fallback answer on its own default model', async () => {
@@ -214,10 +214,10 @@ describe('the wall clock', () => {
     await vi.advanceTimersByTimeAsync(59_999);
     expect(executeProvider).toHaveBeenCalledTimes(1);
 
-    // Als nächstes Cortecs, der einzige Host desselben Gemma 4 in dieser Kette.
+    // Als nächstes der Gemma-Primär, der erste Host desselben Gemma 4 in dieser Kette.
     await vi.advanceTimersByTimeAsync(2);
     expect(executeProvider).toHaveBeenCalledTimes(2);
-    expect(callAt(1).provider).toBe('cortecs');
+    expect(callAt(1).provider).toBe(GEMMA_31B_PRIMARY.provider);
 
     // Die Kette zu Ende laufen lassen, sonst wartet `failed` auf die zwei
     // Anbieter dahinter.
@@ -240,8 +240,8 @@ describe('the wall clock', () => {
     expect(executeProvider).toHaveBeenCalledTimes(4);
     expect([0, 1, 2, 3].map((i) => callAt(i).provider)).toEqual([
       'greenpt',
-      'cortecs',
-      'melious',
+      GEMMA_31B_PRIMARY.provider,
+      GEMMA_31B_ALTERNATE.provider,
       'mistral',
     ]);
   });
@@ -316,6 +316,31 @@ describe('the wall clock', () => {
   });
 });
 
+describe('caller abort', () => {
+  it('hands the signal to the provider and stops the chain once it fires', async () => {
+    const controller = new AbortController();
+    executeProvider.mockImplementation(async () => {
+      controller.abort();
+      throw new Error('This operation was aborted');
+    });
+
+    const res = await aiObject({
+      lane: 'qa_draft',
+      prompt: 'x',
+      signal: controller.signal,
+      schema: { type: 'object' },
+      toolName: 't',
+      toolDescription: 'd',
+      validate: (i: unknown) => ({ ok: true as const, value: i }),
+    });
+
+    expect(res.ok).toBe(false);
+    // Kein Ausweichanbieter, kein Reparaturversuch.
+    expect(executeProvider).toHaveBeenCalledTimes(1);
+    expect(callAt(0).data.signal).toBe(controller.signal);
+  });
+});
+
 /**
  * The family that cannot be routed: a `type` with no row in `AI_LANES` whose
  * provider and model were chosen by the caller against measurements in
@@ -386,11 +411,11 @@ describe('pinned targets', () => {
     await aiText({ lane: 'chat_quality_gate', pinned: 'standard', prompt: 'x' });
 
     // Die Fassaden-Kette ist GENERIC_FALLBACK ohne den Primär — mit GreenPT
-    // vorne bleibt Cortecs der zweite Halt. Diese Kette ist NICHT die
+    // vorne ist der Gemma-Primär der zweite Halt. Diese Kette ist NICHT die
     // `fallback`-Kette der Stufe: die greift auf dem direkten Weg
     // (`getIntermediateModel`), diese hier auf dem Fassaden-Weg.
     expect(callAt(0).provider).toBe('greenpt');
-    expect(callAt(1).provider).toBe('cortecs');
+    expect(callAt(1).provider).toBe(GEMMA_31B_PRIMARY.provider);
     expect(callAt(1).data.options).not.toHaveProperty('model');
   });
 });

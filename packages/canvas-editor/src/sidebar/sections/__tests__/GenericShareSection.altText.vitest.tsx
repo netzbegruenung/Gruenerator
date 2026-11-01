@@ -1,13 +1,16 @@
+import {
+  CanvasEditorProvider,
+  type CanvasEditorServices,
+} from '@ggraphic/editor/CanvasEditorProvider';
 import { AnnouncerContext } from '@ggraphic/editor/hooks/useAnnounce';
+import { browserFileDelivery } from '@ggraphic/editor/hostServices';
 import { AutoSaveStoreProvider } from '@ggraphic/editor/stores/AutoSaveStoreProvider';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { CanvasEditorProvider, type CanvasEditorServices } from '../../../CanvasEditorProvider';
-import { browserFileDelivery } from '../../../hostServices';
 import { axe } from '../../../test-utils';
-import { GenericShareSection } from '../GenericShareSection';
+import { GenericShareSection } from '@ggraphic/editor/sidebar/sections/GenericShareSection';
 
 // The host's file delivery says the page can use the Web Share API.
 const services: CanvasEditorServices = {

@@ -1,0 +1,295 @@
+// SPDX-License-Identifier: MPL-2.0
+import { useCallback } from 'react';
+
+import { withTemplateTextAlign, type TextAlign } from '@ggraphic/editor/utils/textAlign';
+
+import { hostElementKind, updateHostInstance } from '../utils/elementKinds.js';
+
+import type { OptionalCanvasActions } from './useCanvasElementHandlers.js';
+import type { FloatingModuleState } from './useFloatingModuleState.js';
+import type { BaseCanvasState } from '../configs/factory/baseTypes.js';
+import type { FullCanvasConfig } from '../configs/types.js';
+import type { GradientFill } from '@ggraphic/editor/utils/gradientFill';
+
+/** Partial shadow patch shared by shape/text/user-image update actions. */
+export interface ShadowPatch {
+  shadowColor?: string;
+  shadowBlur?: number;
+  shadowOffsetX?: number;
+  shadowOffsetY?: number;
+  shadowOpacity?: number;
+}
+
+/**
+ * Floating Module Handlers - Handlers for floating toolbar interactions
+ *
+ * Manages color, opacity, and other floating toolbar control changes
+ * for different element types (text, image, shape, icon, illustration).
+ *
+ * `TState` is constrained to `Partial<BaseCanvasState>` so per-config state
+ * shapes still satisfy it (every config carries an optional
+ * `additionalTexts: AdditionalText[]`), while array access here stays
+ * type-safe without a lookup helper.
+ */
+
+export interface UseFloatingModuleHandlersOptions<
+  TState extends Partial<BaseCanvasState>,
+  TActions extends OptionalCanvasActions = OptionalCanvasActions,
+> {
+  activeFloatingModule: FloatingModuleState | null;
+  actions: TActions;
+  config: FullCanvasConfig<TState, TActions>;
+  state: TState;
+  setState: (partial: Partial<TState> | ((prev: TState) => TState)) => void;
+  debouncedSaveToHistory: (state: TState) => void;
+}
+
+export interface UseFloatingModuleHandlersResult {
+  handleColorSelect: (color: string) => void;
+  handleOpacityChange: (id: string, opacity: number, type: string) => void;
+  handleShadowChange: (id: string, patch: ShadowPatch, type: string) => void;
+  handleOutlineChange: (id: string, patch: { stroke?: string; strokeWidth?: number }) => void;
+  handleBlurChange: (id: string, blur: number) => void;
+  handleGradientSelect: (gradient: GradientFill | null) => void;
+  handleTextAlignChange: (id: string, align: TextAlign) => void;
+}
+
+/**
+ * Hook to handle floating toolbar interactions
+ */
+export function useFloatingModuleHandlers<
+  TState extends Partial<BaseCanvasState>,
+  TActions extends OptionalCanvasActions = OptionalCanvasActions,
+>(options: UseFloatingModuleHandlersOptions<TState, TActions>): UseFloatingModuleHandlersResult {
+  const { activeFloatingModule, actions, config, state, setState, debouncedSaveToHistory } =
+    options;
+
+  const handleColorSelect = useCallback(
+    (color: string) => {
+      if (!activeFloatingModule) return;
+
+      if (activeFloatingModule.type === 'shape') {
+        if (actions.updateShape) {
+          // Picking a solid color clears any gradient fill.
+          actions.updateShape(activeFloatingModule.data.id, { fill: color, fillGradient: null });
+        }
+      } else if (activeFloatingModule.type === 'icon') {
+        if (actions.updateIcon) {
+          actions.updateIcon(activeFloatingModule.data.id, { color });
+        }
+      } else if (activeFloatingModule.type === 'illustration') {
+        if (actions.updateIllustration) {
+          actions.updateIllustration(activeFloatingModule.data.id, { color });
+        }
+      } else if (activeFloatingModule.type === 'text') {
+        const id = activeFloatingModule.data.id;
+
+        const additionalTexts = state.additionalTexts ?? [];
+        if (additionalTexts.find((t) => t.id === id)) {
+          if (actions.updateAdditionalText) {
+            actions.updateAdditionalText(id, { fill: color, fillGradient: null });
+          }
+          return;
+        }
+
+        const elementConfig = config.elements.find((e) => e.id === id);
+        if (elementConfig && elementConfig.type === 'text') {
+          const fillStateKey = elementConfig.fillStateKey as string | undefined;
+          if (fillStateKey) {
+            const next = { ...state, [fillStateKey]: color };
+            setState(() => next);
+            debouncedSaveToHistory(next);
+          }
+        }
+      } else if (activeFloatingModule.type === 'image') {
+        const id = activeFloatingModule.data.id;
+        const elementConfig = config.elements.find((e) => e.id === id);
+        if (elementConfig && elementConfig.type === 'image') {
+          const fillStateKey = elementConfig.fillStateKey as string | undefined;
+          if (fillStateKey) {
+            const next = { ...state, [fillStateKey]: color };
+            setState(() => next);
+            debouncedSaveToHistory(next);
+          }
+        }
+      } else if (activeFloatingModule.type === 'background') {
+        const id = activeFloatingModule.data.id;
+        const elementConfig = config.elements.find((e) => e.id === id);
+        if (elementConfig && elementConfig.type === 'background') {
+          const fillStateKey = elementConfig.fillStateKey as string | undefined;
+          const colorKey = (elementConfig as { colorKey?: string }).colorKey;
+          const stateKey = fillStateKey || colorKey;
+          if (stateKey) {
+            const next = { ...state, [stateKey]: color };
+            setState(() => next);
+            debouncedSaveToHistory(next);
+          }
+        }
+      } else if (activeFloatingModule.type === 'pill-badge') {
+        actions.updatePillBadge?.(activeFloatingModule.data.id, { backgroundColor: color });
+      } else if (activeFloatingModule.type === 'circle-badge') {
+        actions.updateCircleBadge?.(activeFloatingModule.data.id, { backgroundColor: color });
+      }
+    },
+    [activeFloatingModule, actions, config.elements, state, setState, debouncedSaveToHistory]
+  );
+
+  const handleOpacityChange = useCallback(
+    (id: string, opacity: number, type: string) => {
+      if (type === 'shape') {
+        if (actions.updateShape) {
+          actions.updateShape(id, { opacity });
+        }
+      } else if (type === 'illustration') {
+        if (actions.updateIllustration) {
+          actions.updateIllustration(id, { opacity });
+        }
+      } else if (type === 'icon') {
+        if (actions.updateIcon) {
+          actions.updateIcon(id, { opacity });
+        }
+      } else if (type === 'asset') {
+        if (actions.updateAsset) {
+          actions.updateAsset(id, { opacity });
+        }
+      } else if (type === 'text') {
+        const additionalTexts = state.additionalTexts ?? [];
+        if (additionalTexts.find((t) => t.id === id)) {
+          if (actions.updateAdditionalText) {
+            actions.updateAdditionalText(id, { opacity });
+          }
+          return;
+        }
+
+        const elementConfig = config.elements.find((e) => e.id === id);
+        if (elementConfig && elementConfig.type === 'text') {
+          const opacityStateKey = elementConfig.opacityStateKey as string | undefined;
+          if (opacityStateKey) {
+            const next = { ...state, [opacityStateKey]: opacity };
+            setState(() => next);
+            debouncedSaveToHistory(next);
+          }
+        }
+      } else if (type === 'image') {
+        const elementConfig = config.elements.find((e) => e.id === id);
+        if (elementConfig && elementConfig.type === 'image') {
+          const opacityStateKey = elementConfig.opacityStateKey as string | undefined;
+          if (opacityStateKey) {
+            const next = { ...state, [opacityStateKey]: opacity };
+            setState(() => next);
+            debouncedSaveToHistory(next);
+          }
+        }
+      } else if (type === 'background') {
+        const elementConfig = config.elements.find((e) => e.id === id);
+        if (elementConfig && elementConfig.type === 'background') {
+          const opacityStateKey = elementConfig.opacityStateKey as string | undefined;
+          if (opacityStateKey) {
+            const next = { ...state, [opacityStateKey]: opacity };
+            setState(() => next);
+            debouncedSaveToHistory(next);
+          }
+        }
+      } else if (type === 'user-image') {
+        if (actions.updateUserImage) {
+          actions.updateUserImage(id, { opacity });
+        }
+      } else if (type === 'pill-badge') {
+        actions.updatePillBadge?.(id, { opacity });
+      } else if (type === 'circle-badge') {
+        actions.updateCircleBadge?.(id, { opacity });
+      } else if (type === 'chart') {
+        actions.updateChart?.(id, { opacity });
+      } else {
+        // A host kind's module is named after it; its opacity goes through its update action.
+        const host = hostElementKind(type);
+        if (host) updateHostInstance(actions, host, id, { opacity });
+      }
+    },
+    [actions, config.elements, state, setState, debouncedSaveToHistory]
+  );
+
+  const handleShadowChange = useCallback(
+    (id: string, patch: ShadowPatch, type: string) => {
+      if (type === 'shape') {
+        actions.updateShape?.(id, patch);
+      } else if (type === 'user-image') {
+        actions.updateUserImage?.(id, patch);
+      } else if (type === 'text') {
+        const additionalTexts = state.additionalTexts ?? [];
+        if (additionalTexts.find((t) => t.id === id)) {
+          actions.updateAdditionalText?.(id, patch);
+        }
+      }
+    },
+    [actions, state]
+  );
+
+  const handleOutlineChange = useCallback(
+    (id: string, patch: { stroke?: string; strokeWidth?: number }) => {
+      const additionalTexts = state.additionalTexts ?? [];
+      if (additionalTexts.find((t) => t.id === id)) {
+        actions.updateAdditionalText?.(id, patch);
+      }
+    },
+    [actions, state]
+  );
+
+  const handleBlurChange = useCallback(
+    (id: string, blur: number) => {
+      actions.updateUserImage?.(id, { blur });
+    },
+    [actions]
+  );
+
+  const handleGradientSelect = useCallback(
+    (gradient: GradientFill | null) => {
+      if (!activeFloatingModule) return;
+      const id = activeFloatingModule.data.id;
+      if (activeFloatingModule.type === 'shape') {
+        actions.updateShape?.(id, { fillGradient: gradient });
+      } else if (activeFloatingModule.type === 'text') {
+        const additionalTexts = state.additionalTexts ?? [];
+        if (additionalTexts.find((t) => t.id === id)) {
+          actions.updateAdditionalText?.(id, { fillGradient: gradient });
+        }
+      }
+    },
+    [activeFloatingModule, actions, state]
+  );
+
+  const handleTextAlignChange = useCallback(
+    (id: string, align: TextAlign) => {
+      const additionalTexts = state.additionalTexts ?? [];
+      if (additionalTexts.find((t) => t.id === id)) {
+        actions.updateAdditionalText?.(id, { align });
+        return;
+      }
+
+      // Vorlagen-Texte haben ihre Ausrichtung in der Config; die Wahl steht je
+      // Element-ID im Zustand (`utils/textAlign.ts`). Vom Vorzustand aus: ein
+      // Klick in die Leiste beendet eine offene Textbearbeitung, und deren
+      // Text darf hier nicht überschrieben werden.
+      const elementConfig = config.elements.find((e) => e.id === id);
+      if (elementConfig && elementConfig.type === 'text') {
+        setState((prev) => ({
+          ...prev,
+          templateTextAligns: withTemplateTextAlign(prev, id, align),
+        }));
+        // The argument is ignored: the entry snapshots the committed state.
+        debouncedSaveToHistory(state);
+      }
+    },
+    [actions, config.elements, state, setState, debouncedSaveToHistory]
+  );
+
+  return {
+    handleColorSelect,
+    handleOpacityChange,
+    handleShadowChange,
+    handleOutlineChange,
+    handleBlurChange,
+    handleGradientSelect,
+    handleTextAlignChange,
+  };
+}

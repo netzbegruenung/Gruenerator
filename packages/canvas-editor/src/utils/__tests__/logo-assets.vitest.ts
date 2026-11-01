@@ -2,11 +2,11 @@ import { existsSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import { hasDarkPreview } from '@ggraphic/editor/utils/canvasAssets';
 import { describe, it, expect } from 'vitest';
 
 import { buildAssetCapability, filterAssetOptionsForLocale } from '../../ai/assetCapability';
 import { LOGO_ASSETS, sortLogoAssets } from '../../brand/grueneAssets';
-import { hasDarkPreview } from '../canvasAssets';
 
 const PUBLIC_DIR = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
@@ -24,6 +24,9 @@ describe('Logos im Elemente-Katalog', () => {
       'sunflower-green',
       'sunflower-weiss',
       'sunflower-schwarz',
+      'gj-logo-schwarz',
+      'gj-logo-hellgruen',
+      'gj-logo-weiss',
     ]);
   });
 
@@ -39,6 +42,8 @@ describe('Logos im Elemente-Katalog', () => {
       'gruene-de-logo-weiss',
       'sunflower-weiss',
       'gruene-at-logo-weiss',
+      'gj-logo-hellgruen',
+      'gj-logo-weiss',
     ]);
   });
 

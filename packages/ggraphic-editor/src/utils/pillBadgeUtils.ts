@@ -7,33 +7,14 @@
  * for labels like "Wusstest du?" in slider templates.
  */
 
+import { type BrandPack, type PillBadgeFontStyle, type PillBadgeInstance } from '@ggraphic/core';
+
 import { activeBrand } from '@ggraphic/editor/brand/brandRegistry';
+import { messages } from '@ggraphic/editor/i18n/messages';
 
-import { measureTextWidthWithFont } from './textUtils';
+import { measureTextWidthWithFont } from './textUtils.js';
 
-// ============================================================================
-// TYPE DEFINITIONS
-// ============================================================================
-
-export type PillBadgeFontStyle = 'normal' | 'italic' | 'bold' | 'bold italic';
-
-export interface PillBadgeInstance {
-  id: string;
-  text: string;
-  x: number;
-  y: number;
-  backgroundColor: string;
-  textColor: string;
-  fontSize: number;
-  fontFamily: string;
-  fontStyle: PillBadgeFontStyle;
-  rotation: number;
-  scale: number;
-  opacity: number;
-  paddingX: number;
-  paddingY: number;
-  cornerRadius: number;
-}
+export { type PillBadgeFontStyle, type PillBadgeInstance } from '@ggraphic/core';
 
 export interface PillBadgePreset {
   text: string;
@@ -53,12 +34,11 @@ export interface PillBadgePreset {
 // PRESETS
 // ============================================================================
 
-/** The presets in the active brand's colours and headline font. */
-function pillBadgePresets(): Record<string, PillBadgePreset> {
-  const { colors, fonts } = activeBrand();
+/** The presets in a brand's colours and headline font. */
+function pillBadgePresets({ colors, fonts }: BrandPack): Record<string, PillBadgePreset> {
   return {
     slider: {
-      text: 'Wusstest du?',
+      text: messages().defaults.pillBadgeText,
       backgroundColor: colors.primary,
       textColor: '#FFFFFF',
       fontSize: 70,
@@ -71,7 +51,7 @@ function pillBadgePresets(): Record<string, PillBadgePreset> {
       defaultY: 120,
     },
     'slider-inverted': {
-      text: 'Wusstest du?',
+      text: messages().defaults.pillBadgeText,
       backgroundColor: colors.surface,
       textColor: colors.primary,
       fontSize: 70,
@@ -122,12 +102,14 @@ export function calculatePillBadgeDimensions(
  *
  * @param presetId - The preset to use (e.g., 'slider', 'slider-inverted')
  * @param overrides - Optional overrides for specific properties
+ * @param brand - The pack the preset takes its colours and font from; the active brand by default
  */
 export function createPillBadgeInstance(
   presetId: string = 'slider',
-  overrides: Partial<PillBadgeInstance> = {}
+  overrides: Partial<PillBadgeInstance> = {},
+  brand: BrandPack = activeBrand()
 ): PillBadgeInstance {
-  const presets = pillBadgePresets();
+  const presets = pillBadgePresets(brand);
   const preset = presets[presetId] ?? presets.slider;
 
   return {

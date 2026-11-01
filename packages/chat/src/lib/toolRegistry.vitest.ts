@@ -1049,3 +1049,225 @@ describe('creating tools never show the note meant for the model', () => {
     });
   });
 });
+
+describe('bundestag / parlament_lesen cards', () => {
+  it('renders query, filters, totals and the document list from uiCard', () => {
+    const vm = resolveToolEntry('bundestag').parse(
+      { query: 'Heizung' },
+      {
+        resultCount: 1,
+        sources: 'x',
+        uiCard: {
+          query: 'Heizung',
+          filter: ['Wahlperiode: 21', 'Zeitraum: ab 01.01.2025'],
+          gesamt: { vorgaenge: 62, drucksachen: 10 },
+          dokumente: [
+            {
+              ref: 'BT-Drs. 21/1928',
+              typ: 'Antrag',
+              datum: '2025-10-01',
+              titel: 'Heizungsgesetz',
+              url: 'https://dserver.bundestag.de/btd/21/019/2101928.pdf',
+            },
+          ],
+        },
+      }
+    );
+    expect(vm.kind).toBe('key-value');
+    if (vm.kind !== 'key-value') return;
+    expect(vm.entries).toEqual([
+      { label: 'Suche', value: 'Heizung' },
+      { label: 'Wahlperiode', value: '21' },
+      { label: 'Zeitraum', value: 'ab 01.01.2025' },
+      { label: 'Gefunden', value: '62 Vorgänge, 10 Drucksachen' },
+    ]);
+    expect(vm.citations[0]).toMatchObject({
+      title: 'Heizungsgesetz',
+      snippet: 'BT-Drs. 21/1928 · Antrag · 01.10.2025',
+      href: 'https://dserver.bundestag.de/btd/21/019/2101928.pdf',
+    });
+  });
+
+  it('lists read documents with statement counts and unread ones with the reason', () => {
+    const vm = resolveToolEntry('parlament_lesen').parse(
+      {},
+      {
+        uiCard: {
+          frage: 'Was regelt das?',
+          gelesen: [{ ref: 'BT-Drs. 21/1', titel: 'T', aussagen: 2, url: null }],
+          nichtGelesen: [{ ref: 'BT-Drs. 21/2', titel: 'U', grund: 'kein Volltext verfügbar' }],
+        },
+      }
+    );
+    expect(vm.kind).toBe('key-value');
+    if (vm.kind !== 'key-value') return;
+    expect(vm.citations[0]?.snippet).toBe('BT-Drs. 21/1 · 2 belegte Aussagen');
+    expect(vm.citations[0]?.href).toContain('dip.bundestag.de');
+    expect(vm.entries).toContainEqual({
+      label: 'Nicht gelesen',
+      value: 'BT-Drs. 21/2 · U · (kein Volltext verfügbar)',
+    });
+  });
+
+  it('keeps legacy results without uiCard on the citation list', () => {
+    expect(resolveToolEntry('bundestag').parse({}, { results: [] }).kind).toBe('citations');
+  });
+
+  it('shows the Beratungsverlauf per Vorgang', () => {
+    const vm = resolveToolEntry('bundestag').parse(
+      {},
+      {
+        uiCard: {
+          query: 'Jagd',
+          verfahren: [
+            {
+              titel: 'Bundesjagdgesetz',
+              zeilen: [
+                '3. Beratung (Bundestag) 05.03.2026: Annahme — Plenarprotokoll 21/62 S. 7524B',
+              ],
+            },
+          ],
+          dokumente: [],
+        },
+      }
+    );
+    if (vm.kind !== 'key-value') throw new Error(vm.kind);
+    expect(vm.entries).toEqual([
+      { label: 'Suche', value: 'Jagd' },
+      { label: 'Verfahren', value: 'Bundesjagdgesetz' },
+      {
+        label: 'Verlauf',
+        value: '3. Beratung (Bundestag) 05.03.2026: Annahme — Plenarprotokoll 21/62 S. 7524B',
+      },
+    ]);
+  });
+
+  it('shows the count mode as a table and the ref mode as a family', () => {
+    const count = resolveToolEntry('bundestag').parse(
+      {},
+      {
+        uiCard: {
+          query: '',
+          modus: 'zaehlen',
+          filter: ['Wahlperiode: 21'],
+          zaehlung: {
+            einheit: 'Drucksachen',
+            gesamt: 40,
+            gruppen: [{ label: 'Fraktion der SPD', n: 10 }],
+            hinweise: ['Hinweis A'],
+          },
+          dokumente: [],
+        },
+      }
+    );
+    if (count.kind !== 'key-value') throw new Error(count.kind);
+    expect(count.entries).toEqual([
+      { label: 'Wahlperiode', value: '21' },
+      { label: 'Modus', value: 'Zählung' },
+      { label: 'Gesamt', value: '40 Drucksachen' },
+      { label: 'Fraktion der SPD', value: '10' },
+      { label: 'Hinweis', value: 'Hinweis A' },
+    ]);
+    const family = resolveToolEntry('bundestag').parse(
+      {},
+      { uiCard: { query: 'Familie von BT-Drs. 21/3546', ref: 'BT-Drs. 21/3546', dokumente: [] } }
+    );
+    if (family.kind !== 'key-value') throw new Error(family.kind);
+    expect(family.entries).toEqual([{ label: 'Familie von', value: 'BT-Drs. 21/3546' }]);
+  });
+
+  it('shows fokus on parlament_lesen and Wortlaut on bundestag_reden', () => {
+    const lesen = resolveToolEntry('parlament_lesen').parse(
+      {},
+      { uiCard: { frage: 'Was?', fokus: 'Artikel 3', gelesen: [], nichtGelesen: [] } }
+    );
+    if (lesen.kind !== 'key-value') throw new Error(lesen.kind);
+    expect(lesen.entries).toContainEqual({ label: 'Fokus', value: 'Artikel 3' });
+    const reden = resolveToolEntry('bundestag_reden').parse(
+      {},
+      { uiCard: { thema: 'Zeitenwende', wortlaut: true, filter: [], reden: [] } }
+    );
+    if (reden.kind !== 'key-value') throw new Error(reden.kind);
+    expect(reden.entries).toEqual([{ label: 'Wortlaut', value: 'Zeitenwende' }]);
+  });
+
+  it('renders landtag with parlament, filters, Trefferzahl, Hinweis, Lizenz-Quelle and PDF links', () => {
+    const vm = resolveToolEntry('landtag').parse(
+      { parlament: 'berlin' },
+      {
+        uiCard: {
+          parlament: 'Berlin',
+          query: 'Verkehrswende',
+          filter: ['Art: Antrag', 'Fraktion: Grüne'],
+          gesamt: 12,
+          hinweise: ['Zu wenige Titeltreffer; zusätzlich im Volltext gesucht.'],
+          quelle: 'Quelle: Abgeordnetenhaus Berlin, PARDOK, DL-DE BY 2.0',
+          portal: 'https://pardok.parlament-berlin.de/portala/',
+          dokumente: [
+            {
+              ref: 'BE 19/2601',
+              typ: 'Antrag',
+              datum: '2025-07-08',
+              titel: 'Kiezblocks retten',
+              url: 'https://pardok.parlament-berlin.de/starweb/adis/citat/VT/19/DruckSachen/d19-2601.pdf',
+            },
+            {
+              ref: 'BE 19/S1',
+              typ: 'Schriftliche Anfrage',
+              datum: '',
+              titel: 'Ohne PDF',
+              url: null,
+            },
+          ],
+        },
+      }
+    );
+    if (vm.kind !== 'key-value') throw new Error(vm.kind);
+    expect(vm.entries).toEqual([
+      { label: 'Parlament', value: 'Berlin' },
+      { label: 'Suche', value: 'Verkehrswende' },
+      { label: 'Art', value: 'Antrag' },
+      { label: 'Fraktion', value: 'Grüne' },
+      { label: 'Gefunden', value: '12 Treffer' },
+      { label: 'Hinweis', value: 'Zu wenige Titeltreffer; zusätzlich im Volltext gesucht.' },
+      { label: 'Quelle', value: 'Abgeordnetenhaus Berlin, PARDOK, DL-DE BY 2.0' },
+    ]);
+    expect(vm.citations?.map((c) => c.href)).toEqual([
+      'https://pardok.parlament-berlin.de/starweb/adis/citat/VT/19/DruckSachen/d19-2601.pdf',
+      'https://pardok.parlament-berlin.de/portala/',
+    ]);
+    expect(vm.citations?.[0]?.snippet).toBe('BE 19/2601 · Antrag · 08.07.2025');
+  });
+
+  it('renders bundestag_reden with topic, filters and one citation per speech', () => {
+    const vm = resolveToolEntry('bundestag_reden').parse(
+      { thema: 'Wärmeplanung' },
+      {
+        uiCard: {
+          thema: 'Wärmeplanung',
+          filter: ['Redner*in: Katrin Uhlig'],
+          reden: [
+            {
+              redner: 'Katrin Uhlig',
+              partei: 'GRÜNE',
+              datum: '2025-05-23',
+              protokoll: '21/8',
+              top: null,
+              url: 'https://dserver.bundestag.de/btp/21/21008.pdf',
+            },
+          ],
+        },
+      }
+    );
+    if (vm.kind !== 'key-value') throw new Error(vm.kind);
+    expect(vm.entries).toEqual([
+      { label: 'Thema', value: 'Wärmeplanung' },
+      { label: 'Redner*in', value: 'Katrin Uhlig' },
+    ]);
+    expect(vm.citations[0]).toMatchObject({
+      title: 'Katrin Uhlig (GRÜNE)',
+      snippet: 'Plenarprotokoll 21/8 · 23.05.2025',
+      href: 'https://dserver.bundestag.de/btp/21/21008.pdf',
+    });
+  });
+});

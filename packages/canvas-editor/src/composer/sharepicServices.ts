@@ -10,7 +10,7 @@ import { refreshCarouselChromeInDoc } from './carouselChrome';
 import { blockGround, liftBlock } from './liftBlock';
 
 import type { CanvasBlockService } from '../grueneratorHostServices';
-import type { CanvasCarouselService } from '../hostServices';
+import type { CanvasCarouselService } from '@ggraphic/editor/hostServices';
 
 export const grueneratorBlocks: CanvasBlockService = {
   ground: blockGround,
@@ -19,4 +19,10 @@ export const grueneratorBlocks: CanvasBlockService = {
 
 export const grueneratorCarousel: CanvasCarouselService = {
   refreshChrome: refreshCarouselChromeInDoc,
+  pptxFontHint: {
+    'de-DE':
+      'Damit die Folien wie im Grünerator aussehen, installiere die Schriften GrueneType Neue und PT Sans – sonst ersetzt PowerPoint sie.',
+    'de-AT':
+      'Damit die Folien wie im Grünerator aussehen, installiere die Schriften Gotham Narrow Book, Bold und Ultra – sonst ersetzt PowerPoint sie.',
+  },
 };

@@ -5,7 +5,7 @@ import { yUndoPluginKey } from 'y-prosemirror';
 import * as Y from 'yjs';
 import { afterEach, describe, expect, it } from 'vitest';
 
-import { guardDocUndoAcrossAIFork, type UndoGuardEditor } from '../lib/undoAcrossAIFork';
+import { guardDocUndoAcrossAIFork } from '../lib/undoAcrossAIFork';
 import { getDocUndoFlags, subscribeDocUndoFlags, type UndoableEditor } from './useDocUndoState';
 
 /** Same headless awareness stand-in as undoAcrossAIFork.vitest.ts. */
@@ -37,7 +37,7 @@ function createCollabEditor() {
     })
   );
   editor.mount(document.createElement('div'));
-  const stopGuard = guardDocUndoAcrossAIFork(editor as unknown as UndoGuardEditor, {
+  const stopGuard = guardDocUndoAcrossAIFork(editor as unknown as UndoableEditor, {
     isCollaborative: true,
     fragment,
   });

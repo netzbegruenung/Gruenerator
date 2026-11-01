@@ -10,8 +10,9 @@
  * Schlüssel braucht.
  */
 
-export const TEXT_ALIGNS = ['left', 'center', 'right'] as const;
-export type TextAlign = (typeof TEXT_ALIGNS)[number];
+import { TEXT_ALIGNS, type TextAlign } from '@ggraphic/core';
+
+export { TEXT_ALIGNS, type TextAlign } from '@ggraphic/core';
 
 export function isTextAlign(value: unknown): value is TextAlign {
   return TEXT_ALIGNS.includes(value as TextAlign);

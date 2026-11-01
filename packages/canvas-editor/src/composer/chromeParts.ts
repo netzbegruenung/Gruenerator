@@ -13,9 +13,6 @@ import {
 import { layoutRichTextBlock, type MeasureRun } from '@ggraphic/schema';
 import { type SharepicColor, type SharepicCreatorLocale } from '@gruenerator/contracts';
 
-import { getBrandTheme } from '../brand/theme';
-import { COLORS } from '../utils/dreizeilenLayout';
-
 export type MeasureText = (
   text: string,
   fontSize: number,
@@ -26,30 +23,7 @@ export type MeasureText = (
 export const defaultMeasure: MeasureText = (text, fontSize, fontFamily, fontStyle) =>
   measureTextWidthWithFont(text, fontSize, fontFamily, fontStyle);
 
-export const SHAREPIC_COLOR_HEX: Record<SharepicColor, string> = {
-  tanne: COLORS.TANNE,
-  dunkeltanne: '#00261A',
-  grasgruen: '#00CC4F',
-  mint: '#D5EEE6',
-  hellgrau: '#F2F2F2',
-  // Measured on the candidates' text slides (Banaszak, 10/2026).
-  creme: '#F5F1E8',
-  aubergine: '#46102C',
-  dunkelgruen: getBrandTheme('de-AT').colors.primary,
-  hellgruen: getBrandTheme('de-AT').colors.secondary,
-  weiss: '#FFFFFF',
-  // Themed grounds. Lila is the purple the federal party already sets
-  // (die_gruenen, "Frauen im Bundestag", 10/2026).
-  lila: '#744A9E',
-  flieder: '#E4D7F2',
-  violett: '#732982',
-  // A gradient (`GRADIENTS` in composeSharepic); this is its flat middle.
-  pride: '#8A1D86',
-  // The EU flag's Reflex Blue (Commission Regulation 821/2014, annex II) and
-  // a pale sky that carries it as ink.
-  europablau: '#003399',
-  himmelblau: '#DCE6F7',
-};
+export { SHAREPIC_COLOR_HEX } from '@gruenerator/contracts/brand';
 
 /** The inks a theme brings besides its grounds. */
 export const THEMA_INK = {
@@ -119,6 +93,14 @@ const LIGHT: readonly SharepicColor[] = [
   'weiss',
   'flieder',
   'himmelblau',
+  // GJ: the primaries carry black (white stays under 3:1 on them).
+  'limette',
+  'wiese',
+  'apricot',
+  'lavendel',
+  'pink',
+  'maigruen',
+  'gelb',
 ];
 
 /**

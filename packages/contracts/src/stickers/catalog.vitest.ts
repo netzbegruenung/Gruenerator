@@ -4,6 +4,7 @@ import {
   assetStickerId,
   isAssetStickerId,
   isShareSrc,
+  stickersForCollection,
   stickersForLocale,
   SYSTEM_STICKERS,
   systemStickerById,
@@ -49,6 +50,19 @@ describe('sticker catalog', () => {
       'europa-sterne',
       'vielfalt',
     ]);
+  });
+
+  it('offers the Grüne Jugend stickers only through each country’s collection', () => {
+    const de = stickersForCollection('gruene-jugend');
+    const at = stickersForCollection('gruene-jugend-oesterreich');
+    expect(de.length).toBeGreaterThan(0);
+    expect(at.length).toBeGreaterThan(0);
+    expect(de.every((s) => s.audience === 'de-DE')).toBe(true);
+    expect(at.every((s) => s.audience === 'de-AT')).toBe(true);
+    const offered = [...stickersForLocale('de-DE'), ...stickersForLocale('de-AT')];
+    expect(offered.some((s) => 'kollektion' in s)).toBe(false);
+    // A saved Profilbild still finds them.
+    expect(systemStickerById('gj-zackenstern')?.label).toContain('Zackenstern');
   });
 
   it('looks stickers up by id', () => {

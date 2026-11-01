@@ -27,6 +27,8 @@ export const sharepicBackgroundSchema = z.discriminatedUnion('kind', [
     filename: sharepicPhotoFilenameSchema,
     /** Where the text sits on the photo; that side gets a darkening gradient. */
     textSeite: sharepicTextSideSchema,
+    /** The whole photo washed in one brand colour, a duotone (GJ DE closing slides). */
+    toenung: sharepicColorSchema.optional(),
   }),
   z.object({
     kind: z.literal('foto-oben'),

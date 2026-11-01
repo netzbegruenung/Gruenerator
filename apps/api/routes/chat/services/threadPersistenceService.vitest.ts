@@ -47,6 +47,18 @@ describe('createMessage', () => {
     expect(sql()).toContain('RETURNING id');
     expect(params()).toEqual(['thread-1', 'user', 'Hallo', null, 'user-1']);
   });
+
+  it('writes metadata with a lone surrogate as valid jsonb (#5017)', async () => {
+    queryMock.mockResolvedValueOnce([{ id: 'm' }]);
+    await createMessage('thread-1', 'assistant', 'x', { snippet: '🇩🇪'.slice(0, 3) });
+    expect(JSON.parse(params()?.[3] as string)).toEqual({ snippet: '🇩�' });
+  });
+
+  it('drops NUL from content — a text column rejects it with 22021 (#5175)', async () => {
+    queryMock.mockResolvedValueOnce([{ id: 'm' }]);
+    await createMessage('thread-1', 'user', 'a\u0000b', undefined, 'user-1');
+    expect(params()?.[2]).toBe('ab');
+  });
 });
 
 describe('createPendingAssistantMessage', () => {
@@ -80,6 +92,11 @@ describe('updatePendingAssistantText', () => {
     expect(q).toContain("status = 'streaming'");
     expect(params()).toEqual(['msg-1', 'partial text']);
   });
+
+  it('drops NUL from the partial text (#5175)', async () => {
+    await updatePendingAssistantText('msg-1', 'par\u0000tial');
+    expect(params()).toEqual(['msg-1', 'partial']);
+  });
 });
 
 describe('finalizeAssistantMessage', () => {
@@ -91,11 +108,35 @@ describe('finalizeAssistantMessage', () => {
     const q = sql();
     expect(q).toContain('UPDATE chat_messages');
     expect(q).toContain('content = $2');
-    expect(q).toContain('tool_results = $3');
+    expect(q).toContain('tool_results = CASE');
     expect(q).toContain("status = 'complete'");
     expect(q).toContain('WHERE id = $1');
     expect(q).toContain('RETURNING id');
     expect(params()).toEqual(['msg-1', 'final', JSON.stringify({ intent: 'direct' })]);
+  });
+
+  it('stamps the turn duration from created_at into object metadata only', async () => {
+    queryMock.mockResolvedValueOnce([{ id: 'msg-1' }]);
+    await finalizeAssistantMessage('msg-1', 'final', { intent: 'direct' });
+    const q = sql();
+    expect(q).toContain("WHEN jsonb_typeof($3::jsonb) <> 'object' THEN $3::jsonb");
+    expect(q).toContain(
+      "ELSE $3::jsonb || jsonb_build_object( 'turnDurationMs', ROUND(EXTRACT(EPOCH FROM (now() - created_at)) * 1000)::bigint )"
+    );
+  });
+
+  it('drops the duration on a second finalize — a resumed turn spans the pause', async () => {
+    queryMock.mockResolvedValueOnce([{ id: 'msg-1' }]);
+    await finalizeAssistantMessage('msg-1', 'final', { intent: 'agentic' });
+    expect(sql()).toContain(
+      "WHEN jsonb_typeof(tool_results) = 'object' AND tool_results ? 'turnDurationMs' THEN $3::jsonb - 'turnDurationMs'"
+    );
+  });
+
+  it('drops NUL from the final content (#5175)', async () => {
+    queryMock.mockResolvedValueOnce([{ id: 'msg-1' }]);
+    await finalizeAssistantMessage('msg-1', 'fi\u0000nal');
+    expect(params()?.[1]).toBe('final');
   });
 
   it('returns false when no row matched (row was deleted)', async () => {
@@ -110,6 +151,23 @@ describe('finalizeAssistantMessage', () => {
     queryMock.mockResolvedValueOnce([{ id: 'm' }]);
     await finalizeAssistantMessage('m', null, { generatedImage: true });
     expect(params()?.[1]).toBeNull();
+  });
+
+  // #5017: a snippet cut by UTF-16 index through 🇩🇪 leaves a lone surrogate;
+  // JSON.stringify emits it as `\ud83c`, and Postgres rejects the whole row with
+  // 22P02 — the answer was lost. `\u0000` is the other escape jsonb refuses (22P05).
+  it('writes tool output with a split surrogate pair or NUL as valid jsonb', async () => {
+    queryMock.mockResolvedValueOnce([{ id: 'm' }]);
+    const cut = '🇩🇪 Server in Deutschland'.slice(0, 1);
+    await finalizeAssistantMessage('m', 'final', {
+      searchResults: [{ snippet: `${cut} Frankfurt`, content: 'a\u0000b', title: '🇩🇪 ok' }],
+    });
+    const json = params()?.[2] as string;
+    expect(json).not.toMatch(/\\ud[89a-f][0-9a-f]{2}/i);
+    expect(json).not.toContain('\\u0000');
+    expect(JSON.parse(json)).toEqual({
+      searchResults: [{ snippet: '� Frankfurt', content: 'ab', title: '🇩🇪 ok' }],
+    });
   });
 });
 

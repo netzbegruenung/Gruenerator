@@ -20,7 +20,7 @@ import {
   type ImageTwoTextState,
 } from './factory';
 
-import type { ImageElementConfig, LayoutResult } from './types';
+import type { ImageElementConfig, LayoutResult } from '@ggraphic/editor/configs/types';
 
 type ZitatState = ImageTwoTextState<'quote' | 'name'>;
 

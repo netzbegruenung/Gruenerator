@@ -4,7 +4,7 @@
  * fields are what share records have always carried; templates without a
  * description store their whole state.
  */
-import type { ShareDescription } from '../configs/types';
+import type { ShareDescription } from '@ggraphic/editor/configs/types';
 
 /** Dreizeilen: three lines, bars and sunflower. */
 export function dreizeilenShareMetadata(state: object): ShareDescription {

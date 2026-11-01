@@ -27,6 +27,7 @@ import {
   executeDirectWebSearch,
 } from './directSearch.js';
 import { lvEbeneForMentions, narrowLvScopeToEbene, resolveExamplesLvScope } from './lvScope.js';
+import { type FehlerArt, leeresErgebnis, werkzeugFehler } from './toolFailure.js';
 
 import type { DirectSearchResult } from './directSearch.js';
 import type { AgentConfig } from './types.js';
@@ -368,7 +369,36 @@ async function searchCollectionOrBundle(params: {
     ...(parts.some((p) => p.rerankDegraded) ? { rerankDegraded: true } : {}),
     // A bundle fails only when EVERY member failed; one dead corpus next to a
     // live one is a partial result, not an error.
-    ...(parts.every((p) => p.error) ? { error: true } : {}),
+    ...(parts.every((p) => p.error)
+      ? {
+          error: true,
+          // Der Text eines Mitglieds, sonst sähe das Modell ein nacktes `true`.
+          message:
+            parts.find((p) => p.message)?.message ??
+            'Alle Sammlungen des Bündels haben die Suche abgelehnt.',
+        }
+      : {}),
+  };
+}
+
+/**
+ * Der Executor meldet einen Ausfall als `error: true` + `message` (so liest ihn
+ * `searchNode`). Dem Modell reicht das nicht: ein Boolean sagt weder Ursache
+ * noch, was zu tun ist. Hier, an der Werkzeug-Grenze, wird daraus die einheitliche
+ * Fehlerform; die Executor-Form selbst bleibt unangetastet.
+ */
+function ausfallFuersModell<T extends { error?: boolean; message?: string }>(
+  result: T,
+  naechsterSchritt: string
+): Omit<T, 'error'> & { error?: string; fehlerArt?: FehlerArt } {
+  if (result.error !== true) return result as Omit<T, 'error'>;
+  return {
+    ...result,
+    ...werkzeugFehler({
+      art: 'anbieter_ausfall',
+      ursache: result.message ?? 'Die Suche ist ausgefallen',
+      naechsterSchritt,
+    }),
   };
 }
 
@@ -468,6 +498,15 @@ export function createSearchTools(
     ? agentConfig.defaultFilter.content_type
     : undefined;
 
+  // Die Parlamentsdaten liegen auch als Sammlungen im Korpus (`bundestag-dip`,
+  // `abgeordnetenwatch`), haben aber eigene Werkzeuge mit Filtern und Fundstellen.
+  // Bis die Sammlungen aus dem Enum fallen, zieht die Beschreibung die Grenze —
+  // je Land mit den Werkzeugen, die dort montiert sind.
+  const parlamentGrenze =
+    options.userLocale === 'de-AT'
+      ? 'Gegenstände und Debatten des Nationalrats (dafür nationalrat)'
+      : 'Drucksachen, Plenarreden und Abstimmungsverhalten im Bundestag (dafür bundestag, bundestag_reden, abgeordnetenwatch)';
+
   const tools: ToolSet = {};
 
   tools.gruenerator_search = tool({
@@ -481,9 +520,9 @@ NUTZE WENN:
 - Inhalte eines bestimmten Landesverbands gebraucht werden (eigene Sammlung je LV)
 - Es um Kommunalpolitik geht — Gemeinderat, Stadtrat, Kreistag, kommunaler Haushalt, Gemeindeordnung: dafür ist \`kommunalwiki\` die einschlägige Sammlung
 
-Geht es um einen konkreten Landesverband, durchsuche dessen Sammlung UND die bundesweite Programmatik (\`deutschland\`).
+Geht es um einen konkreten Landesverband, durchsuche dessen Sammlung UND die bundesweite Programmatik (\`deutschland\`) — erst danach, wenn beide nichts haben, web_search.
 
-NICHT FÜR: Aktuelle Nachrichten, Personen-Infos, allgemeine Web-Suche`,
+NICHT FÜR: Aktuelle Nachrichten, Personen-Infos, allgemeine Web-Suche (dafür web_search); ${parlamentGrenze}`,
     inputSchema: z.object({
       query: z.string().describe('Suchanfrage in deutscher Sprache'),
       collection: z
@@ -510,7 +549,12 @@ NICHT FÜR: Aktuelle Nachrichten, Personen-Infos, allgemeine Web-Suche`,
         if (!allowedCollections.includes(collection)) {
           log.warn(`[Tools] Collection "${collection}" not allowed for ${agentConfig.identifier}`);
           return {
-            error: 'Sammlung nicht verfügbar',
+            ...werkzeugFehler({
+              art: 'nicht_verfuegbar',
+              ursache: `Die Sammlung „${collection}“ steht hier nicht zur Verfügung`,
+              befund: `Verfügbar sind: ${allowedCollections.join(', ')}`,
+              naechsterSchritt: 'Wähle eine davon',
+            }),
             results: [],
             collection,
             query,
@@ -519,16 +563,43 @@ NICHT FÜR: Aktuelle Nachrichten, Personen-Infos, allgemeine Web-Suche`,
         // Der Pin des Agenten schlägt die Wahl des Modells: ein Beschluss-Agent
         // bleibt bei Beschlüssen, auch wenn das Modell `presse` verlangt.
         const lvContentType = pinnedContentType ?? (content_type ? [content_type] : undefined);
-        return await searchCollectionOrBundle({
+        const found = await searchCollectionOrBundle({
           query,
           collection,
           limit,
           ...(options.rerankSearchChunks === true && { rerankChunks: true }),
           ...(lvContentType && { lvContentType }),
         });
+        if (found.error === true) {
+          return ausfallFuersModell(
+            found,
+            'Das heißt nicht, dass es dazu keine Inhalte gibt; versuche es höchstens einmal erneut und sag sonst offen, dass die Suche nicht lief'
+          );
+        }
+        if (found.resultsCount === 0) {
+          // Echtes Leer: sagen, welche Eingrenzungen gegriffen haben, damit das
+          // Modell weiß, was es lockern kann.
+          const leer = leeresErgebnis({
+            filter: `Sammlung ${collection}${lvContentType ? `, Inhaltstyp ${lvContentType.join('/')}` : ''}`,
+            hinweis: 'Formuliere die Anfrage mit anderen Begriffen oder prüfe eine andere Sammlung',
+          });
+          return { ...found, message: leer.hinweis };
+        }
+        return found;
       } catch (error) {
         log.error('Direct search error:', error);
-        return { error: 'Suche fehlgeschlagen', results: [], collection, query };
+        return {
+          ...werkzeugFehler({
+            art: 'anbieter_ausfall',
+            ursache: 'Die Suche ist abgebrochen',
+            befund: error instanceof Error ? error.message : null,
+            naechsterSchritt:
+              'Das heißt nicht, dass es keine Treffer gibt; versuche es höchstens einmal erneut',
+          }),
+          results: [],
+          collection,
+          query,
+        };
       }
     },
   });
@@ -541,7 +612,7 @@ NUTZE WENN:
 - Vorlagen für Instagram oder Facebook benötigt
 - Inspiration für grüne Social-Media-Kommunikation
 
-NICHT FÜR: Allgemeine Informationssuche, Fakten, Nachrichten`,
+NICHT FÜR: Allgemeine Informationssuche, Fakten, Nachrichten; Pressemitteilungen (nutze gruenerator_pressemitteilung_examples)`,
     inputSchema: z.object({
       query: z.string().describe('Thema oder Stichwort'),
       platform: z.enum(['instagram', 'facebook']).optional().describe('Plattform filtern'),
@@ -608,7 +679,7 @@ WÄHLE DIE STUFE NACH AUFWAND, NICHT NACH WORTLAUT:
 - gruendlich: DER NORMALFALL, lass tiefe einfach weg. 10 Quellen.
 - tiefenrecherche: 20 Quellen, die Top-Treffer werden im Volltext gelesen. Dauert 15–30 Sekunden. Nimm sie, wenn der Benutzer ausdrücklich gründlich recherchiert haben will ODER wenn die Frage sie sachlich braucht (viele Teilaspekte, strittige Faktenlage, eine gründliche Suche kam eben dünn zurück). Du hast dafür EINEN Aufruf pro Antwort, den der Benutzer nicht verlangt haben muss — gib ihn der Frage, die ihn am nötigsten hat, nicht der ersten.
 
-EINE SUCHE ZUR ZEIT: Starte eine Suche, lies das Ergebnis, und suche erst dann weiter, wenn wirklich etwas fehlt. Höchstens zwei Suchen gleichzeitig. War ein Ergebnis schwach, formuliere die Anfrage EINMAL anders (notfalls englisch) — schicke keine Varianten auf Vorrat los.
+NACHEINANDER SUCHEN: Starte eine Suche, lies das Ergebnis, und suche erst dann weiter, wenn wirklich etwas fehlt. Höchstens zwei Suchen gleichzeitig. War ein Ergebnis schwach, formuliere die Anfrage EINMAL anders (notfalls englisch) — schicke keine Varianten auf Vorrat los.
 
 SCOPE GEHÖRT IN DIE PARAMETER, NICHT IN DIE ANFRAGE: Nennt der Benutzer Seiten ("such auf zeit.de und orf.at"), setze seiten; nennt er einen Zeitraum ("seit Januar", "letzte Woche"), setze zeitraum. Schreibe beides NICHT in query — dort werden es bloß Suchwörter, und die Suchmaschine filtert nichts.
 
@@ -712,7 +783,7 @@ NICHT FÜR: Grüne Parteiprogramme (nutze gruenerator_search)`,
           );
         }
         const excludeDomains = normalizeDomainList(seitenAusschliessen);
-        return await executeDirectWebSearch({
+        const web = await executeDirectWebSearch({
           query,
           searchType,
           tier,
@@ -725,9 +796,54 @@ NICHT FÜR: Grüne Parteiprogramme (nutze gruenerator_search)`,
           ...(options.wantsImages === true ? { includeImages: true } : {}),
           ...(options.userLocale === 'de-AT' ? { locale: 'de-AT' as const } : {}),
         });
+        // Was wirklich gegriffen hat, steht im Ergebnis: eine verworfene
+        // Seitenvorgabe ließ das Modell sonst glauben, die Suche sei eingegrenzt gelaufen.
+        const angewandt = [
+          zeitraum && zeitraum !== 'anytime' ? `Zeitraum ${zeitraum}` : null,
+          includeDomains.length > 0 ? `nur auf ${includeDomains.join(', ')}` : null,
+          excludeDomains.length > 0 ? `ohne ${excludeDomains.join(', ')}` : null,
+        ].filter(Boolean);
+        const verworfen =
+          invented.length > 0
+            ? `Die Seitenvorgabe ${invented.join(', ')} wurde nicht angewandt, weil die Person sie nicht genannt hat; die Suche lief über das ganze Web.`
+            : null;
+        if (web.error === true) {
+          return {
+            ...ausfallFuersModell(
+              web,
+              'Das heißt nicht, dass es keine Treffer gibt; versuche es höchstens einmal erneut'
+            ),
+            ...(verworfen ? { hinweis: verworfen } : {}),
+          };
+        }
+        if (web.resultsCount === 0) {
+          const leer = leeresErgebnis({
+            filter: angewandt.length > 0 ? angewandt.join(', ') : null,
+            hinweis:
+              angewandt.length > 0
+                ? 'Lockere zuerst Zeitraum oder Seitenvorgabe, bevor du die Anfrage umformulierst'
+                : 'Formuliere die Anfrage mit anderen Begriffen',
+          });
+          return {
+            ...web,
+            message: [leer.hinweis, verworfen].filter(Boolean).join(' '),
+          };
+        }
+        return verworfen ? { ...web, hinweis: verworfen } : web;
       } catch (error) {
         log.error('Direct web search error:', error);
-        return { error: 'Websuche fehlgeschlagen', results: [], resultsCount: 0, query };
+        return {
+          ...werkzeugFehler({
+            art: 'anbieter_ausfall',
+            ursache: 'Die Websuche ist abgebrochen',
+            befund: error instanceof Error ? error.message : null,
+            naechsterSchritt:
+              'Das heißt nicht, dass es keine Treffer gibt; versuche es höchstens einmal erneut',
+          }),
+          results: [],
+          resultsCount: 0,
+          query,
+        };
       }
     },
   });

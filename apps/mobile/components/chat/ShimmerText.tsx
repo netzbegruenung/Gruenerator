@@ -1,7 +1,7 @@
-import MaskedView from '@react-native-masked-view/masked-view';
+import RNMaskedView from '@react-native-masked-view/masked-view';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useEffect, useState } from 'react';
-import { StyleSheet, Text, View, type TextStyle } from 'react-native';
+import { type ComponentType, type ReactElement, useEffect, useState } from 'react';
+import { StyleSheet, Text, View, type TextStyle, type ViewProps } from 'react-native';
 import Animated, {
   Easing,
   useAnimatedStyle,
@@ -11,6 +11,13 @@ import Animated, {
 } from 'react-native-reanimated';
 
 import { BODY_FONT } from '../../theme';
+
+// masked-view 0.3.2 (latest) types its class against `ReactNative.NativeMethods`,
+// which React Native 0.87 removed, so the class is no JSX component any more.
+// Re-typed with its documented props; we never take a ref to it.
+const MaskedView = RNMaskedView as unknown as ComponentType<
+  ViewProps & { maskElement: ReactElement }
+>;
 
 // Native analog of web's `.shimmer-text` (packages/chat ShimmerText). Web uses a
 // `background-clip: text` gradient that animates `background-position`; React

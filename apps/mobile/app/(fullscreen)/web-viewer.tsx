@@ -27,10 +27,11 @@ import {
   Platform,
   useWindowDimensions,
 } from 'react-native';
-import { WebView, type WebViewMessageEvent } from 'react-native-webview';
+import { type WebViewMessageEvent } from 'react-native-webview';
 
 import { MenuActionSheet } from '../../components/chat/MenuActionSheet';
 import { RenameSheet } from '../../components/common/RenameSheet';
+import { WebView } from '../../components/common/WebView';
 import { WebViewSkeleton } from '../../components/webview/WebViewSkeleton';
 import { WEB_ORIGIN } from '../../services/webOrigin';
 import { createCloseRequest } from '../../services/webview/closeRequest';

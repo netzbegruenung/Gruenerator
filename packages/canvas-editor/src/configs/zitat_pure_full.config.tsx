@@ -20,8 +20,8 @@ import {
   type ColorTwoTextState,
 } from './factory';
 
-import type { ImageElementConfig, LayoutResult } from './types';
-import type { BackgroundColorOption } from '../sidebar/types';
+import type { BackgroundColorOption } from '@ggraphic/editor/sidebar/types';
+import type { ImageElementConfig, LayoutResult } from '@ggraphic/editor/configs/types';
 
 const BACKGROUND_COLORS: BackgroundColorOption[] = [
   { id: 'green', label: 'Grün', color: '#6CCD87' },

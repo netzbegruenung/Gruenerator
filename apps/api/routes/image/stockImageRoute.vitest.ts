@@ -23,6 +23,17 @@ vi.mock('../../config/env.js', () => ({ env: { THUMBNAIL_CACHE_DIR: cacheDir } }
 vi.mock('../../services/image/ImageSelectionService.js', () => ({ default: {} }));
 vi.mock('../../services/image/index.js', () => ({ enhanceWithAttribution: vi.fn() }));
 
+const LIVE = 'jane-doe-Abc_def-123-unsplash.jpg';
+vi.mock('../../services/sharepicCreator/catalog.js', () => ({
+  liveStockPhoto: async (filename: string) =>
+    filename === LIVE
+      ? {
+          url: 'https://images.unsplash.com/photo-1?fm=jpg&q=80&w=1080',
+          thumb_url: 'https://images.unsplash.com/photo-1?w=400',
+        }
+      : null,
+}));
+
 const { default: pickerRouter } = await import('./pickerController.js');
 
 const STOCK_DIR = path.join(
@@ -91,6 +102,17 @@ describe('GET /stock-image/:filename', () => {
   it('answers 404 for an unknown file, sized or not', async () => {
     expect((await fetch(`${baseUrl}/stock-image/nope.jpg?w=2160`)).status).toBe(404);
     expect((await fetch(`${baseUrl}/stock-image/nope.jpg`)).status).toBe(404);
+  });
+
+  // API Terms: a photo found live is hotlinked, never re-hosted.
+  it.each([
+    ['', 'https://images.unsplash.com/photo-1?fm=jpg&q=80&w=1080'],
+    ['?w=2160&fmt=webp', 'https://images.unsplash.com/photo-1?fm=jpg&q=80&w=2160'],
+    ['?size=thumb', 'https://images.unsplash.com/photo-1?w=400'],
+  ])('redirects a live Unsplash photo%s to its image host', async (query, target) => {
+    const res = await fetch(`${baseUrl}/stock-image/${LIVE}${query}`, { redirect: 'manual' });
+    expect(res.status).toBe(302);
+    expect(res.headers.get('location')).toBe(target);
   });
 
   it('cannot be walked out of the stock directory', async () => {

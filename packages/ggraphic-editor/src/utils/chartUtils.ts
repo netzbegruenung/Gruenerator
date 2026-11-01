@@ -9,6 +9,7 @@
  */
 
 import { activeBrand } from '@ggraphic/editor/brand/brandRegistry';
+import { messages } from '@ggraphic/editor/i18n/messages';
 import { contrastRatio, luminance } from '@ggraphic/editor/utils/colorLuminance';
 
 import type {
@@ -37,9 +38,15 @@ export interface ChartTypeDef {
 }
 
 export const CHART_GROUP_LABELS: Record<ChartGroup, string> = {
-  balken: 'Balkendiagramme',
-  linien: 'Liniendiagramme',
-  kreis: 'Kreis- und Ringdiagramme',
+  get balken() {
+    return messages().charts.groupBars;
+  },
+  get linien() {
+    return messages().charts.groupLines;
+  },
+  get kreis() {
+    return messages().charts.groupRound;
+  },
 };
 
 export const CHART_GROUP_ORDER: readonly ChartGroup[] = ['balken', 'linien', 'kreis'];
@@ -47,37 +54,49 @@ export const CHART_GROUP_ORDER: readonly ChartGroup[] = ['balken', 'linien', 'kr
 export const CHART_TYPE_DEFS: readonly ChartTypeDef[] = [
   {
     id: 'bar',
-    name: 'Säulen',
+    get name() {
+      return messages().charts['bar'];
+    },
     tags: ['diagramm', 'chart', 'säulen', 'saeulen', 'bar', 'balken', 'statistik'],
     group: 'balken',
   },
   {
     id: 'bar-horizontal',
-    name: 'Balken',
+    get name() {
+      return messages().charts['bar-horizontal'];
+    },
     tags: ['diagramm', 'chart', 'balken', 'bar', 'horizontal', 'statistik'],
     group: 'balken',
   },
   {
     id: 'line',
-    name: 'Linie',
+    get name() {
+      return messages().charts['line'];
+    },
     tags: ['diagramm', 'chart', 'linie', 'line', 'graph', 'verlauf', 'trend'],
     group: 'linien',
   },
   {
     id: 'area',
-    name: 'Fläche',
+    get name() {
+      return messages().charts['area'];
+    },
     tags: ['diagramm', 'chart', 'fläche', 'flaeche', 'area', 'verlauf', 'trend'],
     group: 'linien',
   },
   {
     id: 'pie',
-    name: 'Torte',
+    get name() {
+      return messages().charts['pie'];
+    },
     tags: ['diagramm', 'chart', 'torte', 'kreis', 'pie', 'kuchen', 'anteil'],
     group: 'kreis',
   },
   {
     id: 'donut',
-    name: 'Donut',
+    get name() {
+      return messages().charts['donut'];
+    },
     tags: ['diagramm', 'chart', 'donut', 'ring', 'kreis', 'anteil'],
     group: 'kreis',
   },
@@ -101,7 +120,7 @@ export function chartLegendPosition(
 function seriesOf(chart: Pick<ChartInstance, 'data' | 'series'>): ChartSeries[] {
   return chart.series && chart.series.length > 1
     ? chart.series
-    : [{ name: 'Reihe 1', values: chart.data.map((d) => d.value) }];
+    : [{ name: messages().defaults.series(1), values: chart.data.map((d) => d.value) }];
 }
 
 /** Stores the series and keeps `data[i].value` on the first one; one series is stored as none. */
@@ -156,7 +175,10 @@ export function addChartSeries(
   const series = seriesOf(chart);
   return withSeries(
     chart.data.map((d) => d.name),
-    [...series, { name: `Reihe ${series.length + 1}`, values: chart.data.map(() => 0) }]
+    [
+      ...series,
+      { name: messages().defaults.series(series.length + 1), values: chart.data.map(() => 0) },
+    ]
   );
 }
 

@@ -20,7 +20,7 @@ import { describe, it, expect } from 'vitest';
  * bewacht dieser Test die Quelle.
  */
 const HIER = path.dirname(fileURLToPath(import.meta.url));
-const CSS = path.resolve(HIER, '../canvas-editor.css');
+const CSS = path.resolve(HIER, '../../../ggraphic-editor/src/styles/editor.css');
 
 /** Alle Regelblöcke, deren Selektor eine Liste im Editor-Inhalt trifft. */
 function listenRegeln(css: string): string[] {

@@ -20,6 +20,11 @@ export const SHAREPIC_ELEMENT_KINDS = [
   'icon',
 ] as const;
 
+/** A text's brand font role, as the page stores it (`bind` of an additional text). */
+const sharepicFontBindSchema = z.object({
+  fontFamily: z.object({ ref: z.string(), value: z.string() }).optional(),
+});
+
 /** What the composer wrote for one element; compared against the page to find hand edits. */
 export const sharepicFingerprintSchema = z.object({
   kind: z.enum(SHAREPIC_ELEMENT_KINDS),
@@ -35,6 +40,9 @@ export const sharepicFingerprintSchema = z.object({
   scaleY: z.number().optional(),
   opacity: z.number().optional(),
   text: z.string().optional(),
+  /** Texts only. Added later: a baseline without them predates the font picker (additive, F0). */
+  fontFamily: z.string().optional(),
+  bind: sharepicFontBindSchema.optional(),
 });
 export type SharepicFingerprint = z.infer<typeof sharepicFingerprintSchema>;
 

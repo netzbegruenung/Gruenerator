@@ -620,6 +620,292 @@ exports[`built-in templates: config loader > freeform-at loads the same config f
 }
 `;
 
+exports[`built-in templates: config loader > freeform-gj loads the same config fingerprint per format 1`] = `
+{
+  "(none)": {
+    "canvas": {
+      "height": 1350,
+      "width": 1080,
+    },
+    "elements": [
+      "background-color",
+      "background-image",
+    ],
+    "id": "freeform-gj",
+    "multiPage": {
+      "enabled": true,
+      "maxPages": 10,
+    },
+    "tabs": [
+      "text",
+      "elements",
+      "frame-settings",
+      "tools",
+      "uploads",
+      "chat",
+    ],
+  },
+  "post-portrait": {
+    "canvas": {
+      "height": 1350,
+      "width": 1080,
+    },
+    "elements": [
+      "background-color",
+      "background-image",
+    ],
+    "id": "freeform-gj",
+    "multiPage": {
+      "enabled": true,
+      "maxPages": 10,
+    },
+    "tabs": [
+      "text",
+      "elements",
+      "frame-settings",
+      "tools",
+      "uploads",
+      "chat",
+    ],
+  },
+  "post-portrait-tall": {
+    "canvas": {
+      "height": 1440,
+      "width": 1080,
+    },
+    "elements": [
+      "background-color",
+      "background-image",
+    ],
+    "id": "freeform-gj",
+    "multiPage": {
+      "enabled": true,
+      "maxPages": 10,
+    },
+    "tabs": [
+      "text",
+      "elements",
+      "frame-settings",
+      "tools",
+      "uploads",
+      "chat",
+    ],
+  },
+  "print-a4-hoch": {
+    "canvas": {
+      "height": 2000,
+      "width": 1426,
+    },
+    "elements": [
+      "background-color",
+      "background-image",
+    ],
+    "id": "freeform-gj",
+    "multiPage": {
+      "enabled": true,
+      "maxPages": 10,
+    },
+    "tabs": [
+      "text",
+      "elements",
+      "frame-settings",
+      "tools",
+      "uploads",
+      "chat",
+    ],
+  },
+  "profile-square": {
+    "canvas": {
+      "height": 1080,
+      "width": 1080,
+    },
+    "elements": [
+      "background-color",
+      "background-image",
+    ],
+    "id": "freeform-gj",
+    "multiPage": {
+      "enabled": true,
+      "maxPages": 10,
+    },
+    "tabs": [
+      "text",
+      "elements",
+      "frame-settings",
+      "tools",
+      "uploads",
+      "chat",
+    ],
+  },
+  "slide-16-9": {
+    "canvas": {
+      "height": 1080,
+      "width": 1920,
+    },
+    "elements": [
+      "background-color",
+      "background-image",
+    ],
+    "id": "freeform-gj",
+    "multiPage": {
+      "enabled": true,
+      "maxPages": 60,
+    },
+    "tabs": [
+      "text",
+      "elements",
+      "frame-settings",
+      "tools",
+      "uploads",
+      "chat",
+    ],
+  },
+}
+`;
+
+exports[`built-in templates: config loader > freeform-gj-at loads the same config fingerprint per format 1`] = `
+{
+  "(none)": {
+    "canvas": {
+      "height": 1350,
+      "width": 1080,
+    },
+    "elements": [
+      "background-color",
+      "background-image",
+    ],
+    "id": "freeform-gj-at",
+    "multiPage": {
+      "enabled": true,
+      "maxPages": 10,
+    },
+    "tabs": [
+      "text",
+      "elements",
+      "frame-settings",
+      "tools",
+      "uploads",
+      "chat",
+    ],
+  },
+  "post-portrait": {
+    "canvas": {
+      "height": 1350,
+      "width": 1080,
+    },
+    "elements": [
+      "background-color",
+      "background-image",
+    ],
+    "id": "freeform-gj-at",
+    "multiPage": {
+      "enabled": true,
+      "maxPages": 10,
+    },
+    "tabs": [
+      "text",
+      "elements",
+      "frame-settings",
+      "tools",
+      "uploads",
+      "chat",
+    ],
+  },
+  "post-portrait-tall": {
+    "canvas": {
+      "height": 1440,
+      "width": 1080,
+    },
+    "elements": [
+      "background-color",
+      "background-image",
+    ],
+    "id": "freeform-gj-at",
+    "multiPage": {
+      "enabled": true,
+      "maxPages": 10,
+    },
+    "tabs": [
+      "text",
+      "elements",
+      "frame-settings",
+      "tools",
+      "uploads",
+      "chat",
+    ],
+  },
+  "print-a4-hoch": {
+    "canvas": {
+      "height": 2000,
+      "width": 1426,
+    },
+    "elements": [
+      "background-color",
+      "background-image",
+    ],
+    "id": "freeform-gj-at",
+    "multiPage": {
+      "enabled": true,
+      "maxPages": 10,
+    },
+    "tabs": [
+      "text",
+      "elements",
+      "frame-settings",
+      "tools",
+      "uploads",
+      "chat",
+    ],
+  },
+  "profile-square": {
+    "canvas": {
+      "height": 1080,
+      "width": 1080,
+    },
+    "elements": [
+      "background-color",
+      "background-image",
+    ],
+    "id": "freeform-gj-at",
+    "multiPage": {
+      "enabled": true,
+      "maxPages": 10,
+    },
+    "tabs": [
+      "text",
+      "elements",
+      "frame-settings",
+      "tools",
+      "uploads",
+      "chat",
+    ],
+  },
+  "slide-16-9": {
+    "canvas": {
+      "height": 1080,
+      "width": 1920,
+    },
+    "elements": [
+      "background-color",
+      "background-image",
+    ],
+    "id": "freeform-gj-at",
+    "multiPage": {
+      "enabled": true,
+      "maxPages": 60,
+    },
+    "tabs": [
+      "text",
+      "elements",
+      "frame-settings",
+      "tools",
+      "uploads",
+      "chat",
+    ],
+  },
+}
+`;
+
 exports[`built-in templates: config loader > info loads the same config fingerprint per format 1`] = `
 {
   "(none)": {
@@ -2608,6 +2894,30 @@ exports[`built-in templates: host callback keys > freeform-at 1`] = `
 ]
 `;
 
+exports[`built-in templates: host callback keys > freeform-gj 1`] = `
+[
+  "backgroundMode",
+  "backgroundColor",
+  "currentImageSrc",
+  "imageOffset",
+  "imageScale",
+  "backgroundImageOpacity",
+  "imageAttribution",
+]
+`;
+
+exports[`built-in templates: host callback keys > freeform-gj-at 1`] = `
+[
+  "backgroundMode",
+  "backgroundColor",
+  "currentImageSrc",
+  "imageOffset",
+  "imageScale",
+  "backgroundImageOpacity",
+  "imageAttribution",
+]
+`;
+
 exports[`built-in templates: host callback keys > info 1`] = `
 [
   "header",
@@ -2800,6 +3110,34 @@ exports[`built-in templates: picker registry > freeform-at: info, category, form
 }
 `;
 
+exports[`built-in templates: picker registry > freeform-gj: info, category, format fit 1`] = `
+{
+  "category": "sharepic",
+  "fits": {
+    "(none)": true,
+    "post-portrait": true,
+    "post-portrait-tall": true,
+    "print-a4-hoch": false,
+    "profile-square": true,
+    "slide-16-9": true,
+  },
+}
+`;
+
+exports[`built-in templates: picker registry > freeform-gj-at: info, category, format fit 1`] = `
+{
+  "category": "sharepic",
+  "fits": {
+    "(none)": true,
+    "post-portrait": true,
+    "post-portrait-tall": true,
+    "print-a4-hoch": false,
+    "profile-square": true,
+    "slide-16-9": true,
+  },
+}
+`;
+
 exports[`built-in templates: picker registry > info: info, category, format fit 1`] = `
 {
   "category": "sharepic",
@@ -2850,16 +3188,34 @@ exports[`built-in templates: picker registry > keeps registry order and entries 
     "description": "Leere Leinwand zum freien Gestalten",
     "followsFormat": true,
     "id": "freeform",
-    "label": "Freies Design",
+    "label": "Leere Seite",
     "previewImage": "/imagine/previews/freeform-preview.webp",
   },
   "freeform-at": {
     "audience": "de-AT",
     "category": "sharepic",
-    "description": "Leere Leinwand mit österreichischem CI",
+    "description": "Leere Seite mit österreichischem CI",
     "followsFormat": true,
     "id": "freeform-at",
-    "label": "Freies Design",
+    "label": "Leere Seite",
+    "previewImage": "/imagine/previews/freeform-preview.webp",
+  },
+  "freeform-gj": {
+    "audience": "de-DE",
+    "category": "sharepic",
+    "description": "Leere Seite im Auftritt der GRÜNEN JUGEND",
+    "followsFormat": true,
+    "id": "freeform-gj",
+    "label": "Leere Seite",
+    "previewImage": "/imagine/previews/freeform-preview.webp",
+  },
+  "freeform-gj-at": {
+    "audience": "de-AT",
+    "category": "sharepic",
+    "description": "Leere Seite im Auftritt der Grünen Jugend Österreich",
+    "followsFormat": true,
+    "id": "freeform-gj-at",
+    "label": "Leere Seite",
     "previewImage": "/imagine/previews/freeform-preview.webp",
   },
   "info": {
@@ -2972,6 +3328,8 @@ exports[`built-in templates: picker registry > keeps registry order and entries 
   "dreizeilen-overlay-at",
   "info-at",
   "freeform-at",
+  "freeform-gj",
+  "freeform-gj-at",
   "slider-at",
 ]
 `;
@@ -2987,6 +3345,7 @@ exports[`built-in templates: picker registry > offers per locale 1`] = `
   "slider",
   "freeform",
   "profilbild",
+  "freeform-gj",
 ]
 `;
 
@@ -2997,6 +3356,7 @@ exports[`built-in templates: picker registry > offers per locale 2`] = `
   "dreizeilen-overlay-at",
   "info-at",
   "freeform-at",
+  "freeform-gj-at",
   "slider-at",
 ]
 `;
@@ -3298,6 +3658,84 @@ exports[`built-in templates: router > freeform-at mounts the editor with the see
 `;
 
 exports[`built-in templates: router > freeform-at seeds its defaults from an empty state 1`] = `
+{
+  "backgroundImageOpacity": undefined,
+  "backgroundMode": "color",
+  "currentImageSrc": "/legacy.jpg",
+  "imageAttribution": null,
+  "imageOffset": undefined,
+  "imageScale": undefined,
+}
+`;
+
+exports[`built-in templates: router > freeform-gj mounts the editor with the seeded props 1`] = `
+{
+  "callbacks": [
+    "onBackgroundModeChange",
+    "onBackgroundColorChange",
+    "onCurrentImageSrcChange",
+    "onImageOffsetChange",
+    "onImageScaleChange",
+    "onBackgroundImageOpacityChange",
+    "onImageAttributionChange",
+  ],
+  "initialConfigId": "freeform-gj",
+  "initialProps": {
+    "backgroundColor": "#123456",
+    "backgroundImageOpacity": 0.7,
+    "backgroundMode": "image",
+    "currentImageSrc": "/bg.jpg",
+    "imageAttribution": null,
+    "imageOffset": {
+      "x": 1,
+      "y": 2,
+    },
+    "imageScale": 1.5,
+  },
+  "maxPages": 10,
+}
+`;
+
+exports[`built-in templates: router > freeform-gj seeds its defaults from an empty state 1`] = `
+{
+  "backgroundImageOpacity": undefined,
+  "backgroundMode": "color",
+  "currentImageSrc": "/legacy.jpg",
+  "imageAttribution": null,
+  "imageOffset": undefined,
+  "imageScale": undefined,
+}
+`;
+
+exports[`built-in templates: router > freeform-gj-at mounts the editor with the seeded props 1`] = `
+{
+  "callbacks": [
+    "onBackgroundModeChange",
+    "onBackgroundColorChange",
+    "onCurrentImageSrcChange",
+    "onImageOffsetChange",
+    "onImageScaleChange",
+    "onBackgroundImageOpacityChange",
+    "onImageAttributionChange",
+  ],
+  "initialConfigId": "freeform-gj-at",
+  "initialProps": {
+    "backgroundColor": "#123456",
+    "backgroundImageOpacity": 0.7,
+    "backgroundMode": "image",
+    "currentImageSrc": "/bg.jpg",
+    "imageAttribution": null,
+    "imageOffset": {
+      "x": 1,
+      "y": 2,
+    },
+    "imageScale": 1.5,
+  },
+  "maxPages": 10,
+}
+`;
+
+exports[`built-in templates: router > freeform-gj-at seeds its defaults from an empty state 1`] = `
 {
   "backgroundImageOpacity": undefined,
   "backgroundMode": "color",

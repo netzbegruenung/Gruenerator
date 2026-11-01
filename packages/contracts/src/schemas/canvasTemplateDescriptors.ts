@@ -50,6 +50,9 @@ export const CANVAS_TEMPLATE_TYPES = [
   'info-at',
   'freeform-at',
   'slider-at',
+  // Grüne Jugend — freie Seite im Auftritt der Jugendorganisation (DE / AT)
+  'freeform-gj',
+  'freeform-gj-at',
 ] as const;
 export const canvasTemplateTypeSchema = z.enum(CANVAS_TEMPLATE_TYPES);
 export type CanvasTemplateType = z.infer<typeof canvasTemplateTypeSchema>;
@@ -67,7 +70,7 @@ export const isCanvasTemplateType = (value: unknown): value is CanvasTemplateTyp
  * Templates the chat edit path can drive directly. Everything else falls back
  * to `buildRefinementRequest` (regenerate the text, hand back a new variant).
  *
- * Deliberately absent: `freeform` / `freeform-at`, whose content is a
+ * Deliberately absent: `freeform` / `freeform-at` / `freeform-gj` / `freeform-gj-at`, whose content is a
  * free-positioned collection of instances rather than named fields — the
  * `set-text`/`update-element` vocabulary has nothing to address there — and
  * `profilbild`, which carries no text at all and is an image-processing flow.

@@ -83,13 +83,17 @@ function makeSse() {
   };
 }
 
-function runEdit(modelOutput: string, sse: ReturnType<typeof makeSse>['sse']) {
+function runEdit(
+  modelOutput: string,
+  sse: ReturnType<typeof makeSse>['sse'],
+  instruction = 'mach den Text empörter'
+) {
   executeProvider.mockResolvedValue({ content: modelOutput, success: true, stop_reason: 'stop' });
   return handleSocialPostTextEdit({
     sse: sse as never,
     threadId: 't1',
     userId: 'u1',
-    instruction: 'mach den Text empörter',
+    instruction,
     startTime: 0,
   });
 }
@@ -177,5 +181,28 @@ describe('handleSocialPostTextEdit — model declines', () => {
     expect(updated).toBeDefined();
     const delta = events.find((e) => e.type === 'text_delta')?.payload as { text: string };
     expect(delta.text).toContain('angepasst');
+  });
+});
+
+// #5017: the version summary cuts the instruction at UTF-16 index 117. An emoji
+// sitting on the cut left a lone surrogate, which JSON.stringify writes as
+// `\udXXX` — Postgres rejects the jsonb with 22P02 and the edit is not saved.
+describe('handleSocialPostTextEdit — summary cut through an emoji', () => {
+  beforeEach(() => {
+    query.mockReset();
+    executeProvider.mockReset();
+  });
+
+  it('writes valid jsonb when the cut splits a surrogate pair', async () => {
+    const { updates } = wirePostgres();
+    const { sse } = makeSse();
+    const instruction = `${'a'.repeat(116)}🌻 und noch ein paar Worte dazu`;
+
+    await runEdit('Wohnen muss bezahlbar bleiben! #Klimaschutz', sse, instruction);
+
+    expect(updates).toHaveLength(1);
+    const json = updates[0]![1] as string;
+    expect(json).not.toMatch(/\\ud[89a-f][0-9a-f]{2}/i);
+    expect(json).toContain(`${'a'.repeat(116)}\uFFFD…`);
   });
 });

@@ -5,11 +5,11 @@
  * These types provide full type safety for the config-based architecture.
  */
 
-import type { IconState } from './factory/baseTypes';
-import type { AdditionalText } from './types';
-import type { StockImageAttribution } from '../sidebar/types';
-import type { AssetInstance } from '../utils/canvasAssets';
-import type { BalkenInstance, BalkenMode } from '@ggraphic/editor/utils/balkenUtils';
+import type { StockImageAttribution } from '@ggraphic/editor/sidebar/types';
+import type { IconState } from '@ggraphic/editor/configs/factory/baseTypes';
+import type { AdditionalText } from '@ggraphic/editor/configs/types';
+import type { BalkenInstance, BalkenMode } from '../utils/balkenUtils';
+import type { AssetInstance } from '@ggraphic/editor/utils/canvasAssets';
 import type { ChartInstance } from '@ggraphic/editor/utils/chartUtils';
 import type { CircleBadgeInstance } from '@ggraphic/editor/utils/circleBadgeUtils';
 import type { FrameClipType, FrameInstance } from '@ggraphic/editor/utils/frameUtils';

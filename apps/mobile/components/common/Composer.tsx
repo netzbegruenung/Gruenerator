@@ -61,8 +61,8 @@ const renderComposerAttachment = () => <ComposerAttachmentUI />;
 
 import type { Theme } from '../../theme/colors';
 import type {
-  NativeSyntheticEvent,
-  TextInputSelectionChangeEventData,
+  TextInputInstance,
+  TextInputSelectionChangeEvent,
   StyleProp,
   ViewStyle,
 } from 'react-native';
@@ -167,7 +167,7 @@ export interface ComposerProps {
   /** The keyboard's return key submits instead of breaking the line. On by
    *  default for `bar`; a `card` that is a search field (the notebook) sets it. */
   submitOnEnter?: boolean;
-  inputRef?: React.RefObject<TextInput | null>;
+  inputRef?: React.RefObject<TextInputInstance | null>;
   /** Enables `<prefix>-input` / `<prefix>-send` testIDs for the Maestro flows. */
   testIDPrefix?: string;
   autoFocus?: boolean;
@@ -247,7 +247,7 @@ function useComposerInput({
   inputRef,
 }: {
   setText: (value: string) => void;
-  inputRef: React.RefObject<TextInput | null>;
+  inputRef: React.RefObject<TextInputInstance | null>;
 }) {
   const textRef = useRef('');
   const selectionRef = useRef(0);
@@ -285,12 +285,9 @@ function useComposerInput({
     [setText]
   );
 
-  const onSelectionChange = useCallback(
-    (e: NativeSyntheticEvent<TextInputSelectionChangeEventData>) => {
-      selectionRef.current = e.nativeEvent.selection.end;
-    },
-    []
-  );
+  const onSelectionChange = useCallback((e: TextInputSelectionChangeEvent) => {
+    selectionRef.current = e.nativeEvent.selection.end;
+  }, []);
 
   const onMentionSelect = useCallback(
     (mentionable: Mentionable) => {
@@ -422,7 +419,7 @@ function ComposerBody({
 }: {
   props: ComposerProps;
   input: ComposerInput;
-  inputRef: React.RefObject<TextInput | null>;
+  inputRef: React.RefObject<TextInputInstance | null>;
   /** Wired to the keyboard's send key, which the `bar` variant surfaces. */
   onSubmitEditing: () => void;
   attachments?: React.ReactNode;
@@ -731,7 +728,7 @@ function ComposerBody({
 
 /** Draft lives here; the finished text goes to `onSubmit`. No runtime touched. */
 function LocalComposer(props: ComposerProps) {
-  const internalInputRef = useRef<TextInput>(null);
+  const internalInputRef = useRef<TextInputInstance>(null);
   const inputRef = props.inputRef ?? internalInputRef;
 
   // The hook's own `textRef` already holds the current draft, so a local
@@ -796,7 +793,7 @@ function LocalComposer(props: ComposerProps) {
 function RuntimeComposer(props: ComposerProps) {
   const aui = useAui();
   const isRunning = useAuiState((s) => s.thread.isRunning);
-  const internalInputRef = useRef<TextInput>(null);
+  const internalInputRef = useRef<TextInputInstance>(null);
   const inputRef = props.inputRef ?? internalInputRef;
 
   const setText = useCallback((value: string) => aui.composer.setText(value), [aui]);

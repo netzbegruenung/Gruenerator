@@ -2,7 +2,7 @@ import { type TextMarker } from '@ggraphic/editor/utils/textUtils';
 
 import { SHAREPIC_COLOR_HEX } from './chromeParts';
 
-import type { SharepicCreatorLocale, SharepicItem } from '@gruenerator/contracts';
+import type { SharepicBrandId, SharepicItem } from '@gruenerator/contracts';
 
 /** 6.5 % of the width — the margin the posts use. */
 export const MARGIN = 70;
@@ -63,6 +63,24 @@ export const STECKBRIEF = {
 } as const;
 /** `blume`: the faded sunflower's size and strength per ground. */
 export const BLUME = { size: 760, onLight: 0.12, onGrass: 0.1, onDark: 0.08 } as const;
+/** GJ AT's date label in the top corner (DehRgj4jAe9/01): its type, padding, edge and shadow. */
+export const ETIKETT = { fontSize: 34, padX: 26, padY: 16, edge: 4, shadow: 9, top: 70 } as const;
+/** Height the date label takes above the text block, with its gap. */
+export const ETIKETT_ROOM = 110;
+/**
+ * GJ AT's speaker beside a speech bubble: share of the width, height per width
+ * (a portrait cut-out), highest top as a share of the height, and where the
+ * text column ends.
+ */
+export const BLASE_PERSON = { width: 0.56, aspect: 1.5, top: 0.3, column: 0.68 } as const;
+/** GJ boxed headline: the largest size; the widest line usually sets it lower. */
+export const BOXED_HEAD = 150;
+/** GJ body text in boxes and the icon rows under it, at scale 1. */
+export const GJ_BODY = 46;
+/** GJ DE's handwritten tape label: its type size. */
+export const HAND_TAPE = { fontSize: 44 } as const;
+/** GJ AT's hairlines (Db-_V4HCvrJ): stroke, distance from the left edge, gap to the text. */
+export const RASTER = { width: 3, left: 34, gap: 34 } as const;
 /** `absatz.klein`: the body size of the candidates' long text slides at 1080 px. */
 export const ABSATZ_KLEIN = 36;
 /** A DE quote this long is a text page (DdEhd82js3K/02), not a hero: body size, small mark. */
@@ -77,9 +95,15 @@ export const ARROW_ICON = 'tabler:arrow-narrow-right';
  * The drawn arrow is narrower than its box (DE ≈ 0.64, AT ≈ 0.8).
  */
 export const ARROW = {
-  'de-DE': { size: 42, right: 22, bottom: 22, glyph: 0.64 },
-  'de-AT': { size: 350, right: 40, bottom: 60, glyph: 0.8 },
-} as const;
+  'gruene-de': { size: 42, right: 22, bottom: 22, glyph: 0.64 },
+  'gruene-at': { size: 350, right: 40, bottom: 60, glyph: 0.8 },
+  // GJ: the drawn arrow, a little larger and further in (DY1k7UhDK1S/02).
+  'gj-de': { size: 56, right: 40, bottom: 40, glyph: 0.64 },
+  'gj-at': { size: 56, right: 40, bottom: 40, glyph: 0.64 },
+} as const satisfies Record<
+  SharepicBrandId,
+  { size: number; right: number; bottom: number; glyph: number }
+>;
 /** Headline: widest line at this share of its column, up to `HEADLINE_MAX` px. */
 export const HEADLINE_FILL = 0.95;
 export const HEADLINE_MAX = 230;
@@ -106,7 +130,12 @@ export const QUOTE_ALONE_MAX = 120;
 /** Paragraphs stay at most this share of the headline size. */
 export const HEADLINE_RATIO = 1.8;
 /** Top padding of a block that starts at the canvas top, measured on the posts. */
-export const TOP_PAD: Record<SharepicCreatorLocale, number> = { 'de-DE': 110, 'de-AT': 120 };
+export const TOP_PAD: Record<SharepicBrandId, number> = {
+  'gruene-de': 110,
+  'gruene-at': 120,
+  'gj-de': 100,
+  'gj-at': 100,
+};
 /** AT centred text: ~100 px side margins on the argument slides. */
 export const AT_CENTRED_MARGIN = 100;
 /** Date circle on a colour or photo slide: free in the bottom-right corner. */

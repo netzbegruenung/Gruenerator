@@ -3,6 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
+  "sideEffects": false,
   "main": "./dist/index.js",
   "types": "./src/index.ts",
   "exports": {
@@ -29,6 +30,18 @@
       "types": "./src/richtext/presentationDoc.ts",
       "import": "./dist/richtext/presentationDoc.js",
       "default": "./dist/richtext/presentationDoc.js"
+    },
+    "./brand": {
+      "development": "./src/brand/grueneBrand.ts",
+      "types": "./src/brand/grueneBrand.ts",
+      "import": "./dist/brand/grueneBrand.js",
+      "default": "./dist/brand/grueneBrand.js"
+    },
+    "./slides": {
+      "development": "./src/slides/index.ts",
+      "types": "./src/slides/index.ts",
+      "import": "./dist/slides/index.js",
+      "default": "./dist/slides/index.js"
     }
   },
   "scripts": {
@@ -39,6 +52,7 @@
     "lint:fix": "eslint . --fix"
   },
   "dependencies": {
+    "@ggraphic/core": "workspace:*",
     "@ggraphic/schema": "workspace:*",
     "@gruenerator/core": "workspace:*",
     "@tiptap/core": "^3.32.0",

@@ -347,6 +347,20 @@ export class PostgresPersistence {
           `[Cleanup] Deleted ${result.length} auto-snapshots older than ${this.SNAPSHOT_RETENTION_DAYS} days`
         );
       }
+      // The pre-0.56 safety copy keeps the same retention as its source
+      // (migration zz_20261029_yjs_backup_pre_blocknote_056.sql). to_regclass
+      // keeps this a no-op where the copy was never made or is already dropped.
+      await this.db(
+        `DO $$ BEGIN
+           IF to_regclass('yjs_document_snapshots_backup_bn056') IS NOT NULL THEN
+             DELETE FROM yjs_document_snapshots_backup_bn056
+             WHERE is_auto_save = true
+               AND label IS NULL
+               AND created_at < CURRENT_TIMESTAMP - interval '${this.SNAPSHOT_RETENTION_DAYS} days';
+           END IF;
+         END $$`,
+        []
+      );
     } catch (error) {
       const err = error instanceof Error ? error : new Error(String(error));
       log.error(`[Cleanup] Error cleaning old snapshots: ${err.message}`);

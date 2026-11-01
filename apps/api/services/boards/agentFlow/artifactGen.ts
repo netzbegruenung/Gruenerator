@@ -24,7 +24,7 @@ const log = createLogger('boardArtifactGen');
 export interface CreatedArtifact {
   id: string;
   title: string;
-  url: string; // always `/office/${id}`
+  url: string; // `/office/${id}`, or `/studio/canvas/${id}` for a canvas deck
 }
 
 /**

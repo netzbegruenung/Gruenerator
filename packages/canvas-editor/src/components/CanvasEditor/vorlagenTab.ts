@@ -2,7 +2,7 @@ import { DEFAULT_FORMAT_ID } from '@ggraphic/editor/formats/index';
 import { canvasFormatIdSchema } from '@gruenerator/contracts';
 import { PiLayoutFill } from 'react-icons/pi';
 
-import type { SidebarTab } from '../../sidebar/types';
+import type { SidebarTab } from '@ggraphic/editor/sidebar/types';
 
 /**
  * The „Vorlagen" tab acts on the whole document, not on the active page, so
@@ -24,10 +24,13 @@ export const formatHasVorlagen = (formatId: string | undefined): boolean =>
   canvasFormatIdSchema.safeParse(formatId ?? DEFAULT_FORMAT_ID).success;
 
 /** Right above „Text"; first where a template has none. */
-export function withVorlagenTab(tabs: readonly SidebarTab[]): SidebarTab[] {
-  const at = Math.max(
+export const vorlagenTabIndex = (tabs: readonly SidebarTab[]): number =>
+  Math.max(
     tabs.findIndex((t) => t.id === 'text'),
     0
   );
+
+export function withVorlagenTab(tabs: readonly SidebarTab[]): SidebarTab[] {
+  const at = vorlagenTabIndex(tabs);
   return [...tabs.slice(0, at), vorlagenTab, ...tabs.slice(at)];
 }

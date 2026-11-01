@@ -17,12 +17,15 @@ import {
   isSharepicSceneRef,
   isSharepicUploadId,
   isSharepicVorlageRef,
-  SHAREPIC_LOCALE_COLORS,
+  brandIdFor,
+  SHAREPIC_BRAND_COLORS,
   slidePhotoFilename,
+  type SharepicBrand,
   type SharepicCreatorLocale,
   type SharepicDraftFocus,
   type SharepicDraftResponse,
   type SharepicOwnPhoto,
+  type SharepicSlide,
   type SharepicSpec,
   sharepicFormLabel,
   type SharepicFormId,
@@ -31,10 +34,10 @@ import {
 import { createLogger } from '../../utils/logger.js';
 import { GEMMA_31B_ON_MELIOUS } from '../ai/gemmaHosts.js';
 import { aiObject, type AiObjectCall } from '../ai/generate.js';
-import { getAttribution } from '../image/UnsplashAttributionService.js';
+import { getUnsplashService } from '../unsplash/UnsplashApiService.js';
 
 import { carouselLookProblems } from './carouselLook.js';
-import { searchStockPhotos, type StockPhoto } from './catalog.js';
+import { findStockPhotos, stockPhotoCredit, type FoundPhoto } from './catalog.js';
 import { type DraftFailure, DraftFailedError } from './draftFailure.js';
 import { paintIllustrations, cutOutBilder, type SharepicPainters } from './draftPainting.js';
 import { SCENE_PENDING, takeScene, type DraftScene } from './draftScene.js';
@@ -44,6 +47,7 @@ import {
   NEEDS_SCHEMA,
   SPEC_SCHEMA,
   SPEC_SCHEMA_DE,
+  specSchemaGjDe,
 } from './draftSchemas.js';
 import { fromZod, validateDraft } from './draftValidation.js';
 import { alsoCarousel, FORM_RECIPES, formCatalog, formMismatch } from './forms.js';
@@ -85,7 +89,17 @@ export function lacksStructure(input: unknown): boolean {
   });
 }
 
-function describePhotos(photos: StockPhoto[]): string {
+/** Every photo a draft shows: backgrounds and `bild` sources. */
+function photoNames(slides: readonly SharepicSlide[]): string[] {
+  return slides.flatMap((slide) =>
+    [
+      slide.background.kind !== 'farbe' ? slide.background.filename : '',
+      ...slide.items.map((item) => (item.type === 'bild' ? item.quelle : '')),
+    ].filter(Boolean)
+  );
+}
+
+function describePhotos(photos: FoundPhoto[]): string {
   return photos.map((p) => `- ${p.filename}: ${p.alt_text}`).join('\n');
 }
 
@@ -120,9 +134,15 @@ export async function draftSharepic(
   /** The planner's brief, when it spells out a change `order` only confirms ("ja, mach das"). */
   brief: string | null = null,
   /** The request asks for a single image: a first draft gets exactly one slide. */
-  oneSlide = false
+  oneSlide = false,
+  /**
+   * Whose design a first draft wears (the chat's „GJ-Design“, a GJ Vorlage);
+   * null: the party's. A revision keeps the draft's own.
+   */
+  brand: SharepicBrand | null = null
 ): Promise<SharepicDraftResponse> {
   const fixed = current?.locale ?? null;
+  const design = current ? (current.brand ?? null) : brand;
   const single = oneSlide && !current;
   const countryHint = fixed
     ? `Land: ${fixed} (steht fest).`
@@ -138,7 +158,7 @@ export async function draftSharepic(
   const needs = await aiObject<Needs>({
     lane: 'sharepic_creator',
     pinned: PINNED,
-    system: systemPrompt(fixed ?? defaultLocale),
+    system: systemPrompt(fixed ?? defaultLocale, design),
     prompt: `${task}${ownPhotos.length ? `\n\n${ownPhotosText(ownPhotos)}` : ''}\n\n${countryHint}\n\n## Formen\n${formCatalog()}\n\n${named ? `Die Form steht fest: \`${named}\`. Nenne als alternativen zwei andere, die auch passen würden.` : `Wähle die Form, die den Inhalt am besten trägt, und zwei andere als alternativen.${single ? ' Der Auftrag will ein einzelnes Bild: wähle eine Form mit genau einer Slide, kein Karussell und kein Interview.' : ''}`}\n\nBevor du baust: Welche Form, für welches Land, welche Beispiele und Kapitel brauchst du, und wonach soll gesucht werden?`,
     toolName: 'bedarf_melden',
     toolDescription:
@@ -165,17 +185,17 @@ export async function draftSharepic(
   // it keeps its form, so only a form the request names brings its own.
   const wanted = current ? { kapitel: [], anlass: [] } : needs.data;
   const chapters = [...new Set([...(recipe?.kapitel ?? []), ...wanted.kapitel])];
-  const photos = [
-    ...new Map(
-      needs.data.fotos_suchen.flatMap((q) => searchStockPhotos(q)).map((p) => [p.filename, p])
-    ).values(),
-  ];
+  const photos = await findStockPhotos(needs.data.fotos_suchen);
 
   const context = [
-    basicsText(locale),
+    basicsText(locale, design),
     ownPhotos.length ? ownPhotosText(ownPhotos) : '',
     ...chapters.map(chapterText),
-    examplesText(locale, [...new Set([...(recipe?.anlass ?? []), ...wanted.anlass])].slice(0, 3)),
+    examplesText(
+      locale,
+      [...new Set([...(recipe?.anlass ?? []), ...wanted.anlass])].slice(0, 3),
+      design
+    ),
     needs.data.fotos_suchen.length
       ? photos.length
         ? `## Gefundene Fotos (filename: Motiv)\n${describePhotos(photos)}`
@@ -207,18 +227,16 @@ export async function draftSharepic(
       )
     )
   );
+  const currentPhotos = photoNames(current?.slides ?? []);
   // Own photos already on the draft stay usable in a revision, even without the photo list.
-  const keptUploads = (current?.slides ?? []).flatMap((slide) =>
-    [
-      slide.background.kind !== 'farbe' ? slide.background.filename : '',
-      ...slide.items.map((item) => (item.type === 'bild' ? item.quelle : '')),
-    ].filter(isSharepicUploadId)
-  );
+  const keptUploads = currentPhotos.filter(isSharepicUploadId);
+  // So do its live stock photos, which this process may never have searched.
+  const livePhotos = [...photos.filter((p) => p.live).map((p) => p.filename), ...currentPhotos];
   // Without a painter a Faktenbild cannot get its scene; it falls back to a colour.
   const checkForm = form === 'faktenbild' && !painters.scene ? null : form;
   // "Karussell mit Bingo": both hold — three slides and the bingo.
   const carouselToo = !current && alsoCarousel(order, form);
-  const palette = paletteSubstitutions(order, locale);
+  const palette = paletteSubstitutions(order, locale, design);
   const colourHint = palette.length ? `\n\n${paletteHint(palette)}` : '';
   // What the guard lets change: the request and its brief, never the conversation material.
   const asked = brief ? `${order}\n${brief}` : order;
@@ -240,14 +258,19 @@ export async function draftSharepic(
   }> = {
     lane: 'sharepic_creator',
     pinned: PINNED,
-    system: `${systemPrompt(locale)}\n\n${context.join('\n\n')}`,
+    system: `${systemPrompt(locale, design)}\n\n${context.join('\n\n')}`,
     prompt: `${task}${colourHint}\n\n${form ? `Form: ${sharepicFormLabel(form)}${carouselToo ? ' im Karussell (2–8 Slides)' : ''} – ${FORM_RECIPES[form].wann}.\n\n` : ''}${build}`,
     toolName: 'entwurf_abgeben',
     toolDescription: 'Gib den fertigen Sharepic-Entwurf ab.',
-    schema: locale === 'de-DE' ? SPEC_SCHEMA_DE : SPEC_SCHEMA,
+    schema:
+      locale !== 'de-DE'
+        ? SPEC_SCHEMA
+        : design === 'gruene-jugend'
+          ? specSchemaGjDe()
+          : SPEC_SCHEMA_DE,
     validate: (input, attempt, attempts) => {
       if (!lacksStructure(input)) failure = { kind: 'content' };
-      const taken = takeScene(withPaletteColors(input, locale));
+      const taken = takeScene(withPaletteColors(input, locale, design));
       if (!taken.ok) return taken;
       // Contact data already on the draft counts as given.
       const checked = validateDraft(
@@ -256,7 +279,9 @@ export async function draftSharepic(
         current ? `${prompt}\n${JSON.stringify(current)}` : prompt,
         [...ownPhotos.map((p) => p.id), ...keptUploads],
         taken.scene ? [SCENE_PENDING, ...keptScenes] : keptScenes,
-        order
+        order,
+        livePhotos,
+        design
       );
       if (!checked.ok) return checked;
       const notSingle =
@@ -338,7 +363,10 @@ export async function draftSharepic(
                 ...slide,
                 // The block sat beside the scene; on a plain colour it belongs in the middle.
                 position: 'mitte',
-                background: { kind: 'farbe', color: SHAREPIC_LOCALE_COLORS[spec.locale][0]! },
+                background: {
+                  kind: 'farbe',
+                  color: SHAREPIC_BRAND_COLORS[brandIdFor(spec.locale, spec.brand)][0]!,
+                },
               }
       ),
     };
@@ -356,28 +384,40 @@ export async function draftSharepic(
     ]
       .filter(Boolean)
       .join(' ') || null;
+  // Unsplash counts a photo as used once it lands on a draft (API Terms).
+  for (const name of new Set(photoNames(spec.slides))) {
+    const location = photos.find((p) => p.filename === name)?.live?.attribution.downloadLocation;
+    if (location) {
+      getUnsplashService()
+        .trackDownload(location)
+        .catch((error: unknown) => log.warn(`download tracking failed: ${String(error)}`));
+    }
+  }
+  const credits = await Promise.all(
+    spec.slides.map(async (slide) => {
+      const photo = slidePhotoFilename(slide);
+      return photo &&
+        !isSharepicUploadId(photo) &&
+        !isSharepicSceneRef(photo) &&
+        !isSharepicVorlageRef(photo)
+        ? stockPhotoCredit(photo)
+        : null;
+    })
+  );
   return {
     spec,
     ...(hinweis && { hinweis }),
     ...(form && { form }),
     ...(alternativen.length && { alternativen: alternativen.slice(0, 2) }),
     chapters,
-    attributions: spec.slides.map((slide) => {
-      const photo = slidePhotoFilename(slide);
-      const credit =
-        photo &&
-        !isSharepicUploadId(photo) &&
-        !isSharepicSceneRef(photo) &&
-        !isSharepicVorlageRef(photo)
-          ? getAttribution(photo)
-          : null;
-      return credit
+    attributions: credits.map((credit) =>
+      credit
         ? {
             photographer: credit.photographer,
             profileUrl: credit.profileUrl,
             photoUrl: credit.photoUrl,
           }
-        : null;
-    }),
+        : null
+    ),
   };
 }

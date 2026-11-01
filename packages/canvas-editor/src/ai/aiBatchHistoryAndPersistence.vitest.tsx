@@ -3,20 +3,19 @@
  * sharepic opens in): it must land in the page's Y.Map — otherwise a reload
  * loses it — and one undo (the banner's "Verwerfen") must revert all of it.
  */
+import { pagePersistedStateKeys } from '@ggraphic/editor/collab/pageElementStateKeys';
 import { readPages, seedPagesIfEmpty, updatePageStateById } from '@ggraphic/editor/collab/pagesDoc';
+import { PAGES_STATE_ORIGIN } from '@ggraphic/editor/collab/useYjsPages';
 import { createPageSyncedCallbacks } from '@ggraphic/editor/collab/wrapCallbacksWithPageSync';
+import { GenericCanvas, type GenericCanvasRef } from '@ggraphic/editor/components/GenericCanvas';
+import { loadCanvasConfig } from '@ggraphic/editor/configs/configLoader';
 import { AutoSaveStoreProvider } from '@ggraphic/editor/stores/AutoSaveStoreProvider';
 import { act, render } from '@testing-library/react';
 import { createRef } from 'react';
 import { describe, expect, it, vi } from 'vitest';
 import * as Y from 'yjs';
 
-import { PAGE_PERSISTED_STATE_KEYS } from '../collab/pageElementStateKeys';
-import { PAGES_STATE_ORIGIN } from '../collab/useYjsPages';
-import { GenericCanvas, type GenericCanvasRef } from '../components/GenericCanvas';
-import { loadCanvasConfig } from '../configs/configLoader';
-
-import type { CanvasAiEditBridge } from '../CanvasEditorProvider';
+import type { CanvasAiEditBridge } from '@ggraphic/editor/CanvasEditorProvider';
 import type * as StoreModule from '@ggraphic/editor/stores/createCanvasEditorStore';
 import type { CanvasEditorStoreApi } from '@ggraphic/editor/stores/createCanvasEditorStore';
 import type { CanvasAiOperation } from '@gruenerator/contracts';
@@ -59,7 +58,7 @@ async function mountCanvas(
   const callbacks = createPageSyncedCallbacks(
     () => hostCallbacks,
     (partial) => doc.transact(() => updatePageStateById(doc, PAGE_ID, partial), PAGES_STATE_ORIGIN),
-    PAGE_PERSISTED_STATE_KEYS
+    pagePersistedStateKeys()
   );
   const live: { state: Record<string, unknown>; actions: Record<string, unknown> } = {
     state: {},

@@ -8,8 +8,9 @@
 import Konva from 'konva';
 
 import { activeBrand } from '@ggraphic/editor/brand/brandRegistry';
+import { messages } from '@ggraphic/editor/i18n/messages';
 
-import type { ImageAdjustments } from './userImageUtils';
+import type { ImageAdjustments } from './userImageUtils.js';
 
 type KonvaFilter = typeof Konva.Filters.Grayscale;
 
@@ -177,20 +178,60 @@ export interface ImagePreset {
 
 /** One-click looks; each applies a full adjustment set on top of a clean base. */
 export const IMAGE_PRESETS: ImagePreset[] = [
-  { id: 'original', label: 'Original', values: { ...EMPTY_ADJUSTMENTS } },
-  { id: 'gruen', label: 'Grün eingefärbt', values: { ...EMPTY_ADJUSTMENTS, tintStrength: 1 } },
-  { id: 'grau', label: 'Graustufen', values: { ...EMPTY_ADJUSTMENTS, grayscale: true } },
+  {
+    id: 'original',
+    get label() {
+      return messages().imageLooks.original;
+    },
+    values: { ...EMPTY_ADJUSTMENTS },
+  },
+  {
+    id: 'gruen',
+    get label() {
+      return messages().imageLooks.gruen;
+    },
+    values: { ...EMPTY_ADJUSTMENTS, tintStrength: 1 },
+  },
+  {
+    id: 'grau',
+    get label() {
+      return messages().imageLooks.grau;
+    },
+    values: { ...EMPTY_ADJUSTMENTS, grayscale: true },
+  },
   {
     id: 'vivid',
-    label: 'Kräftig',
+    get label() {
+      return messages().imageLooks.vivid;
+    },
     values: { ...EMPTY_ADJUSTMENTS, saturation: 1.6, contrast: 18 },
   },
-  { id: 'warm', label: 'Warm', values: { ...EMPTY_ADJUSTMENTS, temperature: 40, saturation: 0.6 } },
-  { id: 'cool', label: 'Kühl', values: { ...EMPTY_ADJUSTMENTS, temperature: -40 } },
-  { id: 'bw', label: 'S/W', values: { ...EMPTY_ADJUSTMENTS, grayscale: true, contrast: 12 } },
+  {
+    id: 'warm',
+    get label() {
+      return messages().imageLooks.warm;
+    },
+    values: { ...EMPTY_ADJUSTMENTS, temperature: 40, saturation: 0.6 },
+  },
+  {
+    id: 'cool',
+    get label() {
+      return messages().imageLooks.cool;
+    },
+    values: { ...EMPTY_ADJUSTMENTS, temperature: -40 },
+  },
+  {
+    id: 'bw',
+    get label() {
+      return messages().imageLooks.bw;
+    },
+    values: { ...EMPTY_ADJUSTMENTS, grayscale: true, contrast: 12 },
+  },
   {
     id: 'vintage',
-    label: 'Vintage',
+    get label() {
+      return messages().imageLooks.vintage;
+    },
     values: { ...EMPTY_ADJUSTMENTS, sepia: true, contrast: -10, brightness: 0.05 },
   },
 ];

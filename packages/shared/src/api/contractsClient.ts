@@ -77,6 +77,7 @@ import {
   skillPromptContract,
   agentVisibilityContract,
   chunkInspectorContract,
+  bundestagQaContract,
   connectorTestContract,
   skillVisibilityContract,
   instanceAdminOverviewContract,
@@ -88,6 +89,7 @@ import {
   userTextFormsContract,
   recurringTasksContract,
   docsContract,
+  docSnapshotsContract,
   documentsContract,
   groupsContract,
   userProfileContract,
@@ -345,6 +347,7 @@ const _userAgentsSharingClient = () => initClient(userAgentsSharingContract, CLI
 const _skillPromptClient = () => initClient(skillPromptContract, CLIENT_OPTS);
 const _agentVisibilityClient = () => initClient(agentVisibilityContract, CLIENT_OPTS);
 const _chunkInspectorClient = () => initClient(chunkInspectorContract, CLIENT_OPTS);
+const _bundestagQaClient = () => initClient(bundestagQaContract, CLIENT_OPTS);
 const _connectorTestClient = () => initClient(connectorTestContract, CLIENT_OPTS);
 const _skillVisibilityClient = () => initClient(skillVisibilityContract, CLIENT_OPTS);
 const _instanceAdminOverviewClient = () => initClient(instanceAdminOverviewContract, CLIENT_OPTS);
@@ -356,6 +359,7 @@ const _landesverbandAdminClient = () => initClient(landesverbandAdminContract, C
 const _userTextFormsClient = () => initClient(userTextFormsContract, CLIENT_OPTS);
 const _recurringTasksClient = () => initClient(recurringTasksContract, CLIENT_OPTS);
 const _docsClient = () => initClient(docsContract, CLIENT_OPTS);
+const _docSnapshotsClient = () => initClient(docSnapshotsContract, CLIENT_OPTS);
 const _documentsClient = () => initClient(documentsContract, CLIENT_OPTS);
 const _groupsClient = () => initClient(groupsContract, CLIENT_OPTS);
 const _userProfileClient = () => initClient(userProfileContract, CLIENT_OPTS);
@@ -437,6 +441,7 @@ export interface ContractsClient {
   skillPrompt: ReturnType<typeof _skillPromptClient>;
   agentVisibility: ReturnType<typeof _agentVisibilityClient>;
   chunkInspector: ReturnType<typeof _chunkInspectorClient>;
+  bundestagQa: ReturnType<typeof _bundestagQaClient>;
   connectorTest: ReturnType<typeof _connectorTestClient>;
   skillVisibility: ReturnType<typeof _skillVisibilityClient>;
   instanceAdminOverview: ReturnType<typeof _instanceAdminOverviewClient>;
@@ -447,6 +452,7 @@ export interface ContractsClient {
   userTextForms: ReturnType<typeof _userTextFormsClient>;
   recurringTasks: ReturnType<typeof _recurringTasksClient>;
   docs: ReturnType<typeof _docsClient>;
+  docSnapshots: ReturnType<typeof _docSnapshotsClient>;
   documents: ReturnType<typeof _documentsClient>;
   groups: ReturnType<typeof _groupsClient>;
   userProfile: ReturnType<typeof _userProfileClient>;
@@ -541,6 +547,7 @@ export function getContractsClient(): ContractsClient {
     skillPrompt: _skillPromptClient(),
     agentVisibility: _agentVisibilityClient(),
     chunkInspector: _chunkInspectorClient(),
+    bundestagQa: _bundestagQaClient(),
     connectorTest: _connectorTestClient(),
     skillVisibility: _skillVisibilityClient(),
     instanceAdminOverview: _instanceAdminOverviewClient(),
@@ -551,6 +558,7 @@ export function getContractsClient(): ContractsClient {
     userTextForms: _userTextFormsClient(),
     recurringTasks: _recurringTasksClient(),
     docs: _docsClient(),
+    docSnapshots: _docSnapshotsClient(),
     documents: _documentsClient(),
     groups: _groupsClient(),
     userProfile: _userProfileClient(),

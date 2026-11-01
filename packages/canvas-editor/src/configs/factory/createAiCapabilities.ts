@@ -1,12 +1,15 @@
 import { buildAssetCapability } from '../../ai/assetCapability';
-import { buildIllustrationCapability } from '../../ai/illustrationCapability';
+import { buildIllustrationCapability } from '@ggraphic/editor/ai/illustrationCapability';
 
-import type { CanvasAiActionsBase } from '../../ai/applyOperation';
+import type { CanvasAiActionsBase } from '@ggraphic/editor/ai/applyOperation';
+import type {
+  HostCanvasAiCapabilities,
+  HostCanvasAiOperation,
+  HostCanvasAiSnapshot,
+} from '@ggraphic/editor/ai/types';
 import type { CanvasConfigId } from '../../templates/registry';
-import type { SharepicAiCapabilities } from '../aiCapabilities';
-import type { CanvasAiOperationKind, CanvasAiSnapshot } from '@gruenerator/contracts';
 
-const BASE_OPERATIONS: readonly CanvasAiOperationKind[] = [
+const BASE_OPERATIONS: readonly HostCanvasAiOperation['kind'][] = [
   'set-text',
   'add-illustration',
   'add-asset',
@@ -58,10 +61,10 @@ export interface CreateAiCapabilitiesOptions<TState, TActions> {
  */
 export function createAiCapabilities<TState, TActions extends CanvasAiActionsBase>(
   options: CreateAiCapabilitiesOptions<TState, TActions>
-): SharepicAiCapabilities<TState, TActions> {
+): HostCanvasAiCapabilities<TState, TActions> {
   const { id, errorLabel, fields, background } = options;
 
-  const supportedOperations: CanvasAiOperationKind[] = background
+  const supportedOperations: HostCanvasAiOperation['kind'][] = background
     ? [...BASE_OPERATIONS, 'set-background-color']
     : [...BASE_OPERATIONS];
 
@@ -70,7 +73,7 @@ export function createAiCapabilities<TState, TActions extends CanvasAiActionsBas
     illustrations: buildIllustrationCapability(),
     assets: buildAssetCapability(id),
 
-    describeForAi: (state): CanvasAiSnapshot => {
+    describeForAi: (state): HostCanvasAiSnapshot => {
       const textFields = fields.map((f) => ({
         field: f.field,
         label: f.label,

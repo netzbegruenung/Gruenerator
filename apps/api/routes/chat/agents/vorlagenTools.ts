@@ -9,7 +9,7 @@
  * Beitrag gerade geschrieben hat oder im Verlauf sieht, besser als jede
  * Ähnlichkeit zwischen Posttext und Vorlagenbeschreibung.
  *
- * Nur das eigene Land: Katalogblock und Prüfung lesen dieselbe Liste, eine
+ * Nur das eigene Land und das Design des Turns (`vorlagenBrand`): Katalogblock und Prüfung lesen dieselbe Liste, eine
  * AT-Vorlage in einem DE-Turn fällt also auch dann heraus, wenn das Modell
  * ihre ID erfindet. Eine Vorlage im Design des anderen Landes ist keine, die
  * die Person benutzen kann (siehe `sharepicVorlagenRouter`).
@@ -20,6 +20,7 @@ import {
   sharepicVorlageThumbPath,
 } from '@gruenerator/contracts';
 import { SKILLS, type Skill } from '@gruenerator/shared/agents';
+import { grueneJugendRoleLocale } from '@gruenerator/shared/roles';
 import { tool, type Tool } from 'ai';
 import { z } from 'zod';
 
@@ -48,6 +49,21 @@ export function mentionsVorlagen(
 
 export function vorlagenLocale(state: Pick<ChatGraphState, 'userLocale'>): 'de-DE' | 'de-AT' {
   return state.userLocale === 'de-AT' ? 'de-AT' : 'de-DE';
+}
+
+/**
+ * Das Design, dessen Vorlagen der Turn zeigt: mit aktiver GJ-Rolle die der
+ * Grünen Jugend, sonst die der Partei — dasselbe Design, in dem der Chat das
+ * Sharepic selbst entwirft (`intentHandlers/sharepic.ts`).
+ */
+export function vorlagenBrand(
+  state: Pick<ChatGraphState, 'activeRole'>
+): 'gruene' | 'gruene-jugend' {
+  return grueneJugendRoleLocale(state.activeRole) ? 'gruene-jugend' : 'gruene';
+}
+
+function turnVorlagen(state: Pick<ChatGraphState, 'userLocale' | 'activeRole'>): SharepicVorlage[] {
+  return listSharepicVorlagen(vorlagenLocale(state), vorlagenBrand(state));
 }
 
 function catalogLine(v: SharepicVorlage): string {
@@ -156,7 +172,7 @@ export function vorlagenForTurn(state: ChatGraphState): SharepicVorlage[] | null
     isSocialRecipe(state.activeSkillMention) ||
     mentionsVorlagen(state.lastUserTextNoMentions ?? lastUserText(state), lastAssistantText(state));
   if (!wanted) return null;
-  const vorlagen = listSharepicVorlagen(vorlagenLocale(state));
+  const vorlagen = turnVorlagen(state);
   return vorlagen.length > 0 ? vorlagen : null;
 }
 
@@ -168,13 +184,13 @@ export function vorlagenForTurn(state: ChatGraphState): SharepicVorlage[] | null
  * (`acceptsVorlagenOffer`, `mentionsVorlagen`).
  */
 export function vorlagenOfferNote(
-  state: Pick<ChatGraphState, 'userLocale' | 'vorlagenShown' | 'enabledTools'>,
+  state: Pick<ChatGraphState, 'userLocale' | 'activeRole' | 'vorlagenShown' | 'enabledTools'>,
   recipeMentions: readonly string[]
 ): string {
   // Dasselbe Tor wie die Montage: ein Agent ohne die Fähigkeit bietet sie nicht an.
   if (state.enabledTools?.['vorlagen'] === false) return '';
   if (state.vorlagenShown?.length) return '';
   if (!recipeMentions.some(isSocialRecipe)) return '';
-  if (listSharepicVorlagen(vorlagenLocale(state)).length === 0) return '';
+  if (turnVorlagen(state).length === 0) return '';
   return '\n\nABSCHLUSS: Schließe nach dem fertigen Beitrag mit EINER kurzen, freundlichen Rückfrage, ob du passende Sharepic-Vorlagen dazu zeigen sollst — aus jeder macht die Person mit einem Klick ein Sharepic mit diesem Text (z. B. „Soll ich dir passende Sharepic-Vorlagen zeigen? Daraus wird mit einem Klick ein Sharepic mit deinem Text."). Nur diese eine Frage; beschreibe kein Design.';
 }

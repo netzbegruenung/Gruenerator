@@ -36,17 +36,29 @@ export const MAX_NAMED_PAGES = 3;
 export interface NamedPagesRead {
   /** Adressen, die die SSRF-Prüfung bestanden haben. */
   validated: string[];
+  /** Adressen, die die SSRF-Prüfung abgewiesen hat — mit Grund, damit ein
+   *  Teilerfolg als solcher kenntlich bleibt. */
+  rejected: { url: string; grund: string }[];
   results: SearchResult[];
+}
+
+/** Vergleichsform für „diese Adresse wurde gelesen": der Crawler darf Slash und Fragment ändern. */
+export function normalisiereUrl(url: string): string {
+  return url.trim().replace(/#.*$/, '').replace(/\/+$/, '').toLowerCase();
 }
 
 export async function readNamedPages(urls: string[]): Promise<NamedPagesRead> {
   const validated: string[] = [];
+  const rejected: { url: string; grund: string }[] = [];
   for (const raw of urls) {
     const check = await validateUrlForFetch(raw);
     if (check.isValid && check.url) validated.push(check.url.toString());
-    else log.warn(`[scrape_url] rejected URL: ${check.error ?? 'invalid'}`);
+    else {
+      log.warn(`[scrape_url] rejected URL: ${check.error ?? 'invalid'}`);
+      rejected.push({ url: raw, grund: check.error ?? 'ungültige oder nicht erlaubte Adresse' });
+    }
   }
-  if (validated.length === 0) return { validated, results: [] };
+  if (validated.length === 0) return { validated, rejected, results: [] };
   const seeds = validated.map((url, idx) => ({
     url,
     title: url,
@@ -71,7 +83,7 @@ export async function readNamedPages(urls: string[]): Promise<NamedPagesRead> {
       title: r.title || r.url || '',
       content: r.content || r.fullContent || '',
     }));
-  return { validated, results };
+  return { validated, rejected, results };
 }
 
 /**

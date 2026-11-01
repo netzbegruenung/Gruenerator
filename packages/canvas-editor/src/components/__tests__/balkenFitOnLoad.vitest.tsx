@@ -4,20 +4,20 @@
  * `balkenFitPending`; the canvas fits once its fonts are ready, clears the
  * marker and writes both back to the page.
  */
+import { pagePersistedStateKeys } from '@ggraphic/editor/collab/pageElementStateKeys';
 import { readPages, seedPagesIfEmpty, updatePageStateById } from '@ggraphic/editor/collab/pagesDoc';
+import { PAGES_STATE_ORIGIN } from '@ggraphic/editor/collab/useYjsPages';
 import { createPageSyncedCallbacks } from '@ggraphic/editor/collab/wrapCallbacksWithPageSync';
+import { GenericCanvas } from '@ggraphic/editor/components/GenericCanvas';
+import { loadCanvasConfig } from '@ggraphic/editor/configs/configLoader';
 import { AutoSaveStoreProvider } from '@ggraphic/editor/stores/AutoSaveStoreProvider';
 import { act, render } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import * as Y from 'yjs';
 
-import { PAGE_PERSISTED_STATE_KEYS } from '../../collab/pageElementStateKeys';
-import { PAGES_STATE_ORIGIN } from '../../collab/useYjsPages';
-import { loadCanvasConfig } from '../../configs/configLoader';
 import { balkenExtent } from '../../utils/balkenBounds';
-import { GenericCanvas } from '../GenericCanvas';
 
-import type { BalkenInstance } from '@ggraphic/editor/utils/balkenUtils';
+import type { BalkenInstance } from '../../utils/balkenUtils';
 
 Object.defineProperty(document, 'fonts', {
   configurable: true,
@@ -43,7 +43,7 @@ async function mountDreizeilen(seed: Record<string, unknown>, opts: { collab: bo
         () => ({ onLine1Change: noop, onLine2Change: noop, onLine3Change: noop }),
         (partial) =>
           doc.transact(() => updatePageStateById(doc, PAGE_ID, partial), PAGES_STATE_ORIGIN),
-        PAGE_PERSISTED_STATE_KEYS
+        pagePersistedStateKeys()
       )
     : {};
   const live: { state: Record<string, unknown> } = { state: {} };

@@ -9,7 +9,7 @@
  * linksbündig am Bildboden, was mit der CI 2026 nicht zusammengeht.
  */
 
-import { getBrandTheme } from '../brand/theme';
+import { getBrandPack, getBrandTheme } from '../brand/theme';
 import { ZITAT_AT_CONFIG, calculateZitatAtLayout } from '../utils/zitatAtLayout';
 
 import { DEFAULT_PHOTO_BACKGROUND_AT, PHOTO_BACKGROUND_COLORS_AT } from './backgroundPalettes';
@@ -24,7 +24,7 @@ import {
   type ImageTwoTextState,
 } from './factory';
 
-import type { ImageElementConfig, LayoutResult } from './types';
+import type { ImageElementConfig, LayoutResult } from '@ggraphic/editor/configs/types';
 
 const AT = getBrandTheme('de-AT');
 const Z = ZITAT_AT_CONFIG;
@@ -124,6 +124,8 @@ const baseZitatAtConfig = createImageTwoTextCanvas({
   // keinen grünen oder schwarzen Verlauf.
   gradientOpacity: Z.gradient.bottomOpacity,
   gradientColor: Z.gradient.color,
+  // Neue Texte, Badges, Rahmen und Formen beginnen im österreichischen Markenpaket.
+  brand: getBrandPack('de-AT'),
   getCanvasText: (state) => {
     const quote = state.quote || '';
     const name = state.name || '';

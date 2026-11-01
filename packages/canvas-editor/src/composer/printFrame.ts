@@ -6,6 +6,7 @@
  * Pure: no React, no Konva. Text is measured through the injected `measure`.
  */
 
+import { fitStoererText, STOERER_LINE_STEP } from '@ggraphic/editor/composer/textFit';
 import {
   mmToPx,
   printGeometry,
@@ -13,6 +14,7 @@ import {
   type PrintRect,
 } from '@ggraphic/editor/formats/index';
 import { type CircleBadgeInstance } from '@ggraphic/editor/primitives/CircleBadge';
+import { ASSET_TARGET_SIZE } from '@ggraphic/editor/utils/canvasAssets';
 import { createCircleBadgeInstance } from '@ggraphic/editor/utils/circleBadgeUtils';
 import { createShape, type ShapeInstance } from '@ggraphic/editor/utils/shapes';
 import { type TextAccent } from '@ggraphic/editor/utils/textUtils';
@@ -20,13 +22,12 @@ import { type UserImageInstance } from '@ggraphic/editor/utils/userImageUtils';
 import { type PrintImpressum, type PrintKontakt } from '@gruenerator/contracts';
 
 import { getBrandTheme, type BrandTheme } from '../brand/theme';
-import { ASSET_TARGET_SIZE } from '../utils/canvasAssets';
 
 import { layoutTextLines, type MeasureText } from './chromeParts';
 import { type ComposedSlide } from './composeSharepic';
-import { fitStoererText, STOERER_LINE_STEP } from './textFit';
+import { brandFont } from './fontRole';
 
-import type { AdditionalText } from '../configs/types';
+import type { AdditionalText } from '@ggraphic/editor/configs/types';
 
 /** Element id of the poster's V.i.S.d.P. / Impressum line; later steps find and update it by this. */
 export const PRINT_IMPRESSUM_ID = 'impressum';
@@ -294,7 +295,7 @@ export function impressumElement(f: Frame, text: string): AdditionalText {
         ? trim.height / 2 - end - f.margin / 2
         : trim.height - 2 * end,
     fontSize: size,
-    fontFamily: theme.fonts.body,
+    ...brandFont(theme.fonts, 'body'),
     fontStyle: 'normal',
     fill: WHITE,
     lineHeight,

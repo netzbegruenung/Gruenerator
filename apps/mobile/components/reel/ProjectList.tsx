@@ -250,7 +250,7 @@ export function ProjectList({
         numColumns={COLUMNS}
         columnWrapperStyle={styles.row}
         contentContainerStyle={styles.listContent}
-        ListEmptyComponent={loading ? renderSkeleton : null}
+        ListEmptyComponent={loading ? renderSkeleton : undefined}
         ListFooterComponent={renderFooter}
         refreshControl={
           <RefreshControl

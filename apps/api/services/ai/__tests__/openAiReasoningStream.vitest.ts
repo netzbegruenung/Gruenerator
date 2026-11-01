@@ -288,4 +288,99 @@ describe('streamWithReasoning — Melious bucht Tokens samt Cache-Anteil', () =>
       cachedInputTokens: 11520,
     });
   });
+
+  /**
+   * #5108: Cortecs verbuchte auf diesem Pfad keinen Token, weil nur Melious
+   * `include_usage` anforderte. Gebucht wird der Upstream aus
+   * `x-cortecs-provider`, wie auf dem SDK-Pfad — eine `cortecs`-Zeile bekäme in
+   * energyFootprint.ts keine CO₂-Zahl.
+   */
+  it('fordert für Cortecs include_usage an und bucht den Upstream, nicht den Router', async () => {
+    vi.resetModules();
+    process.env.CORTECS_API_KEY = 'cor-key';
+    const recordTokenUsage = vi.fn();
+    const recordImpact = vi.fn();
+    vi.doMock('../../usage/UsageTrackingService.js', () => ({ recordTokenUsage, recordImpact }));
+    const { streamWithReasoning: stream } = await import('../openAiReasoningStream.js');
+
+    let body: Record<string, unknown> = {};
+    const sse = [
+      `data: ${JSON.stringify({ choices: [{ delta: { content: '391' } }] })}`,
+      `data: ${JSON.stringify({
+        choices: [],
+        usage: { prompt_tokens: 28, completion_tokens: 182 },
+      })}`,
+      'data: [DONE]',
+      '',
+    ].join('\n');
+    vi.stubGlobal('fetch', async (_input: RequestInfo | URL, init?: RequestInit) => {
+      body = JSON.parse(String(init?.body ?? '{}')) as Record<string, unknown>;
+      return new Response(sse, { status: 200, headers: { 'x-cortecs-provider': 'berget' } });
+    });
+
+    for await (const _chunk of stream({
+      provider: 'cortecs',
+      model: 'gemma-4-31b-it',
+      messages: [{ role: 'user', content: '17*23?' }],
+      temperature: 0,
+    })) {
+      // Strom leeren.
+    }
+
+    expect(body.stream_options).toEqual({ include_usage: true });
+    expect(recordTokenUsage).toHaveBeenCalledWith(
+      expect.objectContaining({ provider: 'berget', model: 'gemma-4-31b-it', inputTokens: 28 })
+    );
+    expect(recordImpact).not.toHaveBeenCalled();
+  });
+
+  /**
+   * Seit Melious der Gemma-Primär ist (28.10.2026), läuft der Chat mit Denken
+   * über diesen Strom. Melious meldet seine Messung im letzten Chunk; die
+   * gemeldeten Werte gehen als gemessen in die Nutzung, nicht der Koeffizient.
+   * Form des Chunks: Live-Probe vom 28.10.2026.
+   */
+  it('verbucht Melious’ gemeldetes environment_impact als Messung', async () => {
+    vi.resetModules();
+    process.env.MELIOUS_API_KEY = 'mel-key';
+    const recordTokenUsage = vi.fn();
+    const recordImpact = vi.fn();
+    vi.doMock('../../usage/UsageTrackingService.js', () => ({ recordTokenUsage, recordImpact }));
+    const { streamWithReasoning: stream } = await import('../openAiReasoningStream.js');
+
+    const sse = [
+      `data: ${JSON.stringify({ choices: [{ delta: { content: 'Hallo' } }] })}`,
+      `data: ${JSON.stringify({
+        choices: [],
+        usage: { prompt_tokens: 17, completion_tokens: 9 },
+        environment_impact: {
+          energy_kwh: 0.0025,
+          carbon_g_co2: 1.5,
+          provider_id: 'infercom',
+          location: 'DE',
+        },
+      })}`,
+      'data: [DONE]',
+      '',
+    ].join('\n');
+    vi.stubGlobal('fetch', async () => new Response(sse, { status: 200 }));
+
+    for await (const _chunk of stream({
+      provider: 'melious',
+      model: 'gemma-4-31b:balanced',
+      messages: [{ role: 'user', content: 'Sag hallo.' }],
+      temperature: 0,
+    })) {
+      // Strom leeren.
+    }
+
+    expect(recordImpact).toHaveBeenCalledWith({
+      provider: 'melious',
+      model: 'gemma-4-31b:balanced',
+      energyWms: 0.0025 * 3_600_000_000,
+      emissionsUg: 1.5 * 1_000_000,
+      inputTokens: 17,
+      outputTokens: 9,
+    });
+  });
 });

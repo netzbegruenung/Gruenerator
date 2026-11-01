@@ -36,9 +36,9 @@ import {
   type MeasureText,
 } from './chromeParts';
 
-import type { IconState } from '../configs/factory/baseTypes';
-import type { AdditionalText } from '../configs/types';
-import type { AssetInstance } from '../utils/canvasAssets';
+import type { IconState } from '@ggraphic/editor/configs/factory/baseTypes';
+import type { AdditionalText } from '@ggraphic/editor/configs/types';
+import type { AssetInstance } from '@ggraphic/editor/utils/canvasAssets';
 import type { ShapeInstance } from '@ggraphic/editor/utils/shapes';
 
 export interface ChromePage {
@@ -49,6 +49,8 @@ export interface ChromePage {
 const LOCALE: Record<string, SharepicCreatorLocale> = {
   freeform: 'de-DE',
   'freeform-at': 'de-AT',
+  'freeform-gj': 'de-DE',
+  'freeform-gj-at': 'de-AT',
 };
 const DOT_ID = /^sc-seite-\d+$/;
 const ARROW = 'sc-pfeil';
@@ -128,7 +130,7 @@ function replaceIds(order: string[], isOld: (id: string) => boolean, fresh: stri
 
 /**
  * The state keys to change on each page so its chrome matches its place in
- * the deck; `null` where nothing changes. Only `freeform`/`freeform-at` pages
+ * the deck; `null` where nothing changes. Only the sharepic pages (`freeform`, `freeform-at`, `freeform-gj`, `freeform-gj-at`)
  * are touched; every page counts towards "n".
  */
 export function refreshCarouselChrome(

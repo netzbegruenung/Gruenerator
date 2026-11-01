@@ -6,11 +6,12 @@
  * CSS-Variablen, die das Overlay setzt; mit Farbe (`++{#FFFFFF}…++`) trägt die
  * Mark Kasten- und Schriftfarbe selbst.
  */
+import { type BrandPack } from '@ggraphic/core';
 import { Mark } from '@tiptap/core';
 
 import { colorAttribute } from '@ggraphic/editor/components/markColor';
 
-import { markerInkOn } from '../utils/markerColors';
+import { markerInkOn } from '../utils/markerColors.js';
 
 declare module '@tiptap/core' {
   interface Commands<ReturnType> {
@@ -23,11 +24,20 @@ declare module '@tiptap/core' {
   }
 }
 
-export const Marker = Mark.create({
+export interface MarkerOptions {
+  /** Das Paket des Dokuments, dessen dunkle Schrift auf frei gewählten Kästen steht; null = das aktive. */
+  brand: BrandPack | null;
+}
+
+export const Marker = Mark.create<MarkerOptions>({
   name: 'marker',
-  addAttributes: () => ({
-    color: colorAttribute('--mark-fill', (color) => `--mark-ink:${markerInkOn(color)}`),
-  }),
+  addOptions: () => ({ brand: null }),
+  addAttributes() {
+    const brand = this.options.brand ?? undefined;
+    return {
+      color: colorAttribute('--mark-fill', (color) => `--mark-ink:${markerInkOn(color, brand)}`),
+    };
+  },
   parseHTML: () => [{ tag: 'mark[data-marker]' }],
   renderHTML: ({ HTMLAttributes }) => ['mark', { 'data-marker': '', ...HTMLAttributes }, 0],
   addCommands() {

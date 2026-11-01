@@ -15,7 +15,7 @@ import { Inbox } from 'lucide-react';
 import { useSearchParams } from 'react-router-dom';
 
 import useUserDefaults from '../../../hooks/useUserDefaults';
-import { BUNDESLAENDER } from '../bundeslaender';
+import { lvName } from '../bundeslaender';
 import { useWhatHappened } from '../hooks/useMonitor';
 
 import type { MonitorLocale } from '../hooks/useMonitor';
@@ -23,12 +23,6 @@ import type { MonitorLocale } from '../hooks/useMonitor';
 interface WhatHappenedViewProps {
   locale: MonitorLocale;
 }
-
-// Scraper LV codes are mostly Bundesland shorts; LSA is the odd one out.
-const LV_NAMES: Record<string, string> = {
-  ...Object.fromEntries(BUNDESLAENDER.map((b) => [b.short, b.name])),
-  LSA: 'Sachsen-Anhalt',
-};
 
 const ALL = 'all';
 
@@ -107,7 +101,7 @@ export function WhatHappenedView({ locale }: WhatHappenedViewProps) {
                   <SelectItem value={ALL}>Alle Landesverbände</SelectItem>
                   {(data?.landesverbaende ?? []).map((lv) => (
                     <SelectItem key={lv} value={lv}>
-                      {LV_NAMES[lv] ?? lv}
+                      {lvName(lv)}
                     </SelectItem>
                   ))}
                 </SelectContent>

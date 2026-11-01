@@ -2,19 +2,19 @@ import { createEvent, fireEvent, render } from '@testing-library/react';
 import React from 'react';
 import { describe, expect, it, vi } from 'vitest';
 
-import { PageWrapper } from '../PageWrapper';
+import { PageWrapper } from '@ggraphic/editor/components/CanvasEditor/PageWrapper';
 
-vi.mock('../../GenericCanvas', () => ({
+vi.mock('@ggraphic/editor/components/GenericCanvas', () => ({
   GenericCanvas: () => (
     <div className="konvajs-content">
       <canvas data-testid="stage" />
     </div>
   ),
 }));
-vi.mock('../../PageToolbar', () => ({
+vi.mock('@ggraphic/editor/components/PageToolbar', () => ({
   PageToolbar: () => <button data-testid="toolbar-btn">Hoch</button>,
 }));
-vi.mock('../../ZoomableViewport', () => ({
+vi.mock('@ggraphic/editor/components/ZoomableViewport', () => ({
   ZoomableViewport: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
 }));
 

@@ -92,6 +92,7 @@ import { materialDominatesTurn, resolveLoopMode } from './loopMode.js';
 import { createAnswerEmitter } from './loopSse.js';
 import { buildToolObservationReplay, spliceToolReplay } from './mcpReplay.js';
 import { stripDuplicatedOpening } from './openingDedupe.js';
+import { buildUncoveredTermNote } from './questionTermCoverage.js';
 import { type RecipeRegistry } from './recipeRegistry.js';
 import { createRerankDegradedHook } from './rerankWarning.js';
 import { rewritesSuppliedText } from './routing.js';
@@ -102,6 +103,7 @@ import { createToolActivity } from './toolActivity.js';
 import { createToolApprovalGate, type ToolApprovalGate } from './toolApprovalGate.js';
 import { loadAllowlist } from './toolApprovalRepo.js';
 import { createToolCostLedger } from './toolCostLedger.js';
+import { toolResultBudget } from './toolResultBudgets.js';
 import { type ToolScope } from './toolScope.js';
 import { buildToolUsageBlock } from './toolUsageBlock.js';
 import { logTurnSummary, type ForceScopeSummary } from './turnSummary.js';
@@ -520,7 +522,10 @@ export async function streamAgenticResponse(
       }
       toolReplayMessages = [
         ...toolReplayMessages,
-        ...buildToolObservationReplay(steps, new Set(Object.keys(wrapped)), { sameTurn: true }),
+        ...buildToolObservationReplay(steps, new Set(Object.keys(wrapped)), {
+          sameTurn: true,
+          resultBudgetFor: (name) => toolResultBudget(name, toolLabels),
+        }),
       ];
     }
 
@@ -628,6 +633,8 @@ export async function streamAgenticResponse(
       sourceRegistry,
       sse,
       recordStep: (step) => steps.push(step),
+      wrappedTools: wrapped,
+      calledToolNames: () => steps.map((s) => s.toolName),
       emitOpeningBeforeTool: () => emitter.emitOpeningBeforeTool(),
       answerText: () => emitter.text,
       onInfo: (m) => log.info(m),
@@ -814,7 +821,7 @@ export async function streamAgenticResponse(
       // Der Katalog ist vollständig montiert; welcher Schritt was davon
       // mitschickt, entscheidet der Umfang (toolScope.ts). Getter, weil ein
       // Lader die Menge mitten im Lauf erweitern kann.
-      activeTools: () => assembled.toolScope.activeTools(),
+      activeTools: (steps) => assembled.toolScope.activeTools(steps),
       forceFirstToolCall,
       firstToolName,
       firstStepTools,
@@ -842,8 +849,14 @@ export async function streamAgenticResponse(
       },
       // Unified mode only — read per step because `rezept_laden` fills the
       // registry mid-loop. Split mode's writer gets it via buildSynthSystem.
+      // Auch die Notiz „Gegenstand ohne Quelle" (#5141): im Split-Modus trägt
+      // sie buildSynthSystem, hier ist dieser Getter der einzige Kanal.
       getRecipeBlock: () =>
-        recipeRegistry.render() + offerNote(finalState, recipeRegistry.mentions),
+        recipeRegistry.render() +
+        offerNote(finalState, recipeRegistry.mentions) +
+        (sourceRegistry.size > 0
+          ? buildUncoveredTermNote(lastUserText, sourceRegistry.renderAll())
+          : ''),
       // Prepend the reconstructed tool-call/result history just before the
       // current user message so tool_call↔result pairs stay adjacent + valid.
       // The splice also bridges tool→user, which mistral-common rejects.
@@ -1102,11 +1115,18 @@ export async function streamAgenticResponse(
     sse.send('completion', { text: emitter.text, citations: sourceRegistry.getCitations() });
   }
 
-  // Nachvollziehbarkeit: selbst geladene Rezepte (`rezept_laden`) gewinnen —
-  // war die Wahl explizit (@presse), ist die Registry gar nicht montiert und
-  // der Wert aus `buildSystemMessage` bleibt stehen.
+  // Nachvollziehbarkeit: was die Registry trägt (`rezept_laden`, Agent-Default,
+  // Methoden-Rezepte wie `@bundestag`) kommt ZU dem, was `buildSystemMessage`
+  // schon ausgewiesen hat (eine ausdrücklich gewählte Textsorte) — beide
+  // standen im Prompt, die Zeile „Rezept: …" nennt beide.
   const loadedRecipes = loadedRecipeRegistry?.summaries() ?? [];
-  if (loadedRecipes.length > 0) finalState.usedRecipes = [...loadedRecipes];
+  if (loadedRecipes.length > 0) {
+    const fromPrompt = finalState.usedRecipes ?? [];
+    finalState.usedRecipes = [
+      ...fromPrompt,
+      ...loadedRecipes.filter((r) => !fromPrompt.some((p) => p.mention === r.mention)),
+    ];
+  }
   // A turn that pauses for approval above does not reach this line, so its
   // grant card lives only in the stream. That is acceptable: the drift stays
   // pending and the next turn on this server shows the card again.

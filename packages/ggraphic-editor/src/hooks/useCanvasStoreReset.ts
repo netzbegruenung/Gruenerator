@@ -26,7 +26,7 @@
 
 import { useEffect } from 'react';
 
-import { useCanvasStore } from '../stores/CanvasStoreProvider';
+import { useCanvasStore } from '../stores/CanvasStoreProvider.js';
 
 export function useCanvasStoreReset(resetKey: string | null): void {
   const store = useCanvasStore();

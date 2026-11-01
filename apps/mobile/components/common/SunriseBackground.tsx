@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react';
-import { Animated, StyleSheet, useColorScheme } from 'react-native';
+import { Animated, StyleSheet, useColorScheme, useWindowDimensions } from 'react-native';
 import Svg, { Defs, RadialGradient, Rect, Stop } from 'react-native-svg';
 
-import { useChatBackground } from '../../hooks/useChatBackground';
 import { useReduceMotion } from '../../hooks/useAccessibilityPreferences';
+import { useChatBackground } from '../../hooks/useChatBackground';
 import { chatBackgroundColor, chatBackgroundMesh } from '../../theme/chatBackgrounds';
 
 import { MeshSurface } from './MeshSurface';
@@ -34,6 +34,11 @@ export function SunriseBackground() {
   // Combines the OS setting with the profile override, so "Animationen
   // reduzieren" in the app's settings reaches this too.
   const reduceMotion = useReduceMotion();
+  // A percentage-sized <Svg> keeps the size it first drew at: an iPad started
+  // in landscape and turned upright left the bottom quarter without the glow.
+  // Keying the layer on the window size redraws it after a rotation or resize.
+  const { width, height } = useWindowDimensions();
+  const sizeKey = `${width}x${height}`;
 
   useEffect(() => {
     if (reduceMotion) {
@@ -73,7 +78,7 @@ export function SunriseBackground() {
   if (mesh) {
     return (
       <Animated.View pointerEvents="none" style={styles.container}>
-        <Animated.View style={[StyleSheet.absoluteFill, { opacity }]}>
+        <Animated.View key={sizeKey} style={[StyleSheet.absoluteFill, { opacity }]}>
           <MeshSurface mesh={mesh} id={`bg-${preset.key}`} />
         </Animated.View>
       </Animated.View>
@@ -88,7 +93,10 @@ export function SunriseBackground() {
         <Animated.View style={[StyleSheet.absoluteFill, styles.creamBase]} />
       )}
       {glow && (
-        <Animated.View style={[StyleSheet.absoluteFill, { opacity, transform: [{ translateY }] }]}>
+        <Animated.View
+          key={sizeKey}
+          style={[StyleSheet.absoluteFill, { opacity, transform: [{ translateY }] }]}
+        >
           <Svg width="100%" height="100%">
             <Defs>
               {/* Sized so the falloff actually completes on screen — stretch the

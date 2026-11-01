@@ -17,6 +17,7 @@ import { initContract } from '@ts-rest/core';
 import { z } from 'zod';
 
 import {
+  blueskyFeedResponseSchema,
   entityResultsResponseSchema,
   entitySummaryResponseSchema,
   euGreenProfileQuerySchema,
@@ -236,6 +237,18 @@ export const monitorContract = c.router(
         500: monitorErrorResponseSchema,
       },
       summary: 'Articles added to notebooks by the content sync',
+    },
+
+    /** GET /api/monitor/bluesky — recent posts of the party account (server-side proxy). */
+    bluesky: {
+      method: 'GET',
+      path: '/api/monitor/bluesky',
+      query: monitorLocaleQuerySchema,
+      responses: {
+        200: blueskyFeedResponseSchema,
+        502: monitorErrorResponseSchema,
+      },
+      summary: 'Bluesky posts of the locale account',
     },
 
     /** GET /api/monitor/entities — watcher entity list. */
