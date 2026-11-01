@@ -404,7 +404,6 @@ export const de = {
     },
     effects: {
       title: 'Effekte',
-      empty: 'Für diese Auswahl gibt es keine Effekte.',
     },
     layers: {
       title: 'Ebenen',

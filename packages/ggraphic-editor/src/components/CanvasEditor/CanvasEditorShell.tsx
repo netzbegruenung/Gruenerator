@@ -109,6 +109,7 @@ import { browserFileDelivery } from '@ggraphic/editor/hostServices';
 import { useMessages } from '@ggraphic/editor/i18n/messages';
 import { CanvasEditorLayout } from '@ggraphic/editor/layouts/index';
 import { EffectsSection } from '@ggraphic/editor/sidebar/sections/EffectsSection';
+import { hasEffects } from '@ggraphic/editor/sidebar/sections/effects/effectsFor';
 import { LayersSection } from '@ggraphic/editor/sidebar/sections/LayersSection';
 import { SidebarPanel } from '@ggraphic/editor/sidebar/SidebarPanel';
 import { SidebarTabBar } from '@ggraphic/editor/sidebar/SidebarTabBar';
@@ -1040,6 +1041,13 @@ function CanvasEditorInner({
       return next.tab;
     });
   }, [activeSelectedElement, activeConfig, setActiveTab, isMobileWeb]);
+
+  // „Effekte“ gilt der Auswahl: hat die neue keine (oder ist keine mehr da),
+  // schließt der Bereich, statt nur zu sagen, dass es nichts gibt.
+  const selectionHasEffects = hasEffects(toolbarState?.activeFloatingModule ?? null);
+  useEffect(() => {
+    if (!selectionHasEffects) setActiveTab((current) => (current === 'effects' ? null : current));
+  }, [selectionHasEffects]);
 
   const isPanelOpen = activeTab !== null;
   const isMobileSheetOpen = isMobileWeb && isPanelOpen;

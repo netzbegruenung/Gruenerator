@@ -83,8 +83,9 @@ describe('Bereich „Effekte“', () => {
     expect(effectSections()).toHaveLength(1);
   });
 
-  it('sagt es, wenn die Auswahl keine Effekte hat', () => {
-    render(<EffectsSection module={templateText} {...handlers()} />);
-    expect(screen.getByText('Für diese Auswahl gibt es keine Effekte.')).toBeInTheDocument();
+  // Den Bereich schließt dann der Editor; leer zeichnet er nichts.
+  it('zeichnet nichts, wenn die Auswahl keine Effekte hat', () => {
+    const { container } = render(<EffectsSection module={templateText} {...handlers()} />);
+    expect(container).toBeEmptyDOMElement();
   });
 });

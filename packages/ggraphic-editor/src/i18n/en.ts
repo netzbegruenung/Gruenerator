@@ -395,7 +395,6 @@ export const en: Messages = {
     },
     effects: {
       title: 'Effects',
-      empty: 'This selection has no effects.',
     },
     layers: {
       title: 'Layers',

@@ -1,12 +1,11 @@
 // SPDX-License-Identifier: MPL-2.0
 import React from 'react';
 
-import { useMessages } from '@ggraphic/editor/i18n/messages';
 import { effectsFor } from '@ggraphic/editor/sidebar/sections/effects/effectsFor';
 import { GradientSettings } from '@ggraphic/editor/sidebar/sections/effects/GradientSettings';
 import { OutlineSettings } from '@ggraphic/editor/sidebar/sections/effects/OutlineSettings';
 import { ShadowSettings } from '@ggraphic/editor/sidebar/sections/effects/ShadowSettings';
-import { SIDEBAR_SECTION, SIDEBAR_SECTION_EMPTY } from '@ggraphic/editor/sidebar/sidebarStyles';
+import { SIDEBAR_SECTION } from '@ggraphic/editor/sidebar/sidebarStyles';
 
 import type { ShadowPatch } from '@ggraphic/editor/hooks/useFloatingModuleHandlers';
 import type { FloatingModuleState } from '@ggraphic/editor/hooks/useFloatingModuleState';
@@ -31,15 +30,13 @@ export function EffectsSection({
   onOutlineChange,
   onShadowChange,
 }: EffectsSectionProps) {
-  const t = useMessages();
   const available = effectsFor(module);
   const gradient = available.gradient && onGradientChange;
   const outline = available.outline && onOutlineChange;
   const shadow = available.shadow && onShadowChange;
 
-  if (!module || (!gradient && !outline && !shadow)) {
-    return <p className={SIDEBAR_SECTION_EMPTY}>{t.sidebar.effects.empty}</p>;
-  }
+  // Ohne Effekte schließt der Editor den Bereich (`CanvasEditorShell`).
+  if (!module || (!gradient && !outline && !shadow)) return null;
   const { data } = module;
 
   return (
