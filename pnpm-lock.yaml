@@ -5724,11 +5724,11 @@ packages:
       react: ^19.0.0
 
   '@ggraphic/core@file:../../../private/tmp/claude-501/-Users-moritzwachter-Gruenerator/da731fd8-502b-4302-92eb-615cc667aaa2/scratchpad/gg-tarballs/ggraphic-core-0.0.0.tgz':
-    resolution: {integrity: sha512-RhQbGiAkpY576sNGeU+jKvlUnCT9tIiQcLqqhFisUt4UOCdQHK1fz21qwt0q+BoHCZHBuFn4y4bpZ+9flUpK+w==, tarball: file:../../../private/tmp/claude-501/-Users-moritzwachter-Gruenerator/da731fd8-502b-4302-92eb-615cc667aaa2/scratchpad/gg-tarballs/ggraphic-core-0.0.0.tgz}
+    resolution: {integrity: sha512-qB843n9jcHDvs5NqDz/Wd0Kp+vQA2TTTTvmLKNe/vKwmyz5OA2Fd8gNUwXULhXUlste9gecFc1QvGLSmDhgcSQ==, tarball: file:../../../private/tmp/claude-501/-Users-moritzwachter-Gruenerator/da731fd8-502b-4302-92eb-615cc667aaa2/scratchpad/gg-tarballs/ggraphic-core-0.0.0.tgz}
     version: 0.0.0
 
   '@ggraphic/editor@file:../../../private/tmp/claude-501/-Users-moritzwachter-Gruenerator/da731fd8-502b-4302-92eb-615cc667aaa2/scratchpad/gg-tarballs/ggraphic-editor-0.0.0.tgz':
-    resolution: {integrity: sha512-qUNexiu5KJNfThxF+N91YtJj1xqWeC8r1UOwZJpFis2+H/fb8HPoD//060w0qnFdQszlCjQ6V7pL6Lgf1PplUQ==, tarball: file:../../../private/tmp/claude-501/-Users-moritzwachter-Gruenerator/da731fd8-502b-4302-92eb-615cc667aaa2/scratchpad/gg-tarballs/ggraphic-editor-0.0.0.tgz}
+    resolution: {integrity: sha512-nJUzIQSGSDaMWZfiDepQGlfJ9P7egU8bQuxNLcPYrXZwSYgvJ/MSjzKvNJy3dDgSdNJNGJC4nEH3g3xgrumJ7Q==, tarball: file:../../../private/tmp/claude-501/-Users-moritzwachter-Gruenerator/da731fd8-502b-4302-92eb-615cc667aaa2/scratchpad/gg-tarballs/ggraphic-editor-0.0.0.tgz}
     version: 0.0.0
     peerDependencies:
       konva: ^10.9.0
