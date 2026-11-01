@@ -77,6 +77,7 @@ import {
 } from 'react';
 import { createPortal, flushSync } from 'react-dom';
 
+import { useDocumentBrand } from '@ggraphic/editor/brand/documentBrand';
 import { messages } from '@ggraphic/editor/i18n/messages';
 import {
   captureFocusOrigin,
@@ -454,6 +455,7 @@ export function CanvasTextEditorProvider({ children }: { children: ReactNode }) 
 }
 
 function TextEditorRoot({ children }: { children: ReactNode }) {
+  const brand = useDocumentBrand();
   const [session, setSession] = useState<TextEditSession | null>(null);
   const [editor, setEditor] = useState<Editor | null>(null);
   const [draft, setDraft] = useState('');
@@ -600,8 +602,8 @@ function TextEditorRoot({ children }: { children: ReactNode }) {
           // Wert aber unverändert durch.
           ...({
             '--canvas-rte-list-indent': `${listIndent}px`,
-            '--canvas-rte-marker-fill': (session.marker ?? defaultTextMarker()).fill,
-            '--canvas-rte-marker-color': (session.marker ?? defaultTextMarker()).color,
+            '--canvas-rte-marker-fill': (session.marker ?? defaultTextMarker(brand)).fill,
+            '--canvas-rte-marker-color': (session.marker ?? defaultTextMarker(brand)).color,
             ...(session.accent && {
               '--canvas-rte-accent-color': session.accent.fill,
               '--canvas-rte-accent-font': session.accent.fontFamily ?? session.fontFamily,

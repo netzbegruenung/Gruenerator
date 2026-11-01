@@ -41,7 +41,8 @@ export function ImageAdjustSection({
   onUpdateImage,
   backgroundPhoto = null,
 }: ImageAdjustSectionProps) {
-  const { tints, shadows } = useDocumentBrand().effects;
+  const brand = useDocumentBrand();
+  const { tints, shadows } = brand.effects;
   const t = useMessages();
   const img = selectedImage;
   const adj: ImageAdjustments | null = img ?? backgroundPhoto?.adjustments ?? null;
@@ -148,8 +149,8 @@ export function ImageAdjustSection({
               key={c}
               type="button"
               onClick={() => set({ tint: c, tintStrength: adj.tintStrength || 1 })}
-              title={colorName(c)}
-              aria-label={t.sidebar.imageAdjust.tintIn(colorName(c))}
+              title={colorName(c, brand)}
+              aria-label={t.sidebar.imageAdjust.tintIn(colorName(c, brand))}
               aria-pressed={(adj.tint ?? defaultTint()) === c && !!adj.tintStrength}
               className="size-6 rounded-full border border-black/10 transition-transform hover:scale-110"
               style={{
@@ -273,8 +274,8 @@ export function ImageAdjustSection({
                     key={c}
                     type="button"
                     onClick={() => setShadow({ shadowColor: c })}
-                    title={colorName(c)}
-                    aria-label={colorName(c)}
+                    title={colorName(c, brand)}
+                    aria-label={colorName(c, brand)}
                     aria-pressed={img.shadowColor === c}
                     className="size-6 rounded-full border border-black/10 transition-transform hover:scale-110"
                     style={{

@@ -25,7 +25,8 @@ export function FloatingOutlineControl({
   strokeWidth,
   onChange,
 }: FloatingOutlineControlProps) {
-  const { outlines } = useDocumentBrand().effects;
+  const brand = useDocumentBrand();
+  const { outlines } = brand.effects;
   const t = useMessages();
   const enabled = !!stroke && (strokeWidth ?? 0) > 0;
 
@@ -85,8 +86,8 @@ export function FloatingOutlineControl({
                     outlineOffset: '2px',
                   }}
                   onClick={() => onChange({ stroke: c })}
-                  title={colorName(c)}
-                  aria-label={colorName(c)}
+                  title={colorName(c, brand)}
+                  aria-label={colorName(c, brand)}
                   aria-pressed={stroke === c}
                   type="button"
                 />

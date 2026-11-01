@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: MPL-2.0
-import { plainAssetImageUrls, registeredAssetCatalog } from '@ggraphic/editor/utils/canvasAssets';
-import { cn } from '@ggraphic/editor/utils/cn';
 import { Icon } from '@iconify/react';
 
+import { useDocumentBrand } from '@ggraphic/editor/brand/documentBrand';
+import { PREVIEW_COMPONENTS } from '@ggraphic/editor/sidebar/sections/assets/constants';
 import { ChartTypePreview } from '@ggraphic/editor/sidebar/sections/DiagrammeSection';
 import {
   ALL_PALETTE_SHAPES,
@@ -10,8 +10,8 @@ import {
 } from '@ggraphic/editor/sidebar/sections/FormenSection';
 import { IllustrationThumb } from '@ggraphic/editor/sidebar/sections/IllustrationThumb';
 import { FramePresetPreview } from '@ggraphic/editor/sidebar/sections/RahmenSection';
-
-import { PREVIEW_COMPONENTS } from '@ggraphic/editor/sidebar/sections/assets/constants';
+import { plainAssetImageUrls, registeredAssetCatalog } from '@ggraphic/editor/utils/canvasAssets';
+import { cn } from '@ggraphic/editor/utils/cn';
 
 import type { ElementThumbSpec } from './elementTypes.js';
 import type { ShapeType } from '@ggraphic/editor/utils/shapes';
@@ -32,9 +32,10 @@ export function thumbNeedsDarkTile(thumb: ElementThumbSpec): boolean {
 }
 
 function ShapeThumb({ shapeType }: { shapeType: ShapeType }) {
+  const brand = useDocumentBrand();
   const shape = PALETTE_BY_TYPE.get(shapeType);
   if (!shape) return null;
-  const variant = getShapeVariant(shapeType);
+  const variant = getShapeVariant(shapeType, brand);
   return (
     // The palette glyphs are drawn at 32px; scaling is a transform, not a re-layout.
     <span
