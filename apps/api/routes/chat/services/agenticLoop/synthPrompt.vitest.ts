@@ -30,6 +30,7 @@ function fakeState(overrides: Record<string, unknown> = {}): ChatGraphState {
     intent: 'agentic',
     userLocale: 'de-DE',
     mcpServerScope: null,
+    messages: [],
     ...overrides,
   } as unknown as ChatGraphState;
 }
@@ -77,7 +78,55 @@ function carriedRegistry() {
   return registry;
 }
 
+describe('buildSynthSystem — Schreiber-Notizen der Werkzeuge', () => {
+  it('trägt `fuerSchreiber` des Werkzeugergebnisses als Anweisung in den Prompt', () => {
+    const steps: PersistedStep[] = [
+      {
+        toolCallId: 'c1',
+        toolName: 'bundestag',
+        args: {},
+        result: { resultCount: 2, fuerSchreiber: 'Sag ZUERST: nur Bundestag.' },
+      },
+    ];
+    const prompt = buildSynthSystem('[1] Antrag — https://example.org/a', ctx({ steps }));
+    expect(prompt).toContain('Sag ZUERST: nur Bundestag.');
+  });
+
+  it('ohne `fuerSchreiber` bleibt der Prompt frei davon', () => {
+    const steps: PersistedStep[] = [
+      { toolCallId: 'c1', toolName: 'bundestag', args: {}, result: { hinweis: 'Planer-Text' } },
+    ];
+    const prompt = buildSynthSystem('[1] Antrag', ctx({ steps }));
+    expect(prompt).not.toContain('Planer-Text');
+    expect(prompt).not.toContain('ANWEISUNG DER WERKZEUGE');
+  });
+});
+
 describe('buildSynthSystem — Quellenblock', () => {
+  // #5141: „Marskolonie" stand in keiner Quelle, die Antwort band trotzdem
+  // eine Mars-Aussage an das Regierungsprogramm.
+  it('meldet den Gegenstand der Frage, den keine Quelle kennt', () => {
+    const state = fakeState({
+      messages: [{ role: 'user', content: 'Was sagen die Grünen zur Marskolonie-Steuer?' }],
+    });
+    const prompt = buildSynthSystem(
+      '[1] Regierungsprogramm — Milliardärssteuer und Vermögenssteuer',
+      ctx({ state })
+    );
+    expect(prompt).toContain('GEGENSTAND OHNE QUELLE: „Marskolonie“');
+    expect(prompt).toContain(
+      'Ein Marker [N] steht nur hinter einer Aussage, die Quelle N SELBST trägt'
+    );
+  });
+
+  it('ohne Lücke keine Notiz', () => {
+    const state = fakeState({
+      messages: [{ role: 'user', content: 'Was sagen die Grünen zur Vermögensteuer?' }],
+    });
+    const prompt = buildSynthSystem('[1] Regierungsprogramm — Vermögenssteuer', ctx({ state }));
+    expect(prompt).not.toContain('GEGENSTAND OHNE QUELLE');
+  });
+
   it('hängt Liste und Zitiergebot an, wenn Quellen da sind', () => {
     const prompt = buildSynthSystem('[1] Antrag — https://example.org/a', ctx());
     expect(prompt).toContain('GESAMMELTE QUELLEN (nummeriert):');
@@ -145,6 +194,25 @@ describe('buildSynthSystem — Quellenblock', () => {
     expect(prompt).toContain('Du HAST in diesem Turn nachgesehen');
     expect(prompt).not.toContain('hast du NICHTS recherchiert');
     expect(prompt).not.toContain(NO_CAPABILITY_DENIAL_RULE);
+  });
+
+  it('gibt eine Werkzeug-Notiz ohne Quellen weiter, statt „nichts recherchiert" zu sagen', () => {
+    const steps: PersistedStep[] = [
+      {
+        toolCallId: 'c1',
+        toolName: 'nationalrat',
+        args: { query: 'Klima', typ: ['Anfrage'] },
+        result: {
+          resultCount: 0,
+          sources: '',
+          fuerSchreiber: 'Anfragen sind von der Lizenz ausgenommen.',
+        },
+      },
+    ];
+    const prompt = buildSynthSystem('', ctx({ steps }));
+    expect(prompt).toContain('Anfragen sind von der Lizenz ausgenommen.');
+    expect(prompt).toContain('Du HAST in diesem Turn nachgesehen');
+    expect(prompt).not.toContain('hast du NICHTS recherchiert');
   });
 
   it('unterscheidet mitgeführte von gar keinen Quellen', () => {

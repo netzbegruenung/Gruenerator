@@ -66,16 +66,15 @@ const log = createLogger('managedMcpCatalog');
 /** Oversized results are condensed here, not clipped mid-JSON by the client. */
 const RAW_RESULT_MAX_CHARS = 400_000;
 /**
- * Every value postProcess returns must stay UNDER the loop's model budget
- * (wrapTools truncateResultForModel, 6000 chars): once an object exceeds it,
- * deepTruncate slices each string LEAF to ~750 chars — which would shred the
- * bahn board mid-JSON and clip the news [N]-citation block. Staying below the
- * threshold means the model always sees the complete, untruncated result.
+ * Every value postProcess returns is bounded by this. The loop's model budget
+ * for managed connectors is derived from it (`toolResultBudgets.ts` imports it),
+ * so the complete result reaches the model — without that entry the generic
+ * 6000-char net would cut `content` and shred e.g. the bahn board mid-JSON.
  */
 // Raised with the retrieval caps: 5k truncated a news or timetable payload
 // mid-list. The numbered source block is protected separately below, so this
 // only bounds the raw remainder.
-const MODEL_RESULT_MAX_CHARS = 25_000;
+export const MODEL_RESULT_MAX_CHARS = 25_000;
 const ERROR_MAX_CHARS = 2_000;
 // ~15 entries ≈ 3-4k chars serialized — complete for the model AND more than
 // the card renders (8 rows + "+N weitere").

@@ -10,7 +10,7 @@
  * Zeilen danebenliegt — der Name schwebte dadurch frei unter dem Zitat.
  */
 
-import { getBrandTheme } from '../brand/theme';
+import { getBrandPack, getBrandTheme } from '../brand/theme';
 import { ZITAT_PURE_AT_CONFIG, calculateZitatPureAtLayout } from '../utils/zitatPureAtLayout';
 
 import {
@@ -24,7 +24,7 @@ import {
   type ColorTwoTextState,
 } from './factory';
 
-import type { ImageElementConfig, LayoutResult } from './types';
+import type { ImageElementConfig, LayoutResult } from '@ggraphic/editor/configs/types';
 
 const AT = getBrandTheme('de-AT');
 const Z = ZITAT_PURE_AT_CONFIG;
@@ -128,6 +128,8 @@ const baseZitatPureAtConfig = createColorTwoTextCanvas({
   passthroughStateKeys: ['namePosition', 'quoteMarkOffset', 'quoteMarkOpacity'],
   elements: [quoteMarkElement, quoteTextElement, nameTextElement],
   features: { icons: true, shapes: true, illustrations: true },
+  // Neue Texte, Badges, Rahmen und Formen beginnen im österreichischen Markenpaket.
+  brand: getBrandPack('de-AT'),
   getCanvasText: (state) => {
     const quote = state.quote || '';
     const name = state.name || '';

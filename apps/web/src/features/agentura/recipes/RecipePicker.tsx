@@ -1,4 +1,4 @@
-import { agentsList, useHiddenSkillMentions, type AgentListItem } from '@gruenerator/chat';
+import { listedAgentsList, useHiddenSkillMentions, type AgentListItem } from '@gruenerator/chat';
 import { type PublicTextForm, type TextForm } from '@gruenerator/contracts';
 import { isAdminVisibleSkill, isSkillOfferedIn } from '@gruenerator/shared/agents';
 import { useOwnRecipes, usePublicRecipes } from '@gruenerator/shared/grueneratoren';
@@ -32,7 +32,7 @@ function useVisibleSystemRecipes(): readonly AgentListItem[] {
   const hiddenSkillMentions = useHiddenSkillMentions();
   return useMemo(
     () =>
-      agentsList.filter(
+      listedAgentsList.filter(
         (s) =>
           (s.audience === undefined || s.audience === 'all' || s.audience === userLocale) &&
           isAdminVisibleSkill(s.mention, hiddenSkillMentions) &&

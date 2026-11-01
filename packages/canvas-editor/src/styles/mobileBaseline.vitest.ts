@@ -8,7 +8,10 @@ import { describe, expect, it } from 'vitest';
 const root = path.resolve(import.meta.dirname, '../../../..');
 const read = (p: string) => readFileSync(path.join(root, p), 'utf8');
 
-const css = read('packages/canvas-editor/src/canvas-editor.css');
+// The neutral rules live in the core stylesheet; canvas-editor.css only imports it
+// and re-colours the stage border.
+const css = read('packages/ggraphic-editor/src/styles/editor.css');
+const brandCss = read('packages/canvas-editor/src/canvas-editor.css');
 const webVars = read('apps/web/src/assets/styles/common/variables.css');
 const editorVars = read('packages/canvas-editor/src/styles/variables.css');
 
@@ -38,9 +41,11 @@ describe('canvas editor mobile baseline', () => {
   });
 
   it('gates the page-wrapper hover border', () => {
-    expect(css).toMatch(
-      /@media \(hover: hover\) and \(pointer: fine\)\s*\{[^@]*page-wrapper:hover/
-    );
+    for (const sheet of [css, brandCss]) {
+      expect(sheet).toMatch(
+        /@media \(hover: hover\) and \(pointer: fine\)\s*\{[^@]*page-wrapper:hover/
+      );
+    }
   });
 
   it('declares the motion tokens in both variable files', () => {

@@ -2,10 +2,13 @@ import { type MarketplaceItem } from '@gruenerator/contracts';
 import { describe, expect, it } from 'vitest';
 
 import { ROBOT_ID_MAX, ROBOT_ID_MIN } from '../avatar/index.js';
+import { presetsForCollection } from '../profilbild/backgrounds.js';
+import { stickersForCollection } from '../stickers/catalog.js';
 
-import { type CollectionStoryBlock, resolveStory } from './collectionStory.js';
+import { type CollectionStoryBlock, resolveStory, storyShowsVorlage } from './collectionStory.js';
 import {
   collectionForThema,
+  collectionsFor,
   MARKETPLACE_COLLECTIONS,
   type MarketplaceCollection,
 } from './frontpage.js';
@@ -127,5 +130,39 @@ describe('collectionForThema', () => {
     expect(collectionForThema('queer')?.id).toBe('queer');
     expect(collectionForThema('frauen')?.id).toBe('gleichstellung');
     expect(collectionForThema('europa')?.id).toBe('europa');
+  });
+});
+
+describe('storyShowsVorlage', () => {
+  it('keeps party themes and GJ Vorlagen apart', () => {
+    const queer = { type: 'vorlagen', thema: 'queer' } as const;
+    const gj = { type: 'vorlagen', brand: 'gruene-jugend' } as const;
+    expect(storyShowsVorlage(queer, { thema: 'queer' })).toBe(true);
+    expect(storyShowsVorlage(queer, { thema: 'queer', brand: 'gruene-jugend' })).toBe(false);
+    expect(storyShowsVorlage(gj, { brand: 'gruene-jugend' })).toBe(true);
+    expect(storyShowsVorlage(gj, { thema: 'queer', brand: 'gruene-jugend' })).toBe(true);
+    expect(storyShowsVorlage(gj, {})).toBe(false);
+  });
+});
+
+describe('GJ collections', () => {
+  it('offer Profilbild stickers and backgrounds of their own country', () => {
+    for (const c of COLLECTIONS) {
+      for (const block of c.story ?? []) {
+        if (block.type !== 'profilbild') continue;
+        expect(block.kollektion).toBe(c.id);
+        const stickers = stickersForCollection(block.kollektion);
+        expect(stickers.length + presetsForCollection(block.kollektion).length).toBeGreaterThan(0);
+        expect(stickers.every((s) => c.audience === 'all' || s.audience === c.audience)).toBe(true);
+      }
+    }
+  });
+
+  it('give each country only its own Grüne Jugend', () => {
+    const ids = (locale: string) => collectionsFor(locale).map((c) => c.id);
+    expect(ids('de-DE')).toContain('gruene-jugend');
+    expect(ids('de-DE')).not.toContain('gruene-jugend-oesterreich');
+    expect(ids('de-AT')).toContain('gruene-jugend-oesterreich');
+    expect(ids('de-AT')).not.toContain('gruene-jugend');
   });
 });

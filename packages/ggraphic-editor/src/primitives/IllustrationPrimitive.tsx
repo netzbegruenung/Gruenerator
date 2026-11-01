@@ -1,0 +1,267 @@
+// SPDX-License-Identifier: MPL-2.0
+import { useState, useEffect, useRef, memo } from 'react';
+import { Image, Group, Rect, Transformer } from 'react-konva';
+
+import { activeBrand } from '@ggraphic/editor/brand/brandRegistry';
+import { LOCKED_TRANSFORMER, useIsItemLocked } from '@ggraphic/editor/components/canvasItemLock';
+import { useBoxSnap, type SnapProps } from '@ggraphic/editor/hooks/useBoxSnap';
+import { ILLUSTRATION_TARGET_SIZE, MOTIF_BASE_SIZE } from '@ggraphic/editor/utils/motifSizes';
+import { ELEMENT_TRANSFORMER, signedScale } from '@ggraphic/editor/utils/orientation';
+import { illustrationBox } from '@ggraphic/editor/utils/renderedBoxes';
+
+import { useCanvasEditorServices } from '../CanvasEditorProvider.js';
+import { getIllustrationPath, findIllustrationById } from '../utils/illustrations/registry.js';
+import { getCachedSVG, getSVG } from '../utils/illustrations/svgCache.js';
+
+import type {
+  IllustrationInstance,
+  KawaiiIllustrationType,
+  SvgDef,
+  KawaiiInstance,
+} from '@ggraphic/editor/utils/illustrations/types';
+import type Konva from 'konva';
+
+// react-kawaii and react-dom/server are only needed once a kawaii
+// illustration is on the canvas, so they load on demand (like recharts in
+// ChartPrimitive) instead of riding in the editor-core chunk.
+async function renderKawaiiSvg(instance: KawaiiInstance, size: number): Promise<string | null> {
+  const [{ renderToStaticMarkup }, kawaii] = await Promise.all([
+    import('react-dom/server'),
+    import('react-kawaii'),
+  ]);
+  const components: Record<KawaiiIllustrationType, typeof kawaii.Planet> = {
+    planet: kawaii.Planet,
+    cat: kawaii.Cat,
+    ghost: kawaii.Ghost,
+    iceCream: kawaii.IceCream,
+    browser: kawaii.Browser,
+    mug: kawaii.Mug,
+    speechBubble: kawaii.SpeechBubble,
+    backpack: kawaii.Backpack,
+    creditCard: kawaii.CreditCard,
+    file: kawaii.File,
+    folder: kawaii.Folder,
+  };
+  const Component = components[instance.illustrationId];
+  if (!Component) return null;
+  return renderToStaticMarkup(
+    <Component size={size} mood={instance.mood} color={instance.color} />
+  );
+}
+
+export interface IllustrationPrimitiveProps extends SnapProps {
+  illustration: IllustrationInstance;
+  isSelected: boolean;
+  onSelect: (id: string) => void;
+  onDragEnd: (x: number, y: number) => void;
+  onTransformEnd: (x: number, y: number, scale: number, rotation: number) => void;
+  draggable?: boolean;
+}
+
+function IllustrationPrimitiveInner({
+  illustration,
+  isSelected,
+  onSelect,
+  onDragEnd,
+  onTransformEnd,
+  draggable = true,
+  ...snapProps
+}: IllustrationPrimitiveProps) {
+  const locked = useIsItemLocked();
+  const snap = useBoxSnap({ id: illustration.id, ...snapProps }, illustrationBox(illustration));
+  const { assetBaseUrl = '' } = useCanvasEditorServices();
+  const groupRef = useRef<Konva.Group>(null);
+  const transformerRef = useRef<Konva.Transformer>(null);
+  const [image, setImage] = useState<HTMLImageElement | null>(null);
+
+  // Load Image (Kawaii or SVG)
+  useEffect(() => {
+    let cancelled = false;
+    if (illustration.source === 'kawaii') {
+      const size = 200; // Render at high resolution
+      void renderKawaiiSvg(illustration as KawaiiInstance, size).then((svgString) => {
+        if (cancelled || !svgString) return;
+        const encoded = encodeURIComponent(svgString);
+        const dataUrl = `data:image/svg+xml;charset=utf-8,${encoded}`;
+
+        const img = new window.Image();
+        img.src = dataUrl;
+        img.onload = () => setImage(img);
+      });
+    } else {
+      // Load SVG from cache or fetch if not cached
+      const loadSvg = async () => {
+        const def = await findIllustrationById(illustration.illustrationId);
+        if (!def || def.source === 'kawaii') return;
+
+        const svgDef = def as SvgDef;
+
+        // Try cache first (synchronous, instant)
+        const cached = getCachedSVG(svgDef.id, illustration.color);
+        if (cached) {
+          const img = new window.Image();
+          img.src = cached;
+          img.onload = () => setImage(img);
+          return;
+        }
+
+        // Fallback: fetch and cache (async)
+        try {
+          const dataUrl = await getSVG(svgDef.id, svgDef, illustration.color, assetBaseUrl);
+          const img = new window.Image();
+          img.src = dataUrl;
+          img.onload = () => setImage(img);
+        } catch (err) {
+          console.error('Failed to load SVG:', err);
+          // Final fallback: direct load without color manipulation
+          const path = getIllustrationPath(svgDef, assetBaseUrl);
+          const img = new window.Image();
+          img.src = path;
+          img.onload = () => setImage(img);
+        }
+      };
+
+      void loadSvg();
+    }
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    illustration.source,
+    illustration.illustrationId,
+    illustration.color, // Depend on color
+    assetBaseUrl,
+    // Only Kawaii specific props trigger re-render of SVG
+    illustration.source === 'kawaii' ? (illustration as KawaiiInstance).mood : null,
+    illustration.source === 'kawaii' ? (illustration as KawaiiInstance).color : null,
+  ]);
+
+  // Transformer logic
+  useEffect(() => {
+    if (isSelected && transformerRef.current && groupRef.current) {
+      transformerRef.current.nodes([groupRef.current]);
+      transformerRef.current.getLayer()?.batchDraw();
+    }
+  }, [isSelected]);
+
+  if (!image) return null;
+
+  const BASE_SIZE = MOTIF_BASE_SIZE;
+  const TARGET_SIZE = ILLUSTRATION_TARGET_SIZE;
+  const baseScale = TARGET_SIZE / BASE_SIZE;
+
+  return (
+    <>
+      <Group
+        ref={groupRef}
+        x={illustration.x}
+        y={illustration.y}
+        scaleX={illustration.scale * baseScale}
+        scaleY={illustration.scale * baseScale}
+        rotation={illustration.rotation}
+        opacity={illustration.opacity}
+        draggable={draggable && !locked}
+        onMouseDown={(e) => {
+          e.cancelBubble = true;
+          onSelect(illustration.id);
+        }}
+        onTouchStart={(e) => {
+          e.cancelBubble = true;
+          onSelect(illustration.id);
+        }}
+        onDragStart={snap.onDragStart}
+        onDragMove={snap.onDragMove}
+        onDragEnd={(e) => {
+          snap.onDragEnd();
+          onDragEnd(e.target.x(), e.target.y());
+        }}
+        onTransformEnd={() => {
+          const node = groupRef.current;
+          if (!node) return;
+
+          const scaleX = Math.abs(node.scaleX());
+          const scaleY = Math.abs(node.scaleY());
+          const newScale = Math.max(scaleX, scaleY) / baseScale;
+          const newRotation = node.rotation();
+
+          // Reset node transform
+          node.scaleX(illustration.scale * baseScale);
+          node.scaleY(illustration.scale * baseScale);
+          node.rotation(illustration.rotation);
+
+          onTransformEnd(node.x(), node.y(), newScale, newRotation);
+        }}
+      >
+        {/* Gespiegelt wird das Bild, nicht die Gruppe: am Transformer hängt so nie
+            eine negative Skala, die Konva als Drehung + 180° zerlegen würde. */}
+        <Image
+          image={image}
+          width={BASE_SIZE}
+          height={BASE_SIZE}
+          offsetX={BASE_SIZE / 2}
+          offsetY={BASE_SIZE / 2}
+          scaleX={signedScale(1, illustration.flipX === true)}
+          scaleY={signedScale(1, illustration.flipY === true)}
+        />
+
+        {/* Selection border */}
+        {isSelected && (
+          <Rect
+            name="selection-chrome"
+            x={-BASE_SIZE / 2}
+            y={-BASE_SIZE / 2}
+            width={BASE_SIZE}
+            height={BASE_SIZE}
+            stroke={activeBrand().colors.primary}
+            strokeWidth={2 / (illustration.scale * baseScale)}
+            dash={[5, 5]}
+            listening={false}
+          />
+        )}
+      </Group>
+
+      {isSelected && (
+        <Transformer
+          ref={transformerRef}
+          keepRatio={true}
+          enabledAnchors={['top-left', 'top-right', 'bottom-left', 'bottom-right']}
+          rotateEnabled={true}
+          {...ELEMENT_TRANSFORMER}
+          {...(locked ? LOCKED_TRANSFORMER : {})}
+        />
+      )}
+    </>
+  );
+}
+
+/**
+ * Memoized IllustrationPrimitive - Prevents unnecessary re-renders during drag
+ */
+export const IllustrationPrimitive = memo(IllustrationPrimitiveInner, (prevProps, nextProps) => {
+  // Compare illustration object properties
+  const prev = prevProps.illustration;
+  const next = nextProps.illustration;
+
+  if (prev.id !== next.id) return false;
+  if (prev.source !== next.source) return false;
+  if (prev.illustrationId !== next.illustrationId) return false;
+  if (prev.x !== next.x) return false;
+  if (prev.y !== next.y) return false;
+  if (prev.scale !== next.scale) return false;
+  if (prev.rotation !== next.rotation) return false;
+  if (prev.flipX !== next.flipX) return false;
+  if (prev.flipY !== next.flipY) return false;
+  if (prev.opacity !== next.opacity) return false;
+  if (prev.color !== next.color) return false;
+
+  // Compare other props
+  if (prevProps.isSelected !== nextProps.isSelected) return false;
+  if (prevProps.draggable !== nextProps.draggable) return false;
+  if (prevProps.stageWidth !== nextProps.stageWidth) return false;
+  if (prevProps.stageHeight !== nextProps.stageHeight) return false;
+
+  // Callbacks are considered stable
+  return true;
+});
+
+IllustrationPrimitive.displayName = 'IllustrationPrimitive';

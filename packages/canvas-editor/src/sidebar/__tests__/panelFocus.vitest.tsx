@@ -9,10 +9,10 @@ import { PiImage, PiTextAa } from 'react-icons/pi';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { axe } from '../../test-utils';
-import { SidebarPanel } from '../SidebarPanel';
-import { SidebarTabBar } from '../SidebarTabBar';
+import { SidebarPanel } from '@ggraphic/editor/sidebar/SidebarPanel';
+import { SidebarTabBar } from '@ggraphic/editor/sidebar/SidebarTabBar';
 
-import type { SidebarTab, SidebarTabId } from '../types';
+import type { SidebarTab, SidebarTabId } from '@ggraphic/editor/sidebar/types';
 
 function setViewport(mobile: boolean) {
   window.matchMedia = vi.fn().mockImplementation((query: string) => ({

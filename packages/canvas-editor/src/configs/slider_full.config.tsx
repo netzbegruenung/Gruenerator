@@ -12,13 +12,19 @@
  * `slider-at` (Österreich: Ein-Balken-Logo, Dunkelgrün/Hellgrün, Gotham).
  */
 
+import { carryInstanceState } from '@ggraphic/editor/configs/factory/carryInstanceState';
+import { makeSectionDefiner } from '@ggraphic/editor/configs/factory/defineSection';
+import { fromLayout } from '@ggraphic/editor/configs/factory/layoutAccessors';
+import { injectFeatureProps } from '@ggraphic/editor/configs/featureInjector';
+import { createShareSection } from '@ggraphic/editor/configs/shareSection';
 import { zoomBackground } from '@ggraphic/editor/utils/coverFit';
+import { recolorIconInstances } from '@ggraphic/editor/utils/iconInstances';
 import { createPillBadgeInstance } from '@ggraphic/editor/utils/pillBadgeUtils';
 import { straightenResetFor } from '@ggraphic/editor/utils/straighten';
 import { PiFrameCornersFill, PiSquaresFourFill, PiTextAa } from 'react-icons/pi';
 
+import { getBrandPack } from '../brand/theme';
 import { AssetsSection, CombinedTextSection, FrameSettingsSection } from '../sidebar/sections';
-import { recolorIconInstances } from '../utils/iconInstances';
 import {
   SLIDER_AT_LOGO,
   SLIDER_AT_STYLE,
@@ -31,14 +37,13 @@ import {
 } from '../utils/sliderLayout';
 
 import { chatTab, createCommonSectionEntries, toolsTab, uploadsTab } from './commonSections';
-import { createBaseActions } from './factory/actionFactories';
-import { carryInstanceState } from './factory/carryInstanceState';
-import { makeSectionDefiner } from './factory/defineSection';
-import { fromLayout } from './factory/layoutAccessors';
-import { injectFeatureProps } from './featureInjector';
-import { createShareSection } from './shareSection';
+import { createBaseActions } from './factory/baseActions';
 
 import type { SharepicAiCapabilities } from './aiCapabilities';
+import type { BalkenInstance, BalkenMode } from '../utils/balkenUtils';
+import type { SliderColorScheme, SliderStyle } from '../utils/sliderLayout';
+import type { BrandPack } from '@ggraphic/core';
+import type { BaseCanvasState, IconState } from '@ggraphic/editor/configs/factory/baseTypes';
 import type {
   FullCanvasConfig,
   LayoutResult,
@@ -47,12 +52,9 @@ import type {
   TextElementConfig,
   ImageElementConfig,
   AdditionalText,
-} from './types';
-import type { BackgroundColorOption, StockImageAttribution } from '../sidebar/types';
-import type { AssetInstance } from '../utils/canvasAssets';
-import type { BaseCanvasState, IconState } from './factory/baseTypes';
-import type { SliderColorScheme, SliderStyle } from '../utils/sliderLayout';
-import type { BalkenInstance, BalkenMode } from '@ggraphic/editor/utils/balkenUtils';
+} from '@ggraphic/editor/configs/types';
+import type { BackgroundColorOption, StockImageAttribution } from '@ggraphic/editor/sidebar/types';
+import type { AssetInstance } from '@ggraphic/editor/utils/canvasAssets';
 import type { CircleBadgeInstance } from '@ggraphic/editor/utils/circleBadgeUtils';
 import type { FrameClipType, FrameInstance } from '@ggraphic/editor/utils/frameUtils';
 import type { IllustrationInstance } from '@ggraphic/editor/utils/illustrations/types';
@@ -224,6 +226,8 @@ interface SliderBrand {
   aiColorSchemes: { id: string; label: string }[];
   /** Brand mark on cover and closing slides (sunflower / logo). */
   markElement: ImageElementConfig<SliderState>;
+  /** The pack new elements take their defaults from; absent: the active brand. */
+  pack?: BrandPack;
 }
 
 // ============================================================================
@@ -563,6 +567,8 @@ function createSliderConfig(brand: SliderBrand): FullCanvasConfig<SliderState, S
   return {
     id: brand.id,
 
+    ...(brand.pack ? { brand: brand.pack } : {}),
+
     canvas: {
       width: SLIDER_CONFIG.canvas.width,
       height: SLIDER_CONFIG.canvas.height,
@@ -871,7 +877,8 @@ function createSliderConfig(brand: SliderBrand): FullCanvasConfig<SliderState, S
         debouncedSaveToHistory,
         width,
         height,
-        getFontColor()
+        getFontColor(),
+        brand.pack
       );
 
       return {
@@ -1093,4 +1100,5 @@ export const sliderAtFullConfig = createSliderConfig({
     { id: 'hellgruen', label: 'Hellgrün (Alternative)' },
   ],
   markElement: logoElement,
+  pack: getBrandPack('de-AT'),
 });

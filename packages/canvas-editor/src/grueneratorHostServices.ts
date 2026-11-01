@@ -9,13 +9,15 @@
  * does the package barrel, so the augmentation is in every program that sees
  * them.
  */
-import type { BlockSlide, LiftedBlock } from './blocks/liftedBlock';
-import type { CanvasPrintService } from './hostServices';
+import type { BlockSlide, LiftedBlock } from '@ggraphic/editor/blocks/liftedBlock';
+import type { CanvasPrintService } from '@ggraphic/editor/hostServices';
 import type {
   CanvasVorlage,
+  FolienVorlage,
   PrintSpec,
   PrintVorlage,
   SharepicBlock,
+  SharepicBrand,
   SharepicColor,
   SharepicCreatorLocale,
   SharepicFormat,
@@ -37,10 +39,13 @@ export interface VorlagePage {
  * fonts, photo tones) and keeps its spec on it, so the chat can go on editing it.
  */
 export interface CanvasVorlagenService {
-  listSeiten: () => Promise<SharepicSeite[]>;
+  /** The Seiten in one design; the tab asks for the one the sharepic is in. */
+  listSeiten: (brand: SharepicBrand) => Promise<SharepicSeite[]>;
   composeSeite: (seite: SharepicSeite, format: SharepicFormat) => Promise<VorlagePage[]>;
   /** Vorlagen saved as finished pages, for every format; the tab shows the document's. */
   listCanvas?: () => Promise<CanvasVorlage[]>;
+  /** The slide deck Vorlagen (Stile) of the viewer's country, for „Vorlage für alle Folien". */
+  loadDeckVorlagen?: () => Promise<FolienVorlage[]>;
   /** The print Vorlagen of the viewer's country; their specs compose through `print.composePrint`. */
   listPrint?: () => Promise<PrintVorlage[]>;
   /**
@@ -49,7 +54,7 @@ export interface CanvasVorlagenService {
    */
   openPrintAsNew?: (vorlage: PrintVorlage) => void;
   /** The host's blocks for the viewer, for the Elemente panel. */
-  listBloecke?: () => Promise<SharepicBlock[]>;
+  listBloecke?: (brand: SharepicBrand) => Promise<SharepicBlock[]>;
   /** Composes a block on `color` in `format` (needs the browser: fonts); the slide holds it alone. */
   composeBlock?: (
     block: SharepicBlock,
@@ -70,13 +75,14 @@ export interface CanvasBlockService {
   ground: (
     locale: SharepicCreatorLocale,
     page: { backgroundMode?: unknown; backgroundColor?: unknown },
-    fallback: SharepicColor
+    fallback: SharepicColor,
+    brand?: SharepicBrand
   ) => SharepicColor;
   /** The elements of `items` cut loose from the composed slide, ids made unique by `token`. */
   lift: (slide: BlockSlide, items: readonly number[], token: string) => LiftedBlock;
 }
 
-declare module './CanvasEditorProvider' {
+declare module '@ggraphic/editor/CanvasEditorProvider' {
   interface CanvasEditorHostServices {
     /** The host's Vorlagen for the „Vorlagen" tab; when omitted, the tab is hidden. */
     vorlagen?: CanvasVorlagenService;
@@ -90,7 +96,7 @@ declare module './CanvasEditorProvider' {
   }
 }
 
-declare module './hostServices' {
+declare module '@ggraphic/editor/hostServices' {
   interface CanvasPrintService {
     /**
      * The pages of a print Vorlage's spec (measures text: fonts must be ready).

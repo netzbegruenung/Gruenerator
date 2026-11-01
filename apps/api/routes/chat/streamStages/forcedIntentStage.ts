@@ -14,6 +14,7 @@
 import { promises as fsPromises } from 'node:fs';
 import nodePath from 'node:path';
 
+import { isMethodSkill } from '@gruenerator/shared/agents';
 import {
   artifactKindForCreateToken,
   isIntentAllowedForLocale,
@@ -291,8 +292,17 @@ export async function runForcedIntentStage({
     // Das Rezept dagegen NUR setzen, nie löschen und nie überschreiben: es kann
     // aus der ausdrücklichen Wahl im Composer stammen (`/presse`, `/instagram`),
     // und die gehört nicht einer Erwähnung, die zufällig danach steht.
+    //
+    // Ein Methoden-Rezept (`@bundestag` → Bundestag-Recherche) belegt den
+    // Textsorten-Platz gar nicht: es kommt zu den Methoden des Turns, und die
+    // Textsorte — gewählt, implizit oder per `rezept_laden` — bleibt frei.
     const skill = skillForMention(token);
-    if (skill && !classifiedState.activeSkillMention) classifiedState.activeSkillMention = skill;
+    if (skill && isMethodSkill(skill)) {
+      const methods = classifiedState.methodSkillMentions ?? [];
+      if (!methods.includes(skill)) classifiedState.methodSkillMentions = [...methods, skill];
+    } else if (skill && !classifiedState.activeSkillMention) {
+      classifiedState.activeSkillMention = skill;
+    }
     forcedTool = true;
     if (route.group) firedGroups.add(route.group);
     route.onPin?.(pinContext);

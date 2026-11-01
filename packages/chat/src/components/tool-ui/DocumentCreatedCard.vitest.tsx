@@ -209,3 +209,23 @@ describe('DocumentCreatedCard — Explainable', () => {
     expect(screen.queryByRole('button')).not.toBeInTheDocument();
   });
 });
+
+describe('DocumentCreatedCard — Canvas-Präsentation', () => {
+  const deck: DocumentCreatedData = {
+    documentId: 'c1',
+    title: 'Radwege',
+    subtype: 'canvas',
+    url: '/studio/canvas/c1',
+  };
+
+  it('reads as a presentation and opens the canvas studio URL', () => {
+    useArtifactLiveStore.setState({ panelMounted: false });
+    render(<DocumentCreatedCard document={deck} />);
+
+    expect(screen.getByText('Präsentation')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /Präsentation öffnen/i })).toHaveAttribute(
+      'href',
+      '/studio/canvas/c1'
+    );
+  });
+});

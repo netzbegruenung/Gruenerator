@@ -1,10 +1,11 @@
+import { type RequiredFontRole, resolveFontRole } from '@ggraphic/core';
+import { balancedWrap, largestSizeWordsFit } from '@ggraphic/editor/composer/textFit';
 import { createShape } from '@ggraphic/editor/utils/shapes';
 
 import { type InfografikItem, type Placed } from './composeTypes';
 import { SHAREPIC_ICON_FILLED, SHAREPIC_ICON_IDS } from './sharepicIcons';
 import { GAP } from './sharepicLayoutConstants';
 import { type BuildPass, type SlideCtx } from './slideContext';
-import { balancedWrap, largestSizeWordsFit } from './textFit';
 
 /**
  * The smallest quantity's side, as a share of the largest one's. Area-true
@@ -48,7 +49,8 @@ export function layoutInfografik(
   // in order, or standing on a ground line, sized by their value.
   const body = theme.fonts.body;
   const titleInHeadline = brand.headlineFace.infografikTitel;
-  const titleFamily = titleInHeadline ? theme.fonts.headline : body;
+  const titleRole: RequiredFontRole = titleInHeadline ? 'headline' : 'body';
+  const titleFamily = resolveFontRole(theme.fonts, titleRole);
   const titleStyle = titleInHeadline ? 'normal' : 'bold';
   const punkte = item.punkte;
   const s = Math.min(scale, 1.2);
@@ -110,7 +112,7 @@ export function layoutInfografik(
       ? textGap + lineCount(punkt.text, width, textSize, body, 'normal') * textSize * 1.3
       : 0;
     if (place) {
-      text(`${pid}-titel`, punkt.titel, place.y, titleSize, titleFamily, {
+      text(`${pid}-titel`, punkt.titel, place.y, titleSize, titleRole, {
         x: place.x,
         width,
         align: place.align,
@@ -125,7 +127,7 @@ export function layoutInfografik(
           width,
           Math.ceil(Math.max(...lines.map((l) => measure(l, textSize, body, 'normal')))) + 2
         );
-        text(`${pid}-text`, punkt.text, place.y + titleH + textGap, textSize, body, {
+        text(`${pid}-text`, punkt.text, place.y + titleH + textGap, textSize, 'body', {
           x: place.align === 'center' ? place.x + (width - textWidth) / 2 : place.x,
           width: textWidth,
           align: place.align,
@@ -245,7 +247,7 @@ export function layoutInfografik(
           );
           addShape(Object.assign(disc, { id: `${pid}-nummer-kreis`, width: badge, height: badge }));
           const size = Math.round(badge * 0.55);
-          text(`${pid}-nummer`, String(k + 1), cy - size * 0.6, size, titleFamily, {
+          text(`${pid}-nummer`, String(k + 1), cy - size * 0.6, size, titleRole, {
             x: column.x,
             width: badge,
             align: 'center',

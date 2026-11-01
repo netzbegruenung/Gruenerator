@@ -77,6 +77,13 @@ export function deckFaces(brand: PresentationBrand): DeckFaces {
  */
 type Measurer = { measure: (text: string, font: string) => number };
 let cached: Measurer | null | undefined;
+/** Aliases whose font file actually loaded. */
+const registered = new Set<string>();
+
+/** Whether the alias was measured in its own face rather than a fallback. */
+export function faceRegistered(alias: string): boolean {
+  return registered.has(alias);
+}
 
 async function getMeasurer(): Promise<Measurer | null> {
   if (cached !== undefined) return cached;
@@ -85,7 +92,9 @@ async function getMeasurer(): Promise<Measurer | null> {
     for (const [alias, file] of Object.entries(FACE_FILES)) {
       // A missing/unreadable file returns falsy rather than throwing — without
       // the check the alias silently measures in the fallback face.
-      if (!GlobalFonts.registerFromPath(file, alias)) {
+      if (GlobalFonts.registerFromPath(file, alias)) {
+        registered.add(alias);
+      } else {
         log.warn(
           `Deck-Schrift ${alias} nicht registriert (${path.basename(file)}) — Maße werden geschätzt`
         );
@@ -154,7 +163,27 @@ function shorthand(run: MeasureRun, opts: WrapOpts): string {
 export async function countLines(runs: MeasureRun[], opts: WrapOpts): Promise<number> {
   const m = await getMeasurer();
   if (!m) return 1;
+  return wrapLineCount(m, runs, opts);
+}
 
+/**
+ * The same walk for callers that cannot await (a `validate` callback). Needs
+ * `metricsReady()` to have resolved once beforehand; returns null while the
+ * measurer is unavailable, so the caller can fall back to its budgets.
+ */
+export function countLinesSync(runs: MeasureRun[], opts: WrapOpts): number | null {
+  return cached ? wrapLineCount(cached, runs, opts) : null;
+}
+
+/**
+ * Width of one unbroken string in the face `opts` picks, or null while the
+ * measurer is unavailable. For callers that must know whether a word fits a line.
+ */
+export function textWidthSync(text: string, opts: WrapOpts): number | null {
+  return cached ? cached.measure(text, shorthand({ text }, opts)) : null;
+}
+
+function wrapLineCount(m: Measurer, runs: MeasureRun[], opts: WrapOpts): number {
   let lines = 1;
   let x = 0;
   for (const run of runs) {

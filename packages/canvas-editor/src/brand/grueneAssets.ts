@@ -11,83 +11,10 @@ import {
   getAssetById,
   type AssetAudience,
   type UniversalAsset,
-} from '../utils/canvasAssets';
+} from '@ggraphic/editor/utils/canvasAssets';
+import { GRUENE_SYSTEM_ASSETS } from '@gruenerator/contracts/brand';
 
-export const GRUENE_SYSTEM_ASSETS = {
-  sunflower: {
-    yellow: {
-      src: '/Sonnenblume.png',
-      label: 'Sonnenblume (Gelb)',
-    },
-    green: {
-      src: '/sonnenblume_dunkelgruen.svg',
-      label: 'Sonnenblume (Grün)',
-    },
-    // Light-green flower matching the Info sharepic's server render
-    // (apps/api/public/sonnenblume_gruen.png).
-    greenLight: {
-      src: '/sonnenblume_gruen.png',
-      label: 'Sonnenblume (Hellgrün)',
-    },
-    white: {
-      src: '/sonnenblume_weiss.svg',
-      label: 'Sonnenblume (Weiß)',
-    },
-    black: {
-      src: '/sonnenblume_schwarz.svg',
-      label: 'Sonnenblume (Schwarz)',
-    },
-  },
-  // Österreich (de-AT): das Anführungszeichen steht dort in Gelb (CI 2026).
-  quoteGelb: {
-    src: '/quote-gelb.svg',
-    label: 'Anführungszeichen (Gelb)',
-  },
-  // Deutschland (de-DE) — Wortmarke "BÜNDNIS 90 / DIE GRÜNEN". Die Farbfassung
-  // (sandfarbene Schrift) ist für dunkle Hintergründe gedacht.
-  logoDe: {
-    farbe: {
-      src: '/gruene-de-logo.png',
-      label: 'Logo Bündnis 90/Die Grünen',
-    },
-    weiss: {
-      src: '/gruene-de-logo-weiss.png',
-      label: 'Logo weiß',
-    },
-    schwarz: {
-      src: '/gruene-de-logo-schwarz.png',
-      label: 'Logo schwarz',
-    },
-  },
-  // Österreich (de-AT) — reduziertes Ein-Balken-Logo "G DIE GRÜNEN" (CI 2026)
-  logoAt: {
-    weiss: {
-      src: '/gruene-at-logo-weiss.png',
-      label: 'Die Grünen (weiß)',
-    },
-    gruen: {
-      src: '/gruene-at-logo-gruen.png',
-      label: 'Die Grünen (grün)',
-    },
-  },
-  // Österreich (de-AT): der Wischen-Pfeil der Karussells als Pinselstrich.
-  brushArrow: {
-    weiss: {
-      src: '/brush-arrow-weiss.svg',
-      label: 'Pinselpfeil (Weiß)',
-    },
-    gruen: {
-      src: '/brush-arrow-gruen.svg',
-      label: 'Pinselpfeil (Grün)',
-    },
-  },
-  backgrounds: {
-    info: {
-      tanne: '/Info_bg_tanne.png',
-      sand: '/Info_bg_sand.png',
-    },
-  },
-} as const;
+export { GRUENE_SYSTEM_ASSETS };
 
 /** Logos and sunflowers, first in the picker (`ALL_ASSETS`). */
 export const GRUENE_DECORATION_ASSETS: UniversalAsset[] = [
@@ -174,6 +101,17 @@ export const GRUENE_DECORATION_ASSETS: UniversalAsset[] = [
     tags: ['logo', 'grüne', 'gruene', 'österreich', 'at', 'grün', 'gruen', 'marke'],
     audience: 'de-AT',
   },
+  // GRÜNE JUGEND Deutschland: the word mark in the CD's three colours (2024, S. 6).
+  ...(['schwarz', 'hellgruen', 'weiss'] as const).map((farbe): UniversalAsset => ({
+    id: `gj-logo-${farbe}`,
+    src: GRUENE_SYSTEM_ASSETS.logoGj[farbe].src,
+    label: GRUENE_SYSTEM_ASSETS.logoGj[farbe].label,
+    category: 'decoration',
+    tags: ['logo', 'grüne jugend', 'gruene jugend', 'gj', 'jugend', 'marke', farbe],
+    audience: 'de-DE',
+    // Light green reads on a dark tile only, like white.
+    ...(farbe === 'hellgruen' && { darkPreview: true }),
+  })),
 ];
 
 /** Marks after the neutral ones in the picker. */
@@ -223,10 +161,7 @@ export const GRUENE_TEMPLATE_ASSETS: UniversalAsset[] = [
 export const SYSTEM_ASSETS = {
   sunflower: GRUENE_SYSTEM_ASSETS.sunflower,
   quote: {
-    white: {
-      src: '/quote-white.svg',
-      label: 'Anführungszeichen (Weiß)',
-    },
+    white: GRUENE_SYSTEM_ASSETS.quoteWhite,
     default: {
       src: '/quote.svg',
       label: 'Anführungszeichen',

@@ -34,7 +34,7 @@ async function isNonTextDocument(documentId: string): Promise<boolean> {
     'SELECT document_subtype FROM collaborative_documents WHERE id = $1 AND is_deleted = false',
     [documentId]
   )) as { document_subtype: string | null }[];
-  return ['presentations', 'sheets', 'boards'].includes(rows[0]?.document_subtype ?? '');
+  return ['presentations', 'canvas', 'sheets', 'boards'].includes(rows[0]?.document_subtype ?? '');
 }
 
 /**
@@ -433,6 +433,25 @@ export async function executeAction(
       return {
         message: `Rezept **„${title}"** (@${mention}) wurde mit **„${groupName}"** geteilt.`,
         url: `/gruppen/${groupId}`,
+      };
+    }
+
+    case 'apply_canvas_deck_edit': {
+      const { applyPlannedCanvasDeckOperations } =
+        await import('../../services/presentations/canvasDeckEdit.js');
+      const { canvasId, operations, basePageIds } = action.payload;
+      // Gleicher Weg wie der direkte Schreibpfad: Schreibrecht, Seiten-Ids gegen
+      // den Stand zur Planung (sonst träfen die Foliennummern andere Folien).
+      const outcome = await applyPlannedCanvasDeckOperations({
+        canvasId,
+        userId: action.userId,
+        operations,
+        basePageIds,
+      });
+      if (outcome.status !== 'applied') throw new ConfirmActionRefusal(outcome.message);
+      return {
+        message: `Die Präsentation **„${outcome.title}"** wurde geändert (${outcome.summary}).`,
+        url: `/studio/canvas/${canvasId}`,
       };
     }
 

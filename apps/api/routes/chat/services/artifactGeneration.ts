@@ -233,59 +233,24 @@ export async function runDocGeneration(opts: {
   const { viaLaxParser, withContent } = await import('../../../services/ai/structuredParsing.js');
 
   if (kind === 'presentation') {
-    const {
-      PRESENTATION_GENERATION_PROMPT,
-      PRESENTATION_TOOL_SCHEMA,
-      parsePresentationStructure,
-      createPresentationDocument,
-      findEmptySlides,
-    } = await import('../../../services/presentations/PresentationGenerationService.js');
-    const parseAndCheckSlides = viaLaxParser(
-      parsePresentationStructure,
-      'title oder slides fehlen'
-    );
-    const generated = await aiObject({
-      lane: 'doc_generation',
-      system: PRESENTATION_GENERATION_PROMPT,
+    // Canvas deck (`slide-16-9`, subtype 'canvas'): the CD layouts, editable in
+    // the studio. Legacy reveal decks stay readable and editable, but no path
+    // creates them from here any more. A profile without a locale takes it from
+    // the request header, so an Austrian user without a stamped profile still
+    // gets the AT corporate design.
+    const { generateCanvasDeck } =
+      await import('../../../services/presentations/canvasDeckGeneration.js');
+    const locale =
+      (reqWithUser.user?.locale ?? extractLocaleFromRequest(req as RequestWithLocale)) === 'de-AT'
+        ? 'de-AT'
+        : 'de-DE';
+    return generateCanvasDeck({
       prompt: userContent,
-      toolName: 'create_presentation',
-      toolDescription: 'Erzeugt die Folienstruktur der Präsentation.',
-      schema: PRESENTATION_TOOL_SCHEMA,
-      // A blank slide is a broken structure, not a success — rejecting it here
-      // buys a repair attempt with a message that names the offending slides,
-      // rather than shipping the deck and burying the gap in speaker notes.
-      // This gate used to be bypassed whenever the provider answered with text
-      // instead of a tool call, because that path ran the bare parser.
-      validate: (input) => {
-        const parsed = parseAndCheckSlides(input);
-        if (!parsed.ok) return parsed;
-        const empty = findEmptySlides(parsed.value);
-        if (empty.length === 0) return parsed;
-        return {
-          ok: false as const,
-          error: `Folien ohne Inhalt: ${empty.join(', ')} — jede Folie mit Layout content/split/quote braucht einen gefüllten body.`,
-        };
-      },
-      temperature: 0.4,
-      label: 'presentation',
+      userId,
+      locale,
+      ...(onCommit && { onCommit }),
+      ...(opts.abandoned && { abandoned: opts.abandoned }),
     });
-    if (!generated.ok) {
-      log.warn(`[ChatGraph] Presentation generation failed: ${generated.error}`);
-      return null;
-    }
-    if (abandonedBeforeCommit(opts.abandoned, 'Presentation generation')) return null;
-    onCommit?.();
-    // Leeres Profil: nur ein AT-Header stempelt die Marke, sonst bleibt sie offen.
-    const brandLocale =
-      reqWithUser.user?.locale ??
-      (extractLocaleFromRequest(req as RequestWithLocale) === 'de-AT' ? 'de-AT' : null);
-    const doc = await createPresentationDocument(generated.data, userId, brandLocale);
-    return {
-      documentId: doc.id,
-      title: doc.title,
-      subtype: 'presentations',
-      url: `/office/${doc.id}`,
-    };
   }
 
   if (kind === 'sheet') {

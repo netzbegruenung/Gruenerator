@@ -10,8 +10,8 @@
  * dann synchron das jedes Knotens, und jede Elementart schreibt Drehung und
  * Position auf ihrem eigenen Weg zurück. Die entprellten und sofortigen Speicherungen
  * lesen den festgeschriebenen Zustand und werden so ein Undo-Schritt.
- * Skalieren bleibt aus — jede Elementart deutet es anders (Text: Breite, Balken:
- * Offset, Rahmen: gleichmäßige Skala).
+ * Skalieren bleibt aus — jede Elementart deutet es anders (Text: Breite, eine
+ * Host-Art: ihr Versatz, Rahmen: gleichmäßige Skala).
  *
  * Neben dem Rahmen um die ganze Auswahl trägt jedes Element einen eigenen
  * Umriss, auch ein gesperrtes, das beim Zug stehen bleibt. Die Umrisse sind lose Konva-Knoten, die dem `dragmove` des
@@ -41,7 +41,7 @@ import {
   useCanvasStore,
   useCanvasStoreSelector,
   useCanvasStoreShallow,
-} from '../stores/CanvasStoreProvider';
+} from '../stores/CanvasStoreProvider.js';
 
 import type { SnapLine } from '@ggraphic/editor/utils/snapping';
 import type Konva from 'konva';

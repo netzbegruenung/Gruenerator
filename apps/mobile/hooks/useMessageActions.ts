@@ -57,7 +57,7 @@ async function exportMessageDocx(message: MessageActionTarget): Promise<void> {
 
   const bytes = new Uint8Array(await res.arrayBuffer());
   const file = new File(Paths.cache, filenameFromResponse(res));
-  file.write(bytes);
+  file.writeSync(bytes);
   await Sharing.shareAsync(file.uri, {
     mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
   });

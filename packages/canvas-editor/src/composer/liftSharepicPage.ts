@@ -9,6 +9,7 @@
  * Pure. The provenance is rebuilt from the baseline (ids, kinds and texts),
  * so nothing beyond the stored source is needed, and the lift measures no text.
  */
+import { withCardResizedFor } from '@ggraphic/editor/composer/cardFollowsText';
 import { DEFAULT_FORMAT_ID } from '@ggraphic/editor/formats/index';
 import { BACKGROUND_STRAIGHTEN_KEY, backgroundStraighten } from '@ggraphic/editor/utils/straighten';
 import {
@@ -20,11 +21,10 @@ import {
   sharepicSlideSchema,
 } from '@gruenerator/contracts';
 
-import { withCardResizedFor } from './cardFollowsText';
 import { type ComposedSlide } from './composeSharepic';
 import { invertLiftedText, slideProvenance, type SharepicProvenance } from './sharepicProvenance';
 
-import type { AdditionalText } from '../configs/types';
+import type { AdditionalText } from '@ggraphic/editor/configs/types';
 
 type ElementKind = SharepicFingerprint['kind'];
 type FingerprintProp = Exclude<keyof SharepicFingerprint, 'kind'>;
@@ -105,6 +105,8 @@ export const SHAREPIC_FINGERPRINT_FIELDS: Record<
     scale: 'scale',
     opacity: 'opacity',
     text: 'text',
+    fontFamily: 'fontFamily',
+    bind: 'bind',
   },
   pill: {
     x: 'x',
@@ -210,6 +212,8 @@ function readFingerprint(kind: ElementKind, element: Record<string, unknown>): S
     const value = element[field];
     if (typeof value === 'number' || typeof value === 'string') {
       (out as Record<string, unknown>)[prop] = value;
+    } else if (prop === 'bind' && isRecord(value)) {
+      (out as Record<string, unknown>)[prop] = structuredClone(value);
     }
   }
   return out;
@@ -363,6 +367,20 @@ function liftText(
 
 const styleValue = (fp: SharepicFingerprint, prop: SharepicStyleProp) => fp[prop] ?? DEFAULTS[prop];
 
+/**
+ * Properties added to the fingerprint later (the font): a baseline written before has no family,
+ * and says nothing about them, so the page's own font is not a hand edit.
+ */
+const isLateProp = (prop: string) => prop === 'fontFamily' || prop === 'bind';
+
+/** Do two fingerprints read the same for `prop`? Objects (a font binding) compare by content. */
+function sameStyle(a: SharepicFingerprint, b: SharepicFingerprint, prop: SharepicStyleProp) {
+  const [x, y] = [styleValue(a, prop), styleValue(b, prop)];
+  if (typeof x === 'object' || typeof y === 'object')
+    return JSON.stringify(x) === JSON.stringify(y);
+  return x === y;
+}
+
 export function liftPage(
   pageState: Record<string, unknown>,
   source: { slide: SharepicSpec; baseline: SharepicBaseline }
@@ -385,7 +403,8 @@ export function liftPage(
     for (const prop of Object.keys(SHAREPIC_FINGERPRINT_FIELDS[base.kind]) as FingerprintProp[]) {
       if (prop === 'text') continue;
       const value = styleValue(current, prop);
-      if (value !== styleValue(base, prop) && value !== undefined) {
+      if (isLateProp(prop) && base.fontFamily === undefined) continue;
+      if (!sameStyle(current, base, prop as SharepicStyleProp) && value !== undefined) {
         (props as Record<string, unknown>)[prop] = value;
       }
     }
@@ -633,7 +652,12 @@ export function recomposePage(
       const now = baseline.elements[id];
       if (was && now) {
         for (const prop of Object.keys(props) as SharepicStyleProp[]) {
-          if (prop === 'x' || prop === 'y' || styleValue(was, prop) === styleValue(now, prop)) {
+          if (
+            prop === 'x' ||
+            prop === 'y' ||
+            sameStyle(was, now, prop) ||
+            (isLateProp(prop) && was.fontFamily === undefined)
+          ) {
             continue;
           }
           (lost as Record<string, unknown>)[prop] = props[prop];

@@ -6,7 +6,7 @@ import { describe, expect, it, vi } from 'vitest';
 
 import { axe } from '../test-utils';
 
-import { SlideNotesPanel } from './SlideNotesPanel';
+import { SlideNotesPanel } from '@ggraphic/editor/components/SlideNotesPanel';
 
 // Die Bedingung, mit der CanvasEditor das Panel einhängt.
 const showsPanel = (formatId: string) => isSlideFormat(getCanvasFormatOrDefault(formatId));

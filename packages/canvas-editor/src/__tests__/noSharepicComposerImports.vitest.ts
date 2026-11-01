@@ -27,7 +27,6 @@ const ALLOWED: readonly string[] = [
   // utils/vorlagenRelevance.ts and configs/freeform_at_full.config.tsx belong to
   // that move too, but import other composer modules (chromeParts, sharepicThemes).
   'configs/freeform_full.config.tsx',
-  'slides/slideLayouts.ts',
 ];
 
 const SRC = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -57,7 +56,9 @@ describe('no sharepic composer imports in canvas-editor core code', () => {
     expect(SHAREPIC_IMPORT.test(`import '../composer/liftBlock';`)).toBe(true);
     expect(SHAREPIC_IMPORT.test(`// cut out by composer/liftBlock`)).toBe(false);
     expect(SHAREPIC_IMPORT.test(`import { a } from '../composer/chromeParts';`)).toBe(false);
-    expect(SHAREPIC_IMPORT.test(`import { a } from '../blocks/liftedBlock';`)).toBe(false);
+    expect(SHAREPIC_IMPORT.test(`import { a } from '@ggraphic/editor/blocks/liftedBlock';`)).toBe(
+      false
+    );
   });
 
   it('only the allowlisted files import them, and every allowlisted file still does', () => {

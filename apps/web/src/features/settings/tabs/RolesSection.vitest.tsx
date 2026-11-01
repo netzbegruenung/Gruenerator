@@ -173,6 +173,58 @@ describe('RolesSection — Rollen-Assistent (de-AT)', () => {
 });
 
 /**
+ * Die Grüne Jugend ist eine eigene Ebene, und dort kommt die Rolle vor dem Ort:
+ * erst sie sagt, ob es ein Bundesland braucht (Landesorganisation) und dazu eine
+ * Ortsgruppe (vor Ort) — oder gar nichts (Bundesorganisation).
+ */
+describe('RolesSection — Ebene Grüne Jugend (de-AT)', () => {
+  async function openGjRollen(user: ReturnType<typeof userEvent.setup>) {
+    renderSection();
+    await user.click(screen.getByRole('button', { name: /Erste Rolle hinzufügen/ }));
+    await user.click(screen.getByText('Grüne Jugend'));
+  }
+
+  it('bietet nur die Rollen der Grünen Jugend an', async () => {
+    const user = userEvent.setup();
+    await openGjRollen(user);
+
+    expect(screen.getByText('Was ist deine Rolle?')).toBeInTheDocument();
+    expect(screen.getByText('Bundesorganisation Grüne Jugend')).toBeInTheDocument();
+    expect(screen.getByText('Landesorganisation Grüne Jugend')).toBeInTheDocument();
+    expect(screen.getByText('Grüne Jugend vor Ort')).toBeInTheDocument();
+    expect(screen.queryByText('Mitarbeiter*in Bundespartei')).not.toBeInTheDocument();
+  });
+
+  it('fragt bei der Bundesorganisation nach keinem Ort', async () => {
+    const user = userEvent.setup();
+    await openGjRollen(user);
+
+    await user.click(screen.getByText('Bundesorganisation Grüne Jugend'));
+    await user.click(screen.getByRole('button', { name: 'Weiter' }));
+
+    expect(screen.getByText('Zusätzliche Anweisungen')).toBeInTheDocument();
+  });
+
+  it('fragt vor Ort nach Bundesland und Ortsgruppe, und Zurück geht denselben Weg', async () => {
+    const user = userEvent.setup();
+    await openGjRollen(user);
+
+    await user.click(screen.getByText('Grüne Jugend vor Ort'));
+    await user.click(screen.getByRole('button', { name: 'Weiter' }));
+    await user.type(screen.getByPlaceholderText('Bundesland eingeben...'), 'Tirol');
+    await user.click(await screen.findByText('Tirol'));
+
+    expect(screen.getByText('Name der Ortsgruppe')).toBeInTheDocument();
+    await user.type(screen.getByPlaceholderText('z.B. Ortsgruppe Nord'), 'Innsbruck');
+    await user.click(screen.getByRole('button', { name: 'Weiter' }));
+
+    expect(screen.getByText('Zusätzliche Anweisungen')).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: /Zurück/ }));
+    expect(screen.getByText('Name der Ortsgruppe')).toBeInTheDocument();
+  });
+});
+
+/**
  * Vergibt die Instanz ihre eine Rolle selbst, gibt es hier nichts mehr zu tun:
  * kein „Hinzufügen" (die eine Rolle steht schon da) und kein Löschknopf — der
  * Server schriebe sie beim nächsten Lesen der User-Defaults zurück, der Knopf

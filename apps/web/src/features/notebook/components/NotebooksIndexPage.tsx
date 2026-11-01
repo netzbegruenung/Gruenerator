@@ -1,4 +1,4 @@
-import { deriveIndexingState, type MarketplaceItemOf } from '@gruenerator/contracts';
+import { type MarketplaceItemOf } from '@gruenerator/contracts';
 import { ApiError, getContractsClient } from '@gruenerator/shared/api';
 import { canShareIntoGroup } from '@gruenerator/shared/groups';
 import {
@@ -24,14 +24,11 @@ import {
   useConfirm,
 } from '@gruenerator/ui';
 import {
-  BarChart3,
   Bookmark,
-  Eye,
-  Flame,
+  ChevronDown,
   Landmark,
   Map as MapIcon,
   Plus,
-  Rss,
   Store,
   Users,
   type LucideIcon,
@@ -58,8 +55,6 @@ import { getPublicAppOrigin } from '../../../utils/platform';
 import { useNotebookCollections } from '../../auth/hooks/useProfileData';
 import { useGroups } from '../../groups/hooks/useGroups';
 import { lvCardImage } from '../../marketplace/landesverbandCovers';
-import { useMonitorSnapshot, usePolls, useWhatHappened } from '../../monitor/hooks/useMonitor';
-import { useMonitorLocaleParam } from '../../monitor/hooks/useMonitorLocaleParam';
 import { useTrashUndoToast } from '../../trash/trashUndoToast';
 import { getNotebookConfig } from '../config/notebookPagesConfig';
 import {
@@ -74,9 +69,10 @@ import { useNotebookPrefetch } from '../preload';
 import { loadNotebookPage } from '../routeChunks';
 
 import NotebookCoverArt from './NotebookCoverArt';
-import NotebookCreateCard from './NotebookCreateCard';
 import NotebookGalleryCard from './NotebookGalleryCard';
 import { NotebookPageContent } from './NotebookPage';
+import { WISSEN_TILE, type WissenTilePalette } from './wissenTilePalette';
+import { WissenToolWidgets } from './WissenToolWidgets';
 
 import type { NotebookCollection } from '../../../types/notebook';
 import type { IconType } from 'react-icons';
@@ -100,6 +96,7 @@ const HIDDEN_NOTEBOOK_IDS = [
   'gruenerator-notebook',
   'gruenblog-notebook',
   'boell-stiftung-notebook',
+  'abgeordnetenwatch-notebook',
 ];
 
 const NotebookCard = memo(({ notebook }: { notebook: NotebookConfigEntry }) => {
@@ -162,8 +159,6 @@ interface NotebookSearchHit {
   onActivate: () => void;
 }
 
-const COLLAPSE_THRESHOLD = 3;
-
 const isOwnedCollection = (c: NotebookCollection): boolean =>
   c.access_source == null || c.access_source === 'owned';
 
@@ -214,38 +209,10 @@ const sharedNotebookMeta = (c: NotebookCollection): string | undefined =>
     ? `via ${c.shared_via_groups.join(', ')}`
     : (c.description ?? undefined);
 
-/**
- * „Mit dir geteilt" — notebooks others shared into a Projekt the user belongs
- * to, so they no longer have to open each Projekt to find them.
- */
-const SharedNotebooks = memo(({ collections }: { collections: NotebookCollection[] }) => {
-  const navigate = useNavigate();
-  const prefetch = useNotebookPrefetch();
-  return (
-    <section className="mt-md">
-      <SectionHeader title="Mit dir geteilt" />
-      <div className={NOTEBOOK_SCROLL_ROW}>
-        {collections.map((c) => (
-          <div key={c.id} className={NOTEBOOK_SCROLL_ITEM}>
-            <NotebookGalleryCard
-              title={c.name}
-              coverNode={<NotebookCoverArt title={c.name} subtitle={sharedNotebookMeta(c)} />}
-              accent="pink"
-              onActivate={() =>
-                void navigate(publicNotebookHref(c), { state: { freshConversation: true } })
-              }
-              onIntent={() => prefetch(publicNotebookSlug(c))}
-            />
-          </div>
-        ))}
-      </div>
-    </section>
-  );
-});
-SharedNotebooks.displayName = 'SharedNotebooks';
-
 interface EigeneNotebooksProps {
   qaCollections: NotebookCollection[];
+  /** Notebooks others shared into a Projekt — in the same row, marked „Geteilt". */
+  sharedCollections: NotebookCollection[];
   onView: (id: string) => void;
   onEdit: (id: string) => void;
   onDelete: (id: string) => Promise<void>;
@@ -258,6 +225,7 @@ interface EigeneNotebooksProps {
 const EigeneNotebooks = memo(
   ({
     qaCollections,
+    sharedCollections,
     onView,
     onEdit,
     onDelete,
@@ -266,7 +234,6 @@ const EigeneNotebooks = memo(
     loading,
     copiedId,
   }: EigeneNotebooksProps) => {
-    const [expanded, setExpanded] = useState(false);
     const [deletingId, setDeletingId] = useState<string | null>(null);
     const [sharedInfo, setSharedInfo] = useState<string | null>(null);
     const [shareError, setShareError] = useState<string | null>(null);
@@ -315,58 +282,41 @@ const EigeneNotebooks = memo(
       }
     };
 
-    const visible =
-      !expanded && qaCollections.length > COLLAPSE_THRESHOLD
-        ? qaCollections.slice(0, COLLAPSE_THRESHOLD)
-        : qaCollections;
-    const shouldCollapse = qaCollections.length > COLLAPSE_THRESHOLD;
+    const navigate = useNavigate();
+    const prefetch = useNotebookPrefetch();
 
     return (
-      <div className="mt-xl">
-        <SectionHeader title="Eigene" onCreate={onCreate} createLabel="Notebook erstellen" />
+      <section className="mt-md">
+        <SectionHeader
+          title="Meine Notebooks"
+          onCreate={onCreate}
+          createLabel="Notebook erstellen"
+        />
         {loading ? (
-          <div className={NOTEBOOK_GRID_CLASS}>
+          <div className={NOTEBOOK_SCROLL_ROW}>
             {Array.from({ length: 3 }, (_, i) => (
-              <div
-                key={i}
-                className="overflow-hidden rounded-xl border border-grey-200/80 dark:border-grey-700/60"
-              >
-                <Skeleton className="aspect-square rounded-none" />
+              <div key={i} className={NOTEBOOK_SCROLL_ITEM}>
+                <Skeleton className="aspect-square rounded-2xl" />
               </div>
             ))}
           </div>
-        ) : qaCollections.length === 0 ? (
-          <div className={NOTEBOOK_GRID_CLASS}>
-            <NotebookCreateCard onClick={onCreate} />
-          </div>
         ) : (
-          <>
-            <div className={NOTEBOOK_GRID_CLASS}>
-              {visible.map((c) => (
-                <NotebookGalleryCard
-                  key={c.id}
+          <div className={NOTEBOOK_SCROLL_ROW}>
+            {qaCollections.map((c) => (
+              <div key={c.id} className={NOTEBOOK_SCROLL_ITEM}>
+                <WissenTile
+                  Icon={NotebookIcon}
                   title={c.name}
-                  coverNode={
-                    // Das Aktionsmenü ist auf schmalen Bildschirmen dauerhaft
-                    // sichtbar (max-sm:opacity-100), nicht nur beim Hover.
-                    <NotebookCoverArt
-                      title={c.name}
-                      subtitle={c.description || undefined}
-                      reserveTopRight
-                    />
-                  }
-                  accent="pink"
-                  // Server-derived; the local derivation is the fallback for a
-                  // backend that predates the field (and for cached responses).
-                  indexingState={c.indexing_state ?? deriveIndexingState(c.documents ?? [])}
+                  description={c.description}
+                  palette={WISSEN_TILE}
                   onActivate={() => onView(c.id)}
                   onIntent={() => void loadNotebookPage()}
-                  menu={
+                  action={
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
                         <button
                           type="button"
-                          className="flex items-center justify-center size-7 rounded-full text-grey-400 hover:text-foreground transition-colors cursor-pointer"
+                          className="flex size-7 cursor-pointer items-center justify-center rounded-full text-[#C80050] transition-colors hover:bg-white/60 dark:text-[#EE6090] dark:hover:bg-white/10"
                           aria-label="Aktionen"
                         >
                           <HiDotsVertical size={14} />
@@ -427,44 +377,29 @@ const EigeneNotebooks = memo(
                     </DropdownMenu>
                   }
                 />
-              ))}
-              <NotebookCreateCard onClick={onCreate} />
-            </div>
-            {shouldCollapse && (
-              <button
-                type="button"
-                onClick={() => setExpanded(!expanded)}
-                className="mt-sm text-sm text-primary-600 hover:text-primary-500 dark:text-primary-400 dark:hover:text-primary-300 cursor-pointer transition-colors"
-              >
-                {expanded
-                  ? 'Weniger anzeigen'
-                  : `+${qaCollections.length - COLLAPSE_THRESHOLD} weitere anzeigen`}
-              </button>
-            )}
-          </>
+              </div>
+            ))}
+            {sharedCollections.map((c) => (
+              <div key={c.id} className={NOTEBOOK_SCROLL_ITEM}>
+                <WissenTile
+                  Icon={Users}
+                  title={c.name}
+                  description={`Geteilt ${sharedNotebookMeta(c) ?? ''}`.trim()}
+                  palette={WISSEN_TILE}
+                  onActivate={() =>
+                    void navigate(publicNotebookHref(c), { state: { freshConversation: true } })
+                  }
+                  onIntent={() => prefetch(publicNotebookSlug(c))}
+                />
+              </div>
+            ))}
+          </div>
         )}
-      </div>
+      </section>
     );
   }
 );
 EigeneNotebooks.displayName = 'EigeneNotebooks';
-
-// Farbige Kacheln (Look wie das Arbeiten-Tool-Grid) für Tools und Notebooks:
-// ein Pink mit eigenem Dunkel-Paar.
-// Klassen literal, damit Tailwind-JIT sie behält.
-interface WissenTilePalette {
-  tile: string;
-  icon: string;
-  titleColor: string;
-  descColor: string;
-}
-
-const WISSEN_TILE: WissenTilePalette = {
-  tile: 'bg-[#FCDDE4] hover:shadow-[0_14px_30px_rgba(214,0,74,0.18)] dark:bg-[#2C121A]',
-  icon: 'text-[#C80050] dark:text-[#EE6090]',
-  titleColor: 'text-[#A00044] dark:text-[#F2A6C0]',
-  descColor: 'text-[#8C5666] dark:text-[#BA7892]',
-};
 
 const WISSEN_TILE_CLASS =
   'group relative flex aspect-square w-full flex-col justify-between gap-2 rounded-2xl p-4 text-left no-underline transition-shadow duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-600';
@@ -515,10 +450,20 @@ type WissenTileProps = {
   onIntent?: () => void;
   /** Top-right control (e.g. the favourite star), outside the link/button. */
   action?: ReactNode;
+  /** Set on tiles that expand a row below (disclosure): shows a chevron and `aria-expanded`. */
+  expanded?: boolean;
 } & ({ to: string; onActivate?: never } | { to?: never; onActivate: () => void });
 
 /** One coloured Wissen tile — a link for tools, a button for notebooks and categories. */
-const WissenTile = ({ to, onActivate, onIntent, action, palette, ...body }: WissenTileProps) => (
+const WissenTile = ({
+  to,
+  onActivate,
+  onIntent,
+  action,
+  expanded,
+  palette,
+  ...body
+}: WissenTileProps) => (
   <div className="group relative">
     {to ? (
       <Link to={to} className={cn(WISSEN_TILE_CLASS, palette.tile)}>
@@ -530,129 +475,25 @@ const WissenTile = ({ to, onActivate, onIntent, action, palette, ...body }: Wiss
         onClick={onActivate}
         onPointerEnter={onIntent}
         onFocus={onIntent}
+        aria-expanded={expanded}
         className={cn(WISSEN_TILE_CLASS, palette.tile)}
       >
         <WissenTileBody palette={palette} {...body} />
+        {expanded !== undefined && (
+          <ChevronDown
+            aria-hidden
+            className={cn(
+              'absolute right-3 top-3 size-5 transition-transform duration-200 motion-reduce:transition-none',
+              palette.icon,
+              expanded && 'rotate-180'
+            )}
+          />
+        )}
       </button>
     )}
     {action && <div className="absolute right-2 top-2">{action}</div>}
   </div>
 );
-
-interface WissenToolTile {
-  id: string;
-  title: string;
-  description: string;
-  path: string;
-  Icon: LucideIcon;
-}
-
-// Die Monitor-Bereiche; ein neues Notebook legt die Notebook-Reihe an.
-const WISSEN_TOOL_TILES: WissenToolTile[] = [
-  {
-    id: 'monitor-themen',
-    title: 'Themen & Trends',
-    description: 'Meistdiskutierte Themen und X-Trends der letzten 24 Stunden.',
-    path: '/themen',
-    Icon: Flame,
-  },
-  {
-    id: 'monitor-feed',
-    title: 'Feed',
-    description: 'Bluesky und neue Beiträge der Landesverbände.',
-    path: '/feed',
-    Icon: Rss,
-  },
-  {
-    id: 'monitor-watcher',
-    title: 'Watcher',
-    description: 'Berichterstattung über die Grünen.',
-    path: '/watcher',
-    Icon: Eye,
-  },
-  {
-    id: 'monitor-umfragen',
-    title: 'Umfragen',
-    description: 'Sonntagsfrage, Ländertrends und Meinungsbild.',
-    path: '/umfragen',
-    Icon: BarChart3,
-  },
-];
-
-/** Extract the Grüne polling average from a poll's party map, if present. */
-function pickGrueneValue(average: Record<string, number> | undefined): number | null {
-  if (!average) return null;
-  for (const [k, v] of Object.entries(average)) {
-    if (k === 'GRÜNE' || k.toLowerCase().includes('grüne')) return v;
-  }
-  return null;
-}
-
-/**
- * Live "intelligence" subtext for the Monitor tiles: the top keywords
- * (Themen & Trends), the newest Landesverband article (Feed)
- * and the Grüne polling value (Umfragen). Falls back to the tile's static
- * description while loading.
- */
-function useWissenTileIntel(locale: 'de' | 'at') {
-  const { data: snapshot } = useMonitorSnapshot(locale);
-  const { data: polls } = usePolls(locale === 'at' ? 'oesterreich' : 'deutschland');
-  // Same query key as the non-expert /feed view, so both share one cache entry.
-  const { data: feed } = useWhatHappened(locale, { days: 7 });
-
-  return useCallback(
-    (id: string): string | null => {
-      // Durchgängig optional: `snapshot?.topics[0]` warf eine TypeError, sobald
-      // der Snapshot da war, `topics` aber fehlte — die ganze Wissen-Seite fiel
-      // dann in die Fehlergrenze. Aufgefallen an der Lane mit leerem Datenstand.
-      if (id === 'monitor-themen') {
-        const top = (snapshot?.keywords ?? []).slice(0, 3).map((k) => k.keyword);
-        return top.length > 0 ? top.join(' · ') : null;
-      }
-      if (id === 'monitor-feed') {
-        // Der Feed-Strom ist rein deutsch (getWhatHappened engt per locale
-        // nichts ein) — unter `at` zeigt /feed ihn gar nicht, also darf die
-        // Kachel auch keine deutsche LV-Schlagzeile als AT-Untertext führen.
-        if (locale === 'at') return null;
-        const newest = feed?.days?.[0]?.articles?.[0]?.title;
-        return newest ?? null;
-      }
-      if (id === 'monitor-umfragen') {
-        const g = pickGrueneValue(polls?.average);
-        return g != null
-          ? `Grüne aktuell bei ${g.toLocaleString('de-DE', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} %`
-          : null;
-      }
-      return null;
-    },
-    [snapshot, polls, feed, locale]
-  );
-}
-
-const WissenToolsRow = memo(() => {
-  const { locale, withLocale } = useMonitorLocaleParam();
-  const intel = useWissenTileIntel(locale);
-
-  return (
-    <section className="mt-xl">
-      <SectionHeader title="Tools" />
-      <div className={NOTEBOOK_SCROLL_ROW}>
-        {WISSEN_TOOL_TILES.map((tile) => (
-          <div key={tile.id} className={NOTEBOOK_SCROLL_ITEM}>
-            <WissenTile
-              to={withLocale(tile.path)}
-              Icon={tile.Icon}
-              title={tile.title}
-              description={intel(tile.id) ?? tile.description}
-              palette={WISSEN_TILE}
-            />
-          </div>
-        ))}
-      </div>
-    </section>
-  );
-});
-WissenToolsRow.displayName = 'WissenToolsRow';
 
 /**
  * The /wissen gallery below the chat surface: notebook row with the expandable
@@ -691,7 +532,9 @@ export function NotebooksIndexFooter() {
   // Deutsche Parlamente: `audience: 'de-DE'` hält sie von AT fern.
   const parlamenteNotebooks = useMemo(
     () =>
-      getNotebooksByCategory('parlamente').filter((nb) => isNotebookVisibleForLocale(nb, locale)),
+      getNotebooksByCategory('parlamente')
+        .filter((nb) => isNotebookVisibleForLocale(nb, locale))
+        .filter((nb) => !HIDDEN_NOTEBOOK_IDS.includes(nb.id)),
     [locale]
   );
   const directBefore = useMemo(
@@ -713,7 +556,7 @@ export function NotebooksIndexFooter() {
     [isAustrian]
   );
   const [openCategory, setOpenCategory] = useState<
-    'laender' | 'parlamente' | 'eigene' | 'gemerkt' | 'geteilt' | null
+    'laender' | 'parlamente' | 'meine' | 'gemerkt' | null
   >(null);
 
   const { query: collectionsQuery, deleteQACollection } = useNotebookCollections({
@@ -828,6 +671,7 @@ export function NotebooksIndexFooter() {
     () => (sharedData ?? EMPTY_COLLECTIONS).filter((c) => !ownIds.has(c.id)),
     [sharedData, ownIds]
   );
+  const meineCount = qaCollections.length + sharedCollections.length;
 
   const searchHits = useMemo<NotebookSearchHit[]>(() => {
     if (!trimmed) return [];
@@ -891,9 +735,21 @@ export function NotebooksIndexFooter() {
 
   return (
     <>
+      {!trimmed && <WissenToolWidgets />}
+
       <section className="mt-xl">
         <SectionHeader
           title="Notebooks"
+          actions={
+            <Link
+              to={marketplaceHref({ category: 'notebooks' })}
+              aria-label="Marktplatz"
+              title="Marktplatz"
+              className="flex h-7 w-7 items-center justify-center rounded-full text-grey-500 no-underline transition-colors hover:bg-grey-200/40 hover:text-foreground dark:hover:bg-grey-700/40"
+            >
+              <Store size={16} aria-hidden />
+            </Link>
+          }
           searchQuery={search}
           onSearchChange={setSearch}
           searchPlaceholder="Alle Notebooks durchsuchen…"
@@ -948,6 +804,7 @@ export function NotebooksIndexFooter() {
                   title="Landesverbände"
                   description={`${laenderNotebooks.length} Landesverbände`}
                   palette={WISSEN_TILE}
+                  expanded={openCategory === 'laender'}
                   onActivate={() => setOpenCategory((c) => (c === 'laender' ? null : 'laender'))}
                 />
               </div>
@@ -959,20 +816,22 @@ export function NotebooksIndexFooter() {
                   title="Parlamente"
                   description={`${parlamenteNotebooks.length} ${parlamenteNotebooks.length === 1 ? 'Parlament' : 'Parlamente'}`}
                   palette={WISSEN_TILE}
+                  expanded={openCategory === 'parlamente'}
                   onActivate={() =>
                     setOpenCategory((c) => (c === 'parlamente' ? null : 'parlamente'))
                   }
                 />
               </div>
             )}
-            {qaCollections.length > 0 && (
+            {meineCount > 0 && (
               <div className={NOTEBOOK_SCROLL_ITEM}>
                 <WissenTile
                   Icon={NotebookIcon}
-                  title="Eigene Notebooks"
-                  description={`${qaCollections.length} ${qaCollections.length === 1 ? 'Notebook' : 'Notebooks'}`}
+                  title="Meine Notebooks"
+                  description={`${meineCount} ${meineCount === 1 ? 'Notebook' : 'Notebooks'}`}
                   palette={WISSEN_TILE}
-                  onActivate={() => setOpenCategory((c) => (c === 'eigene' ? null : 'eigene'))}
+                  expanded={openCategory === 'meine'}
+                  onActivate={() => setOpenCategory((c) => (c === 'meine' ? null : 'meine'))}
                 />
               </div>
             )}
@@ -983,18 +842,8 @@ export function NotebooksIndexFooter() {
                   title="Gemerkt"
                   description={`${savedNotebooks.length} ${savedNotebooks.length === 1 ? 'gemerktes Notebook' : 'gemerkte Notebooks'}`}
                   palette={WISSEN_TILE}
+                  expanded={openCategory === 'gemerkt'}
                   onActivate={() => setOpenCategory((c) => (c === 'gemerkt' ? null : 'gemerkt'))}
-                />
-              </div>
-            )}
-            {sharedCollections.length > 0 && (
-              <div className={NOTEBOOK_SCROLL_ITEM}>
-                <WissenTile
-                  Icon={Users}
-                  title="Mit dir geteilt"
-                  description={`${sharedCollections.length} ${sharedCollections.length === 1 ? 'geteiltes Notebook' : 'geteilte Notebooks'}`}
-                  palette={WISSEN_TILE}
-                  onActivate={() => setOpenCategory((c) => (c === 'geteilt' ? null : 'geteilt'))}
                 />
               </div>
             )}
@@ -1003,15 +852,6 @@ export function NotebooksIndexFooter() {
                 <NotebookCard notebook={nb} />
               </div>
             ))}
-            <div className={NOTEBOOK_SCROLL_ITEM}>
-              <WissenTile
-                to={marketplaceHref({ category: 'notebooks' })}
-                Icon={Store}
-                title="Zum Marktplatz"
-                description="Öffentliche Notebooks entdecken."
-                palette={WISSEN_TILE}
-              />
-            </div>
             <div className={NOTEBOOK_SCROLL_ITEM}>
               <WissenTile
                 Icon={Plus}
@@ -1055,14 +895,11 @@ export function NotebooksIndexFooter() {
         <SavedNotebooks items={savedNotebooks} />
       )}
 
-      {!trimmed && openCategory === 'geteilt' && sharedCollections.length > 0 && (
-        <SharedNotebooks collections={sharedCollections} />
-      )}
-
-      {!trimmed && openCategory === 'eigene' && qaCollections.length > 0 && (
+      {!trimmed && openCategory === 'meine' && meineCount > 0 && (
         <ConfirmDialogProvider>
           <EigeneNotebooks
             qaCollections={qaCollections}
+            sharedCollections={sharedCollections}
             onView={handleView}
             onEdit={handleEdit}
             onDelete={handleDelete}
@@ -1073,8 +910,6 @@ export function NotebooksIndexFooter() {
           />
         </ConfirmDialogProvider>
       )}
-
-      {!trimmed && <WissenToolsRow />}
     </>
   );
 }

@@ -14,7 +14,9 @@
  * einen eigenen Setter.
  */
 
-import { getBrandTheme } from '../brand/theme';
+import { getPlaceholder } from '@ggraphic/editor/configs/placeholders';
+
+import { getBrandPack, getBrandTheme } from '../brand/theme';
 import { INFO_AT_CONFIG, calculateInfoAtLayout } from '../utils/infoAtLayout';
 
 import {
@@ -27,14 +29,13 @@ import {
   type ColorTwoTextActions,
   type ColorTwoTextState,
 } from './factory';
-import { getPlaceholder } from './placeholders';
 
 import type {
   FullCanvasConfig,
   ImageElementConfig,
   LayoutResult,
   TextElementConfig,
-} from './types';
+} from '@ggraphic/editor/configs/types';
 
 const AT = getBrandTheme('de-AT');
 const I = INFO_AT_CONFIG;
@@ -154,6 +155,8 @@ const baseInfoAtConfig = createColorTwoTextCanvas({
   ],
   elements: [logoElement, introlineElement, textElement, accentElement],
   features: { icons: true, shapes: true, illustrations: true },
+  // Neue Texte, Badges, Rahmen und Formen beginnen im österreichischen Markenpaket.
+  brand: getBrandPack('de-AT'),
   getCanvasText: (state) =>
     [state.introline || '', state.text || '', (state.accent as string) || '']
       .filter(Boolean)

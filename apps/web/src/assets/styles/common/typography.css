@@ -28,6 +28,77 @@
 
 /* GrueneType, GrueneTypeNeue und Gotham Narrow: brandFonts.ts (die API liefert sie aus). */
 
+/* GRÜNE JUGEND — Wix Madefor (SIL OFL, Dalton Maag) und für die Grüne Jugend
+   Österreich Unbounded Black (SIL OFL) als Ersatz für ihre unbekannte
+   Versalschrift. Lateinisches Subset; je Schnitt eine eigene Familie, damit
+   kein synthetischer Fettschnitt entsteht. */
+@font-face {
+    font-family: 'WixMadeforDisplay-ExtraBold';
+    src: url('../../fonts/WixMadeforDisplay-ExtraBold.woff2') format('woff2');
+    font-weight: normal;
+    font-style: normal;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: 'WixMadeforDisplay-ExtraBold';
+    src: url('../../fonts/WixMadeforDisplay-ExtraBold.woff2') format('woff2');
+    font-weight: bold;
+    font-style: normal;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: 'WixMadeforText';
+    src: url('../../fonts/WixMadeforText-Regular.woff2') format('woff2');
+    font-weight: normal;
+    font-style: normal;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: 'WixMadeforText';
+    src: url('../../fonts/WixMadeforText-Bold.woff2') format('woff2');
+    font-weight: bold;
+    font-style: normal;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: 'WixMadeforText-Bold';
+    src: url('../../fonts/WixMadeforText-Bold.woff2') format('woff2');
+    font-weight: normal;
+    font-style: normal;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: 'Unbounded-Black';
+    src: url('../../fonts/Unbounded-Black.woff2') format('woff2');
+    font-weight: normal;
+    font-style: normal;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: 'Unbounded-Black';
+    src: url('../../fonts/Unbounded-Black.woff2') format('woff2');
+    font-weight: bold;
+    font-style: normal;
+    font-display: swap;
+}
+
+/* GRÜNE JUGEND Deutschland: Kaushan Script (SIL OFL, Pablo Impallari / Igino
+   Marini) als freier Ersatz für die Pinselschrift der Posts – Dachzeilen und
+   Etiketten. Lateinisches Subset von Google Fonts. */
+@font-face {
+    font-family: 'KaushanScript';
+    src: url('../../fonts/KaushanScript-Regular.woff2') format('woff2');
+    font-weight: normal;
+    font-style: normal;
+    font-display: swap;
+}
+
 /* Österreich (de-AT) — Vollkorn */
 @font-face {
     font-family: 'Vollkorn';

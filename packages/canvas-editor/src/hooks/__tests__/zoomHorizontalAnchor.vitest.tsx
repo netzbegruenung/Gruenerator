@@ -1,7 +1,7 @@
 import { renderHook } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { horizontalAnchorScroll, useZoomGestures } from '../useZoomGestures';
+import { horizontalAnchorScroll, useZoomGestures } from '@ggraphic/editor/hooks/useZoomGestures';
 
 /**
  * Mobil skaliert der Seiten-Container von links oben (#4387): gezoomt ragt er

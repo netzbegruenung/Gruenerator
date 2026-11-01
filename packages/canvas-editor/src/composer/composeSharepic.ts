@@ -12,17 +12,31 @@
  *
  * Pure: no React, no Konva. Text is measured through the injected `measure`.
  */
+import { type RequiredFontRole, resolveFontRole } from '@ggraphic/core';
 import { onGround } from '@ggraphic/editor/brand/composerBrand';
+import { foldMarkers, stripMarks } from '@ggraphic/editor/composer/marks';
+import { steckbriefPerson } from '@ggraphic/editor/composer/steckbriefLayout';
+import {
+  balancedWrap,
+  largestSizeWordsFit,
+  STOERER_RADII,
+  wrapWords,
+} from '@ggraphic/editor/composer/textFit';
 import {
   DEFAULT_FORMAT_ID,
   getCanvasFormatOrDefault,
   type CanvasFormat,
 } from '@ggraphic/editor/formats/index';
+import { ASSET_TARGET_SIZE } from '@ggraphic/editor/utils/canvasAssets';
+import { contrastRatio, luminance } from '@ggraphic/editor/utils/colorLuminance';
 import { createPillBadgeInstance } from '@ggraphic/editor/utils/pillBadgeUtils';
 import { createShape, type ShapeInstance } from '@ggraphic/editor/utils/shapes';
 import { type TextAccent } from '@ggraphic/editor/utils/textUtils';
 import {
   accentLines,
+  brandIdFor,
+  brandOfId,
+  type SharepicBrandId,
   type SharepicColor,
   type SharepicCreatorLocale,
   type SharepicItem,
@@ -36,7 +50,6 @@ import {
 } from '@gruenerator/contracts';
 
 import { getBrandPack, getBrandTheme } from '../brand/theme';
-import { ASSET_TARGET_SIZE } from '../utils/canvasAssets';
 import { VERANSTALTUNG_CONFIG } from '../utils/veranstaltungLayout';
 
 import { layoutAufruf } from './aufrufLayout';
@@ -57,13 +70,13 @@ import {
   type SteckbriefItem,
 } from './composeTypes';
 import { layoutDiagramm } from './diagrammLayout';
+import { brandFont } from './fontRole';
 import { encodeHandMarks, sentinelBlind } from './handMarks';
 import { headlineFit } from './headlineFit';
 import { layoutInfografik } from './infografikLayout';
 import { layoutBingo, layoutSchlagzeile, layoutTermine } from './kartenLayout';
 import { layoutRechnung, layoutZahl } from './kennzahlLayout';
 import { layoutIconliste, layoutListe } from './listeLayout';
-import { foldMarkers, stripMarks } from './marks';
 import {
   GRADIENTS,
   SCRIM_DARK,
@@ -75,13 +88,17 @@ import {
 import {
   ABSATZ_KLEIN,
   ARROW,
-  AT_CENTRED_MARGIN,
+  BLASE_PERSON,
   BLUME,
+  BOXED_HEAD,
   BOX_INK,
   CARD_ITEMS,
   DATE_CIRCLE,
+  ETIKETT_ROOM,
+  HAND_TAPE,
   FOOTER,
   GAP,
+  GJ_BODY,
   HEADLINE_COVER_MAX,
   HEADLINE_GROSS,
   HEADLINE_MAX,
@@ -89,6 +106,7 @@ import {
   HEADLINE_WITH_CARD,
   KI_LABEL,
   MARGIN,
+  RASTER,
   QUOTE_ALONE_MAX,
   QUOTE_LONG,
   STECKBRIEF,
@@ -100,12 +118,10 @@ import { drawSlideChrome } from './slideChrome';
 import { type BuildPass, type SlideCtx } from './slideContext';
 import { slideInk } from './slideInk';
 import { fadeIntoGround, steckbriefAround } from './steckbriefCompose';
-import { steckbriefPerson } from './steckbriefLayout';
-import { balancedWrap, largestSizeWordsFit, STOERER_RADII, wrapWords } from './textFit';
 import { layoutFaktencheck, layoutVergleich } from './vergleichLayout';
 import { layoutFrage, layoutZitat } from './zitatLayout';
 
-import type { AdditionalText } from '../configs/types';
+import type { AdditionalText } from '@ggraphic/editor/configs/types';
 
 export { SHAREPIC_COLOR_HEX, type MeasureText };
 export { SCRIM_MAX } from './sharepicGround';
@@ -116,10 +132,22 @@ export {
   largestSizeWordsFit,
   STOERER_LINE_STEP,
   wrapWords,
-} from './textFit';
+} from '@ggraphic/editor/composer/textFit';
 
 /** A photo tinted green, as the posts set people: DE in Klee, AT in its light green. */
-const BILD_TINT: Record<SharepicCreatorLocale, string> = { 'de-DE': '#008939', 'de-AT': '#56AF31' };
+const BILD_TINT: Record<SharepicBrandId, string> = {
+  'gruene-de': '#008939',
+  'gruene-at': '#56AF31',
+  'gj-de': '#33C270',
+  'gj-at': '#92CE26',
+};
+/** The editor page each design opens in. */
+const TEMPLATE_TYPE = {
+  'gruene-de': 'freeform',
+  'gruene-at': 'freeform-at',
+  'gj-de': 'freeform-gj',
+  'gj-at': 'freeform-gj-at',
+} as const satisfies Record<SharepicBrandId, ComposedSharepic['templateType']>;
 /** Air between the text group and a photo in the slide. */
 const BILD_CLEARANCE = 50;
 const BILD_KARTE = { inset: 40, share: 0.4, pad: 16 } as const;
@@ -127,6 +155,20 @@ const BILD_KARTE = { inset: 40, share: 0.4, pad: 16 } as const;
 const BILD_KREIS = 0.5;
 /** A cut-out person rises from the bottom edge to here. */
 const BILD_FREI_TOP = 0.4;
+
+/** A brand that sets headlines in capitals: headline, the line above it and a closing call. */
+function inCapitals(slide: SharepicSlide): SharepicSlide {
+  return {
+    ...slide,
+    items: slide.items.map((item) =>
+      item.type === 'headline'
+        ? { ...item, lines: item.lines.map((line) => line.toLocaleUpperCase('de-DE')) }
+        : item.type === 'dachzeile' || item.type === 'aufruf'
+          ? { ...item, text: item.text.toLocaleUpperCase('de-DE') }
+          : item
+    ),
+  };
+}
 
 export function composeSharepic(spec: SharepicSpec, options: ComposeOptions): ComposedSharepic {
   const count = spec.slides.length;
@@ -137,6 +179,7 @@ export function composeSharepic(spec: SharepicSpec, options: ComposeOptions): Co
   const numerals = spec.slides.map((slide) =>
     slide.nummer ? { stil: slide.nummer, k: ++counted } : null
   );
+  const brandId = brandIdFor(spec.locale, spec.brand);
   const slides = spec.slides.map((slide, index) =>
     composeSlide(
       slide,
@@ -148,11 +191,12 @@ export function composeSharepic(spec: SharepicSpec, options: ComposeOptions): Co
       count > 1 && spec.seitenzahl ? { index, count, style: spec.seitenzahl } : null,
       numerals[index] ?? null,
       count > 1 && index === count - 1,
-      spec.thema ?? null
+      spec.thema ?? null,
+      brandId
     )
   );
   return {
-    templateType: spec.locale === 'de-AT' ? 'freeform-at' : 'freeform',
+    templateType: TEMPLATE_TYPE[brandId],
     format,
     slides,
     ...(options.provenance
@@ -175,17 +219,18 @@ function composeSlide(
   numeral: { stil: SharepicNummer; k: number } | null,
   /** Last slide of a carousel: the AI label in its long form. */
   closing: boolean,
-  thema: SharepicThema | null
+  thema: SharepicThema | null,
+  brandId: SharepicBrandId
 ): ComposedSlide {
   const measure = sentinelBlind(options.measure ?? defaultMeasure);
-  const theme = getBrandTheme(locale);
-  const brand = getBrandPack(locale).composer;
-  const isAt = locale === 'de-AT';
+  const theme = getBrandTheme(locale, brandOfId(brandId));
+  const brand = getBrandPack(locale, brandOfId(brandId)).composer;
   // A brand without the marker box highlights with its accent only, so a
   // `++` that reaches its slide is set as `==`.
-  const spec = brand.features.markerBox
+  const marked = brand.features.markerBox
     ? encodeHandMarks(slide)
     : foldMarkers(encodeHandMarks(slide));
+  const spec = brand.headlineCase === 'versal' ? inCapitals(marked) : marked;
   const bg = spec.background;
   const bild =
     bg.kind === 'farbe' ? (spec.items.find((i): i is BildItem => i.type === 'bild') ?? null) : null;
@@ -344,7 +389,7 @@ function composeSlide(
     // stays free text even on a boxed slide, so it needs the scrim.
     const side = posterPhotoQuote ? 'unten' : bg.textSeite;
     const vertical = side === 'unten' || side === 'oben';
-    scrimDark = SCRIM_DARK[locale];
+    scrimDark = SCRIM_DARK[brandId];
     scrimLevel = SCRIM_TEXT_ALPHA[options.photoTone?.(bg.filename, side) ?? 'mittel'];
     // Real stops follow in `setScrim`, once the geometry is known.
     scrim = rect('sc-scrim', 0, 0, canvas.width, canvas.height, 'transparent');
@@ -374,7 +419,7 @@ function composeSlide(
   // photo carries the text and stays as shot.
   // A themed slide keeps its photo's colours: a green Pride flag says nothing.
   if (
-    isAt &&
+    brand.layout.tintPhotoStrip &&
     !sharepicTheme(thema)?.keepsPhotoColours &&
     (bg.kind === 'foto-oben' || bg.kind === 'foto-unten')
   ) {
@@ -382,6 +427,18 @@ function composeSlide(
     const bottom = bg.kind === 'foto-oben' ? areaTop : canvas.height;
     const tint = rect('sc-tint', 0, top, canvas.width, bottom - top, theme.colors.primary);
     addShape({ ...tint, blendMode: 'color' });
+  }
+  // A full photo washed in one brand colour: a duotone under the text.
+  if (bg.kind === 'foto' && bg.toenung) {
+    const wash = rect(
+      'sc-toenung',
+      0,
+      0,
+      canvas.width,
+      canvas.height,
+      SHAREPIC_COLOR_HEX[bg.toenung]
+    );
+    addShape({ ...wash, blendMode: 'color' });
   }
 
   const {
@@ -403,10 +460,9 @@ function composeSlide(
     topGround,
   } = slideInk({
     locale,
-    isAt,
     theme,
     brand,
-    brandId: getBrandPack(locale).id,
+    brandId,
     surface,
     darkText,
     kopfband,
@@ -435,13 +491,17 @@ function composeSlide(
   // group ends above it and the place sits beside it. Under a photo strip the
   // panel is too short for that: the column runs beside the circle instead
   // and the place stacks bottom-left.
-  const circle = spec.datum
-    ? {
-        x: canvas.width - DATE_CIRCLE.right - DATE_CIRCLE.radius,
-        y: canvas.height - DATE_CIRCLE.bottom - DATE_CIRCLE.radius,
-        radius: DATE_CIRCLE.radius,
-      }
-    : null;
+  // GJ AT sets the date as a label in the top corner and the place on a
+  // footer band (DehRgj4jAe9/01): no circle to keep free.
+  const etikett = !!spec.datum && brand.layout.datumCircle === 'etikett';
+  const circle =
+    spec.datum && !etikett
+      ? {
+          x: canvas.width - DATE_CIRCLE.right - DATE_CIRCLE.radius,
+          y: canvas.height - DATE_CIRCLE.bottom - DATE_CIRCLE.radius,
+          radius: DATE_CIRCLE.radius,
+        }
+      : null;
   const columnBesideCircle = !!circle && bg.kind === 'foto-oben';
   if (circle && columnBesideCircle) {
     column = { ...column, width: circle.x - circle.radius - GAP - column.x };
@@ -452,9 +512,10 @@ function composeSlide(
   // The headline keeps the full column; AT argument slides set centred
   // paragraphs narrower (~100 px side margins on the posts).
   const headColumn = column;
-  if (isAt && column.align === 'center' && surface !== 'foto') {
-    const width = canvas.width - 2 * AT_CENTRED_MARGIN;
-    column = { ...column, x: AT_CENTRED_MARGIN, width };
+  const centredMargin = brand.layout.centredMargin;
+  if (centredMargin !== null && column.align === 'center' && surface !== 'foto') {
+    const width = canvas.width - 2 * centredMargin;
+    column = { ...column, x: centredMargin, width };
   }
   const xAlign = column.align;
 
@@ -462,14 +523,16 @@ function composeSlide(
   // quote (2 of 42 posts carry it, both so); DE never on a full-bleed photo. Enforced here — the
   // model sets `logo: true` far more often than the posts do.
   // The key sentence closes over the logo, as the posts end.
+  const placement = brand.layout.logoPlacement;
   const showLogo =
+    placement !== 'none' &&
     (spec.logo || aufruf?.stil === 'kernsatz') &&
-    (isAt ? !swipeOn && bg.kind === 'farbe' && !quoteSlide : bg.kind !== 'foto');
+    (placement === 'closing' ? !swipeOn && bg.kind === 'farbe' && !quoteSlide : bg.kind !== 'foto');
   const logo = brand.logo;
   /** DE always and AT next to a date circle set the logo bottom-left, at the margin. */
-  const logoLeft = showLogo && (!isAt || !!spec.datum);
+  const logoLeft = showLogo && (placement === 'left' || !!spec.datum);
   const logoCentred = showLogo && !logoLeft;
-  const arrow = ARROW[locale];
+  const arrow = ARROW[brandId];
   const arrowLeft = canvas.width - arrow.right - arrow.size * arrow.glyph;
   /** Where place and source start: right of a bottom-left logo. */
   const footX = logoLeft ? MARGIN + logo.size + 24 : MARGIN;
@@ -577,7 +640,7 @@ function composeSlide(
         opacity: 1,
         fit: 'cover',
         ...(bild.ausschnitt === 'kreis' && { mask: 'kreis' as const }),
-        ...(bild.filter === 'gruen' && { tint: BILD_TINT[locale], tintStrength: 1 }),
+        ...(bild.filter === 'gruen' && { tint: BILD_TINT[brandId], tintStrength: 1 }),
         ...(bild.filter === 'grau' && { grayscale: true }),
       });
       out.layerOrder.push(id);
@@ -631,6 +694,23 @@ function composeSlide(
             fadeIntoGround({ canvas, rect, addShape }, person, bg.color, !bild.freisteller);
           break;
         }
+        if (brand.quoteStyle === 'blase' && quoteSlide) {
+          // GJ AT: the speaker stands bottom right, uncropped, the bubble
+          // beside them pointing down at them (DXthhyhjE5p/01).
+          const width = Math.round(canvas.width * BLASE_PERSON.width);
+          const height = Math.min(
+            Math.round(width * BLASE_PERSON.aspect),
+            Math.round(canvas.height * (1 - BLASE_PERSON.top))
+          );
+          photo(
+            canvas.width - width + Math.round(width * 0.08),
+            canvas.height - height,
+            width,
+            height
+          );
+          column = { ...column, width: Math.round(canvas.width * BLASE_PERSON.column) - column.x };
+          break;
+        }
         // The person stands on the bottom edge; the footer lies over them.
         const top = Math.round(canvas.height * BILD_FREI_TOP);
         photo(0, top, canvas.width, canvas.height - top);
@@ -646,7 +726,8 @@ function composeSlide(
     value: string,
     y: number,
     fontSize: number,
-    fontFamily: string,
+    // A fixed family (the GJ handwriting) is bound to no brand role.
+    role: RequiredFontRole | { family: string },
     extra: Partial<AdditionalText> = {}
   ) => {
     out.additionalTexts.push({
@@ -657,7 +738,7 @@ function composeSlide(
       y,
       width: column.width,
       fontSize,
-      fontFamily,
+      ...(typeof role === 'string' ? brandFont(theme.fonts, role) : { fontFamily: role.family }),
       fontStyle: 'normal',
       fill: textColor,
       align: xAlign,
@@ -673,13 +754,68 @@ function composeSlide(
    * DE story slides: every line in its own box — white, or grass green for
    * the line that matters. Pills, so a box follows its text when edited.
    */
+  /** GJ DE: a line handwritten on a tilted tape label (DZ0Ou7KjLyZ/02). */
+  const handTape = (
+    id: string,
+    value: string,
+    hand: NonNullable<typeof brand.dachzeileHand>
+  ): Placed => {
+    const size = HAND_TAPE.fontSize;
+    const padX = Math.round(size * 0.45);
+    const padY = Math.round(size * 0.18);
+    const width = Math.min(
+      headColumn.width,
+      measure(value, size, hand.family, 'normal') + 2 * padX
+    );
+    const height = Math.round(size * 1.25) + 2 * padY;
+    const turn = (hand.rotation * Math.PI) / 180;
+    const [cos, sin] = [Math.cos(turn), Math.sin(turn)];
+    // Turned about its top-left corner, an ascending label reaches this far above it.
+    const rise = Math.max(0, -width * sin);
+    const tape = onGround(hand.tape, { onLight, onGrass });
+    // Never the ground's own colour: on light green the tape turns white.
+    const fill =
+      tape.fill.toUpperCase() === out.backgroundColor.toUpperCase() ? '#FFFFFF' : tape.fill;
+    return {
+      height: rise + height * cos,
+      after: Math.round(size * 0.4),
+      place: (y) => {
+        const x = headColumn.x;
+        const top = y + rise;
+        const label = rect(`${id}-tape`, 0, 0, width, height, fill);
+        Object.assign(label, {
+          x: x + (width / 2) * cos - (height / 2) * sin,
+          y: top + (width / 2) * sin + (height / 2) * cos,
+          rotation: hand.rotation,
+        });
+        addShape(label);
+        text(
+          id,
+          value,
+          top + padX * sin + padY * cos,
+          size,
+          { family: hand.family },
+          {
+            x: x + padX * cos - padY * sin,
+            width: width - 2 * padX + 4,
+            align: 'left',
+            rotation: hand.rotation,
+            fill: tape.ink,
+            shadowOpacity: 0,
+            lineHeight: 1.25,
+          }
+        );
+      },
+    };
+  };
   const boxLines = (
     id: string,
     lines: { text: string; betont: boolean }[],
     size: number,
-    family: string,
+    role: RequiredFontRole,
     fontStyle: 'normal' | 'bold'
   ): Placed => {
+    const family = resolveFontRole(theme.fonts, role);
     // Measured on Dd9G7lMjMIz: tight padding, round corners, the boxes touching.
     const padX = Math.round(size * 0.25);
     const padY = Math.round(size * 0.08);
@@ -691,6 +827,17 @@ function composeSlide(
         lines.forEach((line, k) => {
           const lineId = `${id}-${k}`;
           const width = measure(line.text, size, family, fontStyle) + 2 * padX;
+          // GJ: the first line on white, the rest on light green, square bars (CD 2024 S. 19).
+          // On a plain colour GJ DE turns them black with white type (Dap3RgnDDrV/01).
+          const own = brand.lineBoxes
+            ? bg.kind === 'farbe' &&
+              brand.lineBoxes.onColour &&
+              brand.lineBoxes.onColour.fill !== out.backgroundColor
+              ? brand.lineBoxes.onColour
+              : k === 0 && !line.betont
+                ? brand.lineBoxes.first
+                : brand.lineBoxes.rest
+            : null;
           out.pillBadgeInstances.push(
             createPillBadgeInstance('slider', {
               id: lineId,
@@ -698,13 +845,14 @@ function composeSlide(
               x: xAlign === 'center' ? column.x + column.width / 2 - width / 2 : column.x,
               y: y + k * step,
               fontSize: size,
-              fontFamily: family,
+              ...brandFont(theme.fonts, role),
               fontStyle,
-              backgroundColor: line.betont ? SHAREPIC_COLOR_HEX.grasgruen : '#FFFFFF',
-              textColor: BOX_INK,
+              backgroundColor:
+                own?.fill ?? (line.betont ? SHAREPIC_COLOR_HEX.grasgruen : '#FFFFFF'),
+              textColor: own?.ink ?? BOX_INK,
               paddingX: padX,
               paddingY: padY,
-              cornerRadius: Math.round(size * 0.2),
+              cornerRadius: own ? 0 : Math.round(size * 0.2),
             })
           );
           out.layerOrder.push(lineId);
@@ -713,6 +861,20 @@ function composeSlide(
     };
   };
   // The posts run a box line up to ~90 % of the width, balanced.
+  /**
+   * GJ: a boxed headline as large as its widest line lets it, like the
+   * covers (Dap3RgnDDrV/01); it grows and shrinks with the fit loop.
+   */
+  const boxedHeadSize = (lines: readonly string[], scale: number) => {
+    const probe = 100;
+    const widest = Math.max(
+      ...lines.map((l) => measure(stripMarks(l), probe, headFamily, 'normal'))
+    );
+    // A box adds its padding (0.25 of the size) on either side.
+    const fits = Math.floor((column.width * probe) / (widest + 0.5 * probe));
+    // Full width at scale 1 and up; only a block too tall for the slide shrinks it.
+    return Math.max(48, Math.round(Math.min(fits, BOXED_HEAD) * Math.min(1, scale)));
+  };
   const wrapBoxed = (value: string, size: number, family: string, fontStyle: 'normal' | 'bold') =>
     balancedWrap(stripMarks(value), column.width * 0.92 - size * 0.5, (l) =>
       measure(l, size, family, fontStyle)
@@ -722,7 +884,7 @@ function composeSlide(
   const headFamily = theme.fonts.headline;
   const { growCover, headlineSizer } = headlineFit({
     measure,
-    isAt,
+    emphasis: brand.accent.emphasis,
     theme,
     columnWidth: headColumn.width,
     canvasHeight: canvas.height,
@@ -752,7 +914,7 @@ function composeSlide(
     items.some((i) => i.type === 'zitat') &&
     items.every((i) => i.type === 'zitat' || i.type === 'dachzeile') &&
     // A card quote that runs long is a text page, set at body size.
-    (brand.quoteStyle === 'poster' ||
+    (brand.quoteStyle !== 'card' ||
       !items.some((i) => i.type === 'zitat' && stripMarks(i.text).length > QUOTE_LONG));
   const quoteSize = (base: number, scale: number, cap: number) =>
     quoteAlone
@@ -772,8 +934,8 @@ function composeSlide(
     theme,
     brand,
     headFamily,
-    isAt,
     locale,
+    brandId,
     thema,
     canvas,
     options,
@@ -818,7 +980,7 @@ function composeSlide(
         height: size * 0.8,
         after: Math.round(size * 0.12),
         place: (y) =>
-          text('sc-nummer', `${numeral.k}.`, y - size * 0.12, size, headFamily, {
+          text('sc-nummer', `${numeral.k}.`, y - size * 0.12, size, 'headline', {
             x: headColumn.x,
             width: headColumn.width,
             fill: accentInk,
@@ -831,10 +993,17 @@ function composeSlide(
       const id = `sc-${index}-${item.type}`;
       switch (item.type) {
         case 'dachzeile': {
+          // Handwritten only on the light colours: a photo keeps the headline
+          // face, and black (remembrance) stays plain.
+          if (brand.dachzeileHand && bg.kind === 'farbe' && onLight) {
+            placed.push(handTape(id, item.text, brand.dachzeileHand));
+            break;
+          }
           // Scales with the headline (≈ 0.4 on the photo posts, in the
           // headline face; smaller and in bold body text on a colour).
           const onPhoto = surface === 'foto';
-          const family = onPhoto ? headFamily : theme.fonts.body;
+          const role: RequiredFontRole = onPhoto ? 'headline' : 'body';
+          const family = resolveFontRole(theme.fonts, role);
           const fontStyle = onPhoto ? 'normal' : 'bold';
           const size = largestSizeWordsFit(
             [item.text],
@@ -849,7 +1018,7 @@ function composeSlide(
             height: lines * size * lineHeight,
             after: Math.round(size * 0.15),
             place: (y) =>
-              text(id, item.text, y, size, family, {
+              text(id, item.text, y, size, role, {
                 fontStyle,
                 lineHeight,
                 x: headColumn.x,
@@ -867,9 +1036,9 @@ function composeSlide(
                   text: stripMarks(l),
                   betont: accentLines(item.akzent).includes(i),
                 })),
-                76,
-                theme.fonts.body,
-                'bold'
+                brand.lineBoxes ? boxedHeadSize(item.lines, scale) : 76,
+                brand.lineBoxes ? 'headline' : 'body',
+                brand.lineBoxes ? 'normal' : 'bold'
               )
             );
             break;
@@ -895,7 +1064,7 @@ function composeSlide(
                 n +
                 Math.max(
                   1,
-                  accent && isAt
+                  accent && brand.accent.emphasis
                     ? wrapWords(stripMarks(l), col.width, (t) =>
                         measure(
                           t,
@@ -921,8 +1090,8 @@ function composeSlide(
                 // An accent line is one accent already; a word accent inside it
                 // would vanish (DE: lime on lime) — keep the plain words.
                 const plain = stripMarks(value);
-                if (segment.accent && isAt) {
-                  text(segId, plain, cursor, Math.round(size * 0.95), theme.fonts.quoteEmphasis, {
+                if (segment.accent && brand.accent.emphasis) {
+                  text(segId, plain, cursor, Math.round(size * 0.95), 'quoteEmphasis', {
                     ...at,
                     fontStyle: AT_EMPHASIS_STYLE,
                     fill: accent.fill,
@@ -945,7 +1114,7 @@ function composeSlide(
                   );
                   box.rotation = -2;
                   addShape(box);
-                  text(segId, plain, cursor, size, family, {
+                  text(segId, plain, cursor, size, 'headline', {
                     ...at,
                     fill: accentLineBox.ink,
                     lineHeight,
@@ -953,7 +1122,11 @@ function composeSlide(
                     shadowOpacity: 0,
                   });
                 } else {
-                  text(segId, value, cursor, size, family, { ...at, lineHeight, type: 'header' });
+                  text(segId, value, cursor, size, 'headline', {
+                    ...at,
+                    lineHeight,
+                    type: 'header',
+                  });
                 }
                 cursor += rows(segment.lines, segment.accent) * step;
               });
@@ -963,14 +1136,17 @@ function composeSlide(
         }
         case 'text': {
           if (boxed) {
-            const size = 42;
+            // GJ: the boxed text grows with the slide like the rows under it.
+            const size = brand.lineBoxes
+              ? Math.min(Math.round(GJ_BODY * Math.min(scale, 1.3)), paraCap)
+              : 42;
             const lines = wrapBoxed(item.text, size, theme.fonts.body, 'normal');
             placed.push(
               boxLines(
                 id,
                 lines.map((l) => ({ text: l, betont: false })),
                 size,
-                theme.fonts.body,
+                'body',
                 'normal'
               )
             );
@@ -1008,7 +1184,7 @@ function composeSlide(
           placed.push({
             height: lines * size * 1.25,
             after: GAP,
-            place: (y) => text(id, item.text, y, size, theme.fonts.body, { lineHeight: 1.25 }),
+            place: (y) => text(id, item.text, y, size, 'body', { lineHeight: 1.25 }),
           });
           break;
         }
@@ -1027,7 +1203,7 @@ function composeSlide(
                 id,
                 lines.map((l) => ({ text: l, betont: !!item.betont })),
                 size,
-                theme.fonts.body,
+                'body',
                 'bold'
               )
             );
@@ -1039,18 +1215,23 @@ function composeSlide(
             : Math.min(Math.round(paraBase * scale), paraCap);
           const lineHeight = brand.lineHeight.absatz;
           const stressed = item.betont
-            ? isAt
+            ? brand.accent.emphasis
               ? {
-                  family: theme.fonts.quoteEmphasis,
+                  role: 'quoteEmphasis' as const,
                   fontStyle: AT_EMPHASIS_STYLE,
                   fill: accent.fill,
                 }
-              : { family: theme.fonts.body, fontStyle: 'bold' as const, fill: accent.fill }
+              : { role: 'body' as const, fontStyle: 'bold' as const, fill: accent.fill }
             : null;
-          const family =
-            stressed?.family ??
-            (brand.headlineFace.absatz ? theme.fonts.headline : theme.fonts.body);
+          const role: RequiredFontRole =
+            stressed?.role ?? (brand.headlineFace.absatz ? 'headline' : 'body');
+          const family = resolveFontRole(theme.fonts, role);
           const fontStyle = stressed?.fontStyle ?? 'normal';
+          // GJ AT: light green on its dark grounds, where it reads at 4.5:1.
+          const ownInk =
+            !stressed && brand.absatzOnDark && bg.kind === 'farbe' && !onLight
+              ? readsOn(brand.absatzOnDark, out.backgroundColor)
+              : null;
           const size = largestSizeWordsFit([item.text], wantedSize, column.width, 0, (w, s) =>
             measure(w, s, family, 'bold')
           );
@@ -1059,10 +1240,11 @@ function composeSlide(
             height: lines * size * lineHeight,
             after: Math.round(size * brand.absatzGap),
             place: (y) =>
-              text(id, item.text, y, size, family, {
+              text(id, item.text, y, size, role, {
                 fontStyle,
                 lineHeight,
                 ...(stressed ? { fill: stressed.fill } : {}),
+                ...(ownInk ? { fill: ownInk } : {}),
               }),
           });
           break;
@@ -1147,7 +1329,7 @@ function composeSlide(
             id,
             text: item.text,
             fontSize: size,
-            fontFamily: theme.fonts.headline,
+            ...brandFont(theme.fonts, 'headline'),
             backgroundColor: colors.fill,
             textColor: colors.ink,
             paddingX: 36,
@@ -1176,8 +1358,7 @@ function composeSlide(
       placed.push({
         height: ort.lines.length * size * 1.25,
         after: 0,
-        place: (y) =>
-          text('sc-ort', ort.lines.join('\n'), y, size, theme.fonts.body, { lineHeight: 1.25 }),
+        place: (y) => text('sc-ort', ort.lines.join('\n'), y, size, 'body', { lineHeight: 1.25 }),
       });
     }
     return placed;
@@ -1192,8 +1373,9 @@ function composeSlide(
       ? areaTop + MARGIN + 2 * STOERER_RADII.at(-1)! - 30 + GAP
       : 0;
   const top = Math.max(
-    (areaTop === 0 ? TOP_PAD[locale] : areaTop + MARGIN) +
-      (spec.stoerer && position === 'oben' ? 40 : 0),
+    (areaTop === 0 ? TOP_PAD[brandId] : areaTop + MARGIN) +
+      (spec.stoerer && position === 'oben' ? 40 : 0) +
+      (etikett ? ETIKETT_ROOM : 0),
     stoererCorner
   );
   const bottom = areaBottom - MARGIN;
@@ -1238,7 +1420,7 @@ function composeSlide(
     bg.kind === 'farbe' &&
     position !== 'unten' &&
     !headlineAlone &&
-    (isAt || total < (bottom - top) * 0.5);
+    (brand.layout.centreShortBlocks || total < (bottom - top) * 0.5);
   let y =
     position === 'oben' && !centred
       ? top
@@ -1257,7 +1439,7 @@ function composeSlide(
       y: canvas.height / 2 - size * 0.5,
       width: canvas.width - MARGIN,
       fontSize: size,
-      fontFamily: headFamily,
+      ...brandFont(theme.fonts, 'headline'),
       fontStyle: 'normal',
       fill: onGround(brand.ghostNumeral.fill, { onLight, onGrass }),
       opacity: brand.ghostNumeral.opacity,
@@ -1266,7 +1448,7 @@ function composeSlide(
     });
     out.layerOrder.push('sc-nummer');
   }
-  if (spec.blume && !isAt && bg.kind === 'farbe') {
+  if (spec.blume && brand.layout.sunflower && bg.kind === 'farbe') {
     // A large sunflower in the ground's tone, cut by the bottom-right corner
     // (Dd_BXcKiDy2/03, Ddouf0QiL1w/02); drawn before the text, which sits on it.
     out.assetInstances.push({
@@ -1280,9 +1462,27 @@ function composeSlide(
     });
     out.layerOrder.push('sc-blume');
   }
+  const edges: number[] = [];
   for (const item of placed) {
     item.place(y);
     y += item.height + item.after;
+    edges.push(y - item.after);
+  }
+  if (brand.layout.raster && bg.kind === 'farbe' && !onLight) {
+    // Hairlines in the light green frame a plain dark slide (Db-_V4HCvrJ):
+    // one down the left margin, one above the block, one under its first
+    // part when more follows. Drawn first, under the text.
+    const ink = brand.absatzOnDark ?? textColor;
+    const w = RASTER.width;
+    const lines = [
+      rect('sc-raster-links', RASTER.left, 0, w, canvas.height, ink),
+      rect('sc-raster-oben', 0, blockTop - RASTER.gap, canvas.width, w, ink),
+      ...(placed.length > 1
+        ? [rect('sc-raster-kopf', 0, edges[0]! + RASTER.gap / 2, canvas.width, w, ink)]
+        : []),
+    ];
+    out.shapeInstances.unshift(...lines);
+    out.layerOrder.unshift(...lines.map((l) => l.id));
   }
   if (kopfband) {
     // The band runs from the top to just above the first card.
@@ -1347,5 +1547,41 @@ function composeSlide(
     kiTop,
     kiHeight,
   });
+  if (brand.cardStyle === 'brutal') brutalCards(out);
   return out;
+}
+
+/** `ink` when it reads at 4.5:1 on `ground`, else null. */
+function readsOn(ink: string, ground: string): string | null {
+  const a = luminance(ink);
+  const b = luminance(ground);
+  return a !== null && b !== null && contrastRatio(a, b) >= 4.5 ? ink : null;
+}
+
+/** GJ AT's cards: square, on a black edge with a hard offset shadow (DehRgj4jAe9). */
+const BRUTAL = { edge: 5, shadow: 12 } as const;
+
+function brutalCards(out: ComposedSlide): void {
+  const cards = out.shapeInstances.filter(
+    (shape) =>
+      (shape.id.endsWith('-card') || shape.id.endsWith('-karte')) && shape.fill === '#FFFFFF'
+  );
+  for (const card of cards) {
+    card.cornerRadius = 0;
+    const edge: ShapeInstance = {
+      ...card,
+      id: `${card.id}-rand`,
+      fill: '#000000',
+      width: card.width + 2 * BRUTAL.edge,
+      height: card.height + 2 * BRUTAL.edge,
+      shadowColor: '#000000',
+      shadowBlur: 0,
+      shadowOffsetX: BRUTAL.shadow,
+      shadowOffsetY: BRUTAL.shadow,
+      shadowOpacity: 1,
+    };
+    out.shapeInstances.splice(out.shapeInstances.indexOf(card), 0, edge);
+    const at = out.layerOrder.indexOf(card.id);
+    out.layerOrder.splice(at < 0 ? out.layerOrder.length : at, 0, edge.id);
+  }
 }

@@ -1,5 +1,5 @@
 import { EditorChatPanel } from '@gruenerator/chat';
-import { getAuthErrorMessage } from '@gruenerator/collab';
+import { CollabUnavailable, getAuthErrorMessage, useSyncGate } from '@gruenerator/collab';
 import { DocsProvider } from '@gruenerator/docs';
 import { getContractsClient } from '@gruenerator/shared/api';
 import {
@@ -152,9 +152,11 @@ function BoardContent() {
     });
   }, [duplicateBoard, navigate]);
 
-  const { ydoc, provider, isConnected, isSynced, authError, isReadOnly } = useBoardCollaboration(
-    id || ''
-  );
+  const { ydoc, provider, isConnected, isSynced, isLocalLoaded, authError, isReadOnly } =
+    useBoardCollaboration(id || '');
+  // useBoardState shows nothing before a server sync, cached copy or not.
+  const syncGate = useSyncGate(provider, isSynced, ydoc, isLocalLoaded);
+  const offline = syncGate !== 'waiting' && !isSynced;
   // Live comments: refetch a card's thread when the backend signals a change.
   useBoardCommentSignal(ydoc, id);
 
@@ -216,7 +218,9 @@ function BoardContent() {
         onOpenFullSettings={isWhiteboard ? undefined : openFullSettings}
         compact={isWhiteboard}
       />
-      {isWhiteboard ? (
+      {offline ? (
+        <CollabUnavailable provider={provider} />
+      ) : isWhiteboard ? (
         <WhiteboardUnavailable ydoc={ydoc} isSynced={isSynced} title={board.title} />
       ) : (
         <BoardViewContent

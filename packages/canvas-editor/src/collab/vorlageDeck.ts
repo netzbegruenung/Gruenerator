@@ -1,16 +1,20 @@
+import { carriedInstanceKeys } from '@ggraphic/editor/configs/factory/carryInstanceState';
 import { SHAREPIC_SOURCE_KEY } from '@gruenerator/contracts';
 
-import { CARRIED_INSTANCE_KEYS } from '../configs/factory/carryInstanceState';
-
-import type { CanvasImpressumParts, CanvasImpressumService } from '../hostServices';
 import type { ReplaceDeckOps } from '@ggraphic/editor/collab/pagesDoc';
+import type { CanvasImpressumParts, CanvasImpressumService } from '@ggraphic/editor/hostServices';
 
 interface DeckPage {
   configId: string;
   state: Record<string, unknown>;
 }
 
-const BLANK_CONFIGS: readonly string[] = ['freeform', 'freeform-at'];
+const BLANK_CONFIGS: readonly string[] = [
+  'freeform',
+  'freeform-at',
+  'freeform-gj',
+  'freeform-gj-at',
+];
 
 /** These only describe elements; they hold none themselves. */
 const DESCRIBING_KEYS: readonly string[] = [
@@ -20,7 +24,8 @@ const DESCRIBING_KEYS: readonly string[] = [
   'templateRotations',
   'templateTextAligns',
 ];
-const ELEMENT_KEYS = CARRIED_INSTANCE_KEYS.filter((k) => !DESCRIBING_KEYS.includes(k));
+/** Read per call: the host's element kinds register their lists at startup. */
+const elementKeys = () => carriedInstanceKeys().filter((k) => !DESCRIBING_KEYS.includes(k));
 
 const hasEntries = (value: unknown) => Array.isArray(value) && value.length > 0;
 
@@ -35,7 +40,7 @@ export function isDeckEmpty(pages: readonly DeckPage[]): boolean {
   if (!BLANK_CONFIGS.includes(configId)) return false;
   if (state.currentImageSrc || state[SHAREPIC_SOURCE_KEY]) return false;
   if (hasEntries(state.stashedComposerPlanes)) return false;
-  return !ELEMENT_KEYS.some((key) => hasEntries(state[key]));
+  return !elementKeys().some((key) => hasEntries(state[key]));
 }
 
 type CurrentPage = { id: string; configId: string; state?: Record<string, unknown> };

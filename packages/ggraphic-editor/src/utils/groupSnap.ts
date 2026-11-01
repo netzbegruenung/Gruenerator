@@ -8,9 +8,9 @@
  * reicht danach pro Bild x/y des Knotens — kein `getClientRect` im Zug.
  */
 
-import { boxFrame, createBoxFrame, snapByBounds } from './snapping';
+import { boxFrame, createBoxFrame, snapByBounds } from './snapping.js';
 
-import type { ElementSnapResult, SnapHysteresis, SnapTarget } from './snapping';
+import type { ElementSnapResult, SnapHysteresis, SnapTarget } from './snapping.js';
 import type Konva from 'konva';
 
 export interface GroupSnap {

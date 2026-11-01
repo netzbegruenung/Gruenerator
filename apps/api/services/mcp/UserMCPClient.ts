@@ -121,7 +121,7 @@ function extractResultResources(blocks: unknown[]): McpResultResource[] {
 const CONNECT_TIMEOUT_MS = 15_000;
 const CALL_TIMEOUT_MS = 30_000;
 /** Untrusted servers can return huge blobs; cap what we feed back to the model. */
-const MAX_TOOL_RESULT_CHARS = 20_000;
+export const MAX_TOOL_RESULT_CHARS = 20_000;
 
 export interface McpConnectionConfig {
   /** Registry row id — used to namespace tools as `${id}__${toolName}`. */

@@ -170,6 +170,28 @@ export const SPEC_SCHEMA = {
 const DE_ITEMS_NOTE =
   ' Nur Deutschland: {"type":"vergleich",…,"stil":"spalten"} teilt die Slide randlos (links Mint, rechts Grasgrün, VS dazwischen; dann allein auf der Slide, titel bis 48 Zeichen mit einer ++…++-Box, 2–5 punkte bis 70 Zeichen; ein Punkt der anderen Seite, der stimmt, beginnt mit „✓ “); in termine darf der titel eines Eintrags mit dem Ort in ++…++ beginnen („++Altstadt++ Radtour“); {"type":"liste","stil":"kasten"} ohne Aufzählungszeichen, jeder Punkt beginnt mit seiner Kennzahl in ++…++ („++fast 7 Jahre++ die Finanzierung …“); {"type":"absatz",…,"klein":true} hält einen Absatz in Grundschrift (Schlusszeile „Das ganze Interview auf ++medium.de++“, lange Textseiten); ein zitat darf bis 600, ein absatz bis 500 Zeichen lang sein – lange Textseiten wie Interview-Auszüge.';
 
+/** GRÜNE JUGEND Deutschland: the DE options without the party's sunflower and band. */
+export function specSchemaGjDe(): typeof SPEC_SCHEMA_DE {
+  const slide = SPEC_SCHEMA_DE.properties.slides.items;
+  const { blume: _blume, ...properties } = slide.properties;
+  return {
+    ...SPEC_SCHEMA_DE,
+    properties: {
+      ...SPEC_SCHEMA_DE.properties,
+      slides: {
+        ...SPEC_SCHEMA_DE.properties.slides,
+        items: {
+          ...slide,
+          properties: {
+            ...properties,
+            background: SLIDE_SCHEMA.properties.background,
+          } as typeof slide.properties,
+        },
+      },
+    },
+  };
+}
+
 export const SPEC_SCHEMA_DE = {
   ...SPEC_SCHEMA,
   properties: {

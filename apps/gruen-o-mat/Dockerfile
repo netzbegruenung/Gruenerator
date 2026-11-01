@@ -26,11 +26,13 @@ COPY packages/shared/package.json ./packages/shared/
 COPY packages/query/package.json ./packages/query/
 COPY packages/core/package.json ./packages/core/
 COPY packages/ggraphic-schema/package.json ./packages/ggraphic-schema/
+COPY packages/ggraphic-core/package.json ./packages/ggraphic-core/
 COPY packages/contracts/package.json ./packages/contracts/
 COPY packages/chat/package.json ./packages/chat/
 COPY packages/voice/package.json ./packages/voice/
 COPY packages/ui/package.json ./packages/ui/
 COPY packages/collab/package.json ./packages/collab/
+COPY packages/ggraphic-collab/package.json ./packages/ggraphic-collab/
 COPY apps/gruen-o-mat/package.json ./apps/gruen-o-mat/
 
 # Install only gruen-o-mat + transitive workspace deps
@@ -49,11 +51,13 @@ COPY packages/shared ./packages/shared
 COPY packages/query ./packages/query
 COPY packages/core ./packages/core
 COPY packages/ggraphic-schema ./packages/ggraphic-schema
+COPY packages/ggraphic-core ./packages/ggraphic-core
 COPY packages/contracts ./packages/contracts
 COPY packages/chat ./packages/chat
 COPY packages/voice ./packages/voice
 COPY packages/ui ./packages/ui
 COPY packages/collab ./packages/collab
+COPY packages/ggraphic-collab ./packages/ggraphic-collab
 COPY apps/gruen-o-mat ./apps/gruen-o-mat
 
 # Build the frontend

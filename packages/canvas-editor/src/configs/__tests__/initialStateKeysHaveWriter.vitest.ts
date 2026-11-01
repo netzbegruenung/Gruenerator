@@ -1,8 +1,10 @@
+import { pagePersistedStateKeys } from '@ggraphic/editor/collab/pageElementStateKeys';
+import { loadCanvasConfig } from '@ggraphic/editor/configs/configLoader';
 import { beforeAll, describe, expect, it } from 'vitest';
 
-import { PAGE_PERSISTED_STATE_KEYS } from '../../collab/pageElementStateKeys';
 import { HOST_CALLBACK_KEYS } from '../../hostCallbackKeys';
-import { loadCanvasConfig } from '../configLoader';
+
+import type { CanvasConfigId } from '../../templates/registry';
 
 /**
  * Guard for the "kept edit gone after reload" class (#4248).
@@ -12,10 +14,10 @@ import { loadCanvasConfig } from '../configLoader';
  * reads back but that nothing writes into the page state is an edit the
  * editor shows and then forgets. A key has a writer when the router declares
  * its `on<Key>Change` for the template (HOST_CALLBACK_KEYS) or when every page
- * mints one (PAGE_PERSISTED_STATE_KEYS).
+ * mints one (pagePersistedStateKeys()).
  */
 
-type CanvasConfigType = Parameters<typeof loadCanvasConfig>[0];
+type CanvasConfigType = CanvasConfigId;
 
 const TEMPLATES = Object.keys(HOST_CALLBACK_KEYS) as CanvasConfigType[];
 
@@ -56,7 +58,7 @@ function keysReadBy(type: CanvasConfigType): Set<string> {
 
 const hasWriter = (type: CanvasConfigType, key: string) =>
   HOST_CALLBACK_KEYS[type].includes(key) ||
-  (PAGE_PERSISTED_STATE_KEYS as readonly string[]).includes(key);
+  (pagePersistedStateKeys() as readonly string[]).includes(key);
 
 describe('every key createInitialState reads back has a writer', () => {
   it.each(TEMPLATES)('%s', (type) => {
@@ -76,7 +78,7 @@ describe('every key createInitialState reads back has a writer', () => {
   });
 
   it('persists no key that no template reads back', () => {
-    const unread = PAGE_PERSISTED_STATE_KEYS.filter(
+    const unread = pagePersistedStateKeys().filter(
       (key) => !TEMPLATES.some((type) => keysReadBy(type).has(key))
     );
     expect(unread).toEqual([]);

@@ -1,7 +1,11 @@
 import { profilbildStickersToAssetInstances } from '@gruenerator/canvas-editor/profilbildStickers';
 import { getContractsClient } from '@gruenerator/shared/api';
 import { DEFAULT_CANVAS_SIZE } from '@gruenerator/shared/canvas-editor';
-import { parseSavedProfilbild, PROFILBILD_SIZE } from '@gruenerator/shared/profilbild';
+import {
+  parseProfilbildCatalogParams,
+  parseSavedProfilbild,
+  PROFILBILD_SIZE,
+} from '@gruenerator/shared/profilbild';
 import { galleryTarget } from '@gruenerator/shared/stickers';
 import { Alert, AlertDescription, Button, UploadZone } from '@gruenerator/ui';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -141,6 +145,12 @@ const ProfilbildPage = () => {
   const [searchParams] = useSearchParams();
   const reopenToken = searchParams.get('share');
   const galleryAsset = useMemo(() => parseProfilbildAssetParams(searchParams), [searchParams]);
+  // A catalogue sticker or background from a collection; a gallery item wins over it.
+  const catalogPick = useMemo(
+    () => (galleryAsset ? null : parseProfilbildCatalogParams(searchParams)),
+    [galleryAsset, searchParams]
+  );
+  const linked = galleryAsset ?? catalogPick;
   const reopened = useQuery({
     queryKey: ['profilbild-reopen', reopenToken],
     queryFn: () => loadReopen(reopenToken ?? ''),
@@ -163,11 +173,11 @@ const ProfilbildPage = () => {
     : (handoffUrl ?? (status === 'done' ? cutoutDataUrl : null));
 
   // The deep link waits for a photo; once the editor has it, the hint is done.
-  const [pendingAsset, setPendingAsset] = useState(galleryAsset);
-  const [linkedAssetId, setLinkedAssetId] = useState(galleryAsset?.id ?? null);
-  if ((galleryAsset?.id ?? null) !== linkedAssetId) {
-    setLinkedAssetId(galleryAsset?.id ?? null);
-    setPendingAsset(galleryAsset);
+  const [pendingAsset, setPendingAsset] = useState(linked);
+  const [linkedAssetId, setLinkedAssetId] = useState(linked?.id ?? null);
+  if ((linked?.id ?? null) !== linkedAssetId) {
+    setLinkedAssetId(linked?.id ?? null);
+    setPendingAsset(linked);
   }
   if (cutoutUrl && pendingAsset) setPendingAsset(null);
 
@@ -239,6 +249,7 @@ const ProfilbildPage = () => {
       cutoutUrl={cutoutUrl}
       reopen={reopenToken ? (reopened.data?.reopen ?? null) : null}
       galleryAsset={galleryAsset}
+      catalogPick={catalogPick}
       onEditInCanvas={editInCanvas}
       onReset={startOver}
       emptyStage={(backgroundPreview) => (

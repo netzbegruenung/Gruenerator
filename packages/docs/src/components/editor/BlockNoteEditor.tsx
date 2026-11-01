@@ -21,7 +21,8 @@ import {
   ThreadsSidebar,
 } from '@blocknote/react';
 import { filterSuggestionItems } from '@blocknote/core/extensions';
-import { ForkYDocExtension, withCollaboration } from '@blocknote/core/yjs';
+import { ForkYDocExtension, withCollaboration, YjsVersioningExtension } from '@blocknote/core/yjs';
+import { VersioningSidebar } from '@blocknote/react/versioning';
 import { BlockNoteView } from '@blocknote/shadcn';
 import {
   AIExtension,
@@ -50,15 +51,15 @@ import { docsEditorSchema } from './schema';
 import { EditorDictationButton } from './EditorDictationButton';
 import { SuggestionPopover } from './SuggestionPopover';
 import { isDocAIForked } from '../../lib/aiExtension';
+import { createSnapshotVersionStorage } from '../../lib/snapshotVersionStorage';
 import { disableGcOnAIFork } from '../../lib/forkedDocGc';
-import { guardDocUndoAcrossAIFork, type UndoGuardEditor } from '../../lib/undoAcrossAIFork';
+import { guardDocUndoAcrossAIFork } from '../../lib/undoAcrossAIFork';
 import { carryUndoAcrossEditorRecreate } from '../../lib/undoAcrossRecreate';
 import { type UndoableEditor } from '../../hooks/useDocUndoState';
 import { SuggestChangesExtension } from '../../lib/suggestChangesExtension';
 import { withStructuralUpdateFallback } from '../../lib/structuralUpdateFallback';
 import { HoldTableFixesExtension } from '../../lib/holdTableFixes';
-import { isDocAIInvocationInFlight } from '../../lib/invokeDocumentAI';
-import { YSyncBindingConsistencyExtension } from '../../lib/ySyncBindingConsistency';
+import { isDocAIInvocationInFlight, noteDocAIResponse } from '../../lib/invokeDocumentAI';
 import { useSuggestionMode } from '../../hooks/useSuggestionMode';
 import './BlockNoteEditor.css';
 
@@ -69,6 +70,9 @@ export interface BlockNoteEditorProps {
   editable?: boolean;
   showComments?: boolean;
   commentsPortalTarget?: HTMLElement | null;
+  /** Where the version history sidebar renders; collaborative editors only. */
+  versionsPortalTarget?: HTMLElement | null;
+  onCloseVersions?: () => void;
   ydoc?: Y.Doc;
   provider?: HocuspocusProvider | null;
   isSynced?: boolean;
@@ -140,6 +144,8 @@ const BlockNoteEditorInner = ({
   editable = true,
   showComments = true,
   commentsPortalTarget,
+  versionsPortalTarget,
+  onCloseVersions,
   ydoc,
   provider,
   isSynced = false,
@@ -163,6 +169,10 @@ const BlockNoteEditorInner = ({
   // applies, without churning the editor.
   const localUserRef = useRef(localUser);
   localUserRef.current = localUser;
+  // Same for edit rights: the version history hides its write actions without
+  // recreating the editor when `editable` flips.
+  const editableRef = useRef(editable);
+  editableRef.current = editable;
 
   const collaborationUser = useMemo(() => {
     if (!provider?.awareness) return null;
@@ -227,7 +237,18 @@ const BlockNoteEditorInner = ({
           // Route through the DocsAdapter's fetch so the mobile DOM WebView reaches
           // the API via the native proxy (CORS/auth). On web this is platformFetch
           // — identical to the default — so web behavior is unchanged.
-          fetch: (input, init) => adapter.fetch(String(input), init),
+          // The outcome is noted for invokeDocumentAI, which cannot read it
+          // from xl-ai while the AI menu is closed.
+          fetch: async (input, init) => {
+            try {
+              const res = await adapter.fetch(String(input), init);
+              noteDocAIResponse(documentId, res.status);
+              return res;
+            } catch (err) {
+              noteDocAIResponse(documentId, 'network');
+              throw err;
+            }
+          },
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
         }) as any,
         // Markdown format avoids xl-ai's HTML rebase-tool throw on docs that
@@ -246,10 +267,14 @@ const BlockNoteEditorInner = ({
       HoldTableFixesExtension({ isAIWriting: () => isDocAIInvocationInFlight(documentId) }),
     ];
 
-    // The AI fork/merge plugin swap briefly tears the ySync state; a
-    // collaborator's cursor then crashes accept/reject (GlitchTip #659).
     if (collaborationOptions) {
-      exts.push(YSyncBindingConsistencyExtension);
+      exts.push(
+        YjsVersioningExtension({
+          storage: createSnapshotVersionStorage(documentId, () => editableRef.current),
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          resolveUsers: resolveUsers as any,
+        })
+      );
     }
 
     if (showComments && threadStore) {
@@ -379,12 +404,9 @@ const BlockNoteEditorInner = ({
       isCollaborative: Boolean(collaborationOptions),
     });
 
-    // The same fork/merge cycle destroys the yUndo UndoManager while ProseMirror
-    // carries it over in the plugin state — without this guard, undo/redo is
-    // dead for the rest of the session after the first AI invocation. With the
-    // fragment it additionally captures the accepted AI merge as an undo step
-    // (#3261). See guardDocUndoAcrossAIFork.
-    const stopUndoGuard = guardDocUndoAcrossAIFork(editor as unknown as UndoGuardEditor, {
+    // BlockNote does not record the accepted AI merge on the undo stack; the
+    // guard makes it one undo step (#3261). See guardDocUndoAcrossAIFork.
+    const stopUndoGuard = guardDocUndoAcrossAIFork(editor as unknown as UndoableEditor, {
       isCollaborative: Boolean(collaborationOptions),
       fragment: fragment ?? null,
     });
@@ -559,6 +581,17 @@ const BlockNoteEditorInner = ({
                 <ThreadsSidebar filter="all" />
               </ErrorBoundary>,
               commentsPortalTarget
+            )}
+          {versionsPortalTarget &&
+            collaborationOptions &&
+            createPortal(
+              <ErrorBoundary
+                fallback={null}
+                onError={(err) => console.warn('[Versions] sidebar render failed:', err)}
+              >
+                <VersioningSidebar onClose={onCloseVersions} />
+              </ErrorBoundary>,
+              versionsPortalTarget
             )}
         </BlockNoteView>
       </ErrorBoundary>

@@ -6,6 +6,7 @@ export {
   isShareSrc,
   MIN_STICKER,
   STICKER_BASE_WIDTH,
+  stickersForCollection,
   stickersForLocale,
   SYSTEM_STICKERS,
   systemStickerById,

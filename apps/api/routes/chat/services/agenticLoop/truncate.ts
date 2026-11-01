@@ -2,12 +2,15 @@
  * Safety-net truncation for model-facing tool results.
  *
  * The loop must never let one oversized tool result (a long web page, a big MCP
- * blob) blow the context window. This deep-truncates string leaves and caps
- * array lengths; if a result is still too large it falls back to a bounded
- * preview string. It is deliberately generic — search tools already return
+ * blob) blow the context window. Es kürzt gezielt: nur die größten String-Felder,
+ * so weit wie nötig, an einer Absatz- oder Satzgrenze; alles Kleine (IDs, Titel,
+ * Hinweise, `error`) bleibt ganz, und `_gekuerzt` nennt, was wie weit gezeigt
+ * wird. Passt es auch dann nicht, werden Arrays gekappt, zuletzt kommt eine
+ * begrenzte Vorschau. Deliberately generic — search tools already return
  * compact data, so for them this is a no-op.
  */
 
+/** Untergrenze der Kürzung: kein Feld wird je kürzer gezeigt als bei der alten, gleichmäßigen Kürzung (maxChars/8). */
 const PER_FIELD_FLOOR = 400;
 const MAX_ARRAY_ITEMS = 20;
 const TRUNCATION_MARK = '…[gekürzt]';
@@ -18,8 +21,8 @@ const TRUNCATION_MARK = '…[gekürzt]';
  * `sources` is the numbered source block from the registry, bounded per source
  * by the registering tool's `snippetChars` and — in split mode, where
  * `renderAll()` rebuilds it — again by SOURCE_BLOCK_CHARS across all sources.
- * Handing it to the generic deep-truncation is not a safety net but a second,
- * dumber cap: `perField` is maxChars/8 = 750, so ten sources would collapse into
+ * Handing it to the generic truncation is not a safety net but a second,
+ * dumber cap: the per-field floor is maxChars/8 = 750, so ten sources would collapse into
  * 750 chars TOTAL. In unified mode there is no `renderAll()` later in the turn,
  * so those 750 chars would be the model's entire grounding.
  *
@@ -36,6 +39,35 @@ const TRUNCATION_MARK = '…[gekürzt]';
  */
 const PRE_BUDGETED_FIELDS: ReadonlySet<string> = new Set(['sources']);
 
+/** Ein gekürztes Feld: Pfad, Länge vorher, Länge nachher. */
+export interface TruncationNote {
+  feld: string;
+  gesamtZeichen: number;
+  gezeigtZeichen: number;
+}
+
+/** Ein gekapptes Array: Pfad, Einträge vorher, Einträge nachher. */
+export interface ArrayTruncationNote {
+  feld: string;
+  gesamtEintraege: number;
+  gezeigtEintraege: number;
+}
+
+type CutNote = TruncationNote | ArrayTruncationNote;
+
+/** Marker am Ergebnis: ein Eintrag als Objekt, mehrere als Liste. */
+export const TRUNCATION_FIELD = '_gekuerzt';
+
+/**
+ * Ob `truncateResultForModel` etwas gekürzt hat. Liest `_gekuerzt` und das
+ * alte `_truncated` (der Vorschau-Rückfall setzt beides).
+ */
+export function wasShortened(result: unknown): boolean {
+  if (!result || typeof result !== 'object' || Array.isArray(result)) return false;
+  const r = result as Record<string, unknown>;
+  return r[TRUNCATION_FIELD] != null || r._truncated === true;
+}
+
 function safeStringify(value: unknown): string {
   try {
     return JSON.stringify(value) ?? String(value);
@@ -44,27 +76,144 @@ function safeStringify(value: unknown): string {
   }
 }
 
-function deepTruncate(value: unknown, perFieldChars: number, depth = 0): unknown {
+/** Ab hier zählt eine Grenze noch als „nah genug am Schnitt", sonst wird hart geschnitten. */
+const BOUNDARY_MIN_SHARE = 0.6;
+const SENTENCE_END = /[.!?…:](?=\s)/g;
+
+/**
+ * Schneidet `text` auf höchstens `level` Zeichen, bevorzugt an einer
+ * Absatzgrenze, dann an einem Satzende, dann an einer Zeile, zuletzt am Wort.
+ */
+function cutText(text: string, level: number, floor: number): string {
+  if (text.length <= level) return text;
+  const head = text.slice(0, level);
+  // Eine Grenze weit vorn darf das Feld nicht unter den Boden drücken.
+  const min = Math.max(Math.floor(level * BOUNDARY_MIN_SHARE), floor);
+
+  const para = head.lastIndexOf('\n\n');
+  if (para >= min) return head.slice(0, para).trimEnd();
+
+  let sentence = -1;
+  for (const m of head.matchAll(SENTENCE_END)) sentence = m.index + 1;
+  if (sentence >= min) return head.slice(0, sentence);
+
+  const line = head.lastIndexOf('\n');
+  if (line >= min) return head.slice(0, line).trimEnd();
+
+  const space = head.search(/\s\S*$/);
+  if (space >= Math.max(Math.floor(level * 0.8), floor)) return head.slice(0, space).trimEnd();
+  return head;
+}
+
+function longestString(value: unknown): number {
+  if (typeof value === 'string') return value.length;
+  if (Array.isArray(value)) return value.reduce<number>((n, v) => Math.max(n, longestString(v)), 0);
+  if (value && typeof value === 'object') {
+    return Object.values(value).reduce<number>((n, v) => Math.max(n, longestString(v)), 0);
+  }
+  return 0;
+}
+
+/** Kappt jedes String-Blatt über `level` und sammelt, was dabei gekürzt wurde. */
+function shrink(
+  value: unknown,
+  level: number,
+  floor: number,
+  path: string,
+  notes: CutNote[]
+): unknown {
   if (typeof value === 'string') {
-    return value.length > perFieldChars ? value.slice(0, perFieldChars) + TRUNCATION_MARK : value;
+    if (value.length <= level) return value;
+    const cut = cutText(value, level, floor);
+    notes.push({ feld: path, gesamtZeichen: value.length, gezeigtZeichen: cut.length });
+    return cut + TRUNCATION_MARK;
   }
   if (Array.isArray(value)) {
-    const capped = value
-      .slice(0, MAX_ARRAY_ITEMS)
-      .map((v) => deepTruncate(v, perFieldChars, depth + 1));
-    if (value.length > MAX_ARRAY_ITEMS) {
-      capped.push(`…${value.length - MAX_ARRAY_ITEMS} weitere ausgelassen`);
-    }
-    return capped;
+    return value.map((v, i) => shrink(v, level, floor, `${path}[${i}]`, notes));
   }
   if (value && typeof value === 'object') {
     const out: Record<string, unknown> = {};
     for (const [k, v] of Object.entries(value)) {
-      out[k] = deepTruncate(v, perFieldChars, depth + 1);
+      out[k] = shrink(v, level, floor, path ? `${path}.${k}` : k, notes);
     }
     return out;
   }
   return value;
+}
+
+function capArrays(value: unknown, path: string, notes: CutNote[]): unknown {
+  if (Array.isArray(value)) {
+    const kept = value
+      .slice(0, MAX_ARRAY_ITEMS)
+      .map((v, i) => capArrays(v, `${path}[${i}]`, notes));
+    if (value.length > MAX_ARRAY_ITEMS) {
+      notes.push({
+        feld: path || '(Liste)',
+        gesamtEintraege: value.length,
+        gezeigtEintraege: MAX_ARRAY_ITEMS,
+      });
+      kept.push(`…${value.length - MAX_ARRAY_ITEMS} weitere ausgelassen`);
+    }
+    return kept;
+  }
+  if (value && typeof value === 'object') {
+    const out: Record<string, unknown> = {};
+    for (const [k, v] of Object.entries(value)) {
+      out[k] = capArrays(v, path ? `${path}.${k}` : k, notes);
+    }
+    return out;
+  }
+  return value;
+}
+
+interface Fitted {
+  value: unknown;
+  notes: CutNote[];
+  fits: boolean;
+}
+
+/** Das Ergebnis als Objekt, mit `_gekuerzt`, wenn etwas gekürzt wurde. */
+function attachMarker(shown: unknown, notes: CutNote[]): Record<string, unknown> {
+  const base = Array.isArray(shown) ? { eintraege: shown } : (shown as Record<string, unknown>);
+  const marker = notes.length === 0 ? null : notes.length === 1 ? notes[0] : notes;
+  return marker ? { ...base, [TRUNCATION_FIELD]: marker } : base;
+}
+
+/**
+ * Kürzt die String-Blätter von `value` auf die größte Schnitthöhe, bei der das
+ * JSON noch in `target` passt (Wasserstand: nur Felder über der Höhe verlieren
+ * etwas, das größte zuerst). Nie unter `floor`.
+ */
+function fitStrings(
+  value: unknown,
+  target: number,
+  floor: number,
+  priorNotes: CutNote[] = []
+): Fitted {
+  const sizeAt = (level: number): Fitted => {
+    const notes: CutNote[] = [];
+    const shrunk = shrink(value, level, floor, '', notes);
+    // Der Marker steht im Ergebnis und zählt zum Platz.
+    const size = safeStringify(attachMarker(shrunk, [...priorNotes, ...notes])).length;
+    return { value: shrunk, notes, fits: size <= target };
+  };
+  let hi = longestString(value);
+  if (hi <= floor) return sizeAt(floor);
+  const atFloor = sizeAt(floor);
+  if (!atFloor.fits) return atFloor;
+  let lo = floor;
+  let best = atFloor;
+  while (hi - lo > 8) {
+    const mid = Math.floor((lo + hi) / 2);
+    const attempt = sizeAt(mid);
+    if (attempt.fits) {
+      best = attempt;
+      lo = mid;
+    } else {
+      hi = mid;
+    }
+  }
+  return best;
 }
 
 /**
@@ -72,6 +221,11 @@ function deepTruncate(value: unknown, perFieldChars: number, depth = 0): unknown
  * ~`maxChars` — except for {@link PRE_BUDGETED_FIELDS}, which pass through
  * whole because their producing tool already bounded them. Primitives and
  * already-small results pass through untouched.
+ *
+ * Gekürzt wird nur, was nötig ist: die größten String-Felder, an einer
+ * Absatz- oder Satzgrenze, nie unter maxChars/8 je Feld (so viel blieb auch bei
+ * der früheren, gleichmäßigen Kürzung). `_gekuerzt` nennt Feld, Gesamt- und
+ * gezeigte Länge.
  */
 export function truncateResultForModel(
   value: unknown,
@@ -83,7 +237,7 @@ export function truncateResultForModel(
   const json = safeStringify(value);
   if (json.length <= maxChars) return value;
 
-  // Split off the pre-budgeted fields; only the remainder gets deep-truncated.
+  // Split off the pre-budgeted fields; only the remainder gets truncated.
   const exempt: Record<string, unknown> = {};
   let rest: unknown = value;
   if (!Array.isArray(value) && exemptFields.size > 0) {
@@ -96,20 +250,32 @@ export function truncateResultForModel(
   }
   const hasExempt = Object.keys(exempt).length > 0;
 
-  const perField = Math.max(PER_FIELD_FLOOR, Math.floor(maxChars / 8));
-  const restJson = safeStringify(rest);
-  const truncated = deepTruncate(rest, perField) as Record<string, unknown>;
-  // Only claim truncation if something was actually cut — an oversized result
-  // whose bulk sits in an exempt field lost nothing.
-  const changed = safeStringify(truncated) !== restJson;
-  const merged = { ...truncated, ...exempt, ...(changed ? { _truncated: true } : {}) };
+  const floor = Math.max(PER_FIELD_FLOOR, Math.floor(maxChars / 8));
+  // Die ausgenommenen Felder zählen zum Platz, den der Rest nicht mehr hat.
+  const target = hasExempt ? Math.max(0, maxChars - safeStringify(exempt).length) : maxChars;
 
-  if (hasExempt || safeStringify(merged).length <= maxChars) {
-    return merged;
+  let fitted = fitStrings(rest, target, floor);
+  if (!fitted.fits) {
+    // Zeichen allein reichen nicht (viele Einträge): Listen kappen, dann neu.
+    const capNotes: CutNote[] = [];
+    const capped = capArrays(rest, '', capNotes);
+    const again = fitStrings(capped, target, floor, capNotes);
+    fitted = { value: again.value, notes: [...capNotes, ...again.notes], fits: again.fits };
   }
 
+  const { [TRUNCATION_FIELD]: marker, ...shown } = attachMarker(fitted.value, fitted.notes);
+  const merged = { ...shown, ...exempt, ...(marker ? { [TRUNCATION_FIELD]: marker } : {}) };
+
+  if (hasExempt || fitted.fits) return merged;
+
+  // Keine Feldstruktur, die sich kürzen ließe: begrenzte Vorschau.
   return {
     _truncated: true,
+    [TRUNCATION_FIELD]: {
+      feld: '(gesamt)',
+      gesamtZeichen: json.length,
+      gezeigtZeichen: maxChars,
+    } satisfies TruncationNote,
     preview: json.slice(0, maxChars),
   };
 }

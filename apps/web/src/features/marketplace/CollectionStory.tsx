@@ -1,16 +1,26 @@
 import {
   sharepicVorlageThumbPath,
+  type MarketplaceCollectionId,
   type MarketplaceItem,
-  type SharepicThema,
 } from '@gruenerator/contracts';
 import { getFriend, getRobotAvatarPath } from '@gruenerator/shared/avatar';
-import { isSampleItem, type ResolvedStoryBlock } from '@gruenerator/shared/marketplace';
+import {
+  isSampleItem,
+  storyShowsVorlage,
+  type ResolvedStoryBlock,
+} from '@gruenerator/shared/marketplace';
+import {
+  presetsForCollection,
+  profilbildCatalogParams,
+  stickersForCollection,
+} from '@gruenerator/shared/profilbild';
 import { cn } from '@gruenerator/ui';
 import { type JSX, type ReactNode } from 'react';
 import { PiBookmarkSimple, PiBookmarkSimpleFill } from 'react-icons/pi';
 import { Link } from 'react-router-dom';
 
 import { useSettingsDialogStore } from '../settings/settingsDialogStore';
+import { flatCss } from '../studio-tools/utils/profilbildBackgrounds';
 import { useSharepicVorlagen } from '../vorlagen/hooks/useSharepicVorlagen';
 
 import { viewOf } from './kindViews';
@@ -169,12 +179,19 @@ function Gallery({ items, actions, onSelect }: { items: readonly MarketplaceItem
 }
 
 /**
- * The themed Grünerator-Vorlagen of the viewer's country, each opening its
- * preview on /vorlagen. Nothing while the catalogue loads or has none.
+ * The Grünerator-Vorlagen of the viewer's country the block names (a theme, a
+ * design), each opening its preview on /vorlagen. Nothing while the catalogue
+ * loads or has none.
  */
-function VorlagenGallery({ thema, heading }: { thema: SharepicThema; heading: ReactNode }) {
+function VorlagenGallery({
+  block,
+  heading,
+}: {
+  block: Extract<ResolvedStoryBlock, { type: 'vorlagen' }>;
+  heading: ReactNode;
+}) {
   const { data } = useSharepicVorlagen();
-  const vorlagen = (data ?? []).filter((v) => v.spec.thema === thema);
+  const vorlagen = (data ?? []).filter((v) => storyShowsVorlage(block, v.spec));
   if (vorlagen.length === 0) return null;
   return (
     <div className="flex min-w-0 flex-col gap-4">
@@ -236,6 +253,62 @@ function Friends({ ids, heading }: { ids: readonly number[]; heading: ReactNode 
             </li>
           );
         })}
+      </ul>
+    </div>
+  );
+}
+
+/**
+ * The stickers and backgrounds only this collection offers, each opening the
+ * Profilbild with it; backgrounds round like a profile picture.
+ */
+function ProfilbildPicks({
+  kollektion,
+  heading,
+}: {
+  kollektion: MarketplaceCollectionId;
+  heading: ReactNode;
+}) {
+  const stickers = stickersForCollection(kollektion);
+  const backgrounds = presetsForCollection(kollektion);
+  if (stickers.length + backgrounds.length === 0) return null;
+  const href = (kind: 'sticker' | 'background', id: string) =>
+    `/studio/profilbild?${new URLSearchParams(profilbildCatalogParams({ kind, id })).toString()}`;
+  const tile = 'flex w-[160px] flex-col gap-2.5';
+  const label = 'text-[0.9375rem] leading-[1.3] text-foreground-heading';
+  return (
+    <div className={cn(COLUMN, 'flex flex-col gap-4')}>
+      {heading}
+      <ul className="m-0 flex list-none flex-wrap gap-6 p-0" aria-label="Hintergründe">
+        {backgrounds.map((d) => (
+          <li key={d.id} className={tile}>
+            <Link
+              to={href('background', d.id)}
+              aria-label={`${d.label} im Profilbild verwenden`}
+              className="relative block size-[160px] overflow-hidden rounded-full transition-transform duration-200 ease-out active:scale-[0.97]"
+              style={{ background: flatCss(d.base) }}
+            >
+              {d.overlays.map((o) => (
+                <img key={o.src} src={o.src} alt="" className="absolute inset-0 size-full" />
+              ))}
+            </Link>
+            <strong className={label}>{d.label}</strong>
+          </li>
+        ))}
+      </ul>
+      <ul className="m-0 flex list-none flex-wrap gap-6 p-0" aria-label="Sticker">
+        {stickers.map((s) => (
+          <li key={s.id} className={tile}>
+            <Link
+              to={href('sticker', s.id)}
+              aria-label={`${s.label} im Profilbild verwenden`}
+              className="flex size-[160px] items-center justify-center rounded-[22px] bg-background-alt p-4 transition-transform duration-200 ease-out active:scale-[0.97]"
+            >
+              <img src={s.src} alt="" loading="lazy" className="max-h-full max-w-full" />
+            </Link>
+            <strong className={label}>{s.label}</strong>
+          </li>
+        ))}
       </ul>
     </div>
   );
@@ -325,8 +398,10 @@ function Block({ block, ...props }: { block: ResolvedStoryBlock } & ItemProps): 
       {block.heading}
     </h2>
   );
-  if (block.type === 'vorlagen') return <VorlagenGallery thema={block.thema} heading={heading} />;
+  if (block.type === 'vorlagen') return <VorlagenGallery block={block} heading={heading} />;
   if (block.type === 'friends') return <Friends ids={block.ids} heading={heading} />;
+  if (block.type === 'profilbild')
+    return <ProfilbildPicks kollektion={block.kollektion} heading={heading} />;
   return block.display === 'rows' ? (
     <div className={cn(COLUMN, 'flex flex-col gap-4')}>
       {heading}

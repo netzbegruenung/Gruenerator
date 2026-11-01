@@ -50,7 +50,8 @@ vi.mock('./citationUtils.js', () => ({
   resolveCollectionName: vi.fn(() => 'collection'),
 }));
 
-import { normalizeScore, mergeSearchResults } from './searchNode.js';
+import { normalizeScore, mergeSearchResults, candidateToSearchResult } from './searchNode.js';
+import { createSourceRegistry } from '../../../../routes/chat/services/agenticLoop/sourceRegistry.js';
 
 import type { SearchResult } from '../types.js';
 
@@ -228,5 +229,62 @@ describe('mergeSearchResults', () => {
   it('handles empty input', () => {
     const merged = mergeSearchResults([], []);
     expect(merged.length).toBe(0);
+  });
+});
+
+describe('candidateToSearchResult — Reihenfolge und Kappe', () => {
+  const candidate = (abstract: string | null) =>
+    ({
+      ref: '21/4371',
+      dipId: '1',
+      kind: 'drucksache',
+      dokumentnummer: '21/4371',
+      drucksachetyp: 'Beschlussempfehlung und Bericht',
+      titel: 'Beschlussempfehlung zum Artenschutzgesetz',
+      datum: '2026-03-04',
+      urheber: [],
+      pdfUrl: null,
+      vorgangId: 'v1',
+      vorgangTitel: 'Gesetz zur Stärkung des Artenschutzes',
+      abstract,
+      aktualisiert: null,
+      beratung: null,
+      verlauf: {
+        schritte: [
+          {
+            position: '3. Beratung',
+            gremium: 'BT',
+            datum: '2026-03-05',
+            fundstelle: 'Plenarprotokoll 21/62',
+            anfangsseite: 7524,
+            pdfUrl: null,
+            beschluesse: [
+              { tenor: 'Annahme in Ausschussfassung', seite: '7524B', abstimmung: null },
+            ],
+          },
+        ],
+        verkuendung: { datum: '2026-04-01', fundstelle: 'BGBl. 2026 I Nr. 80', pdfUrl: null },
+      },
+    }) as never;
+
+  it('stellt Titel, Ref, Vorgang und Verlauf vor das Abstract', () => {
+    const { content } = candidateToSearchResult(candidate('Abstract-Text'), 0);
+    const at = (needle: string) => content.indexOf(needle);
+    expect(at('Beschlussempfehlung zum')).toBe(0);
+    expect(at('Ref: 21/4371')).toBeGreaterThan(0);
+    expect(at('Ref: 21/4371')).toBeLessThan(at('Gesetz zur Stärkung'));
+    expect(at('Gesetz zur Stärkung')).toBeLessThan(at('7524B'));
+    expect(at('7524B')).toBeLessThan(at('Abstract-Text'));
+  });
+
+  it('lässt ein langes Abstract den Verlauf nicht aus der Schnipselkappe drängen', () => {
+    const registry = createSourceRegistry();
+    registry.register([candidateToSearchResult(candidate('Lorem ipsum. '.repeat(600)), 0)], {
+      snippetChars: 3500,
+    });
+    const rendered = registry.renderAll();
+    expect(rendered).toContain('Plenarprotokoll 21/62');
+    expect(rendered).toContain('7524B');
+    expect(rendered).toContain('BGBl. 2026 I Nr. 80');
   });
 });

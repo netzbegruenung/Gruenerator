@@ -12,22 +12,22 @@ import {
   CanvasTextEditorProvider,
   preloadRichText,
 } from '@ggraphic/editor/components/CanvasTextOverlay';
+import { SelectionPill } from '@ggraphic/editor/components/SelectionPill';
+import { ContextControls } from '@ggraphic/editor/components/TopBar/ContextControls';
+import { MobileSelectionBar } from '@ggraphic/editor/components/TopBar/MobileSelectionBar';
+import { CanvasStage, type CanvasStageRef } from '@ggraphic/editor/primitives/CanvasStage';
+import { CanvasText } from '@ggraphic/editor/primitives/CanvasText';
+import { SidebarPanel } from '@ggraphic/editor/sidebar/SidebarPanel';
+import { SidebarTabBar } from '@ggraphic/editor/sidebar/SidebarTabBar';
 import { CanvasStoreProvider } from '@ggraphic/editor/stores/CanvasStoreProvider';
 import { act, cleanup, render, screen } from '@testing-library/react';
 import { createRef } from 'react';
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 
-import { CanvasStage, type CanvasStageRef } from '../../primitives/CanvasStage';
-import { CanvasText } from '../../primitives/CanvasText';
-import { SidebarPanel } from '../../sidebar/SidebarPanel';
-import { SidebarTabBar } from '../../sidebar/SidebarTabBar';
 import { axe } from '../../test-utils';
-import { MobileSelectionPill } from '../MobileSelectionPill';
-import { ContextControls } from '../TopBar/ContextControls';
-import { MobileSelectionBar } from '../TopBar/MobileSelectionBar';
 
-import type { FloatingModuleState } from '../../hooks/useFloatingModuleState';
-import type { SidebarTab } from '../../sidebar/types';
+import type { FloatingModuleState } from '@ggraphic/editor/hooks/useFloatingModuleState';
+import type { SidebarTab } from '@ggraphic/editor/sidebar/types';
 
 vi.hoisted(() => {
   const target = new EventTarget() as EventTarget & {
@@ -146,35 +146,40 @@ describe('MobileSelectionBar (axe)', () => {
   });
 });
 
-describe('MobileSelectionPill (axe)', () => {
-  it('ist eine benannte Werkzeugleiste ohne Verstöße', async () => {
-    setMobile(true);
-    const { container } = render(
-      <MobileSelectionPill
-        measureKey="a"
-        zoom={1}
-        getBox={() => ({
-          left: 100,
-          top: 300,
-          width: 80,
-          height: 60,
-          visible: { left: 0, top: 52, right: 390, bottom: 600 },
-          rotaters: [],
-        })}
-        subscribeManipulation={() => () => {}}
-        canDuplicate
-        canDelete
-        onDuplicate={() => {}}
-        onDelete={() => {}}
-        onMore={() => {}}
-      />
-    );
-    await act(async () => {
-      await new Promise((resolve) => requestAnimationFrame(() => resolve(null)));
-    });
-    expect(screen.getByRole('toolbar', { name: 'Element' })).toBeInTheDocument();
-    expect(await axe(container)).toHaveNoViolations();
-  });
+describe('SelectionPill (axe)', () => {
+  it.each(['touch', 'pointer'] as const)(
+    '%s: benannte Werkzeugleiste ohne Verstöße',
+    async (variant) => {
+      setMobile(variant === 'touch');
+      const { container } = render(
+        <SelectionPill
+          variant={variant}
+          onToggleLock={() => {}}
+          measureKey="a"
+          zoom={1}
+          getBox={() => ({
+            left: 100,
+            top: 300,
+            width: 80,
+            height: 60,
+            visible: { left: 0, top: 52, right: 390, bottom: 600 },
+            rotaters: [],
+          })}
+          subscribeManipulation={() => () => {}}
+          canDuplicate
+          canDelete
+          onDuplicate={() => {}}
+          onDelete={() => {}}
+          onMore={() => {}}
+        />
+      );
+      await act(async () => {
+        await new Promise((resolve) => requestAnimationFrame(() => resolve(null)));
+      });
+      expect(screen.getByRole('toolbar', { name: 'Element' })).toBeInTheDocument();
+      expect(await axe(container)).toHaveNoViolations();
+    }
+  );
 });
 
 describe('CanvasTextOverlay beim Bearbeiten (axe)', () => {

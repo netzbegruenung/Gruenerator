@@ -244,7 +244,8 @@ export function buildArtifactNotes(
       : '',
     state.createdDocument != null
       ? `HINWEIS: In diesem Turn wurde bereits ${
-          state.createdDocument.subtype === 'presentations'
+          state.createdDocument.subtype === 'presentations' ||
+          state.createdDocument.subtype === 'canvas'
             ? 'eine Präsentation'
             : state.createdDocument.subtype === 'sheets'
               ? 'eine Tabelle'

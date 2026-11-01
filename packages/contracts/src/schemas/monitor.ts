@@ -444,6 +444,23 @@ export const internalSyncEventsResponseSchema = z.object({
   upserted: z.number(),
 });
 
+// ── Bluesky feed ─────────────────────────────────────────────────────────────
+
+export const blueskyPostSchema = z.object({
+  uri: z.string(),
+  url: z.string(),
+  text: z.string(),
+  createdAt: z.string().nullable(),
+  authorName: z.string(),
+  authorHandle: z.string(),
+  avatarUrl: z.string().nullable(),
+  /** Display name of the reposting account when the feed item is a repost. */
+  repostedBy: z.string().nullable(),
+});
+export type BlueskyPost = z.infer<typeof blueskyPostSchema>;
+
+export const blueskyFeedResponseSchema = z.array(blueskyPostSchema);
+
 // ── Errors ───────────────────────────────────────────────────────────────────
 
 export const monitorErrorResponseSchema = z.object({

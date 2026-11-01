@@ -40,24 +40,24 @@ beforeEach(() => {
 });
 
 describe('MessageErrorBanner', () => {
-  it('renders nothing on a healthy turn', () => {
-    const { toJSON } = render(<MessageErrorBanner theme={lightTheme} />);
+  it('renders nothing on a healthy turn', async () => {
+    const { toJSON } = await render(<MessageErrorBanner theme={lightTheme} />);
     expect(toJSON()).toBeNull();
   });
 
-  it('shows the adapter’s message so a failure stops reading as a short answer', () => {
+  it('shows the adapter’s message so a failure stops reading as a short answer', async () => {
     mockMessageError = 'Verbindung abgebrochen';
-    render(<MessageErrorBanner theme={lightTheme} />);
+    await render(<MessageErrorBanner theme={lightTheme} />);
     expect(screen.getByText('Verbindung abgebrochen')).toBeTruthy();
   });
 
   // The order matters: flagging AFTER reload would let the run start unflagged
   // and leave the failed turn behind in chat_messages.
-  it('flags the regenerate before reloading, so the failed turn is replaced', () => {
+  it('flags the regenerate before reloading, so the failed turn is replaced', async () => {
     mockMessageError = 'Zeitüberschreitung';
-    render(<MessageErrorBanner theme={lightTheme} />);
+    await render(<MessageErrorBanner theme={lightTheme} />);
 
-    fireEvent.press(screen.getByTestId('chat-message-error-retry'));
+    await fireEvent.press(screen.getByTestId('chat-message-error-retry'));
 
     expect(mockFlagRegenerate).toHaveBeenCalledTimes(1);
     expect(mockReload).toHaveBeenCalledTimes(1);

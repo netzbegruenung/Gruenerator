@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MPL-2.0
 import Konva from 'konva';
 
-import { CANVAS_ITEM_ID_ATTR, CANVAS_ITEM_NAME } from './deepSelect';
+import { CANVAS_ITEM_ID_ATTR, CANVAS_ITEM_NAME } from './deepSelect.js';
 
 /** Name des gemeinsamen Transformers, der bei Mehrfachauswahl alle Elemente umfasst. */
 export const MULTI_SELECTION_TRANSFORMER_NAME = 'multi-selection-transformer';

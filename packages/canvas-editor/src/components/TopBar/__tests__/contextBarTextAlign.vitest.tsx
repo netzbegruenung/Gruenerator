@@ -7,9 +7,9 @@ import { fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 
 import { axe } from '../../../test-utils';
-import { ContextControls } from '../ContextControls';
+import { ContextControls } from '@ggraphic/editor/components/TopBar/ContextControls';
 
-import type { FloatingModuleState } from '../../../hooks/useFloatingModuleState';
+import type { FloatingModuleState } from '@ggraphic/editor/hooks/useFloatingModuleState';
 
 const HANDLERS = {
   handleMoveLayer: () => {},

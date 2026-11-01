@@ -43,8 +43,10 @@ export function DocPreview({ content, style }: { content: string; style?: StyleP
 }
 
 const styles = StyleSheet.create({
+  // No `flex: 1`: the caller sizes the paper by width and aspect ratio. In a grid
+  // row stretched by a neighbour's two-line title, flex grew the height and the
+  // aspect ratio turned that into width, so the excerpt ran past the card's edge.
   paper: {
-    flex: 1,
     padding: spacing.small,
     justifyContent: 'flex-start',
     overflow: 'hidden',

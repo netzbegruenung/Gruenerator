@@ -177,6 +177,64 @@
    }
   ],
   [
+   "gj-logo-schwarz",
+   {
+    "id": "gj-logo-schwarz",
+    "src": "/gj-logo-schwarz.svg",
+    "label": "GRÜNE JUGEND (schwarz)",
+    "category": "decoration",
+    "tags": [
+     "logo",
+     "grüne jugend",
+     "gruene jugend",
+     "gj",
+     "jugend",
+     "marke",
+     "schwarz"
+    ],
+    "audience": "de-DE"
+   }
+  ],
+  [
+   "gj-logo-hellgruen",
+   {
+    "id": "gj-logo-hellgruen",
+    "src": "/gj-logo-hellgruen.svg",
+    "label": "GRÜNE JUGEND (hellgrün)",
+    "category": "decoration",
+    "tags": [
+     "logo",
+     "grüne jugend",
+     "gruene jugend",
+     "gj",
+     "jugend",
+     "marke",
+     "hellgruen"
+    ],
+    "audience": "de-DE",
+    "darkPreview": true
+   }
+  ],
+  [
+   "gj-logo-weiss",
+   {
+    "id": "gj-logo-weiss",
+    "src": "/gj-logo-weiss.svg",
+    "label": "GRÜNE JUGEND (weiß)",
+    "category": "decoration",
+    "tags": [
+     "logo",
+     "grüne jugend",
+     "gruene jugend",
+     "gj",
+     "jugend",
+     "marke",
+     "weiss"
+    ],
+    "audience": "de-DE"
+   }
+  ],
+  [
    "quote-mark",
    {
     "id": "quote-mark",
@@ -1176,6 +1234,163 @@
    }
   ],
   [
+   "gj-zackenstern",
+   {
+    "id": "gj-zackenstern",
+    "src": "/studio-tools/stickers/gj-zackenstern.png",
+    "label": "Zackenstern „Ich bin dabei!“",
+    "category": "sticker",
+    "tags": [
+     "sticker",
+     "grüne jugend",
+     "störer",
+     "stern"
+    ],
+    "audience": "de-DE"
+   }
+  ],
+  [
+   "gj-zeilenbalken",
+   {
+    "id": "gj-zeilenbalken",
+    "src": "/studio-tools/stickers/gj-zeilenbalken.png",
+    "label": "Zeilenbalken „Wählen ab 16!“",
+    "category": "sticker",
+    "tags": [
+     "sticker",
+     "grüne jugend",
+     "balken",
+     "wahlalter"
+    ],
+    "audience": "de-DE"
+   }
+  ],
+  [
+   "gj-tape",
+   {
+    "id": "gj-tape",
+    "src": "/studio-tools/stickers/gj-tape.png",
+    "label": "Tape „Frag mich!“",
+    "category": "sticker",
+    "tags": [
+     "sticker",
+     "grüne jugend",
+     "handschrift",
+     "tape"
+    ],
+    "audience": "de-DE"
+   }
+  ],
+  [
+   "gj-rahmen",
+   {
+    "id": "gj-rahmen",
+    "src": "/studio-tools/stickers/gj-rahmen.png",
+    "label": "Profilrahmen GRÜNE JUGEND",
+    "category": "sticker",
+    "tags": [
+     "sticker",
+     "grüne jugend",
+     "rahmen",
+     "ring"
+    ],
+    "audience": "de-DE"
+   }
+  ],
+  [
+   "gj-sprechblase",
+   {
+    "id": "gj-sprechblase",
+    "src": "/studio-tools/stickers/gj-sprechblase.png",
+    "label": "Sprechblase „Klimagerecht!“",
+    "category": "sticker",
+    "tags": [
+     "sticker",
+     "grüne jugend",
+     "sprechblase",
+     "klima"
+    ],
+    "audience": "de-DE"
+   }
+  ],
+  [
+   "gj-at-stoerer",
+   {
+    "id": "gj-at-stoerer",
+    "src": "/studio-tools/stickers/gj-at-stoerer.png",
+    "label": "Störer „Komm mit!“",
+    "category": "sticker",
+    "tags": [
+     "sticker",
+     "grüne jugend",
+     "störer",
+     "gelb"
+    ],
+    "audience": "de-AT"
+   }
+  ],
+  [
+   "gj-at-etikett",
+   {
+    "id": "gj-at-etikett",
+    "src": "/studio-tools/stickers/gj-at-etikett.png",
+    "label": "Etikett „Sei dabei“",
+    "category": "sticker",
+    "tags": [
+     "sticker",
+     "grüne jugend",
+     "etikett"
+    ],
+    "audience": "de-AT"
+   }
+  ],
+  [
+   "gj-at-rahmen",
+   {
+    "id": "gj-at-rahmen",
+    "src": "/studio-tools/stickers/gj-at-rahmen.png",
+    "label": "Profilrahmen Grüne Jugend",
+    "category": "sticker",
+    "tags": [
+     "sticker",
+     "grüne jugend",
+     "rahmen",
+     "ring"
+    ],
+    "audience": "de-AT"
+   }
+  ],
+  [
+   "gj-at-chip",
+   {
+    "id": "gj-at-chip",
+    "src": "/studio-tools/stickers/gj-at-chip.png",
+    "label": "Chip „Heuer!“",
+    "category": "sticker",
+    "tags": [
+     "sticker",
+     "grüne jugend",
+     "chip"
+    ],
+    "audience": "de-AT"
+   }
+  ],
+  [
+   "gj-at-sprechblase",
+   {
+    "id": "gj-at-sprechblase",
+    "src": "/studio-tools/stickers/gj-at-sprechblase.png",
+    "label": "Sprechblase „Frag mich!“",
+    "category": "sticker",
+    "tags": [
+     "sticker",
+     "grüne jugend",
+     "sprechblase"
+    ],
+    "audience": "de-AT"
+   }
+  ],
+  [
    "emoji-1f600",
    {
     "id": "emoji-1f600",
@@ -1250,6 +1465,18 @@
   [
    "/gruene-at-logo-gruen.png",
    "gruene-at-logo-gruen"
+  ],
+  [
+   "/gj-logo-schwarz.svg",
+   "gj-logo-schwarz"
+  ],
+  [
+   "/gj-logo-hellgruen.svg",
+   "gj-logo-hellgruen"
+  ],
+  [
+   "/gj-logo-weiss.svg",
+   "gj-logo-weiss"
   ],
   [
    "/quote.svg",
@@ -1506,6 +1733,46 @@
   [
    "/studio-tools/stickers/at-jetzt-gruen.png",
    "at-jetzt-gruen"
+  ],
+  [
+   "/studio-tools/stickers/gj-zackenstern.png",
+   "gj-zackenstern"
+  ],
+  [
+   "/studio-tools/stickers/gj-zeilenbalken.png",
+   "gj-zeilenbalken"
+  ],
+  [
+   "/studio-tools/stickers/gj-tape.png",
+   "gj-tape"
+  ],
+  [
+   "/studio-tools/stickers/gj-rahmen.png",
+   "gj-rahmen"
+  ],
+  [
+   "/studio-tools/stickers/gj-sprechblase.png",
+   "gj-sprechblase"
+  ],
+  [
+   "/studio-tools/stickers/gj-at-stoerer.png",
+   "gj-at-stoerer"
+  ],
+  [
+   "/studio-tools/stickers/gj-at-etikett.png",
+   "gj-at-etikett"
+  ],
+  [
+   "/studio-tools/stickers/gj-at-rahmen.png",
+   "gj-at-rahmen"
+  ],
+  [
+   "/studio-tools/stickers/gj-at-chip.png",
+   "gj-at-chip"
+  ],
+  [
+   "/studio-tools/stickers/gj-at-sprechblase.png",
+   "gj-at-sprechblase"
   ]
  ],
  "instances": [
@@ -1672,6 +1939,60 @@
    false
   ],
   [
+   "gj-logo-schwarz",
+   null,
+   "/gj-logo-schwarz.svg",
+   false
+  ],
+  [
+   "gj-logo-schwarz",
+   "/api/share/0123456789abcdef0123456789abcdef/download",
+   "/api/share/0123456789abcdef0123456789abcdef/download",
+   true
+  ],
+  [
+   "gj-logo-schwarz",
+   "https://evil.example/x.png",
+   "/gj-logo-schwarz.svg",
+   false
+  ],
+  [
+   "gj-logo-hellgruen",
+   null,
+   "/gj-logo-hellgruen.svg",
+   false
+  ],
+  [
+   "gj-logo-hellgruen",
+   "/api/share/0123456789abcdef0123456789abcdef/download",
+   "/api/share/0123456789abcdef0123456789abcdef/download",
+   true
+  ],
+  [
+   "gj-logo-hellgruen",
+   "https://evil.example/x.png",
+   "/gj-logo-hellgruen.svg",
+   false
+  ],
+  [
+   "gj-logo-weiss",
+   null,
+   "/gj-logo-weiss.svg",
+   false
+  ],
+  [
+   "gj-logo-weiss",
+   "/api/share/0123456789abcdef0123456789abcdef/download",
+   "/api/share/0123456789abcdef0123456789abcdef/download",
+   true
+  ],
+  [
+   "gj-logo-weiss",
+   "https://evil.example/x.png",
+   "/gj-logo-weiss.svg",
+   false
+  ],
+  [
    "quote-mark",
    null,
    "/quote.svg",
@@ -2821,6 +3142,186 @@
    "at-jetzt-gruen",
    "https://evil.example/x.png",
    "/studio-tools/stickers/at-jetzt-gruen.png",
+   true
+  ],
+  [
+   "gj-zackenstern",
+   null,
+   "/studio-tools/stickers/gj-zackenstern.png",
+   true
+  ],
+  [
+   "gj-zackenstern",
+   "/api/share/0123456789abcdef0123456789abcdef/download",
+   "/api/share/0123456789abcdef0123456789abcdef/download",
+   true
+  ],
+  [
+   "gj-zackenstern",
+   "https://evil.example/x.png",
+   "/studio-tools/stickers/gj-zackenstern.png",
+   true
+  ],
+  [
+   "gj-zeilenbalken",
+   null,
+   "/studio-tools/stickers/gj-zeilenbalken.png",
+   true
+  ],
+  [
+   "gj-zeilenbalken",
+   "/api/share/0123456789abcdef0123456789abcdef/download",
+   "/api/share/0123456789abcdef0123456789abcdef/download",
+   true
+  ],
+  [
+   "gj-zeilenbalken",
+   "https://evil.example/x.png",
+   "/studio-tools/stickers/gj-zeilenbalken.png",
+   true
+  ],
+  [
+   "gj-tape",
+   null,
+   "/studio-tools/stickers/gj-tape.png",
+   true
+  ],
+  [
+   "gj-tape",
+   "/api/share/0123456789abcdef0123456789abcdef/download",
+   "/api/share/0123456789abcdef0123456789abcdef/download",
+   true
+  ],
+  [
+   "gj-tape",
+   "https://evil.example/x.png",
+   "/studio-tools/stickers/gj-tape.png",
+   true
+  ],
+  [
+   "gj-rahmen",
+   null,
+   "/studio-tools/stickers/gj-rahmen.png",
+   true
+  ],
+  [
+   "gj-rahmen",
+   "/api/share/0123456789abcdef0123456789abcdef/download",
+   "/api/share/0123456789abcdef0123456789abcdef/download",
+   true
+  ],
+  [
+   "gj-rahmen",
+   "https://evil.example/x.png",
+   "/studio-tools/stickers/gj-rahmen.png",
+   true
+  ],
+  [
+   "gj-sprechblase",
+   null,
+   "/studio-tools/stickers/gj-sprechblase.png",
+   true
+  ],
+  [
+   "gj-sprechblase",
+   "/api/share/0123456789abcdef0123456789abcdef/download",
+   "/api/share/0123456789abcdef0123456789abcdef/download",
+   true
+  ],
+  [
+   "gj-sprechblase",
+   "https://evil.example/x.png",
+   "/studio-tools/stickers/gj-sprechblase.png",
+   true
+  ],
+  [
+   "gj-at-stoerer",
+   null,
+   "/studio-tools/stickers/gj-at-stoerer.png",
+   true
+  ],
+  [
+   "gj-at-stoerer",
+   "/api/share/0123456789abcdef0123456789abcdef/download",
+   "/api/share/0123456789abcdef0123456789abcdef/download",
+   true
+  ],
+  [
+   "gj-at-stoerer",
+   "https://evil.example/x.png",
+   "/studio-tools/stickers/gj-at-stoerer.png",
+   true
+  ],
+  [
+   "gj-at-etikett",
+   null,
+   "/studio-tools/stickers/gj-at-etikett.png",
+   true
+  ],
+  [
+   "gj-at-etikett",
+   "/api/share/0123456789abcdef0123456789abcdef/download",
+   "/api/share/0123456789abcdef0123456789abcdef/download",
+   true
+  ],
+  [
+   "gj-at-etikett",
+   "https://evil.example/x.png",
+   "/studio-tools/stickers/gj-at-etikett.png",
+   true
+  ],
+  [
+   "gj-at-rahmen",
+   null,
+   "/studio-tools/stickers/gj-at-rahmen.png",
+   true
+  ],
+  [
+   "gj-at-rahmen",
+   "/api/share/0123456789abcdef0123456789abcdef/download",
+   "/api/share/0123456789abcdef0123456789abcdef/download",
+   true
+  ],
+  [
+   "gj-at-rahmen",
+   "https://evil.example/x.png",
+   "/studio-tools/stickers/gj-at-rahmen.png",
+   true
+  ],
+  [
+   "gj-at-chip",
+   null,
+   "/studio-tools/stickers/gj-at-chip.png",
+   true
+  ],
+  [
+   "gj-at-chip",
+   "/api/share/0123456789abcdef0123456789abcdef/download",
+   "/api/share/0123456789abcdef0123456789abcdef/download",
+   true
+  ],
+  [
+   "gj-at-chip",
+   "https://evil.example/x.png",
+   "/studio-tools/stickers/gj-at-chip.png",
+   true
+  ],
+  [
+   "gj-at-sprechblase",
+   null,
+   "/studio-tools/stickers/gj-at-sprechblase.png",
+   true
+  ],
+  [
+   "gj-at-sprechblase",
+   "/api/share/0123456789abcdef0123456789abcdef/download",
+   "/api/share/0123456789abcdef0123456789abcdef/download",
+   true
+  ],
+  [
+   "gj-at-sprechblase",
+   "https://evil.example/x.png",
+   "/studio-tools/stickers/gj-at-sprechblase.png",
    true
   ],
   [
@@ -3128,6 +3629,78 @@
    "https://evil.example/x.png",
    {
     "assetId": "gruene-at-logo-gruen",
+    "src": null
+   }
+  ],
+  [
+   "gj-logo-schwarz",
+   "/gj-logo-schwarz.png",
+   {
+    "assetId": "gj-logo-schwarz",
+    "src": null
+   }
+  ],
+  [
+   "gj-logo-schwarz",
+   "/api/share/0123456789abcdef0123456789abcdef/download",
+   {
+    "assetId": "gj-logo-schwarz",
+    "src": "/api/share/0123456789abcdef0123456789abcdef/download"
+   }
+  ],
+  [
+   "gj-logo-schwarz",
+   "https://evil.example/x.png",
+   {
+    "assetId": "gj-logo-schwarz",
+    "src": null
+   }
+  ],
+  [
+   "gj-logo-hellgruen",
+   "/gj-logo-hellgruen.png",
+   {
+    "assetId": "gj-logo-hellgruen",
+    "src": null
+   }
+  ],
+  [
+   "gj-logo-hellgruen",
+   "/api/share/0123456789abcdef0123456789abcdef/download",
+   {
+    "assetId": "gj-logo-hellgruen",
+    "src": "/api/share/0123456789abcdef0123456789abcdef/download"
+   }
+  ],
+  [
+   "gj-logo-hellgruen",
+   "https://evil.example/x.png",
+   {
+    "assetId": "gj-logo-hellgruen",
+    "src": null
+   }
+  ],
+  [
+   "gj-logo-weiss",
+   "/gj-logo-weiss.png",
+   {
+    "assetId": "gj-logo-weiss",
+    "src": null
+   }
+  ],
+  [
+   "gj-logo-weiss",
+   "/api/share/0123456789abcdef0123456789abcdef/download",
+   {
+    "assetId": "gj-logo-weiss",
+    "src": "/api/share/0123456789abcdef0123456789abcdef/download"
+   }
+  ],
+  [
+   "gj-logo-weiss",
+   "https://evil.example/x.png",
+   {
+    "assetId": "gj-logo-weiss",
     "src": null
    }
   ],
@@ -4664,6 +5237,246 @@
    "https://evil.example/x.png",
    {
     "assetId": "at-jetzt-gruen",
+    "src": null
+   }
+  ],
+  [
+   "gj-zackenstern",
+   "/gj-zackenstern.png",
+   {
+    "assetId": "gj-zackenstern",
+    "src": null
+   }
+  ],
+  [
+   "gj-zackenstern",
+   "/api/share/0123456789abcdef0123456789abcdef/download",
+   {
+    "assetId": "gj-zackenstern",
+    "src": "/api/share/0123456789abcdef0123456789abcdef/download"
+   }
+  ],
+  [
+   "gj-zackenstern",
+   "https://evil.example/x.png",
+   {
+    "assetId": "gj-zackenstern",
+    "src": null
+   }
+  ],
+  [
+   "gj-zeilenbalken",
+   "/gj-zeilenbalken.png",
+   {
+    "assetId": "gj-zeilenbalken",
+    "src": null
+   }
+  ],
+  [
+   "gj-zeilenbalken",
+   "/api/share/0123456789abcdef0123456789abcdef/download",
+   {
+    "assetId": "gj-zeilenbalken",
+    "src": "/api/share/0123456789abcdef0123456789abcdef/download"
+   }
+  ],
+  [
+   "gj-zeilenbalken",
+   "https://evil.example/x.png",
+   {
+    "assetId": "gj-zeilenbalken",
+    "src": null
+   }
+  ],
+  [
+   "gj-tape",
+   "/gj-tape.png",
+   {
+    "assetId": "gj-tape",
+    "src": null
+   }
+  ],
+  [
+   "gj-tape",
+   "/api/share/0123456789abcdef0123456789abcdef/download",
+   {
+    "assetId": "gj-tape",
+    "src": "/api/share/0123456789abcdef0123456789abcdef/download"
+   }
+  ],
+  [
+   "gj-tape",
+   "https://evil.example/x.png",
+   {
+    "assetId": "gj-tape",
+    "src": null
+   }
+  ],
+  [
+   "gj-rahmen",
+   "/gj-rahmen.png",
+   {
+    "assetId": "gj-rahmen",
+    "src": null
+   }
+  ],
+  [
+   "gj-rahmen",
+   "/api/share/0123456789abcdef0123456789abcdef/download",
+   {
+    "assetId": "gj-rahmen",
+    "src": "/api/share/0123456789abcdef0123456789abcdef/download"
+   }
+  ],
+  [
+   "gj-rahmen",
+   "https://evil.example/x.png",
+   {
+    "assetId": "gj-rahmen",
+    "src": null
+   }
+  ],
+  [
+   "gj-sprechblase",
+   "/gj-sprechblase.png",
+   {
+    "assetId": "gj-sprechblase",
+    "src": null
+   }
+  ],
+  [
+   "gj-sprechblase",
+   "/api/share/0123456789abcdef0123456789abcdef/download",
+   {
+    "assetId": "gj-sprechblase",
+    "src": "/api/share/0123456789abcdef0123456789abcdef/download"
+   }
+  ],
+  [
+   "gj-sprechblase",
+   "https://evil.example/x.png",
+   {
+    "assetId": "gj-sprechblase",
+    "src": null
+   }
+  ],
+  [
+   "gj-at-stoerer",
+   "/gj-at-stoerer.png",
+   {
+    "assetId": "gj-at-stoerer",
+    "src": null
+   }
+  ],
+  [
+   "gj-at-stoerer",
+   "/api/share/0123456789abcdef0123456789abcdef/download",
+   {
+    "assetId": "gj-at-stoerer",
+    "src": "/api/share/0123456789abcdef0123456789abcdef/download"
+   }
+  ],
+  [
+   "gj-at-stoerer",
+   "https://evil.example/x.png",
+   {
+    "assetId": "gj-at-stoerer",
+    "src": null
+   }
+  ],
+  [
+   "gj-at-etikett",
+   "/gj-at-etikett.png",
+   {
+    "assetId": "gj-at-etikett",
+    "src": null
+   }
+  ],
+  [
+   "gj-at-etikett",
+   "/api/share/0123456789abcdef0123456789abcdef/download",
+   {
+    "assetId": "gj-at-etikett",
+    "src": "/api/share/0123456789abcdef0123456789abcdef/download"
+   }
+  ],
+  [
+   "gj-at-etikett",
+   "https://evil.example/x.png",
+   {
+    "assetId": "gj-at-etikett",
+    "src": null
+   }
+  ],
+  [
+   "gj-at-rahmen",
+   "/gj-at-rahmen.png",
+   {
+    "assetId": "gj-at-rahmen",
+    "src": null
+   }
+  ],
+  [
+   "gj-at-rahmen",
+   "/api/share/0123456789abcdef0123456789abcdef/download",
+   {
+    "assetId": "gj-at-rahmen",
+    "src": "/api/share/0123456789abcdef0123456789abcdef/download"
+   }
+  ],
+  [
+   "gj-at-rahmen",
+   "https://evil.example/x.png",
+   {
+    "assetId": "gj-at-rahmen",
+    "src": null
+   }
+  ],
+  [
+   "gj-at-chip",
+   "/gj-at-chip.png",
+   {
+    "assetId": "gj-at-chip",
+    "src": null
+   }
+  ],
+  [
+   "gj-at-chip",
+   "/api/share/0123456789abcdef0123456789abcdef/download",
+   {
+    "assetId": "gj-at-chip",
+    "src": "/api/share/0123456789abcdef0123456789abcdef/download"
+   }
+  ],
+  [
+   "gj-at-chip",
+   "https://evil.example/x.png",
+   {
+    "assetId": "gj-at-chip",
+    "src": null
+   }
+  ],
+  [
+   "gj-at-sprechblase",
+   "/gj-at-sprechblase.png",
+   {
+    "assetId": "gj-at-sprechblase",
+    "src": null
+   }
+  ],
+  [
+   "gj-at-sprechblase",
+   "/api/share/0123456789abcdef0123456789abcdef/download",
+   {
+    "assetId": "gj-at-sprechblase",
+    "src": "/api/share/0123456789abcdef0123456789abcdef/download"
+   }
+  ],
+  [
+   "gj-at-sprechblase",
+   "https://evil.example/x.png",
+   {
+    "assetId": "gj-at-sprechblase",
     "src": null
    }
   ],

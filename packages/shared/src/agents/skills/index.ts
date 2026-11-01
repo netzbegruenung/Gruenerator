@@ -21,7 +21,7 @@
  * Ordering is governed by the `order` frontmatter field; ties break
  * alphabetically by `mention`.
  */
-import { type LvEbene } from '../types.js';
+import { type LvEbene, type SkillRole } from '../types.js';
 
 import { SKILLS } from './index.generated.js';
 import { type SystemSkill } from './types.js';
@@ -105,4 +105,25 @@ const ebeneMap = new Map<string, LvEbene>(
  */
 export function lvEbeneForSkillMention(mention: string): LvEbene | null {
   return ebeneMap.get(canonicalSkillMention(mention).toLowerCase()) ?? null;
+}
+
+const roleMap = new Map<string, SkillRole>(
+  (SKILLS as readonly SystemSkill[]).flatMap((skill) =>
+    skill.rolle ? [[skill.mention.toLowerCase(), skill.rolle] as const] : []
+  )
+);
+
+/**
+ * Was ein Rezept im Turn regelt: `textsorte` gibt die Form vor und ist
+ * exklusiv, `methode` (Bundestag-Recherche, Rechtsstand) regelt Recherche,
+ * Belege und Zitierweise und stapelt sich neben einer Textsorte. Alles ohne
+ * Angabe — auch angelernte Textformen und unbekannte Kennungen — ist
+ * `textsorte`: das ist die Rolle, die jedes Rezept vor diesem Feld hatte.
+ */
+export function skillRole(mention: string): SkillRole {
+  return roleMap.get(canonicalSkillMention(mention).toLowerCase()) ?? 'textsorte';
+}
+
+export function isMethodSkill(mention: string): boolean {
+  return skillRole(mention) === 'methode';
 }

@@ -57,6 +57,9 @@ describe('isProductMetaQuestion', () => {
     'wobei kannst du mir helfen?',
     'was ist der grünerator',
     'wie funktioniert der grünerator?',
+    'Hilfe',
+    'Hilfe!',
+    'Wer bist du?',
   ])('matches "%s"', (q) => {
     expect(isProductMetaQuestion(q)).toBe(true);
   });
@@ -68,6 +71,8 @@ describe('isProductMetaQuestion', () => {
     'wie erstelle ich einen antrag für die fraktion',
     'Erstelle mit dem Grünerator einen Antrag und erkläre die Funktion des Gesetzes.',
     'hallo, wie geht es dir',
+    'Hilfe bei meiner Rede zum Haushalt',
+    'wer bist du eigentlich, Olaf?',
   ])('does NOT match "%s"', (q) => {
     expect(isProductMetaQuestion(q)).toBe(false);
   });

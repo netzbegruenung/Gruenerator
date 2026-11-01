@@ -4,20 +4,27 @@ import {
   printGeometry,
   type PrintRect,
 } from '@ggraphic/editor/formats/index';
+import { ASSET_TARGET_SIZE, type AssetInstance } from '@ggraphic/editor/utils/canvasAssets';
 import { printSpecSchema, type PrintSpec } from '@gruenerator/contracts';
 import { describe, expect, it } from 'vitest';
 
 import { getBrandTheme } from '../brand/theme';
-import { ASSET_TARGET_SIZE, type AssetInstance } from '../utils/canvasAssets';
 
 import { layoutTextLines, LIME, SHAREPIC_COLOR_HEX } from './chromeParts';
 import { composePrint, PRINT_IMPRESSUM_ID, type ComposedPrint } from './composePrint';
+import { expectBrandFontsBound } from './fontRoleCheck';
 
-import type { AdditionalText } from '../configs/types';
+import type { AdditionalText } from '@ggraphic/editor/configs/types';
 
 /** Monospace stand-in: half the font size per character. */
 const measure = (text: string, fontSize: number) => text.length * fontSize * 0.5;
-const compose = (spec: unknown) => composePrint(printSpecSchema.parse(spec), { measure });
+const compose = (spec: unknown) => {
+  const result = composePrint(printSpecSchema.parse(spec), { measure });
+  // Whatever a test composes, a brand font on it carries its role.
+  const locale = result.templateType === 'freeform-at' ? 'de-AT' : 'de-DE';
+  expectBrandFontsBound(result.slides, getBrandTheme(locale).fonts);
+  return result;
+};
 
 type Locale = PrintSpec['locale'];
 const CARD_FORMATS = ['print-visitenkarte-quer', 'print-visitenkarte-hoch'] as const;

@@ -1,14 +1,6 @@
 import { Image as BrandImage } from 'expo-image';
 import { useEffect, useRef, useState } from 'react';
-import {
-  AccessibilityInfo,
-  Pressable,
-  StyleSheet,
-  Text,
-  View,
-  useColorScheme,
-  type ImageSourcePropType,
-} from 'react-native';
+import { AccessibilityInfo, Pressable, StyleSheet, Text, View, useColorScheme } from 'react-native';
 import Animated, {
   Easing,
   useAnimatedStyle,
@@ -24,7 +16,7 @@ import { darkTheme, lightTheme, spacing, typography, HEADING_FONT_BOLD } from '.
 import { goBackOr } from '../../utils/navigation';
 
 /* eslint-disable @typescript-eslint/no-require-imports */
-const BRAND_LOGO = require('../../assets/images/sonnenblume.png') as ImageSourcePropType;
+const BRAND_LOGO = require('../../assets/images/sonnenblume.png') as number;
 
 const HEADLINE = 'KI, die die Welt nicht brennen sehen will.';
 

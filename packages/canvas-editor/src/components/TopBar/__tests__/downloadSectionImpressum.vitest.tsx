@@ -1,13 +1,13 @@
+import { CanvasEditorProvider } from '@ggraphic/editor/CanvasEditorProvider';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { useState } from 'react';
 import { describe, expect, it, vi } from 'vitest';
 
-import { CanvasEditorProvider } from '../../../CanvasEditorProvider';
 import { composePrintImpressum, PRINT_IMPRESSUM_ID } from '../../../composer/composePrint';
 import { impressumLine, type ImpressumLocale } from '../../../composer/printImpressum';
 import { grueneratorPrint } from '../../../composer/printService';
-import { DownloadSection } from '../DownloadSection';
+import { DownloadSection } from '@ggraphic/editor/components/TopBar/DownloadSection';
 
 /** Stands in for the editor: the gate text lives in "canvas state" and the form writes to it. */
 function Harness({

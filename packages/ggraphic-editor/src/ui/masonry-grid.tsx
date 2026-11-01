@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MPL-2.0
 import { cva, type VariantProps } from 'class-variance-authority';
 
-import { cn } from '../utils/cn';
+import { cn } from '../utils/cn.js';
 
 // `gap` on a multi-column box sets column-gap (horizontal). Vertical spacing
 // between stacked items is handled by MasonryItem's bottom margin.

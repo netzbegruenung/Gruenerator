@@ -9,7 +9,8 @@
  * Rules (scripts/ggraphic-boundary/rules.mjs): (a) identity text, imports out
  * of the package and symlinks, (b) CD hex colours, (c) brand file names,
  * (d) binaries only via assets.json, font name tables, no inline base64
- * assets, (e) no root-relative asset or API paths, (f) MPL-2.0 SPDX header.
+ * assets, (e) no root-relative asset or API paths, (f) MPL-2.0 SPDX header,
+ * (g) no test fixture (`__fixtures__/`) imported by production code.
  * An empty match fails too.
  *
  * `--self-test` runs the red probes (scripts/ggraphic-boundary/selfTest.mjs).

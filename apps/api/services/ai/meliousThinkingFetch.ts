@@ -1,4 +1,5 @@
-import { captureMeliousImpact, meliousModelFromRequest, replayAsStream } from './meliousImpact.js';
+import { contentAsToolCall, forcedToolAsJsonSchema } from './forcedToolJsonSchema.js';
+import { captureMeliousImpact, meliousModelFromRequest } from './meliousImpact.js';
 
 /**
  * Der Flavor-Suffix wählt bei Melious den Upstream — und damit das Fenster.
@@ -45,17 +46,13 @@ export function meliousWireModel(body: Record<string, unknown>): string | null {
 }
 
 /**
- * Ein gestreamter Aufruf MIT Werkzeugen ist die Werkzeugphase des Loops
- * (`gather` in loopEngine.ts); die Synthese läuft ohne Werkzeuge. Melious sendet
- * `environment_impact` nur nicht-gestreamt, also fragt diese Phase nicht-
- * gestreamt und spielt die fertige Antwort dem SDK als Strom vor
- * (`replayAsStream`). Kosten: Narrations- und Denk-Deltas des Planers kommen
- * erst mit der fertigen Antwort (gemessen ~0,6 s je Schritt) statt Token für
- * Token. Dafür ist der Planer — der Lauf in JEDEM Zug — gemessen statt geschätzt.
+ * Modelle, die bei Melious keine Werkzeugaufrufe können. `gemma-4-26b-a4b`
+ * (Scaleway/FR), gemessen 28.10.2026: `tool_choice: 'required'` → HTTP 503
+ * „The model returned an invalid tool call response", ein benanntes
+ * `tool_choice` → Fliesstext ohne Aufruf. `response_format: json_schema` mit
+ * demselben Schema liefert dagegen sauberes JSON. Umbau: `forcedToolJsonSchema.ts`.
  */
-function isToolPhaseStream(body: Record<string, unknown>): boolean {
-  return body.stream === true && Array.isArray(body.tools) && body.tools.length > 0;
-}
+const NO_TOOL_CALL_MODELS: ReadonlySet<string> = new Set(['gemma-4-26b-a4b']);
 
 /**
  * Melious' `gemma-4-31b` thinks by DEFAULT — gemessen 23.09.2026 gegen
@@ -79,25 +76,25 @@ function isToolPhaseStream(body: Record<string, unknown>): boolean {
  */
 export const meliousFetch: typeof fetch = async (input, init) => {
   const logicalModel = meliousModelFromRequest(init?.body);
-  let replay = false;
+  let forcedTool: string | null = null;
   if (init?.body && typeof init.body === 'string') {
     try {
       const parsed = JSON.parse(init.body) as Record<string, unknown>;
       if (parsed.model && parsed.messages) {
         if (parsed.reasoning_effort == null) parsed.reasoning_effort = 'none';
         parsed.model = meliousWireModel(parsed) ?? parsed.model;
-        if (isToolPhaseStream(parsed)) {
-          replay = true;
-          parsed.stream = false;
-          delete parsed.stream_options;
-        }
+        forcedTool = forcedToolAsJsonSchema(parsed, NO_TOOL_CALL_MODELS);
         init = { ...init, body: JSON.stringify(parsed) };
       }
     } catch {
       // Non-JSON body (e.g. multipart upload), pass through unchanged
     }
   }
-  // Die HTTP-Grenze ist der einzige Ort, an dem Melious' Umweltdaten überleben.
+  // Die HTTP-Grenze ist der einzige Ort, an dem Melious' Umweltdaten überleben —
+  // nicht-gestreamt im Body, gestreamt im letzten Chunk (seit Oktober 2026; bis
+  // dahin fragte die Werkzeugphase nicht-gestreamt und spielte die Antwort als
+  // Strom vor, nur um gemessen zu werden).
   const response = captureMeliousImpact(await fetch(input, init), logicalModel, init?.signal);
-  return replay && response.ok ? replayAsStream(await response.json()) : response;
+  if (forcedTool && response.ok) return contentAsToolCall(response, forcedTool);
+  return response;
 };

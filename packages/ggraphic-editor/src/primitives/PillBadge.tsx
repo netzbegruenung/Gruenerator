@@ -17,6 +17,7 @@ import { Group, Rect, Text, Transformer } from 'react-konva';
 
 import { LOCKED_TRANSFORMER, useIsItemLocked } from '@ggraphic/editor/components/canvasItemLock';
 import { useSnapScheduler } from '@ggraphic/editor/hooks/useSnapScheduler';
+import { messages } from '@ggraphic/editor/i18n/messages';
 import { captureFocusOrigin, returnFocus } from '@ggraphic/editor/utils/editorFocus';
 import { followStage } from '@ggraphic/editor/utils/followStage';
 import { isGroupDrag } from '@ggraphic/editor/utils/multiSelect';
@@ -24,10 +25,10 @@ import { ELEMENT_TRANSFORMER, normalizeRotation } from '@ggraphic/editor/utils/o
 import { boxFrame, createBoxFrame, snapByBounds } from '@ggraphic/editor/utils/snapping';
 import { stageCssScale } from '@ggraphic/editor/utils/stageCssScale';
 
-import { calculatePillBadgeDimensions } from '../utils/pillBadgeUtils';
-import { useTextEditorOpener } from '../utils/textEditorOpeners';
+import { calculatePillBadgeDimensions } from '../utils/pillBadgeUtils.js';
+import { useTextEditorOpener } from '../utils/textEditorOpeners.js';
 
-import type { PillBadgeFontStyle } from '../utils/pillBadgeUtils';
+import type { PillBadgeFontStyle } from '../utils/pillBadgeUtils.js';
 import type { SnapTarget, SnapLine } from '@ggraphic/editor/utils/snapping';
 import type Konva from 'konva';
 
@@ -192,7 +193,7 @@ function PillBadgeInner({
     document.body.appendChild(textarea);
 
     textarea.value = text;
-    textarea.setAttribute('aria-label', 'Text bearbeiten');
+    textarea.setAttribute('aria-label', messages().common.editText);
     textarea.style.position = 'absolute';
     textarea.style.fontFamily = `${fontFamily}, Arial, sans-serif`;
     textarea.style.fontStyle = fontStyle.includes('italic') ? 'italic' : 'normal';

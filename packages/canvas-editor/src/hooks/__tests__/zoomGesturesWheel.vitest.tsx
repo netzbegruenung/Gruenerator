@@ -2,7 +2,7 @@ import { renderHook } from '@testing-library/react';
 import Konva from 'konva';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { useZoomGestures } from '../useZoomGestures';
+import { useZoomGestures } from '@ggraphic/editor/hooks/useZoomGestures';
 
 /**
  * Das Mausrad über dem Sharepic: scrollt normal, zoomt mit Strg/Cmd — und

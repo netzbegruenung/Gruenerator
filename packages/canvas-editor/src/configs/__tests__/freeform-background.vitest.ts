@@ -1,15 +1,15 @@
+import { loadCanvasConfig } from '@ggraphic/editor/configs/configLoader';
 import { createShape, type ShapeInstance } from '@ggraphic/editor/utils/shapes';
 import { SHAREPIC_LOCALE_COLORS } from '@gruenerator/contracts';
 import { beforeAll, describe, expect, it } from 'vitest';
 
-import { applyOperation, type CanvasAiActionsBase } from '../../ai/applyOperation';
+import { applyOperation, type CanvasAiActionsBase } from '@ggraphic/editor/ai/applyOperation';
 import { getBrandTheme } from '../../brand/theme';
 import { SHAREPIC_COLOR_HEX } from '../../composer/composeSharepic';
-import { loadCanvasConfig } from '../configLoader';
 
-import type { BackgroundControls } from '../types';
 import type { TemplateAiCapabilities } from '@ggraphic/editor/ai/types';
 import type { StockImageAttribution } from '@ggraphic/editor/common/imageSourceTypes';
+import type { BackgroundControls } from '@ggraphic/editor/configs/types';
 
 /**
  * Freeform shows EITHER the photo OR the colour plane (`backgroundMode`). A

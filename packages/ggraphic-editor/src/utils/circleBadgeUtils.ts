@@ -7,9 +7,12 @@
  * commonly used for date displays in event templates.
  */
 
-import { activeBrand } from '@ggraphic/editor/brand/brandRegistry';
+import { type BrandPack } from '@ggraphic/core';
 
-import type { CircleBadgeInstance, CircleBadgeTextLine } from '../primitives/CircleBadge';
+import { activeBrand } from '@ggraphic/editor/brand/brandRegistry';
+import { messages } from '@ggraphic/editor/i18n/messages';
+
+import type { CircleBadgeInstance, CircleBadgeTextLine } from '../primitives/CircleBadge.js';
 
 export type { CircleBadgeInstance, CircleBadgeTextLine };
 
@@ -30,9 +33,8 @@ export interface CircleBadgePreset {
 // PRESETS
 // ============================================================================
 
-/** The presets in the active brand's colours and headline font. */
-function circleBadgePresets(): Record<string, CircleBadgePreset> {
-  const { colors, fonts } = activeBrand();
+/** The presets in a brand's colours and headline font. */
+function circleBadgePresets({ colors, fonts }: BrandPack): Record<string, CircleBadgePreset> {
   return {
     default: {
       radius: 80,
@@ -40,7 +42,7 @@ function circleBadgePresets(): Record<string, CircleBadgePreset> {
       textColor: '#FFFFFF',
       textLines: [
         {
-          text: 'Text',
+          text: messages().common.text,
           yOffset: 0,
           fontFamily: fonts.headline,
           fontSize: 32,
@@ -56,7 +58,7 @@ function circleBadgePresets(): Record<string, CircleBadgePreset> {
       textColor: colors.primary,
       textLines: [
         {
-          text: 'Text',
+          text: messages().common.text,
           yOffset: 0,
           fontFamily: fonts.headline,
           fontSize: 32,
@@ -88,12 +90,14 @@ export function generateCircleBadgeId(): string {
  *
  * @param presetId - The preset to use (e.g., 'default', 'default-inverted')
  * @param overrides - Optional overrides for specific properties
+ * @param brand - The pack the preset takes its colours and font from; the active brand by default
  */
 export function createCircleBadgeInstance(
   presetId: string = 'default',
-  overrides: Partial<CircleBadgeInstance> = {}
+  overrides: Partial<CircleBadgeInstance> = {},
+  brand: BrandPack = activeBrand()
 ): CircleBadgeInstance {
-  const presets = circleBadgePresets();
+  const presets = circleBadgePresets(brand);
   const preset = presets[presetId] ?? presets.default;
 
   return {

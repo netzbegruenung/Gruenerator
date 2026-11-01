@@ -1,13 +1,13 @@
-import { AnnouncerContext } from '@ggraphic/editor/hooks/useAnnounce';
-import { render } from '@testing-library/react';
-import { describe, expect, it, vi } from 'vitest';
-
 import {
   CanvasEditorProvider,
   type CanvasAiEditBridge,
   type CanvasSpecEditBridge,
   type ChatSectionContentProps,
-} from '../../../CanvasEditorProvider';
+} from '@ggraphic/editor/CanvasEditorProvider';
+import { AnnouncerContext } from '@ggraphic/editor/hooks/useAnnounce';
+import { render } from '@testing-library/react';
+import { describe, expect, it, vi } from 'vitest';
+
 import { AI_EDIT_APPLIED, ChatSection } from '../ChatSection';
 
 import type { ApplyResult } from '../../../ai';

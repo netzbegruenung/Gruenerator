@@ -4,13 +4,12 @@
  * misses the change they just made; the entry must come from the committed
  * state instead, so one undo lands exactly on the state before the action.
  */
+import { GenericCanvas, type GenericCanvasRef } from '@ggraphic/editor/components/GenericCanvas';
+import { loadCanvasConfig } from '@ggraphic/editor/configs/configLoader';
 import { AutoSaveStoreProvider } from '@ggraphic/editor/stores/AutoSaveStoreProvider';
 import { act, render } from '@testing-library/react';
 import { createRef } from 'react';
 import { describe, expect, it, vi } from 'vitest';
-
-import { loadCanvasConfig } from '../../configs/configLoader';
-import { GenericCanvas, type GenericCanvasRef } from '../GenericCanvas';
 
 import type * as StoreModule from '@ggraphic/editor/stores/createCanvasEditorStore';
 import type { CanvasEditorStoreApi } from '@ggraphic/editor/stores/createCanvasEditorStore';
@@ -75,73 +74,6 @@ async function mountCanvas(configId: 'freeform' | 'dreizeilen', seed: Record<str
 }
 
 describe('history snapshots the committed state', () => {
-  it('dreizeilen setBackgroundColor: the entry is the new colour, one undo restores the rest', async () => {
-    const { ref, live, top } = await mountCanvas('dreizeilen', {
-      line1: 'Eins',
-      line2: 'Zwei',
-      line3: 'Drei',
-    });
-    const before = json(live.state);
-
-    await act(async () => {
-      (live.actions.setBackgroundColor as (c: string) => void)('#123456');
-    });
-    expect(live.state.backgroundColor).toBe('#123456');
-    expect(top().backgroundColor).toBe('#123456');
-
-    await act(async () => {
-      ref.current!.undo!();
-    });
-    expect(json(live.state)).toEqual(before);
-
-    await act(async () => {
-      ref.current!.redo!();
-    });
-    expect(live.state.backgroundColor).toBe('#123456');
-  }, 90_000);
-
-  it('dreizeilen setLine1 (debounced): an undo before the timer fires reverts the typing', async () => {
-    const { ref, live, top } = await mountCanvas('dreizeilen', {
-      line1: 'alt',
-      line2: 'Zwei',
-      line3: 'Drei',
-    });
-    const before = json(live.state);
-
-    await act(async () => {
-      (live.actions.setLine1 as (t: string) => void)('neu');
-    });
-    await act(async () => {
-      ref.current!.undo!();
-    });
-    expect(json(live.state)).toEqual(before);
-
-    await act(async () => {
-      ref.current!.redo!();
-    });
-    expect(live.state.line1).toBe('neu');
-    expect(top().line1).toBe('neu');
-  }, 90_000);
-
-  it('freeform addAsset: the entry holds the asset, one undo removes exactly it', async () => {
-    const { ref, live, top } = await mountCanvas('freeform', {
-      backgroundMode: 'color',
-      backgroundColor: '#005538',
-    });
-    const before = json(live.state);
-
-    await act(async () => {
-      (live.actions.addAsset as (id: string) => void)('sonnenblume-gelb');
-    });
-    expect(live.state.assetInstances).toHaveLength(1);
-    expect(top().assetInstances).toHaveLength(1);
-
-    await act(async () => {
-      ref.current!.undo!();
-    });
-    expect(json(live.state)).toEqual(before);
-  }, 90_000);
-
   it('freeform setBackgroundColor out of image mode keeps the pre-state as its own step', async () => {
     const { ref, live, top } = await mountCanvas('freeform', {
       backgroundMode: 'color',

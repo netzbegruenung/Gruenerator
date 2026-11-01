@@ -3,6 +3,8 @@
  * the V.i.S.d.P. / Impressum line and the print Vorlagen composer. The editor
  * core reaches both only through this object, which the host hands in.
  */
+import { PRINT_UNGETESTET_HINWEIS } from '@gruenerator/contracts';
+
 import { composePrint, composePrintImpressum, PRINT_IMPRESSUM_ID } from './composePrint';
 import {
   IMPRESSUM_LABELS,
@@ -27,4 +29,5 @@ export const grueneratorPrint: CanvasPrintService = {
     composeElement: composePrintImpressum,
   },
   composePrint,
+  untestedNotice: PRINT_UNGETESTET_HINWEIS,
 };

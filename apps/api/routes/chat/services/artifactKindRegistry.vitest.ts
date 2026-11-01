@@ -230,9 +230,9 @@ describe('artifact kind registry — the patterns', () => {
     }
   });
 
-  it('only sheet carries an extra guard', () => {
+  it('only presentation and sheet carry an extra guard', () => {
     const withGuard = ARTIFACT_KINDS.filter((k) => k.extraGuard != null).map((k) => k.id);
-    expect(withGuard).toEqual(['sheet']);
+    expect(withGuard).toEqual(['presentation', 'sheet']);
   });
 
   it('a pattern needs a creation VERB, not just the noun', () => {

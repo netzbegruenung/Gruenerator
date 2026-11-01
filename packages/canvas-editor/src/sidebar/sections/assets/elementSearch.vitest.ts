@@ -1,24 +1,23 @@
-import { loadAllIcons } from '@ggraphic/editor/utils/canvasIcons';
-import { beforeAll, describe, expect, it } from 'vitest';
-
-import { stickerAssetsForLocale } from '../../../brand/grueneAssetCatalog';
-import { ALL_ASSETS } from '../../../brand/grueneAssets';
-import { getAllIllustrations } from '../../../utils/illustrations/registry';
-
-import { searchElements } from './elementSearch';
+import { searchElements } from '@ggraphic/editor/sidebar/sections/assets/elementSearch';
 import {
   assetItem,
   CHART_ITEMS,
-  EMOJI_ITEMS,
   FRAME_ITEMS,
   iconItem,
   illustrationItem,
-  SHAPE_ITEMS,
+  shapeItems,
   type CategoryId,
-} from './useElementCatalog';
-import { stockPhotoItem } from './useStockPhotos';
+} from '@ggraphic/editor/sidebar/sections/assets/useElementCatalog';
+import { stockPhotoItem } from '@ggraphic/editor/sidebar/sections/assets/useStockPhotos';
+import { loadAllIcons } from '@ggraphic/editor/utils/canvasIcons';
+import { getAllIllustrations } from '@ggraphic/editor/utils/illustrations/registry';
+import { beforeAll, describe, expect, it } from 'vitest';
 
-import type { ElementItem } from './elementTypes';
+import { EMOJI_ASSETS, stickerAssetsForLocale } from '../../../brand/grueneAssetCatalog';
+import { ALL_ASSETS } from '../../../brand/grueneAssets';
+import { GRUENE_DE } from '../../../brand/theme';
+
+import type { ElementItem } from '@ggraphic/editor/sidebar/sections/assets/elementTypes';
 
 type Category = { id: CategoryId; searchable: boolean; items: ElementItem[] };
 let catalog: Category[] = [];
@@ -30,12 +29,12 @@ beforeAll(async () => {
   catalog = [
     cat('marke', ALL_ASSETS.filter((a) => a.audience !== 'de-AT').map(assetItem)),
     cat('sticker', stickerAssetsForLocale('de-DE').map(assetItem)),
-    cat('formen', SHAPE_ITEMS),
+    cat('formen', shapeItems(GRUENE_DE)),
     cat('diagramme', CHART_ITEMS),
     cat('rahmen', FRAME_ITEMS),
     cat('illustrationen', illustrations.map(illustrationItem)),
     cat('icons', icons.map(iconItem)),
-    cat('emoji', EMOJI_ITEMS),
+    cat('emoji', EMOJI_ASSETS.map(assetItem)),
   ];
 }, 60_000);
 

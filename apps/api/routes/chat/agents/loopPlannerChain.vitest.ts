@@ -66,7 +66,7 @@ describe('loop planner fallback chain', () => {
     expect(loopPlannerModelName()).toBe(LOOP_PLANNER_HEALTHY_ALT.model);
   });
 
-  it('nimmt GreenPT, wenn Melious und Cortecs zäh sind', () => {
+  it('nimmt Mistral, wenn Melious und Cortecs zäh sind', () => {
     markSlow(LOOP_PLANNER_PRIMARY);
     markSlow(LOOP_PLANNER_HEALTHY_ALT);
     expect(loopPlannerModelName()).toBe(LOOP_PLANNER_FALLBACK.model);
@@ -77,9 +77,9 @@ describe('loop planner fallback chain', () => {
     expect(loopPlannerModelName()).toBe(LOOP_PLANNER_HEALTHY_ALT.model);
   });
 
-  it('kein Mistral mehr in der Kette, solange eine Stufe konfiguriert ist', () => {
+  it('kein GreenPT als Planer: es ignoriert einen erzwungenen tool_choice (#5113)', () => {
     for (const s of [LOOP_PLANNER_PRIMARY, LOOP_PLANNER_HEALTHY_ALT, LOOP_PLANNER_FALLBACK]) {
-      expect(s.provider).not.toBe('mistral');
+      expect(s.provider).not.toBe('greenpt');
     }
   });
 
@@ -110,13 +110,13 @@ describe('Ausweich-Lanes innerhalb eines Zuges', () => {
     for (const p of ['melious', 'cortecs', 'greenpt', 'mistral']) configured.add(p);
   });
 
-  it('hinter dem Primär: erst Cortecs, dann GreenPT', () => {
+  it('hinter dem Primär: erst Cortecs, dann Mistral', () => {
     expect(
       ids(getLoopPlannerFallbackModels(LOOP_PLANNER_PRIMARY.provider, LOOP_PLANNER_PRIMARY.model))
     ).toEqual([LOOP_PLANNER_HEALTHY_ALT.model, LOOP_PLANNER_FALLBACK.model]);
   });
 
-  it('hinter Cortecs nur noch GreenPT, hinter der letzten Stufe nichts', () => {
+  it('hinter Cortecs nur noch Mistral, hinter der letzten Stufe nichts', () => {
     expect(
       ids(
         getLoopPlannerFallbackModels(
@@ -135,7 +135,7 @@ describe('Ausweich-Lanes innerhalb eines Zuges', () => {
     expect(
       ids(getLoopPlannerFallbackModels(LOOP_PLANNER_PRIMARY.provider, LOOP_PLANNER_PRIMARY.model))
     ).toEqual([LOOP_PLANNER_FALLBACK.model]);
-    configured.delete('greenpt');
+    configured.delete('mistral');
     expect(
       getLoopPlannerFallbackModels(LOOP_PLANNER_PRIMARY.provider, LOOP_PLANNER_PRIMARY.model)
     ).toEqual([]);

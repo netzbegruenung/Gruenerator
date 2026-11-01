@@ -196,6 +196,12 @@ describe('formatPastChatsBlock', () => {
     expect(block).toContain('Gespräch vom 01.04.2026');
   });
 
+  it('marks earlier lookups as dated and asks for a fresh check (#5138)', () => {
+    const block = formatPastChatsBlock([makeHit('t-1', 'A')]);
+    expect(block).toContain('ist der Stand von damals');
+    expect(block).toContain('sieh mit dem\npassenden Werkzeug erneut nach');
+  });
+
   it('appends the deep-read section only when a transcript is supplied', () => {
     const without = formatPastChatsBlock([makeHit('t-1', 'A')]);
     expect(without).not.toContain('Vollständiger Verlauf');

@@ -5,6 +5,12 @@
  * page as its own elements. Runs on the real freeform page and the real
  * composer; the host's `composeBlock` is the composition apps/web runs.
  */
+import {
+  CanvasEditorProvider,
+  type CanvasEditorServices,
+} from '@ggraphic/editor/CanvasEditorProvider';
+import { GenericCanvas, type GenericCanvasRef } from '@ggraphic/editor/components/GenericCanvas';
+import { loadCanvasConfig } from '@ggraphic/editor/configs/configLoader';
 import { AutoSaveStoreProvider } from '@ggraphic/editor/stores/AutoSaveStoreProvider';
 import { sharepicBlockSpec, type SharepicBlock } from '@gruenerator/contracts';
 import { act, cleanup, render } from '@testing-library/react';
@@ -12,14 +18,11 @@ import Konva from 'konva';
 import React, { createRef } from 'react';
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 
-import { CanvasEditorProvider, type CanvasEditorServices } from '../../../CanvasEditorProvider';
 import { composeSharepic, SHAREPIC_COLOR_HEX } from '../../../composer/composeSharepic';
 import { grueneratorBlocks } from '../../../composer/sharepicServices';
-import { loadCanvasConfig } from '../../../configs/configLoader';
-import { GenericCanvas, type GenericCanvasRef } from '../../GenericCanvas';
 import { BlockInsertProvider, useBlockInsert, type BlockInsertApi } from '../blockInsert';
 
-import type { AdditionalText } from '../../../configs/types';
+import type { AdditionalText } from '@ggraphic/editor/configs/types';
 
 const BLOCK: SharepicBlock = {
   id: 'de-block-liste',
@@ -31,6 +34,12 @@ const BLOCK: SharepicBlock = {
   items: [{ type: 'liste', stil: 'pfeile', items: ['Mehr Busse', 'Radwege'] }],
 };
 const AT_BLOCK: SharepicBlock = { ...BLOCK, id: 'at-block-liste', locale: 'de-AT' };
+const GJ_BLOCK: SharepicBlock = {
+  ...BLOCK,
+  id: 'gj-de-block-liste',
+  color: 'lavendel',
+  brand: 'gruene-jugend',
+};
 
 const measure = (text: string, fontSize: number) => text.length * fontSize * 0.5;
 
@@ -51,7 +60,7 @@ const HOST: CanvasEditorServices = {
   vorlagen: {
     listSeiten: async () => [],
     composeSeite: async () => [],
-    listBloecke: async () => [BLOCK, AT_BLOCK],
+    listBloecke: vi.fn(async () => [BLOCK, AT_BLOCK, GJ_BLOCK]),
     composeBlock,
   },
 };
@@ -225,6 +234,40 @@ describe('block insert into a page', () => {
     expect(ok).toBe(false);
     expect(composeBlock).not.toHaveBeenCalled();
     expect(blockOn(live()).texts).toEqual([]);
+  });
+
+  it('offers a GJ page only the GJ blocks of its country, asked for by design', async () => {
+    const { api } = await setup({}, 'freeform-gj');
+    expect(api()?.bloecke.map((b) => b.id)).toEqual(['gj-de-block-liste']);
+    expect(HOST.vorlagen!.listBloecke).toHaveBeenCalledWith('gruene-jugend');
+  });
+
+  it('composes a GJ block on the GJ ground of the page', async () => {
+    const colour = await setup(
+      { backgroundMode: 'color', backgroundColor: SHAREPIC_COLOR_HEX.apricot },
+      'freeform-gj'
+    );
+    await act(async () => {
+      await colour.api()!.insert('gj-de-block-liste');
+    });
+    expect(composeBlock.mock.calls[0]![1]).toEqual({ format: 'post-portrait', color: 'apricot' });
+    cleanup();
+
+    const photo = await setup({ backgroundMode: 'image' }, 'freeform-gj');
+    await act(async () => {
+      await photo.api()!.insert('gj-de-block-liste');
+    });
+    expect(composeBlock.mock.calls[1]![1]).toEqual({ format: 'post-portrait', color: 'schwarz' });
+  });
+
+  it('refuses a GJ block on a party page', async () => {
+    const { api } = await setup();
+    let ok = true;
+    await act(async () => {
+      ok = await api()!.insert('gj-de-block-liste');
+    });
+    expect(ok).toBe(false);
+    expect(composeBlock).not.toHaveBeenCalled();
   });
 
   it('offers no blocks on a page of another template', async () => {

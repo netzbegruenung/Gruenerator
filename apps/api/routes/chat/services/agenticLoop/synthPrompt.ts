@@ -20,9 +20,11 @@ import {
 import { SOURCE_LINK_RULE } from '../../../../agents/langgraph/ChatGraph/nodes/sourceLinkRule.js';
 import { TABELLE_AUSWERTEN_TOOL } from '../../agents/tabelleAuswertenTool.js';
 import { offerNote } from '../artifactOffer.js';
+import { lastUserText } from '../messageHelpers.js';
 import { withInstructionHierarchy } from '../untrustedContent.js';
 
 import { ARTIFACT_TOOL_NAMES, buildArtifactNotes } from './artifactNotes.js';
+import { buildUncoveredTermNote } from './questionTermCoverage.js';
 import { RECENCY_RULE } from './recencyRule.js';
 import { type RecipeRegistry } from './recipeRegistry.js';
 import { type SourceRegistry } from './sourceRegistry.js';
@@ -31,6 +33,7 @@ import {
   buildEmptyResultNote,
   buildToolFailureNote,
   buildToolPayloadNote,
+  buildWriterNotes,
   mcpHasFailure,
 } from './toolOutcome.js';
 import { type PersistedStep } from './types.js';
@@ -143,7 +146,7 @@ export interface SynthPromptContext {
 export function buildSynthSystem(sources: string, ctx: SynthPromptContext): string {
   const cite =
     sources.trim().length > 0
-      ? `\n\nGESAMMELTE QUELLEN (nummeriert):\n${sources}\n\nBeantworte die Frage auf Basis dieser Quellen. ZITIER-REGELN: Belege Fakten mit Markern in ECKIGEN KLAMMERN — z.B. [3] oder [3, 7]. Schreibe die Quellennummer NIEMALS als blanke Zahl ohne Klammern (sonst ist sie von normalen Zahlen im Text nicht zu unterscheiden). Nutze AUSSCHLIESSLICH die Nummern aus der Liste oben; erfinde keine Nummern. Deckt keine Quelle die Frage, sag es ehrlich. ${SOURCE_LINK_RULE}
+      ? `\n\nGESAMMELTE QUELLEN (nummeriert):\n${sources}\n\nBeantworte die Frage auf Basis dieser Quellen. ZITIER-REGELN: Belege Fakten mit Markern in ECKIGEN KLAMMERN — z.B. [3] oder [3, 7]. Schreibe die Quellennummer NIEMALS als blanke Zahl ohne Klammern (sonst ist sie von normalen Zahlen im Text nicht zu unterscheiden). Nutze AUSSCHLIESSLICH die Nummern aus der Liste oben; erfinde keine Nummern. Ein Marker [N] steht nur hinter einer Aussage, die Quelle N SELBST trägt — verbinde nie Aussagen aus verschiedenen Quellen zu einem neuen Satz mit Beleg. Deckt keine Quelle die Frage, sag es ehrlich. ${SOURCE_LINK_RULE}
 
 ANTWORTE KONKRET: Steht die Antwort in einer Quelle, dann NENNE SIE im Klartext — den Namen, die Zahl, das Datum. Verweise nicht auf die Quelle, statt zu antworten ("laut [1] gibt es dazu Informationen" ist keine Antwort).
 
@@ -151,6 +154,9 @@ ${RECENCY_RULE}
 
 Die Suche für diesen Turn ist bereits GELAUFEN — ihre Treffer stehen oben. Deshalb: empfiehl NIEMALS eine Websuche, eine "kurze Recherche" oder das Nachschlagen auf einer offiziellen Seite. Behaupte aber ebenso NIEMALS, du könntest nicht suchen, hättest keinen Internetzugriff oder könntest "nur auf die bereitgestellten Ergebnisse zugreifen" — das ist falsch: gesucht wird jedes Mal neu, wenn es gebraucht wird, und in diesem Turn ist es geschehen. Reichen die Quellen wirklich nicht, benenne knapp die konkrete LÜCKE ("zum Stand nach September 2025 steht hier nichts") — ohne Suchempfehlung und ohne Aussage über deine Fähigkeiten.`
       : '';
+  // Der Gegenstand der Frage steht in keiner Quelle (#5141) — sonst bindet der
+  // Schreiber ein Nachbarthema der Quellen mit Beleg an ihn.
+  const uncoveredTerm = buildUncoveredTermNote(lastUserText(ctx.state.messages) ?? '', sources);
   // Real per-turn MCP outcomes (success/error) so the tool-less synth can
   // report them truthfully instead of guessing — MCP tools don't register
   // sources, so this is the ONLY channel the synth has for connector results.
@@ -164,6 +170,8 @@ Die Suche für diesen Turn ist bereits GELAUFEN — ihre Treffer stehen oben. De
   // (`summarize`, `product_knowledge`) — ohne das hier verpufft ihre Arbeit,
   // siehe `PAYLOAD_TOOLS`.
   const toolPayload = buildToolPayloadNote(ctx.steps);
+  // Notizen, die ein Werkzeug an den Schreiber richtet (`fuerSchreiber`).
+  const writerNotes = buildWriterNotes(ctx.steps);
   // Computed BEFORE buildArtifactNotes so its outcomeClause can tell a clean
   // success from a turn where something else also failed this same turn.
   const hasFailures = toolFailures.length > 0 || mcpHasFailure(ctx.steps);
@@ -226,12 +234,17 @@ Die Suche für diesen Turn ist bereits GELAUFEN — ihre Treffer stehen oben. De
     ? // Gesucht und nichts gefunden ist das Gegenteil von „nicht nachgesehen" —
       // als letzter Absatz überstimmte die Zeile unten die Leer-Notiz, und der
       // Schreiber bot an, erst noch zu suchen (#3902).
-      toolEmpties
-      ? '\n\nWICHTIG: Du HAST in diesem Turn nachgesehen — die Werkzeuge unter LEERE ERGEBNISSE liefen und fanden nichts. Sag genau das: dass du gesucht und nichts gefunden hast. Behaupte NICHT, du hättest nicht nachgesehen, und biete nicht an, erst noch zu suchen. Nenne keine [N]-Belege und keine Quellen.'
-      : '\n\nWICHTIG: In diesem Turn hast du NICHTS recherchiert und keine Quellen erhalten. Behaupte keine Recherche, nenne keine [N]-Belege, keine Studien und keine Quellen. Antworte nur aus gesichertem Kontext oder sag ehrlich, dass du es nachschlagen müsstest.' +
-        // Nach einem Fehlschlag sagt die Fehlschlag-Notiz, was zu sagen ist —
-        // „nicht nachgesehen" wäre dort falsch.
-        (toolFailures ? '' : ` ${NO_CAPABILITY_DENIAL_RULE}`)
+      // Eine Werkzeug-Notiz ohne Quellen ist eine Antwort (Lizenzgrenze, Partei nicht
+      // vertreten): unter „NICHTS recherchiert" bot der Schreiber an, erst noch zu
+      // suchen, und ließ den Grund weg (Nationalrat-Anfragen, live 29.10.2026).
+      writerNotes
+      ? '\n\nWICHTIG: Du HAST in diesem Turn nachgesehen — was dabei herauskam, steht unter ANWEISUNG DER WERKZEUGE. Gib genau das weiter. Behaupte NICHT, du hättest nicht nachgesehen, und biete nicht an, erst noch zu suchen. Nenne keine [N]-Belege und keine Quellen.'
+      : toolEmpties
+        ? '\n\nWICHTIG: Du HAST in diesem Turn nachgesehen — die Werkzeuge unter LEERE ERGEBNISSE liefen und fanden nichts. Sag genau das: dass du gesucht und nichts gefunden hast. Behaupte NICHT, du hättest nicht nachgesehen, und biete nicht an, erst noch zu suchen. Nenne keine [N]-Belege und keine Quellen.'
+        : '\n\nWICHTIG: In diesem Turn hast du NICHTS recherchiert und keine Quellen erhalten. Behaupte keine Recherche, nenne keine [N]-Belege, keine Studien und keine Quellen. Antworte nur aus gesichertem Kontext oder sag ehrlich, dass du es nachschlagen müsstest.' +
+          // Nach einem Fehlschlag sagt die Fehlschlag-Notiz, was zu sagen ist —
+          // „nicht nachgesehen" wäre dort falsch.
+          (toolFailures ? '' : ` ${NO_CAPABILITY_DENIAL_RULE}`)
     : carriedOnly && !producedArtifact
       ? // Mirrors CARRIED_SOURCES_NOTE on the single-pass path (respondNode).
         // The ban on [N] that used to stand here is what made the same
@@ -269,6 +282,6 @@ Die Suche für diesen Turn ist bereits GELAUFEN — ihre Treffer stehen oben. De
   // prepareStep — mirroring how `carriedNote` is injected for unified
   // BECAUSE split gets it here.
   return withInstructionHierarchy(
-    `${ctx.systemMessage}${ctx.mcpNote}${cite}${artifacts}${mcpOutcome}${toolPayload}${toolFailures}${toolEmpties}${capabilityNote}${phantomNote}${openingNote}${honestyNote}${tabularNote}${ctx.recipeRegistry.render()}${offerNote(ctx.state, ctx.recipeRegistry.mentions)}\n\nAntworte auf Deutsch (Du-Form, Genderstern).`
+    `${ctx.systemMessage}${ctx.mcpNote}${cite}${uncoveredTerm}${artifacts}${mcpOutcome}${toolPayload}${writerNotes}${toolFailures}${toolEmpties}${capabilityNote}${phantomNote}${openingNote}${honestyNote}${tabularNote}${ctx.recipeRegistry.render()}${offerNote(ctx.state, ctx.recipeRegistry.mentions)}\n\nAntworte auf Deutsch (Du-Form, Genderstern).`
   );
 }

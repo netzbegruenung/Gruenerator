@@ -38,6 +38,13 @@ const IDENTITY = [
     /\b(?:GrueneType|Gotham|BalkenGroup|DE_WORDMARK|dreizeilen|toggle-sunflower)\w*|\blogo(?:De|At)(?:White|Weiss|Black|Schwarz|Dark|Light)?\b/,
     'Grünerator brand identifier',
   ],
+  // The Balken are a Grünerator element kind, registered by the host
+  // (`registerElementKind`). Only the identifiers: the plain word is also
+  // German for a bar chart (`ChartGroup` 'balken', emoji and shape tags).
+  [
+    /\bbalken(?:Instances|Utils|Offset|WidthScale|Opacity|Scale|Rotation|FitPending)\b|\bBalken(?:Instance|Mode|Actions|Preview|Kind)\b|(?:[aA]dd|[uU]pdate|[rR]emove|[dD]uplicate|[sS]elected|handle)Balken|\bsetBalkenText\b|\b(?:kind|type|t)\s*(?:[!=]==?|:)\s*['"`]balken['"`]|\bcase\s+['"`]balken['"`]/,
+    'Balken element kind',
+  ],
 ];
 // Any quoted or url() path that climbs with ../ — imports, CSS, new URL(), references.
 const PATH_REFERENCE = /(?:['"`]|url\(\s*)(\.\.\/[^'"`\s)$]*)/g;
@@ -123,6 +130,12 @@ const HOST_PATH = [
 const SOURCE_EXT = /\.(?:tsx?|jsx?|mjs|cjs|css)$/i;
 const SPDX = /SPDX-License-Identifier: MPL-2\.0/;
 
+// (g) Test fixtures (`__fixtures__/`, e.g. the test-only v2 document
+// migration) stay in tests: production source must not import them. Tests and
+// the fixtures themselves may.
+const FIXTURE_REFERENCE = /['"`][^'"`\n]*\/__fixtures__\//;
+const TEST_OR_FIXTURE = /\.vitest\.tsx?$|\.test\.tsx?$|\/__fixtures__\//;
+
 // Warnings: words and colours that are brand in Grünerator but also generic.
 const AMBIGUOUS = [
   /Sonnenblume|sunflower|Tanne|Klee|Grashalm|Dunkeltanne|grasgruen|Störer|stoerer|balken/i,
@@ -164,6 +177,12 @@ function locate(text, pattern) {
   return `line ${text.slice(0, match.index).split('\n').length}: "${match[0]}"`;
 }
 
+// The one place the core may name where it came from: a package-root NOTICE
+// holding exactly this statement. Any other text in it is scanned as usual.
+export const PROVENANCE_NOTICE =
+  'Originally developed as part of netzbegruenung/Gruenerator (AGPL-3.0);\n' +
+  'relicensed by the copyright holder under MPL-2.0.\n';
+
 function checkText(path, bytes, packageDir, fail, warn) {
   const utf8 = bytes.toString('utf8').normalize('NFC');
   const sources = utf8.includes('�') ? [utf8, bytes.toString('latin1').normalize('NFC')] : [utf8];
@@ -184,7 +203,9 @@ function checkText(path, bytes, packageDir, fail, warn) {
     }
   };
 
-  for (const [pattern, label] of IDENTITY) scan('a', label, [pattern], (w) => `${label} (${w})`);
+  const isProvenance = path === `${packageDir}/NOTICE` && utf8 === PROVENANCE_NOTICE;
+  if (!isProvenance)
+    for (const [pattern, label] of IDENTITY) scan('a', label, [pattern], (w) => `${label} (${w})`);
   scan('b', 'colour', CD_COLOUR, (w) => `corporate-design colour (${w})`);
   // A listed SVG's license covers what it embeds.
   if (!ASSET_EXT.test(path)) {
@@ -205,6 +226,10 @@ function checkText(path, bytes, packageDir, fail, warn) {
         report('a', `escape:${reference}`, `path out of the package: "${reference}"`);
       }
     }
+  }
+  if (SOURCE_EXT.test(path) && !TEST_OR_FIXTURE.test(path)) {
+    const where = locate(utf8, FIXTURE_REFERENCE);
+    if (where) fail('g', path, `production code imports a test fixture (${where})`);
   }
   if (SOURCE_EXT.test(path) && !SPDX.test(utf8.split('\n').slice(0, 5).join('\n'))) {
     fail('f', path, 'missing "SPDX-License-Identifier: MPL-2.0" in the first 5 lines');
@@ -291,7 +316,12 @@ function readManifest(packageDir, files, fail) {
   return entries;
 }
 
-export function checkFiles(files) {
+/**
+ * `options.packageDir` lets the export dry-run (scripts/ggraphic-export-dryrun.mjs)
+ * run the same rules over the future repo's layout (`packages/core`, …); the
+ * monorepo guard keeps the default.
+ */
+export function checkFiles(files, { packageDir: packageDirPattern = PACKAGE_DIR } = {}) {
   const failures = [];
   const warnings = [];
   const fail = (rule, path, message) => failures.push({ rule, path, message });
@@ -302,7 +332,7 @@ export function checkFiles(files) {
     fail('scope', CORE_PATHSPEC, 'no files matched — is the package gone or the pathspec wrong?');
   }
 
-  const packageDirs = new Set(files.map((f) => PACKAGE_DIR.exec(f.path)?.[0]).filter(Boolean));
+  const packageDirs = new Set(files.map((f) => packageDirPattern.exec(f.path)?.[0]).filter(Boolean));
   const manifest = new Map();
   for (const dir of packageDirs) {
     for (const [path, asset] of readManifest(dir, files, fail)) manifest.set(path, asset);
@@ -314,7 +344,7 @@ export function checkFiles(files) {
 
   for (const { path: rawPath, bytes, link } of files) {
     const path = rawPath.normalize('NFC');
-    const packageDir = PACKAGE_DIR.exec(path)?.[0] ?? '';
+    const packageDir = packageDirPattern.exec(path)?.[0] ?? '';
     const brandPath = BRAND_PATHS.find((pattern) => pattern.test(path));
     if (brandPath) fail('c', path, `brand asset or party content by file name (${brandPath})`);
     // The export to the ggraphic repo copies files; a link would point back here.

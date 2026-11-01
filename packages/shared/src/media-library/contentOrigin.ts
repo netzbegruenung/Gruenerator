@@ -71,6 +71,8 @@ const TEMPLATE_IMAGE_TYPES: ReadonlySet<string> = new Set([
   'DreizeilenOverlayAt',
   'InfoAt',
   'FreeformAt',
+  'FreeformGj',
+  'FreeformGjAt',
   // canvas config ids
   'dreizeilen',
   'zitat',
@@ -88,6 +90,8 @@ const TEMPLATE_IMAGE_TYPES: ReadonlySet<string> = new Set([
   'dreizeilen-overlay-at',
   'info-at',
   'freeform-at',
+  'freeform-gj',
+  'freeform-gj-at',
   'slider-at',
 ]);
 

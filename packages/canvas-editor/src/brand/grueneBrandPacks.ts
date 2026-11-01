@@ -1,7 +1,8 @@
 /**
- * The Grünerator's brand packs for the editor, DE first: new elements take
- * their defaults from it in both countries, as they did before the defaults
- * became pack data. apps/web installs them at startup (`registerBrandPacks`).
+ * The Grünerator's brand packs for the editor, DE first: the first pack is the
+ * fallback for a document that names none. An Austrian document names its own
+ * (`FullCanvasConfig.brand`), so the order here never depends on the open
+ * document. apps/web installs them at startup (`registerBrandPacks`).
  */
 import { GRUENE_AT, GRUENE_DE } from './theme';
 

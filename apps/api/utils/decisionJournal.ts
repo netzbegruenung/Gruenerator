@@ -123,6 +123,8 @@ export const DECISION_POINTS = {
       'tier3_heuristic',
       'tier3.4_chat_recall',
       'tier3.4_recurring_order',
+      // „Was steht in meinem Notebook …" ohne gewähltes Notebook → Loop, `notebooks` angeheftet.
+      'tier3.4_own_notebook',
       'tier3.5_loop_demotion',
       // Die drei `tier3.7_*`-Zweige sind mit ihrer Stufe gegangen: der
       // Live-Quellen-Auflöser ist gelöscht, Live-Quellen sind Konnektoren und

@@ -3,7 +3,7 @@ import { useLayoutEffect, useRef } from 'react';
 
 import { useCanvasStoreSelector } from '@ggraphic/editor/stores/CanvasStoreProvider';
 
-import { paintCropGhosts, visibleContainerRect } from '../utils/cropGhost';
+import { paintCropGhosts, visibleContainerRect } from '../utils/cropGhost.js';
 
 import type Konva from 'konva';
 

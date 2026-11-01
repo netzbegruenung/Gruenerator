@@ -5,8 +5,11 @@
 import { randomUUID } from 'node:crypto';
 
 import {
+  brandIdFor,
   SHAREPIC_PROMPT_MAX,
   stripInlineMarks,
+  type SharepicBrand,
+  type SharepicBrandId,
   type SharepicChatProps,
   type SharepicDraftResponse,
   type SharepicFormId,
@@ -76,6 +79,14 @@ export function buildCreatorPrompt(args: {
     : head.slice(0, SHAREPIC_PROMPT_MAX);
 }
 
+/** The editor page a creator draft opens in, per design. */
+const CREATOR_CANVAS: Record<SharepicBrandId, SharepicVariant['canvasType']> = {
+  'gruene-de': 'freeform',
+  'gruene-at': 'freeform-at',
+  'gj-de': 'freeform-gj',
+  'gj-at': 'freeform-gj-at',
+};
+
 /**
  * A carousel carries one page per slide so the deck card renders each of them;
  * opening it in the editor still mints the whole spec from `initialProps`.
@@ -93,7 +104,7 @@ export function toCreatorVariant(
   const altText = firstSlideText(draft.spec);
   return {
     id: randomUUID(),
-    canvasType: draft.spec.locale === 'de-AT' ? 'freeform-at' : 'freeform',
+    canvasType: CREATOR_CANVAS[brandIdFor(draft.spec.locale, draft.spec.brand)],
     initialProps: props,
     label: opts.revisionOf !== null ? 'Überarbeitet' : 'Sharepic',
     ...(altText && { altText }),
@@ -120,6 +131,8 @@ export async function createCreatorSharepic(args: {
   background: string | null;
   avoid: SharepicSpec | null;
   locale: 'de-DE' | 'de-AT';
+  /** The design the request names („GJ-Design“); a Vorlage brings its own. */
+  brand: SharepicBrand | null;
   userId: string | null;
   /** Named in the user's own words — never read from the appended conversation. */
   form: SharepicFormId | null;
@@ -153,7 +166,8 @@ export async function createCreatorSharepic(args: {
         args.brief,
         null,
         null,
-        args.oneSlide
+        args.oneSlide,
+        args.brand
       );
   // A themed Vorlage's theme is part of the look the person picked: the model
   // drops it now and then (a remembrance on plain green), so it is kept here.

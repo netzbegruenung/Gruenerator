@@ -1,22 +1,26 @@
 import { backgroundAdjustments } from '@ggraphic/editor/utils/imageFilters';
+import { BACKGROUND_IMAGE_NODE_ID } from '@ggraphic/editor/utils/printImageInfo';
 import { HiArrowUpTray, HiChatBubbleLeftRight, HiWrenchScrewdriver } from 'react-icons/hi2';
 
-import { applyOperation, type ApplyResult, type CanvasAiActionsBase } from '../ai/applyOperation';
+import {
+  applyOperation,
+  type ApplyResult,
+  type CanvasAiActionsBase,
+} from '@ggraphic/editor/ai/applyOperation';
 import { ChatSection, ToolsSection, UploadsSection } from '../sidebar/sections';
 import { BalkenSettingsSection } from '../sidebar/sections/BalkenSettingsSection';
-import { ChartSettingsSection } from '../sidebar/sections/ChartSettingsSection';
-import { ImageAdjustSection } from '../sidebar/sections/ImageAdjustSection';
+import { ChartSettingsSection } from '@ggraphic/editor/sidebar/sections/ChartSettingsSection';
+import { ImageAdjustSection } from '@ggraphic/editor/sidebar/sections/ImageAdjustSection';
 import { COLOR_SCHEMES } from '../utils/dreizeilenLayout';
-import { BACKGROUND_IMAGE_NODE_ID } from '../utils/printImageInfo';
 
-import { buildSharepicText } from './buildSharepicText';
-import { makeSectionDefiner } from './factory/defineSection';
+import { buildSharepicText } from '@ggraphic/editor/configs/buildSharepicText';
+import { makeSectionDefiner } from '@ggraphic/editor/configs/factory/defineSection';
 
 import type { SharepicAiCapabilities } from './aiCapabilities';
-import type { CanvasAiEditBridge } from '../CanvasEditorProvider';
 import type { ChatSectionProps, ToolsSectionProps, UploadsSectionProps } from '../sidebar/sections';
-import type { SidebarTab } from '../sidebar/types';
-import type { BalkenInstance } from '@ggraphic/editor/utils/balkenUtils';
+import type { SidebarTab } from '@ggraphic/editor/sidebar/types';
+import type { CanvasAiEditBridge } from '@ggraphic/editor/CanvasEditorProvider';
+import type { BalkenInstance } from '../utils/balkenUtils';
 import type { ChartInstance } from '@ggraphic/editor/utils/chartUtils';
 import type {
   ImageAdjustments,

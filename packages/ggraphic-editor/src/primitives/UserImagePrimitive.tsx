@@ -14,6 +14,7 @@ import { activeBrand } from '@ggraphic/editor/brand/brandRegistry';
 import { LOCKED_TRANSFORMER, useIsItemLocked } from '@ggraphic/editor/components/canvasItemLock';
 import { useAnnounce } from '@ggraphic/editor/hooks/useAnnounce';
 import { useBoxSnap, type SnapProps } from '@ggraphic/editor/hooks/useBoxSnap';
+import { messages } from '@ggraphic/editor/i18n/messages';
 import {
   clampPan,
   covers,
@@ -49,16 +50,16 @@ import {
   CROP_GHOST_OPACITY,
   cropGhostAttrs,
   cropGhostSource,
-} from '../utils/cropGhost';
+} from '../utils/cropGhost.js';
 import {
   getActiveImageFilters,
   hasActiveImageFilters,
   imageFilterAttrs,
-} from '../utils/imageFilters';
-import { cropKeyOf, userImageKeyCrop } from '../utils/keyboardCrop';
-import { userImageBox } from '../utils/renderedBoxes';
-import { userImageCropUpdate } from '../utils/userImageCrop';
-import { USER_PHOTO_NODE_NAME, type UserImageInstance } from '../utils/userImageUtils';
+} from '../utils/imageFilters.js';
+import { cropKeyOf, userImageKeyCrop } from '../utils/keyboardCrop.js';
+import { userImageBox } from '../utils/renderedBoxes.js';
+import { userImageCropUpdate } from '../utils/userImageCrop.js';
+import { USER_PHOTO_NODE_NAME, type UserImageInstance } from '../utils/userImageUtils.js';
 
 import type Konva from 'konva';
 
@@ -237,7 +238,7 @@ function UserImagePrimitiveInner({
   const keyCropActive = cropping && isSelected && !locked;
 
   useEffect(() => {
-    if (keyCropActive) announce('Ausschnitt: Pfeiltasten verschieben, Enter beendet');
+    if (keyCropActive) announce(messages().announce.cropKeys);
   }, [keyCropActive, announce]);
 
   // Keyboard crop: arrows pan the photo inside the frame (Shift = 10 px),

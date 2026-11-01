@@ -1,8 +1,8 @@
 import { fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 
-import { CanvasEditorLayout } from '../../layouts/CanvasEditorLayout';
-import { CanvasZoomIndicator } from '../CanvasMetaBar';
+import { CanvasEditorLayout } from '@ggraphic/editor/layouts/CanvasEditorLayout';
+import { CanvasZoomIndicator } from '@ggraphic/editor/components/CanvasMetaBar';
 
 /**
  * Auf dem Handy fehlte jede Zoom-Anzeige (#4387): die Desktop-Leiste mit

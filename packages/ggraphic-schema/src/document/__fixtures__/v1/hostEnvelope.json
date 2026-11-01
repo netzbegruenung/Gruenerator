@@ -1,0 +1,20 @@
+{
+  "backgroundMode": "color",
+  "backgroundColor": "#2a4d69",
+  "hasBackgroundImage": false,
+  "pages": [
+    {
+      "id": "p1",
+      "configId": "freeform",
+      "state": {
+        "backgroundMode": "color",
+        "backgroundColor": "#2a4d69",
+        "hasBackgroundImage": false,
+        "stampInstances": [
+          { "id": "stamp-1", "label": "OK", "offset": { "x": 4, "y": -2 }, "rotation": 10 }
+        ],
+        "stampColour": "#aa5500"
+      }
+    }
+  ]
+}

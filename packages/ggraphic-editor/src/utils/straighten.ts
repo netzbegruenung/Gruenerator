@@ -8,7 +8,7 @@ import {
   type Mirror,
   type Rect,
   type Size,
-} from './coverFit';
+} from './coverFit.js';
 
 import type Konva from 'konva';
 

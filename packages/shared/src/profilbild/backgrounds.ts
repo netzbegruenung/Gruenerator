@@ -1,4 +1,4 @@
-import { CANVAS_COLORS } from '@gruenerator/contracts';
+import { CANVAS_COLORS, type MarketplaceCollectionId } from '@gruenerator/contracts';
 
 import { BRAND_COLORS } from '../image-studio/modification-constants.js';
 
@@ -136,6 +136,8 @@ export interface PresetDesign {
   label: string;
   base: FlatBackground;
   overlays: PresetOverlay[];
+  /** Offered only through this Marktplatz collection, not in the picker. */
+  kollektion?: MarketplaceCollectionId;
 }
 
 /** Große Sonnenblume, angeschnitten oben rechts — das Motiv der Vorlagen. */
@@ -237,7 +239,91 @@ function retiredPresetDesigns(isAustria: boolean): PresetDesign[] {
   ];
 }
 
-/** Alles, was ein gespeichertes Profilbild als Vorlage nennen kann — angeboten oder ausgemustert. */
+/** Ein Muster aus dem GJ-Design, das die ganze Fläche bedeckt. */
+const fullOverlay = (src: ProfilbildAssetSrc): PresetOverlay => ({
+  src,
+  x: 0.5,
+  y: 0.5,
+  width: 1,
+  opacity: 1,
+});
+
+/** GJ-Farben, wie sie die Sharepics der Grünen Jugend tragen (grueneBrand.ts). */
+const GJ = { HELLGRUEN: '#C7FF7A', LAVENDEL: '#9F88FF', APRICOT: '#FF8568', WIESE: '#33C270' };
+const GJ_AT = { WALDGRUEN: '#005424', MAIGRUEN: '#92CE26', CREME: '#F2F0E0', VEILCHEN: '#5C448C' };
+
+/**
+ * Die Hintergründe der Grünen Jugend, je Land eine Kollektion: nur über sie zu
+ * haben, nicht im Wähler. Gespeicherte Profilbilder lösen sie trotzdem auf.
+ */
+export const COLLECTION_PRESET_DESIGNS: readonly PresetDesign[] = [
+  {
+    id: 'gj-hellgruen-zackenstern',
+    label: 'Hellgrün mit Zackenstern',
+    base: { kind: 'color', color: GJ.HELLGRUEN },
+    overlays: [fullOverlay('/studio-tools/hintergruende/gj-hg-zackenstern.png')],
+    kollektion: 'gruene-jugend',
+  },
+  {
+    id: 'gj-lavendel-balken',
+    label: 'Lavendel mit Balken',
+    base: { kind: 'color', color: GJ.LAVENDEL },
+    overlays: [fullOverlay('/studio-tools/hintergruende/gj-hg-balken.png')],
+    kollektion: 'gruene-jugend',
+  },
+  {
+    id: 'gj-apricot-pink',
+    label: 'Apricot und Pink',
+    base: { kind: 'color', color: GJ.APRICOT },
+    overlays: [fullOverlay('/studio-tools/hintergruende/gj-hg-diagonal.png')],
+    kollektion: 'gruene-jugend',
+  },
+  {
+    id: 'gj-wiese-tape',
+    label: 'Wiese mit Klebestreifen',
+    base: { kind: 'color', color: GJ.WIESE },
+    overlays: [fullOverlay('/studio-tools/hintergruende/gj-hg-tape.png')],
+    kollektion: 'gruene-jugend',
+  },
+  {
+    id: 'gj-at-waldgruen-raster',
+    label: 'Waldgrün mit Raster',
+    base: { kind: 'color', color: GJ_AT.WALDGRUEN },
+    overlays: [fullOverlay('/studio-tools/hintergruende/gj-at-hg-raster.png')],
+    kollektion: 'gruene-jugend-oesterreich',
+  },
+  {
+    id: 'gj-at-creme-raster',
+    label: 'Creme mit Raster',
+    base: { kind: 'color', color: GJ_AT.CREME },
+    overlays: [fullOverlay('/studio-tools/hintergruende/gj-at-hg-raster-creme.png')],
+    kollektion: 'gruene-jugend-oesterreich',
+  },
+  {
+    id: 'gj-at-maigruen',
+    label: 'Maigrün',
+    base: { kind: 'color', color: GJ_AT.MAIGRUEN },
+    overlays: [],
+    kollektion: 'gruene-jugend-oesterreich',
+  },
+  {
+    id: 'gj-at-veilchen',
+    label: 'Veilchen',
+    base: { kind: 'color', color: GJ_AT.VEILCHEN },
+    overlays: [],
+    kollektion: 'gruene-jugend-oesterreich',
+  },
+];
+
+/** Die Hintergründe, die nur eine Kollektion anbietet. */
+export const presetsForCollection = (id: MarketplaceCollectionId): PresetDesign[] =>
+  COLLECTION_PRESET_DESIGNS.filter((d) => d.kollektion === id);
+
+/** Alles, was ein gespeichertes Profilbild als Vorlage nennen kann — angeboten, ausgemustert oder aus einer Kollektion. */
 export function allPresetDesigns(isAustria: boolean): PresetDesign[] {
-  return [...presetDesigns(isAustria), ...retiredPresetDesigns(isAustria)];
+  return [
+    ...presetDesigns(isAustria),
+    ...retiredPresetDesigns(isAustria),
+    ...COLLECTION_PRESET_DESIGNS,
+  ];
 }

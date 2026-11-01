@@ -1,7 +1,6 @@
+import { loadCanvasConfig } from '@ggraphic/editor/configs/configLoader';
+import { carriedInstanceKeys } from '@ggraphic/editor/configs/factory/carryInstanceState';
 import { beforeAll, describe, expect, it } from 'vitest';
-
-import { loadCanvasConfig } from '../configLoader';
-import { CARRIED_INSTANCE_KEYS } from '../factory/carryInstanceState';
 
 /**
  * Guard for the "re-seed wipes the canvas" class.
@@ -88,13 +87,13 @@ describe('user-added instances survive createInitialState', () => {
       const config = configFor(type);
       const derived = DERIVED[type] ?? [];
       const seed: Record<string, unknown> = {};
-      for (const key of CARRIED_INSTANCE_KEYS) {
+      for (const key of carriedInstanceKeys()) {
         seed[key] = seedFor(key);
       }
 
       const state = config.createInitialState(seed) as Record<string, unknown>;
 
-      const dropped = CARRIED_INSTANCE_KEYS.filter(
+      const dropped = carriedInstanceKeys().filter(
         (key) => !derived.includes(key) && JSON.stringify(state[key]) !== JSON.stringify(seed[key])
       );
       expect(dropped, `${type} dropped: ${dropped.join(', ')}`).toEqual([]);

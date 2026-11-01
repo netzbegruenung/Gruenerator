@@ -183,3 +183,45 @@ describe('UnsplashApiService.searchPhotos attribution', () => {
     expect(image.thumb_url).toBe('https://images.unsplash.com/x-small');
   });
 });
+
+describe('UnsplashApiService.getPhoto', () => {
+  const service = new UnsplashApiService('key');
+  const photo = {
+    id: 'Abc_def-123',
+    alt_description: 'Wald',
+    width: 3000,
+    height: 4000,
+    urls: { regular: 'https://images.unsplash.com/x', small: 'https://images.unsplash.com/xs' },
+    links: { html: 'https://unsplash.com/photos/Abc_def-123', download_location: VALID },
+    user: {
+      username: 'jane-doe',
+      name: 'Jane Doe',
+      links: { html: 'https://unsplash.com/@jane-doe' },
+    },
+  };
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    service.clearCache();
+  });
+
+  // A draft's search, its render and the credit of a later revision ask for
+  // the same photo: one request, not three.
+  it('answers a photo found by a search without asking again', async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue(
+        new Response(JSON.stringify({ total: 1, total_pages: 1, results: [photo] }))
+      );
+    vi.stubGlobal('fetch', fetchMock);
+
+    await service.searchPhotos('wald', 1, 4, 'portrait');
+    const found = await service.getPhoto('Abc_def-123');
+
+    expect(found.attribution.photographer).toBe('Jane Doe');
+    expect(fetchMock).toHaveBeenCalledOnce();
+    const url = new URL(fetchMock.mock.calls[0]![0] as string);
+    expect(url.searchParams.get('orientation')).toBe('portrait');
+    expect(url.searchParams.get('content_filter')).toBe('high');
+  });
+});
