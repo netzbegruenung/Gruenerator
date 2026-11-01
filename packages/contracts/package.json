@@ -52,7 +52,7 @@
     "lint:fix": "eslint . --fix"
   },
   "dependencies": {
-    "@ggraphic/core": "0.1.0-alpha.0",
+    "@ggraphic/core": "0.1.0-alpha.1",
     "@ggraphic/schema": "0.1.0-alpha.0",
     "@gruenerator/core": "workspace:*",
     "@tiptap/core": "^3.32.0",
