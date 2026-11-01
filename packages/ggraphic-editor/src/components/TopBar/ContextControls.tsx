@@ -420,16 +420,6 @@ export function ContextControls({
 
   const type = activeFloatingModule?.type;
 
-  // Verlauf, Kontur und Schatten liegen im Bereich „Effekte“, wie bei Canva —
-  // als drei Popover nebeneinander waren sie drei kaum unterscheidbare Icons.
-  if (handlers.onOpenEffects && hasEffects(activeFloatingModule)) {
-    groups.push(
-      <button key="effects" type="button" className={TEXT_BTN} onClick={handlers.onOpenEffects}>
-        {t.topBar.effects}
-      </button>
-    );
-  }
-
   if (type === 'user-image' && handlers.onEditImage) {
     groups.push(<EditImageButton key="edit-image" onClick={handlers.onEditImage} />);
   }
@@ -504,11 +494,21 @@ export function ContextControls({
     );
   }
 
-  // Ausrichten, Lage und Ebene unter einem Knopf, wie bei Canva. Gesperrt
-  // bleibt nur die Ebene: verschieben geht dann nicht, umschichten schon.
+  // Die Text-Knöpfe stehen rechts beieinander, wie bei Canva — zwischen
+  // Icons verstreut wirkte die Leiste unruhig. „Effekte“ öffnet den Bereich
+  // mit Verlauf, Kontur und Schatten; „Position“ trägt Ausrichten, Lage und
+  // Ebene. Gesperrt bleibt dort nur die Ebene: umschichten geht weiter.
+  const textActions: React.ReactNode[] = [];
+  if (handlers.onOpenEffects && hasEffects(activeFloatingModule)) {
+    textActions.push(
+      <button key="effects" type="button" className={TEXT_BTN} onClick={handlers.onOpenEffects}>
+        {t.topBar.effects}
+      </button>
+    );
+  }
   if (selectedElement && showObjectActions) {
     const runCommand = canAlign ? handlers.runCommand : undefined;
-    groups.push(
+    textActions.push(
       <FloatingPositionControl
         // Neu je Element: offene Felder zeigen nie die Lage des vorigen.
         key={`position-${selectedElement}`}
@@ -520,6 +520,13 @@ export function ContextControls({
         onSizeChange={handlers.handleSizeChange}
         layer={{ canMoveUp, canMoveDown, onMove: handlers.handleMoveLayer }}
       />
+    );
+  }
+  if (textActions.length) {
+    groups.push(
+      <div key="text-actions" className="flex items-center gap-0.5">
+        {textActions}
+      </div>
     );
   }
 
