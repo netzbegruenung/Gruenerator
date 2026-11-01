@@ -18,7 +18,7 @@
  */
 import { useEffect, useRef, type CSSProperties, type InputHTMLAttributes } from 'react';
 
-import { activeBrand } from '@ggraphic/editor/brand/brandRegistry';
+import { useDocumentBrand } from '@ggraphic/editor/brand/documentBrand';
 import { useMessages } from '@ggraphic/editor/i18n/messages';
 import { cn } from '@ggraphic/editor/utils/cn';
 
@@ -54,6 +54,7 @@ export function CustomColorSwatch({
   inputProps,
 }: CustomColorSwatchProps) {
   const ownColor = useMessages().common.ownColor;
+  const brand = useDocumentBrand();
   const inputRef = useRef<HTMLInputElement>(null);
   const hex = value && HEX6.test(value) ? value.toUpperCase() : null;
   const pickRef = useRef(onPick);
@@ -116,7 +117,7 @@ export function CustomColorSwatch({
         type="color"
         aria-label={ownColor}
         disabled={disabled}
-        defaultValue={(hex ?? activeBrand().colors.primary).toLowerCase()}
+        defaultValue={(hex ?? brand.colors.primary).toLowerCase()}
         onChange={(e) => onPreview?.(e.target.value.toUpperCase())}
         className="absolute inset-0 size-full cursor-pointer opacity-0"
         {...inputProps}

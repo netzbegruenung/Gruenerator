@@ -6,31 +6,33 @@
 > Three lanes (Vitest logic, jest-expo components, Maestro E2E) with the
 > version pins and config constraints that are not obvious from the outside.
 
-## Expo SDK 55 (Current)
+## Expo SDK 58 (Current)
 
-Both `apps/mobile` and `apps/docs-expo` run **Expo SDK 55** (React Native 0.83, React 19.2). Key differences from SDK 54:
+`apps/mobile` runs **Expo SDK 58** (React Native 0.88, React 19.3). What bit us in the upgrade from 57:
 
-- **New versioning**: All `expo-*` packages now share the SDK major version (e.g. `expo-image@~55.0.5` instead of `~3.0.11`)
-- **`newArchEnabled`** — Removed from `app.json`. New Architecture is the only option since SDK 53.
-- **`edgeToEdgeEnabled`** — Removed from `app.json`. Mandatory on Android 16+ (API 36).
-- **`softwareKeyboardLayoutMode: "adjustNothing"`** — Removed from valid schema values. Use `react-native-keyboard-controller` instead.
-- **`resolver.unstable_enablePackageExports`** — Now default in Metro. Removed from `metro.config.js`.
-- **`expo-av`** — Removed from Expo Go. Use `expo-audio` + `expo-video` instead.
-- **`expo-constants`** — Implicit dependency, no need to list in `package.json` (but keep if directly imported).
+- **Strict TypeScript API (RN 0.87+)**: refs take instance types (`useRef<TextInputInstance>`, `ScrollViewInstance`, `ViewInstance`), not the component (`useRef<TextInput>`). `TextInputSelectionChangeEventData` is now `TextInputSelectionChangeEvent`. List slots (`ListFooterComponent`, `renderItem`) and handlers like `onLongPress` take `undefined`, not `null`. Deep imports from `react-native/Libraries/*` are type errors — don't reach for the `react-native-legacy-deep-imports` condition, it goes away after 0.88.
+- **Third-party class components** typed against removed RN types no longer count as JSX components: `react-native-webview` 14 (use `components/common/WebView.ts`) and `@react-native-masked-view/masked-view` (cast in `ShimmerText.tsx`). Drop the casts when upstream fixes the declarations.
+- **expo-router 58** forked the navigation core: `navigation.addListener('beforeRemove')` is gone (use `usePreventRemove` from `expo-router` — its `repeat()` lifts the block and replays the action), `Stack.Screen initialParams` is gone (the notebook anchor gets its id from `NotebookIdContext`), `useLocalSearchParams()` values can be `undefined`, and the iOS header is transparent by default.
+- **`File.write()` is async** in expo-file-system 58; we use `File.writeSync()` where the old synchronous behaviour matters.
+- **Tests**: jest 30 + `@testing-library/react-native` 14 — `render`, `renderHook`, `fireEvent`, `act`, `rerender` return Promises and the `UNSAFE_*ByType` queries are gone. See [apps/mobile/CLAUDE-testing.md](../apps/mobile/CLAUDE-testing.md).
+- **Android R8** is on by default in release builds (we already had `enableMinifyInReleaseBuilds: true`); a library using reflection needs keep rules in `expo-build-properties` → `extraProguardRules` (see the livekit entry in `app.json`).
+- **Release-age gate**: `minimumReleaseAge` in `pnpm-workspace.yaml` (3 days) holds back fresh Expo patches. `expo-doctor` then reports "patch version mismatches" for packages released in the last 3 days — expected, not a bug.
 
 ### Upgrading SDK
 
 ```bash
 cd apps/mobile  # or apps/docs-expo
 npx expo install expo@^<version>.0.0 --fix
-# Then manually: pnpm add react@<expected> react-dom@<expected>
-# Remove newArchEnabled, edgeToEdgeEnabled from app.json
-# Remove unstable_enablePackageExports from metro.config.js
+# Then manually: react/react-dom are excluded from `expo install` — pin them to
+# the exact version the SDK ships (CLAUDE.md › Expo Apps), and move the
+# `@expo/dom-webview` override in pnpm-workspace.yaml with the SDK.
+# Rename patches/expo@<old>.patch and its patchedDependencies key; check that
+# it still applies (`git apply --check` inside the unpacked tarball).
 # Delete android/ and ios/ dirs (CNG regenerates them)
 npx expo-doctor@latest  # Verify
 ```
 
-## expo-file-system (SDK 55+)
+## expo-file-system (SDK 58)
 
 `expo-file-system` uses a **class-based API** (`File`, `Directory`, `Paths`). The legacy function-based API (`cacheDirectory`, `writeAsStringAsync`, `EncodingType`) is deprecated and throws at runtime — use `expo-file-system/legacy` only as a last resort.
 
@@ -39,8 +41,8 @@ import { File, Directory, Paths } from 'expo-file-system';
 
 // Write bytes to cache
 const file = new File(Paths.cache, 'export.pdf');
-file.write(new Uint8Array(buffer)); // accepts string or Uint8Array
-file.write('Hello, world!'); // string defaults to UTF-8
+file.writeSync(new Uint8Array(buffer)); // accepts string or Uint8Array
+await file.write('Hello, world!'); // async since SDK 58; string defaults to UTF-8
 
 // Read
 const text = file.textSync(); // sync
@@ -285,7 +287,7 @@ cd apps/docs-expo && npx expo start --port 8082 --localhost
 **Notes:**
 
 - Use `npx expo-doctor` (not `expo doctor`) — the local CLI doesn't support it.
-- `npx expo install --check` validates dependency versions against SDK 55.
+- `npx expo install --check` validates dependency versions against the installed SDK.
 - Metro config overrides (`unstable_enableSymlinks`, `watchFolders`) are required for pnpm monorepo support — expo-doctor warnings about these are expected.
 - The `android/` directory is regenerated by prebuild and should not be committed (add to `.gitignore` if needed).
 - TypeScript check: `npx tsc --noEmit --project apps/docs-expo/tsconfig.json`

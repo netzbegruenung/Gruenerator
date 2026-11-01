@@ -12,6 +12,7 @@
  *
  * Pure: no React, no Konva. Text is measured through the injected `measure`.
  */
+import { type RequiredFontRole, resolveFontRole } from '@ggraphic/core';
 import { onGround } from '@ggraphic/editor/brand/composerBrand';
 import { foldMarkers, stripMarks } from '@ggraphic/editor/composer/marks';
 import { steckbriefPerson } from '@ggraphic/editor/composer/steckbriefLayout';
@@ -69,6 +70,7 @@ import {
   type SteckbriefItem,
 } from './composeTypes';
 import { layoutDiagramm } from './diagrammLayout';
+import { brandFont } from './fontRole';
 import { encodeHandMarks, sentinelBlind } from './handMarks';
 import { headlineFit } from './headlineFit';
 import { layoutInfografik } from './infografikLayout';
@@ -724,7 +726,8 @@ function composeSlide(
     value: string,
     y: number,
     fontSize: number,
-    fontFamily: string,
+    // A fixed family (the GJ handwriting) is bound to no brand role.
+    role: RequiredFontRole | { family: string },
     extra: Partial<AdditionalText> = {}
   ) => {
     out.additionalTexts.push({
@@ -735,7 +738,7 @@ function composeSlide(
       y,
       width: column.width,
       fontSize,
-      fontFamily,
+      ...(typeof role === 'string' ? brandFont(theme.fonts, role) : { fontFamily: role.family }),
       fontStyle: 'normal',
       fill: textColor,
       align: xAlign,
@@ -786,15 +789,22 @@ function composeSlide(
           rotation: hand.rotation,
         });
         addShape(label);
-        text(id, value, top + padX * sin + padY * cos, size, hand.family, {
-          x: x + padX * cos - padY * sin,
-          width: width - 2 * padX + 4,
-          align: 'left',
-          rotation: hand.rotation,
-          fill: tape.ink,
-          shadowOpacity: 0,
-          lineHeight: 1.25,
-        });
+        text(
+          id,
+          value,
+          top + padX * sin + padY * cos,
+          size,
+          { family: hand.family },
+          {
+            x: x + padX * cos - padY * sin,
+            width: width - 2 * padX + 4,
+            align: 'left',
+            rotation: hand.rotation,
+            fill: tape.ink,
+            shadowOpacity: 0,
+            lineHeight: 1.25,
+          }
+        );
       },
     };
   };
@@ -802,9 +812,10 @@ function composeSlide(
     id: string,
     lines: { text: string; betont: boolean }[],
     size: number,
-    family: string,
+    role: RequiredFontRole,
     fontStyle: 'normal' | 'bold'
   ): Placed => {
+    const family = resolveFontRole(theme.fonts, role);
     // Measured on Dd9G7lMjMIz: tight padding, round corners, the boxes touching.
     const padX = Math.round(size * 0.25);
     const padY = Math.round(size * 0.08);
@@ -834,7 +845,7 @@ function composeSlide(
               x: xAlign === 'center' ? column.x + column.width / 2 - width / 2 : column.x,
               y: y + k * step,
               fontSize: size,
-              fontFamily: family,
+              ...brandFont(theme.fonts, role),
               fontStyle,
               backgroundColor:
                 own?.fill ?? (line.betont ? SHAREPIC_COLOR_HEX.grasgruen : '#FFFFFF'),
@@ -969,7 +980,7 @@ function composeSlide(
         height: size * 0.8,
         after: Math.round(size * 0.12),
         place: (y) =>
-          text('sc-nummer', `${numeral.k}.`, y - size * 0.12, size, headFamily, {
+          text('sc-nummer', `${numeral.k}.`, y - size * 0.12, size, 'headline', {
             x: headColumn.x,
             width: headColumn.width,
             fill: accentInk,
@@ -991,7 +1002,8 @@ function composeSlide(
           // Scales with the headline (≈ 0.4 on the photo posts, in the
           // headline face; smaller and in bold body text on a colour).
           const onPhoto = surface === 'foto';
-          const family = onPhoto ? headFamily : theme.fonts.body;
+          const role: RequiredFontRole = onPhoto ? 'headline' : 'body';
+          const family = resolveFontRole(theme.fonts, role);
           const fontStyle = onPhoto ? 'normal' : 'bold';
           const size = largestSizeWordsFit(
             [item.text],
@@ -1006,7 +1018,7 @@ function composeSlide(
             height: lines * size * lineHeight,
             after: Math.round(size * 0.15),
             place: (y) =>
-              text(id, item.text, y, size, family, {
+              text(id, item.text, y, size, role, {
                 fontStyle,
                 lineHeight,
                 x: headColumn.x,
@@ -1025,7 +1037,7 @@ function composeSlide(
                   betont: accentLines(item.akzent).includes(i),
                 })),
                 brand.lineBoxes ? boxedHeadSize(item.lines, scale) : 76,
-                brand.lineBoxes ? headFamily : theme.fonts.body,
+                brand.lineBoxes ? 'headline' : 'body',
                 brand.lineBoxes ? 'normal' : 'bold'
               )
             );
@@ -1079,7 +1091,7 @@ function composeSlide(
                 // would vanish (DE: lime on lime) — keep the plain words.
                 const plain = stripMarks(value);
                 if (segment.accent && brand.accent.emphasis) {
-                  text(segId, plain, cursor, Math.round(size * 0.95), theme.fonts.quoteEmphasis, {
+                  text(segId, plain, cursor, Math.round(size * 0.95), 'quoteEmphasis', {
                     ...at,
                     fontStyle: AT_EMPHASIS_STYLE,
                     fill: accent.fill,
@@ -1102,7 +1114,7 @@ function composeSlide(
                   );
                   box.rotation = -2;
                   addShape(box);
-                  text(segId, plain, cursor, size, family, {
+                  text(segId, plain, cursor, size, 'headline', {
                     ...at,
                     fill: accentLineBox.ink,
                     lineHeight,
@@ -1110,7 +1122,11 @@ function composeSlide(
                     shadowOpacity: 0,
                   });
                 } else {
-                  text(segId, value, cursor, size, family, { ...at, lineHeight, type: 'header' });
+                  text(segId, value, cursor, size, 'headline', {
+                    ...at,
+                    lineHeight,
+                    type: 'header',
+                  });
                 }
                 cursor += rows(segment.lines, segment.accent) * step;
               });
@@ -1130,7 +1146,7 @@ function composeSlide(
                 id,
                 lines.map((l) => ({ text: l, betont: false })),
                 size,
-                theme.fonts.body,
+                'body',
                 'normal'
               )
             );
@@ -1168,7 +1184,7 @@ function composeSlide(
           placed.push({
             height: lines * size * 1.25,
             after: GAP,
-            place: (y) => text(id, item.text, y, size, theme.fonts.body, { lineHeight: 1.25 }),
+            place: (y) => text(id, item.text, y, size, 'body', { lineHeight: 1.25 }),
           });
           break;
         }
@@ -1187,7 +1203,7 @@ function composeSlide(
                 id,
                 lines.map((l) => ({ text: l, betont: !!item.betont })),
                 size,
-                theme.fonts.body,
+                'body',
                 'bold'
               )
             );
@@ -1201,15 +1217,15 @@ function composeSlide(
           const stressed = item.betont
             ? brand.accent.emphasis
               ? {
-                  family: theme.fonts.quoteEmphasis,
+                  role: 'quoteEmphasis' as const,
                   fontStyle: AT_EMPHASIS_STYLE,
                   fill: accent.fill,
                 }
-              : { family: theme.fonts.body, fontStyle: 'bold' as const, fill: accent.fill }
+              : { role: 'body' as const, fontStyle: 'bold' as const, fill: accent.fill }
             : null;
-          const family =
-            stressed?.family ??
-            (brand.headlineFace.absatz ? theme.fonts.headline : theme.fonts.body);
+          const role: RequiredFontRole =
+            stressed?.role ?? (brand.headlineFace.absatz ? 'headline' : 'body');
+          const family = resolveFontRole(theme.fonts, role);
           const fontStyle = stressed?.fontStyle ?? 'normal';
           // GJ AT: light green on its dark grounds, where it reads at 4.5:1.
           const ownInk =
@@ -1224,7 +1240,7 @@ function composeSlide(
             height: lines * size * lineHeight,
             after: Math.round(size * brand.absatzGap),
             place: (y) =>
-              text(id, item.text, y, size, family, {
+              text(id, item.text, y, size, role, {
                 fontStyle,
                 lineHeight,
                 ...(stressed ? { fill: stressed.fill } : {}),
@@ -1313,7 +1329,7 @@ function composeSlide(
             id,
             text: item.text,
             fontSize: size,
-            fontFamily: theme.fonts.headline,
+            ...brandFont(theme.fonts, 'headline'),
             backgroundColor: colors.fill,
             textColor: colors.ink,
             paddingX: 36,
@@ -1342,8 +1358,7 @@ function composeSlide(
       placed.push({
         height: ort.lines.length * size * 1.25,
         after: 0,
-        place: (y) =>
-          text('sc-ort', ort.lines.join('\n'), y, size, theme.fonts.body, { lineHeight: 1.25 }),
+        place: (y) => text('sc-ort', ort.lines.join('\n'), y, size, 'body', { lineHeight: 1.25 }),
       });
     }
     return placed;
@@ -1424,7 +1439,7 @@ function composeSlide(
       y: canvas.height / 2 - size * 0.5,
       width: canvas.width - MARGIN,
       fontSize: size,
-      fontFamily: headFamily,
+      ...brandFont(theme.fonts, 'headline'),
       fontStyle: 'normal',
       fill: onGround(brand.ghostNumeral.fill, { onLight, onGrass }),
       opacity: brand.ghostNumeral.opacity,

@@ -12,9 +12,9 @@ describe('LegalNotice', () => {
     ['Nutzungsbedingungen', 'https://gruenerator.eu/nutzungsbedingungen'],
     ['Datenschutzerklärung', 'https://gruenerator.eu/datenschutz'],
     ['KI-Transparenz', 'https://gruenerator.eu/ki-transparenz'],
-  ])('öffnet %s über openUrl', (label, url) => {
-    render(<LegalNotice color="#000" />);
-    fireEvent.press(screen.getByText(label));
+  ])('öffnet %s über openUrl', async (label, url) => {
+    await render(<LegalNotice color="#000" />);
+    await fireEvent.press(screen.getByText(label));
     expect(openUrl).toHaveBeenCalledWith(url);
   });
 });

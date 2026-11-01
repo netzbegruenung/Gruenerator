@@ -88,7 +88,7 @@ export function layoutTermine(
         }
         const rowTop = top + padY;
         const inkOverride = rowInk ? { fill: rowInk, shadowOpacity: 0 } : {};
-        text(`${rowId}-datum`, e.datum, rowTop, dateSize, family, {
+        text(`${rowId}-datum`, e.datum, rowTop, dateSize, 'headline', {
           x: column.x + padX,
           width: dateWidth,
           align: 'left',
@@ -97,21 +97,14 @@ export function layoutTermine(
           type: 'header',
           ...inkOverride,
         });
-        text(
-          `${rowId}-titel`,
-          e.titel,
-          rowTop + (dateSize - titleSize) * 0.4,
-          titleSize,
-          theme.fonts.body,
-          {
-            x: column.x + padX + dateWidth,
-            width: restWidth,
-            align: 'left',
-            fontStyle: 'bold',
-            lineHeight: 1.15,
-            ...inkOverride,
-          }
-        );
+        text(`${rowId}-titel`, e.titel, rowTop + (dateSize - titleSize) * 0.4, titleSize, 'body', {
+          x: column.x + padX + dateWidth,
+          width: restWidth,
+          align: 'left',
+          fontStyle: 'bold',
+          lineHeight: 1.15,
+          ...inkOverride,
+        });
         if (e.ort) {
           const t =
             lineCount(e.titel, restWidth, titleSize, theme.fonts.body, 'bold') * titleSize * 1.15;
@@ -120,7 +113,7 @@ export function layoutTermine(
             e.ort,
             rowTop + (dateSize - titleSize) * 0.4 + t + Math.round(ortSize * 0.2),
             ortSize,
-            theme.fonts.body,
+            'body',
             {
               x: column.x + padX + dateWidth,
               width: restWidth,
@@ -210,7 +203,7 @@ function termineEtikett(ctx: SlideCtx, item: TermineItem, id: string, pass: Buil
             },
             0
           );
-          text(`${rowId}-datum`, label(e), rowTop + padY, chipSize, headFamily, {
+          text(`${rowId}-datum`, label(e), rowTop + padY, chipSize, 'headline', {
             x: column.x + inset,
             width: chipWidth,
             align: 'center',
@@ -220,7 +213,7 @@ function termineEtikett(ctx: SlideCtx, item: TermineItem, id: string, pass: Buil
             shadowOpacity: 0,
           });
           const { t } = block(e);
-          text(`${rowId}-titel`, e.titel, rowTop, titleSize, theme.fonts.body, {
+          text(`${rowId}-titel`, e.titel, rowTop, titleSize, 'body', {
             x: textX,
             width: textWidth,
             align: 'left',
@@ -229,20 +222,13 @@ function termineEtikett(ctx: SlideCtx, item: TermineItem, id: string, pass: Buil
             ...(ink ? { fill: ink, shadowOpacity: 0 } : {}),
           });
           if (e.ort) {
-            text(
-              `${rowId}-ort`,
-              e.ort,
-              rowTop + t + Math.round(ortSize * 0.25),
-              ortSize,
-              theme.fonts.body,
-              {
-                x: textX,
-                width: textWidth,
-                align: 'left',
-                lineHeight: 1.2,
-                ...(ink ? { fill: ink, shadowOpacity: 0 } : {}),
-              }
-            );
+            text(`${rowId}-ort`, e.ort, rowTop + t + Math.round(ortSize * 0.25), ortSize, 'body', {
+              x: textX,
+              width: textWidth,
+              align: 'left',
+              lineHeight: 1.2,
+              ...(ink ? { fill: ink, shadowOpacity: 0 } : {}),
+            });
           }
           top += rows[k]! + rowGap;
         });
@@ -328,7 +314,7 @@ function termineKachel(ctx: SlideCtx, item: TermineItem, id: string, pass: Build
           const monatSize = Math.round(tile * 0.24);
           const inner = tagSize + (monat ? monatSize * 1.05 : 0);
           const innerTop = tileTop + tile * 0.18 + (tile * 0.82 - inner) / 2;
-          text(`${rowId}-datum`, tag, innerTop, tagSize, headFamily, {
+          text(`${rowId}-datum`, tag, innerTop, tagSize, 'headline', {
             x: column.x,
             width: tile,
             align: 'center',
@@ -338,7 +324,7 @@ function termineKachel(ctx: SlideCtx, item: TermineItem, id: string, pass: Build
             shadowOpacity: 0,
           });
           if (monat) {
-            text(`${rowId}-monat`, monat, innerTop + tagSize * 1.05, monatSize, theme.fonts.body, {
+            text(`${rowId}-monat`, monat, innerTop + tagSize * 1.05, monatSize, 'body', {
               x: column.x,
               width: tile,
               align: 'center',
@@ -353,7 +339,7 @@ function termineKachel(ctx: SlideCtx, item: TermineItem, id: string, pass: Build
             ? lineCount(e.ort, textWidth, ortSize, theme.fonts.body, 'normal') * ortSize * 1.2
             : 0;
           const textTop = top + (rows[k]! - t - o) / 2;
-          text(`${rowId}-titel`, e.titel, textTop, titleSize, theme.fonts.body, {
+          text(`${rowId}-titel`, e.titel, textTop, titleSize, 'body', {
             x: textX,
             width: textWidth,
             align: 'left',
@@ -361,7 +347,7 @@ function termineKachel(ctx: SlideCtx, item: TermineItem, id: string, pass: Build
             lineHeight: 1.15,
           });
           if (e.ort) {
-            text(`${rowId}-ort`, e.ort, textTop + t, ortSize, theme.fonts.body, {
+            text(`${rowId}-ort`, e.ort, textTop + t, ortSize, 'body', {
               x: textX,
               width: textWidth,
               align: 'left',
@@ -432,7 +418,7 @@ export function layoutSchlagzeile(
       };
       const meta = item.datum ? `${item.medium} · ${item.datum}` : item.medium;
       const metaAt = turn(left + pad, top + pad);
-      text(`${id}-medium`, meta, metaAt.y, metaSize, theme.fonts.body, {
+      text(`${id}-medium`, meta, metaAt.y, metaSize, 'body', {
         x: metaAt.x,
         width: inner,
         align: 'left',
@@ -444,7 +430,7 @@ export function layoutSchlagzeile(
         shadowOpacity: 0,
       });
       const titleAt = turn(left + pad, top + pad + metaSize * 1.3 + 14);
-      text(`${id}-titel`, item.titel, titleAt.y, titleSize, theme.fonts.body, {
+      text(`${id}-titel`, item.titel, titleAt.y, titleSize, 'body', {
         x: titleAt.x,
         width: inner,
         align: 'left',
@@ -503,22 +489,15 @@ export function layoutBingo(ctx: SlideCtx, item: BingoItem, id: string): Placed[
         addShape(box);
         const size = sizes[k]!;
         const lines = lineCount(feld, inner, size, theme.fonts.body, 'bold');
-        text(
-          `${id}-${k}`,
-          feld,
-          cy + cellH / 2 - (lines * size * 1.15) / 2,
-          size,
-          theme.fonts.body,
-          {
-            x: cx + cellPad,
-            width: inner,
-            align: 'center',
-            fontStyle: 'bold',
-            fill: cellInk,
-            lineHeight: 1.15,
-            shadowOpacity: 0,
-          }
-        );
+        text(`${id}-${k}`, feld, cy + cellH / 2 - (lines * size * 1.15) / 2, size, 'body', {
+          x: cx + cellPad,
+          width: inner,
+          align: 'center',
+          fontStyle: 'bold',
+          fill: cellInk,
+          lineHeight: 1.15,
+          shadowOpacity: 0,
+        });
       });
     },
   });

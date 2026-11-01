@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: MPL-2.0
-import { activeBrand } from '@ggraphic/editor/brand/brandRegistry';
-import { CustomColorSwatch } from '@ggraphic/editor/components/CustomColorSwatch';
-import { useMessages } from '@ggraphic/editor/i18n/messages';
-import { Popover, PopoverContent, PopoverTrigger } from '@ggraphic/editor/ui/popover';
 import { Slider } from 'radix-ui';
 import React, { useId } from 'react';
 import { PiTextAa } from 'react-icons/pi';
 
+import { useDocumentBrand } from '@ggraphic/editor/brand/documentBrand';
+import { CustomColorSwatch } from '@ggraphic/editor/components/CustomColorSwatch';
+import { useMessages } from '@ggraphic/editor/i18n/messages';
+import { Popover, PopoverContent, PopoverTrigger } from '@ggraphic/editor/ui/popover';
 import { colorName } from '@ggraphic/editor/utils/colorNames';
 
 interface FloatingOutlineControlProps {
@@ -25,7 +25,8 @@ export function FloatingOutlineControl({
   strokeWidth,
   onChange,
 }: FloatingOutlineControlProps) {
-  const { outlines } = activeBrand().effects;
+  const brand = useDocumentBrand();
+  const { outlines } = brand.effects;
   const t = useMessages();
   const enabled = !!stroke && (strokeWidth ?? 0) > 0;
 
@@ -85,8 +86,8 @@ export function FloatingOutlineControl({
                     outlineOffset: '2px',
                   }}
                   onClick={() => onChange({ stroke: c })}
-                  title={colorName(c)}
-                  aria-label={colorName(c)}
+                  title={colorName(c, brand)}
+                  aria-label={colorName(c, brand)}
                   aria-pressed={stroke === c}
                   type="button"
                 />

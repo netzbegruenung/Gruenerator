@@ -16,10 +16,12 @@ import React, {
   useCallback,
   useMemo,
   memo,
+  useContext,
   useImperativeHandle,
   useLayoutEffect,
 } from 'react';
 
+import { DocumentBrandContext } from '@ggraphic/editor/brand/documentBrand';
 import { useEmitHostStateChanges } from '@ggraphic/editor/collab/useEmitHostStateChanges';
 import { useYjsCanvasBinding } from '@ggraphic/editor/collab/useYjsCanvasBinding';
 import { stateKeyOfCallback } from '@ggraphic/editor/collab/wrapCallbacksWithPageSync';
@@ -1155,41 +1157,45 @@ function GenericCanvasWithRef<
 
   return (
     <PendingImagesContext.Provider value={pendingImages}>
-      <CanvasStage
-        ref={stageRef}
-        width={stageWidth}
-        height={stageHeight}
-        logicalWidth={referenceWidth}
-        logicalHeight={referenceHeight}
-        responsive
-        maxContainerWidth={maxWidth}
-        onStageClick={handleStageClick}
-        listening={interactive}
-        ariaLabel={stageLabel}
-        className={`${config.id}-stage`}
-        overlay={interactive ? <CropGhostOverlay getStage={getStage} /> : null}
-      >
-        <CanvasRenderLayer
-          sortedRenderList={sortedRenderList}
-          canRotateSelection={canRotateSelection}
-          config={config}
-          state={state}
-          layout={layout}
-          handlers={elementHandlers}
-          getSnapTargets={getSnapTargets}
-          registerGeometry={updateElementPosition}
-          handleSnapChange={handleSnapChange}
-          setSnapLines={setSnapLines}
-          stageWidth={config.canvas.width}
-          stageHeight={config.canvas.height}
-          isFontAvailable={isFontAvailable}
-          remoteSelections={remoteSelections}
-        />
+      {/* The stage draws what has no colour of its own (text markers, the
+          backdrop) in the page's brand. */}
+      <DocumentBrandContext.Provider value={config.brand ?? null}>
+        <CanvasStage
+          ref={stageRef}
+          width={stageWidth}
+          height={stageHeight}
+          logicalWidth={referenceWidth}
+          logicalHeight={referenceHeight}
+          responsive
+          maxContainerWidth={maxWidth}
+          onStageClick={handleStageClick}
+          listening={interactive}
+          ariaLabel={stageLabel}
+          className={`${config.id}-stage`}
+          overlay={interactive ? <CropGhostOverlay getStage={getStage} /> : null}
+        >
+          <CanvasRenderLayer
+            sortedRenderList={sortedRenderList}
+            canRotateSelection={canRotateSelection}
+            config={config}
+            state={state}
+            layout={layout}
+            handlers={elementHandlers}
+            getSnapTargets={getSnapTargets}
+            registerGeometry={updateElementPosition}
+            handleSnapChange={handleSnapChange}
+            setSnapLines={setSnapLines}
+            stageWidth={config.canvas.width}
+            stageHeight={config.canvas.height}
+            isFontAvailable={isFontAvailable}
+            remoteSelections={remoteSelections}
+          />
 
-        <PrintGuides format={format} />
+          <PrintGuides format={format} />
 
-        <SnapGuidelines />
-      </CanvasStage>
+          <SnapGuidelines />
+        </CanvasStage>
+      </DocumentBrandContext.Provider>
 
       {/* Renderless bridge: owns all selectedElement-derived computation.
           Re-renders only this component (returns null) on selection change,
@@ -1240,16 +1246,24 @@ function GenericCanvasWithProvider<
   TState extends Record<string, unknown> & Partial<BaseCanvasState>,
   TActions extends OptionalCanvasActions,
 >(props: GenericCanvasProps<TState, TActions> & { forwardedRef?: React.Ref<GenericCanvasRef> }) {
+  // The page draws its defaults (the marker of a text without a marker style)
+  // in the brand of ITS document, wherever it is mounted: in the editor shell,
+  // embedded, or in an offscreen root for a preview or an export, where no
+  // shell provides one. A config that names none leaves the context as it is.
+  const outerBrand = useContext(DocumentBrandContext);
+  const brand = props.config.brand ?? outerBrand;
   return (
-    <CanvasStoreProvider initialFormatId={props.formatId}>
-      {props.pageBinding ? (
-        <CanvasYjsBindingMount
-          pageYMap={props.pageBinding.pageYMap}
-          isSynced={props.pageBinding.isSynced}
-        />
-      ) : null}
-      <MemoizedGenericCanvas {...props} />
-    </CanvasStoreProvider>
+    <DocumentBrandContext.Provider value={brand}>
+      <CanvasStoreProvider initialFormatId={props.formatId}>
+        {props.pageBinding ? (
+          <CanvasYjsBindingMount
+            pageYMap={props.pageBinding.pageYMap}
+            isSynced={props.pageBinding.isSynced}
+          />
+        ) : null}
+        <MemoizedGenericCanvas {...props} />
+      </CanvasStoreProvider>
+    </DocumentBrandContext.Provider>
   );
 }
 

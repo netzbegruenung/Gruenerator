@@ -52,7 +52,7 @@ export async function cutoutFromRef(ref: { uri: string }): Promise<string> {
     if (!image) throw new CutoutError('unavailable', MESSAGES.unavailable);
 
     const file = new File(Paths.cache, `cutout-${Date.now()}.png`);
-    file.write(decodeBase64(image.slice(image.indexOf(',') + 1)));
+    file.writeSync(decodeBase64(image.slice(image.indexOf(',') + 1)));
     return file.uri;
   } catch (error: unknown) {
     throw toCutoutError(error);

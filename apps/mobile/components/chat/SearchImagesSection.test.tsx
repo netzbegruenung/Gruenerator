@@ -1,8 +1,8 @@
 import { beforeEach, describe, expect, it, jest } from '@jest/globals';
 import { act, render, screen, waitFor } from '@testing-library/react-native';
-import { Image } from 'expo-image';
 
 import { secureStorage } from '../../services/storage';
+import { imageSources } from '../../test/hostElements';
 import { lightTheme } from '../../theme/colors';
 
 import { SearchImagesSection } from './SearchImagesSection';
@@ -34,10 +34,7 @@ function image(n: number, proxied = true): SearchImage {
 
 /** Every `uri` handed to expo-image in this render. */
 function renderedImageUris(): string[] {
-  return screen.UNSAFE_queryAllByType(Image).map((node) => {
-    const source = node.props.source as { uri?: string } | undefined;
-    return source?.uri ?? '';
-  });
+  return imageSources().map((source) => source.uri ?? '');
 }
 
 beforeEach(() => {
@@ -47,7 +44,7 @@ beforeEach(() => {
 describe('SearchImagesSection', () => {
   it('renders nothing for an empty hit list', async () => {
     mockGetToken.mockResolvedValue('tok');
-    const { toJSON } = render(<SearchImagesSection images={[]} theme={lightTheme} />);
+    const { toJSON } = await render(<SearchImagesSection images={[]} theme={lightTheme} />);
     expect(toJSON()).toBeNull();
     // Let the token effect settle inside act — it resolves after the assertion
     // and would otherwise land as an unwrapped update.
@@ -56,7 +53,7 @@ describe('SearchImagesSection', () => {
 
   it('loads thumbnails only through the same-origin proxy, never the source host', async () => {
     mockGetToken.mockResolvedValue('tok');
-    render(<SearchImagesSection images={[image(1), image(2)]} theme={lightTheme} />);
+    await render(<SearchImagesSection images={[image(1), image(2)]} theme={lightTheme} />);
 
     await waitFor(() => expect(renderedImageUris()).toHaveLength(2));
     for (const uri of renderedImageUris()) {
@@ -67,19 +64,16 @@ describe('SearchImagesSection', () => {
 
   it('sends the bearer token with the proxy request — the endpoint is behind auth', async () => {
     mockGetToken.mockResolvedValue('tok');
-    render(<SearchImagesSection images={[image(1)]} theme={lightTheme} />);
+    await render(<SearchImagesSection images={[image(1)]} theme={lightTheme} />);
 
     await waitFor(() => {
-      const source = screen.UNSAFE_getAllByType(Image)[0]?.props.source as {
-        headers?: Record<string, string>;
-      };
-      expect(source.headers?.Authorization).toBe('Bearer tok');
+      expect(imageSources()[0]?.headers?.Authorization).toBe('Bearer tok');
     });
   });
 
   it('degrades to links rather than to unauthenticated image requests', async () => {
     mockGetToken.mockResolvedValue(null);
-    render(<SearchImagesSection images={[image(1)]} theme={lightTheme} />);
+    await render(<SearchImagesSection images={[image(1)]} theme={lightTheme} />);
 
     await waitFor(() => expect(screen.getByText('1 gefundene Bildquelle')).toBeTruthy());
     expect(renderedImageUris()).toHaveLength(0);
@@ -88,7 +82,7 @@ describe('SearchImagesSection', () => {
 
   it('degrades to links when the backend signed no proxy path', async () => {
     mockGetToken.mockResolvedValue('tok');
-    render(<SearchImagesSection images={[image(1, false)]} theme={lightTheme} />);
+    await render(<SearchImagesSection images={[image(1, false)]} theme={lightTheme} />);
 
     await waitFor(() => expect(screen.getByText('Bild 1')).toBeTruthy());
     expect(renderedImageUris()).toHaveLength(0);
@@ -96,7 +90,7 @@ describe('SearchImagesSection', () => {
 
   it('hangs the remaining hits on a counter instead of showing them all', async () => {
     mockGetToken.mockResolvedValue('tok');
-    render(
+    await render(
       <SearchImagesSection
         images={[image(1), image(2), image(3), image(4), image(5)]}
         theme={lightTheme}
@@ -109,7 +103,7 @@ describe('SearchImagesSection', () => {
 
   it('states the rights position, in every render mode', async () => {
     mockGetToken.mockResolvedValue(null);
-    render(<SearchImagesSection images={[image(1)]} theme={lightTheme} />);
+    await render(<SearchImagesSection images={[image(1)]} theme={lightTheme} />);
 
     await waitFor(() =>
       expect(screen.getByText(/die Rechte liegen bei den Urheber\*innen/)).toBeTruthy()

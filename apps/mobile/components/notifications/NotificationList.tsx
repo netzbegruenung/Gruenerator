@@ -183,7 +183,7 @@ export function NotificationList({ onNavigate }: Props) {
               <View style={styles.footer}>
                 <ActivityIndicator size="small" color={colors.primary[600]} />
               </View>
-            ) : null
+            ) : undefined
           }
           keyboardShouldPersistTaps="handled"
         />
