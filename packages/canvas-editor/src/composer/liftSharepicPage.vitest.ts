@@ -978,3 +978,71 @@ describe('recomposePage hand background', () => {
     expect(out.state.backgroundColor).toBe(fresh.composed.backgroundColor);
   });
 });
+
+describe('a font role picked by hand survives a regenerate', () => {
+  const pick = (state: State, id: string) => {
+    const el = textEl(state, id) as unknown as Record<string, unknown>;
+    // The family another role of the brand stands for, bound to that role.
+    el.fontFamily = 'Picked Family';
+    el.bind = { fontFamily: { ref: 'font.quoteEmphasis', value: 'Picked Family' } };
+    return el;
+  };
+
+  it('lifts the chosen family and binding as a style override', () => {
+    const p = page(deCarousel, 1);
+    pick(p.state, 'sc-0-headline-0');
+    const { overrides } = liftPage(p.state, p);
+    expect(overrides).toContainEqual({
+      kind: 'style',
+      key: expect.anything(),
+      props: {
+        fontFamily: 'Picked Family',
+        bind: { fontFamily: { ref: 'font.quoteEmphasis', value: 'Picked Family' } },
+      },
+    });
+  });
+
+  it('keeps the chosen family and binding through a recompose', () => {
+    const p = page(deCarousel, 1);
+    pick(p.state, 'sc-0-headline-0');
+    const lifted = liftPage(p.state, p);
+    const slide = deCarousel.slides[1]!;
+    const fresh = freshPage(deCarousel, 1, {
+      ...slide,
+      items: [{ type: 'headline', lines: ['Drei Gründe', 'für Wind'] }, slide.items[1]!],
+    });
+    const out = recomposePage(
+      fresh.composed,
+      lifted.overrides,
+      lifted.foreign,
+      inputOf(deCarousel, 1),
+      fresh.spec
+    );
+    expect(out.droppedOverrides).toEqual([]);
+    expect(textEl(out.state, 'sc-0-headline-0')).toMatchObject({
+      fontFamily: 'Picked Family',
+      bind: { fontFamily: { ref: 'font.quoteEmphasis', value: 'Picked Family' } },
+    });
+  });
+
+  it('reads an untouched page as unchanged', () => {
+    const p = page(deCarousel, 1);
+    expect(liftPage(p.state, p).overrides).toEqual([]);
+  });
+
+  it('does not read a baseline from before fonts were fingerprinted as a font change', () => {
+    const p = page(deCarousel, 1);
+    const legacy = structuredClone(p.baseline);
+    for (const fp of Object.values(legacy.elements)) {
+      delete fp.fontFamily;
+      delete fp.bind;
+    }
+    expect(liftPage(p.state, { slide: p.slide, baseline: legacy }).overrides).toEqual([]);
+  });
+
+  it('writes the family of a text into the baseline', () => {
+    const p = page(deCarousel, 1);
+    const headline = textEl(p.state, 'sc-0-headline-0') as unknown as { fontFamily: string };
+    expect(p.baseline.elements['sc-0-headline-0']?.fontFamily).toBe(headline.fontFamily);
+  });
+});
