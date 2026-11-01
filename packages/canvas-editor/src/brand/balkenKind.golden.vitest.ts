@@ -175,6 +175,7 @@ describe('balken selection', () => {
       rotation: 8,
       canAlign: true,
       canDistribute: false,
+      canUngroup: false,
       canEditText: true,
     });
   });

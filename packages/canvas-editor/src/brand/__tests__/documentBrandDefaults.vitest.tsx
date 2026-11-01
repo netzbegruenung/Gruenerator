@@ -48,13 +48,15 @@ describe('shape tiles cycle the colours of the document brand (#5199)', () => {
     expect(new Set(colors)).toEqual(new Set(['#257639', '#56af31', '#fcec00', '#e4007c']));
   });
 
-  it('DE: unchanged, Tanne first', () => {
+  it('DE: the pack colour roles in order, Tanne first', () => {
+    // ggraphic cycles primary, secondary, accent, accentOnLight, attention;
+    // before the switch the pack listed its own five ids.
     expect(cycle(GRUENE_DE).slice(0, 5)).toEqual([
       '#005538',
-      '#008939',
-      '#8abd24',
-      '#0ba1dd',
       '#6ccd87',
+      '#008939',
+      '#008939',
+      '#00cc4f',
     ]);
   });
 
