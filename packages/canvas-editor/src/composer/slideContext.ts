@@ -1,4 +1,3 @@
-import { type RequiredFontRole } from '@ggraphic/core';
 import { type AdditionalText } from '@ggraphic/editor/configs/types';
 import { type CanvasFormat } from '@ggraphic/editor/formats/index';
 import { type ShapeInstance } from '@ggraphic/editor/utils/shapes';
@@ -14,6 +13,7 @@ import { type BrandTheme } from '../brand/theme';
 
 import { type MeasureText } from './chromeParts';
 import { type Column, type ComposedSlide, type ComposeOptions } from './composeTypes';
+import { type RequiredFontRole } from './fontRole';
 import { type slideInk } from './slideInk';
 
 type SlideInk = ReturnType<typeof slideInk>;
