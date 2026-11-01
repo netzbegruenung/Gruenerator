@@ -1,10 +1,9 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
+import { pptxFont, pptxFontAliases } from '@ggraphic/editor/export/pptx/pptxFonts';
 import { BRAND_WEB_FONT_FACES } from '@gruenerator/contracts';
 import { describe, expect, it } from 'vitest';
-
-import { pptxFont, pptxFontAliases } from '@ggraphic/editor/export/pptx/pptxFonts';
 
 describe('pptxFont', () => {
   it('knows every family the canvas registers with @font-face', () => {
@@ -15,7 +14,11 @@ describe('pptxFont', () => {
       ...[...css.matchAll(/@font-face\s*{[^}]*font-family:\s*'([^']+)'/g)].map((m) => m[1]),
       ...BRAND_WEB_FONT_FACES.map((face) => face.family),
     ]);
-    expect([...registered].sort()).toEqual(pptxFontAliases().sort());
+    // ggraphic's table also names its own faces (Anton, Fraunces, …) and drops PT
+    // Sans, which it aliases away and which therefore passes through under its own name.
+    const known = new Set(pptxFontAliases());
+    const unknown = [...registered].filter((family) => !known.has(family ?? ''));
+    expect(unknown.sort()).toEqual(['PT Sans']);
   });
 
   it('maps web aliases to the family names in the font files', () => {

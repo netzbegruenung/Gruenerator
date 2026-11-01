@@ -12,7 +12,6 @@
  *
  * Pure: no React, no Konva. Text is measured through the injected `measure`.
  */
-import { type RequiredFontRole, resolveFontRole } from '@ggraphic/core';
 import { foldMarkers, stripMarks } from '@ggraphic/editor/composer/marks';
 import { steckbriefPerson } from '@ggraphic/editor/composer/steckbriefLayout';
 import {
@@ -70,7 +69,7 @@ import {
   type SteckbriefItem,
 } from './composeTypes';
 import { layoutDiagramm } from './diagrammLayout';
-import { brandFont } from './fontRole';
+import { brandFont, type RequiredFontRole, resolveFontRole } from './fontRole';
 import { encodeHandMarks, sentinelBlind } from './handMarks';
 import { headlineFit } from './headlineFit';
 import { layoutInfografik } from './infografikLayout';

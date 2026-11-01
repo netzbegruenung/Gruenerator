@@ -213,7 +213,7 @@
     --editor-danger-fg: var(--error-red);
     --editor-danger-bg: #FEF2F2;
     /* Formen-Vorschau in Tanne: auf dunkler Fläche unlesbar, dort Eukalyptus. */
-    --editor-tanne-preview: #005538;
+    --editor-primary-preview: #005538;
     --editor-control-border: var(--grey-200);
     --editor-control-bg: transparent;
     --editor-control-bg-hover: transparent;
@@ -455,7 +455,7 @@
     --editor-secondary-fg: var(--secondary-300);
     --editor-danger-fg: #F87171;
     --editor-danger-bg: #450A0A;
-    --editor-tanne-preview: var(--secondary-300);
+    --editor-primary-preview: var(--secondary-300);
     --editor-control-border: var(--grey-700);
     --editor-control-bg: rgba(55, 65, 81, 0.3);
     --editor-control-bg-hover: rgba(55, 65, 81, 0.5);
@@ -644,7 +644,7 @@
         --editor-secondary-fg: var(--secondary-300);
         --editor-danger-fg: #F87171;
         --editor-danger-bg: #450A0A;
-        --editor-tanne-preview: var(--secondary-300);
+        --editor-primary-preview: var(--secondary-300);
         --editor-control-border: var(--grey-700);
         --editor-control-bg: rgba(55, 65, 81, 0.3);
         --editor-control-bg-hover: rgba(55, 65, 81, 0.5);

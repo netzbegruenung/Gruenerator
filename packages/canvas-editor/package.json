@@ -92,9 +92,9 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@ggraphic/core": "workspace:*",
-    "@ggraphic/editor": "workspace:*",
-    "@ggraphic/schema": "workspace:*",
+    "@ggraphic/core": "0.1.0-alpha.0",
+    "@ggraphic/editor": "0.1.0-alpha.0",
+    "@ggraphic/schema": "0.1.0-alpha.0",
     "@gruenerator/contracts": "workspace:*",
     "@gruenerator/shared": "workspace:*",
     "@gruenerator/ui": "workspace:*",

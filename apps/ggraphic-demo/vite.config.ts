@@ -6,16 +6,10 @@ import { defineConfig } from 'vite';
 import { importReport } from './importReport.ts';
 
 const repo = path.resolve(import.meta.dirname, '../..');
-const src = (pkg: string) => path.join(repo, 'packages', pkg, 'src');
 
 export default defineConfig({
   plugins: [react(), importReport({ root: repo })],
   resolve: {
-    // @ggraphic/schema points `import` at a dist that only the Node services
-    // build; the editor reads it from source, as apps/web does.
-    alias: {
-      '@ggraphic/schema': src('ggraphic-schema'),
-    },
     // One React: @tanstack/react-query carries a nested copy (see apps/web).
     dedupe: ['react', 'react-dom'],
   },

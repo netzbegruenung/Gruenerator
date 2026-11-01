@@ -1,8 +1,7 @@
 import { readFileSync } from 'node:fs';
-import path from 'node:path';
-import { fileURLToPath } from 'node:url';
-
 import { describe, it, expect } from 'vitest';
+
+import { editorDist } from './editorDist';
 
 /**
  * Der Editor muss die Schrift des Feldes zeigen, nicht die der Web-App.
@@ -34,8 +33,7 @@ import { describe, it, expect } from 'vitest';
  * belastbare Kaskade mit, und bei der Kurzform `list-style` hat es schon
  * einmal das Gegenteil der Wahrheit bestätigt (siehe canvasRteListStyles).
  */
-const HIER = path.dirname(fileURLToPath(import.meta.url));
-const CSS = path.resolve(HIER, '../../../ggraphic-editor/src/styles/editor.css');
+const CSS = editorDist('styles/editor.css');
 
 describe('Schriftvererbung im Rich-Text-Feld', () => {
   const css = readFileSync(CSS, 'utf8');

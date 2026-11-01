@@ -83,9 +83,7 @@ describe('host templates', () => {
 
   it('still reports an id nobody registered', async () => {
     render(<StandaloneCanvas configId="never-registered" initialProps={{}} />);
-    expect(
-      await screen.findByText('Canvas error: Unknown canvas type: never-registered')
-    ).toBeTruthy();
+    expect(await screen.findByText(/Unbekannter Canvas-Typ: never-registered/)).toBeTruthy();
   });
 
   it('refuses to replace a built-in or an already registered id', () => {

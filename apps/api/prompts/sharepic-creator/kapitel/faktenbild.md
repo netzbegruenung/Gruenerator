@@ -9,6 +9,7 @@ Ein Faktenbild verbindet ein gemaltes Foto-Motiv zum Thema mit den Zahlen oder P
 - Auf der Szene: Headline mit der Kernaussage, darunter **ein** Zahlen-Baustein (`diagramm`, `iconliste` oder `vergleich`) – Kapitel diagramme bzw. iconliste-vergleich. Eine einzelne Zahl steht groß in der Headline.
 - `textSeite: unten` ist der Normalfall; der obere Teil zeigt das Motiv, der untere bleibt für den Text ruhig. `links`/`rechts` nur bei sehr wenig Text.
 - `position: unten`, `logo: false`.
+- Schrift, Balken und Hervorhebung auf der Szene folgen den Grundlagen des Designs wie auf jedem Foto.
 
 ## motiv
 

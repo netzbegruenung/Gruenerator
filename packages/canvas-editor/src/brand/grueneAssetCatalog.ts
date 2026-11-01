@@ -138,6 +138,8 @@ const GRUENE_ILLUSTRATIONS: IllustrationSources = {
   basePath: '/illustrations',
   aiPicks: GRUENE_AI_ILLUSTRATIONS,
   featured: UNDRAW_FEATURED,
+  // unDraw's primary colour, swapped for the colour a person picks.
+  recolor: { undraw: '#6c63ff' },
   // The Kawaii characters keep the brand tanne.
   kawaiiColor: '#005437',
   loadKawaii: () =>

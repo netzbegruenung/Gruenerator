@@ -13,6 +13,24 @@ const dirOf = (pkg) =>
 const reactDir = dirOf('react');
 const reactDomDir = dirOf('react-dom');
 
+// jest-expo's own transformIgnorePatterns with one more name in its allowlist:
+// @ggraphic/* (#5212) ships ESM-only dist files and reaches every test through
+// @gruenerator/contracts. The preset's two exclusions stay untouched. Throws if
+// jest-expo changes the pattern's shape, rather than dropping the entry silently.
+const ALLOWLIST_HEAD = '/node_modules/(?!(';
+/** @type {{ transformIgnorePatterns: string[] }} */
+// eslint-disable-next-line @typescript-eslint/no-require-imports -- a jest config is CommonJS
+const jestExpoPreset = require('jest-expo/jest-preset');
+const transformIgnorePatterns = jestExpoPreset.transformIgnorePatterns.map(
+  (/** @type {string} */ pattern, /** @type {number} */ i) => {
+    if (i > 0) return pattern;
+    if (!pattern.startsWith(ALLOWLIST_HEAD)) {
+      throw new Error(`jest-expo transformIgnorePatterns changed shape: ${pattern}`);
+    }
+    return pattern.replace(ALLOWLIST_HEAD, `${ALLOWLIST_HEAD}@ggraphic/|`);
+  }
+);
+
 module.exports = {
   preset: 'jest-expo',
   testMatch: ['**/*.test.ts', '**/*.test.tsx'],
@@ -67,14 +85,14 @@ module.exports = {
       '<rootDir>/../../node_modules/phosphor-react-native/lib/commonjs/icons/$1',
   },
 
-  // NOTE: transformIgnorePatterns is deliberately NOT set. jest-expo's preset
-  // already ships a correct one — it allowlists every expo-*/react-native-*
-  // package AND excludes react-native-reanimated/plugin and
-  // @react-native/babel-preset, which must not be transformed (reentrant-plugin
-  // crash). Overriding it with a hand-rolled pattern silently drops those
-  // exclusions and breaks on the first expo-modules-core import. Workspace
-  // packages resolve through symlinks to packages/*/src, outside node_modules,
-  // so they are transformed without needing an entry.
+  // NOTE: transformIgnorePatterns is derived from jest-expo's preset, never
+  // hand-rolled. The preset allowlists every expo-*/react-native-* package AND
+  // excludes react-native-reanimated/plugin and @react-native/babel-preset,
+  // which must not be transformed (reentrant-plugin crash). A hand-rolled
+  // pattern silently drops those exclusions and breaks on the first
+  // expo-modules-core import. Workspace packages resolve through symlinks to
+  // packages/*/src, outside node_modules, so they need no entry.
+  transformIgnorePatterns,
   //
   // @gruenerator/* expose their TS sources under the "development" export
   // condition; jest-expo only sets ['react-native'] by default, which would

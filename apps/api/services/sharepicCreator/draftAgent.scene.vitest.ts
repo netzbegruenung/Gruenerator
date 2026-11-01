@@ -105,14 +105,18 @@ describe('draftSharepic — painted scene', () => {
   });
 
   it('sends a Faktenbild without a scene back for one', async () => {
+    const withNumber = {
+      ...slide({ kind: 'szene', motiv: MOTIV, textSeite: 'unten' }),
+      items: [{ type: 'headline', lines: ['38 % mehr', 'Solarstrom'] }],
+    };
     const errors = draftAnswers(
       { slides: [slide({ kind: 'farbe', color: 'tanne' })] },
-      { slides: [slide({ kind: 'szene', motiv: MOTIV, textSeite: 'unten' })] }
+      { slides: [withNumber] }
     );
     const paint = vi.fn<ScenePainter>().mockResolvedValue({ ok: true, ref: REF });
 
     await draftSharepic(
-      'Mach ein Faktenbild zum Solarausbau',
+      'Mach ein Faktenbild zum Solarausbau: 38 % mehr Solarstrom',
       'de-DE',
       null,
       [],
@@ -121,6 +125,33 @@ describe('draftSharepic — painted scene', () => {
     );
 
     expect(errors[0]).toContain('Faktenbild');
+    expect(paint).toHaveBeenCalledTimes(1);
+  });
+
+  it('sends a Faktenbild scene without a number back for one', async () => {
+    const errors = draftAnswers(
+      { slides: [slide({ kind: 'szene', motiv: MOTIV, textSeite: 'unten' })] },
+      {
+        slides: [
+          {
+            ...slide({ kind: 'szene', motiv: MOTIV, textSeite: 'unten' }),
+            items: [{ type: 'headline', lines: ['38 % mehr', 'Solarstrom'] }],
+          },
+        ],
+      }
+    );
+    const paint = vi.fn<ScenePainter>().mockResolvedValue({ ok: true, ref: REF });
+
+    await draftSharepic(
+      'Mach ein Faktenbild zum Solarausbau: 38 % mehr Solarstrom',
+      'de-DE',
+      null,
+      [],
+      { scene: paint },
+      'faktenbild'
+    );
+
+    expect(errors[0]).toContain('gehört die Zahl');
     expect(paint).toHaveBeenCalledTimes(1);
   });
 
@@ -546,6 +577,19 @@ describe('draftSharepic — form', () => {
     expect(errors[0]).toContain('Zitat');
     expect(draft.form).toBe('zitat');
     expect(draft.alternativen).toEqual(['karussell', 'einzelbild']);
+  });
+
+  // Live 01.11.2026: „Als Diagramm" und „Als Zitat" unter einem Artenschutz-Sharepic
+  // ohne Zahlen und ohne Person — beide Chips scheiterten an jedem Versuch.
+  it('offers no alternative the brief cannot fill', async () => {
+    answersAfter(
+      { ...needs, form: 'einzelbild', alternativen: ['diagramm', 'zitat', 'vergleich'] },
+      { slides: [slide({ kind: 'farbe', color: 'tanne' })] }
+    );
+
+    const draft = await draftSharepic('Mehr Artenschutz jetzt', 'de-DE', null, [], {});
+
+    expect(draft.alternativen).toEqual(['vergleich']);
   });
 
   it('lets a named form win over the creator choice', async () => {

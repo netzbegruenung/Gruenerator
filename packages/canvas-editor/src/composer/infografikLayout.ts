@@ -1,8 +1,8 @@
-import { type RequiredFontRole, resolveFontRole } from '@ggraphic/core';
 import { balancedWrap, largestSizeWordsFit } from '@ggraphic/editor/composer/textFit';
 import { createShape } from '@ggraphic/editor/utils/shapes';
 
 import { type InfografikItem, type Placed } from './composeTypes';
+import { type RequiredFontRole, resolveFontRole } from './fontRole';
 import { SHAREPIC_ICON_FILLED, SHAREPIC_ICON_IDS } from './sharepicIcons';
 import { GAP } from './sharepicLayoutConstants';
 import { type BuildPass, type SlideCtx } from './slideContext';

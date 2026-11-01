@@ -95,6 +95,9 @@
   "canvas-command.toggleLock": {
     "title": "Sperren"
   },
+  "canvas-command.ungroup": {
+    "title": "Gruppe auflösen"
+  },
   "canvas.aubergine": {
     "title": "Aubergine"
   },

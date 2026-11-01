@@ -1,8 +1,7 @@
 import { readFileSync } from 'node:fs';
-import path from 'node:path';
-import { fileURLToPath } from 'node:url';
-
 import { describe, it, expect } from 'vitest';
+
+import { editorDist } from './editorDist';
 
 /**
  * Die Kurzform `list-style` setzt jede Langform, die sie nicht nennt, auf
@@ -19,8 +18,7 @@ import { describe, it, expect } from 'vitest';
  * ein `getComputedStyle` dort bestätigte fröhlich das Gegenteil. Deshalb
  * bewacht dieser Test die Quelle.
  */
-const HIER = path.dirname(fileURLToPath(import.meta.url));
-const CSS = path.resolve(HIER, '../../../ggraphic-editor/src/styles/editor.css');
+const CSS = editorDist('styles/editor.css');
 
 /** Alle Regelblöcke, deren Selektor eine Liste im Editor-Inhalt trifft. */
 function listenRegeln(css: string): string[] {

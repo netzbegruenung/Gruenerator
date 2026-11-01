@@ -3,6 +3,8 @@ import path from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
+import { editorDist } from '../__tests__/editorDist';
+
 // Source guard: these CSS rules are invisible to the type checker, and a
 // dropped selector silently brings back 500 ms press fades or page bounce.
 const root = path.resolve(import.meta.dirname, '../../../..');
@@ -10,7 +12,7 @@ const read = (p: string) => readFileSync(path.join(root, p), 'utf8');
 
 // The neutral rules live in the core stylesheet; canvas-editor.css only imports it
 // and re-colours the stage border.
-const css = read('packages/ggraphic-editor/src/styles/editor.css');
+const css = readFileSync(editorDist('styles/editor.css'), 'utf8');
 const brandCss = read('packages/canvas-editor/src/canvas-editor.css');
 const webVars = read('apps/web/src/assets/styles/common/variables.css');
 const editorVars = read('packages/canvas-editor/src/styles/variables.css');

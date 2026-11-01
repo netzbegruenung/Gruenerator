@@ -5,12 +5,31 @@
  * Migrated from monolithic 1,107-line DreizeilenCanvas component.
  */
 
+import { describeCanvasElements } from '@ggraphic/editor/ai/describeCanvasElements';
+import { buildIllustrationCapability } from '@ggraphic/editor/ai/illustrationCapability';
+import {
+  createAssetActions,
+  createIconActions,
+  createChartActions,
+  createShapeActions,
+  createIllustrationActions,
+  createPillBadgeActions,
+  createCircleBadgeActions,
+  createFrameActions,
+  createUserImageActions,
+} from '@ggraphic/editor/configs/factory/actionFactories';
 import {
   carryBackgroundAdjustments,
   carryBackgroundRotation,
   carryTemplateRotations,
   carryTemplateTextAligns,
 } from '@ggraphic/editor/configs/factory/carryInstanceState';
+import { makeSectionDefiner } from '@ggraphic/editor/configs/factory/defineSection';
+import { injectFeatureProps } from '@ggraphic/editor/configs/featureInjector';
+import { PLACEHOLDER_TEXT } from '@ggraphic/editor/configs/placeholders';
+import { createShareSection } from '@ggraphic/editor/configs/shareSection';
+import { CombinedTextSection } from '@ggraphic/editor/sidebar/sections/CombinedTextSection';
+import { FrameSettingsSection } from '@ggraphic/editor/sidebar/sections/FrameSettingsSection';
 import { zoomBackground } from '@ggraphic/editor/utils/coverFit';
 import { straightenResetFor } from '@ggraphic/editor/utils/straighten';
 import {
@@ -23,14 +42,10 @@ import { HiCog } from 'react-icons/hi';
 import { PiFrameCornersFill, PiSquaresFourFill, PiTextAa } from 'react-icons/pi';
 
 import { buildAssetCapability } from '../ai/assetCapability';
-import { describeCanvasElements } from '@ggraphic/editor/ai/describeCanvasElements';
-import { buildIllustrationCapability } from '@ggraphic/editor/ai/illustrationCapability';
 import { CANVAS_RECOMMENDED_ASSETS, SYSTEM_ASSETS } from '../brand/grueneAssets';
 import { dreizeilenShareMetadata } from '../brand/grueneShareMetadata';
 import { AssetsSection } from '../sidebar';
 import { BalkenSettingsSection } from '../sidebar/sections/BalkenSettingsSection';
-import { CombinedTextSection } from '@ggraphic/editor/sidebar/sections/CombinedTextSection';
-import { FrameSettingsSection } from '@ggraphic/editor/sidebar/sections/FrameSettingsSection';
 import { balkenExtent, fitBalkenAfterTextEdit, fitBalkenToCanvas } from '../utils/balkenBounds';
 import {
   calculateDreizeilenLayout,
@@ -42,32 +57,17 @@ import {
 import { DEFAULT_PHOTO_BACKGROUND_DE, PHOTO_BACKGROUND_COLORS_DE } from './backgroundPalettes';
 import { chatTab, createCommonSectionEntries, toolsTab, uploadsTab } from './commonSections';
 import { ADDITIONAL_TEXT_DEFAULTS } from './dreizeilen.constants';
-import {
-  createAssetActions,
-  createIconActions,
-  createChartActions,
-  createShapeActions,
-  createIllustrationActions,
-  createPillBadgeActions,
-  createCircleBadgeActions,
-  createFrameActions,
-  createUserImageActions,
-} from '@ggraphic/editor/configs/factory/actionFactories';
 import { createBalkenActions } from './factory/balkenActions';
-import { makeSectionDefiner } from '@ggraphic/editor/configs/factory/defineSection';
-import { injectFeatureProps } from '@ggraphic/editor/configs/featureInjector';
-import { PLACEHOLDER_TEXT } from '@ggraphic/editor/configs/placeholders';
-import { createShareSection } from '@ggraphic/editor/configs/shareSection';
 
 import type { SharepicAiCapabilities } from './aiCapabilities';
 import type { DreizeilenFullState, DreizeilenFullActions } from './dreizeilen.types';
+import type { BalkenInstance } from '../utils/balkenUtils';
 import type { StockImageAttribution } from '@ggraphic/editor/common/imageSourceTypes';
 import type {
   FullCanvasConfig,
   LayoutResult as GenericLayoutResult,
   AdditionalText,
 } from '@ggraphic/editor/configs/types';
-import type { BalkenInstance } from '../utils/balkenUtils';
 import type { AssetInstance } from '@ggraphic/editor/utils/canvasAssets';
 import type { ChartInstance } from '@ggraphic/editor/utils/chartUtils';
 import type { CircleBadgeInstance } from '@ggraphic/editor/utils/circleBadgeUtils';

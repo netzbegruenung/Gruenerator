@@ -3,6 +3,8 @@ import path from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
+import { EDITOR_DIST, editorDist } from '../__tests__/editorDist';
+
 // Source guard. canvas-editor.css imports only the core's editor.css, never
 // tokens.css: the Grünerator's variables.css must declare every --editor-*
 // token the core reads, or the property silently turns invalid.
@@ -16,7 +18,7 @@ function sourceFiles(dir: string): string[] {
   return readdirSync(dir).flatMap((name) => {
     const full = path.join(dir, name);
     if (statSync(full).isDirectory()) return sourceFiles(full);
-    return /\.(ts|tsx|css)$/.test(name) && !/\.vitest\.tsx?$/.test(name) ? [full] : [];
+    return /\.(js|css)$/.test(name) ? [full] : [];
   });
 }
 
@@ -24,14 +26,13 @@ describe('core stylesheet token defaults', () => {
   const ours = tokens(read('packages/canvas-editor/src/styles/variables.css'));
 
   it('has a core default for every --editor-* token this package declares', () => {
-    const core = tokens(read('packages/ggraphic-editor/src/styles/tokens.css'));
+    const core = tokens(readFileSync(editorDist('styles/tokens.css'), 'utf8'));
     expect([...ours].filter((t) => !core.has(t)).sort()).toEqual([]);
   });
 
   it('declares every --editor-* token the core reads in variables.css', () => {
-    const coreSrc = path.join(root, 'packages/ggraphic-editor/src');
     const missing = new Set<string>();
-    for (const file of sourceFiles(coreSrc)) {
+    for (const file of sourceFiles(EDITOR_DIST)) {
       const text = readFileSync(file, 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
       for (const m of text.matchAll(/var\(\s*(--editor-[\w-]+)/g)) {
         if (!ours.has(m[1])) missing.add(m[1]);

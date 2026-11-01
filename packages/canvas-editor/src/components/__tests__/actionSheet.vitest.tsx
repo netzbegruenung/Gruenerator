@@ -28,6 +28,7 @@ const CAPS: SelectionCapabilities = {
   rotation: 0,
   canAlign: true,
   canDistribute: false,
+  canUngroup: false,
   canEditText: false,
 };
 

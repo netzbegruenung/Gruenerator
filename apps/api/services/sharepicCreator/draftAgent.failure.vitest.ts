@@ -169,8 +169,51 @@ describe('a draft that fails for good', () => {
       .mockResolvedValueOnce({ ...needs, data: { ...needs.data, form: 'zitat' } })
       .mockImplementation(answer(GOOD));
     const err = await failure();
-    expect(err.failure).toEqual({ kind: 'form', form: 'zitat' });
-    expect(draftFailedBody(err).error).toContain('Als Zitat ließ sich der Auftrag nicht umsetzen.');
+    expect(err.failure).toEqual({
+      kind: 'form',
+      form: 'zitat',
+      ask: 'den Wortlaut und die Person, die ihn sagt',
+    });
+    expect(draftFailedBody(err).error).toContain(
+      'Als Zitat ließ sich der Auftrag nicht umsetzen – dafür brauche ich den Wortlaut und die Person, die ihn sagt.'
+    );
+  });
+
+  it('names no missing material when the brief has it', async () => {
+    aiObject
+      .mockResolvedValueOnce({ ...needs, data: { ...needs.data, form: 'diagramm' } })
+      .mockImplementation(answer(GOOD));
+    const err = (await draftSharepic('Sharepic: Solarstrom 2020 12 %, 2025 31 %', 'de-DE').catch(
+      (e: unknown) => e
+    )) as DraftFailedError;
+    expect(err.failure).toEqual({ kind: 'form', form: 'diagramm' });
+    expect(draftFailedBody(err).error).toContain('ergänze, was dafür fehlt');
+  });
+
+  // Live 01.11.2026: „Andere Variante als Diagramm“ ohne eine Zahl scheiterte nach
+  // fünf Modellaufrufen mit „ließ sich nicht umsetzen“.
+  it('asks for the numbers of a named diagram before any model call', async () => {
+    const err = (await draftSharepic(
+      'Andere Variante als Diagramm. Thema: Zeit für mehr Artenschutz jetzt!',
+      'de-DE',
+      null,
+      [],
+      {},
+      'diagramm'
+    ).catch((e: unknown) => e)) as DraftFailedError;
+    expect(aiObject).not.toHaveBeenCalled();
+    expect(err.failure).toMatchObject({ kind: 'material', form: 'diagramm' });
+    expect(draftFailedBody(err).error).toBe(
+      'Der Entwurf ist nicht gelungen. Für die Form „Diagramm“ brauche ich mindestens zwei Zahlen, am besten mit Quelle. Schreib mir das dazu, oder wähl eine andere Form.'
+    );
+  });
+
+  it('still tries a named quote: the speaker is only guessed', async () => {
+    aiObject.mockResolvedValueOnce(needs).mockImplementation(answer(GOOD));
+    await draftSharepic('Lena Grün: Busse statt Stau', 'de-DE', null, [], {}, 'zitat').catch(
+      () => null
+    );
+    expect(aiObject).toHaveBeenCalled();
   });
 
   it('asks for a clearer request when the content broke a rule', async () => {

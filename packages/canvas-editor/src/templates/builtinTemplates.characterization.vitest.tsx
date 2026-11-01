@@ -122,7 +122,7 @@ describe('built-in templates: config loader', () => {
 
   it('rejects an unknown type with the known message', async () => {
     await expect(loadCanvasConfig('nope' as CanvasConfigId)).rejects.toThrow(
-      'Unknown canvas type: nope'
+      'loadCanvasConfig: unknown canvas type nope'
     );
   });
 
@@ -239,6 +239,6 @@ describe('built-in templates: router', () => {
 describe('built-in templates: StandaloneCanvas', () => {
   it('reports an unknown id', async () => {
     render(<StandaloneCanvas configId={'nope' as CanvasConfigId} initialProps={{}} />);
-    expect(await screen.findByText('Canvas error: Unknown canvas type: nope')).toBeTruthy();
+    expect(await screen.findByText(/Unbekannter Canvas-Typ: nope/)).toBeTruthy();
   });
 });

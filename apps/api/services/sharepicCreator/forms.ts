@@ -10,6 +10,7 @@ import {
   type SharepicSpec,
 } from '@gruenerator/contracts';
 
+import { calendarDays, namesSpeaker, NUMBER } from './briefFacts.js';
 import { CAROUSEL_MIN_SLIDES, carouselSlideCount } from './draftFailure.js';
 import { type ExampleOccasion, type StyleguideChapter } from './styleguide.js';
 
@@ -175,6 +176,58 @@ export function namedSharepicForm(text: string): SharepicFormId | null {
   return null;
 }
 
+/** What the alternatives may be: only forms whose material the brief brings. */
+export const ALTERNATIVES_NEED_MATERIAL =
+  'Nenne als alternativen nur Formen, für die der Auftrag den Stoff hat: zitat und interview nur mit einer genannten Person, diagramm und rechnung nur mit Zahlen, termine nur mit Daten, vorstellung nur mit dem Namen der Person.';
+
+const twoNumbers = (brief: string) => new Set(brief.match(NUMBER) ?? []).size >= 2;
+
+/**
+ * What validation demands of a form's block from the brief, and how the person
+ * is asked for it (live 01.11.2026: „Als Diagramm" and „Als Zitat" on
+ * Artenschutz, no numbers, no person, failed on every attempt). `exact`: the
+ * test is the one validation applies (numbers, dates), so a named form is
+ * asked for before any model call. A speaker is only guessed — „Lena Grün:
+ * Busse statt Stau" names one `namesSpeaker` misses — so a named quote is
+ * still tried, and the guess only keeps it from being offered.
+ */
+const MATERIAL: Partial<
+  Record<SharepicFormId, { has: (brief: string) => boolean; ask: string; exact: boolean }>
+> = {
+  diagramm: { has: twoNumbers, ask: 'mindestens zwei Zahlen, am besten mit Quelle', exact: true },
+  rechnung: { has: twoNumbers, ask: 'die Zahlen, aus denen sich die Rechnung ergibt', exact: true },
+  termine: {
+    has: (brief) => calendarDays(brief).size >= 2,
+    ask: 'mindestens zwei Termine mit Datum',
+    exact: true,
+  },
+  zitat: { has: namesSpeaker, ask: 'den Wortlaut und die Person, die ihn sagt', exact: false },
+  interview: {
+    has: namesSpeaker,
+    ask: 'die Person, die interviewt wird, und ihre Antworten',
+    exact: false,
+  },
+};
+
+/** Whether the brief carries what the form's block needs; an alternative without it is not offered. */
+export function formHasMaterial(form: SharepicFormId, brief: string): boolean {
+  return MATERIAL[form]?.has(brief) ?? true;
+}
+
+/** What a named form surely still needs from the person, or null when the brief has it. */
+export function missingMaterial(form: SharepicFormId, brief: string): string | null {
+  const need = MATERIAL[form];
+  return need?.exact && !need.has(brief) ? need.ask : null;
+}
+
+/** What the form needs from the brief, for the text after a failed draft. */
+export function materialAsk(form: SharepicFormId): string | null {
+  return MATERIAL[form]?.ask ?? null;
+}
+
+/** The blocks that carry a Faktenbild's number on the scene (Kapitel faktenbild). */
+const FAKTEN_BLOCKS = ['diagramm', 'iconliste', 'vergleich', 'zahl'];
+
 /** Why a draft is not the form it was meant to be, or null when it is. */
 export function formMismatch(
   form: SharepicFormId,
@@ -232,9 +285,14 @@ export function formMismatch(
         ? null
         : `${label}: setz Mythos und Fakt als {"type":"faktencheck","paare":[…]}.`;
     case 'faktenbild':
-      return hasScene
+      if (!hasScene) {
+        return `${label}: eine Slide (Einzelbild: die Slide, Karussell: das Cover) bekommt background {"kind":"szene","motiv","textSeite"} – motiv auf Englisch, nur die Szene zum Thema, kein Text und keine Zahlen.`;
+      }
+      // The number makes it a Faktenbild: a number block, or one number large in the headline.
+      return FAKTEN_BLOCKS.some(has) ||
+        items.some((item) => item.type === 'headline' && item.lines.some((l) => /\d/.test(l)))
         ? null
-        : `${label}: eine Slide (Einzelbild: die Slide, Karussell: das Cover) bekommt background {"kind":"szene","motiv","textSeite"} – motiv auf Englisch, nur die Szene zum Thema, kein Text und keine Zahlen.`;
+        : `${label}: auf die Szene gehört die Zahl – groß in der Headline oder als {"type":"diagramm"}, {"type":"iconliste"} oder {"type":"vergleich"} (Kapitel faktenbild).`;
     case 'veranstaltung':
       return spec.slides.some((slide) => slide.datum)
         ? null

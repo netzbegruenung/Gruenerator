@@ -1,7 +1,8 @@
-import { type BrandFonts, type FontRole, resolveFontRole } from '@ggraphic/core';
+import { type BrandFonts } from '@ggraphic/core';
 import { expect } from 'vitest';
 
 import { type ComposedSlide } from './composeSharepic';
+import { type RequiredFontRole, resolveFontRole } from './fontRole';
 
 const BRAND_ROLES = ['headline', 'body', 'quoteShort', 'quoteEmphasis'] as const;
 
@@ -20,7 +21,7 @@ export function expectBrandFontsBound(
     for (const element of [...slide.additionalTexts, ...slide.pillBadgeInstances]) {
       const binding = element.bind?.fontFamily;
       if (binding) {
-        const role = binding.ref.slice('font.'.length) as FontRole;
+        const role = binding.ref.slice('font.'.length) as RequiredFontRole;
         expect(resolveFontRole(fonts, role), `${element.id} role`).toBe(element.fontFamily);
         expect(binding.value, `${element.id} value`).toBe(element.fontFamily);
         bound += 1;

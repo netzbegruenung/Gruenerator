@@ -6,6 +6,13 @@
 
 import type { SvgDef } from '@ggraphic/editor/utils/illustrations/types';
 
+// unDraw is the Grünerator's own set: it makes 'undraw' a valid `SvgSource`.
+declare module '@ggraphic/core' {
+  interface SvgSources {
+    undraw: true;
+  }
+}
+
 export const UNDRAW_FEATURED: SvgDef[] = [
   // Politik & Gemeinschaft
   {

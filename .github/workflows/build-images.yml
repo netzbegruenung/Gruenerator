@@ -169,13 +169,11 @@ jobs:
             shared:
               - 'packages/shared/**'
               - 'packages/core/**'
-              - 'packages/ggraphic-schema/**'
               - *install
             web:
               - 'apps/web/**'
               - 'packages/shared/**'
               - 'packages/core/**'
-              - 'packages/ggraphic-schema/**'
               - 'packages/contracts/**'
               - 'packages/query/**'
               - 'packages/docs/**'
@@ -186,9 +184,6 @@ jobs:
               - 'packages/sheets/**'
               - 'packages/ui/**'
               - 'packages/collab/**'
-              - 'packages/ggraphic-collab/**'
-              - 'packages/ggraphic-core/**'
-              - 'packages/ggraphic-editor/**'
               - 'packages/wolke/**'
               - 'packages/sites/**'
               - 'packages/sites-design/**'
@@ -200,8 +195,6 @@ jobs:
               - 'services/hocuspocus/**'
               - 'packages/shared/**'
               - 'packages/core/**'
-              - 'packages/ggraphic-schema/**'
-              - 'packages/ggraphic-core/**'
               - 'packages/contracts/**'
               - 'packages/query/**'
               - *install
@@ -210,8 +203,6 @@ jobs:
               - 'services/hocuspocus/**'
               - 'packages/shared/**'
               - 'packages/core/**'
-              - 'packages/ggraphic-schema/**'
-              - 'packages/ggraphic-core/**'
               - 'packages/contracts/**'
               - 'packages/query/**'
               - *install
@@ -222,13 +213,10 @@ jobs:
               - 'packages/voice/**'
               - 'packages/shared/**'
               - 'packages/core/**'
-              - 'packages/ggraphic-schema/**'
-              - 'packages/ggraphic-core/**'
               - 'packages/contracts/**'
               - 'packages/query/**'
               - 'packages/ui/**'
               - 'packages/collab/**'
-              - 'packages/ggraphic-collab/**'
               - *install
               - *tsconfig
             nlp:

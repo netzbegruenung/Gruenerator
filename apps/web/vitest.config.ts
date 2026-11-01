@@ -72,9 +72,14 @@ export default defineConfig({
           // inlining never reaches them. packages/chat carries the same pattern.
           // Re-check the offender list with:
           //   ls -d node_modules/**/node_modules/react
+          //
+          // @ggraphic/* (#5212) is inlined for a second reason: the collab tests
+          // vi.mock `y-indexeddb` and `@hocuspocus/provider`, which
+          // @ggraphic/collab imports. An externalized package Node-resolves
+          // those imports past the mocks.
           server: {
             deps: {
-              inline: ['@tanstack/react-query', /radix-ui/, '@gruenerator/ui'],
+              inline: ['@tanstack/react-query', /radix-ui/, '@gruenerator/ui', /@ggraphic\//],
             },
           },
         },
