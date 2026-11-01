@@ -250,7 +250,6 @@ export const GRUENE_DE: GruenePack = {
   // Light ones (grass green and lime) never open the list: on white they only
   // read next to a dark green.
   chart: [DE_DUNKELTANNE, DE_KLEE, DE_GRASGRUEN, DE_TANNE, DE_LIME],
-  shapeCycle: ['tanne', 'klee', 'grashalm', 'himmel', 'hellgruen'],
   effects: GRUENE_EFFECTS,
   fonts: {
     headline: 'GrueneTypeNeue',
@@ -388,8 +387,6 @@ export const GRUENE_AT: GruenePack = {
   },
   // Yellow never opens the list: on white it only reads next to a dark green.
   chart: [AT_DUNKELGRUEN, '#56af31', AT_GELB, '#0B6620', '#7CC650'],
-  // The colours of the posts; white and black stay in the picker.
-  shapeCycle: ['dunkelgruen', 'hellgruen', 'gelb', 'magenta'],
   effects: GRUENE_EFFECTS,
   fonts: {
     headline: 'GothamNarrow-Ultra',

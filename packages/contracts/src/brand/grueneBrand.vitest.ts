@@ -1,31 +1,28 @@
-import { resolveFontRole } from '@ggraphic/core';
+import { type BrandFontRole, resolveRef } from '@ggraphic/core';
 import { describe, expect, it } from 'vitest';
 
 import { GRUENE_AT, GRUENE_DE } from './grueneBrand.js';
 
-describe('resolveFontRole', () => {
+const fontOf = (brand: typeof GRUENE_DE, role: BrandFontRole) =>
+  resolveRef(`font.${role}`, brand, null);
+
+describe('font roles of the packs', () => {
   it('reads every DE role off the pack', () => {
-    expect(resolveFontRole(GRUENE_DE.fonts, 'headline')).toBe('GrueneTypeNeue');
-    expect(resolveFontRole(GRUENE_DE.fonts, 'body')).toBe('PT Sans');
-    expect(resolveFontRole(GRUENE_DE.fonts, 'quoteShort')).toBe('GrueneTypeNeue');
-    expect(resolveFontRole(GRUENE_DE.fonts, 'quoteEmphasis')).toBe('GrueneTypeNeue');
+    expect(fontOf(GRUENE_DE, 'headline')).toBe('GrueneTypeNeue');
+    expect(fontOf(GRUENE_DE, 'body')).toBe('PT Sans');
+    expect(fontOf(GRUENE_DE, 'quoteShort')).toBe('GrueneTypeNeue');
+    expect(fontOf(GRUENE_DE, 'quoteEmphasis')).toBe('GrueneTypeNeue');
   });
 
   it('reads every AT role off the pack', () => {
-    expect(resolveFontRole(GRUENE_AT.fonts, 'headline')).toBe('GothamNarrow-Ultra');
-    expect(resolveFontRole(GRUENE_AT.fonts, 'body')).toBe('GothamNarrow-Book');
-    expect(resolveFontRole(GRUENE_AT.fonts, 'quoteShort')).toBe('GothamNarrow-Ultra');
-    expect(resolveFontRole(GRUENE_AT.fonts, 'quoteEmphasis')).toBe('Vollkorn');
+    expect(fontOf(GRUENE_AT, 'headline')).toBe('GothamNarrow-Ultra');
+    expect(fontOf(GRUENE_AT, 'body')).toBe('GothamNarrow-Book');
+    expect(fontOf(GRUENE_AT, 'quoteShort')).toBe('GothamNarrow-Ultra');
+    expect(fontOf(GRUENE_AT, 'quoteEmphasis')).toBe('Vollkorn');
   });
 
-  it('gives null for handwriting while no pack sets one', () => {
-    expect(resolveFontRole(GRUENE_DE.fonts, 'handwriting')).toBeNull();
-    expect(resolveFontRole(GRUENE_AT.fonts, 'handwriting')).toBeNull();
-  });
-
-  it('gives the family of a pack that sets handwriting', () => {
-    expect(resolveFontRole({ ...GRUENE_DE.fonts, handwriting: 'Caveat' }, 'handwriting')).toBe(
-      'Caveat'
-    );
+  it('has no handwriting role: the composer keeps that family host-side', () => {
+    expect(Object.keys(GRUENE_DE.fonts)).not.toContain('handwriting');
+    expect(Object.keys(GRUENE_AT.fonts)).not.toContain('handwriting');
   });
 });
