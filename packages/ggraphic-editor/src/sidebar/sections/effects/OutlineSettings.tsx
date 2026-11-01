@@ -2,7 +2,7 @@
 import { Slider } from 'radix-ui';
 import React from 'react';
 
-import { activeBrand } from '@ggraphic/editor/brand/brandRegistry';
+import { useDocumentBrand } from '@ggraphic/editor/brand/documentBrand';
 import { CustomColorSwatch } from '@ggraphic/editor/components/CustomColorSwatch';
 import { useMessages } from '@ggraphic/editor/i18n/messages';
 import { EffectCard } from '@ggraphic/editor/sidebar/sections/effects/EffectCard';
@@ -18,7 +18,8 @@ const DEFAULT_WIDTH = 2;
 
 /** Kontur eines freien Textes, im Bereich „Effekte“. */
 export function OutlineSettings({ stroke, strokeWidth, onChange }: OutlineSettingsProps) {
-  const { outlines } = activeBrand().effects;
+  const brand = useDocumentBrand();
+  const { outlines } = brand.effects;
   const t = useMessages();
   const enabled = !!stroke && (strokeWidth ?? 0) > 0;
 
@@ -43,8 +44,8 @@ export function OutlineSettings({ stroke, strokeWidth, onChange }: OutlineSettin
               outlineOffset: '2px',
             }}
             onClick={() => onChange({ stroke: c })}
-            title={colorName(c)}
-            aria-label={colorName(c)}
+            title={colorName(c, brand)}
+            aria-label={colorName(c, brand)}
             aria-pressed={stroke === c}
             type="button"
           />

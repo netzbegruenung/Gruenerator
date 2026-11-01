@@ -17,6 +17,12 @@
      "width": 389,
      "fontSize": 46,
      "fontFamily": "GrueneTypeNeue",
+     "bind": {
+      "fontFamily": {
+       "ref": "font.headline",
+       "value": "GrueneTypeNeue"
+      }
+     },
      "fontStyle": "normal",
      "fill": "#FFFFFF",
      "align": "left",
@@ -39,6 +45,12 @@
      "width": 389,
      "fontSize": 46,
      "fontFamily": "GrueneTypeNeue",
+     "bind": {
+      "fontFamily": {
+       "ref": "font.headline",
+       "value": "GrueneTypeNeue"
+      }
+     },
      "fontStyle": "normal",
      "fill": "#FFFFFF",
      "align": "right",
@@ -61,6 +73,12 @@
      "width": 389,
      "fontSize": 46,
      "fontFamily": "GrueneTypeNeue",
+     "bind": {
+      "fontFamily": {
+       "ref": "font.headline",
+       "value": "GrueneTypeNeue"
+      }
+     },
      "fontStyle": "normal",
      "fill": "#FFFFFF",
      "align": "left",
@@ -83,6 +101,12 @@
      "width": 389,
      "fontSize": 46,
      "fontFamily": "GrueneTypeNeue",
+     "bind": {
+      "fontFamily": {
+       "ref": "font.headline",
+       "value": "GrueneTypeNeue"
+      }
+     },
      "fontStyle": "normal",
      "fill": "#FFFFFF",
      "align": "right",
@@ -105,6 +129,12 @@
      "width": 389,
      "fontSize": 46,
      "fontFamily": "GrueneTypeNeue",
+     "bind": {
+      "fontFamily": {
+       "ref": "font.headline",
+       "value": "GrueneTypeNeue"
+      }
+     },
      "fontStyle": "normal",
      "fill": "#FFFFFF",
      "align": "left",
@@ -127,6 +157,12 @@
      "width": 389,
      "fontSize": 46,
      "fontFamily": "GrueneTypeNeue",
+     "bind": {
+      "fontFamily": {
+       "ref": "font.headline",
+       "value": "GrueneTypeNeue"
+      }
+     },
      "fontStyle": "normal",
      "fill": "#FFFFFF",
      "align": "right",
@@ -149,6 +185,12 @@
      "width": 389,
      "fontSize": 46,
      "fontFamily": "GrueneTypeNeue",
+     "bind": {
+      "fontFamily": {
+       "ref": "font.headline",
+       "value": "GrueneTypeNeue"
+      }
+     },
      "fontStyle": "normal",
      "fill": "#FFFFFF",
      "align": "left",
@@ -171,6 +213,12 @@
      "width": 389,
      "fontSize": 46,
      "fontFamily": "GrueneTypeNeue",
+     "bind": {
+      "fontFamily": {
+       "ref": "font.headline",
+       "value": "GrueneTypeNeue"
+      }
+     },
      "fontStyle": "normal",
      "fill": "#FFFFFF",
      "align": "right",
@@ -193,6 +241,12 @@
      "width": 327,
      "fontSize": 52,
      "fontFamily": "GrueneTypeNeue",
+     "bind": {
+      "fontFamily": {
+       "ref": "font.headline",
+       "value": "GrueneTypeNeue"
+      }
+     },
      "fontStyle": "normal",
      "fill": "#FFFFFF",
      "align": "right",
@@ -214,6 +268,12 @@
      "width": 227,
      "fontSize": 113,
      "fontFamily": "GrueneTypeNeue",
+     "bind": {
+      "fontFamily": {
+       "ref": "font.headline",
+       "value": "GrueneTypeNeue"
+      }
+     },
      "fontStyle": "normal",
      "fill": "#FFFFFF",
      "align": "right",

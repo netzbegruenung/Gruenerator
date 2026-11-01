@@ -16,10 +16,12 @@ import React, {
   useCallback,
   useMemo,
   memo,
+  useContext,
   useImperativeHandle,
   useLayoutEffect,
 } from 'react';
 
+import { DocumentBrandContext } from '@ggraphic/editor/brand/documentBrand';
 import { useEmitHostStateChanges } from '@ggraphic/editor/collab/useEmitHostStateChanges';
 import { useYjsCanvasBinding } from '@ggraphic/editor/collab/useYjsCanvasBinding';
 import { stateKeyOfCallback } from '@ggraphic/editor/collab/wrapCallbacksWithPageSync';
@@ -109,6 +111,7 @@ import type { FloatingModuleState } from '../hooks/useFloatingModuleState.js';
 import type { CanvasStageRef } from '../primitives/CanvasStage.js';
 import type { LayerEntry } from '../utils/layerLabels.js';
 import type { LockState } from '../utils/layerLock.js';
+import type { FontRole } from '@ggraphic/core';
 import type { CanvasEditorStoreApi } from '@ggraphic/editor/stores/createCanvasEditorStore';
 import type { ExportOptions } from '@ggraphic/editor/types/editorTypes';
 import type { PageCommandId } from '@ggraphic/editor/utils/canvasCommandRegistry';
@@ -344,6 +347,9 @@ export interface GenericCanvasRef {
   handleColorSelect?: (color: string) => void;
   handleOpacityChange?: (id: string, opacity: number, type: string) => void;
   handleFontSizeChange?: (id: string, size: number) => void;
+  handleFontRoleChange?: (id: string, role: FontRole) => void;
+  /** Schreibt den ausgezeichneten Text eines nur ausgewählten Textes (Format-Knöpfe für den ganzen Text). */
+  handleTextFormatChange?: (id: string, text: string) => void;
   handleShadowChange?: (id: string, patch: ShadowPatch, type: string) => void;
   handleOutlineChange?: (id: string, patch: { stroke?: string; strokeWidth?: number }) => void;
   handleBlurChange?: (id: string, blur: number) => void;
@@ -1120,6 +1126,8 @@ function GenericCanvasWithRef<
       handleColorSelect: (color) => bridgeRef.current?.handleColorSelect(color),
       handleOpacityChange: (id, op, type) => bridgeRef.current?.handleOpacityChange(id, op, type),
       handleFontSizeChange: elementHandlers.handleFontSizeChange,
+      handleFontRoleChange: elementHandlers.handleFontRoleChange,
+      handleTextFormatChange: elementHandlers.handleTextFormatChange,
       handleShadowChange: (id, patch, type) =>
         bridgeRef.current?.handleShadowChange(id, patch, type),
       handleOutlineChange: (id, patch) => bridgeRef.current?.handleOutlineChange(id, patch),
@@ -1139,6 +1147,8 @@ function GenericCanvasWithRef<
       redo,
       flushPendingSaves,
       elementHandlers.handleFontSizeChange,
+      elementHandlers.handleFontRoleChange,
+      elementHandlers.handleTextFormatChange,
       setSelectedElement,
       beginMarquee,
       pendingImages,
@@ -1155,41 +1165,45 @@ function GenericCanvasWithRef<
 
   return (
     <PendingImagesContext.Provider value={pendingImages}>
-      <CanvasStage
-        ref={stageRef}
-        width={stageWidth}
-        height={stageHeight}
-        logicalWidth={referenceWidth}
-        logicalHeight={referenceHeight}
-        responsive
-        maxContainerWidth={maxWidth}
-        onStageClick={handleStageClick}
-        listening={interactive}
-        ariaLabel={stageLabel}
-        className={`${config.id}-stage`}
-        overlay={interactive ? <CropGhostOverlay getStage={getStage} /> : null}
-      >
-        <CanvasRenderLayer
-          sortedRenderList={sortedRenderList}
-          canRotateSelection={canRotateSelection}
-          config={config}
-          state={state}
-          layout={layout}
-          handlers={elementHandlers}
-          getSnapTargets={getSnapTargets}
-          registerGeometry={updateElementPosition}
-          handleSnapChange={handleSnapChange}
-          setSnapLines={setSnapLines}
-          stageWidth={config.canvas.width}
-          stageHeight={config.canvas.height}
-          isFontAvailable={isFontAvailable}
-          remoteSelections={remoteSelections}
-        />
+      {/* The stage draws what has no colour of its own (text markers, the
+          backdrop) in the page's brand. */}
+      <DocumentBrandContext.Provider value={config.brand ?? null}>
+        <CanvasStage
+          ref={stageRef}
+          width={stageWidth}
+          height={stageHeight}
+          logicalWidth={referenceWidth}
+          logicalHeight={referenceHeight}
+          responsive
+          maxContainerWidth={maxWidth}
+          onStageClick={handleStageClick}
+          listening={interactive}
+          ariaLabel={stageLabel}
+          className={`${config.id}-stage`}
+          overlay={interactive ? <CropGhostOverlay getStage={getStage} /> : null}
+        >
+          <CanvasRenderLayer
+            sortedRenderList={sortedRenderList}
+            canRotateSelection={canRotateSelection}
+            config={config}
+            state={state}
+            layout={layout}
+            handlers={elementHandlers}
+            getSnapTargets={getSnapTargets}
+            registerGeometry={updateElementPosition}
+            handleSnapChange={handleSnapChange}
+            setSnapLines={setSnapLines}
+            stageWidth={config.canvas.width}
+            stageHeight={config.canvas.height}
+            isFontAvailable={isFontAvailable}
+            remoteSelections={remoteSelections}
+          />
 
-        <PrintGuides format={format} />
+          <PrintGuides format={format} />
 
-        <SnapGuidelines />
-      </CanvasStage>
+          <SnapGuidelines />
+        </CanvasStage>
+      </DocumentBrandContext.Provider>
 
       {/* Renderless bridge: owns all selectedElement-derived computation.
           Re-renders only this component (returns null) on selection change,
@@ -1240,16 +1254,24 @@ function GenericCanvasWithProvider<
   TState extends Record<string, unknown> & Partial<BaseCanvasState>,
   TActions extends OptionalCanvasActions,
 >(props: GenericCanvasProps<TState, TActions> & { forwardedRef?: React.Ref<GenericCanvasRef> }) {
+  // The page draws its defaults (the marker of a text without a marker style)
+  // in the brand of ITS document, wherever it is mounted: in the editor shell,
+  // embedded, or in an offscreen root for a preview or an export, where no
+  // shell provides one. A config that names none leaves the context as it is.
+  const outerBrand = useContext(DocumentBrandContext);
+  const brand = props.config.brand ?? outerBrand;
   return (
-    <CanvasStoreProvider initialFormatId={props.formatId}>
-      {props.pageBinding ? (
-        <CanvasYjsBindingMount
-          pageYMap={props.pageBinding.pageYMap}
-          isSynced={props.pageBinding.isSynced}
-        />
-      ) : null}
-      <MemoizedGenericCanvas {...props} />
-    </CanvasStoreProvider>
+    <DocumentBrandContext.Provider value={brand}>
+      <CanvasStoreProvider initialFormatId={props.formatId}>
+        {props.pageBinding ? (
+          <CanvasYjsBindingMount
+            pageYMap={props.pageBinding.pageYMap}
+            isSynced={props.pageBinding.isSynced}
+          />
+        ) : null}
+        <MemoizedGenericCanvas {...props} />
+      </CanvasStoreProvider>
+    </DocumentBrandContext.Provider>
   );
 }
 

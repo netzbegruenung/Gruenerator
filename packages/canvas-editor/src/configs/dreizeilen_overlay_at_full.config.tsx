@@ -12,7 +12,9 @@
  * setters below.
  */
 
-import { getBrandTheme } from '../brand/theme';
+import { getPlaceholder } from '@ggraphic/editor/configs/placeholders';
+
+import { getBrandPack, getBrandTheme } from '../brand/theme';
 import { OVERLAY_AT_CONFIG, calculateOverlayAtLayout } from '../utils/overlayAtLayout';
 
 import { DEFAULT_PHOTO_BACKGROUND_AT, PHOTO_BACKGROUND_COLORS_AT } from './backgroundPalettes';
@@ -26,7 +28,6 @@ import {
   type ImageTwoTextActions,
   type ImageTwoTextState,
 } from './factory';
-import { getPlaceholder } from '@ggraphic/editor/configs/placeholders';
 
 import type {
   FullCanvasConfig,
@@ -227,6 +228,8 @@ const baseOverlayAtConfig = createImageTwoTextCanvas({
   ],
   elements: [boxElement, line1Element, accentElement, line3Element, sublineElement, logoElement],
   features: { icons: true, shapes: true, illustrations: true },
+  // Neue Texte, Badges, Rahmen und Formen beginnen im österreichischen Markenpaket.
+  brand: getBrandPack('de-AT'),
   backgroundColors: PHOTO_BACKGROUND_COLORS_AT,
   defaultBackgroundColor: DEFAULT_PHOTO_BACKGROUND_AT,
   getCanvasText: (state) =>

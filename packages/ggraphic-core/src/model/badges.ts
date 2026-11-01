@@ -2,6 +2,7 @@
 /**
  * Kreis- und Pillen-Badges.
  */
+import { type ElementBind } from './bind.js';
 
 export interface CircleBadgeTextLine {
   text: string;
@@ -39,6 +40,8 @@ export interface PillBadgeInstance {
   textColor: string;
   fontSize: number;
   fontFamily: string;
+  /** Die Marken-Rolle, aus der `fontFamily` stammt; fehlt bei Pillen, die jemand frei gesetzt hat. */
+  bind?: ElementBind;
   fontStyle: PillBadgeFontStyle;
   rotation: number;
   scale: number;

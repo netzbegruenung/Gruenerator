@@ -19,7 +19,7 @@ import {
 } from 'react';
 import { Stage, Layer, Group, Rect } from 'react-konva';
 
-import { activeBrand } from '@ggraphic/editor/brand/brandRegistry';
+import { useDocumentBrand } from '@ggraphic/editor/brand/documentBrand';
 import { CanvasTextEditorProvider } from '@ggraphic/editor/components/CanvasTextOverlay';
 import { TransformHud } from '@ggraphic/editor/components/TransformHud';
 import { useHoverOutline } from '@ggraphic/editor/hooks/useHoverOutline';
@@ -192,6 +192,7 @@ export const CanvasStage = forwardRef<CanvasStageRef, CanvasStageProps>(
     },
     ref
   ) => {
+    const surface = useDocumentBrand().colors.surface;
     const displayStageRef = useRef<Konva.Stage>(null);
     const containerDivRef = useRef<HTMLDivElement>(null);
     const [containerSize, setContainerSize] = useState({ width: 400, height: 400 });
@@ -463,13 +464,7 @@ export const CanvasStage = forwardRef<CanvasStageRef, CanvasStageProps>(
                       or color); for non-sharepic formats (Story, Präsentation,
                       Flyer, Plakat) we render the brand's light surface behind the
                       scaled design so it never sits on a transparent canvas. */}
-                  <Rect
-                    x={0}
-                    y={0}
-                    width={width}
-                    height={height}
-                    fill={activeBrand().colors.surface}
-                  />
+                  <Rect x={0} y={0} width={width} height={height} fill={surface} />
                   <Group scaleX={width / logicalWidth} scaleY={height / logicalHeight}>
                     {children}
                   </Group>

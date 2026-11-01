@@ -1,7 +1,9 @@
 // SPDX-License-Identifier: MPL-2.0
+import { bindFontRole, type FontRole } from '@ggraphic/core';
 import { useCallback, useMemo } from 'react';
 
 import { type LiftedBlock } from '../blocks/liftedBlock.js';
+import { activeBrand } from '../brand/brandRegistry.js';
 import { resolveValue } from '../utils/canvasValueResolver.js';
 import {
   isTemplateElementRotatable,
@@ -142,6 +144,13 @@ export interface UseCanvasElementHandlersResult {
   handleElementSelect: (id: string) => void;
   handleTextChange: (id: string, text: string) => void;
   handleFontSizeChange: (id: string, size: number) => void;
+  /** Sets a free text to a role of the page's brand fonts; a text that is not one is left alone. */
+  handleFontRoleChange: (id: string, role: FontRole) => void;
+  /**
+   * Writes the formatted text of a free text that is selected and not edited (the format buttons
+   * act on the whole text), through the host's `updateAdditionalText`.
+   */
+  handleTextFormatChange: (id: string, text: string) => void;
   handleElementPositionChange: (id: string, x: number, y: number, w: number, h: number) => void;
   handleImageDragEnd: (id: string, x: number, y: number) => void;
   handleImageTransformEnd: (
@@ -274,6 +283,15 @@ export function useCanvasElementHandlers<
     [config.elements, setState, callbacks, debouncedSaveToHistory, state]
   );
 
+  const handleTextFormatChange = useCallback(
+    (id: string, text: string) => {
+      if (!getStateArray<{ id: string }>(state, 'additionalTexts').some((t) => t.id === id)) return;
+      // Like a typed edit: the host refits the text and re-hugs its plates, and records the step.
+      actions.updateAdditionalText?.(id, { text });
+    },
+    [state, actions]
+  );
+
   const handleFontSizeChange = useCallback(
     (id: string, size: number) => {
       const elementConfig = config.elements.find((e) => e.id === id);
@@ -291,6 +309,16 @@ export function useCanvasElementHandlers<
       }
     },
     [config.elements, state, actions, setState, debouncedSaveToHistory]
+  );
+
+  const handleFontRoleChange = useCallback(
+    (id: string, role: FontRole) => {
+      if (!getStateArray<{ id: string }>(state, 'additionalTexts').some((t) => t.id === id)) return;
+      const font = bindFontRole((config.brand ?? activeBrand()).fonts, role);
+      // updateAdditionalText saves history itself with the post-change state
+      if (font) actions.updateAdditionalText?.(id, font);
+    },
+    [config.brand, state, actions]
   );
 
   const handleElementPositionChange = useCallback(
@@ -612,6 +640,8 @@ export function useCanvasElementHandlers<
       handleElementSelect,
       handleTextChange,
       handleFontSizeChange,
+      handleFontRoleChange,
+      handleTextFormatChange,
       handleElementPositionChange,
       handleImageDragEnd,
       handleImageTransformEnd,
@@ -645,6 +675,8 @@ export function useCanvasElementHandlers<
       handleElementSelect,
       handleTextChange,
       handleFontSizeChange,
+      handleFontRoleChange,
+      handleTextFormatChange,
       handleElementPositionChange,
       handleImageDragEnd,
       handleImageTransformEnd,

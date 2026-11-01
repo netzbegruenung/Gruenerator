@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MPL-2.0
-import { type ShapeInstance, type ShapeType } from '@ggraphic/core';
+import { type BrandPack, type ShapeInstance, type ShapeType } from '@ggraphic/core';
 
 import { messages } from '@ggraphic/editor/i18n/messages';
 
@@ -860,7 +860,9 @@ export const createShape = (
   x: number,
   y: number,
   color: string,
-  explicitColor?: string
+  explicitColor?: string,
+  /** The pack a marker shape takes its first box colour from; the active brand by default. */
+  brand?: BrandPack
 ): ShapeInstance => {
   const dims = DEFAULT_DIMENSIONS[type] ?? {
     width: DEFAULT_SHAPE_SIZE,
@@ -875,7 +877,7 @@ export const createShape = (
     height: dims.height,
     fill:
       explicitColor ??
-      (MARKER_SHAPES.has(type) ? defaultMarkerFill() : DEFAULT_FILL_OVERRIDE[type]) ??
+      (MARKER_SHAPES.has(type) ? defaultMarkerFill(brand) : DEFAULT_FILL_OVERRIDE[type]) ??
       color,
     rotation: 0,
     scaleX: 1,

@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MPL-2.0
 
 import type { CanvasStageRef } from '../primitives/CanvasStage.js';
+import type { BrandPack } from '@ggraphic/core';
 import type { HostCanvasAiCapabilities } from '@ggraphic/editor/ai/types';
 import type { StockImageAttribution } from '@ggraphic/editor/common/imageSourceTypes';
 import type { BackgroundType, TextFieldConfig } from '@ggraphic/editor/configs/unifiedTabs';
@@ -289,7 +290,7 @@ export interface SectionContext {
   specEdit?: CanvasSpecEditBridge;
   /** The page's background controls, for sections that set the background. */
   background?: BackgroundControls | null;
-  /** The page's chart palette (`FullCanvasConfig.chartColors`). */
+  /** The page's chart palette (`FullCanvasConfig.brand.chart`). */
   chartColors?: readonly string[];
   onDownload?: () => void;
   onNavigateToGallery?: () => void;
@@ -431,8 +432,14 @@ export interface FullCanvasConfig<
   ) => TActions;
   /** The background's colour and photo controls for the context bar. */
   background?: (state: TState, actions: TActions) => BackgroundControls;
-  /** Series colours for charts on this page, its country's palette; absent: the active brand's (`chartColors()`). */
-  chartColors?: readonly string[];
+  /**
+   * The brand this page's new elements take their defaults from: fonts,
+   * colours, chart series, effect swatches. Absent: the active brand
+   * (`activeBrand()`), the first registered pack. A document of another pack
+   * than the first names its own, because the registry is one module-level
+   * list for every editor in the host.
+   */
+  brand?: BrandPack;
   /** Optional function to determine disabled tabs */
   getDisabledTabs?: (state: TState) => SidebarTabId[];
   /** Optional function to determine visible tabs.
