@@ -1,7 +1,6 @@
+import { writePptx, type WritePptxDeps } from '@ggraphic/editor/export/pptx/writePptx';
 import { strFromU8, unzipSync } from 'fflate';
 import { describe, expect, it, vi } from 'vitest';
-
-import { writePptx, type WritePptxDeps } from '@ggraphic/editor/export/pptx/writePptx';
 
 import type {
   PptxDeckModel,
@@ -101,6 +100,8 @@ const headline: PptxTextItem = {
   color: '#FFFFFF',
   bold: false,
   italic: false,
+  letterSpacing: 0,
+  strikethrough: false,
   align: 'center',
   valign: 'top',
   lineHeight: 1.2,
