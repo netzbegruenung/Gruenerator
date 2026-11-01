@@ -1,4 +1,3 @@
-// SPDX-License-Identifier: MPL-2.0
 /**
  * What the sharepic composer sets differently per brand, as data. Each field
  * replaces an `isAt` branch in `composer/`; the pack holds the values, the
@@ -184,4 +183,10 @@ export interface ByGround<T> {
   light: T;
   dark: T;
   grass?: T;
+}
+
+/** The value for a slide's ground; `onLight` and `onGrass` never hold together. */
+export function onGround<T>(value: ByGround<T>, ground: { onLight: boolean; onGrass: boolean }): T {
+  if (ground.onLight) return value.light;
+  return ground.onGrass && value.grass !== undefined ? value.grass : value.dark;
 }

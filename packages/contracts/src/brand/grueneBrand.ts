@@ -17,7 +17,7 @@
  * Ein-Balken-Logo "G DIE GRÜNEN".
  */
 
-import { type BackgroundColorOption, type BrandPack, type ComposerBrand } from '@ggraphic/core';
+import { type BackgroundColorOption, type BrandPack } from '@ggraphic/core';
 
 import {
   brandIdFor,
@@ -25,6 +25,10 @@ import {
   type SharepicBrandId,
   type SharepicColor,
 } from '../schemas/sharepicCreator.js';
+
+import { type ComposerBrand } from './composerBrand.js';
+
+export { type ByGround, type ComposerBrand, onGround } from './composerBrand.js';
 
 export const GRUENE_SYSTEM_ASSETS = {
   sunflower: {
