@@ -99,8 +99,9 @@ describe('Format-Ids', () => {
   });
 
   it('Print steht nicht in den Studio-Gruppen', () => {
-    // The editor's built-in groups (ggraphic #114), then ours (`registerGrueneFormats`).
-    expect(canvasFormatGroupOrder()).toEqual(['post', 'square', 'slides', 'sharepic-tall']);
+    // The editor's built-in groups (ggraphic #114), ours placed by `registerGrueneFormats`:
+    // the 3:4 sharepics right after the 4:5 posts, as before.
+    expect(canvasFormatGroupOrder()).toEqual(['post', 'sharepic-tall', 'square', 'slides']);
   });
 });
 

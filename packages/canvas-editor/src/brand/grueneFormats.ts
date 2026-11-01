@@ -1,4 +1,8 @@
-import { registerCanvasFormatGroups, registerCanvasFormats } from '@ggraphic/editor/host';
+import {
+  CANVAS_FORMAT_GROUP_ORDER,
+  registerCanvasFormatGroups,
+  registerCanvasFormats,
+} from '@ggraphic/editor/host';
 import {
   LEGACY_CANVAS_FORMAT_GROUPS,
   LEGACY_CANVAS_FORMATS,
@@ -17,6 +21,13 @@ import {
  * that catalogue goes (D2f).
  */
 export function registerGrueneFormats(): void {
-  registerCanvasFormatGroups(LEGACY_CANVAS_FORMAT_GROUPS);
+  // „Sharepics 3:4“ stays where it was in the picker: right after the 4:5 posts.
+  registerCanvasFormatGroups(
+    LEGACY_CANVAS_FORMAT_GROUPS.map((group) =>
+      group.id === 'sharepic-tall'
+        ? { ...group, order: CANVAS_FORMAT_GROUP_ORDER.post + 50 }
+        : group
+    )
+  );
   registerCanvasFormats(LEGACY_CANVAS_FORMATS);
 }
