@@ -6,7 +6,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 // `constants` object does not typecheck.
 import { Platform } from '../test/stubs/react-native';
 
-import { DEV_AUTH_BYPASS, DEV_BYPASS_USER, isEmulator } from './devAuth';
+import { DEV_AUTH_BYPASS, DEV_BYPASS_USER, devBypassHeaders, isEmulator } from './devAuth';
 
 /**
  * The dev login bypass must never run anywhere but a throwaway emulator. Two
@@ -73,6 +73,11 @@ describe('DEV_AUTH_BYPASS', () => {
     // asserts the shipped value — the gate that survives a stray .env on a build
     // machine.
     expect(DEV_AUTH_BYPASS).toBe(false);
+  });
+
+  it('sends no bypass header in a release bundle, even with a token set', () => {
+    process.env.EXPO_PUBLIC_DEV_AUTH_BYPASS_TOKEN = 'leaked-token';
+    expect(devBypassHeaders()).toEqual({});
   });
 });
 

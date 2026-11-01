@@ -5,6 +5,7 @@ import { useNoticeStore } from '../stores/noticeStore';
 import { getErrorMessage } from '../utils/errors';
 
 import { resolveChatUrl } from './chatApiUrl';
+import { devBypassHeaders } from './devAuth';
 import { secureStorage } from './storage';
 import { WEB_ORIGIN } from './webOrigin';
 
@@ -19,6 +20,7 @@ async function mobileFetch(url: string, options?: RequestInit): Promise<Response
     headers: {
       ...options?.headers,
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      ...devBypassHeaders(),
     },
   });
 }

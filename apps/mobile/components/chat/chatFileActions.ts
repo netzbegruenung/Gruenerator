@@ -1,6 +1,7 @@
 import { useChatConfigStore } from '@gruenerator/chat';
 import { File, Paths } from 'expo-file-system';
 
+import { devBypassHeaders } from '../../services/devAuth';
 import { secureStorage } from '../../services/storage';
 
 const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'https://gruenerator.eu/api';
@@ -22,7 +23,7 @@ export async function downloadDocumentPdf(document: {
   // carries the /api suffix.
   const url = `${API_BASE_URL.replace(/\/api\/?$/, '')}${document.url}`;
   const response = await fetch(url, {
-    headers: token ? { Authorization: `Bearer ${token}` } : {},
+    headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}), ...devBypassHeaders() },
   });
   if (!response.ok) throw new Error(`Download fehlgeschlagen (${response.status})`);
 

@@ -78,3 +78,17 @@ export const DEV_BYPASS_USER: User = {
   // hardware and out of release bundles.
   ai_consent_at: '2026-01-01T00:00:00.000Z',
 };
+
+/**
+ * The header a local API with `ALLOW_DEV_AUTH_BYPASS=true` accepts in place of a
+ * session (`apps/api/middleware/authMiddleware.ts`). The bypass user has no
+ * token, so without it every request that reaches a backend is a 401 and the
+ * bypass stays a UI shell. Empty unless the bypass is on AND
+ * `EXPO_PUBLIC_DEV_AUTH_BYPASS_TOKEN` is set, so it adds nothing to production
+ * requests. Production rejects the header anyway.
+ */
+export function devBypassHeaders(): Record<string, string> {
+  const raw: unknown = process.env.EXPO_PUBLIC_DEV_AUTH_BYPASS_TOKEN;
+  const token = typeof raw === 'string' ? raw : '';
+  return DEV_AUTH_BYPASS && token ? { 'x-dev-auth-bypass': token } : {};
+}

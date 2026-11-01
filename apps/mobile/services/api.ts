@@ -11,7 +11,7 @@ import Constants from 'expo-constants';
 import { Platform } from 'react-native';
 
 import { appIdentityHeaders } from './appUpdate';
-import { DEV_AUTH_BYPASS } from './devAuth';
+import { DEV_AUTH_BYPASS, devBypassHeaders } from './devAuth';
 import { Updates } from './expoUpdates';
 import { secureStorage } from './storage';
 
@@ -104,7 +104,9 @@ export function initializeApiClient(): void {
     createdAt: Updates?.createdAt ?? null,
   });
   client.interceptors.request.use((config) => {
-    for (const [name, value] of Object.entries(identity)) config.headers[name] = value;
+    for (const [name, value] of Object.entries({ ...identity, ...devBypassHeaders() })) {
+      config.headers[name] = value;
+    }
     return config;
   });
 
