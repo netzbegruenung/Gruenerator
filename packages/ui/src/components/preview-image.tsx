@@ -170,8 +170,7 @@ export function PreviewImage({
       alt={alt}
       className={cn(!sources && imgClass, className)}
       loading={priority ? 'eager' : 'lazy'}
-      // @ts-expect-error fetchpriority is a valid DOM attribute not yet in React's types
-      fetchpriority={priority ? 'high' : 'low'}
+      fetchPriority={priority ? 'high' : 'low'}
       decoding="async"
       width={width}
       height={height}
