@@ -95,6 +95,8 @@ const LIGHT: readonly SharepicColor[] = [
   'apricot',
   'lavendel',
   'pink',
+  // Every stop of the website gradient carries black (lavendel, its darkest, 7:1).
+  'verlauf',
   'maigruen',
   'gelb',
 ];

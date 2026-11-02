@@ -320,6 +320,7 @@ export const SHAREPIC_COLOR_LABELS: Record<SharepicColor, string> = {
   himmelblau: 'Himmelblau',
   limette: 'Hellgrün',
   wiese: 'Grün',
+  verlauf: 'Verlauf',
   apricot: 'Apricot',
   lavendel: 'Lavendel',
   pink: 'Pink',

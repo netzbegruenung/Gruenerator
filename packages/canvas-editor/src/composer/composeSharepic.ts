@@ -81,6 +81,7 @@ import {
   SCRIM_GUTTER,
   SCRIM_TEXT_ALPHA,
   evenStops,
+  groundGradient,
   scrimFill,
 } from './sharepicGround';
 import {
@@ -351,13 +352,8 @@ function composeSlide(
     surface = kopfband ?? bg.color;
     const gradient = GRADIENTS[bg.color];
     if (gradient) {
-      const { stops } = gradient;
-      const bgPlane = rect('sc-bg', 0, 0, canvas.width, canvas.height, stops[1]!);
-      bgPlane.fillGradient = {
-        type: gradient.type ?? 'linear',
-        angle: gradient.angle,
-        stops: evenStops(stops),
-      };
+      const bgPlane = rect('sc-bg', 0, 0, canvas.width, canvas.height, gradient.stops[1]!);
+      bgPlane.fillGradient = groundGradient(gradient, canvas.width, canvas.height);
       addShape(bgPlane);
     }
   } else if (bg.kind === 'foto-oben') {
