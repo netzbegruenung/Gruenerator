@@ -29,6 +29,14 @@ function MarketplacePage(): JSX.Element {
         (next.collection !== null && filters.collection === null) ||
         (next.category !== null && filters.category === null);
       setParams(serializeMarketplaceParams(next), { replace: !opens });
+      // The page stays the same route, so nothing resets the scroll: a view opened from
+      // further down (also the next collection from the end of one) would start mid-page.
+      const showsOther =
+        (next.item !== null &&
+          (next.item.kind !== filters.item?.kind || next.item.ref !== filters.item.ref)) ||
+        (next.collection !== null && next.collection !== filters.collection) ||
+        (next.category !== null && next.category !== filters.category);
+      if (showsOther) window.scrollTo({ top: 0, behavior: 'instant' });
     },
     [setParams, filters.item, filters.collection, filters.category]
   );
