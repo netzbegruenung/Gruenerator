@@ -9,6 +9,11 @@ import { marketplaceContract, type MarketplacePlatform } from '@gruenerator/cont
 import { createExpressEndpoints, initServer } from '@ts-rest/express';
 
 import { extractLocaleFromRequest } from '../../services/localization/index.js';
+import {
+  listSubscribedCollectionIds,
+  subscribeCollection,
+  unsubscribeCollection,
+} from '../../services/marketplace/collectionSubscriptionService.js';
 import { buildMarketplaceContext } from '../../services/marketplace/context.js';
 import {
   getMarketplaceFrontpage,
@@ -136,6 +141,36 @@ export const marketplaceContractRouter = s.router(marketplaceContract, {
     } catch (error) {
       log.error('[marketplaceContract.unsave] Error:', error);
       return serverError('Entfernen fehlgeschlagen.');
+    }
+  },
+
+  subscriptions: async ({ req }) => {
+    try {
+      const collectionIds = await listSubscribedCollectionIds(getAuthedUser(req).id);
+      return { status: 200 as const, body: { collectionIds } };
+    } catch (error) {
+      log.error('[marketplaceContract.subscriptions] Error:', error);
+      return serverError('Fehler beim Laden der Abos.');
+    }
+  },
+
+  subscribe: async ({ req, params }) => {
+    try {
+      await subscribeCollection(getAuthedUser(req).id, params.collectionId);
+      return { status: 200 as const, body: { subscribed: true } };
+    } catch (error) {
+      log.error('[marketplaceContract.subscribe] Error:', error);
+      return serverError('Abonnieren fehlgeschlagen.');
+    }
+  },
+
+  unsubscribe: async ({ req, params }) => {
+    try {
+      await unsubscribeCollection(getAuthedUser(req).id, params.collectionId);
+      return { status: 200 as const, body: { subscribed: false } };
+    } catch (error) {
+      log.error('[marketplaceContract.unsubscribe] Error:', error);
+      return serverError('Abbestellen fehlgeschlagen.');
     }
   },
 });
