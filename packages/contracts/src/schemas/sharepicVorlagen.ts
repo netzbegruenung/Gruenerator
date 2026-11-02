@@ -60,6 +60,14 @@ export const sharepicVorlageSchema = sharepicVorlageFileEntrySchema.extend({
   locale: sharepicCreatorLocaleSchema,
   /** Stock photo credits, one per slide (null on colour or painted slides). */
   attributions: z.array(sharepicPhotoAttributionSchema.nullable()),
+  /**
+   * Credits for the preview images, one per slide, set only when a preview
+   * shows a stand-in photo instead of the Vorlage's own (`vorschau-fotos.json`
+   * in the private repo). A stand-in slide has null: the stand-ins carry no
+   * credit, and the stock photographer's must not appear under a photo that
+   * isn't theirs. A copy keeps the stock photos and `attributions`.
+   */
+  previewAttributions: z.array(sharepicPhotoAttributionSchema.nullable()).optional(),
   /** Content hash of the preview images; clients pass it on to `sharepicVorlageThumbPath`. */
   thumbVersion: z.string().optional(),
 });
