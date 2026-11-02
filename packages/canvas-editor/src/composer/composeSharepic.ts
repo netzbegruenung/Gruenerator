@@ -12,18 +12,23 @@
  *
  * Pure: no React, no Konva. Text is measured through the injected `measure`.
  */
-import { foldMarkers, stripMarks } from '@ggraphic/editor/composer/marks';
-import { balancedWrap, largestSizeWordsFit, wrapWords } from '@ggraphic/editor/composer/textFit';
 import {
-  DEFAULT_FORMAT_ID,
-  getCanvasFormatOrDefault,
-  type CanvasFormat,
-} from '@ggraphic/editor/formats/index';
-import { ASSET_TARGET_SIZE } from '@ggraphic/editor/utils/canvasAssets';
-import { contrastRatio, luminance } from '@ggraphic/editor/utils/colorLuminance';
-import { createPillBadgeInstance } from '@ggraphic/editor/utils/pillBadgeUtils';
-import { createShape, type ShapeInstance } from '@ggraphic/editor/utils/shapes';
-import { type TextAccent } from '@ggraphic/editor/utils/textUtils';
+  ASSET_TARGET_SIZE,
+  createPillBadgeInstance,
+  createShape,
+  type ShapeInstance,
+} from '@ggraphic/editor/elements';
+import { getCanvasFormatOrDefault, type CanvasFormat } from '@ggraphic/editor/host';
+import { foldMarkers } from '@ggraphic/editor/internal/composer/marks';
+import { contrastRatio, luminance } from '@ggraphic/editor/internal/utils/colorLuminance';
+import { DEFAULT_FORMAT_ID } from '@ggraphic/editor/templates';
+import {
+  stripMarks,
+  balancedWrap,
+  largestSizeWordsFit,
+  wrapWords,
+  type TextAccent,
+} from '@ggraphic/editor/text';
 import {
   accentLines,
   brandIdFor,
@@ -116,18 +121,13 @@ import { STOERER_RADII } from './stoererFit';
 import { layoutFaktencheck, layoutVergleich } from './vergleichLayout';
 import { layoutFrage, layoutZitat } from './zitatLayout';
 
-import type { AdditionalText } from '@ggraphic/editor/configs/types';
+import type { AdditionalText } from '@ggraphic/editor/config';
 
 export { SHAREPIC_COLOR_HEX, type MeasureText };
 export { SCRIM_MAX } from './sharepicGround';
 export type { ComposedSharepic, ComposedSlide, ComposeOptions, PhotoTone } from './composeTypes';
-export {
-  balancedWrap,
-  fitStoererText,
-  largestSizeWordsFit,
-  STOERER_LINE_STEP,
-  wrapWords,
-} from '@ggraphic/editor/composer/textFit';
+export { balancedWrap, largestSizeWordsFit, wrapWords } from '@ggraphic/editor/text';
+export { fitStoererText, STOERER_LINE_STEP } from '@ggraphic/editor/internal/composer/textFit';
 
 /** A photo tinted green, as the posts set people: DE in Klee, AT in its light green. */
 const BILD_TINT: Record<SharepicBrandId, string> = {

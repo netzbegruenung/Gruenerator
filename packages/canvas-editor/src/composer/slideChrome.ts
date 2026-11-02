@@ -1,7 +1,9 @@
-import { wrapWords } from '@ggraphic/editor/composer/textFit';
-import { ASSET_TARGET_SIZE } from '@ggraphic/editor/utils/canvasAssets';
-import { createCircleBadgeInstance } from '@ggraphic/editor/utils/circleBadgeUtils';
-import { createShape } from '@ggraphic/editor/utils/shapes';
+import {
+  ASSET_TARGET_SIZE,
+  createCircleBadgeInstance,
+  createShape,
+} from '@ggraphic/editor/elements';
+import { wrapWords } from '@ggraphic/editor/text';
 import { type SharepicSeitenzahl, type SharepicSlide } from '@gruenerator/contracts';
 import { type ComposerBrand, onGround } from '@gruenerator/contracts/brand';
 
