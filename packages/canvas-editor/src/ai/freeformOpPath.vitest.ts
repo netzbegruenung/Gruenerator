@@ -4,12 +4,12 @@
  * update-element must reach texts — otherwise "Verschieb den Text nach oben"
  * and "Schrift größer" have nothing to act on.
  */
-import { getCanvasFormatOrDefault } from '@ggraphic/editor/formats/index';
+import { applyOperation } from '@ggraphic/editor/ai';
+import { type RotateElement } from '@ggraphic/editor/internal/ai/applyOperation';
+import { getCanvasFormatOrDefault } from '@ggraphic/editor/templates';
 import { describe, expect, it, vi } from 'vitest';
 
 import { createFreeformFullConfig, type FreeformState } from '../configs/freeform_full.config';
-
-import { applyOperation, type RotateElement } from '@ggraphic/editor/ai/applyOperation';
 
 const SEED = {
   backgroundMode: 'color',

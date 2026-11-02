@@ -1,4 +1,5 @@
-import { CanvasEditorProvider } from '@ggraphic/editor/CanvasEditorProvider';
+import { ShareDropdown } from '@ggraphic/editor/internal/components/TopBar/ShareDropdown';
+import { CanvasEditorProvider } from '@ggraphic/editor/shell';
 import {
   downloadBlob,
   downloadDataUrl,
@@ -9,8 +10,6 @@ import {
 import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-
-import { ShareDropdown } from '@ggraphic/editor/components/TopBar/ShareDropdown';
 
 /**
  * Androids System-WebView kennt kein `navigator.share` — in der App verschwand

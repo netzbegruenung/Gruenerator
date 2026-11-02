@@ -1,10 +1,10 @@
+import { DownloadSection } from '@ggraphic/editor/internal/components/TopBar/DownloadSection';
+import { CanvasEditorProvider } from '@ggraphic/editor/shell';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 
-import { CanvasEditorProvider } from '@ggraphic/editor/CanvasEditorProvider';
 import { grueneratorCarousel } from '../../../composer/sharepicServices';
-import { DownloadSection } from '@ggraphic/editor/components/TopBar/DownloadSection';
 
 describe('DownloadSection slide decks', () => {
   it('defaults to PowerPoint, shows its progress and the font hint', async () => {

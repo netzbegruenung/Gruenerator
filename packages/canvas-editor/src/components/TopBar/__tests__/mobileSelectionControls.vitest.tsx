@@ -1,8 +1,7 @@
-import { CanvasStoreProvider } from '@ggraphic/editor/stores/CanvasStoreProvider';
+import { MobileSelectionControls } from '@ggraphic/editor/internal/components/TopBar/MobileSelectionControls';
+import { CanvasStoreProvider } from '@ggraphic/editor/store';
 import { render, screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
-
-import { MobileSelectionControls } from '@ggraphic/editor/components/TopBar/MobileSelectionControls';
 
 /**
  * Mobil gibt es keine eigene Kontextleiste mehr: der Auswahl-Block oben im

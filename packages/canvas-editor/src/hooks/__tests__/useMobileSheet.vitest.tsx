@@ -1,8 +1,7 @@
-import { useMobileSheet } from '@ggraphic/editor/hooks/useMobileSheet';
+import { useMobileSheet } from '@ggraphic/editor/internal/hooks/useMobileSheet';
+import { SidebarPanel } from '@ggraphic/editor/sidebar';
 import { act, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-
-import { SidebarPanel } from '@ggraphic/editor/sidebar/SidebarPanel';
 
 function setMobileViewport() {
   window.matchMedia = vi.fn().mockImplementation((query: string) => ({

@@ -1,8 +1,6 @@
-import {
-  EDITOR_KEY_SHIELD_ATTRIBUTE,
-  usePageUndoRedoShortcuts,
-} from '@ggraphic/editor/components/CanvasEditor/hooks/usePageUndoRedoShortcuts';
-import { type HistoryStamps } from '@ggraphic/editor/utils/historyStamp';
+import { usePageUndoRedoShortcuts } from '@ggraphic/editor/internal/components/CanvasEditor/hooks/usePageUndoRedoShortcuts';
+import { type HistoryStamps } from '@ggraphic/editor/internal/utils/historyStamp';
+import { EDITOR_KEY_SHIELD_ATTRIBUTE } from '@ggraphic/editor/shell';
 import { renderHook } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 

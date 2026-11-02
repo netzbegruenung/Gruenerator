@@ -3,7 +3,7 @@
  * `aria-dialog-name` (#4911). Jedes Popover der Kontextleiste trägt deshalb
  * die sichtbare Überschrift als Namen.
  */
-import { BackgroundZoomControl } from '@ggraphic/editor/components/TopBar/modules/FloatingBackgroundControls';
+import { BackgroundZoomControl } from '@ggraphic/editor/internal/components/TopBar/modules/FloatingBackgroundControls';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it } from 'vitest';

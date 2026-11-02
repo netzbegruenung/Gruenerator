@@ -3,7 +3,7 @@
  * the brand packs. These are the values the editor had before, written out, so
  * the Grünerator keeps them exactly.
  */
-import { activeBrand, registeredBrands } from '@ggraphic/editor/brand/brandRegistry';
+import { activeBrand, registeredBrands } from '@ggraphic/editor/brand';
 import { describe, expect, it } from 'vitest';
 
 import { GRUENE_AT, GRUENE_DE, getBrandPack } from './theme';

@@ -1,21 +1,22 @@
 import {
+  exportPrintPdf,
+  lowResolutionWarnings,
+  type PrintExportPage,
+} from '@ggraphic/editor/export';
+import {
+  planPrintPage,
+  printPdfFilename,
+  printPixelRatio,
+} from '@ggraphic/editor/internal/export/printExport';
+import {
   getCanvasFormat,
   isPrintFormat,
   mmToPx,
   type PrintCanvasFormat,
-} from '@ggraphic/editor/formats/index';
+} from '@ggraphic/editor/templates';
 import { createCanvas } from '@napi-rs/canvas';
 import { PDFDocument } from 'pdf-lib';
 import { describe, expect, it, vi } from 'vitest';
-
-import {
-  exportPrintPdf,
-  lowResolutionWarnings,
-  planPrintPage,
-  printPdfFilename,
-  printPixelRatio,
-  type PrintExportPage,
-} from '@ggraphic/editor/export/printExport';
 
 function printFormat(id: string): PrintCanvasFormat {
   const f = getCanvasFormat(id);

@@ -1,5 +1,5 @@
-import { loadCanvasConfig } from '@ggraphic/editor/configs/configLoader';
-import { measureTextWidthWithFont } from '@ggraphic/editor/utils/textUtils';
+import { loadCanvasConfig } from '@ggraphic/editor/config';
+import { measureTextWidthWithFont } from '@ggraphic/editor/text';
 import { describe, it, expect, beforeAll } from 'vitest';
 
 import { getBrandTheme } from '../../brand/theme';

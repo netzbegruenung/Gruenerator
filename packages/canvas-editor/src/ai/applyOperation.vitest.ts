@@ -1,8 +1,5 @@
+import { applyOperation, type TemplateAiCapabilities } from '@ggraphic/editor/ai';
 import { describe, expect, it } from 'vitest';
-
-import { applyOperation } from '@ggraphic/editor/ai/applyOperation';
-
-import type { TemplateAiCapabilities } from '@ggraphic/editor/ai/types';
 
 type HostOp = { kind: 'set-text'; field: string; label: string; value: string } | HostOnly;
 type HostOnly = { kind: 'host-only'; on: boolean };

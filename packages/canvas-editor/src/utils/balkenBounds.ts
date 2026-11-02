@@ -3,7 +3,7 @@
  * group lands on the canvas once its offset, scale and rotation are applied.
  */
 
-import { runMeasurer } from '@ggraphic/editor/utils/textUtils';
+import { runMeasurer } from '@ggraphic/editor/text';
 import { type RunStyle } from '@ggraphic/schema';
 
 import { DREIZEILEN_CONFIG } from './dreizeilenLayout';

@@ -1,8 +1,8 @@
-import { loadCanvasConfig } from '@ggraphic/editor/configs/configLoader';
+import { loadCanvasConfig, type ImageElementConfig } from '@ggraphic/editor/config';
 import { beforeAll, describe, expect, it } from 'vitest';
 
-import type { StockImageAttribution } from '@ggraphic/editor/common/imageSourceTypes';
-import type { BackgroundControls, ImageElementConfig } from '@ggraphic/editor/configs/types';
+import type { StockImageAttribution } from '@ggraphic/editor/elements';
+import type { BackgroundControls } from '@ggraphic/editor/internal/configs/types';
 
 /**
  * The slider's background controls (context bar): the scheme swatches, the

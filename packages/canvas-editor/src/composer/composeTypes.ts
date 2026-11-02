@@ -7,14 +7,15 @@ import {
 
 import type { MeasureText } from './chromeParts';
 import type { SharepicProvenance } from './sharepicProvenance';
-import type { IconState } from '@ggraphic/editor/configs/factory/baseTypes';
-import type { AdditionalText } from '@ggraphic/editor/configs/types';
-import type { AssetInstance } from '@ggraphic/editor/utils/canvasAssets';
-import type { ChartInstance } from '@ggraphic/editor/utils/chartUtils';
-import type { CircleBadgeInstance } from '@ggraphic/editor/utils/circleBadgeUtils';
-import type { PillBadgeInstance } from '@ggraphic/editor/utils/pillBadgeUtils';
-import type { ShapeInstance } from '@ggraphic/editor/utils/shapes';
-import type { UserImageInstance } from '@ggraphic/editor/utils/userImageUtils';
+import type { IconState, AdditionalText } from '@ggraphic/editor/config';
+import type {
+  AssetInstance,
+  ChartInstance,
+  CircleBadgeInstance,
+  PillBadgeInstance,
+  ShapeInstance,
+  UserImageInstance,
+} from '@ggraphic/editor/elements';
 
 /** How bright or busy the photo is where the text sits; decides how dense the scrim gets. */
 export type PhotoTone = 'dunkel' | 'mittel' | 'hell';

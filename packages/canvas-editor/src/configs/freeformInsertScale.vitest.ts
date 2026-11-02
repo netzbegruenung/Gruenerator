@@ -2,13 +2,12 @@
  * Neu eingefügte Elemente: auf Sharepics genau die bisherigen Werte, auf einer
  * 1920 × 1080-Folie mit der Breite gewachsen und um die Seitenmitte gelegt.
  */
-import { getCanvasFormatOrDefault, insertScaleFor } from '@ggraphic/editor/formats/index';
+import { getCanvasFormatOrDefault, insertScaleFor } from '@ggraphic/editor/templates';
 import { describe, expect, it, vi } from 'vitest';
 
 import { createFreeformFullConfig, type FreeformState } from './freeform_full.config';
 
-import type { ChartType } from '@ggraphic/editor/utils/chartUtils';
-import type { ShapeType } from '@ggraphic/editor/utils/shapes';
+import type { ChartType, ShapeType } from '@ggraphic/editor/elements';
 
 /** Die Einfüge-Türen, die der Test ruft (`FreeformActions` ist untypisiert). */
 interface InsertActions {

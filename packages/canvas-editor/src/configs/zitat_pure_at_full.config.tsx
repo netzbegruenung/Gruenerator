@@ -24,7 +24,7 @@ import {
   type ColorTwoTextState,
 } from './factory';
 
-import type { ImageElementConfig, LayoutResult } from '@ggraphic/editor/configs/types';
+import type { ImageElementConfig, LayoutResult } from '@ggraphic/editor/config';
 
 const AT = getBrandTheme('de-AT');
 const Z = ZITAT_PURE_AT_CONFIG;

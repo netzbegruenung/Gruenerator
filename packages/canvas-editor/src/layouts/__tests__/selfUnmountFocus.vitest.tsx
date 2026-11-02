@@ -4,11 +4,10 @@
  * danach auf dem Knopf der Seite, nicht auf `<body>`. Mit der Maus bleibt
  * alles, wie es ist — ein Mausklick soll keinen Fokussprung auslösen.
  */
+import { CanvasEditorLayout } from '@ggraphic/editor/shell';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { useState } from 'react';
 import { describe, expect, it } from 'vitest';
-
-import { CanvasEditorLayout } from '@ggraphic/editor/layouts/CanvasEditorLayout';
 
 function Editor() {
   const [selected, setSelected] = useState(true);

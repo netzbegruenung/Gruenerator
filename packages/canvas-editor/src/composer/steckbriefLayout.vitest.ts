@@ -1,4 +1,4 @@
-import { HAND_ARROW_TYPES, handArrowEnds } from '@ggraphic/editor/utils/handDrawn';
+import { HAND_ARROW_TYPES, handArrowEnds } from '@ggraphic/editor/internal/utils/handDrawn';
 import { describe, expect, it } from 'vitest';
 
 import { arrowPose, shapePoint } from './steckbriefLayout';

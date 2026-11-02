@@ -1,4 +1,4 @@
-import { registerHostStorageKeys } from '@ggraphic/editor/utils/hostStorageKeys';
+import { registerHostStorageKeys } from '@ggraphic/editor/host';
 
 import { GRUENE_KIND_RENDERERS, registerKindRenderers } from './brand/grueneKinds';
 
@@ -16,52 +16,113 @@ registerHostStorageKeys({ recentElements: 'gruenerator-canvas-recent-elements' }
 export { MasterCanvasEditor } from './MasterCanvasEditor';
 export { ControllableCanvasWrapper } from './CanvasEditorRouter';
 export type { ControllableCanvasWrapperProps, CanvasInitialPropsMap } from './CanvasEditorRouter';
-export type {
-  CanvasEditorExportApi,
-  CanvasEditorHostChrome,
-} from '@ggraphic/editor/components/CanvasEditor/types';
-export { EDITOR_KEY_SHIELD_ATTRIBUTE } from '@ggraphic/editor/components/CanvasEditor/hooks/usePageUndoRedoShortcuts';
+export type { CanvasEditorExportApi } from '@ggraphic/editor/embed';
+export type { CanvasEditorHostChrome } from '@ggraphic/editor/shell';
+export { EDITOR_KEY_SHIELD_ATTRIBUTE } from '@ggraphic/editor/shell';
 export { templateFitsFormat } from './utils/templateRegistry';
-export {
-  CanvasEditorProvider,
-  useCanvasEditorServices,
-} from '@ggraphic/editor/CanvasEditorProvider';
-export { canvasImageSourceUrl } from '@ggraphic/editor/utils/canvasImageSource';
-export type { CanvasImageUrlService } from '@ggraphic/editor/hostServices';
+export { CanvasEditorProvider } from '@ggraphic/editor/shell';
+export { useCanvasEditorServices } from '@ggraphic/editor/host-react';
+export { canvasImageSourceUrl } from '@ggraphic/editor/internal/utils/canvasImageSource';
+export type { CanvasImageUrlService } from '@ggraphic/editor/services';
+export type { CanvasEditorServices } from '@ggraphic/editor/host';
 export type {
-  CanvasEditorServices,
   ChatSectionContentProps,
   CanvasAiEditBridge,
   CanvasSpecEditBridge,
-} from '@ggraphic/editor/CanvasEditorProvider';
-export type { CanvasFeedbackService } from '@ggraphic/editor/hostServices';
+} from '@ggraphic/editor/shell';
+export type { CanvasFeedbackService } from '@ggraphic/editor/services';
 export type { CanvasVorlagenService, VorlagePage } from './grueneratorHostServices';
 
-export { StandaloneCanvas } from '@ggraphic/editor/components/StandaloneCanvas';
-export { ConfigCanvas } from '@ggraphic/editor/components/ConfigCanvas';
-export { commitOpenTextEdit } from '@ggraphic/editor/components/CanvasTextOverlay';
-export type { StandaloneCanvasProps } from '@ggraphic/editor/components/StandaloneCanvas';
-export type { ConfigCanvasProps } from '@ggraphic/editor/components/ConfigCanvas';
-export { GenericCanvas } from '@ggraphic/editor/components/GenericCanvas';
-export type {
-  GenericCanvasProps,
-  GenericCanvasRef,
-} from '@ggraphic/editor/components/GenericCanvas';
+export { StandaloneCanvas } from '@ggraphic/editor/canvas';
+export { ConfigCanvas } from '@ggraphic/editor/canvas';
+export { commitOpenTextEdit } from '@ggraphic/editor/internal/components/CanvasTextOverlay';
+export type { StandaloneCanvasProps } from '@ggraphic/editor/canvas';
+export type { ConfigCanvasProps } from '@ggraphic/editor/canvas';
+export { GenericCanvas } from '@ggraphic/editor/canvas';
+export type { GenericCanvasProps, GenericCanvasRef } from '@ggraphic/editor/canvas';
 export { defineTemplate, registerTemplates } from './templates/registry';
 export type { TemplateDefinition, TemplateId, AnyCanvasConfig } from './templates/registry';
 
-export * from '@ggraphic/editor/primitives/index';
+export {
+  CanvasStage,
+  type CanvasStageProps,
+  type CanvasStageRef,
+  CanvasBackground,
+  type CanvasBackgroundProps,
+  type GradientConfig,
+  type GradientStop,
+  CanvasText,
+  type CanvasTextProps,
+  SnapGuidelines,
+  type SnapGuidelinesProps,
+  CanvasImage,
+  type CanvasImageProps,
+  CanvasIcons,
+  ShapePrimitive,
+  IllustrationPrimitive,
+  type IllustrationPrimitiveProps,
+  CircleBadge,
+  type CircleBadgeProps,
+  PillBadge,
+  type PillBadgeProps,
+} from '@ggraphic/editor/internal/primitives/index';
+export { type CircleBadgeInstance, type CircleBadgeTextLine } from '@ggraphic/editor/elements';
 export { BalkenGroup } from './primitives/BalkenGroup';
 export type { BalkenInstance, BalkenMode } from './utils/balkenUtils';
 export type { BalkenGroupProps } from './primitives/BalkenGroup';
 export * from './composed';
 export * from './utils';
-export * from '@ggraphic/editor/hooks/index';
+export {
+  useElementSnapping,
+  type UseElementSnappingResult,
+  useCanvasUndoRedo,
+  useCanvasInteractions,
+  type UseCanvasInteractionsOptions,
+  type UseCanvasInteractionsResult,
+  useCanvasStoreReset,
+  useCanvasHistorySetup,
+  type UseCanvasHistorySetupResult,
+  useImageCoverFit,
+  type CoverFitDimensions,
+  useFloatingModuleState,
+  type FloatingModuleState,
+  type UseFloatingModuleStateOptions,
+  useFloatingModuleHandlers,
+  type UseFloatingModuleHandlersOptions,
+  type UseFloatingModuleHandlersResult,
+  useCanvasElementHandlers,
+  type UseCanvasElementHandlersOptions,
+  type UseCanvasElementHandlersResult,
+  useCanvasKeyboardHandlers,
+  type UseCanvasKeyboardHandlersOptions,
+  useFontGeneration,
+  useFontLoader,
+  type UseFontLoaderOptions,
+  type UseFontLoaderResult,
+  usePaginatedIcons,
+  useMultiPageExport,
+  type UseMultiPageExportProps,
+  type UseMultiPageExportReturn,
+  type ExportProgress,
+  usePageManager,
+  parseInitialPages,
+  useDeckAutoSave,
+  SHARE_ORIGINAL_IMAGE_SRC,
+  type UsePageManagerOptions,
+  type UsePageManagerReturn,
+  usePageThumbnails,
+  useMobileSheet,
+} from '@ggraphic/editor/internal/hooks/index';
+export { readInitialDocument, type InitialPageDef } from '@ggraphic/editor/shell';
 export * from './sidebar';
-export * from '@ggraphic/editor/layouts/index';
+export {
+  CanvasEditorLayout,
+  SIDEBAR_FONT_SIZES,
+  type CanvasEditorLayoutProps,
+} from '@ggraphic/editor/shell';
 export * from './composer';
 
-export type { StockImage } from '@ggraphic/editor/common/imageSourceTypes';
+export type { StockImage } from '@ggraphic/editor/elements';
 export type {
   CanvasAiOperation,
   CanvasAiOperationKind,
@@ -79,7 +140,7 @@ export {
   type TemplateAiCapabilities,
 } from './ai';
 export type { CanvasConfigId } from './templates/registry';
-export { preloadCanvasTemplate } from '@ggraphic/editor/configs/configLoader';
+export { preloadCanvasTemplate } from '@ggraphic/editor/config';
 export type {
   DreizeilenAlternative,
   DreizeilenFullState,
@@ -99,22 +160,20 @@ export {
   isUnsupportedFormatId,
   mmToPx,
   printGeometry,
-  registerCanvasFormatGroups,
-  registerCanvasFormats,
   UnsupportedCanvasFormatError,
-} from '@ggraphic/editor/formats/index';
+} from '@ggraphic/editor/templates';
+export { registerCanvasFormatGroups, registerCanvasFormats } from '@ggraphic/editor/host';
 export type {
   BuiltInCanvasFormatGroup,
-  CanvasFormat,
   CanvasFormatCategory,
-  CanvasFormatGroupDef,
   CanvasFormatGroup,
   CanvasFormatIconKey,
   CanvasExportType,
   CanvasPrintSpec,
   PrintCanvasFormat,
   PrintRect,
-} from '@ggraphic/editor/formats/index';
+} from '@ggraphic/editor/templates';
+export type { CanvasFormat, CanvasFormatGroupDef } from '@ggraphic/editor/host';
 
 export {
   CanvasStoreProvider,
@@ -122,15 +181,15 @@ export {
   useCanvasStoreSelector,
   useCanvasStoreShallow,
   useIsElementSelected,
-} from '@ggraphic/editor/stores/CanvasStoreProvider';
+} from '@ggraphic/editor/store';
 export type {
   CanvasEditorStoreApi,
   CanvasEditorStoreState,
   CanvasEditorState,
   CanvasEditorActions,
   CanvasEditorGetters,
-} from '@ggraphic/editor/stores/createCanvasEditorStore';
-export type { CanvasHistoryEntry } from '@ggraphic/editor/types/editorTypes';
+} from '@ggraphic/editor/internal/stores/createCanvasEditorStore';
+export type { CanvasHistoryEntry } from '@ggraphic/editor/canvas';
 
 export * from './collab';
 

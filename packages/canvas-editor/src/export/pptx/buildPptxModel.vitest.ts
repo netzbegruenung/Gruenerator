@@ -1,29 +1,26 @@
-import { getCanvasFormat, type CanvasFormat } from '@ggraphic/editor/formats/index';
+import { type PptxPageState, type PptxItem } from '@ggraphic/editor/export';
+import { type CanvasFormat } from '@ggraphic/editor/host';
+import {
+  buildPptxModel,
+  pptxMappedPageKeys,
+  PPTX_UNMAPPED_PAGE_KEYS,
+} from '@ggraphic/editor/internal/export/pptx/buildPptxModel';
+import { getCanvasFormat } from '@ggraphic/editor/templates';
 import { describe, expect, it } from 'vitest';
 
 import { GRUENE_AT } from '../../brand/theme';
 import { composeSharepic } from '../../composer/composeSharepic';
 import { at, atSlide, deCarousel, options } from '../../composer/sharepicSpecFixtures';
 
-import {
-  buildPptxModel,
-  pptxMappedPageKeys,
-  PPTX_UNMAPPED_PAGE_KEYS,
-  type PptxPageState,
-} from '@ggraphic/editor/export/pptx/buildPptxModel';
-
+import type { AdditionalText } from '@ggraphic/editor/config';
+import type { ChartInstance, ShapeInstance, UserImageInstance } from '@ggraphic/editor/elements';
 import type {
   PptxChartItem,
   PptxImageItem,
-  PptxItem,
   PptxRasterRequest,
   PptxShapeItem,
   PptxTextItem,
-} from '@ggraphic/editor/export/pptx/types';
-import type { AdditionalText } from '@ggraphic/editor/configs/types';
-import type { ChartInstance } from '@ggraphic/editor/utils/chartUtils';
-import type { ShapeInstance } from '@ggraphic/editor/utils/shapes';
-import type { UserImageInstance } from '@ggraphic/editor/utils/userImageUtils';
+} from '@ggraphic/editor/internal/export/pptx/types';
 
 /** Das Folienformat (`slide-16-9`) entsteht parallel; hier inline mit denselben Maßen. */
 const SLIDE: CanvasFormat = {

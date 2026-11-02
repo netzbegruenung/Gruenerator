@@ -1,12 +1,11 @@
-import { getCanvasFormatOrDefault, isSlideFormat } from '@ggraphic/editor/formats/index';
+import { SlideNotesPanel } from '@ggraphic/editor/internal/components/SlideNotesPanel';
+import { getCanvasFormatOrDefault, isSlideFormat } from '@ggraphic/editor/templates';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { useState } from 'react';
 import { describe, expect, it, vi } from 'vitest';
 
 import { axe } from '../test-utils';
-
-import { SlideNotesPanel } from '@ggraphic/editor/components/SlideNotesPanel';
 
 // Die Bedingung, mit der CanvasEditor das Panel einhängt.
 const showsPanel = (formatId: string) => isSlideFormat(getCanvasFormatOrDefault(formatId));

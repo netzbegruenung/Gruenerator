@@ -3,25 +3,25 @@
  * sharepic opens in): it must land in the page's Y.Map — otherwise a reload
  * loses it — and one undo (the banner's "Verwerfen") must revert all of it.
  */
-import { pagePersistedStateKeys } from '@ggraphic/editor/collab/pageElementStateKeys';
-import { readPages, seedPagesIfEmpty, updatePageStateById } from '@ggraphic/editor/collab/pagesDoc';
-import { PAGES_STATE_ORIGIN } from '@ggraphic/editor/collab/useYjsPages';
-import { createPageSyncedCallbacks } from '@ggraphic/editor/collab/wrapCallbacksWithPageSync';
-import { GenericCanvas, type GenericCanvasRef } from '@ggraphic/editor/components/GenericCanvas';
-import { loadCanvasConfig } from '@ggraphic/editor/configs/configLoader';
-import { AutoSaveStoreProvider } from '@ggraphic/editor/stores/AutoSaveStoreProvider';
+import { GenericCanvas, type GenericCanvasRef } from '@ggraphic/editor/canvas';
+import { readPages, seedPagesIfEmpty, updatePageStateById } from '@ggraphic/editor/collab';
+import { loadCanvasConfig } from '@ggraphic/editor/config';
+import { pagePersistedStateKeys } from '@ggraphic/editor/internal/collab/pageElementStateKeys';
+import { PAGES_STATE_ORIGIN } from '@ggraphic/editor/internal/collab/useYjsPages';
+import { createPageSyncedCallbacks } from '@ggraphic/editor/internal/collab/wrapCallbacksWithPageSync';
+import { AutoSaveStoreProvider } from '@ggraphic/editor/store';
 import { act, render } from '@testing-library/react';
 import { createRef } from 'react';
 import { describe, expect, it, vi } from 'vitest';
 import * as Y from 'yjs';
 
-import type { CanvasAiEditBridge } from '@ggraphic/editor/CanvasEditorProvider';
-import type * as StoreModule from '@ggraphic/editor/stores/createCanvasEditorStore';
-import type { CanvasEditorStoreApi } from '@ggraphic/editor/stores/createCanvasEditorStore';
+import type * as StoreModule from '@ggraphic/editor/internal/stores/createCanvasEditorStore';
+import type { CanvasEditorStoreApi } from '@ggraphic/editor/internal/stores/createCanvasEditorStore';
+import type { CanvasAiEditBridge } from '@ggraphic/editor/shell';
 import type { CanvasAiOperation } from '@gruenerator/contracts';
 
 const stores = vi.hoisted(() => [] as unknown[]);
-vi.mock('@ggraphic/editor/stores/createCanvasEditorStore', async (importOriginal) => {
+vi.mock('@ggraphic/editor/internal/stores/createCanvasEditorStore', async (importOriginal) => {
   const original = await importOriginal<typeof StoreModule>();
   return {
     ...original,

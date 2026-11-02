@@ -3,7 +3,7 @@
  * ihren Bericht und wählt über ihren Store aus — eine Auswahl auf der Fläche
  * erscheint in der Liste, eine in der Liste auf der Fläche.
  */
-import { defaultCanvasEditorStore } from '@ggraphic/editor/stores/createCanvasEditorStore';
+import { defaultCanvasEditorStore } from '@ggraphic/editor/internal/stores/createCanvasEditorStore';
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import Konva from 'konva';
 import React from 'react';
@@ -12,7 +12,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { axe } from '../../../test-utils';
 import { CanvasEditor } from '../index';
 
-vi.mock('@ggraphic/editor/sidebar/UserUploadsProvider', () => ({
+vi.mock('@ggraphic/editor/internal/sidebar/UserUploadsProvider', () => ({
   // ToolbarStateBridge liest die Uploads optional (Erweitern).
   useOptionalUserUploads: () => null,
   UserUploadsProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,

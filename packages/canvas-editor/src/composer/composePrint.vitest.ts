@@ -1,10 +1,10 @@
+import { ASSET_TARGET_SIZE, type AssetInstance } from '@ggraphic/editor/elements';
 import {
   getCanvasFormat,
   isPrintFormat,
   printGeometry,
   type PrintRect,
-} from '@ggraphic/editor/formats/index';
-import { ASSET_TARGET_SIZE, type AssetInstance } from '@ggraphic/editor/utils/canvasAssets';
+} from '@ggraphic/editor/templates';
 import { printSpecSchema, type PrintSpec } from '@gruenerator/contracts';
 import { describe, expect, it } from 'vitest';
 
@@ -14,7 +14,7 @@ import { layoutTextLines, LIME, SHAREPIC_COLOR_HEX } from './chromeParts';
 import { composePrint, PRINT_IMPRESSUM_ID, type ComposedPrint } from './composePrint';
 import { expectBrandFontsBound } from './fontRoleCheck';
 
-import type { AdditionalText } from '@ggraphic/editor/configs/types';
+import type { AdditionalText } from '@ggraphic/editor/config';
 
 /** Monospace stand-in: half the font size per character. */
 const measure = (text: string, fontSize: number) => text.length * fontSize * 0.5;
@@ -829,7 +829,7 @@ describe('composePrint: flyer, letterhead, newspaper', () => {
       expect(result.slides).toHaveLength(pages);
       expect(imprintPages(result)).toEqual(imprint);
       const format = getCanvasFormat(result.format)!;
-      expect(format.print?.seiten).toBe(pages);
+      expect(format.print?.pageCount).toBe(pages);
       expectInSafeZone(result);
       for (const slide of result.slides) {
         expect(slide.shapeInstances.filter((x) => x.fillGradient)).toEqual([]);

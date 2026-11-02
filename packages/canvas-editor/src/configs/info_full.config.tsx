@@ -5,7 +5,7 @@
  * Uses createColorTwoTextCanvas factory + Phase A/B helpers.
  */
 
-import { wrapTextAccurate } from '@ggraphic/editor/utils/textUtils';
+import { wrapTextAccurate } from '@ggraphic/editor/text';
 
 import { infoShareMetadata } from '../brand/grueneShareMetadata';
 import { INFO_CONFIG } from '../utils/infoLayout';
@@ -21,8 +21,8 @@ import {
   type ColorTwoTextState,
 } from './factory';
 
-import type { ImageElementConfig, LayoutResult } from '@ggraphic/editor/configs/types';
-import type { BackgroundColorOption } from '@ggraphic/editor/sidebar/types';
+import type { ImageElementConfig, LayoutResult } from '@ggraphic/editor/config';
+import type { BackgroundColorOption } from '@ggraphic/editor/internal/sidebar/types';
 
 const BACKGROUND_COLORS: BackgroundColorOption[] = [
   { id: 'tanne', label: 'Tanne', color: '#005538' },

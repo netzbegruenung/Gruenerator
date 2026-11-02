@@ -1,4 +1,4 @@
-import { type GradientFill } from '@ggraphic/editor/utils/gradientFill';
+import { type GradientFill } from '@ggraphic/editor/elements';
 
 import { HELLGRUEN_GLOW } from '../brand/theme';
 

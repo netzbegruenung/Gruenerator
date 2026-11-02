@@ -57,7 +57,7 @@ const CANVAS_USER_ID = 'canvas-editor';
 export function CanvasInlineChatSection({
   aiEdit,
   canvasType,
-  getSharepicText,
+  getCanvasText: getSharepicText,
   captureCanvasImage,
   specEdit,
 }: ChatSectionContentProps) {
@@ -72,7 +72,7 @@ export function CanvasInlineChatSection({
     <CanvasChatInner
       aiEdit={aiEdit}
       canvasType={canvasType}
-      getSharepicText={getSharepicText}
+      getCanvasText={getSharepicText}
       captureCanvasImage={captureCanvasImage ?? null}
       specEdit={specEdit ?? null}
     />
@@ -82,7 +82,7 @@ export function CanvasInlineChatSection({
 interface InnerProps {
   aiEdit: CanvasAiEditBridge;
   canvasType: string;
-  getSharepicText: () => string;
+  getCanvasText: () => string;
   captureCanvasImage: (() => Promise<string | null>) | null;
   specEdit: CanvasSpecEditBridge | null;
 }
@@ -90,7 +90,7 @@ interface InnerProps {
 function CanvasChatInner({
   aiEdit,
   canvasType,
-  getSharepicText,
+  getCanvasText: getSharepicText,
   captureCanvasImage,
   specEdit,
 }: InnerProps) {

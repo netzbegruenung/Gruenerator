@@ -20,18 +20,18 @@
  * Never rename or drop one; `registerTemplates` refuses to replace one.
  */
 
-import { getCanvasFormatOrDefault } from '@ggraphic/editor/formats/index';
 import {
   defineTemplate,
+  getCanvasFormatOrDefault,
   registerTemplates,
   type TemplateDefinition,
   type TemplateId,
   type TemplatePickerInfo as CoreTemplatePickerInfo,
-} from '@ggraphic/editor/templates/registry';
+} from '@ggraphic/editor/host';
 
 import type { BrandLocale } from '../brand/theme';
-import type { StockImageAttribution } from '@ggraphic/editor/common/imageSourceTypes';
-import type { AnyCanvasConfig } from '@ggraphic/editor/configs/types';
+import type { AnyCanvasConfig } from '@ggraphic/editor/config';
+import type { StockImageAttribution } from '@ggraphic/editor/elements';
 
 // Re-exported from here so the package entry evaluates the catalogue (and
 // registers it) before a host can register its own templates.

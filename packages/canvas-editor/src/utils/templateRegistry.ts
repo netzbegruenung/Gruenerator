@@ -5,11 +5,8 @@
  * itself lives with each template in `templates/registry.ts`.
  */
 
-import {
-  DEFAULT_FORMAT_ID,
-  getCanvasFormatOrDefault,
-  pinnedFormatId,
-} from '@ggraphic/editor/formats/index';
+import { pinnedFormatId } from '@ggraphic/editor/internal/formats/index';
+import { DEFAULT_FORMAT_ID, getCanvasFormatOrDefault } from '@ggraphic/editor/templates';
 
 import { BUILTIN_TEMPLATES } from '../templates/registry';
 

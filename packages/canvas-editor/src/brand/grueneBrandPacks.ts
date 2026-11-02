@@ -8,4 +8,4 @@ import { GRUENE_AT, GRUENE_DE } from './theme';
 
 export const GRUENE_BRAND_PACKS = [GRUENE_DE, GRUENE_AT] as const;
 
-export { registerBrandPacks } from '@ggraphic/editor/brand/brandRegistry';
+export { registerBrandPacks } from '@ggraphic/editor/host';

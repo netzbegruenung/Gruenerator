@@ -10,7 +10,7 @@
  * Übernommen vom inzwischen entfernten serverseitigen Zitat-AT-Renderer.
  */
 
-import { wrapTextAccurate } from '@ggraphic/editor/utils/textUtils';
+import { wrapTextAccurate } from '@ggraphic/editor/text';
 
 import { SYSTEM_ASSETS } from '../brand/grueneAssets';
 

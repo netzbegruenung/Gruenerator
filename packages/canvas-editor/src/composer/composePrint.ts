@@ -14,8 +14,8 @@
  * Pure: no React, no Konva. Text is measured through the injected `measure`.
  */
 
-import { getCanvasFormat, isPrintFormat } from '@ggraphic/editor/formats/index';
-import { type TextAccent } from '@ggraphic/editor/utils/textUtils';
+import { getCanvasFormat, isPrintFormat } from '@ggraphic/editor/templates';
+import { type TextAccent } from '@ggraphic/editor/text';
 import {
   type PrintFormatId,
   type PrintSpec,
@@ -63,7 +63,7 @@ import {
 import { plakatAt } from './printPlakatAt';
 import { plakatDe } from './printPlakatDe';
 
-import type { AdditionalText } from '@ggraphic/editor/configs/types';
+import type { AdditionalText } from '@ggraphic/editor/config';
 
 export { PRINT_IMPRESSUM_ID } from './printFrame';
 

@@ -8,25 +8,29 @@
  * (`balkenNudge.golden.vitest.tsx`).
  */
 
-import { applyOperation } from '@ggraphic/editor/ai/applyOperation';
-import { describeCanvasElements } from '@ggraphic/editor/ai/describeCanvasElements';
-import { carryInstanceState } from '@ggraphic/editor/configs/factory/carryInstanceState';
-import { injectFeatureProps } from '@ggraphic/editor/configs/featureInjector';
-import { buildPptxModel } from '@ggraphic/editor/export/pptx/buildPptxModel';
-import { floatingModuleFor } from '@ggraphic/editor/hooks/useFloatingModuleState';
-import { messages } from '@ggraphic/editor/i18n/messages';
-import { canRun } from '@ggraphic/editor/sidebar/sections/assets/useElementCatalog';
-import { buildCanvasItems, buildSortedRenderList } from '@ggraphic/editor/utils/canvasLayerManager';
-import { duplicateElementInState } from '@ggraphic/editor/utils/duplicateElement';
-import { findKindItem } from '@ggraphic/editor/utils/elementKinds';
-import { layerLabel } from '@ggraphic/editor/utils/layerLabels';
-import { readElementDrag } from '@ggraphic/editor/utils/mediaDrop';
-import { findOrientationDoor } from '@ggraphic/editor/utils/orientElement';
-import { findElementRemover, isTemplateBound } from '@ggraphic/editor/utils/removeElement';
-import { selectionCapabilities } from '@ggraphic/editor/utils/selectionCapabilities';
+import { applyOperation, describeCanvasElements } from '@ggraphic/editor/ai';
+import {
+  carryInstanceState,
+  injectFeatureProps,
+  type FullCanvasConfig,
+  type LayoutResult,
+} from '@ggraphic/editor/config';
+import { duplicateElementInState } from '@ggraphic/editor/elements';
+import { messages } from '@ggraphic/editor/i18n';
+import { buildPptxModel } from '@ggraphic/editor/internal/export/pptx/buildPptxModel';
+import { floatingModuleFor } from '@ggraphic/editor/internal/hooks/useFloatingModuleState';
+import { canRun } from '@ggraphic/editor/internal/sidebar/sections/assets/useElementCatalog';
+import {
+  buildCanvasItems,
+  buildSortedRenderList,
+} from '@ggraphic/editor/internal/utils/canvasLayerManager';
+import { findKindItem } from '@ggraphic/editor/internal/utils/elementKinds';
+import { layerLabel } from '@ggraphic/editor/internal/utils/layerLabels';
+import { readElementDrag } from '@ggraphic/editor/internal/utils/mediaDrop';
+import { findOrientationDoor } from '@ggraphic/editor/internal/utils/orientElement';
+import { findElementRemover, isTemplateBound } from '@ggraphic/editor/internal/utils/removeElement';
+import { selectionCapabilities } from '@ggraphic/editor/internal/utils/selectionCapabilities';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-
-import type { FullCanvasConfig, LayoutResult } from '@ggraphic/editor/configs/types';
 
 const layout = { centerX: 540, centerY: 675 } as unknown as LayoutResult;
 const config = { elements: [] } as unknown as FullCanvasConfig<Record<string, unknown>>;

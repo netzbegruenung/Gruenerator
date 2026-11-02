@@ -9,8 +9,8 @@
  * Served by the Vite dev server at /tests/e2e/harness/shape-transform.html. It is
  * NOT part of the production build: `vite build` only walks index.html's graph.
  */
-import { ShapePrimitive } from '@ggraphic/editor/primitives/ShapePrimitive';
-import { createShape, type ShapeInstance, type ShapeType } from '@ggraphic/editor/utils/shapes';
+import { createShape, type ShapeInstance, type ShapeType } from '@ggraphic/editor/elements';
+import { ShapePrimitive } from '@ggraphic/editor/internal/primitives/ShapePrimitive';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import { Layer, Stage } from 'react-konva';

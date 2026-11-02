@@ -8,8 +8,8 @@
  */
 import { readdirSync, readFileSync } from 'node:fs';
 
-import { readInitialDocument } from '@ggraphic/editor/hooks/usePageManager';
-import { registerElementKind } from '@ggraphic/editor/utils/elementKinds';
+import { registerElementKind } from '@ggraphic/editor/host';
+import { readInitialDocument } from '@ggraphic/editor/shell';
 import {
   CANVAS_DOCUMENT_VERSION,
   documentMigrations,

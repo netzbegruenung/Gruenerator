@@ -1,4 +1,4 @@
-import type { TemplateAiCapabilities } from '@ggraphic/editor/ai/types';
+import type { TemplateAiCapabilities } from '@ggraphic/editor/ai';
 import type { CanvasAiOperation, CanvasAiSnapshot } from '@gruenerator/contracts';
 
 /**
@@ -13,7 +13,7 @@ export type SharepicAiCapabilities<
   TActions = Record<string, unknown>,
 > = TemplateAiCapabilities<TState, TActions, CanvasAiOperation, CanvasAiSnapshot>;
 
-declare module '@ggraphic/editor/ai/types' {
+declare module '@ggraphic/editor/host' {
   interface CanvasAiHostTypes {
     operation: CanvasAiOperation;
     snapshot: CanvasAiSnapshot;

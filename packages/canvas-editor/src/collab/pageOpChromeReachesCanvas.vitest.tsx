@@ -3,10 +3,10 @@
  * the mounted canvas of such a page must hear about it, or its next
  * dual-write puts the stale chrome straight back.
  */
-import { CanvasEditorProvider } from '@ggraphic/editor/CanvasEditorProvider';
-import { updatePageStateById } from '@ggraphic/editor/collab/pagesDoc';
-import { useYjsPages, PAGES_STATE_ORIGIN } from '@ggraphic/editor/collab/useYjsPages';
-import { useYjsPageStateSync } from '@ggraphic/editor/collab/useYjsPageStateSync';
+import { updatePageStateById, useYjsPages } from '@ggraphic/editor/collab';
+import { PAGES_STATE_ORIGIN } from '@ggraphic/editor/internal/collab/useYjsPages';
+import { useYjsPageStateSync } from '@ggraphic/editor/internal/collab/useYjsPageStateSync';
+import { CanvasEditorProvider } from '@ggraphic/editor/shell';
 import { act, renderHook } from '@testing-library/react';
 import React from 'react';
 import { describe, expect, it, vi } from 'vitest';

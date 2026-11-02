@@ -3,7 +3,7 @@
  * hinzufügen"-Picker und im Vorlagen-Tab. Jede Kachel zeigt die Folie selbst,
  * gerendert vom echten Canvas (`useSlideLayoutThumbnail`).
  */
-import { cn } from '@ggraphic/editor/utils/cn';
+import { cn } from '@ggraphic/editor/internal/utils/cn';
 import { memo, type DragEvent } from 'react';
 
 import { SLIDE_LAYOUTS, type SlideLayoutId } from './slideLayouts';

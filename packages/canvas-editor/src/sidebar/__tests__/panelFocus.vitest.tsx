@@ -4,15 +4,17 @@
  * dem Tab. Geschlossen kehrt er zum Tab zurück. Desktop-Panel und mobiles
  * Sheet folgen derselben Regel.
  */
+import {
+  SidebarPanel,
+  SidebarTabBar,
+  type SidebarTab,
+  type SidebarTabId,
+} from '@ggraphic/editor/sidebar';
 import { fireEvent, render, screen } from '@testing-library/react';
 import { PiImage, PiTextAa } from 'react-icons/pi';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { axe } from '../../test-utils';
-import { SidebarPanel } from '@ggraphic/editor/sidebar/SidebarPanel';
-import { SidebarTabBar } from '@ggraphic/editor/sidebar/SidebarTabBar';
-
-import type { SidebarTab, SidebarTabId } from '@ggraphic/editor/sidebar/types';
 
 function setViewport(mobile: boolean) {
   window.matchMedia = vi.fn().mockImplementation((query: string) => ({

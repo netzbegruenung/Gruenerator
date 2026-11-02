@@ -3,10 +3,10 @@
  * Austrian (Überschrift, Text, Akzent), whichever brand is the active one.
  */
 import { fontRoleOptions } from '@ggraphic/core';
-import { activeBrand, registerBrandPacks } from '@ggraphic/editor/brand/brandRegistry';
-import { DocumentBrandContext } from '@ggraphic/editor/brand/documentBrand';
-import { FloatingFontRoleControl } from '@ggraphic/editor/components/TopBar/modules/FloatingFontRoleControl';
-import { messages } from '@ggraphic/editor/i18n/messages';
+import { activeBrand, DocumentBrandContext } from '@ggraphic/editor/brand';
+import { registerBrandPacks } from '@ggraphic/editor/host';
+import { messages } from '@ggraphic/editor/i18n';
+import { FloatingFontRoleControl } from '@ggraphic/editor/internal/components/TopBar/modules/FloatingFontRoleControl';
 import { render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 

@@ -3,10 +3,10 @@
  * Teilen-Abschnitt der Seitenleiste. Ein Dreizeiler hat keine `headline` —
  * sein Text steht in `line1..3`, und das Feld oben blieb leer.
  */
+import { shareImageText } from '@ggraphic/editor/internal/configs/shareSection';
 import { describe, expect, it } from 'vitest';
 
 import { dreizeilenFullConfig } from '../dreizeilen_full.config';
-import { shareImageText } from '@ggraphic/editor/configs/shareSection';
 
 describe('shareImageText', () => {
   it('liest beim Dreizeiler die drei Zeilen wie die Seitenleiste', () => {

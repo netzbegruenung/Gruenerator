@@ -80,7 +80,7 @@ export const webCanvasEditorServices: CanvasEditorServices = {
     filenamePrefix: 'gruenerator',
     shareTitle: 'Grünerator Share',
   },
-  useStudioAssets,
+  useAssetLibrary: useStudioAssets,
   useUnsplashSearch,
   // Impressum gate and print Vorlagen: the Grünerator composer, also in /mobile-editor.
   print: grueneratorPrint,

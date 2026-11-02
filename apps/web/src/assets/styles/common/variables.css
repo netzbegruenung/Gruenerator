@@ -193,6 +193,9 @@
     --editor-green-deep: #00553B;                    /* brand deep green — no palette equivalent */
     --editor-menubar-gradient: linear-gradient(90deg, var(--editor-green-deep) 0%, #3E7D63 55%, #6BA88C 100%);
     --editor-topbar-height: 56px;
+    /* Height of the editor's root, against which ggraphic positions its chrome
+       (sidebar, panel, bottom bar) since alpha.2. The editor's default. */
+    --editor-height: 100dvh;
     --editor-canvas-bg: #EFEDE8;
     --editor-surface: #FFFFFF;
     --editor-inset: #FAF9F5;

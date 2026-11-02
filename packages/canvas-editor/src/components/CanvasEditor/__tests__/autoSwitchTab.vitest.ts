@@ -1,6 +1,5 @@
+import { autoSwitchTab } from '@ggraphic/editor/internal/components/CanvasEditor/autoSwitchTab';
 import { describe, expect, it } from 'vitest';
-
-import { autoSwitchTab } from '@ggraphic/editor/components/CanvasEditor/autoSwitchTab';
 
 describe('autoSwitchTab', () => {
   it('keeps the chat open when an element with a properties tab is selected', () => {

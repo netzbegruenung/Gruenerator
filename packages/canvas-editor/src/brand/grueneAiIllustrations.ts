@@ -7,7 +7,7 @@
  * against the catalog, so a registry rename can't silently degrade the AI
  * surface. Keep the list short (~20) so prompt cost stays low.
  */
-import type { CanvasAiNamedOption } from '@ggraphic/editor/ai/types';
+import type { CanvasAiNamedOption } from '@ggraphic/editor/ai';
 
 const CURATED_UNDRAW: CanvasAiNamedOption[] = [
   { id: 'ud-election-day', label: 'Wahltag' },

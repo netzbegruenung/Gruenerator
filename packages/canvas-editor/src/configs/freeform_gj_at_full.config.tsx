@@ -16,8 +16,8 @@ import {
   type FreeformActions,
 } from './freeform_full.config';
 
-import type { FullCanvasConfig } from '@ggraphic/editor/configs/types';
-import type { CanvasFormat } from '@ggraphic/editor/formats/index';
+import type { FullCanvasConfig } from '@ggraphic/editor/config';
+import type { CanvasFormat } from '@ggraphic/editor/host';
 
 const GJ = getBrandTheme('de-AT', 'gruene-jugend');
 

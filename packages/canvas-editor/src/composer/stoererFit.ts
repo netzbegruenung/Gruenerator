@@ -1,4 +1,4 @@
-import { balancedWrap } from '@ggraphic/editor/composer/textFit';
+import { balancedWrap } from '@ggraphic/editor/text';
 
 /** Distance between Störer lines, as a share of the font size. */
 export const STOERER_LINE_STEP = 1.1;

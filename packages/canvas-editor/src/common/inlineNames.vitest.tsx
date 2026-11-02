@@ -1,18 +1,17 @@
 /**
  * Task 3: Namen für Inline-Editoren, Speicherstatus als Text, Lightbox als Dialog.
  */
-import { RichTextField } from '@ggraphic/editor/components/RichTextField';
+import { Lightbox } from '@ggraphic/editor/internal/common/Lightbox';
+import { RichTextField } from '@ggraphic/editor/internal/components/RichTextField';
+import { AutoSaveIndicator } from '@ggraphic/editor/internal/components/TopBar/AutoSaveIndicator';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 
-import { AutoSaveIndicator } from '@ggraphic/editor/components/TopBar/AutoSaveIndicator';
 import { axe } from '../test-utils';
 
-import { Lightbox } from '@ggraphic/editor/common/Lightbox';
-
 const mockState = vi.hoisted(() => ({ status: null as string | null }));
-vi.mock('@ggraphic/editor/stores/useAutoSaveStore', () => ({
+vi.mock('@ggraphic/editor/internal/stores/useAutoSaveStore', () => ({
   useAutoSaveStore: (selector: (s: unknown) => unknown) =>
     selector({ autoSaveStatus: mockState.status, retryAutoSave: () => {} }),
 }));

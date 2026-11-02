@@ -2,8 +2,8 @@
  * The creator's 3:4 format (1080 × 1440): every height-relative placement
  * follows the taller canvas, the footer stays on the bottom edge.
  */
-import { getCanvasFormat } from '@ggraphic/editor/formats/index';
-import { ASSET_TARGET_SIZE } from '@ggraphic/editor/utils/canvasAssets';
+import { ASSET_TARGET_SIZE } from '@ggraphic/editor/elements';
+import { getCanvasFormat } from '@ggraphic/editor/templates';
 import {
   sharepicFormatSchema,
   sharepicSpecSchema,

@@ -1,5 +1,4 @@
-import { stripMarks } from '@ggraphic/editor/composer/marks';
-import { largestSizeWordsFit } from '@ggraphic/editor/composer/textFit';
+import { stripMarks, largestSizeWordsFit } from '@ggraphic/editor/text';
 import { accentLines, type SharepicItem } from '@gruenerator/contracts';
 
 import { type BrandTheme } from '../brand/theme';

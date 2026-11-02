@@ -167,7 +167,7 @@ overrides:
   '@expo/dom-webview': ~58.0.2
   '@types/react': 19.3.0
   '@types/react-dom': ^19.3.0
-  '@hocuspocus/provider': ^4.7.0
+  '@hocuspocus/provider': ^4.8.0
   '@base-ui/react': ~1.9.0
   '@blocknote/shadcn>@base-ui/react': 1.6.0
   y-prosemirror: ^1.3.7
@@ -273,25 +273,25 @@ overrides:
   '@assistant-ui/react-markdown': ^0.14.24
   '@assistant-ui/react-streamdown': ^0.3.20
   '@assistant-ui/react-native': 0.1.50
-  '@tiptap/core': ^3.31.4
-  '@tiptap/extension-bold': ^3.31.4
-  '@tiptap/extension-code': ^3.31.4
-  '@tiptap/extension-collaboration': ^3.31.4
-  '@tiptap/extension-document': ^3.31.4
-  '@tiptap/extension-hard-break': ^3.31.4
-  '@tiptap/extension-heading': ^3.31.4
-  '@tiptap/extension-image': ^3.31.4
-  '@tiptap/extension-italic': ^3.31.4
-  '@tiptap/extension-list': ^3.31.4
-  '@tiptap/extension-paragraph': ^3.31.4
-  '@tiptap/extension-strike': ^3.31.4
-  '@tiptap/extension-table': ^3.31.4
-  '@tiptap/extension-text': ^3.31.4
-  '@tiptap/extension-underline': ^3.31.4
-  '@tiptap/extensions': ^3.31.4
-  '@tiptap/pm': ^3.31.4
-  '@tiptap/react': ^3.31.4
-  '@tiptap/static-renderer': ^3.31.4
+  '@tiptap/core': ^3.32.1
+  '@tiptap/extension-bold': ^3.32.1
+  '@tiptap/extension-code': ^3.32.1
+  '@tiptap/extension-collaboration': ^3.32.1
+  '@tiptap/extension-document': ^3.32.1
+  '@tiptap/extension-hard-break': ^3.32.1
+  '@tiptap/extension-heading': ^3.32.1
+  '@tiptap/extension-image': ^3.32.1
+  '@tiptap/extension-italic': ^3.32.1
+  '@tiptap/extension-list': ^3.32.1
+  '@tiptap/extension-paragraph': ^3.32.1
+  '@tiptap/extension-strike': ^3.32.1
+  '@tiptap/extension-table': ^3.32.1
+  '@tiptap/extension-text': ^3.32.1
+  '@tiptap/extension-underline': ^3.32.1
+  '@tiptap/extensions': ^3.32.1
+  '@tiptap/pm': ^3.32.1
+  '@tiptap/react': ^3.32.1
+  '@tiptap/static-renderer': ^3.32.1
   '@babel/core': 7.29.7
 
 patchedDependencies:
@@ -372,7 +372,7 @@ importers:
         version: 1.7.7(patch_hash=9234c102bf0220d1289bb22d667b5ed3266433fa1cb4ac5edd197eb1ec650920)(d84be0bf928f272694ee8ae0532d7ba0)
       '@blocknote/xl-ai':
         specifier: ^0.56.0
-        version: 0.56.0(patch_hash=9ceed13d4097cad6abb0fd603f6a94fc2debce8410e307bd40770dcd814fa2d0)(@floating-ui/dom@1.8.0)(@lezer/common@1.5.2)(@lezer/highlight@1.2.3)(@tiptap/pm@3.32.0)(@types/hast@3.0.5)(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(y-prosemirror@1.3.7(prosemirror-model@1.25.12)(prosemirror-state@1.4.4)(prosemirror-view@1.42.7)(y-protocols@1.0.7(yjs@13.6.33))(yjs@13.6.33))(y-protocols@1.0.7(yjs@13.6.33))(yjs@13.6.33)(zod@4.6.7)
+        version: 0.56.0(patch_hash=9ceed13d4097cad6abb0fd603f6a94fc2debce8410e307bd40770dcd814fa2d0)(@floating-ui/dom@1.8.0)(@lezer/common@1.5.2)(@lezer/highlight@1.2.3)(@tiptap/pm@3.32.1)(@types/hast@3.0.5)(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(y-prosemirror@1.3.7(prosemirror-model@1.25.12)(prosemirror-state@1.4.4)(prosemirror-view@1.42.7)(y-protocols@1.0.7(yjs@13.6.33))(yjs@13.6.33))(y-protocols@1.0.7(yjs@13.6.33))(yjs@13.6.33)(zod@4.6.7)
       '@crawlee/cheerio':
         specifier: ^3.18.2
         version: 3.18.2(supports-color@10.2.2)
@@ -591,8 +591,8 @@ importers:
         specifier: ^0.131.0
         version: 0.131.0(zod@4.6.7)
       '@ggraphic/editor':
-        specifier: 0.1.0-alpha.1
-        version: 0.1.0-alpha.1(@floating-ui/dom@1.8.0)(@tiptap/pm@3.32.0)(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(konva@10.9.0)(react-dom@19.3.0(react@19.3.0))(react-is@19.2.8)(react-konva@19.3.2(@types/react@19.3.0)(konva@10.9.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(react@19.3.0)(redux@5.0.1)(use-sync-external-store@1.7.0(react@19.3.0))(y-protocols@1.0.7(yjs@13.6.33))
+        specifier: 0.1.0-alpha.2
+        version: 0.1.0-alpha.2(@floating-ui/dom@1.8.0)(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(konva@10.9.0)(react-dom@19.3.0(react@19.3.0))(react-konva@19.3.2(@types/react@19.3.0)(konva@10.9.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(react@19.3.0)(redux@5.0.1)(use-sync-external-store@1.7.0(react@19.3.0))
       '@gruenerator/eslint-config':
         specifier: workspace:*
         version: link:../../packages/eslint-config
@@ -685,8 +685,8 @@ importers:
         specifier: 0.1.0-alpha.1
         version: 0.1.0-alpha.1
       '@ggraphic/editor':
-        specifier: 0.1.0-alpha.1
-        version: 0.1.0-alpha.1(@floating-ui/dom@1.8.0)(@tiptap/pm@3.32.0)(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(konva@10.9.0)(react-dom@19.3.0(react@19.3.0))(react-is@19.2.8)(react-konva@19.3.2(@types/react@19.3.0)(konva@10.9.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(react@19.3.0)(redux@5.0.1)(use-sync-external-store@1.7.0(react@19.3.0))(y-protocols@1.0.7(yjs@13.6.33))
+        specifier: 0.1.0-alpha.2
+        version: 0.1.0-alpha.2(@floating-ui/dom@1.8.0)(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(konva@10.9.0)(react-dom@19.3.0(react@19.3.0))(react-konva@19.3.2(@types/react@19.3.0)(konva@10.9.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(react@19.3.0)(redux@5.0.1)(use-sync-external-store@1.7.0(react@19.3.0))
       '@tanstack/react-query':
         specifier: ^5.104.3
         version: 5.104.5(@types/react@19.3.0)(react@19.3.0)
@@ -1073,10 +1073,10 @@ importers:
         version: 0.56.0(@lezer/common@1.5.2)(@lezer/highlight@1.2.3)(@types/hast@3.0.5)(y-prosemirror@1.3.7(prosemirror-model@1.25.12)(prosemirror-state@1.4.4)(prosemirror-view@1.42.7)(y-protocols@1.0.7(yjs@13.6.33))(yjs@13.6.33))(y-protocols@1.0.7(yjs@13.6.33))(yjs@13.6.33)
       '@blocknote/xl-docx-exporter':
         specifier: ^0.56.0
-        version: 0.56.0(@floating-ui/dom@1.8.0)(@lezer/common@1.5.2)(@lezer/highlight@1.2.3)(@tiptap/pm@3.32.0)(@types/hast@3.0.5)(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(y-prosemirror@1.3.7(prosemirror-model@1.25.12)(prosemirror-state@1.4.4)(prosemirror-view@1.42.7)(y-protocols@1.0.7(yjs@13.6.33))(yjs@13.6.33))(y-protocols@1.0.7(yjs@13.6.33))(yjs@13.6.33)
+        version: 0.56.0(@floating-ui/dom@1.8.0)(@lezer/common@1.5.2)(@lezer/highlight@1.2.3)(@tiptap/pm@3.32.1)(@types/hast@3.0.5)(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(y-prosemirror@1.3.7(prosemirror-model@1.25.12)(prosemirror-state@1.4.4)(prosemirror-view@1.42.7)(y-protocols@1.0.7(yjs@13.6.33))(yjs@13.6.33))(y-protocols@1.0.7(yjs@13.6.33))(yjs@13.6.33)
       '@blocknote/xl-odt-exporter':
         specifier: ^0.56.0
-        version: 0.56.0(@floating-ui/dom@1.8.0)(@lezer/common@1.5.2)(@lezer/highlight@1.2.3)(@tiptap/pm@3.32.0)(@types/hast@3.0.5)(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(y-prosemirror@1.3.7(prosemirror-model@1.25.12)(prosemirror-state@1.4.4)(prosemirror-view@1.42.7)(y-protocols@1.0.7(yjs@13.6.33))(yjs@13.6.33))(y-protocols@1.0.7(yjs@13.6.33))(yjs@13.6.33)
+        version: 0.56.0(@floating-ui/dom@1.8.0)(@lezer/common@1.5.2)(@lezer/highlight@1.2.3)(@tiptap/pm@3.32.1)(@types/hast@3.0.5)(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(y-prosemirror@1.3.7(prosemirror-model@1.25.12)(prosemirror-state@1.4.4)(prosemirror-view@1.42.7)(y-protocols@1.0.7(yjs@13.6.33))(yjs@13.6.33))(y-protocols@1.0.7(yjs@13.6.33))(yjs@13.6.33)
       '@dnd-kit/core':
         specifier: ^6.3.1
         version: 6.3.1(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
@@ -1129,8 +1129,8 @@ importers:
         specifier: workspace:*
         version: link:../../packages/wolke
       '@hocuspocus/provider':
-        specifier: ^4.7.0
-        version: 4.7.1(y-protocols@1.0.7(yjs@13.6.33))(yjs@13.6.33)
+        specifier: ^4.8.0
+        version: 4.8.0(y-protocols@1.0.7(yjs@13.6.33))(yjs@13.6.33)
       '@mertdeveci55/univer-import-export':
         specifier: 0.2.1
         version: 0.2.1(@univerjs/core@1.2.0(react@19.3.0)(rxjs@7.8.2))
@@ -1307,8 +1307,8 @@ importers:
         specifier: 7.29.7
         version: 7.29.7(supports-color@10.2.2)
       '@ggraphic/editor':
-        specifier: 0.1.0-alpha.1
-        version: 0.1.0-alpha.1(@floating-ui/dom@1.8.0)(@tiptap/pm@3.32.0)(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(konva@10.9.0)(react-dom@19.3.0(react@19.3.0))(react-is@19.2.8)(react-konva@19.3.2(@types/react@19.3.0)(konva@10.9.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(react@19.3.0)(redux@5.0.1)(use-sync-external-store@1.6.0(react@19.3.0))(y-protocols@1.0.7(yjs@13.6.33))
+        specifier: 0.1.0-alpha.2
+        version: 0.1.0-alpha.2(@floating-ui/dom@1.8.0)(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(konva@10.9.0)(react-dom@19.3.0(react@19.3.0))(react-konva@19.3.2(@types/react@19.3.0)(konva@10.9.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(react@19.3.0)(redux@5.0.1)(use-sync-external-store@1.6.0(react@19.3.0))
       '@gruenerator/eslint-config':
         specifier: workspace:*
         version: link:../../packages/eslint-config
@@ -1501,8 +1501,8 @@ importers:
         specifier: ^3.10.2
         version: 3.10.2(@swc/core@1.16.2(@swc/helpers@0.5.23))(@swc/html@1.16.2)(clean-css@5.3.3)(cssnano@6.1.2(postcss@8.5.30))(csso@5.0.5)(esbuild@0.28.2)(html-minifier-terser@7.2.0)(lightningcss@1.33.0)(postcss@8.5.30)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(sharp@0.35.5(@types/node@26.6.5))(supports-color@10.2.2)(svgo@3.3.5)(webpack-cli@5.1.4)
       '@ggraphic/editor':
-        specifier: 0.1.0-alpha.1
-        version: 0.1.0-alpha.1(@floating-ui/dom@1.8.0)(@tiptap/pm@3.32.0)(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(konva@10.9.0)(react-dom@19.3.0(react@19.3.0))(react-is@19.2.8)(react-konva@19.3.2(@types/react@19.3.0)(konva@10.9.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(react@19.3.0)(redux@5.0.1)(use-sync-external-store@1.7.0(react@19.3.0))(y-protocols@1.0.7(yjs@13.6.33))
+        specifier: 0.1.0-alpha.2
+        version: 0.1.0-alpha.2(@floating-ui/dom@1.8.0)(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(konva@10.9.0)(react-dom@19.3.0(react@19.3.0))(react-konva@19.3.2(@types/react@19.3.0)(konva@10.9.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(react@19.3.0)(redux@5.0.1)(use-sync-external-store@1.7.0(react@19.3.0))
       typescript:
         specifier: ^6.0.3
         version: 6.0.3
@@ -1513,11 +1513,11 @@ importers:
         specifier: 0.1.0-alpha.1
         version: 0.1.0-alpha.1
       '@ggraphic/editor':
-        specifier: 0.1.0-alpha.1
-        version: 0.1.0-alpha.1(@floating-ui/dom@1.8.0)(@tiptap/pm@3.32.0)(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(konva@10.9.0)(react-dom@19.3.0(react@19.3.0))(react-is@19.2.8)(react-konva@19.3.2(@types/react@19.3.0)(konva@10.9.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(react@19.3.0)(redux@5.0.1)(use-sync-external-store@1.6.0(react@19.3.0))(y-protocols@1.0.7(yjs@13.6.33))
+        specifier: 0.1.0-alpha.2
+        version: 0.1.0-alpha.2(@floating-ui/dom@1.8.0)(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(konva@10.9.0)(react-dom@19.3.0(react@19.3.0))(react-konva@19.3.2(@types/react@19.3.0)(konva@10.9.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(react@19.3.0)(redux@5.0.1)(use-sync-external-store@1.6.0(react@19.3.0))
       '@ggraphic/schema':
-        specifier: 0.1.0-alpha.0
-        version: 0.1.0-alpha.0
+        specifier: 0.1.0-alpha.1
+        version: 0.1.0-alpha.1
       '@gruenerator/contracts':
         specifier: workspace:*
         version: link:../contracts
@@ -1528,8 +1528,8 @@ importers:
         specifier: workspace:*
         version: link:../ui
       '@hocuspocus/provider':
-        specifier: ^4.7.0
-        version: 4.7.1(y-protocols@1.0.7(yjs@13.6.33))(yjs@13.6.33)
+        specifier: ^4.8.0
+        version: 4.8.0(y-protocols@1.0.7(yjs@13.6.33))(yjs@13.6.33)
       '@iconify-json/bi':
         specifier: ^1.2.7
         version: 1.2.7
@@ -1561,41 +1561,41 @@ importers:
         specifier: ^5.104.3
         version: 5.104.5(@types/react@19.3.0)(react@19.3.0)
       '@tiptap/core':
-        specifier: ^3.31.4
-        version: 3.32.0(@tiptap/pm@3.32.0)
+        specifier: ^3.32.1
+        version: 3.32.1(@tiptap/pm@3.32.1)
       '@tiptap/extension-bold':
-        specifier: ^3.31.4
-        version: 3.32.0(@tiptap/core@3.32.0(@tiptap/pm@3.32.0))
+        specifier: ^3.32.1
+        version: 3.32.1(@tiptap/core@3.32.1(@tiptap/pm@3.32.1))
       '@tiptap/extension-document':
-        specifier: ^3.31.4
-        version: 3.32.0(@tiptap/core@3.32.0(@tiptap/pm@3.32.0))
+        specifier: ^3.32.1
+        version: 3.32.1(@tiptap/core@3.32.1(@tiptap/pm@3.32.1))
       '@tiptap/extension-hard-break':
-        specifier: ^3.31.4
-        version: 3.32.0(@tiptap/core@3.32.0(@tiptap/pm@3.32.0))
+        specifier: ^3.32.1
+        version: 3.32.1(@tiptap/core@3.32.1(@tiptap/pm@3.32.1))
       '@tiptap/extension-italic':
-        specifier: ^3.31.4
-        version: 3.32.0(@tiptap/core@3.32.0(@tiptap/pm@3.32.0))
+        specifier: ^3.32.1
+        version: 3.32.1(@tiptap/core@3.32.1(@tiptap/pm@3.32.1))
       '@tiptap/extension-list':
-        specifier: ^3.31.4
-        version: 3.32.0(@tiptap/core@3.32.0(@tiptap/pm@3.32.0))(@tiptap/pm@3.32.0)
+        specifier: ^3.32.1
+        version: 3.32.1(@tiptap/core@3.32.1(@tiptap/pm@3.32.1))(@tiptap/pm@3.32.1)
       '@tiptap/extension-paragraph':
-        specifier: ^3.31.4
-        version: 3.32.0(@tiptap/core@3.32.0(@tiptap/pm@3.32.0))
+        specifier: ^3.32.1
+        version: 3.32.1(@tiptap/core@3.32.1(@tiptap/pm@3.32.1))
       '@tiptap/extension-text':
-        specifier: ^3.31.4
-        version: 3.32.0(@tiptap/core@3.32.0(@tiptap/pm@3.32.0))
+        specifier: ^3.32.1
+        version: 3.32.1(@tiptap/core@3.32.1(@tiptap/pm@3.32.1))
       '@tiptap/extension-underline':
-        specifier: ^3.31.4
-        version: 3.32.0(@tiptap/core@3.32.0(@tiptap/pm@3.32.0))
+        specifier: ^3.32.1
+        version: 3.32.1(@tiptap/core@3.32.1(@tiptap/pm@3.32.1))
       '@tiptap/extensions':
-        specifier: ^3.31.4
-        version: 3.32.0(@tiptap/core@3.32.0(@tiptap/pm@3.32.0))(@tiptap/pm@3.32.0)
+        specifier: ^3.32.1
+        version: 3.32.1(@tiptap/core@3.32.1(@tiptap/pm@3.32.1))(@tiptap/pm@3.32.1)
       '@tiptap/pm':
-        specifier: ^3.31.4
-        version: 3.32.0
+        specifier: ^3.32.1
+        version: 3.32.1
       '@tiptap/react':
-        specifier: ^3.31.4
-        version: 3.32.0(@floating-ui/dom@1.8.0)(@tiptap/core@3.32.0(@tiptap/pm@3.32.0))(@tiptap/pm@3.32.0)(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
+        specifier: ^3.32.1
+        version: 3.32.1(@floating-ui/dom@1.8.0)(@tiptap/core@3.32.1(@tiptap/pm@3.32.1))(@tiptap/pm@3.32.1)(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
       clsx:
         specifier: ^2.1.1
         version: 2.1.1
@@ -1733,8 +1733,8 @@ importers:
         specifier: workspace:*
         version: link:../voice
       '@hocuspocus/provider':
-        specifier: ^4.7.0
-        version: 4.7.1(y-protocols@1.0.7(yjs@13.6.33))(yjs@13.6.33)
+        specifier: ^4.8.0
+        version: 4.8.0(y-protocols@1.0.7(yjs@13.6.33))(yjs@13.6.33)
       '@streamdown/math':
         specifier: ^1.0.3
         version: 1.0.3(react@19.3.0)(supports-color@10.2.2)
@@ -1854,8 +1854,8 @@ importers:
         specifier: 0.1.0-alpha.0
         version: 0.1.0-alpha.0(react@19.3.0)(y-protocols@1.0.7(yjs@13.6.33))
       '@hocuspocus/provider':
-        specifier: ^4.7.0
-        version: 4.7.1(y-protocols@1.0.7(yjs@13.6.33))(yjs@13.6.33)
+        specifier: ^4.8.0
+        version: 4.8.0(y-protocols@1.0.7(yjs@13.6.33))(yjs@13.6.33)
       react:
         specifier: ^19.0.0
         version: 19.3.0
@@ -1882,53 +1882,53 @@ importers:
         specifier: 0.1.0-alpha.1
         version: 0.1.0-alpha.1
       '@ggraphic/schema':
-        specifier: 0.1.0-alpha.0
-        version: 0.1.0-alpha.0
+        specifier: 0.1.0-alpha.1
+        version: 0.1.0-alpha.1
       '@gruenerator/core':
         specifier: workspace:*
         version: link:../core
       '@tiptap/core':
-        specifier: ^3.31.4
-        version: 3.32.0(@tiptap/pm@3.32.0)
+        specifier: ^3.32.1
+        version: 3.32.1(@tiptap/pm@3.32.1)
       '@tiptap/extension-bold':
-        specifier: ^3.31.4
-        version: 3.32.0(@tiptap/core@3.32.0(@tiptap/pm@3.32.0))
+        specifier: ^3.32.1
+        version: 3.32.1(@tiptap/core@3.32.1(@tiptap/pm@3.32.1))
       '@tiptap/extension-document':
-        specifier: ^3.31.4
-        version: 3.32.0(@tiptap/core@3.32.0(@tiptap/pm@3.32.0))
+        specifier: ^3.32.1
+        version: 3.32.1(@tiptap/core@3.32.1(@tiptap/pm@3.32.1))
       '@tiptap/extension-hard-break':
-        specifier: ^3.31.4
-        version: 3.32.0(@tiptap/core@3.32.0(@tiptap/pm@3.32.0))
+        specifier: ^3.32.1
+        version: 3.32.1(@tiptap/core@3.32.1(@tiptap/pm@3.32.1))
       '@tiptap/extension-heading':
-        specifier: ^3.31.4
-        version: 3.32.0(@tiptap/core@3.32.0(@tiptap/pm@3.32.0))
+        specifier: ^3.32.1
+        version: 3.32.1(@tiptap/core@3.32.1(@tiptap/pm@3.32.1))
       '@tiptap/extension-image':
-        specifier: ^3.31.4
-        version: 3.32.0(@tiptap/core@3.32.0(@tiptap/pm@3.32.0))
+        specifier: ^3.32.1
+        version: 3.32.1(@tiptap/core@3.32.1(@tiptap/pm@3.32.1))
       '@tiptap/extension-italic':
-        specifier: ^3.31.4
-        version: 3.32.0(@tiptap/core@3.32.0(@tiptap/pm@3.32.0))
+        specifier: ^3.32.1
+        version: 3.32.1(@tiptap/core@3.32.1(@tiptap/pm@3.32.1))
       '@tiptap/extension-list':
-        specifier: ^3.31.4
-        version: 3.32.0(@tiptap/core@3.32.0(@tiptap/pm@3.32.0))(@tiptap/pm@3.32.0)
+        specifier: ^3.32.1
+        version: 3.32.1(@tiptap/core@3.32.1(@tiptap/pm@3.32.1))(@tiptap/pm@3.32.1)
       '@tiptap/extension-paragraph':
-        specifier: ^3.31.4
-        version: 3.32.0(@tiptap/core@3.32.0(@tiptap/pm@3.32.0))
+        specifier: ^3.32.1
+        version: 3.32.1(@tiptap/core@3.32.1(@tiptap/pm@3.32.1))
       '@tiptap/extension-table':
-        specifier: ^3.31.4
-        version: 3.32.0(@tiptap/core@3.32.0(@tiptap/pm@3.32.0))(@tiptap/pm@3.32.0)
+        specifier: ^3.32.1
+        version: 3.32.1(@tiptap/core@3.32.1(@tiptap/pm@3.32.1))(@tiptap/pm@3.32.1)
       '@tiptap/extension-text':
-        specifier: ^3.31.4
-        version: 3.32.0(@tiptap/core@3.32.0(@tiptap/pm@3.32.0))
+        specifier: ^3.32.1
+        version: 3.32.1(@tiptap/core@3.32.1(@tiptap/pm@3.32.1))
       '@tiptap/extension-underline':
-        specifier: ^3.31.4
-        version: 3.32.0(@tiptap/core@3.32.0(@tiptap/pm@3.32.0))
+        specifier: ^3.32.1
+        version: 3.32.1(@tiptap/core@3.32.1(@tiptap/pm@3.32.1))
       '@tiptap/pm':
-        specifier: ^3.31.4
-        version: 3.32.0
+        specifier: ^3.32.1
+        version: 3.32.1
       '@tiptap/static-renderer':
-        specifier: ^3.31.4
-        version: 3.32.0(@tiptap/core@3.32.0(@tiptap/pm@3.32.0))(@tiptap/pm@3.32.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
+        specifier: ^3.32.1
+        version: 3.32.1(@tiptap/core@3.32.1(@tiptap/pm@3.32.1))(@tiptap/pm@3.32.1)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
       '@ts-rest/core':
         specifier: ^3.52.1
         version: 3.52.1(patch_hash=53da9425e3dd295de89f78e9cef156697540efd95c0c8045451ab2821fa1a9b7)(@types/node@26.6.5)(zod@4.6.7)
@@ -1983,7 +1983,7 @@ importers:
         version: 0.56.0(@date-fns/tz@1.5.0)(@floating-ui/dom@1.8.0)(@lezer/common@1.5.2)(@lezer/highlight@1.2.3)(@types/hast@3.0.5)(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(date-fns@4.4.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(tailwindcss@4.3.3)(y-prosemirror@1.3.7(prosemirror-model@1.25.12)(prosemirror-state@1.4.4)(prosemirror-view@1.42.7)(y-protocols@1.0.7(yjs@13.6.33))(yjs@13.6.33))(y-protocols@1.0.7(yjs@13.6.33))(yjs@13.6.33)
       '@blocknote/xl-ai':
         specifier: ^0.56.0
-        version: 0.56.0(patch_hash=9ceed13d4097cad6abb0fd603f6a94fc2debce8410e307bd40770dcd814fa2d0)(@floating-ui/dom@1.8.0)(@lezer/common@1.5.2)(@lezer/highlight@1.2.3)(@tiptap/pm@3.32.0)(@types/hast@3.0.5)(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(y-prosemirror@1.3.7(prosemirror-model@1.25.12)(prosemirror-state@1.4.4)(prosemirror-view@1.42.7)(y-protocols@1.0.7(yjs@13.6.33))(yjs@13.6.33))(y-protocols@1.0.7(yjs@13.6.33))(yjs@13.6.33)(zod@4.6.7)
+        version: 0.56.0(patch_hash=9ceed13d4097cad6abb0fd603f6a94fc2debce8410e307bd40770dcd814fa2d0)(@floating-ui/dom@1.8.0)(@lezer/common@1.5.2)(@lezer/highlight@1.2.3)(@tiptap/pm@3.32.1)(@types/hast@3.0.5)(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(y-prosemirror@1.3.7(prosemirror-model@1.25.12)(prosemirror-state@1.4.4)(prosemirror-view@1.42.7)(y-protocols@1.0.7(yjs@13.6.33))(yjs@13.6.33))(y-protocols@1.0.7(yjs@13.6.33))(yjs@13.6.33)(zod@4.6.7)
       '@floating-ui/react':
         specifier: ^0.27.20
         version: 0.27.20(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
@@ -2003,14 +2003,14 @@ importers:
         specifier: ^0.1.8
         version: 0.1.8(prosemirror-model@1.25.12)(prosemirror-state@1.4.4)(prosemirror-transform@1.12.4)(prosemirror-view@1.42.7)
       '@hocuspocus/provider':
-        specifier: ^4.7.0
-        version: 4.7.1(y-protocols@1.0.7(yjs@13.6.33))(yjs@13.6.33)
+        specifier: ^4.8.0
+        version: 4.8.0(y-protocols@1.0.7(yjs@13.6.33))(yjs@13.6.33)
       '@tanstack/react-query':
         specifier: ^5.104.3
         version: 5.104.5(@types/react@19.3.0)(react@19.3.0)
       '@tiptap/core':
-        specifier: ^3.31.4
-        version: 3.32.0(@tiptap/pm@3.32.0)
+        specifier: ^3.32.1
+        version: 3.32.1(@tiptap/pm@3.32.1)
       ai:
         specifier: ^7.0.152
         version: 7.0.152(zod@4.6.7)
@@ -2133,14 +2133,14 @@ importers:
         specifier: ^5.104.3
         version: 5.104.5(@types/react@19.3.0)(react@19.3.0)
       '@tiptap/extension-collaboration':
-        specifier: ^3.31.4
-        version: 3.32.0(@tiptap/core@3.32.0(@tiptap/pm@3.32.0))(@tiptap/pm@3.32.0)(@tiptap/y-tiptap@3.0.9(prosemirror-model@1.25.12)(prosemirror-state@1.4.4)(prosemirror-view@1.42.7)(y-protocols@1.0.7(yjs@13.6.33))(yjs@13.6.33))(yjs@13.6.33)
+        specifier: ^3.32.1
+        version: 3.32.1(@tiptap/core@3.32.1(@tiptap/pm@3.32.1))(@tiptap/pm@3.32.1)(@tiptap/y-tiptap@3.0.9(prosemirror-model@1.25.12)(prosemirror-state@1.4.4)(prosemirror-view@1.42.7)(y-protocols@1.0.7(yjs@13.6.33))(yjs@13.6.33))(yjs@13.6.33)
       '@tiptap/pm':
-        specifier: ^3.31.4
-        version: 3.32.0
+        specifier: ^3.32.1
+        version: 3.32.1
       '@tiptap/react':
-        specifier: ^3.31.4
-        version: 3.32.0(@floating-ui/dom@1.8.0)(@tiptap/core@3.32.0(@tiptap/pm@3.32.0))(@tiptap/pm@3.32.0)(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
+        specifier: ^3.32.1
+        version: 3.32.1(@floating-ui/dom@1.8.0)(@tiptap/core@3.32.1(@tiptap/pm@3.32.1))(@tiptap/pm@3.32.1)(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
       katex:
         specifier: ^0.19.0
         version: 0.19.0
@@ -2379,20 +2379,20 @@ importers:
         specifier: ^5.104.3
         version: 5.104.5(@types/react@19.3.0)(react@19.3.0)
       '@tiptap/core':
-        specifier: ^3.31.4
-        version: 3.32.0(@tiptap/pm@3.32.0)
+        specifier: ^3.32.1
+        version: 3.32.1(@tiptap/pm@3.32.1)
       '@tiptap/extension-list':
-        specifier: ^3.31.4
-        version: 3.32.0(@tiptap/core@3.32.0(@tiptap/pm@3.32.0))(@tiptap/pm@3.32.0)
+        specifier: ^3.32.1
+        version: 3.32.1(@tiptap/core@3.32.1(@tiptap/pm@3.32.1))(@tiptap/pm@3.32.1)
       '@tiptap/extensions':
-        specifier: ^3.31.4
-        version: 3.32.0(@tiptap/core@3.32.0(@tiptap/pm@3.32.0))(@tiptap/pm@3.32.0)
+        specifier: ^3.32.1
+        version: 3.32.1(@tiptap/core@3.32.1(@tiptap/pm@3.32.1))(@tiptap/pm@3.32.1)
       '@tiptap/pm':
-        specifier: ^3.31.4
-        version: 3.32.0
+        specifier: ^3.32.1
+        version: 3.32.1
       '@tiptap/react':
-        specifier: ^3.31.4
-        version: 3.32.0(@floating-ui/dom@1.8.0)(@tiptap/core@3.32.0(@tiptap/pm@3.32.0))(@tiptap/pm@3.32.0)(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
+        specifier: ^3.32.1
+        version: 3.32.1(@floating-ui/dom@1.8.0)(@tiptap/core@3.32.1(@tiptap/pm@3.32.1))(@tiptap/pm@3.32.1)(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
       axios:
         specifier: '>=1.19.0'
         version: 1.20.0(debug@4.4.3(supports-color@10.2.2))(supports-color@10.2.2)
@@ -2434,14 +2434,14 @@ importers:
         specifier: workspace:*
         version: link:../contracts
       '@tiptap/core':
-        specifier: ^3.31.4
-        version: 3.32.0(@tiptap/pm@3.32.0)
+        specifier: ^3.32.1
+        version: 3.32.1(@tiptap/pm@3.32.1)
       '@tiptap/pm':
-        specifier: ^3.31.4
-        version: 3.32.0
+        specifier: ^3.32.1
+        version: 3.32.1
       '@tiptap/static-renderer':
-        specifier: ^3.31.4
-        version: 3.32.0(@tiptap/core@3.32.0(@tiptap/pm@3.32.0))(@tiptap/pm@3.32.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
+        specifier: ^3.32.1
+        version: 3.32.1(@tiptap/core@3.32.1(@tiptap/pm@3.32.1))(@tiptap/pm@3.32.1)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
       class-variance-authority:
         specifier: ^0.7.1
         version: 0.7.1
@@ -5724,16 +5724,16 @@ packages:
   '@ggraphic/core@0.1.0-alpha.1':
     resolution: {integrity: sha512-Hvqf//MCRZF/2emO+P+aDBsZxW+ca4SEW/K9IwopnKbocvF1u2HEWhUvQlql1+kCkN5hBDSivdiWmSzf4uYUcw==}
 
-  '@ggraphic/editor@0.1.0-alpha.1':
-    resolution: {integrity: sha512-470PR0W5AZBqde91npLZN2Hj4ad5EB+5YFJGdUEil1xfKjzcuU7qICfCoJu0UzaP/VMANLUBtZIW48jnQXbVFA==}
+  '@ggraphic/editor@0.1.0-alpha.2':
+    resolution: {integrity: sha512-YH2Oj4dl7+N8VvIpjM5ysOoO4LFd4ckqI4CHpcSI9bj6Ygsp1I3Dv5PBwFaOISpca+95QTdAmGxsFiL5lR66wA==}
     peerDependencies:
       konva: ^10.9.0
-      react: ^19.0.0
-      react-dom: ^19.0.0
+      react: ^19.3.0
+      react-dom: ^19.3.0
       react-konva: ^19.3.2
 
-  '@ggraphic/schema@0.1.0-alpha.0':
-    resolution: {integrity: sha512-d8A1WS42xUn1pkbfXcco0b+bTioYAlApIUh+n6KoulLbYwfNvHzPO2TXlaZvxgzO2y7siWLyrANoKW36FlXcAA==}
+  '@ggraphic/schema@0.1.0-alpha.1':
+    resolution: {integrity: sha512-da78N8yaUP1siaG9y/G54dJK8sdhn9kxcdZVfwu9lc7+2/7h4XSaKEwdWCbQ0DZFJsJGw++SDFgYaWoA588cCg==}
 
   '@grpc/grpc-js@1.14.5':
     resolution: {integrity: sha512-7VZM+SVdEcUUqSQeNI3zM8Qs/BhQKZndPo2h5VkYkAM8Iz0wJIa8mKV5ekQGqG8UUsnkQ0NMxIxwkIHYvj0qOw==}
@@ -5788,11 +5788,14 @@ packages:
   '@hocuspocus/common@4.7.1':
     resolution: {integrity: sha512-+N4t8AdBIWBUK+yHsuBvCcBm96eV2E3quIewma9+TYomqVMXhrovAf3dA6XFbYHRM7ggtXklHt2mFqTcpiMdAQ==}
 
+  '@hocuspocus/common@4.8.0':
+    resolution: {integrity: sha512-UI8Vye3mds2aMUHaWfwkDq0+257JUpvKa0nyAOjXWLfyhYHsAq8eku+ynZc/PaShyOci/VD54cW/rLQJGHHPKg==}
+
   '@hocuspocus/extension-logger@4.7.1':
     resolution: {integrity: sha512-eRATcy39UDXRKLDAlE06WnRq9XQVraC/WKLh8XtjiLRaqAHy8l/JrxcteOUzkMGOkVerhM76bD1akH8hyeTsCQ==}
 
-  '@hocuspocus/provider@4.7.1':
-    resolution: {integrity: sha512-znulqyCwwuhq86aFmTF6izOomwRWlZGReCAf+SZpLgpvdfvBQJzjoj9HdtuXXfL9wkBM2Ydt86kaMs2rjaicRA==}
+  '@hocuspocus/provider@4.8.0':
+    resolution: {integrity: sha512-WUwwu3W55n0fkMF1uYhx4WXlRjJ/t7OjsxiuzTMMQGDvvZrZA37CAysdqc7JXLVmN6A5IIWadE921pxN9/JotA==}
     peerDependencies:
       y-protocols: ^1.0.6
       yjs: ^13.6.8
@@ -5854,11 +5857,17 @@ packages:
   '@iconify-json/lucide@1.2.147':
     resolution: {integrity: sha512-7Qqa/joSBeUxihWsQJx5nKcqMWtV3YrH90Jldxcx4J9ciTLavRUlpexQwRTcx9dcb7CJpISfjZTj42zD/30sqA==}
 
+  '@iconify-json/lucide@1.2.149':
+    resolution: {integrity: sha512-5NG9YdbtRS03hG1A+EIE6nLhhdAYsf0mKu1ZRi6kLMlCG8DxmDsRM6DAhwlNMLiSiQKFbHpKTJ2VddZdwUkUyw==}
+
   '@iconify-json/ri@1.2.10':
     resolution: {integrity: sha512-WWMhoncVVM+Xmu9T5fgu2lhYRrKTEWhKk3Com0KiM111EeEsRLiASjpsFKnC/SrB6covhUp95r2mH8tGxhgd5Q==}
 
   '@iconify-json/tabler@1.2.42':
     resolution: {integrity: sha512-fObaBh/H2zJphk3lS1dWPUf/buuGaCHQXnB4UYgKOPXQub5Ac1qEu0AHRj/0+E2FEl8pWfgM2xQWzfz7ffcY+A==}
+
+  '@iconify-json/tabler@1.2.43':
+    resolution: {integrity: sha512-EKhyOj6nASi25ZjuRpEhPL1fwiKVtg/e/VX6v6X3FPKpjG9og26ypW8ItnWYSTn6fdNuQe3VPeyuThWlP6QuWw==}
 
   '@iconify/react@6.0.3':
     resolution: {integrity: sha512-2x7gVs+tpUG75aXYo/0c5wPOqrFy75YSGKmuJZyuHyrHMydzXpI/+i9/USIzWXJL9WWc2BCgPVnGY2FhbeiiDQ==}
@@ -10266,123 +10275,123 @@ packages:
     peerDependencies:
       '@testing-library/dom': '>=7.21.4'
 
-  '@tiptap/core@3.32.0':
-    resolution: {integrity: sha512-Ghh2h02GKSqzytQGcLV4espYOG4EHxjj0MsrUB2Vnr47xmlZYRf6r7k2J09H+JpBdaGrWwrTkyBEi5i3c3yy2Q==}
+  '@tiptap/core@3.32.1':
+    resolution: {integrity: sha512-ImhEufkmqFK1mIbcYAZOhoBColsdy4sepB3Wd6vDPULbonGXL1LliLs79IiVY1hzmqkBksxwyqkyPxlcFMNTdQ==}
     peerDependencies:
-      '@tiptap/pm': ^3.31.4
+      '@tiptap/pm': ^3.32.1
 
-  '@tiptap/extension-bold@3.32.0':
-    resolution: {integrity: sha512-SQYewnYDoIBN+8oH53IDcD8p+Pz+Jnyq3hrxjy/FAo5ctc+96d3ZLdqc9gzLVSqFFo/SUINv2FVGoq9PvU7yqw==}
+  '@tiptap/extension-bold@3.32.1':
+    resolution: {integrity: sha512-mQFAKhUXdOQHjueSfhf1+rsbWORLMxr/UG0L8RhEF83npTxD4a0yq8MaJKLCgFZKp4OULajMxoVg7wTFQT/NUA==}
     peerDependencies:
-      '@tiptap/core': ^3.31.4
+      '@tiptap/core': ^3.32.1
 
-  '@tiptap/extension-bubble-menu@3.32.0':
-    resolution: {integrity: sha512-X3ll8i9Z8QNvt7+tcqlwopJG+68ugO13Av0Ox4Ico+jXcTnFdDuKQJBSI9sLuMR5vTQOeTHhKYXhjF88aahMSA==}
+  '@tiptap/extension-bubble-menu@3.32.1':
+    resolution: {integrity: sha512-Zt5k0dRgaLiWdnl6p0iXyrsh4HEcnfQjkL5nAHcViURMHun5tqpc8oGNYtNxxkF+9wHKNBhIfYgsUeXTZKQJeg==}
     peerDependencies:
-      '@tiptap/core': ^3.31.4
-      '@tiptap/pm': ^3.31.4
+      '@tiptap/core': ^3.32.1
+      '@tiptap/pm': ^3.32.1
 
-  '@tiptap/extension-code@3.31.4':
-    resolution: {integrity: sha512-pzi8GNDs5J1DEoO1HNYiJ5WZpgOZzlc/2VIa77mMpEuD4hZxuK0BQzlF/O6Ps/O5P1lGJT4xS0Yowpzb9mD9RA==}
+  '@tiptap/extension-code@3.32.1':
+    resolution: {integrity: sha512-QVpgbAXqBAd+WWuib8KXfFd2ccbwb1/1gqh4D34pEltknMtFlrLhftpNXnE+1nsHm2dUtY9tbS42tU3yQ32yIA==}
     peerDependencies:
-      '@tiptap/core': ^3.31.4
+      '@tiptap/core': ^3.32.1
 
-  '@tiptap/extension-collaboration@3.32.0':
-    resolution: {integrity: sha512-db7VPDksD13zsYVi/Hao2Je5ZMwGRuXxVBDFv182Kr06aixxAWjBJ5JvYf6AgcrDKFx/dPPpDjctKQjJPtw6VA==}
+  '@tiptap/extension-collaboration@3.32.1':
+    resolution: {integrity: sha512-jKi7VZen80ORQkCuyXzZFUCpWl1JUgO4R3ZVfUphfTdQg/ZyknDCpUS07gSEY00JYrdAhAu5OI/0eFH+sEtHKg==}
     peerDependencies:
-      '@tiptap/core': ^3.31.4
-      '@tiptap/pm': ^3.31.4
+      '@tiptap/core': ^3.32.1
+      '@tiptap/pm': ^3.32.1
       '@tiptap/y-tiptap': ^3.0.7
       yjs: ^13
 
-  '@tiptap/extension-document@3.32.0':
-    resolution: {integrity: sha512-GugeKE6AnZDluRXJUNBuX43TPcaJxy5wck6vT2J4a0/EnKStJ43suSZZf1IPfb1ij9EL9bYvAwg9DOcrvdEzTQ==}
+  '@tiptap/extension-document@3.32.1':
+    resolution: {integrity: sha512-0BkKoRkKniaOLeMfqUGYSD+QIyQ2fa9Md0s77b6ofmGdcUw3Garo70uHKOjV8L0Y4wZZz61E3wvd41Efr9C8vw==}
     peerDependencies:
-      '@tiptap/core': ^3.31.4
+      '@tiptap/core': ^3.32.1
 
-  '@tiptap/extension-floating-menu@3.32.0':
-    resolution: {integrity: sha512-AzKCWceL+4Q1pTc8Whw1kPqN/aYGPQ70/jXPsblWl501t/pXi6Kz0Pi/NggKkuu73VGjykh68YYf/dcOJ/mPZQ==}
+  '@tiptap/extension-floating-menu@3.32.1':
+    resolution: {integrity: sha512-mbfd7g0O+KcPkUWc/WCmzwQdNIk0egTbj32na2CnB65ZHwBcS0MIULFbgGuEkof6IW0wc5wcI71tPLMT46b9kQ==}
     peerDependencies:
       '@floating-ui/dom': ^1.0.0
-      '@tiptap/core': ^3.31.4
-      '@tiptap/pm': ^3.31.4
+      '@tiptap/core': ^3.32.1
+      '@tiptap/pm': ^3.32.1
 
-  '@tiptap/extension-hard-break@3.32.0':
-    resolution: {integrity: sha512-IKUYvK+bO2hGrDWhhTVg0CSh9C2belWg9GyLzvpyd3SZyQ9EgdccLfoytNjOBKbAE/TQ4Oo3kSP+XF6RsUIKPA==}
+  '@tiptap/extension-hard-break@3.32.1':
+    resolution: {integrity: sha512-xx7E4pSwlsXRSxRpXh40SQp5/5Qz7k2efP7CYAWuHQC64DjknlVeGcmnuM7ZUYmT6aa1JFzstBU0Q6iDXlX4eQ==}
     peerDependencies:
-      '@tiptap/core': ^3.31.4
+      '@tiptap/core': ^3.32.1
 
-  '@tiptap/extension-heading@3.32.0':
-    resolution: {integrity: sha512-XRiZxZuhfjvbgwCvoBHj04gOsPANEXxxRwrFCQVuFi5yeTHYIzMEioc81j6iAH9pV7aQeJCwLxuh6VHNz3dXEQ==}
+  '@tiptap/extension-heading@3.32.1':
+    resolution: {integrity: sha512-45OuAbyzbgcecd7wZfyGI/9cs2AtvOJFDXsrRG9YFWQKDTe1IuuJMT2/9SRYOE+BJSD1gZWRwQVInEJ6PS0tmQ==}
     peerDependencies:
-      '@tiptap/core': ^3.31.4
+      '@tiptap/core': ^3.32.1
 
-  '@tiptap/extension-image@3.32.0':
-    resolution: {integrity: sha512-nv/YlOMwFUp2ItffQbHb14yAJjrn9sdxKl0WK5rH8PPiNoXVkvasieoBLNTHan9gjhrSp7LjVG2ZsMoSe/I7gg==}
+  '@tiptap/extension-image@3.32.1':
+    resolution: {integrity: sha512-Prldt1k+oYWePgbgHwybDdlpKPJ97Pq2WJFvGyF/KslZjnCAO6DZFMve30I7Pc8shqJAedHk5pl4pwCNsfcm0g==}
     peerDependencies:
-      '@tiptap/core': ^3.31.4
+      '@tiptap/core': ^3.32.1
 
-  '@tiptap/extension-italic@3.32.0':
-    resolution: {integrity: sha512-KB/i1xoHilbBGcQ+UotDWhi60KpdCde3RzRIpl2na0Yol4z4Fe2IRWg8ljIrlsssDRwel/fsHJbG7a13EP8oKA==}
+  '@tiptap/extension-italic@3.32.1':
+    resolution: {integrity: sha512-AKmJY7JG1DKbF+rXVvK/u3/0S3WXYduVkHCeV85hXd0cT8S2h9AWNo4aufJ6niYGuLnbKl0vaV6Z9Is/81ixlw==}
     peerDependencies:
-      '@tiptap/core': ^3.31.4
+      '@tiptap/core': ^3.32.1
 
-  '@tiptap/extension-list@3.32.0':
-    resolution: {integrity: sha512-QdzS5nFz9agAQhBgIuQluobWib39W2cMKx1XB6tYSue7bHMJdgPFP0EnGfFajaeVX42CG6RXtQWrNfyQGKhBvg==}
+  '@tiptap/extension-list@3.32.1':
+    resolution: {integrity: sha512-7OXo4BH0/r3hdzg055/9DxvykYDf8V/fB8Y1YsgVnmkDywnlQhaaqITD1XG3Gx1yioJwQ/2IiFGOwndVLKF9ow==}
     peerDependencies:
-      '@tiptap/core': ^3.31.4
-      '@tiptap/pm': ^3.31.4
+      '@tiptap/core': ^3.32.1
+      '@tiptap/pm': ^3.32.1
 
-  '@tiptap/extension-paragraph@3.32.0':
-    resolution: {integrity: sha512-afKLMc7fWMkkar9H5FilizStSbhFzUoCzdwwdZf6DDsn3LUt8tJlFHACK78cAyx/TzMJBo0N8/8T1u9bL+N67Q==}
+  '@tiptap/extension-paragraph@3.32.1':
+    resolution: {integrity: sha512-gRUUShNxeg9jUrct1x4npiI/wqgmqkO0lZoTbEXLJjxfU3NM46Q0hBO+tLB+lWvOo0SEo71eoy32uyPkZ11dzg==}
     peerDependencies:
-      '@tiptap/core': ^3.31.4
+      '@tiptap/core': ^3.32.1
 
-  '@tiptap/extension-strike@3.31.4':
-    resolution: {integrity: sha512-4MBr63TJIMqxCjE+gAPdlY1IdELgvbAP516K3Ntn/BkcpEbEoPMEYVz+XTxULyHQEuARDO6jsXPPxRXpA74jaw==}
+  '@tiptap/extension-strike@3.32.1':
+    resolution: {integrity: sha512-xduHVV0AilSabWrKXDudQu4kLqL2sCns3hokS7D453e0rgMezOmHglbGqm+AcP8nVQ0a5sw4g1XEHNBPKkr8Vg==}
     peerDependencies:
-      '@tiptap/core': ^3.31.4
+      '@tiptap/core': ^3.32.1
 
-  '@tiptap/extension-table@3.32.0':
-    resolution: {integrity: sha512-uOqCzWzxXvMccapZo+1CDxp3JGegxqNl11Lj8XiiWLxwmg81B/bKwMJW7+YlIdffgGNYJETk5YwL8T0IVBD2QQ==}
+  '@tiptap/extension-table@3.32.1':
+    resolution: {integrity: sha512-cugXuQNd/9+I85kstqiMLARDKCyLcCPFb7L+qo09McrL82iF0uUHA4cBnzCWk+8HpWTPCiYjb3E0fqmACSQudw==}
     peerDependencies:
-      '@tiptap/core': ^3.31.4
-      '@tiptap/pm': ^3.31.4
+      '@tiptap/core': ^3.32.1
+      '@tiptap/pm': ^3.32.1
 
-  '@tiptap/extension-text@3.32.0':
-    resolution: {integrity: sha512-sF0jIK67IHdZMnzv2mz5vPTyK7R0ui6/YZgFg+/bLnFCNmweVAoYcHZLlC7ISRnwu0mqJr+epNtzJepY1ZDCjg==}
+  '@tiptap/extension-text@3.32.1':
+    resolution: {integrity: sha512-/cM+x4zHjNpceFX/K1nR/DoND5upYPcJnt7PkEyiLbkMKey1xzU86zbsxtKrgVtJpO9aLOnanN5O0d4DVNDDhg==}
     peerDependencies:
-      '@tiptap/core': ^3.31.4
+      '@tiptap/core': ^3.32.1
 
-  '@tiptap/extension-underline@3.32.0':
-    resolution: {integrity: sha512-rMLdd4vg6sed/JnaXnaupLbCtYiWikTnQ8qir9ItKOXwf1Ui9P1Y4G0bYU4+gcnMsFzaSGtrOhMqG4/c66AogQ==}
+  '@tiptap/extension-underline@3.32.1':
+    resolution: {integrity: sha512-GzJaWZS6ADOZWTtNKcmK9sDR4CtVWjnVBsQZbnaPqnc2cUg4mNLX9IBaCJWYE3GjfoEnhoJOtEcolYSNTbKzWA==}
     peerDependencies:
-      '@tiptap/core': ^3.31.4
+      '@tiptap/core': ^3.32.1
 
-  '@tiptap/extensions@3.32.0':
-    resolution: {integrity: sha512-qO+ndNvlOjzU2MWCtQHoRg1tIortCXLvqPjDx58F1pUYFNCOVZegXi+jqLGDODUA31er+TVz66umzRbbN1bO1Q==}
+  '@tiptap/extensions@3.32.1':
+    resolution: {integrity: sha512-yjFOMinGm4CVTlJn9BqusW/HDR6iCyhZ/OJOeJAPwcTg0S4HudceCgyFFh1N3ulHfWtzh4BNGuK+lyPFrjIUOw==}
     peerDependencies:
-      '@tiptap/core': ^3.31.4
-      '@tiptap/pm': ^3.31.4
+      '@tiptap/core': ^3.32.1
+      '@tiptap/pm': ^3.32.1
 
-  '@tiptap/pm@3.32.0':
-    resolution: {integrity: sha512-H9eN+xHFboJybE7KPGVsu24S8aBlCIgYz38vCHRSnNv17nwmqm06owq/IQ5scza0n3Y7IfUfpgPOtm9SgeHmNQ==}
+  '@tiptap/pm@3.32.1':
+    resolution: {integrity: sha512-xgIcbATKQQiabqOntfTuN2jk+fDXL+zaCIdWfgQL2xpnIDx9rQRf60oljorYuYIEybJ5Uqo6PE7iu8Zq7LJbjQ==}
 
-  '@tiptap/react@3.32.0':
-    resolution: {integrity: sha512-+iS9RKj6Ve8SXqJ49xptDiifF7PQXmUOh4cjMu+BCXXqKphQkiUccvbWYAeOJCTceM01wWgFhrpfy8qG+CHJYw==}
+  '@tiptap/react@3.32.1':
+    resolution: {integrity: sha512-FT5kULD3Lr2F6hPcLkBsqKnHira9vLUR2KILjqLWFrFMfF6+RDqifMh7AHJQiXYPSWIc2gmtg9/vqrFFTRQVXA==}
     peerDependencies:
-      '@tiptap/core': ^3.31.4
-      '@tiptap/pm': ^3.31.4
+      '@tiptap/core': ^3.32.1
+      '@tiptap/pm': ^3.32.1
       '@types/react': 19.3.0
       '@types/react-dom': ^19.3.0
       react: ^17.0.0 || ^18.0.0 || ^19.0.0
       react-dom: ^17.0.0 || ^18.0.0 || ^19.0.0
 
-  '@tiptap/static-renderer@3.32.0':
-    resolution: {integrity: sha512-sMSwLNkB2Bz8+zJvRpurhTC/kniCilyCubkJEqmN1o5prJD85YQnnLABYx5pNKdxKDtFjJGvJhYPEtTwyegSnQ==}
+  '@tiptap/static-renderer@3.32.1':
+    resolution: {integrity: sha512-SeAjH/H+JpAAkn0tAT8rBJ6gbvOVdpYvnxhtG/R7fDz8HFv5OjWr9kptdohKqpfpQ11mFqpdJfthn1wjmzdWGA==}
     peerDependencies:
-      '@tiptap/core': ^3.31.4
-      '@tiptap/pm': ^3.31.4
+      '@tiptap/core': ^3.32.1
+      '@tiptap/pm': ^3.32.1
       react: ^17.0.0 || ^18.0.0 || ^19.0.0
       react-dom: ^17.0.0 || ^18.0.0 || ^19.0.0
 
@@ -17574,6 +17583,15 @@ packages:
       '@types/react':
         optional: true
 
+  lucide-react@1.65.0:
+    resolution: {integrity: sha512-roSdtzudEY39i2hn5LLjA8toYfhF2z4S10WSqZF4ubXpHlOmNTvaxMxZLdJfQDi6pEifQWX+cRmYihKSsvAxfA==}
+    peerDependencies:
+      '@types/react': 19.3.0
+      react: ^16.5.1 || ^17.0.0 || ^18.0.0 || ^19.0.0
+    peerDependenciesMeta:
+      '@types/react':
+        optional: true
+
   lunr-languages@1.21.0:
     resolution: {integrity: sha512-Hj0VwJP1FGwZzVMMZdDtWY2GB2VVKtvVElYtVajzCZCDr2RTucyLpPibrOPGgTlcq2ENQy2gYLtPnzyFu9jZCg==}
 
@@ -24424,15 +24442,15 @@ snapshots:
       '@emoji-mart/data': 1.2.1
       '@handlewithcare/prosemirror-inputrules': 0.1.4(prosemirror-model@1.25.12)(prosemirror-state@1.4.4)(prosemirror-view@1.42.7)
       '@shikijs/types': 4.5.0
-      '@tiptap/core': 3.32.0(@tiptap/pm@3.32.0)
-      '@tiptap/extension-bold': 3.32.0(@tiptap/core@3.32.0(@tiptap/pm@3.32.0))
-      '@tiptap/extension-code': 3.31.4(@tiptap/core@3.32.0(@tiptap/pm@3.32.0))
-      '@tiptap/extension-italic': 3.32.0(@tiptap/core@3.32.0(@tiptap/pm@3.32.0))
-      '@tiptap/extension-strike': 3.31.4(@tiptap/core@3.32.0(@tiptap/pm@3.32.0))
-      '@tiptap/extension-text': 3.32.0(@tiptap/core@3.32.0(@tiptap/pm@3.32.0))
-      '@tiptap/extension-underline': 3.32.0(@tiptap/core@3.32.0(@tiptap/pm@3.32.0))
-      '@tiptap/extensions': 3.32.0(@tiptap/core@3.32.0(@tiptap/pm@3.32.0))(@tiptap/pm@3.32.0)
-      '@tiptap/pm': 3.32.0
+      '@tiptap/core': 3.32.1(@tiptap/pm@3.32.1)
+      '@tiptap/extension-bold': 3.32.1(@tiptap/core@3.32.1(@tiptap/pm@3.32.1))
+      '@tiptap/extension-code': 3.32.1(@tiptap/core@3.32.1(@tiptap/pm@3.32.1))
+      '@tiptap/extension-italic': 3.32.1(@tiptap/core@3.32.1(@tiptap/pm@3.32.1))
+      '@tiptap/extension-strike': 3.32.1(@tiptap/core@3.32.1(@tiptap/pm@3.32.1))
+      '@tiptap/extension-text': 3.32.1(@tiptap/core@3.32.1(@tiptap/pm@3.32.1))
+      '@tiptap/extension-underline': 3.32.1(@tiptap/core@3.32.1(@tiptap/pm@3.32.1))
+      '@tiptap/extensions': 3.32.1(@tiptap/core@3.32.1(@tiptap/pm@3.32.1))(@tiptap/pm@3.32.1)
+      '@tiptap/pm': 3.32.1
       emoji-mart: 5.6.0
       fast-deep-equal: 3.1.3
       lib0: 1.0.0-rc.36
@@ -24460,9 +24478,9 @@ snapshots:
       '@blocknote/core': 0.56.0(@lezer/common@1.5.2)(@lezer/highlight@1.2.3)(@types/hast@3.0.5)(y-prosemirror@1.3.7(prosemirror-model@1.25.12)(prosemirror-state@1.4.4)(prosemirror-view@1.42.7)(y-protocols@1.0.7(yjs@13.6.33))(yjs@13.6.33))(y-protocols@1.0.7(yjs@13.6.33))(yjs@13.6.33)
       '@emoji-mart/data': 1.2.1
       '@floating-ui/react': 0.27.20(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
-      '@tiptap/core': 3.32.0(@tiptap/pm@3.32.0)
-      '@tiptap/pm': 3.32.0
-      '@tiptap/react': 3.32.0(@floating-ui/dom@1.8.0)(@tiptap/core@3.32.0(@tiptap/pm@3.32.0))(@tiptap/pm@3.32.0)(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
+      '@tiptap/core': 3.32.1(@tiptap/pm@3.32.1)
+      '@tiptap/pm': 3.32.1
+      '@tiptap/react': 3.32.1(@floating-ui/dom@1.8.0)(@tiptap/core@3.32.1(@tiptap/pm@3.32.1))(@tiptap/pm@3.32.1)(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
       emoji-mart: 5.6.0
       fast-deep-equal: 3.1.3
       react: 19.3.0
@@ -24520,7 +24538,7 @@ snapshots:
       - y-protocols
       - yjs
 
-  '@blocknote/xl-ai@0.56.0(patch_hash=9ceed13d4097cad6abb0fd603f6a94fc2debce8410e307bd40770dcd814fa2d0)(@floating-ui/dom@1.8.0)(@lezer/common@1.5.2)(@lezer/highlight@1.2.3)(@tiptap/pm@3.32.0)(@types/hast@3.0.5)(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(y-prosemirror@1.3.7(prosemirror-model@1.25.12)(prosemirror-state@1.4.4)(prosemirror-view@1.42.7)(y-protocols@1.0.7(yjs@13.6.33))(yjs@13.6.33))(y-protocols@1.0.7(yjs@13.6.33))(yjs@13.6.33)(zod@4.6.7)':
+  '@blocknote/xl-ai@0.56.0(patch_hash=9ceed13d4097cad6abb0fd603f6a94fc2debce8410e307bd40770dcd814fa2d0)(@floating-ui/dom@1.8.0)(@lezer/common@1.5.2)(@lezer/highlight@1.2.3)(@tiptap/pm@3.32.1)(@types/hast@3.0.5)(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(y-prosemirror@1.3.7(prosemirror-model@1.25.12)(prosemirror-state@1.4.4)(prosemirror-view@1.42.7)(y-protocols@1.0.7(yjs@13.6.33))(yjs@13.6.33))(y-protocols@1.0.7(yjs@13.6.33))(yjs@13.6.33)(zod@4.6.7)':
     dependencies:
       '@ai-sdk/provider-utils': 4.0.50(zod@4.6.7)
       '@ai-sdk/react': 3.0.281(react@19.3.0)(zod@4.6.7)
@@ -24528,7 +24546,7 @@ snapshots:
       '@blocknote/react': 0.56.0(@floating-ui/dom@1.8.0)(@lezer/common@1.5.2)(@lezer/highlight@1.2.3)(@types/hast@3.0.5)(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(y-prosemirror@1.3.7(prosemirror-model@1.25.12)(prosemirror-state@1.4.4)(prosemirror-view@1.42.7)(y-protocols@1.0.7(yjs@13.6.33))(yjs@13.6.33))(y-protocols@1.0.7(yjs@13.6.33))(yjs@13.6.33)
       '@floating-ui/react': 0.27.20(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
       '@handlewithcare/prosemirror-suggest-changes': 0.1.8(prosemirror-model@1.25.12)(prosemirror-state@1.4.4)(prosemirror-transform@1.12.4)(prosemirror-view@1.42.7)
-      '@tiptap/core': 3.32.0(@tiptap/pm@3.32.0)
+      '@tiptap/core': 3.32.1(@tiptap/pm@3.32.1)
       ai: 6.0.278(zod@4.6.7)
       lodash.isequal: 4.5.0
       lodash.merge: 4.6.2
@@ -24560,10 +24578,10 @@ snapshots:
       - yjs
       - zod
 
-  '@blocknote/xl-docx-exporter@0.56.0(@floating-ui/dom@1.8.0)(@lezer/common@1.5.2)(@lezer/highlight@1.2.3)(@tiptap/pm@3.32.0)(@types/hast@3.0.5)(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(y-prosemirror@1.3.7(prosemirror-model@1.25.12)(prosemirror-state@1.4.4)(prosemirror-view@1.42.7)(y-protocols@1.0.7(yjs@13.6.33))(yjs@13.6.33))(y-protocols@1.0.7(yjs@13.6.33))(yjs@13.6.33)':
+  '@blocknote/xl-docx-exporter@0.56.0(@floating-ui/dom@1.8.0)(@lezer/common@1.5.2)(@lezer/highlight@1.2.3)(@tiptap/pm@3.32.1)(@types/hast@3.0.5)(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(y-prosemirror@1.3.7(prosemirror-model@1.25.12)(prosemirror-state@1.4.4)(prosemirror-view@1.42.7)(y-protocols@1.0.7(yjs@13.6.33))(yjs@13.6.33))(y-protocols@1.0.7(yjs@13.6.33))(yjs@13.6.33)':
     dependencies:
       '@blocknote/core': 0.56.0(@lezer/common@1.5.2)(@lezer/highlight@1.2.3)(@types/hast@3.0.5)(y-prosemirror@1.3.7(prosemirror-model@1.25.12)(prosemirror-state@1.4.4)(prosemirror-view@1.42.7)(y-protocols@1.0.7(yjs@13.6.33))(yjs@13.6.33))(y-protocols@1.0.7(yjs@13.6.33))(yjs@13.6.33)
-      '@blocknote/xl-multi-column': 0.56.0(@floating-ui/dom@1.8.0)(@lezer/common@1.5.2)(@lezer/highlight@1.2.3)(@tiptap/pm@3.32.0)(@types/hast@3.0.5)(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(y-prosemirror@1.3.7(prosemirror-model@1.25.12)(prosemirror-state@1.4.4)(prosemirror-view@1.42.7)(y-protocols@1.0.7(yjs@13.6.33))(yjs@13.6.33))(y-protocols@1.0.7(yjs@13.6.33))(yjs@13.6.33)
+      '@blocknote/xl-multi-column': 0.56.0(@floating-ui/dom@1.8.0)(@lezer/common@1.5.2)(@lezer/highlight@1.2.3)(@tiptap/pm@3.32.1)(@types/hast@3.0.5)(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(y-prosemirror@1.3.7(prosemirror-model@1.25.12)(prosemirror-state@1.4.4)(prosemirror-view@1.42.7)(y-protocols@1.0.7(yjs@13.6.33))(yjs@13.6.33))(y-protocols@1.0.7(yjs@13.6.33))(yjs@13.6.33)
       buffer: 6.0.3
       docx: 9.14.0
       image-meta: 0.2.2
@@ -24588,11 +24606,11 @@ snapshots:
       - y-protocols
       - yjs
 
-  '@blocknote/xl-multi-column@0.56.0(@floating-ui/dom@1.8.0)(@lezer/common@1.5.2)(@lezer/highlight@1.2.3)(@tiptap/pm@3.32.0)(@types/hast@3.0.5)(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(y-prosemirror@1.3.7(prosemirror-model@1.25.12)(prosemirror-state@1.4.4)(prosemirror-view@1.42.7)(y-protocols@1.0.7(yjs@13.6.33))(yjs@13.6.33))(y-protocols@1.0.7(yjs@13.6.33))(yjs@13.6.33)':
+  '@blocknote/xl-multi-column@0.56.0(@floating-ui/dom@1.8.0)(@lezer/common@1.5.2)(@lezer/highlight@1.2.3)(@tiptap/pm@3.32.1)(@types/hast@3.0.5)(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(y-prosemirror@1.3.7(prosemirror-model@1.25.12)(prosemirror-state@1.4.4)(prosemirror-view@1.42.7)(y-protocols@1.0.7(yjs@13.6.33))(yjs@13.6.33))(y-protocols@1.0.7(yjs@13.6.33))(yjs@13.6.33)':
     dependencies:
       '@blocknote/core': 0.56.0(@lezer/common@1.5.2)(@lezer/highlight@1.2.3)(@types/hast@3.0.5)(y-prosemirror@1.3.7(prosemirror-model@1.25.12)(prosemirror-state@1.4.4)(prosemirror-view@1.42.7)(y-protocols@1.0.7(yjs@13.6.33))(yjs@13.6.33))(y-protocols@1.0.7(yjs@13.6.33))(yjs@13.6.33)
       '@blocknote/react': 0.56.0(@floating-ui/dom@1.8.0)(@lezer/common@1.5.2)(@lezer/highlight@1.2.3)(@types/hast@3.0.5)(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(y-prosemirror@1.3.7(prosemirror-model@1.25.12)(prosemirror-state@1.4.4)(prosemirror-view@1.42.7)(y-protocols@1.0.7(yjs@13.6.33))(yjs@13.6.33))(y-protocols@1.0.7(yjs@13.6.33))(yjs@13.6.33)
-      '@tiptap/core': 3.32.0(@tiptap/pm@3.32.0)
+      '@tiptap/core': 3.32.1(@tiptap/pm@3.32.1)
       prosemirror-model: 1.25.12
       prosemirror-state: 1.4.4
       prosemirror-view: 1.42.7
@@ -24617,10 +24635,10 @@ snapshots:
       - y-protocols
       - yjs
 
-  '@blocknote/xl-odt-exporter@0.56.0(@floating-ui/dom@1.8.0)(@lezer/common@1.5.2)(@lezer/highlight@1.2.3)(@tiptap/pm@3.32.0)(@types/hast@3.0.5)(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(y-prosemirror@1.3.7(prosemirror-model@1.25.12)(prosemirror-state@1.4.4)(prosemirror-view@1.42.7)(y-protocols@1.0.7(yjs@13.6.33))(yjs@13.6.33))(y-protocols@1.0.7(yjs@13.6.33))(yjs@13.6.33)':
+  '@blocknote/xl-odt-exporter@0.56.0(@floating-ui/dom@1.8.0)(@lezer/common@1.5.2)(@lezer/highlight@1.2.3)(@tiptap/pm@3.32.1)(@types/hast@3.0.5)(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(y-prosemirror@1.3.7(prosemirror-model@1.25.12)(prosemirror-state@1.4.4)(prosemirror-view@1.42.7)(y-protocols@1.0.7(yjs@13.6.33))(yjs@13.6.33))(y-protocols@1.0.7(yjs@13.6.33))(yjs@13.6.33)':
     dependencies:
       '@blocknote/core': 0.56.0(@lezer/common@1.5.2)(@lezer/highlight@1.2.3)(@types/hast@3.0.5)(y-prosemirror@1.3.7(prosemirror-model@1.25.12)(prosemirror-state@1.4.4)(prosemirror-view@1.42.7)(y-protocols@1.0.7(yjs@13.6.33))(yjs@13.6.33))(y-protocols@1.0.7(yjs@13.6.33))(yjs@13.6.33)
-      '@blocknote/xl-multi-column': 0.56.0(@floating-ui/dom@1.8.0)(@lezer/common@1.5.2)(@lezer/highlight@1.2.3)(@tiptap/pm@3.32.0)(@types/hast@3.0.5)(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(y-prosemirror@1.3.7(prosemirror-model@1.25.12)(prosemirror-state@1.4.4)(prosemirror-view@1.42.7)(y-protocols@1.0.7(yjs@13.6.33))(yjs@13.6.33))(y-protocols@1.0.7(yjs@13.6.33))(yjs@13.6.33)
+      '@blocknote/xl-multi-column': 0.56.0(@floating-ui/dom@1.8.0)(@lezer/common@1.5.2)(@lezer/highlight@1.2.3)(@tiptap/pm@3.32.1)(@types/hast@3.0.5)(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(y-prosemirror@1.3.7(prosemirror-model@1.25.12)(prosemirror-state@1.4.4)(prosemirror-view@1.42.7)(y-protocols@1.0.7(yjs@13.6.33))(yjs@13.6.33))(y-protocols@1.0.7(yjs@13.6.33))(yjs@13.6.33)
       '@zip.js/zip.js': 2.13.1
       image-meta: 0.2.2
       react: 19.3.0
@@ -27517,7 +27535,7 @@ snapshots:
 
   '@ggraphic/collab@0.1.0-alpha.0(react@19.3.0)(y-protocols@1.0.7(yjs@13.6.33))':
     dependencies:
-      '@hocuspocus/provider': 4.7.1(y-protocols@1.0.7(yjs@13.6.33))(yjs@13.6.33)
+      '@hocuspocus/provider': 4.8.0(y-protocols@1.0.7(yjs@13.6.33))(yjs@13.6.33)
       react: 19.3.0
       y-indexeddb: 9.0.12(patch_hash=875c900aa72b382009d7bf793f3728cd96c163b878593afcdd0fbe8281b3a143)(yjs@13.6.33)
       yjs: 13.6.33
@@ -27526,45 +27544,46 @@ snapshots:
 
   '@ggraphic/core@0.1.0-alpha.1': {}
 
-  '@ggraphic/editor@0.1.0-alpha.1(@floating-ui/dom@1.8.0)(@tiptap/pm@3.32.0)(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(konva@10.9.0)(react-dom@19.3.0(react@19.3.0))(react-is@19.2.8)(react-konva@19.3.2(@types/react@19.3.0)(konva@10.9.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(react@19.3.0)(redux@5.0.1)(use-sync-external-store@1.6.0(react@19.3.0))(y-protocols@1.0.7(yjs@13.6.33))':
+  '@ggraphic/editor@0.1.0-alpha.2(@floating-ui/dom@1.8.0)(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(konva@10.9.0)(react-dom@19.3.0(react@19.3.0))(react-konva@19.3.2(@types/react@19.3.0)(konva@10.9.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(react@19.3.0)(redux@5.0.1)(use-sync-external-store@1.6.0(react@19.3.0))':
     dependencies:
       '@ggraphic/core': 0.1.0-alpha.1
-      '@ggraphic/schema': 0.1.0-alpha.0
-      '@hocuspocus/provider': 4.7.1(y-protocols@1.0.7(yjs@13.6.33))(yjs@13.6.33)
+      '@ggraphic/schema': 0.1.0-alpha.1
+      '@hocuspocus/provider': 4.8.0(y-protocols@1.0.7(yjs@13.6.33))(yjs@13.6.33)
       '@iconify-json/bi': 1.2.7
       '@iconify-json/flowbite': 1.2.7
       '@iconify-json/heroicons': 1.2.3
       '@iconify-json/iconoir': 1.2.12
-      '@iconify-json/lucide': 1.2.147
+      '@iconify-json/lucide': 1.2.149
       '@iconify-json/ri': 1.2.10
-      '@iconify-json/tabler': 1.2.42
+      '@iconify-json/tabler': 1.2.43
       '@iconify/react': 6.0.3(react@19.3.0)
       '@iconify/utils': 3.1.7
       '@tanstack/react-query': 5.104.5(@types/react@19.3.0)(react@19.3.0)
-      '@tiptap/core': 3.32.0(@tiptap/pm@3.32.0)
-      '@tiptap/extension-bold': 3.32.0(@tiptap/core@3.32.0(@tiptap/pm@3.32.0))
-      '@tiptap/extension-document': 3.32.0(@tiptap/core@3.32.0(@tiptap/pm@3.32.0))
-      '@tiptap/extension-hard-break': 3.32.0(@tiptap/core@3.32.0(@tiptap/pm@3.32.0))
-      '@tiptap/extension-italic': 3.32.0(@tiptap/core@3.32.0(@tiptap/pm@3.32.0))
-      '@tiptap/extension-list': 3.32.0(@tiptap/core@3.32.0(@tiptap/pm@3.32.0))(@tiptap/pm@3.32.0)
-      '@tiptap/extension-paragraph': 3.32.0(@tiptap/core@3.32.0(@tiptap/pm@3.32.0))
-      '@tiptap/extension-text': 3.32.0(@tiptap/core@3.32.0(@tiptap/pm@3.32.0))
-      '@tiptap/extension-underline': 3.32.0(@tiptap/core@3.32.0(@tiptap/pm@3.32.0))
-      '@tiptap/extensions': 3.32.0(@tiptap/core@3.32.0(@tiptap/pm@3.32.0))(@tiptap/pm@3.32.0)
-      '@tiptap/react': 3.32.0(@floating-ui/dom@1.8.0)(@tiptap/core@3.32.0(@tiptap/pm@3.32.0))(@tiptap/pm@3.32.0)(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
+      '@tiptap/core': 3.32.1(@tiptap/pm@3.32.1)
+      '@tiptap/extension-bold': 3.32.1(@tiptap/core@3.32.1(@tiptap/pm@3.32.1))
+      '@tiptap/extension-document': 3.32.1(@tiptap/core@3.32.1(@tiptap/pm@3.32.1))
+      '@tiptap/extension-hard-break': 3.32.1(@tiptap/core@3.32.1(@tiptap/pm@3.32.1))
+      '@tiptap/extension-italic': 3.32.1(@tiptap/core@3.32.1(@tiptap/pm@3.32.1))
+      '@tiptap/extension-list': 3.32.1(@tiptap/core@3.32.1(@tiptap/pm@3.32.1))(@tiptap/pm@3.32.1)
+      '@tiptap/extension-paragraph': 3.32.1(@tiptap/core@3.32.1(@tiptap/pm@3.32.1))
+      '@tiptap/extension-text': 3.32.1(@tiptap/core@3.32.1(@tiptap/pm@3.32.1))
+      '@tiptap/extension-underline': 3.32.1(@tiptap/core@3.32.1(@tiptap/pm@3.32.1))
+      '@tiptap/extensions': 3.32.1(@tiptap/core@3.32.1(@tiptap/pm@3.32.1))(@tiptap/pm@3.32.1)
+      '@tiptap/pm': 3.32.1
+      '@tiptap/react': 3.32.1(@floating-ui/dom@1.8.0)(@tiptap/core@3.32.1(@tiptap/pm@3.32.1))(@tiptap/pm@3.32.1)(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
       class-variance-authority: 0.7.1
       clsx: 2.1.1
       fflate: 0.8.3
       immer: 11.2.9
       konva: 10.9.0
-      lucide-react: 1.61.0(@types/react@19.3.0)(react@19.3.0)
+      lucide-react: 1.65.0(@types/react@19.3.0)(react@19.3.0)
       pdf-lib: 1.17.1
-      pptxgenjs: 4.0.1
       qrcode.react: 4.2.0(react@19.3.0)
       radix-ui: 1.8.1(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
       react: 19.3.0
       react-dom: 19.3.0(react@19.3.0)
       react-icons: 5.7.0(react@19.3.0)
+      react-is: 19.2.8
       react-kawaii: 1.6.0(react@19.3.0)
       react-konva: 19.3.2(@types/react@19.3.0)(konva@10.9.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
       recharts: 3.10.1(@types/react@19.3.0)(react-dom@19.3.0(react@19.3.0))(react-is@19.2.8)(react@19.3.0)(redux@5.0.1)
@@ -27572,57 +27591,56 @@ snapshots:
       tailwind-merge: 3.7.0
       use-image: 1.1.4(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
       uuid: 14.0.3
+      y-protocols: 1.0.7(yjs@13.6.33)
       yjs: 13.6.33
       zustand: 5.0.16(@types/react@19.3.0)(immer@11.2.9)(react@19.3.0)(use-sync-external-store@1.6.0(react@19.3.0))
     transitivePeerDependencies:
       - '@floating-ui/dom'
-      - '@tiptap/pm'
       - '@types/react'
       - '@types/react-dom'
-      - react-is
       - redux
       - use-sync-external-store
-      - y-protocols
 
-  '@ggraphic/editor@0.1.0-alpha.1(@floating-ui/dom@1.8.0)(@tiptap/pm@3.32.0)(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(konva@10.9.0)(react-dom@19.3.0(react@19.3.0))(react-is@19.2.8)(react-konva@19.3.2(@types/react@19.3.0)(konva@10.9.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(react@19.3.0)(redux@5.0.1)(use-sync-external-store@1.7.0(react@19.3.0))(y-protocols@1.0.7(yjs@13.6.33))':
+  '@ggraphic/editor@0.1.0-alpha.2(@floating-ui/dom@1.8.0)(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(konva@10.9.0)(react-dom@19.3.0(react@19.3.0))(react-konva@19.3.2(@types/react@19.3.0)(konva@10.9.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(react@19.3.0)(redux@5.0.1)(use-sync-external-store@1.7.0(react@19.3.0))':
     dependencies:
       '@ggraphic/core': 0.1.0-alpha.1
-      '@ggraphic/schema': 0.1.0-alpha.0
-      '@hocuspocus/provider': 4.7.1(y-protocols@1.0.7(yjs@13.6.33))(yjs@13.6.33)
+      '@ggraphic/schema': 0.1.0-alpha.1
+      '@hocuspocus/provider': 4.8.0(y-protocols@1.0.7(yjs@13.6.33))(yjs@13.6.33)
       '@iconify-json/bi': 1.2.7
       '@iconify-json/flowbite': 1.2.7
       '@iconify-json/heroicons': 1.2.3
       '@iconify-json/iconoir': 1.2.12
-      '@iconify-json/lucide': 1.2.147
+      '@iconify-json/lucide': 1.2.149
       '@iconify-json/ri': 1.2.10
-      '@iconify-json/tabler': 1.2.42
+      '@iconify-json/tabler': 1.2.43
       '@iconify/react': 6.0.3(react@19.3.0)
       '@iconify/utils': 3.1.7
       '@tanstack/react-query': 5.104.5(@types/react@19.3.0)(react@19.3.0)
-      '@tiptap/core': 3.32.0(@tiptap/pm@3.32.0)
-      '@tiptap/extension-bold': 3.32.0(@tiptap/core@3.32.0(@tiptap/pm@3.32.0))
-      '@tiptap/extension-document': 3.32.0(@tiptap/core@3.32.0(@tiptap/pm@3.32.0))
-      '@tiptap/extension-hard-break': 3.32.0(@tiptap/core@3.32.0(@tiptap/pm@3.32.0))
-      '@tiptap/extension-italic': 3.32.0(@tiptap/core@3.32.0(@tiptap/pm@3.32.0))
-      '@tiptap/extension-list': 3.32.0(@tiptap/core@3.32.0(@tiptap/pm@3.32.0))(@tiptap/pm@3.32.0)
-      '@tiptap/extension-paragraph': 3.32.0(@tiptap/core@3.32.0(@tiptap/pm@3.32.0))
-      '@tiptap/extension-text': 3.32.0(@tiptap/core@3.32.0(@tiptap/pm@3.32.0))
-      '@tiptap/extension-underline': 3.32.0(@tiptap/core@3.32.0(@tiptap/pm@3.32.0))
-      '@tiptap/extensions': 3.32.0(@tiptap/core@3.32.0(@tiptap/pm@3.32.0))(@tiptap/pm@3.32.0)
-      '@tiptap/react': 3.32.0(@floating-ui/dom@1.8.0)(@tiptap/core@3.32.0(@tiptap/pm@3.32.0))(@tiptap/pm@3.32.0)(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
+      '@tiptap/core': 3.32.1(@tiptap/pm@3.32.1)
+      '@tiptap/extension-bold': 3.32.1(@tiptap/core@3.32.1(@tiptap/pm@3.32.1))
+      '@tiptap/extension-document': 3.32.1(@tiptap/core@3.32.1(@tiptap/pm@3.32.1))
+      '@tiptap/extension-hard-break': 3.32.1(@tiptap/core@3.32.1(@tiptap/pm@3.32.1))
+      '@tiptap/extension-italic': 3.32.1(@tiptap/core@3.32.1(@tiptap/pm@3.32.1))
+      '@tiptap/extension-list': 3.32.1(@tiptap/core@3.32.1(@tiptap/pm@3.32.1))(@tiptap/pm@3.32.1)
+      '@tiptap/extension-paragraph': 3.32.1(@tiptap/core@3.32.1(@tiptap/pm@3.32.1))
+      '@tiptap/extension-text': 3.32.1(@tiptap/core@3.32.1(@tiptap/pm@3.32.1))
+      '@tiptap/extension-underline': 3.32.1(@tiptap/core@3.32.1(@tiptap/pm@3.32.1))
+      '@tiptap/extensions': 3.32.1(@tiptap/core@3.32.1(@tiptap/pm@3.32.1))(@tiptap/pm@3.32.1)
+      '@tiptap/pm': 3.32.1
+      '@tiptap/react': 3.32.1(@floating-ui/dom@1.8.0)(@tiptap/core@3.32.1(@tiptap/pm@3.32.1))(@tiptap/pm@3.32.1)(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
       class-variance-authority: 0.7.1
       clsx: 2.1.1
       fflate: 0.8.3
       immer: 11.2.9
       konva: 10.9.0
-      lucide-react: 1.61.0(@types/react@19.3.0)(react@19.3.0)
+      lucide-react: 1.65.0(@types/react@19.3.0)(react@19.3.0)
       pdf-lib: 1.17.1
-      pptxgenjs: 4.0.1
       qrcode.react: 4.2.0(react@19.3.0)
       radix-ui: 1.8.1(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
       react: 19.3.0
       react-dom: 19.3.0(react@19.3.0)
       react-icons: 5.7.0(react@19.3.0)
+      react-is: 19.2.8
       react-kawaii: 1.6.0(react@19.3.0)
       react-konva: 19.3.2(@types/react@19.3.0)(konva@10.9.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
       recharts: 3.10.1(@types/react@19.3.0)(react-dom@19.3.0(react@19.3.0))(react-is@19.2.8)(react@19.3.0)(redux@5.0.1)
@@ -27630,19 +27648,17 @@ snapshots:
       tailwind-merge: 3.7.0
       use-image: 1.1.4(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
       uuid: 14.0.3
+      y-protocols: 1.0.7(yjs@13.6.33)
       yjs: 13.6.33
       zustand: 5.0.16(@types/react@19.3.0)(immer@11.2.9)(react@19.3.0)(use-sync-external-store@1.7.0(react@19.3.0))
     transitivePeerDependencies:
       - '@floating-ui/dom'
-      - '@tiptap/pm'
       - '@types/react'
       - '@types/react-dom'
-      - react-is
       - redux
       - use-sync-external-store
-      - y-protocols
 
-  '@ggraphic/schema@0.1.0-alpha.0':
+  '@ggraphic/schema@0.1.0-alpha.1':
     dependencies:
       '@xmldom/xmldom': 0.9.12
       zod: 4.6.7
@@ -27700,6 +27716,10 @@ snapshots:
     dependencies:
       lib0: 0.2.119
 
+  '@hocuspocus/common@4.8.0':
+    dependencies:
+      lib0: 0.2.119
+
   '@hocuspocus/extension-logger@4.7.1(srvx@0.11.22)(y-protocols@1.0.7(yjs@13.6.33))(yjs@13.6.33)':
     dependencies:
       '@hocuspocus/server': 4.7.1(srvx@0.11.22)(y-protocols@1.0.7(yjs@13.6.33))(yjs@13.6.33)
@@ -27708,9 +27728,9 @@ snapshots:
       - y-protocols
       - yjs
 
-  '@hocuspocus/provider@4.7.1(y-protocols@1.0.7(yjs@13.6.33))(yjs@13.6.33)':
+  '@hocuspocus/provider@4.8.0(y-protocols@1.0.7(yjs@13.6.33))(yjs@13.6.33)':
     dependencies:
-      '@hocuspocus/common': 4.7.1
+      '@hocuspocus/common': 4.8.0
       '@lifeomic/attempt': 3.1.0
       lib0: 0.2.119
       y-protocols: 1.0.7(yjs@13.6.33)
@@ -27778,11 +27798,19 @@ snapshots:
     dependencies:
       '@iconify/types': 2.0.0
 
+  '@iconify-json/lucide@1.2.149':
+    dependencies:
+      '@iconify/types': 2.0.0
+
   '@iconify-json/ri@1.2.10':
     dependencies:
       '@iconify/types': 2.0.0
 
   '@iconify-json/tabler@1.2.42':
+    dependencies:
+      '@iconify/types': 2.0.0
+
+  '@iconify-json/tabler@1.2.43':
     dependencies:
       '@iconify/types': 2.0.0
 
@@ -32313,91 +32341,91 @@ snapshots:
     dependencies:
       '@testing-library/dom': 10.4.1
 
-  '@tiptap/core@3.32.0(@tiptap/pm@3.32.0)':
+  '@tiptap/core@3.32.1(@tiptap/pm@3.32.1)':
     dependencies:
-      '@tiptap/pm': 3.32.0
+      '@tiptap/pm': 3.32.1
 
-  '@tiptap/extension-bold@3.32.0(@tiptap/core@3.32.0(@tiptap/pm@3.32.0))':
+  '@tiptap/extension-bold@3.32.1(@tiptap/core@3.32.1(@tiptap/pm@3.32.1))':
     dependencies:
-      '@tiptap/core': 3.32.0(@tiptap/pm@3.32.0)
+      '@tiptap/core': 3.32.1(@tiptap/pm@3.32.1)
 
-  '@tiptap/extension-bubble-menu@3.32.0(@tiptap/core@3.32.0(@tiptap/pm@3.32.0))(@tiptap/pm@3.32.0)':
+  '@tiptap/extension-bubble-menu@3.32.1(@tiptap/core@3.32.1(@tiptap/pm@3.32.1))(@tiptap/pm@3.32.1)':
     dependencies:
       '@floating-ui/dom': 1.8.0
-      '@tiptap/core': 3.32.0(@tiptap/pm@3.32.0)
-      '@tiptap/pm': 3.32.0
+      '@tiptap/core': 3.32.1(@tiptap/pm@3.32.1)
+      '@tiptap/pm': 3.32.1
     optional: true
 
-  '@tiptap/extension-code@3.31.4(@tiptap/core@3.32.0(@tiptap/pm@3.32.0))':
+  '@tiptap/extension-code@3.32.1(@tiptap/core@3.32.1(@tiptap/pm@3.32.1))':
     dependencies:
-      '@tiptap/core': 3.32.0(@tiptap/pm@3.32.0)
+      '@tiptap/core': 3.32.1(@tiptap/pm@3.32.1)
 
-  '@tiptap/extension-collaboration@3.32.0(@tiptap/core@3.32.0(@tiptap/pm@3.32.0))(@tiptap/pm@3.32.0)(@tiptap/y-tiptap@3.0.9(prosemirror-model@1.25.12)(prosemirror-state@1.4.4)(prosemirror-view@1.42.7)(y-protocols@1.0.7(yjs@13.6.33))(yjs@13.6.33))(yjs@13.6.33)':
+  '@tiptap/extension-collaboration@3.32.1(@tiptap/core@3.32.1(@tiptap/pm@3.32.1))(@tiptap/pm@3.32.1)(@tiptap/y-tiptap@3.0.9(prosemirror-model@1.25.12)(prosemirror-state@1.4.4)(prosemirror-view@1.42.7)(y-protocols@1.0.7(yjs@13.6.33))(yjs@13.6.33))(yjs@13.6.33)':
     dependencies:
-      '@tiptap/core': 3.32.0(@tiptap/pm@3.32.0)
-      '@tiptap/pm': 3.32.0
+      '@tiptap/core': 3.32.1(@tiptap/pm@3.32.1)
+      '@tiptap/pm': 3.32.1
       '@tiptap/y-tiptap': 3.0.9(prosemirror-model@1.25.12)(prosemirror-state@1.4.4)(prosemirror-view@1.42.7)(y-protocols@1.0.7(yjs@13.6.33))(yjs@13.6.33)
       yjs: 13.6.33
 
-  '@tiptap/extension-document@3.32.0(@tiptap/core@3.32.0(@tiptap/pm@3.32.0))':
+  '@tiptap/extension-document@3.32.1(@tiptap/core@3.32.1(@tiptap/pm@3.32.1))':
     dependencies:
-      '@tiptap/core': 3.32.0(@tiptap/pm@3.32.0)
+      '@tiptap/core': 3.32.1(@tiptap/pm@3.32.1)
 
-  '@tiptap/extension-floating-menu@3.32.0(@floating-ui/dom@1.8.0)(@tiptap/core@3.32.0(@tiptap/pm@3.32.0))(@tiptap/pm@3.32.0)':
+  '@tiptap/extension-floating-menu@3.32.1(@floating-ui/dom@1.8.0)(@tiptap/core@3.32.1(@tiptap/pm@3.32.1))(@tiptap/pm@3.32.1)':
     dependencies:
       '@floating-ui/dom': 1.8.0
-      '@tiptap/core': 3.32.0(@tiptap/pm@3.32.0)
-      '@tiptap/pm': 3.32.0
+      '@tiptap/core': 3.32.1(@tiptap/pm@3.32.1)
+      '@tiptap/pm': 3.32.1
     optional: true
 
-  '@tiptap/extension-hard-break@3.32.0(@tiptap/core@3.32.0(@tiptap/pm@3.32.0))':
+  '@tiptap/extension-hard-break@3.32.1(@tiptap/core@3.32.1(@tiptap/pm@3.32.1))':
     dependencies:
-      '@tiptap/core': 3.32.0(@tiptap/pm@3.32.0)
+      '@tiptap/core': 3.32.1(@tiptap/pm@3.32.1)
 
-  '@tiptap/extension-heading@3.32.0(@tiptap/core@3.32.0(@tiptap/pm@3.32.0))':
+  '@tiptap/extension-heading@3.32.1(@tiptap/core@3.32.1(@tiptap/pm@3.32.1))':
     dependencies:
-      '@tiptap/core': 3.32.0(@tiptap/pm@3.32.0)
+      '@tiptap/core': 3.32.1(@tiptap/pm@3.32.1)
 
-  '@tiptap/extension-image@3.32.0(@tiptap/core@3.32.0(@tiptap/pm@3.32.0))':
+  '@tiptap/extension-image@3.32.1(@tiptap/core@3.32.1(@tiptap/pm@3.32.1))':
     dependencies:
-      '@tiptap/core': 3.32.0(@tiptap/pm@3.32.0)
+      '@tiptap/core': 3.32.1(@tiptap/pm@3.32.1)
 
-  '@tiptap/extension-italic@3.32.0(@tiptap/core@3.32.0(@tiptap/pm@3.32.0))':
+  '@tiptap/extension-italic@3.32.1(@tiptap/core@3.32.1(@tiptap/pm@3.32.1))':
     dependencies:
-      '@tiptap/core': 3.32.0(@tiptap/pm@3.32.0)
+      '@tiptap/core': 3.32.1(@tiptap/pm@3.32.1)
 
-  '@tiptap/extension-list@3.32.0(@tiptap/core@3.32.0(@tiptap/pm@3.32.0))(@tiptap/pm@3.32.0)':
+  '@tiptap/extension-list@3.32.1(@tiptap/core@3.32.1(@tiptap/pm@3.32.1))(@tiptap/pm@3.32.1)':
     dependencies:
-      '@tiptap/core': 3.32.0(@tiptap/pm@3.32.0)
-      '@tiptap/pm': 3.32.0
+      '@tiptap/core': 3.32.1(@tiptap/pm@3.32.1)
+      '@tiptap/pm': 3.32.1
 
-  '@tiptap/extension-paragraph@3.32.0(@tiptap/core@3.32.0(@tiptap/pm@3.32.0))':
+  '@tiptap/extension-paragraph@3.32.1(@tiptap/core@3.32.1(@tiptap/pm@3.32.1))':
     dependencies:
-      '@tiptap/core': 3.32.0(@tiptap/pm@3.32.0)
+      '@tiptap/core': 3.32.1(@tiptap/pm@3.32.1)
 
-  '@tiptap/extension-strike@3.31.4(@tiptap/core@3.32.0(@tiptap/pm@3.32.0))':
+  '@tiptap/extension-strike@3.32.1(@tiptap/core@3.32.1(@tiptap/pm@3.32.1))':
     dependencies:
-      '@tiptap/core': 3.32.0(@tiptap/pm@3.32.0)
+      '@tiptap/core': 3.32.1(@tiptap/pm@3.32.1)
 
-  '@tiptap/extension-table@3.32.0(@tiptap/core@3.32.0(@tiptap/pm@3.32.0))(@tiptap/pm@3.32.0)':
+  '@tiptap/extension-table@3.32.1(@tiptap/core@3.32.1(@tiptap/pm@3.32.1))(@tiptap/pm@3.32.1)':
     dependencies:
-      '@tiptap/core': 3.32.0(@tiptap/pm@3.32.0)
-      '@tiptap/pm': 3.32.0
+      '@tiptap/core': 3.32.1(@tiptap/pm@3.32.1)
+      '@tiptap/pm': 3.32.1
 
-  '@tiptap/extension-text@3.32.0(@tiptap/core@3.32.0(@tiptap/pm@3.32.0))':
+  '@tiptap/extension-text@3.32.1(@tiptap/core@3.32.1(@tiptap/pm@3.32.1))':
     dependencies:
-      '@tiptap/core': 3.32.0(@tiptap/pm@3.32.0)
+      '@tiptap/core': 3.32.1(@tiptap/pm@3.32.1)
 
-  '@tiptap/extension-underline@3.32.0(@tiptap/core@3.32.0(@tiptap/pm@3.32.0))':
+  '@tiptap/extension-underline@3.32.1(@tiptap/core@3.32.1(@tiptap/pm@3.32.1))':
     dependencies:
-      '@tiptap/core': 3.32.0(@tiptap/pm@3.32.0)
+      '@tiptap/core': 3.32.1(@tiptap/pm@3.32.1)
 
-  '@tiptap/extensions@3.32.0(@tiptap/core@3.32.0(@tiptap/pm@3.32.0))(@tiptap/pm@3.32.0)':
+  '@tiptap/extensions@3.32.1(@tiptap/core@3.32.1(@tiptap/pm@3.32.1))(@tiptap/pm@3.32.1)':
     dependencies:
-      '@tiptap/core': 3.32.0(@tiptap/pm@3.32.0)
-      '@tiptap/pm': 3.32.0
+      '@tiptap/core': 3.32.1(@tiptap/pm@3.32.1)
+      '@tiptap/pm': 3.32.1
 
-  '@tiptap/pm@3.32.0':
+  '@tiptap/pm@3.32.1':
     dependencies:
       prosemirror-changeset: 2.4.4
       prosemirror-commands: 1.7.2
@@ -32413,27 +32441,27 @@ snapshots:
       prosemirror-transform: 1.12.4
       prosemirror-view: 1.42.7
 
-  '@tiptap/react@3.32.0(@floating-ui/dom@1.8.0)(@tiptap/core@3.32.0(@tiptap/pm@3.32.0))(@tiptap/pm@3.32.0)(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)':
+  '@tiptap/react@3.32.1(@floating-ui/dom@1.8.0)(@tiptap/core@3.32.1(@tiptap/pm@3.32.1))(@tiptap/pm@3.32.1)(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)':
     dependencies:
-      '@tiptap/core': 3.32.0(@tiptap/pm@3.32.0)
-      '@tiptap/pm': 3.32.0
+      '@tiptap/core': 3.32.1(@tiptap/pm@3.32.1)
+      '@tiptap/pm': 3.32.1
       '@types/react': 19.3.0
       '@types/react-dom': 19.3.0(@types/react@19.3.0)
       '@types/use-sync-external-store': 0.0.6
       fast-equals: 5.4.2
       react: 19.3.0
       react-dom: 19.3.0(react@19.3.0)
-      use-sync-external-store: 1.6.0(react@19.3.0)
+      use-sync-external-store: 1.7.0(react@19.3.0)
     optionalDependencies:
-      '@tiptap/extension-bubble-menu': 3.32.0(@tiptap/core@3.32.0(@tiptap/pm@3.32.0))(@tiptap/pm@3.32.0)
-      '@tiptap/extension-floating-menu': 3.32.0(@floating-ui/dom@1.8.0)(@tiptap/core@3.32.0(@tiptap/pm@3.32.0))(@tiptap/pm@3.32.0)
+      '@tiptap/extension-bubble-menu': 3.32.1(@tiptap/core@3.32.1(@tiptap/pm@3.32.1))(@tiptap/pm@3.32.1)
+      '@tiptap/extension-floating-menu': 3.32.1(@floating-ui/dom@1.8.0)(@tiptap/core@3.32.1(@tiptap/pm@3.32.1))(@tiptap/pm@3.32.1)
     transitivePeerDependencies:
       - '@floating-ui/dom'
 
-  '@tiptap/static-renderer@3.32.0(@tiptap/core@3.32.0(@tiptap/pm@3.32.0))(@tiptap/pm@3.32.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)':
+  '@tiptap/static-renderer@3.32.1(@tiptap/core@3.32.1(@tiptap/pm@3.32.1))(@tiptap/pm@3.32.1)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)':
     dependencies:
-      '@tiptap/core': 3.32.0(@tiptap/pm@3.32.0)
-      '@tiptap/pm': 3.32.0
+      '@tiptap/core': 3.32.1(@tiptap/pm@3.32.1)
+      '@tiptap/pm': 3.32.1
       react: 19.3.0
       react-dom: 19.3.0(react@19.3.0)
 
@@ -41867,6 +41895,12 @@ snapshots:
       react: 19.3.0
 
   lucide-react@1.61.0(@types/react@19.3.0)(react@19.3.0):
+    dependencies:
+      react: 19.3.0
+    optionalDependencies:
+      '@types/react': 19.3.0
+
+  lucide-react@1.65.0(@types/react@19.3.0)(react@19.3.0):
     dependencies:
       react: 19.3.0
     optionalDependencies:

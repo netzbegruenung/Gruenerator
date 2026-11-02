@@ -1,16 +1,15 @@
-import { useMessages } from '@ggraphic/editor/i18n/messages';
-import { cn } from '@ggraphic/editor/utils/cn';
-import { FaCheck } from 'react-icons/fa';
-
-import { SidebarHint } from '@ggraphic/editor/sidebar/components/SidebarHint';
+import { useMessages } from '@ggraphic/editor/i18n';
+import { cn } from '@ggraphic/editor/internal/utils/cn';
 import {
+  SidebarHint,
   CARD_CHECK,
   CARD_GRID,
   CARD_LABEL,
   SELECTABLE_CARD_ACTIVE,
   SELECTABLE_CARD_WITH_LABEL,
   SIDEBAR_SECTION,
-} from '@ggraphic/editor/sidebar/sidebarStyles';
+} from '@ggraphic/editor/sidebar';
+import { FaCheck } from 'react-icons/fa';
 
 import type { ColorScheme } from '../../../utils/dreizeilenLayout';
 

@@ -5,8 +5,8 @@
  * Öffnen wird es noch einmal versucht.
  */
 
-import { useCanvasEditorServices } from '@ggraphic/editor/CanvasEditorProvider';
-import { plainImageUrls, type CanvasImageUrlService } from '@ggraphic/editor/hostServices';
+import { useCanvasEditorServices } from '@ggraphic/editor/host-react';
+import { plainImageUrls, type CanvasImageUrlService } from '@ggraphic/editor/services';
 import { useLayoutEffect, useRef, useState } from 'react';
 
 import { preloadSlideLayoutPhoto, renderSlideLayoutThumbnail } from './renderSlideLayoutThumbnail';

@@ -1,10 +1,10 @@
+import { resolveAssetInstanceSrc } from '@ggraphic/editor/elements';
+import { getAssetById } from '@ggraphic/editor/host';
 import {
   createStickerInstance,
-  getAssetById,
   getAssetBySrc,
   isStickerLikeInstance,
-  resolveAssetInstanceSrc,
-} from '@ggraphic/editor/utils/canvasAssets';
+} from '@ggraphic/editor/internal/utils/canvasAssets';
 import { describe, expect, it } from 'vitest';
 
 import { EMOJI_ASSETS, STICKER_ASSETS } from '../brand/grueneAssetCatalog';

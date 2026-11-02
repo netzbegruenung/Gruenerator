@@ -1,5 +1,5 @@
-import { largestSizeWordsFit } from '@ggraphic/editor/composer/textFit';
-import { createPillBadgeInstance } from '@ggraphic/editor/utils/pillBadgeUtils';
+import { createPillBadgeInstance } from '@ggraphic/editor/elements';
+import { largestSizeWordsFit } from '@ggraphic/editor/text';
 import { onGround } from '@gruenerator/contracts/brand';
 
 import { AT_EMPHASIS_STYLE } from './chromeParts';

@@ -1,4 +1,5 @@
-import { searchElements } from '@ggraphic/editor/sidebar/sections/assets/elementSearch';
+import { loadAllIcons } from '@ggraphic/editor/elements';
+import { searchElements } from '@ggraphic/editor/internal/sidebar/sections/assets/elementSearch';
 import {
   assetItem,
   CHART_ITEMS,
@@ -7,17 +8,16 @@ import {
   illustrationItem,
   shapeItems,
   type CategoryId,
-} from '@ggraphic/editor/sidebar/sections/assets/useElementCatalog';
-import { stockPhotoItem } from '@ggraphic/editor/sidebar/sections/assets/useStockPhotos';
-import { loadAllIcons } from '@ggraphic/editor/utils/canvasIcons';
-import { getAllIllustrations } from '@ggraphic/editor/utils/illustrations/registry';
+} from '@ggraphic/editor/internal/sidebar/sections/assets/useElementCatalog';
+import { stockPhotoItem } from '@ggraphic/editor/internal/sidebar/sections/assets/useStockPhotos';
+import { getAllIllustrations } from '@ggraphic/editor/internal/utils/illustrations/registry';
 import { beforeAll, describe, expect, it } from 'vitest';
 
 import { EMOJI_ASSETS, stickerAssetsForLocale } from '../../../brand/grueneAssetCatalog';
 import { ALL_ASSETS } from '../../../brand/grueneAssets';
 import { GRUENE_DE } from '../../../brand/theme';
 
-import type { ElementItem } from '@ggraphic/editor/sidebar/sections/assets/elementTypes';
+import type { ElementItem } from '@ggraphic/editor/sidebar';
 
 type Category = { id: CategoryId; searchable: boolean; items: ElementItem[] };
 let catalog: Category[] = [];

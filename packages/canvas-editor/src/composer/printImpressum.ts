@@ -4,6 +4,7 @@
  * `Impressum: <medieninhaber>, <anschrift>`. The export gate reads that text
  * back, so what counts as filled in is decided here.
  */
+import { type CanvasImprintParts } from '@ggraphic/editor/services';
 import { PRINT_IMPRESSUM_PLACEHOLDERS } from '@gruenerator/contracts';
 
 const PREFIX = { 'de-DE': 'V.i.S.d.P.:', 'de-AT': 'Impressum:' } as const;
@@ -20,6 +21,20 @@ export interface ImpressumParts {
   name: string;
   anschrift: string;
 }
+
+/**
+ * The editor's imprint parts. Ours keep `anschrift`: it is the field of the print
+ * spec on the wire and in stored Vorlagen (`printCreator.ts`, F0), the editor
+ * calls it `address`. The print service maps at that seam.
+ */
+export const toImprintParts = ({ name, anschrift }: ImpressumParts): CanvasImprintParts => ({
+  name,
+  address: anschrift,
+});
+export const fromImprintParts = ({ name, address }: CanvasImprintParts): ImpressumParts => ({
+  name,
+  anschrift: address,
+});
 
 /** The values the gallery templates ship with; they stand for „not filled in yet“. */
 const PLACEHOLDERS: ReadonlySet<string> = new Set(PRINT_IMPRESSUM_PLACEHOLDERS);

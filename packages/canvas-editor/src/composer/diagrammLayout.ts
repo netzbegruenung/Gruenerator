@@ -1,5 +1,4 @@
-import { createChartInstance, type ChartType } from '@ggraphic/editor/utils/chartUtils';
-import { createShape } from '@ggraphic/editor/utils/shapes';
+import { createChartInstance, type ChartType, createShape } from '@ggraphic/editor/elements';
 import { type SharepicChartKind } from '@gruenerator/contracts';
 
 import { getBrandPack } from '../brand/theme';

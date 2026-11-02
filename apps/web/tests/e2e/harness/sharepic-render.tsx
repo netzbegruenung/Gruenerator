@@ -19,6 +19,7 @@ import {
   GRUENE_BRAND_PACKS,
   registerBrandPacks,
 } from '@gruenerator/canvas-editor/grueneBrandPacks';
+import { registerGrueneFormats } from '@gruenerator/canvas-editor/grueneFormats';
 import { sharepicSpecSchema } from '@gruenerator/contracts';
 
 import {
@@ -40,6 +41,8 @@ installHarnessBrandFonts();
 // bold families and font cuts the renders read. Without them the harness
 // drew what no user sees (a faked bold of GothamNarrow-Book, for one).
 registerBrandPacks(GRUENE_BRAND_PACKS);
+// `post-portrait-tall` is the Grünerator's, not one of the editor's built-ins (ggraphic #114).
+registerGrueneFormats();
 
 // Vite serves the API's stock photos by their file URLs — a path under /api
 // would hit the dev proxy instead.

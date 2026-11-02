@@ -3,8 +3,8 @@
  * Before, the card kept the composer's height until an AI edit recomposed the
  * page, and the new point hung below it.
  */
-import { getCanvasFormatOrDefault } from '@ggraphic/editor/formats/index';
-import { runMeasurer } from '@ggraphic/editor/utils/textUtils';
+import { getCanvasFormatOrDefault } from '@ggraphic/editor/templates';
+import { runMeasurer } from '@ggraphic/editor/text';
 import { layoutRichTextBlock } from '@ggraphic/schema';
 import { type SharepicSpec } from '@gruenerator/contracts';
 import { describe, expect, it } from 'vitest';
@@ -15,8 +15,8 @@ import { composeSharepic } from './composeSharepic';
 import { fingerprint, liftPage, recomposePage } from './liftSharepicPage';
 import { farbe, options } from './sharepicSpecFixtures';
 
-import type { AdditionalText } from '@ggraphic/editor/configs/types';
-import type { ShapeInstance } from '@ggraphic/editor/utils/shapes';
+import type { AdditionalText } from '@ggraphic/editor/config';
+import type { ShapeInstance } from '@ggraphic/editor/elements';
 
 const specOf = (headline: string, items: string[]): SharepicSpec => ({
   locale: 'de-DE',

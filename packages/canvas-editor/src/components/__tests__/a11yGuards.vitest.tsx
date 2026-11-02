@@ -11,23 +11,21 @@
 import {
   CanvasTextEditorProvider,
   preloadRichText,
-} from '@ggraphic/editor/components/CanvasTextOverlay';
-import { SelectionPill } from '@ggraphic/editor/components/SelectionPill';
-import { ContextControls } from '@ggraphic/editor/components/TopBar/ContextControls';
-import { MobileSelectionBar } from '@ggraphic/editor/components/TopBar/MobileSelectionBar';
-import { CanvasStage, type CanvasStageRef } from '@ggraphic/editor/primitives/CanvasStage';
-import { CanvasText } from '@ggraphic/editor/primitives/CanvasText';
-import { SidebarPanel } from '@ggraphic/editor/sidebar/SidebarPanel';
-import { SidebarTabBar } from '@ggraphic/editor/sidebar/SidebarTabBar';
-import { CanvasStoreProvider } from '@ggraphic/editor/stores/CanvasStoreProvider';
+} from '@ggraphic/editor/internal/components/CanvasTextOverlay';
+import { SelectionPill } from '@ggraphic/editor/internal/components/SelectionPill';
+import { ContextControls } from '@ggraphic/editor/internal/components/TopBar/ContextControls';
+import { MobileSelectionBar } from '@ggraphic/editor/internal/components/TopBar/MobileSelectionBar';
+import { CanvasStage, type CanvasStageRef } from '@ggraphic/editor/internal/primitives/CanvasStage';
+import { CanvasText } from '@ggraphic/editor/internal/primitives/CanvasText';
+import { SidebarPanel, SidebarTabBar, type SidebarTab } from '@ggraphic/editor/sidebar';
+import { CanvasStoreProvider } from '@ggraphic/editor/store';
 import { act, cleanup, render, screen } from '@testing-library/react';
 import { createRef } from 'react';
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 
 import { axe } from '../../test-utils';
 
-import type { FloatingModuleState } from '@ggraphic/editor/hooks/useFloatingModuleState';
-import type { SidebarTab } from '@ggraphic/editor/sidebar/types';
+import type { FloatingModuleState } from '@ggraphic/editor/internal/hooks/useFloatingModuleState';
 
 vi.hoisted(() => {
   const target = new EventTarget() as EventTarget & {

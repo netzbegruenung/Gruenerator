@@ -1,12 +1,12 @@
 import fs from 'node:fs';
 import path from 'node:path';
 
-import { getAssetById, resolveAssetInstanceSrc } from '@ggraphic/editor/utils/canvasAssets';
+import { resolveAssetInstanceSrc, loadEmojiCatalog } from '@ggraphic/editor/elements';
+import { getAssetById } from '@ggraphic/editor/host';
+import { withTone } from '@ggraphic/editor/internal/utils/emoji/emojiCatalog';
 import { describe, expect, it } from 'vitest';
 
 import { EMOJI_ASSETS } from '../../brand/grueneAssetCatalog';
-
-import { loadEmojiCatalog, withTone } from '@ggraphic/editor/utils/emoji/emojiCatalog';
 
 const PUBLIC_DIR = path.resolve(import.meta.dirname, '../../../../../apps/web/public');
 

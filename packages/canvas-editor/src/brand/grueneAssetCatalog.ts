@@ -13,7 +13,7 @@ import {
   emojiCodeAssetId,
   type IllustrationSources,
   type UniversalAsset,
-} from '@ggraphic/editor/utils/canvasAssets';
+} from '@ggraphic/editor/host';
 import {
   isShareSrc,
   SHAREPIC_EMOJI,
@@ -31,7 +31,7 @@ import { GRUENE_AI_ILLUSTRATIONS } from './grueneAiIllustrations';
 import { ALL_ASSETS, TEMPLATE_ASSETS } from './grueneAssets';
 import { GRUENE_ELEMENT_PANEL } from './grueneElementPanel';
 
-export { registerAssetCatalog } from '@ggraphic/editor/utils/canvasAssets';
+export { registerAssetCatalog } from '@ggraphic/editor/host';
 
 const EMOJI_NAMES: Record<SharepicEmoji, [label: string, ...tags: string[]]> = {
   '🗳️': ['Wahlurne', 'wahl', 'wählen', 'stimme'],
@@ -143,16 +143,16 @@ const GRUENE_ILLUSTRATIONS: IllustrationSources = {
   // The Kawaii characters keep the brand tanne.
   kawaiiColor: '#005437',
   loadKawaii: () =>
-    import('@ggraphic/editor/utils/illustrations/kawaii').then((m) => m.KAWAII_ILLUSTRATIONS),
+    import('@ggraphic/editor/illustrations/kawaii').then((m) => m.KAWAII_ILLUSTRATIONS),
   loadSvg: async () =>
     (
       await Promise.all([
-        import('@ggraphic/editor/utils/illustrations/opendoodles').then((m) => m.OPENDOODLES),
-        import('@ggraphic/editor/utils/illustrations/illlustrations').then((m) => m.ILLLUSTRATIONS),
-        import('@ggraphic/editor/utils/illustrations/gophers').then((m) => m.GOPHERS),
-        import('@ggraphic/editor/utils/illustrations/transhumans').then((m) => m.TRANSHUMANS),
-        import('@ggraphic/editor/utils/illustrations/humaaans').then((m) => m.HUMAAANS),
-        import('@ggraphic/editor/utils/illustrations/openpeeps').then((m) => m.OPENPEEPS),
+        import('@ggraphic/editor/illustrations/opendoodles').then((m) => m.OPENDOODLES),
+        import('@ggraphic/editor/illustrations/illlustrations').then((m) => m.ILLLUSTRATIONS),
+        import('@ggraphic/editor/illustrations/gophers').then((m) => m.GOPHERS),
+        import('@ggraphic/editor/illustrations/transhumans').then((m) => m.TRANSHUMANS),
+        import('@ggraphic/editor/illustrations/humaaans').then((m) => m.HUMAAANS),
+        import('@ggraphic/editor/illustrations/openpeeps').then((m) => m.OPENPEEPS),
         import('../utils/illustrations/undrawAll').then((m) => m.UNDRAW_ALL),
       ])
     ).flat(),

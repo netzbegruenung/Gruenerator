@@ -1,9 +1,9 @@
-import { ContextControls } from '@ggraphic/editor/components/TopBar/ContextControls';
+import { ContextControls } from '@ggraphic/editor/internal/components/TopBar/ContextControls';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 
-import type { FloatingModuleState } from '@ggraphic/editor/hooks/useFloatingModuleState';
+import type { FloatingModuleState } from '@ggraphic/editor/internal/hooks/useFloatingModuleState';
 
 /**
  * Sperren in den Auswahl-Steuerungen (mobil im Auswahl-Block des Sheets). Am

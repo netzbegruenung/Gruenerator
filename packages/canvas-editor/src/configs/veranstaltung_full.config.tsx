@@ -13,16 +13,33 @@ import {
   createCircleBadgeActions,
   createFrameActions,
   createUserImageActions,
-} from '@ggraphic/editor/configs/factory/actionFactories';
-import { carryInstanceState } from '@ggraphic/editor/configs/factory/carryInstanceState';
-import { makeSectionDefiner } from '@ggraphic/editor/configs/factory/defineSection';
-import { injectFeatureProps } from '@ggraphic/editor/configs/featureInjector';
-import { PLACEHOLDER_TEXT } from '@ggraphic/editor/configs/placeholders';
-import { createShareSection } from '@ggraphic/editor/configs/shareSection';
-import { CombinedTextSection } from '@ggraphic/editor/sidebar/sections/CombinedTextSection';
-import { type AssetInstance } from '@ggraphic/editor/utils/canvasAssets';
-import { zoomBackground } from '@ggraphic/editor/utils/coverFit';
-import { straightenResetFor } from '@ggraphic/editor/utils/straighten';
+  carryInstanceState,
+  makeSectionDefiner,
+  injectFeatureProps,
+  PLACEHOLDER_TEXT,
+  createShareSection,
+  type FullCanvasConfig,
+  type LayoutResult,
+  type AdditionalText,
+} from '@ggraphic/editor/config';
+import {
+  type AssetInstance,
+  type StockImageAttribution,
+  type CircleBadgeInstance,
+  type CircleBadgeTextLine,
+  type ChartInstance,
+  type FrameClipType,
+  type FrameInstance,
+  type IllustrationInstance,
+  type PillBadgeInstance,
+  type ShapeInstance,
+  type ShapeType,
+  type ElementPlacement,
+  type UserImageInstance,
+  zoomBackground,
+  straightenResetFor,
+} from '@ggraphic/editor/elements';
+import { CombinedTextSection } from '@ggraphic/editor/sidebar';
 import { PiFrameCornersFill, PiSquaresFourFill, PiTextAa } from 'react-icons/pi';
 
 import { CANVAS_RECOMMENDED_ASSETS } from '../brand/grueneAssets';
@@ -34,19 +51,6 @@ import { createBalkenActions } from './factory/balkenActions';
 
 import type { SharepicAiCapabilities } from './aiCapabilities';
 import type { BalkenInstance, BalkenMode } from '../utils/balkenUtils';
-import type { StockImageAttribution } from '@ggraphic/editor/common/imageSourceTypes';
-import type {
-  FullCanvasConfig,
-  LayoutResult,
-  AdditionalText,
-} from '@ggraphic/editor/configs/types';
-import type { CircleBadgeInstance, CircleBadgeTextLine } from '@ggraphic/editor/primitives/index';
-import type { ChartInstance } from '@ggraphic/editor/utils/chartUtils';
-import type { FrameClipType, FrameInstance } from '@ggraphic/editor/utils/frameUtils';
-import type { IllustrationInstance } from '@ggraphic/editor/utils/illustrations/types';
-import type { PillBadgeInstance } from '@ggraphic/editor/utils/pillBadgeUtils';
-import type { ShapeInstance, ShapeType } from '@ggraphic/editor/utils/shapes';
-import type { ElementPlacement, UserImageInstance } from '@ggraphic/editor/utils/userImageUtils';
 import type { CanvasAiSnapshot, StickerRef } from '@gruenerator/contracts';
 
 // ============================================================================

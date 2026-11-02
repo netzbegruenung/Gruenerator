@@ -18,13 +18,13 @@
  * einem ausgelasteten CI-Läufer zweistellige Sekunden —, und die Lane teilt
  * sich die Kerne mit `freeElementsReachTheDocument`, das dieselbe Bühne baut.
  */
-import { pageElementStateKeys } from '@ggraphic/editor/collab/pageElementStateKeys';
-import { readPages, seedPagesIfEmpty, updatePageStateById } from '@ggraphic/editor/collab/pagesDoc';
-import { PAGES_STATE_ORIGIN } from '@ggraphic/editor/collab/useYjsPages';
-import { createPageSyncedCallbacks } from '@ggraphic/editor/collab/wrapCallbacksWithPageSync';
-import { GenericCanvas } from '@ggraphic/editor/components/GenericCanvas';
-import { loadCanvasConfig } from '@ggraphic/editor/configs/configLoader';
-import { AutoSaveStoreProvider } from '@ggraphic/editor/stores/AutoSaveStoreProvider';
+import { GenericCanvas } from '@ggraphic/editor/canvas';
+import { readPages, seedPagesIfEmpty, updatePageStateById } from '@ggraphic/editor/collab';
+import { loadCanvasConfig } from '@ggraphic/editor/config';
+import { pageElementStateKeys } from '@ggraphic/editor/internal/collab/pageElementStateKeys';
+import { PAGES_STATE_ORIGIN } from '@ggraphic/editor/internal/collab/useYjsPages';
+import { createPageSyncedCallbacks } from '@ggraphic/editor/internal/collab/wrapCallbacksWithPageSync';
+import { AutoSaveStoreProvider } from '@ggraphic/editor/store';
 import { act, render } from '@testing-library/react';
 import React from 'react';
 import { beforeAll, describe, expect, it } from 'vitest';

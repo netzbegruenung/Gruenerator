@@ -3,7 +3,7 @@
  * `@ggraphic/editor` core (`createElementActions`).
  */
 
-import { duplicateElementInState } from '@ggraphic/editor/utils/duplicateElement';
+import { duplicateElementInState, type ElementPlacement } from '@ggraphic/editor/elements';
 
 import { createBalkenInstanceFromPreset } from '../../brand/balkenPresets';
 import {
@@ -14,7 +14,6 @@ import {
 } from '../../utils/balkenBounds';
 
 import type { BalkenInstance, BalkenMode } from '../../utils/balkenUtils';
-import type { ElementPlacement } from '@ggraphic/editor/utils/userImageUtils';
 
 type StateSetter<TState> = (partial: Partial<TState> | ((prev: TState) => TState)) => void;
 type HistorySaver<TState> = (state: TState) => void;

@@ -10,14 +10,37 @@
  * Used by: Zitat Pure, Info
  */
 
-import { carryInstanceState } from '@ggraphic/editor/configs/factory/carryInstanceState';
-import { makeSectionDefiner } from '@ggraphic/editor/configs/factory/defineSection';
-import { injectFeatureProps } from '@ggraphic/editor/configs/featureInjector';
-import { getPlaceholder } from '@ggraphic/editor/configs/placeholders';
-import { createShareSection } from '@ggraphic/editor/configs/shareSection';
-import { contrastRatio, luminance } from '@ggraphic/editor/utils/colorLuminance';
-import { zoomBackground } from '@ggraphic/editor/utils/coverFit';
-import { straightenResetFor } from '@ggraphic/editor/utils/straighten';
+import { type BrandPack, contrastRatio, parseColor } from '@ggraphic/core';
+import {
+  carryInstanceState,
+  makeSectionDefiner,
+  injectFeatureProps,
+  getPlaceholder,
+  createShareSection,
+  type CanvasFeatures,
+  type CanvasDimensions,
+  type IconState,
+  type FullCanvasConfig,
+  type LayoutResult,
+  type CanvasElementConfig,
+  type AdditionalText,
+} from '@ggraphic/editor/config';
+import {
+  zoomBackground,
+  straightenResetFor,
+  type StockImageAttribution,
+  type AssetInstance,
+  type ChartInstance,
+  type CircleBadgeInstance,
+  type FrameClipType,
+  type FrameInstance,
+  type IllustrationInstance,
+  type PillBadgeInstance,
+  type ShapeInstance,
+  type ShapeType,
+  type ElementPlacement,
+  type UserImageInstance,
+} from '@ggraphic/editor/elements';
 import { PiFrameCornersFill, PiSquaresFourFill, PiTextAa } from 'react-icons/pi';
 
 import { AssetsSection, CombinedTextSection, FrameSettingsSection } from '../../sidebar/sections';
@@ -26,28 +49,7 @@ import { chatTab, createCommonSectionEntries, toolsTab, uploadsTab } from '../co
 import { createBaseActions } from './baseActions';
 
 import type { BalkenInstance, BalkenMode } from '../../utils/balkenUtils';
-import type { BrandPack } from '@ggraphic/core';
-import type { StockImageAttribution } from '@ggraphic/editor/common/imageSourceTypes';
-import type {
-  CanvasFeatures,
-  CanvasDimensions,
-  IconState,
-} from '@ggraphic/editor/configs/factory/baseTypes';
-import type {
-  FullCanvasConfig,
-  LayoutResult,
-  CanvasElementConfig,
-  AdditionalText,
-} from '@ggraphic/editor/configs/types';
-import type { BackgroundColorOption } from '@ggraphic/editor/sidebar/types';
-import type { AssetInstance } from '@ggraphic/editor/utils/canvasAssets';
-import type { ChartInstance } from '@ggraphic/editor/utils/chartUtils';
-import type { CircleBadgeInstance } from '@ggraphic/editor/utils/circleBadgeUtils';
-import type { FrameClipType, FrameInstance } from '@ggraphic/editor/utils/frameUtils';
-import type { IllustrationInstance } from '@ggraphic/editor/utils/illustrations/types';
-import type { PillBadgeInstance } from '@ggraphic/editor/utils/pillBadgeUtils';
-import type { ShapeInstance, ShapeType } from '@ggraphic/editor/utils/shapes';
-import type { ElementPlacement, UserImageInstance } from '@ggraphic/editor/utils/userImageUtils';
+import type { BackgroundColorOption } from '@ggraphic/editor/internal/sidebar/types';
 import type { StickerRef } from '@gruenerator/contracts';
 
 // ============================================================================
@@ -289,12 +291,12 @@ export function createColorTwoTextCanvas<
   const fontColorOn = (background: string): string => {
     const mapped = textColorMap[background];
     if (mapped) return mapped;
-    const bg = luminance(background);
     const candidates = [...new Set([...Object.values(textColorMap), '#FFFFFF'])];
-    if (bg === null) return candidates[0]!;
-    return candidates.reduce((best, c) =>
-      contrastRatio(bg, luminance(c) ?? 1) > contrastRatio(bg, luminance(best) ?? 1) ? c : best
-    );
+    if (!parseColor(background)) return candidates[0]!;
+    // An unreadable candidate counts as white, as before.
+    const contrastOn = (c: string) =>
+      contrastRatio(background, c) ?? contrastRatio(background, '#FFFFFF') ?? 1;
+    return candidates.reduce((best, c) => (contrastOn(c) > contrastOn(best) ? c : best));
   };
 
   // The background stack, bottom to top: the solid colour plane, the optional

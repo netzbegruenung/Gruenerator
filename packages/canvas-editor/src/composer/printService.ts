@@ -10,21 +10,23 @@ import {
   IMPRESSUM_LABELS,
   impressumLine,
   impressumLocaleOf,
+  fromImprintParts,
   isFilled,
   isImpressumComplete,
   parseImpressumLine,
+  toImprintParts,
 } from './printImpressum';
 
 import type { CanvasPrintService } from '../grueneratorHostServices';
 
 export const grueneratorPrint: CanvasPrintService = {
-  impressum: {
+  imprint: {
     elementId: PRINT_IMPRESSUM_ID,
     localeOf: impressumLocaleOf,
-    line: impressumLine,
-    parse: parseImpressumLine,
+    line: (locale, parts) => impressumLine(locale, fromImprintParts(parts)),
+    parse: (locale, text) => toImprintParts(parseImpressumLine(locale, text)),
     isFilled,
-    isComplete: isImpressumComplete,
+    isComplete: (parts) => isImpressumComplete(fromImprintParts(parts)),
     labels: IMPRESSUM_LABELS,
     composeElement: composePrintImpressum,
   },

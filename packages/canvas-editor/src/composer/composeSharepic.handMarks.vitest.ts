@@ -3,7 +3,7 @@
  * composed words, in AT yellow / DE white on dark ground and green on light;
  * the text itself shows the words without the marks.
  */
-import { handDrawnPath } from '@ggraphic/editor/utils/handDrawn';
+import { handDrawnPath } from '@ggraphic/editor/internal/utils/handDrawn';
 import { type SharepicSlide, type SharepicSpec } from '@gruenerator/contracts';
 import { describe, expect, it } from 'vitest';
 

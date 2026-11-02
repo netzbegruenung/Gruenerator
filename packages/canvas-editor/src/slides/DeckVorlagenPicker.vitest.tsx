@@ -2,13 +2,9 @@
  * „Vorlage für alle Folien": der Katalog des Hosts, die aktive Vorlage
  * gedrückt, Neu-Setzen nach Bestätigung als EIN Rückgängig-Schritt.
  */
-import { CanvasEditorProvider } from '@ggraphic/editor/CanvasEditorProvider';
-import {
-  getPagesMap,
-  readPages,
-  replaceDeck,
-  seedPagesIfEmpty,
-} from '@ggraphic/editor/collab/pagesDoc';
+import { readPages, replaceDeck, seedPagesIfEmpty } from '@ggraphic/editor/collab';
+import { getPagesMap } from '@ggraphic/editor/internal/collab/pagesDoc';
+import { CanvasEditorProvider } from '@ggraphic/editor/shell';
 import { type FolienVorlage } from '@gruenerator/contracts';
 import { buildFolie, readDeckStil } from '@gruenerator/contracts/slides';
 import { render, screen, waitFor, within } from '@testing-library/react';

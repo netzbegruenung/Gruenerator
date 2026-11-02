@@ -1,4 +1,4 @@
-import { getCanvasFormatOrDefault } from '@ggraphic/editor/formats/index';
+import { getCanvasFormatOrDefault } from '@ggraphic/editor/templates';
 import { replaceCanvasPagesBodySchema } from '@gruenerator/contracts';
 import { describe, expect, it } from 'vitest';
 

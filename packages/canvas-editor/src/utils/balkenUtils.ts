@@ -5,7 +5,7 @@
  * presets in `brand/balkenPresets.ts`.
  */
 
-import type { ElementPlacement } from '@ggraphic/editor/utils/userImageUtils';
+import type { ElementPlacement } from '@ggraphic/editor/elements';
 
 export type BalkenMode = 'single' | 'triple';
 
@@ -23,14 +23,14 @@ export interface BalkenInstance {
 }
 
 // The actions ride on every config's actions object, next to the core's.
-declare module '@ggraphic/editor/hooks/useCanvasElementHandlers' {
+declare module '@ggraphic/editor/host' {
   // eslint-disable-next-line @typescript-eslint/no-empty-object-type
   interface HostCanvasActions extends BalkenActions {}
 }
 
 // The kind's type side: `balkenInstances` (F0, stored in canvases and
 // templates) holds the instances; a tile adds one by its `mode`.
-declare module '@ggraphic/editor/utils/canvasItem' {
+declare module '@ggraphic/editor/host' {
   interface HostElementKinds {
     balken: { stateKey: 'balkenInstances'; data: BalkenInstance; payload: { mode: BalkenMode } };
   }

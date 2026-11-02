@@ -9,7 +9,7 @@ import { GRUENE_AI_ILLUSTRATIONS } from './grueneAiIllustrations';
 describe('curated AI illustration ids', () => {
   it('every curated id exists in the illustration catalog', async () => {
     const { UNDRAW_ALL } = await import('../utils/illustrations/undrawAll');
-    const { OPENDOODLES } = await import('@ggraphic/editor/utils/illustrations/opendoodles');
+    const { OPENDOODLES } = await import('@ggraphic/editor/illustrations/opendoodles');
     const knownIds = new Set([...UNDRAW_ALL, ...OPENDOODLES].map((def) => def.id));
 
     for (const option of GRUENE_AI_ILLUSTRATIONS) {

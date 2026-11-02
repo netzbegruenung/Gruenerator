@@ -6,14 +6,14 @@
  * Schnitt danach ein, muss der Balken NEU gerechnet werden, nicht erst beim
  * nächsten Regler-Griff.
  */
-import { CanvasStage, type CanvasStageRef } from '@ggraphic/editor/primitives/CanvasStage';
+import { CanvasStage, type CanvasStageRef } from '@ggraphic/editor/internal/primitives/CanvasStage';
 import { render, act } from '@testing-library/react';
 import { createRef } from 'react';
 import { describe, expect, it, vi } from 'vitest';
 
 import { BalkenGroup } from '../BalkenGroup';
 
-import type * as TextUtils from '@ggraphic/editor/utils/textUtils';
+import type * as TextUtils from '@ggraphic/editor/internal/utils/textUtils';
 
 // jsdom kennt kein `document.fonts`; `useFontGeneration` hängt seinen
 // `loadingdone`-Listener beim Modul-Import an — also muss das Ziel vorher da sein.
@@ -34,7 +34,7 @@ const measured = vi.hoisted(() => ({ width: 600 }));
 
 // `runMeasurer` selbst, nicht die Messfunktion darunter: die ruft es
 // modul-intern, ein gemockter Export erreicht sie nicht.
-vi.mock('@ggraphic/editor/utils/textUtils', async (importOriginal) => ({
+vi.mock('@ggraphic/editor/internal/utils/textUtils', async (importOriginal) => ({
   ...(await importOriginal<typeof TextUtils>()),
   runMeasurer: () => () => measured.width,
 }));

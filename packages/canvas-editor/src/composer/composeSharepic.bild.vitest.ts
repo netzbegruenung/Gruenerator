@@ -1,6 +1,6 @@
-import { framedPhotoRect, visiblePart } from '@ggraphic/editor/utils/coverFit';
-import { tintRamp } from '@ggraphic/editor/utils/imageFilters';
-import { CROP_PRESETS, cropPresetUpdate } from '@ggraphic/editor/utils/userImageUtils';
+import { framedPhotoRect, visiblePart } from '@ggraphic/editor/internal/utils/coverFit';
+import { tintRamp } from '@ggraphic/editor/internal/utils/imageFilters';
+import { CROP_PRESETS, cropPresetUpdate } from '@ggraphic/editor/internal/utils/userImageUtils';
 import {
   sharepicSpecSchema,
   slidePhotoFilename,

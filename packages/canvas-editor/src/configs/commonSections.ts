@@ -1,13 +1,18 @@
+import { applyOperation, type ApplyResult, type CanvasAiActionsBase } from '@ggraphic/editor/ai';
+import { makeSectionDefiner } from '@ggraphic/editor/config';
 import {
-  applyOperation,
-  type ApplyResult,
-  type CanvasAiActionsBase,
-} from '@ggraphic/editor/ai/applyOperation';
-import { makeSectionDefiner } from '@ggraphic/editor/configs/factory/defineSection';
-import { ChartSettingsSection } from '@ggraphic/editor/sidebar/sections/ChartSettingsSection';
-import { ImageAdjustSection } from '@ggraphic/editor/sidebar/sections/ImageAdjustSection';
-import { backgroundAdjustments } from '@ggraphic/editor/utils/imageFilters';
-import { BACKGROUND_IMAGE_NODE_ID } from '@ggraphic/editor/utils/printImageInfo';
+  backgroundAdjustments,
+  type ChartInstance,
+  type ImageAdjustments,
+  type UserImageInstance,
+  type UserImagePlacement,
+} from '@ggraphic/editor/elements';
+import { BACKGROUND_IMAGE_NODE_ID } from '@ggraphic/editor/internal/utils/printImageInfo';
+import {
+  ChartSettingsSection,
+  ImageAdjustSection,
+  type SidebarTab,
+} from '@ggraphic/editor/sidebar';
 import { HiArrowUpTray, HiChatBubbleLeftRight, HiWrenchScrewdriver } from 'react-icons/hi2';
 
 import { ChatSection, ToolsSection, UploadsSection } from '../sidebar/sections';
@@ -19,14 +24,7 @@ import { buildSharepicText } from './buildSharepicText';
 import type { SharepicAiCapabilities } from './aiCapabilities';
 import type { ChatSectionProps, ToolsSectionProps, UploadsSectionProps } from '../sidebar/sections';
 import type { BalkenInstance } from '../utils/balkenUtils';
-import type { CanvasAiEditBridge } from '@ggraphic/editor/CanvasEditorProvider';
-import type { SidebarTab } from '@ggraphic/editor/sidebar/types';
-import type { ChartInstance } from '@ggraphic/editor/utils/chartUtils';
-import type {
-  ImageAdjustments,
-  UserImageInstance,
-  UserImagePlacement,
-} from '@ggraphic/editor/utils/userImageUtils';
+import type { CanvasAiEditBridge } from '@ggraphic/editor/shell';
 
 interface ActionsWithChart {
   updateChart?: (id: string, partial: Partial<ChartInstance>) => void;

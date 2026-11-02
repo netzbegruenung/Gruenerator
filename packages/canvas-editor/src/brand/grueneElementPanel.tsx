@@ -3,9 +3,8 @@
  * Marke category, the Blöcke category, its wording and the Balken previews.
  * Part of the Grünerator's asset catalogue (`GRUENE_ASSET_CATALOG`).
  */
-import { useMemo } from 'react';
-
 import { sharepicBlockThumbPath, type SharepicBlock } from '@gruenerator/contracts';
+import { useMemo } from 'react';
 
 import { useBlockInsert } from '../components/CanvasEditor/blockInsert';
 import {
@@ -13,11 +12,7 @@ import {
   TripleBalkenPreviewIcon,
 } from '../sidebar/sections/BadgePreviewIcons';
 
-import type {
-  ElementBlocks,
-  ElementPanelHost,
-} from '@ggraphic/editor/sidebar/sections/assets/elementPanelHost';
-import type { ElementItem } from '@ggraphic/editor/sidebar/sections/assets/elementTypes';
+import type { ElementBlocks, ElementPanelHost, ElementItem } from '@ggraphic/editor/sidebar';
 
 const BALKEN_ITEMS: ElementItem[] = [
   {
@@ -60,7 +55,7 @@ function useGrueneBlocks(): ElementBlocks | null {
   const blocks = useBlockInsert();
   return useMemo(() => {
     if (!blocks) return null;
-    const bloecke = blocks.bloecke;
+    const bloecke = blocks.blocks;
     return {
       label: 'Blöcke',
       items: bloecke.map(blockItem),
