@@ -26,6 +26,8 @@ const GJ_BACKGROUND_COLORS = [
   { id: 'lavendel', label: 'Lavendel', color: SHAREPIC_COLOR_HEX.lavendel },
   { id: 'pink', label: 'Pink', color: SHAREPIC_COLOR_HEX.pink },
   { id: 'apricot', label: 'Apricot', color: SHAREPIC_COLOR_HEX.apricot },
+  // The website gradient; like `pride`, the picker shows one of its stops.
+  { id: 'verlauf', label: 'Verlauf', color: SHAREPIC_COLOR_HEX.verlauf },
   { id: 'weiss', label: 'Weiß', color: '#ffffff' },
   { id: 'schwarz', label: 'Schwarz', color: '#000000' },
   // Themed grounds (Frauen, Pride, Europa); `pride` is the middle of its gradient.

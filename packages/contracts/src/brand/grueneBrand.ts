@@ -903,6 +903,8 @@ export const SHAREPIC_COLOR_HEX: Record<SharepicColor, string> = {
   pink: GJ_PINK,
   schwarz: GJ_SCHWARZ,
   wiese: GJ_DUNKELGRUEN,
+  // A gradient (`GRADIENTS` in composeSharepic); this is its second stop.
+  verlauf: GJ_PINK,
   waldgruen: GJAT_WALDGRUEN,
   maigruen: GJAT_MAIGRUEN,
   gelb: GJAT_GELB,
