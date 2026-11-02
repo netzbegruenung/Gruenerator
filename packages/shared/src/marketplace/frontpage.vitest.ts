@@ -1,5 +1,5 @@
 import { type MarketplaceItem, type MarketplaceSection } from '@gruenerator/contracts';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, onTestFinished } from 'vitest';
 
 import { getSystemAgent } from '../agents/system';
 import { hasSystemRecipe } from '../agents/skills/index';
@@ -16,6 +16,7 @@ import {
   featureById,
   featureFor,
   isFrontpageView,
+  type MarketplaceCollection,
   landesverbandShelf,
   newestShelf,
   popularShelf,
@@ -87,9 +88,13 @@ describe('relatedFromCollections', () => {
   });
 
   it('leaves out an unlisted collection and keeps to the limit', () => {
+    // Boundary cast: the registry is `as const`; no real collection is unlisted right now.
+    const registry = MARKETPLACE_COLLECTIONS as unknown as MarketplaceCollection[];
+    registry.push({ ...collectionById('starter')!, id: 'wahlkampf-moritz', listed: false });
+    onTestFinished(() => void registry.pop());
     const related = relatedFromCollections(
       [
-        { collectionId: 'mustergruen-wahlkampf', items: [self, entry('recipe', 'x')] },
+        { collectionId: 'wahlkampf-moritz', items: [self, entry('recipe', 'x')] },
         { collectionId: 'starter', items: [self, entry('recipe', 'y'), entry('recipe', 'z')] },
       ],
       { kind: 'agent', ref: 'a' },
@@ -229,14 +234,19 @@ describe('collections', () => {
   });
 
   it('puts a collection’s file-only samples first, and they never read as real rows', () => {
-    const wahlkampf = collectionById('mustergruen-wahlkampf')!;
-    const page = composeCollection(wahlkampf, [[it_('agent', 'a1')]]);
+    const def = { ...starter, samples: [it_('template', 'muster-plakat')], show: 14, min: 1 };
+    const page = composeCollection(def, [[it_('agent', 'a1')]]);
     const items = page!.items;
     expect(items.at(-1)?.ref).toBe('a1');
     expect(items.slice(0, -1).every(isSampleItem)).toBe(true);
     expect(isSampleItem(it_('agent', 'a1'))).toBe(false);
-    // Reachable by its link only.
-    expect(wahlkampf.listed).toBe(false);
+  });
+
+  it('lists the Mustergrün showcase on the front page, in the listed row', () => {
+    const mustergruen = collectionById('mustergruen-wahlkampf')!;
+    expect(mustergruen.listed).not.toBe(false);
+    expect(mustergruen.audience).toBe('de-DE');
+    expect(mustergruen.story?.some((b) => b.type === 'quote')).toBe(false);
   });
 
   it('is left out below its minimum', () => {

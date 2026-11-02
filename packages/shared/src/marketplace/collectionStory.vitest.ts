@@ -97,6 +97,17 @@ describe('collection stories in the registry', () => {
     }
   });
 
+  // A quote needs the person’s release; an invented one is only fine while the collection is unlisted.
+  it('keep invented quotes out of listed collections', () => {
+    for (const c of COLLECTIONS) {
+      if (c.listed === false) continue;
+      const quotes = (c.story ?? []).filter((b) => b.type === 'quote');
+      for (const q of quotes) expect(q.by, `${c.id}: „${q.text}“`).not.toMatch(/Beispiel/);
+    }
+    const mustergruen = COLLECTIONS.find((c) => c.id === 'mustergruen-wahlkampf');
+    expect(mustergruen?.story?.some((b) => b.type === 'quote')).toBe(false);
+  });
+
   it('only name Friends that exist', () => {
     for (const c of COLLECTIONS) {
       for (const block of c.story ?? []) {

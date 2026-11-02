@@ -205,6 +205,109 @@ export const SYSTEM_STICKERS = [
     kollektion: 'gruene-jugend-oesterreich',
     tags: ['grüne jugend', 'sprechblase'],
   },
+  // Mustergrün: a fictional campaign kit, only in its collection.
+  {
+    id: 'mg-ich-waehle-maxi',
+    label: 'Ich wähle Maxi',
+    src: '/studio-tools/stickers/mustergruen-ich-waehle-maxi.png',
+    defaultScale: 1.4,
+    audience: 'de-DE',
+    kollektion: 'mustergruen-wahlkampf',
+    tags: ['wahlkampf', 'maxi', 'pille'],
+  },
+  {
+    id: 'mg-wahltag-13-9',
+    label: 'Wahltag 13.9. Grün wählen',
+    src: '/studio-tools/stickers/mustergruen-wahltag-13-9.png',
+    defaultScale: 1.4,
+    audience: 'de-DE',
+    kollektion: 'mustergruen-wahlkampf',
+    tags: ['wahltag', 'datum', 'störer', 'stern'],
+  },
+  {
+    id: 'mg-team-mustergruen',
+    label: 'Team Mustergrün',
+    src: '/studio-tools/stickers/mustergruen-team-mustergruen.png',
+    defaultScale: 1.4,
+    audience: 'de-DE',
+    kollektion: 'mustergruen-wahlkampf',
+    tags: ['team', 'balken', 'mustergrün'],
+  },
+  {
+    id: 'mg-sonnenblume-maxi',
+    label: 'Sonnenblume für Maxi',
+    src: '/studio-tools/stickers/mustergruen-sonnenblume-maxi.png',
+    defaultScale: 1.4,
+    audience: 'de-DE',
+    kollektion: 'mustergruen-wahlkampf',
+    tags: ['sonnenblume', 'maxi'],
+  },
+  {
+    id: 'mg-frag-maxi',
+    label: 'Sprechblase „Frag Maxi!“',
+    src: '/studio-tools/stickers/mustergruen-frag-maxi.png',
+    defaultScale: 1.4,
+    audience: 'de-DE',
+    kollektion: 'mustergruen-wahlkampf',
+    tags: ['sprechblase', 'frag mich', 'dialog'],
+  },
+  {
+    id: 'mg-kreuz-bei-gruen',
+    label: 'Wahlkreuz',
+    src: '/studio-tools/stickers/mustergruen-kreuz-bei-gruen.png',
+    defaultScale: 1.4,
+    audience: 'de-DE',
+    kollektion: 'mustergruen-wahlkampf',
+    tags: ['wahlzettel', 'kreuz', 'wählen'],
+  },
+  {
+    id: 'mg-gemeinsam-mustergruen',
+    label: 'Plakette Gemeinsam für Mustergrün',
+    src: '/studio-tools/stickers/mustergruen-gemeinsam-mustergruen.png',
+    defaultScale: 1.4,
+    audience: 'de-DE',
+    kollektion: 'mustergruen-wahlkampf',
+    tags: ['plakette', 'rund', 'mustergrün'],
+  },
+  {
+    id: 'mg-kalender-13-september',
+    label: 'Kalenderblatt 13. September',
+    src: '/studio-tools/stickers/mustergruen-kalender-13-september.png',
+    defaultScale: 1.4,
+    audience: 'de-DE',
+    kollektion: 'mustergruen-wahlkampf',
+    tags: ['kalender', 'datum', 'termin'],
+  },
+  {
+    id: 'mg-rahmen-ich-waehle-maxi',
+    label: 'Rahmen „Ich wähle Maxi“',
+    src: '/studio-tools/stickers/mustergruen-rahmen-ich-waehle-maxi.png',
+    defaultScale: 1,
+    audience: 'de-DE',
+    kollektion: 'mustergruen-wahlkampf',
+    frame: true,
+    tags: ['rahmen', 'wahlkampf', 'maxi'],
+  },
+  {
+    id: 'mg-rahmen-team-mustergruen',
+    label: 'Rahmen „Team Mustergrün“',
+    src: '/studio-tools/stickers/mustergruen-rahmen-team-mustergruen.png',
+    defaultScale: 1,
+    audience: 'de-DE',
+    kollektion: 'mustergruen-wahlkampf',
+    frame: true,
+    tags: ['rahmen', 'team', 'mustergrün'],
+  },
+  {
+    id: 'mg-rahmen-wahltag',
+    label: 'Rahmen „Wahltag“',
+    src: '/studio-tools/stickers/mustergruen-rahmen-wahltag.png',
+    defaultScale: 1,
+    audience: 'de-DE',
+    kollektion: 'mustergruen-wahlkampf',
+    frame: true,
+    tags: ['rahmen', 'wahltag', 'datum'],
+  },
 ] as const satisfies readonly {
   id: string;
   label: string;
@@ -263,7 +366,7 @@ export function framesForCollection(id: MarketplaceCollectionId): SystemSticker[
   return stickersForCollection(id).filter(isFrameSticker);
 }
 
-// Boundary cast: no entry carries `frame` yet, so the literal union has no such member to read.
+// Boundary cast: only the frames carry `frame`, so the literal union has no member every entry shares to read.
 export const isFrameSticker = (s: SystemSticker): boolean => (s as { frame?: true }).frame === true;
 
 export function systemStickerById(id: string): SystemSticker | null {

@@ -25,11 +25,11 @@ import {
   GRUENE_JUGEND_AT_COLLECTION,
   GRUENE_JUGEND_COLLECTION,
 } from './collections/grueneJugend.js';
+import { MUSTERGRUEN_COLLECTION } from './collections/mustergruen.js';
 import { QUEER_COLLECTION } from './collections/queer.js';
 import { type CollectionStoryBlock } from './collectionStory.js';
 import { type MarketplaceFilters } from './filters.js';
 import { DEFAULT_MARKETPLACE_SORT } from './registry.js';
-import { WAHLKAMPF_SAMPLES } from './sampleCollection.js';
 
 /**
  * The Marktplatz front page — what „Start" shows instead of one aisle per kind.
@@ -138,7 +138,7 @@ export interface MarketplaceCollection {
   listed?: false;
   /** `themen`: in its own row „Themen“ below the other collections on the front page. */
   row?: 'themen';
-  /** Entries that exist only as files, shown before everything resolved (see `sampleCollection.ts`). */
+  /** Entries that exist only as files, shown before everything resolved (see `sampleCollection.ts`; none right now). */
   samples?: readonly MarketplaceItem[];
   /** What the page tells between cover and entries; without one, the entries as a grid. */
   story?: readonly CollectionStoryBlock[];
@@ -227,31 +227,7 @@ export const MARKETPLACE_COLLECTIONS = [
     show: 8,
     min: 3,
   },
-  {
-    id: 'mustergruen-wahlkampf',
-    audience: 'all',
-    kicker: 'Musterkollektion',
-    title: 'Wahlkampf für Moritz',
-    description:
-      'So kann ein Wahlkampf-Paket aussehen: Vorlagen für Plakat, Sharepic, Story und Flyer, passende Hintergründe und Sticker, dazu die Agents und Rezepte für die Texte.',
-    tone: 'klee',
-    cover: {
-      file: 'wahlkampf-v1',
-      alt: 'Ein Infostand mit Sonnenblumen auf einem Marktplatz am Morgen',
-      credit: null,
-    },
-    pinned: [
-      { kind: 'agent', ref: 'gruenerator-oeffentlichkeitsarbeit' },
-      { kind: 'recipe', ref: 'presse' },
-      { kind: 'recipe', ref: 'instagram' },
-      { kind: 'agent', ref: 'gruenerator-rede-schreiber' },
-    ],
-    fill: [],
-    samples: WAHLKAMPF_SAMPLES,
-    show: 14,
-    min: 1,
-    listed: false,
-  },
+  MUSTERGRUEN_COLLECTION,
   GLEICHSTELLUNG_COLLECTION,
   QUEER_COLLECTION,
   EUROPA_COLLECTION,
