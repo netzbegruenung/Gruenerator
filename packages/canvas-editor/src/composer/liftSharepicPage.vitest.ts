@@ -1,5 +1,5 @@
-import { seedPagesIfEmpty, serializeDeck } from '@ggraphic/editor/collab/pagesDoc';
-import { loadCanvasConfig } from '@ggraphic/editor/configs/configLoader';
+import { seedPagesIfEmpty, serializeDeck } from '@ggraphic/editor/collab';
+import { loadCanvasConfig } from '@ggraphic/editor/config';
 import { type SharepicSlide, type SharepicSpec } from '@gruenerator/contracts';
 import { beforeAll, describe, expect, it } from 'vitest';
 import * as Y from 'yjs';

@@ -1,12 +1,15 @@
-import { CanvasMetaBar } from '@ggraphic/editor/components/CanvasMetaBar';
-import { PageToolbar } from '@ggraphic/editor/components/PageToolbar';
-import { FloatingColorPicker } from '@ggraphic/editor/components/TopBar/modules/FloatingColorPicker';
-import { FloatingFontSizeControl } from '@ggraphic/editor/components/TopBar/modules/FloatingFontSizeControl';
-import { FloatingOpacityControl } from '@ggraphic/editor/components/TopBar/modules/FloatingOpacityControl';
-import { SidebarSlider } from '@ggraphic/editor/sidebar/components/SidebarSlider';
-import { ShadowSettings } from '@ggraphic/editor/sidebar/sections/effects/ShadowSettings';
-import { SidebarPanel } from '@ggraphic/editor/sidebar/SidebarPanel';
-import { SidebarTabBar } from '@ggraphic/editor/sidebar/SidebarTabBar';
+import { CanvasMetaBar } from '@ggraphic/editor/internal/components/CanvasMetaBar';
+import { PageToolbar } from '@ggraphic/editor/internal/components/PageToolbar';
+import { FloatingColorPicker } from '@ggraphic/editor/internal/components/TopBar/modules/FloatingColorPicker';
+import { FloatingFontSizeControl } from '@ggraphic/editor/internal/components/TopBar/modules/FloatingFontSizeControl';
+import { FloatingOpacityControl } from '@ggraphic/editor/internal/components/TopBar/modules/FloatingOpacityControl';
+import { ShadowSettings } from '@ggraphic/editor/internal/sidebar/sections/effects/ShadowSettings';
+import {
+  SidebarSlider,
+  SidebarPanel,
+  SidebarTabBar,
+  type SidebarTab,
+} from '@ggraphic/editor/sidebar';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -17,7 +20,6 @@ import { axe } from '../../test-utils';
 import { COLOR_SCHEMES } from '../../utils/dreizeilenLayout';
 
 import type { BalkenInstance } from '../../utils/balkenUtils';
-import type { SidebarTab } from '@ggraphic/editor/sidebar/types';
 
 beforeEach(() => {
   // Desktop layout.

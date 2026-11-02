@@ -1,4 +1,5 @@
-import { pptxFamily, type PptxFontMapper } from '@ggraphic/editor/export/pptx/pptxFonts';
+import { pptxFamily } from '@ggraphic/editor/export';
+import { type PptxFontMapper } from '@ggraphic/editor/host';
 
 /**
  * Die Markenschriften des Grünerators → PowerPoint. Die Namen stehen so in den

@@ -1,5 +1,5 @@
-import { largestSizeWordsFit } from '@ggraphic/editor/composer/textFit';
-import { createShape } from '@ggraphic/editor/utils/shapes';
+import { createShape } from '@ggraphic/editor/elements';
+import { largestSizeWordsFit } from '@ggraphic/editor/text';
 
 import { LIME, SHAREPIC_COLOR_HEX } from './chromeParts';
 import { type FaktencheckItem, type Placed, type VergleichItem } from './composeTypes';

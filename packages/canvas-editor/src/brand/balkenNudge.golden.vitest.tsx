@@ -3,8 +3,8 @@
  * `updateBalken`, pinned from the time the kind lived in the core (see
  * `balkenKind.golden.vitest.ts`).
  */
-import { useCanvasKeyboardHandlers } from '@ggraphic/editor/hooks/useCanvasKeyboardHandlers';
-import { createCanvasEditorStore } from '@ggraphic/editor/stores/createCanvasEditorStore';
+import { useCanvasKeyboardHandlers } from '@ggraphic/editor/internal/hooks/useCanvasKeyboardHandlers';
+import { createCanvasEditorStore } from '@ggraphic/editor/internal/stores/createCanvasEditorStore';
 import { renderHook } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 

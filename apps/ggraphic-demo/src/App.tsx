@@ -1,4 +1,4 @@
-import { ConfigCanvas } from '@ggraphic/editor/components/ConfigCanvas';
+import { ConfigCanvas } from '@ggraphic/editor/canvas';
 
 import { demoTemplate } from './demoTemplate';
 

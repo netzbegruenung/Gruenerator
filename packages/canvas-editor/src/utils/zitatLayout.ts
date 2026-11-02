@@ -10,7 +10,7 @@
  * - Quote mark is white
  */
 
-import { wrapText } from '@ggraphic/editor/utils/textUtils';
+import { wrapText } from '@ggraphic/editor/text';
 
 import { SYSTEM_ASSETS } from '../brand/grueneAssets';
 

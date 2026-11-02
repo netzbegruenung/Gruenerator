@@ -58,4 +58,21 @@ globalThis.ResizeObserver ??= class {
   disconnect() {}
 } as unknown as typeof ResizeObserver;
 
+// jsdom kennt auch kein `matchMedia`. Das Editor-Layout fragt seit ggraphic
+// alpha.2 bei jedem Rendern `useIsCanvasMobile`, und das fällt ohne gemessene
+// Editor-Box auf die Fenster-Abfrage zurück. „Passt nicht" heißt Desktop —
+// das Layout, gegen das diese Tests geschrieben sind. Tests, die mobil prüfen,
+// setzen ihr eigenes `matchMedia` und überschreiben diesen Platzhalter.
+window.matchMedia ??= (query: string) =>
+  ({
+    matches: false,
+    media: query,
+    onchange: null,
+    addEventListener() {},
+    removeEventListener() {},
+    addListener() {},
+    removeListener() {},
+    dispatchEvent: () => false,
+  }) as MediaQueryList;
+
 afterEach(cleanup);

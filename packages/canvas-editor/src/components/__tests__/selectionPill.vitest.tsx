@@ -2,7 +2,7 @@ import {
   SelectionPill,
   type SelectionPillProps,
   placePill,
-} from '@ggraphic/editor/components/SelectionPill';
+} from '@ggraphic/editor/internal/components/SelectionPill';
 import { act, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';

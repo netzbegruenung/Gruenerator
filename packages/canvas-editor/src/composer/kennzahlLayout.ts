@@ -1,4 +1,4 @@
-import { createShape } from '@ggraphic/editor/utils/shapes';
+import { createShape } from '@ggraphic/editor/elements';
 import { onGround } from '@gruenerator/contracts/brand';
 
 import { type Placed, type RechnungItem, type ZahlItem } from './composeTypes';

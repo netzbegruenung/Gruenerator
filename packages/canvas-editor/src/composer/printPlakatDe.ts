@@ -15,7 +15,7 @@
  * motif area; ground panels cover the rest. So it stays replaceable through
  * the background like any sharepic photo, and the print export checks its dpi.
  */
-import { type TextAccent } from '@ggraphic/editor/utils/textUtils';
+import { type TextAccent } from '@ggraphic/editor/text';
 import {
   printFotoSrc,
   type PrintImpressum,

@@ -1,13 +1,13 @@
 import {
   TOOLBAR_ITEMS_WITH_INPUTS,
   useRovingToolbar,
-} from '@ggraphic/editor/hooks/useRovingToolbar';
+} from '@ggraphic/editor/internal/hooks/useRovingToolbar';
+import { SubsectionTabBar } from '@ggraphic/editor/sidebar';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { PiImage, PiTextAa } from 'react-icons/pi';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { SubsectionTabBar } from '@ggraphic/editor/sidebar/SubsectionTabBar';
 import { axe } from '../../test-utils';
 
 function Bar() {

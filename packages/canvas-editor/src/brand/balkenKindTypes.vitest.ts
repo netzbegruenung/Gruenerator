@@ -8,7 +8,7 @@ import { describe, expect, it } from 'vitest';
 
 import { BALKEN_KIND } from './balkenKind';
 
-import type { ElementKindRegistration } from '@ggraphic/editor/utils/elementKinds';
+import type { ElementKindRegistration } from '@ggraphic/editor/host';
 
 describe('balken registration types', () => {
   it('names its actions from HostCanvasActions', () => {

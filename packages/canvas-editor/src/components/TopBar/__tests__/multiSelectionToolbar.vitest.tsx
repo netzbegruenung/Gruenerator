@@ -1,4 +1,4 @@
-import { MultiSelectionToolbar } from '@ggraphic/editor/components/TopBar/MultiSelectionToolbar';
+import { MultiSelectionToolbar } from '@ggraphic/editor/internal/components/TopBar/MultiSelectionToolbar';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';

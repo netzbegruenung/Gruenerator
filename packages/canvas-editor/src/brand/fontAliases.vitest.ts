@@ -1,5 +1,6 @@
-import { registerBrandPacks, activeBrand } from '@ggraphic/editor/brand/brandRegistry';
-import { FONT_FAMILY_ALIASES, aliasFontFamily } from '@ggraphic/editor/utils/fontAliases';
+import { activeBrand } from '@ggraphic/editor/brand';
+import { registerBrandPacks } from '@ggraphic/editor/host';
+import { FONT_FAMILY_ALIASES, aliasFontFamily } from '@ggraphic/editor/text';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import { GRUENE_BRAND_PACKS } from './grueneBrandPacks';

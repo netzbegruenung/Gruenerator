@@ -1,11 +1,11 @@
-import { BarTilesProvider } from '@ggraphic/editor/components/TopBar/barTiles';
-import { ContextControls } from '@ggraphic/editor/components/TopBar/ContextControls';
+import { BarTilesProvider } from '@ggraphic/editor/internal/components/TopBar/barTiles';
+import { ContextControls } from '@ggraphic/editor/internal/components/TopBar/ContextControls';
 import { render, screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 
 import { axe } from '../../../test-utils';
 
-import type { FloatingModuleState } from '@ggraphic/editor/hooks/useFloatingModuleState';
+import type { FloatingModuleState } from '@ggraphic/editor/internal/hooks/useFloatingModuleState';
 
 /**
  * Mobil stehen die Werkzeuge der Auswahl als Kacheln: Icon oben, Wort darunter.

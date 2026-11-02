@@ -2,13 +2,13 @@
 export {
   createCanvasEditorStore,
   defaultCanvasEditorStore,
-} from '@ggraphic/editor/stores/createCanvasEditorStore';
+} from '@ggraphic/editor/internal/stores/createCanvasEditorStore';
 export type {
   CanvasEditorStoreApi,
   CanvasEditorStoreState,
   CanvasEditorState,
   CanvasEditorActions,
-} from '@ggraphic/editor/stores/createCanvasEditorStore';
+} from '@ggraphic/editor/internal/stores/createCanvasEditorStore';
 
 export {
   CanvasStoreProvider,
@@ -16,7 +16,7 @@ export {
   useCanvasStoreSelector,
   useCanvasStoreShallow,
   useIsElementSelected,
-} from '@ggraphic/editor/stores/CanvasStoreProvider';
+} from '@ggraphic/editor/store';
 
 // Auto-save store
 export {
@@ -24,11 +24,11 @@ export {
   useAutoSaveStore,
   useAutoSaveStoreApi,
   useAutoSaveStoreShallow,
-} from '@ggraphic/editor/stores/useAutoSaveStore';
+} from '@ggraphic/editor/store';
 export type {
   AutoSaveStore,
   AutoSaveStoreApi,
   AutoSaveState,
   AutoSaveActions,
   AutoSaveStatus,
-} from '@ggraphic/editor/stores/useAutoSaveStore';
+} from '@ggraphic/editor/store';

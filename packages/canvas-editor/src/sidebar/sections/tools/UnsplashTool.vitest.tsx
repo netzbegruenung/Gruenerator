@@ -1,7 +1,7 @@
-import {
-  CanvasEditorProvider,
-  type CanvasEditorServices,
-} from '@ggraphic/editor/CanvasEditorProvider';
+import { type CanvasEditorServices } from '@ggraphic/editor/host';
+import { ToolsSection } from '@ggraphic/editor/internal/sidebar/sections/tools/ToolsSection';
+import { UnsplashTool } from '@ggraphic/editor/internal/sidebar/sections/tools/UnsplashTool';
+import { CanvasEditorProvider } from '@ggraphic/editor/shell';
 import { UnsplashLimitError, useUnsplashSearch } from '@gruenerator/shared/image-studio';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
@@ -9,10 +9,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { axe } from '../../../test-utils';
 
-import { ToolsSection } from '@ggraphic/editor/sidebar/sections/tools/ToolsSection';
-import { UnsplashTool } from '@ggraphic/editor/sidebar/sections/tools/UnsplashTool';
-
-import type { StockImage } from '@ggraphic/editor/common/imageSourceTypes';
+import type { StockImage } from '@ggraphic/editor/elements';
 
 const photo = (n: number): StockImage => ({
   filename: `annie-${n}-unsplash.jpg`,

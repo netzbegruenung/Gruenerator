@@ -4,12 +4,8 @@
  * the AT arrow assets, text measurement. Kept apart so the page ops, which
  * every canvas editor loads, do not pull in the whole composer.
  */
-import { createShape, type ShapeInstance } from '@ggraphic/editor/utils/shapes';
-import {
-  measureTextWidthWithFont,
-  runFont,
-  type TextAccent,
-} from '@ggraphic/editor/utils/textUtils';
+import { createShape, type ShapeInstance } from '@ggraphic/editor/elements';
+import { measureTextWidthWithFont, runFont, type TextAccent } from '@ggraphic/editor/text';
 import { layoutRichTextBlock, type MeasureRun } from '@ggraphic/schema';
 import { type SharepicColor, type SharepicCreatorLocale } from '@gruenerator/contracts';
 

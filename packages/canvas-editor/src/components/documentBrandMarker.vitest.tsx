@@ -6,7 +6,7 @@
  * of a page shares (the editor shell, an embedded canvas, the offscreen
  * preview and export roots).
  */
-import { loadCanvasConfig } from '@ggraphic/editor/configs/configLoader';
+import { loadCanvasConfig } from '@ggraphic/editor/config';
 import { cleanup, render, waitFor } from '@testing-library/react';
 import Konva from 'konva';
 import { afterEach, beforeAll, describe, expect, it } from 'vitest';

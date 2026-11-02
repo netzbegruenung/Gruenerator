@@ -4,7 +4,6 @@
  * im Stil der Vorlage neu (`restyleDeck`) — als ein Rückgängig-Schritt über
  * `replaceDeck`. Fehlt der Lader oder scheitert er, bleibt „Offiziell".
  */
-import { useAnnounce } from '@ggraphic/editor/hooks/useAnnounce';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -14,8 +13,9 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-} from '@ggraphic/editor/ui/alert-dialog';
-import { cn } from '@ggraphic/editor/utils/cn';
+} from '@ggraphic/editor/internal/ui/alert-dialog';
+import { cn } from '@ggraphic/editor/internal/utils/cn';
+import { useAnnounce, type CanvasSpecEditBridge } from '@ggraphic/editor/shell';
 import { type FolienVorlage } from '@gruenerator/contracts';
 import { readDeckStil, restyleDeck } from '@gruenerator/contracts/slides';
 import { useState } from 'react';
@@ -29,8 +29,7 @@ import { useDeckCatalogue } from './useDeckCatalogue';
 
 import type { DeckPreviewTyp } from './renderDeckStilThumbnail';
 import type { BrandLocale } from '../brand/theme';
-import type { CanvasSpecEditBridge } from '@ggraphic/editor/CanvasEditorProvider';
-import type { HeterogeneousPage } from '@ggraphic/editor/configs/types';
+import type { HeterogeneousPage } from '@ggraphic/editor/config';
 
 export interface DeckVorlagenPickerProps {
   /** Die Deck-Vorlagen des Hosts; null, wenn er keine kennt. */

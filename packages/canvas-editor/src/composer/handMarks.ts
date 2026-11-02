@@ -8,8 +8,8 @@
  * the same rich-text layout the renderer runs, the shape is laid under the
  * text, and the sentinels leave the text.
  */
-import { createShape, type ShapeInstance } from '@ggraphic/editor/utils/shapes';
-import { runFont } from '@ggraphic/editor/utils/textUtils';
+import { createShape, type ShapeInstance } from '@ggraphic/editor/elements';
+import { runFont } from '@ggraphic/editor/text';
 import {
   layoutRichTextBlock,
   replaceHandMarks,
@@ -19,7 +19,7 @@ import {
 import { SHAREPIC_HAND_MARKS, type SharepicSlide } from '@gruenerator/contracts';
 
 import type { MeasureText } from './chromeParts';
-import type { AdditionalText } from '@ggraphic/editor/configs/types';
+import type { AdditionalText } from '@ggraphic/editor/config';
 
 const SENTINEL: Record<HandMarkKind, [string, string]> = {
   kreis: ['\u2061', '\u2062'],

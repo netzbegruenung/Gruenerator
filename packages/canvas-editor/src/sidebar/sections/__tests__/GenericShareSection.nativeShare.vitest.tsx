@@ -1,13 +1,10 @@
-import {
-  CanvasEditorProvider,
-  type CanvasEditorServices,
-} from '@ggraphic/editor/CanvasEditorProvider';
-import { browserFileDelivery } from '@ggraphic/editor/hostServices';
-import { AutoSaveStoreProvider } from '@ggraphic/editor/stores/AutoSaveStoreProvider';
+import { type CanvasEditorServices } from '@ggraphic/editor/host';
+import { GenericShareSection } from '@ggraphic/editor/internal/sidebar/sections/GenericShareSection';
+import { browserFileDelivery } from '@ggraphic/editor/services';
+import { CanvasEditorProvider } from '@ggraphic/editor/shell';
+import { AutoSaveStoreProvider } from '@ggraphic/editor/store';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-
-import { GenericShareSection } from '@ggraphic/editor/sidebar/sections/GenericShareSection';
 
 const DATA_URL = 'data:image/png;base64,AAAA';
 const shareDataUrlViaNativeHost = vi.fn();

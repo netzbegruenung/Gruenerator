@@ -5,22 +5,23 @@
  * These types provide full type safety for the config-based architecture.
  */
 
-import type { StockImageAttribution } from '@ggraphic/editor/sidebar/types';
-import type { IconState } from '@ggraphic/editor/configs/factory/baseTypes';
-import type { AdditionalText } from '@ggraphic/editor/configs/types';
 import type { BalkenInstance, BalkenMode } from '../utils/balkenUtils';
-import type { AssetInstance } from '@ggraphic/editor/utils/canvasAssets';
-import type { ChartInstance } from '@ggraphic/editor/utils/chartUtils';
-import type { CircleBadgeInstance } from '@ggraphic/editor/utils/circleBadgeUtils';
-import type { FrameClipType, FrameInstance } from '@ggraphic/editor/utils/frameUtils';
-import type { IllustrationInstance } from '@ggraphic/editor/utils/illustrations/types';
-import type { PillBadgeInstance } from '@ggraphic/editor/utils/pillBadgeUtils';
-import type { ShapeInstance, ShapeType } from '@ggraphic/editor/utils/shapes';
+import type { IconState, AdditionalText } from '@ggraphic/editor/config';
 import type {
+  StockImageAttribution,
+  AssetInstance,
+  ChartInstance,
+  CircleBadgeInstance,
+  FrameClipType,
+  FrameInstance,
+  IllustrationInstance,
+  PillBadgeInstance,
+  ShapeInstance,
+  ShapeType,
   ElementPlacement,
   UserImageInstance,
   UserImagePlacement,
-} from '@ggraphic/editor/utils/userImageUtils';
+} from '@ggraphic/editor/elements';
 import type { StickerRef } from '@gruenerator/contracts';
 
 /**

@@ -64,6 +64,11 @@
       "require": "./src/brand/grueneBrandPacks.ts",
       "types": "./src/brand/grueneBrandPacks.ts"
     },
+    "./grueneFormats": {
+      "import": "./src/brand/grueneFormats.ts",
+      "require": "./src/brand/grueneFormats.ts",
+      "types": "./src/brand/grueneFormats.ts"
+    },
     "./grueneHostSeams": {
       "import": "./src/brand/grueneHostSeams.ts",
       "require": "./src/brand/grueneHostSeams.ts",
@@ -93,8 +98,8 @@
   },
   "dependencies": {
     "@ggraphic/core": "0.1.0-alpha.1",
-    "@ggraphic/editor": "0.1.0-alpha.1",
-    "@ggraphic/schema": "0.1.0-alpha.0",
+    "@ggraphic/editor": "0.1.0-alpha.2",
+    "@ggraphic/schema": "0.1.0-alpha.1",
     "@gruenerator/contracts": "workspace:*",
     "@gruenerator/shared": "workspace:*",
     "@gruenerator/ui": "workspace:*",

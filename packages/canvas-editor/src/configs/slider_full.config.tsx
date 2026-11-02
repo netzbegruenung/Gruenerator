@@ -12,15 +12,38 @@
  * `slider-at` (Österreich: Ein-Balken-Logo, Dunkelgrün/Hellgrün, Gotham).
  */
 
-import { carryInstanceState } from '@ggraphic/editor/configs/factory/carryInstanceState';
-import { makeSectionDefiner } from '@ggraphic/editor/configs/factory/defineSection';
-import { fromLayout } from '@ggraphic/editor/configs/factory/layoutAccessors';
-import { injectFeatureProps } from '@ggraphic/editor/configs/featureInjector';
-import { createShareSection } from '@ggraphic/editor/configs/shareSection';
-import { zoomBackground } from '@ggraphic/editor/utils/coverFit';
-import { recolorIconInstances } from '@ggraphic/editor/utils/iconInstances';
-import { createPillBadgeInstance } from '@ggraphic/editor/utils/pillBadgeUtils';
-import { straightenResetFor } from '@ggraphic/editor/utils/straighten';
+import {
+  carryInstanceState,
+  makeSectionDefiner,
+  fromLayout,
+  injectFeatureProps,
+  createShareSection,
+  type BaseCanvasState,
+  type IconState,
+  type FullCanvasConfig,
+  type LayoutResult,
+  type BackgroundElementConfig,
+  type RectElementConfig,
+  type TextElementConfig,
+  type ImageElementConfig,
+  type AdditionalText,
+} from '@ggraphic/editor/config';
+import {
+  zoomBackground,
+  recolorIconInstances,
+  createPillBadgeInstance,
+  straightenResetFor,
+  type StockImageAttribution,
+  type AssetInstance,
+  type CircleBadgeInstance,
+  type FrameClipType,
+  type FrameInstance,
+  type IllustrationInstance,
+  type PillBadgeInstance,
+  type ShapeInstance,
+  type ShapeType,
+  type ElementPlacement,
+} from '@ggraphic/editor/elements';
 import { PiFrameCornersFill, PiSquaresFourFill, PiTextAa } from 'react-icons/pi';
 
 import { getBrandPack } from '../brand/theme';
@@ -43,24 +66,7 @@ import type { SharepicAiCapabilities } from './aiCapabilities';
 import type { BalkenInstance, BalkenMode } from '../utils/balkenUtils';
 import type { SliderColorScheme, SliderStyle } from '../utils/sliderLayout';
 import type { BrandPack } from '@ggraphic/core';
-import type { BaseCanvasState, IconState } from '@ggraphic/editor/configs/factory/baseTypes';
-import type {
-  FullCanvasConfig,
-  LayoutResult,
-  BackgroundElementConfig,
-  RectElementConfig,
-  TextElementConfig,
-  ImageElementConfig,
-  AdditionalText,
-} from '@ggraphic/editor/configs/types';
-import type { BackgroundColorOption, StockImageAttribution } from '@ggraphic/editor/sidebar/types';
-import type { AssetInstance } from '@ggraphic/editor/utils/canvasAssets';
-import type { CircleBadgeInstance } from '@ggraphic/editor/utils/circleBadgeUtils';
-import type { FrameClipType, FrameInstance } from '@ggraphic/editor/utils/frameUtils';
-import type { IllustrationInstance } from '@ggraphic/editor/utils/illustrations/types';
-import type { PillBadgeInstance } from '@ggraphic/editor/utils/pillBadgeUtils';
-import type { ShapeInstance, ShapeType } from '@ggraphic/editor/utils/shapes';
-import type { ElementPlacement } from '@ggraphic/editor/utils/userImageUtils';
+import type { BackgroundColorOption } from '@ggraphic/editor/internal/sidebar/types';
 import type { CanvasAiSnapshot, StickerRef } from '@gruenerator/contracts';
 
 // Default arrow icon ID (HeroIcons chevron-right, resolved via canvasIcons.ts)

@@ -1,14 +1,15 @@
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
-import { getCanvasFormat } from '@ggraphic/editor/formats/index';
+import { writePptx } from '@ggraphic/editor/export';
+import { buildPptxModel } from '@ggraphic/editor/internal/export/pptx/buildPptxModel';
+import { type WritePptxDeps } from '@ggraphic/editor/internal/export/pptx/writePptx';
+import { getCanvasFormat } from '@ggraphic/editor/templates';
 import { createCanvas } from '@napi-rs/canvas';
 import { strFromU8, unzipSync } from 'fflate';
 import { describe, expect, it } from 'vitest';
 
-import { buildPptxModel } from '@ggraphic/editor/export/pptx/buildPptxModel';
 import { PRESENTATION_FIXTURE_DECKS } from './presentationFixtureDeck';
-import { writePptx, type WritePptxDeps } from '@ggraphic/editor/export/pptx/writePptx';
 
 /**
  * Prüft Modell und Writer am Prüf-Deck; mit `PPTX_FIXTURE_DIR` schreibt er die

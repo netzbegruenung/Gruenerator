@@ -1,8 +1,8 @@
-import { loadCanvasConfig } from '@ggraphic/editor/configs/configLoader';
+import { loadCanvasConfig } from '@ggraphic/editor/config';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 
 import type { ToolsSectionProps, UploadsSectionProps } from '../../sidebar/sections';
-import type { UserImageInstance } from '@ggraphic/editor/utils/userImageUtils';
+import type { UserImageInstance } from '@ggraphic/editor/elements';
 
 /**
  * Dreizeilen assembled its actions by hand and left out the user-image

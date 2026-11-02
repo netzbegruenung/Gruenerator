@@ -1,13 +1,15 @@
+import { resolveAssetInstanceSrc } from '@ggraphic/editor/elements';
 import {
   type CanvasAssetCatalog,
-  createStickerInstance,
   getAssetById,
+  registerAssetCatalog,
+  type UniversalAsset,
+} from '@ggraphic/editor/host';
+import {
+  createStickerInstance,
   getAssetBySrc,
   isStickerLikeInstance,
-  registerAssetCatalog,
-  resolveAssetInstanceSrc,
-  type UniversalAsset,
-} from '@ggraphic/editor/utils/canvasAssets';
+} from '@ggraphic/editor/internal/utils/canvasAssets';
 import { describe, expect, it } from 'vitest';
 
 import { GRUENE_ASSET_CATALOG } from '../brand/grueneAssetCatalog';

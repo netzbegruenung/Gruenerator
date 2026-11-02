@@ -2,7 +2,7 @@ import { existsSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { hasDarkPreview } from '@ggraphic/editor/utils/canvasAssets';
+import { hasDarkPreview } from '@ggraphic/editor/internal/utils/canvasAssets';
 import { describe, it, expect } from 'vitest';
 
 import { buildAssetCapability, filterAssetOptionsForLocale } from '../../ai/assetCapability';

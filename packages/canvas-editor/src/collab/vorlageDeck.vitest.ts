@@ -1,9 +1,5 @@
-import {
-  getPagesMap,
-  readPages,
-  replaceDeck,
-  seedPagesIfEmpty,
-} from '@ggraphic/editor/collab/pagesDoc';
+import { readPages, replaceDeck, seedPagesIfEmpty } from '@ggraphic/editor/collab';
+import { getPagesMap } from '@ggraphic/editor/internal/collab/pagesDoc';
 import { SHAREPIC_SOURCE_KEY } from '@gruenerator/contracts';
 import { describe, expect, it } from 'vitest';
 import * as Y from 'yjs';
@@ -148,7 +144,7 @@ describe('carryImpressum', () => {
 
   it('writes the filled-in line of the design into the Vorlage', () => {
     const [page] = carryImpressum(
-      grueneratorPrint.impressum,
+      grueneratorPrint.imprint,
       [poster('freeform', 'V.i.S.d.P.: Anna Muster, Hauptstr. 1, 12345 Stadt')],
       [poster('freeform', VORLAGE_DE)]
     );
@@ -161,16 +157,16 @@ describe('carryImpressum', () => {
   it('keeps the Vorlage placeholder while the design has no filled-in line', () => {
     const next = [poster('freeform', VORLAGE_DE)];
     expect(
-      carryImpressum(grueneratorPrint.impressum, [poster('freeform', VORLAGE_DE)], next)
+      carryImpressum(grueneratorPrint.imprint, [poster('freeform', VORLAGE_DE)], next)
     ).toEqual(next);
-    expect(carryImpressum(grueneratorPrint.impressum, [poster('freeform', null)], next)).toEqual(
+    expect(carryImpressum(grueneratorPrint.imprint, [poster('freeform', null)], next)).toEqual(
       next
     );
   });
 
   it('takes the first filled-in page and speaks the Vorlage country', () => {
     const [page] = carryImpressum(
-      grueneratorPrint.impressum,
+      grueneratorPrint.imprint,
       [
         poster('freeform', 'V.i.S.d.P.: '),
         poster('freeform', 'V.i.S.d.P.: Anna Muster, Hauptstr. 1, 12345 Stadt'),
@@ -184,7 +180,7 @@ describe('carryImpressum', () => {
     const card = { configId: 'freeform', state: { additionalTexts: [{ id: 'name', text: 'X' }] } };
     expect(
       carryImpressum(
-        grueneratorPrint.impressum,
+        grueneratorPrint.imprint,
         [poster('freeform', 'V.i.S.d.P.: Anna Muster, Hauptstr. 1, Stadt')],
         [card]
       )

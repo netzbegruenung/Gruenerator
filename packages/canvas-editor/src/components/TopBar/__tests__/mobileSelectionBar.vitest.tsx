@@ -1,5 +1,5 @@
-import { MobileSelectionBar } from '@ggraphic/editor/components/TopBar/MobileSelectionBar';
-import { CanvasStoreProvider } from '@ggraphic/editor/stores/CanvasStoreProvider';
+import { MobileSelectionBar } from '@ggraphic/editor/internal/components/TopBar/MobileSelectionBar';
+import { CanvasStoreProvider } from '@ggraphic/editor/store';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';

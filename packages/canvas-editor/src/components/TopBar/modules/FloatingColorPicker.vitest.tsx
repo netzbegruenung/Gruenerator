@@ -1,11 +1,10 @@
+import { FloatingColorPicker } from '@ggraphic/editor/internal/components/TopBar/modules/FloatingColorPicker';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { useState } from 'react';
 import { describe, expect, it, vi } from 'vitest';
 
 import { axe } from '../../../test-utils';
-
-import { FloatingColorPicker } from '@ggraphic/editor/components/TopBar/modules/FloatingColorPicker';
 
 function Harness({
   onSelect,

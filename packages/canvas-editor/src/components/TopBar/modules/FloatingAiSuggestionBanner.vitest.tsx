@@ -2,14 +2,13 @@
  * Verwerfen reverts through the undo of the path that applied the suggestion:
  * the per-page store for canvas ops, the page-level undo for a replaced deck.
  */
-import { CanvasStoreProvider, useCanvasStore } from '@ggraphic/editor/stores/CanvasStoreProvider';
+import { FloatingAiSuggestionBanner } from '@ggraphic/editor/internal/components/TopBar/modules/FloatingAiSuggestionBanner';
+import { CanvasStoreProvider, useCanvasStore } from '@ggraphic/editor/store';
 import { fireEvent, render, screen } from '@testing-library/react';
 import { useEffect } from 'react';
 import { describe, expect, it, vi } from 'vitest';
 
-import { FloatingAiSuggestionBanner } from '@ggraphic/editor/components/TopBar/modules/FloatingAiSuggestionBanner';
-
-import type { PendingAiSuggestion } from '@ggraphic/editor/stores/createCanvasEditorStore';
+import type { PendingAiSuggestion } from '@ggraphic/editor/internal/stores/createCanvasEditorStore';
 
 function Seed({
   pending,
@@ -59,7 +58,7 @@ describe('FloatingAiSuggestionBanner', () => {
     render(
       <CanvasStoreProvider>
         <Seed
-          pending={{ title: 'Zitat mit Foto', undo: 'pages', source: 'vorlage' }}
+          pending={{ title: 'Zitat mit Foto', undo: 'pages', source: 'template' }}
           onStore={() => {}}
         />
         <FloatingAiSuggestionBanner onUndo={() => {}} onUndoPages={onUndoPages} />
@@ -92,7 +91,7 @@ describe('FloatingAiSuggestionBanner', () => {
     render(
       <CanvasStoreProvider>
         <Seed
-          pending={{ title: 'Unser Plan in Punkten', undo: 'pages', source: 'vorlage' }}
+          pending={{ title: 'Unser Plan in Punkten', undo: 'pages', source: 'template' }}
           onStore={(s) => (store = s as typeof store)}
         />
         <FloatingAiSuggestionBanner variant="card" onUndo={() => {}} onUndoPages={onUndoPages} />

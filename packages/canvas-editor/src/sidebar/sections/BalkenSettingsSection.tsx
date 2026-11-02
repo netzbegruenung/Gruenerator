@@ -1,19 +1,19 @@
-import { useMessages } from '@ggraphic/editor/i18n/messages';
-import { cn } from '@ggraphic/editor/utils/cn';
-import { FaCheck, FaChevronLeft, FaChevronRight, FaTrash, FaCopy } from 'react-icons/fa';
-import { HiColorSwatch, HiAdjustments, HiArrowsExpand } from 'react-icons/hi';
-
-import { SidebarSlider } from '@ggraphic/editor/sidebar/components/SidebarSlider';
+import { useMessages } from '@ggraphic/editor/i18n';
+import { cn } from '@ggraphic/editor/internal/utils/cn';
 import {
+  SidebarSlider,
   ACTION_BTN,
   ACTION_BTN_DANGER,
   SECTION_HEADER,
   SECTION_TITLE,
-} from '@ggraphic/editor/sidebar/sidebarStyles';
-import { SubsectionTabBar, type Subsection } from '@ggraphic/editor/sidebar/SubsectionTabBar';
+  SubsectionTabBar,
+  type Subsection,
+} from '@ggraphic/editor/sidebar';
+import { FaCheck, FaChevronLeft, FaChevronRight, FaTrash, FaCopy } from 'react-icons/fa';
+import { HiColorSwatch, HiAdjustments, HiArrowsExpand } from 'react-icons/hi';
 
-import type { ColorScheme } from '../../utils/dreizeilenLayout';
 import type { BalkenInstance } from '../../utils/balkenUtils';
+import type { ColorScheme } from '../../utils/dreizeilenLayout';
 
 export interface BalkenSettingsSectionProps {
   selectedBalken: BalkenInstance | null;

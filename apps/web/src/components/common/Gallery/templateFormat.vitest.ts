@@ -1,6 +1,13 @@
-import { describe, expect, it } from 'vitest';
+import { registerGrueneFormats } from '@gruenerator/canvas-editor/grueneFormats';
+import { beforeAll, describe, expect, it } from 'vitest';
 
 import { getTemplateFormat, ratioLabelFromSize } from './templateFormat';
+
+// The app registers its formats at start-up (`apps/web/src/index.tsx`); without
+// them `post-portrait-tall` reads as 4:5 and the print ids are unknown.
+beforeAll(() => {
+  registerGrueneFormats();
+});
 
 describe('getTemplateFormat', () => {
   it('nennt den Typ nicht, wenn er nur das Werkzeug wiederholt', () => {

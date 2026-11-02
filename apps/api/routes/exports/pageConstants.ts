@@ -1,8 +1,9 @@
 /**
  * Server-side format registry.
  *
- * The full format registry lives in `@ggraphic/editor/formats` (ggraphic repo, `packages/editor/src/formats/index.ts`)
- * and drives the frontend UI. This file mirrors the server-known format ids — no
+ * The full format registry is the editor's built-ins plus the Grünerator's own
+ * formats (`registerGrueneFormats` in packages/canvas-editor) and drives the
+ * frontend UI. This file mirrors the server-known format ids — no
  * react-konva, no react. Keep in sync when the registry is changed.
  */
 
@@ -13,8 +14,8 @@ export interface CanvasPrintSpecLite {
   bleedMm: number;
   safeMm: number;
   exportDpi: number;
-  seiten: number;
-  impressum: 'jede-seite' | 'erste-seite' | 'letzte-seite' | null;
+  pageCount: number;
+  imprint: 'every-page' | 'first-page' | 'last-page' | null;
 }
 
 export interface CanvasFormatLite {
@@ -41,16 +42,16 @@ const print = (
   height: number,
   trimMm: { w: number; h: number },
   safeMm: number,
-  seiten: number,
+  pageCount: number,
   exportDpi = 300,
-  impressum: CanvasPrintSpecLite['impressum'] = seiten === 1 ? 'jede-seite' : null
+  imprint: CanvasPrintSpecLite['imprint'] = pageCount === 1 ? 'every-page' : null
 ): CanvasFormatLite => ({
   id,
   category: 'print',
   width,
   height,
   dpi: exportDpi,
-  print: { trimMm, bleedMm: 3, safeMm, exportDpi, seiten, impressum },
+  print: { trimMm, bleedMm: 3, safeMm, exportDpi, pageCount, imprint },
 });
 
 /**
@@ -78,28 +79,10 @@ export const SERVER_FORMATS: Readonly<Record<string, CanvasFormatLite>> = {
     4,
     2,
     300,
-    'erste-seite'
+    'first-page'
   ),
-  'print-a6-hoch': print(
-    'print-a6-hoch',
-    1442,
-    2000,
-    { w: 105, h: 148 },
-    3,
-    2,
-    300,
-    'letzte-seite'
-  ),
-  'print-a6-quer': print(
-    'print-a6-quer',
-    2000,
-    1442,
-    { w: 148, h: 105 },
-    3,
-    2,
-    300,
-    'letzte-seite'
-  ),
+  'print-a6-hoch': print('print-a6-hoch', 1442, 2000, { w: 105, h: 148 }, 3, 2, 300, 'last-page'),
+  'print-a6-quer': print('print-a6-quer', 2000, 1442, { w: 148, h: 105 }, 3, 2, 300, 'last-page'),
   'print-briefbogen-a4': print('print-briefbogen-a4', 1426, 2000, { w: 210, h: 297 }, 5, 2),
   'print-zeitung-a4': print(
     'print-zeitung-a4',
@@ -109,7 +92,7 @@ export const SERVER_FORMATS: Readonly<Record<string, CanvasFormatLite>> = {
     5,
     4,
     300,
-    'letzte-seite'
+    'last-page'
   ),
 };
 

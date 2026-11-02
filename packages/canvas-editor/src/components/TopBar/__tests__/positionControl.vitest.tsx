@@ -1,11 +1,11 @@
-import { FloatingPositionControl } from '@ggraphic/editor/components/TopBar/modules/FloatingPositionControl';
+import { FloatingPositionControl } from '@ggraphic/editor/internal/components/TopBar/modules/FloatingPositionControl';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 
 import { axe } from '../../../test-utils';
 
-import type { SelectionGeometry } from '@ggraphic/editor/utils/canvasCommands';
+import type { SelectionGeometry } from '@ggraphic/editor/internal/utils/canvasCommands';
 
 const GEOMETRY: SelectionGeometry = { x: 10.4, y: 20, width: 300, height: 100, resize: 'width' };
 

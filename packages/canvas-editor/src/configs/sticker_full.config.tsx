@@ -7,7 +7,7 @@
  * graphic, saved as a studio asset rather than shared.
  */
 
-import { getCanvasFormatOrDefault } from '@ggraphic/editor/formats/index';
+import { getCanvasFormatOrDefault } from '@ggraphic/editor/templates';
 import { CANVAS_COLORS } from '@gruenerator/contracts';
 
 import {
@@ -16,7 +16,7 @@ import {
   type FreeformState,
 } from './freeform_full.config';
 
-import type { FullCanvasConfig } from '@ggraphic/editor/configs/types';
+import type { FullCanvasConfig } from '@ggraphic/editor/config';
 
 /** The square sheet a sticker is drawn on; the export trims it to the motif. */
 export const STICKER_FORMAT_ID = 'profile-square';

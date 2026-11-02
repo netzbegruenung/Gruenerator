@@ -6,12 +6,11 @@
  * kind tag `balken`, the state key, the action names, the page keys and the
  * AI label wording (the API's prompts read it).
  */
-import { CANVAS_AI_GEOMETRY_FIELDS } from '@ggraphic/editor/ai/applyOperation';
-import { aiLabelFormat } from '@ggraphic/editor/ai/describeCanvasElements';
-import { messages } from '@ggraphic/editor/i18n/messages';
+import { CANVAS_AI_GEOMETRY_FIELDS, aiLabelFormat } from '@ggraphic/editor/ai';
+import { messages } from '@ggraphic/editor/i18n';
 
 import type { BalkenInstance } from '../utils/balkenUtils';
-import type { ElementKindRegistration } from '@ggraphic/editor/utils/elementKinds';
+import type { ElementKindRegistration } from '@ggraphic/editor/host';
 
 const { position, turned, quote } = aiLabelFormat;
 
@@ -130,7 +129,7 @@ export const BALKEN_MESSAGES = {
 
 type BalkenMessages = (typeof BALKEN_MESSAGES)['de'];
 
-declare module '@ggraphic/editor/i18n/messages' {
+declare module '@ggraphic/editor/host' {
   interface HostMessages {
     layers: BalkenMessages['layers'];
     sidebar: BalkenMessages['sidebar'];

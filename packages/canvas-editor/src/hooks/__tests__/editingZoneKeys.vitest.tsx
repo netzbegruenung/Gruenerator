@@ -1,17 +1,19 @@
-import { usePageUndoRedoShortcuts } from '@ggraphic/editor/components/CanvasEditor/hooks/usePageUndoRedoShortcuts';
-import { useCanvasKeyboardHandlers } from '@ggraphic/editor/hooks/useCanvasKeyboardHandlers';
-import { useCanvasUndoRedo } from '@ggraphic/editor/hooks/useCanvasUndoRedo';
-import { SidebarSlider } from '@ggraphic/editor/sidebar/components/SidebarSlider';
-import { CanvasStoreProvider, useCanvasStore } from '@ggraphic/editor/stores/CanvasStoreProvider';
-import { createCanvasEditorStore } from '@ggraphic/editor/stores/createCanvasEditorStore';
-import { KEEP_EDITING_ATTR } from '@ggraphic/editor/utils/keyboardOwnership';
+import { usePageUndoRedoShortcuts } from '@ggraphic/editor/internal/components/CanvasEditor/hooks/usePageUndoRedoShortcuts';
+import { useCanvasKeyboardHandlers } from '@ggraphic/editor/internal/hooks/useCanvasKeyboardHandlers';
+import { useCanvasUndoRedo } from '@ggraphic/editor/internal/hooks/useCanvasUndoRedo';
+import {
+  createCanvasEditorStore,
+  type CanvasEditorStoreApi,
+} from '@ggraphic/editor/internal/stores/createCanvasEditorStore';
+import { KEEP_EDITING_ATTR } from '@ggraphic/editor/internal/utils/keyboardOwnership';
+import { SidebarSlider } from '@ggraphic/editor/sidebar';
+import { CanvasStoreProvider, useCanvasStore } from '@ggraphic/editor/store';
 import { fireEvent, render, renderHook, screen } from '@testing-library/react';
 import { act, useState } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import type { BaseCanvasState } from '@ggraphic/editor/configs/factory/baseTypes';
-import type { CanvasEditorStoreApi } from '@ggraphic/editor/stores/createCanvasEditorStore';
-import type { CanvasCommands } from '@ggraphic/editor/utils/canvasCommands';
+import type { BaseCanvasState } from '@ggraphic/editor/config';
+import type { CanvasCommands } from '@ggraphic/editor/internal/utils/canvasCommands';
 
 /**
  * Steht der Fokus in der Formatleiste des offenen Texteditors (Tab aus dem

@@ -12,7 +12,7 @@
  * Übernommen vom inzwischen entfernten serverseitigen Info-AT-Renderer.
  */
 
-import { measureTextWidthWithFont, wrapTextAccurate } from '@ggraphic/editor/utils/textUtils';
+import { measureTextWidthWithFont, wrapTextAccurate } from '@ggraphic/editor/text';
 
 import { SYSTEM_ASSETS } from '../brand/grueneAssets';
 import { getBrandTheme } from '../brand/theme';

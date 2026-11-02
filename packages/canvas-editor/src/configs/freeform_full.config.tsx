@@ -8,24 +8,36 @@
  * balkens, badges, frames — all features the config system offers.
  */
 
-import { describeCanvasElements } from '@ggraphic/editor/ai/describeCanvasElements';
-import { buildIllustrationCapability } from '@ggraphic/editor/ai/illustrationCapability';
-import { withCardFollowingText } from '@ggraphic/editor/composer/cardFollowsText';
-import { carryInstanceState } from '@ggraphic/editor/configs/factory/carryInstanceState';
-import { makeSectionDefiner } from '@ggraphic/editor/configs/factory/defineSection';
-import { injectFeatureProps } from '@ggraphic/editor/configs/featureInjector';
-import { createShareSection } from '@ggraphic/editor/configs/shareSection';
-import { insertScaleFor, isSlideFormat, type CanvasFormat } from '@ggraphic/editor/formats/index';
-import { CombinedTextSection } from '@ggraphic/editor/sidebar/sections/CombinedTextSection';
-import { FrameSettingsSection } from '@ggraphic/editor/sidebar/sections/FrameSettingsSection';
-import { zoomBackground } from '@ggraphic/editor/utils/coverFit';
-import { COMPOSER_PLANE_IDS, photoStripBeside } from '@ggraphic/editor/utils/shapes';
-import { straightenResetFor } from '@ggraphic/editor/utils/straighten';
+import { describeCanvasElements, buildIllustrationCapability } from '@ggraphic/editor/ai';
+import {
+  carryInstanceState,
+  makeSectionDefiner,
+  injectFeatureProps,
+  createShareSection,
+  type BaseCanvasState,
+  type ImageBackgroundState,
+  type ColorBackgroundState,
+  type FullCanvasConfig,
+  type LayoutResult,
+  type AdditionalText,
+} from '@ggraphic/editor/config';
+import {
+  zoomBackground,
+  COMPOSER_PLANE_IDS,
+  photoStripBeside,
+  straightenResetFor,
+  type StockImageAttribution,
+  type ShapeInstance,
+} from '@ggraphic/editor/elements';
+import { type CanvasFormat } from '@ggraphic/editor/host';
+import { FrameSettingsSection, CombinedTextSection } from '@ggraphic/editor/sidebar';
+import { insertScaleFor, isSlideFormat } from '@ggraphic/editor/templates';
 import { CANVAS_COLORS } from '@gruenerator/contracts';
 import { PiFrameCornersFill, PiSquaresFourFill, PiTextAa } from 'react-icons/pi';
 
 import { buildAssetCapability } from '../ai/assetCapability';
 import { CANVAS_RECOMMENDED_ASSETS } from '../brand/grueneAssets';
+import { withCardFollowingText } from '../composer/cardFollowsText';
 import { SHAREPIC_COLOR_HEX } from '../composer/composeSharepic';
 import { type LiftedBlock } from '../composer/liftBlock';
 import { AssetsSection } from '../sidebar';
@@ -35,19 +47,7 @@ import { createBaseActions } from './factory/baseActions';
 
 import type { SharepicAiCapabilities } from './aiCapabilities';
 import type { BrandPack } from '@ggraphic/core';
-import type { StockImageAttribution } from '@ggraphic/editor/common/imageSourceTypes';
-import type {
-  BaseCanvasState,
-  ImageBackgroundState,
-  ColorBackgroundState,
-} from '@ggraphic/editor/configs/factory/baseTypes';
-import type {
-  FullCanvasConfig,
-  LayoutResult,
-  AdditionalText,
-} from '@ggraphic/editor/configs/types';
-import type { BackgroundColorOption } from '@ggraphic/editor/sidebar/types';
-import type { ShapeInstance } from '@ggraphic/editor/utils/shapes';
+import type { BackgroundColorOption } from '@ggraphic/editor/internal/sidebar/types';
 import type { CanvasAiSnapshot } from '@gruenerator/contracts';
 
 // ============================================================================

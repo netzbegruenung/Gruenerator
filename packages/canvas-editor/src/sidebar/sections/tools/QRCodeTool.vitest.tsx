@@ -1,13 +1,12 @@
-import { CanvasEditorProvider } from '@ggraphic/editor/CanvasEditorProvider';
+import { QRCodeTool } from '@ggraphic/editor/internal/sidebar/sections/tools/QRCodeTool';
+import { CanvasEditorProvider } from '@ggraphic/editor/shell';
 import { act, fireEvent, render, screen } from '@testing-library/react';
 import { useEffect, useRef } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { QRCodeTool } from '@ggraphic/editor/sidebar/sections/tools/QRCodeTool';
-
 const finish = vi.fn(async (_file: File) => ({ itemName: 'qr', placedOnCanvas: true }));
 
-vi.mock('@ggraphic/editor/sidebar/sections/tools/useToolImagePlacement', () => ({
+vi.mock('@ggraphic/editor/internal/sidebar/sections/tools/useToolImagePlacement', () => ({
   useToolImagePlacement: () => ({ finish, isUploading: false }),
 }));
 

@@ -1,5 +1,5 @@
-import { GenericCanvas as GenericCanvasDirect } from '@ggraphic/editor/components/GenericCanvas';
-import { loadCanvasConfig } from '@ggraphic/editor/configs/configLoader';
+import { GenericCanvas as GenericCanvasDirect } from '@ggraphic/editor/canvas';
+import { loadCanvasConfig } from '@ggraphic/editor/config';
 import { cleanup, render, screen, waitFor } from '@testing-library/react';
 import Konva from 'konva';
 import { afterEach, beforeAll, describe, expect, it } from 'vitest';

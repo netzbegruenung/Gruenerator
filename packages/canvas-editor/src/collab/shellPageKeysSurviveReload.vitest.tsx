@@ -5,7 +5,7 @@
  * update, applied to a fresh doc, handed to the page on mount, and still there
  * after an ordinary text edit. A dropped key would be silent data loss.
  */
-import { readPages, seedPagesIfEmpty } from '@ggraphic/editor/collab/pagesDoc';
+import { readPages, seedPagesIfEmpty } from '@ggraphic/editor/collab';
 import { act, render } from '@testing-library/react';
 import { type ReactNode } from 'react';
 import { describe, expect, it, vi } from 'vitest';
@@ -26,7 +26,7 @@ window.matchMedia = (query: string) =>
 
 const mounted = new Map<string, { initialProps: Record<string, unknown>; callbacks: Callbacks }>();
 
-vi.mock('@ggraphic/editor/components/GenericCanvas', () => ({
+vi.mock('@ggraphic/editor/internal/components/GenericCanvas', () => ({
   GenericCanvas: ({
     initialProps,
     callbacks,
@@ -39,7 +39,7 @@ vi.mock('@ggraphic/editor/components/GenericCanvas', () => ({
   },
 }));
 
-vi.mock('@ggraphic/editor/sidebar/UserUploadsProvider', () => ({
+vi.mock('@ggraphic/editor/internal/sidebar/UserUploadsProvider', () => ({
   UserUploadsProvider: ({ children }: { children: ReactNode }) => children,
 }));
 

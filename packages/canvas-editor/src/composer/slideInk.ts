@@ -1,4 +1,4 @@
-import { type TextAccent, type TextMarker } from '@ggraphic/editor/utils/textUtils';
+import { type TextAccent, type TextMarker } from '@ggraphic/editor/text';
 import { type ComposerBrand, onGround } from '@gruenerator/contracts/brand';
 
 import { type BrandTheme, type GrueneBrandId } from '../brand/theme';

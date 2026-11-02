@@ -3,7 +3,7 @@
  * bar group the canvas draws — with its scale, offset and fixed font size —
  * not on a block computed some other way (#4289). Its size is unchanged.
  */
-import { type ImageElementConfig } from '@ggraphic/editor/configs/types';
+import { type ImageElementConfig } from '@ggraphic/editor/config';
 import { describe, expect, it } from 'vitest';
 
 import { balkenExtent } from '../../utils/balkenBounds';

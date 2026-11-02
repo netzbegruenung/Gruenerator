@@ -3,8 +3,11 @@
  * damit `restyleDeck` zu langen Text in die Box des neuen Stils einpasst.
  * Gemessen wird mit der Zeilenumbruch-Logik der Fläche (`wrapTextAccurate`).
  */
-import { ensureFontsReady } from '@ggraphic/editor/utils/ensureFontsReady';
-import { measureTextWidthWithFont, wrapTextAccurate } from '@ggraphic/editor/utils/textUtils';
+import {
+  ensureFontsReady,
+  measureTextWidthWithFont,
+  wrapTextAccurate,
+} from '@ggraphic/editor/text';
 
 import type { MeasureText } from '@gruenerator/contracts/slides';
 

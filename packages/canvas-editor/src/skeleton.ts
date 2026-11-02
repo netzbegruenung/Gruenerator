@@ -1,1 +1,1 @@
-export { CanvasEditorSkeleton } from '@ggraphic/editor/components/CanvasEditorSkeleton';
+export { CanvasEditorSkeleton } from '@ggraphic/editor/shell';

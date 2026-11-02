@@ -3,14 +3,12 @@
  * slot, no undo/redo, no "Teilen" button. The share menu still exists — the
  * host's button opens it.
  */
-import { AutoSaveStoreProvider } from '@ggraphic/editor/stores/AutoSaveStoreProvider';
-import { CanvasStoreProvider } from '@ggraphic/editor/stores/CanvasStoreProvider';
+import { Toolbar } from '@ggraphic/editor/internal/components/Toolbar';
+import { AutoSaveStoreProvider, CanvasStoreProvider } from '@ggraphic/editor/store';
 import { render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { Toolbar } from '@ggraphic/editor/components/Toolbar';
-
-import type { ShareDropdownProps } from '@ggraphic/editor/components/TopBar/ShareDropdown';
+import type { ShareDropdownProps } from '@ggraphic/editor/internal/components/TopBar/ShareDropdown';
 
 const shareProps: ShareDropdownProps = {
   onCaptureCanvas: async () => null,

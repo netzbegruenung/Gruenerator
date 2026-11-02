@@ -8,7 +8,7 @@ import { DECK_FOLIE_SAMPLES } from './deckFolieSamples';
 import { renderSlideState } from './renderSlideLayoutThumbnail';
 
 import type { BrandLocale } from '../brand/theme';
-import type { CanvasImageUrlService } from '@ggraphic/editor/hostServices';
+import type { CanvasImageUrlService } from '@ggraphic/editor/services';
 
 export type DeckPreviewTyp = FolienTypId;
 

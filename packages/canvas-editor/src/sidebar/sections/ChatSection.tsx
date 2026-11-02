@@ -1,14 +1,13 @@
-import { useCanvasEditorServices } from '@ggraphic/editor/CanvasEditorProvider';
-import { useAnnounce } from '@ggraphic/editor/hooks/useAnnounce';
+import { useCanvasEditorServices } from '@ggraphic/editor/host-react';
+import {
+  useAnnounce,
+  type CanvasAiEditBridge,
+  type CanvasSpecEditBridge,
+} from '@ggraphic/editor/shell';
+import { SIDEBAR_HINT } from '@ggraphic/editor/sidebar';
 import { useMemo } from 'react';
 
 import { filterAssetOptionsForLocale } from '../../ai/assetCapability';
-import { SIDEBAR_HINT } from '@ggraphic/editor/sidebar/sidebarStyles';
-
-import type {
-  CanvasAiEditBridge,
-  CanvasSpecEditBridge,
-} from '@ggraphic/editor/CanvasEditorProvider';
 
 export interface ChatSectionProps {
   /** Canvas template id (e.g. 'zitat', 'simple'). */
@@ -81,7 +80,7 @@ export function ChatSection({
     <div className="flex h-full min-h-0 flex-col max-canvas-mobile:flex-1" data-tour="canvas-chat">
       <ChatSectionContent
         canvasType={canvasType}
-        getSharepicText={getSharepicText}
+        getCanvasText={getSharepicText}
         captureCanvasImage={captureCanvasImage}
         aiEdit={localeAiEdit}
         specEdit={announcingSpecEdit}

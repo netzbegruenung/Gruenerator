@@ -96,7 +96,7 @@ const PageLayout = ({
           <Sidebar isDesktop={true} onNavigate={handleDesktopNavigation} />
           <main
             id="main-content"
-            className="ml-14 min-h-[calc(100vh-var(--titlebar-height))] flex-1 flex flex-col items-stretch transition-[margin-left] duration-200 [--canvas-host-inset-left:3.5rem]"
+            className="ml-14 min-h-[calc(100vh-var(--titlebar-height))] flex-1 flex flex-col items-stretch transition-[margin-left] duration-200"
           >
             {children}
           </main>

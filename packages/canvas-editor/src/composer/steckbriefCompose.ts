@@ -1,6 +1,5 @@
-import { balancedWrap } from '@ggraphic/editor/composer/textFit';
-import { ASSET_TARGET_SIZE } from '@ggraphic/editor/utils/canvasAssets';
-import { createShape } from '@ggraphic/editor/utils/shapes';
+import { ASSET_TARGET_SIZE, createShape } from '@ggraphic/editor/elements';
+import { balancedWrap } from '@ggraphic/editor/text';
 import {
   type SharepicColor,
   type SharepicSlide,

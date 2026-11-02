@@ -5,19 +5,19 @@
  * that no German value comes out. The tests register `[GRUENE_DE, GRUENE_AT]`
  * like apps/web, so `activeBrand()` is the German pack throughout.
  */
-import { registerBrandPacks } from '@ggraphic/editor/brand/brandRegistry';
-import { DocumentBrandContext } from '@ggraphic/editor/brand/documentBrand';
-import { Marker } from '@ggraphic/editor/components/markerMark';
-import { textParagraphs } from '@ggraphic/editor/export/pptx/textModel';
-import { shapeItems } from '@ggraphic/editor/sidebar/sections/assets/useElementCatalog';
-import { ChartTypePreview } from '@ggraphic/editor/sidebar/sections/DiagrammeSection';
+import { DocumentBrandContext } from '@ggraphic/editor/brand';
+import { registerBrandPacks } from '@ggraphic/editor/host';
+import { Marker } from '@ggraphic/editor/internal/components/markerMark';
+import { textParagraphs } from '@ggraphic/editor/internal/export/pptx/textModel';
+import { shapeItems } from '@ggraphic/editor/internal/sidebar/sections/assets/useElementCatalog';
+import { ChartTypePreview } from '@ggraphic/editor/internal/sidebar/sections/DiagrammeSection';
 import {
   getShapeVariant,
   ALL_PALETTE_SHAPES,
-} from '@ggraphic/editor/sidebar/sections/FormenSection';
-import { colorName } from '@ggraphic/editor/utils/colorNames';
-import { markerBoxes } from '@ggraphic/editor/utils/markerBoxes';
-import { defaultTextMarker, markerInkOn } from '@ggraphic/editor/utils/markerColors';
+} from '@ggraphic/editor/internal/sidebar/sections/FormenSection';
+import { colorName } from '@ggraphic/editor/internal/utils/colorNames';
+import { markerBoxes } from '@ggraphic/editor/internal/utils/markerBoxes';
+import { defaultTextMarker, markerInkOn } from '@ggraphic/editor/internal/utils/markerColors';
 import { render } from '@testing-library/react';
 import { Editor } from '@tiptap/core';
 import Document from '@tiptap/extension-document';

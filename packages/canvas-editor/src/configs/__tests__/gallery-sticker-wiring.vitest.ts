@@ -1,8 +1,8 @@
-import { loadCanvasConfig } from '@ggraphic/editor/configs/configLoader';
+import { loadCanvasConfig } from '@ggraphic/editor/config';
 import { beforeAll, describe, expect, it } from 'vitest';
 
-import type { ExtendedAssetsSectionProps } from '@ggraphic/editor/sidebar/sections/assets/index';
-import type { AssetInstance } from '@ggraphic/editor/utils/canvasAssets';
+import type { AssetInstance } from '@ggraphic/editor/elements';
+import type { ExtendedAssetsSectionProps } from '@ggraphic/editor/internal/sidebar/sections/assets/index';
 
 /**
  * The Sticker card adds gallery stickers through `onAddStickerAsset`. A config

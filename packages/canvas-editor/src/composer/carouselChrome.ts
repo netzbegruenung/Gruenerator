@@ -23,7 +23,7 @@
  * Pure apart from `refreshCarouselChromeInDoc`, which applies the result to
  * the pages document inside the caller's transaction.
  */
-import { readPages, updatePageStateById } from '@ggraphic/editor/collab/pagesDoc';
+import { readPages, updatePageStateById } from '@ggraphic/editor/collab';
 import { type SharepicColor, type SharepicCreatorLocale } from '@gruenerator/contracts';
 import { type Doc } from 'yjs';
 
@@ -36,10 +36,8 @@ import {
   type MeasureText,
 } from './chromeParts';
 
-import type { IconState } from '@ggraphic/editor/configs/factory/baseTypes';
-import type { AdditionalText } from '@ggraphic/editor/configs/types';
-import type { AssetInstance } from '@ggraphic/editor/utils/canvasAssets';
-import type { ShapeInstance } from '@ggraphic/editor/utils/shapes';
+import type { IconState, AdditionalText } from '@ggraphic/editor/config';
+import type { AssetInstance, ShapeInstance } from '@ggraphic/editor/elements';
 
 export interface ChromePage {
   configId: string;

@@ -9,7 +9,7 @@ import {
   handArrowStroke,
   type DesignedArrowType,
   type HandArrowType,
-} from '@ggraphic/editor/utils/handDrawn';
+} from '@ggraphic/editor/internal/utils/handDrawn';
 
 export interface Box {
   x: number;

@@ -1,14 +1,15 @@
-import { loadCanvasConfig } from '@ggraphic/editor/configs/configLoader';
+import { loadCanvasConfig, type AnyCanvasConfig } from '@ggraphic/editor/config';
 import { beforeAll, describe, expect, it } from 'vitest';
 
 import { getBrandPack, GRUENE_AT, GRUENE_DE } from '../../brand/theme';
 import { getAllTemplates } from '../../utils/templateRegistry';
 
-import type { AnyCanvasConfig } from '@ggraphic/editor/configs/types';
-import type { CircleBadgeInstance } from '@ggraphic/editor/utils/circleBadgeUtils';
-import type { FrameInstance } from '@ggraphic/editor/utils/frameUtils';
-import type { PillBadgeInstance } from '@ggraphic/editor/utils/pillBadgeUtils';
-import type { ShapeInstance } from '@ggraphic/editor/utils/shapes';
+import type {
+  CircleBadgeInstance,
+  FrameInstance,
+  PillBadgeInstance,
+  ShapeInstance,
+} from '@ggraphic/editor/elements';
 
 /**
  * A NEW element takes its defaults from the document's brand, not from the

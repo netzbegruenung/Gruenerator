@@ -1,4 +1,4 @@
-import { useMessages } from '@ggraphic/editor/i18n/messages';
+import { useMessages } from '@ggraphic/editor/i18n';
 
 import {
   PillBadgePreviewIcon,

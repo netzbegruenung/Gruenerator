@@ -6,11 +6,8 @@
  * erste Rückgängig drehte nur die aktive Seite zurück (und eine ältere
  * Textänderung gleich mit), alle anderen Seiten blieben umgestaltet.
  */
-import {
-  CanvasEditorProvider,
-  type CanvasEditorServices,
-  type CanvasSpecEditBridge,
-} from '@ggraphic/editor/CanvasEditorProvider';
+import { type CanvasEditorServices } from '@ggraphic/editor/host';
+import { CanvasEditorProvider, type CanvasSpecEditBridge } from '@ggraphic/editor/shell';
 import { buildFolie, type FolieSpec, restyleDeck } from '@gruenerator/contracts/slides';
 import { act, render, screen } from '@testing-library/react';
 import Konva from 'konva';
@@ -20,7 +17,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { vorlageDeckOps } from '../../../collab/vorlageDeck';
 import { CanvasEditor } from '../index';
 
-vi.mock('@ggraphic/editor/sidebar/UserUploadsProvider', () => ({
+vi.mock('@ggraphic/editor/internal/sidebar/UserUploadsProvider', () => ({
   useOptionalUserUploads: () => null,
   UserUploadsProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,
   useUserUploads: () => ({ uploads: [], refresh: () => {} }),

@@ -5,12 +5,12 @@
  * Gilt für den Text-Editor (`CanvasTextOverlay`) und die Zeilen-Editoren
  * von Balken, Pille und Kreis-Badge.
  */
-import { CanvasStage, type CanvasStageRef } from '@ggraphic/editor/primitives/CanvasStage';
-import { CanvasText } from '@ggraphic/editor/primitives/CanvasText';
-import { CircleBadge } from '@ggraphic/editor/primitives/CircleBadge';
-import { PillBadge } from '@ggraphic/editor/primitives/PillBadge';
-import { defaultCanvasEditorStore } from '@ggraphic/editor/stores/createCanvasEditorStore';
-import { openTextEditor } from '@ggraphic/editor/utils/textEditorOpeners';
+import { CanvasStage, type CanvasStageRef } from '@ggraphic/editor/internal/primitives/CanvasStage';
+import { CanvasText } from '@ggraphic/editor/internal/primitives/CanvasText';
+import { CircleBadge } from '@ggraphic/editor/internal/primitives/CircleBadge';
+import { PillBadge } from '@ggraphic/editor/internal/primitives/PillBadge';
+import { defaultCanvasEditorStore } from '@ggraphic/editor/internal/stores/createCanvasEditorStore';
+import { openTextEditor } from '@ggraphic/editor/internal/utils/textEditorOpeners';
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { createRef, type ReactNode } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
@@ -33,7 +33,7 @@ vi.hoisted(() => {
   Object.defineProperty(document, 'fonts', { value: target, configurable: true });
 });
 
-vi.mock('@ggraphic/editor/components/RichTextField', () => ({
+vi.mock('@ggraphic/editor/internal/components/RichTextField', () => ({
   RichTextField: ({
     value,
     onChange,

@@ -1,5 +1,5 @@
-import { loadCanvasConfig } from '@ggraphic/editor/configs/configLoader';
-import { BACKGROUND_IMAGE_NODE_ID } from '@ggraphic/editor/utils/printImageInfo';
+import { loadCanvasConfig } from '@ggraphic/editor/config';
+import { BACKGROUND_IMAGE_NODE_ID } from '@ggraphic/editor/internal/utils/printImageInfo';
 import { beforeAll, describe, expect, it } from 'vitest';
 
 /**

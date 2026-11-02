@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
-import { pptxFont, pptxFontAliases } from '@ggraphic/editor/export/pptx/pptxFonts';
+import { pptxFont, pptxFontAliases } from '@ggraphic/editor/internal/export/pptx/pptxFonts';
 import { BRAND_WEB_FONT_FACES } from '@gruenerator/contracts';
 import { describe, expect, it } from 'vitest';
 

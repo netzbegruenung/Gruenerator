@@ -1,4 +1,4 @@
-import { getAssetById } from '@ggraphic/editor/utils/canvasAssets';
+import { getAssetById } from '@ggraphic/editor/host';
 import {
   type SharepicEmoji,
   type SharepicItem,

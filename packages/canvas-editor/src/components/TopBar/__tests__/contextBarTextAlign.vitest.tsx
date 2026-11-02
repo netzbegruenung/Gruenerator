@@ -3,13 +3,13 @@
  * der die aktuelle Ausrichtung nennt und links → zentriert → rechts
  * weiterschaltet. Bei Formen fehlt er — dort gibt es keinen Text.
  */
+import { ContextControls } from '@ggraphic/editor/internal/components/TopBar/ContextControls';
 import { fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 
 import { axe } from '../../../test-utils';
-import { ContextControls } from '@ggraphic/editor/components/TopBar/ContextControls';
 
-import type { FloatingModuleState } from '@ggraphic/editor/hooks/useFloatingModuleState';
+import type { FloatingModuleState } from '@ggraphic/editor/internal/hooks/useFloatingModuleState';
 
 const HANDLERS = {
   handleMoveLayer: () => {},

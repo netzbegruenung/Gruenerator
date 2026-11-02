@@ -35,7 +35,7 @@
 
 import { getBrandTheme } from '../brand/theme';
 
-import type { BackgroundColorOption } from '@ggraphic/editor/sidebar/types';
+import type { BackgroundColorOption } from '@ggraphic/editor/internal/sidebar/types';
 
 const AT = getBrandTheme('de-AT');
 const DE = getBrandTheme('de-DE');

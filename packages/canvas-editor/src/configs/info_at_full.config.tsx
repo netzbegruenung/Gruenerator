@@ -14,7 +14,13 @@
  * einen eigenen Setter.
  */
 
-import { getPlaceholder } from '@ggraphic/editor/configs/placeholders';
+import {
+  getPlaceholder,
+  type FullCanvasConfig,
+  type ImageElementConfig,
+  type LayoutResult,
+  type TextElementConfig,
+} from '@ggraphic/editor/config';
 
 import { getBrandPack, getBrandTheme } from '../brand/theme';
 import { INFO_AT_CONFIG, calculateInfoAtLayout } from '../utils/infoAtLayout';
@@ -29,13 +35,6 @@ import {
   type ColorTwoTextActions,
   type ColorTwoTextState,
 } from './factory';
-
-import type {
-  FullCanvasConfig,
-  ImageElementConfig,
-  LayoutResult,
-  TextElementConfig,
-} from '@ggraphic/editor/configs/types';
 
 const AT = getBrandTheme('de-AT');
 const I = INFO_AT_CONFIG;

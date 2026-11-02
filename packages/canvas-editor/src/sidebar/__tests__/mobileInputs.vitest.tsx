@@ -1,12 +1,15 @@
+import { TextField } from '@ggraphic/editor/internal/sidebar/components/TextFieldPrimitives';
+import { ElementsPanel } from '@ggraphic/editor/internal/sidebar/sections/assets/ElementsPanel';
+import { UploadsSection } from '@ggraphic/editor/internal/sidebar/sections/UploadsSection';
 import { render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { TextField } from '@ggraphic/editor/sidebar/components/TextFieldPrimitives';
-import { ElementsPanel } from '@ggraphic/editor/sidebar/sections/assets/ElementsPanel';
-import { UploadsSection } from '@ggraphic/editor/sidebar/sections/UploadsSection';
+import type * as IconifyReact from '@iconify/react';
 
 // No host services: the galleries fall back to an empty list (hostServices.ts).
-vi.mock('@iconify/react', () => ({
+// Partial: the editor registers its offline icon sets through the real `addCollection` on import.
+vi.mock('@iconify/react', async (importOriginal) => ({
+  ...(await importOriginal<typeof IconifyReact>()),
   Icon: ({ icon }: { icon: string }) => <span data-icon={icon} />,
 }));
 vi.mock('@tanstack/react-query', () => ({
@@ -15,7 +18,7 @@ vi.mock('@tanstack/react-query', () => ({
     isLoading: false,
   }),
 }));
-vi.mock('@ggraphic/editor/sidebar/UserUploadsProvider', () => ({
+vi.mock('@ggraphic/editor/internal/sidebar/UserUploadsProvider', () => ({
   useUserUploads: () => ({
     items: [],
     isLoading: false,

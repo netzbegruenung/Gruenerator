@@ -1,9 +1,8 @@
+import { SidebarSlider } from '@ggraphic/editor/sidebar';
 import { render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 
 import { axe } from '../../test-utils';
-
-import { SidebarSlider } from '@ggraphic/editor/sidebar/components/SidebarSlider';
 
 describe('SidebarSlider', () => {
   it.each([

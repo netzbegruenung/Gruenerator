@@ -7,11 +7,9 @@
  * die Bilder über `loadImage`.
  */
 
-import type { PptxPageState } from '@ggraphic/editor/export/pptx/buildPptxModel';
-import type { AdditionalText } from '@ggraphic/editor/configs/types';
-import type { ChartInstance } from '@ggraphic/editor/utils/chartUtils';
-import type { ShapeInstance } from '@ggraphic/editor/utils/shapes';
-import type { UserImageInstance } from '@ggraphic/editor/utils/userImageUtils';
+import type { AdditionalText } from '@ggraphic/editor/config';
+import type { ChartInstance, ShapeInstance, UserImageInstance } from '@ggraphic/editor/elements';
+import type { PptxPageState } from '@ggraphic/editor/export';
 
 interface FixtureBrand {
   locale: 'de-DE' | 'de-AT';

@@ -4,7 +4,7 @@
  * canvases match the sharepics it produced
  */
 
-import { measureTextWidthWithFont } from '@ggraphic/editor/utils/textUtils';
+import { measureTextWidthWithFont } from '@ggraphic/editor/text';
 
 import { SYSTEM_ASSETS } from '../brand/grueneAssets';
 

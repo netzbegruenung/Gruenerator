@@ -1,10 +1,10 @@
+import { AnnouncerContext } from '@ggraphic/editor/internal/hooks/useAnnounce';
 import {
   CanvasEditorProvider,
   type CanvasAiEditBridge,
   type CanvasSpecEditBridge,
   type ChatSectionContentProps,
-} from '@ggraphic/editor/CanvasEditorProvider';
-import { AnnouncerContext } from '@ggraphic/editor/hooks/useAnnounce';
+} from '@ggraphic/editor/shell';
 import { render } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 

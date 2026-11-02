@@ -2,7 +2,7 @@ import {
   CanvasEditorProvider,
   type CanvasAiEditBridge,
   type ChatSectionContentProps,
-} from '@ggraphic/editor/CanvasEditorProvider';
+} from '@ggraphic/editor/shell';
 import { render } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 

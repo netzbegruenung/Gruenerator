@@ -6,16 +6,18 @@
  * Ebenen-Knöpfe. Der schärfste Fall steht zuerst: der Datumskreis der
  * Veranstaltung, gegen die echte Config und ihre echten Actions.
  */
-import { loadCanvasConfig } from '@ggraphic/editor/configs/configLoader';
-import { useFloatingModuleHandlers } from '@ggraphic/editor/hooks/useFloatingModuleHandlers';
-import { useFloatingModuleState } from '@ggraphic/editor/hooks/useFloatingModuleState';
+import {
+  loadCanvasConfig,
+  type FullCanvasConfig,
+  type LayoutResult,
+} from '@ggraphic/editor/config';
+import { ContextControls } from '@ggraphic/editor/internal/components/TopBar/ContextControls';
+import { useFloatingModuleHandlers } from '@ggraphic/editor/internal/hooks/useFloatingModuleHandlers';
+import { useFloatingModuleState } from '@ggraphic/editor/internal/hooks/useFloatingModuleState';
 import { render, renderHook, screen } from '@testing-library/react';
 import { beforeAll, describe, expect, it, vi } from 'vitest';
 
-import { ContextControls } from '@ggraphic/editor/components/TopBar/ContextControls';
-
-import type { FullCanvasConfig, LayoutResult } from '@ggraphic/editor/configs/types';
-import type { OptionalCanvasActions } from '@ggraphic/editor/hooks/useCanvasElementHandlers';
+import type { OptionalCanvasActions } from '@ggraphic/editor/internal/hooks/useCanvasElementHandlers';
 
 type State = Record<string, unknown>;
 type AnyConfig = FullCanvasConfig<State, OptionalCanvasActions>;

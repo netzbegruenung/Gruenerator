@@ -1,7 +1,7 @@
-export { useYjsCanvasBinding } from '@ggraphic/editor/collab/useYjsCanvasBinding';
-export { bindCanvasStoreToYMap } from '@ggraphic/editor/collab/yjsBinding';
-export type { CanvasBinding } from '@ggraphic/editor/collab/yjsBinding';
-export { useSelectionAwareness } from '@ggraphic/editor/collab/useSelectionAwareness';
-export { useYjsPages } from '@ggraphic/editor/collab/useYjsPages';
-export type { YjsPageView, YjsPagesApi } from '@ggraphic/editor/collab/useYjsPages';
-export type { ReplaceDeckOps } from '@ggraphic/editor/collab/pagesDoc';
+export { useYjsCanvasBinding } from '@ggraphic/editor/collab';
+export { bindCanvasStoreToYMap } from '@ggraphic/editor/collab';
+export type { CanvasBinding } from '@ggraphic/editor/collab';
+export { useSelectionAwareness } from '@ggraphic/editor/collab';
+export { useYjsPages } from '@ggraphic/editor/collab';
+export type { YjsPageView, YjsPagesApi } from '@ggraphic/editor/collab';
+export type { ReplaceDeckOps } from '@ggraphic/editor/collab';

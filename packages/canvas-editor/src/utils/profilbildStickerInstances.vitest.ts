@@ -1,4 +1,4 @@
-import { ASSET_TARGET_SIZE } from '@ggraphic/editor/utils/canvasAssets';
+import { ASSET_TARGET_SIZE } from '@ggraphic/editor/elements';
 import { describe, expect, it } from 'vitest';
 
 import { profilbildStickersToAssetInstances } from './profilbildStickerInstances';

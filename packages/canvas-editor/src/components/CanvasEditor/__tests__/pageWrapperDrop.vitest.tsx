@@ -1,18 +1,20 @@
+import { PageWrapper } from '@ggraphic/editor/internal/components/CanvasEditor/PageWrapper';
 import {
   ELEMENT_DRAG_TYPE,
-  VORLAGE_DRAG_TYPE,
+  TEMPLATE_DRAG_TYPE as VORLAGE_DRAG_TYPE,
   takeDropPlaced,
-} from '@ggraphic/editor/utils/mediaDrop';
+} from '@ggraphic/editor/internal/utils/mediaDrop';
 import { createEvent, fireEvent, render } from '@testing-library/react';
 import React from 'react';
 import { describe, expect, it, vi } from 'vitest';
 
 import { BlockInsertContext, type BlockInsertApi } from '../blockInsert';
-import { PageWrapper } from '@ggraphic/editor/components/CanvasEditor/PageWrapper';
 
-vi.mock('@ggraphic/editor/components/GenericCanvas', () => ({ GenericCanvas: () => <canvas /> }));
-vi.mock('@ggraphic/editor/components/PageToolbar', () => ({ PageToolbar: () => null }));
-vi.mock('@ggraphic/editor/components/ZoomableViewport', () => ({
+vi.mock('@ggraphic/editor/internal/components/GenericCanvas', () => ({
+  GenericCanvas: () => <canvas />,
+}));
+vi.mock('@ggraphic/editor/internal/components/PageToolbar', () => ({ PageToolbar: () => null }));
+vi.mock('@ggraphic/editor/internal/components/ZoomableViewport', () => ({
   ZoomableViewport: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
 }));
 
@@ -39,7 +41,7 @@ function setup(
           onDelete: vi.fn(),
           onMovePage: vi.fn(),
           onDuplicatePage: vi.fn(),
-          onDropVorlage,
+          onDropTemplate: onDropVorlage,
           onExport: vi.fn(),
           onCancel: vi.fn(),
           callbacks: {},
@@ -108,7 +110,7 @@ describe('PageWrapper block drop', () => {
 
   it('composes a dropped block for the page it landed on, at the drop point', () => {
     const insert = vi.fn(async () => true);
-    const { page, dropElement } = setup(undefined, true, { bloecke: [], isLoading: false, insert });
+    const { page, dropElement } = setup(undefined, true, { blocks: [], isLoading: false, insert });
     const ev = createEvent.drop(page, { dataTransfer: blockTransfer });
     fireEvent(page, ev);
     expect(ev.defaultPrevented).toBe(true);

@@ -6,7 +6,26 @@
  * Grünerator's own: chat, badge, Balken and the Dreizeiler sections.
  */
 
-export * from '@ggraphic/editor/sidebar/sections/index';
+export {
+  CombinedTextSection,
+  FrameSettingsSection,
+  AssetsSection,
+  UploadsSection,
+  ToolsSection,
+} from '@ggraphic/editor/sidebar';
+export {
+  type CombinedTextSectionProps,
+  IconsSection,
+  type FrameSettingsSectionProps,
+  ShapesSection,
+  type ShapesSectionProps,
+  FormenSection,
+  type FormenSectionProps,
+  GenericShareSection,
+  type GenericShareSectionProps,
+  type UploadsSectionProps,
+  type ToolsSectionProps,
+} from '@ggraphic/editor/internal/sidebar/sections/index';
 
 export { ChatSection } from './ChatSection';
 export type { ChatSectionProps } from './ChatSection';
