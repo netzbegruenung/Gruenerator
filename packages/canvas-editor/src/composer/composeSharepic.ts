@@ -13,13 +13,7 @@
  * Pure: no React, no Konva. Text is measured through the injected `measure`.
  */
 import { foldMarkers, stripMarks } from '@ggraphic/editor/composer/marks';
-import { steckbriefPerson } from '@ggraphic/editor/composer/steckbriefLayout';
-import {
-  balancedWrap,
-  largestSizeWordsFit,
-  STOERER_RADII,
-  wrapWords,
-} from '@ggraphic/editor/composer/textFit';
+import { balancedWrap, largestSizeWordsFit, wrapWords } from '@ggraphic/editor/composer/textFit';
 import {
   DEFAULT_FORMAT_ID,
   getCanvasFormatOrDefault,
@@ -117,6 +111,8 @@ import { drawSlideChrome } from './slideChrome';
 import { type BuildPass, type SlideCtx } from './slideContext';
 import { slideInk } from './slideInk';
 import { fadeIntoGround, steckbriefAround } from './steckbriefCompose';
+import { steckbriefPerson } from './steckbriefLayout';
+import { STOERER_RADII } from './stoererFit';
 import { layoutFaktencheck, layoutVergleich } from './vergleichLayout';
 import { layoutFrage, layoutZitat } from './zitatLayout';
 
