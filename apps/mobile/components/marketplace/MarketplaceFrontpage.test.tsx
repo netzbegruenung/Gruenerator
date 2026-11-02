@@ -199,7 +199,7 @@ describe('MarketplaceFrontpage', () => {
         { collectionId: 'starter', items: [agent('a1'), agent('a2')] },
         { collectionId: 'queer', items: [] },
         // Unlisted: reachable by its link only.
-        { collectionId: 'wahlkampf-moritz', items: [] },
+        { collectionId: 'mustergruen-wahlkampf', items: [] },
       ],
     });
     await renderStart();

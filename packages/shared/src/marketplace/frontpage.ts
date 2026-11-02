@@ -1,5 +1,8 @@
 import {
+  framesForCollection,
   marketplaceFrontpageShelfIdSchema,
+  stickersForCollection,
+  type SystemSticker,
   type MarketplaceCollectionId,
   type MarketplaceFrontpageCollection,
   type MarketplaceFrontpageResponse,
@@ -12,6 +15,8 @@ import {
   type MarketplaceSort,
   type SharepicThema,
 } from '@gruenerator/contracts';
+
+import { presetsForCollection, type PresetDesign } from '../profilbild/backgrounds.js';
 
 import { type MarketplaceTarget } from './cache.js';
 import { EUROPA_COLLECTION } from './collections/europa.js';
@@ -137,6 +142,8 @@ export interface MarketplaceCollection {
   samples?: readonly MarketplaceItem[];
   /** What the page tells between cover and entries; without one, the entries as a grid. */
   story?: readonly CollectionStoryBlock[];
+  /** Sharepic and print templates the collection brings along (file stems, F0 like the template files). */
+  kit?: { sharepicVorlagen?: readonly string[]; printVorlagen?: readonly string[] };
 }
 
 /** The collections of the front page, curated by PR, in display order. */
@@ -221,7 +228,7 @@ export const MARKETPLACE_COLLECTIONS = [
     min: 3,
   },
   {
-    id: 'wahlkampf-moritz',
+    id: 'mustergruen-wahlkampf',
     audience: 'all',
     kicker: 'Musterkollektion',
     title: 'Wahlkampf für Moritz',
@@ -255,6 +262,43 @@ export const MARKETPLACE_COLLECTIONS = [
 export function collectionsFor(locale: string | null): readonly MarketplaceCollection[] {
   const audience = locale === 'de-AT' ? 'de-AT' : 'de-DE';
   return MARKETPLACE_COLLECTIONS.filter((c) => c.audience === 'all' || c.audience === audience);
+}
+
+export interface CollectionContents {
+  collection: MarketplaceCollection;
+  /** The collection's stickers without its frames. */
+  stickers: SystemSticker[];
+  frames: SystemSticker[];
+  backgrounds: PresetDesign[];
+  /** The pinned agents and recipes. */
+  agents: MarketplaceTarget[];
+  sharepicVorlagen: readonly string[];
+  printVorlagen: readonly string[];
+}
+
+/**
+ * What a subscribed collection brings, resolved from the client registry.
+ * `null` when the registry does not know the id or the collection is not for
+ * this audience.
+ */
+export function collectionContents(
+  id: MarketplaceCollectionId,
+  locale: 'de-DE' | 'de-AT'
+): CollectionContents | null {
+  const collection = collectionById(id);
+  if (!collection) return null;
+  if (collection.audience !== 'all' && collection.audience !== locale) return null;
+  const frames = framesForCollection(id);
+  const frameIds = new Set(frames.map((f) => f.id));
+  return {
+    collection,
+    stickers: stickersForCollection(id).filter((s) => !frameIds.has(s.id)),
+    frames,
+    backgrounds: presetsForCollection(id),
+    agents: collection.pinned.filter((t) => t.kind === 'agent' || t.kind === 'recipe'),
+    sharepicVorlagen: collection.kit?.sharepicVorlagen ?? [],
+    printVorlagen: collection.kit?.printVorlagen ?? [],
+  };
 }
 
 export function collectionById(id: MarketplaceCollectionId | null): MarketplaceCollection | null {

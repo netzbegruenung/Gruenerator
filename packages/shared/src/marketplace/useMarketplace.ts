@@ -71,6 +71,9 @@ export const marketplaceKeys = {
     [...MARKETPLACE_QUERY_KEY, 'item', { kind: target.kind, ref: target.ref, platform }] as const,
   frontpage: (platform: MarketplacePlatform) =>
     [...MARKETPLACE_QUERY_KEY, 'frontpage', { platform }] as const,
+  // Own root, not below `marketplace`: like/save patchers walk every query under
+  // that key and expect the list/item/frontpage shapes.
+  subscriptions: () => ['marketplace-subscriptions'] as const,
 };
 
 /** The query the contract takes; `null`/empty filters are left out rather than sent as strings. */

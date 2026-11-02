@@ -217,9 +217,9 @@ describe('MarketplacePage', () => {
   it('keeps an unlisted collection out of the row, but opens it by its link', async () => {
     collections = [
       { collectionId: 'starter', items: [ALL[0]!, ALL[1]!] },
-      composeCollection(collectionById('wahlkampf-moritz')!, [[]])!,
+      composeCollection(collectionById('mustergruen-wahlkampf')!, [[]])!,
     ];
-    renderPage('/marktplatz?kollektion=wahlkampf-moritz');
+    renderPage('/marktplatz?kollektion=mustergruen-wahlkampf');
 
     expect(
       await screen.findByRole('heading', { level: 1, name: 'Wahlkampf für Moritz' })

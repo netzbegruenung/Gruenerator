@@ -212,6 +212,8 @@ export const SYSTEM_STICKERS = [
   defaultScale: number;
   audience: 'de-DE' | 'de-AT' | 'all';
   kollektion?: MarketplaceCollectionId;
+  /** A frame around the photo, not a sticker on it; only a collection offers it. */
+  frame?: true;
   tags: readonly string[];
 }[];
 
@@ -246,7 +248,7 @@ export function isShareSrc(src: string): boolean {
 /** The stickers a picker offers in this locale; saved ones parse regardless. */
 export function stickersForLocale(locale: 'de-DE' | 'de-AT'): SystemSticker[] {
   return SYSTEM_STICKERS.filter(
-    (s) => !('kollektion' in s) && (s.audience === 'all' || s.audience === locale)
+    (s) => !('kollektion' in s) && !isFrame(s) && (s.audience === 'all' || s.audience === locale)
   );
 }
 
@@ -254,6 +256,14 @@ export function stickersForLocale(locale: 'de-DE' | 'de-AT'): SystemSticker[] {
 export function stickersForCollection(id: MarketplaceCollectionId): SystemSticker[] {
   return SYSTEM_STICKERS.filter((s) => 'kollektion' in s && s.kollektion === id);
 }
+
+/** The frames only a collection offers; they are not part of {@link stickersForLocale}. */
+export function framesForCollection(id: MarketplaceCollectionId): SystemSticker[] {
+  return stickersForCollection(id).filter(isFrame);
+}
+
+// Boundary cast: no entry carries `frame` yet, so the literal union has no such member to read.
+const isFrame = (s: SystemSticker): boolean => (s as { frame?: true }).frame === true;
 
 export function systemStickerById(id: string): SystemSticker | null {
   return SYSTEM_STICKERS.find((s) => s.id === id) ?? null;

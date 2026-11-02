@@ -18,6 +18,7 @@ export {
   AGENTURA_PATH,
   DEFAULT_MARKETPLACE_FILTERS,
   GRUENERATOREN_PATH,
+  LEGACY_COLLECTION_ALIASES,
   MARKETPLACE_PATH,
   agenturaToMarketplaceHref,
   kindsForTab,
@@ -42,6 +43,7 @@ export {
   type MarketplaceKindParams,
   type MarketplaceSectionsParams,
 } from './useMarketplace.js';
+export { useCollectionSubscriptions, useSubscribedContents } from './useCollectionSubscriptions.js';
 export {
   likeToggled,
   patchMarketplaceCache,
@@ -77,8 +79,10 @@ export {
   collectionForThema,
   featureById,
   featureFor,
+  collectionContents,
   isFrontpageView,
   relatedFromCollections,
+  type CollectionContents,
   type MarketplaceCollection,
   type MarketplaceCollectionCover,
   type MarketplaceFeature,

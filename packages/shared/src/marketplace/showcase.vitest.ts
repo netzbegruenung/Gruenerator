@@ -51,7 +51,7 @@ describe('collections', () => {
     const answer = [
       { collectionId: 'starter' as const, items: [] },
       { collectionId: 'queer' as const, items: [] },
-      { collectionId: 'wahlkampf-moritz' as const, items: [] },
+      { collectionId: 'mustergruen-wahlkampf' as const, items: [] },
     ];
     expect(collectionCardsFor(answer, 'rest').map((c) => c.def.id)).toEqual(['starter']);
     expect(collectionCardsFor(answer, 'themen').map((c) => c.def.id)).toEqual(['queer']);

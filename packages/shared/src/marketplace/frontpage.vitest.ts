@@ -89,7 +89,7 @@ describe('relatedFromCollections', () => {
   it('leaves out an unlisted collection and keeps to the limit', () => {
     const related = relatedFromCollections(
       [
-        { collectionId: 'wahlkampf-moritz', items: [self, entry('recipe', 'x')] },
+        { collectionId: 'mustergruen-wahlkampf', items: [self, entry('recipe', 'x')] },
         { collectionId: 'starter', items: [self, entry('recipe', 'y'), entry('recipe', 'z')] },
       ],
       { kind: 'agent', ref: 'a' },
@@ -229,7 +229,7 @@ describe('collections', () => {
   });
 
   it('puts a collection’s file-only samples first, and they never read as real rows', () => {
-    const wahlkampf = collectionById('wahlkampf-moritz')!;
+    const wahlkampf = collectionById('mustergruen-wahlkampf')!;
     const page = composeCollection(wahlkampf, [[it_('agent', 'a1')]]);
     const items = page!.items;
     expect(items.at(-1)?.ref).toBe('a1');
