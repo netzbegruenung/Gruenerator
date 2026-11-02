@@ -1,11 +1,4 @@
-import {
-  fitStoererText,
-  STOERER_LINE_STEP,
-  STOERER_MAX_SIZE_SHARE,
-  STOERER_MIN_READABLE,
-  STOERER_RADII,
-  wrapWords,
-} from '@ggraphic/editor/composer/textFit';
+import { wrapWords } from '@ggraphic/editor/composer/textFit';
 import { ASSET_TARGET_SIZE } from '@ggraphic/editor/utils/canvasAssets';
 import { createCircleBadgeInstance } from '@ggraphic/editor/utils/circleBadgeUtils';
 import { createShape } from '@ggraphic/editor/utils/shapes';
@@ -30,6 +23,13 @@ import {
 import { sharepicTheme } from './sharepicThemes';
 import { type SlideCtx } from './slideContext';
 import { type slideInk } from './slideInk';
+import {
+  fitStoererText,
+  STOERER_LINE_STEP,
+  STOERER_MAX_SIZE_SHARE,
+  STOERER_MIN_READABLE,
+  STOERER_RADII,
+} from './stoererFit';
 
 type SlideInk = ReturnType<typeof slideInk>;
 

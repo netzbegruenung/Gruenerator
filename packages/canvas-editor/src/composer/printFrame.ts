@@ -6,7 +6,6 @@
  * Pure: no React, no Konva. Text is measured through the injected `measure`.
  */
 
-import { fitStoererText, STOERER_LINE_STEP } from '@ggraphic/editor/composer/textFit';
 import {
   mmToPx,
   printGeometry,
@@ -26,6 +25,7 @@ import { getBrandTheme, type BrandTheme } from '../brand/theme';
 import { layoutTextLines, type MeasureText } from './chromeParts';
 import { type ComposedSlide } from './composeSharepic';
 import { brandFont } from './fontRole';
+import { fitStoererText, STOERER_LINE_STEP } from './stoererFit';
 
 import type { AdditionalText } from '@ggraphic/editor/configs/types';
 
