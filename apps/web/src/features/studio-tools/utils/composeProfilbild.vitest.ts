@@ -120,6 +120,27 @@ describe('composeProfilbild', () => {
     expect(ctx.fillStyle).toBe(gradient);
     expect(ctx.fillRect).toHaveBeenCalledWith(0, 0, 1080, 1080);
   });
+
+  it('places the stops where the gradient names them, like CSS', () => {
+    const { canvas, gradient } = mockCanvas();
+    composeProfilbild({
+      cutout: portrait,
+      background: {
+        kind: 'gradient',
+        stops: ['#FF8568', '#F28ADE', '#9F88FF'],
+        positions: [0.15, 0.35, 0.85],
+        angle: 200,
+      },
+      position: { x: 196, y: 162 },
+      canvas,
+    });
+
+    expect(gradient.addColorStop.mock.calls).toEqual([
+      [0.15, '#FF8568'],
+      [0.35, '#F28ADE'],
+      [0.85, '#9F88FF'],
+    ]);
+  });
 });
 
 describe('composeProfilbild – Vorlagen und Sticker', () => {
