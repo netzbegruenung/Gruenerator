@@ -53,8 +53,9 @@ export function launchpadHref(target: LaunchpadTarget): string {
   }
 }
 
-interface Tile {
+export interface LaunchpadTile {
   key: string;
+  group: 'profilbild' | 'vorlagen' | 'assets' | 'agents';
   label: string;
   target: LaunchpadTarget;
   visual: ReactNode;
@@ -66,31 +67,47 @@ const iconVisual = (icon: ReactNode) => (
   <span className="grid size-full place-items-center text-4xl text-foreground-muted">{icon}</span>
 );
 
+/** The tile of a pinned agent or recipe; its name comes from the items, else its ref. */
+export function agentTile(
+  agent: CollectionContents['agents'][number],
+  items: readonly MarketplaceItem[] = []
+): LaunchpadTile {
+  const item = items.find((i) => i.kind === agent.kind && i.ref === agent.ref);
+  return {
+    key: `${agent.kind}:${agent.ref}`,
+    group: 'agents',
+    label: item?.title ?? agent.ref,
+    target:
+      agent.kind === 'recipe'
+        ? { type: 'recipe', ref: agent.ref }
+        : { type: 'agent', ref: agent.ref },
+    visual: iconVisual(
+      agent.kind === 'recipe' ? <PiFileText aria-hidden /> : <PiSparkle aria-hidden />
+    ),
+  };
+}
+
 /**
- * „Los geht's" under the header of a subscribed collection: one tile per thing
- * to start with — the Profilbild, then Vorlagen, stickers, backgrounds and
- * agents. A Vorlage the catalogue does not know (other country, retired) has
- * no tile; nothing is shown when no tile is left.
+ * One tile per thing a collection brings — the Profilbild, then Vorlagen,
+ * stickers, backgrounds and agents. A Vorlage the catalogue does not know
+ * (other country, retired) has no tile.
  */
-export function CollectionLaunchpad({
-  contents,
-  items = [],
-}: {
-  contents: CollectionContents;
-  /** The collection's items, for the names of its agents and recipes. */
-  items?: readonly MarketplaceItem[];
-}): JSX.Element | null {
+export function useLaunchpadTiles(
+  contents: CollectionContents,
+  items: readonly MarketplaceItem[] = []
+): LaunchpadTile[] {
   const sharepics = useQuery({
     ...sharepicVorlagenQuery(),
     enabled: contents.sharepicVorlagen.length > 0,
   });
   const prints = useQuery({ ...printVorlagenQuery(), enabled: contents.printVorlagen.length > 0 });
 
-  const tiles: Tile[] = [];
+  const tiles: LaunchpadTile[] = [];
   const [frame] = contents.frames;
   if (frame || contents.stickers.length > 0 || contents.backgrounds.length > 0) {
     tiles.push({
       key: 'profilbild',
+      group: 'profilbild',
       label: 'Profilbild gestalten',
       target: { type: 'profilbild', frameId: frame?.id ?? null },
       visual: frame ? (
@@ -105,6 +122,7 @@ export function CollectionLaunchpad({
     if (!vorlage) continue;
     tiles.push({
       key: `sharepic:${id}`,
+      group: 'vorlagen',
       label: vorlage.titel,
       target: { type: 'sharepic', id },
       visual: (
@@ -122,6 +140,7 @@ export function CollectionLaunchpad({
     if (!vorlage) continue;
     tiles.push({
       key: `print:${id}`,
+      group: 'vorlagen',
       label: vorlage.titel,
       target: { type: 'print', id },
       visual: (
@@ -137,6 +156,7 @@ export function CollectionLaunchpad({
   for (const sticker of contents.stickers) {
     tiles.push({
       key: `sticker:${sticker.id}`,
+      group: 'assets',
       label: sticker.label,
       target: { type: 'sticker', id: sticker.id },
       visual: <img src={sticker.src} alt="" loading="lazy" className={cn(FRAME, 'p-4')} />,
@@ -145,6 +165,7 @@ export function CollectionLaunchpad({
   for (const design of contents.backgrounds) {
     tiles.push({
       key: `background:${design.id}`,
+      group: 'assets',
       label: design.label,
       target: { type: 'background', id: design.id },
       visual: (
@@ -156,21 +177,52 @@ export function CollectionLaunchpad({
       ),
     });
   }
-  for (const agent of contents.agents) {
-    const item = items.find((i) => i.kind === agent.kind && i.ref === agent.ref);
-    tiles.push({
-      key: `${agent.kind}:${agent.ref}`,
-      label: item?.title ?? agent.ref,
-      target:
-        agent.kind === 'recipe'
-          ? { type: 'recipe', ref: agent.ref }
-          : { type: 'agent', ref: agent.ref },
-      visual: iconVisual(
-        agent.kind === 'recipe' ? <PiFileText aria-hidden /> : <PiSparkle aria-hidden />
-      ),
-    });
-  }
+  for (const agent of contents.agents) tiles.push(agentTile(agent, items));
 
+  return tiles;
+}
+
+/** Tiles in a row, each a link. */
+export function LaunchpadTiles({
+  tiles,
+  label,
+}: {
+  tiles: readonly LaunchpadTile[];
+  label: string;
+}): JSX.Element {
+  return (
+    <ul aria-label={label} className="m-0 flex list-none snap-x gap-5 overflow-x-auto p-0 pb-2">
+      {tiles.map((tile) => (
+        <li key={tile.key} className="flex w-[160px] shrink-0 snap-start flex-col gap-2.5">
+          <Link
+            to={launchpadHref(tile.target)}
+            aria-label={tile.label}
+            className="block h-[160px] overflow-hidden rounded-[22px] bg-background-alt transition-transform duration-200 ease-out active:scale-[0.97]"
+          >
+            {tile.visual}
+          </Link>
+          <strong className="text-[0.9375rem] leading-[1.3] text-foreground-heading">
+            {tile.label}
+          </strong>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+/**
+ * „Los geht's" under the header of a subscribed collection. Nothing is shown
+ * when no tile is left.
+ */
+export function CollectionLaunchpad({
+  contents,
+  items = [],
+}: {
+  contents: CollectionContents;
+  /** The collection's items, for the names of its agents and recipes. */
+  items?: readonly MarketplaceItem[];
+}): JSX.Element | null {
+  const tiles = useLaunchpadTiles(contents, items);
   if (tiles.length === 0) return null;
 
   return (
@@ -182,22 +234,7 @@ export function CollectionLaunchpad({
       >
         Los geht’s
       </h2>
-      <ul className="m-0 flex list-none snap-x gap-5 overflow-x-auto p-0 pb-2">
-        {tiles.map((tile) => (
-          <li key={tile.key} className="flex w-[160px] shrink-0 snap-start flex-col gap-2.5">
-            <Link
-              to={launchpadHref(tile.target)}
-              aria-label={tile.label}
-              className="block h-[160px] overflow-hidden rounded-[22px] bg-background-alt transition-transform duration-200 ease-out active:scale-[0.97]"
-            >
-              {tile.visual}
-            </Link>
-            <strong className="text-[0.9375rem] leading-[1.3] text-foreground-heading">
-              {tile.label}
-            </strong>
-          </li>
-        ))}
-      </ul>
+      <LaunchpadTiles tiles={tiles} label="Los geht’s" />
     </section>
   );
 }
