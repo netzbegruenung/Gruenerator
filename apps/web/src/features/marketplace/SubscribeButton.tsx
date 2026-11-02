@@ -1,7 +1,7 @@
 import { type MarketplaceCollectionId } from '@gruenerator/contracts';
 import { useCollectionSubscriptions } from '@gruenerator/shared/marketplace';
 import { Button } from '@gruenerator/ui';
-import { type JSX, useRef } from 'react';
+import { type JSX, useRef, useState } from 'react';
 import { toast } from 'sonner';
 
 /**
@@ -17,16 +17,19 @@ export function SubscribeButton({
   const { isSubscribed, subscribe, unsubscribe } = useCollectionSubscriptions();
   const subscribed = isSubscribed(collectionId);
   const busy = useRef(false);
+  const [locked, setLocked] = useState(false);
 
   const toggle = async () => {
     if (busy.current) return;
     busy.current = true;
+    setLocked(true);
     try {
       await (subscribed ? unsubscribe(collectionId) : subscribe(collectionId));
     } catch {
       toast.error(subscribed ? 'Abbestellen fehlgeschlagen.' : 'Abonnieren fehlgeschlagen.');
     } finally {
       busy.current = false;
+      setLocked(false);
     }
   };
 
@@ -36,6 +39,7 @@ export function SubscribeButton({
         size="lg"
         className="rounded-full dark:bg-primary-700 dark:hover:bg-primary-800"
         aria-pressed={subscribed}
+        disabled={locked}
         onClick={() => void toggle()}
       >
         {subscribed ? 'Abonniert ✓' : 'Abonnieren'}

@@ -7,7 +7,7 @@ import {
 } from '@gruenerator/shared/marketplace';
 import { type CollectionContents } from '@gruenerator/shared/marketplace/frontpage';
 import { Button } from '@gruenerator/ui';
-import { type JSX, useMemo } from 'react';
+import { type JSX, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { toast } from 'sonner';
 
@@ -52,16 +52,27 @@ function Frame({
 function Actions({ contents }: { contents: CollectionContents }): JSX.Element {
   const { unsubscribe } = useCollectionSubscriptions();
   const { id } = contents.collection;
+  const [busy, setBusy] = useState(false);
+  const running = useRef(false);
+  const cancel = async () => {
+    if (running.current) return;
+    running.current = true;
+    setBusy(true);
+    try {
+      await unsubscribe(id);
+    } catch {
+      toast.error('Abbestellen fehlgeschlagen.');
+    } finally {
+      running.current = false;
+      setBusy(false);
+    }
+  };
   return (
     <div className="flex items-center gap-sm">
       <Button asChild variant="ghost" size="sm">
         <Link to={marketplaceHref({ collection: id })}>Zur Kollektion</Link>
       </Button>
-      <Button
-        variant="ghost"
-        size="sm"
-        onClick={() => unsubscribe(id).catch(() => toast.error('Abbestellen fehlgeschlagen.'))}
-      >
+      <Button variant="ghost" size="sm" disabled={busy} onClick={() => void cancel()}>
         Kollektion abbestellen
       </Button>
     </div>
@@ -117,13 +128,10 @@ function AgentsBody({ contents }: { contents: readonly CollectionContents[] }): 
     }
   }
   if (tiles.length === 0) return null;
-  // One collection names itself and can be cancelled here; several are one „Aus Kollektionen".
-  const [only] = contents;
-  const single = contents.length === 1 && only ? only : null;
-  const title = single ? `Aus ${single.collection.title}` : 'Aus Kollektionen';
+  // Here the title is always „Aus Kollektionen"; cancelling happens on the collection's page and in the lists of assets.
   return (
-    <Frame title={title} actions={single ? <Actions contents={single} /> : undefined}>
-      <LaunchpadTiles tiles={tiles} label={title} />
+    <Frame title="Aus Kollektionen">
+      <LaunchpadTiles tiles={tiles} label="Aus Kollektionen" />
     </Frame>
   );
 }

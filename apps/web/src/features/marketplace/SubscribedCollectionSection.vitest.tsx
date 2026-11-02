@@ -49,7 +49,8 @@ vi.mock('../vorlagen/hooks/useSharepicVorlagen', () => ({
   sharepicVorlagenQuery: () => ({ queryKey: ['sv'], queryFn: () => Promise.resolve([]) }),
   printVorlagenQuery: () => ({ queryKey: ['pv'], queryFn: () => Promise.resolve([]) }),
 }));
-vi.mock('sonner', () => ({ toast: { error: vi.fn() } }));
+const toastError = vi.hoisted(() => vi.fn());
+vi.mock('sonner', () => ({ toast: { error: toastError } }));
 
 const mustergruen = {
   collection: { id: 'mustergruen-wahlkampf', title: 'Mustergrün' },
@@ -75,6 +76,7 @@ beforeEach(() => {
   store.set([]);
   store.library = [];
   store.unsubscribe.mockReset();
+  toastError.mockClear();
 });
 
 describe('SubscribedCollectionSection', () => {
@@ -113,11 +115,42 @@ describe('SubscribedCollectionSection', () => {
     store.set([mustergruen]);
     store.library = [{ kind: 'agent', ref: 'eigen' }];
     renderWithProviders(<SubscribedCollectionSection show="agents" />);
+    expect(screen.getByRole('heading', { name: 'Aus Kollektionen' })).toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: 'Kollektion abbestellen' })
+    ).not.toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Presse-Agent' })).toHaveAttribute(
       'href',
       '/agents/presse'
     );
     expect(screen.queryByRole('link', { name: 'Eigener Agent' })).not.toBeInTheDocument();
+  });
+
+  it('„Kollektion abbestellen“ sends one request on double click', async () => {
+    store.set([mustergruen]);
+    store.unsubscribe.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          setTimeout(() => {
+            store.set([]);
+            resolve(undefined);
+          }, 30);
+        })
+    );
+    const { user } = renderWithProviders(<SubscribedCollectionSection show="assets" />);
+    await user.dblClick(screen.getByRole('button', { name: 'Kollektion abbestellen' }));
+    await waitFor(() => expect(screen.queryByRole('heading')).not.toBeInTheDocument());
+    expect(store.unsubscribe).toHaveBeenCalledTimes(1);
+  });
+
+  it('a failed cancel toasts and keeps the section', async () => {
+    store.set([mustergruen]);
+    store.unsubscribe.mockRejectedValue(new Error('500'));
+    const { user } = renderWithProviders(<SubscribedCollectionSection show="assets" />);
+    await user.click(screen.getByRole('button', { name: 'Kollektion abbestellen' }));
+    await waitFor(() => expect(toastError).toHaveBeenCalledWith('Abbestellen fehlgeschlagen.'));
+    expect(screen.getByRole('heading', { name: 'Aus Mustergrün' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Kollektion abbestellen' })).toBeEnabled();
   });
 
   it('axe: no violations', async () => {
