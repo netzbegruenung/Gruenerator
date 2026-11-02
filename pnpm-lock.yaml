@@ -163,9 +163,9 @@ settings:
   excludeLinksFromLockfile: false
 
 overrides:
-  '@ggraphic/editor': file:/private/tmp/claude-501/-Users-moritzwachter-Gruenerator/c4078d46-2066-4996-bb09-3a0af401c159/scratchpad/d2e/tgz121/ggraphic-editor-0.1.0-alpha.1.tgz
-  '@ggraphic/core': file:/private/tmp/claude-501/-Users-moritzwachter-Gruenerator/c4078d46-2066-4996-bb09-3a0af401c159/scratchpad/d2e/tgz121/ggraphic-core-0.1.0-alpha.1.tgz
-  '@ggraphic/schema': file:/private/tmp/claude-501/-Users-moritzwachter-Gruenerator/c4078d46-2066-4996-bb09-3a0af401c159/scratchpad/d2e/tgz121/ggraphic-schema-0.1.0-alpha.0.tgz
+  '@ggraphic/editor': file:/private/tmp/claude-501/-Users-moritzwachter-Gruenerator/c4078d46-2066-4996-bb09-3a0af401c159/scratchpad/d2e/tgzrc/ggraphic-editor.tgz
+  '@ggraphic/core': file:/private/tmp/claude-501/-Users-moritzwachter-Gruenerator/c4078d46-2066-4996-bb09-3a0af401c159/scratchpad/d2e/tgzrc/ggraphic-core.tgz
+  '@ggraphic/schema': file:/private/tmp/claude-501/-Users-moritzwachter-Gruenerator/c4078d46-2066-4996-bb09-3a0af401c159/scratchpad/d2e/tgzrc/ggraphic-schema.tgz
   adm-zip: '>=0.6.1'
   '@expo/dom-webview': ~58.0.2
   '@types/react': 19.3.0
@@ -594,8 +594,8 @@ importers:
         specifier: ^0.131.0
         version: 0.131.0(zod@4.6.7)
       '@ggraphic/editor':
-        specifier: file:/private/tmp/claude-501/-Users-moritzwachter-Gruenerator/c4078d46-2066-4996-bb09-3a0af401c159/scratchpad/d2e/tgz121/ggraphic-editor-0.1.0-alpha.1.tgz
-        version: file:../../../private/tmp/claude-501/-Users-moritzwachter-Gruenerator/c4078d46-2066-4996-bb09-3a0af401c159/scratchpad/d2e/tgz121/ggraphic-editor-0.1.0-alpha.1.tgz(@floating-ui/dom@1.8.0)(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(konva@10.9.0)(react-dom@19.3.0(react@19.3.0))(react-konva@19.3.2(@types/react@19.3.0)(konva@10.9.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(react@19.3.0)(redux@5.0.1)(use-sync-external-store@1.7.0(react@19.3.0))
+        specifier: file:/private/tmp/claude-501/-Users-moritzwachter-Gruenerator/c4078d46-2066-4996-bb09-3a0af401c159/scratchpad/d2e/tgzrc/ggraphic-editor.tgz
+        version: file:../../../private/tmp/claude-501/-Users-moritzwachter-Gruenerator/c4078d46-2066-4996-bb09-3a0af401c159/scratchpad/d2e/tgzrc/ggraphic-editor.tgz(@floating-ui/dom@1.8.0)(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(konva@10.9.0)(react-dom@19.3.0(react@19.3.0))(react-konva@19.3.2(@types/react@19.3.0)(konva@10.9.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(react@19.3.0)(redux@5.0.1)(use-sync-external-store@1.7.0(react@19.3.0))
       '@gruenerator/eslint-config':
         specifier: workspace:*
         version: link:../../packages/eslint-config
@@ -685,11 +685,11 @@ importers:
   apps/ggraphic-demo:
     dependencies:
       '@ggraphic/core':
-        specifier: file:/private/tmp/claude-501/-Users-moritzwachter-Gruenerator/c4078d46-2066-4996-bb09-3a0af401c159/scratchpad/d2e/tgz121/ggraphic-core-0.1.0-alpha.1.tgz
-        version: file:../../../private/tmp/claude-501/-Users-moritzwachter-Gruenerator/c4078d46-2066-4996-bb09-3a0af401c159/scratchpad/d2e/tgz121/ggraphic-core-0.1.0-alpha.1.tgz
+        specifier: file:/private/tmp/claude-501/-Users-moritzwachter-Gruenerator/c4078d46-2066-4996-bb09-3a0af401c159/scratchpad/d2e/tgzrc/ggraphic-core.tgz
+        version: file:../../../private/tmp/claude-501/-Users-moritzwachter-Gruenerator/c4078d46-2066-4996-bb09-3a0af401c159/scratchpad/d2e/tgzrc/ggraphic-core.tgz
       '@ggraphic/editor':
-        specifier: file:/private/tmp/claude-501/-Users-moritzwachter-Gruenerator/c4078d46-2066-4996-bb09-3a0af401c159/scratchpad/d2e/tgz121/ggraphic-editor-0.1.0-alpha.1.tgz
-        version: file:../../../private/tmp/claude-501/-Users-moritzwachter-Gruenerator/c4078d46-2066-4996-bb09-3a0af401c159/scratchpad/d2e/tgz121/ggraphic-editor-0.1.0-alpha.1.tgz(@floating-ui/dom@1.8.0)(@tiptap/pm@3.32.0)(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(konva@10.9.0)(react-dom@19.3.0(react@19.3.0))(react-is@19.2.8)(react-konva@19.3.2(@types/react@19.3.0)(konva@10.9.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(react@19.3.0)(redux@5.0.1)(use-sync-external-store@1.7.0(react@19.3.0))(y-protocols@1.0.7(yjs@13.6.33))
+        specifier: file:/private/tmp/claude-501/-Users-moritzwachter-Gruenerator/c4078d46-2066-4996-bb09-3a0af401c159/scratchpad/d2e/tgzrc/ggraphic-editor.tgz
+        version: file:../../../private/tmp/claude-501/-Users-moritzwachter-Gruenerator/c4078d46-2066-4996-bb09-3a0af401c159/scratchpad/d2e/tgzrc/ggraphic-editor.tgz(@floating-ui/dom@1.8.0)(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(konva@10.9.0)(react-dom@19.3.0(react@19.3.0))(react-konva@19.3.2(@types/react@19.3.0)(konva@10.9.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(react@19.3.0)(redux@5.0.1)(use-sync-external-store@1.7.0(react@19.3.0))
       '@tanstack/react-query':
         specifier: ^5.104.3
         version: 5.104.5(@types/react@19.3.0)(react@19.3.0)
@@ -1310,8 +1310,8 @@ importers:
         specifier: 7.29.7
         version: 7.29.7(supports-color@10.2.2)
       '@ggraphic/editor':
-        specifier: file:/private/tmp/claude-501/-Users-moritzwachter-Gruenerator/c4078d46-2066-4996-bb09-3a0af401c159/scratchpad/d2e/tgz121/ggraphic-editor-0.1.0-alpha.1.tgz
-        version: file:../../../private/tmp/claude-501/-Users-moritzwachter-Gruenerator/c4078d46-2066-4996-bb09-3a0af401c159/scratchpad/d2e/tgz121/ggraphic-editor-0.1.0-alpha.1.tgz(@floating-ui/dom@1.8.0)(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(konva@10.9.0)(react-dom@19.3.0(react@19.3.0))(react-konva@19.3.2(@types/react@19.3.0)(konva@10.9.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(react@19.3.0)(redux@5.0.1)(use-sync-external-store@1.6.0(react@19.3.0))
+        specifier: file:/private/tmp/claude-501/-Users-moritzwachter-Gruenerator/c4078d46-2066-4996-bb09-3a0af401c159/scratchpad/d2e/tgzrc/ggraphic-editor.tgz
+        version: file:../../../private/tmp/claude-501/-Users-moritzwachter-Gruenerator/c4078d46-2066-4996-bb09-3a0af401c159/scratchpad/d2e/tgzrc/ggraphic-editor.tgz(@floating-ui/dom@1.8.0)(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(konva@10.9.0)(react-dom@19.3.0(react@19.3.0))(react-konva@19.3.2(@types/react@19.3.0)(konva@10.9.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(react@19.3.0)(redux@5.0.1)(use-sync-external-store@1.6.0(react@19.3.0))
       '@gruenerator/eslint-config':
         specifier: workspace:*
         version: link:../../packages/eslint-config
@@ -1504,8 +1504,8 @@ importers:
         specifier: ^3.10.2
         version: 3.10.2(@swc/core@1.16.2(@swc/helpers@0.5.23))(@swc/html@1.16.2)(clean-css@5.3.3)(cssnano@6.1.2(postcss@8.5.30))(csso@5.0.5)(esbuild@0.28.2)(html-minifier-terser@7.2.0)(lightningcss@1.33.0)(postcss@8.5.30)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(sharp@0.35.5(@types/node@26.6.5))(supports-color@10.2.2)(svgo@3.3.5)(webpack-cli@5.1.4)
       '@ggraphic/editor':
-        specifier: file:/private/tmp/claude-501/-Users-moritzwachter-Gruenerator/c4078d46-2066-4996-bb09-3a0af401c159/scratchpad/d2e/tgz121/ggraphic-editor-0.1.0-alpha.1.tgz
-        version: file:../../../private/tmp/claude-501/-Users-moritzwachter-Gruenerator/c4078d46-2066-4996-bb09-3a0af401c159/scratchpad/d2e/tgz121/ggraphic-editor-0.1.0-alpha.1.tgz(@floating-ui/dom@1.8.0)(@tiptap/pm@3.32.0)(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(konva@10.9.0)(react-dom@19.3.0(react@19.3.0))(react-is@19.2.8)(react-konva@19.3.2(@types/react@19.3.0)(konva@10.9.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(react@19.3.0)(redux@5.0.1)(use-sync-external-store@1.7.0(react@19.3.0))(y-protocols@1.0.7(yjs@13.6.33))
+        specifier: file:/private/tmp/claude-501/-Users-moritzwachter-Gruenerator/c4078d46-2066-4996-bb09-3a0af401c159/scratchpad/d2e/tgzrc/ggraphic-editor.tgz
+        version: file:../../../private/tmp/claude-501/-Users-moritzwachter-Gruenerator/c4078d46-2066-4996-bb09-3a0af401c159/scratchpad/d2e/tgzrc/ggraphic-editor.tgz(@floating-ui/dom@1.8.0)(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(konva@10.9.0)(react-dom@19.3.0(react@19.3.0))(react-konva@19.3.2(@types/react@19.3.0)(konva@10.9.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(react@19.3.0)(redux@5.0.1)(use-sync-external-store@1.7.0(react@19.3.0))
       typescript:
         specifier: ^6.0.3
         version: 6.0.3
@@ -1513,14 +1513,14 @@ importers:
   packages/canvas-editor:
     dependencies:
       '@ggraphic/core':
-        specifier: file:/private/tmp/claude-501/-Users-moritzwachter-Gruenerator/c4078d46-2066-4996-bb09-3a0af401c159/scratchpad/d2e/tgz121/ggraphic-core-0.1.0-alpha.1.tgz
-        version: file:../../../private/tmp/claude-501/-Users-moritzwachter-Gruenerator/c4078d46-2066-4996-bb09-3a0af401c159/scratchpad/d2e/tgz121/ggraphic-core-0.1.0-alpha.1.tgz
+        specifier: file:/private/tmp/claude-501/-Users-moritzwachter-Gruenerator/c4078d46-2066-4996-bb09-3a0af401c159/scratchpad/d2e/tgzrc/ggraphic-core.tgz
+        version: file:../../../private/tmp/claude-501/-Users-moritzwachter-Gruenerator/c4078d46-2066-4996-bb09-3a0af401c159/scratchpad/d2e/tgzrc/ggraphic-core.tgz
       '@ggraphic/editor':
-        specifier: file:/private/tmp/claude-501/-Users-moritzwachter-Gruenerator/c4078d46-2066-4996-bb09-3a0af401c159/scratchpad/d2e/tgz121/ggraphic-editor-0.1.0-alpha.1.tgz
-        version: file:../../../private/tmp/claude-501/-Users-moritzwachter-Gruenerator/c4078d46-2066-4996-bb09-3a0af401c159/scratchpad/d2e/tgz121/ggraphic-editor-0.1.0-alpha.1.tgz(@floating-ui/dom@1.8.0)(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(konva@10.9.0)(react-dom@19.3.0(react@19.3.0))(react-konva@19.3.2(@types/react@19.3.0)(konva@10.9.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(react@19.3.0)(redux@5.0.1)(use-sync-external-store@1.6.0(react@19.3.0))
+        specifier: file:/private/tmp/claude-501/-Users-moritzwachter-Gruenerator/c4078d46-2066-4996-bb09-3a0af401c159/scratchpad/d2e/tgzrc/ggraphic-editor.tgz
+        version: file:../../../private/tmp/claude-501/-Users-moritzwachter-Gruenerator/c4078d46-2066-4996-bb09-3a0af401c159/scratchpad/d2e/tgzrc/ggraphic-editor.tgz(@floating-ui/dom@1.8.0)(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(konva@10.9.0)(react-dom@19.3.0(react@19.3.0))(react-konva@19.3.2(@types/react@19.3.0)(konva@10.9.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(react@19.3.0)(redux@5.0.1)(use-sync-external-store@1.6.0(react@19.3.0))
       '@ggraphic/schema':
-        specifier: file:/private/tmp/claude-501/-Users-moritzwachter-Gruenerator/c4078d46-2066-4996-bb09-3a0af401c159/scratchpad/d2e/tgz121/ggraphic-schema-0.1.0-alpha.0.tgz
-        version: file:../../../private/tmp/claude-501/-Users-moritzwachter-Gruenerator/c4078d46-2066-4996-bb09-3a0af401c159/scratchpad/d2e/tgz121/ggraphic-schema-0.1.0-alpha.0.tgz
+        specifier: file:/private/tmp/claude-501/-Users-moritzwachter-Gruenerator/c4078d46-2066-4996-bb09-3a0af401c159/scratchpad/d2e/tgzrc/ggraphic-schema.tgz
+        version: file:../../../private/tmp/claude-501/-Users-moritzwachter-Gruenerator/c4078d46-2066-4996-bb09-3a0af401c159/scratchpad/d2e/tgzrc/ggraphic-schema.tgz
       '@gruenerator/contracts':
         specifier: workspace:*
         version: link:../contracts
@@ -1882,11 +1882,11 @@ importers:
   packages/contracts:
     dependencies:
       '@ggraphic/core':
-        specifier: file:/private/tmp/claude-501/-Users-moritzwachter-Gruenerator/c4078d46-2066-4996-bb09-3a0af401c159/scratchpad/d2e/tgz121/ggraphic-core-0.1.0-alpha.1.tgz
-        version: file:../../../private/tmp/claude-501/-Users-moritzwachter-Gruenerator/c4078d46-2066-4996-bb09-3a0af401c159/scratchpad/d2e/tgz121/ggraphic-core-0.1.0-alpha.1.tgz
+        specifier: file:/private/tmp/claude-501/-Users-moritzwachter-Gruenerator/c4078d46-2066-4996-bb09-3a0af401c159/scratchpad/d2e/tgzrc/ggraphic-core.tgz
+        version: file:../../../private/tmp/claude-501/-Users-moritzwachter-Gruenerator/c4078d46-2066-4996-bb09-3a0af401c159/scratchpad/d2e/tgzrc/ggraphic-core.tgz
       '@ggraphic/schema':
-        specifier: file:/private/tmp/claude-501/-Users-moritzwachter-Gruenerator/c4078d46-2066-4996-bb09-3a0af401c159/scratchpad/d2e/tgz121/ggraphic-schema-0.1.0-alpha.0.tgz
-        version: file:../../../private/tmp/claude-501/-Users-moritzwachter-Gruenerator/c4078d46-2066-4996-bb09-3a0af401c159/scratchpad/d2e/tgz121/ggraphic-schema-0.1.0-alpha.0.tgz
+        specifier: file:/private/tmp/claude-501/-Users-moritzwachter-Gruenerator/c4078d46-2066-4996-bb09-3a0af401c159/scratchpad/d2e/tgzrc/ggraphic-schema.tgz
+        version: file:../../../private/tmp/claude-501/-Users-moritzwachter-Gruenerator/c4078d46-2066-4996-bb09-3a0af401c159/scratchpad/d2e/tgzrc/ggraphic-schema.tgz
       '@gruenerator/core':
         specifier: workspace:*
         version: link:../core
@@ -5724,12 +5724,12 @@ packages:
     peerDependencies:
       react: ^19.0.0
 
-  '@ggraphic/core@file:../../../private/tmp/claude-501/-Users-moritzwachter-Gruenerator/c4078d46-2066-4996-bb09-3a0af401c159/scratchpad/d2e/tgz121/ggraphic-core-0.1.0-alpha.1.tgz':
-    resolution: {integrity: sha512-Hvqf//MCRZF/2emO+P+aDBsZxW+ca4SEW/K9IwopnKbocvF1u2HEWhUvQlql1+kCkN5hBDSivdiWmSzf4uYUcw==, tarball: file:../../../private/tmp/claude-501/-Users-moritzwachter-Gruenerator/c4078d46-2066-4996-bb09-3a0af401c159/scratchpad/d2e/tgz121/ggraphic-core-0.1.0-alpha.1.tgz}
+  '@ggraphic/core@file:../../../private/tmp/claude-501/-Users-moritzwachter-Gruenerator/c4078d46-2066-4996-bb09-3a0af401c159/scratchpad/d2e/tgzrc/ggraphic-core.tgz':
+    resolution: {integrity: sha512-Hvqf//MCRZF/2emO+P+aDBsZxW+ca4SEW/K9IwopnKbocvF1u2HEWhUvQlql1+kCkN5hBDSivdiWmSzf4uYUcw==, tarball: file:../../../private/tmp/claude-501/-Users-moritzwachter-Gruenerator/c4078d46-2066-4996-bb09-3a0af401c159/scratchpad/d2e/tgzrc/ggraphic-core.tgz}
     version: 0.1.0-alpha.1
 
-  '@ggraphic/editor@file:../../../private/tmp/claude-501/-Users-moritzwachter-Gruenerator/c4078d46-2066-4996-bb09-3a0af401c159/scratchpad/d2e/tgz121/ggraphic-editor-0.1.0-alpha.1.tgz':
-    resolution: {integrity: sha512-N8uHPAntxaad5vfs6Wi1iMzCVW3RgSzgjAinzzbD8bDDOPn3BmwcITB548XIgpwc2aTjCNJetAZeoZ5CrlfF1g==, tarball: file:../../../private/tmp/claude-501/-Users-moritzwachter-Gruenerator/c4078d46-2066-4996-bb09-3a0af401c159/scratchpad/d2e/tgz121/ggraphic-editor-0.1.0-alpha.1.tgz}
+  '@ggraphic/editor@file:../../../private/tmp/claude-501/-Users-moritzwachter-Gruenerator/c4078d46-2066-4996-bb09-3a0af401c159/scratchpad/d2e/tgzrc/ggraphic-editor.tgz':
+    resolution: {integrity: sha512-L7rMDaUnnUVCajTw6TEawk/+cTXnfc5i3iI2BaDfioZ0d/rWSzSK8Qmxh3CITXDuk6GHIoAmW7v3HfXBoJuIUw==, tarball: file:../../../private/tmp/claude-501/-Users-moritzwachter-Gruenerator/c4078d46-2066-4996-bb09-3a0af401c159/scratchpad/d2e/tgzrc/ggraphic-editor.tgz}
     version: 0.1.0-alpha.1
     peerDependencies:
       konva: ^10.9.0
@@ -5737,8 +5737,8 @@ packages:
       react-dom: ^19.0.0
       react-konva: ^19.3.2
 
-  '@ggraphic/schema@file:../../../private/tmp/claude-501/-Users-moritzwachter-Gruenerator/c4078d46-2066-4996-bb09-3a0af401c159/scratchpad/d2e/tgz121/ggraphic-schema-0.1.0-alpha.0.tgz':
-    resolution: {integrity: sha512-d8A1WS42xUn1pkbfXcco0b+bTioYAlApIUh+n6KoulLbYwfNvHzPO2TXlaZvxgzO2y7siWLyrANoKW36FlXcAA==, tarball: file:../../../private/tmp/claude-501/-Users-moritzwachter-Gruenerator/c4078d46-2066-4996-bb09-3a0af401c159/scratchpad/d2e/tgz121/ggraphic-schema-0.1.0-alpha.0.tgz}
+  '@ggraphic/schema@file:../../../private/tmp/claude-501/-Users-moritzwachter-Gruenerator/c4078d46-2066-4996-bb09-3a0af401c159/scratchpad/d2e/tgzrc/ggraphic-schema.tgz':
+    resolution: {integrity: sha512-2lFz0HUYJCV4veBw9pSx0tcZMtK17csOKUS9JJ0GJOeRD0PRt6EZcBswjf0HkHclgtQuDIqSppaH9EDCAjAqSw==, tarball: file:../../../private/tmp/claude-501/-Users-moritzwachter-Gruenerator/c4078d46-2066-4996-bb09-3a0af401c159/scratchpad/d2e/tgzrc/ggraphic-schema.tgz}
     version: 0.1.0-alpha.0
 
   '@grpc/grpc-js@1.14.5':
@@ -5860,11 +5860,17 @@ packages:
   '@iconify-json/lucide@1.2.147':
     resolution: {integrity: sha512-7Qqa/joSBeUxihWsQJx5nKcqMWtV3YrH90Jldxcx4J9ciTLavRUlpexQwRTcx9dcb7CJpISfjZTj42zD/30sqA==}
 
+  '@iconify-json/lucide@1.2.149':
+    resolution: {integrity: sha512-5NG9YdbtRS03hG1A+EIE6nLhhdAYsf0mKu1ZRi6kLMlCG8DxmDsRM6DAhwlNMLiSiQKFbHpKTJ2VddZdwUkUyw==}
+
   '@iconify-json/ri@1.2.10':
     resolution: {integrity: sha512-WWMhoncVVM+Xmu9T5fgu2lhYRrKTEWhKk3Com0KiM111EeEsRLiASjpsFKnC/SrB6covhUp95r2mH8tGxhgd5Q==}
 
   '@iconify-json/tabler@1.2.42':
     resolution: {integrity: sha512-fObaBh/H2zJphk3lS1dWPUf/buuGaCHQXnB4UYgKOPXQub5Ac1qEu0AHRj/0+E2FEl8pWfgM2xQWzfz7ffcY+A==}
+
+  '@iconify-json/tabler@1.2.43':
+    resolution: {integrity: sha512-EKhyOj6nASi25ZjuRpEhPL1fwiKVtg/e/VX6v6X3FPKpjG9og26ypW8ItnWYSTn6fdNuQe3VPeyuThWlP6QuWw==}
 
   '@iconify/react@6.0.3':
     resolution: {integrity: sha512-2x7gVs+tpUG75aXYo/0c5wPOqrFy75YSGKmuJZyuHyrHMydzXpI/+i9/USIzWXJL9WWc2BCgPVnGY2FhbeiiDQ==}
@@ -17580,6 +17586,15 @@ packages:
       '@types/react':
         optional: true
 
+  lucide-react@1.64.0:
+    resolution: {integrity: sha512-v626F/bcLNvFom6vzztHILtG9tUgXXbgA5AGkd82YkV401+Ko/NHyrWafbPwGofa+6p/EgDJcvEkIwsMH9098w==}
+    peerDependencies:
+      '@types/react': 19.3.0
+      react: ^16.5.1 || ^17.0.0 || ^18.0.0 || ^19.0.0
+    peerDependenciesMeta:
+      '@types/react':
+        optional: true
+
   lunr-languages@1.21.0:
     resolution: {integrity: sha512-Hj0VwJP1FGwZzVMMZdDtWY2GB2VVKtvVElYtVajzCZCDr2RTucyLpPibrOPGgTlcq2ENQy2gYLtPnzyFu9jZCg==}
 
@@ -27530,78 +27545,20 @@ snapshots:
     transitivePeerDependencies:
       - y-protocols
 
-  '@ggraphic/core@file:../../../private/tmp/claude-501/-Users-moritzwachter-Gruenerator/c4078d46-2066-4996-bb09-3a0af401c159/scratchpad/d2e/tgz121/ggraphic-core-0.1.0-alpha.1.tgz': {}
+  '@ggraphic/core@file:../../../private/tmp/claude-501/-Users-moritzwachter-Gruenerator/c4078d46-2066-4996-bb09-3a0af401c159/scratchpad/d2e/tgzrc/ggraphic-core.tgz': {}
 
-  '@ggraphic/editor@file:../../../private/tmp/claude-501/-Users-moritzwachter-Gruenerator/c4078d46-2066-4996-bb09-3a0af401c159/scratchpad/d2e/tgz121/ggraphic-editor-0.1.0-alpha.1.tgz(@floating-ui/dom@1.8.0)(@tiptap/pm@3.32.0)(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(konva@10.9.0)(react-dom@19.3.0(react@19.3.0))(react-is@19.2.8)(react-konva@19.3.2(@types/react@19.3.0)(konva@10.9.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(react@19.3.0)(redux@5.0.1)(use-sync-external-store@1.7.0(react@19.3.0))(y-protocols@1.0.7(yjs@13.6.33))':
+  '@ggraphic/editor@file:../../../private/tmp/claude-501/-Users-moritzwachter-Gruenerator/c4078d46-2066-4996-bb09-3a0af401c159/scratchpad/d2e/tgzrc/ggraphic-editor.tgz(@floating-ui/dom@1.8.0)(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(konva@10.9.0)(react-dom@19.3.0(react@19.3.0))(react-konva@19.3.2(@types/react@19.3.0)(konva@10.9.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(react@19.3.0)(redux@5.0.1)(use-sync-external-store@1.6.0(react@19.3.0))':
     dependencies:
-      '@ggraphic/core': file:../../../private/tmp/claude-501/-Users-moritzwachter-Gruenerator/c4078d46-2066-4996-bb09-3a0af401c159/scratchpad/d2e/tgz121/ggraphic-core-0.1.0-alpha.1.tgz
-      '@ggraphic/schema': file:../../../private/tmp/claude-501/-Users-moritzwachter-Gruenerator/c4078d46-2066-4996-bb09-3a0af401c159/scratchpad/d2e/tgz121/ggraphic-schema-0.1.0-alpha.0.tgz
+      '@ggraphic/core': file:../../../private/tmp/claude-501/-Users-moritzwachter-Gruenerator/c4078d46-2066-4996-bb09-3a0af401c159/scratchpad/d2e/tgzrc/ggraphic-core.tgz
+      '@ggraphic/schema': file:../../../private/tmp/claude-501/-Users-moritzwachter-Gruenerator/c4078d46-2066-4996-bb09-3a0af401c159/scratchpad/d2e/tgzrc/ggraphic-schema.tgz
       '@hocuspocus/provider': 4.7.1(y-protocols@1.0.7(yjs@13.6.33))(yjs@13.6.33)
       '@iconify-json/bi': 1.2.7
       '@iconify-json/flowbite': 1.2.7
       '@iconify-json/heroicons': 1.2.3
       '@iconify-json/iconoir': 1.2.12
-      '@iconify-json/lucide': 1.2.147
+      '@iconify-json/lucide': 1.2.149
       '@iconify-json/ri': 1.2.10
-      '@iconify-json/tabler': 1.2.42
-      '@iconify/react': 6.0.3(react@19.3.0)
-      '@iconify/utils': 3.1.7
-      '@tanstack/react-query': 5.104.5(@types/react@19.3.0)(react@19.3.0)
-      '@tiptap/core': 3.32.0(@tiptap/pm@3.32.0)
-      '@tiptap/extension-bold': 3.32.0(@tiptap/core@3.32.0(@tiptap/pm@3.32.0))
-      '@tiptap/extension-document': 3.32.0(@tiptap/core@3.32.0(@tiptap/pm@3.32.0))
-      '@tiptap/extension-hard-break': 3.32.0(@tiptap/core@3.32.0(@tiptap/pm@3.32.0))
-      '@tiptap/extension-italic': 3.32.0(@tiptap/core@3.32.0(@tiptap/pm@3.32.0))
-      '@tiptap/extension-list': 3.32.0(@tiptap/core@3.32.0(@tiptap/pm@3.32.0))(@tiptap/pm@3.32.0)
-      '@tiptap/extension-paragraph': 3.32.0(@tiptap/core@3.32.0(@tiptap/pm@3.32.0))
-      '@tiptap/extension-text': 3.32.0(@tiptap/core@3.32.0(@tiptap/pm@3.32.0))
-      '@tiptap/extension-underline': 3.32.0(@tiptap/core@3.32.0(@tiptap/pm@3.32.0))
-      '@tiptap/extensions': 3.32.0(@tiptap/core@3.32.0(@tiptap/pm@3.32.0))(@tiptap/pm@3.32.0)
-      '@tiptap/react': 3.32.0(@floating-ui/dom@1.8.0)(@tiptap/core@3.32.0(@tiptap/pm@3.32.0))(@tiptap/pm@3.32.0)(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
-      class-variance-authority: 0.7.1
-      clsx: 2.1.1
-      fflate: 0.8.3
-      immer: 11.2.9
-      konva: 10.9.0
-      lucide-react: 1.61.0(@types/react@19.3.0)(react@19.3.0)
-      pdf-lib: 1.17.1
-      pptxgenjs: 4.0.1
-      qrcode.react: 4.2.0(react@19.3.0)
-      radix-ui: 1.8.1(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
-      react: 19.3.0
-      react-dom: 19.3.0(react@19.3.0)
-      react-icons: 5.7.0(react@19.3.0)
-      react-kawaii: 1.6.0(react@19.3.0)
-      react-konva: 19.3.2(@types/react@19.3.0)(konva@10.9.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
-      recharts: 3.10.1(@types/react@19.3.0)(react-dom@19.3.0(react@19.3.0))(react-is@19.2.8)(react@19.3.0)(redux@5.0.1)
-      smartcrop: 2.0.5
-      tailwind-merge: 3.7.0
-      use-image: 1.1.4(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
-      uuid: 14.0.3
-      yjs: 13.6.33
-      zustand: 5.0.16(@types/react@19.3.0)(immer@11.2.9)(react@19.3.0)(use-sync-external-store@1.7.0(react@19.3.0))
-    transitivePeerDependencies:
-      - '@floating-ui/dom'
-      - '@tiptap/pm'
-      - '@types/react'
-      - '@types/react-dom'
-      - react-is
-      - redux
-      - use-sync-external-store
-      - y-protocols
-
-  '@ggraphic/editor@file:../../../private/tmp/claude-501/-Users-moritzwachter-Gruenerator/c4078d46-2066-4996-bb09-3a0af401c159/scratchpad/d2e/tgz121/ggraphic-editor-0.1.0-alpha.1.tgz(@floating-ui/dom@1.8.0)(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(konva@10.9.0)(react-dom@19.3.0(react@19.3.0))(react-konva@19.3.2(@types/react@19.3.0)(konva@10.9.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(react@19.3.0)(redux@5.0.1)(use-sync-external-store@1.6.0(react@19.3.0))':
-    dependencies:
-      '@ggraphic/core': file:../../../private/tmp/claude-501/-Users-moritzwachter-Gruenerator/c4078d46-2066-4996-bb09-3a0af401c159/scratchpad/d2e/tgz121/ggraphic-core-0.1.0-alpha.1.tgz
-      '@ggraphic/schema': file:../../../private/tmp/claude-501/-Users-moritzwachter-Gruenerator/c4078d46-2066-4996-bb09-3a0af401c159/scratchpad/d2e/tgz121/ggraphic-schema-0.1.0-alpha.0.tgz
-      '@hocuspocus/provider': 4.7.1(y-protocols@1.0.7(yjs@13.6.33))(yjs@13.6.33)
-      '@iconify-json/bi': 1.2.7
-      '@iconify-json/flowbite': 1.2.7
-      '@iconify-json/heroicons': 1.2.3
-      '@iconify-json/iconoir': 1.2.12
-      '@iconify-json/lucide': 1.2.147
-      '@iconify-json/ri': 1.2.10
-      '@iconify-json/tabler': 1.2.42
+      '@iconify-json/tabler': 1.2.43
       '@iconify/react': 6.0.3(react@19.3.0)
       '@iconify/utils': 3.1.7
       '@tanstack/react-query': 5.104.5(@types/react@19.3.0)(react@19.3.0)
@@ -27622,7 +27579,7 @@ snapshots:
       fflate: 0.8.3
       immer: 11.2.9
       konva: 10.9.0
-      lucide-react: 1.61.0(@types/react@19.3.0)(react@19.3.0)
+      lucide-react: 1.64.0(@types/react@19.3.0)(react@19.3.0)
       pdf-lib: 1.17.1
       pptxgenjs: 4.0.1
       qrcode.react: 4.2.0(react@19.3.0)
@@ -27648,18 +27605,18 @@ snapshots:
       - redux
       - use-sync-external-store
 
-  '@ggraphic/editor@file:../../../private/tmp/claude-501/-Users-moritzwachter-Gruenerator/c4078d46-2066-4996-bb09-3a0af401c159/scratchpad/d2e/tgz121/ggraphic-editor-0.1.0-alpha.1.tgz(@floating-ui/dom@1.8.0)(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(konva@10.9.0)(react-dom@19.3.0(react@19.3.0))(react-konva@19.3.2(@types/react@19.3.0)(konva@10.9.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(react@19.3.0)(redux@5.0.1)(use-sync-external-store@1.7.0(react@19.3.0))':
+  '@ggraphic/editor@file:../../../private/tmp/claude-501/-Users-moritzwachter-Gruenerator/c4078d46-2066-4996-bb09-3a0af401c159/scratchpad/d2e/tgzrc/ggraphic-editor.tgz(@floating-ui/dom@1.8.0)(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(konva@10.9.0)(react-dom@19.3.0(react@19.3.0))(react-konva@19.3.2(@types/react@19.3.0)(konva@10.9.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(react@19.3.0)(redux@5.0.1)(use-sync-external-store@1.7.0(react@19.3.0))':
     dependencies:
-      '@ggraphic/core': file:../../../private/tmp/claude-501/-Users-moritzwachter-Gruenerator/c4078d46-2066-4996-bb09-3a0af401c159/scratchpad/d2e/tgz121/ggraphic-core-0.1.0-alpha.1.tgz
-      '@ggraphic/schema': file:../../../private/tmp/claude-501/-Users-moritzwachter-Gruenerator/c4078d46-2066-4996-bb09-3a0af401c159/scratchpad/d2e/tgz121/ggraphic-schema-0.1.0-alpha.0.tgz
+      '@ggraphic/core': file:../../../private/tmp/claude-501/-Users-moritzwachter-Gruenerator/c4078d46-2066-4996-bb09-3a0af401c159/scratchpad/d2e/tgzrc/ggraphic-core.tgz
+      '@ggraphic/schema': file:../../../private/tmp/claude-501/-Users-moritzwachter-Gruenerator/c4078d46-2066-4996-bb09-3a0af401c159/scratchpad/d2e/tgzrc/ggraphic-schema.tgz
       '@hocuspocus/provider': 4.7.1(y-protocols@1.0.7(yjs@13.6.33))(yjs@13.6.33)
       '@iconify-json/bi': 1.2.7
       '@iconify-json/flowbite': 1.2.7
       '@iconify-json/heroicons': 1.2.3
       '@iconify-json/iconoir': 1.2.12
-      '@iconify-json/lucide': 1.2.147
+      '@iconify-json/lucide': 1.2.149
       '@iconify-json/ri': 1.2.10
-      '@iconify-json/tabler': 1.2.42
+      '@iconify-json/tabler': 1.2.43
       '@iconify/react': 6.0.3(react@19.3.0)
       '@iconify/utils': 3.1.7
       '@tanstack/react-query': 5.104.5(@types/react@19.3.0)(react@19.3.0)
@@ -27680,7 +27637,7 @@ snapshots:
       fflate: 0.8.3
       immer: 11.2.9
       konva: 10.9.0
-      lucide-react: 1.61.0(@types/react@19.3.0)(react@19.3.0)
+      lucide-react: 1.64.0(@types/react@19.3.0)(react@19.3.0)
       pdf-lib: 1.17.1
       pptxgenjs: 4.0.1
       qrcode.react: 4.2.0(react@19.3.0)
@@ -27706,7 +27663,7 @@ snapshots:
       - redux
       - use-sync-external-store
 
-  '@ggraphic/schema@file:../../../private/tmp/claude-501/-Users-moritzwachter-Gruenerator/c4078d46-2066-4996-bb09-3a0af401c159/scratchpad/d2e/tgz121/ggraphic-schema-0.1.0-alpha.0.tgz':
+  '@ggraphic/schema@file:../../../private/tmp/claude-501/-Users-moritzwachter-Gruenerator/c4078d46-2066-4996-bb09-3a0af401c159/scratchpad/d2e/tgzrc/ggraphic-schema.tgz':
     dependencies:
       '@xmldom/xmldom': 0.9.12
       zod: 4.6.7
@@ -27842,11 +27799,19 @@ snapshots:
     dependencies:
       '@iconify/types': 2.0.0
 
+  '@iconify-json/lucide@1.2.149':
+    dependencies:
+      '@iconify/types': 2.0.0
+
   '@iconify-json/ri@1.2.10':
     dependencies:
       '@iconify/types': 2.0.0
 
   '@iconify-json/tabler@1.2.42':
+    dependencies:
+      '@iconify/types': 2.0.0
+
+  '@iconify-json/tabler@1.2.43':
     dependencies:
       '@iconify/types': 2.0.0
 
@@ -41931,6 +41896,12 @@ snapshots:
       react: 19.3.0
 
   lucide-react@1.61.0(@types/react@19.3.0)(react@19.3.0):
+    dependencies:
+      react: 19.3.0
+    optionalDependencies:
+      '@types/react': 19.3.0
+
+  lucide-react@1.64.0(@types/react@19.3.0)(react@19.3.0):
     dependencies:
       react: 19.3.0
     optionalDependencies:

@@ -364,9 +364,9 @@ auditConfig:
 # Moved here from package.json's `pnpm.overrides`. scripts/sync-pnpm-overrides.mjs
 # and scripts/check-override-ranges.mjs read this block.
 overrides:
-  '@ggraphic/editor': file:/private/tmp/claude-501/-Users-moritzwachter-Gruenerator/c4078d46-2066-4996-bb09-3a0af401c159/scratchpad/d2e/tgz121/ggraphic-editor-0.1.0-alpha.1.tgz
-  '@ggraphic/core': file:/private/tmp/claude-501/-Users-moritzwachter-Gruenerator/c4078d46-2066-4996-bb09-3a0af401c159/scratchpad/d2e/tgz121/ggraphic-core-0.1.0-alpha.1.tgz
-  '@ggraphic/schema': file:/private/tmp/claude-501/-Users-moritzwachter-Gruenerator/c4078d46-2066-4996-bb09-3a0af401c159/scratchpad/d2e/tgz121/ggraphic-schema-0.1.0-alpha.0.tgz
+  '@ggraphic/editor': file:/private/tmp/claude-501/-Users-moritzwachter-Gruenerator/c4078d46-2066-4996-bb09-3a0af401c159/scratchpad/d2e/tgzrc/ggraphic-editor.tgz
+  '@ggraphic/core': file:/private/tmp/claude-501/-Users-moritzwachter-Gruenerator/c4078d46-2066-4996-bb09-3a0af401c159/scratchpad/d2e/tgzrc/ggraphic-core.tgz
+  '@ggraphic/schema': file:/private/tmp/claude-501/-Users-moritzwachter-Gruenerator/c4078d46-2066-4996-bb09-3a0af401c159/scratchpad/d2e/tgzrc/ggraphic-schema.tgz
   adm-zip: '>=0.6.1'
   '@expo/dom-webview': ~58.0.2
   '@types/react': 19.3.0
