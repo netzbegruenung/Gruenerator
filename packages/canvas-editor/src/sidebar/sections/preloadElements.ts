@@ -1,5 +1,5 @@
 import { DEFAULT_ICON_SET, loadIconSetCatalog } from '@ggraphic/editor/elements';
-import { useCanvasEditorServices } from '@ggraphic/editor/host';
+import { useCanvasEditorServices } from '@ggraphic/editor/host-react';
 import { ICON_CATALOG_QUERY_KEY } from '@ggraphic/editor/internal/hooks/useIconCatalog';
 import { whenIdle } from '@ggraphic/editor/sidebar';
 import { QueryClientContext } from '@tanstack/react-query';

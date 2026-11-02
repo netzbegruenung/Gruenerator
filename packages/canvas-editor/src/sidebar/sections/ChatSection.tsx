@@ -1,4 +1,4 @@
-import { useCanvasEditorServices } from '@ggraphic/editor/host';
+import { useCanvasEditorServices } from '@ggraphic/editor/host-react';
 import {
   useAnnounce,
   type CanvasAiEditBridge,

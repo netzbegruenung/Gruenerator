@@ -23,7 +23,7 @@
  * Vorlage there; on content it asks first — open the Vorlage as a new design,
  * or replace with it (one undo step, offered back through the top bar banner).
  */
-import { useCanvasEditorServices } from '@ggraphic/editor/host';
+import { useCanvasEditorServices } from '@ggraphic/editor/host-react';
 import { GalleryTabs } from '@ggraphic/editor/internal/sidebar/sections/StudioGallery';
 import {
   AlertDialog,

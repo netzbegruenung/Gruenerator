@@ -1,9 +1,5 @@
-import {
-  useCanvasEditorServices,
-  BlockInsertContext,
-  type BlockInsertApi as CoreBlockInsertApi,
-  type BlockTarget,
-} from '@ggraphic/editor/host';
+import { type BlockInsertApi as CoreBlockInsertApi, type BlockTarget } from '@ggraphic/editor/host';
+import { useCanvasEditorServices, BlockInsertContext } from '@ggraphic/editor/host-react';
 import {
   sharepicFormatSchema,
   type SharepicBlock,

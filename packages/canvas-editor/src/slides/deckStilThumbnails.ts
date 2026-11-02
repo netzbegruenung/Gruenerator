@@ -3,7 +3,7 @@
  * nacheinander gerendert (eine Offscreen-Bühne zur Zeit). Fehlschläge werden
  * nicht gemerkt.
  */
-import { useCanvasEditorServices } from '@ggraphic/editor/host';
+import { useCanvasEditorServices } from '@ggraphic/editor/host-react';
 import { plainImageUrls, type CanvasImageUrlService } from '@ggraphic/editor/services';
 import { useLayoutEffect, useRef, useState } from 'react';
 

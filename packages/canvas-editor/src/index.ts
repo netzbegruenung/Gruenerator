@@ -21,7 +21,7 @@ export type { CanvasEditorHostChrome } from '@ggraphic/editor/shell';
 export { EDITOR_KEY_SHIELD_ATTRIBUTE } from '@ggraphic/editor/shell';
 export { templateFitsFormat } from './utils/templateRegistry';
 export { CanvasEditorProvider } from '@ggraphic/editor/shell';
-export { useCanvasEditorServices } from '@ggraphic/editor/host';
+export { useCanvasEditorServices } from '@ggraphic/editor/host-react';
 export { canvasImageSourceUrl } from '@ggraphic/editor/internal/utils/canvasImageSource';
 export type { CanvasImageUrlService } from '@ggraphic/editor/services';
 export type { CanvasEditorServices } from '@ggraphic/editor/host';
