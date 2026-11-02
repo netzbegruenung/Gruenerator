@@ -65,6 +65,7 @@ import {
   priorTurnRetrieved,
   createLoopGuards,
   rehydrateCarriedSources,
+  seedAttachedCloudFiles,
   seedAttachedDocuments,
   seedAttachedPages,
   wrapAssembledTools,
@@ -392,6 +393,16 @@ export async function streamAgenticResponse(
       onError: (m) => log.warn(m),
     });
     toolReplayMessages = [...toolReplayMessages, ...seeded.replay];
+    // Die gewählten Wolke-/Connect-Dateien genauso — im Loop las sie sonst
+    // niemand, obwohl der Klassifikator ihretwegen `search` erzwingt.
+    const seededCloudFiles = await seedAttachedCloudFiles({
+      state: finalState,
+      sourceRegistry,
+      isMounted: 'cloud_files' in tools,
+      onInfo: (m) => log.info(m),
+      onError: (m) => log.warn(m),
+    });
+    toolReplayMessages = [...toolReplayMessages, ...seededCloudFiles.replay];
     // Die @link-Seiten des Turns genauso — ohne den Seed sah der Planer die
     // Adresse nie, sie steht nicht im Text (#4896).
     const seededPages = await seedAttachedPages({
@@ -695,7 +706,7 @@ export async function streamAgenticResponse(
       summaryAsk,
       sharepicOrder: await isSharepicOrder(),
       artifactEditOrder: finalState.artifactEditOrder === true,
-      attachedSeedDelivered: seeded.delivered,
+      attachedSeedDelivered: seeded.delivered || seededCloudFiles.delivered,
       resumesSuspendedTurn: resumeApproval != null,
       tabularToolMounted: 'tabelle_auswerten' in wrapped,
     });
