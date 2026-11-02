@@ -257,6 +257,7 @@ export const marketplaceCollectionIdSchema = z.enum([
   'barrierefreiheit',
   'canva',
   'wahlkampf-moritz',
+  'mustergruen-wahlkampf',
   'gleichstellung',
   'queer',
   'europa',
