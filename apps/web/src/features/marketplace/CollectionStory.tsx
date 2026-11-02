@@ -1,4 +1,5 @@
 import {
+  framesForCollection,
   sharepicVorlageThumbPath,
   type MarketplaceCollectionId,
   type MarketplaceItem,
@@ -269,10 +270,12 @@ function ProfilbildPicks({
   kollektion: MarketplaceCollectionId;
   heading: ReactNode;
 }) {
-  const stickers = stickersForCollection(kollektion);
+  const frames = framesForCollection(kollektion);
+  const frameIds = new Set(frames.map((f) => f.id));
+  const stickers = stickersForCollection(kollektion).filter((s) => !frameIds.has(s.id));
   const backgrounds = presetsForCollection(kollektion);
-  if (stickers.length + backgrounds.length === 0) return null;
-  const href = (kind: 'sticker' | 'background', id: string) =>
+  if (frames.length + stickers.length + backgrounds.length === 0) return null;
+  const href = (kind: 'sticker' | 'background' | 'frame', id: string) =>
     `/studio/profilbild?${new URLSearchParams(profilbildCatalogParams({ kind, id })).toString()}`;
   const tile = 'flex w-[160px] flex-col gap-2.5';
   const label = 'text-[0.9375rem] leading-[1.3] text-foreground-heading';
@@ -289,13 +292,34 @@ function ProfilbildPicks({
               style={{ background: flatCss(d.base) }}
             >
               {d.overlays.map((o) => (
-                <img key={o.src} src={o.src} alt="" className="absolute inset-0 size-full" />
+                <img
+                  key={o.src}
+                  src={o.src}
+                  alt=""
+                  className="absolute inset-0 size-full object-cover"
+                />
               ))}
             </Link>
             <strong className={label}>{d.label}</strong>
           </li>
         ))}
       </ul>
+      {frames.length > 0 && (
+        <ul className="m-0 flex list-none flex-wrap gap-6 p-0" aria-label="Rahmen">
+          {frames.map((f) => (
+            <li key={f.id} className={tile}>
+              <Link
+                to={href('frame', f.id)}
+                aria-label={`${f.label} als Rahmen im Profilbild verwenden`}
+                className="block size-[160px] overflow-hidden rounded-full bg-background-alt transition-transform duration-200 ease-out active:scale-[0.97]"
+              >
+                <img src={f.src} alt="" loading="lazy" className="size-full object-contain" />
+              </Link>
+              <strong className={label}>{f.label}</strong>
+            </li>
+          ))}
+        </ul>
+      )}
       <ul className="m-0 flex list-none flex-wrap gap-6 p-0" aria-label="Sticker">
         {stickers.map((s) => (
           <li key={s.id} className={tile}>

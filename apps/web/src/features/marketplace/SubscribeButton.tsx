@@ -46,7 +46,7 @@ export function SubscribeButton({
       </Button>
       {subscribed && (
         <p className="m-0 text-sm text-foreground-muted">
-          Neues vom Landesverband kommt automatisch dazu
+          Neues aus der Kollektion kommt automatisch dazu
         </p>
       )}
     </div>

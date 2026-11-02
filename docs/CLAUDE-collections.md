@@ -12,7 +12,7 @@ Der Entwurf, aus dem die Regeln stammen, war der fünfte Anlauf. Die vier davor 
 | Größere Kollektionen in eigener Datei | `packages/shared/src/marketplace/collections/<id>.ts`, in die Registry importiert |
 | Bausteine (Typen) und Filter je Person | `packages/shared/src/marketplace/collectionStory.ts` → `CollectionStoryBlock`, `resolveStory` |
 | Id (F0, steht in geteilten Links `?kollektion=`) | `packages/contracts/src/schemas/marketplace.ts` → `marketplaceCollectionIdSchema` |
-| Einträge, die es nur als Datei gibt | `samples` (Vorbild: `sampleCollection.ts`), Bilder unter `apps/web/public/images/marketplace/collections/<id>/` |
+| Einträge, die es nur als Datei gibt | `samples` (Mechanik in `sampleCollection.ts`: `isSampleItem`, `sampleImageOf`; seit Mustergrün trägt keine Kollektion welche), Bilder unter `apps/web/public/images/marketplace/collections/<id>/` |
 | Cover | `apps/web/public/images/marketplace/collections/<stem>-{640,1200}.webp` und `<stem>-banner-{640,1200,1920,2400}.webp` |
 | Rendering (Web) | `apps/web/src/features/marketplace/MarketplaceCollections.tsx` (Kopf, Raster) und `CollectionStory.tsx` (Bausteine) |
 | Server | `apps/api/services/marketplace/marketplaceService.ts` löst `pinned` und `fill` auf; die Story bleibt Client-Registry |

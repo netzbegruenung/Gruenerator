@@ -50,7 +50,7 @@ describe('SubscribeButton', () => {
       'aria-pressed',
       'true'
     );
-    expect(screen.getByText('Neues vom Landesverband kommt automatisch dazu')).toBeInTheDocument();
+    expect(screen.getByText('Neues aus der Kollektion kommt automatisch dazu')).toBeInTheDocument();
     await waitFor(() => expect(puts).toBe(1));
   });
 
