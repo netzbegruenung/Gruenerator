@@ -1,5 +1,11 @@
 import { getCanvasFormatOrDefault } from '@ggraphic/editor/templates';
-import { sharepicBlockSpec, sharepicSpecSchema } from '@gruenerator/contracts';
+import {
+  SHAREPIC_BRAND_COLORS,
+  SHAREPIC_THEMA_COLORS,
+  sharepicBlockSpec,
+  sharepicSpecSchema,
+  type SharepicBrandId,
+} from '@gruenerator/contracts';
 import { describe, expect, it, vi } from 'vitest';
 
 import { createFreeformFullConfig, type FreeformState } from '../configs/freeform_full.config';
@@ -242,6 +248,28 @@ describe('blockGround', () => {
       items: [{ type: 'absatz', text: 'Gleicher Lohn.' }],
     });
     expect(sharepicSpecSchema.parse(spec).thema).toBe('frauen');
+  });
+
+  it('reads a page on the GJ website gradient as that gradient, not as one of its stops', () => {
+    expect(
+      blockGround(
+        'de-DE',
+        { backgroundMode: 'color', backgroundColor: SHAREPIC_COLOR_HEX.verlauf },
+        'limette',
+        'gruene-jugend'
+      )
+    ).toBe('verlauf');
+  });
+
+  it('gives every ground of a design its own hex, so a page colour names one ground', () => {
+    for (const brand of Object.keys(SHAREPIC_BRAND_COLORS) as SharepicBrandId[]) {
+      const grounds = [
+        ...SHAREPIC_BRAND_COLORS[brand],
+        ...Object.values(SHAREPIC_THEMA_COLORS).flat(),
+      ];
+      const hexes = grounds.map((c) => SHAREPIC_COLOR_HEX[c].toLowerCase());
+      expect(new Set(hexes).size, brand).toBe(hexes.length);
+    }
   });
 
   it('keeps the preview ground on a free or a foreign colour', () => {
