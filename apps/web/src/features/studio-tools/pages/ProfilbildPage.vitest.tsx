@@ -1100,13 +1100,31 @@ describe('ProfilbildPage', () => {
       expect(screen.queryByText(/Lade zuerst ein Foto hoch/)).toBeNull();
     });
 
-    it('drops the deep-link hint while the photo is being cut out', async () => {
-      mockRemove.mockReturnValue(new Promise(() => {}));
+    it('shows a deep-linked gallery background before the photo is in', async () => {
       renderPage(null, `?asset=${GALLERY_ID}&kind=background&src=${GALLERY_SRC}`);
-      expect(screen.getByText(/dann setzen wir den Hintergrund ein/)).toBeTruthy();
-      fireEvent.click(screen.getByText('upload'));
-      expect(await screen.findByText('Person wird freigestellt …')).toBeTruthy();
+      expect(await screen.findByText('upload')).toBeTruthy();
+      await waitFor(() => expect(lastBackground()).toMatchObject({ kind: 'image' }));
       expect(screen.queryByText(/Lade zuerst ein Foto hoch/)).toBeNull();
+    });
+
+    it('selects a collection background from its link before the photo is in', async () => {
+      mockRemove.mockResolvedValue({
+        file: new File([], 'x'),
+        objectUrl: 'blob:x',
+        base64: CUTOUT,
+      });
+      renderPage(null, '?hintergrund=gj-lavendel-balken');
+      // Not in the picker on its own; the link offers it there, selected.
+      const tile = await screen.findByRole('button', { name: 'Lavendel mit Balken' });
+      await waitFor(() => expect(tile.getAttribute('aria-pressed')).toBe('true'));
+      expect(lastBackground()).toMatchObject({ kind: 'preset' });
+      expect(screen.queryByText(/Lade zuerst ein Foto hoch/)).toBeNull();
+
+      fireEvent.click(screen.getByText('upload'));
+      await screen.findByTestId('konva-stage');
+      expect(
+        screen.getByRole('button', { name: 'Lavendel mit Balken' }).getAttribute('aria-pressed')
+      ).toBe('true');
     });
 
     it('places a collection sticker from its link once the photo is in', async () => {

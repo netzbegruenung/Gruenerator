@@ -27,7 +27,13 @@ export async function resolvePreset(design: PresetDesign): Promise<ProfilbildBac
 
 export function flatCss(bg: FlatBackground) {
   if (bg.kind === 'color') return bg.color;
-  if (bg.kind === 'gradient') return `linear-gradient(${bg.angle}deg, ${bg.stops.join(', ')})`;
+  if (bg.kind === 'gradient') {
+    const stops = bg.stops.map((c, i) => {
+      const at = bg.positions?.[i];
+      return at === undefined ? c : `${c} ${at * 100}%`;
+    });
+    return `linear-gradient(${bg.angle}deg, ${stops.join(', ')})`;
+  }
   const band = 100 / bg.colors.length;
   const stops = bg.colors.map((c, i) => `${c} ${i * band}% ${(i + 1) * band}%`);
   return `linear-gradient(180deg, ${stops.join(', ')})`;

@@ -43,7 +43,12 @@ function FlatLayer({ background }: { background: FlatBackground }) {
       const [x0, y0, x1, y1] = gradientLine(background.angle, S);
       return (
         <Rect x={0} y={0} width={S} height={S}>
-          <LinearGradient start={vec(x0, y0)} end={vec(x1, y1)} colors={background.stops} />
+          <LinearGradient
+            start={vec(x0, y0)}
+            end={vec(x1, y1)}
+            colors={background.stops}
+            positions={background.positions}
+          />
         </Rect>
       );
     }
