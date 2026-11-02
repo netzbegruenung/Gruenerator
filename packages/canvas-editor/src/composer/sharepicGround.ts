@@ -12,7 +12,16 @@ import type { SharepicBrandId, SharepicColor, SharepicTextSide } from '@gruenera
  * glow of the posts is the photo behind them, a Tanne plane runs edge to edge.
  */
 export const GRADIENTS: Partial<
-  Record<SharepicColor, { type?: 'radial'; angle: number; stops: string[] }>
+  Record<
+    SharepicColor,
+    {
+      type?: 'radial';
+      angle: number;
+      stops: string[];
+      /** Set: `angle` and these stop offsets read as CSS `linear-gradient(<angle>deg, …)`. */
+      cssOffsets?: number[];
+    }
+  >
 > = {
   // Measured on @diegruenen carousels (10/2026, median over text-free patches):
   // a deep, slightly bluish green, darker at the top, only a little lighter
@@ -26,9 +35,65 @@ export const GRADIENTS: Partial<
   // Pride: deep violet at the top, where the text starts, warming to a dark
   // orange below; every stop keeps white above 4.5:1.
   pride: { angle: 90, stops: ['#4B1D8C', '#8A1D86', '#B0177A', '#C2402E'] },
+  // GJ DE: the gruene-jugend.de homepage's `--gradient-1`, taken over as
+  // written: linear-gradient(200deg, #FF8568 14.76%, #F28ADE 35.08%,
+  // #9F88FF 60.47%, #C7FF7A 85.37%).
+  verlauf: {
+    angle: 200,
+    stops: ['#FF8568', '#F28ADE', '#9F88FF', '#C7FF7A'],
+    cssOffsets: [0.1476, 0.3508, 0.6047, 0.8537],
+  },
 };
 export const evenStops = (stops: readonly string[]) =>
   stops.map((color, i) => ({ offset: i / (stops.length - 1), color }));
+
+/**
+ * A CSS `linear-gradient(<cssAngle>deg, …)` as ggraphic paints it on a
+ * `width`×`height` box. CSS runs its line along the angle (0deg up, clockwise)
+ * and puts the far corners on 0 % and 100 %; ggraphic's line runs from
+ * centre ∓ (w/2·cos a, h/2·sin a). So: pick `a` whose axis points the CSS way,
+ * then rescale each offset from the CSS line's length onto ggraphic's.
+ */
+export function cssLinearGradient(
+  cssAngle: number,
+  stops: readonly { offset: number; color: string }[],
+  width: number,
+  height: number
+): GradientFill {
+  const rad = (cssAngle * Math.PI) / 180;
+  const [dx, dy] = [Math.sin(rad), -Math.cos(rad)];
+  const cssHalf = (Math.abs(width * dx) + Math.abs(height * dy)) / 2;
+  const a = Math.atan2(dy / height, dx / width);
+  const half = Math.hypot((width / 2) * Math.cos(a), (height / 2) * Math.sin(a));
+  return {
+    type: 'linear',
+    angle: (a * 180) / Math.PI,
+    stops: stops.map(({ offset, color }) => ({
+      // Canvas rejects stops outside [0, 1]; a CSS stop past ggraphic's end
+      // only falls there on a far wider box than any sharepic format.
+      offset: Math.min(1, Math.max(0, 0.5 + ((offset - 0.5) * cssHalf) / half)),
+      color,
+    })),
+  };
+}
+
+/** The fill of a gradient ground on a `width`×`height` canvas. */
+export function groundGradient(
+  gradient: NonNullable<(typeof GRADIENTS)[SharepicColor]>,
+  width: number,
+  height: number
+): GradientFill {
+  const { cssOffsets } = gradient;
+  if (cssOffsets) {
+    const stops = gradient.stops.map((color, i) => ({ offset: cssOffsets[i]!, color }));
+    return cssLinearGradient(gradient.angle, stops, width, height);
+  }
+  return {
+    type: gradient.type ?? 'linear',
+    angle: gradient.angle,
+    stops: evenStops(gradient.stops),
+  };
+}
 
 /**
  * Scrim alpha under the text, per photo tone — capped at `SCRIM_MAX`: the posts

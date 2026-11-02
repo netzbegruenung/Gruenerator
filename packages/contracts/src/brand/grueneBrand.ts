@@ -903,6 +903,11 @@ export const SHAREPIC_COLOR_HEX: Record<SharepicColor, string> = {
   pink: GJ_PINK,
   schwarz: GJ_SCHWARZ,
   wiese: GJ_DUNKELGRUEN,
+  // A gradient (`GRADIENTS` in composeSharepic); this is its colour halfway,
+  // between Pink and Lavendel. Not a stop: each stop is a flat GJ colour, and
+  // the hex → colour lookups (`blockGround`, `colorOf`) would read the page
+  // as that flat colour.
+  verlauf: '#C189F1',
   waldgruen: GJAT_WALDGRUEN,
   maigruen: GJAT_MAIGRUEN,
   gelb: GJAT_GELB,

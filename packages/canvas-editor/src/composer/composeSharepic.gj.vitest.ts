@@ -247,6 +247,28 @@ describe('GRÜNE JUGEND Deutschland on colour and photo', () => {
     expect(boxes.every((b) => b.x >= 0)).toBe(true);
   });
 
+  it('paints `verlauf` as the website gradient, black boxes and mark on it', () => {
+    const slide = composeSharepic(
+      gj('de-DE', [
+        {
+          ...colourSlide('verlauf'),
+          zeilenboxen: true,
+          items: [{ type: 'headline', lines: ['Mobilität', 'für alle'] }],
+        },
+      ]),
+      { photoSrc }
+    ).slides[0]!;
+    const ground = slide.shapeInstances.find((s) => s.id === 'sc-bg');
+    expect(ground?.fillGradient?.stops.map((s) => s.color)).toEqual([
+      '#FF8568',
+      '#F28ADE',
+      '#9F88FF',
+      '#C7FF7A',
+    ]);
+    expect(slide.pillBadgeInstances.every((b) => b.backgroundColor === '#000000')).toBe(true);
+    expect(slide.assetInstances.find((a) => a.id === 'sc-logo')?.assetId).toBe('gj-logo-schwarz');
+  });
+
   it('keeps white and light-green boxes on black', () => {
     const boxes = boxed('schwarz');
     expect(boxes[0]!.backgroundColor).toBe('#FFFFFF');
