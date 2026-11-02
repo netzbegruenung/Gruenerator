@@ -66,7 +66,9 @@ const HostWrapper = ({ children }: { children: ReactNode }) => (
 const render = (ui: ReactElement, options?: RenderOptions) =>
   rtlRender(ui, { wrapper: HostWrapper, ...options });
 // The real Icon fetches its set over the network on a timer that can outlive jsdom.
-vi.mock('@iconify/react', () => ({
+// Partial: the editor registers its offline icon sets through the real `addCollection` on import.
+vi.mock(import('@iconify/react'), async (importOriginal) => ({
+  ...(await importOriginal()),
   Icon: ({ icon }: { icon: string }) => <span data-icon={icon} />,
 }));
 vi.mock('@tanstack/react-query', () => ({

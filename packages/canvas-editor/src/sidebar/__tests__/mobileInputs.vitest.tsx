@@ -5,7 +5,9 @@ import { render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 // No host services: the galleries fall back to an empty list (hostServices.ts).
-vi.mock('@iconify/react', () => ({
+// Partial: the editor registers its offline icon sets through the real `addCollection` on import.
+vi.mock(import('@iconify/react'), async (importOriginal) => ({
+  ...(await importOriginal()),
   Icon: ({ icon }: { icon: string }) => <span data-icon={icon} />,
 }));
 vi.mock('@tanstack/react-query', () => ({
