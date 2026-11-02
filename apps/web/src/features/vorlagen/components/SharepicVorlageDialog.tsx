@@ -37,7 +37,8 @@ export function SharepicVorlageDialog({
 }: SharepicVorlageDialogProps): JSX.Element {
   const navigate = useNavigate();
   const [copied, setCopied] = useState<string | null>(null);
-  const credits = vorlage.attributions.filter((a) => a !== null);
+  // The credits sit under the preview: a stand-in photo there carries none.
+  const credits = (vorlage.previewAttributions ?? vorlage.attributions).filter((a) => a !== null);
   const slides = vorlage.spec.slides.length;
   const collection = vorlage.spec.thema ? collectionForThema(vorlage.spec.thema) : null;
 

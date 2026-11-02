@@ -89,6 +89,42 @@ describe('sharepic Vorlagen catalogue', () => {
     expect(listSharepicVorlagen(null).map((v) => v.id)).toEqual(['de-rad']);
   });
 
+  it('credits no stock photographer under a preview that shows a stand-in photo', () => {
+    const photoSlide = (filename: string) => ({
+      background: { kind: 'foto', filename, textSeite: 'oben' },
+      position: 'mitte',
+      align: 'links',
+      items: [{ type: 'headline', lines: ['Mehr Platz'] }],
+      logo: true,
+    });
+    const swapped = entry('de-zitat', 'de-DE', 'tanne');
+    swapped.spec.slides = [
+      photoSlide('erika-muster-AbCdEfGhIjK-unsplash.jpg'),
+      photoSlide('max-beispiel-KlMnOpQrStU-unsplash.jpg'),
+    ] as never;
+    const own = entry('de-rad', 'de-DE', 'tanne');
+    own.spec.slides = [photoSlide('erika-muster-AbCdEfGhIjK-unsplash.jpg')] as never;
+    writeCatalog({
+      'de.json': [swapped, own],
+      'vorschau-fotos.json': {
+        'de-zitat': { 'erika-muster-AbCdEfGhIjK-unsplash.jpg': 'vorschau-fotos/portrait.jpg' },
+      },
+    });
+
+    const zitat = getSharepicVorlage('de-zitat');
+    // The copy keeps the stock photos and their credits …
+    expect(zitat?.attributions.map((a) => a?.photographer)).toEqual([
+      'Erika Muster',
+      'Max Beispiel',
+    ]);
+    // … the preview of slide 1 shows the stand-in, which carries no credit.
+    expect(zitat?.previewAttributions?.map((a) => a?.photographer ?? null)).toEqual([
+      null,
+      'Max Beispiel',
+    ]);
+    expect(getSharepicVorlage('de-rad')?.previewAttributions).toBeUndefined();
+  });
+
   it('is empty without the private checkout', () => {
     root = path.join(tmpdir(), 'no-intern-here');
     expect(listSharepicVorlagen(null)).toEqual([]);
