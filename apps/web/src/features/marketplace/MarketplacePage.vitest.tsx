@@ -193,11 +193,15 @@ describe('MarketplacePage', () => {
 
   it('opens a collection as a step of its own, and its items in place', async () => {
     collections = [{ collectionId: 'starter', items: [ALL[0]!, ALL[1]!] }];
+    const scrollTo = vi.spyOn(window, 'scrollTo').mockImplementation(() => {});
     const { user } = renderPage();
 
     const row = await screen.findByRole('region', { name: 'Kollektionen' });
     expect(within(row).getByText(/2 Einträge/)).toBeInTheDocument();
     await user.click(within(row).getByRole('button', { name: /Starterpaket/ }));
+    // Same route, so the scroll would stay where the card was: the collection starts at its top.
+    expect(scrollTo).toHaveBeenCalledWith({ top: 0, behavior: 'instant' });
+    scrollTo.mockRestore();
 
     expect(
       await screen.findByRole('heading', { level: 1, name: 'Starterpaket' })
