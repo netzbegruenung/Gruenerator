@@ -4,10 +4,12 @@ import { UploadsSection } from '@ggraphic/editor/internal/sidebar/sections/Uploa
 import { render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+import type * as IconifyReact from '@iconify/react';
+
 // No host services: the galleries fall back to an empty list (hostServices.ts).
 // Partial: the editor registers its offline icon sets through the real `addCollection` on import.
-vi.mock(import('@iconify/react'), async (importOriginal) => ({
-  ...(await importOriginal()),
+vi.mock('@iconify/react', async (importOriginal) => ({
+  ...(await importOriginal<typeof IconifyReact>()),
   Icon: ({ icon }: { icon: string }) => <span data-icon={icon} />,
 }));
 vi.mock('@tanstack/react-query', () => ({

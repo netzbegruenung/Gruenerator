@@ -34,6 +34,7 @@ import { axe } from '../../test-utils';
 import type { CanvasAssetLibraryFilter as CanvasStudioAssetsFilter } from '@ggraphic/editor/internal/hostServices';
 import type { ElementItem } from '@ggraphic/editor/sidebar';
 import type { SharepicBlock, StudioAssetItem } from '@gruenerator/contracts';
+import type * as IconifyReact from '@iconify/react';
 import type { ReactElement, ReactNode } from 'react';
 
 const gallery = vi.hoisted(() => ({
@@ -67,8 +68,8 @@ const render = (ui: ReactElement, options?: RenderOptions) =>
   rtlRender(ui, { wrapper: HostWrapper, ...options });
 // The real Icon fetches its set over the network on a timer that can outlive jsdom.
 // Partial: the editor registers its offline icon sets through the real `addCollection` on import.
-vi.mock(import('@iconify/react'), async (importOriginal) => ({
-  ...(await importOriginal()),
+vi.mock('@iconify/react', async (importOriginal) => ({
+  ...(await importOriginal<typeof IconifyReact>()),
   Icon: ({ icon }: { icon: string }) => <span data-icon={icon} />,
 }));
 vi.mock('@tanstack/react-query', () => ({
