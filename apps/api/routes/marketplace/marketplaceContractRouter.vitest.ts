@@ -175,6 +175,15 @@ describe('collection subscriptions', () => {
     expect(m.unsubscribeCollection).toHaveBeenCalledWith('viewer', 'mustergruen-wahlkampf');
   });
 
+  it('subscribe maps the legacy id', async () => {
+    m.subscribeCollection.mockResolvedValue(undefined);
+    m.unsubscribeCollection.mockResolvedValue(undefined);
+    await call('subscribe', { params: { collectionId: 'wahlkampf-moritz' } });
+    await call('unsubscribe', { params: { collectionId: 'wahlkampf-moritz' } });
+    expect(m.subscribeCollection).toHaveBeenCalledWith('viewer', 'mustergruen-wahlkampf');
+    expect(m.unsubscribeCollection).toHaveBeenCalledWith('viewer', 'mustergruen-wahlkampf');
+  });
+
   it('subscriptions returns the service list', async () => {
     m.listSubscribedCollectionIds.mockResolvedValue(['queer', 'europa']);
     const res = await call('subscriptions');
