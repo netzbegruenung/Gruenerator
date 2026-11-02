@@ -33,7 +33,7 @@ export const GRUENE_JUGEND_COLLECTION = {
   kicker: 'GRÜNE JUGEND',
   title: 'Sharepics im Design der GRÜNEN JUGEND',
   description:
-    'Du lädst zur nächsten Demo ein, kündigst das Ortsgruppentreffen an oder willst erklären, warum Klimagerechtigkeit nicht warten kann? Hier findest du die Sharepics im Look der **GRÜNEN JUGEND**: **schwarze Zeilenbalken**, knallige Farben, Handschrift auf Klebeband. Vorlage aussuchen, deinen Text rein und raus damit!',
+    'Du lädst zur nächsten Demo ein, kündigst das Ortsgruppentreffen an oder willst erklären, warum Klimagerechtigkeit nicht warten kann? Hier findest du die Sharepics im Look der **GRÜNEN JUGEND**: **schwarze Zeilenbalken**, knallige Farben, Handschrift auf Klebeband.',
   tone: 'klee',
   cover: COVER,
   pinned: [],
