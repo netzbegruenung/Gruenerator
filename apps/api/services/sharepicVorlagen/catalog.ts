@@ -61,6 +61,7 @@ import {
   type SharepicPhotoAttribution,
   type SharepicVorlage,
 } from '@gruenerator/contracts';
+import { z } from 'zod';
 
 import { toError } from '../../utils/errors/index.js';
 import { createLogger } from '../../utils/logger.js';
@@ -132,6 +133,7 @@ function contentSignature(): string {
   return [
     dir(),
     ...Object.values(VORLAGE_FILES).map((name) => statKey(path.join(dir(), name))),
+    statKey(path.join(dir(), PREVIEW_PHOTOS_FILE)),
     ...Object.values(FILES).map((name) => statKey(path.join(dir(), 'seiten', name))),
     ...Object.values(FILES).map((name) => statKey(path.join(dir(), 'canvas', name))),
     ...Object.values(FILES).map((name) => statKey(path.join(dir(), 'print', name))),
@@ -179,6 +181,33 @@ function attributionOf(slide: SharepicSlide): SharepicPhotoAttribution | null {
     : null;
 }
 
+/**
+ * Vorlage id → { stock filename in its spec → stand-in photo path }: the
+ * thumbnail shows the stand-in, the copy keeps the stock photo. Written for the
+ * thumbnail renderer (`apps/web/tests/e2e/harness/render-sharepic-vorlagen.ts`).
+ */
+const PREVIEW_PHOTOS_FILE = 'vorschau-fotos.json';
+const previewPhotosSchema = z.record(z.string(), z.record(z.string(), z.string()));
+
+/** The stand-in mapping, or {} when there is none (it is optional). */
+function readPreviewPhotos(): z.infer<typeof previewPhotosSchema> {
+  const file = path.join(dir(), PREVIEW_PHOTOS_FILE);
+  if (!existsSync(file)) return {};
+  let raw: unknown;
+  try {
+    raw = JSON.parse(readFileSync(file, 'utf8'));
+  } catch (error) {
+    log.error(`${file} unreadable: ${toError(error).message}`);
+    return {};
+  }
+  const parsed = previewPhotosSchema.safeParse(raw);
+  if (!parsed.success) {
+    log.error(`${file} ignored: ${parsed.error.issues[0]?.message ?? 'invalid'}`);
+    return {};
+  }
+  return parsed.data;
+}
+
 /** The file's entries, or [] (with a log line) when it is missing or no array. */
 function readArray(file: string, what: string): unknown[] {
   let raw: unknown;
@@ -197,7 +226,10 @@ function readArray(file: string, what: string): unknown[] {
   return raw;
 }
 
-function loadDesign(design: SharepicBrandId): SharepicVorlage[] {
+function loadDesign(
+  design: SharepicBrandId,
+  previewPhotos: z.infer<typeof previewPhotosSchema>
+): SharepicVorlage[] {
   const file = path.join(dir(), VORLAGE_FILES[design]);
   const locale: SharepicCreatorLocale =
     design === 'gruene-at' || design === 'gj-at' ? 'de-AT' : 'de-DE';
@@ -213,11 +245,20 @@ function loadDesign(design: SharepicBrandId): SharepicVorlage[] {
       );
       return [];
     }
+    const { slides } = parsed.data.spec;
+    const attributions = slides.map(attributionOf);
+    const standIns = previewPhotos[parsed.data.id];
     return [
       {
         ...parsed.data,
         locale,
-        attributions: parsed.data.spec.slides.map(attributionOf),
+        attributions,
+        ...(standIns && {
+          previewAttributions: slides.map((slide, i) => {
+            const photo = slidePhotoFilename(slide);
+            return photo && Object.hasOwn(standIns, photo) ? null : attributions[i];
+          }),
+        }),
         thumbVersion: thumbVersionOf(
           parsed.data.spec.slides.map((_, i) =>
             path.join(dir(), 'thumbs', thumbName(parsed.data.id, i + 1))
@@ -481,7 +522,11 @@ function all(): Catalog {
   if (!cache) {
     checkedAt = now;
     cacheSignature = contentSignature();
-    const vorlagen = uniqueIds(SHAREPIC_BRAND_IDS.flatMap(loadDesign), 'Vorlage');
+    const previewPhotos = readPreviewPhotos();
+    const vorlagen = uniqueIds(
+      SHAREPIC_BRAND_IDS.flatMap((design) => loadDesign(design, previewPhotos)),
+      'Vorlage'
+    );
     const curated = uniqueIds([...loadSeiten('de-DE'), ...loadSeiten('de-AT')], 'Seite');
     cache = {
       vorlagen,
