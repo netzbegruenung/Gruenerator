@@ -14,6 +14,7 @@
  * Netz und ohne echte MCP-Server prüfbar ist.
  */
 import { lastUserText } from '../../../../agents/langgraph/ChatGraph/nodes/classifierHeuristics.js';
+import { executeMultiDocFanout } from '../../../../agents/langgraph/ChatGraph/nodes/searchNode.js';
 import { isProductMetaQuestion } from '../../../../services/chat/productKnowledge.js';
 import { parseManagedConnectorId } from '../../../../services/mcp/systemMcpServers.js';
 import { createLogger } from '../../../../utils/logger.js';
@@ -800,6 +801,102 @@ export async function seedAttachedDocuments(params: {
   } catch (err) {
     params.onError(
       `[Agentic] Vorab-Abruf der Anhänge übersprungen: ${err instanceof Error ? err.message : err}`
+    );
+    return NOTHING_SEEDED;
+  }
+}
+
+/**
+ * Up-front-Seed für die gewählten Wolke- und Connect-Dateien des Turns —
+ * dieselbe Bauform wie `seedAttachedDocuments`.
+ *
+ * Eine gewählte Cloud-Datei erzwingt im Klassifikator `search`, und `search`
+ * läuft als Loop. `retrievableAttachedSources` lässt `wolke`/`connect` aber
+ * bewusst aus (die Modi von `dokumente_lesen` lesen aus Qdrant), und
+ * `cloud_files` kannte den gewählten Pfad nicht. Gelesen wurde die Datei
+ * deshalb nie; der erzwungene erste Aufruf ging an `gruenerator_search`, und
+ * die Antwort fasste fremde Programme zusammen (live 02.11.2026). Gelesen wird
+ * hier über denselben Fan-out wie im Einzeldurchlauf.
+ *
+ * Nur mitgeführte Dateien (`cloudFilesCarriedOnly`) liest der Seed nur, wenn
+ * der Klassifikator ihretwegen `search` erzwungen hat — bei „Danke!" oder
+ * „Erstelle ein Sharepic …" lässt er das bewusst (#4897), und jeder Abruf ist
+ * ein Download samt Textextraktion.
+ *
+ * Der Planer bekommt je Wolke-Datei ein `cloud_files`-`read`-Paar, sofern das
+ * Werkzeug montiert ist. Für Connect-Dateien gibt es im Loop kein
+ * Lesewerkzeug; sie gehen nur an den Schreiber.
+ */
+export async function seedAttachedCloudFiles(params: {
+  state: ChatGraphState;
+  sourceRegistry: SourceRegistry;
+  /** `cloud_files` ist diesen Turn montiert. */
+  isMounted: boolean;
+  onInfo: (message: string) => void;
+  onError: (message: string) => void;
+}): Promise<SeededAttachedDocuments> {
+  const { state } = params;
+  const sources = (state.documentSources ?? []).filter(
+    (s) => s.kind === 'wolke' || s.kind === 'connect'
+  );
+  if (sources.length === 0) return NOTHING_SEEDED;
+  if (state.cloudFilesCarriedOnly && state.intent !== 'search') return NOTHING_SEEDED;
+
+  try {
+    const query = attachedDocsQuery(state) || sources.map((s) => s.label).join(' ');
+    const fanout = await executeMultiDocFanout(query, sources, state.agentConfig, {});
+    for (const e of fanout.errors) params.onError(`[Agentic] Cloud-Datei: ${e.message}`);
+
+    const results = sources.flatMap((s) => fanout.perSourceResults[s.id] ?? []);
+    const delivered = results.length > 0;
+    if (delivered) {
+      params.sourceRegistry.seedAttached(results, ATTACHED_DOC_SNIPPET_CHARS);
+      params.onInfo(
+        `[Agentic] ${results.length} Passage(n) aus ${sources.length} Cloud-Datei(en) vorab gelesen`
+      );
+    }
+    if (!params.isMounted) return { replay: [], delivered };
+
+    const userId = state.agentConfig.userId ?? 'anon';
+    const replay: ModelMessage[] = [];
+    for (const src of sources) {
+      if (src.kind !== 'wolke' || !src.wolke) continue;
+      const fileResults = fanout.perSourceResults[src.id] ?? [];
+      const error = fanout.errors.find((e) => e.source.endsWith(src.id));
+      const value =
+        fileResults.length > 0
+          ? fileResults.map((r) => r.content).join('\n\n')
+          : `„${src.label}" konnte nicht gelesen werden${error ? `: ${error.message}` : '.'}`;
+      const toolCallId = `seed-cloud-${userId}-${replay.length / 2}`;
+      replay.push(
+        {
+          role: 'assistant',
+          content: [
+            {
+              type: 'tool-call' as const,
+              toolCallId,
+              toolName: 'cloud_files',
+              input: { action: 'read', connectionId: src.wolke.shareLinkId, path: src.wolke.path },
+            },
+          ],
+        },
+        {
+          role: 'tool',
+          content: [
+            {
+              type: 'tool-result' as const,
+              toolCallId,
+              toolName: 'cloud_files',
+              output: { type: 'text' as const, value },
+            },
+          ],
+        }
+      );
+    }
+    return { replay, delivered };
+  } catch (err) {
+    params.onError(
+      `[Agentic] Vorab-Abruf der Cloud-Dateien übersprungen: ${err instanceof Error ? err.message : err}`
     );
     return NOTHING_SEEDED;
   }
