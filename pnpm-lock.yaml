@@ -591,8 +591,8 @@ importers:
         specifier: ^0.131.0
         version: 0.131.0(zod@4.6.7)
       '@ggraphic/editor':
-        specifier: 0.1.0-alpha.0
-        version: 0.1.0-alpha.0(@floating-ui/dom@1.8.0)(@tiptap/pm@3.32.0)(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(konva@10.9.0)(react-dom@19.3.0(react@19.3.0))(react-is@19.2.8)(react-konva@19.3.2(@types/react@19.3.0)(konva@10.9.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(react@19.3.0)(redux@5.0.1)(use-sync-external-store@1.7.0(react@19.3.0))(y-protocols@1.0.7(yjs@13.6.33))
+        specifier: 0.1.0-alpha.1
+        version: 0.1.0-alpha.1(@floating-ui/dom@1.8.0)(@tiptap/pm@3.32.0)(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(konva@10.9.0)(react-dom@19.3.0(react@19.3.0))(react-is@19.2.8)(react-konva@19.3.2(@types/react@19.3.0)(konva@10.9.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(react@19.3.0)(redux@5.0.1)(use-sync-external-store@1.7.0(react@19.3.0))(y-protocols@1.0.7(yjs@13.6.33))
       '@gruenerator/eslint-config':
         specifier: workspace:*
         version: link:../../packages/eslint-config
@@ -682,11 +682,11 @@ importers:
   apps/ggraphic-demo:
     dependencies:
       '@ggraphic/core':
-        specifier: 0.1.0-alpha.0
-        version: 0.1.0-alpha.0
+        specifier: 0.1.0-alpha.1
+        version: 0.1.0-alpha.1
       '@ggraphic/editor':
-        specifier: 0.1.0-alpha.0
-        version: 0.1.0-alpha.0(@floating-ui/dom@1.8.0)(@tiptap/pm@3.32.0)(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(konva@10.9.0)(react-dom@19.3.0(react@19.3.0))(react-is@19.2.8)(react-konva@19.3.2(@types/react@19.3.0)(konva@10.9.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(react@19.3.0)(redux@5.0.1)(use-sync-external-store@1.7.0(react@19.3.0))(y-protocols@1.0.7(yjs@13.6.33))
+        specifier: 0.1.0-alpha.1
+        version: 0.1.0-alpha.1(@floating-ui/dom@1.8.0)(@tiptap/pm@3.32.0)(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(konva@10.9.0)(react-dom@19.3.0(react@19.3.0))(react-is@19.2.8)(react-konva@19.3.2(@types/react@19.3.0)(konva@10.9.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(react@19.3.0)(redux@5.0.1)(use-sync-external-store@1.7.0(react@19.3.0))(y-protocols@1.0.7(yjs@13.6.33))
       '@tanstack/react-query':
         specifier: ^5.104.3
         version: 5.104.5(@types/react@19.3.0)(react@19.3.0)
@@ -1307,8 +1307,8 @@ importers:
         specifier: 7.29.7
         version: 7.29.7(supports-color@10.2.2)
       '@ggraphic/editor':
-        specifier: 0.1.0-alpha.0
-        version: 0.1.0-alpha.0(@floating-ui/dom@1.8.0)(@tiptap/pm@3.32.0)(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(konva@10.9.0)(react-dom@19.3.0(react@19.3.0))(react-is@19.2.8)(react-konva@19.3.2(@types/react@19.3.0)(konva@10.9.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(react@19.3.0)(redux@5.0.1)(use-sync-external-store@1.6.0(react@19.3.0))(y-protocols@1.0.7(yjs@13.6.33))
+        specifier: 0.1.0-alpha.1
+        version: 0.1.0-alpha.1(@floating-ui/dom@1.8.0)(@tiptap/pm@3.32.0)(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(konva@10.9.0)(react-dom@19.3.0(react@19.3.0))(react-is@19.2.8)(react-konva@19.3.2(@types/react@19.3.0)(konva@10.9.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(react@19.3.0)(redux@5.0.1)(use-sync-external-store@1.6.0(react@19.3.0))(y-protocols@1.0.7(yjs@13.6.33))
       '@gruenerator/eslint-config':
         specifier: workspace:*
         version: link:../../packages/eslint-config
@@ -1501,8 +1501,8 @@ importers:
         specifier: ^3.10.2
         version: 3.10.2(@swc/core@1.16.2(@swc/helpers@0.5.23))(@swc/html@1.16.2)(clean-css@5.3.3)(cssnano@6.1.2(postcss@8.5.30))(csso@5.0.5)(esbuild@0.28.2)(html-minifier-terser@7.2.0)(lightningcss@1.33.0)(postcss@8.5.30)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(sharp@0.35.5(@types/node@26.6.5))(supports-color@10.2.2)(svgo@3.3.5)(webpack-cli@5.1.4)
       '@ggraphic/editor':
-        specifier: 0.1.0-alpha.0
-        version: 0.1.0-alpha.0(@floating-ui/dom@1.8.0)(@tiptap/pm@3.32.0)(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(konva@10.9.0)(react-dom@19.3.0(react@19.3.0))(react-is@19.2.8)(react-konva@19.3.2(@types/react@19.3.0)(konva@10.9.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(react@19.3.0)(redux@5.0.1)(use-sync-external-store@1.7.0(react@19.3.0))(y-protocols@1.0.7(yjs@13.6.33))
+        specifier: 0.1.0-alpha.1
+        version: 0.1.0-alpha.1(@floating-ui/dom@1.8.0)(@tiptap/pm@3.32.0)(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(konva@10.9.0)(react-dom@19.3.0(react@19.3.0))(react-is@19.2.8)(react-konva@19.3.2(@types/react@19.3.0)(konva@10.9.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(react@19.3.0)(redux@5.0.1)(use-sync-external-store@1.7.0(react@19.3.0))(y-protocols@1.0.7(yjs@13.6.33))
       typescript:
         specifier: ^6.0.3
         version: 6.0.3
@@ -1510,11 +1510,11 @@ importers:
   packages/canvas-editor:
     dependencies:
       '@ggraphic/core':
-        specifier: 0.1.0-alpha.0
-        version: 0.1.0-alpha.0
+        specifier: 0.1.0-alpha.1
+        version: 0.1.0-alpha.1
       '@ggraphic/editor':
-        specifier: 0.1.0-alpha.0
-        version: 0.1.0-alpha.0(@floating-ui/dom@1.8.0)(@tiptap/pm@3.32.0)(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(konva@10.9.0)(react-dom@19.3.0(react@19.3.0))(react-is@19.2.8)(react-konva@19.3.2(@types/react@19.3.0)(konva@10.9.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(react@19.3.0)(redux@5.0.1)(use-sync-external-store@1.6.0(react@19.3.0))(y-protocols@1.0.7(yjs@13.6.33))
+        specifier: 0.1.0-alpha.1
+        version: 0.1.0-alpha.1(@floating-ui/dom@1.8.0)(@tiptap/pm@3.32.0)(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(konva@10.9.0)(react-dom@19.3.0(react@19.3.0))(react-is@19.2.8)(react-konva@19.3.2(@types/react@19.3.0)(konva@10.9.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(react@19.3.0)(redux@5.0.1)(use-sync-external-store@1.6.0(react@19.3.0))(y-protocols@1.0.7(yjs@13.6.33))
       '@ggraphic/schema':
         specifier: 0.1.0-alpha.0
         version: 0.1.0-alpha.0
@@ -1879,8 +1879,8 @@ importers:
   packages/contracts:
     dependencies:
       '@ggraphic/core':
-        specifier: 0.1.0-alpha.0
-        version: 0.1.0-alpha.0
+        specifier: 0.1.0-alpha.1
+        version: 0.1.0-alpha.1
       '@ggraphic/schema':
         specifier: 0.1.0-alpha.0
         version: 0.1.0-alpha.0
@@ -5721,11 +5721,11 @@ packages:
     peerDependencies:
       react: ^19.0.0
 
-  '@ggraphic/core@0.1.0-alpha.0':
-    resolution: {integrity: sha512-J/rkx0G/mZmi0MhvDKYM6mG/ohJcOtiWRcWFfM911udC2hWx6l48LTj2AOng/fVHUvsbafNOb9zmXsuRAT432Q==}
+  '@ggraphic/core@0.1.0-alpha.1':
+    resolution: {integrity: sha512-Hvqf//MCRZF/2emO+P+aDBsZxW+ca4SEW/K9IwopnKbocvF1u2HEWhUvQlql1+kCkN5hBDSivdiWmSzf4uYUcw==}
 
-  '@ggraphic/editor@0.1.0-alpha.0':
-    resolution: {integrity: sha512-sIXwVeptQJC+xiPYJfiPosgldmykEUpgXCHx5hmbMBDUrF56+69B2tzvIijw1EpU1gV7ah8eST9iGVg8k7guOg==}
+  '@ggraphic/editor@0.1.0-alpha.1':
+    resolution: {integrity: sha512-470PR0W5AZBqde91npLZN2Hj4ad5EB+5YFJGdUEil1xfKjzcuU7qICfCoJu0UzaP/VMANLUBtZIW48jnQXbVFA==}
     peerDependencies:
       konva: ^10.9.0
       react: ^19.0.0
@@ -27524,11 +27524,11 @@ snapshots:
     transitivePeerDependencies:
       - y-protocols
 
-  '@ggraphic/core@0.1.0-alpha.0': {}
+  '@ggraphic/core@0.1.0-alpha.1': {}
 
-  '@ggraphic/editor@0.1.0-alpha.0(@floating-ui/dom@1.8.0)(@tiptap/pm@3.32.0)(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(konva@10.9.0)(react-dom@19.3.0(react@19.3.0))(react-is@19.2.8)(react-konva@19.3.2(@types/react@19.3.0)(konva@10.9.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(react@19.3.0)(redux@5.0.1)(use-sync-external-store@1.6.0(react@19.3.0))(y-protocols@1.0.7(yjs@13.6.33))':
+  '@ggraphic/editor@0.1.0-alpha.1(@floating-ui/dom@1.8.0)(@tiptap/pm@3.32.0)(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(konva@10.9.0)(react-dom@19.3.0(react@19.3.0))(react-is@19.2.8)(react-konva@19.3.2(@types/react@19.3.0)(konva@10.9.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(react@19.3.0)(redux@5.0.1)(use-sync-external-store@1.6.0(react@19.3.0))(y-protocols@1.0.7(yjs@13.6.33))':
     dependencies:
-      '@ggraphic/core': 0.1.0-alpha.0
+      '@ggraphic/core': 0.1.0-alpha.1
       '@ggraphic/schema': 0.1.0-alpha.0
       '@hocuspocus/provider': 4.7.1(y-protocols@1.0.7(yjs@13.6.33))(yjs@13.6.33)
       '@iconify-json/bi': 1.2.7
@@ -27584,9 +27584,9 @@ snapshots:
       - use-sync-external-store
       - y-protocols
 
-  '@ggraphic/editor@0.1.0-alpha.0(@floating-ui/dom@1.8.0)(@tiptap/pm@3.32.0)(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(konva@10.9.0)(react-dom@19.3.0(react@19.3.0))(react-is@19.2.8)(react-konva@19.3.2(@types/react@19.3.0)(konva@10.9.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(react@19.3.0)(redux@5.0.1)(use-sync-external-store@1.7.0(react@19.3.0))(y-protocols@1.0.7(yjs@13.6.33))':
+  '@ggraphic/editor@0.1.0-alpha.1(@floating-ui/dom@1.8.0)(@tiptap/pm@3.32.0)(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(konva@10.9.0)(react-dom@19.3.0(react@19.3.0))(react-is@19.2.8)(react-konva@19.3.2(@types/react@19.3.0)(konva@10.9.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(react@19.3.0)(redux@5.0.1)(use-sync-external-store@1.7.0(react@19.3.0))(y-protocols@1.0.7(yjs@13.6.33))':
     dependencies:
-      '@ggraphic/core': 0.1.0-alpha.0
+      '@ggraphic/core': 0.1.0-alpha.1
       '@ggraphic/schema': 0.1.0-alpha.0
       '@hocuspocus/provider': 4.7.1(y-protocols@1.0.7(yjs@13.6.33))(yjs@13.6.33)
       '@iconify-json/bi': 1.2.7

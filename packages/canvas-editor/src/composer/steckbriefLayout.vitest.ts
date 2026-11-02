@@ -1,7 +1,7 @@
 import { HAND_ARROW_TYPES, handArrowEnds } from '@ggraphic/editor/utils/handDrawn';
 import { describe, expect, it } from 'vitest';
 
-import { arrowPose, shapePoint } from '@ggraphic/editor/composer/steckbriefLayout';
+import { arrowPose, shapePoint } from './steckbriefLayout';
 
 const runs = [
   { from: { x: 300, y: 200 }, to: { x: 520, y: 260 }, bow: 1 },
