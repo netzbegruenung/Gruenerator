@@ -271,6 +271,23 @@ export const LANDESVERBAENDE = [
     wahlpruefsteinAgentId: 'gruenerator-wahlpruefsteine-oesterreich',
     hub: { slug: 'gruene-oesterreich', name: 'Grüne Österreich' },
   },
+  // LOCAL MOCK — not committed: a demo Landesverband that borrows Berlin's notebook and PR agent; the others are generated for it.
+  {
+    id: 'test',
+    title: 'Test',
+    recipeSlug: 'berlin',
+    codes: 'TEST',
+    notebookId: 'berlin-notebook',
+    homepage: 'https://gruene.berlin',
+    themes: 'Demo-Inhalte zum Ausprobieren des Landesverband-Hubs',
+    audience: 'de-DE',
+    prAgentId: 'gruenerator-oeffentlichkeitsarbeit-berlin',
+    buergerAgentId: 'gruenerator-buergeranfragen-test',
+    wahlpruefsteinAgentId: 'gruenerator-wahlpruefsteine-test',
+    beschlussAgentId: 'gruenerator-beschluesse-test',
+    wahlprogrammAgentId: 'gruenerator-wahlprogramm-test',
+    hub: { slug: 'test-landesverband', name: 'Test Landesverband' },
+  },
 ] as const satisfies readonly LandesverbandEntry[];
 
 /**
