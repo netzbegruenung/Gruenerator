@@ -82,26 +82,6 @@ export function collectionCardsFor(
 export const collectionMetaLine = (def: MarketplaceCollection, count: number): string =>
   count > 0 ? `${def.kicker} · ${marketplaceCountLabel(count)}` : def.kicker;
 
-/**
- * „Alle hinzufügen" on a collection: what can go to „Meine Grüneratoren", and
- * what of that is not there yet. `label` is `null` once everything is added.
- */
-export function collectionAddState(items: readonly MarketplaceItem[]): {
-  addable: MarketplaceItem[];
-  missing: MarketplaceItem[];
-  label: string | null;
-} {
-  const addable = items.filter((item) => isLibraryKind(item.kind));
-  const missing = addable.filter((item) => !item.saved);
-  const label =
-    missing.length === 0
-      ? null
-      : missing.length === addable.length
-        ? `Alle ${addable.length} hinzufügen`
-        : `${missing.length} weitere hinzufügen`;
-  return { addable, missing, label };
-}
-
 /** The Landesverbände of the viewer's country, their own first. */
 export function landesverbandHubsOwnFirst(
   locale: string,

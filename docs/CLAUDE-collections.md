@@ -106,6 +106,16 @@ Sharepics, die noch entstehen, können vorübergehend als `samples` mit Platzhal
 
 Cover dürfen Fotos aus `apps/api/public/sharepic_example_bg/` sein (Unsplash, öffentlich); dann mit `credit`.
 
+## Abonnieren und Startrampe
+
+Eine Kollektion lässt sich abonnieren (`PUT /api/marketplace/collections/:id/subscription`, Tabelle `collection_subscriptions`, nur Ids). Was darin steckt, löst der Client aus seinem Register auf: `collectionContents(id, locale)` in `packages/shared/src/marketplace/frontpage.ts`. Mit dem Abo erscheint unter dem Kopf der Kollektionsseite die Startrampe (`CollectionLaunchpad.tsx`), und die Listen (Sticker, Mediathek, Vorlagen, Grüneratoren) zeigen „Aus <Titel>“.
+
+- **`kit`** an der Kollektion nennt, womit man anfängt: `kit.sharepicVorlagen` und `kit.printVorlagen` (Ids). Eine Vorlage, die der geladene Katalog nicht kennt (anderes Land, zurückgezogen), bekommt keine Kachel.
+- **Rahmen** sind Sticker mit `frame: true` im Katalog (`packages/contracts/src/stickers/catalog.ts`). Sie stehen nicht in den Standard-Pickern (`stickersForLocale`), nur über ihre Kollektion (`framesForCollection`). `?rahmen=<id>` öffnet das Profilbild mit dem Rahmen vollflächig als oberster Ebene; eine Id ohne `frame: true` wird ignoriert.
+- **Deep Links der Kacheln** (`launchpadHref`): `/studio/profilbild?rahmen=…|sticker=…|hintergrund=…`, `/studio/vorlage/:id` (Sharepic), `/studio/druck/:id` (Druckvorlage), `/agents/<identifier>`.
+- Eigen schlägt Abo: ein Agent, der schon in der eigenen Bibliothek steht, fällt aus „Aus Kollektionen“.
+- Dieses Dokument liegt unter `/docs/` (gitignored): Änderungen brauchen `git add -f`.
+
 ## Offen
 
 - **Startseite:** Die Karten in der Reihe „Kollektionen“ sind noch die 16:9-`ShowcaseCard`. Der Entwurf sieht eine große Karte und darunter Karten im Format 4:5 vor, mit Titel unter dem Bild; dafür braucht jedes Cover einen Hochkant-Schnitt.

@@ -10,7 +10,6 @@ import {
   shownMarketplaceTab,
 } from './browse';
 import {
-  collectionAddState,
   collectionCardsFor,
   collectionCoverPath,
   emphasisParts,
@@ -56,16 +55,6 @@ describe('collections', () => {
     expect(collectionCardsFor(answer, 'rest').map((c) => c.def.id)).toEqual(['starter']);
     expect(collectionCardsFor(answer, 'themen').map((c) => c.def.id)).toEqual(['queer']);
     expect(collectionCardsFor(answer).map((c) => c.def.id)).toEqual(['starter', 'queer']);
-  });
-
-  it('counts only Agents and Rezepte for „Alle hinzufügen"', () => {
-    expect(
-      collectionAddState([item('agent', 'a'), item('recipe', 'b'), item('sticker', 's')]).label
-    ).toBe('Alle 2 hinzufügen');
-    expect(collectionAddState([item('agent', 'a', true), item('recipe', 'b')]).label).toBe(
-      '1 weitere hinzufügen'
-    );
-    expect(collectionAddState([item('agent', 'a', true)]).label).toBeNull();
   });
 
   it('splits a description at its bold marks', () => {
