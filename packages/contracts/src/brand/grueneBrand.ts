@@ -188,6 +188,8 @@ const DE_DUNKELTANNE = '#00261A';
 const DE_GRASGRUEN = '#00CC4F';
 const DE_KLEE = '#008939';
 const DE_LIME = '#BEFF60';
+/** CD Himmel (#0BA1DD) darkened by 5 %: white on it reaches 3.2:1. */
+const DE_STOERER = '#0A99D2';
 // AT colours that both `colors` and `composer` name.
 const AT_DUNKELGRUEN = '#257639';
 const AT_GELB = '#FCEC00';
@@ -274,7 +276,7 @@ export const GRUENE_DE: GruenePack = {
       steckbriefTrait: 64,
     },
     absatzGap: 0.6,
-    headlineFace: { absatz: false, infografikTitel: false, datum: false },
+    headlineFace: { absatz: false, infografikTitel: false, datum: true },
     features: {
       markerBox: true,
       zeilenboxen: true,
@@ -315,15 +317,17 @@ export const GRUENE_DE: GruenePack = {
       height: (260 * 379) / 710,
       bottom: 80,
     },
-    // As on the current posts: Grasgrün with Dunkeltanne text, Tanne with
-    // white on a grass-green surface, 7° ascending, as large as the text
-    // block lets it grow.
+    // CD S.15: a Himmel circle, 7° ascending, as large as the text block lets
+    // it grow. The CD sets Sand on Himmel (#0BA1DD), 2.6:1; white reaches
+    // 2.93:1, just under the 3:1 WCAG asks of large type. The circle is
+    // Himmel darkened by 5 % so white holds 3.2:1. The posts showed a
+    // Grasgrün circle once (DdbYnkiIT2k/01).
     stoerer: {
       rotation: -7,
       colors: {
-        light: { fill: DE_GRASGRUEN, ink: DE_DUNKELTANNE },
-        grass: { fill: DE_TANNE, ink: '#FFFFFF' },
-        dark: { fill: DE_GRASGRUEN, ink: DE_DUNKELTANNE },
+        light: { fill: DE_STOERER, ink: '#FFFFFF' },
+        grass: { fill: DE_STOERER, ink: '#FFFFFF' },
+        dark: { fill: DE_STOERER, ink: '#FFFFFF' },
       },
       size: 'fit',
     },
@@ -338,7 +342,7 @@ export const GRUENE_DE: GruenePack = {
       // Never on a full-bleed photo.
       logoPlacement: 'left',
       swipeArrow: 'drawn',
-      datumCircle: 'ink',
+      datumCircle: 'stoerer',
       contrastPanel: 'solid',
       sunflower: true,
       frageAccent: 'green',

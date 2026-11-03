@@ -13,9 +13,9 @@
      "text": "Infostand",
      "type": "header",
      "x": 70,
-     "y": 773.925,
-     "width": 600,
-     "fontSize": 127,
+     "y": 761.95,
+     "width": 940,
+     "fontSize": 198,
      "fontFamily": "GothamNarrow-Ultra",
      "bind": {
       "fontFamily": {
@@ -38,7 +38,7 @@
      "text": "Marktplatz",
      "type": "body",
      "x": 70,
-     "y": 938.5749999999999,
+     "y": 1238.5,
      "width": 600,
      "fontSize": 38,
      "fontFamily": "GothamNarrow-Book",
@@ -50,12 +50,6 @@
      },
      "fontStyle": "normal",
      "fill": "#FFFFFF",
-     "align": "left",
-     "accent": {
-      "fill": "#FCEC00",
-      "fontFamily": "Vollkorn",
-      "fontStyle": "bold italic"
-     },
      "lineHeight": 1.25
     },
     {
@@ -158,8 +152,8 @@
     "sc-panel",
     "sc-tint",
     "sc-0-headline-0",
-    "sc-ort",
     "sc-datum",
+    "sc-ort",
     "sc-pfeil",
     "sc-ki-label-bg",
     "sc-ki-label"

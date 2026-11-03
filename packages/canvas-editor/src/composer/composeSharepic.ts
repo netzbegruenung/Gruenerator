@@ -494,6 +494,10 @@ function composeSlide(
         }
       : null;
   const columnBesideCircle = !!circle && bg.kind === 'foto-oben';
+  // The headline opens the panel, far above the circle: it keeps the full
+  // width. Narrowed with the rest, a wide line („Komm zu unserem") set it
+  // small however short the text under it.
+  const fullColumn = column;
   if (circle && columnBesideCircle) {
     column = { ...column, width: circle.x - circle.radius - GAP - column.x };
   } else if (circle) {
@@ -502,7 +506,7 @@ function composeSlide(
 
   // The headline keeps the full column; AT argument slides set centred
   // paragraphs narrower (~100 px side margins on the posts).
-  const headColumn = column;
+  const headColumn = columnBesideCircle ? fullColumn : column;
   const centredMargin = brand.layout.centredMargin;
   if (centredMargin !== null && column.align === 'center' && surface !== 'foto') {
     const width = canvas.width - 2 * centredMargin;
@@ -530,11 +534,10 @@ function composeSlide(
 
   // Footer row: logo, arrow, place, source — the text group ends above it.
   const ortBesideCircle = !!spec.ort && !!circle && !columnBesideCircle;
-  // Beside the circle under a photo strip the place ends the column, right
-  // under the text as on the event posters (S.23, S.26) — in the footer it
-  // stood beside the logo, away from the date.
-  const ortInColumn = !!spec.ort && columnBesideCircle;
-  const ortInFooter = !!spec.ort && !ortBesideCircle && !ortInColumn;
+  // Beside the circle under a photo strip the place stands in the footer,
+  // between logo and date: under the text it cost the headline its size
+  // (de-termin 51 → 33 px at 540 wide), the footer row is free.
+  const ortInFooter = !!spec.ort && !ortBesideCircle;
   const footerUsed = showLogo || swipeOn || ortInFooter || !!spec.quelle;
   if (footerUsed) {
     areaBottom = Math.min(
@@ -958,9 +961,20 @@ function composeSlide(
    * The group at a paragraph scale; side-effect free until `place`. A chart
    * gives up `chartShrink` px of its height before any text shrinks.
    */
+  /**
+   * A full-width headline beside the date circle ends above it: its size is
+   * capped so its lines clear the circle's top (`top` is set before any build).
+   */
+  const fullWidthHeadline = (size: number | null): number | null => {
+    if (size === null || !circle || !columnBesideCircle || headItem?.type !== 'headline') {
+      return size;
+    }
+    const clear = circle.y - circle.radius - GAP - top;
+    return Math.min(size, Math.floor(clear / (headItem.lines.length * brand.lineHeight.headline)));
+  };
   const build = (scale: number, chartShrink = 0, headScale = 1): Placed[] => {
     const placed: Placed[] = [];
-    const headSize = headlineSizeAt(headScale);
+    const headSize = fullWidthHeadline(headlineSizeAt(headScale));
     /** Paragraphs never come closer than 1 : 1.8 to the headline. */
     const paraCap = headSize ? Math.floor(headSize / HEADLINE_RATIO) : Number.POSITIVE_INFINITY;
     const pass: BuildPass = { scale, paraCap, chartShrink };
@@ -1343,15 +1357,6 @@ function composeSlide(
         }
       }
     });
-    if (ortInColumn) {
-      const ort = spec.ort!;
-      const size = 38;
-      placed.push({
-        height: ort.lines.length * size * 1.25,
-        after: 0,
-        place: (y) => text('sc-ort', ort.lines.join('\n'), y, size, 'body', { lineHeight: 1.25 }),
-      });
-    }
     return placed;
   };
 
@@ -1394,15 +1399,18 @@ function composeSlide(
   const chartShrink = spec.items.some((i) => i.type === 'diagramm')
     ? Math.max(0, heightOf(build(1)) - room)
     : 0;
-  for (let headScale = 1; headScale >= 0.6 && !placed; headScale -= 0.05) {
+  // Beside a date circle the headline takes the full width, so its target
+  // runs higher than the column's: it may give up more before the text does.
+  const headFloor = columnBesideCircle ? 0.4 : 0.6;
+  for (let headScale = 1; headScale >= headFloor && !placed; headScale -= 0.05) {
     const group = build(1, chartShrink, headScale);
     if (heightOf(group) <= room) placed = group;
   }
   for (let scale = 0.95; scale >= 0.6 && !placed; scale -= 0.05) {
-    const group = build(scale, chartShrink, 0.6);
+    const group = build(scale, chartShrink, headFloor);
     if (heightOf(group) <= room) placed = group;
   }
-  placed ??= build(0.6, chartShrink, 0.6);
+  placed ??= build(0.6, chartShrink, headFloor);
   const total = heightOf(placed);
   // A block on a plain colour slide sits in the middle, not pinned to the top
   // margin (AT always, DE when short); `unten` stays (logo/arrow layouts are
@@ -1510,7 +1518,6 @@ function composeSlide(
     blockTop,
     total,
     circle,
-    ortInColumn,
     ortBesideCircle,
     footX,
     ortBottom,

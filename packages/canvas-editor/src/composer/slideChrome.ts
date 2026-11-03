@@ -7,10 +7,9 @@ import { wrapWords } from '@ggraphic/editor/text';
 import { type SharepicSeitenzahl, type SharepicSlide } from '@gruenerator/contracts';
 import { type ComposerBrand, onGround } from '@gruenerator/contracts/brand';
 
-import { COLORS } from '../utils/dreizeilenLayout';
 import { VERANSTALTUNG_CONFIG } from '../utils/veranstaltungLayout';
 
-import { BRUSH_ARROW, pageDots, SHAREPIC_COLOR_HEX } from './chromeParts';
+import { BRUSH_ARROW, pageDots } from './chromeParts';
 import { brandFont } from './fontRole';
 import { placeHandMarks } from './handMarks';
 import { brutalLabel } from './kartenLayout';
@@ -26,6 +25,7 @@ import { sharepicTheme } from './sharepicThemes';
 import { type SlideCtx } from './slideContext';
 import { type slideInk } from './slideInk';
 import {
+  fitStoererLines,
   fitStoererText,
   STOERER_LINE_STEP,
   STOERER_MAX_SIZE_SHARE,
@@ -46,7 +46,6 @@ export interface ChromeInputs {
   blockTop: number;
   total: number;
   circle: { x: number; y: number; radius: number } | null;
-  ortInColumn: boolean;
   ortBesideCircle: boolean;
   footX: number;
   ortBottom: number;
@@ -99,7 +98,6 @@ export function drawSlideChrome(ctx: SlideCtx, inputs: ChromeInputs): void {
     blockTop,
     total,
     circle,
-    ortInColumn,
     ortBesideCircle,
     footX,
     ortBottom,
@@ -238,23 +236,24 @@ export function drawSlideChrome(ctx: SlideCtx, inputs: ChromeInputs): void {
   }
 
   if (spec.datum && circle) {
-    // DE: Tanne on light and grass-green ground, grass green on dark ground
-    // and photos — never a third colour. AT keeps its magenta. A theme with
-    // badge colours sets the circle like its badges.
+    // DE and GJ DE: in the Störer's colours on that ground (DE: Himmel, CD
+    // S.15). AT keeps its magenta. A theme with badge colours sets the circle
+    // like its badges.
     const themed = themeDef?.badge?.[onLight ? 'light' : 'dark'] ?? null;
     const circleColors = themed
       ? { background: themed.fill, text: themed.ink }
-      : brand.layout.datumCircle === 'stoerer'
-        ? (({ fill, ink }) => ({ background: fill, text: ink }))(
+      : brand.layout.datumCircle === 'attention'
+        ? { background: theme.colors.stoerer, text: VERANSTALTUNG_CONFIG.circle.textColor }
+        : (({ fill, ink }) => ({ background: fill, text: ink }))(
             onGround(brand.stoerer.colors, { onLight, onGrass })
-          )
-        : brand.layout.datumCircle === 'attention'
-          ? { background: theme.colors.stoerer, text: VERANSTALTUNG_CONFIG.circle.textColor }
-          : darkInk
-            ? { background: COLORS.TANNE, text: '#ffffff' }
-            : { background: SHAREPIC_COLOR_HEX.grasgruen, text: COLORS.TANNE };
+          );
     const c = VERANSTALTUNG_CONFIG.circle;
     const t = VERANSTALTUNG_CONFIG.circleText;
+    /**
+     * DE: the date stands in a Störer (CD S.24) and is set like one — its
+     * lines fill 90 % of the circle, tilted as the Störer is (CD S.15).
+     */
+    const asStoerer = brand.layout.datumCircle === 'stoerer' && brand.stoererShape === 'circle';
     // The template's type is set for its radius; a smaller circle scales it.
     const k = circle.radius / c.radius;
     // Only what is present, centred on the circle: three lines keep the
@@ -268,22 +267,42 @@ export function drawSlideChrome(ctx: SlideCtx, inputs: ChromeInputs): void {
       ...(time === undefined ? [] : [{ text: time, spec: t.time, fontWeight: 'bold' as const }]),
     ];
     const pairOffsets = [-35, 40];
-    const circleLines = present.map((line, i) => ({
-      text: line.text,
-      yOffset: Math.round(
-        (present.length === 3 ? line.spec.yOffset : present.length === 2 ? pairOffsets[i]! : 0) * k
-      ),
-      fontFamily: ctx.brand.headlineFace.datum ? theme.fonts.headline : theme.fonts.body,
-      fontSize: Math.round(line.spec.fontSize * k),
-      fontWeight: ctx.brand.headlineFace.datum ? ('normal' as const) : line.fontWeight,
-    }));
+    const stoererSize = asStoerer
+      ? fitStoererLines(
+          present.map((l) => l.text),
+          circle.radius,
+          (l, s) => measure(l, s, theme.fonts.headline, 'normal'),
+          Math.round(circle.radius * STOERER_MAX_SIZE_SHARE)
+        )
+      : null;
+    const circleLines = stoererSize
+      ? present.map((line, i) => ({
+          text: line.text,
+          yOffset: Math.round((i - (present.length - 1) / 2) * stoererSize * STOERER_LINE_STEP),
+          fontFamily: theme.fonts.headline,
+          fontSize: stoererSize,
+          fontWeight: 'normal' as const,
+        }))
+      : present.map((line, i) => ({
+          text: line.text,
+          yOffset: Math.round(
+            (present.length === 3
+              ? line.spec.yOffset
+              : present.length === 2
+                ? pairOffsets[i]!
+                : 0) * k
+          ),
+          fontFamily: ctx.brand.headlineFace.datum ? theme.fonts.headline : theme.fonts.body,
+          fontSize: Math.round(line.spec.fontSize * k),
+          fontWeight: ctx.brand.headlineFace.datum ? ('normal' as const) : line.fontWeight,
+        }));
     out.circleBadgeInstances.push(
       createCircleBadgeInstance('default', {
         id: 'sc-datum',
         x: circle.x,
         y: circle.y,
         radius: circle.radius,
-        rotation: c.rotation,
+        rotation: stoererSize ? brand.stoerer.rotation : c.rotation,
         backgroundColor: circleColors.background,
         textColor: circleColors.text,
         textLines: circleLines,
@@ -292,7 +311,7 @@ export function drawSlideChrome(ctx: SlideCtx, inputs: ChromeInputs): void {
     out.layerOrder.push('sc-datum');
   }
 
-  if (spec.ort && !ortInColumn && etikett) {
+  if (spec.ort && etikett) {
     // GJ AT: the place on a light-green footer band across the slide, in
     // capitals (DehRgj4jAe9/01).
     const size = 30;
@@ -322,7 +341,7 @@ export function drawSlideChrome(ctx: SlideCtx, inputs: ChromeInputs): void {
       lineHeight: 1.2,
     });
     out.layerOrder.push('sc-ort');
-  } else if (spec.ort && !ortInColumn) {
+  } else if (spec.ort) {
     const size = 38;
     const height = spec.ort.lines.length * size * 1.25;
     // Beside a free date circle the place reads with it: right-aligned to the
