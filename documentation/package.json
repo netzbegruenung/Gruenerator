@@ -29,7 +29,7 @@
     "office:audit": "node scripts/generate-office.mjs --audit",
     "dev": "docusaurus start",
     "start": "docusaurus start",
-    "build": "docusaurus build",
+    "build": "docusaurus build && node scripts/generate-docs-index.mjs --json build/docs-index.json",
     "swizzle": "docusaurus swizzle",
     "deploy": "docusaurus deploy",
     "clear": "docusaurus clear",

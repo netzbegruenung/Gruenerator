@@ -8,6 +8,13 @@
  * reachable from the chat at all — `pnpm docs:index` regenerates it and CI fails
  * any PR that edits the docs without rerunning it.
  *
+ * That committed module is only the FALLBACK. The API image and the doku image
+ * are rolled out separately, so an index bundled with the API drifts from the
+ * live site: the chat cited pages the site did not have (#5013). The docs
+ * build therefore also runs `--json build/docs-index.json`, and the API loads
+ * that file from the live site at runtime (services/docs/docsIndex.ts):
+ * the index the chat searches is the one built from the pages actually served.
+ *
  * Emitted as a .ts data module (not .json) to match the repo's other generated
  * data — `packages/shared/src/agents/definitions/index.generated.ts`,
  * `services/mcp/src/prompts/agents.generated.ts` — so it compiles into dist/
@@ -529,7 +536,24 @@ const summary =
 // `--check` is the CI mode: the generated module is committed, so a docs edit
 // without a regenerate would silently ship a stale index — the chat would cite
 // pages that no longer exist and miss ones that do.
-if (process.argv.includes('--check')) {
+const jsonArg = process.argv.indexOf('--json');
+if (jsonArg !== -1) {
+  // The runtime copy served next to the site. `version` is the wire format the
+  // API accepts (services/docs/docsIndex.ts) — bump it on any shape change, the
+  // API then keeps its last good index instead of misreading the new one.
+  if (!process.argv[jsonArg + 1]) {
+    console.error('Usage: generate-docs-index.mjs --json <output path>');
+    process.exit(1);
+  }
+  const jsonFile = path.resolve(process.argv[jsonArg + 1]);
+  mkdirSync(path.dirname(jsonFile), { recursive: true });
+  writeFileSync(
+    jsonFile,
+    JSON.stringify({ version: 1, pages: index.pages, sections: index.sections }),
+    'utf8'
+  );
+  console.log(`docs index: ${summary} → ${jsonFile}`);
+} else if (process.argv.includes('--check')) {
   const current = existsSync(OUT_FILE) ? readFileSync(OUT_FILE, 'utf8') : null;
   if (current !== output) {
     console.error(
