@@ -359,13 +359,9 @@ async function uploadDocAndGetUrl(doc: DocumentBlock): Promise<string | null> {
           const uploadPayload = { file: { fileName, content: buffer }, purpose: 'ocr' };
 
           console.log('📋 [Upload] Uploading to Mistral Files API...');
-          let res;
-          if (mistralClient.files?.upload) res = await mistralClient.files.upload(uploadPayload);
-          else if (mistralClient.files?.create)
-            res = await mistralClient.files.create(uploadPayload);
-          else if (mistralClient.files?.add) res = await mistralClient.files.add(uploadPayload);
+          const res = await mistralClient.files?.upload?.(uploadPayload);
 
-          const fileId = res?.id || res?.file?.id || res?.data?.id;
+          const fileId = res?.id;
           if (fileId && mistralClient.files?.getSignedUrl) {
             console.log(`📋 [Upload] Getting signed URL for file ID: ${fileId}`);
             const signed = await mistralClient.files.getSignedUrl({ fileId });
