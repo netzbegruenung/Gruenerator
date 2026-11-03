@@ -52,6 +52,7 @@ import {
   gremienOf,
   headerTextOf,
   isPendingAnfrage,
+  isPlaceholderPdf,
   LANDTAG_BERLIN_COLLECTION,
   LANDTAG_BERLIN_SOURCE,
   latestDateOf,
@@ -279,6 +280,11 @@ export class LandtagBerlinScraper extends BaseScraper {
     }
     const main = unit.entries.find((e) => e.docType !== 'Antwort') ?? unit.entries[0];
     const extraction = await this.#extract(unit.pdfUrl, documentId, summary);
+    if (isPlaceholderPdf(extraction.text)) {
+      // Kommt wieder dran, sobald PARDOK die Datei hat: ihr `aktualisiert` rückt dann vor.
+      summary.waiting += 1;
+      return;
+    }
     await this.#write(
       {
         documentId,
