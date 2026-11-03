@@ -862,9 +862,20 @@ export async function seedAttachedCloudFiles(params: {
     return { ...NOTHING_SEEDED, unreadable: [] };
   }
 
+  // Eigener try: nur ein gescheiterter Abruf heißt „keine Datei lesbar". Wirft
+  // erst die Registrierung danach, steht der Text womöglich schon im
+  // Quellenblock — dann widerspräche ihm die Notiz.
+  let fanout: Awaited<ReturnType<typeof executeMultiDocFanout>>;
   try {
     const query = attachedDocsQuery(state) || sources.map((s) => s.label).join(' ');
-    const fanout = await executeMultiDocFanout(query, sources, state.agentConfig, {});
+    fanout = await executeMultiDocFanout(query, sources, state.agentConfig, {});
+  } catch (err) {
+    const reason = err instanceof Error ? err.message : String(err);
+    params.onError(`[Agentic] Vorab-Abruf der Cloud-Dateien übersprungen: ${reason}`);
+    return { ...NOTHING_SEEDED, unreadable: sources.map((src) => ({ label: src.label, reason })) };
+  }
+
+  try {
     for (const e of fanout.errors) params.onError(`[Agentic] Cloud-Datei: ${e.message}`);
 
     const results = sources.flatMap((s) => fanout.perSourceResults[s.id] ?? []);
@@ -921,9 +932,10 @@ export async function seedAttachedCloudFiles(params: {
     }
     return { replay, delivered, unreadable };
   } catch (err) {
-    const reason = err instanceof Error ? err.message : String(err);
-    params.onError(`[Agentic] Vorab-Abruf der Cloud-Dateien übersprungen: ${reason}`);
-    return { ...NOTHING_SEEDED, unreadable: sources.map((src) => ({ label: src.label, reason })) };
+    params.onError(
+      `[Agentic] Vorab-Abruf der Cloud-Dateien übersprungen: ${err instanceof Error ? err.message : err}`
+    );
+    return { ...NOTHING_SEEDED, unreadable: [] };
   }
 }
 

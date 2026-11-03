@@ -165,6 +165,29 @@ describe('seedAttachedCloudFiles', () => {
     expect(unreadable).toEqual([{ label: 'Protokoll.docx', reason: 'Verbindung weg' }]);
   });
 
+  it('meldet keine Datei als unlesbar, wenn erst die Registrierung wirft', async () => {
+    fanout.mockResolvedValue({
+      perSourceResults: { [wolkeSource.id]: [hit] },
+      searchedCollections: [],
+      errors: [],
+    });
+    const sourceRegistry = createSourceRegistry();
+    sourceRegistry.seedAttached = () => {
+      throw new Error('Registry kaputt');
+    };
+
+    const { delivered, unreadable } = await seedAttachedCloudFiles({
+      state: stateWith(),
+      sourceRegistry,
+      isMounted: true,
+      onInfo: () => {},
+      onError: () => {},
+    });
+
+    expect(delivered).toBe(false);
+    expect(unreadable).toEqual([]);
+  });
+
   it('liest eine nur mitgeführte Datei nur, wenn der Klassifikator lesen wollte', async () => {
     const { delivered } = await run(stateWith({ cloudFilesCarriedOnly: true, intent: 'agentic' }));
 
