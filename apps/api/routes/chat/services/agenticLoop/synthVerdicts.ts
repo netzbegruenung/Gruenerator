@@ -15,6 +15,7 @@ import { looksCutOff } from '@gruenerator/contracts';
 
 import {
   announcesPendingWork,
+  asksUserToWait,
   containsBrokenJsonPayload,
   defersToSearchDespiteSources,
   deniesSearchAbilityDespiteSearching,
@@ -27,18 +28,28 @@ import {
 } from '../outputSanity.js';
 
 import { stripOutOfRangeCitations } from './citationStrip.js';
-import { SYNTH_CUTOFF_RETRY_SUFFIX, SYNTH_INVALID_JSON_RETRY_SUFFIX } from './loopEngine.js';
+import {
+  SYNTH_CUTOFF_RETRY_SUFFIX,
+  SYNTH_INVALID_JSON_RETRY_SUFFIX,
+  SYNTH_RETRY_SYSTEM_SUFFIX,
+} from './loopEngine.js';
 import { type PersistedStep } from './types.js';
 
 /**
- * Output-integrity check on the accepted split answer: broken JSON and
- * mid-sentence cut-offs earn ONE silent synth retry (loopEngine). Both shapes
- * shipped verbatim in the 2026-08 QA run.
+ * Output-integrity check on the accepted split answer: broken JSON,
+ * mid-sentence cut-offs and a request to wait earn ONE silent synth retry
+ * (loopEngine). All three shapes shipped verbatim.
  */
 export function createAnswerValidator(): (text: string) => string | null {
   return (text) => {
     if (containsBrokenJsonPayload(text)) return SYNTH_INVALID_JSON_RETRY_SUFFIX;
     if (looksCutOff(text)) return SYNTH_CUTOFF_RETRY_SUFFIX;
+    // Der Schreiber hat keine Werkzeuge, und nach ihm läuft nichts mehr: „Einen
+    // Moment bitte" verspricht Arbeit, die nicht kommt (#5289, live 30.10.2026
+    // mit „(Hier würde nun der Aufruf … folgen)"). Die Wiederholung ersetzt nur,
+    // wenn sie selbst gültig ist — verlangt die Nachricht den Satz wirklich (ein
+    // Telefonskript), enthält ihn auch der zweite Versuch, und der erste bleibt.
+    if (asksUserToWait(text)) return SYNTH_RETRY_SYSTEM_SUFFIX;
     return null;
   };
 }
