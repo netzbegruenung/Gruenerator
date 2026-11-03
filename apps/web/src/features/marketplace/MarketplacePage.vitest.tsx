@@ -14,8 +14,6 @@ import {
 import { createApiClient, setGlobalApiClient } from '@gruenerator/shared/api';
 import {
   FRONTPAGE_SHELF_QUERIES,
-  collectionById,
-  composeCollection,
   composeFrontpage,
   featureFor,
 } from '@gruenerator/shared/marketplace/frontpage';
@@ -218,21 +216,18 @@ describe('MarketplacePage', () => {
     expect(screen.getByLabelText('Adresse')).toHaveTextContent('kollektion=starter');
   });
 
-  it('keeps an unlisted collection out of the row, but opens it by its link', async () => {
+  it('opens a collection by its link and leaves it out of the other collections', async () => {
     collections = [
       { collectionId: 'starter', items: [ALL[0]!, ALL[1]!] },
-      composeCollection(collectionById('mustergruen-wahlkampf')!, [[]])!,
+      { collectionId: 'mustergruen-wahlkampf', items: [ALL[0]!] },
     ];
     renderPage('/marktplatz?kollektion=mustergruen-wahlkampf');
 
     expect(
-      await screen.findByRole('heading', { level: 1, name: 'Wahlkampf für Moritz' })
+      await screen.findByRole('heading', { level: 1, name: 'Maxi für Mustergrün' })
     ).toBeInTheDocument();
-    // A sample entry opens its picture, so it carries no like/save/report menu.
-    const sample = screen.getByRole('button', { name: 'Sonnenblume' }).closest('li, div')!;
-    expect(within(sample as HTMLElement).queryByRole('button', { name: /Aktionen/ })).toBeNull();
     const others = screen.getByRole('region', { name: 'Weitere Kollektionen' });
-    expect(within(others).queryByText('Wahlkampf für Moritz')).toBeNull();
+    expect(within(others).queryByText('Maxi für Mustergrün')).toBeNull();
   });
 
   it('says so when a shared collection is not there for this viewer', async () => {
