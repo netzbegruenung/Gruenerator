@@ -16,6 +16,7 @@ on:
       - Content Sync Watchdog
       - Weekly Desktop Release
       - Docs Freshness Check
+      - Docs Index Live Check
       - Monitor Refresh
       - Nightly Notebook NLP Enrichment
       - Daily Offboarding

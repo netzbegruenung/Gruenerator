@@ -1,0 +1,31 @@
+name: Docs Index Live Check
+
+# The chat's docs index ships with the API image; the docs site ships with the
+# `gruenerator-doku` image, rolled out to prod by hand. When the doku rollout
+# lags, the chat cites pages the live site does not serve (#5013). This
+# requests every indexed page from https://doku.gruenerator.eu and goes red on
+# any non-200. `ci-failure-issue.yml` turns a red run into one tracking issue.
+#
+# Scheduled, not on push: right after a merge the doku image is not rolled out
+# yet by design, so a push trigger would be red on every docs change.
+
+on:
+  schedule:
+    - cron: '40 6 * * *' # Daily 06:40 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    name: Indexed docs pages are live
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+      # No install: the script uses only node built-ins.
+      - run: node documentation/scripts/check-docs-index-live.mjs
