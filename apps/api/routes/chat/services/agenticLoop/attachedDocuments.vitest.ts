@@ -2,6 +2,8 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 import {
   attachedDocsQuery,
+  materialReaderTools,
+  resolveTurnMaterial,
   retrievableAttachedSources,
   retrieveAttachedDocuments,
 } from './attachedDocuments.js';
@@ -59,6 +61,69 @@ describe('retrievableAttachedSources', () => {
 
   it('verträgt einen Zustand ohne Dokumentquellen', () => {
     expect(retrievableAttachedSources(stateWith())).toEqual([]);
+  });
+});
+
+describe('resolveTurnMaterial', () => {
+  it('ordnet jede Quellart genau einem Leseweg zu', () => {
+    const state = stateWith({
+      documentSources: [
+        src('document', 'a'),
+        src('system_document', 's'),
+        src('wolke', 'w'),
+        src('connect', 'x'),
+        src('notebook', 'n'),
+        src('attachment', 't'),
+        src('current_doc', 'd'),
+      ],
+    });
+    const m = resolveTurnMaterial(state);
+    expect(m.qdrantDocs.map((s) => s.id)).toEqual(['a', 's']);
+    expect(m.cloudFiles.map((s) => s.id)).toEqual(['w', 'x']);
+    expect(m.notebooks.map((s) => s.id)).toEqual(['n']);
+    expect(m.pageUrls).toEqual([]);
+  });
+
+  /**
+   * Die Falle aus #5266: die Modi von `dokumente_lesen` lesen per Dokument-Id
+   * aus Qdrant. Eine Wolke- oder Connect-Datei dort hiesse, Modi zu montieren,
+   * die sie nicht lesen können.
+   */
+  it('hält Cloud-Dateien aus der Qdrant-Gruppe heraus', () => {
+    const state = stateWith({ documentSources: [src('wolke', 'w'), src('connect', 'x')] });
+    expect(resolveTurnMaterial(state).qdrantDocs).toEqual([]);
+    expect(retrievableAttachedSources(state)).toEqual([]);
+  });
+
+  it('nimmt die @link-Seiten des Turns mit, aber keinen Wolke-Freigabe-Link', () => {
+    const state = stateWith({
+      attachedWebpageUrls: ['https://gruene.de/a', 'https://wolke.netzbegruenung.de/s/abc'],
+    });
+    expect(resolveTurnMaterial(state).pageUrls).toEqual(['https://gruene.de/a']);
+  });
+});
+
+describe('materialReaderTools', () => {
+  it('nennt je Gruppe das Werkzeug, das sie im Loop nachliest', () => {
+    const state = stateWith({
+      documentSources: [src('document', 'a'), src('wolke', 'w'), src('notebook', 'n')],
+      attachedWebpageUrls: ['https://gruene.de/a'],
+    });
+    expect(materialReaderTools(resolveTurnMaterial(state))).toEqual([
+      'dokumente_lesen',
+      'cloud_files',
+      'scrape_url',
+      'notebook_quellen',
+    ]);
+  });
+
+  it('hat für eine Connect-Datei kein Lesewerkzeug', () => {
+    const state = stateWith({ documentSources: [src('connect', 'x')] });
+    expect(materialReaderTools(resolveTurnMaterial(state))).toEqual([]);
+  });
+
+  it('bleibt ohne Material leer', () => {
+    expect(materialReaderTools(resolveTurnMaterial(stateWith()))).toEqual([]);
   });
 });
 

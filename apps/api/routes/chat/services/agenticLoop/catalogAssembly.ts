@@ -25,7 +25,7 @@ import {
 } from '../../agents/lvRecipePreference.js';
 import { loadManagedMcpCatalog as loadManagedMcpCatalogReal } from '../../agents/managedMcpCatalog.js';
 import { loadMcpCatalog as loadMcpCatalogReal, type McpCatalog } from '../../agents/mcpCatalog.js';
-import { attachedPageUrls, CRAWL_SNIPPET_CHARS, readNamedPages } from '../../agents/namedPages.js';
+import { CRAWL_SNIPPET_CHARS, readNamedPages } from '../../agents/namedPages.js';
 import {
   buildRecipeCatalog as buildRecipeCatalogReal,
   recommendedToolsFor,
@@ -47,8 +47,9 @@ import {
 import { type AskHumanGate } from './askHumanGate.js';
 import {
   ATTACHED_DOC_SNIPPET_CHARS,
+  ATTACHED_DOCS_TOOL,
   attachedDocsQuery,
-  retrievableAttachedSources,
+  resolveTurnMaterial,
   retrieveAttachedDocuments,
 } from './attachedDocuments.js';
 import { type ClientToolGate } from './clientToolGate.js';
@@ -739,11 +740,10 @@ export async function seedAttachedDocuments(params: {
   onError: (message: string) => void;
 }): Promise<SeededAttachedDocuments> {
   try {
+    const material = resolveTurnMaterial(params.state);
     const sources = [
-      ...retrievableAttachedSources(params.state),
-      ...(params.includeNotebooks
-        ? (params.state.documentSources ?? []).filter((s) => s.kind === 'notebook')
-        : []),
+      ...material.qdrantDocs,
+      ...(params.includeNotebooks ? material.notebooks : []),
     ];
     if (sources.length === 0) return NOTHING_SEEDED;
 
@@ -836,9 +836,7 @@ export async function seedAttachedCloudFiles(params: {
   onError: (message: string) => void;
 }): Promise<SeededAttachedDocuments> {
   const { state } = params;
-  const sources = (state.documentSources ?? []).filter(
-    (s) => s.kind === 'wolke' || s.kind === 'connect'
-  );
+  const sources = resolveTurnMaterial(state).cloudFiles;
   if (sources.length === 0) return NOTHING_SEEDED;
   if (state.cloudFilesCarriedOnly && state.intent !== 'search') return NOTHING_SEEDED;
 
@@ -924,7 +922,7 @@ export async function seedAttachedPages(params: {
   onError: (message: string) => void;
 }): Promise<SeededAttachedDocuments> {
   if (!params.isMounted) return NOTHING_SEEDED;
-  const urls = attachedPageUrls(params.state);
+  const urls = resolveTurnMaterial(params.state).pageUrls;
   if (urls.length === 0) return NOTHING_SEEDED;
   try {
     const { results } = await readNamedPages(urls);
@@ -970,6 +968,57 @@ export async function seedAttachedPages(params: {
     );
     return NOTHING_SEEDED;
   }
+}
+
+/**
+ * Der eine Vorab-Abruf für das Material eines Loop-Turns (#5266): ruft die
+ * Seeds je Leseweg (`resolveTurnMaterial`) und meldet EIN `delivered` an
+ * `shouldForceFirstToolCall`. Bis dahin standen drei Aufrufe nebeneinander im
+ * Aufrufer, und der Seiten-Seed fehlte im `delivered` — ein Turn mit bereits
+ * gelesener @link-Seite bekam trotzdem einen erzwungenen Aufruf.
+ *
+ * Die Reihenfolge ist die Zitat-Numerierung: Dokumente, Cloud-Dateien, Seiten.
+ * Ein gerechneter Tabellen-Turn (`tabelle_auswerten` montiert) zitiert keine
+ * Tabellenauszüge und liest das gewählte Notebook mit (Begründung an
+ * `seedAttachedDocuments`).
+ */
+export async function seedTurnMaterial(params: {
+  state: ChatGraphState;
+  sourceRegistry: SourceRegistry;
+  isMounted: (toolName: string) => boolean;
+  onInfo: (message: string) => void;
+  onError: (message: string) => void;
+}): Promise<SeededAttachedDocuments> {
+  const { state, sourceRegistry, isMounted, onInfo, onError } = params;
+  const tabular = isMounted('tabelle_auswerten');
+  const docs = await seedAttachedDocuments({
+    state,
+    sourceRegistry,
+    toolName: ATTACHED_DOCS_TOOL,
+    isMounted: isMounted(ATTACHED_DOCS_TOOL),
+    skipTables: tabular,
+    includeNotebooks: tabular,
+    onInfo,
+    onError,
+  });
+  const cloud = await seedAttachedCloudFiles({
+    state,
+    sourceRegistry,
+    isMounted: isMounted('cloud_files'),
+    onInfo,
+    onError,
+  });
+  const pages = await seedAttachedPages({
+    state,
+    sourceRegistry,
+    isMounted: isMounted('scrape_url'),
+    onInfo,
+    onError,
+  });
+  return {
+    replay: [...docs.replay, ...cloud.replay, ...pages.replay],
+    delivered: docs.delivered || cloud.delivered || pages.delivered,
+  };
 }
 
 /**

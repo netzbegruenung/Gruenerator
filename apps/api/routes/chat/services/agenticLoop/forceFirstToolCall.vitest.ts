@@ -831,7 +831,7 @@ describe('forcedFirstStepTools', () => {
         mcpToolNames: [],
         priorToolNames: ['gruenerator_search'],
         isLookupTool: (name) => !NOT_LOOKUP.has(name),
-        attachedDocsTool: 'dokumente_lesen',
+        materialTools: ['dokumente_lesen'],
         userText: 'Welche Buchung war die größte?',
       })
     ).toEqual(['tabelle_auswerten', 'direkt_antworten']);
@@ -846,7 +846,7 @@ describe('forcedFirstStepTools', () => {
       mcpToolNames: ['m1__list', 'm1__get'],
       priorToolNames: [],
       isLookupTool: (name) => !NOT_LOOKUP.has(name),
-      attachedDocsTool: null,
+      materialTools: [],
       userText: '',
       ...over,
     });
@@ -905,21 +905,34 @@ describe('forcedFirstStepTools', () => {
 
   it('named_intent: search mit Anhang (Seed leer) → nur die angehängten Dokumente', () => {
     expect(
-      tools({ reason: 'named_intent', intent: 'search', attachedDocsTool: 'dokumente_lesen' })
+      tools({ reason: 'named_intent', intent: 'search', materialTools: ['dokumente_lesen'] })
     ).toEqual(['dokumente_lesen']);
+  });
+
+  // Live 02.11.2026: der Seed der gewählten Wolke-Datei lieferte nichts, und
+  // der erzwungene Schritt suchte im Grünerator-Index (#5266).
+  it('named_intent: search mit Wolke-Datei (Seed leer) → cloud_files, nicht gruenerator_search', () => {
+    expect(
+      tools({
+        reason: 'named_intent',
+        intent: 'search',
+        mounted: [...MOUNTED, 'cloud_files'],
+        materialTools: ['cloud_files'],
+      })
+    ).toEqual(['cloud_files']);
   });
 
   it.each(['demoted_retrieval', 'contradicted', 'followup'] as const)(
     '%s mit Anhang: die angehängten Dokumente sind dabei',
     (reason) => {
-      expect(tools({ reason, attachedDocsTool: 'dokumente_lesen' })).toContain('dokumente_lesen');
+      expect(tools({ reason, materialTools: ['dokumente_lesen'] })).toContain('dokumente_lesen');
     }
   );
 
   it.each(['research_order', 'mcp_scope'] as const)(
     '%s mit Anhang: die angehängten Dokumente bleiben draussen',
     (reason) => {
-      expect(tools({ reason, attachedDocsTool: 'dokumente_lesen' })).not.toContain(
+      expect(tools({ reason, materialTools: ['dokumente_lesen'] })).not.toContain(
         'dokumente_lesen'
       );
     }
@@ -1102,7 +1115,7 @@ describe('sharepic_order', () => {
         mcpToolNames: [],
         priorToolNames: [],
         isLookupTool: () => true,
-        attachedDocsTool: null,
+        materialTools: [],
         userText: 'Prüf das Sharepic',
       })
     ).toEqual(['edit_sharepic', 'read_sharepic']);
@@ -1130,7 +1143,7 @@ describe('artifact_edit_order', () => {
         mcpToolNames: [],
         priorToolNames: [],
         isLookupTool: () => true,
-        attachedDocsTool: null,
+        materialTools: [],
         userText: 'Da fehlt noch Marburg',
       })
     ).toEqual(['edit_sheet', 'read_sheet']);
