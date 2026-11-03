@@ -110,10 +110,20 @@ function GrueneratorPagePicker({
     [addPage, layoutLocale, pageCount]
   );
 
+  // „Leere Seite": the add picker offers only blank pages. They stay in the
+  // deck's brand but don't take the current page's photo or colour (#5256).
+  const handleAddBlankPage = useCallback(
+    (configId: string) => {
+      void addPage?.(configId, { brand: true, background: false });
+    },
+    [addPage]
+  );
+
   const isAdd = mode === 'add';
   return (
     <TemplatePickerFlyout
       {...flyout}
+      onSelectTemplate={isAdd && addPage ? handleAddBlankPage : flyout.onSelectTemplate}
       mode={mode}
       currentTemplateId={current}
       onAddSliderVariant={isAdd && isSliderDeck(pages) ? handleAddSliderVariant : undefined}
