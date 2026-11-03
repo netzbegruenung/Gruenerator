@@ -15,7 +15,7 @@ export const MUSTERGRUEN_COLLECTION = {
   kicker: 'Musterkollektion · Wahlkampf',
   title: 'Maxi für Mustergrün',
   description:
-    'So kann das Kampagnen-Paket eines Landesverbands aussehen: Profilbild-Rahmen, Sticker, Hintergründe, Sharepics, Stories und Visitenkarten für die Kandidatin Maxi Mustermensch, dazu ein Agent für ihre Texte. Alles ausgedacht, alles anpassbar.',
+    'So kann das Kampagnen-Paket eines Landesverbands aussehen: Profilbild-Rahmen, Sticker, Hintergründe, Sharepics, Stories und Visitenkarten für die Kandidatin Maxi Mustermensch, dazu Agents für ihre Texte und für Einladungen zu ihren Terminen. Alles ausgedacht, alles anpassbar.',
   tone: 'klee',
   cover: {
     file: 'mustergruen-v1',
@@ -24,6 +24,7 @@ export const MUSTERGRUEN_COLLECTION = {
   },
   pinned: [
     { kind: 'agent', ref: 'mustergruen-maxi-mustermensch' },
+    { kind: 'agent', ref: 'mustergruen-maxi-einladung' },
     { kind: 'agent', ref: 'gruenerator-oeffentlichkeitsarbeit' },
     { kind: 'recipe', ref: 'presse' },
     { kind: 'recipe', ref: 'instagram' },
@@ -62,6 +63,7 @@ export const MUSTERGRUEN_COLLECTION = {
       heading: 'Für die Texte',
       items: [
         { kind: 'agent', ref: 'mustergruen-maxi-mustermensch' },
+        { kind: 'agent', ref: 'mustergruen-maxi-einladung' },
         { kind: 'recipe', ref: 'presse' },
         { kind: 'recipe', ref: 'instagram' },
       ],
