@@ -93,6 +93,13 @@ export interface LandtagBerlinRunOptions {
   concurrency?: number;
   /** Nach so vielen gespeicherten Dokumenten aufhören (Probelauf). */
   limit?: number;
+  /**
+   * Ab diesem Zeitpunkt (Epoch ms) beginnt kein neues Dokument mehr; laufende
+   * werden fertig geschrieben. Für Läufe im Nachtfenster — ein harter Abbruch
+   * könnte ein halb geschriebenes Dokument hinterlassen, das danach als bekannt
+   * gilt.
+   */
+  stopAt?: number;
   /** Herunterladen, auslesen und zerlegen, aber nicht einbetten und nicht schreiben. */
   dryRun?: boolean;
   /** Auch Dokumente neu schreiben, die schon da sind. */
@@ -218,7 +225,10 @@ export class LandtagBerlinScraper extends BaseScraper {
   }
 
   #limitReached(options: LandtagBerlinRunOptions, summary: LandtagBerlinRunSummary): boolean {
-    return options.limit !== undefined && summary.stored >= options.limit;
+    return (
+      (options.limit !== undefined && summary.stored >= options.limit) ||
+      (options.stopAt !== undefined && Date.now() >= options.stopAt)
+    );
   }
 
   async #listAll(
