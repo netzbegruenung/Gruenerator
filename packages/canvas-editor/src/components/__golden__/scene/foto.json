@@ -382,7 +382,7 @@
            "x": 0,
            "y": 0,
            "radius": 175,
-           "fill": "#00CC4F"
+           "fill": "#0A99D2"
           }
          },
          {
@@ -395,7 +395,7 @@
            "fontSize": 86,
            "fontFamily": "GrueneTypeNeue, Arial, sans-serif",
            "fontStyle": "bold",
-           "fill": "#00261A",
+           "fill": "#FFFFFF",
            "align": "center",
            "listening": true,
            "visible": true
@@ -411,7 +411,7 @@
            "fontSize": 86,
            "fontFamily": "GrueneTypeNeue, Arial, sans-serif",
            "fontStyle": "bold",
-           "fill": "#00261A",
+           "fill": "#FFFFFF",
            "align": "center",
            "listening": true,
            "visible": true

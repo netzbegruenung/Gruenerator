@@ -1412,7 +1412,7 @@ exports[`buildPptxModel — fixtures > maps composer carousels on their own form
             "x": 710,
             "y": 40,
           },
-          "fill": "#00CC4F",
+          "fill": "#0A99D2",
           "id": "sc-stoerer",
           "kind": "shape",
           "opacity": 1,
@@ -1430,7 +1430,7 @@ exports[`buildPptxModel — fixtures > maps composer carousels on their own form
             "x": 704.5707207513007,
             "y": 120.28206894437909,
           },
-          "color": "#00261A",
+          "color": "#FFFFFF",
           "fontFace": "GrueneTypeNeue",
           "fontSize": 81,
           "id": "sc-stoerer#line-0",
@@ -1446,7 +1446,7 @@ exports[`buildPptxModel — fixtures > maps composer carousels on their own form
               "runs": [
                 {
                   "bold": false,
-                  "color": "#00261A",
+                  "color": "#FFFFFF",
                   "fontFace": null,
                   "highlight": null,
                   "italic": false,
@@ -1470,7 +1470,7 @@ exports[`buildPptxModel — fixtures > maps composer carousels on their own form
             "x": 715.4292792486993,
             "y": 208.7179310556209,
           },
-          "color": "#00261A",
+          "color": "#FFFFFF",
           "fontFace": "GrueneTypeNeue",
           "fontSize": 81,
           "id": "sc-stoerer#line-1",
@@ -1486,7 +1486,7 @@ exports[`buildPptxModel — fixtures > maps composer carousels on their own form
               "runs": [
                 {
                   "bold": false,
-                  "color": "#00261A",
+                  "color": "#FFFFFF",
                   "fontFace": null,
                   "highlight": null,
                   "italic": false,
