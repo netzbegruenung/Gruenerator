@@ -2242,7 +2242,7 @@
          "y": 1220,
          "scaleX": 1,
          "scaleY": 1,
-         "rotation": -10,
+         "rotation": -7,
          "opacity": 1,
          "draggable": true
         },
@@ -2253,7 +2253,7 @@
            "x": 0,
            "y": 0,
            "radius": 170,
-           "fill": "#00CC4F"
+           "fill": "#0A99D2"
           }
          },
          {
@@ -2261,12 +2261,12 @@
           "attrs": {
            "text": "Di",
            "x": -170,
-           "y": -79,
+           "y": -110.5,
            "width": 340,
-           "fontSize": 48,
-           "fontFamily": "PT Sans, Arial, sans-serif",
-           "fontStyle": "bold",
-           "fill": "#005538",
+           "fontSize": 69,
+           "fontFamily": "GrueneTypeNeue, Arial, sans-serif",
+           "fontStyle": "normal",
+           "fill": "#FFFFFF",
            "align": "center",
            "listening": true,
            "visible": true
@@ -2277,12 +2277,12 @@
           "attrs": {
            "text": "18.11.",
            "x": -170,
-           "y": -19.5,
+           "y": -34.5,
            "width": 340,
-           "fontSize": 47,
-           "fontFamily": "PT Sans, Arial, sans-serif",
+           "fontSize": 69,
+           "fontFamily": "GrueneTypeNeue, Arial, sans-serif",
            "fontStyle": "normal",
-           "fill": "#005538",
+           "fill": "#FFFFFF",
            "align": "center",
            "listening": true,
            "visible": true
@@ -2293,12 +2293,12 @@
           "attrs": {
            "text": "19 Uhr",
            "x": -170,
-           "y": 44.5,
+           "y": 41.5,
            "width": 340,
-           "fontSize": 47,
-           "fontFamily": "PT Sans, Arial, sans-serif",
-           "fontStyle": "bold",
-           "fill": "#005538",
+           "fontSize": 69,
+           "fontFamily": "GrueneTypeNeue, Arial, sans-serif",
+           "fontStyle": "normal",
+           "fill": "#FFFFFF",
            "align": "center",
            "listening": true,
            "visible": true

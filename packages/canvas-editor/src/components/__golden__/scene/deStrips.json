@@ -72,9 +72,9 @@
         "attrs": {
          "id": "sc-0-headline-0",
          "x": 70,
-         "y": 718.8956338028169,
-         "width": 600,
-         "height": 243.84,
+         "y": 730.5656338028169,
+         "width": 940,
+         "height": 380.15999999999997,
          "rotation": 0,
          "opacity": 1,
          "draggable": true,
@@ -84,8 +84,8 @@
          {
           "className": "Rect",
           "attrs": {
-           "width": 600,
-           "height": 243.84,
+           "width": 940,
+           "height": 380.15999999999997,
            "fill": "transparent"
           }
          },
@@ -95,7 +95,7 @@
            "text": "Infos-",
            "x": 0,
            "y": 0,
-           "fontSize": 127,
+           "fontSize": 198,
            "fontFamily": "GrueneTypeNeue",
            "fontStyle": "normal",
            "letterSpacing": 0,
@@ -113,8 +113,8 @@
           "attrs": {
            "text": "tand",
            "x": 0,
-           "y": 121.92,
-           "fontSize": 127,
+           "y": 190.07999999999998,
+           "fontSize": 198,
            "fontFamily": "GrueneTypeNeue",
            "fontStyle": "normal",
            "letterSpacing": 0,
@@ -135,6 +135,54 @@
       "className": "Group",
       "attrs": {
        "name": "canvas-item",
+       "canvasItemId": "sc-datum"
+      },
+      "children": [
+       {
+        "className": "Group",
+        "attrs": {
+         "x": 870,
+         "y": 1130,
+         "scaleX": 1,
+         "scaleY": 1,
+         "rotation": -7,
+         "opacity": 1,
+         "draggable": true
+        },
+        "children": [
+         {
+          "className": "Circle",
+          "attrs": {
+           "x": 0,
+           "y": 0,
+           "radius": 170,
+           "fill": "#0A99D2"
+          }
+         },
+         {
+          "className": "Text",
+          "attrs": {
+           "text": "3.4.",
+           "x": -170,
+           "y": -59.5,
+           "width": 340,
+           "fontSize": 119,
+           "fontFamily": "GrueneTypeNeue, Arial, sans-serif",
+           "fontStyle": "normal",
+           "fill": "#FFFFFF",
+           "align": "center",
+           "listening": true,
+           "visible": true
+          }
+         }
+        ]
+       }
+      ]
+     },
+     {
+      "className": "Group",
+      "attrs": {
+       "name": "canvas-item",
        "canvasItemId": "sc-ort"
       },
       "children": [
@@ -143,9 +191,9 @@
         "attrs": {
          "id": "sc-ort",
          "text": "Marktplatz",
-         "x": 70,
-         "y": 884.8156338028168,
-         "width": 600,
+         "x": 354,
+         "y": 1238.5,
+         "width": 316,
          "fontSize": 38,
          "fontFamily": "PT Sans",
          "fontStyle": "normal",
@@ -167,54 +215,6 @@
          "draggable": true,
          "visible": true
         }
-       }
-      ]
-     },
-     {
-      "className": "Group",
-      "attrs": {
-       "name": "canvas-item",
-       "canvasItemId": "sc-datum"
-      },
-      "children": [
-       {
-        "className": "Group",
-        "attrs": {
-         "x": 870,
-         "y": 1130,
-         "scaleX": 1,
-         "scaleY": 1,
-         "rotation": -10,
-         "opacity": 1,
-         "draggable": true
-        },
-        "children": [
-         {
-          "className": "Circle",
-          "attrs": {
-           "x": 0,
-           "y": 0,
-           "radius": 170,
-           "fill": "#00CC4F"
-          }
-         },
-         {
-          "className": "Text",
-          "attrs": {
-           "text": "3.4.",
-           "x": -170,
-           "y": -23.5,
-           "width": 340,
-           "fontSize": 47,
-           "fontFamily": "PT Sans, Arial, sans-serif",
-           "fontStyle": "normal",
-           "fill": "#005538",
-           "align": "center",
-           "listening": true,
-           "visible": true
-          }
-         }
-        ]
        }
       ]
      },

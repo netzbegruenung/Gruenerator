@@ -25,11 +25,7 @@ export function fitStoererText(
   minSize = 20
 ): { lines: string[]; size: number } | null {
   const inner = radius * STOERER_TEXT_SHARE;
-  const fits = (lines: string[], size: number) =>
-    lines.every((line, i) => {
-      const edge = Math.abs((i - (lines.length - 1) / 2) * size * STOERER_LINE_STEP) + size / 2;
-      return (measureLine(line, size) / 2) ** 2 + edge ** 2 <= inner ** 2;
-    });
+  const fits = (lines: string[], size: number) => linesFit(lines, size, inner, measureLine);
   for (let size = maxSize; size >= minSize; size--) {
     const measureAt = (l: string) => measureLine(l, size);
     // Narrower wraps trade width for lines; the circle has room for either.
@@ -37,6 +33,37 @@ export function fitStoererText(
       const lines = balancedWrap(text, width, measureAt);
       if (fits(lines, size)) return { lines, size };
     }
+  }
+  return null;
+}
+
+/** Every line, a box `size` high centred on its offset, lies inside a circle of radius `inner`. */
+function linesFit(
+  lines: readonly string[],
+  size: number,
+  inner: number,
+  measureLine: (line: string, size: number) => number
+): boolean {
+  return lines.every((line, i) => {
+    const edge = Math.abs((i - (lines.length - 1) / 2) * size * STOERER_LINE_STEP) + size / 2;
+    return (measureLine(line, size) / 2) ** 2 + edge ** 2 <= inner ** 2;
+  });
+}
+
+/**
+ * Fixed lines (a date circle's weekday, date, time) as a Störer sets them: the
+ * largest size at which they fit inside 90 % of the circle.
+ */
+export function fitStoererLines(
+  lines: readonly string[],
+  radius: number,
+  measureLine: (line: string, size: number) => number,
+  maxSize: number,
+  minSize = 20
+): number | null {
+  const inner = radius * STOERER_TEXT_SHARE;
+  for (let size = maxSize; size >= minSize; size--) {
+    if (linesFit(lines, size, inner, measureLine)) return size;
   }
   return null;
 }

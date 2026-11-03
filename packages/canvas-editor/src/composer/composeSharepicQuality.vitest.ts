@@ -103,7 +103,7 @@ describe.each(['de-DE', 'de-AT'] as const)('date circle without a time (%s)', (l
 });
 
 describe.each(['de-DE', 'de-AT'] as const)('date circle under a photo strip (%s)', (locale) => {
-  it('runs the column beside the circle, the place right under the text', () => {
+  it('runs the column beside the circle, the place in the footer beside it', () => {
     const [s] = compose(locale, [
       slide({
         background: {
@@ -123,15 +123,159 @@ describe.each(['de-DE', 'de-AT'] as const)('date circle under a photo strip (%s)
     const c = s!.circleBadgeInstances.find((b) => b.id === 'sc-datum')!;
     expect(c.y).toBeGreaterThan(1350 * 0.7);
     const block = texts(s!).filter((t) => /^sc-\d/.test(t.id));
-    for (const t of block) expect(t.x + t.width).toBeLessThanOrEqual(c.x - c.radius);
+    // The text beside the circle stays left of it; the headline, on the full
+    // width, ends above it.
+    for (const t of block.filter((t) => !t.id.includes('headline'))) {
+      expect(t.x + t.width).toBeLessThanOrEqual(c.x - c.radius);
+    }
+    const head = block.find((t) => t.id.includes('headline'))!;
+    expect(
+      head.y + head.text.split('\n').length * head.fontSize * (head.lineHeight ?? 1.2)
+    ).toBeLessThan(c.y - c.radius);
     // The paragraph stays readable in the short panel.
     expect(block.find((t) => t.id.endsWith('absatz'))!.fontSize).toBeGreaterThanOrEqual(36);
     const ort = s!.additionalTexts.find((t) => t.id === 'sc-ort')!;
     expect(ort.y).toBeGreaterThan(blockBottom(s!));
     expect(ort.x + ort.width).toBeLessThanOrEqual(c.x - c.radius);
-    // It ends the column, as on the event posters — not in the footer beside the logo.
-    expect(ort.x).toBe(block[0]!.x);
-    expect(ort.y - blockBottom(s!)).toBeLessThan(80);
+    // In the footer row with the date, not under the text: there it cost the
+    // headline its size.
+    expect(ort.y).toBeGreaterThan(c.y - c.radius);
+  });
+});
+
+describe('event slide with a place (de-termin)', () => {
+  it('keeps the headline at full size, the place does not take its room', () => {
+    const [s] = compose('de-DE', [
+      slide({
+        background: {
+          kind: 'foto-oben',
+          filename: 'x.jpg',
+          panelColor: 'hellgrau',
+        },
+        position: 'oben',
+        items: [
+          { type: 'headline', lines: ['Grüner', 'Stammtisch'] },
+          { type: 'text', text: 'Lern uns kennen – alle Interessierten sind willkommen.' },
+        ],
+        datum: { weekday: 'Do', date: '14.11.', time: '19 Uhr' },
+        ort: { lines: ['Café Linde', 'Hauptstraße 3'] },
+        logo: true,
+      }),
+    ]);
+    const head = texts(s!).find((t) => /^sc-\d+-headline/.test(t.id))!;
+    // 114 with the place in the footer; under the text it fell to 91.
+    expect(head.fontSize).toBeGreaterThanOrEqual(110);
+    const ort = s!.additionalTexts.find((t) => t.id === 'sc-ort')!;
+    expect(ort.y).toBeGreaterThan(blockBottom(s!));
+  });
+});
+
+describe('event slide with a wide headline beside the date circle', () => {
+  it('sets the headline on the full width, not the column beside the circle', () => {
+    const [s] = compose('de-DE', [
+      slide({
+        background: { kind: 'foto-oben', filename: 'x.jpg', panelColor: 'tanne' },
+        position: 'oben',
+        items: [
+          { type: 'headline', lines: ['Komm zu unserem', '==Wagen!=='] },
+          {
+            type: 'text',
+            text: 'Wir sind beim CSD Musterstadt dabei – feier und demonstrier mit uns.',
+          },
+        ],
+        datum: { weekday: 'Sa', date: '25.7.', time: '12 Uhr' },
+        ort: { lines: ['Start: Hauptbahnhof', 'Wagen Nr. 17'] },
+        logo: true,
+      }),
+    ]);
+    const c = s!.circleBadgeInstances.find((b) => b.id === 'sc-datum')!;
+    const head = texts(s!).find((t) => /^sc-\d+-headline/.test(t.id))!;
+    const body = texts(s!).find((t) => /^sc-\d+-text/.test(t.id))!;
+    // 119 on the full width; in the column beside the circle it was 76.
+    expect(head.fontSize).toBeGreaterThanOrEqual(110);
+    expect(head.x + head.width).toBeGreaterThan(c.x - c.radius);
+    // The text under it stays in the column beside the circle, at full size.
+    expect(body.x + body.width).toBeLessThanOrEqual(c.x - c.radius);
+    expect(body.fontSize).toBeGreaterThanOrEqual(36);
+  });
+
+  it('keeps a tall full-width headline above the circle', () => {
+    const [s] = compose('de-DE', [
+      slide({
+        background: { kind: 'foto-oben', filename: 'x.jpg', panelColor: 'mint' },
+        position: 'oben',
+        items: [{ type: 'headline', lines: ['Wagen', 'Fest', 'Demo', 'Party'] }],
+        datum: { weekday: 'Sa', date: '25.7.' },
+        logo: true,
+      }),
+    ]);
+    const c = s!.circleBadgeInstances.find((b) => b.id === 'sc-datum')!;
+    const head = texts(s!).find((t) => /^sc-\d+-headline/.test(t.id))!;
+    const rows = head.text.split('\n').length;
+    expect(head.y + rows * head.fontSize * (head.lineHeight ?? 1.2)).toBeLessThan(c.y - c.radius);
+  });
+
+  it('keeps a headline under a Dachzeile in the column beside the circle', () => {
+    const [s] = compose('de-DE', [
+      slide({
+        background: { kind: 'foto-oben', filename: 'x.jpg', panelColor: 'mint' },
+        position: 'oben',
+        items: [
+          { type: 'dachzeile', text: 'Am Samstag' },
+          { type: 'headline', lines: ['Wagen', 'Fest', 'Demo', 'Party'] },
+        ],
+        datum: { weekday: 'Sa', date: '25.7.' },
+        logo: true,
+      }),
+    ]);
+    const c = s!.circleBadgeInstances.find((b) => b.id === 'sc-datum')!;
+    const head = texts(s!).find((t) => /^sc-\d+-headline/.test(t.id))!;
+    expect(head.x + head.width).toBeLessThanOrEqual(c.x - c.radius);
+  });
+});
+
+describe('DE date circle type', () => {
+  it('fills the circle like a Störer: one size, tilted 7°', () => {
+    const [s] = compose('de-DE', [
+      slide({
+        background: { kind: 'foto-oben', filename: 'x.jpg', panelColor: 'hellgrau' },
+        position: 'oben',
+        items: [{ type: 'headline', lines: ['Grüner', 'Stammtisch'] }],
+        datum: { weekday: 'Do', date: '14.11.', time: '19 Uhr' },
+        logo: true,
+      }),
+    ]);
+    const c = s!.circleBadgeInstances.find((b) => b.id === 'sc-datum')!;
+    const sizes = c.textLines.map((l) => l.fontSize);
+    expect(new Set(sizes).size).toBe(1);
+    // The template set 47–48 px in this circle; fitted, the lines fill it.
+    expect(sizes[0]).toBeGreaterThanOrEqual(60);
+    expect(c.rotation).toBe(-7);
+  });
+
+  it('leaves a themed circle (badge colours) as it was', () => {
+    const [s] = composeSharepic(
+      {
+        locale: 'de-DE',
+        thema: 'frauen',
+        slides: [
+          slide({
+            background: { kind: 'foto-oben', filename: 'x.jpg', panelColor: 'hellgrau' },
+            position: 'oben',
+            items: [{ type: 'headline', lines: ['Grüner', 'Stammtisch'] }],
+            datum: { weekday: 'Do', date: '14.11.', time: '19 Uhr' },
+            logo: true,
+          }),
+        ],
+      },
+      options
+    ).slides;
+    const c = s!.circleBadgeInstances.find((b) => b.id === 'sc-datum')!;
+    expect(new Set(c.textLines.map((l) => l.fontSize)).size).toBeGreaterThan(1);
+    expect(c.rotation).not.toBe(-7);
+    // Body face with its own weights, as before the Störer type.
+    expect(c.textLines.some((l) => l.fontWeight === 'bold')).toBe(true);
+    expect(c.textLines.every((l) => !/GrueneType/.test(l.fontFamily))).toBe(true);
   });
 });
 
@@ -383,22 +527,19 @@ describe('DE date circle colour', () => {
       },
       options
     ).slides;
-    return s!.circleBadgeInstances.find((b) => b.id === 'sc-datum')!.backgroundColor;
+    const c = s!.circleBadgeInstances.find((b) => b.id === 'sc-datum')!;
+    return [c.backgroundColor, c.textColor];
   };
 
-  it('is Tanne on light and grass-green ground', () => {
-    expect(circleOn('mint')).toBe('#005538');
-    expect(circleOn('grasgruen')).toBe('#005538');
-  });
-
-  // Keyed on the ground's ink, not a list of names: aubergine and the queer
-  // theme's grounds came after the list and got a Tanne circle at ~1:1 (#4992).
+  // CD S.15: the Störer's Himmel (darkened by 5 %) with white on every ground.
   it.each([
+    ['mint', undefined],
+    ['grasgruen', undefined],
     ['tanne', undefined],
     ['aubergine', undefined],
     ['violett', 'queer'],
     ['pride', 'queer'],
-  ] as const)('is grass green on dark ground (%s)', (color, thema) => {
-    expect(circleOn(color, thema)).toBe(SHAREPIC_COLOR_HEX.grasgruen);
+  ] as const)('is Himmel with white on %s', (color, thema) => {
+    expect(circleOn(color, thema)).toEqual(['#0A99D2', '#FFFFFF']);
   });
 });

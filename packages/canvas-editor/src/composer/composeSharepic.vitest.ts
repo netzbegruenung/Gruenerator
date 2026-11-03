@@ -136,7 +136,11 @@ describe('composeSharepic', () => {
     const head = byId(props.additionalTexts, 'headline-0')!;
     expect(head.y).toBeGreaterThan(540);
     const circle = props.circleBadgeInstances[0]!;
-    expect(head.x + head.width).toBeLessThanOrEqual(circle.x - circle.radius);
+    // The headline takes the full width and ends above the circle.
+    const headRows = head.text.split('\n').length;
+    expect(head.y + headRows * head.fontSize * (head.lineHeight ?? 1.2)).toBeLessThan(
+      circle.y - circle.radius
+    );
     expect(head.fill).toBe(SHAREPIC_COLOR_HEX.dunkeltanne);
     expect(
       props.shapeInstances.some((s) => s.id.endsWith('liste-card') && s.fill === '#FFFFFF')
@@ -365,7 +369,8 @@ describe('composeSharepic — carousels', () => {
 
   it.each([
     ['de-AT', 'GothamNarrow-Ultra', ['normal', 'normal', 'normal']],
-    ['de-DE', 'PT Sans', ['bold', 'normal', 'bold']],
+    // DE: GrueneType, as on the Störer (CD S.15, S.24).
+    ['de-DE', 'GrueneTypeNeue', ['normal', 'normal', 'normal']],
   ] as const)('sets the date circle in the right face (%s)', (locale, family, weights) => {
     const props = composeSharepic(
       carousel(locale, [
@@ -1917,28 +1922,20 @@ describe.each(['de-DE', 'de-AT'] as const)('composeSharepic — KI label (%s)', 
     const panel = (panelColor: 'tanne' | 'dunkeltanne' | 'grasgruen' | 'mint' | 'hellgrau') =>
       ({ kind: 'foto-oben', filename: 'wind.jpg', panelColor }) as const;
 
-    it.each(['mint', 'hellgrau', 'grasgruen'] as const)(
-      'is Tanne with white text on a light or grass-green panel (%s)',
+    // CD S.15/S.24: the Störer's Himmel (darkened by 5 %) with white, on
+    // every panel and on photos.
+    it.each(['mint', 'hellgrau', 'grasgruen', 'tanne', 'dunkeltanne'] as const)(
+      'is Himmel with white text on a %s panel',
       (c) => {
         const circle = circleOn(panel(c));
-        expect(circle.backgroundColor).toBe('#005538');
-        expect(circle.textColor).toBe('#ffffff');
+        expect(circle.backgroundColor).toBe('#0A99D2');
+        expect(circle.textColor).toBe('#FFFFFF');
       }
     );
 
-    it.each(['tanne', 'dunkeltanne'] as const)(
-      'is grass green with Tanne text on a dark panel (%s)',
-      (c) => {
-        const circle = circleOn(panel(c));
-        expect(circle.backgroundColor).toBe(SHAREPIC_COLOR_HEX.grasgruen);
-        expect(circle.textColor).toBe('#005538');
-      }
-    );
-
-    it('is grass green on a photo slide, and never sky blue', () => {
+    it('is Himmel on a photo slide', () => {
       const circle = circleOn({ kind: 'foto', filename: 'wind.jpg', textSeite: 'unten' });
-      expect(circle.backgroundColor).toBe(SHAREPIC_COLOR_HEX.grasgruen);
-      expect(circle.backgroundColor.toLowerCase()).not.toBe('#0ba1dd');
+      expect(circle.backgroundColor).toBe('#0A99D2');
     });
 
     it('leaves the AT circle alone', () => {
@@ -2400,16 +2397,17 @@ describe('composeSharepic — Störer', () => {
       ],
     }).circleBadgeInstances.find((c) => c.id === 'sc-stoerer')!;
 
-  it('is Grasgrün with Dunkeltanne text, 7° ascending, in GrueneType Neue (current DE posts)', () => {
+  it('is Himmel with white text, 7° ascending, in GrueneType Neue (CD S.15)', () => {
     const badge = stoererOn('Jetzt!');
-    expect(badge.backgroundColor).toBe(SHAREPIC_COLOR_HEX.grasgruen);
-    expect(badge.textColor).toBe(SHAREPIC_COLOR_HEX.dunkeltanne);
+    expect(badge.backgroundColor).toBe('#0A99D2');
+    // White, not the CD's Sand: on Himmel darkened by 5 % it holds 3.2:1.
+    expect(badge.textColor).toBe('#FFFFFF');
     // Konva turns clockwise: negative rises left to right.
     expect(badge.rotation).toBe(-7);
     expect(badge.textLines.every((l) => l.fontFamily === 'GrueneTypeNeue')).toBe(true);
   });
 
-  it('turns Tanne with white text on a grass-green surface, so it stays visible', () => {
+  it('stays Himmel on a grass-green surface', () => {
     const badge = one({
       locale: 'de-DE',
       slides: [
@@ -2423,7 +2421,7 @@ describe('composeSharepic — Störer', () => {
         },
       ],
     }).circleBadgeInstances.find((c) => c.id === 'sc-stoerer')!;
-    expect(badge.backgroundColor).toBe('#005538');
+    expect(badge.backgroundColor).toBe('#0A99D2');
     expect(badge.textColor).toBe('#FFFFFF');
   });
 
