@@ -137,6 +137,34 @@ describe('seedAttachedCloudFiles', () => {
     expect(JSON.stringify(replay[1])).toContain('Download fehlgeschlagen');
   });
 
+  it('meldet jede Datei ohne Text als unlesbar, unabhängig vom Mount', async () => {
+    const second = { ...wolkeSource, id: 'wolke:link-1:/Haushalt.pdf', label: 'Haushalt.pdf' };
+    fanout.mockResolvedValue({
+      perSourceResults: { [wolkeSource.id]: [hit], [second.id]: [] },
+      searchedCollections: [],
+      errors: [],
+    });
+
+    const { delivered, unreadable } = await run(
+      stateWith({ documentSources: [wolkeSource, second] }),
+      false
+    );
+
+    expect(delivered).toBe(true);
+    expect(unreadable).toEqual([{ label: 'Haushalt.pdf', reason: null }]);
+  });
+
+  it('meldet bei einem geworfenen Abruf alle Dateien als unlesbar', async () => {
+    fanout.mockImplementationOnce(async () => {
+      throw new Error('Verbindung weg');
+    });
+
+    const { delivered, unreadable } = await run(stateWith());
+
+    expect(delivered).toBe(false);
+    expect(unreadable).toEqual([{ label: 'Protokoll.docx', reason: 'Verbindung weg' }]);
+  });
+
   it('liest eine nur mitgeführte Datei nur, wenn der Klassifikator lesen wollte', async () => {
     const { delivered } = await run(stateWith({ cloudFilesCarriedOnly: true, intent: 'agentic' }));
 

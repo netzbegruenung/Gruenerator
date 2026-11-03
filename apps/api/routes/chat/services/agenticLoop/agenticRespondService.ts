@@ -589,6 +589,7 @@ export async function streamAgenticResponse(
       sourceRegistry,
       recipeRegistry,
       opening: () => (emitter.openingEmitted ? emitter.openingSentence : null),
+      materialNote: seeded.writerNote,
     };
 
     // Split slots pick the best model per phase (fast tool-caller plans, best
@@ -839,9 +840,12 @@ export async function streamAgenticResponse(
       // registry mid-loop. Split mode's writer gets it via buildSynthSystem.
       // Auch die Notiz „Gegenstand ohne Quelle" (#5141): im Split-Modus trägt
       // sie buildSynthSystem, hier ist dieser Getter der einzige Kanal.
+      // Ebenso die Notiz über nicht lesbares Material (#5286): der Seed-Replay
+      // fehlt ohne montiertes Lesewerkzeug ganz.
       getRecipeBlock: () =>
         recipeRegistry.render() +
         offerNote(finalState, recipeRegistry.mentions) +
+        seeded.writerNote +
         (sourceRegistry.size > 0
           ? buildUncoveredTermNote(lastUserText, sourceRegistry.renderAll())
           : ''),

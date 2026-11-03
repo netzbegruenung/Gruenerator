@@ -722,6 +722,22 @@ export interface SeededAttachedDocuments {
 
 const NOTHING_SEEDED: SeededAttachedDocuments = { replay: [], delivered: false };
 
+/** Eine gewählte Cloud-Datei, aus der der Seed keinen Text bekam. */
+interface UnreadableFile {
+  label: string;
+  /** Die Fehlermeldung des Abrufs; `null`, wenn er ohne Fehler leer blieb. */
+  reason: string | null;
+}
+
+interface SeededCloudFiles extends SeededAttachedDocuments {
+  unreadable: UnreadableFile[];
+}
+
+export interface SeededTurnMaterial extends SeededAttachedDocuments {
+  /** Nicht zitierbare Notiz an den Schreiber; leer, wenn nichts zu sagen ist. */
+  writerNote: string;
+}
+
 export async function seedAttachedDocuments(params: {
   state: ChatGraphState;
   sourceRegistry: SourceRegistry;
@@ -826,6 +842,10 @@ export async function seedAttachedDocuments(params: {
  * Der Planer bekommt je Wolke-Datei ein `cloud_files`-`read`-Paar, sofern das
  * Werkzeug montiert ist. Für Connect-Dateien gibt es im Loop kein
  * Lesewerkzeug; sie gehen nur an den Schreiber.
+ *
+ * `unreadable` meldet jede gewählte Datei ohne Text — unabhängig vom Mount,
+ * denn der Planer-Replay erreicht den Schreiber nie (#5286, siehe
+ * `unreadableCloudFilesNote`).
  */
 export async function seedAttachedCloudFiles(params: {
   state: ChatGraphState;
@@ -834,11 +854,13 @@ export async function seedAttachedCloudFiles(params: {
   isMounted: boolean;
   onInfo: (message: string) => void;
   onError: (message: string) => void;
-}): Promise<SeededAttachedDocuments> {
+}): Promise<SeededCloudFiles> {
   const { state } = params;
   const sources = resolveTurnMaterial(state).cloudFiles;
-  if (sources.length === 0) return NOTHING_SEEDED;
-  if (state.cloudFilesCarriedOnly && state.intent !== 'search') return NOTHING_SEEDED;
+  if (sources.length === 0) return { ...NOTHING_SEEDED, unreadable: [] };
+  if (state.cloudFilesCarriedOnly && state.intent !== 'search') {
+    return { ...NOTHING_SEEDED, unreadable: [] };
+  }
 
   try {
     const query = attachedDocsQuery(state) || sources.map((s) => s.label).join(' ');
@@ -853,7 +875,13 @@ export async function seedAttachedCloudFiles(params: {
         `[Agentic] ${results.length} Passage(n) aus ${sources.length} Cloud-Datei(en) vorab gelesen`
       );
     }
-    if (!params.isMounted) return { replay: [], delivered };
+    const unreadable: UnreadableFile[] = sources
+      .filter((src) => (fanout.perSourceResults[src.id] ?? []).length === 0)
+      .map((src) => ({
+        label: src.label,
+        reason: fanout.errors.find((e) => e.source.endsWith(src.id))?.message ?? null,
+      }));
+    if (!params.isMounted) return { replay: [], delivered, unreadable };
 
     const userId = state.agentConfig.userId ?? 'anon';
     const replay: ModelMessage[] = [];
@@ -891,12 +919,11 @@ export async function seedAttachedCloudFiles(params: {
         }
       );
     }
-    return { replay, delivered };
+    return { replay, delivered, unreadable };
   } catch (err) {
-    params.onError(
-      `[Agentic] Vorab-Abruf der Cloud-Dateien übersprungen: ${err instanceof Error ? err.message : err}`
-    );
-    return NOTHING_SEEDED;
+    const reason = err instanceof Error ? err.message : String(err);
+    params.onError(`[Agentic] Vorab-Abruf der Cloud-Dateien übersprungen: ${reason}`);
+    return { ...NOTHING_SEEDED, unreadable: sources.map((src) => ({ label: src.label, reason })) };
   }
 }
 
@@ -988,7 +1015,7 @@ export async function seedTurnMaterial(params: {
   isMounted: (toolName: string) => boolean;
   onInfo: (message: string) => void;
   onError: (message: string) => void;
-}): Promise<SeededAttachedDocuments> {
+}): Promise<SeededTurnMaterial> {
   const { state, sourceRegistry, isMounted, onInfo, onError } = params;
   const tabular = isMounted('tabelle_auswerten');
   const docs = await seedAttachedDocuments({
@@ -1018,7 +1045,27 @@ export async function seedTurnMaterial(params: {
   return {
     replay: [...docs.replay, ...cloud.replay, ...pages.replay],
     delivered: docs.delivered || cloud.delivered || pages.delivered,
+    writerNote: unreadableCloudFilesNote(cloud.unreadable),
   };
+}
+
+/**
+ * Sagt dem Schreiber, welche gewählte Cloud-Datei sich nicht lesen ließ (#5286).
+ *
+ * Ohne diese Notiz hatte er keine Spur der Datei: der Fehlertext stand nur im
+ * `cloud_files`-Replay des Planers (ohne Mount gar nicht), die Registry blieb
+ * leer, und der Split-Schreiber las „du hast NICHTS recherchiert". Live
+ * 04.11.2026 antwortete er „Da du mir bisher keine Datei hochgeladen … hast".
+ *
+ * Bewusst NICHT über `sourceRegistry.seedAttached`: eine Fehlermeldung als
+ * nummerierte Quelle würde der Schreiber mit `[N]` belegen.
+ */
+export function unreadableCloudFilesNote(files: readonly UnreadableFile[]): string {
+  if (files.length === 0) return '';
+  const list = files
+    .map((f) => `„${f.label}"${f.reason ? ` (technischer Grund: ${f.reason})` : ''}`)
+    .join(', ');
+  return `\n\nANGEHÄNGTE DATEI NICHT LESBAR: Die Person hat diesem Turn ${files.length === 1 ? 'eine Datei' : 'Dateien'} aus ihrer Cloud mitgegeben, die sich nicht lesen ${files.length === 1 ? 'ließ' : 'ließen'}: ${list}. Sag genau das — die Datei ist angehängt, konnte aber nicht gelesen werden. Behaupte NICHT, es sei keine Datei angehängt oder hochgeladen, und erfinde keinen Inhalt. Den technischen Grund musst du nicht wörtlich wiedergeben. Schlag vor, die Cloud-Verbindung und den Dateipfad zu prüfen oder die Datei direkt hochzuladen. Für diese Datei gibt es keine [N]-Belege.`;
 }
 
 /**

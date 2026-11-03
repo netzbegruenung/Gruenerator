@@ -105,8 +105,28 @@ describe('seedTurnMaterial', () => {
 
   it('liefert nichts ohne Material', async () => {
     const seeded = await run(stateWith(), ['dokumente_lesen', 'cloud_files', 'scrape_url']);
-    expect(seeded).toEqual({ replay: [], delivered: false });
+    expect(seeded).toEqual({ replay: [], delivered: false, writerNote: '' });
     expect(fanout).not.toHaveBeenCalled();
+  });
+
+  // #5286: der Fehlertext im cloud_files-Replay erreicht nur den Planer.
+  it('sagt dem Schreiber, welche Cloud-Datei nicht lesbar war — auch ohne cloud_files', async () => {
+    fanout.mockResolvedValue({
+      perSourceResults: { [wolke.id]: [] },
+      searchedCollections: [],
+      errors: [{ source: `wolke:${wolke.id}`, message: 'DNS lookup failed' }],
+    });
+    const seeded = await run(stateWith({ documentSources: [wolke] }), []);
+    expect(seeded.delivered).toBe(false);
+    expect(seeded.replay).toEqual([]);
+    expect(seeded.writerNote).toContain('ANGEHÄNGTE DATEI NICHT LESBAR');
+    expect(seeded.writerNote).toContain('„Protokoll.docx" (technischer Grund: DNS lookup failed)');
+  });
+
+  it('hat keine Notiz, wenn die Cloud-Datei gelesen wurde', async () => {
+    const seeded = await run(stateWith({ documentSources: [wolke] }), ['cloud_files']);
+    expect(seeded.delivered).toBe(true);
+    expect(seeded.writerNote).toBe('');
   });
 
   it('nimmt das Notebook nur mit, wenn tabelle_auswerten montiert ist', async () => {
