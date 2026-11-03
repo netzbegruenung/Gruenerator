@@ -17,11 +17,7 @@ import { wrapLanguageModel } from 'ai';
 
 import { createLogger } from '../../utils/logger.js';
 
-import {
-  createToolCallTextFilter,
-  type TextToolCall,
-  type ToolCallTextFilter,
-} from './gemmaToolCallText.js';
+import { createToolCallTextFilter, type TextToolCall } from './gemmaToolCallText.js';
 
 import type { LanguageModel, LanguageModelMiddleware } from 'ai';
 
@@ -176,6 +172,35 @@ function routeTextCalls(calls: TextToolCall[], known: Set<string>) {
   return { runnable, text };
 }
 
+export interface AnswerToolCallFilter {
+  /** Feed visible text; returns what to show and the calls that can run. */
+  push(delta: string): { text: string; runnable: TextToolCall[] };
+  /** Release held-back text; an unclosed call is dropped. */
+  flush(): string;
+}
+
+/**
+ * Text tool calls out of one answer stream: runnable ones are returned, a
+ * rescued argument follows the text before it a paragraph apart. `known` empty
+ * means no tool can run — the raw reasoning stream has none mounted.
+ */
+export function createAnswerToolCallFilter(known: Set<string>): AnswerToolCallFilter {
+  const filter = createToolCallTextFilter();
+  let shown = false;
+  return {
+    push(delta) {
+      const pushed = filter.push(delta);
+      const { runnable, text: rescued } = routeTextCalls(pushed.calls, known);
+      const before = shown || pushed.text.length > 0;
+      const text =
+        pushed.text + (before && rescued && !/^\s/.test(rescued) ? '\n\n' : '') + rescued;
+      if (text) shown = true;
+      return { text, runnable };
+    },
+    flush: () => filter.flush(),
+  };
+}
+
 const middleware: LanguageModelMiddleware = {
   wrapGenerate: async ({ doGenerate, params }) => {
     const result = await doGenerate();
@@ -206,10 +231,9 @@ const middleware: LanguageModelMiddleware = {
     const { stream, ...rest } = await doStream();
     const known = toolNamesOf(params.tools);
     const filters = new Map<string, GemmaChannelFilter>();
-    const callFilters = new Map<string, ToolCallTextFilter>();
+    const callFilters = new Map<string, AnswerToolCallFilter>();
     type Part = typeof stream extends ReadableStream<infer P> ? P : never;
     const pendingCalls = new Map<string, TextToolCall[]>();
-    const streamedText = new Map<string, boolean>();
     let called = false;
 
     return {
@@ -219,7 +243,7 @@ const middleware: LanguageModelMiddleware = {
           transform(part, controller) {
             const callFilter = (id: string) => {
               let f = callFilters.get(id);
-              if (!f) callFilters.set(id, (f = createToolCallTextFilter()));
+              if (!f) callFilters.set(id, (f = createAnswerToolCallFilter(known)));
               return f;
             };
             // Calls are emitted right after the text part that carried them.
@@ -228,16 +252,6 @@ const middleware: LanguageModelMiddleware = {
                 called = true;
                 controller.enqueue(toolCallPart(call));
               }
-            };
-            // Visible text of one push; a rescued argument follows the text
-            // before it in the same part, a paragraph apart.
-            const route = (id: string, pushed: { text: string; calls: TextToolCall[] }) => {
-              const { runnable, text: rescued } = routeTextCalls(pushed.calls, known);
-              const before = streamedText.get(id) || pushed.text.length > 0;
-              const sep = before && rescued && !/^\s/.test(rescued) ? '\n\n' : '';
-              const text = pushed.text + sep + rescued;
-              if (text) streamedText.set(id, true);
-              return { text, runnable };
             };
 
             if (part.type === 'text-delta') {
@@ -252,7 +266,7 @@ const middleware: LanguageModelMiddleware = {
                 controller.terminate();
                 return;
               }
-              const { text, runnable } = route(part.id, callFilter(part.id).push(delta));
+              const { text, runnable } = callFilter(part.id).push(delta);
               if (text.length > 0) controller.enqueue({ ...part, delta: text });
               if (runnable.length > 0) {
                 pendingCalls.set(part.id, [...(pendingCalls.get(part.id) ?? []), ...runnable]);
@@ -260,9 +274,8 @@ const middleware: LanguageModelMiddleware = {
               return;
             }
             if (part.type === 'text-end') {
-              const { text, runnable } = route(
-                part.id,
-                callFilter(part.id).push(filters.get(part.id)?.flush() ?? '')
+              const { text, runnable } = callFilter(part.id).push(
+                filters.get(part.id)?.flush() ?? ''
               );
               const delta = text + callFilter(part.id).flush();
               if (delta.length > 0) controller.enqueue({ type: 'text-delta', id: part.id, delta });
