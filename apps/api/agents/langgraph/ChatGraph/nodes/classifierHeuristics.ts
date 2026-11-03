@@ -177,6 +177,10 @@ export const INTENT_KEYWORDS: Record<
     | 'direct'
     // Decided by GREETING_PREFIX_PATTERN, not by keyword scoring.
     | 'greeting'
+    // Nur per @-Erwähnung: eine Frage nach dem Abgeordnetenhaus erreicht `landtag`
+    // ohnehin (de-DE montiert, `LANDTAG_RE` in domainTools weist hin), und das Wort
+    // ist zugleich `queryAliases` des Abgeordnetenhaus-Notebooks.
+    | 'abgeordnetenhaus'
     // Decided by the creative-task branches, not by keyword scoring.
     | 'produktion'
     | 'image_edit'

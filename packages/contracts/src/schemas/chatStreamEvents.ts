@@ -167,6 +167,7 @@ export const searchIntentSchema = z.enum([
   'pressemitteilung_examples',
   'abgeordnetenwatch',
   'bundestag',
+  'abgeordnetenhaus',
   // EXPERIMENTAL first-party system MCP sources (Deutsche Bahn / Open-Meteo /
   // ARD-Tagesschau) — built-in like bundestag, active only when the matching
   // SYSTEM_MCP_*_URL env is set (see apps/api services/mcp/systemMcpServers.ts).

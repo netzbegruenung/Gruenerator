@@ -32,6 +32,12 @@ const IS_MCP_TURN_BEFORE = ['hilfe'] as const;
 const FORCED_LOOP_ADDED = ['bundestag', 'abgeordnetenwatch'] as const;
 
 /**
+ * Seit 11/2026, gleich in der Schleife geboren: `abgeordnetenhaus` hatte nie
+ * einen Einzeldurchlauf, seine Erwähnung zurrt das Werkzeug `landtag` fest.
+ */
+const FORCED_LOOP_BORN = ['abgeordnetenhaus'] as const;
+
+/**
  * `umfragen` stand als dritter in `IS_MCP_TURN_BEFORE` und ist der erste
  * Abgang der Achse: sein Intent ist stillgelegt, seine Erwähnung zurrt das
  * WERKZEUG fest (`IntentMention.pinsTool`). Was ihn in die Schleife bringt,
@@ -70,14 +76,18 @@ describe('forcedLane totality', () => {
 });
 
 describe('the loop lane', () => {
-  it('is the old router enumeration plus exactly the two flipped sources', () => {
+  it('is the old router enumeration plus exactly the two flipped sources (and the born one)', () => {
     expect([...intentsWithForcedLane('loop')].sort()).toEqual(
-      [...IS_MCP_TURN_BEFORE, ...FORCED_LOOP_ADDED].sort()
+      [...IS_MCP_TURN_BEFORE, ...FORCED_LOOP_ADDED, ...FORCED_LOOP_BORN].sort()
     );
   });
 
   it('changed for nobody else', () => {
-    const loop = new Set<string>([...IS_MCP_TURN_BEFORE, ...FORCED_LOOP_ADDED]);
+    const loop = new Set<string>([
+      ...IS_MCP_TURN_BEFORE,
+      ...FORCED_LOOP_ADDED,
+      ...FORCED_LOOP_BORN,
+    ]);
     for (const id of searchIntentSchema.options) {
       expect(forcesLoopLane(id)).toBe(loop.has(id));
     }
