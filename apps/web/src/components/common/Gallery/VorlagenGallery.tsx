@@ -16,6 +16,7 @@ import { useSearchParams } from 'react-router-dom';
 import { toast } from 'sonner';
 
 import { MarketplaceDialog } from '../../../features/marketplace/MarketplaceDialog';
+import { SubscribedCollectionSection } from '../../../features/marketplace/SubscribedCollectionSection';
 import { MeineVorlagenPanel } from '../../../features/vorlagen/components/MeineVorlagenPanel';
 import {
   PRINT_TEMPLATE_TYPE,
@@ -429,6 +430,8 @@ const VorlagenGallery = memo((): JSX.Element => {
         onClose={() => setShowAddModal(false)}
         onSuccess={handleAddSuccess}
       />
+
+      <SubscribedCollectionSection show="vorlagen" />
 
       {isMeine ? (
         <ErrorBoundary>

@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import {
   allPresetDesigns,
@@ -6,7 +6,26 @@ import {
   presetDesigns,
   presetsForCollection,
 } from './backgrounds';
+import { SYSTEM_STICKERS } from '../stickers/catalog.js';
+
 import { parseProfilbildCatalogParams, profilbildCatalogParams } from './catalogLink';
+
+// No catalogue entry is a frame yet; this one stands in for the first.
+vi.mock('../stickers/catalog.js', async (importOriginal) => {
+  const original = await importOriginal<typeof import('../stickers/catalog.js')>();
+  const frame = {
+    ...original.SYSTEM_STICKERS[0],
+    id: 'test-rahmen',
+    label: 'Testrahmen',
+    frame: true,
+  };
+  return {
+    ...original,
+    systemStickerById: (id: string) =>
+      id === 'test-rahmen' ? frame : original.systemStickerById(id),
+    isFrameSticker: (s: { frame?: true }) => s.frame === true,
+  };
+});
 
 const params = (search: Record<string, string>) => new URLSearchParams(search);
 
@@ -43,6 +62,26 @@ describe('profilbild catalogue links', () => {
     expect(parseProfilbildCatalogParams(params({ sticker: 'nope' }))).toBeNull();
     expect(parseProfilbildCatalogParams(params({ hintergrund: 'nope' }))).toBeNull();
     expect(parseProfilbildCatalogParams(params({}))).toBeNull();
+  });
+
+  it('parse rahmen=<frame id> → {kind:frame, id}', () => {
+    expect(parseProfilbildCatalogParams(params({ rahmen: 'test-rahmen' }))).toEqual({
+      kind: 'frame',
+      id: 'test-rahmen',
+      title: 'Testrahmen',
+    });
+  });
+
+  it('parse rahmen=<plain sticker id> → null', () => {
+    const plain = SYSTEM_STICKERS[0].id;
+    expect(parseProfilbildCatalogParams(params({ rahmen: plain }))).toBeNull();
+  });
+
+  it('params round-trip for frame', () => {
+    const pick = parseProfilbildCatalogParams(
+      params(profilbildCatalogParams({ kind: 'frame', id: 'test-rahmen' }))
+    );
+    expect(pick).toMatchObject({ kind: 'frame', id: 'test-rahmen' });
   });
 
   it('still resolves a background taken out of its collection, but no longer offers it', () => {

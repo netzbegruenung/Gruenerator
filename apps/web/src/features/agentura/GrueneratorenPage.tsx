@@ -23,6 +23,7 @@ import {
 import { Link, useNavigate } from 'react-router-dom';
 
 import { MarketplaceDialog } from '../marketplace/MarketplaceDialog';
+import { SubscribedCollectionSection } from '../marketplace/SubscribedCollectionSection';
 import { useRecurringTasks } from '../recurring-tasks/api';
 import { useTrashUndoToast } from '../trash/trashUndoToast';
 
@@ -325,6 +326,8 @@ function GrueneratorenPage() {
           )}
         </GalleryCountRow>
       )}
+
+      <SubscribedCollectionSection show="agents" />
 
       {sections.length > 0 ? (
         <div className="flex flex-col gap-xl">

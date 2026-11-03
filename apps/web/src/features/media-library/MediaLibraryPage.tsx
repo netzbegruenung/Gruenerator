@@ -16,6 +16,7 @@ import LoginRequired from '../../components/common/LoginRequired/LoginRequired';
 import { PageHero, PageShell } from '../../components/common/PageHero';
 import { ShareMediaModal } from '../../components/common/ShareMediaModal';
 import { useOptimizedAuth } from '../../hooks/useAuth';
+import { SubscribedCollectionSection } from '../marketplace/SubscribedCollectionSection';
 import { useTrashUndoToast } from '../trash/trashUndoToast';
 
 import { LinkedEntryCard } from './components/LinkedEntryCard';
@@ -157,6 +158,8 @@ function MediaLibrary(): JSX.Element {
             />
           }
         />
+
+        <SubscribedCollectionSection show="assets" />
 
         <UploadQueueList queue={queue} progress={progress} onDismiss={dismiss} />
 

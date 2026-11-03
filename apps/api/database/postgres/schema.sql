@@ -1545,3 +1545,11 @@ CREATE INDEX IF NOT EXISTS idx_content_reports_status_created
 
 CREATE INDEX IF NOT EXISTS idx_content_reports_target
     ON content_reports (kind, target_id);
+
+-- zz_20261102_collection_subscriptions.sql
+CREATE TABLE IF NOT EXISTS collection_subscriptions (
+    user_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+    collection_id TEXT NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    PRIMARY KEY (user_id, collection_id)
+);

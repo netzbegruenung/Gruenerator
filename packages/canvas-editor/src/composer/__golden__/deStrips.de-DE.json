@@ -13,9 +13,9 @@
      "text": "Infostand",
      "type": "header",
      "x": 70,
-     "y": 718.8956338028169,
-     "width": 600,
-     "fontSize": 127,
+     "y": 730.5656338028169,
+     "width": 940,
+     "fontSize": 198,
      "fontFamily": "GrueneTypeNeue",
      "bind": {
       "fontFamily": {
@@ -40,9 +40,9 @@
      "id": "sc-ort",
      "text": "Marktplatz",
      "type": "body",
-     "x": 70,
-     "y": 884.8156338028168,
-     "width": 600,
+     "x": 354,
+     "y": 1238.5,
+     "width": 316,
      "fontSize": 38,
      "fontFamily": "PT Sans",
      "bind": {
@@ -53,15 +53,6 @@
      },
      "fontStyle": "normal",
      "fill": "#FFFFFF",
-     "align": "left",
-     "accent": {
-      "fill": "#BEFF60"
-     },
-     "marker": {
-      "fill": "#FFFFFF",
-      "color": "#00261A",
-      "padX": 0.1
-     },
      "lineHeight": 1.25
     },
     {
@@ -86,17 +77,17 @@
      "x": 870,
      "y": 1130,
      "radius": 170,
-     "backgroundColor": "#00CC4F",
-     "textColor": "#005538",
-     "rotation": -10,
+     "backgroundColor": "#0A99D2",
+     "textColor": "#FFFFFF",
+     "rotation": -7,
      "scale": 1,
      "opacity": 1,
      "textLines": [
       {
        "text": "3.4.",
        "yOffset": 0,
-       "fontFamily": "PT Sans",
-       "fontSize": 47,
+       "fontFamily": "GrueneTypeNeue",
+       "fontSize": 119,
        "fontWeight": "normal"
       }
      ]
@@ -160,8 +151,8 @@
    "layerOrder": [
     "sc-panel",
     "sc-0-headline-0",
-    "sc-ort",
     "sc-datum",
+    "sc-ort",
     "sc-logo",
     "sc-pfeil",
     "sc-ki-label-bg",

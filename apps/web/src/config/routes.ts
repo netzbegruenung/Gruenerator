@@ -331,6 +331,9 @@ const OfficeSuiteLandingPage = lazy(() => import('../features/docs/OfficeSuiteLa
 // old paths as redirects so pinned favourites and search results still resolve.
 const OfficeSuiteRedirect = lazy(() => Promise.resolve({ default: createRedirect('/office') }));
 const CanvasLandingPage = lazy(() => import('../features/image-studio/CanvasLandingPage'));
+const PrintVorlageInstantiatePage = lazy(
+  () => import('../features/vorlagen/PrintVorlageInstantiatePage')
+);
 const SharepicVorlageInstantiatePage = lazy(
   () => import('../features/vorlagen/SharepicVorlageInstantiatePage')
 );
@@ -941,6 +944,14 @@ const standardRoutes: RouteConfig[] = [
     path: '/studio/vorlage/:id',
     accent: 'studio',
     component: SharepicVorlageInstantiatePage,
+    layoutMode: 'immersive',
+    fallback: createElement(CanvasEditorSkeleton),
+  },
+  // Copies a print Vorlage into a new canvas — the collection launchpad links here.
+  {
+    path: '/studio/druck/:id',
+    accent: 'studio',
+    component: PrintVorlageInstantiatePage,
     layoutMode: 'immersive',
     fallback: createElement(CanvasEditorSkeleton),
   },

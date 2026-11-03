@@ -1,7 +1,7 @@
 import { type MarketplaceCollectionId, type MarketplaceItem } from '@gruenerator/contracts';
 import {
-  collectionAddState,
   collectionById,
+  collectionContents,
   collectionCardsFor,
   collectionCoverPath,
   collectionMetaLine,
@@ -12,6 +12,7 @@ import {
   plainEmphasis,
   resolveStory,
   sampleImageOf,
+  useCollectionSubscriptions,
   useMarketplaceFrontpage,
   type MarketplaceCollection,
 } from '@gruenerator/shared/marketplace';
@@ -24,10 +25,10 @@ import {
   cn,
 } from '@gruenerator/ui';
 import { type JSX, useId } from 'react';
-import { PiCheck } from 'react-icons/pi';
 
 import { GalleryEmptyState, GallerySkeleton } from '../../components/common/Gallery/parts';
 
+import { CollectionLaunchpad } from './CollectionLaunchpad';
 import { CollectionStory } from './CollectionStory';
 import { viewOf } from './kindViews';
 import { MarketplaceCard } from './MarketplaceCard';
@@ -39,6 +40,7 @@ import {
   SWIPE_BELOW_MD,
   showcaseToneAt,
 } from './MarketplaceShowcaseCard';
+import { SubscribeButton } from './SubscribeButton';
 import { type MarketplaceActions } from './useMarketplaceActions';
 
 import { useAuthStore } from '@/stores/authStore';
@@ -247,6 +249,10 @@ export function MarketplaceCollectionView({
   const page = useMarketplaceFrontpage();
   const locale = useAuthStore((s) => s.locale);
   const def = collectionById(id);
+  const { isSubscribed } = useCollectionSubscriptions();
+  const launchpad = isSubscribed(id)
+    ? collectionContents(id, locale === 'de-AT' ? 'de-AT' : 'de-DE')
+    : null;
   const collections = page.data?.collections ?? [];
   // A collection below its `min` is not in the response; one of only Vorlagen (min 0) is, empty.
   const collection = collections.find((c) => c.collectionId === id);
@@ -276,7 +282,6 @@ export function MarketplaceCollectionView({
   const story = def.story?.length ? resolveStory(def.story, items, locale) : null;
   const select = (item: MarketplaceItem) =>
     isSampleItem(item) ? openSample(item) : onSelect(item);
-  const { addable, missing, label: addLabel } = collectionAddState(items);
 
   return (
     <div className="flex flex-col gap-xl">
@@ -314,22 +319,9 @@ export function MarketplaceCollectionView({
             </span>
           )}
         </div>
-        {addable.length > 0 &&
-          (addLabel ? (
-            <Button
-              size="lg"
-              className="rounded-full dark:bg-primary-700 dark:hover:bg-primary-800"
-              onClick={() => missing.forEach((item) => actions.toggleSave(item))}
-            >
-              {addLabel}
-            </Button>
-          ) : (
-            <span className="flex items-center gap-1.5 text-sm font-semibold text-foreground-muted">
-              <PiCheck aria-hidden />
-              Alle bei deinen Grüneratoren
-            </span>
-          ))}
+        <SubscribeButton collectionId={id} />
       </header>
+      {launchpad && <CollectionLaunchpad contents={launchpad} items={items} />}
       {story ? (
         <>
           <CollectionStory blocks={story.blocks} actions={actions} onSelect={select} />

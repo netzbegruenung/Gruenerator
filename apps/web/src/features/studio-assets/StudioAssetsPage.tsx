@@ -13,6 +13,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { GalleryEmptyState } from '../../components/common/Gallery/parts';
 import { PageHero, PageHeroSearch, PageShell } from '../../components/common/PageHero';
 import { MarketplaceDialog } from '../marketplace/MarketplaceDialog';
+import { SubscribedCollectionSection } from '../marketplace/SubscribedCollectionSection';
 
 import { StudioAssetSection } from './StudioAssetSection';
 import { useStudioAssetActions } from './useStudioAssetActions';
@@ -96,6 +97,8 @@ function StudioAssetsPage(): JSX.Element {
       <span role="status" aria-live="polite" className="sr-only">
         {`${total} ${total === 1 ? 'Eintrag' : 'Einträge'}`}
       </span>
+
+      <SubscribedCollectionSection show="assets" />
 
       {sections.length > 0 ? (
         <div className="flex flex-col gap-xl">

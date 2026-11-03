@@ -86,12 +86,22 @@ function toSearchParams(source: MarketplaceParamSource): URLSearchParams {
 const isTabSlug = (value: string | null): value is MarketplaceTabSlug =>
   value !== null && (MARKETPLACE_TAB_SLUGS as readonly string[]).includes(value);
 
+/** F0 — ids that were renamed; old shared links keep resolving. */
+export const LEGACY_COLLECTION_ALIASES = {
+  'wahlkampf-moritz': 'mustergruen-wahlkampf',
+} as const;
+
 /** Unknown values fall back to the default instead of failing. */
 export function parseMarketplaceParams(source: MarketplaceParamSource): MarketplaceFilters {
   const art = readParam(source, 'art');
   const origin = marketplaceOriginSchema.safeParse(readParam(source, 'von'));
   const sort = marketplaceSortSchema.safeParse(readParam(source, 'sort'));
-  const collection = marketplaceCollectionIdSchema.safeParse(readParam(source, 'kollektion'));
+  const rawCollection = readParam(source, 'kollektion');
+  const collection = marketplaceCollectionIdSchema.safeParse(
+    rawCollection !== null && rawCollection in LEGACY_COLLECTION_ALIASES
+      ? LEGACY_COLLECTION_ALIASES[rawCollection as keyof typeof LEGACY_COLLECTION_ALIASES]
+      : rawCollection
+  );
   return {
     tab: isTabSlug(art) ? art : DEFAULT_MARKETPLACE_FILTERS.tab,
     origin: origin.success ? origin.data : null,
