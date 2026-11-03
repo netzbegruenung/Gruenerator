@@ -273,6 +273,9 @@ describe('DE date circle type', () => {
     const c = s!.circleBadgeInstances.find((b) => b.id === 'sc-datum')!;
     expect(new Set(c.textLines.map((l) => l.fontSize)).size).toBeGreaterThan(1);
     expect(c.rotation).not.toBe(-7);
+    // Body face with its own weights, as before the Störer type.
+    expect(c.textLines.some((l) => l.fontWeight === 'bold')).toBe(true);
+    expect(c.textLines.every((l) => !/GrueneType/.test(l.fontFamily))).toBe(true);
   });
 });
 

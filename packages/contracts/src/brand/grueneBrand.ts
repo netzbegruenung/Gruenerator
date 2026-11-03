@@ -276,7 +276,7 @@ export const GRUENE_DE: GruenePack = {
       steckbriefTrait: 64,
     },
     absatzGap: 0.6,
-    headlineFace: { absatz: false, infografikTitel: false, datum: true },
+    headlineFace: { absatz: false, infografikTitel: false, datum: false },
     features: {
       markerBox: true,
       zeilenboxen: true,
