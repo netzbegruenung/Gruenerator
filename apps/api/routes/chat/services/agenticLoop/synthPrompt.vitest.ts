@@ -64,6 +64,7 @@ function ctx(over: Partial<SynthPromptContext> = {}): SynthPromptContext {
     sourceRegistry: createSourceRegistry(),
     recipeRegistry: createRecipeRegistry(),
     opening: () => null,
+    materialNote: '',
     ...over,
   };
 }
@@ -147,6 +148,17 @@ describe('buildSynthSystem — Quellenblock', () => {
     const prompt = buildSynthSystem('[1] Antrag — https://example.org/a', ctx());
     expect(prompt).toContain('AKTUALITÄT:');
     expect(prompt).toContain('dann gilt die NEUESTE');
+  });
+
+  // #5286: eine gewählte, aber unlesbare Cloud-Datei ist keine Quelle — und
+  // trotzdem kein „nichts recherchiert". Sonst bestritt der Schreiber, dass
+  // überhaupt eine Datei angehängt war.
+  it('gibt die Notiz über unlesbares Material weiter statt „nichts recherchiert"', () => {
+    const materialNote = '\n\nANGEHÄNGTE DATEI NICHT LESBAR: „Protokoll.docx"';
+    const prompt = buildSynthSystem('', ctx({ materialNote }));
+    expect(prompt).toContain(materialNote);
+    expect(prompt).not.toContain('hast du NICHTS recherchiert');
+    expect(prompt).not.toContain('GESAMMELTE QUELLEN');
   });
 
   it('lässt bei leerem Block kein Zitiergebot stehen und sagt es ehrlich', () => {
