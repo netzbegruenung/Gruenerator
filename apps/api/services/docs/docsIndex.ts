@@ -13,14 +13,20 @@
  *
  * Lexical (BM25), not vector: at this corpus size embeddings buy nothing and
  * would cost an index, a sync job and a Qdrant round-trip per turn. Everything
- * here is in-process over a generated data module, so it also works offline
- * and in unit tests.
+ * here is in-process over plain arrays, so it also works offline and in unit
+ * tests.
+ *
+ * Which arrays: the bundled `docsIndex.generated.ts` until
+ * ./docsIndexRefresh.ts has loaded the index the LIVE docs site serves, then
+ * that one. The doku image is rolled out separately from the API, and the
+ * bundled copy cited pages the live site did not have (#5013).
  */
 
 import {
   DOCS_PAGES,
   DOCS_SECTIONS,
   DOCS_SITE_URL,
+  type DocPage,
   type DocSection,
 } from './docsIndex.generated.js';
 
@@ -67,6 +73,13 @@ const CATEGORY_PRIOR: Record<string, number> = {
   Archiv: 0.5,
 };
 const DEFAULT_CATEGORY_PRIOR = 1;
+
+export interface DocsIndexData {
+  pages: readonly DocPage[];
+  sections: readonly DocSection[];
+}
+
+let current: DocsIndexData = { pages: DOCS_PAGES, sections: DOCS_SECTIONS };
 
 /**
  * Boost for a section whose page/heading title appears VERBATIM in the query.
@@ -234,6 +247,14 @@ interface BuiltIndex {
 }
 
 let cached: BuiltIndex | null = null;
+let cachedPageMap: string | null = null;
+
+/** Swaps in a newer index and drops everything derived from the old one. */
+export function replaceDocsIndex(next: DocsIndexData): void {
+  current = next;
+  cached = null;
+  cachedPageMap = null;
+}
 
 function buildIndex(): BuiltIndex {
   if (cached) return cached;
@@ -242,7 +263,7 @@ function buildIndex(): BuiltIndex {
   const docFreq = new Map<string, number>();
   let totalLength = 0;
 
-  for (const section of DOCS_SECTIONS) {
+  for (const section of current.sections) {
     const freqs = new Map<string, number>();
     let length = 0;
 
@@ -377,7 +398,7 @@ export function relatedDocsPages(query: string, limit = 3): DocsPageRef[] {
     const url = hit.url.split('#')[0]!;
     if (seen.has(url)) continue;
     seen.add(url);
-    const page = DOCS_PAGES.find((p) => `${DOCS_SITE_URL}${p.url}` === url);
+    const page = current.pages.find((p) => `${DOCS_SITE_URL}${p.url}` === url);
     if (!page) continue;
     out.push({ url, title: page.title });
     if (out.length >= limit) break;
@@ -385,17 +406,15 @@ export function relatedDocsPages(query: string, limit = 3): DocsPageRef[] {
   return out;
 }
 
-let cachedPageMap: string | null = null;
-
 /**
  * The full page map, grouped by category — every documentation page with its
- * absolute URL and lead paragraph. Stable across turns, so it is built once.
+ * absolute URL and lead paragraph. Built once per index.
  */
 export function buildDocsPageMap(): string {
   if (cachedPageMap) return cachedPageMap;
 
   const byCategory = new Map<string, string[]>();
-  for (const page of DOCS_PAGES) {
+  for (const page of current.pages) {
     const lines = byCategory.get(page.category) ?? [];
     const lead = page.lead ? ` — ${page.lead}` : '';
     lines.push(`- ${page.title} (${DOCS_SITE_URL}${page.url})${lead}`);
@@ -417,5 +436,5 @@ ${sections.join('\n\n')}`;
 
 /** Number of indexed pages/sections — for logging and the drift test. */
 export function docsIndexStats(): { pages: number; sections: number } {
-  return { pages: DOCS_PAGES.length, sections: DOCS_SECTIONS.length };
+  return { pages: current.pages.length, sections: current.sections.length };
 }

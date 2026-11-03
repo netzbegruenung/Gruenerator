@@ -385,6 +385,10 @@ updates:
     ignore:
       - dependency-name: '*'
         update-types: ['version-update:semver-major']
+      # services/nlp: the spaCy stack (blis etc.) has no wheels for Python 3.14+ yet
+      # (3.15-slim broke the nlp build: "No matching distribution found for blis==1.3.3")
+      - dependency-name: 'python'
+        versions: ['>=3.14']
 
   # =============================================================================
   # CARGO - Tauri desktop shell (separate workspace, own lockfile)
