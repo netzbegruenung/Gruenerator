@@ -100,7 +100,7 @@ const StickerCanvasPage = (): JSX.Element => {
 
   return (
     <WebCanvasEditorProvider allowStickerCreator={false}>
-      <div className="relative flex h-dvh flex-col bg-[var(--editor-bg)]">
+      <div className="relative flex h-[var(--editor-height)] flex-col bg-[var(--editor-bg)]">
         <MasterCanvasEditor
           type="sticker"
           formatId="profile-square"
