@@ -200,9 +200,9 @@ export interface SignedUrlResponse {
 export interface ChatCompletionParams {
   model: string;
   messages: Array<{ role: string; content: unknown }>;
-  max_tokens: number;
+  maxTokens: number;
   temperature: number;
-  top_p: number;
+  topP: number;
 }
 
 /**
