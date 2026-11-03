@@ -18,12 +18,14 @@ const log = createLogger('XmlToHtml');
 export function blockNoteXmlToHtml(xml: string): string {
   let html = xml;
 
-  // Strip wrapper elements (may have attributes like id, blockColor)
+  // Strip wrapper elements (may have attributes like id, blockColor).
+  // Yjs lowercases element names in XmlFragment.toString() (blockGroup →
+  // blockgroup), so these camelCase names need the `i` flag to match real docs.
   // Split open/close to avoid ReDoS from `\/?` + `[^<>]*` ambiguity (CodeQL)
-  html = html.replace(/<blockGroup[^<>]*>/g, '');
-  html = html.replace(/<\/blockGroup>/g, '');
-  html = html.replace(/<blockContainer[^<>]*>/g, '');
-  html = html.replace(/<\/blockContainer>/g, '');
+  html = html.replace(/<blockGroup[^<>]*>/gi, '');
+  html = html.replace(/<\/blockGroup>/gi, '');
+  html = html.replace(/<blockContainer[^<>]*>/gi, '');
+  html = html.replace(/<\/blockContainer>/gi, '');
 
   // Track-changes suggestion marks (Änderungsmodus): drop deleted content so it
   // never leaks into previews/exports; unwrap insertions/modifications to show
@@ -42,11 +44,11 @@ export function blockNoteXmlToHtml(xml: string): string {
   );
   html = html.replace(/<paragraph[^<>]*>([\s\S]*?)<\/paragraph>/g, '<p>$1</p>');
   html = html.replace(
-    /<bulletListItem[^<>]*>([\s\S]*?)<\/bulletListItem>/g,
+    /<bulletListItem[^<>]*>([\s\S]*?)<\/bulletListItem>/gi,
     '<li data-list="ul">$1</li>'
   );
   html = html.replace(
-    /<numberedListItem[^<>]*>([\s\S]*?)<\/numberedListItem>/g,
+    /<numberedListItem[^<>]*>([\s\S]*?)<\/numberedListItem>/gi,
     '<li data-list="ol">$1</li>'
   );
 
