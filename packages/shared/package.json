@@ -244,6 +244,12 @@
       "import": "./dist/marketplace/index.js",
       "default": "./dist/marketplace/index.js"
     },
+    "./marketplace/collection-aliases": {
+      "development": "./src/marketplace/collectionAliases.ts",
+      "types": "./src/marketplace/collectionAliases.ts",
+      "import": "./dist/marketplace/collectionAliases.js",
+      "default": "./dist/marketplace/collectionAliases.js"
+    },
     "./marketplace/frontpage": {
       "development": "./src/marketplace/frontpage.ts",
       "types": "./src/marketplace/frontpage.ts",

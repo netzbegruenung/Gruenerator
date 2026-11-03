@@ -10,7 +10,7 @@ import {
   type MarketplaceCollectionId,
   type MarketplacePlatform,
 } from '@gruenerator/contracts';
-import { LEGACY_COLLECTION_ALIASES } from '@gruenerator/shared/marketplace';
+import { LEGACY_COLLECTION_ALIASES } from '@gruenerator/shared/marketplace/collection-aliases';
 import { createExpressEndpoints, initServer } from '@ts-rest/express';
 
 import { extractLocaleFromRequest } from '../../services/localization/index.js';
