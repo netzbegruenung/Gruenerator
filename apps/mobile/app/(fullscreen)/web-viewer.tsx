@@ -374,6 +374,11 @@ export default function WebViewerScreen() {
       <Stack.Screen
         options={{
           headerShown: !presenting,
+          // Without a background, Liquid Glass (iOS 26) makes the bar
+          // translucent and lays the WebView out under it. The page cannot
+          // inset for a bar it does not know about: its dialogs and the canvas
+          // sat under the bar. Opaque, the screen is inset below it.
+          headerStyle: { backgroundColor: theme.background },
           title: barTitle,
           headerBackVisible: false,
           headerTitle: ({ children }) => (
