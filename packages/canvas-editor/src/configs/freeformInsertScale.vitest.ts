@@ -1,6 +1,7 @@
 /**
- * Neu eingefügte Elemente: auf Sharepics genau die bisherigen Werte, auf einer
- * 1920 × 1080-Folie mit der Breite gewachsen und um die Seitenmitte gelegt.
+ * Neu eingefügte Elemente: auf Sharepics die Werte für 1080 px Breite (Text
+ * 120/72/56 px auf 80 % der Seite), auf einer 1920 × 1080-Folie mit der Breite
+ * gewachsen und um die Seitenmitte gelegt.
  */
 import { getCanvasFormatOrDefault, insertScaleFor } from '@ggraphic/editor/templates';
 import { describe, expect, it, vi } from 'vitest';
@@ -40,7 +41,7 @@ function harness(formatId: string) {
 }
 
 describe('insertion defaults per format', () => {
-  it('keeps the sharepic values on post-portrait', () => {
+  it('uses the 1080 px insert values on post-portrait', () => {
     const { actions, current } = harness('post-portrait');
     actions.addHeader();
     actions.addSubheader();
@@ -51,9 +52,9 @@ describe('insertion defaults per format', () => {
     actions.addChart('bar');
     const s = current();
     expect(s.additionalTexts.map((t) => [t.fontSize, t.width, t.x, t.y])).toEqual([
-      [48, 400, 340, 450],
-      [36, 400, 340, 540],
-      [32, 400, 340, 675],
+      [120, 864, 108, 450],
+      [72, 864, 108, 540],
+      [56, 864, 108, 675],
     ]);
     expect(s.shapeInstances[0]).toMatchObject({ x: 540, y: 675, width: 300, height: 300 });
     expect(s.assetInstances[0]).toMatchObject({ x: 540, y: 675, scale: 1 });
@@ -73,10 +74,10 @@ describe('insertion defaults per format', () => {
     actions.addChart('bar');
     const s = current();
     const [header, body] = s.additionalTexts;
-    expect(header!.fontSize).toBeCloseTo(48 * k);
-    expect(header!.width).toBeCloseTo(400 * k);
+    expect(header!.fontSize).toBeCloseTo(120 * k);
+    expect(header!.width).toBeCloseTo(864 * k);
     expect(header!.x + header!.width / 2).toBeCloseTo(960);
-    expect(body!.fontSize).toBeCloseTo(32 * k);
+    expect(body!.fontSize).toBeCloseTo(56 * k);
     expect(s.shapeInstances[0]!.width).toBeCloseTo(300 * k);
     expect(s.assetInstances[0]!.scale).toBeCloseTo(k);
     expect(s.iconStates['tabler:leaf']!.scale).toBeCloseTo(k);
