@@ -246,10 +246,18 @@ Die Suche für diesen Turn ist bereits GELAUFEN — ihre Treffer stehen oben. De
           // „nicht nachgesehen" wäre dort falsch.
           (toolFailures ? '' : ` ${NO_CAPABILITY_DENIAL_RULE}`)
     : carriedOnly && !producedArtifact
-      ? // Mirrors CARRIED_SOURCES_NOTE on the single-pass path (respondNode).
-        // The ban on [N] that used to stand here is what made the same
-        // follow-up citable or uncitable depending on which path it took.
-        '\n\nWICHTIG: In diesem Turn hast du NICHT neu recherchiert. Die Quellen oben stammen aus einer FRÜHEREN Recherche in diesem Gespräch — du darfst sie mit [N] belegen und musst das auch. Behaupte NICHT, gerade recherchiert zu haben („ich habe recherchiert", „meine Recherche ergab"); sag stattdessen, dass sich die Angaben auf die Recherche von vorhin stützen. Brauchst du für eine sachliche Angabe etwas, das NICHT in diesen Quellen steht, sag ehrlich, dass du das neu nachschlagen müsstest.'
+      ? // Der Turn HAT nachgesehen, nur kam nichts Neues an. „NICHT neu
+        // recherchiert … sag, dass du neu nachschlagen müsstest" stand als
+        // letzter Absatz hinter der Fehlschlag-Notiz und überstimmte sie — der
+        // werkzeuglose Schreiber kündigte die Suche an: „muss ich … neu
+        // nachschlagen. Einen Moment bitte. (Hier würde nun der Aufruf … folgen)"
+        // (#5182, live 30.10.2026). Dieselbe Falle wie #3902 oben.
+        toolFailures || toolEmpties
+        ? '\n\nWICHTIG: Du HAST in diesem Turn nachgesehen — die Aufrufe unter FEHLGESCHLAGENE WERKZEUGE bzw. LEERE ERGEBNISSE haben nichts Neues geliefert. Die Quellen oben stammen aus einer FRÜHEREN Recherche in diesem Gespräch — du darfst sie mit [N] belegen und musst das auch. Gib wieder, was sie hergeben, und sag ehrlich, was der neue Abruf nicht geliefert hat (etwa, dass dir nur Ausschnitte vorliegen). Du kannst jetzt KEIN Werkzeug aufrufen: kündige keine weitere Suche an und schreib nicht, dass du gleich nachschlägst.'
+        : // Mirrors CARRIED_SOURCES_NOTE on the single-pass path (respondNode).
+          // The ban on [N] that used to stand here is what made the same
+          // follow-up citable or uncitable depending on which path it took.
+          '\n\nWICHTIG: In diesem Turn hast du NICHT neu recherchiert. Die Quellen oben stammen aus einer FRÜHEREN Recherche in diesem Gespräch — du darfst sie mit [N] belegen und musst das auch. Behaupte NICHT, gerade recherchiert zu haben („ich habe recherchiert", „meine Recherche ergab"); sag stattdessen, dass sich die Angaben auf die Recherche von vorhin stützen. Brauchst du für eine sachliche Angabe etwas, das NICHT in diesen Quellen steht, sag ehrlich, dass du das neu nachschlagen müsstest.'
       : '';
   // `systemMessage` tells the model to call `tabelle_auswerten` — right for the
   // planner, wrong for this writer, which has no tools. When the planner took
