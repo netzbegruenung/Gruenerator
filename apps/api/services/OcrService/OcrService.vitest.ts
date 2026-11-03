@@ -5,8 +5,13 @@
  * `evals/extraction`; Mistral und Docling sind Attrappen.
  *
  * Ohne Marken darf sich nichts ändern: die Scraper hashen den Text.
+ *
+ * Bestellt ein Aufrufer ausdrücklich `docling` (die Scraper), gehen
+ * Tabellenseiten und Seiten ohne Text an GreenPT statt an Mistral — der
+ * Env-Default (in Produktion Docling) darf das nicht auslösen.
  */
-import { readFileSync } from 'node:fs';
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -20,6 +25,7 @@ const mistral = vi.hoisted(() => ({
 const docling = vi.hoisted(() => ({
   extractTextWithDocling: vi.fn(),
   extractBase64WithDocling: vi.fn(),
+  extractPagesWithDocling: vi.fn(),
   isDoclingAvailable: vi.fn(),
 }));
 
@@ -31,6 +37,7 @@ vi.mock('../document-services/index.js', () => ({ smartChunkDocument: vi.fn() })
 vi.mock('../mistral/index.js', () => ({ mistralEmbeddingService: {} }));
 
 const { OCRService } = await import('./OcrService.js');
+const { env } = await import('../../config/env.js');
 const { splitTextByPageMarkers } =
   await import('../document-services/TextChunker/pageMarkerProcessing.js');
 
@@ -76,6 +83,10 @@ beforeEach(() => {
   mistral.extractBase64WithMistralOCR.mockResolvedValue(ocrResult('## Seite 1\n\nOCR-Text'));
   mistral.extractTextWithMistralOCR.mockResolvedValue(ocrResult('## Seite 1\n\nOCR-Text'));
   docling.isDoclingAvailable.mockResolvedValue(true);
+  docling.extractPagesWithDocling.mockImplementation(
+    async (_buf: Buffer, _name: string, pages: number[]) =>
+      new Map(pages.map((p) => [p, `${TABLE_MARKDOWN}\n(Docling ${p})`]))
+  );
   docling.extractBase64WithDocling.mockResolvedValue({
     ...ocrResult('Docling'),
     method: 'docling',
@@ -272,5 +283,95 @@ describe('applyTablePages — Kappung', () => {
     );
     expect(provider).toBe('pdfjs-direct');
     expect(result.text).toBe(direct.text);
+  });
+});
+
+describe('Tabellenseiten und Scans über Docling, wenn ausdrücklich bestellt (Scraper)', () => {
+  it('schickt nur die Tabellenseiten an Docling, nichts an Mistral', async () => {
+    const result = await service.extractTextFromDocument(FIXTURE, 'docling', { pageMarkers: true });
+    expect(docling.extractPagesWithDocling).toHaveBeenCalledWith(
+      expect.any(Buffer),
+      'tabellen-pdf.pdf',
+      [3, 4]
+    );
+    expect(mistral.extractPagesWithMistralOCR).not.toHaveBeenCalled();
+    expect(mistral.extractTextWithMistralOCR).not.toHaveBeenCalled();
+    expect(result.extractionMethod).toBe('pdfjs-direct+docling-tables');
+    expect(splitTextByPageMarkers(result.text)[2].textWithoutMarker).toContain('(Docling 3)');
+  }, 30_000);
+
+  it('lässt den Env-Default außen vor: ohne Bestellung bleiben Tabellenseiten bei Mistral', async () => {
+    const before = env.OCR_PROVIDER;
+    env.OCR_PROVIDER = 'docling';
+    try {
+      const result = await service.extractTextFromDocument(FIXTURE, undefined, {
+        pageMarkers: true,
+      });
+      expect(docling.extractPagesWithDocling).not.toHaveBeenCalled();
+      expect(result.extractionMethod).toBe('pdfjs-direct+mistral-tables');
+    } finally {
+      env.OCR_PROVIDER = before;
+    }
+  }, 30_000);
+
+  it('kappt nicht bei 20 Seiten: Docling bekommt alle Tabellenseiten, nie die ganze Datei', async () => {
+    const wholeFile = vi.fn();
+    const pages = Array.from({ length: 21 }, (_, i) => i + 1);
+    const { provider } = await service['applyTablePages'](
+      { text: '## Seite 1\n\nText', pageCount: 30, method: 'pdfjs-dist', tablePages: pages },
+      () => Promise.resolve('YjY0'),
+      wholeFile,
+      { provider: 'docling', fileName: 'lang.pdf' }
+    );
+    expect(wholeFile).not.toHaveBeenCalled();
+    expect(docling.extractPagesWithDocling).toHaveBeenCalledWith(
+      expect.any(Buffer),
+      'lang.pdf',
+      pages
+    );
+    expect(provider).toBe('pdfjs-direct+docling-tables');
+  });
+
+  it('behält den pdfjs-Text, wenn Docling scheitert — kein bezahlter Rückfall', async () => {
+    docling.extractPagesWithDocling.mockRejectedValue(new Error('GreenPT 503'));
+    const result = await service.extractTextFromDocument(FIXTURE, 'docling', { pageMarkers: true });
+    expect(mistral.extractPagesWithMistralOCR).not.toHaveBeenCalled();
+    expect(result.extractionMethod).toBe('pdfjs-direct');
+    expect(result.text).toContain('Hetzner Online GmbH');
+  }, 30_000);
+
+  describe('Scan', () => {
+    let dir: string;
+    let scanPath: string;
+    beforeEach(() => {
+      dir = mkdtempSync(join(tmpdir(), 'ocr-scan-'));
+      scanPath = join(dir, 'scan.pdf');
+      writeFileSync(scanPath, Buffer.from(SCAN_BASE64, 'base64'));
+      return () => rmSync(dir, { recursive: true, force: true });
+    });
+
+    it('liest einen Scan Seite für Seite über Docling und setzt die Seitenmarken', async () => {
+      docling.extractPagesWithDocling.mockResolvedValue(new Map([[1, 'Gescannter Text']]));
+      const result = await service.extractTextFromDocument(scanPath, 'docling', {
+        pageMarkers: true,
+      });
+      expect(docling.extractPagesWithDocling).toHaveBeenCalledWith(
+        expect.any(Buffer),
+        'scan.pdf',
+        [1]
+      );
+      expect(mistral.extractTextWithMistralOCR).not.toHaveBeenCalled();
+      expect(result.extractionMethod).toBe('docling');
+      expect(result.text).toBe('## Seite 1\n\nGescannter Text');
+    });
+
+    it('fällt für einen Scan auf Mistral zurück, wenn Docling scheitert (wie bisher im Docling-Zweig)', async () => {
+      docling.extractPagesWithDocling.mockRejectedValue(new Error('GreenPT 503'));
+      const result = await service.extractTextFromDocument(scanPath, 'docling', {
+        pageMarkers: true,
+      });
+      expect(mistral.extractTextWithMistralOCR).toHaveBeenCalledOnce();
+      expect(result.extractionMethod).toBe('mistral-ocr');
+    });
   });
 });

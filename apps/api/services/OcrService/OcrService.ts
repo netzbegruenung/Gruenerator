@@ -27,6 +27,7 @@ import {
 import {
   extractTextWithDocling as extractDocling,
   extractBase64WithDocling as extractBase64Docling,
+  extractPagesWithDocling,
   isDoclingAvailable as checkDocling,
 } from './doclingIntegration.js';
 import {
@@ -35,7 +36,12 @@ import {
   extractPagesWithMistralOCR,
   type MistralOcrOptions,
 } from './mistralIntegration.js';
-import { replaceMarkedPages, stripPageMarkers, type PageMarkerOptions } from './pageMarkers.js';
+import {
+  joinPagesWithMarkers,
+  replaceMarkedPages,
+  stripPageMarkers,
+  type PageMarkerOptions,
+} from './pageMarkers.js';
 import {
   getPdfJs as loadPdfJs,
   openPdfDocument as openPdf,
@@ -86,11 +92,17 @@ type PdfjsLib = any;
 /**
  * Mehr Tabellenseiten als das, und die ganze Datei geht an Mistral OCR — dann
  * ist es ein tabellenlastiges Dokument, und die pdfjs-Seiten dazwischen lohnen
- * das Zusammensetzen nicht.
+ * das Zusammensetzen nicht. Gilt nur für Mistral: Docling bekommt auch dann
+ * nur die Tabellenseiten, es kostet nichts je Seite.
  */
 const MAX_MISTRAL_TABLE_PAGES = 20;
 
-type PdfProvider = 'pdfjs-direct' | 'pdfjs-direct+mistral-tables' | 'mistral-ocr';
+type PdfProvider =
+  | 'pdfjs-direct'
+  | 'pdfjs-direct+mistral-tables'
+  | 'pdfjs-direct+docling-tables'
+  | 'mistral-ocr'
+  | 'docling';
 
 export class OCRService {
   private isProcessing: Map<string, boolean>;
@@ -113,7 +125,6 @@ export class OCRService {
   async getPdfJs(): Promise<PdfjsLib> {
     if (this._pdfjsLib) return this._pdfjsLib;
 
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
     const pdfjsLib = await loadPdfJs();
 
     // Configure worker path — use createRequire to resolve from the actual
@@ -123,7 +134,6 @@ export class OCRService {
     // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
     pdfjsLib.GlobalWorkerOptions.workerSrc = `file://${workerPath}`;
 
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
     this._pdfjsLib = pdfjsLib;
     return pdfjsLib;
   }
@@ -132,7 +142,6 @@ export class OCRService {
    * Open PDF document with PDF.js
    */
   async openPdfDocument(pdfPath: string): Promise<PdfjsLib> {
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
     const pdfjsLib = await this.getPdfJs();
     return await openPdf(pdfPath, pdfjsLib);
   }
@@ -141,7 +150,6 @@ export class OCRService {
    * Open base64-encoded PDF with PDF.js
    */
   async openPdfFromBase64(base64Data: string): Promise<PdfjsLib> {
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
     const pdfjsLib = await this.getPdfJs();
     return await openPdfBase64(base64Data, pdfjsLib);
   }
@@ -224,6 +232,12 @@ export class OCRService {
     const startTime = Date.now();
     const fileExtension = path.extname(filePath).toLowerCase();
     const configuredProvider = (preferredProvider || env.OCR_PROVIDER || 'mistral').toLowerCase();
+    // Tabellenseiten und Seiten ohne Text folgen nur einer AUSDRÜCKLICHEN Wahl
+    // (Scraper, Scanner). Der Env-Default ist in Produktion Docling und galt
+    // immer nur für Dateien ohne Textschicht — ginge er hier mit ein, liefen
+    // auch die Tabellenseiten der Chat-Anhänge still über GreenPT.
+    const requestedProvider = preferredProvider?.toLowerCase() ?? 'mistral';
+    const pageWiseDocling = requestedProvider === 'docling';
     console.log(
       `[OCRService] Starting document text extraction (provider=${configuredProvider}): ${filePath} (${fileExtension})`
     );
@@ -272,47 +286,42 @@ export class OCRService {
             ({ result, provider: usedProvider } = await this.applyTablePages(
               direct,
               async () => (await fs.readFile(filePath)).toString('base64'),
-              () => this.extractTextWithMistralOCR(filePath, options)
+              () => this.extractTextWithMistralOCR(filePath, options),
+              { provider: requestedProvider, fileName: path.basename(filePath) }
             ));
           } else {
             console.log(
               `[OCRService] Direct extraction yielded insufficient text (${result.text?.length ?? 0} chars), falling back to OCR`
             );
-            result = await this.extractTextWithMistralOCR(filePath, options);
-            usedProvider = 'mistral-ocr';
+            ({ result, provider: usedProvider } = await this.ocrWholeDocument(
+              filePath,
+              fileExtension,
+              requestedProvider,
+              options,
+              pageWiseDocling
+            ));
           }
         } catch (directError) {
           console.warn(
             `[OCRService] Direct PDF extraction failed, falling back to OCR:`,
             (directError as Error).message
           );
-          result = await this.extractTextWithMistralOCR(filePath, options);
-          usedProvider = 'mistral-ocr';
-        }
-      } else if (configuredProvider === 'docling') {
-        // Try Docling first, fall back to Mistral if unavailable or on error
-        const doclingReady = await checkDocling();
-        if (doclingReady) {
-          try {
-            console.log(`[OCRService] Using Docling for ${fileExtension} document`);
-            result = await this.extractTextWithDocling(filePath);
-            usedProvider = 'docling';
-          } catch (doclingError) {
-            console.warn(`[OCRService] Docling failed, falling back to Mistral OCR:`, doclingError);
-            result = await this.extractTextWithMistralOCR(filePath, options);
-            usedProvider = 'mistral-ocr';
-          }
-        } else {
-          console.log(
-            `[OCRService] Docling unavailable, falling back to Mistral OCR for ${fileExtension} document`
-          );
-          result = await this.extractTextWithMistralOCR(filePath, options);
-          usedProvider = 'mistral-ocr';
+          ({ result, provider: usedProvider } = await this.ocrWholeDocument(
+            filePath,
+            fileExtension,
+            requestedProvider,
+            options,
+            pageWiseDocling
+          ));
         }
       } else {
-        console.log(`[OCRService] Using Mistral OCR for ${fileExtension} document`);
-        result = await this.extractTextWithMistralOCR(filePath, options);
-        usedProvider = 'mistral-ocr';
+        ({ result, provider: usedProvider } = await this.ocrWholeDocument(
+          filePath,
+          fileExtension,
+          configuredProvider,
+          options,
+          pageWiseDocling
+        ));
       }
 
       const totalTime = Date.now() - startTime;
@@ -333,19 +342,111 @@ export class OCRService {
   }
 
   /**
+   * Die ganze Datei per OCR — für Scans und PDFs, deren Textschicht nichts
+   * hergibt. Mit `docling` liest GreenPT; scheitert das, springt Mistral ein
+   * (wie bisher im Docling-Zweig). `pageWise` (nur auf ausdrücklichen Wunsch)
+   * wandelt mit Seitenmarken Seite für Seite, damit die Marken stimmen — ohne
+   * sie verlöre der Ingest `page_number`.
+   */
+  private async ocrWholeDocument(
+    filePath: string,
+    fileExtension: string,
+    provider: string,
+    options: PageMarkerOptions,
+    pageWise: boolean
+  ): Promise<{ result: ExtractionResult; provider: PdfProvider }> {
+    if (provider === 'docling') {
+      if (await checkDocling()) {
+        try {
+          console.log(`[OCRService] Using Docling for ${fileExtension} document`);
+          const result =
+            pageWise && options.pageMarkers && fileExtension === '.pdf'
+              ? await this.extractMarkedPdfWithDocling(filePath)
+              : await this.extractTextWithDocling(filePath);
+          return { result, provider: 'docling' };
+        } catch (doclingError) {
+          console.warn(`[OCRService] Docling failed, falling back to Mistral OCR:`, doclingError);
+        }
+      } else {
+        console.log(
+          `[OCRService] Docling unavailable, falling back to Mistral OCR for ${fileExtension} document`
+        );
+      }
+    } else {
+      console.log(`[OCRService] Using Mistral OCR for ${fileExtension} document`);
+    }
+    return {
+      result: await this.extractTextWithMistralOCR(filePath, options),
+      provider: 'mistral-ocr',
+    };
+  }
+
+  /** Alle Seiten über Docling, mit `## Seite N` je Seite. */
+  private async extractMarkedPdfWithDocling(filePath: string): Promise<ExtractionResult> {
+    const startTime = Date.now();
+    const { pageCount } = await this.getPDFInfo(filePath);
+    const pages = Array.from({ length: pageCount }, (_, i) => i + 1);
+    const byPage = await extractPagesWithDocling(
+      await fs.readFile(filePath),
+      path.basename(filePath),
+      pages
+    );
+    const text = joinPagesWithMarkers(
+      [...byPage].map(([page, pageText]) => ({ page, text: pageText }))
+    );
+    if (!stripPageMarkers(text)) throw new Error('Docling returned no text for any page');
+    return {
+      text,
+      pageCount,
+      method: 'docling',
+      confidence: 0.9,
+      stats: {
+        pages: pageCount,
+        successfulPages: byPage.size,
+        processingTimeMs: Date.now() - startTime,
+        method: 'greenpt-docling',
+      },
+    };
+  }
+
+  /**
    * Tabellenseiten, die pdfjs erkannt hat (`result.tablePages`, nur mit
-   * `pageMarkers`), durch Mistrals Markdown ersetzen — nur diese Seiten gehen
-   * an die API. Bei mehr als `MAX_MISTRAL_TABLE_PAGES` liest Mistral die ganze
-   * Datei. Scheitert Mistral, bleibt der pdfjs-Text: eine Tabelle als
-   * Fliesstext ist besser als kein Dokument.
+   * `pageMarkers`), durch das Markdown eines OCR-Dienstes ersetzen — nur diese
+   * Seiten gehen an die API. Mistral liest bei mehr als
+   * `MAX_MISTRAL_TABLE_PAGES` die ganze Datei; Docling bekommt immer nur die
+   * Tabellenseiten. Scheitert der Dienst, bleibt der pdfjs-Text: eine Tabelle
+   * als Fliesstext ist besser als kein Dokument.
    */
   private async applyTablePages(
     result: ExtractionResult,
     readBase64: () => Promise<string>,
-    ocrWholeFile: () => Promise<ExtractionResult>
+    ocrWholeFile: () => Promise<ExtractionResult>,
+    ocr: { provider: string; fileName: string } = { provider: 'mistral', fileName: 'document.pdf' }
   ): Promise<{ result: ExtractionResult; provider: PdfProvider }> {
     const tablePages = result.tablePages ?? [];
     if (tablePages.length === 0) return { result, provider: 'pdfjs-direct' };
+
+    if (ocr.provider === 'docling') {
+      try {
+        console.log(`[OCRService] Table pages ${tablePages.join(', ')} → Docling`);
+        const byPage = await extractPagesWithDocling(
+          Buffer.from(await readBase64(), 'base64'),
+          ocr.fileName,
+          tablePages
+        );
+        if (byPage.size === 0) return { result, provider: 'pdfjs-direct' };
+        return {
+          result: { ...result, text: replaceMarkedPages(result.text, byPage) },
+          provider: 'pdfjs-direct+docling-tables',
+        };
+      } catch (error) {
+        console.warn(
+          `[OCRService] Docling for table pages failed, keeping PDF.js text:`,
+          (error as Error).message
+        );
+        return { result, provider: 'pdfjs-direct' };
+      }
+    }
 
     try {
       if (tablePages.length > MAX_MISTRAL_TABLE_PAGES) {
