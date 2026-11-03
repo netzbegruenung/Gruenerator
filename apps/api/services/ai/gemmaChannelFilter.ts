@@ -135,6 +135,47 @@ function extractText(text: string) {
   return { text: visible + filter.flush(), calls };
 }
 
+/**
+ * Below this, a string argument is a query, an id or a label — not the
+ * answer, and showing it as text would be noise.
+ */
+const MIN_RESCUED_CHARS = 200;
+
+function joinText(a: string, b: string): string {
+  return a && b ? `${a}\n\n${b}` : a + b;
+}
+
+/**
+ * Splits text calls into the ones that can run and the text to show for the
+ * rest. A namespaced name (`gruenerator:draft_structured`) runs as its last
+ * segment when that tool is mounted. A call to a tool that does not exist
+ * carried the answer in its arguments: live 03.11.2026 the whole revised
+ * Antrag sat in `draft_structured{inhalt:…}`, a tool removed in #3078.
+ * Dropping it left the turn empty, and the chat answered „Ich konnte dazu
+ * leider keine passende Antwort finden". Its longest string argument is shown
+ * as the answer instead.
+ */
+function routeTextCalls(calls: TextToolCall[], known: Set<string>) {
+  const runnable: TextToolCall[] = [];
+  let text = '';
+  for (const call of calls) {
+    const name = known.has(call.toolName) ? call.toolName : call.toolName.replace(/^.*[:.]/, '');
+    if (known.has(name)) {
+      runnable.push({ ...call, toolName: name });
+      continue;
+    }
+    const longest = Object.values(call.input)
+      .filter((v): v is string => typeof v === 'string')
+      .reduce((a, b) => (b.length > a.length ? b : a), '');
+    const rescued = longest.length >= MIN_RESCUED_CHARS;
+    log.warn(
+      `text tool call to unknown tool ${call.toolName}: ${rescued ? 'argument shown as answer' : 'dropped'}`
+    );
+    if (rescued) text = joinText(text, longest);
+  }
+  return { runnable, text };
+}
+
 const middleware: LanguageModelMiddleware = {
   wrapGenerate: async ({ doGenerate, params }) => {
     const result = await doGenerate();
@@ -146,10 +187,10 @@ const middleware: LanguageModelMiddleware = {
         content.push(part);
         continue;
       }
-      const { text, calls } = extractText(part.text);
-      content.push({ ...part, text });
-      for (const call of calls) {
-        if (!known.has(call.toolName)) continue;
+      const extracted = extractText(part.text);
+      const { runnable, text } = routeTextCalls(extracted.calls, known);
+      content.push({ ...part, text: joinText(extracted.text, text) });
+      for (const call of runnable) {
         called = true;
         content.push(toolCallPart(call));
       }
@@ -168,6 +209,7 @@ const middleware: LanguageModelMiddleware = {
     const callFilters = new Map<string, ToolCallTextFilter>();
     type Part = typeof stream extends ReadableStream<infer P> ? P : never;
     const pendingCalls = new Map<string, TextToolCall[]>();
+    const streamedText = new Map<string, boolean>();
     let called = false;
 
     return {
@@ -183,10 +225,19 @@ const middleware: LanguageModelMiddleware = {
             // Calls are emitted right after the text part that carried them.
             const emitCalls = (calls: TextToolCall[]) => {
               for (const call of calls) {
-                if (!known.has(call.toolName)) continue;
                 called = true;
                 controller.enqueue(toolCallPart(call));
               }
+            };
+            // Visible text of one push; a rescued argument follows the text
+            // before it in the same part, a paragraph apart.
+            const route = (id: string, pushed: { text: string; calls: TextToolCall[] }) => {
+              const { runnable, text: rescued } = routeTextCalls(pushed.calls, known);
+              const before = streamedText.get(id) || pushed.text.length > 0;
+              const sep = before && rescued && !/^\s/.test(rescued) ? '\n\n' : '';
+              const text = pushed.text + sep + rescued;
+              if (text) streamedText.set(id, true);
+              return { text, runnable };
             };
 
             if (part.type === 'text-delta') {
@@ -201,19 +252,22 @@ const middleware: LanguageModelMiddleware = {
                 controller.terminate();
                 return;
               }
-              const { text, calls } = callFilter(part.id).push(delta);
+              const { text, runnable } = route(part.id, callFilter(part.id).push(delta));
               if (text.length > 0) controller.enqueue({ ...part, delta: text });
-              if (calls.length > 0) {
-                pendingCalls.set(part.id, [...(pendingCalls.get(part.id) ?? []), ...calls]);
+              if (runnable.length > 0) {
+                pendingCalls.set(part.id, [...(pendingCalls.get(part.id) ?? []), ...runnable]);
               }
               return;
             }
             if (part.type === 'text-end') {
-              const { text, calls } = callFilter(part.id).push(filters.get(part.id)?.flush() ?? '');
+              const { text, runnable } = route(
+                part.id,
+                callFilter(part.id).push(filters.get(part.id)?.flush() ?? '')
+              );
               const delta = text + callFilter(part.id).flush();
               if (delta.length > 0) controller.enqueue({ type: 'text-delta', id: part.id, delta });
               controller.enqueue(part);
-              emitCalls([...(pendingCalls.get(part.id) ?? []), ...calls]);
+              emitCalls([...(pendingCalls.get(part.id) ?? []), ...runnable]);
               pendingCalls.delete(part.id);
               return;
             }
