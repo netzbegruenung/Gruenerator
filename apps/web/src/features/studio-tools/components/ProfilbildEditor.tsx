@@ -1,4 +1,5 @@
 import { useMediaQuery } from '@gruenerator/shared/hooks';
+import { useSubscribedContents } from '@gruenerator/shared/marketplace';
 import {
   clampPerson,
   COLOR_SWATCHES_AT,
@@ -25,7 +26,12 @@ import {
   type SavedProfilbild,
   type SavedProfilbildSticker,
 } from '@gruenerator/shared/profilbild';
-import { assetStickerId, isAssetStickerId, isShareSrc } from '@gruenerator/shared/stickers';
+import {
+  assetStickerId,
+  isAssetStickerId,
+  isFrameSticker,
+  isShareSrc,
+} from '@gruenerator/shared/stickers';
 import { emptyAssetForm } from '@gruenerator/shared/studio-assets';
 import {
   Alert,
@@ -238,6 +244,7 @@ export function ProfilbildEditor({
   const locale = useAuthStore((s) => s.locale);
   const colorSwatches = isAustria ? COLOR_SWATCHES_AT : COLOR_SWATCHES_DE;
   const presets = useMemo(() => presetDesigns(isAustria), [isAustria]);
+  const subscribed = useSubscribedContents(isAustria ? 'de-AT' : 'de-DE');
   // Lookups by id also know retired Vorlagen: a saved Profilbild may still name one.
   const knownPresets = useMemo(() => allPresetDesigns(isAustria), [isAustria]);
   const presetsRef = useRef(knownPresets);
@@ -247,8 +254,11 @@ export function ProfilbildEditor({
   );
   const offeredPresets = useMemo(() => {
     const linked = knownPresets.find((p) => p.id === linkedPresetId);
-    return linked && !presets.some((p) => p.id === linked.id) ? [...presets, linked] : presets;
-  }, [presets, knownPresets, linkedPresetId]);
+    const shown = (id: string) =>
+      presets.some((p) => p.id === id) ||
+      subscribed.some((c) => c.backgrounds.some((p) => p.id === id));
+    return linked && !shown(linked.id) ? [...presets, linked] : presets;
+  }, [presets, knownPresets, linkedPresetId, subscribed]);
   const reopenRef = useRef(reopen);
   const savedBackground = reopen?.saved.background;
   const saveProfilbild = useProfilbildShare(reopen?.shareToken ?? null);
@@ -498,10 +508,12 @@ export function ProfilbildEditor({
   const placeSticker = (
     sticker: Pick<PlacedSticker, 'id' | 'src' | 'label' | 'image'>,
     scale: number,
-    aspect: number
+    aspect: number,
+    // A frame covers the whole picture (x/y are the centre) instead of sitting in a corner.
+    fullBleed = false
   ) => {
     const uid = `sticker-${++stickerSeq.current}`;
-    const width = PROFILBILD_SIZE * STICKER_BASE_WIDTH * scale;
+    const width = fullBleed ? PROFILBILD_SIZE : PROFILBILD_SIZE * STICKER_BASE_WIDTH * scale;
     setStickers((list) => {
       const shift = (list.length % 5) * 40;
       return [
@@ -509,8 +521,8 @@ export function ProfilbildEditor({
         {
           ...sticker,
           uid,
-          x: PROFILBILD_SIZE * 0.68 - shift,
-          y: PROFILBILD_SIZE * 0.72 - shift,
+          x: fullBleed ? PROFILBILD_SIZE / 2 : PROFILBILD_SIZE * 0.68 - shift,
+          y: fullBleed ? PROFILBILD_SIZE / 2 : PROFILBILD_SIZE * 0.72 - shift,
           width,
           height: width * aspect,
           rotation: 0,
@@ -527,7 +539,8 @@ export function ProfilbildEditor({
       placeSticker(
         { id: sticker.id, src: sticker.src, label: sticker.label, image },
         sticker.defaultScale,
-        image.height / image.width
+        image.height / image.width,
+        isFrameSticker(sticker)
       );
     } catch (cause) {
       setError(errorMessage(cause, 'Sticker konnte nicht geladen werden.'));
@@ -711,7 +724,7 @@ export function ProfilbildEditor({
     const pick = catalogPickRef.current;
     if (!pick || !restored || (pick.kind === 'sticker' && !cutout)) return;
     catalogPickRef.current = null;
-    if (pick.kind === 'sticker') {
+    if (pick.kind === 'sticker' || pick.kind === 'frame') {
       const sticker = stickerById(pick.id);
       if (sticker) void addSticker(sticker);
     } else {
@@ -881,6 +894,9 @@ export function ProfilbildEditor({
         setSelected(FREE_BACKGROUND_ID);
       }}
       presets={offeredPresets}
+      collectionPresets={subscribed
+        .filter((c) => c.backgrounds.length > 0)
+        .map((c) => ({ id: c.collection.id, title: c.collection.title, presets: c.backgrounds }))}
       selected={activeId}
       customImageSrc={customImage?.src ?? null}
       customUrl={customUrl}

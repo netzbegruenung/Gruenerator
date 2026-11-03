@@ -3,6 +3,7 @@
 export {
   assetStickerId,
   isAssetStickerId,
+  isFrameSticker,
   isShareSrc,
   MIN_STICKER,
   STICKER_BASE_WIDTH,

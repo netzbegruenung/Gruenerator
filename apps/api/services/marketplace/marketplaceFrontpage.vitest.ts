@@ -127,7 +127,7 @@ describe('getMarketplaceFrontpage', () => {
       'starter',
       'barrierefreiheit',
       'canva',
-      'wahlkampf-moritz',
+      'mustergruen-wahlkampf',
       'gleichstellung',
       'queer',
       'europa',

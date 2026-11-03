@@ -44,6 +44,8 @@ export interface ProfilbildBackgroundPickerProps {
   freeBackground: FreeBackground | null;
   onSelectFree: (bg: FreeBackground) => void;
   presets: PresetDesign[];
+  /** Backgrounds of subscribed collections, one group each. */
+  collectionPresets?: { id: string; title: string; presets: PresetDesign[] }[];
   selected: string;
   customImageSrc: string | null;
   /** The stored share path of the custom background, if it has one yet. */
@@ -62,6 +64,7 @@ export function ProfilbildBackgroundPicker({
   freeBackground,
   onSelectFree,
   presets,
+  collectionPresets = [],
   selected,
   customImageSrc,
   customUrl,
@@ -90,43 +93,50 @@ export function ProfilbildBackgroundPicker({
     />
   );
 
+  const renderPreset = (p: PresetDesign) => (
+    <button
+      key={p.id}
+      type="button"
+      aria-label={p.label}
+      aria-pressed={selected === p.id}
+      title={p.label}
+      onClick={() => onSelectPreset(p)}
+      className={TILE_CLASS}
+      style={{
+        background: flatCss(p.base),
+      }}
+    >
+      {p.overlays.map((o) => (
+        <img
+          key={o.src}
+          src={o.src}
+          alt=""
+          aria-hidden="true"
+          className="pointer-events-none absolute max-w-none -translate-x-1/2 -translate-y-1/2"
+          style={{
+            left: `${o.x * 100}%`,
+            top: `${o.y * 100}%`,
+            width: `${o.width * 100}%`,
+            opacity: o.opacity,
+          }}
+        />
+      ))}
+    </button>
+  );
+
   return (
     <div className="flex flex-col gap-3.5">
       <section aria-label="Vorlagen" className="flex flex-col gap-2.5">
         <h3 className={SECTION_LABEL_CLASS}>Vorlagen</h3>
-        <div className={TILE_GRID}>
-          {presets.map((p) => (
-            <button
-              key={p.id}
-              type="button"
-              aria-label={p.label}
-              aria-pressed={selected === p.id}
-              title={p.label}
-              onClick={() => onSelectPreset(p)}
-              className={TILE_CLASS}
-              style={{
-                background: flatCss(p.base),
-              }}
-            >
-              {p.overlays.map((o) => (
-                <img
-                  key={o.src}
-                  src={o.src}
-                  alt=""
-                  aria-hidden="true"
-                  className="pointer-events-none absolute max-w-none -translate-x-1/2 -translate-y-1/2"
-                  style={{
-                    left: `${o.x * 100}%`,
-                    top: `${o.y * 100}%`,
-                    width: `${o.width * 100}%`,
-                    opacity: o.opacity,
-                  }}
-                />
-              ))}
-            </button>
-          ))}
-        </div>
+        <div className={TILE_GRID}>{presets.map(renderPreset)}</div>
       </section>
+
+      {collectionPresets.map((group) => (
+        <section key={group.id} aria-label={`Aus ${group.title}`} className="flex flex-col gap-2.5">
+          <h3 className={SECTION_LABEL_CLASS}>Aus {group.title}</h3>
+          <div className={TILE_GRID}>{group.presets.map(renderPreset)}</div>
+        </section>
+      ))}
 
       <section aria-label="Farben" className="flex flex-col gap-2.5">
         <h3 className={SECTION_LABEL_CLASS}>Farben</h3>

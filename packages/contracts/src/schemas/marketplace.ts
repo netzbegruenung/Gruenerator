@@ -257,6 +257,7 @@ export const marketplaceCollectionIdSchema = z.enum([
   'barrierefreiheit',
   'canva',
   'wahlkampf-moritz',
+  'mustergruen-wahlkampf',
   'gleichstellung',
   'queer',
   'europa',
@@ -264,6 +265,16 @@ export const marketplaceCollectionIdSchema = z.enum([
   'gruene-jugend-oesterreich',
 ]);
 export type MarketplaceCollectionId = z.infer<typeof marketplaceCollectionIdSchema>;
+
+export const marketplaceSubscriptionsResponseSchema = z.object({
+  collectionIds: z.array(marketplaceCollectionIdSchema),
+});
+export type MarketplaceSubscriptionsResponse = z.infer<
+  typeof marketplaceSubscriptionsResponseSchema
+>;
+
+export const marketplaceSubscribeResponseSchema = z.object({ subscribed: z.boolean() });
+export type MarketplaceSubscribeResponse = z.infer<typeof marketplaceSubscribeResponseSchema>;
 
 export const marketplaceFrontpageCollectionSchema = z.object({
   collectionId: marketplaceCollectionIdSchema,

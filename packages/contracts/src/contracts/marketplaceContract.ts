@@ -5,8 +5,10 @@
  * requireAuth is applied at the /api/marketplace prefix in routes.ts.
  */
 import { initContract } from '@ts-rest/core';
+import { z } from 'zod';
 
 import {
+  marketplaceCollectionIdSchema,
   marketplaceErrorSchema,
   marketplaceFrontpageQuerySchema,
   marketplaceFrontpageResponseSchema,
@@ -17,6 +19,8 @@ import {
   marketplaceListQuerySchema,
   marketplaceListResponseSchema,
   marketplaceSaveResponseSchema,
+  marketplaceSubscribeResponseSchema,
+  marketplaceSubscriptionsResponseSchema,
 } from '../schemas/marketplace.js';
 
 const c = initContract();
@@ -115,6 +119,45 @@ export const marketplaceContract = c.router(
         500: marketplaceErrorSchema,
       },
       summary: 'Remove from „Meine Grüneratoren" or „Gemerkt"',
+    },
+
+    subscriptions: {
+      method: 'GET',
+      path: '/api/marketplace/subscriptions',
+      responses: {
+        200: marketplaceSubscriptionsResponseSchema,
+        401: marketplaceErrorSchema,
+        500: marketplaceErrorSchema,
+      },
+      summary: 'The collections the viewer subscribed to, oldest first',
+    },
+
+    subscribe: {
+      method: 'PUT',
+      path: '/api/marketplace/collections/:collectionId/subscription',
+      pathParams: z.object({ collectionId: marketplaceCollectionIdSchema }),
+      body: c.noBody(),
+      responses: {
+        200: marketplaceSubscribeResponseSchema,
+        400: marketplaceErrorSchema,
+        401: marketplaceErrorSchema,
+        500: marketplaceErrorSchema,
+      },
+      summary: 'Subscribe to a collection (idempotent)',
+    },
+
+    unsubscribe: {
+      method: 'DELETE',
+      path: '/api/marketplace/collections/:collectionId/subscription',
+      pathParams: z.object({ collectionId: marketplaceCollectionIdSchema }),
+      body: c.noBody(),
+      responses: {
+        200: marketplaceSubscribeResponseSchema,
+        400: marketplaceErrorSchema,
+        401: marketplaceErrorSchema,
+        500: marketplaceErrorSchema,
+      },
+      summary: 'Unsubscribe from a collection (idempotent)',
     },
   },
   { pathPrefix: '' }

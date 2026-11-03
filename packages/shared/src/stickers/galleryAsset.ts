@@ -44,5 +44,17 @@ export function parseProfilbildAssetParams(params: {
 }
 
 /** How the Profilbild names a gallery item it is about to apply. */
-export const galleryTarget = ({ title, kind }: Pick<GalleryAsset, 'title' | 'kind'>) =>
-  title ? `„${title}“` : kind === 'sticker' ? 'den Sticker' : 'den Hintergrund';
+export const galleryTarget = ({
+  title,
+  kind,
+}: {
+  title: string;
+  kind: GalleryAsset['kind'] | 'frame';
+}) =>
+  title
+    ? `„${title}“`
+    : kind === 'sticker'
+      ? 'den Sticker'
+      : kind === 'frame'
+        ? 'den Rahmen'
+        : 'den Hintergrund';
