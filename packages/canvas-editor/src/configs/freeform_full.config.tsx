@@ -8,7 +8,9 @@
  * balkens, badges, frames — all features the config system offers.
  */
 
+import { contrastRatio, type BrandPack } from '@ggraphic/core';
 import { describeCanvasElements, buildIllustrationCapability } from '@ggraphic/editor/ai';
+import { activeBrand } from '@ggraphic/editor/brand';
 import {
   carryInstanceState,
   makeSectionDefiner,
@@ -46,7 +48,6 @@ import { chatTab, createCommonSectionEntries, toolsTab, uploadsTab } from './com
 import { createBaseActions } from './factory/baseActions';
 
 import type { SharepicAiCapabilities } from './aiCapabilities';
-import type { BrandPack } from '@ggraphic/core';
 import type { BackgroundColorOption } from '@ggraphic/editor/internal/sidebar/types';
 import type { CanvasAiSnapshot } from '@gruenerator/contracts';
 
@@ -236,6 +237,14 @@ function composerPlanesFor(
 // FULL CONFIG
 // ============================================================================
 
+/** The brand's text colour that reads best on the page's colour; white on a photo. */
+function inkOnGround(state: FreeformState, brand: BrandPack): string {
+  if (state.backgroundMode !== 'color') return '#FFFFFF';
+  const { textOnDark, textOnLight } = brand.colors;
+  const contrast = (ink: string) => contrastRatio(state.backgroundColor, ink) ?? 0;
+  return contrast(textOnLight) > contrast(textOnDark) ? textOnLight : textOnDark;
+}
+
 export const SHEET_MAX_PAGES = 10;
 export const SLIDE_MAX_PAGES = 60;
 
@@ -244,8 +253,8 @@ export const SLIDE_MAX_PAGES = 60;
 export const createFreeformFullConfig = (
   format: CanvasFormat,
   {
-    /** Colour of newly added text; white suits the default Tanne sheet. */
-    fontColor = '#FFFFFF',
+    /** Fixed colour of newly added text and icons; absent = the brand's ink for the page's ground. */
+    fontColor,
     /** The page's brand: fonts, colours and chart series of new elements; absent = the active brand's. */
     brand,
   }: { fontColor?: string; brand?: BrandPack } = {}
@@ -254,7 +263,7 @@ export const createFreeformFullConfig = (
     createFreeformAiCapabilities(format.width, format.height),
     format.width,
     format.height,
-    fontColor,
+    fontColor ?? null,
     brand,
     isSlideFormat(format) ? SLIDE_MAX_PAGES : SHEET_MAX_PAGES,
     insertScaleFor(format)
@@ -264,7 +273,7 @@ const withFreeformAi = (
   ai: SharepicAiCapabilities<FreeformState, FreeformActions>,
   width: number,
   height: number,
-  fontColor: string,
+  fontColor: string | null,
   brand: BrandPack | undefined,
   maxPages: number,
   insertScale: number
@@ -459,20 +468,33 @@ const withFreeformAi = (
   }),
 
   createActions: (getState, setState, saveToHistory, debouncedSaveToHistory) => {
-    const baseActions = createBaseActions(
-      getState,
-      setState,
-      saveToHistory,
-      debouncedSaveToHistory,
-      width,
-      height,
-      fontColor,
-      brand,
-      insertScale
-    );
+    const actionsInInk = (ink: string) =>
+      createBaseActions(
+        getState,
+        setState,
+        saveToHistory,
+        debouncedSaveToHistory,
+        width,
+        height,
+        ink,
+        brand,
+        insertScale
+      );
+    const baseActions = actionsInInk(fontColor ?? '#FFFFFF');
+    // The ink is read when the element is added: one fixed colour vanished as
+    // soon as the ground was light (white on the GRÜNE JUGEND Limette).
+    const inGroundInk = () =>
+      actionsInInk(fontColor ?? inkOnGround(getState(), brand ?? activeBrand()));
 
     return {
       ...baseActions,
+
+      addHeader: () => inGroundInk().addHeader(),
+      addSubheader: () => inGroundInk().addSubheader(),
+      addText: () => inGroundInk().addText(),
+      addBodyTextWithContent: (content: string) => inGroundInk().addBodyTextWithContent(content),
+      toggleIcon: (...args: Parameters<typeof baseActions.toggleIcon>) =>
+        inGroundInk().toggleIcon(...args),
 
       updateAdditionalText: (id: string, partial: Partial<AdditionalText>) => {
         const change = (s: FreeformState): FreeformState => {
