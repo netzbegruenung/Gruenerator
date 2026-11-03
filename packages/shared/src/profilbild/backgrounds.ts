@@ -267,7 +267,8 @@ const GJ = {
 const GJ_AT = { WALDGRUEN: '#005424', MAIGRUEN: '#92CE26', CREME: '#F2F0E0', VEILCHEN: '#5C448C' };
 
 /**
- * Die Hintergründe der Grünen Jugend, je Land eine Kollektion: nur über sie zu
+ * Die Hintergründe der Grünen Jugend, je Land eine Kollektion, und die der
+ * Musterkollektion Mustergrün: nur über sie zu
  * haben, nicht im Wähler. Gespeicherte Profilbilder lösen sie trotzdem auf.
  */
 export const COLLECTION_PRESET_DESIGNS: readonly PresetDesign[] = [
@@ -332,6 +333,41 @@ export const COLLECTION_PRESET_DESIGNS: readonly PresetDesign[] = [
     base: { kind: 'color', color: GJ_AT.VEILCHEN },
     overlays: [],
     kollektion: 'gruene-jugend-oesterreich',
+  },
+  {
+    id: 'mg-hg-marktplatz',
+    label: 'Marktplatz',
+    base: { kind: 'color', color: '#98A185' },
+    overlays: [fullOverlay('/studio-tools/hintergruende/mustergruen-hg-marktplatz.webp')],
+    kollektion: 'mustergruen-wahlkampf',
+  },
+  {
+    id: 'mg-hg-sand-sonnenblumen',
+    label: 'Sand mit Sonnenblumen',
+    base: { kind: 'color', color: '#EFEEDB' },
+    overlays: [fullOverlay('/studio-tools/hintergruende/mustergruen-hg-sand-sonnenblumen.webp')],
+    kollektion: 'mustergruen-wahlkampf',
+  },
+  {
+    id: 'mg-hg-sonnenblumenfeld',
+    label: 'Sonnenblumenfeld',
+    base: { kind: 'color', color: '#C2CC6F' },
+    overlays: [fullOverlay('/studio-tools/hintergruende/mustergruen-hg-sonnenblumenfeld.webp')],
+    kollektion: 'mustergruen-wahlkampf',
+  },
+  {
+    id: 'mg-hg-tanne-strahlen',
+    label: 'Tanne mit Strahlen',
+    base: { kind: 'color', color: '#09613B' },
+    overlays: [fullOverlay('/studio-tools/hintergruende/mustergruen-hg-tanne-strahlen.webp')],
+    kollektion: 'mustergruen-wahlkampf',
+  },
+  {
+    id: 'mg-hg-wiese',
+    label: 'Wiese',
+    base: { kind: 'color', color: '#9ABD76' },
+    overlays: [fullOverlay('/studio-tools/hintergruende/mustergruen-hg-wiese.webp')],
+    kollektion: 'mustergruen-wahlkampf',
   },
 ];
 

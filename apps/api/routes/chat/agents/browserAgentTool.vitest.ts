@@ -232,7 +232,8 @@ describe('website_erkunden', () => {
     const { ctx, sent, state } = makeCtx();
     await run(makeWebsiteErkundenTool(ctx), INPUT);
     const meta = JSON.stringify(state.browserSession);
-    expect(meta).not.toMatch(/base64|b64/);
+    // Keys only: the session's random UUID `id` contains "b64" now and then (#5257).
+    expect(meta).not.toMatch(/"[^"]*(base64|b64)[^"]*":/);
     expect(meta).not.toContain(B64);
     expect(JSON.stringify(sent)).not.toContain(B64);
   });

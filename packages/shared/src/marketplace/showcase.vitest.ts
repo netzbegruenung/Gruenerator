@@ -1,5 +1,5 @@
 import { type MarketplaceItem } from '@gruenerator/contracts';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, onTestFinished } from 'vitest';
 
 import { getLandesverbandHubById } from '../agents/landesverbandHubs';
 
@@ -9,6 +9,7 @@ import {
   marketplaceTabsFor,
   shownMarketplaceTab,
 } from './browse';
+import { MARKETPLACE_COLLECTIONS, type MarketplaceCollection } from './frontpage';
 import {
   collectionAddState,
   collectionCardsFor,
@@ -48,6 +49,10 @@ describe('tabs and origins', () => {
 
 describe('collections', () => {
   it('leaves unlisted collections out and splits the themes row off', () => {
+    // Boundary cast: the registry is `as const`; no real collection is unlisted right now.
+    const registry = MARKETPLACE_COLLECTIONS as unknown as MarketplaceCollection[];
+    registry.push({ ...registry[0]!, id: 'wahlkampf-moritz', listed: false });
+    onTestFinished(() => void registry.pop());
     const answer = [
       { collectionId: 'starter' as const, items: [] },
       { collectionId: 'queer' as const, items: [] },

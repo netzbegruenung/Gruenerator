@@ -153,11 +153,11 @@ export interface ComposerBrand {
     /** The "swipe on" arrow: the brand's brush-stroke asset, or the drawn arrow. */
     swipeArrow: 'brush' | 'drawn';
     /**
-     * The date circle: the brand's attention colour, chosen by the ground's ink,
-     * or in the Störer's colours on that ground; `'etikett'` sets the date as a
+     * The date circle: the brand's attention colour, or in the Störer's
+     * colours on that ground; `'etikett'` sets the date as a
      * label with a black edge and hard shadow in the top corner instead.
      */
-    datumCircle: 'attention' | 'ink' | 'stoerer' | 'etikett';
+    datumCircle: 'attention' | 'stoerer' | 'etikett';
     /**
      * How `termine` set a date: a column in the accent, a label with a black
      * edge (rows on a dark ground stand on cards), or a wall-calendar tile.

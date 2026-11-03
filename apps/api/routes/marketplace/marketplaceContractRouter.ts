@@ -5,10 +5,20 @@
  * in routes.ts. Liking and saving check that the caller may see the item;
  * removing a like or a save does not, so stale ones stay removable.
  */
-import { marketplaceContract, type MarketplacePlatform } from '@gruenerator/contracts';
+import {
+  marketplaceContract,
+  type MarketplaceCollectionId,
+  type MarketplacePlatform,
+} from '@gruenerator/contracts';
+import { LEGACY_COLLECTION_ALIASES } from '@gruenerator/shared/marketplace';
 import { createExpressEndpoints, initServer } from '@ts-rest/express';
 
 import { extractLocaleFromRequest } from '../../services/localization/index.js';
+import {
+  listSubscribedCollectionIds,
+  subscribeCollection,
+  unsubscribeCollection,
+} from '../../services/marketplace/collectionSubscriptionService.js';
 import { buildMarketplaceContext } from '../../services/marketplace/context.js';
 import {
   getMarketplaceFrontpage,
@@ -25,6 +35,12 @@ import type { RequestWithLocale } from '../../services/localization/types.js';
 import type { Application } from 'express';
 
 const log = createLogger('marketplaceContractRouter');
+
+/** F0 — a renamed collection keeps resolving; the row stores the current id. */
+const currentCollectionId = (id: MarketplaceCollectionId): MarketplaceCollectionId =>
+  id in LEGACY_COLLECTION_ALIASES
+    ? LEGACY_COLLECTION_ALIASES[id as keyof typeof LEGACY_COLLECTION_ALIASES]
+    : id;
 
 const NOT_FOUND = {
   status: 404 as const,
@@ -136,6 +152,36 @@ export const marketplaceContractRouter = s.router(marketplaceContract, {
     } catch (error) {
       log.error('[marketplaceContract.unsave] Error:', error);
       return serverError('Entfernen fehlgeschlagen.');
+    }
+  },
+
+  subscriptions: async ({ req }) => {
+    try {
+      const collectionIds = await listSubscribedCollectionIds(getAuthedUser(req).id);
+      return { status: 200 as const, body: { collectionIds } };
+    } catch (error) {
+      log.error('[marketplaceContract.subscriptions] Error:', error);
+      return serverError('Fehler beim Laden der Abos.');
+    }
+  },
+
+  subscribe: async ({ req, params }) => {
+    try {
+      await subscribeCollection(getAuthedUser(req).id, currentCollectionId(params.collectionId));
+      return { status: 200 as const, body: { subscribed: true } };
+    } catch (error) {
+      log.error('[marketplaceContract.subscribe] Error:', error);
+      return serverError('Abonnieren fehlgeschlagen.');
+    }
+  },
+
+  unsubscribe: async ({ req, params }) => {
+    try {
+      await unsubscribeCollection(getAuthedUser(req).id, currentCollectionId(params.collectionId));
+      return { status: 200 as const, body: { subscribed: false } };
+    } catch (error) {
+      log.error('[marketplaceContract.unsubscribe] Error:', error);
+      return serverError('Abbestellen fehlgeschlagen.');
     }
   },
 });

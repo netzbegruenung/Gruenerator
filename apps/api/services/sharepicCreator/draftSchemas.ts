@@ -108,7 +108,7 @@ const SLIDE_SCHEMA = {
     ort: {
       ...structureOf(slideShape.ort.unwrap()),
       description:
-        '{"lines":[Name des Orts, Adresse?]} als eigene Zeilen – oder weglassen, wenn der Ort schon im Text steht (nie beides) oder der Auftrag keinen nennt',
+        '{"lines":[Name des Orts, Adresse?]} als eigene Zeilen – oder weglassen, wenn der Ort schon im Text steht (im einladenden Satz oder als Adresszeile unter der Headline; nie beides) oder der Auftrag keinen nennt',
     },
     quelle: { type: 'string', description: 'Quelle einer Zahl, nur wenn sie im Auftrag steht' },
     zeilenboxen: { type: 'boolean', description: 'nur Deutschland: jede Zeile in einer Box' },

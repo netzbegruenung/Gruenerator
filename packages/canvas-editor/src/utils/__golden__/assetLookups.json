@@ -1391,6 +1391,182 @@
    }
   ],
   [
+   "mg-ich-waehle-maxi",
+   {
+    "id": "mg-ich-waehle-maxi",
+    "src": "/studio-tools/stickers/mustergruen-ich-waehle-maxi.png",
+    "label": "Ich wähle Maxi",
+    "category": "sticker",
+    "tags": [
+     "sticker",
+     "wahlkampf",
+     "maxi",
+     "pille"
+    ],
+    "audience": "de-DE"
+   }
+  ],
+  [
+   "mg-wahltag-13-9",
+   {
+    "id": "mg-wahltag-13-9",
+    "src": "/studio-tools/stickers/mustergruen-wahltag-13-9.png",
+    "label": "Wahltag 13.9. Grün wählen",
+    "category": "sticker",
+    "tags": [
+     "sticker",
+     "wahltag",
+     "datum",
+     "störer",
+     "stern"
+    ],
+    "audience": "de-DE"
+   }
+  ],
+  [
+   "mg-team-mustergruen",
+   {
+    "id": "mg-team-mustergruen",
+    "src": "/studio-tools/stickers/mustergruen-team-mustergruen.png",
+    "label": "Team Mustergrün",
+    "category": "sticker",
+    "tags": [
+     "sticker",
+     "team",
+     "balken",
+     "mustergrün"
+    ],
+    "audience": "de-DE"
+   }
+  ],
+  [
+   "mg-sonnenblume-maxi",
+   {
+    "id": "mg-sonnenblume-maxi",
+    "src": "/studio-tools/stickers/mustergruen-sonnenblume-maxi.png",
+    "label": "Sonnenblume für Maxi",
+    "category": "sticker",
+    "tags": [
+     "sticker",
+     "sonnenblume",
+     "maxi"
+    ],
+    "audience": "de-DE"
+   }
+  ],
+  [
+   "mg-frag-maxi",
+   {
+    "id": "mg-frag-maxi",
+    "src": "/studio-tools/stickers/mustergruen-frag-maxi.png",
+    "label": "Sprechblase „Frag Maxi!“",
+    "category": "sticker",
+    "tags": [
+     "sticker",
+     "sprechblase",
+     "frag mich",
+     "dialog"
+    ],
+    "audience": "de-DE"
+   }
+  ],
+  [
+   "mg-kreuz-bei-gruen",
+   {
+    "id": "mg-kreuz-bei-gruen",
+    "src": "/studio-tools/stickers/mustergruen-kreuz-bei-gruen.png",
+    "label": "Wahlkreuz",
+    "category": "sticker",
+    "tags": [
+     "sticker",
+     "wahlzettel",
+     "kreuz",
+     "wählen"
+    ],
+    "audience": "de-DE"
+   }
+  ],
+  [
+   "mg-gemeinsam-mustergruen",
+   {
+    "id": "mg-gemeinsam-mustergruen",
+    "src": "/studio-tools/stickers/mustergruen-gemeinsam-mustergruen.png",
+    "label": "Plakette Gemeinsam für Mustergrün",
+    "category": "sticker",
+    "tags": [
+     "sticker",
+     "plakette",
+     "rund",
+     "mustergrün"
+    ],
+    "audience": "de-DE"
+   }
+  ],
+  [
+   "mg-kalender-13-september",
+   {
+    "id": "mg-kalender-13-september",
+    "src": "/studio-tools/stickers/mustergruen-kalender-13-september.png",
+    "label": "Kalenderblatt 13. September",
+    "category": "sticker",
+    "tags": [
+     "sticker",
+     "kalender",
+     "datum",
+     "termin"
+    ],
+    "audience": "de-DE"
+   }
+  ],
+  [
+   "mg-rahmen-ich-waehle-maxi",
+   {
+    "id": "mg-rahmen-ich-waehle-maxi",
+    "src": "/studio-tools/stickers/mustergruen-rahmen-ich-waehle-maxi.png",
+    "label": "Rahmen „Ich wähle Maxi“",
+    "category": "sticker",
+    "tags": [
+     "sticker",
+     "rahmen",
+     "wahlkampf",
+     "maxi"
+    ],
+    "audience": "de-DE"
+   }
+  ],
+  [
+   "mg-rahmen-team-mustergruen",
+   {
+    "id": "mg-rahmen-team-mustergruen",
+    "src": "/studio-tools/stickers/mustergruen-rahmen-team-mustergruen.png",
+    "label": "Rahmen „Team Mustergrün“",
+    "category": "sticker",
+    "tags": [
+     "sticker",
+     "rahmen",
+     "team",
+     "mustergrün"
+    ],
+    "audience": "de-DE"
+   }
+  ],
+  [
+   "mg-rahmen-wahltag",
+   {
+    "id": "mg-rahmen-wahltag",
+    "src": "/studio-tools/stickers/mustergruen-rahmen-wahltag.png",
+    "label": "Rahmen „Wahltag“",
+    "category": "sticker",
+    "tags": [
+     "sticker",
+     "rahmen",
+     "wahltag",
+     "datum"
+    ],
+    "audience": "de-DE"
+   }
+  ],
+  [
    "emoji-1f600",
    {
     "id": "emoji-1f600",
@@ -1773,6 +1949,50 @@
   [
    "/studio-tools/stickers/gj-at-sprechblase.png",
    "gj-at-sprechblase"
+  ],
+  [
+   "/studio-tools/stickers/mustergruen-ich-waehle-maxi.png",
+   "mg-ich-waehle-maxi"
+  ],
+  [
+   "/studio-tools/stickers/mustergruen-wahltag-13-9.png",
+   "mg-wahltag-13-9"
+  ],
+  [
+   "/studio-tools/stickers/mustergruen-team-mustergruen.png",
+   "mg-team-mustergruen"
+  ],
+  [
+   "/studio-tools/stickers/mustergruen-sonnenblume-maxi.png",
+   "mg-sonnenblume-maxi"
+  ],
+  [
+   "/studio-tools/stickers/mustergruen-frag-maxi.png",
+   "mg-frag-maxi"
+  ],
+  [
+   "/studio-tools/stickers/mustergruen-kreuz-bei-gruen.png",
+   "mg-kreuz-bei-gruen"
+  ],
+  [
+   "/studio-tools/stickers/mustergruen-gemeinsam-mustergruen.png",
+   "mg-gemeinsam-mustergruen"
+  ],
+  [
+   "/studio-tools/stickers/mustergruen-kalender-13-september.png",
+   "mg-kalender-13-september"
+  ],
+  [
+   "/studio-tools/stickers/mustergruen-rahmen-ich-waehle-maxi.png",
+   "mg-rahmen-ich-waehle-maxi"
+  ],
+  [
+   "/studio-tools/stickers/mustergruen-rahmen-team-mustergruen.png",
+   "mg-rahmen-team-mustergruen"
+  ],
+  [
+   "/studio-tools/stickers/mustergruen-rahmen-wahltag.png",
+   "mg-rahmen-wahltag"
   ]
  ],
  "instances": [
@@ -3322,6 +3542,204 @@
    "gj-at-sprechblase",
    "https://evil.example/x.png",
    "/studio-tools/stickers/gj-at-sprechblase.png",
+   true
+  ],
+  [
+   "mg-ich-waehle-maxi",
+   null,
+   "/studio-tools/stickers/mustergruen-ich-waehle-maxi.png",
+   true
+  ],
+  [
+   "mg-ich-waehle-maxi",
+   "/api/share/0123456789abcdef0123456789abcdef/download",
+   "/api/share/0123456789abcdef0123456789abcdef/download",
+   true
+  ],
+  [
+   "mg-ich-waehle-maxi",
+   "https://evil.example/x.png",
+   "/studio-tools/stickers/mustergruen-ich-waehle-maxi.png",
+   true
+  ],
+  [
+   "mg-wahltag-13-9",
+   null,
+   "/studio-tools/stickers/mustergruen-wahltag-13-9.png",
+   true
+  ],
+  [
+   "mg-wahltag-13-9",
+   "/api/share/0123456789abcdef0123456789abcdef/download",
+   "/api/share/0123456789abcdef0123456789abcdef/download",
+   true
+  ],
+  [
+   "mg-wahltag-13-9",
+   "https://evil.example/x.png",
+   "/studio-tools/stickers/mustergruen-wahltag-13-9.png",
+   true
+  ],
+  [
+   "mg-team-mustergruen",
+   null,
+   "/studio-tools/stickers/mustergruen-team-mustergruen.png",
+   true
+  ],
+  [
+   "mg-team-mustergruen",
+   "/api/share/0123456789abcdef0123456789abcdef/download",
+   "/api/share/0123456789abcdef0123456789abcdef/download",
+   true
+  ],
+  [
+   "mg-team-mustergruen",
+   "https://evil.example/x.png",
+   "/studio-tools/stickers/mustergruen-team-mustergruen.png",
+   true
+  ],
+  [
+   "mg-sonnenblume-maxi",
+   null,
+   "/studio-tools/stickers/mustergruen-sonnenblume-maxi.png",
+   true
+  ],
+  [
+   "mg-sonnenblume-maxi",
+   "/api/share/0123456789abcdef0123456789abcdef/download",
+   "/api/share/0123456789abcdef0123456789abcdef/download",
+   true
+  ],
+  [
+   "mg-sonnenblume-maxi",
+   "https://evil.example/x.png",
+   "/studio-tools/stickers/mustergruen-sonnenblume-maxi.png",
+   true
+  ],
+  [
+   "mg-frag-maxi",
+   null,
+   "/studio-tools/stickers/mustergruen-frag-maxi.png",
+   true
+  ],
+  [
+   "mg-frag-maxi",
+   "/api/share/0123456789abcdef0123456789abcdef/download",
+   "/api/share/0123456789abcdef0123456789abcdef/download",
+   true
+  ],
+  [
+   "mg-frag-maxi",
+   "https://evil.example/x.png",
+   "/studio-tools/stickers/mustergruen-frag-maxi.png",
+   true
+  ],
+  [
+   "mg-kreuz-bei-gruen",
+   null,
+   "/studio-tools/stickers/mustergruen-kreuz-bei-gruen.png",
+   true
+  ],
+  [
+   "mg-kreuz-bei-gruen",
+   "/api/share/0123456789abcdef0123456789abcdef/download",
+   "/api/share/0123456789abcdef0123456789abcdef/download",
+   true
+  ],
+  [
+   "mg-kreuz-bei-gruen",
+   "https://evil.example/x.png",
+   "/studio-tools/stickers/mustergruen-kreuz-bei-gruen.png",
+   true
+  ],
+  [
+   "mg-gemeinsam-mustergruen",
+   null,
+   "/studio-tools/stickers/mustergruen-gemeinsam-mustergruen.png",
+   true
+  ],
+  [
+   "mg-gemeinsam-mustergruen",
+   "/api/share/0123456789abcdef0123456789abcdef/download",
+   "/api/share/0123456789abcdef0123456789abcdef/download",
+   true
+  ],
+  [
+   "mg-gemeinsam-mustergruen",
+   "https://evil.example/x.png",
+   "/studio-tools/stickers/mustergruen-gemeinsam-mustergruen.png",
+   true
+  ],
+  [
+   "mg-kalender-13-september",
+   null,
+   "/studio-tools/stickers/mustergruen-kalender-13-september.png",
+   true
+  ],
+  [
+   "mg-kalender-13-september",
+   "/api/share/0123456789abcdef0123456789abcdef/download",
+   "/api/share/0123456789abcdef0123456789abcdef/download",
+   true
+  ],
+  [
+   "mg-kalender-13-september",
+   "https://evil.example/x.png",
+   "/studio-tools/stickers/mustergruen-kalender-13-september.png",
+   true
+  ],
+  [
+   "mg-rahmen-ich-waehle-maxi",
+   null,
+   "/studio-tools/stickers/mustergruen-rahmen-ich-waehle-maxi.png",
+   true
+  ],
+  [
+   "mg-rahmen-ich-waehle-maxi",
+   "/api/share/0123456789abcdef0123456789abcdef/download",
+   "/api/share/0123456789abcdef0123456789abcdef/download",
+   true
+  ],
+  [
+   "mg-rahmen-ich-waehle-maxi",
+   "https://evil.example/x.png",
+   "/studio-tools/stickers/mustergruen-rahmen-ich-waehle-maxi.png",
+   true
+  ],
+  [
+   "mg-rahmen-team-mustergruen",
+   null,
+   "/studio-tools/stickers/mustergruen-rahmen-team-mustergruen.png",
+   true
+  ],
+  [
+   "mg-rahmen-team-mustergruen",
+   "/api/share/0123456789abcdef0123456789abcdef/download",
+   "/api/share/0123456789abcdef0123456789abcdef/download",
+   true
+  ],
+  [
+   "mg-rahmen-team-mustergruen",
+   "https://evil.example/x.png",
+   "/studio-tools/stickers/mustergruen-rahmen-team-mustergruen.png",
+   true
+  ],
+  [
+   "mg-rahmen-wahltag",
+   null,
+   "/studio-tools/stickers/mustergruen-rahmen-wahltag.png",
+   true
+  ],
+  [
+   "mg-rahmen-wahltag",
+   "/api/share/0123456789abcdef0123456789abcdef/download",
+   "/api/share/0123456789abcdef0123456789abcdef/download",
+   true
+  ],
+  [
+   "mg-rahmen-wahltag",
+   "https://evil.example/x.png",
+   "/studio-tools/stickers/mustergruen-rahmen-wahltag.png",
    true
   ],
   [
@@ -5477,6 +5895,270 @@
    "https://evil.example/x.png",
    {
     "assetId": "gj-at-sprechblase",
+    "src": null
+   }
+  ],
+  [
+   "mg-ich-waehle-maxi",
+   "/mg-ich-waehle-maxi.png",
+   {
+    "assetId": "mg-ich-waehle-maxi",
+    "src": null
+   }
+  ],
+  [
+   "mg-ich-waehle-maxi",
+   "/api/share/0123456789abcdef0123456789abcdef/download",
+   {
+    "assetId": "mg-ich-waehle-maxi",
+    "src": "/api/share/0123456789abcdef0123456789abcdef/download"
+   }
+  ],
+  [
+   "mg-ich-waehle-maxi",
+   "https://evil.example/x.png",
+   {
+    "assetId": "mg-ich-waehle-maxi",
+    "src": null
+   }
+  ],
+  [
+   "mg-wahltag-13-9",
+   "/mg-wahltag-13-9.png",
+   {
+    "assetId": "mg-wahltag-13-9",
+    "src": null
+   }
+  ],
+  [
+   "mg-wahltag-13-9",
+   "/api/share/0123456789abcdef0123456789abcdef/download",
+   {
+    "assetId": "mg-wahltag-13-9",
+    "src": "/api/share/0123456789abcdef0123456789abcdef/download"
+   }
+  ],
+  [
+   "mg-wahltag-13-9",
+   "https://evil.example/x.png",
+   {
+    "assetId": "mg-wahltag-13-9",
+    "src": null
+   }
+  ],
+  [
+   "mg-team-mustergruen",
+   "/mg-team-mustergruen.png",
+   {
+    "assetId": "mg-team-mustergruen",
+    "src": null
+   }
+  ],
+  [
+   "mg-team-mustergruen",
+   "/api/share/0123456789abcdef0123456789abcdef/download",
+   {
+    "assetId": "mg-team-mustergruen",
+    "src": "/api/share/0123456789abcdef0123456789abcdef/download"
+   }
+  ],
+  [
+   "mg-team-mustergruen",
+   "https://evil.example/x.png",
+   {
+    "assetId": "mg-team-mustergruen",
+    "src": null
+   }
+  ],
+  [
+   "mg-sonnenblume-maxi",
+   "/mg-sonnenblume-maxi.png",
+   {
+    "assetId": "mg-sonnenblume-maxi",
+    "src": null
+   }
+  ],
+  [
+   "mg-sonnenblume-maxi",
+   "/api/share/0123456789abcdef0123456789abcdef/download",
+   {
+    "assetId": "mg-sonnenblume-maxi",
+    "src": "/api/share/0123456789abcdef0123456789abcdef/download"
+   }
+  ],
+  [
+   "mg-sonnenblume-maxi",
+   "https://evil.example/x.png",
+   {
+    "assetId": "mg-sonnenblume-maxi",
+    "src": null
+   }
+  ],
+  [
+   "mg-frag-maxi",
+   "/mg-frag-maxi.png",
+   {
+    "assetId": "mg-frag-maxi",
+    "src": null
+   }
+  ],
+  [
+   "mg-frag-maxi",
+   "/api/share/0123456789abcdef0123456789abcdef/download",
+   {
+    "assetId": "mg-frag-maxi",
+    "src": "/api/share/0123456789abcdef0123456789abcdef/download"
+   }
+  ],
+  [
+   "mg-frag-maxi",
+   "https://evil.example/x.png",
+   {
+    "assetId": "mg-frag-maxi",
+    "src": null
+   }
+  ],
+  [
+   "mg-kreuz-bei-gruen",
+   "/mg-kreuz-bei-gruen.png",
+   {
+    "assetId": "mg-kreuz-bei-gruen",
+    "src": null
+   }
+  ],
+  [
+   "mg-kreuz-bei-gruen",
+   "/api/share/0123456789abcdef0123456789abcdef/download",
+   {
+    "assetId": "mg-kreuz-bei-gruen",
+    "src": "/api/share/0123456789abcdef0123456789abcdef/download"
+   }
+  ],
+  [
+   "mg-kreuz-bei-gruen",
+   "https://evil.example/x.png",
+   {
+    "assetId": "mg-kreuz-bei-gruen",
+    "src": null
+   }
+  ],
+  [
+   "mg-gemeinsam-mustergruen",
+   "/mg-gemeinsam-mustergruen.png",
+   {
+    "assetId": "mg-gemeinsam-mustergruen",
+    "src": null
+   }
+  ],
+  [
+   "mg-gemeinsam-mustergruen",
+   "/api/share/0123456789abcdef0123456789abcdef/download",
+   {
+    "assetId": "mg-gemeinsam-mustergruen",
+    "src": "/api/share/0123456789abcdef0123456789abcdef/download"
+   }
+  ],
+  [
+   "mg-gemeinsam-mustergruen",
+   "https://evil.example/x.png",
+   {
+    "assetId": "mg-gemeinsam-mustergruen",
+    "src": null
+   }
+  ],
+  [
+   "mg-kalender-13-september",
+   "/mg-kalender-13-september.png",
+   {
+    "assetId": "mg-kalender-13-september",
+    "src": null
+   }
+  ],
+  [
+   "mg-kalender-13-september",
+   "/api/share/0123456789abcdef0123456789abcdef/download",
+   {
+    "assetId": "mg-kalender-13-september",
+    "src": "/api/share/0123456789abcdef0123456789abcdef/download"
+   }
+  ],
+  [
+   "mg-kalender-13-september",
+   "https://evil.example/x.png",
+   {
+    "assetId": "mg-kalender-13-september",
+    "src": null
+   }
+  ],
+  [
+   "mg-rahmen-ich-waehle-maxi",
+   "/mg-rahmen-ich-waehle-maxi.png",
+   {
+    "assetId": "mg-rahmen-ich-waehle-maxi",
+    "src": null
+   }
+  ],
+  [
+   "mg-rahmen-ich-waehle-maxi",
+   "/api/share/0123456789abcdef0123456789abcdef/download",
+   {
+    "assetId": "mg-rahmen-ich-waehle-maxi",
+    "src": "/api/share/0123456789abcdef0123456789abcdef/download"
+   }
+  ],
+  [
+   "mg-rahmen-ich-waehle-maxi",
+   "https://evil.example/x.png",
+   {
+    "assetId": "mg-rahmen-ich-waehle-maxi",
+    "src": null
+   }
+  ],
+  [
+   "mg-rahmen-team-mustergruen",
+   "/mg-rahmen-team-mustergruen.png",
+   {
+    "assetId": "mg-rahmen-team-mustergruen",
+    "src": null
+   }
+  ],
+  [
+   "mg-rahmen-team-mustergruen",
+   "/api/share/0123456789abcdef0123456789abcdef/download",
+   {
+    "assetId": "mg-rahmen-team-mustergruen",
+    "src": "/api/share/0123456789abcdef0123456789abcdef/download"
+   }
+  ],
+  [
+   "mg-rahmen-team-mustergruen",
+   "https://evil.example/x.png",
+   {
+    "assetId": "mg-rahmen-team-mustergruen",
+    "src": null
+   }
+  ],
+  [
+   "mg-rahmen-wahltag",
+   "/mg-rahmen-wahltag.png",
+   {
+    "assetId": "mg-rahmen-wahltag",
+    "src": null
+   }
+  ],
+  [
+   "mg-rahmen-wahltag",
+   "/api/share/0123456789abcdef0123456789abcdef/download",
+   {
+    "assetId": "mg-rahmen-wahltag",
+    "src": "/api/share/0123456789abcdef0123456789abcdef/download"
+   }
+  ],
+  [
+   "mg-rahmen-wahltag",
+   "https://evil.example/x.png",
+   {
+    "assetId": "mg-rahmen-wahltag",
     "src": null
    }
   ],

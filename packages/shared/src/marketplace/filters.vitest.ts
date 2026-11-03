@@ -147,3 +147,9 @@ describe('stickerDiscoverToMarketplaceHref', () => {
     );
   });
 });
+
+describe('legacy collection ids', () => {
+  it('maps kollektion=wahlkampf-moritz to mustergruen-wahlkampf', () => {
+    expect(parse('kollektion=wahlkampf-moritz').collection).toBe('mustergruen-wahlkampf');
+  });
+});

@@ -1,4 +1,6 @@
+import { useSubscribedContents } from '@gruenerator/shared/marketplace';
 import { stickersForLocale, type ProfilbildSticker } from '@gruenerator/shared/profilbild';
+import { isFrameSticker } from '@gruenerator/shared/stickers';
 import {
   Button,
   Dialog,
@@ -45,6 +47,10 @@ export function ProfilbildStickerPicker({
   onAddAsset,
 }: ProfilbildStickerPickerProps) {
   const [creating, setCreating] = useState(false);
+  // Was abonnierte Kollektionen mitbringen, je Kollektion eine Gruppe hinter den Standardlisten.
+  const subscribed = useSubscribedContents(locale).filter(
+    (c) => c.stickers.length + c.frames.length > 0
+  );
   return (
     <>
       <ProfilbildGalleryGrid
@@ -88,6 +94,32 @@ export function ProfilbildStickerPicker({
           </>
         }
       />
+      {subscribed.map(({ collection, frames, stickers }) => (
+        <section
+          key={collection.id}
+          aria-label={`Aus ${collection.title}`}
+          className="mt-3 flex flex-col gap-2"
+        >
+          <h3 className="m-0 text-xs font-bold tracking-[0.06em] text-muted-foreground uppercase">
+            Aus {collection.title}
+          </h3>
+          <div className={GRID_CLASS}>
+            {[...frames, ...stickers].map((st) => (
+              <button
+                key={st.id}
+                type="button"
+                aria-label={`${isFrameSticker(st) ? 'Rahmen' : 'Sticker'} ${st.label} hinzufügen`}
+                title={st.label}
+                disabled={disabled}
+                onClick={() => onAddSystem(st)}
+                className={STICKER_TILE_CLASS}
+              >
+                <img src={st.src} alt="" aria-hidden="true" className="max-h-full max-w-full" />
+              </button>
+            ))}
+          </div>
+        </section>
+      ))}
       {/* Der Ersteller im Dialog: das Profilbild bleibt offen, der neue Sticker landet darauf. */}
       <Dialog open={creating} onOpenChange={setCreating}>
         <DialogContent

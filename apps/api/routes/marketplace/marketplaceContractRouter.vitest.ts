@@ -14,6 +14,9 @@ const m = vi.hoisted(() => ({
   getMarketplaceItem: vi.fn(),
   setLike: vi.fn(),
   setSaved: vi.fn(),
+  listSubscribedCollectionIds: vi.fn(),
+  subscribeCollection: vi.fn(),
+  unsubscribeCollection: vi.fn(),
   buildMarketplaceContext: vi.fn((p: Record<string, unknown>) => ({ ctx: p })),
 }));
 
@@ -23,6 +26,11 @@ vi.mock('../../services/marketplace/marketplaceService.js', () => ({
   getMarketplaceItem: m.getMarketplaceItem,
   setLike: m.setLike,
   setSaved: m.setSaved,
+}));
+vi.mock('../../services/marketplace/collectionSubscriptionService.js', () => ({
+  listSubscribedCollectionIds: m.listSubscribedCollectionIds,
+  subscribeCollection: m.subscribeCollection,
+  unsubscribeCollection: m.unsubscribeCollection,
 }));
 vi.mock('../../services/marketplace/context.js', () => ({
   buildMarketplaceContext: m.buildMarketplaceContext,
@@ -148,4 +156,44 @@ it('save: 409 when „Meine Grüneratoren" is full', async () => {
   m.setSaved.mockResolvedValue({ ok: false, status: 409 });
   const res = await call('save', { params });
   expect(res.status).toBe(409);
+});
+
+describe('collection subscriptions', () => {
+  const collectionParams = { collectionId: 'mustergruen-wahlkampf' };
+
+  it('subscribe returns {subscribed:true} and calls subscribeCollection', async () => {
+    m.subscribeCollection.mockResolvedValue(undefined);
+    const res = await call('subscribe', { params: collectionParams });
+    expect(res).toEqual({ status: 200, body: { subscribed: true } });
+    expect(m.subscribeCollection).toHaveBeenCalledWith('viewer', 'mustergruen-wahlkampf');
+  });
+
+  it('unsubscribe returns {subscribed:false}', async () => {
+    m.unsubscribeCollection.mockResolvedValue(undefined);
+    const res = await call('unsubscribe', { params: collectionParams });
+    expect(res).toEqual({ status: 200, body: { subscribed: false } });
+    expect(m.unsubscribeCollection).toHaveBeenCalledWith('viewer', 'mustergruen-wahlkampf');
+  });
+
+  it('subscribe maps the legacy id', async () => {
+    m.subscribeCollection.mockResolvedValue(undefined);
+    m.unsubscribeCollection.mockResolvedValue(undefined);
+    await call('subscribe', { params: { collectionId: 'wahlkampf-moritz' } });
+    await call('unsubscribe', { params: { collectionId: 'wahlkampf-moritz' } });
+    expect(m.subscribeCollection).toHaveBeenCalledWith('viewer', 'mustergruen-wahlkampf');
+    expect(m.unsubscribeCollection).toHaveBeenCalledWith('viewer', 'mustergruen-wahlkampf');
+  });
+
+  it('subscriptions returns the service list', async () => {
+    m.listSubscribedCollectionIds.mockResolvedValue(['queer', 'europa']);
+    const res = await call('subscriptions');
+    expect(res).toEqual({ status: 200, body: { collectionIds: ['queer', 'europa'] } });
+    expect(m.listSubscribedCollectionIds).toHaveBeenCalledWith('viewer');
+  });
+
+  it('subscribe maps a thrown error to 500', async () => {
+    m.subscribeCollection.mockRejectedValue(new Error('db down'));
+    const res = await call('subscribe', { params: collectionParams });
+    expect(res.status).toBe(500);
+  });
 });
