@@ -139,7 +139,7 @@ export function swatchGradient(bg: Exclude<FlatBackground, { kind: 'color' }>): 
   const [x0, y0, x1, y1] = gradientLine(bg.angle, 1);
   return {
     colors: bg.stops as unknown as Stops<string>,
-    locations: null,
+    locations: (bg.positions ?? null) as Stops<number> | null,
     start: { x: x0, y: y0 },
     end: { x: x1, y: y1 },
   };

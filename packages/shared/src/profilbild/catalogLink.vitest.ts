@@ -83,4 +83,26 @@ describe('profilbild catalogue links', () => {
     );
     expect(pick).toMatchObject({ kind: 'frame', id: 'test-rahmen' });
   });
+
+  it('still resolves a background taken out of its collection, but no longer offers it', () => {
+    const retired = parseProfilbildCatalogParams(
+      params(profilbildCatalogParams({ kind: 'background', id: 'gj-hellgruen-zackenstern' }))
+    );
+    expect(retired).toMatchObject({ kind: 'background', id: 'gj-hellgruen-zackenstern' });
+    expect(presetsForCollection('gruene-jugend').map((d) => d.id)).not.toContain(
+      'gj-hellgruen-zackenstern'
+    );
+  });
+
+  it('offers the gradient from gruene-jugend.de first, with its angle and stops', () => {
+    expect(presetsForCollection('gruene-jugend')[0]).toMatchObject({
+      id: 'gj-verlauf',
+      base: {
+        kind: 'gradient',
+        angle: 200,
+        stops: ['#FF8568', '#F28ADE', '#9F88FF', '#C7FF7A'],
+        positions: [0.1476, 0.3508, 0.6047, 0.8537],
+      },
+    });
+  });
 });

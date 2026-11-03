@@ -248,6 +248,17 @@ export function ProfilbildEditor({
   // Lookups by id also know retired Vorlagen: a saved Profilbild may still name one.
   const knownPresets = useMemo(() => allPresetDesigns(isAustria), [isAustria]);
   const presetsRef = useRef(knownPresets);
+  // A collection's background is not in the picker; the one it linked stays offered there.
+  const [linkedPresetId] = useState(() =>
+    catalogPick?.kind === 'background' ? catalogPick.id : null
+  );
+  const offeredPresets = useMemo(() => {
+    const linked = knownPresets.find((p) => p.id === linkedPresetId);
+    const shown = (id: string) =>
+      presets.some((p) => p.id === id) ||
+      subscribed.some((c) => c.backgrounds.some((p) => p.id === id));
+    return linked && !shown(linked.id) ? [...presets, linked] : presets;
+  }, [presets, knownPresets, linkedPresetId, subscribed]);
   const reopenRef = useRef(reopen);
   const savedBackground = reopen?.saved.background;
   const saveProfilbild = useProfilbildShare(reopen?.shareToken ?? null);
@@ -698,10 +709,11 @@ export function ProfilbildEditor({
     }
   };
 
-  // A gallery deep link lands once the photo (and a reopened state) is in.
+  // A gallery deep link lands once a reopened state is in; a sticker also waits for the
+  // photo, a background shows on the empty stage right away.
   useEffect(() => {
     const asset = galleryAssetRef.current;
-    if (!asset || !cutout || !restored) return;
+    if (!asset || !restored || (asset.kind === 'sticker' && !cutout)) return;
     galleryAssetRef.current = null;
     void (asset.kind === 'sticker' ? addGallerySticker(asset) : pickGalleryBackground(asset));
     // eslint-disable-next-line react-hooks/exhaustive-deps -- applied once; the handlers only read state setters
@@ -710,7 +722,7 @@ export function ProfilbildEditor({
   // A collection's link lands the same way, with a catalogue sticker or background.
   useEffect(() => {
     const pick = catalogPickRef.current;
-    if (!pick || !cutout || !restored) return;
+    if (!pick || !restored || (pick.kind === 'sticker' && !cutout)) return;
     catalogPickRef.current = null;
     if (pick.kind === 'sticker' || pick.kind === 'frame') {
       const sticker = stickerById(pick.id);
@@ -881,7 +893,7 @@ export function ProfilbildEditor({
         setFreeBackground(bg);
         setSelected(FREE_BACKGROUND_ID);
       }}
-      presets={presets}
+      presets={offeredPresets}
       collectionPresets={subscribed
         .filter((c) => c.backgrounds.length > 0)
         .map((c) => ({ id: c.collection.id, title: c.collection.title, presets: c.backgrounds }))}

@@ -21,7 +21,7 @@ export interface ProfilbildOverlay {
 
 export type ProfilbildBaseBackground =
   | { kind: 'color'; color: string }
-  | { kind: 'gradient'; stops: string[]; angle: number }
+  | { kind: 'gradient'; stops: string[]; angle: number; positions?: number[] }
   /** Equal horizontal bands, top to bottom; drawn as vectors so they stay crisp. */
   | { kind: 'stripes'; colors: string[] }
   | { kind: 'image'; image: Drawable };
@@ -63,7 +63,9 @@ export function drawProfilbildBackground(
   } else if (background.kind === 'gradient') {
     const gradient = ctx.createLinearGradient(...gradientLine(background.angle, size));
     const last = Math.max(background.stops.length - 1, 1);
-    background.stops.forEach((color, i) => gradient.addColorStop(i / last, color));
+    background.stops.forEach((color, i) =>
+      gradient.addColorStop(background.positions?.[i] ?? i / last, color)
+    );
     ctx.fillStyle = gradient;
     ctx.fillRect(0, 0, size, size);
   } else if (background.kind === 'stripes') {

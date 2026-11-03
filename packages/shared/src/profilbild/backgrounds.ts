@@ -6,7 +6,8 @@ import { type ProfilbildAssetSrc } from './assets.js';
 
 export type FlatBackground =
   | { kind: 'color'; color: string }
-  | { kind: 'gradient'; stops: string[]; angle: number }
+  /** `positions` (0–1, one per stop) places the stops like CSS; without it they are evenly spaced. */
+  | { kind: 'gradient'; stops: string[]; angle: number; positions?: number[] }
   | { kind: 'stripes'; colors: string[] };
 
 export interface Swatch {
@@ -236,6 +237,13 @@ function retiredPresetDesigns(isAustria: boolean): PresetDesign[] {
           base: { kind: 'color', color: CANVAS_COLORS.TANNE },
           overlays: [{ src: '/gruene-de-logo-weiss.png', x: 0.19, y: 0.1, width: 0.3, opacity: 1 }],
         },
+    // Aus der GJ-Kollektion genommen (02.11.2026); gespeicherte Profilbilder öffnen ihn weiter.
+    {
+      id: 'gj-hellgruen-zackenstern',
+      label: 'Hellgrün mit Zackenstern',
+      base: { kind: 'color', color: GJ.HELLGRUEN },
+      overlays: [fullOverlay('/studio-tools/hintergruende/gj-hg-zackenstern.png')],
+    },
   ];
 }
 
@@ -249,7 +257,13 @@ const fullOverlay = (src: ProfilbildAssetSrc): PresetOverlay => ({
 });
 
 /** GJ-Farben, wie sie die Sharepics der Grünen Jugend tragen (grueneBrand.ts). */
-const GJ = { HELLGRUEN: '#C7FF7A', LAVENDEL: '#9F88FF', APRICOT: '#FF8568', WIESE: '#33C270' };
+const GJ = {
+  HELLGRUEN: '#C7FF7A',
+  LAVENDEL: '#9F88FF',
+  APRICOT: '#FF8568',
+  PINK: '#F28ADE',
+  WIESE: '#33C270',
+};
 const GJ_AT = { WALDGRUEN: '#005424', MAIGRUEN: '#92CE26', CREME: '#F2F0E0', VEILCHEN: '#5C448C' };
 
 /**
@@ -259,10 +273,16 @@ const GJ_AT = { WALDGRUEN: '#005424', MAIGRUEN: '#92CE26', CREME: '#F2F0E0', VEI
  */
 export const COLLECTION_PRESET_DESIGNS: readonly PresetDesign[] = [
   {
-    id: 'gj-hellgruen-zackenstern',
-    label: 'Hellgrün mit Zackenstern',
-    base: { kind: 'color', color: GJ.HELLGRUEN },
-    overlays: [fullOverlay('/studio-tools/hintergruende/gj-hg-zackenstern.png')],
+    // Der Verlauf hinter dem Logo auf gruene-jugend.de (`--gradient-1`), Winkel und Stopps wie dort.
+    id: 'gj-verlauf',
+    label: 'Verlauf der GRÜNEN JUGEND',
+    base: {
+      kind: 'gradient',
+      stops: [GJ.APRICOT, GJ.PINK, GJ.LAVENDEL, GJ.HELLGRUEN],
+      positions: [0.1476, 0.3508, 0.6047, 0.8537],
+      angle: 200,
+    },
+    overlays: [],
     kollektion: 'gruene-jugend',
   },
   {

@@ -172,12 +172,14 @@ const ProfilbildPage = () => {
     ? (reopened.data?.cutoutUrl ?? null)
     : (handoffUrl ?? (status === 'done' ? cutoutDataUrl : null));
 
-  // The deep link waits for a photo; once the editor has it, the hint is done.
-  const [pendingAsset, setPendingAsset] = useState(linked);
-  const [linkedAssetId, setLinkedAssetId] = useState(linked?.id ?? null);
-  if ((linked?.id ?? null) !== linkedAssetId) {
-    setLinkedAssetId(linked?.id ?? null);
-    setPendingAsset(linked);
+  // A linked sticker waits for a photo; once the editor has it, the hint is done.
+  // A linked background shows on the empty stage right away and needs no hint.
+  const waiting = linked?.kind === 'sticker' ? linked : null;
+  const [pendingAsset, setPendingAsset] = useState(waiting);
+  const [linkedAssetId, setLinkedAssetId] = useState(waiting?.id ?? null);
+  if ((waiting?.id ?? null) !== linkedAssetId) {
+    setLinkedAssetId(waiting?.id ?? null);
+    setPendingAsset(waiting);
   }
   if (cutoutUrl && pendingAsset) setPendingAsset(null);
 

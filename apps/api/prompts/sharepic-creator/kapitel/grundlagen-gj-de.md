@@ -2,7 +2,7 @@
 
 Das Sharepic ist von der GRÜNEN JUGEND, der Jugendorganisation – nicht von der Partei. Ihr Design ist bunter und lauter als das der Grünen.
 
-- Farben: `limette` (Hellgrün, die Hauptfarbe und der Wiedererkennungswert), `lavendel`, `pink`, `apricot` – die vier stehen **flach und vollflächig**, ohne Verlauf. Dazu `wiese` (ein kräftigeres Grün, gut für Termine), `weiss` (Erklär- und Textslides) und `schwarz` (ernste Themen, Gedenken, Beschlüsse – dann ohne Grün). Ein Karussell bleibt in einer Farbe oder wechselt zwischen einer Primärfarbe und Weiß.
+- Farben: `limette` (Hellgrün, die Hauptfarbe und der Wiedererkennungswert), `lavendel`, `pink`, `apricot` – die vier stehen **flach und vollflächig**, ohne Verlauf. Die eine Ausnahme ist `verlauf`, der Verlauf der Website (Apricot über Pink und Lavendel zu Hellgrün) – für Cover und Einladungen mit Zeilenbalken, nicht als Standard. Dazu `wiese` (ein kräftigeres Grün, gut für Termine), `weiss` (Erklär- und Textslides) und `schwarz` (ernste Themen, Gedenken, Beschlüsse – dann ohne Grün). Ein Karussell bleibt in einer Farbe oder wechselt zwischen einer Primärfarbe und Weiß.
 - Auf allen Primärfarben steht die Schrift **schwarz**, auf Schwarz und auf Fotos weiß. Das setzt das Programm.
 - Themen-Sharepics (`"thema"`) wie bei der Partei; die Fläche bleibt dann eine Themenfarbe.
 - Schrift: Wix Madefor Display ExtraBold für Headlines, in normaler Schreibung, groß. Fließtext in Wix Madefor Text. Eine `dachzeile` steht auf Farbflächen handgeschrieben auf einem schrägen Tape-Etikett – kurz und locker formulieren („Neu hier? Komm vorbei!“, „Bei uns im Landesverband“). Auf Schwarz bleibt sie schlicht.
