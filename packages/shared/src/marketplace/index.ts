@@ -109,6 +109,7 @@ export {
 } from './browse.js';
 export {
   categoryCoverPath,
+  collectionAddState,
   collectionCardsFor,
   collectionCoverPath,
   collectionMetaLine,
