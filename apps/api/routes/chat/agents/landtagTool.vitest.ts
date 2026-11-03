@@ -17,6 +17,28 @@ vi.mock('../../../services/landtag/index.js', async (importOriginal) => ({
   },
 }));
 
+type Passage = { source: string; url?: string; excerpt: string };
+const directSearch =
+  vi.fn<
+    (p: {
+      query: string;
+      collection?: string;
+      limit?: number;
+      searchMode?: string;
+    }) => Promise<unknown>
+  >();
+vi.mock('./directSearchExecutors.js', () => ({
+  executeDirectSearch: (p: { query: string; collection?: string; limit?: number }) =>
+    directSearch(p),
+}));
+const notebook = (results: Passage[]) => ({
+  collection: 'landtag_berlin_documents',
+  query: '',
+  searchMode: 'hybrid',
+  resultsCount: results.length,
+  results,
+});
+
 const state = (locale: string, text = ''): ChatGraphState =>
   ({
     intent: 'search',
@@ -51,6 +73,8 @@ const candidate = {
 describe('makeLandtagTool', () => {
   beforeEach(() => {
     findLandtag.mockReset();
+    directSearch.mockReset();
+    directSearch.mockResolvedValue(notebook([]));
     ausfall = false;
   });
   const make = (locale = 'de-DE', text = '') =>
@@ -126,6 +150,84 @@ describe('makeLandtagTool', () => {
     expect(out).not.toHaveProperty('uiCard');
   });
 
+  describe('Textstellen aus dem Notebook (Berlin)', () => {
+    const frage = 'Was hat der Senat zu Kiezblocks geantwortet?';
+
+    it('sucht mit der ganzen Frage und legt die Textstelle zum selben PDF als Auszug an den Eintrag', async () => {
+      findLandtag.mockResolvedValue({ candidates: [candidate], gesamt: 1, notes: [] });
+      directSearch.mockResolvedValue(
+        notebook([
+          { source: 'Kiezblocks retten', url: candidate.pdfUrl, excerpt: 'Der Senat prüft …' },
+          {
+            source: 'Ausschuss für Mobilität, 70. Sitzung',
+            url: 'https://pardok.parlament-berlin.de/x/mv19-070-wp.pdf',
+            excerpt: 'Kiezblocks im Ausschuss',
+          },
+        ])
+      );
+      const out = (await exec(make('de-DE', frage), {
+        parlament: 'berlin',
+        query: 'Kiezblock',
+      })) as { resultCount: number; sources: string; hinweis: string };
+      // „geantwortet" setzt die Art Antwort; das Notebook führt sie als `drucksache`.
+      expect(directSearch).toHaveBeenCalledWith({
+        query: frage,
+        collection: 'landtag-berlin',
+        limit: 4,
+        searchMode: 'vector',
+        filters: { content_type: ['drucksache'] },
+      });
+      // Ein Eintrag mit Auszug plus eine eigene Textstelle — kein zweiter Eintrag fürs selbe PDF.
+      expect(out.resultCount).toBe(2);
+      expect(out.sources).toContain('Auszug: Der Senat prüft');
+      expect(out.sources).toContain('Kiezblocks im Ausschuss');
+      expect(out.hinweis).toMatch(/Auszug/);
+    });
+
+    it('liefert die Textstellen, wenn die Live-Abfrage ausfällt, und sagt es', async () => {
+      ausfall = true;
+      directSearch.mockResolvedValue(
+        notebook([{ source: 'Kiezblocks retten', url: candidate.pdfUrl, excerpt: 'Text' }])
+      );
+      const out = (await exec(make('de-DE', frage), { parlament: 'berlin' })) as {
+        resultCount: number;
+        hinweise: string[];
+        error?: string;
+      };
+      expect(out.error).toBeUndefined();
+      expect(out.resultCount).toBe(1);
+      expect(out.hinweise[0]).toMatch(/Live-Abfrage .* nicht erreichbar/);
+    });
+
+    it('lässt das Notebook weg, sobald ein Filter gilt, den es nicht einhalten kann', async () => {
+      findLandtag.mockResolvedValue({ candidates: [candidate], gesamt: 1, notes: [] });
+      for (const text of ['Anfragen der Grünen zu Kiezblocks', 'Anfragen zu Kiezblocks 2026']) {
+        await exec(make('de-DE', text), { parlament: 'berlin', query: 'Kiezblock' });
+      }
+      // Anträge führt das Notebook gar nicht.
+      await exec(make('de-DE', frage), {
+        parlament: 'berlin',
+        query: 'Kiezblock',
+        typ: ['Antrag'],
+      });
+      expect(directSearch).not.toHaveBeenCalled();
+    });
+
+    it('kostet bei einem Ausfall des Notebooks nur die Textstellen', async () => {
+      findLandtag.mockResolvedValue({ candidates: [candidate], gesamt: 1, notes: [] });
+      directSearch.mockRejectedValue(new Error('Qdrant 503'));
+      const out = (await exec(make('de-DE', frage), {
+        parlament: 'berlin',
+        query: 'Kiezblock',
+      })) as {
+        resultCount: number;
+        hinweis: string;
+      };
+      expect(out.resultCount).toBe(1);
+      expect(out.hinweis).toMatch(/nur Metadaten/);
+    });
+  });
+
   it('meldet einen Ausfall der Quelle als Fehler statt zu werfen', async () => {
     ausfall = true;
     const out = (await exec(make(), { parlament: 'berlin', query: 'x' })) as { error: string };
@@ -136,6 +238,7 @@ describe('makeLandtagTool', () => {
 describe('makeNationalratTool', () => {
   beforeEach(() => {
     findLandtag.mockReset();
+    directSearch.mockReset();
     ausfall = false;
   });
   const make = (locale: string, text = '') =>
@@ -175,6 +278,8 @@ describe('makeNationalratTool', () => {
     expect(at.quelle).toMatch(/CC BY 4\.0/);
     expect(at.hinweis).toContain("quelle 'nationalrat'");
     expect(at.uiCard.parlament).toBe('Nationalrat');
+    // Der Nationalrat hat kein Notebook.
+    expect(directSearch).not.toHaveBeenCalled();
   });
 });
 
