@@ -78,8 +78,8 @@ export function shouldForceFirstToolCall(input: {
   sharepicOrder?: boolean;
   /** Der Klassifikator hat einen Auftrag an ein vorhandenes Artefakt erkannt (`artifactEditOrder`). */
   artifactEditOrder?: boolean;
-  /** Der Vorab-Abruf hat für DIESEN Turn Passagen aus den angehängten
-   *  Dokumenten in die Quellenregistry gelegt (`seedAttachedDocuments`). */
+  /** Der Vorab-Abruf hat für DIESEN Turn Material in die Quellenregistry
+   *  gelegt — Dokumente, Cloud-Dateien oder @link-Seiten (`seedTurnMaterial`). */
   attachedSeedDelivered?: boolean;
   /** Der Zug wird fortgesetzt (Freigabe, Client-Werkzeug, Rückfrage —
    *  `resumeApproval`): sein erster Schritt lief schon vor der Pause. */
@@ -384,8 +384,11 @@ export function forcedFirstStepTools(input: {
   /** Die Werkzeuge früherer Turns dieses Threads (`priorToolNames`, ohne Verbindungs-Schritte). */
   priorToolNames: readonly string[];
   isLookupTool: (name: string) => boolean;
-  /** Das Werkzeug für die angehängten Dokumente dieses Turns, oder `null` ohne Anhang. */
-  attachedDocsTool: string | null;
+  /** Die MONTIERTEN Werkzeuge, die das Material dieses Turns nachlesen
+   *  (`materialReaderTools`, gefiltert auf den Katalog), leer ohne Material.
+   *  Ungefiltert hiesse ein nicht montiertes `cloud_files` unten eine leere
+   *  Menge — und damit gar keinen Zuschnitt statt des Rückfalls auf den Intent. */
+  materialTools: readonly string[];
   /** Der Text der Person ohne Erwähnungs-Label — derselbe, den `createToolScope` liest. */
   userText: string;
   /** Der Thread arbeitet mit einem Notebook (`notebookForPrompt`). */
@@ -396,9 +399,10 @@ export function forcedFirstStepTools(input: {
   // Der Klassifikator schiebt jeden Dokument-Turn nach `search`. Hat der
   // Vorab-Abruf nichts geliefert, müsste Schritt 0 sonst die Parteiprogramme
   // nach dem eigenen PDF der Person durchsuchen — der Ausfall vom 23.08.2026 an
-  // neuer Stelle. Nicht für `research_order` (ein ausdrücklicher Auftrag geht
-  // nach draussen) und nicht für `mcp_scope` (der Server-Scope ist der Auftrag).
-  const attachedDocs = input.attachedDocsTool != null ? [input.attachedDocsTool] : [];
+  // neuer Stelle, und am 02.11.2026 mit einer gewählten Wolke-Datei (#5266).
+  // Nicht für `research_order` (ein ausdrücklicher Auftrag geht nach draussen)
+  // und nicht für `mcp_scope` (der Server-Scope ist der Auftrag).
+  const material = input.materialTools;
   // „Such in meinen Dokumenten nach …" feuert `research_order` und braucht
   // `documents`/`find_content`/… — dasselbe Signal, das in `createToolScope` die
   // Gruppe offen hält, damit der scharfe Umfang und diese Menge sich nie widersprechen.
@@ -441,9 +445,10 @@ export function forcedFirstStepTools(input: {
       // Im Notebook-Thread gehören dessen Quellen dazu: „Analysiere die neuesten
       // Beiträge zum Thema Verkehr" nach einer Quellenliste sah sonst nur Suche
       // und Web (Eval nbtool-berlin-thread-followup-content, 12.10.2026).
+      // Eine Connect-Datei hat kein Lesewerkzeug und fällt auf den Intent zurück.
       candidates =
-        attachedDocs.length > 0
-          ? attachedDocs
+        material.length > 0
+          ? material
           : [
               ...loopToolsFor(input.intent ?? ''),
               ...(input.threadNotebook ? ['notebook_quellen'] : []),
@@ -460,7 +465,7 @@ export function forcedFirstStepTools(input: {
         ...RESEARCH_LOOP_TOOLS,
         ...input.priorToolNames.filter(input.isLookupTool),
         ...ownContent,
-        ...(input.reason === 'research_order' ? [] : attachedDocs),
+        ...(input.reason === 'research_order' ? [] : material),
       ];
       break;
     case 'followup':
@@ -470,7 +475,7 @@ export function forcedFirstStepTools(input: {
       candidates = [
         ...input.priorToolNames.filter(input.isLookupTool),
         ...loopToolsFor('web'),
-        ...attachedDocs,
+        ...material,
       ];
       break;
   }

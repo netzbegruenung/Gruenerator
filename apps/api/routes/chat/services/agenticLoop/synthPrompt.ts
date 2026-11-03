@@ -137,6 +137,8 @@ export interface SynthPromptContext {
   /** The opening sentence IF it actually reached the client, else null. A
    *  getter, because it is only assigned once the gather phase narrates. */
   opening: () => string | null;
+  /** Notiz des Vorab-Seeds über nicht lesbares Material (`seedTurnMaterial`). */
+  materialNote: string;
 }
 
 /**
@@ -217,7 +219,8 @@ Die Suche für diesen Turn ist bereits GELAUFEN — ihre Treffer stehen oben. De
   /**
    * Ob den Schreiber aus diesem Turn ÜBERHAUPT ein Werkzeugergebnis erreicht
    * hat — jeder Term ist genau einer seiner Kanäle: die nummerierte Registry,
-   * `buildArtifactNotes`, `buildMcpOutcomeNote`, `buildToolPayloadNote`.
+   * `buildArtifactNotes`, `buildMcpOutcomeNote`, `buildToolPayloadNote` und
+   * die Notiz über nicht lesbares Material des Vorab-Seeds (#5286).
    *
    * Steht als benanntes Prädikat da und nicht als Aufzählung in der Bedingung
    * darunter, weil das der eigentliche Fehler war: die Liste wuchs mit jedem
@@ -229,7 +232,11 @@ Die Suche für diesen Turn ist bereits GELAUFEN — ihre Treffer stehen oben. De
    * Wer einen fünften Kanal baut, trägt ihn hier ein.
    */
   const nothingReachedTheWriter =
-    sources.trim().length === 0 && !producedArtifact && !mcpRan && toolPayload === '';
+    sources.trim().length === 0 &&
+    !producedArtifact &&
+    !mcpRan &&
+    toolPayload === '' &&
+    ctx.materialNote === '';
   const honestyNote = nothingReachedTheWriter
     ? // Gesucht und nichts gefunden ist das Gegenteil von „nicht nachgesehen" —
       // als letzter Absatz überstimmte die Zeile unten die Leer-Notiz, und der
@@ -282,6 +289,6 @@ Die Suche für diesen Turn ist bereits GELAUFEN — ihre Treffer stehen oben. De
   // prepareStep — mirroring how `carriedNote` is injected for unified
   // BECAUSE split gets it here.
   return withInstructionHierarchy(
-    `${ctx.systemMessage}${ctx.mcpNote}${cite}${uncoveredTerm}${artifacts}${mcpOutcome}${toolPayload}${writerNotes}${toolFailures}${toolEmpties}${capabilityNote}${phantomNote}${openingNote}${honestyNote}${tabularNote}${ctx.recipeRegistry.render()}${offerNote(ctx.state, ctx.recipeRegistry.mentions)}\n\nAntworte auf Deutsch (Du-Form, Genderstern).`
+    `${ctx.systemMessage}${ctx.mcpNote}${cite}${uncoveredTerm}${artifacts}${mcpOutcome}${toolPayload}${writerNotes}${ctx.materialNote}${toolFailures}${toolEmpties}${capabilityNote}${phantomNote}${openingNote}${honestyNote}${tabularNote}${ctx.recipeRegistry.render()}${offerNote(ctx.state, ctx.recipeRegistry.mentions)}\n\nAntworte auf Deutsch (Du-Form, Genderstern).`
   );
 }
