@@ -15,6 +15,24 @@ type AddOp = { type: string; blocks: unknown[] };
 const isTableText = (block: unknown): block is string =>
   typeof block === 'string' && block.trimStart().startsWith('|');
 
+/** A literal backslash-n (not a line break) between the `|` that ends one row and the `|` that starts the next. */
+const ESCAPED_ROW_BREAK = /(?<=\|)[ \t]*\\n[ \t]*(?=\|)/;
+const SEPARATOR_ROW = /^\|(?:[ \t]*:?-+:?[ \t]*\|)+[ \t]*$/;
+
+/**
+ * Gemma double-escapes the line breaks inside the tool argument, so a table
+ * arrives as ONE line with literal `\n` between the rows and lands as a
+ * paragraph (#4241). Only a single-line table string is touched, only at row
+ * boundaries (`|\n|`), and only when the second row is a separator row — a
+ * cell that really contains the text `\n` stays as it is.
+ */
+export function unescapeTableRows(block: unknown): unknown {
+  if (!isTableText(block) || block.includes('\n')) return block;
+  const rows = block.trim().split(ESCAPED_ROW_BREAK);
+  if (rows.length < 2 || !SEPARATOR_ROW.test(rows[1].trim())) return block;
+  return rows.join('\n');
+}
+
 /**
  * Models often send a table as one string per row. xl-ai parses each string as
  * its own block, so every row would land as a paragraph. A single-line row
@@ -76,7 +94,7 @@ function addBlocksWhole(editor: Editor, tool: StreamToolInstance): StreamToolIns
           const op = chunk.operation as AddOp;
           if (op.type !== 'add') return inner.execute(chunk, signal);
 
-          let blocks = joinTableRows(op.blocks);
+          let blocks = joinTableRows(op.blocks.map(unescapeTableRows));
           if (chunk.isPossiblyPartial) {
             blocks = blocks.slice(0, -1);
             // A string that has only just opened may still be the next row of
@@ -199,9 +217,11 @@ export function withStructuralUpdateFallback(): StreamToolsProvider<string> {
                 };
 
                 return {
-                  execute: async (chunk: Chunk, signal?: AbortSignal) => {
-                    const op = chunk.operation as UpdateOp;
-                    if (op.type !== 'update') return false;
+                  execute: async (received: Chunk, signal?: AbortSignal) => {
+                    const sent = received.operation as UpdateOp;
+                    if (sent.type !== 'update') return false;
+                    const op = { ...sent, block: unescapeTableRows(sent.block) as string };
+                    const chunk = { ...received, operation: op } as Chunk;
 
                     if (fallbackId !== op.id) {
                       try {

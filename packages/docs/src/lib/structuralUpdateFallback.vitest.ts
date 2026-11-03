@@ -8,7 +8,7 @@ import {
 } from '@blocknote/xl-ai';
 import { describe, expect, it } from 'vitest';
 
-import { withStructuralUpdateFallback } from './structuralUpdateFallback';
+import { unescapeTableRows, withStructuralUpdateFallback } from './structuralUpdateFallback';
 
 async function runUpdate(from: string, to: string) {
   const editor = BlockNoteEditor.create({
@@ -252,4 +252,33 @@ describe('nested blocks (#4956)', () => {
     const { md } = await runUpdate('- eins', '- eins\n  - unter\n  - zwei');
     expect(md).toBe('* eins\n  * unter\n  * zwei');
   }, 20_000);
+});
+
+// Gemma double-escapes line breaks inside the tool argument: the table arrives
+// as one line with literal `\n` and landed as a paragraph (#4241).
+describe('tables with escaped line breaks (#4241)', () => {
+  // The string from the live run on cortecs/gemma-4-31b-it.
+  const gemmaTable =
+    '| Ziel | Maßnahme |\\n| --- | --- |\\n| Radverkehr | Ausbau der Radwege |\\n| Wohnen | Förderung von bezahlbarem Wohnraum |';
+
+  it('adds the table as a table', async () => {
+    const { md, types } = await streamAdd([gemmaTable]);
+    expect(types).toEqual(['paragraph', 'table']);
+    expect(md).not.toContain('\\n');
+    expect(normalize(md)).toBe(normalize(`Hallo Welt\n\n${gemmaTable.replaceAll('\\n', '\n')}`));
+  }, 30_000);
+
+  it('updates a paragraph into the table', async () => {
+    const { types } = await runUpdate('Hallo Welt', gemmaTable);
+    expect(types).toEqual(['table']);
+  }, 20_000);
+
+  it.each([
+    ['a real multi-line table with \\n in a cell', '| A | B |\n| - | - |\n| x\\ny | 2 |'],
+    ['a paragraph mentioning \\n', 'Zeilenumbruch heißt \\n in JSON'],
+    ['a single row with \\n in a cell', '| a\\nb | c |'],
+    ['pipes without a separator row', '| a |\\n| b |'],
+  ])('leaves %s unchanged', (_name, block) => {
+    expect(unescapeTableRows(block)).toBe(block);
+  });
 });
