@@ -214,6 +214,24 @@ describe('event slide with a wide headline beside the date circle', () => {
     const rows = head.text.split('\n').length;
     expect(head.y + rows * head.fontSize * (head.lineHeight ?? 1.2)).toBeLessThan(c.y - c.radius);
   });
+
+  it('keeps a headline under a Dachzeile in the column beside the circle', () => {
+    const [s] = compose('de-DE', [
+      slide({
+        background: { kind: 'foto-oben', filename: 'x.jpg', panelColor: 'mint' },
+        position: 'oben',
+        items: [
+          { type: 'dachzeile', text: 'Am Samstag' },
+          { type: 'headline', lines: ['Wagen', 'Fest', 'Demo', 'Party'] },
+        ],
+        datum: { weekday: 'Sa', date: '25.7.' },
+        logo: true,
+      }),
+    ]);
+    const c = s!.circleBadgeInstances.find((b) => b.id === 'sc-datum')!;
+    const head = texts(s!).find((t) => /^sc-\d+-headline/.test(t.id))!;
+    expect(head.x + head.width).toBeLessThanOrEqual(c.x - c.radius);
+  });
 });
 
 describe('DE date circle type', () => {
@@ -233,6 +251,28 @@ describe('DE date circle type', () => {
     // The template set 47–48 px in this circle; fitted, the lines fill it.
     expect(sizes[0]).toBeGreaterThanOrEqual(60);
     expect(c.rotation).toBe(-7);
+  });
+
+  it('leaves a themed circle (badge colours) as it was', () => {
+    const [s] = composeSharepic(
+      {
+        locale: 'de-DE',
+        thema: 'frauen',
+        slides: [
+          slide({
+            background: { kind: 'foto-oben', filename: 'x.jpg', panelColor: 'hellgrau' },
+            position: 'oben',
+            items: [{ type: 'headline', lines: ['Grüner', 'Stammtisch'] }],
+            datum: { weekday: 'Do', date: '14.11.', time: '19 Uhr' },
+            logo: true,
+          }),
+        ],
+      },
+      options
+    ).slides;
+    const c = s!.circleBadgeInstances.find((b) => b.id === 'sc-datum')!;
+    expect(new Set(c.textLines.map((l) => l.fontSize)).size).toBeGreaterThan(1);
+    expect(c.rotation).not.toBe(-7);
   });
 });
 

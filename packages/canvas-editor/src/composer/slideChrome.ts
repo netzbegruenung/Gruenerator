@@ -251,9 +251,11 @@ export function drawSlideChrome(ctx: SlideCtx, inputs: ChromeInputs): void {
     const t = VERANSTALTUNG_CONFIG.circleText;
     /**
      * DE: the date stands in a Störer (CD S.24) and is set like one — its
-     * lines fill 90 % of the circle, tilted as the Störer is (CD S.15).
+     * lines fill 90 % of the circle, tilted as the Störer is (CD S.15). A
+     * theme with badge colours keeps its own circle, type included.
      */
-    const asStoerer = brand.layout.datumCircle === 'stoerer' && brand.stoererShape === 'circle';
+    const asStoerer =
+      !themed && brand.layout.datumCircle === 'stoerer' && brand.stoererShape === 'circle';
     // The template's type is set for its radius; a smaller circle scales it.
     const k = circle.radius / c.radius;
     // Only what is present, centred on the circle: three lines keep the

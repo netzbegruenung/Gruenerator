@@ -496,7 +496,10 @@ function composeSlide(
   const columnBesideCircle = !!circle && bg.kind === 'foto-oben';
   // The headline opens the panel, far above the circle: it keeps the full
   // width. Narrowed with the rest, a wide line („Komm zu unserem") set it
-  // small however short the text under it.
+  // small however short the text under it. Only when it opens the block: a
+  // Dachzeile or a big numeral above it takes room the cap below cannot know,
+  // so that headline stays in the narrowed column.
+  const headlineOpens = spec.items[0]?.type === 'headline' && numeral?.stil !== 'gross';
   const fullColumn = column;
   if (circle && columnBesideCircle) {
     column = { ...column, width: circle.x - circle.radius - GAP - column.x };
@@ -506,7 +509,7 @@ function composeSlide(
 
   // The headline keeps the full column; AT argument slides set centred
   // paragraphs narrower (~100 px side margins on the posts).
-  const headColumn = columnBesideCircle ? fullColumn : column;
+  const headColumn = columnBesideCircle && headlineOpens ? fullColumn : column;
   const centredMargin = brand.layout.centredMargin;
   if (centredMargin !== null && column.align === 'center' && surface !== 'foto') {
     const width = canvas.width - 2 * centredMargin;
@@ -966,7 +969,13 @@ function composeSlide(
    * capped so its lines clear the circle's top (`top` is set before any build).
    */
   const fullWidthHeadline = (size: number | null): number | null => {
-    if (size === null || !circle || !columnBesideCircle || headItem?.type !== 'headline') {
+    if (
+      size === null ||
+      !circle ||
+      !columnBesideCircle ||
+      !headlineOpens ||
+      headItem?.type !== 'headline'
+    ) {
       return size;
     }
     const clear = circle.y - circle.radius - GAP - top;
