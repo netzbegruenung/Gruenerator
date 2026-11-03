@@ -5,6 +5,7 @@ import {
   sharepicBlockSpec,
   sharepicSpecSchema,
   type SharepicBrandId,
+  type SharepicSlide,
 } from '@gruenerator/contracts';
 import { describe, expect, it, vi } from 'vitest';
 
@@ -24,7 +25,6 @@ import { farbe, options } from './sharepicSpecFixtures';
 
 import type { AdditionalText } from '@ggraphic/editor/config';
 import type { ShapeInstance } from '@ggraphic/editor/elements';
-import type { SharepicSlide } from '@gruenerator/contracts';
 
 const slideOf = (locale: 'de-DE' | 'de-AT', items: SharepicSlide['items']) =>
   composeSharepic(
