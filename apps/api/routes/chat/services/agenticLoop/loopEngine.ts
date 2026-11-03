@@ -627,9 +627,10 @@ export interface LoopEngineParams {
   forcedToolForStep?: () => string | null;
   onText: (delta: string) => void;
   onReasoning: (delta: string) => void;
-  /** Fires when the synth stalled and the sibling lane takes over, so the
-   *  client can surface the switch the same way the single-pass path does. */
-  onSynthFallback?: () => void;
+  /** Fires when the sibling lane takes over — the synth stalled, or came back
+   *  without a word — so the client can surface the switch the same way the
+   *  single-pass path does. */
+  onSynthFallback?: (reason: 'first_token_timeout' | 'empty_completion') => void;
   /**
    * SPLIT ONLY: fires when the planner accepted the request and then sent
    * nothing until the tool-phase deadline. Separate from `onSynthFallback`
@@ -1262,21 +1263,38 @@ async function synthesize(
    * back: the client has seen nothing from the dead pass.
    */
   const runPassWithFallback = async (system: string, silent = false): Promise<SynthPass> => {
+    const onFallback = (fallback: LanguageModel) =>
+      runPass(system, fallback, p.synthFallbackMessages?.(system) ?? messages, silent);
+    let pass: SynthPass;
     try {
-      return await runPass(system, p.synthModel, messages, silent);
+      pass = await runPass(system, p.synthModel, messages, silent);
     } catch (err) {
       if (!isSynthStall(err) || !p.synthFallbackModel) throw err;
       log.warn(
         `[Engine] synth lane silent past its window (${err.message}) — retrying once on the fallback lane`
       );
-      p.onSynthFallback?.();
-      return runPass(
-        system,
-        p.synthFallbackModel,
-        p.synthFallbackMessages?.(system) ?? messages,
-        silent
-      );
+      p.onSynthFallback?.('first_token_timeout');
+      return onFallback(p.synthFallbackModel);
     }
+    // A pass that ended without a word — what the single-pass path calls
+    // `empty_completion` and hands to the sibling. Live 03.11.2026 Mistral
+    // Large 4 closed a thinking stream three times in one thread with no text
+    // and no finish reason, and each turn ended on „keine passende Antwort"
+    // without a log line. A degenerate pass has its own retry below.
+    if (
+      pass.text.trim().length > 0 ||
+      pass.finishReason === DEGENERATE_FINISH_REASON ||
+      !p.synthFallbackModel ||
+      (p.writeAbortSignal ?? p.abortSignal).aborted
+    ) {
+      return pass;
+    }
+    log.warn(
+      `[Engine] synth lane returned no text (finish=${pass.finishReason ?? 'none'}) — retrying once on the fallback lane`
+    );
+    pass.discard();
+    p.onSynthFallback?.('empty_completion');
+    return onFallback(p.synthFallbackModel);
   };
 
   /** Why the answer is unusable as-is — a retry suffix, or null for valid. An
