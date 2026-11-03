@@ -291,10 +291,6 @@ const NotebookEditPage = lazy(() =>
 );
 const DocumentViewPage = lazy(() => import('../features/documents/DocumentViewPage'));
 const Reel = lazy(() => import('../features/subtitler/components/SubtitlerPage'));
-const SubtitlerBetaPage = lazy(
-  () => import('../features/subtitler-beta/components/SubtitlerBetaPage')
-);
-const SubStudioPage = lazy(() => import('../features/subtitler-beta/components/SubStudioPage'));
 const VideoEditorPage = lazy(() => import('../features/videoeditor/VideoEditorPage'));
 const SharedVideoPage = lazy(() => import('../features/subtitler/components/SharedVideoPage'));
 const SharedMediaPage = lazy(() => import('../features/shared-media/SharedMediaPage'));
@@ -739,8 +735,6 @@ const standardRoutes: RouteConfig[] = [
   { path: '/document/:id', component: DocumentToOfficeRedirect },
   { path: '/documents/:documentId', component: GrueneratorenBundle.DocumentView },
   { path: '/reel', component: GrueneratorenBundle.Reel },
-  { path: '/reel/beta', component: SubtitlerBetaPage },
-  { path: '/reel/studio', component: SubStudioPage },
   { path: '/scanner', component: GrueneratorenBundle.Scanner },
   { path: '/zeichenzaehler', component: ZeichenzaehlerPage },
   { path: '/uebersetzer', component: UebersetzerPage },

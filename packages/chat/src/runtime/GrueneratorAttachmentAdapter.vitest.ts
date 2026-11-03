@@ -8,9 +8,10 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { useAttachmentNoticeStore } from '../stores/attachmentNoticeStore';
-import { useChatConfigStore } from '../stores/chatConfigStore';
 
 import { GrueneratorAttachmentAdapter } from './GrueneratorAttachmentAdapter';
+
+import type { PendingAttachment } from '@assistant-ui/core';
 
 const fileToBase64 = vi.hoisted(() => vi.fn<(file: File) => Promise<string>>());
 
@@ -54,21 +55,23 @@ describe('GrueneratorAttachmentAdapter', () => {
   });
 
   it('shows a notice when an attachment fails at send time', async () => {
-    const failed = new Error('Upload fehlgeschlagen');
-    const promise = Promise.reject(failed);
-    useChatConfigStore.setState({
-      uploadReelVideo: () => ({ promise, abort: () => {} }),
-    });
+    const failed = new Error('Datei nicht lesbar');
+    fileToBase64.mockRejectedValue(failed);
     const adapter = new GrueneratorAttachmentAdapter();
-
-    const pending = await adapter.add({
-      file: new File(['x'], 'clip.mp4', { type: 'video/mp4' }),
-    });
+    // Never added, so send() has no cached contents and reads the file itself.
+    const pending = {
+      id: 'att-1',
+      type: 'file',
+      name: 'PM.odt',
+      contentType: 'application/vnd.oasis.opendocument.text',
+      file: odt(),
+      status: { type: 'requires-action', reason: 'composer-send' },
+    } as PendingAttachment;
 
     await expect(adapter.send(pending)).rejects.toBe(failed);
     expect(useAttachmentNoticeStore.getState().notice).toMatchObject({
       title: 'Nachricht nicht gesendet',
-      description: 'Upload fehlgeschlagen',
+      description: 'Datei nicht lesbar',
     });
   });
 });
