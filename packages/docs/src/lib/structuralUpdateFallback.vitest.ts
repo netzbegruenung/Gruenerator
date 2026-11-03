@@ -1,6 +1,11 @@
 // @vitest-environment jsdom
 import { BlockNoteEditor } from '@blocknote/core';
-import { _getApplySuggestionsTr, AIExtension, StreamToolExecutor } from '@blocknote/xl-ai';
+import {
+  _getApplySuggestionsTr,
+  aiDocumentFormats,
+  AIExtension,
+  StreamToolExecutor,
+} from '@blocknote/xl-ai';
 import { describe, expect, it } from 'vitest';
 
 import { withStructuralUpdateFallback } from './structuralUpdateFallback';
@@ -192,4 +197,59 @@ describe('withStructuralUpdateFallback — streamed add', () => {
     expect(normalize(md)).toBe(normalize(['Hallo Welt', 'Vorher', table].join('\n\n')));
     expect(types).toEqual(['paragraph', 'paragraph', 'table']);
   }, 30_000);
+});
+
+// xl-ai types a change in character by character with `slice.content.cut(0, i)`.
+// A cut inside nested blocks left an empty blockContainer, which BlockNote's
+// node view and list plugin read as `firstChild.type` and threw on: the parent
+// landed, its children were lost (#4956). Patched in
+// patches/@blocknote__xl-ai@0.56.0.patch — the replay skips such cuts.
+describe('nested blocks (#4956)', () => {
+  it('adds a nested list with the raw xl-ai tools in one chunk', async () => {
+    const editor = BlockNoteEditor.create({
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      extensions: [AIExtension({ transport: {} as any })],
+    });
+    editor.replaceBlocks(editor.document, editor.tryParseMarkdownToBlocks('Hallo Welt'));
+    editor.mount(document.createElement('div'));
+    const id = editor.document[0].id;
+    const tools = aiDocumentFormats._experimental_markdown
+      .getStreamToolsProvider()
+      .getStreamTools(editor, undefined);
+    const executor = new StreamToolExecutor(tools);
+    const writer = executor.writable.getWriter();
+    await writer.write(
+      JSON.stringify({
+        type: 'add',
+        referenceId: `${id}$`,
+        position: 'after',
+        blocks: ['- eins\n  - unter'],
+      })
+    );
+    await writer.close();
+    await executor.finish();
+
+    editor.prosemirrorView!.dispatch(_getApplySuggestionsTr(editor) as never);
+    expect(editor.blocksToMarkdownLossy(editor.document).trim()).toBe(
+      'Hallo Welt\n\n* eins\n  * unter'
+    );
+  }, 20_000);
+
+  it.each([
+    ['a nested bullet list', '- eins\n  - unter\n  - zwei', '* eins\n  * unter\n  * zwei'],
+    ['a nested numbered list', '1. eins\n   1. unter', '1. eins\n   1. unter'],
+    ['three levels', '- a\n  - b\n    - c', '* a\n  * b\n    * c'],
+  ])(
+    'streams %s through the wrapper',
+    async (_name, block, expected) => {
+      const { md } = await streamAdd([block]);
+      expect(md).toBe(`Hallo Welt\n\n${expected}`);
+    },
+    30_000
+  );
+
+  it('updates a list item to gain two children', async () => {
+    const { md } = await runUpdate('- eins', '- eins\n  - unter\n  - zwei');
+    expect(md).toBe('* eins\n  * unter\n  * zwei');
+  }, 20_000);
 });
