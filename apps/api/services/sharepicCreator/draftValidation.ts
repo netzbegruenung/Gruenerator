@@ -30,7 +30,6 @@ import {
   spelledNumbers,
   clockTimes,
   orderedTime,
-  timeInBrief,
   calendarDays,
   POINTS_TO_ACTION,
   addresseeInBrief,
@@ -337,31 +336,6 @@ export function validateDraft(
             `${where}"${item.text}" ist zu klein für eine Zahl – setz sie als headline oder absatz.`
           );
         }
-      }
-    }
-    if (slide.datum?.time !== undefined && !timeInBrief(slide.datum.time, given)) {
-      errors.push(
-        `${where}datum.time "${slide.datum.time}" steht nicht im Auftrag – time weglassen, wenn der Auftrag keine Uhrzeit nennt.`
-      );
-    }
-    if (slide.datum?.date !== undefined) {
-      const { date, time } = slide.datum;
-      const squash = (v: string) => v.toLowerCase().replace(/\s+/g, '').replace(/\.$/, '');
-      const clock = /^(\d{1,2})[.:]\d{2}$/.exec(squash(date));
-      const hour = time === undefined ? null : /\d{1,2}/.exec(time)?.[0];
-      const named = calendarDays(date);
-      const inBrief = named.size
-        ? [...named].every((day) => calendarDays(given).has(day))
-        : squash(given).includes(squash(date));
-      // „10.00“ next to „10 Uhr“ is the time again, never a day — even if the brief has it.
-      if (!named.size && clock && clock[1] === hour) {
-        errors.push(
-          `${where}datum.date "${date}" wiederholt die Uhrzeit "${time}" – date leer lassen bzw. weglassen; die Uhrzeit steht schon in time.`
-        );
-      } else if (!inBrief) {
-        errors.push(
-          `${where}datum.date "${date}" steht nicht im Auftrag – date leer lassen bzw. weglassen, wenn der Auftrag kein Datum nennt (Wochentag und Uhrzeit genügen).`
-        );
       }
     }
     // A person's profile is theirs: the name and every trait come from the brief.

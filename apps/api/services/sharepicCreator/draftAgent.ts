@@ -38,6 +38,7 @@ import { getUnsplashService } from '../unsplash/UnsplashApiService.js';
 
 import { carouselLookProblems } from './carouselLook.js';
 import { findStockPhotos, stockPhotoCredit, type FoundPhoto } from './catalog.js';
+import { type DatumRepair, repairDatum } from './datumRepair.js';
 import { type DraftFailure, DraftFailedError } from './draftFailure.js';
 import { paintIllustrations, cutOutBilder, type SharepicPainters } from './draftPainting.js';
 import { SCENE_PENDING, takeScene, type DraftScene } from './draftScene.js';
@@ -273,6 +274,8 @@ export async function draftSharepic(
   // What the last checkable attempt got wrong, for the person's text if every attempt fails.
   // „Not your request" only while no attempt has delivered a draft to check.
   let failure: DraftFailure = { kind: 'structure' };
+  // What the last attempt dropped from `datum` as not in the order.
+  let lastDatumRepairs: DatumRepair[] = [];
 
   const draftCall: AiObjectCall<{
     spec: SharepicSpec;
@@ -295,9 +298,14 @@ export async function draftSharepic(
       if (!lacksStructure(input)) failure = { kind: 'content' };
       const taken = takeScene(withPaletteColors(input, locale, design));
       if (!taken.ok) return taken;
+      const repaired = repairDatum(taken.input, given);
+      lastDatumRepairs = repaired.repairs;
+      for (const r of repaired.repairs) {
+        log.info(`repaired ${r.feld} "${r.wert}" (slide ${r.slide + 1})`);
+      }
       // Contact data already on the draft counts as given.
       const checked = validateDraft(
-        taken.input,
+        repaired.input,
         locale,
         given,
         [...ownPhotos.map((p) => p.id), ...keptUploads],

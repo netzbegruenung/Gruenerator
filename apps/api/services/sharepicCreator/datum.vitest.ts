@@ -2,12 +2,21 @@ import { describe, expect, it } from 'vitest';
 
 import { sharepicSlideSchema } from '@gruenerator/contracts';
 
+import { weekdaysIn } from './briefFacts.js';
+import { repairDatum } from './datumRepair.js';
 import { validateDraft } from './draftAgent.js';
 
 const BRIEF =
   'Unser Gemeinschaftsgarten in Kassel ist eröffnet! Kommt vorbei: Samstag, 10 Uhr, Gartenstraße 5.';
 const BRIEF_NO_TIME = 'Infostand am Samstag auf dem Marktplatz. Kommt vorbei!';
 const BRIEF_WITH_DATE = 'Sommerfest am 14.11. um 19 Uhr im Café Linde.';
+
+/** What is left of the first slide's datum after the repair, and what was dropped. */
+const repair = (datum: object, given: string) => {
+  const { input, repairs } = repairDatum(withDatum(datum), given);
+  const slide = (input as ReturnType<typeof withDatum>).slides[0] as { datum?: object };
+  return { datum: slide.datum, repairs: repairs.map((r) => r.feld) };
+};
 
 const withDatum = (datum: object) => ({
   slides: [
@@ -23,23 +32,19 @@ const withDatum = (datum: object) => ({
 });
 
 describe('datum in a draft', () => {
-  it('rejects a date the brief does not give, and says to leave it out', () => {
-    const result = validateDraft(
-      withDatum({ weekday: 'Sa', date: '10.00', time: '10 Uhr' }),
-      'de-DE',
-      BRIEF
-    );
-    expect(result.ok).toBe(false);
-    expect(!result.ok && result.error).toMatch(/date.*(leer|weglassen)/);
+  it('drops a date the brief does not give instead of rejecting', () => {
+    const out = repair({ weekday: 'Sa', date: '10.00', time: '10 Uhr' }, BRIEF);
+    expect(out.datum).toEqual({ weekday: 'Sa', time: '10 Uhr' });
+    expect(out.repairs).toEqual(['datum.date']);
   });
 
-  it('rejects the time repeated as a date, even when the brief names that time', () => {
-    const result = validateDraft(
-      withDatum({ weekday: 'Sa', date: '10.00', time: '10 Uhr' }),
-      'de-DE',
+  it('drops the time repeated as a date, even when the brief names that time', () => {
+    const out = repair(
+      { weekday: 'Sa', date: '10.00', time: '10 Uhr' },
       `${BRIEF} Start 10.00 Uhr.`
     );
-    expect(result.ok).toBe(false);
+    expect(out.datum).toEqual({ weekday: 'Sa', time: '10 Uhr' });
+    expect(out.repairs).toEqual(['datum.date']);
   });
 
   it('accepts a circle with weekday and time only', () => {
@@ -85,12 +90,13 @@ describe('datum in a draft', () => {
     ).toBe(true);
   });
 
-  it('still rejects a different day', () => {
-    const spelled = 'Infostand am Samstag, 15. November, 10 Uhr.';
-    expect(
-      validateDraft(withDatum({ weekday: 'Sa', date: '16.11.', time: '10 Uhr' }), 'de-DE', spelled)
-        .ok
-    ).toBe(false);
+  it('drops a different day', () => {
+    const out = repair(
+      { weekday: 'Sa', date: '16.11.', time: '10 Uhr' },
+      'Infostand am Samstag, 15. November, 10 Uhr.'
+    );
+    expect(out.datum).toEqual({ weekday: 'Sa', time: '10 Uhr' });
+    expect(out.repairs).toEqual(['datum.date']);
   });
 
   describe('without a time', () => {
@@ -113,20 +119,16 @@ describe('datum in a draft', () => {
       ).toBe(true);
     });
 
-    it('still rejects a time the brief does not give', () => {
-      const result = validateDraft(
-        withDatum({ weekday: 'Sa', time: '10 Uhr' }),
-        'de-DE',
-        BRIEF_NO_TIME
-      );
-      expect(result.ok).toBe(false);
-      expect(!result.ok && result.error).toMatch(/datum\.time/);
+    it('drops a time the brief does not give', () => {
+      const out = repair({ weekday: 'Sa', time: '10 Uhr' }, BRIEF_NO_TIME);
+      expect(out.datum).toEqual({ weekday: 'Sa' });
+      expect(out.repairs).toEqual(['datum.time']);
     });
   });
 
   describe('time against the times the brief states', () => {
     const run = (time: string, brief: string) =>
-      validateDraft(withDatum({ weekday: 'Sa', time }), 'de-DE', brief).ok;
+      repair({ weekday: 'Sa', time }, brief).repairs.length === 0;
 
     it.each([
       ['10:00', 'Infostand am Samstag um 10 Uhr.'],
@@ -145,10 +147,10 @@ describe('datum in a draft', () => {
     });
 
     it.each([
-      ['14 Uhr', 'Fest am 14.11. auf dem Marktplatz.'],
+      ['14 Uhr', 'Fest am Samstag, 14.11. auf dem Marktplatz.'],
       ['11 Uhr', 'Infostand am Samstag um 10 Uhr.'],
       ['9–13 Uhr', 'Infostand am Samstag von 10 bis 13 Uhr.'],
-    ])('rejects %s against "%s"', (time, brief) => {
+    ])('drops %s against "%s"', (time, brief) => {
       expect(run(time, brief)).toBe(false);
     });
   });
@@ -189,5 +191,60 @@ describe('datum in a draft', () => {
       ];
       expect(timeOf({ weekday: 'Do' }, 'Treffen am Do um 19 Uhr.', items)).toBeUndefined();
     });
+  });
+});
+
+describe('repairDatum', () => {
+  it.each([
+    [
+      'everything invented',
+      { weekday: 'Do', date: '14.11.', time: '18 Uhr' },
+      'Wir laden zum Treffen ein.',
+      ['datum.time', 'datum.date', 'datum.weekday', 'datum'],
+    ],
+    ['time only, not in the order', { time: '18 Uhr' }, 'Wir laden ein.', ['datum.time', 'datum']],
+    [
+      'the time repeated as a date, weekday not ordered',
+      { weekday: 'Mo', date: '10.00', time: '10 Uhr' },
+      'um 10 Uhr',
+      ['datum.date', 'datum.weekday', 'datum'],
+    ],
+  ])('removes the whole datum: %s', (_name, datum, given, repairs) => {
+    const out = repair(datum, given);
+    expect(out.datum).toBeUndefined();
+    expect(out.repairs).toEqual(repairs);
+  });
+
+  it.each([
+    ['am Donnerstag um 19 Uhr', { weekday: 'Donnerstag', time: '19 Uhr' }],
+    ['Donnerstagabend', { weekday: 'Do.' }],
+    ['am 20. Jänner', { date: '20.1.' }],
+  ])('leaves a datum the order backs: %s', (given, datum) => {
+    const out = repair(datum, given);
+    expect(out.datum).toEqual(datum);
+    expect(out.repairs).toEqual([]);
+  });
+
+  it('removes an empty datum and an empty date', () => {
+    expect(repair({}, 'Fest').datum).toBeUndefined();
+    expect(repair({ weekday: 'Sa', date: '' }, 'am Samstag').datum).toEqual({ weekday: 'Sa' });
+  });
+
+  it('does not touch an input without slides or datum', () => {
+    expect(repairDatum('x', 'y')).toEqual({ input: 'x', repairs: [] });
+    const spec = withDatum({ weekday: 'Sa' });
+    delete (spec.slides[0] as { datum?: object }).datum;
+    expect(repairDatum(spec, 'Fest').repairs).toEqual([]);
+  });
+});
+
+describe('weekdaysIn', () => {
+  it('reads names, abbreviations, compounds and case', () => {
+    expect(weekdaysIn('Mi., Freitag und sonntags')).toEqual(new Set(['mi', 'fr', 'so']));
+    expect(weekdaysIn('Donnerstagabend')).toEqual(new Set(['do']));
+    expect(weekdaysIn('SAMSTAG, Mo und di.')).toEqual(new Set(['sa', 'mo', 'di']));
+  });
+  it('ignores ordinary words', () => {
+    expect(weekdaysIn('so wird das, wir sind dort')).toEqual(new Set());
   });
 });

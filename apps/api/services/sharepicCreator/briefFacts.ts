@@ -276,3 +276,37 @@ export function addresseeInBrief(adressat: string, givenWords: ReadonlySet<strin
   const names = wordsOf(adressat.replace(/^@/, '')).filter((w) => !ADDRESS_WORDS.has(w));
   return names.length > 0 && names.every((w) => givenWords.has(w));
 }
+
+export type WeekdayId = 'mo' | 'di' | 'mi' | 'do' | 'fr' | 'sa' | 'so';
+const WEEKDAY_NAMES: [WeekdayId, string][] = [
+  ['mo', 'montag'],
+  ['di', 'dienstag'],
+  ['mi', 'mittwoch'],
+  ['do', 'donnerstag'],
+  ['fr', 'freitag'],
+  ['sa', 'samstag|sonnabend'],
+  ['so', 'sonntag'],
+];
+/** Full names open a compound („Donnerstagabend“, „sonntags“); „Do.“ needs its dot unless capitalised („Do“). */
+const WEEKDAY_FULL = WEEKDAY_NAMES.map(
+  ([id, names]) => [id, new RegExp(`(?<!\\p{L})(?:${names})`, 'iu')] as const
+);
+const WEEKDAY_SHORT = WEEKDAY_NAMES.map(([id]) => {
+  const cap = id[0]!.toUpperCase() + id[1]!;
+  return [id, new RegExp(`(?<!\\p{L})(?:${id}\\.|${cap}\\.?)(?!\\p{L})`, 'u')] as const;
+});
+
+/** The weekdays a text names, as full word, compound or abbreviation. */
+export function weekdaysIn(text: string): Set<WeekdayId> {
+  const found = new Set<WeekdayId>();
+  for (const [id, full] of WEEKDAY_FULL) if (full.test(text)) found.add(id);
+  // Undotted only in capitals: lowercase „so“ or „do“ is an ordinary word.
+  for (const [id, short] of WEEKDAY_SHORT) if (short.test(text)) found.add(id);
+  return found;
+}
+
+/** A weekday as the model writes it („Do“, „Donnerstag“, „do.“) — null when it is none. */
+export function weekdayId(value: string): WeekdayId | null {
+  const id = value.trim().toLowerCase().replace(/\.$/, '').slice(0, 2);
+  return WEEKDAY_NAMES.some(([w]) => w === id) ? (id as WeekdayId) : null;
+}
