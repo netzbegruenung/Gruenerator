@@ -571,6 +571,8 @@ describe('formatTabularComputeGuidance', () => {
     const out = formatTabularComputeGuidance(makeState(mountable));
     expect(out).not.toContain('tabelle_auswerten');
     expect(out).toContain('AUS DEN DATEN ANTWORTEN');
+    // Ohne Werkzeug darf die Antwort nicht wie eine Rechnung aussehen (#5063).
+    expect(out).toContain('nicht per Code berechnet');
     expect(out).not.toContain('automatisch ausgeführt');
     // Ein ausdrücklich verlangter Block soll den vorgeladenen DataFrame nutzen.
     expect(out).toContain('DataFrame `df`');

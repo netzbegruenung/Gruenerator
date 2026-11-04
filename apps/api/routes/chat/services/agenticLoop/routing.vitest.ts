@@ -408,7 +408,8 @@ describe('decideRunAgentic', () => {
     ).toBe(true);
     // Without the table the notebook still keeps the turn single-pass.
     expect(decide({ ...ask, intent: 'search', hasSelectedNotebook: true })).toBe(false);
-    // Compound stays single-pass: its executor is not the loop.
+    // A named agent with a notebook (compound) too: the pipeline has no
+    // `tabelle_auswerten` either (#5063).
     expect(
       decide({
         ...ask,
@@ -417,7 +418,29 @@ describe('decideRunAgentic', () => {
         hasSelectedNotebook: true,
         isCompound: true,
       })
+    ).toBe(true);
+    // Without the table the compound pipeline keeps the turn.
+    expect(decide({ ...ask, intent: 'search', hasSelectedNotebook: true, isCompound: true })).toBe(
+      false
+    );
+  });
+
+  it('keeps a table turn single-pass when its pinned tool has no loop lane (#5063)', () => {
+    // `@sharepic` on a table: the loop has no tool for the pin and would drop
+    // the mention. With a loop lane the pin is honoured in the loop.
+    const ask = { lastUserText: 'Mach ein Sharepic aus der Tabelle', hasOwnMaterial: true };
+    expect(
+      decide({ ...ask, intent: 'sharepic', isTabularAnalysisTurn: true, forcedTool: true })
     ).toBe(false);
+    expect(
+      decide({
+        ...ask,
+        intent: 'search',
+        isTabularAnalysisTurn: true,
+        forcedTool: true,
+        forcedLoop: true,
+      })
+    ).toBe(true);
   });
 
   it('rescues a research turn the classifier contradicted itself about (B7)', () => {
