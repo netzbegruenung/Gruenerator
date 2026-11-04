@@ -96,7 +96,7 @@ describe('resolveFilters (Nationalrat)', () => {
 describe('landtageFor', () => {
   it('trennt die Parlamente nach Locale', () => {
     expect(landtageFor('de-AT').map((m) => m.id)).toEqual(['nationalrat']);
-    expect(landtageFor('de-DE').map((m) => m.id)).toEqual(['berlin']);
-    expect(landtageFor(null).map((m) => m.id)).toEqual(['berlin']);
+    expect(landtageFor('de-DE').map((m) => m.id)).toEqual(['berlin', 'nrw']);
+    expect(landtageFor(null).map((m) => m.id)).toEqual(['berlin', 'nrw']);
   });
 });

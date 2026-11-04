@@ -10,7 +10,7 @@
 import { z } from 'zod';
 
 /** Kennung des Parlaments; zugleich der `quelle`-Wert von `parlament_lesen`. */
-export const landtagParlamentSchema = z.enum(['berlin', 'nationalrat']);
+export const landtagParlamentSchema = z.enum(['berlin', 'nationalrat', 'nrw']);
 
 /** Normalisierte Dokumentarten; je Parlament auf dessen Schreibweise abgebildet. */
 export const landtagTypSchema = z.enum([
@@ -44,6 +44,8 @@ export const landtagFraktionSchema = z.enum([
  * eigene Nummernreihe, das `S` hält sie von Drucksachen gleicher Nummer
  * auseinander). Der Präfix ist das Parlamentskürzel; welches zu welchem
  * Parlament gehört, steht in der Registry.
+ *
+ * Landtag NRW: `NW 18/21508` (Drucksache; die Form der Berliner Drucksachen).
  *
  * Nationalrat: `NR 28/I123` = Gesetzgebungsperiode (arabisch) / Gegenstandstyp
  * des Parlaments + Nummer (`I` Beilagen: Regierungsvorlagen und

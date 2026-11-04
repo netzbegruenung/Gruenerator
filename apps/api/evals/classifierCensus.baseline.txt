@@ -58,6 +58,7 @@ examples                          0  loop
 pressemitteilung_examples         0  retired
 abgeordnetenwatch                 0  loop
 bundestag                         0  loop
+abgeordnetenhaus                  0  loop
 bahn                              0  retired
 reise                             0  retired
 hotel                             0  retired

@@ -244,24 +244,24 @@ const BUNDESTAG_HINWEIS =
 const BUNDESTAG_MAX_CALLS_PER_TURN = 4;
 const BUNDESTAG_CAP_HINWEIS = `Schon ${BUNDESTAG_MAX_CALLS_PER_TURN} Bundestag-Suchen in diesem Zug — antworte jetzt mit den vorliegenden Treffern und nenne, was offen bleibt.`;
 const LANDTAG_RE = /landtag|abgeordnetenhaus|bürgerschaft|buergerschaft|landesparlament/i;
-// Berlin hat ein eigenes Werkzeug (`landtag`): dorthin schickt ein Hinweis an den
-// Planer, denn nur er ruft Werkzeuge. Jeder andere Landtag geht als `fuerSchreiber`
-// mit, nicht als `hinweis`: `hinweis` liest nur der Planer, der werkzeuglose
-// Schreiber des split-Modus nie (live 28.10.2026: 2 von 3 Antworten gaben
-// Websuche-Treffer als Landtag-Inhalt aus).
-const BERLIN_RE = /berlin|abgeordnetenhaus/i;
+// Parlamente mit eigenem Eintrag in `landtag` (Registry): dorthin schickt ein Hinweis
+// an den Planer, denn nur er ruft Werkzeuge. Jeder andere Landtag geht als
+// `fuerSchreiber` mit, nicht als `hinweis`: `hinweis` liest nur der Planer, der
+// werkzeuglose Schreiber des split-Modus nie (live 28.10.2026: 2 von 3 Antworten
+// gaben Websuche-Treffer als Landtag-Inhalt aus).
 const LANDTAG_HINWEIS =
   'Die Frage nennt ein Landesparlament: Sag ZUERST, dass dieses Werkzeug nur den Bundestag abdeckt und Dokumente von Landtagen hier nicht durchsucht werden; danach, was der Bundestag dazu hergibt.';
-const BERLIN_HINWEIS =
-  "Die Frage nennt das Berliner Abgeordnetenhaus: Dessen Dokumente findet `landtag` mit parlament 'berlin', nicht dieses Werkzeug.";
 
-/** Der Geltungsbereich, wenn die Frage einen Landtag nennt: Berlin an den Planer, sonst an den Schreiber. */
+/** Der Geltungsbereich, wenn die Frage einen Landtag nennt: bekannte an den Planer, sonst an den Schreiber. */
 function landtagNote(
   userText: string
 ): { fuerSchreiber: string } | { landtagHinweis: string } | Record<string, never> {
   if (!LANDTAG_RE.test(userText)) return {};
-  return BERLIN_RE.test(userText)
-    ? { landtagHinweis: BERLIN_HINWEIS }
+  const bekannt = landtageFor('de-DE').find((m) => m.genannt.test(userText));
+  return bekannt
+    ? {
+        landtagHinweis: `Die Frage nennt den ${bekannt.parlament}: Dessen Dokumente findet \`landtag\` mit parlament '${bekannt.id}', nicht dieses Werkzeug.`,
+      }
     : { fuerSchreiber: LANDTAG_HINWEIS };
 }
 
@@ -737,7 +737,7 @@ export function makeParlamentLesenTool(ctx: {
   return tool({
     description: at
       ? `Liest Dokumente des österreichischen Nationalrats vollständig und isoliert und liefert belegte Aussagen mit wörtlichem Zitat. quelle 'nationalrat' mit Refs aus \`nationalrat\` ("NR 28/I123" Regierungsvorlage oder Ausschussbericht, "NR 28/A1025" Antrag, "NR 28/NRSITZ43" Sitzungsprotokoll; bei einem Protokoll \`fokus\` auf Thema oder Redner*in setzen). Bis zu 6 Dokumente je Aufruf. Für „fasse zusammen“ gilt auftrag 'zusammenfassung'.`
-      : `Liest Parlamentsdokumente (Bundestag, Landesparlamente) vollständig und isoliert und liefert belegte Aussagen mit wörtlichem Zitat. quelle 'bundestag' mit Refs aus \`bundestag\`, quelle = Landesparlament (z. B. 'berlin') mit Refs aus \`landtag\` ("BE 19/3519", Schriftliche Anfrage "BE 19/S27288"; die Anfrage liegt samt Antwort vor). Bis zu 6 Dokumente je Aufruf. Für „fasse zusammen“ gilt auftrag 'zusammenfassung'. Nur Deutschland.
+      : `Liest Parlamentsdokumente (Bundestag, Landesparlamente) vollständig und isoliert und liefert belegte Aussagen mit wörtlichem Zitat. quelle 'bundestag' mit Refs aus \`bundestag\`, quelle = Landesparlament (z. B. 'berlin') mit Refs aus \`landtag\` ("BE 19/3519", Schriftliche Anfrage "BE 19/S27288"; die Anfrage liegt samt Antwort vor; NRW "NW 18/21508"). Bis zu 6 Dokumente je Aufruf. Für „fasse zusammen“ gilt auftrag 'zusammenfassung'. Nur Deutschland.
 
 Refs nie selbst bilden oder Seiten schätzen: nur aus einer Zeile „Ref: …“ übernehmen. Nicht für den Wortlaut einer einzelnen Rede, dafür bundestag_reden (liefert den vollen Redetext). Nicht für Abstimmungsverhalten, dafür abgeordnetenwatch. Nicht für Positionen der Grünen, dafür gruenerator_search mit collection 'bundestagsfraktion'.`,
     inputSchema: z.object({
