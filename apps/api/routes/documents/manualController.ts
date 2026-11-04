@@ -90,18 +90,25 @@ const uploadDisk = multer({
 });
 
 /**
- * Delete a pending upload, refusing any path that resolves outside
+ * Resolve a multer-written path and refuse anything outside
  * PENDING_UPLOADS_DIR. The stored name is already reduced to `<uuid><ext>`
- * above, so traversal cannot happen today — this keeps the deletion sink safe
- * regardless of how the storage config changes later, and is what the two
- * cleanup paths below share instead of calling unlink on their own.
+ * above, so traversal cannot happen today — this keeps every sink that reads
+ * or deletes the pending file safe regardless of how the storage config
+ * changes later.
  */
-function removePendingUpload(filePath: string): void {
+function resolvePendingUpload(filePath: string): string | null {
   const resolved = path.resolve(filePath);
   if (!resolved.startsWith(PENDING_UPLOADS_DIR + path.sep)) {
-    log.warn(`[upload] refusing to delete a path outside the pending directory: ${resolved}`);
-    return;
+    log.warn(`[upload] refusing a path outside the pending directory: ${resolved}`);
+    return null;
   }
+  return resolved;
+}
+
+/** Delete a pending upload; the cleanup paths below share this. */
+function removePendingUpload(filePath: string): void {
+  const resolved = resolvePendingUpload(filePath);
+  if (!resolved) return;
   try {
     fs.unlinkSync(resolved);
   } catch {
@@ -182,7 +189,9 @@ router.post(
       }
 
       const title = parsedBody.data.title || file.originalname;
-      const fileHash = await hashFile(file.path);
+      const pendingPath = resolvePendingUpload(file.path);
+      if (!pendingPath) throw new Error('Upload path outside the pending directory');
+      const fileHash = await hashFile(pendingPath);
 
       // Refuse a second copy of a file the target notebook already holds
       // (#5342) before a row exists — afterwards it would be an orphan that the

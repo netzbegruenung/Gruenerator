@@ -11,6 +11,7 @@ import { SourceTable } from './SourceTable';
 import {
   ACCEPTED_EXTENSIONS,
   describeRejectedFiles,
+  dropSameContent,
   hasFileDrag,
   partitionUploadableFiles,
 } from './uploadFiles';
@@ -26,22 +27,31 @@ export function useHubUpload(hub: NotebookHubApi, total: number) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(0);
 
+  const busy = useRef(false);
+
+  const upload = async (files: File[]) => {
+    // A second batch while the first is still unattached would pass the
+    // server's duplicate check, which only sees attached sources.
+    if (busy.current) {
+      toast.info('Bitte warten, bis die laufenden Dateien hochgeladen sind.');
+      return;
+    }
+    busy.current = true;
+    try {
+      await uploadBatch(files);
+    } finally {
+      busy.current = false;
+    }
+  };
+
   /**
    * Hochladen, dann in EINEM Aufruf anhängen. Scheitert eine Datei mitten in
    * der Reihe, werden die schon hochgeladenen trotzdem angehängt — sonst
    * lägen sie als Dokumente ohne Notebook herum.
    */
-  const upload = async (files: File[]) => {
+  const uploadBatch = async (files: File[]) => {
     const { accepted: picked, rejected } = partitionUploadableFiles(files);
-    // The server only sees files already attached, and attaching happens after
-    // the whole batch — two copies in one drop would both get through.
-    const seen = new Set<string>();
-    const accepted = picked.filter((file) => {
-      const key = `${file.name}\u0000${file.size}`;
-      if (seen.has(key)) return false;
-      seen.add(key);
-      return true;
-    });
+    const accepted = await dropSameContent(picked);
     const room = Math.max(0, NOTEBOOK_MAX_DOCUMENTS - total);
     const batch = accepted.slice(0, room);
     if (rejected.length > 0) toast.error(describeRejectedFiles(rejected));
