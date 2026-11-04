@@ -256,6 +256,11 @@ async function ask(
       }
     } else if (event === 'text_delta') {
       turn.answer += String(data.delta ?? data.text ?? '');
+    } else if (event === 'completion' && typeof data.text === 'string') {
+      // Der Server ersetzt den gestreamten Text, wenn er nachträglich korrigiert
+      // (Zitate ausserhalb des Bereichs, `source:` → `quelle:`, #5315) — der
+      // Client zeigt dann diesen Text, also wird auch dieser bewertet.
+      turn.answer = data.text;
     } else if (event === 'done') {
       turn.citations = (data.citations as Turn['citations']) ?? [];
     } else if (event === 'error') {
