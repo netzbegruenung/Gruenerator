@@ -33,6 +33,9 @@ export const documents = pgTable('documents', {
   // 'processing' forever.
   processing_started_at: timestamp('processing_started_at', { withTimezone: true }),
   processing_attempts: integer('processing_attempts').notNull().default(0),
+  // SHA-256 of the uploaded bytes. Only set by /upload-only; NULL for rows from
+  // before it existed and for every other source.
+  file_hash: text('file_hash'),
 });
 
 export type Document = InferSelectModel<typeof documents>;
