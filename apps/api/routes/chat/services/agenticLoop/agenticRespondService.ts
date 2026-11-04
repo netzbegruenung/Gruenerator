@@ -792,16 +792,23 @@ export async function streamAgenticResponse(
           }`
         );
       },
-      onSynthFallback: () => {
-        // Stillstand ist das Verdikt, das die Messung nicht liefert: es kam
-        // nichts, was sich hätte messen lassen.
-        recordSlowVerdict(synth.provider, synth.name, 'synth_stall');
+      onSynthFallback: (reason) => {
+        // Stillstand und leere Antwort sind Verdikte, die die Messung nicht
+        // liefert: es kam nichts, was sich hätte messen lassen. Der
+        // Einzeldurchlauf vermerkt beide genauso (streamWithFallback).
+        recordSlowVerdict(
+          synth.provider,
+          synth.name,
+          reason === 'empty_completion' ? 'synth_empty' : 'synth_stall'
+        );
         if (!synthFallback) return;
-        log.warn(`[Agentic] synth ${synth.name} stalled → falling back to ${synthFallback.name}`);
+        log.warn(
+          `[Agentic] synth ${synth.name} ${reason === 'empty_completion' ? 'returned no text' : 'stalled'} → falling back to ${synthFallback.name}`
+        );
         sse.send('fallback', {
           from: { id: synth.name, name: synth.name },
           to: { id: synthFallback.name, name: synthFallback.name },
-          reason: 'first_token_timeout',
+          reason,
         });
       },
       tools: wrapped,

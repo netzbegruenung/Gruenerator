@@ -253,11 +253,30 @@ export function deniesSearchAbilityDespiteSearching(
  * idioms; "erscheint in Kürze", "bitte warten", "wird gerade bearbeitet" are
  * ordinary content ("Laut [1] erscheint der Bericht in Kürze") and stay out.
  */
-const PENDING_WORK_RE =
-  /(?<!\p{L})(?:moment\s+bitte|einen\s+(?:kurzen\s+)?augenblick|ich\s+melde\s+mich\s+gleich|wird\s+(?:gerade|jetzt|soeben|in\s+diesem\s+moment)\s+(?:erstellt|generiert|erzeugt|gerendert)|erscheint\s+gleich|sobald\s+(?:der\s+vorgang|die\s+erstellung|die\s+generierung)\s+abgeschlossen)(?!\p{L})/iu;
+const WAIT_REQUEST = String.raw`moment\s+bitte|einen\s+(?:kurzen\s+)?augenblick|ich\s+melde\s+mich\s+gleich`;
+/**
+ * The other half describes work IN PROGRESS. Usually false as well, but not
+ * always: `edit_sheet` queues its change and truthfully says it "erscheint
+ * gleich in der geöffneten Tabelle" — which is why only the wait request
+ * earns a retry (see {@link asksUserToWait}).
+ */
+const WORK_IN_PROGRESS = String.raw`wird\s+(?:gerade|jetzt|soeben|in\s+diesem\s+moment)\s+(?:erstellt|generiert|erzeugt|gerendert)|erscheint\s+gleich|sobald\s+(?:der\s+vorgang|die\s+erstellung|die\s+generierung)\s+abgeschlossen`;
+const bounded = (alternatives: string) =>
+  new RegExp(String.raw`(?<!\p{L})(?:${alternatives})(?!\p{L})`, 'iu');
+const PENDING_WORK_RE = bounded(`${WAIT_REQUEST}|${WORK_IN_PROGRESS}`);
+const WAIT_REQUEST_RE = bounded(WAIT_REQUEST);
 
 export function announcesPendingWork(text: string): boolean {
   return PENDING_WORK_RE.test(text);
+}
+
+/**
+ * The person is asked to wait ("Einen Moment bitte"). After the turn nothing
+ * runs that could end the wait, so unlike {@link announcesPendingWork} this
+ * holds for every tool-less writer — the split synth retries on it (#5289).
+ */
+export function asksUserToWait(text: string): boolean {
+  return WAIT_REQUEST_RE.test(text);
 }
 
 /**

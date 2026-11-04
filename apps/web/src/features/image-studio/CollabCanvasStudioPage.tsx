@@ -348,7 +348,7 @@ function CollabCanvasStudioContent() {
 
   if (isError || accessError || documentRefusal) {
     return (
-      <div className="relative flex flex-col h-dvh bg-background">
+      <div className="relative flex flex-col h-[var(--editor-height)] bg-background">
         <DottedBackground />
         {/* The back button is styled for the editor's green bar. */}
         {!hostChrome && (
@@ -376,7 +376,7 @@ function CollabCanvasStudioContent() {
   return (
     <WebCanvasEditorProvider allowVorlagen={canEdit}>
       <CanvasChatDocContext.Provider value={chatDoc}>
-        <div className="relative flex flex-col h-dvh bg-[var(--editor-bg)]">
+        <div className="relative flex flex-col h-[var(--editor-height)] bg-[var(--editor-bg)]">
           <div className="flex-1 min-h-0">
             <MasterCanvasEditor
               key={canvas.id}

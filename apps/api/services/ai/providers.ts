@@ -252,9 +252,11 @@ function instantiateModel(provider: ProviderName | string, modelId?: string): La
         getCortecsProvider().chat(retired.model ?? PROVIDER_DEFAULTS.cortecs)
       );
     }
+    // Melious serves Gemma 4 by default — same markers as on Cortecs, and the
+    // chat door (routes/chat/agents/providers.ts) filters it already.
     case 'melious': {
       const melious = getMeliousProvider();
-      return melious.chat(modelId || PROVIDER_DEFAULTS.melious);
+      return withGemmaChannelFilter(melious.chat(modelId || PROVIDER_DEFAULTS.melious));
     }
     case 'greenpt': {
       const greenpt = getGreenPTProvider();
