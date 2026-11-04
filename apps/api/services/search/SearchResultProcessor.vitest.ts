@@ -10,6 +10,7 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  reserveBestPassagePerSource,
   buildReferencesMap,
   expandResultsToChunks,
   filterAndSortResults,
@@ -376,5 +377,58 @@ describe('expandResultsToChunks reicht den dichten Kosinus durch', () => {
       { document_id: 'doc-3', title: 'Alt-Pfad', chunk_text: 'Text.', similarity_score: 0.5 },
     ]);
     expect(expanded).not.toHaveProperty('dense_similarity');
+  });
+});
+
+describe('reserveBestPassagePerSource', () => {
+  // Ranked as the search returns them: every passage carries its document's score.
+  const p = (document_id: string, chunk_index: number, collection_id = 'c1') =>
+    ({ document_id, chunk_index, collection_id, similarity: 0.9 }) as ExpandedChunkResult;
+  const ids = (rows: ExpandedChunkResult[]) => rows.map((r) => `${r.document_id}${r.chunk_index}`);
+
+  it('lets a weak source in with its best passage instead of cutting it whole', () => {
+    const ranked = [p('a', 1), p('a', 2), p('a', 3), p('a', 4), p('b', 1), p('b', 2), p('c', 7)];
+    expect(ids(reserveBestPassagePerSource(ranked, 6))).toEqual([
+      'a1',
+      'a2',
+      'a3',
+      'a4',
+      'b1',
+      'c7',
+    ]);
+  });
+
+  it('refills by score, so the strongest source keeps its depth', () => {
+    const ranked = [p('a', 1), p('a', 2), p('a', 3), p('b', 1), p('b', 2), p('b', 3), p('c', 1)];
+    expect(ids(reserveBestPassagePerSource(ranked, 6))).toEqual([
+      'a1',
+      'a2',
+      'a3',
+      'b1',
+      'b2',
+      'c1',
+    ]);
+  });
+
+  it('reserves at most half the window when the pool has as many sources as slots', () => {
+    const ranked = ['a', 'b', 'c', 'd', 'e', 'f'].flatMap((d) => [p(d, 1), p(d, 2)]);
+    const out = reserveBestPassagePerSource(ranked, 6);
+    expect(ids(out)).toEqual(['a1', 'a2', 'b1', 'b2', 'c1', 'c2']);
+  });
+
+  it('treats the same document id in two collections as two sources', () => {
+    const ranked = [
+      p('a', 1, 'c1'),
+      p('a', 2, 'c1'),
+      p('a', 3, 'c1'),
+      p('a', 4, 'c1'),
+      p('a', 1, 'c2'),
+    ];
+    expect(reserveBestPassagePerSource(ranked, 4).map((r) => r.collection_id)).toContain('c2');
+  });
+
+  it('returns everything when the pool fits the window', () => {
+    const ranked = [p('a', 1), p('b', 1)];
+    expect(reserveBestPassagePerSource(ranked, 10)).toEqual(ranked);
   });
 });

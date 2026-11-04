@@ -15,6 +15,7 @@ export {
   renumberCitationsInOrder,
   filterAndSortResults,
   selectAcrossQueryGroups,
+  reserveBestPassagePerSource,
   sourceTextForPrompt,
   toClientSource,
   PROMPT_SOURCE_MAX_CHARS,
