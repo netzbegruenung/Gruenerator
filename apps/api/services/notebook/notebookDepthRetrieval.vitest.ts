@@ -147,3 +147,44 @@ describe('getSearchContext — source tier', () => {
     expect(await firstDocument('equal')).toBe('debatte');
   });
 });
+
+describe('getSearchContext — failed searches (#5325)', () => {
+  const failed = {
+    success: false,
+    message: 'Hybrid search failed: This operation was aborted',
+    results: [],
+  };
+
+  it('throws when every search failed, instead of reporting "no passages"', async () => {
+    search.mockResolvedValue(failed);
+    await expect(
+      notebookQAService.getSearchContext({
+        question: 'Fasse die Drucksache 18/21208 zusammen.',
+        collectionId: 'grundsatz-system',
+        depth: 'deep',
+      })
+    ).rejects.toThrow(/aborted/);
+  });
+
+  it('answers from the searches that worked when only some failed', async () => {
+    search.mockResolvedValueOnce(failed).mockResolvedValue({
+      results: [
+        {
+          document_id: 'antwort',
+          title: 'Antwort der Landesregierung',
+          relevant_content: '1.200 Stellen unbesetzt',
+          similarity_score: 0.8,
+          top_chunks: [{ chunk_index: 0, preview: '1.200 Stellen unbesetzt' }],
+        },
+      ],
+    });
+    const ctx = await notebookQAService.getSearchContext({
+      question: 'Lehrkräftemangel',
+      collectionId: 'grundsatz-system',
+      depth: 'ultra',
+      queries: ['Lehrkräftemangel', 'fehlende Lehrkräfte', 'Lehrermangel Zahlen'],
+    });
+    expect(search.mock.calls.length).toBeGreaterThan(1);
+    expect(ctx?.sortedResults.length).toBeGreaterThan(0);
+  });
+});
