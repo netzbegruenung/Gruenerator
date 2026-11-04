@@ -137,6 +137,52 @@ describe('getSearchContext — lexical terms (#5341)', () => {
   });
 });
 
+describe('getSearchContext — best passage per source (#5341)', () => {
+  // A strong document brings more passages than the window holds, all at its
+  // own score; a weak one has a single passage below them.
+  const strongAndWeak = () => ({
+    results: [
+      {
+        document_id: 'stark',
+        title: 'Starker Beschluss',
+        similarity_score: 0.9,
+        top_chunks: Array.from({ length: 120 }, (_, i) => ({
+          chunk_index: i,
+          preview: `Stelle ${i}`,
+        })),
+      },
+      {
+        document_id: 'schwach',
+        title: 'Schwacher Beschluss',
+        similarity_score: 0.5,
+        top_chunks: [{ chunk_index: 1, preview: 'Den Preis garantieren wir.' }],
+      },
+    ],
+  });
+  const sourcesAt = async (depth: 'fast' | 'deep' | 'ultra') => {
+    search.mockResolvedValue(strongAndWeak());
+    const ctx = await notebookQAService.getSearchContext({
+      question: 'Welche Positionen gibt es zum Ticketpreis?',
+      collectionId: 'grundsatz-system',
+      depth,
+    });
+    return ctx!.sortedResults;
+  };
+
+  it('keeps the weak source in the deep window with its best passage', async () => {
+    const rows = await sourcesAt('deep');
+    expect(rows).toHaveLength(100);
+    expect(rows.filter((r) => r.document_id === 'schwach')).toHaveLength(1);
+  });
+
+  it('leaves fast and ultra on the plain cut by score', async () => {
+    for (const depth of ['fast', 'ultra'] as const) {
+      const rows = await sourcesAt(depth);
+      expect(rows.every((r) => r.document_id === 'stark')).toBe(true);
+    }
+  });
+});
+
 describe('getSearchContext — source tier', () => {
   const protocolAndDrucksache = () => ({
     results: [

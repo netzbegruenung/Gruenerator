@@ -53,6 +53,7 @@ import {
   renumberCitationsInOrder,
   filterAndSortResults,
   selectAcrossQueryGroups,
+  reserveBestPassagePerSource,
   sourceTextForPrompt,
   splitCompositeQuestion,
   toClientSource,
@@ -89,6 +90,7 @@ import type {
   CollectionConfig,
   ReferencesMap,
   ExpandedChunkResult,
+  FilterOptions,
 } from '../search/types.js';
 
 const log = createLogger('NotebookQAService');
@@ -140,6 +142,24 @@ export function evidenceTopOf(results: ExpandedChunkResult[]): number | null {
     if (top === null || value > top) top = value;
   }
   return top;
+}
+
+/**
+ * The passage window of a stream search: the grouped selection, cut to
+ * `limit` — with every source's best passage reserved first when the tier
+ * asks for it (`bestPassagePerSource`, see reserveBestPassagePerSource).
+ */
+function selectPassages(
+  resultsByGroup: ExpandedChunkResult[][],
+  options: FilterOptions,
+  limit: number,
+  profile: NotebookDepthProfile
+): ExpandedChunkResult[] {
+  if (!profile.bestPassagePerSource) {
+    return selectAcrossQueryGroups(resultsByGroup, { ...options, limit });
+  }
+  const ranked = selectAcrossQueryGroups(resultsByGroup, { ...options, limit: Infinity });
+  return reserveBestPassagePerSource(ranked, limit);
 }
 
 /**
@@ -670,10 +690,12 @@ export class NotebookQAService {
       })
     );
 
-    const sortedResults = selectAcrossQueryGroups(resultsByGroup, {
-      threshold: profile.threshold,
-      limit: profile.sortLimit.multi,
-    });
+    const sortedResults = selectPassages(
+      resultsByGroup,
+      { threshold: profile.threshold },
+      profile.sortLimit.multi,
+      profile
+    );
 
     if (sortedResults.length === 0) {
       return null;
@@ -831,11 +853,12 @@ export class NotebookQAService {
       throw failures[0];
     }
 
-    const sortedResults = selectAcrossQueryGroups(resultsByGroup, {
-      threshold: profile.threshold,
-      limit: profile.sortLimit.single,
-      allowCreatedAt: !isSystem,
-    });
+    const sortedResults = selectPassages(
+      resultsByGroup,
+      { threshold: profile.threshold, allowCreatedAt: !isSystem },
+      profile.sortLimit.single,
+      profile
+    );
 
     if (sortedResults.length === 0) {
       return null;
