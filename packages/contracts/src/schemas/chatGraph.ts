@@ -111,7 +111,7 @@ export type ChatAttachment = z.infer<typeof chatAttachmentSchema>;
 /**
  * Client shell that sent the request. Absent/null means 'web' (covers old
  * clients and the Tauri desktop app, which ships the web frontend). The
- * backend redirects web-only features (reel edit, sharepic) on 'app'.
+ * backend redirects web-only features (sharepic) on 'app'.
  */
 export const clientPlatformSchema = z.enum(['web', 'app']);
 export type ClientPlatform = z.infer<typeof clientPlatformSchema>;
@@ -252,23 +252,6 @@ export const chatStreamBodySchema = z.object({
   currentSocialPost: z
     .object({
       postId: z.string(),
-    })
-    .nullish(),
-  // The subtitler project the user marked as "active for chat editing"
-  // (via the reel picker or a processed chat upload). Targets the
-  // reel_edit branch.
-  currentReel: z
-    .object({
-      projectId: z.string(),
-    })
-    .nullish(),
-  // A video attached in the composer, already uploaded via the subtitler
-  // TUS endpoint. The reel branch starts auto-transcription (process-auto
-  // pipeline) for it and attaches the resulting project to the thread.
-  reelUpload: z
-    .object({
-      uploadId: z.string(),
-      filename: z.string(),
     })
     .nullish(),
   // Freier Systemprompt des „eigenen" Chats. Für Rollen aus dem Katalog steht

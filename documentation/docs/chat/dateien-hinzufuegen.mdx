@@ -25,14 +25,11 @@ Quellcode-Dateien werden an ihrer Endung erkannt, nicht am Dateityp — Browser 
 
 ## Grenzen
 
-|                                       |                                       |
-| ------------------------------------- | ------------------------------------- |
-| Dateien pro Nachricht                 | <Fact name="maxFiles" />              |
-| Größe je Datei                        | <Fact name="maxFileSize" />           |
-| Alle Dateien einer Nachricht zusammen | <Fact name="maxTotalSize" />          |
-| Videos (eigener Weg, siehe unten)     | <Fact name="maxVideoSize" /> je Datei |
-
-**Videos zählen nicht in die Gesamtsumme.** Sie nehmen einen anderen Weg als die übrigen Dateien — statt in die Anfrage eingebettet zu werden, laden sie separat hoch. Deshalb haben sie ein eigenes, viel höheres Limit.
+|                                       |                              |
+| ------------------------------------- | ---------------------------- |
+| Dateien pro Nachricht                 | <Fact name="maxFiles" />     |
+| Größe je Datei                        | <Fact name="maxFileSize" />  |
+| Alle Dateien einer Nachricht zusammen | <Fact name="maxTotalSize" /> |
 
 :::caution[Eine nicht unterstützte Datei fällt heraus, die anderen bleiben]
 Wählst du mehrere Dateien auf einmal aus und der Grünerator kann eine davon nicht lesen, bekommst du für **diese eine** Datei einen Hinweis mit der Liste der erlaubten Typen. Die übrigen Dateien der Auswahl hängen ganz normal an — du musst nichts erneut anhängen.

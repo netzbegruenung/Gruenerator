@@ -1,7 +1,7 @@
 /**
  * Display metadata for file/document attachments, carried as a synthetic data
- * content part (same mechanism as the pasted-text preview and reel-upload
- * parts). The model adapter ignores data parts, so this never reaches the
+ * content part (same mechanism as the pasted-text preview and mention
+ * chips). The model adapter ignores data parts, so this never reaches the
  * wire — it exists purely so the attachment chips can show "1,2 MB · 14 Seiten"
  * both in the live session and after a thread reload.
  */

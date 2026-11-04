@@ -62,6 +62,13 @@ const ImageStudioRedirect = lazy(() => Promise.resolve({ default: createRedirect
 // der Startseite. Verschickte Download-Links (/share/:token) sind nicht betroffen.
 const TransferRedirect = lazy(() => Promise.resolve({ default: createRedirect('/') }));
 
+// Der Beta-Untertitel-Editor (/reel/beta, /reel/studio) ist entfernt. Alte Links,
+// auch die `/reel/studio?project=…`-Links aus dem Chat, öffnen das Projekt im
+// Reel-Studio — `?project=` kommt über createRedirect mit.
+const LegacyReelRedirect = lazy(() =>
+  Promise.resolve({ default: createRedirect('/studio/video') })
+);
+
 // Redirect /notebook/:id → /notebooks/:id preserving the param. Search, hash
 // and state come along: an old link to a notebook conversation carries the
 // thread id in `?thread=`, and dropping it here opened the notebook's start
@@ -291,10 +298,6 @@ const NotebookEditPage = lazy(() =>
 );
 const DocumentViewPage = lazy(() => import('../features/documents/DocumentViewPage'));
 const Reel = lazy(() => import('../features/subtitler/components/SubtitlerPage'));
-const SubtitlerBetaPage = lazy(
-  () => import('../features/subtitler-beta/components/SubtitlerBetaPage')
-);
-const SubStudioPage = lazy(() => import('../features/subtitler-beta/components/SubStudioPage'));
 const VideoEditorPage = lazy(() => import('../features/videoeditor/VideoEditorPage'));
 const SharedVideoPage = lazy(() => import('../features/subtitler/components/SharedVideoPage'));
 const SharedMediaPage = lazy(() => import('../features/shared-media/SharedMediaPage'));
@@ -739,8 +742,8 @@ const standardRoutes: RouteConfig[] = [
   { path: '/document/:id', component: DocumentToOfficeRedirect },
   { path: '/documents/:documentId', component: GrueneratorenBundle.DocumentView },
   { path: '/reel', component: GrueneratorenBundle.Reel },
-  { path: '/reel/beta', component: SubtitlerBetaPage },
-  { path: '/reel/studio', component: SubStudioPage },
+  { path: '/reel/beta', component: LegacyReelRedirect },
+  { path: '/reel/studio', component: LegacyReelRedirect },
   { path: '/scanner', component: GrueneratorenBundle.Scanner },
   { path: '/zeichenzaehler', component: ZeichenzaehlerPage },
   { path: '/uebersetzer', component: UebersetzerPage },

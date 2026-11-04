@@ -2,8 +2,7 @@
  * The handler branches that can own the whole turn before the response stage.
  *
  * Order is the contract here, and every branch documents why it sits where it
- * does: reel upload → reel edit → reel context → social-post text edit →
- * sharepic edit → sharepic refinement. Several of them share an
+ * does: social-post text edit → sharepic edit → sharepic refinement. Several of them share an
  * EDIT_NOUN_PATTERN, so moving one past another silently rehomes turns.
  *
  * Each branch either declines (falls through) or writes the whole SSE response
@@ -13,16 +12,7 @@
 import { parseSharepicChatProps } from '@gruenerator/contracts';
 
 import { createLogger } from '../../../utils/logger.js';
-import { extractTextContent } from '../services/messageHelpers.js';
 import { orderMayMeanArtifact, orderText } from '../services/orderText.js';
-import {
-  buildReelContextBlock,
-  handleReelEdit,
-  hasReelEditVerb,
-  isReelEditInstruction,
-  namesReelTarget,
-  reelEditAddressed,
-} from '../services/reelEditService.js';
 import {
   isSharepicModeEdit,
   looksLikeSharepicOrder,
@@ -80,7 +70,7 @@ export async function creatorRevisionTarget(
 const SHAREPIC_CONTEXT_MAX = 4000;
 
 /**
- * Sharepic-Modus, Gegenstück zum Reel-Kontext: ein Turn, den keine
+ * Sharepic-Modus: ein Turn, den keine
  * Bearbeitungstür nimmt („Passt die Farbe zu unserem CD?"), bekommt die Spec
  * der offenen Karte. Live 11.10.2026 riet das Modell sonst Farbe und Text aus
  * dem Verlauf — und behauptete Änderungen, die nie stattfanden.
@@ -119,8 +109,6 @@ export interface EarlyHandlerStageParams {
   /** @bildbearbeiten — keeps every edit branch out of the way of a turn the
    *  user explicitly aimed at the image editor. */
   universalEditForced: boolean;
-  rawCurrentReel: StreamBody['currentReel'];
-  rawReelUpload: StreamBody['reelUpload'];
   rawCurrentSharepic: StreamBody['currentSharepic'];
   rawCurrentSocialPost: StreamBody['currentSocialPost'];
 }
@@ -145,8 +133,6 @@ export async function runEarlyHandlerStage({
   lastUserTextNoMentions,
   imageAttachments,
   universalEditForced,
-  rawCurrentReel,
-  rawReelUpload,
   rawCurrentSharepic,
   rawCurrentSocialPost,
 }: EarlyHandlerStageParams): Promise<MaybeHandled<EarlyHandlerStageOutput>> {
@@ -155,113 +141,6 @@ export async function runEarlyHandlerStage({
   // Bearbeitungs-Weiche unten fragt (siehe `priorTurnEditables`).
   const lastTurnEditables = initialState.lastTurnEditables ?? [];
   const lastTurnSharepic = lastTurnEditables.includes('sharepic');
-
-  // === Reel upload: composer-attached video → auto-transcription ===
-  // Deliberately NOT behind the image/intent guards of the edit branch
-  // below: the user explicitly attached a video for subtitling, so the
-  // upload wins the turn even when the message also carries an image
-  // (which is ignored for this turn) or classifies as image_edit —
-  // otherwise the already-TUS-uploaded video would be dropped silently.
-  if (actualThreadId && lastUserMessage && rawReelUpload != null) {
-    const uploadText = (extractTextContent(lastUserMessage.content) || '').trim();
-    const handled = await handleReelEdit({
-      sse,
-      threadId: actualThreadId,
-      userId,
-      instruction: uploadText,
-      currentReel: rawCurrentReel ?? null,
-      reelUpload: rawReelUpload,
-      userLocale: initialState.userLocale || 'de-DE',
-      clientPlatform: initialState.clientPlatform,
-      startTime: initialState.startTime,
-      ...(classifiedState.classificationTimeMs != null && {
-        classificationTimeMs: classifiedState.classificationTimeMs,
-      }),
-    });
-    if (handled) {
-      await cleanupPending(true);
-      return { handled: true, result: { status: 200 as const, body: undefined } };
-    }
-  }
-
-  // === Reel edit: chat subtitle editing of subtitler projects ===
-  // Two sub-flows in handleReelEdit: a reel-edit instruction without an
-  // attached reel streams a project picker; with a target it runs a
-  // text-only subtitle edit. Placed BEFORE the sharepic branch — its
-  // noun pattern includes "text" and would otherwise capture
-  // "Untertitel-Text ändern". Falls through (returns false) when no reel
-  // context exists and the phrasing isn't reel-specific ("Segment 2
-  // kürzen" on a sharepic thread).
-  if (
-    actualThreadId &&
-    lastUserMessage &&
-    imageAttachments.length === 0 &&
-    classifiedState.intent !== 'image_edit' &&
-    !universalEditForced
-  ) {
-    const reelText = lastUserTextNoMentions.trim();
-    // Geprüft wird der Auftrag, nicht der eingefügte Stoff: „Reels … Untertiteln"
-    // und „Schreibt uns" in einem Newsletter über „rechtschreibung korrigieren"
-    // holten die Reel-Auswahl (#3912). Der Handler bekommt weiter alles.
-    const reelOrder = orderText(reelText);
-    // Die Abkürzung ohne Reel-Nomen gilt nur ohne Stoff: „kürzer bitte" unter
-    // einem eingefügten Text meint den Text, nicht das offene Reel.
-    const reelModeRelaxed =
-      rawCurrentReel != null &&
-      !!reelText &&
-      hasReelEditVerb(reelOrder) &&
-      orderMayMeanArtifact(reelText, namesReelTarget);
-    // Und nur mit Adressat: ohne ihn öffnete „Schreib mir drei Ideen für Reels"
-    // die Auswahl, und ein Reel von vor Tagen (`chat_thread_reels`) bekam die
-    // Bearbeitung (Beta-Audit 30.09.2026).
-    const reelAddressed = reelEditAddressed(reelOrder, {
-      reelOpen: rawCurrentReel != null,
-      lastTurnReel: lastTurnEditables.includes('reel'),
-    });
-    if (reelText && reelAddressed && (isReelEditInstruction(reelOrder) || reelModeRelaxed)) {
-      const handled = await handleReelEdit({
-        sse,
-        threadId: actualThreadId,
-        userId,
-        instruction: reelText,
-        currentReel: rawCurrentReel ?? null,
-        reelUpload: null,
-        userLocale: initialState.userLocale || 'de-DE',
-        clientPlatform: initialState.clientPlatform,
-        startTime: initialState.startTime,
-        ...(classifiedState.classificationTimeMs != null && {
-          classificationTimeMs: classifiedState.classificationTimeMs,
-        }),
-      });
-      if (handled) {
-        await cleanupPending(true);
-        return { handled: true, result: { status: 200 as const, body: undefined } };
-      }
-    }
-  }
-
-  // === Reel context: transcript for non-edit turns ===
-  // With a reel attached, every turn the edit branch did NOT claim gets
-  // the subtitle transcript injected as attachment context, so the normal
-  // pipeline can answer follow-ups about the video's content ("schreib
-  // mir einen Insta-Post dazu", "fass das zusammen"). Reels are short —
-  // a transcript is a few hundred tokens at most.
-  //
-  // Injected AFTER classification on purpose: pre-classify context would
-  // hit the classifier's attachment branch and force `direct` intent for
-  // EVERY turn in Reel-Modus, breaking web-search/sharepic requests. The
-  // respond stage reads classifiedState; initialState is mutated too so
-  // the HITL clarification gate below sees the context and doesn't
-  // interrupt "Fass das zusammen" with a needless question.
-  if (rawCurrentReel != null && userId) {
-    const reelContext = await buildReelContextBlock(userId, rawCurrentReel.projectId);
-    if (reelContext) {
-      classifiedState.attachmentContext = classifiedState.attachmentContext
-        ? `${classifiedState.attachmentContext}\n\n${reelContext}`
-        : reelContext;
-      initialState.attachmentContext = classifiedState.attachmentContext;
-    }
-  }
 
   // === Social post TEXT edit (EXPERIMENTAL) ===
   // "Mach den Text knackiger" on a thread with a combined post edits the
