@@ -541,7 +541,7 @@ const content = [
           'HQ Freiburg im Breisgau (DE); Vertragsentität noch zu bestätigen',
           'Bestehend',
           'Bildgenerierung (FLUX)',
-          'Verarbeitung in der EU (EU-API api.eu.bfl.ai). Kein Training.',
+          'Verarbeitung in der EU (EU-API api.eu.bfl.ai); ist diese nicht erreichbar, globale API api.bfl.ai (Verarbeitung auch in den USA möglich). Kein Training.',
         ],
       ],
     },
