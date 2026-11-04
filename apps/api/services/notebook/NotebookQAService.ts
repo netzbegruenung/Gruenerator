@@ -776,12 +776,24 @@ export class NotebookQAService {
 
     const singleCollectionName = systemConfig?.name || collection?.name || collectionId;
 
+    // A failed formulation drops out; only when every one failed is the search
+    // failed — the stream then reports that instead of "no passages" (#5325).
+    const failures: unknown[] = [];
+    const searchOrSkip = async (options: InternalSearchOptions) => {
+      try {
+        return await this._performSearch(options);
+      } catch (error: unknown) {
+        failures.push(error);
+        return [];
+      }
+    };
+
     // Grouped per query, not flattened — see selectAcrossQueryGroups.
     const resultsByGroup = await Promise.all(
       queryGroups.map(async (group) => {
         const perQuery = await Promise.all(
           group.map(async (q) => {
-            const searchResults = await this._performSearch({
+            const searchResults = await searchOrSkip({
               query: q,
               searchCollection: isSystem ? systemConfig.qdrantCollection : 'documents',
               userId: isSystem ? null : (userId ?? null),
@@ -808,6 +820,9 @@ export class NotebookQAService {
         return deduplicateResults(perQuery.flat(), false);
       })
     );
+    if (failures.length > 0 && failures.length === queryGroups.flat().length) {
+      throw failures[0];
+    }
 
     const sortedResults = selectAcrossQueryGroups(resultsByGroup, {
       threshold: profile.threshold,
@@ -1004,6 +1019,16 @@ export class NotebookQAService {
       },
     });
 
+    // `search` fängt jeden Fehler und meldet ihn als `success: false` mit
+    // leerer Liste. Weitergereicht wäre das ein „keine passenden Stellen" —
+    // eine gescheiterte Suche sähe aus wie eine leere (#5325). Die Meldung
+    // erreicht Nutzer*innen über `toUserFacingMessage`, der Grund nur das Log.
+    if (resp.success === false) {
+      log.warn(`[QA] search failed for "${query.slice(0, 60)}": ${resp.message ?? resp.error}`);
+      throw new Error(
+        'Die Suche im Notebook ist fehlgeschlagen. Bitte versuche es gleich noch einmal.'
+      );
+    }
     return resp.results || [];
   }
 
