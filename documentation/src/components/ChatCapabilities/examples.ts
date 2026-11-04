@@ -208,6 +208,17 @@ export const EXAMPLES: CapabilityExample[] = [
     ],
   },
   {
+    intent: 'abgeordnetenhaus',
+    group: 'politik',
+    label: 'Abgeordnetenhaus Berlin',
+    mentionable: 'abgeordnetenhaus',
+    questions: [
+      'Wie viele Anträge haben die Grünen im Abgeordnetenhaus 2026 gestellt?',
+      'Was hat der Senat auf Anfragen zur Elsenbrücke geantwortet?',
+      'Welche Gesetzentwürfe hat der Senat seit September eingebracht?',
+    ],
+  },
+  {
     intent: 'abgeordnetenwatch',
     group: 'politik',
     label: 'Abgeordnetenwatch',
