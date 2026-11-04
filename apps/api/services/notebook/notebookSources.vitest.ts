@@ -782,6 +782,28 @@ describe('findPassages', () => {
     expect(out.passages.map((p) => p.sourceId)).toEqual(['d1', 'd1', 'd2']);
   });
 
+  it('keeps the same paragraph when a different source quotes it verbatim', async () => {
+    const quoting = {
+      document_id: 'd3',
+      title: 'Beschluss Kreisverband',
+      similarity_score: 0.7,
+      top_chunks: [{ chunk_index: 1, preview: 'kurz', text: 'Der Radweg kommt 2027.' }],
+    };
+    const { deps } = makeDeps({ searchResults: [...searchResults, quoting] });
+    const out = await findPassages(
+      {
+        documentIds: ['d1', 'd2', 'd3'],
+        query: 'Radweg',
+        mode: 'hybrid',
+        limit: 10,
+        rerank: false,
+        userId: 'u',
+      },
+      deps
+    );
+    expect(out.passages.map((p) => p.sourceId)).toEqual(['d1', 'd1', 'd3', 'd2']);
+  });
+
   it('runs vector mode through the hybrid path with vector-only weights', async () => {
     const { deps, documentService } = makeDeps({ searchResults });
     await findPassages(

@@ -15,7 +15,7 @@
 import { applyContextCap } from '../../utils/contextCap.js';
 import { buildPageRangesFromRaw } from '../document-services/TextChunker/pageMarkerProcessing.js';
 import { resolveWolkeDisplayUrl } from '../scrapers/utils/wolkeShareSecrets.js';
-import { passageTextKey } from '../search/SearchResultProcessor.js';
+import { uploadCopyKey } from '../search/SearchResultProcessor.js';
 
 import { type rerankNotebookResults } from './rerankNotebookResults.js';
 
@@ -831,13 +831,15 @@ export async function findPassages(
     .flatMap((doc) => (doc.top_chunks ?? []).map((tc) => toPassage(doc, tc)))
     .filter((p) => p.text.trim().length > 0)
     .sort((a, b) => b.score - a.score);
-  // Dieselbe Datei zweimal im Notebook: gleicher Text, zwei Quellen — die
-  // Kopie belegte sonst Plätze und doppelte jedes Zitat. Die erste gewinnt.
-  const seenText = new Set<string>();
+  // Dieselbe Datei zweimal im Notebook: gleicher Titel, gleicher Text, zwei
+  // Quellen — die Kopie belegte sonst Plätze und doppelte jedes Zitat. Die
+  // erste gewinnt. Zwei verschiedene Quellen mit demselben wörtlichen Absatz
+  // bleiben beide (anderer Titel).
+  const seenCopy = new Set<string>();
   const flat = sorted.filter((p) => {
-    const key = passageTextKey(p.text);
-    if (key === null || seenText.has(key)) return false;
-    seenText.add(key);
+    const key = uploadCopyKey(p.title, p.text);
+    if (key === null || seenCopy.has(key)) return false;
+    seenCopy.add(key);
     return true;
   });
 

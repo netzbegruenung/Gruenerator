@@ -381,8 +381,13 @@ describe('expandResultsToChunks reicht den dichten Kosinus durch', () => {
 });
 
 describe('deduplicateResults', () => {
-  const r = (document_id: string, chunk_index: number, chunk_text: string) =>
-    ({ document_id, chunk_index, chunk_text, title: document_id }) as ExpandedChunkResult;
+  const r = (
+    document_id: string,
+    chunk_index: number,
+    chunk_text: string,
+    title = 'Statut.pdf',
+    collection_id = 'c1'
+  ) => ({ document_id, chunk_index, chunk_text, title, collection_id }) as ExpandedChunkResult;
 
   it('drops a chunk with the same document and index', () => {
     expect(deduplicateResults([r('a', 1, 'x'), r('a', 1, 'y')])).toHaveLength(1);
@@ -395,6 +400,26 @@ describe('deduplicateResults', () => {
       r('kopie', 4, 'Anderer Text.'),
     ]);
     expect(out.map((x) => `${x.document_id}:${x.chunk_index}`)).toEqual(['original:3', 'kopie:4']);
+  });
+
+  it('keeps two different sources that quote the same paragraph verbatim', () => {
+    const quote = '§ 3 Abs. 2: Die Mitgliederversammlung ist beschlussfähig.';
+    const out = deduplicateResults([
+      r('lv-berlin', 2, quote, 'Beschluss LV Berlin.pdf'),
+      r('lv-hamburg', 5, quote, 'Beschluss LV Hamburg.pdf'),
+    ]);
+    expect(out.map((x) => x.document_id)).toEqual(['lv-berlin', 'lv-hamburg']);
+  });
+
+  it('keeps the same file in two collections apart when the collection is part of the key', () => {
+    const out = deduplicateResults(
+      [
+        r('a', 1, 'Gleicher Text.', 'Statut.pdf', 'c1'),
+        r('b', 1, 'Gleicher Text.', 'Statut.pdf', 'c2'),
+      ],
+      true
+    );
+    expect(out).toHaveLength(2);
   });
 
   it('keeps chunks without text apart', () => {
