@@ -187,6 +187,70 @@ describe('Gemma tool call typed as text', () => {
     expect(order.indexOf('tool-call')).toBeGreaterThan(order.indexOf('text-end:b'));
   });
 
+  it('runs a namespaced call as the mounted tool (live 03.11.2026)', async () => {
+    const result = streamText({
+      model: withGemmaChannelFilter(
+        textModel([
+          call.replace('call:edit_current_sharepic', 'call:gruenerator:edit_current_sharepic'),
+        ])
+      ),
+      tools: { edit_current_sharepic: edit },
+      prompt: 'x',
+      stopWhen: stepCountIs(1),
+    });
+    const calls: unknown[] = [];
+    for await (const part of result.stream) {
+      if (part.type === 'tool-result') calls.push(part.output);
+    }
+    expect(calls).toEqual([{ ok: true, instruction: "Kürze: 'Gute Schulen', ok" }]);
+  });
+
+  // Video 03.11.2026, Projekt „Kommunalpolitik": the revised Antrag arrived as
+  // the argument of a tool removed in #3078. Dropped, the turn was empty and the
+  // chat said „Ich konnte dazu leider keine passende Antwort finden".
+  const antrag =
+    'Antrag an den Rat der Stadt Meckenheim\n\nTitel: Optimierung des städtischen Fuhrparks ' +
+    'zur Senkung der Betriebskosten durch innovative Nutzungsmodelle (Pilotprojekt E-Carsharing)' +
+    '\n\nDer Rat der Stadt Meckenheim möge beschließen:\n\n1. Die Verwaltung wird beauftragt, …';
+  const removedToolCall = `<|tool_call>call:gruenerator:draft_structured{dokumenttyp:"antrag",inhalt:${JSON.stringify(antrag)}}<tool_call|>`;
+
+  it('shows the long argument of a call to a tool that does not exist (stream)', async () => {
+    const result = streamText({
+      model: withGemmaChannelFilter(textModel([...removedToolCall])),
+      tools: { edit_current_sharepic: edit },
+      prompt: 'x',
+    });
+    expect(await result.text).toBe(antrag);
+  });
+
+  it('puts the rescued argument after the prose before it, in order', async () => {
+    const result = streamText({
+      model: withGemmaChannelFilter(
+        textModel(['Hier ist die Fassung:', removedToolCall, '\n\nPasst das so?'])
+      ),
+      tools: { edit_current_sharepic: edit },
+      prompt: 'x',
+    });
+    expect(await result.text).toBe(`Hier ist die Fassung:\n\n${antrag}\n\nPasst das so?`);
+  });
+
+  it('shows the long argument of a call to a tool that does not exist (generate)', async () => {
+    const model = new MockLanguageModelV4({
+      doGenerate: async () => ({
+        content: [{ type: 'text' as const, text: removedToolCall }],
+        finishReason: { unified: 'stop' as const, raw: 'stop' },
+        usage,
+        warnings: [],
+      }),
+    });
+    const { content, finishReason } = await withGemmaChannelFilter(model).doGenerate({
+      prompt: [],
+      tools: [{ type: 'function', name: 'edit_current_sharepic', inputSchema: { type: 'object' } }],
+    });
+    expect(content).toEqual([{ type: 'text', text: antrag }]);
+    expect(finishReason.unified).toBe('stop');
+  });
+
   it('drops an unparsable or unclosed call without leaking markers', () => {
     const filter = createToolCallTextFilter();
     const a = filter.push('A <|tool_call>call:x{broken<tool_call|> B <|tool_call>call:y{');

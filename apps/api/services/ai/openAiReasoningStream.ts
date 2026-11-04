@@ -25,7 +25,7 @@ import {
   resolveCortecsUpstream,
   SOVEREIGN_ZDR_PROVIDERS,
 } from './cortecsRequestPolicy.js';
-import { createGemmaChannelFilter } from './gemmaChannelFilter.js';
+import { createAnswerToolCallFilter, createGemmaChannelFilter } from './gemmaChannelFilter.js';
 import { parseMeliousImpact } from './meliousImpact.js';
 import { meliousWireModel } from './meliousThinkingFetch.js';
 import { recordModelSample } from './modelHealth.js';
@@ -259,6 +259,11 @@ export async function* streamWithReasoning(
   // Mit `enable_thinking` trennt der Host das Denken selbst; der Filter fängt
   // einen Upstream ohne Parser ab (Cortecs wechselt zwischen zweien).
   const channels = createGemmaChannelFilter();
+  // Gemma also types tool calls as text here. No tool is mounted on this raw
+  // path, so a call is cut out and only a long argument stays — live
+  // 03.11.2026 a Mistral → Gemma fallback with reasoning on showed the whole
+  // `<|tool_call>call:gruenerator:draft_structured{…}<tool_call|>` verbatim.
+  const toolCalls = createAnswerToolCallFilter(new Set());
 
   try {
     read: while (true) {
@@ -286,14 +291,14 @@ export async function* streamWithReasoning(
         if (params.provider === 'melious') impact = parseMeliousImpact(parsed) ?? impact;
         const delta = extractDelta(parsed);
         if (delta.reasoning) yield { type: 'reasoning', delta: delta.reasoning };
-        const text = delta.text ? channels.push(delta.text) : '';
+        const text = delta.text ? toolCalls.push(channels.push(delta.text)).text : '';
         if (text) {
           firstTextAt ??= Date.now();
           yield { type: 'text', delta: text };
         }
       }
     }
-    const rest = channels.flush();
+    const rest = toolCalls.push(channels.flush()).text + toolCalls.flush();
     if (rest) yield { type: 'text', delta: rest };
   } finally {
     reader.releaseLock();
