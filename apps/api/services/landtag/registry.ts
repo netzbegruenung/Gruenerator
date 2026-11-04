@@ -27,6 +27,8 @@ export interface LandtagMeta {
   kurz: string;
   /** „Abgeordnetenhaus von Berlin": für das Lesen (Prompt) und die Quellenangabe. */
   parlament: string;
+  /** Woran eine Frage dieses Parlament nennt; `bundestag` verweist dann auf `landtag`. */
+  genannt: RegExp;
   /** Genitiv für den Lese-Prompt: „des Abgeordnetenhauses von Berlin". */
   herkunft: string;
   /** Präfix der Refs („BE 19/3519"). */
@@ -66,6 +68,7 @@ export const LANDTAGE: Record<LandtagParlament, LandtagMeta> = {
     audience: 'de-DE',
     kurz: 'Berlin',
     parlament: 'Abgeordnetenhaus von Berlin',
+    genannt: /berlin|abgeordnetenhaus/i,
     herkunft: 'des Abgeordnetenhauses von Berlin',
     refPrefix: 'BE',
     // „19/S27288" ist eine Schriftliche Anfrage, alles andere eine Drucksache.
@@ -122,11 +125,67 @@ export const LANDTAGE: Record<LandtagParlament, LandtagMeta> = {
       neos: null,
     },
   },
+  nrw: {
+    id: 'nrw',
+    audience: 'de-DE',
+    kurz: 'NRW',
+    parlament: 'Landtag Nordrhein-Westfalen',
+    genannt: /(?<!\p{L})nrw(?!\p{L})|nordrhein|westfal|düsseldorf/iu,
+    herkunft: 'des Landtags Nordrhein-Westfalen',
+    refPrefix: 'NW',
+    nummer: (nr) => `NRW-Drs. ${nr}`,
+    // Die Trefferliste, die auch der Scraper liest: Drucksachen der laufenden Wahlperiode.
+    portalUrl:
+      'https://www.landtag.nrw.de/home/dokumente/dokumentensuche/parlamentsdokumente/parlamentsdatenbank-suchergebnis.html?wp=18&view=detail&dokart=DRUCKSACHE',
+    quellenangabe: 'Quelle: Landtag Nordrhein-Westfalen, Parlamentsdatenbank',
+    // Die Liste kommt schon aus dem Notebook; es bleiben ihm die Protokolle, die sie nicht führt.
+    notebook: { collection: 'landtag-nrw', contentTypes: { Plenarprotokoll: 'plenarprotokoll' } },
+    // Keine Live-API: gesucht wird im Notebook (`landtag_nrw_documents`), siehe `nrw/find.ts`.
+    supports: {
+      wahlperiode: true,
+      typ: true,
+      fraktion: true,
+      datum: true,
+      titel: true,
+      // Die Schlagworte liegen in der Nutzlast, aber ohne Index.
+      schlagwort: false,
+      volltext: true,
+    },
+    unsupportedHint: {
+      schlagwort:
+        'Für den Landtag NRW gibt es keinen Schlagwortfilter; das Thema als `query` geben (inhaltlich gerankt) oder `volltext` nutzen.',
+    },
+    // Werte von `doc_type` (`classifyDocType` im Scraper, Schreibweise der Parlamentsdatenbank).
+    typen: {
+      Antrag: ['Antrag', 'Entschließungsantrag', 'Eilantrag'],
+      // Kleine Anfragen liegen nur mit ihrer Antwort vor, die die Fragen wörtlich zitiert.
+      Anfrage: ['Große Anfrage', 'Antwort'],
+      Antwort: ['Antwort'],
+      Gesetzentwurf: ['Gesetzentwurf'],
+      Beschlussempfehlung: ['Beschlussempfehlung', 'Beschlussempfehlung und Bericht'],
+      Änderungsantrag: ['Änderungsantrag'],
+      Plenarprotokoll: null,
+    },
+    fraktionen: {
+      gruene: 'GRÜNE',
+      cdu: 'CDU',
+      spd: 'SPD',
+      fdp: 'FDP',
+      afd: 'AfD',
+      linke: null,
+      bsw: null,
+      oevp: null,
+      spoe: null,
+      fpoe: null,
+      neos: null,
+    },
+  },
   nationalrat: {
     id: 'nationalrat',
     audience: 'de-AT',
     kurz: 'Nationalrat',
     parlament: 'Nationalrat',
+    genannt: /nationalrat/i,
     herkunft: 'des österreichischen Nationalrats',
     refPrefix: 'NR',
     // Die Liste trägt die Zitierform des Parlaments („123 d.B.", „1025/A(E)"); die GP steht im Ref.

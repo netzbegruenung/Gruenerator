@@ -37,6 +37,12 @@ describe('canonical registry invariants', () => {
     expect(ricarda?.mcpExposed).toBe(false);
   });
 
+  it('exposes the released Landtag notebooks, but not the internal Bayern one', () => {
+    expect(getSystemCollectionConfig('landtag-nrw-system')?.mcpExposed).toBe(true);
+    expect(getSystemCollectionConfig('landtag-berlin-system')?.mcpExposed).toBe(true);
+    expect(getSystemCollectionConfig('landtag-bayern-system')?.mcpExposed).toBe(false);
+  });
+
   it('uses the correct bayern default filter (LV + Fraktion)', () => {
     expect(getSystemCollectionConfig('bayern-system')?.defaultFilter).toEqual({
       field: 'landesverband',
