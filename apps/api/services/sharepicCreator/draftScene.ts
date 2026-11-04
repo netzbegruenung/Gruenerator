@@ -1,4 +1,4 @@
-import { sharepicTextSideSchema } from '@gruenerator/contracts';
+import { SHAREPIC_UPLOAD_ID, sharepicTextSideSchema } from '@gruenerator/contracts';
 import { z } from 'zod';
 
 /** Stands in for the scene while the draft is checked; replaced by the painted image. */
@@ -8,11 +8,14 @@ const sceneSchema = z.object({
   kind: z.literal('szene'),
   motiv: z.string().trim().min(10).max(300),
   textSeite: sharepicTextSideSchema,
+  /** An own photo with a person, painted into the scene as the reference. */
+  person: z.string().regex(SHAREPIC_UPLOAD_ID).optional(),
 });
 
 export interface DraftScene {
   slide: number;
   motiv: string;
+  person: string | null;
 }
 
 /**
@@ -22,7 +25,9 @@ export interface DraftScene {
  * and half a minute.
  */
 export function takeScene(
-  input: unknown
+  input: unknown,
+  /** Own photos a scene may paint a person from: server-side readable, with a person on them. */
+  personable: ReadonlySet<string> = new Set()
 ): { ok: true; input: unknown; scene: DraftScene | null } | { ok: false; error: string } {
   const slides = (input as { slides?: unknown } | null)?.slides;
   if (!Array.isArray(slides)) return { ok: true, input, scene: null };
@@ -44,7 +49,13 @@ export function takeScene(
       error: `Slide ${index + 1}: szene braucht "motiv" (Englisch, 10–300 Zeichen, nur die Szene – kein Text, keine Zahlen) und "textSeite".`,
     };
   }
-  const { motiv, textSeite } = parsed.data;
+  const { motiv, textSeite, person } = parsed.data;
+  if (person && !personable.has(person)) {
+    return {
+      ok: false,
+      error: `Slide ${index + 1}: person nur mit einem eigenen Foto, auf dem eine Person ist – sonst weglassen.`,
+    };
+  }
   const next = slides.map((slide: unknown, i) =>
     i === index
       ? {
@@ -56,6 +67,6 @@ export function takeScene(
   return {
     ok: true,
     input: { ...(input as object), slides: next },
-    scene: { slide: index, motiv },
+    scene: { slide: index, motiv, person: person ?? null },
   };
 }

@@ -1,4 +1,8 @@
-import { type SharepicSpec } from '@gruenerator/contracts';
+import {
+  SHAREPIC_NEUTRAL_PHOTO_ANALYSIS,
+  type SharepicOwnPhoto,
+  type SharepicSpec,
+} from '@gruenerator/contracts';
 import { describe, expect, it, vi } from 'vitest';
 
 const aiObject = vi.hoisted(() => vi.fn());
@@ -632,5 +636,75 @@ describe('draftSharepic — form', () => {
 
     expect(errors).toEqual([]);
     expect(draft.form).toBeUndefined();
+  });
+});
+
+describe('draftSharepic — scene with the person', () => {
+  const photo = (
+    personen: number,
+    url: string | null = '/api/share/tok/download'
+  ): SharepicOwnPhoto => ({
+    id: 'upload:1',
+    analysis: { ...SHAREPIC_NEUTRAL_PHOTO_ANALYSIS, personen },
+    ...(url && { url }),
+  });
+  const personScene = { kind: 'szene', motiv: MOTIV, textSeite: 'unten', person: 'upload:1' };
+  const brief = 'Faktenbild: ich surfe auf einer grünen Wolke';
+
+  it('paints the person into the scene and reports it', async () => {
+    draftAnswers({ slides: [slide(personScene)] });
+    const paint = vi.fn<ScenePainter>().mockResolvedValue({ ok: true, ref: REF });
+    const own = [photo(1)];
+
+    const draft = await draftSharepic(brief, 'de-DE', null, own, { scene: paint, cutOut: vi.fn() });
+
+    expect(paint).toHaveBeenCalledWith(
+      { motiv: MOTIV, textSeite: 'unten', format: undefined, person: 'upload:1' },
+      own
+    );
+    expect(draft.bericht).toContainEqual({ art: 'foto', id: 'upload:1', status: 'in_szene' });
+  });
+
+  it('puts the photo cut out on the colour when the scene with the person fails', async () => {
+    draftAnswers({ slides: [slide(personScene)] });
+    const paint = vi.fn<ScenePainter>().mockResolvedValue({ ok: false, hinweis: 'Nicht gemalt.' });
+    const cutOut = vi.fn().mockResolvedValue('ki:cutoutcutoutcutout1234');
+
+    const draft = await draftSharepic(brief, 'de-DE', null, [photo(1)], {
+      scene: paint,
+      cutOut,
+    });
+
+    const [s] = draft.spec.slides;
+    expect(s!.background).toMatchObject({ kind: 'farbe' });
+    expect(s!.items).toContainEqual(
+      expect.objectContaining({
+        type: 'bild',
+        quelle: 'upload:1',
+        ausschnitt: 'freigestellt',
+        freisteller: 'ki:cutoutcutoutcutout1234',
+      })
+    );
+    expect(draft.bericht).toContainEqual(
+      expect.objectContaining({ art: 'foto', id: 'upload:1', status: 'collage' })
+    );
+  });
+
+  it('rejects a person from a photo without a person on it', async () => {
+    const errors = draftAnswers({ slides: [slide(personScene)] });
+    await expect(
+      draftSharepic(brief, 'de-DE', null, [photo(0)], { scene: vi.fn(), cutOut: vi.fn() })
+    ).rejects.toThrow();
+    expect(errors[0]).toBe(
+      'Slide 1: person nur mit einem eigenen Foto, auf dem eine Person ist – sonst weglassen.'
+    );
+  });
+
+  it('rejects a person from a photo the server cannot read', async () => {
+    const errors = draftAnswers({ slides: [slide(personScene)] });
+    await expect(
+      draftSharepic(brief, 'de-DE', null, [photo(1, null)], { scene: vi.fn(), cutOut: vi.fn() })
+    ).rejects.toThrow();
+    expect(errors[0]).toContain('person nur mit einem eigenen Foto');
   });
 });

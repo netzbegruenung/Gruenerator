@@ -11,6 +11,7 @@ import {
   type Flux3Bbox,
   type Flux3Layout,
   type SharepicFormat,
+  type SharepicOwnPhoto,
   type SharepicTextSide,
 } from '@gruenerator/contracts';
 import { IMAGE_MODEL_BY_ID } from '@gruenerator/shared/models';
@@ -20,6 +21,8 @@ import { serializeLayout } from '../flux/flux3Boxes.js';
 import { FluxImageService } from '../flux/index.js';
 import { getSharedMediaService } from '../sharedMediaService.js';
 import { getTreeBudget, treeBudgetSpentMessage, treeCostForImage } from '../trees/index.js';
+
+import { loadOwnPhoto } from './photoAnalysis.js';
 
 const log = createLogger('sharepicCreator:scene');
 
@@ -31,10 +34,24 @@ export interface SceneRequest {
   motiv: string;
   textSeite: SharepicTextSide;
   format: SharepicFormat | undefined;
+  /** An `upload:N` own photo with a person: FLUX paints that person into the scene. */
+  person?: string;
 }
 
 export type SceneResult = { ok: true; ref: string } | { ok: false; hinweis: string };
-export type ScenePainter = (scene: SceneRequest) => Promise<SceneResult>;
+export type ScenePainter = (
+  scene: SceneRequest,
+  /** The person's own photos; `person` is read through the `url` one carries. */
+  ownPhotos?: readonly SharepicOwnPhoto[]
+) => Promise<SceneResult>;
+
+const PERSON_FALLBACK = 'Das Foto ließ sich nicht in die Szene malen.';
+
+function mimeOf(bytes: Buffer): string {
+  if (bytes.subarray(0, 4).toString('latin1') === '\x89PNG') return 'image/png';
+  if (bytes.subarray(0, 4).toString('latin1') === 'RIFF') return 'image/webp';
+  return 'image/jpeg';
+}
 
 /**
  * The calm area on the 0–1000 grid, `[top, left, bottom, right]`. Mirrors the
@@ -89,7 +106,15 @@ const FALLBACK =
   'Der Hintergrund ließ sich nicht malen – das Sharepic steht auf einer Markenfarbe.';
 
 export function createScenePainter(userId: string): ScenePainter {
-  return async ({ motiv, textSeite, format }) => {
+  return async ({ motiv, textSeite, format, person }, ownPhotos = []) => {
+    // Read before any tree is reserved: a photo that cannot be read costs nothing.
+    let reference: { buffer: Buffer; mimeType: string } | null = null;
+    if (person) {
+      const url = ownPhotos.find((p) => p.id === person)?.url;
+      const buffer = url ? await loadOwnPhoto(url, userId, getSharedMediaService()) : null;
+      if (!buffer) return { ok: false, hinweis: PERSON_FALLBACK };
+      reference = { buffer, mimeType: mimeOf(buffer) };
+    }
     const cost = treeCostForImage(SCENE_MODEL.costMultiplier);
     const budget = getTreeBudget();
     const reservation = await budget.reserve(userId, cost);
@@ -113,10 +138,11 @@ export function createScenePainter(userId: string): ScenePainter {
         SCENE_MODEL.modelPath,
         SCENE_MODEL.resolution
       );
-      const { stored } = await flux.generateFromPrompt(
-        serializeLayout(sceneLayout(motiv, textSeite)),
-        { aspect_ratio: format === 'post-portrait-tall' ? '3:4' : '4:5' }
-      );
+      const prompt = serializeLayout(sceneLayout(motiv, textSeite));
+      const options = { aspect_ratio: format === 'post-portrait-tall' ? '3:4' : '4:5' } as const;
+      const { stored } = reference
+        ? await flux.generateFromImages(prompt, [reference], options)
+        : await flux.generateFromPrompt(prompt, options);
       const share = await getSharedMediaService().uploadMediaFile(userId, {
         fileBuffer: fs.readFileSync(stored.filePath),
         originalFilename: 'sharepic-hintergrund.jpg',

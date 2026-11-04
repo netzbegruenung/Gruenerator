@@ -26,6 +26,7 @@ import {
   type SharepicDraftFocus,
   type SharepicDraftResponse,
   type SharepicOwnPhoto,
+  sharepicSpecSchema,
   type SharepicSlide,
   type SharepicSpec,
   sharepicFormLabel,
@@ -281,6 +282,12 @@ export async function draftSharepic(
     repairs?: DatumRepair[];
   };
 
+  // A scene may paint the person in only from a photo the server can read and that shows one.
+  const personable = new Set(
+    painters.scene && painters.cutOut
+      ? ownPhotos.filter((p) => p.url && p.analysis.personen >= 1).map((p) => p.id)
+      : []
+  );
   const photoGuard = ownPhotoGuard<Drafted>(current, photoRequestTexts(order, brief));
   // What the last checkable attempt got wrong, for the person's text if every attempt fails.
   // „Not your request" only while no attempt has delivered a draft to check.
@@ -302,7 +309,7 @@ export async function draftSharepic(
           : SPEC_SCHEMA_DE,
     validate: (input, attempt, attempts) => {
       if (!lacksStructure(input)) failure = { kind: 'content' };
-      const taken = takeScene(withPaletteColors(input, locale, design));
+      const taken = takeScene(withPaletteColors(input, locale, design), personable);
       if (!taken.ok) return taken;
       const repaired = repairDatum(taken.input, given);
       for (const r of repaired.repairs) {
@@ -419,7 +426,15 @@ export async function draftSharepic(
     const background = spec.slides[scene.slide]!.background;
     const textSeite = background.kind === 'foto' ? background.textSeite : 'unten';
     const painted = painters.scene
-      ? await painters.scene({ motiv: scene.motiv, textSeite, format: spec.format })
+      ? await painters.scene(
+          {
+            motiv: scene.motiv,
+            textSeite,
+            format: spec.format,
+            ...(scene.person && { person: scene.person }),
+          },
+          ...(scene.person ? [ownPhotos] : [])
+        )
       : ({ ok: false, hinweis: null } as const);
     if (!painted.ok) {
       hinweis = painted.hinweis;
@@ -443,6 +458,50 @@ export async function draftSharepic(
               }
       ),
     };
+    if (scene.person) {
+      const id = scene.person;
+      const placed = (ausschnitt: 'freigestellt' | 'karte') => {
+        const next: SharepicSpec = {
+          ...spec,
+          slides: spec.slides.map((slide, i) =>
+            i === scene.slide
+              ? {
+                  ...slide,
+                  items: [
+                    ...slide.items,
+                    { type: 'bild', quelle: id, ausschnitt, filter: 'original' },
+                  ],
+                }
+              : slide
+          ),
+        };
+        // A bild needs a colour ground and few neighbours; the schema decides.
+        return sharepicSpecSchema.safeParse(next).success ? next : null;
+      };
+      if (painted.ok) {
+        bericht.push({ art: 'foto', id, status: 'in_szene' });
+      } else {
+        // The scene is a photo ground and a `bild` stands on a colour, so the photo does not
+        // go beside a scene painted without the person; it stands on the colour instead.
+        const grund = 'Die Szene mit dir ließ sich nicht malen.';
+        const cut = placed('freigestellt');
+        const card = cut ? null : placed('karte');
+        const next = cut ?? card;
+        if (next) spec = next;
+        bericht.push(
+          cut
+            ? { art: 'foto', id, status: 'collage', grund }
+            : card
+              ? { art: 'foto', id, status: 'verwendet', grund }
+              : {
+                  art: 'foto',
+                  id,
+                  status: 'nicht_verwendet',
+                  grund: `${grund} Das Foto passt nicht auf diese Slide.`,
+                }
+        );
+      }
+    }
   }
   const illustrated = await paintIllustrations(spec, painters.illustrations);
   const cut = await cutOutBilder(illustrated.spec, painters.cutOut, shippedCutOuts, ownPhotos);
