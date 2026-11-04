@@ -63,6 +63,18 @@ export interface NotebookDepthProfile {
    * braucht das Thema, der Prompt nicht die alten Turns.
    */
   queryRewrite: boolean;
+  /**
+   * Ob jede Quelle im Pool ihre beste Stelle bekommt, bevor eine Quelle eine
+   * weitere bekommt (höchstens das halbe Fenster, siehe
+   * `reserveBestPassagePerSource`). Aus bei `fast`: der Grün-O-Mat fährt die
+   * Stufe und bleibt byte-identisch. Aus bei `ultra`, gemessen 04.11.2026 an
+   * C3 aus evals/answer/bgst-live-eval-2026-11-04.md (#5341), je zwei Läufe mit
+   * denselben Formulierungen: `deep` 3 → 4 Fundstellen, nichts verloren;
+   * `ultra` kein Gewinn — unter drei Paraphrasen ist die „beste Stelle" einer
+   * Quelle oft nicht die gesuchte —, in einem Lauf eine Fundstelle auf Rang 80
+   * verloren, weil die reservierten Plätze der Auffüllung fehlen.
+   */
+  bestPassagePerSource: boolean;
 }
 
 const PROFILES: Record<NotebookSearchDepth, NotebookDepthProfile> = {
@@ -78,6 +90,7 @@ const PROFILES: Record<NotebookSearchDepth, NotebookDepthProfile> = {
     queryVariants: 1,
     history: false,
     queryRewrite: false,
+    bestPassagePerSource: false,
   },
   // 100 ist die Decke der Qdrant-Suche je Abfrage. Gemessen 06.10.2026 an 23
   // LV-Fragen (evals/answer/model-eval-2026-10-06.md): gegen 40/18 gewann
@@ -95,6 +108,7 @@ const PROFILES: Record<NotebookSearchDepth, NotebookDepthProfile> = {
     queryVariants: 1,
     history: false,
     queryRewrite: true,
+    bestPassagePerSource: true,
   },
   ultra: {
     searchLimit: 100,
@@ -108,6 +122,7 @@ const PROFILES: Record<NotebookSearchDepth, NotebookDepthProfile> = {
     queryVariants: 3,
     history: true,
     queryRewrite: true,
+    bestPassagePerSource: false,
   },
 };
 
