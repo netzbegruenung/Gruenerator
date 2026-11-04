@@ -1050,7 +1050,11 @@ export interface AgenticDecisionInput {
    * Wissenssammlung bliebe ungelesen.
    */
   forcedLoop: boolean;
-  /** Notebook gather pipeline — stays single-pass. */
+  /** Notebook gather pipeline — stays single-pass. Except a table turn
+   *  (`isTabularAnalysisTurn`), for the same reason as the notebook exception
+   *  on {@link hasSelectedNotebook}: the pipeline has no `tabelle_auswerten`
+   *  and answered from the excerpt, while the loop seeds the notebook itself
+   *  and keeps the named agent's role (#5063). */
   isCompound: boolean;
   /** The turn carries a selected notebook (`notebookIds`), whatever the agent.
    *  Stays single-pass — but no longer because the loop CANNOT reach a user
@@ -1210,8 +1214,13 @@ export function decideRunAgentic(p: AgenticDecisionInput): boolean {
     (p.hasImageAttachments && !explicitLoopReason && looksLikeImageOnlyAsk(p.lastUserText));
   const runAgentic =
     gateOpen &&
+    // A pinned tool WITHOUT a loop lane (`forcedTool && !forcedLoop`: sharepic,
+    // image, summary, @deepresearch …) keeps a table turn single-pass too. The
+    // loop has no tool for that pin, so letting it in would drop the person's
+    // mention silently — the failure this switch exists for (#5063). The
+    // single-pass answer says instead that the values are not computed.
     (!p.forcedTool || p.forcedLoop) &&
-    !p.isCompound &&
+    (!p.isCompound || p.isTabularAnalysisTurn === true) &&
     (!p.hasSelectedNotebook || p.mustLoop || p.isTabularAnalysisTurn === true) &&
     secondaryAllowed &&
     !imageStaysSinglePass;
