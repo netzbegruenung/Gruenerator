@@ -57,6 +57,13 @@ export interface SearchOptions {
    * einem anderen Stemmer trifft still nichts, statt zu scheitern.
    */
   sparseQueryVector?: SparseVector | undefined;
+  /**
+   * Die Fachbegriffe der Frage (#5341), wie sie im Text stehen würden. Gesetzt,
+   * sucht die Wortsuche der Hybridsuche diese Begriffe statt des ganzen
+   * Fragesatzes, und `has_term` prüft auf sie. Die Vektorsuche liest weiter die
+   * ganze Frage. Fehlt das Feld, bleibt alles wie vorher.
+   */
+  lexicalTerms?: string[] | undefined;
   [key: string]: unknown;
 }
 
@@ -357,6 +364,8 @@ export interface HybridOptions {
   recallLimit?: number | undefined;
   /** Siehe `SearchOptions.sparseQueryVector` — von dort durchgereicht. */
   sparseQueryVector?: SparseVector | undefined;
+  /** Siehe `SearchOptions.lexicalTerms` — von dort durchgereicht. */
+  lexicalTerms?: string[] | undefined;
 }
 
 export interface HybridChunkParams {
@@ -464,4 +473,6 @@ export interface MMROptions {
    * liefert und keiner davon ein Tupel erwartet.
    */
   onRerankDegraded?: (() => void) | undefined;
+  /** Siehe `SearchOptions.lexicalTerms`. */
+  lexicalTerms?: string[] | undefined;
 }
