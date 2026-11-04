@@ -25,6 +25,7 @@ import {
   namesSharepicTarget,
   threadHasSharepic,
 } from '../services/sharepicEditService.js';
+import { fillsSharepicGap, stateHasSharepic } from '../services/sharepicGap.js';
 import {
   getLastSharepicVariant,
   getSharepicVariantInWindow,
@@ -333,6 +334,20 @@ export async function runEarlyHandlerStage({
         log.info(
           `[ChatGraph] Sharepic refinement: "${sharepicRefinement.instruction}" on ${prior.canvasType}`
         );
+      }
+    } else if (stateHasSharepic(classifiedState)) {
+      // Die Antwort auf eine gemeldete Lücke („Do., 20.11., 18 Uhr, Kreisbüro"
+      // nach „Termin ausgelassen") trägt weder Verb noch Nomen, also greift
+      // keine Regel oben. Ein Lesezugriff, nur wenn der Thread ein Sharepic hat.
+      const prior = await getLastSharepicVariant(actualThreadId);
+      if (
+        prior &&
+        fillsSharepicGap(parseSharepicChatProps(prior.props)?.bericht ?? null, followOrder)
+      ) {
+        sharepicRefinement = { instruction: `Setz den Termin ein: ${followText}`, prior };
+        classifiedState.intent = 'sharepic';
+        forcedTool = true;
+        log.info(`[ChatGraph] Sharepic gap filled: "${followText}"`);
       }
     }
   }
