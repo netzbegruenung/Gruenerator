@@ -1,15 +1,17 @@
 import { parse, type JsxAST } from 'react-native-svg';
 
-import { type createTexToSvg } from './mathjaxSvg';
+import { type ConvertedTex, type createTexToSvg } from './mathjaxSvg';
 
 export interface MathSvg {
   ast: JsxAST;
   /** Size in em — multiply by the font size. */
   width: number;
   height: number;
+  /** German spoken form for screen readers, `null` when the formula has none. */
+  speech: string | null;
 }
 
-let toSvg: ((tex: string, display: boolean) => string) | null = null;
+let toSvg: ((tex: string, display: boolean) => ConvertedTex) | null = null;
 let loadFailed = false;
 
 /** The MathJax converter, or `null` when MathJax cannot load. */
@@ -78,11 +80,17 @@ function convertTex(tex: string, display: boolean): MathSvg | null {
   const convert = converter();
   if (!convert) return null;
   // The root's CSS `vertical-align` means nothing to a native view.
-  const xml = convert(tex, display).replace(/^<svg style="[^"]*"/, '<svg');
+  const converted = convert(tex, display);
+  const xml = converted.xml.replace(/^<svg style="[^"]*"/, '<svg');
   if (xml.includes('data-mjx-error')) return null;
   const box = VIEW_BOX_RE.exec(xml);
   const ast = parse(xml);
   if (!box || !ast) return null;
   // MathJax draws at 1000 units per em.
-  return { ast, width: Number(box[1]) / 1000, height: Number(box[2]) / 1000 };
+  return {
+    ast,
+    width: Number(box[1]) / 1000,
+    height: Number(box[2]) / 1000,
+    speech: converted.speech,
+  };
 }
