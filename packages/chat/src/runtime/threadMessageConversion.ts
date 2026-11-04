@@ -274,7 +274,7 @@ export const PASSTHROUGH_METADATA_FIELDS = [
  * Single seam: rebuild the `custom` render metadata from a persisted message.
  * Two kinds of field —
  *  - PASSTHROUGH_METADATA_FIELDS: verbatim metadata→custom copies.
- *  - tool-derived (sharepic / social post / bahn / reel): extracted from
+ *  - tool-derived (sharepic / social post / bahn): extracted from
  *    persisted tool-call results by `buildToolDerivedCustom`, shared with the
  *    native adapter.
  * `senderId` and `streamMetadata` are special-cased (paired / derived).
@@ -296,7 +296,7 @@ function buildCustomMetadata(metadata: LoadedMessage['metadata']): Record<string
     if (value) custom[field] = value;
   }
 
-  // Tool-derived (sharepic / social post / bahn / reel) — shared with the
+  // Tool-derived (sharepic / social post / bahn) — shared with the
   // native adapter, see lib/toolDerivedCustom.ts.
   Object.assign(custom, buildToolDerivedCustom(metadata.toolCalls));
 

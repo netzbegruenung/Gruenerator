@@ -21,4 +21,8 @@ main {
   display: flex;
   flex: 1;
   padding-top: var(--titlebar-height);
+  /* The canvas editor and its host pages fill --editor-height; under the
+     titlebar that is the window minus the bar, or the editor's bottom bar
+     ends below the window edge (#5248). */
+  --editor-height: calc(100dvh - var(--titlebar-height));
 }

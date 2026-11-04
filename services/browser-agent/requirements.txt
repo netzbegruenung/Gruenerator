@@ -172,11 +172,11 @@ multidict==7.2.1
     # via
     #   aiohttp
     #   yarl
-oauthlib==4.0.0
+oauthlib==4.0.1
     # via requests-oauthlib
 ollama==0.6.1
     # via browser-use
-openai==3.41.0
+openai==3.42.0
     # via browser-use
 opentelemetry-api==1.45.2
     # via
@@ -257,7 +257,7 @@ python-dotenv==1.2.2
     # via
     #   browser-use
     #   pydantic-settings
-python-multipart==0.0.32
+python-multipart==0.0.33
     # via mcp
 referencing==0.37.0
     # via
