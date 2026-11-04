@@ -64,6 +64,7 @@ function ctx(over: Partial<SynthPromptContext> = {}): SynthPromptContext {
     sourceRegistry: createSourceRegistry(),
     recipeRegistry: createRecipeRegistry(),
     opening: () => null,
+    materialNote: '',
     ...over,
   };
 }
@@ -149,6 +150,17 @@ describe('buildSynthSystem — Quellenblock', () => {
     expect(prompt).toContain('dann gilt die NEUESTE');
   });
 
+  // #5286: eine gewählte, aber unlesbare Cloud-Datei ist keine Quelle — und
+  // trotzdem kein „nichts recherchiert". Sonst bestritt der Schreiber, dass
+  // überhaupt eine Datei angehängt war.
+  it('gibt die Notiz über unlesbares Material weiter statt „nichts recherchiert"', () => {
+    const materialNote = '\n\nANGEHÄNGTE DATEI NICHT LESBAR: „Protokoll.docx"';
+    const prompt = buildSynthSystem('', ctx({ materialNote }));
+    expect(prompt).toContain(materialNote);
+    expect(prompt).not.toContain('hast du NICHTS recherchiert');
+    expect(prompt).not.toContain('GESAMMELTE QUELLEN');
+  });
+
   it('lässt bei leerem Block kein Zitiergebot stehen und sagt es ehrlich', () => {
     const prompt = buildSynthSystem('   ', ctx());
     expect(prompt).not.toContain('GESAMMELTE QUELLEN');
@@ -224,6 +236,36 @@ describe('buildSynthSystem — Quellenblock', () => {
     expect(prompt).toContain('NICHT neu recherchiert');
     expect(prompt).toContain('du darfst sie mit [N] belegen');
   });
+
+  // #5182, live 30.10.2026: mitgeführte Redeausschnitte, `bundestag_reden`
+  // scheitert in diesem Turn. Die Zeile „NICHT neu recherchiert … sag, dass du
+  // neu nachschlagen müsstest" überstimmte als letzter Absatz die
+  // Fehlschlag-Notiz, und der werkzeuglose Schreiber kündigte die Suche an.
+  it.each([
+    ['gescheiterten', { result: { error: 'Keine Rede enthält die Phrase.' }, ok: false as const }],
+    ['leeren', { result: { results: [] } }],
+  ])(
+    'sagt nach einem %s Abruf neben mitgeführten Quellen nicht „neu nachschlagen"',
+    (_label, outcome) => {
+      const steps: PersistedStep[] = [
+        {
+          toolCallId: 'c1',
+          toolName: 'bundestag_reden',
+          args: { redner: 'Katrin Uhlig' },
+          ...outcome,
+        },
+      ];
+      const prompt = buildSynthSystem(
+        '[1] Antrag',
+        ctx({ steps, sourceRegistry: carriedRegistry() })
+      );
+      expect(prompt).not.toContain('NICHT neu recherchiert');
+      expect(prompt).not.toContain('neu nachschlagen müsstest');
+      expect(prompt).toContain('Du HAST in diesem Turn nachgesehen');
+      expect(prompt).toContain('du darfst sie mit [N] belegen');
+      expect(prompt).toContain('kündige keine weitere Suche an');
+    }
+  );
 
   it('schweigt zur Recherche, wenn ein Verbindungs-Tool gelaufen ist', () => {
     const steps: PersistedStep[] = [

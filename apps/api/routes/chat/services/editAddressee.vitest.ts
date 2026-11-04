@@ -37,13 +37,11 @@ describe('priorTurnEditables', () => {
     expect(priorTurnEditables([{ kind: 'image' }], [])).toEqual(['image']);
   });
 
-  it('kennt Post und Reel aus ihren Schritten', () => {
+  it('kennt Post aus seinen Schritten', () => {
     expect(
       priorTurnEditables([], [{ toolName: 'social_post', result: { postId: 'p1', text: 'Hallo' } }])
     ).toEqual(['social_post']);
     expect(priorTurnEditables([], [{ toolName: 'social_post_edit' }])).toEqual(['social_post']);
-    expect(priorTurnEditables([], [{ toolName: 'reel_edit' }])).toEqual(['reel']);
-    expect(priorTurnEditables([], [{ toolName: 'reel_processing' }])).toEqual(['reel']);
   });
 
   // Claude-Review #3940: ein abgelehntes Sharepic speichert `{ variants: [] }`

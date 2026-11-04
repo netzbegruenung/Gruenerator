@@ -86,11 +86,21 @@ export interface DocumentWriteSubject {
  * services/hocuspocus/src/auth.ts `checkDocumentPermissions`), which has no
  * cross-package deps and keeps its own copy. The first rule that applies
  * decides: owner, own permission entry, share link, project share.
+ *
+ * `userId === null` is an anonymous reader: the connection's guest branch
+ * (`authenticateAsGuest`) lets them in only on a public document and writes
+ * unless the link is a viewer link.
  */
 export async function canWriteDocument(
   doc: DocumentWriteSubject,
-  userId: string
+  userId: string | null
 ): Promise<boolean> {
+  if (userId === null) {
+    return (
+      (doc.is_public === true || doc.share_mode === 'public') && doc.share_permission !== 'viewer'
+    );
+  }
+
   if (doc.created_by === userId) return true;
 
   const entry = doc.permissions?.[userId];

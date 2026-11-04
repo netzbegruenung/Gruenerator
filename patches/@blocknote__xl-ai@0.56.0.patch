@@ -29,3 +29,24 @@ index a754a4d..0ae26d9 100644
  			},
  			type: { validate: "string" },
  			attrName: {
+diff --git a/dist/server-CGu6iHhc.js b/dist/server-CGu6iHhc.js
+index da9a8b2..fb5ee98 100644
+--- a/dist/server-CGu6iHhc.js
++++ b/dist/server-CGu6iHhc.js
+@@ -661,12 +661,15 @@ function L(e) {
+ 		}
+ 		let h = a.mapping.map(l), g = a.mapping.map(l), _ = !0;
+ 		for (let e = m; e <= o.slice.content.size; e++) {
++			let cut = o.slice.content.cut(0, e), complete = !0;
++			cut.descendants((node) => (complete = complete && node.type.validContent(node.content), complete));
++			if (!complete && e < o.slice.content.size) continue;
+ 			let n = _ && c !== l, i = a.steps.length;
+ 			if (n) {
+ 				let e = a.doc.resolve(a.mapping.map(c));
+ 				e.nodeAfter?.isBlock && a.addNodeMark(e.pos, t.mark("deletion", {})), a.addMark(e.pos, h, t.mark("deletion", {})), h = a.mapping.map(l);
+ 			}
+-			let s = new f(o.slice.content.cut(0, e), 0, 0);
++			let s = new f(cut, 0, 0);
+ 			a.replace(g, h, s).addMark(g, g + s.content.size, t.mark("insertion", {})), a.doc.nodesBetween(g, g + s.content.size, (e, n) => n < g || n > g + s.content.size || (e.isBlock && a.addNodeMark(n, t.mark("insertion", {})), !1)), h = a.mapping.slice(i).map(h);
+ 			let u = p.near(a.doc.resolve(g + s.content.size), -1);
+ 			r.push({

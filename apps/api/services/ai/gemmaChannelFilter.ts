@@ -17,11 +17,7 @@ import { wrapLanguageModel } from 'ai';
 
 import { createLogger } from '../../utils/logger.js';
 
-import {
-  createToolCallTextFilter,
-  type TextToolCall,
-  type ToolCallTextFilter,
-} from './gemmaToolCallText.js';
+import { createToolCallTextFilter, type TextToolCall } from './gemmaToolCallText.js';
 
 import type { LanguageModel, LanguageModelMiddleware } from 'ai';
 
@@ -135,6 +131,76 @@ function extractText(text: string) {
   return { text: visible + filter.flush(), calls };
 }
 
+/**
+ * Below this, a string argument is a query, an id or a label — not the
+ * answer, and showing it as text would be noise.
+ */
+const MIN_RESCUED_CHARS = 200;
+
+function joinText(a: string, b: string): string {
+  return a && b ? `${a}\n\n${b}` : a + b;
+}
+
+/**
+ * Splits text calls into the ones that can run and the text to show for the
+ * rest. A namespaced name (`gruenerator:draft_structured`) runs as its last
+ * segment when that tool is mounted. A call to a tool that does not exist
+ * carried the answer in its arguments: live 03.11.2026 the whole revised
+ * Antrag sat in `draft_structured{inhalt:…}`, a tool removed in #3078.
+ * Dropping it left the turn empty, and the chat answered „Ich konnte dazu
+ * leider keine passende Antwort finden". Its longest string argument is shown
+ * as the answer instead.
+ */
+function routeTextCalls(calls: TextToolCall[], known: Set<string>) {
+  const runnable: TextToolCall[] = [];
+  let text = '';
+  for (const call of calls) {
+    const name = known.has(call.toolName) ? call.toolName : call.toolName.replace(/^.*[:.]/, '');
+    if (known.has(name)) {
+      runnable.push({ ...call, toolName: name });
+      continue;
+    }
+    const longest = Object.values(call.input)
+      .filter((v): v is string => typeof v === 'string')
+      .reduce((a, b) => (b.length > a.length ? b : a), '');
+    const rescued = longest.length >= MIN_RESCUED_CHARS;
+    log.warn(
+      `text tool call to unknown tool ${call.toolName}: ${rescued ? 'argument shown as answer' : 'dropped'}`
+    );
+    if (rescued) text = joinText(text, longest);
+  }
+  return { runnable, text };
+}
+
+export interface AnswerToolCallFilter {
+  /** Feed visible text; returns what to show and the calls that can run. */
+  push(delta: string): { text: string; runnable: TextToolCall[] };
+  /** Release held-back text; an unclosed call is dropped. */
+  flush(): string;
+}
+
+/**
+ * Text tool calls out of one answer stream: runnable ones are returned, a
+ * rescued argument follows the text before it a paragraph apart. `known` empty
+ * means no tool can run — the raw reasoning stream has none mounted.
+ */
+export function createAnswerToolCallFilter(known: Set<string>): AnswerToolCallFilter {
+  const filter = createToolCallTextFilter();
+  let shown = false;
+  return {
+    push(delta) {
+      const pushed = filter.push(delta);
+      const { runnable, text: rescued } = routeTextCalls(pushed.calls, known);
+      const before = shown || pushed.text.length > 0;
+      const text =
+        pushed.text + (before && rescued && !/^\s/.test(rescued) ? '\n\n' : '') + rescued;
+      if (text) shown = true;
+      return { text, runnable };
+    },
+    flush: () => filter.flush(),
+  };
+}
+
 const middleware: LanguageModelMiddleware = {
   wrapGenerate: async ({ doGenerate, params }) => {
     const result = await doGenerate();
@@ -146,10 +212,10 @@ const middleware: LanguageModelMiddleware = {
         content.push(part);
         continue;
       }
-      const { text, calls } = extractText(part.text);
-      content.push({ ...part, text });
-      for (const call of calls) {
-        if (!known.has(call.toolName)) continue;
+      const extracted = extractText(part.text);
+      const { runnable, text } = routeTextCalls(extracted.calls, known);
+      content.push({ ...part, text: joinText(extracted.text, text) });
+      for (const call of runnable) {
         called = true;
         content.push(toolCallPart(call));
       }
@@ -165,7 +231,7 @@ const middleware: LanguageModelMiddleware = {
     const { stream, ...rest } = await doStream();
     const known = toolNamesOf(params.tools);
     const filters = new Map<string, GemmaChannelFilter>();
-    const callFilters = new Map<string, ToolCallTextFilter>();
+    const callFilters = new Map<string, AnswerToolCallFilter>();
     type Part = typeof stream extends ReadableStream<infer P> ? P : never;
     const pendingCalls = new Map<string, TextToolCall[]>();
     let called = false;
@@ -177,13 +243,12 @@ const middleware: LanguageModelMiddleware = {
           transform(part, controller) {
             const callFilter = (id: string) => {
               let f = callFilters.get(id);
-              if (!f) callFilters.set(id, (f = createToolCallTextFilter()));
+              if (!f) callFilters.set(id, (f = createAnswerToolCallFilter(known)));
               return f;
             };
             // Calls are emitted right after the text part that carried them.
             const emitCalls = (calls: TextToolCall[]) => {
               for (const call of calls) {
-                if (!known.has(call.toolName)) continue;
                 called = true;
                 controller.enqueue(toolCallPart(call));
               }
@@ -201,19 +266,21 @@ const middleware: LanguageModelMiddleware = {
                 controller.terminate();
                 return;
               }
-              const { text, calls } = callFilter(part.id).push(delta);
+              const { text, runnable } = callFilter(part.id).push(delta);
               if (text.length > 0) controller.enqueue({ ...part, delta: text });
-              if (calls.length > 0) {
-                pendingCalls.set(part.id, [...(pendingCalls.get(part.id) ?? []), ...calls]);
+              if (runnable.length > 0) {
+                pendingCalls.set(part.id, [...(pendingCalls.get(part.id) ?? []), ...runnable]);
               }
               return;
             }
             if (part.type === 'text-end') {
-              const { text, calls } = callFilter(part.id).push(filters.get(part.id)?.flush() ?? '');
+              const { text, runnable } = callFilter(part.id).push(
+                filters.get(part.id)?.flush() ?? ''
+              );
               const delta = text + callFilter(part.id).flush();
               if (delta.length > 0) controller.enqueue({ type: 'text-delta', id: part.id, delta });
               controller.enqueue(part);
-              emitCalls([...(pendingCalls.get(part.id) ?? []), ...calls]);
+              emitCalls([...(pendingCalls.get(part.id) ?? []), ...runnable]);
               pendingCalls.delete(part.id);
               return;
             }

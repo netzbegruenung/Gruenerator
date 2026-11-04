@@ -22,7 +22,6 @@ import type {
 import type { StreamRecorder } from '../../../services/chat/resumableStreams.js';
 import type {
   CanvasAiSuggestion,
-  ReelPickerProject,
   TriggerDocEdit,
   ConfirmActionEvent,
   McpToolGrant,
@@ -73,10 +72,6 @@ export type SSEEventType =
   | 'sharepic_edit_error'
   | 'social_post_updated'
   | 'social_post_edit_error'
-  | 'reel_processing'
-  | 'reel_picker'
-  | 'reel_updated'
-  | 'reel_edit_error'
   | 'tool_step_start'
   | 'tool_step_result'
   | 'response_start'
@@ -232,19 +227,6 @@ export interface SSEEventPayloads {
     summary: string;
   };
   social_post_edit_error: { postId?: string; error: string };
-  // Reel branch (chat subtitle editing of subtitler projects). The frontend
-  // polls GET /subtitler/auto-progress/:uploadId after reel_processing; full
-  // segments travel via reel_updated only (compact tool results in the DB).
-  reel_processing: { uploadId: string; filename: string };
-  reel_picker: { projects: ReelPickerProject[] };
-  reel_updated: {
-    projectId: string;
-    title: string;
-    segments: Array<{ id: number; startTime: number; endTime: number; text: string }>;
-    summary: string;
-    changedIndices: number[];
-  };
-  reel_edit_error: { projectId?: string; error: string };
   // Agentic tool loop: one start/result pair per tool step. Args/summaries are
   // compact display data. `title`/`serverName` label the card (MCP/connector
   // tools); `result` carries the rich per-tool payload the UI cards read

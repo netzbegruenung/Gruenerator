@@ -117,4 +117,35 @@ describe('locale vocabulary is the default bias (#4081)', () => {
     const payload = stream.mock.calls.at(-1)?.[0] as Record<string, unknown>;
     expect(payload.contextBias).toEqual(buildContextBias('de-AT'));
   });
+
+  it('reads the streamed text from the SDK event envelope', async () => {
+    // Shape recorded live against the Mistral API (SDK 2.7.0 and 3.4.0).
+    stream.mockResolvedValueOnce(
+      (async function* () {
+        yield {
+          event: 'transcription.text.delta',
+          data: { type: 'transcription.text.delta', text: 'Hallo ' },
+        };
+        yield {
+          event: 'transcription.text.delta',
+          data: { type: 'transcription.text.delta', text: 'Welt' },
+        };
+        yield { event: 'transcription.done', data: { type: 'transcription.done', text: '' } };
+      })()
+    );
+
+    const events = [];
+    for await (const event of mistralVoiceService.transcribeFromBufferStream(
+      Buffer.from('x'),
+      'a.mp3'
+    )) {
+      events.push(event);
+    }
+
+    expect(events).toEqual([
+      { type: 'text.delta', text: 'Hallo ' },
+      { type: 'text.delta', text: 'Welt' },
+      { type: 'done', text: 'Hallo Welt' },
+    ]);
+  });
 });

@@ -185,33 +185,6 @@ export interface ChatConfig {
    */
   onOpenSourceDocument?: (target: ResearchDocumentParams & { title: string }) => void;
   /**
-   * Uploads a composer-attached video to the subtitler TUS endpoint and
-   * resolves with its uploadId. Required for video attachments — without it
-   * the attachment adapter rejects video files. The abort handle terminates
-   * the transfer (and deletes the partial server-side upload) when the user
-   * removes the attachment mid-upload.
-   */
-  uploadReelVideo?: (
-    file: File,
-    onProgress?: (pct: number) => void
-  ) => { promise: Promise<{ uploadId: string }>; abort: () => void };
-  /** Streaming URL for a subtitler project's video (cookie-authed, Range-capable). */
-  getReelVideoUrl?: (projectId: string) => string;
-  /** Fetch one subtitler project incl. its subtitles blob; null on error. */
-  fetchReelProject?: (
-    projectId: string
-  ) => Promise<{ title: string; subtitles: string | null } | null>;
-  /** Poll the auto-processing pipeline for a chat-uploaded video. */
-  fetchReelAutoProgress?: (uploadId: string) => Promise<{
-    status: 'processing' | 'complete' | 'error' | 'not_found';
-    overallProgress: number;
-    projectId: string | null;
-    subtitles: string | null;
-    error: string | null;
-  } | null>;
-  /** Opens a subtitler project in the Sub-Studio (web: /reel/studio deep link). */
-  onOpenReelStudio?: (projectId: string) => void;
-  /**
    * Speichert die Rolle, mit der neue Chats starten, in den Konto-Einstellungen
    * der Person (`profile.activeRole`). Injiziert, weil die Nutzer-Voreinstellungen
    * in der Host-App liegen; ohne sie merkt sich der Composer die Wahl nur für
@@ -364,11 +337,6 @@ interface ChatConfigStore extends ResolvedChatConfig {
   restoreSharepicVersion?: ChatConfig['restoreSharepicVersion'];
   updateSharepicThumbnail?: ChatConfig['updateSharepicThumbnail'];
   downloadSharepicZip?: ChatConfig['downloadSharepicZip'];
-  uploadReelVideo?: ChatConfig['uploadReelVideo'];
-  getReelVideoUrl?: ChatConfig['getReelVideoUrl'];
-  fetchReelProject?: ChatConfig['fetchReelProject'];
-  fetchReelAutoProgress?: ChatConfig['fetchReelAutoProgress'];
-  onOpenReelStudio?: ChatConfig['onOpenReelStudio'];
   persistActiveRole?: ChatConfig['persistActiveRole'];
   notify?: ChatConfig['notify'];
   platform?: ChatConfig['platform'];
@@ -508,11 +476,6 @@ export const useChatConfigStore = create<ChatConfigStore>((set, get) => ({
       restoreSharepicVersion: config?.restoreSharepicVersion,
       updateSharepicThumbnail: config?.updateSharepicThumbnail,
       downloadSharepicZip: config?.downloadSharepicZip,
-      uploadReelVideo: config?.uploadReelVideo,
-      getReelVideoUrl: config?.getReelVideoUrl,
-      fetchReelProject: config?.fetchReelProject,
-      fetchReelAutoProgress: config?.fetchReelAutoProgress,
-      onOpenReelStudio: config?.onOpenReelStudio,
       persistActiveRole: config?.persistActiveRole,
       notify: config?.notify,
       platform: config?.platform,

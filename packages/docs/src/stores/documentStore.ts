@@ -19,6 +19,8 @@ export interface Document {
   permissions: Record<string, { level: 'owner' | 'editor' | 'viewer'; granted_at: string }>;
   metadata?: Record<string, unknown>;
   access_type?: 'owner' | 'direct' | 'group' | 'public';
+  /** Whether the reader may write; set by GET /docs/resolve/:id from the collab connection's rule. */
+  can_edit?: boolean;
   creator_name?: string;
   last_editor_name?: string;
   group_shares?: Array<{ group_id: string; group_name: string }>;

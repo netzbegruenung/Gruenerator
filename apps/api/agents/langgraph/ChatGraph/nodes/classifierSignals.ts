@@ -230,8 +230,7 @@ export function carriesPastedBody(text: string): boolean {
  * `chat_history` tool.
  *
  * The reel alternatives are phrased as possessives ("mein reel", "das video in
- * dem ich") on purpose: a bare "reel"/"video" would grab reel CREATION and the
- * reel_edit turns, which are separate branches.
+ * dem ich") on purpose: a bare "reel"/"video" would grab reel CREATION.
  */
 /**
  * References to THIS conversation rather than an earlier one ("vorhin", "in

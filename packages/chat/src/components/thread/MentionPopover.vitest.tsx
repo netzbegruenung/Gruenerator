@@ -38,7 +38,7 @@ function renderedRows(): string[] {
   });
 }
 
-/** Titles of the rows rendered under one sublabel ("eigene", "aus deinen Gruppen"). */
+/** Titles of the rows rendered under one sublabel ("eigene", "aus deinen Projekten"). */
 function rowTitlesUnder(sublabel: string): string[] {
   const group = screen.getByText(sublabel).parentElement;
   return Array.from(group?.querySelectorAll('[role="option"]') ?? []).map(
@@ -178,7 +178,7 @@ describe('recipes shared from a group', () => {
     renderPopover('pressemitteilung');
 
     expect(rowTitlesUnder('eigene')).toEqual(['Eigene Pressemitteilung']);
-    expect(rowTitlesUnder('aus deinen Gruppen')).toEqual(['Geteilte Pressemitteilung']);
+    expect(rowTitlesUnder('aus deinen Projekten')).toEqual(['Geteilte Pressemitteilung']);
   });
 
   it('keeps the group section away when nothing is shared', () => {
@@ -186,7 +186,7 @@ describe('recipes shared from a group', () => {
     renderPopover('pressemitteilung');
 
     expect(rowTitlesUnder('eigene')).toEqual(['Eigene Pressemitteilung']);
-    expect(screen.queryByText('aus deinen Gruppen')).toBeNull();
+    expect(screen.queryByText('aus deinen Projekten')).toBeNull();
   });
 
   it('keeps the split consistent with the keyboard list', () => {
@@ -242,7 +242,7 @@ describe('Grüneratoren aus einer Gruppe', () => {
     renderPopover('klima');
 
     expect(rowTitlesUnder('eigene')).toEqual(['Mein Klima-Grünerator']);
-    expect(rowTitlesUnder('aus deinen Gruppen')).toEqual(['KV Klima-Grünerator']);
+    expect(rowTitlesUnder('aus deinen Projekten')).toEqual(['KV Klima-Grünerator']);
   });
 
   it('zeigt keine Gruppen-Untergruppe, wenn nichts geteilt ist', () => {
@@ -251,7 +251,7 @@ describe('Grüneratoren aus einer Gruppe', () => {
     renderPopover('klima');
 
     expect(rowTitlesUnder('eigene')).toEqual(['Mein Klima-Grünerator']);
-    expect(screen.queryByText('aus deinen Gruppen')).toBeNull();
+    expect(screen.queryByText('aus deinen Projekten')).toBeNull();
   });
 
   it('hält die Aufteilung deckungsgleich mit der Tastaturliste', () => {

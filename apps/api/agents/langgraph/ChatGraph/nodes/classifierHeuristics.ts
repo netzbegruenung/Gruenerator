@@ -359,8 +359,7 @@ export function mentionsImageNoun(text: string): boolean {
 // Eigenes Vokabular statt Mitbenutzung von `sharepicEditHeuristics`: dessen
 // Nomen beschreiben eine Vorlage (zeile, balken, karussell, folie), nicht ein
 // Foto, und die Bildteile hier (licht, himmel, gesicht, stil) kennt es nicht.
-// Die Geschwister-Module (`socialPostEditHeuristics`, `reelEditHeuristics`)
-// halten es genauso — ein Vokabular pro Artefaktart.
+// Das Geschwister-Modul (`socialPostEditHeuristics`) hält es genauso — ein Vokabular pro Artefaktart.
 //
 // `(?<!\p{L})` statt `\b`, weil JS-`\b` nur ASCII kennt: vor „ä" gibt es keine
 // Wortgrenze, `\bändere` matcht nie.

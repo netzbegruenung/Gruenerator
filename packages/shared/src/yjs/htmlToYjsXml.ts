@@ -9,7 +9,8 @@ import { stripHtmlTags } from '../utils/stripHtmlTags.js';
  *
  * BlockNote format: blockGroup > blockContainer[id] > (heading|paragraph|bulletListItem|numberedListItem)
  *
- * Supports: h1-h3, p, ul/li (with checkbox detection → checkListItem), ol/li, blockquote, hr.
+ * Supports: h1-h3, p, ul/li (with checkbox detection → checkListItem), ol/li, blockquote, hr,
+ * pre (→ codeBlock, line breaks kept).
  * Inline marks are PRESERVED — bold (strong/b), italic (em/i), code, underline (u),
  * strike (s/del) and links (a[href]) are written as BlockNote/prosemirror marks on
  * the block's Y.XmlText (see y-prosemirror `yattr2markname`: plain mark-name keys
@@ -29,7 +30,7 @@ export function injectHtmlIntoFragment(fragment: Y.XmlFragment, html: string): v
   const normalized = html.replace(/>\s+</g, '><').trim();
 
   const blockPattern =
-    /<(h[1-3]|p|blockquote|hr|table)(?:\s[^>]*)?>[\s\S]*?<\/\1>|<(h[1-3]|p|hr)(?:\s[^>]*)?\s*\/?>|<ul>([\s\S]*?)<\/ul>|<ol>([\s\S]*?)<\/ol>/gi;
+    /<(h[1-3]|p|blockquote|hr|table|pre)(?:\s[^>]*)?>[\s\S]*?<\/\1>|<(h[1-3]|p|hr)(?:\s[^>]*)?\s*\/?>|<ul>([\s\S]*?)<\/ul>|<ol>([\s\S]*?)<\/ol>/gi;
 
   let match;
   while ((match = blockPattern.exec(normalized)) !== null) {
@@ -91,6 +92,19 @@ export function injectHtmlIntoFragment(fragment: Y.XmlFragment, html: string): v
       continue;
     }
 
+    // A code block in a chat answer. Without this branch it vanished from the
+    // seeded doc: live 03.11.2026 a whole Antrag sat in one, and „Im Editor
+    // öffnen" kept only the sentence before it and the sources.
+    if (tag === 'pre') {
+      // Only the <code> wrapper goes: stripHtmlTags would collapse the line
+      // breaks, and the code's own `<`/`>` arrive escaped.
+      const code = decodeEntities(
+        extractInnerContent(fullMatch).replace(/<\/?code(?:\s[^>]*)?>/gi, '')
+      ).replace(/\n$/, '');
+      if (code.trim()) addCodeBlock(group, code);
+      continue;
+    }
+
     if (tag === 'p') {
       const inner = extractInnerContent(fullMatch);
       if (stripHtmlTags(inner).trim()) {
@@ -134,6 +148,22 @@ function addBlock(
 
   const delta = inlineHtmlToDelta(inlineHtml);
   if (delta.length > 0) xmlText.applyDelta(delta);
+}
+
+/** BlockNote's codeBlock: plain content (no marks), `\n` for line breaks. */
+function addCodeBlock(group: Y.XmlElement, code: string): void {
+  const container = new Y.XmlElement('blockContainer');
+  container.setAttribute('id', randomUUID());
+  container.setAttribute('backgroundColor', 'default');
+  container.setAttribute('textAlignment', 'left');
+  container.setAttribute('textColor', 'default');
+  const block = new Y.XmlElement('codeBlock');
+  block.setAttribute('language', 'text');
+  const xmlText = new Y.XmlText();
+  block.insert(0, [xmlText]);
+  container.insert(0, [block]);
+  group.push([container]);
+  xmlText.insert(0, code);
 }
 
 /**
