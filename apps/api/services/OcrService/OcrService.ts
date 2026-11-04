@@ -44,6 +44,7 @@ import {
 } from './pageMarkers.js';
 import {
   getPdfJs as loadPdfJs,
+  type PdfJsModule,
   openPdfDocument as openPdf,
   openPdfFromBase64 as openPdfBase64,
   getPDFInfo as getPdfInfo,
@@ -110,7 +111,7 @@ export class OCRService {
   private maxPages: number;
   private postgres: PostgresClient;
   private qdrant: QdrantClient;
-  private _pdfjsLib: PdfjsLib | null;
+  private _pdfjsLib: PdfJsModule | null;
 
   constructor() {
     this.isProcessing = new Map();
@@ -123,7 +124,7 @@ export class OCRService {
   /**
    * Get PDF.js library (lazy loading with caching)
    */
-  async getPdfJs(): Promise<PdfjsLib> {
+  async getPdfJs(): Promise<PdfJsModule> {
     if (this._pdfjsLib) return this._pdfjsLib;
 
     const pdfjsLib = await loadPdfJs();
@@ -132,7 +133,6 @@ export class OCRService {
     // installed location, which may be hoisted to the monorepo root.
     const require = createRequire(import.meta.url);
     const workerPath = require.resolve('pdfjs-dist/legacy/build/pdf.worker.mjs');
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
     pdfjsLib.GlobalWorkerOptions.workerSrc = `file://${workerPath}`;
 
     this._pdfjsLib = pdfjsLib;
