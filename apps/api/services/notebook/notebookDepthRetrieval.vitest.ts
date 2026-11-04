@@ -163,7 +163,9 @@ describe('getSearchContext — failed searches (#5325)', () => {
         collectionId: 'grundsatz-system',
         depth: 'deep',
       })
-    ).rejects.toThrow(/aborted/);
+    ).rejects.toThrow(
+      'Die Suche im Notebook ist fehlgeschlagen. Bitte versuche es gleich noch einmal.'
+    );
   });
 
   it('answers from the searches that worked when only some failed', async () => {

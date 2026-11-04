@@ -784,7 +784,6 @@ export class NotebookQAService {
         return await this._performSearch(options);
       } catch (error: unknown) {
         failures.push(error);
-        log.warn(`[QA Stream] search failed for "${options.query.slice(0, 60)}":`, error);
         return [];
       }
     };
@@ -1022,9 +1021,13 @@ export class NotebookQAService {
 
     // `search` fängt jeden Fehler und meldet ihn als `success: false` mit
     // leerer Liste. Weitergereicht wäre das ein „keine passenden Stellen" —
-    // eine gescheiterte Suche sähe aus wie eine leere (#5325).
+    // eine gescheiterte Suche sähe aus wie eine leere (#5325). Die Meldung
+    // erreicht Nutzer*innen über `toUserFacingMessage`, der Grund nur das Log.
     if (resp.success === false) {
-      throw new Error(`Notebook search failed: ${resp.message ?? resp.error ?? 'unknown error'}`);
+      log.warn(`[QA] search failed for "${query.slice(0, 60)}": ${resp.message ?? resp.error}`);
+      throw new Error(
+        'Die Suche im Notebook ist fehlgeschlagen. Bitte versuche es gleich noch einmal.'
+      );
     }
     return resp.results || [];
   }
