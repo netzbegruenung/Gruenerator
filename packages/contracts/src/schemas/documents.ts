@@ -148,6 +148,13 @@ export const documentStatusErrorSchema = z.object({
 export const uploadOnlyBodySchema = z.object({
   /** Absent means "use the file name" — the upload UI does not always send one. */
   title: z.string().nullish(),
+  /**
+   * The notebook the file is meant for. When set, an upload whose bytes that
+   * notebook already holds is refused with 409 and `uploadOnlyDuplicateSchema`
+   * instead of creating a second copy. Absent (mobile's create flow, shipped
+   * binaries) means no check.
+   */
+  collectionId: z.string().uuid().nullish(),
 });
 
 export const uploadOnlyResponseSchema = z.object({
@@ -161,6 +168,13 @@ export const uploadOnlyResponseSchema = z.object({
   }),
 });
 
+/** 409 on POST /api/documents/upload-only: the notebook already holds this file. */
+export const uploadOnlyDuplicateSchema = z.object({
+  success: z.literal(false),
+  message: z.string(),
+  duplicateOf: z.object({ id: z.string(), title: z.string() }),
+});
+
 export type DocumentStatusValue = z.infer<typeof documentStatusValueSchema>;
 export type DocumentProcessingStage = z.infer<typeof documentProcessingStageSchema>;
 export type DocumentProcessingProgress = z.infer<typeof documentProcessingProgressSchema>;
@@ -169,6 +183,7 @@ export type DocumentStatusesResponse = z.infer<typeof documentStatusesResponseSc
 export type DocumentStatusResponse = z.infer<typeof documentStatusResponseSchema>;
 export type UploadOnlyBody = z.infer<typeof uploadOnlyBodySchema>;
 export type UploadOnlyResponse = z.infer<typeof uploadOnlyResponseSchema>;
+export type UploadOnlyDuplicate = z.infer<typeof uploadOnlyDuplicateSchema>;
 
 // ── document content (GET /:id/content) ─────────────────────────────────────
 

@@ -10,7 +10,9 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  reserveBestPassagePerSource,
   buildReferencesMap,
+  deduplicateResults,
   expandResultsToChunks,
   filterAndSortResults,
   sourceTextForPrompt,
@@ -376,5 +378,105 @@ describe('expandResultsToChunks reicht den dichten Kosinus durch', () => {
       { document_id: 'doc-3', title: 'Alt-Pfad', chunk_text: 'Text.', similarity_score: 0.5 },
     ]);
     expect(expanded).not.toHaveProperty('dense_similarity');
+  });
+});
+
+describe('reserveBestPassagePerSource', () => {
+  // Ranked as the search returns them: every passage carries its document's score.
+  const p = (document_id: string, chunk_index: number, collection_id = 'c1') =>
+    ({ document_id, chunk_index, collection_id, similarity: 0.9 }) as ExpandedChunkResult;
+  const ids = (rows: ExpandedChunkResult[]) => rows.map((r) => `${r.document_id}${r.chunk_index}`);
+
+  it('lets a weak source in with its best passage instead of cutting it whole', () => {
+    const ranked = [p('a', 1), p('a', 2), p('a', 3), p('a', 4), p('b', 1), p('b', 2), p('c', 7)];
+    expect(ids(reserveBestPassagePerSource(ranked, 6))).toEqual([
+      'a1',
+      'a2',
+      'a3',
+      'a4',
+      'b1',
+      'c7',
+    ]);
+  });
+
+  it('refills by score, so the strongest source keeps its depth', () => {
+    const ranked = [p('a', 1), p('a', 2), p('a', 3), p('b', 1), p('b', 2), p('b', 3), p('c', 1)];
+    expect(ids(reserveBestPassagePerSource(ranked, 6))).toEqual([
+      'a1',
+      'a2',
+      'a3',
+      'b1',
+      'b2',
+      'c1',
+    ]);
+  });
+
+  it('reserves at most half the window when the pool has as many sources as slots', () => {
+    const ranked = ['a', 'b', 'c', 'd', 'e', 'f'].flatMap((d) => [p(d, 1), p(d, 2)]);
+    const out = reserveBestPassagePerSource(ranked, 6);
+    expect(ids(out)).toEqual(['a1', 'a2', 'b1', 'b2', 'c1', 'c2']);
+  });
+
+  it('treats the same document id in two collections as two sources', () => {
+    const ranked = [
+      p('a', 1, 'c1'),
+      p('a', 2, 'c1'),
+      p('a', 3, 'c1'),
+      p('a', 4, 'c1'),
+      p('a', 1, 'c2'),
+    ];
+    expect(reserveBestPassagePerSource(ranked, 4).map((r) => r.collection_id)).toContain('c2');
+  });
+
+  it('returns everything when the pool fits the window', () => {
+    const ranked = [p('a', 1), p('b', 1)];
+    expect(reserveBestPassagePerSource(ranked, 10)).toEqual(ranked);
+  });
+});
+
+describe('deduplicateResults', () => {
+  const r = (
+    document_id: string,
+    chunk_index: number,
+    chunk_text: string,
+    title = 'Statut.pdf',
+    collection_id = 'c1'
+  ) => ({ document_id, chunk_index, chunk_text, title, collection_id }) as ExpandedChunkResult;
+
+  it('drops a chunk with the same document and index', () => {
+    expect(deduplicateResults([r('a', 1, 'x'), r('a', 1, 'y')])).toHaveLength(1);
+  });
+
+  it('drops the identical text of a second upload of the same file, keeping the first', () => {
+    const out = deduplicateResults([
+      r('original', 3, 'Das Statut tritt am 1. Mai in Kraft.'),
+      r('kopie', 3, 'Das Statut  tritt am 1. Mai\nin Kraft.'),
+      r('kopie', 4, 'Anderer Text.'),
+    ]);
+    expect(out.map((x) => `${x.document_id}:${x.chunk_index}`)).toEqual(['original:3', 'kopie:4']);
+  });
+
+  it('keeps two different sources that quote the same paragraph verbatim', () => {
+    const quote = '§ 3 Abs. 2: Die Mitgliederversammlung ist beschlussfähig.';
+    const out = deduplicateResults([
+      r('lv-berlin', 2, quote, 'Beschluss LV Berlin.pdf'),
+      r('lv-hamburg', 5, quote, 'Beschluss LV Hamburg.pdf'),
+    ]);
+    expect(out.map((x) => x.document_id)).toEqual(['lv-berlin', 'lv-hamburg']);
+  });
+
+  it('keeps the same file in two collections apart when the collection is part of the key', () => {
+    const out = deduplicateResults(
+      [
+        r('a', 1, 'Gleicher Text.', 'Statut.pdf', 'c1'),
+        r('b', 1, 'Gleicher Text.', 'Statut.pdf', 'c2'),
+      ],
+      true
+    );
+    expect(out).toHaveLength(2);
+  });
+
+  it('keeps chunks without text apart', () => {
+    expect(deduplicateResults([r('a', 1, ''), r('b', 1, '')])).toHaveLength(2);
   });
 });

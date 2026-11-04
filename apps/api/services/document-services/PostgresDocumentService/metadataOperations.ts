@@ -75,6 +75,7 @@ export async function saveDocumentMetadata(
       status: metadata.status || 'processing',
       source_url: metadata.sourceUrl || null,
       markdown_content: metadata.markdownContent ?? null,
+      file_hash: metadata.fileHash ?? null,
       ...(metadata.pageCount !== undefined ? { page_count: metadata.pageCount } : {}),
       metadata: metadata.additionalMetadata ? JSON.stringify(metadata.additionalMetadata) : null,
     };

@@ -44,9 +44,11 @@ const GUARD_PROMPT = `Du bist ein Klassifizierer auf der Notebook-Seite von Grü
 
 Entscheide, wie die letzte Nachricht beantwortet wird:
 
-CHAT: Inhaltsfragen an die Quellen — was steht drin, zusammenfassen, erklären, vergleichen, Positionen und Argumente herausarbeiten. Beantwortet aus passenden Textstellen.
+CHAT: Inhaltsfragen an die Quellen — was steht drin, zusammenfassen, erklären, vergleichen, Positionen und Argumente herausarbeiten, welche Beschlüsse sich zu einem Thema äußern. Beantwortet aus passenden Textstellen.
+Auch eine Zahl, Menge, Höhe, ein Anteil oder ein Datum, das IN einer Quelle steht, ist eine Inhaltsfrage: "Wie viele Mitglieder hat der Vorstand?", "Wie viel Prozent …?", "In welcher Höhe …?", "Bis wann …?" → chat. Gezählt wird dabei nichts, die Zahl steht im Text.
 
-PRAEZISION: Arbeit direkt mit den Quellen als Dokumenten — Quellen auflisten, zählen oder sortieren, eine bestimmte Seite, einen Abschnitt oder ein Kapitel lesen, wörtliche Häufigkeiten ("wie oft kommt X vor"), ein Zitat wörtlich prüfen, vollständige Listen über alle Quellen.
+PRAEZISION: Arbeit direkt mit den Quellen als Dokumenten — die Quellen selbst auflisten, zählen oder sortieren ("Wie viele Dokumente liegen im Notebook?"), eine bestimmte Seite, einen Abschnitt oder ein Kapitel lesen, wörtliche Häufigkeiten ("wie oft kommt X vor", "in welchen Dokumenten steht das Wort X"), ein Zitat wörtlich prüfen.
+Ein THEMA ("welche Dokumente äußern sich zu X") ist chat; ein WÖRTLICHES Wort oder eine wörtliche Wortfolge ("das Wort X", "die Formulierung X", "wörtlich") ist praezision.
 
 Eine Folgefrage ("und die zweite?", "weiter", "noch genauer") übernimmt den Modus der vorigen Antwort.
 

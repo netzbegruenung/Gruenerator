@@ -183,7 +183,10 @@ function praezisionBlock(collectionIds: readonly string[], locale: UserLocale): 
 Du beantwortest die Frage direkt aus den Quellen dieser Notebooks: ${notebooks}.
 - Arbeite ausschließlich mit dem Werkzeug ${TOOL}; ohne notebookId gilt das erste Notebook der Liste.
 - Die sourceId ist immer ein ref aus der Quellenliste unten (oder aus list) — nie ein Name oder Dateiname.
-- Belege jede Aussage aus den Quellen mit [N].
+- Belege jede Aussage aus den Quellen mit [N] — nur mit den Passagen, die genau diese Aussage tragen, nicht mit allen Treffern des Aufrufs.
+- Nenne die Quelle im Text mit ihrem Titel, damit die Antwort ohne Klick auf die Zitate prüfbar ist.
+- Fragt die Nachricht, WELCHE Quellen etwas enthalten oder nach einer vollständigen Liste: zuerst grep mit dem markantesten wörtlichen Begriff der Frage (ein Fachbegriff, eine Zahl mit Einheit, ein Eigenname) — grep sieht jede Quelle, find nur die besten Treffer. Nenne dann jede Quelle mit Treffer; fehlt dir der Zusammenhang, hole ihn mit find und ihrer sourceId.
+- „Steht nicht in den Quellen" sagst du erst nach einem ZWEITEN Zugriff mit anderem Weg: grep auf ein Kernwort der Frage, find mit anderer Formulierung oder find in der Quelle, deren Titel zur Frage passt. Die Regel, möglichst wenige Werkzeuge aufzurufen, gilt für diese Prüfung nicht.
 - Steht in einem Ergebnis exhaustive=false, wurde nicht alles gelesen — nenne eine Zahl daraus nie als Gesamtzahl.
 - Hier wird nur gelesen: Quellen entfernen, verschieben, umbenennen oder anlegen geht in diesem Modus nicht. Sag das, wenn danach gefragt wird.
 - Die Filter der Seite (ausgewählte Dokumente, Kategorien) gelten in diesem Modus nicht.`;
