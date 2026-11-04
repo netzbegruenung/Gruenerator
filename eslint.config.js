@@ -1,3 +1,5 @@
+import { defineConfig } from 'eslint/config';
+
 import baseConfig from './packages/eslint-config/base.js';
 import reactConfig from './packages/eslint-config/react.js';
 import reactNativeConfig from './packages/eslint-config/react-native.js';
@@ -18,46 +20,41 @@ const WEB_FILES = [
 // weil jsx-a11y DOM-Elemente prüft und auf <Pressable> nie feuert.
 const NATIVE_FILES = ['apps/mobile/**/*.{ts,tsx,js,jsx}'];
 
-export default [
+const NODE_FILES = ['apps/api/**/*.{ts,tsx,js,jsx}', 'services/**/*.{ts,tsx,js,jsx}'];
+const SHARED_FILES = [
+  'packages/shared/**/*.{ts,tsx,js,jsx}',
+  'packages/contracts/**/*.{ts,tsx,js,jsx}',
+];
+
+// `extends` schneidet `files` mit dem Geltungsbereich jedes geerbten Blocks,
+// statt ihn zu überschreiben. Ein `.map(c => ({ ...c, files }))` hatte zuvor
+// z. B. den Block für `**/eslint.config.js` (no-unsafe-assignment: off) auf
+// ganz apps/api ausgeweitet — der pre-commit-Hook hielt danach jede
+// Direktive für die Regel für unbenutzt und strich sie (#5322).
+export default defineConfig(
   // React apps: web, desktop, gruen-o-mat, sites, chat, canvas-editor
-  {
-    files: WEB_FILES,
-    ...reactConfig[0],
-  },
-  ...reactConfig.slice(1).map((config) => ({
-    ...config,
-    files: WEB_FILES,
-  })),
+  { files: WEB_FILES, extends: [reactConfig] },
 
   // React Native app: mobile
-  {
-    files: NATIVE_FILES,
-    ...reactNativeConfig[0],
-  },
-  ...reactNativeConfig.slice(1).map((config) => ({
-    ...config,
-    files: NATIVE_FILES,
-  })),
+  { files: NATIVE_FILES, extends: [reactNativeConfig] },
 
   // Node apps: api, services
-  {
-    files: ['apps/api/**/*.{ts,tsx,js,jsx}', 'services/**/*.{ts,tsx,js,jsx}'],
-    ...nodeConfig[0],
-  },
-  ...nodeConfig.slice(1).map((config) => ({
-    ...config,
-    files: ['apps/api/**/*.{ts,tsx,js,jsx}', 'services/**/*.{ts,tsx,js,jsx}'],
-  })),
+  { files: NODE_FILES, extends: [nodeConfig] },
 
   // Shared packages
+  { files: SHARED_FILES, extends: [baseConfig] },
+
+  // Diese Pakete lintet auch die CI mit dieser Datei (kein eigenes
+  // eslint.config.js). Bis #5322 war die Regel hier versehentlich aus; die
+  // Altlast wird in #5326 abgebaut, danach fällt dieser Block weg.
   {
-    files: ['packages/shared/**/*.{ts,tsx,js,jsx}', 'packages/contracts/**/*.{ts,tsx,js,jsx}'],
-    ...baseConfig[0],
+    files: [
+      'packages/chat/**/*.{ts,tsx,js,jsx}',
+      'packages/canvas-editor/**/*.{ts,tsx,js,jsx}',
+      'services/hocuspocus/**/*.{ts,tsx,js,jsx}',
+    ],
+    rules: { '@typescript-eslint/no-unsafe-assignment': 'off' },
   },
-  ...baseConfig.slice(1).map((config) => ({
-    ...config,
-    files: ['packages/shared/**/*.{ts,tsx,js,jsx}', 'packages/contracts/**/*.{ts,tsx,js,jsx}'],
-  })),
 
   // Root-level config files (no type-checking)
   {
@@ -102,5 +99,5 @@ export default [
       'packages/shared/scripts/**',
       'packages/canvas-editor/scripts/**',
     ],
-  },
-];
+  }
+);
