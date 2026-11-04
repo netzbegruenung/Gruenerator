@@ -111,7 +111,7 @@ describe('synth stall guard', () => {
     const out = await running;
 
     expect(out.text).toBe('ANTWORT_VON_FALLBACK');
-    expect(onSynthFallback).toHaveBeenCalledOnce();
+    expect(onSynthFallback).toHaveBeenCalledExactlyOnceWith('first_token_timeout');
     expect(seen).toEqual(['planner', 'synth', 'fallback']);
   });
 
@@ -351,5 +351,62 @@ describe('tool phase stall guard (unified)', () => {
     const out = await running;
 
     expect(out.text).toBe('Ich erstelle das PDF. Fertig.');
+  });
+});
+
+/**
+ * The empty class. Live 03.11.2026 Mistral Large 4 closed a thinking stream
+ * with no text and no finish reason (reproduced against the API: 1 of 13
+ * calls, `finish_reason` null after 64 s and 1.246 chars of thinking). The
+ * loop shipped „keine passende Antwort" without a log line — three times in
+ * one thread — while the single-pass path hands the same case to the sibling.
+ */
+describe('synth empty guard', () => {
+  /** Thinks, then closes without a word and without a finish part. */
+  const emptyStream = () => streamOf([{ type: 'reasoning-delta', text: 'denke nach' }]);
+
+  it('hands an empty pass to the sibling lane once', async () => {
+    const { deps, seen } = depsFor({
+      synth: emptyStream,
+      fallback: () => streamOf([{ type: 'text-delta', text: 'ANTWORT_VON_FALLBACK' }]),
+    });
+    const onText = vi.fn();
+    const onSynthFallback = vi.fn();
+
+    const out = await runAgenticLoop(
+      params({ synthFallbackModel: fallbackModel, onText, onSynthFallback }),
+      deps
+    );
+
+    expect(out.text).toBe('ANTWORT_VON_FALLBACK');
+    expect(onText.mock.calls.flat().join('')).toBe('ANTWORT_VON_FALLBACK');
+    expect(onSynthFallback).toHaveBeenCalledExactlyOnceWith('empty_completion');
+    expect(seen).toEqual(['planner', 'synth', 'fallback']);
+  });
+
+  it('leaves an empty pass to the caller when no sibling is configured', async () => {
+    const { deps, seen } = depsFor({ synth: emptyStream });
+
+    const out = await runAgenticLoop(params({}), deps);
+
+    expect(out.text).toBe('');
+    expect(seen).toEqual(['planner', 'synth']);
+  });
+
+  it('does not touch a pass that wrote an answer', async () => {
+    const { deps, seen } = depsFor({
+      synth: () => streamOf([{ type: 'text-delta', text: 'ANTWORT' }]),
+      fallback: () => streamOf([{ type: 'text-delta', text: 'NIE' }]),
+    });
+    const onSynthFallback = vi.fn();
+
+    const out = await runAgenticLoop(
+      params({ synthFallbackModel: fallbackModel, onSynthFallback }),
+      deps
+    );
+
+    expect(out.text).toBe('ANTWORT');
+    expect(onSynthFallback).not.toHaveBeenCalled();
+    expect(seen).toEqual(['planner', 'synth']);
   });
 });
