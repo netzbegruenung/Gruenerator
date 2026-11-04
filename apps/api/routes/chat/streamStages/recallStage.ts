@@ -9,6 +9,7 @@
 
 import { createLogger } from '../../../utils/logger.js';
 import { withTimeout } from '../../../utils/withTimeout.js';
+import { looksLikeToolableQuestion } from '../services/agenticLoop/routing.js';
 import { extractTextContent } from '../services/messageHelpers.js';
 import {
   formatOfficeDocsBlock,
@@ -40,6 +41,30 @@ export interface RecallStageParams {
   memoryEnabled: boolean;
 }
 
+/**
+ * Should a fresh thread get a related past chat put into context unasked?
+ *
+ * Not on product questions (`hilfe`): their answer lives in the docs, and a
+ * recalled past chat carries whatever was answered back then. Measured
+ * 27.10.2026: an earlier wrong „wende dich an den Support" for „Wie lösche ich
+ * mein Konto?" came back word for word through this pass.
+ *
+ * Not on a question a tool could answer either (#5138), for the same reason: a
+ * recalled „I already checked" is stale by construction. With the recall in
+ * context the model answered „Was steht in der Bundestagsdrucksache 21/99999?"
+ * and „Was hat der Berliner Senat zur Sanierung der Elsenbrücke geantwortet?"
+ * from the earlier chat, with no tool call, even after the recall block told it
+ * to look again (#5142). Both classify as plain `agentic`, like a writing order
+ * does, so the intent cannot tell them apart; the question shape can. Writing
+ * orders („Schreib …", „Mach weiter mit …") keep the recall — that is the
+ * continuity it is for. An explicit ask about a past chat is not affected
+ * (`explicitRecall`), and the loop can still search past chats itself (`search_threads`).
+ */
+export function wantsProactiveRecall(intent: string, lastUserText: string): boolean {
+  if (intent === 'chat_history' || intent === 'hilfe') return false;
+  return !looksLikeToolableQuestion(lastUserText);
+}
+
 /** Enriches `classifiedState` in place; never owns the turn. */
 export async function runRecallStage({
   sse,
@@ -58,16 +83,14 @@ export async function runRecallStage({
   // retrieval, so skip the proactive pass for it.
   const explicitRecall =
     classifiedState.searchSources?.includes('chat_history') && !!classifiedState.searchQuery;
-  // Not on product questions (`hilfe`): their answer lives in the docs, and a
-  // recalled past chat carries whatever was answered back then. Measured
-  // 27.10.2026: an earlier wrong „wende dich an den Support" for „Wie lösche
-  // ich mein Konto?" came back word for word through this pass.
   const proactiveRecall =
     isNewThread &&
     memoryEnabled &&
     !!lastUserMessage &&
-    classifiedState.intent !== 'chat_history' &&
-    classifiedState.intent !== 'hilfe';
+    wantsProactiveRecall(
+      classifiedState.intent,
+      extractTextContent(lastUserMessage.content) as string
+    );
 
   // Space scope: when the thread is filed in a Space, recall is restricted to
   // that Space's chats and the model is told which threads it can search.
